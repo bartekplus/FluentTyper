@@ -1,13 +1,14 @@
 import {
   calculateEffectivePersonalizationScore,
   createEmptyPersonalizationStore,
-  defineOwnProperty,
   isValidEventId,
   normalizePersonalizationWord,
   prunePersonalizationLanguage,
   sanitizePersonalizationStore,
   trimRecentEvents,
 } from "@core/domain/personalization/PersonalizationPolicy";
+import { defineOwnProperty, getOwnProperty } from "@core/domain/guards";
+import { serialQueue } from "@core/domain/serialQueue";
 import type {
   PersonalizationEvent,
   PersonalizationRankingSnapshot,
@@ -32,7 +33,7 @@ export class PersonalizationService {
   private store = createEmptyPersonalizationStore();
   private snapshot: PersonalizationRankingSnapshot = Object.freeze({});
   private initializationPromise: Promise<void> | null = null;
-  private mutationQueue: Promise<void> = Promise.resolve();
+  private readonly mutationQueue = serialQueue();
 
   constructor(options: PersonalizationServiceOptions) {
     this.repository = options.repository;
@@ -112,10 +113,7 @@ export class PersonalizationService {
 
       const nowMs = this.now();
       const next = structuredClone(this.store);
-      const nextEvent = getOwnProperty(next.recentEvents, eventId);
-      if (!nextEvent) {
-        return false;
-      }
+      const nextEvent = next.recentEvents[eventId];
       const languageWords = getOwnProperty(next.languages, nextEvent.language);
       const word = languageWords
         ? getOwnProperty(languageWords, nextEvent.normalizedWord)
@@ -185,15 +183,10 @@ export class PersonalizationService {
   }
 
   private serializeMutation<T>(mutation: () => Promise<T>): Promise<T> {
-    const result = this.mutationQueue.then(async () => {
+    return this.mutationQueue(async () => {
       await this.initialize();
       return mutation();
     });
-    this.mutationQueue = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
   }
 
   private async safeIsEnabled(): Promise<boolean> {
@@ -222,8 +215,4 @@ function createImmutableSnapshot(store: PersonalizationStoreV1): Personalization
     languages[language] = Object.freeze(immutableWords);
   }
   return Object.freeze(languages) as PersonalizationRankingSnapshot;
-}
-
-function getOwnProperty<T>(record: Record<string, T>, key: string): T | undefined {
-  return Object.hasOwn(record, key) ? record[key] : undefined;
 }

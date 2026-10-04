@@ -1,11 +1,9 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { resolveTypographyProfile } from "../typographyProfiles";
 import {
-  isDeleteInputAction,
-  isLikelyApostropheContext,
-  splitTrailingSpaces,
-  shouldOpenQuote,
+  isWordChar,
   shouldSkipGenericReplacement,
+  splitTrailingSpaces,
 } from "./helpers/GenericRuleShared";
 
 const APOSTROPHE = "’";
@@ -16,15 +14,7 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (isDeleteInputAction(context)) {
-      return null;
-    }
-
     const input = context.beforeCursor;
-    if (input.length === 0) {
-      return null;
-    }
-
     const profile = resolveTypographyProfile(context.hints?.lang);
     const [doubleOpen, doubleClose] = profile.double;
     const [singleOpen, singleClose] = profile.single;
@@ -78,7 +68,7 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
       if (quoteBalance(beforeQuote, typed, singleOpen, singleClose) === null) {
         return null;
       }
-      if (isLikelyApostropheContext(beforeQuote)) {
+      if (isWordChar(beforeQuote.at(-1) ?? "")) {
         // Where the nested closer differs, closeNestedQuote decides once the word ends.
         replacement = APOSTROPHE;
       } else {
@@ -148,7 +138,7 @@ function quoteBalance(input: string, straight: string, open: string, close: stri
   return balance;
 }
 
-// "”", "’" and "»" always close a quote in every profile they appear in, so
+// "’" and "»" always close a quote in every profile they appear in, so
 // they unambiguously mark quoted content. "“" and "‘" don't: "“" is also
 // French's nested-quote opener and "‘" is English's single opener, so they
 // only count when they are the active profile's own closing mark.
@@ -165,6 +155,6 @@ function endsWithLikelyQuoteContent(
   );
 }
 
-function isWordChar(value: string): boolean {
-  return /[\p{L}\p{N}]/u.test(value);
+function shouldOpenQuote(inputBeforeQuote: string): boolean {
+  return /(?:^|[\s([{<])$/.test(inputBeforeQuote);
 }

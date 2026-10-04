@@ -1,13 +1,14 @@
-import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { SettingsManager } from "@core/application/settingsManager";
 import {
   getSiteProfileForDomain,
+  normalizeNumSuggestions,
   resolveSiteProfiles,
   setSiteProfileForDomain,
 } from "@core/domain/siteProfiles";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { SiteProfileRepository } from "@core/application/repositories/SiteProfileRepository";
 import { sanitizeAutoLanguageSitePriors } from "@core/domain/autoLanguageDetection";
+import { resolvePrimaryLanguage } from "@core/domain/lang";
 
 export interface DomainRuntimeSettings {
   language: string;
@@ -24,38 +25,17 @@ interface LanguageState {
   enabledLanguages: string[];
 }
 
-function clampNumSuggestions(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 0;
-  }
-  return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(value)));
-}
-
 async function resolveLanguageState(settingsManager: SettingsManager): Promise<LanguageState> {
   const settingsRepository = new CoreSettingsRepository(settingsManager);
   const [currentLanguage, enabledLanguages] = await Promise.all([
     settingsRepository.getLanguage(),
     settingsRepository.getEnabledLanguages(),
   ]);
-  if (
-    (currentLanguage === "auto_detect" && enabledLanguages.length > 1) ||
-    enabledLanguages.includes(currentLanguage)
-  ) {
-    return {
-      language: currentLanguage,
-      enabledLanguages,
-    };
+  const language = resolvePrimaryLanguage(currentLanguage, enabledLanguages);
+  if (language !== currentLanguage) {
+    await settingsRepository.setLanguage(language);
   }
-  const fallbackLanguage = enabledLanguages[0];
-  await settingsRepository.setLanguage(fallbackLanguage);
-  return {
-    language: fallbackLanguage,
-    enabledLanguages,
-  };
-}
-
-export async function resolveActiveLanguage(settingsManager: SettingsManager): Promise<string> {
-  return (await resolveLanguageState(settingsManager)).language;
+  return { language, enabledLanguages };
 }
 
 export async function resolveDomainRuntimeSettings(
@@ -94,9 +74,8 @@ export async function resolveDomainRuntimeSettings(
       : preferNativeAutocompleteGlobal;
   const codeMode = typeof profile?.codeMode === "boolean" ? profile.codeMode : codeModeGlobal;
   const hasNumSuggestionsOverride = typeof profile?.numSuggestions === "number";
-  const numSuggestions = clampNumSuggestions(
-    hasNumSuggestionsOverride ? profile?.numSuggestions : numGlobal,
-  );
+  const numSuggestions =
+    normalizeNumSuggestions(hasNumSuggestionsOverride ? profile?.numSuggestions : numGlobal) ?? 0;
 
   return {
     language,
@@ -109,27 +88,19 @@ export async function resolveDomainRuntimeSettings(
   };
 }
 
-export async function sanitizeSiteProfilesSetting(settingsManager: SettingsManager): Promise<void> {
+/** Makes the stored site profiles and auto-language priors agree with the enabled languages. */
+export async function sanitizeLanguageSettings(settingsManager: SettingsManager): Promise<void> {
   const settingsRepository = new CoreSettingsRepository(settingsManager);
   const siteProfileRepository = new SiteProfileRepository(settingsManager);
-  const [siteProfilesRaw, enabledLanguages] = await Promise.all([
+  const [siteProfilesRaw, priorsRaw, enabledLanguages] = await Promise.all([
     siteProfileRepository.getRawSiteProfiles(),
+    settingsRepository.getAutoLanguageSitePriors(),
     settingsRepository.getEnabledLanguages(),
   ]);
   const sanitizedSiteProfiles = resolveSiteProfiles(siteProfilesRaw, enabledLanguages);
   if (JSON.stringify(siteProfilesRaw || {}) !== JSON.stringify(sanitizedSiteProfiles)) {
     await siteProfileRepository.setSiteProfiles(sanitizedSiteProfiles);
   }
-}
-
-export async function sanitizeAutoLanguagePriorsSetting(
-  settingsManager: SettingsManager,
-): Promise<void> {
-  const settingsRepository = new CoreSettingsRepository(settingsManager);
-  const [priorsRaw, enabledLanguages] = await Promise.all([
-    settingsRepository.getAutoLanguageSitePriors(),
-    settingsRepository.getEnabledLanguages(),
-  ]);
   const sanitizedPriors = sanitizeAutoLanguageSitePriors(priorsRaw, enabledLanguages);
   if (JSON.stringify(priorsRaw || {}) !== JSON.stringify(sanitizedPriors)) {
     await settingsRepository.setAutoLanguageSitePriors(sanitizedPriors);
@@ -139,13 +110,11 @@ export async function sanitizeAutoLanguagePriorsSetting(
 export async function rotateLanguageForDomain(
   settingsManager: SettingsManager,
   domainURL: string | undefined,
+  domainSettings: Pick<DomainRuntimeSettings, "language" | "enabledLanguages">,
 ): Promise<string> {
   const settingsRepository = new CoreSettingsRepository(settingsManager);
   const siteProfileRepository = new SiteProfileRepository(settingsManager);
-  const availableLangs = await settingsRepository.getEnabledLanguages();
-  const domainSettings = await resolveDomainRuntimeSettings(settingsManager, domainURL);
-
-  const currentLanguage = domainSettings.language;
+  const { language: currentLanguage, enabledLanguages: availableLangs } = domainSettings;
   const currentLangIndex = availableLangs.indexOf(currentLanguage);
   const nextLangIndex = (currentLangIndex >= 0 ? currentLangIndex + 1 : 0) % availableLangs.length;
   const nextLang = availableLangs[nextLangIndex];

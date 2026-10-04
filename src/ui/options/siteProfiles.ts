@@ -1,5 +1,5 @@
 import type { Store } from "@core/application/storage/Store.js";
-import { resolveEnabledLanguages } from "@core/domain/lang";
+import { resolveEnabledLanguages, resolveFallbackLanguage } from "@core/domain/lang";
 import {
   KEY_ENABLED_LANGUAGES,
   KEY_INLINE_SUGGESTION,
@@ -18,28 +18,24 @@ import {
   type SiteProfiles,
 } from "@core/domain/siteProfiles";
 import {
-  appendLanguageOptions,
+  applySiteProfileToSelects,
   buildSiteProfile,
   getInheritLabel,
   getOnOffLabel,
   getPreferNativeAutocompleteLabel,
   languageLabel,
-  populateBooleanOverrideOptions,
-  populateSuggestionOptions,
-  toOverrideValue,
+  populateSiteProfileSelects,
+  type SiteProfileGlobals,
+  type SiteProfileSelects,
 } from "@ui/shared/siteProfileEditor";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
-import { createStackField } from "./workspacePanelUtils.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
+import { createButton, createSearchInput, createStackField } from "./workspacePanelUtils.js";
 
 interface SiteProfilesElements {
   editingBadge: HTMLElement;
   domainInput: HTMLInputElement;
-  languageSelect: HTMLSelectElement;
-  numSuggestionsSelect: HTMLSelectElement;
-  inlineSelect: HTMLSelectElement;
-  preferNativeAutocompleteSelect: HTMLSelectElement;
-  codeModeSelect: HTMLSelectElement;
-  searchInput: HTMLInputElement;
+  selects: SiteProfileSelects;
   normalizedPreview: HTMLElement;
   saveButton: HTMLButtonElement;
   cancelButton: HTMLButtonElement;
@@ -48,76 +44,42 @@ interface SiteProfilesElements {
   emptyState: HTMLElement;
 }
 
-function getPrimaryLanguage(enabledLanguages: string[]): string {
-  return enabledLanguages[0] || "en_US";
-}
-
-function createElement<K extends keyof HTMLElementTagNameMap>(
-  tagName: K,
-  options: {
-    className?: string;
-    id?: string;
-    textContent?: string;
-    attributes?: Record<string, string>;
-  } = {},
-): HTMLElementTagNameMap[K] {
-  const element = document.createElement(tagName);
-  if (options.className) {
-    element.className = options.className;
-  }
-  if (options.id) {
-    element.id = options.id;
-  }
-  if (options.textContent !== undefined) {
-    element.textContent = options.textContent;
-  }
-  if (options.attributes) {
-    Object.entries(options.attributes).forEach(([name, value]) => {
-      element.setAttribute(name, value);
-    });
-  }
-  return element;
-}
-
-function createSelect(id: string): HTMLSelectElement {
-  return createElement("select", { id, className: "input" });
+function overrideLabel(
+  value: boolean | undefined,
+  global: boolean,
+  describe: (value: boolean) => string,
+): string {
+  return typeof value === "boolean" ? describe(value) : getInheritLabel(describe(global));
 }
 
 export class SiteProfilesManager {
-  private readonly onConfigChange: (() => Promise<void> | void) | undefined;
+  private readonly onProfilesChange: ((profiles: SiteProfiles) => Promise<void> | void) | undefined;
   private readonly store: Store;
   private readonly root: HTMLElement;
   private editingDomain: string | null = null;
   private pendingRemovalDomain: string | null = null;
   private searchQuery = "";
-  private statusText = i18n.get("site_profiles_editor_default_status");
-  private statusIsError = false;
   private readonly elements: SiteProfilesElements;
 
-  constructor(root: HTMLElement, store: Store, onConfigChange?: () => Promise<void> | void) {
+  constructor(
+    root: HTMLElement,
+    store: Store,
+    onProfilesChange?: (profiles: SiteProfiles) => Promise<void> | void,
+  ) {
     this.store = store;
-    this.onConfigChange = onConfigChange;
+    this.onProfilesChange = onProfilesChange;
     this.root = root;
     this.elements = this.buildUI();
     this.bindEvents();
-    void this.render();
+    void this.render(true);
   }
 
   private buildUI(): SiteProfilesElements {
     const shell = createElement("div", { className: "site-profiles-shell" });
 
-    const editor = createElement("div", { className: "site-profiles-editor" });
-    const title = createElement("h5", { textContent: i18n.get("site_profiles_editor_title") });
-    editor.appendChild(title);
-    const editingBadge = createElement("p", {
-      id: "siteProfilesEditingBadge",
-      className: "settings-inline-help",
-      textContent: "",
-    });
-    editor.appendChild(editingBadge);
+    const editingBadge = createElement("p", { className: "settings-inline-help" });
 
     const domainInput = createElement("input", {
-      id: "siteProfileDomainInput",
       className: "input",
       attributes: {
         type: "text",
@@ -127,55 +89,39 @@ export class SiteProfilesManager {
     const domainField = createStackField(i18n.get("site_profiles_domain_label"), domainInput);
     domainField.classList.add("site-profiles-field-wide");
     const preview = createElement("p", {
-      id: "siteProfileNormalizedPreview",
       className: "settings-inline-help site-profiles-field-wide",
       textContent: i18n.get("site_profiles_normalized_preview_default"),
     });
 
-    const languageSelect = createSelect("siteProfileLanguageSelect");
-    const languageField = createStackField(
-      i18n.get("site_profiles_table_language"),
-      languageSelect,
+    const selectField = (labelKey: string) => {
+      const select = createElement("select", { className: "input" });
+      return [select, createStackField(i18n.get(labelKey), select)] as const;
+    };
+    const [languageSelect, languageField] = selectField("site_profiles_table_language");
+    languageSelect.id = "siteProfileLanguageSelect";
+    const [numSuggestionsSelect, suggestionsField] = selectField(
+      "site_profiles_table_num_suggestions",
     );
-    const numSuggestionsSelect = createSelect("siteProfileNumSuggestionsSelect");
-    const suggestionsField = createStackField(
-      i18n.get("site_profiles_table_num_suggestions"),
-      numSuggestionsSelect,
+    const [inlineSelect, inlineField] = selectField("site_profiles_inline_mode_label");
+    const [preferNativeAutocompleteSelect, preferNativeAutocompleteField] = selectField(
+      "site_profiles_prefer_native_autocomplete_label",
     );
-    const inlineSelect = createSelect("siteProfileInlineSelect");
-    const inlineField = createStackField(i18n.get("site_profiles_inline_mode_label"), inlineSelect);
-    const preferNativeAutocompleteSelect = createSelect(
-      "siteProfilePreferNativeAutocompleteSelect",
-    );
-    const preferNativeAutocompleteField = createStackField(
-      i18n.get("site_profiles_prefer_native_autocomplete_label"),
-      preferNativeAutocompleteSelect,
-    );
-    const codeModeSelect = createSelect("siteProfileCodeModeSelect");
-    const codeModeField = createStackField(
-      i18n.get("site_profiles_code_mode_label"),
-      codeModeSelect,
-    );
+    const [codeModeSelect, codeModeField] = selectField("site_profiles_code_mode_label");
 
     const actions = createElement("div", { className: "text-assets-actions" });
-    const saveButton = createElement("button", {
-      id: "siteProfileSaveButton",
-      className: "button",
-      textContent: i18n.get("site_profiles_add_btn"),
-      attributes: { type: "button" },
-    });
-    const cancelButton = createElement("button", {
-      id: "siteProfileCancelButton",
-      className: "button is-light",
-      textContent: i18n.get("site_profiles_cancel_btn"),
-      attributes: { type: "button" },
-    });
+    const saveButton = createButton(
+      i18n.get("site_profiles_add_btn"),
+      "button",
+      () => void this.saveProfile(),
+    );
+    const cancelButton = createButton(i18n.get("site_profiles_cancel_btn"), "button is-light", () =>
+      this.cancelEdit(),
+    );
     actions.append(saveButton, cancelButton);
 
     const status = createElement("p", {
-      id: "siteProfilesFormStatus",
       className: "settings-inline-help",
-      textContent: this.statusText,
+      textContent: i18n.get("site_profiles_editor_default_status"),
     });
 
     const formGrid = createElement("div", { className: "site-profiles-form-grid" });
@@ -189,25 +135,24 @@ export class SiteProfilesManager {
       codeModeField,
     );
 
-    editor.append(formGrid, actions, status);
+    const editor = createElement("div", { className: "site-profiles-editor" });
+    editor.append(
+      createElement("h5", { textContent: i18n.get("site_profiles_editor_title") }),
+      editingBadge,
+      formGrid,
+      actions,
+      status,
+    );
 
-    const list = createElement("div", { className: "site-profiles-list" });
-    const listTitle = createElement("h5", { textContent: i18n.get("site_profiles") });
-    list.appendChild(listTitle);
     const searchRow = createElement("div", { className: "text-assets-toolbar" });
-    const searchInput = createElement("input", {
-      id: "siteProfilesSearchInput",
-      className: "input",
-      attributes: {
-        type: "search",
-        placeholder: i18n.get("site_profiles_search_placeholder"),
-      },
-    });
-    searchRow.appendChild(searchInput);
-    list.appendChild(searchRow);
+    searchRow.appendChild(
+      createSearchInput(i18n.get("site_profiles_search_placeholder"), "", (query) => {
+        this.searchQuery = query;
+        void this.render();
+      }),
+    );
 
     const emptyState = createElement("p", {
-      id: "siteProfilesEmptyState",
       className: "settings-inline-help",
       textContent: i18n.get("site_profiles_empty_workspace"),
     });
@@ -216,7 +161,13 @@ export class SiteProfilesManager {
       className: "site-profiles-card-list",
       attributes: { role: "list" },
     });
-    list.append(emptyState, body);
+    const list = createElement("div", { className: "site-profiles-list" });
+    list.append(
+      createElement("h5", { textContent: i18n.get("site_profiles") }),
+      searchRow,
+      emptyState,
+      body,
+    );
 
     shell.append(editor, list);
     this.root.replaceChildren(shell);
@@ -224,12 +175,13 @@ export class SiteProfilesManager {
     return {
       editingBadge,
       domainInput,
-      languageSelect,
-      numSuggestionsSelect,
-      inlineSelect,
-      preferNativeAutocompleteSelect,
-      codeModeSelect,
-      searchInput,
+      selects: {
+        language: languageSelect,
+        suggestions: numSuggestionsSelect,
+        inline: inlineSelect,
+        preferNativeAutocomplete: preferNativeAutocompleteSelect,
+        codeMode: codeModeSelect,
+      },
       normalizedPreview: preview,
       saveButton,
       cancelButton,
@@ -240,8 +192,6 @@ export class SiteProfilesManager {
   }
 
   private bindEvents(): void {
-    this.elements.saveButton.addEventListener("click", () => void this.saveProfile());
-    this.elements.cancelButton.addEventListener("click", () => this.cancelEdit());
     this.elements.domainInput.addEventListener("input", () => this.updateNormalizedPreview());
     this.elements.domainInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
@@ -249,32 +199,9 @@ export class SiteProfilesManager {
         void this.saveProfile();
       }
     });
-    this.elements.searchInput.addEventListener("input", () => {
-      this.searchQuery = this.elements.searchInput.value.trim().toLowerCase();
-      void this.render();
-    });
-    this.elements.tableBody.addEventListener("click", (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) {
-        return;
-      }
-      const button = target.closest<HTMLButtonElement>("button[data-action][data-domain]");
-      if (!button?.dataset.domain) {
-        return;
-      }
-      if (button.dataset.action === "edit") {
-        this.startEdit(button.dataset.domain);
-        return;
-      }
-      if (button.dataset.action === "remove") {
-        void this.removeProfile(button.dataset.domain);
-      }
-    });
   }
 
   private setStatus(text: string, isError = false): void {
-    this.statusText = text;
-    this.statusIsError = isError;
     this.elements.status.textContent = text;
     this.elements.status.classList.toggle("has-text-danger", isError);
   }
@@ -287,34 +214,20 @@ export class SiteProfilesManager {
   }
 
   private getEditorProfile(enabledLanguages: string[]): SiteProfile {
-    const selectedLanguage = enabledLanguages.includes(this.elements.languageSelect.value)
-      ? this.elements.languageSelect.value
-      : getPrimaryLanguage(enabledLanguages);
-    return buildSiteProfile(selectedLanguage, {
-      numSuggestions: this.elements.numSuggestionsSelect.value,
-      inlineSuggestion: this.elements.inlineSelect.value,
-      preferNativeAutocomplete: this.elements.preferNativeAutocompleteSelect.value,
-      codeMode: this.elements.codeModeSelect.value,
+    const { language, suggestions, inline, preferNativeAutocomplete, codeMode } =
+      this.elements.selects;
+    return buildSiteProfile(resolveFallbackLanguage(language.value, enabledLanguages), {
+      numSuggestions: suggestions.value,
+      inlineSuggestion: inline.value,
+      preferNativeAutocomplete: preferNativeAutocomplete.value,
+      codeMode: codeMode.value,
     });
   }
 
-  private populateLanguageOptions(enabledLanguages: string[]): void {
-    this.elements.languageSelect.replaceChildren();
-    appendLanguageOptions(this.elements.languageSelect, enabledLanguages);
-  }
-
   private applyEditorState(enabledLanguages: string[], siteProfiles: SiteProfiles): void {
-    const primaryLanguage = getPrimaryLanguage(enabledLanguages);
     const profile = this.editingDomain ? siteProfiles[this.editingDomain] : undefined;
     this.elements.domainInput.value = this.editingDomain || "";
-    this.elements.languageSelect.value = profile?.language || primaryLanguage;
-    this.elements.numSuggestionsSelect.value =
-      typeof profile?.numSuggestions === "number" ? String(profile.numSuggestions) : "global";
-    this.elements.inlineSelect.value = toOverrideValue(profile?.inline_suggestion);
-    this.elements.preferNativeAutocompleteSelect.value = toOverrideValue(
-      profile?.preferNativeAutocomplete,
-    );
-    this.elements.codeModeSelect.value = toOverrideValue(profile?.codeMode);
+    applySiteProfileToSelects(this.elements.selects, profile, enabledLanguages[0]);
     this.elements.saveButton.textContent = this.editingDomain
       ? i18n.get("site_profiles_update_btn")
       : i18n.get("site_profiles_add_btn");
@@ -325,13 +238,7 @@ export class SiteProfilesManager {
     this.updateNormalizedPreview();
   }
 
-  private renderTable(
-    siteProfiles: SiteProfiles,
-    globalNumSuggestions: number,
-    globalInlineSuggestion: boolean,
-    globalPreferNativeAutocomplete: boolean,
-    globalCodeMode: boolean,
-  ): void {
+  private renderTable(siteProfiles: SiteProfiles, globals: SiteProfileGlobals): void {
     const profileEntries = Object.entries(siteProfiles)
       .filter(([domain]) => domain.toLowerCase().includes(this.searchQuery))
       .sort(([a], [b]) => a.localeCompare(b));
@@ -351,32 +258,24 @@ export class SiteProfilesManager {
         row.classList.add("is-selected-row");
       }
 
-      const header = createElement("div", { className: "site-profile-row-header" });
-      const domainLabel = createElement("div", {
-        className: "site-profile-row-domain",
-        textContent: domain,
-      });
-      header.appendChild(domainLabel);
-
       const actions = createElement("div", { className: "site-profile-row-actions" });
-      const edit = createElement("button", {
-        className: "button is-light",
-        textContent: i18n.get("site_profiles_edit_btn"),
-        attributes: { type: "button", "data-action": "edit" },
-      });
-      edit.dataset.domain = domain;
-      const remove = createElement("button", {
-        className: "button is-light",
-        textContent:
+      actions.append(
+        createButton(i18n.get("site_profiles_edit_btn"), "button is-light", () =>
+          this.startEdit(domain),
+        ),
+        createButton(
           this.pendingRemovalDomain === domain
             ? i18n.get("text_assets_delete_snippet_confirm")
             : i18n.get("remove"),
-        attributes: { type: "button", "data-action": "remove" },
-      });
-      remove.dataset.domain = domain;
-      actions.append(edit, remove);
-      header.appendChild(actions);
-      row.appendChild(header);
+          "button is-light",
+          () => void this.removeProfile(domain),
+        ),
+      );
+      const header = createElement("div", { className: "site-profile-row-header" });
+      header.append(
+        createElement("div", { className: "site-profile-row-domain", textContent: domain }),
+        actions,
+      );
 
       const metaGrid = createElement("div", { className: "site-profile-row-meta" });
       [
@@ -389,52 +288,40 @@ export class SiteProfilesManager {
           value:
             typeof profile.numSuggestions === "number"
               ? String(profile.numSuggestions)
-              : getInheritLabel(String(globalNumSuggestions)),
+              : getInheritLabel(String(globals.numSuggestions)),
         },
         {
           label: i18n.get("site_profiles_table_inline_mode"),
-          value:
-            typeof profile.inline_suggestion === "boolean"
-              ? getOnOffLabel(profile.inline_suggestion)
-              : getInheritLabel(getOnOffLabel(globalInlineSuggestion)),
+          value: overrideLabel(profile.inline_suggestion, globals.inlineSuggestion, getOnOffLabel),
         },
         {
           label: i18n.get("site_profiles_table_prefer_native_autocomplete"),
-          value:
-            typeof profile.preferNativeAutocomplete === "boolean"
-              ? getPreferNativeAutocompleteLabel(profile.preferNativeAutocomplete)
-              : getInheritLabel(getPreferNativeAutocompleteLabel(globalPreferNativeAutocomplete)),
+          value: overrideLabel(
+            profile.preferNativeAutocomplete,
+            globals.preferNativeAutocomplete,
+            getPreferNativeAutocompleteLabel,
+          ),
         },
         {
           label: i18n.get("site_profiles_code_mode_label"),
-          value:
-            typeof profile.codeMode === "boolean"
-              ? getOnOffLabel(profile.codeMode)
-              : getInheritLabel(getOnOffLabel(globalCodeMode)),
+          value: overrideLabel(profile.codeMode, globals.codeMode, getOnOffLabel),
         },
       ].forEach((entry) => {
         const item = createElement("div", { className: "site-profile-meta-item" });
-        item.appendChild(
-          createElement("span", {
-            className: "site-profile-meta-label",
-            textContent: entry.label,
-          }),
-        );
-        item.appendChild(
-          createElement("span", {
-            className: "site-profile-meta-value",
-            textContent: entry.value,
-          }),
+        item.append(
+          createElement("span", { className: "site-profile-meta-label", textContent: entry.label }),
+          createElement("span", { className: "site-profile-meta-value", textContent: entry.value }),
         );
         metaGrid.appendChild(item);
       });
-      row.appendChild(metaGrid);
+      row.append(header, metaGrid);
 
       this.elements.tableBody.appendChild(row);
     });
   }
 
-  async render(): Promise<void> {
+  /** Refreshes the table and the select labels. Set resetEditor to show the edited profile again. */
+  async render(resetEditor = false): Promise<void> {
     const [
       enabledLanguagesRaw,
       rawProfiles,
@@ -453,47 +340,45 @@ export class SiteProfilesManager {
 
     const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
     const siteProfiles = resolveSiteProfiles(rawProfiles, enabledLanguages);
-    const globalNumSuggestions = resolveGlobalNumSuggestions(rawNumSuggestions);
-    const globalInlineSuggestion = rawInline === true;
-    const globalPreferNativeAutocomplete = rawPreferNativeAutocomplete !== false;
-    const globalCodeMode = rawCodeMode === true;
+    const globals: SiteProfileGlobals = {
+      numSuggestions: resolveGlobalNumSuggestions(rawNumSuggestions),
+      inlineSuggestion: rawInline === true,
+      preferNativeAutocomplete: rawPreferNativeAutocomplete !== false,
+      codeMode: rawCodeMode === true,
+    };
 
-    this.populateLanguageOptions(enabledLanguages);
-    populateSuggestionOptions(this.elements.numSuggestionsSelect, globalNumSuggestions);
-    populateBooleanOverrideOptions(
-      this.elements.inlineSelect,
-      globalInlineSuggestion,
-      getOnOffLabel,
-    );
-    populateBooleanOverrideOptions(
-      this.elements.preferNativeAutocompleteSelect,
-      globalPreferNativeAutocomplete,
-      getPreferNativeAutocompleteLabel,
-    );
-    populateBooleanOverrideOptions(this.elements.codeModeSelect, globalCodeMode, getOnOffLabel);
-    this.applyEditorState(enabledLanguages, siteProfiles);
-    this.renderTable(
-      siteProfiles,
-      globalNumSuggestions,
-      globalInlineSuggestion,
-      globalPreferNativeAutocomplete,
-      globalCodeMode,
-    );
-    this.setStatus(this.statusText, this.statusIsError);
+    const { language, suggestions, inline, preferNativeAutocomplete, codeMode } =
+      this.elements.selects;
+    const selects = [language, suggestions, inline, preferNativeAutocomplete, codeMode];
+    const draft = selects.map((select) => select.value);
+    populateSiteProfileSelects(this.elements.selects, globals, enabledLanguages);
+    if (resetEditor) {
+      this.applyEditorState(enabledLanguages, siteProfiles);
+    } else {
+      // Keep the unsaved values. If a value has no option now (a removed language), show the
+      // first option.
+      selects.forEach((select, index) => {
+        select.value = draft[index];
+        if (select.selectedIndex < 0) {
+          select.selectedIndex = 0;
+        }
+      });
+    }
+    this.renderTable(siteProfiles, globals);
   }
 
   startEdit(domain: string): void {
     this.editingDomain = domain;
     this.pendingRemovalDomain = null;
-    this.setStatus(formatTranslation("site_profiles_update_status", { domain }));
-    void this.render();
+    this.setStatus(i18n.get("site_profiles_editor_default_status"));
+    void this.render(true);
   }
 
   cancelEdit(): void {
     this.editingDomain = null;
     this.pendingRemovalDomain = null;
     this.setStatus(i18n.get("site_profiles_editor_default_status"));
-    void this.render();
+    void this.render(true);
   }
 
   async saveProfile(): Promise<void> {
@@ -532,8 +417,8 @@ export class SiteProfilesManager {
     this.editingDomain = normalizedDomain;
     this.pendingRemovalDomain = null;
     this.setStatus(i18n.get("site_profiles_saved_status"));
-    await this.onConfigChange?.();
-    await this.render();
+    await this.onProfilesChange?.(nextProfiles);
+    await this.render(true);
   }
 
   async removeProfile(domain: string): Promise<void> {
@@ -554,11 +439,12 @@ export class SiteProfilesManager {
     const nextProfiles = removeSiteProfileForDomain(currentProfiles, domain, enabledLanguages);
     await this.store.set(KEY_SITE_PROFILES, nextProfiles);
     this.pendingRemovalDomain = null;
-    if (this.editingDomain === domain) {
+    const removedEditedProfile = this.editingDomain === domain;
+    if (removedEditedProfile) {
       this.editingDomain = null;
     }
     this.setStatus(i18n.get("site_profiles_removed_status"));
-    await this.onConfigChange?.();
-    await this.render();
+    await this.onProfilesChange?.(nextProfiles);
+    await this.render(removedEditedProfile);
   }
 }

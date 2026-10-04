@@ -1,26 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
-import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
+import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { MeasurementUnitFormattingRule } from "../../src/core/domain/grammar/implementations/MeasurementUnitFormattingRule";
-import type { GrammarContext, GrammarEdit } from "../../src/core/domain/grammar/types";
+import type { GrammarEdit } from "../../src/core/domain/grammar/types";
 import { MEASUREMENT_LOCALES } from "../../src/core/domain/grammar/measurement/registry-data.generated";
+import { proseContext, typeText } from "./grammarTestUtils";
 
 const NBSP = "\u00a0";
 const rule = new MeasurementUnitFormattingRule();
-
-function context(
-  beforeCursor: string,
-  lang = "en_US",
-  hints: GrammarContext["hints"] = {},
-): GrammarContext {
-  return {
-    beforeCursor,
-    afterCursor: "",
-    hints: { lang, inputAction: "insert", measurementContext: "prose", ...hints },
-  };
-}
 
 function apply(input: string, edit: GrammarEdit | null): string {
   if (!edit) return input;
@@ -29,22 +17,12 @@ function apply(input: string, edit: GrammarEdit | null): string {
 }
 
 function typeThroughAllRules(input: string, lang: string): string {
-  const engine = new GrammarRuleEngine();
-  for (const item of createGrammarRuleCatalogRuntime({
-    insertSpaceAfterAutocomplete: true,
-    userDictionaryList: [],
-  })) {
-    engine.registerRule(item);
-  }
-  let state = context("", lang);
-  for (const char of input) {
-    state.beforeCursor += char;
-    const event =
-      char === " " || char === "\u00a0" || char === "\n" ? "wordBoundary" : "insertChar";
-    const edit = engine.processSequence([event], state);
-    if (edit) state = applyGrammarEditToContext(state, edit);
-  }
-  return state.beforeCursor + state.afterCursor;
+  const { beforeCursor, afterCursor } = typeText(input, {
+    lang,
+    sequence: true,
+    boundaries: [" ", NBSP, "\n"],
+  });
+  return beforeCursor + afterCursor;
 }
 
 describe("measurement formatting adversarial verification", () => {
@@ -65,7 +43,7 @@ describe("measurement formatting adversarial verification", () => {
         `\u0627\u0644\u0643\u062a\u0644\u0629: 1.50${NBSP}kg `,
       ],
     ] as const;
-    expect(cases.map(([lang]) => lang).sort()).toEqual(
+    expect<string[]>(cases.map(([lang]) => lang).sort()).toEqual(
       Object.keys(SUPPORTED_LANGUAGES)
         .filter((lang) => !["auto_detect", "textExpander"].includes(lang))
         .sort(),
@@ -74,7 +52,7 @@ describe("measurement formatting adversarial verification", () => {
       cases.map(([locale]) => locale),
     );
     for (const [lang, input, expected] of cases) {
-      expect(apply(input, rule.apply(context(input, lang)))).toBe(expected);
+      expect(apply(input, rule.apply(proseContext(input, lang)))).toBe(expected);
     }
   });
 
@@ -86,7 +64,7 @@ describe("measurement formatting adversarial verification", () => {
       ["Μάζα: 10μg ", `Μάζα: 10${NBSP}μg `],
     ] as const;
     for (const [input, expected] of accepted)
-      expect(apply(input, rule.apply(context(input)))).toBe(expected);
+      expect(apply(input, rule.apply(proseContext(input)))).toBe(expected);
 
     const rejected = [
       ["en_US", "Value: 1,234kg "],
@@ -101,7 +79,7 @@ describe("measurement formatting adversarial verification", () => {
       ["en_US", "Value: 10—12kg "],
       ["en_US", "Value: 10±2kg "],
     ] as const;
-    for (const [lang, input] of rejected) expect(rule.apply(context(input, lang))).toBeNull();
+    for (const [lang, input] of rejected) expect(rule.apply(proseContext(input, lang))).toBeNull();
   });
 
   test("reads the thousands separator of the writing language", () => {
@@ -114,14 +92,14 @@ describe("measurement formatting adversarial verification", () => {
       ["fr_FR", "Il pèse 2 000kg ", `Il pèse 2 000${NBSP}kg `],
     ] as const;
     for (const [lang, input, expected] of accepted)
-      expect(apply(input, rule.apply(context(input, lang)))).toBe(expected);
+      expect(apply(input, rule.apply(proseContext(input, lang)))).toBe(expected);
 
     const rejected = [
       ["de_DE", "Gewicht: 2.00kg "],
       ["de_DE", "Gewicht: 2.0000kg "],
       ["pt_BR", "Peso: 1234.000kg "],
     ] as const;
-    for (const [lang, input] of rejected) expect(rule.apply(context(input, lang))).toBeNull();
+    for (const [lang, input] of rejected) expect(rule.apply(proseContext(input, lang))).toBeNull();
   });
 
   test("does not reinterpret localized words or written unit names as symbols", () => {
@@ -134,7 +112,7 @@ describe("measurement formatting adversarial verification", () => {
       ["pt_BR", "Texto: 10as "],
       ["en_US", "Mass: 10kilograms "],
     ] as const;
-    for (const [lang, input] of cases) expect(rule.apply(context(input, lang))).toBeNull();
+    for (const [lang, input] of cases) expect(rule.apply(proseContext(input, lang))).toBeNull();
   });
 
   test("bounded parser leaves long malformed Unicode tails unchanged", () => {
@@ -145,7 +123,7 @@ describe("measurement formatting adversarial verification", () => {
         (_, offset) => fragments[(index + offset) % fragments.length],
       ).join("");
       const input = `Note: ${index}${tail} `;
-      expect(rule.apply(context(input))).toBeNull();
+      expect(rule.apply(proseContext(input))).toBeNull();
     }
   });
 
@@ -159,7 +137,7 @@ describe("measurement formatting adversarial verification", () => {
       "Flux: 2W/(m·K) ",
     ];
     for (const input of cases) {
-      const output = apply(input, rule.apply(context(input)));
+      const output = apply(input, rule.apply(proseContext(input)));
       expect(output).toBe(input.replace(/(?<=\d)(?=[+\p{L}%°Ωµμ(])/u, NBSP));
     }
   });
@@ -188,24 +166,24 @@ describe("measurement formatting adversarial verification", () => {
       "Grade: 10A ",
       "Temperature: 10°C² ",
     ];
-    for (const input of rejected) expect(rule.apply(context(input))).toBeNull();
+    for (const input of rejected) expect(rule.apply(proseContext(input))).toBeNull();
     // Arabic with Latin digits uses "." as its decimal mark (CLDR), so a comma
     // is grouping or a list, never a decimal.
     for (const input of [
       "\u0627\u0644\u0648\u0632\u0646: 1,5kg ",
       "\u0627\u0644\u0648\u0632\u0646: 1,500kg ",
     ])
-      expect(rule.apply(context(input, "ar_SA"))).toBeNull();
-    expect(rule.apply(context("Mass: 10kg ", "en_US", { isPaste: true }))).toBeNull();
-    expect(rule.apply(context("Mass: 10kg ", "en_US", { inputAction: "delete" }))).toBeNull();
+      expect(rule.apply(proseContext(input, "ar_SA"))).toBeNull();
+    expect(rule.apply(proseContext("Mass: 10kg ", "en_US", { isPaste: true }))).toBeNull();
+    expect(rule.apply(proseContext("Mass: 10kg ", "en_US", { inputAction: "delete" }))).toBeNull();
     expect(
-      rule.apply(context("Mass: 10kg ", "en_US", { measurementContext: "protected" })),
+      rule.apply(proseContext("Mass: 10kg ", "en_US", { measurementContext: "protected" })),
     ).toBeNull();
   });
 
   test("leaves existing regular, nonbreaking, and narrow nonbreaking separators unchanged", () => {
     for (const input of ["Mass: 10 kg ", `Mass: 10${NBSP}kg `, "Mass: 10\u202fkg "]) {
-      expect(rule.apply(context(input))).toBeNull();
+      expect(rule.apply(proseContext(input))).toBeNull();
     }
   });
 
@@ -213,7 +191,6 @@ describe("measurement formatting adversarial verification", () => {
     const engine = new GrammarRuleEngine();
     for (const item of createGrammarRuleCatalogRuntime({
       insertSpaceAfterAutocomplete: true,
-      userDictionaryList: [],
     }))
       engine.registerRule(item);
     for (const input of [
@@ -223,10 +200,12 @@ describe("measurement formatting adversarial verification", () => {
       "Rate: 4kg/m³ ",
       "Flux: 2W/(m·K) ",
     ]) {
-      const edit = engine.processSequence(["insertChar", "wordBoundary"], context(input));
+      const edit = engine.processSequence(["insertChar", "wordBoundary"], proseContext(input));
       const output = apply(input, edit);
       expect(output).toBe(input.replace(/(?<=\d)(?=[+\p{L}%°Ωµμ(])/u, NBSP));
-      expect(engine.processSequence(["insertChar", "wordBoundary"], context(output))).toBeNull();
+      expect(
+        engine.processSequence(["insertChar", "wordBoundary"], proseContext(output)),
+      ).toBeNull();
     }
   });
 
@@ -263,7 +242,7 @@ describe("measurement formatting adversarial verification", () => {
     for (const number of ["١٫٥", "١٠", "-٢٫٢٥", "1.5"]) {
       const input = `${label}${number}kg `;
       const expected = `${label}${number}${NBSP}kg `;
-      expect(apply(input, rule.apply(context(input, "ar_SA")))).toBe(expected);
+      expect(apply(input, rule.apply(proseContext(input, "ar_SA")))).toBe(expected);
       expect(typeThroughAllRules(input, "ar_SA")).toBe(expected);
     }
   });
@@ -285,7 +264,7 @@ describe("measurement formatting adversarial verification", () => {
       "١۵",
     ]) {
       const input = `${label}${number}kg `;
-      expect(rule.apply(context(input, "ar_SA"))).toBeNull();
+      expect(rule.apply(proseContext(input, "ar_SA"))).toBeNull();
       expect(typeThroughAllRules(input, "ar_SA")).toBe(input);
     }
   });
@@ -307,7 +286,7 @@ describe("measurement formatting adversarial verification", () => {
       (locale) => locale !== "ar_SA",
     )) {
       for (const input of ["Mass: ١٠kg ", "Mass: ١٫٥kg "]) {
-        expect(rule.apply(context(input, lang))).toBeNull();
+        expect(rule.apply(proseContext(input, lang))).toBeNull();
       }
     }
   });
@@ -332,14 +311,14 @@ test("generated approved edits preserve independent quantities, units, and UTF-1
       "ml",
     ]) {
       const input = `Measured: ${number}${unit} `;
-      const edit = rule.apply(context(input));
+      const edit = rule.apply(proseContext(input));
       expect(edit).not.toBeNull();
       expect(edit!.deleteBackwards).toBeGreaterThan(0);
       expect(edit!.deleteBackwards).toBeLessThanOrEqual(input.length);
       expect(edit!.deleteForwards).toBe(0);
       const expected = `Measured: ${number}${NBSP}${unit} `;
       expect(apply(input, edit)).toBe(expected);
-      expect(rule.apply(context(expected))).toBeNull();
+      expect(rule.apply(proseContext(expected))).toBeNull();
     }
   }
   for (const symbol of [
@@ -359,7 +338,7 @@ test("generated approved edits preserve independent quantities, units, and UTF-1
     "nm",
   ]) {
     const input = `Measured: 10 ${symbol} `;
-    expect(rule.apply(context(input))).toBeNull();
+    expect(rule.apply(proseContext(input))).toBeNull();
   }
 });
 
@@ -372,13 +351,13 @@ test("arbitrary Unicode input never throws or emits out-of-bounds edits", () => 
       text += String.fromCharCode(seed & 0xffff);
     }
     const input = `${text} `;
-    const edit = rule.apply(context(input));
+    const edit = rule.apply(proseContext(input));
     if (edit) {
       expect(edit.deleteBackwards).toBeLessThanOrEqual(input.length);
       expect(edit.deleteForwards).toBe(0);
       const output = apply(input, edit);
       expect(output.replace(NBSP, "")).toBe(input);
-      expect(rule.apply(context(output))).toBeNull();
+      expect(rule.apply(proseContext(output))).toBeNull();
     }
   }
 });

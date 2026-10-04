@@ -1,6 +1,6 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { PUNCTUATION_EQUIVALENTS, SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
-import { resolveInputAction } from "./helpers/GenericRuleShared";
+import { lastNonSpaceBefore } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 import { resolveMeasurementLocale } from "../measurement/registry";
 import { isGreekQuestionMark, usesFrenchPunctuationSpacing } from "../typographyProfiles";
@@ -77,7 +77,7 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
     // Only where a deferred decision can still be completed; suppressing the
     // space anywhere else would drop it for good.
     const canDefer =
-      !context.afterCursor && !context.hints?.isPaste && resolveInputAction(context) === "insert";
+      !context.afterCursor && !context.hints?.isPaste && context.hints?.inputAction === "insert";
 
     // A period never gets a space from this rule: "google.com", "node.js" and
     // "user.save()" all begin as a word and a period, and the letter that
@@ -99,11 +99,9 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       if (!canDefer || !closesSentence) {
         return null;
       }
-      let spacesBefore = 0;
-      while (SPACE_CHARS.includes(inputStr[periodIndex - 1 - spacesBefore] ?? "")) {
-        spacesBefore += 1;
-      }
-      const wordEnd = inputStr[periodIndex - 1 - spacesBefore] ?? "";
+      const wordEndIndex = lastNonSpaceBefore(inputStr, periodIndex);
+      const spacesBefore = periodIndex - 1 - wordEndIndex;
+      const wordEnd = inputStr[wordEndIndex] ?? "";
       // A closing bracket or quote ends a word too; closingBracketSpacing
       // spaced "(quietly) " before the "." arrived.
       if (spacesBefore === 0 || !/[\p{L}\p{N})\]}"”’»“‘›]/u.test(wordEnd)) {
@@ -120,12 +118,8 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       if (openerIndex < 0) {
         return null;
       }
-      let spaceRun = 0;
-      let j = length - 2;
-      while (j >= 0 && SPACE_CHARS.includes(inputStr[j])) {
-        spaceRun += 1;
-        j -= 1;
-      }
+      const j = lastNonSpaceBefore(inputStr, length - 1);
+      const spaceRun = length - 2 - j;
       const punctuationChar = j >= 0 ? inputStr[j] : "";
       if (
         spaceRun > 0 &&
@@ -164,19 +158,11 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       return null;
     }
 
-    let spaceRunLength = 0;
-    let i = length - 2;
-    while (i >= 0 && SPACING_OR_FILLER_CHARS.includes(inputStr[i])) {
-      if (SPACE_CHARS.includes(inputStr[i])) {
-        spaceRunLength += 1;
-      }
-      i -= 1;
-    }
+    const i = lastNonSpaceBefore(inputStr, length - 1, SPACING_OR_FILLER_CHARS);
     const previousSignificantChar = i >= 0 ? inputStr[i] : "";
 
-    const spaceBeforeViolated = spaceRunLength > 0;
+    const spaceBeforeViolated = SPACE_CHARS.some((ch) => inputStr.slice(i + 1, -1).includes(ch));
     const insertSpaceAfter = this.insertSpaceAfterAutocomplete;
-    const inputAction = resolveInputAction(context);
 
     // Decimal/grouping punctuation is unfinished numeric input, not yet prose
     // punctuation. Only defer where the repair above can actually complete it;
@@ -202,18 +188,14 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       return null;
     }
 
-    // Respect explicit user deletion of an auto-inserted trailing space.
-    if (inputAction === "delete" && !spaceBeforeViolated && insertSpaceAfter) {
-      return null;
-    }
-
     if (!spaceBeforeViolated && !insertSpaceAfter) {
       return null;
     }
 
     return this.createEdit(
       `${lastChar}${insertSpaceAfter ? " " : ""}`,
-      spaceBeforeViolated ? spaceRunLength + 1 : 1,
+      // The run can also hold zero-width fillers; delete them with the spaces.
+      spaceBeforeViolated ? length - 1 - i : 1,
     );
   }
 }

@@ -1,23 +1,20 @@
 import { expect, test } from "bun:test";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
+import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
-import { scanResult } from "./reviewHarness";
+import { review } from "./grammarTestUtils";
 
 const ruleId = "englishSentenceStructure";
-function scan(
+const scan = (
   text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-  options: Partial<ReviewOptions> = {},
-) {
-  return scanResult(text, { ...options, snapshot: extra });
-}
-const review = (text: string) => scan(text).diagnostics.filter((d) => d.ruleId === ruleId);
+  extra?: Partial<ReviewSourceSnapshot>,
+  options?: Partial<ReviewOptions>,
+) => review(text, extra, options).diagnostics.filter((d) => d.ruleId === ruleId);
 const repaired = (text: string) =>
-  review(text).map((finding) =>
+  scan(text).map((finding) =>
     finding.alternatives.map((alternative) => applyEdits(text, alternative.edits)),
   );
 
@@ -61,6 +58,7 @@ const positives: [string, string[]][] = [
   ["We might can help.", ["We might help.", "We can help."]],
   ["You should can come.", ["You should come.", "You can come."]],
   ["They may can be late.", ["They may be late.", "They can be late."]],
+  ["THEY MAY CAN BE LATE.", ["THEY MAY BE LATE.", "THEY CAN BE LATE."]],
   ["He must can swim.", ["He must swim.", "He can swim."]],
   ["It will can run.", ["It will run.", "It can run."]],
   ["She would could try.", ["She would try.", "She could try."]],
@@ -123,9 +121,14 @@ const positives: [string, string[]][] = [
   ["Not only they went home, they slept.", ["Not only did they go home, they slept."]],
   ["Not only she likes it, she loves it.", ["Not only does she like it, she loves it."]],
   ["Not only I think so, but I also say so.", ["Not only do I think so, but I also say so."]],
+  // "a the" and "A your" keep the article that suits the next word, in the typed case.
+  ["She took a the apple.", ["She took an apple.", "She took the apple."]],
+  ["A your apple is red.", ["Your apple is red.", "An apple is red."]],
+  ["I WANT A THE APPLE.", ["I WANT AN APPLE.", "I WANT THE APPLE."]],
+  ["I HE WENT HOME.", ["I WENT HOME.", "HE WENT HOME."]],
 ];
 test.each(positives)("repairs %s", (source, expected) => {
-  const findings = review(source);
+  const findings = scan(source);
   expect(findings).toHaveLength(1);
   const finding = findings[0];
   expect(finding.original).toBe(source.slice(finding.range.start, finding.range.end));
@@ -133,7 +136,7 @@ test.each(positives)("repairs %s", (source, expected) => {
   expect(finding.context.end).toBeGreaterThanOrEqual(finding.range.end);
   expect(finding.bulk.eligible).toBe(false);
   expect(repaired(source)).toEqual([expected]);
-  for (const result of expected) expect(review(result)).toEqual([]);
+  for (const result of expected) expect(scan(result)).toEqual([]);
 });
 
 const negatives = [
@@ -240,19 +243,15 @@ const negatives = [
   "I might\ncould go.",
   "the my\ncar",
 ];
-test.each(negatives)("preserves %s", (text) => expect(review(text)).toEqual([]));
+test.each(negatives)("preserves %s", (text) => expect(scan(text)).toEqual([]));
 
 test("preserves dictionary, language, scope and protected islands", () => {
   const text = "I might could go.";
-  expect(review(text)).toHaveLength(1);
-  const only = (result: ReturnType<typeof scan>) =>
-    result.diagnostics.filter((d) => d.ruleId === ruleId);
-  expect(only(scan(text, {}, { userDictionary: ["might"] }))).toEqual([]);
-  expect(only(scan(text, {}, { lang: "de_DE" }))).toEqual([]);
-  expect(only(scan(text, { scope: { start: 8, end: text.length } }))).toEqual([]);
-  expect(only(scan(text, { protectedRanges: [{ start: 8, end: 13, reason: "code" }] }))).toEqual(
-    [],
-  );
+  expect(scan(text)).toHaveLength(1);
+  expect(scan(text, {}, { userDictionary: ["might"] })).toEqual([]);
+  expect(scan(text, {}, { lang: "de_DE" })).toEqual([]);
+  expect(scan(text, { scope: { start: 8, end: text.length } })).toEqual([]);
+  expect(scan(text, { protectedRanges: [{ start: 8, end: 13, reason: "code" }] })).toEqual([]);
 });
 
 // A possessive before a subject pronoun has no single repair: the writer rewrites it.
@@ -261,7 +260,7 @@ test.each([
   ["Ask about their we plan.", "their we"],
   ["It is your he said.", "your he"],
 ])("warns about %s", (text, original) => {
-  const findings = review(text);
+  const findings = scan(text);
   expect(findings.map((f) => [f.original, f.warningOnly, f.alternatives])).toEqual([
     [original, true, []],
   ]);
@@ -270,16 +269,11 @@ test.each([
 
 test("choices are never batched and typing never instantiates the rule", () => {
   const text = "😀 Hi. " + "word ".repeat(795) + ". I he went.\r\nIt should possible.";
-  const findings = review(text);
+  const findings = scan(text);
   expect(findings.map((f) => [f.original, f.alternatives.length])).toEqual([
     ["I he", 2],
     ["possible", 1],
   ]);
   expect(findings[0].requiresChoice).toBe(true);
-  expect(
-    createGrammarRuleCatalogRuntime({
-      insertSpaceAfterAutocomplete: true,
-      userDictionaryList: [],
-    }).map((r) => r.id),
-  ).not.toContain(ruleId);
+  expect(TYPING_RULE_IDS as readonly string[]).not.toContain(ruleId);
 });

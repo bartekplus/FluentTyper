@@ -1,5 +1,5 @@
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, isLang, SPACE as S } from "../phraseTemplates";
+import { frameMatches, group, isLang, SPACE as S } from "../phraseTemplates";
 import { DIGIT, invalidIsoDates } from "../isoDates";
 import { NO_WORD_BEFORE } from "../markdownEmphasis";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
@@ -94,7 +94,6 @@ const valid = (month: number, day: number, year?: number) =>
 const weekdayOf = (year: number, month: number, day: number) => clockWeekday(year, month + 1, day);
 const ordinal = (day: number) =>
   day % 100 >= 11 && day % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][day % 10] ?? "th");
-const group = (m: RegExpExecArray, name: string) => m.indices!.groups![name];
 /** "Mo" -> 1: a two-letter weekday. */
 const two = (form: string) => WEEKDAYS.findIndex((name) => name.startsWith(form));
 

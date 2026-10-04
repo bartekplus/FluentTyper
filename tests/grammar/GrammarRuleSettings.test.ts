@@ -9,13 +9,13 @@ import {
 import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
   TYPING_RULE_IDS,
-  RECOMMENDED_CURRENT_GRAMMAR_RULES,
   RECOMMENDED_V1_GRAMMAR_RULES,
   RECOMMENDED_V2_GRAMMAR_RULES,
   DEFAULT_V3_GRAMMAR_RULES,
+  type CatalogRuleId,
 } from "../../src/core/domain/grammar/ruleCatalog";
 
-const DEFAULT_RULES = [
+const DEFAULT_RULES: CatalogRuleId[] = [
   "capitalizeSentenceStart",
   "capitalizeAfterLineBreak",
   "englishPronounICapitalization",
@@ -139,11 +139,6 @@ describe("GrammarRuleSettings", () => {
   describe("opt-in ordinal suffix rule", () => {
     const RULE = "englishOrdinalSuffix";
 
-    test("is off on fresh install and after reset", () => {
-      expect(resolveGrammarRuleSelection(undefined)).not.toContain(RULE);
-      expect(resolveGrammarRuleSelection({})).not.toContain(RULE);
-    });
-
     test("is off after every legacy upgrade path and is not materialized", () => {
       for (const legacy of [
         [],
@@ -157,9 +152,9 @@ describe("GrammarRuleSettings", () => {
       }
     });
 
-    test("is not in the recommended preset", () => {
-      expect(RECOMMENDED_CURRENT_GRAMMAR_RULES).not.toContain(RULE);
-      const overrides = grammarRuleSelectionToOverrides(RECOMMENDED_CURRENT_GRAMMAR_RULES);
+    test("is not in the default rules", () => {
+      expect(DEFAULT_CURRENT_GRAMMAR_RULES).not.toContain(RULE);
+      const overrides = grammarRuleSelectionToOverrides(DEFAULT_CURRENT_GRAMMAR_RULES);
       expect(overrides[RULE]).toBe(false);
       expect(resolveGrammarRuleSelection(overrides)).not.toContain(RULE);
     });

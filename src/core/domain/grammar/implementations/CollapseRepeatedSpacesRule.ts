@@ -1,14 +1,13 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { SPACE_CHARS } from "../../spacingRules";
 import { splitTrailingSpaces } from "./helpers/GenericRuleShared";
 
 export class CollapseRepeatedSpacesRule implements GrammarRule {
   readonly id = "collapseRepeatedSpaces" as const;
-  readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
+  readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
     const text = context.beforeCursor;
-    const trailingSpaces = splitTrailingSpaces(text, SPACE_CHARS).trailingSpaces.length;
+    const trailingSpaces = splitTrailingSpaces(text).trailingSpaces.length;
     if (trailingSpaces < 2) {
       return null;
     }

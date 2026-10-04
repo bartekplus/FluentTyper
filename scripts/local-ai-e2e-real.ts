@@ -14,11 +14,12 @@
  * Everything lives under .cache/local-ai-e2e/ (git-ignored), wiped at start.
  * Prints a Markdown summary with timings; exits 1 on the first failed step.
  */
-import { createServer } from "node:http";
+import assert from "node:assert";
 import { randomBytes } from "node:crypto";
 import { readdir, readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { parseArgs } from "node:util";
 import puppeteer, { type Browser, type CDPSession, type Page } from "puppeteer";
 import {
   CMD_LOCAL_AI_STATUS_CHANGED,
@@ -34,10 +35,14 @@ import {
 import { MODEL_CACHE } from "../src/adapters/chrome/background/localAi/modelArtifacts";
 import {
   clickReviewControl,
+  openExtensionPage,
   readReviewAi,
   readReviewPanel,
   REVIEW_HOST_SELECTOR,
+  triggerReview,
   watchTargets,
+  pressUndo,
+  serveHtml,
   waitUntil,
   type BackgroundContext,
 } from "../tests/e2e/e2e-helpers";
@@ -46,9 +51,19 @@ const ROOT = path.resolve(import.meta.dir, "..");
 const WORK_DIR = path.join(ROOT, ".cache", "local-ai-e2e");
 const EXTENSION_DIR = path.join(WORK_DIR, "extension");
 const PROFILE_DIR = path.join(WORK_DIR, "profile");
-const HEADED = process.argv.includes("--headed");
-const PLUMBING_ONLY = process.argv.includes("--plumbing-only");
-const TIER = process.argv.includes("--tier=compact") ? "compact" : "standard";
+const { values: ARGS } = parseArgs({
+  args: process.argv.slice(2),
+  options: {
+    headed: { type: "boolean", default: false },
+    "plumbing-only": { type: "boolean", default: false },
+    tier: { type: "string", default: "standard" },
+  },
+});
+const HEADED = ARGS.headed;
+const PLUMBING_ONLY = ARGS["plumbing-only"];
+const TIER = ARGS.tier;
+if (TIER !== "standard" && TIER !== "compact")
+  throw new Error("--tier must be standard or compact");
 const MODEL = localAiModelForTier(TIER);
 /** Every pinned file URL of the model starts with this (see localAiModelFileUrl). */
 const MODEL_URL = `https://huggingface.co/${MODEL.repo}/resolve/${MODEL.revision}/`;
@@ -98,10 +113,6 @@ async function step(name: string, run: () => Promise<string>): Promise<void> {
     });
     throw error;
   }
-}
-
-function check(condition: unknown, message: string): asserts condition {
-  if (!condition) throw new Error(message);
 }
 
 // ------------------------------------------------------------------ browser
@@ -183,9 +194,7 @@ async function launch(offline: boolean): Promise<{ browser: Browser; worker: Bac
 }
 
 async function openOptions(browser: Browser, worker: BackgroundContext): Promise<Page> {
-  const url = await worker.evaluate(() => chrome.runtime.getURL("options/options.html#local-ai"));
-  const page = await browser.newPage();
-  await page.goto(url, { waitUntil: "domcontentloaded" });
+  const page = await openExtensionPage(browser, worker, "options/options.html#local-ai");
   await page.waitForFunction(
     () => !!document.querySelector<HTMLElement>("#local-ai")?.offsetParent,
   );
@@ -244,17 +253,6 @@ async function openEditor(browser: Browser, text: string): Promise<Page> {
   return page;
 }
 
-async function review(worker: BackgroundContext): Promise<void> {
-  await worker.evaluate(async () => {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    if (typeof tab?.id !== "number") throw new Error("No active tab");
-    await chrome.tabs.sendMessage(tab.id, {
-      command: "CMD_REVIEW_FT_ACTIVE_TAB",
-      context: { source: "command" },
-    });
-  });
-}
-
 const editorValue = (page: Page) =>
   page.$eval("#editor", (element) => (element as HTMLTextAreaElement).value);
 
@@ -294,12 +292,16 @@ const aiItemIds = (page: Page) =>
     REVIEW_HOST_SELECTOR,
   );
 
-async function pressUndo(page: Page): Promise<void> {
-  await page.focus("#editor");
-  const isMac = process.platform === "darwin";
-  await page.keyboard.down(isMac ? "Meta" : "Control");
-  await page.keyboard.press("z", isMac ? { commands: ["Undo"] } : undefined);
-  await page.keyboard.up(isMac ? "Meta" : "Control");
+/** Wait for a Local AI finding; a timeout error includes the panel's AI line. */
+async function waitForAiFinding(page: Page, timeoutMs: number, label: string): Promise<void> {
+  await waitUntil(label, async () => (await aiItemIds(page)).length > 0, {
+    timeoutMs,
+    intervalMs: 100,
+  }).catch(async (error: unknown) => {
+    throw new Error(`${String(error)}; AI line: "${(await readReviewAi(page)).line}"`, {
+      cause: error,
+    });
+  });
 }
 
 // -------------------------------------------------------------------- privacy
@@ -312,8 +314,8 @@ async function checkStorageAndConsole(worker: BackgroundContext): Promise<string
       await chrome.storage.session.get(null),
     ]),
   );
-  check(!storage.includes(SENTINEL), "Sentinel found in chrome.storage");
-  check(!consoleText.some((line) => line.includes(SENTINEL)), "Sentinel found in console output");
+  assert(!storage.includes(SENTINEL), "Sentinel found in chrome.storage");
+  assert(!consoleText.some((line) => line.includes(SENTINEL)), "Sentinel found in console output");
   return `storage ${storage.length} bytes, ${consoleText.length} console lines`;
 }
 
@@ -339,7 +341,7 @@ async function checkProfileFiles(): Promise<string> {
     }
   };
   await walk(dir);
-  check(hits.length === 0, `Sentinel found in: ${hits.join(", ")}`);
+  assert(hits.length === 0, `Sentinel found in: ${hits.join(", ")}`);
   return `${scanned} files scanned`;
 }
 
@@ -359,22 +361,16 @@ async function main(): Promise<void> {
     stdout: "inherit",
     stderr: "inherit",
   });
-  check(build.exitCode === 0, "Production build failed");
+  assert(build.exitCode === 0, "Production build failed");
 
-  const server = createServer((_req, res) => {
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(
-      '<!doctype html><title>Local AI e2e</title><textarea id="editor" rows="8" cols="80"></textarea>',
-    );
-  });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address();
-  check(address && typeof address !== "string", "Test server has no port");
-  pageUrl = `http://localhost:${address.port}/`;
+  const server = serveHtml(
+    '<!doctype html><title>Local AI e2e</title><textarea id="editor" rows="8" cols="80"></textarea>',
+  );
+  pageUrl = `http://localhost:${server.port}/`;
   try {
     await run();
   } finally {
-    server.close();
+    server.stop(true);
   }
 }
 
@@ -394,7 +390,7 @@ async function run(): Promise<void> {
           return /Not set up yet/.test(text) ? text : false;
         });
         await page.close();
-        check(externalRequests.length === 0, `External requests: ${externalRequests.join(", ")}`);
+        assert(externalRequests.length === 0, `External requests: ${externalRequests.join(", ")}`);
         return `status: "${status}"`;
       });
       return;
@@ -420,8 +416,8 @@ async function run(): Promise<void> {
           : null;
       });
       await page.close();
-      check(gpu, "No WebGPU adapter (navigator.gpu missing or requestAdapter() returned null)");
-      check(gpu.f16, `WebGPU adapter ${gpu.vendor} lacks shader-f16`);
+      assert(gpu, "No WebGPU adapter (navigator.gpu missing or requestAdapter() returned null)");
+      assert(gpu.f16, `WebGPU adapter ${gpu.vendor} lacks shader-f16`);
       return `adapter: ${gpu.vendor}`;
     });
 
@@ -462,7 +458,7 @@ async function run(): Promise<void> {
       const foreign = origins.filter(
         (origin) => !matchesDownloadOrigin(`${origin}/`, LOCAL_AI_DOWNLOAD_ORIGINS),
       );
-      check(
+      assert(
         foreign.length === 0,
         `Requests outside LOCAL_AI_DOWNLOAD_ORIGINS: ${foreign.join(", ")}`,
       );
@@ -471,18 +467,18 @@ async function run(): Promise<void> {
           url.startsWith("https://huggingface.co/") &&
           !MODEL.files.some((file) => url === `${MODEL_URL}${file.path}`),
       );
-      check(
+      assert(
         unlisted.length === 0,
         `Requests for files outside the registry record: ${unlisted.join(", ")}`,
       );
       const cachePage = await openOptions(browser, worker);
       const cached = await cachedModelKeys(cachePage);
       await cachePage.close();
-      check(
+      assert(
         cached.length === MODEL.files.length,
         `${cached.length} of ${MODEL.files.length} pinned files cached`,
       );
-      check(await getSetting(worker, KEY_LOCAL_AI_REVIEW_CONSENT), "Consent was not recorded");
+      assert(await getSetting(worker, KEY_LOCAL_AI_REVIEW_CONSENT), "Consent was not recorded");
       return `${externalRequests.length} requests; origins: ${origins.join(", ") || "none"}`;
     });
 
@@ -491,20 +487,13 @@ async function run(): Promise<void> {
       async () => {
         const page = await openEditor(browser, CORRECT_TEXT);
         const startedAt = performance.now();
-        await review(worker);
+        await triggerReview(worker);
         await waitForRuleFinding(page);
         timings.push([
           "Review open → first rule finding",
           Math.round(performance.now() - startedAt),
         ]);
-        await waitUntil("first Local AI finding", async () => (await aiItemIds(page)).length > 0, {
-          timeoutMs: 10 * MINUTE,
-          intervalMs: 100,
-        }).catch(async (error: unknown) => {
-          throw new Error(`${String(error)}; AI line: "${(await readReviewAi(page)).line}"`, {
-            cause: error,
-          });
-        });
+        await waitForAiFinding(page, 10 * MINUTE, "first Local AI finding");
         timings.push([
           "Review open → first Local AI finding",
           Math.round(performance.now() - startedAt),
@@ -520,7 +509,7 @@ async function run(): Promise<void> {
           return value !== CORRECT_TEXT ? value : false;
         });
         await page.keyboard.press("Escape");
-        await pressUndo(page);
+        await pressUndo(page, "#editor");
         await waitUntil(
           "native undo restores the text",
           async () => (await editorValue(page)) === CORRECT_TEXT,
@@ -533,12 +522,9 @@ async function run(): Promise<void> {
     await step("(ii-b) dense paragraph: Local AI findings arrive progressively", async () => {
       const page = await openEditor(browser, DENSE_TEXT);
       const startedAt = performance.now();
-      await review(worker);
+      await triggerReview(worker);
       await waitForRuleFinding(page);
-      await waitUntil("first Local AI finding", async () => (await aiItemIds(page)).length > 0, {
-        timeoutMs: 5 * MINUTE,
-        intervalMs: 100,
-      });
+      await waitForAiFinding(page, 5 * MINUTE, "first Local AI finding");
       timings.push([
         "Dense paragraph: Review open → first Local AI finding",
         Math.round(performance.now() - startedAt),
@@ -552,7 +538,7 @@ async function run(): Promise<void> {
       const ai = (await readReviewAi(page)).aiItems;
       await page.close();
       console.log(`[local-ai-e2e] dense paragraph Local AI findings:\n  ${ai.join("\n  ")}`);
-      check(ai.length >= 5, `only ${ai.length} Local AI findings on the dense paragraph`);
+      assert(ai.length >= 5, `only ${ai.length} Local AI findings on the dense paragraph`);
       return `${ai.length} Local AI findings of ${panel.items.length} in total; "${line}"`;
     });
 
@@ -572,11 +558,8 @@ async function run(): Promise<void> {
       const runtimes = () =>
         options.evaluate(() => (globalThis as { __ftRuntimes?: string[] }).__ftRuntimes ?? []);
       const page = await openEditor(browser, CORRECT_TEXT);
-      await review(worker);
-      await waitUntil("first Local AI finding", async () => (await aiItemIds(page)).length > 0, {
-        timeoutMs: 5 * MINUTE,
-        intervalMs: 100,
-      });
+      await triggerReview(worker);
+      await waitForAiFinding(page, 5 * MINUTE, "first Local AI finding");
       const before = (await runtimes()).length;
       await page.keyboard.press("Escape");
       await page.keyboard.press("Escape");
@@ -599,7 +582,7 @@ async function run(): Promise<void> {
 
     await step("(iii) Rewrite (Keep my voice): diff, Apply only when ready, apply", async () => {
       const page = await openEditor(browser, REWRITE_TEXT);
-      await review(worker);
+      await triggerReview(worker);
       await waitForRuleFinding(page);
       await clickReviewControl(page, "[data-action=mode-rewrite]");
       const rewriteState = () =>
@@ -614,8 +597,8 @@ async function run(): Promise<void> {
           };
         }, REVIEW_HOST_SELECTOR);
       const initial = await rewriteState();
-      check(initial.style === "keep-voice", `Default style is ${initial.style}`);
-      check(!initial.applyUsable, "Apply is usable before anything was generated");
+      assert(initial.style === "keep-voice", `Default style is ${initial.style}`);
+      assert(!initial.applyUsable, "Apply is usable before anything was generated");
       await clickReviewControl(page, "[data-action=rewrite-generate]");
       const startedAt = performance.now();
       let sawBusy = false;
@@ -625,10 +608,10 @@ async function run(): Promise<void> {
           const state = await rewriteState();
           if (/Rewriting locally/.test(state.message)) {
             sawBusy = true;
-            check(!state.applyUsable, "Apply is usable while generating");
+            assert(!state.applyUsable, "Apply is usable while generating");
           }
           if (/Rewrite ready/.test(state.message)) return state;
-          check(
+          assert(
             !/fail|reject|could not|changes a|too long/i.test(state.message),
             `Rewrite ended: ${state.message}`,
           );
@@ -637,7 +620,7 @@ async function run(): Promise<void> {
         { timeoutMs: 10 * MINUTE, intervalMs: 50 },
       );
       timings.push(["Rewrite Generate → ready", Math.round(performance.now() - startedAt)]);
-      check(ready.diff && ready.applyUsable, "Ready rewrite shows no diff or no usable Apply");
+      assert(ready.diff && ready.applyUsable, "Ready rewrite shows no diff or no usable Apply");
       await clickReviewControl(page, "[data-action=rewrite-apply]");
       const after = await waitUntil("rewrite applied", async () => {
         const value = await editorValue(page);
@@ -667,26 +650,19 @@ async function run(): Promise<void> {
     await step("(v) offline cold start: Local AI finding from the cache", async () => {
       const page = await openEditor(browser, CORRECT_TEXT);
       const startedAt = performance.now();
-      await review(worker);
+      await triggerReview(worker);
       await waitForRuleFinding(page);
-      await waitUntil("Local AI finding offline", async () => (await aiItemIds(page)).length > 0, {
-        timeoutMs: 10 * MINUTE,
-        intervalMs: 100,
-      }).catch(async (error: unknown) => {
-        throw new Error(`${String(error)}; AI line: "${(await readReviewAi(page)).line}"`, {
-          cause: error,
-        });
-      });
+      await waitForAiFinding(page, 10 * MINUTE, "Local AI finding offline");
       timings.push([
         "Offline cold Review → first Local AI finding",
         Math.round(performance.now() - startedAt),
       ]);
       await page.close();
-      check(
+      assert(
         blockedRequests.length === 0,
         `External requests attempted: ${blockedRequests.join(", ")}`,
       );
-      check(
+      assert(
         externalRequests.length === 0,
         `External requests seen: ${externalRequests.join(", ")}`,
       );
@@ -706,16 +682,16 @@ async function run(): Promise<void> {
         MODEL_URL,
         MODEL_CACHE,
       );
-      check(removed, "No ONNX weight file found in CacheStorage");
+      assert(removed, "No ONNX weight file found in CacheStorage");
       await options.close();
       // (v) closed its Review, so the model was unloaded: this Review loads cold from the cache.
 
       const page = await openEditor(browser, CORRECT_TEXT);
-      await review(worker);
+      await triggerReview(worker);
       await waitForRuleFinding(page);
       const line = await waitForAiLine(page, /needs to be installed again/, 2 * MINUTE);
-      check((await aiItemIds(page)).length === 0, "Local AI findings from a partial cache");
-      check((await readReviewPanel(page)).items.length > 0, "Rule findings lost");
+      assert((await aiItemIds(page)).length === 0, "Local AI findings from a partial cache");
+      assert((await readReviewPanel(page)).items.length > 0, "Rule findings lost");
       await page.close();
       const settings = await openOptions(browser, worker);
       const status = await waitUntil(
@@ -727,7 +703,7 @@ async function run(): Promise<void> {
         { timeoutMs: 30000 },
       );
       await settings.close();
-      check(
+      assert(
         blockedRequests.length === 0,
         `External requests attempted: ${blockedRequests.join(", ")}`,
       );
@@ -748,23 +724,23 @@ async function run(): Promise<void> {
       );
       const left = await cachedModelKeys(options);
       await options.close();
-      check(left.length === 0, `Cache entries left: ${left.length}`);
-      check(await getSetting(worker, KEY_LOCAL_AI_REVIEW_CONSENT), "Consent was removed");
-      check(
+      assert(left.length === 0, `Cache entries left: ${left.length}`);
+      assert(await getSetting(worker, KEY_LOCAL_AI_REVIEW_CONSENT), "Consent was removed");
+      assert(
         (await getSetting(worker, KEY_LOCAL_AI_REVIEW_ENABLED)) !== false,
         "Preference was turned off",
       );
 
       const page = await openEditor(browser, CORRECT_TEXT);
-      await review(worker);
+      await triggerReview(worker);
       await waitForRuleFinding(page);
       const line = await waitForAiLine(page, /needs to be installed again/, MINUTE);
       await page.close();
-      check(
+      assert(
         blockedRequests.length === 0,
         `External requests attempted: ${blockedRequests.join(", ")}`,
       );
-      check(
+      assert(
         externalRequests.length === 0,
         `External requests seen: ${externalRequests.join(", ")}`,
       );
@@ -782,7 +758,7 @@ async function run(): Promise<void> {
 
   await step("(vii-b) no model copy left in Chrome's HTTP cache after Delete", async () => {
     const bytes = await directoryBytes(path.join(PROFILE_DIR, "Default", "Cache"));
-    check(bytes < 50e6, `HTTP cache holds ${Math.round(bytes / 1e6)} MB`);
+    assert(bytes < 50e6, `HTTP cache holds ${Math.round(bytes / 1e6)} MB`);
     return `HTTP cache ${Math.round(bytes / 1e6)} MB`;
   });
 }
@@ -826,14 +802,12 @@ function printSummary(): void {
   console.log(lines.join("\n"));
 }
 
-if (import.meta.main) {
-  main()
-    .then(() => {
-      printSummary();
-    })
-    .catch((error: unknown) => {
-      printSummary();
-      console.error(error instanceof Error ? error.message : String(error));
-      process.exit(1);
-    });
-}
+main()
+  .then(() => {
+    printSummary();
+  })
+  .catch((error: unknown) => {
+    printSummary();
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });

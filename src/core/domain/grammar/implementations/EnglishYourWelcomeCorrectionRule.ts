@@ -1,5 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { matchTrailingEnglishPhrase } from "./helpers/EnglishRuleShared";
+import { matchTrailingEnglishPhrase, replaceFrom } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
 export const YOUR_WELCOME_REGEX = /\byour\s+welcome$/i;
@@ -24,11 +24,7 @@ export class EnglishYourWelcomeCorrectionRule implements GrammarRule {
 
     const [correctedFirst, correctedWelcome] = correctYourWelcome(phrase.split(/\s+/)[0]);
 
-    return {
-      replacement: `${correctedFirst} ${correctedWelcome}${boundaryContext.trailing}`,
-      deleteBackwards: boundaryContext.input.length - phraseStart,
-      deleteForwards: 0,
-    };
+    return replaceFrom(boundaryContext, phraseStart, `${correctedFirst} ${correctedWelcome}`);
   }
 }
 

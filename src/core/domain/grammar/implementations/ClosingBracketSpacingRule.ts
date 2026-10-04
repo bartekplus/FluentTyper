@@ -1,7 +1,13 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS } from "../../spacingRules";
-import { resolveInputAction } from "./helpers/GenericRuleShared";
+import { lastNonSpaceBefore } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
+
+const OPENING_BY_CLOSING_BRACKET = new Map([
+  [")", "("],
+  ["]", "["],
+  ["}", "{"],
+]);
 
 export class ClosingBracketSpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "closingBracketSpacing" as const;
@@ -23,8 +29,8 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
     const hasSpaceBefore = SPACE_CHARS.includes(prevChar);
 
     // "- [ ] todo": an empty pair is a markdown checkbox, not prose spacing.
-    const openingChar = this.getOpeningBracket(closingBracket);
-    if (openingChar && hasSpaceBefore && inputStr[closingIndex - 2] === openingChar) {
+    const openingChar = OPENING_BY_CLOSING_BRACKET.get(closingBracket)!;
+    if (hasSpaceBefore && inputStr[closingIndex - 2] === openingChar) {
       return null;
     }
     // "[label](url)": a link target may follow "]", and once a space is in,
@@ -36,11 +42,6 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
       closingBracket !== "]" &&
       context.afterCursor[0] !== closingBracket &&
       this.isProseLikeClosingContext(inputStr, closingBracket, closingIndex);
-
-    const inputAction = resolveInputAction(context);
-    if (inputAction === "delete" && !hasSpaceBefore && insertSpaceAfter) {
-      return null;
-    }
 
     if (!hasSpaceBefore && !insertSpaceAfter) {
       return null;
@@ -57,11 +58,7 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
     closingBracket: string,
     closingIndex: number,
   ): boolean {
-    const openingBracket = this.getOpeningBracket(closingBracket);
-    if (!openingBracket) {
-      return false;
-    }
-
+    const openingBracket = OPENING_BY_CLOSING_BRACKET.get(closingBracket)!;
     const openingIndex = this.findMatchingOpeningIndex(
       inputStr,
       closingIndex,
@@ -71,7 +68,7 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
 
     if (openingIndex === null) {
       // "1)" and "a)" are list markers, not the end of a bracketed aside.
-      const previousChar = this.findPreviousSignificantChar(inputStr, closingIndex - 1);
+      const previousChar = inputStr[lastNonSpaceBefore(inputStr, closingIndex)];
       return !previousChar || !this.isIdentifierChar(previousChar);
     }
 
@@ -80,5 +77,28 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
     }
 
     return SPACE_CHARS.includes(inputStr[openingIndex - 1]);
+  }
+
+  private findMatchingOpeningIndex(
+    inputStr: string,
+    closingIndex: number,
+    openingBracket: string,
+    closingBracket: string,
+  ): number | null {
+    let depth = 0;
+    for (let i = closingIndex; i >= 0; i -= 1) {
+      const ch = inputStr[i];
+      if (ch === closingBracket) {
+        depth += 1;
+        continue;
+      }
+      if (ch === openingBracket) {
+        depth -= 1;
+        if (depth === 0) {
+          return i;
+        }
+      }
+    }
+    return null;
   }
 }

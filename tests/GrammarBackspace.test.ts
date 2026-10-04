@@ -1,14 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { SuggestionGrammarCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
 import { GRAMMAR_RULE_CATALOG } from "../src/core/domain/grammar/ruleCatalog";
 import type { GrammarEventType } from "../src/core/domain/grammar/types";
+import { grammarCoordinator } from "./suggestionTestUtils";
 
-const grammar = new SuggestionGrammarCoordinator({
-  enabledGrammarRules: GRAMMAR_RULE_CATALOG.map((rule) => rule.id),
-  insertSpaceAfterAutocomplete: true,
-  lang: "en_US",
-  userDictionaryList: [],
-});
+const grammar = grammarCoordinator(GRAMMAR_RULE_CATALOG.map((rule) => rule.id));
 
 // Text a Backspace can leave behind that some rule would rewrite if it were typed.
 const afterBackspace: [string, string][] = [

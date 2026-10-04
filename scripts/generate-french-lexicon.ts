@@ -93,7 +93,7 @@ function label(rules: Rule[]): Labeled[] {
 const parseAff = (aff: string) =>
   rulesByFlag(parseAffixRules(aff).filter((rule) => rule.kind === "SFX"));
 
-const flagList = (flags: string) => flags.match(/../g) ?? [];
+const flagList = (flags: string): string[] => flags.match(/../g) ?? [];
 
 export function buildFrenchLexicon(dic: string, aff: string): string {
   const flags = parseAff(aff);

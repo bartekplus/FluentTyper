@@ -7,30 +7,17 @@ import type { SuggestionPersonalization } from "./types";
 interface SuggestionPersonalizationServiceOptions {
   sendMessage?: (message: ContentScriptPersonalizationEventMessage, callback: () => void) => void;
   readLastError?: () => unknown;
-  createEventId?: () => string;
 }
 
 export class SuggestionPersonalizationService implements SuggestionPersonalization {
-  private readonly sendMessage: NonNullable<SuggestionPersonalizationServiceOptions["sendMessage"]>;
-  private readonly readLastError: () => unknown;
-  private readonly createEventId: () => string;
-
-  constructor(options: SuggestionPersonalizationServiceOptions = {}) {
-    this.sendMessage =
-      options.sendMessage ??
-      ((message, callback) => {
-        chrome.runtime.sendMessage(message, callback);
-      });
-    this.readLastError = options.readLastError ?? (() => chrome.runtime.lastError);
-    this.createEventId = options.createEventId ?? (() => `accept-${randomUUID()}`);
-  }
+  constructor(private readonly options: SuggestionPersonalizationServiceOptions = {}) {}
 
   recordSuggestionAccepted(args: {
     suggestion: string;
     triggerText: string;
     language: string;
   }): string {
-    const eventId = this.createEventId();
+    const eventId = `accept-${randomUUID()}`;
     this.emit({
       command: CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT,
       context: {
@@ -55,6 +42,6 @@ export class SuggestionPersonalizationService implements SuggestionPersonalizati
   }
 
   private emit(message: ContentScriptPersonalizationEventMessage): void {
-    sendFireAndForget(this.sendMessage, this.readLastError, message);
+    sendFireAndForget(message, this.options.sendMessage, this.options.readLastError);
   }
 }

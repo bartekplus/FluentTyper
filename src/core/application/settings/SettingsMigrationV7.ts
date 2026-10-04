@@ -21,49 +21,39 @@ const LEGACY_LIGHT_HIGHLIGHT_DEFAULTS = [
   },
 ] as const;
 
-function normalizeString(value: unknown): string | null {
+export function normalizeString(value: unknown): string | null {
   return typeof value === "string" ? value.trim().toLowerCase() : null;
 }
 
 function matchesAnyLegacyLightDefault(background: unknown, text: unknown): boolean {
   const normalizedBackground = normalizeString(background);
   const normalizedText = normalizeString(text);
-  if (!normalizedBackground || !normalizedText) {
-    return false;
-  }
-
   return LEGACY_LIGHT_HIGHLIGHT_DEFAULTS.some(
-    (entry) =>
-      normalizedBackground === entry.background.toLowerCase() &&
-      normalizedText === entry.text.toLowerCase(),
+    (entry) => normalizedBackground === entry.background && normalizedText === entry.text,
   );
 }
 
 export async function migrateSettingsV7(settings: SettingsManager): Promise<void> {
-  try {
-    const migrated = await settings.getRaw(KEY_SUGGESTION_THEME_V1_MIGRATED);
-    if (migrated === true) {
-      return;
-    }
-
-    const [highlightBgLight, highlightTextLight] = await Promise.all([
-      settings.getRaw(KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT),
-      settings.getRaw(KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT),
-    ]);
-
-    if (matchesAnyLegacyLightDefault(highlightBgLight, highlightTextLight)) {
-      await settings.setRaw(
-        KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightBgLight,
-      );
-      await settings.setRaw(
-        KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightTextLight,
-      );
-    }
-
-    await settings.setRaw(KEY_SUGGESTION_THEME_V1_MIGRATED, true);
-  } catch (error) {
-    console.warn("[SettingsMigrationV7] Failed to migrate settings:", error);
+  const migrated = await settings.getRaw(KEY_SUGGESTION_THEME_V1_MIGRATED);
+  if (migrated === true) {
+    return;
   }
+
+  const [highlightBgLight, highlightTextLight] = await Promise.all([
+    settings.getRaw(KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT),
+    settings.getRaw(KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT),
+  ]);
+
+  if (matchesAnyLegacyLightDefault(highlightBgLight, highlightTextLight)) {
+    await settings.setRaw(
+      KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
+      DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightBgLight,
+    );
+    await settings.setRaw(
+      KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
+      DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightTextLight,
+    );
+  }
+
+  await settings.setRaw(KEY_SUGGESTION_THEME_V1_MIGRATED, true);
 }

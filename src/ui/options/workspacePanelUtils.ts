@@ -1,18 +1,40 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { toStoredString } from "@core/application/domain-utils";
+import { i18n } from "./fluenttyperI18n.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
+import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js";
 
 type ControlEventTarget = {
   addEvent?: (type: string, fn: () => void) => void;
 };
 
-export function createWorkspaceShell(className = "workspace-panel-stack"): HTMLDivElement {
-  const shell = document.createElement("div");
-  shell.className = className;
-  return shell;
+export function createButton(
+  label: string,
+  className = "button",
+  onClick?: () => void,
+): HTMLButtonElement {
+  const button = createElement("button", { className, textContent: label });
+  button.type = "button";
+  if (onClick) {
+    button.addEventListener("click", onClick);
+  }
+  return button;
 }
 
-export function formatLooseText(value: unknown, fallback = ""): string {
-  return toStoredString(value) ?? fallback;
+export function createExternalLink(
+  href: string,
+  className?: string,
+  textContent?: string,
+): HTMLAnchorElement {
+  const link = createElement("a", { className, textContent });
+  link.href = href;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  return link;
+}
+
+export function formatLooseText(value: unknown): string {
+  return toStoredString(value) ?? "";
 }
 
 export function createSearchInput(
@@ -20,79 +42,205 @@ export function createSearchInput(
   value: string,
   onQuery: (query: string) => void,
 ): HTMLInputElement {
-  const search = document.createElement("input");
-  search.type = "search";
-  search.className = "input";
+  const search = createInputElement("search", "input");
   search.placeholder = placeholder;
   search.value = value;
   search.addEventListener("input", () => onQuery(search.value.trim().toLowerCase()));
   return search;
 }
 
-export function downloadBlob(blob: Blob, filename: string, revokeDelayMs: number): void {
+export function createDisclosure(summaryText: string): HTMLDetailsElement {
+  const details = createElement("details", { className: "settings-disclosure" });
+  details.appendChild(createElement("summary", { textContent: summaryText }));
+  return details;
+}
+
+export function createHelpList(items: string[], className = "settings-inline-help"): HTMLElement {
+  const list = createElement("ul", { className });
+  list.append(...items.map((text) => createElement("li", { textContent: text })));
+  return list;
+}
+
+export function downloadBlob(blob: Blob, filename: string): void {
   const link = document.createElement("a");
   link.href = window.URL.createObjectURL(blob);
   link.download = filename;
   link.click();
-  window.setTimeout(() => window.URL.revokeObjectURL(link.href), revokeDelayMs);
+  // The browser reads the object URL after the click; free it some time later.
+  window.setTimeout(() => window.URL.revokeObjectURL(link.href), 1500);
+}
+
+/** Builds section.settings-inline-card with an optional h4 title and p.settings-inline-help. */
+export function createInlineCard(titleText?: string, helpText?: string): HTMLElement {
+  const card = createElement("section", { className: "settings-inline-card" });
+  if (titleText) {
+    card.appendChild(createElement("h4", { textContent: titleText }));
+  }
+  if (helpText) {
+    card.appendChild(
+      createElement("p", { className: "settings-inline-help", textContent: helpText }),
+    );
+  }
+  return card;
 }
 
 export function createWorkspaceCard(titleText?: string, bodyText?: string) {
-  const card = document.createElement("section");
-  card.className = "settings-inline-card workspace-section-card";
-
-  if (titleText) {
-    const title = document.createElement("h4");
-    title.textContent = titleText;
-    card.appendChild(title);
-  }
-
-  if (bodyText) {
-    const copy = document.createElement("p");
-    copy.className = "settings-inline-help";
-    copy.textContent = bodyText;
-    card.appendChild(copy);
-  }
-
-  const body = document.createElement("div");
-  body.className = "workspace-section-body";
+  const card = createInlineCard(titleText, bodyText);
+  card.classList.add("workspace-section-card");
+  const body = createElement("div", { className: "workspace-section-body" });
   card.appendChild(body);
-
   return { card, body };
 }
 
-export function createStackField(labelText: string, control: HTMLElement): HTMLLabelElement {
-  const wrapper = document.createElement("label");
-  wrapper.className = "settings-stack-field";
-
-  const label = document.createElement("span");
-  label.textContent = labelText;
-
-  wrapper.append(label, control);
-  return wrapper;
+/**
+ * Builds a "domain-table" editor: a toolbar with a search input, an add input and an add
+ * button, then a list with one row and one remove button for each item that matches the query.
+ * Enter in the add input adds the item, as the add button does.
+ */
+export function createRemovableList(options: {
+  searchPlaceholder: string;
+  query: string;
+  onQuery: (query: string) => void;
+  addPlaceholder: string;
+  addLabel: string;
+  onAdd: (input: HTMLInputElement) => void;
+  items: string[];
+  hint?: string;
+  onRemove: (item: string) => void;
+  emptyText: string;
+}) {
+  const toolbar = createElement("div", { className: "text-assets-toolbar" });
+  const addInput = createElement("input", { className: "input" });
+  addInput.placeholder = options.addPlaceholder;
+  const addButton = createButton(options.addLabel, "button", () => options.onAdd(addInput));
+  addInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addButton.click();
+    }
+  });
+  const list = createElement("div", { className: "domain-table" });
+  // Rebuild only the list, so that the search input keeps its focus while the user types.
+  const fillList = (query: string) => {
+    const rows = options.items
+      .filter((entry) => entry.toLowerCase().includes(query))
+      .map((item) => {
+        const row = createElement("div", { className: "domain-table-row" });
+        row.appendChild(
+          createElement("div", { className: "domain-table-name", textContent: item }),
+        );
+        if (options.hint) {
+          row.appendChild(
+            createElement("div", { className: "domain-table-hint", textContent: options.hint }),
+          );
+        }
+        row.appendChild(
+          createButton(i18n.get("remove"), "button is-light", () => options.onRemove(item)),
+        );
+        return row;
+      });
+    list.replaceChildren(
+      ...(rows.length
+        ? rows
+        : [
+            createElement("p", {
+              className: "settings-inline-help",
+              textContent: options.emptyText,
+            }),
+          ]),
+    );
+  };
+  toolbar.append(
+    createSearchInput(options.searchPlaceholder, options.query, (query) => {
+      options.onQuery(query);
+      fillList(query);
+    }),
+    addInput,
+    addButton,
+  );
+  fillList(options.query);
+  return { toolbar, list };
 }
 
-export function bindControlEvents(
-  control: ControlEventTarget | undefined,
-  events: Array<["action" | "change", () => void]>,
-): void {
-  if (!control?.addEvent) {
-    return;
-  }
-
-  for (const [type, handler] of events) {
-    control.addEvent(type, handler);
-  }
+export function createStackField(labelText: string, control: HTMLElement): HTMLLabelElement {
+  const wrapper = createElement("label", { className: "settings-stack-field" });
+  wrapper.append(createElement("span", { textContent: labelText }), control);
+  return wrapper;
 }
 
 export function bindRerender(
   control: ControlEventTarget | undefined,
   render: () => void | Promise<void>,
 ): void {
-  bindControlEvents(control, [
-    ["action", () => void render()],
-    ["change", () => void render()],
-  ]);
+  // A value-only control fires "change" and then "action" for one set ("change" only when the
+  // set is silent). Other controls fire only "action". Render one time for each set.
+  let renderedOnChange = false;
+  control?.addEvent?.("change", () => {
+    renderedOnChange = true;
+    void render();
+  });
+  control?.addEvent?.("action", () => {
+    if (renderedOnChange) {
+      renderedOnChange = false;
+      return;
+    }
+    void render();
+  });
+}
+
+const FOCUSABLE = "button,input,select,textarea";
+
+/**
+ * Replaces the children of root with the element that build returns. Keeps each <details> open or
+ * closed as it was before, and moves the focus to the control at the same position. The state is
+ * read before build runs, because build can move existing controls into the new content.
+ */
+export function replaceChildrenKeepingDisclosures(
+  root: HTMLElement,
+  build: () => HTMLElement,
+): void {
+  const openStates = Array.from(root.querySelectorAll("details"), (details) => details.open);
+  const focusIndex = Array.from(root.querySelectorAll(FOCUSABLE)).indexOf(
+    document.activeElement as Element,
+  );
+  const content = build();
+  content.querySelectorAll("details").forEach((details, index) => {
+    details.open = openStates[index] ?? details.open;
+  });
+  root.replaceChildren(content);
+  if (focusIndex >= 0) content.querySelectorAll<HTMLElement>(FOCUSABLE)[focusIndex]?.focus();
+}
+
+export type ControlCardSpec = {
+  titleKey: string;
+  helpKey?: string;
+  keys: string[];
+  /** Shows the card as a closed <details> with the title as its summary. */
+  advanced?: true;
+};
+
+/** Builds one workspace card for each spec and moves the controls of its keys into the card. */
+export function renderControlCards(
+  root: HTMLElement,
+  registry: SettingsRegistry,
+  specs: ControlCardSpec[],
+): void {
+  const shell = createElement("div", { className: "workspace-panel-stack" });
+  for (const { titleKey, helpKey, keys, advanced } of specs) {
+    let card: HTMLElement;
+    let body: HTMLElement;
+    if (advanced) {
+      card = createElement("details", { className: "settings-inline-card settings-advanced" });
+      body = createElement("div", { className: "workspace-section-body" });
+      card.append(createElement("summary", { textContent: i18n.get(titleKey) }), body);
+    } else {
+      ({ card, body } = createWorkspaceCard(i18n.get(titleKey), helpKey && i18n.get(helpKey)));
+    }
+    keys.forEach((key) => moveControlToBody(registry, key, body));
+    shell.appendChild(card);
+  }
+  root.replaceChildren(shell);
+  pruneEmptySettingsGroups(root);
 }
 
 export function moveControlToBody(
@@ -100,11 +248,10 @@ export function moveControlToBody(
   key: string,
   destination: HTMLElement,
 ): void {
-  const control = registry[key];
-  if (!control?.rootElement) {
-    return;
+  const root = registry[key]?.rootElement;
+  if (root) {
+    destination.appendChild(root);
   }
-  destination.appendChild(control.rootElement);
 }
 
 export function pruneEmptySettingsGroups(panelRoot: HTMLElement): void {

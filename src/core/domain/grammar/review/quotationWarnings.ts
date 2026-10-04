@@ -24,7 +24,7 @@ const LETTER = /[\p{L}\p{M}]/u;
 export const ELIDED_QUOTE_START = /^(?:tis|twas|em|cause|bout|til|round|\d{2}s)\b/i;
 
 /** One full, unprotected field. Uncertain conventions abort; no closing location is invented. */
-export function unclosedQuotations(text: string, lang = "en_US"): RawFinding[] {
+export function unclosedQuotations(text: string, lang: string): RawFinding[] {
   const PAIRS = PAIRS_BY_LANGUAGE[lang.slice(0, 2)] ?? EN_PAIRS;
   const CLOSERS = new Set(Object.values(PAIRS).join(""));
   const stack: Array<{ open: string; close: string; start: number }> = [];

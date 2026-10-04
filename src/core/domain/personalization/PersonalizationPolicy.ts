@@ -1,4 +1,4 @@
-import { isObjectRecord } from "../guards";
+import { defineOwnProperty, hasControlCharacter, isFiniteNumber, isObjectRecord } from "../guards";
 import { SUPPORTED_LANGUAGES } from "../lang";
 import type {
   PersonalizationRecentEvent,
@@ -8,7 +8,6 @@ import type {
 
 const PERSONALIZATION_STORE_VERSION = 1 as const;
 export const PERSONALIZATION_DECAY_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
-const PERSONALIZATION_PROMOTION_THRESHOLD = 2;
 export const PERSONALIZATION_MAX_WORDS_PER_LANGUAGE = 500;
 const PERSONALIZATION_MAX_RECENT_EVENTS = 100;
 
@@ -38,13 +37,9 @@ export function normalizePersonalizationWord(
   }
 
   const display = value.replace(/^[\s\u00a0]+|[\s\u00a0]+$/gu, "").normalize("NFC");
-  const hasControlCharacter = Array.from(display).some((character) => {
-    const codePoint = character.codePointAt(0);
-    return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
-  });
   if (
     display.length === 0 ||
-    hasControlCharacter ||
+    hasControlCharacter(display) ||
     display.includes("\\b") ||
     /\s|\u00a0/u.test(display) ||
     display.includes("${") ||
@@ -67,17 +62,12 @@ export function calculateEffectivePersonalizationScore(
   return word.score * Math.exp(-elapsedMs / PERSONALIZATION_DECAY_WINDOW_MS);
 }
 
-export function isPromotionEligible(score: number): boolean {
-  return score >= PERSONALIZATION_PROMOTION_THRESHOLD;
-}
-
 export function prunePersonalizationLanguage(
   words: Record<string, PersonalizationWord>,
   nowMs: number,
-  limit = PERSONALIZATION_MAX_WORDS_PER_LANGUAGE,
 ): Record<string, PersonalizationWord> {
   const entries = Object.entries(words);
-  if (entries.length <= limit) {
+  if (entries.length <= PERSONALIZATION_MAX_WORDS_PER_LANGUAGE) {
     return { ...words };
   }
 
@@ -87,7 +77,7 @@ export function prunePersonalizationLanguage(
       calculateEffectivePersonalizationScore(left[1], nowMs);
     return scoreDelta !== 0 ? scoreDelta : right[1].updatedAtMs - left[1].updatedAtMs;
   });
-  return Object.fromEntries(entries.slice(0, Math.max(0, limit)));
+  return Object.fromEntries(entries.slice(0, PERSONALIZATION_MAX_WORDS_PER_LANGUAGE));
 }
 
 export function sanitizePersonalizationStore(
@@ -182,18 +172,9 @@ function resolveLocale(language: string): string {
 }
 
 function isPositiveFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value > 0;
+  return isFiniteNumber(value) && value > 0;
 }
 
 function isValidTimestamp(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0;
-}
-
-export function defineOwnProperty<T>(record: Record<string, T>, key: string, value: T): void {
-  Object.defineProperty(record, key, {
-    configurable: true,
-    enumerable: true,
-    value,
-    writable: true,
-  });
+  return isFiniteNumber(value) && value >= 0;
 }

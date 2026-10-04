@@ -23,7 +23,6 @@ test("metadata does not suppress prose and diagnostics contain no field text", (
   field.setAttribute("aria-controls", "missing");
   expect(editorCapabilities(field)).toMatchObject({
     inspectProse: true,
-    mapText: true,
     displaySuggestions: true,
     renderReview: true,
     consumeAcceptanceKey: true,
@@ -71,9 +70,9 @@ test("unverified model editors remain readable without a generic writer", async 
   expect(
     editorCapabilities(field, { fieldActivated: true, review: target.capabilities }),
   ).toMatchObject({
-    mapText: true,
+    inspectProse: true,
     renderReview: true,
-    replaceText: false,
+    displaySuggestions: false,
     reviewApply: false,
     consumeAcceptanceKey: false,
     reason: "unverified-writer",
@@ -112,9 +111,9 @@ test("locked state, shadow ancestors, and replacement do not persist negative st
   host.removeAttribute("aria-disabled");
   expect(editorCapabilities(field).inspectProse).toBe(true);
   field.readOnly = true;
-  expect(editorCapabilities(field).replaceText).toBe(false);
+  expect(editorCapabilities(field).displaySuggestions).toBe(false);
   field.readOnly = false;
-  expect(editorCapabilities(field).replaceText).toBe(true);
+  expect(editorCapabilities(field).displaySuggestions).toBe(true);
   const replacement = field.cloneNode() as HTMLInputElement;
   field.replaceWith(replacement);
   expect(editorCapabilities(field).reason).toBe("detached");

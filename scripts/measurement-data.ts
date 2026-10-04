@@ -120,6 +120,7 @@ for (const unit of units) {
   if (byUcum.has(unit.ucum)) throw new Error(`duplicate UCUM mapping: ${unit.ucum}`);
   byUcum.set(unit.ucum, unit);
 }
+const counts = { "recognized-safe": 0, "recognized-ambiguous": 0, unsupported: 0 };
 const rows = ucumCodes.map((code) => {
   const unit = byUcum.get(code);
   const standaloneEligible = unit?.safe && !/^[A-Z]$/.test(unit.symbol);
@@ -128,6 +129,7 @@ const rows = ucumCodes.map((code) => {
       ? "recognized-safe"
       : "recognized-ambiguous"
     : "unsupported";
+  counts[status]++;
   const note =
     unit?.ambiguity ??
     (unit
@@ -137,21 +139,12 @@ const rows = ucumCodes.map((code) => {
       : "not in prose registry");
   return `| \`${code.replaceAll("|", "\\|")}\` | ${status} | ${note.replaceAll("|", "\\|")} |`;
 });
-const counts = rows.reduce(
-  (result, row) => {
-    if (row.includes("recognized-safe")) result.safe++;
-    else if (row.includes("recognized-ambiguous")) result.ambiguous++;
-    else result.unsupported++;
-    return result;
-  },
-  { safe: 0, ambiguous: 0, unsupported: 0 },
-);
 const coverage =
   `# UCUM atomic-code coverage\n\n` +
   `Generated from the pinned, unmodified UCUM 2.2 essence snapshot. This is a coverage audit, not a UCUM parser or a conformance claim. UCUM expression syntax and case-insensitive aliases are intentionally unsupported.\n\n` +
   `Snapshot SHA-256: \`${ucumHash}\`\n\n` +
   `| recognized-safe | recognized-ambiguous | unsupported | total |\n|---:|---:|---:|---:|\n` +
-  `| ${counts.safe} | ${counts.ambiguous} | ${counts.unsupported} | ${rows.length} |\n\n` +
+  `| ${counts["recognized-safe"]} | ${counts["recognized-ambiguous"]} | ${counts.unsupported} | ${rows.length} |\n\n` +
   `| UCUM code | classification | reason / prose symbol |\n|---|---|---|\n${rows.join("\n")}\n`;
 await writeFile(
   resolve(root, "data/measurement/ucum-coverage.md"),

@@ -2,12 +2,13 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { GoogleDocsView } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsView";
 import { InlineSuggestionView } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionView";
 import { SuggestionMenuView } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuView";
+import { resolveSuggestionMenuHostId } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuHost";
 import { DOCS_SESSION_ID } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 import { createRect } from "./suggestionTestUtils";
 
 function mountCaret(): HTMLElement {
   // Other suites in the same run may leave ghosts behind.
-  InlineSuggestionView.removeAll(document);
+  InlineSuggestionView.removeForEntry(undefined, document);
   const caret = document.createElement("div");
   caret.className = "kix-cursor-caret";
   caret.style.borderLeftColor = "rgb(0, 0, 0)";
@@ -92,7 +93,7 @@ describe("GoogleDocsView inline ghost guard", () => {
   test("labels a snippet with its shortcut in the menu", () => {
     caret = mountCaret();
     view = renderDocs("adr", "123 Main Street", { inline: false, snippetShortcut: "address" });
-    const menu = document.getElementById(SuggestionMenuView.resolveHostId(DOCS_SESSION_ID));
+    const menu = document.getElementById(resolveSuggestionMenuHostId(DOCS_SESSION_ID));
     const row = menu?.shadowRoot?.querySelector("li");
     expect(row?.querySelector(".ft-suggestion-label")?.textContent).toBe("123 Main Street");
     expect(row?.querySelector(".ft-suggestion-detail")?.textContent).toBe("address");
@@ -101,7 +102,7 @@ describe("GoogleDocsView inline ghost guard", () => {
   test("a hidden menu's last placement does not reverse arrows for an inline ghost", () => {
     caret = mountCaret();
     view = renderDocs("adr", "123 Main Street", { inline: false });
-    const menu = document.getElementById(SuggestionMenuView.resolveHostId(DOCS_SESSION_ID))!;
+    const menu = document.getElementById(resolveSuggestionMenuHostId(DOCS_SESSION_ID))!;
     menu.setAttribute("data-ft-placement", "above");
     expect(view.isReversed()).toBe(true);
 
@@ -114,7 +115,7 @@ describe("GoogleDocsView inline ghost guard", () => {
   test("labels the popup in the Extension UI Language, not the browser's", () => {
     caret = mountCaret();
     view = renderDocs("adr", "123 Main Street", { inline: false, uiLanguage: "de_DE" });
-    const menu = document.getElementById(SuggestionMenuView.resolveHostId(DOCS_SESSION_ID));
+    const menu = document.getElementById(resolveSuggestionMenuHostId(DOCS_SESSION_ID));
     expect(SuggestionMenuView.resolvePanel(menu as HTMLDivElement).getAttribute("aria-label")).toBe(
       "FluentTyper-Vorschläge",
     );

@@ -1,5 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { matchTrailingEnglishPhrase } from "./helpers/EnglishRuleShared";
+import { matchTrailingEnglishPhrase, replaceFrom } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
 export const MODAL_OF_REGEX =
@@ -67,11 +67,7 @@ export class EnglishModalOfCorrectionRule implements GrammarRule {
     const normalizedModal = applyWordCase(modal, style);
     const haveWord = modalHaveWord(modal, match[0].slice(modal.length).trimStart().slice(0, 2));
 
-    return {
-      replacement: `${normalizedModal} ${haveWord} ${following}${boundaryContext.trailing}`,
-      deleteBackwards: boundaryContext.input.length - phraseStart,
-      deleteForwards: 0,
-    };
+    return replaceFrom(boundaryContext, phraseStart, `${normalizedModal} ${haveWord} ${following}`);
   }
 }
 

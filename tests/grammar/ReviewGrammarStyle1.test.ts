@@ -1,13 +1,11 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { REVIEW_RULE_METADATA } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review as runReview } from "./grammarTestUtils";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan } from "./reviewHarness";
 
-function review(text: string, rule: CatalogRuleId, lang = "en_US") {
-  return scan(text, { lang, enabledRules: [rule] });
-}
+const review = (text: string, rule: CatalogRuleId, lang = "en_US") =>
+  runReview(text, {}, { lang, enabledRules: [rule] }).diagnostics;
 /** Every finding's offered repairs, each applied to the whole text. */
 const repaired = (text: string, rule: CatalogRuleId) =>
   review(text, rule).map((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));
@@ -141,6 +139,12 @@ const positives: [CatalogRuleId, string, string[]][] = [
     "Ive reading it now.",
     ["I'm reading it now.", "I've been reading it now."],
   ],
+  [
+    "englishClosedCompounds",
+    "The word was miss spelt in the title.",
+    ["The word was misspelt in the title."],
+  ],
+  ["englishContractionNormalization", "THAT S GREAT", ["THAT'S GREAT"]],
 ];
 test.each(positives)("%s repairs %s", (rule, text, repairs) => {
   expect(repaired(text, rule)).toEqual([repairs]);
@@ -206,6 +210,7 @@ const negatives: [CatalogRuleId, string][] = [
   ["styleNoOxfordComma", "I went home, and she stayed."],
   ["englishPerfectParticiples", "We have training on Monday."],
   ["englishPerfectParticiples", 'Avoid "She has cleaning the room" in prose.'],
+  ["englishClosedCompounds", "The word was miss spellt in the title."],
 ];
 test.each(negatives)("%s leaves %s", (rule, text) => {
   expect(review(text, rule)).toEqual([]);
@@ -215,15 +220,8 @@ test("quoted examples, other languages and the user dictionary stay untouched", 
   expect(review('Never write "these criterion" here.', "englishCountability")).toEqual([]);
   expect(review("These criterion differ.", "englishCountability", "de_DE")).toEqual([]);
   expect(
-    detectReviewDiagnostics(
-      { id: "dict", text: "Many ppl came.", scope: { start: 0, end: 14 }, protectedRanges: [] },
-      {
-        lang: "en_US",
-        enabledRules: ["stylePhrasing"],
-        userDictionary: ["ppl"],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics,
+    runReview("Many ppl came.", {}, { enabledRules: ["stylePhrasing"], userDictionary: ["ppl"] })
+      .diagnostics,
   ).toEqual([]);
 });
 

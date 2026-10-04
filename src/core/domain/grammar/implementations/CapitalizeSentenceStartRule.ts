@@ -1,10 +1,11 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS } from "../../spacingRules";
 import { isGreekQuestionMark } from "../typographyProfiles";
+import { baseLanguage } from "../../lang";
 import {
   isLowercaseLetter,
   isTechnicalToken,
-  resolveInputAction,
+  lastNonSpaceBefore,
 } from "./helpers/GenericRuleShared";
 
 // "؟" is the Arabic question mark: Latin text after it still starts a sentence.
@@ -229,13 +230,9 @@ const ALL_MONTH_JOIN_PATTERNS = monthJoinPatterns([
 // How many characters on each side of a token the context checks read.
 const CONTEXT_CHARS = 80;
 
-function languageKey(lang?: string): string {
-  return (lang ?? "").slice(0, 2).toLowerCase();
-}
-
 /** The month abbreviations of `lang`; a language without its own list keeps every month. */
 function monthsFor(lang?: string): ReadonlySet<string> {
-  return MONTHS_BY_KEY.get(languageKey(lang)) ?? ALL_MONTHS;
+  return MONTHS_BY_KEY.get(baseLanguage(lang ?? "")) ?? ALL_MONTHS;
 }
 
 /** True when the month at `start`..`index` has date context around it. */
@@ -248,7 +245,7 @@ function hasMonthContext(
   const before = text.slice(Math.max(0, start - CONTEXT_CHARS), start);
   const after = text.slice(index + 1, index + 1 + CONTEXT_CHARS);
   // A date word before it: "in Jan.", "seit Jan.", "end of Jan.".
-  const key = languageKey(lang);
+  const key = baseLanguage(lang ?? "");
   const dateWords = DATE_WORD_PATTERNS.get(key) ?? ALL_DATE_WORDS_PATTERN;
   if (dateWords.test(before)) return true;
   // Another month joined directly to this one: "Jan. and Feb.", "Jan.–Mar.", "Jan., Feb.".
@@ -299,7 +296,7 @@ function isListedAbbreviation(
 
 /** A language without its own list (auto-detect not resolved yet) keeps every entry. */
 function abbreviationsFor(lang?: string): ReadonlySet<string> {
-  return LANGUAGE_ABBREVIATIONS.get(languageKey(lang)) ?? ALL_ABBREVIATIONS;
+  return LANGUAGE_ABBREVIATIONS.get(baseLanguage(lang ?? "")) ?? ALL_ABBREVIATIONS;
 }
 
 // Locales that write ordinals as "1." inside a sentence ("der 1. und 2. Platz").
@@ -415,7 +412,7 @@ function abbreviationEntry(text: string, index: number): string {
  * ("e.g.") uses the entry with no stops ("eg").
  */
 function canEndSentence(text: string, index: number, lang?: string): boolean {
-  const enders = LANGUAGE_SENTENCE_ENDERS.get(languageKey(lang)) ?? ALL_SENTENCE_ENDERS;
+  const enders = LANGUAGE_SENTENCE_ENDERS.get(baseLanguage(lang ?? "")) ?? ALL_SENTENCE_ENDERS;
   return enders.has(abbreviationEntry(text, index));
 }
 
@@ -437,13 +434,13 @@ export function periodEndsSentence(text: string, index: number, lang?: string): 
   if (next === undefined) return false;
   if (/^\p{Lu}/u.test(next)) return true;
   if (EXAMPLE_ENTRIES.has(abbreviationEntry(text, index))) return false;
-  return NEW_CLAUSE_BY_KEY.get(languageKey(lang))?.has(next) ?? false;
+  return NEW_CLAUSE_BY_KEY.get(baseLanguage(lang ?? ""))?.has(next) ?? false;
 }
-// Includes every closing quote the typography profiles emit: „…“ ‚…‘ «…» ›…‹.
+// Includes every closing quote the typography profiles emit (in „…“ ‚…‘ «…»), and a typed "›".
 export const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’", "“", "‘", "»", "›"]);
 // French padding inside a closing guillemet and before "!" or "?": "« Oui ! »".
 export const CLOSING_PADDING_CHARS = new Set(["\u00A0", "\u202F"]);
-export const WORD_BOUNDARY_CHARS = [...SPACE_CHARS, "\n"];
+const WORD_BOUNDARY_CHARS = [...SPACE_CHARS, "\n"];
 // Punctuation that closes a prose word without making it a token: "done.",
 // "hello,", "(quietly)".
 export const TRAILING_PUNCTUATION_REGEX = /[.,!?;:)\]}"'”’“‘»›\u00A0\u202F]+$/u;
@@ -469,8 +466,7 @@ export function capitalizeCompletedWord(
   if (
     boundary < 1 ||
     !WORD_BOUNDARY_CHARS.includes(text[boundary]) ||
-    WORD_BOUNDARY_CHARS.includes(text[boundary - 1]) ||
-    resolveInputAction(context) === "delete"
+    WORD_BOUNDARY_CHARS.includes(text[boundary - 1])
   ) {
     return null;
   }
@@ -521,11 +517,8 @@ export function startsSentence(
   lang?: string,
   options: AbbreviationOptions = {},
 ): boolean {
-  let i = wordStart - 1;
   // A newline is left to the line-break rule.
-  while (i >= 0 && SPACE_CHARS.includes(text[i])) {
-    i -= 1;
-  }
+  let i = lastNonSpaceBefore(text, wordStart);
   if (i < 0) {
     return true;
   }

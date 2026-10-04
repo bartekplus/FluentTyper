@@ -1,6 +1,7 @@
 import { detectReviewDiagnostics } from "../src/core/domain/grammar/review/reviewDiagnostics";
-import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, describe, expect, jest, test } from "bun:test";
 import { createEditor, setCaret } from "./codeContextTestUtils";
+import { createReviewController } from "./reviewTestUtils";
 import {
   buildContentEditableTextMap,
   domPositionToOffset,
@@ -12,7 +13,6 @@ import {
   resolveReviewTarget,
 } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import { InjectedHostEditorPageBridge } from "../src/adapters/chrome/content-script/suggestions/HostEditorPageBridge";
-import { ReviewController } from "../src/adapters/chrome/content-script/review/ReviewController";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import {
   explanationTable,
@@ -33,7 +33,6 @@ import {
   type DocsEdit,
 } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 import { REVIEW_HIGHLIGHT_NAMES } from "../src/adapters/chrome/content-script/review/reviewStyles";
-import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
 import {
   reviewRuleIds,
   runsInReviewLanguage,
@@ -41,8 +40,7 @@ import {
 import { AI_PROMPT_VERSION } from "../src/core/domain/grammar/review/ai/prompts";
 import type { ReviewEdit } from "../src/core/domain/grammar/review/types";
 import type { ReviewAiProvider } from "../src/core/application/review/reviewAi";
-import type { LocalAiStatus } from "../src/core/domain/contracts/localAi";
-import { installDomRect } from "./domRect";
+import { readyStatus } from "./support/localAiFakes";
 import * as fs from "fs";
 import path from "path";
 
@@ -98,17 +96,16 @@ function edit(start: number, end: number, original: string, replacement: string)
   return { start, end, original, replacement };
 }
 
-beforeEach(() => {
-  // Other suites share this document; a leftover editable body would be "the editor".
-  document.body.removeAttribute("contenteditable");
-  delete (document.body as { isContentEditable?: boolean }).isContentEditable;
-  document.designMode = "off";
-});
+async function until(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
+  for (let i = 0; i < timeoutMs / 5; i += 1) {
+    if (predicate()) return;
+    await Bun.sleep(5);
+  }
+  throw new Error("condition not reached");
+}
 
 afterEach(() => {
   jest.restoreAllMocks();
-  document.getSelection()?.removeAllRanges();
-  document.body.replaceChildren();
   document.querySelectorAll("[data-fluenttyper-review]").forEach((node) => node.remove());
   delete (document as unknown as { execCommand?: ExecCommand }).execCommand;
 });
@@ -904,10 +901,8 @@ describe("contenteditable writes", () => {
     const prose = createEditor("<p>x</p>");
     prose.className = "ProseMirror";
     expect(new ContentEditableReviewTarget(prose).capabilities).toEqual({
-      inline: true,
       apply: false,
       bulk: false,
-      undo: "none",
     });
     const container = document.createElement("div");
     container.className = "ql-container";
@@ -929,15 +924,11 @@ describe("in-field review button", () => {
     const button = launcherButton();
     return !!button && !button.hidden;
   };
-  function sized(element: HTMLElement, rect = { left: 100, top: 50, width: 300, height: 120 }) {
-    element.getBoundingClientRect = () =>
-      ({
-        ...rect,
-        right: rect.left + rect.width,
-        bottom: rect.top + rect.height,
-        x: rect.left,
-        y: rect.top,
-      }) as DOMRect;
+  function sized<T extends HTMLElement>(
+    element: T,
+    rect = { left: 100, top: 50, width: 300, height: 120 },
+  ) {
+    element.getBoundingClientRect = () => new DOMRect(rect.left, rect.top, rect.width, rect.height);
     return element;
   }
   function launcher(overrides: Partial<ConstructorParameters<typeof ReviewLauncher>[1]> = {}) {
@@ -947,7 +938,7 @@ describe("in-field review button", () => {
       canShowFor: () => true,
       reviewedElement: () => null,
       review,
-      uiLanguage: "en",
+      uiLanguage: () => "en",
       ...overrides,
     });
     return { instance, review };
@@ -1033,7 +1024,7 @@ describe("in-field review button", () => {
     field.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
     // Typing: out of the way until the user pauses.
     expect(shown()).toBe(false);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await Bun.sleep(1000);
     expect(shown()).toBe(true);
 
     reviewed = field;
@@ -1090,14 +1081,15 @@ describe("in-field review button", () => {
       const matches = dialog.matches.bind(dialog);
       jest
         .spyOn(dialog, "matches")
-        .mockImplementation((selector) => selector === ":modal" || matches(selector));
+        .mockImplementation(
+          ((selector: string) => selector === ":modal" || matches(selector)) as Element["matches"],
+        );
       sized(field);
       focusIn(field);
       expect(shown()).toBe(true);
       expect(body.innerHTML).not.toContain("data-fluenttyper-review-launcher");
     } finally {
       instance.dispose();
-      body.removeAttribute("contenteditable");
     }
   });
 
@@ -1115,32 +1107,16 @@ describe("in-field review button", () => {
 });
 
 describe("review controller lifecycle", () => {
-  async function until(predicate: () => boolean): Promise<void> {
-    for (let i = 0; i < 200; i += 1) {
-      if (predicate()) return;
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    }
-    throw new Error("condition not reached");
-  }
-
-  function controller(uiLanguage: string | (() => string) = "en", suggestionsOpen = () => false) {
+  function controller(uiLanguage = () => "en", suggestionsOpen = () => false) {
     const suspend = jest.fn();
     const resume = jest.fn();
     const onActiveChange = jest.fn();
-    const review = new ReviewController({
+    const review = createReviewController({
       createEngine: () => new LocalReviewEngine(undefined, async (lang) => explanationTable(lang)),
-      getOptions: () => ({
-        lang: "en_US",
-        enabledRules: GRAMMAR_RULE_IDS,
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      }),
       suspend,
       resume,
       suggestionsOpen,
       onActiveChange,
-      addToDictionary: async () => true,
-      getDocsSurface: () => null,
       uiLanguage,
     });
     return { review, suspend, resume, onActiveChange };
@@ -1208,10 +1184,8 @@ describe("review controller lifecycle", () => {
     // No CSS Custom Highlight API here: the overlay path is used and nothing is registered.
     expect((globalThis as { CSS?: { highlights?: unknown } }).CSS?.highlights).toBeUndefined();
 
-    const KeyboardEventCtor = (window as unknown as { KeyboardEvent: typeof KeyboardEvent })
-      .KeyboardEvent;
-    field.dispatchEvent(new KeyboardEventCtor("keydown", { key: "Escape", bubbles: true }));
-    expect(review.isActive).toBe(false);
+    field.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(review.reviewedElement).toBeNull();
     expect(root()).toBeNull();
     // Listeners are gone: edits after closing are not observed.
     field.value = "changed";
@@ -1222,20 +1196,18 @@ describe("review controller lifecycle", () => {
   test("Escape closes an open suggestion popup first, not the review", async () => {
     const field = textarea("We saw teh cat.");
     let popup = true;
-    const { review } = controller("en", () => popup);
+    const { review } = controller(undefined, () => popup);
     review.invoke();
     await until(() => root()?.querySelector(".status")?.textContent === "Issues: 1");
-    const KeyboardEventCtor = (window as unknown as { KeyboardEvent: typeof KeyboardEvent })
-      .KeyboardEvent;
     const escape = () =>
       field.dispatchEvent(
-        new KeyboardEventCtor("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+        new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
       );
     expect(escape()).toBe(true);
-    expect(review.isActive).toBe(true);
+    expect(review.reviewedElement).not.toBeNull();
     popup = false;
     expect(escape()).toBe(false);
-    expect(review.isActive).toBe(false);
+    expect(review.reviewedElement).toBeNull();
   });
 
   test("suggestions pause only while a fix is written", async () => {
@@ -1333,7 +1305,9 @@ describe("review controller lifecycle", () => {
     const matches = dialog.matches.bind(dialog);
     jest
       .spyOn(dialog, "matches")
-      .mockImplementation((selector) => selector === ":modal" || matches(selector));
+      .mockImplementation(
+        ((selector: string) => selector === ":modal" || matches(selector)) as Element["matches"],
+      );
     const input = document.createElement("input");
     input.type = "password";
     dialog.append(input);
@@ -1362,20 +1336,7 @@ describe("review controller lifecycle", () => {
 });
 
 describe("adversarial review regressions", () => {
-  async function until(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
-    for (let i = 0; i < timeoutMs / 5; i += 1) {
-      if (predicate()) return;
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    }
-    throw new Error("condition not reached");
-  }
   const hosts = () => document.querySelectorAll("[data-fluenttyper-review]");
-  const options = () => ({
-    lang: "en_US",
-    enabledRules: GRAMMAR_RULE_IDS,
-    userDictionary: [],
-    insertSpaceAfterAutocomplete: true,
-  });
 
   test("a text-control fix is refused when focus cannot move to the field", async () => {
     setExecCommand(textControlInsert);
@@ -1430,16 +1391,7 @@ describe("adversarial review regressions", () => {
   test("pressing the shortcut again from the panel keeps the review", async () => {
     textarea("We saw teh cat.");
     const onActiveChange = jest.fn();
-    const review = new ReviewController({
-      createEngine: () => new LocalReviewEngine(),
-      getOptions: options,
-      suspend: jest.fn(),
-      resume: jest.fn(),
-      onActiveChange,
-      addToDictionary: async () => true,
-      getDocsSurface: () => null,
-      uiLanguage: "en",
-    });
+    const review = createReviewController({ onActiveChange });
     review.invoke();
     await until(
       () => hosts()[0]?.shadowRoot?.querySelector(".status")?.textContent === "Issues: 1",
@@ -1447,7 +1399,7 @@ describe("adversarial review regressions", () => {
     // Focus is now in the panel, so no editor is focused.
     (hosts()[0].shadowRoot!.querySelector("[data-action=close]") as HTMLElement).focus();
     review.invoke();
-    expect(review.isActive).toBe(true);
+    expect(review.reviewedElement).not.toBeNull();
     expect(onActiveChange).toHaveBeenCalledTimes(1);
     expect(hosts()).toHaveLength(1);
     review.close();
@@ -1467,24 +1419,16 @@ describe("adversarial review regressions", () => {
       reviewFocusEditor: jest.fn(),
       onReviewSourceChange: jest.fn(() => () => {}),
     };
-    const review = new ReviewController({
-      createEngine: () => new LocalReviewEngine(),
-      getOptions: options,
-      suspend: jest.fn(),
-      resume: jest.fn(),
-      addToDictionary: async () => true,
-      getDocsSurface: () => surface as never,
-      uiLanguage: "en",
-    });
+    const review = createReviewController({ getDocsSurface: () => surface as never });
     review.invoke();
     review.invoke();
     expect(surface.setReviewActive.mock.calls).toEqual([[true]]);
     // Closed while Docs is answering: nothing opens afterwards, typing resumes.
     review.close();
     answer({ status: "cancelled" });
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await Bun.sleep(20);
     expect(hosts()).toHaveLength(0);
-    expect(review.isActive).toBe(false);
+    expect(review.reviewedElement).toBeNull();
     expect(surface.setReviewActive.mock.calls).toEqual([[true], [false]]);
   });
 
@@ -1519,15 +1463,7 @@ describe("adversarial review regressions", () => {
         };
       },
     };
-    const review = new ReviewController({
-      createEngine: () => new LocalReviewEngine(),
-      getOptions: options,
-      suspend: jest.fn(),
-      resume: jest.fn(),
-      addToDictionary: async () => true,
-      getDocsSurface: () => surface as never,
-      uiLanguage: "en",
-    });
+    const review = createReviewController({ getDocsSurface: () => surface as never });
     review.invoke();
     const panel = () => hosts()[0]?.shadowRoot;
     const status = () => panel()?.querySelector(".status")?.textContent;
@@ -1548,7 +1484,6 @@ describe("adversarial review regressions", () => {
   });
 
   test("Docs highlights follow its text runs, step aside for its menus and answer only clicks", async () => {
-    const restoreDomRect = installDomRect();
     // The click handler tells text controls apart; the shared jsdom globals lack them.
     const globals = globalThis as Record<string, unknown>;
     const lent = ["HTMLInputElement", "HTMLTextAreaElement"].map((name) => ({
@@ -1599,19 +1534,10 @@ describe("adversarial review regressions", () => {
         return () => keys.delete(listener);
       },
     };
-    const review = new ReviewController({
-      createEngine: () => new LocalReviewEngine(),
-      getOptions: options,
-      suspend: jest.fn(),
-      resume: jest.fn(),
-      addToDictionary: async () => true,
-      getDocsSurface: () => surface as never,
-      uiLanguage: "en",
-    });
-    const MouseEventCtor = (window as unknown as { MouseEvent: typeof MouseEvent }).MouseEvent;
+    const review = createReviewController({ getDocsSurface: () => surface as never });
     const press = (type: string, x: number, y: number, init: MouseEventInit = {}) =>
       editor.dispatchEvent(
-        new MouseEventCtor(type, { bubbles: true, clientX: x, clientY: y, detail: 1, ...init }),
+        new window.MouseEvent(type, { bubbles: true, clientX: x, clientY: y, detail: 1, ...init }),
       );
     const clickAt = (x: number, y: number, from = { x, y }, init: MouseEventInit = {}) => {
       press("pointerdown", from.x, from.y);
@@ -1647,7 +1573,7 @@ describe("adversarial review regressions", () => {
       bubble.className = "docs-bubble";
       editor.append(bubble);
       bubble.dispatchEvent(
-        new MouseEventCtor("click", { bubbles: true, clientX: 175, clientY: 110, detail: 1 }),
+        new window.MouseEvent("click", { bubbles: true, clientX: 175, clientY: 110, detail: 1 }),
       );
       expect(cardOpen()).toBe(false);
       bubble.remove();
@@ -1659,9 +1585,9 @@ describe("adversarial review regressions", () => {
       clickAt(175, 110);
       panel()
         .querySelector(".card")!
-        .dispatchEvent(new MouseEventCtor("contextmenu", { bubbles: true, composed: true }));
+        .dispatchEvent(new window.MouseEvent("contextmenu", { bubbles: true, composed: true }));
       expect(cardOpen()).toBe(true);
-      document.dispatchEvent(new MouseEventCtor("contextmenu", { bubbles: true }));
+      document.dispatchEvent(new window.MouseEvent("contextmenu", { bubbles: true }));
       expect(cardOpen()).toBe(false);
 
       // A Docs menu over the word hides its mark until the menu goes away.
@@ -1669,10 +1595,10 @@ describe("adversarial review regressions", () => {
       menu.setAttribute("role", "menu");
       boxOf(menu, 160, 90, 100, 50);
       document.body.append(menu);
-      document.dispatchEvent(new MouseEventCtor("pointerup", { bubbles: true }));
+      document.dispatchEvent(new window.MouseEvent("pointerup", { bubbles: true }));
       await until(() => marks().length === 0);
       menu.remove();
-      document.dispatchEvent(new MouseEventCtor("pointerup", { bubbles: true }));
+      document.dispatchEvent(new window.MouseEvent("pointerup", { bubbles: true }));
       await until(() => marks().length === 1);
 
       // A change with no keystroke (a collaborator, a menu command) re-renders
@@ -1684,7 +1610,7 @@ describe("adversarial review regressions", () => {
       text = "We saw teh cat and teh dog.";
       run.setAttribute("aria-label", text);
       boxOf(run, 100, 100, 270, 20);
-      await new Promise((resolve) => setTimeout(resolve, 1300));
+      await Bun.sleep(1300);
       expect(panel().querySelector(".status")?.textContent).toBe("Issues: 1");
       focused.mockReturnValue(true);
       await until(() => panel().querySelector(".status")?.textContent === "Issues: 2", 4000);
@@ -1692,14 +1618,13 @@ describe("adversarial review regressions", () => {
 
       // Runs gone (pages not rendered): the list is all there is, and the note says so.
       svg.remove();
-      document.dispatchEvent(new MouseEventCtor("pointerup", { bubbles: true }));
+      document.dispatchEvent(new window.MouseEvent("pointerup", { bubbles: true }));
       await until(() => (panel().querySelector(".notes")?.textContent ?? "").includes(docsNote));
       expect(marks()).toHaveLength(0);
       review.close();
       expect(keys.size).toBe(0);
     } finally {
       review.close();
-      restoreDomRect();
       for (const { name, had, value } of lent) {
         if (had) globals[name] = value;
         else delete globals[name];
@@ -1712,20 +1637,13 @@ describe("adversarial review regressions", () => {
     const field = textarea("Where wa it?");
     field.setSelectionRange(0, 0);
     const lookups: string[] = [];
-    const review = new ReviewController({
-      createEngine: () => new LocalReviewEngine(),
-      getOptions: options,
-      suspend: jest.fn(),
-      resume: jest.fn(),
-      addToDictionary: async () => true,
+    const review = createReviewController({
       lookupSpelling: (_lang, words) => {
         lookups.push(...words.map((item) => item.word));
         return Promise.resolve(
           words.map(({ word }) => (word === "wa" ? ["was", "way", "want", "war", "wax"] : null)),
         );
       },
-      getDocsSurface: () => null,
-      uiLanguage: "en",
     });
     review.invoke();
     const root = () => hosts()[0]!.shadowRoot!;
@@ -1756,10 +1674,8 @@ describe("adversarial review regressions", () => {
       "Add \u201Cwa\u201D to dictionary",
     );
     // Arrow keys move between suggestions without applying anything.
-    const KeyboardEventCtor = (window as unknown as { KeyboardEvent: typeof KeyboardEvent })
-      .KeyboardEvent;
     choices()[0].dispatchEvent(
-      new KeyboardEventCtor("keydown", { key: "ArrowRight", bubbles: true, composed: true }),
+      new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, composed: true }),
     );
     expect(root().activeElement).toBe(choices()[1]);
     expect(field.value).toBe("Where wa it?");
@@ -1781,16 +1697,15 @@ describe("adversarial review regressions", () => {
     setExecCommand(textControlInsert);
     const field = textarea("Where wa it?");
     field.setSelectionRange(0, 0);
-    const review = new ReviewController({
-      createEngine: () => new LocalReviewEngine(),
-      getOptions: () => ({ ...options(), enabledRules: defaultRules }),
-      suspend: jest.fn(),
-      resume: jest.fn(),
-      addToDictionary: async () => true,
+    const review = createReviewController({
+      getOptions: () => ({
+        lang: "en_US",
+        enabledRules: defaultRules,
+        userDictionary: [],
+        insertSpaceAfterAutocomplete: true,
+      }),
       lookupSpelling: (_lang, words) =>
         Promise.resolve(words.map(({ word }) => (word === "wa" ? ["was", "way"] : null))),
-      getDocsSurface: () => null,
-      uiLanguage: "en",
     });
     review.invoke();
     const root = () => hosts()[0]!.shadowRoot!;
@@ -1810,16 +1725,10 @@ describe("adversarial review regressions", () => {
   test("a page script clicking 'Add to dictionary' changes no settings", async () => {
     textarea("Where wa it? We saw teh cat.");
     const addToDictionary = jest.fn(async () => true);
-    const review = new ReviewController({
-      createEngine: () => new LocalReviewEngine(),
-      getOptions: options,
-      suspend: jest.fn(),
-      resume: jest.fn(),
+    const review = createReviewController({
       addToDictionary,
       lookupSpelling: (_lang, words) =>
         Promise.resolve(words.map(({ word }) => (word === "wa" ? ["was", "way"] : null))),
-      getDocsSurface: () => null,
-      uiLanguage: "en",
     });
     review.invoke();
     const root = () => hosts()[0]!.shadowRoot!;
@@ -1836,7 +1745,7 @@ describe("adversarial review regressions", () => {
       expect(add.textContent).toBe(`Add “${word}” to dictionary`);
       // element.click() from script is an untrusted event.
       add.click();
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await Bun.sleep(20);
       expect(addToDictionary).not.toHaveBeenCalled();
     }
     expect(items()).toHaveLength(2);
@@ -1845,15 +1754,7 @@ describe("adversarial review regressions", () => {
 
   test("an editor removed without any event is noticed", async () => {
     const field = textarea("We saw teh cat.");
-    const review = new ReviewController({
-      createEngine: () => new LocalReviewEngine(),
-      getOptions: options,
-      suspend: jest.fn(),
-      resume: jest.fn(),
-      addToDictionary: async () => true,
-      getDocsSurface: () => null,
-      uiLanguage: "en",
-    });
+    const review = createReviewController();
     review.invoke();
     const status = () => hosts()[0]?.shadowRoot?.querySelector(".status")?.textContent;
     await until(() => status() === "Issues: 1");
@@ -1866,39 +1767,13 @@ describe("adversarial review regressions", () => {
   }, 15000);
 });
 
-test("setCaret helper keeps its contract", () => {
-  const root = createEditor("<p>x</p>");
-  setCaret(root.querySelector("p")!.firstChild!);
-  expect(document.getSelection()?.isCollapsed).toBe(true);
-});
-
 describe("review controller with Local AI", () => {
-  async function until(predicate: () => boolean): Promise<void> {
-    for (let i = 0; i < 200; i += 1) {
-      if (predicate()) return;
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    }
-    throw new Error("condition not reached");
-  }
-
-  const readyStatus: LocalAiStatus = {
-    enabled: true,
-    consented: true,
-    tier: "standard",
-    modelId: "model-a",
-    displayName: "Standard",
-    downloadBytes: 1,
-    install: "complete",
-    runtime: "ready",
-    offerSetup: false,
-  };
-
   /** A provider whose generations wait forever, or answer "She walk" -> "She walks". */
   function fakeProvider(answer: boolean) {
     const signals: AbortSignal[] = [];
     const provider: ReviewAiProvider & { disposed: boolean } = {
       disposed: false,
-      status: () => Promise.resolve(readyStatus),
+      status: () => Promise.resolve(readyStatus()),
       onStatus: () => () => {},
       generate: (request, signal) => {
         signals.push(signal);
@@ -1924,19 +1799,7 @@ describe("review controller with Local AI", () => {
 
   function controller(options: { aiEnabled?: () => boolean; answer?: boolean } = {}) {
     const providers: Array<ReturnType<typeof fakeProvider>> = [];
-    const review = new ReviewController({
-      createEngine: () => new LocalReviewEngine(),
-      getOptions: () => ({
-        lang: "en_US",
-        enabledRules: GRAMMAR_RULE_IDS,
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      }),
-      suspend: jest.fn(),
-      resume: jest.fn(),
-      addToDictionary: async () => true,
-      getDocsSurface: () => null,
-      uiLanguage: "en",
+    const review = createReviewController({
       createAiProvider: () => {
         const fake = fakeProvider(options.answer ?? false);
         providers.push(fake);
@@ -1955,10 +1818,8 @@ describe("review controller with Local AI", () => {
     await until(() => providers[0].signals.length === 1);
     expect(field.value).toBe("We saw teh cat. She walk home.");
 
-    const KeyboardEventCtor = (window as unknown as { KeyboardEvent: typeof KeyboardEvent })
-      .KeyboardEvent;
-    field.dispatchEvent(new KeyboardEventCtor("keydown", { key: "Escape", bubbles: true }));
-    expect(review.isActive).toBe(false);
+    field.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(review.reviewedElement).toBeNull();
     expect(providers[0].signals[0].aborted).toBe(true);
     expect(providers[0].provider.disposed).toBe(true);
 
@@ -1975,7 +1836,7 @@ describe("review controller with Local AI", () => {
     review.invoke();
     await until(() => providers[0].signals.length === 1);
     window.dispatchEvent(new Event("pagehide"));
-    expect(review.isActive).toBe(false);
+    expect(review.reviewedElement).toBeNull();
     expect(providers[0].provider.disposed).toBe(true);
   });
 
@@ -1988,7 +1849,7 @@ describe("review controller with Local AI", () => {
     enabled = false;
     review.handleOptionsChanged();
     expect(providers[0].signals[0].aborted).toBe(true);
-    expect(review.isActive).toBe(true);
+    expect(review.reviewedElement).not.toBeNull();
     review.close();
   });
 
@@ -1997,7 +1858,7 @@ describe("review controller with Local AI", () => {
     let enabled = false;
     const { review, providers } = controller({ aiEnabled: () => enabled });
     review.invoke();
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await Bun.sleep(50);
     expect(providers[0].signals).toHaveLength(0);
     enabled = true;
     review.handleOptionsChanged();
@@ -2017,13 +1878,11 @@ describe("review controller with Local AI", () => {
     const preview = () => shadow().querySelector<HTMLElement>("section.batch")!;
     expect(preview().hidden).toBe(false);
 
-    const KeyboardEventCtor = (window as unknown as { KeyboardEvent: typeof KeyboardEvent })
-      .KeyboardEvent;
-    field.dispatchEvent(new KeyboardEventCtor("keydown", { key: "Escape", bubbles: true }));
-    expect(review.isActive).toBe(true);
+    field.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(review.reviewedElement).not.toBeNull();
     expect(preview().hidden).toBe(true);
-    field.dispatchEvent(new KeyboardEventCtor("keydown", { key: "Escape", bubbles: true }));
-    expect(review.isActive).toBe(false);
+    field.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(review.reviewedElement).toBeNull();
     expect(field.value).toBe("We saw teh cat. Then She walk home now. Then She walk there too.");
   });
 });

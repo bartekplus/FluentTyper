@@ -9,7 +9,7 @@ function findings(ruleId: string, text: string, lang = "pl_PL") {
 /** Applies every finding's first fix. */
 function fixAll(ruleId: string, text: string): string {
   const edits = findings(ruleId, text).flatMap((d) => d.alternatives[0].edits);
-  return applyEdits(text, edits);
+  return applyEdits(text, edits)!;
 }
 
 const CASES: Record<string, { pos: Array<[string, string]>; neg: string[] }> = {

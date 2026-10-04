@@ -10,6 +10,7 @@ import type {
   RewriteViewState,
 } from "../src/core/application/review/reviewAi";
 import type { LocalAiStatus } from "../src/core/domain/contracts/localAi";
+import type { CatalogRuleId } from "../src/core/domain/grammar/ruleCatalog";
 import {
   reviewExplanation,
   reviewExplanations,
@@ -27,8 +28,7 @@ type Listener = (event: Event) => void;
 // jsdom events are never trusted and isTrusted cannot be redefined, so the
 // listeners are recorded and called with a trusted-looking click instead.
 const listeners = new WeakMap<EventTarget, Array<{ type: string; listener: Listener }>>();
-const EventTargetProto = (window as unknown as { EventTarget: typeof EventTarget }).EventTarget
-  .prototype;
+const EventTargetProto = window.EventTarget.prototype;
 const nativeAdd = EventTargetProto.addEventListener;
 
 function trustedClick(target: Element): void {
@@ -137,7 +137,7 @@ function state(overrides: Partial<ReviewViewState> = {}): ReviewViewState {
     language: { language: "en_US", source: "explicit", resource: "en_US" },
     checking: "checked",
     scopeKind: "field",
-    capabilities: { inline: true, apply: true, bulk: true, undo: "single-step" },
+    capabilities: { apply: true, bulk: true },
     diagnostics: [],
     // What the engine sends with the findings.
     explanations: reviewExplanations(
@@ -313,7 +313,7 @@ describe("ReviewUi: Local AI", () => {
       ui.render(
         state({
           diagnostics: [diagnostic],
-          capabilities: { inline: true, apply: false, bulk: false, undo: "none" },
+          capabilities: { apply: false, bulk: false },
         }),
       );
       ui.openCard(diagnostic, null);
@@ -348,7 +348,7 @@ describe("ReviewUi: Local AI", () => {
       ui.render(
         state({
           diagnostics: [diagnostic],
-          capabilities: { inline: true, apply: false, bulk: false, undo: "none" },
+          capabilities: { apply: false, bulk: false },
         }),
       );
       ui.openCard(diagnostic, null);
@@ -482,6 +482,50 @@ describe("ReviewUi: Local AI", () => {
     expect($(".status").textContent).toContain("No issues found");
     expect($(".notes").textContent).toContain("Ignored style advice: 1.");
     expect(shown('[data-action="reset-ignores"]')).toBe(true);
+  });
+
+  // Regression: a hidden Style, or any style rule that ran, keeps the Style chip.
+  test.each<[string, CatalogRuleId[], boolean, boolean]>([
+    ["Style is hidden", ["englishSubjectVerbAgreement"], false, true],
+    ["another style rule ran", ["styleWordChoice"], true, true],
+    ["no style rule ran", ["englishSubjectVerbAgreement"], true, false],
+  ])("the Style chip when %s", (_name, checkedRules, styleShown, chip) => {
+    const categories = new Set(REVIEW_CATEGORIES.filter((c) => styleShown || c !== "style"));
+    ui.render(state({ categories, coverage: { checkedRules, failedRules: [], skipped: {} } }));
+    expect(ui.root.querySelector('.filter[data-category="style"]') !== null).toBe(chip);
+  });
+
+  test("a focused finding does not move focus to its filter chip; a focused chip keeps it", () => {
+    const [a, b] = [finding("a"), finding("b", { range: { start: 12, end: 19 } })];
+    ui.render(state({ diagnostics: [a, b] }));
+    $(".item").focus();
+    ui.render(state({ diagnostics: [b] }));
+    expect(ui.root.activeElement?.matches(".filter") ?? false).toBe(false);
+    $('.filter[data-category="grammar"]').focus();
+    ui.render(state());
+    expect((ui.root.activeElement as HTMLElement | null)?.dataset.category).toBe("grammar");
+  });
+
+  test("a message-only panel shows only the message and Close", () => {
+    ui.showMessage("Nothing to review.");
+    for (const action of ["language", "retry", "prev", "fix-all"]) {
+      expect(shown(`[data-action="${action}"]`)).toBe(false);
+    }
+    expect(shown("footer")).toBe(false);
+    expect(shown('[data-action="close"]')).toBe(true);
+    expect($(".status").textContent).toBe("Nothing to review.");
+  });
+
+  // Regression: config codes are language tags; a UI language without review text uses English.
+  test.each([
+    ["de_DE", new Intl.NumberFormat("de-DE", { style: "percent" }).format(0.5)],
+    ["pr", new Intl.NumberFormat("pt", { style: "percent" }).format(0.5)],
+    ["ar_SA", "50%"],
+  ])("numbers in a %s UI use the review text format", (lang, percent) => {
+    ui.destroy();
+    ui = new ReviewUi(document, lang, cb, []);
+    ui.render(state({ ai: ai({ coverage: "checking", progress: 0.5 }) }));
+    expect($(".ai-line").textContent).toContain(percent);
   });
 
   test("paragraphs in another language are reported as a spelling gap", () => {
@@ -685,7 +729,7 @@ describe("ReviewUi: Local AI", () => {
     ui.render(
       state({
         diagnostics,
-        capabilities: { inline: true, apply: true, bulk: false, undo: "none" },
+        capabilities: { apply: true, bulk: false },
       }),
     );
     expect(shown("[data-action=ai-batch]")).toBe(false);
@@ -722,10 +766,7 @@ describe("ReviewUi: Local AI", () => {
 
     const escape = () =>
       $(".panel").dispatchEvent(
-        new (window as unknown as { KeyboardEvent: typeof KeyboardEvent }).KeyboardEvent(
-          "keydown",
-          { key: "Escape", bubbles: true, composed: true },
-        ),
+        new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, composed: true }),
       );
     escape();
     expect(cb.cancelAiBatch).toHaveBeenCalledTimes(1);

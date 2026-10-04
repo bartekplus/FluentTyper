@@ -1,20 +1,27 @@
+import { isObjectRecord } from "./guards";
+
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export const OBSERVABILITY_MODULE_IDS = [
   "BackgroundServiceWorker",
+  "ObservabilityService",
   "PredictionManager",
   "PredictionOrchestrator",
   "PresageHandler",
   "MessageRouter",
   "CommandRouter",
   "LanguageDetector",
-  "ProductivityStatsManager",
+  "ProductivityStatsService",
   "ContentMessageHandler",
   "ContentRuntimeController",
   "HostChangeWatcher",
   "SuggestionPredictionCoordinator",
   "SuggestionManagerRuntime",
   "SuggestionTextEditService",
+  "SuggestionEntrySession",
+  "ContentEditableAdapter",
+  "ReviewController",
+  "LocalAiController",
   "FluentTyperContentScript",
   "OptionsObservability",
   "RuntimeTestHooks",
@@ -98,16 +105,15 @@ function isObservabilityModuleId(value: unknown): value is ObservabilityModuleId
 }
 
 function sanitizeModuleOverride(value: unknown): ObservabilityModuleOverride | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+  if (!isObjectRecord(value)) {
     return null;
   }
-  const record = value as Record<string, unknown>;
   const override: ObservabilityModuleOverride = {};
-  if (typeof record.enabled === "boolean") {
-    override.enabled = record.enabled;
+  if (typeof value.enabled === "boolean") {
+    override.enabled = value.enabled;
   }
-  if (isLogLevel(record.level)) {
-    override.level = record.level;
+  if (isLogLevel(value.level)) {
+    override.level = value.level;
   }
   return Object.keys(override).length > 0 ? override : null;
 }
@@ -115,11 +121,11 @@ function sanitizeModuleOverride(value: unknown): ObservabilityModuleOverride | n
 export function sanitizeObservabilityModuleOverrides(
   value: unknown,
 ): ObservabilityConfig["moduleOverrides"] {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+  if (!isObjectRecord(value)) {
     return {};
   }
   const result: ObservabilityConfig["moduleOverrides"] = {};
-  for (const [moduleId, overrideValue] of Object.entries(value as Record<string, unknown>)) {
+  for (const [moduleId, overrideValue] of Object.entries(value)) {
     if (!isObservabilityModuleId(moduleId)) {
       continue;
     }
@@ -129,6 +135,21 @@ export function sanitizeObservabilityModuleOverrides(
     }
   }
   return result;
+}
+
+/** An observability config from stored values. Each value that is not valid gets its default. */
+export function sanitizeObservabilityConfig(raw: {
+  enabled: unknown;
+  defaultLevel: unknown;
+  moduleOverrides: unknown;
+}): ObservabilityConfig {
+  return {
+    enabled: typeof raw.enabled === "boolean" ? raw.enabled : DEFAULT_OBSERVABILITY_CONFIG.enabled,
+    defaultLevel: isLogLevel(raw.defaultLevel)
+      ? raw.defaultLevel
+      : DEFAULT_OBSERVABILITY_CONFIG.defaultLevel,
+    moduleOverrides: sanitizeObservabilityModuleOverrides(raw.moduleOverrides),
+  };
 }
 
 export const DEFAULT_OBSERVABILITY_CONFIG: ObservabilityConfig = {

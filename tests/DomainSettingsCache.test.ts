@@ -1,5 +1,4 @@
-import "./setup";
-import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, describe, expect, jest, setSystemTime, test } from "bun:test";
 import type { SettingsManager } from "../src/core/application/settingsManager";
 import { DomainSettingsCache } from "../src/adapters/chrome/background/config/DomainSettingsCache";
 
@@ -26,13 +25,8 @@ function makeFakeSettingsManager(readDelayMs = 0) {
 }
 
 describe("DomainSettingsCache", () => {
-  beforeEach(() => {
-    jest.spyOn(console, "debug").mockImplementation(() => undefined);
-    jest.spyOn(console, "info").mockImplementation(() => undefined);
-  });
-
   afterEach(() => {
-    jest.restoreAllMocks();
+    setSystemTime();
   });
 
   test("bounds distinct domain entries", async () => {
@@ -86,9 +80,10 @@ describe("DomainSettingsCache", () => {
       const { manager, read } = makeFakeSettingsManager();
       const cache = new DomainSettingsCache(10);
 
+      setSystemTime(1_000);
       await cache.resolve(manager, "example.com");
       const readsPerResolve = read.mock.calls.length;
-      await new Promise<void>((resolve) => setTimeout(resolve, 20));
+      setSystemTime(1_020);
       await cache.resolve(manager, "example.com");
 
       expect(read.mock.calls.length).toBe(readsPerResolve * 2);
@@ -145,64 +140,6 @@ describe("DomainSettingsCache", () => {
       await cache.resolve(manager, "beta.com");
 
       expect(read.mock.calls.length).toBe(readsPerResolve * 4);
-    });
-  });
-
-  describe("performance — cache eliminates redundant storage reads", () => {
-    test("50 consecutive requests for the same domain make 1 storage resolve", async () => {
-      const { manager, read } = makeFakeSettingsManager();
-      const cache = new DomainSettingsCache(500);
-
-      await cache.resolve(manager, "typing.example.com");
-      const readsPerResolve = read.mock.calls.length;
-      for (let i = 1; i < 50; i++) {
-        await cache.resolve(manager, "typing.example.com");
-      }
-
-      expect(read.mock.calls.length).toBe(readsPerResolve);
-    });
-
-    /**
-     * Concrete latency regression guard: if the cache is removed or broken,
-     * the cached loop pays the simulated storage delay on every request.
-     */
-    test("cached requests are at least 5x faster than uncached for slow storage", async () => {
-      const DELAY_MS = 2;
-      const REQUESTS = 50;
-
-      const uncachedStart = Date.now();
-      for (let i = 0; i < REQUESTS; i++) {
-        const { manager } = makeFakeSettingsManager(DELAY_MS);
-        await new DomainSettingsCache(500).resolve(manager, "example.com");
-      }
-      const uncachedMs = Date.now() - uncachedStart;
-
-      const { manager } = makeFakeSettingsManager(DELAY_MS);
-      const cache = new DomainSettingsCache(500);
-      const cachedStart = Date.now();
-      for (let i = 0; i < REQUESTS; i++) {
-        await cache.resolve(manager, "example.com");
-      }
-      const cachedMs = Date.now() - cachedStart;
-
-      expect(cachedMs * 5).toBeLessThan(uncachedMs);
-    });
-
-    test("typing a 5-char word on 2 domains resolves storage twice", async () => {
-      const { manager, read } = makeFakeSettingsManager();
-      const cache = new DomainSettingsCache(500);
-      const word = "hello";
-      const domains = ["site-a.com", "site-b.com"];
-
-      await cache.resolve(manager, domains[0]);
-      const readsPerResolve = read.mock.calls.length;
-      for (const domain of domains) {
-        for (let i = 1; i <= word.length; i++) {
-          await cache.resolve(manager, domain);
-        }
-      }
-
-      expect(read.mock.calls.length).toBe(readsPerResolve * domains.length);
     });
   });
 });

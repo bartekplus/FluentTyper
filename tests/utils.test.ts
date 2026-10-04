@@ -1,49 +1,41 @@
-import { jest } from "bun:test";
+import { jest, spyOn } from "bun:test";
 import {
   SETTINGS_DOMAIN_BLACKLIST,
   addDomainToList,
+  blockUnBlockDomain,
+  getDomain,
   isDomainOnList,
+  isEnabledForDomain,
+  isNumber,
+  isWhiteSpace,
   removeDomainFromList,
 } from "../src/core/application/domain-utils";
 import { getDeepActiveElement, isInDocument } from "../src/core/application/dom-utils";
-import type { SettingsManager } from "../src/core/application/settingsManager";
+import { checkLastError } from "../src/core/application/transport-utils";
+import { memorySettings } from "./support/fakeSettings";
 
-function createSettingsManager(initialDomainList: unknown[]) {
-  const state: Record<string, unknown> = {
-    [SETTINGS_DOMAIN_BLACKLIST]: initialDomainList,
-  };
-
-  const settings = {
-    get: jest.fn(async (key: string) => state[key]),
-    set: jest.fn(async (key: string, value: unknown) => {
-      state[key] = value;
-    }),
-  };
-
-  return {
-    state,
-    settings: settings as unknown as SettingsManager,
-    getMock: settings.get,
-    setMock: settings.set,
-  };
+function domainListSettings(domainList: unknown[]) {
+  return memorySettings({ [SETTINGS_DOMAIN_BLACKLIST]: domainList });
 }
 
 describe("shared utils domain list handling", () => {
   test("isDomainOnList matches exact normalized host and not regex-like false positives", async () => {
-    const { settings } = createSettingsManager(["example.com"]);
+    const settings = domainListSettings(["example.com"]);
 
     await expect(isDomainOnList(settings, "https://EXAMPLE.com/path")).resolves.toBe(true);
     await expect(isDomainOnList(settings, "exampleXcom")).resolves.toBe(false);
   });
 
   test("isDomainOnList ignores invalid entries and still matches valid hosts", async () => {
-    const { settings } = createSettingsManager(["[", "localhost"]);
+    const settings = domainListSettings(["[", "localhost"]);
 
     await expect(isDomainOnList(settings, "localhost")).resolves.toBe(true);
   });
 
   test("addDomainToList stores normalized host and ignores invalid host input", async () => {
-    const { settings, state, setMock } = createSettingsManager([]);
+    const settings = domainListSettings([]);
+    const { store: state } = settings;
+    const setMock = spyOn(settings, "set");
 
     await addDomainToList(settings, "https://Example.COM/path?a=1");
     expect(state[SETTINGS_DOMAIN_BLACKLIST]).toEqual(["example.com"]);
@@ -55,18 +47,20 @@ describe("shared utils domain list handling", () => {
   });
 
   test("addDomainToList handles host:port/path input by keeping host only", async () => {
-    const { settings, state } = createSettingsManager([]);
+    const settings = domainListSettings([]);
+    const { store: state } = settings;
 
     await addDomainToList(settings, "localhost:8080/path");
     expect(state[SETTINGS_DOMAIN_BLACKLIST]).toEqual(["localhost"]);
   });
 
   test("removeDomainFromList removes only exact normalized host match", async () => {
-    const { settings, state } = createSettingsManager([
+    const settings = domainListSettings([
       "example.com",
       "exampleXcom",
       "https://LOCALHOST:8080/path",
     ]);
+    const { store: state } = settings;
 
     await removeDomainFromList(settings, "exampleXcom");
     expect(state[SETTINGS_DOMAIN_BLACKLIST]).toEqual([
@@ -78,8 +72,10 @@ describe("shared utils domain list handling", () => {
     expect(state[SETTINGS_DOMAIN_BLACKLIST]).toEqual(["example.com"]);
   });
 
-  test("removeDomainFromList matches entries stored as URL by host", async () => {
-    const { settings, state, getMock } = createSettingsManager(["https://LOCALHOST/path"]);
+  test("removeDomainFromList removes every entry for the host, also entries stored as URL", async () => {
+    const settings = domainListSettings(["localhost", "https://LOCALHOST/path"]);
+    const { store: state } = settings;
+    const getMock = spyOn(settings, "get");
 
     await removeDomainFromList(settings, "localhost");
     expect(state[SETTINGS_DOMAIN_BLACKLIST]).toEqual([]);
@@ -144,7 +140,7 @@ describe("shared utils DOM helpers", () => {
     expect(isInDocument(deepInput)).toBe(false);
   });
 
-  test("getDeepActiveElement returns null when nothing is focused", () => {
+  test("getDeepActiveElement returns document.body when nothing is focused", () => {
     (document.activeElement as HTMLElement | null)?.blur?.();
     expect(getDeepActiveElement(document)).toBe(document.body);
   });
@@ -166,5 +162,92 @@ describe("shared utils DOM helpers", () => {
     input.focus();
     expect(getDeepActiveElement(document)).toBe(input);
     host.remove();
+  });
+});
+
+describe("shared utils domain enablement", () => {
+  test("getDomain extracts hostname and returns undefined for invalid input", () => {
+    expect(getDomain("https://example.com/path")).toBe("example.com");
+    expect(getDomain("[" as unknown as string)).toBeUndefined();
+  });
+
+  test("isEnabledForDomain applies blacklist and whitelist rules", async () => {
+    const blackList = memorySettings({
+      enable: true,
+      domainListMode: "blackList",
+      [SETTINGS_DOMAIN_BLACKLIST]: ["blocked.example"],
+    });
+    const whiteList = memorySettings({
+      enable: true,
+      domainListMode: "whiteList",
+      [SETTINGS_DOMAIN_BLACKLIST]: ["allowed.example"],
+    });
+
+    await expect(isEnabledForDomain(blackList, "https://blocked.example")).resolves.toBe(false);
+    await expect(isEnabledForDomain(blackList, "https://other.example")).resolves.toBe(true);
+    await expect(isEnabledForDomain(whiteList, "https://allowed.example")).resolves.toBe(true);
+    await expect(isEnabledForDomain(whiteList, "https://other.example")).resolves.toBe(false);
+  });
+
+  test("isEnabledForDomain defaults global enablement to true when unset", async () => {
+    const settings = memorySettings({
+      domainListMode: "blackList",
+      [SETTINGS_DOMAIN_BLACKLIST]: [],
+    });
+
+    await expect(isEnabledForDomain(settings, "https://example.com")).resolves.toBe(true);
+  });
+
+  test("blockUnBlockDomain delegates to add/remove based on mode and action", async () => {
+    const blackList = memorySettings({
+      domainListMode: "blackList",
+      [SETTINGS_DOMAIN_BLACKLIST]: ["remove.example"],
+    });
+    await blockUnBlockDomain(blackList, "add.example", true);
+    await blockUnBlockDomain(blackList, "remove.example", false);
+    expect(blackList.store[SETTINGS_DOMAIN_BLACKLIST]).toEqual(["add.example"]);
+
+    const whiteList = memorySettings({
+      domainListMode: "whiteList",
+      [SETTINGS_DOMAIN_BLACKLIST]: ["remove.example"],
+    });
+    await blockUnBlockDomain(whiteList, "remove.example", true);
+    await blockUnBlockDomain(whiteList, "add.example", false);
+    expect(whiteList.store[SETTINGS_DOMAIN_BLACKLIST]).toEqual(["add.example"]);
+  });
+
+  test("character helpers correctly classify input", () => {
+    expect(isWhiteSpace("\n")).toBe(true);
+    expect(isWhiteSpace("a")).toBe(false);
+    expect(isNumber("4.2")).toBe(true);
+    expect(isNumber("a1b2")).toBe(true);
+    expect(isNumber("abc")).toBe(false);
+    expect(isNumber("١٢٣")).toBe(true); // Arabic-Indic
+    expect(isNumber("۱۲")).toBe(true); // Persian
+    expect(isNumber("ك١")).toBe(false);
+  });
+});
+
+describe("checkLastError", () => {
+  const baseChrome = globalThis.chrome;
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    globalThis.chrome = baseChrome;
+  });
+
+  test("logs runtime message and handles missing runtime safely", () => {
+    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const errorSpy = spyOn(console, "error").mockImplementation(() => {});
+
+    (globalThis as { chrome: unknown }).chrome = {
+      runtime: { lastError: { message: "boom" } },
+    };
+    checkLastError();
+    expect(logSpy).toHaveBeenCalledWith("Runtime error:", "boom");
+
+    (globalThis as { chrome: unknown }).chrome = {};
+    checkLastError();
+    expect(errorSpy).toHaveBeenCalled();
   });
 });

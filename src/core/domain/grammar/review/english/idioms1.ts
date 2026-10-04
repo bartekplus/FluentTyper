@@ -1,26 +1,19 @@
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import type { PhraseRow } from "../englishPhraseTables";
+import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
+import { each, type PhraseRow } from "../englishPhraseTables";
 import {
+  CLAUSE,
   COMPLETE,
-  frameMatches,
-  hasUserOrCasedWord,
+  type Frame,
+  frameDetectors,
+  notAfter,
   SPACE as S,
   WORD_END as E,
 } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { finding } from "../finding";
+import type { ReviewDetectorEntry } from "../reviewDetectors";
 
 const DETERMINER =
   "(?:a|an|the|this|that|these|those|my|your|his|her|its|our|their|every|each|some|any)";
 
-/** One row per verb form: `~` stands for the form in both columns. */
-const forms = (
-  typed: string,
-  replacement: string,
-  pairs: readonly [string, string][],
-): PhraseRow[] =>
-  pairs.map(([from, to]) => [typed.replace("~", from), replacement.replace("~", to)]);
 const CAPITALIZE: [string, string][] = [
   "ize",
   "izes",
@@ -38,7 +31,7 @@ const COURSE: [string, string][] = [
   ["cursing", "coursing"],
 ];
 
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
+/** Rows for englishPhraseCorrections. */
 export const PHRASES: readonly PhraseRow[] = [
   ["a mean to an end", "a means to an end"],
   [["a whole another", "a whole 'nother"], "a whole other"],
@@ -71,12 +64,12 @@ export const PHRASES: readonly PhraseRow[] = [
   [["at the expanse of", "at the expance of", "at the expenses of"], "at the expense of"],
   ["aware about", "aware of"],
   ["unaware about", "unaware of"],
-  ...forms("~ off of", "~ on", CAPITALIZE),
-  ...forms("~ off", "~ on", CAPITALIZE),
+  ...each(CAPITALIZE, "~ off of", "~ on"),
+  ...each(CAPITALIZE, "~ off", "~ on"),
   ["comprises of", ["comprises", "is comprised of"]],
   ["comprising of", "comprising"],
   ...["", "my ", "your ", "his ", "her ", "our ", "their ", "the "].flatMap((owner) =>
-    forms(`~ through ${owner}veins`, `~ through ${owner}veins`, COURSE),
+    each(COURSE, `~ through ${owner}veins`, `~ through ${owner}veins`),
   ),
   [["cutting age", "cutting-age"], "cutting-edge"],
   ...["will", "would", "to", "must", "should", "can", "could", "may", "might"].map(
@@ -152,19 +145,7 @@ export const STYLE: readonly PhraseRow[] = [
 ];
 
 type Rule = "englishPhraseCorrections" | "englishClosedCompounds" | "stylePhrasing";
-const MESSAGES = {
-  englishPhraseCorrections: "review_msg_phrase_correction",
-  englishClosedCompounds: "review_msg_closed_compound",
-  stylePhrasing: "review_msg_style_phrasing",
-} as const;
-/** A frame's `target` group is replaced; `fix` may veto (null) after a lexicon check. */
-type Frame = {
-  pattern: string;
-  fix: string | readonly string[] | ((m: RegExpExecArray) => string | readonly string[] | null);
-};
 
-const verbBase = (word: string) =>
-  englishWordInfo(word.toLowerCase())?.verbs.some((v) => v.form === "base") ?? false;
 // Words after "a little of" that make it a correct partitive ("a little of everything").
 const PARTITIVE =
   "(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|it|them|him|me|us|you|what|which|whatever|each|every|both|all|any|some|either|neither|one|much|many|more|most|other|others|another|everything|anything|something|nothing|everyone|anyone|someone|everybody|anybody|somebody|[a-z]+self|[a-z]+selves)";
@@ -176,13 +157,7 @@ const CONDITIONAL = new Set([
   "appropriate",
   "available",
 ]);
-// A lookbehind over a run of spaces comes after `(?=word)`: tried at every position of a
-// long run, it rereads the run each time in JavaScriptCore.
-const CLAUSE = `(?:^|[.!?,;:(\\n])[ \\t]*`;
 const POSSESSOR = "the|a|an|this|that|its|their|his|her|our|my|your|no";
-/** Not right after one of these words. */
-// A letter first: off words (on long runs of spaces) the lookbehind is never tried.
-const notAfter = (words: string) => `(?=\\p{L})(?<!(?<![a-z'’])(?:${words})${S})`;
 
 const FRAMES: Record<Rule, readonly Frame[]> = {
   englishPhraseCorrections: [
@@ -203,7 +178,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
     { pattern: `(?:after|for|in)${S}(?<target>while)${COMPLETE}`, fix: "a while" },
     {
       pattern: `(?:go|goes|went|going|gone)${S}ahead${S}(?<target>an)${S}(?<verb>[a-z]+)${E}`,
-      fix: (m) => (verbBase(m.groups!.verb) ? "and" : null),
+      fix: (m) => (hasVerbForm(m.groups!.verb, "base") ? "and" : null),
     },
     {
       // "an in with the boss", "an in group" (in-group): the noun "in".
@@ -258,7 +233,7 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
     {
       pattern: `(?<target>(?<aux>do|does|did)n['’]t${S}can)${S}(?<verb>[a-z]+)${E}`,
       fix: (m) =>
-        verbBase(m.groups!.verb)
+        hasVerbForm(m.groups!.verb, "base")
           ? m.groups!.aux.toLowerCase() === "did"
             ? "couldn't"
             : "can't"
@@ -319,33 +294,5 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
   ],
 };
 
-function detectFrames(ctx: DetectContext, rule: Rule): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const { pattern, fix } of FRAMES[rule]) {
-    for (const m of frameMatches(ctx, pattern)) {
-      const [start, end] = m.indices!.groups!.target;
-      if (hasUserOrCasedWord(ctx, ctx.text.slice(m.index, Math.max(end, m.index + m[0].length))))
-        continue;
-      const value = typeof fix === "function" ? fix(m) : fix;
-      if (value === null) continue;
-      const typed = m.groups!.target;
-      const style = detectWordCase(typed.trim());
-      const alternatives = [value].flat().map((alt) => applyWordCase(alt, style));
-      findings.push(
-        finding(rule, MESSAGES[rule], start, end, alternatives, {
-          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-          context: {
-            start: Math.max(0, m.index - 40),
-            end: Math.min(ctx.text.length, m.index + m[0].length + 20),
-          },
-        }),
-      );
-    }
-  }
-  return findings;
-}
-
 /** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = (Object.keys(FRAMES) as Rule[]).map(
-  (rule) => ({ rules: [rule], detect: (ctx) => detectFrames(ctx, rule) }),
-);
+export const DETECTORS: readonly ReviewDetectorEntry[] = frameDetectors(FRAMES);

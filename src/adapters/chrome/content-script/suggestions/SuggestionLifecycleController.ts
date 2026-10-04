@@ -7,16 +7,10 @@ interface SuggestionLifecycleControllerOptions {
   getEntries: () => Iterable<SuggestionEntry>;
   dismissEntry: (entry: SuggestionEntry) => void;
   reconcileEntrySelection: (entry: SuggestionEntry) => void;
-  doc?: Document;
 }
 
 export class SuggestionLifecycleController {
-  private readonly getEntries: () => Iterable<SuggestionEntry>;
-  private readonly dismissEntry: (entry: SuggestionEntry) => void;
-  private readonly reconcileEntrySelection: (entry: SuggestionEntry) => void;
-  private readonly doc: Document;
   private readonly keydownListenerByEntryId = new Map<number, EventListener>();
-  private attachedEntryCount = 0;
   private documentListenersAttached = false;
   /** The entry whose field holds the selection inside a focused editing-host canvas. */
   private hostFocusedEntry: SuggestionEntry | null = null;
@@ -31,16 +25,10 @@ export class SuggestionLifecycleController {
     ).map((name): [string, EventListener] => [name, (event) => this.onHostEvent(name, event)]),
   ];
 
-  constructor(options: SuggestionLifecycleControllerOptions) {
-    this.getEntries = options.getEntries;
-    this.dismissEntry = options.dismissEntry;
-    this.reconcileEntrySelection = options.reconcileEntrySelection;
-    this.doc = options.doc ?? document;
-  }
+  constructor(private readonly options: SuggestionLifecycleControllerOptions) {}
 
   public attachEntryListeners(entry: SuggestionEntry): void {
     this.toggleEntryListeners(entry, true);
-    this.attachedEntryCount += 1;
     this.toggleDocumentListeners(true);
   }
 
@@ -49,8 +37,7 @@ export class SuggestionLifecycleController {
     this.keydownListenerByEntryId.delete(entry.id);
     if (this.hostFocusedEntry === entry) this.hostFocusedEntry = null;
 
-    this.attachedEntryCount = Math.max(0, this.attachedEntryCount - 1);
-    if (this.attachedEntryCount === 0) {
+    if (this.keydownListenerByEntryId.size === 0) {
       this.toggleDocumentListeners(false);
     }
   }
@@ -65,7 +52,7 @@ export class SuggestionLifecycleController {
     if (!(host instanceof HTMLElement)) return;
     const field = gutenbergSelectedField(host);
     if (field === host) return;
-    const entry = [...this.getEntries()].find((candidate) => candidate.elem === field);
+    const entry = [...this.options.getEntries()].find((candidate) => candidate.elem === field);
     if (!entry) return;
     this.syncHostFocus();
     if (name === "keydown") this.getEntryKeydownListener(entry)(event);
@@ -76,11 +63,11 @@ export class SuggestionLifecycleController {
 
   /** Field changes inside an editing host fire no focus events on the fields. */
   private syncHostFocus(): void {
-    const active = this.doc.hasFocus() ? getDeepActiveElement(this.doc) : null;
+    const active = document.hasFocus() ? getDeepActiveElement(document) : null;
     const field = gutenbergSelectedField(active);
     const entry =
       field && field !== active
-        ? ([...this.getEntries()].find((candidate) => candidate.elem === field) ?? null)
+        ? ([...this.options.getEntries()].find((candidate) => candidate.elem === field) ?? null)
         : null;
     const previous = this.hostFocusedEntry;
     if (entry === previous) return;
@@ -141,7 +128,7 @@ export class SuggestionLifecycleController {
     }
     const method = attach ? "addEventListener" : "removeEventListener";
     for (const [eventName, listener] of this.documentListeners) {
-      this.doc[method](eventName, listener, true);
+      document[method](eventName, listener, true);
     }
     this.documentListenersAttached = attach;
   }
@@ -153,15 +140,13 @@ export class SuggestionLifecycleController {
     // actual target inside the shadow root.
     const composedPath = event.composedPath();
 
-    for (const entry of this.getEntries()) {
+    for (const entry of this.options.getEntries()) {
       const clickedInEntry = composedPath.includes(entry.elem);
-      const clickedInMenu = composedPath.some(
-        (n) => n === entry.menu || (n instanceof Node && entry.menu.contains(n)),
-      );
+      const clickedInMenu = composedPath.includes(entry.menu);
       if (clickedInEntry || clickedInMenu) {
         continue;
       }
-      this.dismissEntry(entry);
+      this.options.dismissEntry(entry);
     }
   }
 
@@ -175,9 +160,9 @@ export class SuggestionLifecycleController {
       return;
     }
 
-    const composedPath = typeof event.composedPath === "function" ? event.composedPath() : [];
+    const composedPath = event.composedPath();
     const path = composedPath.length > 0 ? composedPath : [event.target];
-    const eligible = [...this.getEntries()].filter((entry) =>
+    const eligible = [...this.options.getEntries()].filter((entry) =>
       this.isDocumentTabFallbackEligible(entry),
     );
     for (const node of path) {
@@ -199,8 +184,8 @@ export class SuggestionLifecycleController {
 
   private onDocumentSelectionChange(): void {
     this.syncHostFocus();
-    for (const entry of this.getEntries()) {
-      this.reconcileEntrySelection(entry);
+    for (const entry of this.options.getEntries()) {
+      this.options.reconcileEntrySelection(entry);
     }
   }
 }

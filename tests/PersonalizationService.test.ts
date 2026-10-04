@@ -142,7 +142,9 @@ describe("PersonalizationService", () => {
     await restarted.initialize();
     const words = restarted.getRankingSnapshot().en_US;
     expect(Object.hasOwn(words, "constructor")).toBe(true);
-    expect(words.constructor.score).toBe(1);
+    // A plain string key reads the stored entry, not Object.prototype.constructor.
+    const constructorKey: string = "constructor";
+    expect(words[constructorKey].score).toBe(1);
     expect(Object.hasOwn(words, "__proto__")).toBe(true);
     expect(words.__proto__.score).toBe(1);
   });
@@ -225,5 +227,33 @@ describe("PersonalizationService", () => {
       en_US: { valid: { display: "Valid", score: 2, updatedAtMs: 100 } },
     });
     expect(backend.writes).toBe(1);
+  });
+});
+
+describe("PersonalizationRepository", () => {
+  test("loads, saves, and clears the dedicated record", async () => {
+    const backend = new CountingMemoryStorageBackend();
+    const repository = new PersonalizationRepository(backend);
+    const store = {
+      version: 1 as const,
+      languages: {
+        en_US: {
+          hello: { display: "Hello", score: 2, updatedAtMs: 100 },
+        },
+      },
+      recentEvents: {},
+    };
+
+    await repository.save(store);
+    await expect(repository.load()).resolves.toEqual(store);
+    await repository.clear();
+    await expect(repository.load()).resolves.toBeUndefined();
+  });
+
+  test("treats unreadable data as empty", async () => {
+    const backend = new CountingMemoryStorageBackend();
+    backend.values.set("fluenttyper.personalization", "{invalid");
+    const repository = new PersonalizationRepository(backend);
+    await expect(repository.load()).resolves.toBeUndefined();
   });
 });

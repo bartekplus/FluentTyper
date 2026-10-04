@@ -18,6 +18,18 @@ export function stripIgnoredWordChars(text: string): string {
   return text.replace(IGNORED_WORD_CHARS_REGEX, "");
 }
 
+// Combining marks (Arabic tashkeel, Indic vowel signs) and ZWNJ are part of a
+// word; splitting on them inflated the token evidence count.
+export const LANGUAGE_TOKEN_REGEX = /\p{L}[\p{L}\p{M}\u200C]*/gu;
+
+/** Enough text to trust a detected language: 20 letters or 3 words. */
+export function hasQualifiedLanguageEvidence(text: string): boolean {
+  return (
+    (text.match(/\p{L}/gu)?.length ?? 0) >= 20 ||
+    (text.match(LANGUAGE_TOKEN_REGEX)?.length ?? 0) >= 3
+  );
+}
+
 export const SUPPORTED_LANGUAGES: Record<string, string> = {
   auto_detect: "Auto detect",
   en_US: "English (US)",
@@ -42,14 +54,22 @@ export function resolveEnabledLanguages(enabledLanguages: unknown): string[] {
   if (!Array.isArray(enabledLanguages)) {
     return SUPPORTED_PREDICTION_LANGUAGE_KEYS.slice();
   }
-  const enabledSet = new Set(
-    enabledLanguages.filter(
-      (lang): lang is string =>
-        typeof lang === "string" && lang in SUPPORTED_LANGUAGES && lang !== "auto_detect",
-    ),
-  );
+  const enabledSet = new Set(enabledLanguages);
   const filtered = SUPPORTED_PREDICTION_LANGUAGE_KEYS.filter((lang) => enabledSet.has(lang));
   return filtered.length > 0 ? filtered : SUPPORTED_PREDICTION_LANGUAGE_KEYS.slice();
+}
+
+/** Returns "auto_detect" if it is requested and more than one language is enabled. Else returns resolveFallbackLanguage. */
+export function resolvePrimaryLanguage(language: string, enabledLanguages: string[]): string {
+  if (language === "auto_detect" && enabledLanguages.length > 1) {
+    return "auto_detect";
+  }
+  return resolveFallbackLanguage(language, enabledLanguages);
+}
+
+/** Returns the language if it is enabled. Else returns the first enabled language. */
+export function resolveFallbackLanguage(language: string, enabledLanguages: string[]): string {
+  return enabledLanguages.includes(language) ? language : enabledLanguages[0];
 }
 
 export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
@@ -65,9 +85,14 @@ export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
   pt: "pt_BR",
 };
 
+/** The lowercase base code of a language tag, for example "en" for "en_US" or "pt-BR". */
+export function baseLanguage(tag: string): string {
+  return tag.toLowerCase().split(/[_-]/)[0];
+}
+
 /** Reject detector answers whose writing system is absent. This does not identify a language. */
 export function languageMatchesScript(language: string, text: string): boolean {
-  const base = language.toLowerCase().split(/[_-]/)[0];
+  const base = baseLanguage(language);
   const scripts: Record<string, RegExp> = {
     ja: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u,
     zh: /\p{Script=Han}/u,
@@ -128,8 +153,7 @@ export function resolveReviewLanguage(
     detected = null;
   const qualified =
     sampleText === undefined ||
-    (sampleText.match(/\p{L}/gu)?.length ?? 0) >= 20 ||
-    (sampleText.match(/\p{L}[\p{L}\p{M}]*/gu)?.length ?? 0) >= 3 ||
+    hasQualifiedLanguageEvidence(sampleText) ||
     /[\p{Script=Greek}\p{Script=Arabic}]/u.test(sampleText);
   if (detected && detected !== "und" && (qualified || !reviewDictionaryLanguage(detected))) {
     const language = normalizeReviewLanguage(detected);
@@ -144,15 +168,6 @@ export function resolveReviewLanguage(
   return resource
     ? { language: fallback, source: "fallback", resource }
     : { language: "und", source: "unresolved", resource: null };
-}
-
-/** Compatibility entry point for callers that only need the resolved language. */
-export function resolveAutoLanguage(
-  detected: string | null,
-  enabledLanguages: readonly string[],
-  fallback: string,
-): string {
-  return resolveReviewLanguage("auto_detect", detected, enabledLanguages, fallback).language;
 }
 
 const BASE_SEPARATOR_CHARS_REGEX_SOURCE =

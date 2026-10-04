@@ -1,21 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { migrateSettingsV9 } from "../src/core/application/settings/SettingsMigrationV9";
-import type { SettingsManager } from "../src/core/application/settingsManager";
 import { KEY_SUGGESTION_THEME_V2_MIGRATED } from "../src/core/domain/constants";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "../src/core/domain/themeDefaults";
-
-function createMockSettingsManager(
-  seed: Record<string, unknown>,
-): SettingsManager & { store: Record<string, unknown> } {
-  const store = { ...seed };
-  return {
-    store,
-    getRaw: async (key: string) => store[key] as never,
-    setRaw: async (key: string, value: unknown) => {
-      store[key] = value;
-    },
-  } as unknown as SettingsManager & { store: Record<string, unknown> };
-}
+import { memorySettings } from "./support/fakeSettings";
 
 const PREVIOUS_LIGHT = {
   suggestionBgLight: "#ffffff",
@@ -34,7 +21,7 @@ const PREVIOUS_DARK = {
 
 describe("migrateSettingsV9", () => {
   test("moves the previous default palette to the redesigned one", async () => {
-    const settings = createMockSettingsManager({ ...PREVIOUS_LIGHT, ...PREVIOUS_DARK });
+    const settings = memorySettings({ ...PREVIOUS_LIGHT, ...PREVIOUS_DARK });
 
     await migrateSettingsV9(settings);
 
@@ -47,7 +34,7 @@ describe("migrateSettingsV9", () => {
   });
 
   test("keeps a color mode with any customized color, and migrates the other", async () => {
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       ...PREVIOUS_LIGHT,
       suggestionHighlightBgLight: "#7c3aed",
       ...PREVIOUS_DARK,
@@ -64,7 +51,7 @@ describe("migrateSettingsV9", () => {
 
   test("a customized mode keeps the previous defaults for colors never saved", async () => {
     // Only one light color was ever saved; the others fall back to defaults.
-    const settings = createMockSettingsManager({ suggestionHighlightBgLight: "#7c3aed" });
+    const settings = memorySettings({ suggestionHighlightBgLight: "#7c3aed" });
 
     await migrateSettingsV9(settings);
 
@@ -78,7 +65,7 @@ describe("migrateSettingsV9", () => {
   });
 
   test("finishes a mode that a failed earlier run left half migrated", async () => {
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       ...PREVIOUS_DARK,
       suggestionBgDark: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionBgDark,
       suggestionTextDark: DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionTextDark,
@@ -95,7 +82,7 @@ describe("migrateSettingsV9", () => {
   });
 
   test("runs once", async () => {
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       ...PREVIOUS_DARK,
       [KEY_SUGGESTION_THEME_V2_MIGRATED]: true,
     });

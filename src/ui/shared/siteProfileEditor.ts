@@ -22,20 +22,13 @@ export function toOverrideValue(value: boolean | undefined): string {
   return typeof value === "boolean" ? (value ? "on" : "off") : "global";
 }
 
-export function createSelectOption(value: string, text: string): HTMLOptionElement {
-  const option = document.createElement("option");
-  option.value = value;
-  option.textContent = text;
-  return option;
-}
-
 export function languageLabel(languageKey: string): string {
   return SUPPORTED_LANGUAGES[languageKey] || languageKey;
 }
 
 export function appendLanguageOptions(select: HTMLSelectElement, languageKeys: string[]): void {
   for (const languageKey of languageKeys) {
-    select.appendChild(createSelectOption(languageKey, languageLabel(languageKey)));
+    select.appendChild(new Option(languageLabel(languageKey), languageKey));
   }
 }
 
@@ -43,11 +36,9 @@ export function populateSuggestionOptions(
   select: HTMLSelectElement,
   globalNumSuggestions: number,
 ): void {
-  select.replaceChildren(
-    createSelectOption("global", getInheritLabel(String(globalNumSuggestions))),
-  );
+  select.replaceChildren(new Option(getInheritLabel(String(globalNumSuggestions)), "global"));
   for (let idx = 0; idx <= MAX_NUM_SUGGESTIONS; idx += 1) {
-    select.appendChild(createSelectOption(String(idx), String(idx)));
+    select.appendChild(new Option(String(idx), String(idx)));
   }
 }
 
@@ -57,10 +48,56 @@ export function populateBooleanOverrideOptions(
   describeValue: (value: boolean) => string,
 ): void {
   select.replaceChildren(
-    createSelectOption("global", getInheritLabel(describeValue(globalValue))),
-    createSelectOption("on", describeValue(true)),
-    createSelectOption("off", describeValue(false)),
+    new Option(getInheritLabel(describeValue(globalValue)), "global"),
+    new Option(describeValue(true), "on"),
+    new Option(describeValue(false), "off"),
   );
+}
+
+export interface SiteProfileSelects {
+  language: HTMLSelectElement;
+  suggestions: HTMLSelectElement;
+  inline: HTMLSelectElement;
+  preferNativeAutocomplete: HTMLSelectElement;
+  codeMode: HTMLSelectElement;
+}
+
+export interface SiteProfileGlobals {
+  numSuggestions: number;
+  inlineSuggestion: boolean;
+  preferNativeAutocomplete: boolean;
+  codeMode: boolean;
+}
+
+export function populateSiteProfileSelects(
+  selects: SiteProfileSelects,
+  globals: SiteProfileGlobals,
+  enabledLanguages: string[],
+): void {
+  selects.language.replaceChildren();
+  appendLanguageOptions(selects.language, enabledLanguages);
+  populateSuggestionOptions(selects.suggestions, globals.numSuggestions);
+  populateBooleanOverrideOptions(selects.inline, globals.inlineSuggestion, getOnOffLabel);
+  populateBooleanOverrideOptions(
+    selects.preferNativeAutocomplete,
+    globals.preferNativeAutocomplete,
+    getPreferNativeAutocompleteLabel,
+  );
+  populateBooleanOverrideOptions(selects.codeMode, globals.codeMode, getOnOffLabel);
+}
+
+/** Shows the profile in the selects; without a profile, shows fallbackLanguage and "global". */
+export function applySiteProfileToSelects(
+  selects: SiteProfileSelects,
+  profile: SiteProfile | undefined,
+  fallbackLanguage: string,
+): void {
+  selects.language.value = profile?.language || fallbackLanguage;
+  selects.suggestions.value =
+    typeof profile?.numSuggestions === "number" ? String(profile.numSuggestions) : "global";
+  selects.inline.value = toOverrideValue(profile?.inline_suggestion);
+  selects.preferNativeAutocomplete.value = toOverrideValue(profile?.preferNativeAutocomplete);
+  selects.codeMode.value = toOverrideValue(profile?.codeMode);
 }
 
 /** Builds a profile from editor select values; "global" (or a missing select) means inherit. */

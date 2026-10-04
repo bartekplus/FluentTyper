@@ -6,13 +6,8 @@ Choose how suggestions appear. Save short names for the phrases you use most.
 
 ## Popup or inline?
 
-**Popup mode** shows a list of alternatives. Use the arrow keys to choose a word, then press **Tab**.
-
-<img src="images/readme/popup.png" width="800" alt="Popup mode shows word suggestions beside the cursor, with report selected.">
-
-**Inline mode** shows one suggested ending beside your cursor. Press **Tab** to accept it.
-
-<img src="images/readme/inline.png" width="800" alt="Inline mode shows the suggested ending ort after the typed letters rep.">
+**Popup mode** shows a list of words. **Inline mode** shows one suggested ending beside your cursor.
+The [README shows both modes](../README.md#choose-from-a-list).
 
 These instructions use the default Tab shortcut. Settings can change how you accept suggestions.
 Press **Esc** to dismiss a suggestion.

@@ -44,14 +44,6 @@ export class HostChangeWatcher {
     this.detachWatchDogEventListeners();
   }
 
-  getHostName(): string {
-    return this.hostName;
-  }
-
-  setHostName(hostName: string): void {
-    this.hostName = hostName;
-  }
-
   checkHostName(): boolean {
     const currentHostName = frameHostname();
     if (this.hostName === currentHostName) {

@@ -1,13 +1,17 @@
 import { englishInflect, englishLemma } from "../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
-import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
+import {
+  applyWordCase,
+  detectWordCase,
+  wordSet,
+} from "../implementations/helpers/GenericRuleShared";
 import {
   COMPLETE,
   detectPhraseTemplates,
   EDGE,
   frameMatches,
-  gluedAfter,
+  group,
   hasUserOrCasedWord,
   SPACE,
   WORD_END,
@@ -45,9 +49,8 @@ const OBJECTS = "me|you|him|her|us|them|it";
 const INDEFINITE = `(?:any|every|some|no)(?:body|one|${SPACE}one)`;
 const DETERMINERS = "the|an?|my|your|our|their|his|its|these|those";
 const WORD = `(?<word>[A-Za-z]+)${WORD_END}`;
-const set = (words: string) => new Set(words.split(/\s+/));
 // Closed-class words that spelling alone would take for a base verb ("to all the", "and others").
-const FUNCTION_WORDS = set(
+const FUNCTION_WORDS = wordSet(
   `me you him her us them it the a an my your our their his its these those i we they he she this
   that some any all both each every either neither no none more most much many few less least other
   others another such own same lot anyone someone everyone nobody somebody everybody anybody and or
@@ -59,43 +62,44 @@ const FUNCTION_WORDS = set(
 );
 
 // Closed classes for reading the words before a frame (lowercase, ’ folded to ').
-const BE_WORDS = set("am is are was were be been being 'm 're 's isn wasn aren weren");
-const GET_WORDS = set("get gets got getting gotten");
-const HAVE_WORDS = set("has have had 've");
-const MODAL_DO = set(
+const BE_WORDS = wordSet("am is are was were be been being 'm 're 's isn wasn aren weren");
+const GET_WORDS = wordSet("get gets got getting gotten");
+const HAVE_WORDS = wordSet("has have had 've");
+const MODAL_DO = wordSet(
   "will would shall should can could may might must 'll 'd do does did don doesn didn won wouldn couldn shouldn cannot",
 );
 const AUXILIARIES = new Set([
   ...BE_WORDS,
   ...HAVE_WORDS,
   ...MODAL_DO,
-  ...set("'t not never also just really actually always even still ever already maybe probably"),
+  ...wordSet(
+    "'t not never also just really actually always even still ever already maybe probably",
+  ),
 ]);
-const SUBJECTS = set("i we you they he she it");
-const RELATIVES = set("who which that whom");
-const FREE_RELATIVES = set("what whatever whoever whichever");
-const CONJUNCTIONS = set("and or but then");
-const SUBORDINATORS = set(
+const SUBJECTS = wordSet("i we you they he she it");
+const RELATIVES = wordSet("who which that whom");
+const FREE_RELATIVES = wordSet("what whatever whoever whichever");
+const CONJUNCTIONS = wordSet("and or but then");
+const SUBORDINATORS = wordSet(
   "because if when while although though since as so once until unless whereas how why whether",
 );
-const PREPOSITIONS = set(
+const PREPOSITIONS = wordSet(
   `of in on at by for from with about into onto over under through after before since until via
   per to toward towards among between within without upon across behind beyond like near during
   against around thru`,
 );
-const NP_DETERMINERS = set(
+const NP_DETERMINERS = wordSet(
   "the a an my your our their his her its this that these those some any no every each many much several most all both few more",
 );
-const INDEFINITES = set(
+const INDEFINITES = wordSet(
   "anyone anybody everyone everybody someone somebody nobody one none everything something",
 );
 const QUANTIFIERS =
   "some|many|much|several|most|all|any|each|every|both|few|more|no|multiple|various|numerous";
 
-const info = (word: string) => englishWordInfo(word);
 /** An adverb and nothing else: "strangely", "quickly". */
 const pureAdverb = (word: string) => {
-  const i = info(word);
+  const i = englishWordInfo(word);
   return !!i?.adverb && !i.noun && !i.adjective && !i.verbs.length;
 };
 
@@ -137,7 +141,8 @@ const TIME_ADVERBS =
 function nounPhraseNext(tail: string): boolean {
   if (objectNext(tail) || QUANTIFIER_NEXT.test(tail)) return true;
   const next = nextWord(tail);
-  const i = next && !FUNCTION_WORDS.has(next) && !TIME_ADVERBS.test(next) ? info(next) : null;
+  const i =
+    next && !FUNCTION_WORDS.has(next) && !TIME_ADVERBS.test(next) ? englishWordInfo(next) : null;
   return !!i?.noun && !i.adjective && !i.adverb;
 }
 
@@ -153,7 +158,7 @@ function baseVerb(word: string): BaseVerb | null {
   if (FUNCTION_WORDS.has(w)) return null;
   const known = englishVerbForms(w);
   if (known && known.lemma !== w) return null;
-  const i = info(w);
+  const i = englishWordInfo(w);
   if (!i?.verbs.some((v) => v.form === "base") || i.verbs.some((v) => v.lemma !== w)) return null;
   return { lemma: w, irregular: !!known, ambiguous: i.noun || i.adjective };
 }
@@ -195,7 +200,7 @@ function nounPhraseWord(word: string | undefined): boolean {
   if (!word) return false;
   if (NP_DETERMINERS.has(word) || INDEFINITES.has(word) || /^\d/.test(word)) return true;
   if (FUNCTION_WORDS.has(word) || /^'/.test(word)) return false;
-  const i = info(word);
+  const i = englishWordInfo(word);
   return !i || i.noun || i.adjective;
 }
 
@@ -277,11 +282,6 @@ function dummyWorth(words: readonly string[]): boolean {
   if (w === "it" || w === "its" || w === "this" || w === "that") return true;
   return w === "" && i > 0;
 }
-
-const PARTICIPLE = (lemma: string) => {
-  const row = englishVerbForms(lemma);
-  return row?.lemma === lemma ? row.participle : englishInflect(lemma, "past");
-};
 
 const FRAMES: readonly Frame[] = [
   {
@@ -402,14 +402,14 @@ const FRAMES: readonly Frame[] = [
         if (!verb) return null;
         if (verb.ambiguous && !objectNext(tail) && !END_NEXT.test(tail)) {
           const next = nextWord(tail);
-          if (!next || AUXILIARIES.has(next) || info(next)?.verbs.length) return null;
+          if (!next || AUXILIARIES.has(next) || englishWordInfo(next)?.verbs.length) return null;
         }
         form =
           gov === "went"
             ? englishInflect(verb.lemma, "past")
             : gov === "goes"
               ? englishInflect(verb.lemma, "third")
-              : PARTICIPLE(verb.lemma);
+              : (englishVerbForms(verb.lemma)?.participle ?? englishInflect(verb.lemma, "past"));
       }
       return form && form !== word.toLowerCase()
         ? { messageKey: "review_msg_ahead_and_tense", alternatives: [form] }
@@ -424,7 +424,7 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?<help>help|helps|helped|helping)${SPACE}(?:(?<object>${OBJECTS}|${INDEFINITE})${SPACE})?(?:(?<to>to)${SPACE})?(?<target>${WORD})`,
     repair(word, tail, m, ctx) {
       const w = word.toLowerCase();
-      const i = info(w);
+      const i = englishWordInfo(w);
       // found, saw, read: also base verbs
       if (!i || i.verbs.some((v) => v.form === "base")) return null;
       const has = (form: string) => i.verbs.some((v) => v.form === form);
@@ -516,14 +516,14 @@ const FRAMES: readonly Frame[] = [
 function worthPredicate(words: readonly string[]): boolean {
   const w = words[0];
   if (NP_DETERMINERS.has(w) || /^(?:of|net|self|own|'s)$/.test(w)) return w === "'s";
-  const i = w ? info(w) : null;
+  const i = w ? englishWordInfo(w) : null;
   return !(i?.adjective && !i.adverb && !i.verbs.length);
 }
 
 /** A let object: a determiner and nouns ("the user"), or a bare plural noun ("users"). */
 function objectPhrase(words: readonly string[]): boolean {
   const head = words.at(-1)!;
-  const i = info(head);
+  const i = englishWordInfo(head);
   if (words.length === 1) return !!i?.plural && !FUNCTION_WORDS.has(head);
   return words.slice(1).every((w) => !FUNCTION_WORDS.has(w) && nounPhraseWord(w)) && (!i || i.noun);
 }
@@ -539,7 +539,7 @@ function inflectedFrames(ctx: DetectContext): RawFinding[] {
       const end = m.index + m[0].length;
       const found = repair(word, ctx.scanText.slice(end, end + 128), m, ctx);
       if (!found) continue;
-      const [start, targetEnd] = m.indices!.groups!.target;
+      const [start, targetEnd] = group(m, "target");
       const style = detectWordCase(m.groups!.target.trim());
       findings.push({
         ruleId: "englishVerbComplements",
@@ -572,12 +572,11 @@ export function verbComplements(ctx: DetectContext): RawFinding[] {
   // "We need fix this bug": the verb and its complete argument come from COMPLEMENTS.
   const pattern = `${SUBJECT}${SPACE}${NEGATIVE}(?:need|needs|needed|want|wants|wanted|plan|plans|planned)${SPACE}(?<target>${Object.keys(COMPLEMENTS).join("|")})(?!${EDGE})`;
   for (const match of frameMatches(ctx, pattern)) {
-    const [start, end] = match.indices!.groups!.target;
+    const [start, end] = group(match, "target");
     const target = match.groups!.target;
     const tail = complementTail(target.toLowerCase()).exec(ctx.scanText.slice(end, end + 128));
     if (!tail) continue;
     const phraseEnd = end + tail[0].length;
-    if (gluedAfter(ctx.text, phraseEnd)) continue;
     if (hasUserOrCasedWord(ctx, ctx.scanText.slice(match.index, phraseEnd))) continue;
     findings.push({
       ruleId: "englishVerbComplements",

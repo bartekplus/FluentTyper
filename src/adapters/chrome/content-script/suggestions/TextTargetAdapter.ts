@@ -1,14 +1,8 @@
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { gutenbergSelectedField } from "./GutenbergEnvironment";
-import type { PostEditFingerprint } from "./types";
+import type { PostEditFingerprint, SuggestionSnapshot } from "./types";
 
 export type TextTarget = HTMLInputElement | HTMLTextAreaElement | HTMLElement;
-
-interface TextCursorSnapshot {
-  beforeCursor: string;
-  afterCursor: string;
-  cursorOffset: number;
-}
 
 export function rangeInsideTarget(range: Range, target: Node): boolean {
   const inside = (node: Node) => node === target || target.contains(node);
@@ -27,7 +21,7 @@ export function hasOtherFocusedEditor(target: HTMLElement): boolean {
   );
 }
 
-function wholeTextSnapshot(target: TextTarget): TextCursorSnapshot {
+function wholeTextSnapshot(target: TextTarget): SuggestionSnapshot {
   const text = target.textContent ?? "";
   return { beforeCursor: text, afterCursor: "", cursorOffset: text.length };
 }
@@ -57,24 +51,11 @@ export class TextTargetAdapter {
       return null;
     }
     const candidate = codeMirrorRoot.previousElementSibling;
-    const view = candidate?.ownerDocument?.defaultView;
-    const InputCtor = view?.HTMLInputElement;
-    const TextAreaCtor = view?.HTMLTextAreaElement;
-    if (
-      candidate &&
-      ((typeof InputCtor === "function" && candidate instanceof InputCtor) ||
-        (typeof TextAreaCtor === "function" && candidate instanceof TextAreaCtor))
-    ) {
-      return candidate;
-    }
-    return null;
+    return candidate && TextTargetAdapter.isTextValue(candidate) ? candidate : null;
   }
 
   static hasCollapsedSelection(target: TextTarget): boolean {
     if (TextTargetAdapter.isTextValue(target)) {
-      if (target.selectionStart === null || target.selectionEnd === null) {
-        return true;
-      }
       return target.selectionStart === target.selectionEnd;
     }
 
@@ -90,7 +71,7 @@ export class TextTargetAdapter {
     return selection.isCollapsed;
   }
 
-  static snapshot(target: TextTarget): TextCursorSnapshot {
+  static snapshot(target: TextTarget): SuggestionSnapshot {
     if (TextTargetAdapter.isTextValue(target)) {
       const value = target.value ?? "";
       const cursorOffset = target.selectionStart ?? value.length;
@@ -134,7 +115,7 @@ export class TextTargetAdapter {
 
   static createPostEditFingerprint(
     target: TextTarget,
-    snapshotOverride?: TextCursorSnapshot,
+    snapshotOverride?: SuggestionSnapshot,
   ): PostEditFingerprint {
     const snapshot = snapshotOverride ?? TextTargetAdapter.snapshot(target);
     return {
@@ -147,7 +128,7 @@ export class TextTargetAdapter {
   static matchesPostEditFingerprint(
     target: TextTarget,
     expected: PostEditFingerprint,
-    snapshotOverride?: TextCursorSnapshot,
+    snapshotOverride?: SuggestionSnapshot,
   ): boolean {
     const actual = TextTargetAdapter.createPostEditFingerprint(target, snapshotOverride);
     return (

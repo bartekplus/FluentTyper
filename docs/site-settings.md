@@ -16,7 +16,7 @@ The popup saves changes as you make them. A site profile applies to that website
 
 | Setting                        | Use it to…                                                             |
 | ------------------------------ | ---------------------------------------------------------------------- |
-| **Language**                   | Choose the writing language for this site.                             |
+| **Site Language**              | Choose the writing language for this site.                             |
 | **Suggestions Count**          | Change how many suggestions appear.                                    |
 | **Inline Mode**                | Show a completion beside the cursor instead of a popup list.           |
 | **Prefer native autocomplete** | Let the website's own suggestions take priority.                       |
@@ -34,17 +34,14 @@ For settings across websites, select **Settings** in the popup. You can also man
 ## Pause FluentTyper on a site
 
 Use the popup's current-site control to enable or disable FluentTyper for that domain.
-The global **Enable Extension** switch controls the extension across sites.
+The global **Enable FluentTyper** switch controls the extension across sites.
 
 A profile does not override these switches. FluentTyper remains off on a blocked site, even when that site has a profile.
 Browser access restrictions can also prevent FluentTyper from running.
 
 ## If suggestions do not appear
 
-Check that **Enable Extension** is on, the current website is allowed, and your browser grants FluentTyper access to it.
-Some fields use the website's own autocomplete. Others, such as password fields, do not allow typing assistance.
-
-See [typing help](typing.md#if-suggestions-do-not-appear) for the next steps.
+See [typing help](typing.md#if-suggestions-do-not-appear).
 
 <details>
 <summary>For developers: configuration order</summary>

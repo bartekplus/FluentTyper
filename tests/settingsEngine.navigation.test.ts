@@ -1,13 +1,11 @@
-import "./setup";
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, jest, test } from "bun:test";
 import { SettingsEngine } from "../src/ui/settings-engine/SettingsEngine.js";
 import type { ManifestDefinition } from "../src/ui/settings-engine/types.js";
-const originalWindowScrollTo = window.scrollTo;
+
+const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
 
 function createManifest(): ManifestDefinition {
   return {
-    name: "Test",
-    icon: "/icon.png",
     tabs: [
       { id: "core_settings", label: "Essentials" },
       { id: "advanced_tab", label: "Data" },
@@ -48,31 +46,24 @@ function createEngineElements() {
   const searchInput = document.createElement("input");
   main.append(mobileTabs, searchInput, content);
   document.body.append(tabs, main);
-  (globalThis as { location?: Location }).location = window.location;
-  window.history.replaceState = ((_data, _unused, url) => {
-    if (typeof url === "string" && url.startsWith("#")) {
-      window.location.hash = url;
-    }
-  }) as History["replaceState"];
-  (globalThis as { history?: History }).history = window.history;
   return { tabs, main, content, mobileTabs, searchInput };
 }
 
+function build(manifest: ManifestDefinition = createManifest()) {
+  const elements = createEngineElements();
+  new SettingsEngine({ container: elements }).buildFromManifest(manifest);
+  return elements;
+}
+
 afterEach(() => {
-  document.body.replaceChildren();
   window.location.hash = "";
-  window.scrollTo = originalWindowScrollTo;
+  HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
 });
 
 describe("SettingsEngine navigation", () => {
   test("activates the tab from the initial hash", () => {
     window.location.hash = "#advanced_tab";
-    const elements = createEngineElements();
-    const engine = new SettingsEngine({
-      container: elements,
-    });
-
-    engine.buildFromManifest(createManifest());
+    const elements = build();
 
     expect(elements.tabs.querySelector("li.is-active a")?.getAttribute("href")).toBe(
       "#advanced_tab",
@@ -81,12 +72,7 @@ describe("SettingsEngine navigation", () => {
   });
 
   test("responds to hashchange events by activating the matching section", () => {
-    const elements = createEngineElements();
-    const engine = new SettingsEngine({
-      container: elements,
-    });
-
-    engine.buildFromManifest(createManifest());
+    const elements = build();
     window.location.hash = "#about_support_tab";
     window.dispatchEvent(new Event("hashchange"));
 
@@ -96,12 +82,7 @@ describe("SettingsEngine navigation", () => {
   });
 
   test("mobile section switcher updates active section and hash", () => {
-    const elements = createEngineElements();
-    const engine = new SettingsEngine({
-      container: elements,
-    });
-
-    engine.buildFromManifest(createManifest());
+    const elements = build();
     elements.mobileTabs.value = "advanced_tab";
     elements.mobileTabs.dispatchEvent(new Event("change", { bubbles: true }));
 
@@ -112,14 +93,9 @@ describe("SettingsEngine navigation", () => {
   });
 
   test("sidebar tab clicks reset scroll and update the active section", () => {
-    const elements = createEngineElements();
-    const engine = new SettingsEngine({
-      container: elements,
-    });
+    const elements = build();
     document.documentElement.scrollTop = 360;
     elements.main.scrollTop = 180;
-
-    engine.buildFromManifest(createManifest());
 
     const aboutTabLink = Array.from(elements.tabs.querySelectorAll<HTMLAnchorElement>("a")).find(
       (link) => link.getAttribute("href") === "#about_support_tab",
@@ -133,14 +109,9 @@ describe("SettingsEngine navigation", () => {
   });
 
   test("tab changes reset the shared scroll position to the active section", () => {
-    const elements = createEngineElements();
-    const engine = new SettingsEngine({
-      container: elements,
-    });
+    const elements = build();
     document.documentElement.scrollTop = 480;
     elements.main.scrollTop = 240;
-
-    engine.buildFromManifest(createManifest());
     elements.mobileTabs.value = "about_support_tab";
     elements.mobileTabs.dispatchEvent(new Event("change", { bubbles: true }));
 
@@ -150,14 +121,15 @@ describe("SettingsEngine navigation", () => {
   });
 
   test("value-only controls do not render empty visible groups", () => {
-    const elements = createEngineElements();
-    const engine = new SettingsEngine({
-      container: elements,
-    });
-
-    engine.buildFromManifest({
-      name: "Test",
-      icon: "/icon.png",
+    // Stored manifest data can still carry a group on a value-only field.
+    const hiddenThemeValue = {
+      tab: "theming_tab",
+      group: "Light Theme Colors",
+      name: "hiddenThemeValue",
+      type: "valueOnly" as const,
+      default: "#ffffff",
+    };
+    const elements = build({
       tabs: [{ id: "theming_tab", label: "Appearance" }],
       settings: [
         {
@@ -168,13 +140,7 @@ describe("SettingsEngine navigation", () => {
           label: "Appearance studio",
           description: "Preview and tune the popup.",
         },
-        {
-          tab: "theming_tab",
-          group: "Light Theme Colors",
-          name: "hiddenThemeValue",
-          type: "valueOnly",
-          default: "#ffffff",
-        },
+        hiddenThemeValue,
       ],
     });
 
@@ -184,87 +150,52 @@ describe("SettingsEngine navigation", () => {
     expect(elements.content.querySelector("#appearanceStudioPanelPanelRoot")).not.toBeNull();
   });
 
-  test("custom panels do not repeat their own heading copy inside panel-only groups", () => {
-    const elements = createEngineElements();
-    const engine = new SettingsEngine({
-      container: elements,
-    });
+  test.each([
+    [
+      "dataDiagnosticsPanel",
+      {
+        id: "advanced_tab",
+        label: "Data & Diagnostics",
+        shortDescription: "Backups, import/export, and productivity stats.",
+      },
+      {
+        group: "Data & Diagnostics",
+        label: "Data & Diagnostics",
+        description: "Backups, import/export, and productivity stats.",
+      },
+    ],
+    [
+      "languagePreferencesPanel",
+      { id: "language_tab", label: "Languages" },
+      {
+        group: "Writing setup",
+        label: "Writing setup",
+        description: "Choose writing languages and detection behavior.",
+      },
+    ],
+  ])(
+    "custom panel %s collapses the group shell and does not repeat its heading",
+    (name, tab, panel) => {
+      const elements = build({
+        tabs: [tab],
+        settings: [{ tab: tab.id, name, type: "customPanel", ...panel }],
+      });
 
-    engine.buildFromManifest({
-      name: "Test",
-      icon: "/icon.png",
-      tabs: [
-        {
-          id: "advanced_tab",
-          label: "Data & Diagnostics",
-          title: "Data & Diagnostics",
-          shortDescription: "Backups, import/export, and productivity stats.",
-        },
-      ],
-      settings: [
-        {
-          tab: "advanced_tab",
-          group: "Data & Diagnostics",
-          name: "dataDiagnosticsPanel",
-          type: "customPanel",
-          label: "Data & Diagnostics",
-          description: "Backups, import/export, and productivity stats.",
-        },
-      ],
-    });
-
-    const panelGroup = elements.content.querySelector(".settings-group");
-    expect(panelGroup?.classList.contains("settings-group-panel-only")).toBe(true);
-    expect(elements.content.querySelector(".settings-custom-panel-label")).toBeNull();
-    expect(elements.content.querySelector(".settings-custom-panel-description")).toBeNull();
-    expect(elements.content.querySelector("#dataDiagnosticsPanelPanelRoot")).not.toBeNull();
-    expect(elements.content.querySelector(".settings-section-title")?.textContent?.trim()).toBe(
-      "Data & Diagnostics",
-    );
-  });
-
-  test("custom panels always collapse the outer group shell", () => {
-    const elements = createEngineElements();
-    const engine = new SettingsEngine({
-      container: elements,
-    });
-
-    engine.buildFromManifest({
-      name: "Test",
-      icon: "/icon.png",
-      tabs: [
-        {
-          id: "language_tab",
-          label: "Languages",
-          title: "Languages",
-        },
-      ],
-      settings: [
-        {
-          tab: "language_tab",
-          group: "Writing setup",
-          name: "languagePreferencesPanel",
-          type: "customPanel",
-          label: "Writing setup",
-          description: "Choose writing languages and detection behavior.",
-        },
-      ],
-    });
-
-    const panelGroup = elements.content.querySelector(".settings-group");
-    expect(panelGroup?.classList.contains("settings-group-panel-only")).toBe(true);
-    expect(elements.content.querySelector(".settings-custom-panel-label")).toBeNull();
-    expect(elements.content.querySelector(".settings-custom-panel-description")).toBeNull();
-    expect(elements.content.querySelector("#languagePreferencesPanelPanelRoot")).not.toBeNull();
-  });
+      const panelGroup = elements.content.querySelector(".settings-group");
+      expect(panelGroup?.classList.contains("settings-group-panel-only")).toBe(true);
+      expect(elements.content.querySelector(".settings-custom-panel-label")).toBeNull();
+      expect(elements.content.querySelector(".settings-custom-panel-description")).toBeNull();
+      expect(elements.content.querySelector(`#${name}PanelRoot`)).not.toBeNull();
+      expect(elements.content.querySelector(".settings-section-title")?.textContent?.trim()).toBe(
+        tab.label,
+      );
+    },
+  );
 
   test("lists tabs in manifest order even when settings mention a later tab first", () => {
-    const elements = createEngineElements();
-    const engine = new SettingsEngine({ container: elements });
     const manifest = createManifest();
     manifest.settings.reverse();
-
-    engine.buildFromManifest(manifest);
+    const elements = build(manifest);
 
     expect(
       Array.from(elements.tabs.querySelectorAll("a")).map((link) => link.getAttribute("href")),
@@ -277,9 +208,7 @@ describe("SettingsEngine navigation", () => {
   });
 
   test("search opens a collapsed section that holds the match", () => {
-    const elements = createEngineElements();
-    const engine = new SettingsEngine({ container: elements });
-    engine.buildFromManifest(createManifest());
+    const elements = build();
     const tab = elements.content.querySelector<HTMLElement>("#core_settings")!;
     const matching = document.createElement("details");
     matching.textContent = "Prefix-only mode";
@@ -292,5 +221,46 @@ describe("SettingsEngine navigation", () => {
 
     expect(matching.open).toBe(true);
     expect(other.open).toBe(false);
+  });
+
+  test("search activates the first matching tab and scrolls to the first match", () => {
+    const scrollSpy = jest.fn();
+    HTMLElement.prototype.scrollIntoView = scrollSpy;
+    const elements = build();
+
+    elements.searchInput.value = "advanced body";
+    elements.searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(elements.tabs.querySelector("li.is-active a")?.getAttribute("href")).toBe(
+      "#advanced_tab",
+    );
+    expect(scrollSpy).toHaveBeenCalled();
+  });
+
+  test("search does not match a control by its internal tab id", () => {
+    const elements = build();
+    elements.searchInput.value = "settings";
+    elements.searchInput.dispatchEvent(new Event("input"));
+
+    // "core_settings" is the tab id of the first control, not its text.
+    const visible = Array.from(
+      elements.content.querySelectorAll<HTMLElement>("[data-search-text]"),
+    ).filter((control) => !control.classList.contains("is-search-hidden"));
+    expect(visible).toHaveLength(0);
+  });
+
+  test("search scrolls to the match in the active tab, not to a match in a hidden tab", () => {
+    const scrolled: HTMLElement[] = [];
+    HTMLElement.prototype.scrollIntoView = function (this: HTMLElement) {
+      scrolled.push(this);
+    };
+    window.location.hash = "#advanced_tab";
+    const elements = build();
+
+    elements.searchInput.value = "body";
+    elements.searchInput.dispatchEvent(new Event("input"));
+
+    expect(scrolled).toHaveLength(1);
+    expect(elements.content.querySelector("#advanced_tab")!.contains(scrolled[0])).toBe(true);
   });
 });

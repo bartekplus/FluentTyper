@@ -11,13 +11,21 @@ export function getDeepActiveElement(doc: Document): Element | null {
   return active;
 }
 
+/** The parent of `node`, or the host when `node` is a shadow root. */
+export function composedParent(node: Node): Node | null {
+  return node.parentNode ?? (node.nodeType === 11 ? ((node as ShadowRoot).host ?? null) : null);
+}
+
+/** True when the element is in this document, also through shadow roots. */
 export function isInDocument(element: Element): boolean {
-  // Walk up the shadow host chain. We avoid `instanceof ShadowRoot` because
-  // that global is absent in some test environments; instead we detect a
-  // shadow root by the presence of its characteristic `host` property.
-  let root = element.getRootNode();
-  while (root !== document && "host" in root) {
-    root = (root as ShadowRoot).host.getRootNode();
+  return element.isConnected && element.ownerDocument === document;
+}
+
+/** A new 2D canvas context, or null when the browser cannot make one. */
+export function canvas2dContext(): CanvasRenderingContext2D | null {
+  try {
+    return document.createElement("canvas").getContext("2d");
+  } catch {
+    return null;
   }
-  return root === document;
 }

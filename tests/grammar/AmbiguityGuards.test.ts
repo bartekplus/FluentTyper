@@ -1,42 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
-import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
-import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
 import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
   GRAMMAR_RULE_IDS,
-  filterCodeSafeGrammarRules,
+  isCodeSafeGrammarRule,
 } from "../../src/core/domain/grammar/ruleCatalog";
-import type { GrammarContext } from "../../src/core/domain/grammar/types";
+import { typeText } from "./grammarTestUtils";
 
 /** Types `input` one character at a time through the given rules. */
-function type(
+const type = (
   input: string,
   lang = "en_US",
   rules: readonly string[] = DEFAULT_CURRENT_GRAMMAR_RULES,
-): string {
-  const engine = new GrammarRuleEngine();
-  for (const rule of createGrammarRuleCatalogRuntime({
-    insertSpaceAfterAutocomplete: true,
-    userDictionaryList: [],
-  }))
-    engine.registerRule(rule);
-  let context: GrammarContext = {
-    beforeCursor: "",
-    afterCursor: "",
-    hints: { lang, inputAction: "insert", measurementContext: "prose" },
-  };
-  for (const char of input) {
-    context.beforeCursor += char;
-    const edits = engine.process(
-      char === " " || char === "\n" ? "wordBoundary" : "insertChar",
-      context,
-      [...rules],
-    );
-    for (const edit of edits) context = applyGrammarEditToContext(context, edit);
-  }
-  return context.beforeCursor;
-}
+) => typeText(input, { lang, rules }).beforeCursor;
 
 describe("default-on rules never rewrite ambiguous input", () => {
   for (const input of [
@@ -605,7 +580,7 @@ describe("Markdown code is detected centrally", () => {
 
 test("code mode keeps significant trailing spaces in multiline literals", () => {
   const input = 'x = """keep  \n';
-  expect(type(input, "en_US", filterCodeSafeGrammarRules(DEFAULT_CURRENT_GRAMMAR_RULES))).toBe(
+  expect(type(input, "en_US", DEFAULT_CURRENT_GRAMMAR_RULES.filter(isCodeSafeGrammarRule))).toBe(
     input,
   );
 });

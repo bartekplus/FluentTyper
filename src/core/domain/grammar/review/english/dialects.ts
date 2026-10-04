@@ -2,7 +2,14 @@ import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
 import { BRITISH_ROWS } from "./britishUsage";
-import { frameMatches, hasUserOrCasedWord, isLang, SPACE, WORD_END } from "../phraseTemplates";
+import {
+  found,
+  frameMatches,
+  hasUserOrCasedWord,
+  isLang,
+  SPACE,
+  WORD_END,
+} from "../phraseTemplates";
 import { quotedMention } from "./grammarStyle1";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
@@ -206,13 +213,13 @@ const AMERICAN_ONLY: readonly Pair[] = [
   ]),
 ];
 
-/** American words with a distinct British one: [American, British]. */
 /** Authored accepted spellings. Dictionary fallback must not turn these into dialect corrections. */
 const DIALECT_WORDS = new Set([...BOTH, ...AMERICAN_ONLY].flat().map((word) => word.toLowerCase()));
 export function isAcceptedEnglishDialectWord(word: string): boolean {
   return DIALECT_WORDS.has(word.toLowerCase());
 }
 
+/** American words with a distinct British one: [American, British]. */
 const BRITISH_ONLY: readonly PhraseRow[] = [
   ["pacifier", "dummy"],
   ["pacifiers", "dummies"],
@@ -280,10 +287,8 @@ const ALTERNATIVE_PHRASING: readonly PhraseRow[] = [
   ),
 ];
 
-/** Usually mistakes, rarely meant: "chalk-full" (full of chalk), "choke-full" (a variant). */
-const POSSIBLE_ERRORS: readonly PhraseRow[] = [
-  [["chalk full", "chalk-full", "choke full", "choke-full"], "chock-full"],
-];
+/** Usually a mistake, rarely meant: "chalk full" (full of chalk). idioms3 has "choke full". */
+const POSSIBLE_ERRORS: readonly PhraseRow[] = [["chalk full", "chock-full"]];
 
 /** Opt-in tables with their own rules, indexed with the phrase corrections. */
 export const OPTIONAL_TABLES: readonly {
@@ -319,17 +324,6 @@ export const OPTIONAL_TABLES: readonly {
   },
 ];
 
-/**
- * Slashed tokens that are prose, not paths: "w/o", "prev/next" and a decade
- * before a slash ("1970's/early"). Review's technical-token guard lets them through.
- */
-export const PROSE_SLASH_TOKEN =
-  // remaining.ts: slashed words it checks (SLASHED) and its slash-token rows.
-  /^(?:w\/o|prev\/next|\p{Nd}{3}0['’]s\/\p{L}+|(?:infront|derefs?|dirs|bias)\/\p{L}+|dissemble\/assemble|assemble\/dissemble|chicken\/egg)$/iu;
-
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
 export const STYLE: readonly PhraseRow[] = [["prev/next", "previous/next"]];
 
 // ---------------------------------------------------------------------------- detectors
@@ -343,27 +337,6 @@ const BRITISH: Rule = {
   ruleId: "englishBritishSpelling",
   messageKey: "review_msg_british_spelling",
 };
-
-function finding(
-  ctx: DetectContext,
-  m: RegExpExecArray,
-  rule: Rule,
-  group: string,
-  replacement: string,
-): RawFinding {
-  const [start, end] = m.indices!.groups![group];
-  return {
-    ...rule,
-    range: { start, end },
-    alternatives: [applyWordCase(replacement, detectWordCase(m.groups![group]))],
-    context: {
-      start: Math.max(0, m.index - 96),
-      end: Math.min(ctx.text.length, m.index + m[0].length + 9),
-    },
-  };
-}
-
-const on = (ctx: DetectContext, rule: Rule) => !ctx.rules || ctx.rules.has(rule.ruleId);
 
 // "be on the cards" (British) and "be in the cards" (American): only after a form of "be"
 // ("is that just not in the cards?"), so cards on a table ("write it on the cards") stay.
@@ -381,8 +354,9 @@ function cards(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, CARDS)) {
     const british = m.groups!.prep.toLowerCase() === "on";
     const rule = british ? AMERICAN : BRITISH;
-    if (!on(ctx, rule) || hasUserOrCasedWord(ctx, m.groups!.target)) continue;
-    findings.push(finding(ctx, m, rule, "prep", british ? "in" : "on"));
+    if (hasUserOrCasedWord(ctx, m.groups!.target)) continue;
+    const prep = applyWordCase(british ? "in" : "on", detectWordCase(m.groups!.prep));
+    findings.push(found(ctx, m, rule.ruleId, rule.messageKey, [prep], "prep"));
   }
   return findings;
 }
@@ -405,11 +379,13 @@ function spelledNumbers(ctx: DetectContext): RawFinding[] {
     const before = sentence(ctx.text.slice(Math.max(0, start - 200), start)).pop()!;
     const after = sentence(ctx.text.slice(end, end + 200))[0];
     if (/\p{N}/u.test(before + after)) continue;
+    // In all-caps text, the `i` flag lets `\p{Ll}` match the noun. Keep the capitals.
+    const word = NUMBER_WORDS[Number(m.groups!.target)];
     findings.push({
       ruleId: "styleSpelledNumbers",
       messageKey: "review_msg_spelled_numbers",
       range: { start, end },
-      alternatives: [NUMBER_WORDS[Number(m.groups!.target)]],
+      alternatives: [m[0] === m[0].toUpperCase() ? word.toUpperCase() : word],
       context: { start: start - before.length, end: end + after.length },
     });
   }
@@ -426,8 +402,6 @@ const ISE_WORD =
 /** "energise", "magnetisable": -ise forms the table lacks whose -ize form the lexicon knows. */
 function iseForms(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  const rules = [AMERICAN, OXFORD].filter((rule) => on(ctx, rule));
-  if (!rules.length) return findings;
   for (const m of frameMatches(ctx, ISE_WORD)) {
     const word = m.groups!.target;
     const lower = word.toLowerCase();
@@ -440,9 +414,10 @@ function iseForms(ctx: DetectContext): RawFinding[] {
       "iz$1",
     );
     if (englishWordInfo(lower) || !englishWordInfo(ize) || hasUserOrCasedWord(ctx, word)) continue;
-    for (const rule of rules) {
-      const found = finding(ctx, m, rule, "target", ize);
-      if (!quotedMention(ctx, found)) findings.push(found);
+    const fix = applyWordCase(ize, detectWordCase(word));
+    for (const rule of [AMERICAN, OXFORD]) {
+      const finding = found(ctx, m, rule.ruleId, rule.messageKey, [fix]);
+      if (!quotedMention(ctx, finding)) findings.push(finding);
     }
   }
   return findings;

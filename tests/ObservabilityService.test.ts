@@ -1,4 +1,3 @@
-import "./setup";
 import { beforeEach, describe, expect, jest, test } from "bun:test";
 import { ObservabilityService } from "../src/adapters/chrome/background/ObservabilityService";
 
@@ -11,6 +10,17 @@ function createPredictorSnapshot() {
   };
 }
 
+function createService(
+  overrides: Partial<ConstructorParameters<typeof ObservabilityService>[0]> = {},
+) {
+  return new ObservabilityService({
+    isDevBuild: true,
+    getPredictorSnapshot: () => createPredictorSnapshot(),
+    getAutoLanguageRuntimes: () => [],
+    ...overrides,
+  });
+}
+
 describe("ObservabilityService", () => {
   beforeEach(() => {
     jest.spyOn(console, "info").mockImplementation(() => undefined);
@@ -19,12 +29,16 @@ describe("ObservabilityService", () => {
     jest.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
+  test("logs its config updates under its own module", () => {
+    const service = createService();
+    service.setConfig({ enabled: true, defaultLevel: "info", moduleOverrides: {} });
+    expect(service.getSnapshot().events.map((event) => event.moduleId)).toContain(
+      "ObservabilityService",
+    );
+  });
+
   test("captures events and predictor snapshot in dev builds", () => {
-    const service = new ObservabilityService({
-      isDevBuild: true,
-      getPredictorSnapshot: () => createPredictorSnapshot(),
-      getAutoLanguageRuntimes: () => [],
-    });
+    const service = createService();
 
     service.recordEvent({
       id: "1",
@@ -49,29 +63,8 @@ describe("ObservabilityService", () => {
     );
   });
 
-  test("returns a stable unavailable snapshot in non-dev builds", () => {
-    const service = new ObservabilityService({
-      isDevBuild: false,
-      getPredictorSnapshot: () => ({
-        ...createPredictorSnapshot(),
-        runtime: { presage: { languageEngineCount: 0 } },
-      }),
-      getAutoLanguageRuntimes: () => [],
-    });
-
-    const snapshot = service.getSnapshot();
-
-    expect(snapshot.available).toBe(false);
-    expect(snapshot.reason).toBe("dev_build_required");
-    expect(snapshot.events).toHaveLength(0);
-  });
-
-  test("keeps no reported events in non-dev builds", () => {
-    const service = new ObservabilityService({
-      isDevBuild: false,
-      getPredictorSnapshot: () => createPredictorSnapshot(),
-      getAutoLanguageRuntimes: () => [],
-    });
+  test("keeps no events and returns a stable unavailable snapshot in non-dev builds", () => {
+    const service = createService({ isDevBuild: false });
 
     service.recordEvent({
       id: "cs-1",
@@ -81,16 +74,16 @@ describe("ObservabilityService", () => {
       level: "warn",
       message: "sentinel-7f3a",
     });
+    const snapshot = service.getSnapshot();
 
     expect((service as unknown as { events: unknown[] }).events).toHaveLength(0);
+    expect(snapshot.available).toBe(false);
+    expect(snapshot.reason).toBe("dev_build_required");
+    expect(snapshot.events).toHaveLength(0);
   });
 
   test("marks options modules as registered after forwarding option events", () => {
-    const service = new ObservabilityService({
-      isDevBuild: true,
-      getPredictorSnapshot: () => createPredictorSnapshot(),
-      getAutoLanguageRuntimes: () => [],
-    });
+    const service = createService();
 
     service.recordEvent({
       id: "opt-1",
@@ -115,11 +108,7 @@ describe("ObservabilityService", () => {
   });
 
   test("marks forwarded content modules as registered without waiting for events", () => {
-    const service = new ObservabilityService({
-      isDevBuild: true,
-      getPredictorSnapshot: () => createPredictorSnapshot(),
-      getAutoLanguageRuntimes: () => [],
-    });
+    const service = createService();
 
     service.registerRemoteModules("content_script", [
       "ContentRuntimeController",
@@ -141,12 +130,7 @@ describe("ObservabilityService", () => {
 
   test("replaces runtime status for repeated restarts on one tab/frame", () => {
     let now = 100;
-    const service = new ObservabilityService({
-      isDevBuild: true,
-      getPredictorSnapshot: () => createPredictorSnapshot(),
-      getAutoLanguageRuntimes: () => [],
-      now: () => now,
-    });
+    const service = createService({ now: () => now });
 
     service.recordContentRuntimeStatus({
       tabId: 7,
@@ -183,12 +167,7 @@ describe("ObservabilityService", () => {
 
   test("prunes stale runtime entries after ttl", () => {
     let now = 1_000;
-    const service = new ObservabilityService({
-      isDevBuild: true,
-      getPredictorSnapshot: () => createPredictorSnapshot(),
-      getAutoLanguageRuntimes: () => [],
-      now: () => now,
-    });
+    const service = createService({ now: () => now });
 
     service.recordContentRuntimeStatus({
       tabId: 1,
@@ -203,12 +182,7 @@ describe("ObservabilityService", () => {
 
   test("keeps content runtime snapshot bounded", () => {
     let now = 10_000;
-    const service = new ObservabilityService({
-      isDevBuild: true,
-      getPredictorSnapshot: () => createPredictorSnapshot(),
-      getAutoLanguageRuntimes: () => [],
-      now: () => now,
-    });
+    const service = createService({ now: () => now });
 
     for (let index = 0; index < 80; index += 1) {
       service.recordContentRuntimeStatus({
@@ -228,9 +202,7 @@ describe("ObservabilityService", () => {
   });
 
   test("projects content and auto-language runtimes to plain status objects", () => {
-    const service = new ObservabilityService({
-      isDevBuild: true,
-      getPredictorSnapshot: () => createPredictorSnapshot(),
+    const service = createService({
       getAutoLanguageRuntimes: () => [
         {
           tabId: 3,

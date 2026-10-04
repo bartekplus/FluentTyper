@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { migrateSettingsV5 } from "../src/core/application/settings/SettingsMigrationV5";
-import type { SettingsManager } from "../src/core/application/settingsManager";
 import {
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_GRAMMAR_RULES_V2_BACKUP,
@@ -10,30 +9,11 @@ import {
   RECOMMENDED_V1_GRAMMAR_RULES,
   RECOMMENDED_V2_GRAMMAR_RULES,
 } from "../src/core/domain/grammar/ruleCatalog";
-
-function createMockSettingsManager(
-  seed: Record<string, unknown>,
-): SettingsManager & { store: Record<string, unknown> } {
-  const store = { ...seed };
-  return {
-    store,
-    get: async (key: string) => store[key] as never,
-    getRaw: async (key: string) => store[key] as never,
-    set: async (key: string, value: unknown) => {
-      store[key] = value;
-    },
-    setRaw: async (key: string, value: unknown) => {
-      store[key] = value;
-    },
-    removeRaw: async (key: string) => {
-      delete store[key];
-    },
-  } as unknown as SettingsManager & { store: Record<string, unknown> };
-}
+import { memorySettings } from "./support/fakeSettings";
 
 describe("migrateSettingsV5", () => {
   test("force-sets recommended v2 grammar rules when selection still equals v1 recommended set", async () => {
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       [KEY_ENABLED_GRAMMAR_RULES]: RECOMMENDED_V1_GRAMMAR_RULES.slice(),
     });
 
@@ -46,7 +26,7 @@ describe("migrateSettingsV5", () => {
 
   test("preserves custom grammar selection when already user-modified", async () => {
     const customSelection = ["commaPeriodSpacing", "duplicatePunctuationCollapse"];
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       [KEY_ENABLED_GRAMMAR_RULES]: customSelection,
     });
 
@@ -58,7 +38,7 @@ describe("migrateSettingsV5", () => {
   });
 
   test("is idempotent when migration marker is already set", async () => {
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       [KEY_ENABLED_GRAMMAR_RULES]: ["customRule"],
       [KEY_GRAMMAR_RULES_V2_BACKUP]: ["existingBackup"],
       [KEY_GRAMMAR_RULES_V2_MIGRATED]: true,

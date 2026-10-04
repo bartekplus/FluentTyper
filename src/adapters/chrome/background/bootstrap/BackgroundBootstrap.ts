@@ -1,7 +1,4 @@
-import { logError } from "@core/domain/error";
-import { checkLastError } from "@core/application/transport-utils";
 import { BackgroundServiceWorker } from "../BackgroundServiceWorker";
-import { migrateToLocalStore } from "../Migration";
 import { CommandRouter } from "../router/CommandRouter";
 import { MessageRouter } from "../router/MessageRouter";
 import type { EngineLike } from "../localAi/LocalAiHost";
@@ -31,7 +28,6 @@ export class BackgroundBootstrap {
   }
 
   private onInstalled(details: chrome.runtime.InstalledDetails): void {
-    checkLastError();
     if (details.reason === "install") {
       void chrome.tabs.create({
         url: "new_installation/index.html",
@@ -39,12 +35,10 @@ export class BackgroundBootstrap {
       return;
     }
 
+    // No migration here: worker.initialize already migrates from the stored version.
     if (details.reason === "update") {
       const thisVersion = chrome.runtime.getManifest().version;
       console.log(`Updated from ${details.previousVersion} to ${thisVersion}!`);
-      migrateToLocalStore(details.previousVersion).catch((error) => {
-        logError("migrateToLocalStore", error);
-      });
     }
   }
 
@@ -54,11 +48,7 @@ export class BackgroundBootstrap {
     }: {
       lastVersion?: unknown;
     }): Promise<void> => {
-      try {
-        await this.worker.initialize(typeof lastVersion === "string" ? lastVersion : undefined);
-      } catch (error) {
-        logError("lastVersion handler", error);
-      }
+      await this.worker.initialize(typeof lastVersion === "string" ? lastVersion : undefined);
     };
 
     // Keep listener registration synchronous, but still await startup work once the

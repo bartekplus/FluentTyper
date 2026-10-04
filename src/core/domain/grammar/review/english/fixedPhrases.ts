@@ -1,39 +1,24 @@
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
+import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import type { PhraseRow } from "../englishPhraseTables";
+import { each, type Pair, type PhraseRow, PLURAL, POSSESSIVES, TAKE } from "../englishPhraseTables";
 import {
+  before,
+  caseLike,
   COMPLETE,
   EDGE,
   frame,
   frameMatches,
+  group,
   hasUserOrCasedWord,
+  nextWord,
+  notAfter,
   SPACE,
   WORD_END,
   isLang,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 
-type Pair = string | readonly [typed: string, replacement: string];
-/**
- * One row per pair: `~` stands for the pair's first word in the typed forms and
- * for its second in the replacements ("get", or ["flaunt", "flout"]).
- */
-const each = (
-  pairs: readonly Pair[],
-  typed: string | readonly string[],
-  replacement: string | readonly string[],
-): PhraseRow[] =>
-  pairs.map((pair) => {
-    const [from, to] = typeof pair === "string" ? [pair, pair] : pair;
-    return [
-      [typed].flat().map((form) => form.replace("~", from)),
-      [replacement].flat().map((form) => form.replace("~", to)),
-    ];
-  });
-const PLURAL = ["", "s"];
-const POSSESSIVES = ["my", "your", "his", "her", "our", "their"];
 const GET = ["get", "gets", "got", "gotten", "getting"];
-const TAKE = ["take", "takes", "took", "taken", "taking"];
 const MAKE = ["make", "makes", "made", "making"];
 const LOOK = ["look", "looks", "looked", "looking"];
 /** A regular verb's four typed forms paired with the replacement's forms. */
@@ -350,16 +335,7 @@ function found(
 ): RawFinding | null {
   if (hasUserOrCasedWord(ctx, m[0])) return null;
   const typed = ctx.text.slice(start, end);
-  const shout = typed.length > 1 && typed === typed.toUpperCase();
-  const cased = alternatives.map((alt) =>
-    !recase
-      ? alt
-      : shout
-        ? alt.toUpperCase()
-        : /^\p{Lu}/u.test(typed)
-          ? alt.replace(/\p{L}/u, (c) => c.toUpperCase())
-          : alt,
-  );
+  const cased = alternatives.map((alt) => (recase ? caseLike(typed, alt) : alt));
   return {
     ...rule,
     range: { start, end },
@@ -371,15 +347,9 @@ function found(
     },
   };
 }
-const target = (m: RegExpExecArray) => m.indices!.groups!.target;
-const before = (ctx: DetectContext, index: number, chars = 48) =>
-  ctx.text.slice(Math.max(0, index - chars), index);
 /** Only spaces and opening marks between `index` and a stop, a line break or the text start. */
 const atClauseStart = (ctx: DetectContext, index: number) =>
   /(?:^|[.!?;:\n])[ \t\u00a0"“'‘(]*$/.test(before(ctx, index, 96));
-/** The word after `end`, or "" when punctuation or the text end comes first. */
-const nextWord = (ctx: DetectContext, end: number) =>
-  /^[ \t\u00a0]{1,8}(\p{L}[\p{L}'’]*)/u.exec(ctx.text.slice(end, end + 48))?.[1] ?? "";
 // Function words the lexicon also lists as nouns ("ifs and buts", "the ins and outs").
 const CLOSED_CLASS =
   /^(?:if|in|on|at|to|for|with|by|of|off|out|up|down|over|than|and|or|but|so|as|when|because|since|after|before|until|now|then|again|lately|here|there|yet|still|too|very|it|this|that)$/i;
@@ -389,9 +359,6 @@ const nounLike = (word: string, unknownLong = true) => {
   const info = englishWordInfo(word.toLowerCase());
   return info ? info.noun || info.plural : word.length > 6 && (unknownLong || /s$/i.test(word));
 };
-/** A lookbehind: none of the whole `words` (an alternation) right before the frame. */
-// A letter first: off words (on long runs of spaces) the lookbehind is never tried.
-const notAfter = (words: string) => `(?=\\p{L})(?<!(?<![\\p{L}'’])(?:${words})${SPACE})`;
 const kept = (findings: (RawFinding | null)[]) => findings.filter((f): f is RawFinding => !!f);
 
 // "dose" for "does": after a subject pronoun, in a clause-opening wh-question, or opening a
@@ -411,23 +378,21 @@ const PRONOUN_NEXT = /^(?:it|he|she|this|that|they|we|you|i)$/i;
 function dose(ctx: DetectContext): RawFinding[] {
   const out: (RawFinding | null)[] = [];
   for (const m of frameMatches(ctx, DOSE_SUBJECT))
-    out.push(found(ctx, TYPO, m, target(m), ["does"]));
+    out.push(found(ctx, TYPO, m, group(m, "target"), ["does"]));
   for (const m of frameMatches(ctx, DOSE_WH)) {
     const { next, then = "" } = m.groups!;
     if (!atClauseStart(ctx, m.index) || NOUN_DOSE_NEXT.test(next)) continue;
     const pronoun = PRONOUN_NEXT.test(next);
     if (!pronoun && englishWordInfo(next.toLowerCase())?.plural) continue;
     // "what dose it takes": a third-person verb after the pronoun keeps "dose" a noun.
-    if (pronoun && englishWordInfo(then.toLowerCase())?.verbs.some((v) => v.form === "third"))
-      continue;
-    out.push(found(ctx, TYPO, m, target(m), ["does"]));
+    if (pronoun && hasVerbForm(then.toLowerCase(), "third")) continue;
+    out.push(found(ctx, TYPO, m, group(m, "target"), ["does"]));
   }
   for (const m of frameMatches(ctx, DOSE_QUESTION)) {
     const verb = m.groups!.verb;
     if (!atClauseStart(ctx, m.index) || /^(?:back|up|off|out|down|too|twice|once)$/i.test(verb))
       continue;
-    if (englishWordInfo(verb)?.verbs.some((v) => v.form === "base"))
-      out.push(found(ctx, TYPO, m, target(m), ["does"]));
+    if (hasVerbForm(verb, "base")) out.push(found(ctx, TYPO, m, group(m, "target"), ["does"]));
   }
   return kept(out);
 }
@@ -449,7 +414,7 @@ const WORSE_EVER = frame(`(?<target>worse)${SPACE}ever${WORD_END}(?!${SPACE}sinc
 function worse(ctx: DetectContext): RawFinding[] {
   const out = new Map<number, RawFinding | null>();
   const add = (m: RegExpExecArray, word: string) => {
-    const range = target(m);
+    const range = group(m, "target");
     if (!out.has(range[0])) out.set(range[0], found(ctx, CONTEXT, m, range, [word]));
   };
   for (const m of frameMatches(ctx, WORST_THAN)) add(m, "worse");
@@ -457,7 +422,7 @@ function worse(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, WORSE_AND_WORST)) add(m, "worse");
   // "getting worst accuracy", "makes them worst case": a noun after it makes it a superlative.
   for (const m of frameMatches(ctx, WORST_GET))
-    if (!nounLike(nextWord(ctx, target(m)[1]))) add(m, "worse");
+    if (!nounLike(nextWord(ctx, group(m, "target")[1]))) add(m, "worse");
   for (const m of frameMatches(ctx, AT_WORSE)) add(m, "worst");
   for (const m of frameMatches(ctx, WORSE_EVER)) add(m, "worst");
   return kept([...out.values()]);
@@ -477,14 +442,14 @@ function howLooksLike(ctx: DetectContext): RawFinding[] {
     const single = /^(?:it|he|she|this|that|everything)$/i.test(subject);
     const agreed = /ed$/i.test(verb) ? "looked" : single ? "looks" : "look";
     out.push(
-      found(ctx, CONTEXT, m, target(m), [
+      found(ctx, CONTEXT, m, group(m, "target"), [
         `what ${subject} ${agreed} like`,
         `how ${subject} ${agreed}`,
       ]),
     );
   }
   for (const m of frameMatches(ctx, HOW_DOES_LIKE))
-    out.push(found(ctx, CONTEXT, m, target(m), ["what"]));
+    out.push(found(ctx, CONTEXT, m, group(m, "target"), ["what"]));
   return kept(out);
 }
 
@@ -496,7 +461,7 @@ const MAKE_SEEM = frame(
 function makeSeem(ctx: DetectContext): RawFinding[] {
   const out: (RawFinding | null)[] = [];
   for (const m of frameMatches(ctx, MAKE_SEEM)) {
-    const prior = before(ctx, m.index);
+    const prior = before(ctx, m.index, 48);
     if (/\b(?:who|whoever|whatever|what)[ \t\u00a0]+$/i.test(prior)) continue;
     if (
       /^making$/i.test(m.groups!.make) &&
@@ -510,7 +475,7 @@ function makeSeem(ctx: DetectContext): RawFinding[] {
         ctx,
         { ruleId: "englishVerbComplements", messageKey: "review_msg_causative_base" },
         m,
-        target(m),
+        group(m, "target"),
         ["seem"],
       ),
     );
@@ -526,10 +491,10 @@ const SITUATION =
 function nerveWreck(ctx: DetectContext): RawFinding[] {
   const out: (RawFinding | null)[] = [];
   for (const m of frameMatches(ctx, NERVE_WRECK)) {
-    if (SITUATION.test(before(ctx, m.index))) continue;
+    if (SITUATION.test(before(ctx, m.index, 48))) continue;
     const [nerve, wreck] = m.groups!.target.split(/[ \t\u00a0-]+/);
     const nervous = applyWordCase("nervous", detectWordCase(nerve));
-    out.push(found(ctx, PHRASE, m, target(m), [`${nervous} ${wreck}`]));
+    out.push(found(ctx, PHRASE, m, group(m, "target"), [`${nervous} ${wreck}`]));
   }
   return kept(out);
 }
@@ -542,12 +507,12 @@ const NONSENSE_CUE =
 function bullocks(ctx: DetectContext): RawFinding[] {
   const out: (RawFinding | null)[] = [];
   for (const m of frameMatches(ctx, BULLOCKS)) {
-    const [, end] = target(m);
+    const [, end] = group(m, "target");
     const exclamation =
       (atClauseStart(ctx, m.index) || /["“'‘]$/.test(before(ctx, m.index, 1))) &&
       /^[ \t\u00a0]*!/.test(ctx.text.slice(end));
-    if (exclamation || NONSENSE_CUE.test(before(ctx, m.index)))
-      out.push(found(ctx, PHRASE, m, target(m), ["bollocks"]));
+    if (exclamation || NONSENSE_CUE.test(before(ctx, m.index, 48)))
+      out.push(found(ctx, PHRASE, m, group(m, "target"), ["bollocks"]));
   }
   return kept(out);
 }
@@ -658,7 +623,7 @@ function swaps(ctx: DetectContext): RawFinding[] {
   const out: (RawFinding | null)[] = [];
   for (const { pattern, rule, replace, raw } of SWAPS)
     for (const m of frameMatches(ctx, pattern)) {
-      const range = target(m);
+      const range = group(m, "target");
       const typed = ctx.text.slice(...range);
       // A noun after "has past" keeps "past" an adjective: "has past experience", "had past due".
       if (/^past$/i.test(typed)) {
@@ -689,10 +654,11 @@ function tooFar(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, TO_FAR)) {
     const next = nextWord(ctx, m.index + m[0].length);
     if (!next || CORE_TO_FAR_NEXT.test(next) || nounLike(next, false)) continue;
-    out.push(found(ctx, TOO, m, target(m), ["too"]));
+    out.push(found(ctx, TOO, m, group(m, "target"), ["too"]));
   }
   for (const m of frameMatches(ctx, TO_BIG_FOR))
-    if (!SETTING_VERB.test(before(ctx, m.index))) out.push(found(ctx, TOO, m, target(m), ["too"]));
+    if (!SETTING_VERB.test(before(ctx, m.index, 48)))
+      out.push(found(ctx, TOO, m, group(m, "target"), ["too"]));
   return kept(out);
 }
 
@@ -701,7 +667,9 @@ const WROTE = frame(
   `(?:a|the|of|for|at|in|on|with|from|through|via|than|encouraged|encourage|encourages|did|do|does|use|uses|using|pure|mere|simple|much)${SPACE}(?<target>wrote)${SPACE}(?:learning|memori[sz]ation|memori[sz]ing|memory|repetition)${WORD_END}`,
 );
 function wroteRote(ctx: DetectContext): RawFinding[] {
-  return kept([...frameMatches(ctx, WROTE)].map((m) => found(ctx, PHRASE, m, target(m), ["rote"])));
+  return kept(
+    [...frameMatches(ctx, WROTE)].map((m) => found(ctx, PHRASE, m, group(m, "target"), ["rote"])),
+  );
 }
 
 // Subjunctive "were" after "wish" or "if only" before a predicate; the elliptical
@@ -715,7 +683,7 @@ const GOVT = frame(`(?<target>govt)(?<dot>\\.(?=[ \\t\\u00a0]{1,8}\\p{L}))?${WOR
 function styleFrames(ctx: DetectContext): RawFinding[] {
   const out: (RawFinding | null)[] = [];
   for (const m of frameMatches(ctx, GOVT)) {
-    const [start, end] = target(m);
+    const [start, end] = group(m, "target");
     const range: [number, number] = [start, m.groups!.dot ? end + 1 : end];
     out.push(
       found(ctx, { ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing" }, m, range, [
@@ -729,7 +697,7 @@ function styleFrames(ctx: DetectContext): RawFinding[] {
         ctx,
         { ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing" },
         m,
-        target(m),
+        group(m, "target"),
         ["were"],
       ),
     );

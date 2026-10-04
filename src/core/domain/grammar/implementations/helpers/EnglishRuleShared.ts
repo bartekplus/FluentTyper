@@ -1,5 +1,5 @@
-import type { GrammarContext } from "../../types";
-import { normalizeWordSet, resolveInputAction } from "./GenericRuleShared";
+import type { GrammarContext, GrammarEdit } from "../../types";
+import { lastNonSpaceBefore } from "./GenericRuleShared";
 
 const TRAILING_DELIMITER_REGEX = /[\s.,!?;:)\]"}]/;
 const LETTER_REGEX = /[A-Za-z]/;
@@ -18,10 +18,6 @@ interface TrailingTokenInfo {
   tokenEnd: number;
 }
 
-function isEnglishLanguageContext(context: GrammarContext): boolean {
-  return context.hints?.lang === "en_US";
-}
-
 function splitTrailingDelimiters(input: string): { core: string; trailing: string } {
   let coreEnd = input.length;
   while (coreEnd > 0 && TRAILING_DELIMITER_REGEX.test(input[coreEnd - 1])) {
@@ -35,12 +31,8 @@ function splitTrailingDelimiters(input: string): { core: string; trailing: strin
 
 export function resolveEnglishBoundaryContext(
   context: GrammarContext,
-  options: { ignoreDeleteInputAction?: boolean } = {},
 ): EnglishBoundaryContext | null {
-  if (!isEnglishLanguageContext(context)) {
-    return null;
-  }
-  if (!options.ignoreDeleteInputAction && resolveInputAction(context) === "delete") {
+  if (context.hints?.lang !== "en_US") {
     return null;
   }
 
@@ -51,6 +43,19 @@ export function resolveEnglishBoundaryContext(
   }
 
   return { input, core, trailing };
+}
+
+/** Replaces the input from `start` with `text`, and keeps the typed trailing delimiters. */
+export function replaceFrom(
+  boundary: EnglishBoundaryContext,
+  start: number,
+  text: string,
+): GrammarEdit {
+  return {
+    replacement: `${text}${boundary.trailing}`,
+    deleteBackwards: boundary.input.length - start,
+    deleteForwards: 0,
+  };
 }
 
 export function findTrailingLetterToken(input: string): TrailingTokenInfo | null {
@@ -115,26 +120,15 @@ export function matchTrailingEnglishPhrase(
   return { boundary, match, phraseStart };
 }
 
-export function resolveUserDictionarySet(
-  context: GrammarContext,
-  fallbackSet: Set<string>,
-): Set<string> {
-  const dictionary = context.hints?.userDictionary;
-  if (!Array.isArray(dictionary)) {
-    return fallbackSet;
-  }
-  return normalizeWordSet(dictionary);
-}
-
 /** True when `index` opens a clause: text start, a line start, or after . ! ? , ; : or an opening mark. */
 export function opensClause(text: string, index: number): boolean {
   const i = lastNonBlankBefore(text, index);
   return i < 0 || /[\n.!?,;:([{"“‘«—–-]/.test(text[i]);
 }
 
+const BLANKS = [" ", "\t", "\u00A0"];
+
 /** Index of the last character before `index` that is not a space, tab or no-break space (-1: none). */
 export function lastNonBlankBefore(text: string, index: number): number {
-  let i = index - 1;
-  while (i >= 0 && (text[i] === " " || text[i] === "\t" || text[i] === "\u00A0")) i -= 1;
-  return i;
+  return lastNonSpaceBefore(text, index, BLANKS);
 }

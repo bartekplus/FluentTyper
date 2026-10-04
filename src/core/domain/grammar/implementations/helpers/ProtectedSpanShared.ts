@@ -12,6 +12,19 @@ function readFence(line: string): { run: string; rest: string } | null {
   return { run: match[1], rest: match[2] };
 }
 
+/** `found` closes `fence`: the same character, at least as long, and nothing after it. */
+function closesFence(
+  found: { run: string; rest: string } | null,
+  fence: { char: string; length: number },
+): boolean {
+  return (
+    !!found &&
+    found.run[0] === fence.char &&
+    found.run.length >= fence.length &&
+    found.rest.trim() === ""
+  );
+}
+
 // Prose quotation marks and their closers. A straight single quote is left out:
 // it is also an apostrophe ("don't", "the 90's").
 const PROSE_QUOTE_CLOSERS: Record<string, string> = {
@@ -20,12 +33,6 @@ const PROSE_QUOTE_CLOSERS: Record<string, string> = {
   "‘": "’",
   "«": "»",
 };
-
-/**
- * Every character that can open a span isInsideProtectedSpan tracks (quotes,
- * code spans, fences): text without any of them is never inside one.
- */
-export const PROTECTED_SPAN_OPENERS = `${Object.keys(PROSE_QUOTE_CLOSERS).join("")}\`~`;
 
 /**
  * True when the end of `text` (the text before the cursor) sits inside Markdown
@@ -56,14 +63,7 @@ export function isInsideProtectedSpan(
     if (spanRun === 0) {
       const found = readFence(line);
       if (fence) {
-        if (
-          found &&
-          found.run[0] === fence.char &&
-          found.run.length >= fence.length &&
-          found.rest.trim() === ""
-        ) {
-          fence = null;
-        }
+        if (closesFence(found, fence)) fence = null;
         continue;
       }
       if (found) {
@@ -135,12 +135,7 @@ export function findMarkdownCodeRanges(text: string): Array<[number, number]> {
     const lineEnd = lineStart + line.length;
     const found = readFence(line);
     if (fence) {
-      if (
-        found &&
-        found.run[0] === fence.char &&
-        found.run.length >= fence.length &&
-        found.rest.trim() === ""
-      ) {
+      if (closesFence(found, fence)) {
         ranges.push([fence.start, lineEnd]);
         fence = null;
       }

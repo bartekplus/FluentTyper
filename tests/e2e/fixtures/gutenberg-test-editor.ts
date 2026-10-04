@@ -17,7 +17,12 @@ for (const [name, tagName] of [
   ["bold", "strong"],
   ["italic", "em"],
 ]) {
-  richText.registerFormatType(`core/${name}`, { title: name, tagName, className: null });
+  richText.registerFormatType(`core/${name}`, {
+    title: name,
+    tagName,
+    className: null,
+    edit: () => null,
+  });
 }
 registerBlockType("fluenttyper/prose", {
   apiVersion: 3,

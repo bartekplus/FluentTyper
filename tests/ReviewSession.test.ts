@@ -6,11 +6,7 @@ import {
   ReviewSession,
   SPELLING_UNKNOWN_PER_PASS,
   SPELLING_WORDS_PER_PASS,
-  type ReviewApplyResult,
-  type ReviewCapabilities,
   type ReviewSpellingLookup,
-  type ReviewTargetPort,
-  type ReviewTargetRead,
   type ReviewViewState,
 } from "../src/core/application/review/ReviewSession";
 import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
@@ -20,54 +16,10 @@ import {
   explanationTable,
   reviewExplanation,
 } from "../src/core/domain/grammar/review/reviewExplanations";
-import { MAX_REVIEW_CHARS } from "../src/core/domain/grammar/review/reviewDiagnostics";
+import { MAX_REVIEW_CHARS } from "../src/core/domain/grammar/review/types";
 import { parseSpellingRequest } from "../src/core/domain/grammar/review/reviewSpelling";
-import type {
-  ProtectedRange,
-  ReviewEdit,
-  TextRange,
-} from "../src/core/domain/grammar/review/types";
-
-class FakeEditor implements ReviewTargetPort {
-  capabilities: ReviewCapabilities = { inline: true, apply: true, bulk: true, undo: "single-step" };
-  protectedRanges: ProtectedRange[] = [];
-  composing = false;
-  unread = 0;
-  applyCalls: Array<{ edits: ReviewEdit[]; before: string; after: string }> = [];
-  /** Forces the next apply result. */
-  nextResult: ReviewApplyResult | null = null;
-
-  constructor(public text: string) {}
-
-  read(): ReviewTargetRead {
-    if (this.composing) return { ok: false, reason: "composing" };
-    return {
-      ok: true,
-      text: this.text,
-      unread: this.unread,
-      protectedRanges: this.protectedRanges,
-      signature: JSON.stringify(this.protectedRanges),
-    };
-  }
-
-  apply(request: { edits: ReviewEdit[]; before: string; after: string; signature: string }) {
-    this.applyCalls.push(request);
-    if (this.nextResult) {
-      const result = this.nextResult;
-      this.nextResult = null;
-      return Promise.resolve(result);
-    }
-    if (this.text !== request.before) return Promise.resolve({ status: "stale" as const });
-    let text = this.text;
-    for (const edit of request.edits) {
-      text = text.slice(0, edit.start) + edit.replacement + text.slice(edit.end);
-    }
-    this.text = text;
-    return Promise.resolve(
-      text === request.after ? { status: "applied" as const } : { status: "unverified" as const },
-    );
-  }
-}
+import type { TextRange } from "../src/core/domain/grammar/review/types";
+import { FakeEditor, manualTimers } from "./support/reviewFakes";
 
 function harness(
   text: string,
@@ -98,13 +50,10 @@ function harness(
   } = {},
 ) {
   const editor = new FakeEditor(text);
-  const timers: Array<{ callback: () => void; delay: number }> = [];
+  const { timers, yieldToTimers, setTimer, clearTimer } = manualTimers();
   const states: ReviewViewState[] = [];
   // In-process detection whose chunk yields are this harness's timers.
-  const engine = new LocalReviewEngine(
-    () => new Promise<void>((resolve) => timers.push({ callback: resolve, delay: 0 })),
-    async (uiLang) => explanationTable(uiLang),
-  );
+  const engine = new LocalReviewEngine(yieldToTimers, async (uiLang) => explanationTable(uiLang));
   const session = new ReviewSession({
     target: editor,
     engine,
@@ -124,15 +73,8 @@ function harness(
     addToDictionary: dictionary,
     disableReviewRule,
     lookupSpelling,
-    setTimer: (callback, delay) => {
-      const timer = { callback, delay };
-      timers.push(timer);
-      return timer;
-    },
-    clearTimer: (handle) => {
-      const index = timers.indexOf(handle as (typeof timers)[number]);
-      if (index >= 0) timers.splice(index, 1);
-    },
+    setTimer,
+    clearTimer,
   });
   /** Runs queued timers (scan yields and debounced rechecks) until idle. */
   const settle = async () => {
@@ -630,9 +572,36 @@ describe("ReviewSession", () => {
     expect(h.editor.applyCalls).toEqual([]);
   });
 
+  test("a dictionary write that ends during Apply does not read the editor", async () => {
+    let finishWrite!: (ok: boolean) => void;
+    const h = harness("teh cat. I opened the the report.", {
+      rules: ["englishTypoWhitelistCorrection", "englishRepeatedWords"],
+      dictionary: () => new Promise<boolean>((resolve) => (finishWrite = resolve)),
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    const [typo, repeated] = h.last().diagnostics;
+    let openGate!: () => void;
+    const gate = new Promise<void>((resolve) => (openGate = resolve));
+    const apply = h.editor.apply.bind(h.editor);
+    h.editor.apply = async (request) => {
+      await gate;
+      return apply(request);
+    };
+    const adding = h.session.addToDictionary(typo.id);
+    const applying = h.session.apply(repeated.id);
+    await Promise.resolve();
+    const read = spyOn(h.editor, "read");
+    finishWrite(true);
+    await Promise.race([adding, new Promise((resolve) => setTimeout(resolve, 20))]);
+    expect(read).not.toHaveBeenCalled();
+    openGate();
+    await Promise.all([applying, h.settle()]);
+    expect(h.last().diagnostics).toEqual([]);
+  });
+
   test("review-only targets never write", async () => {
     const h = harness("teh cat");
-    h.editor.capabilities = { inline: false, apply: false, bulk: false, undo: "none" };
+    h.editor.capabilities = { apply: false, bulk: false };
     await Promise.all([h.session.start(), h.settle()]);
     expect(h.originals()).toEqual(["teh"]);
     expect(await h.session.apply(h.last().diagnostics[0].id)).toBeNull();
@@ -1111,6 +1080,7 @@ test("disabling a Review rule invalidates its old batch and keeps unrelated find
   const old = h.last().diagnostics.find((d) => d.ruleId === "englishTypoWhitelistCorrection")!;
   await h.session.disableReviewRule(old.id);
   expect(h.last().status).toBe("updating");
+  expect(h.last().notice).toEqual({ kind: "rule-disabled" });
   await h.session.fixAll();
   expect(h.editor.applyCalls).toHaveLength(0);
   await h.settle();
@@ -1986,6 +1956,15 @@ describe("Review checking state and recovery", () => {
     expect(h.last().language.language).toBe("ja");
     h.session.close();
     expect(h.session.getState().checking).toBe("stale");
+  });
+
+  test("a failed language-region lookup keeps the rule results", async () => {
+    const h = harness("teh cat", {
+      languageRegions: () => Promise.reject(new Error("resource-timeout")),
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.last().status).toBe("ready");
+    expect(h.originals()).toEqual(["teh"]);
   });
 
   test("foreign regions are excluded before rules run and cannot claim complete coverage", async () => {

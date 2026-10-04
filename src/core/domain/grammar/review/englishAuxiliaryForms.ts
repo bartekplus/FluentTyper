@@ -1,9 +1,18 @@
 import { englishLemma } from "../implementations/helpers/EnglishInflection";
-import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
+import { englishWordInfo, hasVerbForm } from "../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
-import { NOUN_LIKE_ING } from "./englishParticiples";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END, WORD_START } from "./phraseTemplates";
+import { atClauseStart, NOUN_LIKE_ING } from "./englishParticiples";
+import {
+  frame,
+  frameMatches,
+  group,
+  hasUserOrCasedWord,
+  nextLowerWord,
+  plainToken,
+  SPACE,
+  WORD_END,
+} from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const SUBJECT = "(?:I|you|he|she|it|we|they)";
@@ -32,8 +41,6 @@ const DO_OBJECT_NOUNS = new Set(
     "upsets wakes wins winds works"
   ).split(" "),
 );
-// Compiled once: frameMatches would rebuild a string pattern on every call.
-const frame = (pattern: string) => new RegExp(`${WORD_START}${pattern}`, "gidu");
 const PREFIX = `(?:${SUBJECT}(?:${SPACE}${AUXILIARY}|(?<contraction>['’](?:ll|d)))|(?:${WH}${SPACE})?${AUXILIARY}${SPACE}(?:${SUBJECT}|this|that)(?:${SPACE}please)?|${DETERMINER}${SPACE}(?<noun>[a-z]+)${SPACE}${NOUN_AUXILIARY})`;
 const PATTERN = frame(`${PREFIX}(?:${SPACE}${ADVERB}){0,2}${SPACE}(?<verb>[A-Za-z]+)${WORD_END}`);
 const MID_PATTERN = frame(
@@ -68,7 +75,6 @@ const PERSON_QUESTION = new RegExp(
 );
 // "than they would sitting", "as I could making sure": the comparison leaves a verb out.
 const ELLIPSIS_LEAD = /^(?:than|as)$/i;
-const CLAUSE_OPENING = /[.!?;:\n"“][ \t ]{0,8}$/;
 
 // Heads that always take a bare infinitive after "to". "used to", "looking forward to", "key to"
 // and other prepositional "to" heads, including nouns ("travel plans to Paris"), are left out.
@@ -84,27 +90,14 @@ const ADJECTIVE_ENDING = /(?:al|ic|ive|ous|ful|less|ary|ish|ian)$/;
 // Endings that only form nouns (with the noun-only reading checked): priority, developer.
 const DERIVED_NOUN = /(?:tion|sion|ness|ity|ance|ence|ship|ism|ment|[^e]er|or|ist)$/;
 
-function nextWord(ctx: DetectContext, end: number): string {
-  return (
-    /^[ \t ]{1,8}([A-Za-z]+)(?![\p{L}\p{N}_'’@/#\\-])/u
-      .exec(ctx.scanText.slice(end, end + 40))?.[1]
-      ?.toLowerCase() ?? ""
-  );
-}
-
 /** The word right before `start` (spaces only between) and where it starts; "" for none. */
 function previousWord(ctx: DetectContext, start: number): [string, number] {
   const from = Math.max(0, start - 48);
-  const m = /(?<![\p{L}\p{N}_'’@/#\\.-])([A-Za-z]+(?:['’][a-z]{0,2})?)[ \t ]{1,8}$/u.exec(
+  const m = /(?<![\p{L}\p{N}_'’@/#\\.-])([A-Za-z]+(?:['’][a-z]{0,2})?)[ \t\u00a0]{1,8}$/u.exec(
     ctx.text.slice(from, start),
   );
   return m ? [m[1], from + m.index] : ["", start];
 }
-
-const atClauseStart = (ctx: DetectContext, start: number) => {
-  const before = ctx.text.slice(Math.max(0, start - 96), start);
-  return (start <= 96 && /^[ \t ]*$/.test(before)) || CLAUSE_OPENING.test(before);
-};
 
 /** A content word an adjective or participle could modify. */
 function contentWord(word: string): boolean {
@@ -287,11 +280,6 @@ function modalMayBeNoun(subject: string, aux: string): boolean {
   return /^can$/i.test(aux) && !(info ? info.plural : /[^s]s$/.test(subject));
 }
 
-/** A verb token that is plain text: lowercase or all caps, not a user-dictionary word. */
-const plainToken = (ctx: DetectContext, token: string) =>
-  (token === token.toLowerCase() || token === token.toUpperCase()) &&
-  !ctx.dictionary.has(token.toLowerCase());
-
 /** Pronoun or determiner + one noun at a clause start, and inverted pronoun questions. */
 function afterAuxiliary(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
@@ -301,7 +289,7 @@ function afterAuxiliary(ctx: DetectContext): RawFinding[] {
     const { verb: token, noun, contraction } = match.groups!;
     // Avoid subordinate noun clauses: "What I did works" is grammatical. A contracted
     // modal needs its verb anywhere. Ordinary dialogue may open a clause.
-    if (!contraction && !atClauseStart(ctx, start)) continue;
+    if (!contraction && !atClauseStart(ctx.text, start)) continue;
     const word = token.toLowerCase();
     // Mixed/internal title casing can name a product or identifier.
     if (!plainToken(ctx, token)) continue;
@@ -315,7 +303,7 @@ function afterAuxiliary(ctx: DetectContext): RawFinding[] {
     const isDo = /\b(?:do|does|did)(?:n['’]t)?\b/i.test(prefix);
     const negated = /n['’]t\b|\bnot\b|cannot/i.test(prefix);
     const lexicalDo = isDo && !negated && !STARTS_WITH_AUXILIARY.test(prefix);
-    const next = nextWord(ctx, end);
+    const next = nextLowerWord(ctx, end);
     // "Will that existing user…", "How could that thought…": a determiner phrase subject.
     if (
       /\b(?:this|that)$/i.test(prefix.trim()) &&
@@ -377,7 +365,7 @@ function afterSubjectWord(ctx: DetectContext): RawFinding[] {
     if (/ing$/i.test(token) && ELLIPSIS_LEAD.test(previousWord(ctx, subjectStart)[0])) continue;
     if (NOUN_MODAL.test(aux) && modalMayBeNoun(subject, aux)) continue;
     const word = token.toLowerCase();
-    const next = nextWord(ctx, end);
+    const next = nextLowerWord(ctx, end);
     if (/^should$/i.test(aux) && modifiesNext(word, next)) continue;
     // Inverted conditional "should troops pass": a plural subject before its base verb.
     if (
@@ -405,8 +393,8 @@ function invertedNounQuestion(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const match of frameMatches(ctx, QUESTION_PATTERN, (m) => m.index)) {
     const start = match.index;
-    if (!atClauseStart(ctx, start)) continue;
-    const wordsStart = match.indices!.groups!.words[0];
+    if (!atClauseStart(ctx.text, start)) continue;
+    const wordsStart = group(match, "words")[0];
     const isDo = /\b(?:do|does|did)(?:n['’]t)?\b/i.test(match[0].slice(0, wordsStart - start));
     const words = [...match.groups!.words.matchAll(/[A-Za-z]+/g)];
     // The subject: lowercase nouns or adjectives, ending in a noun ("the new server").
@@ -419,7 +407,7 @@ function invertedNounQuestion(ctx: DetectContext): RawFinding[] {
       const word = token.toLowerCase();
       if (!plainToken(ctx, token) || FUNCTION_WORD.test(word)) break;
       const end = wordsStart + words[k].index + token.length;
-      const next = nextWord(ctx, end);
+      const next = nextLowerWord(ctx, end);
       // "Did a man called Daffodil come?": a participle modifying the subject.
       if (
         /(?:ed|ing)$/.test(word) &&
@@ -434,7 +422,7 @@ function invertedNounQuestion(ctx: DetectContext): RawFinding[] {
         }
       }
       // A base verb ends the subject: "Does the app support dark modes?"
-      if (englishWordInfo(word)?.verbs.some((v) => v.form === "base")) break;
+      if (hasVerbForm(word, "base")) break;
     }
   }
   return findings;
@@ -457,7 +445,7 @@ function afterInfinitiveTo(ctx: DetectContext): RawFinding[] {
     const [rawHead, headStart] = previousWord(ctx, start);
     const head = rawHead.toLowerCase();
     const beforeHead = head ? previousWord(ctx, headStart)[0].toLowerCase() : "";
-    const next = nextWord(ctx, end);
+    const next = nextLowerWord(ctx, end);
     const object = OBJECT_PRONOUN.test(next) || DETERMINER_WORD.test(next);
     const going = head === "going";
     // "going to meetings" is a place unless be makes it a future; "would like to".
@@ -519,11 +507,11 @@ function needToNoun(ctx: DetectContext): RawFinding[] {
       /^(?:today|tomorrow|tonight|yesterday|may|might|can|could|will|would|should|must)$/.test(noun)
     )
       continue;
-    const [start, end] = match.indices!.groups!.target;
-    const nounStart = match.indices!.groups!.noun[0];
+    const [start, end] = group(match, "target");
+    const nounStart = group(match, "noun")[0];
     // "the need to…" is the noun need.
     if (DETERMINER_WORD.test(previousWord(ctx, match.index)[0].toLowerCase())) continue;
-    const next = nextWord(ctx, end);
+    const next = nextLowerWord(ctx, end);
     const nextInfo = englishWordInfo(next);
     // "as much as you want to charity if…", "need to exec or discard": the clause goes on.
     if (/^(?:if|when|or|and|because|but|so|unless)$/.test(next)) continue;
@@ -571,7 +559,9 @@ function needToNoun(ctx: DetectContext): RawFinding[] {
       ruleId: "englishAuxiliaryBaseVerb",
       messageKey: "review_msg_to_noun",
       range: { start, end },
-      alternatives: objectNext ? [] : [`the ${original}`, original],
+      alternatives: objectNext
+        ? []
+        : [`${original === original.toUpperCase() ? "THE" : "the"} ${original}`, original],
       ...(objectNext ? { warningOnly: true as const } : { requiresChoice: true as const }),
       context: { start: match.index, end: Math.min(ctx.text.length, end + 32) },
     });

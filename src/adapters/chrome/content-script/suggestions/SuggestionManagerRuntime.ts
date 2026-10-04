@@ -2,8 +2,6 @@ import { editorCapabilities } from "./EditorCapabilities";
 import { fieldSignatureSource, hashFieldSignature } from "./FieldSignature";
 import { acceptKeyLabels } from "@core/domain/suggestionPopup/keyHints";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
-import { createLogger } from "@core/application/logging/Logger";
-import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
 import type { LiveGrammarProposal } from "@core/domain/grammar/review/liveProposalSelection";
 import { InlineSuggestionPresenter } from "./InlineSuggestionPresenter";
 import { InlineSuggestionView } from "./InlineSuggestionView";
@@ -15,11 +13,10 @@ import {
 import {
   isSearchField,
   reservesAutocompleteArrow,
-  NativeAutocompleteConflictDetector,
+  classifyField,
 } from "./NativeAutocompleteConflictDetector";
 import { isVisiblyInteractive, SuggestionElementDiscovery } from "./SuggestionElementDiscovery";
 import { SuggestionEntrySession } from "./SuggestionEntrySession";
-import { SuggestionEntryRegistry } from "./SuggestionEntryRegistry";
 import { SuggestionGrammarCoordinator } from "./SuggestionGrammarCoordinator";
 import {
   highlightedMenuRow,
@@ -32,9 +29,9 @@ import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionPredictionCoordinator } from "./SuggestionPredictionCoordinator";
 import { resolveSuggestionStateHost } from "./SuggestionStateHost";
 import { SuggestionMenuView } from "./SuggestionMenuView";
+import { resolveSuggestionMenuHostId } from "./SuggestionMenuHost";
 import { SuggestionTelemetryService } from "./SuggestionTelemetryService";
 import { SuggestionPersonalizationService } from "./SuggestionPersonalizationService";
-import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
 import { EditableContextResolver } from "./EditableContextResolver";
 import { SuggestionTextEditService } from "./SuggestionTextEditService";
 import { ContentEditableAdapter } from "./ContentEditableAdapter";
@@ -47,7 +44,6 @@ import {
   EARLY_TAB_ACCEPT_ENTRY_ID_ATTR,
   EARLY_TAB_ACCEPT_VISIBLE_ATTR,
 } from "./EarlyTabAcceptBridgeProtocol";
-import { resolveTraceAgeMs } from "../predictionTrace";
 import type {
   PendingKeyFallback,
   PredictionResponse,
@@ -58,16 +54,11 @@ import type {
   SuggestionTelemetry,
 } from "./types";
 
-const SUGGESTION_DEBOUNCE_BY_ACTION = {
-  insert: 20,
-  delete: 12,
-  other: 20,
-};
-const logger = createLogger("SuggestionManagerRuntime");
-
 export class SuggestionManagerRuntime {
   private readonly discovery: SuggestionElementDiscovery;
-  private readonly entryRegistry = new SuggestionEntryRegistry();
+  private nextEntryId = 1;
+  private readonly entries = new Map<number, SuggestionEntry>();
+  private readonly entryByElement = new WeakMap<Element, SuggestionEntry>();
   private readonly sessionRegistry = new Map<number, SuggestionEntrySession>();
   private forcedNativeConflictElements = new WeakSet<SuggestionElement>();
   private readonly lifecycleController: SuggestionLifecycleController;
@@ -87,16 +78,7 @@ export class SuggestionManagerRuntime {
   private readonly personalization: SuggestionPersonalization;
   private readonly pendingKeyFallbacks = new Map<number, PendingKeyFallback>();
 
-  private readonly showSuggestionFooter: boolean;
-  private readonly autocompleteOnTab: boolean;
-  private readonly inlineSuggestionEnabled: boolean;
-  private readonly insertSpaceAfterAutocomplete: boolean;
-  private readonly preferNativeAutocomplete: boolean;
-  private readonly selectByDigit: boolean;
-  private readonly horizontalSuggestions: boolean;
   private readonly acceptKeys: string[] | undefined;
-  private readonly uiLanguage: string | undefined;
-  private readonly nativeAutocompleteConflictDetector = new NativeAutocompleteConflictDetector();
   private readonly findGrammarProposals?: (beforeCursor: string) => Promise<LiveGrammarProposal[]>;
 
   private lang: string;
@@ -105,34 +87,24 @@ export class SuggestionManagerRuntime {
   private savedSignatures = new Set<string>();
   private readonly savedElements = new WeakMap<HTMLElement, string>();
   private readonly pendingSignatures = new WeakMap<HTMLElement, string>();
-  private readonly rememberField: SuggestionManagerOptions["rememberField"];
   private activeEntryId: number | null = null;
   /** Editors under review: no live grammar, predictions or suggestion UI until resumed. */
   private readonly reviewSuspended = new WeakSet<HTMLElement>();
 
-  constructor(options: SuggestionManagerOptions) {
-    this.rememberField = options.rememberField;
+  constructor(private readonly options: SuggestionManagerOptions) {
     this.discovery = new SuggestionElementDiscovery({
       selectors: options.selectors,
       isCandidateElement: this.isStructurallyEligibleElement.bind(this),
       onShadowRootDiscovered: options.onShadowRootDiscovered,
     });
     this.lifecycleController = new SuggestionLifecycleController({
-      getEntries: () => this.entryRegistry.values(),
+      getEntries: () => this.entries.values(),
       dismissEntry: (entry) => this.dismissEntry(entry),
       reconcileEntrySelection: (entry) => this.reconcileEntrySelection(entry),
     });
 
-    this.showSuggestionFooter = options.showSuggestionFooter;
-    this.autocompleteOnTab = options.autocompleteOnTab;
-    this.inlineSuggestionEnabled = options.inline_suggestion;
-    this.insertSpaceAfterAutocomplete = options.insertSpaceAfterAutocomplete;
-    this.preferNativeAutocomplete = options.preferNativeAutocomplete;
-    this.selectByDigit = options.selectByDigit;
-    this.horizontalSuggestions = options.horizontalSuggestions;
     // No footer: no key hints (the language is left out by the session).
     this.acceptKeys = options.showSuggestionFooter ? acceptKeyLabels(options) : undefined;
-    this.uiLanguage = options.uiLanguage;
     this.manualAttachUiManager = new ManualAttachUiManager({
       iconUrl: resolveManualAttachIconUrl(),
       onActivate: this.handleManualAttachActivate.bind(this),
@@ -158,12 +130,10 @@ export class SuggestionManagerRuntime {
       userDictionaryList: options.userDictionaryList,
     });
     this.predictionCoordinator = new SuggestionPredictionCoordinator({
-      debounceByAction: SUGGESTION_DEBOUNCE_BY_ACTION,
       getPrediction: options.getPrediction,
       canPredict: (entry) => this.getSession(entry.id)?.refreshInteraction() ?? false,
       lang: this.lang,
       minWordLengthToPredict: options.minWordLengthToPredict,
-      separatorRegex: LANG_SEPARATOR_CHARS_REGEX[this.lang] || /\s+/,
     });
     this.telemetry = options.telemetry ?? new SuggestionTelemetryService();
     this.personalization = options.personalization ?? new SuggestionPersonalizationService();
@@ -185,14 +155,14 @@ export class SuggestionManagerRuntime {
     this.keyboardHandler = new SuggestionKeyboardHandler({
       canAccept: (entry) =>
         editorCapabilities(entry.elem, {
-          preferNativeAutocomplete: this.preferNativeAutocomplete,
+          preferNativeAutocomplete: this.options.preferNativeAutocomplete,
           fieldActivated: this.hasFieldActivation(entry.elem),
         }).consumeAcceptanceKey,
       autocompleteOnSpace: options.autocomplete,
       autocompleteOnEnter: options.autocompleteOnEnter,
       autocompleteOnTab: options.autocompleteOnTab,
       selectByDigit: options.selectByDigit,
-      inlineSuggestionEnabled: this.inlineSuggestionEnabled,
+      inlineSuggestionEnabled: this.options.inline_suggestion,
       handleMissingSpaceAfterAccept: (entry, event) =>
         this.textEditService.handleMissingSpaceAfterAccept(
           entry,
@@ -201,7 +171,7 @@ export class SuggestionManagerRuntime {
         ),
       tryUndoLastExtensionEdit: (entry, event) =>
         this.textEditService.tryUndoLastExtensionEdit(entry, event, {
-          consumeKeyboardEvent: this.consumeCancelableEvent.bind(this),
+          consumeEvent: this.consumeCancelableEvent.bind(this),
           clearSuggestions: () => this.clearSuggestions(entry),
           onSuccessfulUndo: (edit) => this.recordPersonalizationReversal(edit),
         }),
@@ -232,19 +202,22 @@ export class SuggestionManagerRuntime {
                 insertSpaceAfterAutocomplete: options.insertSpaceAfterAutocomplete,
               },
               // The explanation comes back in the popup's language.
-              this.uiLanguage || navigator.language,
+              this.options.uiLanguage || navigator.language,
             );
   }
 
   /** Rows the menu shows: its suggestions (none when they show inline) and a proposal. */
   private menuRowCount(entry: SuggestionEntry): number {
     return (
-      menuSuggestionRows(entry, this.inlineSuggestionEnabled) + (entry.grammarProposal ? 1 : 0)
+      menuSuggestionRows(entry, this.options.inline_suggestion) + (entry.grammarProposal ? 1 : 0)
     );
   }
 
   private updateSelectionHighlight(entry: SuggestionEntry): void {
-    const row = highlightedMenuRow(entry, menuSuggestionRows(entry, this.inlineSuggestionEnabled));
+    const row = highlightedMenuRow(
+      entry,
+      menuSuggestionRows(entry, this.options.inline_suggestion),
+    );
     this.menuPresenter.updateHighlight(entry.list, row);
     resolveSuggestionStateHost(entry.elem).setAttribute(
       EARLY_TAB_ACCEPT_VISIBLE_ATTR,
@@ -258,17 +231,16 @@ export class SuggestionManagerRuntime {
 
   public detachAllHelpers(): void {
     this.fieldPreferenceEpoch += 1;
-    for (const id of [...this.entryRegistry.ids()]) {
+    for (const id of [...this.entries.keys()]) {
       this.detachHelper(id);
     }
     this.manualAttachUiManager.removeAll();
     this.forcedNativeConflictElements = new WeakSet<SuggestionElement>();
-    this.entryRegistry.clear();
     this.activeEntryId = null;
   }
 
   public removeHelpersNotInDocument(): void {
-    for (const [id, entry] of this.entryRegistry.entriesById()) {
+    for (const [id, entry] of this.entries) {
       // Keep helpers attached for temporarily hidden elements, but detach when element
       // becomes structurally/security-ineligible (e.g. password fields).
       if (!isInDocument(entry.elem) || !this.isStructurallyEligibleElement(entry.elem)) {
@@ -278,7 +250,9 @@ export class SuggestionManagerRuntime {
       }
       if (this.shouldDemoteAttachedElement(entry.elem)) {
         this.detachHelper(id);
-        this.syncManualAttachUi(entry.elem);
+        if (this.isManualAttachSupportedElement(entry.elem)) {
+          this.manualAttachUiManager.ensureForElement(entry.elem, classifyField(entry.elem));
+        }
       }
     }
     const active = this.getActiveEntry();
@@ -323,12 +297,12 @@ export class SuggestionManagerRuntime {
       return session.acceptGrammarProposal();
     }
 
-    if (this.inlineSuggestionEnabled && entry.inlineSuggestion) {
+    if (this.options.inline_suggestion && entry.inlineSuggestion) {
       return session.acceptSuggestion(entry.inlineSuggestion);
     }
 
     if (
-      this.autocompleteOnTab &&
+      this.options.autocompleteOnTab &&
       this.menuPresenter.isVisible(entry.menu, entry.suggestions.length) &&
       entry.suggestions.length > 0
     ) {
@@ -346,7 +320,7 @@ export class SuggestionManagerRuntime {
   /** Detaches the helper from an editor while a review writes its fixes into it. */
   public suspendForReview(elem: HTMLElement): void {
     this.reviewSuspended.add(elem);
-    for (const [id, entry] of [...this.entryRegistry.entriesById()]) {
+    for (const [id, entry] of [...this.entries]) {
       if (entry.elem === elem || elem.contains(entry.elem) || entry.elem.contains(elem)) {
         this.detachHelper(id);
       }
@@ -361,7 +335,7 @@ export class SuggestionManagerRuntime {
 
   /** A suggestion menu or inline preview is showing in (or around) this editor. */
   public hasOpenSuggestions(elem: HTMLElement): boolean {
-    for (const [, entry] of this.entryRegistry.entriesById()) {
+    for (const [, entry] of this.entries) {
       if (entry.elem !== elem && !elem.contains(entry.elem) && !entry.elem.contains(elem)) continue;
       if (
         this.menuPresenter.isVisible(entry.menu, this.menuRowCount(entry)) ||
@@ -386,12 +360,12 @@ export class SuggestionManagerRuntime {
     }
     this.lang = lang;
     this.grammarCoordinator.updateLanguage(this.lang);
-    this.predictionCoordinator.updateLang(this.lang, LANG_SEPARATOR_CHARS_REGEX[lang] || /\s+/);
+    this.predictionCoordinator.updateLang(this.lang);
     this.triggerActiveSuggestion();
   }
 
   private isStructurallyEligibleElement(elem: HTMLElement): elem is SuggestionElement {
-    return this.nativeAutocompleteConflictDetector.classify(elem).kind !== "blocked";
+    return classifyField(elem).kind !== "blocked";
   }
 
   private isManualAttachSupportedElement(elem: SuggestionElement): elem is ManualAttachTarget {
@@ -427,7 +401,7 @@ export class SuggestionManagerRuntime {
   }
 
   private showActivationChoice(element: ManualAttachTarget): void {
-    if (!this.rememberField) return;
+    if (!this.options.rememberField) return;
     const source = fieldSignatureSource(element);
     this.manualAttachUiManager.showNotice(
       element,
@@ -447,7 +421,7 @@ export class SuggestionManagerRuntime {
               !this.isStructurallyEligibleElement(element)
             )
               throw new Error("This field changed.");
-            const eligibility = this.nativeAutocompleteConflictDetector.classify(element);
+            const eligibility = classifyField(element);
             const label =
               eligibility.kind === "manual"
                 ? {
@@ -456,19 +430,19 @@ export class SuggestionManagerRuntime {
                     browser: "Browser suggestions field",
                   }[eligibility.reason]
                 : "Writing field";
-            await this.rememberField!(signature, label);
+            await this.options.rememberField!(signature, label);
           }
         : undefined,
     );
   }
 
   private hasNativeAutocompleteConflict(elem: SuggestionElement): boolean {
-    return this.nativeAutocompleteConflictDetector.classify(elem).kind === "manual";
+    return classifyField(elem).kind === "manual";
   }
 
   private shouldDemoteAttachedElement(elem: SuggestionElement): boolean {
     return (
-      this.preferNativeAutocomplete &&
+      this.options.preferNativeAutocomplete &&
       !this.hasFieldActivation(elem) &&
       this.hasNativeAutocompleteConflict(elem)
     );
@@ -476,8 +450,8 @@ export class SuggestionManagerRuntime {
 
   private shouldShowManualAttachUi(elem: SuggestionElement): elem is ManualAttachTarget {
     return (
-      this.preferNativeAutocomplete &&
-      !this.entryRegistry.isAttached(elem) &&
+      this.options.preferNativeAutocomplete &&
+      !this.entryByElement.has(elem) &&
       !this.hasFieldActivation(elem) &&
       this.isManualAttachSupportedElement(elem) &&
       this.hasNativeAutocompleteConflict(elem)
@@ -501,7 +475,7 @@ export class SuggestionManagerRuntime {
         this.manualAttachUiManager.removeForElement(element);
         continue;
       }
-      if (this.entryRegistry.isAttached(element)) {
+      if (this.entryByElement.has(element)) {
         if (!this.manualAttachUiManager.isSuccessPending(element)) {
           this.manualAttachUiManager.removeForElement(element);
         }
@@ -515,21 +489,6 @@ export class SuggestionManagerRuntime {
     }
   }
 
-  private syncManualAttachUi(elem: SuggestionElement): void {
-    if (this.entryRegistry.isAttached(elem)) {
-      this.removeManualAttachUi(elem);
-      return;
-    }
-    if (this.shouldShowManualAttachUi(elem)) {
-      this.manualAttachUiManager.ensureForElement(
-        elem,
-        this.nativeAutocompleteConflictDetector.classify(elem),
-      );
-      return;
-    }
-    this.removeManualAttachUi(elem);
-  }
-
   private handleManualAttachActivate(elem: ManualAttachTarget): void {
     if (!isInDocument(elem) || !this.isStructurallyEligibleElement(elem)) {
       this.manualAttachUiManager.removeForElement(elem);
@@ -537,18 +496,14 @@ export class SuggestionManagerRuntime {
     }
     this.attachSession(elem, { forceNativeConflict: true });
     this.showActivationChoice(elem);
-    try {
-      elem.focus({ preventScroll: true });
-    } catch {
-      elem.focus();
-    }
+    elem.focus({ preventScroll: true });
   }
 
   private attachSession(
     elem: SuggestionElement,
     options: { forceNativeConflict?: boolean } = {},
   ): boolean {
-    if (this.entryRegistry.isAttached(elem)) {
+    if (this.entryByElement.has(elem)) {
       if (
         !this.isManualAttachSupportedElement(elem) ||
         !this.manualAttachUiManager.isSuccessPending(elem)
@@ -559,7 +514,7 @@ export class SuggestionManagerRuntime {
     }
 
     let shouldSkip = false;
-    for (const [existingId, existing] of this.entryRegistry.entriesById()) {
+    for (const [existingId, existing] of this.entries) {
       if (elem.contains(existing.elem)) {
         this.detachHelper(existingId);
         continue;
@@ -577,22 +532,17 @@ export class SuggestionManagerRuntime {
     if (options.forceNativeConflict) {
       this.forcedNativeConflictElements.add(elem);
     } else if (this.shouldShowManualAttachUi(elem)) {
-      this.manualAttachUiManager.ensureForElement(
-        elem,
-        this.nativeAutocompleteConflictDetector.classify(elem),
-      );
+      this.manualAttachUiManager.ensureForElement(elem, classifyField(elem));
       return false;
     } else if (this.shouldDemoteAttachedElement(elem)) {
       return false;
     }
 
-    this.removeManualAttachUi(elem);
-
-    const id = this.entryRegistry.allocateId();
+    const id = this.nextEntryId++;
     const stateHost = resolveSuggestionStateHost(elem);
 
     const { menu, list } = SuggestionMenuView.ensureMenu(
-      resolveSuggestionOverlayRoot(elem.ownerDocument ?? document),
+      (elem.ownerDocument ?? document).documentElement,
     );
 
     const entry: SuggestionEntry = {
@@ -631,7 +581,6 @@ export class SuggestionManagerRuntime {
       pendingRequestTimer: null,
       pendingIdleTimer: null,
       pendingGrammarPaste: false,
-      recentInteractionTrail: [],
       handlers: {
         beforeinput: this.onElementBeforeInput.bind(this, id),
         input: this.onElementInput.bind(this, id),
@@ -651,19 +600,22 @@ export class SuggestionManagerRuntime {
 
     stateHost.setAttribute("data-suggestion", "true");
     stateHost.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, String(id));
-    stateHost.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, String(this.autocompleteOnTab));
+    stateHost.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, String(this.options.autocompleteOnTab));
     stateHost.setAttribute(
       EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
       String(!TextTargetAdapter.isTextValue(elem)),
     );
     stateHost.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
-    stateHost.setAttribute("data-ft-avoid-conflicts", String(this.preferNativeAutocomplete));
-    menu.id = SuggestionMenuView.resolveHostId(id);
-    elem.suggestionMenu = menu;
+    stateHost.setAttribute(
+      "data-ft-avoid-conflicts",
+      String(this.options.preferNativeAutocomplete),
+    );
+    menu.id = resolveSuggestionMenuHostId(id);
 
     const session = this.buildEntrySession(entry);
 
-    this.entryRegistry.register(entry);
+    this.entries.set(id, entry);
+    this.entryByElement.set(elem, entry);
     this.sessionRegistry.set(id, session);
     this.lifecycleController.attachEntryListeners(entry);
     if (
@@ -677,7 +629,7 @@ export class SuggestionManagerRuntime {
   }
 
   private detachHelper(id: number): void {
-    const entry = this.entryRegistry.getById(id);
+    const entry = this.entries.get(id);
     if (!entry) {
       return;
     }
@@ -688,7 +640,6 @@ export class SuggestionManagerRuntime {
     entry.menu.remove();
     const stateHost = resolveSuggestionStateHost(entry.elem);
 
-    delete entry.elem.suggestionMenu;
     stateHost.removeAttribute("data-suggestion");
     stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
     stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
@@ -697,7 +648,8 @@ export class SuggestionManagerRuntime {
     stateHost.removeAttribute(EARLY_TAB_ACCEPT_CONTEXT_ATTR);
     stateHost.removeAttribute("data-ft-avoid-conflicts");
 
-    this.entryRegistry.unregister(id);
+    this.entries.delete(id);
+    this.entryByElement.delete(entry.elem);
     this.sessionRegistry.delete(id);
 
     if (this.activeEntryId === id) {
@@ -727,7 +679,7 @@ export class SuggestionManagerRuntime {
 
   private getActiveEntry(): SuggestionEntry | null {
     if (this.activeEntryId !== null) {
-      const known = this.entryRegistry.getById(this.activeEntryId);
+      const known = this.entries.get(this.activeEntryId);
       if (known && gutenbergSelectedField(getDeepActiveElement(document)) === known.elem) {
         return known;
       }
@@ -737,7 +689,7 @@ export class SuggestionManagerRuntime {
     if (!active) {
       return null;
     }
-    const entry = this.entryRegistry.getByElement(active) ?? null;
+    const entry = this.entryByElement.get(active) ?? null;
     if (entry) {
       this.activeEntryId = entry.id;
     }
@@ -750,7 +702,7 @@ export class SuggestionManagerRuntime {
       return null;
     }
 
-    return this.entryRegistry.getById(numericId) ?? null;
+    return this.entries.get(numericId) ?? null;
   }
 
   private onElementFocus(id: number): void {
@@ -760,7 +712,7 @@ export class SuggestionManagerRuntime {
 
   private onElementClick(id: number): void {
     this.activeEntryId = id;
-    const entry = this.entryRegistry.getById(id);
+    const entry = this.entries.get(id);
     if (!entry) {
       return;
     }
@@ -773,7 +725,7 @@ export class SuggestionManagerRuntime {
     if (this.activeEntryId === id) {
       this.activeEntryId = null;
     }
-    const entry = this.entryRegistry.getById(id);
+    const entry = this.entries.get(id);
     if (!entry) {
       return;
     }
@@ -790,14 +742,14 @@ export class SuggestionManagerRuntime {
 
   private onElementBeforeInput(id: number, event: Event): void {
     this.activeEntryId = id;
-    const entry = this.entryRegistry.getById(id);
+    const entry = this.entries.get(id);
     if (!entry) {
       return;
     }
     if (!this.getSession(id)?.refreshInteraction()) return;
     const inputEvent = event as InputEvent;
     const handled = this.textEditService.tryUndoLastExtensionEditOnBeforeInput(entry, inputEvent, {
-      consumeInputEvent: this.consumeCancelableEvent.bind(this),
+      consumeEvent: this.consumeCancelableEvent.bind(this),
       clearSuggestions: () => this.clearSuggestions(entry),
       onSuccessfulUndo: (edit) => this.recordPersonalizationReversal(edit),
     });
@@ -849,7 +801,7 @@ export class SuggestionManagerRuntime {
       },
       canInteract: () =>
         editorCapabilities(entry.elem, {
-          preferNativeAutocomplete: this.preferNativeAutocomplete,
+          preferNativeAutocomplete: this.options.preferNativeAutocomplete,
           fieldActivated: this.hasFieldActivation(entry.elem),
         }).displaySuggestions,
       editableContextResolver: this.editableContextResolver,
@@ -857,8 +809,8 @@ export class SuggestionManagerRuntime {
       hideMenu: () => this.menuPresenter.hide(entry.menu, entry.list, entry.elem),
       clearInlinePresenter: () => this.inlinePresenter.clearForEntry(entry.id),
       isFocused: () => this.isEntryFocused(entry),
-      showSuggestionFooter: this.showSuggestionFooter,
-      inlineSuggestionEnabled: this.inlineSuggestionEnabled,
+      showSuggestionFooter: this.options.showSuggestionFooter,
+      inlineSuggestionEnabled: this.options.inline_suggestion,
       predictionCoordinator: this.predictionCoordinator,
       grammarCoordinator: {
         hasEnabledRules: () =>
@@ -887,16 +839,16 @@ export class SuggestionManagerRuntime {
                 explanation: entry.grammarProposal.explanation,
               }
             : null,
-          showShortcutDigits: this.selectByDigit,
-          horizontal: this.horizontalSuggestions,
+          showShortcutDigits: this.options.selectByDigit,
+          horizontal: this.options.horizontalSuggestions,
           acceptKeys: this.acceptKeys,
-          uiLanguage: this.uiLanguage,
+          uiLanguage: this.options.uiLanguage,
           menuHeader,
           mentionText,
         }),
       renderInline: () =>
         this.inlinePresenter.renderForEntry({
-          enabled: this.inlineSuggestionEnabled,
+          enabled: this.options.inline_suggestion,
           entry,
           resolveMentionToken: this.predictionCoordinator.findMentionToken.bind(
             this.predictionCoordinator,
@@ -911,27 +863,7 @@ export class SuggestionManagerRuntime {
       recordPersonalizationAccepted: (context) =>
         this.personalization.recordSuggestionAccepted(context),
       getLang: () => this.lang,
-      insertSpaceAfterAutocomplete: this.insertSpaceAfterAutocomplete,
-      logRenderedSuggestionPopup: (context, details) => {
-        logger.debug("Rendered suggestion popup", {
-          traceId: context.traceId,
-          requestId: context.requestId,
-          suggestionId: context.suggestionId,
-          runtimeGeneration: context.runtimeGeneration,
-          predictionCount: details.predictionCount,
-          totalLatencyMs: resolveTraceAgeMs(context.traceStartedAtMs),
-          renderer: details.renderer,
-        });
-      },
-      logNoVisibleSuggestions: (context) => {
-        logger.debug("Prediction response produced no visible suggestions", {
-          traceId: context.traceId,
-          requestId: context.requestId,
-          suggestionId: context.suggestionId,
-          runtimeGeneration: context.runtimeGeneration,
-          totalLatencyMs: resolveTraceAgeMs(context.traceStartedAtMs),
-        });
-      },
+      insertSpaceAfterAutocomplete: this.options.insertSpaceAfterAutocomplete,
     });
   }
 
@@ -954,11 +886,11 @@ export class SuggestionManagerRuntime {
 
   private onMenuClick(id: number, event: Event): void {
     this.activeEntryId = id;
-    const item = (
-      typeof event.composedPath === "function" ? event.composedPath() : [event.target]
-    ).find(
-      (node) => node instanceof HTMLElement && node.matches("li[data-index], li[data-proposal]"),
-    ) as HTMLElement | undefined;
+    const item = event
+      .composedPath()
+      .find(
+        (node) => node instanceof HTMLElement && node.matches("li[data-index], li[data-proposal]"),
+      ) as HTMLElement | undefined;
     if (!item) {
       return;
     }
@@ -976,25 +908,23 @@ export class SuggestionManagerRuntime {
   }
 
   private onElementKeyDown(id: number, event: Event): void {
-    const keyboardEvent = event as KeyboardEvent & { __ftDocumentTabCaptureHandled?: boolean };
-    if (keyboardEvent.__ftDocumentTabCaptureHandled) {
-      return;
-    }
-
+    const keyboardEvent = event as KeyboardEvent;
     this.activeEntryId = id;
-    const entry = this.entryRegistry.getById(id);
+    const entry = this.entries.get(id);
     if (!entry) {
       return;
     }
     if (!this.getSession(id)?.refreshInteraction()) return;
-    if (this.preferNativeAutocomplete && reservesAutocompleteArrow(entry.elem, keyboardEvent)) {
+    if (
+      this.options.preferNativeAutocomplete &&
+      reservesAutocompleteArrow(entry.elem, keyboardEvent)
+    ) {
       this.dismissEntry(entry, true);
       return;
     }
     this.getSession(id)?.handleKeyDown(keyboardEvent, {
       dispatchKeyboard: () => this.keyboardHandler.handle(entry, keyboardEvent),
       dismissEntry: (keepActive = true) => this.dismissEntry(entry, keepActive),
-      clearPendingFallback: () => this.clearPendingKeyFallback(id),
       storePendingFallback: (pending) => this.pendingKeyFallbacks.set(id, pending),
       runReconcile: () => this.runKeyFallbackReconcile(id),
     });
@@ -1006,13 +936,12 @@ export class SuggestionManagerRuntime {
       return;
     }
 
-    const current = this.entryRegistry.getById(id);
+    const current = this.entries.get(id);
     if (!current) {
       this.clearPendingKeyFallback(id);
       return;
     }
     this.getSession(id)?.handleKeyFallbackReconcile(pending, {
-      clearPendingFallback: () => this.clearPendingKeyFallback(id),
       dismissEntry: () => this.dismissEntry(current, true),
       rescheduleFallback: (delayMs: number) =>
         this.rescheduleKeyFallbackReconcile(id, pending, delayMs),
@@ -1046,9 +975,6 @@ export class SuggestionManagerRuntime {
 
   private consumeCancelableEvent(event: Event): void {
     event.preventDefault();
-    event.stopPropagation();
-    if (typeof event.stopImmediatePropagation === "function") {
-      event.stopImmediatePropagation();
-    }
+    event.stopImmediatePropagation();
   }
 }

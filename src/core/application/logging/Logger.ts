@@ -1,3 +1,4 @@
+import { isDevBuild } from "@core/domain/constants";
 import {
   DEFAULT_OBSERVABILITY_CONFIG,
   isLogLevel,
@@ -26,8 +27,6 @@ interface LogContext {
 type ObservabilitySink = (event: ObservabilityEvent) => void;
 
 interface LoggerRuntimeGlobals {
-  __FT_DEV_BUILD__?: boolean;
-  __FT_LOG_LEVEL__?: string;
   __FT_OBSERVABILITY_CONFIG__?: ObservabilityConfig;
   __FT_OBSERVABILITY_SINK__?: ObservabilitySink;
   __FT_OBSERVABILITY_SOURCE__?: ObservabilityEvent["source"];
@@ -35,21 +34,18 @@ interface LoggerRuntimeGlobals {
   __FT_OBSERVABILITY_SEQUENCE__?: number;
 }
 
-function getLoggingGlobals(): LoggerRuntimeGlobals {
-  return globalThis as LoggerRuntimeGlobals;
-}
+const globals = globalThis as LoggerRuntimeGlobals;
 
+// Use the bare identifier: the build `define` replaces it, but not `globalThis.__FT_LOG_LEVEL__`.
 function resolveDefaultMinLevel(): LogLevel {
-  const globals = getLoggingGlobals();
-  const explicitLogLevel = globals.__FT_LOG_LEVEL__;
+  const explicitLogLevel = typeof __FT_LOG_LEVEL__ === "undefined" ? undefined : __FT_LOG_LEVEL__;
   if (isLogLevel(explicitLogLevel)) {
     return explicitLogLevel;
   }
-  return globals.__FT_DEV_BUILD__ ? "debug" : "warn";
+  return isDevBuild() ? "debug" : "warn";
 }
 
 function getGlobalObservabilityConfig(): ObservabilityConfig {
-  const globals = getLoggingGlobals();
   if (globals.__FT_OBSERVABILITY_CONFIG__) {
     return globals.__FT_OBSERVABILITY_CONFIG__;
   }
@@ -59,13 +55,7 @@ function getGlobalObservabilityConfig(): ObservabilityConfig {
   };
 }
 
-function getGlobalObservabilitySource(): ObservabilityEvent["source"] {
-  const globals = getLoggingGlobals();
-  return globals.__FT_OBSERVABILITY_SOURCE__ || "background";
-}
-
 function nextObservabilitySequence(): number {
-  const globals = getLoggingGlobals();
   const nextValue = (globals.__FT_OBSERVABILITY_SEQUENCE__ || 0) + 1;
   globals.__FT_OBSERVABILITY_SEQUENCE__ = nextValue;
   return nextValue;
@@ -87,7 +77,6 @@ export function setGlobalObservabilityRuntime(options: {
   sink?: ObservabilitySink;
   source?: ObservabilityEvent["source"];
 }): void {
-  const globals = getLoggingGlobals();
   if (options.config) {
     globals.__FT_OBSERVABILITY_CONFIG__ = structuredClone(options.config);
   }
@@ -100,11 +89,11 @@ export function setGlobalObservabilityRuntime(options: {
 }
 
 export function getRegisteredObservabilityModules(): string[] {
-  return [...(getLoggingGlobals().__FT_OBSERVABILITY_REGISTERED_MODULES__ ?? [])];
+  return [...(globals.__FT_OBSERVABILITY_REGISTERED_MODULES__ ?? [])];
 }
 
 function registerObservabilityModule(scope: string): void {
-  (getLoggingGlobals().__FT_OBSERVABILITY_REGISTERED_MODULES__ ??= new Set<string>()).add(scope);
+  (globals.__FT_OBSERVABILITY_REGISTERED_MODULES__ ??= new Set<string>()).add(scope);
 }
 
 /** Dev-build relay: forwards log events to the background and reports registered modules. */
@@ -114,36 +103,25 @@ export function installObservabilityRelay(options: {
   eventCommand: string;
   modulesCommand: string;
 }): void {
+  const send = (message: { command: string; context: Record<string, unknown> }): void => {
+    try {
+      void chrome.runtime.sendMessage(message)?.catch(() => undefined);
+    } catch {
+      // Ignore runtime disconnects during page teardown.
+    }
+  };
   setGlobalObservabilityRuntime({
     config: options.config,
     source: options.source,
-    sink: (event) => {
-      try {
-        void chrome.runtime.sendMessage({
-          command: options.eventCommand,
-          context: {
-            event,
-          },
-        });
-      } catch {
-        // Ignore runtime disconnects during page teardown.
-      }
-    },
+    sink: (event) => send({ command: options.eventCommand, context: { event } }),
   });
-  try {
-    void chrome.runtime.sendMessage({
-      command: options.modulesCommand,
-      context: {
-        modules: getRegisteredObservabilityModules(),
-      },
-    });
-  } catch {
-    // Ignore runtime disconnects during page teardown.
-  }
+  send({
+    command: options.modulesCommand,
+    context: { modules: getRegisteredObservabilityModules() },
+  });
 }
 
 export function resetGlobalObservabilityRuntime(): void {
-  const globals = getLoggingGlobals();
   delete globals.__FT_OBSERVABILITY_CONFIG__;
   delete globals.__FT_OBSERVABILITY_SINK__;
   delete globals.__FT_OBSERVABILITY_SOURCE__;
@@ -174,42 +152,26 @@ export class Logger {
     this.log("error", message, context);
   }
 
-  private resolveEffectiveMinLevel(): LogLevel {
+  private canLog(level: LogLevel): boolean {
     const config = getGlobalObservabilityConfig();
     const moduleOverride =
       config.moduleOverrides[this.scope as keyof typeof config.moduleOverrides];
-    if (moduleOverride?.level) {
-      return moduleOverride.level;
-    }
-    return config.defaultLevel || resolveDefaultMinLevel();
-  }
-
-  private isEnabled(): boolean {
-    const config = getGlobalObservabilityConfig();
-    if (!config.enabled) {
+    if (!config.enabled || moduleOverride?.enabled === false) {
       return false;
     }
-    const moduleOverride =
-      config.moduleOverrides[this.scope as keyof typeof config.moduleOverrides];
-    if (typeof moduleOverride?.enabled === "boolean") {
-      return moduleOverride.enabled;
-    }
-    return true;
-  }
-
-  private canLog(level: LogLevel): boolean {
-    return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[this.resolveEffectiveMinLevel()];
+    const minLevel = moduleOverride?.level || config.defaultLevel || resolveDefaultMinLevel();
+    return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[minLevel];
   }
 
   private emitEvent(level: LogLevel, message: string, context?: LogContext): void {
-    const sink = getLoggingGlobals().__FT_OBSERVABILITY_SINK__;
+    const sink = globals.__FT_OBSERVABILITY_SINK__;
     if (!sink) {
       return;
     }
     sink({
       id: `${this.scope}-${Date.now()}-${nextObservabilitySequence()}`,
       timestampMs: Date.now(),
-      source: getGlobalObservabilitySource(),
+      source: globals.__FT_OBSERVABILITY_SOURCE__ || "background",
       moduleId: this.scope,
       level,
       message,
@@ -223,7 +185,7 @@ export class Logger {
   }
 
   private log(level: LogLevel, message: string, context?: LogContext): void {
-    if (!this.isEnabled() || !this.canLog(level)) {
+    if (!this.canLog(level)) {
       return;
     }
 

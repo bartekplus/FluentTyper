@@ -1,6 +1,14 @@
+import { getOwnProperty } from "@core/domain/guards";
+import { urlHostname } from "@core/domain/siteProfiles";
 import { resolveDynamicVariable } from "@core/domain/variables";
 
 const TEMPLATE_REGEX = /\$\{(?!\d)[a-zA-Z0-9_æøåÆØÅ]+(?::[^}]+)?\}/g;
+
+const PAGE_VARIABLES: Record<string, (tab: chrome.tabs.Tab) => string> = {
+  page_url: (tab) => tab.url || "",
+  page_title: (tab) => tab.title || "",
+  page_domain: (tab) => (tab.url ? (urlHostname(tab.url) ?? "") : ""),
+};
 
 export class TemplateExpander {
   static async parseStringTemplateAsync(
@@ -54,32 +62,12 @@ export class TemplateExpander {
     varName: string,
     tabId?: number,
   ): Promise<string | undefined> {
-    if (
-      !["page_url", "page_title", "page_domain"].includes(varName) ||
-      typeof chrome === "undefined" ||
-      !chrome.tabs ||
-      !tabId
-    ) {
+    const read = getOwnProperty(PAGE_VARIABLES, varName);
+    if (!read || !tabId) {
       return undefined;
     }
     try {
-      const tab = await chrome.tabs.get(tabId);
-      if (varName === "page_url") {
-        return tab.url || "";
-      }
-      if (varName === "page_title") {
-        return tab.title || "";
-      }
-      if (varName === "page_domain") {
-        if (!tab.url) {
-          return "";
-        }
-        try {
-          return new URL(tab.url).hostname;
-        } catch {
-          return "";
-        }
-      }
+      return read(await chrome.tabs.get(tabId));
     } catch (error) {
       console.warn(`Failed to fetch tab data for ${varName}`, error);
     }

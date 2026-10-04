@@ -1,21 +1,22 @@
 import { describe, expect, test } from "bun:test";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review as runReview } from "./grammarTestUtils";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { DEFAULT_RULES, scan } from "./reviewHarness";
 
-function review(text: string, ruleId: CatalogRuleId, lang = "en_US") {
-  return scan(text, { enabledRules: [...DEFAULT_RULES, ruleId], lang }).filter(
-    (d) => d.ruleId === ruleId,
-  );
-}
+const review = (text: string, ruleId: CatalogRuleId, lang = "en_US") =>
+  runReview(
+    text,
+    {},
+    { lang, enabledRules: [...reviewRuleIds({ codeMode: false }), ruleId] },
+  ).diagnostics.filter((d) => d.ruleId === ruleId);
 
 /** The text with every finding's first alternative applied. */
 function repaired(text: string, ruleId: CatalogRuleId, lang = "en_US"): string {
   return applyEdits(
     text,
     review(text, ruleId, lang).flatMap((d) => d.alternatives[0].edits),
-  );
+  )!;
 }
 
 describe("comma fixes (commaPeriodSpacing)", () => {
@@ -81,6 +82,12 @@ describe("ordinal suffix casing (englishOrdinalSuffix)", () => {
 
   test("still fixes a wrong lowercase suffix", () => {
     expect(repaired("the 101nd run", rule)).toBe("the 101st run");
+  });
+
+  test("a wrong suffix reads only the 24 characters before it", () => {
+    const text = `${"I has a dog. ".repeat(10)}It is the 2th time.`;
+    const [finding] = review(text, rule);
+    expect(finding.context.start).toBe(finding.range.start - 24);
   });
 });
 
@@ -222,10 +229,10 @@ describe("space outside quotation marks (quoteSpacing)", () => {
   });
 
   test.each([
-    ["😀 Try “quick”mode.", "😀 Try “quick” mode."],
-    ["Try“quick” mode.", "Try “quick” mode."],
+    ["😀 Try “quick”mode.", "😀 Try “quick” mode.", "en_US"],
+    ["Try“quick” mode.", "Try “quick” mode.", "en_US"],
     ["Er nannte es „neu“heute.", "Er nannte es „neu“ heute.", "de_DE"],
-  ])("a curly quote says its side: %p", (input, expected, lang = "en_US") => {
+  ])("a curly quote says its side: %p", (input, expected, lang) => {
     expect(offered(input, lang)).toEqual([[expected]]);
     expect(review(input, rule, lang)[0].bulk.eligible).toBe(false);
   });
@@ -248,15 +255,15 @@ describe("prime marks (primeSymbols, optional)", () => {
   });
 
   test.each([
-    ["The shelf is 6'2\" tall.", "The shelf is 6′2″ tall."],
-    ["My brother is 5’ 9” and fast.", "My brother is 5′ 9″ and fast."],
-    ["A lap took 1'05\" today.", "A lap took 1′05″ today."],
-    ["😀 Height: 4 ' 10 \" exactly", "😀 Height: 4 ′ 10 ″ exactly"],
-    ["Meet at 52°13'N, 21°00'E.", "Meet at 52°13′N, 21°00′E."],
-    ["The peak is at 46°34'12\"N.", "The peak is at 46°34′12″N."],
+    ["The shelf is 6'2\" tall.", "The shelf is 6′2″ tall.", "en_US"],
+    ["My brother is 5’ 9” and fast.", "My brother is 5′ 9″ and fast.", "en_US"],
+    ["A lap took 1'05\" today.", "A lap took 1′05″ today.", "en_US"],
+    ["😀 Height: 4 ' 10 \" exactly", "😀 Height: 4 ′ 10 ″ exactly", "en_US"],
+    ["Meet at 52°13'N, 21°00'E.", "Meet at 52°13′N, 21°00′E.", "en_US"],
+    ["The peak is at 46°34'12\"N.", "The peak is at 46°34′12″N.", "en_US"],
     ["La cima está a 46°34'12\"N.", "La cima está a 46°34′12″N.", "es_ES"],
     ['Er ist 6′1" groß.', "Er ist 6′1″ groß.", "de_DE"],
-  ])("offers %p", (input, expected, lang = "en_US") => {
+  ])("offers %p", (input, expected, lang) => {
     expect(review(input, rule, lang).every((d) => !d.bulk.eligible)).toBe(true);
     expect(repaired(input, rule, lang)).toBe(expected);
   });

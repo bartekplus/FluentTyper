@@ -1,5 +1,5 @@
 import { REVIEW_LOCAL_AI_CHECK, type ReviewDiagnostic, type ReviewEdit } from "./types";
-import { applyEdits, editTouches, rangesOverlap } from "./textRanges";
+import { applyEdits, editTouches, rangesOverlap, sameEdit } from "./textRanges";
 
 type DeferReason = "not-batch-approved" | "conflict" | "unproven";
 
@@ -14,16 +14,6 @@ export interface BulkPlan {
   deferred: Array<{ id: string; reason: DeferReason }>;
 }
 
-export interface BulkPlanOptions {
-  /**
-   * Proof hook for context-dependent groups: for each checked diagnostic, true
-   * when it is still detected, with the same edits, in the text after
-   * `otherEdits` are applied. `otherEdits` never contain or collide with a
-   * checked diagnostic's own edits.
-   */
-  stillHold?: (checks: ReviewDiagnostic[], otherEdits: ReviewEdit[]) => boolean[];
-}
-
 /**
  * One proof round: true, per check, when it is still detected with the same
  * edits after `otherEdits` (never its own) are applied.
@@ -36,17 +26,9 @@ export interface ProofRequest {
 /** Longer chains of dependent fixes are left for individual review. */
 export const MAX_PROOF_GROUP = 8;
 
-function sameEdit(a: ReviewEdit, b: ReviewEdit): boolean {
-  return a.start === b.start && a.end === b.end && a.replacement === b.replacement;
-}
-
 /** Overlap, a shared insertion point, or an insertion inside the other edit. */
 function editsCollide(a: ReviewEdit, b: ReviewEdit): boolean {
   return a.start === a.end ? editTouches(a, b) : editTouches(b, a);
-}
-
-function touchesContext(edit: ReviewEdit, diagnostic: ReviewDiagnostic): boolean {
-  return rangesOverlap(edit, diagnostic.context);
 }
 
 /**
@@ -58,29 +40,14 @@ function touchesContext(edit: ReviewEdit, diagnostic: ReviewDiagnostic): boolean
  * - Colliding edits (overlap, shared insertion point) defer every finding in
  *   the colliding group: no winner is picked by position.
  * - An edit inside another finding's evidence makes the pair context-dependent;
- *   such a group is kept only when `stillHold` proves each member is still
- *   detected unchanged after all the others are applied, and deferred otherwise.
+ *   such a group is kept only when the caller proves (with `prove`, one round
+ *   per yielded request) that each member is still detected unchanged after all
+ *   the others are applied, and deferred otherwise.
  */
-export function planBulkFix(
-  text: string,
-  diagnostics: readonly ReviewDiagnostic[],
-  options: BulkPlanOptions = {},
-): BulkPlan {
-  const steps = planBulkFixSteps(text, diagnostics, {
-    ...options,
-    prove: options.stillHold !== undefined,
-  });
-  for (let step = steps.next(); ;) {
-    if (step.done) return step.value;
-    step = steps.next(options.stillHold!(step.value.checks, step.value.otherEdits));
-  }
-}
-
-/** The plan as a sequence of proof requests; the caller answers each round. */
 export function* planBulkFixSteps(
   text: string,
   diagnostics: readonly ReviewDiagnostic[],
-  options: Omit<BulkPlanOptions, "stillHold"> & { prove: boolean },
+  options: { prove: boolean },
 ): Generator<ProofRequest, BulkPlan, boolean[]> {
   const deferred: BulkPlan["deferred"] = [];
   const candidates: Array<{ diagnostic: ReviewDiagnostic; edits: ReviewEdit[] }> = [];
@@ -142,8 +109,10 @@ export function* planBulkFixSteps(
         const own = (edit: ReviewEdit, other: ReviewEdit[]) =>
           other.some((mine) => sameEdit(mine, edit));
         dependent =
-          b.edits.some((edit) => !own(edit, a.edits) && touchesContext(edit, a.diagnostic)) ||
-          a.edits.some((edit) => !own(edit, b.edits) && touchesContext(edit, b.diagnostic));
+          b.edits.some(
+            (edit) => !own(edit, a.edits) && rangesOverlap(edit, a.diagnostic.context),
+          ) ||
+          a.edits.some((edit) => !own(edit, b.edits) && rangesOverlap(edit, b.diagnostic.context));
       }
       if (collide || dependent) {
         union(i, j);

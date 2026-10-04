@@ -1,4 +1,5 @@
 import { withDeadline } from "@core/application/transport-utils";
+import { sameItems } from "@core/domain/guards";
 import { resolveReviewLanguage, type ReviewLanguageChoice } from "@core/domain/lang";
 import { overlapsSortedRanges } from "@core/domain/grammar/review/textRanges";
 import {
@@ -49,6 +50,7 @@ import {
 } from "@core/domain/grammar/review/types";
 import {
   conflictFreeFindings,
+  editsOf,
   reviewAiAvailability,
   sameChange,
   type AiBatchPreview,
@@ -83,14 +85,10 @@ import {
 
 /** What a review target can honestly do; the UI shows limits, never hides them. */
 export interface ReviewCapabilities {
-  /** Findings can be painted in the editor itself. */
-  inline: boolean;
   /** Single fixes can be written and verified. */
   apply: boolean;
   /** "Fix all" can be written and verified. */
   bulk: boolean;
-  /** How native undo sees a fix. */
-  undo: "single-step" | "per-edit" | "host-history" | "none";
 }
 
 export interface ReviewTargetText {
@@ -192,8 +190,8 @@ export interface ReviewViewState {
   bulk: { count: number; deferred: number; pending: boolean };
   /**
    * The dictionary check, which runs after the rule results are shown:
-   * `off` without a lookup (or with no rules on), `unavailable` when the
-   * language has no dictionary, `partial` when it stopped at its limit for
+   * `off` when spelling is disabled, `unavailable` when there is no lookup or
+   * the language has no dictionary, `partial` when it stopped at its limit for
    * one pass (see SPELLING_WORDS_PER_PASS) with words left unchecked.
    */
   spelling: "off" | "checking" | "done" | "partial" | "unavailable" | "failed";
@@ -212,13 +210,16 @@ export interface ReviewViewState {
 
 /** Session-local AI answers kept for reuse (per chunk key, model and prompt version). */
 const AI_CACHE_ENTRIES = 256;
+/** Pause after a text change before the rules check again. */
+const RECHECK_DELAY_MS = 400;
+/** Pause after a text change before new text goes to the model (slower than rule rechecks). */
+const AI_RECHECK_DELAY_MS = 1500;
 
 /** Errors after which the next chunk would fail the same way: the pass stops. */
 const AI_PASS_FATAL: ReadonlySet<AiErrorCode> = new Set<AiErrorCode>([
   "unavailable",
   "not-installed",
   "not-ready",
-  "device-lost",
 ]);
 
 type AiSegments = ReadonlyArray<{ id: string; text: string }>;
@@ -248,13 +249,10 @@ export interface ReviewSessionDependencies {
   lookupSpelling?: ReviewSpellingLookup;
   setTimer?: (callback: () => void, delayMs: number) => unknown;
   clearTimer?: (handle: unknown) => void;
-  recheckDelayMs?: number;
   /** Page visibility gate; an explicit foreground review still works when its editor is blurred. */
   isActive?: () => boolean;
   /** Optional on-device model; without it Review works exactly as without Local AI. */
   ai?: ReviewAiProvider;
-  /** Pause after a text change before new text goes to the model (slower than rule rechecks). */
-  aiRecheckDelayMs?: number;
   /**
    * Local language identification of the reviewed text, used for Local AI when the
    * language setting is "auto_detect"; null when it cannot tell.
@@ -324,8 +322,8 @@ function sameOptions(a: ReviewOptions, b: ReviewOptions): boolean {
     a.spellingEnabled === b.spellingEnabled &&
     a.longSentenceWords === b.longSentenceWords &&
     a.insertSpaceAfterAutocomplete === b.insertSpaceAfterAutocomplete &&
-    sameKey(a.enabledRules, b.enabledRules) &&
-    sameKey(a.userDictionary, b.userDictionary) &&
+    sameItems(a.enabledRules, b.enabledRules) &&
+    sameItems(a.userDictionary, b.userDictionary) &&
     JSON.stringify(a.preferredTerminology) === JSON.stringify(b.preferredTerminology)
   );
 }
@@ -342,39 +340,15 @@ interface PendingPlan {
   abort: AbortController;
 }
 
-class PlanSuperseded extends Error {}
-
 const NO_DIAGNOSTICS: ReviewDiagnostic[] = [];
 
 function occurrenceKey(entry: IgnoredOccurrence): string {
   return `${entry.ruleId}|${entry.range.start}|${entry.range.end}|${entry.original}`;
 }
 
-function sameKey(a: readonly unknown[], b: readonly unknown[]): boolean {
-  return a.length === b.length && a.every((value, index) => value === b[index]);
-}
-
+/** Sort is stable: for `[...shown, ...added]`, a shown finding stays first on a tie. */
 function textOrder(a: ReviewDiagnostic, b: ReviewDiagnostic): number {
   return a.range.start - b.range.start || a.range.end - b.range.end;
-}
-
-/** `shown` (already in text order) with `added` merged in; on a tie, shown first. */
-function mergeInTextOrder(
-  shown: readonly ReviewDiagnostic[],
-  added: ReviewDiagnostic[],
-): ReviewDiagnostic[] {
-  added.sort(textOrder);
-  const merged: ReviewDiagnostic[] = [];
-  let i = 0;
-  let j = 0;
-  while (i < shown.length || j < added.length) {
-    if (j >= added.length || (i < shown.length && textOrder(shown[i], added[j]) <= 0)) {
-      merged.push(shown[i++]);
-    } else {
-      merged.push(added[j++]);
-    }
-  }
-  return merged;
 }
 
 /**
@@ -420,7 +394,7 @@ export class ReviewSession {
   };
   private coverage: ReviewCoverage | null = null;
   private ignored: IgnoredOccurrence[] = [];
-  // getState() runs on every change; the plan only depends on these inputs.
+  // getState() runs on every change; the visible list only depends on these inputs.
   private listCache: { key: readonly unknown[]; visible: ReviewDiagnostic[] } | null = null;
   // Lookup set for `ignored`, rebuilt when the list is replaced.
   private ignoredKeys: {
@@ -569,7 +543,7 @@ export class ReviewSession {
     this.recheckTimer = this.setTimer(() => {
       this.recheckTimer = null;
       void this.refresh();
-    }, this.deps.recheckDelayMs ?? 400);
+    }, RECHECK_DELAY_MS);
   }
 
   /** Settings broadcasts repeat unchanged values; only a real change rechecks. */
@@ -654,9 +628,7 @@ export class ReviewSession {
     if (shown) categories.add(category);
     else categories.delete(category);
     this.categories = categories;
-    if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
-      this.selectedId = null;
-    }
+    this.dropHiddenSelection();
     this.emit();
   }
 
@@ -751,12 +723,13 @@ export class ReviewSession {
       return;
     const saved = await this.deps.disableReviewRule(diagnostic.ruleId).catch(() => false);
     if (this.isClosed) return;
-    this.notice = { kind: saved ? "rule-disabled" : "rule-setting-failed" };
     if (saved)
       this.updateOptions({
         ...this.options,
         enabledRules: this.options.enabledRules.filter((ruleId) => ruleId !== diagnostic.ruleId),
       });
+    // Set the notice after updateOptions, because a recheck clears the notice.
+    this.notice = { kind: saved ? "rule-disabled" : "rule-setting-failed" };
     this.emit();
   }
 
@@ -773,6 +746,8 @@ export class ReviewSession {
     }
     this.options = { ...this.options, userDictionary: [...this.options.userDictionary, word] };
     this.notice = { kind: "dictionary-added", word };
+    // An Apply started during the write: its re-read uses the new dictionary.
+    if ((this.status as ReviewStatus) === "applying") return;
     this.generation += 1;
     // The findings are rebuilt for the new dictionary; so is the AI pass, and a
     // proposal or preview made before it is stale.
@@ -982,7 +957,7 @@ export class ReviewSession {
         excluded: selected.length - included.length,
         canApply: this.capabilities.apply && this.capabilities.bulk && included.length > 0,
       },
-      edits: included.flatMap((d) => d.alternatives[0]?.edits ?? []),
+      edits: included.flatMap(editsOf),
       generation: this.generation,
       list: this.visibleDiagnostics(),
     };
@@ -1009,10 +984,16 @@ export class ReviewSession {
     return this.status === "ready" && this.capabilities.apply;
   }
 
+  private dropHiddenSelection(): void {
+    if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
+      this.selectedId = null;
+    }
+  }
+
   /** The same array while results, ignores and filters stay the same: the UI keys on it. */
   private visibleDiagnostics(): ReviewDiagnostic[] {
     const key = [this.diagnostics, this.ignored, this.categories, this.accepted];
-    if (!this.listCache || !sameKey(this.listCache.key, key)) {
+    if (!this.listCache || !sameItems(this.listCache.key, key)) {
       const shown = this.diagnostics.flatMap((d) => {
         if (this.isIgnored(d) || !this.categories.has(d.category)) return [];
         if (d.warningOnly || this.accepted.length === 0) return [d];
@@ -1074,8 +1055,8 @@ export class ReviewSession {
   private planBulk(): BulkPlan | null {
     const key = this.planKey();
     if (!key || !this.prepared) return null;
-    if (this.planCache && sameKey(this.planCache.key, key)) return this.planCache.plan;
-    if (this.planPending && sameKey(this.planPending.key, key)) return null;
+    if (this.planCache && sameItems(this.planCache.key, key)) return this.planCache.plan;
+    if (this.planPending && sameItems(this.planPending.key, key)) return null;
     const prepared = this.prepared;
     // What is shown: ignored findings and hidden categories are neither fixed nor counted.
     const ruleFindings = this.visibleDiagnostics().filter((d) => !individualOnly(d));
@@ -1104,15 +1085,12 @@ export class ReviewSession {
     prepared: PreparedReview,
   ): Promise<BulkPlan | null> {
     let request: IteratorResult<ProofRequest, BulkPlan> = { done: false, value: first };
-    // Newer results replace this plan: stop before the next round, and cancel the current one.
-    const pause = async () => {
-      await this.pause();
-      if (this.planPending !== pending) throw new PlanSuperseded();
-    };
     let plan: BulkPlan;
     try {
       while (!request.done) {
-        await pause();
+        // Newer results replace this plan: stop before the next round, and cancel the current one.
+        await this.pause();
+        if (this.planPending !== pending) return null;
         const answer = await this.deps.engine.prove(
           {
             snapshot: prepared.snapshot,
@@ -1122,12 +1100,12 @@ export class ReviewSession {
           },
           pending.abort.signal,
         );
-        if (this.planPending !== pending) throw new PlanSuperseded();
+        if (this.planPending !== pending) return null;
         request = steps.next(answer);
       }
       plan = request.value;
-    } catch (error) {
-      if (error instanceof PlanSuperseded || this.planPending !== pending) return null;
+    } catch {
+      if (this.planPending !== pending) return null;
       // Any other failure: what is still unproven stays unproven, so Fix all never waits forever.
       plan = this.unprovenPlan(steps, request, prepared.text);
     }
@@ -1444,17 +1422,25 @@ export class ReviewSession {
           : answer;
     }
     const choice = this.languageChoice();
+    const requireEvidence = choice.source === "detected";
+    // Regions are optional evidence: when the lookup fails, check the text and
+    // show the gap, as for a region that has no answer.
     const regions =
       this.deps.languageRegions && choice.resource
         ? await withDeadline(
             this.deps.languageRegions(
               this.text.slice(fullScope.start, cutEnd),
               choice.language,
-              choice.source === "detected",
+              requireEvidence,
             ),
             10_000,
             abort.signal,
-          )
+          ).catch((error: unknown): ProtectedRange[] => {
+            if (abort.signal.aborted) throw error;
+            return requireEvidence
+              ? [{ start: 0, end: cutEnd - fullScope.start, reason: "language-uncertain" }]
+              : [];
+          })
         : [];
     if (generation !== this.generation || this.isClosed) return;
     const snapshot = {
@@ -1522,9 +1508,7 @@ export class ReviewSession {
     }
     this.coverage = result.coverage;
     this.status = "ready";
-    if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
-      this.selectedId = null;
-    }
+    this.dropHiddenSelection();
     const lookup = this.deps.lookupSpelling;
     const spelling =
       prepared.options.spellingEnabled ?? (Boolean(lookup) && prepared.rules.size > 0);
@@ -1622,23 +1606,15 @@ export class ReviewSession {
         next,
         Math.min(next + SPELLING_REQUEST_WORDS, SPELLING_WORDS_PER_PASS),
       );
-      let results: Array<string[] | null> | null;
-      try {
-        results = await withDeadline(
-          lookup(
-            cache.lang,
-            batch.map(({ word, before }) => ({ word, before })),
-          ),
-          10_000,
-          signal,
-        );
-      } catch {
-        if (generation !== this.generation || this.isClosed) return;
-        cache.failure = "failed";
-        this.spelling = "failed";
-        this.emit();
-        return;
-      }
+      // A failed lookup throws: the caller shows the failure.
+      const results = await withDeadline(
+        lookup(
+          cache.lang,
+          batch.map(({ word, before }) => ({ word, before })),
+        ),
+        10_000,
+        signal,
+      );
       if (generation !== this.generation || this.isClosed) return;
       // A shorter answer covers the first words; the rest go in the next request.
       if (!results || results.length === 0 || results.length > batch.length) {
@@ -1735,10 +1711,8 @@ export class ReviewSession {
       }
     }
     if (found.length === 0 && marked.length === 0) return;
-    this.diagnostics = mergeInTextOrder(this.diagnostics, found);
-    if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
-      this.selectedId = null;
-    }
+    this.diagnostics = [...this.diagnostics, ...found].sort(textOrder);
+    this.dropHiddenSelection();
     // An AI finding a spelling finding now covers steps aside.
     if (this.aiFindings.length) this.mergeAiFindings();
     this.emit();
@@ -1956,7 +1930,6 @@ export class ReviewSession {
     try {
       plan = buildAiChunks(prepared, {
         mode: "correct",
-        style: null,
         // Pairing was evaluated on Gemma; Compact keeps single-sentence requests.
         pairSentences: this.aiStatus?.tier === "standard",
         previous: this.aiPlan,
@@ -1992,24 +1965,26 @@ export class ReviewSession {
     // Session-local cache key: everything the model consumed, plus what produced the answer.
     const cacheKey = (request: AiGenerationRequest, modelId: string, promptVersion: string) =>
       JSON.stringify([request, modelId, promptVersion]);
-    const pending: Array<{ chunk: AiChunk; key: string; retained: boolean }> = [];
-    const requestFor = (chunk: AiChunk) => aiRequestForChunk(chunk, this.aiLang(), "correct", null);
-    const keys = new Set(
-      plan.chunks.map((chunk) =>
-        cacheKey(requestFor(chunk), this.aiStatus?.modelId ?? "", AI_PROMPT_VERSION),
-      ),
-    );
+    const planned = plan.chunks.map((chunk) => {
+      const request = aiRequestForChunk(chunk, this.aiLang(), "correct", null);
+      return {
+        chunk,
+        request,
+        key: cacheKey(request, this.aiStatus?.modelId ?? "", AI_PROMPT_VERSION),
+      };
+    });
+    const pending: Array<(typeof planned)[number] & { retained: boolean }> = [];
+    const keys = new Set(planned.map(({ key }) => key));
     for (const [key, task] of this.aiPending) {
       if (!keys.has(key)) {
         task.abort.abort();
         this.aiPending.delete(key);
       }
     }
-    for (const chunk of plan.chunks) {
-      const key = cacheKey(requestFor(chunk), this.aiStatus?.modelId ?? "", AI_PROMPT_VERSION);
-      const cached = this.aiCache.get(key);
-      if (cached) accept(chunk, cached);
-      else pending.push({ chunk, key, retained: this.aiPending.has(key) });
+    for (const entry of planned) {
+      const cached = this.aiCache.get(entry.key);
+      if (cached) accept(entry.chunk, cached);
+      else pending.push({ ...entry, retained: this.aiPending.has(entry.key) });
     }
     if (pending.length === 0) finish();
     else
@@ -2022,21 +1997,20 @@ export class ReviewSession {
     // Finish already-running work before starting new work for the edited text.
     pending.sort((a, b) => Number(b.retained) - Number(a.retained));
     let waited = false;
-    for (const { chunk, key, retained } of pending) {
+    for (const { chunk, request, key, retained } of pending) {
       if (delayed && !retained && !waited) {
         waited = true;
         await new Promise<void>((resolve) => {
           this.aiTimer = this.setTimer(() => {
             this.aiTimer = null;
             resolve();
-          }, this.deps.aiRecheckDelayMs ?? 1500);
+          }, AI_RECHECK_DELAY_MS);
         });
         if (!live()) return;
         this.aiCoverage = "checking";
         this.emit();
       }
       let answer: { outcome: AiGenerationOutcome; modelId: string; promptVersion: string };
-      const request = requestFor(chunk);
       const cached = this.aiCache.get(key);
       if (cached) {
         accept(chunk, cached);
@@ -2163,15 +2137,13 @@ export class ReviewSession {
     ) {
       return;
     }
-    this.diagnostics = mergeInTextOrder(merged, shown);
-    if (this.selectedId && !this.visibleDiagnostics().some((d) => d.id === this.selectedId)) {
-      this.selectedId = null;
-    }
+    this.diagnostics = [...merged, ...shown].sort(textOrder);
+    this.dropHiddenSelection();
   }
 
   /** The AI's text for its range, or null when its edits do not apply. */
   private aiReplacement(finding: ReviewDiagnostic): string | null {
-    const replaced = applyEdits(this.text, finding.alternatives[0]?.edits ?? []);
+    const replaced = applyEdits(this.text, editsOf(finding));
     if (replaced === null) return null;
     return replaced.slice(
       finding.range.start,
@@ -2294,7 +2266,7 @@ export class ReviewSession {
     };
     let plan: AiChunkPlan;
     try {
-      plan = buildAiChunks(prepared, { mode: "rewrite", style });
+      plan = buildAiChunks(prepared, { mode: "rewrite" });
     } catch {
       done({ status: "failed" });
       return;

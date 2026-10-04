@@ -6,52 +6,56 @@ import {
 import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { SiteProfileRepository } from "@core/application/repositories/SiteProfileRepository";
-import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
+import {
+  SUPPORTED_LANGUAGES,
+  resolveFallbackLanguage,
+  resolvePrimaryLanguage,
+} from "@core/domain/lang";
 import {
   getSiteProfileForDomain,
   removeSiteProfileForDomain,
   setSiteProfileForDomain,
   type SiteProfile,
 } from "@core/domain/siteProfiles";
-import { resolveGlobalNumSuggestions } from "@core/domain/siteProfileService";
 import {
   CMD_POPUP_PAGE_ENABLE,
   CMD_POPUP_PAGE_DISABLE,
-  CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
   CMD_REVIEW_FT_ACTIVE_TAB,
 } from "@core/domain/constants";
 import type {
   ReviewActiveTabMessage,
-  OptionsPageConfigChangeMessage,
   PopupPageEnableMessage,
   PopupPageDisableMessage,
   ProductivityDashboardStats,
-  PopupGetProductivityStatsMessage,
 } from "@core/domain/messageTypes";
 import { formatTranslation, i18n } from "@ui/options/fluenttyperI18n.js";
-import { formatMetricNumber as formatNumber, formatWeekRange } from "@ui/shared/formatMetrics.js";
+import { localizeDocument } from "@ui/shared/localizeDocument";
+import {
+  formatMetricNumber as formatNumber,
+  formatSavingsSummary,
+  formatWeekRange,
+} from "@ui/shared/formatMetrics.js";
 import {
   type WebsiteAccessPermissionState,
   WebsiteAccessPermissionController,
   WebsiteAccessPermissionService,
 } from "@ui/shared/websiteAccessPermission";
 import {
-  acknowledgeDonationPrompt,
+  ackDonation,
   acknowledgeWeeklyRecap,
   fetchAutoLanguageStatus,
-  sendRuntimeMessage,
+  isProductivityStats,
+  notifyConfigChange,
+  sendRuntimeMessageWithRetry,
+  trackDonationPromptShown,
 } from "@ui/shared/runtimeMessaging";
 import {
-  buildSiteProfile,
   appendLanguageOptions,
-  createSelectOption,
-  getOnOffLabel,
-  getPreferNativeAutocompleteLabel,
+  applySiteProfileToSelects,
+  buildSiteProfile,
   languageLabel,
-  populateBooleanOverrideOptions,
-  populateSuggestionOptions,
-  toOverrideValue,
+  populateSiteProfileSelects,
 } from "@ui/shared/siteProfileEditor";
 
 const settings = new SettingsManager();
@@ -92,14 +96,10 @@ const STATIC_PAGE_STATE_KEYS = {
 } as const;
 
 let currentPageState: PopupPageState = getCurrentPageState(undefined);
-let lastMarkedDonationPromptId: string | null = null;
-const PRODUCTIVITY_DASHBOARD_RETRY_DELAYS_MS = [150, 300, 600, 1200, 2400] as const;
-let productivityDashboardRetryTimerId: number | null = null;
-let productivityDashboardLoadCancelled = false;
-let productivityDashboardLoadCompleted = false;
+const markDonationPromptShown = trackDonationPromptShown();
+const PRODUCTIVITY_DASHBOARD_RETRY_DELAYS_MS = [150, 300, 600, 1200, 2400];
 let currentWebsiteAccessPermissionState: WebsiteAccessPermissionState | null = null;
 const OPTIONS_ANCHOR_ADVANCED = "advanced_tab";
-const POPUP_THEME_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 
 type PopupPageState =
   | { kind: "actionable" }
@@ -112,24 +112,19 @@ type PopupPageState =
 
 function getPageStateElements() {
   return {
-    badge: document.getElementById("pageStateBadge"),
-    title: document.getElementById("pageStateTitle"),
-    body: document.getElementById("pageStateBody"),
-    language: document.getElementById("pageStateLanguage"),
-    hint: document.getElementById("checkboxDomainHint"),
-    meta: document.getElementById("pageStateMeta"),
-    panel: document.getElementById("pageStatePanel"),
-    profile: document.getElementById("pageStateProfile"),
-    section: document.getElementById("domainSectionWrapper"),
+    badge: document.getElementById("pageStateBadge") as HTMLElement,
+    title: document.getElementById("pageStateTitle") as HTMLElement,
+    body: document.getElementById("pageStateBody") as HTMLElement,
+    language: document.getElementById("pageStateLanguage") as HTMLElement,
+    hint: document.getElementById("checkboxDomainHint") as HTMLElement,
+    meta: document.getElementById("pageStateMeta") as HTMLElement,
+    panel: document.getElementById("pageStatePanel") as HTMLElement,
+    profile: document.getElementById("pageStateProfile") as HTMLElement,
+    section: document.getElementById("domainSectionWrapper") as HTMLElement,
   };
 }
 
-type PageStateElements = ReturnType<typeof getPageStateElements>;
-
-function setNodeTextAndTitle(node: HTMLElement | null, value: string): void {
-  if (!node) {
-    return;
-  }
+function setNodeTextAndTitle(node: HTMLElement, value: string): void {
   node.textContent = value;
   if (value.length > 0) {
     node.title = value;
@@ -138,40 +133,28 @@ function setNodeTextAndTitle(node: HTMLElement | null, value: string): void {
   }
 }
 
-function clearPageStateSupplementalContent(elements: PageStateElements): void {
-  setNodeTextAndTitle(elements.language, "");
-  setNodeTextAndTitle(elements.profile, "");
-  elements.meta?.classList.add("is-hidden");
-  setNodeTextAndTitle(elements.hint, "");
-}
-
 function renderNonActionablePageState(
   state: Pick<Extract<PopupPageState, { kind: "restricted" | "non_actionable" }>, "badge" | "body">,
   titleText: string,
   panelState: "restricted" | "non_actionable" | "paused",
   showDomainSection: boolean,
-  clearDomainToggle = false,
 ): void {
-  const elements = getPageStateElements();
-  const { badge, title, body, panel, section } = elements;
-  if (!badge || !title || !body) {
-    return;
-  }
-
+  const { badge, title, body, language, profile, meta, hint, panel, section } =
+    getPageStateElements();
   badge.textContent = state.badge;
   setNodeTextAndTitle(title, titleText);
   body.textContent = state.body;
-  clearPageStateSupplementalContent(elements);
-  panel?.setAttribute("data-page-state", panelState);
+  setNodeTextAndTitle(language, "");
+  setNodeTextAndTitle(profile, "");
+  meta.classList.add("is-hidden");
+  setNodeTextAndTitle(hint, "");
+  panel.setAttribute("data-page-state", panelState);
   setReviewActionVisible(false);
   setSiteSpecificControlsEnabled(false);
-  if (clearDomainToggle) {
-    const domainToggle = document.getElementById("checkboxDomainInput") as HTMLInputElement | null;
-    if (domainToggle) {
-      domainToggle.checked = false;
-    }
+  if (showDomainSection) {
+    (document.getElementById("checkboxDomainInput") as HTMLInputElement).checked = false;
   }
-  section?.classList.toggle("is-hidden", !showDomainSection);
+  section.classList.toggle("is-hidden", !showDomainSection);
 }
 
 const SITE_SPECIFIC_CONTROL_IDS = [
@@ -247,13 +230,7 @@ function renderStaticPageState(
   state: Extract<PopupPageState, { kind: "restricted" | "non_actionable" }>,
 ): void {
   const siteProfileSection = document.getElementById("siteProfileSection");
-  renderNonActionablePageState(
-    state,
-    state.title,
-    state.kind,
-    state.kind === "restricted",
-    state.kind === "restricted",
-  );
+  renderNonActionablePageState(state, state.title, state.kind, state.kind === "restricted");
   siteProfileSection?.classList.add("is-hidden");
 }
 
@@ -262,44 +239,19 @@ function renderPermissionBlockedPageState(state: WebsiteAccessPermissionState): 
     return;
   }
 
-  const permissionBlockedState =
-    state === "missing"
-      ? {
-          badge: i18n.get("permission_status_missing_badge"),
-          body: i18n.get("popup_page_state_permission_missing_body"),
-          kind: "paused" as const,
-        }
-      : {
-          badge: i18n.get("permission_status_unavailable_badge"),
-          body: i18n.get("popup_page_state_permission_unavailable_body"),
-          kind: "non_actionable" as const,
-        };
+  const missing = state === "missing";
+  // The permission banner shows the body text. The CSS hides #pageStateBody while the banner shows.
   renderNonActionablePageState(
-    permissionBlockedState,
+    {
+      badge: i18n.get(
+        missing ? "permission_status_missing_badge" : "permission_status_unavailable_badge",
+      ),
+      body: "",
+    },
     currentDomainURL,
-    permissionBlockedState.kind,
+    missing ? "paused" : "non_actionable",
     false,
   );
-}
-
-function applyPopupThemeMode(theme: "light" | "dark"): void {
-  document.documentElement.setAttribute("data-theme", theme);
-  document.body?.setAttribute("data-theme", theme);
-}
-
-function syncPopupThemeWithSystem(): void {
-  if (typeof window.matchMedia !== "function") {
-    applyPopupThemeMode("light");
-    return;
-  }
-
-  const colorSchemeQuery = window.matchMedia(POPUP_THEME_MEDIA_QUERY);
-  const applyCurrentTheme = () => {
-    applyPopupThemeMode(colorSchemeQuery.matches ? "dark" : "light");
-  };
-
-  applyCurrentTheme();
-  colorSchemeQuery.addEventListener("change", applyCurrentTheme);
 }
 
 async function renderActionablePageState(): Promise<void> {
@@ -326,11 +278,7 @@ async function renderActionablePageState(): Promise<void> {
           domainURL: currentDomainURL,
         })
       : null;
-  const fallbackLanguageCode = getDefaultSiteProfileLanguage(
-    currentProfileLanguageFallback,
-    currentEnabledLanguages,
-  );
-  const fallbackLanguageLabel = languageLabel(fallbackLanguageCode);
+  const fallbackLanguageLabel = languageLabel(currentProfileLanguageFallback);
   const languageCode = autoLanguageStatus?.language || configuredLanguage;
   const activeLanguageLabel = languageLabel(languageCode);
   const badgeLabel = globallyEnabled
@@ -367,9 +315,6 @@ async function renderActionablePageState(): Promise<void> {
     title,
     hint,
   } = getPageStateElements();
-  if (!badge || !title || !body || !language || !meta || !profileNode) {
-    return;
-  }
   badge.textContent = badgeLabel;
   setNodeTextAndTitle(title, currentDomainURL);
   body.textContent = autoDetectReasonCopy
@@ -385,9 +330,9 @@ async function renderActionablePageState(): Promise<void> {
   }
   setNodeTextAndTitle(profileNode, profileCopy);
   meta.classList.remove("is-hidden");
-  panel?.setAttribute("data-page-state", globallyEnabled && siteAllowed ? "active" : "paused");
+  panel.setAttribute("data-page-state", globallyEnabled && siteAllowed ? "active" : "paused");
   setReviewActionVisible(globallyEnabled && siteAllowed);
-  section?.classList.remove("is-hidden");
+  section.classList.remove("is-hidden");
   setSiteSpecificControlsEnabled(true);
   setNodeTextAndTitle(hint, currentDomainURL);
 }
@@ -422,36 +367,14 @@ function getSiteProfileElements() {
   };
 }
 
-function getDefaultSiteProfileLanguage(language: string, enabledLanguages: string[]): string {
-  if (enabledLanguages.includes(language)) {
-    return language;
-  }
-  return enabledLanguages[0];
-}
-
 function setSiteProfileInputsDisabled(disabled: boolean): void {
-  const { language, suggestions, inline, preferNativeAutocomplete, codeMode } =
-    getSiteProfileElements();
   document.getElementById("siteProfileDetails")?.classList.toggle("is-hidden", disabled);
-  for (const select of [language, suggestions, inline, preferNativeAutocomplete, codeMode]) {
-    if (select) {
-      select.disabled = disabled;
-    }
-  }
 }
 
 function getProfileStatusLabel(profileEnabled: boolean): string {
   return profileEnabled
     ? i18n.get("popup_site_profile_status_active")
     : i18n.get("popup_site_profile_status_global");
-}
-
-function notifyConfigChange(): Promise<unknown> {
-  const message: OptionsPageConfigChangeMessage = {
-    command: CMD_OPTIONS_PAGE_CONFIG_CHANGE,
-    context: {},
-  };
-  return chrome.runtime.sendMessage(message);
 }
 
 async function loadSiteProfileEditor() {
@@ -476,7 +399,7 @@ async function loadSiteProfileEditor() {
   section?.classList.remove("is-hidden");
   const [
     siteProfilesRaw,
-    numSuggestionsRaw,
+    numSuggestions,
     inlineSuggestionRaw,
     preferNativeAutocompleteRaw,
     globalCodeMode,
@@ -492,10 +415,6 @@ async function loadSiteProfileEditor() {
     currentDomainURL,
     currentEnabledLanguages,
   );
-  const globalNumSuggestions = resolveGlobalNumSuggestions(numSuggestionsRaw);
-  const globalInlineSuggestion = inlineSuggestionRaw === true;
-  const globalPreferNativeAutocomplete = preferNativeAutocompleteRaw !== false;
-
   if (
     !toggle ||
     !language ||
@@ -508,40 +427,20 @@ async function loadSiteProfileEditor() {
     return;
   }
 
-  language.replaceChildren();
-  appendLanguageOptions(language, currentEnabledLanguages);
-  populateSuggestionOptions(suggestions, globalNumSuggestions);
-
-  populateBooleanOverrideOptions(inline, globalInlineSuggestion, getOnOffLabel);
-  populateBooleanOverrideOptions(
-    preferNativeAutocomplete,
-    globalPreferNativeAutocomplete,
-    getPreferNativeAutocompleteLabel,
-  );
-  populateBooleanOverrideOptions(codeMode, globalCodeMode, getOnOffLabel);
-
-  const fallbackLanguage = getDefaultSiteProfileLanguage(
-    currentProfileLanguageFallback,
+  const selects = { language, suggestions, inline, preferNativeAutocomplete, codeMode };
+  populateSiteProfileSelects(
+    selects,
+    {
+      numSuggestions,
+      inlineSuggestion: inlineSuggestionRaw === true,
+      preferNativeAutocomplete: preferNativeAutocompleteRaw !== false,
+      codeMode: globalCodeMode,
+    },
     currentEnabledLanguages,
   );
-  if (profile) {
-    toggle.checked = true;
-    language.value = profile.language;
-    suggestions.value =
-      typeof profile.numSuggestions === "number" ? String(profile.numSuggestions) : "global";
-    inline.value = toOverrideValue(profile.inline_suggestion);
-    preferNativeAutocomplete.value = toOverrideValue(profile.preferNativeAutocomplete);
-    codeMode.value = toOverrideValue(profile.codeMode);
-    status.textContent = getProfileStatusLabel(true);
-  } else {
-    toggle.checked = false;
-    language.value = fallbackLanguage;
-    suggestions.value = "global";
-    inline.value = "global";
-    preferNativeAutocomplete.value = "global";
-    codeMode.value = "global";
-    status.textContent = getProfileStatusLabel(false);
-  }
+  applySiteProfileToSelects(selects, profile, currentProfileLanguageFallback);
+  toggle.checked = Boolean(profile);
+  status.textContent = getProfileStatusLabel(toggle.checked);
   setSiteProfileInputsDisabled(!toggle.checked);
 }
 
@@ -583,43 +482,6 @@ async function saveSiteProfileFromEditor() {
   await refreshThisSiteSection();
 }
 
-function translateUI() {
-  document.querySelectorAll("[data-i18n]").forEach((el) => {
-    const translated = i18n.get(el.getAttribute("data-i18n") ?? "");
-    if (translated) {
-      el.textContent = translated;
-    }
-  });
-  document.querySelectorAll("[data-i18n-title]").forEach((el) => {
-    const translated = i18n.get(el.getAttribute("data-i18n-title") ?? "");
-    if (translated) {
-      el.setAttribute("title", translated);
-    }
-  });
-}
-
-async function copyTextToClipboard(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // Fall through to the legacy copy path.
-  }
-
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.style.position = "fixed";
-  textarea.style.opacity = "0";
-  document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
-  const copied = document.execCommand("copy");
-  textarea.remove();
-  return copied;
-}
-
 function openOptionsPageAtAnchor(anchor: string): void {
   const baseUrl = chrome.runtime.getURL("options/options.html");
   const targetUrl = `${baseUrl}#${anchor}`;
@@ -634,14 +496,6 @@ function openOptionsPageAtAnchor(anchor: string): void {
     }
     void chrome.tabs.create({ url: targetUrl });
   });
-}
-
-function initializeFooterLinks(): void {
-  const optionsLink = document.getElementById("runOptions") as HTMLAnchorElement | null;
-  if (!optionsLink) {
-    return;
-  }
-  optionsLink.href = chrome.runtime.getURL("options/options.html");
 }
 
 /** Returns whether the recap is showing; the popup shows one notice at a time. */
@@ -659,24 +513,13 @@ function renderWeeklyRecapCard(stats: ProductivityDashboardStats): boolean {
   }
 
   cardNode.classList.remove("is-hidden");
-  titleNode.textContent = `${i18n.get("popup_weekly_recap_title")} (${formatWeekRange(
+  const recapTitle = `${i18n.get("popup_weekly_recap_title")} (${formatWeekRange(
     stats.weeklyRecap.weekKey,
   )})`;
-  summaryNode.textContent = `${formatNumber(
-    stats.weeklyRecap.acceptedSuggestions,
-  )} ${i18n.get("popup_short_accepted")} • ${formatNumber(
-    stats.weeklyRecap.charactersSaved,
-  )} ${i18n.get("popup_short_chars")} • ${formatNumber(
-    stats.weeklyRecap.estimatedMinutesSaved,
-  )} ${i18n.get("popup_short_minutes")}`;
+  titleNode.textContent = recapTitle;
+  summaryNode.textContent = formatSavingsSummary(stats.weeklyRecap);
 
-  const recapShareText = `${i18n.get("popup_weekly_recap_title")} (${formatWeekRange(
-    stats.weeklyRecap.weekKey,
-  )}): ${formatNumber(stats.weeklyRecap.acceptedSuggestions)} ${i18n.get(
-    "popup_short_accepted",
-  )}, ${formatNumber(stats.weeklyRecap.charactersSaved)} ${i18n.get(
-    "popup_short_chars",
-  )}, ${formatNumber(stats.weeklyRecap.estimatedMinutesSaved)} ${i18n.get("popup_short_minutes")}.`;
+  const recapShareText = `${recapTitle}: ${formatSavingsSummary(stats.weeklyRecap, ", ")}.`;
 
   const dismiss = () => {
     void acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
@@ -684,7 +527,7 @@ function renderWeeklyRecapCard(stats: ProductivityDashboardStats): boolean {
   };
   dismissButton.onclick = dismiss;
   shareButton.onclick = () => {
-    void copyTextToClipboard(recapShareText);
+    void navigator.clipboard.writeText(recapShareText).catch(() => undefined);
     dismiss();
   };
   viewButton.onclick = () => {
@@ -700,11 +543,11 @@ function renderMilestoneHint(stats: ProductivityDashboardStats): void {
   const linkNode = document.getElementById("dashboardMilestoneLink") as HTMLAnchorElement;
   const laterButton = document.getElementById("dashboardMilestoneLaterBtn") as HTMLButtonElement;
 
+  markDonationPromptShown(stats.donationPrompt);
   if (!stats.donationPrompt) {
     container.classList.add("is-hidden");
     linkNode.onclick = null;
     laterButton.onclick = null;
-    lastMarkedDonationPromptId = null;
     return;
   }
   const dismissButton = document.getElementById(
@@ -712,62 +555,36 @@ function renderMilestoneHint(stats: ProductivityDashboardStats): void {
   ) as HTMLButtonElement;
   const donationPrompt = stats.donationPrompt;
 
-  if (lastMarkedDonationPromptId !== donationPrompt.promptId) {
-    lastMarkedDonationPromptId = donationPrompt.promptId;
-    void acknowledgeDonationPrompt(donationPrompt.promptId, "shown", donationPrompt.milestoneHours);
-  }
-
   container.classList.remove("is-hidden");
   textNode.textContent = formatTranslation("support_saved_time", {
     minutes: formatNumber(stats.lifetime.estimatedMinutesSaved),
   });
   dismissButton.onclick = () => {
-    void acknowledgeDonationPrompt(
-      donationPrompt.promptId,
-      "dismiss",
-      donationPrompt.milestoneHours,
-    );
+    void ackDonation(donationPrompt, "dismiss");
     container.classList.add("is-hidden");
   };
   linkNode.onclick = () => {
-    void acknowledgeDonationPrompt(
-      donationPrompt.promptId,
-      "support_clicked",
-      donationPrompt.milestoneHours,
-    );
+    void ackDonation(donationPrompt, "support_clicked");
   };
   laterButton.onclick = () => {
-    void acknowledgeDonationPrompt(
-      donationPrompt.promptId,
-      "snooze",
-      donationPrompt.milestoneHours,
-    );
+    void ackDonation(donationPrompt, "snooze");
     container.classList.add("is-hidden");
   };
 }
 
 function renderDashboard(stats: ProductivityDashboardStats): void {
   // No-break spaces keep each number on the same line as its unit.
-  const periodSummary = `${i18n.get("popup_short_last7")}: ${formatNumber(
-    stats.last7Days.acceptedSuggestions,
-  )}\u00a0${i18n.get("popup_short_accepted")} • ${formatNumber(
-    stats.last7Days.charactersSaved,
-  )}\u00a0${i18n.get("popup_short_chars")} • ${formatNumber(
-    stats.last7Days.estimatedMinutesSaved,
-  )}\u00a0${i18n.get("popup_short_minutes")}`;
+  const periodSummary = `${i18n.get("popup_short_last7")}: ${formatSavingsSummary(
+    stats.last7Days,
+    " • ",
+    "\u00a0",
+  )}`;
 
   (document.getElementById("dashboardPeriodSummary") as HTMLElement).textContent = periodSummary;
   if (renderWeeklyRecapCard(stats)) {
     document.getElementById("dashboardMilestoneHint")?.classList.add("is-hidden");
   } else {
     renderMilestoneHint(stats);
-  }
-}
-
-function clearProductivityDashboardRetryTimer(): void {
-  if (productivityDashboardRetryTimerId !== null) {
-    window.clearTimeout(productivityDashboardRetryTimerId);
-    productivityDashboardRetryTimerId = null;
   }
 }
 
@@ -779,116 +596,59 @@ function renderDashboardUnavailable(): void {
   document.getElementById("dashboardMilestoneHint")?.classList.add("is-hidden");
 }
 
-function cleanupProductivityDashboardLoader(): void {
-  productivityDashboardLoadCancelled = true;
-  clearProductivityDashboardRetryTimer();
-}
-
-async function loadProductivityDashboard(retryAttempt = 0): Promise<void> {
-  if (productivityDashboardLoadCancelled || productivityDashboardLoadCompleted) {
-    return;
+async function loadProductivityDashboard(): Promise<void> {
+  const stats = await sendRuntimeMessageWithRetry(
+    { command: CMD_POPUP_GET_PRODUCTIVITY_STATS, context: {} },
+    isProductivityStats,
+    PRODUCTIVITY_DASHBOARD_RETRY_DELAYS_MS,
+  );
+  if (stats) {
+    renderDashboard(stats);
+  } else {
+    renderDashboardUnavailable();
   }
-  const message: PopupGetProductivityStatsMessage = {
-    command: CMD_POPUP_GET_PRODUCTIVITY_STATS,
-    context: {},
-  };
-  const response = await sendRuntimeMessage<ProductivityDashboardStats | { ok: boolean }>(message);
-  if (productivityDashboardLoadCancelled || productivityDashboardLoadCompleted) {
-    return;
-  }
-
-  if (response && !("ok" in response)) {
-    productivityDashboardLoadCompleted = true;
-    clearProductivityDashboardRetryTimer();
-    renderDashboard(response);
-    return;
-  }
-
-  const retryDelayMs = PRODUCTIVITY_DASHBOARD_RETRY_DELAYS_MS[retryAttempt];
-  if (typeof retryDelayMs === "number") {
-    clearProductivityDashboardRetryTimer();
-    productivityDashboardRetryTimerId = window.setTimeout(() => {
-      productivityDashboardRetryTimerId = null;
-      void loadProductivityDashboard(retryAttempt + 1);
-    }, retryDelayMs);
-    return;
-  }
-
-  productivityDashboardLoadCompleted = true;
-  clearProductivityDashboardRetryTimer();
-  renderDashboardUnavailable();
 }
 
 function init() {
-  syncPopupThemeWithSystem();
-  translateUI();
-  initializeFooterLinks();
+  localizeDocument(["title"]);
   document.getElementById("openStatsOptionsBtn")?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     openOptionsPageAtAnchor(OPTIONS_ANCHOR_ADVANCED);
   });
-  window.document.getElementById("checkboxSiteProfileInput")?.addEventListener("click", () => {
-    void (async () => {
-      const { toggle } = getSiteProfileElements();
-      if (!toggle) {
-        return;
-      }
-      setSiteProfileInputsDisabled(!toggle.checked);
-      await saveSiteProfileFromEditor();
-    })();
+  const siteProfileToggle = getSiteProfileElements().toggle;
+  siteProfileToggle?.addEventListener("click", () => {
+    setSiteProfileInputsDisabled(!siteProfileToggle.checked);
+    void saveSiteProfileFromEditor();
   });
-  [
-    "siteLanguageSelect",
-    "siteNumSuggestionsSelect",
-    "siteInlineModeSelect",
-    "sitePreferNativeAutocompleteSelect",
-    "siteCodeModeSelect",
-  ]
+  SITE_SPECIFIC_CONTROL_IDS.slice(2)
     .map((id) => document.getElementById(id))
     .forEach((element) => {
       element?.addEventListener("change", () => {
-        void (async () => {
-          const { toggle } = getSiteProfileElements();
-          if (!toggle || !toggle.checked) {
-            return;
-          }
-          await saveSiteProfileFromEditor();
-        })();
+        if (siteProfileToggle?.checked) {
+          void saveSiteProfileFromEditor();
+        }
       });
     });
 
-  const browserAPI = (window as Window & { browser?: typeof chrome }).browser || chrome;
-  const permissionBanner = document.getElementById("permissionBanner");
-  const permissionBadge = document.getElementById("permissionBadge");
-  const permissionTitle = document.getElementById("permissionTitle");
-  const permissionBody = document.getElementById("permissionBody");
-  const grantBtn = document.getElementById("grantPermissionBtn");
-  const permissionController =
-    permissionBanner instanceof HTMLElement &&
-    permissionBadge instanceof HTMLElement &&
-    permissionTitle instanceof HTMLElement &&
-    permissionBody instanceof HTMLElement &&
-    grantBtn instanceof HTMLButtonElement
-      ? new WebsiteAccessPermissionController({
-          elements: {
-            root: permissionBanner,
-            badge: permissionBadge,
-            title: permissionTitle,
-            body: permissionBody,
-            action: grantBtn,
-          },
-          onStateChange: async (state) => {
-            currentWebsiteAccessPermissionState = state;
-            if (currentPageState.kind === "actionable") {
-              await loadSiteProfileEditor();
-              await refreshThisSiteSection();
-            }
-          },
-          service: new WebsiteAccessPermissionService(browserAPI),
-          visibleStates: ["missing", "unavailable"],
-        })
-      : null;
+  const permissionController = new WebsiteAccessPermissionController({
+    elements: {
+      root: document.getElementById("permissionBanner") as HTMLElement,
+      badge: document.getElementById("permissionBadge") as HTMLElement,
+      title: document.getElementById("permissionTitle") as HTMLElement,
+      body: document.getElementById("permissionBody") as HTMLElement,
+      action: document.getElementById("grantPermissionBtn") as HTMLButtonElement,
+    },
+    onStateChange: async (state) => {
+      currentWebsiteAccessPermissionState = state;
+      if (currentPageState.kind === "actionable") {
+        await loadSiteProfileEditor();
+        await refreshThisSiteSection();
+      }
+    },
+    service: new WebsiteAccessPermissionService(window.browser || chrome),
+    visibleStates: ["missing", "unavailable"],
+  });
 
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     void (async () => {
@@ -903,25 +663,19 @@ function init() {
         await refreshThisSiteSection();
       }
 
-      const checkboxNode = document.getElementById(
-        "checkboxDomainInput",
-      ) as HTMLInputElement | null;
       const checkboxEnableNode = document.getElementById(
         "checkboxEnableInput",
       ) as HTMLInputElement | null;
-      if (checkboxNode) {
-        checkboxNode.replaceWith(checkboxNode.cloneNode(true));
-      }
-      const nextCheckboxNode = document.getElementById(
+      const checkboxNode = document.getElementById(
         "checkboxDomainInput",
       ) as HTMLInputElement | null;
 
-      if (currentPageState.kind === "actionable" && currentDomainURL && nextCheckboxNode) {
+      if (currentPageState.kind === "actionable" && currentDomainURL && checkboxNode) {
         const activeDomainURL = currentDomainURL;
-        nextCheckboxNode.checked = await isDomainAllowedByPreference(settings, activeDomainURL);
+        checkboxNode.checked = await isDomainAllowedByPreference(settings, activeDomainURL);
         const activeTabId = currentTabId;
         if (activeTabId !== null) {
-          nextCheckboxNode.addEventListener("click", () => {
+          checkboxNode.addEventListener("click", () => {
             void addRemoveDomain(activeTabId, activeDomainURL);
           });
         }
@@ -930,42 +684,25 @@ function init() {
         checkboxEnableNode.checked = await coreSettingsRepository.isEnabled();
       }
 
-      let language = await coreSettingsRepository.getLanguage();
+      const language = await coreSettingsRepository.getLanguage();
       currentEnabledLanguages = await coreSettingsRepository.getEnabledLanguages();
       const select = window.document.getElementById("languageSelect") as HTMLSelectElement;
-      const allowAutoDetect = currentEnabledLanguages.length > 1;
-      const isAutoDetect = language === "auto_detect";
-      const isValidLanguage = currentEnabledLanguages.includes(language);
-      const displayLanguage =
-        isAutoDetect && allowAutoDetect
-          ? "auto_detect"
-          : isValidLanguage
-            ? language
-            : currentEnabledLanguages[0];
+      const displayLanguage = resolvePrimaryLanguage(language, currentEnabledLanguages);
 
-      if (!isValidLanguage && !(isAutoDetect && allowAutoDetect)) {
-        language = displayLanguage;
-        await coreSettingsRepository.setLanguage(language);
+      if (displayLanguage !== language) {
+        await coreSettingsRepository.setLanguage(displayLanguage);
         void notifyConfigChange();
       }
-      if (allowAutoDetect) {
-        select.appendChild(createSelectOption("auto_detect", SUPPORTED_LANGUAGES.auto_detect));
+      if (currentEnabledLanguages.length > 1) {
+        select.appendChild(new Option(SUPPORTED_LANGUAGES.auto_detect, "auto_detect"));
       }
-      for (const langCode of currentEnabledLanguages) {
-        select.appendChild(createSelectOption(langCode, SUPPORTED_LANGUAGES[langCode]));
-      }
+      appendLanguageOptions(select, currentEnabledLanguages);
       select.value = displayLanguage;
-      currentProfileLanguageFallback = getDefaultSiteProfileLanguage(
+      currentProfileLanguageFallback = resolveFallbackLanguage(
         displayLanguage,
         currentEnabledLanguages,
       );
-      if (permissionController) {
-        await permissionController.initialize();
-      } else {
-        currentWebsiteAccessPermissionState = "unavailable";
-        await loadSiteProfileEditor();
-        await refreshThisSiteSection();
-      }
+      await permissionController.initialize();
     })();
   });
   window.document.getElementById("checkboxEnableInput")?.addEventListener("click", () => {
@@ -979,10 +716,6 @@ function init() {
     void chrome.runtime.openOptionsPage();
   });
   setupReviewTextAction();
-
-  productivityDashboardLoadCancelled = false;
-  productivityDashboardLoadCompleted = false;
-  window.addEventListener("unload", cleanupProductivityDashboardLoader, { once: true });
   void loadProductivityDashboard();
 }
 
@@ -1022,7 +755,6 @@ function setupReviewTextAction(): void {
 function setReviewActionVisible(visible: boolean): void {
   const shown = visible && currentTabId !== null;
   document.getElementById("reviewTextAction")?.classList.toggle("is-hidden", !shown);
-  document.getElementById("pageStatePanel")?.classList.toggle("has-action", shown);
 }
 
 async function addRemoveDomain(tabId: number, domainURL: string) {
@@ -1036,7 +768,7 @@ async function addRemoveDomain(tabId: number, domainURL: string) {
   };
   await blockUnBlockDomain(settings, domainURL, !checkboxNode.checked);
   await refreshThisSiteSection();
-  void chrome.tabs.sendMessage(tabId, message);
+  void chrome.tabs.sendMessage(tabId, message).catch(() => undefined);
 }
 
 async function languageChangeEvent() {
@@ -1044,10 +776,7 @@ async function languageChangeEvent() {
 
   await coreSettingsRepository.setLanguage(select.value);
   await notifyConfigChange();
-  currentProfileLanguageFallback = getDefaultSiteProfileLanguage(
-    select.value,
-    currentEnabledLanguages,
-  );
+  currentProfileLanguageFallback = resolveFallbackLanguage(select.value, currentEnabledLanguages);
   await loadSiteProfileEditor();
   await refreshThisSiteSection();
 }
@@ -1063,7 +792,7 @@ async function toggleOnOff() {
   chrome.tabs.query({}, function (tabs) {
     for (const tab of tabs) {
       if (typeof tab.id === "number") {
-        void chrome.tabs.sendMessage(tab.id, message);
+        void chrome.tabs.sendMessage(tab.id, message).catch(() => undefined);
       }
     }
   });

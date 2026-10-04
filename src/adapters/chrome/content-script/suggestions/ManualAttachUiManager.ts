@@ -1,6 +1,7 @@
 import type { FieldEligibility } from "./NativeAutocompleteConflictDetector";
-import { clampColorChannel, relativeLuminance } from "@core/domain/color";
-import { isInDocument } from "@core/application/dom-utils";
+import { parseThemeColor, relativeLuminance } from "@core/domain/color";
+import { clamp } from "@core/domain/guards";
+import { composedParent, isInDocument } from "@core/application/dom-utils";
 
 const BUTTON_SIZE_PX = 18;
 const FIELD_INSET_PX = 8;
@@ -23,13 +24,6 @@ const MANUAL_ATTACH_TOOLTIP = "Click to enable FluentTyper for this field.";
 
 export type ManualAttachTarget = HTMLInputElement | HTMLTextAreaElement | HTMLElement;
 type ManualAttachSurfaceTone = "light" | "dark";
-
-interface RgbaColor {
-  r: number;
-  g: number;
-  b: number;
-  a: number;
-}
 
 interface ParentPositionState {
   count: number;
@@ -463,7 +457,7 @@ export class ManualAttachUiManager {
     const desired = options.isRtl
       ? options.rectStart + FIELD_INSET_PX
       : options.rectStart + options.rectSize - BUTTON_SIZE_PX - FIELD_INSET_PX;
-    return this.clampToRange(desired, minOffset, maxOffset);
+    return clamp(desired, minOffset, maxOffset);
   }
 
   private resolveInlineObstacle(
@@ -523,7 +517,7 @@ export class ManualAttachUiManager {
     for (const candidate of colorSources) {
       const backgroundColor =
         candidate.ownerDocument.defaultView?.getComputedStyle(candidate).backgroundColor;
-      const parsed = this.parseCssColor(backgroundColor);
+      const parsed = backgroundColor ? parseThemeColor(backgroundColor) : null;
       if (parsed && parsed.a > 0.05) {
         return relativeLuminance(parsed) < 0.36 ? "dark" : "light";
       }
@@ -535,24 +529,8 @@ export class ManualAttachUiManager {
 
   private collectAncestorElements(element: ManualAttachTarget): HTMLElement[] {
     const ancestors: HTMLElement[] = [];
-    let current: HTMLElement | null = element;
-    while (current) {
-      const parentElement: HTMLElement | null = current.parentElement;
-      if (this.isHtmlElement(parentElement, current.ownerDocument)) {
-        ancestors.push(parentElement);
-        current = parentElement;
-        continue;
-      }
-      const rootNode = current.getRootNode();
-      if (
-        this.isShadowRoot(rootNode, current.ownerDocument) &&
-        this.isHtmlElement(rootNode.host, current.ownerDocument)
-      ) {
-        ancestors.push(rootNode.host);
-        current = rootNode.host;
-        continue;
-      }
-      current = null;
+    for (let node = composedParent(element); node; node = composedParent(node)) {
+      if (node.nodeType === 1) ancestors.push(node as HTMLElement);
     }
     const body = element.ownerDocument.body;
     if (body && !ancestors.includes(body)) {
@@ -561,54 +539,21 @@ export class ManualAttachUiManager {
     return ancestors;
   }
 
-  private parseCssColor(rawValue: string | undefined): RgbaColor | null {
-    if (!rawValue) {
-      return null;
-    }
-    const value = rawValue.trim().toLowerCase();
-    const rgbMatch = value.match(
-      /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*(\d*\.?\d+))?\s*\)$/,
-    );
-    if (!rgbMatch) {
-      return null;
-    }
-    const r = Number.parseInt(rgbMatch[1], 10);
-    const g = Number.parseInt(rgbMatch[2], 10);
-    const b = Number.parseInt(rgbMatch[3], 10);
-    const a = rgbMatch[4] === undefined ? 1 : Number.parseFloat(rgbMatch[4]);
-    if ([r, g, b, a].some((part) => Number.isNaN(part))) {
-      return null;
-    }
-    return {
-      r: clampColorChannel(r),
-      g: clampColorChannel(g),
-      b: clampColorChannel(b),
-      a: Math.min(Math.max(a, 0), 1),
-    };
-  }
-
   private resolveOffsetTop(height: number, prefersTopInset: boolean): number {
     const maxOffset = Math.max(0, height - BUTTON_SIZE_PX);
     const desired = prefersTopInset ? FIELD_INSET_PX : Math.max(0, (height - BUTTON_SIZE_PX) / 2);
-    return this.clampToRange(desired, 0, maxOffset);
-  }
-
-  private clampToRange(value: number, min: number, max: number): number {
-    if (max <= min) {
-      return min;
-    }
-    return Math.min(Math.max(value, min), max);
+    return clamp(desired, 0, maxOffset);
   }
 
   private resolveMountTarget(element: ManualAttachTarget): ManualAttachMountTarget {
     const { ownerDocument } = element;
     const { parentElement } = element;
-    if (this.isHtmlElement(parentElement, ownerDocument)) {
+    if (parentElement) {
       return { containerParent: parentElement, positioningParent: parentElement };
     }
     const root = element.getRootNode();
-    if (this.isShadowRoot(root, ownerDocument) && this.isHtmlElement(root.host, ownerDocument)) {
-      return { containerParent: root, positioningParent: null };
+    if (root.nodeType === 11 && "host" in root) {
+      return { containerParent: root as ShadowRoot, positioningParent: null };
     }
     return { containerParent: ownerDocument.body, positioningParent: ownerDocument.body };
   }
@@ -672,29 +617,6 @@ export class ManualAttachUiManager {
   private setInlineEndPaddingStyleValue(element: ManualAttachTarget, value: string): void {
     const direction = element.ownerDocument.defaultView?.getComputedStyle(element).direction;
     element.style[direction === "rtl" ? "paddingLeft" : "paddingRight"] = value;
-  }
-
-  private isHtmlElement(node: unknown, ownerDocument: Document): node is HTMLElement {
-    if (!node || typeof node !== "object") {
-      return false;
-    }
-    const candidate = node as Partial<HTMLElement> & {
-      nodeType?: number;
-      ownerDocument?: Document;
-    };
-    return candidate.nodeType === 1 && candidate.ownerDocument === ownerDocument;
-  }
-
-  private isShadowRoot(node: Node, ownerDocument: Document): node is ShadowRoot {
-    const shadowRootConstructor = ownerDocument.defaultView?.ShadowRoot;
-    if (typeof shadowRootConstructor === "function") {
-      return node instanceof shadowRootConstructor;
-    }
-    return (
-      "host" in node &&
-      this.isHtmlElement((node as { host: unknown }).host, ownerDocument) &&
-      node.ownerDocument === ownerDocument
-    );
   }
 }
 

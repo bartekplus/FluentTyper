@@ -1,6 +1,6 @@
 # Runtime Feature Workflows
 
-This guide covers the repo-specific workflows most likely to break runtime behavior if they are changed casually.
+This guide lists the workflows that change runtime behavior.
 
 ## Prediction and Messaging
 
@@ -25,6 +25,7 @@ If you change message shapes:
 - `__FT_DEV_BUILD__`, runtime test hooks and text-bearing predictor debug traces stay development-only; including the Local AI runtime never enables them.
 - `connect-src` allows only `'self'` and the Hugging Face origins in `LOCAL_AI_DOWNLOAD_ORIGINS`; no `blob:` or remote script source is needed (single-threaded WASM, no ORT proxy worker, `env.useWasmCache` false). Check a production build with `bun run check:local-ai:artifact`.
 - Do not make Local AI required for normal operation, and keep Review working when it is unavailable.
+- Code-context detection and per-request capitalization rules are in [automatic code context](../automatic-code-context.md).
 
 ## Text Expansions and Dynamic Variables
 
@@ -53,18 +54,24 @@ When adding a user-facing setting:
 Review mode proofreads an existing field on demand (command `CMD_REVIEW_FT_ACTIVE_TAB`, popup button). See [docs/review-mode.md](../review-mode.md).
 
 - Domain: `src/core/domain/grammar/review/` (pure detection, catalog metadata, bulk planner). Application: `src/core/application/review/ReviewSession.ts`, the `ReviewEngine` port and `LocalReviewEngine`. Adapters and UI: `src/adapters/chrome/content-script/review/`; detection: `src/adapters/chrome/background/ReviewEngineHost.ts`.
-- Detection runs in the background service worker, like predictions: the content script sends `CMD_CONTENT_SCRIPT_REVIEW_ENGINE` (`scan` per pass, `prove` per Fix-all proof round, `live` per typing pause, `explain` after a UI language change, `cancel`, `release`; see `src/core/domain/contracts/reviewEngine.ts`) through `MessagingReviewEngine`. Keep messages coarse (never per detector), keep sessions keyed by sender tab/frame, and keep the content bundle free of detectors: import only the light Review modules there (see [architecture.md](architecture.md)); `bun run build` checks it. Answers carry the returned findings' explanations (`reviewExplanations.ts`) resolved in the page's UI language, once per message key; a UI language change asks for them again (`explain`) before the panel is rebuilt. Tests and pages without a background use `LocalReviewEngine` in process.
+- Detection runs in the background service worker. [Where detection runs](../review-reference.md#architecture) gives the messages, sessions and build check; content-side imports follow [architecture.md](architecture.md). Tests and pages without a background use `LocalReviewEngine` in process.
 - Every catalog rule must be classified in `reviewCatalog.ts`; supported detectors reuse the typing rule's exported patterns and helpers.
 - Review resolves independent `reviewRuleOverrides` through `reviewRuleIds` in `reviewCatalog.ts`; missing choices inherit explicit defaults. Keep typing-time grammar on `enabledGrammarRules`. Native switches never gate dictionary spelling or Local AI; code mode leaves Review no checks. Card disabling stores only validated native IDs and booleans, and config broadcasts invalidate open scans and batch plans.
 - Diagnostics are UTF-16, end-exclusive offsets into one immutable snapshot; writes re-validate the target, text, signature, scope and IME state, then verify by reading back. Never locate a finding by text search.
 - Highlights use CSS Custom Highlights under `fluenttyper-review-*` or an overlay in FluentTyper's shadow root; never mutate the host editor's DOM or clear the whole registry.
-- Sensitive fields (`FieldEligibility.ts`) are refused at every entry point and before writes. ProseMirror and Slate use the verified MAIN-world host transaction bridge for individual and batch edits; other model-backed editors without a verified writer are review-only.
-- Typing-time proposals (`liveGrammarProposals`, default on) reuse Review detection through `review/liveProposals.ts`, run in the background (`live`); selection (`liveProposalSelection.ts`) stays pure and on the page: the suggestion session offers one unseen finding per pause as the popup's last row, never preselected, only if the text before the caret is unchanged when the answer lands, and applies it only after re-detecting the same key in that unchanged text, as a `strict` grammar edit. Never auto-apply a proposal or let it take the default Tab/Enter accept.
-- Reviewed text is ephemeral: never log, persist or send it anywhere but the extension's own background (detection, dictionary lookups, Local AI), which keeps it only for the open session. "Add to dictionary" goes through the existing settings path (`CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY`).
+- Sensitive fields (`FieldEligibility.ts`) are refused at every entry point and before writes. Quill, ProseMirror, Slate and Word use verified host transactions; other model-backed editors without a verified writer are review-only.
+- Typing-time proposals (`liveGrammarProposals`, default on):
+  - They reuse Review detection through `review/liveProposals.ts` and run in the background (`live`).
+  - Selection (`liveProposalSelection.ts`) stays pure and runs on the page.
+  - The suggestion session offers one unseen finding per pause, as the last row of the popup. The row is never preselected.
+  - The session shows the finding only if the text before the caret did not change when the answer arrives.
+  - The session applies the finding only after it detects the same key again in that unchanged text. It applies the finding as a `strict` grammar edit.
+  - Never apply a proposal automatically. Never let a proposal take the default Tab/Enter accept.
+- Reviewed text is ephemeral: never log, persist or send it anywhere but the extension's own background (detection, dictionary lookups, Local AI), which keeps it only for the open session. "Add to dictionary" goes through the settings path (`CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY`).
 
 ## Word for the web
 
-- `WordReviewMainWorld.ts` uses the live editor's named `WordEditor.Extension.AutomationUtility.getDocument()` API in the existing MAIN-world script; `WordReviewTarget.ts` connects it to Review. This is an internal Word API, so missing methods or unexpected story separators fail closed. Do not replace it with rendered-page DOM writes.
+- `WordReviewMainWorld.ts` uses the live editor's named `WordEditor.Extension.AutomationUtility.getDocument()` API in the MAIN-world script; `WordReviewTarget.ts` connects it to Review. This is an internal Word API, so missing methods or unexpected story separators fail closed. Do not replace it with rendered-page DOM writes.
 - The selected range's `parentBody` binds the active story, up to 200,000 characters / 10,000 paragraphs. Paragraph `uniqueLocalId`, protection and tracking mode form the snapshot signature. Paragraph offsets accumulate verified consecutive paragraph-start ranges, so each snapshot reads native text linearly; selection offsets use a body-start-to-selection-start range, never text search. Gaps between paragraphs are protected, and parent content-control null objects are recognized only when `isNullObject === true`. Single-use tokens and exact before/after reads guard all paragraph `getSubrange(offset, length).insertText(text, 4)` replacements. Every range is validated before any write, descending offsets preserve earlier ranges, and one `AutomationTransaction.dispose()` commits the batch before a fresh model verifies it. The host owns formatting and single-step Undo. Track Changes writes remain refused.
 - Inline marks and finding navigation reuse Review's overlay through verified DOM ranges. Word's synthetic tab runs count as one character and paragraph marks are ignored. Only a complete ordered model/DOM text match establishes offsets; missing or ambiguous rendering returns no geometry, never a guessed text occurrence. DOM mutations invalidate the map; the adapter never writes to rendered pages. Header/footer geometry additionally requires the host's `WordEditor.Extension.BodyType` reverse enum to identify `Header` or `Footer`; opaque nonzero body types never select a header just because text matches. Missing enum metadata disables header/footer geometry. A replaced story box is rebound only while the native selection still matches the retained body.
 - Toolbar controls and Word input/clipboard proxies are excluded from generic typing assistance. Explicit Review resolves the document model from the focused editor proxy. The bridge retains that originating proxy and revalidates its read-only/disabled state, including ARIA ancestors, before each read or write. Visibility is checked on the visible editor container; accessibility-hidden input proxy plumbing does not make the native model read-only. The synchronous session startup can consume the selection snapshot once, after an eligibility/identity probe; that reuse expires at the next microtask and is cleared before source checks or writes. A missing selected-range `parentBody` is unsupported and never falls back to the main document. Page events expose no extension APIs and do not add permissions or external requests.
@@ -81,7 +88,7 @@ Review mode proofreads an existing field on demand (command `CMD_REVIEW_FT_ACTIV
 
 - Production logging should stay minimal, typically warn and error only.
 - Do not log full user text content.
-- Guard extra debug logging behind development mode or the existing logging level controls.
+- Guard extra debug logging behind development mode or the logging level controls.
 
 ## Google Docs
 

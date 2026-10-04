@@ -135,13 +135,14 @@ describe("MutationScheduler", () => {
     const rafSpy = jest.spyOn(window, "requestAnimationFrame");
     const setTimeoutSpy = jest
       .spyOn(window, "setTimeout")
-      .mockImplementation((handler: TimerHandler): number => {
+      // The cast drops the Node-only __promisify__ member of setTimeout.
+      .mockImplementation(((handler: TimerHandler): number => {
         timerIdCounter += 1;
         if (typeof handler === "function") {
           timeoutCallbacks.set(timerIdCounter, handler as TimerCallback);
         }
         return timerIdCounter;
-      });
+      }) as typeof setTimeout);
 
     const scheduler = new MutationScheduler(16, onReady);
     const firstMutation = createMutation(document.createElement("div"));

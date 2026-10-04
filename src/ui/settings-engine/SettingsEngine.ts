@@ -1,7 +1,6 @@
 import type { FieldConfig, ManifestDefinition, TabConfig } from "./types.js";
-import type { FieldControl } from "./controls/FieldControl.js";
+import type { BaseControl } from "./controls/FieldControl.js";
 import { Store } from "@core/application/storage/Store.js";
-import { TabManager } from "./layout/TabManager.js";
 
 import { CheckboxControl } from "./controls/CheckboxControl.js";
 import { SliderControl } from "./controls/SliderControl.js";
@@ -10,8 +9,9 @@ import { ButtonControl } from "./controls/ButtonControl.js";
 import { DescriptionControl } from "./controls/DescriptionControl.js";
 import { ValueOnlyControl } from "./controls/ValueOnlyControl.js";
 import { CustomPanelControl } from "./controls/CustomPanelControl.js";
+import { createElement } from "./dom/createElement.js";
 
-export type SettingsRegistry = Record<string, FieldControl>;
+export type SettingsRegistry = Record<string, BaseControl<unknown>>;
 
 interface SettingsEngineOptions {
   container: {
@@ -21,12 +21,12 @@ interface SettingsEngineOptions {
     searchInput?: HTMLInputElement | null;
   };
   store?: Store;
-  name?: string;
-  icon?: string;
 }
 
 export class SettingsEngine {
-  private readonly tabManager: TabManager;
+  private readonly tabContainer: HTMLElement;
+  private readonly contentContainer: HTMLElement;
+  private activeTabId: string | null = null;
   readonly store: Store;
   private readonly mobileTabs?: HTMLSelectElement | null;
   private readonly searchInput?: HTMLInputElement | null;
@@ -34,34 +34,20 @@ export class SettingsEngine {
   private readonly tabs: Record<
     string,
     {
-      bundle: ReturnType<TabManager["create"]>;
+      tabLi: HTMLLIElement;
       content: HTMLElement;
       body: HTMLElement;
       groups: Record<string, HTMLElement>;
-      meta?: TabConfig;
+      meta: TabConfig;
     }
   > = {};
 
-  private tabMetaMap: Record<string, TabConfig> = {};
-
   constructor(options: SettingsEngineOptions) {
-    this.tabManager = new TabManager(options.container.tabs, options.container.content);
+    this.tabContainer = options.container.tabs;
+    this.contentContainer = options.container.content;
     this.store = options.store ?? new Store("settings");
     this.mobileTabs = options.container.mobileTabs;
     this.searchInput = options.container.searchInput;
-
-    if (options.name) {
-      const titleEl = document.getElementById("title");
-      if (titleEl) {
-        (titleEl as HTMLTitleElement).text = options.name;
-      }
-    }
-    if (options.icon) {
-      const faviconEl = document.getElementById("favicon") as HTMLLinkElement | null;
-      if (faviconEl) {
-        faviconEl.href = options.icon;
-      }
-    }
 
     window.addEventListener("hashchange", () => {
       this.activateTabById(location.hash.substring(1));
@@ -79,15 +65,11 @@ export class SettingsEngine {
   buildFromManifest(manifest: ManifestDefinition): SettingsRegistry {
     const registry: SettingsRegistry = {};
 
-    this.tabMetaMap = {};
-    for (const tab of manifest.tabs) {
-      this.tabMetaMap[tab.id] = tab;
-    }
     // Navigation follows the manifest's tab order, not the order settings first mention a tab.
     for (const tab of manifest.tabs) {
-      this.getOrCreateTab(tab.id);
+      this.getOrCreateTab(tab.id, tab);
     }
-    this.populateMobileTabs(manifest.tabs);
+    this.mobileTabs?.replaceChildren(...manifest.tabs.map((tab) => new Option(tab.label, tab.id)));
 
     for (const params of manifest.settings) {
       const control = this.createControl(params);
@@ -107,9 +89,8 @@ export class SettingsEngine {
   }
 
   private activateTabById(tabId: string): void {
-    const tab = this.tabs[tabId];
-    if (tab) {
-      tab.bundle.activate();
+    if (tabId in this.tabs) {
+      this.setTabActive(tabId);
       if (this.mobileTabs) {
         this.mobileTabs.value = tabId;
       }
@@ -117,49 +98,68 @@ export class SettingsEngine {
     }
   }
 
-  private getOrCreateTab(tabId: string): HTMLElement {
-    if (!(tabId in this.tabs)) {
-      const meta = this.tabMetaMap[tabId] ?? { id: tabId, label: tabId };
-      const bundle = this.tabManager.create(meta);
+  private setTabActive(tabId: string): void {
+    for (const [id, tab] of Object.entries(this.tabs)) {
+      const active = id === tabId;
+      tab.tabLi.classList.toggle("is-active", active);
+      tab.content.classList.toggle("is-active", active);
+      tab.content.classList.toggle("is-hidden", !active);
+    }
+    this.activeTabId = tabId;
+  }
 
-      bundle.tabA.addEventListener("click", (event) => {
+  private getOrCreateTab(
+    tabId: string,
+    meta: TabConfig = { id: tabId, label: tabId },
+  ): HTMLElement {
+    if (!(tabId in this.tabs)) {
+      const tabA = createElement("a", {
+        className: "settings-nav-link",
+        textContent: meta.label,
+        attributes: { href: `#${meta.id}` },
+      });
+      const tabLi = document.createElement("li");
+      tabLi.appendChild(tabA);
+      const content = createElement("div", {
+        className: "content-tab is-hidden",
+        id: tabId,
+        attributes: { "data-tab-id": tabId },
+      });
+      this.tabContainer.appendChild(tabLi);
+      this.contentContainer.appendChild(content);
+
+      tabA.addEventListener("click", (event) => {
         event.preventDefault();
         this.activateTabById(tabId);
         history.replaceState(null, "", `#${tabId}`);
       });
 
-      bundle.content.id = tabId;
-      bundle.content.setAttribute("data-tab-id", tabId);
-      bundle.content.setAttribute(
-        "data-tab-search",
-        [meta.label, meta.title, meta.shortDescription, ...(meta.keywords || [])]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase(),
+      const header = createElement("header", { className: "settings-section-header" });
+      header.appendChild(
+        createElement("h2", {
+          className: "settings-section-title",
+          textContent: meta.label,
+        }),
       );
 
-      const header = document.createElement("header");
-      header.className = "settings-section-header";
-
-      const title = document.createElement("h2");
-      title.className = "settings-section-title";
-      title.textContent = meta.title ?? meta.label;
-      header.appendChild(title);
-
       if (meta.shortDescription) {
-        const description = document.createElement("p");
-        description.className = "settings-section-description";
-        description.textContent = meta.shortDescription;
-        header.appendChild(description);
+        header.appendChild(
+          createElement("p", {
+            className: "settings-section-description",
+            textContent: meta.shortDescription,
+          }),
+        );
       }
 
-      const body = document.createElement("div");
-      body.className = "settings-section-body";
+      const body = createElement("div", { className: "settings-section-body" });
 
-      bundle.content.appendChild(header);
-      bundle.content.appendChild(body);
+      content.appendChild(header);
+      content.appendChild(body);
 
-      this.tabs[tabId] = { bundle, content: bundle.content, body, groups: {}, meta };
+      this.tabs[tabId] = { tabLi, content, body, groups: {}, meta };
+      if (this.activeTabId === null) {
+        this.setTabActive(tabId);
+      }
     }
     return this.tabs[tabId].body;
   }
@@ -169,34 +169,24 @@ export class SettingsEngine {
     const tab = this.tabs[tabId];
 
     if (!(groupLabel in tab.groups)) {
-      tab.groups[groupLabel] = this.createGroup(tabContent, groupLabel || tab.meta?.label || tabId);
+      const header = createElement("div", { className: "settings-group-header" });
+      header.appendChild(
+        createElement("h3", {
+          className: "settings-group-title divider",
+          textContent: groupLabel || tab.meta.label,
+        }),
+      );
+      const body = createElement("div", { className: "settings-group-body" });
+      const group = createElement("section", { className: "settings-group" });
+      group.append(header, body);
+      tabContent.appendChild(group);
+      tab.groups[groupLabel] = body;
     }
 
     return tab.groups[groupLabel];
   }
 
-  private createGroup(tabContent: HTMLElement, label: string): HTMLDivElement {
-    const groupDiv = document.createElement("section");
-    groupDiv.className = "settings-group";
-
-    const header = document.createElement("div");
-    header.className = "settings-group-header";
-    const title = document.createElement("h3");
-    title.className = "settings-group-title divider";
-    title.textContent = label;
-    header.appendChild(title);
-    groupDiv.appendChild(header);
-
-    const body = document.createElement("div");
-    body.className = "settings-group-body";
-    groupDiv.appendChild(body);
-
-    tabContent.appendChild(groupDiv);
-
-    return body;
-  }
-
-  private createControl(params: FieldConfig): FieldControl {
+  private createControl(params: FieldConfig): BaseControl<unknown> {
     const control = this.instantiateControl(params);
     if (params.type === "valueOnly") {
       return control;
@@ -210,7 +200,7 @@ export class SettingsEngine {
     return control;
   }
 
-  private instantiateControl(params: FieldConfig): FieldControl {
+  private instantiateControl(params: FieldConfig): BaseControl<unknown> {
     switch (params.type) {
       case "checkbox":
         return new CheckboxControl(params, this.store);
@@ -233,26 +223,14 @@ export class SettingsEngine {
     }
   }
 
-  private populateMobileTabs(tabs: TabConfig[]): void {
-    if (!this.mobileTabs) {
-      return;
-    }
-    this.mobileTabs.replaceChildren();
-    tabs.forEach((tab) => {
-      const option = document.createElement("option");
-      option.value = tab.id;
-      option.textContent = tab.label;
-      this.mobileTabs?.appendChild(option);
-    });
-  }
-
   private applySearch(rawQuery: string): void {
     const query = rawQuery.trim().toLowerCase();
     let firstVisibleTabId: string | null = null;
-    let firstMatchTarget: HTMLElement | null = null;
+    const firstMatchByTab: Record<string, HTMLElement> = {};
 
     Object.entries(this.tabs).forEach(([tabId, tab]) => {
       let tabMatches = !query;
+      let firstMatchTarget: HTMLElement | null = null;
 
       Object.entries(tab.groups).forEach(([groupLabel, groupContent]) => {
         const groupRoot = groupContent.closest<HTMLElement>(".settings-group");
@@ -292,12 +270,7 @@ export class SettingsEngine {
         }
       });
 
-      const tabText = [
-        tab.meta?.label,
-        tab.meta?.title,
-        tab.meta?.shortDescription,
-        ...(tab.meta?.keywords || []),
-      ]
+      const tabText = [tab.meta.label, tab.meta.shortDescription, ...(tab.meta.keywords || [])]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -314,16 +287,15 @@ export class SettingsEngine {
         }
       }
 
-      tab.bundle.tabLi.classList.toggle("is-search-hidden", !tabMatches);
+      if (firstMatchTarget) firstMatchByTab[tabId] = firstMatchTarget;
+      tab.tabLi.classList.toggle("is-search-hidden", !tabMatches);
       tab.content.classList.toggle("is-search-filtered-out", !tabMatches);
       if (tabMatches && !firstVisibleTabId) {
         firstVisibleTabId = tabId;
       }
     });
 
-    const activeTabId = Object.entries(this.tabs).find(([, tab]) =>
-      tab.bundle.tabLi.classList.contains("is-active"),
-    )?.[0];
+    const activeTabId = this.activeTabId;
     if (
       firstVisibleTabId &&
       (!activeTabId || this.tabs[activeTabId].content.classList.contains("is-search-filtered-out"))
@@ -340,7 +312,7 @@ export class SettingsEngine {
       });
     }
 
-    const matchTarget = firstMatchTarget as HTMLElement | null;
+    const matchTarget = this.activeTabId ? firstMatchByTab[this.activeTabId] : undefined;
     if (query && matchTarget) {
       matchTarget.scrollIntoView({
         block: "start",
@@ -350,8 +322,8 @@ export class SettingsEngine {
     }
   }
 
-  private buildFieldSearchText(params: FieldConfig): string {
-    const fragments: string[] = [params.tab, params.group];
+  private buildFieldSearchText(params: Exclude<FieldConfig, { type: "valueOnly" }>): string {
+    const fragments: string[] = [params.group];
     if ("label" in params && typeof params.label === "string") {
       fragments.push(params.label);
     }
@@ -373,23 +345,8 @@ export class SettingsEngine {
     if (contentRoot instanceof HTMLElement) {
       contentRoot.scrollTop = 0;
       contentRoot.scrollLeft = 0;
-      contentRoot.scrollTo?.(0, 0);
-    }
-
-    const scrollingElement = document.scrollingElement;
-    if (scrollingElement) {
-      scrollingElement.scrollTop = 0;
-      scrollingElement.scrollLeft = 0;
     }
     document.documentElement.scrollTop = 0;
     document.documentElement.scrollLeft = 0;
-    if (document.body) {
-      document.body.scrollTop = 0;
-      document.body.scrollLeft = 0;
-    }
-    const userAgent = navigator.userAgent.toLowerCase();
-    if (!userAgent.includes("jsdom")) {
-      window.scrollTo?.(0, 0);
-    }
   }
 }

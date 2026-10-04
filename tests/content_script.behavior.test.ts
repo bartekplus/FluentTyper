@@ -28,7 +28,11 @@ type SuggestionLike = {
   fulfillPrediction: jest.Mock;
   handleEarlyTabAcceptRequest: jest.Mock;
   autocompleteSeparator?: RegExp;
-  options?: { enabledGrammarRules?: string[] };
+  options?: {
+    enabledGrammarRules?: string[];
+    grammarProposalRules?: string[];
+    getPrediction?: (context: Record<string, unknown>) => void;
+  };
 };
 
 type DomObserverLike = {
@@ -48,9 +52,7 @@ type LoadedContentScript = {
       message: { command: string; context?: Record<string, unknown> } | null,
       sendResponse?: (response: unknown) => void,
     ) => void;
-    processMutations: (mutations: MutationRecord[]) => void;
     watchDog: () => void;
-    checkHostName: () => boolean;
     setConfig: (config: Record<string, unknown>) => void;
     getConfig: () => void;
     enable: () => void;
@@ -97,11 +99,11 @@ const behaviorHarness = {
   sendMessage: jest.fn(),
 };
 
-jest.unstable_mockModule("../src/core/application/transport-utils", () => ({
+mock.module("../src/core/application/transport-utils", () => ({
   checkLastError: (...args: []) => behaviorHarness.checkLastError(...args),
 }));
 
-jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
+mock.module("../src/core/application/dom-utils", () => ({
   isInDocument: (element: Element) => {
     let root = element.getRootNode();
     while (root !== document && "host" in root) {
@@ -112,27 +114,24 @@ jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
   getDeepActiveElement: (doc: Document) => doc.activeElement,
 }));
 
-jest.unstable_mockModule(
-  "../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime",
-  () => ({
-    SuggestionManagerRuntime: jest.fn().mockImplementation((options: SuggestionLike["options"]) => {
-      const instance: SuggestionLike = {
-        options,
-        queryAndAttachHelper: jest.fn(() => false),
-        detachAllHelpers: jest.fn(),
-        removeHelpersNotInDocument: jest.fn(),
-        updateLangConfig: jest.fn(),
-        triggerActiveSuggestion: jest.fn(),
-        fulfillPrediction: jest.fn(),
-        handleEarlyTabAcceptRequest: jest.fn(() => false),
-      };
-      behaviorHarness.suggestionInstances.push(instance);
-      return instance;
-    }),
+mock.module("../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime", () => ({
+  SuggestionManagerRuntime: jest.fn().mockImplementation((options: SuggestionLike["options"]) => {
+    const instance: SuggestionLike = {
+      options,
+      queryAndAttachHelper: jest.fn(() => false),
+      detachAllHelpers: jest.fn(),
+      removeHelpersNotInDocument: jest.fn(),
+      updateLangConfig: jest.fn(),
+      triggerActiveSuggestion: jest.fn(),
+      fulfillPrediction: jest.fn(),
+      handleEarlyTabAcceptRequest: jest.fn(() => false),
+    };
+    behaviorHarness.suggestionInstances.push(instance);
+    return instance;
   }),
-);
+}));
 
-jest.unstable_mockModule("../src/adapters/chrome/content-script/DomObserver", () => ({
+mock.module("../src/adapters/chrome/content-script/DomObserver", () => ({
   DomObserver: jest.fn().mockImplementation((initialNode: unknown) => {
     let currentNode = initialNode as Node;
     const instance: DomObserverLike = {
@@ -147,6 +146,23 @@ jest.unstable_mockModule("../src/adapters/chrome/content-script/DomObserver", ()
     return instance;
   }),
 }));
+
+// The runtime and host watcher behind the facade; only these tests reach them.
+function processMutations(fluentTyper: object, mutations: MutationRecord[]): void {
+  (
+    fluentTyper as { runtimeController: { processMutations(mutations: MutationRecord[]): void } }
+  ).runtimeController.processMutations(mutations);
+}
+
+function hostWatcher(fluentTyper: object): { hostName: string; checkHostName(): boolean } {
+  return (fluentTyper as { hostChangeWatcher: { hostName: string; checkHostName(): boolean } })
+    .hostChangeWatcher;
+}
+
+/** A prediction request as the coordinator sends it, through the runtime's callback. */
+function requestPrediction(manager: SuggestionLike, context: Record<string, unknown>): void {
+  manager.options!.getPrediction!({ traceId: "trace-1", traceStartedAtMs: Date.now(), ...context });
+}
 
 async function loadContentScript(): Promise<LoadedContentScript> {
   jest.clearAllMocks();
@@ -187,7 +203,6 @@ describe("content_script behavior", () => {
       fluentTyper.destroy();
     }
     behaviorHarness.fluentTyperInstances.length = 0;
-    document.body.innerHTML = "";
   });
 
   afterAll(() => {
@@ -272,7 +287,7 @@ describe("content_script behavior", () => {
     document.documentElement.lang = "fr-FR";
     const suggestionManager = suggestionInstances[0];
 
-    fluentTyper.handleGetPrediction({
+    requestPrediction(suggestionManager, {
       text: "hel",
       nextChar: "",
       suggestionId: 3,
@@ -316,11 +331,11 @@ describe("content_script behavior", () => {
   });
 
   test("handleGetPrediction forwards inputAction metadata", async () => {
-    const { fluentTyper, sendMessage } = await loadContentScript();
+    const { fluentTyper, suggestionInstances, sendMessage } = await loadContentScript();
     fluentTyper.enable();
     document.documentElement.lang = "de";
 
-    fluentTyper.handleGetPrediction({
+    requestPrediction(suggestionInstances[0], {
       text: "Hello.",
       nextChar: "",
       afterCursorTokenSuffix: "world",
@@ -350,7 +365,7 @@ describe("content_script behavior", () => {
     fluentTyper.enable();
     const suggestionManager = suggestionInstances[0];
 
-    fluentTyper.handleGetPrediction({
+    requestPrediction(suggestionManager, {
       text: "h",
       nextChar: "",
       suggestionId: 3,
@@ -363,7 +378,7 @@ describe("content_script behavior", () => {
 
     sendMessage.mockClear();
     suggestionManager.fulfillPrediction.mockImplementationOnce(() => {
-      fluentTyper.handleGetPrediction({
+      requestPrediction(suggestionManager, {
         text: "H",
         nextChar: "",
         suggestionId: 3,
@@ -407,7 +422,7 @@ describe("content_script behavior", () => {
     fluentTyper.enabled = true;
 
     const firstManager = suggestionInstances[0];
-    fluentTyper.handleGetPrediction({
+    requestPrediction(firstManager, {
       text: "old",
       nextChar: "",
       suggestionId: 1,
@@ -419,14 +434,14 @@ describe("content_script behavior", () => {
     expect(typeof firstGeneration).toBe("number");
 
     fluentTyper.restart();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Bun.sleep(1);
 
     expect(suggestionInstances.length).toBeGreaterThanOrEqual(2);
     const restartedManager = suggestionInstances[suggestionInstances.length - 1];
     expect(restartedManager).not.toBe(firstManager);
 
     sendMessage.mockClear();
-    fluentTyper.handleGetPrediction({
+    requestPrediction(restartedManager, {
       text: "new",
       nextChar: "",
       suggestionId: 1,
@@ -486,7 +501,7 @@ describe("content_script behavior", () => {
     expect(initialManager.detachAllHelpers).toHaveBeenCalledTimes(1);
     expect(domObserver.disconnect).toHaveBeenCalledTimes(1);
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Bun.sleep(1);
 
     expect(suggestionInstances).toHaveLength(2);
     const restartedManager = suggestionInstances[1];
@@ -541,7 +556,7 @@ describe("content_script behavior", () => {
 
     fluentTyper.setConfig(defaultConfig({ enabledGrammarRules, codeMode: true }));
     // The runtime restarts on a timer once it is already enabled.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Bun.sleep(1);
     expect(suggestionInstances.at(-1)?.options?.enabledGrammarRules).toEqual(["autoBracketClose"]);
   });
 
@@ -554,16 +569,16 @@ describe("content_script behavior", () => {
 
     const overrides = { englishCountability: false };
     fluentTyper.setConfig(defaultConfig({ reviewRuleOverrides: overrides }));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Bun.sleep(1);
     expect(proposalRules()).toEqual(reviewRuleIds({ codeMode: false, overrides }));
     expect(proposalRules()).not.toContain("englishCountability");
 
     fluentTyper.setConfig(defaultConfig({ liveGrammarProposals: false }));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Bun.sleep(1);
     expect(proposalRules()).toEqual([]);
 
     fluentTyper.setConfig(defaultConfig({ enabledGrammarRules: [], codeMode: true }));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Bun.sleep(1);
     expect(proposalRules()).toEqual([]);
   });
 
@@ -764,7 +779,7 @@ describe("content_script behavior", () => {
     document.body.appendChild(addedElement);
     document.body.appendChild(attrTarget);
 
-    fluentTyper.processMutations([
+    processMutations(fluentTyper, [
       {
         type: "childList",
         addedNodes: [addedElement] as unknown as NodeList,
@@ -803,7 +818,7 @@ describe("content_script behavior", () => {
     parent.appendChild(child);
     document.body.appendChild(parent);
 
-    fluentTyper.processMutations([
+    processMutations(fluentTyper, [
       {
         type: "childList",
         addedNodes: [parent] as unknown as NodeList,
@@ -841,7 +856,7 @@ describe("content_script behavior", () => {
       } as unknown as MutationRecord;
     });
 
-    fluentTyper.processMutations(largeBatch);
+    processMutations(fluentTyper, largeBatch);
 
     expect(suggestionManager.queryAndAttachHelper).toHaveBeenCalledTimes(1);
     expect(suggestionManager.queryAndAttachHelper).toHaveBeenCalledWith();
@@ -853,11 +868,11 @@ describe("content_script behavior", () => {
     const restartSpy = jest.spyOn(fluentTyper, "restart");
     const getConfigSpy = jest.spyOn(fluentTyper, "getConfig");
 
-    (fluentTyper as unknown as { hostName: string }).hostName = "example.com";
-    expect(fluentTyper.checkHostName()).toBe(true);
+    hostWatcher(fluentTyper).hostName = "example.com";
+    expect(hostWatcher(fluentTyper).checkHostName()).toBe(true);
     expect(getConfigSpy).toHaveBeenCalled();
 
-    (fluentTyper as unknown as { hostName: string }).hostName = window.location.hostname;
+    hostWatcher(fluentTyper).hostName = window.location.hostname;
     domObserver.getNode.mockReturnValue(document.createElement("div"));
     fluentTyper.enabled = true;
     fluentTyper.watchDog();
@@ -872,7 +887,7 @@ describe("content_script behavior", () => {
     const domObserver = domObserverInstances[0];
     const getConfigSpy = jest.spyOn(fluentTyper, "getConfig");
 
-    (fluentTyper as unknown as { hostName: string }).hostName = "example.com";
+    hostWatcher(fluentTyper).hostName = "example.com";
     domObserver.getNode.mockReturnValue(document.createElement("div"));
     fluentTyper.enabled = true;
     domObserver.setNode.mockClear();
@@ -930,5 +945,77 @@ describe("content_script behavior", () => {
     fluentTyper.messageHandler({ command: "UNKNOWN_COMMAND", context: {} });
 
     expect(errorSpy).toHaveBeenCalled();
+  });
+
+  describe("watchdog scheduling", () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    });
+
+    test("does not start a 1-second polling interval", async () => {
+      const setIntervalSpy = jest.spyOn(global, "setInterval");
+
+      await loadContentScript();
+
+      expect(setIntervalSpy).not.toHaveBeenCalled();
+    });
+
+    test("debounces watchdog checks when multiple lifecycle events fire", async () => {
+      const { fluentTyper } = await loadContentScript();
+      fluentTyper.enabled = true;
+      const watchDogSpy = jest.spyOn(fluentTyper, "watchDog");
+      const clearTimeoutSpy = jest.spyOn(global, "clearTimeout");
+
+      // Consume initial startup scheduling.
+      jest.advanceTimersByTime(250);
+      watchDogSpy.mockClear();
+
+      window.dispatchEvent(new Event("pageshow"));
+      window.dispatchEvent(new Event("popstate"));
+      window.dispatchEvent(new Event("hashchange"));
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      jest.advanceTimersByTime(249);
+      expect(watchDogSpy).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(1);
+      expect(watchDogSpy).toHaveBeenCalledTimes(1);
+    });
+
+    test("runs watchdog after document visibility change", async () => {
+      const { fluentTyper } = await loadContentScript();
+      fluentTyper.enabled = true;
+      const watchDogSpy = jest.spyOn(fluentTyper, "watchDog");
+
+      // Consume initial startup scheduling.
+      jest.advanceTimersByTime(250);
+      watchDogSpy.mockClear();
+
+      document.dispatchEvent(new Event("visibilitychange"));
+      jest.advanceTimersByTime(250);
+
+      expect(watchDogSpy).toHaveBeenCalledTimes(1);
+    });
+
+    test("FT-INV-3 disabled runtime schedules no watchdog work", async () => {
+      const { fluentTyper } = await loadContentScript();
+      const watchDog = jest.spyOn(fluentTyper, "watchDog");
+      for (const type of ["focus", "pageshow", "popstate"]) window.dispatchEvent(new Event(type));
+      jest.advanceTimersByTime(1000);
+      expect(watchDog).not.toHaveBeenCalled();
+      fluentTyper.enabled = true;
+      jest.advanceTimersByTime(250);
+      watchDog.mockClear();
+      fluentTyper.enabled = false;
+      window.dispatchEvent(new Event("focus"));
+      document.dispatchEvent(new Event("visibilitychange"));
+      jest.advanceTimersByTime(1000);
+      expect(watchDog).not.toHaveBeenCalled();
+    });
   });
 });

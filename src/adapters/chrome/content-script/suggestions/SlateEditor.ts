@@ -1,5 +1,4 @@
 import type { ReviewApplyResult, ReviewTargetText } from "@core/application/review/ReviewSession";
-import type { ReviewEdit } from "@core/domain/grammar/review/types";
 import { applyEdits } from "@core/domain/grammar/review/textRanges";
 import {
   buildContentEditableTextMap,
@@ -7,8 +6,13 @@ import {
 } from "../review/ContentEditableTextMap";
 import { formattingPreservingEdits } from "../review/RichTextFormatting";
 import { isHiddenField, isLockedField, isSensitiveField } from "./FieldEligibility";
-import type { LineEditorBlockContext } from "./HostEditorControllerUtils";
+import { isValidBlockReplacement, type LineEditorBlockContext } from "./HostEditorControllerUtils";
 import type { HostEditorApplyResult } from "./HostEditorAdapterResolver";
+import {
+  NOT_APPLIED,
+  type HostEditorBlockReplacement,
+  type HostEditorReviewApplyRequest,
+} from "./HostEditorBridgeProtocol";
 
 /* Slate keeps its editor in React state only. The nearest `<Slate editor>` (or its
  * EditorContext provider) above the editable root is found through React's fiber
@@ -318,7 +322,7 @@ function applyLeafEdits(
 
 export function applySlate(
   root: HTMLElement,
-  request: { edits: ReviewEdit[]; before: string; after: string; signature: string },
+  request: HostEditorReviewApplyRequest,
 ): ReviewApplyResult {
   const snapshot = readSlate(root);
   const state = synced(root);
@@ -422,32 +426,15 @@ export function slateBlockContext(root: HTMLElement): LineEditorBlockContext | n
 
 export function replaceSlateBlock(
   root: HTMLElement,
-  request: {
-    replaceStart: number;
-    replaceEnd: number;
-    replacementText: string;
-    cursorAfter: number;
-    expectedBlockText: string;
-  },
+  request: HostEditorBlockReplacement,
 ): HostEditorApplyResult {
-  const refused = { applied: false, didDispatchInput: false };
   const block = selectionBlock(root);
   if (
     !block ||
     block.blockText !== request.expectedBlockText ||
-    !Number.isSafeInteger(request.replaceStart) ||
-    !Number.isSafeInteger(request.replaceEnd) ||
-    !Number.isSafeInteger(request.cursorAfter) ||
-    request.replaceStart < 0 ||
-    request.replaceEnd < request.replaceStart ||
-    request.replaceEnd > block.blockText.length ||
-    request.cursorAfter < 0 ||
-    request.cursorAfter >
-      block.blockText.length -
-        (request.replaceEnd - request.replaceStart) +
-        request.replacementText.length
+    !isValidBlockReplacement(block.blockText, request)
   )
-    return refused;
+    return NOT_APPLIED;
   const { editor, leaves, blockPath, first, count } = block;
   const collapsed = request.replaceStart === request.replaceEnd;
   const start = blockPoint(
@@ -458,7 +445,7 @@ export function replaceSlateBlock(
     collapsed ? "before" : "after",
   );
   const end = collapsed ? start : blockPoint(leaves, first, count, request.replaceEnd, "before");
-  if (!start || !end) return refused;
+  if (!start || !end) return NOT_APPLIED;
   const result = applyLeafEdits(
     editor,
     leaves,
@@ -475,6 +462,6 @@ export function replaceSlateBlock(
   return result === "applied"
     ? { applied: true, didDispatchInput: false }
     : result === "unverified"
-      ? { ...refused, unverified: true }
-      : refused;
+      ? { ...NOT_APPLIED, unverified: true }
+      : NOT_APPLIED;
 }

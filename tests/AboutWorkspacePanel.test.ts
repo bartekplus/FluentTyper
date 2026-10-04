@@ -1,5 +1,4 @@
-import "./setup";
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import {
   renderAboutWorkspacePanel,
   renderSupportWorkspacePanel,
@@ -9,10 +8,6 @@ import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 describe("AboutWorkspacePanel", () => {
   beforeEach(() => {
     i18n.lang = "en";
-  });
-
-  afterEach(() => {
-    document.body.replaceChildren();
   });
 
   test("renders a dedicated support card with a clearly labeled external link", () => {

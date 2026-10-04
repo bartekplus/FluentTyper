@@ -1,7 +1,3 @@
-function isMacPlatform(platform = getNavigatorPlatform()): boolean {
-  return /mac/i.test(platform);
-}
-
 export function isNativeUndoChord(
   event: Pick<
     KeyboardEvent,
@@ -16,7 +12,7 @@ export function isNativeUndoChord(
     return false;
   }
 
-  if (isMacPlatform(platform)) {
+  if (/mac/i.test(platform)) {
     return event.metaKey && !event.ctrlKey;
   }
 

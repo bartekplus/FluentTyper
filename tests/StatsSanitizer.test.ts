@@ -1,12 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { DonationPromptPolicy } from "../src/core/domain/productivityStats/DonationPromptPolicy";
-import { RecapPolicy } from "../src/core/domain/productivityStats/RecapPolicy";
-import { StatsAggregator } from "../src/core/domain/productivityStats/StatsAggregator";
-import { StatsSanitizer } from "../src/core/domain/productivityStats/StatsSanitizer";
+import * as policy from "../src/core/domain/productivityStats/DonationPromptPolicy";
+import * as recap from "../src/core/domain/productivityStats/RecapPolicy";
+import * as aggregator from "../src/core/domain/productivityStats/StatsAggregator";
+import * as sanitizer from "../src/core/domain/productivityStats/StatsSanitizer";
 
 describe("StatsSanitizer", () => {
-  const sanitizer = new StatsSanitizer();
-
   test("snippet usage accepts bare counts and drops all-zero or invalid entries", () => {
     expect(
       sanitizer.sanitizeSnippetUsageMap({
@@ -50,9 +48,6 @@ describe("StatsSanitizer", () => {
 });
 
 describe("StatsAggregator", () => {
-  const sanitizer = new StatsSanitizer();
-  const aggregator = new StatsAggregator(sanitizer);
-
   test("top snippets sort by minutes saved, then count, then name", () => {
     const top = aggregator.getTopSnippets(
       {
@@ -76,7 +71,7 @@ describe("StatsAggregator", () => {
   });
 
   test("pruneDailyBuckets drops the oldest keys beyond the cap", () => {
-    const daily: Record<string, ReturnType<StatsSanitizer["createDailyState"]>> = {};
+    const daily: Record<string, ReturnType<typeof sanitizer.createDailyState>> = {};
     for (let index = 0; index < 402; index += 1) {
       const date = sanitizer.addDays(new Date(2020, 0, 1), index);
       daily[sanitizer.toLocalDateKey(date)] = sanitizer.createDailyState();
@@ -85,6 +80,21 @@ describe("StatsAggregator", () => {
     const keys = Object.keys(daily).sort();
     expect(keys).toHaveLength(400);
     expect(keys[0]).toBe("2020-01-03");
+  });
+
+  // Past the highest milestone (25 h), each 5 hours is a step.
+  test.each([
+    [0.5, 0, 1, 50],
+    [10, 10, 25, 0],
+    [26, 25, 30, 20],
+    [30, 30, 35, 0],
+    [32.5, 30, 35, 50],
+  ])("milestone progress at %p h is %p h -> %p h, %p percent", (hours, previous, next, pct) => {
+    expect(aggregator.getMilestoneProgress(hours * 60)).toMatchObject({
+      previousMilestoneHours: previous,
+      nextMilestoneHours: next,
+      progressPct: pct,
+    });
   });
 
   test("aggregateRange sums counters and usage maps across the range", () => {
@@ -110,10 +120,6 @@ describe("StatsAggregator", () => {
 });
 
 describe("DonationPromptPolicy", () => {
-  const sanitizer = new StatsSanitizer();
-  const policy = new DonationPromptPolicy(sanitizer);
-  const recap = new RecapPolicy(sanitizer, new StatsAggregator(sanitizer));
-
   test.each([1, 5, 25])("offers each reached milestone once (%i hours)", (hours) => {
     const state = {
       ...sanitizer.createDefaultStatsState(),
@@ -125,7 +131,10 @@ describe("DonationPromptPolicy", () => {
       charactersSaved: 0,
       estimatedMinutesSaved: hours * 60,
     };
-    const weeklyRecap = recap.summarizeWeek({}, new Date(2026, 0, 5));
+    const weeklyRecap = recap.summarizeWeek(
+      sanitizer.createDefaultStatsState(),
+      new Date(2026, 0, 5),
+    );
     const now = new Date(2026, 0, 12);
     expect(policy.toDonationPrompt(state, lifetime, now, weeklyRecap, false)?.milestoneHours).toBe(
       hours,
@@ -143,7 +152,10 @@ describe("DonationPromptPolicy", () => {
       charactersSaved: 2000,
       estimatedMinutesSaved: 1500,
     };
-    const weeklyRecap = recap.summarizeWeek({}, new Date(2026, 0, 5));
+    const weeklyRecap = recap.summarizeWeek(
+      sanitizer.createDefaultStatsState(),
+      new Date(2026, 0, 5),
+    );
     const now = new Date(2026, 0, 12);
     policy.applyAction(state, "first_value", "dismiss", null, now);
     const reloaded = sanitizer.sanitizeStatsState(state);
@@ -162,7 +174,7 @@ describe("DonationPromptPolicy", () => {
   test("weekly recap reveals only after the reveal hour on Monday", () => {
     const state = sanitizer.createDefaultStatsState();
     const weeklyRecap = {
-      ...recap.summarizeWeek({}, new Date(2026, 0, 5)),
+      ...recap.summarizeWeek(sanitizer.createDefaultStatsState(), new Date(2026, 0, 5)),
       acceptedSuggestions: 1,
     };
     expect(recap.shouldShowWeeklyRecap(state, weeklyRecap, new Date(2026, 0, 12, 7, 59))).toBe(

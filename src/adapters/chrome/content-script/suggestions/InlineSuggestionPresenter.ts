@@ -2,36 +2,31 @@ import { stripIgnoredWordChars } from "@core/domain/lang";
 import { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { InlineSuggestionView } from "./InlineSuggestionView";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
-import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
+import { TextTargetAdapter } from "./TextTargetAdapter";
 import type { SuggestionEntry } from "./types";
 
 interface InlineSuggestionPresenterOptions {
   positioningService?: SuggestionPositioningService;
-  doc?: Document;
 }
 
 export class InlineSuggestionPresenter {
   private readonly positioningService: SuggestionPositioningService;
-  private readonly doc: Document;
   private readonly contentEditableAdapter = new ContentEditableAdapter();
-  private activeGhost: HTMLDivElement | null = null;
   private activeEntryId: number | null = null;
   private removalObserver: MutationObserver | null = null;
   private pendingRerender: (() => void) | null = null;
 
   constructor(options: InlineSuggestionPresenterOptions = {}) {
     this.positioningService = options.positioningService ?? new SuggestionPositioningService();
-    this.doc = options.doc ?? document;
   }
 
   public clearForEntry(entryId: number): void {
     if (this.activeEntryId === entryId) {
       this.stopObservingRemoval();
-      this.activeGhost = null;
       this.activeEntryId = null;
       this.pendingRerender = null;
     }
-    InlineSuggestionView.removeForEntry(entryId, this.doc);
+    InlineSuggestionView.removeForEntry(entryId, document);
   }
 
   // An unrendered suggestion must not stay armed for Tab acceptance.
@@ -108,21 +103,19 @@ export class InlineSuggestionPresenter {
         target: entry.elem,
         token: mentionText,
         suffix,
-        doc: this.doc,
       });
     // Acceptance consumes the trailing word chars under the caret, so hide
     // them in the preview to match the post-acceptance rendering.
     const trailingTokenText = isMidText ? (resolveTrailingToken?.(snapshot.afterCursor) ?? "") : "";
 
     let ghost: HTMLDivElement | null;
-    if (useMirror && TextTargetAdapter.isTextValue(entry.elem as TextTarget)) {
+    if (useMirror && TextTargetAdapter.isTextValue(entry.elem)) {
       ghost = InlineSuggestionView.renderMirrorPreview({
-        target: entry.elem as HTMLInputElement | HTMLTextAreaElement,
+        target: entry.elem,
         suffix,
         cursorOffset: snapshot.beforeCursor.length,
         trailingTokenText,
         entryId: entry.id,
-        doc: this.doc,
       });
     } else if (useMirror && !isReplacement) {
       ghost = InlineSuggestionView.renderContentEditableMirrorPreview({
@@ -130,7 +123,6 @@ export class InlineSuggestionPresenter {
         suffix,
         trailingTokenText,
         entryId: entry.id,
-        doc: this.doc,
       });
     } else if (isReplacement && isMidText) {
       // ponytail: no mid-text contenteditable replacement preview (the clone
@@ -143,7 +135,6 @@ export class InlineSuggestionPresenter {
         text: suffix,
         caretRect,
         entryId: entry.id,
-        doc: this.doc,
       });
     }
     if (ghost === null) {
@@ -151,16 +142,14 @@ export class InlineSuggestionPresenter {
       return;
     }
 
-    this.activeGhost = ghost;
     this.activeEntryId = entry.id;
     this.pendingRerender = () =>
       this.renderForEntry({ enabled, entry, resolveMentionToken, resolveTrailingToken });
-    this.observeGhostRemoval();
+    this.observeGhostRemoval(ghost);
   }
 
-  private observeGhostRemoval(): void {
+  private observeGhostRemoval(ghost: HTMLDivElement | null): void {
     this.stopObservingRemoval();
-    const ghost = this.activeGhost;
     const root = ghost?.parentNode;
     if (!ghost || !root) {
       return;
@@ -174,7 +163,6 @@ export class InlineSuggestionPresenter {
       // Re-render on next microtask so the DOM has settled.
       const rerender = this.pendingRerender;
       if (rerender) {
-        this.activeGhost = null;
         void Promise.resolve().then(() => rerender());
       }
     });

@@ -1,5 +1,9 @@
-import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
-import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
+import {
+  applyWordCase,
+  detectWordCase,
+  wordKey as plainWordKey,
+} from "../implementations/helpers/GenericRuleShared";
+import { namedExampleBefore, quotedSpan } from "./exampleCues";
 import {
   CLOSED_COMPOUNDS,
   NAME_CASING,
@@ -18,7 +22,7 @@ import { capitalizedName } from "./french/frenchTokens";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
 import { analyze as analyzeNoun } from "./portuguese/nounAgreement";
 import { PORTUGUESE_DE_PHRASE_TAIL } from "./portuguese/phrases";
-import { EDGE, SPACE, isLang } from "./phraseTemplates";
+import { EDGE, isLang, ownedMatches, SPACE, TOKEN_END } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { finding } from "./finding";
 
@@ -42,7 +46,7 @@ const WORD = /[\p{L}\p{N}][\p{L}\p{M}\p{N}]*(?:['’][\p{L}\p{N}][\p{L}\p{M}\p{N
 // Arabic harakat, shadda, sukun, the dagger alif and the tatweel: optional in writing.
 const HARAKAT = "[\\u064B-\\u065F\\u0670\\u0640]";
 const stripHarakat = (word: string) => word.replace(new RegExp(HARAKAT, "gu"), "");
-const wordKey = (word: string) => stripHarakat(word.toLowerCase().replace(/’/g, "'"));
+const wordKey = (word: string) => stripHarakat(plainWordKey(word));
 /** A row's second word, when the text's next word must equal it for the row to match. */
 function secondKey(form: string): string | null {
   const [first, second] = form.split(" ");
@@ -77,7 +81,7 @@ const WORD_STARTS = new Map(
     ),
   ]),
 );
-const WORD_ENDS = new RegExp(`(?!${EDGE}|\\.[\\p{L}\\p{N}])`, "iuy");
+const WORD_ENDS = new RegExp(TOKEN_END, "iuy");
 // Arabic "و" (and) and "ف" (so) are written onto the next word: "وقال", "فإن".
 WORD_STARTS.set(
   "ar",
@@ -280,12 +284,7 @@ export function phraseCorrections(ctx: DetectContext): RawFinding[] {
   if (!INDEX.size) return [];
   const findings: RawFinding[] = [];
   const words = new RegExp(WORD);
-  words.lastIndex = ctx.from;
-  for (
-    let word = words.exec(ctx.scanText);
-    word && word.index < ctx.to;
-    word = words.exec(ctx.scanText)
-  ) {
+  for (const word of ownedMatches(ctx, words)) {
     // A French word may also start after its elided article: "l'" + "addresse".
     const elided = isLang(ctx, "fr")
       ? (FRENCH_ELIDED.exec(word[0])?.[0].length ?? 0)
@@ -337,12 +336,11 @@ function toFinding(
       ? ctx.text[at + (quote === "«" ? -1 : 1)] === quote
       : false;
   if (
-    (OPENING_QUOTES.includes(ctx.text[start - 1] || "\n") &&
-      /["”'’“‘»«›‹]/.test(ctx.text[end] ?? "")) ||
-    (spaced(start - 1, "«") && spaced(end, "»"))
+    quotedSpan(ctx.text, start, end) ||
+    (spaced(start - 1, "«") && spaced(end, "»")) ||
+    namedExampleBefore(ctx.text, start)
   )
     return null;
-  if (namedExampleBefore(ctx.text, start)) return null;
   // French "Mary Quant, Quant on": a capitalized word inside a sentence is a name.
   if (isLang(ctx, "fr") && capitalizedName(ctx.text, start, typed)) return null;
   // "de Fernando Asín": a one-word lowercase row typed capitalized right after a capitalized word

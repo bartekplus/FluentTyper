@@ -2,33 +2,39 @@ import { afterEach, describe, expect, jest, test } from "bun:test";
 import { InlineSuggestionPresenter } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionPresenter";
 import { InlineSuggestionView } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionView";
 import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
-import { createRect, createSuggestionEntry } from "./suggestionTestUtils";
+import { createEditor, setCaret, setCaretAtTextOffset } from "./codeContextTestUtils";
+import { createRect, createSuggestionEntry, findLastWord } from "./suggestionTestUtils";
 
 function setupInputPresenter({
   value,
   suggestion,
   token = value,
+  cursor = value.length,
+  tag = "input",
   direction,
   getCaretRect = () => createRect(),
+  resolveTrailingToken,
 }: {
   value: string;
   suggestion: string;
   token?: string;
+  cursor?: number;
+  tag?: "input" | "textarea";
   direction?: "ltr" | "rtl";
   getCaretRect?: () => DOMRect | null;
+  resolveTrailingToken?: (afterCursor: string) => string;
 }) {
   const positioning = {
     getCaretRect: jest.fn(getCaretRect),
   } as unknown as SuggestionPositioningService;
   const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
-  const input = document.createElement("input");
+  const input = document.createElement(tag);
   if (direction) {
     input.style.direction = direction;
   }
   document.body.appendChild(input);
   input.value = value;
-  input.selectionStart = value.length;
-  input.selectionEnd = value.length;
+  input.setSelectionRange(cursor, cursor);
   const entry = createSuggestionEntry({
     elem: input,
     inlineSuggestion: suggestion,
@@ -38,7 +44,8 @@ function setupInputPresenter({
     presenter.renderForEntry({
       enabled: true,
       entry,
-      resolveMentionToken: () => ({ token, start: value.length - token.length }),
+      resolveMentionToken: () => ({ token, start: cursor - token.length }),
+      resolveTrailingToken,
     });
   return { entry, render, presenter };
 }
@@ -46,40 +53,26 @@ function setupInputPresenter({
 describe("InlineSuggestionPresenter", () => {
   afterEach(() => {
     jest.restoreAllMocks();
-    InlineSuggestionView.removeAll(document);
-    document.body.replaceChildren();
+    InlineSuggestionView.removeForEntry(undefined, document);
   });
 
   test("renders inline suffix for matching suggestion", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
+    const mirrorPreviewSpy = jest
+      .spyOn(InlineSuggestionView, "renderMirrorPreview")
+      .mockImplementation(() => document.createElement("div"));
     const removeForEntrySpy = jest
       .spyOn(InlineSuggestionView, "removeForEntry")
       .mockImplementation(() => undefined);
-    const positioning = {
-      getCaretRect: jest.fn(() => createRect()),
-    } as unknown as SuggestionPositioningService;
-    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
+    const { render } = setupInputPresenter({ value: "fun", suggestion: "function" });
 
-    const input = document.createElement("input");
-    input.value = "fun";
-    input.selectionStart = 3;
-    input.selectionEnd = 3;
-    const entry = createSuggestionEntry({
-      elem: input,
-      inlineSuggestion: "function",
-      latestMentionText: "fun",
-    });
-
-    presenter.renderForEntry({
-      enabled: true,
-      entry,
-      resolveMentionToken: () => ({ token: "fun", start: 0 }),
-    });
+    render();
 
     expect(renderSpy).toHaveBeenCalledTimes(1);
     expect(renderSpy.mock.calls[0]?.[0].text).toBe("ction");
+    expect(mirrorPreviewSpy).not.toHaveBeenCalled();
     expect(removeForEntrySpy).not.toHaveBeenCalled();
   });
 
@@ -143,16 +136,8 @@ describe("InlineSuggestionPresenter", () => {
         getCaretRect: () => createRect(),
       } as unknown as SuggestionPositioningService,
     });
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    container.textContent = "ok brb";
-    document.body.appendChild(container);
-    const range = document.createRange();
-    range.setStart(container.firstChild!, 6);
-    range.collapse(true);
-    window.getSelection()!.removeAllRanges();
-    window.getSelection()!.addRange(range);
+    const container = createEditor("ok brb");
+    setCaret(container.firstChild!);
     const entry = createSuggestionEntry({
       elem: container,
       inlineSuggestion: "be right back ",
@@ -177,16 +162,8 @@ describe("InlineSuggestionPresenter", () => {
         getCaretRect: () => createRect(),
       } as unknown as SuggestionPositioningService,
     });
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    container.textContent = "brb later";
-    document.body.appendChild(container);
-    const range = document.createRange();
-    range.setStart(container.firstChild!, 3);
-    range.collapse(true);
-    window.getSelection()!.removeAllRanges();
-    window.getSelection()!.addRange(range);
+    const container = createEditor("brb later");
+    setCaret(container.firstChild!, 3);
     const entry = createSuggestionEntry({
       elem: container,
       inlineSuggestion: "be right back ",
@@ -221,28 +198,16 @@ describe("InlineSuggestionPresenter", () => {
         getCaretRect: () => createRect(),
       } as unknown as SuggestionPositioningService,
     });
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    container.innerHTML = html;
-    document.body.appendChild(container);
+    const container = createEditor(html);
     const block = caretBlock === "first" ? container.firstChild! : container.lastChild!;
-    const range = document.createRange();
-    range.setStart(block.firstChild!, caretOffset);
-    range.collapse(true);
-    window.getSelection()!.removeAllRanges();
-    window.getSelection()!.addRange(range);
+    setCaret(block.firstChild!, caretOffset);
     const entry = createSuggestionEntry({
       elem: container,
       inlineSuggestion: suggestion,
       inlineSuggestionToken: token,
       latestMentionText: token,
     });
-    const findMentionToken = (beforeCursor: string) => {
-      const match = /\S*$/.exec(beforeCursor)!;
-      return { token: match[0], start: match.index };
-    };
-    presenter.renderForEntry({ enabled: true, entry, resolveMentionToken: findMentionToken });
+    presenter.renderForEntry({ enabled: true, entry, resolveMentionToken: findLastWord });
     return entry;
   }
 
@@ -276,7 +241,7 @@ describe("InlineSuggestionPresenter", () => {
   test("drops the accept target when the caret cannot be measured", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const { entry, render } = setupInputPresenter({
       value: "fun",
       suggestion: "function",
@@ -293,7 +258,7 @@ describe("InlineSuggestionPresenter", () => {
   test("keeps an exact-match suggestion armed without rendering a ghost", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const { entry, render } = setupInputPresenter({ value: "function", suggestion: "function" });
 
     render();
@@ -307,9 +272,6 @@ describe("InlineSuggestionPresenter", () => {
     const removeForEntrySpy = jest
       .spyOn(InlineSuggestionView, "removeForEntry")
       .mockImplementation(() => undefined);
-    const removeAllSpy = jest
-      .spyOn(InlineSuggestionView, "removeAll")
-      .mockImplementation(() => undefined);
     const positioning = {
       getCaretRect: jest.fn(() => createRect()),
     } as unknown as SuggestionPositioningService;
@@ -318,36 +280,23 @@ describe("InlineSuggestionPresenter", () => {
     presenter.clearForEntry(42);
 
     expect(removeForEntrySpy).toHaveBeenCalledWith(42, expect.anything());
-    expect(removeAllSpy).not.toHaveBeenCalled();
   });
 
   test("uses renderMirrorPreview for input mid-text", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const mirrorPreviewSpy = jest
       .spyOn(InlineSuggestionView, "renderMirrorPreview")
-      .mockImplementation(() => undefined);
-    const positioning = {
-      getCaretRect: jest.fn(() => createRect()),
-    } as unknown as SuggestionPositioningService;
-    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
-
-    const input = document.createElement("input");
-    input.value = "highest stand with Spell Checker";
-    input.selectionStart = 14;
-    input.selectionEnd = 14;
-    const entry = createSuggestionEntry({
-      elem: input,
-      inlineSuggestion: "standards",
-      latestMentionText: "stand",
+      .mockImplementation(() => document.createElement("div"));
+    const { render } = setupInputPresenter({
+      value: "highest stand with Spell Checker",
+      suggestion: "standards",
+      token: "stand",
+      cursor: 14,
     });
 
-    presenter.renderForEntry({
-      enabled: true,
-      entry,
-      resolveMentionToken: () => ({ token: "stand", start: 8 }),
-    });
+    render();
 
     expect(renderSpy).not.toHaveBeenCalled();
     expect(mirrorPreviewSpy).toHaveBeenCalledTimes(1);
@@ -358,32 +307,20 @@ describe("InlineSuggestionPresenter", () => {
   test("uses renderContentEditableMirrorPreview for contenteditable mid-text", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const mirrorPreviewSpy = jest
       .spyOn(InlineSuggestionView, "renderMirrorPreview")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const ceMirrorSpy = jest
       .spyOn(InlineSuggestionView, "renderContentEditableMirrorPreview")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const positioning = {
       getCaretRect: jest.fn(() => createRect()),
     } as unknown as SuggestionPositioningService;
     const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
 
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    container.textContent = "highest stand with Spell Checker";
-    document.body.appendChild(container);
-
-    // Set up selection mid-text
-    const textNode = container.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, 14);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    const container = createEditor("highest stand with Spell Checker");
+    setCaretAtTextOffset(container, 14);
 
     const entry = createSuggestionEntry({
       elem: container,
@@ -401,61 +338,35 @@ describe("InlineSuggestionPresenter", () => {
     expect(mirrorPreviewSpy).not.toHaveBeenCalled();
     expect(ceMirrorSpy).toHaveBeenCalledTimes(1);
     expect(ceMirrorSpy.mock.calls[0]?.[0].suffix).toBe("ards");
-
-    container.remove();
   });
 
   test("passes trailingTokenText from resolveTrailingToken into mid-text previews", () => {
     const mirrorPreviewSpy = jest
       .spyOn(InlineSuggestionView, "renderMirrorPreview")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const ceMirrorSpy = jest
       .spyOn(InlineSuggestionView, "renderContentEditableMirrorPreview")
-      .mockImplementation(() => undefined);
-    const positioning = {
-      getCaretRect: jest.fn(() => createRect()),
-    } as unknown as SuggestionPositioningService;
-    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
+      .mockImplementation(() => document.createElement("div"));
+    const resolveTrailingToken = (afterCursor: string) => afterCursor.match(/^\S+/)?.[0] ?? "";
 
     // Input mid-text: cursor at "Thr|e dog…" — trailing token is "e".
-    const input = document.createElement("input");
-    input.value = "Thre dog walked the street";
-    input.selectionStart = 3;
-    input.selectionEnd = 3;
-    const inputEntry = createSuggestionEntry({
-      elem: input,
-      inlineSuggestion: "Three",
-      latestMentionText: "Thr",
+    const { render, presenter } = setupInputPresenter({
+      value: "Thre dog walked the street",
+      suggestion: "Three",
+      token: "Thr",
+      cursor: 3,
+      resolveTrailingToken,
     });
 
-    presenter.renderForEntry({
-      enabled: true,
-      entry: inputEntry,
-      resolveMentionToken: () => ({ token: "Thr", start: 0 }),
-      resolveTrailingToken: (afterCursor) => {
-        const match = afterCursor.match(/^\S+/);
-        return match?.[0] ?? "";
-      },
-    });
+    render();
 
     expect(mirrorPreviewSpy).toHaveBeenCalledTimes(1);
     expect(mirrorPreviewSpy.mock.calls[0]?.[0].suffix).toBe("ee");
     expect(mirrorPreviewSpy.mock.calls[0]?.[0].trailingTokenText).toBe("e");
 
     // Contenteditable mid-text: same expectation for the CE preview path.
-    const container = document.createElement("div");
-    container.contentEditable = "true";
-    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
-    container.textContent = "Thre dog walked the street";
-    document.body.appendChild(container);
-
-    const textNode = container.firstChild!;
-    const range = document.createRange();
-    range.setStart(textNode, 3);
-    range.collapse(true);
-    const sel = window.getSelection()!;
-    sel.removeAllRanges();
-    sel.addRange(range);
+    const container = createEditor("Thre dog walked the street");
+    setCaretAtTextOffset(container, 3);
 
     const ceEntry = createSuggestionEntry({
       elem: container,
@@ -467,58 +378,21 @@ describe("InlineSuggestionPresenter", () => {
       enabled: true,
       entry: ceEntry,
       resolveMentionToken: () => ({ token: "Thr", start: 0 }),
-      resolveTrailingToken: (afterCursor) => {
-        const match = afterCursor.match(/^\S+/);
-        return match?.[0] ?? "";
-      },
+      resolveTrailingToken,
     });
 
     expect(ceMirrorSpy).toHaveBeenCalledTimes(1);
     expect(ceMirrorSpy.mock.calls[0]?.[0].suffix).toBe("ee");
     expect(ceMirrorSpy.mock.calls[0]?.[0].trailingTokenText).toBe("e");
-
-    container.remove();
-  });
-
-  test("uses standard render when caret is at end of text", () => {
-    const renderSpy = jest
-      .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
-    const mirrorPreviewSpy = jest
-      .spyOn(InlineSuggestionView, "renderMirrorPreview")
-      .mockImplementation(() => undefined);
-    const positioning = {
-      getCaretRect: jest.fn(() => createRect()),
-    } as unknown as SuggestionPositioningService;
-    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
-
-    const input = document.createElement("input");
-    input.value = "fun";
-    input.selectionStart = 3;
-    input.selectionEnd = 3;
-    const entry = createSuggestionEntry({
-      elem: input,
-      inlineSuggestion: "function",
-      latestMentionText: "fun",
-    });
-
-    presenter.renderForEntry({
-      enabled: true,
-      entry,
-      resolveMentionToken: () => ({ token: "fun", start: 0 }),
-    });
-
-    expect(renderSpy).toHaveBeenCalledTimes(1);
-    expect(mirrorPreviewSpy).not.toHaveBeenCalled();
   });
 
   test("uses the mirror preview when an RTL completion ends an LTR input (floating ghost cannot place it)", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const mirrorPreviewSpy = jest
       .spyOn(InlineSuggestionView, "renderMirrorPreview")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const { render } = setupInputPresenter({ value: "الي", suggestion: "اليوم" });
 
     render();
@@ -531,44 +405,28 @@ describe("InlineSuggestionPresenter", () => {
   test("uses the floating ghost for an RTL completion in an RTL textarea", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const mirrorPreviewSpy = jest
       .spyOn(InlineSuggestionView, "renderMirrorPreview")
-      .mockImplementation(() => undefined);
-    const positioning = {
-      getCaretRect: jest.fn(() => createRect()),
-    } as unknown as SuggestionPositioningService;
-    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
-
-    const textarea = document.createElement("textarea");
-    textarea.dir = "rtl";
-    textarea.style.direction = "rtl";
-    document.body.appendChild(textarea);
-    textarea.value = "של";
-    textarea.selectionStart = 2;
-    textarea.selectionEnd = 2;
-    const entry = createSuggestionEntry({
-      elem: textarea,
-      inlineSuggestion: "שלום",
-      latestMentionText: "של",
+      .mockImplementation(() => document.createElement("div"));
+    const { render } = setupInputPresenter({
+      value: "של",
+      suggestion: "שלום",
+      tag: "textarea",
+      direction: "rtl",
     });
 
-    presenter.renderForEntry({
-      enabled: true,
-      entry,
-      resolveMentionToken: () => ({ token: "של", start: 0 }),
-    });
+    render();
 
     expect(mirrorPreviewSpy).not.toHaveBeenCalled();
     expect(renderSpy).toHaveBeenCalledTimes(1);
     expect(renderSpy.mock.calls[0]?.[0].text).toBe("ום");
-    textarea.remove();
   });
 
   test("ignores Arabic tatweel in the typed word when matching the suggestion", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
+      .mockImplementation(() => document.createElement("div"));
     const { render } = setupInputPresenter({
       value: "كتـــا",
       suggestion: "كتاب",
@@ -582,26 +440,9 @@ describe("InlineSuggestionPresenter", () => {
   });
 
   test("re-renders ghost when externally removed from DOM", async () => {
-    const positioning = {
-      getCaretRect: jest.fn(() => createRect()),
-    } as unknown as SuggestionPositioningService;
-    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
+    const { render } = setupInputPresenter({ value: "he", suggestion: "hello" });
 
-    const input = document.createElement("input");
-    input.value = "he";
-    input.selectionStart = 2;
-    input.selectionEnd = 2;
-    const entry = createSuggestionEntry({
-      elem: input,
-      inlineSuggestion: "hello",
-      latestMentionText: "he",
-    });
-
-    presenter.renderForEntry({
-      enabled: true,
-      entry,
-      resolveMentionToken: () => ({ token: "he", start: 0 }),
-    });
+    render();
 
     const ghostsBefore = document.querySelectorAll(`.${InlineSuggestionView.CLASS_NAME}`);
     expect(ghostsBefore.length).toBe(1);

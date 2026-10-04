@@ -1,23 +1,23 @@
 import { expect, test } from "bun:test";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
-import { normalizeGrammarRuleSelection } from "../../src/core/domain/grammar/ruleCatalog";
+import {
+  normalizeGrammarRuleSelection,
+  TYPING_RULE_IDS,
+} from "../../src/core/domain/grammar/ruleCatalog";
 import { resolveGrammarRuleSelection } from "../../src/core/domain/grammar/GrammarRuleSettings";
-import type { ReviewSourceSnapshot } from "../../src/core/domain/grammar/review/types";
-import { scan } from "./reviewHarness";
+import type {
+  ReviewOptions,
+  ReviewSourceSnapshot,
+} from "../../src/core/domain/grammar/review/types";
+import { expectOneRepair, review } from "./grammarTestUtils";
 
 const ruleId = "englishRepeatedWords";
-function review(
+const scan = (
   text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-  dictionary: string[] = [],
-  lang = "en_US",
-) {
-  return scan(text, { lang, userDictionary: dictionary, snapshot: extra }).filter(
-    (d) => d.ruleId === ruleId,
-  );
-}
+  extra?: Partial<ReviewSourceSnapshot>,
+  options?: Partial<ReviewOptions>,
+) => review(text, extra, options).diagnostics.filter((d) => d.ruleId === ruleId);
 
 const positives = [
   ["I opened the the report.", "I opened the report."],
@@ -43,17 +43,10 @@ const positives = [
   ["It looks as as good as new.", "It looks as good as new."],
 ];
 test.each(positives)("repairs %s", (source, expected) => {
-  const findings = review(source);
-  expect(findings).toHaveLength(1);
-  const d = findings[0];
-  expect(d.original).toBe(source.slice(d.range.start, d.range.end));
-  expect(d.context.start).toBeLessThanOrEqual(d.range.start);
-  expect(d.context.end).toBeGreaterThanOrEqual(d.range.end);
+  const d = expectOneRepair(scan(source), source, expected, scan);
   expect(d.bulk).toEqual({ eligible: false, reason: "rule-not-batch-approved" });
   expect(d.alternatives[0].edits).toHaveLength(1);
   expect(d.alternatives[0].edits[0].replacement).toBe("");
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(review(expected)).toEqual([]);
 });
 
 const negatives = [
@@ -101,32 +94,32 @@ const negatives = [
   "This is the form we refer to to check totals.",
   "The file being pointed to to load is missing.",
 ];
-test.each(negatives)("preserves %s", (text) => expect(review(text)).toEqual([]));
+test.each(negatives)("preserves %s", (text) => expect(scan(text)).toEqual([]));
 
 test("one bounded repair per run, rechecking after each deletion", () => {
   let text = "the the the the report";
   for (let i = 0; i < 3; i++) {
-    const findings = review(text);
+    const findings = scan(text);
     expect(findings).toHaveLength(1);
     text = applyEdits(text, findings[0].alternatives[0].edits)!;
   }
   expect(text).toBe("the report");
-  expect(review(text)).toEqual([]);
+  expect(scan(text)).toEqual([]);
 });
 
 test("protects dictionary, scope, language and editor islands", () => {
   const text = "Read the the report.";
-  expect(review(text, {}, ["THE"])).toEqual([]);
-  expect(review(text, {}, [], "fr_FR")).toEqual([]);
-  expect(review(text, { scope: { start: 9, end: text.length } })).toEqual([]);
-  expect(review(text, { scope: { start: 0, end: 10 } })).toEqual([]);
-  expect(review(text, { protectedRanges: [{ start: 9, end: 12, reason: "code" }] })).toEqual([]);
-  expect(review(text, { scope: { start: 5, end: 12 } })).toHaveLength(1);
+  expect(scan(text, {}, { userDictionary: ["THE"] })).toEqual([]);
+  expect(scan(text, {}, { lang: "fr_FR" })).toEqual([]);
+  expect(scan(text, { scope: { start: 9, end: text.length } })).toEqual([]);
+  expect(scan(text, { scope: { start: 0, end: 10 } })).toEqual([]);
+  expect(scan(text, { protectedRanges: [{ start: 9, end: 12, reason: "code" }] })).toEqual([]);
+  expect(scan(text, { scope: { start: 5, end: 12 } })).toHaveLength(1);
 });
 
 test("chunk ownership and emoji offsets stay exact", () => {
   const text = "😀 " + "word ".repeat(799) + "the the the the report";
-  const findings = review(text);
+  const findings = scan(text);
   expect(findings).toHaveLength(1);
   expect(findings[0].range.start).toBe(text.indexOf("the"));
   expect(applyEdits(text, findings[0].alternatives[0].edits)).toBe(text.replace("the the", "the"));
@@ -137,12 +130,7 @@ test("Review-only rules cannot enter typing runtime or stored typing choices", (
   expect(reviewRuleIds({ codeMode: true })).not.toContain(ruleId);
   expect(normalizeGrammarRuleSelection([ruleId])).toEqual([]);
   expect(resolveGrammarRuleSelection({ [ruleId]: true })).not.toContain(ruleId);
-  expect(
-    createGrammarRuleCatalogRuntime({
-      insertSpaceAfterAutocomplete: true,
-      userDictionaryList: [],
-    }).map((r) => r.id),
-  ).not.toContain(ruleId);
+  expect(TYPING_RULE_IDS as readonly string[]).not.toContain(ruleId);
 });
 
 test.each([
@@ -170,10 +158,7 @@ test.each([
   ["el_GR", "Ψωμί αλλά αλλά κρασί.", "Ψωμί αλλά κρασί."],
   ["ar_SA", "ذهبت مع مع صديقي.", "ذهبت مع صديقي."],
 ])("%s repairs %s", (lang, source, expected) => {
-  const findings = review(source, {}, [], lang);
-  expect(findings).toHaveLength(1);
-  expect(applyEdits(source, findings[0].alternatives[0].edits)).toBe(expected);
-  expect(review(expected, {}, [], lang)).toEqual([]);
+  expectOneRepair(scan(source, {}, { lang }), source, expected, (text) => scan(text, {}, { lang }));
 });
 
 test.each([
@@ -185,7 +170,7 @@ test.each([
   ["en_US", "I gave her her keys."],
   ["en_US", "They can can fruit."],
 ])("%s keeps the legitimate doubling %s", (lang, source) => {
-  expect(review(source, {}, [], lang)).toEqual([]);
+  expect(scan(source, {}, { lang })).toEqual([]);
 });
 
 test.each([
@@ -203,5 +188,5 @@ test.each([
   ["de_DE", "Read the the report."],
   ["auto_detect", "Read the the report."],
 ])("%s keeps %s", (lang, text) => {
-  expect(review(text, {}, [], lang)).toEqual([]);
+  expect(scan(text, {}, { lang })).toEqual([]);
 });

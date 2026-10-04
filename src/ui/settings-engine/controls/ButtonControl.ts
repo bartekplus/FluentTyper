@@ -1,21 +1,16 @@
 import type { ButtonConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
-import {
-  BaseControl,
-  appendLabel,
-  createControlContainer,
-  createFieldRoot,
-  createInputElement,
-} from "./FieldControl.js";
+import { createElement } from "../dom/createElement.js";
+import { BaseControl, appendLabel, createInputElement } from "./FieldControl.js";
 
 export class ButtonControl extends BaseControl<string> {
   constructor(params: ButtonConfig, store: Store) {
     super(params, store);
 
-    const root = createFieldRoot();
+    const root = createElement("div", { className: "field" });
     this._rootElement = root;
 
-    const control = createControlContainer();
+    const control = createElement("div", { className: "control" });
     appendLabel(control, params.label);
 
     const btn = createInputElement("button", params.danger ? "button is-danger" : "button");

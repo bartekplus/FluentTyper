@@ -1,14 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { SuggestionGrammarCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
-
-function coordinator(enabledGrammarRules: string[]) {
-  return new SuggestionGrammarCoordinator({
-    enabledGrammarRules,
-    insertSpaceAfterAutocomplete: true,
-    lang: "en_US",
-    userDictionaryList: [],
-  });
-}
+import type { SuggestionGrammarCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
+import { grammarCoordinator as coordinator } from "./suggestionTestUtils";
 
 const virtualBoundary = (grammar: SuggestionGrammarCoordinator, beforeCursor: string) =>
   grammar.runVirtualWordBoundary({ beforeCursor, afterCursor: "", measurementContext: "prose" });

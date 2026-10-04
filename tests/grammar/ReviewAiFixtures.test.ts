@@ -56,7 +56,7 @@ function wordDistance(a: string, b: string): number {
 /** Correct-mode findings for a fixture when the model returns `target`. */
 function oracleFindings(fixture: (typeof CORRECT)[number], target: string) {
   const prepared = fixturePrepared(fixture.text, fixture.lang);
-  const chunks = buildAiChunks(prepared, { mode: "correct", style: null }).chunks;
+  const chunks = buildAiChunks(prepared, { mode: "correct" }).chunks;
   const raws = oracleOutputs(fixture, target);
   const diagnostics: ReviewDiagnostic[] = [];
   const rejected: Record<string, number> = {};
@@ -114,27 +114,22 @@ describe("Local AI fixtures", () => {
     expect(new Set(REWRITE.map((fixture) => fixture.id)).size).toBe(REWRITE.length);
   });
 
-  test.each(CORRECT.map((fixture) => [fixture.id, fixture] as const))(
-    "%s: an echo produces no finding and no rejection",
-    (_id, fixture) => {
-      const score = scoreCorrectCase(fixture, oracleOutputs(fixture, fixture.text));
-      expect(score).toMatchObject({ valid: true, findings: 0, rejectedReasons: {} });
-    },
-  );
+  test.each(CORRECT)("$id: an echo produces no finding and no rejection", (fixture) => {
+    const score = scoreCorrectCase(fixture, oracleOutputs(fixture, fixture.text));
+    expect(score).toMatchObject({ valid: true, findings: 0, rejectedReasons: {} });
+  });
 
   test.each(
-    CORRECT.filter(
-      (fixture) => fixture.expect !== "unchanged" && !fixture.tags.includes("dense"),
-    ).map((fixture) => [fixture.id, fixture] as const),
-  )("%s: the expected correction is offered and reconstructs exactly", (_id, fixture) => {
+    CORRECT.filter((fixture) => fixture.expect !== "unchanged" && !fixture.tags.includes("dense")),
+  )("$id: the expected correction is offered and reconstructs exactly", (fixture) => {
     const target = (fixture.expect as { text: string }).text;
     const score = scoreCorrectCase(fixture, oracleOutputs(fixture, target));
     expect(score).toMatchObject({ valid: true, corrected: true, falsePositive: false });
   });
 
-  test.each(DENSE.map((fixture) => [fixture.id, fixture] as const))(
-    "%s: dense text — every accepted unit is part of the expected fix; most are offered",
-    (_id, fixture) => {
+  test.each(DENSE)(
+    "$id: dense text — every accepted unit is part of the expected fix; most are offered",
+    (fixture) => {
       const target = (fixture.expect as { text: string }).text;
       const { diagnostics, rejected } = oracleFindings(fixture, target);
       const needed = wordDistance(fixture.text, target);
@@ -180,9 +175,9 @@ describe("Local AI fixtures", () => {
     },
   );
 
-  test.each(REWRITE.map((fixture) => [fixture.id, fixture] as const))(
-    "%s: an echoed rewrite is valid but has nothing to apply; its must-keep terms are in the text",
-    (_id, fixture) => {
+  test.each(REWRITE)(
+    "$id: an echoed rewrite is valid but has nothing to apply; its must-keep terms are in the text",
+    (fixture) => {
       const score = scoreRewriteCase(
         fixture,
         oracleOutputs(fixture, fixture.text, "rewrite", fixture.style),

@@ -1,5 +1,5 @@
 import { MAX_NUM_SUGGESTIONS } from "./constants";
-import { isObjectRecord } from "./guards";
+import { clamp, isFiniteNumber, isObjectRecord } from "./guards";
 
 export interface SiteProfile {
   language: string;
@@ -11,6 +11,14 @@ export interface SiteProfile {
 
 export type SiteProfiles = Record<string, SiteProfile>;
 
+export function urlHostname(url: string): string | undefined {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return undefined;
+  }
+}
+
 export function normalizeDomainHost(domainOrUrl: string): string | undefined {
   if (typeof domainOrUrl !== "string") {
     return undefined;
@@ -21,15 +29,7 @@ export function normalizeDomainHost(domainOrUrl: string): string | undefined {
     return undefined;
   }
 
-  const parseHostName = (value: string): string | undefined => {
-    try {
-      return new URL(value).hostname;
-    } catch {
-      return undefined;
-    }
-  };
-
-  const hostName = parseHostName(trimmed) || parseHostName(`http://${trimmed}`);
+  const hostName = urlHostname(trimmed) || urlHostname(`http://${trimmed}`);
   if (!hostName) {
     return undefined;
   }
@@ -38,11 +38,11 @@ export function normalizeDomainHost(domainOrUrl: string): string | undefined {
   return normalized || undefined;
 }
 
-function normalizeNumSuggestions(value: unknown): number | undefined {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
+export function normalizeNumSuggestions(value: unknown): number | undefined {
+  if (!isFiniteNumber(value)) {
     return undefined;
   }
-  return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(value)));
+  return clamp(Math.round(value), 0, MAX_NUM_SUGGESTIONS);
 }
 
 function normalizeLanguage(value: unknown, enabledLanguages: string[]): string | undefined {

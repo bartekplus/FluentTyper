@@ -14,6 +14,10 @@
 
 export type LocalAiModelTier = "standard" | "compact";
 
+export function isLocalAiModelTier(value: unknown): value is LocalAiModelTier {
+  return value === "standard" || value === "compact";
+}
+
 export interface LocalAiModelFile {
   /** Path inside the pinned repository revision. */
   path: string;

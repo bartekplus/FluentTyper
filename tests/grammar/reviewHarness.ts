@@ -1,5 +1,5 @@
+import { fileURLToPath } from "node:url";
 import {
-  detectReviewDiagnostics,
   prepareReview,
   reviewChunks,
   scanReviewChunk,
@@ -12,6 +12,7 @@ import {
 import { setReviewClock } from "../../src/core/domain/grammar/review/reviewClock";
 import { loadAllReviewData } from "../../src/core/domain/grammar/review/reviewLanguageSources";
 import { TEST_REVIEW_NOW } from "../reviewTestClock";
+import { review } from "./grammarTestUtils";
 import type {
   ReviewDiagnostic,
   ReviewOptions,
@@ -34,23 +35,14 @@ interface ScanOptions extends Partial<ReviewOptions> {
 }
 
 /**
- * Runs Review on all of `text`. Defaults: en_US, DEFAULT_RULES, no user
- * dictionary, no protected ranges. `options` replaces each default it sets.
+ * Runs Review on all of `text` with the defaults of grammarTestUtils.review.
+ * `options` replaces each default it sets.
  */
 export function scanResult(
   text: string,
   { snapshot, ...options }: ScanOptions = {},
 ): ReviewScanResult {
-  return detectReviewDiagnostics(
-    { id: "scan", text, scope: { start: 0, end: text.length }, protectedRanges: [], ...snapshot },
-    {
-      lang: "en_US",
-      enabledRules: DEFAULT_RULES,
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  );
+  return review(text, snapshot, options);
 }
 
 /** The diagnostics of scanResult. */
@@ -110,7 +102,7 @@ export function chunkTimes(cases: readonly TimingCase[]): number[] {
  * position, so the time goes quadratic. Without the JIT, this cost is always visible.
  */
 export function chunkTimesWithoutJit(cases: readonly TimingCase[]): number[] {
-  const run = Bun.spawnSync([process.execPath, import.meta.path], {
+  const run = Bun.spawnSync([process.execPath, fileURLToPath(import.meta.url)], {
     stdin: new TextEncoder().encode(JSON.stringify(cases)),
     env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
   });

@@ -2,7 +2,7 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import { NBSP, NNBSP, usesFrenchPunctuationSpacing } from "../typographyProfiles";
 import {
   getLastToken,
-  isDeleteInputAction,
+  isWordChar,
   shouldSkipGenericReplacement,
   splitTrailingSpaces,
 } from "./helpers/GenericRuleShared";
@@ -14,8 +14,6 @@ const SPACED_AFTER_REGEX = /[\p{L}\p{N}»)\]’”]$/u;
 const URL_SCHEME_REGEX = /(?:^|[^\p{L}\p{N}])(?:https?|ftps?|mailto|file|tel|data)$/iu;
 // "&nbsp;", "&#160;", "&#xA0;": the semicolon ends an HTML character reference.
 const CHARACTER_REFERENCE_REGEX = /&(?:[a-z][a-z\d]*|#\d+|#x[\da-f]+)$/i;
-
-const WORD_CHAR_REGEX = /[\p{L}\p{N}]/u;
 
 /**
  * France-style spacing: a no-break space before ":" and a narrow no-break space
@@ -37,15 +35,18 @@ export class FrenchPunctuationSpacingRule implements GrammarRule {
     if (input !== eagerlySpaced) {
       this.eagerlySpaced = null;
     }
-    if (!usesFrenchPunctuationSpacing(context.hints?.lang) || isDeleteInputAction(context)) {
+    if (!usesFrenchPunctuationSpacing(context.hints?.lang)) {
       return null;
     }
 
-    if (eagerlySpaced !== null && input.slice(0, -1) === eagerlySpaced) {
-      const retraction = retractMidWordMark(input);
-      if (retraction) {
-        return retraction;
-      }
+    // Undoes an eager "!"/"?" space once the next character shows the mark was
+    // mid-word, not word-final: "x?y" must stay "x?y", not "x ?y".
+    if (
+      eagerlySpaced !== null &&
+      input.slice(0, -1) === eagerlySpaced &&
+      isWordChar(input.at(-1)!)
+    ) {
+      return { replacement: input.slice(-2), deleteBackwards: 3, deleteForwards: 0 };
     }
 
     const last = input.charAt(input.length - 1);
@@ -98,25 +99,4 @@ export class FrenchPunctuationSpacingRule implements GrammarRule {
       deleteForwards: 0,
     };
   }
-}
-
-/**
- * Undoes an eager "!"/"?" space once the next character shows the mark was
- * mid-word, not word-final: "x?y" must stay "x?y", not "x ?y".
- */
-function retractMidWordMark(input: string): GrammarEdit | null {
-  if (input.length < 3) {
-    return null;
-  }
-  const space = input.charAt(input.length - 3);
-  const mark = input.charAt(input.length - 2);
-  const justTyped = input.charAt(input.length - 1);
-  if (
-    (space === NBSP || space === NNBSP) &&
-    (mark === "!" || mark === "?") &&
-    WORD_CHAR_REGEX.test(justTyped)
-  ) {
-    return { replacement: `${mark}${justTyped}`, deleteBackwards: 3, deleteForwards: 0 };
-  }
-  return null;
 }

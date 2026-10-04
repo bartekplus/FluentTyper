@@ -8,10 +8,14 @@ import {
   longSentenceThreshold,
   normalizeReviewRuleOverrides,
 } from "@core/domain/grammar/review/reviewCatalog";
-import { DEFAULT_NUM_SUGGESTIONS } from "@core/domain/constants";
+import { DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED } from "@core/domain/constants";
 import type { SettingField } from "@core/domain/contracts/settings";
 import { resolveGrammarRuleSelection } from "@core/domain/grammar/GrammarRuleSettings";
+import { clamp, isFiniteNumber, isObjectRecord } from "@core/domain/guards";
 import { resolveEnabledLanguages } from "@core/domain/lang";
+import { sanitizeObservabilityConfig, type ObservabilityConfig } from "@core/domain/observability";
+import { serialQueue } from "@core/domain/serialQueue";
+import { resolveGlobalNumSuggestions } from "@core/domain/siteProfileService";
 import {
   DEFAULT_SUGGESTION_THEME_SETTINGS,
   type SuggestionThemeSettings,
@@ -24,9 +28,9 @@ const DEFAULT_MIN_WORD_LENGTH_TO_PREDICT = 1;
 
 type ThemeField = keyof SuggestionThemeSettings & SettingField;
 
-/** Pending user-dictionary writes, applied one after another. */
-let reviewRuleWrites: Promise<unknown> = Promise.resolve();
-let dictionaryWrites: Promise<unknown> = Promise.resolve();
+/** Settings read-modify-write queues. */
+const reviewRuleWrites = serialQueue();
+const dictionaryWrites = serialQueue();
 
 export class CoreSettingsRepository extends SettingsRepositoryBase {
   private static toString(value: unknown, fallback = ""): string {
@@ -76,10 +80,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getNumSuggestions(): Promise<number> {
-    const value = await this.getField("numSuggestions");
-    return typeof value === "number" && Number.isFinite(value)
-      ? Math.max(0, Math.round(value))
-      : DEFAULT_NUM_SUGGESTIONS;
+    return resolveGlobalNumSuggestions(await this.getField("numSuggestions"));
   }
 
   async getInlineSuggestion(): Promise<boolean> {
@@ -129,10 +130,10 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async getMinWordLengthToPredict(): Promise<number> {
     const value = await this.getField("minWordLengthToPredict");
-    if (typeof value !== "number" || !Number.isFinite(value)) {
+    if (!isFiniteNumber(value)) {
       return DEFAULT_MIN_WORD_LENGTH_TO_PREDICT;
     }
-    return Math.min(12, Math.max(-1, Math.round(value)));
+    return clamp(Math.round(value), -1, 12);
   }
 
   /** The popup's bottom line (key hints and prediction language); off unless turned on. */
@@ -156,7 +157,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async getAutoLanguageSitePriors(): Promise<Record<string, Record<string, number>>> {
     const value = await this.getField("autoLanguageSitePriors");
-    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    return isObjectRecord(value) ? value : {};
   }
 
   async setAutoLanguageSitePriors(priors: Record<string, Record<string, number>>): Promise<void> {
@@ -182,13 +183,11 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async disableReviewRule(ruleId: string): Promise<boolean> {
     if (!isReviewSupportedRule(ruleId)) return false;
-    const write = reviewRuleWrites.then(async () => {
+    return reviewRuleWrites(async () => {
       const overrides = await this.getReviewRuleOverrides();
       await this.setField("reviewRuleOverrides", { ...overrides, [ruleId]: false });
       return true;
     });
-    reviewRuleWrites = write.catch(() => undefined);
-    return write;
   }
 
   async getTextExpansions(): Promise<Array<[string, object]>> {
@@ -205,15 +204,29 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
       if (typeof shortcut !== "string") {
         continue;
       }
-      if (
-        typeof expansion !== "string" &&
-        (!expansion || typeof expansion !== "object" || Array.isArray(expansion))
-      ) {
+      if (typeof expansion !== "string" && !isObjectRecord(expansion)) {
         continue;
       }
       normalized.push([shortcut, expansion]);
     }
     return normalized;
+  }
+
+  async getDebugPresagePredictorEnabled(): Promise<boolean> {
+    return this.getBooleanField(
+      "debugPresagePredictorEnabled",
+      DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+    );
+  }
+
+  async getObservabilitySnapshot(): Promise<ObservabilityConfig> {
+    const [enabled, defaultLevel, moduleOverrides] = await Promise.all([
+      this.getField("observabilityEnabled"),
+      this.getField("observabilityDefaultLevel"),
+      this.getField("observabilityModuleOverrides"),
+    ]);
+
+    return sanitizeObservabilityConfig({ enabled, defaultLevel, moduleOverrides });
   }
 
   async getTimeFormat(): Promise<string> {
@@ -236,15 +249,13 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
       return false;
     }
     // Read-modify-write: queue adds so two quick ones both land.
-    const add = dictionaryWrites.then(async () => {
+    return dictionaryWrites(async () => {
       const current = await this.getUserDictionaryList();
       if (!current.some((entry) => entry.trim().toLowerCase() === trimmed.toLowerCase())) {
         await this.setField("userDictionaryList", [...current, trimmed]);
       }
       return true;
     });
-    dictionaryWrites = add.catch(() => undefined);
-    return add;
   }
 
   async getThemeSettings(): Promise<SuggestionThemeSettings> {

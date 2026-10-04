@@ -11,7 +11,7 @@ function review(text: string, enabledRules: readonly string[]) {
     (d) => `${d.ruleId}: ${d.original} -> ${d.alternatives[0]?.preview ?? ""}`,
   );
 }
-const DEFAULTS = reviewRuleIds({}, "en_US");
+const DEFAULTS = reviewRuleIds({ codeMode: false });
 
 const QUIET: string[] = [
   // Abbreviations before a lowercase word.

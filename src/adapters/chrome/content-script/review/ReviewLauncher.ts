@@ -1,7 +1,8 @@
 import { reviewText } from "@core/domain/grammar/review/reviewMessages";
 import { reviewMountFor } from "./ReviewController";
-import { editingHost, isReviewEligible } from "./ReviewTargets";
-import { createOverlayHost, enterTopLayer } from "./reviewStyles";
+import { editorCapabilities } from "../suggestions/EditorCapabilities";
+import { editingHost } from "./ReviewTargets";
+import { createOverlayHost, enterTopLayer, svgIcon } from "./reviewStyles";
 import { gutenbergSelectedField, isGutenbergContainer } from "../suggestions/GutenbergEnvironment";
 
 /** Marks FluentTyper's own launcher host; never a review target itself. */
@@ -25,8 +26,8 @@ export interface ReviewLauncherDependencies {
   reviewedElement(): HTMLElement | null;
   /** Reviews `field`; it already holds focus and its selection. */
   review(field: HTMLElement): void;
-  /** UI locale, or a lookup read on each use so a settings change applies at once. */
-  uiLanguage?: string | (() => string);
+  /** UI locale, read on each use so a settings change applies at once. */
+  uiLanguage(): string;
 }
 
 /**
@@ -41,13 +42,12 @@ export function launcherFieldFor(element: Element | null): HTMLElement | null {
   if (element.tagName === "TEXTAREA") field = element;
   else if (element.isContentEditable) {
     field = editingHost(element);
-    if (field === field?.ownerDocument.documentElement) field = field.ownerDocument.body;
     // A Gutenberg canvas is no field itself; the selected RichText field is.
     field = gutenbergSelectedField(field);
     if (field && isGutenbergContainer(field)) return null;
     if (field?.getAttribute("aria-multiline") === "false") return null;
   }
-  return field && isReviewEligible(field) ? field : null;
+  return field && editorCapabilities(field).renderReview ? field : null;
 }
 
 function fieldText(field: HTMLElement): string {
@@ -212,10 +212,7 @@ export class ReviewLauncher {
 
   /** In the current UI language, which can change while the page is open. */
   private label(button: HTMLButtonElement): void {
-    const uiLanguage = this.deps.uiLanguage;
-    const lang =
-      (typeof uiLanguage === "function" ? uiLanguage() : uiLanguage) ?? navigator.language;
-    const label = reviewText("review_launcher_label", lang);
+    const label = reviewText("review_launcher_label", this.deps.uiLanguage());
     button.title = label;
     button.setAttribute("aria-label", label);
   }
@@ -238,7 +235,7 @@ export class ReviewLauncher {
     button.hidden = true;
     // Not a tab stop: the keyboard shortcut reviews the field without leaving it.
     button.tabIndex = -1;
-    button.append(icon(this.doc));
+    button.append(svgIcon(this.doc, ["M4 7h11", "M4 12h7", "M4 17h5", "m13 17 3 3 5-6"]));
     // Keep the field's focus and selection: the review reads both.
     const keepFocus = (event: Event) => event.preventDefault();
     button.addEventListener("pointerdown", keepFocus);
@@ -260,19 +257,6 @@ export class ReviewLauncher {
     this.button = button;
     return button;
   }
-}
-
-function icon(doc: Document): SVGSVGElement {
-  const ns = "http://www.w3.org/2000/svg";
-  const svg = doc.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("aria-hidden", "true");
-  for (const d of ["M4 7h11", "M4 12h7", "M4 17h5", "m13 17 3 3 5-6"]) {
-    const path = doc.createElementNS(ns, "path");
-    path.setAttribute("d", d);
-    svg.append(path);
-  }
-  return svg;
 }
 
 const LAUNCHER_STYLES = `

@@ -42,6 +42,10 @@ const CITING_CUE = cue(`${CUE_WORDS}|${SPEECH_WORDS}`);
 /** Opening quotation marks of every supported language's convention. */
 export const OPENING_QUOTES = "\"'“‘„‚«»”‹›";
 
+/** [start, end) is quoted by itself: an opening quote right before it, a closing quote right after it. */
+export const quotedSpan = (text: string, start: number, end: number) =>
+  OPENING_QUOTES.includes(text[start - 1] || "\n") && /["”'’“‘»«›‹]/.test(text[end] ?? "");
+
 /** Ends with a cue, right where a quotation opens: `write ` + `"…"`. */
 export const CUE_BEFORE_QUOTE = new RegExp(`${CUE}$`, "iu");
 /** Ends with a cue and the opening quote itself: `write "` + `the the`. French pads guillemets. */
@@ -72,10 +76,7 @@ function lastWord(text: string): string {
 /**
  * The one quoted-example guard for Review frames: `index` sits inside a named
  * example (`write "he go"`, `the word is “teh”`) opened in the 128 characters
- * before it, at most 80 characters back on the same line. It is the union of the
- * detectors' former variants (every cue word, speech verb and quote style, is/was
- * links, closed quotes included), so it only ever suppresses more than any one of
- * them did.
+ * before it, at most 80 characters back on the same line.
  */
 export function namedExampleBefore(text: string, index: number): boolean {
   const floor = Math.max(0, index - 128);

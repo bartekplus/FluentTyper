@@ -24,6 +24,7 @@ function scanRequest(lang: string, text: string): ReviewScanRequest {
       insertSpaceAfterAutocomplete: true,
     },
     cache: false,
+    gaps: {},
     uiLanguage: "en",
   };
 }

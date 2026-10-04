@@ -16,9 +16,6 @@ describe("PredictionInputProcessor", () => {
     it("should initialize with default values", () => {
       expect(processor.minWordLengthToPredict).toBe(MIN_WORD_LENGTH_TO_PREDICT);
       expect(processor.autoCapitalize).toBe(true);
-      expect(processor.separatorCharRegex).toBeInstanceOf(RegExp);
-      expect(processor.keepPredCharRegex).toBeInstanceOf(RegExp);
-      expect(processor.whiteSpaceRegex).toBeInstanceOf(RegExp);
     });
   });
 
@@ -38,20 +35,16 @@ describe("PredictionInputProcessor", () => {
   });
 
   describe("checkDoPrediction", () => {
-    it("should return false if numSuggestions is 0", () => {
-      expect(processor.checkDoPrediction("word", false, 0, true)).toBe(false);
-    });
-    it("should return false if lastWord is a number and endsWithSpace is false", () => {
-      expect(processor.checkDoPrediction("123", false, 1, true)).toBe(false);
-    });
-    it("should return false if endsWithSpace and predictNextWordAfterSeparatorChar is false", () => {
-      expect(processor.checkDoPrediction("word", true, 1, false)).toBe(false);
-    });
-    it("should return false if lastWord is too short", () => {
-      expect(processor.checkDoPrediction("", false, 1, true)).toBe(false);
-    });
-    it("should return true for valid input", () => {
-      expect(processor.checkDoPrediction("word", false, 1, true)).toBe(true);
+    it.each([
+      ["numSuggestions is 0", "word", false, 0, true, false],
+      ["lastWord is a number without a trailing space", "123", false, 1, true, false],
+      ["endsWithSpace without predictNextWordAfterSeparatorChar", "word", true, 1, false, false],
+      ["lastWord is too short", "", false, 1, true, false],
+      ["valid input", "word", false, 1, true, true],
+    ])("%s", (_case, lastWord, endsWithSpace, numSuggestions, predictNextWord, expected) => {
+      expect(
+        processor.checkDoPrediction(lastWord, endsWithSpace, numSuggestions, predictNextWord),
+      ).toBe(expected);
     });
   });
 
@@ -81,7 +74,7 @@ describe("PredictionInputProcessor", () => {
       expect(result.predictionInput).toBe("hello world");
       expect(result.lastWord).toBe("world");
       expect(result.doPrediction).toBe(true);
-      expect(Object.values(Capitalization)).toContain(result.doCapitalize);
+      expect(result.doCapitalize).toBe(Capitalization.None);
     });
     it("should extend the active word with the bounded token suffix after the cursor", () => {
       const result = processor.processInput("I like Whb", "en_US", 1, true, "tsoever");

@@ -1,7 +1,9 @@
 import { DEFAULT_LOCAL_AI_REVIEW_ENABLED } from "@core/domain/constants";
 import type { SettingsSchema } from "@core/domain/contracts/settings";
+import { isFiniteNumber, isObjectRecord } from "@core/domain/guards";
 import {
   DEFAULT_LOCAL_AI_TIER,
+  isLocalAiModelTier,
   localAiModelById,
   type LocalAiModelTier,
 } from "@core/domain/localAi/modelRegistry";
@@ -22,18 +24,18 @@ export class LocalAiSettingsRepository extends SettingsRepositoryBase {
 
   async getLocalAiReviewTier(): Promise<LocalAiModelTier> {
     const value = await this.getField("localAiReviewTier");
-    return value === "standard" || value === "compact" ? value : DEFAULT_LOCAL_AI_TIER;
+    return isLocalAiModelTier(value) ? value : DEFAULT_LOCAL_AI_TIER;
   }
 
   /** A consent record naming a registry model of the recorded tier, else null. */
   async getLocalAiReviewConsent(): Promise<LocalAiReviewConsent | null> {
     const value: unknown = await this.getField("localAiReviewConsent");
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
+    if (!isObjectRecord(value)) {
       return null;
     }
-    const { modelId, tier, at } = value as Record<string, unknown>;
+    const { modelId, tier, at } = value;
     const model = localAiModelById(modelId);
-    if (!model || model.tier !== tier || typeof at !== "number" || !Number.isFinite(at)) {
+    if (!model || model.tier !== tier || !isFiniteNumber(at)) {
       return null;
     }
     return { modelId: model.modelId, tier: model.tier, at };

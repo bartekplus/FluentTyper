@@ -37,46 +37,51 @@ fixture.requests = [];
 fixture.startDocs = (options = {}) => {
   fixture.docs?.dispose();
   fixture.generic?.detachAllHelpers();
-  const config: SuggestionManagerOptions = {
-    selectors: "textarea,input,[contentEditable]",
-    lang: "en_US",
-    autocomplete: false,
-    autocompleteOnEnter: true,
-    autocompleteOnTab: true,
-    minWordLengthToPredict: 0,
-    insertSpaceAfterAutocomplete: false,
-    selectByDigit: true,
-    showSuggestionFooter: true,
-    inline_suggestion: false,
-    preferNativeAutocomplete: true,
-    userDictionaryList: [],
-    enabledGrammarRules: [],
-    telemetry: {
-      recordSuggestionShown: () => fixture.events.push("shown"),
-      recordSuggestionAccepted: () => fixture.events.push("accepted"),
-    },
-    personalization: {
-      recordSuggestionAccepted: () => {
-        fixture.events.push("learned");
-        return "learning-id";
+  const config: SuggestionManagerOptions = Object.assign(
+    {
+      selectors: "textarea,input,[contentEditable]",
+      lang: "en_US",
+      autocomplete: false,
+      autocompleteOnEnter: true,
+      autocompleteOnTab: true,
+      minWordLengthToPredict: 0,
+      insertSpaceAfterAutocomplete: false,
+      selectByDigit: true,
+      showSuggestionFooter: true,
+      inline_suggestion: false,
+      preferNativeAutocomplete: true,
+      horizontalSuggestions: false,
+      userDictionaryList: [],
+      enabledGrammarRules: [],
+      telemetry: {
+        recordSuggestionShown: () => fixture.events.push("shown"),
+        recordSuggestionAccepted: () => fixture.events.push("accepted"),
       },
-      recordSuggestionReverted: () => fixture.events.push("reverted"),
-    },
-    getPrediction: (context) => {
-      fixture.requests.push(context);
-      queueMicrotask(() => {
-        const response = {
-          ...context,
-          predictions: fixture.predictions.slice(),
-          snippetShortcuts: fixture.snippetShortcuts.slice(),
-          lang: context.lang,
-        };
-        if (context.suggestionId === -1) fixture.docs.fulfillPrediction(response);
-        else fixture.generic.fulfillPrediction(response);
-      });
-    },
-    ...options,
-  };
+      personalization: {
+        recordSuggestionAccepted: () => {
+          fixture.events.push("learned");
+          return "learning-id";
+        },
+        recordSuggestionReverted: () => fixture.events.push("reverted"),
+      },
+      getPrediction: (context) => {
+        fixture.requests.push(context);
+        queueMicrotask(() => {
+          const response = {
+            ...context,
+            tabId: 0,
+            frameId: 0,
+            predictions: fixture.predictions.slice(),
+            snippetShortcuts: fixture.snippetShortcuts.slice(),
+            lang: context.lang,
+          };
+          if (context.suggestionId === -1) fixture.docs.fulfillPrediction(response);
+          else fixture.generic.fulfillPrediction(response);
+        });
+      },
+    } satisfies SuggestionManagerOptions,
+    options,
+  );
   fixture.generic = new SuggestionManagerRuntime(config);
   fixture.generic.queryAndAttachHelper();
   fixture.docs = new GoogleDocsAdapter(config);
@@ -101,7 +106,7 @@ fixture.startReview = () => {
     resume: () => {},
     addToDictionary: async () => true,
     getDocsSurface: () => fixture.surface,
-    uiLanguage: "en",
+    uiLanguage: () => "en",
   });
   fixture.review.invoke();
 };

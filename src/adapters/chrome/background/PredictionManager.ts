@@ -17,11 +17,8 @@ import type {
 import libPresageMod from "@third-party/libpresage/libpresage.js";
 import { createLogger } from "@core/application/logging/Logger";
 import { PredictorError, getErrorMessage } from "@core/domain/error";
+import { isFiniteNumber } from "@core/domain/guards";
 import type { PersonalizationRankingSnapshot } from "@core/domain/personalization/types";
-
-declare const __FT_DEV_BUILD__: boolean | undefined;
-
-const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 
 interface PredictionManagerOptions {
   getPersonalizationSnapshot?: () => PersonalizationRankingSnapshot;
@@ -76,8 +73,8 @@ export class PredictionManager {
   private predictionOrchestrator: PredictionOrchestrator | undefined;
   private initializationPromise: Promise<void> | null = null;
   private initializationFailed = false;
-  private debugTraces: PredictorDebugTrace[] = [];
-  private debugTraceById: Map<string, PredictorDebugTrace> = new Map();
+  // Map insertion order is the recency order: the most recent trace is last.
+  private readonly debugTraces = new Map<string, PredictorDebugTrace>();
   private currentConfig: PredictionConfig | null = null;
   private readonly getPersonalizationSnapshot: () => PersonalizationRankingSnapshot;
   private readonly isDevBuild: boolean;
@@ -85,7 +82,7 @@ export class PredictionManager {
   constructor(options: PredictionManagerOptions = {}) {
     this.libPresageMod = options.loadPresage ?? (libPresageMod as () => Promise<PresageModule>);
     this.getPersonalizationSnapshot = options.getPersonalizationSnapshot ?? (() => ({}));
-    this.isDevBuild = options.isDevBuild ?? IS_DEV_BUILD;
+    this.isDevBuild = options.isDevBuild ?? false;
     void this.initialize().catch(() => undefined);
   }
 
@@ -191,22 +188,10 @@ export class PredictionManager {
     logger.info("Applying prediction manager config", {
       debugPresagePredictorEnabled: config.debugPresagePredictorEnabled,
     });
-    if (!this.predictionOrchestrator) {
-      throw new PredictorError("Prediction orchestrator not initialized", {
-        code: "predictor_orchestrator_missing",
-      });
-    }
-    this.predictionOrchestrator.setConfig(config);
-  }
-
-  clearPredictorDebugTrace(): void {
-    logger.info("Clearing predictor debug traces");
-    this.debugTraces = [];
-    this.debugTraceById.clear();
+    this.predictionOrchestrator?.setConfig(config);
   }
 
   getPredictorDebugSnapshot(): PredictorDebugSnapshot {
-    const presageDebugState = this.presageHandler?.getDebugState();
     const orchestratorDebugState = this.predictionOrchestrator?.getDebugState().predictorConfig;
 
     return {
@@ -219,10 +204,10 @@ export class PredictionManager {
       },
       runtime: {
         presage: {
-          languageEngineCount: presageDebugState?.languageEngineCount ?? 0,
+          languageEngineCount: this.presageHandler?.languageEngineCount ?? 0,
         },
       },
-      traces: this.debugTraces.map((trace) => ({
+      traces: [...this.debugTraces.values()].reverse().map((trace) => ({
         ...trace,
         presage: {
           ...trace.presage,
@@ -306,12 +291,10 @@ export class PredictionManager {
     const resolvedDebugMeta = this.resolveDebugMeta(debugMeta);
     const traceId = resolvedDebugMeta.traceId as string;
 
-    let trace = this.debugTraceById.get(traceId);
+    let trace = this.debugTraces.get(traceId);
     if (!trace) {
       trace = this.createEmptyTrace(traceId, resolvedDebugMeta);
-      this.debugTraceById.set(traceId, trace);
-      this.debugTraces.unshift(trace);
-      this.trimDebugTraceBuffer();
+      this.promoteTrace(trace);
       return trace;
     }
 
@@ -326,7 +309,7 @@ export class PredictionManager {
   }
 
   private resolveNumericMeta(value: unknown, fallback: number | null): number | null {
-    return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+    return isFiniteNumber(value) ? value : fallback;
   }
 
   private createEmptyTrace(
@@ -337,7 +320,6 @@ export class PredictionManager {
       enabled: false,
       attempted: false,
       durationMs: 0,
-      timedOut: false,
       predictions: [],
       skipReason: undefined,
     };
@@ -362,25 +344,14 @@ export class PredictionManager {
   }
 
   private promoteTrace(trace: PredictorDebugTrace): void {
-    const currentIndex = this.debugTraces.findIndex((item) => item.traceId === trace.traceId);
-    if (currentIndex === 0) {
-      return;
+    this.debugTraces.delete(trace.traceId);
+    this.debugTraces.set(trace.traceId, trace);
+    for (const traceId of this.debugTraces.keys()) {
+      if (this.debugTraces.size <= MAX_DEBUG_TRACES) {
+        break;
+      }
+      this.debugTraces.delete(traceId);
     }
-    if (currentIndex > -1) {
-      this.debugTraces.splice(currentIndex, 1);
-    }
-    this.debugTraces.unshift(trace);
-    this.trimDebugTraceBuffer();
-  }
-
-  private trimDebugTraceBuffer(): void {
-    if (this.debugTraces.length <= MAX_DEBUG_TRACES) {
-      return;
-    }
-    const removed = this.debugTraces.splice(MAX_DEBUG_TRACES);
-    removed.forEach((trace) => {
-      this.debugTraceById.delete(trace.traceId);
-    });
   }
 
   private normalizeTimelineDetail(detail: unknown): string | undefined {

@@ -1,4 +1,4 @@
-import { createLiveConfig, createLiveHandler } from "./support/presageLive";
+import { createLiveConfig, createLiveHandler, runPrediction } from "./support/presageLive";
 
 describe("PresageHandler live Arabic (ar_SA)", () => {
   test("ar_SA engine creates and returns Arabic predictions", async () => {
@@ -9,10 +9,10 @@ describe("PresageHandler live Arabic (ar_SA)", () => {
     // should complete to "اليوم" (today) and "في ال" should yield
     // definite-article completions. This locks in the Arabic engine + data
     // pipeline end-to-end.
-    const result = await handler.runPrediction("الي", "", "ar_SA");
+    const result = await runPrediction(handler, "الي", "", "ar_SA");
     expect(result.predictions.map((p) => p.trim())).toContain("اليوم");
 
-    const phrase = await handler.runPrediction("في ال", "", "ar_SA");
+    const phrase = await runPrediction(handler, "في ال", "", "ar_SA");
     expect(phrase.predictions.map((p) => p.trim())).toContain("العالم");
   });
 
@@ -24,10 +24,10 @@ describe("PresageHandler live Arabic (ar_SA)", () => {
     // runtime strips tatweel from typed input. Data built before that fix
     // suggested "علماً" for "علم" instead of the bare "علما".
     const marks = /[ـً-ْٰ]/;
-    const ilm = await handler.runPrediction("علم", "", "ar_SA");
+    const ilm = await runPrediction(handler, "علم", "", "ar_SA");
     expect(ilm.predictions).toContain("علما");
     for (const prefix of ["علم", "الم", "الت", "وال", "مست", "است"]) {
-      const { predictions } = await handler.runPrediction(prefix, "", "ar_SA");
+      const { predictions } = await runPrediction(handler, prefix, "", "ar_SA");
       expect(predictions.filter((p) => marks.test(p))).toEqual([]);
     }
   });
@@ -38,10 +38,10 @@ describe("PresageHandler live Arabic (ar_SA)", () => {
 
     // "ه" typed for "ة" is a very common Arabic spelling slip; the spelling
     // predictor must offer the corrected form.
-    const government = await handler.runPrediction("الحكومه", "", "ar_SA");
+    const government = await runPrediction(handler, "الحكومه", "", "ar_SA");
     expect(government.predictions.map((p) => p.trim())).toContain("الحكومة");
 
-    const university = await handler.runPrediction("الجامعه", "", "ar_SA");
+    const university = await runPrediction(handler, "الجامعه", "", "ar_SA");
     expect(university.predictions.map((p) => p.trim())).toContain("الجامعة");
   });
 
@@ -51,10 +51,10 @@ describe("PresageHandler live Arabic (ar_SA)", () => {
 
     // PresageHandler builds one engine per language at startup, so adding
     // ar_SA must not disturb the engines that were already working.
-    const english = await handler.runPrediction("th", "", "en_US");
+    const english = await runPrediction(handler, "th", "", "en_US");
     expect(english.predictions.map((p) => p.trim())).toContain("the");
 
-    const french = await handler.runPrediction("champig", "", "fr_FR");
+    const french = await runPrediction(handler, "champig", "", "fr_FR");
     expect(french.predictions.map((p) => p.trim())).toContain("champignon");
   });
 });

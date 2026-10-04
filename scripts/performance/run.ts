@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
+import { cp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { cpus, totalmem, platform, release } from "node:os";
 import path from "node:path";
 import puppeteer from "puppeteer";
@@ -24,7 +24,6 @@ await Promise.all(
   ),
 );
 if (process.env.PERF_BASE_BUILD) {
-  const { cp } = await import("node:fs/promises");
   await cp(path.resolve(process.env.PERF_BASE_BUILD), build, { recursive: true });
 } else {
   const child = Bun.spawn(
@@ -56,17 +55,14 @@ const {
   triggerReview,
   waitForReview,
   clickReviewControl,
+  serveHtml,
   waitUntil,
 } = await import("../../tests/e2e/e2e-helpers");
 const fixture =
   '<!doctype html><html lang="en"><meta charset="utf-8"><title>Performance fixture</title><body><main><textarea id="editor" rows="8" cols="80">' +
   "The cat is ready. We is ready. ".repeat(80) +
   '</textarea><textarea id="typing" rows="8" cols="80">The dog is ready. </textarea></main></body></html>';
-const server = Bun.serve({
-  hostname: "127.0.0.1",
-  port: 0,
-  fetch: () => new Response(fixture, { headers: { "Content-Type": "text/html" } }),
-});
+const server = serveHtml(fixture);
 type Probe = Record<string, number> & { handlerMs: number[] };
 const runs: Array<Record<string, unknown>> = [];
 const boundedPush = <T>(values: T[], value: T) => {
@@ -138,7 +134,7 @@ try {
         // Measured quiescence window; this delay is the workload, not a readiness substitute.
         const idle = () => new Promise((resolve) => setTimeout(resolve, 1000));
         await idle();
-        const baseline = context ? await Promise.all(pages.map(read)) : [];
+        const baseline: Probe[] = [];
         const responsiveness: number[] = [];
         const reviewMs: number[] = [];
         const inputFrameMs: number[] = [];

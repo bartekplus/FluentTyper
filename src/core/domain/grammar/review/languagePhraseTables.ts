@@ -11,7 +11,7 @@ import * as french from "./french/phrases";
  * The English phrase checks for the other review languages, by language code.
  * Same row format and matching as the English tables; a row is only here when
  * its typed form is never correct in that language, or is narrowed to a frame
- * where it cannot be. Merged words that are always two live in
+ * where it cannot be. Merged words that are always two are in `compounds` or in
  * `multilingualLexicon.ts` (`englishAlotCorrection`).
  */
 export interface LanguagePhraseTables {
@@ -19,7 +19,10 @@ export interface LanguagePhraseTables {
   words?: readonly PhraseRow[];
   /** A wrong word form inside a fixed frame (`englishPhraseCorrections`). */
   phrases?: readonly PhraseRow[];
-  /** Compounds written apart or without their hyphens (`englishClosedCompounds`). */
+  /**
+   * Compounds written apart or without their hyphens, and words written together that are
+   * two (`englishClosedCompounds`).
+   */
   compounds?: readonly PhraseRow[];
   /** Optional wording advice: pleonasms (`stylePhrasing`). */
   style?: readonly PhraseRow[];

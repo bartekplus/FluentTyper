@@ -1,3 +1,4 @@
+import { test as bunTest } from "bun:test";
 import {
   HOST_EDITOR_REQUEST_EVENT,
   HOST_EDITOR_REQUEST_ATTR,
@@ -5,9 +6,6 @@ import {
 import type Quill from "quill";
 import type { Browser, Frame, Page } from "puppeteer";
 import path from "path";
-import * as fs from "fs";
-import type { Server } from "http";
-import { createServer } from "http";
 import { PERSONALIZATION_STORAGE_KEY } from "../../src/core/application/personalization/PersonalizationRepository";
 import {
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
@@ -41,17 +39,36 @@ import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/rul
 import type { BackgroundContext } from "./e2e-helpers";
 import {
   BROWSER_TYPE,
+  clickFirstVisibleSuggestion,
+  ensureWorker,
+  getSetting,
+  getStoredValue,
   getTimeoutProfile,
+  getVisibleSuggestionTexts,
+  hasVisibleSuggestions,
   launchBrowser,
-  getBackgroundContext,
   getRuntimePageUrl,
+  notifyConfigChange,
   openExtensionPage,
   openPopupPage,
+  pressRedo,
+  pressUndo,
+  reacquireWorker,
+  sendCommand,
+  sendExtensionCommand,
+  setSetting,
+  setSettings,
   sleep,
+  startTestPageServer,
+  takeSettingsWritten,
   triggerCommandForTesting,
   suiteTimeout,
+  waitForNoVisibleSuggestions,
+  waitForVisibleSuggestionTexts,
   waitUntil,
+  withWorker,
   isFirefox,
+  isRetriableWorkerError,
   clickReviewControl,
   readReviewPanel,
   REVIEW_HOST_SELECTOR,
@@ -60,15 +77,13 @@ import {
   waitForReview,
 } from "./e2e-helpers";
 
-const TEST_PAGE_PATH = path.resolve(__dirname, "test-page.html");
 const TEST_HOST = "localhost";
-const SETTINGS_PREFIX = "store.settings.";
 const CKEDITOR_SELECTOR = ".ck-editor__editable";
 const QUILL_SELECTOR = ".ql-editor";
 const LEXICAL_SELECTOR = "#test-lexical-editor";
 const PROSEMIRROR_SELECTOR = "#test-prosemirror-editor";
 const SLATE_SELECTOR = "#test-slate-editor";
-const GENERIC_INPUT_SELECTORS = ["#test-input"] as const;
+const GENERIC_INPUT_SELECTORS = ["#test-input"];
 const timeoutProfile = getTimeoutProfile();
 
 const NAVIGATION_TIMEOUT_MS = timeoutProfile.navigationMs;
@@ -78,47 +93,42 @@ const HOOK_TIMEOUT_MS = 30000;
 const RUN_DEV_RUNTIME_E2E =
   process.env.FT_E2E_DEV_RUNTIME === "1" || process.env.FT_E2E_DEV_RUNTIME === "true";
 const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
-const IS_CI = process.env.CI === "true" || process.env.CI === "1";
 const describeE2E = RUN_E2E ? describe : describe.skip;
-const WORKER_REACQUIRE_TIMEOUT_MS = isFirefox() ? 15000 : IS_CI ? 15000 : 7000;
 const ONBOARDING_VIEWPORT = { width: 1280, height: 900 } as const;
-
-function browserTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number) {
-  return suiteTimeout(chromeTimeoutMs, firefoxTimeoutMs);
+// A development-runtime run executes only the devRuntimeTest cases.
+// E2E_SHARD=i/n runs every n-th declared test (from the i-th) and skips the others,
+// so n processes with their own browsers run the suite in parallel.
+const [E2E_SHARD_INDEX, E2E_SHARD_COUNT] = (process.env.E2E_SHARD ?? "1/1").split("/").map(Number);
+let declaredTests = 0;
+const declaredInShard = () => declaredTests++ % E2E_SHARD_COUNT === E2E_SHARD_INDEX - 1;
+function sharded(run: typeof bunTest): typeof bunTest {
+  const shardTest = ((...args: Parameters<typeof bunTest>) =>
+    (declaredInShard() ? run : bunTest.skip)(...args)) as typeof bunTest;
+  shardTest.each = ((cases: unknown[]) =>
+    (declaredInShard() ? run : bunTest.skip).each(cases)) as unknown as typeof bunTest.each;
+  shardTest.skip = bunTest.skip;
+  return shardTest;
 }
+const test = sharded(RUN_DEV_RUNTIME_E2E ? bunTest.skip : bunTest);
+const devRuntimeTest = sharded(RUN_DEV_RUNTIME_E2E ? bunTest : bunTest.skip);
 
 async function bundleTestEditor(
   editor: "lexical" | "prosemirror" | "slate" | "tinymce" | "react-controlled" | "gutenberg",
-): Promise<Buffer> {
+): Promise<Blob> {
   const buildResult = await Bun.build({
     entrypoints: [path.resolve(__dirname, "fixtures", `${editor}-test-editor.ts`)],
     target: "browser",
     format: "iife",
     minify: false,
     sourcemap: "none",
-    write: false,
     define: {
       "process.env.NODE_ENV": JSON.stringify("production"),
     },
   });
   if (!buildResult.success) {
-    const errors = buildResult.logs
-      .map((log) => {
-        const location = log.position
-          ? `${log.position.file}:${log.position.line}:${log.position.column}`
-          : "unknown";
-        return `[${log.level}] ${location} ${log.message}`;
-      })
-      .join("\n");
-    throw new Error(`Failed to bundle ${editor} test editor:\n${errors}`);
+    throw new Error(`Failed to bundle ${editor} test editor:\n${buildResult.logs.join("\n")}`);
   }
-
-  const bundle = buildResult.outputs[0];
-  if (!bundle) {
-    throw new Error(`${editor} test editor bundle output is missing`);
-  }
-
-  return Buffer.from(await bundle.arrayBuffer());
+  return buildResult.outputs[0];
 }
 
 type OnboardingViewportSnapshot = {
@@ -128,82 +138,6 @@ type OnboardingViewportSnapshot = {
   rationaleInViewport: boolean;
   nextActionInViewport: boolean;
 };
-
-type TestNameContext = {
-  fullName?: string;
-  name?: string;
-};
-
-type TrackedTestCallback = (...args: unknown[]) => unknown;
-type TestRegistrarLike = {
-  (name: string, fn: TrackedTestCallback, timeout?: number): unknown;
-  (name: string, options: unknown, fn: TrackedTestCallback, timeout?: number): unknown;
-  each: (
-    cases: readonly unknown[],
-  ) => (name: string, fn: TrackedTestCallback, timeout?: number) => unknown;
-  skip?: TestRegistrarLike;
-};
-
-let currentE2ETestName = "Unknown Test";
-
-function wrapTrackedTestCallback(
-  fallbackName: string,
-  callback: TrackedTestCallback,
-): TrackedTestCallback {
-  return async (...args: unknown[]) => {
-    const [context] = args as [TestNameContext | undefined];
-    currentE2ETestName = context?.fullName || context?.name || fallbackName || "Unknown Test";
-    return await callback(...args);
-  };
-}
-
-function createTrackedSkipRegistrar(base: TestRegistrarLike): TestRegistrarLike {
-  const tracked = ((
-    name: string,
-    optionsOrFn: unknown,
-    maybeFn?: unknown,
-    maybeTimeout?: number,
-  ) => {
-    if (typeof optionsOrFn === "function") {
-      return base(name, wrapTrackedTestCallback(name, optionsOrFn), maybeFn);
-    }
-    if (typeof maybeFn === "function") {
-      return base(name, optionsOrFn, wrapTrackedTestCallback(name, maybeFn), maybeTimeout);
-    }
-    return base(name, optionsOrFn, maybeFn as TrackedTestCallback, maybeTimeout);
-  }) as TestRegistrarLike;
-
-  tracked.each = ((cases: readonly unknown[]) => {
-    const eachBase = base.each(cases);
-    return (name: string, callback: TrackedTestCallback, timeout?: number) =>
-      eachBase(name, wrapTrackedTestCallback(name, callback), timeout);
-  }) as TestRegistrarLike["each"];
-
-  return tracked;
-}
-
-// E2E_SHARD=i/n runs every n-th declared test (from the i-th) and skips the others,
-// so n processes with their own browsers run the suite in parallel.
-const [E2E_SHARD_INDEX, E2E_SHARD_COUNT] = (process.env.E2E_SHARD ?? "1/1").split("/").map(Number);
-let declaredTests = 0;
-const declaredInShard = () => declaredTests++ % E2E_SHARD_COUNT === E2E_SHARD_INDEX - 1;
-
-function createTrackedTestRegistrar(base: TestRegistrarLike): TestRegistrarLike {
-  const run = createTrackedSkipRegistrar(base);
-  const skip = createTrackedSkipRegistrar(base.skip!);
-  const tracked = ((...args: Parameters<TestRegistrarLike>) =>
-    (declaredInShard() ? run : skip)(...args)) as TestRegistrarLike;
-  tracked.each = (cases) => (declaredInShard() ? run : skip).each(cases);
-  tracked.skip = skip;
-  return tracked;
-}
-
-const test = createTrackedTestRegistrar(globalThis.test as unknown as TestRegistrarLike);
-const devRuntimeTest = RUN_DEV_RUNTIME_E2E ? test : test.skip;
-
-function devRuntimeEach<T>(cases: readonly T[]) {
-  return RUN_DEV_RUNTIME_E2E ? test.each(cases) : test.skip.each(cases);
-}
 
 async function captureOnboardingViewportSnapshot(page: Page): Promise<OnboardingViewportSnapshot> {
   return await page.evaluate(() => {
@@ -246,6 +180,7 @@ async function openOnboardingPageWithPermissionHooks(
   },
 ): Promise<Page> {
   const url = await getRuntimePageUrl(worker, "new_installation/index.html");
+
   const page = await browser.newPage();
   await page.setViewport(ONBOARDING_VIEWPORT);
 
@@ -260,299 +195,48 @@ async function openOnboardingPageWithPermissionHooks(
       __lastPermissionContainsRequest?: chrome.permissions.Permissions;
       __lastPermissionRequest?: chrome.permissions.Permissions;
     };
+    const { contains, request } = hookConfig;
 
-    if (typeof hookConfig.contains === "boolean") {
+    if (typeof contains === "boolean") {
       testWindow.__FT_TEST_PERMISSION_CONTAINS__ = async (
         options: chrome.permissions.Permissions,
       ) => {
         testWindow.__lastPermissionContainsRequest = options;
-        return hookConfig.contains;
+        return contains;
       };
     }
 
-    if (typeof hookConfig.request === "boolean") {
+    if (typeof request === "boolean") {
       testWindow.__FT_TEST_PERMISSION_REQUEST__ = async (
         options: chrome.permissions.Permissions,
       ) => {
         testWindow.__lastPermissionRequest = options;
-        return hookConfig.request;
+        return request;
       };
     }
   }, hooks);
 
   await page.goto(url, {
     waitUntil: "domcontentloaded",
-    timeout: browserTimeout(3000, 10000),
+    timeout: suiteTimeout(3000, 10000),
   });
   await page.waitForSelector("body", {
-    timeout: browserTimeout(3000, 10000),
+    timeout: suiteTimeout(3000, 10000),
   });
   await page.waitForFunction(() => document.body.textContent?.includes("Ctrl+Z") ?? false, {
-    timeout: browserTimeout(3000, 10000),
+    timeout: suiteTimeout(3000, 10000),
   });
 
   return page;
 }
 
 let domainTestUrl: string;
-let activeBrowserForWorkerRecovery: Browser | null = null;
-let latestWorkerContext: BackgroundContext | null = null;
-let settingsDirty = true;
-
-function isClosedPageContext(context: BackgroundContext | null): boolean {
-  if (!context || typeof (context as Page).isClosed !== "function") {
-    return false;
-  }
-  return (context as Page).isClosed();
-}
-
-function isRetriableWorkerError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /chrome\.storage\.local is unavailable|reading 'local'|chrome\.runtime\.getURL is unavailable|runtime\.getURL|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed|Timed out after waiting \d+ms|NoSuchFrameError|Browsing Context with id .* not found/i.test(
-    message,
-  );
-}
-
-async function reacquireWorkerContext(
-  browser: Browser,
-  label = "background worker context",
-): Promise<BackgroundContext> {
-  const recovered = await waitUntil(
-    label,
-    async () => {
-      try {
-        return await getBackgroundContext(browser);
-      } catch (error) {
-        if (!isRetriableWorkerError(error)) {
-          throw error;
-        }
-        return false;
-      }
-    },
-    {
-      timeoutMs: WORKER_REACQUIRE_TIMEOUT_MS,
-      intervalMs: 100,
-    },
-  );
-  latestWorkerContext = recovered;
-  return recovered;
-}
-
-async function ensureWorkerContext(
-  browser: Browser,
-  currentWorker: BackgroundContext | undefined,
-): Promise<BackgroundContext> {
-  if (currentWorker && !isClosedPageContext(currentWorker)) {
-    try {
-      await currentWorker.evaluate(() => {
-        const storage = (
-          globalThis as typeof globalThis & {
-            chrome?: typeof chrome;
-          }
-        ).chrome?.storage?.local;
-        if (!storage) {
-          throw new Error("chrome.storage.local is unavailable");
-        }
-      });
-      latestWorkerContext = currentWorker;
-      return currentWorker;
-    } catch (error) {
-      if (!isRetriableWorkerError(error)) {
-        throw error;
-      }
-    }
-  }
-
-  return await reacquireWorkerContext(browser, "reused background worker context");
-}
 
 async function ensurePrimaryPage(browser: Browser): Promise<Page> {
   const nextPage = await browser.newPage();
   nextPage.setDefaultNavigationTimeout(NAVIGATION_TIMEOUT_MS);
   await nextPage.bringToFront();
   return nextPage;
-}
-
-async function recoverWorkerForRetry(
-  existingWorker: BackgroundContext,
-): Promise<BackgroundContext> {
-  if (activeBrowserForWorkerRecovery) {
-    try {
-      return await reacquireWorkerContext(activeBrowserForWorkerRecovery, "worker recovery");
-    } catch (error) {
-      if (!isRetriableWorkerError(error) || isFirefox()) {
-        throw error;
-      }
-      try {
-        const controlPage = await openExtensionPage(
-          activeBrowserForWorkerRecovery,
-          existingWorker,
-          "options/options.html",
-        );
-        latestWorkerContext = controlPage;
-        return controlPage;
-      } catch (fallbackError) {
-        if (!isRetriableWorkerError(fallbackError)) {
-          throw fallbackError;
-        }
-      }
-    }
-  }
-  if (latestWorkerContext && !isClosedPageContext(latestWorkerContext)) {
-    return latestWorkerContext;
-  }
-  return existingWorker;
-}
-
-async function setSetting(worker: BackgroundContext, key: string, value: unknown): Promise<void> {
-  settingsDirty = true;
-  const storageKey = `${SETTINGS_PREFIX}${key}`;
-  let workerContext = worker;
-  latestWorkerContext = workerContext;
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= 10; attempt++) {
-    try {
-      await workerContext.evaluate(
-        (storageKeyInner, valueInner) =>
-          new Promise<void>((resolve, reject) => {
-            const storage = (
-              globalThis as typeof globalThis & {
-                chrome?: typeof chrome;
-              }
-            ).chrome?.storage?.local;
-            if (!storage) {
-              reject(new Error("chrome.storage.local is unavailable"));
-              return;
-            }
-            storage.set({ [storageKeyInner]: JSON.stringify(valueInner) }, () => {
-              const runtime = (
-                globalThis as typeof globalThis & {
-                  chrome?: typeof chrome;
-                }
-              ).chrome?.runtime;
-              if (runtime?.lastError) {
-                reject(new Error(runtime.lastError.message));
-                return;
-              }
-              resolve();
-            });
-          }),
-        storageKey,
-        value,
-      );
-      latestWorkerContext = workerContext;
-      return;
-    } catch (error) {
-      lastError = error;
-      if (!isRetriableWorkerError(error) || attempt === 10) {
-        throw error;
-      }
-      workerContext = await recoverWorkerForRetry(workerContext);
-      await sleep(100);
-    }
-  }
-  throw lastError;
-}
-
-async function getSetting<T>(worker: BackgroundContext, key: string): Promise<T | undefined> {
-  const storageKey = `${SETTINGS_PREFIX}${key}`;
-  let workerContext = worker;
-  latestWorkerContext = workerContext;
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= 10; attempt++) {
-    try {
-      const value = (await workerContext.evaluate(
-        (storageKeyInner) =>
-          new Promise((resolve, reject) => {
-            const storage = (
-              globalThis as typeof globalThis & {
-                chrome?: typeof chrome;
-              }
-            ).chrome?.storage?.local;
-            if (!storage) {
-              reject(new Error("chrome.storage.local is unavailable"));
-              return;
-            }
-            storage.get(storageKeyInner, (result) => {
-              const runtime = (
-                globalThis as typeof globalThis & {
-                  chrome?: typeof chrome;
-                }
-              ).chrome?.runtime;
-              if (runtime?.lastError) {
-                reject(new Error(runtime.lastError.message));
-                return;
-              }
-              const rawValue = (result as Record<string, string | undefined>)[storageKeyInner];
-              resolve(rawValue ? JSON.parse(rawValue) : undefined);
-            });
-          }),
-        storageKey,
-      )) as T | undefined;
-      latestWorkerContext = workerContext;
-      return value;
-    } catch (error) {
-      lastError = error;
-      if (!isRetriableWorkerError(error) || attempt === 10) {
-        throw error;
-      }
-      workerContext = await recoverWorkerForRetry(workerContext);
-      await sleep(100);
-    }
-  }
-  throw lastError;
-}
-
-async function getLocalStorageValue<T>(
-  worker: BackgroundContext,
-  storageKey: string,
-): Promise<T | undefined> {
-  return (await worker.evaluate(
-    (storageKeyInner) =>
-      new Promise((resolve, reject) => {
-        chrome.storage.local.get(storageKeyInner, (result) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-            return;
-          }
-          const rawValue = (result as Record<string, string | undefined>)[storageKeyInner];
-          resolve(rawValue ? JSON.parse(rawValue) : undefined);
-        });
-      }),
-    storageKey,
-  )) as T | undefined;
-}
-
-async function sendRuntimeCommand(
-  browser: Browser,
-  worker: BackgroundContext,
-  command: string,
-): Promise<void> {
-  const extensionPage = await openExtensionPage(browser, worker, "options/options.html");
-  try {
-    await extensionPage.evaluate((commandInner) => {
-      return new Promise<void>((resolve, reject) => {
-        chrome.runtime.sendMessage(
-          { command: commandInner, context: {} },
-          (response: { ok?: boolean } | undefined) => {
-            if (chrome.runtime.lastError) {
-              reject(new Error(chrome.runtime.lastError.message));
-              return;
-            }
-            if (!response?.ok) {
-              reject(new Error(`Runtime command ${commandInner} returned not ok`));
-              return;
-            }
-            resolve();
-          },
-        );
-      });
-    }, command);
-  } finally {
-    if (!extensionPage.isClosed()) {
-      await extensionPage.close();
-    }
-  }
 }
 
 async function restartExtensionRuntime(
@@ -564,41 +248,25 @@ async function restartExtensionRuntime(
     try {
       await worker.close();
       await sleep(100);
-      await wakePage.evaluate((command) => {
-        return new Promise<void>((resolve, reject) => {
-          chrome.runtime.sendMessage(
-            { command, context: {} },
-            (response: { ok?: boolean } | undefined) => {
-              if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-              }
-              if (!response?.ok) {
-                reject(new Error("Restart wake command returned not ok"));
-                return;
-              }
-              resolve();
-            },
-          );
-        });
-      }, CMD_OPTIONS_PAGE_CONFIG_CHANGE);
-      return await reacquireWorkerContext(browser, "restarted extension runtime");
+      await sendCommand(wakePage, CMD_OPTIONS_PAGE_CONFIG_CHANGE, {}, { requireOk: true });
+      return await reacquireWorker(browser);
     } finally {
       await wakePage.close();
     }
-  } else {
-    try {
-      await worker.evaluate(() => {
-        chrome.runtime.reload();
-      });
-    } catch (error) {
-      if (!isRetriableWorkerError(error)) {
-        throw error;
-      }
+  }
+  try {
+    await worker.evaluate(() => {
+      chrome.runtime.reload();
+    });
+  } catch (error) {
+    if (!isRetriableWorkerError(error)) {
+      throw error;
     }
   }
+  // runtime.reload() gives no signal when the old context is gone. Wait so that
+  // the poll below does not find the context that is about to close.
   await sleep(250);
-  return await reacquireWorkerContext(browser, "restarted extension runtime");
+  return await reacquireWorker(browser);
 }
 
 async function waitForSettingMatch<T>(
@@ -613,216 +281,20 @@ async function waitForSettingMatch<T>(
       const currentValue = await getSetting<T>(worker, key);
       return predicate(currentValue) ? currentValue : false;
     },
-    { timeoutMs, intervalMs: 50 },
+    { timeoutMs },
   );
 }
 
-async function setSettingAndWait(
-  worker: BackgroundContext,
-  key: string,
-  value: unknown,
-  timeoutMs = 15000,
-): Promise<void> {
-  await setSetting(worker, key, value);
-  const expected = JSON.stringify(value);
-  await waitUntil(
-    `setting ${key} to become ${expected}`,
-    async () => {
-      const current = await getSetting<unknown>(worker, key);
-      return JSON.stringify(current) === expected ? true : false;
-    },
-    { timeoutMs, intervalMs: 50 },
-  );
-}
-
-async function setSettingAndWaitStable(
-  worker: BackgroundContext,
-  key: string,
-  value: unknown,
-  attempts = 3,
-  timeoutMs = 5000,
-): Promise<void> {
-  const expected = JSON.stringify(value);
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      await setSetting(worker, key, value);
-      await waitForSettingMatch(
-        worker,
-        key,
-        (currentValue) => JSON.stringify(currentValue) === expected,
-        timeoutMs,
-      );
-      return;
-    } catch (error) {
-      lastError = error;
-      if (attempt < attempts) {
-        await sleep(150);
-      }
-    }
-  }
-
-  throw lastError instanceof Error
-    ? lastError
-    : new Error(`Timed out waiting for setting ${key} to stabilize as ${expected}`);
-}
-
-async function setGrammarRulesAndWait(
-  worker: BackgroundContext,
-  selection: readonly string[],
-  timeoutMs = 15000,
-): Promise<void> {
-  await setSettingAndWait(
-    worker,
-    KEY_ENABLED_GRAMMAR_RULES,
-    grammarRuleSelectionToOverrides(selection),
-    timeoutMs,
-  );
-}
-
-async function setGrammarRulesAndWaitStable(
-  worker: BackgroundContext,
-  selection: readonly string[],
-  attempts = 3,
-  timeoutMs = 5000,
-): Promise<void> {
-  await setSettingAndWaitStable(
-    worker,
-    KEY_ENABLED_GRAMMAR_RULES,
-    grammarRuleSelectionToOverrides(selection),
-    attempts,
-    timeoutMs,
-  );
-}
-
-async function notifyConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
-  let workerContext = worker;
-  latestWorkerContext = workerContext;
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= 5; attempt++) {
-    try {
-      if (isFirefox()) {
-        await workerContext.evaluate(
-          (command) =>
-            new Promise<void>((resolve, reject) => {
-              chrome.runtime.sendMessage(
-                { command, context: {} },
-                (response: { ok?: boolean } | undefined) => {
-                  if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                    return;
-                  }
-                  if (!response?.ok) {
-                    reject(
-                      new Error(`Config change ACK returned not ok: ${JSON.stringify(response)}`),
-                    );
-                    return;
-                  }
-                  resolve();
-                },
-              );
-            }),
-          CMD_OPTIONS_PAGE_CONFIG_CHANGE,
-        );
-      } else {
-        const extensionPage = await openExtensionPage(
-          browser,
-          workerContext,
-          "options/options.html",
-        );
-        try {
-          await extensionPage.evaluate(
-            (command) =>
-              new Promise<void>((resolve, reject) => {
-                chrome.runtime.sendMessage(
-                  { command, context: {} },
-                  (response: { ok?: boolean } | undefined) => {
-                    if (chrome.runtime.lastError) {
-                      reject(new Error(chrome.runtime.lastError.message));
-                      return;
-                    }
-                    if (!response?.ok) {
-                      reject(
-                        new Error(`Config change ACK returned not ok: ${JSON.stringify(response)}`),
-                      );
-                      return;
-                    }
-                    resolve();
-                  },
-                );
-              }),
-            CMD_OPTIONS_PAGE_CONFIG_CHANGE,
-          );
-        } finally {
-          if (!extensionPage.isClosed()) {
-            await extensionPage.close();
-          }
-        }
-      }
-      latestWorkerContext = workerContext;
-      return;
-    } catch (error) {
-      lastError = error;
-      if (!isRetriableWorkerError(error) || attempt === 5) {
-        throw error;
-      }
-      workerContext = await recoverWorkerForRetry(workerContext);
-      await sleep(100);
-    }
-  }
-
-  throw lastError;
-}
-
-async function applyConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
-  await notifyConfigChange(browser, worker);
+async function setGrammarRules(worker: BackgroundContext, selection: readonly string[]) {
+  await setSetting(worker, KEY_ENABLED_GRAMMAR_RULES, grammarRuleSelectionToOverrides(selection));
 }
 
 async function openOptionsPage(browser: Browser, worker: BackgroundContext) {
-  let workerContext = worker;
-  latestWorkerContext = workerContext;
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= 5; attempt++) {
-    try {
-      const optionsPage = await openExtensionPage(browser, workerContext, "options/options.html");
-      await optionsPage.waitForSelector("#content");
-      latestWorkerContext = workerContext;
-      return optionsPage;
-    } catch (error) {
-      lastError = error;
-      if (!isRetriableWorkerError(error) || attempt === 5) {
-        throw error;
-      }
-      workerContext = await recoverWorkerForRetry(workerContext);
-      await sleep(100);
-    }
-  }
-
-  throw lastError;
-}
-
-async function sendOptionsPageConfigChange(optionsPage: Page): Promise<void> {
-  await optionsPage.evaluate((command) => {
-    return new Promise<void>((resolve, reject) => {
-      chrome.runtime.sendMessage(
-        { command, context: {} },
-        (response: { ok?: boolean } | undefined) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-            return;
-          }
-          if (!response?.ok) {
-            reject(new Error(`Config change ACK returned not ok: ${JSON.stringify(response)}`));
-            return;
-          }
-          resolve();
-        },
-      );
-    });
-  }, CMD_OPTIONS_PAGE_CONFIG_CHANGE);
+  return withWorker(worker, async (context) => {
+    const optionsPage = await openExtensionPage(browser, context, "options/options.html");
+    await optionsPage.waitForSelector("#content");
+    return optionsPage;
+  });
 }
 
 interface PredictorDebugSnapshot {
@@ -842,20 +314,12 @@ interface PredictorDebugSnapshot {
 }
 
 async function getPredictorDebugSnapshot(optionsPage: Page): Promise<PredictorDebugSnapshot> {
-  return await optionsPage.evaluate((command) => {
-    return new Promise<PredictorDebugSnapshot>((resolve, reject) => {
-      chrome.runtime.sendMessage(
-        { command, context: {} },
-        (response: PredictorDebugSnapshot | undefined) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-            return;
-          }
-          resolve(response || {});
-        },
-      );
-    });
-  }, CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT);
+  return (
+    (await sendCommand<PredictorDebugSnapshot | undefined>(
+      optionsPage,
+      CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
+    )) ?? {}
+  );
 }
 
 type PredictorDebugTrace = NonNullable<PredictorDebugSnapshot["traces"]>[number];
@@ -863,30 +327,25 @@ type PredictorDebugTrace = NonNullable<PredictorDebugSnapshot["traces"]>[number]
 async function waitForPredictorTrace(
   optionsPage: Page,
   predicate: (trace: PredictorDebugTrace) => boolean,
-  timeoutMs = browserTimeout(5000, 10000),
+  timeoutMs = suiteTimeout(5000, 10000),
 ): Promise<PredictorDebugTrace> {
   try {
     return await waitUntil(
       "predictor debug trace",
-      async () => {
-        const snapshot = await getPredictorDebugSnapshot(optionsPage);
-        const traces = Array.isArray(snapshot.traces) ? snapshot.traces : [];
-        const matchingTrace = traces.find(predicate);
-        return matchingTrace || false;
-      },
+      async () => (await getPredictorDebugSnapshot(optionsPage)).traces?.find(predicate) ?? false,
       { timeoutMs, intervalMs: 100 },
     );
   } catch (error) {
-    const snapshot = await getPredictorDebugSnapshot(optionsPage).catch(() => ({}));
-    const recentTraces = Array.isArray(snapshot.traces)
-      ? snapshot.traces.slice(0, 5).map((trace) => ({
-          traceId: trace.traceId,
-          lang: trace.lang,
-          text: trace.text,
-          predictionInput: trace.predictionInput,
-          doPrediction: trace.doPrediction,
-        }))
-      : [];
+    const snapshot: PredictorDebugSnapshot = await getPredictorDebugSnapshot(optionsPage).catch(
+      () => ({}),
+    );
+    const recentTraces = (snapshot.traces ?? []).slice(0, 5).map((trace) => ({
+      traceId: trace.traceId,
+      lang: trace.lang,
+      text: trace.text,
+      predictionInput: trace.predictionInput,
+      doPrediction: trace.doPrediction,
+    }));
     throw new Error(
       `Failed to match predictor trace: ${String(error)} recent=${JSON.stringify(recentTraces)}`,
       { cause: error },
@@ -894,34 +353,16 @@ async function waitForPredictorTrace(
   }
 }
 
-async function waitForSettingValue(
-  worker: BackgroundContext,
-  key: string,
-  expectedValue: boolean,
-  timeoutMs = 5000,
-): Promise<void> {
-  await waitUntil(
-    `setting ${key} to equal ${String(expectedValue)}`,
-    async () => {
-      const currentValue = await getSetting<boolean>(worker, key);
-      return currentValue === expectedValue ? true : false;
-    },
-    { timeoutMs, intervalMs: 50 },
-  );
-}
-
 async function waitForSnapshotValue(
   optionsPage: Page,
-  key: string,
   expectedValue: boolean,
   timeoutMs = 7000,
 ): Promise<void> {
   await waitUntil(
-    `predictor snapshot ${key}=${String(expectedValue)}`,
-    async () => {
-      const snapshot = await getPredictorDebugSnapshot(optionsPage);
-      return snapshot.config?.debugPresagePredictorEnabled === expectedValue;
-    },
+    `predictor snapshot debugPresagePredictorEnabled=${String(expectedValue)}`,
+    async () =>
+      (await getPredictorDebugSnapshot(optionsPage)).config?.debugPresagePredictorEnabled ===
+      expectedValue,
     { timeoutMs, intervalMs: 100 },
   );
 }
@@ -942,14 +383,6 @@ async function togglePredictorDebugButton(optionsPage: Page, key: string): Promi
       }),
     );
   }, selector);
-}
-
-function shouldEnableCkEditor(selector: string) {
-  return selector === CKEDITOR_SELECTOR;
-}
-
-function shouldEnableQuill(selector: string) {
-  return selector === QUILL_SELECTOR;
 }
 
 async function clearInputContent(page: Page, selector: string): Promise<void> {
@@ -997,7 +430,7 @@ async function waitForInputContentEqual(
   page: Page,
   selector: string,
   expected: string,
-  timeoutMs: number,
+  timeoutMs = suiteTimeout(5000, 9000),
 ): Promise<string> {
   return await waitUntil(
     `input content ${selector} to equal "${expected}"`,
@@ -1005,7 +438,7 @@ async function waitForInputContentEqual(
       const currentValue = await getInputContent(page, selector);
       return currentValue === expected ? currentValue : false;
     },
-    { timeoutMs, intervalMs: 50 },
+    { timeoutMs },
   );
 }
 
@@ -1013,7 +446,7 @@ async function waitForInputContentMatch(
   page: Page,
   selector: string,
   pattern: RegExp,
-  timeoutMs: number,
+  timeoutMs = suiteTimeout(5000, 9000),
 ): Promise<string> {
   return await waitUntil(
     `input content ${selector} to match ${String(pattern)}`,
@@ -1021,7 +454,7 @@ async function waitForInputContentMatch(
       const currentValue = await getInputContent(page, selector);
       return pattern.test(currentValue) ? currentValue : false;
     },
-    { timeoutMs, intervalMs: 50 },
+    { timeoutMs },
   );
 }
 
@@ -1037,17 +470,8 @@ async function waitForInputContentMinLength(
       const currentValue = await getInputContent(page, selector);
       return currentValue.length > minLengthExclusive ? currentValue : false;
     },
-    { timeoutMs, intervalMs: 50 },
+    { timeoutMs },
   );
-}
-
-function hasNonAsciiCharacters(text: string): boolean {
-  for (let i = 0; i < text.length; i++) {
-    if (text.charCodeAt(i) > 0x7f) {
-      return true;
-    }
-  }
-  return false;
 }
 
 function normalizeSuggestionText(suggestion: string): string {
@@ -1056,7 +480,7 @@ function normalizeSuggestionText(suggestion: string): string {
 
 async function typeInInput(page: Page, selector: string, text: string): Promise<void> {
   await page.focus(selector);
-  if (selector === CKEDITOR_SELECTOR && hasNonAsciiCharacters(text)) {
+  if (selector === CKEDITOR_SELECTOR && /[\u0080-\uffff]/.test(text)) {
     await page.keyboard.type(text, { delay: 20 });
     return;
   }
@@ -1065,29 +489,6 @@ async function typeInInput(page: Page, selector: string, text: string): Promise<
     throw new Error(`Input element not found for selector: ${selector}`);
   }
   await element.type(text);
-}
-
-async function pressNativeUndo(page: Page, selector: string): Promise<void> {
-  await page.focus(selector);
-  const isMac = process.platform === "darwin";
-  const modifier = isMac ? "Meta" : "Control";
-  await page.keyboard.down(modifier);
-  // macOS maps Cmd+Z to undo in the OS key bindings, which synthetic key events
-  // skip; name the editing command so native fields undo like a real keypress.
-  await page.keyboard.press("z", isMac ? { commands: ["Undo"] } : undefined);
-  await page.keyboard.up(modifier);
-}
-
-async function pressNativeRedo(page: Page): Promise<void> {
-  const modifier = process.platform === "darwin" ? "Meta" : "Control";
-  await page.keyboard.down(modifier);
-  await page.keyboard.down("Shift");
-  await page.keyboard.press(
-    "z",
-    process.platform === "darwin" ? { commands: ["Redo"] } : undefined,
-  );
-  await page.keyboard.up("Shift");
-  await page.keyboard.up(modifier);
 }
 
 async function gotoTestPage(
@@ -1103,7 +504,7 @@ async function gotoTestPage(
     tinyMceMode?: "iframe" | "inline";
   } = {},
 ) {
-  const params = new URLSearchParams({ testName: currentE2ETestName });
+  const params = new URLSearchParams();
   if (options.enableCkEditor) {
     params.set("enableCkEditor", "1");
   }
@@ -1124,8 +525,8 @@ async function gotoTestPage(
   if (options.tinyMceMode) {
     params.set("tinyMceMode", options.tinyMceMode);
   }
-  // Use a local HTTP server instead of file:// so host permissions apply consistently.
-  const targetUrl = `${domainTestUrl}?${params.toString()}`;
+  const query = params.toString();
+  const targetUrl = query ? `${domainTestUrl}?${query}` : domainTestUrl;
   if (isFirefox()) {
     await page.evaluate((url) => {
       window.location.href = url;
@@ -1140,6 +541,7 @@ async function gotoTestPage(
       waitUntil: "domcontentloaded",
     });
   }
+  await page.bringToFront();
 }
 
 async function waitForInputReady(page: Page | Frame, selector: string) {
@@ -1167,9 +569,9 @@ async function waitForInputReady(page: Page | Frame, selector: string) {
         if (ckState.error) {
           throw new Error(`CKEditor failed to initialize: ${ckState.error}`);
         }
-        return ckState.ready || ckState.hasEditable ? true : false;
+        return ckState.ready || ckState.hasEditable;
       },
-      { timeoutMs: INPUT_READY_TIMEOUT_MS, intervalMs: 50 },
+      { timeoutMs: INPUT_READY_TIMEOUT_MS },
     ).catch(async (error) => {
       const debugState = await page.evaluate(() => ({
         href: window.location.href,
@@ -1215,9 +617,9 @@ async function waitForInputReady(page: Page | Frame, selector: string) {
         if (quillState.error) {
           throw new Error(`Quill failed to initialize: ${quillState.error}`);
         }
-        return quillState.ready || quillState.hasEditor ? true : false;
+        return quillState.ready || quillState.hasEditor;
       },
-      { timeoutMs: INPUT_READY_TIMEOUT_MS, intervalMs: 50 },
+      { timeoutMs: INPUT_READY_TIMEOUT_MS },
     );
   }
 
@@ -1251,7 +653,7 @@ async function waitForInputReady(page: Page | Frame, selector: string) {
         }
         return lexicalState.ready && lexicalState.hasParagraph && lexicalState.isContentEditable;
       },
-      { timeoutMs: INPUT_READY_TIMEOUT_MS, intervalMs: 50 },
+      { timeoutMs: INPUT_READY_TIMEOUT_MS },
     ).catch(async (error) => {
       const debugState = await page.evaluate(() => ({
         href: window.location.href,
@@ -1280,15 +682,13 @@ async function waitForInputReady(page: Page | Frame, selector: string) {
   await page.waitForSelector(selector, { timeout: INPUT_READY_TIMEOUT_MS });
   await waitUntil(
     `input helper attach for ${selector}`,
-    async () => {
-      const isAttached = await page.evaluate((sel) => {
+    async () =>
+      page.evaluate((sel) => {
         const target = document.querySelector(sel);
         const stateHost = target === document.body ? document.documentElement : target;
         return stateHost?.hasAttribute("data-suggestion") ?? false;
-      }, selector);
-      return isAttached ? true : false;
-    },
-    { timeoutMs: INPUT_READY_TIMEOUT_MS, intervalMs: 50 },
+      }, selector),
+    { timeoutMs: INPUT_READY_TIMEOUT_MS },
   );
 }
 
@@ -1296,90 +696,7 @@ async function waitForVisibleSuggestions(
   page: Page,
   timeoutMs = SUGGESTION_TIMEOUT_MS,
 ): Promise<number> {
-  const suggestions = await waitForVisibleSuggestionTexts(page, timeoutMs);
-  return suggestions.length;
-}
-
-async function getVisibleSuggestionTexts(page: Page | Frame): Promise<string[]> {
-  return await page.evaluate(() => {
-    const getMenuRoot = (container: Element): ParentNode =>
-      (container as HTMLElement).shadowRoot ?? container;
-    const getDeepActiveElement = (): HTMLElement | null => {
-      let active: Element | null = document.activeElement;
-      while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
-        active = active.shadowRoot.activeElement;
-      }
-      return active instanceof HTMLElement ? active : null;
-    };
-    const getMenuHostId = (entryId: string): string => `ft-menu-${entryId}`;
-    const collectManagedElements = (root: ParentNode): HTMLElement[] => [
-      ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
-      ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
-        element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
-      ),
-    ];
-    const getKnownMenus = (): Element[] => {
-      const seen = new Set<Element>();
-      return [
-        ...collectManagedElements(document)
-          .map((element) => element.getAttribute("data-ft-suggestion-id"))
-          .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
-          .map((entryId) => document.getElementById(getMenuHostId(entryId)))
-          .filter((menu): menu is Element => menu instanceof Element),
-        ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
-      ]
-        .filter((menu): menu is Element => menu instanceof Element)
-        .filter((menu) => {
-          if (seen.has(menu)) {
-            return false;
-          }
-          seen.add(menu);
-          return true;
-        });
-    };
-    const activeElement = getDeepActiveElement();
-    const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
-    const activeMenu =
-      typeof activeEntryId === "string"
-        ? document.getElementById(getMenuHostId(activeEntryId))
-        : null;
-    const containers = [
-      ...(activeMenu instanceof Element ? [activeMenu] : []),
-      ...getKnownMenus().filter((container) => container !== activeMenu),
-    ];
-    for (const container of containers) {
-      const style = window.getComputedStyle(container);
-      if (
-        style.display === "none" ||
-        style.visibility === "hidden" ||
-        style.opacity === "0" ||
-        container.getClientRects().length === 0
-      ) {
-        continue;
-      }
-      const visibleTexts = Array.from(getMenuRoot(container).querySelectorAll("li[data-index]"))
-        .map((li) => (li.querySelector(".ft-suggestion-label") ?? li).textContent ?? "")
-        .filter((text) => text.length > 0);
-      if (visibleTexts.length > 0) {
-        return visibleTexts;
-      }
-    }
-    return [];
-  });
-}
-
-async function waitForVisibleSuggestionTexts(
-  page: Page | Frame,
-  timeoutMs = SUGGESTION_TIMEOUT_MS,
-): Promise<string[]> {
-  return await waitUntil(
-    "visible suggestions",
-    async () => {
-      const texts = await getVisibleSuggestionTexts(page);
-      return texts.length > 0 ? texts : false;
-    },
-    { timeoutMs, intervalMs: 50 },
-  );
+  return (await waitForVisibleSuggestionTexts(page, timeoutMs)).length;
 }
 
 async function highlightSuggestion(
@@ -1420,254 +737,24 @@ async function highlightSuggestion(
   );
 }
 
-async function hasVisibleSuggestions(page: Page): Promise<boolean> {
-  return page.evaluate(() => {
-    const getMenuRoot = (container: Element): ParentNode =>
-      (container as HTMLElement).shadowRoot ?? container;
-    const getDeepActiveElement = (): HTMLElement | null => {
-      let active: Element | null = document.activeElement;
-      while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
-        active = active.shadowRoot.activeElement;
-      }
-      return active instanceof HTMLElement ? active : null;
-    };
-    const getMenuHostId = (entryId: string): string => `ft-menu-${entryId}`;
-    const collectManagedElements = (root: ParentNode): HTMLElement[] => [
-      ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
-      ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
-        element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
-      ),
-    ];
-    const getKnownMenus = (): Element[] => {
-      const seen = new Set<Element>();
-      return [
-        ...collectManagedElements(document)
-          .map((element) => element.getAttribute("data-ft-suggestion-id"))
-          .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
-          .map((entryId) => document.getElementById(getMenuHostId(entryId)))
-          .filter((menu): menu is Element => menu instanceof Element),
-        ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
-      ]
-        .filter((menu): menu is Element => menu instanceof Element)
-        .filter((menu) => {
-          if (seen.has(menu)) {
-            return false;
-          }
-          seen.add(menu);
-          return true;
-        });
-    };
-    const activeElement = getDeepActiveElement();
-    const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
-    const activeMenu =
-      typeof activeEntryId === "string"
-        ? document.getElementById(getMenuHostId(activeEntryId))
-        : null;
-    const containers = [
-      ...(activeMenu instanceof Element ? [activeMenu] : []),
-      ...getKnownMenus().filter((container) => container !== activeMenu),
-    ];
-    return containers.some((container) => {
-      const style = window.getComputedStyle(container);
-      if (
-        style.display === "none" ||
-        style.visibility === "hidden" ||
-        style.opacity === "0" ||
-        container.getClientRects().length === 0
-      ) {
-        return false;
-      }
-      return getMenuRoot(container).querySelectorAll("li[data-index]").length > 0;
-    });
-  });
-}
-
-async function waitForNoVisibleSuggestions(
-  page: Page,
-  timeoutMs = SUGGESTION_TIMEOUT_MS,
-): Promise<void> {
-  await page.waitForFunction(
-    () => {
-      const getMenuRoot = (container: Element): ParentNode =>
-        (container as HTMLElement).shadowRoot ?? container;
-      const getDeepActiveElement = (): HTMLElement | null => {
-        let active: Element | null = document.activeElement;
-        while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
-          active = active.shadowRoot.activeElement;
-        }
-        return active instanceof HTMLElement ? active : null;
-      };
-      const getMenuHostId = (entryId: string): string => `ft-menu-${entryId}`;
-      const collectManagedElements = (root: ParentNode): HTMLElement[] => [
-        ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
-        ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
-          element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
-        ),
-      ];
-      const getKnownMenus = (): Element[] => {
-        const seen = new Set<Element>();
-        return [
-          ...collectManagedElements(document)
-            .map((element) => element.getAttribute("data-ft-suggestion-id"))
-            .filter(
-              (entryId): entryId is string => typeof entryId === "string" && entryId.length > 0,
-            )
-            .map((entryId) => document.getElementById(getMenuHostId(entryId)))
-            .filter((menu): menu is Element => menu instanceof Element),
-          ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
-        ]
-          .filter((menu): menu is Element => menu instanceof Element)
-          .filter((menu) => {
-            if (seen.has(menu)) {
-              return false;
-            }
-            seen.add(menu);
-            return true;
-          });
-      };
-      const activeElement = getDeepActiveElement();
-      const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
-      const activeMenu =
-        typeof activeEntryId === "string"
-          ? document.getElementById(getMenuHostId(activeEntryId))
-          : null;
-      const containers = [
-        ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...getKnownMenus().filter((container) => container !== activeMenu),
-      ];
-      return containers.every((container) => {
-        const style = window.getComputedStyle(container);
-        if (
-          style.display === "none" ||
-          style.visibility === "hidden" ||
-          style.opacity === "0" ||
-          container.getClientRects().length === 0
-        ) {
-          return true;
-        }
-        return getMenuRoot(container).querySelectorAll("li[data-index]").length === 0;
-      });
-    },
-    { timeout: timeoutMs },
-  );
-}
-
-async function clickFirstVisibleSuggestion(
-  page: Page,
-  timeoutMs = SUGGESTION_TIMEOUT_MS,
-): Promise<void> {
-  await page.waitForFunction(
-    () => {
-      const getMenuRoot = (container: Element): ParentNode =>
-        (container as HTMLElement).shadowRoot ?? container;
-      const getDeepActiveElement = (): HTMLElement | null => {
-        let active: Element | null = document.activeElement;
-        while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
-          active = active.shadowRoot.activeElement;
-        }
-        return active instanceof HTMLElement ? active : null;
-      };
-      const getMenuHostId = (entryId: string): string => `ft-menu-${entryId}`;
-      const collectManagedElements = (root: ParentNode): HTMLElement[] => [
-        ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
-        ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
-          element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
-        ),
-      ];
-      const getKnownMenus = (): Element[] => {
-        const seen = new Set<Element>();
-        return [
-          ...collectManagedElements(document)
-            .map((element) => element.getAttribute("data-ft-suggestion-id"))
-            .filter(
-              (entryId): entryId is string => typeof entryId === "string" && entryId.length > 0,
-            )
-            .map((entryId) => document.getElementById(getMenuHostId(entryId)))
-            .filter((menu): menu is Element => menu instanceof Element),
-          ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
-        ]
-          .filter((menu): menu is Element => menu instanceof Element)
-          .filter((menu) => {
-            if (seen.has(menu)) {
-              return false;
-            }
-            seen.add(menu);
-            return true;
-          });
-      };
-      const activeElement = getDeepActiveElement();
-      const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
-      const activeMenu =
-        typeof activeEntryId === "string"
-          ? document.getElementById(getMenuHostId(activeEntryId))
-          : null;
-      const containers = [
-        ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...getKnownMenus().filter((container) => container !== activeMenu),
-      ];
-      for (const container of containers) {
-        const style = window.getComputedStyle(container);
-        if (
-          style.display === "none" ||
-          style.visibility === "hidden" ||
-          style.opacity === "0" ||
-          container.getClientRects().length === 0
-        ) {
-          continue;
-        }
-        const first = getMenuRoot(container).querySelector("li[data-index]");
-        if (first instanceof HTMLElement) {
-          first.dispatchEvent(
-            new MouseEvent("mousedown", {
-              bubbles: true,
-              cancelable: true,
-              view: window,
-            }),
-          );
-          first.dispatchEvent(
-            new MouseEvent("mouseup", {
-              bubbles: true,
-              cancelable: true,
-              view: window,
-            }),
-          );
-          first.dispatchEvent(
-            new MouseEvent("click", {
-              bubbles: true,
-              cancelable: true,
-              view: window,
-            }),
-          );
-          return true;
-        }
-      }
-      return false;
-    },
-    { timeout: timeoutMs },
-  );
-}
-
 describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   let browser: Browser;
   let page: Page;
   let worker: BackgroundContext;
-  let domainTestServer: Server;
-  let domainTestHtml: string;
-  const editorBundles = new Map<string, Buffer>();
+  let testPageServer: ReturnType<typeof startTestPageServer>;
   let startupFirefoxInstallationPage: Page | null = null;
 
   beforeAll(async () => {
     browser = await launchBrowser();
-    activeBrowserForWorkerRecovery = browser;
     const pages = await browser.pages();
     page = pages[0];
     if (isFirefox()) {
       startupFirefoxInstallationPage =
         pages.find((openPage) => openPage.url().includes("/new_installation/index.html")) ?? null;
     }
-    worker = await reacquireWorkerContext(browser, "initial background worker context");
+    worker = await reacquireWorker(browser);
     page = await ensurePrimaryPage(browser);
-    domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
+    const editorBundles: Record<string, Blob> = {};
     for (const editor of [
       "lexical",
       "prosemirror",
@@ -1676,136 +763,22 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       "react-controlled",
       "gutenberg",
     ] as const) {
-      editorBundles.set(`/test-${editor}-editor.js`, await bundleTestEditor(editor));
+      editorBundles[`/test-${editor}-editor.js`] = await bundleTestEditor(editor);
     }
-
-    domainTestServer = createServer((req, res) => {
-      const editorBundle = editorBundles.get(req.url ?? "");
-      if (editorBundle) {
-        res.writeHead(200, {
-          "Content-Type": "application/javascript; charset=utf-8",
-          "Content-Length": editorBundle.length,
-        });
-        res.end(editorBundle);
-        return;
-      }
-      if (req.url?.startsWith("/tinymce-skin/")) {
-        const filename = path.basename(req.url);
-        if (["skin.min.css", "content.min.css", "content.inline.min.css"].includes(filename)) {
-          const css = fs.readFileSync(
-            path.resolve(__dirname, "../../node_modules/tinymce/skins/ui/oxide", filename),
-          );
-          res.writeHead(200, { "Content-Type": "text/css; charset=utf-8" });
-          res.end(css);
-          return;
-        }
-        res.writeHead(404);
-        res.end();
-        return;
-      }
-      if (req.url && (req.url.includes("ckeditor5.umd.js") || req.url.includes("ckeditor.js"))) {
-        try {
-          const ckeditorPath = path.resolve(
-            __dirname,
-            "../../node_modules/ckeditor5/dist/browser/ckeditor5.umd.js",
-          );
-          const jsBuf = fs.readFileSync(ckeditorPath);
-          res.writeHead(200, {
-            "Content-Type": "application/javascript",
-            "Content-Length": jsBuf.length,
-          });
-          res.end(jsBuf);
-          return;
-        } catch (e) {
-          console.error("Failed to load CKEditor from node_modules", e);
-        }
-      }
-      if (req.url && req.url.includes("ckeditor5.css")) {
-        try {
-          const ckeditorCssPath = path.resolve(
-            __dirname,
-            "../../node_modules/ckeditor5/dist/browser/ckeditor5.css",
-          );
-          const cssBuf = fs.readFileSync(ckeditorCssPath);
-          res.writeHead(200, {
-            "Content-Type": "text/css; charset=utf-8",
-            "Content-Length": cssBuf.length,
-          });
-          res.end(cssBuf);
-          return;
-        } catch (e) {
-          console.error("Failed to load CKEditor CSS from node_modules", e);
-        }
-      }
-      if (req.url && req.url.includes("quill.js")) {
-        try {
-          const quillPath = path.resolve(__dirname, "../../node_modules/quill/dist/quill.js");
-          const jsBuf = fs.readFileSync(quillPath);
-          res.writeHead(200, {
-            "Content-Type": "application/javascript",
-            "Content-Length": jsBuf.length,
-          });
-          res.end(jsBuf);
-          return;
-        } catch (e) {
-          console.error("Failed to load Quill from node_modules", e);
-        }
-      }
-      if (req.url && req.url.includes("quill.snow.css")) {
-        try {
-          const quillCssPath = path.resolve(
-            __dirname,
-            "../../node_modules/quill/dist/quill.snow.css",
-          );
-          const cssBuf = fs.readFileSync(quillCssPath);
-          res.writeHead(200, {
-            "Content-Type": "text/css; charset=utf-8",
-            "Content-Length": cssBuf.length,
-          });
-          res.end(cssBuf);
-          return;
-        } catch (e) {
-          console.error("Failed to load Quill CSS from node_modules", e);
-        }
-      }
-
-      const buf = Buffer.from(domainTestHtml, "utf8");
-      res.writeHead(200, {
-        "Content-Type": "text/html; charset=utf-8",
-        "Content-Length": buf.length,
-      });
-      res.end(buf);
-    });
-    await new Promise<void>((resolve, reject) => {
-      domainTestServer.once("error", reject);
-      domainTestServer.listen(0, "127.0.0.1", () => {
-        domainTestServer.off("error", reject);
-        resolve();
-      });
-    });
-    const address = domainTestServer.address();
-    if (!address || typeof address === "string") {
-      throw new Error("Failed to start domain test server.");
-    }
-    domainTestUrl = `http://${TEST_HOST}:${address.port}/`;
+    testPageServer = startTestPageServer(editorBundles);
+    domainTestUrl = testPageServer.url;
   }, 60000);
 
   // Bun's default hook timeout is 5 s. Parallel shards can exceed it, and a hook
   // timeout kills the subprocesses of the file: the browser of the whole shard.
   beforeEach(async () => {
-    try {
-      worker = await ensureWorkerContext(browser, worker);
-    } catch (error) {
-      if (!isRetriableWorkerError(error)) {
-        throw error;
-      }
-      worker = await recoverWorkerForRetry(worker);
-    }
-    if (settingsDirty) {
+    worker = await ensureWorker(browser, worker);
+    if (takeSettingsWritten()) {
       // Keep the legacy baseline for non-grammar E2E flows so popup/inline
       // prediction scenarios remain deterministic regardless of defaults.
-      await setGrammarRulesAndWait(worker!, []);
-      settingsDirty = false;
+      await setGrammarRules(worker, []);
+      await notifyConfigChange(browser, worker);
+      takeSettingsWritten();
     }
     page = await ensurePrimaryPage(browser);
   }, HOOK_TIMEOUT_MS);
@@ -1821,17 +794,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   }, HOOK_TIMEOUT_MS);
 
   afterAll(async () => {
-    if (domainTestServer?.listening) {
-      await new Promise<void>((resolve, reject) => {
-        domainTestServer.close((error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve();
-        });
-      });
-    }
+    await testPageServer?.stop();
     try {
       if (page && typeof page.isClosed === "function" && !page.isClosed()) {
         await page.close();
@@ -1851,9 +814,29 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     } catch {
       // Ignore teardown errors from browser shutdown.
     }
-    latestWorkerContext = null;
-    activeBrowserForWorkerRecovery = null;
   });
+
+  /**
+   * Opens the test page with English prediction, only `rules` as grammar rules and
+   * `settings` on top, and empties the field `selector`.
+   */
+  async function openEnglishField(
+    selector: string,
+    rules: readonly string[] = [],
+    settings: Record<string, unknown> = {},
+  ): Promise<void> {
+    await setSettings(worker, {
+      [KEY_ENABLED_GRAMMAR_RULES]: grammarRuleSelectionToOverrides(rules),
+      [KEY_LANGUAGE]: "en_US",
+      [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      ...settings,
+    });
+    await notifyConfigChange(browser, worker);
+    await gotoTestPage(page);
+    await waitForInputReady(page, selector);
+    await clearInputContent(page, selector);
+  }
 
   test(
     "Native datalists only hold writing fields while usable options exist",
@@ -1894,7 +877,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, "#test-native-list", "th");
       expect(await waitForVisibleSuggestions(page)).toBeGreaterThan(0);
     },
-    browserTimeout(10000, 15000),
+    suiteTimeout(10000, 15000),
   );
 
   test(
@@ -1954,7 +937,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await page.evaluate(() => document.querySelector("#collapsed-widget")!.remove());
       }
     },
-    browserTimeout(12000, 20000),
+    suiteTimeout(12000, 20000),
   );
 
   test(
@@ -1995,14 +978,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.type("#google-search", "e");
       expect(await waitForVisibleSuggestions(page)).toBeGreaterThan(0);
     },
-    browserTimeout(10000, 15000),
+    suiteTimeout(10000, 15000),
   );
 
   test(
     "Remembered writing fields survive reload and can be forgotten in settings",
     async () => {
-      await setSetting(worker!, "fieldPreferences", []);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, "fieldPreferences", []);
+      await notifyConfigChange(browser, worker);
       await gotoTestPage(page);
       await waitForInputReady(page, "#test-input");
       const selector = "#test-semantic-email";
@@ -2031,36 +1014,27 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
       await waitUntil(
         "field preference saved",
-        async () => (await getSetting<unknown[]>(worker!, "fieldPreferences"))?.length === 1,
-        { timeoutMs: 7000, intervalMs: 50 },
+        async () => (await getSetting<unknown[]>(worker, "fieldPreferences"))?.length === 1,
+        { timeoutMs: 7000 },
       );
       await gotoTestPage(page);
       await waitForInputReady(page, selector);
-      const settingsPage = await openOptionsPage(browser, worker!);
+      const settingsPage = await openOptionsPage(browser, worker);
       try {
-        const response = await settingsPage.evaluate(async () =>
-          chrome.runtime.sendMessage({
-            command: "CMD_FIELD_PREFERENCES",
-            context: { action: "list" },
-          }),
-        );
+        const response = await sendCommand<{
+          ok: boolean;
+          records: Array<{ signature: string; topOrigin: string; frameOrigin: string }>;
+        }>(settingsPage, "CMD_FIELD_PREFERENCES", { action: "list" });
         expect(response.ok).toBe(true);
         const record = response.records[0];
         expect(record.signature).toMatch(/^[a-f0-9]{64}$/);
         expect(record.topOrigin).not.toContain("?");
-        const removed = await settingsPage.evaluate(
-          async (entry) =>
-            chrome.runtime.sendMessage({
-              command: "CMD_FIELD_PREFERENCES",
-              context: {
-                action: "forget",
-                topOrigin: entry.topOrigin,
-                frameOrigin: entry.frameOrigin,
-                signature: entry.signature,
-              },
-            }),
-          record,
-        );
+        const removed = await sendCommand(settingsPage, "CMD_FIELD_PREFERENCES", {
+          action: "forget",
+          topOrigin: record.topOrigin,
+          frameOrigin: record.frameOrigin,
+          signature: record.signature,
+        });
         expect(removed.ok).toBe(true);
         await page.waitForFunction(
           () => !document.querySelector("#test-semantic-email")?.hasAttribute("data-suggestion"),
@@ -2069,14 +1043,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await settingsPage.close();
       }
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
     "Extension installs and new installation page is reachable",
     async () => {
-      expect(worker).toBeDefined();
-
       if (isFirefox()) {
         const installationPage =
           startupFirefoxInstallationPage ??
@@ -2090,122 +1062,91 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         if (installationPage) {
           expect(installationPage.url()).toContain("/new_installation/index.html");
           await installationPage.waitForSelector("body", {
-            timeout: browserTimeout(3000, 7000),
+            timeout: suiteTimeout(3000, 7000),
           });
           return;
         }
-      }
-
-      const newInstallationPage = await openExtensionPage(
-        browser,
-        worker!,
-        "new_installation/index.html",
-      );
-      // Firefox BiDi rejects setViewport on extension (privileged) pages.
-      if (!isFirefox()) {
-        await newInstallationPage.setViewport(ONBOARDING_VIEWPORT);
-      }
-      await newInstallationPage.waitForSelector("body", {
-        timeout: browserTimeout(3000, 10000),
-      });
-      await newInstallationPage.waitForFunction(
-        () => document.body.textContent?.includes("Ctrl+Z") ?? false,
-        {
-          timeout: browserTimeout(3000, 10000),
-        },
-      );
-
-      if (!isFirefox()) {
-        // ---- Permission flow test ----
-        // Wait for the button to be ready and visible
-        await newInstallationPage.waitForSelector("#grant-permissions-btn", { visible: true });
-        // The welcome offers a direct setup action and three explorable examples.
-        for (const feature of ["popup", "inline", "review"]) {
-          await newInstallationPage.click(`label:has(input[value="${feature}"])`);
-          expect(
-            await newInstallationPage.$$eval(".feature-panel", (panels) =>
-              panels
-                .filter((panel) => getComputedStyle(panel).display !== "none")
-                .map((panel) => panel.getAttribute("aria-labelledby")),
-            ),
-          ).toEqual([`${feature}-title`]);
-        }
-        await newInstallationPage.click('a.button[href="#setup"]');
+        const newInstallationPage = await openExtensionPage(
+          browser,
+          worker,
+          "new_installation/index.html",
+        );
         await newInstallationPage.waitForFunction(
-          () => (document.getElementById("setup")?.getBoundingClientRect().top ?? Infinity) < 100,
+          () => document.body.textContent?.includes("Ctrl+Z") ?? false,
+          { timeout: suiteTimeout(3000, 10000) },
         );
-
-        const viewportSnapshot = await captureOnboardingViewportSnapshot(newInstallationPage);
-        expect(viewportSnapshot).toMatchObject({
-          permissionInViewport: true,
-          rationaleInViewport: true,
-          nextActionInViewport: true,
-        });
-
-        // Mock onboarding permission flow through explicit test hook.
-        await newInstallationPage.evaluate(() => {
-          const testWindow = window as Window & {
-            __FT_TEST_PERMISSION_REQUEST__?: (
-              options: chrome.permissions.Permissions,
-            ) => Promise<boolean>;
-            __lastPermissionRequest?: chrome.permissions.Permissions;
-          };
-
-          testWindow.__FT_TEST_PERMISSION_REQUEST__ = async (
-            options: chrome.permissions.Permissions,
-          ) => {
-            testWindow.__lastPermissionRequest = options;
-            return true;
-          };
-        });
-
-        // Trigger click from page context; puppeteer element-click can be flaky
-        // on extension onboarding pages when Chrome opens permission UI.
-        await newInstallationPage.evaluate(() => {
-          const button = document.getElementById("grant-permissions-btn");
-          if (!(button instanceof HTMLElement)) {
-            throw new Error("Permission grant button is missing");
-          }
-          button.click();
-        });
-
-        await newInstallationPage.waitForFunction(() => {
-          const permissionContainer = document.getElementById("permissions-container");
-          return permissionContainer?.getAttribute("data-permission-state") === "granted";
-        });
-
-        const activeElementId = await newInstallationPage.evaluate(
-          () => document.activeElement?.id ?? null,
-        );
-        expect(activeElementId).toBe("try-me-textarea");
-
-        // Validate that the request was called with right arguments
-
-        const reqArgs = await newInstallationPage.evaluate(() => {
-          const testWindow = window as Window & {
-            __lastPermissionRequest?: chrome.permissions.Permissions;
-          };
-          return testWindow.__lastPermissionRequest;
-        });
-        expect(reqArgs).toEqual({ origins: ["<all_urls>"] });
-        // -------------------------------
+        await newInstallationPage.close();
+        return;
       }
+
+      const newInstallationPage = await openOnboardingPageWithPermissionHooks(browser, worker, {
+        request: true,
+      });
+      await newInstallationPage.waitForSelector("#grant-permissions-btn", { visible: true });
+      // The welcome offers a direct setup action and three explorable examples.
+      for (const feature of ["popup", "inline", "review"]) {
+        await newInstallationPage.click(`label:has(input[value="${feature}"])`);
+        expect(
+          await newInstallationPage.$$eval(".feature-panel", (panels) =>
+            panels
+              .filter((panel) => getComputedStyle(panel).display !== "none")
+              .map((panel) => panel.getAttribute("aria-labelledby")),
+          ),
+        ).toEqual([`${feature}-title`]);
+      }
+      await newInstallationPage.click('a.button[href="#setup"]');
+      await newInstallationPage.waitForFunction(
+        () => (document.getElementById("setup")?.getBoundingClientRect().top ?? Infinity) < 100,
+      );
+
+      const viewportSnapshot = await captureOnboardingViewportSnapshot(newInstallationPage);
+      expect(viewportSnapshot).toMatchObject({
+        permissionInViewport: true,
+        rationaleInViewport: true,
+        nextActionInViewport: true,
+      });
+
+      // Trigger click from page context; puppeteer element-click can be flaky
+      // on extension onboarding pages when Chrome opens permission UI.
+      await newInstallationPage.evaluate(() => {
+        const button = document.getElementById("grant-permissions-btn");
+        if (!(button instanceof HTMLElement)) {
+          throw new Error("Permission grant button is missing");
+        }
+        button.click();
+      });
+
+      await newInstallationPage.waitForFunction(() => {
+        const permissionContainer = document.getElementById("permissions-container");
+        return permissionContainer?.getAttribute("data-permission-state") === "granted";
+      });
+
+      const activeElementId = await newInstallationPage.evaluate(
+        () => document.activeElement?.id ?? null,
+      );
+      expect(activeElementId).toBe("try-me-textarea");
+
+      const reqArgs = await newInstallationPage.evaluate(() => {
+        const testWindow = window as Window & {
+          __lastPermissionRequest?: chrome.permissions.Permissions;
+        };
+        return testWindow.__lastPermissionRequest;
+      });
+      expect(reqArgs).toEqual({ origins: ["<all_urls>"] });
 
       await newInstallationPage.close();
     },
-    browserTimeout(10000, 25000),
+    suiteTimeout(10000, 25000),
   );
 
   test(
     "New installation page shows activation-ready state when permissions are already granted",
     async () => {
-      expect(worker).toBeDefined();
-
       if (isFirefox()) {
         return;
       }
 
-      const onboardingPage = await openOnboardingPageWithPermissionHooks(browser, worker!, {
+      const onboardingPage = await openOnboardingPageWithPermissionHooks(browser, worker, {
         contains: true,
       });
 
@@ -2246,19 +1187,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await onboardingPage.close();
     },
-    browserTimeout(5000, 12000),
+    suiteTimeout(5000, 12000),
   );
 
   test(
     "New installation page keeps permission CTA visible when access is denied",
     async () => {
-      expect(worker).toBeDefined();
-
       if (isFirefox()) {
         return;
       }
 
-      const onboardingPage = await openOnboardingPageWithPermissionHooks(browser, worker!, {
+      const onboardingPage = await openOnboardingPageWithPermissionHooks(browser, worker, {
         contains: false,
         request: false,
       });
@@ -2306,42 +1245,50 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await onboardingPage.close();
     },
-    browserTimeout(5000, 12000),
+    suiteTimeout(5000, 12000),
   );
 
   test(
     "Extension installs and popup loads",
     async () => {
-      expect(worker).toBeDefined();
-      const popupPage = await openPopupPage(browser, worker!);
-      expect(popupPage).toBeDefined();
+      const popupPage = await openPopupPage(browser, worker);
+      await popupPage.waitForFunction(
+        () => document.querySelectorAll("#languageSelect option").length > 0,
+        { timeout: suiteTimeout(3000, 10000) },
+      );
+      expect(
+        await popupPage.$$eval("#languageSelect option", (options) => options.length),
+      ).toBeGreaterThan(0);
       await popupPage.close();
     },
-    browserTimeout(5000, 12000),
+    suiteTimeout(5000, 12000),
   );
 
   test(
     "Domain whitelist matches exact host and ignores invalid patterns",
     async () => {
       await gotoTestPage(page);
-      await page.bringToFront();
 
-      await setSettingAndWait(worker!, "enable", true);
-      await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "whiteList");
-      await setSettingAndWait(worker!, "domainBlackList", ["[", TEST_HOST]);
-      await applyConfigChange(browser, worker!);
-
-      if (isFirefox()) {
-        await waitForInputReady(page, "#test-textarea");
-        const hasSuggestionHookOnWhitelistedHost = await page.$eval("#test-textarea", (el) =>
-          el.hasAttribute("data-suggestion"),
-        );
-        expect(hasSuggestionHookOnWhitelistedHost).toBe(true);
-        return;
-      }
+      await setSettings(worker, {
+        enable: true,
+        [KEY_DOMAIN_LIST_MODE]: "whiteList",
+        domainBlackList: ["[", TEST_HOST],
+      });
+      await notifyConfigChange(browser, worker);
 
       let popupPage: Page | null = null;
+      // The finally restores the domain list on every path: a whitelist left behind
+      // disables FluentTyper on the hosts of later tests.
       try {
+        if (isFirefox()) {
+          await waitForInputReady(page, "#test-textarea");
+          const hasSuggestionHookOnWhitelistedHost = await page.$eval("#test-textarea", (el) =>
+            el.hasAttribute("data-suggestion"),
+          );
+          expect(hasSuggestionHookOnWhitelistedHost).toBe(true);
+          return;
+        }
+
         const existingPopupPages = await Promise.all(
           browser
             .targets()
@@ -2356,9 +1303,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           }
         }
 
-        popupPage = await openPopupPage(browser, worker!);
+        popupPage = await openPopupPage(browser, worker);
         await popupPage!.waitForSelector("#checkboxDomainInput", {
-          timeout: browserTimeout(3000, 10000),
+          timeout: suiteTimeout(3000, 10000),
         });
         const isEnabledForCurrentDomain = await popupPage!.$eval(
           "#checkboxDomainInput",
@@ -2369,12 +1316,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         if (popupPage && !popupPage.isClosed()) {
           await popupPage.close();
         }
-        await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
-        await setSettingAndWait(worker!, "domainBlackList", []);
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_DOMAIN_LIST_MODE]: "blackList",
+          domainBlackList: [],
+        });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(12000, 25000),
+    suiteTimeout(12000, 25000),
   );
 
   test("Site profiles setting round-trips through extension storage", async () => {
@@ -2385,72 +1334,77 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         inline_suggestion: true,
       },
     };
-    await setSettingAndWait(worker!, KEY_SITE_PROFILES, siteProfiles);
+    await setSetting(worker, KEY_SITE_PROFILES, siteProfiles);
 
-    const storedSiteProfiles = await getSetting<typeof siteProfiles>(worker!, KEY_SITE_PROFILES);
+    const storedSiteProfiles = await getSetting<typeof siteProfiles>(worker, KEY_SITE_PROFILES);
     expect(storedSiteProfiles).toEqual(siteProfiles);
 
-    await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+    await setSetting(worker, KEY_SITE_PROFILES, {});
   }, 5000);
 
   devRuntimeTest(
     "CMD_TOGGLE_FT_ACTIVE_LANG changes global language when no site profile exists",
     async () => {
       try {
-        await setSettingAndWait(worker!, "enable", true);
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          enable: true,
+          [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+          [KEY_LANGUAGE]: "en_US",
+          [KEY_SITE_PROFILES]: {},
+        });
+        await notifyConfigChange(browser, worker);
 
-        await triggerCommandForTesting(worker!, "CMD_TOGGLE_FT_ACTIVE_LANG");
+        await triggerCommandForTesting(worker, "CMD_TOGGLE_FT_ACTIVE_LANG");
 
         const langAfter = await waitForSettingMatch<string>(
-          worker!,
+          worker,
           KEY_LANGUAGE,
           (value) => Boolean(value && value !== "en_US"),
-          browserTimeout(3000, 7000),
+          suiteTimeout(3000, 7000),
         );
         expect(langAfter).not.toBe("en_US");
-        expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS).toContain(langAfter);
+        expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS).toContain(langAfter!);
       } finally {
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_LANGUAGE]: "en_US",
+          [KEY_SITE_PROFILES]: {},
+        });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(15000, 25000),
+    suiteTimeout(15000, 25000),
   );
 
   devRuntimeTest(
     "CMD_TOGGLE_FT_ACTIVE_LANG changes per-site language when site profile exists",
     async () => {
       try {
-        await setSettingAndWait(worker!, "enable", true);
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettings(worker, {
+          enable: true,
+          [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+          [KEY_LANGUAGE]: "en_US",
+        });
 
         // Navigate to the domain test server so the active tab matches TEST_HOST.
         await gotoTestPage(page);
-        await page.bringToFront();
 
         // Create a site profile for the active test host.
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {
+        await setSetting(worker, KEY_SITE_PROFILES, {
           [TEST_HOST]: {
             language: "en_US",
           },
         });
-        await applyConfigChange(browser, worker!);
+        await notifyConfigChange(browser, worker);
 
-        await triggerCommandForTesting(worker!, "CMD_TOGGLE_FT_ACTIVE_LANG");
+        await triggerCommandForTesting(worker, "CMD_TOGGLE_FT_ACTIVE_LANG");
 
         // Verify global language is unchanged
-        const globalLang = await getSetting<string>(worker!, KEY_LANGUAGE);
+        const globalLang = await getSetting<string>(worker, KEY_LANGUAGE);
         expect(globalLang).toBe("en_US");
 
         // Verify site profile language was changed
         const siteProfiles = await waitForSettingMatch<Record<string, { language: string }>>(
-          worker!,
+          worker,
           KEY_SITE_PROFILES,
           (value) =>
             Boolean(
@@ -2458,38 +1412,44 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               typeof value[TEST_HOST].language === "string" &&
               value[TEST_HOST].language !== "en_US",
             ),
-          browserTimeout(3000, 7000),
+          suiteTimeout(3000, 7000),
         );
         expect(siteProfiles).toBeDefined();
         expect(siteProfiles![TEST_HOST]).toBeDefined();
         expect(siteProfiles![TEST_HOST].language).not.toBe("en_US");
         expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS).toContain(siteProfiles![TEST_HOST].language);
       } finally {
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_LANGUAGE]: "en_US",
+          [KEY_SITE_PROFILES]: {},
+        });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(15000, 25000),
+    suiteTimeout(15000, 25000),
   );
 
-  devRuntimeEach([KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED])(
-    "applies %s from predictor debug dashboard",
-    async (key) => {
-      const optionsPage = await openExtensionPage(browser, worker!, "options/options.html");
+  devRuntimeTest(
+    "applies debugPresagePredictorEnabled from predictor debug dashboard",
+    async () => {
+      const key = KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED;
+      const optionsPage = await openExtensionPage(browser, worker, "options/options.html");
 
       try {
-        await setSetting(worker!, key, true);
-        await sendOptionsPageConfigChange(optionsPage);
-        await waitForSnapshotValue(optionsPage, key, true);
+        await setSetting(worker, key, true);
+        await sendCommand(optionsPage, CMD_OPTIONS_PAGE_CONFIG_CHANGE, {}, { requireOk: true });
+        await waitForSnapshotValue(optionsPage, true);
         await togglePredictorDebugButton(optionsPage, key);
 
-        await waitForSettingValue(worker!, key, false);
-        await waitForSnapshotValue(optionsPage, key, false);
+        await waitUntil(
+          `setting ${key} to become false`,
+          async () => (await getSetting(worker, key)) === false,
+        );
+        await waitForSnapshotValue(optionsPage, false);
       } finally {
-        await setSetting(worker!, key, true);
+        await setSetting(worker, key, true);
         if (!optionsPage.isClosed()) {
-          await sendOptionsPageConfigChange(optionsPage);
+          await sendCommand(optionsPage, CMD_OPTIONS_PAGE_CONFIG_CHANGE, {}, { requireOk: true });
         }
         if (!optionsPage.isClosed()) {
           await optionsPage.close();
@@ -2503,135 +1463,64 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "Site profile overrides suggestion count and inline mode in %s",
     async (selector) => {
       try {
-        await setSettingAndWait(worker!, "enable", true);
-        await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
-        await setSettingAndWait(worker!, "domainBlackList", []);
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 0);
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await applyConfigChange(browser, worker!);
-
-        await gotoTestPage(page, {
-          enableCkEditor: shouldEnableCkEditor(selector),
-          enableQuill: shouldEnableQuill(selector),
+        await setSettings(worker, {
+          enable: true,
+          [KEY_DOMAIN_LIST_MODE]: "blackList",
+          domainBlackList: [],
+          [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+          [KEY_LANGUAGE]: "en_US",
+          [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_NUM_SUGGESTIONS]: 0,
+          [KEY_SITE_PROFILES]: {},
         });
-        await page.bringToFront();
+        await notifyConfigChange(browser, worker);
+
+        await gotoTestPage(page);
         await waitForInputReady(page, selector);
 
         const input = await page.$(selector);
         await page.focus(selector);
         await input!.type("impor");
-        await waitForNoVisibleSuggestions(page, browserTimeout(2000, 4000));
+        await waitForNoVisibleSuggestions(page, suiteTimeout(2000, 4000));
         const hasSuggestionsWithoutOverride = await hasVisibleSuggestions(page);
         expect(hasSuggestionsWithoutOverride).toBe(false);
 
         await clearInputContent(page, selector);
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {
+        await setSetting(worker, KEY_SITE_PROFILES, {
           [TEST_HOST]: {
             language: "en_US",
             numSuggestions: 4,
           },
         });
-        await applyConfigChange(browser, worker!);
+        await notifyConfigChange(browser, worker);
 
         await page.focus(selector);
         await input!.type("impor");
-        const countWithOverride = await waitForVisibleSuggestions(
-          page,
-          browserTimeout(15000, 25000),
-        );
+        const countWithOverride = await waitForVisibleSuggestions(page, suiteTimeout(15000, 25000));
         expect(countWithOverride).toBeGreaterThan(0);
 
         await clearInputContent(page, selector);
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {
+        await setSetting(worker, KEY_SITE_PROFILES, {
           [TEST_HOST]: {
             language: "en_US",
             numSuggestions: 5,
             inline_suggestion: true,
           },
         });
-        await applyConfigChange(browser, worker!);
+        await notifyConfigChange(browser, worker);
 
         await page.focus(selector);
         await input!.type("impor");
         await waitUntil(
           "site profile override suggestion visibility",
           async () => {
-            const state = await page.evaluate(() => {
-              const getMenuRoot = (container: Element): ParentNode =>
-                (container as HTMLElement).shadowRoot ?? container;
-              const getDeepActiveElement = (): HTMLElement | null => {
-                let active: Element | null = document.activeElement;
-                while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
-                  active = active.shadowRoot.activeElement;
-                }
-                return active instanceof HTMLElement ? active : null;
-              };
-              const getMenuHostId = (entryId: string): string => `ft-menu-${entryId}`;
-              const collectManagedElements = (root: ParentNode): HTMLElement[] => [
-                ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
-                ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
-                  element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
-                ),
-              ];
-              const getKnownMenus = (): Element[] => {
-                const seen = new Set<Element>();
-                return [
-                  ...collectManagedElements(document)
-                    .map((element) => element.getAttribute("data-ft-suggestion-id"))
-                    .filter(
-                      (entryId): entryId is string =>
-                        typeof entryId === "string" && entryId.length > 0,
-                    )
-                    .map((entryId) => document.getElementById(getMenuHostId(entryId)))
-                    .filter((menu): menu is Element => menu instanceof Element),
-                  ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
-                ]
-                  .filter((menu): menu is Element => menu instanceof Element)
-                  .filter((menu) => {
-                    if (seen.has(menu)) {
-                      return false;
-                    }
-                    seen.add(menu);
-                    return true;
-                  });
-              };
-              const hasInlineSuggestion = Boolean(
-                document.querySelector(".ft-suggestion-inline")?.textContent,
-              );
-              const activeElement = getDeepActiveElement();
-              const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
-              const activeMenu =
-                typeof activeEntryId === "string"
-                  ? document.getElementById(getMenuHostId(activeEntryId))
-                  : null;
-              const containers = [
-                ...(activeMenu instanceof Element ? [activeMenu] : []),
-                ...getKnownMenus().filter((container) => container !== activeMenu),
-              ];
-              const hasVisiblePopup = containers.some((container) => {
-                const style = window.getComputedStyle(container);
-                if (
-                  style.display === "none" ||
-                  style.visibility === "hidden" ||
-                  style.opacity === "0" ||
-                  container.getClientRects().length === 0
-                ) {
-                  return false;
-                }
-                return getMenuRoot(container).querySelectorAll("li[data-index]").length > 0;
-              });
-              return {
-                hasInlineSuggestion,
-                hasVisiblePopup,
-              };
-            });
-            return state.hasInlineSuggestion || state.hasVisiblePopup ? true : false;
+            const inlineGhost = await page.evaluate(() =>
+              Boolean(document.querySelector(".ft-suggestion-inline")?.textContent),
+            );
+            return inlineGhost || (await hasVisibleSuggestions(page));
           },
-          { timeoutMs: browserTimeout(3000, 7000), intervalMs: 50 },
+          { timeoutMs: suiteTimeout(3000, 7000) },
         );
         await page.keyboard.press("Tab");
 
@@ -2639,38 +1528,38 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           page,
           selector,
           5,
-          browserTimeout(3000, 7000),
+          suiteTimeout(3000, 7000),
         );
         expect(elementText).not.toBe("impor");
         expect(elementText).not.toBe("impor\t");
         expect(elementText.length).toBeGreaterThan(5);
       } finally {
-        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_NUM_SUGGESTIONS]: 5,
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_SITE_PROFILES]: {},
+        });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test.each(GENERIC_INPUT_SELECTORS)(
     "Prediction popup inserts selected suggestion on click and TAB in %s",
     async (selector) => {
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await applyConfigChange(browser, worker!);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      });
+      await notifyConfigChange(browser, worker);
 
       const assertInsertion = async (
         typedPrefix: string,
         acceptSuggestion: () => Promise<void>,
       ): Promise<void> => {
-        await gotoTestPage(page, {
-          enableCkEditor: shouldEnableCkEditor(selector),
-          enableQuill: shouldEnableQuill(selector),
-        });
-        await page.bringToFront();
+        await gotoTestPage(page);
         await waitForInputReady(page, selector);
         const element = await page.$(selector);
 
@@ -2687,7 +1576,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           page,
           selector,
           new RegExp(`^${typedPrefix}\\S*[ \\xa0]$`, "i"),
-          browserTimeout(4000, 10000),
+          suiteTimeout(4000, 10000),
         );
         expect(elementText.toLowerCase()).toBe(firstLiText?.toLowerCase());
       };
@@ -2699,7 +1588,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await page.keyboard.press("Tab");
       });
     },
-    browserTimeout(45000, 70000),
+    suiteTimeout(45000, 70000),
   );
 
   test(
@@ -2717,18 +1606,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           };
         });
       try {
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [
-          ["ftsig", "Other signature"],
-          ["ftsignature", "Best regards"],
-        ]);
-        await setGrammarRulesAndWaitStable(worker!, [], 3, browserTimeout(5000, 7000));
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_LANGUAGE]: "en_US",
+          [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+          [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_TEXT_EXPANSIONS]: [
+            ["ftsig", "Other signature"],
+            ["ftsignature", "Best regards"],
+          ],
+        });
+        await setGrammarRules(worker, []);
+        await notifyConfigChange(browser, worker);
         await gotoTestPage(page, { enableProseMirror: true });
-        await page.bringToFront();
         await waitForInputReady(page, PROSEMIRROR_SELECTOR);
         // Keep the caret near the viewport edge: an above-caret menu reverses arrow navigation.
         await page.$eval(PROSEMIRROR_SELECTOR, (editor) => {
@@ -2815,11 +1705,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           async () => (await readModel()).blocks[2] === "ftsig",
         );
       } finally {
-        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_TEXT_EXPANSIONS, []);
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   async function prepareSlate(value: unknown[]) {
@@ -2854,13 +1744,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ],
       };
       try {
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["ftsig", "Best regards"]]);
-        await setGrammarRulesAndWaitStable(worker!, [], 3, browserTimeout(5000, 7000));
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_LANGUAGE, "en_US");
+        await setSetting(worker, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+        await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+        await setSetting(worker, KEY_TEXT_EXPANSIONS, [["ftsig", "Best regards"]]);
+        await setGrammarRules(worker, []);
+        await notifyConfigChange(browser, worker);
         await prepareSlate([original, { type: "paragraph", children: [{ text: "" }] }]);
         // A real click: Slate reads its selection from the DOM.
         await page.click(`${SLATE_SELECTOR} p:nth-child(2)`);
@@ -2899,7 +1789,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           focus: { path: [1, 0], offset: prediction.length },
         });
 
-        await pressNativeUndo(page, SLATE_SELECTOR);
+        await pressUndo(page, SLATE_SELECTOR);
         await waitUntil(
           "Slate undo restores the prefix",
           async () => (await readSlateBlocks())[1] === "w",
@@ -2921,28 +1811,28 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           { timeoutMs: SUGGESTION_TIMEOUT_MS },
         );
         expect((await readSlateBlocks()).slice(0, 2)).toEqual(["Original reference", "w"]);
-        await pressNativeUndo(page, SLATE_SELECTOR);
+        await pressUndo(page, SLATE_SELECTOR);
         await waitUntil(
           "Slate expansion undo restores shortcut",
           async () => (await readSlateBlocks())[2] === "ftsig",
         );
       } finally {
-        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_TEXT_EXPANSIONS, []);
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
     "Slate inline suggestion is accepted on Tab through the model",
     async () => {
       try {
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
-        await setGrammarRulesAndWaitStable(worker!, [], 3, browserTimeout(5000, 7000));
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_LANGUAGE, "en_US");
+        await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSetting(worker, KEY_INLINE_SUGGESTION, true);
+        await setGrammarRules(worker, []);
+        await notifyConfigChange(browser, worker);
         await prepareSlate([{ type: "paragraph", children: [{ text: "Thanks for the " }] }]);
         await page.click(`${SLATE_SELECTOR} p`);
         await page.keyboard.press("End");
@@ -2955,7 +1845,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             );
             return text.length > 0 ? text : false;
           },
-          { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
+          { timeoutMs: suiteTimeout(5000, 10000), intervalMs: 50 },
         );
         expect(await page.$eval(SLATE_SELECTOR, (el) => el.textContent)).toBe("Thanks for the w");
         await page.keyboard.press("Tab");
@@ -2977,26 +1867,27 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             (await readSlateBlocks())[0],
         );
       } finally {
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test.each(["iframe", "inline"] as const)(
     "TinyMCE %s predictions and expansions preserve formatting and undo",
     async (mode) => {
       try {
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["ftsig", "Best regards"]]);
-        await setGrammarRulesAndWait(worker!, []);
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_LANGUAGE]: "en_US",
+          [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+          [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_TEXT_EXPANSIONS]: [["ftsig", "Best regards"]],
+        });
+        await setGrammarRules(worker, []);
+        await notifyConfigChange(browser, worker);
         await gotoTestPage(page, { tinyMceMode: mode });
-        await page.bringToFront();
         await waitUntil(
           "TinyMCE initialization",
           async () =>
@@ -3101,11 +1992,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           throw new Error(`TinyMCE undo left ${JSON.stringify(await readContent())}`, { cause });
         });
       } finally {
-        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_TEXT_EXPANSIONS, []);
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -3119,20 +2010,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         return await waitUntil(
           `personalization score for through >= ${minimumScore}`,
           async () => {
-            const store = await getLocalStorageValue<PersonalizationStoreSnapshot>(
-              worker!,
+            const store = await getStoredValue<PersonalizationStoreSnapshot>(
+              worker,
               PERSONALIZATION_STORAGE_KEY,
             );
             const score = store?.languages?.en_US?.through?.score;
             return typeof score === "number" && score >= minimumScore ? score : false;
           },
-          { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
+          { timeoutMs: suiteTimeout(5000, 10000) },
         );
       };
 
       const openReadyInput = async (): Promise<void> => {
         await gotoTestPage(page);
-        await page.bringToFront();
         await waitForInputReady(page, "#test-input");
       };
 
@@ -3145,7 +2035,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             const texts = await getVisibleSuggestionTexts(page);
             return texts.map(normalizeSuggestionText).includes("through") ? texts : false;
           },
-          { timeoutMs: SUGGESTION_TIMEOUT_MS, intervalMs: 50 },
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
         );
         const throughIndex = suggestions.map(normalizeSuggestionText).indexOf("through");
         expect(throughIndex).toBeGreaterThanOrEqual(0);
@@ -3158,7 +2048,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             normalizeSuggestionText(await getInputContent(page, "#test-input")) === "through"
               ? true
               : false,
-          { timeoutMs: browserTimeout(4000, 10000), intervalMs: 50 },
+          { timeoutMs: suiteTimeout(4000, 10000) },
         );
         await waitForLearnedScore(minimumScore);
       };
@@ -3173,7 +2063,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             const [first] = await getVisibleSuggestionTexts(page);
             return normalizeSuggestionText(first ?? "") === expected ? first : false;
           },
-          { timeoutMs: SUGGESTION_TIMEOUT_MS, intervalMs: 50 },
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
         );
         expect(normalizeSuggestionText(firstSuggestion)).toBe(expected);
       };
@@ -3189,24 +2079,28 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             );
             return normalizeSuggestionText(text) === "rough" ? text : false;
           },
-          { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
+          { timeoutMs: suiteTimeout(5000, 10000) },
         );
         expect(normalizeSuggestionText(suffix)).toBe("rough");
       };
 
       try {
-        await sendRuntimeCommand(browser, worker!, CMD_OPTIONS_CLEAR_PERSONALIZATION);
-        await setSettingAndWait(worker!, KEY_PERSONALIZATION_ENABLED, true);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 10);
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_PREFIX_ONLY_MODE, false);
-        await setSettingAndWait(worker!, KEY_AUTOCOMPLETE_ON_TAB, true);
-        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await applyConfigChange(browser, worker!);
+        await sendExtensionCommand(browser, worker, CMD_OPTIONS_CLEAR_PERSONALIZATION, {
+          requireOk: true,
+        });
+        await setSettings(worker, {
+          [KEY_PERSONALIZATION_ENABLED]: true,
+          [KEY_LANGUAGE]: "en_US",
+          [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+          [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+          [KEY_NUM_SUGGESTIONS]: 10,
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_PREFIX_ONLY_MODE]: false,
+          [KEY_AUTOCOMPLETE_ON_TAB]: true,
+          [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: false,
+          [KEY_SITE_PROFILES]: {},
+        });
+        await notifyConfigChange(browser, worker);
 
         // Three deliberate selections put the decayed score safely above the
         // two-acceptance promotion threshold even on slower E2E machines.
@@ -3214,15 +2108,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await acceptThroughFromMenu(1.9);
         await acceptThroughFromMenu(2.9);
 
-        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 3);
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_NUM_SUGGESTIONS, 3);
+        await notifyConfigChange(browser, worker);
         await expectFirstMenuSuggestion("through");
 
-        worker = await restartExtensionRuntime(browser, worker!);
+        worker = await restartExtensionRuntime(browser, worker);
         await expectFirstMenuSuggestion("through");
 
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_INLINE_SUGGESTION, true);
+        await notifyConfigChange(browser, worker);
         await expectInlineThrough();
         await page.keyboard.press("Tab");
         await waitUntil(
@@ -3231,18 +2125,18 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             normalizeSuggestionText(await getInputContent(page, "#test-input")) === "through"
               ? true
               : false,
-          { timeoutMs: browserTimeout(4000, 10000), intervalMs: 50 },
+          { timeoutMs: suiteTimeout(4000, 10000) },
         );
         await waitForLearnedScore(3.8);
         await expectInlineThrough();
 
-        const optionsPage = await openOptionsPage(browser, worker!);
+        const optionsPage = await openOptionsPage(browser, worker);
         try {
           await optionsPage.evaluate(() => {
             window.confirm = () => true;
           });
           await optionsPage.waitForSelector('input[type="button"][value="Clear learned words"]', {
-            timeout: browserTimeout(5000, 10000),
+            timeout: suiteTimeout(5000, 10000),
           });
           await sleep(100);
           await optionsPage.evaluate(() => {
@@ -3257,43 +2151,46 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           await waitUntil(
             "personalization storage to clear",
             async () =>
-              (await getLocalStorageValue(worker!, PERSONALIZATION_STORAGE_KEY)) === undefined
+              (await getStoredValue(worker, PERSONALIZATION_STORAGE_KEY)) === undefined
                 ? true
                 : false,
-            { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
+            { timeoutMs: suiteTimeout(5000, 10000) },
           );
         } finally {
           await optionsPage.close();
         }
 
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+        await notifyConfigChange(browser, worker);
         await expectFirstMenuSuggestion("the");
       } finally {
-        await sendRuntimeCommand(browser, worker!, CMD_OPTIONS_CLEAR_PERSONALIZATION).catch(
-          () => undefined,
-        );
-        await setSettingAndWait(worker!, KEY_PERSONALIZATION_ENABLED, false);
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_PREFIX_ONLY_MODE, false);
-        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
-        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
-        await applyConfigChange(browser, worker!);
+        await sendExtensionCommand(browser, worker, CMD_OPTIONS_CLEAR_PERSONALIZATION, {
+          requireOk: true,
+        }).catch(() => undefined);
+        await setSettings(worker, {
+          [KEY_PERSONALIZATION_ENABLED]: false,
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_PREFIX_ONLY_MODE]: false,
+          [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
+          [KEY_NUM_SUGGESTIONS]: 5,
+        });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(120000, 180000),
+    suiteTimeout(120000, 180000),
   );
 
   test(
     "CKEditor preserves paragraph break when accepting suggestion at line end",
     async () => {
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await applyConfigChange(browser, worker!);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      });
+      await notifyConfigChange(browser, worker);
 
       await gotoTestPage(page, { enableCkEditor: true });
-      await page.bringToFront();
       await waitForInputReady(page, CKEDITOR_SELECTOR);
 
       await page.evaluate(() => {
@@ -3347,7 +2244,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             const paragraphs = editable.querySelectorAll("p");
             return paragraphs.length >= 2 && (paragraphs[1].textContent ?? "").trim() === "next";
           },
-          { timeout: browserTimeout(4000, 10000) },
+          { timeout: suiteTimeout(4000, 10000) },
         );
       } catch {
         const debugState = await page.evaluate(() => {
@@ -3377,19 +2274,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(paragraphState.second).toBe("next");
       expect(paragraphState.first).toMatch(/^h\S*$/i);
     },
-    browserTimeout(45000, 70000),
+    suiteTimeout(45000, 70000),
   );
 
   test(
     "CKEditor popup dismisses immediately when Enter is pressed",
     async () => {
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await applyConfigChange(browser, worker!);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      });
+      await notifyConfigChange(browser, worker);
 
       await gotoTestPage(page, { enableCkEditor: true });
-      await page.bringToFront();
       await waitForInputReady(page, CKEDITOR_SELECTOR);
 
       await page.focus(CKEDITOR_SELECTOR);
@@ -3403,296 +2301,285 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.keyboard.press("Enter");
 
       // The popup must disappear promptly — predictions for the old line are invalid
-      await waitForNoVisibleSuggestions(page, browserTimeout(2000, 4000));
+      await waitForNoVisibleSuggestions(page, suiteTimeout(2000, 4000));
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
     "CKEditor grammar/text-edit replacement applies in active second paragraph",
     async () => {
-      try {
-        await setGrammarRulesAndWait(worker!, ["commaPeriodSpacing"]);
-        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, ["commaPeriodSpacing"]);
+      await setSettings(worker, {
+        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      });
+      await notifyConfigChange(browser, worker);
 
-        await gotoTestPage(page, { enableCkEditor: true });
-        await page.bringToFront();
-        await waitForInputReady(page, CKEDITOR_SELECTOR);
+      await gotoTestPage(page, { enableCkEditor: true });
+      await waitForInputReady(page, CKEDITOR_SELECTOR);
 
-        await page.evaluate(() => {
-          const ckEditor = (
-            window as typeof window & {
-              __testCkEditor?: { setData: (data: string) => void };
+      await page.evaluate(() => {
+        const ckEditor = (
+          window as typeof window & {
+            __testCkEditor?: { setData: (data: string) => void };
+          }
+        ).__testCkEditor;
+        if (!ckEditor) {
+          throw new Error("CKEditor test instance not found");
+        }
+        ckEditor.setData("<p>Quill Rich Text Editor</p><p>fixed </p>");
+      });
+
+      await page.focus(CKEDITOR_SELECTOR);
+      await page.evaluate(() => {
+        const editable = document.querySelector(".ck-editor__editable");
+        const secondParagraph = editable?.querySelectorAll("p")[1];
+        if (!editable || !secondParagraph) {
+          throw new Error("CKEditor editable or second paragraph missing");
+        }
+        const textNode =
+          secondParagraph.firstChild && secondParagraph.firstChild.nodeType === Node.TEXT_NODE
+            ? secondParagraph.firstChild
+            : secondParagraph.appendChild(document.createTextNode(""));
+        const selection = window.getSelection();
+        if (!selection) {
+          throw new Error("Selection unavailable");
+        }
+        const range = document.createRange();
+        range.setStart(textNode, textNode.textContent?.length ?? 0);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        const debugWindow = window as typeof window & {
+          __ftDebugInputs?: Array<{ inputType: string; data: string; text: string }>;
+          __ftDebugKeys?: string[];
+        };
+        debugWindow.__ftDebugInputs = [];
+        debugWindow.__ftDebugKeys = [];
+        editable.addEventListener("keydown", (event) => {
+          const keyEvent = event as KeyboardEvent;
+          debugWindow.__ftDebugKeys?.push(keyEvent.key);
+        });
+        editable.addEventListener("input", (event) => {
+          const inputEvent = event as InputEvent;
+          debugWindow.__ftDebugInputs?.push({
+            inputType: inputEvent.inputType ?? "",
+            data: inputEvent.data ?? "",
+            text: editable.textContent ?? "",
+          });
+        });
+      });
+
+      await page.keyboard.type(",");
+      const state = await waitUntil(
+        "ckeditor grammar replacement on second paragraph",
+        async () => {
+          const value = await page.evaluate(() => {
+            const editable = document.querySelector(".ck-editor__editable");
+            if (!editable) {
+              return false;
             }
-          ).__testCkEditor;
-          if (!ckEditor) {
-            throw new Error("CKEditor test instance not found");
-          }
-          ckEditor.setData("<p>Quill Rich Text Editor</p><p>fixed </p>");
-        });
-
-        await page.focus(CKEDITOR_SELECTOR);
-        await page.evaluate(() => {
-          const editable = document.querySelector(".ck-editor__editable");
-          const secondParagraph = editable?.querySelectorAll("p")[1];
-          if (!editable || !secondParagraph) {
-            throw new Error("CKEditor editable or second paragraph missing");
-          }
-          const textNode =
-            secondParagraph.firstChild && secondParagraph.firstChild.nodeType === Node.TEXT_NODE
-              ? secondParagraph.firstChild
-              : secondParagraph.appendChild(document.createTextNode(""));
-          const selection = window.getSelection();
-          if (!selection) {
-            throw new Error("Selection unavailable");
-          }
-          const range = document.createRange();
-          range.setStart(textNode, textNode.textContent?.length ?? 0);
-          range.collapse(true);
-          selection.removeAllRanges();
-          selection.addRange(range);
-
-          const debugWindow = window as typeof window & {
-            __ftDebugInputs?: Array<{ inputType: string; data: string; text: string }>;
-            __ftDebugKeys?: string[];
-          };
-          debugWindow.__ftDebugInputs = [];
-          debugWindow.__ftDebugKeys = [];
-          editable.addEventListener("keydown", (event) => {
-            const keyEvent = event as KeyboardEvent;
-            debugWindow.__ftDebugKeys?.push(keyEvent.key);
+            const paragraphs = Array.from(editable.querySelectorAll("p"));
+            if (paragraphs.length < 2) {
+              return false;
+            }
+            const normalize = (text: string): string => text.replace(/\u00a0/g, " ");
+            const firstLine = normalize(paragraphs[0]?.textContent ?? "").trim();
+            const secondLine = normalize(paragraphs[1]?.textContent ?? "");
+            if (firstLine !== "Quill Rich Text Editor") {
+              return false;
+            }
+            if (!/^fixed,[ ]$/i.test(secondLine)) {
+              return false;
+            }
+            return { firstLine, secondLine };
           });
-          editable.addEventListener("input", (event) => {
-            const inputEvent = event as InputEvent;
-            debugWindow.__ftDebugInputs?.push({
-              inputType: inputEvent.inputType ?? "",
-              data: inputEvent.data ?? "",
-              text: editable.textContent ?? "",
-            });
-          });
-        });
+          return value || false;
+        },
+        { timeoutMs: suiteTimeout(5000, 9000) },
+      );
 
-        await page.keyboard.type(",");
-        const state = await waitUntil(
-          "ckeditor grammar replacement on second paragraph",
-          async () => {
-            const value = await page.evaluate(() => {
-              const editable = document.querySelector(".ck-editor__editable");
-              if (!editable) {
-                return false;
-              }
-              const paragraphs = Array.from(editable.querySelectorAll("p"));
-              if (paragraphs.length < 2) {
-                return false;
-              }
-              const normalize = (text: string): string => text.replace(/\u00a0/g, " ");
-              const firstLine = normalize(paragraphs[0]?.textContent ?? "").trim();
-              const secondLine = normalize(paragraphs[1]?.textContent ?? "");
-              if (firstLine !== "Quill Rich Text Editor") {
-                return false;
-              }
-              if (!/^fixed,[ ]$/i.test(secondLine)) {
-                return false;
-              }
-              return { firstLine, secondLine };
-            });
-            return value || false;
-          },
-          { timeoutMs: browserTimeout(5000, 9000), intervalMs: 50 },
-        );
-
-        expect(state.firstLine).toBe("Quill Rich Text Editor");
-        expect(state.secondLine).toMatch(/^fixed,[ ]$/i);
-      } finally {
-        await setGrammarRulesAndWait(worker!, []);
-        await applyConfigChange(browser, worker!);
-      }
+      expect(state.firstLine).toBe("Quill Rich Text Editor");
+      expect(state.secondLine).toMatch(/^fixed,[ ]$/i);
     },
-    browserTimeout(35000, 55000),
+    suiteTimeout(35000, 55000),
   );
 
   test(
     "CKEditor capitalizes at the start of an existing paragraph without touching the previous paragraph",
     async () => {
+      await setGrammarRules(worker, ["capitalizeFirstLetter"]);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      });
+      await notifyConfigChange(browser, worker);
+
+      await gotoTestPage(page, { enableCkEditor: true });
+      await waitForInputReady(page, CKEDITOR_SELECTOR);
+
+      await page.evaluate(() => {
+        const ckEditor = (
+          window as typeof window & {
+            __testCkEditor?: { setData: (data: string) => void };
+          }
+        ).__testCkEditor;
+        if (!ckEditor) {
+          throw new Error("CKEditor test instance not found");
+        }
+        ckEditor.setData("<p>First line</p><p>The</p>");
+      });
+
+      const clickTarget = await page.evaluate(() => {
+        const editable = document.querySelector(".ck-editor__editable");
+        const secondParagraph = editable?.querySelectorAll("p")[1];
+        const textNode = secondParagraph?.firstChild;
+        if (!(textNode instanceof Text)) {
+          throw new Error("CKEditor second paragraph text node missing");
+        }
+        secondParagraph!.scrollIntoView({ block: "center", inline: "nearest" });
+        const range = document.createRange();
+        range.setStart(textNode, 0);
+        range.setEnd(textNode, 1);
+        const rect = range.getBoundingClientRect();
+        return {
+          x: rect.left + 1,
+          y: rect.top + rect.height / 2,
+        };
+      });
+
+      await page.mouse.click(clickTarget.x, clickTarget.y);
+      await page.keyboard.type("d ");
+
       try {
-        await setGrammarRulesAndWait(worker!, ["capitalizeFirstLetter"]);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await applyConfigChange(browser, worker!);
-
-        await gotoTestPage(page, { enableCkEditor: true });
-        await page.bringToFront();
-        await waitForInputReady(page, CKEDITOR_SELECTOR);
-
-        await page.evaluate(() => {
-          const ckEditor = (
-            window as typeof window & {
-              __testCkEditor?: { setData: (data: string) => void };
+        await page.waitForFunction(
+          () => {
+            const editable = document.querySelector(".ck-editor__editable");
+            if (!editable) {
+              return false;
             }
-          ).__testCkEditor;
-          if (!ckEditor) {
-            throw new Error("CKEditor test instance not found");
-          }
-          ckEditor.setData("<p>First line</p><p>The</p>");
-        });
-
-        const clickTarget = await page.evaluate(() => {
+            const paragraphs = Array.from(editable.querySelectorAll("p"));
+            if (paragraphs.length < 2) {
+              return false;
+            }
+            const normalize = (text: string): string =>
+              text
+                .replace(/\u00a0/g, " ")
+                .replace(/\u200b/g, "")
+                .trim();
+            return (
+              normalize(paragraphs[0]?.textContent ?? "") === "First line" &&
+              normalize(paragraphs[1]?.textContent ?? "") === "D The"
+            );
+          },
+          { timeout: suiteTimeout(1500, 3000) },
+        );
+      } catch {
+        const debugState = await page.evaluate(() => {
           const editable = document.querySelector(".ck-editor__editable");
-          const secondParagraph = editable?.querySelectorAll("p")[1];
-          const textNode = secondParagraph?.firstChild;
-          if (!(textNode instanceof Text)) {
-            throw new Error("CKEditor second paragraph text node missing");
-          }
-          secondParagraph.scrollIntoView({ block: "center", inline: "nearest" });
-          const range = document.createRange();
-          range.setStart(textNode, 0);
-          range.setEnd(textNode, 1);
-          const rect = range.getBoundingClientRect();
+          const paragraphs = editable ? Array.from(editable.querySelectorAll("p")) : [];
+          const normalize = (text: string): string =>
+            text.replace(/\u00a0/g, " ").replace(/\u200b/g, "");
           return {
-            x: rect.left + 1,
-            y: rect.top + rect.height / 2,
+            html: editable?.innerHTML ?? "",
+            textContent: normalize(editable?.textContent ?? ""),
+            paragraphs: paragraphs.map((paragraph) => normalize(paragraph.textContent ?? "")),
           };
         });
-
-        await page.mouse.click(clickTarget.x, clickTarget.y);
-        await page.keyboard.type("d ");
-
-        try {
-          await page.waitForFunction(
-            () => {
-              const editable = document.querySelector(".ck-editor__editable");
-              if (!editable) {
-                return false;
-              }
-              const paragraphs = Array.from(editable.querySelectorAll("p"));
-              if (paragraphs.length < 2) {
-                return false;
-              }
-              const normalize = (text: string): string =>
-                text
-                  .replace(/\u00a0/g, " ")
-                  .replace(/\u200b/g, "")
-                  .trim();
-              return (
-                normalize(paragraphs[0]?.textContent ?? "") === "First line" &&
-                normalize(paragraphs[1]?.textContent ?? "") === "D The"
-              );
-            },
-            { timeout: browserTimeout(1500, 3000) },
-          );
-        } catch {
-          const debugState = await page.evaluate(() => {
-            const editable = document.querySelector(".ck-editor__editable");
-            const paragraphs = editable ? Array.from(editable.querySelectorAll("p")) : [];
-            const normalize = (text: string): string =>
-              text.replace(/\u00a0/g, " ").replace(/\u200b/g, "");
-            return {
-              html: editable?.innerHTML ?? "",
-              textContent: normalize(editable?.textContent ?? ""),
-              paragraphs: paragraphs.map((paragraph) => normalize(paragraph.textContent ?? "")),
-            };
-          });
-          throw new Error(
-            `CKEditor paragraph-start capitalization mismatch: ${JSON.stringify(debugState)}`,
-          );
-        }
-      } finally {
-        await setGrammarRulesAndWait(worker!, []);
-        await applyConfigChange(browser, worker!);
+        throw new Error(
+          `CKEditor paragraph-start capitalization mismatch: ${JSON.stringify(debugState)}`,
+        );
       }
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
     "Quill code predictions keep lowercase through Tab and restore prose casing",
     async () => {
-      try {
-        await setGrammarRulesAndWait(worker!, ["capitalizeSentenceStart"]);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_AUTOCOMPLETE_ON_TAB, true);
-        await applyConfigChange(browser, worker!);
-        await gotoTestPage(page, { enableQuill: true });
-        await page.bringToFront();
-        await waitForInputReady(page, QUILL_SELECTOR);
-        await page.focus(QUILL_SELECTOR);
-        await page.evaluate(() => {
-          const quill = (window as typeof window & { __testQuill?: Quill }).__testQuill;
-          if (!quill) throw new Error("Quill test instance not found");
-          quill.setText("what . \nwhat . \n", "silent");
-          quill.formatLine(0, 1, "code-block", true, "api");
-          quill.setSelection("what . ".length, 0, "api");
-          if (!document.querySelector(".ql-editor .ql-code-block"))
-            throw new Error("Missing actual Quill code block");
-        });
-        for (const expected of ["was", "Was"]) {
-          if (expected === "Was") {
-            await page.keyboard.press("Escape");
-            await page.evaluate(() => {
-              const quill = (window as typeof window & { __testQuill?: Quill }).__testQuill;
-              if (!quill) throw new Error("Quill test instance not found");
-              quill.setSelection(quill.getText().indexOf("\n") + 1 + "what . ".length, 0, "api");
-            });
-          }
-          await page.keyboard.type("wa");
-          await waitUntil(
-            `Quill offers ${expected} with context-correct casing`,
-            async () => {
-              const suggestions = await getVisibleSuggestionTexts(page);
-              const found = suggestions.findIndex((text) => text.trim() === expected);
-              return found >= 0 ? { value: found } : false;
-            },
-            { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
-          );
-          await highlightSuggestion(page, expected);
-          await page.keyboard.press("Tab");
-          await waitUntil(
-            `Quill inserts ${expected} without changing code casing`,
-            async () =>
-              page.evaluate((inProse) => {
-                const quill = (window as typeof window & { __testQuill?: Quill }).__testQuill;
-                const lines = quill
-                  ?.getText()
-                  .replace(/\u00a0/g, " ")
-                  .split("\n");
-                const code = document
-                  .querySelector(".ql-editor .ql-code-block")
-                  ?.textContent?.trimEnd();
-                return (
-                  code === "what . was" &&
-                  lines?.[0]?.trimEnd() === "what . was" &&
-                  lines?.[1]?.trimEnd() === (inProse ? "what . Was" : "what .")
-                );
-              }, expected === "Was"),
-            { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
-          );
+      await setGrammarRules(worker, ["capitalizeSentenceStart"]);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_INLINE_SUGGESTION]: false,
+        [KEY_AUTOCOMPLETE_ON_TAB]: true,
+      });
+      await notifyConfigChange(browser, worker);
+      await gotoTestPage(page, { enableQuill: true });
+      await waitForInputReady(page, QUILL_SELECTOR);
+      await page.focus(QUILL_SELECTOR);
+      await page.evaluate(() => {
+        const quill = (window as typeof window & { __testQuill?: Quill }).__testQuill;
+        if (!quill) throw new Error("Quill test instance not found");
+        quill.setText("what . \nwhat . \n", "silent");
+        quill.formatLine(0, 1, "code-block", true, "api");
+        quill.setSelection("what . ".length, 0, "api");
+        if (!document.querySelector(".ql-editor .ql-code-block"))
+          throw new Error("Missing actual Quill code block");
+      });
+      for (const expected of ["was", "Was"]) {
+        if (expected === "Was") {
+          await page.keyboard.press("Escape");
+          await page.evaluate(() => {
+            const quill = (window as typeof window & { __testQuill?: Quill }).__testQuill;
+            if (!quill) throw new Error("Quill test instance not found");
+            quill.setSelection(quill.getText().indexOf("\n") + 1 + "what . ".length, 0, "api");
+          });
         }
-      } finally {
-        await setGrammarRulesAndWait(worker!, []);
-        await applyConfigChange(browser, worker!);
+        await page.keyboard.type("wa");
+        await waitUntil(
+          `Quill offers ${expected} with context-correct casing`,
+          async () => {
+            const suggestions = await getVisibleSuggestionTexts(page);
+            const found = suggestions.findIndex((text) => text.trim() === expected);
+            return found >= 0 ? { value: found } : false;
+          },
+          { timeoutMs: suiteTimeout(5000, 10000) },
+        );
+        await highlightSuggestion(page, expected);
+        await page.keyboard.press("Tab");
+        await waitUntil(
+          `Quill inserts ${expected} without changing code casing`,
+          async () =>
+            page.evaluate((inProse) => {
+              const quill = (window as typeof window & { __testQuill?: Quill }).__testQuill;
+              const lines = quill
+                ?.getText()
+                .replace(/\u00a0/g, " ")
+                .split("\n");
+              const code = document
+                .querySelector(".ql-editor .ql-code-block")
+                ?.textContent?.trimEnd();
+              return (
+                code === "what . was" &&
+                lines?.[0]?.trimEnd() === "what . was" &&
+                lines?.[1]?.trimEnd() === (inProse ? "what . Was" : "what .")
+              );
+            }, expected === "Was"),
+          { timeoutMs: suiteTimeout(5000, 10000) },
+        );
       }
     },
-    browserTimeout(45000, 70000),
+    suiteTimeout(45000, 70000),
   );
 
   test(
     "Quill preserves block structure and caret-correct insertion on Tab acceptance",
     async () => {
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await applyConfigChange(browser, worker!);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      });
+      await notifyConfigChange(browser, worker);
 
       await gotoTestPage(page, { enableQuill: true });
-      await page.bringToFront();
       await waitForInputReady(page, QUILL_SELECTOR);
 
       await page.evaluate(() => {
@@ -3754,272 +2641,274 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           });
           return state || false;
         },
-        { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
+        { timeoutMs: suiteTimeout(5000, 10000) },
       );
 
       expect(acceptedState.secondLine).toBe("next");
       expect(acceptedState.firstLine).toMatch(/^h\S+$/i);
       expect(acceptedState.selectionIndex).toBeGreaterThanOrEqual(acceptedState.firstLine.length);
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
     "Quill lowercase first-letter prediction works after newline without line jump",
     async () => {
-      try {
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setGrammarRulesAndWait(worker!, ["capitalizeFirstLetter"]);
-        await applyConfigChange(browser, worker!);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      });
+      await setGrammarRules(worker, ["capitalizeFirstLetter"]);
+      await notifyConfigChange(browser, worker);
 
-        await gotoTestPage(page, { enableQuill: true });
-        await page.bringToFront();
-        await waitForInputReady(page, QUILL_SELECTOR);
+      await gotoTestPage(page, { enableQuill: true });
+      await waitForInputReady(page, QUILL_SELECTOR);
 
-        await page.evaluate(() => {
-          const quill = (
-            window as typeof window & {
-              __testQuill?: {
-                setText: (text: string, source?: string) => void;
-                setSelection: (index: number, length: number, source?: string) => void;
-              };
-            }
-          ).__testQuill;
-          if (!quill) {
-            throw new Error("Quill test instance not found");
+      await page.evaluate(() => {
+        const quill = (
+          window as typeof window & {
+            __testQuill?: {
+              setText: (text: string, source?: string) => void;
+              setSelection: (index: number, length: number, source?: string) => void;
+            };
           }
-          quill.setText("Quill Rich Text Editor\n", "silent");
-          quill.setSelection("Quill Rich Text Editor".length, 0, "silent");
-        });
+        ).__testQuill;
+        if (!quill) {
+          throw new Error("Quill test instance not found");
+        }
+        quill.setText("Quill Rich Text Editor\n", "silent");
+        quill.setSelection("Quill Rich Text Editor".length, 0, "silent");
+      });
 
-        await page.focus(QUILL_SELECTOR);
-        await page.keyboard.press("Enter");
-        await page.keyboard.type("w");
+      await page.focus(QUILL_SELECTOR);
+      await page.keyboard.press("Enter");
+      await page.keyboard.type("w");
 
-        const immediateGrammarState = await waitUntil(
-          "quill lowercase first letter stays on the new line",
-          async () => {
-            const state = await page.evaluate(() => {
-              const quill = (
-                window as typeof window & {
-                  __testQuill?: {
-                    getText: () => string;
-                  };
-                }
-              ).__testQuill;
-              if (!quill) {
-                return false;
+      const immediateGrammarState = await waitUntil(
+        "quill lowercase first letter stays on the new line",
+        async () => {
+          const state = await page.evaluate(() => {
+            const quill = (
+              window as typeof window & {
+                __testQuill?: {
+                  getText: () => string;
+                };
               }
-              const normalizedText = quill.getText().replace(/\u00a0/g, " ");
-              const lines = normalizedText.split("\n");
-              const firstLine = (lines[0] ?? "").trim();
-              const secondLine = lines[1] ?? "";
-              if (firstLine !== "Quill Rich Text Editor") {
-                return false;
-              }
-              if (secondLine !== "w") {
-                return false;
-              }
-              return {
-                firstLine,
-                secondLine,
-                normalizedText,
-              };
-            });
-            return state || false;
-          },
-          { timeoutMs: browserTimeout(1000, 2500), intervalMs: 25 },
-        );
+            ).__testQuill;
+            if (!quill) {
+              return false;
+            }
+            const normalizedText = quill.getText().replace(/\u00a0/g, " ");
+            const lines = normalizedText.split("\n");
+            const firstLine = (lines[0] ?? "").trim();
+            const secondLine = lines[1] ?? "";
+            if (firstLine !== "Quill Rich Text Editor") {
+              return false;
+            }
+            if (secondLine !== "w") {
+              return false;
+            }
+            return {
+              firstLine,
+              secondLine,
+              normalizedText,
+            };
+          });
+          return state || false;
+        },
+        { timeoutMs: suiteTimeout(1000, 2500), intervalMs: 25 },
+      );
 
-        expect(immediateGrammarState.firstLine).toBe("Quill Rich Text Editor");
-        expect(immediateGrammarState.secondLine).toBe("w");
+      expect(immediateGrammarState.firstLine).toBe("Quill Rich Text Editor");
+      expect(immediateGrammarState.secondLine).toBe("w");
 
-        const liCount = await waitForVisibleSuggestions(page, browserTimeout(5000, 9000));
-        expect(liCount).toBeGreaterThan(0);
-        const [firstSuggestion] = await waitForVisibleSuggestionTexts(
-          page,
-          browserTimeout(5000, 9000),
-        );
-        expect(firstSuggestion).toMatch(/^w/i);
-        await page.keyboard.press("Tab");
+      const liCount = await waitForVisibleSuggestions(page, suiteTimeout(5000, 9000));
+      expect(liCount).toBeGreaterThan(0);
+      const [firstSuggestion] = await waitForVisibleSuggestionTexts(page, suiteTimeout(5000, 9000));
+      expect(firstSuggestion).toMatch(/^w/i);
+      await page.keyboard.press("Tab");
 
-        const acceptedState = await waitUntil(
-          "quill lowercase acceptance keeps insertion on active line",
-          async () => {
-            const state = await page.evaluate(() => {
-              const quill = (
-                window as typeof window & {
-                  __testQuill?: {
-                    getText: () => string;
-                    getSelection: () => { index: number; length: number } | null;
-                  };
-                }
-              ).__testQuill;
-              if (!quill) {
-                return false;
+      const acceptedState = await waitUntil(
+        "quill lowercase acceptance keeps insertion on active line",
+        async () => {
+          const state = await page.evaluate(() => {
+            const quill = (
+              window as typeof window & {
+                __testQuill?: {
+                  getText: () => string;
+                  getSelection: () => { index: number; length: number } | null;
+                };
               }
-              const normalizedText = quill.getText().replace(/\u00a0/g, " ");
-              const lines = normalizedText.split("\n");
-              const firstLine = (lines[0] ?? "").trim();
-              const secondLine = (lines[1] ?? "").trimEnd();
-              const selection = quill.getSelection();
-              if (firstLine !== "Quill Rich Text Editor") {
-                return false;
-              }
-              if (!/^w\S*$/i.test(secondLine)) {
-                return false;
-              }
-              if (!selection || selection.index <= firstLine.length) {
-                return false;
-              }
-              return {
-                firstLine,
-                secondLine,
-                selectionIndex: selection.index,
-                normalizedText,
-              };
-            });
-            return state || false;
-          },
-          { timeoutMs: browserTimeout(5000, 9000), intervalMs: 50 },
-        );
+            ).__testQuill;
+            if (!quill) {
+              return false;
+            }
+            const normalizedText = quill.getText().replace(/\u00a0/g, " ");
+            const lines = normalizedText.split("\n");
+            const firstLine = (lines[0] ?? "").trim();
+            const secondLine = (lines[1] ?? "").trimEnd();
+            const selection = quill.getSelection();
+            if (firstLine !== "Quill Rich Text Editor") {
+              return false;
+            }
+            if (!/^w\S*$/i.test(secondLine)) {
+              return false;
+            }
+            if (!selection || selection.index <= firstLine.length) {
+              return false;
+            }
+            return {
+              firstLine,
+              secondLine,
+              selectionIndex: selection.index,
+              normalizedText,
+            };
+          });
+          return state || false;
+        },
+        { timeoutMs: suiteTimeout(5000, 9000) },
+      );
 
-        expect(acceptedState.firstLine).toBe("Quill Rich Text Editor");
-        expect(acceptedState.secondLine).toMatch(/^w\S*$/i);
-        expect(acceptedState.selectionIndex).toBeGreaterThan(
-          acceptedState.firstLine.length + acceptedState.secondLine.length,
-        );
-      } finally {
-        await setGrammarRulesAndWait(worker!, []);
-        await applyConfigChange(browser, worker!);
-      }
+      expect(acceptedState.firstLine).toBe("Quill Rich Text Editor");
+      expect(acceptedState.secondLine).toMatch(/^w\S*$/i);
+      expect(acceptedState.selectionIndex).toBeGreaterThan(
+        acceptedState.firstLine.length + acceptedState.secondLine.length,
+      );
     },
-    browserTimeout(40000, 60000),
+    suiteTimeout(40000, 60000),
   );
 
   test(
     "Quill grammar/text-edit replacement applies once without model corruption",
     async () => {
-      try {
-        await setGrammarRulesAndWait(worker!, ["commaPeriodSpacing"]);
-        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, ["commaPeriodSpacing"]);
+      await setSettings(worker, {
+        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      });
+      await notifyConfigChange(browser, worker);
 
-        await gotoTestPage(page, { enableQuill: true });
-        await page.bringToFront();
-        await waitForInputReady(page, QUILL_SELECTOR);
-        await page.focus(QUILL_SELECTOR);
+      await gotoTestPage(page, { enableQuill: true });
+      await waitForInputReady(page, QUILL_SELECTOR);
+      await page.focus(QUILL_SELECTOR);
 
-        await page.evaluate(() => {
-          const quill = (
-            window as typeof window & {
-              __testQuill?: {
-                setText: (text: string, source?: string) => void;
-                setSelection: (index: number, length: number, source?: string) => void;
-              };
-            }
-          ).__testQuill;
-          if (!quill) {
-            throw new Error("Quill test instance not found");
+      await page.evaluate(() => {
+        const quill = (
+          window as typeof window & {
+            __testQuill?: {
+              setText: (text: string, source?: string) => void;
+              setSelection: (index: number, length: number, source?: string) => void;
+            };
           }
-          quill.setText("Quill Rich Text Editor\nfixed \n", "silent");
-          quill.setSelection("Quill Rich Text Editor\nfixed ".length, 0, "silent");
-        });
+        ).__testQuill;
+        if (!quill) {
+          throw new Error("Quill test instance not found");
+        }
+        quill.setText("Quill Rich Text Editor\nfixed \n", "silent");
+        quill.setSelection("Quill Rich Text Editor\nfixed ".length, 0, "silent");
+      });
 
-        await page.keyboard.type(",");
-        await waitUntil(
-          "quill grammar spacing after punctuation",
-          async () => {
-            const state = await page.evaluate(() => {
+      await page.keyboard.type(",");
+      await waitUntil(
+        "quill grammar spacing after punctuation",
+        async () => {
+          const state = await page.evaluate(() => {
+            const quill = (
+              window as typeof window & {
+                __testQuill?: {
+                  getText: () => string;
+                };
+              }
+            ).__testQuill;
+            if (!quill) {
+              return false;
+            }
+            const normalizedText = quill.getText().replace(/\u00a0/g, " ");
+            const lines = normalizedText.split("\n");
+            const firstLine = (lines[0] ?? "").trim();
+            const secondLine = lines[1] ?? "";
+            if (firstLine !== "Quill Rich Text Editor") {
+              return false;
+            }
+            if (!/^fixed,[ ]$/i.test(secondLine)) {
+              return false;
+            }
+            return true;
+          });
+          return state;
+        },
+        { timeoutMs: suiteTimeout(5000, 9000) },
+      ).catch(async (cause) => {
+        throw new Error(
+          `Quill grammar left ${JSON.stringify(
+            await page.evaluate(() => {
               const quill = (
-                window as typeof window & {
-                  __testQuill?: {
-                    getText: () => string;
-                  };
+                window as unknown as {
+                  __testQuill: { getText(): string; root: HTMLElement; getSelection(): unknown };
                 }
               ).__testQuill;
-              if (!quill) {
-                return false;
-              }
-              const normalizedText = quill.getText().replace(/\u00a0/g, " ");
-              const lines = normalizedText.split("\n");
-              const firstLine = (lines[0] ?? "").trim();
-              const secondLine = lines[1] ?? "";
-              if (firstLine !== "Quill Rich Text Editor") {
-                return false;
-              }
-              if (!/^fixed,[ ]$/i.test(secondLine)) {
-                return false;
-              }
-              return true;
-            });
-            return state ? true : false;
-          },
-          { timeoutMs: browserTimeout(5000, 9000), intervalMs: 50 },
-        ).catch(async (cause) => {
-          throw new Error(
-            `Quill grammar left ${JSON.stringify(await page.evaluate(() => ({ model: window.__testQuill!.getText(), html: window.__testQuill!.root.innerHTML, selection: window.__testQuill!.getSelection() })))}`,
-            { cause },
-          );
-        });
-
-        await page.keyboard.type("x");
-        const finalState = await waitUntil(
-          "quill grammar replacement remains stable after follow-up typing",
-          async () => {
-            const state = await page.evaluate(() => {
-              const quill = (
-                window as typeof window & {
-                  __testQuill?: {
-                    getText: () => string;
-                    root: HTMLElement;
-                  };
-                }
-              ).__testQuill;
-              if (!quill) {
-                return false;
-              }
-              const normalizedText = quill.getText().replace(/\u00a0/g, " ");
-              const lines = normalizedText.split("\n");
-              const firstLine = (lines[0] ?? "").trim();
-              const secondLine = lines[1] ?? "";
-              const paragraphCount = quill.root.querySelectorAll("p").length;
-              const hasDoubleSpace = secondLine.includes("fixed,  x");
-              const hasExpectedText = /^fixed,[ ]x$/i.test(secondLine);
-              const spacingAppliedOnce = secondLine.split("fixed, ").length - 1 === 1;
-              const firstLinePreserved = firstLine === "Quill Rich Text Editor";
-              if (!hasExpectedText || hasDoubleSpace || !spacingAppliedOnce) {
-                return false;
-              }
-              if (!firstLinePreserved) {
-                return false;
-              }
               return {
-                normalizedText,
-                paragraphCount,
-                firstLine,
-                secondLine,
+                model: quill.getText(),
+                html: quill.root.innerHTML,
+                selection: quill.getSelection(),
               };
-            });
-            return state || false;
-          },
-          { timeoutMs: browserTimeout(5000, 9000), intervalMs: 50 },
+            }),
+          )}`,
+          { cause },
         );
+      });
 
-        expect(finalState.firstLine).toBe("Quill Rich Text Editor");
-        expect(finalState.secondLine).toMatch(/^fixed, x$/i);
-        expect(finalState.paragraphCount).toBeGreaterThanOrEqual(1);
-      } finally {
-        await setGrammarRulesAndWait(worker!, []);
-        await applyConfigChange(browser, worker!);
-      }
+      await page.keyboard.type("x");
+      const finalState = await waitUntil(
+        "quill grammar replacement remains stable after follow-up typing",
+        async () => {
+          const state = await page.evaluate(() => {
+            const quill = (
+              window as typeof window & {
+                __testQuill?: {
+                  getText: () => string;
+                  root: HTMLElement;
+                };
+              }
+            ).__testQuill;
+            if (!quill) {
+              return false;
+            }
+            const normalizedText = quill.getText().replace(/\u00a0/g, " ");
+            const lines = normalizedText.split("\n");
+            const firstLine = (lines[0] ?? "").trim();
+            const secondLine = lines[1] ?? "";
+            const paragraphCount = quill.root.querySelectorAll("p").length;
+            const hasDoubleSpace = secondLine.includes("fixed,  x");
+            const hasExpectedText = /^fixed,[ ]x$/i.test(secondLine);
+            const spacingAppliedOnce = secondLine.split("fixed, ").length - 1 === 1;
+            const firstLinePreserved = firstLine === "Quill Rich Text Editor";
+            if (!hasExpectedText || hasDoubleSpace || !spacingAppliedOnce) {
+              return false;
+            }
+            if (!firstLinePreserved) {
+              return false;
+            }
+            return {
+              normalizedText,
+              paragraphCount,
+              firstLine,
+              secondLine,
+            };
+          });
+          return state || false;
+        },
+        { timeoutMs: suiteTimeout(5000, 9000) },
+      );
+
+      expect(finalState.firstLine).toBe("Quill Rich Text Editor");
+      expect(finalState.secondLine).toMatch(/^fixed, x$/i);
+      expect(finalState.paragraphCount).toBeGreaterThanOrEqual(1);
     },
-    browserTimeout(35000, 55000),
+    suiteTimeout(35000, 55000),
   );
 
   test(
@@ -4046,13 +2935,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           };
         }, selector);
 
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await applyConfigChange(browser, worker!);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      });
+      await notifyConfigChange(browser, worker);
 
       await gotoTestPage(page);
-      await page.bringToFront();
       await waitForInputReady(page, selector);
 
       await page.evaluate((sel) => {
@@ -4097,8 +2987,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             );
           },
           {
-            timeoutMs: browserTimeout(3000, 7000),
-            intervalMs: 50,
+            timeoutMs: suiteTimeout(3000, 7000),
           },
         );
       } catch {
@@ -4110,7 +2999,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(richState.html.toLowerCase()).toContain("rich");
       expect(richState.text.replace(/\u00a0/g, " ").toLowerCase()).toContain("rich");
     },
-    browserTimeout(20000, 35000),
+    suiteTimeout(20000, 35000),
   );
 
   // Reads text-bearing predictor traces, which only development builds keep.
@@ -4118,16 +3007,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "block-local prediction in Lexical/Reddit contenteditable",
     async () => {
       const selector = "#test-contenteditable";
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await applyConfigChange(browser, worker!);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      });
+      await notifyConfigChange(browser, worker);
 
       await gotoTestPage(page);
-      await page.bringToFront();
       await waitForInputReady(page, selector);
 
-      const optionsPage = await openOptionsPage(browser, worker!);
+      const optionsPage = await openOptionsPage(browser, worker);
       try {
         const baselineSnapshot = await getPredictorDebugSnapshot(optionsPage);
         const baselineTraceIds = new Set(
@@ -4176,7 +3066,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             const requestText = candidate.text?.toLowerCase() ?? "";
             return predictionInput.includes("sx") || requestText.includes("sx");
           },
-          browserTimeout(5000, 12000),
+          suiteTimeout(5000, 12000),
         );
 
         expect(trace.text?.toLowerCase()).toContain("sx");
@@ -4189,7 +3079,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         }
       }
     },
-    browserTimeout(20000, 35000),
+    suiteTimeout(20000, 35000),
   );
 
   // Reads text-bearing predictor traces, which only development builds keep.
@@ -4197,16 +3087,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "restores prediction immediately after Enter in Lexical/Reddit contenteditable",
     async () => {
       const selector = "#test-contenteditable";
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await applyConfigChange(browser, worker!);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      });
+      await notifyConfigChange(browser, worker);
 
       await gotoTestPage(page);
-      await page.bringToFront();
       await waitForInputReady(page, selector);
 
-      const optionsPage = await openOptionsPage(browser, worker!);
+      const optionsPage = await openOptionsPage(browser, worker);
       try {
         const baselineSnapshot = await getPredictorDebugSnapshot(optionsPage);
         const baselineTraceIds = new Set(
@@ -4283,7 +3174,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             const requestText = candidate.text?.toLowerCase() ?? "";
             return predictionInput === "firstblockalpha" || requestText === "firstblockalpha";
           },
-          browserTimeout(5000, 12000),
+          suiteTimeout(5000, 12000),
         );
 
         expect(trace.text?.toLowerCase()).toBe("firstblockalpha");
@@ -4294,7 +3185,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         }
       }
     },
-    browserTimeout(20000, 35000),
+    suiteTimeout(20000, 35000),
   );
 
   // Reads text-bearing predictor traces, which only development builds keep.
@@ -4302,16 +3193,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "keeps second-line prediction block-local in br-separated contenteditable",
     async () => {
       const selector = "#test-contenteditable";
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await applyConfigChange(browser, worker!);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      });
+      await notifyConfigChange(browser, worker);
 
       await gotoTestPage(page);
-      await page.bringToFront();
       await waitForInputReady(page, selector);
 
-      const optionsPage = await openOptionsPage(browser, worker!);
+      const optionsPage = await openOptionsPage(browser, worker);
       try {
         const baselineSnapshot = await getPredictorDebugSnapshot(optionsPage);
         const baselineTraceIds = new Set(
@@ -4445,7 +3337,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             const requestText = candidate.text?.toLowerCase() ?? "";
             return predictionInput === "t" || requestText === "t";
           },
-          browserTimeout(5000, 12000),
+          suiteTimeout(5000, 12000),
         );
 
         expect(trace.text?.toLowerCase()).toBe("t");
@@ -4458,20 +3350,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         }
       }
     },
-    browserTimeout(20000, 35000),
+    suiteTimeout(20000, 35000),
   );
 
   // Reads text-bearing predictor traces, which only development builds keep.
   devRuntimeTest(
     "keeps second-line prediction block-local after Enter in real Lexical editor",
     async () => {
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await applyConfigChange(browser, worker!);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      });
+      await notifyConfigChange(browser, worker);
 
       await gotoTestPage(page, { enableLexical: true });
-      await page.bringToFront();
       await waitForInputReady(page, LEXICAL_SELECTOR);
       await page.focus(LEXICAL_SELECTOR);
       await page.keyboard.type("FirstBlockAlpha");
@@ -4483,8 +3376,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               document.querySelector("#test-lexical-editor p")?.textContent === "FirstBlockAlpha",
           ),
         {
-          timeoutMs: browserTimeout(3000, 7000),
-          intervalMs: 50,
+          timeoutMs: suiteTimeout(3000, 7000),
         },
       );
       await page.evaluate(() => {
@@ -4524,12 +3416,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             return texts[0] === "FirstBlockAlpha" && texts[1].trim() === "";
           }),
         {
-          timeoutMs: browserTimeout(3000, 7000),
-          intervalMs: 50,
+          timeoutMs: suiteTimeout(3000, 7000),
         },
       );
 
-      const optionsPage = await openOptionsPage(browser, worker!);
+      const optionsPage = await openOptionsPage(browser, worker);
       try {
         const baselineSnapshot = await getPredictorDebugSnapshot(optionsPage);
         const baselineTraceIds = new Set(
@@ -4576,7 +3467,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             const requestText = candidate.text?.toLowerCase() ?? "";
             return predictionInput.includes("s") || requestText.includes("s");
           },
-          browserTimeout(5000, 12000),
+          suiteTimeout(5000, 12000),
         );
 
         expect(trace.text?.toLowerCase()).toContain("s");
@@ -4589,17 +3480,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         }
       }
     },
-    browserTimeout(20000, 35000),
+    suiteTimeout(20000, 35000),
   );
 
   test.each(GENERIC_INPUT_SELECTORS)(
     "Cursor movement cancels missing space auto-insertion in %s",
     async (selector) => {
-      await gotoTestPage(page, {
-        enableCkEditor: shouldEnableCkEditor(selector),
-        enableQuill: shouldEnableQuill(selector),
-      });
-      await page.bringToFront();
+      await gotoTestPage(page);
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
       await page.focus(selector);
@@ -4614,7 +3501,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         page,
         selector,
         /^h\S*[ \xa0]$/i,
-        browserTimeout(5000, 10000),
+        suiteTimeout(5000, 10000),
       );
       const wordPart = autocompletedText.slice(0, -1);
 
@@ -4624,23 +3511,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         page,
         selector,
         new RegExp(`^${wordPart.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}x[ \\xa0]$`, "i"),
-        browserTimeout(2000, 5000),
+        suiteTimeout(2000, 5000),
       );
     },
-    browserTimeout(15000, 30000),
+    suiteTimeout(15000, 30000),
   );
 
   test.each(GENERIC_INPUT_SELECTORS)(
     "Inline suggestion prediction is inserted on TAB in %s",
     async (selector) => {
-      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, true);
+      await notifyConfigChange(browser, worker);
 
-      await gotoTestPage(page, {
-        enableCkEditor: shouldEnableCkEditor(selector),
-        enableQuill: shouldEnableQuill(selector),
-      });
-      await page.bringToFront();
+      await gotoTestPage(page);
 
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
@@ -4652,9 +3535,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             const preview = document.querySelector(".ft-suggestion-inline");
             return Boolean(preview && (preview.textContent ?? "").length > 0);
           });
-          return hasInlineSuggestion ? true : false;
+          return hasInlineSuggestion;
         },
-        { timeoutMs: browserTimeout(2000, 5000), intervalMs: 50 },
+        { timeoutMs: suiteTimeout(2000, 5000) },
       );
 
       await page.keyboard.press("Tab");
@@ -4664,16 +3547,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         page,
         selector,
         /^w\S*[ \xa0]$/i,
-        browserTimeout(2000, 5000),
+        suiteTimeout(2000, 5000),
       );
       // Should be a word starting with "w" followed by a normal space or NBSP.
       expect(elementText).toMatch(/^w\S*[ \xa0]$/i);
 
       // Cleanup
-      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+      await notifyConfigChange(browser, worker);
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test(
@@ -4681,10 +3564,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-contenteditable";
       try {
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
-        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_INLINE_SUGGESTION]: true,
+          [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: false,
+          [KEY_LANGUAGE]: "en_US",
+        });
+        await notifyConfigChange(browser, worker);
 
         // Fractional leading reproduces the README offset. Normal and tight
         // line heights also need the browser's actual text metrics.
@@ -4694,7 +3579,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           "24px/0.8 Arial, sans-serif",
         ]) {
           await gotoTestPage(page);
-          await page.bringToFront();
           await waitForInputReady(page, selector);
           await page.$eval(
             selector,
@@ -4733,7 +3617,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             async () =>
               (await page.$eval(selector, (element) => element.textContent)) ===
               preview.before + preview.suffix,
-            { timeoutMs: browserTimeout(3000, 6000) },
+            { timeoutMs: suiteTimeout(3000, 6000) },
           );
           const accepted = await page.$eval(
             selector,
@@ -4751,27 +3635,33 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           expect(Math.abs(preview.left - accepted.left)).toBeLessThan(1);
         }
       } finally {
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
+        });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   async function enableArabicInlineSuggestions() {
-    await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-    await setSettingAndWait(worker!, KEY_LANGUAGE, "ar_SA");
-    await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-    await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-    await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
-    await applyConfigChange(browser, worker!);
+    await setSettings(worker, {
+      [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      [KEY_LANGUAGE]: "ar_SA",
+      [KEY_SITE_PROFILES]: {},
+      [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      [KEY_INLINE_SUGGESTION]: true,
+    });
+    await notifyConfigChange(browser, worker);
   }
 
   async function resetArabicInlineSuggestions() {
-    await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-    await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-    await applyConfigChange(browser, worker!);
+    await setSettings(worker, {
+      [KEY_INLINE_SUGGESTION]: false,
+      [KEY_LANGUAGE]: "en_US",
+    });
+    await notifyConfigChange(browser, worker);
   }
 
   async function waitForInlineGhostText(label: string): Promise<string> {
@@ -4783,7 +3673,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         return text.length > 0 ? text : false;
       },
-      { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
+      { timeoutMs: suiteTimeout(5000, 10000) },
     );
   }
 
@@ -4794,7 +3684,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       try {
         await enableArabicInlineSuggestions();
         await gotoTestPage(page);
-        await page.bringToFront();
         await page.evaluate(() =>
           document.getElementById("test-textarea")!.setAttribute("dir", "rtl"),
         );
@@ -4866,14 +3755,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           page,
           selector,
           /^اليوم[ \xa0]?$/,
-          browserTimeout(3000, 6000),
+          suiteTimeout(3000, 6000),
         );
         expect(accepted).toMatch(/^اليوم[ \xa0]?$/);
       } finally {
         await resetArabicInlineSuggestions();
       }
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test(
@@ -4883,7 +3772,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       try {
         await enableArabicInlineSuggestions();
         await gotoTestPage(page);
-        await page.bringToFront();
         await waitForInputReady(page, selector);
         await clearInputContent(page, selector);
         await typeInInput(page, selector, "الي");
@@ -4926,29 +3814,30 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           page,
           selector,
           /^اليوم[ \xa0]?$/,
-          browserTimeout(3000, 6000),
+          suiteTimeout(3000, 6000),
         );
         expect(accepted).toMatch(/^اليوم[ \xa0]?$/);
       } finally {
         await resetArabicInlineSuggestions();
       }
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test(
     "CKEditor inline preview hides trailing word chars when caret is mid-word",
     async () => {
       try {
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_INLINE_SUGGESTION]: true,
+          [KEY_LANGUAGE]: "en_US",
+          [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+          [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+          [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: false,
+        });
+        await notifyConfigChange(browser, worker);
 
         await gotoTestPage(page, { enableCkEditor: true });
-        await page.bringToFront();
         await waitForInputReady(page, CKEDITOR_SELECTOR);
 
         // Seed the editor with "The dog walked the street".
@@ -4998,7 +3887,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             });
             return text.length > 0 ? text : false;
           },
-          { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+          { timeoutMs: suiteTimeout(3000, 6000) },
         );
 
         // The preview must read as the post-acceptance text: a single word
@@ -5022,16 +3911,18 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             });
             return text === previewText ? text : false;
           },
-          { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+          { timeoutMs: suiteTimeout(3000, 6000) },
         );
         expect(finalText).toBe(previewText);
       } finally {
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
+        });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(45000, 70000),
+    suiteTimeout(45000, 70000),
   );
 
   // Regression for #397: a text expansion replaces its shortcut. The preview
@@ -5042,14 +3933,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
       try {
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "textExpander");
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["longshortcutxx", "OK"]]);
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_INLINE_SUGGESTION]: true,
+          [KEY_LANGUAGE]: "textExpander",
+          [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+          [KEY_TEXT_EXPANSIONS]: [["longshortcutxx", "OK"]],
+        });
+        await notifyConfigChange(browser, worker);
 
         await gotoTestPage(page);
-        await page.bringToFront();
         await waitForInputReady(page, selector);
         await page.evaluate(() => {
           const input = document.getElementById("test-input") as HTMLInputElement;
@@ -5081,7 +3973,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                 ghostRect.left >= mirrorRect.left - 1 && ghostRect.right <= mirrorRect.right + 1;
               return visible ? (mirror.textContent ?? "").replace(/\u00a0/g, " ") : false;
             }),
-          { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+          { timeoutMs: suiteTimeout(3000, 6000) },
         );
         // The typed shortcut stays visible, with the expansion annotated after it.
         expect(preview).toBe("longshortcutxx → OK rest");
@@ -5091,17 +3983,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           page,
           selector,
           /^OK[ \xa0]+rest$/,
-          browserTimeout(3000, 6000),
+          suiteTimeout(3000, 6000),
         );
         expect(finalText).toMatch(/^OK[ \xa0]+rest$/);
       } finally {
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_LANGUAGE]: "en_US",
+          [KEY_TEXT_EXPANSIONS]: [],
+        });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   // A text expansion that starts with its shortcut is a plain continuation:
@@ -5111,14 +4005,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
       try {
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "textExpander");
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["sig", "signature block"]]);
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_INLINE_SUGGESTION]: true,
+          [KEY_LANGUAGE]: "textExpander",
+          [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+          [KEY_TEXT_EXPANSIONS]: [["sig", "signature block"]],
+        });
+        await notifyConfigChange(browser, worker);
 
         await gotoTestPage(page);
-        await page.bringToFront();
         await waitForInputReady(page, selector);
         await clearInputContent(page, selector);
         await typeInInput(page, selector, "sig");
@@ -5131,7 +4026,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             );
             return text.length > 0 ? text.replace(/ /g, " ") : false;
           },
-          { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+          { timeoutMs: suiteTimeout(3000, 6000) },
         );
         expect(ghostText).not.toContain("→");
         expect(ghostText.trimEnd()).toBe("nature block");
@@ -5141,17 +4036,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           page,
           selector,
           /^signature block[ \xa0]?$/,
-          browserTimeout(3000, 6000),
+          suiteTimeout(3000, 6000),
         );
         expect(finalText).toMatch(/^signature block[ \xa0]?$/);
       } finally {
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_LANGUAGE]: "en_US",
+          [KEY_TEXT_EXPANSIONS]: [],
+        });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   // Regression: in a contenteditable (e.g. Gmail) a later block such as a
@@ -5171,14 +4068,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           };
         }, selector);
       try {
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "textExpander");
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["brb", "be right back"]]);
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_INLINE_SUGGESTION]: true,
+          [KEY_LANGUAGE]: "textExpander",
+          [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+          [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]],
+        });
+        await notifyConfigChange(browser, worker);
 
         await gotoTestPage(page);
-        await page.bringToFront();
         await waitForInputReady(page, selector);
         await page.evaluate((sel) => {
           const target = document.querySelector(sel) as HTMLElement;
@@ -5201,7 +4099,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                   "be right back",
                 ),
               ),
-            { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+            { timeoutMs: suiteTimeout(3000, 6000) },
           );
         } catch (error) {
           const diagnostics = await page.evaluate((sel) => {
@@ -5217,7 +4115,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                 ?.textContent,
             };
           }, selector);
-          const optionsPage = await openOptionsPage(browser, worker!);
+          const optionsPage = await openOptionsPage(browser, worker);
           const traces = ((await getPredictorDebugSnapshot(optionsPage)).traces ?? [])
             .toSorted((a, b) => (b.timestampMs ?? 0) - (a.timestampMs ?? 0))
             .slice(0, 4)
@@ -5253,30 +4151,34 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             const current = await readBlocks();
             return /^ok be right back ?$/.test(current.blocks[0] ?? "") ? current : false;
           },
-          { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+          { timeoutMs: suiteTimeout(3000, 6000) },
         );
         expect(state.blocks[1]).toBe("-- Bart");
         expect(state.focused).toBeTrue();
       } finally {
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_LANGUAGE]: "en_US",
+          [KEY_TEXT_EXPANSIONS]: [],
+        });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test(
     "Enabled languages restrict popup language list",
     async () => {
       const enabledLanguages = ["en_US", "de_DE"];
-      await setSetting(worker!, KEY_ENABLED_LANGUAGES, enabledLanguages);
-      await setSetting(worker!, KEY_LANGUAGE, "en_US");
+      await setSettings(worker, {
+        [KEY_ENABLED_LANGUAGES]: enabledLanguages,
+        [KEY_LANGUAGE]: "en_US",
+      });
 
-      const popupPage = await openPopupPage(browser, worker!);
+      const popupPage = await openPopupPage(browser, worker);
       await popupPage.waitForSelector("#languageSelect", {
-        timeout: browserTimeout(3000, 10000),
+        timeout: suiteTimeout(3000, 10000),
       });
 
       const options = await popupPage.$$eval("#languageSelect option", (opts) =>
@@ -5286,84 +4188,90 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await popupPage.select("#languageSelect", "de_DE");
       const storedLanguage = await waitForSettingMatch<string>(
-        worker!,
+        worker,
         KEY_LANGUAGE,
         (value) => value === "de_DE",
-        browserTimeout(3000, 8000),
+        suiteTimeout(3000, 8000),
       );
       expect(storedLanguage).toBe("de_DE");
 
       await popupPage.close();
 
-      await setSetting(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await setSetting(worker!, KEY_LANGUAGE, "en_US");
+      await setSettings(worker, {
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_LANGUAGE]: "en_US",
+      });
     },
-    browserTimeout(5000, 15000),
+    suiteTimeout(5000, 15000),
   );
 
   test(
     "Auto detect is only allowed when multiple languages are enabled",
     async () => {
-      await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["en_US"]);
-      await setSetting(worker!, KEY_LANGUAGE, "auto_detect");
-      await setSetting(worker!, KEY_FALLBACK_LANGUAGE, "auto_detect");
+      await setSettings(worker, {
+        [KEY_ENABLED_LANGUAGES]: ["en_US"],
+        [KEY_LANGUAGE]: "auto_detect",
+        [KEY_FALLBACK_LANGUAGE]: "auto_detect",
+      });
 
-      const optionsPageSingle = await openOptionsPage(browser, worker!);
+      const optionsPageSingle = await openOptionsPage(browser, worker);
       await optionsPageSingle.close();
 
       const storedLanguageSingle = await waitForSettingMatch<string>(
-        worker!,
+        worker,
         KEY_LANGUAGE,
         (value) => value === "en_US",
-        browserTimeout(3000, 8000),
+        suiteTimeout(3000, 8000),
       );
       const storedFallbackSingle = await waitForSettingMatch<string>(
-        worker!,
+        worker,
         KEY_FALLBACK_LANGUAGE,
         (value) => value === "en_US",
-        browserTimeout(3000, 8000),
+        suiteTimeout(3000, 8000),
       );
       expect(storedLanguageSingle).toBe("en_US");
       expect(storedFallbackSingle).toBe("en_US");
 
-      await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["en_US", "de_DE"]);
-      await setSetting(worker!, KEY_LANGUAGE, "auto_detect");
-      await setSetting(worker!, KEY_FALLBACK_LANGUAGE, "auto_detect");
+      await setSettings(worker, {
+        [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE"],
+        [KEY_LANGUAGE]: "auto_detect",
+        [KEY_FALLBACK_LANGUAGE]: "auto_detect",
+      });
 
-      const optionsPageMulti = await openOptionsPage(browser, worker!);
+      const optionsPageMulti = await openOptionsPage(browser, worker);
       await optionsPageMulti.close();
 
       const storedLanguageMulti = await waitForSettingMatch<string>(
-        worker!,
+        worker,
         KEY_LANGUAGE,
         (value) => value === "auto_detect",
-        browserTimeout(3000, 8000),
+        suiteTimeout(3000, 8000),
       );
       const storedFallbackMulti = await waitForSettingMatch<string>(
-        worker!,
+        worker,
         KEY_FALLBACK_LANGUAGE,
         (value) => value === "en_US",
-        browserTimeout(3000, 8000),
+        suiteTimeout(3000, 8000),
       );
       expect(storedLanguageMulti).toBe("auto_detect");
       expect(storedFallbackMulti).toBe("en_US");
 
-      const enabledLanguages = await getSetting<string[]>(worker!, KEY_ENABLED_LANGUAGES);
+      const enabledLanguages = await getSetting<string[]>(worker, KEY_ENABLED_LANGUAGES);
       expect(enabledLanguages).toEqual(["en_US", "de_DE"]);
     },
-    browserTimeout(5000, 15000),
+    suiteTimeout(5000, 15000),
   );
 
   test(
     "Support prompts can be dismissed permanently while support stays visible",
     async () => {
-      await setSettingAndWait(worker!, KEY_PRODUCTIVITY_STATS, {
+      await setSetting(worker, KEY_PRODUCTIVITY_STATS, {
         acceptedSuggestions: 50,
         charactersSaved: 3600,
         daily: {},
       });
       try {
-        const popup = await openPopupPage(browser, worker!);
+        const popup = await openPopupPage(browser, worker);
         await popup.waitForSelector("#dashboardMilestoneHint:not(.is-hidden)");
         expect(await popup.$eval("#supportDevelopmentLink", (el) => el.textContent)).toContain(
           "Support FluentTyper",
@@ -5376,12 +4284,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           (el as HTMLButtonElement).click(),
         );
         await waitForSettingMatch<{ donationPromptsDisabled: boolean }>(
-          worker!,
+          worker,
           KEY_PRODUCTIVITY_STATS,
           (value) => value?.donationPromptsDisabled === true,
         );
         await popup.close();
-        const reopened = await openPopupPage(browser, worker!);
+        const reopened = await openPopupPage(browser, worker);
         await reopened.waitForSelector("#supportDevelopmentLink", { visible: true });
         await reopened.waitForFunction(() =>
           document.getElementById("dashboardPeriodSummary")?.textContent?.includes("Last 7 days:"),
@@ -5392,7 +4300,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           ),
         ).toBe(true);
         await reopened.close();
-        const options = await openOptionsPage(browser, worker!);
+        const options = await openOptionsPage(browser, worker);
         if (!isFirefox()) await options.setViewport({ width: 1200, height: 900 });
         await options.$eval('a[href="#advanced_tab"]', (el) => (el as HTMLAnchorElement).click());
         await options.waitForSelector(".support-card", { visible: true });
@@ -5404,16 +4312,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ).toBe(true);
         await options.close();
       } finally {
-        await setSettingAndWait(worker!, KEY_PRODUCTIVITY_STATS, {});
+        await setSetting(worker, KEY_PRODUCTIVITY_STATS, {});
       }
     },
-    browserTimeout(10000, 20000),
+    suiteTimeout(10000, 20000),
   );
 
   test(
     "Productivity dashboard shows compact popup summary and advanced stats in options",
     async () => {
-      const { today, yesterday } = await worker!.evaluate(() => {
+      const { today, yesterday } = await worker.evaluate(() => {
         const toLocalDateKey = (date: Date): string => {
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -5512,28 +4420,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         donationSnoozedUntil: null,
       };
 
-      await setSettingAndWait(worker!, KEY_PRODUCTIVITY_STATS, productivityState);
+      await setSetting(worker, KEY_PRODUCTIVITY_STATS, productivityState);
 
       try {
-        const popupPage = await openPopupPage(browser, worker!);
+        const popupPage = await openPopupPage(browser, worker);
         await popupPage.waitForSelector("#openStatsOptionsBtn", {
-          timeout: browserTimeout(3000, 10000),
+          timeout: suiteTimeout(3000, 10000),
         });
 
-        const popupStats = await popupPage.evaluate(
-          () =>
-            new Promise((resolve, reject) => {
-              chrome.runtime.sendMessage(
-                { command: "CMD_POPUP_GET_PRODUCTIVITY_STATS", context: {} },
-                (response) => {
-                  if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                    return;
-                  }
-                  resolve(response);
-                },
-              );
-            }),
+        const popupStats = await sendCommand<unknown>(
+          popupPage,
+          "CMD_POPUP_GET_PRODUCTIVITY_STATS",
         );
         expect(
           (popupStats as { lifetime: { acceptedSuggestions: number } }).lifetime
@@ -5575,9 +4472,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect(popupSummary.hasTopSnippetsNode).toBe(false);
         await popupPage.close();
 
-        const optionsPage = await openOptionsPage(browser, worker!);
+        const optionsPage = await openOptionsPage(browser, worker);
         await optionsPage.waitForSelector("#productivityStatsRoot", {
-          timeout: browserTimeout(3000, 10000),
+          timeout: suiteTimeout(3000, 10000),
         });
         const optionsRootExists = await optionsPage.$eval("#productivityStatsRoot", (el) =>
           Boolean(el),
@@ -5592,7 +4489,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               return label.includes("Reset productivity stats");
             });
           },
-          { timeout: browserTimeout(10000, 15000) },
+          { timeout: suiteTimeout(10000, 15000) },
         );
         await optionsPage.evaluate(() => {
           const buttons = Array.from(
@@ -5609,21 +4506,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         });
         await optionsPage.close();
 
-        const popupAfterReset = await openPopupPage(browser, worker!);
-        const popupStatsAfterReset = await popupAfterReset.evaluate(
-          () =>
-            new Promise((resolve, reject) => {
-              chrome.runtime.sendMessage(
-                { command: "CMD_POPUP_GET_PRODUCTIVITY_STATS", context: {} },
-                (response) => {
-                  if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                    return;
-                  }
-                  resolve(response);
-                },
-              );
-            }),
+        const popupAfterReset = await openPopupPage(browser, worker);
+        const popupStatsAfterReset = await sendCommand<unknown>(
+          popupAfterReset,
+          "CMD_POPUP_GET_PRODUCTIVITY_STATS",
         );
         expect(
           (
@@ -5638,76 +4524,63 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ).toBe(0);
         await popupAfterReset.close();
       } finally {
-        await setSettingAndWait(worker!, KEY_PRODUCTIVITY_STATS, {});
+        await setSetting(worker, KEY_PRODUCTIVITY_STATS, {});
       }
     },
-    browserTimeout(20000, 35000),
+    suiteTimeout(20000, 35000),
   );
-
-  async function runAutoDetectPredictionScenario(selector: string) {
-    await gotoTestPage(page, {
-      enableCkEditor: shouldEnableCkEditor(selector),
-      enableQuill: shouldEnableQuill(selector),
-    });
-    await page.bringToFront();
-    await waitForInputReady(page, selector);
-
-    await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["en_US", "el_GR"]);
-    await setSetting(worker!, KEY_LANGUAGE, "en_US");
-    await setSetting(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-    await setSetting(worker!, KEY_INLINE_SUGGESTION, false);
-    await setSetting(worker!, KEY_NUM_SUGGESTIONS, 5);
-
-    const popupPage = await openPopupPage(browser, worker!);
-    await popupPage.waitForSelector("#languageSelect", {
-      timeout: browserTimeout(3000, 10000),
-    });
-    await popupPage.select("#languageSelect", "auto_detect");
-    await popupPage.close();
-
-    const storedLanguage = await waitForSettingMatch<string>(
-      worker!,
-      KEY_LANGUAGE,
-      (value) => value === "auto_detect",
-      browserTimeout(3000, 8000),
-    );
-    expect(storedLanguage).toBe("auto_detect");
-
-    await applyConfigChange(browser, worker!);
-
-    const useLatinAutoDetectCase = selector === CKEDITOR_SELECTOR || selector === "#test-textarea";
-    const typedSample = useLatinAutoDetectCase ? "impor" : "φιλοσ";
-    const expectedSuggestion = useLatinAutoDetectCase ? "important" : "φιλοσοφία";
-    await clearInputContent(page, selector);
-    if (useLatinAutoDetectCase) {
-      await typeInInput(page, selector, typedSample);
-    } else {
-      await typeInInput(page, selector, "φιλο");
-      await typeInInput(page, selector, "σ");
-    }
-    const detectSuggestionTimeoutMs =
-      selector === CKEDITOR_SELECTOR ? browserTimeout(12000, 20000) : browserTimeout(12000, 15000);
-
-    const allSuggestionTexts = (
-      await waitForVisibleSuggestionTexts(page, detectSuggestionTimeoutMs).catch(() => [])
-    ).map((text) => text.toLowerCase());
-
-    if (allSuggestionTexts.length > 0) {
-      expect(
-        allSuggestionTexts.some((text) => text.includes(expectedSuggestion.toLowerCase())),
-      ).toBe(true);
-    } else {
-      const currentInput = await getInputContent(page, selector);
-      expect(currentInput.toLowerCase()).toContain(typedSample.toLowerCase());
-    }
-  }
 
   test.each(GENERIC_INPUT_SELECTORS)(
     "Auto detect in popup detects language and predicts in %s",
     async (selector) => {
-      await runAutoDetectPredictionScenario(selector);
+      await gotoTestPage(page);
+      await waitForInputReady(page, selector);
+
+      await setSettings(worker, {
+        [KEY_ENABLED_LANGUAGES]: ["en_US", "el_GR"],
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_INLINE_SUGGESTION]: false,
+        [KEY_NUM_SUGGESTIONS]: 5,
+      });
+
+      const popupPage = await openPopupPage(browser, worker);
+      await popupPage.waitForSelector("#languageSelect", {
+        timeout: suiteTimeout(3000, 10000),
+      });
+      await popupPage.select("#languageSelect", "auto_detect");
+      await popupPage.close();
+
+      const storedLanguage = await waitForSettingMatch<string>(
+        worker,
+        KEY_LANGUAGE,
+        (value) => value === "auto_detect",
+        suiteTimeout(3000, 8000),
+      );
+      expect(storedLanguage).toBe("auto_detect");
+
+      await notifyConfigChange(browser, worker);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "φιλο");
+      await typeInInput(page, selector, "σ");
+
+      // The Greek suggestion is the visible result of the detection.
+      let latest: string[] = [];
+      await waitUntil(
+        "Greek auto-detect suggestion",
+        async () => {
+          latest = await getVisibleSuggestionTexts(page);
+          return latest.some((text) => text.toLowerCase().includes("φιλοσοφία"));
+        },
+        { timeoutMs: suiteTimeout(12000, 15000) },
+      ).catch(() => {
+        throw new Error(
+          `Expected a Greek suggestion containing "φιλοσοφία", got: ${latest.join(" | ")}`,
+        );
+      });
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -5715,26 +4588,27 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
       try {
-        await setSettingAndWait(worker!, "enable", true);
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, ["en_US", "el_GR"]);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "auto_detect");
-        await setSettingAndWait(worker!, KEY_FALLBACK_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_AUTO_LANGUAGE_SITE_PRIORS, {});
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          enable: true,
+          [KEY_ENABLED_LANGUAGES]: ["en_US", "el_GR"],
+          [KEY_LANGUAGE]: "auto_detect",
+          [KEY_FALLBACK_LANGUAGE]: "en_US",
+          [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
+          [KEY_SITE_PROFILES]: {},
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+          [KEY_NUM_SUGGESTIONS]: 5,
+        });
+        await notifyConfigChange(browser, worker);
 
         await gotoTestPage(page);
-        await page.bringToFront();
         await waitForInputReady(page, selector);
         await clearInputContent(page, selector);
         await typeInInput(page, selector, "φιλο");
         await typeInInput(page, selector, "σ");
         const greekSuggestions = await waitForVisibleSuggestionTexts(
           page,
-          browserTimeout(12000, 15000),
+          suiteTimeout(12000, 15000),
         ).catch(() => []);
         if (greekSuggestions.length > 0) {
           expect(greekSuggestions.some((text) => text.toLowerCase().includes("φιλοσοφία"))).toBe(
@@ -5743,16 +4617,18 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         } else {
           expect((await getInputContent(page, selector)).toLowerCase()).toContain("φιλοσ");
         }
-        expect(await getSetting<string>(worker!, KEY_LANGUAGE)).toBe("auto_detect");
+        expect(await getSetting<string>(worker, KEY_LANGUAGE)).toBe("auto_detect");
       } finally {
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_FALLBACK_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_AUTO_LANGUAGE_SITE_PRIORS, {});
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_LANGUAGE]: "en_US",
+          [KEY_FALLBACK_LANGUAGE]: "en_US",
+          [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
+          [KEY_SITE_PROFILES]: {},
+        });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(20000, 35000),
+    suiteTimeout(20000, 35000),
   );
 
   test(
@@ -5760,19 +4636,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
       try {
-        await setSettingAndWait(worker!, "enable", true);
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, ["en_US", "ar_SA"]);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "auto_detect");
-        await setSettingAndWait(worker!, KEY_FALLBACK_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_AUTO_LANGUAGE_SITE_PRIORS, {});
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          enable: true,
+          [KEY_ENABLED_LANGUAGES]: ["en_US", "ar_SA"],
+          [KEY_LANGUAGE]: "auto_detect",
+          [KEY_FALLBACK_LANGUAGE]: "en_US",
+          [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
+          [KEY_SITE_PROFILES]: {},
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+          [KEY_NUM_SUGGESTIONS]: 5,
+        });
+        await notifyConfigChange(browser, worker);
 
         await gotoTestPage(page);
-        await page.bringToFront();
         await waitForInputReady(page, selector);
         await clearInputContent(page, selector);
         await typeInInput(page, selector, "الي");
@@ -5783,22 +4660,24 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             latest = await getVisibleSuggestionTexts(page).catch(() => []);
             return latest.some((text) => text.includes("اليوم")) ? latest : false;
           },
-          { timeoutMs: browserTimeout(12000, 15000), intervalMs: 50 },
+          { timeoutMs: suiteTimeout(12000, 15000) },
         ).catch(() => {
           throw new Error(
             `Expected an Arabic suggestion containing "اليوم", got: ${latest.join(" | ")}`,
           );
         });
-        expect(await getSetting<string>(worker!, KEY_LANGUAGE)).toBe("auto_detect");
+        expect(await getSetting<string>(worker, KEY_LANGUAGE)).toBe("auto_detect");
       } finally {
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_FALLBACK_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_AUTO_LANGUAGE_SITE_PRIORS, {});
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_LANGUAGE]: "en_US",
+          [KEY_FALLBACK_LANGUAGE]: "en_US",
+          [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
+          [KEY_SITE_PROFILES]: {},
+        });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(20000, 35000),
+    suiteTimeout(20000, 35000),
   );
 
   devRuntimeTest(
@@ -5806,26 +4685,27 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
       try {
-        await setSettingAndWait(worker!, "enable", true);
-        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, ["en_US", "el_GR"]);
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "auto_detect");
-        await setSettingAndWait(worker!, KEY_FALLBACK_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_AUTO_LANGUAGE_SITE_PRIORS, {});
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          enable: true,
+          [KEY_ENABLED_LANGUAGES]: ["en_US", "el_GR"],
+          [KEY_LANGUAGE]: "auto_detect",
+          [KEY_FALLBACK_LANGUAGE]: "en_US",
+          [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
+          [KEY_SITE_PROFILES]: {},
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+          [KEY_NUM_SUGGESTIONS]: 5,
+        });
+        await notifyConfigChange(browser, worker);
 
         await gotoTestPage(page);
-        await page.bringToFront();
         await waitForInputReady(page, selector);
         await clearInputContent(page, selector);
         await typeInInput(page, selector, "φιλο");
         await typeInInput(page, selector, "σ");
         const greekSuggestions = await waitForVisibleSuggestionTexts(
           page,
-          browserTimeout(12000, 15000),
+          suiteTimeout(12000, 15000),
         ).catch(() => []);
         if (greekSuggestions.length > 0) {
           expect(greekSuggestions.some((text) => text.toLowerCase().includes("φιλοσοφία"))).toBe(
@@ -5834,21 +4714,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         } else {
           expect((await getInputContent(page, selector)).toLowerCase()).toContain("φιλοσ");
         }
-        await triggerCommandForTesting(worker!, "CMD_TOGGLE_FT_ACTIVE_LANG");
+        await triggerCommandForTesting(worker, "CMD_TOGGLE_FT_ACTIVE_LANG");
 
         const globalLanguage = await waitForSettingMatch<string>(
-          worker!,
+          worker,
           KEY_LANGUAGE,
           (value) => value === "auto_detect",
-          browserTimeout(3000, 7000),
+          suiteTimeout(3000, 7000),
         );
         expect(globalLanguage).toBe("auto_detect");
 
-        const siteProfiles = await getSetting<Record<string, unknown>>(worker!, KEY_SITE_PROFILES);
+        const siteProfiles = await getSetting<Record<string, unknown>>(worker, KEY_SITE_PROFILES);
         expect(siteProfiles ?? {}).toEqual({});
 
         const sitePriors = await waitForSettingMatch<Record<string, Record<string, number>>>(
-          worker!,
+          worker,
           KEY_AUTO_LANGUAGE_SITE_PRIORS,
           (value) =>
             Boolean(
@@ -5856,7 +4736,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               typeof value[TEST_HOST].en_US === "number" &&
               value[TEST_HOST].en_US > 0,
             ),
-          browserTimeout(3000, 7000),
+          suiteTimeout(3000, 7000),
         );
         expect(sitePriors?.[TEST_HOST]?.en_US).toBeGreaterThan(0);
 
@@ -5866,7 +4746,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await typeInInput(page, selector, "σ");
         const lockedGreekSuggestions = await waitForVisibleSuggestionTexts(
           page,
-          browserTimeout(12000, 15000),
+          suiteTimeout(12000, 15000),
         ).catch(() => []);
         if (lockedGreekSuggestions.length > 0) {
           expect(lockedGreekSuggestions.length).toBeGreaterThan(0);
@@ -5874,128 +4754,88 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           expect((await getInputContent(page, selector)).toLowerCase()).toContain("φιλοσ");
         }
       } finally {
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_FALLBACK_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_AUTO_LANGUAGE_SITE_PRIORS, {});
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [KEY_LANGUAGE]: "en_US",
+          [KEY_FALLBACK_LANGUAGE]: "en_US",
+          [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
+          [KEY_SITE_PROFILES]: {},
+        });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
-  // `strict` languages must show the expected word in #test-input; the rest
-  // tolerate a slow engine (input still holds the typed text).
-  const LANGUAGE_TEST_DATA: Record<string, { input: string; expected: string; strict?: boolean }> =
-    {
-      en_US: { input: "impor", expected: "important" },
-      fr_FR: { input: "champig", expected: "champignon" },
-      hr_HR: { input: "prijat", expected: "prijatelj" },
-      es_ES: { input: "estup", expected: "estupenda" },
-      el_GR: { input: "φιλοσ", expected: "φιλοσοφία" },
-      sv_SE: { input: "tillsamm", expected: "tillsammans" },
-      de_DE: { input: "schmetterl", expected: "schmetterling" },
-      pl_PL: { input: "chrabą", expected: "chrabąszcz" },
-      pt_BR: { input: "caipir", expected: "caipira" },
-      ar_SA: { input: "الي", expected: "اليوم", strict: true },
-      textExpander: { input: "asap", expected: "as soon as possible" },
-    };
-
-  async function runPredictionForAllLanguagesScenario(selector: string) {
-    await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-    await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-    await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-    await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-    await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
-    await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["asap", "as soon as possible"]]);
-    await applyConfigChange(browser, worker!);
-
-    for (const lang of SUPPORTED_PREDICTION_LANGUAGE_KEYS) {
-      const testData = LANGUAGE_TEST_DATA[lang];
-      if (!testData) {
-        throw new Error(`Missing language test data for ${lang}`);
-      }
-      const suggestionTimeoutMs =
-        selector === CKEDITOR_SELECTOR
-          ? browserTimeout(5000, 12000)
-          : selector === "#test-textarea"
-            ? browserTimeout(2000, 4000)
-            : browserTimeout(3000, 10000);
-
-      await setSettingAndWait(worker!, KEY_LANGUAGE, lang);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: shouldEnableCkEditor(selector),
-        enableQuill: shouldEnableQuill(selector),
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
-      await waitForNoVisibleSuggestions(page, browserTimeout(2000, 5000)).catch(() => undefined);
-      await typeInInput(page, selector, testData.input);
-
-      let latestSuggestionTexts: string[] = [];
-      await waitUntil(
-        `prediction for ${lang} in ${selector}`,
-        async () => {
-          const visibleSuggestionTexts = (
-            await getVisibleSuggestionTexts(page).catch(() => [])
-          ).map((text) => text.toLowerCase());
-          if (visibleSuggestionTexts.length === 0) {
-            return false;
-          }
-          latestSuggestionTexts = visibleSuggestionTexts;
-          if (selector === "#test-textarea" || selector === CKEDITOR_SELECTOR) {
-            return visibleSuggestionTexts;
-          }
-          return visibleSuggestionTexts.some((text) =>
-            text.includes(testData.expected.toLowerCase()),
-          )
-            ? visibleSuggestionTexts
-            : false;
-        },
-        { timeoutMs: suggestionTimeoutMs, intervalMs: 50 },
-      ).catch(() => undefined);
-
-      const allSuggestionTexts = latestSuggestionTexts;
-      if (allSuggestionTexts.length > 0) {
-        const found = allSuggestionTexts.some((text) =>
-          text.includes(testData.expected.toLowerCase()),
-        );
-        if (found) {
-          expect(found).toBe(true);
-        } else if (selector === "#test-textarea" || selector === CKEDITOR_SELECTOR) {
-          expect(allSuggestionTexts.length).toBeGreaterThan(0);
-        } else {
-          throw new Error(
-            `Expected ${lang} suggestion containing "${testData.expected}" in ${selector}, got: ${allSuggestionTexts.join(" | ")}`,
-          );
-        }
-      } else if (testData.strict && selector === "#test-input") {
-        throw new Error(
-          `Expected ${lang} suggestion containing "${testData.expected}" in ${selector}, got none`,
-        );
-      } else {
-        const currentInput = await getInputContent(page, selector);
-        expect(currentInput.toLowerCase()).toContain(testData.input.toLowerCase());
-      }
-
-      await clearInputContent(page, selector);
-    }
-
-    await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-    await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-    await applyConfigChange(browser, worker!);
-  }
+  const LANGUAGE_TEST_DATA: Record<string, { input: string; expected: string }> = {
+    en_US: { input: "impor", expected: "important" },
+    fr_FR: { input: "champig", expected: "champignon" },
+    hr_HR: { input: "prijat", expected: "prijatelj" },
+    es_ES: { input: "estup", expected: "estupenda" },
+    el_GR: { input: "φιλοσ", expected: "φιλοσοφία" },
+    sv_SE: { input: "tillsamm", expected: "tillsammans" },
+    de_DE: { input: "schmetterl", expected: "schmetterling" },
+    pl_PL: { input: "chrabą", expected: "chrabąszcz" },
+    pt_BR: { input: "caipir", expected: "caipira" },
+    ar_SA: { input: "الي", expected: "اليوم" },
+    textExpander: { input: "asap", expected: "as soon as possible" },
+  };
 
   test.each(GENERIC_INPUT_SELECTORS)(
     "Prediction works for all supported languages in %s",
     async (selector) => {
-      await runPredictionForAllLanguagesScenario(selector);
+      await setSettings(worker, {
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_SITE_PROFILES]: {},
+        [KEY_INLINE_SUGGESTION]: false,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_NUM_SUGGESTIONS]: 5,
+        [KEY_TEXT_EXPANSIONS]: [["asap", "as soon as possible"]],
+      });
+      await notifyConfigChange(browser, worker);
+
+      for (const lang of SUPPORTED_PREDICTION_LANGUAGE_KEYS) {
+        const testData = LANGUAGE_TEST_DATA[lang];
+        if (!testData) {
+          throw new Error(`Missing language test data for ${lang}`);
+        }
+        await setSetting(worker, KEY_LANGUAGE, lang);
+        await notifyConfigChange(browser, worker);
+
+        await gotoTestPage(page);
+        await waitForInputReady(page, selector);
+
+        await clearInputContent(page, selector);
+        await waitForNoVisibleSuggestions(page, suiteTimeout(2000, 5000)).catch(() => undefined);
+        await typeInInput(page, selector, testData.input);
+
+        let latestSuggestionTexts: string[] = [];
+        await waitUntil(
+          `prediction for ${lang} in ${selector}`,
+          async () => {
+            latestSuggestionTexts = (await getVisibleSuggestionTexts(page)).map((text) =>
+              text.toLowerCase(),
+            );
+            return latestSuggestionTexts.some((text) =>
+              text.includes(testData.expected.toLowerCase()),
+            );
+          },
+          { timeoutMs: suiteTimeout(3000, 10000) },
+        ).catch(() => {
+          throw new Error(
+            `Expected ${lang} suggestion containing "${testData.expected}" in ${selector}, got: ${latestSuggestionTexts.join(" | ") || "none"}`,
+          );
+        });
+
+        await clearInputContent(page, selector);
+      }
+
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_SITE_PROFILES]: {},
+      });
+      await notifyConfigChange(browser, worker);
     },
-    browserTimeout(120000, 200000),
+    suiteTimeout(120000, 200000),
   );
 
   test(
@@ -6057,14 +4897,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       for (const { locale, expected, popupExpected } of TEST_LANGS) {
         // 1. Set the extension language in chrome.storage.local
-        await setSetting(worker!, "extensionLanguage", locale);
+        await setSetting(worker, "extensionLanguage", locale);
         if (isFirefox()) {
-          await worker!.evaluate((loc: string) => {
+          await worker.evaluate((loc: string) => {
             localStorage.setItem("store.settings.extensionLanguage", JSON.stringify(loc));
           }, locale);
         }
 
-        const optionsPage = await openOptionsPage(browser, worker!);
+        const optionsPage = await openOptionsPage(browser, worker);
         try {
           // 2. Sync localStorage in the extension context.
           if (!isFirefox()) {
@@ -6076,7 +4916,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
           // 3. Verify options page translation.
           await optionsPage.waitForSelector("#content", {
-            timeout: browserTimeout(1000, 5000),
+            timeout: suiteTimeout(1000, 5000),
           });
 
           const textFound = await optionsPage.evaluate((exp: string) => {
@@ -6093,14 +4933,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         }
 
         // 4. Verify the popup translation
-        const popupPage = await openPopupPage(browser, worker!);
+        const popupPage = await openPopupPage(browser, worker);
         await popupPage.waitForSelector("#pageStatePanel", {
-          timeout: browserTimeout(1000, 5000),
+          timeout: suiteTimeout(1000, 5000),
         });
         await popupPage.waitForFunction(
           (exp) =>
             document.getElementById("runOptions")?.getAttribute("title")?.includes(exp) ?? false,
-          { timeout: browserTimeout(2000, 6000) },
+          { timeout: suiteTimeout(2000, 6000) },
           popupExpected,
         );
 
@@ -6122,15 +4962,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       }
 
       // Cleanup: reset extension language back to auto_detect
-      await setSetting(worker!, "extensionLanguage", "auto_detect");
+      await setSetting(worker, "extensionLanguage", "auto_detect");
       if (isFirefox()) {
-        await worker!.evaluate(() => {
+        await worker.evaluate(() => {
           localStorage.setItem("store.settings.extensionLanguage", JSON.stringify("auto_detect"));
         });
       } else {
-        const cleanupPage = await openOptionsPage(browser, worker!);
+        const cleanupPage = await openOptionsPage(browser, worker);
         await cleanupPage.waitForSelector("#content", {
-          timeout: browserTimeout(1000, 5000),
+          timeout: suiteTimeout(1000, 5000),
         });
         await cleanupPage.evaluate(() => {
           localStorage.setItem("store.settings.extensionLanguage", JSON.stringify("auto_detect"));
@@ -6138,56 +4978,50 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await cleanupPage.reload({ waitUntil: "domcontentloaded" });
         await cleanupPage.close();
       }
-      await applyConfigChange(browser, worker!);
+      await notifyConfigChange(browser, worker);
     },
-    browserTimeout(20000, 40000),
+    suiteTimeout(20000, 40000),
   );
 
   test.each(GENERIC_INPUT_SELECTORS)(
     "Prediction popup can be closed via Escape key in %s",
     async (selector) => {
-      await gotoTestPage(page, {
-        enableCkEditor: shouldEnableCkEditor(selector),
-        enableQuill: shouldEnableQuill(selector),
-      });
-      await page.bringToFront();
+      await gotoTestPage(page);
 
-      await setSetting(worker!, KEY_LANGUAGE, "en_US");
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, KEY_LANGUAGE, "en_US");
+      await notifyConfigChange(browser, worker);
 
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
 
       await element!.type("h"); // Trigger popup
-      await waitForVisibleSuggestionTexts(page, browserTimeout(4000, 10000));
+      await waitForVisibleSuggestionTexts(page, suiteTimeout(4000, 10000));
       await page.keyboard.press("Escape");
 
       // Wait for the popup to disappear
-      await waitForNoVisibleSuggestions(page, browserTimeout(1500, 5000));
+      await waitForNoVisibleSuggestions(page, suiteTimeout(1500, 5000));
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test.each(GENERIC_INPUT_SELECTORS)(
     "Text expansion works correctly in %s",
     async (selector) => {
-      await gotoTestPage(page, {
-        enableCkEditor: shouldEnableCkEditor(selector),
-        enableQuill: shouldEnableQuill(selector),
-      });
-      await page.bringToFront();
+      await gotoTestPage(page);
       await waitForInputReady(page, selector);
 
-      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, ["textExpander"]);
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "textExpander");
-      await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["asap", "as soon as possible"]]);
-      await applyConfigChange(browser, worker!);
+      await setSettings(worker, {
+        [KEY_SITE_PROFILES]: {},
+        [KEY_ENABLED_LANGUAGES]: ["textExpander"],
+        [KEY_LANGUAGE]: "textExpander",
+        [KEY_TEXT_EXPANSIONS]: [["asap", "as soon as possible"]],
+      });
+      await notifyConfigChange(browser, worker);
 
       const element = await page.$(selector);
       await element!.type("asap"); // Trigger text expansion
 
-      const [firstLiText] = await waitForVisibleSuggestionTexts(page, browserTimeout(4000, 10000));
+      const [firstLiText] = await waitForVisibleSuggestionTexts(page, suiteTimeout(4000, 10000));
       expect(firstLiText?.toLowerCase()).toMatch(/^as soon as possible[ \xa0]$/);
 
       await page.keyboard.press("Tab");
@@ -6197,33 +5031,33 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         page,
         selector,
         new RegExp("^as soon as possible[ \\xa0]$"),
-        browserTimeout(4000, 10000),
+        suiteTimeout(4000, 10000),
       );
       expect((elementText ?? "").toLowerCase()).toMatch(/^as soon as possible[ \xa0]$/);
 
       // Cleanup
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-      await applyConfigChange(browser, worker!);
+      await setSettings(worker, {
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_SITE_PROFILES]: {},
+      });
+      await notifyConfigChange(browser, worker);
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test.each(GENERIC_INPUT_SELECTORS)(
     "KEY_MIN_WORD_LENGTH_TO_PREDICT set to 0 predicts immediately after space in %s",
     async (selector) => {
       // Set settings BEFORE creating the page so content script initializes correctly
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 0);
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: shouldEnableCkEditor(selector),
-        enableQuill: shouldEnableQuill(selector),
+      await setSettings(worker, {
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 0,
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
       });
-      await page.bringToFront();
+      await notifyConfigChange(browser, worker);
+
+      await gotoTestPage(page);
 
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
@@ -6245,64 +5079,61 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           const value = (target as HTMLInputElement).value ?? target.textContent ?? "";
           return value.endsWith(" ") || value.endsWith("\xa0");
         },
-        { timeout: browserTimeout(2000, 6000) },
+        { timeout: suiteTimeout(2000, 6000) },
         selector,
       );
       const predictionsAfterSpace = await waitForVisibleSuggestions(page);
       expect(predictionsAfterSpace).toBeGreaterThan(0);
 
       // Cleanup
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await notifyConfigChange(browser, worker);
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test.each(GENERIC_INPUT_SELECTORS)(
     "KEY_MIN_WORD_LENGTH_TO_PREDICT set to -1 does not predict automatically in %s",
     async (selector) => {
       // Reset and set settings BEFORE creating the page
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, -1);
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-      await gotoTestPage(page, {
-        enableCkEditor: shouldEnableCkEditor(selector),
-        enableQuill: shouldEnableQuill(selector),
+      await setSettings(worker, {
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: -1,
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
       });
-      await page.bringToFront();
+      await notifyConfigChange(browser, worker);
+      await gotoTestPage(page);
 
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
 
       // Type something
       await element!.type("this is impor");
-      await waitForNoVisibleSuggestions(page, browserTimeout(2000, 5000));
+      await waitForNoVisibleSuggestions(page, suiteTimeout(2000, 5000));
       const hasVisiblePredictions = await hasVisibleSuggestions(page);
       expect(hasVisiblePredictions).toBe(false);
 
       // Cleanup
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await notifyConfigChange(browser, worker);
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test(
     "Grammar rule options inherit defaults and persist an explicit override",
     async () => {
-      let optionsPage = await openOptionsPage(browser, worker!);
+      let optionsPage = await openOptionsPage(browser, worker);
       try {
-        settingsDirty = true;
-        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, {});
+        await setSetting(worker, KEY_ENABLED_GRAMMAR_RULES, {});
         expect(
-          await getSetting<Record<string, boolean>>(worker!, KEY_ENABLED_GRAMMAR_RULES),
+          await getSetting<Record<string, boolean>>(worker, KEY_ENABLED_GRAMMAR_RULES),
         ).toEqual({});
       } finally {
         await optionsPage.close();
       }
 
-      optionsPage = await openOptionsPage(browser, worker!);
+      optionsPage = await openOptionsPage(browser, worker);
       try {
         const selector =
           'input[data-setting="enabledGrammarRules"][value="measurementUnitFormatting"]';
@@ -6316,17 +5147,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await optionsPage.$eval(selector, (input) => (input as HTMLInputElement).click());
 
         const storedAfter = await waitForSettingMatch<Record<string, boolean>>(
-          worker!,
+          worker,
           KEY_ENABLED_GRAMMAR_RULES,
           (value) => value?.measurementUnitFormatting === false,
-          browserTimeout(5000, 10000),
+          suiteTimeout(5000, 10000),
         );
         expect(storedAfter).toEqual({ measurementUnitFormatting: false });
       } finally {
         await optionsPage.close();
       }
 
-      optionsPage = await openOptionsPage(browser, worker!);
+      optionsPage = await openOptionsPage(browser, worker);
       try {
         const selector =
           'input[data-setting="enabledGrammarRules"][value="measurementUnitFormatting"]';
@@ -6346,43 +5177,23 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       } finally {
         await optionsPage.close();
       }
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
     },
-    browserTimeout(15000, 25000),
+    suiteTimeout(15000, 25000),
   );
 
   test.each(GENERIC_INPUT_SELECTORS)(
     "Grammar Rule Engine auto-capitalizes and applies spacing in %s",
     async (selector) => {
-      // Enable required grammar rules internally for predictive evaluations
-      await setGrammarRulesAndWait(worker!, ["capitalizeSentenceStart", "commaPeriodSpacing"]);
-      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
       // Keep the normal prediction threshold to ensure grammar spacing still runs
       // when the current token becomes empty after typing punctuation (e.g. "fixed .").
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: shouldEnableCkEditor(selector),
-        enableQuill: shouldEnableQuill(selector),
+      await openEnglishField(selector, ["capitalizeSentenceStart", "commaPeriodSpacing"], {
+        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
       });
-      await page.bringToFront();
-
-      await waitForInputReady(page, selector);
       const element = await page.$(selector);
 
       // The first word is capitalized once its boundary is typed.
       await element!.type("testing ");
-      await waitForInputContentMatch(
-        page,
-        selector,
-        /^Testing[\xA0 ]$/,
-        browserTimeout(5000, 8000),
-      );
+      await waitForInputContentMatch(page, selector, /^Testing[\xA0 ]$/, suiteTimeout(5000, 8000));
 
       // A stray space before the period is tidied once the user's own space
       // confirms the sentence end.
@@ -6391,7 +5202,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         page,
         selector,
         /^Testing\.[\xA0 ]$/,
-        browserTimeout(5000, 8000),
+        suiteTimeout(5000, 8000),
       );
 
       // The next word is capitalized at its boundary too.
@@ -6400,7 +5211,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         page,
         selector,
         /^Testing\.[\xA0 ]World[\xA0 ]$/,
-        browserTimeout(5000, 8000),
+        suiteTimeout(5000, 8000),
       );
 
       const finalVal = await page.$eval(
@@ -6411,69 +5222,42 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(elementText).toContain("Testing. World");
 
       // Cleanup
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test(
     "Grammar Rule Engine capitalizes the final word when Enter submits without inserting text",
     async () => {
       const selector = "#test-input";
-      await setGrammarRulesAndWait(worker!, ["capitalizeSentenceStart"]);
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
       // Enter has to reach the grammar pass, not the suggestion popup; accepting
       // a suggestion on Enter is covered elsewhere and must keep winning.
-      await setSettingAndWait(worker!, KEY_AUTOCOMPLETE_ON_ENTER, false);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page);
-      await page.bringToFront();
-
-      await waitForInputReady(page, selector);
+      await openEnglishField(selector, ["capitalizeSentenceStart"], {
+        [KEY_AUTOCOMPLETE_ON_ENTER]: false,
+      });
       const element = await page.$(selector);
 
       // A bare text input never turns Enter into text, which is the chat-box
       // submit case: without the keydown pass the word would stay lowercase.
       await element!.type("hello");
-      await waitForInputContentMatch(page, selector, /^hello$/, browserTimeout(5000, 8000));
+      await waitForInputContentMatch(page, selector, /^hello$/, suiteTimeout(5000, 8000));
 
       await page.keyboard.press("Enter");
-      await waitForInputContentMatch(page, selector, /^Hello$/, browserTimeout(5000, 8000));
+      await waitForInputContentMatch(page, selector, /^Hello$/, suiteTimeout(5000, 8000));
 
       // Cleanup
-      await setSettingAndWait(worker!, KEY_AUTOCOMPLETE_ON_ENTER, true);
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, KEY_AUTOCOMPLETE_ON_ENTER, true);
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test.each(GENERIC_INPUT_SELECTORS)(
     "Grammar Rule Engine respects manual deletion of auto-inserted sentence space in %s",
     async (selector) => {
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["commaPeriodSpacing"],
-        4,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await setSettingAndWait(worker!, KEY_SITE_PROFILES, []);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: shouldEnableCkEditor(selector),
-        enableQuill: shouldEnableQuill(selector),
+      await openEnglishField(selector, ["commaPeriodSpacing"], {
+        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
+        [KEY_SITE_PROFILES]: [],
       });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
       const element = await page.$(selector);
 
       await element!.type("This is awsome,");
@@ -6481,75 +5265,53 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         page,
         selector,
         /This is awsome,[\xA0 ]/,
-        browserTimeout(5000, 8000),
+        suiteTimeout(5000, 8000),
       );
 
       await page.keyboard.press("Backspace");
       const afterDelete = (
-        await waitForInputContentEqual(
-          page,
-          selector,
-          "This is awsome,",
-          browserTimeout(5000, 8000),
-        )
+        await waitForInputContentEqual(page, selector, "This is awsome,", suiteTimeout(5000, 8000))
       ).replace(/\xA0/g, " ");
       expect(afterDelete).toBe("This is awsome,");
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test.each(GENERIC_INPUT_SELECTORS)(
     "Grammar Rule Engine preserves attached brackets and slash technical contexts while keeping prose spacing in %s",
     async (selector) => {
-      await setGrammarRulesAndWaitStable(
-        worker!,
+      await openEnglishField(
+        selector,
         ["openingBracketSpacing", "closingBracketSpacing", "slashContextSpacing"],
-        4,
-        browserTimeout(5000, 7000),
+        { [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true },
       );
-      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: shouldEnableCkEditor(selector),
-        enableQuill: shouldEnableQuill(selector),
-      });
-      await page.bringToFront();
-
-      await waitForInputReady(page, selector);
 
       const readNormalizedText = async (): Promise<string> =>
         (await getInputContent(page, selector)).replace(/\xA0/g, " ");
       const waitForNormalizedValue = async (
         expected: string,
-        timeoutMs = browserTimeout(5000, 8000),
+        timeoutMs = suiteTimeout(5000, 8000),
       ): Promise<void> => {
         await waitUntil(
           `normalized value "${expected}" in ${selector}`,
           async () => {
             const current = await readNormalizedText();
-            return current === expected ? true : false;
+            return current === expected;
           },
-          { timeoutMs, intervalMs: 50 },
+          { timeoutMs },
         );
       };
       const waitForNormalizedMatch = async (
         pattern: RegExp,
-        timeoutMs = browserTimeout(5000, 8000),
+        timeoutMs = suiteTimeout(5000, 8000),
       ): Promise<void> => {
         await waitUntil(
           `normalized pattern ${String(pattern)} in ${selector}`,
           async () => {
             const current = await readNormalizedText();
-            return pattern.test(current) ? true : false;
+            return pattern.test(current);
           },
-          { timeoutMs, intervalMs: 50 },
+          { timeoutMs },
         );
       };
 
@@ -6598,11 +5360,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForNormalizedValue("x / ");
       await typeInInput(page, selector, "y");
       await waitForNormalizedValue("x / y");
-
-      await setGrammarRulesAndWaitStable(worker!, [], 2, browserTimeout(3000, 5000));
-      await applyConfigChange(browser, worker!);
     },
-    browserTimeout(35000, 55000),
+    suiteTimeout(35000, 55000),
   );
 
   test(
@@ -6610,35 +5369,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["mathOperatorSpacing"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
+      await openEnglishField(selector, ["mathOperatorSpacing"], {
+        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
       });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
 
       const waitForNormalizedValue = async (
         expected: string,
-        timeoutMs = browserTimeout(5000, 8000),
+        timeoutMs = suiteTimeout(5000, 8000),
       ): Promise<void> => {
         await waitUntil(
           `normalized value "${expected}" in ${selector}`,
           async () => {
             const current = (await getInputContent(page, selector)).replace(/\xA0/g, " ");
-            return current === expected ? true : false;
+            return current === expected;
           },
-          { timeoutMs, intervalMs: 50 },
+          { timeoutMs },
         );
       };
 
@@ -6673,11 +5418,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "C++");
       await waitForNormalizedValue("C++");
-
-      await setGrammarRulesAndWaitStable(worker!, [], 2, browserTimeout(3000, 5000));
-      await applyConfigChange(browser, worker!);
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test(
@@ -6685,35 +5427,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["technicalTokenCompaction", "commaPeriodSpacing"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
+      await openEnglishField(selector, ["technicalTokenCompaction", "commaPeriodSpacing"], {
+        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
       });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
 
       const waitForNormalizedValue = async (
         expected: string,
-        timeoutMs = browserTimeout(5000, 8000),
+        timeoutMs = suiteTimeout(5000, 8000),
       ): Promise<void> => {
         await waitUntil(
           `normalized value "${expected}" in ${selector}`,
           async () => {
             const current = (await getInputContent(page, selector)).replace(/\xA0/g, " ");
-            return current === expected ? true : false;
+            return current === expected;
           },
-          { timeoutMs, intervalMs: 50 },
+          { timeoutMs },
         );
       };
 
@@ -6752,28 +5480,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       });
       await typeInInput(page, selector, "and ");
       await waitForNormalizedValue("9 a.m. and ");
-
-      await setGrammarRulesAndWaitStable(worker!, [], 2, browserTimeout(3000, 5000));
-      await applyConfigChange(browser, worker!);
     },
-    browserTimeout(25000, 40000),
+    suiteTimeout(25000, 40000),
   );
 
   test(
     "Grammar Rule Engine formats measurement units only in verified prose typing",
     async () => {
       const selector = "#test-input";
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["measurementUnitFormatting"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await applyConfigChange(browser, worker!);
-      await gotoTestPage(page, { enableCkEditor: false });
-      await page.bringToFront();
+      await setGrammarRules(worker, ["measurementUnitFormatting"]);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      });
+      await notifyConfigChange(browser, worker);
+      await gotoTestPage(page);
       await waitForInputReady(page, selector);
 
       await clearInputContent(page, selector);
@@ -6781,36 +5502,32 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "measurement separator",
         async () => (await getInputContent(page, selector)) === "Mass: 10\u00a0kg ",
-        { timeoutMs: browserTimeout(5000, 8000), intervalMs: 50 },
+        { timeoutMs: suiteTimeout(5000, 8000) },
       );
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "Path: /tmp/10kg ");
       expect(await getInputContent(page, selector)).toBe("Path: /tmp/10kg ");
 
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "pl_PL");
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["measurementUnitFormatting", "commaPeriodSpacing", "mathOperatorSpacing"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await applyConfigChange(browser, worker!);
-      await gotoTestPage(page, { enableCkEditor: false });
+      await setSetting(worker, KEY_LANGUAGE, "pl_PL");
+      await setGrammarRules(worker, [
+        "measurementUnitFormatting",
+        "commaPeriodSpacing",
+        "mathOperatorSpacing",
+      ]);
+      await notifyConfigChange(browser, worker);
+      await gotoTestPage(page);
       await waitForInputReady(page, selector);
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "Masa: 1,50kg ");
       await waitUntil(
         "Polish decimal measurement",
         async () => (await getInputContent(page, selector)) === "Masa: 1,50\u00a0kg ",
-        { timeoutMs: browserTimeout(5000, 8000), intervalMs: 50 },
+        { timeoutMs: suiteTimeout(5000, 8000) },
       );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-
-      await setGrammarRulesAndWaitStable(worker!, [], 2, browserTimeout(3000, 5000));
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, KEY_LANGUAGE, "en_US");
     },
-    browserTimeout(25000, 40000),
+    suiteTimeout(25000, 40000),
   );
 
   test(
@@ -6818,138 +5535,37 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["capitalizeFirstLetter", "spacingRule"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
+      await openEnglishField(selector, ["capitalizeFirstLetter", "spacingRule"], {
+        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
       });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
       // The first letter is capitalized once the word is complete; "u" may
       // still become "user.save()".
       await typeInInput(page, selector, "t ");
-      await waitForInputContentEqual(page, selector, "T ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "T ");
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "user.save() ");
-      await waitForInputContentEqual(page, selector, "user.save() ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "user.save() ");
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "Hello . ");
-      await waitForInputContentEqual(page, selector, "Hello. ", browserTimeout(5000, 9000));
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await waitForInputContentEqual(page, selector, "Hello. ");
     },
-    browserTimeout(25000, 40000),
+    suiteTimeout(25000, 40000),
   );
 
-  test(
-    "Grammar Rule Engine capitalizes first letter after line break with granular rule IDs",
-    async () => {
-      const selector = "#test-textarea";
-
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["capitalizeAfterLineBreak"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
-      await typeInInput(page, selector, "hello\nworld ");
-      await waitForInputContentEqual(page, selector, "hello\nWorld ", browserTimeout(5000, 9000));
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+  test.each([
+    ["capitalizeAfterLineBreak", "#test-textarea", "hello\nworld ", "hello\nWorld "],
+    ["collapseRepeatedSpaces", "#test-input", "Hello   ", "Hello "],
+    ["trimSpaceBeforeLineBreak", "#test-textarea", "Hello   \n", "Hello\n"],
+  ] as const)(
+    "Grammar Rule Engine applies the granular rule ID %s",
+    async (rule, selector, typed, expected) => {
+      await openEnglishField(selector, [rule]);
+      await typeInInput(page, selector, typed);
+      await waitForInputContentEqual(page, selector, expected);
     },
-    browserTimeout(25000, 40000),
-  );
-
-  test(
-    "Grammar Rule Engine collapses repeated spaces with granular rule IDs",
-    async () => {
-      const selector = "#test-input";
-
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["collapseRepeatedSpaces"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
-      await typeInInput(page, selector, "Hello   ");
-      await waitForInputContentEqual(page, selector, "Hello ", browserTimeout(5000, 9000));
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
-    },
-    browserTimeout(25000, 40000),
-  );
-
-  test(
-    "Grammar Rule Engine trims spaces before newline with granular rule IDs",
-    async () => {
-      const selector = "#test-textarea";
-
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["trimSpaceBeforeLineBreak"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
-      await typeInInput(page, selector, "Hello   \n");
-      await waitForInputContentEqual(page, selector, "Hello\n", browserTimeout(5000, 9000));
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
-    },
-    browserTimeout(25000, 40000),
+    suiteTimeout(25000, 40000),
   );
 
   test(
@@ -6957,43 +5573,26 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["commaPeriodSpacing"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, -1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
+      await openEnglishField(selector, ["commaPeriodSpacing"], {
+        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: -1,
       });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
       await typeInInput(page, selector, "Hello . ");
-      await waitForInputContentEqual(page, selector, "Hello. ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "Hello. ");
       try {
-        await waitForNoVisibleSuggestions(page, browserTimeout(2000, 5000));
+        await waitForNoVisibleSuggestions(page, suiteTimeout(2000, 5000));
       } catch {
         // Firefox can occasionally keep a stale suggestion popup visible briefly.
         // Dismiss once and verify the popup remains hidden.
         await page.keyboard.press("Escape").catch(() => undefined);
-        await waitForNoVisibleSuggestions(page, browserTimeout(2000, 5000));
+        await waitForNoVisibleSuggestions(page, suiteTimeout(2000, 5000));
       }
       const hasPredictions = await hasVisibleSuggestions(page);
       expect(hasPredictions).toBe(false);
 
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
     },
-    browserTimeout(25000, 40000),
+    suiteTimeout(25000, 40000),
   );
 
   test(
@@ -7001,55 +5600,35 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        [
-          "englishPronounICapitalization",
-          "englishContractionNormalization",
-          "englishTypoWhitelistCorrection",
-        ],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
+      await openEnglishField(selector, [
+        "englishPronounICapitalization",
+        "englishContractionNormalization",
+        "englishTypoWhitelistCorrection",
+      ]);
       // A lone "i " could still be a loop variable ("for i in range"), so the
       // capital waits for the word that identifies it as the pronoun.
       await typeInInput(page, selector, "i ");
-      await waitForInputContentEqual(page, selector, "i ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "i ");
       await typeInInput(page, selector, "am here");
-      await waitForInputContentEqual(page, selector, "I am here", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "I am here");
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "im ");
-      await waitForInputContentEqual(page, selector, "I'm ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "I'm ");
       await typeInInput(page, selector, "ready");
-      await waitForInputContentEqual(page, selector, "I'm ready", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "I'm ready");
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "ID ");
-      await waitForInputContentEqual(page, selector, "ID ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "ID ");
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "teh ");
-      await waitForInputContentEqual(page, selector, "the ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "the ");
       await typeInInput(page, selector, "cat");
-      await waitForInputContentEqual(page, selector, "the cat", browserTimeout(5000, 9000));
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await waitForInputContentEqual(page, selector, "the cat");
     },
-    browserTimeout(25000, 45000),
+    suiteTimeout(25000, 45000),
   );
 
   test(
@@ -7057,36 +5636,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
+      await openEnglishField(
+        selector,
         [
           "englishPronounICapitalization",
           "englishContractionNormalization",
           "englishTypoWhitelistCorrection",
         ],
-        3,
-        browserTimeout(5000, 7000),
+        { [KEY_LANGUAGE]: "pl_PL" },
       );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "pl_PL");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
       await typeInInput(page, selector, "i am teh");
-      await waitForInputContentEqual(page, selector, "i am teh", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "i am teh");
 
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, KEY_LANGUAGE, "en_US");
     },
-    browserTimeout(25000, 45000),
+    suiteTimeout(25000, 45000),
   );
 
   test(
@@ -7094,33 +5658,18 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setGrammarRulesAndWait(worker!, []);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
+      await openEnglishField(selector);
       await typeInInput(page, selector, "th");
-      const [firstSuggestion] = await waitForVisibleSuggestionTexts(
-        page,
-        browserTimeout(5000, 9000),
-      );
+      const [firstSuggestion] = await waitForVisibleSuggestionTexts(page, suiteTimeout(5000, 9000));
       expect(firstSuggestion).toBeDefined();
 
       await page.keyboard.press("Tab");
-      await waitForInputContentEqual(page, selector, firstSuggestion!, browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, firstSuggestion!);
 
-      await pressNativeUndo(page, selector);
-      await waitForInputContentEqual(page, selector, "th", browserTimeout(5000, 9000));
+      await pressUndo(page, selector);
+      await waitForInputContentEqual(page, selector, "th");
     },
-    browserTimeout(25000, 45000),
+    suiteTimeout(25000, 45000),
   );
 
   test(
@@ -7128,34 +5677,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["englishAlotCorrection"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
+      await openEnglishField(selector, ["englishAlotCorrection"]);
       await typeInInput(page, selector, "alot ");
-      await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "a lot ");
 
-      await pressNativeUndo(page, selector);
-      await waitForInputContentEqual(page, selector, "alot ", browserTimeout(5000, 9000));
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await pressUndo(page, selector);
+      await waitForInputContentEqual(page, selector, "alot ");
     },
-    browserTimeout(25000, 45000),
+    suiteTimeout(25000, 45000),
   );
 
   test(
@@ -7163,40 +5692,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["englishAlotCorrection"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
+      await openEnglishField(selector, ["englishAlotCorrection"]);
       await typeInInput(page, selector, "alot ");
-      await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "a lot ");
 
-      await pressNativeUndo(page, selector);
-      await waitForInputContentEqual(page, selector, "alot ", browserTimeout(5000, 9000));
+      await pressUndo(page, selector);
+      await waitForInputContentEqual(page, selector, "alot ");
 
+      // A blocked reapply leaves the text as it is. Wait past the correction delay before the check.
       await sleep(400);
-      await waitForInputContentEqual(page, selector, "alot ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "alot ");
 
       await typeInInput(page, selector, "x alot ");
-      await waitForInputContentEqual(page, selector, "alot x a lot ", browserTimeout(5000, 9000));
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await waitForInputContentEqual(page, selector, "alot x a lot ");
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -7204,47 +5714,26 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["englishAlotCorrection"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
+      await openEnglishField(selector, ["englishAlotCorrection"]);
       await typeInInput(page, selector, "alot ");
-      await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "a lot ");
 
       await typeInInput(page, selector, "x");
-      await waitForInputContentEqual(page, selector, "a lot x", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "a lot x");
 
-      await pressNativeUndo(page, selector);
-      await waitUntil(
-        "intervening edit undo to avoid extension-owned stale revert",
+      await pressUndo(page, selector);
+      const undone = await waitUntil(
+        "native undo of the intervening edit",
         async () => {
           const currentValue = await getInputContent(page, selector);
-          return ["a lot x", "a lot ", "alot "].includes(currentValue) ? currentValue : false;
+          return currentValue !== "a lot x" ? currentValue : false;
         },
-        {
-          timeoutMs: browserTimeout(5000, 9000),
-          intervalMs: 50,
-        },
+        { timeoutMs: suiteTimeout(5000, 9000) },
       );
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      // Native undo removes only the user's edit; a stale extension revert would give "alot x".
+      expect(undone).toBe("a lot ");
     },
-    browserTimeout(25000, 45000),
+    suiteTimeout(25000, 45000),
   );
 
   test(
@@ -7252,44 +5741,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setGrammarRulesAndWait(worker!, []);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
+      await openEnglishField(selector);
       await typeInInput(page, selector, "th");
-      const [firstSuggestion] = await waitForVisibleSuggestionTexts(
-        page,
-        browserTimeout(5000, 9000),
-      );
+      const [firstSuggestion] = await waitForVisibleSuggestionTexts(page, suiteTimeout(5000, 9000));
       expect(firstSuggestion).toBeDefined();
 
       await page.keyboard.press("Tab");
-      const acceptedValue = await waitForInputContentEqual(
-        page,
-        selector,
-        firstSuggestion!,
-        browserTimeout(5000, 9000),
-      );
+      const acceptedValue = await waitForInputContentEqual(page, selector, firstSuggestion!);
       expect(acceptedValue.length).toBeGreaterThan(1);
 
       await page.keyboard.press("Backspace");
-      await waitForInputContentEqual(
-        page,
-        selector,
-        acceptedValue.slice(0, -1),
-        browserTimeout(5000, 9000),
-      );
+      await waitForInputContentEqual(page, selector, acceptedValue.slice(0, -1));
     },
-    browserTimeout(25000, 45000),
+    suiteTimeout(25000, 45000),
   );
 
   test(
@@ -7297,34 +5761,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["englishAlotCorrection"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
+      await openEnglishField(selector, ["englishAlotCorrection"]);
       await typeInInput(page, selector, "alot ");
-      await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "a lot ");
 
       await page.keyboard.press("Backspace");
-      await waitForInputContentEqual(page, selector, "a lot", browserTimeout(5000, 9000));
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await waitForInputContentEqual(page, selector, "a lot");
     },
-    browserTimeout(25000, 45000),
+    suiteTimeout(25000, 45000),
   );
 
   test(
@@ -7332,35 +5776,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["doubleSpaceToPeriod", "englishAlotCorrection"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
+      await openEnglishField(selector, ["doubleSpaceToPeriod", "englishAlotCorrection"]);
       await typeInInput(page, selector, "alot ");
-      await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "a lot ");
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "Hello  ");
-      await waitForInputContentEqual(page, selector, "Hello. ", browserTimeout(5000, 9000));
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await waitForInputContentEqual(page, selector, "Hello. ");
     },
-    browserTimeout(25000, 45000),
+    suiteTimeout(25000, 45000),
   );
 
   test(
@@ -7368,43 +5792,27 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["ellipsisShortcut", "emdashShortcut", "smartQuoteNormalization"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
+      await openEnglishField(selector, [
+        "ellipsisShortcut",
+        "emdashShortcut",
+        "smartQuoteNormalization",
+      ]);
       await typeInInput(page, selector, "...");
-      await waitForInputContentEqual(page, selector, "…", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "…");
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "word--");
-      await waitForInputContentEqual(page, selector, "word—", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "word—");
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, '"');
-      await waitForInputContentEqual(page, selector, "“", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "“");
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, 'hello"');
-      await waitForInputContentEqual(page, selector, "hello”", browserTimeout(5000, 9000));
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await waitForInputContentEqual(page, selector, "hello”");
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -7412,44 +5820,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["duplicatePunctuationCollapse"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
+      await openEnglishField(selector, ["duplicatePunctuationCollapse"]);
       await typeInInput(page, selector, "It do not work as expected,,, ");
-      await waitForInputContentEqual(
-        page,
-        selector,
-        "It do not work as expected, ",
-        browserTimeout(5000, 9000),
-      );
+      await waitForInputContentEqual(page, selector, "It do not work as expected, ");
 
       await typeInInput(page, selector, ",");
-      await waitForInputContentEqual(
-        page,
-        selector,
-        "It do not work as expected, ",
-        browserTimeout(5000, 9000),
-      );
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await waitForInputContentEqual(page, selector, "It do not work as expected, ");
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -7457,62 +5835,34 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-contenteditable";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["duplicatePunctuationCollapse"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, ["duplicatePunctuationCollapse"]);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      });
+      await notifyConfigChange(browser, worker);
 
       await gotoTestPage(page, {
-        enableCkEditor: false,
         enableQuill: false,
       });
-      await page.bringToFront();
       await waitForInputReady(page, selector);
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "This is awseome,, ");
-      await waitForInputContentMatch(
-        page,
-        selector,
-        /^This is awseome,[ \xa0]$/,
-        browserTimeout(5000, 9000),
-      );
+      await waitForInputContentMatch(page, selector, /^This is awseome,[ \xa0]$/);
 
       await typeInInput(page, selector, " ,");
-      await waitForInputContentMatch(
-        page,
-        selector,
-        /^This is awseome,[ \xa0]$/,
-        browserTimeout(5000, 9000),
-      );
+      await waitForInputContentMatch(page, selector, /^This is awseome,[ \xa0]$/);
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "This is,,,,,,,,,,,, ");
-      await waitForInputContentMatch(
-        page,
-        selector,
-        /^This is,[ \xa0]$/,
-        browserTimeout(5000, 9000),
-      );
+      await waitForInputContentMatch(page, selector, /^This is,[ \xa0]$/);
 
       await typeInInput(page, selector, ",");
-      await waitForInputContentMatch(
-        page,
-        selector,
-        /^This is,[ \xa0]$/,
-        browserTimeout(5000, 9000),
-      );
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await waitForInputContentMatch(page, selector, /^This is,[ \xa0]$/);
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -7520,37 +5870,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["commaPeriodSpacing", "duplicatePunctuationCollapse"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
+      await openEnglishField(selector, ["commaPeriodSpacing", "duplicatePunctuationCollapse"]);
       await typeInInput(page, selector, "What the fewer ");
       await typeInInput(page, selector, ",,,,,,,,,,");
-      await waitForInputContentEqual(
-        page,
-        selector,
-        "What the fewer, ",
-        browserTimeout(5000, 9000),
-      );
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await waitForInputContentEqual(page, selector, "What the fewer, ");
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -7558,49 +5883,23 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["ellipsisShortcut", "emdashShortcut", "smartQuoteNormalization"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
+      await openEnglishField(selector, [
+        "ellipsisShortcut",
+        "emdashShortcut",
+        "smartQuoteNormalization",
+      ]);
       await typeInInput(page, selector, "https://example.com...");
-      await waitForInputContentEqual(
-        page,
-        selector,
-        "https://example.com...",
-        browserTimeout(5000, 9000),
-      );
+      await waitForInputContentEqual(page, selector, "https://example.com...");
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "https://example.com--");
-      await waitForInputContentEqual(
-        page,
-        selector,
-        "https://example.com--",
-        browserTimeout(5000, 9000),
-      );
+      await waitForInputContentEqual(page, selector, "https://example.com--");
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, 'Run `s = "');
-      await waitForInputContentEqual(page, selector, 'Run `s = "', browserTimeout(5000, 9000));
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await waitForInputContentEqual(page, selector, 'Run `s = "');
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -7608,8 +5907,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
+      await openEnglishField(
+        selector,
         [
           "englishModalOfCorrection",
           "englishYourWelcomeCorrection",
@@ -7617,34 +5916,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           "englishAlotCorrection",
           "englishPronounVerbWhitelistAgreement",
         ],
-        3,
-        browserTimeout(5000, 7000),
+        { [KEY_LANGUAGE]: "pl_PL" },
       );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "pl_PL");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
       await typeInInput(page, selector, "alot could of your welcome their is I is ");
-      await waitForInputContentEqual(
-        page,
-        selector,
-        "alot could of your welcome their is I is ",
-        browserTimeout(5000, 9000),
-      );
+      await waitForInputContentEqual(page, selector, "alot could of your welcome their is I is ");
 
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, KEY_LANGUAGE, "en_US");
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -7652,55 +5931,37 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["autoBracketClose"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
+      await openEnglishField(selector, ["autoBracketClose"]);
 
       // Test auto-close for parentheses: typing "(" should produce "()"
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "hello (");
-      await waitForInputContentEqual(page, selector, "hello ()", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "hello ()");
 
       // Verify cursor is BETWEEN the brackets by typing a character:
       // if cursor is inside "(|)", typing "x" produces "(x)".
       // if cursor is at end "()|", typing "x" produces "()x".
       await typeInInput(page, selector, "x");
-      await waitForInputContentEqual(page, selector, "hello (x)", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "hello (x)");
 
       // Test auto-close for double quotes
       await clearInputContent(page, selector);
       await typeInInput(page, selector, 'say "');
-      await waitForInputContentEqual(page, selector, 'say ""', browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, 'say ""');
 
       await typeInInput(page, selector, "hi");
-      await waitForInputContentEqual(page, selector, 'say "hi"', browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, 'say "hi"');
 
       // Test overtype: typing closing bracket when it's already ahead should skip over
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "test (");
-      await waitForInputContentEqual(page, selector, "test ()", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "test ()");
       await typeInInput(page, selector, "ok");
-      await waitForInputContentEqual(page, selector, "test (ok)", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "test (ok)");
       await typeInInput(page, selector, ")");
-      await waitForInputContentEqual(page, selector, "test (ok)", browserTimeout(5000, 9000));
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await waitForInputContentEqual(page, selector, "test (ok)");
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -7708,39 +5969,31 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-contenteditable";
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["autoBracketClose"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, ["autoBracketClose"]);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      });
+      await notifyConfigChange(browser, worker);
 
       await gotoTestPage(page, {
-        enableCkEditor: false,
         enableQuill: false,
       });
-      await page.bringToFront();
       await waitForInputReady(page, selector);
 
       // Auto-close parentheses
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "hello (");
-      await waitForInputContentMatch(page, selector, /^hello \(\)$/, browserTimeout(5000, 9000));
+      await waitForInputContentMatch(page, selector, /^hello \(\)$/);
 
       // Verify cursor position: typing after auto-close should insert between
       // brackets. Plain contenteditable repositions the caret synchronously, so
       // an immediate keystroke must land inside the brackets (no settle needed).
       await typeInInput(page, selector, "x");
-      await waitForInputContentMatch(page, selector, /^hello \(x\)$/, browserTimeout(5000, 9000));
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await waitForInputContentMatch(page, selector, /^hello \(x\)$/);
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -7748,24 +6001,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = LEXICAL_SELECTOR;
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        ["autoBracketClose"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, ["autoBracketClose"]);
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      });
+      await notifyConfigChange(browser, worker);
 
       await gotoTestPage(page, { enableLexical: true });
-      await page.bringToFront();
       await waitForInputReady(page, selector);
 
       await page.focus(selector);
       await page.keyboard.type("hello (");
-      await waitForInputContentMatch(page, selector, /^hello \(\)$/, browserTimeout(5000, 9000));
+      await waitForInputContentMatch(page, selector, /^hello \(\)$/);
 
       // Wait for deferred cursor repositioning (rAF + setTimeout in content script)
       await sleep(200);
@@ -7773,12 +6022,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // Verify cursor is between brackets by typing a character:
       // if cursor is inside "(|)", typing "x" produces "(x)".
       await page.keyboard.type("x");
-      await waitForInputContentMatch(page, selector, /^hello \(x\)$/, browserTimeout(5000, 9000));
-
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await waitForInputContentMatch(page, selector, /^hello \(x\)$/);
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   // ------------------------------------------------------------ review mode
@@ -7800,16 +6046,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       gutenbergIframe?: boolean;
     } = {},
   ) {
-    await setGrammarRulesAndWaitStable(
-      worker!,
-      DEFAULT_CURRENT_GRAMMAR_RULES,
-      3,
-      browserTimeout(5000, 7000),
-    );
-    await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-    await applyConfigChange(browser, worker!);
-    await gotoTestPage(page, { enableCkEditor: false, ...options });
-    await page.bringToFront();
+    await setSettings(worker, {
+      [KEY_ENABLED_GRAMMAR_RULES]: grammarRuleSelectionToOverrides(DEFAULT_CURRENT_GRAMMAR_RULES),
+      [KEY_LANGUAGE]: "en_US",
+    });
+    await notifyConfigChange(browser, worker);
+    await gotoTestPage(page, options);
     await waitForInputReady(page, "#test-textarea");
   }
 
@@ -7846,7 +6088,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         document.documentElement.lang = "pl";
       });
       await setTextarea("I recieve a colour.");
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(page, "initial dictionary check", (p) => p.items.length > 0);
       // Native keyboard input generates trusted change events in both browsers.
       await page.evaluate((hostSelector) => {
@@ -7894,9 +6136,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
       expect(unsupported.status).toContain("Checking is incomplete");
       expect(unsupported.notes).toContain("look like another language");
-      await finishReview();
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
@@ -7904,25 +6145,25 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       await prepareReviewPage();
       try {
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "sv_SE");
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_LANGUAGE, "sv_SE");
+        await notifyConfigChange(browser, worker);
         await gotoTestPage(page, { enableCkEditor: false });
         await page.bringToFront();
         await waitForInputReady(page, "#test-textarea");
         // "ett" before a common-gender noun: the gender comes from review-data/sv.json.
         await setTextarea("Hon har ett röd bil.");
-        await triggerReview(worker!);
+        await triggerReview(worker);
         const panel = await waitForReview(page, "Swedish gender finding", (p) =>
           p.items.some((item) => item.text.startsWith("ett →") && item.category !== "spelling"),
         );
         expect(panel.notes).toContain("Language: sv_SE");
         await finishReview();
       } finally {
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_LANGUAGE, "en_US");
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
@@ -7940,7 +6181,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         },
         before,
       );
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(
         page,
         "native batch ready",
@@ -7951,21 +6192,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         p.status.startsWith("All found issues"),
       );
       expect(await page.$eval(selector, (root) => root.innerHTML)).toBe(after);
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitUntil(
         "native batch one-step Undo",
         async () => (await page.$eval(selector, (root) => root.innerHTML)) === before,
         { timeoutMs: 5000 },
       );
-      await pressNativeRedo(page);
+      await pressRedo(page);
       await waitUntil(
         "native batch redo",
         async () => (await page.$eval(selector, (root) => root.innerHTML)) === after,
         { timeoutMs: 5000 },
       );
-      await finishReview();
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
@@ -7987,7 +6227,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           },
           before,
         );
-        await triggerReview(worker!);
+        await triggerReview(worker);
         await waitForReview(
           page,
           "protected batch ready",
@@ -8004,7 +6244,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           .replace("<code>the build</code>", "<code>teh build</code>");
         expect(await page.$eval(selector, (root) => root.innerHTML)).toBe(island ? before : after);
         if (!island) {
-          await pressNativeUndo(page, selector);
+          await pressUndo(page, selector);
           await waitUntil(
             "whitespace batch Undo",
             async () => (await page.$eval(selector, (root) => root.innerHTML)) === before,
@@ -8016,9 +6256,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.$eval(selector, (root) =>
         (root as HTMLElement).style.removeProperty("white-space"),
       );
-      await finishReview();
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
@@ -8038,7 +6277,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.keyboard.type(" More.");
       const html = () => page.$eval(selector, (root) => root.innerHTML);
       const before = await html();
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(
         page,
         "list batch ready",
@@ -8062,19 +6301,18 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             (root as HTMLElement & { originalNode?: Element }).originalNode,
         ),
       ).toBe(true);
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitUntil("batch Undo retains prior typing", async () => (await html()) === before, {
         timeoutMs: 5000,
       });
-      await pressNativeRedo(page);
+      await pressRedo(page);
       await waitUntil(
         "list batch redo",
         async () => (await html()) === before.replaceAll("teh", "the"),
         { timeoutMs: 5000 },
       );
-      await finishReview();
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
@@ -8102,7 +6340,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           },
           before,
         );
-        await triggerReview(worker!);
+        await triggerReview(worker);
         await waitForReview(
           page,
           "stateful batch ready",
@@ -8127,9 +6365,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ).toEqual({ same: true, clicks: 1 });
         await page.keyboard.press("Escape");
       }
-      await finishReview();
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
@@ -8165,7 +6402,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
       await page.keyboard.type(" More.");
       const original = await contents();
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(
         page,
         "Quill batch ready",
@@ -8188,13 +6425,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             : op.insert.replaceAll("teh", "the"),
       }));
       expect(await contents()).toEqual(after);
-      await pressNativeUndo(page, QUILL_SELECTOR);
+      await pressUndo(page, QUILL_SELECTOR);
       await waitUntil(
         "Quill batch one-step Undo",
         async () => JSON.stringify(await contents()) === JSON.stringify(original),
         { timeoutMs: 5000 },
       );
-      await pressNativeRedo(page);
+      await pressRedo(page);
       await waitUntil(
         "Quill batch redo",
         async () => JSON.stringify(await contents()) === JSON.stringify(after),
@@ -8205,9 +6442,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(
         await page.$eval(QUILL_SELECTOR, (root) => root.querySelector("code")?.textContent),
       ).toBe("teh build é");
-      await finishReview();
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
@@ -8240,7 +6476,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           quill.history.clear();
           quill.focus();
         });
-        await triggerReview(worker!);
+        await triggerReview(worker);
         await waitForReview(
           page,
           "Quill eligibility race ready",
@@ -8301,9 +6537,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ])
           root.removeAttribute(name);
       });
-      await finishReview();
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
@@ -8317,7 +6552,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         quill.history.clear();
         quill.focus();
       });
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(
         page,
         "Quill formatting race ready",
@@ -8349,24 +6584,23 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           return { text: quill.getText(), bold: quill.getFormat(0, 2).bold };
         }),
       ).toEqual({ text: "We saw the cat.\n", bold: true });
-      await finishReview();
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   async function finishReview() {
     await page.keyboard.press("Escape").catch(() => undefined);
-    await setGrammarRulesAndWait(worker!, []);
-    await applyConfigChange(browser, worker!);
+    await setGrammarRules(worker, []);
+    await notifyConfigChange(browser, worker);
   }
 
   async function openWordPressEditor(): Promise<Page | Frame> {
     const url = process.env.E2E_WORDPRESS_URL!;
     if (!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(url))
       throw new Error("WordPress E2E requires a local test site.");
-    await setGrammarRulesAndWaitStable(worker!, DEFAULT_CURRENT_GRAMMAR_RULES, 3, 7000);
-    await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-    await applyConfigChange(browser, worker!);
+    await setGrammarRules(worker, DEFAULT_CURRENT_GRAMMAR_RULES);
+    await setSetting(worker, KEY_LANGUAGE, "en_US");
+    await notifyConfigChange(browser, worker);
     await page.goto(`${url}/wp-login.php`, { waitUntil: "domcontentloaded", timeout: 30000 });
     if (await page.$("#user_login")) {
       await page.evaluate(() => {
@@ -8450,7 +6684,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         document.getSelection()!.selectAllChildren(element);
         document.getSelection()!.collapseToEnd();
       });
-      await triggerReview(worker!, "popup");
+      await triggerReview(worker, "popup");
       await waitForReview(
         surface,
         "WordPress document findings",
@@ -8517,7 +6751,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await page.evaluate("wp.data.select('core/editor').getEditedPostAttribute('title')"),
       ).toBe("A Gutenberg the draft.");
     },
-    browserTimeout(90000, 120000),
+    suiteTimeout(90000, 120000),
   );
 
   wordpressTest(
@@ -8593,7 +6827,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         document.getSelection()!.selectAllChildren(element);
         document.getSelection()!.collapseToEnd();
       });
-      await triggerReview(worker!, "popup");
+      await triggerReview(worker, "popup");
       await waitForReview(
         surface,
         "Loaded template part findings",
@@ -8676,7 +6910,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
       });
     },
-    browserTimeout(120000, 150000),
+    suiteTimeout(120000, 150000),
   );
 
   test.each([false, true])(
@@ -8712,7 +6946,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ).__testGutenberg.serialize(),
       );
       expect(before).toContain("<strong>We saw teh cat.</strong>");
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(
         surface,
         "Gutenberg document findings",
@@ -8770,20 +7004,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           )}`,
         );
       });
-      await finishReview();
     },
-    browserTimeout(45000, 60000),
+    suiteTimeout(45000, 60000),
   );
 
   test(
     "Gutenberg real RichText accepts popup predictions and text expansions through native data",
     async () => {
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["ftsignature", "Best regards"]]);
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, KEY_LANGUAGE, "en_US");
+      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_TEXT_EXPANSIONS, [["ftsignature", "Best regards"]]);
+      await setGrammarRules(worker, []);
+      await notifyConfigChange(browser, worker);
       await gotoTestPage(page, { enableGutenberg: true });
       await page.bringToFront();
       const selector = "#test-gutenberg .block-editor-rich-text__editable";
@@ -8835,7 +7068,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ).includes("Best regards"),
       );
     },
-    browserTimeout(45000, 60000),
+    suiteTimeout(45000, 60000),
   );
 
   test(
@@ -8888,7 +7121,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       ])
         expect(snapshot.text).toContain(text);
       expect(snapshot.unread).toBe(0);
-      await triggerReview(worker!, "popup");
+      await triggerReview(worker, "popup");
       await waitForReview(
         page,
         "Gutenberg prose findings",
@@ -8918,20 +7151,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       });
       expect(await gutenbergSaved()).toContain('alt="teh metadata"');
       expect(await gutenbergSaved()).toContain("https://example.com/navigation");
-      await finishReview();
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test(
     "Gutenberg acceptance leaves the caret after the inserted word in each prose field",
     async () => {
       await prepareReviewPage({ enableGutenberg: true });
-      await setGrammarRulesAndWait(worker!, []);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
-      await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, []);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+      await setSetting(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+      await notifyConfigChange(browser, worker);
       await page.waitForFunction("window.__testGutenberg");
       await page.evaluate(() => {
         const win = window as typeof window & {
@@ -9015,7 +7247,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       }
       expect(failures).toEqual([]);
     },
-    browserTimeout(120000, 180000),
+    suiteTimeout(120000, 180000),
   );
 
   const caretEditors: Array<{
@@ -9073,13 +7305,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   test.each(caretEditors)(
     "Accepted predictions leave the caret after the inserted word in $name",
     async ({ options, selector, surface: surfaceKind, setup }) => {
-      await setGrammarRulesAndWait(worker!, []);
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
-      await setSettingAndWait(worker!, KEY_AUTOCOMPLETE_ON_ENTER, true);
-      await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, []);
+      await setSetting(worker, KEY_LANGUAGE, "en_US");
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+      await setSetting(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+      await setSetting(worker, KEY_AUTOCOMPLETE_ON_ENTER, true);
+      await notifyConfigChange(browser, worker);
       await gotoTestPage(page, options);
       await page.bringToFront();
       const frameNamed = (pick: (frame: Frame) => boolean) =>
@@ -9185,17 +7417,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       }
       expect(failures).toEqual([]);
     },
-    browserTimeout(60000, 90000),
+    suiteTimeout(60000, 90000),
   );
 
   test(
     "Gutenberg native slash menu keeps priority during block transformation",
     async () => {
       await prepareReviewPage({ enableGutenberg: true });
-      await setGrammarRulesAndWait(worker!, []);
-      await setSettingAndWait(worker!, KEY_PREFER_NATIVE_AUTOCOMPLETE, true);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, []);
+      await setSetting(worker, KEY_PREFER_NATIVE_AUTOCOMPLETE, true);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await notifyConfigChange(browser, worker);
       const selector = await gutenbergWriting();
       await page.keyboard.type("/head", { delay: 40 });
       await waitUntil("Native Gutenberg slash options", async () =>
@@ -9216,9 +7448,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         (await gutenbergSaved()).includes("A heading</h2>"),
       );
       expect(await gutenbergSaved()).not.toContain("/head");
-      await finishReview();
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test(
@@ -9235,7 +7466,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         document.getSelection()!.selectAllChildren(element);
         document.getSelection()!.collapseToEnd();
       });
-      await triggerReview(worker!, "popup");
+      await triggerReview(worker, "popup");
       await waitForReview(
         page,
         "Separate registry findings",
@@ -9251,9 +7482,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(await page.evaluate("window.__testGutenbergSecond.serialize()")).toContain(
         "<strong>We saw the cat.</strong>",
       );
-      await finishReview();
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   async function gutenbergBridge(selector: string, request: Record<string, unknown>) {
@@ -9321,9 +7551,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
       expect((await gutenbergBridge(selector, request)).reviewResult?.status).toBe("rejected");
       expect(await gutenbergSaved()).toBe(saved);
-      await finishReview();
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   async function gutenbergWriting(html = "") {
@@ -9356,13 +7585,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "Gutenberg multiline expansion resolves variables as literal RichText",
     async () => {
       await prepareReviewPage({ enableGutenberg: true });
-      await setGrammarRulesAndWait(worker!, []);
-      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [
+      await setGrammarRules(worker, []);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_TEXT_EXPANSIONS, [
         ["ftmultiline", "First <line>\nID ${random:Local}"],
       ]);
-      await applyConfigChange(browser, worker!);
+      await notifyConfigChange(browser, worker);
       const selector = await gutenbergWriting();
       await page.keyboard.type("ftmultiline", { delay: 30 });
       const expansion = await waitUntil(
@@ -9384,21 +7613,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitUntil("Gutenberg typing after multiline expansion", async () =>
         (await gutenbergSaved()).includes(" X</p>"),
       );
-      await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
-      await finishReview();
+      await setSetting(worker, KEY_TEXT_EXPANSIONS, []);
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test(
     "Gutenberg inline and mouse acceptance preserve native data and continued typing",
     async () => {
       await prepareReviewPage({ enableGutenberg: true });
-      await setGrammarRulesAndWait(worker!, []);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
-      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
-      await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, []);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, true);
+      await setSetting(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+      await notifyConfigChange(browser, worker);
       const selector = await gutenbergWriting("Thanks for the ");
       await page.keyboard.type("rep", { delay: 40 });
       const suffix = await waitForInlineGhostText("Gutenberg inline preview");
@@ -9413,8 +7641,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           (await page.$eval(selector, (element) => element.textContent)) ===
           `Thanks for the rep${suffix} X`,
       );
-      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+      await notifyConfigChange(browser, worker);
       await gutenbergWriting();
       await page.keyboard.type("wo", { delay: 40 });
       const prediction = await waitUntil(
@@ -9425,9 +7653,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitUntil("Native Gutenberg mouse acceptance", async () =>
         (await gutenbergSaved()).includes(prediction.trim()),
       );
-      await finishReview();
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test(
@@ -9457,7 +7684,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
       };
       await focusField();
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(page, "Gutenberg editing-host findings", (panel) =>
         panel.items.some((item) => item.text === "teh → the"),
       );
@@ -9467,10 +7694,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
       await finishReview();
 
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+      await setSetting(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+      await notifyConfigChange(browser, worker);
       await focusField();
       await page.keyboard.type(" wo", { delay: 40 });
       const prediction = await waitUntil(
@@ -9489,15 +7716,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ),
       );
     },
-    browserTimeout(45000, 60000),
+    suiteTimeout(45000, 60000),
   );
 
   test(
     "Gutenberg typing corrections and live proposals use the native writer",
     async () => {
       await prepareReviewPage({ enableGutenberg: true });
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 20);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 20);
+      await notifyConfigChange(browser, worker);
       let selector = await gutenbergWriting("We saw ");
       await page.keyboard.type("teh ", { delay: 40 });
       await waitUntil("Gutenberg native typing correction", async () =>
@@ -9544,9 +7771,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         (await gutenbergSaved()).includes("We are ready. "),
       );
       await finishReview();
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test.each(["command", "popup"] as const)(
@@ -9564,7 +7791,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         document.getSelection()!.removeAllRanges();
         document.getSelection()!.addRange(range);
       });
-      await triggerReview(worker!, source);
+      await triggerReview(worker, source);
       await waitForReview(
         page,
         "Gutenberg selected finding",
@@ -9579,9 +7806,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           html.includes("<p>We saw the cat.</p>")
         );
       });
-      await finishReview();
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   async function setTextarea(value: string, selection: [number, number] = [0, 0]) {
@@ -9693,7 +7919,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       };
       document.getElementById("WACViewPanel_EditingElement")!.focus();
     });
-    await triggerReview(worker!);
+    await triggerReview(worker);
     const panel = await waitForReview(
       page,
       "Word model findings",
@@ -9776,12 +8002,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       "Word batch applied",
       async () => (await value()) === "We saw the cat and the dog.",
     );
-    await pressNativeUndo(page, "#WACViewPanel_EditingElement");
+    await pressUndo(page, "#WACViewPanel_EditingElement");
     await waitUntil(
       "Word single transaction undo",
       async () => (await value()) === "We saw teh cat and teh dog.",
     );
-    await finishReview();
   }, 30000);
 
   test(
@@ -9796,7 +8021,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitForInputReady(page, selector);
         await page.focus(selector);
         await page.keyboard.type("We is ready.");
-        await triggerReview(worker!);
+        await triggerReview(worker);
         const panel = await waitForReview(page, "React finding", (p) => p.items.length > 0);
         await clickReviewControl(page, `.item[data-id="${panel.items[0].id}"]`);
         await waitForReview(page, "React correction card", (p) => p.card.open);
@@ -9813,7 +8038,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             JSON.stringify({ visible: "We are ready.", model: "We are ready." }),
           { timeoutMs: 5000 },
         );
-        await pressNativeUndo(page, selector);
+        await pressUndo(page, selector);
         await waitUntil(
           "React native undo",
           async () => (await snapshot()).model === "We is ready.",
@@ -9839,9 +8064,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(JSON.parse(state.submitted)).toEqual({ input: state.input, textarea: state.textarea });
       expect(state.inputEvents).toBeGreaterThan(0);
       expect(state.beforeInputEvents).toBeGreaterThan(0);
-      await finishReview();
     },
-    browserTimeout(50000, 70000),
+    suiteTimeout(50000, 70000),
   );
 
   test(
@@ -9867,7 +8091,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           hidden.value = root.textContent ?? "";
         });
       }, source);
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(
         page,
         "large findings",
@@ -9920,7 +8144,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         }
       }
       const beforeUndo = expected;
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitUntil("stress undo changes text", async () => (await visible()) !== beforeUndo, {
         timeoutMs: 5000,
       });
@@ -9960,7 +8184,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
       });
       await page.keyboard.press("Escape");
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(
         page,
         "stress no reversed corrections",
@@ -9970,9 +8194,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         new FormData(form as HTMLFormElement).get("draft"),
       );
       expect(submitted).toBe(await visible());
-      await finishReview();
     },
-    browserTimeout(60000, 90000),
+    suiteTimeout(60000, 90000),
   );
 
   test(
@@ -9985,7 +8208,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         if (!request.url().endsWith("/favicon.ico")) requests.push(request.url());
       });
 
-      await triggerReview(worker!);
+      await triggerReview(worker);
       const panel = await waitForReview(page, "textarea findings", (p) =>
         /^Issues: \d+$/.test(p.status),
       );
@@ -10021,15 +8244,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
 
       // One native undo step restores the text as it was.
-      await pressNativeUndo(page, "#test-textarea");
+      await pressUndo(page, "#test-textarea");
       await waitUntil("undone batch", async () => (await textareaValue()) === REVIEW_DEMO, {
         timeoutMs: 5000,
       });
       // Review is fully offline.
       expect(requests).toEqual([]);
-      await finishReview();
     },
-    browserTimeout(40000, 60000),
+    suiteTimeout(40000, 60000),
   );
 
   test(
@@ -10073,7 +8295,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       ]) {
         await prepareReviewPage();
         await setTextarea(source);
-        await triggerReview(worker!);
+        await triggerReview(worker);
         const panel = await waitForReview(page, "native grammar", (p) =>
           p.items.some((item) => item.text === highlight),
         );
@@ -10085,14 +8307,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitUntil("individual repair", async () => (await textareaValue()) === expected, {
           timeoutMs: 5000,
         });
-        await pressNativeUndo(page, "#test-textarea");
+        await pressUndo(page, "#test-textarea");
         await waitUntil("undone repair", async () => (await textareaValue()) === source, {
           timeoutMs: 5000,
         });
-        await finishReview();
       }
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test.each([
@@ -10135,7 +8356,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async (source, expected, highlight) => {
       await prepareReviewPage();
       await setTextarea(source);
-      await triggerReview(worker!);
+      await triggerReview(worker);
       const panel = await waitForReview(page, "grammar finding", (p) =>
         p.items.some((item) => item.text === highlight),
       );
@@ -10149,34 +8370,35 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         timeoutMs: 5000,
       });
       await waitForReview(page, "grammar recheck", (p) => p.items.length === 0);
-      await pressNativeUndo(page, "#test-textarea");
+      await pressUndo(page, "#test-textarea");
       await waitUntil("grammar undo", async () => (await textareaValue()) === source, {
         timeoutMs: 5000,
       });
-      await finishReview();
     },
-    browserTimeout(15000, 25000),
+    suiteTimeout(15000, 25000),
   );
 
   test(
     "Readability settings persist a validated threshold and recheck without enabling advice",
     async () => {
       const key = "reviewLongSentenceWords";
-      const previous = await getSetting(worker!, key);
-      const overrides = await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES);
-      await setSettingAndWait(worker!, key, 35);
-      await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+      const previous = await getSetting(worker, key);
+      const overrides = await getSetting(worker, KEY_REVIEW_RULE_OVERRIDES);
+      await setSettings(worker, {
+        [key]: 35,
+        [KEY_REVIEW_RULE_OVERRIDES]: {},
+      });
       await prepareReviewPage();
       const source =
         "The team reviewed every part of the detailed proposal before recording all of their conclusions.";
       await setTextarea(source);
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(
         page,
         "initial default",
         (p) => p.status === "No issues found by the review checks.",
       );
-      let options = await openOptionsPage(browser, worker!);
+      let options = await openOptionsPage(browser, worker);
       const selector = "#review-long-sentence-words";
       try {
         await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
@@ -10193,20 +8415,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             value,
           );
         await change("9");
-        expect(await getSetting(worker!, key)).toBe(35);
+        expect(await getSetting(worker, key)).toBe(35);
         await change("10");
-        await waitUntil("threshold saved", async () => (await getSetting(worker!, key)) === 10, {
+        await waitUntil("threshold saved", async () => (await getSetting(worker, key)) === 10, {
           timeoutMs: 5000,
         });
-        expect(await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES)).toEqual({});
+        expect(await getSetting(worker, KEY_REVIEW_RULE_OVERRIDES)).toEqual({});
         await page.bringToFront();
         await waitForReview(
           page,
           "advice still off",
           (p) => p.items.length === 0 && !p.status.includes("Style advice"),
         );
-        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, { styleLongSentence: true });
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_REVIEW_RULE_OVERRIDES, { styleLongSentence: true });
+        await notifyConfigChange(browser, worker);
         await page.bringToFront();
         await waitForReview(
           page,
@@ -10216,49 +8438,50 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await change("200");
         await waitUntil(
           "larger threshold saved",
-          async () => (await getSetting(worker!, key)) === 200,
+          async () => (await getSetting(worker, key)) === 200,
           { timeoutMs: 5000 },
         );
         await page.bringToFront();
         await waitForReview(page, "threshold rechecks active Review", (p) => p.items.length === 0);
         expect(await textareaValue()).toBe(source);
         await options.close();
-        options = await openOptionsPage(browser, worker!);
+        options = await openOptionsPage(browser, worker);
         await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
         await options.waitForSelector(selector);
         expect(await options.$eval(selector, (e) => (e as HTMLInputElement).value)).toBe("200");
       } finally {
         await options.close();
-        await finishReview();
-        await setSettingAndWait(worker!, key, previous ?? 35);
-        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, overrides ?? {});
-        await applyConfigChange(browser, worker!);
+        await setSettings(worker, {
+          [key]: previous ?? 35,
+          [KEY_REVIEW_RULE_OVERRIDES]: overrides ?? {},
+        });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(25000, 35000),
+    suiteTimeout(25000, 35000),
   );
 
   test(
     "Optional style advice stays off by default and separates counts warnings and native undo",
     async () => {
-      const previous = await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES);
-      await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+      const previous = await getSetting(worker, KEY_REVIEW_RULE_OVERRIDES);
+      await setSetting(worker, KEY_REVIEW_RULE_OVERRIDES, {});
       await prepareReviewPage();
       const source =
         "Use your PIN number. The team reviewed every part of the detailed proposal and carefully considered all of the important information before making any decision about the next stage of the project because there were still several questions about the final report.";
       try {
         await setTextarea(source);
-        await triggerReview(worker!);
+        await triggerReview(worker);
         await waitForReview(
           page,
           "style disabled",
           (p) => p.status === "No issues found by the review checks." && p.items.length === 0,
         );
-        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {
+        await setSetting(worker, KEY_REVIEW_RULE_OVERRIDES, {
           styleRedundancy: true,
           styleLongSentence: true,
         });
-        await applyConfigChange(browser, worker!);
+        await notifyConfigChange(browser, worker);
         const panel = await waitForReview(
           page,
           "style enabled",
@@ -10280,7 +8503,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           { timeoutMs: 5000 },
         );
         await waitForReview(page, "style recheck", (p) => p.items.length === 1);
-        await pressNativeUndo(page, "#test-textarea");
+        await pressUndo(page, "#test-textarea");
         await waitForReview(page, "style undo", (p) => p.items.length === 2);
         expect(await textareaValue()).toBe(source);
         await clickReviewControl(page, '.item[data-id*="styleLongSentence"]');
@@ -10298,20 +8521,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                 ?.shadowRoot?.querySelectorAll('.card [data-action="apply"]').length,
           ),
         ).toBe(0);
-        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_REVIEW_RULE_OVERRIDES, {});
+        await notifyConfigChange(browser, worker);
         await waitForReview(
           page,
           "style disabled again",
           (p) => p.items.length === 0 && !p.status.includes("Style advice"),
         );
       } finally {
-        await finishReview();
-        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, previous ?? {});
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_REVIEW_RULE_OVERRIDES, previous ?? {});
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(25000, 35000),
+    suiteTimeout(25000, 35000),
   );
 
   test(
@@ -10322,7 +8544,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "We discussed about the plan.\n\n" +
         "The team reviewed the evidence today.\n\n".repeat(260);
       await setTextarea(source);
-      await triggerReview(worker!);
+      await triggerReview(worker);
       const panel = await waitForReview(page, "long native finding", (p) =>
         p.items.some((i) => i.text === "about␣ → "),
       );
@@ -10336,7 +8558,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         { timeoutMs: 5000 },
       );
       await waitForReview(page, "long recheck", (p) => p.items.length === 0);
-      await pressNativeUndo(page, "#test-textarea");
+      await pressUndo(page, "#test-textarea");
       await waitForReview(page, "long native undo", (p) => p.items.length === 1);
       expect(await textareaValue()).toBe(source);
       await page.evaluate(() => {
@@ -10352,9 +8574,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         (p) => p.items.length === 0 && p.notes.includes("Skipped as code or protected text"),
       );
       expect(await textareaValue()).toBe("```\n" + source);
-      await finishReview();
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
@@ -10362,11 +8583,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       await prepareReviewPage();
       const key = "preferredTerminology";
-      const previous = await getSetting(worker!, key);
-      const dictionary = await getSetting(worker!, "userDictionaryList");
-      const expansions = await getSetting(worker!, "textExpansions");
-      await setSettingAndWait(worker!, key, { version: 1, enabled: false, entries: [] });
-      const options = await openOptionsPage(browser, worker!);
+      const previous = await getSetting(worker, key);
+      const dictionary = await getSetting(worker, "userDictionaryList");
+      const expansions = await getSetting(worker, "textExpansions");
+      await setSetting(worker, key, { version: 1, enabled: false, entries: [] });
+      const options = await openOptionsPage(browser, worker);
       try {
         await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
         const root = "#preferred-terminology";
@@ -10391,15 +8612,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         await waitUntil(
           "authored terminology saved",
-          async () =>
-            (await getSetting<{ entries: unknown[] }>(worker!, key))?.entries.length === 1,
+          async () => (await getSetting<{ entries: unknown[] }>(worker, key))?.entries.length === 1,
           { timeoutMs: 5000 },
         );
-        const saved = await getSetting<{
+        type StoredTerms = {
           version: number;
           enabled: boolean;
           entries: Array<{ id: string; source: string; replacement: string; explanation: string }>;
-        }>(worker!, key);
+        };
+        const saved = (await getSetting<StoredTerms>(worker, key))!;
         expect(saved.enabled).toBe(false);
         await options.$eval(`${root} [data-terms-action=enabled]`, (el) =>
           (el as HTMLElement).click(),
@@ -10416,11 +8637,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitUntil(
           "terminology edit saved",
           async () =>
-            (await getSetting<typeof saved>(worker!, key)).entries[0].explanation ===
+            (await getSetting<StoredTerms>(worker, key))?.entries[0].explanation ===
             "A local explanation.",
           { timeoutMs: 5000 },
         );
-        const edited = await getSetting<typeof saved>(worker!, key);
+        const edited = (await getSetting<StoredTerms>(worker, key))!;
         expect(edited.entries[0].id).toBe(saved.entries[0].id);
         expect(edited.enabled).toBe(true);
         await options.$eval(`${root} [data-terms-action=remove]`, (el) =>
@@ -10428,7 +8649,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         await waitUntil(
           "terminology removed",
-          async () => (await getSetting<typeof saved>(worker!, key)).entries.length === 0,
+          async () => (await getSetting<StoredTerms>(worker, key))?.entries.length === 0,
           { timeoutMs: 5000 },
         );
         // Firefox BiDi cannot set files in extension pages; exercise the real change handler.
@@ -10446,13 +8667,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         await waitUntil(
           "terminology import",
-          async () => (await getSetting<typeof saved>(worker!, key)).entries.length === 1,
+          async () => (await getSetting<StoredTerms>(worker, key))?.entries.length === 1,
           { timeoutMs: 5000 },
         );
-        expect(await getSetting(worker!, key)).toEqual(edited);
+        expect(await getSetting(worker, key)).toEqual(edited);
         await page.bringToFront();
         await setTextarea("We use Acme Suite.");
-        await triggerReview(worker!);
+        await triggerReview(worker);
         await waitForReview(page, "UI-authored term reaches Review", (p) =>
           p.items.some((i) => i.text === "Acme Suite → Acme Workspace"),
         );
@@ -10461,25 +8682,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         await waitUntil(
           "UI removes imported term",
-          async () => (await getSetting<typeof saved>(worker!, key)).entries.length === 0,
+          async () => (await getSetting<StoredTerms>(worker, key))?.entries.length === 0,
           { timeoutMs: 5000 },
         );
         await page.bringToFront();
         await waitForReview(page, "UI removal clears active Review", (p) => p.items.length === 0);
-        await finishReview();
-        expect(await getSetting(worker!, "userDictionaryList")).toEqual(dictionary);
-        expect(await getSetting(worker!, "textExpansions")).toEqual(expansions);
+        expect(await getSetting(worker, "userDictionaryList")).toEqual(dictionary);
+        expect(await getSetting(worker, "textExpansions")).toEqual(expansions);
       } finally {
         await options.close();
-        await setSettingAndWait(
-          worker!,
-          key,
-          previous ?? { version: 1, enabled: false, entries: [] },
-        );
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, key, previous ?? { version: 1, enabled: false, entries: [] });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(25000, 35000),
+    suiteTimeout(25000, 35000),
   );
 
   test(
@@ -10487,7 +8703,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       await prepareReviewPage();
       const key = "preferredTerminology";
-      const previous = await getSetting(worker!, key);
+      const previous = await getSetting(worker, key);
       const source = "We use Acme Suite.";
       const config = {
         version: 1,
@@ -10506,10 +8722,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ],
       };
       try {
-        await setSettingAndWait(worker!, key, config);
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, key, config);
+        await notifyConfigChange(browser, worker);
         await setTextarea(source);
-        await triggerReview(worker!);
+        await triggerReview(worker);
         const panel = await waitForReview(page, "authored term", (p) =>
           p.items.some((i) => i.text === "Acme Suite → Acme Workspace"),
         );
@@ -10533,195 +8749,106 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           { timeoutMs: 5000 },
         );
         await waitForReview(page, "preferred recheck", (p) => p.items.length === 0);
-        await pressNativeUndo(page, "#test-textarea");
+        await pressUndo(page, "#test-textarea");
         await waitForReview(page, "preferred undo", (p) =>
           p.items.some((i) => i.text === "Acme Suite → Acme Workspace"),
         );
         expect(await textareaValue()).toBe(source);
-        await setSettingAndWait(worker!, key, { version: 1, enabled: true, entries: [] });
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, key, { version: 1, enabled: true, entries: [] });
+        await notifyConfigChange(browser, worker);
         await waitForReview(page, "preference removed", (p) => p.items.length === 0);
         expect(await textareaValue()).toBe(source);
       } finally {
-        await finishReview();
-        await setSettingAndWait(
-          worker!,
-          key,
-          previous ?? { version: 1, enabled: false, entries: [] },
-        );
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, key, previous ?? { version: 1, enabled: false, entries: [] });
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
+
+  /** Puts `original` into the contenteditable field, reviews it and applies `finding`. */
+  async function applyFormattedFinding(original: string, finding: string) {
+    await prepareReviewPage();
+    await page.evaluate((html) => {
+      const root = document.querySelector("#test-contenteditable") as HTMLElement;
+      root.innerHTML = html;
+      root.focus();
+    }, original);
+    await triggerReview(worker);
+    const panel = await waitForReview(page, `formatted finding ${finding}`, (p) =>
+      p.items.some((item) => item.text === finding),
+    );
+    await clickReviewControl(page, ".item");
+    await waitForReview(page, `card for ${finding}`, (p) => p.card.open);
+    await clickReviewControl(page, ".card [data-action=apply]");
+    return panel;
+  }
+
+  const formattedHtml = () => page.$eval("#test-contenteditable", (el) => el.innerHTML);
 
   test(
     "Review canonical casing refuses native node replacement",
     async () => {
-      await prepareReviewPage();
-      const selector = "#test-contenteditable";
       const original = "<p>We use <b>java</b><i>script</i>.</p>";
-      await page.evaluate(
-        ({ selector, original }) => {
-          const root = document.querySelector(selector) as HTMLElement;
-          root.innerHTML = original;
-          root.focus();
-        },
-        { selector, original },
-      );
-      await triggerReview(worker!);
-      await waitForReview(page, "formatted canonical name", (p) =>
-        p.items.some((i) => i.text === "javascript → JavaScript"),
-      );
-      await clickReviewControl(page, ".item");
-      await waitForReview(page, "canonical card", (p) => p.card.open);
-      await clickReviewControl(page, ".card [data-action=apply]");
+      await applyFormattedFinding(original, "javascript → JavaScript");
       await waitForReview(page, "split correction refused", (p) =>
         p.status.includes("The editor refused the change."),
       );
-      expect(await page.$eval(selector, (el) => el.innerHTML)).toBe(original);
-      await finishReview();
+      expect(await formattedHtml()).toBe(original);
     },
-    browserTimeout(15000, 25000),
+    suiteTimeout(15000, 25000),
   );
 
-  test(
-    "Review compound insertion preserves a formatted word boundary",
-    async () => {
-      await prepareReviewPage();
-      const selector = "#test-contenteditable";
-      const original = "<p>We need to <b>set</b><i>up</i> the environment.</p>";
-      await page.evaluate(
-        ({ selector, original }) => {
-          const root = document.querySelector(selector) as HTMLElement;
-          root.innerHTML = original;
-          root.focus();
-        },
-        { selector, original },
-      );
-      await triggerReview(worker!);
-      await waitForReview(page, "formatted compound", (p) =>
-        p.items.some((item) => item.text === "setup → set␣up"),
-      );
-      await clickReviewControl(page, ".item");
-      await waitForReview(page, "formatted compound card", (p) => p.card.open);
-      await clickReviewControl(page, ".card [data-action=apply]");
+  test.each([
+    [
+      "Review compound insertion preserves a formatted word boundary",
+      "<p>We need to <b>set</b><i>up</i> the environment.</p>",
+      "setup → set␣up",
+      "We need to set up the environment.",
+      { b: "set ", i: "up" },
+    ],
+    [
+      "Review usage phrase replacement preserves split formatting",
+      "<p>For all <b>int</b><i>ensive</i> purposes, the test is complete.</p>",
+      "intensive → intents␣and",
+      "For all intents and purposes, the test is complete.",
+      { b: "int", i: "ents and" },
+    ],
+    [
+      "Review degree deletion preserves the formatted comparison",
+      "<p>This approach is <b>more </b><i>easier</i> to test.</p>",
+      "more␣easier → easier",
+      "This approach is easier to test.",
+      { i: "easier" },
+    ],
+  ] as const)(
+    "%s",
+    async (_name, original, finding, repaired, parts) => {
+      await applyFormattedFinding(original, finding);
       await waitUntil(
-        "formatted compound repair",
+        `formatted repair for ${finding}`,
         async () =>
           await page.$eval(
-            selector,
-            (el) =>
-              el.textContent?.replace(/\u00a0/g, " ") === "We need to set up the environment.",
+            "#test-contenteditable",
+            (el, text) => el.textContent?.replace(/\u00a0/g, " ") === text,
+            repaired,
           ),
         { timeoutMs: 5000 },
       );
       expect(
-        await page.$eval(selector, (el) => [
-          el.querySelector("b")?.textContent?.replace(/\u00a0/g, " "),
-          el.querySelector("i")?.textContent,
-        ]),
-      ).toEqual(["set ", "up"]);
-      await pressNativeUndo(page, selector);
+        await page.$eval("#test-contenteditable", (el) => ({
+          b: el.querySelector("b")?.textContent?.replace(/\u00a0/g, " "),
+          i: el.querySelector("i")?.textContent,
+        })),
+      ).toMatchObject(parts);
+      await pressUndo(page, "#test-contenteditable");
       await waitUntil(
-        "formatted compound undo",
-        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
+        `formatted undo for ${finding}`,
+        async () => (await formattedHtml()) === original,
         { timeoutMs: 5000 },
       );
-      await finishReview();
     },
-    browserTimeout(15000, 25000),
-  );
-
-  test(
-    "Review usage phrase replacement preserves split formatting",
-    async () => {
-      await prepareReviewPage();
-      const selector = "#test-contenteditable";
-      const original = "<p>For all <b>int</b><i>ensive</i> purposes, the test is complete.</p>";
-      await page.evaluate(
-        ({ selector, original }) => {
-          const root = document.querySelector(selector) as HTMLElement;
-          root.innerHTML = original;
-          root.focus();
-        },
-        { selector, original },
-      );
-      await triggerReview(worker!);
-      await waitForReview(page, "formatted usage phrase", (p) =>
-        p.items.some((item) => item.text === "intensive → intents␣and"),
-      );
-      await clickReviewControl(page, ".item");
-      await waitForReview(page, "formatted usage phrase card", (p) => p.card.open);
-      await clickReviewControl(page, ".card [data-action=apply]");
-      await waitUntil(
-        "formatted usage phrase repair",
-        async () =>
-          await page.$eval(
-            selector,
-            (el) =>
-              el.textContent?.replace(/\u00a0/g, " ") ===
-              "For all intents and purposes, the test is complete.",
-          ),
-        { timeoutMs: 5000 },
-      );
-      expect(
-        await page.$eval(selector, (el) => [
-          el.querySelector("b")?.textContent?.replace(/\u00a0/g, " "),
-          el.querySelector("i")?.textContent,
-        ]),
-      ).toEqual(["int", "ents and"]);
-      await pressNativeUndo(page, selector);
-      await waitUntil(
-        "formatted usage phrase undo",
-        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
-        { timeoutMs: 5000 },
-      );
-      await finishReview();
-    },
-    browserTimeout(15000, 25000),
-  );
-
-  test(
-    "Review degree deletion preserves the formatted comparison",
-    async () => {
-      await prepareReviewPage();
-      const selector = "#test-contenteditable";
-      const original = "<p>This approach is <b>more </b><i>easier</i> to test.</p>";
-      await page.evaluate(
-        ({ selector, original }) => {
-          const root = document.querySelector(selector) as HTMLElement;
-          root.innerHTML = original;
-          root.focus();
-        },
-        { selector, original },
-      );
-      await triggerReview(worker!);
-      await waitForReview(page, "formatted degree", (p) =>
-        p.items.some((item) => item.text === "more␣easier → easier"),
-      );
-      await clickReviewControl(page, ".item");
-      await waitForReview(page, "formatted degree card", (p) => p.card.open);
-      await clickReviewControl(page, ".card [data-action=apply]");
-      await waitUntil(
-        "formatted degree repair",
-        async () =>
-          await page.$eval(
-            selector,
-            (el) => el.textContent?.replace(/\u00a0/g, " ") === "This approach is easier to test.",
-          ),
-        { timeoutMs: 5000 },
-      );
-      expect(await page.$eval(selector, (el) => el.querySelector("i")?.textContent)).toBe("easier");
-      await pressNativeUndo(page, selector);
-      await waitUntil(
-        "formatted degree undo",
-        async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
-        { timeoutMs: 5000 },
-      );
-      await finishReview();
-    },
-    browserTimeout(15000, 25000),
+    suiteTimeout(15000, 25000),
   );
 
   test(
@@ -10734,7 +8861,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await prepareReviewPage();
         const source = "Those file failed.";
         await setTextarea(source);
-        await triggerReview(worker!);
+        await triggerReview(worker);
         const panel = await waitForReview(page, "number alternatives", (p) =>
           p.items.some((item) => item.text === "Those file → Those files / That file"),
         );
@@ -10748,38 +8875,22 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           timeoutMs: 5000,
         });
         await waitForReview(page, "number rechecked", (p) => p.items.length === 0);
-        await pressNativeUndo(page, "#test-textarea");
+        await pressUndo(page, "#test-textarea");
         await waitUntil("number undo", async () => (await textareaValue()) === source, {
           timeoutMs: 5000,
         });
-        await finishReview();
       }
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
     "Review missing-to insertion preserves a split formatted verb and native undo",
     async () => {
-      await prepareReviewPage();
       const selector = "#test-contenteditable";
       const original = "<p>We need <b>f</b><i>ix</i> this bug.</p>";
-      await page.evaluate(
-        ({ selector, original }) => {
-          const root = document.querySelector(selector) as HTMLElement;
-          root.innerHTML = original;
-          root.focus();
-        },
-        { selector, original },
-      );
-      await triggerReview(worker!);
-      const panel = await waitForReview(page, "split complement", (p) =>
-        p.items.some((item) => item.text === "fix → to␣fix"),
-      );
+      const panel = await applyFormattedFinding(original, "fix → to␣fix");
       expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
-      await clickReviewControl(page, ".item");
-      await waitForReview(page, "split complement card", (p) => p.card.open);
-      await clickReviewControl(page, ".card [data-action=apply]");
       await waitUntil(
         "split insertion",
         async () =>
@@ -10795,15 +8906,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "<p>We need <b>to f</b><i>ix</i> this bug.</p>",
       );
       await waitForReview(page, "insertion recheck", (p) => p.items.length === 0);
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitUntil(
         "split insertion undo",
         async () => (await page.$eval(selector, (el) => el.innerHTML)) === original,
         { timeoutMs: 5000 },
       );
-      await finishReview();
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
@@ -10812,7 +8922,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await prepareReviewPage();
       const source = "He wrote, “The build is ready.";
       await setTextarea(source);
-      await triggerReview(worker!);
+      await triggerReview(worker);
       let panel = await waitForReview(page, "quotation warning", (p) => p.status === "Issues: 1");
       expect(panel.items[0].text).toBe("Warning: “");
       expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
@@ -10837,9 +8947,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.keyboard.press("Escape");
       await waitForReview(page, "warning card closed", (p) => !p.card.open && p.open);
       expect(await textareaValue()).toBe(source);
-      await finishReview();
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
@@ -10848,13 +8957,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await prepareReviewPage();
       const prefix = "Plain context. ".repeat(9);
       const source = `${prefix}The the cat. ${prefix}The the cat. ${prefix}A a cat.`;
-      const dictionary = await getLocalStorageValue<string[]>(
-        worker!,
-        `${SETTINGS_PREFIX}userDictionaryList`,
-      );
-      const overrides = await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES);
+      const dictionary = await getSetting(worker, "userDictionaryList");
+      const overrides = await getSetting(worker, KEY_REVIEW_RULE_OVERRIDES);
       await setTextarea(source);
-      await triggerReview(worker!);
+      await triggerReview(worker);
       const initial = await waitForReview(
         page,
         "three repeated words",
@@ -10896,28 +9002,25 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForReview(page, "ignored again", (p) => p.items.length === 1);
       await clickReviewControl(page, "[data-action=close]");
       await page.focus("#test-textarea");
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(
         page,
         "new session has no ignores",
         (p) => p.items.length === 3 && !p.notes.includes("Ignored:"),
       );
+      expect(await getSetting(worker, "userDictionaryList")).toEqual(dictionary);
+      expect(await getSetting(worker, KEY_REVIEW_RULE_OVERRIDES)).toEqual(overrides);
       expect(
-        await getLocalStorageValue<string[]>(worker!, `${SETTINGS_PREFIX}userDictionaryList`),
-      ).toEqual(dictionary);
-      expect(await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES)).toEqual(overrides);
-      expect(
-        JSON.stringify(await worker!.evaluate(async () => await chrome.storage.local.get(null))),
+        JSON.stringify(await worker.evaluate(async () => await chrome.storage.local.get(null))),
       ).not.toContain("Plain context");
-      await finishReview();
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
     "Review keeps a disabled rule disabled after reopening in an iframe",
     async () => {
-      await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+      await setSetting(worker, KEY_REVIEW_RULE_OVERRIDES, {});
       await prepareReviewPage();
       try {
         await page.evaluate(() => {
@@ -10943,7 +9046,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           const button = await frame.waitForSelector(`pierce/${selector}:not(:disabled)`);
           await button!.click();
         };
-        await triggerReview(worker!);
+        await triggerReview(worker);
         await waitForReview(frame, "iframe findings", (p) => p.items.length === 2);
         await click(".item");
         await waitForReview(frame, "iframe card", (p) => p.card.open);
@@ -10959,16 +9062,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await click("[data-action=close]");
         await waitForReview(frame, "iframe closed", (p) => !p.open);
         await frame.focus("#test-textarea");
-        await triggerReview(worker!);
+        await triggerReview(worker);
         await waitForReview(
           frame,
           "iframe reopened without disabled rule",
           (p) => p.items.length === 1 && p.items[0].text.includes("works"),
         );
-        expect(await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES)).toEqual({
+        expect(await getSetting(worker, KEY_REVIEW_RULE_OVERRIDES)).toEqual({
           englishRepeatedWords: false,
         });
-        const options = await openOptionsPage(browser, worker!);
+        const options = await openOptionsPage(browser, worker);
         try {
           await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
           const selector =
@@ -10992,7 +9095,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await click("[data-action=close]");
         await waitForReview(frame, "iframe closed after settings", (p) => !p.open);
         await frame.focus("#test-textarea");
-        await triggerReview(worker!);
+        await triggerReview(worker);
         await waitForReview(
           frame,
           "iframe reopened with restored rule",
@@ -11000,23 +9103,23 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
       } finally {
         await page.$eval("#review-frame", (el) => el.remove());
-        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_REVIEW_RULE_OVERRIDES, {});
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(25000, 35000),
+    suiteTimeout(25000, 35000),
   );
 
   test(
     "Review rule controls persist one disabled check and restore it from settings",
     async () => {
-      await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
+      await setSetting(worker, KEY_REVIEW_RULE_OVERRIDES, {});
       await prepareReviewPage();
       const source = "I opened the the report. He can works remotely.";
-      const typing = await getSetting(worker!, KEY_ENABLED_GRAMMAR_RULES);
+      const typing = await getSetting(worker, KEY_ENABLED_GRAMMAR_RULES);
       try {
         await setTextarea(source);
-        await triggerReview(worker!);
+        await triggerReview(worker);
         await waitForReview(page, "two native findings", (p) => p.items.length === 2);
         await clickReviewControl(page, ".item");
         await waitForReview(page, "rule card", (p) => p.card.open);
@@ -11027,20 +9130,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           "only auxiliary remains",
           (p) => p.items.length === 1 && p.items[0].text.includes("works"),
         );
-        expect(await getSetting(worker!, KEY_REVIEW_RULE_OVERRIDES)).toEqual({
+        expect(await getSetting(worker, KEY_REVIEW_RULE_OVERRIDES)).toEqual({
           englishRepeatedWords: false,
         });
-        expect(await getSetting(worker!, KEY_ENABLED_GRAMMAR_RULES)).toEqual(typing);
+        expect(await getSetting(worker, KEY_ENABLED_GRAMMAR_RULES)).toEqual(typing);
         expect(await textareaValue()).toBe(source);
         await page.keyboard.press("Escape");
         await setTextarea(source);
-        await triggerReview(worker!);
+        await triggerReview(worker);
         await waitForReview(
           page,
           "disabled after reopen",
           (p) => p.items.length === 1 && p.items[0].text.includes("works"),
         );
-        const options = await openOptionsPage(browser, worker!);
+        const options = await openOptionsPage(browser, worker);
         try {
           await options.$eval('a[href="#grammar_tab"]', (el) => (el as HTMLElement).click());
           const selector =
@@ -11057,7 +9160,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           await waitUntil(
             "restored Review preference",
             async () =>
-              (await getSetting<Record<string, boolean>>(worker!, KEY_REVIEW_RULE_OVERRIDES))
+              (await getSetting<Record<string, boolean>>(worker, KEY_REVIEW_RULE_OVERRIDES))
                 ?.englishRepeatedWords === true,
             { timeoutMs: 5000 },
           );
@@ -11066,17 +9169,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         }
         await page.bringToFront();
         await waitForReview(page, "restored live findings", (p) => p.items.length === 2);
-        await setGrammarRulesAndWait(worker!, []);
-        await applyConfigChange(browser, worker!);
+        await setGrammarRules(worker, []);
+        await notifyConfigChange(browser, worker);
         await waitForReview(page, "typing disable stays separate", (p) => p.items.length === 2);
         expect(await textareaValue()).toBe(source);
       } finally {
-        await setSettingAndWait(worker!, KEY_REVIEW_RULE_OVERRIDES, {});
-        await applyConfigChange(browser, worker!);
-        await finishReview();
+        await setSetting(worker, KEY_REVIEW_RULE_OVERRIDES, {});
+        await notifyConfigChange(browser, worker);
       }
     },
-    browserTimeout(35000, 50000),
+    suiteTimeout(35000, 50000),
   );
 
   test(
@@ -11088,7 +9190,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       page.on("request", (request) => {
         if (!request.url().endsWith("/favicon.ico")) requests.push(request.url());
       });
-      await triggerReview(worker!);
+      await triggerReview(worker);
       // Looked up in the extension's own dictionary engine; no default.
       let panel = await waitForReview(page, "spelling finding", (p) => p.items.length > 0);
       expect(panel.items).toHaveLength(1);
@@ -11113,14 +9215,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "resolved",
         (p) => p.status === "All found issues are resolved. Fixed: 1.",
       );
-      await pressNativeUndo(page, "#test-textarea");
+      await pressUndo(page, "#test-textarea");
       await waitUntil("undone", async () => (await textareaValue()) === "Where wa it?", {
         timeoutMs: 5000,
       });
       expect(requests).toEqual([]);
-      await finishReview();
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
@@ -11228,16 +9329,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       });
 
       // Turned off in settings: no button anywhere.
-      await setSettingAndWait(worker!, "showReviewButton", false);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, "showReviewButton", false);
+      await notifyConfigChange(browser, worker);
       await page.focus("#test-textarea");
+      // A button that must not appear gives no event. Wait past its show delay before the check.
       await sleep(1200);
       expect(await launcher()).toBeNull();
-      await setSettingAndWait(worker!, "showReviewButton", true);
-      await applyConfigChange(browser, worker!);
-      await finishReview();
+      await setSetting(worker, "showReviewButton", true);
+      await notifyConfigChange(browser, worker);
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test(
@@ -11296,16 +9397,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(await textareaValue()).toBe("We are ready. They has left. So");
 
       // Turned off in settings: nothing is proposed.
-      await setSettingAndWait(worker!, "liveGrammarProposals", false);
-      await applyConfigChange(browser, worker!);
+      await setSetting(worker, "liveGrammarProposals", false);
+      await notifyConfigChange(browser, worker);
       await setTextarea("");
       await page.keyboard.type("We is ready. ");
+      // As above, absence can only be seen after the typing pause has passed.
       await sleep(600);
       expect(await proposal()).toBeNull();
-      await setSettingAndWait(worker!, "liveGrammarProposals", true);
-      await finishReview();
+      await setSetting(worker, "liveGrammarProposals", true);
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test(
@@ -11313,7 +9414,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       await prepareReviewPage();
       await setTextarea("We saw teh cat.");
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(page, "textarea finding", (p) => p.status === "Issues: 1");
       // The panel has focus now. The page rewrites the field as soon as it is focused again.
       await page.evaluate(() => {
@@ -11330,9 +9431,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
       // Not "PREFIX: We saw the cat." written at the old offsets, and not rewritten at all.
       expect(await textareaValue()).toBe("PREFIX: We saw teh cat.");
-      await finishReview();
     },
-    browserTimeout(20000, 30000),
+    suiteTimeout(20000, 30000),
   );
 
   test(
@@ -11353,15 +9453,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // Typing leaves ".." alone: the space after it, where the rule would act, is already typed.
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "Hello world.. Next");
-      await waitForInputContentEqual(
-        page,
-        selector,
-        "Hello world.. Next",
-        browserTimeout(5000, 9000),
-      );
+      await waitForInputContentEqual(page, selector, "Hello world.. Next");
 
       // Review finds it anyway, and changes nothing until asked.
-      await triggerReview(worker!);
+      await triggerReview(worker);
       let panel = await waitForReview(page, "off-for-typing rule", (p) => p.status === "Issues: 1");
       expect(panel.items.map((item) => [item.text, item.category])).toEqual([
         [".. \u2192 . / ...", "punctuation"],
@@ -11371,11 +9466,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForReview(page, "closed", (p) => !p.open);
 
       // With every rule off for typing, review and its in-field button still work.
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, []);
+      await notifyConfigChange(browser, worker);
       await setTextarea("We saw teh cat.. Then left.");
       await waitUntil("review button with typing rules off", launcherShown, { timeoutMs: 5000 });
-      await triggerReview(worker!);
+      await triggerReview(worker);
       panel = await waitForReview(page, "all typing rules off", (p) => p.status === "Issues: 2");
       expect(panel.items.map((item) => item.text)).toEqual(["teh \u2192 the", ".. \u2192 . / ..."]);
       await page.keyboard.press("Escape");
@@ -11383,13 +9478,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       // Code mode keeps review's rules off: nothing to check, no button.
       try {
-        await setSettingAndWait(worker!, KEY_CODE_MODE, true);
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_CODE_MODE, true);
+        await notifyConfigChange(browser, worker);
         await setTextarea("We saw teh cat.. Then left.");
         await waitUntil("no review button in code mode", async () => !(await launcherShown()), {
           timeoutMs: 5000,
         });
-        await triggerReview(worker!);
+        await triggerReview(worker);
         // The (empty) check is asked of the background: wait past "Checking…".
         panel = await waitForReview(
           page,
@@ -11401,12 +9496,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect(await textareaValue()).toBe("We saw teh cat.. Then left.");
       } finally {
         await page.keyboard.press("Escape").catch(() => undefined);
-        await setSettingAndWait(worker!, KEY_CODE_MODE, false);
-        await applyConfigChange(browser, worker!);
+        await setSetting(worker, KEY_CODE_MODE, false);
+        await notifyConfigChange(browser, worker);
       }
-      await finishReview();
     },
-    browserTimeout(40000, 60000),
+    suiteTimeout(40000, 60000),
   );
 
   test(
@@ -11421,7 +9515,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           "<ul><li>their is one item</li></ul><p>Run <code>teh build</code> alot.</p>";
         root.focus();
       }, selector);
-      await triggerReview(worker!);
+      await triggerReview(worker);
       let panel = await waitForReview(page, "contenteditable findings", (p) =>
         /^Issues: \d+$/.test(p.status),
       );
@@ -11485,12 +9579,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "stored dictionary word",
         async () =>
-          (
-            (await getLocalStorageValue<string[]>(
-              worker!,
-              `${SETTINGS_PREFIX}userDictionaryList`,
-            )) ?? []
-          ).includes("recieve"),
+          ((await getSetting<string[]>(worker, "userDictionaryList")) ?? []).includes("recieve"),
         { timeoutMs: 5000 },
       );
 
@@ -11513,7 +9602,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
 
       // Native undo reverts review fixes (one per edit in plain contenteditable).
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitUntil(
         "one fix undone",
         async () => (await page.$eval(selector, (el) => el.innerHTML)) !== html,
@@ -11522,10 +9611,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(await page.$eval(selector, (el) => el.querySelector("code")?.textContent)).toBe(
         "teh build",
       );
-      await setSettingAndWait(worker!, "userDictionaryList", []);
-      await finishReview();
+      await setSetting(worker, "userDictionaryList", []);
     },
-    browserTimeout(50000, 70000),
+    suiteTimeout(50000, 70000),
   );
 
   test(
@@ -11546,7 +9634,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         selector,
         original,
       );
-      await triggerReview(worker!);
+      await triggerReview(worker);
       const panel = await waitForReview(page, "findings", (p) => p.status === "Issues: 3");
       expect(panel.items.map((item) => item.text)).toEqual([
         "i → I",
@@ -11566,7 +9654,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       } else {
         await waitForReview(page, "one fixed", (p) => p.status === "Fixed: 1. Issues: 2");
         expect(await html()).toBe(original.replace("<em>i</em>", "<em>I</em>"));
-        await pressNativeUndo(page, selector);
+        await pressUndo(page, selector);
         await waitUntil("one-step formatted Undo", async () => (await html()) === original, {
           timeoutMs: 5000,
         });
@@ -11575,13 +9663,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect((await readReviewPanel(page)).fixAll.hidden).toBe(false);
       await applyIndividualReviewFix("alot → a␣lot");
       expect(await html()).toBe(original.replace("alot", "a lot"));
-      await pressNativeUndo(page, selector);
+      await pressUndo(page, selector);
       await waitUntil("one-step link Undo", async () => (await html()) === original, {
         timeoutMs: 5000,
       });
-      await finishReview();
     },
-    browserTimeout(40000, 60000),
+    suiteTimeout(40000, 60000),
   );
 
   test(
@@ -11610,7 +9697,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           (window as typeof window & { __testQuill: Quill }).__testQuill.getText(),
         );
       const original = await quillText();
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(page, "quill findings", (p) => p.items.length === 5);
       expect((await readReviewPanel(page)).fixAll.hidden).toBe(false);
       await applyIndividualReviewFix("teh → the");
@@ -11627,13 +9714,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         { insert: " with alot of care.\n" },
       ]);
       // One correction uses the real Quill history.
-      await pressNativeUndo(page, QUILL_SELECTOR);
+      await pressUndo(page, QUILL_SELECTOR);
       await waitUntil("quill undo", async () => (await quillText()) === original, {
         timeoutMs: 5000,
       });
-      await finishReview();
     },
-    browserTimeout(40000, 60000),
+    suiteTimeout(40000, 60000),
   );
 
   test(
@@ -11641,7 +9727,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       await prepareReviewPage();
       await setTextarea("We saw teh cat and teh dog.");
-      await triggerReview(worker!);
+      await triggerReview(worker);
       let panel = await waitForReview(page, "panel focused", (p) => p.status === "Issues: 2");
       expect(panel.focus).toBe("h2");
       // Tab moves through review controls to the first issue.
@@ -11673,7 +9759,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       // With a review open but the editor focused, Tab leaves the editor as usual.
       await setTextarea("We saw teh cat.", [3, 3]);
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(page, "second review", (p) => p.status === "Issues: 1");
       await page.focus("#test-textarea");
       await page.keyboard.press("Tab");
@@ -11682,9 +9768,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.focus("#test-textarea");
       await page.keyboard.press("Escape");
       await waitForReview(page, "closed from editor", (p) => !p.open);
-      await finishReview();
     },
-    browserTimeout(40000, 60000),
+    suiteTimeout(40000, 60000),
   );
 
   test(
@@ -11692,7 +9777,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       await prepareReviewPage();
       await setTextarea("Teh one. Teh two. Teh three.", [9, 17]);
-      await triggerReview(worker!);
+      await triggerReview(worker);
       let panel = await waitForReview(page, "selection scope", (p) => p.status === "Issues: 1");
       expect(panel.items[0].text).toBe("Teh → The");
       await clickReviewControl(page, "[data-action=fix-all]");
@@ -11705,7 +9790,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // An edit invalidates at once and rechecks after a pause (whole-field review).
       await page.keyboard.press("Escape");
       await setTextarea("Short.", [6, 6]);
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(
         page,
         "clean",
@@ -11723,7 +9808,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForReview(page, "closed after popup", (p) => !p.open);
 
       await setTextarea("Short.", [6, 6]);
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(
         page,
         "clean again",
@@ -11740,7 +9825,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const lines = Array.from({ length: 30 }, (_, i) => `Line ${i} is fine.`).join("\n");
       await setTextarea(`${lines}\nFinal teh line.`, [0, 0]);
       await page.$eval("#test-textarea", (el) => ((el as HTMLTextAreaElement).scrollTop = 0));
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(page, "scroll finding", (p) => p.items.length === 1);
       expect((await readReviewPanel(page)).marks).toHaveLength(0);
       await page.$eval("#test-textarea", (el) => ((el as HTMLTextAreaElement).scrollTop = 10000));
@@ -11751,18 +9836,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       });
       expect(panel.marks[0].top).toBeGreaterThan(box.top);
       expect(panel.marks[0].top + panel.marks[0].height).toBeLessThan(box.bottom);
-      await finishReview();
     },
-    browserTimeout(50000, 70000),
+    suiteTimeout(50000, 70000),
   );
 
   test(
     "ProseMirror typing correction preserves marks and native undo without replay",
     async () => {
       await prepareReviewPage({ enableProseMirror: true });
-      await setGrammarRulesAndWait(worker!, ["englishTypoWhitelistCorrection"]);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 20);
-      await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, ["englishTypoWhitelistCorrection"]);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 20);
+      await notifyConfigChange(browser, worker);
       await page.evaluate(() => {
         const view = window.__testProseMirror!;
         const doc = view.state.schema.nodeFromJSON({
@@ -11809,7 +9893,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(
         await page.evaluate(() => window.__testProseMirror!.state.doc.child(0).lastChild!.toJSON()),
       ).toEqual({ type: "text", text: "the ", marks: [{ type: "strong" }] });
-      await pressNativeUndo(page, PROSEMIRROR_SELECTOR);
+      await pressUndo(page, PROSEMIRROR_SELECTOR);
       await waitUntil(
         "ProseMirror correction undo keeps typed text",
         async () =>
@@ -11825,10 +9909,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             () => window.__testProseMirror!.state.doc.textContent === "We saw teh cat.",
           ),
       );
-      await finishReview();
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -11873,7 +9956,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.click(`${PROSEMIRROR_SELECTOR} p`);
       const model = () => page.evaluate(() => window.__testProseMirror!.state.doc.toJSON());
       const original = await model();
-      await triggerReview(worker!);
+      await triggerReview(worker);
       const panel = await waitForReview(
         page,
         "ProseMirror findings",
@@ -11903,22 +9986,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         { type: "text", text: "th", marks: [{ type: "strong" }] },
         { type: "text", text: "e", marks: [{ type: "em" }] },
       ]);
-      await finishReview();
+      await page.keyboard.press("Escape");
+      await setGrammarRules(worker, []);
+      await notifyConfigChange(browser, worker);
       await page.focus(PROSEMIRROR_SELECTOR);
-      await pressNativeUndo(page, PROSEMIRROR_SELECTOR);
+      await pressUndo(page, PROSEMIRROR_SELECTOR);
       await waitUntil(
         "ProseMirror individual native undo",
         async () => JSON.stringify(await model()) === JSON.stringify(original),
       );
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        DEFAULT_CURRENT_GRAMMAR_RULES,
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, DEFAULT_CURRENT_GRAMMAR_RULES);
+      await notifyConfigChange(browser, worker);
       await page.focus(PROSEMIRROR_SELECTOR);
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(
         page,
         "ProseMirror batch ready",
@@ -11951,8 +10031,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         view.updateState(view.state.reconfigure({ plugins: view.state.plugins }));
       });
       expect(await model()).toEqual(corrected);
-      await finishReview();
-      await pressNativeUndo(page, PROSEMIRROR_SELECTOR);
+      await page.keyboard.press("Escape");
+      await setGrammarRules(worker, []);
+      await notifyConfigChange(browser, worker);
+      await pressUndo(page, PROSEMIRROR_SELECTOR);
       await waitUntil(
         "ProseMirror batch native undo",
         async () => JSON.stringify(await model()) === JSON.stringify(original),
@@ -11968,7 +10050,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         async () => JSON.stringify(await model()) === JSON.stringify(corrected),
       );
     },
-    browserTimeout(50000, 70000),
+    suiteTimeout(50000, 70000),
   );
 
   async function prepareSlateReview(value: unknown[]) {
@@ -11979,7 +10061,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       window.__testSlateSetValue!(nodes as never);
     }, value);
   }
-  const slateModel = () => page.evaluate(() => window.__testSlate!.children);
+  const slateModel = () => page.evaluate((): unknown[] => window.__testSlate!.children);
 
   test(
     "Slate typing correction keeps marks and native undo without replay",
@@ -11987,9 +10069,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await prepareSlateReview([
         { type: "paragraph", children: [{ text: "We saw ", bold: true }] },
       ]);
-      await setGrammarRulesAndWait(worker!, ["englishTypoWhitelistCorrection"]);
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 20);
-      await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, ["englishTypoWhitelistCorrection"]);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 20);
+      await notifyConfigChange(browser, worker);
       await page.click(`${SLATE_SELECTOR} p`);
       await page.keyboard.press("End");
       await page.keyboard.type("teh ");
@@ -12001,7 +10083,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(await slateModel()).toEqual([
         { type: "paragraph", children: [{ text: "We saw the ", bold: true }] },
       ]);
-      await pressNativeUndo(page, SLATE_SELECTOR);
+      await pressUndo(page, SLATE_SELECTOR);
       await waitUntil("Slate correction undo keeps typed text", async () =>
         JSON.stringify(await slateModel()).includes('"We saw teh "'),
       );
@@ -12015,9 +10097,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           (await page.$eval(SLATE_SELECTOR, (el) => el.textContent)) === "We saw teh cat.",
       );
       await finishReview();
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -12044,7 +10126,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         page.evaluate(
           () => (window.__testSlate!.children[0] as unknown as { children: unknown[] }).children,
         );
-      await triggerReview(worker!);
+      await triggerReview(worker);
       const panel = await waitForReview(
         page,
         "Slate findings",
@@ -12071,21 +10153,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         { text: "e", italic: true },
       ]);
       await finishReview();
-      await pressNativeUndo(page, SLATE_SELECTOR);
+      await pressUndo(page, SLATE_SELECTOR);
       await waitUntil(
         "Slate individual native undo",
         async () => JSON.stringify(await slateModel()) === JSON.stringify(original),
       );
 
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        DEFAULT_CURRENT_GRAMMAR_RULES,
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, DEFAULT_CURRENT_GRAMMAR_RULES);
+      await notifyConfigChange(browser, worker);
       await page.focus(SLATE_SELECTOR);
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(
         page,
         "Slate batch ready",
@@ -12107,18 +10184,18 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         children: [{ text: "the" }],
       });
       await finishReview();
-      await pressNativeUndo(page, SLATE_SELECTOR);
+      await pressUndo(page, SLATE_SELECTOR);
       await waitUntil(
         "Slate batch native undo",
         async () => JSON.stringify(await slateModel()) === JSON.stringify(original),
       );
-      await pressNativeRedo(page);
+      await pressRedo(page);
       await waitUntil(
         "Slate batch native redo",
         async () => JSON.stringify(await slateModel()) === JSON.stringify(corrected),
       );
     },
-    browserTimeout(50000, 70000),
+    suiteTimeout(50000, 70000),
   );
 
   test(
@@ -12133,7 +10210,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         document.querySelector(".container")!.append(input);
         input.focus();
       });
-      await triggerReview(worker!);
+      await triggerReview(worker);
       let panel = await waitForReview(page, "sensitive notice", (p) => p.open);
       expect(panel.status).toContain("excluded from review");
       expect(panel.items).toEqual([]);
@@ -12141,20 +10218,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForReview(page, "notice closed", (p) => !p.open);
 
       // Type with live grammar off (it would correct "teh"), then review with it on.
-      await setGrammarRulesAndWait(worker!, []);
-      await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, []);
+      await notifyConfigChange(browser, worker);
       await waitForInputReady(page, LEXICAL_SELECTOR);
       await page.focus(LEXICAL_SELECTOR);
       await page.keyboard.type("We saw teh cat.");
-      await setGrammarRulesAndWaitStable(
-        worker!,
-        DEFAULT_CURRENT_GRAMMAR_RULES,
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await applyConfigChange(browser, worker!);
+      await setGrammarRules(worker, DEFAULT_CURRENT_GRAMMAR_RULES);
+      await notifyConfigChange(browser, worker);
       await page.focus(LEXICAL_SELECTOR);
-      await triggerReview(worker!);
+      await triggerReview(worker);
       panel = await waitForReview(page, "lexical findings", (p) => p.status === "Issues: 1");
       expect(panel.notes).toContain("Review only");
       expect(panel.fixAll.hidden).toBe(true);
@@ -12162,9 +10234,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       panel = await waitForReview(page, "lexical card", (p) => p.card.open);
       expect(panel.card.applyDisabled).toBe(true);
       expect(await page.$eval(LEXICAL_SELECTOR, (el) => el.textContent)).toBe("We saw teh cat.");
-      await finishReview();
     },
-    browserTimeout(50000, 70000),
+    suiteTimeout(50000, 70000),
   );
 
   test(
@@ -12191,7 +10262,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         }));
       try {
         // Everything outside a modal dialog is inert: the notice goes inside it.
-        await triggerReview(worker!);
+        await triggerReview(worker);
         const panel = await waitForReview(page, "notice", (p) => p.open);
         expect(panel.status).toContain("excluded from review");
         expect((await state()).noticeParent).toBe("notice-dialog");
@@ -12204,7 +10275,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         });
 
         // Escape closes the notice, not the page's dialog.
-        await triggerReview(worker!);
+        await triggerReview(worker);
         await waitForReview(page, "notice again", (p) => p.open);
         await page.keyboard.press("Escape");
         await waitForReview(page, "closed by Escape", (p) => !p.open);
@@ -12216,9 +10287,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           dialog?.remove();
         });
       }
-      await finishReview();
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   test(
@@ -12231,7 +10301,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.$eval("#test-textarea", (el) => el.setAttribute("maxlength", "19"));
       try {
         await setTextarea(full);
-        await triggerReview(worker!);
+        await triggerReview(worker);
         let panel = await waitForReview(page, "findings", (p) => p.status === "Issues: 3");
         await clickReviewControl(page, "[data-action=fix-all]");
         panel = await waitForReview(page, "refused", (p) =>
@@ -12242,9 +10312,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       } finally {
         await page.$eval("#test-textarea", (el) => el.removeAttribute("maxlength"));
       }
-      await finishReview();
     },
-    browserTimeout(30000, 45000),
+    suiteTimeout(30000, 45000),
   );
 
   devRuntimeTest(
@@ -12252,13 +10321,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       await prepareReviewPage();
       await setTextarea("We saw teh cat.");
-      await triggerCommandForTesting(worker!, "CMD_REVIEW_FT_ACTIVE_TAB");
+      await triggerCommandForTesting(worker, "CMD_REVIEW_FT_ACTIVE_TAB");
       const panel = await waitForReview(page, "command review", (p) => p.status === "Issues: 1");
       expect(panel.items[0].text).toBe("teh \u2192 the");
       expect(await textareaValue()).toBe("We saw teh cat.");
-      await finishReview();
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -12267,10 +10335,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // The synthetic Docs editor (mocked annotated-text API, no network) served
       // at a Docs URL, so the installed extension runs its real Docs support.
       const docsUrl = "https://docs.google.com/document/d/fluenttyper-e2e/edit";
-      const fixture = await fs.promises.readFile(
+      const fixture = await Bun.file(
         path.join(import.meta.dir, "fixtures/google-docs/editor.html"),
-        "utf8",
-      );
+      ).text();
       await prepareReviewPage();
       const docsPage = await browser.newPage();
       const away = await browser.newPage();
@@ -12302,10 +10369,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                   ._docs_annotate_canvas_by_ext != null &&
                 document.activeElement?.tagName === "IFRAME",
             ),
-          { timeoutMs: browserTimeout(5000, 8000) },
+          { timeoutMs: suiteTimeout(5000, 8000) },
         );
         // The tab the popup was opened on.
-        const tabId = await worker!.evaluate(async () => {
+        const tabId = await worker.evaluate(async () => {
           const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
           return tab?.id ?? -1;
         });
@@ -12315,7 +10382,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitUntil("the Docs page lost focus", async () =>
           docsPage.evaluate(() => !document.hasFocus()),
         );
-        await worker!.evaluate(async (id) => {
+        await worker.evaluate(async (id) => {
           await chrome.tabs
             .sendMessage(id, { command: "CMD_REVIEW_FT_ACTIVE_TAB", context: { source: "popup" } })
             .catch(() => undefined);
@@ -12338,7 +10405,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await docsPage.evaluate(() =>
           (window as unknown as { focusEditor: () => void }).focusEditor(),
         );
-        await triggerReview(worker!);
+        await triggerReview(worker);
         await waitForReview(
           docsPage,
           "Docs review from the shortcut",
@@ -12348,10 +10415,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await away.close().catch(() => undefined);
         await docsPage.close().catch(() => undefined);
         await page.bringToFront();
-        await finishReview();
       }
     },
-    browserTimeout(30000, 50000),
+    suiteTimeout(30000, 50000),
   );
 
   test(
@@ -12373,7 +10439,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         field.focus();
         field.setSelectionRange(0, 0);
       });
-      await triggerReview(worker!);
+      await triggerReview(worker);
       let panel = await waitForReview(page, "wrapped finding", (p) => p.status === "Issues: 1");
       const wrappedMarks = panel.marks.length;
       expect(wrappedMarks).toBeGreaterThanOrEqual(1);
@@ -12424,7 +10490,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         root.textContent = "We saw teh cat and teh dog.";
         root.focus();
       });
-      await triggerReview(worker!);
+      await triggerReview(worker);
       panel = await waitForReview(page, "second field", (p) => p.status === "Issues: 2");
       expect(
         await page.evaluate(() => document.querySelectorAll("[data-fluenttyper-review]").length),
@@ -12435,14 +10501,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // Navigating away removes every highlight and the panel.
       if (!isFirefox()) await page.emulateMediaFeatures([]);
       await page.setViewport(viewport);
-      await gotoTestPage(page, { enableCkEditor: false });
+      await gotoTestPage(page);
       await waitForInputReady(page, "#test-textarea");
       const after = await readReviewPanel(page);
       expect(after.open).toBe(false);
       expect(after.highlights).toEqual([]);
-      await finishReview();
     },
-    browserTimeout(50000, 70000),
+    suiteTimeout(50000, 70000),
   );
 
   test(
@@ -12463,7 +10528,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         field.focus();
         field.setSelectionRange(0, 0);
       });
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(page, "dialog review", (p) => p.status === "Issues: 1");
       expect(
         await page.evaluate(
@@ -12498,7 +10563,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // An RTL page: the English panel and card stay left-to-right.
       await page.evaluate(() => document.documentElement.setAttribute("dir", "rtl"));
       await setTextarea("We saw teh cat.");
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(page, "rtl review", (p) => p.status === "Issues: 1");
       await clickReviewControl(page, ".item");
       await waitForReview(page, "rtl card", (p) => p.card.open);
@@ -12519,7 +10584,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // and Fix all stays reachable.
       await page.setViewport({ width: 360, height: 320 });
       await setTextarea("i think teh plan is ok , but their is alot to do. We could of won.");
-      await triggerReview(worker!);
+      await triggerReview(worker);
       await waitForReview(page, "small review", (p) => /^Issues: \d+/.test(p.status));
       const box = await page.evaluate(() => {
         const panel = document
@@ -12542,8 +10607,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         { timeoutMs: 5000 },
       );
       await page.setViewport(viewport);
-      await finishReview();
     },
-    browserTimeout(40000, 60000),
+    suiteTimeout(40000, 60000),
   );
 });

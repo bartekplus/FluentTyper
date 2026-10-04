@@ -1,3 +1,5 @@
+import { baseLanguage } from "../lang";
+
 /** Words for the popup's key-hint footer: navigate, accept, pick, dismiss. */
 type HintLabels = readonly [string, string, string, string];
 
@@ -44,8 +46,7 @@ export function buildSuggestionKeyHints(args: {
   /** A BCP 47 tag such as navigator.language; unknown languages get English. */
   language: string;
 }): SuggestionKeyHint[] {
-  const lang = args.language.split(/[-_]/)[0].toLowerCase();
-  const [navigate, accept, pick, dismiss] = LABELS[lang] ?? LABELS.en;
+  const [navigate, accept, pick, dismiss] = LABELS[baseLanguage(args.language)] ?? LABELS.en;
   const hints: SuggestionKeyHint[] = [{ keys: "↑↓", label: navigate }];
   if (args.acceptKeys.length > 0) {
     hints.push({ keys: args.acceptKeys.join(" "), label: accept });

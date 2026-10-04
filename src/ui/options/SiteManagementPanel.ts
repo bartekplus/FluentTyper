@@ -8,15 +8,20 @@ import {
   KEY_NUM_SUGGESTIONS,
   KEY_SITE_PROFILES,
   KEY_FIELD_PREFERENCES,
+  KEY_PREFER_NATIVE_AUTOCOMPLETE,
+  KEY_CODE_MODE,
 } from "@core/domain/constants";
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import { SiteProfilesManager } from "./siteProfiles.js";
 import { i18n } from "./fluenttyperI18n.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   bindRerender,
-  createSearchInput,
+  createButton,
+  createInlineCard,
+  createRemovableList,
   createWorkspaceCard,
-  createWorkspaceShell,
+  replaceChildrenKeepingDisclosures,
 } from "./workspacePanelUtils.js";
 
 type DomainListMode = "blackList" | "whiteList";
@@ -44,16 +49,30 @@ export class SiteManagementPanel {
     this.siteProfilesManager = new SiteProfilesManager(
       this.siteProfilesRoot,
       this.store,
-      this.onConfigChange,
+      (profiles) => {
+        // The manager writes the store. A silent set only tells the panels that show the profiles.
+        this.registry[KEY_SITE_PROFILES].set(profiles, true);
+        this.onConfigChange();
+      },
     );
 
-    bindRerender(this.registry[KEY_DOMAIN_LIST_MODE], () => this.render());
-    bindRerender(this.registry.domainBlackList, () => this.render());
-    bindRerender(this.registry[KEY_ENABLED_LANGUAGES], () => this.render());
-    bindRerender(this.registry[KEY_SITE_PROFILES], () => this.render());
-    bindRerender(this.registry[KEY_FIELD_PREFERENCES], () => this.render());
-    bindRerender(this.registry[KEY_NUM_SUGGESTIONS], () => this.siteProfilesManager.render());
-    bindRerender(this.registry[KEY_INLINE_SUGGESTION], () => this.siteProfilesManager.render());
+    for (const key of [
+      KEY_DOMAIN_LIST_MODE,
+      "domainBlackList",
+      KEY_ENABLED_LANGUAGES,
+      KEY_SITE_PROFILES,
+      KEY_FIELD_PREFERENCES,
+    ]) {
+      bindRerender(this.registry[key], () => this.render());
+    }
+    for (const key of [
+      KEY_NUM_SUGGESTIONS,
+      KEY_INLINE_SUGGESTION,
+      KEY_PREFER_NATIVE_AUTOCOMPLETE,
+      KEY_CODE_MODE,
+    ]) {
+      bindRerender(this.registry[key], () => this.siteProfilesManager.render());
+    }
 
     void this.render();
   }
@@ -71,34 +90,25 @@ export class SiteManagementPanel {
           .sort((a, b) => a.localeCompare(b))
       : [];
 
-    const accessCard = this.createAccessCard(mode, domainList);
-    const profileCard = createWorkspaceCard(
-      i18n.get("site_profiles"),
-      i18n.get("site_profiles_desc"),
-    );
-    profileCard.body.appendChild(this.siteProfilesRoot);
-
-    const shell = createWorkspaceShell();
-    shell.append(accessCard, profileCard.card);
-
-    this.root.replaceChildren(shell);
+    const shell = createElement("div", { className: "workspace-panel-stack" });
+    replaceChildrenKeepingDisclosures(this.root, () => {
+      const profileCard = createWorkspaceCard(
+        i18n.get("site_profiles"),
+        i18n.get("site_profiles_desc"),
+      );
+      profileCard.body.appendChild(this.siteProfilesRoot);
+      shell.append(this.createAccessCard(mode, domainList), profileCard.card);
+      return shell;
+    });
     await this.siteProfilesManager.render();
-    const fields = document.createElement("section");
-    fields.className = "settings-inline-card";
+    const fields = createInlineCard();
     shell.append(fields);
     await renderFieldPreferencesPanel(fields);
   }
 
   private createAccessCard(mode: DomainListMode, domainList: string[]): HTMLElement {
-    const card = document.createElement("section");
-    card.className = "settings-inline-card";
-
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("site_management_access_title");
-    card.appendChild(title);
-
-    const segmented = document.createElement("div");
-    segmented.className = "segmented-control";
+    const card = createInlineCard(i18n.get("site_management_access_title"));
+    const segmented = createElement("div", { className: "segmented-control" });
     const modes: Array<{ value: DomainListMode; label: string; hint: string }> = [
       {
         value: "blackList",
@@ -112,104 +122,51 @@ export class SiteManagementPanel {
       },
     ];
     modes.forEach((entry) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "segmented-control-button";
-      if (entry.value === mode) {
-        button.classList.add("is-active");
-      }
-      button.textContent = entry.label;
-      button.addEventListener("click", () => {
+      const button = createButton(entry.label, "segmented-control-button", () => {
         this.registry[KEY_DOMAIN_LIST_MODE].set(entry.value);
       });
+      button.classList.toggle("is-active", entry.value === mode);
       segmented.appendChild(button);
     });
     card.appendChild(segmented);
 
-    const explanation = document.createElement("p");
-    explanation.className = "settings-inline-help";
-    explanation.textContent = modes.find((entry) => entry.value === mode)?.hint || "";
-    card.appendChild(explanation);
-
-    const toolbar = document.createElement("div");
-    toolbar.className = "text-assets-toolbar";
-    toolbar.appendChild(
-      createSearchInput(i18n.get("site_management_search_domains"), this.searchQuery, (query) => {
-        this.searchQuery = query;
-        void this.render();
+    card.appendChild(
+      createElement("p", {
+        className: "settings-inline-help",
+        textContent: modes.find((entry) => entry.value === mode)?.hint || "",
       }),
     );
 
-    const addInput = document.createElement("input");
-    addInput.className = "input";
-    addInput.placeholder = i18n.get("site_management_domain_placeholder");
-    toolbar.appendChild(addInput);
-
-    const addButton = document.createElement("button");
-    addButton.type = "button";
-    addButton.className = "button";
-    addButton.textContent =
-      mode === "blackList"
-        ? i18n.get("site_management_block_site")
-        : i18n.get("site_management_allow_site");
-    addButton.addEventListener("click", () => {
-      const normalized = normalizeDomainHost(addInput.value);
-      if (!normalized) {
-        return;
-      }
-      const next = Array.from(new Set([...domainList, normalized])).sort((a, b) =>
-        a.localeCompare(b),
-      );
-      this.registry.domainBlackList.set(next);
-      addInput.value = "";
-      this.onConfigChange();
+    const blocking = mode === "blackList";
+    const { toolbar, list } = createRemovableList({
+      searchPlaceholder: i18n.get("site_management_search_domains"),
+      query: this.searchQuery,
+      onQuery: (query) => {
+        this.searchQuery = query;
+      },
+      addPlaceholder: i18n.get("site_management_domain_placeholder"),
+      addLabel: i18n.get(blocking ? "site_management_block_site" : "site_management_allow_site"),
+      onAdd: (addInput) => {
+        const normalized = normalizeDomainHost(addInput.value);
+        if (!normalized) {
+          return;
+        }
+        const next = Array.from(new Set([...domainList, normalized])).sort((a, b) =>
+          a.localeCompare(b),
+        );
+        this.registry.domainBlackList.set(next);
+        addInput.value = "";
+      },
+      items: domainList,
+      hint: i18n.get(blocking ? "site_management_blocked" : "site_management_allowed"),
+      onRemove: (domain) => {
+        this.registry.domainBlackList.set(domainList.filter((entry) => entry !== domain));
+      },
+      emptyText: i18n.get(
+        blocking ? "site_management_empty_blocked" : "site_management_empty_allowed",
+      ),
     });
-    toolbar.appendChild(addButton);
-    card.appendChild(toolbar);
-
-    const table = document.createElement("div");
-    table.className = "domain-table";
-    domainList
-      .filter((domain) => domain.toLowerCase().includes(this.searchQuery))
-      .forEach((domain) => {
-        const row = document.createElement("div");
-        row.className = "domain-table-row";
-        const label = document.createElement("div");
-        label.className = "domain-table-name";
-        label.textContent = domain;
-        row.appendChild(label);
-
-        const hint = document.createElement("div");
-        hint.className = "domain-table-hint";
-        hint.textContent =
-          mode === "blackList"
-            ? i18n.get("site_management_blocked")
-            : i18n.get("site_management_allowed");
-        row.appendChild(hint);
-
-        const removeButton = document.createElement("button");
-        removeButton.type = "button";
-        removeButton.className = "button is-light";
-        removeButton.textContent = i18n.get("remove");
-        removeButton.addEventListener("click", () => {
-          this.registry.domainBlackList.set(domainList.filter((entry) => entry !== domain));
-          this.onConfigChange();
-        });
-        row.appendChild(removeButton);
-        table.appendChild(row);
-      });
-
-    if (!table.childElementCount) {
-      const empty = document.createElement("p");
-      empty.className = "settings-inline-help";
-      empty.textContent =
-        mode === "blackList"
-          ? i18n.get("site_management_empty_blocked")
-          : i18n.get("site_management_empty_allowed");
-      table.appendChild(empty);
-    }
-
-    card.appendChild(table);
+    card.append(toolbar, list);
     return card;
   }
 }

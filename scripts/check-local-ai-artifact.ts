@@ -39,7 +39,7 @@ const REPO_ROOT = path.resolve(import.meta.dir, "..");
 /** Transformers.js' default wasmPaths; inert only when background.js overrides it. */
 const ORT_CDN_ORIGIN = "https://cdn.jsdelivr.net";
 
-const APP_BUNDLES = [
+export const APP_BUNDLES = [
   "background.js",
   "content_script.js",
   "content_script_main_world_start.js",
@@ -66,16 +66,7 @@ const INERT_URL_ORIGINS: Record<string, string> = {
   "https://www.w3.org": "XML/SVG namespace constants",
 };
 
-interface PlatformExpectation {
-  permissions: string[];
-  localAi: boolean;
-}
-
-const PLATFORMS: Record<string, PlatformExpectation> = {
-  chrome: { permissions: ["activeTab", "storage"], localAi: true },
-  edge: { permissions: ["activeTab", "storage"], localAi: true },
-  firefox: { permissions: ["activeTab", "storage"], localAi: false },
-};
+const PERMISSIONS = ["activeTab", "storage"];
 
 interface ArtifactReport {
   failures: string[];
@@ -101,10 +92,10 @@ export async function checkLocalAiArtifact(
   buildDir: string,
   platform: string,
 ): Promise<ArtifactReport> {
-  const expected = PLATFORMS[platform];
-  if (!expected) {
+  if (!["chrome", "edge", "firefox"].includes(platform)) {
     throw new Error(`Unknown platform "${platform}"`);
   }
+  const localAi = platform !== "firefox";
   const failures: string[] = [];
   const notes: string[] = [];
   const fail = (message: string) => failures.push(message);
@@ -113,8 +104,8 @@ export async function checkLocalAiArtifact(
   // Manifest: permissions, page exposure, CSP.
   const manifest = JSON.parse(await read("manifest.json")) as Record<string, unknown>;
   const permissions = (manifest.permissions as string[] | undefined) ?? [];
-  if (!sameSet(permissions, expected.permissions)) {
-    fail(`permissions ${JSON.stringify(permissions)} != ${JSON.stringify(expected.permissions)}`);
+  if (!sameSet(permissions, PERMISSIONS)) {
+    fail(`permissions ${JSON.stringify(permissions)} != ${JSON.stringify(PERMISSIONS)}`);
   }
   if (
     !sameSet((manifest.optional_host_permissions as string[] | undefined) ?? [], ["<all_urls>"])
@@ -138,7 +129,7 @@ export async function checkLocalAiArtifact(
     fail(`script-src is ${JSON.stringify(directives.get("script-src"))}`);
   }
   const connectSrc = directives.get("connect-src");
-  if (expected.localAi) {
+  if (localAi) {
     if (!connectSrc || !sameSet(connectSrc, ["'self'", ...LOCAL_AI_DOWNLOAD_ORIGINS])) {
       fail(`connect-src is ${JSON.stringify(connectSrc)}, expected 'self' + Hugging Face origins`);
     }
@@ -147,7 +138,7 @@ export async function checkLocalAiArtifact(
   }
 
   // Local AI files: present and verified on Chrome/Edge, absent elsewhere.
-  if (expected.localAi) {
+  if (localAi) {
     const localAiEntries = await readdir(path.join(buildDir, "local-ai")).catch(() => []);
     const expectedEntries = [
       "ort",
@@ -188,7 +179,7 @@ export async function checkLocalAiArtifact(
     }
   }
   for (const [bundle, content] of contents) {
-    const isEngine = expected.localAi && bundle === ENGINE_BUNDLE;
+    const isEngine = localAi && bundle === ENGINE_BUNDLE;
     for (const marker of TEST_HOOK_MARKERS) {
       if (content.includes(marker)) {
         fail(`${bundle} contains runtime test hooks ("${marker}")`);
@@ -228,7 +219,7 @@ export async function checkLocalAiArtifact(
   if (contents.get("content_script.js")?.includes(DEV_BUILD_CONTENT_SCRIPT_MARKER)) {
     fail("content_script.js was built with __FT_DEV_BUILD__ = true");
   }
-  const engine = expected.localAi ? (contents.get(ENGINE_BUNDLE) ?? "") : null;
+  const engine = localAi ? (contents.get(ENGINE_BUNDLE) ?? "") : null;
   if (engine !== null && !engine.includes(LOCAL_AI_ENGINE_MARKERS[0])) {
     fail(`${ENGINE_BUNDLE} does not contain the Local AI engine`);
   }

@@ -1,8 +1,5 @@
 import { isObjectRecord } from "../guards";
-import type {
-  LiveGrammarProposal,
-  LiveProposalOptions,
-} from "../grammar/review/liveProposalSelection";
+import type { LiveProposalOptions } from "../grammar/review/liveProposalSelection";
 import type { PreparedReview } from "../grammar/review/reviewDiagnostics";
 import type {
   CoverageGap,
@@ -83,9 +80,6 @@ export type ReviewEngineFailure = "invalid" | "aborted" | "failed";
 
 export type ReviewEngineResponse<T = unknown> =
   { ok: true; value: T } | { ok: false; error: ReviewEngineFailure };
-
-export type ReviewEngineValue =
-  ReviewScanResponse | boolean[] | LiveGrammarProposal[] | ReviewExplanations | null;
 
 /** Whole editor text a scan may carry; far above any real field. */
 export const MAX_REVIEW_ENGINE_TEXT = 5_000_000;

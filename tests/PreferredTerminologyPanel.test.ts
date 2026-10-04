@@ -34,7 +34,6 @@ beforeEach(() => {
   } as unknown as SettingsRegistry);
 });
 afterEach(() => {
-  root.remove();
   i18n.lang = originalLang;
 });
 const input = (name: string) => root.querySelector<HTMLInputElement>(`[name="${name}"]`)!;

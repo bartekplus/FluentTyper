@@ -1,11 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { GRAMMAR_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
-import { MAX_PROOF_GROUP, planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  stillDetectedAfter,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { MAX_PROOF_GROUP } from "../../src/core/domain/grammar/review/bulkPlanner";
+import { stillDetectedAfter } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import {
   applyEdits,
   diffTexts,
@@ -20,15 +16,10 @@ import {
   REVIEW_LOCAL_AI_CHECK,
   type ReviewDiagnostic,
   type ReviewEdit,
-  type ReviewOptions,
 } from "../../src/core/domain/grammar/review/types";
+import { prepared, review, planBulkFix } from "./grammarTestUtils";
 
-const OPTIONS: ReviewOptions = {
-  lang: "en_US",
-  enabledRules: GRAMMAR_RULE_IDS,
-  userDictionary: [],
-  insertSpaceAfterAutocomplete: true,
-};
+const OPTIONS = { enabledRules: GRAMMAR_RULE_IDS };
 
 function edit(start: number, end: number, original: string, replacement: string): ReviewEdit {
   return { start, end, original, replacement };
@@ -59,11 +50,10 @@ function diagnostic(
 }
 
 function reviewAndPlan(text: string) {
-  const snapshot = { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] };
-  const prepared = prepareReview(snapshot, OPTIONS);
-  const { diagnostics } = detectReviewDiagnostics(snapshot, OPTIONS);
+  const p = prepared(text, {}, OPTIONS);
+  const { diagnostics } = review(text, {}, OPTIONS);
   const plan = planBulkFix(text, diagnostics, {
-    stillHold: (checks, others) => stillDetectedAfter(prepared, checks, others),
+    stillHold: (checks, others) => stillDetectedAfter(p, checks, others),
   });
   return { diagnostics, plan };
 }
@@ -174,11 +164,10 @@ describe("bulk planning", () => {
 
   test("real findings: a change that removes another finding's evidence is not proven", () => {
     const text = "ok";
-    const snapshot = { id: "s", text, scope: { start: 0, end: 2 }, protectedRanges: [] };
-    const prepared = prepareReview(snapshot, OPTIONS);
+    const p = prepared(text, {}, OPTIONS);
     const fake = diagnostic([edit(0, 1, "o", "O")], { ruleId: "capitalizeSentenceStart" });
     // Prepending a lowercase word makes "ok" no longer a sentence start.
-    expect(stillDetectedAfter(prepared, [fake], [edit(0, 0, "", "and ")])).toEqual([false]);
+    expect(stillDetectedAfter(p, [fake], [edit(0, 0, "", "and ")])).toEqual([false]);
   });
 
   test("proofs run in rounds: one call per round covers every linked group", () => {

@@ -5,6 +5,7 @@ import {
   isGraphemeBoundary,
 } from "@core/domain/grammar/review/textRanges";
 import { isCredentialField } from "../suggestions/FieldEligibility";
+import { MAX_MAPPED_CHARS } from "./ContentEditableTextMap";
 import { isNonWritingControl, isWordInputProxy } from "../suggestions/CodeContextResolver";
 import {
   wordEditor,
@@ -76,7 +77,7 @@ function readModel(model: WordDocument, body = model.getSelection().parentBody):
   if (!body) throw new Error("unsupported");
   const raw = body.text;
   // ponytail: bound model enumeration; a windowed reader is needed above the existing DOM-map ceiling.
-  if (typeof raw !== "string" || raw.length > 200_000) throw new Error("unsupported");
+  if (typeof raw !== "string" || raw.length > MAX_MAPPED_CHARS) throw new Error("unsupported");
   const count = body.paragraphs.length();
   if (!Number.isInteger(count) || count < 1 || count > 10_000) throw new Error("unsupported");
   const paragraphs: ModelSnapshot["paragraphs"] = [];
@@ -294,7 +295,7 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
               edits.length > 0 &&
               edits.length <= 1000 &&
               typeof request.after === "string" &&
-              request.after.length <= 200_000 &&
+              request.after.length <= MAX_MAPPED_CHARS &&
               edits.every(
                 (edit) =>
                   edit &&
@@ -358,9 +359,13 @@ export function installWordReviewMainWorld(doc: Document = document): () => void
           }
         }
       }
-    } catch {
+    } catch (error) {
       pending = null;
-      reply = writing ? { status: "unverified" } : { ok: false, reason: "unsupported" };
+      reply = writing
+        ? { status: "unverified" }
+        : error instanceof Error && error.message === "stale"
+          ? { status: "stale" }
+          : { ok: false, reason: "unsupported" };
     }
     root.setAttribute(WORD_REVIEW_RESPONSE, JSON.stringify(reply));
   };

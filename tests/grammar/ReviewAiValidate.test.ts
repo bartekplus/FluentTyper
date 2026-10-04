@@ -1,6 +1,5 @@
 import conservativeCorpus from "../fixtures/conservative-review.json";
 import { describe, expect, test } from "bun:test";
-import { prepareReview } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import {
   REVIEW_LOCAL_AI_CHECK,
@@ -14,29 +13,26 @@ import {
   correctionFindings,
   rewriteProposal,
 } from "../../src/core/domain/grammar/review/ai/validate";
+import { prepared as prepare } from "./grammarTestUtils";
 
 interface Extra {
+  lang?: string;
   scope?: TextRange;
   protectedRanges?: ProtectedRange[];
   userDictionary?: string[];
   maxChunkChars?: number;
 }
 
-function prepared(text: string, extra: Extra = {}) {
-  return prepareReview(
-    {
-      id: "snap",
-      text,
-      scope: extra.scope ?? { start: 0, end: text.length },
-      protectedRanges: extra.protectedRanges ?? [],
-    },
-    {
-      lang: "en_US",
-      enabledRules: [],
-      userDictionary: extra.userDictionary ?? [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  );
+function prepared(
+  text: string,
+  {
+    lang = "en_US",
+    scope = { start: 0, end: text.length },
+    protectedRanges = [],
+    userDictionary = [],
+  }: Extra = {},
+) {
+  return prepare(text, { scope, protectedRanges }, { lang, enabledRules: [], userDictionary });
 }
 
 /**
@@ -45,11 +41,7 @@ function prepared(text: string, extra: Extra = {}) {
  */
 function correct(text: string, outputs: string[], extra: Extra = {}) {
   const prep = prepared(text, extra);
-  const { chunks } = buildAiChunks(prep, {
-    mode: "correct",
-    style: null,
-    maxChunkChars: extra.maxChunkChars,
-  });
+  const { chunks } = buildAiChunks(prep, { mode: "correct", maxChunkChars: extra.maxChunkChars });
   const segments = chunks.flatMap((chunk) => chunk.segments);
   expect(outputs).toHaveLength(segments.length);
   const queue = [...outputs];
@@ -83,11 +75,7 @@ function expectRejected(text: string, proposed: string, reason: string, extra: E
   // Every change unit of the proposal was rejected, all for this reason.
   const reasons = Object.keys(result.rejected);
   expect(reasons).toHaveLength(1);
-  expect(
-    reasons[0] === reason ||
-      reasons[0]?.startsWith(`${reason}.`) ||
-      (reason === "too-many-edits" && reasons[0] === "unit.too_many_changed_words"),
-  ).toBe(true);
+  expect(reasons[0] === reason || reasons[0]?.startsWith(`${reason}.`)).toBe(true);
 }
 
 describe("correctionFindings", () => {
@@ -97,6 +85,13 @@ describe("correctionFindings", () => {
     if (fixture.label === "must-not-change") expect(result.diagnostics).toEqual([]);
     else expect(result.diagnostics.length).toBeGreaterThan(0);
     expect(result.diagnostics.every((d) => !d.bulk.eligible)).toBe(true);
+  });
+
+  test.each([
+    ["Spotkamy się wtorek rano.", "Spotkamy się we wtorek rano.", "pl_PL"],
+    ["Then went home early.", "Then we went home early.", "en_US"],
+  ])("a correction may insert the word we: %s", (text, proposed, lang) => {
+    expect(correctOne(text, proposed, { lang }).applied).toBe(proposed);
   });
 
   test("segment boundaries do not establish sentence starts", () => {
@@ -573,7 +568,7 @@ describe("correctionFindings", () => {
 
   test("mismatched output ids reject the whole chunk", () => {
     const prep = prepared("One is here. Two is here.");
-    const [chunk] = buildAiChunks(prep, { mode: "correct", style: null }).chunks;
+    const [chunk] = buildAiChunks(prep, { mode: "correct" }).chunks;
     const result = correctionFindings(prep, chunk, [{ id: "s1", text: "x" }]);
     expect(result).toEqual({ diagnostics: [], rejected: { shape: 2 } });
   });
@@ -593,7 +588,6 @@ describe("correctionFindings", () => {
     const prep = prepared("One is here.");
     const [chunk] = buildAiChunks(prepared("Two is here."), {
       mode: "correct",
-      style: null,
     }).chunks;
     const result = correctionFindings(prep, chunk, [{ id: "s0", text: "Two are here." }]);
     expect(result).toEqual({ diagnostics: [], rejected: { shape: 1 } });
@@ -670,11 +664,7 @@ function rewrite(
   extra: Extra = {},
 ) {
   const prep = prepared(text, extra);
-  const { chunks } = buildAiChunks(prep, {
-    mode: "rewrite",
-    style,
-    maxChunkChars: extra.maxChunkChars,
-  });
+  const { chunks } = buildAiChunks(prep, { mode: "rewrite", maxChunkChars: extra.maxChunkChars });
   const queue = [...outputs];
   const parsed = chunks.map((chunk: AiChunk) =>
     chunk.segments.map((segment) => ({ id: segment.id, text: queue.shift() ?? "" })),
@@ -760,7 +750,6 @@ describe("rewriteProposal", () => {
     );
     expect(proposal.ok).toBe(true);
     if (!proposal.ok) return;
-    expect(proposal.style).toBe("professional");
     expect(proposal.before).toBe(TEXT);
     expect(proposal.after).toBe(
       "Hey, could you check the logs from 3 pm? The deploy failed twice.",
@@ -877,7 +866,7 @@ describe("rewriteProposal", () => {
 
   test("mismatched outputs and empty plans are shape failures", () => {
     const prep = prepared("One is here.");
-    const { chunks } = buildAiChunks(prep, { mode: "rewrite", style: "concise" });
+    const { chunks } = buildAiChunks(prep, { mode: "rewrite" });
     expect(rewriteProposal(prep, chunks, [], "concise")).toEqual({ ok: false, reason: "shape" });
     expect(rewriteProposal(prep, chunks, [[{ id: "s9", text: "x" }]], "concise")).toEqual({
       ok: false,
@@ -888,7 +877,7 @@ describe("rewriteProposal", () => {
 
   test("a rewrite that changes nothing has nothing to apply", () => {
     const prep = prepared("One is here.");
-    const { chunks } = buildAiChunks(prep, { mode: "rewrite", style: "concise" });
+    const { chunks } = buildAiChunks(prep, { mode: "rewrite" });
     const echo = chunks.map((chunk) => chunk.segments.map(({ id, text }) => ({ id, text })));
     expect(rewriteProposal(prep, chunks, echo, "concise")).toEqual({
       ok: false,

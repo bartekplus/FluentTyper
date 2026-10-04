@@ -1,33 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
-import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
-import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
-import type { GrammarContext } from "../../src/core/domain/grammar/types";
+import { typeText } from "./grammarTestUtils";
 
-function type(input: string, lang: string, insertSpaceAfterAutocomplete = true): string {
-  const engine = new GrammarRuleEngine();
-  for (const rule of createGrammarRuleCatalogRuntime({
-    insertSpaceAfterAutocomplete,
-    userDictionaryList: [],
-  }))
-    engine.registerRule(rule);
-  let context: GrammarContext = {
-    beforeCursor: "",
-    afterCursor: "",
-    hints: { lang, inputAction: "insert", measurementContext: "prose" },
-  };
-  for (const char of input) {
-    context.beforeCursor += char;
-    const edits = engine.process(
-      char === " " || char === "\n" ? "wordBoundary" : "insertChar",
-      context,
-      DEFAULT_CURRENT_GRAMMAR_RULES,
-    );
-    for (const edit of edits) context = applyGrammarEditToContext(context, edit);
-  }
-  return context.beforeCursor;
-}
+const type = (input: string, lang: string, insertSpaceAfterAutocomplete = true) =>
+  typeText(input, { lang, rules: DEFAULT_CURRENT_GRAMMAR_RULES, insertSpaceAfterAutocomplete })
+    .beforeCursor;
 
 describe("measurement formatting during typing", () => {
   for (const [input, lang, expected] of [

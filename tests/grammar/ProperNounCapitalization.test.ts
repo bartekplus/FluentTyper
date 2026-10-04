@@ -1,42 +1,23 @@
 import { describe, expect, test } from "bun:test";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
-import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 import type { GrammarContext } from "../../src/core/domain/grammar/types";
+import { typeText } from "./grammarTestUtils";
 
 const RULE = "englishProperNounCapitalization";
 const DEFAULTS: string[] = DEFAULT_CURRENT_GRAMMAR_RULES;
 const DEFAULTS_WITHOUT_RULE = DEFAULTS.filter((id) => id !== RULE);
 
 /** Types `input` one keystroke at a time through `rules`. */
-function type(
-  input: string,
-  rules: string[],
-  hints: GrammarContext["hints"] = {},
-  userDictionaryList: string[] = [],
-): string {
-  const engine = new GrammarRuleEngine();
-  for (const item of createGrammarRuleCatalogRuntime({
-    insertSpaceAfterAutocomplete: true,
-    userDictionaryList,
-  })) {
-    engine.registerRule(item);
-  }
-  let state: GrammarContext = {
-    beforeCursor: "",
-    afterCursor: "",
-    hints: { lang: "en_US", inputAction: "insert", ...hints },
-  };
-  for (const char of input) {
-    state.beforeCursor += char;
-    const events: ("insertChar" | "wordBoundary")[] =
-      char === " " || char === "\n" ? ["wordBoundary"] : ["insertChar"];
-    if (/[.!?]/.test(char)) events.push("wordBoundary");
-    const edit = engine.processSequence(events, state, rules);
-    if (edit) state = applyGrammarEditToContext(state, edit);
-  }
-  return state.beforeCursor + state.afterCursor;
+function type(input: string, rules: string[], hints: GrammarContext["hints"] = {}): string {
+  const { beforeCursor, afterCursor } = typeText(input, {
+    hints: { measurementContext: undefined, ...hints },
+    rules,
+    sequence: true,
+    sentenceEndBoundary: true,
+  });
+  return beforeCursor + afterCursor;
 }
 
 function expectFixed(input: string, expected: string): void {
@@ -45,15 +26,9 @@ function expectFixed(input: string, expected: string): void {
 }
 
 /** The rule changes nothing on its own nor in the default pipeline. */
-function expectUnchanged(
-  input: string,
-  hints: GrammarContext["hints"] = {},
-  userDictionaryList: string[] = [],
-): void {
-  expect(type(input, [RULE], hints, userDictionaryList)).toBe(input);
-  expect(type(input, DEFAULTS, hints, userDictionaryList)).toBe(
-    type(input, DEFAULTS_WITHOUT_RULE, hints, userDictionaryList),
-  );
+function expectUnchanged(input: string, hints: GrammarContext["hints"] = {}): void {
+  expect(type(input, [RULE], hints)).toBe(input);
+  expect(type(input, DEFAULTS, hints)).toBe(type(input, DEFAULTS_WITHOUT_RULE, hints));
 }
 
 describe("English proper noun capitalization", () => {
@@ -172,7 +147,6 @@ describe("English proper noun capitalization", () => {
     const engine = new GrammarRuleEngine();
     for (const item of createGrammarRuleCatalogRuntime({
       insertSpaceAfterAutocomplete: true,
-      userDictionaryList: [],
     })) {
       engine.registerRule(item);
     }
@@ -193,8 +167,6 @@ describe("English proper noun capitalization", () => {
       ["due may 15 ", ["may"]],
     ];
     for (const [input, dictionary] of cases) {
-      // Through the rule factory's list and through the runtime hint.
-      expectUnchanged(input, {}, dictionary);
       expectUnchanged(input, { userDictionary: dictionary });
     }
     expectFixed("on mondays ", "on Mondays ");

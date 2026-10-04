@@ -1,5 +1,7 @@
+import { clamp } from "./guards";
+
 export function clampColorChannel(channel: number): number {
-  return Math.min(Math.max(Math.round(channel), 0), 255);
+  return clamp(Math.round(channel), 0, 255);
 }
 
 /** WCAG 2.1 relative luminance of an sRGB colour. */
@@ -14,7 +16,7 @@ export function relativeLuminance(color: { r: number; g: number; b: number }): n
 export type RGBAColor = { r: number; g: number; b: number; a: number };
 
 export function clampAlpha(value: number): number {
-  return Math.max(0, Math.min(1, value));
+  return clamp(value, 0, 1);
 }
 
 function parseRgbPart(value: string): number | null {
@@ -35,17 +37,11 @@ export function parseThemeColor(rawValue: string): RGBAColor | null {
 
   if (value.startsWith("#")) {
     const hex = value.slice(1);
-    if (![3, 4, 6, 8].includes(hex.length)) {
+    if (![3, 4, 6, 8].includes(hex.length) || !/^[0-9a-f]+$/i.test(hex)) {
       return null;
     }
-    const pairs = hex.length <= 4 ? [...hex].map((part) => part + part) : hex.match(/.{1,2}/g);
-    if (!pairs) {
-      return null;
-    }
+    const pairs = hex.length <= 4 ? [...hex].map((part) => part + part) : hex.match(/../g)!;
     const channels = pairs.map((part) => Number.parseInt(part, 16));
-    if (channels.some((part) => Number.isNaN(part))) {
-      return null;
-    }
     return {
       r: channels[0],
       g: channels[1],

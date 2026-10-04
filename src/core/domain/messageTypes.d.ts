@@ -8,8 +8,6 @@ import type { PersonalizationEvent } from "./personalization/types";
 import type { SuggestionThemeSettings } from "./themeDefaults";
 
 // Context for CMD_BACKGROUND_PAGE_SET_CONFIG
-export type SuggestionThemeConfig = SuggestionThemeSettings;
-
 export interface SetConfigContext {
   autocomplete: boolean;
   autocompleteOnEnter: boolean;
@@ -42,13 +40,13 @@ export interface SetConfigContext {
   reviewLongSentenceWords?: number;
   userDictionaryList: string[];
   // Theme configuration is reused by settings and options payloads.
-  themeConfig?: SuggestionThemeConfig;
+  themeConfig?: SuggestionThemeSettings;
   observability?: ObservabilityConfig;
 }
 
 export type PredictionInputAction = "insert" | "delete" | "other";
 
-// Context for CMD_BACKGROUND_PAGE_PREDICT_REQ
+// A prediction request after the background resolved its language and sender
 export interface PredictRequestContext {
   text: string;
   nextChar: string;
@@ -65,17 +63,10 @@ export interface PredictRequestContext {
 }
 
 // Context for CMD_BACKGROUND_PAGE_PREDICT_RESP
-export interface PredictResponseContext {
-  text: string;
-  nextChar: string;
-  lang: string;
-  tabId: number;
-  frameId: number;
-  suggestionId: number;
-  requestId: number;
-  runtimeGeneration?: number;
-  traceId?: string;
-  traceStartedAtMs?: number;
+export interface PredictResponseContext extends Omit<
+  PredictRequestContext,
+  "afterCursorTokenSuffix" | "inputAction"
+> {
   predictions: string[];
   snippetShortcuts?: Array<string | null>;
 }
@@ -215,10 +206,6 @@ export type Message =
     }
   | { command: "CMD_BACKGROUND_PAGE_SET_CONFIG"; context: SetConfigContext }
   | {
-      command: "CMD_BACKGROUND_PAGE_PREDICT_REQ";
-      context: PredictRequestContext;
-    }
-  | {
       command: "CMD_BACKGROUND_PAGE_PREDICT_RESP";
       context: PredictResponseContext;
     }
@@ -295,10 +282,6 @@ export type Message =
       context: Record<string, never>;
     }
   | {
-      command: "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE";
-      context: Record<string, never>;
-    }
-  | {
       command: "CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT";
       context: Record<string, never>;
     }
@@ -338,16 +321,10 @@ export type Message =
   | { command: "CMD_LOCAL_AI_OPEN_SETUP"; context?: Record<string, never> }
   | { command: "CMD_LOCAL_AI_DISMISS_SETUP_OFFER"; context?: Record<string, never> };
 export type ConfigMessage = Extract<Message, { command: "CMD_BACKGROUND_PAGE_SET_CONFIG" }>;
-export type PredictRequestMessage = Extract<
-  Message,
-  { command: "CMD_BACKGROUND_PAGE_PREDICT_REQ" }
->;
 export type PredictResponseMessage = Extract<
   Message,
   { command: "CMD_BACKGROUND_PAGE_PREDICT_RESP" }
 >;
-export type ToggleActiveTabMessage = Extract<Message, { command: "CMD_TOGGLE_FT_ACTIVE_TAB" }>;
-export type TriggerActiveTabMessage = Extract<Message, { command: "CMD_TRIGGER_FT_ACTIVE_TAB" }>;
 export type ReviewActiveTabMessage = Extract<Message, { command: "CMD_REVIEW_FT_ACTIVE_TAB" }>;
 export type ContentScriptAddToDictionaryMessage = Extract<
   Message,
@@ -373,7 +350,7 @@ export interface ReviewSpellingRequestContext {
  */
 export type ReviewSpellingResponse =
   { ok: true; results: Array<string[] | null> } | { ok: false; error?: "resource-failed" };
-/** Background -> extension pages broadcast (runtime.sendMessage); not routed, not in MESSAGE_COMMANDS. */
+/** Background -> extension pages broadcast (runtime.sendMessage); not routed. */
 export interface LocalAiStatusChangedMessage {
   command: "CMD_LOCAL_AI_STATUS_CHANGED";
   context: { status: import("./contracts/localAi").LocalAiStatus };

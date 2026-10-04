@@ -4,14 +4,13 @@ import {
   reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import type { CatalogRuleId } from "../../src/core/domain/grammar/types";
-import { scan } from "./reviewHarness";
+import { review as runReview } from "./grammarTestUtils";
+import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
 // The residual pass of english/remaining.ts (plus its rows in dialects.ts, lexical.ts and
 // styleAdvice.ts). All sentences are our own.
-function review(text: string, enabledRules: readonly string[] = REVIEW_SUPPORTED_RULE_IDS) {
-  return scan(text, { enabledRules: [...enabledRules] });
-}
+const review = (text: string, enabledRules: readonly string[] = REVIEW_SUPPORTED_RULE_IDS) =>
+  runReview(text, {}, { enabledRules }).diagnostics;
 
 const positives: [CatalogRuleId, string, string][] = [
   // Fixed phrases behind scare quotes, quoted speech, a closed named example or a soft wrap.

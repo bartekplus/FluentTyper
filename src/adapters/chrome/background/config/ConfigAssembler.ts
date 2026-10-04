@@ -7,36 +7,38 @@ import type { ConfigMessage } from "@core/domain/messageTypes";
 import type { PredictionConfig } from "../PredictionOrchestrator";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { LocalAiSettingsRepository } from "@core/application/repositories/LocalAiSettingsRepository";
-import { ObservabilitySettingsRepository } from "@core/application/repositories/ObservabilitySettingsRepository";
-import { PredictorSettingsRepository } from "@core/application/repositories/PredictorSettingsRepository";
-import { resolveActiveLanguage, resolveDomainRuntimeSettings } from "./runtimeSettings";
+import { type DomainRuntimeSettings, resolveDomainRuntimeSettings } from "./runtimeSettings";
 import type { ObservabilityConfig } from "@core/domain/observability";
+import { resolveFallbackLanguage } from "@core/domain/lang";
 
 interface ConfigAssemblerOptions {
   isDevBuild: boolean;
 }
 
 interface AssembledPredictionRuntimeConfig {
-  language: string;
   predictionConfig: PredictionConfig;
-  textExpansions: Array<[string, object]>;
   observabilityConfig?: ObservabilityConfig;
+}
+
+function domainConfigOverrides(domainSettings: DomainRuntimeSettings) {
+  return {
+    lang: domainSettings.language,
+    inline_suggestion: domainSettings.inlineSuggestion,
+    preferNativeAutocomplete: domainSettings.preferNativeAutocomplete,
+    codeMode: domainSettings.codeMode,
+  };
 }
 
 export class ConfigAssembler {
   private readonly settingsManager: SettingsManager;
   private readonly coreSettingsRepository: CoreSettingsRepository;
-  private readonly predictorSettingsRepository: PredictorSettingsRepository;
   private readonly localAiSettingsRepository: LocalAiSettingsRepository;
-  private readonly observabilitySettingsRepository: ObservabilitySettingsRepository;
   private readonly options: ConfigAssemblerOptions;
 
   constructor(settingsManager: SettingsManager, options: ConfigAssemblerOptions) {
     this.settingsManager = settingsManager;
     this.coreSettingsRepository = new CoreSettingsRepository(settingsManager);
-    this.predictorSettingsRepository = new PredictorSettingsRepository(settingsManager);
     this.localAiSettingsRepository = new LocalAiSettingsRepository(settingsManager);
-    this.observabilitySettingsRepository = new ObservabilitySettingsRepository(settingsManager);
     this.options = options;
   }
 
@@ -92,20 +94,15 @@ export class ConfigAssembler {
         selectByDigit,
         horizontalSuggestions,
         extensionLanguage,
-        lang: domainSettings.language,
+        ...domainConfigOverrides(domainSettings),
         enabledLanguages,
         // As the language detector resolves it: the setting if enabled, else the first enabled.
-        fallbackLanguage: enabledLanguages.includes(fallbackLanguage)
-          ? fallbackLanguage
-          : enabledLanguages[0],
+        fallbackLanguage: resolveFallbackLanguage(fallbackLanguage, enabledLanguages),
         minWordLengthToPredict,
         showSuggestionFooter,
         showReviewButton,
         liveGrammarProposals,
         localAiReviewEnabled,
-        inline_suggestion: domainSettings.inlineSuggestion,
-        preferNativeAutocomplete: domainSettings.preferNativeAutocomplete,
-        codeMode: domainSettings.codeMode,
         enabledGrammarRules: await this.coreSettingsRepository.getEnabledGrammarRules(),
         reviewRuleOverrides: await this.coreSettingsRepository.getReviewRuleOverrides(),
         reviewLongSentenceWords: await this.coreSettingsRepository.getReviewLongSentenceWords(),
@@ -118,7 +115,6 @@ export class ConfigAssembler {
   }
 
   async assemblePredictionRuntimeConfig(): Promise<AssembledPredictionRuntimeConfig> {
-    const language = await resolveActiveLanguage(this.settingsManager);
     const [
       numSuggestions,
       minWordLengthToPredict,
@@ -129,7 +125,7 @@ export class ConfigAssembler {
       timeFormat,
       dateFormat,
       userDictionaryList,
-      predictorSettings,
+      debugPresagePredictorEnabled,
       observability,
       prefixOnlyMode,
       inlineSuggestion,
@@ -144,7 +140,7 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getTimeFormat(),
       this.coreSettingsRepository.getDateFormat(),
       this.coreSettingsRepository.getUserDictionaryList(),
-      this.predictorSettingsRepository.getSnapshot(),
+      this.coreSettingsRepository.getDebugPresagePredictorEnabled(),
       this.getObservabilityConfig(),
       this.coreSettingsRepository.getPrefixOnlyMode(),
       this.coreSettingsRepository.getInlineSuggestion(),
@@ -153,8 +149,6 @@ export class ConfigAssembler {
     const autoCapitalize = enabledGrammarRules.includes("capitalizeSentenceStart");
 
     return {
-      language,
-      textExpansions,
       observabilityConfig: observability,
       predictionConfig: {
         numSuggestions,
@@ -169,39 +163,23 @@ export class ConfigAssembler {
         dateFormat,
         userDictionaryList,
         debugPresagePredictorEnabled: this.options.isDevBuild
-          ? predictorSettings.debugPresagePredictorEnabled
+          ? debugPresagePredictorEnabled
           : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
       },
     };
   }
 
-  async resolveDomainConfigOverrides(domainURL: string): Promise<{
-    lang: string;
-    inline_suggestion: boolean;
-    preferNativeAutocomplete: boolean;
-    codeMode: boolean;
-  }> {
-    const domainSettings = await resolveDomainRuntimeSettings(this.settingsManager, domainURL);
-    return {
-      lang: domainSettings.language,
-      inline_suggestion: domainSettings.inlineSuggestion,
-      preferNativeAutocomplete: domainSettings.preferNativeAutocomplete,
-      codeMode: domainSettings.codeMode,
-    };
+  async resolveDomainConfigOverrides(
+    domainURL: string,
+  ): Promise<ReturnType<typeof domainConfigOverrides>> {
+    return domainConfigOverrides(
+      await resolveDomainRuntimeSettings(this.settingsManager, domainURL),
+    );
   }
 
   private async getObservabilityConfig(): Promise<ObservabilityConfig | undefined> {
-    if (!this.options.isDevBuild) {
-      return undefined;
-    }
-    const snapshot = await this.observabilitySettingsRepository.getSnapshot();
-    if (!snapshot) {
-      return undefined;
-    }
-    return {
-      enabled: snapshot.enabled,
-      defaultLevel: snapshot.defaultLevel,
-      moduleOverrides: snapshot.moduleOverrides,
-    };
+    return this.options.isDevBuild
+      ? this.coreSettingsRepository.getObservabilitySnapshot()
+      : undefined;
   }
 }

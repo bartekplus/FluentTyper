@@ -1,6 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS } from "../../spacingRules";
-import { isDeleteInputAction } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 
 export class SlashContextSpacingRule extends SpacingRuleShared implements GrammarRule {
@@ -22,12 +21,7 @@ export class SlashContextSpacingRule extends SpacingRuleShared implements Gramma
       return this.createEdit("/", 2);
     }
 
-    // Backspacing "A / " to "A /" must stick, or the space can never be removed.
-    if (
-      this.insertSpaceAfterAutocomplete &&
-      !isDeleteInputAction(context) &&
-      this.isSlashOperatorContext(inputStr, slashIndex)
-    ) {
+    if (this.insertSpaceAfterAutocomplete && this.isSlashOperatorContext(inputStr, slashIndex)) {
       return this.createEdit("/ ", 1);
     }
 

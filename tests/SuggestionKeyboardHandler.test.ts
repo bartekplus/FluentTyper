@@ -1,5 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
 import { createHandler, createSuggestionEntry } from "./suggestionTestUtils";
+import type { LiveGrammarProposal } from "../src/core/domain/grammar/review/liveProposalSelection";
 
 function createEvent(key: string): KeyboardEvent {
   const event = new Event("keydown", { bubbles: true, cancelable: true }) as KeyboardEvent;
@@ -146,14 +147,14 @@ describe("SuggestionKeyboardHandler", () => {
 });
 
 describe("SuggestionKeyboardHandler grammar proposals", () => {
-  const proposal = {
-    key: "k",
-    ruleId: "englishPronounVerbWhitelistAgreement" as const,
-    messageKey: "review_msg_pronoun_verb" as const,
+  const proposal: LiveGrammarProposal = {
+    ruleId: "englishPronounVerbWhitelistAgreement",
+    messageKey: "review_msg_pronoun_verb",
     start: 3,
     end: 5,
     original: "is",
     replacement: "are",
+    explanation: "Use the verb form that matches the pronoun.",
   };
 
   function setup(inlineSuggestionEnabled: boolean, suggestions: string[]) {

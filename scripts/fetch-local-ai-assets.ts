@@ -87,8 +87,6 @@ async function probe(): Promise<boolean> {
   return !drift;
 }
 
-if (import.meta.main) {
-  const clean = await probe();
-  console.log(clean ? "Registry matches the pinned revisions." : "DRIFT: update the registry.");
-  process.exit(clean ? 0 : 1);
-}
+const clean = await probe();
+console.log(clean ? "Registry matches the pinned revisions." : "DRIFT: update the registry.");
+process.exit(clean ? 0 : 1);

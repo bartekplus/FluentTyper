@@ -1,4 +1,4 @@
-# Build something useful
+# Contribute to FluentTyper
 
 [FluentTyper](README.md) / Contributing
 
@@ -47,14 +47,12 @@ Run commands from the repository root.
    - Firefox: open `about:debugging`, select **This Firefox**, then load `build/manifest.json` as a temporary add-on.
 
 Use `bun run watch` for a development build that updates when source files change.
-See [build commands](docs/agents/commands.md) for release builds, browser loading, and generated assets.
+See [build commands](docs/agents/commands.md) for release builds and generated assets.
 
 ## Keep these boundaries
 
-- Keep typed content local. Do not add telemetry or external uploads.
-- Keep core features usable offline.
-- Do not add permissions without an explicit maintainer request.
-- Preserve Chrome, Edge, and Firefox platform differences.
+Follow the [core principles](AGENTS.md#core-principles). Also:
+
 - Follow the [layer and import rules](docs/agents/architecture.md).
 - Never log reviewed text. Keep development traces out of production builds.
 
@@ -62,15 +60,7 @@ Autocomplete uses Presage. Optional Local AI belongs to Review and must not beco
 
 ## Check your change
 
-Run every baseline check before opening or updating a pull request:
-
-```sh
-bun run check
-bun run test
-bun run test:e2e
-bun run check:e2e:coverage
-```
-
+Run every [baseline check](docs/agents/testing.md#baseline-before-a-pr) before you open or update a pull request.
 Runtime changes also require the relevant Chrome, Firefox, and development suites.
 The [testing guide](docs/agents/testing.md) defines those requirements and the coverage policy.
 Every bug fix needs a regression test that fails without the fix.
@@ -113,7 +103,7 @@ Re-extract the matching archive, then repeat the test. Do not remove unrelated b
 
 ## Project foundations
 
-FluentTyper uses [Presage](https://github.com/bartekplus/presage), [Tribute](https://github.com/bartekplus/tribute), and [Fancier Settings](https://github.com/bartekplus/fancier-settings).
+FluentTyper uses [Presage](https://github.com/bartekplus/presage).
 By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE).
 
 [Report a bug](https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml) · [Suggest a feature](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml) · [Support development](https://www.buymeacoffee.com/FluentTyper)

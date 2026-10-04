@@ -1,5 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { SPACE_CHARS } from "../../spacingRules";
+import { lastNonSpaceBefore } from "./helpers/GenericRuleShared";
 
 export class TrimSpaceBeforeLineBreakRule implements GrammarRule {
   readonly id = "trimSpaceBeforeLineBreak" as const;
@@ -11,12 +11,7 @@ export class TrimSpaceBeforeLineBreakRule implements GrammarRule {
       return null;
     }
 
-    let i = text.length - 2;
-    while (i >= 0 && SPACE_CHARS.includes(text[i])) {
-      i -= 1;
-    }
-
-    const spacesBeforeNewline = text.length - 2 - i;
+    const spacesBeforeNewline = text.length - 2 - lastNonSpaceBefore(text, text.length - 1);
     if (spacesBeforeNewline <= 0) {
       return null;
     }

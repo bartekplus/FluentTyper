@@ -1,78 +1,14 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "../src/core/domain/themeDefaults";
+import { installChromeStorageMock } from "./support/chromeStorage";
 
-type StorageSnapshot = Record<string, string>;
+const originalChrome = (globalThis as { chrome?: unknown }).chrome;
 
 let importNonce = 0;
 
 function freshModulePath(path: string): string {
   importNonce += 1;
   return `${path}?bun_test_nonce_settings_alias_startup=${importNonce}`;
-}
-
-function installChromeStorageMock(seed: StorageSnapshot = {}): { storageState: StorageSnapshot } {
-  const storageState: StorageSnapshot = { ...seed };
-
-  const localGet = (
-    key: string | string[] | null,
-    callback: (result: Record<string, string>) => void,
-  ): void => {
-    setTimeout(() => {
-      if (typeof key === "string") {
-        callback({ [key]: storageState[key] });
-        return;
-      }
-      if (Array.isArray(key)) {
-        const result: Record<string, string> = {};
-        key.forEach((entry) => {
-          if (storageState[entry] !== undefined) {
-            result[entry] = storageState[entry];
-          }
-        });
-        callback(result);
-        return;
-      }
-      callback({ ...storageState });
-    }, 0);
-  };
-
-  const localSet = (values: Record<string, string>, callback?: () => void): void => {
-    setTimeout(() => {
-      Object.assign(storageState, values);
-      callback?.();
-    }, 0);
-  };
-
-  const localRemove = (key: string, callback?: () => void): void => {
-    setTimeout(() => {
-      delete storageState[key];
-      callback?.();
-    }, 0);
-  };
-
-  (globalThis as unknown as { chrome: unknown }).chrome = {
-    runtime: {
-      getManifest: () => ({ version: "test-version" }),
-      lastError: undefined,
-    },
-    i18n: {
-      getMessage: (key: string) => key,
-    },
-    storage: {
-      local: {
-        get: localGet,
-        set: localSet,
-        remove: localRemove,
-      },
-      sync: {
-        get: localGet,
-        set: localSet,
-        remove: localRemove,
-      },
-    },
-  };
-
-  return { storageState };
 }
 
 async function loadSettingsModules() {
@@ -86,6 +22,10 @@ async function loadSettingsModules() {
 }
 
 describe("settings alias startup integration", () => {
+  afterEach(() => {
+    (globalThis as { chrome?: unknown }).chrome = originalChrome;
+  });
+
   test("returns default theme settings on fresh install without seeding storage", async () => {
     const { storageState } = installChromeStorageMock();
     const { SettingsManager, CoreSettingsRepository } = await loadSettingsModules();
@@ -99,7 +39,9 @@ describe("settings alias startup integration", () => {
 
   test("does not seed canonical defaults over alias-only values", async () => {
     const { storageState } = installChromeStorageMock({
-      "store.settings.enabled": "false",
+      initialState: {
+        "store.settings.enabled": "false",
+      },
     });
     const { SettingsManager } = await loadSettingsModules();
     const settings = new SettingsManager();
@@ -110,9 +52,11 @@ describe("settings alias startup integration", () => {
 
   test("get prefers canonical value over alias and returns undefined when neither exists", async () => {
     installChromeStorageMock({
-      "store.settings.enable": "true",
-      "store.settings.enabled": "false",
-      "store.settings.tributeBgLight": '"#abc123"',
+      initialState: {
+        "store.settings.enable": "true",
+        "store.settings.enabled": "false",
+        "store.settings.tributeBgLight": '"#abc123"',
+      },
     });
     const { SettingsManager } = await loadSettingsModules();
     const settings = new SettingsManager();
@@ -125,8 +69,10 @@ describe("settings alias startup integration", () => {
 
   test("migrates alias-only startup state to canonical keys and preserves values", async () => {
     installChromeStorageMock({
-      "store.settings.enabled": "false",
-      "store.settings.tributeBgLight": '"#abc123"',
+      initialState: {
+        "store.settings.enabled": "false",
+        "store.settings.tributeBgLight": '"#abc123"',
+      },
     });
     const { SettingsManager, migrateSettingsV3, CoreSettingsRepository } =
       await loadSettingsModules();

@@ -8,7 +8,6 @@ describe("SuggestionPersonalizationService", () => {
     const service = new SuggestionPersonalizationService({
       sendMessage,
       readLastError: () => undefined,
-      createEventId: () => "accept-fixed",
     });
 
     const eventId = service.recordSuggestionAccepted({
@@ -18,12 +17,13 @@ describe("SuggestionPersonalizationService", () => {
     });
     service.recordSuggestionReverted(eventId);
 
+    expect(eventId).toMatch(/^accept-./);
     expect(sendMessage.mock.calls.map(([message]) => message)).toEqual([
       {
         command: CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT,
         context: {
           eventType: "suggestion_accepted",
-          eventId: "accept-fixed",
+          eventId,
           suggestion: "hello",
           triggerText: "hel",
           language: "en_US",
@@ -33,7 +33,7 @@ describe("SuggestionPersonalizationService", () => {
         command: CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT,
         context: {
           eventType: "suggestion_reverted",
-          eventId: "accept-fixed",
+          eventId,
         },
       },
     ]);
@@ -44,7 +44,6 @@ describe("SuggestionPersonalizationService", () => {
       sendMessage: () => {
         throw new Error("runtime unavailable");
       },
-      createEventId: () => "accept-fixed",
     });
 
     expect(() =>

@@ -1,7 +1,7 @@
 import type { ProtectedRange } from "@core/domain/grammar/review/types";
 import type { ReviewLanguageChoice } from "@core/domain/lang";
 import type { CatalogRuleId } from "@core/domain/grammar/ruleCatalog";
-import { getDeepActiveElement } from "@core/application/dom-utils";
+import { composedParent, getDeepActiveElement } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import {
   ReviewSession,
@@ -23,6 +23,7 @@ import { GutenbergReviewTarget } from "./GutenbergReviewTarget";
 import { isWordInputProxy } from "../suggestions/CodeContextResolver";
 import {
   ContentEditableReviewTarget,
+  isTextControl,
   resolveReviewTarget,
   type ReviewTargetHandle,
 } from "./ReviewTargets";
@@ -42,15 +43,15 @@ export interface ReviewControllerDependencies {
   /** A suggestion popup is showing for this editor: its Escape closes that first. */
   suggestionsOpen?(element: HTMLElement): boolean;
   addToDictionary(word: string): Promise<boolean>;
-  disableReviewRule?(ruleId: CatalogRuleId): Promise<boolean>;
+  disableReviewRule?: (ruleId: CatalogRuleId) => Promise<boolean>;
   /** Local dictionary lookups for unknown words (the extension's own Presage engine). */
   lookupSpelling?: ReviewSpellingLookup;
   /** Called when a review opens or closes (the in-field button hides for the reviewed field). */
   onActiveChange?(): void;
   /** The Google Docs adapter when this page is a Docs editor. */
   getDocsSurface(): GoogleDocsReviewSurface | null;
-  /** UI locale, or a lookup read on each use so a settings change applies at once. */
-  uiLanguage?: string | (() => string);
+  /** UI locale, read on each use so a settings change applies at once. */
+  uiLanguage(): string;
   /**
    * A Local AI provider for one review (disposed when it closes), or null when
    * the preference is off or this build/browser has no runtime for it.
@@ -59,9 +60,9 @@ export interface ReviewControllerDependencies {
   /** The persistent "Local AI corrections in Review" preference, read on settings changes. */
   aiEnabled?(): boolean;
   /** Local identification of the reviewed text's language (language setting "auto_detect"). */
-  detectLanguage?(text: string): Promise<string | null>;
+  detectLanguage?: (text: string) => Promise<string | null>;
   /** The "auto_detect" language setting resolved to an enabled language for the text. */
-  resolveAutoLanguage?(text: string): Promise<string | ReviewLanguageChoice>;
+  resolveAutoLanguage?: (text: string) => Promise<string | ReviewLanguageChoice>;
   languageRegions?: (
     text: string,
     language: string,
@@ -150,13 +151,8 @@ export class ReviewController {
     return this.active?.target.element ?? null;
   }
 
-  get isActive(): boolean {
-    return this.active !== null;
-  }
-
   private get lang(): string {
-    const uiLanguage = this.deps.uiLanguage;
-    return (typeof uiLanguage === "function" ? uiLanguage() : uiLanguage) ?? navigator.language;
+    return this.deps.uiLanguage();
   }
 
   /** Starts (or focuses) a review of the focused editor or its selection. */
@@ -240,7 +236,7 @@ export class ReviewController {
   ): void {
     const doc = target.element.ownerDocument;
     const ui = this.createUi(target);
-    target.setMeasurementRoot(ui.root);
+    target.setMeasurementRoot?.(ui.root);
     ui.placeAwayFrom(target.element.getBoundingClientRect());
 
     // ::highlight() rules live in the page stylesheet, which does not reach
@@ -260,14 +256,12 @@ export class ReviewController {
       initialScope: scope,
       onChange: (state) => this.onState(state),
       addToDictionary: (word) => this.deps.addToDictionary(word),
-      disableReviewRule:
-        this.deps.disableReviewRule && ((ruleId) => this.deps.disableReviewRule!(ruleId)),
+      disableReviewRule: this.deps.disableReviewRule,
       lookupSpelling: this.deps.lookupSpelling,
       ai,
-      detectLanguage: this.deps.detectLanguage && ((text) => this.deps.detectLanguage!(text)),
+      detectLanguage: this.deps.detectLanguage,
       languageRegions: this.deps.languageRegions,
-      resolveAutoLanguage:
-        this.deps.resolveAutoLanguage && ((text) => this.deps.resolveAutoLanguage!(text)),
+      resolveAutoLanguage: this.deps.resolveAutoLanguage,
     });
     // The preference as it is now; later changes arrive through handleOptionsChanged.
     if (this.deps.aiEnabled) session.setAiEnabled(this.deps.aiEnabled());
@@ -371,8 +365,7 @@ export class ReviewController {
           !current.isConnected ||
           (target instanceof WordReviewTarget && target.sourceChanged(session.sourceText)) ||
           (target instanceof GutenbergReviewTarget && target.sourceChanged()) ||
-          ((current.tagName === "TEXTAREA" || current.tagName === "INPUT") &&
-            (current as HTMLTextAreaElement).value !== session.sourceText);
+          (isTextControl(current) && current.value !== session.sourceText);
         if (changed) session.notifySourceChanged();
       }, SOURCE_POLL_MS);
       active.cleanup.push(() => view.clearInterval(poll));
@@ -484,7 +477,7 @@ export class ReviewController {
     const cardAlternative = previous.cardAlternativeIndex();
     const cardHadFocus = previous.cardHasFocus();
     const ui = this.createUi(active.target);
-    active.target.setMeasurementRoot(ui.root);
+    active.target.setMeasurementRoot?.(ui.root);
     ui.placeAwayFrom(active.target.element.getBoundingClientRect());
     active.ui = ui;
     active.uiLanguage = this.lang;
@@ -508,7 +501,7 @@ export class ReviewController {
     // Docs without its text runs (not rendered yet, or hidden): list only, until they appear.
     if (target instanceof GoogleDocsReviewTarget) {
       if (!target.canHighlight()) capabilityKeys.push("review_cap_docs");
-    } else if (!target.capabilities.inline) capabilityKeys.push("review_cap_no_inline");
+    }
     if (!target.capabilities.apply) capabilityKeys.push("review_cap_review_only");
     else if (!target.capabilities.bulk) {
       capabilityKeys.push("review_cap_undo_per_edit");
@@ -612,10 +605,6 @@ export class ReviewController {
     if (cardId) active.ui.updateCardAnchor(this.anchorFor(active, cardId));
   }
 
-  private diagnostic(id: string): ReviewDiagnostic | undefined {
-    return this.active?.state?.diagnostics.find((d) => d.id === id);
-  }
-
   private select(id: string | null, options: { openCard: boolean; focusList: boolean }): void {
     const active = this.active;
     if (!active) return;
@@ -624,7 +613,7 @@ export class ReviewController {
       active.ui.closeCard();
       return;
     }
-    const diagnostic = this.diagnostic(id);
+    const diagnostic = this.active?.state?.diagnostics.find((d) => d.id === id);
     if (!diagnostic) return;
     active.target.reveal(diagnostic.range);
     const anchor = this.anchorFor(active, id);
@@ -718,7 +707,6 @@ export class ReviewController {
   private paint(active: ActiveReview): void {
     const state = active.state;
     const diagnostics = state?.status === "ready" ? state.diagnostics : [];
-    if (!active.target.capabilities.inline) return;
     let blockers: DOMRect[] = [];
     if (active.target instanceof GoogleDocsReviewTarget) {
       // Docs shows runs only for an allowed extension and only for rendered
@@ -790,7 +778,7 @@ export class ReviewController {
   /** The first on-screen rectangle of a finding, or null (the card then sits by the panel). */
   private anchorFor(active: ActiveReview, id: string): DOMRect | null {
     const diagnostic = active.state?.diagnostics.find((d) => d.id === id);
-    if (!diagnostic || !active.target.capabilities.inline) return null;
+    if (!diagnostic) return null;
     const view = active.target.element.ownerDocument.defaultView!;
     const box = active.target.element.getBoundingClientRect();
     return (
@@ -828,7 +816,7 @@ export class ReviewController {
     if (!active || event.button !== 0 || active.ui.owns(event)) return;
     // A drag that selected text is a selection, not a click on a finding.
     const element = active.target.element;
-    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+    if (isTextControl(element)) {
       if (element.selectionStart !== element.selectionEnd) return;
     } else if (element.ownerDocument.getSelection()?.isCollapsed === false) {
       return;
@@ -993,7 +981,7 @@ export function reviewMountFor(element: Element | null): HTMLDialogElement | nul
 
 /** The open modal dialog holding `element` (across shadow roots), if any. */
 export function modalDialogOf(element: Element): HTMLDialogElement | null {
-  for (let node: Node | null = element; node;) {
+  for (let node: Node | null = element; node; node = composedParent(node)) {
     if (node.nodeType === 1 && (node as Element).tagName === "DIALOG") {
       const dialog = node as HTMLDialogElement;
       try {
@@ -1003,8 +991,6 @@ export function modalDialogOf(element: Element): HTMLDialogElement | null {
         if (dialog.open) return dialog;
       }
     }
-    const parent: Node | null = node.parentNode;
-    node = parent && parent.nodeType === 11 ? ((parent as ShadowRoot).host ?? null) : parent;
   }
   return null;
 }

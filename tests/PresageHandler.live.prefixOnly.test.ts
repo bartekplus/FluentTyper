@@ -1,4 +1,4 @@
-import { createLiveConfig, createLiveHandler } from "./support/presageLive";
+import { createLiveConfig, createLiveHandler, runPrediction } from "./support/presageLive";
 
 describe("PresageHandler live PREFIX_ONLY_MODE", () => {
   test("without prefix-only mode, predictions include non-prefix matches", async () => {
@@ -11,7 +11,7 @@ describe("PresageHandler live PREFIX_ONLY_MODE", () => {
       insertSpaceAfterAutocomplete: false,
     });
 
-    const result = await handler.runPrediction("heli", "", "en_US");
+    const result = await runPrediction(handler, "heli", "", "en_US");
     const words = result.predictions.map((p) => p.trim().toLowerCase());
     // Without prefix-only, spell-correction can return words not starting with "heli"
     expect(words).toContain("helicopter");
@@ -28,7 +28,7 @@ describe("PresageHandler live PREFIX_ONLY_MODE", () => {
       insertSpaceAfterAutocomplete: false,
     });
 
-    const result = await handler.runPrediction("heli", "", "en_US");
+    const result = await runPrediction(handler, "heli", "", "en_US");
     const words = result.predictions.map((p) => p.trim().toLowerCase());
     expect(words.length).toBeGreaterThan(0);
     expect(words).toContain("helicopter");
@@ -46,7 +46,7 @@ describe("PresageHandler live PREFIX_ONLY_MODE", () => {
       insertSpaceAfterAutocomplete: false,
     });
 
-    const result = await handler.runPrediction("speling", "", "en_US");
+    const result = await runPrediction(handler, "speling", "", "en_US");
     expect(result.predictions).toEqual([]);
   });
 });

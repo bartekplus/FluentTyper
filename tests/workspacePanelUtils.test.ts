@@ -1,9 +1,11 @@
-import "./setup";
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import {
+  bindRerender,
+  createRemovableList,
   createSearchInput,
   downloadBlob,
   formatLooseText,
+  replaceChildrenKeepingDisclosures,
 } from "../src/ui/options/workspacePanelUtils";
 
 describe("workspacePanelUtils", () => {
@@ -24,6 +26,32 @@ describe("workspacePanelUtils", () => {
     expect(onQuery).toHaveBeenCalledWith("mixed");
   });
 
+  test("createRemovableList adds the item on Enter in the add input", () => {
+    const onAdd = jest.fn();
+    const { toolbar } = createRemovableList({
+      searchPlaceholder: "Search",
+      query: "",
+      onQuery: () => {},
+      addPlaceholder: "Add",
+      addLabel: "Add",
+      onAdd,
+      items: [],
+      onRemove: () => {},
+      emptyText: "Empty",
+    });
+    const addInput = toolbar.querySelector<HTMLInputElement>("input:not([type=search])")!;
+    addInput.value = "word";
+
+    addInput.dispatchEvent(new window.KeyboardEvent("keydown", { key: "a", cancelable: true }));
+    expect(onAdd).not.toHaveBeenCalled();
+    const enter = new window.KeyboardEvent("keydown", { key: "Enter", cancelable: true });
+    addInput.dispatchEvent(enter);
+
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onAdd).toHaveBeenCalledWith(addInput);
+    expect(enter.defaultPrevented).toBe(true);
+  });
+
   test("downloadBlob clicks a download link and revokes the object URL after the delay", () => {
     jest.useFakeTimers();
     const originalCreate = window.URL.createObjectURL;
@@ -39,7 +67,7 @@ describe("workspacePanelUtils", () => {
       });
     try {
       const blob = new Blob(["x"], { type: "text/plain" });
-      downloadBlob(blob, "file.txt", 1500);
+      downloadBlob(blob, "file.txt");
 
       expect(createObjectURL).toHaveBeenCalledWith(blob);
       expect(clicks).toHaveLength(1);
@@ -56,12 +84,50 @@ describe("workspacePanelUtils", () => {
     }
   });
 
-  test("formatLooseText stringifies primitives and falls back otherwise", () => {
+  test.each([
+    ["a value-only set", ["change", "action"]],
+    ["a silent value-only set", ["change"]],
+    ["a set on another control", ["action"]],
+  ])("bindRerender renders one time for %s", (_label, events) => {
+    const handlers: Record<string, () => void> = {};
+    const render = jest.fn();
+    const control = {
+      addEvent(type: string, handler: () => void) {
+        handlers[type] = handler;
+      },
+    };
+    bindRerender(control, render);
+    for (const event of events) {
+      handlers[event]();
+    }
+    expect(render).toHaveBeenCalledTimes(1);
+  });
+
+  test("replaceChildrenKeepingDisclosures keeps open disclosures and the focus position", () => {
+    const build = () => {
+      const content = document.createElement("div");
+      content.innerHTML =
+        "<details><summary>A</summary></details><button>1</button><button>2</button>";
+      return content;
+    };
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    root.appendChild(build());
+    root.querySelector("details")!.open = true;
+    root.querySelectorAll("button")[1].focus();
+
+    replaceChildrenKeepingDisclosures(root, build);
+
+    expect(root.querySelector("details")!.open).toBe(true);
+    expect(document.activeElement).toBe(root.querySelectorAll("button")[1]);
+  });
+
+  test("formatLooseText stringifies primitives and gives an empty string otherwise", () => {
     expect(formatLooseText("a")).toBe("a");
     expect(formatLooseText(3)).toBe("3");
     expect(formatLooseText(false)).toBe("false");
     expect(formatLooseText(10n)).toBe("10");
-    expect(formatLooseText(null, "n/a")).toBe("n/a");
+    expect(formatLooseText(null)).toBe("");
     expect(formatLooseText({})).toBe("");
   });
 });

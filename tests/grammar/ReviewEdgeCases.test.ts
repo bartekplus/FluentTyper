@@ -7,7 +7,7 @@ import {
 import { namedExampleBefore } from "../../src/core/domain/grammar/review/exampleCues";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
-import { scan } from "./reviewHarness";
+import { review as runReview } from "./grammarTestUtils";
 
 // Generic conditions (casing, apostrophes, offsets, boundaries, punctuation,
 // markup, quotes, overlaps, line breaks) around existing native Review rules.
@@ -31,7 +31,7 @@ const enabledRules = reviewRuleIds({
 });
 
 function review(text: string): ReviewDiagnostic[] {
-  const diagnostics = scan(text, { enabledRules });
+  const diagnostics = runReview(text, {}, { enabledRules }).diagnostics;
   for (const d of diagnostics) expect(d.original).toBe(text.slice(d.range.start, d.range.end));
   return diagnostics;
 }

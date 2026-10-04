@@ -1,5 +1,5 @@
 import type { PreparedReview } from "../reviewDiagnostics";
-import { isGraphemeBoundary } from "../textRanges";
+import { isGraphemeBoundary, isLowSurrogate, mergeRanges, rangesOverlap } from "../textRanges";
 import type { ProtectedRange, TextRange } from "../types";
 import { MAX_AI_SEGMENTS } from "./parse";
 import type {
@@ -14,7 +14,6 @@ import type {
 
 export interface AiChunkOptions {
   mode: ReviewAiMode;
-  style: ConcreteRewriteStyle | null;
   /** Editable characters per chunk (conservative pre-check before the runtime's token budget). */
   maxChunkChars?: number;
   /** Correct only: disable for models evaluated with one sentence per request. */
@@ -41,6 +40,7 @@ const REWRITE_TOTAL_CHARS = 2_000;
 const MAX_INLINE_CODE_CHARS = 100;
 
 const LINE_BREAK = /\r\n|[\n\r\u2028\u2029]/g;
+export const LINE_BREAK_CHAR = /[\r\n\u2028\u2029]/;
 const WORD_CHAR = /[\p{L}\p{M}\p{N}_'’-]/u;
 /** Placeholder brackets; prose containing them is never sent (a model token could not be told apart). */
 const PLACEHOLDER_BRACKET = /[⟦⟧]/;
@@ -112,9 +112,9 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
         const pieceHolders = inside.filter(
           (range) => range.start >= piece.start && range.end <= piece.end,
         );
-        const literal = literalText(source, piece, pieceHolders);
+        const literal = withHolders(source, piece, pieceHolders, () => " ");
         if (PLACEHOLDER_BRACKET.test(literal)) {
-          skipped.unsafe += piece.end - piece.start;
+          skipped.unsafe += textLength({ range: piece, placeholders: pieceHolders });
           continue;
         }
         // Nothing to proofread (numbers, symbols, placeholders only).
@@ -130,7 +130,7 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
     rewrite &&
     (sendable > totalChars || drafts.some((draft) => draftLength(draft) > chunkChars))
   ) {
-    skipped.limit += sendable;
+    skipped.limit += drafts.reduce((sum, draft) => sum + textLength(draft), 0);
     return { chunks: [], skipped };
   }
 
@@ -164,7 +164,7 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
   for (const [index, draft] of drafts.entries()) {
     const length = draftLength(draft);
     if (length > chunkChars || sent + length > totalChars) {
-      skipped.limit += length;
+      skipped.limit += textLength(draft);
       continue;
     }
     if (
@@ -202,7 +202,7 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
       return {
         id: `s${index}`,
         range: { ...draft.range },
-        text: segmentText(source, draft.range, holders),
+        text: withHolders(source, draft.range, draft.placeholders, (index) => holders[index].token),
         placeholders: holders,
       };
     });
@@ -217,7 +217,7 @@ export function buildAiChunks(prepared: PreparedReview, options: AiChunkOptions)
       "before",
     );
     const contextAfter = readableContext(prepared, range.end, range.end + CONTEXT_CHARS, "after");
-    return { segments, contextBefore, contextAfter, range };
+    return { segments, contextBefore, contextAfter };
   });
   return { chunks, skipped };
 }
@@ -243,7 +243,7 @@ function classifyProtected(prepared: PreparedReview): {
     } else if (
       range.reason === "code" &&
       range.end - range.start <= MAX_INLINE_CODE_CHARS &&
-      !/[\r\n\u2028\u2029]/.test(text)
+      !LINE_BREAK_CHAR.test(text)
     ) {
       candidates.push(range);
     } else {
@@ -251,44 +251,21 @@ function classifyProtected(prepared: PreparedReview): {
     }
   }
   const placeholders: TextRange[] = [];
-  for (const range of mergeRanges(candidates)) {
+  for (const range of mergeRanges(candidates, true)) {
     const inScope = range.start >= scope.start && range.end <= scope.end;
-    if (!inScope || blocking.some((block) => block.start < range.end && range.start < block.end)) {
+    if (!inScope || blocking.some((block) => rangesOverlap(block, range))) {
       blocking.push({ ...range, reason: "technical" });
     } else {
       placeholders.push(range);
     }
   }
-  blocking.sort((a, b) => a.start - b.start);
-  return { blocking: mergeBlocking(blocking), placeholders };
-}
-
-function mergeRanges(ranges: TextRange[]): TextRange[] {
-  const sorted = [...ranges].sort((a, b) => a.start - b.start);
-  const merged: TextRange[] = [];
-  for (const range of sorted) {
-    const last = merged[merged.length - 1];
-    if (last && range.start <= last.end) last.end = Math.max(last.end, range.end);
-    else merged.push({ start: range.start, end: range.end });
-  }
-  return merged;
-}
-
-/** Overlapping boundaries merge (counted once); the first range's reason wins. */
-function mergeBlocking(ranges: ProtectedRange[]): ProtectedRange[] {
-  const merged: ProtectedRange[] = [];
-  for (const range of ranges) {
-    const last = merged[merged.length - 1];
-    if (last && range.start < last.end) last.end = Math.max(last.end, range.end);
-    else merged.push({ ...range });
-  }
-  return merged;
+  return { blocking: mergeRanges(blocking, false), placeholders };
 }
 
 /** The UTF-16 unit at `index` belongs to a word character (either half of a pair counts). */
 function isWordAt(source: string, index: number): boolean {
   const code = source.charCodeAt(index);
-  const start = code >= 0xdc00 && code <= 0xdfff && index > 0 ? index - 1 : index;
+  const start = isLowSurrogate(code) && index > 0 ? index - 1 : index;
   return WORD_CHAR.test(String.fromCodePoint(source.codePointAt(start) ?? 0));
 }
 
@@ -386,33 +363,35 @@ function splitLong(
   return pieces;
 }
 
-/** Segment text with placeholder ranges removed (for checks before tokens exist). */
-function literalText(source: string, range: TextRange, holders: readonly TextRange[]): string {
+/** The text of `range` with the placeholder range at each index replaced by `token(index)`. */
+function withHolders(
+  source: string,
+  range: TextRange,
+  holders: readonly TextRange[],
+  token: (index: number) => string,
+): string {
   const parts: string[] = [];
   let cursor = range.start;
-  for (const holder of holders) {
-    parts.push(source.slice(cursor, holder.start), " ");
+  holders.forEach((holder, index) => {
+    parts.push(source.slice(cursor, holder.start), token(index));
     cursor = holder.end;
-  }
+  });
   parts.push(source.slice(cursor, range.end));
   return parts.join("");
 }
 
-function segmentText(source: string, range: TextRange, holders: readonly AiPlaceholder[]): string {
-  const parts: string[] = [];
-  let cursor = range.start;
-  for (const holder of holders) {
-    parts.push(source.slice(cursor, holder.range.start), holder.token);
-    cursor = holder.range.end;
-  }
-  parts.push(source.slice(cursor, range.end));
-  return parts.join("");
+/**
+ * Snapshot characters of a draft outside its placeholders (placeholder characters count
+ * as protected).
+ */
+function textLength(draft: SegmentDraft): number {
+  const hidden = draft.placeholders.reduce((sum, range) => sum + range.end - range.start, 0);
+  return draft.range.end - draft.range.start - hidden;
 }
 
 /** Characters a draft costs in a request (placeholders count as a short token). */
 function draftLength(draft: SegmentDraft): number {
-  const hidden = draft.placeholders.reduce((sum, range) => sum + range.end - range.start, 0);
-  return draft.range.end - draft.range.start - hidden + draft.placeholders.length * 4;
+  return textLength(draft) + draft.placeholders.length * 4;
 }
 
 /**
@@ -459,20 +438,6 @@ function readableContext(
     .replace(/\r\n?/g, "\n")
     .replace(/…(?:\s*…)+/g, "…")
     .trim();
-}
-
-/** Deterministic 53-bit string hash (cyrb53), base 36. Session-local keys and ids only. */
-export function hashText(value: string): string {
-  let h1 = 0xdeadbeef;
-  let h2 = 0x41c6ce57;
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    h1 = Math.imul(h1 ^ code, 2654435761);
-    h2 = Math.imul(h2 ^ code, 1597334677);
-  }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
 /** The wire request for one chunk: text only, no offsets. */

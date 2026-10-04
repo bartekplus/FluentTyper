@@ -1,4 +1,5 @@
 import type { LocalAiStatus } from "@core/domain/contracts/localAi";
+import { baseLanguage } from "@core/domain/lang";
 import { localAiModelForTier } from "@core/domain/localAi/modelRegistry";
 import type {
   AiGenerationOutcome,
@@ -8,7 +9,7 @@ import type {
   RewriteStyle,
   AiRejectionReason,
 } from "@core/domain/grammar/review/ai/types";
-import { applyEdits, rangesOverlap } from "@core/domain/grammar/review/textRanges";
+import { applyEdits, rangesOverlap, sameEdit } from "@core/domain/grammar/review/textRanges";
 import type { ReviewDiagnostic, ReviewEdit } from "@core/domain/grammar/review/types";
 
 /**
@@ -137,8 +138,10 @@ export function reviewAiAvailability(
   if (status.runtime === "unavailable" || status.unavailable) return "unsupported";
   // Only evaluated languages: elsewhere a small model damages text (docs/local-ai-evaluation.md).
   // "auto_detect" means the session is still identifying the text's language (AI waits).
-  const base = lang.slice(0, 2).toLowerCase();
-  if (lang !== "auto_detect" && !localAiModelForTier(status.tier).languages.includes(base)) {
+  if (
+    lang !== "auto_detect" &&
+    !localAiModelForTier(status.tier).languages.includes(baseLanguage(lang))
+  ) {
     return "language";
   }
   if (!status.consented) return "setup-needed";
@@ -149,7 +152,7 @@ export function reviewAiAvailability(
   return paused ? "paused" : "ready";
 }
 
-function editsOf(diagnostic: ReviewDiagnostic): ReviewEdit[] {
+export function editsOf(diagnostic: ReviewDiagnostic): ReviewEdit[] {
   return diagnostic.alternatives[0]?.edits ?? [];
 }
 
@@ -159,12 +162,7 @@ export function sameChange(a: ReviewDiagnostic, b: ReviewDiagnostic): boolean {
   return a.alternatives.some(
     (alternative) =>
       alternative.edits.length === edits.length &&
-      alternative.edits.every(
-        (edit, index) =>
-          edit.start === edits[index].start &&
-          edit.end === edits[index].end &&
-          edit.replacement === edits[index].replacement,
-      ),
+      alternative.edits.every((edit, index) => sameEdit(edit, edits[index])),
   );
 }
 

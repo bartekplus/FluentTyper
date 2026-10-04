@@ -1,6 +1,10 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { PUNCTUATION_EQUIVALENTS, SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
-import { shouldSkipGenericReplacement, splitTrailingSpaces } from "./helpers/GenericRuleShared";
+import { PUNCTUATION_EQUIVALENTS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
+import {
+  lastNonSpaceBefore,
+  shouldSkipGenericReplacement,
+  splitTrailingSpaces,
+} from "./helpers/GenericRuleShared";
 
 export class DuplicatePunctuationCollapseRule implements GrammarRule {
   readonly id = "duplicatePunctuationCollapse" as const;
@@ -17,41 +21,11 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
   ]);
   apply(context: GrammarContext): GrammarEdit | null {
     const input = context.beforeCursor;
-    if (input.length < 2) {
-      return null;
-    }
-
     return (
-      this.resolveImmediateDuplicate(input) ??
       this.resolveSpacedTrailingDuplicate(input) ??
-      this.resolveTrailingDuplicateBeforeSpace(input) ??
+      this.resolveTrailingDuplicate(input) ??
       this.resolveTrailingDoublePeriod(input)
     );
-  }
-
-  private resolveImmediateDuplicate(input: string): GrammarEdit | null {
-    const last = input.charAt(input.length - 1);
-    if (!DuplicatePunctuationCollapseRule.COLLAPSIBLE_PUNCTUATION.has(last)) {
-      return null;
-    }
-
-    const runLength = this.measureTrailingRunLength(input, last);
-    if (runLength < 2) {
-      return null;
-    }
-
-    const runStart = input.length - runLength;
-    const leadingSpaceCount = this.measureLeadingSpaceBefore(input, runStart);
-    const prefix = input.slice(0, runStart - leadingSpaceCount);
-    if (shouldSkipGenericReplacement(prefix)) {
-      return null;
-    }
-
-    return {
-      replacement: last,
-      deleteBackwards: leadingSpaceCount + runLength,
-      deleteForwards: 0,
-    };
   }
 
   private resolveSpacedTrailingDuplicate(input: string): GrammarEdit | null {
@@ -61,20 +35,14 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
       return null;
     }
 
-    let spaceRunStart = lastIndex - 1;
-    while (spaceRunStart >= 0 && SPACING_OR_FILLER_CHARS.includes(input.charAt(spaceRunStart))) {
-      spaceRunStart -= 1;
-    }
+    const spaceRunStart = lastNonSpaceBefore(input, lastIndex, SPACING_OR_FILLER_CHARS);
 
     const spaceRunLength = lastIndex - 1 - spaceRunStart;
     if (spaceRunLength <= 0) {
       return null;
     }
 
-    let runStart = spaceRunStart;
-    while (runStart >= 0 && input.charAt(runStart) === last) {
-      runStart -= 1;
-    }
+    const runStart = lastNonSpaceBefore(input, spaceRunStart + 1, [last]);
     const duplicateRunLength = spaceRunStart - runStart;
     if (duplicateRunLength <= 0) {
       return null;
@@ -96,21 +64,17 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
     };
   }
 
-  private resolveTrailingDuplicateBeforeSpace(input: string): GrammarEdit | null {
+  private resolveTrailingDuplicate(input: string): GrammarEdit | null {
     const { core, trailingSpaces: trailingSpacing } = splitTrailingSpaces(
       input,
       SPACING_OR_FILLER_CHARS,
     );
-    if (trailingSpacing.length === 0 || core.length < 2) {
-      return null;
-    }
-
     const last = core.charAt(core.length - 1);
     if (!DuplicatePunctuationCollapseRule.COLLAPSIBLE_PUNCTUATION.has(last)) {
       return null;
     }
 
-    const runLength = this.measureTrailingRunLength(core, last);
+    const runLength = splitTrailingSpaces(core, [last]).trailingSpaces.length;
     if (runLength < 2) {
       return null;
     }
@@ -129,14 +93,6 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
     };
   }
 
-  private measureTrailingRunLength(input: string, ch: string): number {
-    let i = input.length - 1;
-    while (i >= 0 && input.charAt(i) === ch) {
-      i -= 1;
-    }
-    return input.length - 1 - i;
-  }
-
   private collapseSeparatedSpacing(spacingRun: string): string {
     if (spacingRun.includes(" ")) {
       return " ";
@@ -148,7 +104,7 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
   }
 
   private measureLeadingSpaceBefore(input: string, index: number): number {
-    return splitTrailingSpaces(input.slice(0, index), SPACE_CHARS).trailingSpaces.length;
+    return splitTrailingSpaces(input.slice(0, index)).trailingSpaces.length;
   }
 
   private resolveTrailingDoublePeriod(input: string): GrammarEdit | null {

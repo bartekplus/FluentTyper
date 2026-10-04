@@ -1,8 +1,5 @@
-import "./setup";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { Settings } from "luxon";
-import type { Store } from "../src/core/application/storage/Store.js";
-import type { SettingsRegistry } from "../src/ui/settings-engine/SettingsEngine.js";
 import { TextAssetsPanel } from "../src/ui/options/TextAssetsPanel.js";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 import {
@@ -11,84 +8,41 @@ import {
   KEY_TIME_FORMAT,
   KEY_USER_DICTIONARY_LIST,
 } from "../src/core/domain/constants";
+import { memorySettings } from "./support/fakeSettings";
+import {
+  fakeRegistry,
+  findButtonByText,
+  flushAsyncWork,
+  type SettingsMap,
+} from "./support/settingsFakes";
 
-type SettingsMap = Record<string, unknown>;
-type FileReaderCtor = typeof FileReader;
-
-class MockControl {
-  private readonly handlers: Record<string, Array<(value: unknown) => void>> = {};
-  private value: unknown;
-  private readonly onSet: (value: unknown) => void;
-
-  constructor(value: unknown, onSet: (value: unknown) => void) {
-    this.value = value;
-    this.onSet = onSet;
-  }
-
-  addEvent(type: string, fn: (value: unknown) => void): void {
-    this.handlers[type] = [...(this.handlers[type] || []), fn];
-  }
-
-  get(): unknown {
-    return this.value;
-  }
-
-  set(value: unknown, silent = false): this {
-    this.value = value;
-    this.onSet(value);
-    (this.handlers.change || []).forEach((handler) => handler(value));
-    if (!silent) {
-      (this.handlers.action || []).forEach((handler) => handler(value));
-    }
-    return this;
-  }
+/** Chooses a file that holds text in the file input that accepts accept. */
+async function importFile(root: HTMLElement, accept: string, text: string): Promise<void> {
+  const input = root.querySelector<HTMLInputElement>(`input[type="file"][accept="${accept}"]`)!;
+  Object.defineProperty(input, "files", {
+    configurable: true,
+    value: [new File([text], `import${accept}`)],
+  });
+  input.dispatchEvent(new Event("input"));
+  await flushAsyncWork();
 }
 
-function createStore(values: SettingsMap): Store {
-  return {
-    get(name: string) {
-      return Promise.resolve(values[name]);
-    },
-    set(name: string, value: unknown) {
-      values[name] = value;
-      return Promise.resolve();
-    },
-  } as Store;
-}
-
-function createRegistry(initialValues: SettingsMap): SettingsRegistry {
-  return {
-    [KEY_TEXT_EXPANSIONS]: new MockControl(initialValues[KEY_TEXT_EXPANSIONS], (value) => {
-      initialValues[KEY_TEXT_EXPANSIONS] = value;
-    }),
-    [KEY_USER_DICTIONARY_LIST]: new MockControl(
-      initialValues[KEY_USER_DICTIONARY_LIST],
-      (value) => {
-        initialValues[KEY_USER_DICTIONARY_LIST] = value;
-      },
-    ),
-    [KEY_DATE_FORMAT]: new MockControl(initialValues[KEY_DATE_FORMAT], (value) => {
-      initialValues[KEY_DATE_FORMAT] = value;
-    }),
-    [KEY_TIME_FORMAT]: new MockControl(initialValues[KEY_TIME_FORMAT], (value) => {
-      initialValues[KEY_TIME_FORMAT] = value;
-    }),
-  } as unknown as SettingsRegistry;
-}
-
-async function flushAsyncWork(): Promise<void> {
-  await Promise.resolve();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-function findButtonByText(root: HTMLElement, text: string): HTMLButtonElement {
-  const button = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find((entry) =>
-    entry.textContent?.includes(text),
-  );
-  if (!button) {
-    throw new Error(`Button with text "${text}" not found`);
-  }
-  return button;
+/** registryOverrides gives the registry its own copy of the values, so it differs from the store. */
+async function mount(overrides: SettingsMap = {}, registryOverrides?: SettingsMap) {
+  const store = memorySettings({
+    [KEY_TEXT_EXPANSIONS]: [],
+    [KEY_USER_DICTIONARY_LIST]: [],
+    [KEY_DATE_FORMAT]: "",
+    [KEY_TIME_FORMAT]: "",
+    ...overrides,
+  });
+  const values = store.store;
+  const root = document.createElement("div");
+  document.body.appendChild(root);
+  const registryValues = registryOverrides ? { ...values, ...registryOverrides } : values;
+  new TextAssetsPanel(root, fakeRegistry(registryValues), store as never);
+  await flushAsyncWork();
+  return { root, values };
 }
 
 describe("TextAssetsPanel", () => {
@@ -97,24 +51,141 @@ describe("TextAssetsPanel", () => {
   });
 
   afterEach(() => {
-    document.body.replaceChildren();
     Settings.now = () => Date.now();
   });
 
-  test("allows saving multiple snippets with the same shortcut", async () => {
-    const values: SettingsMap = {
-      [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]],
-      [KEY_USER_DICTIONARY_LIST]: [],
-      [KEY_DATE_FORMAT]: "",
-      [KEY_TIME_FORMAT]: "",
-    };
-    const store = createStore(values);
-    const registry = createRegistry(values);
-    const root = document.createElement("div");
-    document.body.appendChild(root);
+  test("search boxes keep their input and filter only their list", async () => {
+    const { root } = await mount({
+      [KEY_TEXT_EXPANSIONS]: [
+        ["brb", "be right back"],
+        ["omw", "on my way"],
+      ],
+      [KEY_USER_DICTIONARY_LIST]: ["alpha", "beta"],
+    });
+    const [snippetSearch, wordSearch] =
+      root.querySelectorAll<HTMLInputElement>('input[type="search"]');
 
-    new TextAssetsPanel(root, registry, store);
+    snippetSearch.value = "om";
+    snippetSearch.dispatchEvent(new Event("input"));
+    wordSearch.value = "be";
+    wordSearch.dispatchEvent(new Event("input"));
+
+    expect(snippetSearch.isConnected && wordSearch.isConnected).toBe(true);
+    const names = (selector: string) =>
+      Array.from(root.querySelectorAll(selector), (element) => element.textContent);
+    expect(names(".text-assets-list-item strong")).toEqual(["omw"]);
+    expect(names(".domain-table-name")).toEqual(["beta"]);
+  });
+
+  test("an empty list and a search with no match show different text", async () => {
+    const message = (root: HTMLElement) => root.querySelector(".text-assets-list p")?.textContent;
+    const empty = await mount();
+    expect(message(empty.root)).toBe(i18n.get("text_assets_empty"));
+
+    const { root } = await mount({ [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]] });
+    const search = root.querySelector<HTMLInputElement>('input[type="search"]')!;
+    search.value = "zzz";
+    search.dispatchEvent(new Event("input"));
+    expect(message(root)).toBe(i18n.get("text_assets_no_snippets"));
+  });
+
+  test.each([
+    ["the first Clear words click", "clear_dict_btn"],
+    ["Add words", "text_assets_add_words"],
+  ])("%s keeps the open bulk disclosure open", async (_label, buttonKey) => {
+    const { root } = await mount({ [KEY_USER_DICTIONARY_LIST]: ["alpha"] });
+    const bulk = () => root.querySelectorAll("details")[0];
+    bulk().open = true;
+    const textarea = bulk().querySelector("textarea")!;
+    textarea.value = "beta";
+    textarea.dispatchEvent(new Event("input"));
+
+    findButtonByText(root, i18n.get(buttonKey)).click();
     await flushAsyncWork();
+
+    expect(bulk().open).toBe(true);
+  });
+
+  test("a date format change keeps Dynamic variables open and keeps the input", async () => {
+    const { root, values } = await mount();
+    const variables = () => root.querySelectorAll("details")[1];
+    variables().open = true;
+    const input = root.querySelector<HTMLInputElement>(
+      `input[placeholder="${i18n.get("custom_date_format_label")}"]`,
+    )!;
+
+    input.value = "yyyy";
+    input.dispatchEvent(new Event("change"));
+
+    expect(values[KEY_DATE_FORMAT]).toBe("yyyy");
+    expect(variables().open).toBe(true);
+    expect(input.isConnected).toBe(true);
+  });
+
+  test.each<[string, string, string, (root: HTMLElement) => Promise<void> | void]>([
+    [
+      "typing a shortcut",
+      "text_assets_delete_snippet",
+      "text_assets_delete_snippet_confirm",
+      (root) => {
+        const shortcut = root.querySelector<HTMLInputElement>(".text-assets-editor input")!;
+        shortcut.value = "brb2";
+        shortcut.dispatchEvent(new Event("input"));
+      },
+    ],
+    [
+      "a variable chip click",
+      "text_assets_delete_snippet",
+      "text_assets_delete_snippet_confirm",
+      (root) => root.querySelector<HTMLButtonElement>(".variable-chip")!.click(),
+    ],
+    [
+      "a CSV import",
+      "text_assets_delete_snippet",
+      "text_assets_delete_snippet_confirm",
+      (root) => importFile(root, ".csv", "sig,signature"),
+    ],
+    [
+      "typing bulk words",
+      "clear_dict_btn",
+      "text_assets_clear_words_confirm",
+      (root) => {
+        const textarea = root.querySelector<HTMLTextAreaElement>("details textarea")!;
+        textarea.value = "x";
+        textarea.dispatchEvent(new Event("input"));
+      },
+    ],
+  ])("%s after the first click cancels the armed action", async (_label, arm, confirm, edit) => {
+    const { root, values } = await mount({
+      [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]],
+      [KEY_USER_DICTIONARY_LIST]: ["alpha"],
+    });
+    findButtonByText(root, i18n.get(arm)).click();
+    expect(root.textContent).toContain(i18n.get(confirm));
+
+    await edit(root);
+    await flushAsyncWork();
+
+    expect(root.textContent).not.toContain(i18n.get(confirm));
+    // The next click only arms the action again.
+    findButtonByText(root, i18n.get(arm)).click();
+    expect(values[KEY_TEXT_EXPANSIONS]).not.toEqual([]);
+    expect(values[KEY_USER_DICTIONARY_LIST]).toEqual(["alpha"]);
+  });
+
+  test("Save with an empty shortcut adds no hidden row", async () => {
+    const { root, values } = await mount();
+
+    findButtonByText(root, i18n.get("text_assets_save_snippet")).click();
+    findButtonByText(root, i18n.get("site_profiles_cancel_btn")).click();
+    await flushAsyncWork();
+
+    expect(root.querySelectorAll(".text-assets-list-item")).toHaveLength(0);
+    expect(values[KEY_TEXT_EXPANSIONS]).toEqual([]);
+  });
+
+  test("allows saving multiple snippets with the same shortcut", async () => {
+    const { root, values } = await mount({ [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]] });
 
     findButtonByText(root, i18n.get("text_assets_new_snippet")).click();
 
@@ -146,79 +217,20 @@ describe("TextAssetsPanel", () => {
   });
 
   test("csv import deduplicates exact snippet pairs while keeping same-shortcut variants", async () => {
-    const values: SettingsMap = {
-      [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]],
-      [KEY_USER_DICTIONARY_LIST]: [],
-      [KEY_DATE_FORMAT]: "",
-      [KEY_TIME_FORMAT]: "",
-    };
-    const store = createStore(values);
-    const registry = createRegistry(values);
-    const root = document.createElement("div");
-    document.body.appendChild(root);
+    const { root, values } = await mount({ [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]] });
+    const csv = "brb,be right back\nsig,first import\nsig,first import\nsig,second import";
+    await importFile(root, ".csv", csv);
+    await importFile(root, ".csv", csv);
 
-    const originalFileReader = globalThis.FileReader as FileReaderCtor;
-    class MockFileReader {
-      public result: string | ArrayBuffer | null = null;
-      private readonly handlers: Record<string, Array<() => void>> = {};
-
-      addEventListener(type: string, handler: () => void): void {
-        this.handlers[type] = [...(this.handlers[type] || []), handler];
-      }
-
-      readAsText(): void {
-        this.result = "brb,be right back\nsig,first import\nsig,first import\nsig,second import";
-        for (const handler of this.handlers.load || []) {
-          handler();
-        }
-      }
-    }
-    Object.assign(globalThis, {
-      FileReader: MockFileReader as unknown as FileReaderCtor,
-    });
-
-    try {
-      new TextAssetsPanel(root, registry, store);
-      await flushAsyncWork();
-
-      const importInput = root.querySelector<HTMLInputElement>('input[type="file"][accept=".csv"]');
-      expect(importInput).not.toBeNull();
-      Object.defineProperty(importInput!, "files", {
-        configurable: true,
-        value: [new File(["ignored"], "snippets.csv", { type: "text/csv" })],
-      });
-
-      importInput!.dispatchEvent(new Event("input", { bubbles: true }));
-      await flushAsyncWork();
-      importInput!.dispatchEvent(new Event("input", { bubbles: true }));
-      await flushAsyncWork();
-
-      expect(values[KEY_TEXT_EXPANSIONS]).toEqual([
-        ["brb", "be right back"],
-        ["sig", "first import"],
-        ["sig", "second import"],
-      ]);
-    } finally {
-      Object.assign(globalThis, {
-        FileReader: originalFileReader,
-      });
-    }
+    expect(values[KEY_TEXT_EXPANSIONS]).toEqual([
+      ["brb", "be right back"],
+      ["sig", "first import"],
+      ["sig", "second import"],
+    ]);
   });
 
   test("keeps multiple unsaved snippet drafts independently editable", async () => {
-    const values: SettingsMap = {
-      [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]],
-      [KEY_USER_DICTIONARY_LIST]: [],
-      [KEY_DATE_FORMAT]: "",
-      [KEY_TIME_FORMAT]: "",
-    };
-    const store = createStore(values);
-    const registry = createRegistry(values);
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-
-    new TextAssetsPanel(root, registry, store);
-    await flushAsyncWork();
+    const { root } = await mount({ [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]] });
 
     findButtonByText(root, i18n.get("text_assets_new_snippet")).click();
     let shortcutInput = root.querySelector(".text-assets-editor input") as HTMLInputElement;
@@ -253,19 +265,7 @@ describe("TextAssetsPanel", () => {
   });
 
   test("bulk add deduplicates dictionary words and clear-all requires confirmation", async () => {
-    const values: SettingsMap = {
-      [KEY_TEXT_EXPANSIONS]: [],
-      [KEY_USER_DICTIONARY_LIST]: ["alpha"],
-      [KEY_DATE_FORMAT]: "",
-      [KEY_TIME_FORMAT]: "",
-    };
-    const store = createStore(values);
-    const registry = createRegistry(values);
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-
-    new TextAssetsPanel(root, registry, store);
-    await flushAsyncWork();
+    const { root, values } = await mount({ [KEY_USER_DICTIONARY_LIST]: ["alpha"] });
 
     const bulkTextarea = root.querySelectorAll("details textarea")[0] as HTMLTextAreaElement;
     bulkTextarea.value = "alpha\nbeta\nbeta\ngamma";
@@ -287,17 +287,7 @@ describe("TextAssetsPanel", () => {
   });
 
   test("adding a single dictionary word keeps the list sorted and ignores duplicates", async () => {
-    const values: SettingsMap = {
-      [KEY_TEXT_EXPANSIONS]: [],
-      [KEY_USER_DICTIONARY_LIST]: ["zeta"],
-      [KEY_DATE_FORMAT]: "",
-      [KEY_TIME_FORMAT]: "",
-    };
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-
-    new TextAssetsPanel(root, createRegistry(values), createStore(values));
-    await flushAsyncWork();
+    const { root, values } = await mount({ [KEY_USER_DICTIONARY_LIST]: ["zeta"] });
 
     const addWord = async (word: string) => {
       const input = root.querySelector<HTMLInputElement>(
@@ -314,18 +304,23 @@ describe("TextAssetsPanel", () => {
     expect(values[KEY_USER_DICTIONARY_LIST]).toEqual(["alpha", "zeta"]);
   });
 
-  test("snippet preview substitutes page variables with sample values", async () => {
-    const values: SettingsMap = {
-      [KEY_TEXT_EXPANSIONS]: [["pg", "${page_url} ${page_title} ${page_domain} ${unknown_var}"]],
-      [KEY_USER_DICTIONARY_LIST]: [],
-      [KEY_DATE_FORMAT]: "",
-      [KEY_TIME_FORMAT]: "",
-    };
-    const root = document.createElement("div");
-    document.body.appendChild(root);
+  test("Enter in the add input adds a dictionary word", async () => {
+    const { root, values } = await mount({ [KEY_USER_DICTIONARY_LIST]: [] });
+    const input = root.querySelector<HTMLInputElement>(
+      `input[placeholder="${i18n.get("text_assets_add_custom_word_placeholder")}"]`,
+    )!;
+    input.value = "alpha";
 
-    new TextAssetsPanel(root, createRegistry(values), createStore(values));
+    input.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
     await flushAsyncWork();
+
+    expect(values[KEY_USER_DICTIONARY_LIST]).toEqual(["alpha"]);
+  });
+
+  test("snippet preview substitutes page variables with sample values", async () => {
+    const { root } = await mount({
+      [KEY_TEXT_EXPANSIONS]: [["pg", "${page_url} ${page_title} ${page_domain} ${unknown_var}"]],
+    });
 
     expect(root.querySelector(".snippet-preview")?.textContent).toBe(
       "https://example.com/path Example page example.com ${unknown_var}",
@@ -333,19 +328,7 @@ describe("TextAssetsPanel", () => {
   });
 
   test("dynamic variables help links to Luxon docs and shows format examples", async () => {
-    const values: SettingsMap = {
-      [KEY_TEXT_EXPANSIONS]: [],
-      [KEY_USER_DICTIONARY_LIST]: [],
-      [KEY_DATE_FORMAT]: "",
-      [KEY_TIME_FORMAT]: "",
-    };
-    const store = createStore(values);
-    const registry = createRegistry(values);
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-
-    new TextAssetsPanel(root, registry, store);
-    await flushAsyncWork();
+    const { root } = await mount();
 
     const disclosure = Array.from(root.querySelectorAll("details")).find((entry) =>
       entry.textContent?.includes(i18n.get("dynamic_variables")),
@@ -370,19 +353,10 @@ describe("TextAssetsPanel", () => {
 
   test("snippet preview updates live when custom date and time formats change", async () => {
     Settings.now = () => new Date("2026-03-08T14:05:06.000Z").getTime();
-    const values: SettingsMap = {
-      [KEY_TEXT_EXPANSIONS]: [],
-      [KEY_USER_DICTIONARY_LIST]: [],
+    const { root } = await mount({
       [KEY_DATE_FORMAT]: "dd LLL yyyy",
       [KEY_TIME_FORMAT]: "HH:mm",
-    };
-    const store = createStore(values);
-    const registry = createRegistry(values);
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-
-    new TextAssetsPanel(root, registry, store);
-    await flushAsyncWork();
+    });
 
     findButtonByText(root, i18n.get("text_assets_new_snippet")).click();
 
@@ -412,23 +386,14 @@ describe("TextAssetsPanel", () => {
 
   test("snippet preview uses saved custom date and time formats on initial render", async () => {
     Settings.now = () => new Date("2026-03-08T14:05:06.000Z").getTime();
-    const values: SettingsMap = {
-      [KEY_TEXT_EXPANSIONS]: [["stamp", "${date} ${time}"]],
-      [KEY_USER_DICTIONARY_LIST]: [],
-      [KEY_DATE_FORMAT]: "yyyy/MM/dd",
-      [KEY_TIME_FORMAT]: "HH:mm:ss",
-    };
-    const store = createStore(values);
-    const registry = createRegistry({
-      ...values,
-      [KEY_DATE_FORMAT]: "",
-      [KEY_TIME_FORMAT]: "",
-    });
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-
-    new TextAssetsPanel(root, registry, store);
-    await flushAsyncWork();
+    const { root } = await mount(
+      {
+        [KEY_TEXT_EXPANSIONS]: [["stamp", "${date} ${time}"]],
+        [KEY_DATE_FORMAT]: "yyyy/MM/dd",
+        [KEY_TIME_FORMAT]: "HH:mm:ss",
+      },
+      { [KEY_DATE_FORMAT]: "", [KEY_TIME_FORMAT]: "" },
+    );
 
     const preview = root.querySelector(".snippet-preview") as HTMLElement;
     expect(preview.textContent).toContain("2026/03/08");

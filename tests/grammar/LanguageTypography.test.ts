@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
-import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
 import {
   CapitalizeSentenceStartRule,
@@ -10,19 +9,26 @@ import {
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
   TYPING_RULE_IDS,
-  RECOMMENDED_CURRENT_GRAMMAR_RULES,
-  TYPOGRAPHY_GRAMMAR_RULES,
+  DEFAULT_CURRENT_GRAMMAR_RULES,
 } from "../../src/core/domain/grammar/ruleCatalog";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
-import type {
-  GrammarContext,
-  GrammarEventType,
-  GrammarHints,
-} from "../../src/core/domain/grammar/types";
-import { scan } from "./reviewHarness";
+import type { GrammarHints } from "../../src/core/domain/grammar/types";
+import { review, typeText } from "./grammarTestUtils";
+import type { ReviewOptions } from "../../src/core/domain/grammar/review/types";
+
+const scan = (text: string, options: Partial<ReviewOptions>) =>
+  review(text, {}, options).diagnostics;
 
 const NBSP = " ";
 const NNBSP = " ";
+
+/** The default rules plus language-aware quotes and punctuation. */
+const TYPOGRAPHY_GRAMMAR_RULES = [
+  ...DEFAULT_CURRENT_GRAMMAR_RULES,
+  "smartQuoteNormalization",
+  "frenchPunctuationSpacing",
+  "ellipsisShortcut",
+];
 
 /** Types `input` one character at a time with the content script's triggers. */
 function type(
@@ -31,38 +37,18 @@ function type(
   measurementContext: GrammarHints["measurementContext"] = "prose",
   rules: readonly string[] = TYPOGRAPHY_GRAMMAR_RULES,
 ): string {
-  const engine = new GrammarRuleEngine();
-  for (const rule of createGrammarRuleCatalogRuntime({
-    insertSpaceAfterAutocomplete: true,
-    userDictionaryList: [],
-  }))
-    engine.registerRule(rule);
-  let context: GrammarContext = {
-    beforeCursor: "",
-    afterCursor: "",
-    hints: { lang, inputAction: "insert", measurementContext },
-  };
-  for (const char of input) {
-    context.beforeCursor += char;
-    const triggers: GrammarEventType[] = [char === " " ? "wordBoundary" : "insertChar"];
-    if (/[.!?]/.test(char)) triggers.push("wordBoundary");
-    const edit = engine.processSequence(triggers, context, [...rules]);
-    if (edit) context = applyGrammarEditToContext(context, edit);
-  }
-  return context.beforeCursor + context.afterCursor;
+  const { beforeCursor, afterCursor } = typeText(input, {
+    lang,
+    hints: { measurementContext },
+    rules,
+    sequence: true,
+    boundaries: [" "],
+    sentenceEndBoundary: true,
+  });
+  return beforeCursor + afterCursor;
 }
 
-describe("language-aware typography preset", () => {
-  test("preset adds typography rules on top of the recommended set", () => {
-    expect(TYPOGRAPHY_GRAMMAR_RULES).toEqual(
-      expect.arrayContaining([
-        ...RECOMMENDED_CURRENT_GRAMMAR_RULES,
-        "smartQuoteNormalization",
-        "frenchPunctuationSpacing",
-      ]),
-    );
-  });
-
+describe("language-aware typography rules", () => {
   test.each([
     ["en_US", "She said \"quoted text\" and 'this' too.", "She said “quoted text” and ‘this’ too."],
     ["pl_PL", "Powiedział \"cytowany tekst\" i 'to'.", "Powiedział „cytowany tekst” i «to»."],
@@ -270,7 +256,7 @@ describe("rule interactions", () => {
   });
 
   test("sentence punctuation closes up to the space bracket spacing added", () => {
-    const defaults = RECOMMENDED_CURRENT_GRAMMAR_RULES;
+    const defaults = DEFAULT_CURRENT_GRAMMAR_RULES;
     expect(type("he left (quietly). then ", "en_US", "prose", defaults)).toBe(
       "He left (quietly). Then ",
     );
@@ -280,7 +266,7 @@ describe("rule interactions", () => {
   });
 
   test("a closing straight quote overtypes its auto-closed twin after punctuation", () => {
-    const rules = [...RECOMMENDED_CURRENT_GRAMMAR_RULES, "autoBracketClose"];
+    const rules = [...DEFAULT_CURRENT_GRAMMAR_RULES, "autoBracketClose"];
     expect(type('he said "hi," ok ', "en_US", "prose", rules)).toBe('He said "hi," ok ');
     expect(type('say "" ok ', "en_US", "prose", rules)).toBe('Say "" ok ');
     expect(type("run `ls` ok ", "en_US", "prose", rules)).toBe("Run `ls` ok ");
@@ -319,7 +305,6 @@ describe("rule interactions", () => {
     const engine = new GrammarRuleEngine();
     for (const rule of createGrammarRuleCatalogRuntime({
       insertSpaceAfterAutocomplete: true,
-      userDictionaryList: [],
     }))
       engine.registerRule(rule);
     const edit = engine.processSequence(
@@ -539,13 +524,17 @@ describe("sentence starts after language abbreviations", () => {
     ["en_US", "Pay by Jan. 5 or later."],
     ["en_US", "It opens on Mar. twenty-first and closes soon."],
   ])("%s: %s", (lang, text) => {
-    const found = scan(text, { enabledRules: ["capitalizeSentenceStart"], lang });
+    const found = review(text, {}, { enabledRules: ["capitalizeSentenceStart"], lang }).diagnostics;
     expect(found).toEqual([]);
   });
 
   test("words that end sentences in their own language still do", () => {
     const text = "C'est de l'art. puis on part.";
-    const found = scan(text, { enabledRules: ["capitalizeSentenceStart"], lang: "fr_FR" });
+    const found = review(
+      text,
+      {},
+      { enabledRules: ["capitalizeSentenceStart"], lang: "fr_FR" },
+    ).diagnostics;
     expect(found.map((d) => d.original)).toEqual(["p"]);
   });
 
@@ -617,7 +606,7 @@ describe("acronym casing", () => {
 test("Review removes a space before the Greek question mark only in Greek", () => {
   const text = "Τι κάνεις ; Καλά. Ένα ; δύο.";
   const found = (lang: string) =>
-    scan(text, { enabledRules: ["commaPeriodSpacing"], lang }).map((d) => [
+    review(text, {}, { enabledRules: ["commaPeriodSpacing"], lang }).diagnostics.map((d) => [
       d.original,
       d.alternatives[0].preview,
     ]);
@@ -750,7 +739,7 @@ describe("typing capitalization after language abbreviations", () => {
 
 describe("unresolved auto-detect", () => {
   const text = "The the report is on monday, alot better. Hello , world.\n\nnext line.";
-  const found = (lang: string) => scan(text, { lang }).map((d) => d.ruleId);
+  const found = (lang: string) => review(text, {}, { lang }).diagnostics.map((d) => d.ruleId);
 
   test("runs only the language-independent rules", () => {
     const rules = new Set(found("auto_detect"));

@@ -1,6 +1,5 @@
 import { RTL_LETTER_REGEX, stripIgnoredWordChars } from "@core/domain/lang";
-import { BLOCK_TAGS } from "./ContentEditableAdapter";
-import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
+import { closestBlock, isBlockNode } from "./ContentEditableAdapter";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 
 const ENTRY_ID_ATTR = "data-ft-suggestion-entry-id";
@@ -114,7 +113,7 @@ const GHOST_FONT_PROPERTIES = [
   "textAlign",
 ] as const;
 
-function copyStyles(
+export function copyStyles(
   target: HTMLElement,
   computed: CSSStyleDeclaration,
   properties: readonly (keyof CSSStyleDeclaration & string)[],
@@ -237,7 +236,7 @@ export class InlineSuggestionView {
       }
     } else {
       // LTR run: anchor left and grow right.  Set direction explicitly —
-      // applyFontStyles copied the element's computed direction, which may be
+      // copyStyles copied the element's computed direction, which may be
       // rtl even when the run is Latin.
       ghost.style.direction = "ltr";
       ghost.style.left = `${caretRect.left}px`;
@@ -247,7 +246,7 @@ export class InlineSuggestionView {
       }
     }
 
-    resolveSuggestionOverlayRoot(doc).appendChild(ghost);
+    doc.documentElement.appendChild(ghost);
 
     // Contenteditable carets use a text Range, not a line box. Font metrics
     // and fractional leading need not split evenly above and below the text.
@@ -334,7 +333,7 @@ export class InlineSuggestionView {
 
     InlineSuggestionView.placeOver(mirror, target);
 
-    resolveSuggestionOverlayRoot(doc).appendChild(mirror);
+    doc.documentElement.appendChild(mirror);
 
     // Sync scroll after appending so the mirror is in the DOM.
     mirror.scrollTop = target.scrollTop;
@@ -380,7 +379,7 @@ export class InlineSuggestionView {
     }
 
     const range = selection.getRangeAt(0);
-    const blockElement = InlineSuggestionView.findContainingBlock(target, selection);
+    const blockElement = selection.anchorNode ? closestBlock(selection.anchorNode, target) : null;
     if (!blockElement) {
       return null;
     }
@@ -412,13 +411,13 @@ export class InlineSuggestionView {
     const path = InlineSuggestionView.getNodePath(blockElement, range.startContainer);
     const cloneTarget = InlineSuggestionView.followNodePath(mirror, path);
 
-    if (cloneTarget && cloneTarget.nodeType === Node.TEXT_NODE) {
+    if (cloneTarget.nodeType === Node.TEXT_NODE) {
       // Caret is inside a text node — split and insert.
       const textNode = cloneTarget as Text;
       const afterNode = textNode.splitText(range.startOffset);
       afterNode.parentNode!.insertBefore(suffixSpan, afterNode);
       InlineSuggestionView.stripLeadingTextChars(afterNode, mirror, trailingTokenText.length);
-    } else if (cloneTarget && cloneTarget.nodeType === Node.ELEMENT_NODE) {
+    } else if (cloneTarget.nodeType === Node.ELEMENT_NODE) {
       // Caret is on an element node (common in Lexical / ProseMirror /
       // TinyMCE when the selection sits between inline children).
       // range.startOffset is the child index where the caret sits.
@@ -435,7 +434,7 @@ export class InlineSuggestionView {
 
     InlineSuggestionView.placeOver(mirror, blockElement);
 
-    resolveSuggestionOverlayRoot(doc).appendChild(mirror);
+    doc.documentElement.appendChild(mirror);
     return mirror;
   }
 
@@ -469,10 +468,7 @@ export class InlineSuggestionView {
       return;
     }
     const doc = startNode.ownerDocument ?? document;
-    // NodeFilter.SHOW_TEXT = 0x4; use the numeric constant directly so the
-    // code stays compatible with test environments that do not expose the
-    // NodeFilter global.
-    const walker = doc.createTreeWalker(root, 0x4);
+    const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     walker.currentNode = startNode;
 
     let current: Node | null =
@@ -531,44 +527,12 @@ export class InlineSuggestionView {
   }
 
   /** Follow a child-node-index path from root, returning the target node. */
-  private static followNodePath(root: Node, path: number[]): Node | null {
+  private static followNodePath(root: Node, path: number[]): Node {
     let current: Node = root;
     for (const index of path) {
-      if (index < 0 || index >= current.childNodes.length) {
-        return null;
-      }
       current = current.childNodes[index];
     }
     return current;
-  }
-
-  /**
-   * Walk up from the selection anchor to find the nearest block-level
-   * element within the contenteditable target.
-   */
-  private static findContainingBlock(
-    target: HTMLElement,
-    selection: Selection,
-  ): HTMLElement | null {
-    let node: Node | null = selection.anchorNode;
-    if (!node) {
-      return null;
-    }
-
-    // If we start on a text node, move to its parent element.
-    if (node.nodeType === Node.TEXT_NODE) {
-      node = node.parentElement;
-    }
-
-    while (node && node !== target) {
-      if (node.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((node as Element).tagName)) {
-        return node as HTMLElement;
-      }
-      node = node.parentNode;
-    }
-
-    // No block found inside target — use target itself.
-    return target;
   }
 
   private static resolveBackgroundColor(target: HTMLElement): string {
@@ -622,12 +586,8 @@ export class InlineSuggestionView {
         selection.anchorOffset < container.childNodes.length
           ? container.childNodes[selection.anchorOffset]
           : container.childNodes[container.childNodes.length - 1];
-      if (
-        child &&
-        child.nodeType === Node.ELEMENT_NODE &&
-        BLOCK_TAGS.has((child as Element).tagName)
-      ) {
-        elem = child as HTMLElement;
+      if (isBlockNode(child)) {
+        elem = child;
       } else {
         elem = container;
       }
@@ -635,10 +595,6 @@ export class InlineSuggestionView {
 
     // Only use the resolved element if it lives inside our target.
     return elem && elem !== target && target.contains(elem) ? elem : null;
-  }
-
-  static removeAll(doc: Document = document): void {
-    InlineSuggestionView.removeForEntry(undefined, doc);
   }
 
   static removeForEntry(entryId: number | undefined, doc: Document = document): void {

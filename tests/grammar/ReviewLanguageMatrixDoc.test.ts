@@ -5,20 +5,9 @@ import {
   REVIEW_RULE_METADATA,
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
+import { MATRIX_LANGUAGES } from "./reviewLanguageFixtures/types";
 
-const COLUMNS = [
-  "en_US",
-  "fr_FR",
-  "de_DE",
-  "pl_PL",
-  "es_ES",
-  "pt_BR",
-  "sv_SE",
-  "hr_HR",
-  "el_GR",
-  "ar_SA",
-  "auto_detect",
-];
+const COLUMNS = [...MATRIX_LANGUAGES, "auto_detect"];
 const doc = readFileSync("docs/review-language-matrix.md", "utf8");
 const rows = new Map(
   [...doc.matchAll(/^\| `(\w+)`\s*\|((?:\s*[SUX]\s*\|){11})\s*(.*?)\s*\|$/gm)].map((m) => [

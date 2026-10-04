@@ -1,5 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { SPACE_CHARS } from "../../spacingRules";
+import { lastNonSpaceBefore } from "./helpers/GenericRuleShared";
 import { capitalizeCompletedWord } from "./CapitalizeSentenceStartRule";
 
 export class CapitalizeAfterLineBreakRule implements GrammarRule {
@@ -8,12 +8,9 @@ export class CapitalizeAfterLineBreakRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    return capitalizeCompletedWord(context, (text, wordStart) => {
-      let i = wordStart - 1;
-      while (i >= 0 && SPACE_CHARS.includes(text[i])) {
-        i -= 1;
-      }
-      return i >= 0 && text[i] === "\n";
-    });
+    return capitalizeCompletedWord(
+      context,
+      (text, wordStart) => text[lastNonSpaceBefore(text, wordStart)] === "\n",
+    );
   }
 }

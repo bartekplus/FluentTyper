@@ -1,20 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
 import { TYPING_RULE_CATALOG } from "../../src/core/domain/grammar/ruleCatalog";
-import type { GrammarContext } from "../../src/core/domain/grammar/types";
-
-function context(beforeCursor: string): GrammarContext {
-  return {
-    beforeCursor,
-    afterCursor: "",
-  };
-}
+import { context } from "./grammarTestUtils";
 
 describe("ruleFactory", () => {
   test("creates runtime rules in explicit catalog priority order", () => {
     const runtimeRules = createGrammarRuleCatalogRuntime({
       insertSpaceAfterAutocomplete: true,
-      userDictionaryList: [],
     });
 
     expect(runtimeRules.map((rule) => rule.id)).toEqual(
@@ -27,11 +19,9 @@ describe("ruleFactory", () => {
   test("passes insertSpaceAfterAutocomplete option into spacing-dependent rules", () => {
     const withInsert = createGrammarRuleCatalogRuntime({
       insertSpaceAfterAutocomplete: true,
-      userDictionaryList: [],
     });
     const withoutInsert = createGrammarRuleCatalogRuntime({
       insertSpaceAfterAutocomplete: false,
-      userDictionaryList: [],
     });
 
     const commaWithInsert = withInsert.find((rule) => rule.id === "commaPeriodSpacing");

@@ -2,24 +2,30 @@ import { englishInflect } from "../implementations/helpers/EnglishInflection";
 import { quotedMention } from "./english/grammarStyle1";
 import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
-import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import {
+  applyWordCase,
+  detectWordCase,
+  wordSet,
+} from "../implementations/helpers/GenericRuleShared";
+import {
+  around,
   EDGE,
+  found,
   frameMatches,
-  gluedAfter,
+  group,
   hasUserOrCasedWord,
+  plainToken,
   SPACE,
   WORD_END,
-  wordSet as words,
 } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const PRONOUN = /^(?:i|you|we|they|he|she|it)$/;
-const DETERMINERS = words(
+const DETERMINERS = wordSet(
   "the a an this that these those my your his her its our their some any every each no",
 );
 // Closed-class words: after an ambiguous past they start no noun compound ("saw that", "fell out").
-const CLOSED = words(
+const CLOSED = wordSet(
   "the a an this that these those my your his her its our their some any every each no it them " +
     "him us me you i he she we they what which who whom how why where when if whether to of in " +
     "on at by for from with into onto out up down off over under through about after before " +
@@ -30,22 +36,22 @@ const CLOSED = words(
     "throughout inside outside below above beside among during except per despite unlike once " +
     "twice",
 );
-const ADVERBS = words(
+const ADVERBS = wordSet(
   "not never already just ever really still also even only all both since then now always often sometimes seldom",
 );
 // A head the following clause can modify with an object gap: "Everything we had went into it".
-const GAP_HEADS = words(
+const GAP_HEADS = wordSet(
   "what whatever whoever whichever everything anything something nothing all",
 );
 // The lexicon does not mark these pasts as adjectives ("I am broke", "a woke reader"). Penniless
 // "broke" describes people, so a thing that "is broke" is broken.
-const ADJECTIVE_PASTS = words("broke woke");
+const ADJECTIVE_PASTS = wordSet("broke woke");
 // Pasts whose noun reading never heads an object: "has sang many songs" is not "sang songs".
-const VERB_PASTS = words("sang drove spoke");
+const VERB_PASTS = wordSet("sang drove spoke");
 const NON_PERSON = /^(?:it|its|this|that|which|what|everything|something|nothing|anything)$/;
 const PARTICLE = /^[ \t\u00a0]+(?:up|down|off|out|into|open|apart)(?![A-Za-z])/i;
 // Ambiguous pasts whose other reading (a stole, to saw) cannot stand bare after be.
-const BARE_PAST = words("stole saw");
+const BARE_PAST = wordSet("stole saw");
 // No passive: "He was went" more likely meant "went". A has-'s still takes the participle.
 const NO_PASSIVE = /^(?:arise|come|become|go|stink|swim)$/;
 const MODAL_BEFORE =
@@ -58,7 +64,7 @@ const LEADS: Readonly<Record<string, RegExp>> = {
   re: /^(?:you|we|they)$/,
   m: /^i$/,
 };
-const ADVERB = `(?:not|never|already|just|ever|really|still|also|even|only|all|both|since|then|now|always|often|sometimes|seldom|[a-z]+ly)`;
+const ADVERB = `(?:${[...ADVERBS].join("|")}|[a-z]+ly)`;
 // A chained auxiliary is not the verb, so "has been took" is still scanned from "been".
 const TAIL = `(?<adverbs>(?:${SPACE}${ADVERB}){0,2})${SPACE}(?!(?:be|been|being|have|having)${WORD_END})(?<verb>[A-Za-z]+)(?!${EDGE})`;
 // have/be in every spelling, clitics on their owner ("I'd", "it's") and dropped apostrophes.
@@ -181,10 +187,10 @@ function participleFinding(
   inverted: boolean,
 ): RawFinding | null {
   const { lead, clitic, aux, subject: inner, adverbs, verb } = m.groups!;
-  const [start, end] = m.indices!.groups!.verb;
+  const [, end] = group(m, "verb");
   const word = verb.toLowerCase();
   // Title case inside a clause is a name ("I have Drew on the line").
-  if (verb !== word && verb !== verb.toUpperCase()) return null;
+  if (!plainToken(ctx, verb)) return null;
   const past = pastOnly(word);
   if (!past) return null;
   // An -ly word between must be only an adverb ("has recently went", not "has family").
@@ -247,26 +253,24 @@ function participleFinding(
     )
       return null;
   }
-  if (gluedAfter(ctx.text, end)) return null;
   if (hasUserOrCasedWord(ctx, m[0])) return null;
   const kase = detectWordCase(verb);
   const participle = applyWordCase(past.participle, kase);
   // 'd is had (participle) or would (base): both fit, the writer picks.
   const base = key === "d" ? applyWordCase(past.lemma, kase) : participle;
   const have = /^(?:have|has|had|having|d)$/.test(key);
-  return {
-    ruleId: "englishPerfectParticiples",
-    messageKey:
-      base !== participle
-        ? "review_msg_had_or_would"
-        : have
-          ? "review_msg_perfect_participle"
-          : "review_msg_be_participle",
-    range: { start, end },
-    alternatives: base !== participle ? [participle, base] : [participle],
-    ...(base !== participle ? { requiresChoice: true } : {}),
-    context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, end + 9) },
-  };
+  return found(
+    ctx,
+    m,
+    "englishPerfectParticiples",
+    base !== participle
+      ? "review_msg_had_or_would"
+      : have
+        ? "review_msg_perfect_participle"
+        : "review_msg_be_participle",
+    base !== participle ? [participle, base] : [participle],
+    "verb",
+  );
 }
 
 /** Perfect and passive participles, the "I've looking" and "am/is/are + bare verb" frames. */
@@ -311,7 +315,6 @@ function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
       !(doing && /\bwhat[ \t\u00a0]+$/i.test(before))
     )
       continue;
-    const phraseEnd = m.index + m[0].length;
     if (hasUserOrCasedWord(ctx, m[0])) continue;
     const typed = contract ?? aux ?? bare;
     const first = /^i$/i.test(subject);
@@ -323,7 +326,7 @@ function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
     if (contract) alternatives = [cased(short), cased(`${mark}ve been`)];
     else if (bare) alternatives = [subject + cased(short), subject + cased(`${mark}ve been`)];
     else {
-      const gap = ctx.text.slice(m.indices!.groups!.subject[1], m.indices!.groups!.aux[0]);
+      const gap = ctx.text.slice(group(m, "subject")[1], group(m, "aux")[0]);
       const be = first ? "am" : singular ? "is" : "are";
       alternatives = [
         `${subject}${gap}${cased(be)}`,
@@ -337,7 +340,7 @@ function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
       range: { start, end },
       alternatives,
       requiresChoice: true,
-      context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, phraseEnd + 9) },
+      context: around(ctx, m),
     };
     // A quoted example under discussion ("She has cleaning the kitchen") is not prose.
     if (!quotedMention(ctx, finding)) findings.push(finding);
@@ -346,7 +349,7 @@ function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
 }
 
 /** The subject opens its clause, so no noun-clause opener owns it ("What it was took…"). */
-function atClauseStart(text: string, index: number): boolean {
+export function atClauseStart(text: string, index: number): boolean {
   const before = text.slice(Math.max(0, index - 96), index);
   return (
     (index <= 96 && /^[ \t\u00a0]*$/.test(before)) || /[.!?;:\n"“][ \t\u00a0]{0,8}$/.test(before)
@@ -402,12 +405,11 @@ function baseAfterBe(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, BASE, (match) => match.index)) {
     const { subject, be, neg, contract, adverbs, verb } = m.groups!;
-    const [verbStart, end] = m.indices!.groups!.verb;
+    const [verbStart, end] = group(m, "verb");
     if (!atClauseStart(ctx.text, m.index)) continue;
     if (!agrees(subject, (contract ? contract.slice(1) : be).toLowerCase())) continue;
     const lemma = verb.toLowerCase();
-    if (verb !== lemma && verb !== verb.toUpperCase()) continue;
-    if (NOT_A_VERB.has(lemma)) continue;
+    if (!plainToken(ctx, verb) || NOT_A_VERB.has(lemma)) continue;
     const after = ctx.scanText.slice(end, end + 32);
     const forms = englishVerbForms(lemma);
     if (forms) {
@@ -428,7 +430,7 @@ function baseAfterBe(ctx: DetectContext): RawFinding[] {
     if (hasUserOrCasedWord(ctx, ctx.scanText.slice(m.index, end))) continue;
     const kase = detectWordCase(verb);
     const support = applyWordCase(singular ? "does" : "do", kase);
-    const gap = ctx.source.slice(m.indices!.groups!.adverbs[1], verbStart);
+    const gap = ctx.source.slice(group(m, "adverbs")[1], verbStart);
     // Negation needs do-support: "I am not go" → "I do not go", "He isn't write" → "He doesn't write".
     const present = neg
       ? `${subject} ${support}${neg}${adverbs}`

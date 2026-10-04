@@ -1,24 +1,15 @@
 import { expect, test } from "bun:test";
-import {
-  prepareReview,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
-import type {
-  ReviewOptions,
-  ReviewSourceSnapshot,
-} from "../../src/core/domain/grammar/review/types";
-import { scan as reviewScan } from "./reviewHarness";
+import {
+  expectChunkSplitParity,
+  expectOneRepair,
+  expectReviewGuards,
+  prepared,
+  review,
+} from "./grammarTestUtils";
 const rule = "englishUsagePhrases";
-function all(
-  text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-  options: Partial<ReviewOptions> = {},
-) {
-  return reviewScan(text, { ...options, snapshot: extra });
-}
-const scan = (text: string) => all(text).filter((d) => d.ruleId === rule);
+const scan = (text: string) => review(text).diagnostics.filter((d) => d.ruleId === rule);
 const repairs: [string, string][] = [
   [
     "For all intensive purposes, the test is complete.",
@@ -94,16 +85,9 @@ const repairs: [string, string][] = [
   ["The new feature might peak their interest.", "The new feature might pique their interest."],
 ];
 test.each(repairs)("usage phrases repair %s", (source, expected) => {
-  const findings = scan(source);
-  expect(findings).toHaveLength(1);
-  const d = findings[0];
-  expect(d.original).toBe(source.slice(d.range.start, d.range.end));
-  expect(d.bulk.eligible).toBe(false);
+  const d = expectOneRepair(scan(source), source, expected, scan);
   expect(d.alternatives).toHaveLength(1);
   expect(d.context.start).toBeLessThan(d.range.start);
-  expect(d.context.end).toBeGreaterThanOrEqual(d.range.end);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
 });
 const valid = [
   "For all intents and purposes, the test is complete.",
@@ -183,14 +167,13 @@ test.each(valid)("usage phrases preserve %s", (text) => expect(scan(text)).toEqu
 test("usage phrases preserve case, tense, possessives and protected evidence", () => {
   expect(TYPING_RULE_IDS as readonly string[]).not.toContain(rule);
   for (const [text] of [repairs[0], repairs[12], repairs[24]]) {
-    const d = scan(text)[0];
-    const only = (extra: Partial<ReviewSourceSnapshot>, options: Partial<ReviewOptions> = {}) =>
-      all(text, extra, { enabledRules: [rule], ...options });
-    expect(only({}, { lang: "fr_FR" })).toEqual([]);
-    expect(only({}, { userDictionary: [d.original] })).toEqual([]);
-    expect(only({ protectedRanges: [{ ...d.range, reason: "structure" }] })).toEqual([]);
-    expect(only({ scope: { start: d.range.start + 1, end: d.range.end } })).toEqual([]);
-    expect(only({ scope: d.range })).toHaveLength(1);
+    expectReviewGuards(
+      (text, extra, options) =>
+        review(text, extra, { enabledRules: [rule], ...options }).diagnostics,
+      text,
+      scan(text)[0],
+      { protectedReason: "structure" },
+    );
     const upper = text.toUpperCase();
     const ud = scan(upper)[0];
     expect(applyEdits(upper, ud.alternatives[0].edits)).toBe(
@@ -204,21 +187,9 @@ test("usage phrases preserve case, tense, possessives and protected evidence", (
 });
 test("usage phrase offsets belong to one chunk in ordinary quoted Unicode prose", () => {
   const text = '😀 Café.\r\nShe said, "They are one in the same." That feature peaked my interest.';
-  const prepared = prepareReview(
-    { id: "chunks", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "en_US", enabledRules: [rule], userDictionary: [], insertSpaceAfterAutocomplete: true },
-  );
   const expected = scan(text);
   expect(expected).toHaveLength(2);
-  for (let cut = 1; cut < text.length; cut++) {
-    const raw = [
-      ...scanReviewChunk(prepared, { start: 0, end: cut }).findings,
-      ...scanReviewChunk(prepared, { start: cut, end: text.length }).findings,
-    ].sort((a, b) => a.range.start - b.range.start);
-    expect(raw.map((d) => [d.range, text.slice(d.range.start, d.range.end)])).toEqual(
-      expected.map((d) => [d.range, d.original]),
-    );
-  }
+  expectChunkSplitParity(prepared(text, {}, { enabledRules: [rule] }), text, expected);
 });
 
 test.each([
@@ -226,11 +197,7 @@ test.each([
   ["Few weeks ago, it broke.", "A few weeks ago, it broke."],
   ["It worked just few days ago.", "It worked just a few days ago."],
 ])("few + time + ago gains its article: %s", (source, expected) => {
-  const [d] = scan(source);
-  expect(scan(source)).toHaveLength(1);
-  expect(d.bulk.eligible).toBe(false);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
+  expectOneRepair(scan(source), source, expected, scan);
 });
 test.each([
   "It happened a few days ago.",
@@ -245,11 +212,7 @@ test.each([
   ["She doesn't need no help from us.", "She doesn't need any help from us."],
   ["We did not see no signs of it.", "We did not see any signs of it."],
 ])("a negated verb takes any, not no: %s", (source, expected) => {
-  const [d] = scan(source);
-  expect(scan(source)).toHaveLength(1);
-  expect(d.bulk.eligible).toBe(false);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
+  expectOneRepair(scan(source), source, expected, scan);
 });
 test.each([
   "We didn't take no for an answer.",
@@ -274,11 +237,7 @@ test.each([
   ["She new trouble followed us.", "She knew trouble followed us."],
   ["It new nothing.", "It knew nothing."],
 ])("a clause-initial pronoun + new + clause means knew: %s", (source, expected) => {
-  const [d] = scan(source);
-  expect(scan(source)).toHaveLength(1);
-  expect(d.bulk.eligible).toBe(false);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
+  expectOneRepair(scan(source), source, expected, scan);
 });
 test.each([
   "Am I new here?",

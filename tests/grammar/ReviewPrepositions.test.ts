@@ -1,23 +1,22 @@
 import { expect, test } from "bun:test";
-import {
-  prepareReview,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
-import { scan as reviewScan } from "./reviewHarness";
+import {
+  expectChunkSplitParity,
+  expectOneRepair,
+  expectReviewGuards,
+  prepared,
+  review,
+} from "./grammarTestUtils";
 const rule = "englishFixedPrepositions";
-function scan(
+const scan = (
   text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-  options: Partial<ReviewOptions> = {},
-) {
-  return reviewScan(text, { ...options, snapshot: extra }).filter((d) => d.ruleId === rule);
-}
+  extra?: Partial<ReviewSourceSnapshot>,
+  options?: Partial<ReviewOptions>,
+) => review(text, extra, options).diagnostics.filter((d) => d.ruleId === rule);
 const errors: [string, string][] = [
   ["Despite of the delay, we finished.", "Despite the delay, we finished."],
   ["We walked despite of the heavy rain.", "We walked despite the heavy rain."],
@@ -57,16 +56,10 @@ const errors: [string, string][] = [
   ["I am interested on your project.", "I am interested in your project."],
 ];
 test.each(errors)("fixed prepositions repair %s", (source, expected) => {
-  const findings = scan(source);
-  expect(findings).toHaveLength(1);
-  const d = findings[0];
-  expect(d.original).toBe(source.slice(d.range.start, d.range.end));
-  expect(d.bulk.eligible).toBe(false);
+  const d = expectOneRepair(scan(source), source, expected, scan);
   expect(d.alternatives[0].edits).toHaveLength(1);
   expect(d.context.start).toBeLessThan(d.range.start);
   expect(d.context.end).toBeGreaterThan(d.range.end);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
 });
 const valid = [
   "In spite of the delay, we finished.",
@@ -151,34 +144,18 @@ test("new prepositions stay isolated from typing and protected or out-of-scope e
   expect(TYPING_RULE_IDS as readonly string[]).not.toContain(rule);
   for (const [text] of [errors[0], errors[12], errors[24]]) {
     const d = scan(text)[0];
-    expect(scan(text, {}, { lang: "fr_FR" })).toEqual([]);
-    expect(scan(text, {}, { userDictionary: [d.original.trim()] })).toEqual([]);
-    expect(scan(text, { protectedRanges: [{ ...d.range, reason: "code" }] })).toEqual([]);
-    expect(scan(text, { scope: { start: d.range.start + 1, end: d.range.end } })).toEqual([]);
-    expect(scan(text, { scope: d.range })).toHaveLength(1);
-    expect(scan(text, { id: "new" })[0].id).not.toBe(d.id);
+    expectReviewGuards(scan, text, d, {
+      dictionaryWord: d.original.trim(),
+      protectedReason: "code",
+    });
   }
 });
 test("full phrase evidence owns one chunk and preserves Unicode, CRLF and ordinary quotations", () => {
   const text =
     '😀 Café.\r\nShe said, "We discussed about the release." Despite of the rain, we went out.';
-  const prepared = prepareReview(
-    { id: "chunks", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "en_US", enabledRules: [rule], userDictionary: [], insertSpaceAfterAutocomplete: true },
-  );
   const expected = scan(text);
   expect(expected).toHaveLength(2);
-  for (let cut = 1; cut < text.length; cut++) {
-    const raw = [
-      ...scanReviewChunk(prepared, { start: 0, end: cut }).findings,
-      ...scanReviewChunk(prepared, { start: cut, end: text.length }).findings,
-    ];
-    expect(
-      raw
-        .sort((a, b) => a.range.start - b.range.start)
-        .map((d) => [d.range, text.slice(d.range.start, d.range.end)]),
-    ).toEqual(expected.map((d) => [d.range, d.original]));
-  }
+  expectChunkSplitParity(prepared(text, {}, { enabledRules: [rule] }), text, expected);
   expect(scan("I am interested on learning\uFFFC Rust.")).toEqual([]);
   expect(scan("We discussed about `the release`.")).toEqual([]);
 });
@@ -189,11 +166,7 @@ test.each([
   ["Since several years, I use it.", "For several years, I use it."],
   ["It has been broken since more than 9 days.", "It has been broken for more than 9 days."],
 ])("since + a length of time becomes for: %s", (source, expected) => {
-  const [d] = scan(source);
-  expect(scan(source)).toHaveLength(1);
-  expect(d.bulk.eligible).toBe(false);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
+  expectOneRepair(scan(source), source, expected, scan);
 });
 test.each([
   "It has worked since 2019.",

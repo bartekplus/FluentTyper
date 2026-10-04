@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from "react";
+import { createElement, type ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { createEditor, type Descendant, type Editor } from "slate";
 import { withHistory, type HistoryEditor } from "slate-history";
@@ -24,7 +24,7 @@ const editor = withHistory(withReact(createEditor())) as TestEditor;
 const { isInline } = editor;
 editor.isInline = (element) => (element as { type?: string }).type === "link" || isInline(element);
 
-function renderElement({ attributes, children, element }: RenderElementProps): ReactNode {
+function renderElement({ attributes, children, element }: RenderElementProps): ReactElement {
   const node = element as { type?: string; url?: string };
   if (node.type === "link") return createElement("a", { ...attributes, href: node.url }, children);
   if (node.type === "code")
@@ -32,7 +32,7 @@ function renderElement({ attributes, children, element }: RenderElementProps): R
   return createElement("p", attributes, children);
 }
 
-function renderLeaf({ attributes, children, leaf }: RenderLeafProps): ReactNode {
+function renderLeaf({ attributes, children, leaf }: RenderLeafProps): ReactElement {
   const marks = leaf as { bold?: boolean; italic?: boolean };
   let content = children;
   if (marks.bold) content = createElement("strong", null, content);
@@ -40,19 +40,19 @@ function renderLeaf({ attributes, children, leaf }: RenderLeafProps): ReactNode 
   return createElement("span", attributes, content);
 }
 
-const initialValue = [{ type: "paragraph", children: [{ text: "" }] }] as Descendant[];
+const initialValue = [{ type: "paragraph", children: [{ text: "" }] }] as unknown as Descendant[];
 const mount = document.getElementById("test-slate")!;
 createRoot(mount).render(
-  createElement(
-    Slate,
-    { editor, initialValue },
-    createElement(Editable, {
+  createElement(Slate, {
+    editor,
+    initialValue,
+    children: createElement(Editable, {
       id: "test-slate-editor",
       placeholder: "Write something",
       renderElement,
       renderLeaf,
     }),
-  ),
+  }),
 );
 
 window.__testSlate = editor;

@@ -6,13 +6,14 @@ import {
   recordAutoLanguageSitePrior,
   resolveAutoLanguageDecision,
   sanitizeAutoLanguageSitePriors,
-  updateAutoLanguageRollingSample,
   type AutoLanguageBrowserDetection,
 } from "@core/domain/autoLanguageDetection";
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
-import { resolveEnabledLanguages } from "@core/domain/lang";
+import { isFiniteNumber } from "@core/domain/guards";
+import { resolveEnabledLanguages, resolveFallbackLanguage } from "@core/domain/lang";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { createLogger } from "@core/application/logging/Logger";
+import type { ObservabilityContentRuntimeStatus } from "@core/domain/observability";
 
 const SESSION_TTL_MS = 5 * 60 * 1000;
 const logger = createLogger("LanguageDetector");
@@ -22,7 +23,9 @@ function getExtensionApi(): typeof chrome {
   return (globalThis as { browser?: typeof chrome }).browser ?? chrome;
 }
 
-function toLiveRuntimeStatus(runtime: AutoLanguageLiveRuntimeState): AutoLanguageLiveRuntimeStatus {
+function toLiveRuntimeStatus(
+  runtime: AutoLanguageLiveRuntimeState,
+): ObservabilityContentRuntimeStatus {
   return {
     tabId: runtime.tabId,
     frameId: runtime.frameId,
@@ -67,19 +70,9 @@ export interface AutoLanguageSessionLookup {
   domainURL?: string;
 }
 
-export interface AutoLanguageLiveRuntimeStatus {
-  tabId: number;
-  frameId: number;
-  runtimeGeneration: number;
-  domain: string | null;
-  updatedAt: number;
-}
-
 interface AutoLanguageSessionState {
-  key: string;
   tabId: number;
   frameId: number;
-  suggestionId: number;
   runtimeGeneration: number;
   domain: string | null;
   enabledLanguages: string[];
@@ -98,7 +91,6 @@ interface AutoLanguageSessionState {
 }
 
 interface AutoLanguageLiveRuntimeState {
-  key: string;
   tabId: number;
   frameId: number;
   runtimeGeneration: number;
@@ -129,9 +121,7 @@ export class LanguageDetector {
       this.settingsRepository.getFallbackLanguage(),
       this.settingsRepository.getAutoLanguageSitePriors(),
     ]);
-    const fallbackLanguage = allowedLanguages.includes(fallbackLanguageRaw)
-      ? fallbackLanguageRaw
-      : allowedLanguages[0];
+    const fallbackLanguage = resolveFallbackLanguage(fallbackLanguageRaw, allowedLanguages);
     const domain = normalizeDomainHost(request.domainURL || "") || null;
     const priors = sanitizeAutoLanguageSitePriors(priorsRaw, allowedLanguages);
     const sitePrior = getAutoLanguageSitePrior(priors, domain || undefined, allowedLanguages);
@@ -140,7 +130,6 @@ export class LanguageDetector {
     const session =
       this.sessions.get(key) ||
       this.createSessionState(
-        key,
         request,
         nextRuntimeGeneration,
         domain,
@@ -150,7 +139,9 @@ export class LanguageDetector {
       );
 
     this.syncSessionScope(session, request, nextRuntimeGeneration, domain, allowedLanguages, now);
-    session.rollingSample = updateAutoLanguageRollingSample(session.rollingSample, request.text);
+    if (typeof request.text === "string" && request.text) {
+      session.rollingSample = extractAutoLanguageSample(request.text);
+    }
     const runtime = this.trackLiveRuntime({
       tabId: request.tabId,
       frameId: request.frameId,
@@ -158,7 +149,7 @@ export class LanguageDetector {
       domainURL: request.domainURL,
     });
 
-    const rollingSample = session.rollingSample || extractAutoLanguageSample(request.text);
+    const rollingSample = session.rollingSample;
 
     const [browserDetections, pageLanguageHint] = await Promise.all([
       this.detectBrowserLanguages(rollingSample),
@@ -202,13 +193,10 @@ export class LanguageDetector {
   }
 
   private resolveRuntimeGeneration(runtimeGeneration: unknown): number {
-    return typeof runtimeGeneration === "number" && Number.isFinite(runtimeGeneration)
-      ? runtimeGeneration
-      : 0;
+    return isFiniteNumber(runtimeGeneration) ? runtimeGeneration : 0;
   }
 
   private createSessionState(
-    key: string,
     request: AutoLanguageRequest,
     runtimeGeneration: number,
     domain: string | null,
@@ -217,10 +205,8 @@ export class LanguageDetector {
     now: number,
   ): AutoLanguageSessionState {
     return {
-      key,
       tabId: request.tabId,
       frameId: request.frameId,
-      suggestionId: request.suggestionId,
       runtimeGeneration,
       domain,
       enabledLanguages: allowedLanguages.slice(),
@@ -251,7 +237,6 @@ export class LanguageDetector {
       session.runtimeGeneration !== runtimeGeneration || session.domain !== domain;
     session.tabId = request.tabId;
     session.frameId = request.frameId;
-    session.suggestionId = request.suggestionId;
     session.runtimeGeneration = runtimeGeneration;
     session.domain = domain;
     session.enabledLanguages = allowedLanguages.slice();
@@ -271,17 +256,15 @@ export class LanguageDetector {
     this.trackLiveRuntime(scope);
   }
 
-  getDebugState(): { liveRuntimes: AutoLanguageLiveRuntimeStatus[] } {
-    return {
-      liveRuntimes: [...this.liveRuntimes.values()]
-        .sort((left, right) => right.lastSeenAt - left.lastSeenAt)
-        .map(toLiveRuntimeStatus),
-    };
+  getLiveRuntimes(): ObservabilityContentRuntimeStatus[] {
+    return [...this.liveRuntimes.values()]
+      .sort((left, right) => right.lastSeenAt - left.lastSeenAt)
+      .map(toLiveRuntimeStatus);
   }
 
   async getLiveRuntimeStatus(
     scope: AutoLanguageSessionLookup,
-  ): Promise<AutoLanguageLiveRuntimeStatus | null> {
+  ): Promise<ObservabilityContentRuntimeStatus | null> {
     await this.pruneStaleState(Date.now());
     const runtime = this.getMatchingLiveRuntime(scope);
     return runtime ? toLiveRuntimeStatus(runtime) : null;
@@ -308,7 +291,6 @@ export class LanguageDetector {
     session.source = "manual_lock";
     session.lastSeenAt = Date.now();
     session.priorEligible = true;
-    this.sessions.set(session.key, session);
     await this.persistSitePrior(session.domain, nextLanguage, true);
     return this.toSessionStatus(session);
   }
@@ -368,7 +350,6 @@ export class LanguageDetector {
     const reusesPageContext =
       existing && existing.runtimeGeneration === runtimeGeneration && existing.domain === domain;
     const runtime: AutoLanguageLiveRuntimeState = {
-      key,
       tabId: scope.tabId,
       frameId: scope.frameId ?? 0,
       runtimeGeneration,
@@ -387,12 +368,10 @@ export class LanguageDetector {
     scope: AutoLanguageSessionLookup,
   ): AutoLanguageLiveRuntimeState | null {
     const requestedDomain = normalizeDomainHost(scope.domainURL || "") || null;
-    const requestedFrameId =
-      typeof scope.frameId === "number" && Number.isFinite(scope.frameId) ? scope.frameId : null;
-    const requestedRuntimeGeneration =
-      typeof scope.runtimeGeneration === "number" && Number.isFinite(scope.runtimeGeneration)
-        ? scope.runtimeGeneration
-        : null;
+    const requestedFrameId = isFiniteNumber(scope.frameId) ? scope.frameId : null;
+    const requestedRuntimeGeneration = isFiniteNumber(scope.runtimeGeneration)
+      ? scope.runtimeGeneration
+      : null;
     const liveRuntimes = [...this.liveRuntimes.values()]
       .filter((runtime) => runtime.tabId === scope.tabId)
       .filter((runtime) => requestedFrameId === null || runtime.frameId === requestedFrameId)
@@ -449,10 +428,8 @@ export class LanguageDetector {
         runtime.pageLanguageHint = pageLanguageHint;
         runtime.pageLanguageHintResolved = true;
         runtime.pageLanguageHintPromise = null;
-        this.liveRuntimes.set(runtime.key, runtime);
         return pageLanguageHint;
       });
-      this.liveRuntimes.set(runtime.key, runtime);
     }
     const pageLanguageHint = await runtime.pageLanguageHintPromise;
     session.pageLanguageHint = pageLanguageHint;
@@ -465,10 +442,10 @@ export class LanguageDetector {
       if (now - session.lastSeenAt <= SESSION_TTL_MS) {
         continue;
       }
+      this.sessions.delete(key);
       if (session.domain && session.stableLanguage && session.priorEligible) {
         await this.persistSitePrior(session.domain, session.stableLanguage, false);
       }
-      this.sessions.delete(key);
     }
     for (const [key, runtime] of this.liveRuntimes.entries()) {
       if (now - runtime.lastSeenAt <= SESSION_TTL_MS) {

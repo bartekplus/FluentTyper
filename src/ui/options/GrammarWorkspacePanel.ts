@@ -6,20 +6,20 @@ import {
   KEY_LIVE_GRAMMAR_PROPOSALS,
   KEY_REVIEW_LONG_SENTENCE_WORDS,
 } from "@core/domain/constants";
+import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js";
 import { i18n } from "./fluenttyperI18n.js";
 import { mountGrammarRuleMatrix } from "./GrammarRuleMatrix.js";
 import { mountLocalAiSettings } from "./LocalAiSettingsPanel.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
-  createWorkspaceCard,
   createStackField,
-  bindControlEvents,
-  createWorkspaceShell,
+  createWorkspaceCard,
   moveControlToBody,
   pruneEmptySettingsGroups,
 } from "./workspacePanelUtils.js";
 
 export function renderGrammarWorkspacePanel(root: HTMLElement, registry: SettingsRegistry): void {
-  const shell = createWorkspaceShell();
+  const shell = createElement("div", { className: "workspace-panel-stack" });
 
   // Review has its own preferences, separate from typing autocorrection.
   const review = createWorkspaceCard(i18n.get("popup_review_text"));
@@ -27,18 +27,17 @@ export function renderGrammarWorkspacePanel(root: HTMLElement, registry: Setting
   moveControlToBody(registry, KEY_LIVE_GRAMMAR_PROPOSALS, review.body);
   const threshold = registry[KEY_REVIEW_LONG_SENTENCE_WORDS];
   if (threshold) {
-    const input = document.createElement("input");
-    input.type = "number";
+    const input = createInputElement("number", "input");
     input.id = "review-long-sentence-words";
-    input.className = "input";
     input.min = "10";
     input.max = "200";
     input.step = "1";
     input.required = true;
-    const help = document.createElement("p");
-    help.id = "review-long-sentence-help";
-    help.className = "help";
-    help.textContent = i18n.get("review_long_sentence_help");
+    const help = createElement("p", {
+      className: "help",
+      id: "review-long-sentence-help",
+      textContent: i18n.get("review_long_sentence_help"),
+    });
     input.setAttribute("aria-describedby", help.id);
     const render = () => {
       input.value = String(longSentenceThreshold(threshold.get()));
@@ -47,7 +46,7 @@ export function renderGrammarWorkspacePanel(root: HTMLElement, registry: Setting
       if (input.checkValidity()) threshold.set(input.valueAsNumber);
       else input.reportValidity();
     });
-    bindControlEvents(threshold, [["change", render]]);
+    threshold.addEvent("change", render);
     review.body.append(createStackField(i18n.get("review_long_sentence_label"), input), help);
     render();
   }

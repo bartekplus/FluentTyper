@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { applyEdits, editTouches } from "../../src/core/domain/grammar/review/textRanges";
-import { prepareReview } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { spellingCandidates } from "../../src/core/domain/grammar/review/reviewSpelling";
 import type { ReviewEdit } from "../../src/core/domain/grammar/review/types";
 import * as capitalization from "./reviewLanguageFixtures/capitalization";
@@ -9,10 +8,12 @@ import * as measurement from "./reviewLanguageFixtures/measurement";
 import * as punctuation from "./reviewLanguageFixtures/punctuation";
 import * as words from "./reviewLanguageFixtures/words";
 import { MATRIX_LANGUAGES, type RuleFixtures } from "./reviewLanguageFixtures/types";
-import { DEFAULT_RULES, languageRules, scan as reviewScan } from "./reviewHarness";
-function scan(text: string, lang = "en_US") {
-  return reviewScan(text, { lang });
-}
+import { prepared, review } from "./grammarTestUtils";
+import { DEFAULT_RULES, languageRules } from "./reviewHarness";
+const scan = (text: string, lang = "en_US") => review(text, {}, { lang }).diagnostics;
+const [broken, reference] = ["broken.txt", "reference.txt"].map((name) =>
+  readFileSync(new URL(`../fixtures/native-review-corpus/${name}`, import.meta.url), "utf8"),
+);
 const repairs = [
   ["englishUsagePhrases", "We finally finded the problem.", "We finally found the problem."],
   [
@@ -337,11 +338,7 @@ test("explicit quoted error examples stay unchanged while ordinary dialogue is c
 });
 test("dictionary candidates preserve quoted examples and numeric second abbreviations", () => {
   const text = "The example “recieve” is wrong. We waited 0.75 sec. Please recieve it.";
-  const prepared = prepareReview(
-    { id: "spelling", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "en_US", enabledRules: [], userDictionary: [], insertSpaceAfterAutocomplete: true },
-  );
-  const candidates = spellingCandidates(prepared, []);
+  const candidates = spellingCandidates(prepared(text, {}, { enabledRules: [] }), []);
   expect(candidates.filter((c) => c.word === "recieve").map((c) => c.range.start)).toEqual([
     text.lastIndexOf("recieve"),
   ]);
@@ -394,14 +391,6 @@ test("decades and leading elisions do not open a quotation", () => {
   ).toEqual([]);
 });
 test("supplied full prose retains supported repairs and its reference stays clean", () => {
-  const broken = readFileSync(
-    new URL("../fixtures/native-review-corpus/broken.txt", import.meta.url),
-    "utf8",
-  );
-  const reference = readFileSync(
-    new URL("../fixtures/native-review-corpus/reference.txt", import.meta.url),
-    "utf8",
-  );
   const findings = scan(broken);
   for (const [anchor, rule, replacement] of [
     ["We discussed about the problem during the meeting", "englishFixedPrepositions", ""],
@@ -439,10 +428,10 @@ test("realistic prose never gets two findings whose fixes collide", () => {
   // apple") only appear in fragments; Fix all defers or proves such a group
   // (bulkPlanner) and applying one card rechecks the other, so no finding is
   // dropped in favour of another. This guards that choice.
-  const texts: Array<[string, string]> = ["broken.txt", "reference.txt"].map((name) => [
-    "en_US",
-    readFileSync(new URL(`../fixtures/native-review-corpus/${name}`, import.meta.url), "utf8"),
-  ]);
+  const texts: Array<[string, string]> = [
+    ["en_US", broken],
+    ["en_US", reference],
+  ];
   for (const [, source, expected] of repairs) texts.push(["en_US", source], ["en_US", expected]);
   for (const fixtures of [capitalization, measurement, punctuation, words].flatMap((module) =>
     Object.values(module).filter((value): value is RuleFixtures => "en_US" in Object(value)),
@@ -488,7 +477,7 @@ test.each<[string, string, readonly string[]]>([
     .split("\n")
     .filter((line) => !line.startsWith("#"))
     .join("\n");
-  const found = reviewScan(text, { lang, enabledRules });
+  const found = review(text, {}, { lang, enabledRules }).diagnostics;
   expect(found.map((d) => `${d.ruleId}: ${d.original} @ ${d.range.start}`)).toEqual([]);
 });
 

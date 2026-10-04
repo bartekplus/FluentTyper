@@ -1,6 +1,7 @@
 import { emptyTerminology } from "@core/domain/grammar/review/preferredTerminology";
 import { DEFAULT_LONG_SENTENCE_WORDS } from "@core/domain/grammar/review/reviewCatalog";
 import { i18n } from "./fluenttyperI18n.js";
+import type { ControlCardSpec } from "./workspacePanelUtils.js";
 import type {
   FieldConfig,
   ManifestDefinition,
@@ -44,30 +45,17 @@ import {
   KEY_FIELD_PREFERENCES,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
   KEY_CODE_MODE,
-  KEY_SUGGESTION_BG_LIGHT,
-  KEY_SUGGESTION_TEXT_LIGHT,
-  KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
-  KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
-  KEY_SUGGESTION_BORDER_LIGHT,
-  KEY_SUGGESTION_BG_DARK,
-  KEY_SUGGESTION_TEXT_DARK,
-  KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
-  KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
-  KEY_SUGGESTION_BORDER_DARK,
-  KEY_SUGGESTION_FONT_SIZE,
-  KEY_SUGGESTION_PADDING_VERTICAL,
-  KEY_SUGGESTION_PADDING_HORIZONTAL,
   KEY_INLINE_SUGGESTION,
   KEY_PREFIX_ONLY_MODE,
   KEY_PERSONALIZATION_ENABLED,
   DEFAULT_NUM_SUGGESTIONS,
+  isDevBuild,
 } from "@core/domain/constants";
 import {
   DEFAULT_SUGGESTION_THEME_SETTINGS,
   type SuggestionThemeSettings,
 } from "@core/domain/themeDefaults";
 import { DEFAULT_LOCAL_AI_TIER } from "@core/domain/localAi/modelRegistry";
-const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 
 const LOG_LEVEL_OPTIONS: OptionTuple[] = [
   ["debug", "Debug"],
@@ -90,7 +78,6 @@ function createTab(
   return {
     id,
     label: i18n.get(labelKey),
-    title: i18n.get(labelKey),
     shortDescription: i18n.get(shortDescriptionKey),
     keywords: keywordKeys.map((key) => i18n.get(key)),
   };
@@ -112,13 +99,6 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
     label: i18n.get("observability_tab"),
     description: i18n.get("observability_tab_desc"),
     keywords: [i18n.get("observability_dashboard_group"), i18n.get("observability_controls_group")],
-  },
-  {
-    tab: "observability_tab",
-    group: i18n.get("observability_controls_group"),
-    name: "observabilityHint",
-    type: "description",
-    text: `<p>${i18n.get("observability_desc")}</p>`,
   },
   {
     tab: "observability_tab",
@@ -145,7 +125,6 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
   },
   {
     tab: "observability_tab",
-    group: i18n.get("observability_controls_group"),
     name: KEY_OBSERVABILITY_MODULE_OVERRIDES,
     type: "valueOnly",
     default: {},
@@ -170,10 +149,9 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
   },
 ];
 
-function themeValueSetting(groupKey: string, name: keyof SuggestionThemeSettings): FieldConfig {
+function themeValueSetting(name: keyof SuggestionThemeSettings): FieldConfig {
   return {
     tab: "theming_tab",
-    group: i18n.get(groupKey),
     name,
     type: "valueOnly",
     default: DEFAULT_SUGGESTION_THEME_SETTINGS[name],
@@ -181,8 +159,6 @@ function themeValueSetting(groupKey: string, name: keyof SuggestionThemeSettings
 }
 
 const manifest: ManifestDefinition = {
-  name: i18n.get("options_page_title"),
-  icon: "/icon/icon128.png",
   tabs: [
     createTab("core_settings", "options_tab_essentials", "options_tab_essentials_desc", [
       "options_tab_essentials",
@@ -214,11 +190,11 @@ const manifest: ManifestDefinition = {
       "options_tab_about",
       "support_development_group",
     ]),
-    ...(IS_DEV_BUILD ? DEV_TABS : []),
+    ...(isDevBuild() ? DEV_TABS : []),
   ],
   settings: [
     // =========================================================================
-    // TAB: Typing & Autocomplete (Merged Core & Autocomplete)
+    // TAB: Essentials
     // =========================================================================
     {
       tab: "core_settings",
@@ -315,7 +291,6 @@ const manifest: ManifestDefinition = {
       type: "slider",
       min: 0,
       max: 10,
-      display: true,
       label: buildFieldLabel(i18n.get("num_predictions_label"), i18n.get("num_predictions_desc")),
       default: DEFAULT_NUM_SUGGESTIONS,
     },
@@ -326,7 +301,6 @@ const manifest: ManifestDefinition = {
       type: "slider",
       min: -1,
       max: 12,
-      display: true,
       label: buildFieldLabel(i18n.get("min_chars_label"), i18n.get("min_chars_desc")),
       default: 1,
     },
@@ -415,21 +389,18 @@ const manifest: ManifestDefinition = {
     },
     {
       tab: "grammar_tab",
-      group: i18n.get("local_ai_title"),
       name: KEY_LOCAL_AI_REVIEW_TIER,
       type: "valueOnly",
       default: DEFAULT_LOCAL_AI_TIER,
     },
     {
       tab: "grammar_tab",
-      group: i18n.get("grammar_rules"),
       name: KEY_REVIEW_LONG_SENTENCE_WORDS,
       type: "valueOnly",
       default: DEFAULT_LONG_SENTENCE_WORDS,
     },
     {
       tab: "grammar_tab",
-      group: i18n.get("grammar_rules"),
       name: KEY_PREFERRED_TERMINOLOGY,
       type: "valueOnly",
       default: emptyTerminology(),
@@ -437,14 +408,12 @@ const manifest: ManifestDefinition = {
     // Both rule maps are edited together in the Grammar rule matrix (GrammarRuleMatrix).
     {
       tab: "grammar_tab",
-      group: i18n.get("grammar_rules"),
       name: KEY_ENABLED_GRAMMAR_RULES,
       type: "valueOnly",
       default: {},
     },
     {
       tab: "grammar_tab",
-      group: i18n.get("grammar_rules"),
       name: KEY_REVIEW_RULE_OVERRIDES,
       type: "valueOnly",
       default: {},
@@ -481,21 +450,18 @@ const manifest: ManifestDefinition = {
     },
     {
       tab: "language_tab",
-      group: i18n.get("language_selection"),
       name: KEY_LANGUAGE,
       type: "valueOnly",
       default: "en_US",
     },
     {
       tab: "language_tab",
-      group: i18n.get("language_selection"),
       name: KEY_ENABLED_LANGUAGES,
       type: "valueOnly",
       default: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
     },
     {
       tab: "language_tab",
-      group: i18n.get("language_selection"),
       name: KEY_FALLBACK_LANGUAGE,
       type: "valueOnly",
       default: "en_US",
@@ -515,7 +481,6 @@ const manifest: ManifestDefinition = {
     },
     {
       tab: "shortcuts_expansions_tab",
-      group: i18n.get("text_expander"),
       name: KEY_TEXT_EXPANSIONS,
       type: "valueOnly",
       default: [
@@ -540,21 +505,18 @@ const manifest: ManifestDefinition = {
     },
     {
       tab: "shortcuts_expansions_tab",
-      group: i18n.get("dynamic_variables"),
       name: KEY_DATE_FORMAT,
       type: "valueOnly",
       default: "",
     },
     {
       tab: "shortcuts_expansions_tab",
-      group: i18n.get("dynamic_variables"),
       name: KEY_TIME_FORMAT,
       type: "valueOnly",
       default: "",
     },
     {
       tab: "shortcuts_expansions_tab",
-      group: i18n.get("custom_words"),
       name: KEY_USER_DICTIONARY_LIST,
       type: "valueOnly",
       default: [],
@@ -574,28 +536,24 @@ const manifest: ManifestDefinition = {
     },
     {
       tab: "site_mgmt_tab",
-      group: i18n.get("domain_list_mode"),
       name: KEY_DOMAIN_LIST_MODE,
       type: "valueOnly",
       default: "blackList",
     },
     {
       tab: "site_mgmt_tab",
-      group: i18n.get("manage_domains"),
       name: "domainBlackList",
       type: "valueOnly",
       default: [],
     },
     {
       tab: "site_mgmt_tab",
-      group: i18n.get("site_profiles"),
       name: KEY_SITE_PROFILES,
       type: "valueOnly",
       default: {},
     },
     {
       tab: "site_mgmt_tab",
-      group: i18n.get("site_profiles"),
       name: KEY_FIELD_PREFERENCES,
       type: "valueOnly",
       default: [],
@@ -613,22 +571,12 @@ const manifest: ManifestDefinition = {
       description: i18n.get("options_panel_appearance_desc"),
       keywords: [i18n.get("options_panel_appearance_label"), i18n.get("typography_spacing")],
     },
-    themeValueSetting("light_theme_colors", KEY_SUGGESTION_BG_LIGHT),
-    themeValueSetting("light_theme_colors", KEY_SUGGESTION_TEXT_LIGHT),
-    themeValueSetting("light_theme_colors", KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT),
-    themeValueSetting("light_theme_colors", KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT),
-    themeValueSetting("light_theme_colors", KEY_SUGGESTION_BORDER_LIGHT),
-    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_BG_DARK),
-    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_TEXT_DARK),
-    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_HIGHLIGHT_BG_DARK),
-    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK),
-    themeValueSetting("dark_theme_colors", KEY_SUGGESTION_BORDER_DARK),
-    themeValueSetting("typography_spacing", KEY_SUGGESTION_FONT_SIZE),
-    themeValueSetting("typography_spacing", KEY_SUGGESTION_PADDING_VERTICAL),
-    themeValueSetting("typography_spacing", KEY_SUGGESTION_PADDING_HORIZONTAL),
+    ...(Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS) as Array<keyof SuggestionThemeSettings>).map(
+      themeValueSetting,
+    ),
 
     // =========================================================================
-    // TAB: Data & Backup
+    // TAB: Data & About
     // =========================================================================
     {
       tab: "advanced_tab",
@@ -689,7 +637,7 @@ const manifest: ManifestDefinition = {
       text: i18n.get("export_settings_btn"),
       label: i18n.get("export_settings_desc"),
     },
-    ...(IS_DEV_BUILD ? DEV_OBSERVABILITY_SETTINGS : []),
+    ...(isDevBuild() ? DEV_OBSERVABILITY_SETTINGS : []),
 
     {
       tab: "advanced_tab",
@@ -702,5 +650,70 @@ const manifest: ManifestDefinition = {
     },
   ],
 };
+
+export const ESSENTIALS_CARDS: ControlCardSpec[] = [
+  {
+    titleKey: "General",
+    keys: [
+      "enable",
+      KEY_INLINE_SUGGESTION,
+      KEY_HORIZONTAL_SUGGESTIONS,
+      KEY_NUM_SUGGESTIONS,
+      KEY_PERSONALIZATION_ENABLED,
+    ],
+  },
+  {
+    titleKey: "accept_predictions",
+    keys: [
+      KEY_AUTOCOMPLETE_ON_TAB,
+      KEY_AUTOCOMPLETE_ON_ENTER,
+      KEY_AUTOCOMPLETE,
+      KEY_SELECT_BY_DIGIT,
+      KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
+    ],
+  },
+  {
+    titleKey: "options_advanced",
+    advanced: true,
+    keys: [
+      KEY_MIN_WORD_LENGTH_TO_PREDICT,
+      KEY_SHOW_SUGGESTION_FOOTER,
+      KEY_PREFIX_ONLY_MODE,
+      KEY_PREFER_NATIVE_AUTOCOMPLETE,
+      KEY_CODE_MODE,
+    ],
+  },
+];
+
+export const DATA_CARDS: ControlCardSpec[] = [
+  {
+    titleKey: "config_data",
+    helpKey: "data_panel_transfer_copy",
+    keys: ["exportSettingButton", "importSettingButton", "clearPersonalizationButton"],
+  },
+  {
+    titleKey: "productivity_dashboard_group",
+    helpKey: "productivity_insights_subtitle",
+    keys: ["productivityStatsPanel", "resetProductivityStatsButton"],
+  },
+];
+
+export const OBSERVABILITY_CARDS: ControlCardSpec[] = [
+  {
+    titleKey: "observability_controls_group",
+    helpKey: "observability_desc",
+    keys: [KEY_OBSERVABILITY_ENABLED, KEY_OBSERVABILITY_DEFAULT_LEVEL],
+  },
+  {
+    titleKey: "observability_predictor_group",
+    helpKey: "predictor_debug_desc",
+    keys: [KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED],
+  },
+  {
+    titleKey: "observability_dashboard_group",
+    helpKey: "observability_dashboard_desc",
+    keys: ["observabilityPanel"],
+  },
+];
 
 export { manifest };

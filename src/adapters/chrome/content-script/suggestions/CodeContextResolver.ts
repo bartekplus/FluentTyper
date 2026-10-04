@@ -1,4 +1,6 @@
+import { composedParent } from "@core/application/dom-utils";
 import { isGutenbergField } from "./GutenbergEnvironment";
+
 /** Only semantic markup and verified editing-DOM markers belong here. */
 const CODE_CONTEXT =
   "code, pre, kbd, samp, .ql-code-block, .ql-code-block-container, " +
@@ -13,14 +15,9 @@ export type CodeContext = "prose" | "code" | "protected" | "unknown";
 type SelectionRange = Pick<Range, "startContainer" | "startOffset" | "endContainer" | "endOffset">;
 type ScopedSelectionRoot = ShadowRoot & { getSelection?: () => Selection | null };
 
-function parentAcrossShadowRoot(node: Node): Node | null {
-  if (node.parentNode) return node.parentNode;
-  return node.nodeType === 11 && "host" in node ? (node as ShadowRoot).host : null;
-}
-
 /** Formatting controls are never writing fields, including inside shadow roots. */
 export function isNonWritingControl(element: HTMLElement): boolean {
-  for (let node: Node | null = element; node; node = parentAcrossShadowRoot(node)) {
+  for (let node: Node | null = element; node; node = composedParent(node)) {
     if (node.nodeType === 1 && (node as Element).matches(NON_WRITING_CONTROL)) return true;
   }
   return false;
@@ -46,7 +43,7 @@ export function ancestorContext(node: Node, stopAt?: Node): CodeContext | null {
   for (
     let current: Node | null = node;
     current && current !== stopAt;
-    current = parentAcrossShadowRoot(current)
+    current = composedParent(current)
   ) {
     if (current.nodeType !== 1) continue;
     const element = current as Element;

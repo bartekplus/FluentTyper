@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review } from "./grammarTestUtils";
 import type { ReviewOptions } from "../../src/core/domain/grammar/review/types";
-import { scan as reviewScan } from "./reviewHarness";
 
 // Lookalike words chosen by their slot (englishConfusedWords) and the fixed rows of confusions1.
 // englishItsContext (slipFrames) gives the same its/it's repairs.
@@ -11,9 +11,8 @@ const OWN = new Set([
   "englishClosedCompounds",
   "englishItsContext",
 ]);
-function scan(text: string, options: Partial<ReviewOptions> = {}) {
-  return reviewScan(text, options).filter((d) => OWN.has(d.ruleId));
-}
+const scan = (text: string, options: Partial<ReviewOptions> = {}) =>
+  review(text, {}, options).diagnostics.filter((d) => OWN.has(d.ruleId));
 const repairs = (text: string) =>
   scan(text).flatMap((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));
 

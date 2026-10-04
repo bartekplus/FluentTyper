@@ -28,7 +28,6 @@ import { auxiliaryForms } from "./englishAuxiliaryForms";
 import { pronounCase } from "./englishPronounCase";
 import { sentenceStructure } from "./englishSentenceStructure";
 import type { CatalogRuleId } from "../ruleCatalog";
-import { SPACE_CHARS } from "../../spacingRules";
 import {
   isGreekQuestionMark,
   resolveTypographyProfile,
@@ -72,6 +71,7 @@ import {
   PREVIOUS_WORD,
   correctPronounVerb,
   isObjectYou,
+  isVariableI,
 } from "../implementations/EnglishPronounVerbWhitelistAgreementRule";
 import { lastNonBlankBefore, opensClause } from "../implementations/helpers/EnglishRuleShared";
 import {
@@ -85,11 +85,16 @@ import {
   couldEndProperName,
   findProperName,
   isMonthInContext,
-  recase,
+  properNameReplacement,
 } from "../implementations/EnglishProperNounCapitalizationRule";
 import { CURRENCY_MARKERS } from "../implementations/CurrencySpacingRule";
 import { isProsePrefix } from "../implementations/MeasurementUnitFormattingRule";
-import { isLowercaseLetter, isTechnicalToken } from "../implementations/helpers/GenericRuleShared";
+import {
+  isLowercaseLetter,
+  isTechnicalToken,
+  lastNonSpaceBefore,
+} from "../implementations/helpers/GenericRuleShared";
+import { ownedMatches } from "./phraseTemplates";
 import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { EXTENSION_DETECTORS } from "./english";
@@ -107,9 +112,6 @@ import { DETECTORS as DATE_TENSE_DETECTORS } from "./dateTense";
 import { detectAll, PSEUDO_CLEFT_BEFORE, isLang } from "./phraseTemplates";
 import { cacheable } from "./nativeReviewCache";
 import { finding } from "./finding";
-
-export { MASK_CHAR };
-export { minimalEdits } from "./textRanges";
 
 /**
  * Review detectors read ONE immutable snapshot and never mutate it.
@@ -184,10 +186,6 @@ const WORD_CHAR = /[\p{L}\p{N}_'’]/u;
 // Characters that glue a word into a mention, path, file or dotted name.
 const TECHNICAL_GLUE = /[@#/\\_=$]/;
 
-function isSpace(ch: string | undefined): boolean {
-  return ch !== undefined && SPACE_CHARS.includes(ch);
-}
-
 /** True when [start, end) is glued to a technical token in `text` ("@i", "src/dont", "teh.com"). */
 function isGluedToTechnical(text: string, start: number, end: number): boolean {
   const before = text[start - 1] ?? "";
@@ -232,21 +230,12 @@ function lastIndexFinder(text: string, needle: string): (position: number) => nu
   };
 }
 
-/** Matches of a global `regex` that start in the chunk, scanned on its bounded view. */
-function* ownedMatches(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArray> {
-  regex.lastIndex = ctx.from;
-  for (
-    let match = regex.exec(ctx.scanText);
-    match && match.index < ctx.to;
-    match = regex.exec(ctx.scanText)
-  ) {
-    yield match;
-  }
-}
-
 function owned(ctx: DetectContext, start: number): boolean {
   return start >= ctx.from && start < ctx.to;
 }
+
+const ownedFindings = (ctx: DetectContext, list: readonly RawFinding[] | undefined) =>
+  (list ?? []).filter((f) => owned(ctx, f.range.start));
 
 // Words after which a lowercase "i" names something ("the variable i"): an identifier.
 const IDENTIFIER_WORDS = "each|every|the|a|index|variable|counter|iterator|loop";
@@ -254,13 +243,6 @@ const IDENTIFIER_BEFORE = new RegExp(`\\b(?:${IDENTIFIER_WORDS})\\s+$`, "i");
 // Words naming a numbered part: "Part i.", "Appendix i." is the roman numeral.
 const NUMERAL_BEFORE =
   /\b(?:part|chapter|section|appendix|volume|vol|book|act|phase|step|stage|level|type|class|article|annex|item|figure|fig|table|option|case|grade|war|page|no)\s+$/i;
-// "i is"/"i has" is a variable after a condition too ("while i has items");
-// "if i go" is still the pronoun, so conditions only guard those verbs.
-const VARIABLE_CONTEXT_BEFORE = new RegExp(
-  `\\b(?:if|while|until|unless|whether|when|where|${IDENTIFIER_WORDS})\\s+$`,
-  "i",
-);
-
 // German "im" (in dem) inside English text: "Heil dir im Siegerkranz", "lebt im Schloss".
 // Before a capitalized noun, after a German word or before German noun spelling.
 const GERMAN_BEFORE_IM =
@@ -292,11 +274,6 @@ function previousTokensStart(text: string, index: number, count: number): number
     while (position > limit && !/\s/.test(text[position - 1])) position -= 1;
   }
   return position;
-}
-
-/** Where the clause-opening evidence for a phrase at `index` starts. */
-function clauseEvidenceStart(text: string, index: number): number {
-  return Math.max(0, lastNonBlankBefore(text, index));
 }
 
 // ---------------------------------------------------------------- capitalization
@@ -375,8 +352,7 @@ const capitalizeStarts: Detector = (ctx) => {
  * whether closing quotes or brackets sit between it and the word ("Stop!” she").
  */
 function sentenceEndBefore(text: string, wordStart: number): { mark: number; closed: boolean } {
-  let i = wordStart - 1;
-  while (i >= 0 && isSpace(text[i])) i -= 1;
+  let i = lastNonSpaceBefore(text, wordStart);
   const closer = i;
   while (i >= 0 && (CLOSING_CHARS.has(text[i]) || CLOSING_PADDING_CHARS.has(text[i]))) i -= 1;
   return { mark: i, closed: i !== closer };
@@ -409,8 +385,7 @@ const LINE_SPACE = /^[ \t ]$/u;
  * for help"), or it is wrapped in quotes or backticks ("type '.' to repeat").
  */
 function namesMark(text: string, index: number): boolean {
-  let before = index - 1;
-  while (before >= 0 && LINE_SPACE.test(text[before])) before -= 1;
+  const before = lastNonBlankBefore(text, index);
   let after = index + 1;
   while (after < text.length && LINE_SPACE.test(text[after])) after += 1;
   if (MARK_QUOTES.test(text[before] ?? "") && MARK_QUOTES.test(text[after] ?? "")) return true;
@@ -424,8 +399,7 @@ function namesMark(text: string, index: number): boolean {
 
 /** Index of the newline that starts the line `wordStart` is the first word of, or null. */
 function lineBreakBefore(text: string, wordStart: number): number | null {
-  let i = wordStart - 1;
-  while (i >= 0 && isSpace(text[i])) i -= 1;
+  const i = lastNonSpaceBefore(text, wordStart);
   return i >= 0 && text[i] === "\n" ? i : null;
 }
 
@@ -718,7 +692,7 @@ const yourWelcome: Detector = (ctx) => {
       range: { start, end },
       alternatives: [`${you}${gap}${welcome}`],
       context: {
-        start: clauseEvidenceStart(ctx.text, start),
+        start: Math.max(0, lastNonBlankBefore(ctx.text, start)),
         end: Math.min(ctx.text.length, end + 1),
       },
     });
@@ -762,13 +736,7 @@ const pronounVerb: Detector = (ctx) => {
     // condition or determiner ("while i has items", "the i has").
     if (inputPronoun === "i") {
       if (NON_PRONOUN_FOLLOWERS.has(inputVerb.toLowerCase())) continue;
-      if (
-        VARIABLE_CONTEXT_BEFORE.test(
-          ctx.text.slice(Math.max(0, phraseRange.start - 24), phraseRange.start),
-        )
-      ) {
-        continue;
-      }
+      if (isVariableI(ctx.text, phraseRange.start)) continue;
     }
     let bulkBlock: RawFinding["bulkBlock"];
     if (inputPronoun.toLowerCase() === "you") {
@@ -886,7 +854,7 @@ const ordinal: Detector = (ctx) => {
     if (overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })) continue;
     findings.push(
       finding("englishOrdinalSuffix", "review_msg_ordinal", start, end, [`${digits}${expected}`], {
-        context: { start: 0, end },
+        context: { start: Math.max(0, start - 24), end },
       }),
     );
   }
@@ -925,14 +893,8 @@ const properNoun: Detector = (ctx) => {
     const end = windowStart + found.end;
     if (!owned(ctx, start) || isGluedToTechnical(ctx.text, start, wordEnd)) continue;
     const typed = ctx.text.slice(start, end);
-    const replaced = recase(typed, found.canonical);
-    if (
-      replaced === typed ||
-      ctx.dictionary.has(typed.toLowerCase()) ||
-      ctx.dictionary.has(found.canonical.toLowerCase())
-    ) {
-      continue;
-    }
+    const replaced = properNameReplacement(typed, found.canonical, ctx.dictionary);
+    if (replaced === null) continue;
     findings.push(
       finding("englishProperNounCapitalization", "review_msg_proper_noun", start, end, [replaced], {
         // may/march/august needed a date or a clause end next to them; that is evidence.
@@ -1346,7 +1308,7 @@ function currencyPlacement(ctx: DetectContext): RawFinding[] {
 function kelvinDegree(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const separator = resolveMeasurementLocale(ctx.lang)?.separator ?? " ";
-  for (const match of ownedMatches(ctx, /(?<=[\p{N}\s(])°K(?![\p{L}\p{N}_])/gu)) {
+  for (const match of ownedMatches(ctx, /(?<=^|[\p{N}\s(])°K(?![\p{L}\p{N}_])/gu)) {
     const start = match.index;
     const glued = /\p{N}/u.test(ctx.text[start - 1]);
     findings.push({
@@ -1389,8 +1351,8 @@ function measurementLike(
             CURRENCY_MARKERS.has(value.slice(start)),
           )
         : parseMeasurementExpression(prefix, locale);
-    if (!parsed || parsed.unitStart !== parsed.numberEnd) continue;
-    const unit = prefix.slice(parsed.unitStart);
+    if (!parsed) continue;
+    const unit = prefix.slice(parsed.numberEnd);
     if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) continue;
     // Brazilian usage writes clock times and durations glued: "às 10h", "20min", and a new car
     // is "0km"; French writes "14h" and "14h30" as often as "14 h", so hours stay as typed there.
@@ -1563,15 +1525,11 @@ export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = [
 export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
   {
     rules: ["styleRedundancy", "styleLongSentence"],
-    detect: (ctx) =>
-      (ctx.styleFindings ?? []).filter((f) => f.range.start >= ctx.from && f.range.start < ctx.to),
+    detect: (ctx) => ownedFindings(ctx, ctx.styleFindings),
   },
   {
     rules: ["preferredTerminology"],
-    detect: (ctx) =>
-      (ctx.terminologyFindings ?? []).filter(
-        (f) => f.range.start >= ctx.from && f.range.start < ctx.to,
-      ),
+    detect: (ctx) => ownedFindings(ctx, ctx.terminologyFindings),
   },
   {
     rules: [
@@ -1590,10 +1548,7 @@ export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
   },
   {
     rules: ["unclosedQuotation"],
-    detect: (ctx) =>
-      (ctx.quotationFindings ?? []).filter(
-        (d) => d.range.start >= ctx.from && d.range.start < ctx.to,
-      ),
+    detect: (ctx) => ownedFindings(ctx, ctx.quotationFindings),
   },
   TYPOGRAPHIC_QUOTES,
 

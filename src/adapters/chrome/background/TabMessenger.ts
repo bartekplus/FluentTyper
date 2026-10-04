@@ -1,6 +1,5 @@
 import type { SettingsManager } from "@core/application/settingsManager";
 import { getDomain, isEnabledForDomain } from "@core/application/domain-utils";
-import { checkLastError, promisifiedSendMessage } from "@core/application/transport-utils";
 import type { Message, ConfigMessage } from "@core/domain/messageTypes";
 import { getErrorMessage } from "@core/domain/error";
 import { CMD_GET_HOSTNAME } from "@core/domain/constants";
@@ -24,13 +23,7 @@ export class TabMessenger {
     }
   }
 
-  private getTabIdFromTabs(tabs: chrome.tabs.Tab[] | undefined): number | undefined {
-    const tabId = tabs?.[0]?.id;
-    return typeof tabId === "number" ? tabId : undefined;
-  }
-
-  private async getActiveTabId(): Promise<number | undefined> {
-    checkLastError();
+  private async getActiveTab(): Promise<{ id: number; url?: string } | undefined> {
     const tabs = await this.queryTabs({ active: true, currentWindow: true });
     const firstTabUrl = tabs?.[0]?.url ?? "";
     const isExtensionPage =
@@ -39,7 +32,9 @@ export class TabMessenger {
       !tabs || tabs.length === 0 || isExtensionPage
         ? await this.queryTabs({ active: true, lastFocusedWindow: true })
         : undefined;
-    return this.getTabIdFromTabs(fallbackTabs ?? tabs) ?? this.lastActiveTabId;
+    const tab = (fallbackTabs ?? tabs)?.[0];
+    if (tab?.id !== undefined) return { id: tab.id, url: tab.url };
+    return this.lastActiveTabId === undefined ? undefined : { id: this.lastActiveTabId };
   }
 
   private isWebsiteUrl(url: string | undefined): boolean {
@@ -62,39 +57,22 @@ export class TabMessenger {
     };
   }
 
-  sendToActiveTab(message: Message): void {
-    void this.getActiveTabId().then((tabId) => {
-      if (tabId !== undefined) {
-        void chrome.tabs.sendMessage(tabId, message, { frameId: 0 });
-      }
-    });
-  }
-
-  /** Every frame decides for itself whether it owns the focused editor. */
-  sendToActiveTabAllFrames(message: Message): void {
-    void this.getActiveTabId().then((tabId) => {
-      if (tabId !== undefined) {
-        void chrome.tabs.sendMessage(tabId, message).catch(() => undefined);
+  /** Sends to the top frame; `{}` sends to every frame of the active tab. */
+  sendToActiveTab(message: Message, options: { frameId?: number } = { frameId: 0 }): void {
+    void this.getActiveTab().then((tab) => {
+      if (tab) {
+        void chrome.tabs.sendMessage(tab.id, message, options)?.catch(() => undefined);
       }
     });
   }
 
   sendToTab(tabId: number, frameId: number, message: Message): void {
-    void chrome.tabs.sendMessage(tabId, message, { frameId });
+    void chrome.tabs.sendMessage(tabId, message, { frameId })?.catch(() => undefined);
   }
 
   async getActiveTabContext(): Promise<{ tabId: number; hostname: string } | undefined> {
-    const tabId = await this.getActiveTabId();
-    if (tabId === undefined) {
-      return undefined;
-    }
-    try {
-      const tab = await chrome.tabs.query({ active: true, currentWindow: true });
-      const activeTab = tab.find((entry) => entry.id === tabId) || tab[0];
-      return { tabId, hostname: getDomain(activeTab?.url ?? "") ?? "" };
-    } catch {
-      return { tabId, hostname: "" };
-    }
+    const tab = await this.getActiveTab();
+    return tab && { tabId: tab.id, hostname: getDomain(tab.url ?? "") ?? "" };
   }
 
   async getLastActiveWebsiteTabContext(): Promise<{ tabId: number; hostname: string } | undefined> {
@@ -135,7 +113,6 @@ export class TabMessenger {
     resolveDomainContextOverride?: (domain: string) => Promise<Partial<ConfigMessage["context"]>>,
   ): Promise<void> {
     const tabs = await chrome.tabs.query({});
-    checkLastError();
     await Promise.allSettled(
       tabs.map(async (tab) => {
         if (typeof tab.id !== "number") {
@@ -144,7 +121,7 @@ export class TabMessenger {
         const tabId = tab.id;
         let domain: string;
         try {
-          const response = await promisifiedSendMessage<{ hostname?: string }>(
+          const response: { hostname?: string } | undefined = await chrome.tabs.sendMessage(
             tabId,
             { command: CMD_GET_HOSTNAME },
             { frameId: 0 },

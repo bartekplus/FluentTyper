@@ -2,6 +2,7 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import {
   findTrailingLetterToken,
   isPartOfTechnicalToken,
+  replaceFrom,
   resolveEnglishBoundaryContext,
 } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
@@ -57,11 +58,7 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
       return null;
     }
 
-    return {
-      replacement: `${normalizedToken}${tokenInfo.trailing}`,
-      deleteBackwards: boundaryContext.input.length - tokenInfo.tokenStart,
-      deleteForwards: 0,
-    };
+    return replaceFrom(boundaryContext, tokenInfo.tokenStart, normalizedToken);
   }
 }
 
@@ -76,7 +73,7 @@ export function normalizeContractionToken(token: string, beforeToken: string): s
   if (!canonical) {
     return null;
   }
-  // "Jony Ive", "Ada Ill": a capitalized token following another capitalized
+  // "Jony Ive": a capitalized token following another capitalized
   // word is a name, not a contraction someone forgot an apostrophe in.
   if (/^[A-Z][a-z]/.test(token)) {
     const lineStart = Math.max(beforeToken.lastIndexOf("\n"), beforeToken.lastIndexOf("\r")) + 1;

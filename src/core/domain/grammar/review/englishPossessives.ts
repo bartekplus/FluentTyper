@@ -1,88 +1,75 @@
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
-import { COMPLETE as END, EDGE, frameMatches, SPACE, WORD_END } from "./phraseTemplates";
+import { COMPLETE, EDGE, found, frameMatches, group, SPACE, WORD_END } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const ADJECTIVE = `(?:(?:new|old|cold|warm|red|blue|main|original|updated|private)${SPACE})?`;
 const NOUN =
   "(?:policy|connection|surface|folder|file|password|screen|keyboard|owner|name|settings|color|cover|door|engine|battery|address)";
 
-// The patterns are fixed: each is compiled once.
-const COMPILED = new Map<string, RegExp>();
-
-/** Full bounded phrases, never a guess about arbitrary names or singular/plural ownership. */
-export function contextualPossessives(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  const constructions: Array<{
-    ruleId: RawFinding["ruleId"];
-    messageKey: RawFinding["messageKey"];
-    pattern: string;
-    replacement: string;
-    clause?: boolean;
-    cue?: boolean;
-    name?: boolean;
-  }> = [
+type Construction = {
+  /** englishItsContext when not given. */
+  ruleId?: RawFinding["ruleId"];
+  messageKey: RawFinding["messageKey"];
+  pattern: string;
+  replacement: string;
+  clause?: boolean;
+  cue?: boolean;
+  name?: boolean;
+};
+const CONSTRUCTIONS = (
+  [
     {
-      ruleId: "englishItsContext",
       messageKey: "review_msg_its_possessive",
-      pattern: `(?:lost|checked|changed|updated|fixed|opened|closed|remembered|forgot|replaced|painted|cleaned)${SPACE}(?<target>it['’]s)${SPACE}${ADJECTIVE}${NOUN}${END}`,
+      pattern: `(?:lost|checked|changed|updated|fixed|opened|closed|remembered|forgot|replaced|painted|cleaned)${SPACE}(?<target>it['’]s)${SPACE}${ADJECTIVE}${NOUN}${COMPLETE}`,
       replacement: "its",
     },
     {
-      ruleId: "englishItsContext",
       messageKey: "review_msg_its_possessive",
-      pattern: `(?<target>it['’]s)${SPACE}${ADJECTIVE}${NOUN}${SPACE}(?:is|was|looks|seems)${SPACE}(?:wet|dry|broken|new|old|red|blue|missing|different)${END}`,
+      pattern: `(?<target>it['’]s)${SPACE}${ADJECTIVE}${NOUN}${SPACE}(?:is|was|looks|seems)${SPACE}(?:wet|dry|broken|new|old|red|blue|missing|different)${COMPLETE}`,
       replacement: "its",
       clause: true,
     },
     {
-      ruleId: "englishItsContext",
       messageKey: "review_msg_its_contraction",
-      pattern: `(?<target>its)${SPACE}(?:unclear${SPACE}whether${SPACE}(?:the${SPACE}change${SPACE}will${SPACE}affect${SPACE}us|it${SPACE}will${SPACE}work)|ready${SPACE}to${SPACE}(?:use|go|open|start)|(?:cold|warm)${SPACE}outside|(?:working|raining|snowing)${SPACE}(?:now|again|today)|been${SPACE}(?:fixed|updated|removed|replaced)|already${SPACE}(?:been${SPACE})?(?:fixed|updated|removed|replaced))${END}`,
+      pattern: `(?<target>its)${SPACE}(?:unclear${SPACE}whether${SPACE}(?:the${SPACE}change${SPACE}will${SPACE}affect${SPACE}us|it${SPACE}will${SPACE}work)|ready${SPACE}to${SPACE}(?:use|go|open|start)|(?:cold|warm)${SPACE}outside|working${SPACE}(?:now|again|today)|already${SPACE}(?:been${SPACE})?(?:fixed|updated|removed|replaced))${COMPLETE}`,
       replacement: "it's",
       clause: true,
     },
     // "its" never precedes a verb, an article or a function word.
     {
-      ruleId: "englishItsContext",
       messageKey: "review_msg_its_contraction",
       pattern: `(?<target>its)${SPACE}(?:been|got|had|gotten|a|an|the|my|your|our|his|her|their|not|never|always|so|too|because|like|about|called|named|raining|snowing|someone|something|anyone|anything|everyone|everything|nobody|nothing|somebody|anybody|everybody|somewhere|anywhere|everywhere|going${SPACE}to|getting${SPACE}(?:late|dark|better|worse|harder|easier|cold|warm|old)|time${SPACE}to)`,
       replacement: "it's",
     },
     {
-      ruleId: "englishItsContext",
       messageKey: "review_msg_its_contraction",
-      pattern: `(?<target>its)${SPACE}(?:(?:also|just|still|really|very|pretty|quite|always|never)${SPACE})?(?:hard|easy|common|important|critical|crucial|essential|vital|necessary|possible|impossible|likely|unlikely|clear|obvious|true|amazing|nice|great|good|bad|fine|okay|ok|worth|better|best|worse|safe|fun|strange|weird|odd|interesting|useful|helpful|difficult|annoying|frustrating|sad|funny|normal|okay|free|done|over|here|there|now)(?=${SPACE}(?:to|for|that|if|when|because|how|what|why)(?!${EDGE})|${END})`,
+      pattern: `(?<target>its)${SPACE}(?:(?:also|just|still|really|very|pretty|quite)${SPACE})?(?:hard|easy|common|important|critical|crucial|essential|vital|necessary|possible|impossible|likely|unlikely|clear|obvious|true|amazing|nice|great|good|bad|fine|okay|ok|worth|better|best|worse|safe|fun|strange|weird|odd|interesting|useful|helpful|difficult|annoying|frustrating|sad|funny|normal|free|done|over|here|there|now)(?=${SPACE}(?:to|for|that|if|when|because|how|what|why)(?!${EDGE})|${COMPLETE})`,
       replacement: "it's",
       cue: true,
     },
     {
-      ruleId: "englishItsContext",
       messageKey: "review_msg_its_contraction",
-      pattern: `(?=its${WORD_END})(?<=(?:think|thinks|hope|hopes|guess|assume|doubt|suppose|believe|bet)${SPACE})(?<target>its)${SPACE}[a-z]+(?:${SPACE}[a-z]+)?${END}`,
+      pattern: `(?=its${WORD_END})(?<=(?:think|thinks|hope|hopes|guess|assume|doubt|suppose|believe|bet)${SPACE})(?<target>its)${SPACE}[a-z]+(?:${SPACE}[a-z]+)?${COMPLETE}`,
       replacement: "it's",
       name: true,
     },
     // "it's" never follows a preposition or precedes "own".
     {
-      ruleId: "englishItsContext",
       messageKey: "review_msg_its_possessive",
       pattern: `(?=it['’]s)(?<!(?:how|what)${SPACE}about${SPACE})(?<=(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among)${SPACE})(?<target>it['’]s)${SPACE}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like)(?!${EDGE}))[a-z]+`,
       replacement: "its",
     },
     {
-      ruleId: "englishItsContext",
       messageKey: "review_msg_its_possessive",
       pattern: `(?<target>it['’]s)${SPACE}own${SPACE}[a-z]+`,
       replacement: "its",
     },
     {
-      ruleId: "englishItsContext",
       messageKey: "review_msg_its_possessive",
       pattern: `(?=it['’]s)(?<=[a-z]{3,30}ed${SPACE})(?<target>it['’]s)${SPACE}[0-9]{1,4}(?:st|nd|rd|th)`,
       replacement: "its",
     },
     {
-      ruleId: "englishItsContext",
       messageKey: "review_msg_its_possessive",
       pattern: `(?<target>it['’]s)${SPACE}(?!(?:not|all|both|each|also|still|just|really|never|always|so|too|very|already|probably|certainly|here|there|now|then|what|who|which|whoever|whatever|where|how|why|when|that|this|it|one|someone|something|everything|everyone|anything|nothing|time|because|like|as|kind|sort|type|going|getting)(?!${EDGE}))[a-z]+${SPACE}(?:are|were|have)(?!${EDGE})`,
       replacement: "its",
@@ -91,23 +78,29 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
     {
       ruleId: "englishLetsContext",
       messageKey: "review_msg_lets_contraction",
-      pattern: `(?<target>lets)${SPACE}(?:try${SPACE}again|go${SPACE}home|start${SPACE}now|work${SPACE}together|take${SPACE}a${SPACE}break|check${SPACE}the${SPACE}file|open${SPACE}the${SPACE}folder|read${SPACE}the${SPACE}report|fix${SPACE}the${SPACE}problem|meet${SPACE}tomorrow|wait${SPACE}here|begin${SPACE}with${SPACE}the${SPACE}basics)${END}`,
+      pattern: `(?<target>lets)${SPACE}(?:try${SPACE}again|go${SPACE}home|start${SPACE}now|work${SPACE}together|take${SPACE}a${SPACE}break|check${SPACE}the${SPACE}file|open${SPACE}the${SPACE}folder|read${SPACE}the${SPACE}report|fix${SPACE}the${SPACE}problem|meet${SPACE}tomorrow|wait${SPACE}here|begin${SPACE}with${SPACE}the${SPACE}basics)${COMPLETE}`,
       replacement: "let's",
       clause: true,
     },
     {
       ruleId: "englishElsePossessive",
       messageKey: "review_msg_else_possessive",
-      pattern: `(?:someone|anyone|everyone|somebody|anybody|nobody|no${SPACE}one)${SPACE}(?<target>elses)${SPACE}${ADJECTIVE}${NOUN}${END}`,
+      pattern: `(?:someone|anyone|everyone|somebody|anybody|nobody|no${SPACE}one)${SPACE}(?<target>elses)${SPACE}${ADJECTIVE}${NOUN}${COMPLETE}`,
       replacement: "else's",
     },
-  ];
-  for (const { ruleId, messageKey, pattern, replacement, clause, cue, name } of constructions) {
-    let regex = COMPILED.get(pattern);
-    if (!regex)
-      COMPILED.set(pattern, (regex = new RegExp(`(?<!${EDGE})${pattern}${WORD_END}`, "gidu")));
+  ] satisfies Construction[]
+).map(({ ruleId = "englishItsContext", pattern, ...rest }: Construction) => ({
+  ...rest,
+  ruleId,
+  regex: new RegExp(`(?<!${EDGE})${pattern}${WORD_END}`, "gidu"),
+}));
+
+/** Full bounded phrases, never a guess about arbitrary names or singular/plural ownership. */
+export function contextualPossessives(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const { ruleId, messageKey, regex, replacement, clause, cue, name } of CONSTRUCTIONS) {
     for (const m of frameMatches(ctx, regex)) {
-      const [start, end] = m.indices!.groups!.target;
+      const [start, end] = group(m, "target");
       const afterTarget = ctx.text.slice(end, end + 12);
       if (messageKey === "review_msg_its_contraction") {
         // "took its time to heal": the possessive in "take one's time".
@@ -156,18 +149,9 @@ export function contextualPossessives(ctx: DetectContext): RawFinding[] {
         )
       )
         continue;
-      // Include every preceding character and the trailing boundary inspected by the recognizer.
-      const context = {
-        start: Math.max(0, m.index - 96),
-        end: Math.min(ctx.text.length, m.index + m[0].length + 9),
-      };
-      findings.push({
-        ruleId,
-        messageKey,
-        range: { start, end },
-        alternatives: [applyWordCase(replacement, detectWordCase(target))],
-        context,
-      });
+      findings.push(
+        found(ctx, m, ruleId, messageKey, [applyWordCase(replacement, detectWordCase(target))]),
+      );
     }
   }
   return findings;

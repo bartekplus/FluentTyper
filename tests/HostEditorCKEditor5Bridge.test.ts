@@ -204,6 +204,14 @@ function createCKEditorMockWithDomSelectionBlocks(
   };
 }
 
+function mountCkEditor(editor: unknown): HTMLDivElement {
+  const editable = document.createElement("div");
+  editable.setAttribute("contenteditable", "true");
+  (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = editor;
+  document.body.appendChild(editable);
+  return editable;
+}
+
 function dispatchBridgeRequest(
   elem: HTMLElement,
   request: Record<string, unknown>,
@@ -219,10 +227,7 @@ function dispatchBridgeRequest(
 describe("HostEditorMainWorldBridge – CKEditor-5", () => {
   test("returns block context for a CKEditor-5 element", () => {
     const mock = createCKEditorMock("Hello world", 5);
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
-    document.body.appendChild(editable);
+    const editable = mountCkEditor(mock.editor);
 
     const response = dispatchBridgeRequest(editable, { action: "getBlockContext" });
 
@@ -238,10 +243,7 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
 
   test("applies block replacement via CKEditor-5 model API", () => {
     const mock = createCKEditorMock("hello world", 1);
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
-    document.body.appendChild(editable);
+    const editable = mountCkEditor(mock.editor);
 
     const response = dispatchBridgeRequest(editable, {
       action: "applyBlockReplacement",
@@ -259,10 +261,7 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
 
   test("rejects replacement when expected block text does not match", () => {
     const mock = createCKEditorMock("hello world", 1);
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
-    document.body.appendChild(editable);
+    const editable = mountCkEditor(mock.editor);
 
     const response = dispatchBridgeRequest(editable, {
       action: "applyBlockReplacement",
@@ -324,10 +323,7 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
         },
       },
     };
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = editor;
-    document.body.appendChild(editable);
+    const editable = mountCkEditor(editor);
 
     const response = dispatchBridgeRequest(editable, { action: "getBlockContext" });
 
@@ -343,10 +339,7 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
 
   test("FT-INV-5 refuses lagging host state rather than rebuilding the block", () => {
     const mock = createCKEditorMock("The", 0);
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
-    document.body.appendChild(editable);
+    const editable = mountCkEditor(mock.editor);
 
     const response = dispatchBridgeRequest(editable, {
       action: "applyBlockReplacement",
@@ -366,10 +359,7 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
     // Host model is "xyz" which is not "The" with the replace-range
     // removed, so the "Firefox leading-char lag" rewrite is not safe.
     const mock = createCKEditorMock("xyz", 0);
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
-    document.body.appendChild(editable);
+    const editable = mountCkEditor(mock.editor);
 
     const response = dispatchBridgeRequest(editable, {
       action: "applyBlockReplacement",
@@ -417,10 +407,7 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
 
   test("applies multi-character replacement correctly", () => {
     const mock = createCKEditorMock("teh quick", 4);
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
-    document.body.appendChild(editable);
+    const editable = mountCkEditor(mock.editor);
 
     const response = dispatchBridgeRequest(editable, {
       action: "applyBlockReplacement",
@@ -496,9 +483,7 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
 
   test("prefers LineEditorController over CKEditor-5 when both are present", () => {
     const ckMock = createCKEditorMock("from ckeditor", 5);
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = ckMock.editor;
+    const editable = mountCkEditor(ckMock.editor);
 
     // Also attach a LineEditorController
     let lineText = "from controller";
@@ -515,7 +500,6 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
       posFromIndex: (i: number) => ({ line: 0, ch: i }),
       indexFromPos: (p: { ch: number }) => p.ch,
     };
-    document.body.appendChild(editable);
 
     const response = dispatchBridgeRequest(editable, { action: "getBlockContext" });
 
@@ -631,10 +615,7 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
     // Model: "First line."<softBreak>"second line a"
     // softBreak is at model offset 11, cursor at model offset 24 (11+1+12)
     const mock = createCKEditorMockWithSoftBreak("First line.", "second line a", 24);
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
-    document.body.appendChild(editable);
+    const editable = mountCkEditor(mock.editor);
 
     const response = dispatchBridgeRequest(editable, { action: "getBlockContext" });
 
@@ -659,10 +640,7 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
     // Cursor at model offset 26 (11 + 1 + 14)
     // Want to replace text offset 24-25 ("a") with "A" (capitalize)
     const mock = createCKEditorMockWithSoftBreak("First line.", "second line. a", 26);
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
-    document.body.appendChild(editable);
+    const editable = mountCkEditor(mock.editor);
 
     const response = dispatchBridgeRequest(editable, {
       action: "applyBlockReplacement",
@@ -688,10 +666,7 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
     // Cursor at model offset 8 (right before softBreak, end of "The edit")
     // Replace text 4-8 ("edit") with "editor " — must NOT eat the softBreak
     const mock = createCKEditorMockWithSoftBreak("The edit", "second line", 8);
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
-    document.body.appendChild(editable);
+    const editable = mountCkEditor(mock.editor);
 
     const response = dispatchBridgeRequest(editable, {
       action: "applyBlockReplacement",

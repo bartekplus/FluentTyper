@@ -4,90 +4,35 @@ import {
 } from "../src/adapters/chrome/background/CapitalizationHelper";
 
 describe("checkAutoCapitalize", () => {
-  it("should return WholeWord when lastWord is all uppercase and not ending with space", () => {
-    expect(
-      checkAutoCapitalize({
-        lastWord: "XYZ",
-        wordCount: 2,
-        newSentence: false,
-        endsWithSpace: false,
-        autoCapitalize: false,
-      }),
-    ).toBe(Capitalization.WholeWord);
-  });
+  const base = {
+    lastWord: "",
+    wordCount: 2,
+    newSentence: false,
+    endsWithSpace: false,
+    autoCapitalize: false,
+  };
 
-  it("should return FirstLetter when first character is uppercase letter and not ending with space", () => {
-    expect(
-      checkAutoCapitalize({
-        lastWord: "Xyz",
-        wordCount: 2,
-        newSentence: false,
-        endsWithSpace: false,
-        autoCapitalize: false,
-      }),
-    ).toBe(Capitalization.FirstLetter);
-  });
-
-  it("should return FirstLetter when autoCapitalize is true, newSentence is true, not ending with space, and wordCount is 1", () => {
-    expect(
-      checkAutoCapitalize({
-        lastWord: "hello",
-        wordCount: 1,
-        newSentence: true,
-        endsWithSpace: false,
-        autoCapitalize: true,
-      }),
-    ).toBe(Capitalization.FirstLetter);
-  });
-
-  it("should return FirstLetter when autoCapitalize is true, newSentence is true, ending with space, and wordCount is 0", () => {
-    expect(
-      checkAutoCapitalize({
-        lastWord: "",
-        wordCount: 0,
-        newSentence: true,
-        endsWithSpace: true,
-        autoCapitalize: true,
-      }),
-    ).toBe(Capitalization.FirstLetter);
-  });
-
-  it("should return None for lowercase word not matching any rule", () => {
-    expect(
-      checkAutoCapitalize({
-        lastWord: "hello",
-        wordCount: 2,
-        newSentence: false,
-        endsWithSpace: false,
-        autoCapitalize: false,
-      }),
-    ).toBe(Capitalization.None);
-  });
-
-  it("should return None for empty lastWord and not a new sentence", () => {
-    expect(
-      checkAutoCapitalize({
-        lastWord: "",
-        wordCount: 0,
-        newSentence: false,
-        endsWithSpace: false,
-        autoCapitalize: false,
-      }),
-    ).toBe(Capitalization.None);
-  });
-
-  const base = { wordCount: 2, newSentence: false, endsWithSpace: false, autoCapitalize: false };
-
-  it("should return None for caseless-script words (Arabic)", () => {
-    expect(checkAutoCapitalize({ ...base, lastWord: "مرحبا" })).toBe(Capitalization.None);
-    expect(checkAutoCapitalize({ ...base, lastWord: "ك" })).toBe(Capitalization.None);
-  });
-
-  it("should keep WholeWord only for cased uppercase words without lowercase", () => {
-    expect(checkAutoCapitalize({ ...base, lastWord: "ΑΒΓ" })).toBe(Capitalization.WholeWord);
-    expect(checkAutoCapitalize({ ...base, lastWord: "AB1" })).toBe(Capitalization.WholeWord);
-    expect(checkAutoCapitalize({ ...base, lastWord: "ABc" })).toBe(Capitalization.FirstLetter);
-    expect(checkAutoCapitalize({ ...base, lastWord: "A" })).toBe(Capitalization.FirstLetter);
-    expect(checkAutoCapitalize({ ...base, lastWord: "12" })).toBe(Capitalization.None);
+  test.each([
+    [{ lastWord: "XYZ" }, Capitalization.WholeWord],
+    [{ lastWord: "ΑΒΓ" }, Capitalization.WholeWord],
+    [{ lastWord: "AB1" }, Capitalization.WholeWord],
+    [{ lastWord: "Xyz" }, Capitalization.FirstLetter],
+    [{ lastWord: "ABc" }, Capitalization.FirstLetter],
+    [{ lastWord: "A" }, Capitalization.FirstLetter],
+    [
+      { lastWord: "hello", wordCount: 1, newSentence: true, autoCapitalize: true },
+      Capitalization.FirstLetter,
+    ],
+    [
+      { wordCount: 0, newSentence: true, endsWithSpace: true, autoCapitalize: true },
+      Capitalization.FirstLetter,
+    ],
+    [{ lastWord: "hello" }, Capitalization.None],
+    [{ wordCount: 0 }, Capitalization.None],
+    [{ lastWord: "12" }, Capitalization.None],
+    [{ lastWord: "مرحبا" }, Capitalization.None],
+    [{ lastWord: "ك" }, Capitalization.None],
+  ])("%o -> %s", (input, expected) => {
+    expect(checkAutoCapitalize({ ...base, ...input })).toBe(expected);
   });
 });

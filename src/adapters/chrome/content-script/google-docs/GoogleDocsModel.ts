@@ -1,4 +1,5 @@
 import type { GrammarEdit } from "@core/domain/grammar/types";
+import { isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
 
 export const DOCS_SESSION_ID = -1;
 export const MAX_CONTEXT = 8192;
@@ -63,30 +64,23 @@ export interface DocsReply {
   history?: "applied" | "undone";
 }
 
-/** Only top-level document edit URLs; per-site enable/disable still applies. */
-export function isGoogleDocsURL(href: string): boolean {
+function docsPathMatches(href: string, pattern: RegExp): boolean {
   try {
     const url = new URL(href);
-    return (
-      url.origin === "https://docs.google.com" &&
-      /^\/document\/(?:u\/\d+\/)?d\/[\w-]+\/edit\/?$/.test(url.pathname)
-    );
+    return url.origin === "https://docs.google.com" && pattern.test(url.pathname);
   } catch {
     return false;
   }
 }
 
+/** Only top-level document edit URLs; per-site enable/disable still applies. */
+export function isGoogleDocsURL(href: string): boolean {
+  return docsPathMatches(href, /^\/document\/(?:u\/\d+\/)?d\/[\w-]+\/edit\/?$/);
+}
+
 /** A new document starts here; Docs then swaps the URL to its edit URL without a reload. */
 export function isGoogleDocsCreateURL(href: string): boolean {
-  try {
-    const url = new URL(href);
-    return (
-      url.origin === "https://docs.google.com" &&
-      /^\/document\/(?:u\/\d+\/)?create\/?$/.test(url.pathname)
-    );
-  } catch {
-    return false;
-  }
+  return docsPathMatches(href, /^\/document\/(?:u\/\d+\/)?create\/?$/);
 }
 
 /** Page messages: typing reads, writes, keys and requests stay within this. */
@@ -107,18 +101,6 @@ export function parseObject(
   } catch {
     return null;
   }
-}
-
-// Lazy: this module loads on every page, and Intl.Segmenter is missing in older Firefox.
-let graphemeSegmenter: Intl.Segmenter | undefined;
-
-export function isBoundary(text: string, index: number): boolean {
-  if (!Number.isSafeInteger(index) || index < 0 || index > text.length) return false;
-  if (index === 0 || index === text.length) return true;
-  // Segment the local string, not a multi-megabyte document per boundary query.
-  // Callers use the bounded context/range for editing, and full text only for selections.
-  graphemeSegmenter ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
-  return graphemeSegmenter.segment(text).containing(index)?.index === index;
 }
 
 export function readModel(raw: unknown, selection: unknown): DocsModel | null {
@@ -165,7 +147,7 @@ export function readModel(raw: unknown, selection: unknown): DocsModel | null {
   const text = raw.slice(offset, end);
   const anchor = endpoints.anchor - offset,
     focus = endpoints.focus - offset;
-  if (!isBoundary(text, anchor) || !isBoundary(text, focus)) return null;
+  if (!isGraphemeBoundary(text, anchor) || !isGraphemeBoundary(text, focus)) return null;
   return { raw, text, offset, anchor, focus };
 }
 
@@ -180,47 +162,37 @@ export function sameModel(a: DocsModel, b: DocsModel): boolean {
  */
 export const REVIEW_WINDOW = 50_000;
 
+/**
+ * A typing read: MAX_CONTEXT on each side of a selection of at most MAX_EDIT.
+ *
+ * A review read: the window is centered on the selection (or caret) and moved
+ * to fit inside the document, so a document up to REVIEW_WINDOW is read whole.
+ * The selection is only the review's scope, never an edit, so any length is
+ * accepted; a part beyond the window is reported as unread, not refused.
+ */
 export function snapshotFor(
   model: DocsModel,
   scope: string,
   token: string,
   review = false,
 ): DocsSnapshot | null {
-  if (review) return reviewSnapshotFor(model, scope, token);
-  const start = Math.min(model.anchor, model.focus),
-    end = Math.max(model.anchor, model.focus);
-  if (end - start > MAX_EDIT) return null;
-  let windowStart = Math.max(0, start - MAX_CONTEXT);
-  let windowEnd = Math.min(model.text.length, end + MAX_CONTEXT);
-  while (!isBoundary(model.text, windowStart)) windowStart += 1;
-  while (!isBoundary(model.text, windowEnd)) windowEnd -= 1;
-  return {
-    token,
-    scope,
-    text: model.text.slice(windowStart, windowEnd),
-    windowStart,
-    documentLength: model.text.length,
-    anchor: model.anchor,
-    focus: model.focus,
-  };
-}
-
-/**
- * A review read: the window is centered on the selection (or caret) and moved
- * to fit inside the document, so a document up to REVIEW_WINDOW is read whole.
- * The selection is only the review's scope, never an edit, so any length is
- * accepted; a part beyond the window is reported as unread, not refused.
- */
-function reviewSnapshotFor(model: DocsModel, scope: string, token: string): DocsSnapshot {
   const { text } = model;
   const start = Math.min(model.anchor, model.focus),
     end = Math.max(model.anchor, model.focus);
-  const room = REVIEW_WINDOW - (end - start);
-  let windowStart = room > 0 ? start - Math.floor(room / 2) : start;
-  windowStart = Math.max(0, Math.min(windowStart, text.length - REVIEW_WINDOW));
-  let windowEnd = Math.min(text.length, windowStart + REVIEW_WINDOW);
-  while (!isBoundary(text, windowStart)) windowStart += 1;
-  while (!isBoundary(text, windowEnd)) windowEnd -= 1;
+  let windowStart: number;
+  let windowEnd: number;
+  if (review) {
+    const room = REVIEW_WINDOW - (end - start);
+    windowStart = room > 0 ? start - Math.floor(room / 2) : start;
+    windowStart = Math.max(0, Math.min(windowStart, text.length - REVIEW_WINDOW));
+    windowEnd = Math.min(text.length, windowStart + REVIEW_WINDOW);
+  } else {
+    if (end - start > MAX_EDIT) return null;
+    windowStart = Math.max(0, start - MAX_CONTEXT);
+    windowEnd = Math.min(text.length, end + MAX_CONTEXT);
+  }
+  while (!isGraphemeBoundary(text, windowStart)) windowStart += 1;
+  while (!isGraphemeBoundary(text, windowEnd)) windowEnd -= 1;
   const inWindow = (index: number) => Math.min(Math.max(index, windowStart), windowEnd);
   return {
     token,
@@ -228,9 +200,9 @@ function reviewSnapshotFor(model: DocsModel, scope: string, token: string): Docs
     text: text.slice(windowStart, windowEnd),
     windowStart,
     documentLength: text.length,
-    anchor: inWindow(model.anchor),
-    focus: inWindow(model.focus),
-    caret: model.focus,
+    ...(review
+      ? { anchor: inWindow(model.anchor), focus: inWindow(model.focus), caret: model.focus }
+      : { anchor: model.anchor, focus: model.focus }),
   };
 }
 
@@ -271,8 +243,8 @@ export function validEdit(text: string, edit: DocsEdit): boolean {
     !Number.isSafeInteger(end) ||
     end < start ||
     end - start > MAX_EDIT ||
-    !isBoundary(text, start) ||
-    !isBoundary(text, end)
+    !isGraphemeBoundary(text, start) ||
+    !isGraphemeBoundary(text, end)
   )
     return false;
   // Docs' structural markers are not ordinary text. Never replace across them.
@@ -286,7 +258,9 @@ export function validEdit(text: string, edit: DocsEdit): boolean {
   // a character typed earlier in a burst must leave the caret where the user has since
   // got to, not drag it back into the edit. Range limits above are what bound the write;
   // this only has to be a position that exists in the result.
-  return isBoundary(result, cursorAfter) && cursorAfter >= 0 && cursorAfter <= result.length;
+  return (
+    isGraphemeBoundary(result, cursorAfter) && cursorAfter >= 0 && cursorAfter <= result.length
+  );
 }
 
 /** Preserve unchanged prefix/suffix runs instead of rewriting a whole styled token. */
@@ -299,7 +273,10 @@ export function minimizeEdit(text: string, edit: DocsEdit): DocsEdit {
     original[prefix] === edit.replacement[prefix]
   )
     prefix += 1;
-  while (prefix > 0 && (!isBoundary(original, prefix) || !isBoundary(edit.replacement, prefix)))
+  while (
+    prefix > 0 &&
+    (!isGraphemeBoundary(original, prefix) || !isGraphemeBoundary(edit.replacement, prefix))
+  )
     prefix -= 1;
   let suffix = 0;
   while (
@@ -311,8 +288,8 @@ export function minimizeEdit(text: string, edit: DocsEdit): DocsEdit {
     suffix += 1;
   while (
     suffix > 0 &&
-    (!isBoundary(original, original.length - suffix) ||
-      !isBoundary(edit.replacement, edit.replacement.length - suffix))
+    (!isGraphemeBoundary(original, original.length - suffix) ||
+      !isGraphemeBoundary(edit.replacement, edit.replacement.length - suffix))
   )
     suffix -= 1;
   // The final caret can be outside the minimal changed range (e.g. spelling in mid-word).
@@ -359,11 +336,17 @@ export function planCompletion(
   start = Math.max(0, start);
   const local = { start, end, replacement: suggestion, cursorAfter: start + suggestion.length };
   if (!suggestion || !validEdit(snapshot.text, local)) return null;
+  return toDocument(snapshot, local);
+}
+
+/** A window-offset edit moved to document offsets. */
+function toDocument(snapshot: DocsSnapshot, local: DocsEdit): DocsEdit {
+  const shift = snapshot.windowStart;
   return {
     ...local,
-    start: start + snapshot.windowStart,
-    end: end + snapshot.windowStart,
-    cursorAfter: local.cursorAfter + snapshot.windowStart,
+    start: local.start + shift,
+    end: local.end + shift,
+    cursorAfter: local.cursorAfter + shift,
   };
 }
 
@@ -404,12 +387,7 @@ export function planGrammar(
       : start + (edit.cursorOffset ?? edit.replacement.length),
   };
   if (!validEdit(snapshot.text, local)) return null;
-  return {
-    ...local,
-    start: start + snapshot.windowStart,
-    end: end + snapshot.windowStart,
-    cursorAfter: local.cursorAfter + snapshot.windowStart,
-  };
+  return toDocument(snapshot, local);
 }
 
 /**
@@ -441,8 +419,8 @@ export function snapshotFrom(
     s.windowStart + s.text.length > s.documentLength ||
     typeof s.anchor !== "number" ||
     typeof s.focus !== "number" ||
-    !isBoundary(s.text, s.anchor - s.windowStart) ||
-    !isBoundary(s.text, s.focus - s.windowStart) ||
+    !isGraphemeBoundary(s.text, s.anchor - s.windowStart) ||
+    !isGraphemeBoundary(s.text, s.focus - s.windowStart) ||
     (s.caret !== undefined &&
       (typeof s.caret !== "number" ||
         !Number.isSafeInteger(s.caret) ||

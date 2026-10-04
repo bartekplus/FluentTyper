@@ -351,7 +351,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "applies %s from predictor debug dashboard"
+          "test": "applies debugPresagePredictorEnabled from predictor debug dashboard"
         },
         {
           "layer": "unit",
@@ -567,22 +567,22 @@
         {
           "layer": "unit",
           "file": "tests/ContentEditableAdapter.test.ts",
-          "test": "scopes block context to the current br-separated line inside one paragraph"
+          "test": "scopes to the current br-separated line inside one paragraph"
         },
         {
           "layer": "unit",
           "file": "tests/ContentEditableAdapter.test.ts",
-          "test": "scopes block context to the first line before a br separator"
+          "test": "scopes to the first line before a br separator"
         },
         {
           "layer": "unit",
           "file": "tests/ContentEditableAdapter.test.ts",
-          "test": "scopes block context to the middle line across multiple br separators"
+          "test": "scopes to the middle line across multiple br separators"
         },
         {
           "layer": "unit",
           "file": "tests/ContentEditableAdapter.test.ts",
-          "test": "treats trailing br as an empty line placeholder after text"
+          "test": "treats a trailing br as an empty line placeholder after text"
         },
         {
           "layer": "unit",
@@ -717,7 +717,7 @@
         },
         {
           "layer": "unit",
-          "file": "tests/ProductivityStatsManager.test.ts",
+          "file": "tests/ProductivityStatsService.test.ts",
           "test": "resetStats clears local counters and survives restart"
         }
       ]
@@ -1058,8 +1058,8 @@
         },
         {
           "layer": "unit",
-          "file": "tests/grammar/V1GrammarRules.test.ts",
-          "test": "respects delete-intent suppression and insertSpaceAfterAutocomplete=false"
+          "file": "tests/GrammarBackspace.test.ts",
+          "test": "Backspace stays native"
         }
       ]
     },
@@ -1185,7 +1185,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Grammar Rule Engine capitalizes first letter after line break with granular rule IDs"
+          "test": "Grammar Rule Engine applies the granular rule ID %s"
         },
         {
           "layer": "unit",
@@ -1201,12 +1201,7 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Grammar Rule Engine collapses repeated spaces with granular rule IDs"
-        },
-        {
-          "layer": "e2e-full",
-          "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Grammar Rule Engine trims spaces before newline with granular rule IDs"
+          "test": "Grammar Rule Engine applies the granular rule ID %s"
         },
         {
           "layer": "unit",
@@ -1243,7 +1238,7 @@
         {
           "layer": "unit",
           "file": "tests/SettingsMigrationV4.test.ts",
-          "test": "force-sets recommended v1 grammar rules and stores exact backup once"
+          "test": "force-sets recommended v1 grammar rules and backs up the string entries when the stored value is %s"
         }
       ]
     },
@@ -1460,7 +1455,7 @@
         {
           "layer": "unit",
           "file": "tests/SuggestionManager.test.ts",
-          "test": "reverts an ordinal suffix fix on Ctrl+Z without reapplying it"
+          "test": "an ordinal suffix fix"
         }
       ]
     },
@@ -1476,18 +1471,18 @@
         {
           "layer": "unit",
           "file": "tests/SuggestionManager.test.ts",
-          "test": "reverts a deferred month capitalization on Ctrl+Z without reapplying it"
+          "test": "a deferred month capitalization"
         }
       ]
     },
     {
       "id": "grammar_language_typography",
-      "description": "Opt-in Typography preset uses the writing language's quotation marks and French (France) punctuation spacing, and leaves code and protected fields unchanged.",
+      "description": "The typography rules (smart quotes, French punctuation spacing, ellipsis) use the writing language's quotation marks and French (France) punctuation spacing, and leaves code and protected fields unchanged.",
       "coverage": [
         {
           "layer": "unit",
           "file": "tests/grammar/LanguageTypography.test.ts",
-          "test": "language-aware typography preset"
+          "test": "language-aware typography rules"
         },
         {
           "layer": "unit",
@@ -2455,12 +2450,12 @@
         {
           "layer": "unit",
           "file": "tests/autoLanguageDetection.test.ts",
-          "test": "Persian does not take the Arabic strong-script shortcut"
+          "test": "%s does not take the Arabic strong-script shortcut"
         },
         {
           "layer": "unit",
           "file": "tests/autoLanguageDetection.test.ts",
-          "test": "Urdu does not take the Arabic strong-script shortcut"
+          "test": "%s does not take the Arabic strong-script shortcut"
         },
         {
           "layer": "unit",
@@ -2501,7 +2496,7 @@
         {
           "layer": "unit",
           "file": "tests/autoLanguageDetection.test.ts",
-          "test": "Persian token does not script-switch an English session to Arabic"
+          "test": "Persian %s does not script-switch an English session to Arabic"
         },
         {
           "layer": "unit",
@@ -3450,7 +3445,7 @@
         {
           "layer": "unit",
           "file": "tests/CoreSettingsRepository.test.ts",
-          "test": "shows the in-field Review button unless it is turned off"
+          "test": "%s with %o resolves to %p"
         },
         {
           "layer": "unit",
@@ -4435,7 +4430,7 @@
       "coverage": [
         {
           "layer": "unit",
-          "file": "tests/ProductivityStatsManager.test.ts",
+          "file": "tests/ProductivityStatsService.test.ts",
           "test": "dismissed support prompts stay disabled after restart and stats reset"
         },
         {
@@ -4684,7 +4679,7 @@
         },
         {
           "layer": "unit",
-          "file": "tests/content_script.watchdog.test.ts",
+          "file": "tests/content_script.behavior.test.ts",
           "test": "FT-INV-3 disabled runtime schedules no watchdog work"
         }
       ]

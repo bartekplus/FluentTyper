@@ -51,7 +51,8 @@ describe("Google Docs bridge client bounds", () => {
     expect(review.snapshot?.text.length).toBe(REVIEW_WINDOW);
 
     // The same large reply to a typing read is ignored: the read stays pending.
-    let typing: DocsReply | null = null;
+    let typing = null as DocsReply | null;
+
     void client.read().then((reply) => (typing = reply));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(typing).toBeNull();

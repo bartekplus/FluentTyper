@@ -1,12 +1,10 @@
-import "./setup";
 import { describe, expect, test } from "bun:test";
 import {
   AppearanceStudio,
-  calculateThemeContrast,
   getColorPickerValue,
   mergeColorPickerValue,
-  parseThemeColor,
 } from "../src/ui/options/AppearanceStudio.js";
+import { calculateThemeContrast, parseThemeColor } from "../src/core/domain/color.js";
 import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
@@ -32,6 +30,7 @@ import {
 } from "../src/core/domain/constants.js";
 import { SUGGESTION_POPUP_SHADOW_CSS } from "../src/core/domain/suggestionPopup/styles.js";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
+import { fakeRegistry } from "./support/settingsFakes";
 
 const DEFAULT_THEME = {
   [KEY_SUGGESTION_BG_LIGHT]: "#ffffff",
@@ -65,37 +64,13 @@ const COMPACT_THEME = {
   [KEY_SUGGESTION_PADDING_HORIZONTAL]: "0.6rem",
 };
 
-function createRegistry(initialValues: Record<string, unknown>) {
-  const values: Record<string, unknown> = { ...initialValues };
-  const handlers = new Map<string, Record<string, Array<() => void>>>();
-  const registry = Object.fromEntries(
-    Object.keys(initialValues).map((key) => [
-      key,
-      {
-        get: () => values[key],
-        set: (value: unknown, silent = false) => {
-          values[key] = value;
-          const listeners = handlers.get(key) || {};
-          (listeners.change || []).forEach((handler) => handler());
-          if (!silent) {
-            (listeners.action || []).forEach((handler) => handler());
-          }
-        },
-        addEvent: (type: string, handler: () => void) => {
-          const listeners = handlers.get(key) || {};
-          handlers.set(key, {
-            ...listeners,
-            [type]: [...(listeners[type] || []), handler],
-          });
-        },
-      },
-    ]),
-  );
-
-  return {
-    registry,
-    values,
-  };
+function mount(initial: Record<string, unknown> = DEFAULT_THEME) {
+  const root = document.createElement("div");
+  document.body.appendChild(root);
+  const values = { ...initial };
+  const registry = fakeRegistry(values);
+  new AppearanceStudio(root, registry);
+  return { root, registry, values };
 }
 
 describe("AppearanceStudio theme value compatibility", () => {
@@ -121,6 +96,7 @@ describe("AppearanceStudio theme value compatibility", () => {
     expect(parseThemeColor("#12345")).toBeNull();
     expect(parseThemeColor("#zzz")).toBeNull();
     expect(parseThemeColor("#11zz33")).toBeNull();
+    expect(parseThemeColor("#12345g")).toBeNull();
   });
 
   test("alpha-hex values keep alpha-hex format when merging picker colors", () => {
@@ -155,14 +131,7 @@ describe("AppearanceStudio theme value compatibility", () => {
   });
 
   test("preset application preserves exact stored values", () => {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    const { registry, values } = createRegistry(DEFAULT_THEME);
-
-    new AppearanceStudio(root, registry as never, {
-      default: DEFAULT_THEME,
-      compact: COMPACT_THEME,
-    });
+    const { root, values } = mount();
 
     const presetButtons = root.querySelectorAll<HTMLButtonElement>(".preset-card");
     presetButtons[1]?.click();
@@ -172,14 +141,7 @@ describe("AppearanceStudio theme value compatibility", () => {
   });
 
   test("advanced color editor keeps rgba alpha when picker changes", () => {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    const { registry, values } = createRegistry(COMPACT_THEME);
-
-    new AppearanceStudio(root, registry as never, {
-      default: DEFAULT_THEME,
-      compact: COMPACT_THEME,
-    });
+    const { root, values } = mount(COMPACT_THEME);
 
     const colorInputs = root.querySelectorAll<HTMLInputElement>('input[type="color"]');
     expect(colorInputs[0]?.value).toBe("#ffffff");
@@ -190,18 +152,24 @@ describe("AppearanceStudio theme value compatibility", () => {
     expect(values[KEY_SUGGESTION_BG_LIGHT]).toBe("rgba(17, 34, 51, 0.85)");
   });
 
-  test("preview updates when theme values change and when preview mode switches", () => {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    const { registry } = createRegistry(DEFAULT_THEME);
+  test("a committed color change keeps Advanced colors open", () => {
+    const { root, values } = mount();
+    const advanced = () => root.querySelector("details")!;
+    advanced().open = true;
+    const input = advanced().querySelector<HTMLInputElement>('input[type="text"]')!;
 
-    new AppearanceStudio(root, registry as never, {
-      default: DEFAULT_THEME,
-      compact: COMPACT_THEME,
-    });
+    input.value = "#000000";
+    input.dispatchEvent(new Event("change"));
+
+    expect(values[KEY_SUGGESTION_BG_LIGHT]).toBe("#000000");
+    expect(advanced().open).toBe(true);
+  });
+
+  test("preview updates when theme values change and when preview mode switches", () => {
+    const { root, registry } = mount();
 
     const previewBefore = root.querySelector(".appearance-preview") as HTMLElement;
-    expect(previewBefore.dataset.mode).toBe("light");
+    expect(previewBefore.getAttribute("data-ft-color-scheme")).toBe("light");
     expect(previewBefore.style.getPropertyValue("--suggestion-bg-light")).toBe("#ffffff");
 
     registry[KEY_SUGGESTION_BG_LIGHT].set("#112233");
@@ -214,21 +182,14 @@ describe("AppearanceStudio theme value compatibility", () => {
     darkToggle?.click();
 
     const previewAfterToggle = root.querySelector(".appearance-preview") as HTMLElement;
-    expect(previewAfterToggle.dataset.mode).toBe("dark");
+    expect(previewAfterToggle.getAttribute("data-ft-color-scheme")).toBe("dark");
     expect(previewAfterToggle.style.getPropertyValue("--suggestion-bg-dark")).toBe("#0f172a");
   });
 
   test("preview shows shortcut numbers only when digit selection is enabled", () => {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    const { registry } = createRegistry({
+    const { root, registry } = mount({
       ...DEFAULT_THEME,
       [KEY_SELECT_BY_DIGIT]: false,
-    });
-
-    new AppearanceStudio(root, registry as never, {
-      default: DEFAULT_THEME,
-      compact: COMPACT_THEME,
     });
 
     const popup = () => (root.querySelector(".appearance-preview") as HTMLElement).shadowRoot!;
@@ -244,20 +205,13 @@ describe("AppearanceStudio theme value compatibility", () => {
   });
 
   test("preview renders the real popup, following the options that change it", () => {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    const { registry } = createRegistry({
+    const { root, registry } = mount({
       ...DEFAULT_THEME,
       [KEY_AUTOCOMPLETE_ON_TAB]: false,
       [KEY_AUTOCOMPLETE_ON_ENTER]: true,
       [KEY_AUTOCOMPLETE]: true,
       [KEY_HORIZONTAL_SUGGESTIONS]: false,
       [KEY_SHOW_SUGGESTION_FOOTER]: true,
-    });
-
-    new AppearanceStudio(root, registry as never, {
-      default: DEFAULT_THEME,
-      compact: COMPACT_THEME,
     });
 
     const preview = () => root.querySelector(".appearance-preview") as HTMLElement;
@@ -282,18 +236,11 @@ describe("AppearanceStudio theme value compatibility", () => {
   });
 
   test("preview names the fallback language while auto-detect is on, never 'Auto detect'", () => {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    const { registry } = createRegistry({
+    const { root } = mount({
       ...DEFAULT_THEME,
       [KEY_SHOW_SUGGESTION_FOOTER]: true,
       [KEY_LANGUAGE]: "auto_detect",
       [KEY_FALLBACK_LANGUAGE]: "de_DE",
-    });
-
-    new AppearanceStudio(root, registry as never, {
-      default: DEFAULT_THEME,
-      compact: COMPACT_THEME,
     });
 
     const lang = (
@@ -303,14 +250,7 @@ describe("AppearanceStudio theme value compatibility", () => {
   });
 
   test("preview drops the whole footer when the key hints and language setting is off", () => {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    const { registry } = createRegistry({ ...DEFAULT_THEME, [KEY_SHOW_SUGGESTION_FOOTER]: false });
-
-    new AppearanceStudio(root, registry as never, {
-      default: DEFAULT_THEME,
-      compact: COMPACT_THEME,
-    });
+    const { root, registry } = mount({ ...DEFAULT_THEME, [KEY_SHOW_SUGGESTION_FOOTER]: false });
 
     const footer = () =>
       (root.querySelector(".appearance-preview") as HTMLElement).shadowRoot!.querySelector(
@@ -323,14 +263,7 @@ describe("AppearanceStudio theme value compatibility", () => {
   });
 
   test("advanced color typing updates preview and contrast before blur", () => {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    const { registry } = createRegistry(DEFAULT_THEME);
-
-    new AppearanceStudio(root, registry as never, {
-      default: DEFAULT_THEME,
-      compact: COMPACT_THEME,
-    });
+    const { root } = mount();
 
     const rawInput = root.querySelectorAll<HTMLInputElement>('input[type="text"]')[0];
     rawInput.value = "#112233";
@@ -342,14 +275,7 @@ describe("AppearanceStudio theme value compatibility", () => {
   });
 
   test("silent theme loads update preview without requiring a mode toggle", () => {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    const { registry } = createRegistry(DEFAULT_THEME);
-
-    new AppearanceStudio(root, registry as never, {
-      default: DEFAULT_THEME,
-      compact: COMPACT_THEME,
-    });
+    const { root, registry } = mount();
 
     registry[KEY_SUGGESTION_BG_LIGHT].set("#112233", true);
 
@@ -358,14 +284,7 @@ describe("AppearanceStudio theme value compatibility", () => {
   });
 
   test("uses user-facing labels for density and advanced color groups", () => {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    const { registry } = createRegistry(DEFAULT_THEME);
-
-    new AppearanceStudio(root, registry as never, {
-      default: DEFAULT_THEME,
-      compact: COMPACT_THEME,
-    });
+    const { root } = mount();
 
     expect(root.textContent).toContain("Starter looks");
     expect(root.textContent).toContain("Size & density");
@@ -376,14 +295,7 @@ describe("AppearanceStudio theme value compatibility", () => {
   });
 
   test("size and density controls expose five tuning steps each", () => {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    const { registry } = createRegistry(DEFAULT_THEME);
-
-    new AppearanceStudio(root, registry as never, {
-      default: DEFAULT_THEME,
-      compact: COMPACT_THEME,
-    });
+    const { root } = mount();
 
     const selects = root.querySelectorAll<HTMLSelectElement>(".settings-stack-field select");
     expect(selects[0]?.options).toHaveLength(5);
@@ -395,14 +307,7 @@ describe("AppearanceStudio theme value compatibility", () => {
   });
 
   test("text size defaults to the balanced middle step", () => {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    const { registry } = createRegistry(DEFAULT_THEME);
-
-    new AppearanceStudio(root, registry as never, {
-      default: DEFAULT_THEME,
-      compact: COMPACT_THEME,
-    });
+    const { root } = mount();
 
     const selects = root.querySelectorAll<HTMLSelectElement>(".settings-stack-field select");
     expect(selects[0]?.value).toBe("0.85rem");
@@ -410,14 +315,7 @@ describe("AppearanceStudio theme value compatibility", () => {
   });
 
   test("contrast checks use readability language instead of raw ratios", () => {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    const { registry } = createRegistry(DEFAULT_THEME);
-
-    new AppearanceStudio(root, registry as never, {
-      default: DEFAULT_THEME,
-      compact: COMPACT_THEME,
-    });
+    const { root } = mount();
 
     expect(root.textContent).toContain("Main text on light pages");
     expect(root.textContent).toContain("Very clear.");
@@ -426,14 +324,7 @@ describe("AppearanceStudio theme value compatibility", () => {
   });
 
   test("contrast refresh keeps the section helper copy", () => {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    const { registry } = createRegistry(DEFAULT_THEME);
-
-    new AppearanceStudio(root, registry as never, {
-      default: DEFAULT_THEME,
-      compact: COMPACT_THEME,
-    });
+    const { root } = mount();
 
     const helperCopy = i18n.get("appearance_contrast_copy");
     expect(root.textContent).toContain(helperCopy);

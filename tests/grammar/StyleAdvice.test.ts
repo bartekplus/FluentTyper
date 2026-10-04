@@ -4,28 +4,18 @@ import {
   REVIEW_RULE_METADATA,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { TYPING_RULE_IDS, GRAMMAR_RULE_CATALOG } from "../../src/core/domain/grammar/ruleCatalog";
-import { planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
-import { scanResult } from "./reviewHarness";
+import { review, term, planBulkFix } from "./grammarTestUtils";
 const rules = ["styleRedundancy", "styleLongSentence"];
-const options: ReviewOptions = {
-  lang: "en_US",
-  enabledRules: rules,
-  userDictionary: [],
-  insertSpaceAfterAutocomplete: true,
-  longSentenceWords: 10,
-};
-function scan(
+const scan = (
   text: string,
   opts: Partial<ReviewOptions> = {},
   extra: Partial<ReviewSourceSnapshot> = {},
-) {
-  return scanResult(text, { ...options, ...opts, snapshot: extra });
-}
+) => review(text, extra, { enabledRules: rules, longSentenceWords: 10, ...opts });
 test("style is explicitly opt-in, never typing, recommended or safe bulk", () => {
   const defaults = reviewRuleIds({ codeMode: false });
   for (const id of rules) {
@@ -33,8 +23,6 @@ test("style is explicitly opt-in, never typing, recommended or safe bulk", () =>
     expect(TYPING_RULE_IDS as readonly string[]).not.toContain(id);
     expect(GRAMMAR_RULE_CATALOG.find((entry) => entry.id === id)).toMatchObject({
       typing: false,
-      recommended: false,
-      defaultRollout: "off",
     });
   }
   expect(
@@ -62,6 +50,14 @@ test("explicit acronym pairs offer optional literal repairs without changing voi
     ),
   ).toBe("You might use your PIN at the ATM, but you may choose not to.");
   expect(planBulkFix(text, result.diagnostics).edits).toEqual([]);
+});
+
+test.each([
+  ["The HIV virus spreads.", "The HIV spreads."],
+  ["Two HIV viruses spread.", "Two HIVs spread."],
+])("an acronym pair keeps the typed number: %s", (text, expected) => {
+  const [finding] = scan(text, { enabledRules: ["styleRedundancy"] }).diagnostics;
+  expect(applyEdits(text, finding.alternatives[0].edits)).toBe(expected);
 });
 
 test.each([
@@ -132,18 +128,7 @@ test("readability warnings coexist with preferred terminology because they propo
     preferredTerminology: {
       version: 1,
       enabled: true,
-      entries: [
-        {
-          id: "acme",
-          source: "Acme Suite",
-          replacement: "Acme Workspace",
-          casePolicy: "exact",
-          explanation: "Our name",
-          language: "en_US",
-          scope: "all-prose",
-          enabled: true,
-        },
-      ],
+      entries: [term({ explanation: "Our name" })],
     },
   });
   expect(result.diagnostics.map((d) => d.ruleId).toSorted()).toEqual([

@@ -1,15 +1,19 @@
 import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
-import { ENGLISH_VERB_FORMS, englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
+import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
-import { pluralNoun } from "./englishSentenceStructure";
-import { frame, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "./phraseTemplates";
+import { PASTS, pluralNoun, tightAround } from "./englishSentenceStructure";
+import {
+  COMPLETE_OR_PAREN,
+  frame,
+  frameMatches,
+  group,
+  hasUserOrCasedWord,
+  SPACE,
+  WORD_END,
+} from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { finding } from "./finding";
 
-// Irregular simple-past forms with one owner ("lay" is lay's lemma and lie's past).
-const PASTS = ENGLISH_VERB_FORMS.filter((entry) => englishVerbForms(entry.past) === entry).map(
-  (entry) => entry.past,
-);
 const NEGATIVE = "n['’]t";
 const AUX = `(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must)`;
 /** Finite verb evidence that the words before it are a subject. */
@@ -140,12 +144,10 @@ function coordinatedSubjects(ctx: DetectContext): RawFinding[] {
     if (isFirstPerson(a) && isFirstPerson(b)) continue;
     // "Her and my parents met" shares one noun between two possessives.
     if (/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t\u00a0]/i.test(b)) continue;
-    const start = m.index;
-    const end = start + m[0].length;
     if (hasUserOrCasedWord(ctx, m[0])) continue;
-    const [aStart, aEnd] = m.indices!.groups!.a;
-    const [bStart, bEnd] = m.indices!.groups!.b;
-    const [verbStart, verbEnd] = m.indices!.groups!.verb;
+    const [aStart, aEnd] = group(m, "a");
+    const [bStart, bEnd] = group(m, "b");
+    const [verbStart, verbEnd] = group(m, "verb");
     const joint = ctx.source.slice(aEnd, bStart); // " and "
     let phrase =
       isFirstPerson(a) || isFirstPerson(b)
@@ -164,7 +166,7 @@ function coordinatedSubjects(ctx: DetectContext): RawFinding[] {
     if (phrase === typed) continue;
     findings.push(
       finding("englishPronounCase", "review_msg_pronoun_subject_case", aStart, rangeEnd, [phrase], {
-        context: { start: Math.max(0, start - 32), end: Math.min(ctx.text.length, end + 16) },
+        context: tightAround(ctx, m),
       }),
     );
   }
@@ -229,7 +231,7 @@ function whomSubjects(ctx: DetectContext): RawFinding[] {
     const caps = m[0] === m[0].toUpperCase();
     const evidence = caps ? m.groups!.evidence?.toLowerCase() : m.groups!.evidence;
     const verb = caps ? m.groups!.verb?.toLowerCase() : m.groups!.verb;
-    const [start, end] = m.indices!.groups!.whom;
+    const [start, end] = group(m, "whom");
     const matchEnd = m.index + m[0].length;
     // whoever/whosoever take their case from their own clause, never from a preposition.
     const ever = whom.length > 4;
@@ -280,28 +282,26 @@ const OBJECT_FORM: Readonly<Record<string, string>> = {
 // ("In they went").
 const OBJECT_PREPOSITION =
   "(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)";
-const preposed = (words: string) => `${words}${SPACE}`;
-const CLOSES = `(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))`;
 // "to he and his team", "to we developers", "with Sam and I.", "Us developers are tired".
 const PRONOUN_OBJECT = frame(
-  `${preposed(OBJECT_PREPOSITION)}(?<pronoun>he|she|they|we)${SPACE}(?:and|or)${WORD_END}(?!${SPACE}I${WORD_END})`,
+  `${OBJECT_PREPOSITION}${SPACE}(?<pronoun>he|she|they|we)${SPACE}(?:and|or)${WORD_END}(?!${SPACE}I${WORD_END})`,
 );
 const WE_OBJECT = frame(
-  `${preposed(OBJECT_PREPOSITION)}(?<pronoun>we)${SPACE}(?<noun>[a-z]+)${WORD_END}`,
+  `${OBJECT_PREPOSITION}${SPACE}(?<pronoun>we)${SPACE}(?<noun>[a-z]+)${WORD_END}`,
 );
 // After a preposition the pair also ends before a relative or a closed word: "of Tom and I
 // when we were young", "between Ann and I which".
-const PAIR_ENDS = `(?:${CLOSES}|(?=${SPACE}(?:and|which|who|whom|when|if|that|about|before|after|into|with|on|at|in|to|from|by|for)${WORD_END}))`;
+const PAIR_ENDS = `(?:${COMPLETE_OR_PAREN}|${WORD_END}(?=${SPACE}(?:and|which|who|whom|when|if|that|about|before|after|into|with|on|at|in|to|from|by|for)${WORD_END}))`;
 const AND_I_OBJECT = frame(
-  `${preposed(`(?:${OBJECT_PREPOSITION}|for|between)`)}(?<a>${CONJUNCT})${SPACE}and${SPACE}(?<i>I)${WORD_END}${PAIR_ENDS}`,
+  `(?:${OBJECT_PREPOSITION}|for|between)${SPACE}(?<a>${CONJUNCT})${SPACE}and${SPACE}(?<i>I)${PAIR_ENDS}`,
 );
 const AND_MYSELF_OBJECT = frame(
-  `${preposed(`(?:${OBJECT_PREPOSITION}|for|between)`)}(?<a>${CONJUNCT})${SPACE}(?:and|or)${SPACE}(?<i>myself)${WORD_END}${CLOSES}`,
+  `(?:${OBJECT_PREPOSITION}|for|between)${SPACE}(?<a>${CONJUNCT})${SPACE}(?:and|or)${SPACE}(?<i>myself)${COMPLETE_OR_PAREN}`,
 );
 // "told Mary and I that…", "to Tom and I before you go", "Please include Tony and I.": an
 // object pair before a closed word or the clause end.
 const AND_I_BEFORE = frame(
-  `(?=[a-z]+(?:[ \\t\\u00a0]{1,8}[a-z]+){1,3}[ \\t\\u00a0]{1,8}(?:and|or)[ \\t\\u00a0]{1,8}I(?![\\p{L}]))(?<lead>[a-z]+)${SPACE}(?<a>${CONJUNCT})${SPACE}(?:and|or)${SPACE}(?<i>I)${WORD_END}(?:(?=${SPACE}(?<next>[a-z]+)${WORD_END})|${CLOSES})`,
+  `(?=[a-z]+(?:[ \\t\\u00a0]{1,8}[a-z]+){1,3}[ \\t\\u00a0]{1,8}(?:and|or)[ \\t\\u00a0]{1,8}I(?![\\p{L}]))(?<lead>[a-z]+)${SPACE}(?<a>${CONJUNCT})${SPACE}(?:and|or)${SPACE}(?<i>I)(?:${WORD_END}(?=${SPACE}(?<next>[a-z]+)${WORD_END})|${COMPLETE_OR_PAREN})`,
 );
 // Words after which "X and I" cannot be a subject: they need no verb from the pair.
 const OBJECT_NEXT =
@@ -328,34 +328,37 @@ function pronounObjects(ctx: DetectContext): RawFinding[] {
   };
   const object = (word: string) =>
     applyWordCase(OBJECT_FORM[word.toLowerCase()] ?? word, detectWordCase(word));
+  // "Tom and I" -> "Tom and me": the first word in its object form, "ME" in all-caps text.
+  const pushPair = (m: RegExpExecArray, a: string, range: [number, number], joint: string) => {
+    const first = Object.hasOwn(OBJECT_FORM, a.toLowerCase()) ? object(a) : a;
+    push(m, range, `${first}${joint}${m[0] === m[0].toUpperCase() ? "ME" : "me"}`);
+  };
   for (const pattern of [PRONOUN_OBJECT, WE_OBJECT])
     for (const m of frameMatches(ctx, pattern, "pronoun")) {
       const { pronoun, noun } = m.groups!;
       if (noun !== undefined && !pluralNoun(noun)) continue;
-      push(m, m.indices!.groups!.pronoun, object(pronoun));
+      push(m, group(m, "pronoun"), object(pronoun));
     }
   for (const m of frameMatches(ctx, AND_I_OBJECT, "a")) {
     const { a } = m.groups!;
-    const [start, aEnd] = m.indices!.groups!.a;
-    const [iStart, end] = m.indices!.groups!.i;
+    const [start, aEnd] = group(m, "a");
+    const [iStart, end] = group(m, "i");
     // "between you and I" is left to its fixed phrase; "me and I" has no fix.
     if (/^(?:I|me)$/i.test(a) || (/^you$/i.test(a) && /^between/i.test(m[0]))) continue;
-    const first = Object.hasOwn(OBJECT_FORM, a.toLowerCase()) ? object(a) : a;
-    push(m, [start, end], `${first}${ctx.source.slice(aEnd, iStart)}me`);
+    pushPair(m, a, [start, end], ctx.source.slice(aEnd, iStart));
   }
   // "Talk to Don or myself.": with no "I" before it in the sentence, myself is me.
   for (const m of frameMatches(ctx, AND_MYSELF_OBJECT, "a")) {
     const { a } = m.groups!;
-    const [start, aEnd] = m.indices!.groups!.a;
-    const [iStart, end] = m.indices!.groups!.i;
+    const [start, aEnd] = group(m, "a");
+    const [iStart, end] = group(m, "i");
     if (/^(?:I|me|myself)$/i.test(a)) continue;
     const sentence = ctx.text
       .slice(Math.max(0, m.index - 200), m.index)
       .split(/[.!?\n]/)
       .pop()!;
     if (/(?:^|[^\p{L}'’])I(?:[^\p{L}'’]|['’](?:m|ve|ll|d))/u.test(sentence)) continue;
-    const first = Object.hasOwn(OBJECT_FORM, a.toLowerCase()) ? object(a) : a;
-    push(m, [start, end], `${first}${ctx.source.slice(aEnd, iStart)}me`);
+    pushPair(m, a, [start, end], ctx.source.slice(aEnd, iStart));
   }
   for (const m of frameMatches(ctx, AND_I_BEFORE, "a")) {
     const { lead, a, next } = m.groups!;
@@ -375,17 +378,16 @@ function pronounObjects(ctx: DetectContext): RawFinding[] {
         ) &&
         !!read?.verbs.some((v) => v.form === "past" || v.form === "base" || v.form === "third"));
     if (!governs) continue;
-    const [start, aEnd] = m.indices!.groups!.a;
-    const [iStart, end] = m.indices!.groups!.i;
+    const [start, aEnd] = group(m, "a");
+    const [iStart, end] = group(m, "i");
     if (findings.some((f) => f.range.start === start)) continue;
-    const first = Object.hasOwn(OBJECT_FORM, a.toLowerCase()) ? object(a) : a;
-    push(m, [start, end], `${first}${ctx.source.slice(aEnd, iStart)}me`);
+    pushPair(m, a, [start, end], ctx.source.slice(aEnd, iStart));
   }
   for (const m of frameMatches(ctx, US_SUBJECT, "pronoun")) {
     const { pronoun, noun } = m.groups!;
     // "US companies" names the country.
     if (pronoun === "US" || !pluralNoun(noun)) continue;
-    push(m, m.indices!.groups!.pronoun, applyWordCase("we", detectWordCase(pronoun)), true);
+    push(m, group(m, "pronoun"), applyWordCase("we", detectWordCase(pronoun)), true);
   }
   return findings;
 }

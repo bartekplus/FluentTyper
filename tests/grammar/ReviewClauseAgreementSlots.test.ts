@@ -47,7 +47,7 @@ test.each([
 ])("the verb after the clause agrees with its subject: %s", (input, fix) => {
   const found = scan(input);
   expect(found).toHaveLength(1);
-  const fixed = applyEdits(input, found[0].alternatives[0].edits);
+  const fixed = applyEdits(input, found[0].alternatives[0].edits)!;
   expect(fixed).toMatch(new RegExp(`\\b${fix}\\b`));
   expect(scan(fixed)).toEqual([]);
 });

@@ -68,16 +68,17 @@ export const localAiEngine: LocalAiEngine | null = new LocalAiEngine({
     loadModel: async (record, tokenizer): Promise<ModelLike> => {
       pinRevision(record);
       const options = { revision: record.revision, dtype: record.dtype, device: "webgpu" } as const;
-      const model =
-        record.loader === "gemma4"
-          ? await Gemma4ForCausalLM.from_pretrained(record.repo, options)
-          : await AutoModelForCausalLM.from_pretrained(record.repo, options);
-      return record.loader === "gemma4"
-        ? withPromptPrefix(model, tokenizer as unknown as PreTrainedTokenizer, {
-            DynamicCache,
-            Tensor,
-          })
-        : (model as unknown as ModelLike);
+      if (record.loader !== "gemma4") {
+        return (await AutoModelForCausalLM.from_pretrained(
+          record.repo,
+          options,
+        )) as unknown as ModelLike;
+      }
+      const model = await Gemma4ForCausalLM.from_pretrained(record.repo, options);
+      return withPromptPrefix(model, tokenizer as unknown as PreTrainedTokenizer, {
+        DynamicCache,
+        Tensor,
+      });
     },
     createStopper: () => new InterruptableStoppingCriteria(),
   },

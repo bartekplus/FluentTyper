@@ -1,4 +1,3 @@
-import "./setup";
 import { describe, expect, test } from "bun:test";
 import { CheckboxControl } from "../src/ui/settings-engine/controls/CheckboxControl.js";
 import { SliderControl } from "../src/ui/settings-engine/controls/SliderControl.js";
@@ -7,75 +6,112 @@ import { ButtonControl } from "../src/ui/settings-engine/controls/ButtonControl.
 import { DescriptionControl } from "../src/ui/settings-engine/controls/DescriptionControl.js";
 import { ValueOnlyControl } from "../src/ui/settings-engine/controls/ValueOnlyControl.js";
 import { Store } from "../src/core/application/storage/Store.js";
+import type { BaseControl } from "../src/ui/settings-engine/controls/FieldControl.js";
 
 function makeStore(): Store {
   return new Store("test-controls");
 }
 
-// ── CheckboxControl ────────────────────────────────────────────────────────
+const OPTIONS: [string, string][] = [
+  ["a", "Option A"],
+  ["b", "Option B"],
+  ["c", "Option C"],
+];
+
+// Each control needs a place in the settings page. The tests do not render it.
+const FIELD = { tab: "test_tab", group: "Test" };
+
+function describeSet<T>(
+  name: string,
+  create: () => BaseControl<T>,
+  values: readonly T[],
+  actionValue: T,
+): void {
+  describe(`${name} set`, () => {
+    test("silent set/get round-trip", () => {
+      const ctrl = create();
+      for (const value of values) {
+        ctrl.set(value, true);
+        expect(ctrl.get()).toEqual(value);
+      }
+    });
+
+    test("non-silent set fires action exactly once", () => {
+      const ctrl = create();
+      const received: unknown[] = [];
+      ctrl.addEvent("action", (value) => received.push(value));
+      ctrl.set(actionValue, false);
+      expect(received).toEqual([actionValue]);
+    });
+
+    test("silent set does not fire action", () => {
+      const ctrl = create();
+      const received: unknown[] = [];
+      ctrl.addEvent("action", (value) => received.push(value));
+      ctrl.set(actionValue, true);
+      expect(received).toEqual([]);
+    });
+  });
+}
+
+describeSet(
+  "CheckboxControl",
+  () => new CheckboxControl({ ...FIELD, type: "checkbox" }, makeStore()),
+  [true, false],
+  true,
+);
+describeSet(
+  "SliderControl",
+  () => new SliderControl({ ...FIELD, type: "slider", min: 0, max: 100 }, makeStore()),
+  [42],
+  5,
+);
+describeSet(
+  "SelectControl",
+  () => new SelectControl({ ...FIELD, type: "popupButton", options: OPTIONS }, makeStore()),
+  ["b"],
+  "c",
+);
+describeSet<unknown>(
+  "ValueOnlyControl",
+  () => new ValueOnlyControl({ tab: FIELD.tab, type: "valueOnly", name: "test-key" }, makeStore()),
+  [42, ["a", "b"]],
+  "hello",
+);
 
 describe("CheckboxControl", () => {
   test("get returns false by default", () => {
-    const ctrl = new CheckboxControl({ type: "checkbox" }, makeStore());
+    const ctrl = new CheckboxControl({ ...FIELD, type: "checkbox" }, makeStore());
     expect(ctrl.get()).toBe(false);
-  });
-
-  test("set/get round-trip", () => {
-    const ctrl = new CheckboxControl({ type: "checkbox" }, makeStore());
-    ctrl.set(true, true);
-    expect(ctrl.get()).toBe(true);
-    ctrl.set(false, true);
-    expect(ctrl.get()).toBe(false);
-  });
-
-  test("fires action event on non-silent set", () => {
-    const ctrl = new CheckboxControl({ type: "checkbox" }, makeStore());
-    const received: boolean[] = [];
-    ctrl.addEvent("action", (v) => received.push(v as boolean));
-    ctrl.set(true, false);
-    expect(received).toEqual([true]);
-  });
-
-  test("silent set does not fire action", () => {
-    const ctrl = new CheckboxControl({ type: "checkbox" }, makeStore());
-    const received: boolean[] = [];
-    ctrl.addEvent("action", (v) => received.push(v as boolean));
-    ctrl.set(true, true);
-    expect(received).toHaveLength(0);
   });
 
   test("rootElement has field class", () => {
-    const ctrl = new CheckboxControl({ type: "checkbox", label: "Enable" }, makeStore());
+    const ctrl = new CheckboxControl({ ...FIELD, type: "checkbox", label: "Enable" }, makeStore());
     expect(ctrl.rootElement.classList.contains("field")).toBe(true);
   });
 
   test("element has role=switch", () => {
-    const ctrl = new CheckboxControl({ type: "checkbox" }, makeStore());
+    const ctrl = new CheckboxControl({ ...FIELD, type: "checkbox" }, makeStore());
     expect(ctrl.element.getAttribute("role")).toBe("switch");
   });
 
   test("label renders when provided", () => {
-    const ctrl = new CheckboxControl({ type: "checkbox", label: "My Feature" }, makeStore());
+    const ctrl = new CheckboxControl(
+      { ...FIELD, type: "checkbox", label: "My Feature" },
+      makeStore(),
+    );
     expect(ctrl.rootElement.textContent).toContain("My Feature");
   });
 });
 
-// ── SliderControl ──────────────────────────────────────────────────────────
-
 describe("SliderControl", () => {
   test("get returns 0 by default (no name)", () => {
-    const ctrl = new SliderControl({ type: "slider", min: 0, max: 10 }, makeStore());
+    const ctrl = new SliderControl({ ...FIELD, type: "slider", min: 0, max: 10 }, makeStore());
     expect(ctrl.get()).toBe(0);
   });
 
-  test("set/get round-trip", () => {
-    const ctrl = new SliderControl({ type: "slider", min: 0, max: 100 }, makeStore());
-    ctrl.set(42, true);
-    expect(ctrl.get()).toBe(42);
-  });
-
   test("tooltip text updates when user changes value", () => {
-    const ctrl = new SliderControl({ type: "slider", min: 0, max: 10 }, makeStore());
+    const ctrl = new SliderControl({ ...FIELD, type: "slider", min: 0, max: 10 }, makeStore());
     // Simulate user dragging the slider (fires "input" event)
     const input = ctrl.element as HTMLInputElement;
     input.value = "5";
@@ -85,7 +121,7 @@ describe("SliderControl", () => {
   });
 
   test("fires action when user changes value via input event", () => {
-    const ctrl = new SliderControl({ type: "slider", min: 0, max: 10 }, makeStore());
+    const ctrl = new SliderControl({ ...FIELD, type: "slider", min: 0, max: 10 }, makeStore());
     const received: number[] = [];
     ctrl.addEvent("action", (v) => received.push(v as number));
     const input = ctrl.element as HTMLInputElement;
@@ -93,61 +129,32 @@ describe("SliderControl", () => {
     input.dispatchEvent(new Event("input"));
     expect(received).toEqual([7]);
   });
-
-  test("non-silent set fires action exactly once", () => {
-    const ctrl = new SliderControl({ type: "slider", min: 0, max: 10 }, makeStore());
-    const received: number[] = [];
-    ctrl.addEvent("action", (v) => received.push(v as number));
-    ctrl.set(5, false);
-    expect(received).toEqual([5]);
-  });
-
-  test("silent set does not fire action", () => {
-    const ctrl = new SliderControl({ type: "slider", min: 0, max: 10 }, makeStore());
-    const received: number[] = [];
-    ctrl.addEvent("action", (v) => received.push(v as number));
-    ctrl.set(5, true);
-    expect(received).toHaveLength(0);
-  });
-
-  test("tooltip element is rendered", () => {
-    const ctrl = new SliderControl({ type: "slider", min: 0, max: 10 }, makeStore());
-    const tooltip = ctrl.rootElement.querySelector(".slider-tooltip");
-    expect(tooltip).not.toBeNull();
-  });
 });
 
-// ── SelectControl ──────────────────────────────────────────────────────────
+test("the slider label and output point to the range input", () => {
+  const slider = new SliderControl(
+    { ...FIELD, type: "slider", label: "Suggestions", min: 0, max: 10 },
+    makeStore(),
+  );
+  const id = slider.element.id;
+  expect(id).not.toBe("");
+  expect(slider.rootElement.querySelector("label")?.htmlFor).toBe(id);
+  expect(slider.rootElement.querySelector("output")?.getAttribute("for")).toBe(id);
+});
 
 describe("SelectControl", () => {
-  const OPTIONS: [string, string][] = [
-    ["a", "Option A"],
-    ["b", "Option B"],
-    ["c", "Option C"],
-  ];
-
   test("get returns first option by default", () => {
-    const ctrl = new SelectControl({ type: "popupButton", options: OPTIONS }, makeStore());
+    const ctrl = new SelectControl(
+      { ...FIELD, type: "popupButton", options: OPTIONS },
+      makeStore(),
+    );
     expect(ctrl.get()).toBe("a");
   });
 
-  test("set/get round-trip", () => {
-    const ctrl = new SelectControl({ type: "popupButton", options: OPTIONS }, makeStore());
-    ctrl.set("b", true);
-    expect(ctrl.get()).toBe("b");
-  });
-
-  test("fires action on non-silent set", () => {
-    const ctrl = new SelectControl({ type: "popupButton", options: OPTIONS }, makeStore());
-    const received: string[] = [];
-    ctrl.addEvent("action", (v) => received.push(v as string));
-    ctrl.set("c", false);
-    expect(received).toEqual(["c"]);
-  });
-
-  test("uses plain text for aria-label when label contains helper markup", () => {
+  test("the label names the select", () => {
     const ctrl = new SelectControl(
       {
+        ...FIELD,
         type: "popupButton",
         options: OPTIONS,
         label: "Extension Language:&nbsp;<small>Choose the UI language.</small>",
@@ -155,17 +162,16 @@ describe("SelectControl", () => {
       makeStore(),
     );
 
-    expect(ctrl.element.getAttribute("aria-label")).toBe(
-      "Extension Language: Choose the UI language.",
-    );
+    const label = ctrl.rootElement.querySelector("label")!;
+    expect(ctrl.element.id).not.toBe("");
+    expect(label.htmlFor).toBe(ctrl.element.id);
+    expect(label.textContent).toBe("Extension Language:\u00a0Choose the UI language.");
   });
 });
 
-// ── ButtonControl ──────────────────────────────────────────────────────────
-
 describe("ButtonControl", () => {
   test("fires action on click", () => {
-    const ctrl = new ButtonControl({ type: "button", text: "Click me" }, makeStore());
+    const ctrl = new ButtonControl({ ...FIELD, type: "button", text: "Click me" }, makeStore());
     const received: string[] = [];
     ctrl.addEvent("action", (v) => received.push(v as string));
     (ctrl.element as HTMLInputElement).click();
@@ -173,23 +179,21 @@ describe("ButtonControl", () => {
   });
 
   test("get returns button text", () => {
-    const ctrl = new ButtonControl({ type: "button", text: "Go" }, makeStore());
+    const ctrl = new ButtonControl({ ...FIELD, type: "button", text: "Go" }, makeStore());
     expect(ctrl.get()).toBe("Go");
   });
 
   test("set updates button text", () => {
-    const ctrl = new ButtonControl({ type: "button", text: "Go" }, makeStore());
+    const ctrl = new ButtonControl({ ...FIELD, type: "button", text: "Go" }, makeStore());
     ctrl.set("Stop");
     expect(ctrl.get()).toBe("Stop");
   });
 });
 
-// ── DescriptionControl ─────────────────────────────────────────────────────
-
 describe("DescriptionControl", () => {
   test("renders description text", () => {
     const ctrl = new DescriptionControl(
-      { type: "description", description: "Hello world" },
+      { ...FIELD, type: "description", text: "Hello world" },
       makeStore(),
     );
     expect(ctrl.rootElement.textContent).toContain("Hello world");
@@ -197,7 +201,7 @@ describe("DescriptionControl", () => {
 
   test("get returns description text", () => {
     const ctrl = new DescriptionControl(
-      { type: "description", description: "Some text" },
+      { ...FIELD, type: "description", text: "Some text" },
       makeStore(),
     );
     expect(ctrl.get()).toBe("Some text");
@@ -206,9 +210,9 @@ describe("DescriptionControl", () => {
   test("sanitizes html while preserving allowed markup", () => {
     const ctrl = new DescriptionControl(
       {
+        ...FIELD,
         type: "description",
-        description:
-          '<div id="safe-root">Hello<script>alert(1)</script><a href="javascript:alert(1)" target="_blank">link</a><strong>world</strong></div>',
+        text: '<div id="safe-root">Hello<script>alert(1)</script><a href="javascript:alert(1)" target="_blank">link</a><strong>world</strong></div>',
       },
       makeStore(),
     );
@@ -221,53 +225,37 @@ describe("DescriptionControl", () => {
   });
 });
 
-// ── ValueOnlyControl ───────────────────────────────────────────────────────
-
 describe("ValueOnlyControl", () => {
   test("get returns undefined by default", () => {
-    const ctrl = new ValueOnlyControl({ type: "valueOnly", name: "test-key" }, makeStore());
+    const ctrl = new ValueOnlyControl(
+      { tab: FIELD.tab, type: "valueOnly", name: "test-key" },
+      makeStore(),
+    );
     expect(ctrl.get()).toBeUndefined();
   });
 
-  test("set/get round-trip (silent)", () => {
-    const ctrl = new ValueOnlyControl({ type: "valueOnly", name: "test-key" }, makeStore());
-    ctrl.set(42, true);
-    expect(ctrl.get()).toBe(42);
-  });
-
-  test("set with array (silent)", () => {
-    const ctrl = new ValueOnlyControl({ type: "valueOnly", name: "test-key" }, makeStore());
-    ctrl.set(["a", "b"], true);
-    expect(ctrl.get()).toEqual(["a", "b"]);
-  });
-
-  test("fires action on non-silent set", () => {
-    const ctrl = new ValueOnlyControl({ type: "valueOnly", name: "test-key" }, makeStore());
-    const received: unknown[] = [];
-    ctrl.addEvent("action", (v) => received.push(v));
-    ctrl.set("hello", false);
-    expect(received).toEqual(["hello"]);
-  });
-
-  test("rootElement is a div (invisible)", () => {
-    const ctrl = new ValueOnlyControl({ type: "valueOnly", name: "test-key" }, makeStore());
+  test("rootElement is an empty div", () => {
+    const ctrl = new ValueOnlyControl(
+      { tab: FIELD.tab, type: "valueOnly", name: "test-key" },
+      makeStore(),
+    );
     expect(ctrl.rootElement.tagName.toLowerCase()).toBe("div");
-    expect(ctrl.element.getAttribute("type")).toBe("hidden");
+    expect(ctrl.rootElement.childElementCount).toBe(0);
   });
 });
 
-// ── destroy ────────────────────────────────────────────────────────────────
-
-describe("BaseControl.destroy()", () => {
-  test("removes rootElement from DOM", () => {
-    const container = document.createElement("div");
-    document.body.appendChild(container);
-    const ctrl = new CheckboxControl({ type: "checkbox", label: "Test" }, makeStore());
-    container.appendChild(ctrl.rootElement);
-    expect(container.contains(ctrl.rootElement)).toBe(true);
-    ctrl.destroy();
-    expect(container.contains(ctrl.rootElement)).toBe(false);
-  });
+test("a value-only set starts the storage write before it fires change", () => {
+  const writes: unknown[] = [];
+  const ctrl = new ValueOnlyControl({ tab: FIELD.tab, type: "valueOnly", name: "test-key" }, {
+    get: async () => undefined,
+    set: async (_key: string, value: unknown) => {
+      writes.push(value);
+    },
+  } as unknown as Store);
+  const writesAtChange: unknown[][] = [];
+  ctrl.addEvent("change", () => writesAtChange.push([...writes]));
+  ctrl.set("new");
+  expect(writesAtChange).toEqual([["new"]]);
 });
 
 test("settings announce persistence only after the storage write finishes", async () => {
@@ -275,7 +263,7 @@ test("settings announce persistence only after the storage write finishes", asyn
   const stored = new Promise<void>((resolve) => {
     complete = resolve;
   });
-  const ctrl = new ValueOnlyControl({ type: "valueOnly", name: "test-key" }, {
+  const ctrl = new ValueOnlyControl({ tab: FIELD.tab, type: "valueOnly", name: "test-key" }, {
     get: async () => undefined,
     set: () => stored,
   } as unknown as Store);

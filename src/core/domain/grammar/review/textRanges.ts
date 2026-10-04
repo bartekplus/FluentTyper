@@ -1,5 +1,10 @@
 import type { ReviewEdit, TextRange } from "./types";
 
+/** True when both edits change the same characters to the same replacement. */
+export function sameEdit(a: ReviewEdit, b: ReviewEdit): boolean {
+  return a.start === b.start && a.end === b.end && a.replacement === b.replacement;
+}
+
 /** True when two ranges share at least one code unit. */
 export function rangesOverlap(a: TextRange, b: TextRange): boolean {
   return a.start < b.end && b.start < a.end;
@@ -15,9 +20,24 @@ export function editTouches(edit: TextRange, range: TextRange): boolean {
   return rangesOverlap(edit, range);
 }
 
+/**
+ * Sorted ranges with the overlapping ones merged (counted once), and the `touching` ones
+ * too. The first range's other fields (a boundary's reason) win.
+ */
+export function mergeRanges<T extends TextRange>(ranges: readonly T[], touching: boolean): T[] {
+  const merged: T[] = [];
+  for (const range of [...ranges].sort((a, b) => a.start - b.start)) {
+    const last = merged.at(-1);
+    if (last && (touching ? range.start <= last.end : range.start < last.end))
+      last.end = Math.max(last.end, range.end);
+    else merged.push({ ...range });
+  }
+  return merged;
+}
+
 let segmenter: Intl.Segmenter | undefined;
 
-function isLowSurrogate(code: number): boolean {
+export function isLowSurrogate(code: number): boolean {
   return code >= 0xdc00 && code <= 0xdfff;
 }
 
@@ -33,7 +53,7 @@ export function isGraphemeBoundary(text: string, index: number): boolean {
   if (index === 0 || index === text.length) return true;
   // A lone surrogate half is never a boundary; neither is a split pair.
   const code = text.charCodeAt(index);
-  if (code >= 0xdc00 && code <= 0xdfff) return false;
+  if (isLowSurrogate(code)) return false;
   // Printable ASCII on both sides is always a boundary (no extenders, no CR LF).
   const previous = text.charCodeAt(index - 1);
   if (code >= 0x20 && code < 0x7f && previous >= 0x20 && previous < 0x7f) return true;
@@ -226,14 +246,7 @@ export function positionMapper(edits: readonly ReviewEdit[]): (position: number)
   }
   return (position) => {
     // Edits ending at or before the position.
-    let low = 0;
-    let high = sorted.length;
-    while (low < high) {
-      const middle = (low + high) >> 1;
-      if (sorted[middle].end <= position) low = middle + 1;
-      else high = middle;
-    }
-    let count = low;
+    let count = lowerBound(sorted.length, (index) => sorted[index].end <= position);
     while (
       count > 0 &&
       sorted[count - 1].start === position &&
@@ -260,14 +273,34 @@ export function remapRangeThroughEdits(
 
 /** Overlap in sorted, disjoint nonempty ranges (for repeated lookups in one snapshot). */
 export function overlapsSortedRanges(ranges: readonly TextRange[], target: TextRange): boolean {
-  let low = 0;
-  let high = ranges.length;
-  while (low < high) {
-    const mid = (low + high) >>> 1;
-    if (ranges[mid].end <= target.start) low = mid + 1;
-    else high = mid;
-  }
+  const low = lowerBound(ranges.length, (index) => ranges[index].end <= target.start);
   return low < ranges.length && ranges[low].start < target.end;
+}
+
+/** First index in [0, length) where `isBefore` is false. `isBefore` must be true only on a prefix. */
+export function lowerBound(length: number, isBefore: (index: number) => boolean): number {
+  let low = 0;
+  let high = length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (isBefore(middle)) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+
+/** The ranges that the replacements of non-overlapping `edits` use in the edited text, in text order. */
+export function postEditRanges(
+  edits: readonly Pick<ReviewEdit, "start" | "end" | "replacement">[],
+): TextRange[] {
+  let shift = 0;
+  return [...edits]
+    .sort((a, b) => a.start - b.start)
+    .map((edit) => {
+      const start = edit.start + shift;
+      shift += edit.replacement.length - (edit.end - edit.start);
+      return { start, end: start + edit.replacement.length };
+    });
 }
 
 /** `replacement` in the text's own apostrophe style: curly when only ’ is used nearby. */
@@ -371,4 +404,18 @@ function previousBoundary(text: string, index: number): number {
   let start = index - 1;
   while (start > 0 && !isGraphemeBoundary(text, start)) start -= 1;
   return start;
+}
+
+/** Deterministic 53-bit string hash (cyrb53), base 36. Session-local keys and ids only. */
+export function hashText(value: string): string {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    h1 = Math.imul(h1 ^ code, 2654435761);
+    h2 = Math.imul(h2 ^ code, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }

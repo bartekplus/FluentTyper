@@ -1,17 +1,26 @@
-import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
+import { englishWordInfo, hasVerbForm } from "../implementations/helpers/EnglishLexicon";
 import { knownEnglishNounNumber } from "../implementations/helpers/EnglishNounNumber";
 import { ENGLISH_VERB_FORMS, englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { englishInitialSound } from "../implementations/helpers/EnglishInitialSound";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import { opensSubjectClause } from "./englishWordConfusions";
-import { frame, frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "./phraseTemplates";
+import {
+  caseLike,
+  frame,
+  frameMatches,
+  group,
+  hasUserOrCasedWord,
+  SPACE,
+  WORD_END,
+} from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 const CLAUSE_START = `(?<=(?:^|[.!?;:\\n"“(])[ \\t\\u00a0]{0,8})`;
 const MODALS = "(?:can|could|will|would|shall|should|may|might|must)";
-// Simple-past forms with one owner; with modals and "had/did", any subject agrees.
-const PASTS = ENGLISH_VERB_FORMS.filter(
-  (entry) => englishVerbForms(entry.past) === entry && entry.past !== "was",
+// Irregular simple-past forms with one owner ("lay" is lay's lemma and lie's past); with
+// modals and "had/did", any subject agrees.
+export const PASTS = ENGLISH_VERB_FORMS.filter(
+  (entry) => englishVerbForms(entry.past) === entry,
 ).map((entry) => entry.past);
 const PREPOSITION =
   "(?:to|with|for|from|about|at|by|of|on|in|into|onto|upon|without|against|among|between|toward|towards|behind|beside|near|around|via)";
@@ -22,16 +31,13 @@ const after = (ctx: DetectContext, index: number, words: string) =>
   );
 
 type Finding = Omit<RawFinding, "ruleId">;
-const around = (ctx: DetectContext, m: RegExpExecArray) => ({
+/** The evidence around a match: 32 characters before it, 16 after it. */
+export const tightAround = (ctx: DetectContext, m: RegExpExecArray) => ({
   start: Math.max(0, m.index - 32),
   end: Math.min(ctx.text.length, m.index + m[0].length + 16),
 });
-/** Case of the first word, carried onto whatever word replaces it. */
-const caseLike = (word: string, model: string) =>
-  word === "I" ? word : applyWordCase(word, model.length > 1 ? detectWordCase(model) : "title");
 
-const isBaseVerb = (word: string) =>
-  word === "be" || !!englishWordInfo(word)?.verbs.some((verb) => verb.form === "base");
+const isBaseVerb = (word: string) => word === "be" || hasVerbForm(word, "base");
 
 /**
  * A lowercase plural noun: "noun", "ambiguous" when it is also an -s verb (houses, changes),
@@ -50,25 +56,25 @@ export function pluralNoun(word: string): "noun" | "ambiguous" | null {
 // "I he went": two subject pronouns left over from an edit. Both readings agree with the verb.
 // Reporting verbs leave a comma-less parenthetical possible ("They he said were late").
 const DOUBLE_SUBJECT = frame(
-  `${CLAUSE_START}(?<a>I|we|they|he|she)${SPACE}(?<b>I|we|they|he|she)${SPACE}(?!(?:said|told|thought|knew|felt|believed|claimed|heard|guessed|supposed|reckoned)${WORD_END})(?:${MODALS}|had|did|${PASTS.join("|")}|[a-z]{2,}ed)${WORD_END}`,
+  `${CLAUSE_START}(?<a>I|we|they|he|she)${SPACE}(?<b>I|we|they|he|she)${SPACE}(?!(?:said|told|thought|knew|felt|believed|claimed|heard|guessed|supposed|reckoned)${WORD_END})(?:${MODALS}|${PASTS.join("|")}|[a-z]{2,}ed)${WORD_END}`,
 );
 function doubleSubjects(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of frameMatches(ctx, DOUBLE_SUBJECT, (match) => match.index)) {
     const { a, b } = m.groups!;
     if (a.toLowerCase() === b.toLowerCase() || hasUserOrCasedWord(ctx, m[0])) continue;
-    const [start] = m.indices!.groups!.a;
-    const [, end] = m.indices!.groups!.b;
+    const [start] = group(m, "a");
+    const [, end] = group(m, "b");
     // "I" is capitalized anywhere; it starts a sentence unless a semicolon or colon precedes it.
     const sentenceInitial =
       a !== "I" || !/[;:][ \t\u00a0]*$/.test(ctx.text.slice(Math.max(0, start - 10), start));
-    const second = /^[A-Z]/.test(a) && sentenceInitial ? caseLike(b.toLowerCase(), a) : b;
+    const second = /^[A-Z]/.test(a) && sentenceInitial ? caseLike(m[0], b.toLowerCase()) : b;
     findings.push({
       messageKey: "review_msg_double_subject",
       range: { start, end },
       alternatives: [a, second === "i" ? "I" : second],
       requiresChoice: true,
-      context: around(ctx, m),
+      context: tightAround(ctx, m),
     });
   }
   return findings;
@@ -89,27 +95,27 @@ function pronounSequences(ctx: DetectContext): Finding[] {
     // A capitalized "My I never…" can be an exclamation.
     if (a !== a.toLowerCase() && m[0] !== m[0].toUpperCase()) continue;
     if (after(ctx, m.index, "(?:oh|ah|my),?") || hasUserOrCasedWord(ctx, m[0])) continue;
-    const [start] = m.indices!.groups!.a;
-    const [, end] = m.indices!.groups!.b;
+    const [start] = group(m, "a");
+    const [, end] = group(m, "b");
     findings.push({
       messageKey: "review_msg_pronoun_sequence",
       range: { start, end },
       alternatives: [],
       warningOnly: true,
-      context: around(ctx, m),
+      context: tightAround(ctx, m),
     });
   }
   for (const m of frameMatches(ctx, OBJECT_PAIR, "a")) {
     const { a, b } = m.groups!;
     if (a.toLowerCase() === b.toLowerCase() || hasUserOrCasedWord(ctx, m[0])) continue;
-    const [start] = m.indices!.groups!.a;
-    const [, end] = m.indices!.groups!.b;
+    const [start] = group(m, "a");
+    const [, end] = group(m, "b");
     findings.push({
       messageKey: "review_msg_pronoun_sequence",
       range: { start, end },
       alternatives: [a, b],
       requiresChoice: true,
-      context: around(ctx, m),
+      context: tightAround(ctx, m),
     });
   }
   return findings;
@@ -136,7 +142,7 @@ function determinerClashes(ctx: DetectContext): Finding[] {
       range: { start, end },
       alternatives,
       requiresChoice: true,
-      context: around(ctx, m),
+      context: tightAround(ctx, m),
     });
   };
   for (const m of frameMatches(ctx, DETERMINER_CLASH, "article")) {
@@ -154,13 +160,13 @@ function determinerClashes(ctx: DetectContext): Finding[] {
     if (article.toLowerCase() !== "the") {
       const sound = noun ? englishInitialSound(noun) : "either";
       if (sound === "either") continue;
-      bare = applyWordCase(sound === "vowel" ? "an" : "a", detectWordCase(article));
+      bare = caseLike(m[0], sound === "vowel" ? "an" : "a");
     }
-    const [start] = m.indices!.groups!.article;
-    const [, end] = m.indices!.groups!.possessive;
+    const [start] = group(m, "article");
+    const [, end] = group(m, "possessive");
     const owner =
       /^[A-Z]/.test(article) && m[0] !== m[0].toUpperCase()
-        ? caseLike(possessive.toLowerCase(), article)
+        ? caseLike(article, possessive.toLowerCase())
         : possessive;
     push(m, [owner, bare], start, end);
   }
@@ -185,16 +191,24 @@ function determinerClashes(ctx: DetectContext): Finding[] {
       continue;
     if (one === "my" && after(ctx, m.index, "(?:oh|ah|my),?")) continue;
     if (/^(?:your|their)$/.test(one) && opensSubjectClause(ctx, m.index)) continue;
-    const [start] = m.indices!.groups!.first;
-    const [, end] = m.indices!.groups!.second;
-    const alternatives = [first, /^[A-Z]/.test(first) ? caseLike(two, first) : second];
+    let kept = first;
+    if (article) {
+      // "a the apple" keeps "an": the article agrees with the next word.
+      const next = /^[ \t\u00a0]+([A-Za-z]+)/.exec(ctx.text.slice(m.index + m[0].length))?.[1];
+      const sound = next ? englishInitialSound(next) : "either";
+      if (sound === "either") continue;
+      kept = caseLike(m[0], sound === "vowel" ? "an" : "a");
+    }
+    const [start] = group(m, "first");
+    const [, end] = group(m, "second");
+    const alternatives = [kept, caseLike(m[0], two)];
     // After a comma or an adverb, "your the" is more likely a you're slip ("Thanks, your the best").
     const before = ctx.text.slice(Math.max(0, start - 24), start).trimEnd();
     const previous = /[A-Za-z]+$/.exec(before)?.[0];
     const slip = previous ? englishWordInfo(previous)?.adverb : /[,;:(]$/.test(before);
     if (two === "the" && /^(?:your|their)$/.test(one) && slip)
       alternatives.unshift(
-        `${applyWordCase(one === "your" ? "you're" : "they're", detectWordCase(first))}${ctx.source.slice(m.indices!.groups!.first[1], m.indices!.groups!.second[0])}${second}`,
+        `${applyWordCase(one === "your" ? "you're" : "they're", detectWordCase(first))}${ctx.source.slice(group(m, "first")[1], group(m, "second")[0])}${second}`,
       );
     push(m, alternatives, start, end);
   }
@@ -209,22 +223,24 @@ const DOUBLE_MODAL = frame(
 function doubleModals(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];
   for (const m of frameMatches(ctx, DOUBLE_MODAL, "first")) {
-    const { first, second, next } = m.groups!;
+    const { first, second } = m.groups!;
     if (first.toLowerCase() === second.toLowerCase()) continue;
+    // The frame's `i` flag lets all-caps words in: "THEY MAY CAN BE LATE".
+    const next = m.groups!.next.toLowerCase();
     if (
       !/^(?:not|never|also|just|really|still|probably|definitely|surely|certainly)$/.test(next) &&
       !isBaseVerb(next)
     )
       continue;
     if (hasUserOrCasedWord(ctx, m[0])) continue;
-    const [start] = m.indices!.groups!.first;
-    const [, end] = m.indices!.groups!.second;
+    const [start] = group(m, "first");
+    const [, end] = group(m, "second");
     findings.push({
       messageKey: "review_msg_double_modal",
       range: { start, end },
       alternatives: [first, applyWordCase(second, detectWordCase(first))],
       requiresChoice: true,
-      context: around(ctx, m),
+      context: tightAround(ctx, m),
     });
   }
   return findings;
@@ -251,7 +267,7 @@ function missingBe(ctx: DetectContext): Finding[] {
       continue;
     const word = adjective.toLowerCase();
     const info = englishWordInfo(word);
-    const tail = m.indices!.groups!.adjective[1];
+    const tail = group(m, "adjective")[1];
     const next = ctx.text.slice(tail, tail + 12);
     // Predicates the lexicon also reads as verbs or nouns: "ready" and "busy" take an object
     // as verbs; "I will back soon"; "It would best to ask".
@@ -280,12 +296,12 @@ function missingBe(ctx: DetectContext): Finding[] {
     // "can be able" is itself awkward; "I can able to" wants "I am able to" or "I can".
     if (/^(?:can|could)/i.test(modal) && /able$/i.test(adjective)) continue;
     if (hasUserOrCasedWord(ctx, m[0])) continue;
-    const [start, end] = m.indices!.groups!.adjective;
+    const [start, end] = group(m, "adjective");
     findings.push({
       messageKey: "review_msg_missing_be",
       range: { start, end },
       alternatives: [`${applyWordCase("be", detectWordCase(adjective))} ${adjective}`],
-      context: around(ctx, m),
+      context: tightAround(ctx, m),
     });
   }
   return findings;
@@ -319,28 +335,28 @@ function quantities(ctx: DetectContext): Finding[] {
     if (hasUserOrCasedWord(ctx, m[0])) continue;
     const [start, headEnd] = m.indices!.groups![m.groups!.head ? "head" : "head2"];
     // The range runs to the noun, so the inserted "of" sits inside it.
-    const [, end] = m.indices!.groups!.noun;
+    const [, end] = group(m, "noun");
     findings.push({
       messageKey: "review_msg_couple_of",
       range: { start, end },
       alternatives: [
         `${head} ${head === head.toUpperCase() ? "OF" : "of"}${ctx.text.slice(headEnd, end)}`,
       ],
-      context: around(ctx, m),
+      context: tightAround(ctx, m),
     });
   }
   for (const m of frameMatches(ctx, PARTITIVE, "of")) {
     const { of, noun } = m.groups!;
     // "make the most of chances" is an idiom.
     if (!pluralNoun(noun) || after(ctx, m.index, "the") || hasUserOrCasedWord(ctx, m[0])) continue;
-    const [start] = m.indices!.groups!.of;
-    const [, end] = m.indices!.groups!.noun;
+    const [start] = group(m, "of");
+    const [, end] = group(m, "noun");
     findings.push({
       messageKey: "review_msg_partitive_of",
       range: { start, end },
       alternatives: [noun, `${of} ${applyWordCase("the", detectWordCase(of))} ${noun}`],
       requiresChoice: true,
-      context: around(ctx, m),
+      context: tightAround(ctx, m),
     });
   }
   return findings;
@@ -394,7 +410,7 @@ function notOnlyInversion(ctx: DetectContext): Finding[] {
   for (const m of frameMatches(ctx, NOT_ONLY, (match) => match.index)) {
     if (hasUserOrCasedWord(ctx, m[0])) continue;
     const { subject, contraction, verb } = m.groups!;
-    const [start] = m.indices!.groups!.subject;
+    const [start] = group(m, "subject");
     const upper = m[0] === m[0].toUpperCase();
     const who = upper || subject === "I" ? subject : subject.toLowerCase();
     const cased = (word: string) => (upper ? word.toUpperCase() : word);
@@ -417,7 +433,7 @@ function notOnlyInversion(ctx: DetectContext): Finding[] {
       const has = key === "s" && /^[ \t\u00a0]+(?:been|got|gotten)\b/i.test(ctx.text.slice(end));
       replacement = `${cased(key === "s" ? (has ? "has" : "is") : CONTRACTED[key])} ${who}`;
     } else if (AUX.test(verb)) {
-      const [auxStart] = m.indices!.groups!.verb;
+      const [auxStart] = group(m, "verb");
       replacement = `${verb}${ctx.source.slice(start + subject.length, auxStart)}${who}`;
     } else {
       const support = doSupport(subject, verb, ctx.text.slice(end, end + 24));
@@ -428,7 +444,7 @@ function notOnlyInversion(ctx: DetectContext): Finding[] {
       messageKey: "review_msg_not_only_inversion",
       range: { start, end },
       alternatives: [replacement],
-      context: around(ctx, m),
+      context: tightAround(ctx, m),
     });
   }
   return findings;

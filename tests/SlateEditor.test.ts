@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { act, createElement, type ReactNode } from "react";
+import { act, createElement, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createEditor, type Descendant, type Editor } from "slate";
 import { withHistory, type HistoryEditor } from "slate-history";
@@ -61,14 +61,14 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-function renderElement({ attributes, children, element }: RenderElementProps): ReactNode {
+function renderElement({ attributes, children, element }: RenderElementProps): ReactElement {
   const node = element as { type?: string; url?: string };
   if (node.type === "link") return createElement("a", { ...attributes, href: node.url }, children);
   if (node.type === "code")
     return createElement("pre", attributes, createElement("code", null, children));
   return createElement("p", attributes, children);
 }
-function renderLeaf({ attributes, children, leaf }: RenderLeafProps): ReactNode {
+function renderLeaf({ attributes, children, leaf }: RenderLeafProps): ReactElement {
   const marks = leaf as { bold?: boolean; italic?: boolean };
   let content = children;
   if (marks.bold) content = createElement("strong", null, content);
@@ -85,11 +85,11 @@ function mount(value: unknown[]) {
   act(() => {
     root = createRoot(container);
     root.render(
-      createElement(
-        Slate,
-        { editor, initialValue: value as Descendant[] },
-        createElement(Editable, { renderElement, renderLeaf }),
-      ),
+      createElement(Slate, {
+        editor,
+        initialValue: value as Descendant[],
+        children: createElement(Editable, { renderElement, renderLeaf }),
+      }),
     );
   });
   const dom = container.querySelector<HTMLElement>("[data-slate-editor]")!;
@@ -137,18 +137,14 @@ describe("real Slate corrections", () => {
     const original = structuredClone(editor.children);
     const target = new ContentEditableReviewTarget(dom);
     expect(target.kind).toBe("slate");
-    expect(target.capabilities).toEqual({
-      inline: true,
-      apply: true,
-      bulk: true,
-      undo: "single-step",
-    });
+    expect(target.capabilities).toEqual({ apply: true, bulk: true });
     const { result } = await review(dom, (text) => [
       fix(text, "teh", "the"),
       fix(text, "teh", "the", text.indexOf("and")),
     ]);
     expect(result).toEqual({ status: "applied", signature: expect.any(String) });
-    expect(editor.children).toEqual([
+    // The default Slate types know no marks, links or block types.
+    expect<unknown>(editor.children).toEqual([
       {
         type: "paragraph",
         children: [
@@ -215,7 +211,7 @@ describe("real Slate corrections", () => {
         }),
       ).toEqual({ applied: true, didDispatchInput: false });
     });
-    expect(editor.children[1]).toEqual({
+    expect<unknown>(editor.children[1]).toEqual({
       type: "paragraph",
       children: [{ text: "We was ", bold: true }],
     });
@@ -226,7 +222,7 @@ describe("real Slate corrections", () => {
     expect(editor.history.undos.length).toBe(undos + 1);
     expect(readSlate(dom)?.text).toBe("Hello\nWe was ");
     act(() => editor.undo());
-    expect(editor.children[1]).toEqual({
+    expect<unknown>(editor.children[1]).toEqual({
       type: "paragraph",
       children: [{ text: "We w", bold: true }],
     });

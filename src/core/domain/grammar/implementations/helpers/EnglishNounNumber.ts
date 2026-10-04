@@ -191,11 +191,8 @@ export function knownEnglishNounNumber(word: string): "singular" | "plural" | nu
  */
 export function hasCountPrefix(before: string): boolean {
   return (
-    /\b(?:no|any|each|every|the|this|that|which)[ \t ]+$/i.test(before) ||
-    /\b(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|point|or|and|to)[ \t\u00a0]+$/i.test(
+    /\b(?:no|any|each|every|the|this|that|which|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|point|or|and|to|model|version|chapter|section|code|row|column|label)[ \t\u00a0]+$/i.test(
       before,
-    ) ||
-    /[0-9](?:[.,][ \t\u00a0\u202f]*|[ \t\u00a0\u202f]+)$/.test(before) ||
-    /\b(?:model|version|chapter|section|code|row|column|label)[ \t]+$/i.test(before)
+    ) || /[0-9](?:[.,][ \t\u00a0\u202f]*|[ \t\u00a0\u202f]+)$/.test(before)
   );
 }

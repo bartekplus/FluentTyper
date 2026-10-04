@@ -1,12 +1,10 @@
-import { mockChrome } from "./setup";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import type { Store } from "../src/core/application/storage/Store.js";
-import type { SettingsRegistry } from "../src/ui/settings-engine/SettingsEngine.js";
 import { LanguageSettingsPanel } from "../src/ui/options/LanguageSettingsPanel.js";
 import { SiteManagementPanel } from "../src/ui/options/SiteManagementPanel.js";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 import {
   KEY_SHOW_SUGGESTION_FOOTER,
+  KEY_CODE_MODE,
   KEY_DOMAIN_LIST_MODE,
   KEY_ENABLED_LANGUAGES,
   KEY_EXTENSION_LANGUAGE,
@@ -16,124 +14,85 @@ import {
   KEY_NUM_SUGGESTIONS,
   KEY_SITE_PROFILES,
 } from "../src/core/domain/constants";
-import { acquireDomGlobalLock } from "./support/domGlobalLock";
+import { memorySettings } from "./support/fakeSettings";
+import {
+  fakeRegistry,
+  findButtonByText,
+  flushAsyncWork,
+  type SettingsMap,
+} from "./support/settingsFakes";
 
-type SettingsMap = Record<string, unknown>;
-// Earlier suites may leave a partial chrome stub behind; start from the canonical mock.
-const baseChrome: unknown = mockChrome;
-let releaseDomGlobalLock: (() => void) | null = null;
+const baseChrome: unknown = { runtime: {} };
 
-class MockControl {
-  readonly rootElement: HTMLElement;
-  readonly element: HTMLElement;
-  private readonly handlers: Array<(value: unknown) => void> = [];
-  private value: unknown;
-
-  constructor(value?: unknown, label = "") {
-    this.value = value;
-    this.rootElement = document.createElement("div");
-    this.rootElement.className = "field";
-    this.rootElement.textContent = label;
-    this.element = this.rootElement;
-  }
-
-  addEvent(type: string, fn: (value: unknown) => void): void {
-    if (type === "action") {
-      this.handlers.push(fn);
-    }
-  }
-
-  get(): unknown {
-    return this.value;
-  }
-
-  set(value: unknown): this {
-    this.value = value;
-    this.handlers.forEach((handler) => handler(value));
-    return this;
-  }
+/** Answers each runtime message with reply(), in the callback form and in the promise form. */
+function replyToMessages(reply: () => Promise<unknown>): void {
+  (globalThis.chrome as unknown as { runtime: Record<string, unknown> }).runtime.sendMessage = (
+    _message: unknown,
+    callback?: (response: unknown) => void,
+  ) => {
+    const response = reply();
+    void response.then(callback);
+    return response;
+  };
 }
 
-function createStore(values: SettingsMap): Store {
-  return {
-    get(name: string) {
-      return Promise.resolve(values[name]);
-    },
-    set(name: string, value: unknown) {
-      values[name] = value;
-      return Promise.resolve();
-    },
-  } as Store;
+function mountPanels(seed: SettingsMap) {
+  const store = memorySettings({
+    [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE"],
+    [KEY_LANGUAGE]: "en_US",
+    [KEY_FALLBACK_LANGUAGE]: "en_US",
+    [KEY_SITE_PROFILES]: {},
+    [KEY_DOMAIN_LIST_MODE]: "blackList",
+    domainBlackList: [],
+    [KEY_CODE_MODE]: false,
+    ...seed,
+  });
+  const registry = fakeRegistry(store.store, LABELS);
+  const languageRoot = document.createElement("div");
+  const sitesRoot = document.createElement("div");
+  document.body.append(languageRoot, sitesRoot);
+  const language = new LanguageSettingsPanel(languageRoot, registry, store as never);
+  new SiteManagementPanel(sitesRoot, registry, store as never, () => {});
+  return { store, registry, language, languageRoot, sitesRoot };
 }
 
-function createRegistry(initialValues: SettingsMap): SettingsRegistry {
-  return {
-    [KEY_LANGUAGE]: new MockControl(initialValues[KEY_LANGUAGE]),
-    [KEY_ENABLED_LANGUAGES]: new MockControl(initialValues[KEY_ENABLED_LANGUAGES]),
-    [KEY_FALLBACK_LANGUAGE]: new MockControl(initialValues[KEY_FALLBACK_LANGUAGE]),
-    [KEY_SITE_PROFILES]: new MockControl(initialValues[KEY_SITE_PROFILES]),
-    [KEY_EXTENSION_LANGUAGE]: new MockControl(
-      initialValues[KEY_EXTENSION_LANGUAGE],
-      "Extension Language",
-    ),
-    [KEY_SHOW_SUGGESTION_FOOTER]: new MockControl(
-      initialValues[KEY_SHOW_SUGGESTION_FOOTER],
-      "Show language of prediction",
-    ),
-    [KEY_DOMAIN_LIST_MODE]: new MockControl(initialValues[KEY_DOMAIN_LIST_MODE]),
-    domainBlackList: new MockControl(initialValues.domainBlackList),
-    [KEY_NUM_SUGGESTIONS]: new MockControl(initialValues[KEY_NUM_SUGGESTIONS]),
-    [KEY_INLINE_SUGGESTION]: new MockControl(initialValues[KEY_INLINE_SUGGESTION]),
-  } as unknown as SettingsRegistry;
-}
+const LABELS = {
+  [KEY_LANGUAGE]: "",
+  [KEY_ENABLED_LANGUAGES]: "",
+  [KEY_FALLBACK_LANGUAGE]: "",
+  [KEY_SITE_PROFILES]: "",
+  [KEY_EXTENSION_LANGUAGE]: "Extension Language",
+  [KEY_SHOW_SUGGESTION_FOOTER]: "Show language of prediction",
+  [KEY_DOMAIN_LIST_MODE]: "",
+  domainBlackList: "",
+  [KEY_NUM_SUGGESTIONS]: "",
+  [KEY_INLINE_SUGGESTION]: "",
+};
 
-async function flushAsyncWork(): Promise<void> {
-  await Promise.resolve();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-function findButtonByText(root: HTMLElement, text: string): HTMLButtonElement {
-  const button = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find((entry) =>
-    entry.textContent?.includes(text),
-  );
-  if (!button) {
-    throw new Error(`Button with text "${text}" not found`);
-  }
-  return button;
-}
-
-describe.serial("options panel reactivity", () => {
-  beforeEach(async () => {
-    releaseDomGlobalLock = await acquireDomGlobalLock();
+describe("options panel reactivity", () => {
+  beforeEach(() => {
     (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
     i18n.lang = "en";
-    (
-      globalThis.chrome as typeof chrome & {
-        runtime: typeof chrome.runtime & { sendMessage: (message: unknown) => Promise<unknown> };
-      }
-    ).runtime.sendMessage = () => Promise.resolve({ status: null });
+    replyToMessages(() => Promise.resolve({ status: null }));
   });
 
   afterEach(() => {
-    document.body.replaceChildren();
     (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
-    releaseDomGlobalLock?.();
-    releaseDomGlobalLock = null;
   });
 
   test("language warnings refresh when site profiles change", async () => {
-    const values: SettingsMap = {
+    const store = memorySettings({
       [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE"],
       [KEY_LANGUAGE]: "en_US",
       [KEY_FALLBACK_LANGUAGE]: "en_US",
       [KEY_SITE_PROFILES]: {},
-    };
-    const store = createStore(values);
-    const registry = createRegistry(values);
+    });
+    const values = store.store;
+    const registry = fakeRegistry(values, LABELS);
     const root = document.createElement("div");
     document.body.appendChild(root);
 
-    new LanguageSettingsPanel(root, registry, store);
+    new LanguageSettingsPanel(root, registry, store as never);
     await flushAsyncWork();
 
     const germanCardBefore = findButtonByText(root, "German");
@@ -156,18 +115,18 @@ describe.serial("options panel reactivity", () => {
   });
 
   test("language summary only mentions fallback when auto-detect is active", async () => {
-    const values: SettingsMap = {
+    const store = memorySettings({
       [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE", "fr_FR"],
       [KEY_LANGUAGE]: "en_US",
       [KEY_FALLBACK_LANGUAGE]: "de_DE",
       [KEY_SITE_PROFILES]: {},
-    };
-    const store = createStore(values);
-    const registry = createRegistry(values);
+    });
+    const values = store.store;
+    const registry = fakeRegistry(values, LABELS);
     const root = document.createElement("div");
     document.body.appendChild(root);
 
-    new LanguageSettingsPanel(root, registry, store);
+    new LanguageSettingsPanel(root, registry, store as never);
     await flushAsyncWork();
 
     const summaryText = root.querySelector(".language-panel-summary p")?.textContent || "";
@@ -175,17 +134,14 @@ describe.serial("options panel reactivity", () => {
     expect(summaryText).not.toContain("Fallback:");
 
     values[KEY_LANGUAGE] = "auto_detect";
-    (
-      globalThis.chrome as typeof chrome & {
-        runtime: typeof chrome.runtime & { sendMessage: (message: unknown) => Promise<unknown> };
-      }
-    ).runtime.sendMessage = () =>
+    replyToMessages(() =>
       Promise.resolve({
         status: {
           language: "de_DE",
           locked: true,
         },
-      });
+      }),
+    );
     registry[KEY_LANGUAGE].set(values[KEY_LANGUAGE], true);
     await flushAsyncWork();
 
@@ -197,24 +153,20 @@ describe.serial("options panel reactivity", () => {
   });
 
   test("language summary shows waiting copy when no live website session exists", async () => {
-    const values: SettingsMap = {
+    const store = memorySettings({
       [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE", "fr_FR"],
       [KEY_LANGUAGE]: "auto_detect",
       [KEY_FALLBACK_LANGUAGE]: "fr_FR",
       [KEY_SITE_PROFILES]: {},
-    };
-    const store = createStore(values);
-    const registry = createRegistry(values);
+    });
+    const values = store.store;
+    const registry = fakeRegistry(values, LABELS);
     const root = document.createElement("div");
     document.body.appendChild(root);
 
-    (
-      globalThis.chrome as typeof chrome & {
-        runtime: typeof chrome.runtime & { sendMessage: (message: unknown) => Promise<unknown> };
-      }
-    ).runtime.sendMessage = () => Promise.resolve({ status: null });
+    replyToMessages(() => Promise.resolve({ status: null }));
 
-    new LanguageSettingsPanel(root, registry, store);
+    new LanguageSettingsPanel(root, registry, store as never);
     await flushAsyncWork();
 
     expect(root.textContent).toContain(
@@ -223,20 +175,20 @@ describe.serial("options panel reactivity", () => {
   });
 
   test("language workspace keeps the language grid full-width, without the popup footer setting", async () => {
-    const values: SettingsMap = {
+    const store = memorySettings({
       [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE"],
       [KEY_LANGUAGE]: "en_US",
       [KEY_FALLBACK_LANGUAGE]: "en_US",
       [KEY_EXTENSION_LANGUAGE]: "auto_detect",
       [KEY_SHOW_SUGGESTION_FOOTER]: true,
       [KEY_SITE_PROFILES]: {},
-    };
-    const store = createStore(values);
-    const registry = createRegistry(values);
+    });
+    const values = store.store;
+    const registry = fakeRegistry(values, LABELS);
     const root = document.createElement("div");
     document.body.appendChild(root);
 
-    new LanguageSettingsPanel(root, registry, store);
+    new LanguageSettingsPanel(root, registry, store as never);
     await flushAsyncWork();
 
     expect(root.querySelector(".workspace-top-grid")).not.toBeNull();
@@ -246,8 +198,113 @@ describe.serial("options panel reactivity", () => {
     expect(root.textContent).not.toContain(i18n.get("show_suggestion_footer_label"));
   });
 
+  test.each([
+    ["a language card", "language", (root: HTMLElement) => findButtonByText(root, "German")],
+    [
+      "the add-site button",
+      "sites",
+      (root: HTMLElement) => {
+        root.querySelector<HTMLInputElement>(
+          ".text-assets-toolbar input:not([type=search])",
+        )!.value = "example.com";
+        return findButtonByText(root, i18n.get("site_management_block_site"));
+      },
+    ],
+  ] as const)(
+    "%s keeps the keyboard focus after its click renders the panel",
+    async (_label, panel, target) => {
+      const { languageRoot, sitesRoot } = mountPanels({});
+      await flushAsyncWork();
+      const root = panel === "language" ? languageRoot : sitesRoot;
+      const button = target(root);
+      const text = button.textContent;
+      button.focus();
+
+      button.click();
+      await flushAsyncWork();
+      await flushAsyncWork();
+
+      const active = document.activeElement as HTMLElement;
+      expect(active).not.toBe(button);
+      expect(root.contains(active)).toBe(true);
+      expect(active.textContent).toBe(text);
+    },
+  );
+
+  test("the site list adds the domain on Enter in the add input", async () => {
+    const { sitesRoot, store } = mountPanels({});
+    await flushAsyncWork();
+    const addInput = sitesRoot.querySelector<HTMLInputElement>(
+      ".text-assets-toolbar input:not([type=search])",
+    )!;
+    addInput.value = "Example.com";
+
+    addInput.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+    await flushAsyncWork();
+
+    expect(store.store.domainBlackList).toEqual(["example.com"]);
+  });
+
+  test("both language selects have an accessible name", async () => {
+    const { languageRoot } = mountPanels({ [KEY_LANGUAGE]: "auto_detect" });
+    await flushAsyncWork();
+
+    const [primary, fallback] = languageRoot.querySelectorAll("select");
+    expect(languageRoot.querySelector(`label[for="${primary.id}"]`)?.textContent).toBe(
+      i18n.get("primary_lang_label"),
+    );
+    expect(fallback.getAttribute("aria-label")).toBe(i18n.get("fallback_lang_label"));
+  });
+
+  test("a slow auto-detect render does not replace a newer render", async () => {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    replyToMessages(() => gate.then(() => ({ status: null })));
+    const { store, language, languageRoot } = mountPanels({ [KEY_LANGUAGE]: "auto_detect" });
+    store.store[KEY_LANGUAGE] = "en_US";
+
+    await language.render();
+    release();
+    await flushAsyncWork();
+
+    expect(languageRoot.querySelector("select")!.value).toBe("en_US");
+  });
+
+  test("a saved site profile updates the language cards", async () => {
+    const { languageRoot, sitesRoot } = mountPanels({});
+    await flushAsyncWork();
+    expect(languageRoot.textContent).not.toContain(
+      i18n.get("language_panel_site_override_warning"),
+    );
+
+    sitesRoot.querySelector<HTMLInputElement>(".site-profiles-editor input")!.value =
+      "docs.example";
+    sitesRoot.querySelector<HTMLSelectElement>("#siteProfileLanguageSelect")!.value = "de_DE";
+    findButtonByText(sitesRoot, i18n.get("site_profiles_add_btn")).click();
+    await flushAsyncWork();
+    await flushAsyncWork();
+
+    expect(findButtonByText(languageRoot, "German").textContent).toContain(
+      i18n.get("language_panel_site_override_warning"),
+    );
+  });
+
+  test("a global code mode change updates the site profile inherit label", async () => {
+    const { registry, sitesRoot } = mountPanels({});
+    await flushAsyncWork();
+    const codeModeInherit = () =>
+      sitesRoot.querySelectorAll<HTMLSelectElement>(".site-profiles-form-grid select")[4].options[0]
+        .textContent;
+    expect(codeModeInherit()).toContain(i18n.get("site_profile_off"));
+
+    registry[KEY_CODE_MODE].set(true);
+    await flushAsyncWork();
+
+    expect(codeModeInherit()).toContain(i18n.get("site_profile_on"));
+  });
+
   test("sites UI refreshes immediately when enabled languages change", async () => {
-    const values: SettingsMap = {
+    const store = memorySettings({
       [KEY_DOMAIN_LIST_MODE]: "blackList",
       domainBlackList: [],
       [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE"],
@@ -258,13 +315,13 @@ describe.serial("options panel reactivity", () => {
       },
       [KEY_NUM_SUGGESTIONS]: 4,
       [KEY_INLINE_SUGGESTION]: false,
-    };
-    const store = createStore(values);
-    const registry = createRegistry(values);
+    });
+    const values = store.store;
+    const registry = fakeRegistry(values, LABELS);
     const root = document.createElement("div");
     document.body.appendChild(root);
 
-    new SiteManagementPanel(root, registry, store, () => {});
+    new SiteManagementPanel(root, registry, store as never, () => {});
     await flushAsyncWork();
 
     const languageSelectBefore = root.querySelector("#siteProfileLanguageSelect");

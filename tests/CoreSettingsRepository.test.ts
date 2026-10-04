@@ -1,33 +1,12 @@
 import { CoreSettingsRepository } from "../src/core/application/repositories/CoreSettingsRepository";
 import { LocalAiSettingsRepository } from "../src/core/application/repositories/LocalAiSettingsRepository";
-import type { SettingsManager } from "../src/core/application/settingsManager";
-
-function createSettingsManagerMock(seed: Record<string, unknown>): SettingsManager {
-  return {
-    get: async (key: string) => seed[key] as never,
-    getRaw: async (key: string) => seed[key] as never,
-    set: async () => undefined,
-    setRaw: async () => undefined,
-  } as unknown as SettingsManager;
-}
+import type { PreferredTerminology } from "../src/core/domain/grammar/review/preferredTerminology";
+import { memorySettings } from "./support/fakeSettings";
 
 describe("CoreSettingsRepository", () => {
   test("user dictionary adds accept one word only and never lose a concurrent add", async () => {
-    const store: Record<string, unknown> = {};
     const slow = () => new Promise((resolve) => setTimeout(resolve, 5));
-    const manager = {
-      get: async (key: string) => {
-        await slow();
-        return store[key] as never;
-      },
-      getRaw: async (key: string) => store[key] as never,
-      set: async (key: string, value: unknown) => {
-        await slow();
-        store[key] = value;
-      },
-      setRaw: async () => undefined,
-    } as unknown as SettingsManager;
-    const repository = new CoreSettingsRepository(manager);
+    const repository = new CoreSettingsRepository(memorySettings({}, { delay: slow }));
 
     for (const bad of ["", "two words", "<img>", "a,b", "x".repeat(65), "-dash", "o'"]) {
       await expect(repository.addUserDictionaryWord(bad)).resolves.toBe(false);
@@ -46,56 +25,31 @@ describe("CoreSettingsRepository", () => {
     ]);
   });
 
-  test("defaults enabled to true when the setting is absent", async () => {
-    const repository = new CoreSettingsRepository(createSettingsManagerMock({}));
-
-    await expect(repository.isEnabled()).resolves.toBe(true);
-  });
-
-  test("defaults preferNativeAutocomplete to true when the setting is absent", async () => {
-    const repository = new CoreSettingsRepository(createSettingsManagerMock({}));
-
-    await expect(repository.getPreferNativeAutocomplete()).resolves.toBe(true);
-  });
-
-  test("shows the in-field Review button unless it is turned off", async () => {
-    await expect(
-      new CoreSettingsRepository(createSettingsManagerMock({})).getShowReviewButton(),
-    ).resolves.toBe(true);
-    await expect(
-      new CoreSettingsRepository(
-        createSettingsManagerMock({ showReviewButton: false }),
-      ).getShowReviewButton(),
-    ).resolves.toBe(false);
-  });
-
-  test("offers grammar proposals while typing unless they are turned off", async () => {
-    await expect(
-      new CoreSettingsRepository(createSettingsManagerMock({})).getLiveGrammarProposals(),
-    ).resolves.toBe(true);
-    await expect(
-      new CoreSettingsRepository(
-        createSettingsManagerMock({ liveGrammarProposals: false }),
-      ).getLiveGrammarProposals(),
-    ).resolves.toBe(false);
-  });
-
-  test("defaults codeMode to false when the setting is absent", async () => {
-    const repository = new CoreSettingsRepository(createSettingsManagerMock({}));
-
-    await expect(repository.getCodeMode()).resolves.toBe(false);
-  });
-
-  test("defaults autocompleteOnEnter and autocompleteOnTab to true when absent", async () => {
-    const repository = new CoreSettingsRepository(createSettingsManagerMock({}));
-
-    await expect(repository.getAutocompleteOnEnter()).resolves.toBe(true);
-    await expect(repository.getAutocompleteOnTab()).resolves.toBe(true);
+  test.each([
+    ["isEnabled", {}, true],
+    ["getPreferNativeAutocomplete", {}, true],
+    ["getShowReviewButton", {}, true],
+    ["getShowReviewButton", { showReviewButton: false }, false],
+    ["getLiveGrammarProposals", {}, true],
+    ["getLiveGrammarProposals", { liveGrammarProposals: false }, false],
+    ["getCodeMode", {}, false],
+    ["getAutocompleteOnEnter", {}, true],
+    ["getAutocompleteOnTab", {}, true],
+    ["getPrefixOnlyMode", {}, false],
+    ["getPersonalizationEnabled", {}, false],
+    ["getPersonalizationEnabled", { personalizationEnabled: true }, true],
+    ["getNumSuggestions", {}, 5],
+    ["getNumSuggestions", { numSuggestions: 3.4 }, 3],
+    ["getNumSuggestions", { numSuggestions: 25 }, 10],
+  ] as const)("%s with %o resolves to %p", async (getter, seed, expected) => {
+    await expect(new CoreSettingsRepository(memorySettings(seed))[getter]()).resolves.toBe(
+      expected,
+    );
   });
 
   test("keeps legacy [shortcut, string] entries for runtime compatibility", async () => {
     const repository = new CoreSettingsRepository(
-      createSettingsManagerMock({
+      memorySettings({
         textExpansions: [
           ["asap", "as soon as possible"],
           ["brb", "be right back"],
@@ -103,30 +57,16 @@ describe("CoreSettingsRepository", () => {
       }),
     );
 
-    await expect(repository.getTextExpansions()).resolves.toEqual([
+    // The declared type says object, but legacy string bodies pass through at runtime.
+    await expect<Promise<unknown>>(repository.getTextExpansions()).resolves.toEqual([
       ["asap", "as soon as possible"],
       ["brb", "be right back"],
     ]);
   });
 
-  test("defaults prefixOnlyMode to false when the setting is absent", async () => {
-    const repository = new CoreSettingsRepository(createSettingsManagerMock({}));
-    await expect(repository.getPrefixOnlyMode()).resolves.toBe(false);
-  });
-
-  test("keeps personalization opt-in", async () => {
-    const defaults = new CoreSettingsRepository(createSettingsManagerMock({}));
-    const enabled = new CoreSettingsRepository(
-      createSettingsManagerMock({ personalizationEnabled: true }),
-    );
-
-    await expect(defaults.getPersonalizationEnabled()).resolves.toBe(false);
-    await expect(enabled.getPersonalizationEnabled()).resolves.toBe(true);
-  });
-
   test("keeps object entries and filters invalid rows", async () => {
     const repository = new CoreSettingsRepository(
-      createSettingsManagerMock({
+      memorySettings({
         textExpansions: [
           ["idk", { phrase: "I don't know" }],
           ["ttyl", { phrase: "talk to you later", priority: 1 }],
@@ -146,10 +86,10 @@ describe("CoreSettingsRepository", () => {
 
 describe("LocalAiSettingsRepository", () => {
   const repository = (seed: Record<string, unknown>) =>
-    new LocalAiSettingsRepository(createSettingsManagerMock(seed));
+    new LocalAiSettingsRepository(memorySettings(seed));
   const consent = {
     modelId: "gemma-4-E4B-it-onnx-q4f16@843f250f",
-    tier: "standard",
+    tier: "standard" as const,
     at: 1_700_000_000_000,
   };
 
@@ -195,18 +135,15 @@ describe("LocalAiSettingsRepository", () => {
   });
 
   test("setters write only their own keys; null revokes consent", async () => {
-    const store: Record<string, unknown> = {};
-    const manager = {
-      getRaw: async (key: string) => store[key] as never,
-      set: async (key: string, value: unknown) => {
-        store[key] = value;
-      },
-    } as unknown as SettingsManager;
-    const writer = new LocalAiSettingsRepository(manager);
+    const settings = memorySettings();
+    const writer = new LocalAiSettingsRepository(settings);
 
     await writer.setLocalAiReviewConsent(consent as never);
     await writer.setLocalAiSetupOfferDismissed(true);
-    expect(store).toEqual({ localAiReviewConsent: consent, localAiSetupOfferDismissed: true });
+    expect(settings.store).toEqual({
+      localAiReviewConsent: consent,
+      localAiSetupOfferDismissed: true,
+    });
     await expect(writer.getLocalAiSetupOfferDismissed()).resolves.toBe(true);
 
     await writer.setLocalAiReviewConsent(null);
@@ -215,18 +152,11 @@ describe("LocalAiSettingsRepository", () => {
 });
 
 test("Review rule preferences serialize concurrent card choices without storing text or changing typing", async () => {
-  const store: Record<string, unknown> = { enabledGrammarRules: { commaPeriodSpacing: false } };
-  const repository = new CoreSettingsRepository({
-    get: async (key: string) => {
-      await Promise.resolve();
-      return store[key];
-    },
-    getRaw: async (key: string) => store[key],
-    set: async (key: string, value: unknown) => {
-      await Promise.resolve();
-      store[key] = value;
-    },
-  } as unknown as SettingsManager);
+  const settings = memorySettings(
+    { enabledGrammarRules: { commaPeriodSpacing: false } },
+    { delay: () => Promise.resolve() },
+  );
+  const repository = new CoreSettingsRepository(settings);
   expect(await repository.getReviewRuleOverrides()).toEqual({});
   for (const id of [
     "reviewLocalAi",
@@ -242,29 +172,24 @@ test("Review rule preferences serialize concurrent card choices without storing 
       repository.disableReviewRule("englishThenThan"),
     ]),
   ).toEqual([true, true]);
-  expect(store).toEqual({
+  expect(settings.store).toEqual({
     enabledGrammarRules: { commaPeriodSpacing: false },
     reviewRuleOverrides: { englishRepeatedWords: false, englishThenThan: false },
   });
 });
 
 test("preferred terminology reads validated settings without changing other preferences", async () => {
-  const store: Record<string, unknown> = {
+  const settings = memorySettings({
     userDictionaryList: ["custom"],
     textExpansions: [["sig", "My name"]],
-  };
-  const repository = new CoreSettingsRepository({
-    get: async (key: string) => store[key] as never,
-    getRaw: async (key: string) => store[key] as never,
-    set: async (key: string, value: unknown) => {
-      store[key] = value;
-    },
-  } as unknown as SettingsManager);
-  const empty = { version: 1, enabled: false, entries: [] };
+  });
+  const { store } = settings;
+  const repository = new CoreSettingsRepository(settings);
+  const empty: PreferredTerminology = { version: 1, enabled: false, entries: [] };
   expect(await repository.getPreferredTerminology()).toEqual(empty);
   store.preferredTerminology = { enabled: true, entries: [{ source: "broken" }] };
   expect(await repository.getPreferredTerminology()).toEqual(empty);
-  const valid = {
+  const valid: PreferredTerminology = {
     version: 1,
     enabled: true,
     entries: [

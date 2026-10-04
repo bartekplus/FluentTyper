@@ -16,7 +16,7 @@ import {
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan as reviewScan } from "./reviewHarness";
+import { review } from "./grammarTestUtils";
 
 const IDS: CatalogRuleId[] = [
   "englishPhraseCorrections",
@@ -55,7 +55,7 @@ const KINDS: Array<[keyof LanguagePhraseTables, CatalogRuleId]> = [
 ];
 
 function scan(text: string, lang: string): ReviewDiagnostic[] {
-  return reviewScan(text, { lang, enabledRules: IDS });
+  return review(text, {}, { lang, enabledRules: IDS }).diagnostics;
 }
 
 const forms = (rows: readonly PhraseRow[] = []) =>
@@ -184,7 +184,8 @@ test("a row that only changes letter case applies its own casing", () => {
 test("user dictionary words, quoted mentions and code abstain", () => {
   const text = "Der Standart ist hoch.";
   expect(
-    reviewScan(text, { lang: "de_DE", enabledRules: IDS, userDictionary: ["standart"] }),
+    review(text, {}, { lang: "de_DE", enabledRules: IDS, userDictionary: ["standart"] })
+      .diagnostics,
   ).toEqual([]);
   expect(scan("Das Wort „Standart“ ist falsch.", "de_DE")).toEqual([]);
   expect(scan("Die Datei standart.txt fehlt.", "de_DE")).toEqual([]);

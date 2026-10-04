@@ -70,6 +70,15 @@ export class JobScheduler<P> {
     return null;
   }
 
+  /** Puts the running job back at the front of its port's queue, to run later. */
+  requeue(job: ScheduledJob<P>): void {
+    this.finish(job);
+    const queue = this.queues.get(job.port) ?? [];
+    queue.unshift(job);
+    this.queues.set(job.port, queue);
+    this.pending += 1;
+  }
+
   finish(job: ScheduledJob<P>): void {
     if (this.running === job) {
       this.running = null;
@@ -77,20 +86,20 @@ export class JobScheduler<P> {
   }
 
   /**
-   * Drops `requestId` from its job on `port`; null when unknown. `orphaned`:
-   * no requester is left (a queued job is removed, a running one is marked
-   * cancelled and should be interrupted).
+   * Drops `requestId` from its job on `port`; false when unknown. When no
+   * requester is left, a queued job is removed and a running one is marked
+   * cancelled (it should be interrupted).
    */
-  cancel(port: P, requestId: string): { job: ScheduledJob<P>; orphaned: boolean } | null {
+  cancel(port: P, requestId: string): boolean {
     const queue = this.queues.get(port) ?? [];
     const candidates = this.running?.port === port ? [this.running, ...queue] : queue;
     const job = candidates.find((candidate) => candidate.requestIds.includes(requestId));
     if (!job) {
-      return null;
+      return false;
     }
     job.requestIds = job.requestIds.filter((id) => id !== requestId);
     if (job.requestIds.length > 0) {
-      return { job, orphaned: false };
+      return true;
     }
     job.cancelled = true;
     const index = queue.indexOf(job);
@@ -98,19 +107,17 @@ export class JobScheduler<P> {
       queue.splice(index, 1);
       this.pending -= 1;
     }
-    return { job, orphaned: true };
+    return true;
   }
 
-  /** Forgets a port: drops its queue; its running job (if any) is returned, cancelled. */
-  removePort(port: P): ScheduledJob<P> | null {
+  /** Forgets a port: drops its queue and marks its running job (if any) cancelled. */
+  removePort(port: P): void {
     this.pending -= this.queues.get(port)?.length ?? 0;
     this.queues.delete(port);
     if (this.running?.port === port) {
       this.running.cancelled = true;
       this.running.requestIds = [];
-      return this.running;
     }
-    return null;
   }
 
   /** Removes and returns every queued job (not the running one). */

@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
-import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
-import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
-import type { GrammarContext } from "../../src/core/domain/grammar/types";
+import { typeText } from "./grammarTestUtils";
 
 /**
  * Every hand-written grammar case in this suite was authored with a prefix
@@ -13,29 +10,8 @@ import type { GrammarContext } from "../../src/core/domain/grammar/types";
  * instead of inventing more fragments, because position is the axis the
  * hand-written cases hold constant.
  */
-function type(input: string, lang = "en_US"): string {
-  const engine = new GrammarRuleEngine();
-  for (const rule of createGrammarRuleCatalogRuntime({
-    insertSpaceAfterAutocomplete: true,
-    userDictionaryList: [],
-  }))
-    engine.registerRule(rule);
-  let context: GrammarContext = {
-    beforeCursor: "",
-    afterCursor: "",
-    hints: { lang, inputAction: "insert", measurementContext: "prose" },
-  };
-  for (const char of input) {
-    context.beforeCursor += char;
-    const edits = engine.process(
-      char === " " || char === "\n" ? "wordBoundary" : "insertChar",
-      context,
-      [...DEFAULT_CURRENT_GRAMMAR_RULES],
-    );
-    for (const edit of edits) context = applyGrammarEditToContext(context, edit);
-  }
-  return context.beforeCursor;
-}
+const type = (input: string, lang = "en_US") =>
+  typeText(input, { lang, rules: DEFAULT_CURRENT_GRAMMAR_RULES }).beforeCursor;
 
 // Prose positions a fragment can occupy. Capitalization legitimately differs
 // between them, so fragments below start with a digit or an already-capital

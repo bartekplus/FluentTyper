@@ -48,10 +48,6 @@ export function migrateLegacyGrammarRuleSelection(
 }
 
 export function resolveGrammarRuleSelection(value: unknown): CatalogRuleId[] {
-  // A legacy empty array ("Disable all") means every rule was off, including
-  // ones added since. Treat it the same as an override map that explicitly
-  // turns every known rule off: don't let new rules inherit their default.
-  if (Array.isArray(value) && value.length === 0) return [];
   const choices =
     value === undefined
       ? {}

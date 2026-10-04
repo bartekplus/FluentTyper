@@ -1,14 +1,10 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
   docsRangeRects,
   locateRuns,
   readDocsTextRuns,
   type DocsTextRun,
 } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsGeometry";
-import { installDomRect } from "./domRect";
-
-// jsdom has no DOMRect; the browser's is what the geometry returns.
-afterAll(installDomRect());
 
 const run = (label: string, left = 0, top = 0): DocsTextRun => ({
   label,
@@ -162,6 +158,15 @@ describe("Google Docs text runs placed in the review text", () => {
     expect(docsRangeRects(runs, 0, 4).map((r) => [r.left, r.width])).toEqual([[150, 40]]);
     const mixed = "hello שלום";
     expect(docsRangeRects(locateRuns(mixed, [run(mixed, 0, 0)]), 0, 5)).toEqual([]);
+  });
+
+  // Regression: tatweel (U+0640) and U+FEFF must not make a run mixed-direction.
+  test.each([
+    ["an Arabic run with tatweel", "كتـــاب", "كتـــاب", [[100, 70]]],
+    ["a Latin run whose label ends in U+FEFF", "hello", "hello\uFEFF", [[100, 50]]],
+  ])("%s gets a rectangle", (_name, text, label, expected) => {
+    const runs = locateRuns(text, [run(label, 100, 0)]);
+    expect(docsRangeRects(runs, 0, text.length).map((r) => [r.left, r.width])).toEqual(expected);
   });
 
   test("labels of structure markers only are never placed", () => {

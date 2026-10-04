@@ -6,22 +6,21 @@ import {
   GRAMMAR_RULE_IDS,
   RECOMMENDED_V1_GRAMMAR_RULES,
   RECOMMENDED_V2_GRAMMAR_RULES,
-  RECOMMENDED_CURRENT_GRAMMAR_RULES,
-  filterCodeSafeGrammarRules,
   isCatalogRuleId,
+  isCodeSafeGrammarRule,
   normalizeGrammarRuleSelection,
 } from "../../src/core/domain/grammar/ruleCatalog";
 
 describe("ruleCatalog", () => {
   test("code mode keeps only code-safe rules", () => {
     expect(
-      filterCodeSafeGrammarRules([
+      [
         "capitalizeSentenceStart",
         "commaPeriodSpacing",
         "trimSpaceBeforeLineBreak",
         "autoBracketClose",
         "unknownRule",
-      ]),
+      ].filter(isCodeSafeGrammarRule),
     ).toEqual(["autoBracketClose"]);
   });
 
@@ -84,22 +83,12 @@ describe("ruleCatalog", () => {
 
   test("keeps v3 snapshots frozen while current defaults follow the catalog", () => {
     const defaultRolloutOnIds = GRAMMAR_RULE_CATALOG.filter(
-      (entry) => entry.defaultRollout === "on",
-    ).map((entry) => entry.id);
-    const advancedRuleIds = GRAMMAR_RULE_CATALOG.filter(
-      (entry) => entry.safetyTier === "advanced",
+      (entry) => entry.typing !== false && entry.defaultRollout === "on",
     ).map((entry) => entry.id);
 
     expect(DEFAULT_V3_GRAMMAR_RULES).not.toContain("measurementUnitFormatting");
     expect(DEFAULT_CURRENT_GRAMMAR_RULES).toEqual(defaultRolloutOnIds);
-    expect(RECOMMENDED_CURRENT_GRAMMAR_RULES).toContain("measurementUnitFormatting");
-    expect(
-      GRAMMAR_RULE_CATALOG.filter((entry) =>
-        DEFAULT_CURRENT_GRAMMAR_RULES.includes(entry.id),
-      ).every((entry) => entry.safetyTier === "safe"),
-    ).toBe(true);
-    expect(advancedRuleIds.length).toBeGreaterThan(0);
-    expect(advancedRuleIds.some((id) => DEFAULT_CURRENT_GRAMMAR_RULES.includes(id))).toBe(false);
+    expect(DEFAULT_CURRENT_GRAMMAR_RULES).toContain("measurementUnitFormatting");
   });
 
   test("validates catalog ids", () => {

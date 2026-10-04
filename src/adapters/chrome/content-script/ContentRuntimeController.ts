@@ -11,8 +11,9 @@ import {
   CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY,
   CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
   CMD_CONTENT_SCRIPT_REVIEW_SPELLING,
+  CMD_FIELD_PREFERENCES,
 } from "@core/domain/constants";
-import { filterCodeSafeGrammarRules } from "@core/domain/grammar/ruleCatalog";
+import { isCodeSafeGrammarRule } from "@core/domain/grammar/ruleCatalog";
 import type {
   ContentScriptAddToDictionaryMessage,
   ContentScriptReviewSpellingMessage,
@@ -62,7 +63,6 @@ export class ContentRuntimeController {
   private static readonly SELECTORS = "textarea, input, [contentEditable]";
   private static readonly LATE_DISCOVERY_EVENTS = ["focusin", "mousedown", "input"] as const;
   private static readonly MUTATION_COALESCE_DELAY_MS = 16;
-  private static readonly MAX_MUTATION_BATCH_SIZE = 200;
   private static readonly MAX_MUTATION_ROOTS = 64;
 
   private googleDocs: GoogleDocsAdapter | null = null;
@@ -89,23 +89,18 @@ export class ContentRuntimeController {
   private readonly domObserver: DomObserver;
   private readonly shadowObservers = new Map<ShadowRoot, DomObserver>();
   private shadowRootInterceptor: ShadowRootInterceptor | null = null;
-  private lateDiscoveryListenersAttached = false;
   private readonly onMutationCallbackBound = this.mutationCallback.bind(this);
   private readonly onDocumentPotentialLateTargetBound: EventListener =
     this.onDocumentPotentialLateTarget.bind(this);
 
   private _enabled = false;
   private hostBridgeEnabled = false;
-  private onPredictionRequest: ((context: ContentScriptPredictRequestContext) => void) | null =
-    null;
-  private onRuntimeActivity: ((runtimeGeneration: number) => void) | null = null;
   private readonly onRestartRequest = this.restart.bind(this);
   // An open Docs review outlives a settings restart, which replaces the adapter.
   private readonly docsReviewSurface = new DocsReviewSurfaceProxy();
   private readonly mutationPipeline: MutationPipeline;
   private readonly mutationScheduler: MutationScheduler;
   private predictionGeneration = 0;
-  private pendingRestartToken: symbol | null = null;
   private pendingRestartTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly themeApplicator = new ThemeApplicator();
@@ -121,7 +116,12 @@ export class ContentRuntimeController {
   private configured = false;
   private reviewBeforeConfig: "command" | "popup" | null = null;
 
-  constructor() {
+  constructor(
+    private readonly handlers: {
+      onPredictionRequest: (context: ContentScriptPredictRequestContext) => void;
+      onRuntimeActivity: (runtimeGeneration: number) => void;
+    },
+  ) {
     this.domObserver = new DomObserver(
       document.body || document.documentElement,
       this.onMutationCallbackBound,
@@ -134,20 +134,7 @@ export class ContentRuntimeController {
         }
       },
     );
-    this.mutationPipeline = new MutationPipeline(
-      ContentRuntimeController.MAX_MUTATION_BATCH_SIZE,
-      ContentRuntimeController.MAX_MUTATION_ROOTS,
-    );
-  }
-
-  setPredictionRequestHandler(
-    handler: (context: ContentScriptPredictRequestContext) => void,
-  ): void {
-    this.onPredictionRequest = handler;
-  }
-
-  setRuntimeActivityHandler(handler: (runtimeGeneration: number) => void): void {
-    this.onRuntimeActivity = handler;
+    this.mutationPipeline = new MutationPipeline(ContentRuntimeController.MAX_MUTATION_ROOTS);
   }
 
   set enabled(newValue: boolean) {
@@ -351,10 +338,6 @@ export class ContentRuntimeController {
     this.suggestionManager?.handleEarlyTabAcceptRequest(entryId);
   }
 
-  getPredictionGeneration(): number {
-    return this.predictionGeneration;
-  }
-
   fulfillPrediction(context: PredictResponseContext): void {
     if (
       Number.isFinite(context.runtimeGeneration) &&
@@ -369,7 +352,7 @@ export class ContentRuntimeController {
       return;
     }
     if (context.suggestionId === DOCS_SESSION_ID && this.googleDocs) {
-      this.googleDocs.fulfillPrediction(context);
+      void this.googleDocs.fulfillPrediction(context);
       return;
     }
     this.suggestionManager?.fulfillPrediction(context);
@@ -479,7 +462,6 @@ export class ContentRuntimeController {
     if (this.pendingRestartTimer !== null) {
       clearTimeout(this.pendingRestartTimer);
       this.pendingRestartTimer = null;
-      this.pendingRestartToken = null;
     }
     this.domObserver.disconnect();
     this.disconnectShadowObservers();
@@ -490,7 +472,7 @@ export class ContentRuntimeController {
         .forEach((node) => node.removeAttribute(SHADOW_ATTACH_MARKER_ATTR));
     }
     this.shadowObservers.clear();
-    if (!keepReview) document.getElementById("fluent-typer-theme-overrides")?.remove();
+    if (!keepReview) this.themeApplicator.remove();
     this.mutationScheduler.clear();
     this.suggestionManager?.detachAllHelpers();
     this.shadowRootInterceptor?.detach();
@@ -506,13 +488,7 @@ export class ContentRuntimeController {
     logger.warn("Restarting content runtime");
     this.disable({ keepReview: true });
     this.suggestionManager = null;
-    const restartToken = Symbol("content-runtime-restart");
-    this.pendingRestartToken = restartToken;
     this.pendingRestartTimer = setTimeout(() => {
-      if (this.pendingRestartToken !== restartToken) {
-        return;
-      }
-      this.pendingRestartToken = null;
       this.pendingRestartTimer = null;
       if (this._enabled) {
         this.enable();
@@ -570,23 +546,15 @@ export class ContentRuntimeController {
   }
 
   private ensureLateDiscoveryListeners(): void {
-    if (this.lateDiscoveryListenersAttached) {
-      return;
-    }
     for (const eventName of ContentRuntimeController.LATE_DISCOVERY_EVENTS) {
       document.addEventListener(eventName, this.onDocumentPotentialLateTargetBound, true);
     }
-    this.lateDiscoveryListenersAttached = true;
   }
 
   private removeLateDiscoveryListeners(): void {
-    if (!this.lateDiscoveryListenersAttached) {
-      return;
-    }
     for (const eventName of ContentRuntimeController.LATE_DISCOVERY_EVENTS) {
       document.removeEventListener(eventName, this.onDocumentPotentialLateTargetBound, true);
     }
-    this.lateDiscoveryListenersAttached = false;
   }
 
   private onDocumentPotentialLateTarget(event: Event): void {
@@ -639,14 +607,14 @@ export class ContentRuntimeController {
     const managerOptions = {
       loadFieldPreferences: async () => {
         const response: FieldPreferenceResponse = await chrome.runtime.sendMessage({
-          command: "CMD_FIELD_PREFERENCES",
+          command: CMD_FIELD_PREFERENCES,
           context: { action: "list" },
         });
         return response?.ok ? response.records.map((record) => record.signature) : [];
       },
       rememberField: async (signature: string, label: string) => {
         const response: FieldPreferenceResponse = await chrome.runtime.sendMessage({
-          command: "CMD_FIELD_PREFERENCES",
+          command: CMD_FIELD_PREFERENCES,
           context: { action: "enable", signature, label },
         });
         if (!response?.ok) throw new Error(response?.error ?? "Could not remember this field.");
@@ -668,7 +636,7 @@ export class ContentRuntimeController {
       // Code mode keeps FluentTyper from rewriting code: only rules that never
       // touch code run.
       enabledGrammarRules: this.config.codeMode
-        ? filterCodeSafeGrammarRules(this.config.enabledGrammarRules)
+        ? this.config.enabledGrammarRules.filter(isCodeSafeGrammarRule)
         : this.config.enabledGrammarRules,
       // Review's own switches decide what is proposed; code mode proposes nothing.
       grammarProposalRules:
@@ -678,7 +646,7 @@ export class ContentRuntimeController {
       findLiveProposals: this.liveProposalEngine.liveProposals.bind(this.liveProposalEngine),
       userDictionaryList: this.config.userDictionaryList,
       getPrediction: (context: ContentScriptPredictRequestContext) =>
-        this.onPredictionRequest?.({
+        this.handlers.onPredictionRequest({
           ...context,
           runtimeGeneration: generation,
         }),
@@ -697,6 +665,6 @@ export class ContentRuntimeController {
     if (this.predictionGeneration <= 0) {
       return;
     }
-    this.onRuntimeActivity?.(this.predictionGeneration);
+    this.handlers.onRuntimeActivity(this.predictionGeneration);
   }
 }

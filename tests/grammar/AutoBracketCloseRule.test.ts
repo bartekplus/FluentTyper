@@ -7,16 +7,8 @@ import {
 } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 
-function context(
-  beforeCursor: string,
-  afterCursor = "",
-  hints?: GrammarContext["hints"],
-): GrammarContext {
-  return {
-    beforeCursor,
-    afterCursor,
-    ...(hints ? { hints } : {}),
-  };
+function context(beforeCursor: string, afterCursor = ""): GrammarContext {
+  return { beforeCursor, afterCursor, hints: { inputAction: "insert" } };
 }
 
 describe("AutoBracketCloseRule", () => {
@@ -33,164 +25,99 @@ describe("AutoBracketCloseRule", () => {
       ["<", "<>", ">"],
       ["«", "«»", "»"],
     ])("typing %s auto-closes to %s", (openChar, replacement) => {
-      const result = rule.apply(context(`Hello ${openChar}`, " world", { inputAction: "insert" }));
+      const result = rule.apply(context(`Hello ${openChar}`, " world"));
       expect(result).toEqual({
         replacement,
         deleteBackwards: 1,
         deleteForwards: 0,
         cursorOffset: 1,
-        sourceRuleId: "autoBracketClose",
       });
     });
 
     test("auto-closes at start of text", () => {
-      const result = rule.apply(context("(", "", { inputAction: "insert" }));
+      const result = rule.apply(context("("));
       expect(result).not.toBeNull();
       expect(result!.replacement).toBe("()");
       expect(result!.cursorOffset).toBe(1);
     });
 
-    test("auto-closes with empty afterCursor", () => {
-      const result = rule.apply(context("text[", "", { inputAction: "insert" }));
-      expect(result).not.toBeNull();
-      expect(result!.replacement).toBe("[]");
-    });
-
-    test("does not auto-close on delete action", () => {
-      expect(rule.apply(context("(", "", { inputAction: "delete" }))).toBeNull();
-    });
-
     test("does not auto-close with empty beforeCursor", () => {
-      expect(rule.apply(context("", ")"))).toBeNull();
+      expect(rule.apply({ beforeCursor: "", afterCursor: ")" })).toBeNull();
     });
   });
 
+  // Auto-close after a space, at the start or before a different character, and skip over a matching close character.
+  test.each([
+    ["text[", "", "[]"],
+    ["hello '", "world", "''"],
+    ["'", "world", "''"],
+    ["hello <", "world", "<>"],
+    ["(", "]rest", "()"],
+    ["text}", "}more", "}"],
+    ["it's'", "'rest", "'"],
+    [' "hello"', '"rest', '"'],
+    [" >", ">rest", ">"],
+  ])("before %p, after %p gives %p", (before, after, replacement) => {
+    expect(rule.apply(context(before, after))?.replacement).toBe(replacement);
+  });
+
+  // No auto-close or overtype after a word character, and no overtype without a matching close character.
+  test.each([
+    ["it'", "s a test"],
+    ['word"', " more"],
+    ["word`", " more"],
+    ["value<", "3"],
+    ["value>", ">3"],
+    ["text)", "other"],
+    ["text)", ""],
+  ])("before %p, after %p gives no edit", (before, after) => {
+    expect(rule.apply(context(before, after))).toBeNull();
+  });
+
   describe("suppression guards", () => {
-    test("does not auto-close single quote after word character (apostrophe)", () => {
-      expect(rule.apply(context("it'", "s a test", { inputAction: "insert" }))).toBeNull();
-    });
-
-    test("does not auto-close double quote after word character", () => {
-      expect(rule.apply(context('word"', " more", { inputAction: "insert" }))).toBeNull();
-    });
-
-    test("does not auto-close backtick after word character", () => {
-      expect(rule.apply(context("word`", " more", { inputAction: "insert" }))).toBeNull();
-    });
-
-    test("auto-closes single quote after space", () => {
-      const result = rule.apply(context("hello '", "world", { inputAction: "insert" }));
-      expect(result).not.toBeNull();
-      expect(result!.replacement).toBe("''");
-    });
-
-    test("auto-closes single quote at start of text", () => {
-      const result = rule.apply(context("'", "world", { inputAction: "insert" }));
-      expect(result).not.toBeNull();
-      expect(result!.replacement).toBe("''");
-    });
-
-    test("does not auto-close < after word character", () => {
-      expect(rule.apply(context("value<", "3", { inputAction: "insert" }))).toBeNull();
-    });
-
-    test("auto-closes < after space", () => {
-      const result = rule.apply(context("hello <", "world", { inputAction: "insert" }));
-      expect(result).not.toBeNull();
-      expect(result!.replacement).toBe("<>");
-    });
-
     test("a space right after < drops the auto-inserted >: a comparison, not a tag", () => {
-      expect(rule.apply(context("3 < ", "> rest", { inputAction: "insert" }))).toEqual({
+      expect(rule.apply(context("3 < ", "> rest"))).toEqual({
         replacement: " ",
         deleteBackwards: 1,
         deleteForwards: 1,
-        sourceRuleId: "autoBracketClose",
       });
       // Only "<": French spaces the inside of guillemets on purpose.
-      expect(rule.apply(context("« ", "»", { inputAction: "insert" }))).toBeNull();
-      expect(rule.apply(context("a <b ", ">", { inputAction: "insert" }))).toBeNull();
+      expect(rule.apply(context("« ", "»"))).toBeNull();
+      expect(rule.apply(context("a <b ", ">"))).toBeNull();
     });
 
     test("does not auto-close when afterCursor starts with matching close char", () => {
-      expect(rule.apply(context("(", ")", { inputAction: "insert" }))).toBeNull();
-      expect(rule.apply(context("[", "]", { inputAction: "insert" }))).toBeNull();
-      expect(rule.apply(context("{", "}", { inputAction: "insert" }))).toBeNull();
-    });
-
-    test("auto-closes when afterCursor starts with non-matching char", () => {
-      const result = rule.apply(context("(", "]rest", { inputAction: "insert" }));
-      expect(result).not.toBeNull();
-      expect(result!.replacement).toBe("()");
+      expect(rule.apply(context("(", ")"))).toBeNull();
+      expect(rule.apply(context("[", "]"))).toBeNull();
+      expect(rule.apply(context("{", "}"))).toBeNull();
     });
   });
 
   describe("overtype (skip-over)", () => {
     test("skips over closing paren when it matches afterCursor", () => {
-      const result = rule.apply(context("hello())", ")", { inputAction: "insert" }));
+      const result = rule.apply(context("hello())", ")"));
       expect(result).toEqual({
         replacement: ")",
         deleteBackwards: 1,
         deleteForwards: 1,
-        sourceRuleId: "autoBracketClose",
       });
     });
 
     test("skips over closing bracket", () => {
-      const result = rule.apply(context("text]", "]more", { inputAction: "insert" }));
+      const result = rule.apply(context("text]", "]more"));
       expect(result).not.toBeNull();
       expect(result!.replacement).toBe("]");
       expect(result!.deleteBackwards).toBe(1);
       expect(result!.deleteForwards).toBe(1);
     });
 
-    test("skips over closing brace", () => {
-      const result = rule.apply(context("text}", "}more", { inputAction: "insert" }));
-      expect(result).not.toBeNull();
-      expect(result!.replacement).toBe("}");
-    });
-
-    test("skips over closing single quote", () => {
-      const result = rule.apply(context("it's'", "'rest", { inputAction: "insert" }));
-      expect(result).not.toBeNull();
-      expect(result!.replacement).toBe("'");
-    });
-
-    test("skips over closing double quote", () => {
-      const result = rule.apply(context(' "hello"', '"rest', { inputAction: "insert" }));
-      expect(result).not.toBeNull();
-      expect(result!.replacement).toBe('"');
-    });
-
-    test("skips over closing > after non-word context", () => {
-      const result = rule.apply(context(" >", ">rest", { inputAction: "insert" }));
-      expect(result).not.toBeNull();
-      expect(result!.replacement).toBe(">");
-    });
-
-    test("does not overtype > after word character (comparison operator)", () => {
-      expect(rule.apply(context("value>", ">3", { inputAction: "insert" }))).toBeNull();
-    });
-
     test("does not overtype symmetric quote after non-word char (prevents oscillation)", () => {
       // After auto-close, engine re-evaluates: beforeCursor='"', afterCursor='"'
       // The char before the quote is a space (or start of string) — NOT a closing quote scenario
-      expect(rule.apply(context(' "', '"rest', { inputAction: "insert" }))).toBeNull();
-      expect(rule.apply(context('"', '"rest', { inputAction: "insert" }))).toBeNull();
-      expect(rule.apply(context(" '", "'rest", { inputAction: "insert" }))).toBeNull();
-      expect(rule.apply(context(" `", "`rest", { inputAction: "insert" }))).toBeNull();
-    });
-
-    test("does not overtype when afterCursor does not match", () => {
-      expect(rule.apply(context("text)", "other", { inputAction: "insert" }))).toBeNull();
-    });
-
-    test("does not overtype when afterCursor is empty", () => {
-      expect(rule.apply(context("text)", "", { inputAction: "insert" }))).toBeNull();
-    });
-
-    test("does not overtype on delete action", () => {
-      expect(rule.apply(context("text)", ")", { inputAction: "delete" }))).toBeNull();
+      expect(rule.apply(context(' "', '"rest'))).toBeNull();
+      expect(rule.apply(context('"', '"rest'))).toBeNull();
+      expect(rule.apply(context(" '", "'rest"))).toBeNull();
+      expect(rule.apply(context(" `", "`rest"))).toBeNull();
     });
   });
 

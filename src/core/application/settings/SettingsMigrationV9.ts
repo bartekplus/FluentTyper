@@ -4,6 +4,7 @@ import {
   type SuggestionThemeSettings,
 } from "@core/domain/themeDefaults";
 import type { SettingsManager } from "../settingsManager";
+import { normalizeString } from "./SettingsMigrationV7";
 
 type ThemeColorField = Exclude<
   keyof SuggestionThemeSettings,
@@ -36,7 +37,7 @@ function isUntouched(stored: unknown, previous: string, next: string): boolean {
   if (stored === undefined) {
     return true;
   }
-  const value = typeof stored === "string" ? stored.trim().toLowerCase() : null;
+  const value = normalizeString(stored);
   return value === previous || value === next.toLowerCase();
 }
 
@@ -45,31 +46,27 @@ function isUntouched(stored: unknown, previous: string, next: string): boolean {
  * color mode moves only as a whole: one customized color keeps that mode as it is.
  */
 export async function migrateSettingsV9(settings: SettingsManager): Promise<void> {
-  try {
-    if ((await settings.getRaw(KEY_SUGGESTION_THEME_V2_MIGRATED)) === true) {
-      return;
-    }
-    for (const mode of PREVIOUS_DEFAULTS) {
-      const fields = Object.keys(mode) as ThemeColorField[];
-      const stored = await Promise.all(fields.map((field) => settings.getRaw(field)));
-      if (
-        fields.every((field, index) =>
-          isUntouched(stored[index], mode[field]!, DEFAULT_SUGGESTION_THEME_SETTINGS[field]),
-        )
-      ) {
-        for (const field of fields) {
-          await settings.setRaw(field, DEFAULT_SUGGESTION_THEME_SETTINGS[field]);
-        }
-      } else {
-        // A customized mode keeps its look: colors never saved would otherwise
-        // fall back to the new defaults, so they keep the previous ones.
-        for (const [index, field] of fields.entries()) {
-          if (stored[index] === undefined) await settings.setRaw(field, mode[field]!);
-        }
+  if ((await settings.getRaw(KEY_SUGGESTION_THEME_V2_MIGRATED)) === true) {
+    return;
+  }
+  for (const mode of PREVIOUS_DEFAULTS) {
+    const fields = Object.keys(mode) as ThemeColorField[];
+    const stored = await Promise.all(fields.map((field) => settings.getRaw(field)));
+    if (
+      fields.every((field, index) =>
+        isUntouched(stored[index], mode[field]!, DEFAULT_SUGGESTION_THEME_SETTINGS[field]),
+      )
+    ) {
+      for (const field of fields) {
+        await settings.setRaw(field, DEFAULT_SUGGESTION_THEME_SETTINGS[field]);
+      }
+    } else {
+      // A customized mode keeps its look: colors never saved would otherwise
+      // fall back to the new defaults, so they keep the previous ones.
+      for (const [index, field] of fields.entries()) {
+        if (stored[index] === undefined) await settings.setRaw(field, mode[field]!);
       }
     }
-    await settings.setRaw(KEY_SUGGESTION_THEME_V2_MIGRATED, true);
-  } catch (error) {
-    console.warn("[SettingsMigrationV9] Failed to migrate settings:", error);
   }
+  await settings.setRaw(KEY_SUGGESTION_THEME_V2_MIGRATED, true);
 }

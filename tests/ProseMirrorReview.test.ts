@@ -10,11 +10,11 @@ import { EditorView } from "prosemirror-view";
 import { history, undo, redo } from "prosemirror-history";
 import { ContentEditableReviewTarget } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import { HostEditorAdapterResolver } from "../src/adapters/chrome/content-script/suggestions/HostEditorAdapterResolver";
-import { createSuggestionEntry } from "./suggestionTestUtils";
-import { SuggestionTextEditService } from "../src/adapters/chrome/content-script/suggestions/SuggestionTextEditService";
+import { createSuggestionEntry, createTextEditService } from "./suggestionTestUtils";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { applyEdits } from "../src/core/domain/grammar/review/textRanges";
 import type { ReviewEdit } from "../src/core/domain/grammar/review/types";
+import type { GrammarEdit } from "../src/core/domain/grammar/types";
 import "../src/adapters/chrome/content-script/suggestions/HostEditorMainWorldBridge";
 
 const schema = new Schema({
@@ -122,12 +122,7 @@ describe("real ProseMirror corrections", () => {
       { type: "code_block", content: [{ type: "text", text: "teh code" }] },
     ]);
     expect(target.kind).toBe("prosemirror");
-    expect(target.capabilities).toEqual({
-      inline: true,
-      apply: true,
-      bulk: true,
-      undo: "single-step",
-    });
+    expect(target.capabilities).toEqual({ apply: true, bulk: true });
     const original = view!.state.doc;
     const read = target.read();
     if (!read.ok) throw new Error("unreadable");
@@ -300,14 +295,15 @@ describe("real ProseMirror corrections", () => {
         if (tr.docChanged) writes++;
         dispatch(tr);
       };
-      const service = new SuggestionTextEditService({
-        findMentionToken: (before) => ({ token: before, start: 0 }),
-        isSeparator: (value) => /\s/.test(value),
-      });
+      const service = createTextEditService();
       const entry = createSuggestionEntry({ elem: view!.dom, latestMentionText: "teh" });
       if (mode === "grammar") {
         expect(
-          service.applyGrammarEdit(entry, { replacement: "the", deleteBackwards: 3 }),
+          service.applyGrammarEdit(entry, {
+            replacement: "the",
+            deleteBackwards: 3,
+            deleteForwards: 0,
+          }),
         ).toMatchObject({
           applied: false,
           unverified: true,
@@ -356,18 +352,17 @@ describe("real ProseMirror corrections", () => {
 
   test("Undo reaches host history and suppresses reapplying the same correction", async () => {
     editor([paragraph("teh ", [{ type: "strong" }])]);
-    const service = new SuggestionTextEditService({
+    const service = createTextEditService({
       findMentionToken: (before) => ({
         token: before.trimEnd().split(/\s+/).at(-1) ?? "",
         start: 0,
       }),
-      isSeparator: (value) => /\s/.test(value),
     });
     const entry = createSuggestionEntry({ elem: view!.dom });
-    const correction = {
+    const correction: GrammarEdit = {
       replacement: "the ",
       deleteBackwards: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
       sourceRuleId: "englishTypoWhitelistCorrection",
     };
     expect(service.applyGrammarEdit(entry, correction).applied).toBe(true);
@@ -378,7 +373,7 @@ describe("real ProseMirror corrections", () => {
     });
     expect(
       service.tryUndoLastExtensionEdit(entry, keyboard, {
-        consumeKeyboardEvent: (event) => event.preventDefault(),
+        consumeEvent: (event) => event.preventDefault(),
         clearSuggestions: () => undefined,
       }),
     ).toBe(false);

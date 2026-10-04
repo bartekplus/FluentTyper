@@ -12,16 +12,10 @@ import type { ReviewTargetHandle } from "./ReviewTargets";
 
 /** One Review session spans the active Gutenberg canvas and its post title. */
 export class GutenbergReviewTarget implements ReviewTargetHandle {
-  readonly kind = "gutenberg" as const;
   get element(): HTMLElement {
     return gutenbergCanvas(this.source) ?? this.source;
   }
-  readonly capabilities: ReviewCapabilities = {
-    inline: true,
-    apply: true,
-    bulk: true,
-    undo: "single-step",
-  };
+  readonly capabilities: ReviewCapabilities = { apply: true, bulk: true };
   composing = false;
   scope: TextRange | null = null;
   private snapshot: GutenbergSnapshot | null = null;

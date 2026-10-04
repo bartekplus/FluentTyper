@@ -22,7 +22,6 @@ import {
   proseMirrorBlockContext,
   replaceProseMirrorBlock,
 } from "./ProseMirrorEditor";
-import type { ReviewEdit } from "@core/domain/grammar/review/types";
 import {
   CURSOR_MOVE_COUNT_ATTR,
   HOST_EDITOR_ENABLED_EVENT,
@@ -32,45 +31,23 @@ import {
   HOST_EDITOR_REQUEST_ATTR,
   HOST_EDITOR_REQUEST_EVENT,
   HOST_EDITOR_RESPONSE_ATTR,
+  NOT_APPLIED,
+  type HostEditorBlockReplacement,
+  type HostEditorBridgeRequest,
+  type TinyMCEReplacement,
 } from "./HostEditorBridgeProtocol";
 import {
+  applyLineEditorReplacement,
   findLineEditorController,
+  isValidBlockReplacement,
   readLineEditorBlockContext,
-  readLineEditorCursor,
-  syncBackingSelection,
+  type LineEditorBlockContext,
   type LineEditorController,
 } from "./HostEditorControllerUtils";
+import { TextTargetAdapter } from "./TextTargetAdapter";
 
-import type { TinyMCEReplacement } from "./HostEditorPageBridge";
-
-type BridgeRequest =
-  | ({ action: "applyTinyMCE" } & TinyMCEReplacement)
-  | {
-      action:
-        "readProseMirror" | "readQuill" | "readSlate" | "readGutenberg" | "readGutenbergSelection";
-    }
-  | {
-      action: "applyProseMirror" | "applyQuill" | "applySlate" | "applyGutenberg";
-      edits: ReviewEdit[];
-      before: string;
-      after: string;
-      signature: string;
-    }
-  | {
-      action: "getBlockContext";
-    }
-  | {
-      action: "applyBlockReplacement";
-      replaceStart: number;
-      replaceEnd: number;
-      replacementText: string;
-      cursorAfter: number;
-      expectedBlockText: string;
-    };
-type ApplyRequest = Extract<BridgeRequest, { action: "applyBlockReplacement" }>;
 type BridgeWindow = Window & { [HOST_EDITOR_MAIN_WORLD_FLAG]?: boolean };
 
-const NOT_APPLIED = { applied: false, didDispatchInput: false };
 const APPLIED = { applied: true, didDispatchInput: false };
 
 // ── CKEditor-5 integration ──────────────────────────────────────────
@@ -81,59 +58,22 @@ const APPLIED = { applied: true, didDispatchInput: false };
 // CKEditor-5 handles using its own (stale) model selection.
 
 /* oxlint-disable typescript/no-explicit-any, typescript/no-unsafe-member-access, typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-argument */
-interface CKEditorModel {
-  document: { selection: { getFirstPosition(): any } };
-  change(callback: (writer: any) => void): void;
-}
-
-interface CKEditorEditingViewDomConverter {
-  domPositionToView(domParent: Node, domOffset?: number): any;
-}
-
-interface CKEditorViewObserver {
-  flush?: () => void;
-  _mutationObserver?: unknown;
-}
-
-interface CKEditorEditingView {
-  domConverter?: CKEditorEditingViewDomConverter;
-  _observers?: Map<unknown, CKEditorViewObserver>;
-}
-
-interface CKEditorEditingMapper {
-  toModelPosition(viewPosition: any): any;
-}
-
-interface CKEditorEditing {
-  mapper?: CKEditorEditingMapper;
-  view?: CKEditorEditingView;
-}
-
-interface CKEditorUiEditable {
-  element?: HTMLElement | null;
-}
-
-interface CKEditorUiView {
-  editable?: CKEditorUiEditable;
-}
-
-interface CKEditorUi {
-  view?: CKEditorUiView;
-}
-
 interface CKEditorInstance {
-  model: CKEditorModel;
-  editing?: CKEditorEditing;
-  ui?: CKEditorUi;
+  model: {
+    document: { selection: { getFirstPosition(): any } };
+    change(callback: (writer: any) => void): void;
+  };
+  editing?: {
+    mapper?: { toModelPosition(viewPosition: any): any };
+    view?: {
+      domConverter?: { domPositionToView(domParent: Node, domOffset?: number): any };
+      _observers?: Map<unknown, { flush?: () => void; _mutationObserver?: unknown }>;
+    };
+  };
+  ui?: { view?: { editable?: { element?: HTMLElement | null } } };
 }
-
-const ckEditorInstanceCache = new WeakMap<HTMLElement, CKEditorInstance | null>();
 
 function findCKEditor5Instance(elem: HTMLElement): CKEditorInstance | null {
-  const cached = ckEditorInstanceCache.get(elem);
-  if (cached) {
-    return cached;
-  }
   let current: any = elem;
   while (current) {
     try {
@@ -141,16 +81,13 @@ function findCKEditor5Instance(elem: HTMLElement): CKEditorInstance | null {
         current.ckeditorInstance &&
         typeof current.ckeditorInstance.model?.change === "function"
       ) {
-        const instance = current.ckeditorInstance as CKEditorInstance;
-        ckEditorInstanceCache.set(elem, instance);
-        return instance;
+        return current.ckeditorInstance as CKEditorInstance;
       }
     } catch {
       // Property access may throw on exotic host objects.
     }
     current = current.parentElement;
   }
-  ckEditorInstanceCache.set(elem, null);
   return null;
 }
 
@@ -270,28 +207,27 @@ function getCKEditor5SelectionPosition(editor: CKEditorInstance): any {
   return editor.model.document.selection.getFirstPosition();
 }
 
-function getCKEditor5BlockContext(
+/**
+ * The selection position, its block and the block's text mapping. Pending DOM
+ * mutation records are drained first, so the model agrees with what the user
+ * sees in the DOM (Firefox CKEditor-5 may briefly lag by one typed character).
+ */
+function readCKEditor5Block(
   editor: CKEditorInstance,
-): { beforeCursor: string; afterCursor: string; blockText: string } | null {
-  // Drain any pending DOM mutation records so the returned block text
-  // reflects what the user sees in the DOM, not a stale model snapshot
-  // (Firefox CKEditor-5 may briefly lag by one character after typing).
+): { position: any; block: any; mapping: BlockTextMapping } | null {
   flushCKEditor5PendingMutations(editor);
   const position = getCKEditor5SelectionPosition(editor);
-  if (!position) {
+  const block = position?.parent;
+  const mapping = block ? extractModelBlockMapping(block) : null;
+  return mapping ? { position, block, mapping } : null;
+}
+
+function getCKEditor5BlockContext(editor: CKEditorInstance): LineEditorBlockContext | null {
+  const read = readCKEditor5Block(editor);
+  if (!read || (typeof read.block.is === "function" && read.block.is("rootElement"))) {
     return null;
   }
-  const block = position.parent;
-  if (!block) {
-    return null;
-  }
-  if (typeof block.is === "function" && block.is("rootElement")) {
-    return null;
-  }
-  const mapping = extractModelBlockMapping(block);
-  if (mapping === null) {
-    return null;
-  }
+  const { position, mapping } = read;
   const textOffset = modelOffsetToTextOffset(position.offset, mapping.softBreakModelOffsets);
   if (textOffset < 0 || textOffset > mapping.text.length) {
     return null;
@@ -333,40 +269,17 @@ function flushCKEditor5PendingMutations(editor: CKEditorInstance): void {
 
 function applyCKEditor5BlockReplacement(
   editor: CKEditorInstance,
-  request: ApplyRequest,
+  request: HostEditorBlockReplacement,
 ): { applied: boolean; didDispatchInput: boolean } {
-  // Drain any pending DOM mutation records before reading the model so that
-  // a freshly-typed character already in the DOM (Firefox CKEditor-5 lag)
-  // is reflected in the model we plan to edit.
-  flushCKEditor5PendingMutations(editor);
-  const position = getCKEditor5SelectionPosition(editor);
-  if (!position) {
+  const read = readCKEditor5Block(editor);
+  if (!read) {
     return NOT_APPLIED;
   }
-  const block = position.parent;
-  if (!block) {
-    return NOT_APPLIED;
-  }
-  const mapping = extractModelBlockMapping(block);
-  if (mapping === null) {
-    return NOT_APPLIED;
-  }
+  const { position, block, mapping } = read;
   // FT-INV-5: flushing can reconcile pending typing; an unresolved mismatch
   // must never rebuild the model from the extension's DOM snapshot.
-  if (
-    mapping.text !== request.expectedBlockText ||
-    request.replaceStart < 0 ||
-    request.replaceEnd < request.replaceStart ||
-    request.replaceEnd > mapping.text.length
-  )
+  if (mapping.text !== request.expectedBlockText || !isValidBlockReplacement(mapping.text, request))
     return NOT_APPLIED;
-  const expectedLength =
-    request.expectedBlockText.length -
-    (request.replaceEnd - request.replaceStart) +
-    request.replacementText.length;
-  if (request.cursorAfter < 0 || request.cursorAfter > expectedLength) {
-    return NOT_APPLIED;
-  }
 
   // Translate text offsets to model offsets (accounting for softBreaks).
   const modelReplaceStart = textOffsetToModelOffset(
@@ -438,66 +351,19 @@ function applyCKEditor5BlockReplacement(
 }
 /* oxlint-enable typescript/no-explicit-any, typescript/no-unsafe-member-access, typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-argument */
 
-// Intentionally duplicated from TextTargetAdapter: the main-world bridge runs in
-// a separate injected bundle and stays self-contained instead of importing
-// extension-world helpers across the world boundary.
-function findBackingTextValueTarget(
-  elem: HTMLElement,
-): HTMLInputElement | HTMLTextAreaElement | null {
-  const codeMirrorRoot = elem.closest(".CodeMirror");
-  if (!(codeMirrorRoot instanceof HTMLElement)) {
-    return null;
-  }
-  const candidate = codeMirrorRoot.previousElementSibling;
-  return candidate instanceof HTMLInputElement || candidate instanceof HTMLTextAreaElement
-    ? candidate
-    : null;
-}
-
 function applyBlockReplacement(
   controller: LineEditorController,
   elem: HTMLElement,
-  request: ApplyRequest,
+  request: HostEditorBlockReplacement,
 ) {
-  const cursor = readLineEditorCursor(controller);
-  if (!cursor) {
-    return NOT_APPLIED;
-  }
-  const blockText = controller.getLine(cursor.line);
-  if (
-    typeof blockText !== "string" ||
-    blockText !== request.expectedBlockText ||
-    request.replaceStart < 0 ||
-    request.replaceEnd < request.replaceStart ||
-    request.replaceEnd > blockText.length
-  ) {
-    return NOT_APPLIED;
-  }
-
-  const expectedLength =
-    blockText.length - (request.replaceEnd - request.replaceStart) + request.replacementText.length;
-  if (request.cursorAfter < 0 || request.cursorAfter > expectedLength) {
-    return NOT_APPLIED;
-  }
-
-  const from = { line: cursor.line, ch: request.replaceStart };
-  const to = { line: cursor.line, ch: request.replaceEnd };
-  const selection = { line: cursor.line, ch: request.cursorAfter };
-  const run = () => {
-    controller.replaceRange(request.replacementText, from, to, "+input");
-    controller.setCursor(selection);
-  };
-
-  if (typeof controller.operation === "function") {
-    controller.operation(run);
-  } else {
-    run();
-  }
-
-  syncBackingSelection(controller, findBackingTextValueTarget(elem), selection);
-  controller.focus?.();
-
-  return APPLIED;
+  return applyLineEditorReplacement(
+    controller,
+    TextTargetAdapter.findBackingTextValueTarget(elem),
+    request.expectedBlockText,
+    request,
+  )
+    ? APPLIED
+    : NOT_APPLIED;
 }
 
 // TinyMCE owns history even though its content model is the DOM. Enclose the
@@ -649,7 +515,7 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
 
       let response: unknown = { ok: false };
       try {
-        const request = JSON.parse(rawRequest) as BridgeRequest;
+        const request = JSON.parse(rawRequest) as HostEditorBridgeRequest;
         observeProseMirror(source);
         const controller = findLineEditorController(source);
         const ckEditor = controller ? null : findCKEditor5Instance(source);

@@ -2,12 +2,11 @@
 
 # Create MARISA-based database for n-grams
 #
-# Requires: python3, numpy, sqlite and marisa python bindings
+# Requires: marisa-trie
 
 import argparse
-
-import numpy as np
-import codecs, os, sys
+import array
+import os, sys
 import marisa_trie
 
 parser = argparse.ArgumentParser(
@@ -27,19 +26,13 @@ the corpus. Note that COUNT is separated from the last word by TAB
 """
 )
 
-parser.add_argument("--inputfile", type=str, help="n-gram text file")
+parser.add_argument("--inputfile", type=str, required=True, help="n-gram text file")
 
 parser.add_argument(
     "--output",
     type=str,
+    required=True,
     help="Name of the new directory where n-gram database in MARISA format will be written. This directory will be created by the script",
-)
-
-parser.add_argument(
-    "--threshold",
-    type=int,
-    default=0,
-    help="Minimal n-gram counts propagated into the database. Default 0 (all recorded n-grams are propagated into MARISA-based database)",
 )
 
 parser.add_argument(
@@ -60,35 +53,24 @@ if os.path.exists(args.output):
 else:
     os.makedirs(args.output)
 
-factor = max(args.threshold, 1)
-
 # open the data file
 print("Loading n-grams")
 data = {}
 ranges = {}
 keyset = []
-with codecs.open(args.inputfile, encoding="utf-8") as f:
+with open(args.inputfile, encoding="utf-8") as f:
     for line in f:
         line = line.rstrip()
         key, count = line.split("\t")
         count = int(count)
-        if count >= args.threshold:
-            if key in data:
-                data[key] += count
-            else:
-                data[key] = count
-            keyset.append(key)
-            n = key.split()[0]
-            if n in ranges:
-                mn, mx = ranges[n]
-                ranges[n] = (min(mn, count), max(mx, count))
-            else:
-                ranges[n] = (count, count)
+        data[key] = data.get(key, 0) + count
+        keyset.append(key)
+        n = key.split()[0]
+        mn, mx = ranges.get(n, (count, count))
+        ranges[n] = (min(mn, count), max(mx, count))
 
 
-kk = list(ranges.keys())
-kk.sort()
-for k in kk:
+for k in sorted(ranges):
     print("Range of counts for " + k + "-gram: ", ranges[k][0], ranges[k][1])
 
 # get sum
@@ -101,29 +83,24 @@ if scount == 0:
     scount = 1  # setting 1 as minimum
 
 print("\nSum of 1-gram:", scount)
-if factor > 1:
-    scount = int(scount / factor)
-    print("Normalized sum of 1-gram:", scount)
 
 if scount > 2**31:
     print(
-        "Trouble: sum of 1-grams doesn't fit INT32. Please normalize the data manually or automatically by increasing threshold for counts"
+        "Trouble: sum of 1-grams doesn't fit INT32. Please normalize the data manually"
     )
     sys.exit(-1)
 
 # save ngrams
 print("Saving in Marisa format")
 trie = marisa_trie.Trie(keyset)
-# trie.build(keyset)
 trie.save(os.path.join(args.output, "ngrams.trie"))
 
 print("Keys: ", len(trie), "\n")
 
-arr = np.zeros(len(trie) + 1, dtype=np.int32)
+arr = array.array("i", [0]) * (len(trie) + 1)
 arr[0] = scount
 for k, v in data.items():
-    arr[trie.key_id(k) + 1] = int(v / factor)
+    arr[trie.key_id(k) + 1] = v
 
-binwrite = open(os.path.join(args.output, "ngrams.counts"), "wb")
-arr.tofile(binwrite)
-binwrite.close()
+with open(os.path.join(args.output, "ngrams.counts"), "wb") as f:
+    arr.tofile(f)

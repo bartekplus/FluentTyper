@@ -6,40 +6,44 @@ import {
   CMD_REVIEW_FT_ACTIVE_TAB,
 } from "../src/core/domain/constants";
 import type { ProductivityDashboardStats } from "../src/core/domain/messageTypes";
-import { acquireDomGlobalLock } from "./support/domGlobalLock";
+import { installJsdom } from "./support/jsdomGlobals";
 
 type RuntimeOutcome =
   | { type: "stats"; value: ProductivityDashboardStats }
   | { type: "response"; value: { ok: boolean } }
   | { type: "lastError"; message?: string };
 
-const baseGlobals = {
-  window: globalThis.window,
-  document: globalThis.document,
-  navigator: globalThis.navigator,
-  Node: globalThis.Node,
-  HTMLElement: globalThis.HTMLElement,
-  HTMLButtonElement: globalThis.HTMLButtonElement,
-  Element: globalThis.Element,
-  Event: globalThis.Event,
-  CustomEvent: globalThis.CustomEvent,
-  MutationObserver: globalThis.MutationObserver,
-  getComputedStyle: globalThis.getComputedStyle,
-  matchMedia: globalThis.matchMedia,
-  chrome: (globalThis as unknown as { chrome: unknown }).chrome,
+type PermissionApi = {
+  contains?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
+  request?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
 };
+
+// The popup reads only the id and the URL of a tab.
+type TestTab = Pick<chrome.tabs.Tab, "id" | "url">;
+
+type PopupOptions = {
+  outcomes?: RuntimeOutcome[];
+  summary?: string;
+  permissions?: PermissionApi;
+  tab?: TestTab;
+  translations?: Record<string, string>;
+  responses?: Record<string, unknown>;
+  storage?: Record<string, unknown>;
+};
+
+const granted: PermissionApi = { contains: async () => true };
 
 let importNonce = 0;
 let activeDom: JSDOM | null = null;
+let restoreGlobals: (() => void) | null = null;
 let originalI18nGet: ((key: string) => string) | null = null;
-let releaseDomGlobalLock: (() => void) | null = null;
 
 function freshModulePath(path: string): string {
   importNonce += 1;
   return `${path}?bun_test_nonce_popup_retry=${importNonce}`;
 }
 
-function popupMarkup(initialSummary = "0"): string {
+function popupMarkup(initialSummary: string): string {
   return `<!doctype html>
 <html>
   <body>
@@ -53,14 +57,16 @@ function popupMarkup(initialSummary = "0"): string {
       </div>
     </div>
     <input id="checkboxSiteProfileInput" type="checkbox" />
-    <select id="siteLanguageSelect"></select>
-    <select id="siteNumSuggestionsSelect"></select>
-    <select id="siteInlineModeSelect"></select>
-    <select id="sitePreferNativeAutocompleteSelect"></select>
     <div id="domainSectionWrapper"></div>
     <section id="siteProfileSection"></section>
     <small id="siteProfileStatus"></small>
-    <div id="siteProfileDetails" class="is-hidden"></div>
+    <details id="siteProfileDetails" class="is-hidden">
+      <summary data-i18n="popup_site_profile_customize">Customize for this site</summary>
+      <select id="siteLanguageSelect"></select>
+      <select id="siteNumSuggestionsSelect"></select>
+      <select id="siteInlineModeSelect"></select>
+      <select id="sitePreferNativeAutocompleteSelect"></select>
+    </details>
 
     <input id="checkboxDomainInput" type="checkbox" />
     <div id="checkboxDomainLabel"></div>
@@ -88,7 +94,6 @@ function popupMarkup(initialSummary = "0"): string {
     <button id="weeklyRecapDismissBtn" type="button"></button>
     <button id="weeklyRecapViewBtn" type="button"></button>
     <button id="weeklyRecapShareBtn" type="button"></button>
-    <a id="weeklyRecapSupportLink"></a>
 
     <div id="dashboardMilestoneHint" class="is-hidden"></div>
     <span id="dashboardMilestoneText"></span>
@@ -101,12 +106,13 @@ function popupMarkup(initialSummary = "0"): string {
         <a
           id="runOptions"
           class="toolbar-link"
+          href="/options/options.html"
           target="_blank"
           rel="noopener"
           data-i18n-title="popup_advanced_options"
           title="Advanced Options"
         >
-          <span class="sr-only" data-i18n="popup_advanced_options">Advanced Options</span>
+          <span data-i18n="settings">Settings</span>
         </a>
         <a
           id="reportIssueLink"
@@ -116,7 +122,7 @@ function popupMarkup(initialSummary = "0"): string {
           data-i18n-title="popup_report_issue"
           title="Report Issue"
         >
-          <span class="sr-only" data-i18n="popup_report_issue">Report Issue</span>
+          <span class="is-sr-only" data-i18n="popup_report_issue">Report Issue</span>
         </a>
         <a
           id="githubSourceLink"
@@ -126,7 +132,7 @@ function popupMarkup(initialSummary = "0"): string {
           data-i18n-title="popup_github_source"
           title="GitHub Source"
         >
-          <span class="sr-only" data-i18n="popup_github_source">GitHub Source</span>
+          <span class="is-sr-only" data-i18n="popup_github_source">GitHub Source</span>
         </a>
         <a
           id="supportDevelopmentLink"
@@ -144,47 +150,23 @@ function popupMarkup(initialSummary = "0"): string {
 </html>`;
 }
 
-function installPopupDom(initialSummary = "0", prefersDark = false): JSDOM {
+function installPopupDom(initialSummary: string): JSDOM {
   const dom = new JSDOM(popupMarkup(initialSummary), {
     pretendToBeVisual: true,
     url: "https://example.test/popup/popup.html",
   });
   const windowRef = dom.window;
-
-  (globalThis as unknown as { window: Window }).window = windowRef as unknown as Window;
-  (globalThis as unknown as { document: Document }).document = windowRef.document;
-  (globalThis as unknown as { navigator: Navigator }).navigator = windowRef.navigator;
-  (globalThis as unknown as { Node: typeof Node }).Node = windowRef.Node as unknown as typeof Node;
-  (globalThis as unknown as { HTMLElement: typeof HTMLElement }).HTMLElement =
-    windowRef.HTMLElement as unknown as typeof HTMLElement;
-  (globalThis as unknown as { HTMLButtonElement: typeof HTMLButtonElement }).HTMLButtonElement =
-    windowRef.HTMLButtonElement as unknown as typeof HTMLButtonElement;
-  (globalThis as unknown as { Element: typeof Element }).Element =
-    windowRef.Element as unknown as typeof Element;
-  (globalThis as unknown as { Event: typeof Event }).Event =
-    windowRef.Event as unknown as typeof Event;
-  (globalThis as unknown as { CustomEvent: typeof CustomEvent }).CustomEvent =
-    windowRef.CustomEvent as unknown as typeof CustomEvent;
-  (globalThis as unknown as { MutationObserver: typeof MutationObserver }).MutationObserver =
-    windowRef.MutationObserver as unknown as typeof MutationObserver;
-  (globalThis as unknown as { getComputedStyle: typeof getComputedStyle }).getComputedStyle =
-    windowRef.getComputedStyle.bind(windowRef) as unknown as typeof getComputedStyle;
-  const matchMediaMock = ((query: string) => ({
-    matches: query === "(prefers-color-scheme: dark)" ? prefersDark : false,
-    media: query,
-    onchange: null,
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    dispatchEvent: jest.fn(() => true),
-  })) as typeof window.matchMedia;
-  (globalThis as unknown as { matchMedia: typeof window.matchMedia }).matchMedia = matchMediaMock;
-  (windowRef as unknown as { matchMedia: typeof window.matchMedia }).matchMedia = matchMediaMock;
-
   windowRef.setTimeout = setTimeout as unknown as typeof windowRef.setTimeout;
   windowRef.clearTimeout = clearTimeout as unknown as typeof windowRef.clearTimeout;
+  restoreGlobals = installJsdom(dom);
   return dom;
+}
+
+function closePopupDom(): void {
+  activeDom?.window.close();
+  activeDom = null;
+  restoreGlobals?.();
+  restoreGlobals = null;
 }
 
 function createPopupStats(acceptedSuggestions: number): ProductivityDashboardStats {
@@ -257,11 +239,8 @@ function createPopupStats(acceptedSuggestions: number): ProductivityDashboardSta
 
 function createChromeMock(
   outcomes: RuntimeOutcome[],
-  permissionApi?: {
-    contains?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
-    request?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
-  },
-  activeTab?: chrome.tabs.Tab,
+  permissionApi?: PermissionApi,
+  activeTab?: TestTab,
   runtimeResponses?: Record<string, unknown>,
   storageOverrides?: Record<string, unknown>,
 ) {
@@ -355,35 +334,31 @@ function createChromeMock(
   const chromeMock = {
     runtime,
     tabs: {
-      query: jest.fn(
-        (query: chrome.tabs.QueryInfo, callback: (tabs: chrome.tabs.Tab[]) => void) => {
-          if (query.active && query.currentWindow) {
-            callback(activeTab ? [activeTab] : []);
-            return;
-          }
-          callback([]);
-        },
-      ),
+      query: jest.fn((query: chrome.tabs.QueryInfo, callback: (tabs: TestTab[]) => void) => {
+        if (query.active && query.currentWindow) {
+          callback(activeTab ? [activeTab] : []);
+          return;
+        }
+        callback([]);
+      }),
       update: jest.fn(),
       create: jest.fn(),
-      sendMessage: jest.fn(),
+      sendMessage: jest.fn(() => Promise.resolve()),
     },
     storage: {
       local: localStorageApi,
       sync: localStorageApi,
     },
-    permissions: undefined,
+    permissions: permissionApi
+      ? {
+          contains: jest.fn(permissionApi.contains),
+          request: jest.fn(permissionApi.request),
+        }
+      : undefined,
     commands: {
       getAll: jest.fn(async () => [{ name: CMD_REVIEW_FT_ACTIVE_TAB, shortcut: "Alt+Shift+R" }]),
     },
   };
-
-  if (permissionApi) {
-    chromeMock.permissions = {
-      contains: jest.fn(permissionApi.contains),
-      request: jest.fn(permissionApi.request),
-    };
-  }
 
   return chromeMock;
 }
@@ -437,7 +412,7 @@ function dashboardStatsCallCount(chromeMock: ReturnType<typeof createChromeMock>
   ).length;
 }
 
-function createWebsiteTab(url = "https://example.com"): chrome.tabs.Tab {
+function createWebsiteTab(url = "https://example.com"): TestTab {
   return {
     id: 17,
     url,
@@ -452,36 +427,23 @@ async function applyTranslationOverrides(overrides?: Record<string, string>): Pr
   i18n.get = (key: string) => overrides?.[key] ?? originalI18nGet!(key);
 }
 
-async function loadPopupWithOutcomes(
-  outcomes: RuntimeOutcome[],
-  initialSummary = "0",
-  permissionApi?: {
-    contains?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
-    request?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
-  },
-  activeTab?: chrome.tabs.Tab,
-  prefersDark = false,
-  translationOverrides?: Record<string, string>,
-  runtimeResponses?: Record<string, unknown>,
-  storageOverrides?: Record<string, unknown>,
-): Promise<ReturnType<typeof createChromeMock>> {
-  if (activeDom) {
-    activeDom.window.close();
-    activeDom = null;
-  }
-  activeDom = installPopupDom(initialSummary, prefersDark);
+async function loadPopup({
+  outcomes = [{ type: "stats", value: createPopupStats(1) }],
+  summary = "0",
+  permissions,
+  tab,
+  translations,
+  responses,
+  storage,
+}: PopupOptions = {}): Promise<ReturnType<typeof createChromeMock>> {
+  closePopupDom();
+  activeDom = installPopupDom(summary);
   mock.restore();
-  const chromeMock = createChromeMock(
-    outcomes,
-    permissionApi,
-    activeTab,
-    runtimeResponses,
-    storageOverrides,
-  );
+  const chromeMock = createChromeMock(outcomes, permissions, tab, responses, storage);
   (globalThis as unknown as { chrome: unknown }).chrome = chromeMock;
   (window as unknown as { chrome: unknown }).chrome = chromeMock;
 
-  await applyTranslationOverrides(translationOverrides);
+  await applyTranslationOverrides(translations);
   await import(freshModulePath("../src/ui/popup/popup"));
   document.dispatchEvent(new window.Event("DOMContentLoaded"));
   await waitForPopupRender();
@@ -489,78 +451,49 @@ async function loadPopupWithOutcomes(
   return chromeMock;
 }
 
-describe.serial("popup productivity dashboard retry/failure paths", () => {
+describe("popup productivity dashboard retry/failure paths", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
   });
 
-  beforeEach(async () => {
-    releaseDomGlobalLock = await acquireDomGlobalLock();
-  });
-
   afterEach(async () => {
     jest.clearAllTimers();
     jest.useRealTimers();
-
-    if (activeDom) {
-      activeDom.window.close();
-      activeDom = null;
-    }
-
-    (globalThis as unknown as { window: Window }).window = baseGlobals.window;
-    (globalThis as unknown as { document: Document }).document = baseGlobals.document;
-    (globalThis as unknown as { navigator: Navigator }).navigator = baseGlobals.navigator;
-    (globalThis as unknown as { Node: typeof Node }).Node = baseGlobals.Node;
-    (globalThis as unknown as { HTMLElement: typeof HTMLElement }).HTMLElement =
-      baseGlobals.HTMLElement;
-    (globalThis as unknown as { HTMLButtonElement: typeof HTMLButtonElement }).HTMLButtonElement =
-      baseGlobals.HTMLButtonElement;
-    (globalThis as unknown as { Element: typeof Element }).Element = baseGlobals.Element;
-    (globalThis as unknown as { Event: typeof Event }).Event = baseGlobals.Event;
-    (globalThis as unknown as { CustomEvent: typeof CustomEvent }).CustomEvent =
-      baseGlobals.CustomEvent;
-    (globalThis as unknown as { MutationObserver: typeof MutationObserver }).MutationObserver =
-      baseGlobals.MutationObserver;
-    (globalThis as unknown as { getComputedStyle: typeof getComputedStyle }).getComputedStyle =
-      baseGlobals.getComputedStyle;
-    (globalThis as unknown as { matchMedia: typeof window.matchMedia }).matchMedia =
-      baseGlobals.matchMedia;
-    (globalThis as unknown as { chrome: unknown }).chrome = baseGlobals.chrome;
+    closePopupDom();
 
     if (originalI18nGet) {
       const { i18n } = await import("../src/ui/options/fluenttyperI18n.js");
       i18n.get = originalI18nGet;
     }
-
-    releaseDomGlobalLock?.();
-    releaseDomGlobalLock = null;
   });
 
   test("renders dashboard immediately on first successful stats response", async () => {
     const stats = createPopupStats(6);
-    const chromeMock = await loadPopupWithOutcomes([{ type: "stats", value: stats }]);
+    const chromeMock = await loadPopup({ outcomes: [{ type: "stats", value: stats }] });
 
     expect(dashboardStatsCallCount(chromeMock)).toBe(1);
     expect(textContent("dashboardPeriodSummary")).toContain("6\u00a0accepted");
     expect(textContent("dashboardPeriodSummary")).toContain("42\u00a0chars");
     expect(textContent("dashboardPeriodSummary")).not.toContain("unavailable");
     expect(document.getElementById("productivityDashboard")?.tagName).toBe("SECTION");
-    expect(document.querySelector("summary")).toBeNull();
+    expect(document.querySelector("#productivityDashboard summary")).toBeNull();
 
     await advanceAndFlush(10000);
     expect(dashboardStatsCallCount(chromeMock)).toBe(1);
   });
 
   test("retries through backoff budget and renders unavailable state after repeated failures", async () => {
-    const chromeMock = await loadPopupWithOutcomes([
-      { type: "response", value: { ok: false } },
-      { type: "response", value: { ok: false } },
-      { type: "response", value: { ok: false } },
-      { type: "response", value: { ok: false } },
-      { type: "response", value: { ok: false } },
-      { type: "response", value: { ok: false } },
-    ]);
+    const chromeMock = await loadPopup({
+      outcomes: [
+        { type: "response", value: { ok: false } },
+        { type: "response", value: { ok: false } },
+        { type: "response", value: { ok: false } },
+        { type: "response", value: { ok: false } },
+        { type: "response", value: { ok: false } },
+        { type: "response", value: { ok: false } },
+      ],
+    });
 
     for (const delayMs of [150, 300, 600, 1200, 2400]) {
       await advanceAndFlush(delayMs);
@@ -575,11 +508,13 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
   });
 
   test("uses configured retry backoff timings before succeeding", async () => {
-    const chromeMock = await loadPopupWithOutcomes([
-      { type: "lastError", message: "transient failure #1" },
-      { type: "response", value: { ok: false } },
-      { type: "stats", value: createPopupStats(4) },
-    ]);
+    const chromeMock = await loadPopup({
+      outcomes: [
+        { type: "lastError", message: "transient failure #1" },
+        { type: "response", value: { ok: false } },
+        { type: "stats", value: createPopupStats(4) },
+      ],
+    });
 
     expect(dashboardStatsCallCount(chromeMock)).toBe(1);
 
@@ -600,34 +535,11 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
     expect(dashboardStatsCallCount(chromeMock)).toBe(3);
   });
 
-  test("cancels pending retries on unload", async () => {
-    const chromeMock = await loadPopupWithOutcomes(
-      [
-        { type: "response", value: { ok: false } },
-        { type: "stats", value: createPopupStats(5) },
-      ],
-      "init-summary",
-    );
-
-    expect(dashboardStatsCallCount(chromeMock)).toBe(1);
-    window.dispatchEvent(new window.Event("unload"));
-    await flushAsyncWork();
-
-    await advanceAndFlush(5000);
-    expect(dashboardStatsCallCount(chromeMock)).toBe(1);
-    expect(textContent("dashboardPeriodSummary")).toBe("init-summary");
-  });
-
   test("uses shared missing and granted permission states in the popup", async () => {
-    const chromeMock = await loadPopupWithOutcomes(
-      [{ type: "stats", value: createPopupStats(1) }],
-      "0",
-      {
-        contains: async () => false,
-        request: async () => true,
-      },
-      createWebsiteTab("https://translate.google.pl"),
-    );
+    const chromeMock = await loadPopup({
+      permissions: { contains: async () => false, request: async () => true },
+      tab: createWebsiteTab("https://translate.google.pl"),
+    });
 
     const banner = document.getElementById("permissionBanner") as HTMLElement;
     const button = document.getElementById("grantPermissionBtn") as HTMLButtonElement;
@@ -636,9 +548,8 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
     expect(banner.dataset.permissionState).toBe("missing");
     expect(textContent("pageStateBadge")).toBe("Website access required");
     expect(textContent("pageStateTitle")).toBe("translate.google.pl");
-    expect(textContent("pageStateBody")).toBe(
-      "Allow website access to use FluentTyper on this site.",
-    );
+    // The banner shows the body text.
+    expect(textContent("pageStateBody")).toBe("");
     expect(document.getElementById("domainSectionWrapper")?.classList.contains("is-hidden")).toBe(
       true,
     );
@@ -686,14 +597,7 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
   });
 
   test("keeps the popup permission banner hidden when access is already granted", async () => {
-    await loadPopupWithOutcomes(
-      [{ type: "stats", value: createPopupStats(1) }],
-      "0",
-      {
-        contains: async () => true,
-      },
-      createWebsiteTab(),
-    );
+    await loadPopup({ permissions: granted, tab: createWebsiteTab() });
 
     const banner = document.getElementById("permissionBanner") as HTMLElement;
     expect(banner.dataset.permissionState).toBe("granted");
@@ -708,14 +612,10 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
   });
 
   test("keeps permission-first layout ahead of site controls until access is granted", async () => {
-    await loadPopupWithOutcomes(
-      [{ type: "stats", value: createPopupStats(1) }],
-      "0",
-      {
-        contains: async () => false,
-      },
-      createWebsiteTab("https://secure.example.com"),
-    );
+    await loadPopup({
+      permissions: { contains: async () => false },
+      tab: createWebsiteTab("https://secure.example.com"),
+    });
 
     const pageStatePanel = document.getElementById("pageStatePanel") as HTMLElement;
     const permissionBanner = document.getElementById("permissionBanner") as HTMLElement;
@@ -746,10 +646,7 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
   });
 
   test("shows a restricted-page state instead of site toggles on browser internal pages", async () => {
-    await loadPopupWithOutcomes([{ type: "stats", value: createPopupStats(1) }], "0", undefined, {
-      id: 11,
-      url: "chrome://extensions",
-    });
+    await loadPopup({ tab: { id: 11, url: "chrome://extensions" } });
 
     expect(textContent("pageStateBadge")).toBe("Restricted page");
     expect(textContent("pageStateTitle")).toBe("Browser internal page");
@@ -778,10 +675,7 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
       ["ftp://example.com", "other"],
     ];
     for (const [url, state] of cases) {
-      await loadPopupWithOutcomes([{ type: "stats", value: createPopupStats(1) }], "0", undefined, {
-        id: 12,
-        url,
-      });
+      await loadPopup({ tab: { id: 12, url } });
       for (const part of ["badge", "title", "body"]) {
         const key = `popup_page_state_${state}_${part}`;
         const expected = originalI18nGet!(key);
@@ -792,12 +686,7 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
   });
 
   test("shows recovery copy in the popup when permission checks are unavailable", async () => {
-    await loadPopupWithOutcomes(
-      [{ type: "stats", value: createPopupStats(1) }],
-      "0",
-      undefined,
-      createWebsiteTab("https://docs.example.com"),
-    );
+    await loadPopup({ tab: createWebsiteTab("https://docs.example.com") });
 
     const banner = document.getElementById("permissionBanner") as HTMLElement;
     const button = document.getElementById("grantPermissionBtn") as HTMLButtonElement;
@@ -806,9 +695,7 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
     expect(banner.dataset.permissionState).toBe("unavailable");
     expect(textContent("pageStateBadge")).toBe("Website access unavailable");
     expect(textContent("pageStateTitle")).toBe("docs.example.com");
-    expect(textContent("pageStateBody")).toBe(
-      "FluentTyper could not verify website access on this site.",
-    );
+    expect(textContent("pageStateBody")).toBe("");
     expect(document.getElementById("domainSectionWrapper")?.classList.contains("is-hidden")).toBe(
       true,
     );
@@ -827,14 +714,10 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
   test("preserves full long hostnames through compact page-state and toggle hints", async () => {
     const longDomain =
       "very-long-subdomain-name-that-keeps-going.for-compact-popup-qa.example-enterprise-suite.co.uk";
-    await loadPopupWithOutcomes(
-      [{ type: "stats", value: createPopupStats(1) }],
-      "0",
-      {
-        contains: async () => true,
-      },
-      createWebsiteTab(`https://${longDomain}/deep/path?q=1`),
-    );
+    await loadPopup({
+      permissions: granted,
+      tab: createWebsiteTab(`https://${longDomain}/deep/path?q=1`),
+    });
 
     const pageStateTitle = document.getElementById("pageStateTitle") as HTMLElement;
     const domainHint = document.getElementById("checkboxDomainHint") as HTMLElement;
@@ -874,16 +757,11 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
     ];
 
     for (const localizedCase of localizedCases) {
-      await loadPopupWithOutcomes(
-        [{ type: "stats", value: createPopupStats(1) }],
-        "0",
-        {
-          contains: async () => true,
-        },
-        createWebsiteTab("https://example.com"),
-        false,
-        localizedCase.overrides,
-      );
+      await loadPopup({
+        permissions: granted,
+        tab: createWebsiteTab("https://example.com"),
+        translations: localizedCase.overrides,
+      });
 
       const pageStateMeta = document.getElementById("pageStateMeta") as HTMLElement;
       const languageNode = document.getElementById("pageStateLanguage") as HTMLElement;
@@ -900,14 +778,10 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
   });
 
   test("keeps popup controls keyboard-focusable in the redesigned layout", async () => {
-    await loadPopupWithOutcomes(
-      [{ type: "stats", value: createPopupStats(1) }],
-      "0",
-      {
-        contains: async () => true,
-      },
-      createWebsiteTab("https://keyboard.example.com"),
-    );
+    await loadPopup({
+      permissions: granted,
+      tab: createWebsiteTab("https://keyboard.example.com"),
+    });
 
     const optionsLink = document.getElementById("runOptions") as HTMLAnchorElement;
 
@@ -927,16 +801,10 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
   });
 
   test("explains stable auto-detect behavior in the popup", async () => {
-    await loadPopupWithOutcomes(
-      [{ type: "stats", value: createPopupStats(1) }],
-      "0",
-      {
-        contains: async () => true,
-      },
-      createWebsiteTab("https://example.com"),
-      false,
-      undefined,
-      {
+    await loadPopup({
+      permissions: granted,
+      tab: createWebsiteTab("https://example.com"),
+      responses: {
         [CMD_GET_AUTO_LANGUAGE_STATUS]: {
           status: {
             language: "fr_FR",
@@ -944,12 +812,12 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
           },
         },
       },
-      {
+      storage: {
         "store.settings.language": JSON.stringify("auto_detect"),
         "store.settings.fallbackLanguage": JSON.stringify("en_US"),
         "store.settings.enabled_languages": JSON.stringify(["en_US", "fr_FR"]),
       },
-    );
+    });
 
     expect(textContent("pageStateLanguage")).toContain("Auto-detect currently using French");
     expect(textContent("pageStateBody")).toContain(
@@ -959,36 +827,38 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
 
   test("localizes footer action labels and keeps accessible text for icon links", async () => {
     const translations = {
+      settings: "Einstellungen",
       popup_advanced_options: "Optionen avancées hybrides",
       popup_report_issue: "Probleme melden sofort",
       popup_github_source: "Code source GitHub officiel",
       popup_support_development: "Wesprzyj dalszy rozwoj projektu",
       support_cta: "Wesprzyj FluentTyper",
     };
-    await loadPopupWithOutcomes(
-      [{ type: "stats", value: createPopupStats(1) }],
-      "0",
-      {
-        contains: async () => true,
-      },
-      createWebsiteTab("https://example.com"),
-      false,
+    await loadPopup({
+      permissions: granted,
+      tab: createWebsiteTab("https://example.com"),
       translations,
+    });
+
+    const options = document.getElementById("runOptions") as HTMLAnchorElement;
+    expect(options.title).toBe(translations.popup_advanced_options);
+    expect(options.querySelector("[data-i18n='settings']")?.textContent).toBe(
+      translations.settings,
     );
+    expect(options.querySelector(".is-sr-only")).toBeNull();
 
     const footerCases = [
-      { id: "runOptions", srText: translations.popup_advanced_options },
       { id: "reportIssueLink", srText: translations.popup_report_issue },
       { id: "githubSourceLink", srText: translations.popup_github_source },
     ];
 
     const support = document.querySelector("#supportDevelopmentLink [data-i18n='support_cta']");
     expect(support?.textContent).toBe(translations.support_cta);
-    expect(support?.classList.contains("sr-only")).toBe(false);
+    expect(support?.classList.contains("is-sr-only")).toBe(false);
 
     for (const footerCase of footerCases) {
       const link = document.getElementById(footerCase.id) as HTMLAnchorElement;
-      const srOnly = link.querySelector(".sr-only") as HTMLElement | null;
+      const srOnly = link.querySelector(".is-sr-only") as HTMLElement | null;
 
       expect(link.title).toBe(footerCase.srText);
       expect(srOnly?.textContent).toBe(footerCase.srText);
@@ -1000,7 +870,7 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
     async (action) => {
       const stats = createPopupStats(1);
       stats.donationPrompt = { promptId: "first_value", kind: "first_value", milestoneHours: null };
-      const chromeMock = await loadPopupWithOutcomes([{ type: "stats", value: stats }]);
+      const chromeMock = await loadPopup({ outcomes: [{ type: "stats", value: stats }] });
       const id =
         action === "snooze"
           ? "dashboardMilestoneLaterBtn"
@@ -1025,7 +895,9 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
   );
 
   test("advanced stats button opens the options page anchor", async () => {
-    const chromeMock = await loadPopupWithOutcomes([{ type: "stats", value: createPopupStats(2) }]);
+    const chromeMock = await loadPopup({
+      outcomes: [{ type: "stats", value: createPopupStats(2) }],
+    });
 
     (document.getElementById("openStatsOptionsBtn") as HTMLButtonElement).click();
     await flushAsyncWork();
@@ -1037,16 +909,10 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
   });
 
   test("Review text asks the current tab to review its focused editor, then closes", async () => {
-    const chromeMock = await loadPopupWithOutcomes(
-      [{ type: "stats", value: createPopupStats(1) }],
-      "0",
-      { contains: async () => true },
-      createWebsiteTab(),
-    );
+    const chromeMock = await loadPopup({ permissions: granted, tab: createWebsiteTab() });
     // Shown in the "This site" panel, with the command's shortcut.
     const action = document.getElementById("reviewTextAction") as HTMLElement;
     expect(action.classList.contains("is-hidden")).toBe(false);
-    expect(document.getElementById("pageStatePanel")?.classList.contains("has-action")).toBe(true);
     chromeMock.tabs.sendMessage.mockImplementation(() => Promise.resolve());
     const close = jest.spyOn(window, "close").mockImplementation(() => undefined);
 
@@ -1060,12 +926,7 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
   });
 
   test("Review text shows its shortcut and follows the site switch without reopening", async () => {
-    await loadPopupWithOutcomes(
-      [{ type: "stats", value: createPopupStats(1) }],
-      "0",
-      { contains: async () => true },
-      createWebsiteTab(),
-    );
+    await loadPopup({ permissions: granted, tab: createWebsiteTab() });
     await flushAsyncWork();
     const shortcut = document.getElementById("reviewTextShortcut") as HTMLElement;
     expect(shortcut.textContent).toBe("Alt+Shift+R");
@@ -1080,34 +941,31 @@ describe.serial("popup productivity dashboard retry/failure paths", () => {
       () => document.getElementById("reviewTextAction")!.classList.contains("is-hidden"),
       "Review text stayed visible after the site was turned off.",
     );
-    expect(document.getElementById("pageStatePanel")?.classList.contains("has-action")).toBe(false);
+  });
+
+  test("the site and global toggles ignore tabs that have no content script", async () => {
+    const chromeMock = await loadPopup({ permissions: granted, tab: createWebsiteTab() });
+    chromeMock.tabs.query.mockImplementation((_query, callback) => callback([createWebsiteTab()]));
+    // A tab without the content script rejects; an unhandled rejection fails the test.
+    chromeMock.tabs.sendMessage.mockImplementation(() =>
+      Promise.reject(new Error("Could not establish connection.")),
+    );
+
+    (document.getElementById("checkboxDomainInput") as HTMLInputElement).click();
+    (document.getElementById("checkboxEnableInput") as HTMLInputElement).click();
+    await waitForCondition(
+      () => chromeMock.tabs.sendMessage.mock.calls.length === 2,
+      "The toggles did not message the tabs.",
+    );
+    await flushAsyncWork();
   });
 
   test("Review text is hidden where FluentTyper is off", async () => {
-    await loadPopupWithOutcomes(
-      [{ type: "stats", value: createPopupStats(1) }],
-      "0",
-      { contains: async () => true },
-      createWebsiteTab(),
-      false,
-      undefined,
-      undefined,
-      { "store.settings.enable": JSON.stringify(false) },
-    );
+    await loadPopup({
+      permissions: granted,
+      tab: createWebsiteTab(),
+      storage: { "store.settings.enable": JSON.stringify(false) },
+    });
     expect(document.getElementById("reviewTextAction")?.classList.contains("is-hidden")).toBe(true);
-    expect(document.getElementById("pageStatePanel")?.classList.contains("has-action")).toBe(false);
-  });
-
-  test("popup applies explicit dark theme mode from matchMedia", async () => {
-    await loadPopupWithOutcomes(
-      [{ type: "stats", value: createPopupStats(1) }],
-      "0",
-      undefined,
-      undefined,
-      true,
-    );
-
-    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
-    expect(document.body.getAttribute("data-theme")).toBe("dark");
   });
 });

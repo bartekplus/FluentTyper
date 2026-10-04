@@ -2,10 +2,7 @@ import type { ReviewCapabilities } from "@core/application/review/ReviewSession"
 import { GUTENBERG_FIELD_SELECTOR, isGutenbergField } from "./GutenbergEnvironment";
 import { ancestorContext, resolveCodeContext, type CodeContext } from "./CodeContextResolver";
 import { isCredentialField, isHiddenField, isSensitiveField } from "./FieldEligibility";
-import {
-  hasActiveAutocompletePopup,
-  NativeAutocompleteConflictDetector,
-} from "./NativeAutocompleteConflictDetector";
+import { classifyField, hasActiveAutocompletePopup } from "./NativeAutocompleteConflictDetector";
 
 /** Fingerprints restrict generic writes. They never prove that a host adapter works. */
 export const MODEL_EDITOR_SELECTOR =
@@ -30,11 +27,7 @@ export type CapabilityReason =
 
 export interface EditorCapabilities {
   inspectProse: boolean;
-  mapText: boolean;
   displaySuggestions: boolean;
-  /** A permitted path still requires the existing transaction's per-edit validation. */
-  replaceText: boolean;
-  preserveSelectionAndUndo: "transaction-required" | "unverified";
   renderReview: boolean;
   reviewApply: boolean;
   consumeAcceptanceKey: boolean;
@@ -42,8 +35,6 @@ export interface EditorCapabilities {
   context: CodeContext;
   reason: CapabilityReason;
 }
-
-const detector = new NativeAutocompleteConflictDetector();
 
 /** Text-free, uncached metadata. Call before reading text and again before a write. */
 export function editorCapabilities(
@@ -56,10 +47,7 @@ export function editorCapabilities(
 ): EditorCapabilities {
   const denied = (reason: CapabilityReason): EditorCapabilities => ({
     inspectProse: false,
-    mapText: false,
     displaySuggestions: false,
-    replaceText: false,
-    preserveSelectionAndUndo: "unverified",
     renderReview: false,
     reviewApply: false,
     consumeAcceptanceKey: false,
@@ -70,7 +58,7 @@ export function editorCapabilities(
   if (!element.isConnected) return denied("detached");
   // This check precedes selection, popup inspection, and all adapter reads.
   if (isCredentialField(element)) return denied("sensitive");
-  const eligibility = detector.classify(element);
+  const eligibility = classifyField(element);
   if (eligibility.kind === "blocked") return denied("restricted");
   if (isHiddenField(element)) return denied("hidden");
   const hostContext = ancestorContext(element);
@@ -98,10 +86,7 @@ export function editorCapabilities(
     typingWriter && context !== "protected" && !manual && !(preferNative && popup);
   return {
     inspectProse,
-    mapText: inspectProse,
     displaySuggestions,
-    replaceText: displaySuggestions,
-    preserveSelectionAndUndo: typingWriter ? "transaction-required" : "unverified",
     renderReview,
     reviewApply: renderReview && options.review?.apply === true,
     consumeAcceptanceKey: displaySuggestions && !(preferNative && conflict === "browser-unknown"),

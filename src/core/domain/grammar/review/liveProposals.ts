@@ -1,18 +1,12 @@
 import { ENGLISH_EXPLANATIONS } from "./englishExplanations";
 import { detectReviewDiagnostics } from "./reviewDiagnostics";
-import type { LiveGrammarProposal, LiveProposalOptions } from "./liveProposalSelection";
-import type { ReviewDiagnostic, ReviewMessageKey } from "./types";
-
-export {
-  nextLiveGrammarProposal,
-  sameLiveProposal,
+import {
+  LIVE_PROPOSAL_WINDOW_CHARS,
   type LiveGrammarProposal,
   type LiveProposalOptions,
-  type SeenLiveProposals,
 } from "./liveProposalSelection";
+import type { ReviewDiagnostic, ReviewMessageKey } from "./types";
 
-/** How much text before the caret a typing-time check reads. */
-export const LIVE_PROPOSAL_WINDOW_CHARS = 500;
 const WORD_CHAR = /[\p{L}\p{N}\p{M}_'’-]/u;
 
 /**

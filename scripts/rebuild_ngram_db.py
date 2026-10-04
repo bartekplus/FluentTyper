@@ -13,6 +13,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from rebuild_libpresage import cpu_jobs, run_cmd, run_main
+
 
 OSCAR_REPO_NAME = "community-oscar"
 OSCAR_CORPUS_VERSION = "2024-38"
@@ -28,20 +30,9 @@ CACHE_DIR = (SCRIPT_DIR / ".cache" / "oscar_processed").resolve()
 
 @dataclass(frozen=True)
 class PipelineTask:
-    index: int
     zst_path: Path
     cache_file: Path
     output_file: Path
-
-
-def run_cmd(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
-    print(f"$ {shlex.join(cmd)}")
-    subprocess.run(cmd, check=True, cwd=str(cwd) if cwd else None, env=env)
-
-
-def cpu_workers() -> int:
-    count = os.cpu_count() or 1
-    return max(1, count - 1)
 
 
 def ensure_repo_exists(repo_dir: Path) -> None:
@@ -75,11 +66,8 @@ def compute_selected_indices(available_indices: list[int], max_files: int) -> li
     if not available_indices:
         return []
 
-    file_count = len(available_indices)
-    max_files_to_process = min(max_files, file_count)
-    file_step = max(1, file_count // max_files_to_process)
-    file_max = file_step * max_files_to_process
-    return list(range(1, file_max + 1, file_step))
+    file_step = max(1, len(available_indices) // max_files)
+    return sorted(available_indices)[::file_step][:max_files]
 
 
 def prepare_tasks(
@@ -111,7 +99,7 @@ def prepare_tasks(
             print(f"Warning: {zst_path} not found after git lfs pull")
             continue
 
-        tasks.append(PipelineTask(index=index, zst_path=zst_path, cache_file=cache_file, output_file=output_file))
+        tasks.append(PipelineTask(zst_path=zst_path, cache_file=cache_file, output_file=output_file))
 
     return tasks
 
@@ -124,8 +112,6 @@ def process_task(task: PipelineTask, lang_variant: str) -> None:
     # environment variable — it resolves dictionaries against a hardcoded
     # default directory. The explicit `-d <dir>/<variant>` form works in both.
     dict_path = (SCRIPT_DIR / ".." / "resources_js" / lang_variant / "hunspell" / lang_variant).resolve()
-    env = os.environ.copy()
-    env["DICPATH"] = str((SCRIPT_DIR / ".." / "resources_js" / lang_variant / "hunspell").resolve())
 
     cmd = (
         f"unzstd -c {shlex.quote(str(task.zst_path))} | "
@@ -136,13 +122,10 @@ def process_task(task: PipelineTask, lang_variant: str) -> None:
     )
 
     with task.cache_file.open("wb") as out:
-        subprocess.run(cmd, check=True, shell=True, env=env, executable="/bin/bash", stdout=out)
+        subprocess.run(cmd, check=True, shell=True, executable="/bin/bash", stdout=out)
 
     shutil.copy2(task.cache_file, task.output_file)
-    try:
-        task.zst_path.unlink()
-    except FileNotFoundError:
-        pass
+    task.zst_path.unlink(missing_ok=True)
 
 
 def merge_outputs(work_dir: Path, lang: str) -> Path:
@@ -178,7 +161,7 @@ def main() -> int:
     max_files = max(1, args.max_files)
     if args.jobs < 0:
         raise RuntimeError("--jobs must be >= 0")
-    jobs = cpu_workers() if args.jobs == 0 else max(1, args.jobs)
+    jobs = max(1, cpu_jobs() - 1) if args.jobs == 0 else max(1, args.jobs)
 
     if lang == "hr":
         print("Low quality HR dataset, skipping")
@@ -235,11 +218,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except subprocess.CalledProcessError as exc:
-        print(f"Command failed with exit code {exc.returncode}: {shlex.join(exc.cmd)}")
-        raise SystemExit(exc.returncode)
-    except RuntimeError as exc:
-        print(exc)
-        raise SystemExit(1)
+    run_main(main)

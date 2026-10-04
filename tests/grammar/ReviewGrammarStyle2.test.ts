@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
+import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { ALL_RULES, scan } from "./reviewHarness";
+import { review as runReview } from "./grammarTestUtils";
 
 // Grammar, style and format checks of english/grammarStyle2.ts. All sentences are our own.
 const RULES = new Set([
@@ -16,9 +17,10 @@ const RULES = new Set([
   "measurementUnitFormatting",
   "stylePhrasing",
 ]);
-function review(text: string) {
-  return scan(text, { enabledRules: ALL_RULES }).filter((d) => RULES.has(d.ruleId));
-}
+const review = (text: string) =>
+  runReview(text, {}, { enabledRules: REVIEW_SUPPORTED_RULE_IDS }).diagnostics.filter((d) =>
+    RULES.has(d.ruleId),
+  );
 
 const positives = [
   // Phrase rows.
@@ -89,6 +91,9 @@ const positives = [
   ["Use a password protected folder.", "Use a password-protected folder."],
   ["Please attach detailed screenshot.", "Please attach a detailed screenshot."],
   ["°K", "K"],
+  // "a"/"an" follows the sound of the next word.
+  ["Please provide updated screenshot.", "Please provide an updated screenshot."],
+  ["Please give honest answer.", "Please give an honest answer."],
 ] as const;
 
 test.each(positives)("repairs %s", (source, expected) => {
@@ -164,8 +169,15 @@ const negatives = [
   "We need help.",
   "Please provide feedback.",
   "It is 300 K outside.",
-] as const;
+];
 
 test.each(negatives)("leaves %s", (source) => {
   expect(review(source)).toEqual([]);
+});
+
+test("the English checks stay off in other languages", () => {
+  const text = "Myślę, że to to samo zadanie.";
+  expect(
+    runReview(text, {}, { lang: "pl_PL", enabledRules: REVIEW_SUPPORTED_RULE_IDS }).diagnostics,
+  ).toEqual([]);
 });

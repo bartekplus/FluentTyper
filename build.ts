@@ -1,15 +1,15 @@
 import path from "path";
 import process from "process";
-import { fileURLToPath } from "url";
-import { cp, mkdir, readFile, readdir, rm, writeFile } from "fs/promises";
-import { watch as fsWatch, type FSWatcher } from "fs";
+import { cp, mkdir, readFile, rm, writeFile } from "fs/promises";
+import { watch as fsWatch } from "fs";
 import { parseArgs } from "node:util";
 import { LOCAL_AI_DOWNLOAD_ORIGINS } from "./src/core/domain/localAi/modelRegistry";
-import { LANGS as REVIEW_UI_LANGUAGES } from "./src/core/domain/grammar/review/reviewLocale";
+import { REVIEW_LANGS as REVIEW_UI_LANGUAGES } from "./src/core/domain/grammar/review/reviewLocale";
 import type { explanationTable } from "./src/core/domain/grammar/review/reviewExplanations";
 import { mergedReviewData } from "./src/core/domain/grammar/review/reviewLanguageSources";
 import { REVIEW_DATA_LANGUAGES } from "./src/core/domain/grammar/review/reviewLanguageData";
 import {
+  APP_BUNDLES,
   LOCAL_AI_ENGINE_MARKERS,
   LOCAL_AI_ORT_DIR,
   LOCAL_AI_ORT_FILES,
@@ -24,56 +24,53 @@ type BuildMode = "production" | "development";
  */
 const LOCAL_AI_CONNECT_SRC = ["'self'", ...LOCAL_AI_DOWNLOAD_ORIGINS];
 
-interface CliOptions {
-  mode: BuildMode;
-  watch: boolean;
-  platform: string;
-  outDir?: string;
-}
+const ROOT_DIR = import.meta.dir;
+const SRC_DIR = path.join(ROOT_DIR, "src");
+const PUBLIC_DIR = path.join(ROOT_DIR, "public");
+const BACKGROUND_ADAPTER_DIR = path.join(SRC_DIR, "adapters", "chrome", "background");
+const RUNTIME_HOOKS_NOOP_PATH = path.join(
+  BACKGROUND_ADAPTER_DIR,
+  "testing",
+  "RuntimeTestHooks.noop.ts",
+);
+const LOCAL_AI_ENGINE_NOOP_PATH = path.join(
+  BACKGROUND_ADAPTER_DIR,
+  "localAi",
+  "engineRuntime.noop.ts",
+);
 
 interface BuildContext {
   mode: BuildMode;
   platform: string;
-  /** Development build: __FT_DEV_BUILD__ and runtime test hooks. */
-  devBuild: boolean;
+  buildDir: string;
   /** Local AI Review runtime (Transformers.js in background.js): Chrome and Edge. */
   includeLocalAiRuntime: boolean;
-  configuredLogLevel: string;
-  rootDir: string;
-  srcDir: string;
-  buildDir: string;
-  publicDir: string;
-  platformDir: string;
-  runtimeHooksNoopPath: string;
-  localAiEngineNoopPath: string;
 }
 
-function parseCliOptions(argv: string[]): CliOptions {
+function platformDir(context: BuildContext): string {
+  return path.join(ROOT_DIR, "platform", context.platform);
+}
+
+function parseCliOptions(argv: string[]) {
   const { values } = parseArgs({
     args: argv,
     options: {
-      mode: { type: "string" },
-      platform: { type: "string" },
-      watch: { type: "boolean" },
-      outdir: { type: "string" },
+      mode: { type: "string", default: "production" },
+      platform: { type: "string", default: "chrome" },
+      watch: { type: "boolean", default: false },
+      outdir: { type: "string", default: "build" },
     },
-    strict: false,
-    allowPositionals: true,
+    strict: true,
   });
-
-  const modeRaw = typeof values.mode === "string" ? values.mode : undefined;
-  const mode: BuildMode =
-    modeRaw === "development" || modeRaw === "production" ? modeRaw : "production";
-
-  const platformRaw = typeof values.platform === "string" ? values.platform : undefined;
-
-  return {
-    mode,
-    watch: values.watch === true,
-    outDir:
-      typeof values.outdir === "string" && values.outdir.length > 0 ? values.outdir : undefined,
-    platform: platformRaw && platformRaw.length > 0 ? platformRaw : "chrome",
-  };
+  const { mode, outdir } = values;
+  if (mode !== "production" && mode !== "development") {
+    throw new Error(`Unknown --mode "${mode}"; use production or development`);
+  }
+  // An empty --outdir would resolve to the repository root, which the build deletes.
+  if (!outdir) {
+    throw new Error("--outdir must not be empty");
+  }
+  return { mode, watch: values.watch, outDir: outdir, platform: values.platform };
 }
 
 function appendConnectSrcDirective(csp: string, sources: string[]): string {
@@ -82,10 +79,7 @@ function appendConnectSrcDirective(csp: string, sources: string[]): string {
   return `${cspPrefix} connect-src ${sources.join(" ")};`;
 }
 
-function transformManifestContent(manifestContent: string, connectSrc: string[] | null): string {
-  if (!connectSrc) {
-    return manifestContent;
-  }
+function transformManifestContent(manifestContent: string, connectSrc: string[]): string {
   const manifest = JSON.parse(manifestContent) as {
     content_security_policy?: { extension_pages?: unknown };
   };
@@ -93,7 +87,7 @@ function transformManifestContent(manifestContent: string, connectSrc: string[] 
 
   if (typeof extensionPagesCsp === "string" && extensionPagesCsp.length > 0) {
     manifest.content_security_policy = {
-      ...(manifest.content_security_policy || {}),
+      ...manifest.content_security_policy,
       extension_pages: appendConnectSrcDirective(extensionPagesCsp, connectSrc),
     };
   }
@@ -114,42 +108,23 @@ function createBuildPlugin(context: BuildContext, explanations: typeof explanati
         contents: `export const ENGLISH_EXPLANATIONS = ${JSON.stringify(explanations("en"))};`,
         loader: "js",
       }));
-      if (!context.devBuild) {
+      // Development build: __FT_DEV_BUILD__ and runtime test hooks.
+      if (context.mode !== "development") {
         build.onResolve(
           {
             filter: /^@adapters\/chrome\/background\/testing\/RuntimeTestHooks$/,
           },
-          () => ({ path: context.runtimeHooksNoopPath }),
+          () => ({ path: RUNTIME_HOOKS_NOOP_PATH }),
         );
       }
       if (!context.includeLocalAiRuntime) {
         build.onResolve(
           { filter: /^@adapters\/chrome\/background\/localAi\/engineRuntime$/ },
-          () => ({ path: context.localAiEngineNoopPath }),
+          () => ({ path: LOCAL_AI_ENGINE_NOOP_PATH }),
         );
       }
     },
   };
-}
-
-function logBuildError(logs: BuildMessage[], label: string): void {
-  console.error(`Build failed for ${label}`);
-  for (const log of logs) {
-    const location = log.position
-      ? `${log.position.file}:${log.position.line}:${log.position.column}`
-      : "unknown";
-    console.error(`[${log.level}] ${location} ${log.message}`);
-  }
-}
-
-async function writeBuildOutputs(buildResult: BuildOutput, entryOutfile: string): Promise<void> {
-  const entryOutputDirectory = path.dirname(entryOutfile);
-  for (const output of buildResult.outputs) {
-    const outputRelativePath = output.path.replace(/^[./\\]+/, "");
-    const outputPath = path.join(entryOutputDirectory, outputRelativePath);
-    await mkdir(path.dirname(outputPath), { recursive: true });
-    await Bun.write(outputPath, output);
-  }
 }
 
 /** The explanation tables, read again on every build so watch mode sees edits. */
@@ -196,8 +171,8 @@ async function writeReviewDataFiles(context: BuildContext, background: string): 
 }
 
 async function copyStaticAssets(context: BuildContext): Promise<void> {
-  const localAiPublicDir = path.join(context.publicDir, "local-ai");
-  await cp(context.publicDir, context.buildDir, {
+  const localAiPublicDir = path.join(PUBLIC_DIR, "local-ai");
+  await cp(PUBLIC_DIR, context.buildDir, {
     recursive: true,
     force: true,
     filter(sourcePath) {
@@ -205,25 +180,27 @@ async function copyStaticAssets(context: BuildContext): Promise<void> {
       return context.includeLocalAiRuntime || sourcePath !== localAiPublicDir;
     },
   });
-  await cp(context.platformDir, context.buildDir, {
+  await cp(platformDir(context), context.buildDir, {
     recursive: true,
     force: true,
     filter(sourcePath) {
       return path.basename(sourcePath) !== "manifest.json";
     },
   });
-  const manifestSourcePath = path.join(context.platformDir, "manifest.json");
+  const manifestSourcePath = path.join(platformDir(context), "manifest.json");
   const manifestDestinationPath = path.join(context.buildDir, "manifest.json");
   const manifestContent = await readFile(manifestSourcePath, "utf8");
-  const transformedManifest = transformManifestContent(
-    manifestContent,
-    context.includeLocalAiRuntime ? LOCAL_AI_CONNECT_SRC : null,
+  await writeFile(
+    manifestDestinationPath,
+    context.includeLocalAiRuntime
+      ? transformManifestContent(manifestContent, LOCAL_AI_CONNECT_SRC)
+      : manifestContent,
+    "utf8",
   );
-  await writeFile(manifestDestinationPath, transformedManifest, "utf8");
 
   // libpresage.js loads this wasm by a relative URL at runtime.
   await cp(
-    path.join(context.srcDir, "third_party", "libpresage", "libpresage.wasm"),
+    path.join(SRC_DIR, "third_party", "libpresage", "libpresage.wasm"),
     path.join(context.buildDir, "libpresage.wasm"),
     { force: true },
   );
@@ -240,9 +217,7 @@ async function copyStaticAssets(context: BuildContext): Promise<void> {
  */
 async function copyOrtRuntime(context: BuildContext): Promise<void> {
   // The onnxruntime-web that Transformers.js itself resolves.
-  const transformersDir = path.dirname(
-    Bun.resolveSync("@huggingface/transformers", context.rootDir),
-  );
+  const transformersDir = path.dirname(Bun.resolveSync("@huggingface/transformers", ROOT_DIR));
   const sourceDir = path.dirname(Bun.resolveSync("onnxruntime-web/webgpu", transformersDir));
   const destinationDir = path.join(context.buildDir, LOCAL_AI_ORT_DIR);
   await mkdir(destinationDir, { recursive: true });
@@ -258,14 +233,18 @@ async function copyOrtRuntime(context: BuildContext): Promise<void> {
   }
 }
 
+async function findMarker(file: string, markers: readonly string[]) {
+  const content = await readFile(file, "utf8");
+  return markers.find((marker) => content.includes(marker));
+}
+
 /**
  * Fails the build if Transformers.js / ONNX Runtime appears outside background.js,
  * or anywhere in a build without the Local AI runtime.
  */
 async function assertEngineIsolation(outfiles: string[], engineOutfile: string | null) {
   for (const outfile of outfiles.filter((file) => file !== engineOutfile)) {
-    const content = await readFile(outfile, "utf8");
-    const marker = LOCAL_AI_ENGINE_MARKERS.find((candidate) => content.includes(candidate));
+    const marker = await findMarker(outfile, LOCAL_AI_ENGINE_MARKERS);
     if (marker) {
       throw new Error(`${outfile} contains "${marker}"; only a Local AI background.js may`);
     }
@@ -301,19 +280,11 @@ async function assertReviewDetectionIsolation(
     throw new Error(`${backgroundOutfile} lacks the Review detection marker "${missing}"`);
   }
   for (const outfile of contentOutfiles) {
-    const content = await readFile(outfile, "utf8");
-    const marker = REVIEW_DETECTION_MARKERS.find((candidate) => content.includes(candidate));
+    const marker = await findMarker(outfile, REVIEW_DETECTION_MARKERS);
     if (marker) {
       throw new Error(`${outfile} contains Review detection ("${marker}"); only background.js may`);
     }
   }
-}
-
-interface BundleEntry {
-  entrypoint: string;
-  outfile: string;
-  label: string;
-  format: "iife" | "esm";
 }
 
 async function bundleExtension(context: BuildContext): Promise<void> {
@@ -321,96 +292,45 @@ async function bundleExtension(context: BuildContext): Promise<void> {
   await mkdir(context.buildDir, { recursive: true });
 
   const define = {
-    __FT_DEV_BUILD__: JSON.stringify(context.devBuild),
-    __FT_LOG_LEVEL__: JSON.stringify(context.configuredLogLevel),
+    __FT_DEV_BUILD__: JSON.stringify(context.mode === "development"),
+    __FT_LOG_LEVEL__: JSON.stringify(process.env.FT_LOG_LEVEL || ""),
     // Transformers.js' Node-only branch reads __dirname; never embed the build machine's path.
     __dirname: JSON.stringify(""),
   };
 
-  const entrypoints = [
-    {
-      entrypoint: path.join(context.srcDir, "entries", "popup.ts"),
-      outfile: path.join(context.buildDir, "popup", "popup.js"),
-      label: "popup",
-    },
-    {
-      entrypoint: path.join(context.srcDir, "entries", "background.ts"),
-      outfile: path.join(context.buildDir, "background.js"),
-      label: "background",
-    },
-    {
-      entrypoint: path.join(context.srcDir, "entries", "content_script.ts"),
-      outfile: path.join(context.buildDir, "content_script.js"),
-      label: "content_script",
-    },
-    {
-      entrypoint: path.join(context.srcDir, "entries", "content_script_main_world_start.ts"),
-      outfile: path.join(context.buildDir, "content_script_main_world_start.js"),
-      label: "content_script_main_world_start",
-    },
-    {
-      entrypoint: path.join(context.srcDir, "entries", "content_script_main_world.ts"),
-      outfile: path.join(context.buildDir, "content_script_main_world.js"),
-      label: "content_script_main_world",
-    },
-    {
-      entrypoint: path.join(context.srcDir, "entries", "settings.ts"),
-      outfile: path.join(context.buildDir, "options", "settings.js"),
-      label: "options/settings",
-    },
-    {
-      entrypoint: path.join(context.srcDir, "entries", "onboarding.ts"),
-      outfile: path.join(context.buildDir, "new_installation", "onboarding.js"),
-      label: "onboarding",
-    },
-  ].map((item): BundleEntry => ({
-    ...item,
-    // Transformers.js and ONNX Runtime use import.meta.url: an ES module service worker.
-    format: item.label === "background" && context.includeLocalAiRuntime ? "esm" : "iife",
+  const entrypoints = APP_BUNDLES.map((bundle) => ({
+    bundle,
+    entrypoint: path.join(SRC_DIR, "entries", `${path.basename(bundle, ".js")}.ts`),
+    outfile: path.join(context.buildDir, bundle),
   }));
   const backgroundOutfile = path.join(context.buildDir, "background.js");
 
   const explanations = await loadExplanationTable();
   const plugin = createBuildPlugin(context, explanations);
-  const buildResults = await Promise.all(
+  await Promise.all(
     entrypoints.map((item) =>
       Bun.build({
         entrypoints: [item.entrypoint],
-        outfile: item.outfile,
+        outdir: path.dirname(item.outfile),
         naming: path.basename(item.outfile),
         target: "browser",
-        format: item.format,
+        // Transformers.js and ONNX Runtime use import.meta.url: an ES module service worker.
+        format: item.bundle === "background.js" && context.includeLocalAiRuntime ? "esm" : "iife",
         minify: context.mode === "production",
         sourcemap: context.mode === "development" ? "external" : "none",
         define,
         plugins: [plugin],
-      }).then((result) => ({ result, label: item.label })),
+      }),
     ),
   );
 
-  let hasBuildError = false;
-  for (const buildResult of buildResults) {
-    if (!buildResult.result.success) {
-      hasBuildError = true;
-      logBuildError(buildResult.result.logs, buildResult.label);
-    }
-  }
-  if (hasBuildError) {
-    throw new Error("Bundling failed");
-  }
-
-  await Promise.all(
-    buildResults.map((buildResult, index) =>
-      writeBuildOutputs(buildResult.result, entrypoints[index].outfile),
-    ),
-  );
   await assertEngineIsolation(
     entrypoints.map((item) => item.outfile),
     context.includeLocalAiRuntime ? backgroundOutfile : null,
   );
   await assertReviewDetectionIsolation(
     entrypoints
-      .filter((item) => item.label.startsWith("content_script"))
+      .filter((item) => item.bundle.startsWith("content_script"))
       .map((item) => item.outfile),
     backgroundOutfile,
   );
@@ -425,69 +345,21 @@ async function bundleExtension(context: BuildContext): Promise<void> {
   await writeReviewDataFiles(context, background);
 }
 
-async function collectDirectories(rootPath: string): Promise<string[]> {
-  const directories: string[] = [];
-  try {
-    const entries = await readdir(rootPath, { withFileTypes: true });
-    directories.push(rootPath);
-    for (const entry of entries) {
-      if (!entry.isDirectory()) {
-        continue;
-      }
-      const nestedPath = path.join(rootPath, entry.name);
-      const nestedDirectories = await collectDirectories(nestedPath);
-      directories.push(...nestedDirectories);
-    }
-  } catch {
-    // Ignore missing paths.
-  }
-  return directories;
-}
-
-async function waitForAnyFileChange(paths: string[]): Promise<void> {
-  const watchedDirectories = (
-    await Promise.all(paths.map((watchPath) => collectDirectories(watchPath)))
-  ).flat();
-
-  await new Promise<void>((resolve) => {
-    const watchers: FSWatcher[] = [];
-    let resolved = false;
-    const settleDelayMs = 120;
-
-    const complete = (): void => {
-      if (resolved) {
-        return;
-      }
-      resolved = true;
-      for (const watcher of watchers) {
-        watcher.close();
-      }
-      setTimeout(resolve, settleDelayMs);
+function waitForAnyFileChange(paths: string[]): Promise<void> {
+  return new Promise((resolve) => {
+    const done = (): void => {
+      for (const watcher of watchers) watcher.close();
+      setTimeout(resolve, 120);
     };
-
-    for (const directoryPath of watchedDirectories) {
-      try {
-        const watcher = fsWatch(directoryPath, () => {
-          complete();
-        });
-        watcher.on("error", () => {
-          complete();
-        });
-        watchers.push(watcher);
-      } catch {
-        // Ignore watcher registration errors for missing/unsupported paths.
-      }
-    }
-
-    if (watchers.length === 0) {
-      setTimeout(resolve, 1000);
-    }
+    const watchers = paths.map((watchPath) =>
+      fsWatch(watchPath, { recursive: true }, done).on("error", done),
+    );
   });
 }
 
 async function runWatchMode(context: BuildContext): Promise<void> {
   console.log(`[watch] mode=${context.mode} platform=${context.platform} waiting for changes...`);
-  const watchRoots = [context.srcDir, context.publicDir, context.platformDir];
+  const watchRoots = [SRC_DIR, PUBLIC_DIR, platformDir(context)];
   while (true) {
     await waitForAnyFileChange(watchRoots);
     const startedAt = Date.now();
@@ -497,8 +369,8 @@ async function runWatchMode(context: BuildContext): Promise<void> {
       const durationMs = Date.now() - startedAt;
       console.log(`[watch] rebuild complete in ${durationMs}ms`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[watch] rebuild failed: ${message}`);
+      // Bun.build throws an AggregateError: print it whole to show the file and line.
+      console.error("[watch] rebuild failed:", error);
     }
   }
 }
@@ -506,47 +378,16 @@ async function runWatchMode(context: BuildContext): Promise<void> {
 async function main(): Promise<void> {
   const cliOptions = parseCliOptions(process.argv.slice(2));
   const platform = cliOptions.platform;
-  const configuredLogLevel = process.env.FT_LOG_LEVEL || "";
-
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const rootDir = __dirname;
-  const srcDir = path.join(rootDir, "src");
-  const buildDir = path.resolve(rootDir, cliOptions.outDir ?? "build");
-  const publicDir = path.join(rootDir, "public");
-  const platformDir = path.join(rootDir, "platform", platform);
-
+  const buildDir = path.resolve(ROOT_DIR, cliOptions.outDir);
   const context: BuildContext = {
     mode: cliOptions.mode,
     platform,
-    devBuild: cliOptions.mode === "development",
-    includeLocalAiRuntime: platform === "chrome" || platform === "edge",
-    configuredLogLevel,
-    rootDir,
-    srcDir,
     buildDir,
-    publicDir,
-    platformDir,
-    runtimeHooksNoopPath: path.join(
-      srcDir,
-      "adapters",
-      "chrome",
-      "background",
-      "testing",
-      "RuntimeTestHooks.noop.ts",
-    ),
-    localAiEngineNoopPath: path.join(
-      srcDir,
-      "adapters",
-      "chrome",
-      "background",
-      "localAi",
-      "engineRuntime.noop.ts",
-    ),
+    includeLocalAiRuntime: platform === "chrome" || platform === "edge",
   };
 
   console.log(
-    `Building FluentTyper (${context.mode}, platform=${platform}, outDir=${path.relative(rootDir, buildDir) || "."})...`,
+    `Building FluentTyper (${context.mode}, platform=${platform}, outDir=${path.relative(ROOT_DIR, buildDir) || "."})...`,
   );
   const startedAt = Date.now();
   await bundleExtension(context);

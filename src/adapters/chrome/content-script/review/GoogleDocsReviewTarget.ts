@@ -3,7 +3,7 @@ import type {
   ReviewCapabilities,
   ReviewTargetRead,
 } from "@core/application/review/ReviewSession";
-import type { ProtectedRange, ReviewEdit, TextRange } from "@core/domain/grammar/review/types";
+import type { ProtectedRange, TextRange } from "@core/domain/grammar/review/types";
 import { mergeEdits, positionThroughEdits } from "@core/domain/grammar/review/textRanges";
 import {
   DOCS_STRUCTURE_CONTROLS,
@@ -74,13 +74,7 @@ function snapshotSignature(snapshot: DocsSnapshot): string {
  * atomic multi-edit transaction.
  */
 export class GoogleDocsReviewTarget implements ReviewTargetHandle {
-  readonly kind = "model-editor" as const;
-  readonly capabilities: ReviewCapabilities = {
-    inline: true,
-    apply: true,
-    bulk: false,
-    undo: "per-edit",
-  };
+  readonly capabilities: ReviewCapabilities = { apply: true, bulk: false };
   composing = false;
   private lastRead: ReviewTargetRead | null = null;
   // The rendered runs placed in `placedFor`'s text, kept until Docs re-renders
@@ -168,12 +162,7 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
     return this.lastRead;
   }
 
-  async apply(request: {
-    edits: ReviewEdit[];
-    before: string;
-    after: string;
-    signature: string;
-  }): Promise<ReviewApplyResult> {
+  async apply(request: Parameters<ReviewTargetHandle["apply"]>[0]): Promise<ReviewApplyResult> {
     if (request.edits.length === 0) return { status: "applied" };
     // One transaction is one contiguous replacement; a finding's edits are merged.
     const { start, end, replacement } = mergeEdits(request.before, request.after, request.edits);
@@ -287,8 +276,6 @@ export class GoogleDocsReviewTarget implements ReviewTargetHandle {
     // Docs renders only the pages near its own scroll position and owns that
     // scroll: the panel list is the way to a finding elsewhere.
   }
-
-  setMeasurementRoot(): void {}
 
   dispose(): void {
     this.layoutListeners.clear();

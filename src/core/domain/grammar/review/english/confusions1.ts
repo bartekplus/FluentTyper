@@ -1,7 +1,12 @@
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
+import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
+import {
+  applyWordCase,
+  detectWordCase,
+  wordKey,
+  wordSet,
+} from "../../implementations/helpers/GenericRuleShared";
 import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, wordSet as set, isLang } from "../phraseTemplates";
+import { caseLike, frameMatches, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 import { finding } from "../finding";
@@ -13,7 +18,7 @@ import { finding } from "../finding";
 const rows = (forms: string[], typed: string, fixed: string): PhraseRow[] =>
   forms.map((form) => [form.replace("~", typed), form.replace("~", fixed)]);
 
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
+/** Rows for englishPhraseCorrections. */
 export const PHRASES: readonly PhraseRow[] = [
   ...rows(["I ~", "you ~", "he ~", "she ~", "it ~", "we ~", "they ~"], "dint", "didn't"),
   ["over they're", "over there"],
@@ -108,9 +113,6 @@ export const PHRASES: readonly PhraseRow[] = [
   ["dissembly", "disassembly"],
 ];
 
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
-
 // ---------------------------------------------------------------------------------------------
 // Tokens around a target, on its line: b[0] is the nearest word before, a[0] the nearest after.
 
@@ -123,7 +125,7 @@ function tokens(ctx: DetectContext, from: number, to: number): Tok[] {
   for (const m of slice.matchAll(TOKEN))
     out.push({
       text: m[0],
-      w: m[0].toLowerCase().replace(/’/g, "'"),
+      w: wordKey(m[0]),
       start: from + m.index,
       end: from + m.index + m[0].length,
     });
@@ -175,44 +177,46 @@ const BOUNDARY = /^[.!?;:"“”([…\uFFFC*+#>|-]$/;
 const opens = (t: Tok | undefined) => !t || BOUNDARY.test(t.text);
 const ends = (t: Tok | undefined) => !t || /^[.!?;:,)"”…]$/.test(t.text);
 
-const SUBJECT = set("i you we they");
-const THIRD = set("he she it");
-const MODAL = set(
+const SUBJECT = wordSet("i you we they");
+const THIRD = wordSet("he she it");
+const MODAL = wordSet(
   "can could will would shall should may might must do does did cannot can't couldn't won't wouldn't shan't shouldn't mightn't mustn't don't doesn't didn't",
 );
 // Bare modals that are also nouns ("the will", "a can").
-const NOUN_MODAL = set("can will may must might");
-const HAVE = set("have has had having i've you've we've they've i'd you'd he'd she'd we'd they'd");
-const INDEFINITE = set("everyone anyone anybody everybody someone somebody nobody");
-const DETERMINER = set("a an the my your his our their its this no every");
-const OBJECT_START = set(
+const NOUN_MODAL = wordSet("can will may must might");
+const HAVE = wordSet(
+  "have has had having i've you've we've they've i'd you'd he'd she'd we'd they'd",
+);
+const INDEFINITE = wordSet("everyone anyone anybody everybody someone somebody nobody");
+const DETERMINER = wordSet("a an the my your his our their its this no every");
+const OBJECT_START = wordSet(
   "the a an my your his her its our their this that these those me him us them you it everyone everything someone something anyone anything how what whether which who all some any every each no both",
 );
-const OBJECT_PRONOUN = set("me him her us them you it");
+const OBJECT_PRONOUN = wordSet("me him her us them you it");
 // Closed-class words that never head a noun subject.
-const FUNCTION = set(
+const FUNCTION = wordSet(
   "i you we they he she it me him us them the a an this that these those my your our their his her its and or but so then if when what where how why who which not to of in on at by for from with",
 );
-const ADVERB = set(
+const ADVERB = wordSet(
   "not never always also just really only still even often usually sometimes maybe ever personally definitely probably actually already certainly simply generally typically normally honestly truly perhaps absolutely completely totally once again kinda sorta all",
 );
 // Words the lexicon marks adjective that work as adverbs or quantifiers before a verb.
-const ADVERBISH = set(
+const ADVERBISH = wordSet(
   "just sure still even well only very so too quite rather pretty kind sort first last please right enough much more most less least",
 );
-const CONJUNCTION = set(
+const CONJUNCTION = wordSet(
   "if when what that so and but because as than where how why unless until once while whether since or though although before after cause maybe then",
 );
 // "to" after these is a preposition, not an infinitive marker.
-const PREPOSITION_HEAD = set(
+const PREPOSITION_HEAD = wordSet(
   "according due prior thanks next close similar compared related attached opposed contrary back up down from way path key answer reply response addition reference regard respect relation comparison subject prone open exposed equal",
 );
 // Heads that take a bare infinitive after "to".
-const TO_HEAD = set(
+const TO_HEAD = wordSet(
   "want wants wanted wanting need needs needed needing have has had having able try tries tried trying decide decides decided supposed ought plan plans planned like liked going tend tends tended seem seems seemed start starts started begin began remember forget forgot refuse refused hope hoped wish chose choose manage managed used how what where when whether why continue continued learn learned afraid easy hard help helps helped important possible impossible better best",
 );
 // What a causing "effect" takes: "effect change", "effect a transformation".
-const EFFECT_OBJECT = set(
+const EFFECT_OBJECT = wordSet(
   "change changes reform reforms substitution substitutions transformation transformations improvement improvements repair repairs cure escape rescue transfer transfers entry compromise reconciliation merger restoration recovery transaction transactions payment payments sale sales settlement settlements arrest arrests",
 );
 
@@ -229,7 +233,6 @@ function plainAdjective(w: string): boolean {
   return !!info && info.adjective && !info.adverb && !info.verbs.length && !/ly$/.test(w);
 }
 const hasVerb = (w: string) => !!englishWordInfo(w)?.verbs.length;
-const baseVerb = (w: string) => !!englishWordInfo(w)?.verbs.some((v) => v.form === "base");
 
 type Cue = {
   kind: "subject" | "third" | "modal" | "to" | "indefinite" | "who" | "have";
@@ -255,7 +258,7 @@ function cue(b: Tok[]): Cue | null {
     if (w === "you" && isWord(b[i + 1])) {
       const p = b[i + 1].w;
       if (!MODAL.has(p) && !CONJUNCTION.has(p) && !isAdverb(p) && hasVerb(p)) return null;
-      if (/^(?:to|for|with|of|thank|than)$/.test(p) && p !== "than") return null;
+      if (/^(?:to|for|with|of|thank)$/.test(p)) return null;
     }
     return { kind: "subject", ...base };
   }
@@ -311,24 +314,18 @@ function infinitiveTo(b: Tok[], c: Cue, next: Tok | undefined): boolean {
   return isWord(next) && OBJECT_START.has(next!.w);
 }
 
-type Ctx = DetectContext;
 const RULE = "englishConfusedWords";
 const KEY: ReviewMessageKey = "review_msg_confused_word";
 
 function make(
-  ctx: Ctx,
+  ctx: DetectContext,
   start: number,
   end: number,
   alternatives: string[],
   messageKey: ReviewMessageKey = KEY,
 ): RawFinding | null {
   const typed = ctx.source.slice(start, end);
-  const kase = detectWordCase(typed.replace(/[^\p{L}]/gu, "") || typed);
-  const cased = alternatives.map((alt) => {
-    if (kase === "upper") return alt.toUpperCase();
-    if (kase === "title") return alt.charAt(0).toUpperCase() + alt.slice(1);
-    return alt;
-  });
+  const cased = alternatives.map((alt) => caseLike(typed, alt));
   if (cased.includes(typed)) return null;
   return finding(RULE, messageKey, start, end, cased, {
     ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
@@ -340,7 +337,7 @@ function make(
 // Handlers, one per target word family. Each returns the replacement(s) or null.
 
 type Hit = { start: number; end: number; alts: string[]; key?: ReviewMessageKey };
-type Handler = (ctx: Ctx, t: Tok, b: Tok[], a: Tok[]) => Hit | Hit[] | null;
+type Handler = (ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]) => Hit | null;
 const hit = (t: Tok, ...alts: string[]): Hit => ({ start: t.start, end: t.end, alts });
 
 // A noun typed in a verb slot: "I thing", "can advice", "to breath some air".
@@ -353,7 +350,7 @@ const NOUN_FOR_VERB: Record<string, string> = {
   response: "respond",
   thing: "think",
 };
-function nounForVerb(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function nounForVerb(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const c = cue(b);
   if (!c || c.kind === "have" || c.kind === "third") return null;
   if (c.kind === "indefinite" && t.w !== "thing") return null;
@@ -371,7 +368,7 @@ const VERB_FOR_NOUN: Record<string, string> = {
   breathe: "breath",
   intend: "intent",
 };
-function verbForNoun(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function verbForNoun(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (isWord(a[0]) && OBJECT_START.has(a[0].w)) return null;
   let i = 0;
   if (isWord(b[0]) && plainAdjective(b[0].w)) i = 1;
@@ -386,7 +383,7 @@ function verbForNoun(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // effect/affect in both directions.
-function effect(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function effect(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const third = t.w === "effects";
   const next = a[0];
   if (
@@ -399,8 +396,7 @@ function effect(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const c = cue(b);
   const alt = third ? "affects" : "affect";
   if (c) {
-    if (third ? c.kind === "third" && c.adverbs >= 0 : c.kind === "modal" || c.kind === "subject")
-      return hit(t, alt);
+    if (third ? c.kind === "third" : c.kind === "modal" || c.kind === "subject") return hit(t, alt);
     if (!third && c.kind === "to" && infinitiveTo(b, c, next) && OBJECT_START.has(next.w))
       return hit(t, alt);
     if (!third && c.kind === "to" && TO_HEAD.has(b[c.at + 1]?.w ?? "")) return hit(t, alt);
@@ -440,10 +436,10 @@ function effect(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
     return null;
   return hit(t, alt);
 }
-const COLLOCATION = set(
+const COLLOCATION = wordSet(
   "side special sound placebo ripple snowball greenhouse domino butterfly halo net desired intended unintended cumulative opposite adverse visual audio cascading chilling lasting overall combined positive negative",
 );
-function affect(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function affect(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const alt = t.w === "affects" ? "effects" : "effect";
   const next = a[0];
   // "affect on/of": only the noun takes these; "affects on average" is the verb.
@@ -503,8 +499,8 @@ const BE_ADJECTIVE: Record<string, string> = {
   worry: "worried",
   shock: "shocked",
 };
-const PERSONAL_BE = set("i'm im i'am he's she's we're you're they're theyre");
-function beAdjective(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+const PERSONAL_BE = wordSet("i'm im i'am he's she's we're you're they're theyre");
+function beAdjective(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   let i = 0;
   while (i < 2 && isWord(b[i]) && isAdverb(b[i].w)) i++;
   const be = b[i];
@@ -523,7 +519,7 @@ function beAdjective(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "modal + safe" is the verb save: "You should safe your work".
-function safe(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function safe(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const next = a[0];
   if (
     !isWord(next) ||
@@ -544,7 +540,7 @@ function safe(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 
 // "you weigh" at a clause end: "How much do you weight?"
 // "weight" is also a verb ("we weight each sample"), so only a clause-final one after do/than.
-function weight(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function weight(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (!ends(a[0]) || !isWord(b[0]) || !/^(?:i|you|we|they|he|she|it)$/.test(b[0].w)) return null;
   return isWord(b[1]) && /^(?:do|does|did|than|will|would|can|could|should|might|may)$/.test(b[1].w)
     ? hit(t, "weigh")
@@ -552,17 +548,17 @@ function weight(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "I bough a laptop": the past of buy after a subject or have.
-function bough(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function bough(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const c = cue(b);
   if (!c || !/^(?:subject|third|have)$/.test(c.kind) || !isWord(a[0])) return null;
   return hit(t, "bought");
 }
 
 // "I fell like…", "please fell free", "didn't fell good": feel before its complements.
-const FALL_STATE = set(
+const FALL_STATE = wordSet(
   "ill sick silent asleep quiet dead flat short open vacant due pregnant still hard heavy low apart behind back down away foul unconscious limp loose dark empty idle mute",
 );
-function fell(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function fell(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const c = cue(b);
   if (!c || !/^(?:subject|modal|who)$/.test(c.kind)) return null;
   const n = a[0];
@@ -574,10 +570,7 @@ function fell(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   else if (n.w === "free" || n.w === "that") feel = true;
   else if (/^(?:i|i'm|i've|i'd|we|you|they|he|she|it's|that's|there's|this)$/.test(n.w))
     feel = true;
-  else if (n.w === "it")
-    feel =
-      isWord(n1) &&
-      !!englishWordInfo(n1.w)?.verbs.some((v) => v.form === "third" || v.form === "past");
+  else if (n.w === "it") feel = isWord(n1) && hasVerbForm(n1.w, "third", "past");
   else if (!FALL_STATE.has(n.w)) {
     const info = englishWordInfo(n.w);
     feel = !!info && info.adjective && !info.adverb;
@@ -586,7 +579,7 @@ function fell(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // quiet for quite: before a degree-taking adjective at a clause end, or a verb after can't.
-function quiet(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function quiet(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
   if (!isWord(n)) return null;
   const info = englishWordInfo(n.w);
@@ -597,7 +590,11 @@ function quiet(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
     if (ends(n1) || /^(?:that|to|and|but|for|in|at)$/.test(n1.w)) return hit(t, "quite");
   }
   // "I can't quiet read it"
-  if (/n't$|^(?:not|never)$/.test(b[0]?.w ?? "") && baseVerb(n.w) && !OBJECT_PRONOUN.has(n.w)) {
+  if (
+    /n't$|^(?:not|never)$/.test(b[0]?.w ?? "") &&
+    hasVerbForm(n.w, "base") &&
+    !OBJECT_PRONOUN.has(n.w)
+  ) {
     if (
       !/^(?:down|up|people|things|everyone|everybody|them|us|the|a|an)$/.test(n.w) &&
       !englishWordInfo(n.w)?.plural
@@ -608,7 +605,7 @@ function quiet(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "everything was find": fine after be at a clause end.
-function find(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function find(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   let i = 0;
   if (isWord(b[0]) && /^(?:all|totally|perfectly|just|really|also)$/.test(b[0].w)) i = 1;
   const be = b[i];
@@ -631,10 +628,10 @@ function find(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // hop/hope: "I hop we can", and hope for hop before a vehicle or call.
-const BOARDED = set(
+const BOARDED = wordSet(
   "bus train plane airplane flight call boat ferry bike horse car taxi cab subway tram meeting stream server",
 );
-function hop(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function hop(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (t.w === "hop" || t.w === "hops") {
     if (!isWord(b[0]) || !/^(?:i|we|they|you)$/.test(b[0].w)) return null;
     if (
@@ -660,7 +657,7 @@ function hop(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "Bob cant go", "Cant you…": can't before a bare verb or an inverted pronoun.
-function cant(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function cant(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (t.text === "CANT" || !isWord(a[0])) return null;
   const n = a[0].w;
   if (opens(b[0]) && /^(?:you|we|i|they|he|she|it)$/.test(n))
@@ -675,14 +672,14 @@ function cant(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // rouge (make-up) for rogue: "lip rogue", "Rogue Lipstick--".
-function rogue(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function rogue(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   return b[0]?.w === "lip" || a[0]?.w === "lipstick" ? hit(t, "rouge") : null;
 }
 
 // "He roller skated home": the verb is hyphenated; "the roller skated" is a noun subject.
-function roller(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function roller(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
-  if (n?.w !== "skated" || ctx.text.slice(t.end, n.start).includes("\n")) return null;
+  if (n?.w !== "skated") return null;
   if (isWord(b[0]) && (DETERMINER.has(b[0].w) || plainAdjective(b[0].w))) return null;
   const sep = ctx.text.slice(t.end, n.start);
   if (!/^[ \t\u00a0]+$/.test(sep)) return null;
@@ -695,10 +692,10 @@ function roller(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // summery (summer-like) where the noun summary is meant.
-const SEASONAL = set(
+const SEASONAL = wordSet(
   "dress dresses outfit outfits look looks vibe vibes day days weather colors colours colour color feel style scent salad drink drinks cocktail cocktails evening afternoon morning mood palette print prints fabric hue hues tones tone flavor flavour sundress breeze night nights read",
 );
-function summery(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function summery(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (ctx.text[t.start - 1] === "-") return null;
   if (isWord(a[0]) && SEASONAL.has(a[0].w) && ctx.text[t.end] !== "-") return null;
   if (
@@ -719,7 +716,7 @@ function summery(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "theses days", "I like theses apples": the demonstrative before a plural noun.
-function theses(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function theses(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
   if (!isWord(n)) return null;
   const info = englishWordInfo(n.w);
@@ -746,7 +743,7 @@ const BRAND: Record<string, string> = {
   brandished: "branded",
   brandishing: "branding",
 };
-function brandish(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function brandish(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (!isWord(a[0]) || !/^(?:him|her|them|us|me|you)$/.test(a[0].w)) return null;
   if (!isWord(a[1]) || !/^(?:a|an|as|with)$/.test(a[1].w)) return null;
   return hit(t, BRAND[t.w]);
@@ -759,7 +756,7 @@ const DENY: Record<string, [string, string]> = {
   denied: ["declined", "rejected"],
   denying: ["declining", "rejecting"],
 };
-function deny(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function deny(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   let i = 0;
   if (isWord(a[0]) && /^(?:the|an|your|their|his|her|my|our|this|that|any|every|all)$/.test(a[0].w))
     i = 1;
@@ -777,7 +774,7 @@ function deny(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // dissemble (feign) for disassemble (take apart).
-function dissemble(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function dissemble(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
   const later = /\bassembl/i.test(ctx.text.slice(t.end, t.end + 80));
   const object =
@@ -788,7 +785,7 @@ function dissemble(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "whatever that I have": a relative pronoun after whatever/whoever/whenever.
-function everRelative(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function everRelative(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const rel = a[0];
   if (!isWord(rel) || !/^(?:that|which|who)$/.test(rel.w)) return null;
   const n = a[1];
@@ -801,7 +798,7 @@ function everRelative(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // everyday as a subject or before a subject: "Everyday is the same", "everyday we adapt".
-function everyday(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function everyday(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
   const p = b[0];
   if (
@@ -842,11 +839,11 @@ function comparative(w: string): boolean {
   );
 }
 // Comparatives that also open "that" clauses or phrases: "better that you go", "later that day".
-const CLAUSE_COMPARATIVE = set(
+const CLAUSE_COMPARATIVE = wordSet(
   "better worse more less later earlier sooner rather further farther other latter former fewer lesser",
 );
-const BE_FINITE = set("is are was were has have had");
-function thatThan(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+const BE_FINITE = wordSet("is are was were has have had");
+function thatThan(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const p = b[0];
   if (!isWord(p) || p.text !== p.w || CLAUSE_COMPARATIVE.has(p.w) || !comparative(p.w)) return null;
   // "no longer that…", "so much faster that…", and extraposed "make it clearer that…".
@@ -855,10 +852,7 @@ function thatThan(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
     const clause = a.slice(0, 8);
     const stop = clause.findIndex((x) => !isWord(x));
     const finite = (stop < 0 ? clause : clause.slice(0, stop)).some(
-      (x) =>
-        MODAL.has(x.w) ||
-        BE_FINITE.has(x.w) ||
-        !!englishWordInfo(x.w)?.verbs.some((v) => v.form === "past" || v.form === "third"),
+      (x) => MODAL.has(x.w) || BE_FINITE.has(x.w) || hasVerbForm(x.w, "past", "third"),
     );
     if (finite) return null;
   }
@@ -877,7 +871,7 @@ function thatThan(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 
 // "stupider then her", "better then no bread". "met her earlier then him" stays a sequence;
 // right after an intransitive verb ("arrived earlier then him") it compares.
-function thenThan(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function thenThan(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const p = b[0];
   if (!isWord(p) || ctx.text.slice(p.end, t.start).includes(",")) return null;
   const n = a[0];
@@ -901,11 +895,11 @@ function thenThan(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // Verbs that take a clause: "I found it's broken", "she said it's code".
-const CLAUSE_VERB = set(
+const CLAUSE_VERB = wordSet(
   "think thinks thought guess know knew knows hope hoped hopes say said says believe believed mean means meant seem seems seemed feel feels felt sure suppose found find finds realized realised noticed heard hear saw see read learned discovered figured decided assume assumed promise bet agree agreed admit admitted show shows showed prove proves proved confirm confirms confirmed ensure claim claims claimed suggest suggests suggested note notes noted forget forgot remember remembered understand understood explain explained argue argued insist insisted doubt doubted suspect suspected wonder wondered check checked verify verified looks sounds is was",
 );
 // its/it's in frames the core detector leaves out.
-function its(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function its(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const contraction = t.w !== "its";
   const n = a[0];
   if (!isWord(n)) return null;
@@ -970,7 +964,7 @@ function its(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
     ends(a[1]) &&
     isWord(b[0]) &&
     !CLAUSE_VERB.has(b[0].w) &&
-    englishWordInfo(b[0].w)?.verbs.some((v) => v.form === "past" || v.form === "third")
+    hasVerbForm(b[0].w, "past", "third")
   )
     return its;
   // "I like it's various colors"
@@ -985,15 +979,15 @@ function its(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // lets/let's: "so lets push", "lets proceed", "The crutch let's him walk".
-const LETS_CUE = set("so then now ok okay well first next finally maybe hey end guys");
-function lets(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+const LETS_CUE = wordSet("so then now ok okay well first next finally maybe hey end guys");
+function lets(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
   if (!isWord(n)) return null;
   if (t.w === "let's") {
     // "let's" + object pronoun: "it let's us do", "let's me do".
-    if (!/^(?:me|us|him|her|them|you)$/.test(n.w) || !isWord(a[1]) || !baseVerb(a[1].w))
+    if (!/^(?:me|us|him|her|them|you)$/.test(n.w) || !isWord(a[1]) || !hasVerbForm(a[1].w, "base"))
       return null;
-    return { ...hit(t, "lets"), key: KEY };
+    return hit(t, "lets");
   }
   if (!opens(b[0]) && !(isWord(b[0]) && LETS_CUE.has(b[0].w))) return null;
   // "let Align = new…": a capitalized name after it is code or a title.
@@ -1017,7 +1011,7 @@ function lets(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "you're PR was merged", "You're car is black": the possessive before a noun and a verb.
-function youre(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function youre(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
   if (!isWord(n) || !isWord(a[1]) || !/^(?:is|was|has|had|are|were)$/.test(a[1].w)) return null;
   const info = englishWordInfo(n.w);
@@ -1034,7 +1028,7 @@ function youre(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "Were the best team." / "were a good team": we're at a clause start before a closed noun phrase.
-function were(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function were(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (!opens(b[0]) || !isWord(a[0]) || !/^(?:a|an|the)$/.test(a[0].w)) return null;
   let i = 1;
   for (; i < 5 && isWord(a[i]); i++) {
@@ -1053,14 +1047,14 @@ function were(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 }
 
 // "open the TV": a device is turned on.
-const DEVICE = set("tv television lights light fan radio aircon ac heater heating stove");
+const DEVICE = wordSet("tv television lights light fan radio aircon ac heater heating stove");
 const TURN: Record<string, string> = {
   open: "turn on",
   opens: "turns on",
   opened: "turned on",
   opening: "turning on",
 };
-function openDevice(ctx: Ctx, t: Tok, b: Tok[], a: Tok[]): Hit | null {
+function openDevice(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   if (
     !isWord(a[0]) ||
     !/^(?:the|my|your|our|their|his|her)$/.test(a[0].w) ||
@@ -1131,7 +1125,7 @@ const TARGET = new RegExp(
 
 const QUOTE = /^["“”'‘’]$/;
 /** A quoted example: a quote within a word of each side ("I cant go" in a style guide). */
-function mentioned(ctx: Ctx, h: Hit): boolean {
+function mentioned(ctx: DetectContext, h: Hit): boolean {
   const b = before(ctx, h.start).slice(0, 2);
   const a = after(ctx, h.end).slice(0, 2);
   return b.some((t) => QUOTE.test(t.text)) && a.some((t) => QUOTE.test(t.text));
@@ -1142,7 +1136,7 @@ function confusedWords(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, TARGET, (x) => x.index)) {
     const text = m[0];
-    const w = text.toLowerCase().replace(/’/g, "'");
+    const w = wordKey(text);
     // Mixed case names something; a user word is the user's.
     if (applyWordCase(text, detectWordCase(text)) !== text || ctx.dictionary.has(w)) continue;
     const glue = ctx.text[m.index + text.length];
@@ -1150,13 +1144,10 @@ function confusedWords(ctx: DetectContext): RawFinding[] {
       continue;
     const t: Tok = { text, w, start: m.index, end: m.index + text.length };
     const handler = w.startsWith("dissembl") ? dissemble : HANDLERS[w];
-    const result = handler(ctx, t, before(ctx, t.start), after(ctx, t.end));
-    for (const h of [result ?? []].flat()) {
-      if (mentioned(ctx, h)) continue;
-      // Evidence words the user added to the dictionary or cased as names abstain.
-      const finding = make(ctx, h.start, h.end, h.alts, h.key);
-      if (finding) findings.push(finding);
-    }
+    const h = handler(ctx, t, before(ctx, t.start), after(ctx, t.end));
+    if (!h || mentioned(ctx, h)) continue;
+    const finding = make(ctx, h.start, h.end, h.alts, h.key);
+    if (finding) findings.push(finding);
   }
   return findings;
 }

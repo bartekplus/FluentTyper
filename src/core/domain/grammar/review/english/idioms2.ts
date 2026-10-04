@@ -1,32 +1,18 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import type { PhraseRow } from "../englishPhraseTables";
+import { englishInitialSound } from "../../implementations/helpers/EnglishInitialSound";
+import { each, PLURAL, TAKE, type PhraseRow } from "../englishPhraseTables";
 import {
+  CLAUSE,
   COMPLETE,
-  frameMatches,
-  hasUserOrCasedWord,
-  isLang,
+  type Frame,
+  frameDetectors,
+  notAfter,
   SPACE as S,
   WORD_END as E,
 } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { finding } from "../finding";
+import type { ReviewDetectorEntry } from "../reviewDetectors";
 
-/** One row per word: `~` stands for the word in every typed form and replacement. */
-const each = (
-  words: readonly string[],
-  typed: string | readonly string[],
-  replacement: string | readonly string[],
-): PhraseRow[] =>
-  words.map((word) => [
-    [typed].flat().map((form) => form.replace("~", word)),
-    [replacement].flat().map((form) => form.replace("~", word)),
-  ]);
-/** Singular and plural rows: `~` is "" or "s". */
-const plural = (typed: string | readonly string[], replacement: string | readonly string[]) =>
-  each(["", "s"], typed, replacement);
 const GO = ["go", "goes", "went", "going", "gone"];
-const TAKE = ["take", "takes", "took", "taken", "taking"];
 const LAST_DITCH = ["effort", "attempt", "bid", "option", "measure", "push", "stand", "fix"];
 const SOMEBODY = ["somebody", "someone", "anybody", "anyone", "everybody", "everyone", "nobody"];
 
@@ -34,19 +20,19 @@ const SOMEBODY = ["somebody", "someone", "anybody", "anyone", "everybody", "ever
 export const PHRASES: readonly PhraseRow[] = [
   ...each(["it's", "that's", "is", "was"], "~ here nor there", "~ neither here nor there"),
   ...each(["after", "afterward", "afterwards"], "not along ~", "not long ~"),
-  ...plural("ticking time clock~", ["ticking time bomb~", "ticking clock~"]),
+  ...each(PLURAL, "ticking time clock~", ["ticking time bomb~", "ticking clock~"]),
   ["the another", "the other"],
   ["out of sink", ["out of sync", "out of synch"]],
   ...each(GO, ["~ through great lengths", "~ to a great length"], "~ to great lengths"),
   ["read and writes", ["reads and writes", "read and write"]],
   ...each(TAKE, "~ it personal", "~ it personally"),
   ...["doubly", "singly", "circular"].flatMap((kind) =>
-    plural(`${kind} link list~`, `${kind} linked list~`),
+    each(PLURAL, `${kind} link list~`, `${kind} linked list~`),
   ),
-  ...plural("double-link list~", "double-linked list~"),
-  ...plural("link list implementation~", "linked list implementation~"),
+  ...each(PLURAL, "double-link list~", "double-linked list~"),
+  ...each(PLURAL, "link list implementation~", "linked list implementation~"),
   ["underneath of", ["underneath", "under"]],
-  ...plural(["highly kept secret~", "highly-kept secret~"], "well-kept secret~"),
+  ...each(PLURAL, ["highly kept secret~", "highly-kept secret~"], "well-kept secret~"),
   ...each(["you", "them", "us", "these", "those"], "may of ~", "many of ~"),
   ["yesterday night", "last night"],
   ["a lots of", ["a lot of", "lots of"]],
@@ -79,13 +65,14 @@ export const PHRASES: readonly PhraseRow[] = [
   ["in top of", "on top of"],
   ["on top off", "on top of"],
   ...LAST_DITCH.flatMap((noun) =>
-    plural(
+    each(
+      PLURAL,
       [`last ditch ${noun}~`, `last ditched ${noun}~`, `last-ditched ${noun}~`],
       `last-ditch ${noun}~`,
     ),
   ),
   ["managerial reigns", "managerial reins"],
-  ...plural("slippy slope~", "slippery slope~"),
+  ...each(PLURAL, "slippy slope~", "slippery slope~"),
   [["not without a lack of", "not without lack of"], "not for lack of"],
   ["trail and error", "trial and error"],
   ["line of codes", ["lines of code", "line of code"]],
@@ -94,7 +81,7 @@ export const PHRASES: readonly PhraseRow[] = [
   ...each(["luck", "genius"], "strikes of ~", "strokes of ~"),
   ["the entire of", "the entirety of"],
   ["without out", "without"],
-  ...plural("sneaky suspicion~", "sneaking suspicion~"),
+  ...each(PLURAL, "sneaky suspicion~", "sneaking suspicion~"),
   ["on second though", "on second thought"],
   ["every once and a while", "every once in a while"],
   [["point of views", "points of views"], "points of view"],
@@ -108,7 +95,7 @@ export const COMPOUNDS: readonly PhraseRow[] = [
   ["low hanging fruits", ["low-hanging fruit", "low-hanging fruits"]],
   ["per-se", "per se"],
   [["on topof", "ontop off"], "on top of"],
-  ...plural("worst case scenario~", "worst-case scenario~"),
+  ...each(PLURAL, "worst case scenario~", "worst-case scenario~"),
 ];
 
 /** Optional advice: accepted variants of an idiom and contested usage. */
@@ -125,25 +112,7 @@ export const STYLE: readonly PhraseRow[] = [
 // ---- Context frames: forms that are also ordinary English elsewhere. ----
 
 type Rule = "englishPhraseCorrections" | "englishClosedCompounds" | "stylePhrasing";
-const MESSAGES = {
-  englishPhraseCorrections: "review_msg_phrase_correction",
-  englishClosedCompounds: "review_msg_closed_compound",
-  stylePhrasing: "review_msg_style_phrasing",
-} as const;
-/** A frame's `target` group is replaced; `fix` may veto (null) after a closer look. */
-type Frame = {
-  pattern: string;
-  fix: string | readonly string[] | ((m: RegExpExecArray) => string | readonly string[] | null);
-  /** The fix already carries the typed casing. */
-  raw?: true;
-};
 
-/** Not right after one of these whole words. */
-// A letter first: off words (on long runs of spaces) the lookbehind is never tried.
-const notAfter = (words: string) => `(?=\\p{L})(?<!(?<![\\p{L}'’])(?:${words})${S})`;
-// A lookbehind over a run of spaces comes after `(?=word)`: tried at every position of a
-// long run, it rereads the run each time in JavaScriptCore.
-const CLAUSE = `(?:^|[.!?,;:(\\n])[ \\t]*`;
 /** CLAUSE ends at `index`: only spaces or tabs back to a clause mark or the text start. */
 function afterClause(text: string, index: number): boolean {
   while (index > 0 && (text[index - 1] === " " || text[index - 1] === "\t")) index--;
@@ -193,7 +162,9 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
             .split("-")[0],
         );
         if (!known || NOT_BASIS_ADJECTIVE.has(adj.toLowerCase())) return null;
-        const an = /^(?:[aeio]|u(?!ni|s[aeu]|t)|hour|honest|hono)/i.test(adj) ? "an" : "a";
+        // The lexicon knows the word, thus it is not spelled out ("HOURLY" is "hourly").
+        // Use "a" when people say the word with the two articles ("a historic").
+        const an = englishInitialSound(adj.toLowerCase()) === "vowel" ? "an" : "a";
         return `${adj === adj.toUpperCase() ? an.toUpperCase() : an} ${adj}`;
       },
       raw: true,
@@ -309,35 +280,5 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
   ],
 };
 
-function detectFrames(ctx: DetectContext, rule: Rule): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const { pattern, fix, raw } of FRAMES[rule]) {
-    for (const m of frameMatches(ctx, pattern)) {
-      const [start, end] = m.indices!.groups!.target;
-      if (hasUserOrCasedWord(ctx, ctx.text.slice(m.index, Math.max(end, m.index + m[0].length))))
-        continue;
-      const value = typeof fix === "function" ? fix(m) : fix;
-      if (value === null) continue;
-      const style = detectWordCase(m.groups!.target.trim());
-      const alternatives = [value].flat().map((alt) => (raw ? alt : applyWordCase(alt, style)));
-      findings.push(
-        finding(rule, MESSAGES[rule], start, end, alternatives, {
-          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-          context: {
-            start: Math.max(0, m.index - 40),
-            end: Math.min(ctx.text.length, m.index + m[0].length + 20),
-          },
-        }),
-      );
-    }
-  }
-  return findings;
-}
-
 /** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = (Object.keys(FRAMES) as Rule[]).map(
-  (rule) => ({
-    rules: [rule],
-    detect: (ctx) => (isLang(ctx, "en") ? detectFrames(ctx, rule) : []),
-  }),
-);
+export const DETECTORS: readonly ReviewDetectorEntry[] = frameDetectors(FRAMES);

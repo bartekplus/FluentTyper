@@ -1,5 +1,4 @@
 import { afterEach, expect, jest, test } from "bun:test";
-import { ReviewController } from "../src/adapters/chrome/content-script/review/ReviewController";
 import { resolveReviewTarget } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import {
   installWordReviewMainWorld,
@@ -13,12 +12,27 @@ import {
   type WordReviewReply,
   type WordReviewRequest,
 } from "../src/adapters/chrome/content-script/review/WordReviewProtocol";
-import { NativeAutocompleteConflictDetector } from "../src/adapters/chrome/content-script/suggestions/NativeAutocompleteConflictDetector";
+import { classifyField } from "../src/adapters/chrome/content-script/suggestions/NativeAutocompleteConflictDetector";
 import { ReviewSession } from "../src/core/application/review/ReviewSession";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import type { ReviewAiProvider } from "../src/core/application/review/reviewAi";
+import type { ReviewTargetRead } from "../src/core/application/review/ReviewSession";
 import { AI_PROMPT_VERSION } from "../src/core/domain/grammar/review/ai/prompts";
-import { GRAMMAR_RULE_IDS } from "../src/core/domain/grammar/ruleCatalog";
+import { readyStatus } from "./support/localAiFakes";
+import { createReviewController } from "./reviewTestUtils";
+
+type WordRange = ReturnType<WordDocument["getSelection"]>;
+// The fake ranges keep their bounds, so expandTo can read them back.
+type FakeRange = WordRange & { start: number; end: number };
+
+// Word reads are synchronous. This helper fails the test if a read returns a promise.
+function syncRead(target: {
+  read(): ReviewTargetRead | Promise<ReviewTargetRead>;
+}): ReviewTargetRead {
+  const read = target.read();
+  if (read instanceof Promise) throw new Error("expected a synchronous read");
+  return read;
+}
 
 let cleanup = () => {};
 afterEach(() => {
@@ -51,7 +65,7 @@ function fixture(texts = ["We saw teh cat.", "We saw teh cat."], separator = "\r
     getNext() {
       return paragraphs[index + 1];
     },
-    getRange(location: number) {
+    getRange(location: number): FakeRange {
       const start = paragraphs
         .slice(0, index)
         .reduce((length, p) => length + p.text.length + separator.length, 0);
@@ -89,7 +103,7 @@ function fixture(texts = ["We saw teh cat.", "We saw teh cat."], separator = "\r
     },
   }));
   const raw = () => paragraphs.map((p) => p.text).join(separator);
-  const range = (start: number, end: number) => ({
+  const range = (start: number, end: number): FakeRange => ({
     start,
     end,
     get text() {
@@ -101,7 +115,7 @@ function fixture(texts = ["We saw teh cat.", "We saw teh cat."], separator = "\r
     getRange(location: number) {
       return range(location === 1 ? start : end, location === 1 ? start : end);
     },
-    expandTo(other: { start: number; end: number }) {
+    expandTo(other: FakeRange) {
       return range(Math.min(start, other.start), Math.max(end, other.end));
     },
     insertText() {
@@ -357,6 +371,33 @@ test("Word Review refuses stale text, changed protection and replayed tokens", (
   expect(h.writes).toBe(0);
 });
 
+// Regression: a model change inside the transaction, before any write, gave "unsupported".
+test("Word Review reports a model change inside the transaction as stale", () => {
+  const h = fixture(["teh"]);
+  const read = bridge({ action: "read", selection: false });
+  if (!("ok" in read) || !read.ok) throw new Error("read failed");
+  const extension = (window as Window & { WordEditor?: { Extension: Record<string, unknown> } })
+    .WordEditor!.Extension;
+  const Transaction = extension.AutomationTransaction as new () => object;
+  extension.AutomationTransaction = class extends Transaction {
+    constructor() {
+      super();
+      h.paragraphs[0].text = "ten";
+    }
+  };
+  expect(
+    bridge({
+      action: "apply",
+      token: read.token,
+      before: read.text,
+      after: "the",
+      signature: read.signature,
+      edits: [{ start: 0, end: 3, original: "teh", replacement: "the" }],
+    }),
+  ).toEqual({ status: "stale" });
+  expect(h.writes).toBe(0);
+});
+
 test("Word Review refuses protected, cross-paragraph, malformed and split-grapheme edits", () => {
   const h = fixture(["teh", "😀 teh"]);
   for (const [start, end, replacement] of [
@@ -525,7 +566,7 @@ test("Word explicit Review recovers a replaced editor root without replaying its
     .dispatchEvent(new Event("compositionend", { bubbles: true }));
   const resolved = resolveReviewTarget(document, h.target);
   if (!resolved.ok) throw new Error("new root did not resolve");
-  const initial = resolved.target.read();
+  const initial = syncRead(resolved.target);
   expect(initial.ok).toBe(true);
   const edit = { start: 0, end: 3, original: "teh", replacement: "the" };
   expect(
@@ -539,7 +580,7 @@ test("Word explicit Review recovers a replaced editor root without replaying its
     }),
   ).toEqual({ status: "stale" });
   expect(h.writes).toBe(0);
-  const fresh = resolved.target.read();
+  const fresh = syncRead(resolved.target);
   if (!fresh.ok) throw new Error("read failed");
   expect(
     await resolved.target.apply({
@@ -557,18 +598,18 @@ test("Word Review runs native proofreading while its input proxy stays unmanaged
   const h = fixture(["We saw teh cat."]);
   // Accessibility-hidden proxy plumbing does not make the visible model read-only.
   h.target.inputProxy.setAttribute("aria-hidden", "true");
-  expect(
-    new NativeAutocompleteConflictDetector().classify(
-      document.getElementById("WACViewPanel_EditingElement")!,
-    ),
-  ).toEqual({ kind: "blocked" });
+  expect(classifyField(document.getElementById("WACViewPanel_EditingElement")!)).toEqual({
+    kind: "blocked",
+  });
   const session = new ReviewSession({
     target: h.target,
     engine: new LocalReviewEngine(),
+    initialScope: null,
     options: {
       lang: "en_US",
       enabledRules: ["englishTypoWhitelistCorrection"],
       userDictionary: [],
+      insertSpaceAfterAutocomplete: false,
     },
     onChange: () => {},
   });
@@ -583,7 +624,7 @@ test("Word Review resolves the document instead of its empty input proxy", () =>
   document.body.innerHTML = `<div id="EditorContainer"><div id="WACViewPanel"><p class="Paragraph">We saw teh cat.</p><div id="WACViewPanel_EditingElement" contenteditable="true" tabindex="0"></div></div></div>`;
   document.getElementById("WACViewPanel_EditingElement")!.focus();
   const result = resolveReviewTarget(document);
-  expect(result.ok && result.target.kind).toBe("model-editor");
+  expect(result.ok && result.target).toBeInstanceOf(WordReviewTarget);
   expect(result.ok && result.target.element.id).toBe("EditorContainer");
   if (result.ok) result.target.dispose();
 });
@@ -602,6 +643,7 @@ test("Word session startup reuses its captured selection snapshot once", async (
       lang: "en_US",
       enabledRules: ["englishTypoWhitelistCorrection"],
       userDictionary: [],
+      insertSpaceAfterAutocomplete: false,
     },
     onChange: () => {},
   });
@@ -610,7 +652,7 @@ test("Word session startup reuses its captured selection snapshot once", async (
     expect(h.rangeReadCharacters).toBe(characters);
     await starting;
     h.paragraphs[0].text = "the";
-    const next = resolved.target.read();
+    const next = syncRead(resolved.target);
     if (!next.ok) throw new Error("read failed");
     expect(next.text.startsWith("the")).toBe(true);
     expect(h.rangeReadCharacters).toBeGreaterThan(characters);
@@ -629,7 +671,7 @@ test("Word startup snapshot expires after a microtask and rechecks proxy eligibi
     if (mode === "later") {
       await Promise.resolve();
       h.paragraphs[0].text = "the";
-      const read = resolved.target.read();
+      const read = syncRead(resolved.target);
       expect(read.ok && read.text).toBe("the");
     } else {
       h.target.inputProxy.setAttribute("aria-disabled", "true");
@@ -668,15 +710,7 @@ test("Word repeated controller invocation reuses the active target without anoth
   const h = fixture(["teh"]);
   h.target.dispose();
   const read = jest.spyOn(WordReviewTarget.prototype, "read");
-  const review = new ReviewController({
-    createEngine: () => new LocalReviewEngine(),
-    getOptions: () => ({ lang: "en_US", enabledRules: GRAMMAR_RULE_IDS, userDictionary: [] }),
-    suspend: () => {},
-    resume: () => {},
-    addToDictionary: async () => true,
-    getDocsSurface: () => null,
-    uiLanguage: "en",
-  });
+  const review = createReviewController();
   try {
     review.invoke();
     const reads = read.mock.calls.length;
@@ -709,21 +743,13 @@ test("Word explicit Review reopens a different story sharing the same input prox
   if (!next.ok) throw new Error("other story did not resolve");
   expect(next.target).not.toBe(h.target);
   expect(h.target.read()).toEqual({ ok: false, reason: "detached" });
-  const selected = next.target.read();
+  const selected = syncRead(next.target);
   expect(selected.ok && selected.signature).toContain("other-story-paragraph");
   next.target.dispose();
 
   h.model.getSelection = selection;
   const read = jest.spyOn(WordReviewTarget.prototype, "read");
-  const review = new ReviewController({
-    createEngine: () => new LocalReviewEngine(),
-    getOptions: () => ({ lang: "en_US", enabledRules: GRAMMAR_RULE_IDS, userDictionary: [] }),
-    suspend: () => {},
-    resume: () => {},
-    addToDictionary: async () => true,
-    getDocsSurface: () => null,
-    uiLanguage: "en",
-  });
+  const review = createReviewController();
   try {
     document.getElementById("WACViewPanel_EditingElement")!.focus();
     review.invoke();
@@ -752,7 +778,7 @@ test("Word Review only resolves recognized editor proxies", () => {
       document.getElementById("WACViewPanel")!.append(proxy);
       proxy.focus();
       const result = resolveReviewTarget(document);
-      expect(result.ok && result.target.kind).toBe("model-editor");
+      expect(result.ok && result.target).toBeInstanceOf(WordReviewTarget);
       if (result.ok) result.target.dispose();
     }
     const control = document.createElement("button");
@@ -770,15 +796,7 @@ test("Word Review only resolves recognized editor proxies", () => {
 test("Word caret layout mutations do not read the document model", async () => {
   const h = fixture(["teh"]);
   h.target.dispose();
-  const review = new ReviewController({
-    createEngine: () => new LocalReviewEngine(),
-    getOptions: () => ({ lang: "en_US", enabledRules: GRAMMAR_RULE_IDS, userDictionary: [] }),
-    suspend: () => {},
-    resume: () => {},
-    addToDictionary: async () => true,
-    getDocsSurface: () => null,
-    uiLanguage: "en",
-  });
+  const review = createReviewController();
   const read = jest.spyOn(WordReviewTarget.prototype, "read");
   try {
     review.invoke();
@@ -802,15 +820,7 @@ test("Word Review restores the originating footnote proxy on close and after swi
   const footnote = document.createElement("textarea");
   footnote.id = "WACViewPanel_FootnoteEndnoteEditControl_EditingElement";
   document.getElementById("WACViewPanel")!.append(footnote);
-  const review = new ReviewController({
-    createEngine: () => new LocalReviewEngine(),
-    getOptions: () => ({ lang: "en_US", enabledRules: GRAMMAR_RULE_IDS, userDictionary: [] }),
-    suspend: () => {},
-    resume: () => {},
-    addToDictionary: async () => true,
-    getDocsSurface: () => null,
-    uiLanguage: "en",
-  });
+  const review = createReviewController();
   try {
     footnote.focus();
     review.invoke();
@@ -1059,7 +1069,7 @@ test("Word highlights map sibling footnote views and refuse unknown main-proxy s
   const note = document.createElement("div");
   note.id = "WACViewPanel_FootnoteEndnoteEditControl";
   note.className = "WACInteractiveView FootnoteEndnoteViewElement";
-  const paragraphs = [...main.querySelectorAll(".Paragraph")];
+  const paragraphs = [...main.querySelectorAll<HTMLParagraphElement>(".Paragraph")];
   for (const paragraph of paragraphs) {
     paragraph.innerHTML =
       '<span class="TextRun BlobObject"><span class="Superscript">1</span></span><b>&nbsp;teh</b><span class="EOP">&nbsp;</span>';
@@ -1078,11 +1088,11 @@ test("Word highlights map sibling footnote views and refuse unknown main-proxy s
   const resolved = resolveReviewTarget();
   if (!resolved.ok) throw new Error("footnote did not resolve");
   expect(resolved.target.element.contains(proxy)).toBe(true);
-  expect(new NativeAutocompleteConflictDetector().classify(proxy)).toEqual({ kind: "blocked" });
+  expect(classifyField(proxy)).toEqual({ kind: "blocked" });
   proxy.dispatchEvent(new Event("compositionstart", { bubbles: true }));
   expect(resolved.target.read()).toEqual({ ok: false, reason: "composing" });
   proxy.dispatchEvent(new Event("compositionend", { bubbles: true }));
-  expect(resolved.target.read().ok).toBe(true);
+  expect(syncRead(resolved.target).ok).toBe(true);
   expect(
     resolved.target.domRange({ start: 6, end: 9 })?.startContainer.parentElement?.closest("p"),
   ).toBe(paragraphs[1]);
@@ -1105,17 +1115,7 @@ test("Word highlights map sibling footnote views and refuse unknown main-proxy s
 test("Word applies accepted Local AI rewrite hunks in one native transaction", async () => {
   const h = fixture(["We saw teh cat. She go home now."]);
   const ai: ReviewAiProvider = {
-    status: async () => ({
-      enabled: true,
-      consented: true,
-      tier: "standard",
-      modelId: "model-a",
-      displayName: "Standard",
-      downloadBytes: 1,
-      install: "complete",
-      runtime: "ready",
-      offerSetup: false,
-    }),
+    status: async () => readyStatus(),
     onStatus: () => () => {},
     generate: async (request) => ({
       outcome: {
@@ -1143,7 +1143,13 @@ test("Word applies accepted Local AI rewrite hunks in one native transaction", a
   const session = new ReviewSession({
     target: h.target,
     engine: new LocalReviewEngine(),
-    options: { lang: "en_US", enabledRules: [], userDictionary: [] },
+    initialScope: null,
+    options: {
+      lang: "en_US",
+      enabledRules: [],
+      userDictionary: [],
+      insertSpaceAfterAutocomplete: false,
+    },
     ai,
     onChange: (state) => {
       if (state.ai.availability === "ready") ready();

@@ -3,20 +3,27 @@ import {
   resolveGrammarRuleSelection,
 } from "../../src/core/domain/grammar/GrammarRuleSettings";
 import type { Browser, Page } from "puppeteer";
-import path from "path";
-import * as fs from "fs";
-import type { Server } from "http";
-import { createServer } from "http";
 import type { BackgroundContext } from "./e2e-helpers";
 import {
   BROWSER_TYPE,
-  getBackgroundContext,
+  ensureWorker,
+  getSetting,
   getTimeoutProfile,
   isFirefox,
   launchBrowser,
+  notifyConfigChange,
   openExtensionPage,
   openPopupPage,
   findLayoutOverflow,
+  reacquireWorker,
+  removeSettings,
+  setSetting,
+  setSettings,
+  sleep,
+  startTestPageServer,
+  takeSettingsWritten,
+  waitForVisibleSuggestionMenu,
+  waitForVisibleSuggestionTexts,
   waitUntil,
   suiteTimeout,
   clickReviewControl,
@@ -37,548 +44,36 @@ import {
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
 } from "../../src/core/domain/constants";
-import {
-  DEFAULT_CURRENT_GRAMMAR_RULES,
-  RECOMMENDED_CURRENT_GRAMMAR_RULES,
-} from "../../src/core/domain/grammar/ruleCatalog";
+import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "../../src/core/domain/themeDefaults";
 
 const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
 const describeE2E = RUN_E2E ? describe : describe.skip;
 
-const TEST_PAGE_PATH = path.resolve(__dirname, "test-page.html");
 const TEST_HOST = "localhost";
-const SETTINGS_PREFIX = "store.settings.";
+const WORKER_TIMEOUT_MS = suiteTimeout(5000, 10000);
 const timeoutProfile = getTimeoutProfile();
 
-type TestNameContext = {
-  fullName?: string;
-  name?: string;
-};
-
-type TrackedTestCallback = (...args: unknown[]) => unknown;
-type TestRegistrarLike = {
-  (name: string, fn: TrackedTestCallback, timeout?: number): unknown;
-  each: (
-    cases: readonly unknown[],
-  ) => (name: string, fn: TrackedTestCallback, timeout?: number) => unknown;
-  skip?: TestRegistrarLike;
-};
-
-let currentE2ETestName = "Unknown Test";
-
-function wrapTrackedTestCallback(
-  fallbackName: string,
-  callback: TrackedTestCallback,
-): TrackedTestCallback {
-  return async (...args: unknown[]) => {
-    const [context] = args as [TestNameContext | undefined];
-    currentE2ETestName = context?.fullName || context?.name || fallbackName || "Unknown Test";
-    return await callback(...args);
-  };
-}
-
-function createTrackedSkipRegistrar(base: TestRegistrarLike): TestRegistrarLike {
-  const tracked = ((name: string, callback: TrackedTestCallback, timeout?: number) =>
-    base(name, wrapTrackedTestCallback(name, callback), timeout)) as TestRegistrarLike;
-
-  tracked.each = ((cases: readonly unknown[]) => {
-    const eachBase = base.each(cases);
-    return (name: string, callback: TrackedTestCallback, timeout?: number) =>
-      eachBase(name, wrapTrackedTestCallback(name, callback), timeout);
-  }) as TestRegistrarLike["each"];
-
-  return tracked;
-}
-
-function createTrackedTestRegistrar(base: TestRegistrarLike): TestRegistrarLike {
-  const tracked = createTrackedSkipRegistrar(base);
-  if (base.skip) {
-    tracked.skip = createTrackedSkipRegistrar(base.skip);
-  }
-  return tracked;
-}
-
-const test = createTrackedTestRegistrar(globalThis.test as unknown as TestRegistrarLike);
-
-type SettingEntry = readonly [key: string, value: unknown];
-
 let domainTestUrl = "";
-let activeBrowserForWorkerRecovery: Browser | null = null;
-let settingsDirty = true;
 
-const STATIC_DEFAULT_SETTINGS: readonly SettingEntry[] = [
-  [KEY_MIN_WORD_LENGTH_TO_PREDICT, 1],
-  [KEY_NUM_SUGGESTIONS, 5],
-  [KEY_INLINE_SUGGESTION, false],
-  [KEY_SITE_PROFILES, {}],
-  ["enable", true],
-];
+const STATIC_DEFAULT_SETTINGS = {
+  [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+  [KEY_NUM_SUGGESTIONS]: 5,
+  [KEY_INLINE_SUGGESTION]: false,
+  [KEY_SITE_PROFILES]: {},
+  enable: true,
+};
 
-const SUGGESTION_THEME_RESET_SETTINGS: readonly SettingEntry[] = Object.entries(
-  DEFAULT_SUGGESTION_THEME_SETTINGS,
-).map(([key, value]) => [key, value] as const);
-
-const SUGGESTION_THEME_SETTING_KEYS = SUGGESTION_THEME_RESET_SETTINGS.map(([key]) => key);
-
-const PER_TEST_RESET_SETTINGS: readonly SettingEntry[] = [
-  [KEY_ENABLED_LANGUAGES, ["en_US", "de_DE", "textExpander"]],
-  [KEY_LANGUAGE, "en_US"],
-  [KEY_TEXT_EXPANSIONS, []],
-  [KEY_ENABLED_GRAMMAR_RULES, grammarRuleSelectionToOverrides([])],
-  [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true],
-  [KEY_DOMAIN_LIST_MODE, "blackList"],
-  ["domainBlackList", []],
-  ...SUGGESTION_THEME_RESET_SETTINGS,
-];
-
-function isRetriableWorkerError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /chrome\.storage\.local is unavailable|reading 'local'|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed|NoSuchFrameError|Browsing Context with id .* not found/i.test(
-    message,
-  );
-}
-
-async function reacquireWorker(browser: Browser): Promise<BackgroundContext> {
-  return await waitUntil(
-    "background worker context",
-    async () => {
-      try {
-        return await getBackgroundContext(browser);
-      } catch (error) {
-        if (!isRetriableWorkerError(error)) {
-          throw error;
-        }
-        return false;
-      }
-    },
-    { timeoutMs: suiteTimeout(5000, 10000), intervalMs: 100 },
-  );
-}
-
-async function ensureWorker(
-  browser: Browser,
-  currentWorker: BackgroundContext | undefined,
-): Promise<BackgroundContext> {
-  if (currentWorker) {
-    if ("isClosed" in currentWorker && typeof currentWorker.isClosed === "function") {
-      if (!currentWorker.isClosed()) {
-        try {
-          await currentWorker.evaluate(() => {
-            const storage = (
-              globalThis as typeof globalThis & {
-                chrome?: typeof chrome;
-              }
-            ).chrome?.storage?.local;
-            if (!storage) {
-              throw new Error("chrome.storage.local is unavailable");
-            }
-          });
-          return currentWorker;
-        } catch (error) {
-          if (!isRetriableWorkerError(error)) {
-            throw error;
-          }
-        }
-      }
-    } else {
-      try {
-        await currentWorker.evaluate(() => {
-          const storage = (
-            globalThis as typeof globalThis & {
-              chrome?: typeof chrome;
-            }
-          ).chrome?.storage?.local;
-          if (!storage) {
-            throw new Error("chrome.storage.local is unavailable");
-          }
-        });
-        return currentWorker;
-      } catch (error) {
-        if (!isRetriableWorkerError(error)) {
-          throw error;
-        }
-      }
-    }
-  }
-
-  return reacquireWorker(browser);
-}
-
-async function setSetting(worker: BackgroundContext, key: string, value: unknown): Promise<void> {
-  settingsDirty = true;
-  const storageKey = `${SETTINGS_PREFIX}${key}`;
-  let workerContext = worker;
-  await waitUntil(
-    `setting ${key} write`,
-    async () => {
-      try {
-        await workerContext.evaluate(
-          (storageKeyInner, nextValue) =>
-            new Promise<void>((resolve, reject) => {
-              const storage = (
-                globalThis as typeof globalThis & {
-                  chrome?: typeof chrome;
-                }
-              ).chrome?.storage?.local;
-              if (!storage) {
-                reject(new Error("chrome.storage.local is unavailable"));
-                return;
-              }
-              storage.set({ [storageKeyInner]: JSON.stringify(nextValue) }, () => {
-                const runtime = (
-                  globalThis as typeof globalThis & {
-                    chrome?: typeof chrome;
-                  }
-                ).chrome?.runtime;
-                if (runtime?.lastError) {
-                  reject(new Error(runtime.lastError.message));
-                  return;
-                }
-                resolve();
-              });
-            }),
-          storageKey,
-          value,
-        );
-        return true;
-      } catch (error) {
-        if (!isRetriableWorkerError(error)) {
-          throw error;
-        }
-        if (activeBrowserForWorkerRecovery) {
-          workerContext = await reacquireWorker(activeBrowserForWorkerRecovery);
-        }
-        return false;
-      }
-    },
-    { timeoutMs: 4000, intervalMs: 100 },
-  );
-}
-
-async function getSetting<T>(worker: BackgroundContext, key: string): Promise<T | undefined> {
-  const storageKey = `${SETTINGS_PREFIX}${key}`;
-  let workerContext = worker;
-  const result = await waitUntil<{ value: T | undefined }>(
-    `setting ${key} read`,
-    async () => {
-      try {
-        const value = (await workerContext.evaluate(
-          (storageKeyInner) =>
-            new Promise((resolve, reject) => {
-              const storage = (
-                globalThis as typeof globalThis & {
-                  chrome?: typeof chrome;
-                }
-              ).chrome?.storage?.local;
-              if (!storage) {
-                reject(new Error("chrome.storage.local is unavailable"));
-                return;
-              }
-              storage.get(storageKeyInner, (resultInner) => {
-                const runtime = (
-                  globalThis as typeof globalThis & {
-                    chrome?: typeof chrome;
-                  }
-                ).chrome?.runtime;
-                if (runtime?.lastError) {
-                  reject(new Error(runtime.lastError.message));
-                  return;
-                }
-                const rawValue = (resultInner as Record<string, string | undefined>)[
-                  storageKeyInner
-                ];
-                resolve(rawValue ? JSON.parse(rawValue) : undefined);
-              });
-            }),
-          storageKey,
-        )) as T | undefined;
-        return { value };
-      } catch (error) {
-        if (!isRetriableWorkerError(error)) {
-          throw error;
-        }
-        if (activeBrowserForWorkerRecovery) {
-          workerContext = await reacquireWorker(activeBrowserForWorkerRecovery);
-        }
-        return false;
-      }
-    },
-    { timeoutMs: 4000, intervalMs: 100 },
-  );
-  return result.value;
-}
-
-async function setSettingAndWait(
-  worker: BackgroundContext,
-  key: string,
-  value: unknown,
-): Promise<void> {
-  await setSetting(worker, key, value);
-  const expected = JSON.stringify(value);
-  await waitUntil(
-    `setting ${key} to stabilize`,
-    async () => {
-      const current = await getSetting<unknown>(worker, key);
-      return JSON.stringify(current) === expected ? true : false;
-    },
-    { timeoutMs: 5000, intervalMs: 50 },
-  );
-}
-
-async function setSettingsAndWait(
-  worker: BackgroundContext,
-  settings: readonly SettingEntry[],
-): Promise<void> {
-  if (settings.length === 0) {
-    return;
-  }
-  settingsDirty = true;
-
-  const expectedByStorageKey = Object.fromEntries(
-    settings.map(([key, value]) => [`${SETTINGS_PREFIX}${key}`, JSON.stringify(value)]),
-  );
-  const storageKeys = Object.keys(expectedByStorageKey);
-  let workerContext = worker;
-
-  await waitUntil(
-    "batched settings write",
-    async () => {
-      try {
-        await workerContext.evaluate(
-          (serializedValues) =>
-            new Promise<void>((resolve, reject) => {
-              const storage = (
-                globalThis as typeof globalThis & {
-                  chrome?: typeof chrome;
-                }
-              ).chrome?.storage?.local;
-              if (!storage) {
-                reject(new Error("chrome.storage.local is unavailable"));
-                return;
-              }
-              storage.set(serializedValues, () => {
-                const runtime = (
-                  globalThis as typeof globalThis & {
-                    chrome?: typeof chrome;
-                  }
-                ).chrome?.runtime;
-                if (runtime?.lastError) {
-                  reject(new Error(runtime.lastError.message));
-                  return;
-                }
-                resolve();
-              });
-            }),
-          expectedByStorageKey,
-        );
-        return true;
-      } catch (error) {
-        if (!isRetriableWorkerError(error)) {
-          throw error;
-        }
-        if (activeBrowserForWorkerRecovery) {
-          workerContext = await reacquireWorker(activeBrowserForWorkerRecovery);
-        }
-        return false;
-      }
-    },
-    { timeoutMs: 4000, intervalMs: 100 },
-  );
-
-  await waitUntil(
-    "batched settings to stabilize",
-    async () => {
-      try {
-        const currentValues = (await workerContext.evaluate(
-          (storageKeysInner) =>
-            new Promise<Record<string, string | undefined>>((resolve, reject) => {
-              const storage = (
-                globalThis as typeof globalThis & {
-                  chrome?: typeof chrome;
-                }
-              ).chrome?.storage?.local;
-              if (!storage) {
-                reject(new Error("chrome.storage.local is unavailable"));
-                return;
-              }
-              storage.get(storageKeysInner, (resultInner) => {
-                const runtime = (
-                  globalThis as typeof globalThis & {
-                    chrome?: typeof chrome;
-                  }
-                ).chrome?.runtime;
-                if (runtime?.lastError) {
-                  reject(new Error(runtime.lastError.message));
-                  return;
-                }
-                resolve(resultInner as Record<string, string | undefined>);
-              });
-            }),
-          storageKeys,
-        )) as Record<string, string | undefined>;
-
-        return storageKeys.every(
-          (storageKey) => currentValues[storageKey] === expectedByStorageKey[storageKey],
-        )
-          ? true
-          : false;
-      } catch (error) {
-        if (!isRetriableWorkerError(error)) {
-          throw error;
-        }
-        if (activeBrowserForWorkerRecovery) {
-          workerContext = await reacquireWorker(activeBrowserForWorkerRecovery);
-        }
-        return false;
-      }
-    },
-    { timeoutMs: 5000, intervalMs: 50 },
-  );
-}
-
-async function clearSettingsAndWait(
-  worker: BackgroundContext,
-  keys: readonly string[],
-): Promise<void> {
-  if (keys.length === 0) {
-    return;
-  }
-  settingsDirty = true;
-
-  const storageKeys = keys.map((key) => `${SETTINGS_PREFIX}${key}`);
-  let workerContext = worker;
-
-  await waitUntil(
-    "batched settings clear",
-    async () => {
-      try {
-        await workerContext.evaluate(
-          (storageKeysInner) =>
-            new Promise<void>((resolve, reject) => {
-              const storage = (
-                globalThis as typeof globalThis & {
-                  chrome?: typeof chrome;
-                }
-              ).chrome?.storage?.local;
-              if (!storage) {
-                reject(new Error("chrome.storage.local is unavailable"));
-                return;
-              }
-              storage.remove(storageKeysInner, () => {
-                const runtime = (
-                  globalThis as typeof globalThis & {
-                    chrome?: typeof chrome;
-                  }
-                ).chrome?.runtime;
-                if (runtime?.lastError) {
-                  reject(new Error(runtime.lastError.message));
-                  return;
-                }
-                resolve();
-              });
-            }),
-          storageKeys,
-        );
-        return true;
-      } catch (error) {
-        if (!isRetriableWorkerError(error)) {
-          throw error;
-        }
-        if (activeBrowserForWorkerRecovery) {
-          workerContext = await reacquireWorker(activeBrowserForWorkerRecovery);
-        }
-        return false;
-      }
-    },
-    { timeoutMs: 4000, intervalMs: 100 },
-  );
-
-  await waitUntil(
-    "cleared settings to stabilize",
-    async () => {
-      try {
-        const currentValues = (await workerContext.evaluate(
-          (storageKeysInner) =>
-            new Promise<Record<string, string | undefined>>((resolve, reject) => {
-              const storage = (
-                globalThis as typeof globalThis & {
-                  chrome?: typeof chrome;
-                }
-              ).chrome?.storage?.local;
-              if (!storage) {
-                reject(new Error("chrome.storage.local is unavailable"));
-                return;
-              }
-              storage.get(storageKeysInner, (resultInner) => {
-                const runtime = (
-                  globalThis as typeof globalThis & {
-                    chrome?: typeof chrome;
-                  }
-                ).chrome?.runtime;
-                if (runtime?.lastError) {
-                  reject(new Error(runtime.lastError.message));
-                  return;
-                }
-                resolve(resultInner as Record<string, string | undefined>);
-              });
-            }),
-          storageKeys,
-        )) as Record<string, string | undefined>;
-
-        return storageKeys.every((storageKey) => currentValues[storageKey] === undefined)
-          ? true
-          : false;
-      } catch (error) {
-        if (!isRetriableWorkerError(error)) {
-          throw error;
-        }
-        if (activeBrowserForWorkerRecovery) {
-          workerContext = await reacquireWorker(activeBrowserForWorkerRecovery);
-        }
-        return false;
-      }
-    },
-    { timeoutMs: 5000, intervalMs: 50 },
-  );
-}
-
-async function sendConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
-  const send = async (context: BackgroundContext): Promise<void> => {
-    await context.evaluate((command) => {
-      return new Promise<void>((resolve, reject) => {
-        chrome.runtime.sendMessage(
-          { command, context: {} },
-          (response: { ok?: boolean } | undefined) => {
-            if (chrome.runtime.lastError) {
-              reject(new Error(chrome.runtime.lastError.message));
-              return;
-            }
-            if (!response?.ok) {
-              reject(new Error("Config change ACK returned not ok"));
-              return;
-            }
-            resolve();
-          },
-        );
-      });
-    }, CMD_OPTIONS_PAGE_CONFIG_CHANGE);
-  };
-
-  if (isFirefox()) {
-    await send(worker);
-    return;
-  }
-
-  const optionsPage = await openExtensionPage(browser, worker, "options/options.html");
-  try {
-    await send(optionsPage as BackgroundContext);
-  } finally {
-    if (!optionsPage.isClosed()) {
-      await optionsPage.close();
-    }
-  }
-}
+const PER_TEST_RESET_SETTINGS = {
+  [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE", "textExpander"],
+  [KEY_LANGUAGE]: "en_US",
+  [KEY_TEXT_EXPANSIONS]: [],
+  [KEY_ENABLED_GRAMMAR_RULES]: grammarRuleSelectionToOverrides([]),
+  [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
+  [KEY_DOMAIN_LIST_MODE]: "blackList",
+  domainBlackList: [],
+  ...DEFAULT_SUGGESTION_THEME_SETTINGS,
+};
 
 async function openOptionsPage(browser: Browser, worker: BackgroundContext): Promise<Page> {
   const optionsPage = await openExtensionPage(browser, worker, "options/options.html");
@@ -596,8 +91,7 @@ async function waitForInputReady(page: Page, selector: string): Promise<void> {
 }
 
 async function gotoTestPage(page: Page): Promise<void> {
-  const targetUrl = `${domainTestUrl}?${new URLSearchParams({ testName: currentE2ETestName }).toString()}`;
-  await page.goto(targetUrl, {
+  await page.goto(domainTestUrl, {
     waitUntil: "domcontentloaded",
     timeout: timeoutProfile.navigationMs,
   });
@@ -614,8 +108,8 @@ async function resetTestPageState(page: Page): Promise<void> {
 
   await waitUntil(
     "test page reset",
-    async () => {
-      const resetComplete = await page.evaluate(() => {
+    async () =>
+      page.evaluate(() => {
         const valuesCleared = Array.from(
           document.querySelectorAll("textarea, input, [contenteditable='true']"),
         ).every((element) => {
@@ -641,10 +135,8 @@ async function resetTestPageState(page: Page): Promise<void> {
           !document.getElementById("ft-late-shadow-host") &&
           !document.getElementById("ft-nested-shadow-outer-host")
         );
-      });
-      return resetComplete ? true : false;
-    },
-    { timeoutMs: suiteTimeout(1500, 3000), intervalMs: 50 },
+      }),
+    { timeoutMs: suiteTimeout(1500, 3000) },
   );
 }
 
@@ -664,162 +156,6 @@ async function prepareReusableTestPage(browser: Browser, page: Page | null): Pro
 
   await waitForInputReady(nextPage, "#test-input");
   return nextPage;
-}
-
-async function waitForSuggestionTexts(page: Page): Promise<string[]> {
-  const handle = await page.waitForFunction(
-    () => {
-      const getMenuRoot = (container: Element): ParentNode =>
-        (container as HTMLElement).shadowRoot ?? container;
-      const getDeepActiveElement = (): HTMLElement | null => {
-        let active: Element | null = document.activeElement;
-        while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
-          active = active.shadowRoot.activeElement;
-        }
-        return active instanceof HTMLElement ? active : null;
-      };
-      const getMenuHostId = (entryId: string): string => `ft-menu-${entryId}`;
-      const collectManagedElements = (root: ParentNode): HTMLElement[] => [
-        ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
-        ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
-          element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
-        ),
-      ];
-      const getKnownMenus = (): Element[] => {
-        const seen = new Set<Element>();
-        return [
-          ...collectManagedElements(document)
-            .map((element) => element.getAttribute("data-ft-suggestion-id"))
-            .filter(
-              (entryId): entryId is string => typeof entryId === "string" && entryId.length > 0,
-            )
-            .map((entryId) => document.getElementById(getMenuHostId(entryId)))
-            .filter((menu): menu is Element => menu instanceof Element),
-          ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
-        ]
-          .filter((menu): menu is Element => menu instanceof Element)
-          .filter((menu) => {
-            if (seen.has(menu)) {
-              return false;
-            }
-            seen.add(menu);
-            return true;
-          });
-      };
-      const activeElement = getDeepActiveElement();
-      const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
-      const activeMenu =
-        typeof activeEntryId === "string"
-          ? document.getElementById(getMenuHostId(activeEntryId))
-          : null;
-      const containers = [
-        ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...getKnownMenus().filter((container) => container !== activeMenu),
-      ];
-      for (const container of containers) {
-        const style = window.getComputedStyle(container);
-        if (
-          style.display === "none" ||
-          style.visibility === "hidden" ||
-          style.opacity === "0" ||
-          container.getClientRects().length === 0
-        ) {
-          continue;
-        }
-        const visibleTexts = Array.from(getMenuRoot(container).querySelectorAll("li[data-index]"))
-          .map((li) => (li.querySelector(".ft-suggestion-label") ?? li).textContent ?? "")
-          .filter((text) => text.length > 0);
-        if (visibleTexts.length > 0) {
-          return visibleTexts;
-        }
-      }
-      return false;
-    },
-    { timeout: timeoutProfile.suggestionMs },
-  );
-  return (await handle.jsonValue()) as string[];
-}
-
-async function getVisibleSuggestionThemeSnapshot(page: Page): Promise<{
-  backgroundColor: string;
-  overrideCssText: string | null;
-}> {
-  const handle = await page.waitForFunction(
-    () => {
-      const getPanel = (container: Element): Element =>
-        ((container as HTMLElement).shadowRoot?.querySelector(
-          ".ft-suggestion-panel",
-        ) as Element | null) ?? container;
-      const getDeepActiveElement = (): HTMLElement | null => {
-        let active: Element | null = document.activeElement;
-        while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
-          active = active.shadowRoot.activeElement;
-        }
-        return active instanceof HTMLElement ? active : null;
-      };
-      const getMenuHostId = (entryId: string): string => `ft-menu-${entryId}`;
-      const collectManagedElements = (root: ParentNode): HTMLElement[] => [
-        ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
-        ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
-          element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
-        ),
-      ];
-      const getKnownMenus = (): Element[] => {
-        const seen = new Set<Element>();
-        return [
-          ...collectManagedElements(document)
-            .map((element) => element.getAttribute("data-ft-suggestion-id"))
-            .filter(
-              (entryId): entryId is string => typeof entryId === "string" && entryId.length > 0,
-            )
-            .map((entryId) => document.getElementById(getMenuHostId(entryId)))
-            .filter((menu): menu is Element => menu instanceof Element),
-          ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
-        ]
-          .filter((menu): menu is Element => menu instanceof Element)
-          .filter((menu) => {
-            if (seen.has(menu)) {
-              return false;
-            }
-            seen.add(menu);
-            return true;
-          });
-      };
-      const activeElement = getDeepActiveElement();
-      const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
-      const activeMenu =
-        typeof activeEntryId === "string"
-          ? document.getElementById(getMenuHostId(activeEntryId))
-          : null;
-      const containers = [
-        ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...getKnownMenus().filter((container) => container !== activeMenu),
-      ];
-      for (const container of containers) {
-        const style = window.getComputedStyle(container);
-        if (
-          style.display === "none" ||
-          style.visibility === "hidden" ||
-          style.opacity === "0" ||
-          container.getClientRects().length === 0
-        ) {
-          continue;
-        }
-        const overrideCssText =
-          document.getElementById("fluent-typer-theme-overrides")?.textContent ?? null;
-        return {
-          backgroundColor: window.getComputedStyle(getPanel(container)).backgroundColor,
-          overrideCssText,
-        };
-      }
-      return false;
-    },
-    { timeout: timeoutProfile.suggestionMs },
-  );
-  return (await handle.jsonValue()) as {
-    backgroundColor: string;
-    overrideCssText: string | null;
-  };
 }
 
 async function typeInInput(page: Page, selector: string, text: string): Promise<void> {
@@ -865,13 +201,6 @@ async function waitForInputContentMatch(
   return (await handle.jsonValue()) as string;
 }
 
-async function applySettings(
-  worker: BackgroundContext,
-  settings: readonly SettingEntry[],
-): Promise<void> {
-  await setSettingsAndWait(worker, settings);
-}
-
 async function closePageSafely(pageToClose: Page | null | undefined): Promise<void> {
   if (!pageToClose || pageToClose.isClosed()) {
     return;
@@ -887,102 +216,32 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   let browser: Browser;
   let worker: BackgroundContext;
   let page: Page | null = null;
-  let domainTestServer: Server;
-  let domainTestHtml: string;
+  let testPageServer: ReturnType<typeof startTestPageServer>;
 
   beforeAll(async () => {
     browser = await launchBrowser();
-    activeBrowserForWorkerRecovery = browser;
-    worker = await reacquireWorker(browser);
-    domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
+    worker = await reacquireWorker(browser, WORKER_TIMEOUT_MS);
+    testPageServer = startTestPageServer();
+    domainTestUrl = testPageServer.url;
 
-    domainTestServer = createServer((req, res) => {
-      if (req.url && (req.url.includes("ckeditor5.umd.js") || req.url.includes("ckeditor.js"))) {
-        try {
-          const ckeditorPath = path.resolve(
-            __dirname,
-            "../../node_modules/ckeditor5/dist/browser/ckeditor5.umd.js",
-          );
-          const jsBuf = fs.readFileSync(ckeditorPath);
-          res.writeHead(200, {
-            "Content-Type": "application/javascript",
-            "Content-Length": jsBuf.length,
-          });
-          res.end(jsBuf);
-          return;
-        } catch {
-          // Fall through to default HTML response.
-        }
-      }
-
-      if (req.url && req.url.includes("ckeditor5.css")) {
-        try {
-          const ckeditorCssPath = path.resolve(
-            __dirname,
-            "../../node_modules/ckeditor5/dist/browser/ckeditor5.css",
-          );
-          const cssBuf = fs.readFileSync(ckeditorCssPath);
-          res.writeHead(200, {
-            "Content-Type": "text/css; charset=utf-8",
-            "Content-Length": cssBuf.length,
-          });
-          res.end(cssBuf);
-          return;
-        } catch {
-          // Fall through to default HTML response.
-        }
-      }
-
-      const buf = Buffer.from(domainTestHtml, "utf8");
-      res.writeHead(200, {
-        "Content-Type": "text/html; charset=utf-8",
-        "Content-Length": buf.length,
-      });
-      res.end(buf);
-    });
-
-    await new Promise<void>((resolve, reject) => {
-      domainTestServer.once("error", reject);
-      domainTestServer.listen(0, "127.0.0.1", () => {
-        domainTestServer.off("error", reject);
-        resolve();
-      });
-    });
-
-    const address = domainTestServer.address();
-    if (!address || typeof address === "string") {
-      throw new Error("Failed to start domain test server");
-    }
-    domainTestUrl = `http://${TEST_HOST}:${address.port}/`;
-
-    await applySettings(worker, STATIC_DEFAULT_SETTINGS);
-    await sendConfigChange(browser, worker);
-    settingsDirty = false;
+    await setSettings(worker, STATIC_DEFAULT_SETTINGS);
+    await notifyConfigChange(browser, worker);
+    takeSettingsWritten();
   }, 60000);
 
   beforeEach(async () => {
-    worker = await ensureWorker(browser, worker);
-    if (settingsDirty) {
-      await applySettings(worker, PER_TEST_RESET_SETTINGS);
-      await sendConfigChange(browser, worker);
-      settingsDirty = false;
+    worker = await ensureWorker(browser, worker, WORKER_TIMEOUT_MS);
+    if (takeSettingsWritten()) {
+      await setSettings(worker, PER_TEST_RESET_SETTINGS);
+      await notifyConfigChange(browser, worker);
+      takeSettingsWritten();
     }
     // Worker recovery and storage reset each have their own bounded waits;
     // the hook must allow both before Bun tears down the shared browser.
   }, 15000);
 
   afterAll(async () => {
-    if (domainTestServer?.listening) {
-      await new Promise<void>((resolve, reject) => {
-        domainTestServer.close((error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve();
-        });
-      });
-    }
+    await testPageServer?.stop();
     await closePageSafely(page);
     if ("isClosed" in worker && typeof worker.isClosed === "function") {
       await closePageSafely(worker);
@@ -992,7 +251,6 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
     } catch {
       // Ignore teardown races during browser shutdown.
     }
-    activeBrowserForWorkerRecovery = null;
   }, 30000);
 
   test(
@@ -1097,15 +355,15 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "fresh install suggestion popup keeps the default opaque theme",
     async () => {
-      await clearSettingsAndWait(worker, SUGGESTION_THEME_SETTING_KEYS);
-      await sendConfigChange(browser, worker);
+      await removeSettings(worker, Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS));
+      await notifyConfigChange(browser, worker);
 
       page = await prepareReusableTestPage(browser, page);
 
       await typeInInput(page, "#test-input", "h");
-      await waitForSuggestionTexts(page);
+      await waitForVisibleSuggestionTexts(page);
 
-      const themeSnapshot = await getVisibleSuggestionThemeSnapshot(page);
+      const themeSnapshot = await waitForVisibleSuggestionMenu(page);
 
       expect(themeSnapshot.overrideCssText).toContain(
         `--suggestion-bg-light: ${DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionBgLight}`,
@@ -1129,7 +387,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "options workspace localizes shell copy and honors deep links",
     async () => {
-      await setSettingAndWait(worker, KEY_EXTENSION_LANGUAGE, "fr_FR");
+      await setSetting(worker, KEY_EXTENSION_LANGUAGE, "fr_FR");
 
       if (isFirefox()) {
         await worker.evaluate(() => {
@@ -1173,7 +431,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           });
           await optionsPage.close();
         }
-        await setSettingAndWait(worker, KEY_EXTENSION_LANGUAGE, "auto_detect");
+        await setSetting(worker, KEY_EXTENSION_LANGUAGE, "auto_detect");
       }
     },
     suiteTimeout(8000, 14000),
@@ -1273,12 +531,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "grammar rule matrix groups rules, searches them, and restores defaults",
     async () => {
-      await setSettingAndWait(
-        worker,
-        KEY_ENABLED_GRAMMAR_RULES,
-        grammarRuleSelectionToOverrides([]),
-      );
-      await sendConfigChange(browser, worker);
+      await setSetting(worker, KEY_ENABLED_GRAMMAR_RULES, grammarRuleSelectionToOverrides([]));
+      await notifyConfigChange(browser, worker);
 
       const optionsPage = await openOptionsPage(browser, worker);
       try {
@@ -1345,7 +599,6 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         expect(probe.noMatchRows).toBe(0);
         expect(probe.noResultsVisible).toBe(true);
         expect(probe.typingOnAfter).toBe(DEFAULT_CURRENT_GRAMMAR_RULES.length);
-        settingsDirty = true;
       } finally {
         if (!optionsPage.isClosed()) {
           await optionsPage.close();
@@ -1361,7 +614,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           );
           return value && !Array.isArray(value) && Object.keys(value).length === 0 ? value : false;
         },
-        { timeoutMs: suiteTimeout(5000, 10000), intervalMs: 50 },
+        { timeoutMs: suiteTimeout(5000, 10000) },
       );
       expect(resolveGrammarRuleSelection(stored).sort()).toEqual(
         [...DEFAULT_CURRENT_GRAMMAR_RULES].sort(),
@@ -1373,9 +626,9 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "domain whitelist enables predictions for exact host",
     async () => {
-      await setSettingAndWait(worker, KEY_DOMAIN_LIST_MODE, "whiteList");
-      await setSettingAndWait(worker, "domainBlackList", ["[", TEST_HOST]);
-      await sendConfigChange(browser, worker);
+      await setSetting(worker, KEY_DOMAIN_LIST_MODE, "whiteList");
+      await setSetting(worker, "domainBlackList", ["[", TEST_HOST]);
+      await notifyConfigChange(browser, worker);
 
       page = await prepareReusableTestPage(browser, page);
 
@@ -1394,7 +647,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       const element = await page.$("#test-input");
       await element!.type("h");
 
-      const [firstSuggestion] = await waitForSuggestionTexts(page);
+      const [firstSuggestion] = await waitForVisibleSuggestionTexts(page);
       expect(firstSuggestion?.toLowerCase()).toMatch(/^h\S*[ \xa0]$/);
 
       await page.keyboard.press("Tab");
@@ -1407,8 +660,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "prediction popup does not inject a delayed space after accept when insertSpaceAfterAutocomplete is disabled",
     async () => {
-      await setSettingAndWait(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
-      await sendConfigChange(browser, worker);
+      await setSetting(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+      await notifyConfigChange(browser, worker);
 
       page = await prepareReusableTestPage(browser, page);
 
@@ -1416,7 +669,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       const element = await page.$("#test-input");
       await element!.type("h");
 
-      const [firstSuggestion] = await waitForSuggestionTexts(page);
+      const [firstSuggestion] = await waitForVisibleSuggestionTexts(page);
       expect(firstSuggestion?.toLowerCase()).toMatch(/^h\S*$/);
 
       await page.keyboard.press("Tab");
@@ -1427,10 +680,10 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       const suffixedValue = await waitUntil(
         "accepted suggestion to append typed suffix without injected space",
         async () => {
-          const current = await page.$eval("#test-input", (el) => (el as HTMLInputElement).value);
+          const current = await page!.$eval("#test-input", (el) => (el as HTMLInputElement).value);
           return current === `${acceptedValue}s` ? current : false;
         },
-        { timeoutMs: suiteTimeout(5000, 8000), intervalMs: 50 },
+        { timeoutMs: suiteTimeout(5000, 8000) },
       );
       expect(suffixedValue).toBe(`${acceptedValue}s`);
     },
@@ -1440,17 +693,17 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "text expansion accepts first suggestion in #test-input",
     async () => {
-      await setSettingAndWait(worker, KEY_ENABLED_LANGUAGES, ["textExpander"]);
-      await setSettingAndWait(worker, KEY_LANGUAGE, "textExpander");
-      await setSettingAndWait(worker, KEY_TEXT_EXPANSIONS, [["asap", "as soon as possible"]]);
-      await sendConfigChange(browser, worker);
+      await setSetting(worker, KEY_ENABLED_LANGUAGES, ["textExpander"]);
+      await setSetting(worker, KEY_LANGUAGE, "textExpander");
+      await setSetting(worker, KEY_TEXT_EXPANSIONS, [["asap", "as soon as possible"]]);
+      await notifyConfigChange(browser, worker);
 
       page = await prepareReusableTestPage(browser, page);
 
       const element = await page.$("#test-input");
       await element!.type("asap");
 
-      const [firstSuggestion] = await waitForSuggestionTexts(page);
+      const [firstSuggestion] = await waitForVisibleSuggestionTexts(page);
       expect(firstSuggestion?.toLowerCase()).toMatch(/^as soon as possible[ \xa0]$/);
 
       await page.keyboard.press("Tab");
@@ -1467,20 +720,20 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "text expansion popup shows duplicate shortcut entries and accepts a non-default selection",
     async () => {
-      await setSettingAndWait(worker, KEY_ENABLED_LANGUAGES, ["textExpander"]);
-      await setSettingAndWait(worker, KEY_LANGUAGE, "textExpander");
-      await setSettingAndWait(worker, KEY_TEXT_EXPANSIONS, [
+      await setSetting(worker, KEY_ENABLED_LANGUAGES, ["textExpander"]);
+      await setSetting(worker, KEY_LANGUAGE, "textExpander");
+      await setSetting(worker, KEY_TEXT_EXPANSIONS, [
         ["asap", "as soon as possible"],
         ["asap", "at some available point"],
       ]);
-      await sendConfigChange(browser, worker);
+      await notifyConfigChange(browser, worker);
 
       page = await prepareReusableTestPage(browser, page);
 
       const element = await page.$("#test-input");
       await element!.type("asap");
 
-      const suggestions = await waitForSuggestionTexts(page);
+      const suggestions = await waitForVisibleSuggestionTexts(page);
       expect(suggestions).toHaveLength(2);
       expect(
         suggestions.some((suggestion) => /^as soon as possible[ \xa0]$/i.test(suggestion)),
@@ -1496,10 +749,10 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       const value = await waitUntil(
         "selected duplicate text expansion to be accepted",
         async () => {
-          const current = await page.$eval("#test-input", (el) => (el as HTMLInputElement).value);
+          const current = await page!.$eval("#test-input", (el) => (el as HTMLInputElement).value);
           return current === selectedSuggestion ? current : false;
         },
-        { timeoutMs: timeoutProfile.suggestionMs, intervalMs: 50 },
+        { timeoutMs: timeoutProfile.suggestionMs },
       );
       expect(value).toBe(selectedSuggestion);
     },
@@ -1509,16 +762,11 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "options config change command updates grammar rules in runtime storage",
     async () => {
-      await setSettingAndWait(
-        worker,
-        KEY_ENABLED_GRAMMAR_RULES,
-        grammarRuleSelectionToOverrides([]),
-      );
-      await sendConfigChange(browser, worker);
+      await setSetting(worker, KEY_ENABLED_GRAMMAR_RULES, grammarRuleSelectionToOverrides([]));
+      await notifyConfigChange(browser, worker);
 
       const optionsPage = await openOptionsPage(browser, worker);
       try {
-        settingsDirty = true;
         await optionsPage.evaluate(
           (key, command, rules) => {
             const storageKey = `store.settings.${key}`;
@@ -1554,7 +802,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           }
           return false;
         },
-        { timeoutMs: suiteTimeout(5000, 10000), intervalMs: 50 },
+        { timeoutMs: suiteTimeout(5000, 10000) },
       );
 
       expect(storedRules).toEqual(
@@ -1648,7 +896,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         document.querySelector("#test-combobox")!.setAttribute("aria-expanded", "true");
       });
       await typeInInput(page, "#test-combobox", "th");
-      expect((await waitForSuggestionTexts(page)).length).toBeGreaterThan(0);
+      expect((await waitForVisibleSuggestionTexts(page)).length).toBeGreaterThan(0);
       await clearInputContent(page, "#test-combobox");
     },
     suiteTimeout(10000, 15000),
@@ -1678,16 +926,16 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "native list input to gain data-suggestion after manual attach",
         async () => {
-          return await page.$eval(
+          return await page!.$eval(
             "#test-native-list",
             (el) => el.hasAttribute("data-suggestion") && document.activeElement === el,
           );
         },
-        { timeoutMs: suiteTimeout(3000, 6000), intervalMs: 50 },
+        { timeoutMs: suiteTimeout(3000, 6000) },
       );
 
       await typeInInput(page, "#test-native-list", "th");
-      const suggestions = await waitForSuggestionTexts(page);
+      const suggestions = await waitForVisibleSuggestionTexts(page);
       expect(suggestions.length).toBeGreaterThan(0);
     },
     suiteTimeout(10000, 15000),
@@ -1720,16 +968,16 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         await waitUntil(
           `${selector} to gain data-suggestion after manual attach`,
           async () => {
-            return await page.$eval(
+            return await page!.$eval(
               selector,
               (el) => el.hasAttribute("data-suggestion") && document.activeElement === el,
             );
           },
-          { timeoutMs: suiteTimeout(3000, 6000), intervalMs: 50 },
+          { timeoutMs: suiteTimeout(3000, 6000) },
         );
 
         await typeInInput(page, selector, "th");
-        const suggestions = await waitForSuggestionTexts(page);
+        const suggestions = await waitForVisibleSuggestionTexts(page);
         expect(suggestions.length).toBeGreaterThan(0);
         await clearInputContent(page, selector);
       }
@@ -1768,21 +1016,21 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "shadow root input to gain data-suggestion",
         async () => {
-          const attached = await page.evaluate(() => {
+          const attached = await page!.evaluate(() => {
             const host = document.querySelector("ft-shadow-test-component");
             return (
               host?.shadowRoot?.querySelector("input")?.hasAttribute("data-suggestion") ?? false
             );
           });
-          return attached ? true : false;
+          return attached;
         },
-        { timeoutMs: timeoutProfile.inputReadyMs, intervalMs: 50 },
+        { timeoutMs: timeoutProfile.inputReadyMs },
       );
 
       // Type and verify the suggestion popup appears.
       await page.keyboard.type("h");
 
-      const suggestions = await waitForSuggestionTexts(page);
+      const suggestions = await waitForVisibleSuggestionTexts(page);
       expect(suggestions.length).toBeGreaterThan(0);
       expect(suggestions[0]?.toLowerCase()).toMatch(/^h\S*/);
     },
@@ -1803,7 +1051,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       });
 
       // Wait long enough for the extension's mutation coalesce cycle to finish.
-      await new Promise<void>((resolve) => setTimeout(resolve, 100));
+      await sleep(100);
 
       // Step 2: Call attachShadow() on the now-stationary host and append an
       // input.  No DOM mutation fires on the parent, so the extension must use
@@ -1827,21 +1075,21 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "late shadow root input to gain data-suggestion",
         async () => {
-          const attached = await page.evaluate(() => {
+          const attached = await page!.evaluate(() => {
             const host = document.getElementById("ft-late-shadow-host");
             return (
               host?.shadowRoot?.querySelector("input")?.hasAttribute("data-suggestion") ?? false
             );
           });
-          return attached ? true : false;
+          return attached;
         },
-        { timeoutMs: timeoutProfile.inputReadyMs, intervalMs: 50 },
+        { timeoutMs: timeoutProfile.inputReadyMs },
       );
 
       // Verify suggestions appear when the user types.
       await page.keyboard.type("h");
 
-      const suggestions = await waitForSuggestionTexts(page);
+      const suggestions = await waitForVisibleSuggestionTexts(page);
       expect(suggestions.length).toBeGreaterThan(0);
       expect(suggestions[0]?.toLowerCase()).toMatch(/^h\S*/);
     },
@@ -1867,7 +1115,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         outerShadow.appendChild(innerHost);
       });
 
-      await new Promise<void>((resolve) => setTimeout(resolve, 100));
+      await sleep(100);
 
       // Step 2: Attach an inner shadow root after the host is already stable in
       // the outer shadow tree, then add an input. The extension must recover the
@@ -1894,7 +1142,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "nested late shadow root input to gain data-suggestion",
         async () => {
-          const attached = await page.evaluate(() => {
+          const attached = await page!.evaluate(() => {
             const outerHost = document.getElementById("ft-nested-shadow-outer-host");
             const innerHost = outerHost?.shadowRoot?.querySelector("#ft-nested-shadow-inner-host");
             return (
@@ -1903,14 +1151,14 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
                 ?.hasAttribute("data-suggestion") ?? false
             );
           });
-          return attached ? true : false;
+          return attached;
         },
-        { timeoutMs: timeoutProfile.inputReadyMs, intervalMs: 50 },
+        { timeoutMs: timeoutProfile.inputReadyMs },
       );
 
       await page.keyboard.type("h");
 
-      const suggestions = await waitForSuggestionTexts(page);
+      const suggestions = await waitForVisibleSuggestionTexts(page);
       expect(suggestions.length).toBeGreaterThan(0);
       expect(suggestions[0]?.toLowerCase()).toMatch(/^h\S*/);
     },
@@ -1935,13 +1183,13 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "disabled input to gain data-suggestion after re-enable",
         async () => {
-          const attached = await page.evaluate(
+          const attached = await page!.evaluate(
             () =>
               document.querySelector("#test-disabled")?.hasAttribute("data-suggestion") ?? false,
           );
-          return attached ? true : false;
+          return attached;
         },
-        { timeoutMs: suiteTimeout(5000, 8000), intervalMs: 50 },
+        { timeoutMs: suiteTimeout(5000, 8000) },
       );
 
       // Verify the full user experience: focus the now-enabled input, type a
@@ -1950,7 +1198,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       const element = await page.$("#test-disabled");
       await element!.type("h");
 
-      const suggestions = await waitForSuggestionTexts(page);
+      const suggestions = await waitForVisibleSuggestionTexts(page);
       expect(suggestions.length).toBeGreaterThan(0);
       expect(suggestions[0]?.toLowerCase()).toMatch(/^h\S*/);
     },
@@ -1960,12 +1208,12 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "review mode fixes a textarea from one snapshot without changing it on start",
     async () => {
-      await setSettingAndWait(
+      await setSetting(
         worker,
         KEY_ENABLED_GRAMMAR_RULES,
-        grammarRuleSelectionToOverrides(RECOMMENDED_CURRENT_GRAMMAR_RULES),
+        grammarRuleSelectionToOverrides(DEFAULT_CURRENT_GRAMMAR_RULES),
       );
-      await sendConfigChange(browser, worker);
+      await notifyConfigChange(browser, worker);
       page = await prepareReusableTestPage(browser, page);
       await waitForInputReady(page, "#test-textarea");
       const original = "i saw teh cat , and their is more.";
@@ -1989,13 +1237,12 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await waitUntil(
         "smoke review fix all",
         async () =>
-          (await page.$eval("#test-textarea", (el) => (el as HTMLTextAreaElement).value)) ===
+          (await page!.$eval("#test-textarea", (el) => (el as HTMLTextAreaElement).value)) ===
           "I saw the cat, and there is more.",
         { timeoutMs: suiteTimeout(4000, 6000) },
       );
       await page.keyboard.press("Escape");
       await waitForReview(page, "smoke review closed", (p) => !p.open);
-      settingsDirty = true;
     },
     suiteTimeout(15000, 22000),
   );

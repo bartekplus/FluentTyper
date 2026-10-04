@@ -1,11 +1,16 @@
 import { startsSentence } from "../../implementations/CapitalizeSentenceStartRule";
 import { damerauLevenshteinDistance } from "../../../editDistance";
-import { isTechnicalToken } from "../../implementations/helpers/GenericRuleShared";
+import {
+  isTechnicalToken,
+  wordKey,
+  wordSet,
+} from "../../implementations/helpers/GenericRuleShared";
 import type { PreparedReview } from "../reviewDiagnostics";
 import {
   applyEdits,
   commonAffixes,
   editTouches,
+  hashText,
   isGraphemeBoundary,
   rangesOverlap,
 } from "../textRanges";
@@ -16,7 +21,7 @@ import {
   type ReviewEdit,
   type TextRange,
 } from "../types";
-import { hashText } from "./segments";
+import { LINE_BREAK_CHAR } from "./segments";
 import type {
   AiChunk,
   AiCorrectionResult,
@@ -139,9 +144,6 @@ function diffTokens(a: readonly Token[], b: readonly Token[]): Hunk[] | null {
 // ---------------------------------------------------------------------------
 // Word classes (English first; a few Polish entries where cheap)
 
-const lower = (word: string) => word.toLowerCase().replace(/’/g, "'");
-const wordSet = (list: string) => new Set(list.trim().split(/\s+/));
-
 /**
  * Negation words. Contractions typed without the apostrophe count too, except
  * "cant" and "wont", which are also real words ("the cant of the roof").
@@ -203,7 +205,7 @@ const NEUTRAL_DETERMINERS = wordSet(`
 
 /** The plural of the pair when one word is the other with a plural ending, else null. */
 function pluralOf(a: string, b: string): string | null {
-  const [x, y] = [lower(a), lower(b)].sort((p, q) => p.length - q.length);
+  const [x, y] = [wordKey(a), wordKey(b)].sort((p, q) => p.length - q.length);
   const flip = y === `${x}s` || y === `${x}es` || (x.endsWith("y") && y === `${x.slice(0, -1)}ies`);
   return flip ? y : null;
 }
@@ -225,7 +227,7 @@ function flipsNounNumber(
   if (!determiner || unit.some((hunk) => index - 2 >= hunk.o0 && index - 2 < hunk.o1)) {
     return false;
   }
-  const word = lower(determiner.text);
+  const word = wordKey(determiner.text);
   const numeric = /^\p{N}+$/u.test(word) ? Number(word) : null;
   const wantsPlural = PLURAL_DETERMINERS.has(word) || (numeric !== null && numeric >= 2);
   const wantsSingular = SINGULAR_DETERMINERS.has(word) || numeric === 1;
@@ -233,9 +235,9 @@ function flipsNounNumber(
   return added.some((token) => {
     const plural = pluralOf(original[index].text, token.text);
     if (plural === null) return false;
-    const becomesPlural = lower(token.text) === plural;
+    const becomesPlural = wordKey(token.text) === plural;
     // "informations" -> "information": an uncountable noun has no plural to choose.
-    if (!becomesPlural && UNCOUNTABLE.has(lower(token.text))) return false;
+    if (!becomesPlural && UNCOUNTABLE.has(wordKey(token.text))) return false;
     return !(wantsPlural && becomesPlural) && !(wantsSingular && !becomesPlural);
   });
 }
@@ -249,7 +251,7 @@ const hasApostrophe = (token: Token) => /\p{L}['’]\p{L}/u.test(token.text);
  * Restoring a missing apostrophe ("dont" -> "don't") is still a correction.
  */
 function formalizes(removed: readonly Token[], added: readonly Token[]): boolean {
-  if (removed.some((token) => INFORMAL.has(lower(token.text)))) return true;
+  if (removed.some((token) => INFORMAL.has(wordKey(token.text)))) return true;
   const before = removed.filter(hasApostrophe).length;
   const after = added.filter(hasApostrophe).length;
   return after < before || (after > before && removed.length > added.length);
@@ -282,7 +284,7 @@ const WORD_GROUPS: readonly (readonly string[])[] = [
   ["it", "its", "itself"],
   ["this", "these"],
   ["that", "those"],
-  ["w", "we", "z", "ze", "o", "na", "do", "od", "po", "za", "się"],
+  ["w", "z", "ze", "o", "na", "od", "po", "za", "się"],
   ["much", "many"],
   ["little", "few"],
   ["less", "fewer"],
@@ -295,7 +297,7 @@ const WORD_GROUPS: readonly (readonly string[])[] = [
   ["nowhere", "anywhere"],
 ];
 /** Words that may be inserted or deleted by a correction (articles, auxiliaries, prepositions). */
-const INSERTABLE = new Set(WORD_GROUPS.slice(0, 5).flat().concat(WORD_GROUPS[15]));
+const INSERTABLE = new Set(WORD_GROUPS.slice(0, 5).flat().concat(WORD_GROUPS[15], "we"));
 
 /** Irregular verb families; an over-regularized form ("buyed") joins its base's family. */
 const IRREGULAR: readonly (readonly string[])[] = [
@@ -395,6 +397,9 @@ function stems(word: string): string[] {
 const foldDiacritics = (word: string) =>
   word.normalize("NFD").replace(/\p{M}/gu, "").replace(/ł/g, "l");
 const bare = (word: string) => word.replace(/['’-]/g, "");
+/** The tokens' text joined and normalized: a word written apart or together compares equal. */
+const joinedKey = (tokens: readonly Token[]) =>
+  bare(wordKey(tokens.map((token) => token.text).join("")));
 
 type CloseKind = "case" | "form" | "spelling";
 
@@ -445,8 +450,8 @@ function dialectPair(x: string, y: string): boolean {
  * edit distance, diacritics). Anything else is a different word (drift).
  */
 function closeKind(a: string, b: string): CloseKind | null {
-  const x = lower(a);
-  const y = lower(b);
+  const x = wordKey(a);
+  const y = wordKey(b);
   if (x === y) return "case";
   if (oppositePolarity(x, y) || dialectPair(x, y)) return null;
   if (bare(x) === bare(y) || foldDiacritics(x) === foldDiacritics(y)) return "spelling";
@@ -475,8 +480,6 @@ function isCorrection(
   const n = removed.length;
   const m = added.length;
   if (n > 8 || m > 8) return false;
-  const joined = (tokens: readonly Token[], from: number) =>
-    bare(lower(tokens[from].text + tokens[from + 1].text));
   const reach = Array.from({ length: n + 1 }, () => new Array<boolean>(m + 1).fill(false));
   reach[0][0] = true;
   for (let i = 0; i <= n; i += 1) {
@@ -485,15 +488,23 @@ function isCorrection(
       if (i < n && j < m && closeKind(removed[i].text, added[j].text)) reach[i + 1][j + 1] = true;
       const span = i < n && j < m ? phrase(i, j) : 0;
       if (span > 0 && j + span <= m) reach[i + 1][j + span] = true;
-      if (i + 1 < n && j < m && joined(removed, i) === bare(lower(added[j].text))) {
+      if (
+        i + 1 < n &&
+        j < m &&
+        joinedKey(removed.slice(i, i + 2)) === joinedKey(added.slice(j, j + 1))
+      ) {
         reach[i + 2][j + 1] = true;
       }
-      if (i < n && j + 1 < m && bare(lower(removed[i].text)) === joined(added, j)) {
+      if (
+        i < n &&
+        j + 1 < m &&
+        joinedKey(removed.slice(i, i + 1)) === joinedKey(added.slice(j, j + 2))
+      ) {
         reach[i + 1][j + 2] = true;
       }
-      const gone = i < n ? lower(removed[i].text) : "";
+      const gone = i < n ? wordKey(removed[i].text) : "";
       if (i < n && (INSERTABLE.has(gone) || movable(gone) || deletable(i))) reach[i + 1][j] = true;
-      const extra = j < m ? lower(added[j].text) : "";
+      const extra = j < m ? wordKey(added[j].text) : "";
       if (j < m && (INSERTABLE.has(extra) || movable(extra))) reach[i][j + 1] = true;
     }
   }
@@ -503,7 +514,6 @@ function isCorrection(
 // ---------------------------------------------------------------------------
 // Segment analysis shared by Correct and Rewrite
 
-const LINE_BREAK = /[\r\n\u2028\u2029]/;
 const PLACEHOLDER_LIKE = /⟦[^⟦⟧]{0,8}⟧|[⟦⟧]/g;
 const QUOTE_CHARS = /["“”„«»‘‚]/;
 const CODE_SYMBOL = /[=<>{}[\]|\\/_*#@~`^$%&+]/;
@@ -571,7 +581,7 @@ function isNameAt(tokens: readonly Token[], starts: readonly boolean[], index: n
 }
 
 function wordsOf(tokens: readonly Token[]): string[] {
-  return tokens.filter((token) => token.kind === "word").map((token) => lower(token.text));
+  return tokens.filter((token) => token.kind === "word").map((token) => wordKey(token.text));
 }
 
 const REQUEST_SUBJECTS = wordSet("you someone somebody anyone anybody we i");
@@ -705,7 +715,7 @@ function diffSegment(
   proposed: string,
 ): SegmentDiff | { reason: AiRejectionReason } {
   const pieces = segmentPieces(prepared.snapshot.text, segment);
-  if (!pieces || LINE_BREAK.test(proposed)) return { reason: "shape" };
+  if (!pieces || LINE_BREAK_CHAR.test(proposed)) return { reason: "shape" };
   const found = proposed.match(PLACEHOLDER_LIKE) ?? [];
   if (
     found.length !== segment.placeholders.length ||
@@ -757,7 +767,7 @@ function hunkEdit(
     quoted.some((region) =>
       start === end
         ? region.start < start && start < region.end
-        : start < region.end && region.start < end,
+        : rangesOverlap({ start, end }, region),
     )
   ) {
     return { ok: false, reason: "quoted" };
@@ -813,9 +823,9 @@ const localEdits = (hunkEdits: ReadonlyArray<{ edit: ReviewEdit; local: TextRang
 
 /**
  * Turns one chunk's parsed Correct-mode output into guarded findings against
- * the prepared snapshot: word-level diff, placeholder restore, protection and
- * scope checks, risk guards (numbers, technical tokens, names, negation,
- * uncertainty, quotes), drift rejection and a reconstruction check.
+ * the prepared snapshot: word-level diff, protection and scope checks, risk
+ * guards (numbers, technical tokens, names, negation, uncertainty, quotes) and
+ * drift rejection. A change that touches a placeholder is rejected.
  *
  * Findings are per change unit: hunks separated by at most one unchanged word
  * ("user paste" -> "a user pastes") form one unit, applied atomically so a
@@ -891,6 +901,12 @@ function afterNumber(tokens: readonly Token[], index: number): boolean {
   return digits(index - 1) || (tokens[index - 1]?.kind === "space" && digits(index - 2));
 }
 
+/** The first token index from `index` in the `step` direction that is not a space. */
+function nonSpace(tokens: readonly Token[], index: number, step: 1 | -1): number {
+  while (tokens[index]?.kind === "space") index += step;
+  return index;
+}
+
 /** The word token before `index`, across one space, or undefined. */
 const wordBefore = (tokens: readonly Token[], index: number) =>
   tokens[index - 1]?.kind === "space" && tokens[index - 2]?.kind === "word"
@@ -922,11 +938,11 @@ function correctUnit(
       hunk.o0 === original.findIndex((token) => token.kind === "word") &&
       first?.kind === "word" &&
       replacement?.kind === "word" &&
-      lower(first.text) === lower(replacement.text) &&
+      wordKey(first.text) === wordKey(replacement.text) &&
       first.text !== replacement.text &&
       !PRONOUN_I.test(replacement.text)
     ) {
-      const source = prepared.snapshot.text.replace(/[\r\n\u2028\u2029]/g, " ");
+      const source = prepared.snapshot.text.split(LINE_BREAK_CHAR).join(" ");
       let contextStart = edit.start;
       // Opening delimiters do not remove sentence evidence, or create it.
       while (contextStart > 0 && /[([\s]/u.test(source[contextStart - 1])) contextStart -= 1;
@@ -972,16 +988,13 @@ function correctUnit(
     const removed = removedIndexes.map((index) => original[index]);
     const added = next.slice(hunk.p0, hunk.p1).filter((token) => token.kind === "word");
     const splitOrJoined =
-      (removed.length === 1 &&
-        added.length === 2 &&
-        bare(lower(removed[0].text)) === bare(lower(added.map((token) => token.text).join("")))) ||
-      (removed.length === 2 &&
-        added.length === 1 &&
-        bare(lower(removed.map((token) => token.text).join(""))) === bare(lower(added[0].text)));
+      ((removed.length === 1 && added.length === 2) ||
+        (removed.length === 2 && added.length === 1)) &&
+      joinedKey(removed) === joinedKey(added);
     if (
       !splitOrJoined &&
       removed.some((before) =>
-        added.some((after) => oppositePolarity(lower(before.text), lower(after.text))),
+        added.some((after) => oppositePolarity(wordKey(before.text), wordKey(after.text))),
       )
     ) {
       return { reason: "negation" };
@@ -996,13 +1009,13 @@ function correctUnit(
     if (removedIndexes.some((index) => isNameAt(original, originalStarts, index))) {
       return { reason: "name" };
     }
-    if (removed.some((token) => prepared.dictionary.has(lower(token.text)))) {
+    if (removed.some((token) => prepared.dictionary.has(wordKey(token.text)))) {
       return { reason: "name" };
     }
     for (let index = hunk.p0; index < hunk.p1; index += 1) {
       if (
         isNameAt(next, proposedStarts, index) &&
-        !removed.some((token) => lower(token.text) === lower(next[index].text))
+        !removed.some((token) => wordKey(token.text) === wordKey(next[index].text))
       ) {
         return { reason: "name" };
       }
@@ -1011,22 +1024,22 @@ function correctUnit(
     // a double comparative ("more slower").
     const deletable = (position: number) => {
       const index = removedIndexes[position];
-      const text = lower(original[index].text);
+      const text = wordKey(original[index].text);
       const before = wordBefore(original, index);
       const after = wordAfter(original, index);
       return (
-        lower(before?.text ?? "") === text ||
-        lower(after?.text ?? "") === text ||
-        ((text === "more" || text === "most") && COMPARATIVE.test(lower(after?.text ?? "")))
+        wordKey(before?.text ?? "") === text ||
+        wordKey(after?.text ?? "") === text ||
+        ((text === "more" || text === "most") && COMPARATIVE.test(wordKey(after?.text ?? "")))
       );
     };
     // Context-bound replacements: "very more slowly" -> "much more slowly",
     // "many equipments" -> "a lot of equipment" (only before an uncountable noun).
     const phrase = (position: number, j: number) => {
       const index = removedIndexes[position];
-      const word = lower(original[index].text);
-      const after = lower(wordAfter(original, index)?.text ?? "");
-      const want = added.slice(j).map((token) => lower(token.text));
+      const word = wordKey(original[index].text);
+      const after = wordKey(wordAfter(original, index)?.text ?? "");
+      const want = added.slice(j).map((token) => wordKey(token.text));
       if (word === "very" && want[0] === "much" && COMPARATIVE_OR_MORE.test(after)) return 1;
       if ((word === "many" || word === "much") && isUncountable(after)) {
         if (want.slice(0, 3).join(" ") === "a lot of") return 3;
@@ -1054,11 +1067,8 @@ function correctUnit(
   if (underlineStart === underlineEnd) {
     // A lone insertion underlines the token it attaches to.
     const hunk = unit[0];
-    const before = original
-      .slice(0, hunk.o0)
-      .reverse()
-      .find((token) => token.kind !== "space");
-    const after = original.slice(hunk.o1).find((token) => token.kind !== "space");
+    const before = original[nonSpace(original, hunk.o0 - 1, -1)];
+    const after = original[nonSpace(original, hunk.o1, 1)];
     if (before && before.kind !== "placeholder") underlineStart = before.start;
     else if (after && after.kind !== "placeholder") underlineEnd = after.end;
     else return { reason: "unsafe-boundary" };
@@ -1132,46 +1142,43 @@ function styleChoice(
 ): boolean {
   const removed = original.slice(hunk.o0, hunk.o1).filter((token) => token.kind !== "space");
   const added = next.slice(hunk.p0, hunk.p1).filter((token) => token.kind !== "space");
-  let before = hunk.o0 - 1;
-  while (original[before]?.kind === "space") before -= 1;
-  let after = hunk.o1;
-  while (original[after]?.kind === "space") after += 1;
+  const before = nonSpace(original, hunk.o0 - 1, -1);
+  const after = nonSpace(original, hunk.o1, 1);
 
   if (removed.length === 0 && added.length === 1 && added[0].text === ",") {
     const word = original[before];
-    if (word?.kind === "word" && starts[before] && INTERJECTIONS.has(lower(word.text))) return true;
+    if (word?.kind === "word" && starts[before] && INTERJECTIONS.has(wordKey(word.text)))
+      return true;
     if (OPENING_QUOTES.test(original[after]?.text ?? "")) return true;
-    if (lower(original[after]?.text ?? "") === "too") {
-      let following = after + 1;
-      while (original[following]?.kind === "space") following += 1;
+    if (wordKey(original[after]?.text ?? "") === "too") {
+      const following = nonSpace(original, after + 1, 1);
       // Paired commas mark additive "too"; "too many" may start the next clause.
-      let proposedAfter = hunk.p1;
-      while (next[proposedAfter]?.kind === "space") proposedAfter += 1;
-      if (lower(next[proposedAfter]?.text ?? "") === "too") {
-        proposedAfter += 1;
-        while (next[proposedAfter]?.kind === "space") proposedAfter += 1;
-        if (next[proposedAfter]?.text === ",") return true;
-      }
+      const proposedAfter = nonSpace(next, hunk.p1, 1);
+      if (
+        wordKey(next[proposedAfter]?.text ?? "") === "too" &&
+        next[nonSpace(next, proposedAfter + 1, 1)]?.text === ","
+      )
+        return true;
       // An unpaired comma is optional only before clause-final "too".
-      if (!original[following] || /^[.!?…]$/.test(original[following].text)) return true;
+      if (!original[following] || SENTENCE_MARK.test(original[following].text)) return true;
     }
   }
   if (removed.length !== 1 || added.length !== 1) return false;
-  const [from, to] = [lower(removed[0].text), lower(added[0].text)];
+  const [from, to] = [wordKey(removed[0].text), wordKey(added[0].text)];
   if (from === to && original[before]?.text === ":") return true;
   const verbPair = VERB_NUMBER_PAIRS.has(`${from} ${to}`) || VERB_NUMBER_PAIRS.has(`${to} ${from}`);
   if (verbPair && (from === "was" || from === "were")) {
     // "If I was you" / "I wish it was": subject, then if/wish/though.
     const subject = wordBefore(original, hunk.o0);
     const index = subject ? original.indexOf(subject) : -1;
-    const trigger = index >= 0 ? lower(wordBefore(original, index)?.text ?? "") : "";
+    const trigger = index >= 0 ? wordKey(wordBefore(original, index)?.text ?? "") : "";
     if (["if", "wish", "wished", "though"].includes(trigger)) return true;
   }
   if (verbPair || pluralOf(from, to) !== null) {
     // Walk back to the verb's subject: a pronoun ends the search.
     for (let index = hunk.o0 - 1; index >= 0; index -= 1) {
       if (original[index].kind !== "word") continue;
-      const word = lower(original[index].text);
+      const word = wordKey(original[index].text);
       if (DUAL_NUMBER_NOUNS.has(word)) return true;
       if (SUBJECT_PRONOUNS.has(word)) return false;
     }
@@ -1341,7 +1348,6 @@ export function rewriteProposal(
   const delta = rewritten.length - source.length;
   return {
     ok: true,
-    style,
     before: source.slice(scope.start, scope.end),
     after: rewritten.slice(scope.start, scope.end + delta),
     edits: edits.sort((a, b) => a.start - b.start),
@@ -1386,7 +1392,7 @@ function rewriteSegment(
   }
   if (
     next.some(
-      (token, at) => isNameAt(next, nextStarts, at) && !originalLower.has(lower(token.text)),
+      (token, at) => isNameAt(next, nextStarts, at) && !originalLower.has(wordKey(token.text)),
     )
   ) {
     return { reason: "name" };

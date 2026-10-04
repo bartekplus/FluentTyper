@@ -4,13 +4,13 @@ import {
   SUGGESTION_MENU_PLACEMENT_ATTR,
   SUGGESTION_MENU_PLACEMENT_LINE_ATTR,
 } from "./SuggestionMenuHost";
-import { MIRROR_LAYOUT_PROPERTIES } from "./InlineSuggestionView";
+import { copyStyles, MIRROR_LAYOUT_PROPERTIES } from "./InlineSuggestionView";
 import {
   NEUTRAL_THEME_SCALE,
   SUGGESTION_POPUP_MAX_WIDTH_PX,
-  THEME_SCALE_REFERENCES,
+  clamp,
   computeSuggestionPopupStyleVars,
-  themeScaleFor,
+  themeScaleFromValues,
   type SuggestionPopupThemeScale,
 } from "@core/domain/suggestionPopup/metrics";
 import {
@@ -25,8 +25,6 @@ interface MenuCoordinates {
   top: number;
   maxHeight: number;
 }
-
-type ThemeLengthProperty = "font-size" | "padding-top" | "padding-left";
 
 /** Styles that lay the menu out invisibly so its natural size can be read. */
 const MENU_MEASURE_STYLES = {
@@ -105,7 +103,6 @@ export class SuggestionPositioningService {
 
   private getTextValueCaretRect(elem: HTMLInputElement | HTMLTextAreaElement): DOMRect | null {
     const position = elem.selectionStart ?? elem.value.length;
-    type MirrorProperty = (typeof MIRROR_LAYOUT_PROPERTIES)[number];
 
     const mirror = document.createElement("div");
     mirror.style.whiteSpace = "pre-wrap";
@@ -118,10 +115,7 @@ export class SuggestionPositioningService {
     document.body.appendChild(mirror);
 
     const computed = window.getComputedStyle(elem);
-    const mirrorStyle = mirror.style as unknown as Record<MirrorProperty, string>;
-    for (const property of MIRROR_LAYOUT_PROPERTIES) {
-      mirrorStyle[property] = computed[property];
-    }
+    copyStyles(mirror, computed, MIRROR_LAYOUT_PROPERTIES);
 
     const beforeSpan = document.createElement("span");
     beforeSpan.textContent = elem.value.substring(0, position);
@@ -175,9 +169,9 @@ export class SuggestionPositioningService {
 
     document.body.removeChild(mirror);
 
-    return this.createRect(
-      this.clamp(caretRect.left, mirrorRect.left, mirrorRect.left + mirrorRect.width),
-      this.clamp(lineBoxTop, mirrorRect.top, mirrorRect.top + mirrorRect.height),
+    return new DOMRect(
+      clamp(caretRect.left, mirrorRect.left, mirrorRect.left + mirrorRect.width),
+      clamp(lineBoxTop, mirrorRect.top, mirrorRect.top + mirrorRect.height),
       0,
       Math.min(mirrorRect.height, lineBoxHeight),
     );
@@ -204,9 +198,9 @@ export class SuggestionPositioningService {
     }
 
     const parentRect = parent.getBoundingClientRect();
-    return this.createRect(
-      this.clamp(rect.left, parentRect.left, parentRect.left + parentRect.width),
-      this.clamp(rect.top, parentRect.top, parentRect.top + parentRect.height),
+    return new DOMRect(
+      clamp(rect.left, parentRect.left, parentRect.left + parentRect.width),
+      clamp(rect.top, parentRect.top, parentRect.top + parentRect.height),
       0,
       Math.min(parentRect.height, rect.height),
     );
@@ -229,7 +223,7 @@ export class SuggestionPositioningService {
     const rawTop = showBelow
       ? rect.bottom + gap
       : rect.top - gap - Math.min(menuDimensions.height, maxHeight);
-    const top = this.clamp(
+    const top = clamp(
       rawTop,
       viewportPadding,
       Math.max(
@@ -241,7 +235,7 @@ export class SuggestionPositioningService {
     // The panel's inline-start edge sits at the caret.
     const isRtl = window.getComputedStyle(elem).direction === "rtl";
     const rawLeft = isRtl ? rect.right - menuDimensions.width : rect.left;
-    const left = this.clamp(
+    const left = clamp(
       rawLeft,
       viewportPadding,
       Math.max(
@@ -337,71 +331,26 @@ export class SuggestionPositioningService {
     }
 
     const rootComputedStyle = window.getComputedStyle(root);
-    const rootFontSizePx = this.resolveFontSizePx(rootComputedStyle.fontSize);
-    const scale = (
-      key: keyof SuggestionPopupThemeScale,
-      variableName: string,
-      property: ThemeLengthProperty,
-    ): number => {
-      const rawThemeValue = rootComputedStyle.getPropertyValue(variableName).trim();
-      if (!rawThemeValue) {
-        return 1;
-      }
-      const toPx = (value: string) =>
-        this.resolveCssLengthPx(
-          value,
-          property,
-          typographyAnchor,
-          rootFontSizePx,
-          contextFontSizePx,
-        );
-      const { reference, min } = THEME_SCALE_REFERENCES[key];
-      return themeScaleFor(toPx(rawThemeValue), toPx(reference), min);
-    };
-
-    return {
-      fontSize: scale("fontSize", "--ft-theme-suggestion-font-size", "font-size"),
-      paddingVertical: scale(
-        "paddingVertical",
-        "--ft-theme-suggestion-padding-vertical",
-        "padding-top",
-      ),
-      paddingHorizontal: scale(
-        "paddingHorizontal",
-        "--ft-theme-suggestion-padding-horizontal",
-        "padding-left",
-      ),
-    };
-  }
-
-  private resolveCssLengthPx(
-    value: string,
-    property: ThemeLengthProperty,
-    typographyAnchor: HTMLElement,
-    rootFontSizePx: number,
-    contextFontSizePx: number,
-  ): number | null {
-    const normalizedValue = value.trim().toLowerCase();
-    if (!normalizedValue) {
-      return null;
-    }
-    if (normalizedValue === "0") {
-      return 0;
-    }
-
-    const match = normalizedValue.match(/^(-?\d*\.?\d+)(px|rem|em)$/);
-    if (match) {
-      const unitPx =
-        match[2] === "px" ? 1 : match[2] === "rem" ? rootFontSizePx : contextFontSizePx;
-      return Number.parseFloat(match[1]) * unitPx;
-    }
-
-    return this.measureCssLengthPx(value, property, typographyAnchor, contextFontSizePx);
+    const themeValue = (name: string) => rootComputedStyle.getPropertyValue(name).trim();
+    return themeScaleFromValues(
+      {
+        fontSize: themeValue("--ft-theme-suggestion-font-size"),
+        paddingVertical: themeValue("--ft-theme-suggestion-padding-vertical"),
+        paddingHorizontal: themeValue("--ft-theme-suggestion-padding-horizontal"),
+      },
+      // An unset theme value keeps scale 1.
+      (value, property) =>
+        value
+          ? this.measureCssLengthPx(value, property, typographyAnchor, contextFontSizePx)
+          : null,
+      this.resolveFontSizePx(rootComputedStyle.fontSize),
+      contextFontSizePx,
+    );
   }
 
   private measureCssLengthPx(
     value: string,
-    property: ThemeLengthProperty,
+    property: string,
     typographyAnchor: HTMLElement,
     contextFontSizePx: number,
   ): number | null {
@@ -442,23 +391,5 @@ export class SuggestionPositioningService {
       return parsed;
     }
     return fontSizePx * 1.35;
-  }
-
-  private clamp(value: number, min: number, max: number): number {
-    return Math.max(min, Math.min(value, max));
-  }
-
-  private createRect(left: number, top: number, width: number, height: number): DOMRect {
-    return {
-      x: left,
-      y: top,
-      left,
-      top,
-      width,
-      height,
-      right: left + width,
-      bottom: top + height,
-      toJSON: () => ({ left, top, width, height }),
-    };
   }
 }

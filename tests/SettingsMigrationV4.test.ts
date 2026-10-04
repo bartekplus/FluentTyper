@@ -1,52 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { migrateSettingsV4 } from "../src/core/application/settings/SettingsMigrationV4";
-import type { SettingsManager } from "../src/core/application/settingsManager";
 import {
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_GRAMMAR_RULES_V1_BACKUP,
   KEY_GRAMMAR_RULES_V1_MIGRATED,
 } from "../src/core/domain/constants";
 import { RECOMMENDED_V1_GRAMMAR_RULES } from "../src/core/domain/grammar/ruleCatalog";
-
-function createMockSettingsManager(
-  seed: Record<string, unknown>,
-): SettingsManager & { store: Record<string, unknown> } {
-  const store = { ...seed };
-  return {
-    store,
-    get: async (key: string) => store[key] as never,
-    getRaw: async (key: string) => store[key] as never,
-    set: async (key: string, value: unknown) => {
-      store[key] = value;
-    },
-    setRaw: async (key: string, value: unknown) => {
-      store[key] = value;
-    },
-    removeRaw: async (key: string) => {
-      delete store[key];
-    },
-  } as unknown as SettingsManager & { store: Record<string, unknown> };
-}
+import { memorySettings } from "./support/fakeSettings";
 
 describe("migrateSettingsV4", () => {
-  test("force-sets recommended v1 grammar rules and stores exact backup once", async () => {
-    const settings = createMockSettingsManager({
-      [KEY_ENABLED_GRAMMAR_RULES]: ["legacyX", "spacingRule", "spacingRule"],
-    });
-
-    await migrateSettingsV4(settings);
-
-    expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(RECOMMENDED_V1_GRAMMAR_RULES);
-    expect(settings.store[KEY_GRAMMAR_RULES_V1_BACKUP]).toEqual([
-      "legacyX",
-      "spacingRule",
-      "spacingRule",
-    ]);
-    expect(settings.store[KEY_GRAMMAR_RULES_V1_MIGRATED]).toBe(true);
-  });
-
   test("is idempotent when migration marker is already set", async () => {
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       [KEY_ENABLED_GRAMMAR_RULES]: ["customRule"],
       [KEY_GRAMMAR_RULES_V1_BACKUP]: ["existingBackup"],
       [KEY_GRAMMAR_RULES_V1_MIGRATED]: true,
@@ -60,7 +24,7 @@ describe("migrateSettingsV4", () => {
   });
 
   test("does not overwrite an existing backup value", async () => {
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       [KEY_ENABLED_GRAMMAR_RULES]: ["spacingRule"],
       [KEY_GRAMMAR_RULES_V1_BACKUP]: ["existingBackup"],
     });
@@ -72,33 +36,30 @@ describe("migrateSettingsV4", () => {
     expect(settings.store[KEY_GRAMMAR_RULES_V1_MIGRATED]).toBe(true);
   });
 
-  test("stores only string entries when existing value is a mixed array", async () => {
-    const settings = createMockSettingsManager({
-      [KEY_ENABLED_GRAMMAR_RULES]: ["spacingRule", 42, "spacingRule"],
-    });
+  test.each([
+    [
+      "an array",
+      ["legacyX", "spacingRule", "spacingRule"],
+      ["legacyX", "spacingRule", "spacingRule"],
+    ],
+    ["a mixed array", ["spacingRule", 42, "spacingRule"], ["spacingRule", "spacingRule"]],
+    ["not an array", "spacingRule", []],
+  ])(
+    "force-sets recommended v1 grammar rules and backs up the string entries when the stored value is %s",
+    async (_case, stored, backup) => {
+      const settings = memorySettings({ [KEY_ENABLED_GRAMMAR_RULES]: stored });
 
-    await migrateSettingsV4(settings);
+      await migrateSettingsV4(settings);
 
-    expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(RECOMMENDED_V1_GRAMMAR_RULES);
-    expect(settings.store[KEY_GRAMMAR_RULES_V1_BACKUP]).toEqual(["spacingRule", "spacingRule"]);
-    expect(settings.store[KEY_GRAMMAR_RULES_V1_MIGRATED]).toBe(true);
-  });
-
-  test("stores empty backup when existing value is not an array", async () => {
-    const settings = createMockSettingsManager({
-      [KEY_ENABLED_GRAMMAR_RULES]: "spacingRule",
-    });
-
-    await migrateSettingsV4(settings);
-
-    expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(RECOMMENDED_V1_GRAMMAR_RULES);
-    expect(settings.store[KEY_GRAMMAR_RULES_V1_BACKUP]).toEqual([]);
-    expect(settings.store[KEY_GRAMMAR_RULES_V1_MIGRATED]).toBe(true);
-  });
+      expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(RECOMMENDED_V1_GRAMMAR_RULES);
+      expect(settings.store[KEY_GRAMMAR_RULES_V1_BACKUP]).toEqual(backup);
+      expect(settings.store[KEY_GRAMMAR_RULES_V1_MIGRATED]).toBe(true);
+    },
+  );
 
   test("preserves custom grammar selection when it no longer uses legacy rule ids", async () => {
     const customSelection = ["commaPeriodSpacing", "duplicatePunctuationCollapse"];
-    const settings = createMockSettingsManager({
+    const settings = memorySettings({
       [KEY_ENABLED_GRAMMAR_RULES]: customSelection,
     });
 

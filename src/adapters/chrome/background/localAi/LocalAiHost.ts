@@ -14,11 +14,8 @@ import {
 import { AI_PROMPT_VERSION } from "@core/domain/grammar/review/ai/prompts";
 import { isObjectRecord } from "@core/domain/guards";
 import { validateAiRequest } from "@core/domain/grammar/review/ai/parse";
-import type {
-  AiErrorCode,
-  AiGenerationOutcome,
-  AiGenerationRequest,
-} from "@core/domain/grammar/review/ai/types";
+import type { AiErrorCode, AiGenerationOutcome } from "@core/domain/grammar/review/ai/types";
+import { serialQueue } from "@core/domain/serialQueue";
 import { JobScheduler, type ScheduledJob } from "./JobScheduler";
 import type { LoadResult, LocalAiEngine } from "./LocalAiEngine";
 
@@ -107,9 +104,6 @@ function sanitizeOutcome(outcome: AiGenerationOutcome): AiGenerationOutcome {
 type LoadFailure = Exclude<LoadResult, { ok: true }>;
 
 function loadFailureCode(result: LoadFailure): AiErrorCode {
-  if (result.unavailable) {
-    return "unavailable";
-  }
   return result.error === "cache-failed" ? "not-installed" : "engine-failed";
 }
 
@@ -133,7 +127,7 @@ export class LocalAiHost {
   /** The current `error` came from a failed probe (a later good probe clears it). */
   private probeFailed = false;
   private interruptRunning: (() => void) | null = null;
-  private lock: Promise<unknown> = Promise.resolve();
+  private readonly exclusive = serialQueue();
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
   private lastState = "";
@@ -199,12 +193,6 @@ export class LocalAiHost {
 
   // ------------------------------------------------------------ explicit actions
 
-  private exclusive<T>(work: () => Promise<T>): Promise<T> {
-    const run = this.lock.then(work);
-    this.lock = run.catch(() => undefined);
-    return run;
-  }
-
   /**
    * Probe support and, for the current model, what is cached. A request joins a
    * refresh still waiting for the lock (it will read the latest state when it runs);
@@ -226,7 +214,7 @@ export class LocalAiHost {
           this.install = await this.engine.cacheState(this.stateModelId);
           if (this.install === "complete" && this.config?.model?.modelId === this.stateModelId) {
             // Retries a replaced tier's cleanup that failed (e.g. after a restart).
-            await this.removeOtherTiers(this.stateModelId);
+            await this.engine.deleteAllExcept(this.stateModelId).catch(() => undefined);
           }
         }
         if (this.probeFailed) {
@@ -274,7 +262,7 @@ export class LocalAiHost {
           const unavailable = await this.engine.probe(modelId);
           this.unavailable = unavailable ?? undefined;
           if (unavailable) {
-            result = { ok: false, unavailable };
+            result = { ok: false };
           } else {
             this.activity = "downloading";
             this.setProgress(0);
@@ -288,7 +276,9 @@ export class LocalAiHost {
               this.options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS,
             );
             this.loadedModelId = result.ok ? modelId : null;
-            if (result.ok) await this.removeOtherTiers(modelId);
+            // Consent names one model, so other cached models are unusable. A refusal
+            // leaves them for the next refresh to retry.
+            if (result.ok) await this.engine.deleteAllExcept(modelId).catch(() => undefined);
           }
         }
       } catch {
@@ -307,15 +297,6 @@ export class LocalAiHost {
     } else {
       this.settle();
     }
-  }
-
-  /**
-   * Consent names one model, so any other cached model (another tier, or a revision a
-   * release dropped from the registry) is unusable: it goes. A refusal
-   * leaves them for the next refresh to retry (Delete here would remove the current model).
-   */
-  private async removeOtherTiers(modelId: string): Promise<void> {
-    await this.engine.deleteAllExcept(modelId).catch(() => undefined);
   }
 
   /** Aborts the download; a file cut short is never marked verified. */
@@ -428,12 +409,7 @@ export class LocalAiHost {
       this.dropPort(port);
       return;
     }
-    let request: AiGenerationRequest | null;
-    try {
-      request = validateAiRequest(message.request);
-    } catch {
-      request = null;
-    }
+    const request = validateAiRequest(message.request);
     const modelId = this.config?.model?.modelId ?? "";
     if (!request) {
       this.postResult(port, requestId, modelId, { ok: false, error: "invalid-request" });
@@ -454,8 +430,7 @@ export class LocalAiHost {
   }
 
   private cancelRequest(port: PortLike, requestId: string): void {
-    const cancelled = this.scheduler.cancel(port, requestId);
-    if (!cancelled) {
+    if (!this.scheduler.cancel(port, requestId)) {
       return;
     }
     this.postResult(port, requestId, this.config?.model?.modelId ?? "", {
@@ -601,6 +576,11 @@ export class LocalAiHost {
     if (job.cancelled) {
       return;
     }
+    if (modelId && blocker === "wait") {
+      // A refresh or an install started after pump: run the job after that work.
+      this.scheduler.requeue(job);
+      return;
+    }
     if (!modelId || blocker) {
       this.deliver(job, {
         ok: false,
@@ -677,10 +657,6 @@ export class LocalAiHost {
   }
 
   private onLoadFailure(result: LoadFailure): void {
-    if (result.unavailable) {
-      this.unavailable = result.unavailable;
-      return;
-    }
     this.error = result.error;
     if (result.error === "cache-failed") {
       // Missing files are not a failed save: the partial-install status explains recovery.

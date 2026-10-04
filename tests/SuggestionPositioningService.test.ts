@@ -6,6 +6,7 @@ import {
   SUGGESTION_POPUP_LETTER_SPACING,
   SUGGESTION_POPUP_TEXT_TRANSFORM,
 } from "../src/core/domain/suggestionPopup/typography";
+import { createEditor, setCaret } from "./codeContextTestUtils";
 import { createRect } from "./suggestionTestUtils";
 
 class CaretPositioningService extends SuggestionPositioningService {
@@ -23,12 +24,6 @@ describe("SuggestionPositioningService", () => {
   let originalRangeRectDescriptor: PropertyDescriptor | undefined;
 
   beforeEach(() => {
-    document.body.innerHTML = "";
-    document.getElementById("fluent-typer-theme-overrides")?.remove();
-    document.documentElement.style.removeProperty("--ft-theme-suggestion-font-size");
-    document.documentElement.style.removeProperty("--ft-theme-suggestion-padding-vertical");
-    document.documentElement.style.removeProperty("--ft-theme-suggestion-padding-horizontal");
-    window.getSelection()?.removeAllRanges();
     if (rangeCtor) {
       originalRangeRectDescriptor = Object.getOwnPropertyDescriptor(
         rangeCtor.prototype,
@@ -39,10 +34,6 @@ describe("SuggestionPositioningService", () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-    document.getElementById("fluent-typer-theme-overrides")?.remove();
-    document.documentElement.style.removeProperty("--ft-theme-suggestion-font-size");
-    document.documentElement.style.removeProperty("--ft-theme-suggestion-padding-vertical");
-    document.documentElement.style.removeProperty("--ft-theme-suggestion-padding-horizontal");
     if (rangeCtor) {
       if (originalRangeRectDescriptor) {
         Object.defineProperty(
@@ -55,8 +46,6 @@ describe("SuggestionPositioningService", () => {
           .getBoundingClientRect;
       }
     }
-    window.getSelection()?.removeAllRanges();
-    document.body.innerHTML = "";
   });
 
   test("positions menu when caret rect exists", () => {
@@ -171,27 +160,10 @@ describe("SuggestionPositioningService", () => {
   test("keeps popup typography product-owned while adapting its size to the active text node", () => {
     const service = new SuggestionPositioningService();
     const menu = document.createElement("div");
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      '<span style="font-size: 18px; font-family: Georgia; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase;">Hello</span>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
-
-    const textNode = editable.querySelector("span")?.firstChild as Text | null;
-    if (!textNode) {
-      throw new Error("Expected text node");
-    }
-
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Expected selection");
-    }
-    const range = document.createRange();
-    range.setStart(textNode, textNode.textContent?.length ?? 0);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    const editable = createEditor(
+      '<span style="font-size: 18px; font-family: Georgia; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase;">Hello</span>',
+    );
+    setCaret(editable.querySelector("span")!.firstChild!);
 
     service.syncMenuTypography(menu, editable);
 
@@ -349,22 +321,10 @@ describe("SuggestionPositioningService", () => {
     const insertNodeSpy = jest.spyOn(rangeCtor.prototype, "insertNode");
 
     const service = new SuggestionPositioningService();
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.appendChild(document.createTextNode("hello"));
-    document.body.appendChild(editable);
-
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Selection API unavailable");
-    }
-
-    const range = document.createRange();
+    const editable = createEditor("hello");
     const textNode = editable.firstChild as Text;
-    range.setStart(textNode, 2);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    setCaret(textNode, 2);
+    const selection = window.getSelection()!;
 
     const rect = service.getCaretRect(editable);
 
@@ -486,22 +446,10 @@ describe("SuggestionPositioningService", () => {
     });
 
     const service = new SuggestionPositioningService();
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.appendChild(document.createTextNode("hello"));
-    document.body.appendChild(editable);
-
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Selection API unavailable");
-    }
-
-    const range = document.createRange();
+    const editable = createEditor("hello");
     const textNode = editable.firstChild as Text;
-    range.setStart(textNode, 2);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    setCaret(textNode, 2);
+    const selection = window.getSelection()!;
 
     expect(service.getCaretRect(editable)).toMatchObject({
       left: 10,

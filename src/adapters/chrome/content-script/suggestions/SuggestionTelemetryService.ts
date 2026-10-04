@@ -12,17 +12,7 @@ interface SuggestionTelemetryServiceOptions {
 }
 
 export class SuggestionTelemetryService implements SuggestionTelemetry {
-  private readonly sendMessage: NonNullable<SuggestionTelemetryServiceOptions["sendMessage"]>;
-  private readonly readLastError: () => unknown;
-
-  constructor(options: SuggestionTelemetryServiceOptions = {}) {
-    this.sendMessage =
-      options.sendMessage ??
-      ((message, callback) => {
-        chrome.runtime.sendMessage(message, callback);
-      });
-    this.readLastError = options.readLastError ?? (() => chrome.runtime.lastError);
-  }
+  constructor(private readonly options: SuggestionTelemetryServiceOptions = {}) {}
 
   public recordSuggestionShown(args: { suggestionCount: number; language: string }): void {
     this.emitUsageEvent({
@@ -69,9 +59,10 @@ export class SuggestionTelemetryService implements SuggestionTelemetry {
   }
 
   private emitUsageEvent(context: ContentScriptUsageEventContext): void {
-    sendFireAndForget(this.sendMessage, this.readLastError, {
-      command: CMD_CONTENT_SCRIPT_USAGE_EVENT,
-      context,
-    });
+    sendFireAndForget(
+      { command: CMD_CONTENT_SCRIPT_USAGE_EVENT, context },
+      this.options.sendMessage,
+      this.options.readLastError,
+    );
   }
 }

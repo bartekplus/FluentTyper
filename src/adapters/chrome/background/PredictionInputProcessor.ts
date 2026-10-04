@@ -24,17 +24,13 @@ export const MIN_WORD_LENGTH_TO_PREDICT = 1;
 // 200k-char run cost Presage ~1 s per keystroke), so bound the raw input too.
 export const MAX_PREDICTION_INPUT_CHARS = 512;
 
+const WHITESPACE_REGEX = /\s+/;
+
 export class PredictionInputProcessor {
-  readonly separatorCharRegex: RegExp;
-  readonly keepPredCharRegex: RegExp;
-  readonly whiteSpaceRegex: RegExp;
   readonly minWordLengthToPredict: number;
   readonly autoCapitalize: boolean;
 
   constructor(minWordLengthToPredict = MIN_WORD_LENGTH_TO_PREDICT, autoCapitalize = true) {
-    this.separatorCharRegex = RegExp(DEFAULT_SEPARATOR_CHARS_REGEX);
-    this.keepPredCharRegex = KEEP_PREDICTION_TOKEN_CHARS_REGEX;
-    this.whiteSpaceRegex = /\s+/;
     this.minWordLengthToPredict = minWordLengthToPredict;
     this.autoCapitalize = autoCapitalize;
   }
@@ -71,9 +67,8 @@ export class PredictionInputProcessor {
     if (isNumber(lastWord) || lastWord.length < this.minWordLengthToPredict) {
       return false;
     }
-    const separatorMatches = lastWord.match(this.separatorCharRegex) || [];
-    const keepMatches = lastWord.match(this.keepPredCharRegex) || [];
-    return separatorMatches.length === keepMatches.length;
+    // processInput splits lastWord on the keep characters, so any separator left stops it.
+    return !DEFAULT_SEPARATOR_CHARS_REGEX.test(lastWord);
   }
 
   private normalizeAdditionalSeparators(value: string, language: string): string {
@@ -103,7 +98,7 @@ export class PredictionInputProcessor {
       language,
     );
     return extractPredictionTokenSuffix(normalizedAfterCursor, (char) =>
-      this.separatorCharRegex.test(char),
+      DEFAULT_SEPARATOR_CHARS_REGEX.test(char),
     );
   }
 
@@ -138,7 +133,7 @@ export class PredictionInputProcessor {
       -MAX_PREDICTION_INPUT_CHARS,
     );
     const lastWordsArray = predictionInputWithCurrentWord
-      .split(this.whiteSpaceRegex)
+      .split(WHITESPACE_REGEX)
       .filter((e) => e.trim())
       .slice(-PAST_WORDS_COUNT);
     const { wordArray, newSentence } = this.removePrevSentence(lastWordsArray);
@@ -146,7 +141,7 @@ export class PredictionInputProcessor {
     const lastWordRaw = lastWordsArray.length ? lastWordsArray[lastWordsArray.length - 1] : "";
     const lastWord =
       lastWordRaw
-        .split(this.keepPredCharRegex)
+        .split(KEEP_PREDICTION_TOKEN_CHARS_REGEX)
         .filter((e) => e.trim())
         .pop() || "";
     const doCapitalize = checkAutoCapitalize({

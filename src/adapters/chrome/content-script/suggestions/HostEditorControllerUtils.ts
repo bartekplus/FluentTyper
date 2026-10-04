@@ -1,3 +1,5 @@
+import type { HostEditorBlockReplacement } from "./HostEditorBridgeProtocol";
+
 interface LineEditorCursor {
   line: number;
   ch: number;
@@ -59,7 +61,7 @@ export function findLineEditorController(elem: HTMLElement): LineEditorControlle
   return null;
 }
 
-export function readLineEditorCursor(controller: LineEditorController): LineEditorCursor | null {
+function readLineEditorCursor(controller: LineEditorController): LineEditorCursor | null {
   const cursor = controller.getCursor();
   if (
     !cursor ||
@@ -117,4 +119,71 @@ export function syncBackingSelection(
   } catch {
     // Ignore selection sync failures on hidden backing inputs.
   }
+}
+
+/** Checks that the replace range fits the block and the caret fits the new text. */
+export function isValidBlockReplacement(
+  blockText: string,
+  request: Pick<
+    HostEditorBlockReplacement,
+    "replaceStart" | "replaceEnd" | "replacementText" | "cursorAfter"
+  >,
+): boolean {
+  const { replaceStart, replaceEnd, replacementText, cursorAfter } = request;
+  return (
+    Number.isSafeInteger(replaceStart) &&
+    Number.isSafeInteger(replaceEnd) &&
+    Number.isSafeInteger(cursorAfter) &&
+    replaceStart >= 0 &&
+    replaceEnd >= replaceStart &&
+    replaceEnd <= blockText.length &&
+    cursorAfter >= 0 &&
+    cursorAfter <= blockText.length - (replaceEnd - replaceStart) + replacementText.length
+  );
+}
+
+/**
+ * Replaces a range of the caret line, then moves the caret. Refuses when the
+ * caret line, its text or the range is not as expected.
+ */
+export function applyLineEditorReplacement(
+  controller: LineEditorController,
+  backingTarget: HTMLInputElement | HTMLTextAreaElement | null,
+  expectedText: string | null,
+  request: Pick<
+    HostEditorBlockReplacement,
+    "replaceStart" | "replaceEnd" | "replacementText" | "cursorAfter"
+  >,
+): boolean {
+  const { replaceStart, replaceEnd, replacementText, cursorAfter } = request;
+  const cursor = readLineEditorCursor(controller);
+  if (!cursor) {
+    return false;
+  }
+  const blockText = controller.getLine(cursor.line);
+  if (
+    typeof blockText !== "string" ||
+    blockText !== expectedText ||
+    !isValidBlockReplacement(blockText, request)
+  ) {
+    return false;
+  }
+
+  const from = { line: cursor.line, ch: replaceStart };
+  const to = { line: cursor.line, ch: replaceEnd };
+  const selection = { line: cursor.line, ch: cursorAfter };
+  const run = () => {
+    controller.replaceRange(replacementText, from, to, "+input");
+    controller.setCursor(selection);
+  };
+
+  if (typeof controller.operation === "function") {
+    controller.operation(run);
+  } else {
+    run();
+  }
+
+  syncBackingSelection(controller, backingTarget, selection);
+  controller.focus?.();
+  return true;
 }

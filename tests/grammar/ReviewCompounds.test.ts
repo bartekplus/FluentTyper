@@ -1,25 +1,15 @@
 import { expect, test } from "bun:test";
-import {
-  prepareReview,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { spellingCandidates } from "../../src/core/domain/grammar/review/reviewSpelling";
-import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
-import type {
-  ReviewOptions,
-  ReviewSourceSnapshot,
-} from "../../src/core/domain/grammar/review/types";
-import { scan as reviewScan } from "./reviewHarness";
+import {
+  expectChunkSplitParity,
+  expectOneRepair,
+  expectReviewGuards,
+  prepared,
+  review,
+} from "./grammarTestUtils";
 const rule = "englishContextualCompounds";
-function all(
-  text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-  options: Partial<ReviewOptions> = {},
-) {
-  return reviewScan(text, { ...options, snapshot: extra });
-}
-const scan = (text: string) => all(text).filter((d) => d.ruleId === rule);
+const scan = (text: string) => review(text).diagnostics.filter((d) => d.ruleId === rule);
 const repairs: [string, string][] = [
   ["I use this tool everyday.", "I use this tool every day."],
   ["She checks the report everyday.", "She checks the report every day."],
@@ -65,16 +55,9 @@ const repairs: [string, string][] = [
   ["Why can't I login?", "Why can't I log in?"],
 ];
 test.each(repairs)("contextual compounds repair %s", (source, expected) => {
-  const findings = scan(source);
-  expect(findings).toHaveLength(1);
-  const d = findings[0];
-  expect(d.original).toBe(source.slice(d.range.start, d.range.end));
-  expect(d.bulk.eligible).toBe(false);
+  const d = expectOneRepair(scan(source), source, expected, scan);
   expect(d.alternatives).toHaveLength(1);
   expect(d.context.start).toBeLessThan(d.range.start);
-  expect(d.context.end).toBeGreaterThanOrEqual(d.range.end);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
 });
 const valid = [
   "These are everyday tasks.",
@@ -162,19 +145,11 @@ test("native compound findings own spelling spans without touching candidate ord
   for (const [text] of [repairs[0], repairs[12], repairs[24]]) {
     const findings = scan(text);
     const d = findings[0];
-    const prepared = prepareReview(
-      { id: "spell", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        lang: "en_US",
-        enabledRules: [rule],
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    );
-    expect(spellingCandidates(prepared, []).map((c) => c.word)).toContain(d.original);
+    const prep = prepared(text, {}, { enabledRules: [rule] });
+    expect(spellingCandidates(prep, []).map((c) => c.word)).toContain(d.original);
     expect(
       spellingCandidates(
-        prepared,
+        prep,
         findings.map((d) => d.range),
       ).map((c) => c.word),
     ).not.toContain(d.original);
@@ -183,15 +158,13 @@ test("native compound findings own spelling spans without touching candidate ord
 });
 test("compound replacements respect dictionary, read-only segments, language and scope", () => {
   for (const [text] of [repairs[0], repairs[12], repairs[24]]) {
-    const d = scan(text)[0];
-    const only = (extra: Partial<ReviewSourceSnapshot>, options: Partial<ReviewOptions> = {}) =>
-      all(text, extra, { enabledRules: [rule], ...options });
-    expect(only({}, { lang: "fr_FR" })).toEqual([]);
-    expect(only({}, { userDictionary: [d.original] })).toEqual([]);
-    expect(only({ protectedRanges: [{ ...d.range, reason: "code" }] })).toEqual([]);
-    expect(only({ scope: { start: d.range.start + 1, end: d.range.end } })).toEqual([]);
-    expect(only({ scope: d.range })).toHaveLength(1);
-    expect(only({ id: "new" })[0].id).not.toBe(d.id);
+    expectReviewGuards(
+      (text, extra, options) =>
+        review(text, extra, { enabledRules: [rule], ...options }).diagnostics,
+      text,
+      scan(text)[0],
+      { protectedReason: "code" },
+    );
   }
   expect(scan("We need to setup\uFFFC the environment.")).toEqual([]);
   expect(scan("Please\tlogin to continue.")).toHaveLength(1);
@@ -199,21 +172,9 @@ test("compound replacements respect dictionary, read-only segments, language and
 });
 test("compound findings belong to one chunk through Unicode and ordinary quoted prose", () => {
   const text = '😀 Café.\r\nShe said, "Please login to continue." I use this tool everyday.';
-  const prepared = prepareReview(
-    { id: "chunks", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "en_US", enabledRules: [rule], userDictionary: [], insertSpaceAfterAutocomplete: true },
-  );
   const expected = scan(text);
   expect(expected).toHaveLength(2);
-  for (let cut = 1; cut < text.length; cut++) {
-    const raw = [
-      ...scanReviewChunk(prepared, { start: 0, end: cut }).findings,
-      ...scanReviewChunk(prepared, { start: cut, end: text.length }).findings,
-    ].sort((a, b) => a.range.start - b.range.start);
-    expect(raw.map((d) => [d.range, text.slice(d.range.start, d.range.end)])).toEqual(
-      expected.map((d) => [d.range, d.original]),
-    );
-  }
+  expectChunkSplitParity(prepared(text, {}, { enabledRules: [rule] }), text, expected);
 });
 
 test.each([
@@ -221,11 +182,7 @@ test.each([
   ["It solves an every day problem.", "It solves an everyday problem."],
   ["Beyond every day things, it helps.", "Beyond everyday things, it helps."],
 ])("every day before a listed noun joins: %s", (source, expected) => {
-  const [d] = scan(source);
-  expect(scan(source)).toHaveLength(1);
-  expect(d.bulk.eligible).toBe(false);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
+  expectOneRepair(scan(source), source, expected, scan);
 });
 test.each([
   "I run every day routine checks.",

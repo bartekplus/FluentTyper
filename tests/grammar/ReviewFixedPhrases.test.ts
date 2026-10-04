@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review } from "./grammarTestUtils";
 import {
   COMPOUNDS,
   PHRASES,
@@ -14,7 +15,6 @@ import {
 } from "../../src/core/domain/grammar/review/englishPhraseTables";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan as reviewScan } from "./reviewHarness";
 
 const OWN: CatalogRuleId[] = [
   "englishPhraseCorrections",
@@ -23,9 +23,10 @@ const OWN: CatalogRuleId[] = [
   "englishToToo",
   "englishVerbComplements",
 ];
-function scan(text: string, enabledRules: string[] = OWN): ReviewDiagnostic[] {
-  return reviewScan(text, { enabledRules }).filter((d) => OWN.includes(d.ruleId as CatalogRuleId));
-}
+const scan = (text: string, enabledRules: string[] = OWN): ReviewDiagnostic[] =>
+  review(text, {}, { enabledRules }).diagnostics.filter((d) =>
+    OWN.includes(d.ruleId as CatalogRuleId),
+  );
 const previews = (d: ReviewDiagnostic) => d.alternatives.map((a) => a.preview);
 
 const TABLES: [CatalogRuleId, readonly PhraseRow[]][] = [
@@ -47,6 +48,17 @@ test.each(
   expect(findings).toHaveLength(1);
   expect(findings[0].original).toBe(form);
   expect(previews(findings[0])).toEqual(replacements);
+});
+
+// stylePhrasing alone fixes each singular and its plural.
+test.each([
+  ["dir", "directory"],
+  ["dirs", "directories"],
+  ["deref", "dereference"],
+  ["derefs", "dereferences"],
+])("stylePhrasing alone corrects %p", (form, replacement) => {
+  const findings = scan(`Later she said ${form} there.`, ["stylePhrasing"]);
+  expect(findings.map(previews)).toEqual([[replacement]]);
 });
 
 test("no typed form repeats a core or module row, or equals its replacement", () => {

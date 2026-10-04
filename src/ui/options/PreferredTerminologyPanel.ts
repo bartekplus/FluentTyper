@@ -12,8 +12,11 @@ import {
 } from "@core/domain/grammar/review/preferredTerminology";
 import { terminologyText, type TerminologyTextKey } from "./preferredTerminologyMessages";
 import { i18n } from "./fluenttyperI18n";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
+import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js";
 import {
-  bindControlEvents,
+  createButton,
+  createDisclosure,
   createStackField,
   createWorkspaceCard,
   downloadBlob,
@@ -25,48 +28,36 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
   const t = (key: TerminologyTextKey) => terminologyText(key, i18n.lang);
   const { card, body } = createWorkspaceCard(t("terms_title"), t("terms_help"));
   card.id = "preferred-terminology";
-  const status = document.createElement("p");
-  status.setAttribute("role", "status");
-  status.setAttribute("aria-live", "polite");
+  const status = createElement("p", { attributes: { role: "status", "aria-live": "polite" } });
   const button = (label: TerminologyTextKey, action: string, onClick: () => void) => {
-    const el = document.createElement("button");
-    el.type = "button";
-    el.className = "button";
+    const el = createButton(t(label), "button", onClick);
     el.dataset.termsAction = action;
-    el.textContent = t(label);
-    el.addEventListener("click", onClick);
     return el;
   };
-  const input = (name: string, maxLength: number) => {
-    const el = document.createElement("input");
-    el.name = name;
-    el.className = "input";
-    el.maxLength = maxLength;
-    el.required = true;
-    return el;
-  };
+  const input = (name: string, maxLength: number) =>
+    Object.assign(document.createElement("input"), {
+      name,
+      className: "input",
+      maxLength,
+      required: true,
+    });
   const select = <T extends string>(name: string, choices: Array<[T, string]>) => {
     const el = document.createElement("select");
     el.name = name;
 
     for (const [value, label] of choices) {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = label;
-      el.add(option);
+      el.add(new Option(label, value));
     }
     return el;
   };
   const field = (label: string, widget: HTMLElement): HTMLLabelElement => {
     if (widget.tagName === "INPUT" && (widget as HTMLInputElement).type === "checkbox") {
-      const row = document.createElement("label");
-      row.className = "checkbox";
+      const row = createElement("label", { className: "checkbox" });
       row.append(widget, document.createTextNode(` ${label}`));
       return row;
     }
     if (widget.tagName === "SELECT") {
-      const wrapper = document.createElement("div");
-      wrapper.className = "select is-fullwidth";
+      const wrapper = createElement("div", { className: "select is-fullwidth" });
       wrapper.append(widget);
       return createStackField(label, wrapper);
     }
@@ -88,23 +79,16 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
     status.textContent = "";
     return true;
   };
-  const enabled = document.createElement("input");
-  enabled.type = "checkbox";
+  const enabled = createInputElement("checkbox");
   enabled.dataset.termsAction = "enabled";
   enabled.addEventListener("change", () => {
     if (!save({ ...current(), enabled: enabled.checked })) enabled.checked = current().enabled;
   });
   body.append(field(t("terms_enabled"), enabled));
   const list = document.createElement("ul");
-  list.dataset.termsList = "";
   // The entry form stays folded until someone adds, edits or imports terms.
-  const manage = document.createElement("details");
-  manage.className = "settings-disclosure";
-  const manageSummary = document.createElement("summary");
-  manageSummary.textContent = t("terms_add");
-  manage.append(manageSummary);
-  const form = document.createElement("form");
-  form.className = "workspace-section-body";
+  const manage = createDisclosure(t("terms_add"));
+  const form = createElement("form", { className: "workspace-section-body" });
   form.noValidate = true;
   let editingId: string | null = null;
   const source = input("source", 80);
@@ -124,8 +108,7 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
     ["all-prose", t("terms_scope_all")],
     ["selection", t("terms_scope_selection")],
   ]);
-  const entryEnabled = document.createElement("input");
-  entryEnabled.type = "checkbox";
+  const entryEnabled = createInputElement("checkbox");
   entryEnabled.name = "entryEnabled";
   entryEnabled.checked = true;
   for (const [label, widget] of [
@@ -144,13 +127,13 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
     language.value = "en_US";
     entryEnabled.checked = true;
   };
-  const submit = document.createElement("button");
-  submit.type = "submit";
-  submit.className = "button is-primary";
+  const submit = createElement("button", {
+    className: "button is-primary",
+    attributes: { type: "submit" },
+  });
   submit.dataset.termsAction = "save";
   submit.textContent = t("terms_save");
-  const formActions = document.createElement("div");
-  formActions.className = "buttons";
+  const formActions = createElement("div", { className: "buttons" });
   formActions.append(
     submit,
     button("terms_cancel", "cancel", () => {
@@ -187,10 +170,10 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
     list.replaceChildren();
     for (const entry of config.entries) {
       const row = document.createElement("li");
-      row.dataset.termId = entry.id;
       row.className = "workspace-section-body";
-      const text = document.createElement("span");
-      text.textContent = `${entry.source} → ${entry.replacement} (${entry.enabled ? t("terms_on") : t("terms_off")})`;
+      const text = createElement("span", {
+        textContent: `${entry.source} → ${entry.replacement} (${entry.enabled ? t("terms_on") : t("terms_off")})`,
+      });
       const edit = button("terms_edit", "edit", () => {
         editingId = entry.id;
         source.value = entry.source;
@@ -211,8 +194,7 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
         }
       });
       remove.setAttribute("aria-label", `${t("terms_remove")}: ${entry.source}`);
-      const actions = document.createElement("div");
-      actions.className = "buttons";
+      const actions = createElement("div", { className: "buttons" });
       actions.append(edit, remove);
       row.append(text, actions);
       list.append(row);
@@ -257,13 +239,12 @@ export function mountPreferredTerminology(root: HTMLElement, registry: SettingsR
       downloadBlob(
         new Blob([JSON.stringify(result.value, null, 2)], { type: "application/json" }),
         "fluenttyper-terminology.json",
-        1000,
       );
     }),
   );
   body.append(list, manage, status);
   root.append(card);
-  bindControlEvents(control, [["change", render]]);
+  control.addEvent("change", render);
   reset();
   render();
 }

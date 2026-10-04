@@ -22,4 +22,11 @@ describe("options personalization privacy", () => {
     });
     expect(Object.hasOwn(source, PERSONALIZATION_STORAGE_KEY)).toBe(true);
   });
+
+  test.each([[[1, 2]], [null], [42], ["text"]])(
+    "import rejects %p, which is not an object",
+    (value) => {
+      expect(() => sanitizeSettingsImportSnapshot(value)).toThrow(TypeError);
+    },
+  );
 });

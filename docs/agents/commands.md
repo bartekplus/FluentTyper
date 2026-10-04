@@ -14,7 +14,7 @@ bun install --frozen-lockfile
 bun run build
 ```
 
-The output is `build/`. See [browser loading](#local-browser-loading) to try it.
+The output is `build/`. To try it, follow [step 6 of the setup](../../CONTRIBUTING.md#run-the-extension-locally).
 
 | Task                          | Command                            |
 | ----------------------------- | ---------------------------------- |
@@ -30,32 +30,23 @@ The output is `build/`. See [browser loading](#local-browser-loading) to try it.
 | Check development runtime     | `bun run test:e2e:dev`             |
 | Check coverage mapping        | `bun run check:e2e:coverage`       |
 
+`FT_LOG_LEVEL=debug bun run build` sets the default log level (`debug`, `info`, `warn` or `error`). Development builds default to `debug` and production builds to `warn`.
+
 Use the [testing guide](testing.md) to choose additional suites.
-For release work, continue to [versioning](#versioning) and the [quality gate](#quality-gate-required-before-every-pr).
+For release work, continue to [versioning](#versioning).
 
 ## Local AI Review Assets
 
-This section is for maintainers of the optional development feature. See [user-facing availability](../local-ai-review.md).
+This section is for maintainers of optional Local AI Review. See [user-facing availability](../local-ai-review.md).
 
-- Check pinned model files: `bun run probe:local-ai`.
+- Check pinned model files (size, SHA-256, and revision drift): `bun run probe:local-ai`.
 - Check the production artifact: `bun run check:local-ai:artifact [--platform=edge|firefox] [--dir=build]`.
-
-<details>
-<summary>Packaging, pinned files, and runtime checks</summary>
-
-Chrome and Edge builds package the Local AI Review runtime, because Chrome MV3 forbids remotely hosted code: Transformers.js (`@huggingface/transformers`, exact version) and ONNX Runtime's bundle build (JavaScript + WASM glue) bundled into `background.js` (an ES module service worker), and the ONNX Runtime WebGPU `.wasm`, copied unmodified from the `onnxruntime-web` that Transformers.js resolves into `local-ai/ort/`.
-
-- The ONNX Runtime file (`ort-wasm-simd-threaded.asyncify.wasm`) is pinned by SHA-256 and size in `LOCAL_AI_ORT_FILES` (`scripts/check-local-ai-artifact.ts`). `build.ts` fails if `node_modules` holds anything else. When upgrading Transformers.js, review the new runtime, then update that hash. `engineRuntime.ts` points `env.backends.onnx.wasm.wasmPaths` at that file only (a service worker cannot `import()` a separate `.mjs` glue), so the default CDN is never used.
-- Models are data only (ONNX graph, weights, tokenizer, config). They are downloaded after consent from the pinned Hugging Face revisions and files listed in `src/core/domain/localAi/modelRegistry.ts`. `bun run probe:local-ai` re-lists each record's files (size and SHA-256) at the pinned revision, flags drift, and reports whether the repository has moved.
+- Run the production build end to end on a real GPU (opt-in, downloads the model): `bun run test:local-ai:real [--tier=compact] [--plumbing-only]`.
 - License notices: `public/local-ai/THIRD_PARTY_NOTICES.md` and `public/local-ai/ONNXRUNTIME_THIRD_PARTY_NOTICES.txt`.
-- Real-GPU end-to-end run of the production build (opt-in, downloads the model): `bun run test:local-ai:real [--tier=compact] [--plumbing-only]`.
 
-</details>
-
-## Local Browser Loading
-
-- Chrome and Edge: load the unpacked extension from `build/`.
-- Firefox: open `about:debugging`, choose "This Firefox", then load `build/manifest.json`.
+`LOCAL_AI_ORT_FILES` in `scripts/check-local-ai-artifact.ts` pins the ONNX Runtime file (`ort-wasm-simd-threaded.asyncify.wasm`) by SHA-256 and size.
+`build.ts` fails if `node_modules` holds a different file. When you upgrade Transformers.js, review the new runtime, then update that hash.
+For the bundled runtime, `wasmPaths`, and model files, see [Packaging](../local-ai-reference.md#packaging-release-gate).
 
 ## Versioning
 
@@ -85,7 +76,13 @@ With no language, `bun run generate:lexicons` runs the generators for all eight 
 
 The Presage prediction engine reads its configuration from `resources_js/<lang>/presage.xml` and loads language data from packed binary `.data` files in `public/third_party/libpresage/`. The `src/third_party/libpresage/libpresage.js` file embeds metadata (file offsets/sizes) that maps the virtual filesystem to those `.data` files.
 
-**Whenever you change a `presage.xml` file or `resources_js_lang_template/presage.xml`, you must repack:**
+Install the Python packages for the build scripts first:
+
+```
+pip install -r scripts/requirements.txt
+```
+
+After you change a per-language `resources_js/<lang>/presage.xml` file, repack:
 
 ```
 python3 scripts/rebuild_all.py --repack
@@ -108,29 +105,14 @@ After repacking, the following files will be modified and must be committed:
 - `public/third_party/libpresage/*.data`
 - `src/third_party/libpresage/libpresage.js`
 
-> **Note:** `resources_js/<lang>/presage.xml` files are generated from `resources_js_lang_template/presage.xml` during a full rebuild. Always edit the template first, then regenerate per-language files with a full rebuild or by manually applying the same change to all language variants.
+A full rebuild generates each `resources_js/<lang>/presage.xml` from `resources_js_lang_template/presage.xml`.
+After you change the template, run a full rebuild: `python3 scripts/rebuild_all.py`.
+Do not use `--repack` for a template change. It skips the language rebuild, so the change does not get to the per-language files.
+As an alternative, apply the same change to each per-language file, then repack.
 
-## Release-Safe Defaults
+## Before a pull request
 
-- If a change affects runtime behavior, run the expanded e2e suite described in [testing.md](testing.md).
-- If a change affects docs or workflows, keep [`README.md`](../../README.md) and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) aligned with the same command surface.
-
-## Quality Gate (required before every PR)
-
-Run the full check suite and fix all errors before pushing:
-
-```
-bun run check
-```
-
-This runs lint (`oxlint`), format check (`prettier --check`), and TypeScript 7 typecheck in sequence. All three must pass. Do not push a branch with a failing `bun run check`.
-
-## PR Notes
-
-- Summarize the user-visible impact.
-- List the tests you ran.
-- If a change affects runtime behavior, add or update tests.
-- If a change affects UI, include screenshots when they help reviewers.
+Run the [baseline checks](testing.md#baseline-before-a-pr), then follow [Prepare the pull request](../../CONTRIBUTING.md#prepare-the-pull-request).
 
 ---
 

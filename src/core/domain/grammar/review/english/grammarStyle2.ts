@@ -1,28 +1,32 @@
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
+import { englishInitialSound } from "../../implementations/helpers/EnglishInitialSound";
+import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import { englishNounForms } from "../../implementations/helpers/EnglishNounNumber";
-import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import type { PhraseRow } from "../englishPhraseTables";
 import {
+  applyWordCase,
+  detectWordCase,
+  wordSet,
+} from "../../implementations/helpers/GenericRuleShared";
+import { each, type PhraseRow } from "../englishPhraseTables";
+import {
+  before,
   COMPLETE,
   detectPhraseTemplates,
   frameMatches,
+  group,
   hasUserOrCasedWord,
   type PhraseTemplate,
   SPACE,
   WORD_END,
-  wordSet as words,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { gatedMatches, mentions } from "./grammarStyle1";
 import { finding } from "../finding";
 
-/** One row per form: `~` stands for each form in both columns. */
-const each = (forms: readonly string[], typed: string, replacement: string): PhraseRow[] =>
-  forms.map((form) => [typed.replaceAll("~", form), replacement.replaceAll("~", form)]);
 /** Spaced and hyphen-less forms of a hyphenated compound: "blu ray" -> "blu-ray". */
 const hyphenated = (...compounds: string[]): PhraseRow[] =>
   compounds.map((compound) => [compound.replaceAll("-", " "), compound]);
 
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
+/** Rows for englishPhraseCorrections. */
 export const PHRASES: readonly PhraseRow[] = [
   // "very less" is never English: "much less" for an amount, "too little" for too small an amount.
   ["very less", ["much less", "far less", "a lot less"]],
@@ -146,14 +150,14 @@ export const STYLE: readonly PhraseRow[] = [
 ];
 
 // Closed-class word sets; open-class decisions go through the lexicon.
-const DET = words(
+const DET = wordSet(
   "the a an this that these those my your his her its our their each every no another",
 );
-const PRONOUNS = words("i you we they he she it me him us them");
-const AUX = words(
+const PRONOUNS = wordSet("i you we they he she it me him us them");
+const AUX = wordSet(
   "is are was were be been am has have had will would can could should shall may might must do does did",
 );
-const PREPOSITIONS = words(
+const PREPOSITIONS = wordSet(
   "of for about with from into onto at by to on in up out off over back down away under through during after before since until like as than",
 );
 const CLOSED = new Set([
@@ -161,27 +165,22 @@ const CLOSED = new Set([
   ...PRONOUNS,
   ...AUX,
   ...PREPOSITIONS,
-  ...words("and or but so if then there here now not too very also just still all both some any"),
-  ...words("who whom whose which what where when why how forward forwards ahead"),
+  ...wordSet("and or but so if then there here now not too very also just still all both some any"),
+  ...wordSet("who whom whose which what where when why how forward forwards ahead"),
 ]);
-const info = (word: string) => englishWordInfo(word.toLowerCase());
 /** A noun or adjective that is not only a verb; an unlisted lowercase word is a long pure noun. */
 function modifiable(word: string): boolean {
   const lower = word.toLowerCase();
   if (CLOSED.has(lower)) return false;
-  const entry = info(lower);
+  const entry = englishWordInfo(lower);
   if (!entry) return /^[a-z]{3,}$/i.test(word);
   return entry.noun || entry.plural || entry.adjective;
 }
-const hasForm = (word: string, ...forms: string[]) =>
-  info(word)?.verbs.some((verb) => forms.includes(verb.form)) ?? false;
 
 type Range = readonly [number, number];
-type Match = RegExpExecArray;
-const group = (match: Match, name: string) => match.indices!.groups![name] as Range;
-const span = (match: Match): Range => [match.index, match.index + match[0].length];
+const span = (match: RegExpExecArray): Range => [match.index, match.index + match[0].length];
 /** Only spaces, quotes or brackets between a clause boundary and `index`, or `also` matches. */
-function opensClause(ctx: DetectContext, index: number, also?: RegExp): boolean {
+export function opensClause(ctx: DetectContext, index: number, also?: RegExp): boolean {
   const before = ctx.text.slice(Math.max(0, index - 48), index);
   return /(?:^|[.!?;:(\n"“][ \t ]*)$/.test(before) || (also?.test(before) ?? false);
 }
@@ -197,7 +196,6 @@ function casedFinding(
   fix: (typed: string) => string,
   evidence: Range = [start, end],
 ): RawFinding | null {
-  if (start < ctx.from || start >= ctx.to) return null;
   if (hasUserOrCasedWord(ctx, ctx.text.slice(evidence[0], evidence[1]))) return null;
   const typed = ctx.source.slice(start, end);
   const fixed = fix(typed);
@@ -215,25 +213,9 @@ const hyphen = (typed: string) => typed.replace(/[ \t ]+/, "-");
 const join = (typed: string) => typed.replace(/[ \t ]+/, "");
 const NEXT = `${SPACE}(?<next>\\p{L}+)${WORD_END}`;
 
-// A frame scan costs a pass over the chunk; a cheap keyword test on its lowercase text skips most.
-const WINDOWS = new WeakMap<DetectContext, string>();
-function mentions(ctx: DetectContext, key: RegExp): boolean {
-  let text = WINDOWS.get(ctx);
-  if (text === undefined) {
-    text = ctx.scanText.slice(Math.max(0, ctx.from - 256), ctx.to + 64).toLowerCase();
-    WINDOWS.set(ctx, text);
-  }
-  return key.test(text);
-}
-function* scan(
-  ctx: DetectContext,
-  key: RegExp,
-  pattern: string | RegExp,
-  owner?: Parameters<typeof frameMatches>[2],
-): Generator<Match> {
-  if (mentions(ctx, key)) yield* frameMatches(ctx, pattern, owner);
-}
-type KeyedTemplate = PhraseTemplate & { key: RegExp };
+// A frame scan costs a pass over the chunk: a keyword gate skips most chunks. A frame
+// without a key is gated on its own required literal (frameMatches).
+type KeyedTemplate = PhraseTemplate & { key?: RegExp };
 const templates = (
   ctx: DetectContext,
   list: readonly KeyedTemplate[],
@@ -241,21 +223,21 @@ const templates = (
 ) =>
   detectPhraseTemplates(
     ctx,
-    list.filter((template) => mentions(ctx, template.key)),
+    list.filter((template) => !template.key || mentions(ctx, template.key)),
     ruleId,
   );
 
 const SENTENCE_TEMPLATES: readonly KeyedTemplate[] = [
   // "Tell me if there a delay": the clause has lost its verb.
   {
-    key: /there\s+(?:a|an|another)\b/,
+    key: /there\s+(?:a|an|another)\b/giu,
     pattern: `(?:if|when|whenever|whether|because|unless|since|while|until|once)${SPACE}(?<target>there${SPACE})(?=(?:a|an|another)${WORD_END})`,
     replacement: "there is ",
     messageKey: "review_msg_sentence_structure",
   },
   // "I am not be happy": "be" after a finite be-verb and "not".
   {
-    key: /not\s+be\b/,
+    key: /not\s+be\b/giu,
     pattern: `(?:am|is|are|was|were|i['’]m|you['’]re|we['’]re|they['’]re)${SPACE}(?<target>not${SPACE}be)${WORD_END}`,
     replacement: "not",
     messageKey: "review_msg_sentence_structure",
@@ -263,19 +245,18 @@ const SENTENCE_TEMPLATES: readonly KeyedTemplate[] = [
 ];
 const PHRASE_TEMPLATES: readonly KeyedTemplate[] = [
   {
-    key: /likes\b/,
     pattern: `(?:look|looks|looked|looking)${SPACE}(?<target>likes)${WORD_END}`,
     replacement: "like",
     messageKey: "review_msg_phrase_correction",
   },
   {
-    key: /no\s+nothing/,
+    key: /no\s+nothing/giu,
     pattern: `(?:i|you|we|they)${SPACE}(?<target>no)(?=${SPACE}nothing${WORD_END})`,
     replacement: "know",
     messageKey: "review_msg_typo",
   },
   {
-    key: /no\s+nothing/,
+    key: /no\s+nothing/giu,
     pattern: `(?:he|she|it)${SPACE}(?<target>no)(?=${SPACE}nothing${WORD_END})`,
     replacement: "knows",
     messageKey: "review_msg_typo",
@@ -284,7 +265,7 @@ const PHRASE_TEMPLATES: readonly KeyedTemplate[] = [
 const COMPOUND_TEMPLATES: readonly KeyedTemplate[] = [
   // ", where as cats…" contrasts two clauses; "where, as a child, …" is a place.
   {
-    key: /where\s+as\b/,
+    key: /where\s+as\b/giu,
     pattern: `(?=where${SPACE}as)(?<=,${SPACE})(?<target>where${SPACE}as)${SPACE}(?!(?:a|an|the|soon|long|well|much|many|far|if|though|usual|always|before|such|of|to)${WORD_END})`,
     replacement: "whereas",
     messageKey: "review_msg_closed_compound",
@@ -295,13 +276,13 @@ const DOUBLE_NEGATIVE: readonly KeyedTemplate[] = [
   // "I haven't done no harm": the perfect is already negative. "haven't said no" refuses,
   // and "hasn't got no…" is mostly quoted dialect.
   {
-    key: /\bno\b/,
+    key: /\bno\b/giu,
     pattern: `(?:haven['’]t|hasn['’]t|hadn['’]t|(?:have|has|had)${SPACE}(?:not|n['’]t))${SPACE}(?!(?:said|got)${WORD_END})\\p{L}+${SPACE}(?<target>no)${SPACE}${NOT_ANY}`,
     replacement: "any",
     messageKey: "review_msg_double_negative",
   },
   {
-    key: /take\s+no\b/,
+    key: /take\s+no\b/giu,
     pattern: `(?:didn['’]t|did${SPACE}not|don['’]t|do${SPACE}not|doesn['’]t|does${SPACE}not|won['’]t|wouldn['’]t)${SPACE}take${SPACE}(?<target>no)${SPACE}${NOT_ANY}`,
     replacement: "any",
     messageKey: "review_msg_double_negative",
@@ -310,7 +291,7 @@ const DOUBLE_NEGATIVE: readonly KeyedTemplate[] = [
 const STYLE_TEMPLATES: readonly KeyedTemplate[] = [
   // "No thanks" opens with an interjection; "No thanks to you" is a different idiom.
   {
-    key: /no\s+thanks/,
+    key: /no\s+thanks/giu,
     pattern: `(?<target>no)(?=${SPACE}thanks${WORD_END}(?!${SPACE}to${WORD_END}))`,
     replacement: "no,",
     messageKey: "review_msg_style_phrasing",
@@ -320,35 +301,33 @@ const STYLE_TEMPLATES: readonly KeyedTemplate[] = [
 
 /** Names whose spelling or hyphen is fixed, written canonically whatever the typed case. */
 const NAMES: ReadonlyArray<{
-  key: RegExp;
+  key?: RegExp;
   pattern: string;
   name: string;
   ruleId: RawFinding["ruleId"];
   messageKey: RawFinding["messageKey"];
 }> = [
   {
-    key: /nob(?:le|el)\s/,
+    key: /nob(?:le|el)\s/giu,
     pattern: `(?<target>(?:noble|nobel)${SPACE}(?:peace|piece)${SPACE}(?:prize|price|prise))${WORD_END}`,
     name: "Nobel Peace Prize",
     ruleId: "englishPhraseCorrections",
     messageKey: "review_msg_typo",
   },
   {
-    key: /goggle|googol/,
+    key: /goggle|googol/giu,
     pattern: `(?<target>goggle|googol)(?=${SPACE}(?:analytics|maps|slides|forms|drive|search|workspace|photos|docs|mail|calendar|sheets|chrome|cloud|play|translate|meet|earth|scholar|ads|news|books|assistant|lens|fonts)${WORD_END})`,
     name: "Google",
     ruleId: "englishPhraseCorrections",
     messageKey: "review_msg_typo",
   },
   {
-    key: /mercedes/,
     pattern: `(?<target>mercedes${SPACE}benz)${WORD_END}`,
     name: "Mercedes-Benz",
     ruleId: "englishClosedCompounds",
     messageKey: "review_msg_closed_compound",
   },
   {
-    key: /wordpress/,
     pattern: `(?<target>wordpress\\.com)${WORD_END}`,
     name: "WordPress.com",
     ruleId: "englishCanonicalCasing",
@@ -358,10 +337,9 @@ const NAMES: ReadonlyArray<{
 function names(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const { key, pattern, name, ruleId, messageKey } of NAMES) {
-    for (const match of scan(ctx, key, pattern)) {
+    for (const match of key ? gatedMatches(ctx, key, pattern) : frameMatches(ctx, pattern)) {
       const [start, end] = group(match, "target");
       const typed = match.groups!.target;
-      if (start < ctx.from || start >= ctx.to) continue;
       if (typed.split(/[^\p{L}]+/u).some((word) => ctx.dictionary.has(word.toLowerCase())))
         continue;
       if (typed === name) continue;
@@ -378,14 +356,18 @@ function names(ctx: DetectContext): RawFinding[] {
 /** "There after came a second wave": a clause-initial adverb before a verb or auxiliary. */
 function thereAfter(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  for (const match of scan(ctx, /there\s+after/, `(?<target>there${SPACE}after)${NEXT}`)) {
+  for (const match of gatedMatches(
+    ctx,
+    /there\s+after/giu,
+    `(?<target>there${SPACE}after)${NEXT}`,
+  )) {
     if (!opensClause(ctx, match.index, /\b(?:and|but|or|so|then)[ \t ]+$/i)) continue;
     const next = match.groups!.next.toLowerCase();
-    const entry = info(next);
+    const entry = englishWordInfo(next);
     const verbal =
       AUX.has(next) ||
       /^(?:often|then|again|also|only|soon|always|never)$/.test(next) ||
-      (!!entry && !entry.noun && !entry.plural && hasForm(next, "past", "third"));
+      (!!entry && !entry.noun && !entry.plural && hasVerbForm(next, "past", "third"));
     if (!verbal) continue;
     const found = casedFinding(
       ctx,
@@ -400,13 +382,6 @@ function thereAfter(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-/** A noun or adjective after a compound modifier, not a verb: "easy going uphill" stays. */
-const modifierNext = (next: string) => {
-  const entry = info(next);
-  return modifiable(next) && !(entry && !entry.noun && !entry.plural && !entry.adjective);
-};
-const before = (ctx: DetectContext, index: number) =>
-  ctx.text.slice(Math.max(0, index - 16), index);
 const PREVIOUS = /(?:(\p{L}+)[ \t\u00a0]{1,8})?(\p{L}+)[ \t\u00a0]{1,8}$/u;
 /** The two words before `index` on its line, nearest last: [det, prev]. */
 const previous = (ctx: DetectContext, index: number) =>
@@ -415,81 +390,79 @@ const MAKEUP_LEAD =
   /(?<![\p{L}'’])(the|a|my|your|his|her|our|their|this|that)[ \t\u00a0]{1,8}(?:(\p{L}+)[ \t\u00a0]{1,8})?$/iu;
 /** Compound modifiers and nouns written as two words before a noun: "an easy going person". */
 const MODIFIERS: ReadonlyArray<{
-  key: RegExp;
+  key?: RegExp;
   pattern: string;
   fix: (typed: string) => string;
-  check: (ctx: DetectContext, match: Match) => boolean;
+  check: (ctx: DetectContext, match: RegExpExecArray) => boolean;
 }> = [
   {
-    key: /easy\s+going/,
+    key: /easy\s+going/giu,
     pattern: `(?<target>easy${SPACE}going)${NEXT}`,
     fix: hyphen,
-    check: (_ctx, m) => modifierNext(m.groups!.next),
+    check: (_ctx, m) => modifiable(m.groups!.next),
   },
   {
     // "No one handed in…" is a pronoun and a verb.
-    key: /handed/,
     pattern: `(?<target>(?:one|two)${SPACE}handed)${NEXT}`,
     fix: hyphen,
     check: (ctx, m) =>
-      modifierNext(m.groups!.next) &&
-      !/\b(?:no|every|any|each|some)[ \t ]+$/i.test(before(ctx, m.index)),
+      modifiable(m.groups!.next) &&
+      !/\b(?:no|every|any|each|some)[ \t ]+$/i.test(before(ctx, m.index, 16)),
   },
   {
     // "The first person reports to…" is an ordinal phrase before its verb.
-    key: /person/,
     pattern: `(?<target>(?:first|second|third)${SPACE}person)${NEXT}`,
     fix: hyphen,
     check: (ctx, m) =>
-      modifierNext(m.groups!.next) &&
+      modifiable(m.groups!.next) &&
       !(
-        hasForm(m.groups!.next, "third") &&
-        /\b(?:the|a|an|every|each|this|that)[ \t ]+$/i.test(before(ctx, m.index))
+        hasVerbForm(m.groups!.next, "third") &&
+        /\b(?:the|a|an|every|each|this|that)[ \t ]+$/i.test(before(ctx, m.index, 16))
       ),
   },
   {
-    key: /colou?red/,
+    key: /colou?red/giu,
     pattern: `(?<target>(?:rainbow|cream|flesh|straw|honey|rust|copper|bronze|olive|sand)${SPACE}colou?red)${NEXT}`,
     fix: hyphen,
-    check: (_ctx, m) => modifierNext(m.groups!.next),
+    check: (_ctx, m) => modifiable(m.groups!.next),
   },
   {
-    key: /password\s+protected/,
+    key: /password\s+protected/giu,
     pattern: `(?<target>password${SPACE}protected)${NEXT}`,
     fix: hyphen,
-    check: (_ctx, m) => modifierNext(m.groups!.next),
+    check: (_ctx, m) => modifiable(m.groups!.next),
   },
   {
-    // "your self - worth" is a spaced hyphen; "your self" alone is the pronoun.
-    key: /sel(?:f|ves)\b/,
-    pattern: `(?<target>(?:your|him|it)${SPACE}self|(?:your|our|them)${SPACE}selves)${WORD_END}(?![ \\t\\u00a0]*[-–])`,
+    // "your self - worth" is a spaced hyphen; "your self" alone is the pronoun. The other
+    // forms ("him self", "our selves") are phrase rows.
+    key: /your\s+self\b/giu,
+    pattern: `(?<target>your${SPACE}self)${WORD_END}(?![ \\t\\u00a0]*[-–])`,
     fix: join,
     check: () => true,
   },
   {
     // "a ok" in lowercase or capitals; "Is plan A ok?" names an option.
-    key: /\ba\s+ok/,
+    key: /\ba\s+ok/giu,
     pattern: `(?<target>a${SPACE}ok(?:ay)?)${WORD_END}`,
     fix: (typed) => (typed === typed.toUpperCase() ? "A-OK" : "a-ok"),
     check: (_ctx, m) =>
       /^(?:a[ \t\u00a0]+(?:ok|okay)|A[ \t\u00a0]+(?:OK|OKAY))$/.test(m.groups!.target),
   },
   {
-    key: /tomorrows/,
     pattern: `(?<target>tomorrows)${NEXT}`,
     fix: (typed) => typed.replace(/s$/i, "'$&"),
-    check: (_ctx, m) => modifierNext(m.groups!.next),
+    check: (_ctx, m) => modifiable(m.groups!.next),
   },
   {
     // "Prices rose over time" is a phrase; "over time pay" is a noun compound.
-    key: /over\s+time/,
+    key: /over\s+time/giu,
     pattern: `(?<target>over${SPACE}time)${SPACE}(?:pay|wages?|hours|rates?|shifts?|claims?|approvals?|budgets?|details)${WORD_END}`,
     fix: join,
     check: (ctx, m) => !opensClause(ctx, m.index),
   },
   {
     // "Her make up looked great" is a noun; "help her make up a story" is a verb.
-    key: /make\s+up/,
+    key: /make\s+up/giu,
     pattern: `(?<target>make${SPACE}up)(?:${NEXT})?`,
     fix: join,
     check: (ctx, m) => {
@@ -499,7 +472,7 @@ const MODIFIERS: ReadonlyArray<{
       const next = m.groups!.next;
       if (adj) {
         // "the players make up the team" has a plural subject before the verb.
-        const entry = info(adj);
+        const entry = englishWordInfo(adj);
         if (CLOSED.has(adj.toLowerCase()) || entry?.plural) return false;
         if (entry && !entry.adjective && (entry.noun || entry.verbs.length)) return false;
         if (!entry && !/^[a-z]{4,}$/.test(adj)) return false;
@@ -510,7 +483,7 @@ const MODIFIERS: ReadonlyArray<{
   },
   {
     // "a built in feature"; "It was built in Rust" stays.
-    key: /built\s+in/,
+    key: /built\s+in/giu,
     pattern: `(?<target>built${SPACE}in)${NEXT}(?:${SPACE}(?<then>\\p{L}+))?`,
     fix: hyphen,
     check: (ctx, m) => {
@@ -523,14 +496,14 @@ const MODIFIERS: ReadonlyArray<{
         );
       // "provides built in Rust support": a name may modify the noun.
       if (/^\p{Lu}/u.test(next)) return slot && !!then && /^\p{Ll}/u.test(then) && modifiable(then);
-      return slot && modifierNext(next);
+      return slot && modifiable(next);
     },
   },
 ];
 function modifiers(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const { key, pattern, fix, check } of MODIFIERS) {
-    for (const match of scan(ctx, key, pattern)) {
+    for (const match of key ? gatedMatches(ctx, key, pattern) : frameMatches(ctx, pattern)) {
       if (!check(ctx, match)) continue;
       const found = casedFinding(
         ctx,
@@ -549,16 +522,16 @@ function modifiers(ctx: DetectContext): RawFinding[] {
 function doIAdjective(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const pattern = `(?<target>do)${SPACE}I${SPACE}(?:not${SPACE})?(?<adj>\\p{L}+)${WORD_END}(?:${SPACE}(?<after>\\p{L}+))?`;
-  for (const match of scan(ctx, /\bdo\s+i\b/, pattern)) {
+  for (const match of gatedMatches(ctx, /\bdo\s+i\b/giu, pattern)) {
     const { adj, after } = match.groups!;
-    const entry = info(adj);
+    const entry = englishWordInfo(adj);
     if (!entry || entry.adverb || entry.noun || CLOSED.has(adj.toLowerCase())) continue;
     const next = after?.toLowerCase();
     // "Do I ready the boat?" is a verb; "Do I clean it?" too.
-    const ok = hasForm(adj, "base")
+    const ok = hasVerbForm(adj, "base")
       ? entry.adjective && (next === "for" || next === "yet")
       : entry.adjective ||
-        (hasForm(adj, "participle") && (!next || /^(?:in|about|by|with|at|of)$/.test(next)));
+        (hasVerbForm(adj, "participle") && (!next || /^(?:in|about|by|with|at|of)$/.test(next)));
     if (!ok) continue;
     const found = casedFinding(
       ctx,
@@ -578,9 +551,9 @@ const IT_TIME_LEAD =
   /\b(?:if|when|whenever|once|because|since|so|and|but|now|maybe|perhaps|think|thought|guess|believe|suppose|feel|felt|say|said|know|knew|reckon|hope)[ \t ]+$/i;
 function itTime(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  for (const match of scan(
+  for (const match of gatedMatches(
     ctx,
-    /\bit\s+time\b/,
+    /\bit\s+time\b/giu,
     `(?<target>it)${SPACE}time${SPACE}(?:to|for)${WORD_END}`,
   )) {
     if (!opensClause(ctx, match.index, IT_TIME_LEAD)) continue;
@@ -601,16 +574,16 @@ function itTime(ctx: DetectContext): RawFinding[] {
 function youArePredicate(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const pattern = `(?<target>ur|ya|yr)${SPACE}(?:(?<adverb>\\p{L}+ly)${SPACE})?(?<adj>\\p{L}+)${COMPLETE}`;
-  for (const match of scan(ctx, /\b(?:ur|ya|yr)\s/, pattern)) {
+  for (const match of gatedMatches(ctx, /\b(?:ur|ya|yr)\s/giu, pattern)) {
     if (!opensClause(ctx, match.index)) continue;
     const { adverb, adj } = match.groups!;
-    if (adverb && !info(adverb)?.adverb) continue;
-    const entry = info(adj);
+    if (adverb && !englishWordInfo(adverb)?.adverb) continue;
+    const entry = englishWordInfo(adj);
     if (!entry || CLOSED.has(adj.toLowerCase())) continue;
     // "ur barely awake": after an adverb, a verb-like adjective too.
     const predicate =
       entry.adjective ||
-      (!entry.noun && (hasForm(adj, "participle") || (!!adverb && hasForm(adj, "base"))));
+      (!entry.noun && (hasVerbForm(adj, "participle") || (!!adverb && hasVerbForm(adj, "base"))));
     if (!predicate) continue;
     const found = casedFinding(
       ctx,
@@ -628,17 +601,17 @@ function youArePredicate(ctx: DetectContext): RawFinding[] {
 /** "a chance to to refer", "applied to to correction": a doubled "to" the core rule leaves. */
 function doubledTo(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  for (const match of scan(ctx, /\bto\s+to\b/, `(?<pair>to${SPACE}to)${NEXT}`, "pair")) {
+  for (const match of gatedMatches(ctx, /\bto\s+to\b/giu, `(?<pair>to${SPACE}to)${NEXT}`, "pair")) {
     const next = match.groups!.next;
     const [det, prev = ""] = previous(ctx, match.index);
     if (!prev || /^to$/i.test(prev) || /^(?:to|list|lists)$/i.test(next)) continue;
-    const nextInfo = info(next);
-    const prevInfo = info(prev);
+    const nextInfo = englishWordInfo(next);
+    const prevInfo = englishWordInfo(prev);
     const nounPrev =
       (!!det && DET.has(det.toLowerCase()) && !CLOSED.has(prev.toLowerCase())) ||
       (!!prevInfo && prevInfo.noun && !prevInfo.verbs.length);
     // "the team I wrote to to complain": a stranded preposition before an infinitive.
-    if (hasForm(next, "base")) {
+    if (hasVerbForm(next, "base")) {
       if (!nounPrev) continue;
     } else if (!(nextInfo?.noun || nextInfo?.plural || (!nextInfo && /^[a-z]{4,}$/.test(next))))
       continue;
@@ -656,7 +629,7 @@ function doubledTo(ctx: DetectContext): RawFinding[] {
 }
 
 /** "there is strings…": a plural the lexicon knows after singular existential "there". */
-const NOT_PLURAL_SUBJECT = words(
+const NOT_PLURAL_SUBJECT = wordSet(
   "news series species means lots tons loads plenty kudos physics mathematics economics politics thanks " +
     "sometimes afterwards nowadays besides overseas upstairs downstairs indoors outdoors",
 );
@@ -664,12 +637,12 @@ const EXISTENTIAL_LEAD = /\b(?:if|when|that|which|because|and|but|so|where|wheth
 function existentialPlural(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const pattern = `there${SPACE}(?<verb>is|was)${SPACE}(?<noun>\\p{L}+s)${WORD_END}(?!${SPACE}(?:of|and)${WORD_END})`;
-  for (const match of scan(ctx, /there\s+(?:is|was)\s/, pattern, "verb")) {
+  for (const match of gatedMatches(ctx, /there\s+(?:is|was)\s/giu, pattern, "verb")) {
     if (!opensClause(ctx, match.index, EXISTENTIAL_LEAD)) continue;
     const { verb, noun } = match.groups!;
     if (noun !== noun.toLowerCase() || NOT_PLURAL_SUBJECT.has(noun) || englishNounForms(noun))
       continue;
-    const entry = info(noun);
+    const entry = englishWordInfo(noun);
     if (!entry?.plural || !entry.noun || entry.adjective) continue;
     const found = casedFinding(
       ctx,
@@ -690,24 +663,26 @@ function existentialPlural(ctx: DetectContext): RawFinding[] {
  */
 const ARTICLE_PATTERN = `(?=(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)${SPACE})(?<=(?<![\\p{L}'’])(?:please|you|we|i|they|to|should|can|could|will|would|must)${SPACE})(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)${SPACE}(?<target>(?:more${SPACE})?(?<adj>\\p{L}+)${SPACE}(?:example|reproduction|repro|test${SPACE}case|bug${SPACE}report|report|summary|ticket|scenario|explanation|fix|update|screenshot|log|note|comment|feature|solution|answer|response|change|patch|description))(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|${SPACE}(?:of|for|about|in|on)${WORD_END})`;
 const ARTICLE_KEY =
-  /(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)\s/;
-const NOT_MODIFIER = words("more most less least much many few enough further other same own");
+  /(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)\s/giu;
+const NOT_MODIFIER = wordSet("more most less least much many few enough further other same own");
 function missingArticle(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  for (const match of scan(ctx, ARTICLE_KEY, ARTICLE_PATTERN)) {
+  for (const match of gatedMatches(ctx, ARTICLE_KEY, ARTICLE_PATTERN)) {
     const adj = match.groups!.adj.toLowerCase();
     if (CLOSED.has(adj) || NOT_MODIFIER.has(adj)) continue;
-    const entry = info(adj);
+    const entry = englishWordInfo(adj);
     // A modifier: an adjective, a participle, or an unlisted "-ible/-able" form.
     const flagged = entry && (entry.noun || entry.adjective || entry.adverb || entry.verbs.length);
     const modifier = flagged
-      ? (entry.adjective || hasForm(adj, "participle")) && !entry.plural
+      ? (entry.adjective || hasVerbForm(adj, "participle")) && !entry.plural
       : /(?:ible|able)$/.test(adj);
     if (!modifier) continue;
     const [start] = group(match, "target");
-    if (start < ctx.from || start >= ctx.to || hasUserOrCasedWord(ctx, match[0])) continue;
+    if (hasUserOrCasedWord(ctx, match[0])) continue;
     const first = /^\p{L}+/u.exec(match.groups!.target)![0];
-    const article = /^[aeio]/i.test(first) ? "an" : "a";
+    const sound = englishInitialSound(first);
+    if (sound === "either") continue;
+    const article = sound === "vowel" ? "an" : "a";
     findings.push({
       ruleId: "englishSentenceStructure",
       messageKey: "review_msg_sentence_structure",
@@ -726,7 +701,7 @@ const LIMITED = new RegExp(
 );
 function includingButNotLimited(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  for (const match of scan(ctx, /limited\s+to/, LIMITED, (m) => m.index)) {
+  for (const match of gatedMatches(ctx, /limited\s+to/giu, LIMITED, (m) => m.index)) {
     const { lead, c1, c2 } = match.groups!;
     if (lead.startsWith(",") && c1 && c2) continue;
     const [start, end] = span(match);
@@ -742,21 +717,7 @@ function includingButNotLimited(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-/** "°K" opening the text; the measurement rule covers it after a number or a space. */
-function kelvinAtStart(ctx: DetectContext): RawFinding[] {
-  if (ctx.from > 0 || !/^°K(?![\p{L}\p{N}_])/u.test(ctx.text)) return [];
-  return [
-    finding("measurementUnitFormatting", "review_msg_kelvin_degree", 0, 2, ["K"], {
-      context: { start: 0, end: 2 },
-    }),
-  ];
-}
-
-const enabled = (ctx: DetectContext, findings: RawFinding[]) =>
-  findings.filter((found) => !ctx.rules || ctx.rules.has(found.ruleId));
-
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
+const ENGLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishSentenceStructure"],
     detect: (ctx) => [
@@ -767,14 +728,13 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
   },
   {
     rules: ["englishPhraseCorrections", "englishClosedCompounds", "englishCanonicalCasing"],
-    detect: (ctx) =>
-      enabled(ctx, [
-        ...templates(ctx, PHRASE_TEMPLATES, "englishPhraseCorrections"),
-        ...templates(ctx, COMPOUND_TEMPLATES, "englishClosedCompounds"),
-        ...names(ctx),
-        ...thereAfter(ctx),
-        ...modifiers(ctx),
-      ]),
+    detect: (ctx) => [
+      ...templates(ctx, PHRASE_TEMPLATES, "englishPhraseCorrections"),
+      ...templates(ctx, COMPOUND_TEMPLATES, "englishClosedCompounds"),
+      ...names(ctx),
+      ...thereAfter(ctx),
+      ...modifiers(ctx),
+    ],
   },
   {
     rules: ["englishUsagePhrases"],
@@ -784,7 +744,6 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
   { rules: ["englishYourYouAre"], detect: youArePredicate },
   { rules: ["englishRepeatedWords"], detect: doubledTo },
   { rules: ["englishExistentialAgreement"], detect: existentialPlural },
-  { rules: ["measurementUnitFormatting"], detect: kelvinAtStart },
   {
     rules: ["stylePhrasing"],
     detect: (ctx) => [
@@ -793,3 +752,11 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
     ],
   },
 ];
+
+/** Context detectors appended to REVIEW_DETECTORS. */
+export const DETECTORS: readonly ReviewDetectorEntry[] = ENGLISH_DETECTORS.map(
+  ({ rules, detect }): ReviewDetectorEntry => ({
+    rules,
+    detect: (ctx) => (ctx.lang !== "en_US" ? [] : detect(ctx)),
+  }),
+);

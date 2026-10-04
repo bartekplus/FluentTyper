@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
-import os
-import shlex
+import re
 import shutil
 import subprocess
 import sys
@@ -13,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from string import Template
 from typing import Iterable
+
+from rebuild_libpresage import cpu_jobs, run_cmd, run_main
 
 
 @dataclass(frozen=True)
@@ -123,11 +124,6 @@ BUILD_HUNSPELL_PATH = (SCRIPT_DIR / "build_hunspell_dictionary.py").resolve()
 BUILD_ASPELL_PATH = (SCRIPT_DIR / "build_aspell_dictionary.py").resolve()
 
 
-def run_cmd(cmd: list[str], cwd: Path | None = None) -> None:
-    print(f"$ {shlex.join(cmd)}")
-    subprocess.run(cmd, check=True, cwd=str(cwd) if cwd else None)
-
-
 def run_python(script: Path, args: list[str]) -> None:
     run_cmd([sys.executable, str(script), *args])
 
@@ -143,13 +139,11 @@ def update_template(template_file: Path, lang: LanguageConfig, debug: bool) -> N
 
 
 def create_resource_js() -> None:
-    RESOURCES_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copytree(RESOURCES_TEMPLATE_DIR, RESOURCES_DIR, dirs_exist_ok=True)
 
 
 def create_lang_config_from_template(lang: LanguageConfig, debug: bool) -> None:
     dst = RESOURCES_DIR / lang.variant
-    dst.mkdir(parents=True, exist_ok=True)
     (dst / "hunspell").mkdir(parents=True, exist_ok=True)
     shutil.copytree(RESOURCES_LANG_TEMPLATE_DIR, dst, dirs_exist_ok=True)
     update_template(dst / "presage.xml", lang, debug)
@@ -168,8 +162,6 @@ def _drop_aspell_predictor(presage_xml: Path) -> None:
     build (e.g. ar_SA). The n-gram predictor is primary and
     Hunspell covers spell-correction, so dropping aspell is safe.
     """
-    import re
-
     name = "DefaultAspellPredictor"
     text = presage_xml.read_text(encoding="utf-8")
     # Drop the predictor from the whitespace-separated PREDICTORS list.
@@ -227,14 +219,8 @@ def has_ngram_db(lang: LanguageConfig) -> bool:
     return (ngram_dir / "ngrams.trie").is_file() and (ngram_dir / "ngrams.counts").is_file()
 
 
-def rebuild_ngram_db(
-    lang: LanguageConfig,
-    jobs: int,
-) -> None:
-    args = ["-l", lang.short, "-v", lang.variant]
-    if jobs > 0:
-        args.extend(["--jobs", str(jobs)])
-    run_python(REBUILD_NGRAM_PATH, args)
+def rebuild_ngram_db(lang: LanguageConfig, jobs: int) -> None:
+    run_python(REBUILD_NGRAM_PATH, ["-l", lang.short, "-v", lang.variant, "--jobs", str(jobs)])
 
 
 def prepare_language(
@@ -255,15 +241,9 @@ def prepare_language(
     if not refresh_dictionaries and aspell_present and has_hunspell_dictionary(lang):
         print(f"Using existing dictionaries for {lang.variant}")
         return
+    # Without aspell_urls, create_lang_config_from_template already removed the aspell dir.
     if lang.aspell_urls:
         install_aspell_dictionary(lang)
-    else:
-        # No aspell_urls: the aspell predictor is dropped from presage.xml,
-        # so no aspell data files are needed. Skip the download/install and
-        # remove any stale aspell dir left over from a previous build so it
-        # does not get packaged.
-        print(f"Skipping aspell dictionary for {lang.variant} (no aspell_urls)")
-        shutil.rmtree(RESOURCES_DIR / lang.variant / "aspell", ignore_errors=True)
     install_hunspell_dictionary(lang)
 
 
@@ -295,10 +275,6 @@ def build_libpresage(debug: bool, repack_only: bool, jobs: int) -> None:
     if jobs > 1:
         args.extend(["--package-jobs", str(jobs)])
     run_python(REBUILD_LIBPRESAGE_PATH, args)
-
-
-def auto_jobs() -> int:
-    return max(1, os.cpu_count() or 1)
 
 
 def main() -> int:
@@ -358,7 +334,7 @@ def main() -> int:
     if args.jobs < 0:
         print("--jobs must be >= 0", file=sys.stderr)
         return 2
-    effective_jobs = auto_jobs() if args.jobs == 0 else args.jobs
+    effective_jobs = cpu_jobs() if args.jobs == 0 else args.jobs
 
     create_resource_js()
 
@@ -407,11 +383,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except subprocess.CalledProcessError as exc:
-        print(f"Command failed with exit code {exc.returncode}: {shlex.join(exc.cmd)}", file=sys.stderr)
-        raise SystemExit(exc.returncode)
-    except RuntimeError as exc:
-        print(f"{exc}", file=sys.stderr)
-        raise SystemExit(1)
+    run_main(main)

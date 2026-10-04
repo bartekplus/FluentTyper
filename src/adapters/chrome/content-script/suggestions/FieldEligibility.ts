@@ -1,3 +1,4 @@
+import { composedParent } from "@core/application/dom-utils";
 import { isNonWritingControl, isWordInputProxy } from "./CodeContextResolver";
 
 const SECRET_AUTOCOMPLETE =
@@ -44,13 +45,12 @@ export function isSensitiveField(element: HTMLElement): boolean {
 
 /** A disabled or read-only control; the user cannot edit it, so nothing may write to it. */
 export function isLockedField(element: HTMLElement): boolean {
-  for (let node: Node | null = element; node;) {
+  for (let node: Node | null = element; node; node = composedParent(node)) {
     if (
       node.nodeType === 1 &&
       (node as Element).matches('[inert], [aria-readonly="true"], [aria-disabled="true"]')
     )
       return true;
-    node = node.parentNode ?? (node.nodeType === 11 ? (node as ShadowRoot).host : null);
   }
   if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") {
     const field = element as HTMLInputElement | HTMLTextAreaElement;
@@ -63,13 +63,8 @@ export function isLockedField(element: HTMLElement): boolean {
 export function isHiddenField(element: HTMLElement): boolean {
   if (element.closest("[hidden], [inert], [aria-hidden='true']")) return true;
   // Not rendered (display: none, visibility: hidden): nothing the user can review.
-  const visible = (
-    element as HTMLElement & {
-      checkVisibility?: (options?: { visibilityProperty?: boolean }) => boolean;
-    }
-  ).checkVisibility;
-  if (typeof visible === "function" && !visible.call(element, { visibilityProperty: true })) {
-    return true;
-  }
-  return false;
+  return (
+    typeof element.checkVisibility === "function" &&
+    !element.checkVisibility({ visibilityProperty: true })
+  );
 }

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { ALL_RULES, scan } from "./reviewHarness";
+import { review } from "./grammarTestUtils";
 
 const RULES = new Set([
   "englishPhraseCorrections",
@@ -8,9 +9,10 @@ const RULES = new Set([
   "englishFixedPrepositions",
   "stylePhrasing",
 ]);
-function findings(text: string) {
-  return scan(text, { enabledRules: ALL_RULES }).filter((d) => RULES.has(d.ruleId));
-}
+const findings = (text: string) =>
+  review(text, {}, { enabledRules: REVIEW_SUPPORTED_RULE_IDS }).diagnostics.filter((d) =>
+    RULES.has(d.ruleId),
+  );
 const repairsOf = (text: string) =>
   findings(text).flatMap((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));
 
@@ -92,6 +94,7 @@ const repairs: [string, string][] = [
   ["I am craving for soup.", "I am craving soup."],
   ["This puzzle is so addicting.", "This puzzle is so addictive."],
   ["The trail was barely unknown to us.", "The trail was barely known to us."],
+  ["After 2 years later, we met.", "2 years later, we met."],
 ];
 
 // Correct forms and look-alikes.
@@ -154,7 +157,7 @@ describe("Review idioms3: fixed expressions and their context", () => {
     expect(repairsOf(typed)).toContain(repaired);
   });
 
-  test.each(silent.map((text) => [text]))("stays silent: %s", (text) => {
+  test.each(silent)("stays silent: %s", (text) => {
     expect(findings(text).map((d) => d.ruleId)).toEqual([]);
   });
 

@@ -1,5 +1,9 @@
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
-import { isReviewSupportedRule, reviewKind } from "@core/domain/grammar/review/reviewCatalog";
+import {
+  isReviewSupportedRule,
+  reviewKind,
+  reviewMetadataFor,
+} from "@core/domain/grammar/review/reviewCatalog";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import type { ReviewViewState } from "@core/application/review/ReviewSession";
 import {
@@ -7,14 +11,16 @@ import {
   reviewText,
   type ReviewTextKey,
 } from "@core/domain/grammar/review/reviewMessages";
-import { commonAffixes } from "@core/domain/grammar/review/textRanges";
+import { REVIEW_LANGS } from "@core/domain/grammar/review/reviewLocale";
+import { commonAffixes, postEditRanges } from "@core/domain/grammar/review/textRanges";
 import {
   REVIEW_CATEGORIES,
   REVIEW_LOCAL_AI_CHECK,
   type ReviewCategory,
   type ReviewDiagnostic,
+  type TextRange,
 } from "@core/domain/grammar/review/types";
-import { REVIEW_SHADOW_CSS, createOverlayHost, enterTopLayer } from "./reviewStyles";
+import { REVIEW_SHADOW_CSS, createOverlayHost, enterTopLayer, svgIcon } from "./reviewStyles";
 import type { ReviewMode, RewriteViewState } from "@core/application/review/reviewAi";
 import {
   REWRITE_STYLES,
@@ -48,9 +54,9 @@ export interface ReviewUiCallbacks {
   setRewriteContext(hint: EditorContextHint): void;
   generateRewrite(): void;
   cancelRewrite(): void;
-  applyRewrite(viaKeyboard: boolean): void;
+  applyRewrite(): void;
   previewAiBatch(): void;
-  applyAiBatch(viaKeyboard: boolean): void;
+  applyAiBatch(): void;
   cancelAiBatch(): void;
 }
 
@@ -114,12 +120,10 @@ const REJECTION_KEY: Record<AiRejectionReason, ReviewTextKey> = {
   placeholder: "review_reject_protected",
   "technical-token": "review_reject_protected",
   drift: "review_reject_too_much",
-  "drift.changed_word_share": "review_reject_too_much",
   "drift.lexical_substitution": "review_reject_too_much",
   "drift.optional_style": "review_reject_too_much",
   invented: "review_reject_invented",
   length: "review_reject_too_much",
-  "unit.too_many_changed_words": "review_reject_too_much",
   shape: "review_reject_incomplete",
   "unsafe-boundary": "review_reject_incomplete",
   unchanged: "review_reject_unchanged",
@@ -129,10 +133,17 @@ function isLocalAi(diagnostic: ReviewDiagnostic): boolean {
   return diagnostic.ruleId === REVIEW_LOCAL_AI_CHECK;
 }
 
-/** A number in the UI language ("pr" is how the options page stores Portuguese). */
+/**
+ * A number in the language of the review text: the UI language (a config code
+ * such as "de_DE" or a browser tag) when the review text has it, else English.
+ */
 function formatNumber(value: number, lang: string, options: Intl.NumberFormatOptions): string {
+  const code = lang.split(/[-_]/)[0].toLowerCase();
+  // "pr" is the options page's code for Portuguese.
+  const known = (REVIEW_LANGS as readonly string[]).includes(code === "pt" ? "pr" : code);
+  const tag = !known ? "en" : code === "pr" ? "pt" : lang.replace("_", "-");
   try {
-    return new Intl.NumberFormat(lang === "pr" ? "pt" : lang, options).format(value);
+    return new Intl.NumberFormat(tag, options).format(value);
   } catch {
     return new Intl.NumberFormat("en", options).format(value);
   }
@@ -150,18 +161,11 @@ function formatDownloadSize(bytes: number, lang: string): string {
 
 /** The changed regions of a rewrite on each side (the session checked the hunks rebuild `after`). */
 function rewriteRegions(hunks: RewriteViewState["hunks"]): {
-  from: Array<[number, number]>;
-  to: Array<[number, number]>;
+  from: readonly TextRange[];
+  to: readonly TextRange[];
 } {
-  const from: Array<[number, number]> = [];
-  const to: Array<[number, number]> = [];
-  let shift = 0;
-  for (const { start, end, replacement } of [...hunks].sort((a, b) => a.start - b.start)) {
-    from.push([start, end]);
-    to.push([start + shift, start + shift + replacement.length]);
-    shift += replacement.length - (end - start);
-  }
-  return { from, to };
+  const sorted = [...hunks].sort((a, b) => a.start - b.start);
+  return { from: sorted, to: postEditRanges(sorted) };
 }
 
 /** Text with `regions` wrapped in `tag` (<del>/<ins>), built from text nodes only. */
@@ -169,11 +173,11 @@ function appendRegions(
   doc: Document,
   parent: HTMLElement,
   text: string,
-  regions: Array<[number, number]>,
+  regions: readonly TextRange[],
   tag: "del" | "ins",
 ): void {
   let cursor = 0;
-  for (const [start, end] of regions) {
+  for (const { start, end } of regions) {
     if (end <= start) continue;
     parent.append(doc.createTextNode(text.slice(cursor, start)));
     const node = doc.createElement(tag);
@@ -199,13 +203,6 @@ function changeShape(from: string, to: string) {
   return { prefix, suffix, whitespace: /\s/.test(changed) };
 }
 
-/** Whitespace is shown as symbols only when whitespace itself is what changes. */
-function changePreview(from: string, to: string): [string, string] {
-  return changeShape(from, to).whitespace
-    ? [visibleWhitespace(from), visibleWhitespace(to)]
-    : [from, to];
-}
-
 /** How many suggestions a pick-one finding shows in the list; the card shows all. */
 const LIST_CHOICES = 3;
 
@@ -217,8 +214,12 @@ function listPreview(diagnostic: ReviewDiagnostic, warningLabel: string): string
     const shown = choices.slice(0, LIST_CHOICES).join(" / ");
     return `${diagnostic.original} \u2192 ${shown}${choices.length > LIST_CHOICES ? " / \u2026" : ""}`;
   }
-  const [from, to] = changePreview(diagnostic.original, diagnostic.alternatives[0].preview);
-  return `${from} \u2192 ${to}`;
+  const from = diagnostic.original;
+  const to = diagnostic.alternatives[0].preview;
+  // Whitespace is shown as symbols only when whitespace itself is what changes.
+  return changeShape(from, to).whitespace
+    ? `${visibleWhitespace(from)} \u2192 ${visibleWhitespace(to)}`
+    : `${from} \u2192 ${to}`;
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -253,16 +254,7 @@ function iconButton(
     title: label,
     ...attributes,
   });
-  const ns = "http://www.w3.org/2000/svg";
-  const svg = doc.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("aria-hidden", "true");
-  for (const d of ICONS[icon]) {
-    const path = doc.createElementNS(ns, "path");
-    path.setAttribute("d", d);
-    svg.append(path);
-  }
-  button.append(svg);
+  button.append(svgIcon(doc, ICONS[icon]));
   return button;
 }
 
@@ -301,6 +293,9 @@ export class ReviewUi {
   private readonly list: HTMLOListElement;
   /** The panel's scrolling middle: findings, AI offer and notes. */
   private readonly body: HTMLElement;
+  private readonly languageControls: HTMLElement;
+  private readonly languageSelect: HTMLSelectElement;
+  private readonly retry: HTMLButtonElement;
   private readonly prev: HTMLButtonElement;
   private readonly next: HTMLButtonElement;
   private readonly fixAll: HTMLButtonElement;
@@ -319,7 +314,7 @@ export class ReviewUi {
   private readonly setupSize: HTMLElement;
   private readonly aiBatchButton: HTMLButtonElement;
   private readonly batch: HTMLElement;
-  /** What the batch preview and rewrite diff were last built for (content, not identity). */
+  /** What the batch preview was last built for (content, not identity). */
   private batchKey: string | null = null;
   private readonly rewrite: {
     root: HTMLElement;
@@ -407,10 +402,10 @@ export class ReviewUi {
       nav,
       close,
     );
-    const language = element(doc, "select", {
+    const language = (this.languageSelect = element(doc, "select", {
       "aria-label": this.t("review_language_label"),
       "data-action": "language",
-    });
+    }));
     for (const [value, label] of Object.entries({
       ...SUPPORTED_LANGUAGES,
       en_GB: "English (UK)",
@@ -422,16 +417,18 @@ export class ReviewUi {
     language.addEventListener("change", (event) => {
       if (event.isTrusted) this.callbacks.setLanguage?.(language.value);
     });
-    const retry = element(
+    const retry = (this.retry = element(
       doc,
       "button",
       { type: "button", "data-action": "retry" },
       this.t("review_retry"),
-    );
+    ));
     retry.addEventListener("click", (event) => {
       if (event.isTrusted) this.callbacks.retry?.();
     });
-    const languageControls = element(doc, "div", { class: "language-controls" });
+    const languageControls = (this.languageControls = element(doc, "div", {
+      class: "language-controls",
+    }));
     languageControls.append(language, retry);
     this.modes = element(doc, "div", {
       class: "modes",
@@ -635,7 +632,7 @@ export class ReviewUi {
       { type: "button", class: "primary", "data-action": "rewrite-apply" },
       this.t("review_rewrite_apply"),
     );
-    apply.addEventListener("click", (event) => this.callbacks.applyRewrite(event.detail === 0));
+    apply.addEventListener("click", () => this.callbacks.applyRewrite());
     const copy = element(
       doc,
       "button",
@@ -647,16 +644,7 @@ export class ReviewUi {
     copy.addEventListener("click", (event) => {
       const text = this.state?.rewrite?.after;
       if (!event.isTrusted || !this.state?.rewrite?.previewOnly || !text) return;
-      const clipboard = this.doc.defaultView?.navigator.clipboard;
-      const done = (ok: boolean) => {
-        copied.textContent = this.t(ok ? "review_rewrite_copied" : "review_rewrite_copy_failed");
-      };
-      if (!clipboard) done(false);
-      else
-        clipboard.writeText(text).then(
-          () => done(true),
-          () => done(false),
-        );
+      this.copyText(text, copied);
     });
     const accept = element(doc, "div", { class: "actions" });
     accept.append(apply, copy, copied);
@@ -713,6 +701,7 @@ export class ReviewUi {
   showMessage(text: string): void {
     for (const part of [
       this.scopeLabel,
+      this.languageControls,
       this.modes,
       this.ai,
       this.rewrite.root,
@@ -720,14 +709,11 @@ export class ReviewUi {
       this.notes,
       this.filters,
       this.list,
-      this.prev,
-      this.next,
-      this.aiBatchButton,
+      this.nav,
+      this.footer,
     ]) {
       part.hidden = true;
     }
-    this.fixAll.hidden = true;
-    this.fixNote.hidden = true;
     this.status.textContent = text;
   }
 
@@ -736,7 +722,7 @@ export class ReviewUi {
   }
 
   focusItem(id: string): void {
-    const item = this.itemFor(id);
+    const item = this.items.get(id);
     item?.focus({ preventScroll: false });
   }
 
@@ -780,14 +766,10 @@ export class ReviewUi {
     this.status.textContent = this.statusText(state);
     // Whether suggestions for unknown words may still join the results.
     this.panel.dataset.checking = state.checking;
-    const languageSelect = this.panel.querySelector<HTMLSelectElement>('[data-action="language"]');
-    if (languageSelect) {
-      languageSelect.value =
-        state.language.source === "explicit" ? state.language.language : "auto_detect";
-      languageSelect.disabled = state.status === "applying";
-    }
-    const retry = this.panel.querySelector<HTMLButtonElement>('[data-action="retry"]');
-    if (retry) retry.disabled = state.status === "applying";
+    this.languageSelect.value =
+      state.language.source === "explicit" ? state.language.language : "auto_detect";
+    this.languageSelect.disabled = state.status === "applying";
+    this.retry.disabled = state.status === "applying";
     this.panel.dataset.spelling = state.status === "ready" ? state.spelling : "idle";
     this.notesState = state;
     this.renderNotes(state);
@@ -832,7 +814,7 @@ export class ReviewUi {
     );
     this.aiBatchButton.textContent = this.t("review_ai_batch", { count: aiFindings });
     this.aiBatchButton.disabled = state.status !== "ready" || state.aiBatch !== null;
-    if (focusedId) this.itemFor(focusedId)?.focus({ preventScroll: true });
+    if (focusedId) this.items.get(focusedId)?.focus({ preventScroll: true });
     // A control that just went away (Generate while generating, a closed preview)
     // must not drop the keyboard focus out of the panel.
     const active = this.root.activeElement as HTMLElement | null;
@@ -904,6 +886,8 @@ export class ReviewUi {
   private aiLineText(state: ReviewViewState): string | null {
     const { ai } = state;
     const rewriting = state.mode === "rewrite";
+    const percent = (value: number) =>
+      formatNumber(value, this.lang, { style: "percent", maximumFractionDigits: 0 });
     switch (ai.availability) {
       case "off":
         return rewriting ? this.t("review_ai_off") : null;
@@ -919,12 +903,7 @@ export class ReviewUi {
         return this.t("review_ai_install_needed");
       case "installing":
         return ai.status?.progress !== undefined
-          ? this.t("review_ai_installing_progress", {
-              percent: formatNumber(ai.status.progress, this.lang, {
-                style: "percent",
-                maximumFractionDigits: 0,
-              }),
-            })
+          ? this.t("review_ai_installing_progress", { percent: percent(ai.status.progress) })
           : this.t("review_ai_installing");
       case "paused":
         return rewriting ? null : this.t("review_ai_paused");
@@ -942,10 +921,7 @@ export class ReviewUi {
       case "checking":
         return ai.progress === undefined
           ? this.t("review_ai_checking")
-          : `${this.t("review_ai_checking")} ${formatNumber(ai.progress, this.lang, {
-              style: "percent",
-              maximumFractionDigits: 0,
-            })}`;
+          : `${this.t("review_ai_checking")} ${percent(ai.progress)}`;
       case "complete":
         return this.t("review_ai_complete");
       case "partial":
@@ -1130,9 +1106,7 @@ export class ReviewUi {
       this.t("review_ai_batch_apply"),
     );
     applyButton.disabled = !preview.canApply || state.status !== "ready";
-    applyButton.addEventListener("click", (event) =>
-      this.callbacks.applyAiBatch(event.detail === 0),
-    );
+    applyButton.addEventListener("click", () => this.callbacks.applyAiBatch());
     const cancel = element(
       doc,
       "button",
@@ -1286,13 +1260,17 @@ export class ReviewUi {
     for (const diagnostic of state.diagnostics) {
       counts.set(diagnostic.category, (counts.get(diagnostic.category) ?? 0) + 1);
     }
-    const focused = (this.root.activeElement as HTMLElement | null)?.dataset?.category;
+    const active = this.root.activeElement as HTMLElement | null;
+    // List items also have data-category; keep only a focused filter chip.
+    const focused = active && this.filters.contains(active) ? active.dataset.category : undefined;
     this.filters.replaceChildren(
       ...REVIEW_CATEGORIES.filter(
+        // A hidden Style keeps its chip, so the user can show it again.
         (category) =>
           category !== "style" ||
+          !state.categories.has("style") ||
           [...(state.coverage?.checkedRules ?? []), ...(state.coverage?.failedRules ?? [])].some(
-            (id) => id === "styleRedundancy" || id === "styleLongSentence",
+            (id) => reviewMetadataFor(id).category === "style",
           ) ||
           state.diagnostics.some((d) => d.category === "style"),
       ).map((category) => {
@@ -1332,7 +1310,7 @@ export class ReviewUi {
       }
     }
     // Keep the current finding visible, scrolling only the panel's body.
-    const current = state.selectedId ? this.itemFor(state.selectedId) : null;
+    const current = state.selectedId ? this.items.get(state.selectedId) : null;
     if (current) {
       const box = this.body.getBoundingClientRect();
       const rect = current.getBoundingClientRect();
@@ -1386,8 +1364,18 @@ export class ReviewUi {
     this.list.replaceChildren(...items);
   }
 
-  private itemFor(id: string): HTMLElement | null {
-    return this.items.get(id) ?? null;
+  /** Copies `text` to the clipboard and tells the result in `status`. */
+  private copyText(text: string, status: HTMLElement): void {
+    const done = (ok: boolean) => {
+      status.textContent = this.t(ok ? "review_rewrite_copied" : "review_rewrite_copy_failed");
+    };
+    const clipboard = this.doc.defaultView?.navigator.clipboard;
+    if (!clipboard) done(false);
+    else
+      clipboard.writeText(text).then(
+        () => done(true),
+        () => done(false),
+      );
   }
 
   /** `alternative` restores a choice made in an earlier card for this finding. */
@@ -1649,17 +1637,7 @@ export class ReviewUi {
       );
       const status = element(doc, "span", { role: "status" });
       copy.addEventListener("click", (event) => {
-        if (!event.isTrusted) return;
-        const done = (ok: boolean) => {
-          status.textContent = this.t(ok ? "review_rewrite_copied" : "review_rewrite_copy_failed");
-        };
-        const clipboard = doc.defaultView?.navigator.clipboard;
-        if (!clipboard) done(false);
-        else
-          clipboard.writeText(alternative.preview).then(
-            () => done(true),
-            () => done(false),
-          );
+        if (event.isTrusted) this.copyText(alternative.preview, status);
       });
       actions.append(copy, status);
     }

@@ -47,9 +47,7 @@ export interface PostEditFingerprint {
   selectionCollapsed: boolean;
 }
 
-export type SuggestionElement = (HTMLInputElement | HTMLTextAreaElement | HTMLElement) & {
-  suggestionMenu?: HTMLElement | null;
-};
+export type SuggestionElement = HTMLElement;
 
 export interface SuggestionManagerOptions {
   loadFieldPreferences?: () => Promise<string[]>;
@@ -164,7 +162,6 @@ export interface SuggestionEntry {
   pendingRequestTimer: ReturnType<typeof setTimeout> | null;
   pendingIdleTimer: ReturnType<typeof setTimeout> | null;
   pendingGrammarPaste: boolean;
-  recentInteractionTrail: string[];
   /** A Review fix offered as the popup's last row; applied only when the user picks it. */
   grammarProposal?: LiveGrammarProposal | null;
   /** The proposal row is highlighted: accept keys apply it instead of a suggestion. */
@@ -185,13 +182,13 @@ export interface SuggestionEntry {
 }
 
 export interface SuggestionEntrySessionOptions {
-  canInteract?: () => boolean;
-  onPauseChange?: (paused: boolean) => void;
+  canInteract: () => boolean;
+  onPauseChange: (paused: boolean) => void;
   entry: SuggestionEntry;
   editableContextResolver: {
     resolve(elem: SuggestionElement): EditableContext | null;
   };
-  clearPendingFallback?: () => void;
+  clearPendingFallback: () => void;
   hideMenu: () => void;
   clearInlinePresenter: () => void;
   isFocused: () => boolean;
@@ -218,7 +215,7 @@ export interface SuggestionEntrySessionOptions {
     | "getActiveBlockElement"
     | "hasMultipleBlockDescendants"
   >;
-  getPendingFallback?: () => PendingKeyFallback | undefined;
+  getPendingFallback: () => PendingKeyFallback | undefined;
   /** Review findings to propose for the text before the caret; absent when proposals are off. */
   findGrammarProposals?: (beforeCursor: string) => Promise<LiveGrammarProposal[]>;
   renderMenu: (context: {
@@ -235,16 +232,11 @@ export interface SuggestionEntrySessionOptions {
     insertedText: string;
     language: string;
   }) => void;
-  recordPersonalizationAccepted?: (context: {
+  recordPersonalizationAccepted: (context: {
     suggestion: string;
     triggerText: string;
     language: string;
   }) => string;
   getLang: () => string;
   insertSpaceAfterAutocomplete: boolean;
-  logRenderedSuggestionPopup: (
-    context: PredictionResponse,
-    details: { predictionCount: number; renderer: "inline" | "menu" },
-  ) => void;
-  logNoVisibleSuggestions: (context: PredictionResponse) => void;
 }

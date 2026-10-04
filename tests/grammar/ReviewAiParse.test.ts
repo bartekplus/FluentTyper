@@ -29,7 +29,7 @@ const good = JSON.stringify({
 });
 
 const parse = (raw: string) => parseAiResponse(raw, REQUEST);
-const MALFORMED = { ok: false, error: "malformed" };
+const MALFORMED = { ok: false, error: "malformed" } as const;
 
 describe("parseAiResponse", () => {
   test("accepts the exact contract", () => {

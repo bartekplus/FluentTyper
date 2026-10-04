@@ -13,6 +13,7 @@ import {
 import {
   createNetworkGuard,
   NetworkBlockedError,
+  type NetworkGuard,
 } from "../src/adapters/chrome/background/localAi/networkGuard";
 import { MODEL_CACHE } from "../src/adapters/chrome/background/localAi/modelArtifacts";
 import { Sha256 } from "../src/adapters/chrome/background/localAi/sha256";
@@ -87,7 +88,6 @@ const QWEN = makeRecord(
   "causal-lm",
 );
 const MODELS = [GEMMA.record, QWEN.record];
-const findModel = (modelId: unknown) => MODELS.find((model) => model.modelId === modelId) ?? null;
 
 // ------------------------------------------------------------------ fakes
 
@@ -173,7 +173,10 @@ interface Setup {
   loadTokenizer?: () => Promise<TokenizerLike>;
   disposeTimeoutMs?: number;
   /** A fake loader; `engineFetch` is the engine's guarded fetch. */
-  loadModel?: (record: LocalAiModelRecord, engineFetch: typeof fetch) => Promise<ModelLike>;
+  loadModel?: (
+    record: LocalAiModelRecord,
+    engineFetch: NetworkGuard["fetch"],
+  ) => Promise<ModelLike>;
 }
 
 function makeEngine(setup: Setup = {}) {
@@ -216,8 +219,7 @@ function makeEngine(setup: Setup = {}) {
     caches,
     gpu: undefined,
     guard,
-    findModel,
-    models: [GEMMA.record, QWEN.record],
+    models: MODELS,
     disposeTimeoutMs: setup.disposeTimeoutMs ?? 20,
   };
   return {
@@ -370,7 +372,7 @@ describe("install, integrity and cache state", () => {
     };
     const abort = new AbortController();
     const installing = engine.install(GEMMA.record.modelId, noProgress, abort.signal, LOAD_MS);
-    await flush(20);
+    await flush();
     abort.abort();
     expect(await installing).toEqual({ ok: false, error: "download-cancelled" });
   });
@@ -439,7 +441,7 @@ describe("install, integrity and cache state", () => {
     models[0].dispose = () => new Promise<void>((resolve) => (disposed = resolve));
     void engine.unload();
     const loading = engine.load(GEMMA.record.modelId, noProgress);
-    await flush(5);
+    await flush();
     expect(loadModel).toHaveBeenCalledTimes(1);
     disposed();
     expect(await loading).toEqual({ ok: true });
@@ -600,6 +602,23 @@ describe("network guard", () => {
       ok: false,
       error: "download-failed",
     });
+
+    // A blocked redirect cancels the response body, so the connection closes.
+    let cancelled = false;
+    const blocked = createNetworkGuard(
+      (async () => {
+        const response = new Response(
+          new ReadableStream({ cancel: () => void (cancelled = true) }),
+        );
+        Object.defineProperty(response, "url", { value: "https://evil.example/x" });
+        return response;
+      }) as unknown as typeof fetch,
+      ORIGIN,
+      LOCAL_AI_DOWNLOAD_ORIGINS,
+    );
+    blocked.allowDownloads(new Set([listed]));
+    await expect(blocked.fetch(listed)).rejects.toBeInstanceOf(NetworkBlockedError);
+    expect(cancelled).toBe(true);
   });
 });
 

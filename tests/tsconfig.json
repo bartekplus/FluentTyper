@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["chrome", "node", "bun"]
+  },
+  "include": ["../src/globals.d.ts", "**/*.ts"]
+}

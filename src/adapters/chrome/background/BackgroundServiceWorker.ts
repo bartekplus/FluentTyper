@@ -1,35 +1,28 @@
-import { CMD_BACKGROUND_PAGE_PREDICT_RESP } from "@core/domain/constants";
+import { CMD_BACKGROUND_PAGE_PREDICT_RESP, isDevBuild } from "@core/domain/constants";
 import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage, logError } from "@core/domain/error";
+import { isFiniteNumber } from "@core/domain/guards";
 import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { LanguageDetector, type AutoLanguageSessionLookup } from "./LanguageDetector";
 import { PredictionManager } from "./PredictionManager";
 import type { PredictionConfigOverride } from "./PredictionTypes";
 import { TabMessenger } from "./TabMessenger";
-import { ProductivityStatsManager } from "./ProductivityStatsManager";
-import { migrateSettingsV3 } from "@core/application/settings/SettingsMigrationV3";
-import { migrateSettingsV4 } from "@core/application/settings/SettingsMigrationV4";
-import { migrateSettingsV5 } from "@core/application/settings/SettingsMigrationV5";
-import { migrateSettingsV6 } from "@core/application/settings/SettingsMigrationV6";
-import { migrateSettingsV7 } from "@core/application/settings/SettingsMigrationV7";
-import { migrateSettingsV8 } from "@core/application/settings/SettingsMigrationV8";
-import { migrateSettingsV9 } from "@core/application/settings/SettingsMigrationV9";
-import { migrateSettingsV10 } from "@core/application/settings/SettingsMigrationV10";
+import { ProductivityStatsService } from "@core/application/productivityStats/ProductivityStatsService";
 import { migrateToLocalStore } from "./Migration";
+import { runSettingsMigrations } from "@core/application/settings/migrations";
 import type {
   ConfigMessage,
-  Message,
-  PredictRequestMessage,
+  PredictRequestContext,
   PredictResponseMessage,
 } from "@core/domain/messageTypes";
 import {
   resolveDomainRuntimeSettings,
   rotateLanguageForDomain,
-  sanitizeAutoLanguagePriorsSetting,
-  sanitizeSiteProfilesSetting,
+  sanitizeLanguageSettings,
 } from "./config/runtimeSettings";
 import { ConfigAssembler } from "./config/ConfigAssembler";
+import { DomainSettingsCache } from "./config/DomainSettingsCache";
 import { ObservabilityService } from "./ObservabilityService";
 import { ChromeStorageBackend } from "@core/application/storage/ChromeStorageBackend";
 import { PersonalizationRepository } from "@core/application/personalization/PersonalizationRepository";
@@ -38,36 +31,29 @@ import { LocalAiSettingsRepository } from "@core/application/repositories/LocalA
 import { LocalAiController } from "./localAi/LocalAiController";
 import type { EngineLike } from "./localAi/LocalAiHost";
 
-declare const __FT_DEV_BUILD__: boolean | undefined;
-
-const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 const logger = createLogger("BackgroundServiceWorker");
 
 export class BackgroundServiceWorker {
-  static instance: BackgroundServiceWorker;
   settingsManager!: SettingsManager;
   coreSettingsRepository!: CoreSettingsRepository;
   languageDetector!: LanguageDetector;
   predictionManager!: PredictionManager;
   tabMessenger!: TabMessenger;
-  productivityStatsManager!: ProductivityStatsManager;
+  productivityStats!: ProductivityStatsService;
   observabilityService!: ObservabilityService;
   configAssembler!: ConfigAssembler;
   personalizationService!: PersonalizationService;
   localAiController!: LocalAiController;
-  language!: string;
+  domainSettingsCache!: DomainSettingsCache;
   private runtimeConfigReady = false;
   private runtimeConfigLoadPromise: Promise<void> | null = null;
   private initializationPromise: Promise<void> | null = null;
 
   constructor(localAiEngine: EngineLike | null = null) {
-    if (BackgroundServiceWorker.instance) {
-      return BackgroundServiceWorker.instance;
-    }
     this.settingsManager = new SettingsManager();
     this.coreSettingsRepository = new CoreSettingsRepository(this.settingsManager);
     this.personalizationService = new PersonalizationService({
-      repository: new PersonalizationRepository(new ChromeStorageBackend(true)),
+      repository: new PersonalizationRepository(new ChromeStorageBackend()),
       isEnabled: () => this.coreSettingsRepository.getPersonalizationEnabled(),
       isTextExpansionTrigger: async (triggerText) => {
         const normalizedTrigger = triggerText.trim().toLocaleLowerCase();
@@ -80,60 +66,57 @@ export class BackgroundServiceWorker {
     this.languageDetector = new LanguageDetector(this.settingsManager);
     this.predictionManager = new PredictionManager({
       getPersonalizationSnapshot: () => this.personalizationService.getRankingSnapshot(),
+      isDevBuild: isDevBuild(),
     });
     this.tabMessenger = new TabMessenger();
-    this.productivityStatsManager = new ProductivityStatsManager(this.settingsManager);
+    this.productivityStats = new ProductivityStatsService(this.settingsManager);
     this.observabilityService = new ObservabilityService({
-      isDevBuild: IS_DEV_BUILD,
+      isDevBuild: isDevBuild(),
       getPredictorSnapshot: () => this.predictionManager.getPredictorDebugSnapshot(),
-      getAutoLanguageRuntimes: () => this.languageDetector.getDebugState().liveRuntimes,
+      getAutoLanguageRuntimes: () => this.languageDetector.getLiveRuntimes(),
     });
-    this.configAssembler = new ConfigAssembler(this.settingsManager, { isDevBuild: IS_DEV_BUILD });
+    this.configAssembler = new ConfigAssembler(this.settingsManager, { isDevBuild: isDevBuild() });
     this.localAiController = new LocalAiController(
       new LocalAiSettingsRepository(this.settingsManager),
       localAiEngine,
     );
-    this.language = "auto_detect";
-    BackgroundServiceWorker.instance = this;
+    this.domainSettingsCache = new DomainSettingsCache();
   }
 
   async runPrediction(
-    message: PredictRequestMessage,
+    request: PredictRequestContext,
     configOverride?: PredictionConfigOverride,
   ): Promise<void> {
-    const traceId = this.predictionManager.ensureTraceId(message.context.traceId);
+    const traceId = this.predictionManager.ensureTraceId(request.traceId);
     const traceMeta = {
       traceId,
-      requestId: message.context.requestId,
-      tabId: message.context.tabId,
-      frameId: message.context.frameId,
-      suggestionId: message.context.suggestionId,
+      requestId: request.requestId,
+      tabId: request.tabId,
+      frameId: request.frameId,
+      suggestionId: request.suggestionId,
     };
-    if (
-      typeof message.context.traceStartedAtMs === "number" &&
-      Number.isFinite(message.context.traceStartedAtMs)
-    ) {
+    if (isFiniteNumber(request.traceStartedAtMs)) {
       this.predictionManager.recordTraceTimelineEvent(
         traceMeta,
         "content.request.created",
         undefined,
-        message.context.traceStartedAtMs,
+        request.traceStartedAtMs,
       );
     }
     this.predictionManager.recordTraceTimelineEvent(
       traceMeta,
       "background.request.received",
-      `lang=${message.context.lang}`,
+      `lang=${request.lang}`,
     );
     await this.ensureRuntimeConfigReady();
 
     const { predictions, snippetShortcuts } = await this.predictionManager.runPrediction(
-      message.context.text,
-      message.context.nextChar,
-      message.context.lang,
+      request.text,
+      request.nextChar,
+      request.lang,
       configOverride,
       traceMeta,
-      message.context.afterCursorTokenSuffix,
+      request.afterCursorTokenSuffix,
     );
     this.predictionManager.recordTraceTimelineEvent(
       traceMeta,
@@ -147,36 +130,20 @@ export class BackgroundServiceWorker {
         "no predictions",
       );
     }
+    const { afterCursorTokenSuffix: _suffix, inputAction: _action, ...echo } = request;
     const predictResponseMessage: PredictResponseMessage = {
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
-      context: {
-        text: message.context.text,
-        nextChar: message.context.nextChar,
-        lang: message.context.lang,
-        tabId: message.context.tabId,
-        suggestionId: message.context.suggestionId,
-        requestId: message.context.requestId,
-        runtimeGeneration: message.context.runtimeGeneration,
-        traceId,
-        traceStartedAtMs: message.context.traceStartedAtMs,
-        frameId: message.context.frameId,
-        predictions,
-        snippetShortcuts,
-      },
+      context: { ...echo, traceId, predictions, snippetShortcuts },
     };
     this.predictionManager.recordTraceTimelineEvent(
       traceMeta,
       "background.response.dispatching",
-      `frame=${message.context.frameId}`,
+      `frame=${request.frameId}`,
     );
 
-    // Send directly without a chrome.tabs.get pre-flight — that extra IPC
-    // round-trip added ~5–10 ms of latency on every prediction response.
-    // chrome.tabs.sendMessage throws if the tab/frame is gone, which we
-    // catch and trace just like before.
     try {
-      await chrome.tabs.sendMessage(message.context.tabId, predictResponseMessage, {
-        frameId: message.context.frameId,
+      await chrome.tabs.sendMessage(request.tabId, predictResponseMessage, {
+        frameId: request.frameId,
       });
       this.predictionManager.recordTraceTimelineEvent(
         traceMeta,
@@ -193,38 +160,23 @@ export class BackgroundServiceWorker {
     }
   }
 
-  reportAutoLanguageRuntime(
-    context: Pick<AutoLanguageSessionLookup, "runtimeGeneration" | "domainURL"> & {
-      tabId: number;
-      frameId: number;
-    },
-  ): void {
-    this.languageDetector.reportRuntimeActivity(context);
-  }
-
-  sendCommandToTabContentScript(tabId: number, frameId: number, message: Message): void {
-    this.tabMessenger.sendToTab(tabId, frameId, message);
-  }
-
   async getBackgroundPageSetConfigMsg(domainURL?: string): Promise<ConfigMessage> {
-    const message = await this.configAssembler.assembleBackgroundPageSetConfig(domainURL);
-    this.language = message.context.lang;
-    return message;
+    return this.configAssembler.assembleBackgroundPageSetConfig(domainURL);
   }
 
   async updatePresageConfig(): Promise<void> {
-    await sanitizeSiteProfilesSetting(this.settingsManager);
-    await sanitizeAutoLanguagePriorsSetting(this.settingsManager);
+    await sanitizeLanguageSettings(this.settingsManager);
     await Promise.all([
       this.personalizationService.initialize(),
       this.predictionManager.initialize(),
     ]);
     const runtimeConfig = await this.configAssembler.assemblePredictionRuntimeConfig();
-    this.language = runtimeConfig.language;
     this.observabilityService.setConfig(runtimeConfig.observabilityConfig);
     this.predictionManager.setConfig(runtimeConfig.predictionConfig);
-    this.productivityStatsManager.setSnippetShortcuts(runtimeConfig.textExpansions);
+    this.productivityStats.setSnippetShortcuts(runtimeConfig.predictionConfig.textExpansions);
     this.runtimeConfigReady = true;
+    // Flush the cache before the broadcast, so that a prediction from a tab reads the new settings.
+    this.domainSettingsCache.invalidate();
     logger.info("Broadcasting runtime config update", {
       observabilityEnabled: runtimeConfig.observabilityConfig?.enabled,
     });
@@ -237,43 +189,42 @@ export class BackgroundServiceWorker {
 
   async handleActiveLanguageToggle(scope: AutoLanguageSessionLookup): Promise<{
     language: string;
-    tabId?: number;
-    frameId?: number;
+    tabId: number;
+    frameId: number;
   }> {
-    const tabId = scope.tabId;
-    if (typeof tabId === "number") {
-      const liveRuntime = await this.languageDetector.getLiveRuntimeStatus(scope);
-      const effectiveDomainURL = liveRuntime?.domain || scope.domainURL || undefined;
-      const effectiveScope: AutoLanguageSessionLookup = {
-        tabId,
-        frameId: liveRuntime?.frameId,
-        runtimeGeneration: liveRuntime?.runtimeGeneration,
-        domainURL: effectiveDomainURL,
-      };
-      const domainSettings = await resolveDomainRuntimeSettings(
-        this.settingsManager,
-        effectiveDomainURL,
-      );
-      if (domainSettings.language === "auto_detect") {
-        const status = await this.languageDetector.cycleManualLockForScope(effectiveScope);
-        if (status) {
-          return {
-            language: status.language,
-            tabId: status.tabId,
-            frameId: status.frameId,
-          };
-        }
+    const liveRuntime = await this.languageDetector.getLiveRuntimeStatus(scope);
+    const effectiveDomainURL = liveRuntime?.domain || scope.domainURL || undefined;
+    const effectiveScope: AutoLanguageSessionLookup = {
+      tabId: scope.tabId,
+      frameId: liveRuntime?.frameId,
+      runtimeGeneration: liveRuntime?.runtimeGeneration,
+      domainURL: effectiveDomainURL,
+    };
+    const domainSettings = await resolveDomainRuntimeSettings(
+      this.settingsManager,
+      effectiveDomainURL,
+    );
+    if (domainSettings.language === "auto_detect") {
+      const status = await this.languageDetector.cycleManualLockForScope(effectiveScope);
+      if (status) {
+        return {
+          language: status.language,
+          tabId: status.tabId,
+          frameId: status.frameId,
+        };
       }
-      const nextLang = await rotateLanguageForDomain(this.settingsManager, effectiveDomainURL);
-      return {
-        language: nextLang,
-        tabId,
-        frameId: liveRuntime?.frameId ?? 0,
-      };
     }
+    const nextLang = await rotateLanguageForDomain(
+      this.settingsManager,
+      effectiveDomainURL,
+      domainSettings,
+    );
+    // The next prediction request must read the new language, not a cached one.
+    this.domainSettingsCache.invalidate();
     return {
-      language: this.language,
-      frameId: 0,
+      language: nextLang,
+      tabId: scope.tabId,
+      frameId: liveRuntime?.frameId ?? 0,
     };
   }
 
@@ -281,18 +232,7 @@ export class BackgroundServiceWorker {
     this.initializationPromise ??= (async () => {
       try {
         await migrateToLocalStore(lastVersion);
-        await migrateSettingsV3(this.settingsManager);
-        await migrateSettingsV4(this.settingsManager);
-        await migrateSettingsV5(this.settingsManager);
-        await migrateSettingsV6(this.settingsManager);
-        await migrateSettingsV7(this.settingsManager);
-        await migrateSettingsV8(this.settingsManager);
-        await migrateSettingsV9(this.settingsManager);
-        await migrateSettingsV10(this.settingsManager);
-        await Promise.all([
-          this.personalizationService.initialize(),
-          this.predictionManager.initialize(),
-        ]);
+        await runSettingsMigrations(this.settingsManager);
         await this.updatePresageConfig();
       } catch (error) {
         logError("lastVersion handler", error);

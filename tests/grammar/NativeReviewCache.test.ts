@@ -9,17 +9,11 @@ import {
   detectReviewDiagnostics,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { REVIEW_DETECTORS } from "../../src/core/domain/grammar/review/reviewDetectors";
-import { planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
-import type {
-  ReviewOptions,
-  ReviewSourceSnapshot,
-} from "../../src/core/domain/grammar/review/types";
-const options: ReviewOptions = {
-  lang: "en_US",
+import type { ReviewSourceSnapshot } from "../../src/core/domain/grammar/review/types";
+import { prepared, reviewOptions, reviewSnapshot, planBulkFix } from "./grammarTestUtils";
+const options = reviewOptions({
   enabledRules: ["englishFixedPrepositions", "englishUsagePhrases", "unclosedQuotation"],
-  userDictionary: [],
-  insertSpaceAfterAutocomplete: true,
-};
+});
 const paragraph =
   "We discussed about the plan. They are one in the same. This story peaked my interest.\n\n";
 function scan(
@@ -29,17 +23,11 @@ function scan(
   opts = options,
   extra: Partial<ReviewSourceSnapshot> = {},
 ) {
-  const snapshot = {
-    id,
-    text,
-    scope: { start: 0, end: text.length },
-    protectedRanges: [],
-    ...extra,
-  };
-  const prepared = prepareReview(snapshot, opts);
+  const snapshot = reviewSnapshot(text, { id, ...extra });
+  const p = prepareReview(snapshot, opts);
   const result = finalizeReview(
-    prepared,
-    reviewChunks(prepared).map((chunk) => scanReviewChunk(prepared, chunk, cache)),
+    p,
+    reviewChunks(p).map((chunk) => scanReviewChunk(p, chunk, cache)),
   );
   const full = detectReviewDiagnostics(snapshot, opts);
   expect(result).toEqual(full);
@@ -57,12 +45,7 @@ test("native reuse skips unchanged chunks and remaps findings to fresh snapshot 
     spy.mockClear();
     const edited = "A new opening paragraph.\n\n" + text;
     const result = scan(cache, edited, "b");
-    const chunks = reviewChunks(
-      prepareReview(
-        { id: "b", text: edited, scope: { start: 0, end: edited.length }, protectedRanges: [] },
-        options,
-      ),
-    ).length;
+    const chunks = reviewChunks(prepared(edited, { id: "b" }, options)).length;
     // Includes the oracle's calls; fewer than two full scans proves reuse.
     expect(spy.mock.calls.length).toBeLessThan(chunks * 2);
     expect(result.diagnostics.length).toBeGreaterThan(0);
@@ -90,6 +73,7 @@ test("native cache invalidates fences, dictionary, rules, protection and partial
   scan(cache, text, "unread", options, { incomplete: true });
 });
 
+// 100 full scans take about 3 s on one free core, so the 5 s default fails under load.
 test("seeded edits preserve exact full-scan diagnostics, context, coverage and bulk decisions", () => {
   const cache = new NativeReviewCache();
   let text = paragraph.repeat(62);

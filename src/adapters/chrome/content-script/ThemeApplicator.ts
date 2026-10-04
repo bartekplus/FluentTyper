@@ -1,24 +1,20 @@
 import { normalizeCssColor } from "@core/domain/color";
 import { resolveSuggestionAccents } from "@core/domain/suggestionPopup/palette";
+import { canvas2dContext } from "@core/application/dom-utils";
+import {
+  DEFAULT_SUGGESTION_THEME_SETTINGS,
+  type SuggestionThemeSettings,
+} from "@core/domain/themeDefaults";
 
-function canvasContext(): CanvasRenderingContext2D | null {
-  try {
-    return document.createElement("canvas").getContext("2d");
-  } catch {
-    return null;
-  }
-}
-import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
-import type { SetConfigContext } from "@core/domain/messageTypes";
-
-type ThemeSettings = NonNullable<SetConfigContext["themeConfig"]>;
-type ThemeSettingKey = keyof ThemeSettings;
+type ThemeSettingKey = keyof SuggestionThemeSettings;
 
 type ThemeSettingSpec = {
   key: ThemeSettingKey;
   cssName: string;
   cssProperty: string;
 };
+
+const STYLE_ID = "fluent-typer-theme-overrides";
 
 const THEME_SETTING_SPECS: ThemeSettingSpec[] = [
   { key: "suggestionBgLight", cssName: "suggestion-bg-light", cssProperty: "color" },
@@ -61,19 +57,23 @@ const THEME_SETTING_SPECS: ThemeSettingSpec[] = [
 ];
 
 export class ThemeApplicator {
-  apply(themeSettings: ThemeSettings): void {
+  apply(themeSettings: SuggestionThemeSettings): void {
     const safeThemeSettings = this.sanitizeThemeSettings(themeSettings);
-    document.getElementById("fluent-typer-theme-overrides")?.remove();
+    this.remove();
 
     const styleElement = document.createElement("style");
-    styleElement.id = "fluent-typer-theme-overrides";
+    styleElement.id = STYLE_ID;
 
     styleElement.textContent = this.buildThemeOverrideCss(safeThemeSettings);
 
     document.head.appendChild(styleElement);
   }
 
-  private buildThemeOverrideCss(themeSettings: ThemeSettings): string {
+  remove(): void {
+    document.getElementById(STYLE_ID)?.remove();
+  }
+
+  private buildThemeOverrideCss(themeSettings: SuggestionThemeSettings): string {
     const lines: string[] = [":root {"];
     for (const spec of THEME_SETTING_SPECS) {
       const value = themeSettings[spec.key];
@@ -81,7 +81,7 @@ export class ThemeApplicator {
       lines.push(`  --ft-theme-${spec.cssName}: ${value} !important;`);
     }
     // Accents for typed text that read on these colors (the design's, when they do).
-    const context = canvasContext();
+    const context = canvas2dContext();
     const accents = resolveSuggestionAccents(themeSettings, (color) =>
       normalizeCssColor(color, context),
     );
@@ -95,8 +95,8 @@ export class ThemeApplicator {
     return lines.join("\n");
   }
 
-  private sanitizeThemeSettings(themeSettings: ThemeSettings): ThemeSettings {
-    const sanitizedThemeSettings = {} as ThemeSettings;
+  private sanitizeThemeSettings(themeSettings: SuggestionThemeSettings): SuggestionThemeSettings {
+    const sanitizedThemeSettings = {} as SuggestionThemeSettings;
     for (const spec of THEME_SETTING_SPECS) {
       const fallbackValue = DEFAULT_SUGGESTION_THEME_SETTINGS[spec.key];
       sanitizedThemeSettings[spec.key] = this.sanitizeCssValue(

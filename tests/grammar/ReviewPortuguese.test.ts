@@ -23,7 +23,7 @@ function findings(ruleId: CatalogRuleId, text: string, lang = LANG, userDictiona
 /** Every finding's first alternative applied at once. */
 function repaired(ruleId: CatalogRuleId, text: string): string {
   const edits = findings(ruleId, text).flatMap((d) => d.alternatives[0]?.edits ?? []);
-  return applyEdits(text, edits);
+  return applyEdits(text, edits)!;
 }
 
 type Fixture = { pos: Array<[string, string]>; neg: string[] };

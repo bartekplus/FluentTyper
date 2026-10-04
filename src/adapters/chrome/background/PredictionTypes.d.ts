@@ -14,7 +14,6 @@ export interface PredictorStageDebugInfo {
   enabled: boolean;
   attempted: boolean;
   durationMs: number;
-  timedOut: boolean;
   predictions: string[];
   skipReason?: string;
 }

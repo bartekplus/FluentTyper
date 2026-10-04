@@ -1,6 +1,5 @@
 import { jest, mock } from "bun:test";
 import {
-  CMD_BACKGROUND_PAGE_PREDICT_REQ,
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
   CMD_BACKGROUND_PAGE_SET_CONFIG,
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
@@ -30,59 +29,72 @@ import {
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
 } from "../src/core/domain/constants";
 import { REVIEW_SPELLING_BUDGET_MS } from "../src/adapters/chrome/background/PresageEngine";
+import type { LanguageDetector } from "../src/adapters/chrome/background/LanguageDetector";
+
+type SessionStatus = Awaited<ReturnType<LanguageDetector["getRecentSessionStatusForScope"]>>;
+type TabContext = { tabId: number; hostname: string } | undefined;
 
 function flushPromises() {
   return new Promise((resolve) => setTimeout(resolve, 5));
 }
 
-class MockConfigError extends Error {
-  readonly kind = "config";
-  readonly code: string;
+const realDomainUtils = await import("../src/core/application/domain-utils");
+const realError = await import("../src/core/domain/error");
 
-  constructor(message: string, details: { code: string; cause?: unknown }) {
-    super(message);
-    this.name = "ConfigError";
-    this.code = details.code;
-  }
-}
-
-class MockTransportError extends Error {
-  readonly kind = "transport";
-  readonly code: string;
-
-  constructor(message: string, details: { code: string; cause?: unknown }) {
-    super(message);
-    this.name = "TransportError";
-    this.code = details.code;
-  }
-}
-
-class MockPredictorError extends Error {
-  readonly kind = "predictor";
-  readonly code: string;
-
-  constructor(message: string, details: { code: string; cause?: unknown }) {
-    super(message);
-    this.name = "PredictorError";
-    this.code = details.code;
-  }
+function createHarnessMocks(state: Record<string, unknown>) {
+  return {
+    settingsGet: jest.fn(async (key: string) => state[key]),
+    settingsSet: jest.fn(async (key: string, value: unknown) => {
+      state[key] = value;
+    }),
+    resolveAutoLanguage: jest.fn(async (_request: unknown) => ({
+      language: "fr_FR",
+      changed: true,
+      source: "detection",
+      isLocked: false,
+      switched: false,
+      tabId: 111,
+      frameId: 0,
+    })),
+    cycleManualLockForScope: jest.fn(async (_scope: unknown): Promise<SessionStatus> => null),
+    reportRuntimeActivity: jest.fn((_scope: unknown) => undefined),
+    getRecentSessionStatusForScope: jest.fn(
+      async (_scope: unknown): Promise<SessionStatus> => null,
+    ),
+    predictionRun: jest.fn(
+      async (..._args: [string, string, string, unknown?, unknown?, string?]) => ({
+        predictions: ["hello"],
+      }),
+    ),
+    predictionInitialize: jest.fn(async () => undefined),
+    predictionSetConfig: jest.fn(),
+    predictionEnsureTraceId: jest.fn((traceId?: string) => traceId || "generated-trace-id"),
+    predictionRecordTraceTimelineEvent: jest.fn(
+      (meta?: { traceId?: string }) => meta?.traceId || "generated-trace-id",
+    ),
+    tabSendToAll: jest.fn(),
+    tabSendToActive: jest.fn(),
+    tabSendToTab: jest.fn(),
+    getActiveTabContext: jest.fn(async (): Promise<TabContext> => ({
+      tabId: 1,
+      hostname: "example.com",
+    })),
+    getLastActiveWebsiteTabContext: jest.fn(async (): Promise<TabContext> => ({
+      tabId: 9,
+      hostname: "docs.example",
+    })),
+    getDomain: jest.fn((_url: string) => "example.com"),
+    isEnabledForDomain: jest.fn(async (_settings: unknown, _domain: string) => true),
+    logError: jest.fn(),
+    migrateToLocalStore: jest.fn(async (_version: string | undefined) => undefined),
+    personalizationInitialize: jest.fn(async () => undefined),
+    personalizationHandleEvent: jest.fn(async (_event: unknown) => true),
+    personalizationClear: jest.fn(async () => undefined),
+  };
 }
 
 const backgroundHarnessMocks = {
-  settingsGet: jest.fn(async () => undefined),
-  settingsSet: jest.fn(async () => undefined),
-  resolveAutoLanguage: jest.fn(async () => ({
-    language: "en_US",
-    changed: true,
-    source: "detection",
-    isLocked: false,
-    switched: false,
-    tabId: 1,
-    frameId: 0,
-  })),
-  cycleManualLockForScope: jest.fn(async () => null),
-  getRecentSessionStatusForScope: jest.fn(async () => null),
-  predictionRun: jest.fn(async () => ({ predictions: [] })),
+  ...createHarnessMocks({}),
   predictionLookupSpelling: jest.fn(
     async (
       _lang: string,
@@ -91,36 +103,10 @@ const backgroundHarnessMocks = {
     ): Promise<Array<string[] | null> | null> =>
       words.map(({ word }) => (word === "wa" ? ["was", "way"] : null)),
   ),
-  predictionInitialize: jest.fn(async () => undefined),
-  predictionSetConfig: jest.fn(),
-  predictionEnsureTraceId: jest.fn((traceId?: string) => traceId || "generated-trace-id"),
-  predictionRecordTraceTimelineEvent: jest.fn(
-    (meta?: { traceId?: string }) => meta?.traceId || "generated-trace-id",
-  ),
-  tabSendToAll: jest.fn(),
-  tabSendToActive: jest.fn(),
-  tabSendToActiveAllFrames: jest.fn(),
-  tabSendToTab: jest.fn(),
-  getActiveTabContext: jest.fn(async () => ({
-    tabId: 1,
-    hostname: "example.com",
-  })),
-  getLastActiveWebsiteTabContext: jest.fn(async () => ({
-    tabId: 1,
-    hostname: "example.com",
-  })),
-  checkLastError: jest.fn(),
-  getDomain: jest.fn(() => "example.com"),
-  isEnabledForDomain: jest.fn(async () => true),
-  logError: jest.fn(),
-  migrateToLocalStore: jest.fn(async () => undefined),
-  personalizationInitialize: jest.fn(async () => undefined),
-  personalizationHandleEvent: jest.fn(async () => true),
-  personalizationClear: jest.fn(async () => undefined),
 };
 
 function installBackgroundHarnessModuleMocks(): void {
-  jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
+  mock.module("../src/core/application/settingsManager", () => ({
     SettingsManager: jest.fn().mockImplementation(() => ({
       get: (...args: [string]) => backgroundHarnessMocks.settingsGet(...args),
       getRaw: (...args: [string]) => backgroundHarnessMocks.settingsGet(...args),
@@ -130,10 +116,11 @@ function installBackgroundHarnessModuleMocks(): void {
     })),
   }));
 
-  jest.unstable_mockModule("../src/adapters/chrome/background/LanguageDetector", () => ({
+  mock.module("../src/adapters/chrome/background/LanguageDetector", () => ({
     LanguageDetector: jest.fn().mockImplementation(() => ({
       resolveLanguage: (...args: [unknown]) => backgroundHarnessMocks.resolveAutoLanguage(...args),
-      reportRuntimeActivity: jest.fn(),
+      reportRuntimeActivity: (...args: [unknown]) =>
+        backgroundHarnessMocks.reportRuntimeActivity(...args),
       getLiveRuntimeStatus: jest.fn(async () => null),
       cycleManualLockForScope: (...args: [unknown]) =>
         backgroundHarnessMocks.cycleManualLockForScope(...args),
@@ -142,7 +129,7 @@ function installBackgroundHarnessModuleMocks(): void {
     })),
   }));
 
-  jest.unstable_mockModule("../src/adapters/chrome/background/PredictionManager", () => ({
+  mock.module("../src/adapters/chrome/background/PredictionManager", () => ({
     PredictionManager: jest.fn().mockImplementation(() => ({
       runPrediction: (...args: [string, string, string, unknown?, unknown?, string?]) =>
         backgroundHarnessMocks.predictionRun(...args),
@@ -152,31 +139,27 @@ function installBackgroundHarnessModuleMocks(): void {
       setConfig: (...args: [unknown]) => backgroundHarnessMocks.predictionSetConfig(...args),
       ensureTraceId: (...args: [string?]) =>
         backgroundHarnessMocks.predictionEnsureTraceId(...args),
-      recordTraceTimelineEvent: (...args: [unknown?]) =>
+      recordTraceTimelineEvent: (...args: [{ traceId?: string }?]) =>
         backgroundHarnessMocks.predictionRecordTraceTimelineEvent(...args),
     })),
   }));
 
-  jest.unstable_mockModule(
-    "../src/core/application/personalization/PersonalizationService",
-    () => ({
-      PersonalizationService: jest.fn().mockImplementation(() => ({
-        initialize: () => backgroundHarnessMocks.personalizationInitialize(),
-        handleEvent: (...args: [unknown]) =>
-          backgroundHarnessMocks.personalizationHandleEvent(...args),
-        clear: () => backgroundHarnessMocks.personalizationClear(),
-        getRankingSnapshot: () => ({}),
-      })),
-    }),
-  );
+  mock.module("../src/core/application/personalization/PersonalizationService", () => ({
+    PersonalizationService: jest.fn().mockImplementation(() => ({
+      initialize: () => backgroundHarnessMocks.personalizationInitialize(),
+      handleEvent: (...args: [unknown]) =>
+        backgroundHarnessMocks.personalizationHandleEvent(...args),
+      clear: () => backgroundHarnessMocks.personalizationClear(),
+      getRankingSnapshot: () => ({}),
+    })),
+  }));
 
-  jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () => ({
+  mock.module("../src/adapters/chrome/background/TabMessenger", () => ({
     TabMessenger: jest.fn().mockImplementation(() => ({
       sendToAllTabs: (...args: [unknown, unknown?, unknown?]) =>
         backgroundHarnessMocks.tabSendToAll(...args),
-      sendToActiveTab: (...args: [unknown]) => backgroundHarnessMocks.tabSendToActive(...args),
-      sendToActiveTabAllFrames: (...args: [unknown]) =>
-        backgroundHarnessMocks.tabSendToActiveAllFrames(...args),
+      sendToActiveTab: (...args: [unknown, unknown?]) =>
+        backgroundHarnessMocks.tabSendToActive(...args),
       sendToTab: (...args: [number, number, unknown]) =>
         backgroundHarnessMocks.tabSendToTab(...args),
       getActiveTabContext: (...args: []) => backgroundHarnessMocks.getActiveTabContext(...args),
@@ -185,47 +168,19 @@ function installBackgroundHarnessModuleMocks(): void {
     })),
   }));
 
-  jest.unstable_mockModule("../src/core/application/transport-utils", () => ({
-    checkLastError: (...args: []) => backgroundHarnessMocks.checkLastError(...args),
-  }));
-
-  jest.unstable_mockModule("../src/core/application/domain-utils", () => ({
+  mock.module("../src/core/application/domain-utils", () => ({
+    ...realDomainUtils,
     getDomain: (...args: [string]) => backgroundHarnessMocks.getDomain(...args),
     isEnabledForDomain: (...args: [unknown, string]) =>
       backgroundHarnessMocks.isEnabledForDomain(...args),
-    toStoredString: (value: unknown) =>
-      typeof value === "string"
-        ? value
-        : typeof value === "number" || typeof value === "boolean" || typeof value === "bigint"
-          ? String(value)
-          : null,
-    isWhiteSpace: (character: string) => /\s+/.test(character),
-    isNumber: (value: string) =>
-      (!Number.isNaN(Number(value)) && !Number.isNaN(Number.parseFloat(value))) ||
-      value.replace(/\P{Nd}/gu, "").length > 1,
   }));
 
-  jest.unstable_mockModule("../src/core/domain/error", () => ({
+  mock.module("../src/core/domain/error", () => ({
+    ...realError,
     logError: (...args: [string, unknown]) => backgroundHarnessMocks.logError(...args),
-    getErrorMessage: (error: unknown) => (error instanceof Error ? error.message : String(error)),
-    ConfigError: MockConfigError,
-    TransportError: MockTransportError,
-    PredictorError: MockPredictorError,
-    isFluentTyperError: (error: unknown) => {
-      if (!error || typeof error !== "object") {
-        return false;
-      }
-      const candidate = error as { kind?: unknown; code?: unknown };
-      return (
-        (candidate.kind === "config" ||
-          candidate.kind === "transport" ||
-          candidate.kind === "predictor") &&
-        typeof candidate.code === "string"
-      );
-    },
   }));
 
-  jest.unstable_mockModule("../src/adapters/chrome/background/Migration", () => ({
+  mock.module("../src/adapters/chrome/background/Migration", () => ({
     migrateToLocalStore: (...args: [string | undefined]) =>
       backgroundHarnessMocks.migrateToLocalStore(...args),
   }));
@@ -279,51 +234,6 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     ...stateOverrides,
   };
 
-  const settingsGet = jest.fn(async (key: string) => state[key]);
-  const settingsSet = jest.fn(async (key: string, value: unknown) => {
-    state[key] = value;
-  });
-  const resolveAutoLanguage = jest.fn(async () => ({
-    language: "fr_FR",
-    changed: true,
-    source: "detection",
-    isLocked: false,
-    switched: false,
-    tabId: 111,
-    frameId: 0,
-  }));
-  const cycleManualLockForScope = jest.fn(async () => null);
-  const getRecentSessionStatusForScope = jest.fn(async () => null);
-  const predictionRun = jest.fn(async () => ({
-    predictions: ["hello"],
-  }));
-  const predictionInitialize = jest.fn(async () => undefined);
-  const predictionSetConfig = jest.fn();
-  const predictionEnsureTraceId = jest.fn((traceId?: string) => traceId || "generated-trace-id");
-  const predictionRecordTraceTimelineEvent = jest.fn(
-    (meta?: { traceId?: string }) => meta?.traceId || "generated-trace-id",
-  );
-  const tabSendToAll = jest.fn();
-  const tabSendToActive = jest.fn();
-  const tabSendToActiveAllFrames = jest.fn();
-  const tabSendToTab = jest.fn();
-  const getActiveTabContext = jest.fn(async () => ({
-    tabId: 1,
-    hostname: "example.com",
-  }));
-  const getLastActiveWebsiteTabContext = jest.fn(async () => ({
-    tabId: 9,
-    hostname: "docs.example",
-  }));
-  const checkLastError = jest.fn();
-  const getDomain = jest.fn(() => "example.com");
-  const isEnabledForDomain = jest.fn(async () => true);
-  const logError = jest.fn();
-  const migrateToLocalStore = jest.fn(async () => undefined);
-  const personalizationInitialize = jest.fn(async () => undefined);
-  const personalizationHandleEvent = jest.fn(async () => true);
-  const personalizationClear = jest.fn(async () => undefined);
-
   const onInstalledAddListener = jest.fn();
   const onCommandAddListener = jest.fn();
   const onMessageAddListener = jest.fn();
@@ -365,34 +275,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   };
   (globalThis as unknown as { chrome: unknown }).chrome = chromeMock;
 
-  backgroundHarnessMocks.settingsGet = settingsGet;
-  backgroundHarnessMocks.settingsSet = settingsSet;
-  backgroundHarnessMocks.resolveAutoLanguage = resolveAutoLanguage;
-  backgroundHarnessMocks.cycleManualLockForScope = cycleManualLockForScope;
-  backgroundHarnessMocks.getRecentSessionStatusForScope = getRecentSessionStatusForScope;
-  backgroundHarnessMocks.predictionRun = predictionRun;
-  backgroundHarnessMocks.predictionInitialize = predictionInitialize;
-  backgroundHarnessMocks.predictionSetConfig = predictionSetConfig;
-  backgroundHarnessMocks.predictionEnsureTraceId = predictionEnsureTraceId;
-  backgroundHarnessMocks.predictionRecordTraceTimelineEvent = predictionRecordTraceTimelineEvent;
-  backgroundHarnessMocks.tabSendToAll = tabSendToAll;
-  backgroundHarnessMocks.tabSendToActive = tabSendToActive;
-  backgroundHarnessMocks.tabSendToActiveAllFrames = tabSendToActiveAllFrames;
-  backgroundHarnessMocks.tabSendToTab = tabSendToTab;
-  backgroundHarnessMocks.getActiveTabContext = getActiveTabContext;
-  backgroundHarnessMocks.getLastActiveWebsiteTabContext = getLastActiveWebsiteTabContext;
-  backgroundHarnessMocks.checkLastError = checkLastError;
-  backgroundHarnessMocks.getDomain = getDomain;
-  backgroundHarnessMocks.isEnabledForDomain = isEnabledForDomain;
-  backgroundHarnessMocks.logError = logError;
-  backgroundHarnessMocks.migrateToLocalStore = migrateToLocalStore;
-  backgroundHarnessMocks.personalizationInitialize = personalizationInitialize;
-  backgroundHarnessMocks.personalizationHandleEvent = personalizationHandleEvent;
-  backgroundHarnessMocks.personalizationClear = personalizationClear;
-
-  const { BackgroundServiceWorker } =
-    await import("../src/adapters/chrome/background/BackgroundServiceWorker");
-  (BackgroundServiceWorker as unknown as { instance?: unknown }).instance = undefined;
+  Object.assign(backgroundHarnessMocks, createHarnessMocks(state));
 
   const module = await import(freshModulePath("../src/adapters/chrome/background/background"));
   module.startBackground();
@@ -402,7 +285,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   ) => void;
   const onCommand = onCommandAddListener.mock.calls[0][0] as (command: string) => void;
   const onMessage = onMessageAddListener.mock.calls[0][0] as (
-    request: { command: string; context?: Record<string, unknown> },
+    request: { command: string; context?: unknown },
     sender: chrome.runtime.MessageSender,
     sendResponse: (response?: unknown) => void,
   ) => boolean;
@@ -413,30 +296,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   return {
     module,
     state,
-    settingsGet,
-    settingsSet,
-    resolveAutoLanguage,
-    cycleManualLockForScope,
-    getRecentSessionStatusForScope,
-    predictionRun,
-    predictionInitialize,
-    predictionSetConfig,
-    predictionEnsureTraceId,
-    predictionRecordTraceTimelineEvent,
-    tabSendToAll,
-    tabSendToActive,
-    tabSendToActiveAllFrames,
-    tabSendToTab,
-    getActiveTabContext,
-    getLastActiveWebsiteTabContext,
-    checkLastError,
-    getDomain,
-    isEnabledForDomain,
-    logError,
-    migrateToLocalStore,
-    personalizationInitialize,
-    personalizationHandleEvent,
-    personalizationClear,
+    ...backgroundHarnessMocks,
     onInstalled,
     onCommand,
     onMessage,
@@ -444,6 +304,22 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     startupHandler,
     chromeMock: { tabs: chromeMock.tabs },
   };
+}
+
+type BackgroundHarness = Awaited<ReturnType<typeof loadBackgroundHarness>>;
+
+async function predict(
+  harness: BackgroundHarness,
+  context: Record<string, unknown>,
+  sender: chrome.runtime.MessageSender,
+) {
+  const result = harness.onMessage(
+    { command: CMD_CONTENT_SCRIPT_PREDICT_REQ, context },
+    sender,
+    jest.fn(),
+  );
+  await flushPromises();
+  return result;
 }
 
 describe("background routing and lifecycle", () => {
@@ -465,6 +341,18 @@ describe("background routing and lifecycle", () => {
       }),
     );
     expect(harness.tabSendToAll).toHaveBeenCalled();
+  });
+
+  test("startup normalizes the stored site profiles after the migrations", async () => {
+    const harness = await loadBackgroundHarness({
+      [KEY_SITE_PROFILES]: { "https://example.com": { language: "fr_FR", numSuggestions: 2 } },
+    });
+
+    await harness.startupHandler({ lastVersion: "2025.12.0" });
+
+    expect(harness.settingsSet).toHaveBeenCalledWith(KEY_SITE_PROFILES, {
+      "example.com": { language: "fr_FR", numSuggestions: 2 },
+    });
   });
 
   test("startup logs failure when migration rejects", async () => {
@@ -506,20 +394,13 @@ describe("background routing and lifecycle", () => {
       url: "new_installation/index.html",
     });
 
+    // The startup run migrates from the stored version; an update starts no second run.
     harness.onInstalled({
       reason: "update",
       previousVersion: "2025.1.0",
     } as chrome.runtime.InstalledDetails);
     await flushPromises();
-    expect(harness.migrateToLocalStore).toHaveBeenCalledWith("2025.1.0");
-
-    harness.migrateToLocalStore.mockRejectedValueOnce(new Error("update fail"));
-    harness.onInstalled({
-      reason: "update",
-      previousVersion: "2025.1.1",
-    } as chrome.runtime.InstalledDetails);
-    await flushPromises();
-    expect(harness.logError).toHaveBeenCalledWith("migrateToLocalStore", expect.any(Error));
+    expect(harness.migrateToLocalStore).not.toHaveBeenCalled();
   });
 
   test("onCommand toggles active tab, triggers active tab and rotates language", async () => {
@@ -549,11 +430,11 @@ describe("background routing and lifecycle", () => {
     harness.onCommand(CMD_REVIEW_FT_ACTIVE_TAB);
     await flushPromises();
 
-    expect(harness.tabSendToActiveAllFrames).toHaveBeenCalledWith({
-      command: CMD_REVIEW_FT_ACTIVE_TAB,
-      context: { source: "command" },
-    });
-    expect(harness.tabSendToActive).not.toHaveBeenCalled();
+    // An empty option object sends to every frame, not only the top one.
+    expect(harness.tabSendToActive).toHaveBeenCalledWith(
+      { command: CMD_REVIEW_FT_ACTIVE_TAB, context: { source: "command" } },
+      {},
+    );
     // Starting a review changes no setting.
     expect(harness.settingsSet).not.toHaveBeenCalled();
   });
@@ -836,40 +717,32 @@ describe("background routing and lifecycle", () => {
       .spyOn(harness.module.BackgroundServiceWorker.prototype, "runPrediction")
       .mockResolvedValue(undefined);
 
-    const result = harness.onMessage(
+    const result = await predict(
+      harness,
       {
-        command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
-        context: {
-          text: "hello",
-          nextChar: "",
-          afterCursorTokenSuffix: "",
-          inputAction: "delete",
-          lang: "en_US",
-          suggestionId: 1,
-          requestId: 9,
-          runtimeGeneration: 2,
-        },
+        text: "hello",
+        nextChar: "",
+        afterCursorTokenSuffix: "",
+        inputAction: "delete",
+        lang: "en_US",
+        suggestionId: 1,
+        requestId: 9,
+        runtimeGeneration: 2,
       },
       { tab: { id: 321 } as chrome.tabs.Tab, frameId: 7 },
-      jest.fn(),
     );
-
-    await flushPromises();
 
     expect(result).toBe(false);
     expect(runPredictionSpy).toHaveBeenCalledWith(
-      {
-        command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
-        context: expect.objectContaining({
-          text: "hello",
-          nextChar: "",
-          afterCursorTokenSuffix: "",
-          inputAction: "delete",
-          lang: "en_US",
-          tabId: 321,
-          frameId: 7,
-        }),
-      },
+      expect.objectContaining({
+        text: "hello",
+        nextChar: "",
+        afterCursorTokenSuffix: "",
+        inputAction: "delete",
+        lang: "en_US",
+        tabId: 321,
+        frameId: 7,
+      }),
       undefined,
     );
   });
@@ -918,12 +791,10 @@ describe("background routing and lifecycle", () => {
         expect(runPrediction).toHaveBeenCalledTimes(1);
         expect(runPrediction).toHaveBeenCalledWith(
           expect.objectContaining({
-            context: expect.objectContaining({
-              text: "what . wa",
-              afterCursorTokenSuffix: "s",
-              tabId: 77,
-              frameId: 3,
-            }),
+            text: "what . wa",
+            afterCursorTokenSuffix: "s",
+            tabId: 77,
+            frameId: 3,
           }),
           expected,
         );
@@ -944,123 +815,42 @@ describe("background routing and lifecycle", () => {
       },
     });
     const runPredictionSpy = jest.spyOn(
-      (
-        harness.module.BackgroundServiceWorker as {
-          prototype: {
-            runPrediction: (
-              message: unknown,
-              configOverride?: { numSuggestions?: number },
-            ) => Promise<void>;
-          };
-        }
-      ).prototype,
+      harness.module.BackgroundServiceWorker.prototype,
       "runPrediction",
     );
 
-    harness.onMessage(
+    await predict(
+      harness,
       {
-        command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
-        context: {
-          text: "bonjour",
-          nextChar: "",
-          lang: "fr_FR",
-          suggestionId: 4,
-          requestId: 5,
-          runtimeGeneration: 3,
-          traceId: "trace-fr-5",
-        },
+        text: "bonjour",
+        nextChar: "",
+        lang: "fr_FR",
+        suggestionId: 4,
+        requestId: 5,
+        runtimeGeneration: 3,
+        traceId: "trace-fr-5",
       },
       {
         tab: { id: 77, url: "https://example.com/path" } as chrome.tabs.Tab,
         frameId: 3,
       },
-      jest.fn(),
     );
-    await flushPromises();
 
     expect(runPredictionSpy).toHaveBeenCalledWith(
-      {
-        command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
-        context: expect.objectContaining({
-          text: "bonjour",
-          nextChar: "",
-          lang: "fr_FR",
-          tabId: 77,
-          frameId: 3,
-          suggestionId: 4,
-          requestId: 5,
-          runtimeGeneration: 3,
-          traceId: "trace-fr-5",
-        }),
-      },
+      expect.objectContaining({
+        text: "bonjour",
+        nextChar: "",
+        lang: "fr_FR",
+        tabId: 77,
+        frameId: 3,
+        suggestionId: 4,
+        requestId: 5,
+        runtimeGeneration: 3,
+        traceId: "trace-fr-5",
+      }),
       {
         numSuggestions: 2,
       },
-    );
-  });
-
-  test("onMessage predict request falls back to global runtime config for unmatched domain", async () => {
-    const harness = await loadBackgroundHarness({
-      [KEY_SITE_PROFILES]: {
-        "example.com": {
-          language: "fr_FR",
-          numSuggestions: 4,
-        },
-      },
-      language: "en_US",
-    });
-    harness.getDomain.mockReturnValueOnce("other.example");
-    const runPredictionSpy = jest.spyOn(
-      (
-        harness.module.BackgroundServiceWorker as {
-          prototype: {
-            runPrediction: (
-              message: unknown,
-              configOverride?: { numSuggestions?: number },
-            ) => Promise<void>;
-          };
-        }
-      ).prototype,
-      "runPrediction",
-    );
-
-    harness.onMessage(
-      {
-        command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
-        context: {
-          text: "hello",
-          nextChar: "",
-          lang: "en_US",
-          suggestionId: 11,
-          requestId: 12,
-          runtimeGeneration: 4,
-          traceId: "trace-en-12",
-        },
-      },
-      {
-        tab: { id: 90, url: "https://other.example" } as chrome.tabs.Tab,
-        frameId: 1,
-      },
-      jest.fn(),
-    );
-    await flushPromises();
-
-    expect(runPredictionSpy).toHaveBeenCalledWith(
-      {
-        command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
-        context: expect.objectContaining({
-          text: "hello",
-          nextChar: "",
-          lang: "en_US",
-          tabId: 90,
-          frameId: 1,
-          suggestionId: 11,
-          requestId: 12,
-          runtimeGeneration: 4,
-          traceId: "trace-en-12",
-        }),
-      },
-      undefined,
     );
   });
 
@@ -1068,49 +858,38 @@ describe("background routing and lifecycle", () => {
     const harness = await loadBackgroundHarness();
     harness.state[KEY_LANGUAGE] = "en_US";
 
-    const sendToTabSpy = jest.spyOn(
-      harness.module.BackgroundServiceWorker.prototype,
-      "sendCommandToTabContentScript",
-    );
     const runPredictionSpy = jest
       .spyOn(harness.module.BackgroundServiceWorker.prototype, "runPrediction")
       .mockResolvedValue(undefined);
 
-    harness.onMessage(
+    await predict(
+      harness,
       {
-        command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
-        context: {
-          text: "hello",
-          nextChar: "",
-          lang: "fr_FR",
-          suggestionId: 1,
-          requestId: 1,
-          runtimeGeneration: 5,
-        },
+        text: "hello",
+        nextChar: "",
+        lang: "fr_FR",
+        suggestionId: 1,
+        requestId: 1,
+        runtimeGeneration: 5,
       },
       { tab: { id: 2 } as chrome.tabs.Tab, frameId: 0 },
-      jest.fn(),
     );
-    await flushPromises();
 
-    expect(sendToTabSpy).toHaveBeenCalledWith(2, 0, {
+    expect(harness.tabSendToTab).toHaveBeenCalledWith(2, 0, {
       command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
       context: { lang: "en_US" },
     });
     expect(runPredictionSpy).toHaveBeenCalledWith(
-      {
-        command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
-        context: expect.objectContaining({
-          text: "hello",
-          nextChar: "",
-          lang: "en_US",
-          tabId: 2,
-          frameId: 0,
-          suggestionId: 1,
-          requestId: 1,
-          runtimeGeneration: 5,
-        }),
-      },
+      expect.objectContaining({
+        text: "hello",
+        nextChar: "",
+        lang: "en_US",
+        tabId: 2,
+        frameId: 0,
+        suggestionId: 1,
+        requestId: 1,
+        runtimeGeneration: 5,
+      }),
       undefined,
     );
   });
@@ -1120,30 +899,22 @@ describe("background routing and lifecycle", () => {
       language: "auto_detect",
       enabled_languages: ["en_US", "fr_FR"],
     });
-    const sendToTabSpy = jest.spyOn(
-      harness.module.BackgroundServiceWorker.prototype,
-      "sendCommandToTabContentScript",
-    );
     const runPredictionSpy = jest
       .spyOn(harness.module.BackgroundServiceWorker.prototype, "runPrediction")
       .mockResolvedValue(undefined);
 
-    harness.onMessage(
+    await predict(
+      harness,
       {
-        command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
-        context: {
-          text: "bonjour",
-          nextChar: "",
-          lang: "auto_detect",
-          suggestionId: 1,
-          requestId: 3,
-          runtimeGeneration: 6,
-        },
+        text: "bonjour",
+        nextChar: "",
+        lang: "auto_detect",
+        suggestionId: 1,
+        requestId: 3,
+        runtimeGeneration: 6,
       },
       { tab: { id: 111 } as chrome.tabs.Tab, frameId: 0 },
-      jest.fn(),
     );
-    await flushPromises();
 
     expect(harness.resolveAutoLanguage).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1153,24 +924,21 @@ describe("background routing and lifecycle", () => {
         enabledLanguages: ["en_US", "fr_FR"],
       }),
     );
-    expect(sendToTabSpy).toHaveBeenCalledWith(111, 0, {
+    expect(harness.tabSendToTab).toHaveBeenCalledWith(111, 0, {
       command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
       context: { lang: "fr_FR" },
     });
     expect(runPredictionSpy).toHaveBeenCalledWith(
-      {
-        command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
-        context: expect.objectContaining({
-          text: "bonjour",
-          nextChar: "",
-          lang: "fr_FR",
-          tabId: 111,
-          frameId: 0,
-          suggestionId: 1,
-          requestId: 3,
-          runtimeGeneration: 6,
-        }),
-      },
+      expect.objectContaining({
+        text: "bonjour",
+        nextChar: "",
+        lang: "fr_FR",
+        tabId: 111,
+        frameId: 0,
+        suggestionId: 1,
+        requestId: 3,
+        runtimeGeneration: 6,
+      }),
       undefined,
     );
   });
@@ -1354,7 +1122,6 @@ describe("background routing and lifecycle", () => {
       "onMessage",
       "Unknown command: CMD_POPUP_PAGE_ENABLE",
     );
-    expect(harness.checkLastError).toHaveBeenCalled();
   });
 
   test("onMessage returns active auto language session status", async () => {
@@ -1410,10 +1177,6 @@ describe("background routing and lifecycle", () => {
 
   test("onMessage records live runtime status for the sender frame", async () => {
     const harness = await loadBackgroundHarness();
-    const reportSpy = jest.spyOn(
-      harness.module.BackgroundServiceWorker.prototype,
-      "reportAutoLanguageRuntime",
-    );
     const sendResponse = jest.fn();
 
     harness.onMessage(
@@ -1429,7 +1192,7 @@ describe("background routing and lifecycle", () => {
     );
     await flushPromises();
 
-    expect(reportSpy).toHaveBeenCalledWith({
+    expect(harness.reportRuntimeActivity).toHaveBeenCalledWith({
       tabId: 42,
       frameId: 7,
       runtimeGeneration: 4,
@@ -1440,12 +1203,13 @@ describe("background routing and lifecycle", () => {
 
   test("onMessage handles productivity usage + popup stats commands", async () => {
     const harness = await loadBackgroundHarness();
-    const statsModule = await import("../src/adapters/chrome/background/ProductivityStatsManager");
+    const statsModule =
+      await import("../src/core/application/productivityStats/ProductivityStatsService");
     const recordSpy = jest
-      .spyOn(statsModule.ProductivityStatsManager.prototype, "recordUsageEvent")
+      .spyOn(statsModule.ProductivityStatsService.prototype, "recordUsageEvent")
       .mockResolvedValue(undefined);
     const getSpy = jest
-      .spyOn(statsModule.ProductivityStatsManager.prototype, "getDashboardStats")
+      .spyOn(statsModule.ProductivityStatsService.prototype, "getDashboardStats")
       .mockResolvedValue({
         today: {
           acceptedSuggestions: 1,
@@ -1511,13 +1275,13 @@ describe("background routing and lifecycle", () => {
         donationPrompt: null,
       });
     const ackWeekSpy = jest
-      .spyOn(statsModule.ProductivityStatsManager.prototype, "acknowledgeWeeklyRecap")
+      .spyOn(statsModule.ProductivityStatsService.prototype, "acknowledgeWeeklyRecap")
       .mockResolvedValue(undefined);
     const ackMilestoneSpy = jest
-      .spyOn(statsModule.ProductivityStatsManager.prototype, "handleDonationPromptAction")
+      .spyOn(statsModule.ProductivityStatsService.prototype, "handleDonationPromptAction")
       .mockResolvedValue(undefined);
     const resetSpy = jest
-      .spyOn(statsModule.ProductivityStatsManager.prototype, "resetStats")
+      .spyOn(statsModule.ProductivityStatsService.prototype, "resetStats")
       .mockResolvedValue(undefined);
 
     const usageResponse = jest.fn();
@@ -1646,49 +1410,55 @@ describe("background routing and lifecycle", () => {
   // Performance regression tests
   // ---------------------------------------------------------------------------
 
-  test("prediction response is sent via sendMessage directly without a chrome.tabs.get pre-flight", async () => {
-    // Regression guard: before this fix, BackgroundServiceWorker.runPrediction
-    // called chrome.tabs.get before every sendMessage, adding ~5–10 ms IPC
-    // latency.  The method must now call sendMessage directly.
-    const harness = await loadBackgroundHarness();
+  test.each([
+    [["hello"], 1],
+    [[], 7],
+  ])(
+    "prediction response %p is sent via sendMessage directly without a chrome.tabs.get pre-flight",
+    async (predictions, runtimeGeneration) => {
+      // Regression guard: before this fix, BackgroundServiceWorker.runPrediction
+      // called chrome.tabs.get before every sendMessage, adding ~5–10 ms IPC
+      // latency.  The method must now call sendMessage directly.
+      const harness = await loadBackgroundHarness();
+      harness.predictionRun.mockResolvedValueOnce({ predictions });
 
-    const tabsGetSpy = jest.spyOn(harness.chromeMock.tabs, "get");
-    jest.spyOn(harness.chromeMock.tabs, "sendMessage").mockResolvedValue(undefined);
+      const tabsGetSpy = jest.spyOn(harness.chromeMock.tabs, "get");
+      jest.spyOn(harness.chromeMock.tabs, "sendMessage").mockResolvedValue(undefined);
 
-    // Mock updatePresageConfig so ensureRuntimeConfigReady resolves immediately
-    // without needing the full settings / Presage initialisation path.
-    jest
-      .spyOn(harness.module.BackgroundServiceWorker.prototype, "updatePresageConfig")
-      .mockResolvedValue(undefined);
+      // Mock updatePresageConfig so ensureRuntimeConfigReady resolves immediately
+      // without needing the full settings / Presage initialisation path.
+      jest
+        .spyOn(harness.module.BackgroundServiceWorker.prototype, "updatePresageConfig")
+        .mockResolvedValue(undefined);
 
-    // Route through onMessage (same path as a real content-script keystroke).
-    // We deliberately do NOT mock runPrediction so the real dispatch code runs.
-    harness.onMessage(
-      {
-        command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
-        context: {
+      // Route through onMessage (same path as a real content-script keystroke).
+      // We deliberately do NOT mock runPrediction so the real dispatch code runs.
+      await predict(
+        harness,
+        {
           text: "hello",
           nextChar: "",
           lang: "en_US",
           suggestionId: 1,
           requestId: 1,
-          runtimeGeneration: 1,
+          runtimeGeneration,
         },
-      },
-      { tab: { id: 42 } as chrome.tabs.Tab, frameId: 0 },
-      jest.fn(),
-    );
-    await flushPromises();
+        { tab: { id: 42 } as chrome.tabs.Tab, frameId: 0 },
+      );
 
-    // Response dispatched directly via sendMessage.
-    expect(harness.chromeMock.tabs.sendMessage).toHaveBeenCalledWith(
-      42,
-      expect.objectContaining({ command: CMD_BACKGROUND_PAGE_PREDICT_RESP }),
-      { frameId: 0 },
-    );
-    // No pre-flight tab existence check.
-    expect(tabsGetSpy).not.toHaveBeenCalled();
-  });
+      // Response dispatched directly via sendMessage.
+      expect(harness.chromeMock.tabs.sendMessage).toHaveBeenCalledWith(
+        42,
+        expect.objectContaining({
+          command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
+          context: expect.objectContaining({ predictions, runtimeGeneration }),
+        }),
+        { frameId: 0 },
+      );
+      // No pre-flight tab existence check.
+      expect(tabsGetSpy).not.toHaveBeenCalled();
+    },
+  );
 
   test("domain settings cache is invalidated after CMD_OPTIONS_PAGE_CONFIG_CHANGE so next prediction sees fresh settings", async () => {
     // Regression guard: MessageRouter must call domainSettingsCache.invalidate()
@@ -1714,15 +1484,18 @@ describe("background routing and lifecycle", () => {
     };
 
     // First prediction — populates the cache with en_US.
-    harness.onMessage(
-      { command: CMD_CONTENT_SCRIPT_PREDICT_REQ, context: predictCtx },
-      sender,
-      jest.fn(),
-    );
-    await flushPromises();
+    await predict(harness, predictCtx, sender);
 
     // Language changes in settings while the cache still holds en_US.
     harness.state.language = "fr_FR";
+
+    // A prediction while the new config is broadcast must also read fr_FR.
+    let langDuringBroadcast: unknown;
+    harness.tabSendToAll.mockImplementation(async () => {
+      await predict(harness, { ...predictCtx, requestId: 3 }, sender);
+      langDuringBroadcast = (runPredictionSpy.mock.lastCall?.[0] as { lang: string } | undefined)
+        ?.lang;
+    });
 
     // Trigger config change — this must flush the domain settings cache.
     harness.onMessage(
@@ -1733,18 +1506,41 @@ describe("background routing and lifecycle", () => {
     await flushPromises();
 
     // Second prediction after the cache was invalidated.
-    harness.onMessage(
-      { command: CMD_CONTENT_SCRIPT_PREDICT_REQ, context: { ...predictCtx, requestId: 2 } },
-      sender,
-      jest.fn(),
-    );
-    await flushPromises();
+    await predict(harness, { ...predictCtx, requestId: 2 }, sender);
 
     // The language forwarded to runPrediction must reflect the updated state.
     expect(runPredictionSpy).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        context: expect.objectContaining({ lang: "fr_FR" }),
-      }),
+      expect.objectContaining({ lang: "fr_FR" }),
+      undefined,
+    );
+    expect(langDuringBroadcast).toBe("fr_FR");
+  });
+
+  test("the language toggle reaches the next prediction inside the cache TTL", async () => {
+    const harness = await loadBackgroundHarness({ language: "en_US" });
+    const runPredictionSpy = jest
+      .spyOn(harness.module.BackgroundServiceWorker.prototype, "runPrediction")
+      .mockResolvedValue(undefined);
+    const sender = {
+      tab: { id: 1, url: "https://example.com/path" } as chrome.tabs.Tab,
+      frameId: 0,
+    };
+    const predictCtx = {
+      text: "hello",
+      nextChar: "",
+      lang: "en_US",
+      suggestionId: 1,
+      requestId: 1,
+      runtimeGeneration: 1,
+    };
+
+    await predict(harness, predictCtx, sender);
+    harness.onCommand(CMD_TOGGLE_FT_ACTIVE_LANG);
+    await flushPromises();
+    await predict(harness, { ...predictCtx, lang: "fr_FR", requestId: 2 }, sender);
+
+    expect(runPredictionSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ lang: "fr_FR" }),
       undefined,
     );
   });

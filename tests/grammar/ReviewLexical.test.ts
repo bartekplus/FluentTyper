@@ -3,8 +3,9 @@ import {
   englishListedNoun,
   englishListedWithoutPlural,
 } from "../../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
+import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { scan, ALL_RULES } from "./reviewHarness";
+import { expectSplitKeepsFinding, review as runReview } from "./grammarTestUtils";
 
 // Lexicon-backed checks of english/lexical.ts. All sentences are our own.
 const RULES = new Set([
@@ -14,9 +15,10 @@ const RULES = new Set([
   "englishYourYouAre",
   "styleRedundancy",
 ]);
-function review(text: string) {
-  return scan(text, { enabledRules: ALL_RULES }).filter((d) => RULES.has(d.ruleId));
-}
+const review = (text: string) =>
+  runReview(text, {}, { enabledRules: REVIEW_SUPPORTED_RULE_IDS }).diagnostics.filter((d) =>
+    RULES.has(d.ruleId),
+  );
 
 const positives = [
   // Regularized irregular verbs, past or participle by the word before.
@@ -118,17 +120,29 @@ const negatives = [
   // Acronym plurals and title case stay as they are.
   "Keep your PINs safe.",
   "Check the VIN Number.",
+  // A long run of spaces inside a sentence does not open a clause.
+  `He said${" ".repeat(45)}You combination of artist and teacher.`,
 ];
 
 test.each(negatives)("lexical checks stay silent: %s", (text) => {
   expect(review(text)).toEqual([]);
 });
 
+test.each(["Sometimes the doo ris locked."])(
+  "a chunk cut between the two words keeps the finding: %s",
+  expectSplitKeepsFinding,
+);
+
 test("the user dictionary protects a word", () => {
   const text = "Two womans waved at us.";
-  const findings = scan(text, { enabledRules: ALL_RULES, userDictionary: ["womans"] }).filter((d) =>
-    RULES.has(d.ruleId),
-  );
+  const findings = runReview(
+    text,
+    {},
+    {
+      enabledRules: REVIEW_SUPPORTED_RULE_IDS,
+      userDictionary: ["womans"],
+    },
+  ).diagnostics.filter((d) => RULES.has(d.ruleId));
   expect(findings).toEqual([]);
 });
 

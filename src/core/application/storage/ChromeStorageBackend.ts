@@ -1,3 +1,4 @@
+import { defineOwnProperty } from "@core/domain/guards";
 import type { StorageBackend } from "./StorageBackend.js";
 
 function callStorage<T, R = void>(
@@ -21,11 +22,7 @@ function callStorage<T, R = void>(
 }
 
 export class ChromeStorageBackend implements StorageBackend {
-  private readonly backend: chrome.storage.StorageArea;
-
-  constructor(useLocalBackend = false) {
-    this.backend = useLocalBackend ? chrome.storage.local : chrome.storage.sync;
-  }
+  private readonly backend = chrome.storage.local;
 
   async get(key: string): Promise<string | undefined> {
     return callStorage<Record<string, unknown>, string | undefined>(
@@ -51,12 +48,7 @@ export class ChromeStorageBackend implements StorageBackend {
           if (!key.startsWith(prefix)) {
             continue;
           }
-          Object.defineProperty(result, key.substring(prefix.length), {
-            configurable: true,
-            enumerable: true,
-            value: value,
-            writable: true,
-          });
+          defineOwnProperty(result, key.substring(prefix.length), value as string);
         }
         return result;
       },

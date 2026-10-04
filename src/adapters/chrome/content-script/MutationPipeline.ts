@@ -15,16 +15,9 @@ type MutationPlan =
     };
 
 export class MutationPipeline {
-  constructor(
-    private readonly maxMutationBatchSize: number,
-    private readonly maxMutationRoots: number,
-  ) {}
+  constructor(private readonly maxMutationRoots: number) {}
 
   buildPlan(mutationsList: MutationRecord[]): MutationPlan {
-    if (mutationsList.length === 0) {
-      return { type: "noop" };
-    }
-
     // FT-INV-2: typing-only records cannot discover a new editable element.
     mutationsList = mutationsList.filter(
       (mutation) =>
@@ -35,10 +28,6 @@ export class MutationPipeline {
               (node) => node instanceof Element && !node.closest(OWN_UI),
             ))),
     );
-    if (mutationsList.length >= this.maxMutationBatchSize) {
-      return { type: "full-scan" };
-    }
-
     const roots = this.collectMutationRoots(mutationsList);
     if (roots.length === 0) {
       return { type: "noop" };
@@ -69,33 +58,9 @@ export class MutationPipeline {
       }
     }
 
-    const uniqueCandidates = Array.from(new Set(candidates));
-    uniqueCandidates.sort(
-      (left, right) => this.getElementDepth(left) - this.getElementDepth(right),
+    const unique = Array.from(new Set(candidates));
+    return unique.filter(
+      (candidate) => !unique.some((other) => other !== candidate && other.contains(candidate)),
     );
-
-    const roots: Element[] = [];
-    for (const candidate of uniqueCandidates) {
-      if (roots.some((root) => root === candidate || root.contains(candidate))) {
-        continue;
-      }
-      for (let i = roots.length - 1; i >= 0; i -= 1) {
-        if (candidate.contains(roots[i])) {
-          roots.splice(i, 1);
-        }
-      }
-      roots.push(candidate);
-    }
-    return roots;
-  }
-
-  private getElementDepth(element: Element): number {
-    let depth = 0;
-    let currentNode: Node | null = element;
-    while (currentNode.parentNode) {
-      depth += 1;
-      currentNode = currentNode.parentNode;
-    }
-    return depth;
   }
 }

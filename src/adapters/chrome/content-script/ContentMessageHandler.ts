@@ -24,17 +24,9 @@ import type {
   PredictResponseContext,
   SetConfigContext,
 } from "@core/domain/messageTypes";
-import { createPredictionTraceContext, resolveTraceAgeMs } from "./predictionTrace";
+import { resolveTraceAgeMs } from "./predictionTrace";
 
 const logger = createLogger("ContentMessageHandler");
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function finiteOr(value: unknown, fallback: number): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
 
 export type ContentMessageHandlerDependencies = {
   getEnabled: () => boolean;
@@ -46,35 +38,27 @@ export type ContentMessageHandlerDependencies = {
   reviewActiveEditor: (source: "command" | "popup") => void;
   fulfillPrediction: (context: PredictResponseContext) => void;
   getLanguage: () => string;
-  getPredictionGeneration: () => number;
 };
 
 export class ContentMessageHandler {
-  private pendingReq: ContentScriptPredictRequestMessage | null = null;
   private lastRuntimeStatusSignature: string | null = null;
   private lastRuntimeStatusAt = 0;
 
   constructor(private readonly dependencies: ContentMessageHandlerDependencies) {}
 
+  /** The runtime adds the generation and the coordinator the trace fields. */
   handleGetPrediction(context: ContentScriptPredictRequestContext): void {
-    const runtimeGeneration = finiteOr(
-      context.runtimeGeneration,
-      this.dependencies.getPredictionGeneration(),
-    );
-    const traceContext = createPredictionTraceContext(
-      finiteOr(context.traceStartedAtMs, Date.now()),
-      isNonEmptyString(context.traceId) ? context.traceId.trim() : undefined,
-    );
+    const { runtimeGeneration, traceId, traceStartedAtMs } = context;
     const lang = this.dependencies.getLanguage();
 
     logger.debug("Preparing prediction request", {
-      traceId: traceContext.traceId,
+      traceId,
       requestId: context.requestId,
       suggestionId: context.suggestionId,
       runtimeGeneration,
       nextChar: context.nextChar,
       lang,
-      requestAgeMs: resolveTraceAgeMs(traceContext.traceStartedAtMs),
+      requestAgeMs: resolveTraceAgeMs(traceStartedAtMs),
     });
     const message: ContentScriptPredictRequestMessage = {
       command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
@@ -89,24 +73,16 @@ export class ContentMessageHandler {
         runtimeGeneration,
         lang,
         documentLang: document.documentElement.lang || undefined,
-        traceId: traceContext.traceId,
-        traceStartedAtMs: traceContext.traceStartedAtMs,
+        traceId,
+        traceStartedAtMs,
       },
     };
-    this.pendingReq = message;
     void chrome.runtime.sendMessage(message);
   }
 
-  reportRuntimeStatus(runtimeGeneration?: number): void {
-    const resolvedRuntimeGeneration = finiteOr(
-      runtimeGeneration,
-      this.dependencies.getPredictionGeneration(),
-    );
-    if (resolvedRuntimeGeneration <= 0) {
-      return;
-    }
+  reportRuntimeStatus(runtimeGeneration: number): void {
     const domainURL = frameHostname() || undefined;
-    const signature = `${resolvedRuntimeGeneration}:${domainURL || ""}`;
+    const signature = `${runtimeGeneration}:${domainURL || ""}`;
     const now = Date.now();
     if (this.lastRuntimeStatusSignature === signature && now - this.lastRuntimeStatusAt < 250) {
       return;
@@ -116,7 +92,7 @@ export class ContentMessageHandler {
     const message: ContentScriptRuntimeStatusMessage = {
       command: CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
       context: {
-        runtimeGeneration: resolvedRuntimeGeneration,
+        runtimeGeneration,
         domainURL,
       },
     };
@@ -140,34 +116,27 @@ export class ContentMessageHandler {
         return;
       case CMD_BACKGROUND_PAGE_SET_CONFIG:
         this.dependencies.setConfig(message.context);
-        this.sendRuntimeStatus(sendResponse);
-        return;
+        break;
       case CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG:
         this.dependencies.updateLanguage(message.context.lang);
-        this.sendRuntimeStatus(sendResponse);
-        return;
+        break;
       case CMD_POPUP_PAGE_DISABLE:
         this.dependencies.setEnabled(false);
-        this.sendRuntimeStatus(sendResponse);
-        return;
+        break;
       case CMD_POPUP_PAGE_ENABLE:
         this.dependencies.setEnabled(true);
-        this.sendRuntimeStatus(sendResponse);
-        return;
+        break;
       case CMD_TOGGLE_FT_ACTIVE_TAB:
         this.dependencies.toggleEnabled();
-        this.sendRuntimeStatus(sendResponse);
-        return;
+        break;
       case CMD_TRIGGER_FT_ACTIVE_TAB:
         this.dependencies.triggerActiveSuggestion();
-        this.sendRuntimeStatus(sendResponse);
-        return;
+        break;
       case CMD_REVIEW_FT_ACTIVE_TAB:
         this.dependencies.reviewActiveEditor(
           message.context?.source === "popup" ? "popup" : "command",
         );
-        this.sendRuntimeStatus(sendResponse);
-        return;
+        break;
       case CMD_GET_HOSTNAME:
         sendResponse?.({ hostname: frameHostname() });
         return;
@@ -175,46 +144,18 @@ export class ContentMessageHandler {
         logger.debug("Unknown message command", { command: message.command });
         return;
     }
+    this.sendRuntimeStatus(sendResponse);
   }
 
   private handlePredictionResponse(context: PredictResponseContext): void {
-    const traceIdMatches =
-      !isNonEmptyString(this.pendingReq?.context.traceId) ||
-      !isNonEmptyString(context.traceId) ||
-      this.pendingReq?.context.traceId === context.traceId;
-    const isMatchingPending =
-      this.pendingReq &&
-      this.pendingReq.context.suggestionId === context.suggestionId &&
-      this.pendingReq.context.requestId === context.requestId &&
-      this.pendingReq.context.runtimeGeneration === context.runtimeGeneration &&
-      traceIdMatches;
-
-    if (isMatchingPending) {
-      // Clear before fulfillment so synchronous follow-up requests created
-      // by text edits are not wiped out after the callback returns.
-      this.pendingReq = null;
-      logger.debug("Fulfilling prediction response", {
-        traceId: context.traceId,
-        requestId: context.requestId,
-        suggestionId: context.suggestionId,
-        runtimeGeneration: context.runtimeGeneration,
-        predictionCount: context.predictions.length,
-        responseAgeMs: resolveTraceAgeMs(context.traceStartedAtMs),
-      });
-    } else {
-      logger.debug(
-        "Forwarding non-matching prediction response for manager-level stale filtering",
-        {
-          traceId: context.traceId,
-          requestId: context.requestId,
-          suggestionId: context.suggestionId,
-          runtimeGeneration: context.runtimeGeneration,
-          pendingRequestId: this.pendingReq?.context.requestId,
-          pendingSuggestionId: this.pendingReq?.context.suggestionId,
-          pendingGeneration: this.pendingReq?.context.runtimeGeneration,
-        },
-      );
-    }
+    logger.debug("Fulfilling prediction response", {
+      traceId: context.traceId,
+      requestId: context.requestId,
+      suggestionId: context.suggestionId,
+      runtimeGeneration: context.runtimeGeneration,
+      predictionCount: context.predictions.length,
+      responseAgeMs: resolveTraceAgeMs(context.traceStartedAtMs),
+    });
     this.dependencies.fulfillPrediction(context);
   }
 

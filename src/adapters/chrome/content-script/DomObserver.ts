@@ -13,8 +13,8 @@ export class DomObserver {
       this.observer = new MutationObserver((mutationsList) => this.callback(mutationsList));
     }
     this.observer.observe(this.node, {
+      // Do not observe text changes: MutationPipeline drops characterData records (FT-INV-2).
       childList: true,
-      characterData: true,
       attributes: true,
       // Include visibility-related and interactivity-related attributes so state
       // transitions (hidden↔visible, disabled↔enabled, readonly↔editable) trigger rescans.

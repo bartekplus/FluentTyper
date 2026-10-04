@@ -1,8 +1,8 @@
 import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
-import { namedExampleBefore, OPENING_QUOTES } from "./exampleCues";
+import { namedExampleBefore, quotedSpan } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { finding } from "./finding";
-import { isLang } from "./phraseTemplates";
+import { isLang, ownedMatches } from "./phraseTemplates";
 
 const CANONICAL = new Map(
   [
@@ -90,12 +90,7 @@ export const hasCanonicalCasing = (word: string) =>
 export function canonicalCasing(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const words = /(?<![.\p{L}\p{M}\p{N}_'’@/#=$\\-])[A-Za-z]+(?![\p{L}\p{M}\p{N}_'’@/#=$\\-])/gu;
-  words.lastIndex = ctx.from;
-  for (
-    let match = words.exec(ctx.scanText);
-    match && match.index < ctx.to;
-    match = words.exec(ctx.scanText)
-  ) {
+  for (const match of ownedMatches(ctx, words)) {
     const typed = match[0];
     const acronym = typed.length < 5 && isLang(ctx, "en") ? typed.toUpperCase() : "";
     const canonical =
@@ -111,12 +106,7 @@ export function canonicalCasing(ctx: DetectContext): RawFinding[] {
     const start = match.index;
     const end = start + typed.length;
     if (/^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(end, end + 2))) continue;
-    if (
-      OPENING_QUOTES.includes(ctx.text[start - 1] || "\n") &&
-      /["”'’“‘»«›‹]/.test(ctx.text[end] ?? "")
-    )
-      continue;
-    if (namedExampleBefore(ctx.text, start)) continue;
+    if (quotedSpan(ctx.text, start, end) || namedExampleBefore(ctx.text, start)) continue;
     if (VERB_BRANDS.has(typed) && !brandNoun(ctx.lang.slice(0, 2), ctx.text, start, end)) continue;
     findings.push(
       finding("englishCanonicalCasing", "review_msg_canonical_casing", start, end, [canonical], {

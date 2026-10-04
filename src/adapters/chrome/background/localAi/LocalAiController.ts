@@ -13,7 +13,12 @@ import {
   KEY_LOCAL_AI_SETUP_OFFER_DISMISSED,
 } from "@core/domain/constants";
 import { LOCAL_AI_REVIEW_PORT, type LocalAiStatus } from "@core/domain/contracts/localAi";
-import { localAiModelById, localAiModelForTier } from "@core/domain/localAi/modelRegistry";
+import {
+  isLocalAiModelTier,
+  localAiModelById,
+  localAiModelForTier,
+} from "@core/domain/localAi/modelRegistry";
+import { serialQueue } from "@core/domain/serialQueue";
 import type {
   LocalAiCommandResponse,
   LocalAiStatusChangedMessage,
@@ -21,6 +26,7 @@ import type {
 } from "@core/domain/messageTypes";
 import type { LocalAiSettingsRepository } from "@core/application/repositories/LocalAiSettingsRepository";
 import { createLogger } from "@core/application/logging/Logger";
+import { isExtensionPageSender } from "../extensionSender";
 import { LocalAiHost, type EngineLike } from "./LocalAiHost";
 
 /** Background owner of consent and of the optional in-process Local AI host. */
@@ -49,8 +55,8 @@ const logger = createLogger("LocalAiController");
 export class LocalAiController {
   /** Null where the build ships no engine (Firefox). */
   private readonly host: LocalAiHost | null;
-  private broadcasts: Promise<void> = Promise.resolve();
-  private configuring: Promise<void> = Promise.resolve();
+  private readonly broadcasts = serialQueue();
+  private readonly configuring = serialQueue();
 
   constructor(
     private readonly settings: LocalAiSettings,
@@ -122,7 +128,7 @@ export class LocalAiController {
         }
         if (request.command === CMD_LOCAL_AI_INSTALL) {
           const tier = request.context?.tier;
-          if (tier !== "standard" && tier !== "compact") {
+          if (!isLocalAiModelTier(tier)) {
             return { ok: false, error: "invalid" };
           }
           if (this.host.installing) {
@@ -171,11 +177,7 @@ export class LocalAiController {
 
   /** Extension options page only; content scripts carry the web page's URL. */
   private isOptionsPage(sender: chrome.runtime.MessageSender): boolean {
-    return (
-      sender.id === this.api.runtime.id &&
-      typeof sender.url === "string" &&
-      sender.url.startsWith(this.api.runtime.getURL("options/"))
-    );
+    return sender.id === this.api.runtime.id && isExtensionPageSender(sender, this.api, "options/");
   }
 
   async getStatus(): Promise<LocalAiStatus> {
@@ -209,16 +211,15 @@ export class LocalAiController {
     };
   }
 
-  /** Tells the host the consented model (null without consent) and whether it may run it. */
-  /** One at a time, each reading the settings on its turn, so the newest settings win. */
+  /**
+   * Tells the host the consented model (null without consent) and whether it may run it.
+   * One at a time, each reading the settings on its turn, so the newest settings win.
+   */
   private configureHost(): Promise<void> {
-    const run = this.configuring.then(async () => {
+    return this.configuring(async () => {
       const status = await this.getStatus();
       this.host?.configure(status.consented ? { modelId: status.modelId } : null, status.enabled);
     });
-    // A failed settings read fails this call only; the next one reads storage again.
-    this.configuring = run.catch(() => undefined);
-    return run;
   }
 
   /** Review ports come only from this extension's content scripts, in web pages. */
@@ -228,8 +229,11 @@ export class LocalAiController {
     }
     const sender = port.sender;
     // An extension page open in a tab (the options page) is not a content script.
-    const fromExtensionPage = sender?.url?.startsWith(this.api.runtime.getURL("")) === true;
-    if (sender?.id !== this.api.runtime.id || !sender.tab || fromExtensionPage) {
+    if (
+      sender?.id !== this.api.runtime.id ||
+      !sender.tab ||
+      isExtensionPageSender(sender, this.api)
+    ) {
       port.disconnect();
       return;
     }
@@ -251,7 +255,7 @@ export class LocalAiController {
    */
   private broadcastStatus(): Promise<void> {
     const status = this.getStatus();
-    this.broadcasts = this.broadcasts.then(async () => {
+    return this.broadcasts(async () => {
       try {
         const message: LocalAiStatusChangedMessage = {
           command: CMD_LOCAL_AI_STATUS_CHANGED,
@@ -262,6 +266,5 @@ export class LocalAiController {
         // No extension page is listening.
       }
     });
-    return this.broadcasts;
   }
 }

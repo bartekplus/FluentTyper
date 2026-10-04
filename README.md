@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://chrome.google.com/webstore/detail/fluenttyper-autocomplete/mbjlobpodpimgbkmlmjiblnmfgajmebm"><strong>Get for Chrome</strong></a>
+  <a href="https://chromewebstore.google.com/detail/fluenttyper-autocomplete/mbjlobpodpimgbkmlmjiblnmfgajmebm"><strong>Get for Chrome</strong></a>
   ·
   <a href="https://addons.mozilla.org/en-US/firefox/addon/fluenttyper/"><strong>Get for Firefox</strong></a>
   ·
@@ -91,7 +91,7 @@ English · Spanish · French · Croatian · Greek · Swedish · Polish · German
 | Understand optional Local AI  | [Availability and privacy](docs/local-ai-review.md)                    |
 
 Some editors support fewer features or cannot use FluentTyper. Review checks also vary by language.
-Local AI remains a development feature, recorded as not released. Standard Review works without it.
+Local AI is optional and is not in Firefox builds. Standard Review works without it.
 
 ## Help make it better.
 

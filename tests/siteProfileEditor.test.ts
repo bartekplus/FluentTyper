@@ -1,4 +1,3 @@
-import "./setup";
 import { describe, expect, test } from "bun:test";
 import { MAX_NUM_SUGGESTIONS } from "../src/core/domain/constants";
 import { SUPPORTED_LANGUAGES } from "../src/core/domain/lang";

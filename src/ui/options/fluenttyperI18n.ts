@@ -1,32 +1,37 @@
-import { I18n } from "@ui/settings-engine/i18n/I18n.js";
 import { KEY_EXTENSION_LANGUAGE } from "@core/domain/constants";
 
-const i18n = new I18n();
-function applyStoredExtensionLanguage(target: I18n): void {
-  if (typeof localStorage === "undefined") {
-    return;
-  }
+type TranslationMap = Record<string, string>;
+const translations = new Map<string, TranslationMap>();
+// The translation tables use "pr" for Portuguese; language tags use "pt".
+const uiLanguage = (tag: string) => (tag === "pt" ? "pr" : tag);
+export const htmlLang = (tag: string) => (tag === "pr" ? "pt" : tag);
+export const EXTENSION_LANGUAGE_STORAGE_KEY = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
 
-  try {
-    const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
-    const rawValue = localStorage.getItem(storageKey);
-    if (!rawValue) {
-      return;
+const i18n = {
+  lang: uiLanguage(navigator.language.split("-")[0]),
+  get(key: string): string {
+    const entry = translations.get(key);
+    if (!entry) {
+      return key;
     }
-
-    const parsedLanguage: unknown = JSON.parse(rawValue);
-    if (typeof parsedLanguage !== "string" || parsedLanguage === "auto_detect") {
-      return;
+    return entry[i18n.lang] ?? entry.en ?? Object.values(entry)[0] ?? key;
+  },
+  extend(dictionary: Record<string, TranslationMap>): void {
+    for (const [key, entry] of Object.entries(dictionary)) {
+      translations.set(key, entry);
     }
-
-    const localePrefix = parsedLanguage.split("_")[0];
-    const shortCode = localePrefix === "pt" ? "pr" : localePrefix;
-    target.lang = shortCode;
-  } catch {
-    // Ignore malformed storage entries and keep the browser default.
+  },
+};
+try {
+  const storedLanguage: unknown = JSON.parse(
+    localStorage.getItem(EXTENSION_LANGUAGE_STORAGE_KEY) ?? "null",
+  );
+  if (typeof storedLanguage === "string" && storedLanguage !== "auto_detect") {
+    i18n.lang = uiLanguage(storedLanguage.split("_")[0]);
   }
+} catch {
+  // Ignore a missing localStorage or a malformed entry and keep the browser default.
 }
-applyStoredExtensionLanguage(i18n);
 
 i18n.extend({
   support_payment_note: {
@@ -293,39 +298,6 @@ i18n.extend({
     pl: "Ustawienia",
     pr: "Configurações",
   },
-  Management: {
-    en: "Management",
-    fr: "Gestion",
-    hr: "Upravljanje",
-    es: "Gestión",
-    el: "Διαχείριση",
-    sv: "Hantering",
-    de: "Verwaltung",
-    pl: "Zarządzanie",
-    pr: "Gerenciamento",
-  },
-  search: {
-    en: "Search",
-    fr: "Rechercher",
-    hr: "Pretraživanje",
-    es: "Buscar",
-    el: "Αναζήτηση",
-    sv: "Sök",
-    de: "Suche",
-    pl: "Szukaj",
-    pr: "Buscar",
-  },
-  "nothing-found": {
-    en: "No matches were found.",
-    fr: "Aucun résultat trouvé.",
-    hr: "Nema rezultata.",
-    es: "No se encontraron coincidencias.",
-    el: "Δεν βρέθηκαν αποτελέσματα.",
-    sv: "Inga matchningar hittades.",
-    de: "Keine Treffer gefunden.",
-    pl: "Brak wyników.",
-    pr: "Nenhum resultado encontrado.",
-  },
   General: {
     en: "General",
     fr: "Général",
@@ -337,83 +309,6 @@ i18n.extend({
     pl: "Ogólne",
     pr: "Geral",
   },
-  information: {
-    en: "Information",
-    fr: "Informations",
-    hr: "Informacije",
-    es: "Información",
-    el: "Πληροφορίες",
-    sv: "Information",
-    de: "Informationen",
-    pl: "Informacja",
-    pr: "Informações",
-  },
-  login: {
-    en: "Login",
-    fr: "Connexion",
-    hr: "Prijava",
-    es: "Iniciar sesión",
-    el: "Σύνδεση",
-    sv: "Logga in",
-    de: "Anmelden",
-    pl: "Zaloguj się",
-    pr: "Entrar",
-  },
-  username: {
-    en: "Username:",
-    fr: "Nom d'utilisateur :",
-    hr: "Korisničko ime:",
-    es: "Nombre de usuario:",
-    el: "Όνομα χρήστη:",
-    sv: "Användarnamn:",
-    de: "Benutzername:",
-    pl: "Nazwa użytkownika:",
-    pr: "Nome de usuário:",
-  },
-  password: {
-    en: "Password:",
-    fr: "Mot de passe :",
-    hr: "Lozinka:",
-    es: "Contraseña:",
-    el: "Κωδικός:",
-    sv: "Lösenord:",
-    de: "Passwort:",
-    pl: "Hasło:",
-    pr: "Senha:",
-  },
-  logout: {
-    en: "Logout",
-    fr: "Déconnexion",
-    hr: "Odjava",
-    es: "Cerrar sesión",
-    el: "Αποσύνδεση",
-    sv: "Logga ut",
-    de: "Abmelden",
-    pl: "Wyloguj",
-    pr: "Sair",
-  },
-  enable: {
-    en: "Enable",
-    fr: "Activer",
-    hr: "Omogući",
-    es: "Habilitar",
-    el: "Ενεργοποίηση",
-    sv: "Aktivera",
-    de: "Aktivieren",
-    pl: "Włącz",
-    pr: "Ativar",
-  },
-  About: {
-    en: "About",
-    fr: "À propos",
-    hr: "O nama",
-    es: "Acerca de",
-    el: "Σχετικά",
-    sv: "Om",
-    de: "Über",
-    pl: "O aplikacji",
-    pr: "Sobre",
-  },
   "x-FluentTyper": {
     en: "The fastest way to contact me or report a bug in FluentTyper is by creating an issue on <a href='https://github.com/bartekplus/FluentTyper'>GitHub</a>.",
     fr: "Le moyen le plus rapide de me contacter ou de signaler un bug dans FluentTyper est de créer un ticket sur <a href='https://github.com/bartekplus/FluentTyper'>GitHub</a>.",
@@ -424,17 +319,6 @@ i18n.extend({
     de: "Der schnellste Weg für Feedback oder Fehlerberichte ist das Erstellen eines Issues auf <a href='https://github.com/bartekplus/FluentTyper'>GitHub</a>.",
     pl: "Najszybszym sposobem na kontakt lub zgłoszenie błędu we FluentTyper jest otwarcie zgłoszenia na <a href='https://github.com/bartekplus/FluentTyper'>GitHub</a>.",
     pr: "A maneira mais rápida de me contatar ou relatar um bug no FluentTyper é criando uma issue no <a href='https://github.com/bartekplus/FluentTyper'>GitHub</a>.",
-  },
-  core_settings: {
-    en: "Typing & Autocomplete",
-    fr: "Saisie & Auto-complétion",
-    hr: "Tipkanje i Automatsko dovršavanje",
-    es: "Escritura y Autocompletar",
-    el: "Πληκτρολόγηση & Αυτόματη Συμπλήρωση",
-    sv: "Skrivning & Autoslutför",
-    de: "Tippen & Autovervollständigung",
-    pl: "Pisanie i autouzupełnianie",
-    pr: "Digitação e Autocompletar",
   },
   grammar_tab: {
     en: "Grammar",
@@ -1393,17 +1277,6 @@ i18n.extend({
     pl: 'Przykład: "(" -> "(|)"',
     pr: 'Exemplo: "(" -> "(|)"',
   },
-  grammar_rule_capitalize: {
-    en: "Auto-Capitalize first letter",
-    fr: "Mettre automatiquement en majuscule la première lettre",
-    hr: "Automatski veliko prvo slovo",
-    es: "Capitalizar automáticamente la primera letra",
-    el: "Αυτόματη κεφαλαιοποίηση του πρώτου γράμματος",
-    sv: "Börja automatiskt med stor bokstav",
-    de: "Ersten Buchstaben automatisch großschreiben",
-    pl: "Automatycznie wstawiaj dużą literę",
-    pr: "Capitalizar automaticamente a primeira letra",
-  },
   grammar_rule_capitalize_sentence_start: {
     en: "Capitalize sentence starts",
     fr: "Mettre en majuscule le début des phrases",
@@ -1800,17 +1673,6 @@ i18n.extend({
     pl: 'Przykład: "hello  \\n" -> "hello\\n"',
     pr: 'Exemplo: "hello  \\n" -> "hello\\n"',
   },
-  language_tab: {
-    en: "Language",
-    fr: "Langue",
-    hr: "Jezik",
-    es: "Idioma",
-    el: "Γλώσσα",
-    sv: "Språk",
-    de: "Sprache",
-    pl: "Język",
-    pr: "Idioma",
-  },
   language_selection: {
     en: "Language Selection",
     fr: "Sélection de la Langue",
@@ -1843,17 +1705,6 @@ i18n.extend({
     de: "Sekundäre (Ersatz-) Sprache:",
     pl: "Drugorzędny (zapasowy) język:",
     pr: "Idioma Secundário (de reserva):",
-  },
-  shortcuts_expansions_tab: {
-    en: "Dictionary & Expansions",
-    fr: "Dictionnaire & Expansions",
-    hr: "Rječnik i Proširenja",
-    es: "Diccionario y Expansiones",
-    el: "Λεξικό & Αναπτύξεις",
-    sv: "Ordbok & Expansioner",
-    de: "Wörterbuch & Erweiterungen",
-    pl: "Słownik i Rozwinięcia",
-    pr: "Dicionário e Expansões",
   },
   text_expander: {
     en: "Text Expander",
@@ -1942,17 +1793,6 @@ i18n.extend({
     de: "Benutzerdefiniertes Zeitformat:",
     pl: "Własny format czasu:",
     pr: "Formato de hora personalizado:",
-  },
-  site_mgmt_tab: {
-    en: "Site Management",
-    fr: "Gestion des Sites",
-    hr: "Upravljanje Stranicama",
-    es: "Gestión de Sitios",
-    el: "Διαχείριση Ιστότοπων",
-    sv: "Platshantering",
-    de: "Website-Verwaltung",
-    pl: "Zarządzanie stronami",
-    pr: "Gestão de Sites",
   },
   domain_list_mode: {
     en: "Domain List Mode",
@@ -2113,17 +1953,6 @@ i18n.extend({
     de: "Inline",
     pl: "Inline",
     pr: "Inline",
-  },
-  site_profiles_empty: {
-    en: "No site profiles yet. Add one to override language or prediction behavior for a specific domain.",
-    fr: "Aucun profil de site pour le moment. Ajoutez-en un pour remplacer la langue ou le comportement de prédiction pour un domaine spécifique.",
-    hr: "Još nema profila web-lokacija. Dodajte profil kako biste nadjačali jezik ili ponašanje predikcije za određenu domenu.",
-    es: "Aún no hay perfiles de sitio. Agrega uno para reemplazar el idioma o el comportamiento de predicción para un dominio específico.",
-    el: "Δεν υπάρχουν ακόμη προφίλ ιστότοπων. Προσθέστε ένα για να παρακάμψετε τη γλώσσα ή τη συμπεριφορά πρόβλεψης για έναν συγκεκριμένο τομέα.",
-    sv: "Inga webbplatsprofiler ännu. Lägg till en för att åsidosätta språk eller prediktionsbeteende för en viss domän.",
-    de: "Noch keine Website-Profile. Füge eines hinzu, um Sprache oder Vorhersageverhalten für eine bestimmte Domain zu überschreiben.",
-    pl: "Brak profili witryn. Dodaj profil, aby nadpisać język lub działanie predykcji dla konkretnej domeny.",
-    pr: "Ainda não há perfis de site. Adicione um para substituir o idioma ou o comportamento de predição para um domínio específico.",
   },
   site_profiles_edit_btn: {
     en: "Edit",
@@ -2318,28 +2147,6 @@ i18n.extend({
     pl: "Zastosuj kompaktowy motyw wizualny.",
     pr: "Aplicar o tema visual compacto e leve.",
   },
-  light_theme_colors: {
-    en: "Light Theme Colors",
-    fr: "Couleurs du Thème Clair",
-    hr: "Boje Svijetle Teme",
-    es: "Colores del Tema Claro",
-    el: "Ανοιχτόχρωμο Θέμα",
-    sv: "Färger: Ljust Tema",
-    de: "Farben: Helles Design",
-    pl: "Kolory jasnego motywu",
-    pr: "Cores do Tema Claro",
-  },
-  dark_theme_colors: {
-    en: "Dark Theme Colors",
-    fr: "Couleurs du Thème Sombre",
-    hr: "Boje Tamne Teme",
-    es: "Colores del Tema Oscuro",
-    el: "Σκουρόχρωμο Θέμα",
-    sv: "Färger: Mörkt Tema",
-    de: "Farben: Dunkles Design",
-    pl: "Kolory ciemnego motywu",
-    pr: "Cores do Tema Escuro",
-  },
   typography_spacing: {
     en: "Typography & Spacing",
     fr: "Typographie & Espacement",
@@ -2350,17 +2157,6 @@ i18n.extend({
     de: "Typografie & Abstände",
     pl: "Typografia i odstępy",
     pr: "Tipografia e Espaçamento",
-  },
-  advanced_tab: {
-    en: "Data & Backup",
-    fr: "Données & Sauvegarde",
-    hr: "Podaci i Sigurnosna kopija",
-    es: "Datos y Copia de seguridad",
-    el: "Δεδομένα & Αντίγραφα ασφαλείας",
-    sv: "Data & Säkerhetskopiering",
-    de: "Daten & Backup",
-    pl: "Dane i kopia zapasowa",
-    pr: "Dados e Backup",
   },
   enable_inline_suggestion_label: {
     en: "Enable inline suggestion",
@@ -3031,28 +2827,6 @@ i18n.extend({
     pl: "Ustawienia globalne",
     pr: "Padrões globais",
   },
-  popup_page_state_permission_missing_body: {
-    en: "Allow website access to use FluentTyper on this site.",
-    fr: "Autorisez l'accès aux sites web pour utiliser FluentTyper sur ce site.",
-    hr: "Dopustite pristup web-stranicama kako biste koristili FluentTyper na ovoj stranici.",
-    es: "Permita el acceso a sitios web para usar FluentTyper en este sitio.",
-    el: "Επιτρέψτε την πρόσβαση σε ιστότοπους για να χρησιμοποιήσετε το FluentTyper σε αυτόν τον ιστότοπο.",
-    sv: "Tillåt webbplatsåtkomst för att använda FluentTyper på den här webbplatsen.",
-    de: "Erlauben Sie den Website-Zugriff, um FluentTyper auf dieser Website zu verwenden.",
-    pl: "Zezwól na dostęp do witryn, aby używać FluentTyper na tej stronie.",
-    pr: "Permita o acesso a sites para usar o FluentTyper neste site.",
-  },
-  popup_page_state_permission_unavailable_body: {
-    en: "FluentTyper could not verify website access on this site.",
-    fr: "FluentTyper n'a pas pu vérifier l'accès aux sites web sur ce site.",
-    hr: "FluentTyper nije mogao provjeriti pristup web-stranicama na ovoj stranici.",
-    es: "FluentTyper no pudo verificar el acceso a sitios web en este sitio.",
-    el: "Το FluentTyper δεν μπόρεσε να επαληθεύσει την πρόσβαση σε ιστότοπους σε αυτόν τον ιστότοπο.",
-    sv: "FluentTyper kunde inte verifiera webbplatsåtkomst på den här webbplatsen.",
-    de: "FluentTyper konnte den Website-Zugriff auf dieser Website nicht prüfen.",
-    pl: "FluentTyper nie mógł sprawdzić dostępu do witryn dla tej strony.",
-    pr: "O FluentTyper não conseguiu verificar o acesso a sites neste site.",
-  },
   popup_dashboard_advanced_stats: {
     en: "Advanced Stats",
     fr: "Statistiques avancées",
@@ -3151,83 +2925,6 @@ i18n.extend({
     de: "Details anzeigen",
     pl: "Zobacz szczegóły",
     pr: "Ver detalhes",
-  },
-  popup_weekly_recap_top_snippet: {
-    en: "Top snippet",
-    fr: "Snippet principal",
-    hr: "Najčešći snippet",
-    es: "Snippet principal",
-    el: "Κορυφαίο snippet",
-    sv: "Topp-snippet",
-    de: "Top-Snippet",
-    pl: "Najlepszy snippet",
-    pr: "Snippet principal",
-  },
-  popup_weekly_recap_top_snippet_empty: {
-    en: "Top snippet: no snippet data yet.",
-    fr: "Snippet principal : pas encore de données.",
-    hr: "Najčešći snippet: još nema podataka.",
-    es: "Snippet principal: aún no hay datos.",
-    el: "Κορυφαίο snippet: δεν υπάρχουν ακόμη δεδομένα.",
-    sv: "Topp-snippet: inga data ännu.",
-    de: "Top-Snippet: noch keine Daten.",
-    pl: "Najlepszy snippet: brak danych.",
-    pr: "Snippet principal: ainda sem dados.",
-  },
-  popup_weekly_recap_milestone_label: {
-    en: "Milestone crossed",
-    fr: "Palier franchi",
-    hr: "Dostignut cilj",
-    es: "Hito alcanzado",
-    el: "Ορόσημο που ξεπεράστηκε",
-    sv: "Nådd milstolpe",
-    de: "Erreichter Meilenstein",
-    pl: "Osiągnięty kamień milowy",
-    pr: "Marco alcançado",
-  },
-  popup_weekly_recap_milestone_none: {
-    en: "No new milestone crossed this week.",
-    fr: "Aucun nouveau palier franchi cette semaine.",
-    hr: "Ovaj tjedan nije dosegnut novi cilj.",
-    es: "No se alcanzó ningún hito nuevo esta semana.",
-    el: "Δεν ξεπεράστηκε νέο ορόσημο αυτή την εβδομάδα.",
-    sv: "Ingen ny milstolpe nåddes denna vecka.",
-    de: "Diese Woche wurde kein neuer Meilenstein erreicht.",
-    pl: "W tym tygodniu nie osiągnięto nowego kamienia milowego.",
-    pr: "Nenhum novo marco foi alcançado nesta semana.",
-  },
-  popup_weekly_recap_equivalent_prefix: {
-    en: "Equivalent to",
-    fr: "Équivalent à",
-    hr: "Ekvivalentno",
-    es: "Equivale a",
-    el: "Ισοδυναμεί με",
-    sv: "Motsvarar",
-    de: "Entspricht",
-    pl: "To odpowiednik",
-    pr: "Equivale a",
-  },
-  popup_weekly_recap_task_singular: {
-    en: "quick task",
-    fr: "tâche rapide",
-    hr: "brzi zadatak",
-    es: "tarea rápida",
-    el: "γρήγορη εργασία",
-    sv: "snabb uppgift",
-    de: "schnellen Aufgabe",
-    pl: "szybkiego zadania",
-    pr: "tarefa rápida",
-  },
-  popup_weekly_recap_task_plural: {
-    en: "quick tasks",
-    fr: "tâches rapides",
-    hr: "brzih zadataka",
-    es: "tareas rápidas",
-    el: "γρήγορες εργασίες",
-    sv: "snabba uppgifter",
-    de: "schnellen Aufgaben",
-    pl: "szybkich zadań",
-    pr: "tarefas rápidas",
   },
   popup_weekly_recap_share_progress: {
     en: "Share progress",
@@ -3855,17 +3552,6 @@ i18n.extend({
     de: "GitHub-Quellcode",
     es: "Código fuente en GitHub",
     pl: "Kod źródłowy na GitHubie",
-  },
-  popup_support_development: {
-    en: "Support Development",
-    fr: "Soutenir le développement",
-    pr: "Apoiar o desenvolvimento",
-    hr: "Podrži razvoj",
-    el: "Υποστήριξη της ανάπτυξης",
-    sv: "Stöd utvecklingen",
-    de: "Entwicklung unterstützen",
-    es: "Apoyar el desarrollo",
-    pl: "Wesprzyj rozwój projektu",
   },
   options_search_label: {
     en: "Search settings",
@@ -5656,17 +5342,6 @@ i18n.extend({
     pl: "Nie udało się wczytać modelu na tym urządzeniu.",
     pr: "Não foi possível carregar o modelo neste dispositivo.",
   },
-  local_ai_error_device_lost: {
-    en: "The graphics card stopped responding. Try again.",
-    fr: "La carte graphique a cessé de répondre. Réessayez.",
-    hr: "Grafička kartica je prestala odgovarati. Pokušajte ponovo.",
-    es: "La tarjeta gráfica dejó de responder. Inténtelo de nuevo.",
-    el: "Η κάρτα γραφικών σταμάτησε να αποκρίνεται. Δοκιμάστε ξανά.",
-    sv: "Grafikkortet slutade svara. Försök igen.",
-    de: "Die Grafikkarte reagiert nicht mehr. Versuchen Sie es erneut.",
-    pl: "Karta graficzna przestała odpowiadać. Spróbuj ponownie.",
-    pr: "A placa de vídeo parou de responder. Tente de novo.",
-  },
   local_ai_error_integrity_failed: {
     en: "A downloaded file failed its integrity check and was discarded.",
     fr: "Un fichier téléchargé a échoué au contrôle d'intégrité et a été supprimé.",
@@ -5799,6 +5474,17 @@ i18n.extend({
     pl: "To się nie udało. Spróbuj ponownie.",
     pr: "Não funcionou. Tente de novo.",
   },
+  text_assets_empty: { en: "No snippets yet. Choose New snippet to add one." },
+  field_preferences_title: { en: "Saved writing fields" },
+  field_preferences_empty: {
+    en: "No remembered fields. Enable assistance in a field, then choose Remember for this field.",
+  },
+  field_preferences_forget_site: { en: "Forget all fields for this site" },
+  field_preferences_label_aria: { en: "Saved field label ({id})" },
+  field_preferences_save_label: { en: "Save label" },
+  field_preferences_forget: { en: "Forget" },
+  field_preferences_update_failed: { en: "Could not update saved fields." },
+  field_preferences_unavailable: { en: "Saved fields are unavailable." },
 });
 
 function formatTranslation(key: string, values: Record<string, string | number> = {}): string {

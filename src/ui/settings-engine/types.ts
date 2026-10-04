@@ -15,10 +15,8 @@ export type SliderConfig = {
   group: string;
   name?: string;
   label?: string;
-  min?: number;
-  max?: number;
-  step?: number;
-  display?: boolean;
+  min: number;
+  max: number;
   default?: number;
 };
 
@@ -39,7 +37,6 @@ export type ButtonConfig = {
   name?: string;
   label?: string;
   text?: string;
-  store?: false;
   /** Styles the button as destructive. */
   danger?: true;
 };
@@ -49,7 +46,6 @@ export type DescriptionConfig = {
   tab: string;
   group: string;
   name?: string;
-  description?: string;
   text?: string;
 };
 
@@ -66,7 +62,6 @@ export type CustomPanelConfig = {
 export type ValueOnlyConfig = {
   type: "valueOnly";
   tab: string;
-  group: string;
   name: string;
   default?: unknown;
 };
@@ -83,14 +78,11 @@ export type FieldConfig =
 export interface TabConfig {
   id: string;
   label: string;
-  title?: string;
   shortDescription?: string;
   keywords?: string[];
 }
 
 export interface ManifestDefinition {
-  name: string;
-  icon: string;
   tabs: TabConfig[];
   settings: FieldConfig[];
 }

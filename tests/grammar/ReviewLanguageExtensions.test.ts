@@ -6,12 +6,14 @@ import {
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan } from "./reviewHarness";
+import { review } from "./grammarTestUtils";
 
 type Fixture = { pos: Array<[string, string]>; neg: string[] };
 
 function findings(ruleId: CatalogRuleId, text: string, lang: string) {
-  return scan(text, { enabledRules: [ruleId], lang }).filter((d) => d.ruleId === ruleId);
+  return review(text, {}, { enabledRules: [ruleId], lang }).diagnostics.filter(
+    (d) => d.ruleId === ruleId,
+  );
 }
 
 /** English rules Review extends to other languages with their own bounded tables. */

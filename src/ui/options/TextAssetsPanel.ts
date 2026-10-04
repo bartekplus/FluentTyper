@@ -10,13 +10,18 @@ import {
 } from "@core/domain/constants";
 import { resolveDynamicVariable } from "@core/domain/variables";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
-  bindControlEvents,
+  createButton,
+  createDisclosure,
+  createHelpList,
+  createInlineCard,
+  createRemovableList,
   createSearchInput,
   createStackField,
-  createWorkspaceShell,
   downloadBlob,
   formatLooseText,
+  replaceChildrenKeepingDisclosures,
 } from "./workspacePanelUtils.js";
 
 type TextExpansionEntry = [string, string];
@@ -47,6 +52,29 @@ const PAGE_VARIABLE_PREVIEWS = new Map([
   ["page_domain", "example.com"],
 ]);
 
+/** Builds a ghost-button label with a hidden file input that reads the chosen file as text. */
+function createFileImport(
+  labelKey: string,
+  accept: string,
+  onText: (text: string) => void,
+): HTMLLabelElement {
+  const label = createElement("label", {
+    className: "settings-ghost-button",
+    textContent: i18n.get(labelKey),
+  });
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = accept;
+  input.hidden = true;
+  input.addEventListener("input", () => {
+    const file = input.files?.[0];
+    input.value = "";
+    void file?.text().then(onText);
+  });
+  label.appendChild(input);
+  return label;
+}
+
 export class TextAssetsPanel {
   private readonly root: HTMLElement;
   private readonly registry: SettingsRegistry;
@@ -66,43 +94,30 @@ export class TextAssetsPanel {
   private bulkDictionaryValue = "";
   private activeSnippetBody: HTMLTextAreaElement | null = null;
   private activeSnippetPreview: HTMLElement | null = null;
-  private liveDateFormat = "";
-  private liveTimeFormat = "";
+  private liveFormats: Record<string, string> = {};
+  private readonly formatInputs = new Map<string, HTMLInputElement>();
 
   constructor(root: HTMLElement, registry: SettingsRegistry, store: Store) {
     this.root = root;
     this.registry = registry;
     this.store = store;
 
-    bindControlEvents(this.registry[KEY_TEXT_EXPANSIONS], [["action", () => void this.load()]]);
-    bindControlEvents(this.registry[KEY_USER_DICTIONARY_LIST], [
-      ["action", () => void this.load()],
-    ]);
-    bindControlEvents(this.registry[KEY_DATE_FORMAT], [
-      ["action", () => void this.render()],
-      [
-        "change",
-        () => {
-          this.liveDateFormat = formatLooseText(this.registry[KEY_DATE_FORMAT].get());
-          this.refreshActiveSnippetPreview();
-          void this.render();
-        },
-      ],
-    ]);
-    bindControlEvents(this.registry[KEY_TIME_FORMAT], [
-      ["action", () => void this.render()],
-      [
-        "change",
-        () => {
-          this.liveTimeFormat = formatLooseText(this.registry[KEY_TIME_FORMAT].get());
-          this.refreshActiveSnippetPreview();
-          void this.render();
-        },
-      ],
-    ]);
+    for (const key of [KEY_TEXT_EXPANSIONS, KEY_USER_DICTIONARY_LIST]) {
+      this.registry[key]?.addEvent("action", () => void this.load());
+    }
+    for (const key of [KEY_DATE_FORMAT, KEY_TIME_FORMAT]) {
+      this.registry[key]?.addEvent("change", () => {
+        const value = formatLooseText(this.registry[key].get());
+        this.liveFormats[key] = value;
+        // Do not render, so that the open disclosure and the focused field stay as they are.
+        const input = this.formatInputs.get(key);
+        if (input && input.value !== value) {
+          input.value = value;
+        }
+        this.refreshActiveSnippetPreview();
+      });
+    }
 
-    this.liveDateFormat = formatLooseText(this.registry[KEY_DATE_FORMAT]?.get());
-    this.liveTimeFormat = formatLooseText(this.registry[KEY_TIME_FORMAT]?.get());
     void this.load();
   }
 
@@ -126,68 +141,43 @@ export class TextAssetsPanel {
     this.dictionary = Array.isArray(rawDictionary)
       ? rawDictionary.map((entry) => formatLooseText(entry)).filter(Boolean)
       : [];
-    this.liveDateFormat = typeof rawDateFormat === "string" ? rawDateFormat : "";
-    this.liveTimeFormat = typeof rawTimeFormat === "string" ? rawTimeFormat : "";
+    this.liveFormats = {
+      [KEY_DATE_FORMAT]: typeof rawDateFormat === "string" ? rawDateFormat : "",
+      [KEY_TIME_FORMAT]: typeof rawTimeFormat === "string" ? rawTimeFormat : "",
+    };
     this.render();
   }
 
   render(): void {
-    const shell = createWorkspaceShell();
-    const lowerGrid = createWorkspaceShell("workspace-main-grid");
+    const lowerGrid = createElement("div", { className: "workspace-main-grid" });
     lowerGrid.append(this.createDictionaryWorkspace(), this.createVariableWorkspace());
-    shell.append(this.createSnippetWorkspaceCard(), lowerGrid);
-    this.root.replaceChildren(shell);
+    const snippets = createInlineCard(
+      i18n.get("text_expander"),
+      i18n.get("options_panel_text_assets_desc"),
+    );
+    const workspace = this.createSnippetWorkspace();
+    snippets.append(this.createToolbar(workspace.filter), workspace.shell);
+    const shell = createElement("div", { className: "workspace-panel-stack" });
+    shell.append(snippets, lowerGrid);
+    replaceChildrenKeepingDisclosures(this.root, () => shell);
   }
 
-  private createToolbar(): HTMLElement {
-    const toolbar = document.createElement("div");
-    toolbar.className = "text-assets-toolbar";
-
-    toolbar.appendChild(
-      createSearchInput(i18n.get("text_assets_search_placeholder"), this.searchQuery, (query) => {
-        this.searchQuery = query;
+  private createToolbar(onQuery: () => void): HTMLElement {
+    const actions = createElement("div", { className: "text-assets-actions" });
+    actions.append(
+      createButton(i18n.get("text_assets_new_snippet"), "button", () => {
+        const row = this.createSnippetRow({ shortcut: "", text: "", persisted: false });
+        this.snippetRows = [row, ...this.snippetRows];
+        this.selectedSnippetId = row.id;
+        this.snippetDeleteArmed = false;
+        this.setSnippetStatus("");
         this.render();
       }),
-    );
-
-    const actions = document.createElement("div");
-    actions.className = "text-assets-actions";
-
-    const addButton = this.createButton(i18n.get("text_assets_new_snippet"), () => {
-      const row = this.createSnippetRow({ shortcut: "", text: "", persisted: false });
-      this.snippetRows = [row, ...this.snippetRows];
-      this.selectedSnippetId = row.id;
-      this.snippetDeleteArmed = false;
-      this.setSnippetStatus("");
-      this.render();
-    });
-    actions.appendChild(addButton);
-
-    const exportButton = this.createButton(i18n.get("text_expander_export_csv_btn"), () => {
-      const csv = stringify(this.getPersistedExpansions());
-      downloadBlob(
-        new Blob([csv], { type: "text/csv" }),
-        "FluentTyperTextExpanderDataBase.csv",
-        1200,
-      );
-    });
-    actions.appendChild(exportButton);
-
-    const importLabel = document.createElement("label");
-    importLabel.className = "settings-ghost-button";
-    importLabel.textContent = i18n.get("text_expander_import_csv_btn");
-    const importInput = document.createElement("input");
-    importInput.type = "file";
-    importInput.accept = ".csv";
-    importInput.hidden = true;
-    importInput.addEventListener("input", () => {
-      const file = importInput.files?.[0];
-      if (!file) {
-        return;
-      }
-      const reader = new FileReader();
-      reader.addEventListener("load", () => {
-        const csvText = typeof reader.result === "string" ? reader.result : "";
+      createButton(i18n.get("text_expander_export_csv_btn"), "button", () => {
+        const csv = stringify(this.getPersistedExpansions());
+        downloadBlob(new Blob([csv], { type: "text/csv" }), "FluentTyperTextExpanderDataBase.csv");
+      }),
+      createFileImport("text_expander_import_csv_btn", ".csv", (csvText) => {
         const parsed = parse(csvText, {
           skip_records_with_error: true,
           relax_column_count: true,
@@ -198,152 +188,140 @@ export class TextAssetsPanel {
           .filter((row) => row.length === 2)
           .map((row) => [formatLooseText(row[0]), formatLooseText(row[1])] as TextExpansionEntry);
         this.syncPersistedRows(this.mergeExpansions(this.getPersistedExpansions(), imported));
+        this.snippetDeleteArmed = false;
         this.setSnippetStatus(i18n.get("settings_status_saved"));
         this.persistSnippetRows();
-      });
-      reader.readAsText(file);
-      importInput.value = "";
-    });
-    importLabel.appendChild(importInput);
-    actions.appendChild(importLabel);
+      }),
+    );
 
-    toolbar.appendChild(actions);
+    const toolbar = createElement("div", { className: "text-assets-toolbar" });
+    toolbar.append(
+      createSearchInput(i18n.get("text_assets_search_placeholder"), this.searchQuery, (query) => {
+        this.searchQuery = query;
+        onQuery();
+      }),
+      actions,
+    );
     return toolbar;
   }
 
-  private createSnippetWorkspaceCard(): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "settings-inline-card";
+  private createSnippetWorkspace(): { shell: HTMLElement; filter: () => void } {
+    const shell = createElement("section", { className: "text-assets-shell" });
 
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("text_expander");
-    shell.appendChild(title);
+    const list = createElement("div", { className: "text-assets-list" });
+    // Rebuild only the list, so that the search input keeps its focus while the user types.
+    // Return true when the list selects a snippet, because then the editor must change too.
+    const fillList = (): boolean => {
+      const filtered = this.snippetRows.filter(({ shortcut, text }) =>
+        [shortcut, text].join(" ").toLowerCase().includes(this.searchQuery),
+      );
+      if (!filtered.length) {
+        list.replaceChildren(
+          createElement("p", {
+            className: "settings-inline-help",
+            textContent: i18n.get(
+              this.searchQuery ? "text_assets_no_snippets" : "text_assets_empty",
+            ),
+          }),
+        );
+      } else {
+        list.replaceChildren(...filtered.map((row) => this.createSnippetListItem(row)));
+      }
 
-    const helper = document.createElement("p");
-    helper.className = "settings-inline-help";
-    helper.textContent = i18n.get("options_panel_text_assets_desc");
-    shell.appendChild(helper);
+      if (!this.selectedSnippetId && filtered.length > 0) {
+        this.selectedSnippetId = filtered[0].id;
+        return true;
+      }
+      return false;
+    };
+    fillList();
 
-    shell.append(this.createToolbar(), this.createSnippetWorkspace());
-    return shell;
-  }
-
-  private createSnippetWorkspace(): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "text-assets-shell";
-
-    const list = document.createElement("div");
-    list.className = "text-assets-list";
-    const filtered = this.snippetRows.filter(({ shortcut, text }) =>
-      [shortcut, text].join(" ").toLowerCase().includes(this.searchQuery),
-    );
-    if (!filtered.length) {
-      const empty = document.createElement("p");
-      empty.className = "settings-inline-help";
-      empty.textContent =
-        !this.searchQuery && !this.snippetRows.length
-          ? i18n.get("text_assets_no_snippets")
-          : i18n.get("nothing-found");
-      list.appendChild(empty);
-    } else {
-      filtered.forEach(({ id, shortcut, text }) => {
-        const item = document.createElement("button");
-        item.type = "button";
-        item.className = "text-assets-list-item";
-        item.dataset.snippetRowId = id;
-        if (id === this.selectedSnippetId) {
-          item.classList.add("is-active");
-        }
-        const title = document.createElement("strong");
-        title.textContent = shortcut || i18n.get("text_assets_untitled_shortcut");
-        item.appendChild(title);
-        const excerpt = document.createElement("span");
-        excerpt.textContent = text.slice(0, 80) || i18n.get("text_assets_add_expansion_text");
-        item.appendChild(excerpt);
-        item.addEventListener("click", () => {
-          this.selectedSnippetId = id;
-          this.snippetDeleteArmed = false;
-          this.setSnippetStatus("");
-          this.render();
-        });
-        list.appendChild(item);
-      });
-    }
-
-    if (!this.selectedSnippetId && filtered.length > 0) {
-      this.selectedSnippetId = filtered[0].id;
-    }
-
-    const editor = this.createSnippetEditor();
+    let editor = this.createSnippetEditor();
     shell.appendChild(list);
     shell.appendChild(editor);
-    return shell;
+    const filter = () => {
+      if (fillList()) {
+        const nextEditor = this.createSnippetEditor();
+        editor.replaceWith(nextEditor);
+        editor = nextEditor;
+      }
+    };
+    return { shell, filter };
+  }
+
+  private createSnippetListItem({ id, shortcut, text }: SnippetRow): HTMLButtonElement {
+    const item = createButton("", "text-assets-list-item", () => {
+      this.selectedSnippetId = id;
+      this.snippetDeleteArmed = false;
+      this.setSnippetStatus("");
+      this.render();
+    });
+    if (id === this.selectedSnippetId) {
+      item.classList.add("is-active");
+    }
+    item.append(
+      createElement("strong", {
+        textContent: shortcut || i18n.get("text_assets_untitled_shortcut"),
+      }),
+      createElement("span", {
+        textContent: text.slice(0, 80) || i18n.get("text_assets_add_expansion_text"),
+      }),
+    );
+    return item;
   }
 
   private createSnippetEditor(): HTMLElement {
-    const editor = document.createElement("div");
-    editor.className = "text-assets-editor";
+    const editor = createElement("div", { className: "text-assets-editor" });
 
     const currentRow = this.getSelectedSnippet();
-    const currentEntry: TextExpansionEntry = currentRow
-      ? [currentRow.shortcut, currentRow.text]
-      : ["", ""];
-
-    const shortcut = document.createElement("input");
-    shortcut.className = "input";
-    shortcut.placeholder = i18n.get("text_expander_shortcut_placeholder");
-    shortcut.value = currentEntry[0];
-    shortcut.addEventListener("input", () => {
-      shortcut.setCustomValidity("");
+    // An edit cancels a delete that waits for its confirmation click.
+    const disarmDelete = () => {
+      if (!this.snippetDeleteArmed) {
+        return;
+      }
       this.snippetDeleteArmed = false;
+      deleteButton.textContent = i18n.get("text_assets_delete_snippet");
+      updateSnippetStatus("");
+    };
+
+    const shortcut = createElement("input", { className: "input" });
+    shortcut.placeholder = i18n.get("text_expander_shortcut_placeholder");
+    shortcut.value = currentRow?.shortcut ?? "";
+    shortcut.addEventListener("input", () => {
+      disarmDelete();
       if (currentRow) {
         currentRow.shortcut = shortcut.value;
       }
-      if (this.snippetStatusIsError) {
-        this.setSnippetStatus("");
-      }
     });
 
-    const body = document.createElement("textarea");
-    body.className = "textarea";
+    const body = createElement("textarea", { className: "textarea" });
     body.rows = 8;
     body.placeholder = i18n.get("text_expander_shortcut_text_placeholder");
-    body.value = currentEntry[1];
+    body.value = currentRow?.text ?? "";
     body.addEventListener("input", () => {
-      this.snippetDeleteArmed = false;
+      disarmDelete();
       if (currentRow) {
         currentRow.text = body.value;
       }
-    });
-
-    const variables = document.createElement("div");
-    variables.className = "variable-chip-row";
-    VARIABLE_SNIPPETS.forEach((token) => {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "variable-chip";
-      chip.textContent = token;
-      chip.addEventListener("click", () => {
-        body.value += body.value ? ` ${token}` : token;
-        if (currentRow) {
-          currentRow.text = body.value;
-        }
-        this.updateSnippetPreview(preview, body.value);
-      });
-      variables.appendChild(chip);
-    });
-
-    const preview = document.createElement("div");
-    preview.className = "snippet-preview";
-    this.updateSnippetPreview(preview, body.value);
-    this.activeSnippetBody = body;
-    this.activeSnippetPreview = preview;
-    body.addEventListener("input", () => {
       this.updateSnippetPreview(preview, body.value);
     });
 
-    const status = document.createElement("p");
-    status.className = "settings-inline-help";
+    const variables = createElement("div", { className: "variable-chip-row" });
+    VARIABLE_SNIPPETS.forEach((token) => {
+      variables.appendChild(
+        createButton(token, "variable-chip", () => {
+          body.value += body.value ? ` ${token}` : token;
+          body.dispatchEvent(new Event("input"));
+        }),
+      );
+    });
+
+    const preview = createElement("div", { className: "snippet-preview" });
+    this.updateSnippetPreview(preview, body.value);
+    this.activeSnippetBody = body;
+    this.activeSnippetPreview = preview;
+
+    const status = createElement("p", { className: "settings-inline-help" });
     const updateSnippetStatus = (text: string, isError = false) => {
       this.setSnippetStatus(text, isError);
       status.textContent = text || i18n.get("text_assets_snippet_helper_text");
@@ -351,10 +329,13 @@ export class TextAssetsPanel {
     };
     updateSnippetStatus(this.snippetStatusText, this.snippetStatusIsError);
 
-    const actions = document.createElement("div");
-    actions.className = "text-assets-actions";
+    const actions = createElement("div", { className: "text-assets-actions" });
     actions.appendChild(
-      this.createButton(i18n.get("text_assets_save_snippet"), () => {
+      createButton(i18n.get("text_assets_save_snippet"), "button", () => {
+        const nextEntry: TextExpansionEntry = [shortcut.value.trim(), body.value];
+        if (!nextEntry[0]) {
+          return;
+        }
         let targetRow = this.getSelectedSnippet();
         if (!targetRow) {
           targetRow = this.createSnippetRow({
@@ -364,10 +345,6 @@ export class TextAssetsPanel {
           });
           this.snippetRows = [targetRow, ...this.snippetRows];
           this.selectedSnippetId = targetRow.id;
-        }
-        const nextEntry: TextExpansionEntry = [shortcut.value.trim(), body.value];
-        if (!nextEntry[0]) {
-          return;
         }
         targetRow.shortcut = nextEntry[0];
         targetRow.text = nextEntry[1];
@@ -381,58 +358,53 @@ export class TextAssetsPanel {
       }),
     );
     actions.appendChild(
-      this.createButton(
-        i18n.get("site_profiles_cancel_btn"),
-        () => {
-          this.snippetDeleteArmed = false;
-          updateSnippetStatus("");
-          const selectedRow = this.getSelectedSnippet();
-          if (selectedRow?.persisted) {
-            selectedRow.shortcut = selectedRow.savedShortcut;
-            selectedRow.text = selectedRow.savedText;
-          } else if (selectedRow && this.snippetRows.length > 1) {
-            this.selectedSnippetId =
-              this.snippetRows.find((row) => row.id !== selectedRow.id)?.id ?? selectedRow.id;
-          }
-          this.render();
-        },
-        "is-light",
-      ),
-    );
-    actions.appendChild(
-      this.createButton(
-        this.snippetDeleteArmed
-          ? i18n.get("text_assets_delete_snippet_confirm")
-          : i18n.get("text_assets_delete_snippet"),
-        () => {
-          const selectedRow = this.getSelectedSnippet();
-          if (!selectedRow) {
-            return;
-          }
-          if (!this.snippetDeleteArmed) {
-            this.snippetDeleteArmed = true;
-            updateSnippetStatus(i18n.get("text_assets_delete_snippet_confirm"), true);
-            this.render();
-            return;
-          }
-          const removedIndex = this.snippetRows.findIndex((row) => row.id === selectedRow.id);
-          this.snippetRows = this.snippetRows.filter((row) => row.id !== selectedRow.id);
+      createButton(i18n.get("site_profiles_cancel_btn"), "button is-light", () => {
+        this.snippetDeleteArmed = false;
+        updateSnippetStatus("");
+        const selectedRow = this.getSelectedSnippet();
+        if (selectedRow?.persisted) {
+          selectedRow.shortcut = selectedRow.savedShortcut;
+          selectedRow.text = selectedRow.savedText;
+        } else if (selectedRow && this.snippetRows.length > 1) {
           this.selectedSnippetId =
-            this.snippetRows[removedIndex]?.id ??
-            this.snippetRows[removedIndex - 1]?.id ??
-            this.snippetRows[0]?.id ??
-            null;
-          this.snippetDeleteArmed = false;
-          updateSnippetStatus(i18n.get("text_assets_snippet_deleted"));
-          if (selectedRow.persisted) {
-            this.persistSnippetRows();
-            return;
-          }
-          this.render();
-        },
-        "is-danger",
-      ),
+            this.snippetRows.find((row) => row.id !== selectedRow.id)?.id ?? selectedRow.id;
+        }
+        this.render();
+      }),
     );
+    const deleteButton = createButton(
+      this.snippetDeleteArmed
+        ? i18n.get("text_assets_delete_snippet_confirm")
+        : i18n.get("text_assets_delete_snippet"),
+      "button is-danger",
+      () => {
+        const selectedRow = this.getSelectedSnippet();
+        if (!selectedRow) {
+          return;
+        }
+        if (!this.snippetDeleteArmed) {
+          this.snippetDeleteArmed = true;
+          updateSnippetStatus(i18n.get("text_assets_delete_snippet_confirm"), true);
+          this.render();
+          return;
+        }
+        const removedIndex = this.snippetRows.findIndex((row) => row.id === selectedRow.id);
+        this.snippetRows = this.snippetRows.filter((row) => row.id !== selectedRow.id);
+        this.selectedSnippetId =
+          this.snippetRows[removedIndex]?.id ??
+          this.snippetRows[removedIndex - 1]?.id ??
+          this.snippetRows[0]?.id ??
+          null;
+        this.snippetDeleteArmed = false;
+        updateSnippetStatus(i18n.get("text_assets_snippet_deleted"));
+        if (selectedRow.persisted) {
+          this.persistSnippetRows();
+          return;
+        }
+        this.render();
+      },
+    );
+    actions.appendChild(deleteButton);
 
     editor.append(
       createStackField(i18n.get("text_expander_shortcut_placeholder"), shortcut),
@@ -446,172 +418,96 @@ export class TextAssetsPanel {
   }
 
   private createDictionaryWorkspace(): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "settings-inline-card";
-
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("custom_words");
-    shell.appendChild(title);
-
-    const toolbar = document.createElement("div");
-    toolbar.className = "text-assets-toolbar";
-    toolbar.appendChild(
-      createSearchInput(
-        i18n.get("text_assets_dictionary_search"),
-        this.dictionaryQuery,
-        (query) => {
-          this.dictionaryQuery = query;
-          this.render();
-        },
-      ),
-    );
-
-    const addInput = document.createElement("input");
-    addInput.className = "input";
-    addInput.placeholder = i18n.get("text_assets_add_custom_word_placeholder");
-    addInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        addButton.click();
-      }
+    const shell = createInlineCard(i18n.get("custom_words"));
+    const { toolbar, list } = createRemovableList({
+      searchPlaceholder: i18n.get("text_assets_dictionary_search"),
+      query: this.dictionaryQuery,
+      onQuery: (query) => {
+        this.dictionaryQuery = query;
+      },
+      addPlaceholder: i18n.get("text_assets_add_custom_word_placeholder"),
+      addLabel: i18n.get("add"),
+      onAdd: (input) => {
+        const value = input.value.trim();
+        if (!value || this.dictionary.includes(value)) {
+          return;
+        }
+        this.dictionary = [...this.dictionary, value];
+        this.persistDictionary();
+      },
+      items: this.dictionary,
+      onRemove: (word) => {
+        this.dictionary = this.dictionary.filter((entry) => entry !== word);
+        this.persistDictionary();
+      },
+      emptyText: i18n.get("text_assets_no_dictionary_matches"),
     });
-    toolbar.appendChild(addInput);
+    shell.append(toolbar, list);
 
-    const addButton = this.createButton(i18n.get("add"), () => {
-      const value = addInput.value.trim();
-      if (!value || this.dictionary.includes(value)) {
-        return;
-      }
-      this.dictionary = [...this.dictionary, value];
-      this.clearDictionaryArmed = false;
-      this.setDictionaryStatus(i18n.get("settings_status_saved"));
-      this.persistDictionary();
-    });
-    toolbar.appendChild(addButton);
-    shell.appendChild(toolbar);
+    const bulk = createDisclosure(i18n.get("text_assets_bulk_add_import"));
 
-    const list = document.createElement("div");
-    list.className = "domain-table";
-    const filteredWords = this.dictionary.filter((word) =>
-      word.toLowerCase().includes(this.dictionaryQuery),
-    );
-    filteredWords.forEach((word) => {
-      const row = document.createElement("div");
-      row.className = "domain-table-row";
-      const label = document.createElement("div");
-      label.className = "domain-table-name";
-      label.textContent = word;
-      row.appendChild(label);
-      const removeButton = this.createButton(
-        i18n.get("remove"),
-        () => {
-          this.dictionary = this.dictionary.filter((entry) => entry !== word);
-          this.clearDictionaryArmed = false;
-          this.setDictionaryStatus(i18n.get("settings_status_saved"));
-          this.persistDictionary();
-        },
-        "is-light",
-      );
-      row.appendChild(removeButton);
-      list.appendChild(row);
-    });
-    if (!filteredWords.length) {
-      const empty = document.createElement("p");
-      empty.className = "settings-inline-help";
-      empty.textContent = i18n.get("text_assets_no_dictionary_matches");
-      list.appendChild(empty);
-    }
-    shell.appendChild(list);
-
-    const bulk = document.createElement("details");
-    bulk.className = "settings-disclosure";
-    const summary = document.createElement("summary");
-    summary.textContent = i18n.get("text_assets_bulk_add_import");
-    bulk.appendChild(summary);
-
-    const bulkTextarea = document.createElement("textarea");
-    bulkTextarea.className = "textarea";
+    const bulkTextarea = createElement("textarea", { className: "textarea" });
     bulkTextarea.rows = 4;
     bulkTextarea.placeholder = i18n.get("text_assets_paste_word_per_line");
     bulkTextarea.value = this.bulkDictionaryValue;
-    const bulkPreview = document.createElement("p");
-    bulkPreview.className = "settings-inline-help";
-    const bulkAddButton = this.createButton(i18n.get("text_assets_add_words"), () => {
+    const bulkPreview = createElement("p", { className: "settings-inline-help" });
+    const bulkAddButton = createButton(i18n.get("text_assets_add_words"), "button", () => {
       const nextWords = this.extractNewDictionaryWords(bulkTextarea.value);
       if (nextWords.length === 0) {
         return;
       }
       this.dictionary = [...this.dictionary, ...nextWords];
       this.bulkDictionaryValue = "";
-      bulkTextarea.value = "";
-      this.updateBulkPreview(bulkPreview, bulkAddButton, bulkTextarea.value);
-      this.clearDictionaryArmed = false;
-      this.setDictionaryStatus(i18n.get("settings_status_saved"));
       this.persistDictionary();
     });
-    bulkTextarea.addEventListener("input", () => {
-      this.bulkDictionaryValue = bulkTextarea.value;
-      this.clearDictionaryArmed = false;
-      this.updateBulkPreview(bulkPreview, bulkAddButton, bulkTextarea.value);
-    });
-    bulk.appendChild(bulkTextarea);
-    this.updateBulkPreview(bulkPreview, bulkAddButton, bulkTextarea.value);
-    bulk.appendChild(bulkPreview);
-
-    bulk.appendChild(bulkAddButton);
-
-    const importLabel = document.createElement("label");
-    importLabel.className = "settings-ghost-button";
-    importLabel.textContent = i18n.get("import_dict_btn");
-    const importInput = document.createElement("input");
-    importInput.type = "file";
-    importInput.accept = ".txt";
-    importInput.hidden = true;
-    importInput.addEventListener("input", () => {
-      const file = importInput.files?.[0];
-      if (!file) {
+    // An edit cancels a clear that waits for its confirmation click.
+    const disarmClear = () => {
+      if (!this.clearDictionaryArmed) {
         return;
       }
-      const reader = new FileReader();
-      reader.addEventListener("load", () => {
-        const words = formatLooseText(reader.result)
-          .split(/\r?\n/)
-          .map((entry) => entry.trim())
-          .filter(Boolean);
-        this.dictionary = [...this.dictionary, ...words];
-        this.clearDictionaryArmed = false;
-        this.setDictionaryStatus(i18n.get("settings_status_saved"));
-        this.persistDictionary();
-      });
-      reader.readAsText(file);
-      importInput.value = "";
+      this.clearDictionaryArmed = false;
+      clearButton.textContent = i18n.get("clear_dict_btn");
+      this.setDictionaryStatus("");
+      status.textContent = i18n.get("text_assets_bulk_helper_text");
+      status.classList.remove("has-text-danger");
+    };
+    bulkTextarea.addEventListener("input", () => {
+      this.bulkDictionaryValue = bulkTextarea.value;
+      disarmClear();
+      this.updateBulkPreview(bulkPreview, bulkAddButton, bulkTextarea.value);
     });
-    importLabel.appendChild(importInput);
-    bulk.appendChild(importLabel);
-    bulk.appendChild(
-      this.createButton(
-        this.clearDictionaryArmed
-          ? i18n.get("text_assets_clear_words_confirm")
-          : i18n.get("clear_dict_btn"),
-        () => {
-          if (!this.clearDictionaryArmed) {
-            this.clearDictionaryArmed = true;
-            this.setDictionaryStatus(i18n.get("text_assets_clear_words_confirm"), true);
-            this.render();
-            return;
-          }
-          this.dictionary = [];
-          this.clearDictionaryArmed = false;
-          this.setDictionaryStatus(i18n.get("settings_status_saved"));
-          this.persistDictionary();
-        },
-        "is-danger",
-      ),
+    this.updateBulkPreview(bulkPreview, bulkAddButton, bulkTextarea.value);
+    const clearButton = createButton(
+      this.clearDictionaryArmed
+        ? i18n.get("text_assets_clear_words_confirm")
+        : i18n.get("clear_dict_btn"),
+      "button is-danger",
+      () => {
+        if (!this.clearDictionaryArmed) {
+          this.clearDictionaryArmed = true;
+          this.setDictionaryStatus(i18n.get("text_assets_clear_words_confirm"), true);
+          this.render();
+          return;
+        }
+        this.dictionary = [];
+        this.persistDictionary();
+      },
+    );
+    bulk.append(
+      bulkTextarea,
+      bulkPreview,
+      bulkAddButton,
+      createFileImport("import_dict_btn", ".txt", (text) => {
+        this.dictionary = [...this.dictionary, ...this.extractNewDictionaryWords(text)];
+        this.persistDictionary();
+      }),
+      clearButton,
     );
 
-    const status = document.createElement("p");
-    status.className = "settings-inline-help";
-    status.textContent = this.dictionaryStatusText || i18n.get("text_assets_bulk_helper_text");
+    const status = createElement("p", {
+      className: "settings-inline-help",
+      textContent: this.dictionaryStatusText || i18n.get("text_assets_bulk_helper_text"),
+    });
     status.classList.toggle("has-text-danger", this.dictionaryStatusIsError);
     shell.appendChild(status);
     shell.appendChild(bulk);
@@ -619,72 +515,45 @@ export class TextAssetsPanel {
   }
 
   private createVariableWorkspace(): HTMLElement {
-    const shell = document.createElement("details");
-    shell.className = "settings-disclosure";
-
-    const summary = document.createElement("summary");
-    summary.textContent = i18n.get("dynamic_variables");
-    shell.appendChild(summary);
+    const shell = createDisclosure(i18n.get("dynamic_variables"));
 
     const createFormatField = (
       key: typeof KEY_DATE_FORMAT | typeof KEY_TIME_FORMAT,
       labelKey: string,
-      setLiveFormat: (value: string) => void,
     ) => {
-      const input = document.createElement("input");
-      input.className = "input";
+      const input = createElement("input", { className: "input" });
       input.value = formatLooseText(this.registry[key].get());
       input.placeholder = i18n.get(labelKey);
+      this.formatInputs.set(key, input);
       input.addEventListener("input", () => {
-        setLiveFormat(input.value);
+        this.liveFormats[key] = input.value;
         this.refreshActiveSnippetPreview();
       });
       input.addEventListener("change", () => {
-        setLiveFormat(input.value);
+        this.liveFormats[key] = input.value;
         this.registry[key].set(input.value);
       });
       return createStackField(i18n.get(labelKey), input);
     };
-    const createHelpList = (items: string[]) => {
-      const list = document.createElement("ul");
-      list.className = "settings-inline-help";
-      items.forEach((text) => {
-        const item = document.createElement("li");
-        item.textContent = text;
-        list.appendChild(item);
-      });
-      return list;
-    };
-
-    const docs = document.createElement("div");
-    docs.className = "settings-inline-card";
-
-    const docsIntro = document.createElement("p");
-    docsIntro.className = "settings-inline-help";
-    docsIntro.textContent = i18n.get("text_assets_advanced_variables_docs");
-    docs.appendChild(docsIntro);
-
-    docs.appendChild(
-      createHelpList([
-        i18n.get("text_assets_variable_group_datetime"),
-        i18n.get("text_assets_variable_group_utility"),
-        i18n.get("text_assets_variable_group_page"),
-      ]),
-    );
-
-    const formatHelp = document.createElement("p");
-    formatHelp.className = "settings-inline-help";
-    formatHelp.textContent = i18n.get("text_assets_luxon_intro");
-    docs.appendChild(formatHelp);
 
     const docsLink = document.createElement("a");
     docsLink.href = "https://moment.github.io/luxon/#/formatting?id=table-of-tokens";
     docsLink.target = "_blank";
     docsLink.rel = "noreferrer";
     docsLink.textContent = i18n.get("text_assets_luxon_link_label");
-    docs.appendChild(docsLink);
 
-    docs.appendChild(
+    const docs = createInlineCard(undefined, i18n.get("text_assets_advanced_variables_docs"));
+    docs.append(
+      createHelpList([
+        i18n.get("text_assets_variable_group_datetime"),
+        i18n.get("text_assets_variable_group_utility"),
+        i18n.get("text_assets_variable_group_page"),
+      ]),
+      createElement("p", {
+        className: "settings-inline-help",
+        textContent: i18n.get("text_assets_luxon_intro"),
+      }),
+      docsLink,
       createHelpList([
         i18n.get("text_assets_luxon_example_date_short"),
         i18n.get("text_assets_luxon_example_date_long"),
@@ -694,24 +563,11 @@ export class TextAssetsPanel {
     );
 
     shell.append(
-      createFormatField(KEY_DATE_FORMAT, "custom_date_format_label", (value) => {
-        this.liveDateFormat = value;
-      }),
-      createFormatField(KEY_TIME_FORMAT, "custom_time_format_label", (value) => {
-        this.liveTimeFormat = value;
-      }),
+      createFormatField(KEY_DATE_FORMAT, "custom_date_format_label"),
+      createFormatField(KEY_TIME_FORMAT, "custom_time_format_label"),
       docs,
     );
     return shell;
-  }
-
-  private createButton(label: string, onClick: () => void, tone = ""): HTMLButtonElement {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `button ${tone}`.trim();
-    button.textContent = label;
-    button.addEventListener("click", onClick);
-    return button;
   }
 
   private persistSnippetRows(): void {
@@ -719,6 +575,8 @@ export class TextAssetsPanel {
   }
 
   private persistDictionary(): void {
+    this.clearDictionaryArmed = false;
+    this.setDictionaryStatus(i18n.get("settings_status_saved"));
     this.dictionary = Array.from(new Set(this.dictionary)).sort((a, b) => a.localeCompare(b));
     this.registry[KEY_USER_DICTIONARY_LIST].set(this.dictionary);
   }
@@ -764,18 +622,13 @@ export class TextAssetsPanel {
     id?: string;
   }): SnippetRow {
     return {
-      id: id ?? this.nextSnippetRowId(),
+      id: id ?? `snippet-row-${++this.snippetRowSeq}`,
       shortcut,
       text,
       savedShortcut: shortcut,
       savedText: text,
       persisted,
     };
-  }
-
-  private nextSnippetRowId(): string {
-    this.snippetRowSeq += 1;
-    return `snippet-row-${this.snippetRowSeq}`;
   }
 
   private syncPersistedRows(expansions: TextExpansionEntry[]): void {
@@ -809,8 +662,6 @@ export class TextAssetsPanel {
   }
 
   private updateSnippetPreview(target: HTMLElement, rawValue: string): void {
-    const dateFormat = this.liveDateFormat;
-    const timeFormat = this.liveTimeFormat;
     const preview = rawValue.replace(
       /\$\{([^}:]+)(?::([^}]+))?\}/g,
       (_match, varName, arg) =>
@@ -819,8 +670,8 @@ export class TextAssetsPanel {
           String(varName),
           arg ? String(arg) : undefined,
           "en_US",
-          timeFormat,
-          dateFormat,
+          this.liveFormats[KEY_TIME_FORMAT],
+          this.liveFormats[KEY_DATE_FORMAT],
         ) ||
           `\${${String(varName)}}`),
     );

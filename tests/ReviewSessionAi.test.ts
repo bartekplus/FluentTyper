@@ -3,10 +3,7 @@ import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEng
 import {
   ReviewSession,
   type ReviewApplyResult,
-  type ReviewCapabilities,
   type ReviewSessionDependencies,
-  type ReviewTargetPort,
-  type ReviewTargetRead,
   type ReviewViewState,
 } from "../src/core/application/review/ReviewSession";
 import {
@@ -15,6 +12,7 @@ import {
   type ReviewAiProvider,
 } from "../src/core/application/review/reviewAi";
 import type { LocalAiStatus } from "../src/core/domain/contracts/localAi";
+import { readyStatus } from "./support/localAiFakes";
 import { AI_PROMPT_VERSION } from "../src/core/domain/grammar/review/ai/prompts";
 import type {
   AiGenerationOutcome,
@@ -22,59 +20,12 @@ import type {
 } from "../src/core/domain/grammar/review/ai/types";
 import {
   REVIEW_LOCAL_AI_CHECK,
-  type ProtectedRange,
   type ReviewDiagnostic,
   type ReviewEdit,
 } from "../src/core/domain/grammar/review/types";
+import { FakeEditor, manualTimers } from "./support/reviewFakes";
 
 const AI_DELAY = 1500;
-
-class FakeEditor implements ReviewTargetPort {
-  capabilities: ReviewCapabilities = { inline: true, apply: true, bulk: true, undo: "single-step" };
-  protectedRanges: ProtectedRange[] = [];
-  applyCalls: Array<{ edits: ReviewEdit[]; before: string; after: string }> = [];
-  nextResult: ReviewApplyResult | null = null;
-
-  constructor(public text: string) {}
-
-  read(): ReviewTargetRead {
-    return {
-      ok: true,
-      text: this.text,
-      protectedRanges: this.protectedRanges,
-      signature: JSON.stringify(this.protectedRanges),
-    };
-  }
-
-  apply(request: { edits: ReviewEdit[]; before: string; after: string; signature: string }) {
-    this.applyCalls.push(request);
-    if (this.nextResult) return Promise.resolve(this.nextResult);
-    if (this.text !== request.before) return Promise.resolve({ status: "stale" as const });
-    let text = this.text;
-    for (const edit of request.edits) {
-      text = text.slice(0, edit.start) + edit.replacement + text.slice(edit.end);
-    }
-    this.text = text;
-    return Promise.resolve(
-      text === request.after ? { status: "applied" as const } : { status: "unverified" as const },
-    );
-  }
-}
-
-function status(overrides: Partial<LocalAiStatus> = {}): LocalAiStatus {
-  return {
-    enabled: true,
-    consented: true,
-    tier: "standard",
-    modelId: "model-a",
-    displayName: "Standard",
-    downloadBytes: 1,
-    install: "complete",
-    runtime: "ready",
-    offerSetup: false,
-    ...overrides,
-  };
-}
 
 interface FakeRequest {
   request: AiGenerationRequest;
@@ -84,7 +35,7 @@ interface FakeRequest {
 
 /** Scriptable provider: answers at once (`auto`) or when released; records aborts. */
 class FakeAi implements ReviewAiProvider {
-  current = status();
+  current = readyStatus();
   auto = true;
   /** Honours abort by answering "cancelled" (a real runtime settles after the cancel). */
   honorAbort = true;
@@ -109,7 +60,7 @@ class FakeAi implements ReviewAiProvider {
   }
 
   push(next: Partial<LocalAiStatus>): void {
-    this.current = status(next);
+    this.current = readyStatus(next);
     for (const listener of this.listeners) listener(this.current);
   }
 
@@ -171,13 +122,11 @@ function harness(
   } = {},
 ) {
   const editor = new FakeEditor(text);
-  const timers: Array<{ callback: () => void; delay: number }> = [];
+  const { timers, yieldToTimers, setTimer, clearTimer } = manualTimers();
   const states: ReviewViewState[] = [];
   const session = new ReviewSession({
     target: editor,
-    engine: new LocalReviewEngine(
-      () => new Promise<void>((resolve) => timers.push({ callback: resolve, delay: 0 })),
-    ),
+    engine: new LocalReviewEngine(yieldToTimers),
     options: {
       lang,
       enabledRules: rules,
@@ -187,17 +136,9 @@ function harness(
     initialScope: null,
     onChange: (state) => states.push(state),
     ai: ai ?? undefined,
-    aiRecheckDelayMs: AI_DELAY,
     ...deps,
-    setTimer: (callback, delay) => {
-      const timer = { callback, delay };
-      timers.push(timer);
-      return timer;
-    },
-    clearTimer: (handle) => {
-      const index = timers.indexOf(handle as (typeof timers)[number]);
-      if (index >= 0) timers.splice(index, 1);
-    },
+    setTimer,
+    clearTimer,
   });
   /** Runs queued timers until idle; the AI pause only when `ai` is set. */
   const settle = async ({ aiDelay = true } = {}) => {
@@ -282,7 +223,7 @@ describe("ReviewSession with Local AI: Correct", () => {
 
   test("Compact keeps single-sentence requests; Gemma pairs them", async () => {
     const compact = harness(TEXT);
-    compact.ai.current = status({ tier: "compact" });
+    compact.ai.current = readyStatus({ tier: "compact" });
     await compact.start();
     expect(compact.ai.requests.map(({ request }) => request.segments.map((s) => s.text))).toEqual([
       ["We saw teh cat."],
@@ -488,7 +429,7 @@ describe("ReviewSession with Local AI: Correct", () => {
 
   test("setup, install and support states never send text; the offer can be declined", async () => {
     const h = harness(TEXT);
-    h.ai.current = status({ consented: false, offerSetup: true, install: "none" });
+    h.ai.current = readyStatus({ consented: false, offerSetup: true, install: "none" });
     await h.start();
     expect(h.last().ai.availability).toBe("setup-needed");
     expect(h.last().ai.offerSetup).toBe(true);
@@ -528,12 +469,12 @@ describe("ReviewSession with Local AI: Correct", () => {
 
   test("turning the preference on in an open review fetches status and starts AI", async () => {
     const h = harness(TEXT);
-    h.ai.current = status({ enabled: false });
+    h.ai.current = readyStatus({ enabled: false });
     h.session.setAiEnabled(false);
     await h.start();
     expect(h.last().ai.availability).toBe("off");
     expect(h.ai.requests).toHaveLength(0);
-    h.ai.current = status();
+    h.ai.current = readyStatus();
     h.session.setAiEnabled(true);
     await h.settle();
     expect(h.last().ai.availability).toBe("ready");
@@ -1037,7 +978,7 @@ describe("ReviewSession with Local AI: Rewrite", () => {
   test("a review-only editor previews a rewrite but never applies it", async () => {
     const h = harness(TEXT);
     h.ai.fix = rewriteFix;
-    h.editor.capabilities = { inline: false, apply: false, bulk: false, undo: "none" };
+    h.editor.capabilities = { apply: false, bulk: false };
     await h.start();
     h.session.setMode("rewrite");
     h.session.generateRewrite();
@@ -1050,7 +991,7 @@ describe("ReviewSession with Local AI: Rewrite", () => {
   test("an editor without a batch transaction offers a copy-only rewrite", async () => {
     const h = harness(TEXT);
     h.ai.fix = rewriteFix;
-    h.editor.capabilities = { inline: true, apply: true, bulk: false, undo: "single-step" };
+    h.editor.capabilities = { apply: true, bulk: false };
     await h.start();
     h.session.setMode("rewrite");
     h.session.generateRewrite();
@@ -1181,16 +1122,16 @@ describe("Local AI review helpers", () => {
 
   test("availability maps preference, support, consent, install and pause in that order", () => {
     expect(reviewAiAvailability(null, true, false)).toBe("off");
-    expect(reviewAiAvailability(status({ enabled: false }), true, false)).toBe("off");
-    expect(reviewAiAvailability(status(), false, false)).toBe("off");
-    expect(reviewAiAvailability(status({ runtime: "unavailable" }), true, false)).toBe(
+    expect(reviewAiAvailability(readyStatus({ enabled: false }), true, false)).toBe("off");
+    expect(reviewAiAvailability(readyStatus(), false, false)).toBe("off");
+    expect(reviewAiAvailability(readyStatus({ runtime: "unavailable" }), true, false)).toBe(
       "unsupported",
     );
     // A browser or build without the runtime keeps today's Review: no AI UI at all (e2e finding).
     for (const reason of ["host-unsupported", "not-in-build"] as const) {
       expect(
         reviewAiAvailability(
-          status({ runtime: "unavailable", unavailable: reason, consented: false }),
+          readyStatus({ runtime: "unavailable", unavailable: reason, consented: false }),
           true,
           false,
         ),
@@ -1198,28 +1139,30 @@ describe("Local AI review helpers", () => {
     }
     expect(
       reviewAiAvailability(
-        status({ runtime: "unavailable", unavailable: "no-webgpu" }),
+        readyStatus({ runtime: "unavailable", unavailable: "no-webgpu" }),
         true,
         false,
       ),
     ).toBe("unsupported");
     // Only languages the selected model was evaluated for (English): no setup offer, no run.
-    expect(reviewAiAvailability(status({ consented: false }), true, false, "pl_PL")).toBe(
+    expect(reviewAiAvailability(readyStatus({ consented: false }), true, false, "pl_PL")).toBe(
       "language",
     );
-    expect(reviewAiAvailability(status(), true, false, "pl_PL")).toBe("language");
-    expect(reviewAiAvailability(status(), true, false, "en_GB")).toBe("ready");
-    expect(reviewAiAvailability(status({ consented: false }), true, false)).toBe("setup-needed");
-    expect(reviewAiAvailability(status({ install: "partial" }), true, false)).toBe(
+    expect(reviewAiAvailability(readyStatus(), true, false, "pl_PL")).toBe("language");
+    expect(reviewAiAvailability(readyStatus(), true, false, "en_GB")).toBe("ready");
+    expect(reviewAiAvailability(readyStatus({ consented: false }), true, false)).toBe(
+      "setup-needed",
+    );
+    expect(reviewAiAvailability(readyStatus({ install: "partial" }), true, false)).toBe(
       "install-needed",
     );
-    expect(reviewAiAvailability(status({ runtime: "downloading" }), true, false)).toBe(
+    expect(reviewAiAvailability(readyStatus({ runtime: "downloading" }), true, false)).toBe(
       "installing",
     );
-    expect(reviewAiAvailability(status({ runtime: "loading" }), true, false)).toBe("ready");
-    expect(reviewAiAvailability(status(), true, true)).toBe("paused");
+    expect(reviewAiAvailability(readyStatus({ runtime: "loading" }), true, false)).toBe("ready");
+    expect(reviewAiAvailability(readyStatus(), true, true)).toBe("paused");
     // The host gave up after repeated engine failures: nothing to pause or generate.
-    expect(reviewAiAvailability(status({ runtime: "error" }), true, true)).toBe("failed");
+    expect(reviewAiAvailability(readyStatus({ runtime: "error" }), true, true)).toBe("failed");
   });
 
   test("overlapping selected findings are left out, both of them", () => {

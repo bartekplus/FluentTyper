@@ -58,17 +58,16 @@ Available checks depend on the [writing language](review-language-matrix.md) and
 | Where you write             | What to expect                                                                                                 |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | Ordinary text boxes         | Corrections and eligible batches, with editor Undo.                                                            |
-| Supported rich text editors | Controls depend on the editor. Some allow corrections, while others only show findings.                        |
+| Supported rich text editors | Controls depend on the editor. Some allow corrections, others show findings with a Copy button.                |
 | Google Docs                 | Individual corrections. Review covers up to 50,000 characters, with the checked scope shown in the panel.      |
 | Word for the web            | Corrections when the active text and editor state can be checked. Review refuses writes with Track Changes on. |
 
-In a long Google document, Review checks a window around the cursor. Some findings appear only in the panel until their text is visible.
 See [Google Docs help](google-docs-integration.md) for browser limits.
 
 ## If something does not work
 
 - **No Review button:** Use the extension popup or shortcut. The button appears only beside supported multiline fields.
-- **No Apply button:** The editor may support findings only. Make the correction in the editor yourself.
+- **No Apply button:** The editor may support findings only. Select **Copy** on the card and paste the correction.
 - **A change does not apply:** Read the panel message. Check the text before trying again.
 - **Unexpected spelling results:** Select the correct [writing language](review-language-matrix.md#choose-your-writing-language).
 - **Review failed:** Close Review. Try again from the active text field.
@@ -78,7 +77,7 @@ Adding a word to your dictionary is a separate, deliberate settings change.
 
 ## Local AI (optional)
 
-Local AI is an optional development feature for Review. The project still records it as not released.
+Chrome and Edge builds include optional Local AI for Review. Firefox builds do not.
 Standard Review works without it. See [Local AI availability and privacy](local-ai-review.md).
 
 ---

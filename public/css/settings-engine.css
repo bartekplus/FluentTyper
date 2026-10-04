@@ -1,11 +1,5 @@
 /* Layout */
 
-body.fluenttyper-options {
-  min-height: 100vh;
-  margin: 0;
-  background: var(--background-color);
-}
-
 body.fluenttyper-options .options-app {
   display: grid;
   grid-template-columns: 15rem minmax(0, 1fr);
@@ -32,14 +26,9 @@ body.fluenttyper-options .options-sidebar-header {
 }
 
 body.fluenttyper-options .options-brand-title {
-  margin: 0;
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.2;
-}
-
-body.fluenttyper-options .options-search {
-  display: block;
 }
 
 body.fluenttyper-options .options-nav {
@@ -50,13 +39,6 @@ body.fluenttyper-options .options-nav ul {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-body.fluenttyper-options .options-nav li.is-search-hidden {
-  display: none;
 }
 
 body.fluenttyper-options .settings-nav-link {
@@ -111,12 +93,7 @@ body.fluenttyper-options .content-tab {
   gap: 1.5rem;
 }
 
-body.fluenttyper-options .content-tab.is-search-filtered-out {
-  display: none;
-}
-
 body.fluenttyper-options .settings-section-title {
-  margin: 0;
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.2;
@@ -141,6 +118,8 @@ body.fluenttyper-options .settings-group {
   gap: 0.75rem;
 }
 
+body.fluenttyper-options .options-nav li.is-search-hidden,
+body.fluenttyper-options .content-tab.is-search-filtered-out,
 body.fluenttyper-options .settings-group.is-search-hidden,
 body.fluenttyper-options .settings-group.is-empty-workspace-group,
 body.fluenttyper-options .settings-group .is-search-hidden {
@@ -178,12 +157,10 @@ body.fluenttyper-options .settings-group .field {
   gap: 1rem;
 }
 
-.settings-custom-panel-description,
 .settings-inline-help,
 .settings-group .description-body,
 .text-assets-list-item span,
-.language-card-meta,
-.language-card-warning {
+.language-card-meta {
   color: var(--text-color-light);
 }
 
@@ -212,22 +189,6 @@ body.fluenttyper-options .settings-group .field {
   font-weight: 600;
 }
 
-.settings-group .label .field-title {
-  display: block;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-body.fluenttyper-options .settings-group .label small,
-.settings-group .label .field-help {
-  display: block;
-  margin-top: 0.125rem;
-  color: var(--text-color-light);
-  font-size: 0.875rem;
-  font-weight: 400;
-  line-height: 1.45;
-}
-
 /* Sliders: value sits beside the track, not under it. Flex, not grid: a
    max-content column let the help text widen the whole page. */
 
@@ -243,6 +204,7 @@ body.fluenttyper-options .field:has(.slider-wrapper) .label {
 }
 
 body.fluenttyper-options .slider-wrapper {
+  position: relative;
   flex: 0 1 24rem;
   min-width: 0;
 }
@@ -308,13 +270,6 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
 .settings-stack-field {
   display: grid;
   gap: 0.45rem;
-}
-
-.settings-stack-field .input,
-.settings-stack-field .textarea,
-.settings-inline-card .input,
-.settings-inline-card .textarea {
-  width: 100%;
 }
 
 /* Grammar rule matrix */
@@ -435,12 +390,9 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
 
 .text-assets-toolbar,
 .text-assets-actions,
-.language-behavior-grid,
 .preset-grid,
-.site-profiles-shell,
 .segmented-control,
-.variable-chip-row,
-.domain-table {
+.variable-chip-row {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
@@ -479,13 +431,6 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
   cursor: pointer;
 }
 
-.workspace-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 0.85rem;
-  align-items: start;
-}
-
 .workspace-panel-stack {
   display: grid;
   gap: 0.85rem;
@@ -515,16 +460,7 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
 }
 
 .language-panel-summary {
-  display: grid;
   gap: 0.45rem;
-}
-
-.language-panel-summary h4 {
-  margin: 0;
-}
-
-.language-panel-summary p {
-  margin: 0;
 }
 
 .language-card-grid {
@@ -543,11 +479,6 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
   background: color-mix(in srgb, var(--box-background-color) 96%, transparent);
   cursor: pointer;
   text-align: left;
-}
-
-.language-card.is-active {
-  border-color: color-mix(in srgb, var(--accent-color) 42%, transparent);
-  background: color-mix(in srgb, var(--accent-color) 10%, var(--box-background-color));
 }
 
 .language-card-warning {
@@ -578,6 +509,7 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
   text-align: left;
 }
 
+.language-card.is-active,
 .text-assets-list-item.is-active {
   border-color: color-mix(in srgb, var(--accent-color) 42%, transparent);
   background: color-mix(in srgb, var(--accent-color) 10%, var(--box-background-color));
@@ -660,10 +592,6 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
   border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
   border-radius: 1rem;
   background: color-mix(in srgb, var(--box-background-color) 96%, transparent);
-}
-
-.site-profiles-list {
-  overflow-x: visible;
 }
 
 .site-profiles-form-grid {
@@ -778,38 +706,12 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
   border-color: rgba(220, 38, 38, 0.35);
 }
 
-.is-hidden {
-  display: none !important;
-}
-
-.is-sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.settings-nav-link:focus-visible,
 .language-card:focus-visible,
 .text-assets-list-item:focus-visible,
-.preset-card:focus-visible {
+.preset-card:focus-visible,
+.support-action-link:focus-visible {
   outline: 2px solid var(--accent-color);
   outline-offset: 2px;
-}
-
-.switch input[type="checkbox"] + .check {
-  transition:
-    background-color 200ms ease,
-    border-color 200ms ease;
-}
-
-.slider-wrapper {
-  position: relative;
 }
 
 .slider-tooltip {
@@ -848,11 +750,6 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
   color: var(--accent-color);
 }
 
-.support-action-link:focus-visible {
-  outline: 2px solid var(--accent-color);
-  outline-offset: 2px;
-}
-
 .support-card {
   background: color-mix(in srgb, var(--accent-color) 5%, var(--box-background-color));
 }
@@ -881,10 +778,6 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
 }
 
 @media (max-width: 960px) {
-  body.fluenttyper-options .options-app {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   body.fluenttyper-options .options-sidebar {
     display: none;
   }
@@ -901,6 +794,7 @@ body.fluenttyper-options .field:has(> .control > .button) .label {
     grid-template-columns: minmax(0, 1fr) 4.5rem 4.5rem;
   }
 
+  body.fluenttyper-options .options-app,
   .text-assets-shell,
   .site-profiles-shell,
   .workspace-main-grid {

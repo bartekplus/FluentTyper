@@ -1,5 +1,6 @@
 import { startsSentence } from "../implementations/CapitalizeSentenceStartRule";
 import { englishNounForms } from "../implementations/helpers/EnglishNounNumber";
+import { lastNonBlankBefore } from "../implementations/helpers/EnglishRuleShared";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import type { PreparedReview } from "./reviewDiagnostics";
 import { MASK_CHAR, type TextRange } from "./types";
@@ -51,7 +52,6 @@ const SHORT_S_WORDS: Record<string, ReadonlySet<string>> = {
 function shortSWord(word: string, lang: string): boolean {
   return SHORT_S_WORDS[lang.slice(0, 2)]?.has(word.toLowerCase()) ?? false;
 }
-const SENTENCE_BREAK = /[.!?؟\n￼]/u;
 
 /**
  * Words worth a dictionary lookup, in document order: prose words inside the
@@ -186,8 +186,7 @@ export function otherLanguageParagraphs(
 
 function opensSentence(prepared: PreparedReview, start: number): boolean {
   const { text } = prepared;
-  let i = start - 1;
-  while (i >= 0 && (text[i] === " " || text[i] === "\t" || text[i] === " ")) i -= 1;
+  const i = lastNonBlankBefore(text, start);
   if (i < 0 || text[i] === "\n") return true;
   // An opening quote or bracket before the word: look past it.
   if (/[("'“‘«»„‚”¿¡[]/u.test(text[i])) return opensSentence(prepared, i);
@@ -197,13 +196,7 @@ function opensSentence(prepared: PreparedReview, start: number): boolean {
 /** Up to two words before `start` in the same sentence, for ranking candidates in context. */
 function wordsBefore(text: string, start: number): string {
   const window = text.slice(Math.max(0, start - 48), start);
-  let cut = 0;
-  for (let i = window.length - 1; i >= 0; i -= 1) {
-    if (SENTENCE_BREAK.test(window[i])) {
-      cut = i + 1;
-      break;
-    }
-  }
+  const cut = window.search(/[^.!?؟\n￼]*$/u);
   const words = window.slice(cut).match(CONTEXT_WORD) ?? [];
   // The first word of a cut-off window may be partial.
   const complete = cut === 0 && start > 48 ? words.slice(1) : words;

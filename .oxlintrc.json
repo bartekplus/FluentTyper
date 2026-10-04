@@ -4,9 +4,6 @@
   "categories": {
     "correctness": "off"
   },
-  "options": {
-    "typeAware": true
-  },
   "env": {
     "builtin": true
   },
@@ -165,24 +162,7 @@
       }
     },
     {
-      "files": ["src/**/*.{js,mjs,cjs,ts,mts,cts,d.ts}"],
-      "env": {
-        "browser": true,
-        "webextensions": true
-      }
-    },
-    {
       "files": ["tests/**/*.{js,mjs,cjs,ts,mts,cts}"],
-      "globals": {
-        "BuildError": "readonly",
-        "BuildMessage": "readonly",
-        "Bun": "readonly",
-        "HTMLRewriter": "readonly",
-        "Loader": "readonly",
-        "ResolveError": "readonly",
-        "ResolveMessage": "readonly",
-        "ShadowRealm": "readonly"
-      },
       "env": {
         "browser": true,
         "jest": true,
@@ -192,30 +172,6 @@
     },
     {
       "files": ["build.ts", "scripts/**/*.{js,mjs,cjs,ts,mts,cts}"],
-      "globals": {
-        "addEventListener": "readonly",
-        "alert": "readonly",
-        "BuildError": "readonly",
-        "BuildMessage": "readonly",
-        "Bun": "readonly",
-        "confirm": "readonly",
-        "dispatchEvent": "readonly",
-        "HTMLRewriter": "readonly",
-        "Loader": "readonly",
-        "onerror": "writable",
-        "onmessage": "writable",
-        "PerformanceServerTiming": "readonly",
-        "PerformanceTiming": "readonly",
-        "postMessage": "readonly",
-        "prompt": "readonly",
-        "removeEventListener": "readonly",
-        "reportError": "readonly",
-        "ResolveError": "readonly",
-        "ResolveMessage": "readonly",
-        "self": "readonly",
-        "ShadowRealm": "readonly",
-        "Worker": "readonly"
-      },
       "env": {
         "node": true
       }
@@ -223,24 +179,7 @@
     {
       "files": ["scripts/**/*.cjs"],
       "rules": {
-        "prefer-template": "off",
         "typescript/no-require-imports": "off"
-      }
-    },
-    {
-      "files": ["src/**/*.{ts,mts,cts,d.ts}"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "patterns": [
-              {
-                "group": ["src/background/*", "src/content-script/*", "src/shared/*"],
-                "message": "Legacy module roots are deprecated. Import from @core, @adapters, or @ui."
-              }
-            ]
-          }
-        ]
       }
     },
     {

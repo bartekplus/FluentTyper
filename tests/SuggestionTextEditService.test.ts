@@ -1,180 +1,41 @@
 import { describe, expect, test } from "bun:test";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { HostEditorAdapterResolver } from "../src/adapters/chrome/content-script/suggestions/HostEditorAdapterResolver";
-import type { HostEditorPageBridge } from "../src/adapters/chrome/content-script/suggestions/HostEditorPageBridge";
-import { SuggestionTextEditService } from "../src/adapters/chrome/content-script/suggestions/SuggestionTextEditService";
-import { createSuggestionEntry } from "./suggestionTestUtils";
+import { createEditor, setCaret, setCaretAtTextOffset } from "./codeContextTestUtils";
+import {
+  createLineEditorController,
+  createPendingEdit,
+  createSuggestionEntry,
+  createTextEditService,
+  enableHostEditorBridge,
+  fakePageBridge,
+} from "./suggestionTestUtils";
 
-function findMentionToken(beforeCursor: string): { token: string; start: number } {
-  const parts = beforeCursor.split(/\s+/);
-  const token = parts.at(-1) ?? "";
-  const start = beforeCursor.length - token.length;
-  return { token, start: Math.max(0, start) };
-}
+const hostResult = (didMutateDom: boolean) => ({
+  appliedBy: "host-beforeinput" as const,
+  didMutateDom,
+  didDispatchInput: false,
+});
 
-function setContentEditableCursor(target: HTMLElement, offset: number): void {
-  const showText =
-    (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
-  const walker = document.createTreeWalker(target, showText);
-  let current = walker.nextNode() as Text | null;
-  if (!current) {
-    current = target.appendChild(document.createTextNode(""));
-  }
-
-  let remaining = Math.max(0, offset);
-  let node: Text = current;
-  let nodeOffset = 0;
-
-  while (current) {
-    const length = current.textContent?.length ?? 0;
-    if (remaining <= length) {
-      node = current;
-      nodeOffset = remaining;
-      break;
-    }
-    remaining -= length;
-    node = current;
-    nodeOffset = length;
-    current = walker.nextNode() as Text | null;
-  }
-
-  const range = document.createRange();
-  range.setStart(node, nodeOffset);
-  range.collapse(true);
-
-  const selection = window.getSelection();
-  if (!selection) {
-    return;
-  }
-  selection.removeAllRanges();
-  selection.addRange(range);
-}
-
-function setTextNodeCursor(node: Text, offset: number): void {
-  const range = document.createRange();
-  range.setStart(node, Math.max(0, Math.min(node.textContent?.length ?? 0, offset)));
-  range.collapse(true);
-  const selection = window.getSelection();
-  if (!selection) {
-    return;
-  }
-  selection.removeAllRanges();
-  selection.addRange(range);
-}
-
-class HostHandledContentEditableAdapter extends ContentEditableAdapter {
-  public override getBlockContext(
-    elem: HTMLElement,
-  ): { beforeCursor: string; afterCursor: string } | null {
-    const fullText = elem.textContent ?? "";
-    return {
-      beforeCursor: fullText,
-      afterCursor: "",
-    };
-  }
-
-  public override replaceTextByOffsets(
-    elem: HTMLElement,
-    replaceStart: number,
-    replaceEnd: number,
-    replacementText: string,
-    cursorAfter: number,
-    options?: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null },
-  ) {
-    void elem;
-    void replaceStart;
-    void replaceEnd;
-    void replacementText;
-    void cursorAfter;
-    void options;
-    return {
-      appliedBy: "host-beforeinput" as const,
-      didMutateDom: true,
-      didDispatchInput: false,
-    };
+class FullTextContentEditableAdapter extends ContentEditableAdapter {
+  public override getBlockContext(elem: HTMLElement) {
+    return { beforeCursor: elem.textContent ?? "", afterCursor: "" };
   }
 }
 
-class HostCanceledNoMutationContentEditableAdapter extends ContentEditableAdapter {
-  public override getBlockContext(
-    elem: HTMLElement,
-  ): { beforeCursor: string; afterCursor: string } | null {
-    const fullText = elem.textContent ?? "";
-    return {
-      beforeCursor: fullText,
-      afterCursor: "",
-    };
+class HostOwnedContentEditableAdapter extends FullTextContentEditableAdapter {
+  constructor(private readonly didMutateDom: boolean) {
+    super();
   }
 
-  public override replaceTextByOffsets(
-    elem: HTMLElement,
-    replaceStart: number,
-    replaceEnd: number,
-    replacementText: string,
-    cursorAfter: number,
-    options?: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null },
-  ) {
-    void elem;
-    void replaceStart;
-    void replaceEnd;
-    void replacementText;
-    void cursorAfter;
-    void options;
-    return {
-      appliedBy: "host-beforeinput" as const,
-      didMutateDom: false,
-      didDispatchInput: false,
-    };
-  }
-}
-
-class DeferredHostThenDomFallbackContentEditableAdapter extends ContentEditableAdapter {
-  public override getBlockContext(
-    elem: HTMLElement,
-  ): { beforeCursor: string; afterCursor: string } | null {
-    const fullText = elem.textContent ?? "";
-    return {
-      beforeCursor: fullText,
-      afterCursor: "",
-    };
-  }
-
-  public override replaceTextByOffsets(
-    elem: HTMLElement,
-    replaceStart: number,
-    replaceEnd: number,
-    replacementText: string,
-    cursorAfter: number,
-    options?: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null },
-  ) {
-    if (options?.preferDomMutation === true) {
-      return super.replaceTextByOffsets(
-        elem,
-        replaceStart,
-        replaceEnd,
-        replacementText,
-        cursorAfter,
-        options,
-      );
-    }
-
-    return {
-      appliedBy: "host-beforeinput" as const,
-      didMutateDom: false,
-      didDispatchInput: false,
-    };
+  public override replaceTextByOffsets() {
+    return hostResult(this.didMutateDom);
   }
 }
 
 class EmptyBlockContextContentEditableAdapter extends ContentEditableAdapter {
-  public override getBlockContext(
-    elem: HTMLElement,
-  ): { beforeCursor: string; afterCursor: string } | null {
-    void elem;
-    return {
-      beforeCursor: "",
-      afterCursor: "",
-    };
+  public override getBlockContext() {
+    return { beforeCursor: "", afterCursor: "" };
   }
 
   public override replaceTextByOffsets(
@@ -183,12 +44,10 @@ class EmptyBlockContextContentEditableAdapter extends ContentEditableAdapter {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-    options?: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null },
   ) {
     const text = elem.textContent ?? "";
-    void options;
     elem.textContent = `${text.slice(0, replaceStart)}${replacementText}${text.slice(replaceEnd)}`;
-    setContentEditableCursor(elem, cursorAfter);
+    setCaretAtTextOffset(elem, cursorAfter);
     return {
       appliedBy: "fallback-dom" as const,
       didMutateDom: true,
@@ -197,48 +56,21 @@ class EmptyBlockContextContentEditableAdapter extends ContentEditableAdapter {
   }
 }
 
-class LearningMismatchContentEditableAdapter extends ContentEditableAdapter {
-  public readonly preferDomMutationCalls: boolean[] = [];
+class LearningMismatchContentEditableAdapter extends FullTextContentEditableAdapter {
+  public calls = 0;
 
-  public override getBlockContext(
-    elem: HTMLElement,
-  ): { beforeCursor: string; afterCursor: string } | null {
-    const fullText = elem.textContent ?? "";
-    return {
-      beforeCursor: fullText,
-      afterCursor: "",
-    };
-  }
-
+  /** The host writes the replacement one character too late. */
   public override replaceTextByOffsets(
     elem: HTMLElement,
     replaceStart: number,
-    replaceEnd: number,
+    _replaceEnd: number,
     replacementText: string,
-    cursorAfter: number,
-    options?: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null },
   ) {
-    const preferDomMutation = options?.preferDomMutation === true;
-    this.preferDomMutationCalls.push(preferDomMutation);
+    this.calls += 1;
     const text = elem.textContent ?? "";
-
-    if (!preferDomMutation) {
-      const insertionPoint = Math.min(text.length, replaceStart + 1);
-      elem.textContent = `${text.slice(0, insertionPoint)}${replacementText}${text.slice(insertionPoint)}`;
-      return {
-        appliedBy: "host-beforeinput" as const,
-        didMutateDom: true,
-        didDispatchInput: false,
-      };
-    }
-
-    elem.textContent = `${text.slice(0, replaceStart)}${replacementText}${text.slice(replaceEnd)}`;
-    setContentEditableCursor(elem, cursorAfter);
-    return {
-      appliedBy: "fallback-dom" as const,
-      didMutateDom: true,
-      didDispatchInput: true,
-    };
+    const insertionPoint = Math.min(text.length, replaceStart + 1);
+    elem.textContent = `${text.slice(0, insertionPoint)}${replacementText}${text.slice(insertionPoint)}`;
+    return hostResult(true);
   }
 }
 
@@ -248,107 +80,32 @@ class RecordingAcceptContentEditableAdapter extends ContentEditableAdapter {
   public lastReplaceEnd: number | null = null;
 
   public override replaceTextByOffsets(
-    elem: HTMLElement,
-    replaceStart: number,
-    replaceEnd: number,
-    replacementText: string,
-    cursorAfter: number,
-    options?: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null },
+    ...args: Parameters<ContentEditableAdapter["replaceTextByOffsets"]>
   ) {
-    this.lastScopeRoot = options?.scopeRoot ?? null;
-    this.lastReplaceStart = replaceStart;
-    this.lastReplaceEnd = replaceEnd;
-    return super.replaceTextByOffsets(
-      elem,
-      replaceStart,
-      replaceEnd,
-      replacementText,
-      cursorAfter,
-      options,
-    );
+    this.lastReplaceStart = args[1];
+    this.lastReplaceEnd = args[2];
+    this.lastScopeRoot = args[5]?.scopeRoot ?? null;
+    return super.replaceTextByOffsets(...args);
   }
 }
 
-function createHostModelEditable({
-  text,
-  cursor,
-  controllerAncestorDepth = 0,
-}: {
-  text: string;
-  cursor: number;
-  controllerAncestorDepth?: number;
-}): {
-  editable: HTMLElement;
-  getReplaceRangeCalls: () => number;
-  setControllerLine: (value: string) => void;
-} {
-  const controllerRoot = document.createElement("div");
-  document.body.appendChild(controllerRoot);
-
-  let current = controllerRoot;
+function createHostModelEditable(text: string, cursor: number, controllerAncestorDepth = 0) {
+  enableHostEditorBridge();
+  const controllerRoot = document.body.appendChild(document.createElement("div"));
+  let parent: HTMLElement = controllerRoot;
   for (let index = 0; index < controllerAncestorDepth; index += 1) {
-    const wrapper = document.createElement("div");
-    current.appendChild(wrapper);
-    current = wrapper;
+    parent = parent.appendChild(document.createElement("div"));
   }
-
-  const editable = document.createElement("div");
-  editable.setAttribute("contenteditable", "true");
-  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-  editable.textContent = text;
-  current.appendChild(editable);
-  setContentEditableCursor(editable, cursor);
-
-  let line = text;
-  let ch = cursor;
-  let replaceRangeCalls = 0;
-  (controllerRoot as HTMLElement & { genericEditorController?: unknown }).genericEditorController =
-    {
-      replaceRange(
-        replacementText: string,
-        from: { line: number; ch: number },
-        to?: { line: number; ch: number },
-      ) {
-        replaceRangeCalls += 1;
-        line = `${line.slice(0, from.ch)}${replacementText}${line.slice(to?.ch ?? from.ch)}`;
-        editable.textContent = line;
-      },
-      setCursor(position: { line: number; ch: number }) {
-        ch = position.ch;
-        setContentEditableCursor(editable, ch);
-      },
-      getCursor() {
-        return { line: 0, ch };
-      },
-      getLine(lineIndex: number) {
-        return lineIndex === 0 ? line : "";
-      },
-      posFromIndex(index: number) {
-        return { line: 0, ch: index };
-      },
-      indexFromPos(position: { line: number; ch: number }) {
-        return position.ch;
-      },
-      operation(callback: () => void) {
-        callback();
-      },
-    };
-
-  return {
-    editable,
-    getReplaceRangeCalls: () => replaceRangeCalls,
-    setControllerLine: (value: string) => {
-      line = value;
-    },
-  };
+  const editable = parent.appendChild(createEditor(text));
+  setCaretAtTextOffset(editable, cursor);
+  const controller = createLineEditorController(editable, text, cursor, { withOperation: true });
+  Object.assign(controllerRoot, { genericEditorController: controller });
+  return { editable, controller };
 }
 
 describe("SuggestionTextEditService", () => {
   test("accepts suggestion and replaces current token in input", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -373,17 +130,10 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("refuses unverified ProseMirror suggestions without recording an accepted edit", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
-    const editable = document.createElement("div");
+    const service = createTextEditService();
+    const editable = createEditor("<p><strong>fun</strong></p>");
     editable.className = "ProseMirror";
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    editable.innerHTML = "<p><strong>fun</strong></p>";
-    document.body.appendChild(editable);
-    setContentEditableCursor(editable, 3);
+    setCaretAtTextOffset(editable, 3);
     const original = editable.innerHTML;
     let events = 0;
     for (const type of ["beforeinput", "input"]) editable.addEventListener(type, () => events++);
@@ -401,10 +151,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("dispatches one input event for input/textarea replacement paths", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -421,8 +168,7 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
 
     expect(input.value).toBe("the ");
@@ -430,10 +176,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("dispatches a bubbling input event for text-value grammar edits", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -450,8 +193,7 @@ describe("SuggestionTextEditService", () => {
     const result = service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
 
     expect(result).toEqual({ applied: true, didDispatchInput: false });
@@ -459,10 +201,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("supports forward-delete grammar edits from the live caret", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -485,10 +224,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("treats no-op input textEdit as not applied and does not dispatch input", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -505,8 +241,7 @@ describe("SuggestionTextEditService", () => {
     const result = service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "the ",
+      deleteForwards: 0,
     });
 
     expect(result).toEqual({ applied: false, didDispatchInput: false });
@@ -516,10 +251,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("applies live punctuation spacing edits at the caret", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -540,10 +272,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("applies duplicate punctuation cleanup at the live caret", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -564,10 +293,8 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("does not dispatch duplicate input event when contenteditable edit is host-owned", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-      contentEditableAdapter: new HostHandledContentEditableAdapter(),
+    const service = createTextEditService({
+      contentEditableAdapter: new HostOwnedContentEditableAdapter(true),
     });
 
     const editable = document.createElement("div");
@@ -584,18 +311,15 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
 
     expect(inputEventCount).toBe(0);
   });
 
   test("treats host-canceled no-mutation contenteditable textEdit as no-op", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-      contentEditableAdapter: new HostCanceledNoMutationContentEditableAdapter(),
+    const service = createTextEditService({
+      contentEditableAdapter: new HostOwnedContentEditableAdapter(false),
     });
 
     const editable = document.createElement("div");
@@ -607,8 +331,7 @@ describe("SuggestionTextEditService", () => {
     const result = service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
 
     expect(result).toEqual({ applied: false, didDispatchInput: false });
@@ -617,34 +340,18 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("applies contenteditable textEdit against active block offsets in multi-line content", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<p>Title</p><p>fixed .</p>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("<p>Title</p><p>fixed .</p>");
 
-    const secondParagraph = editable.querySelectorAll("p")[1];
-    if (!secondParagraph) {
-      throw new Error("Expected second paragraph");
-    }
-    const secondTextNode = secondParagraph.firstChild as Text | null;
-    if (!secondTextNode) {
-      throw new Error("Expected second paragraph text node");
-    }
-    setTextNodeCursor(secondTextNode, secondTextNode.textContent?.length ?? 0);
+    const secondTextNode = editable.querySelectorAll("p")[1]!.firstChild as Text;
+    setCaret(secondTextNode);
 
     const entry = createSuggestionEntry({ elem: editable });
     service.applyGrammarEdit(entry, {
       replacement: ". ",
       deleteBackwards: 2,
-      evaluatedTextLength: 7,
-      expectedReplacedText: " .",
-      expectedPrefixToken: "fixed",
+      deleteForwards: 0,
     });
 
     const paragraphs = editable.querySelectorAll("p");
@@ -653,29 +360,15 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("applies contenteditable textEdit from provided block context when live selection drifts", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<p>Title</p><p>fixed .</p>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("<p>Title</p><p>fixed .</p>");
 
-    const secondParagraph = editable.querySelectorAll("p")[1];
-    if (!secondParagraph) {
-      throw new Error("Expected second paragraph");
-    }
-    const secondTextNode = secondParagraph.firstChild as Text | null;
-    if (!secondTextNode) {
-      throw new Error("Expected second paragraph text node");
-    }
+    const secondTextNode = editable.querySelectorAll("p")[1]!.firstChild as Text;
 
     // Simulate a rich editor where the live selection has already drifted back
     // before the punctuation by the time the grammar edit is applied.
-    setTextNodeCursor(secondTextNode, (secondTextNode.textContent?.length ?? 1) - 1);
+    setCaret(secondTextNode, secondTextNode.length - 1);
 
     const entry = createSuggestionEntry({ elem: editable });
     const fullText = editable.textContent ?? "";
@@ -709,11 +402,7 @@ describe("SuggestionTextEditService", () => {
 
   test("FT-INV-5 reports a host mismatch without a second repair write", () => {
     const adapter = new LearningMismatchContentEditableAdapter();
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-      contentEditableAdapter: adapter,
-    });
+    const service = createTextEditService({ contentEditableAdapter: adapter });
 
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
@@ -745,22 +434,15 @@ describe("SuggestionTextEditService", () => {
 
     expect(firstResult).toEqual({ applied: false, didDispatchInput: false, unverified: true });
     expect(editable.textContent).toBe("fixed . .");
-    expect(adapter.preferDomMutationCalls).toEqual([false]);
+    expect(adapter.calls).toBe(1);
     expect(entry.pendingExtensionEdit).toBeNull();
   });
 
   test("normalizes duplicate punctuation before NBSP in contenteditable", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "This is awseome,,\u00A0";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
-    setContentEditableCursor(editable, (editable.textContent ?? "").length);
+    const editable = createEditor("This is awseome,,\u00A0");
+    setCaretAtTextOffset(editable, (editable.textContent ?? "").length);
 
     const entry = createSuggestionEntry({ elem: editable });
     const result = service.applyGrammarEdit(entry, {
@@ -775,10 +457,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("avoids introducing double space when accepted suggestion ends with space", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -797,9 +476,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("uses fresh mention metadata for contenteditable acceptance when block context is empty", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       contentEditableAdapter: new EmptyBlockContextContentEditableAdapter(),
     });
 
@@ -807,7 +484,7 @@ describe("SuggestionTextEditService", () => {
     editable.setAttribute("contenteditable", "true");
     editable.textContent = "first second";
     document.body.appendChild(editable);
-    setContentEditableCursor(editable, "first second".length);
+    setCaretAtTextOffset(editable, "first second".length);
 
     const entry = createSuggestionEntry({
       elem: editable,
@@ -827,27 +504,13 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("keeps accepted expansion before a following signature block in contenteditable", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML =
-      'asap<div><span class="gmail_signature_prefix">-- </span><br><div class="gmail_signature">Pozdrawiam Bartek</div></div>';
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor(
+      'asap<div><span class="gmail_signature_prefix">-- </span><br><div class="gmail_signature">Pozdrawiam Bartek</div></div>',
+    );
 
-    const selection = window.getSelection();
-    if (!selection) {
-      throw new Error("Selection API unavailable");
-    }
-    const range = document.createRange();
-    range.setStart(editable, 1);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    setCaret(editable, 1);
 
     const entry = createSuggestionEntry({
       elem: editable,
@@ -867,23 +530,29 @@ describe("SuggestionTextEditService", () => {
     expect(editable.querySelector(".gmail_signature_prefix")?.textContent).toBe("-- ");
   });
 
+  // Regression: an empty token must not step back over the separator ("hello |" gave "hellothere ").
+  test.each([
+    ["hello ", "hello there\u00A0"],
+    ["hello world", "hello there\u00A0"],
+  ])("accepts a next-word suggestion after %p with the caret after the space", (text, expected) => {
+    const editable = createEditor(`<p>${text}</p>`);
+    setCaret(editable.querySelector("p")!.firstChild!, 6);
+    const entry = createSuggestionEntry({ elem: editable, latestMentionStart: -1 });
+
+    createTextEditService().acceptSuggestion(entry, "there ");
+
+    expect(editable.textContent).toBe(expected);
+  });
+
   test("accepts contenteditable suggestion using active block offsets", () => {
     const adapter = new RecordingAcceptContentEditableAdapter();
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-      contentEditableAdapter: adapter,
-    });
+    const service = createTextEditService({ contentEditableAdapter: adapter });
 
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<p>Intro line</p><p>What is the bes</p>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("<p>Intro line</p><p>What is the bes</p>");
 
     const secondParagraph = editable.querySelectorAll("p")[1] as HTMLElement;
     const secondText = secondParagraph.firstChild as Text;
-    setTextNodeCursor(secondText, secondText.textContent?.length ?? 0);
+    setCaret(secondText);
 
     const entry = createSuggestionEntry({
       elem: editable,
@@ -909,12 +578,10 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("uses a generic host editor session for contenteditable acceptance when capabilities match", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       hostEditorAdapterResolver: new HostEditorAdapterResolver(),
     });
-    const hostModel = createHostModelEditable({ text: "What is the bes", cursor: 15 });
+    const hostModel = createHostModelEditable("What is the bes", 15);
 
     const entry = createSuggestionEntry({
       elem: hostModel.editable,
@@ -930,23 +597,17 @@ describe("SuggestionTextEditService", () => {
       cursorAfter: 17,
       cursorAfterIsBlockLocal: true,
     });
-    expect(hostModel.getReplaceRangeCalls()).toBe(1);
+    expect(hostModel.controller.replaceRangeCalls).toBe(1);
     expect(hostModel.editable.textContent).toBe("What is the best ");
     expect(entry.pendingExtensionEdit?.postEditFingerprint.fullText).toBe("What is the best ");
     expect(entry.pendingExtensionEdit?.postEditFingerprint.cursorOffset).toBe(17);
   });
 
   test("uses a host editor session when the controller is mounted above the editable subtree", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       hostEditorAdapterResolver: new HostEditorAdapterResolver(),
     });
-    const hostModel = createHostModelEditable({
-      text: "What is the bes",
-      cursor: 15,
-      controllerAncestorDepth: 7,
-    });
+    const hostModel = createHostModelEditable("What is the bes", 15, 7);
 
     const entry = createSuggestionEntry({
       elem: hostModel.editable,
@@ -962,40 +623,17 @@ describe("SuggestionTextEditService", () => {
       cursorAfter: 17,
       cursorAfterIsBlockLocal: true,
     });
-    expect(hostModel.getReplaceRangeCalls()).toBe(1);
+    expect(hostModel.controller.replaceRangeCalls).toBe(1);
     expect(hostModel.editable.textContent).toBe("What is the best ");
   });
 
   test("uses the page-bridge host editor path when the page-owned controller is not directly visible", () => {
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    editable.textContent = "What is the bes";
-    document.body.appendChild(editable);
-    setContentEditableCursor(editable, 15);
+    const editable = createEditor("What is the bes");
+    setCaretAtTextOffset(editable, 15);
 
-    let blockText = "What is the bes";
-    let beforeCursor = "What is the bes";
-    let afterCursor = "";
-    let applyCalls = 0;
-    const pageBridge: HostEditorPageBridge = {
-      getBlockContextAtSelection() {
-        return { beforeCursor, afterCursor, blockText };
-      },
-      applyBlockReplacement(_elem, args) {
-        applyCalls += 1;
-        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
-        beforeCursor = blockText.slice(0, args.cursorAfter);
-        afterCursor = blockText.slice(args.cursorAfter);
-        editable.textContent = blockText;
-        setContentEditableCursor(editable, args.cursorAfter);
-        return { applied: true, didDispatchInput: false };
-      },
-    };
+    const pageBridge = fakePageBridge(editable, "What is the bes", 15);
 
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
     });
     const entry = createSuggestionEntry({
@@ -1012,7 +650,7 @@ describe("SuggestionTextEditService", () => {
       cursorAfter: 17,
       cursorAfterIsBlockLocal: true,
     });
-    expect(applyCalls).toBe(1);
+    expect(pageBridge.calls).toHaveLength(1);
     expect(editable.textContent).toBe("What is the best ");
     expect(entry.pendingExtensionEdit?.postEditFingerprint.fullText).toBe("What is the best ");
     expect(entry.pendingExtensionEdit?.postEditFingerprint.cursorOffset).toBe(17);
@@ -1020,32 +658,12 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("restores the visible block caret after host-owned acceptance when the host model does not update DOM selection itself", () => {
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    editable.textContent = "What is the bes";
-    document.body.appendChild(editable);
-    setContentEditableCursor(editable, 15);
+    const editable = createEditor("What is the bes");
+    setCaretAtTextOffset(editable, 15);
 
-    let blockText = "What is the bes";
-    let beforeCursor = "What is the bes";
-    let afterCursor = "";
-    const pageBridge: HostEditorPageBridge = {
-      getBlockContextAtSelection() {
-        return { beforeCursor, afterCursor, blockText };
-      },
-      applyBlockReplacement(_elem, args) {
-        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
-        beforeCursor = blockText.slice(0, args.cursorAfter);
-        afterCursor = blockText.slice(args.cursorAfter);
-        editable.textContent = blockText;
-        return { applied: true, didDispatchInput: false };
-      },
-    };
+    const pageBridge = fakePageBridge(editable, "What is the bes", 15, { movesCaret: false });
 
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
     });
     const entry = createSuggestionEntry({
@@ -1068,33 +686,12 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("keeps the caret at end-of-word for mid-word host acceptance instead of moving past the separator", () => {
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    editable.textContent = "What is the txxxxypos thing";
-    document.body.appendChild(editable);
-    setContentEditableCursor(editable, 17);
+    const editable = createEditor("What is the txxxxypos thing");
+    setCaretAtTextOffset(editable, 17);
 
-    let blockText = "What is the txxxxypos thing";
-    let beforeCursor = "What is the txxxx";
-    let afterCursor = "ypos thing";
-    const pageBridge: HostEditorPageBridge = {
-      getBlockContextAtSelection() {
-        return { beforeCursor, afterCursor, blockText };
-      },
-      applyBlockReplacement(_elem, args) {
-        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
-        beforeCursor = blockText.slice(0, args.cursorAfter);
-        afterCursor = blockText.slice(args.cursorAfter);
-        editable.textContent = blockText;
-        setContentEditableCursor(editable, args.cursorAfter);
-        return { applied: true, didDispatchInput: false };
-      },
-    };
+    const pageBridge = fakePageBridge(editable, "What is the txxxxypos thing", 17);
 
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
     });
     const entry = createSuggestionEntry({
@@ -1117,13 +714,11 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("FT-INV-5 refuses acceptance when host block parity does not match", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       hostEditorAdapterResolver: new HostEditorAdapterResolver(),
     });
-    const hostModel = createHostModelEditable({ text: "What is the bes", cursor: 15 });
-    hostModel.setControllerLine("Mismatched text");
+    const hostModel = createHostModelEditable("What is the bes", 15);
+    hostModel.controller.setLine("Mismatched text");
 
     const entry = createSuggestionEntry({
       elem: hostModel.editable,
@@ -1135,36 +730,18 @@ describe("SuggestionTextEditService", () => {
 
     expect(accepted).toBeNull();
     expect(entry.pendingExtensionEdit).toBeNull();
-    expect(hostModel.getReplaceRangeCalls()).toBe(0);
+    expect(hostModel.controller.replaceRangeCalls).toBe(0);
     expect(hostModel.editable.textContent).toBe("What is the bes");
   });
 
   test("FT-INV-1 refuses acceptance when host cursor context drifts on identical line text", () => {
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    editable.textContent = "repeat line";
-    document.body.appendChild(editable);
-    setContentEditableCursor(editable, 10);
+    const editable = createEditor("repeat line");
+    setCaretAtTextOffset(editable, 10);
 
-    let applyCalls = 0;
-    const pageBridge: HostEditorPageBridge = {
-      getBlockContextAtSelection() {
-        return {
-          beforeCursor: "repeat li",
-          afterCursor: "ne",
-          blockText: "repeat line",
-        };
-      },
-      applyBlockReplacement() {
-        applyCalls += 1;
-        return { applied: true, didDispatchInput: false };
-      },
-    };
+    // The host caret is one character before the DOM caret.
+    const pageBridge = fakePageBridge(editable, "repeat line", 9);
 
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
     });
     const entry = createSuggestionEntry({
@@ -1177,28 +754,16 @@ describe("SuggestionTextEditService", () => {
 
     expect(accepted).toBeNull();
     expect(entry.pendingExtensionEdit).toBeNull();
-    expect(applyCalls).toBe(0);
+    expect(pageBridge.calls).toHaveLength(0);
     expect(editable.textContent).toBe("repeat line");
   });
 
   test("arms pending contenteditable suggestion edit before synthetic input dispatch", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<p>What is the bes</p>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("<p>What is the bes</p>");
 
-    const paragraph = editable.querySelector("p") as HTMLElement | null;
-    const textNode = paragraph?.firstChild as Text | null;
-    if (!paragraph || !textNode) {
-      throw new Error("Expected paragraph text node");
-    }
-    setTextNodeCursor(textNode, textNode.textContent?.length ?? 0);
+    setCaret(editable.querySelector("p")!.firstChild!);
 
     const entry = createSuggestionEntry({
       elem: editable,
@@ -1206,9 +771,11 @@ describe("SuggestionTextEditService", () => {
       latestMentionStart: -1,
     });
 
-    let pendingEditDuringInput: typeof entry.pendingExtensionEdit | null = null;
+    const captured: { pendingEditDuringInput: typeof entry.pendingExtensionEdit } = {
+      pendingEditDuringInput: null,
+    };
     editable.addEventListener("input", () => {
-      pendingEditDuringInput = entry.pendingExtensionEdit
+      captured.pendingEditDuringInput = entry.pendingExtensionEdit
         ? { ...entry.pendingExtensionEdit }
         : null;
     });
@@ -1221,29 +788,19 @@ describe("SuggestionTextEditService", () => {
       cursorAfter: 17,
       cursorAfterIsBlockLocal: true,
     });
-    expect(pendingEditDuringInput?.blockScoped).toBe(true);
-    expect(pendingEditDuringInput?.replacementText).toBe("best\u00A0");
-    expect(pendingEditDuringInput?.postEditBlockText).toBe("What is the best\u00A0");
+    expect(captured.pendingEditDuringInput?.blockScoped).toBe(true);
+    expect(captured.pendingEditDuringInput?.replacementText).toBe("best\u00A0");
+    expect(captured.pendingEditDuringInput?.postEditBlockText).toBe("What is the best\u00A0");
   });
 
   test("treats deferred host-owned contenteditable acceptance as successful", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-      contentEditableAdapter: new HostCanceledNoMutationContentEditableAdapter(),
+    const service = createTextEditService({
+      contentEditableAdapter: new HostOwnedContentEditableAdapter(false),
     });
 
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<p><span>Wh</span></p>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("<p><span>Wh</span></p>");
 
-    const textNode = editable.querySelector("span")?.firstChild as Text | null;
-    if (!textNode) {
-      throw new Error("Expected text node");
-    }
-    setTextNodeCursor(textNode, textNode.textContent?.length ?? 0);
+    setCaret(editable.querySelector("span")!.firstChild!);
 
     const entry = createSuggestionEntry({
       elem: editable,
@@ -1268,23 +825,13 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("keeps generic contenteditable acceptance deferred when beforeinput is canceled without immediate DOM mutation", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-      contentEditableAdapter: new DeferredHostThenDomFallbackContentEditableAdapter(),
+    const service = createTextEditService({
+      contentEditableAdapter: new HostOwnedContentEditableAdapter(false),
     });
 
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<p><span>Wh</span></p>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("<p><span>Wh</span></p>");
 
-    const textNode = editable.querySelector("span")?.firstChild as Text | null;
-    if (!textNode) {
-      throw new Error("Expected text node");
-    }
-    setTextNodeCursor(textNode, textNode.textContent?.length ?? 0);
+    setCaret(editable.querySelector("span")!.firstChild!);
 
     const entry = createSuggestionEntry({
       elem: editable,
@@ -1306,10 +853,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("does nothing when delayed post-accept spacing is not armed", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -1317,7 +861,6 @@ describe("SuggestionTextEditService", () => {
     input.value = "Crab";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
-    document.body.appendChild(input);
 
     const entry = createSuggestionEntry({
       elem: input,
@@ -1326,11 +869,11 @@ describe("SuggestionTextEditService", () => {
     });
 
     let consumed = false;
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: "s",
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "s" });
+    });
 
     service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
       consumed = true;
@@ -1342,10 +885,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("inserts delayed post-accept spacing for the next typed character", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -1353,35 +893,28 @@ describe("SuggestionTextEditService", () => {
     input.value = "Crab";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
-    document.body.appendChild(input);
 
     const entry = createSuggestionEntry({
       elem: input,
       missingTrailingSpace: true,
       expectedCursorPos: input.value.length,
       suppressNextSuggestionInputPrediction: true,
-      pendingExtensionEdit: {
-        replaceStart: 0,
+      pendingExtensionEdit: createPendingEdit({
         originalText: "Wa",
         replacementText: "Was",
         cursorBefore: 2,
         cursorAfter: 3,
-        postEditFingerprint: {
-          fullText: "Was",
-          cursorOffset: 3,
-          selectionCollapsed: true,
-        },
+        postEditFingerprint: { fullText: "Was", cursorOffset: 3, selectionCollapsed: true },
         awaitingHostInputEcho: true,
-        source: "suggestion",
-      },
+      }),
     });
 
     let consumed = false;
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: "s",
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "s" });
+    });
 
     service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
       consumed = true;
@@ -1397,10 +930,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("clears delayed post-accept spacing when the user types a literal space", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -1408,35 +938,28 @@ describe("SuggestionTextEditService", () => {
     input.value = "Was";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
-    document.body.appendChild(input);
 
     const entry = createSuggestionEntry({
       elem: input,
       missingTrailingSpace: true,
       expectedCursorPos: input.value.length,
       suppressNextSuggestionInputPrediction: true,
-      pendingExtensionEdit: {
-        replaceStart: 0,
+      pendingExtensionEdit: createPendingEdit({
         originalText: "Wa",
         replacementText: "Was",
         cursorBefore: 2,
         cursorAfter: 3,
-        postEditFingerprint: {
-          fullText: "Was",
-          cursorOffset: 3,
-          selectionCollapsed: true,
-        },
+        postEditFingerprint: { fullText: "Was", cursorOffset: 3, selectionCollapsed: true },
         awaitingHostInputEcho: true,
-        source: "suggestion",
-      },
+      }),
     });
 
     let consumed = false;
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: " ",
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: " " });
+    });
 
     service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
       consumed = true;
@@ -1452,17 +975,10 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("clears delayed post-accept spacing when the user types a literal space in contenteditable", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    editable.textContent = "Was";
-    document.body.appendChild(editable);
-    setContentEditableCursor(editable, 3);
+    const editable = createEditor("Was");
+    setCaretAtTextOffset(editable, 3);
 
     const entry = createSuggestionEntry({
       elem: editable,
@@ -1472,31 +988,25 @@ describe("SuggestionTextEditService", () => {
       expectedCursorPosBlockElement: editable,
       expectedCursorPosBlockText: "Was",
       suppressNextSuggestionInputPrediction: true,
-      pendingExtensionEdit: {
-        replaceStart: 0,
+      pendingExtensionEdit: createPendingEdit({
         originalText: "Wa",
         replacementText: "Was",
         cursorBefore: 2,
         cursorAfter: 3,
-        postEditFingerprint: {
-          fullText: "",
-          cursorOffset: 3,
-          selectionCollapsed: true,
-        },
+        postEditFingerprint: { fullText: "", cursorOffset: 3, selectionCollapsed: true },
         awaitingHostInputEcho: true,
-        source: "suggestion",
         blockScoped: true,
         blockElement: editable,
         postEditBlockText: "Was",
-      },
+      }),
     });
 
     let consumed = false;
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: " ",
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: " " });
+    });
 
     service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
       consumed = true;
@@ -1516,17 +1026,11 @@ describe("SuggestionTextEditService", () => {
   test.each([false, true])(
     "delayed spacing preserves the typed key when ProseMirror refuses (bridge available: %s)",
     (available) => {
-      const editable = document.createElement("div");
+      const editable = createEditor("<p><strong>cat</strong></p>");
       editable.className = "ProseMirror";
-      editable.setAttribute("contenteditable", "true");
-      Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-      editable.innerHTML = "<p><strong>cat</strong></p>";
-      document.body.appendChild(editable);
-      setContentEditableCursor(editable, 3);
+      setCaretAtTextOffset(editable, 3);
       const block = editable.querySelector("p")!;
-      const service = new SuggestionTextEditService({
-        findMentionToken,
-        isSeparator: (value) => /\s/.test(value),
+      const service = createTextEditService({
         hostEditorAdapterResolver: new HostEditorAdapterResolver({
           getBlockContextAtSelection: () =>
             available ? { beforeCursor: "cat", afterCursor: "", blockText: "cat" } : null,
@@ -1552,11 +1056,8 @@ describe("SuggestionTextEditService", () => {
   );
 
   test("uses the host editor path for delayed post-accept spacing in host-owned contenteditables", () => {
-    const hostModel = createHostModelEditable({ text: "What is the best", cursor: 16 });
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const hostModel = createHostModelEditable("What is the best", 16);
+    const service = createTextEditService();
     const entry = createSuggestionEntry({
       elem: hostModel.editable,
       missingTrailingSpace: true,
@@ -1567,11 +1068,11 @@ describe("SuggestionTextEditService", () => {
     });
 
     let consumed = false;
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: "s",
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "s" });
+    });
 
     service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
       consumed = true;
@@ -1579,26 +1080,19 @@ describe("SuggestionTextEditService", () => {
     });
 
     expect(consumed).toBe(true);
-    expect(hostModel.getReplaceRangeCalls()).toBe(1);
+    expect(hostModel.controller.replaceRangeCalls).toBe(1);
     expect(hostModel.editable.textContent).toBe("What is the best s");
     expect(entry.missingTrailingSpace).toBe(false);
   });
 
   test("clears delayed post-accept space state when caret moves to a different paragraph at the same local offset", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<p>Alpha bes</p><p>Gamma line</p>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("<p>Alpha bes</p><p>Gamma line</p>");
 
     const firstParagraph = editable.querySelectorAll("p")[0] as HTMLElement;
     const secondParagraph = editable.querySelectorAll("p")[1] as HTMLElement;
-    setTextNodeCursor(firstParagraph.firstChild as Text, "Alpha bes".length);
+    setCaret(firstParagraph.firstChild!);
 
     const entry = createSuggestionEntry({
       elem: editable,
@@ -1620,14 +1114,14 @@ describe("SuggestionTextEditService", () => {
     entry.expectedCursorPosBlockElement = entry.pendingExtensionEdit?.blockElement ?? null;
     entry.expectedCursorPosBlockText = entry.pendingExtensionEdit?.postEditBlockText ?? null;
 
-    setTextNodeCursor(secondParagraph.firstChild as Text, "Gamma line".length);
+    setCaret(secondParagraph.firstChild!);
 
     let consumed = false;
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: "x",
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "x" });
+    });
 
     service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
       consumed = true;
@@ -1644,20 +1138,13 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("does not undo block-scoped acceptance after caret moves to a different paragraph at the same local offset", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.innerHTML = "<p>Alpha bes</p><p>Gamma line</p>";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
+    const editable = createEditor("<p>Alpha bes</p><p>Gamma line</p>");
 
     const firstParagraph = editable.querySelectorAll("p")[0] as HTMLElement;
     const secondParagraph = editable.querySelectorAll("p")[1] as HTMLElement;
-    setTextNodeCursor(firstParagraph.firstChild as Text, "Alpha bes".length);
+    setCaret(firstParagraph.firstChild!);
 
     const entry = createSuggestionEntry({
       elem: editable,
@@ -1669,18 +1156,18 @@ describe("SuggestionTextEditService", () => {
     expect(firstParagraph.textContent).toBe("Alpha best");
     expect(entry.pendingExtensionEdit?.blockScoped).toBe(true);
 
-    setTextNodeCursor(secondParagraph.firstChild as Text, "Gamma line".length);
+    setCaret(secondParagraph.firstChild!);
 
     let consumed = false;
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: "z",
+      ctrlKey: true,
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "z" });
-    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
+    });
 
     const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => {
+      consumeEvent: () => {
         consumed = true;
       },
       clearSuggestions: () => undefined,
@@ -1694,9 +1181,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("skips ambiguous contenteditable acceptance instead of applying stale off-caret range", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       contentEditableAdapter: new EmptyBlockContextContentEditableAdapter(),
     });
 
@@ -1704,7 +1189,7 @@ describe("SuggestionTextEditService", () => {
     editable.setAttribute("contenteditable", "true");
     editable.textContent = "first second third";
     document.body.appendChild(editable);
-    setContentEditableCursor(editable, "first second ".length);
+    setCaretAtTextOffset(editable, "first second ".length);
 
     const entry = createSuggestionEntry({
       elem: editable,
@@ -1719,10 +1204,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("leaves native suggestion Undo to the browser", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -1741,20 +1223,20 @@ describe("SuggestionTextEditService", () => {
     }
     expect(input.value).toBe("hi ");
 
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: "z",
+      ctrlKey: true,
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "z" });
-    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
-    const consumeKeyboardEvent = (event: KeyboardEvent) => {
+    });
+    const consumeEvent = (event: Event) => {
       event.preventDefault();
       event.stopPropagation();
     };
     const onSuccessfulUndo = jest.fn();
 
     const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent,
+      consumeEvent,
       clearSuggestions: () => undefined,
       onSuccessfulUndo,
     });
@@ -1769,10 +1251,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("leaves native grammar Undo to the browser", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -1784,20 +1263,19 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
     expect(input.value).toBe("the ");
 
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: "z",
+      ctrlKey: true,
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "z" });
-    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
+    });
 
     const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
@@ -1814,10 +1292,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("suppresses immediate auto-reapply after manual grammar revert", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -1829,20 +1304,19 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "a lot",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "alot",
+      deleteForwards: 0,
       sourceRuleId: "englishAlotCorrection",
     });
     expect(input.value).toBe("a lot");
 
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: "z",
+      ctrlKey: true,
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "z" });
-    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
+    });
     const reverted = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
     expect(reverted).toBe(false);
@@ -1857,8 +1331,7 @@ describe("SuggestionTextEditService", () => {
     const reapplyResult = service.applyGrammarEdit(entry, {
       replacement: "a lot",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "alot",
+      deleteForwards: 0,
       sourceRuleId: "englishAlotCorrection",
     });
 
@@ -1871,10 +1344,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("clears manual-revert suppression after token context changes", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -1886,19 +1356,18 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "a lot",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "alot",
+      deleteForwards: 0,
       sourceRuleId: "englishAlotCorrection",
     });
 
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: "z",
+      ctrlKey: true,
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "z" });
-    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
+    });
     service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
     expect(entry.manualAutoFixSuppression).not.toBeNull();
@@ -1914,8 +1383,7 @@ describe("SuggestionTextEditService", () => {
     const applyResult = service.applyGrammarEdit(entry, {
       replacement: "a lot",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "alot",
+      deleteForwards: 0,
       sourceRuleId: "englishAlotCorrection",
     });
     expect(applyResult.applied).toBe(true);
@@ -1923,10 +1391,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("does not undo grammar auto-fix after user modifies text", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -1938,23 +1403,22 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
 
     input.value = "the x";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
 
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: "z",
+      ctrlKey: true,
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "z" });
-    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
+    });
 
     const firstHandled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
@@ -1966,14 +1430,14 @@ describe("SuggestionTextEditService", () => {
     input.value = "the ";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
-    const secondUndo = new Event("keydown", {
+    const secondUndo = new window.KeyboardEvent("keydown", {
+      key: "z",
+      ctrlKey: true,
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(secondUndo, "key", { value: "z" });
-    Object.defineProperty(secondUndo, "ctrlKey", { value: true });
+    });
     const secondHandled = service.tryUndoLastExtensionEdit(entry, secondUndo, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
     expect(secondHandled).toBe(false);
@@ -1981,10 +1445,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("does not undo after same-length edit outside the replaced span", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -1996,8 +1457,7 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: input.value.length,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
     expect(input.value).toBe("abc the ");
 
@@ -2005,15 +1465,15 @@ describe("SuggestionTextEditService", () => {
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
 
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: "z",
+      ctrlKey: true,
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "z" });
-    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
+    });
 
     const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
@@ -2023,10 +1483,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("clears pending undo when caret no longer matches post-edit cursor", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -2038,23 +1495,22 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
 
     // User moved caret before pressing undo; snapshot must be invalidated.
     input.selectionStart = input.value.length - 1;
     input.selectionEnd = input.value.length - 1;
 
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: "z",
+      ctrlKey: true,
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "z" });
-    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
+    });
 
     const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
@@ -2064,10 +1520,7 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("clears pending undo when edited text can no longer contain replacement span", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
     const input = document.createElement("input");
     document.body.append(input);
@@ -2079,8 +1532,7 @@ describe("SuggestionTextEditService", () => {
     service.applyGrammarEdit(entry, {
       replacement: "the ",
       deleteBackwards: 4,
-      evaluatedTextLength: 4,
-      expectedReplacedText: "teh ",
+      deleteForwards: 0,
     });
 
     // User deleted content; stored replacement span is no longer valid.
@@ -2088,15 +1540,15 @@ describe("SuggestionTextEditService", () => {
     input.selectionStart = 1;
     input.selectionEnd = 1;
 
-    const keyboardEvent = new Event("keydown", {
+    const keyboardEvent = new window.KeyboardEvent("keydown", {
+      key: "z",
+      ctrlKey: true,
       bubbles: true,
       cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "z" });
-    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
+    });
 
     const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
-      consumeKeyboardEvent: () => undefined,
+      consumeEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
@@ -2106,35 +1558,12 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("routes block-scoped grammar edit through host editor session when available", () => {
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    editable.textContent = "hello world";
-    document.body.appendChild(editable);
-    setContentEditableCursor(editable, 1);
+    const editable = createEditor("hello world");
+    setCaretAtTextOffset(editable, 1);
 
-    let blockText = "hello world";
-    let beforeCursor = "h";
-    let afterCursor = "ello world";
-    let applyCalls = 0;
-    const pageBridge: HostEditorPageBridge = {
-      getBlockContextAtSelection() {
-        return { beforeCursor, afterCursor, blockText };
-      },
-      applyBlockReplacement(_elem, args) {
-        applyCalls += 1;
-        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
-        beforeCursor = blockText.slice(0, args.cursorAfter);
-        afterCursor = blockText.slice(args.cursorAfter);
-        editable.textContent = blockText;
-        setContentEditableCursor(editable, args.cursorAfter);
-        return { applied: true, didDispatchInput: false };
-      },
-    };
+    const pageBridge = fakePageBridge(editable, "hello world", 1);
 
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
     });
     const entry = createSuggestionEntry({ elem: editable });
@@ -2162,38 +1591,17 @@ describe("SuggestionTextEditService", () => {
     );
 
     expect(result).toEqual({ applied: true, didDispatchInput: false });
-    expect(applyCalls).toBe(1);
+    expect(pageBridge.calls).toHaveLength(1);
     expect(editable.textContent).toBe("Hello world");
   });
 
   test("grammar edit via host session sets correct pendingExtensionEdit for undo", () => {
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    editable.textContent = "hello world";
-    document.body.appendChild(editable);
-    setContentEditableCursor(editable, 1);
+    const editable = createEditor("hello world");
+    setCaretAtTextOffset(editable, 1);
 
-    let blockText = "hello world";
-    let beforeCursor = "h";
-    let afterCursor = "ello world";
-    const pageBridge: HostEditorPageBridge = {
-      getBlockContextAtSelection() {
-        return { beforeCursor, afterCursor, blockText };
-      },
-      applyBlockReplacement(_elem, args) {
-        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
-        beforeCursor = blockText.slice(0, args.cursorAfter);
-        afterCursor = blockText.slice(args.cursorAfter);
-        editable.textContent = blockText;
-        setContentEditableCursor(editable, args.cursorAfter);
-        return { applied: true, didDispatchInput: false };
-      },
-    };
+    const pageBridge = fakePageBridge(editable, "hello world", 1);
 
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
     });
     const entry = createSuggestionEntry({ elem: editable });
@@ -2228,35 +1636,12 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("routes grammar edit through host when block text matches but cursor split is stale", () => {
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    editable.textContent = "dThe";
-    document.body.appendChild(editable);
-    setContentEditableCursor(editable, 1);
+    const editable = createEditor("dThe");
+    setCaretAtTextOffset(editable, 1);
 
-    let blockText = "dThe";
-    let beforeCursor = "";
-    let afterCursor = "dThe";
-    let applyCalls = 0;
-    const pageBridge: HostEditorPageBridge = {
-      getBlockContextAtSelection() {
-        return { beforeCursor, afterCursor, blockText };
-      },
-      applyBlockReplacement(_elem, args) {
-        applyCalls += 1;
-        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
-        beforeCursor = blockText.slice(0, args.cursorAfter);
-        afterCursor = blockText.slice(args.cursorAfter);
-        editable.textContent = blockText;
-        setContentEditableCursor(editable, args.cursorAfter);
-        return { applied: true, didDispatchInput: false };
-      },
-    };
+    const pageBridge = fakePageBridge(editable, "dThe", 0);
 
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
     });
     const entry = createSuggestionEntry({ elem: editable });
@@ -2267,7 +1652,7 @@ describe("SuggestionTextEditService", () => {
         replacement: "D",
         deleteBackwards: 1,
         deleteForwards: 0,
-        sourceRuleId: "capitalizeFirstLetter",
+        sourceRuleId: "capitalizeSentenceStart",
       },
       {
         snapshot: {
@@ -2284,54 +1669,18 @@ describe("SuggestionTextEditService", () => {
     );
 
     expect(result).toEqual({ applied: true, didDispatchInput: false });
-    expect(applyCalls).toBe(1);
+    expect(pageBridge.calls).toHaveLength(1);
     expect(editable.textContent).toBe("DThe");
   });
 
   test("FT-INV-5 refuses grammar edits while host model and DOM disagree", () => {
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    editable.textContent = "dThe";
-    document.body.appendChild(editable);
-    setContentEditableCursor(editable, 1);
+    const editable = createEditor("dThe");
+    setCaretAtTextOffset(editable, 1);
 
-    // Host initially reports stale state: "The" instead of the DOM's "dThe".
-    let blockText = "The";
-    let beforeCursor = "";
-    let afterCursor = "The";
-    const applyCalls: Array<{
-      replaceStart: number;
-      replaceEnd: number;
-      replacementText: string;
-      cursorAfter: number;
-      expectedBlockText: string;
-    }> = [];
-    const pageBridge: HostEditorPageBridge = {
-      getBlockContextAtSelection() {
-        return { beforeCursor, afterCursor, blockText };
-      },
-      applyBlockReplacement(_elem, args) {
-        applyCalls.push({ ...args });
-        // Simulate the bridge's full-block rewrite when the caller's view
-        // diverges from the host model.  Post-edit block text:
-        //   expectedBlockText[0..replaceStart] + replacementText +
-        //   expectedBlockText[replaceEnd..]
-        blockText =
-          args.expectedBlockText.slice(0, args.replaceStart) +
-          args.replacementText +
-          args.expectedBlockText.slice(args.replaceEnd);
-        beforeCursor = blockText.slice(0, args.cursorAfter);
-        afterCursor = blockText.slice(args.cursorAfter);
-        editable.textContent = blockText;
-        setContentEditableCursor(editable, args.cursorAfter);
-        return { applied: true, didDispatchInput: false };
-      },
-    };
+    // The host reports stale state: "The" instead of the DOM's "dThe".
+    const pageBridge = fakePageBridge(editable, "The", 0);
 
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
     });
     const entry = createSuggestionEntry({ elem: editable });
@@ -2342,7 +1691,7 @@ describe("SuggestionTextEditService", () => {
         replacement: "D",
         deleteBackwards: 1,
         deleteForwards: 0,
-        sourceRuleId: "capitalizeFirstLetter",
+        sourceRuleId: "capitalizeSentenceStart",
       },
       {
         snapshot: {
@@ -2359,23 +1708,16 @@ describe("SuggestionTextEditService", () => {
     );
 
     expect(result.applied).toBe(false);
-    expect(applyCalls).toHaveLength(0);
+    expect(pageBridge.calls).toHaveLength(0);
     expect(editable.textContent).toBe("dThe");
-    expect(blockText).toBe("The");
+    expect(pageBridge.blockText).toBe("The");
   });
 
   test("falls back to replaceTextByOffsets for grammar edit when host session is not available", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
+    const service = createTextEditService();
 
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    editable.textContent = "teh ";
-    document.body.appendChild(editable);
-    setContentEditableCursor(editable, 4);
+    const editable = createEditor("teh ");
+    setCaretAtTextOffset(editable, 4);
     const entry = createSuggestionEntry({ elem: editable });
 
     const result = service.applyGrammarEdit(
@@ -2384,7 +1726,7 @@ describe("SuggestionTextEditService", () => {
         replacement: "the ",
         deleteBackwards: 4,
         deleteForwards: 0,
-        sourceRuleId: "typoFix",
+        sourceRuleId: "englishTypoWhitelistCorrection",
       },
       {
         snapshot: {
@@ -2405,53 +1747,12 @@ describe("SuggestionTextEditService", () => {
   });
 
   test("translates BR-separated line offsets to full-block offsets for host grammar edit", () => {
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    // Simulate a block with text before and after a <br>
-    editable.textContent = "First line. second line. a";
-    document.body.appendChild(editable);
-    setContentEditableCursor(editable, 26);
+    const editable = createEditor("First line. second line. a");
+    setCaretAtTextOffset(editable, 26);
+    // The host editor sees the full block text.
+    const pageBridge = fakePageBridge(editable, "First line. second line. a", 26);
 
-    // The host editor sees the FULL block text
-    let fullBlockText = "First line. second line. a";
-    let hostBeforeCursor = "First line. second line. a";
-    let hostAfterCursor = "";
-    let applyCalls = 0;
-    let lastApplyArgs: {
-      replaceStart: number;
-      replaceEnd: number;
-      replacementText: string;
-      cursorAfter: number;
-    } | null = null;
-    const pageBridge: HostEditorPageBridge = {
-      getBlockContextAtSelection() {
-        return {
-          beforeCursor: hostBeforeCursor,
-          afterCursor: hostAfterCursor,
-          blockText: fullBlockText,
-        };
-      },
-      applyBlockReplacement(_elem, args) {
-        applyCalls += 1;
-        lastApplyArgs = {
-          replaceStart: args.replaceStart,
-          replaceEnd: args.replaceEnd,
-          replacementText: args.replacementText,
-          cursorAfter: args.cursorAfter,
-        };
-        fullBlockText = `${fullBlockText.slice(0, args.replaceStart)}${args.replacementText}${fullBlockText.slice(args.replaceEnd)}`;
-        hostBeforeCursor = fullBlockText.slice(0, args.cursorAfter);
-        hostAfterCursor = fullBlockText.slice(args.cursorAfter);
-        editable.textContent = fullBlockText;
-        setContentEditableCursor(editable, args.cursorAfter);
-        return { applied: true, didDispatchInput: false };
-      },
-    };
-
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
     });
     const entry = createSuggestionEntry({ elem: editable });
@@ -2482,74 +1783,21 @@ describe("SuggestionTextEditService", () => {
     );
 
     expect(result).toEqual({ applied: true, didDispatchInput: false });
-    expect(applyCalls).toBe(1);
     // The replacement should happen at offset 25 in the full block (not offset 13)
-    expect(lastApplyArgs?.replaceStart).toBe(25);
-    expect(lastApplyArgs?.replaceEnd).toBe(26);
-    expect(lastApplyArgs?.replacementText).toBe("A");
-    expect(lastApplyArgs?.cursorAfter).toBe(26);
+    expect(pageBridge.calls).toMatchObject([
+      { replaceStart: 25, replaceEnd: 26, replacementText: "A", cursorAfter: 26 },
+    ]);
     expect(editable.textContent).toBe("First line. second line. A");
   });
 
   test("routes suggestion acceptance through host with full-block offset translation for BR-separated lines", () => {
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    // Build DOM with a <br> to trigger BR-separated line context
-    editable.appendChild(document.createTextNode("First line."));
-    editable.appendChild(document.createElement("br"));
-    editable.appendChild(document.createTextNode("tes"));
-    document.body.appendChild(editable);
-    // Place cursor at end of "tes" (the text node after <br>)
-    const textAfterBr = editable.childNodes[2] as Text;
-    const range = document.createRange();
-    range.setStart(textAfterBr, 3);
-    range.collapse(true);
-    const selection = window.getSelection();
-    if (selection) {
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
+    // A <br> gives a BR-separated line context. The caret is at the end of "tes".
+    const editable = createEditor("First line.<br>tes");
+    setCaret(editable.childNodes[2]!);
+    // The host editor sees the full block text (no BR separation).
+    const pageBridge = fakePageBridge(editable, "First line.tes", 14);
 
-    // Host editor sees full block text (no BR separation)
-    let fullBlockText = "First line.tes";
-    let hostBeforeCursor = "First line.tes";
-    let hostAfterCursor = "";
-    let applyCalls = 0;
-    let lastApplyArgs: {
-      replaceStart: number;
-      replaceEnd: number;
-      replacementText: string;
-      cursorAfter: number;
-    } | null = null;
-    const pageBridge: HostEditorPageBridge = {
-      getBlockContextAtSelection() {
-        return {
-          beforeCursor: hostBeforeCursor,
-          afterCursor: hostAfterCursor,
-          blockText: fullBlockText,
-        };
-      },
-      applyBlockReplacement(_elem, args) {
-        applyCalls += 1;
-        lastApplyArgs = {
-          replaceStart: args.replaceStart,
-          replaceEnd: args.replaceEnd,
-          replacementText: args.replacementText,
-          cursorAfter: args.cursorAfter,
-        };
-        fullBlockText = `${fullBlockText.slice(0, args.replaceStart)}${args.replacementText}${fullBlockText.slice(args.replaceEnd)}`;
-        hostBeforeCursor = fullBlockText.slice(0, args.cursorAfter);
-        hostAfterCursor = fullBlockText.slice(args.cursorAfter);
-        editable.textContent = fullBlockText;
-        setContentEditableCursor(editable, args.cursorAfter);
-        return { applied: true, didDispatchInput: false };
-      },
-    };
-
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+    const service = createTextEditService({
       hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
     });
     const entry = createSuggestionEntry({
@@ -2561,9 +1809,9 @@ describe("SuggestionTextEditService", () => {
     const accepted = service.acceptSuggestion(entry, "test ");
 
     expect(accepted).not.toBeNull();
-    expect(applyCalls).toBe(1);
+    expect(pageBridge.calls).toHaveLength(1);
     // The replacement should happen at offset 11 in the full block
-    expect(lastApplyArgs?.replaceStart).toBe(11);
+    expect(pageBridge.calls[0]?.replaceStart).toBe(11);
     expect((editable.textContent ?? "").replace(/\u00a0/g, " ")).toBe("First line.test ");
   });
 });
@@ -2574,10 +1822,7 @@ describe("FT-INV-1 typing transaction anchors", () => {
     document.body.append(field);
     field.value = "Yesterday, teh cat and teh cat.";
     field.setSelectionRange(14, 14);
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (s) => /\s/.test(s),
-    });
+    const service = createTextEditService();
     const result = service.applyGrammarEdit(
       createSuggestionEntry({ elem: field }),
       { replacement: "the", deleteBackwards: 3, deleteForwards: 0 },
@@ -2585,7 +1830,6 @@ describe("FT-INV-1 typing transaction anchors", () => {
     );
     expect(result.applied).toBe(false);
     expect(field.value).toBe("Yesterday, teh cat and teh cat.");
-    field.remove();
   });
 
   test("refuses a focus-time host rewrite and preserves every host character", () => {
@@ -2596,25 +1840,17 @@ describe("FT-INV-1 typing transaction anchors", () => {
     field.addEventListener("focus", () => {
       field.value = "host saved a newer draft";
     });
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (s) => /\s/.test(s),
-    });
+    const service = createTextEditService();
     expect(service.acceptSuggestion(createSuggestionEntry({ elem: field }), "the")).toBeNull();
     expect(field.value).toBe("host saved a newer draft");
-    field.remove();
   });
 });
 
 test("FT-INV-5 deferred beforeinput commits use host undo without a synthetic inverse", async () => {
-  const root = document.createElement("div");
-  root.setAttribute("contenteditable", "true");
+  const root = createEditor("<p>Wh</p>");
   root.setAttribute("data-lexical-editor", "true");
-  Object.defineProperty(root, "isContentEditable", { value: true });
-  root.innerHTML = "<p>Wh</p>";
-  document.body.append(root);
   const paragraph = root.firstElementChild as HTMLElement;
-  setContentEditableCursor(root, 2);
+  setCaretAtTextOffset(root, 2);
   let hostState = "Wh";
   root.addEventListener(
     "beforeinput",
@@ -2624,7 +1860,7 @@ test("FT-INV-5 deferred beforeinput commits use host undo without a synthetic in
       queueMicrotask(() => {
         hostState = replacement;
         paragraph.textContent = hostState;
-        setContentEditableCursor(root, hostState.length);
+        setCaretAtTextOffset(root, hostState.length);
         root.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
       });
     },
@@ -2635,10 +1871,7 @@ test("FT-INV-5 deferred beforeinput commits use host undo without a synthetic in
     latestMentionText: "Wh",
     latestMentionStart: -1,
   });
-  const service = new SuggestionTextEditService({
-    findMentionToken,
-    isSeparator: (value) => /\s/.test(value),
-  });
+  const service = createTextEditService();
   service.acceptSuggestion(entry, "What ");
   expect(root.textContent).toBe("Wh");
   expect(entry.pendingExtensionEdit?.nativeUndo).toBe(true);
@@ -2647,7 +1880,7 @@ test("FT-INV-5 deferred beforeinput commits use host undo without a synthetic in
   expect(hostState).toBe(root.textContent!);
   const event = new window.KeyboardEvent("keydown", { key: "z", ctrlKey: true, cancelable: true });
   const consumed = service.tryUndoLastExtensionEdit(entry, event, {
-    consumeKeyboardEvent: (value) => value.preventDefault(),
+    consumeEvent: (value) => value.preventDefault(),
     clearSuggestions: () => undefined,
   });
   expect(consumed).toBe(false);
@@ -2673,10 +1906,7 @@ test("refuses expansion when native editing is unavailable", () => {
     value: undefined,
   });
   try {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (text) => /\s/.test(text),
-    });
+    const service = createTextEditService();
     const entry = createSuggestionEntry({ elem: field });
     expect(service.acceptSuggestion(entry, "be right back")).toBeNull();
     expect(field.value).toBe("brb");
@@ -2700,13 +1930,11 @@ test.each(["input", "textarea"])("refuses capitalization without a native writer
     value: undefined,
   });
   try {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (text) => /\s/.test(text),
-    });
+    const service = createTextEditService();
     const result = service.applyGrammarEdit(createSuggestionEntry({ elem: field }), {
       replacement: "H",
       deleteBackwards: 1,
+      deleteForwards: 0,
       sourceRuleId: "capitalizeSentenceStart",
     });
     expect(result.applied).toBe(false);

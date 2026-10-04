@@ -1,22 +1,11 @@
 import { mod } from "./fakeLibPresage.js";
 import { PredictionManager } from "../src/adapters/chrome/background/PredictionManager";
-import type { PredictionConfig } from "../src/adapters/chrome/background/PredictionOrchestrator";
 import type { PresageModule } from "../src/adapters/chrome/background/PresageTypes";
+import { predictionConfig } from "./support/predictionConfig";
 
 const SENTINEL = "sentinel-7f3a private words";
 
-const CONFIG: PredictionConfig = {
-  numSuggestions: 5,
-  minWordLengthToPredict: 0,
-  insertSpaceAfterAutocomplete: false,
-  autoCapitalize: false,
-  textExpansions: [],
-  prefixOnlyMode: false,
-  timeFormat: "",
-  dateFormat: "",
-  userDictionaryList: [],
-  debugPresagePredictorEnabled: true,
-};
+const CONFIG = predictionConfig({ debugPresagePredictorEnabled: true });
 
 async function runPrediction(isDevBuild: boolean) {
   const manager = new PredictionManager({

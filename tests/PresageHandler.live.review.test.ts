@@ -1,6 +1,6 @@
 import { REVIEW_SPELLING_BUDGET_MS } from "../src/adapters/chrome/background/PresageEngine";
 import { rankSpellingSuggestions } from "../src/core/domain/grammar/review/reviewSpelling";
-import { createLiveConfig, createLiveHandler } from "./support/presageLive";
+import { createLiveConfig, createLiveHandler, runPrediction } from "./support/presageLive";
 
 describe("PresageHandler live review spelling", () => {
   test("known words come back as known; unknown ones get candidates, even in prefix-only mode", async () => {
@@ -26,7 +26,7 @@ describe("PresageHandler live review spelling", () => {
       expect(results[4]).toBeNull();
     }
     // Typing predictions are unchanged afterwards: prefix-only mode is back on.
-    const typing = await handler.runPrediction("recie", "", "en_US");
+    const typing = await runPrediction(handler, "recie", "", "en_US");
     for (const word of typing.predictions.map((p) => p.trim().toLowerCase())) {
       expect(word.startsWith("recie")).toBe(true);
     }
@@ -80,7 +80,7 @@ describe("PresageHandler live review spelling", () => {
     expect(bounded.length).toBeLessThan(words.length);
     expect(bounded).toEqual(full.slice(0, bounded.length));
     // Typing predictions afterwards are unchanged: prefix-only mode is back on.
-    const typing = await handler.runPrediction("recie", "", "en_US");
+    const typing = await runPrediction(handler, "recie", "", "en_US");
     for (const word of typing.predictions.map((p) => p.trim().toLowerCase())) {
       expect(word.startsWith("recie")).toBe(true);
     }

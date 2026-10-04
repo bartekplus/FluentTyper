@@ -5,17 +5,37 @@ import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/su
 import { InlineSuggestionPresenter } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionPresenter";
 import { InlineSuggestionView } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionView";
 import { SuggestionEntrySession } from "../src/adapters/chrome/content-script/suggestions/SuggestionEntrySession";
+import type { SuggestionGrammarCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
+import { SuggestionPredictionCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionPredictionCoordinator";
 import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
 import type {
   PendingKeyFallback,
   PredictionResponse,
   SuggestionEntry,
 } from "../src/adapters/chrome/content-script/suggestions/types";
-import { createHandler, createRect, createSuggestionEntry } from "./suggestionTestUtils";
+import {
+  createHandler,
+  createPendingEdit,
+  createRect,
+  createSuggestionEntry,
+  partialResponse,
+} from "./suggestionTestUtils";
 
 afterEach(() => {
   jest.restoreAllMocks();
 });
+
+/** Reads the request id from the entry that the session gives. */
+function fakePredictionCoordinator(token = "hel", start = 0) {
+  return {
+    shouldProcessResponse: (entry: SuggestionEntry, context: PredictionResponse) =>
+      context.requestId === entry.requestId,
+    schedule: jest.fn(),
+    reconcile: jest.fn(),
+    cancelPending: jest.fn(),
+    findMentionToken: () => ({ token, start }),
+  };
+}
 
 function makeSession({
   entry = createSuggestionEntry({ requestId: 2 }),
@@ -38,19 +58,11 @@ function makeSession({
   renderMenu = jest.fn(),
   renderInline = jest.fn(),
   recordSuggestionShown = jest.fn(),
-  logRenderedSuggestionPopup = jest.fn(),
-  logNoVisibleSuggestions = jest.fn(),
-  predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === entry.requestId,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "hel", start: 0 }),
-  },
+  predictionCoordinator = fakePredictionCoordinator(),
   grammarCoordinator = {
     hasEnabledRules: () => false,
     run: () => null,
+    runVirtualWordBoundary: () => null,
   },
   textEditService = {
     acceptSuggestion: jest.fn(() => null),
@@ -63,6 +75,7 @@ function makeSession({
   recordPersonalizationAccepted = jest.fn(() => "accept-fixed"),
   getLang = () => "en_US",
   insertSpaceAfterAutocomplete = true,
+  findGrammarProposals,
 }: {
   entry?: SuggestionEntry;
   editableContextResolver?: {
@@ -90,8 +103,6 @@ function makeSession({
   }) => void;
   renderInline?: () => void;
   recordSuggestionShown?: (context: { suggestionCount: number; language?: string }) => void;
-  logRenderedSuggestionPopup?: (context: PredictionResponse & { predictionCount: number }) => void;
-  logNoVisibleSuggestions?: (context: PredictionResponse) => void;
   predictionCoordinator?: {
     shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) => boolean;
     schedule: ReturnType<typeof jest.fn>;
@@ -99,7 +110,11 @@ function makeSession({
     cancelPending: ReturnType<typeof jest.fn>;
     findMentionToken: (beforeCursor: string) => { token: string; start: number };
   };
-  grammarCoordinator?: { hasEnabledRules: () => boolean; run: (...args: unknown[]) => unknown };
+  grammarCoordinator?: Pick<
+    SuggestionGrammarCoordinator,
+    "hasEnabledRules" | "run" | "runVirtualWordBoundary"
+  >;
+  findGrammarProposals?: (beforeCursor: string) => Promise<never[]>;
   textEditService?: {
     acceptSuggestion: ReturnType<typeof jest.fn>;
     applyGrammarEdit: ReturnType<typeof jest.fn>;
@@ -113,6 +128,8 @@ function makeSession({
   insertSpaceAfterAutocomplete?: boolean;
 } = {}): SuggestionEntrySession {
   return new SuggestionEntrySession({
+    canInteract: () => true,
+    onPauseChange: () => undefined,
     entry,
     editableContextResolver,
     clearPendingFallback,
@@ -133,8 +150,7 @@ function makeSession({
     recordPersonalizationAccepted,
     getLang,
     insertSpaceAfterAutocomplete,
-    logRenderedSuggestionPopup,
-    logNoVisibleSuggestions,
+    findGrammarProposals,
   });
 }
 
@@ -178,14 +194,7 @@ test("session resolves one edit context and suppresses processing for unstable s
       selectionStable: false,
     })),
   };
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === 2,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "hel", start: 0 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator();
   const session = makeSession({ editableContextResolver, predictionCoordinator });
 
   session.handleInput(new Event("input"));
@@ -201,14 +210,7 @@ test("session suppresses processing when the entry is already composing", () => 
     inlineSuggestion: "stale",
   });
   entry.pendingIdleTimer = setTimeout(() => undefined, 1000);
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === entry.requestId,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "hel", start: 0 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator();
   const session = makeSession({ entry, predictionCoordinator });
 
   session.handleInput(new Event("input"));
@@ -224,14 +226,13 @@ test("session marks event-level composition as unstable input", () => {
     elem: document.createElement("input") as SuggestionEntry["elem"],
   });
   const session = makeSession({ entry });
-  const inputEvent = new Event("input", { bubbles: true }) as InputEvent;
-  Object.defineProperty(inputEvent, "isComposing", { value: true });
+  const inputEvent = new window.InputEvent("input", { bubbles: true, isComposing: true });
 
   const reason = (
     session as unknown as {
-      resolveUnstableInputSkipReason: (entry: SuggestionEntry, event?: Event) => string | null;
+      resolveUnstableInputSkipReason: (event?: Event) => string | null;
     }
-  ).resolveUnstableInputSkipReason(entry, inputEvent);
+  ).resolveUnstableInputSkipReason(inputEvent);
 
   expect(reason).toBe("event_composing");
 });
@@ -246,9 +247,9 @@ test("session marks non-collapsed selection as unstable input", () => {
 
   const reason = (
     session as unknown as {
-      resolveUnstableInputSkipReason: (entry: SuggestionEntry, event?: Event) => string | null;
+      resolveUnstableInputSkipReason: (event?: Event) => string | null;
     }
-  ).resolveUnstableInputSkipReason(entry);
+  ).resolveUnstableInputSkipReason();
 
   expect(reason).toBe("selection_not_collapsed");
 });
@@ -256,18 +257,9 @@ test("session marks non-collapsed selection as unstable input", () => {
 test("session short-circuits deferred fallback input without clearing the pending fallback", () => {
   const clearPendingFallback = jest.fn();
   const entry = createSuggestionEntry({
-    elem: document.createElement("div") as SuggestionEntry["elem"],
+    elem: createEditor(""),
   });
-  entry.elem.setAttribute("contenteditable", "true");
-  Object.defineProperty(entry.elem, "isContentEditable", { value: true, configurable: true });
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === 2,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "hel", start: 0 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator();
   const session = makeSession({
     entry,
     clearPendingFallback,
@@ -302,21 +294,13 @@ test("session short-circuits deferred fallback input without clearing the pendin
 
 test("session clears the pending fallback before processing input", () => {
   const clearPendingFallback = jest.fn();
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === 2,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "hel", start: 0 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator();
   const session = makeSession({
     clearPendingFallback,
     predictionCoordinator,
   });
 
-  const inputEvent = new Event("input") as InputEvent;
-  Object.defineProperty(inputEvent, "inputType", { value: "insertText" });
+  const inputEvent = new window.InputEvent("input", { inputType: "insertText" });
   session.handleInput(inputEvent);
 
   expect(clearPendingFallback).toHaveBeenCalledTimes(1);
@@ -326,18 +310,17 @@ test("session clears the pending fallback before processing input", () => {
 test("session click and blur cleanup clear accepted transient state", () => {
   const entry = createSuggestionEntry({ requestId: 2 });
   const block = document.createElement("p");
-  entry.pendingExtensionEdit = {
+  entry.pendingExtensionEdit = createPendingEdit({
     replaceStart: 2,
     originalText: "a",
     replacementText: "ab",
     cursorBefore: 2,
     cursorAfter: 3,
     postEditFingerprint: { fullText: "ab", cursorOffset: 3, selectionCollapsed: true },
-    source: "suggestion",
     blockScoped: true,
     blockElement: block,
     postEditBlockText: "ab",
-  };
+  });
   entry.missingTrailingSpace = true;
   entry.expectedCursorPos = 3;
   entry.expectedCursorPosIsBlockLocal = true;
@@ -351,15 +334,14 @@ test("session click and blur cleanup clear accepted transient state", () => {
   expect(entry.missingTrailingSpace).toBe(false);
   expect(entry.expectedCursorPos).toBe(0);
 
-  entry.pendingExtensionEdit = {
+  entry.pendingExtensionEdit = createPendingEdit({
     replaceStart: 2,
     originalText: "a",
     replacementText: "ab",
     cursorBefore: 2,
     cursorAfter: 3,
     postEditFingerprint: { fullText: "ab", cursorOffset: 3, selectionCollapsed: true },
-    source: "suggestion",
-  };
+  });
   entry.missingTrailingSpace = true;
   entry.expectedCursorPos = 3;
   entry.isComposing = true;
@@ -421,17 +403,13 @@ test("session acceptance lifecycle applies accepted suggestion state", () => {
   const recordPersonalizationAccepted = jest.fn(() => "accept-fixed");
   const clearPendingFallback = jest.fn();
   const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === entry.requestId,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
+    ...fakePredictionCoordinator(),
     cancelPending: jest.fn(() => {
       if (entry.pendingRequestTimer) {
         clearTimeout(entry.pendingRequestTimer);
         entry.pendingRequestTimer = null;
       }
     }),
-    findMentionToken: () => ({ token: "hel", start: 0 }),
   };
   const session = makeSession({
     entry,
@@ -485,14 +463,7 @@ test("session never learns an accepted snippet expansion, but still learns words
   };
   const recordSuggestionAccepted = jest.fn();
   const recordPersonalizationAccepted = jest.fn(() => "accept-fixed");
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === entry.requestId,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "em", start: 0 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator("em");
   const session = makeSession({
     entry,
     predictionCoordinator,
@@ -501,13 +472,15 @@ test("session never learns an accepted snippet expansion, but still learns words
     recordPersonalizationAccepted,
   });
   const respond = (predictions: string[], snippetShortcuts?: Array<string | null>) =>
-    session.handlePredictionResponse({
-      requestId: entry.requestId,
-      suggestionId: entry.id,
-      predictions,
-      snippetShortcuts,
-      lang: "en_US",
-    });
+    session.handlePredictionResponse(
+      partialResponse({
+        requestId: entry.requestId,
+        suggestionId: entry.id,
+        predictions,
+        snippetShortcuts,
+        lang: "en_US",
+      }),
+    );
 
   // Partial shortcut "em" -> "email": a labelled snippet.
   respond(["emit", "private@example.com"], [null, "email"]);
@@ -529,38 +502,28 @@ test("session never learns an accepted snippet expansion, but still learns words
 });
 
 test("session skips delayed spacing when a block-scoped accepted word already has a following space", () => {
-  const editable = document.createElement("div");
-  editable.setAttribute("contenteditable", "true");
-  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-  const block = document.createElement("pre");
-  block.textContent = "dm medbae on discreetness for any mistakes";
-  editable.appendChild(block);
-  document.body.appendChild(editable);
+  const editable = createEditor("<pre>dm medbae on discreetness for any mistakes</pre>");
+  const block = editable.firstElementChild as HTMLElement;
 
   const entry = createSuggestionEntry({
-    elem: editable as SuggestionEntry["elem"],
+    elem: editable,
     requestId: 2,
     suggestions: ["discreetness "],
     latestMentionText: "discsds",
   });
   const textEditService = {
     acceptSuggestion: jest.fn(() => {
-      entry.pendingExtensionEdit = {
+      entry.pendingExtensionEdit = createPendingEdit({
         replaceStart: 13,
         originalText: "discsdsreetness",
         replacementText: "discreetness",
         cursorBefore: 20,
         cursorAfter: 25,
-        postEditFingerprint: {
-          fullText: "",
-          cursorOffset: 25,
-          selectionCollapsed: true,
-        },
-        source: "suggestion",
+        postEditFingerprint: { fullText: "", cursorOffset: 25, selectionCollapsed: true },
         blockScoped: true,
         blockElement: block,
         postEditBlockText: "dm medbae on discreetness for any mistakes",
-      };
+      });
       return {
         triggerText: "discsds",
         insertedText: "discreetness",
@@ -571,14 +534,7 @@ test("session skips delayed spacing when a block-scoped accepted word already ha
     applyGrammarEdit: jest.fn(() => ({ applied: false, didDispatchInput: false })),
     syncManualAutoFixSuppression: jest.fn(),
   };
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === entry.requestId,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "discsds", start: 13 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator("discsds", 13);
   const session = makeSession({
     entry,
     textEditService,
@@ -610,14 +566,7 @@ test("session ignores stale prediction responses after suggestion acceptance", (
     applyGrammarEdit: jest.fn(() => ({ applied: false, didDispatchInput: false })),
     syncManualAutoFixSuppression: jest.fn(),
   };
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === entry.requestId,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "hel", start: 0 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator();
   const session = makeSession({
     entry,
     renderMenu,
@@ -626,12 +575,14 @@ test("session ignores stale prediction responses after suggestion acceptance", (
   });
 
   session.acceptSuggestionAtIndex(0);
-  session.handlePredictionResponse({
-    requestId: 2,
-    suggestionId: entry.id,
-    predictions: ["beta again"],
-    lang: "en_US",
-  });
+  session.handlePredictionResponse(
+    partialResponse({
+      requestId: 2,
+      suggestionId: entry.id,
+      predictions: ["beta again"],
+      lang: "en_US",
+    }),
+  );
 
   expect(entry.requestId).toBe(3);
   expect(entry.suggestions).toEqual([]);
@@ -639,31 +590,23 @@ test("session ignores stale prediction responses after suggestion acceptance", (
 });
 
 test("session ignores an immediate duplicate suggestion accept while the first accepted edit is still pending", () => {
-  const editable = document.createElement("div");
-  editable.setAttribute("contenteditable", "true");
-  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+  const editable = createEditor("");
 
   const entry = createSuggestionEntry({
-    elem: editable as SuggestionEntry["elem"],
+    elem: editable,
     requestId: 2,
     suggestions: ["beta"],
     latestMentionText: "bet",
   });
   const textEditService = {
     acceptSuggestion: jest.fn(() => {
-      entry.pendingExtensionEdit = {
-        replaceStart: 0,
+      entry.pendingExtensionEdit = createPendingEdit({
         originalText: "bet",
         replacementText: "beta",
         cursorBefore: 3,
         cursorAfter: 4,
-        postEditFingerprint: {
-          fullText: "beta",
-          cursorOffset: 4,
-          selectionCollapsed: true,
-        },
-        source: "suggestion",
-      };
+        postEditFingerprint: { fullText: "beta", cursorOffset: 4, selectionCollapsed: true },
+      });
       return {
         triggerText: "bet",
         insertedText: "beta",
@@ -683,14 +626,7 @@ test("session ignores an immediate duplicate suggestion accept while the first a
 
 test("session suppresses the synthetic input emitted by accepted suggestions", () => {
   const clearPendingFallback = jest.fn();
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === 2,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "what", start: 0 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator("what");
   const input = document.createElement("input");
   input.value = "what";
   input.selectionStart = input.value.length;
@@ -702,19 +638,13 @@ test("session suppresses the synthetic input emitted by accepted suggestions", (
     inlineSuggestion: "stale",
     visibleSuggestionBeforeCursorText: "wha",
     visibleSuggestionFullText: "wha",
-    pendingExtensionEdit: {
-      replaceStart: 0,
+    pendingExtensionEdit: createPendingEdit({
       originalText: "wha",
       replacementText: "what",
       cursorBefore: 3,
       cursorAfter: 4,
-      postEditFingerprint: {
-        fullText: "what",
-        cursorOffset: 4,
-        selectionCollapsed: true,
-      },
-      source: "suggestion",
-    },
+      postEditFingerprint: { fullText: "what", cursorOffset: 4, selectionCollapsed: true },
+    }),
     suppressNextSuggestionInputPrediction: true,
   });
   const session = makeSession({
@@ -732,8 +662,7 @@ test("session suppresses the synthetic input emitted by accepted suggestions", (
       }),
     },
   });
-  const inputEvent = new Event("input") as InputEvent;
-  Object.defineProperty(inputEvent, "inputType", { value: "insertText" });
+  const inputEvent = new window.InputEvent("input", { inputType: "insertText" });
 
   session.handleInput(inputEvent);
 
@@ -748,14 +677,7 @@ test("session suppresses the synthetic input emitted by accepted suggestions", (
 });
 
 test("session resumes prediction after the first real user edit following acceptance", () => {
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === 2,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "whats", start: 0 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator("whats");
   const input = document.createElement("input");
   input.value = "whats";
   input.selectionStart = input.value.length;
@@ -763,19 +685,13 @@ test("session resumes prediction after the first real user edit following accept
   const entry = createSuggestionEntry({
     elem: input as SuggestionEntry["elem"],
     requestId: 2,
-    pendingExtensionEdit: {
-      replaceStart: 0,
+    pendingExtensionEdit: createPendingEdit({
       originalText: "wha",
       replacementText: "what",
       cursorBefore: 3,
       cursorAfter: 4,
-      postEditFingerprint: {
-        fullText: "what",
-        cursorOffset: 4,
-        selectionCollapsed: true,
-      },
-      source: "suggestion",
-    },
+      postEditFingerprint: { fullText: "what", cursorOffset: 4, selectionCollapsed: true },
+    }),
     suppressNextSuggestionInputPrediction: true,
     lastKeydownKey: "s",
   });
@@ -793,8 +709,7 @@ test("session resumes prediction after the first real user edit following accept
       }),
     },
   });
-  const inputEvent = new Event("input") as InputEvent;
-  Object.defineProperty(inputEvent, "inputType", { value: "insertText" });
+  const inputEvent = new window.InputEvent("input", { inputType: "insertText" });
 
   session.handleInput(inputEvent);
 
@@ -803,47 +718,31 @@ test("session resumes prediction after the first real user edit following accept
 });
 
 test("session preserves a pending host-owned contenteditable accept through its immediate input echo", () => {
-  const editable = document.createElement("div");
-  editable.setAttribute("contenteditable", "true");
-  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-  const block = document.createElement("pre");
-  block.className = "CodeMirror-line";
-  block.textContent = "dm medbae on disxcord for any mistakes/feedback or typos in translation";
-  editable.appendChild(block);
-  document.body.appendChild(editable);
+  const editable = createEditor(
+    '<pre class="CodeMirror-line">dm medbae on disxcord for any mistakes/feedback or typos in translation</pre>',
+  );
+  const block = editable.firstElementChild as HTMLElement;
 
   const entry = createSuggestionEntry({
-    elem: editable as SuggestionEntry["elem"],
+    elem: editable,
     requestId: 2,
     suppressNextSuggestionInputPrediction: true,
     suggestions: ["discord "],
-    pendingExtensionEdit: {
+    pendingExtensionEdit: createPendingEdit({
       replaceStart: 13,
       originalText: "disxcord",
       replacementText: "discord",
       cursorBefore: 17,
       cursorAfter: 20,
-      postEditFingerprint: {
-        fullText: "",
-        cursorOffset: 20,
-        selectionCollapsed: true,
-      },
+      postEditFingerprint: { fullText: "", cursorOffset: 20, selectionCollapsed: true },
       awaitingHostInputEcho: true,
-      source: "suggestion",
       blockScoped: true,
       blockElement: block,
       postEditBlockText: "dm medbae on discord for any mistakes/feedback or typos in translation",
-    },
+    }),
   });
 
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === entry.requestId,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "discord", start: 0 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator("discord");
   const contentEditableAdapter = Object.assign(new ContentEditableAdapter(), {
     getActiveBlockElement: () => block,
     hasMultipleBlockDescendants: () => false,
@@ -883,46 +782,28 @@ test("session preserves a pending host-owned contenteditable accept through its 
 });
 
 test("session does not suppress a real user edit while awaiting a host echo once the snapshot has advanced past the accepted state", () => {
-  const editable = document.createElement("div");
-  editable.setAttribute("contenteditable", "true");
-  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-  const block = document.createElement("p");
-  block.textContent = "Was w";
-  editable.appendChild(block);
-  document.body.appendChild(editable);
+  const editable = createEditor("<p>Was w</p>");
+  const block = editable.firstElementChild as HTMLElement;
 
   const entry = createSuggestionEntry({
-    elem: editable as SuggestionEntry["elem"],
+    elem: editable,
     requestId: 5,
     suppressNextSuggestionInputPrediction: true,
     lastKeydownKey: "w",
-    pendingExtensionEdit: {
-      replaceStart: 0,
+    pendingExtensionEdit: createPendingEdit({
       originalText: "Wa",
       replacementText: "Was",
       cursorBefore: 2,
       cursorAfter: 3,
-      postEditFingerprint: {
-        fullText: "",
-        cursorOffset: 3,
-        selectionCollapsed: true,
-      },
+      postEditFingerprint: { fullText: "", cursorOffset: 3, selectionCollapsed: true },
       awaitingHostInputEcho: true,
-      source: "suggestion",
       blockScoped: true,
       blockElement: block,
       postEditBlockText: "Was",
-    },
+    }),
   });
 
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === entry.requestId,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "w", start: 4 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator("w", 4);
   const contentEditableAdapter = Object.assign(new ContentEditableAdapter(), {
     getActiveBlockElement: () => block,
     hasMultipleBlockDescendants: () => false,
@@ -951,8 +832,7 @@ test("session does not suppress a real user edit while awaiting a host echo once
       }),
     },
   });
-  const inputEvent = new Event("input") as InputEvent;
-  Object.defineProperty(inputEvent, "inputType", { value: "insertText" });
+  const inputEvent = new window.InputEvent("input", { inputType: "insertText" });
 
   session.handleInput(inputEvent);
 
@@ -962,48 +842,32 @@ test("session does not suppress a real user edit while awaiting a host echo once
 });
 
 test("session does not suppress the first real user edit after host-owned accept when no echo is pending", () => {
-  const editable = document.createElement("div");
-  editable.setAttribute("contenteditable", "true");
-  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-  const block = document.createElement("pre");
-  block.className = "CodeMirror-line";
-  block.textContent = "dm medbae on discordx for any mistakes/feedback or typos in translation";
-  editable.appendChild(block);
-  document.body.appendChild(editable);
+  const editable = createEditor(
+    '<pre class="CodeMirror-line">dm medbae on discordx for any mistakes/feedback or typos in translation</pre>',
+  );
+  const block = editable.firstElementChild as HTMLElement;
 
   const entry = createSuggestionEntry({
-    elem: editable as SuggestionEntry["elem"],
+    elem: editable,
     requestId: 2,
     suppressNextSuggestionInputPrediction: true,
     suggestions: ["discord "],
     lastKeydownKey: "x",
-    pendingExtensionEdit: {
+    pendingExtensionEdit: createPendingEdit({
       replaceStart: 13,
       originalText: "disxcord",
       replacementText: "discord",
       cursorBefore: 17,
       cursorAfter: 20,
-      postEditFingerprint: {
-        fullText: "",
-        cursorOffset: 20,
-        selectionCollapsed: true,
-      },
+      postEditFingerprint: { fullText: "", cursorOffset: 20, selectionCollapsed: true },
       awaitingHostInputEcho: false,
-      source: "suggestion",
       blockScoped: true,
       blockElement: block,
       postEditBlockText: "dm medbae on discord for any mistakes/feedback or typos in translation",
-    },
+    }),
   });
 
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === entry.requestId,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "discordx", start: 13 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator("discordx", 13);
   const contentEditableAdapter = Object.assign(new ContentEditableAdapter(), {
     getActiveBlockElement: () => block,
     hasMultipleBlockDescendants: () => false,
@@ -1046,37 +910,29 @@ test("session releases post-accept suppression on a literal space keydown when n
     suppressNextSuggestionInputPrediction: true,
     missingTrailingSpace: true,
     expectedCursorPos: 3,
-    pendingExtensionEdit: {
-      replaceStart: 0,
+    pendingExtensionEdit: createPendingEdit({
       originalText: "Wa",
       replacementText: "Was",
       cursorBefore: 2,
       cursorAfter: 3,
-      postEditFingerprint: {
-        fullText: "Was",
-        cursorOffset: 3,
-        selectionCollapsed: true,
-      },
+      postEditFingerprint: { fullText: "Was", cursorOffset: 3, selectionCollapsed: true },
       awaitingHostInputEcho: false,
-      source: "suggestion",
-    },
+    }),
   });
   const session = makeSession({ entry });
   const dispatchKeyboard = jest.fn();
   const dismissEntry = jest.fn();
-  const clearPendingFallback = jest.fn();
   const storePendingFallback = jest.fn();
   const runReconcile = jest.fn();
-  const keyboardEvent = new Event("keydown", {
+  const keyboardEvent = new window.KeyboardEvent("keydown", {
+    key: " ",
     bubbles: true,
     cancelable: true,
-  }) as KeyboardEvent;
-  Object.defineProperty(keyboardEvent, "key", { value: " " });
+  });
 
   session.handleKeyDown(keyboardEvent, {
     dispatchKeyboard,
     dismissEntry,
-    clearPendingFallback,
     storePendingFallback,
     runReconcile,
   });
@@ -1094,33 +950,26 @@ test("session keeps post-accept suppression on space keydown while a host echo i
     suppressNextSuggestionInputPrediction: true,
     missingTrailingSpace: true,
     expectedCursorPos: 3,
-    pendingExtensionEdit: {
-      replaceStart: 0,
+    pendingExtensionEdit: createPendingEdit({
       originalText: "Wa",
       replacementText: "Was",
       cursorBefore: 2,
       cursorAfter: 3,
-      postEditFingerprint: {
-        fullText: "Was",
-        cursorOffset: 3,
-        selectionCollapsed: true,
-      },
+      postEditFingerprint: { fullText: "Was", cursorOffset: 3, selectionCollapsed: true },
       awaitingHostInputEcho: true,
-      source: "suggestion",
-    },
+    }),
   });
   const session = makeSession({ entry });
   const dispatchKeyboard = jest.fn();
-  const keyboardEvent = new Event("keydown", {
+  const keyboardEvent = new window.KeyboardEvent("keydown", {
+    key: " ",
     bubbles: true,
     cancelable: true,
-  }) as KeyboardEvent;
-  Object.defineProperty(keyboardEvent, "key", { value: " " });
+  });
 
   session.handleKeyDown(keyboardEvent, {
     dispatchKeyboard,
     dismissEntry: jest.fn(),
-    clearPendingFallback: jest.fn(),
     storePendingFallback: jest.fn(),
     runReconcile: jest.fn(),
   });
@@ -1132,14 +981,7 @@ test("session keeps post-accept suppression on space keydown while a host echo i
 });
 
 test("session does not request inline suggestion while post-accept suppression is active", () => {
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === 2,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "what", start: 0 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator("what");
   const entry = createSuggestionEntry({
     requestId: 2,
     latestMentionText: "what",
@@ -1212,46 +1054,13 @@ test("dispose clears timers and UI state for one entry", () => {
   const hideMenu = jest.fn();
   const clearInlinePresenter = jest.fn();
 
-  const session = new SuggestionEntrySession({
-    entry,
-    editableContextResolver: {
-      resolve: () => ({
-        kind: "text-value",
-        beforeCursor: "",
-        afterCursor: "",
-        fullText: "",
-        cursorOffset: 0,
-        selectionStable: true,
-      }),
-    },
-    hideMenu,
-    clearInlinePresenter,
-    isFocused: () => true,
-    showSuggestionFooter: true,
-    inlineSuggestionEnabled: false,
-    predictionCoordinator: {
-      shouldProcessResponse: () => true,
-      schedule: jest.fn(),
-      reconcile: jest.fn(),
-      cancelPending: jest.fn(),
-      findMentionToken: () => ({ token: "", start: 0 }),
-    },
-    grammarCoordinator: { hasEnabledRules: () => false, run: () => null },
-    textEditService: {
-      acceptSuggestion: jest.fn(() => null),
-      applyGrammarEdit: jest.fn(() => ({ applied: false, didDispatchInput: false })),
-      syncManualAutoFixSuppression: jest.fn(),
-    },
-    contentEditableAdapter: new ContentEditableAdapter(),
-    renderMenu: () => undefined,
-    renderInline: () => undefined,
-    recordSuggestionShown: () => undefined,
-    recordSuggestionAccepted: () => undefined,
-    getLang: () => "en_US",
-    insertSpaceAfterAutocomplete: true,
-    logRenderedSuggestionPopup: () => undefined,
-    logNoVisibleSuggestions: () => undefined,
-  });
+  // The real coordinator: its cancelPending clears the request timer.
+  const predictionCoordinator = new SuggestionPredictionCoordinator({
+    lang: "en_US",
+    minWordLengthToPredict: 1,
+    getPrediction: () => undefined,
+  }) as unknown as ReturnType<typeof fakePredictionCoordinator>;
+  const session = makeSession({ entry, hideMenu, clearInlinePresenter, predictionCoordinator });
 
   session.dispose();
 
@@ -1274,18 +1083,11 @@ test("composition lifecycle is handled by the session", () => {
     isComposing: false,
   });
   entry.pendingIdleTimer = setTimeout(() => undefined, 1000);
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === entry.requestId,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "hel", start: 0 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator();
   const session = makeSession({
     entry,
     predictionCoordinator,
-    grammarCoordinator: { hasEnabledRules: () => true, run: () => null },
+    findGrammarProposals: async () => [],
   });
 
   session.handleCompositionStart();
@@ -1307,14 +1109,7 @@ test("composition lifecycle is handled by the session", () => {
 });
 
 test("dispose cancels pending prediction work", () => {
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === 2,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "hel", start: 0 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator();
   const session = makeSession({ predictionCoordinator });
 
   session.dispose();
@@ -1326,7 +1121,6 @@ test("session ignores stale responses and renders fresh menu responses", () => {
   const renderMenu = jest.fn();
   const clearInlinePresenter = jest.fn();
   const recordSuggestionShown = jest.fn();
-  const logRenderedSuggestionPopup = jest.fn();
   const entry = createSuggestionEntry({ requestId: 2, latestMentionText: "bet" });
   const input = entry.elem as HTMLInputElement;
   input.value = "hello world";
@@ -1337,16 +1131,19 @@ test("session ignores stale responses and renders fresh menu responses", () => {
     renderMenu,
     clearInlinePresenter,
     recordSuggestionShown,
-    logRenderedSuggestionPopup,
   });
 
-  session.handlePredictionResponse({ requestId: 1, suggestionId: 1, predictions: ["alpha"] });
-  session.handlePredictionResponse({
-    requestId: 2,
-    suggestionId: 1,
-    predictions: ["beta"],
-    lang: "en_US",
-  });
+  session.handlePredictionResponse(
+    partialResponse({ requestId: 1, suggestionId: 1, predictions: ["alpha"] }),
+  );
+  session.handlePredictionResponse(
+    partialResponse({
+      requestId: 2,
+      suggestionId: 1,
+      predictions: ["beta"],
+      lang: "en_US",
+    }),
+  );
 
   expect(renderMenu).toHaveBeenCalledTimes(1);
   expect(renderMenu).toHaveBeenCalledWith(
@@ -1362,7 +1159,6 @@ test("session ignores stale responses and renders fresh menu responses", () => {
   expect(entry.visibleSuggestionFullText).toBe("hello world");
   expect(entry.suggestions).toEqual(["beta"]);
   expect(recordSuggestionShown).toHaveBeenCalledWith({ suggestionCount: 1, language: "en_US" });
-  expect(logRenderedSuggestionPopup).toHaveBeenCalledTimes(1);
 });
 
 test("session does not fulfill pending inline accept when the ghost render is vetoed", () => {
@@ -1384,7 +1180,9 @@ test("session does not fulfill pending inline accept when the ghost render is ve
     inlineSuggestionEnabled: true,
   });
 
-  session.handlePredictionResponse({ requestId: 2, suggestionId: 1, predictions: ["beta"] });
+  session.handlePredictionResponse(
+    partialResponse({ requestId: 2, suggestionId: 1, predictions: ["beta"] }),
+  );
 
   expect(renderInline).toHaveBeenCalledTimes(1);
   expect(entry.pendingInlineAccept).toBe(false);
@@ -1440,13 +1238,10 @@ function makeInlineTabHarness({
       }),
     },
     predictionCoordinator: {
-      shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-        context.requestId === entry.requestId,
+      ...fakePredictionCoordinator(),
       schedule: jest.fn(() => {
         entry.requestId += 1;
       }),
-      reconcile: jest.fn(),
-      cancelPending: jest.fn(),
       findMentionToken,
     },
     renderInline: () =>
@@ -1469,7 +1264,9 @@ function makeInlineTabHarness({
     return event.defaultPrevented;
   };
   const respond = (predictions: string[]) =>
-    session.handlePredictionResponse({ requestId: entry.requestId, suggestionId: 1, predictions });
+    session.handlePredictionResponse(
+      partialResponse({ requestId: entry.requestId, suggestionId: 1, predictions }),
+    );
   // Types more text; the next prediction is held back until `respond`.
   const type = (text: string) => {
     input.value += text;
@@ -1589,8 +1386,6 @@ test("inline Tab does not accept a stale expansion after the shortcut is edited"
 // A response still in flight when more text is typed carries the text it was
 // predicted for; it must not be armed against the newer token.
 test("inline Tab does not accept a stale in-flight response after further typing", async () => {
-  const { SuggestionPredictionCoordinator } =
-    await import("../src/adapters/chrome/content-script/suggestions/SuggestionPredictionCoordinator");
   const input = document.createElement("input");
   input.value = "fun";
   input.setSelectionRange(3, 3);
@@ -1612,7 +1407,6 @@ test("inline Tab does not accept a stale in-flight response after further typing
     getPrediction: () => undefined,
     lang: "en_US",
     minWordLengthToPredict: 1,
-    separatorRegex: /\s/,
   });
   const findMentionToken = (beforeCursor: string) => coordinator.findMentionToken(beforeCursor);
   const session = makeSession({
@@ -1639,12 +1433,14 @@ test("inline Tab does not accept a stale in-flight response after further typing
   input.value = "fund";
   input.setSelectionRange(4, 4);
   session.handleInput(new Event("input"));
-  session.handlePredictionResponse({
-    requestId: inFlightRequestId,
-    suggestionId: 1,
-    text: "fun",
-    predictions: ["function"],
-  } as PredictionResponse);
+  session.handlePredictionResponse(
+    partialResponse({
+      requestId: inFlightRequestId,
+      suggestionId: 1,
+      text: "fun",
+      predictions: ["function"],
+    }),
+  );
   coordinator.cancelPending(entry);
 
   expect(entry.inlineSuggestion).toBeNull();
@@ -1652,19 +1448,19 @@ test("inline Tab does not accept a stale in-flight response after further typing
 
 test("session falls back to empty suggestions for invalid prediction payloads", () => {
   const renderMenu = jest.fn();
-  const logNoVisibleSuggestions = jest.fn();
   const entry = createSuggestionEntry({ requestId: 2, suggestions: ["stale"] });
-  const session = makeSession({ entry, renderMenu, logNoVisibleSuggestions });
+  const session = makeSession({ entry, renderMenu });
 
-  session.handlePredictionResponse({
-    requestId: 2,
-    suggestionId: 1,
-    predictions: undefined as unknown as string[],
-  });
+  session.handlePredictionResponse(
+    partialResponse({
+      requestId: 2,
+      suggestionId: 1,
+      predictions: undefined as unknown as string[],
+    }),
+  );
 
   expect(renderMenu).toHaveBeenCalledTimes(1);
   expect(entry.suggestions).toEqual([]);
-  expect(logNoVisibleSuggestions).toHaveBeenCalledTimes(1);
 });
 
 test("session renders inline suggestions and fulfills pending inline accept", () => {
@@ -1689,7 +1485,9 @@ test("session renders inline suggestions and fulfills pending inline accept", ()
     inlineSuggestionEnabled: true,
   });
 
-  session.handlePredictionResponse({ requestId: 2, suggestionId: 1, predictions: ["beta"] });
+  session.handlePredictionResponse(
+    partialResponse({ requestId: 2, suggestionId: 1, predictions: ["beta"] }),
+  );
 
   expect(entry.inlineSuggestion).toBeNull();
   expect(hideMenu.mock.calls.length).toBeGreaterThan(0);
@@ -1700,10 +1498,8 @@ test("session renders inline suggestions and fulfills pending inline accept", ()
 
 test("session seeds merged typed key at a contenteditable block boundary", () => {
   const entry = createSuggestionEntry({
-    elem: document.createElement("div") as SuggestionEntry["elem"],
+    elem: createEditor(""),
   });
-  entry.elem.setAttribute("contenteditable", "true");
-  Object.defineProperty(entry.elem, "isContentEditable", { value: true, configurable: true });
   const session = makeSession({
     entry,
     contentEditableAdapter: {
@@ -1719,13 +1515,11 @@ test("session seeds merged typed key at a contenteditable block boundary", () =>
   const context = (
     session as unknown as {
       resolveEditableCursorContext: (
-        entry: SuggestionEntry,
         snapshot: { beforeCursor: string; afterCursor: string; cursorOffset: number },
         options: { inputAction: "insert"; hasMultipleBlockDescendants: true; typedKey: string },
       ) => { beforeCursor: string; afterCursor: string; safeForGrammar: boolean };
     }
   ).resolveEditableCursorContext(
-    entry,
     { beforeCursor: "AlphaP", afterCursor: "", cursorOffset: 6 },
     { inputAction: "insert", hasMultipleBlockDescendants: true, typedKey: "p" },
   );
@@ -1737,19 +1531,16 @@ test("session seeds merged typed key at a contenteditable block boundary", () =>
 
 test("session seeds pending grammar edits from merged snapshots", () => {
   const entry = createSuggestionEntry({
-    elem: document.createElement("div") as SuggestionEntry["elem"],
-    pendingExtensionEdit: {
+    elem: createEditor(""),
+    pendingExtensionEdit: createPendingEdit({
       replaceStart: 5,
-      originalText: "",
       replacementText: "P",
       cursorBefore: 5,
       cursorAfter: 6,
       postEditFingerprint: { fullText: "AlphaP", cursorOffset: 6, selectionCollapsed: true },
       source: "grammar",
-    },
+    }),
   });
-  entry.elem.setAttribute("contenteditable", "true");
-  Object.defineProperty(entry.elem, "isContentEditable", { value: true, configurable: true });
   const session = makeSession({
     entry,
     contentEditableAdapter: {
@@ -1765,13 +1556,11 @@ test("session seeds pending grammar edits from merged snapshots", () => {
   const context = (
     session as unknown as {
       resolveEditableCursorContext: (
-        entry: SuggestionEntry,
         snapshot: { beforeCursor: string; afterCursor: string; cursorOffset: number },
         options: { inputAction: "insert"; hasMultipleBlockDescendants: true },
       ) => { beforeCursor: string; afterCursor: string; safeForGrammar: boolean };
     }
   ).resolveEditableCursorContext(
-    entry,
     { beforeCursor: "AlphaP", afterCursor: "", cursorOffset: 6 },
     { inputAction: "insert", hasMultipleBlockDescendants: true },
   );
@@ -1783,19 +1572,16 @@ test("session seeds pending grammar edits from merged snapshots", () => {
 
 test("session preserves resolved afterCursor when merged grammar snapshot does not start with replacement", () => {
   const entry = createSuggestionEntry({
-    elem: document.createElement("div") as SuggestionEntry["elem"],
-    pendingExtensionEdit: {
+    elem: createEditor(""),
+    pendingExtensionEdit: createPendingEdit({
       replaceStart: 5,
-      originalText: "",
       replacementText: "P",
       cursorBefore: 5,
       cursorAfter: 6,
       postEditFingerprint: { fullText: "AlphaPz", cursorOffset: 6, selectionCollapsed: true },
       source: "grammar",
-    },
+    }),
   });
-  entry.elem.setAttribute("contenteditable", "true");
-  Object.defineProperty(entry.elem, "isContentEditable", { value: true, configurable: true });
   const session = makeSession({
     entry,
     contentEditableAdapter: {
@@ -1811,13 +1597,11 @@ test("session preserves resolved afterCursor when merged grammar snapshot does n
   const context = (
     session as unknown as {
       resolveEditableCursorContext: (
-        entry: SuggestionEntry,
         snapshot: { beforeCursor: string; afterCursor: string; cursorOffset: number },
         options: { inputAction: "insert"; hasMultipleBlockDescendants: true },
       ) => { beforeCursor: string; afterCursor: string; safeForGrammar: boolean };
     }
   ).resolveEditableCursorContext(
-    entry,
     { beforeCursor: "AlphaP", afterCursor: "z", cursorOffset: 6 },
     { inputAction: "insert", hasMultipleBlockDescendants: true },
   );
@@ -1829,24 +1613,16 @@ test("session preserves resolved afterCursor when merged grammar snapshot does n
 
 test("session fallback reconcile dispatches adjusted prediction after grammar apply dispatches input", () => {
   const entry = createSuggestionEntry({
-    elem: document.createElement("div") as SuggestionEntry["elem"],
+    elem: createEditor(""),
   });
-  entry.elem.setAttribute("contenteditable", "true");
-  Object.defineProperty(entry.elem, "isContentEditable", { value: true, configurable: true });
-  const predictionCoordinator = {
-    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
-      context.requestId === entry.requestId,
-    schedule: jest.fn(),
-    reconcile: jest.fn(),
-    cancelPending: jest.fn(),
-    findMentionToken: () => ({ token: "P", start: 0 }),
-  };
+  const predictionCoordinator = fakePredictionCoordinator("P");
   const session = makeSession({
     entry,
     predictionCoordinator,
     grammarCoordinator: {
       hasEnabledRules: () => true,
-      run: () => ({ replacement: "P", deleteBackwards: 1 }),
+      run: () => ({ replacement: "P", deleteBackwards: 1, deleteForwards: 0 }),
+      runVirtualWordBoundary: () => null,
     },
     textEditService: {
       acceptSuggestion: jest.fn(() => null),
@@ -1900,19 +1676,9 @@ test("session fallback reconcile dispatches adjusted prediction after grammar ap
 });
 
 test("FT-INV-2 1000 contenteditable keydowns keep fallback snapshots inside the active block", () => {
-  const root = document.createElement("div");
-  root.setAttribute("contenteditable", "true");
-  Object.defineProperty(root, "isContentEditable", { value: true });
-  root.innerHTML = `<p>${"A correct sentence. ".repeat(2500)}</p><p>Typing</p>`;
-  document.body.append(root);
+  const root = createEditor(`<p>${"A correct sentence. ".repeat(2500)}</p><p>Typing</p>`);
   const block = root.lastElementChild as HTMLElement;
-  const range = document.createRange();
-  range.selectNodeContents(block);
-  range.collapse(false);
-  window.getSelection()!.removeAllRanges();
-  window.getSelection()!.addRange(range);
-  const session = makeSession({ entry: createSuggestionEntry({ elem: root }) });
-  const snapshot = jest.spyOn(TextTargetAdapter, "snapshot");
+  setCaret(block);
   let pending: PendingKeyFallback | undefined;
   const clear = () => {
     if (pending) {
@@ -1921,12 +1687,16 @@ test("FT-INV-2 1000 contenteditable keydowns keep fallback snapshots inside the 
       pending = undefined;
     }
   };
+  const session = makeSession({
+    entry: createSuggestionEntry({ elem: root }),
+    clearPendingFallback: clear,
+  });
+  const snapshot = jest.spyOn(TextTargetAdapter, "snapshot");
   try {
     for (let i = 0; i < 1000; i++) {
       session.handleKeyDown(new window.KeyboardEvent("keydown", { key: "a" }), {
         dispatchKeyboard: () => undefined,
         dismissEntry: () => undefined,
-        clearPendingFallback: clear,
         storePendingFallback: (value) => {
           pending = value;
         },
@@ -1977,5 +1747,4 @@ test("a late prose prediction cannot capitalize code after a same-text context c
   expect(root.textContent).toBe("helhel");
   setCaret(root.firstElementChild!.firstChild!);
   expect(session.refreshInteraction()).toBe(true);
-  root.remove();
 });

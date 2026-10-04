@@ -1,32 +1,21 @@
 import { expect, test } from "bun:test";
 import {
-  detectReviewDiagnostics,
-  prepareReview,
   scanReviewChunk,
   finalizeReview,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { TYPING_RULE_IDS, GRAMMAR_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
-import type { ReviewSourceSnapshot } from "../../src/core/domain/grammar/review/types";
+import type {
+  ReviewOptions,
+  ReviewSourceSnapshot,
+} from "../../src/core/domain/grammar/review/types";
+import { prepared, review, planBulkFix } from "./grammarTestUtils";
 const rule = "englishCanonicalCasing";
-const options = {
-  lang: "en_US",
-  enabledRules: [rule],
-  userDictionary: [],
-  insertSpaceAfterAutocomplete: true,
-};
-const snapshot = (
+const scan = (
   text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-): ReviewSourceSnapshot => ({
-  id: "brands",
-  text,
-  scope: { start: 0, end: text.length },
-  protectedRanges: [],
-  ...extra,
-});
-const scan = (text: string) => detectReviewDiagnostics(snapshot(text), options).diagnostics;
+  extra?: Partial<ReviewSourceSnapshot>,
+  options?: Partial<ReviewOptions>,
+) => review(text, extra, { enabledRules: [rule], ...options }).diagnostics;
 const positives = [
   ["We host the project on github.", "GitHub"],
   ["The implementation uses javascript.", "JavaScript"],
@@ -57,10 +46,7 @@ test.each(positives)("canonical casing offers the exact form: %s", (text, canoni
   expect(planBulkFix(text, findings).edits).toEqual([]);
   const fixed = applyEdits(text, d.alternatives[0].edits)!;
   expect(scan(fixed)).toEqual([]);
-  const all = detectReviewDiagnostics(snapshot(fixed), {
-    ...options,
-    enabledRules: GRAMMAR_RULE_IDS,
-  }).diagnostics;
+  const all = review(fixed, {}, { enabledRules: GRAMMAR_RULE_IDS }).diagnostics;
   expect(
     all.filter((f) =>
       [rule, "capitalizeSentenceStart", "capitalizeAfterLineBreak"].includes(f.ruleId),
@@ -117,26 +103,14 @@ test.each(negatives)("canonical casing preserves deliberate or technical text: %
 test("canonical casing respects dictionary, scope, protection and typing separation", () => {
   const text = positives[0][0];
   const start = text.indexOf("github");
-  expect(
-    detectReviewDiagnostics(snapshot(text), { ...options, userDictionary: ["GitHub"] }).diagnostics,
-  ).toEqual([]);
-  expect(
-    detectReviewDiagnostics(
-      snapshot(text, { scope: { start: start + 1, end: text.length } }),
-      options,
-    ).diagnostics,
-  ).toEqual([]);
-  expect(
-    detectReviewDiagnostics(
-      snapshot(text, { protectedRanges: [{ start, end: start + 6, reason: "code" }] }),
-      options,
-    ).diagnostics,
-  ).toEqual([]);
+  expect(scan(text, {}, { userDictionary: ["GitHub"] })).toEqual([]);
+  expect(scan(text, { scope: { start: start + 1, end: text.length } })).toEqual([]);
+  expect(scan(text, { protectedRanges: [{ start, end: start + 6, reason: "code" }] })).toEqual([]);
   // Brand names are spelled the same in every language.
   for (const lang of ["fr_FR", "de_DE", "pl_PL", "el_GR"]) {
     expect(
-      detectReviewDiagnostics(snapshot(text), { ...options, lang })
-        .diagnostics.filter((d) => d.ruleId === rule)
+      scan(text, {}, { lang })
+        .filter((d) => d.ruleId === rule)
         .map((d) => d.alternatives[0].preview),
     ).toEqual(["GitHub"]);
   }
@@ -154,24 +128,18 @@ test("canonical casing owns sentence starts only when its suggestion is enabled"
       "capitalizeAfterLineBreak",
       "englishProperNounCapitalization",
     ];
-    const findings = detectReviewDiagnostics(snapshot(text), {
-      ...options,
-      enabledRules: rules,
-    }).diagnostics;
+    const findings = review(text, {}, { enabledRules: rules }).diagnostics;
     expect(findings.map((d) => d.ruleId)).toEqual([rule]);
-    expect(
-      detectReviewDiagnostics(snapshot(text), { ...options, enabledRules: rules.slice(1) })
-        .diagnostics,
-    ).toHaveLength(1);
+    expect(review(text, {}, { enabledRules: rules.slice(1) }).diagnostics).toHaveLength(1);
   }
 });
 test("canonical casing offsets and ownership survive every Unicode chunk split", () => {
   const text = "😀 Cafe\u0301. We use github and typescript.\r\nWe run macos.";
-  const prepared = prepareReview(snapshot(text), options);
+  const prep = prepared(text, {}, { enabledRules: [rule] });
   for (let cut = 1; cut < text.length; cut++) {
-    const findings = finalizeReview(prepared, [
-      scanReviewChunk(prepared, { start: 0, end: cut }),
-      scanReviewChunk(prepared, { start: cut, end: text.length }),
+    const findings = finalizeReview(prep, [
+      scanReviewChunk(prep, { start: 0, end: cut }),
+      scanReviewChunk(prep, { start: cut, end: text.length }),
     ]).diagnostics;
     expect(findings).toEqual(scan(text));
   }

@@ -10,22 +10,6 @@ export function checkLastError(): void {
   }
 }
 
-export function promisifiedSendMessage<T = unknown, M = unknown>(
-  tabId: number,
-  message: M,
-  options?: chrome.tabs.MessageSendOptions,
-): Promise<T | undefined> {
-  return new Promise<T | undefined>((resolve, reject) => {
-    chrome.tabs.sendMessage(tabId, message, options || {}, (res) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-      } else {
-        resolve(res as T | undefined);
-      }
-    });
-  });
-}
-
 /** Bound a request without restarting its shared resource load. Late answers are ignored. */
 export async function withDeadline<T>(
   request: Promise<T>,

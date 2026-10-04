@@ -1,4 +1,5 @@
 import { InjectedHostEditorPageBridge } from "./HostEditorPageBridge";
+import { rangeInsideTarget } from "./TextTargetAdapter";
 import { HOST_MODEL_EDITOR_SELECTOR } from "./EditorCapabilities";
 import { isGutenbergField, isGutenbergContainer } from "./GutenbergEnvironment";
 import { isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
@@ -21,10 +22,27 @@ export const BLOCK_TAGS = new Set([
   "H6",
 ]);
 
-const SHOW_TEXT =
-  (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
-const SHOW_ELEMENT =
-  (globalThis as { NodeFilter?: { SHOW_ELEMENT?: number } }).NodeFilter?.SHOW_ELEMENT ?? 1;
+const BLOCK_SELECTOR = [...BLOCK_TAGS].join();
+
+export function isBlockNode(node: Node | null | undefined): node is HTMLElement {
+  return node?.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((node as Element).tagName);
+}
+
+/** The nearest BLOCK_TAGS element that holds `node` inside `root`, else `root`. */
+export function closestBlock(node: Node, root: HTMLElement): HTMLElement {
+  let current: HTMLElement | null =
+    node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement | null);
+
+  while (current && current !== root) {
+    if (BLOCK_TAGS.has(current.tagName)) {
+      return current;
+    }
+    current = current.parentElement;
+  }
+
+  return root;
+}
+
 const logger = createLogger("ContentEditableAdapter");
 
 interface ContentEditableDomPosition {
@@ -60,10 +78,7 @@ export class ContentEditableAdapter {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-    {
-      preferDomMutation = false,
-      scopeRoot = null,
-    }: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null } = {},
+    { scopeRoot = null }: { scopeRoot?: HTMLElement | null } = {},
   ): ContentEditableEditResult {
     // ProseMirror, Slate and Gutenberg own their model and history. The host bridge is their
     // only writer; a refused or unavailable host transaction must never fall through to DOM edits.
@@ -163,17 +178,23 @@ export class ContentEditableAdapter {
       selection.addRange(range);
     }
 
-    const restoreSelection = () => {
+    const selectsReplacementRange = () => {
       const selected = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      return (
+        !!selected &&
+        selected.startContainer === startPosition.container &&
+        selected.startOffset === startPosition.offset &&
+        selected.endContainer === endPosition.container &&
+        selected.endOffset === endPosition.offset
+      );
+    };
+
+    const restoreSelection = () => {
       if (
         !selection ||
         !selectionAnchors ||
-        !selected ||
         elem.textContent !== beforeEditorText ||
-        selected.startContainer !== startPosition.container ||
-        selected.startOffset !== startPosition.offset ||
-        selected.endContainer !== endPosition.container ||
-        selected.endOffset !== endPosition.offset
+        !selectsReplacementRange()
       )
         return;
       try {
@@ -195,112 +216,94 @@ export class ContentEditableAdapter {
 
     // The live selection is validated inside this scope; native editing keeps
     // the host/browser history even for a single paragraph in a large editor.
-    const shouldTryNativeReplacement = !preferDomMutation;
+    const beforeText = elem.textContent ?? "";
+    logger.debug("Dispatching contenteditable replacement beforeinput", {
+      replaceStart,
+      replaceEnd,
+      cursorAfter,
+      replacementLength: replacementText.length,
+      editScopeTextLength: (editScope.textContent ?? "").length,
+      editorTextLength: beforeText.length,
+    });
+    const beforeInputEvent = this.dispatchReplacementEvent(elem, range, replacementText);
+    const textAfterBeforeInput = elem.textContent ?? "";
+    const didMutateDom = textAfterBeforeInput !== beforeText;
 
-    if (!preferDomMutation) {
-      const beforeText = elem.textContent ?? "";
-      logger.debug("Dispatching contenteditable replacement beforeinput", {
-        replaceStart,
-        replaceEnd,
-        cursorAfter,
-        replacementLength: replacementText.length,
-        editScopeTextLength: (editScope.textContent ?? "").length,
-        editorTextLength: beforeText.length,
+    if (beforeInputEvent.defaultPrevented || didMutateDom) {
+      logger.debug("Contenteditable replacement handled by host", {
+        defaultPrevented: beforeInputEvent.defaultPrevented,
+        didMutateDom,
+        textLengthDelta: textAfterBeforeInput.length - beforeText.length,
       });
-      const beforeInputEvent = this.dispatchReplacementEvent(
-        "beforeinput",
-        elem,
-        range,
-        replacementText,
-      );
-      const textAfterBeforeInput = elem.textContent ?? "";
-      const hostHandled = beforeInputEvent.defaultPrevented || textAfterBeforeInput !== beforeText;
+      if (!didMutateDom) restoreSelection();
+      return {
+        appliedBy: "host-beforeinput",
+        didMutateDom,
+        didDispatchInput: false,
+        nativeUndo: true,
+        ...(didMutateDom && !verified() ? { unverified: true } : {}),
+      };
+    }
 
-      if (hostHandled) {
-        logger.debug("Contenteditable replacement handled by host", {
-          defaultPrevented: beforeInputEvent.defaultPrevented,
-          didMutateDom: textAfterBeforeInput !== beforeText,
-          textLengthDelta: textAfterBeforeInput.length - beforeText.length,
-        });
-        if (textAfterBeforeInput === beforeText) restoreSelection();
-        return {
-          appliedBy: "host-beforeinput",
-          didMutateDom: textAfterBeforeInput !== beforeText,
-          didDispatchInput: false,
-          nativeUndo: true,
-          ...(textAfterBeforeInput !== beforeText
-            ? { nativeUndo: true, ...(verified() ? {} : { unverified: true }) }
-            : {}),
-        };
-      }
-
-      const selected = selection?.rangeCount ? selection.getRangeAt(0) : null;
-      if (
-        getDeepActiveElement(elem.ownerDocument) !== elem ||
-        !selected ||
-        !editScope.contains(startPosition.container) ||
-        !editScope.contains(endPosition.container) ||
-        editScope.textContent !== beforeScopeText ||
-        !endpointsMatch() ||
-        selected.startContainer !== startPosition.container ||
-        selected.startOffset !== startPosition.offset ||
-        selected.endContainer !== endPosition.container ||
-        selected.endOffset !== endPosition.offset
+    if (
+      getDeepActiveElement(elem.ownerDocument) !== elem ||
+      !editScope.contains(startPosition.container) ||
+      !editScope.contains(endPosition.container) ||
+      editScope.textContent !== beforeScopeText ||
+      !endpointsMatch() ||
+      !selectsReplacementRange()
+    )
+      return refused;
+    // Unknown model-backed editors may handle beforeinput; never fall through
+    // to a foreign DOM edit when they decline it (FT-INV-5).
+    if (
+      elem.closest(
+        "[data-lexical-editor], [data-slate-editor], .DraftEditor-root, [data-contents], .ck-editor__editable, .ProseMirror, trix-editor, .cke_editable, .fr-element, .note-editable",
       )
-        return refused;
-      // Unknown model-backed editors may handle beforeinput; never fall through
-      // to a foreign DOM edit when they decline it (FT-INV-5).
-      if (
-        elem.closest(
-          "[data-lexical-editor], [data-slate-editor], .DraftEditor-root, [data-contents], .ck-editor__editable, .ProseMirror, trix-editor, .cke_editable, .fr-element, .note-editable",
-        )
-      ) {
+    ) {
+      restoreSelection();
+      return refused;
+    }
+    if (elem.matches(".mce-content-body")) {
+      const prefix = range.cloneRange();
+      prefix.selectNodeContents(elem);
+      prefix.setEnd(startPosition.container, startPosition.offset);
+      const result = new InjectedHostEditorPageBridge(elem.ownerDocument).applyTinyMCE(elem, {
+        before: beforeEditorText,
+        prefix: prefix.toString(),
+        selected: range.toString(),
+        replacement: replacementText,
+      });
+      if (!result.applied) {
         restoreSelection();
         return refused;
       }
-      if (elem.matches(".mce-content-body")) {
-        const prefix = range.cloneRange();
-        prefix.selectNodeContents(elem);
-        prefix.setEnd(startPosition.container, startPosition.offset);
-        const result = new InjectedHostEditorPageBridge(elem.ownerDocument).applyTinyMCE(elem, {
-          before: beforeEditorText,
-          prefix: prefix.toString(),
-          selected: range.toString(),
-          replacement: replacementText,
-        });
-        if (!result.applied) {
-          restoreSelection();
-          return refused;
-        }
-        return {
-          appliedBy: "host-beforeinput",
-          didMutateDom: true,
-          didDispatchInput: result.didDispatchInput,
-          nativeUndo: true,
-          ...(result.unverified || !verified() ? { unverified: true } : {}),
-        };
-      }
-      if (shouldTryNativeReplacement) {
-        if (this.tryNativeReplacement(elem, replacementText)) {
-          // execCommand leaves the caret at the end of the inserted text. Plain
-          // contenteditable has no async host reconciliation to override us, so
-          // place the caret at the final offset synchronously. This prevents a
-          // race where a fast follow-up keystroke (e.g. auto-close "()" then an
-          // immediate "x") lands before a deferred caret correction runs.
-          if (verified()) this.setCaret(editScope, cursorAfter);
-          logger.debug("Contenteditable replacement handled by execCommand fallback", {
-            didDispatchInput: false,
-            editorTextLength: (elem.textContent ?? "").length,
-          });
-          return {
-            appliedBy: "fallback-dom",
-            didMutateDom: true,
-            didDispatchInput: false,
-            nativeUndo: true,
-            ...(verified() ? {} : { unverified: true }),
-          };
-        }
-      }
+      return {
+        appliedBy: "host-beforeinput",
+        didMutateDom: true,
+        didDispatchInput: result.didDispatchInput,
+        nativeUndo: true,
+        ...(result.unverified || !verified() ? { unverified: true } : {}),
+      };
+    }
+    if (this.tryNativeReplacement(elem, replacementText)) {
+      // execCommand leaves the caret at the end of the inserted text. Plain
+      // contenteditable has no async host reconciliation to override us, so
+      // place the caret at the final offset synchronously. This prevents a
+      // race where a fast follow-up keystroke (e.g. auto-close "()" then an
+      // immediate "x") lands before a deferred caret correction runs.
+      if (verified()) this.setCaret(editScope, cursorAfter);
+      logger.debug("Contenteditable replacement handled by execCommand fallback", {
+        didDispatchInput: false,
+        editorTextLength: (elem.textContent ?? "").length,
+      });
+      return {
+        appliedBy: "fallback-dom",
+        didMutateDom: true,
+        didDispatchInput: false,
+        nativeUndo: true,
+        ...(verified() ? {} : { unverified: true }),
+      };
     }
 
     // A missing native writer is unsupported. Direct DOM edits lose host history.
@@ -317,18 +320,8 @@ export class ContentEditableAdapter {
       return null;
     }
 
-    const resolvedBlock = this.resolveBlockFromPoint(
-      range.startContainer,
-      range.startOffset,
-      elem,
-      true,
-    );
     // Always use innermost block so we never use a wrapper's full content (e.g. Lexical root -> div -> p, p).
-    const innermost = this.findInnermostBlockContainingRange(elem, range);
-    const block =
-      innermost && (elem === resolvedBlock || resolvedBlock.contains(innermost))
-        ? innermost
-        : resolvedBlock;
+    const block = this.resolveActiveBlockForRange(elem, range);
     const startPoint = this.resolvePointWithinBlock(range.startContainer, range.startOffset, block);
     const endPoint = this.resolvePointWithinBlock(range.endContainer, range.endOffset, block);
     if (startPoint && endPoint) {
@@ -337,15 +330,8 @@ export class ContentEditableAdapter {
         return lineContext;
       }
 
-      const beforeRange = range.cloneRange();
-      beforeRange.selectNodeContents(block);
-      beforeRange.setEnd(startPoint.container, startPoint.offset);
-
-      const afterRange = range.cloneRange();
-      afterRange.selectNodeContents(block);
-      afterRange.setStart(endPoint.container, endPoint.offset);
-
-      let afterCursor = afterRange.toString();
+      const context = this.textAroundPositions(block, startPoint, endPoint);
+      let afterCursor = context.afterCursor;
       // When block is root and cursor is at end of a direct text child whose next sibling is a block
       // (e.g. "asap" then signature div), treat as end-of-block so nextChar is "".
       if (
@@ -358,21 +344,13 @@ export class ContentEditableAdapter {
           range.startOffset === (textNode.textContent?.length ?? 0) &&
           elem === textNode.parentNode
         ) {
-          const next = textNode.nextSibling;
-          if (
-            next &&
-            next.nodeType === Node.ELEMENT_NODE &&
-            BLOCK_TAGS.has((next as Element).tagName)
-          ) {
+          if (isBlockNode(textNode.nextSibling)) {
             afterCursor = "";
           }
         }
       }
 
-      return {
-        beforeCursor: beforeRange.toString(),
-        afterCursor,
-      };
+      return { beforeCursor: context.beforeCursor, afterCursor };
     }
 
     // Fallback when resolvePointWithinBlock fails (e.g. some Lexical/Reddit DOM): find block
@@ -391,12 +369,7 @@ export class ContentEditableAdapter {
       return true;
     }
 
-    const selection = window.getSelection();
-    if (!selection) {
-      return true;
-    }
-
-    if (selection.isCollapsed) {
+    if (range.collapsed) {
       return false;
     }
 
@@ -429,7 +402,7 @@ export class ContentEditableAdapter {
     }
 
     const currentBlock = this.resolveActiveBlockForRange(elem, range);
-    if (!currentBlock || currentBlock === elem) {
+    if (currentBlock === elem) {
       return null;
     }
 
@@ -450,19 +423,7 @@ export class ContentEditableAdapter {
   }
 
   public hasMultipleBlockDescendants(elem: HTMLElement): boolean {
-    let blockCount = 0;
-    const walker = document.createTreeWalker(elem, SHOW_ELEMENT);
-    let current = walker.nextNode() as Element | null;
-    while (current) {
-      if (current !== elem && BLOCK_TAGS.has(current.tagName)) {
-        blockCount += 1;
-        if (blockCount > 1) {
-          return true;
-        }
-      }
-      current = walker.nextNode() as Element | null;
-    }
-    return false;
+    return elem.querySelectorAll(BLOCK_SELECTOR).length > 1;
   }
 
   /**
@@ -476,9 +437,6 @@ export class ContentEditableAdapter {
     range: Range,
   ): { beforeCursor: string; afterCursor: string } | null {
     const block = this.resolveActiveBlockForRange(root, range);
-    if (!block) {
-      return null;
-    }
     try {
       const startPosition = this.mapRangeEndpointIntoBlock(
         range.startContainer,
@@ -490,26 +448,31 @@ export class ContentEditableAdapter {
         range.endOffset,
         block,
       );
-      const lineContext = this.getBrSeparatedLineContext(block, startPosition, endPosition);
-      if (lineContext) {
-        return lineContext;
-      }
-      const beforeRange = document.createRange();
-      beforeRange.selectNodeContents(block);
-      beforeRange.setEnd(startPosition.container, startPosition.offset);
-      const afterRange = document.createRange();
-      afterRange.selectNodeContents(block);
-      afterRange.setStart(endPosition.container, endPosition.offset);
-      return {
-        beforeCursor: beforeRange.toString(),
-        afterCursor: afterRange.toString(),
-      };
+      return (
+        this.getBrSeparatedLineContext(block, startPosition, endPosition) ??
+        this.textAroundPositions(block, startPosition, endPosition)
+      );
     } catch {
       return null;
     }
   }
 
-  private resolveActiveBlockForRange(root: HTMLElement, range: Range): HTMLElement | null {
+  /** The text of `block` before `startPosition` and after `endPosition`. */
+  private textAroundPositions(
+    block: HTMLElement,
+    startPosition: ContentEditableDomPosition,
+    endPosition: ContentEditableDomPosition,
+  ): { beforeCursor: string; afterCursor: string } {
+    const beforeRange = document.createRange();
+    beforeRange.selectNodeContents(block);
+    beforeRange.setEnd(startPosition.container, startPosition.offset);
+    const afterRange = document.createRange();
+    afterRange.selectNodeContents(block);
+    afterRange.setStart(endPosition.container, endPosition.offset);
+    return { beforeCursor: beforeRange.toString(), afterCursor: afterRange.toString() };
+  }
+
+  private resolveActiveBlockForRange(root: HTMLElement, range: Range): HTMLElement {
     const resolvedBlock = this.resolveBlockFromPoint(
       range.startContainer,
       range.startOffset,
@@ -520,22 +483,17 @@ export class ContentEditableAdapter {
     if (innermost && (root === resolvedBlock || resolvedBlock.contains(innermost))) {
       return innermost;
     }
-    return resolvedBlock === root || BLOCK_TAGS.has(resolvedBlock.tagName) ? resolvedBlock : null;
+    return resolvedBlock;
   }
 
   private collectLeafBlockElements(root: HTMLElement): HTMLElement[] {
     const blocks: HTMLElement[] = [];
-    const walker = document.createTreeWalker(root, SHOW_ELEMENT);
-    let current = walker.nextNode() as Element | null;
     let lastBlock: HTMLElement | null = null;
-    while (current) {
-      if (current !== root && BLOCK_TAGS.has(current.tagName)) {
-        if (lastBlock && !lastBlock.contains(current)) {
-          blocks.push(lastBlock);
-        }
-        lastBlock = current as HTMLElement;
+    for (const current of root.querySelectorAll<HTMLElement>(BLOCK_SELECTOR)) {
+      if (lastBlock && !lastBlock.contains(current)) {
+        blocks.push(lastBlock);
       }
-      current = walker.nextNode() as Element | null;
+      lastBlock = current;
     }
     if (lastBlock) {
       blocks.push(lastBlock);
@@ -583,7 +541,7 @@ export class ContentEditableAdapter {
     endPosition: ContentEditableDomPosition,
   ): { beforeCursor: string; afterCursor: string } | null {
     const lineBreaks = Array.from(block.querySelectorAll("br")).filter(
-      (lineBreak) => !this.isNestedInsideDescendantBlock(lineBreak, block),
+      (lineBreak) => closestBlock(lineBreak, block) === block,
     );
     if (lineBreaks.length === 0) {
       return null;
@@ -593,12 +551,11 @@ export class ContentEditableAdapter {
     let lineEnd: ContentEditableDomPosition = { container: block, offset: block.childNodes.length };
 
     for (const lineBreak of lineBreaks) {
-      const breakStart = this.resolveNodeStartPosition(lineBreak);
-      // Void elements like <br> have no children, so start/end both collapse to
-      // {element, 0}; comparePositions still works because it follows DOM tree order.
-      const breakEnd = this.resolveNodeEndPosition(lineBreak);
-      if (this.comparePositions(breakEnd, startPosition) <= 0) {
-        lineStart = breakEnd;
+      // A <br> has no children, so its start and end are both {br, 0};
+      // comparePositions still works because it follows DOM tree order.
+      const breakStart: ContentEditableDomPosition = { container: lineBreak, offset: 0 };
+      if (this.comparePositions(breakStart, startPosition) <= 0) {
+        lineStart = breakStart;
         continue;
       }
       if (this.comparePositions(endPosition, breakStart) <= 0) {
@@ -621,39 +578,17 @@ export class ContentEditableAdapter {
     };
   }
 
-  private isNestedInsideDescendantBlock(node: Element, block: HTMLElement): boolean {
-    let parent = node.parentElement;
-    while (parent && parent !== block) {
-      if (BLOCK_TAGS.has(parent.tagName)) {
-        return true;
-      }
-      parent = parent.parentElement;
-    }
-    return false;
-  }
-
   /**
    * Find the innermost block (P, DIV, etc.) that contains the start of the range.
    * When the cursor is at (wrapperDiv, 1) we return the child block at that offset, not the wrapper.
    */
   private findInnermostBlockContainingRange(root: HTMLElement, range: Range): HTMLElement | null {
-    let block: HTMLElement | null = null;
-    let current: Node | null = range.startContainer;
-    while (current && current !== root) {
-      if (current.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((current as Element).tagName)) {
-        block = current as HTMLElement;
-        break;
-      }
-      current = current.parentNode;
-    }
+    const found = closestBlock(range.startContainer, root);
+    let block: HTMLElement | null = found === root ? null : found;
     if (!block && range.startContainer === root) {
-      const idx =
-        range.startOffset < root.childNodes.length
-          ? range.startOffset
-          : Math.max(0, range.startOffset - 1);
-      const child = root.childNodes[idx];
-      if (child?.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((child as Element).tagName)) {
-        block = child as HTMLElement;
+      const child = this.pickAdjacentChildAtOffset(root, range.startOffset, true);
+      if (isBlockNode(child)) {
+        block = child;
       }
     }
     if (!block) {
@@ -671,26 +606,17 @@ export class ContentEditableAdapter {
       );
       let descended = false;
       for (let i = 0; i < block.childNodes.length; i += 1) {
-        const child = block.childNodes[i];
-        if (
-          child.nodeType === Node.ELEMENT_NODE &&
-          BLOCK_TAGS.has((child as Element).tagName) &&
-          (child === startPosition.container ||
-            (child as Element).contains(startPosition.container))
-        ) {
-          block = child as HTMLElement;
+        const child: Node = block.childNodes[i];
+        if (isBlockNode(child) && child.contains(startPosition.container)) {
+          block = child;
           descended = true;
           break;
         }
       }
       if (!descended && startPosition.container === block) {
-        const idx =
-          startPosition.offset < block.childNodes.length
-            ? startPosition.offset
-            : Math.max(0, startPosition.offset - 1);
-        const child = block.childNodes[idx];
-        if (child?.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((child as Element).tagName)) {
-          block = child as HTMLElement;
+        const child = this.pickAdjacentChildAtOffset(block, startPosition.offset, true);
+        if (isBlockNode(child)) {
+          block = child;
           descended = true;
         }
       }
@@ -702,13 +628,8 @@ export class ContentEditableAdapter {
   }
 
   public isCollapsedSelectionBeforeBlockBoundary(elem: HTMLElement): boolean {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) {
-      return false;
-    }
-
-    const range = this.resolveSelectionRangeWithinElement(elem, { requireEndContainer: false });
-    if (!range) {
+    const range = this.resolveSelectionRangeWithinElement(elem);
+    if (!range?.collapsed) {
       return false;
     }
 
@@ -717,36 +638,16 @@ export class ContentEditableAdapter {
       if (range.startOffset < (textNode.textContent?.length ?? 0)) {
         return false;
       }
-      const nextSibling = this.findNextSiblingAcrossAncestors(textNode, elem);
-      return (
-        nextSibling?.nodeType === Node.ELEMENT_NODE && this.isBlockElement(nextSibling as Element)
-      );
+      return isBlockNode(this.findNextSiblingAcrossAncestors(textNode, elem));
     }
 
     if (range.startContainer.nodeType !== Node.ELEMENT_NODE) {
       return false;
     }
 
-    const next = this.pickAdjacentChildAtOffset(
-      range.startContainer as Element,
-      range.startOffset,
-      true,
+    return isBlockNode(
+      this.pickAdjacentChildAtOffset(range.startContainer as Element, range.startOffset, true),
     );
-    return next?.nodeType === Node.ELEMENT_NODE && this.isBlockElement(next as Element);
-  }
-
-  private resolveBlock(node: Node, root: HTMLElement): HTMLElement {
-    let current: HTMLElement | null =
-      node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement | null);
-
-    while (current && current !== root) {
-      if (BLOCK_TAGS.has(current.tagName)) {
-        return current;
-      }
-      current = current.parentElement;
-    }
-
-    return root;
   }
 
   private resolveBlockFromPoint(
@@ -758,49 +659,27 @@ export class ContentEditableAdapter {
     if (node === root) {
       const adjacent = this.pickAdjacentChildAtOffset(root, offset, preferForward);
       if (adjacent) {
-        const block = this.resolveBlock(adjacent, root);
+        const block = closestBlock(adjacent, root);
         if (block !== root) {
           return block;
         }
       }
     }
 
-    const block = this.resolveBlock(node, root);
+    const block = closestBlock(node, root);
     // When the block is a container with block children at this offset, use the
     // innermost block (e.g. Lexical/Reddit: root -> div -> p, p; cursor at (div, 1) must use second p,
     // not the wrapper div, so prediction uses "S" only, not "Wa" + "S").
     if (block !== root) {
-      const childOffset = this.getOffsetOfNodeInBlock(block, node, offset);
+      const childOffset =
+        node === block ? offset : Math.max(0, this.getBlockChildIndex(block, node));
       const adjacent = this.pickAdjacentChildAtOffset(block, childOffset, preferForward);
-      if (
-        adjacent &&
-        adjacent.nodeType === Node.ELEMENT_NODE &&
-        this.isBlockElement(adjacent as Element)
-      ) {
-        const innerOffset = preferForward ? 0 : (adjacent.childNodes?.length ?? 0);
+      if (isBlockNode(adjacent)) {
+        const innerOffset = preferForward ? 0 : adjacent.childNodes.length;
         return this.resolveBlockFromPoint(adjacent, innerOffset, root, preferForward);
       }
     }
     return block;
-  }
-
-  /** Child index of block that contains the given node (for resolving innermost block). */
-  private getOffsetOfNodeInBlock(block: HTMLElement, node: Node, offset: number): number {
-    if (node === block) {
-      return offset;
-    }
-    let current: Node | null = node;
-    while (current && current !== block) {
-      const parent: Node | null = current.parentNode;
-      if (parent === block) {
-        return Array.prototype.indexOf.call(block.childNodes, current);
-      }
-      if (!parent) {
-        return 0;
-      }
-      current = parent;
-    }
-    return 0;
   }
 
   private pickAdjacentChildAtOffset(
@@ -848,74 +727,18 @@ export class ContentEditableAdapter {
     return null;
   }
 
-  /** Index of the direct child of container that contains or is the block. */
-  private getBlockChildIndex(container: Element, block: HTMLElement): number {
+  /** Index of the direct child of container that contains or is `node`. */
+  private getBlockChildIndex(container: Element, node: Node): number {
     for (let i = 0; i < container.childNodes.length; i++) {
       const child = container.childNodes[i];
       if (
-        child === block ||
-        (child.nodeType === Node.ELEMENT_NODE && (child as Element).contains(block))
+        child === node ||
+        (child.nodeType === Node.ELEMENT_NODE && (child as Element).contains(node))
       ) {
         return i;
       }
     }
     return -1;
-  }
-
-  private dispatchReplacementEvent(
-    type: "beforeinput" | "input",
-    elem: HTMLElement,
-    range: Range,
-    replacementText: string,
-  ): Event {
-    const event = this.createInputEvent(type, {
-      inputType: "insertReplacementText",
-      data: replacementText,
-      cancelable: type === "beforeinput",
-      targetRange: range,
-    });
-    elem.dispatchEvent(event);
-    return event;
-  }
-
-  private resolveNodeStartPosition(node: Node): ContentEditableDomPosition {
-    if (node.nodeType === Node.TEXT_NODE) {
-      return { container: node, offset: 0 };
-    }
-    const element = node as Element;
-    const firstText = this.findFirstTextNode(element);
-    if (firstText) {
-      return { container: firstText, offset: 0 };
-    }
-    return { container: element, offset: 0 };
-  }
-
-  private resolveNodeEndPosition(node: Node): ContentEditableDomPosition {
-    if (node.nodeType === Node.TEXT_NODE) {
-      return { container: node, offset: node.textContent?.length ?? 0 };
-    }
-    const element = node as Element;
-    const lastText = this.findLastTextNode(element);
-    if (lastText) {
-      return { container: lastText, offset: lastText.textContent?.length ?? 0 };
-    }
-    return { container: element, offset: element.childNodes.length };
-  }
-
-  private findFirstTextNode(root: Node): Text | null {
-    const walker = document.createTreeWalker(root, SHOW_TEXT);
-    return walker.nextNode() as Text | null;
-  }
-
-  private findLastTextNode(root: Node): Text | null {
-    const walker = document.createTreeWalker(root, SHOW_TEXT);
-    let current = walker.nextNode() as Text | null;
-    let last: Text | null = null;
-    while (current) {
-      last = current;
-      current = walker.nextNode() as Text | null;
-    }
-    return last;
   }
 
   private findNextSiblingAcrossAncestors(node: Node, root: HTMLElement): Node | null {
@@ -927,10 +750,6 @@ export class ContentEditableAdapter {
       current = current.parentNode;
     }
     return null;
-  }
-
-  private isBlockElement(node: Element): boolean {
-    return BLOCK_TAGS.has(node.tagName);
   }
 
   /** Returns whether execCommand mutated the DOM. */
@@ -949,9 +768,7 @@ export class ContentEditableAdapter {
   }
 
   private runExecCommand(command: () => boolean): boolean {
-    if (typeof document.execCommand !== "function") {
-      return false;
-    }
+    // A missing execCommand throws here too.
     try {
       return command();
     } catch {
@@ -959,50 +776,16 @@ export class ContentEditableAdapter {
     }
   }
 
-  private createInputEvent(
-    type: "beforeinput" | "input",
-    {
-      inputType,
-      data,
-      cancelable,
-      targetRange,
-    }: {
-      inputType: string;
-      data: string;
-      cancelable: boolean;
-      targetRange: Range;
-    },
-  ): Event {
-    const staticRangeCtor = (globalThis as { StaticRange?: typeof StaticRange }).StaticRange;
-    const targetRanges =
-      typeof staticRangeCtor === "function"
-        ? [
-            new staticRangeCtor({
-              startContainer: targetRange.startContainer,
-              startOffset: targetRange.startOffset,
-              endContainer: targetRange.endContainer,
-              endOffset: targetRange.endOffset,
-            }),
-          ]
-        : undefined;
-
-    if (typeof InputEvent === "function") {
-      const init = {
-        bubbles: true,
-        cancelable,
-        inputType,
-        data: data || undefined,
-        targetRanges,
-      } as unknown as InputEventInit;
-      return new InputEvent(type, init);
-    }
-
-    const event = new Event(type, {
+  private dispatchReplacementEvent(elem: HTMLElement, targetRange: Range, data: string): Event {
+    const inputType = "insertReplacementText";
+    const event = new InputEvent("beforeinput", {
       bubbles: true,
-      cancelable,
-    }) as Event & { inputType?: string; data?: string };
-    event.inputType = inputType;
-    event.data = data;
+      cancelable: true,
+      inputType,
+      data: data || undefined,
+      targetRanges: [new StaticRange(targetRange)],
+    });
+    elem.dispatchEvent(event);
     return event;
   }
 
@@ -1063,31 +846,27 @@ export class ContentEditableAdapter {
     }
 
     const probeRange = document.createRange();
-    probeRange.selectNodeContents(root);
-
-    try {
-      probeRange.setEnd(range.startContainer, range.startOffset);
-      const startOffset = probeRange.toString().length;
-
-      probeRange.selectNodeContents(root);
-      probeRange.setEnd(range.endContainer, range.endOffset);
-      const endOffset = probeRange.toString().length;
-
-      return {
-        startOffset,
-        endOffset,
-        startPosition: {
-          container: range.startContainer,
-          offset: range.startOffset,
-        },
-        endPosition: {
-          container: range.endContainer,
-          offset: range.endOffset,
-        },
-      };
-    } catch {
+    const startOffset = this.measureBoundaryTextOffset(
+      root,
+      range.startContainer,
+      range.startOffset,
+      probeRange,
+    );
+    const endOffset = this.measureBoundaryTextOffset(
+      root,
+      range.endContainer,
+      range.endOffset,
+      probeRange,
+    );
+    if (startOffset === null || endOffset === null) {
       return null;
     }
+    return {
+      startOffset,
+      endOffset,
+      startPosition: { container: range.startContainer, offset: range.startOffset },
+      endPosition: { container: range.endContainer, offset: range.endOffset },
+    };
   }
 
   private resolveAnchoredSelectionPosition(
@@ -1107,28 +886,14 @@ export class ContentEditableAdapter {
     return null;
   }
 
-  private resolveSelectionRangeWithinElement(
-    elem: HTMLElement,
-    { requireEndContainer = true }: { requireEndContainer?: boolean } = {},
-  ): Range | null {
+  private resolveSelectionRangeWithinElement(elem: HTMLElement): Range | null {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) {
       return null;
     }
 
     const range = selection.getRangeAt(0);
-    const targetNode = elem as Node;
-    const startInside =
-      range.startContainer === targetNode || targetNode.contains(range.startContainer);
-    if (!startInside) {
-      return null;
-    }
-    if (!requireEndContainer) {
-      return range;
-    }
-
-    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
-    return endInside ? range : null;
+    return rangeInsideTarget(range, elem) ? range : null;
   }
 
   private resolveWithinTextNodes(
@@ -1137,7 +902,7 @@ export class ContentEditableAdapter {
     probeRange: Range,
     endpoint?: "start" | "end",
   ): ContentEditableDomPosition | null {
-    const walker = document.createTreeWalker(elem, SHOW_TEXT);
+    const walker = document.createTreeWalker(elem, NodeFilter.SHOW_TEXT);
     const entries: Array<{ node: Text; start: number; end: number; length: number }> = [];
     let current = walker.nextNode() as Text | null;
     while (current) {
@@ -1238,7 +1003,7 @@ export class ContentEditableAdapter {
     }
 
     const candidates: BoundaryCandidate[] = [];
-    const addBoundaryCandidates = (container: Element): void => {
+    for (const container of [elem, ...elem.querySelectorAll("*")]) {
       for (let offset = 0; offset <= container.childNodes.length; offset += 1) {
         const textOffset = this.measureBoundaryTextOffset(elem, container, offset, probeRange);
         if (textOffset === null) {
@@ -1246,21 +1011,10 @@ export class ContentEditableAdapter {
         }
         candidates.push({ container, offset, textOffset });
       }
-    };
-
-    addBoundaryCandidates(elem);
-    const elementWalker = document.createTreeWalker(elem, SHOW_ELEMENT);
-    let currentElement = elementWalker.nextNode() as Element | null;
-    while (currentElement) {
-      addBoundaryCandidates(currentElement);
-      currentElement = elementWalker.nextNode() as Element | null;
     }
 
-    const best = this.findBestBoundaryCandidate(candidates, clampedTarget);
-    if (!best) {
-      return { container: elem, offset: 0 };
-    }
-
+    // (elem, 0) is always a candidate.
+    const best = this.findBestBoundaryCandidate(candidates, clampedTarget)!;
     return { container: best.container, offset: best.offset };
   }
 
@@ -1279,10 +1033,8 @@ export class ContentEditableAdapter {
       endpoint === "end" ? selectionAnchors.endPosition : selectionAnchors.startPosition;
     const candidates: BoundaryCandidate[] = [];
     const addCandidateOffsets = (container: Element, offsets: number[]): void => {
+      // An offset outside the container makes setEnd throw: no text offset.
       for (const candidateOffset of offsets) {
-        if (candidateOffset < 0 || candidateOffset > container.childNodes.length) {
-          continue;
-        }
         const textOffset = this.measureBoundaryTextOffset(
           root,
           container,
@@ -1329,35 +1081,20 @@ export class ContentEditableAdapter {
     candidates: BoundaryCandidate[],
     clampedTarget: number,
   ): BoundaryCandidate | null {
-    if (candidates.length === 0) {
-      return null;
-    }
-
-    let best = candidates[0];
-    for (let index = 1; index < candidates.length; index += 1) {
-      const candidate = candidates[index];
-      if (this.isPreferredBoundaryCandidate(candidate, best, clampedTarget)) {
-        best = candidate;
-      }
-    }
-
-    return best;
+    return candidates.length === 0
+      ? null
+      : candidates.reduce((best, candidate) =>
+          this.isPreferredBoundaryCandidate(candidate, best, clampedTarget) ? candidate : best,
+        );
   }
 
   private comparePositions(
     left: ContentEditableDomPosition,
     right: ContentEditableDomPosition,
   ): number {
-    const START_TO_START = 0;
-    const leftRange = document.createRange();
-    leftRange.setStart(left.container, left.offset);
-    leftRange.collapse(true);
-
-    const rightRange = document.createRange();
-    rightRange.setStart(right.container, right.offset);
-    rightRange.collapse(true);
-
-    return leftRange.compareBoundaryPoints(START_TO_START, rightRange);
+    const range = document.createRange();
+    range.setStart(left.container, left.offset);
+    return -range.comparePoint(right.container, right.offset);
   }
 
   private isPreferredBoundaryCandidate(

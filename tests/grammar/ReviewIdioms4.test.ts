@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { ALL_RULES, scan } from "./reviewHarness";
+import { review } from "./grammarTestUtils";
 
 const RULES = new Set([
   "englishPhraseCorrections",
@@ -14,9 +15,10 @@ const RULES = new Set([
   "stylePhrasing",
   "styleRedundancy",
 ]);
-function findings(text: string) {
-  return scan(text, { enabledRules: ALL_RULES }).filter((d) => RULES.has(d.ruleId));
-}
+const findings = (text: string) =>
+  review(text, {}, { enabledRules: REVIEW_SUPPORTED_RULE_IDS }).diagnostics.filter((d) =>
+    RULES.has(d.ruleId),
+  );
 const repairsOf = (text: string) =>
   findings(text).flatMap((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));
 
@@ -126,6 +128,9 @@ const repairs: [string, string][] = [
   ["They look their noses down at us.", "They look down their noses at us."],
   ["She looked her nose down on him.", "She looked down her nose on him."],
   ["We dug under the hood of the report.", "We looked under the hood of the report."],
+  // "It" only at a real sentence start; all-caps text keeps its capitals.
+  ["That is sad, and        I would be a shame.", "That is sad, and        it would be a shame."],
+  ["I WOULD BE A SHAME TO MISS IT.", "IT WOULD BE A SHAME TO MISS IT."],
 ];
 
 // Correct forms and look-alikes that must stay clean.
@@ -225,6 +230,7 @@ const silent = [
   "We offer lessons free of charge.",
   "We offer free of charge delivery.",
   "I read the book for the third time.",
+  "The people of this day and age are busy.",
 ];
 
 describe("Review idioms4: fixed expressions and their context", () => {
@@ -232,7 +238,7 @@ describe("Review idioms4: fixed expressions and their context", () => {
     expect(repairsOf(typed)).toContain(repaired);
   });
 
-  test.each(silent.map((text) => [text]))("stays silent: %s", (text) => {
+  test.each(silent)("stays silent: %s", (text) => {
     expect(findings(text).map((d) => d.ruleId)).toEqual([]);
   });
 

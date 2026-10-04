@@ -1,34 +1,25 @@
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
-import { OPENING_QUOTES } from "../exampleCues";
+import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
+import { each, OWNERS, TAKE, type PhraseRow } from "../englishPhraseTables";
+import { quotedSpan } from "../exampleCues";
 import {
+  before,
   FRAME_AUDIT,
   frameMatches,
+  group,
   hasUserOrCasedWord,
   isLang,
+  notAfter,
   SPACE as S,
   WORD_END as E,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { clauseAfter, objectGapBefore } from "./slotWords";
 
-/** One row per item: `~` stands for the item (or its typed/replacement pair) in both columns. */
-const each = (
-  items: readonly (string | readonly [string, string])[],
-  typed: string,
-  replacement: string | readonly string[],
-): PhraseRow[] =>
-  items.map((item) => {
-    const [from, to] = typeof item === "string" ? [item, item] : item;
-    return [typed.replace("~", from), [replacement].flat().map((form) => form.replace("~", to))];
-  });
-const OWNERS = ["my", "your", "his", "her", "its", "our", "their"];
 const REFLEXIVES = [
   ...["myself", "yourself", "himself", "herself", "itself", "oneself"],
   ...["ourselves", "yourselves", "themselves"],
 ];
 const TRY = ["try", "tries", "tried", "trying"];
-const TAKE = ["take", "takes", "took", "taken", "taking"];
 const SHOOT = ["shoot", "shoots", "shot", "shooting"];
 const BE = ["is", "are", "was", "were", "be", "been", "being"];
 
@@ -110,10 +101,6 @@ export const PHRASES: readonly PhraseRow[] = [
     ["peeking", "piquing"],
   ].flatMap(([peek, pique]) => each(OWNERS, `${peek} ~ interest`, `${pique} ~ interest`)),
   // The head noun of the set phrase takes the plural.
-  ["line of codes", ["lines of code", "line of code"]],
-  ["lines of codes", "lines of code"],
-  ["point of views", ["points of view", "point of view"]],
-  ["points of views", "points of view"],
   ["rule of thumbs", ["rules of thumb", "rule of thumb"]],
   ["rules of thumbs", "rules of thumb"],
   ["rule-of-thumbs", ["rules-of-thumb", "rule-of-thumb"]],
@@ -261,29 +248,19 @@ export type Frame = {
   fix: string | readonly string[] | ((m: RegExpExecArray, ctx: DetectContext) => FixResult);
 };
 
-const lower = (word: string | undefined) => (word ?? "").toLowerCase();
-const info = (word: string | undefined) => (word ? englishWordInfo(lower(word)) : null);
-const hasForm = (word: string | undefined, form: string) =>
-  info(word)?.verbs.some((v) => v.form === form) ?? false;
 // Function words the lexicon also lists as nouns ("it", "you", "the ins and outs").
 const FUNCTION_WORD =
   /^(?:i|me|my|you|your|he|him|his|she|her|it|its|we|us|our|they|them|their|this|that|these|those|the|a|an|if|in|on|at|to|for|with|by|of|off|out|up|down|over|than|and|or|but|so|as|when|because|since|after|before|until|now|then|again|here|there|yet|still|too|very|is|are|was|were|be|been)$/i;
 /** A word the lexicon knows as a noun; unknown words are not. */
 const nounLike = (word: string | undefined) => {
   if (!word || FUNCTION_WORD.test(word)) return false;
-  const known = info(word);
+  const known = englishWordInfo(word);
   return !!known && (known.noun || known.plural);
 };
 /** The word after `end`, or "" when punctuation or the text end comes first. */
 const nextWord = (ctx: DetectContext, end: number) =>
   /^[ \t\u00a0]{1,8}([\p{L}\p{N}][\p{L}\p{N}'’-]*)/u.exec(ctx.text.slice(end, end + 48))?.[1] ?? "";
-const before = (ctx: DetectContext, index: number, chars = 80) =>
-  ctx.text.slice(Math.max(0, index - chars), index);
-const group = (m: RegExpExecArray, name: string) => m.indices!.groups![name];
 const matchEnd = (m: RegExpExecArray) => m.index + m[0].length;
-/** A lookbehind: none of the whole `words` (an alternation) right before the frame. */
-// A letter first: off words (on long runs of spaces) the lookbehind is never tried.
-const notAfter = (words: string) => `(?=\\p{L})(?<!(?<![\\p{L}'’])(?:${words})${S})`;
 /** A frame that may also start right after a slash ("source/reason of saving"). */
 const SLASH_START = (pattern: string) =>
   new RegExp(`(?<![.])(?<![\\p{L}\\p{M}\\p{N}_'’@#\\\\-])${pattern}`, "gidu");
@@ -333,7 +310,7 @@ const DEGREE_AFTER_THE =
   /^[ \t\u00a0]+the[ \t\u00a0]+(?:most|least|best|whole|rest|same|entire|other)\b/i;
 function missingTo(m: RegExpExecArray, ctx: DetectContext): string | null {
   const verb = m.groups!.target;
-  const known = info(verb);
+  const known = englishWordInfo(verb);
   // "need further details", "want better tools": comparatives the dictionary lists as verbs.
   if (
     !known?.verbs.some((v) => v.form === "base") ||
@@ -366,7 +343,7 @@ function sinceDuration(m: RegExpExecArray, ctx: DetectContext): Fix | null {
   const { unit, target } = m.groups!;
   // "Since two days were lost, …": the duration is a subject and "since" means "because".
   const next = nextWord(ctx, matchEnd(m));
-  if (CLAUSE_VERB.test(next) || hasForm(next, "past") || hasForm(next, "third")) return null;
+  if (CLAUSE_VERB.test(next) || hasVerbForm(next, "past", "third")) return null;
   // A following space joins the range, so "ago" lands before the next word.
   const space = /^[ \t\u00a0]*/.exec(ctx.text.slice(matchEnd(m)))![0];
   const [start, end] = group(m, "target");
@@ -390,12 +367,18 @@ const RISE: Record<string, string> = {
   rised: "rose",
 };
 const RANKS = `(?<target>(?<verb>rise|rises|rose|risen|rising|rised|raise|raises|raised|raising)(?<mid>(?:${S}up)?(?:${S}(?:in|through))?)${S}(?<the>the${S}(?<rank>ranks?)))${E}(?!${S}and${S}file${E})`;
-/** Errors: a missing preposition, "raise", "rised", or a singular "rank". */
-function riseRanks(m: RegExpExecArray): FixResult {
-  const verb = lower(m.groups!.verb);
-  const mid = lower(m.groups!.mid)
+/** The words between the verb and "the ranks", lowercase and one space apart. */
+function ranksMid(m: RegExpExecArray): string {
+  const { mid } = m.groups!;
+  return mid
+    .toLowerCase()
     .trim()
     .replace(/[ \t\u00a0]+/g, " ");
+}
+/** Errors: a missing preposition, "raise", "rised", or a singular "rank". */
+function riseRanks(m: RegExpExecArray): FixResult {
+  const verb = m.groups!.verb.toLowerCase();
+  const mid = ranksMid(m);
   const plural = /s$/i.test(m.groups!.rank);
   const insert: Fix = { alternatives: ["through the ranks"], range: group(m, "the") };
   if (!(verb in RISE)) {
@@ -411,10 +394,8 @@ function riseRanks(m: RegExpExecArray): FixResult {
 }
 /** Style: "rise up the ranks", "rise in the ranks" for the set "rise through the ranks". */
 function riseRanksStyle(m: RegExpExecArray): FixResult {
-  const mid = lower(m.groups!.mid)
-    .trim()
-    .replace(/[ \t\u00a0]+/g, " ");
-  if (lower(m.groups!.verb) in RISE || !mid || mid === "through") return null;
+  const mid = ranksMid(m);
+  if (m.groups!.verb.toLowerCase() in RISE || !mid || mid === "through") return null;
   return /s$/i.test(m.groups!.rank) ? `${m.groups!.verb} through the ranks` : null;
 }
 
@@ -444,7 +425,7 @@ const PHRASAL_CUE = Object.keys(PHRASAL);
 const PHRASAL_OWN = Object.keys(PHRASAL)
   .filter((word) => word !== "setup")
   .join("|");
-const phrasal = (m: RegExpExecArray) => PHRASAL[lower(m.groups!.target)];
+const phrasal = (m: RegExpExecArray) => PHRASAL[m.groups!.target.toLowerCase()];
 // "need to backup if it fails" may name the backup system.
 const phrasalInfinitive = (m: RegExpExecArray, ctx: DetectContext) =>
   /^(?:if|when|unless|because|before|after|until|while|and|or|in)$/i.test(
@@ -481,14 +462,14 @@ const FRAMES: readonly Frame[] = [
     rule: PREPOSITION,
     cue: ["interested"],
     pattern: `(?:${BE_FORM}|very|really|so|not|also|more|most|less|still|always|particularly|especially)${S}interested${S}(?<target>[a-z]+ing)${E}`,
-    fix: (m) => (hasForm(m.groups!.target, "ing") ? `in ${m.groups!.target}` : null),
+    fix: (m) => (hasVerbForm(m.groups!.target, "ing") ? `in ${m.groups!.target}` : null),
   },
   {
     // "seen from the naked eye" is "to" (or "with"); "hidden from the naked eye" stays.
     rule: PREPOSITION,
     cue: ["naked"],
     pattern: `(?<target>from)${S}the${S}naked${S}eyes?${E}`,
-    fix: (m, ctx) => (HIDING.test(before(ctx, m.index)) ? null : ["to", "with"]),
+    fix: (m, ctx) => (HIDING.test(before(ctx, m.index, 80)) ? null : ["to", "with"]),
   },
   {
     rule: PREPOSITION,
@@ -522,7 +503,7 @@ const FRAMES: readonly Frame[] = [
     pattern: SLASH_START(
       `${notAfter("for")}(?<target>(?<noun>reasons?)${S}of)${S}(?<ing>[a-z]+ing)${E}`,
     ),
-    fix: (m) => (hasForm(m.groups!.ing, "ing") ? `${m.groups!.noun} for` : null),
+    fix: (m) => (hasVerbForm(m.groups!.ing, "ing") ? `${m.groups!.noun} for` : null),
   },
   {
     rule: PREPOSITION,
@@ -534,7 +515,7 @@ const FRAMES: readonly Frame[] = [
     rule: PREPOSITION,
     cue: ["point"],
     pattern: `${notAfter(`what|whats|what['’]s|what${S}is|what${S}was`)}the${S}point${S}(?<target>for)${S}(?<ing>[a-z]+ing)${E}`,
-    fix: (m) => (hasForm(m.groups!.ing, "ing") ? "of" : null),
+    fix: (m) => (hasVerbForm(m.groups!.ing, "ing") ? "of" : null),
   },
   {
     // "take a look to see" is a purpose infinitive.
@@ -544,7 +525,8 @@ const FRAMES: readonly Frame[] = [
     fix: (m, ctx) => {
       const next = nextWord(ctx, matchEnd(m));
       // "has a look to it" describes an appearance.
-      if (hasForm(next, "base") || (/^ha/i.test(m[0]) && /^(?:it|them)$/i.test(next))) return null;
+      if (hasVerbForm(next, "base") || (/^ha/i.test(m[0]) && /^(?:it|them)$/i.test(next)))
+        return null;
       return "at";
     },
   },
@@ -589,7 +571,7 @@ const FRAMES: readonly Frame[] = [
     cue: ["nor"],
     pattern: `nor${S}(?<target>(?<pron>${SUBJECT})${S}(?<aux>${AUXILIARY}))${E}`,
     fix: (m, ctx) =>
-      /\bneither\b[^,.!?;:]*$/i.test(before(ctx, m.index))
+      /\bneither\b[^,.!?;:]*$/i.test(before(ctx, m.index, 80))
         ? null
         : { alternatives: [`${m.groups!.aux} ${m.groups!.pron}`], raw: true },
   },
@@ -623,7 +605,6 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?:(?:I|you|he|she|we|they|anyone|someone|everyone|anybody|somebody|everybody|nobody)${S}(?:am|is|are|was|were)|I['’]m|you['’]re|he['’]s|she['’]s|we['’]re|they['’]re)(?:${S}(?:still|also|really|kinda|totally|completely|honestly|currently|kind${S}of|sort${S}of|a${S}bit))?${S}on${S}(?<target>a)${S}fence${E}`,
     fix: "the",
   },
-  { rule: PHRASE, pattern: `once${S}(?<target>a)${S}twice${E}`, fix: "or" },
   {
     // "they are one in the same": after "be"; "another one in the same place" is literal.
     rule: PHRASE,
@@ -789,10 +770,7 @@ const FRAMES: readonly Frame[] = [
     fix: (m, ctx) => {
       const next = nextWord(ctx, group(m, "target")[1]);
       // At a clause start, only a noun makes it attributive: "Soon to be parents filled…".
-      if (
-        /^soon/i.test(m[0]) &&
-        (!nounLike(next) || hasForm(next, "past") || hasForm(next, "participle"))
-      )
+      if (/^soon/i.test(m[0]) && (!nounLike(next) || hasVerbForm(next, "past", "participle")))
         return null;
       return "soon-to-be";
     },
@@ -817,8 +795,9 @@ const FRAMES: readonly Frame[] = [
     pattern: `${notAfter("have|has|had|having|ought|got|need|needs|want|wants|going|condition|option|setting|mode")}(?<target>(?<first>to)${S}(?<adverb>[a-z]+)${S}to)${S}(?<verb>[a-z]+)${E}`,
     fix: (m) => {
       const { first, adverb, verb } = m.groups!;
-      if (!ADVERB_SLOT.test(adverb) && !(info(adverb)?.adverb && /ly$/i.test(adverb))) return null;
-      if (!hasForm(verb, "base")) return null;
+      if (!ADVERB_SLOT.test(adverb) && !(englishWordInfo(adverb)?.adverb && /ly$/i.test(adverb)))
+        return null;
+      if (!hasVerbForm(verb, "base")) return null;
       const alternatives = [`${first} ${adverb}`];
       if (/^(?:never|not)$/i.test(adverb)) alternatives.push(`${recase(first, adverb, m[0])} to`);
       return { alternatives, raw: true };
@@ -853,7 +832,9 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?<target>(?<first>${FREQUENCY})${S}(?<second>${FREQUENCY}))${E}`,
     fix: (m) => {
       const { first, second } = m.groups!;
-      return lower(first) === lower(second) ? null : { alternatives: [first, second], raw: true };
+      return first.toLowerCase() === second.toLowerCase()
+        ? null
+        : { alternatives: [first, second], raw: true };
     },
   },
   {
@@ -874,7 +855,7 @@ const FRAMES: readonly Frame[] = [
     cue: ["eat", "eats", "ate", "eaten", "eating"],
     pattern: `(?<target>(?<verb>eat|eats|ate|eaten|eating))${S}(?:(?:the|my|your|his|her|their|our|some|these|those|this|that|prescribed)${S}){0,2}(?:${MEDICINE})${E}`,
     fix: (m) => {
-      const verb = lower(m.groups!.verb);
+      const verb = m.groups!.verb.toLowerCase();
       return verb === "ate"
         ? ["took", "swallowed"]
         : ({ eat: "take", eats: "takes", eaten: "taken", eating: "taking" } as const)[
@@ -907,12 +888,12 @@ const FRAMES: readonly Frame[] = [
     fix: (m, ctx) => {
       const next = nextWord(ctx, matchEnd(m));
       // "garbage data", "garbage comments": a noun (or an unknown word) after it.
-      const known = next && !FUNCTION_WORD.test(next) ? info(next) : null;
+      const known = next && !FUNCTION_WORD.test(next) ? englishWordInfo(next) : null;
       const tagged =
         known &&
         (known.noun || known.plural || known.adjective || known.adverb || known.verbs.length);
       if (TRASH_AFTER.test(next) || (known !== null && !tagged)) return null;
-      if (nounLike(next) && !hasForm(next, "ing")) return null;
+      if (nounLike(next) && !hasVerbForm(next, "ing")) return null;
       const { verb, det, noun } = m.groups!;
       const object = `${det}${noun}`;
       return [`${verb} away ${object}`, `${verb} out ${object}`, `${verb} ${object} away`];
@@ -959,11 +940,7 @@ function detectFrames(ctx: DetectContext, frames: readonly Frame[] = FRAMES): Ra
     for (const m of frameMatches(ctx, pattern, owner)) {
       if (hasUserOrCasedWord(ctx, m[0])) continue;
       // A quoted example ("need to backup") is mentioned, not used.
-      if (
-        OPENING_QUOTES.includes(ctx.text[m.index - 1] || "\n") &&
-        /^["”'’“‘»«›‹]/.test(ctx.text.slice(matchEnd(m), matchEnd(m) + 1))
-      )
-        continue;
+      if (quotedSpan(ctx.text, m.index, matchEnd(m))) continue;
       const result = typeof fix === "function" ? fix(m, ctx) : fix;
       if (result === null) continue;
       const {

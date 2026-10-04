@@ -1,3 +1,5 @@
+import { i18n } from "@ui/options/fluenttyperI18n.js";
+
 export function formatMetricNumber(value: unknown): string {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return "0";
@@ -7,12 +9,25 @@ export function formatMetricNumber(value: unknown): string {
   }).format(value);
 }
 
+function parseDateKey(dateKey: string): Date | null {
+  const date = new Date(`${dateKey}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function formatTrendDayLabel(dateKey: unknown): string {
+  if (typeof dateKey !== "string") {
+    return "";
+  }
+  const date = parseDateKey(dateKey);
+  return date ? new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date) : dateKey;
+}
+
 export function formatWeekRange(weekKey: unknown): string {
   if (typeof weekKey !== "string") {
     return "n/a";
   }
-  const startDate = new Date(`${weekKey}T00:00:00`);
-  if (Number.isNaN(startDate.getTime())) {
+  const startDate = parseDateKey(weekKey);
+  if (!startDate) {
     return weekKey;
   }
   const endDate = new Date(startDate);
@@ -22,4 +37,19 @@ export function formatWeekRange(weekKey: unknown): string {
     day: "numeric",
   });
   return `${formatter.format(startDate)} - ${formatter.format(endDate)}`;
+}
+
+/** Formats "N accepted • N chars • N min" from a stats record. */
+export function formatSavingsSummary(
+  stats:
+    | { acceptedSuggestions?: unknown; charactersSaved?: unknown; estimatedMinutesSaved?: unknown }
+    | undefined,
+  separator = " • ",
+  unitSeparator = " ",
+): string {
+  return [
+    `${formatMetricNumber(stats?.acceptedSuggestions)}${unitSeparator}${i18n.get("popup_short_accepted")}`,
+    `${formatMetricNumber(stats?.charactersSaved)}${unitSeparator}${i18n.get("popup_short_chars")}`,
+    `${formatMetricNumber(stats?.estimatedMinutesSaved)}${unitSeparator}${i18n.get("popup_short_minutes")}`,
+  ].join(separator);
 }

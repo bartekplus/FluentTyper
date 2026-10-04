@@ -1,5 +1,4 @@
 import { acceptKeyLabels } from "@core/domain/suggestionPopup/keyHints";
-import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
 import type { GrammarEventType } from "@core/domain/grammar/types";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import {
@@ -7,6 +6,7 @@ import {
   type PredictionSessionState,
 } from "../suggestions/SuggestionPredictionCoordinator";
 import { SuggestionGrammarCoordinator } from "../suggestions/SuggestionGrammarCoordinator";
+import { SuggestionMenuView } from "../suggestions/SuggestionMenuView";
 import { SuggestionTelemetryService } from "../suggestions/SuggestionTelemetryService";
 import { SuggestionPersonalizationService } from "../suggestions/SuggestionPersonalizationService";
 import type { PredictionResponse, SuggestionManagerOptions } from "../suggestions/types";
@@ -164,6 +164,7 @@ export class GoogleDocsAdapter {
   private readonly personalization;
   private snapshot: DocsSnapshot | null = null;
   private requested: { id: number; snapshot: DocsSnapshot } | null = null;
+  private suggestionsLanguage: string | undefined;
   private suggestions: string[] = [];
   /** Parallel to `suggestions`: the snippet shortcut each one expands, or null. */
   private snippetShortcuts: Array<string | null> = [];
@@ -216,17 +217,12 @@ export class GoogleDocsAdapter {
   private readonly compositionEnd = () => {
     this.reviewSourceChanged();
     this.composing = false;
-    this.scheduleRefresh("insert", [], 60);
+    this.scheduleRefresh("insert", 60);
   };
   private readonly navigationListener = (event: Event) => {
     const owned = event
       .composedPath()
-      .some(
-        (node) =>
-          node instanceof Element &&
-          (node.id === `ft-menu-${DOCS_SESSION_ID}` ||
-            node.hasAttribute("data-ft-suggestion-owned")),
-      );
+      .some((node) => node instanceof Element && node.hasAttribute(SuggestionMenuView.OWNED_ATTR));
     if (!owned && !this.applying) this.dismiss();
   };
   private readonly layoutListener = () => this.render();
@@ -248,10 +244,8 @@ export class GoogleDocsAdapter {
     this.telemetry = options.telemetry ?? new SuggestionTelemetryService();
     this.personalization = options.personalization ?? new SuggestionPersonalizationService();
     this.prediction = new SuggestionPredictionCoordinator({
-      debounceByAction: { insert: 20, delete: 12, other: 20 },
       lang: options.lang,
       minWordLengthToPredict: options.minWordLengthToPredict,
-      separatorRegex: LANG_SEPARATOR_CHARS_REGEX[options.lang] ?? /\s+/,
       getPrediction: (context) => {
         if (!this.snapshot || this.disposed || this.applying || this.composing) return;
         this.requested = { id: context.requestId, snapshot: this.snapshot };
@@ -315,7 +309,7 @@ export class GoogleDocsAdapter {
   updateLanguage(lang: string): void {
     this.options.lang = lang;
     this.dismiss();
-    this.prediction.updateLang(lang, LANG_SEPARATOR_CHARS_REGEX[lang] ?? /\s+/);
+    this.prediction.updateLang(lang);
     this.grammar.updateLanguage(lang);
     void this.refresh(true);
   }
@@ -413,20 +407,12 @@ export class GoogleDocsAdapter {
   async reviewApply(token: string, edit: DocsEdit): Promise<DocsReply> {
     if (this.disposed || this.applying) return { status: "busy" };
     this.applying = true;
-    try {
-      return await this.bridge.apply(token, edit);
-    } catch {
-      return { status: "unverified" };
-    } finally {
-      this.applying = false;
-      this.snapshot = null;
-    }
+    const reply = await this.bridge.apply(token, edit);
+    this.applying = false;
+    this.snapshot = null;
+    return reply;
   }
-  fulfillPrediction(response: PredictionResponse): void {
-    void this.receivePrediction(response);
-  }
-
-  private async receivePrediction(response: PredictionResponse): Promise<void> {
+  async fulfillPrediction(response: PredictionResponse): Promise<void> {
     const request = this.requested;
     if (
       !request ||
@@ -458,7 +444,8 @@ export class GoogleDocsAdapter {
     this.suggestions = shown.map(({ text }) => text);
     this.snippetShortcuts = shown.map(({ shortcut }) => shortcut);
     this.selectedIndex = 0;
-    this.render(response.lang);
+    this.suggestionsLanguage = response.lang;
+    this.render();
     if (this.visible)
       this.telemetry.recordSuggestionShown({
         suggestionCount: this.suggestions.length,
@@ -494,15 +481,9 @@ export class GoogleDocsAdapter {
     this.bind(input);
     const epoch = this.epoch;
     this.reading = true;
-    let reply: DocsReply;
-    try {
-      reply = await this.bridge.read();
-    } catch {
-      reply = { status: "unavailable" };
-    } finally {
-      this.reading = false;
-      this.drainRerun();
-    }
+    const reply = await this.bridge.read();
+    this.reading = false;
+    this.drainRerun();
     if (this.disposed || epoch !== this.epoch || this.applying) return;
     if (reply.status !== "ready" || !reply.snapshot) {
       if (this.failureStatus !== reply.status) {
@@ -537,10 +518,6 @@ export class GoogleDocsAdapter {
       this.clearVisual();
     }
     this.snapshot = snapshot;
-    if (this.hasNativePopup()) {
-      this.clearVisual();
-      return;
-    }
     if (this.grammarSuppressed && !sameSnapshot(this.grammarSuppressed, snapshot))
       this.grammarSuppressed = null;
     const context = snapshotContext(snapshot);
@@ -709,12 +686,7 @@ export class GoogleDocsAdapter {
     this.invalidatePrediction();
     this.clearVisual();
     const tracked: TrackedEdit = { acceptance, before: snapshot };
-    let reply: DocsReply;
-    try {
-      reply = await this.bridge.apply(snapshot.token, edit);
-    } catch {
-      reply = { status: "unverified" };
-    }
+    const reply = await this.bridge.apply(snapshot.token, edit);
     this.applying = false;
     this.drainRerun();
     if (this.disposed) return;
@@ -778,13 +750,16 @@ export class GoogleDocsAdapter {
     }
     if (this.options.selectByDigit && /^\d$/.test(key))
       return this.accept(key === "0" ? 9 : Number(key) - 1);
-    if (
-      (key === "Tab" && (this.options.autocompleteOnTab || this.options.inline_suggestion)) ||
-      (key === "Enter" && this.options.autocompleteOnEnter) ||
-      (key === " " && this.options.autocomplete)
-    )
-      return this.accept(this.selectedIndex);
+    if (this.acceptKeys().includes(key)) return this.accept(this.selectedIndex);
     return false;
+  }
+  /** The keys that accept the selected suggestion. */
+  private acceptKeys(): string[] {
+    const keys: string[] = [];
+    if (this.options.autocompleteOnTab || this.options.inline_suggestion) keys.push("Tab");
+    if (this.options.autocompleteOnEnter) keys.push("Enter");
+    if (this.options.autocomplete) keys.push(" ");
+    return keys;
   }
   private onKey(event: KeyboardEvent): void {
     // An open review may take a key first (Escape closes its card).
@@ -868,7 +843,7 @@ export class GoogleDocsAdapter {
     // correct moment to read it back is the next task, not a fixed settle delay.
     // Waiting longer only lets the following keystroke cancel this pass and take the
     // word boundary with it.
-    this.scheduleRefresh(action, [], 0);
+    this.scheduleRefresh(action, 0);
     if (this.idleTimer !== null) clearTimeout(this.idleTimer);
     this.idleTimer = null;
     if (action === "insert")
@@ -876,18 +851,14 @@ export class GoogleDocsAdapter {
         void this.refresh(false, action, ["idle"]);
       }, 240);
   }
-  private scheduleRefresh(
-    action: PredictionInputAction | undefined,
-    triggers: GrammarEventType[],
-    delay: number,
-  ): void {
+  private scheduleRefresh(action: PredictionInputAction | undefined, delay: number): void {
     if (this.refreshTimer !== null) clearTimeout(this.refreshTimer);
     this.refreshTimer = setTimeout(() => {
       this.refreshTimer = null;
-      void this.refresh(false, action, triggers);
+      void this.refresh(false, action, []);
     }, delay);
   }
-  private render(language = this.options.lang): void {
+  private render(): void {
     if (!this.snapshot || !getDocsInput() || !this.suggestions.length || this.hasNativePopup()) {
       this.clearVisual();
       return;
@@ -896,7 +867,7 @@ export class GoogleDocsAdapter {
       this.suggestions,
       this.selectedIndex,
       this.snapshot,
-      language,
+      this.suggestionsLanguage ?? this.options.lang,
       this.snippetShortcuts,
     );
     this.updateKeyState();
@@ -906,10 +877,7 @@ export class GoogleDocsAdapter {
       this.input?.frame.removeAttribute(KEY_STATE_ATTR);
       return;
     }
-    const keys = ["Escape", "ArrowUp", "ArrowDown"];
-    if (this.options.autocompleteOnTab || this.options.inline_suggestion) keys.push("Tab");
-    if (this.options.autocompleteOnEnter) keys.push("Enter");
-    if (this.options.autocomplete) keys.push(" ");
+    const keys = ["Escape", "ArrowUp", "ArrowDown", ...this.acceptKeys()];
     if (this.options.selectByDigit)
       keys.push(...this.suggestions.map((_, index) => (index === 9 ? "0" : String(index + 1))));
     if (this.visible)
@@ -944,7 +912,7 @@ export class GoogleDocsAdapter {
   private drainRerun(): void {
     if (!this.rerun || this.disposed) return;
     this.rerun = false;
-    this.scheduleRefresh(this.pendingAction, [], 0);
+    this.scheduleRefresh(this.pendingAction, 0);
   }
   private clearPendingTriggers(): void {
     this.pendingTriggers.clear();

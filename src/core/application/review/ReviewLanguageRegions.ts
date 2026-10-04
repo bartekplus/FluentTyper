@@ -1,4 +1,4 @@
-import { languageMatchesScript } from "@core/domain/lang";
+import { baseLanguage, languageMatchesScript } from "@core/domain/lang";
 import type { ProtectedRange } from "@core/domain/grammar/review/types";
 
 /** Local paragraph evidence. Unknown long regions remain unchecked, with an explicit coverage gap. */
@@ -8,7 +8,7 @@ export async function reviewLanguageRegions(
   detect: (text: string) => Promise<string | null>,
   requireEvidence = true,
 ): Promise<ProtectedRange[]> {
-  const base = language.toLowerCase().split(/[_-]/)[0];
+  const base = baseLanguage(language);
   const requests = new Map<string, Promise<string | null>>();
   const regions: Promise<ProtectedRange | null>[] = [];
   for (const match of text.matchAll(/[^\r\n]+/gu)) {
@@ -30,7 +30,8 @@ export async function reviewLanguageRegions(
       continue;
     const range = { start: match.index, end: match.index + sample.length };
     if (requests.size >= 32 && !requests.has(sample)) {
-      regions.push(Promise.resolve({ ...range, reason: "language-uncertain" }));
+      if (requireEvidence)
+        regions.push(Promise.resolve({ ...range, reason: "language-uncertain" }));
       continue;
     }
     let request = requests.get(sample);
@@ -42,9 +43,7 @@ export async function reviewLanguageRegions(
       request.then((detected) => {
         if (!detected || detected === "und")
           return requireEvidence ? { ...range, reason: "language-uncertain" } : null;
-        return detected.toLowerCase().split(/[_-]/)[0] === base
-          ? null
-          : { ...range, reason: "other-language" };
+        return baseLanguage(detected) === base ? null : { ...range, reason: "other-language" };
       }),
     );
   }

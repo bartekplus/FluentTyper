@@ -55,13 +55,9 @@ PFX mp ال لل ال
 
 class DictionaryCleanerTest(unittest.TestCase):
     def setUp(self) -> None:
-        self._tmp = tempfile.TemporaryDirectory(prefix="hsp_dict_test_")
-        self.tmp = Path(self._tmp.name)
+        self.tmp = Path(self.enterContext(tempfile.TemporaryDirectory(prefix="hsp_dict_test_")))
         self.dic = self.tmp / "ar_SA.dic"
         self.dic.write_text(RAW_DICT, encoding="utf-8")
-
-    def tearDown(self) -> None:
-        self._tmp.cleanup()
 
     def cleaned_lines(self) -> list[str]:
         _clean_ayaspell_dictionary(self.dic)
@@ -153,16 +149,11 @@ class HunspellRoundTripTest(unittest.TestCase):
     def setUp(self) -> None:
         if not self.HUNSPELL:
             self.skipTest("hunspell binary not available")
-        self._tmp = tempfile.TemporaryDirectory(prefix="hsp_roundtrip_")
-        self.tmp = Path(self._tmp.name)
+        self.tmp = Path(self.enterContext(tempfile.TemporaryDirectory(prefix="hsp_roundtrip_")))
         (self.tmp / "ar_SA.aff").write_text(AFF_FIXTURE, encoding="utf-8")
         dic = self.tmp / "ar_SA.dic"
         dic.write_text(RAW_DICT, encoding="utf-8")
         _clean_ayaspell_dictionary(dic)
-
-    def tearDown(self) -> None:
-        if hasattr(self, "_tmp"):
-            self._tmp.cleanup()
 
     def _misspelled(self, words: list[str]) -> set[str]:
         proc = subprocess.run(

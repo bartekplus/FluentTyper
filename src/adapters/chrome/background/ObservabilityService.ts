@@ -14,22 +14,18 @@ import {
   type ObservabilityModuleState,
   type ObservabilitySnapshot,
 } from "@core/domain/observability";
-import type { AutoLanguageLiveRuntimeStatus } from "./LanguageDetector";
+import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import type { PredictorDebugSnapshot } from "./PredictionManager";
 
-const logger = createLogger("BackgroundServiceWorker");
+const logger = createLogger("ObservabilityService");
 const MAX_OBSERVABILITY_EVENTS = 250;
 const CONTENT_RUNTIME_TTL_MS = 5 * 60 * 1000;
 const MAX_CONTENT_RUNTIMES = 64;
 
-interface ContentRuntimeState extends ObservabilityContentRuntimeStatus {
-  key: string;
-}
-
 interface ObservabilityServiceOptions {
   isDevBuild: boolean;
   getPredictorSnapshot: () => PredictorDebugSnapshot;
-  getAutoLanguageRuntimes: () => AutoLanguageLiveRuntimeStatus[];
+  getAutoLanguageRuntimes: () => ObservabilityContentRuntimeStatus[];
   now?: () => number;
 }
 
@@ -49,24 +45,17 @@ function toRuntimeStatus(
   };
 }
 
-function normalizeDomain(domainURL?: string): string | null {
-  if (typeof domainURL !== "string" || domainURL.trim().length === 0) {
-    return null;
-  }
-  return domainURL.trim().toLowerCase();
-}
-
 export class ObservabilityService {
   private readonly isDevBuild: boolean;
   private readonly getPredictorSnapshot: () => PredictorDebugSnapshot;
-  private readonly getAutoLanguageRuntimes: () => AutoLanguageLiveRuntimeStatus[];
+  private readonly getAutoLanguageRuntimes: () => ObservabilityContentRuntimeStatus[];
   private readonly now: () => number;
   private config: ObservabilityConfig = structuredClone(DEFAULT_OBSERVABILITY_CONFIG);
   private events: ObservabilityEvent[] = [];
   private readonly moduleSources = new Map<string, Set<ObservabilityEvent["source"]>>();
   private readonly remotelyRegisteredModules = new Map<string, Set<ObservabilityEvent["source"]>>();
   private readonly lastEventAt = new Map<string, number>();
-  private readonly contentRuntimes = new Map<string, ContentRuntimeState>();
+  private readonly contentRuntimes = new Map<string, ObservabilityContentRuntimeStatus>();
 
   constructor(options: ObservabilityServiceOptions) {
     this.isDevBuild = options.isDevBuild;
@@ -112,10 +101,7 @@ export class ObservabilityService {
     }
   }
 
-  registerRemoteModules(source: ObservabilityEvent["source"], modules: string[]): void {
-    if (source === "background") {
-      return;
-    }
+  registerRemoteModules(source: "content_script" | "options", modules: string[]): void {
     for (const moduleId of modules) {
       if (typeof moduleId !== "string" || moduleId.trim().length === 0) {
         continue;
@@ -140,11 +126,10 @@ export class ObservabilityService {
     }
     const key = `${scope.tabId}:${scope.frameId}`;
     this.contentRuntimes.set(key, {
-      key,
       tabId: scope.tabId,
       frameId: scope.frameId,
       runtimeGeneration: scope.runtimeGeneration,
-      domain: normalizeDomain(scope.domainURL),
+      domain: normalizeDomainHost(scope.domainURL ?? "") ?? null,
       updatedAt: this.now(),
     });
     this.pruneContentRuntimes(this.now());
@@ -166,11 +151,7 @@ export class ObservabilityService {
         reason: "dev_build_required",
         config: structuredClone(DEFAULT_OBSERVABILITY_CONFIG),
         modules: [],
-        summary: {
-          totalEvents: 0,
-          eventsByLevel: { debug: 0, info: 0, warn: 0, error: 0 },
-          eventsBySource: { background: 0, content_script: 0, options: 0 },
-        },
+        summary: this.buildSummary(),
         events: [],
         predictor: null,
         contentRuntimes: [],
@@ -187,9 +168,9 @@ export class ObservabilityService {
       summary: this.buildSummary(),
       events: this.events.map(cloneEvent),
       predictor: this.getPredictorSnapshot(),
-      contentRuntimes: [...this.contentRuntimes.values()]
-        .sort((left, right) => right.updatedAt - left.updatedAt)
-        .map(toRuntimeStatus),
+      contentRuntimes: [...this.contentRuntimes.values()].sort(
+        (left, right) => right.updatedAt - left.updatedAt,
+      ),
       autoLanguageRuntimes: this.getAutoLanguageRuntimes().map(toRuntimeStatus),
     };
   }
@@ -267,11 +248,11 @@ export class ObservabilityService {
     if (this.contentRuntimes.size <= MAX_CONTENT_RUNTIMES) {
       return;
     }
-    const staleFirst = [...this.contentRuntimes.values()].sort(
-      (left, right) => right.updatedAt - left.updatedAt,
+    const newestFirst = [...this.contentRuntimes.entries()].sort(
+      ([, left], [, right]) => right.updatedAt - left.updatedAt,
     );
-    for (const runtime of staleFirst.slice(MAX_CONTENT_RUNTIMES)) {
-      this.contentRuntimes.delete(runtime.key);
+    for (const [key] of newestFirst.slice(MAX_CONTENT_RUNTIMES)) {
+      this.contentRuntimes.delete(key);
     }
   }
 }

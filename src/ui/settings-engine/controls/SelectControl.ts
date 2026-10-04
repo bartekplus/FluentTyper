@@ -1,22 +1,7 @@
 import type { SelectConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
-import {
-  BaseControl,
-  appendLabel,
-  createControlContainer,
-  createFieldRoot,
-} from "./FieldControl.js";
-
-function toAriaLabel(label?: string): string {
-  if (!label) {
-    return "";
-  }
-  return label
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+import { createElement } from "../dom/createElement.js";
+import { BaseControl, appendLabel, getUniqueID } from "./FieldControl.js";
 
 export class SelectControl extends BaseControl<string> {
   private readonly selectEl: HTMLSelectElement;
@@ -24,24 +9,23 @@ export class SelectControl extends BaseControl<string> {
   constructor(params: SelectConfig, store: Store) {
     super(params, store);
 
-    const root = createFieldRoot();
+    const root = createElement("div", { className: "field" });
     this._rootElement = root;
 
-    appendLabel(root, params.label);
+    const label = appendLabel(root, params.label);
 
-    const control = createControlContainer();
+    const control = createElement("div", { className: "control" });
 
-    const wrapper = document.createElement("div");
-    wrapper.className = "select";
+    const wrapper = createElement("div", { className: "select" });
 
     const select = document.createElement("select");
-    select.setAttribute("aria-label", toAriaLabel(params.label));
+    select.id = getUniqueID();
+    if (label) {
+      label.htmlFor = select.id;
+    }
 
     for (const [value, text] of params.options ?? []) {
-      const option = document.createElement("option");
-      option.value = value;
-      option.text = text ?? value;
-      select.appendChild(option);
+      select.add(new Option(text, value));
     }
 
     select.addEventListener("change", () => {

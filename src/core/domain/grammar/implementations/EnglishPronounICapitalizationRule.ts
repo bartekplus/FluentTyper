@@ -1,9 +1,10 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import {
   type EnglishBoundaryContext,
-  resolveEnglishBoundaryContext,
   findTrailingLetterToken,
   isPartOfTechnicalToken,
+  replaceFrom,
+  resolveEnglishBoundaryContext,
 } from "./helpers/EnglishRuleShared";
 
 const ENGLISH_APOSTROPHE_PRONOUN_REGEX = /(^|[^A-Za-z0-9_])(i)(['’](?:m|ve|ll|d))$/;
@@ -18,9 +19,7 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    const boundaryContext = resolveEnglishBoundaryContext(context, {
-      ignoreDeleteInputAction: true,
-    });
+    const boundaryContext = resolveEnglishBoundaryContext(context);
     if (!boundaryContext) {
       return null;
     }
@@ -52,17 +51,12 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
       return null;
     }
 
-    const replacement = `I${tokenInfo.trailing}`;
-    return {
-      replacement,
-      deleteBackwards: boundaryContext.input.length - tokenInfo.tokenStart,
-      deleteForwards: 0,
-    };
+    return replaceFrom(boundaryContext, tokenInfo.tokenStart, "I");
   }
 
   /** Capitalizes a deferred "i" once the following word identifies it. */
   private applyDeferredPronoun(boundaryContext: EnglishBoundaryContext): GrammarEdit | null {
-    const { core, trailing, input } = boundaryContext;
+    const { core } = boundaryContext;
     const match = DEFERRED_PRONOUN_I_REGEX.exec(core);
     if (!match) {
       return null;
@@ -74,22 +68,15 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
     }
 
     const pronounIndex = core.length - (1 + gap.length + following.length);
-    if (core[pronounIndex] !== "i") {
-      return null;
-    }
     if (isPartOfTechnicalToken(core, pronounIndex, pronounIndex + 1)) {
       return null;
     }
 
-    return {
-      replacement: `I${gap}${following}${trailing}`,
-      deleteBackwards: input.length - pronounIndex,
-      deleteForwards: 0,
-    };
+    return replaceFrom(boundaryContext, pronounIndex, `I${gap}${following}`);
   }
 
   private applyApostrophePronoun(boundaryContext: EnglishBoundaryContext): GrammarEdit | null {
-    const { core, trailing, input } = boundaryContext;
+    const { core } = boundaryContext;
     const match = core.match(ENGLISH_APOSTROPHE_PRONOUN_REGEX);
     if (!match) {
       return null;
@@ -97,18 +84,10 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
 
     const suffix = match[3];
     const replaceStart = core.length - (1 + suffix.length);
-    if (replaceStart < 0 || core[replaceStart] !== "i") {
-      return null;
-    }
     if (isPartOfTechnicalToken(core, replaceStart, replaceStart + 1)) {
       return null;
     }
 
-    const replacement = `I${core.slice(replaceStart + 1)}${trailing}`;
-    return {
-      replacement,
-      deleteBackwards: input.length - replaceStart,
-      deleteForwards: 0,
-    };
+    return replaceFrom(boundaryContext, replaceStart, `I${core.slice(replaceStart + 1)}`);
   }
 }

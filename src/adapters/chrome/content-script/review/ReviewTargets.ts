@@ -15,6 +15,7 @@ import {
   isGraphemeBoundary,
   mergeEdits,
   positionThroughEdits,
+  postEditRanges,
 } from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { isWordInputProxy } from "../suggestions/CodeContextResolver";
@@ -36,18 +37,10 @@ import {
   type ContentEditableTextMap,
 } from "./ContentEditableTextMap";
 
-export type ReviewEditorKind =
-  | "text-control"
-  | "contenteditable"
-  | "quill"
-  | "prosemirror"
-  | "slate"
-  | "model-editor"
-  | "gutenberg";
+type ContentEditableKind = "contenteditable" | "quill" | "prosemirror" | "slate" | "model-editor";
 
 export interface ReviewTargetHandle extends ReviewTargetPort {
   readonly element: HTMLElement;
-  readonly kind: ReviewEditorKind;
   composing: boolean;
   /** Viewport rectangles of a snapshot range, for highlights and hit-testing. */
   rangeRects(range: TextRange): DOMRect[];
@@ -58,7 +51,7 @@ export interface ReviewTargetHandle extends ReviewTargetPort {
   /** Gives the keyboard back to the editor (the review closed from its panel). */
   focusEditor(): void;
   /** Where measurement helpers may live (FluentTyper's own shadow root). */
-  setMeasurementRoot(root: ShadowRoot): void;
+  setMeasurementRoot?(root: ShadowRoot): void;
   dispose(): void;
 }
 
@@ -66,7 +59,7 @@ type Resolution =
   | { ok: true; target: ReviewTargetHandle; scope: TextRange | null }
   | { ok: false; reason: "no-editor" | "sensitive" | "cross-selection" };
 
-function isTextControl(element: Element): element is HTMLInputElement | HTMLTextAreaElement {
+export function isTextControl(element: Element): element is HTMLInputElement | HTMLTextAreaElement {
   return element.tagName === "INPUT" || element.tagName === "TEXTAREA";
 }
 
@@ -81,12 +74,8 @@ export function editingHost(element: HTMLElement): HTMLElement | null {
   ) {
     host = parent;
   }
-  return host;
-}
-
-/** Everything that makes a field ineligible for reading or writing, checked on every entry. */
-export function isReviewEligible(element: HTMLElement): boolean {
-  return editorCapabilities(element).renderReview;
+  // designMode: the whole document is editable; its text is the body's.
+  return host === host.ownerDocument.documentElement ? host.ownerDocument.body : host;
 }
 
 /**
@@ -120,7 +109,7 @@ export function resolveReviewTarget(
 
   if (isTextControl(active)) {
     // Non-text input types are refused as sensitive by the eligibility check.
-    if (!isReviewEligible(active)) return { ok: false, reason: "sensitive" };
+    if (!editorCapabilities(active).renderReview) return { ok: false, reason: "sensitive" };
     const start = active.selectionStart ?? 0;
     const end = active.selectionEnd ?? start;
     return {
@@ -131,16 +120,13 @@ export function resolveReviewTarget(
   }
 
   const selectedField = gutenbergSelectedField(active);
-  let host =
+  const host =
     active.closest<HTMLElement>(GUTENBERG_FIELD_SELECTOR) ??
     (selectedField !== active ? selectedField : editingHost(active));
   if (!host) return { ok: false, reason: "no-editor" };
-  // designMode: the whole document is editable; its text is the body's.
-  if (host === doc.documentElement) host = doc.body;
-  if (!host) return { ok: false, reason: "no-editor" };
   // A Gutenberg canvas without a selected RichText field has no editor to review.
   if (isGutenbergContainer(host)) return { ok: false, reason: "no-editor" };
-  if (!isReviewEligible(host)) return { ok: false, reason: "sensitive" };
+  if (!editorCapabilities(host).renderReview) return { ok: false, reason: "sensitive" };
   if (isGutenbergField(host)) {
     if (current instanceof GutenbergReviewTarget && current.element.contains(host))
       return { ok: true, target: current, scope: current.scope };
@@ -191,14 +177,7 @@ function sameExceptEdgeSpaces(
 ): boolean {
   if (observed === expected) return true;
   if (observed.length !== expected.length) return false;
-  let shift = 0;
-  const boundaries = [...edits]
-    .sort((a, b) => a.start - b.start)
-    .map((edit) => {
-      const start = edit.start + shift;
-      shift += edit.replacement.length - (edit.end - edit.start);
-      return { start, end: start + edit.replacement.length };
-    });
+  const boundaries = postEditRanges(edits);
   for (let i = 0; i < observed.length; i += 1) {
     if (observed[i] === expected[i]) continue;
     const spaces = /^[ \u00A0]$/.test(observed[i]) && /^[ \u00A0]$/.test(expected[i]);
@@ -212,11 +191,10 @@ function isGecko(doc: Document): boolean {
   return /\bGecko\/\d/.test(doc.defaultView?.navigator.userAgent ?? "");
 }
 
-/** True when `range` holds all of one text node's text (whitespace aside). */
+/** True when `range`, inside one text node, holds all of its text (whitespace aside). */
 function coversWholeTextNode(range: Range): boolean {
-  const node = range.startContainer;
-  if (node.nodeType !== 3 || range.endContainer !== node || range.collapsed) return false;
-  const data = (node as Text).data;
+  if (range.collapsed) return false;
+  const data = (range.startContainer as Text).data;
   const blank = /^[ \t\n\r\f]*$/;
   return blank.test(data.slice(0, range.startOffset)) && blank.test(data.slice(range.endOffset));
 }
@@ -238,12 +216,9 @@ function writeNative(
   edit: ReviewEdit,
   text: string,
 ): boolean {
+  // Both callers give a range inside one Text node that holds edit.original.
   const node = range.startContainer;
-  const inOneNode =
-    node.nodeType === 3 &&
-    range.endContainer === node &&
-    range.endOffset - range.startOffset === edit.original.length;
-  if (inOneNode && edit.replacement.length > 0) {
+  if (edit.replacement.length > 0) {
     // An insertion anchored on a neighboring character ("a" -> "a ") is written
     // as a pure insertion. At a link's leading edge browsers can move the new
     // text outside the link. Gecko can retain a leading caret in other inline
@@ -268,7 +243,6 @@ function writeNative(
       return true;
     }
     // Gecko can remove adjacent whitespace when it replaces a whole text node.
-    // The former two-command workaround cannot provide a coherent Undo step.
     if (coversWholeTextNode(range) && isGecko(doc)) return false;
   }
   selectRange(selection, range);
@@ -277,12 +251,7 @@ function writeNative(
   return true;
 }
 
-const TEXT_CAPABILITIES: ReviewCapabilities = {
-  inline: true,
-  apply: true,
-  bulk: true,
-  undo: "single-step",
-};
+const TEXT_CAPABILITIES: ReviewCapabilities = { apply: true, bulk: true };
 
 function nextFrame(win: Window): Promise<void> {
   return new Promise((resolve) => {
@@ -297,11 +266,10 @@ function nextFrame(win: Window): Promise<void> {
 
 /** Input and textarea: plain text, written as ONE native edit (one undo step). */
 export class TextControlReviewTarget implements ReviewTargetHandle {
-  readonly kind = "text-control" as const;
   get capabilities(): ReviewCapabilities {
     return typeof this.element.ownerDocument.execCommand === "function"
       ? TEXT_CAPABILITIES
-      : { inline: true, apply: false, bulk: false, undo: "none" };
+      : { apply: false, bulk: false };
   }
   composing = false;
   private mirror: TextControlMirror | null = null;
@@ -324,7 +292,7 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
   }
 
   read(): ReviewTargetRead {
-    if (!isReviewEligible(this.element)) {
+    if (!editorCapabilities(this.element).renderReview) {
       return { ok: false, reason: isInDocument(this.element) ? "ineligible" : "detached" };
     }
     if (this.composing) return { ok: false, reason: "composing" };
@@ -363,7 +331,8 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
     )
       return { status: "rejected", reason: "host-refused" };
     const check = (): ReviewApplyResult | null => {
-      if (!isReviewEligible(field)) return { status: "rejected", reason: "ineligible" };
+      if (!editorCapabilities(field).renderReview)
+        return { status: "rejected", reason: "ineligible" };
       if (this.composing) return { status: "rejected", reason: "composing" };
       if (typeof field.ownerDocument.execCommand !== "function")
         return { status: "rejected", reason: "unsupported" };
@@ -454,7 +423,7 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
 
 /** Native rich-text transactions and verified Quill/ProseMirror/Slate model transactions. */
 export class ContentEditableReviewTarget implements ReviewTargetHandle {
-  readonly kind: ReviewEditorKind;
+  readonly kind: ContentEditableKind;
   private readonly adapterCapabilities: ReviewCapabilities;
   composing = false;
   private map: ContentEditableTextMap | null = null;
@@ -463,7 +432,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
 
   constructor(readonly element: HTMLElement) {
     const quill = element.classList.contains("ql-editor") && !!element.closest(".ql-container");
-    const eligible = isReviewEligible(element);
+    const eligible = editorCapabilities(element).renderReview;
     this.quillModel = eligible && quill && !!this.pageBridge.readQuill(element);
     const proseMirror =
       eligible && element.matches(".ProseMirror") && !!this.pageBridge.readProseMirror(element);
@@ -475,7 +444,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
         ? "slate"
         : quill
           ? "quill"
-          : element.matches(MODEL_EDITOR_SELECTOR) || element.closest(MODEL_EDITOR_SELECTOR)
+          : element.closest(MODEL_EDITOR_SELECTOR)
             ? "model-editor"
             : "contenteditable";
     const model = this.kind === "prosemirror" || this.kind === "slate";
@@ -483,20 +452,8 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       model ||
       this.quillModel ||
       (this.kind === "contenteditable" && typeof element.ownerDocument.execCommand === "function");
-    this.adapterCapabilities = {
-      inline: true,
-      apply: writable,
-      // Each batch uses one native command or one host-model transaction.
-      bulk: writable && (model || this.kind === "contenteditable" || this.quillModel),
-      // Native commands and model transactions each create one Undo step.
-      undo: model
-        ? "single-step"
-        : this.quillModel
-          ? "host-history"
-          : writable
-            ? "single-step"
-            : "none",
-    };
+    // Each batch uses one native command or one host-model transaction.
+    this.adapterCapabilities = { apply: writable, bulk: writable };
   }
 
   get capabilities(): ReviewCapabilities {
@@ -505,13 +462,11 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       this.kind === "contenteditable" &&
       (this.element.closest(MODEL_EDITOR_SELECTOR) ||
         (this.element.classList.contains("ql-editor") && this.element.closest(".ql-container")));
-    return newModel
-      ? { inline: true, apply: false, bulk: false, undo: "none" }
-      : this.adapterCapabilities;
+    return newModel ? { apply: false, bulk: false } : this.adapterCapabilities;
   }
 
   read(): ReviewTargetRead {
-    if (!isReviewEligible(this.element)) {
+    if (!editorCapabilities(this.element).renderReview) {
       return { ok: false, reason: isInDocument(this.element) ? "ineligible" : "detached" };
     }
     if (this.composing) return { ok: false, reason: "composing" };
@@ -528,17 +483,12 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     };
   }
 
-  async apply(request: {
-    edits: ReviewEdit[];
-    before: string;
-    after: string;
-    signature: string;
-  }): Promise<ReviewApplyResult> {
+  async apply(request: Parameters<ReviewTargetHandle["apply"]>[0]): Promise<ReviewApplyResult> {
     const root = this.element;
     const doc = root.ownerDocument;
     const win = doc.defaultView;
     if (!win || !this.capabilities.apply) return { status: "rejected", reason: "unsupported" };
-    if (!isReviewEligible(root)) return { status: "rejected", reason: "ineligible" };
+    if (!editorCapabilities(root).renderReview) return { status: "rejected", reason: "ineligible" };
     if (this.composing) return { status: "rejected", reason: "composing" };
     if (hasOtherFocusedEditor(root)) return { status: "stale" };
     if (this.kind === "slate") {
@@ -568,8 +518,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
         ? { status: "unverified" }
         : result;
     }
-    if (!request.edits.length || (!this.capabilities.bulk && request.edits.length !== 1))
-      return { status: "rejected", reason: "unsupported" };
+    if (!request.edits.length) return { status: "rejected", reason: "unsupported" };
     let map = buildContentEditableTextMap(root);
     if (map.text !== request.before || map.signature !== request.signature) {
       return { status: "stale" };
@@ -589,7 +538,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     if (!focusInside()) return { status: "rejected", reason: "host-refused" };
     // Focus handlers run page code, which may have changed the text or only its
     // markup (text moved into <code>): re-read everything before the first write.
-    if (!isReviewEligible(root)) return { status: "rejected", reason: "ineligible" };
+    if (!editorCapabilities(root).renderReview) return { status: "rejected", reason: "ineligible" };
     if (!this.capabilities.apply) return { status: "rejected", reason: "unsupported" };
     if (this.composing) return { status: "rejected", reason: "composing" };
     map = buildContentEditableTextMap(root);
@@ -603,9 +552,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const edit = planned[0];
     if (!edit || !selection) return { status: "rejected", reason: "host-refused" };
     if (planned.length > 1) {
-      const transaction = this.capabilities.bulk
-        ? prepareNativeReviewTransaction(root, map, planned)
-        : null;
+      const transaction = prepareNativeReviewTransaction(root, map, planned);
       if (!transaction) return { status: "rejected", reason: "unsupported" };
       if (
         !writeNative(
@@ -645,7 +592,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const anchorOffset = afterSelection?.anchorOffset;
     const focusNode = afterSelection?.focusNode;
     const focusOffset = afterSelection?.focusOffset;
-    // Let a model-backed host (Quill) reconcile, then confirm it kept the text.
+    // Let an unknown host revert or normalize the edit, then confirm it kept the text.
     await nextFrame(win);
     const final = buildContentEditableTextMap(root);
     if (
@@ -708,20 +655,13 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const end = caretRange(map, shift(saved.end), doc);
     const selection = doc.getSelection();
     if (!start || !end || !selection) return;
-    const range = doc.createRange();
-    range.setStart(start.startContainer, start.startOffset);
-    range.setEnd(end.startContainer, end.startOffset);
-    if (saved.backward) {
-      selection.setBaseAndExtent(
-        range.endContainer,
-        range.endOffset,
-        range.startContainer,
-        range.startOffset,
-      );
-    } else {
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
+    const [anchor, focus] = saved.backward ? [end, start] : [start, end];
+    selection.setBaseAndExtent(
+      anchor.startContainer,
+      anchor.startOffset,
+      focus.startContainer,
+      focus.startOffset,
+    );
   }
 
   rangeRects(range: TextRange): DOMRect[] {
@@ -735,10 +675,6 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
   domRange(range: TextRange): Range | null {
     this.map ??= buildContentEditableTextMap(this.element);
     return offsetRangeToDomRange(this.map, range, this.element.ownerDocument);
-  }
-
-  setMeasurementRoot(): void {
-    // Measured through DOM Ranges on the editor itself.
   }
 
   focusEditor(): void {

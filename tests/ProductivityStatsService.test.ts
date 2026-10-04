@@ -1,32 +1,42 @@
-import { jest } from "bun:test";
-import { ProductivityStatsManager } from "../src/adapters/chrome/background/ProductivityStatsManager";
-import type { SettingsManager } from "../src/core/application/settingsManager";
+import { ProductivityStatsService } from "../src/core/application/productivityStats/ProductivityStatsService";
 import { KEY_PRODUCTIVITY_STATS } from "../src/core/domain/constants";
+import { memorySettings } from "./support/fakeSettings";
 
-function createSettingsManagerMock(seed: Record<string, unknown> = {}): {
-  manager: SettingsManager;
-  state: Record<string, unknown>;
-} {
-  const state: Record<string, unknown> = { ...seed };
+const ZERO_COUNTERS = {
+  acceptedSuggestions: 0,
+  charactersSaved: 0,
+  suggestionsShown: 0,
+  snippetsExpanded: 0,
+  charsInsertedFromSnippet: 0,
+  charsTypedForTrigger: 0,
+  snippetUsage: {},
+  languageUsage: {},
+};
+
+function day(overrides: Record<string, unknown>) {
+  return { ...ZERO_COUNTERS, ...overrides };
+}
+
+function statsSeed(overrides: Record<string, unknown>) {
   return {
-    state,
-    manager: {
-      get: jest.fn(async (key: string) => state[key] as never),
-      getRaw: jest.fn(async (key: string) => state[key] as never),
-      set: jest.fn(async (key: string, value: unknown) => {
-        state[key] = value;
-      }),
-      setRaw: jest.fn(async (key: string, value: unknown) => {
-        state[key] = value;
-      }),
-    } as unknown as SettingsManager,
+    [KEY_PRODUCTIVITY_STATS]: {
+      schemaVersion: 2,
+      ...ZERO_COUNTERS,
+      daily: {},
+      shownMilestones: [],
+      firstValuePromptAcknowledged: false,
+      lastWeeklyRecapWeek: null,
+      lastDonationPromptAt: null,
+      donationSnoozedUntil: null,
+      ...overrides,
+    },
   };
 }
 
-describe("ProductivityStatsManager", () => {
+describe("ProductivityStatsService", () => {
   test("records first-class usage events and snippet contribution", async () => {
-    const { manager: settingsManager } = createSettingsManagerMock();
-    const manager = new ProductivityStatsManager(settingsManager, {
+    const settingsManager = memorySettings();
+    const manager = new ProductivityStatsService(settingsManager, {
       now: () => new Date("2026-02-11T10:00:00"),
     });
     manager.setSnippetShortcuts([["brb", {}]]);
@@ -89,8 +99,8 @@ describe("ProductivityStatsManager", () => {
   });
 
   test("ignores snippet event counters when snippet shortcuts are not configured", async () => {
-    const { manager: settingsManager } = createSettingsManagerMock();
-    const manager = new ProductivityStatsManager(settingsManager, {
+    const settingsManager = memorySettings();
+    const manager = new ProductivityStatsService(settingsManager, {
       now: () => new Date("2026-02-11T10:00:00"),
     });
 
@@ -122,47 +132,20 @@ describe("ProductivityStatsManager", () => {
   });
 
   test("shows weekly recap only after Monday morning trigger", async () => {
-    const seededState = {
-      [KEY_PRODUCTIVITY_STATS]: {
-        schemaVersion: 2,
-        acceptedSuggestions: 3,
-        charactersSaved: 60,
-        suggestionsShown: 0,
-        snippetsExpanded: 0,
-        charsInsertedFromSnippet: 0,
-        charsTypedForTrigger: 0,
-        snippetUsage: {},
-        languageUsage: {},
-        daily: {
-          "2026-02-10": {
-            acceptedSuggestions: 3,
-            charactersSaved: 60,
-            suggestionsShown: 0,
-            snippetsExpanded: 0,
-            charsInsertedFromSnippet: 0,
-            charsTypedForTrigger: 0,
-            snippetUsage: {},
-            languageUsage: {},
-          },
-        },
-        shownMilestones: [],
-        firstValuePromptAcknowledged: false,
-        lastWeeklyRecapWeek: null,
-        lastDonationPromptAt: null,
-        donationSnoozedUntil: null,
-      },
-    };
+    const seededState = statsSeed({
+      acceptedSuggestions: 3,
+      charactersSaved: 60,
+      daily: { "2026-02-10": day({ acceptedSuggestions: 3, charactersSaved: 60 }) },
+    });
 
-    const early = createSettingsManagerMock(seededState);
-    const earlyManager = new ProductivityStatsManager(early.manager, {
+    const earlyManager = new ProductivityStatsService(memorySettings(seededState), {
       now: () => new Date("2026-02-16T07:00:00"),
     });
     const beforeTrigger = await earlyManager.getDashboardStats();
     expect(beforeTrigger.weeklyRecap.weekKey).toBe("2026-02-09");
     expect(beforeTrigger.shouldShowWeeklyRecap).toBe(false);
 
-    const onTime = createSettingsManagerMock(seededState);
-    const onTimeManager = new ProductivityStatsManager(onTime.manager, {
+    const onTimeManager = new ProductivityStatsService(memorySettings(seededState), {
       now: () => new Date("2026-02-16T09:00:00"),
     });
     const afterTrigger = await onTimeManager.getDashboardStats();
@@ -170,47 +153,18 @@ describe("ProductivityStatsManager", () => {
   });
 
   test("prioritizes weekly recap donation ask with recap enrichments", async () => {
-    const { manager: settingsManager } = createSettingsManagerMock({
-      [KEY_PRODUCTIVITY_STATS]: {
-        schemaVersion: 2,
+    const settingsManager = memorySettings(
+      statsSeed({
         acceptedSuggestions: 30,
         charactersSaved: 15500,
-        suggestionsShown: 0,
-        snippetsExpanded: 0,
-        charsInsertedFromSnippet: 0,
-        charsTypedForTrigger: 0,
-        snippetUsage: {},
-        languageUsage: {},
         daily: {
-          "2026-02-08": {
-            acceptedSuggestions: 10,
-            charactersSaved: 11000,
-            suggestionsShown: 0,
-            snippetsExpanded: 0,
-            charsInsertedFromSnippet: 0,
-            charsTypedForTrigger: 0,
-            snippetUsage: {},
-            languageUsage: {},
-          },
-          "2026-02-10": {
-            acceptedSuggestions: 20,
-            charactersSaved: 4500,
-            suggestionsShown: 0,
-            snippetsExpanded: 0,
-            charsInsertedFromSnippet: 0,
-            charsTypedForTrigger: 0,
-            snippetUsage: {},
-            languageUsage: {},
-          },
+          "2026-02-08": day({ acceptedSuggestions: 10, charactersSaved: 11000 }),
+          "2026-02-10": day({ acceptedSuggestions: 20, charactersSaved: 4500 }),
         },
-        shownMilestones: [],
-        firstValuePromptAcknowledged: false,
-        lastWeeklyRecapWeek: null,
         lastDonationPromptAt: "2026-02-15T12:00:00.000Z",
-        donationSnoozedUntil: null,
-      },
-    });
-    const manager = new ProductivityStatsManager(settingsManager, {
+      }),
+    );
+    const manager = new ProductivityStatsService(settingsManager, {
       now: () => new Date("2026-02-16T09:00:00"),
     });
 
@@ -222,29 +176,34 @@ describe("ProductivityStatsManager", () => {
     expect(stats.donationPrompt?.promptId).toBe("weekly_recap_2026-02-09");
   });
 
+  test("weekly milestones count the hours of pruned daily buckets", async () => {
+    // 30 lifetime hours; the kept buckets hold 2 h in the recap week and 1 h after it.
+    const hour = 240 * 60;
+    const manager = new ProductivityStatsService(
+      memorySettings(
+        statsSeed({
+          charactersSaved: 30 * hour,
+          daily: {
+            "2026-02-10": day({ charactersSaved: 2 * hour }),
+            "2026-02-16": day({ charactersSaved: hour }),
+          },
+        }),
+      ),
+      { now: () => new Date("2026-02-16T09:00:00") },
+    );
+
+    const stats = await manager.getDashboardStats();
+    expect(stats.weeklyRecap.weekKey).toBe("2026-02-09");
+    expect(stats.weeklyRecap.milestonesCrossedHours).toEqual([]);
+  });
+
   test("enforces first-value prompt cooldown and snooze", async () => {
-    const { manager: settingsManager, state } = createSettingsManagerMock({
-      [KEY_PRODUCTIVITY_STATS]: {
-        schemaVersion: 2,
-        acceptedSuggestions: 21,
-        charactersSaved: 1200,
-        suggestionsShown: 0,
-        snippetsExpanded: 0,
-        charsInsertedFromSnippet: 0,
-        charsTypedForTrigger: 0,
-        snippetUsage: {},
-        languageUsage: {},
-        daily: {},
-        shownMilestones: [],
-        firstValuePromptAcknowledged: false,
-        lastWeeklyRecapWeek: null,
-        lastDonationPromptAt: null,
-        donationSnoozedUntil: null,
-      },
-    });
+    const settingsManager = memorySettings(
+      statsSeed({ acceptedSuggestions: 21, charactersSaved: 1200 }),
+    );
 
     let now = new Date("2026-02-16T09:00:00");
-    const manager = new ProductivityStatsManager(settingsManager, {
+    const manager = new ProductivityStatsService(settingsManager, {
       now: () => now,
     });
 
@@ -269,19 +228,19 @@ describe("ProductivityStatsManager", () => {
     expect(afterSnooze.donationPrompt?.promptId).toBe("first_value");
 
     await manager.handleDonationPromptAction("first_value", "support_clicked", null);
-    const rawState = state[KEY_PRODUCTIVITY_STATS] as {
+    const rawState = settingsManager.store[KEY_PRODUCTIVITY_STATS] as {
       firstValuePromptAcknowledged: boolean;
     };
     expect(rawState.firstValuePromptAcknowledged).toBe(true);
   });
 
   test("dismissed support prompts stay disabled after restart and stats reset", async () => {
-    const { manager: settingsManager, state } = createSettingsManagerMock();
-    const manager = new ProductivityStatsManager(settingsManager);
+    const settingsManager = memorySettings();
+    const manager = new ProductivityStatsService(settingsManager);
     await manager.handleDonationPromptAction("first_value", "dismiss", null);
-    const restarted = new ProductivityStatsManager(settingsManager);
+    const restarted = new ProductivityStatsService(settingsManager);
     await restarted.resetStats();
-    expect(state[KEY_PRODUCTIVITY_STATS]).toMatchObject({
+    expect(settingsManager.store[KEY_PRODUCTIVITY_STATS]).toMatchObject({
       donationPromptsDisabled: true,
       acceptedSuggestions: 0,
     });
@@ -289,8 +248,8 @@ describe("ProductivityStatsManager", () => {
   });
 
   test("resetStats clears local counters and survives restart", async () => {
-    const { manager: settingsManager, state } = createSettingsManagerMock();
-    const manager = new ProductivityStatsManager(settingsManager, {
+    const settingsManager = memorySettings();
+    const manager = new ProductivityStatsService(settingsManager, {
       now: () => new Date("2026-02-11T10:00:00"),
     });
     manager.setSnippetShortcuts([["brb", {}]]);
@@ -310,7 +269,7 @@ describe("ProductivityStatsManager", () => {
       language: "en_US",
     });
 
-    const restarted = new ProductivityStatsManager(settingsManager, {
+    const restarted = new ProductivityStatsService(settingsManager, {
       now: () => new Date("2026-02-11T10:01:00"),
     });
     expect((await restarted.getDashboardStats()).lifetime.acceptedSuggestions).toBe(1);
@@ -321,7 +280,7 @@ describe("ProductivityStatsManager", () => {
     expect(afterReset.lifetime.charactersSaved).toBe(0);
     expect(afterReset.topSnippets).toEqual([]);
 
-    const persisted = state[KEY_PRODUCTIVITY_STATS] as {
+    const persisted = settingsManager.store[KEY_PRODUCTIVITY_STATS] as {
       acceptedSuggestions: number;
       charactersSaved: number;
     };
@@ -330,9 +289,9 @@ describe("ProductivityStatsManager", () => {
   });
 
   test("splits trend counters across midnight boundary", async () => {
-    const { manager: settingsManager } = createSettingsManagerMock();
+    const settingsManager = memorySettings();
     let now = new Date("2026-02-11T23:59:50");
-    const manager = new ProductivityStatsManager(settingsManager, {
+    const manager = new ProductivityStatsService(settingsManager, {
       now: () => now,
     });
 
@@ -382,7 +341,7 @@ describe("ProductivityStatsManager", () => {
       };
     }
 
-    const { manager: settingsManager } = createSettingsManagerMock({
+    const settingsManager = memorySettings({
       [KEY_PRODUCTIVITY_STATS]: {
         schemaVersion: 1,
         acceptedSuggestions: 730,
@@ -402,7 +361,7 @@ describe("ProductivityStatsManager", () => {
       },
     });
 
-    const manager = new ProductivityStatsManager(settingsManager, {
+    const manager = new ProductivityStatsService(settingsManager, {
       now: () => new Date("2026-02-11T10:00:00"),
     });
 

@@ -1,16 +1,16 @@
 import type { LocalAiErrorCode, LocalAiUnavailableReason } from "@core/domain/contracts/localAi";
 import {
   LOCAL_AI_MODELS,
-  localAiModelById,
   localAiModelFileUrl,
   type LocalAiModelRecord,
 } from "@core/domain/localAi/modelRegistry";
 import { aiMaxOutputTokens, buildAiMessages } from "@core/domain/grammar/review/ai/prompts";
-import { MAX_AI_RAW_OUTPUT_CHARS, parseAiResponse } from "@core/domain/grammar/review/ai/parse";
+import { parseAiResponse } from "@core/domain/grammar/review/ai/parse";
 import type {
   AiGenerationOutcome,
   AiGenerationRequest,
 } from "@core/domain/grammar/review/ai/types";
+import { withDeadline } from "@core/application/transport-utils";
 import { NetworkBlockedError, type NetworkGuard } from "./networkGuard";
 import {
   IntegrityError,
@@ -25,11 +25,11 @@ import {
 
 /**
  * The Local AI engine, run in-process by the background service worker. Its
- * epoch discards loads completed after unload. Returns bounded, text-free data.
+ * epoch discards loads completed after unload. Failures come back as bounded
+ * error codes, never as dependency error strings.
  */
 
-export type LoadResult =
-  { ok: true } | { ok: false; error?: LocalAiErrorCode; unavailable?: LocalAiUnavailableReason };
+export type LoadResult = { ok: true } | { ok: false; error?: LocalAiErrorCode };
 
 export type ProgressPhase = "download" | "load";
 
@@ -86,8 +86,6 @@ export interface EngineDeps {
   gpu: GpuLike | undefined;
   /** Every engine fetch (Transformers.js and downloads) goes through the guard. */
   guard: NetworkGuard;
-  /** Registry lookup (tests use tiny synthetic records). */
-  findModel?: (modelId: unknown) => LocalAiModelRecord | null;
   /** The registry's records (tests use tiny synthetic ones). */
   models?: readonly LocalAiModelRecord[];
   /** Upper bound on one `dispose()`; a hung one is abandoned (tests shorten it). */
@@ -122,18 +120,10 @@ export async function probeGpu(
   if (!gpu) {
     return "no-webgpu";
   }
-  let adapter: GpuAdapterLike | null = null;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    adapter = await Promise.race([
-      gpu.requestAdapter({ powerPreference: "high-performance" }),
-      new Promise<null>((resolve) => (timer = setTimeout(() => resolve(null), adapterTimeoutMs))),
-    ]);
-  } catch {
-    adapter = null;
-  } finally {
-    clearTimeout(timer);
-  }
+  const adapter = await withDeadline(
+    gpu.requestAdapter({ powerPreference: "high-performance" }),
+    adapterTimeoutMs,
+  ).catch(() => null);
   if (!adapter) {
     return "no-adapter";
   }
@@ -151,11 +141,14 @@ export class LocalAiEngine {
   /** Disposals in flight, chained (each is bounded, so this always settles). */
   private disposing: Promise<void> = Promise.resolve();
   private stopper: StopperLike | null = null;
-  private interruptRequested = false;
-  private readonly findModel: (modelId: unknown) => LocalAiModelRecord | null;
+  private readonly models: readonly LocalAiModelRecord[];
 
   constructor(private readonly deps: EngineDeps) {
-    this.findModel = deps.findModel ?? localAiModelById;
+    this.models = deps.models ?? LOCAL_AI_MODELS;
+  }
+
+  private findModel(modelId: unknown): LocalAiModelRecord | null {
+    return this.models.find((model) => model.modelId === modelId) ?? null;
   }
 
   async probe(modelId: string): Promise<LocalAiUnavailableReason | null> {
@@ -212,41 +205,31 @@ export class LocalAiEngine {
     }
     // A cancel that landed as the last file finished: never start the GPU load.
     if (signal.aborted) return { ok: false, error: "download-cancelled" };
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const stopped = new Promise<LoadResult>((resolve) => {
-      timer = setTimeout(() => resolve({ ok: false, error: "load-failed" }), loadTimeoutMs);
-      signal.addEventListener("abort", () => resolve({ ok: false, error: "load-failed" }), {
-        once: true,
-      });
-    });
-    const result = await Promise.race([this.load(modelId, onProgress), stopped]);
-    clearTimeout(timer);
+    const result = await withDeadline(this.load(modelId, onProgress), loadTimeoutMs, signal).catch(
+      (): LoadResult => ({ ok: false, error: "load-failed" }),
+    );
+    if (signal.aborted || !result.ok) {
+      // A cancelled, failed or abandoned load: nothing stays half-loaded on the GPU.
+      await this.unload();
+      return signal.aborted ? { ok: false, error: "download-cancelled" } : result;
+    }
+    try {
+      await markModelVerified(this.deps.caches, record);
+    } catch (error) {
+      // Not installed after all: the loaded model must not outlive the failure.
+      await this.unload();
+      return { ok: false, error: installErrorCode(error) };
+    }
     if (signal.aborted) {
+      // Cancelled while the marker was written: withdraw it (files stay, partial).
+      try {
+        await unmarkModelVerified(this.deps.caches, record);
+      } catch {
+        // The marker stays: the model is verified and installed after all, so say so.
+        return result;
+      }
       await this.unload();
       return { ok: false, error: "download-cancelled" };
-    }
-    if (!result.ok) {
-      // A failed or abandoned load: nothing stays half-loaded on the GPU.
-      await this.unload();
-    } else {
-      try {
-        await markModelVerified(this.deps.caches, record);
-      } catch (error) {
-        // Not installed after all: the loaded model must not outlive the failure.
-        await this.unload();
-        return { ok: false, error: installErrorCode(error) };
-      }
-      if (signal.aborted) {
-        // Cancelled while the marker was written: withdraw it (files stay, partial).
-        try {
-          await unmarkModelVerified(this.deps.caches, record);
-        } catch {
-          // The marker stays: the model is verified and installed after all, so say so.
-          return result;
-        }
-        await this.unload();
-        return { ok: false, error: "download-cancelled" };
-      }
     }
     return result;
   }
@@ -343,14 +326,9 @@ export class LocalAiEngine {
 
   /** A dispose that hangs (e.g. on a lost GPU device) must not hold the host's lock. */
   private async dispose(model: ModelLike): Promise<void> {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    await Promise.race([
-      model.dispose().catch(() => undefined),
-      new Promise((resolve) => {
-        timer = setTimeout(resolve, this.deps.disposeTimeoutMs ?? DISPOSE_TIMEOUT_MS);
-      }),
-    ]);
-    clearTimeout(timer);
+    await withDeadline(model.dispose(), this.deps.disposeTimeoutMs ?? DISPOSE_TIMEOUT_MS).catch(
+      () => undefined,
+    );
   }
 
   /** Throws if the cache refuses; the host reads the outcome back with `cacheState`. */
@@ -373,11 +351,10 @@ export class LocalAiEngine {
 
   /** Removes cached revisions a release dropped from the registry (no consent needed). */
   async deleteDropped(): Promise<void> {
-    await deleteModelArtifactsExcept(this.deps.caches, this.deps.models ?? LOCAL_AI_MODELS);
+    await deleteModelArtifactsExcept(this.deps.caches, this.models);
   }
 
   interrupt(): void {
-    this.interruptRequested = true;
     this.stopper?.interrupt();
   }
 
@@ -387,7 +364,6 @@ export class LocalAiEngine {
     if (!loaded || loaded.modelId !== modelId || !record) {
       return { ok: false, error: "not-ready" };
     }
-    this.interruptRequested = false;
     const stopper = this.deps.runtime.createStopper();
     this.stopper = stopper;
     try {
@@ -400,9 +376,6 @@ export class LocalAiEngine {
       if (!inputIds) {
         return { ok: false, error: "engine-failed" };
       }
-      if (this.interruptRequested) {
-        return { ok: false, error: "cancelled" };
-      }
       const promptTokens = inputIds.dims.at(-1) ?? 0;
       const maxNewTokens = aiMaxOutputTokens(request);
       const output = (await loaded.model.generate({
@@ -412,7 +385,7 @@ export class LocalAiEngine {
         do_sample: false,
         stopping_criteria: [stopper],
       })) as TensorLike;
-      if (stopper.interrupted || this.interruptRequested) {
+      if (stopper.interrupted) {
         return { ok: false, error: "cancelled" };
       }
       const generated = output.slice(null, [promptTokens, null]);
@@ -420,9 +393,6 @@ export class LocalAiEngine {
         return { ok: false, error: "truncated" };
       }
       const raw = loaded.tokenizer.batch_decode(generated, { skip_special_tokens: true })[0] ?? "";
-      if (raw.length > MAX_AI_RAW_OUTPUT_CHARS) {
-        return { ok: false, error: "malformed" };
-      }
       return parseAiResponse(raw, request);
     } catch {
       return { ok: false, error: stopper.interrupted ? "cancelled" : "engine-failed" };

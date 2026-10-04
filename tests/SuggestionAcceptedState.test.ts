@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
   clearAcceptedSuggestionTransientState,
   resolveAcceptedSuggestionSpaceState,
@@ -8,57 +8,8 @@ import {
   syncAcceptedSuggestionTrailingSpaceState,
   type AcceptedSuggestionContentEditableAdapter,
 } from "../src/adapters/chrome/content-script/suggestions/SuggestionAcceptedState";
-import type {
-  ExtensionEditSnapshot,
-  SuggestionEntry,
-} from "../src/adapters/chrome/content-script/suggestions/types";
-
-function createEntry(
-  elem: SuggestionEntry["elem"],
-): SuggestionEntry & { lastAcceptedSuggestion: string | null } {
-  return {
-    id: 1,
-    elem,
-    inputEventTarget: null,
-    menu: document.createElement("div"),
-    list: document.createElement("ul"),
-    requestId: 0,
-    suggestions: [],
-    selectedIndex: 0,
-    menuHeader: null,
-    latestMentionText: "",
-    latestMentionStart: 0,
-    visibleSuggestionBeforeCursorText: null,
-    visibleSuggestionFullText: null,
-    inlineSuggestion: null,
-    pendingInlineAccept: false,
-    missingTrailingSpace: false,
-    expectedCursorPos: 0,
-    expectedCursorPosIsBlockLocal: false,
-    expectedCursorPosBlockElement: null,
-    expectedCursorPosBlockText: null,
-    pendingExtensionEdit: null,
-    suppressNextSuggestionInputPrediction: false,
-    lastAcceptedSuggestion: null,
-  } as SuggestionEntry & { lastAcceptedSuggestion: string | null };
-}
-
-function createPendingEdit(overrides: Partial<ExtensionEditSnapshot> = {}) {
-  return {
-    replaceStart: 0,
-    originalText: "",
-    replacementText: "",
-    cursorBefore: 0,
-    cursorAfter: 0,
-    postEditFingerprint: {
-      fullText: "",
-      cursorOffset: 0,
-      selectionCollapsed: true,
-    },
-    source: "suggestion" as const,
-    ...overrides,
-  };
-}
+import { createEditor } from "./codeContextTestUtils";
+import { createPendingEdit, createSuggestionEntry } from "./suggestionTestUtils";
 
 function createContentEditableAdapter(
   overrides: Partial<AcceptedSuggestionContentEditableAdapter> = {},
@@ -71,18 +22,11 @@ function createContentEditableAdapter(
 }
 
 describe("SuggestionAcceptedState", () => {
-  beforeEach(() => {
-    document.body.innerHTML = "";
-  });
-
   describe("transient state", () => {
     test("tracks a missing trailing space from block-local accepted text", () => {
-      const editable = document.createElement("div");
-      editable.setAttribute("contenteditable", "true");
-      Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-      const block = document.createElement("p");
-      editable.appendChild(block);
-      const entry = createEntry(editable);
+      const editable = createEditor("<p></p>");
+      const block = editable.querySelector("p")!;
+      const entry = createSuggestionEntry({ elem: editable });
       entry.pendingExtensionEdit = createPendingEdit({
         blockScoped: true,
         blockElement: block,
@@ -112,8 +56,7 @@ describe("SuggestionAcceptedState", () => {
     });
 
     test("does not expect another space when the following character is already whitespace", () => {
-      const input = document.createElement("input");
-      const entry = createEntry(input);
+      const entry = createSuggestionEntry();
       entry.pendingExtensionEdit = createPendingEdit({
         postEditFingerprint: {
           fullText: "hello world",
@@ -140,12 +83,9 @@ describe("SuggestionAcceptedState", () => {
     });
 
     test("clears block-local trailing-space state when the caret leaves the expected block", () => {
-      const editable = document.createElement("div");
-      editable.setAttribute("contenteditable", "true");
-      Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-      const expectedBlock = document.createElement("p");
-      editable.appendChild(expectedBlock);
-      const entry = createEntry(editable);
+      const editable = createEditor("<p></p>");
+      const expectedBlock = editable.querySelector("p")!;
+      const entry = createSuggestionEntry({ elem: editable });
       entry.missingTrailingSpace = true;
       entry.expectedCursorPos = 5;
       entry.expectedCursorPosIsBlockLocal = true;
@@ -170,8 +110,7 @@ describe("SuggestionAcceptedState", () => {
     });
 
     test("resets all accepted-suggestion transient fields in one place", () => {
-      const input = document.createElement("input");
-      const entry = createEntry(input);
+      const entry = createSuggestionEntry();
       entry.pendingExtensionEdit = createPendingEdit();
       entry.missingTrailingSpace = true;
       entry.expectedCursorPos = 4;

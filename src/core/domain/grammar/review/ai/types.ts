@@ -50,8 +50,6 @@ export interface AiChunk {
   /** Read-only neighbouring prose from the same editor and scope (may be ""). */
   contextBefore: string;
   contextAfter: string;
-  /** Covering snapshot range of the editable segments. */
-  range: TextRange;
 }
 
 export interface AiChunkPlan {
@@ -82,11 +80,9 @@ export type AiErrorCode =
   | "busy"
   | "cancelled"
   | "timeout"
-  | "too-large"
   | "truncated"
   | "malformed"
   | "engine-failed"
-  | "device-lost"
   | "invalid-request";
 
 export type AiGenerationOutcome =
@@ -104,13 +100,11 @@ export type AiRejectionReason =
   | "uncertainty"
   | "quoted"
   | "drift"
-  | "drift.changed_word_share"
   | "drift.lexical_substitution"
   | "drift.optional_style"
   /** Rewrite added a commitment, deadline, apology, greeting or sign-off not in the original. */
   | "invented"
   | "length"
-  | "unit.too_many_changed_words"
   /** Rewrite returned every sentence as written: nothing to apply. */
   | "unchanged"
   | "unsafe-boundary";
@@ -125,7 +119,6 @@ export interface AiCorrectionResult {
 export type RewriteProposal =
   | {
       ok: true;
-      style: ConcreteRewriteStyle;
       /** Scope text before and after, for the diff preview. */
       before: string;
       after: string;

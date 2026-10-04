@@ -2,27 +2,18 @@
 
 [FluentTyper](../README.md) / [User guide](local-ai-review.md) / Technical reference
 
-This development reference retains implementation decisions and measured release blockers. For availability, setup, and privacy, use the [Local AI guide](local-ai-review.md).
+This reference records implementation decisions and measured limits. For availability, setup, and privacy, use the [Local AI guide](local-ai-review.md).
 
-Status: implemented, not released (see [release blockers](#release-blockers-and-limitations)).
-This note records the boundaries and decisions; [review-mode.md](review-mode.md) is the
-user-facing Review documentation and [local-ai-evaluation.md](local-ai-evaluation.md) the
-measurements.
-
-## Promise
-
-> Fix my mistakes without changing my voice. Rewrite only when I ask. Keep my text on my device.
-
-Local AI enriches the **existing Review panel** with an optional on-device model
-(Transformers.js on ONNX Runtime Web, WebGPU). It never runs while typing: popup and inline predictions stay
+Local AI adds an optional on-device model (Transformers.js on ONNX Runtime Web,
+WebGPU) to the **Review panel**. It never runs while typing: popup and inline predictions stay
 Presage-only in every build.
 
 ## Two modes
 
-| Mode              | Starts                                                             | Output                                                                                                       | Applies                                                                   |
-| ----------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| Correct (default) | automatically when a Review opens, once setup is complete          | conservative spelling/grammar/punctuation findings merged into the existing list/card, provenance "Local AI" | one finding at a time, or "Apply selected AI corrections" after a preview |
-| Rewrite           | only from the panel's mode switch + Generate, in an explicit style | one proposal for the scope, shown as a diff                                                                  | only via Apply on a complete, validated proposal                          |
+| Mode              | Starts                                                             | Output                                                                                                     | Applies                                                                   |
+| ----------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Correct (default) | automatically when a Review opens, once setup is complete          | conservative spelling/grammar/punctuation findings merged into the Review list/card, provenance "Local AI" | one finding at a time, or "Apply selected AI corrections" after a preview |
+| Rewrite           | only from the panel's mode switch + Generate, in an explicit style | one proposal for the scope, shown as a diff                                                                | only via Apply on a complete, validated proposal                          |
 
 A new Review always opens in Correct. AI findings never enter **Fix all safe**.
 
@@ -35,10 +26,8 @@ A new Review always opens in Correct. AI findings never enter **Fix all safe**.
 | Download consent (set only by the Install action) | `localAiReviewConsent`       | absent                                  |
 | One-time panel offer declined                     | `localAiSetupOfferDismissed` | absent                                  |
 | Cached artifacts / hardware support               | not stored; probed           | —                                       |
-| AI autocomplete routing                           | none in production           | forced off regardless of old settings   |
 
-The legacy predictor keys (`aiPredictorEnabled`, `aiModelId`, …) are never read as
-consent, never migrated into the new keys, and never enable anything in production.
+Legacy predictor keys (`aiPredictorEnabled`, `aiModelId`) are ignored.
 Nothing downloads, loads a model or creates the runtime host at browser start or when
 Review opens without consent. Deleting a model keeps consent/preference but never
 re-downloads silently; the user must press Install again.
@@ -54,18 +43,18 @@ re-downloads silently; the user must press Install again.
   multi-GB loaded model or cut an install short. While Local AI is in use (a Review port
   open, a job queued or running, an install/delete/probe running) the host calls
   `chrome.runtime.getPlatformInfo()` every 5 s, which resets that timer; the interval stops
-  as soon as nothing is active, so the worker can idle out as before.
-- **GPU memory is held only while a Review with Local AI is open.** When the last Review
-  port closes, or an install ends (success, failure or cancel) with no Review open, the
-  host unloads at once, with no grace period: running work is cancelled and allowed to
-  settle, then the model is disposed and its tokenizer/model references dropped. A disposed
-  model may leave ONNX Runtime's WebGPU device alive; it goes when Chrome stops the idle
-  service worker (about 30 s after the keepalive ends). A Review that stays open without
-  jobs unloads the same way after 5 minutes. The next job loads the model from cache, a
-  cold load of about 10 s for Gemma 4 E4B on an M2 Max.
+  as soon as nothing is active, so the worker can idle out.
+- **GPU memory is held only while a Review with Local AI is open.** The host unloads the
+  model when the last Review closes. It cancels running work, waits for it to stop, then
+  disposes the model and drops its tokenizer and model references. There is no grace
+  period. The host also unloads when an install ends (success, failure or cancel) and no
+  Review is open. A disposed model can leave ONNX Runtime's WebGPU device alive. Chrome
+  removes it when it stops the idle service worker (about 30 s after the keepalive ends).
+  A Review that stays open without jobs unloads after 5 minutes. The next job loads the
+  model from cache. A cold load takes about 10 s for Gemma 4 E4B on an M2 Max.
 - **Firefox:** its MV3 background is an event page; the build ships no engine (build.ts
   swaps `engineRuntime.ts` for a no-op), the feature reports `host-unsupported`, and Review
-  stays exactly as today.
+  runs without Local AI.
 - Transport: the content script opens a `chrome.runtime` **port** to the background
   (`ft-local-ai-review`), accepted only from this extension's content scripts (sender id,
   a tab, not an extension page). The port is the session: every job is bound to its port
@@ -73,7 +62,7 @@ re-downloads silently; the user must press Install again.
   settings/consent authority, and configures the in-process host directly.
 - **Trade-offs:** inference shares the service worker's thread with Presage (generation
   is mostly GPU-bound, but tokenizing and decoding run there); `background.js` grows by
-  the runtime, from 407 KB to 977 KB minified on Chrome (Firefox: 419 KB); and an engine
+  about 560 KB minified; and an engine
   failure is contained by dispose-and-reload rather than a separate process.
 - Lifecycle state machine: `unconfigured → checking-support → download-required →
 downloading → loading → ready ⇄ generating → unloading`, plus `unavailable` / `error`.
@@ -87,7 +76,8 @@ downloading → loading → ready ⇄ generating → unloading`, plus `unavailab
   generation at a time, a bounded queue, round-robin across ports, latest wins within a
   port. Every generation is independent: fresh input ids from the chat template, greedy
   decoding (`do_sample: false`), `max_new_tokens` from the request budget; no chat
-  history, no KV-cache reuse across jobs.
+  history. A loaded Gemma reuses one instruction-prefix cache; each job owns the rest of
+  its KV cache.
 
 ## Packaging (release gate)
 
@@ -134,9 +124,10 @@ Transformers.js 4.3.0 has no JSON-schema constraint; the parser accepts the mode
 
 1. `buildAiChunks(prepared)`: sentence/paragraph chunks of editable prose, host ids,
    placeholders for protected tokens, bounded read-only context from the same scope.
-2. `buildAiMessages(request)`: versioned templates (`AI_PROMPT_VERSION`, now
+2. `buildAiMessages(request)`: versioned templates (`AI_PROMPT_VERSION` is
    `review-ai-3`); editor text is JSON data, never instructions. Correct sends one
-   sentence per request.
+   sentence per request. Recommended (Gemma) can send a pair of sentences when the
+   editable text is 200 characters or less (`segments.ts`).
 3. `parseAiResponse(raw, request)`: strict JSON `{"segments":[{"id","text"}]}`, every id
    once, in order; truncation/cancel/extra content ⇒ failure.
 4. `correctionFindings` / `rewriteProposal`: word-level diff mapped to snapshot offsets,
@@ -148,26 +139,60 @@ The session (`ReviewSession`) owns staleness: a result applies only to the gener
 snapshot it was requested for; the cache key covers everything the model consumed.
 Writes go only through `ReviewTargetPort.apply`.
 
+### Validation contract
+
+Every proposal is checked before the panel shows it:
+
+- Only the reviewed scope is editable. At most a few hundred characters of nearby text
+  from the same field go with it as read-only context. Code, URLs, e-mail addresses,
+  paths and other protected text are never editable; they go only as opaque markers.
+- A proposal is dropped if it changes a number, a name, a technical token, a negation
+  ("not", "never"), a hedge ("may", "maybe"), quoted text or line breaks. It is also
+  dropped if it swaps words for synonyms or rewrites more than a correction needs.
+- Each change is checked on its own, so one doubtful change does not hide the good ones
+  in the same sentence. Changes one word apart form one fix ("user paste" → "a user
+  pastes").
+- A proposal identical to a rule's fix shows once, as the rule's fix. A proposal that
+  makes a rule's fix and more ("is saved immediatly" → "are saved immediately") also
+  shows. When the model and a rule disagree about the same word, the model's fix is a
+  second option on that finding, labelled **Local AI** and never preselected. Other
+  overlaps are left out.
+- Correct mode applies the same lexical and style guards to small and dense edits.
+  Three or more changed words do not permit a rewrite. A line wrap, formatting boundary,
+  selection edge or model segment boundary does not establish a sentence start.
+  Capitalization uses the source context and the abbreviation checks.
+- Rewrite checks each sentence of the proposal with the same fact guards (numbers, names,
+  technical tokens, negation, certainty). A sentence must not add a promise, deadline,
+  apology or greeting. A sentence that fails stays as the user wrote it, and the panel
+  shows how many stayed. Rewrite accepts up to about 2,000 characters.
+
+These guards reduce risk. They do not prove that meaning is unchanged, and they give no
+confidence score. Each AI correction still needs explicit review.
+
+The contract tests use deterministic output fixtures, not model inference:
+`tests/fixtures/conservative-review.json`, `tests/grammar/ReviewAiValidate.test.ts` and
+`tests/grammar/ReviewCorpus.test.ts`. Report rejection behavior separately from native
+precision and recall. These small sets do not estimate broad language coverage or model
+accuracy.
+
 ## Privacy
 
 No cloud endpoint or fallback, no telemetry, no text in logs/storage/debug views/errors.
-Dependency errors are mapped to bounded codes. The download host sees ordinary
-connection metadata (IP address, requested model files), never reviewed text.
+Dependency errors are mapped to bounded codes. For the connection data that the
+download host receives, see [Your text stays on your device](local-ai-review.md#your-text-stays-on-your-device).
 
-## Release blockers and limitations
+## Known limitations
 
 1. **ONNX Runtime Web is a dev pre-release** (`1.31.0-dev.20260914`, pinned exactly by
-   Transformers.js 4.3.0); adopt a stable ORT with a compatible Transformers.js before a
-   store release.
-2. **Store review** is untested: nothing executable is downloaded (MV3 remote-code rules),
-   but the package has not been submitted.
-3. **Size and speed:** Recommended is a 4.9 GB download, and since the GPU is released after
+   Transformers.js 4.3.0). Use a stable ORT when a compatible Transformers.js release is
+   available.
+2. **Size and speed:** Recommended is a 4.9 GB download, and since the GPU is released after
    every Review, each Review waits ~8 s for the model before the first Local AI finding
    (rule findings still appear at once).
-4. **Coverage:** one GPU and OS measured, memory not measured; Edge and Firefox not run in a
+3. **Coverage:** one GPU and OS measured, memory not measured; Edge and Firefox not run in a
    browser (Firefox ships no engine, so Review works without AI there).
-5. **Recall:** Gemma 4 E4B still misses about 1 in 5 errors on the dense fixtures; it
+4. **Recall:** Gemma 4 E4B still misses about 1 in 5 errors on the dense fixtures; it
    abstains rather than guesses. English only.
-6. **Validator limits:** hedge swaps in rewrites (`might` → `may`) pass because hedges are
+5. **Validator limits:** hedge swaps in rewrites (`might` → `may`) pass because hedges are
    counted, not matched; a plausible wrong "correction" of a valid word would need a
    dictionary check.

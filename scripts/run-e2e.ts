@@ -161,13 +161,7 @@ async function main(): Promise<void> {
 
   if (options.mode === "development") {
     await runCommand(
-      [
-        bunExecutable,
-        "test",
-        "--test-name-pattern=CMD_TOGGLE_FT_ACTIVE_LANG|CMD_REVIEW_FT_ACTIVE_TAB|predictor debug dashboard|block-local prediction in Lexical|restores prediction immediately after Enter in Lexical|keeps second-line prediction block-local in br-separated contenteditable|keeps second-line prediction block-local after Enter in real Lexical",
-        "tests/e2e/full.e2e.test.ts",
-        ...options.passthroughArgs,
-      ],
+      [bunExecutable, "test", "tests/e2e/full.e2e.test.ts", ...options.passthroughArgs],
       {
         ...sharedE2EEnv,
         E2E_SUITE: "full",

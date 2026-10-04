@@ -8,14 +8,10 @@ import type { SettingsManager } from "../settingsManager";
  * overrides a later choice.
  */
 export async function migrateSettingsV10(settings: SettingsManager): Promise<void> {
-  try {
-    if ((await settings.getRaw(KEY_SHOW_SUGGESTION_FOOTER)) !== undefined) {
-      return;
-    }
-    if ((await settings.getRaw(KEY_LEGACY_DISPLAY_LANG_HEADER)) === true) {
-      await settings.setRaw(KEY_SHOW_SUGGESTION_FOOTER, true);
-    }
-  } catch (error) {
-    console.warn("[SettingsMigrationV10] Failed to migrate settings:", error);
+  if ((await settings.getRaw(KEY_SHOW_SUGGESTION_FOOTER)) !== undefined) {
+    return;
+  }
+  if ((await settings.getRaw(KEY_LEGACY_DISPLAY_LANG_HEADER)) === true) {
+    await settings.setRaw(KEY_SHOW_SUGGESTION_FOOTER, true);
   }
 }

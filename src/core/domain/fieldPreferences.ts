@@ -1,4 +1,4 @@
-import { isObjectRecord } from "./guards";
+import { hasControlCharacter, isObjectRecord } from "./guards";
 
 export const FIELD_PREFERENCE_LIMIT = 100;
 export interface FieldPreference {
@@ -36,7 +36,7 @@ export function isFieldLabel(value: unknown): value is string {
     typeof value === "string" &&
     value.trim().length > 0 &&
     value.length <= 80 &&
-    !Array.from(value).some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)
+    !hasControlCharacter(value)
   );
 }
 export function sanitizeFieldPreferences(raw: unknown): FieldPreference[] {

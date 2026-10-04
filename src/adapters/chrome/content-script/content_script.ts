@@ -12,12 +12,9 @@ import type {
   PredictResponseContext,
   SetConfigContext,
 } from "@core/domain/messageTypes";
-import {
-  ContentMessageHandler,
-  type ContentMessageHandlerDependencies,
-} from "./ContentMessageHandler";
+import { ContentMessageHandler } from "./ContentMessageHandler";
 import { ContentRuntimeController } from "./ContentRuntimeController";
-import { HostChangeWatcher, type HostChangeWatcherDependencies } from "./HostChangeWatcher";
+import { HostChangeWatcher } from "./HostChangeWatcher";
 import { isEarlyTabAcceptMessage } from "./suggestions/EarlyTabAcceptBridgeProtocol";
 import type { SuggestionManagerRuntime } from "./suggestions/SuggestionManagerRuntime";
 
@@ -28,7 +25,6 @@ declare global {
 }
 
 const logger = createLogger("FluentTyperContentScript");
-declare const __FT_DEV_BUILD__: boolean | undefined;
 
 if (typeof __FT_DEV_BUILD__ !== "undefined" && __FT_DEV_BUILD__) {
   installObservabilityRelay({
@@ -47,26 +43,49 @@ class FluentTyper {
     _sender?: chrome.runtime.MessageSender,
     sendResponse?: (response: unknown) => void,
   ) => this.messageHandler(message, sendResponse);
-  private readonly boundEarlyTabAcceptHandler = (event: MessageEvent) =>
-    this.handleEarlyTabAccept(event);
+  private readonly boundEarlyTabAcceptHandler = (event: MessageEvent) => {
+    if (isEarlyTabAcceptMessage(event.data)) {
+      this.runtimeController.handleEarlyTabAcceptRequest(event.data.entryId);
+    }
+  };
 
   constructor() {
     logger.info("Initializing content script", {
       host: window.location.hostname,
     });
 
-    this.runtimeController = new ContentRuntimeController();
-
-    this.contentMessageHandler = new ContentMessageHandler(
-      this.createContentMessageHandlerDependencies(),
-    );
-    this.runtimeController.setRuntimeActivityHandler((runtimeGeneration) => {
-      this.contentMessageHandler.reportRuntimeStatus(runtimeGeneration);
+    this.runtimeController = new ContentRuntimeController({
+      onPredictionRequest: this.handleGetPrediction.bind(this),
+      onRuntimeActivity: (runtimeGeneration) => {
+        this.contentMessageHandler.reportRuntimeStatus(runtimeGeneration);
+      },
     });
 
-    this.runtimeController.setPredictionRequestHandler(this.handleGetPrediction.bind(this));
+    this.contentMessageHandler = new ContentMessageHandler({
+      getEnabled: () => this.enabled,
+      setEnabled: (value: boolean) => {
+        this.enabled = value;
+      },
+      toggleEnabled: () => {
+        this.enabled = !this.enabled;
+      },
+      setConfig: (config: SetConfigContext) => this.setConfig(config),
+      updateLanguage: (lang: string) => this.runtimeController.updateLanguage(lang),
+      triggerActiveSuggestion: () => this.runtimeController.triggerActiveSuggestion(),
+      reviewActiveEditor: (source) => this.runtimeController.reviewActiveEditor(source),
+      fulfillPrediction: (context: PredictResponseContext) =>
+        this.runtimeController.fulfillPrediction(context),
+      getLanguage: () => this.runtimeController.config.lang,
+    });
 
-    this.hostChangeWatcher = new HostChangeWatcher(this.createHostChangeWatcherDependencies());
+    this.hostChangeWatcher = new HostChangeWatcher({
+      watchDogRunner: () => this.watchDog(),
+      getObservedNode: () => this.runtimeController.getObservedNode(),
+      setObservedNode: (node: Node) => this.runtimeController.setObservedNode(node),
+      isRuntimeEnabled: () => this.enabled,
+      restartRuntime: () => this.restart(),
+      requestConfig: () => this.getConfig(),
+    });
 
     chrome.runtime.onMessage.addListener(this.boundMessageHandler);
     this.getConfig();
@@ -74,18 +93,6 @@ class FluentTyper {
 
   get suggestionManager(): SuggestionManagerRuntime | null {
     return this.runtimeController.suggestionManager;
-  }
-
-  get config(): SetConfigContext {
-    return this.runtimeController.config;
-  }
-
-  get hostName(): string {
-    return this.hostChangeWatcher.getHostName();
-  }
-
-  set hostName(hostName: string) {
-    this.hostChangeWatcher.setHostName(hostName);
   }
 
   set enabled(newValue: boolean) {
@@ -97,20 +104,12 @@ class FluentTyper {
     return this.runtimeController.enabled;
   }
 
-  checkHostName(): boolean {
-    return this.hostChangeWatcher.checkHostName();
-  }
-
   watchDog(): void {
     this.hostChangeWatcher.watchDog();
   }
 
   handleGetPrediction(context: ContentScriptPredictRequestContext): void {
     this.contentMessageHandler.handleGetPrediction(context);
-  }
-
-  processMutations(mutationsList: MutationRecord[]): void {
-    this.runtimeController.processMutations(mutationsList);
   }
 
   setConfig(config: SetConfigContext): void {
@@ -132,10 +131,6 @@ class FluentTyper {
     this.runtimeController.enable();
   }
 
-  disable(): void {
-    this.runtimeController.disable();
-  }
-
   restart(): void {
     this.runtimeController.restart();
   }
@@ -143,52 +138,13 @@ class FluentTyper {
   destroy(): void {
     logger.info("Destroying content script instance");
     this.hostChangeWatcher.stop();
-    this.disable();
+    this.runtimeController.disable();
     window.removeEventListener("message", this.boundEarlyTabAcceptHandler);
     chrome.runtime.onMessage.removeListener(this.boundMessageHandler);
   }
 
-  handleEarlyTabAccept(event: MessageEvent): void {
-    if (!isEarlyTabAcceptMessage(event.data)) {
-      return;
-    }
-
-    this.runtimeController.handleEarlyTabAcceptRequest(event.data.entryId);
-  }
-
   messageHandler(message: Message | null, sendResponse?: (response: unknown) => void): void {
     this.contentMessageHandler.handleMessage(message, sendResponse);
-  }
-
-  private createContentMessageHandlerDependencies(): ContentMessageHandlerDependencies {
-    return {
-      getEnabled: () => this.enabled,
-      setEnabled: (value: boolean) => {
-        this.enabled = value;
-      },
-      toggleEnabled: () => {
-        this.enabled = !this.enabled;
-      },
-      setConfig: (config: SetConfigContext) => this.setConfig(config),
-      updateLanguage: (lang: string) => this.runtimeController.updateLanguage(lang),
-      triggerActiveSuggestion: () => this.runtimeController.triggerActiveSuggestion(),
-      reviewActiveEditor: (source) => this.runtimeController.reviewActiveEditor(source),
-      fulfillPrediction: (context: PredictResponseContext) =>
-        this.runtimeController.fulfillPrediction(context),
-      getLanguage: () => this.config.lang,
-      getPredictionGeneration: () => this.runtimeController.getPredictionGeneration(),
-    };
-  }
-
-  private createHostChangeWatcherDependencies(): HostChangeWatcherDependencies {
-    return {
-      watchDogRunner: () => this.watchDog(),
-      getObservedNode: () => this.runtimeController.getObservedNode(),
-      setObservedNode: (node: Node) => this.runtimeController.setObservedNode(node),
-      isRuntimeEnabled: () => this.enabled,
-      restartRuntime: () => this.restart(),
-      requestConfig: () => this.getConfig(),
-    };
   }
 
   getConfig(): void {

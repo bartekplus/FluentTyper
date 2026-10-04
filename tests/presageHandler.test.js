@@ -2,47 +2,19 @@ import { mod } from "./fakeLibPresage.js";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler.ts";
 import { SUPPORTED_LANGUAGES } from "../src/core/domain/lang.ts";
 import { MAX_NUM_SUGGESTIONS } from "../src/core/domain/constants.ts";
+import { predictionConfig, runPrediction } from "./support/predictionConfig.ts";
 
-const testContext = {
-  ph: null,
-  numSuggestions: 1,
-  minWordLengthToPredict: 0,
-  insertSpaceAfterAutocomplete: false,
-  autoCapitalize: true,
-  enabledGrammarRules: ["spacingRule"],
-  textExpansions: null,
-
-  timeFormat: "",
-  dateFormat: "",
-  userDictionaryList: [],
-};
+const testContext = { ph: null };
 
 function setConfig() {
-  testContext.ph.setConfig({
-    numSuggestions: testContext.numSuggestions,
-    minWordLengthToPredict: testContext.minWordLengthToPredict,
-    insertSpaceAfterAutocomplete: testContext.insertSpaceAfterAutocomplete,
-    autoCapitalize: testContext.autoCapitalize,
-    enabledGrammarRules: testContext.enabledGrammarRules,
-    textExpansions: testContext.textExpansions,
-
-    timeFormat: testContext.timeFormat,
-    dateFormat: testContext.dateFormat,
-    userDictionaryList: testContext.userDictionaryList,
-  });
+  const { ph, ...config } = testContext;
+  ph.setConfig(predictionConfig(config));
 }
 
 beforeEach(() => {
-  testContext.numSuggestions = 1;
-  testContext.minWordLengthToPredict = 0;
-  testContext.insertSpaceAfterAutocomplete = false;
-  testContext.autoCapitalize = true;
-  testContext.enabledGrammarRules = ["spacingRule"];
-  testContext.textExpansions = null;
-
-  testContext.timeFormat = "";
-  testContext.dateFormat = "";
-  testContext.userDictionaryList = [];
+  Object.assign(testContext, predictionConfig({ numSuggestions: 1, autoCapitalize: true }), {
+    textExpansions: null,
+  });
   testContext.ph = new PresageHandler(mod);
   setConfig();
 });
@@ -53,7 +25,7 @@ describe("site profile override behavior", () => {
     testContext.numSuggestions = 1;
     setConfig();
 
-    const result = await testContext.ph.runPrediction("a", "", "en_US", {
+    const result = await runPrediction(testContext.ph, "a", "", "en_US", {
       numSuggestions: 4,
     });
     expect(result.predictions.length).toBe(4);
@@ -67,12 +39,12 @@ describe("site profile override behavior", () => {
     testContext.numSuggestions = 3;
     setConfig();
 
-    const capped = await testContext.ph.runPrediction("a", "", "en_US", {
+    const capped = await runPrediction(testContext.ph, "a", "", "en_US", {
       numSuggestions: 999,
     });
     expect(capped.predictions.length).toBe(MAX_NUM_SUGGESTIONS);
 
-    const disabled = await testContext.ph.runPrediction("a", "", "en_US", {
+    const disabled = await runPrediction(testContext.ph, "a", "", "en_US", {
       numSuggestions: 0,
     });
     expect(disabled.predictions.length).toBe(0);
@@ -87,7 +59,7 @@ describe("bugs", () => {
     test("#3 In French, it should consider a single quote as a word separator", async () => {
       mod.PresageCallback.predictions = [""];
 
-      await testContext.ph.runPrediction("L'agglo", "", lang);
+      await runPrediction(testContext.ph, "L'agglo", "", lang);
       const expectedPastStream = (lang === "fr_FR" ? "L agglo" : "L'agglo").toLocaleLowerCase();
       expect(mod.lastPastStream).toBe(expectedPastStream);
     });
@@ -95,11 +67,11 @@ describe("bugs", () => {
     test("#5 #6 - letter case after a single quote", async () => {
       mod.PresageCallback.predictions = ["avent"];
 
-      let result = await testContext.ph.runPrediction("L'avent", "", lang);
+      let result = await runPrediction(testContext.ph, "L'avent", "", lang);
       let expectedPredictions = lang === "fr_FR" ? "avent" : "Avent";
       expect(result.predictions[0]).toBe(expectedPredictions);
 
-      result = await testContext.ph.runPrediction("l'Avent", "", lang);
+      result = await runPrediction(testContext.ph, "l'Avent", "", lang);
       expectedPredictions = lang === "fr_FR" ? "Avent" : "avent";
       expect(result.predictions[0]).toBe(expectedPredictions);
     });
@@ -109,11 +81,11 @@ describe("bugs", () => {
       testContext.minWordLengthToPredict = 5;
       setConfig();
 
-      let result = await testContext.ph.runPrediction("L'ave", "", lang);
+      let result = await runPrediction(testContext.ph, "L'ave", "", lang);
       let expectedPredictionsCount = lang === "fr_FR" ? 0 : 1;
       expect(result.predictions.length).toBe(expectedPredictionsCount);
 
-      result = await testContext.ph.runPrediction("l'Avent", "", lang);
+      result = await runPrediction(testContext.ph, "l'Avent", "", lang);
       expectedPredictionsCount = 1;
 
       expect(result.predictions.length).toBe(expectedPredictionsCount);
@@ -138,7 +110,7 @@ describe("bugs", () => {
         testContext.minWordLengthToPredict = minWordLengthToPredict;
         setConfig();
 
-        const result = await testContext.ph.runPrediction(input, "", lang);
+        const result = await runPrediction(testContext.ph, input, "", lang);
         const expectedPredictionsCount = predict ? 1 : 0;
         expect(result.predictions.length).toBe(expectedPredictionsCount);
       },
@@ -148,7 +120,7 @@ describe("bugs", () => {
   test("mid-word edits pass the whole word to presage", async () => {
     mod.PresageCallback.predictions = ["Whatsoever"];
 
-    await testContext.ph.runPrediction("Whb", "", "en_US", undefined, "tsoever");
+    await runPrediction(testContext.ph, "Whb", "", "en_US", undefined, "tsoever");
 
     expect(mod.lastPastStream).toBe("whbtsoever");
   });
@@ -166,7 +138,7 @@ describe("features", () => {
           testContext.minWordLengthToPredict = minWordLengthToPredict;
           setConfig();
 
-          const result = await testContext.ph.runPrediction(input, "", lang);
+          const result = await runPrediction(testContext.ph, input, "", lang);
           const expectedPredictionsCount =
             input.length >= minWordLengthToPredict ||
             (inputEndWithSpace && minWordLengthToPredict === 0)
@@ -184,7 +156,7 @@ describe("features", () => {
             testContext.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
             setConfig();
 
-            const result = await testContext.ph.runPrediction(input, "", lang);
+            const result = await runPrediction(testContext.ph, input, "", lang);
             const expectedPrediction = pred + (insertSpaceAfterAutocomplete ? " " : "");
 
             expect(result.predictions[0]).toBe(expectedPrediction);
@@ -212,7 +184,7 @@ describe("features", () => {
         testContext.autoCapitalize = autoCapitalize;
         setConfig();
 
-        const result = await testContext.ph.runPrediction(input, "", lang);
+        const result = await runPrediction(testContext.ph, input, "", lang);
         const expectedPrediction = expected;
 
         expect(result.predictions[0]).toBe(expectedPrediction);
@@ -225,7 +197,7 @@ describe("features", () => {
         mod.PresageCallback.predictions = ["ble"];
         setConfig();
 
-        const result = await testContext.ph.runPrediction(input, "", lang);
+        const result = await runPrediction(testContext.ph, input, "", lang);
         const expectedPredictionsCount = 1;
         expect(result.predictions.length).toBe(expectedPredictionsCount);
       },
@@ -250,31 +222,12 @@ describe("features", () => {
           testContext.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
           setConfig();
 
-          const result = await testContext.ph.runPrediction(input, nextChar, lang);
+          const result = await runPrediction(testContext.ph, input, nextChar, lang);
           const expectedPrediction = expected;
 
           expect(result.predictions[0]).toBe(expectedPrediction);
         });
       },
     );
-  });
-  describe("background prediction results", () => {
-    test("do not include grammar edit metadata", async () => {
-      testContext.enabledGrammarRules = ["capitalizeFirstLetter", "spacingRule"];
-      setConfig();
-
-      const result = await testContext.ph.runPrediction("Hello. a", "", "en_US");
-      expect(result.textEdit).toBeUndefined();
-    });
-
-    test("still return predictions when grammar rules are enabled", async () => {
-      testContext.enabledGrammarRules = ["spacingRule"];
-      mod.PresageCallback.predictions = ["hello"];
-      setConfig();
-
-      const result = await testContext.ph.runPrediction("he", "", "en_US");
-      expect(result.predictions).toEqual(["hello"]);
-      expect(result.textEdit).toBeUndefined();
-    });
   });
 });

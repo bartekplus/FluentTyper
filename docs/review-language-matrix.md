@@ -19,21 +19,19 @@ The language of FluentTyper's controls is a separate setting from the language o
 
 ## What to expect
 
-| Feature                    | Coverage                                                      |
-| -------------------------- | ------------------------------------------------------------- |
-| Word suggestions           | All ten supported writing languages.                          |
-| Dictionary spelling        | All ten languages once the writing language is known.         |
-| Grammar and style          | Coverage varies. Many checks apply only to English.           |
-| Punctuation and typography | Language-specific checks where supported.                     |
-| Optional Local AI          | English only in the development implementation. Not released. |
+| Feature                    | Coverage                                              |
+| -------------------------- | ----------------------------------------------------- |
+| Word suggestions           | All ten supported writing languages.                  |
+| Dictionary spelling        | All ten languages once the writing language is known. |
+| Grammar and style          | Coverage varies. Many checks apply only to English.   |
+| Punctuation and typography | Language-specific checks where supported.             |
+| Optional Local AI          | English only. Chrome and Edge only.                   |
 
 **Auto detect** uses reliable detection or an enabled, configured fallback for uncertain text.
 The Review panel identifies fallback use and incomplete coverage. Select a language to override the choice for that Review session.
 See [language selection and recovery](review-language-fallback.md) for precedence, limits, and Retry checks.
 
-The English dictionary uses American English. Review preserves accepted dialect spellings from its authored tables.
-Other English variants use this dictionary with a visible limitation. Corrections are limited to the authored typo whitelist.
-The dialect tables are not exhaustive.
+The English dictionary uses American English. Other English variants use it with a visible limitation; see [dictionaries and dialects](review-language-fallback.md#dictionaries-and-dialects).
 Names and specialist terms can also need **Add to dictionary** in Review.
 
 ## Understand a Review result

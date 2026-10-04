@@ -58,7 +58,10 @@ export type ReviewCheckId =
 export const MASK_CHAR = "\uFFFC";
 /** Largest scope reviewed at once (UTF-16 code units). Larger scopes are cut and reported. */
 export const MAX_REVIEW_CHARS = 50_000;
-/** Scan unit between yields; chunks end on line breaks so no token straddles two. */
+/**
+ * Scan unit between yields. A chunk ends at a line end, else a space; ownership makes
+ * any split correct.
+ */
 export const REVIEW_CHUNK_CHARS = 4_000;
 
 export interface TextRange {

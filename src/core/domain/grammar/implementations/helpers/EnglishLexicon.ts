@@ -11,7 +11,7 @@ import {
 import { ENGLISH_VERB_FORMS } from "./EnglishVerbForms";
 
 /** Which form of its lemma a verb reading is. A regular -ed form is both past and participle. */
-export type EnglishVerbForm = "base" | "third" | "past" | "participle" | "ing";
+type EnglishVerbForm = "base" | "third" | "past" | "participle" | "ing";
 
 export interface EnglishWordInfo {
   verbs: readonly { lemma: string; form: EnglishVerbForm }[];
@@ -224,6 +224,11 @@ function readWordInfo(w: string): EnglishWordInfo | null {
   return Object.freeze({ verbs: Object.freeze([...verbs.values()]), ...info });
 }
 
+/** True when the lexicon knows `word` as one of the verb `forms`. */
+export function hasVerbForm(word: string, ...forms: EnglishVerbForm[]): boolean {
+  return !!englishWordInfo(word)?.verbs.some((v) => forms.includes(v.form));
+}
+
 function suffix(lemma: string, flag: string): string | false {
   const rule = load().suffixes.find(
     (r) => r.flag === flag && r.cond.test(lemma) && lemma.endsWith(r.strip),
@@ -232,16 +237,14 @@ function suffix(lemma: string, flag: string): string | false {
 }
 
 /**
- * The -s, past or -ing form of a lowercase base verb as the dictionary spells it, irregular
- * table first. null when the lexicon knows `lemma` but not as a base verb ("such", "combated");
+ * The -s, past or -ing form of a lowercase base verb as the dictionary spells it (englishInflect
+ * reads the irregular table first). null when the lexicon knows `lemma` but not as a base verb ("such", "combated");
  * undefined when it does not know the word, or knows the verb but not that form.
  */
 export function englishLexiconInflect(
   lemma: string,
   form: "third" | "past" | "ing",
 ): string | null | undefined {
-  const irregular = ENGLISH_VERB_FORMS.find((row) => row.lemma === lemma);
-  if (irregular && form !== "ing") return irregular[form];
   const flags = entry(lemma);
   // Not listed but read as another word's form (combated, nicer): not a base verb either.
   if (flags === undefined) return englishWordInfo(lemma) ? null : undefined;

@@ -1,16 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { GrammarContext } from "../../src/core/domain/grammar/types";
+import { context, edit } from "./grammarTestUtils";
 import { EnglishPronounICapitalizationRule } from "../../src/core/domain/grammar/implementations/EnglishPronounICapitalizationRule";
 import { EnglishContractionNormalizationRule } from "../../src/core/domain/grammar/implementations/EnglishContractionNormalizationRule";
 import { EnglishTypoWhitelistCorrectionRule } from "../../src/core/domain/grammar/implementations/EnglishTypoWhitelistCorrectionRule";
-
-function context(beforeCursor: string, hints?: GrammarContext["hints"]): GrammarContext {
-  return {
-    beforeCursor,
-    afterCursor: "",
-    ...(hints ? { hints } : {}),
-  };
-}
 
 describe("V2 english grammar rules", () => {
   describe("EnglishPronounICapitalizationRule", () => {
@@ -20,35 +12,15 @@ describe("V2 english grammar rules", () => {
       // A lone "i " could still be a loop variable; the following word decides.
       expect(rule.apply(context("i ", { lang: "en_US" }))).toBeNull();
       expect(rule.apply(context("for i in", { lang: "en_US" }))).toBeNull();
-      expect(rule.apply(context("i think ", { lang: "en_US" }))).toEqual({
-        replacement: "I think ",
-        deleteBackwards: 8,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("i think ", { lang: "en_US" }))).toEqual(edit("I think ", 8));
 
-      expect(rule.apply(context("i'm ", { lang: "en_US" }))).toEqual({
-        replacement: "I'm ",
-        deleteBackwards: 4,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("i'm ", { lang: "en_US" }))).toEqual(edit("I'm ", 4));
 
-      expect(rule.apply(context("i've ", { lang: "en_US" }))).toEqual({
-        replacement: "I've ",
-        deleteBackwards: 5,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("i've ", { lang: "en_US" }))).toEqual(edit("I've ", 5));
 
-      expect(rule.apply(context("i'll ", { lang: "en_US" }))).toEqual({
-        replacement: "I'll ",
-        deleteBackwards: 5,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("i'll ", { lang: "en_US" }))).toEqual(edit("I'll ", 5));
 
-      expect(rule.apply(context("i'd ", { lang: "en_US" }))).toEqual({
-        replacement: "I'd ",
-        deleteBackwards: 4,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("i'd ", { lang: "en_US" }))).toEqual(edit("I'd ", 4));
     });
 
     test("skips non-English and code-like contexts", () => {
@@ -67,11 +39,9 @@ describe("V2 english grammar rules", () => {
       // A bare "i." could still become "i.e."; the decision waits one character.
       expect(rule.apply(context("i.", { lang: "en_US", inputAction: "insert" }))).toBeNull();
       expect(rule.apply(context("i.e", { lang: "en_US", inputAction: "insert" }))).toBeNull();
-      expect(rule.apply(context("i. ", { lang: "en_US", inputAction: "insert" }))).toEqual({
-        replacement: "I. ",
-        deleteBackwards: 3,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("i. ", { lang: "en_US", inputAction: "insert" }))).toEqual(
+        edit("I. ", 3),
+      );
     });
   });
 
@@ -79,17 +49,13 @@ describe("V2 english grammar rules", () => {
     test("normalizes contraction forms and preserves case", () => {
       const rule = new EnglishContractionNormalizationRule();
 
-      expect(rule.apply(context("im ", { lang: "en_US", inputAction: "insert" }))).toEqual({
-        replacement: "I'm ",
-        deleteBackwards: 3,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("im ", { lang: "en_US", inputAction: "insert" }))).toEqual(
+        edit("I'm ", 3),
+      );
 
-      expect(rule.apply(context("DONT ", { lang: "en_US", inputAction: "insert" }))).toEqual({
-        replacement: "DON'T ",
-        deleteBackwards: 5,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("DONT ", { lang: "en_US", inputAction: "insert" }))).toEqual(
+        edit("DON'T ", 5),
+      );
     });
 
     test("preserves ambiguous id forms", () => {
@@ -100,9 +66,8 @@ describe("V2 english grammar rules", () => {
       expect(rule.apply(context("id ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
     });
 
-    test("does not normalize on delete action or non-English context", () => {
+    test("does not normalize in a non-English context", () => {
       const rule = new EnglishContractionNormalizationRule();
-      expect(rule.apply(context("im ", { lang: "en_US", inputAction: "delete" }))).toBeNull();
       expect(rule.apply(context("im ", { lang: "pl_PL" }))).toBeNull();
       expect(rule.apply(context("im ", { lang: "fr_FR" }))).toBeNull();
     });
@@ -110,11 +75,9 @@ describe("V2 english grammar rules", () => {
     test("applies only after a token boundary delimiter", () => {
       const rule = new EnglishContractionNormalizationRule();
       expect(rule.apply(context("im", { lang: "en_US", inputAction: "insert" }))).toBeNull();
-      expect(rule.apply(context("im.", { lang: "en_US", inputAction: "insert" }))).toEqual({
-        replacement: "I'm.",
-        deleteBackwards: 3,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("im.", { lang: "en_US", inputAction: "insert" }))).toEqual(
+        edit("I'm.", 3),
+      );
     });
   });
 
@@ -122,21 +85,17 @@ describe("V2 english grammar rules", () => {
     test("corrects known typos and preserves case", () => {
       const rule = new EnglishTypoWhitelistCorrectionRule();
 
-      expect(rule.apply(context("teh ", { lang: "en_US", inputAction: "insert" }))).toEqual({
-        replacement: "the ",
-        deleteBackwards: 4,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("teh ", { lang: "en_US", inputAction: "insert" }))).toEqual(
+        edit("the ", 4),
+      );
 
-      expect(rule.apply(context("Teh ", { lang: "en_US", inputAction: "insert" }))).toEqual({
-        replacement: "The ",
-        deleteBackwards: 4,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("Teh ", { lang: "en_US", inputAction: "insert" }))).toEqual(
+        edit("The ", 4),
+      );
     });
 
     test("skips words in user dictionary and code-like contexts", () => {
-      const rule = new EnglishTypoWhitelistCorrectionRule(["teh"]);
+      const rule = new EnglishTypoWhitelistCorrectionRule();
       expect(rule.apply(context("teh ", { lang: "en_US", userDictionary: ["teh"] }))).toBeNull();
       expect(rule.apply(context("obj.teh ", { lang: "en_US" }))).toBeNull();
       expect(rule.apply(context("teh ", { lang: "pl_PL" }))).toBeNull();
@@ -146,11 +105,9 @@ describe("V2 english grammar rules", () => {
     test("applies only after a token boundary delimiter", () => {
       const rule = new EnglishTypoWhitelistCorrectionRule();
       expect(rule.apply(context("teh", { lang: "en_US", inputAction: "insert" }))).toBeNull();
-      expect(rule.apply(context("teh.", { lang: "en_US", inputAction: "insert" }))).toEqual({
-        replacement: "the.",
-        deleteBackwards: 4,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("teh.", { lang: "en_US", inputAction: "insert" }))).toEqual(
+        edit("the.", 4),
+      );
     });
   });
 

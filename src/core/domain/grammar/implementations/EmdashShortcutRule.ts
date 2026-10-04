@@ -1,15 +1,11 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { isDeleteInputAction, shouldSkipGenericReplacement } from "./helpers/GenericRuleShared";
+import { shouldSkipGenericReplacement } from "./helpers/GenericRuleShared";
 
 export class EmdashShortcutRule implements GrammarRule {
   readonly id = "emdashShortcut" as const;
   readonly triggers: GrammarEventType[] = ["insertChar"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (isDeleteInputAction(context)) {
-      return null;
-    }
-
     const input = context.beforeCursor;
     if (!input.endsWith("--") || input.endsWith("---")) {
       return null;

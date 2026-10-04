@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { GrammarContext } from "../../src/core/domain/grammar/types";
+import { context, edit } from "./grammarTestUtils";
 import { DoubleSpaceToPeriodRule } from "../../src/core/domain/grammar/implementations/DoubleSpaceToPeriodRule";
 import { EllipsisShortcutRule } from "../../src/core/domain/grammar/implementations/EllipsisShortcutRule";
 import { EmdashShortcutRule } from "../../src/core/domain/grammar/implementations/EmdashShortcutRule";
@@ -12,47 +12,26 @@ import { EnglishArticleAnCorrectionRule } from "../../src/core/domain/grammar/im
 import { EnglishAlotCorrectionRule } from "../../src/core/domain/grammar/implementations/EnglishAlotCorrectionRule";
 import { EnglishPronounVerbWhitelistAgreementRule } from "../../src/core/domain/grammar/implementations/EnglishPronounVerbWhitelistAgreementRule";
 
-function context(beforeCursor: string, hints?: GrammarContext["hints"]): GrammarContext {
-  return {
-    beforeCursor,
-    afterCursor: "",
-    ...(hints ? { hints } : {}),
-  };
-}
-
 describe("V3 rule expansion", () => {
   test("DoubleSpaceToPeriodRule applies conservatively", () => {
     const rule = new DoubleSpaceToPeriodRule();
-    expect(rule.apply(context("Hello  ", { inputAction: "insert" }))).toEqual({
-      replacement: ". ",
-      deleteBackwards: 2,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("Hello  ", { inputAction: "insert" }))).toEqual(edit(". ", 2));
 
     expect(rule.apply(context("Hello.  ", { inputAction: "insert" }))).toBeNull();
     expect(rule.apply(context("12  ", { inputAction: "insert" }))).toBeNull();
     expect(rule.apply(context("https://example.com  ", { inputAction: "insert" }))).toBeNull();
-    expect(rule.apply(context("Hello  ", { inputAction: "delete" }))).toBeNull();
   });
 
   test("EllipsisShortcutRule replaces triple dot and skips URL-like text", () => {
     const rule = new EllipsisShortcutRule();
-    expect(rule.apply(context("Wait...", { inputAction: "insert" }))).toEqual({
-      replacement: "…",
-      deleteBackwards: 3,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("Wait...", { inputAction: "insert" }))).toEqual(edit("…", 3));
 
     expect(rule.apply(context("https://example.com...", { inputAction: "insert" }))).toBeNull();
   });
 
   test("EmdashShortcutRule replaces trailing double hyphen with guardrails", () => {
     const rule = new EmdashShortcutRule();
-    expect(rule.apply(context("word--", { inputAction: "insert" }))).toEqual({
-      replacement: "—",
-      deleteBackwards: 2,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("word--", { inputAction: "insert" }))).toEqual(edit("—", 2));
 
     expect(rule.apply(context(" --", { inputAction: "insert" }))).toBeNull();
     expect(rule.apply(context("https://example.com--", { inputAction: "insert" }))).toBeNull();
@@ -61,35 +40,21 @@ describe("V3 rule expansion", () => {
   test("SmartQuoteNormalizationRule converts straight quotes in prose contexts", () => {
     const rule = new SmartQuoteNormalizationRule();
 
-    expect(rule.apply(context('"', { inputAction: "insert" }))).toEqual({
-      replacement: "“",
-      deleteBackwards: 1,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context('"', { inputAction: "insert" }))).toEqual(edit("“", 1));
 
-    expect(rule.apply(context('hello"', { inputAction: "insert" }))).toEqual({
-      replacement: "”",
-      deleteBackwards: 1,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context('hello"', { inputAction: "insert" }))).toEqual(edit("”", 1));
 
-    expect(rule.apply(context('This is “awesome "', { inputAction: "insert" }))).toEqual({
-      replacement: "”",
-      deleteBackwards: 2,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context('This is “awesome "', { inputAction: "insert" }))).toEqual(
+      edit("”", 2),
+    );
 
-    expect(rule.apply(context('This is “awesome   "', { inputAction: "insert" }))).toEqual({
-      replacement: "”",
-      deleteBackwards: 4,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context('This is “awesome   "', { inputAction: "insert" }))).toEqual(
+      edit("”", 4),
+    );
 
-    expect(rule.apply(context('This is “awesome\u00A0"', { inputAction: "insert" }))).toEqual({
-      replacement: "”",
-      deleteBackwards: 2,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context('This is “awesome\u00A0"', { inputAction: "insert" }))).toEqual(
+      edit("”", 2),
+    );
 
     expect(rule.apply(context('”"', { inputAction: "insert" }))).toBeNull();
     expect(rule.apply(context("’'", { inputAction: "insert" }))).toBeNull();
@@ -100,83 +65,47 @@ describe("V3 rule expansion", () => {
   test("DuplicatePunctuationCollapseRule collapses accidental duplicates", () => {
     const rule = new DuplicatePunctuationCollapseRule();
 
-    expect(rule.apply(context("Hello,,", { inputAction: "insert" }))).toEqual({
-      replacement: ",",
-      deleteBackwards: 2,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("Hello,,", { inputAction: "insert" }))).toEqual(edit(",", 2));
 
-    expect(rule.apply(context("Hello,,,,", { inputAction: "insert" }))).toEqual({
-      replacement: ",",
-      deleteBackwards: 4,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("Hello,,,,", { inputAction: "insert" }))).toEqual(edit(",", 4));
 
-    expect(rule.apply(context("Oops.. ", { inputAction: "insert" }))).toEqual({
-      replacement: ". ",
-      deleteBackwards: 3,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("Oops.. ", { inputAction: "insert" }))).toEqual(edit(". ", 3));
 
-    expect(rule.apply(context("Hello,, ", { inputAction: "insert" }))).toEqual({
-      replacement: ", ",
-      deleteBackwards: 3,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("Hello,, ", { inputAction: "insert" }))).toEqual(edit(", ", 3));
 
-    expect(rule.apply(context("Hello,,\u00A0", { inputAction: "insert" }))).toEqual({
-      replacement: ",\u00A0",
-      deleteBackwards: 3,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("Hello,,\u00A0", { inputAction: "insert" }))).toEqual(
+      edit(",\u00A0", 3),
+    );
 
-    expect(rule.apply(context("Hello,, ,", { inputAction: "insert" }))).toEqual({
-      replacement: ", ",
-      deleteBackwards: 4,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("Hello,, ,", { inputAction: "insert" }))).toEqual(edit(", ", 4));
 
-    expect(rule.apply(context("Hello,,\u00A0,", { inputAction: "insert" }))).toEqual({
-      replacement: ",\u00A0",
-      deleteBackwards: 4,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("Hello,,\u00A0,", { inputAction: "insert" }))).toEqual(
+      edit(",\u00A0", 4),
+    );
 
-    expect(rule.apply(context("Hello,,\u00A0\u00A0,", { inputAction: "insert" }))).toEqual({
-      replacement: ",\u00A0",
-      deleteBackwards: 5,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("Hello,,\u00A0\u00A0,", { inputAction: "insert" }))).toEqual(
+      edit(",\u00A0", 5),
+    );
 
-    expect(rule.apply(context("Hello,,\u200B ", { inputAction: "insert" }))).toEqual({
-      replacement: ",\u200B ",
-      deleteBackwards: 4,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("Hello,,\u200B ", { inputAction: "insert" }))).toEqual(
+      edit(",\u200B ", 4),
+    );
 
-    expect(rule.apply(context("Hello,,\u200B,", { inputAction: "insert" }))).toEqual({
-      replacement: ",\u200B",
-      deleteBackwards: 4,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("Hello,,\u200B,", { inputAction: "insert" }))).toEqual(
+      edit(",\u200B", 4),
+    );
 
-    expect(rule.apply(context("This is,,,,,,,,,,,, ", { inputAction: "insert" }))).toEqual({
-      replacement: ", ",
-      deleteBackwards: 13,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("This is,,,,,,,,,,,, ", { inputAction: "insert" }))).toEqual(
+      edit(", ", 13),
+    );
 
-    expect(rule.apply(context("What the fewer ,,,,,,,,,, ", { inputAction: "insert" }))).toEqual({
-      replacement: ", ",
-      deleteBackwards: 12,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("What the fewer ,,,,,,,,,, ", { inputAction: "insert" }))).toEqual(
+      edit(", ", 12),
+    );
 
-    expect(rule.apply(context("What the fewer , ,", { inputAction: "insert" }))).toEqual({
-      replacement: ", ",
-      deleteBackwards: 4,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("What the fewer , ,", { inputAction: "insert" }))).toEqual(
+      edit(", ", 4),
+    );
 
     expect(rule.apply(context("Wait... ", { inputAction: "insert" }))).toBeNull();
     expect(rule.apply(context("Nice!!", { inputAction: "insert" }))).toBeNull();
@@ -192,90 +121,62 @@ describe("V3 rule expansion", () => {
     ).toBeNull();
 
     expect(rule.apply(context("could of gone ", { lang: "en_US", inputAction: "insert" }))).toEqual(
-      {
-        replacement: "could have gone ",
-        deleteBackwards: "could of gone ".length,
-        deleteForwards: 0,
-      },
+      edit("could have gone ", "could of gone ".length),
     );
 
     expect(rule.apply(context("COULD OF GONE ", { lang: "en_US", inputAction: "insert" }))).toEqual(
-      {
-        replacement: "COULD HAVE GONE ",
-        deleteBackwards: "COULD OF GONE ".length,
-        deleteForwards: 0,
-      },
+      edit("COULD HAVE GONE ", "COULD OF GONE ".length),
     );
   });
 
   test("EnglishYourWelcomeCorrectionRule normalizes phrase", () => {
     const rule = new EnglishYourWelcomeCorrectionRule();
 
-    expect(rule.apply(context("your welcome!", { lang: "en_US", inputAction: "insert" }))).toEqual({
-      replacement: "you're welcome!",
-      deleteBackwards: "your welcome!".length,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("your welcome!", { lang: "en_US", inputAction: "insert" }))).toEqual(
+      edit("you're welcome!", "your welcome!".length),
+    );
   });
 
   test("EnglishTheirThereBeVerbRule normalizes there/their mismatch", () => {
     const rule = new EnglishTheirThereBeVerbRule();
 
-    expect(rule.apply(context("their is ", { lang: "en_US", inputAction: "insert" }))).toEqual({
-      replacement: "there is ",
-      deleteBackwards: "their is ".length,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("their is ", { lang: "en_US", inputAction: "insert" }))).toEqual(
+      edit("there is ", "their is ".length),
+    );
 
     expect(rule.apply(context("their is ", { lang: "pl_PL", inputAction: "insert" }))).toBeNull();
   });
 
   test("EnglishAlotCorrectionRule corrects typo and respects user dictionary", () => {
-    const rule = new EnglishAlotCorrectionRule(["alot"]);
+    const rule = new EnglishAlotCorrectionRule();
+    const hints = { lang: "en_US", inputAction: "insert" } as const;
 
-    expect(rule.apply(context("alot ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+    expect(rule.apply(context("alot ", { ...hints, userDictionary: ["alot"] }))).toBeNull();
     expect(
       rule.apply(context("alot ", { lang: "en_US", inputAction: "insert", userDictionary: [] })),
-    ).toEqual({
-      replacement: "a lot ",
-      deleteBackwards: "alot ".length,
-      deleteForwards: 0,
-    });
+    ).toEqual(edit("a lot ", "alot ".length));
   });
 
   test("EnglishArticleAnCorrectionRule corrects the article", () => {
     const rule = new EnglishArticleAnCorrectionRule();
     const hints = { lang: "en_US", inputAction: "insert" } as const;
 
-    expect(rule.apply(context("a error ", hints))).toEqual({
-      replacement: "an error ",
-      deleteBackwards: "a error ".length,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("a error ", hints))).toEqual(edit("an error ", "a error ".length));
     expect(rule.apply(context("a awkward ", hints))?.replacement).toBe("an awkward ");
     // The user's own words (often names or initialisms) are left alone.
-    expect(rule.apply(context("a awkward ", { ...hints, userDictionary: ["awkward"] }))).toBeNull();
-    expect(
-      new EnglishArticleAnCorrectionRule(["Awkward"]).apply(context("a awkward ", hints)),
-    ).toBeNull();
+    expect(rule.apply(context("a awkward ", { ...hints, userDictionary: ["Awkward"] }))).toBeNull();
   });
 
   test("EnglishPronounVerbWhitelistAgreementRule applies strict whitelist", () => {
     const rule = new EnglishPronounVerbWhitelistAgreementRule();
 
     expect(rule.apply(context("I is ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
-    expect(rule.apply(context("I is wrong ", { lang: "en_US", inputAction: "insert" }))).toEqual({
-      replacement: "I am wrong ",
-      deleteBackwards: "I is wrong ".length,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("I is wrong ", { lang: "en_US", inputAction: "insert" }))).toEqual(
+      edit("I am wrong ", "I is wrong ".length),
+    );
 
     expect(rule.apply(context("YOU WAS THERE ", { lang: "en_US", inputAction: "insert" }))).toEqual(
-      {
-        replacement: "YOU WERE THERE ",
-        deleteBackwards: "YOU WAS THERE ".length,
-        deleteForwards: 0,
-      },
+      edit("YOU WERE THERE ", "YOU WAS THERE ".length),
     );
 
     expect(rule.apply(context("they is ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
@@ -290,10 +191,6 @@ describe("V3 rule expansion", () => {
     }
     expect(
       rule.apply(context("Knowing you was home ", { lang: "en_US", inputAction: "insert" })),
-    ).toEqual({
-      replacement: "you were home ",
-      deleteBackwards: "you was home ".length,
-      deleteForwards: 0,
-    });
+    ).toEqual(edit("you were home ", "you was home ".length));
   });
 });

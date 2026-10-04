@@ -1,34 +1,47 @@
-import type { DonationPromptAction } from "@core/domain/messageTypes";
+import type { ProductivityDashboardStats } from "@core/domain/messageTypes";
 import { SettingsEngine, type SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { createLogger, installObservabilityRelay } from "@core/application/logging/Logger";
 import { Store } from "@core/application/storage/Store.js";
-import { dispatchSettingsSaveStatus } from "@ui/settings-engine/controls/FieldControl.js";
-import { resolveEnabledLanguages } from "@core/domain/lang";
+import {
+  createInputElement,
+  dispatchSettingsSaveStatus,
+} from "@ui/settings-engine/controls/FieldControl.js";
+import {
+  resolveEnabledLanguages,
+  resolveFallbackLanguage,
+  resolvePrimaryLanguage,
+} from "@core/domain/lang";
 import { LanguageSettingsPanel } from "@ui/options/LanguageSettingsPanel";
 import { TextAssetsPanel } from "@ui/options/TextAssetsPanel";
 import { SiteManagementPanel } from "@ui/options/SiteManagementPanel";
 import { AppearanceStudio } from "@ui/options/AppearanceStudio";
-import { renderDataDiagnosticsPanel } from "@ui/options/DataDiagnosticsPanel";
 import {
   renderAboutWorkspacePanel,
   renderSupportWorkspacePanel,
 } from "@ui/options/AboutWorkspacePanel";
-import { formatMetricNumber, formatWeekRange } from "@ui/shared/formatMetrics.js";
 import {
-  acknowledgeDonationPrompt,
+  formatMetricNumber,
+  formatSavingsSummary,
+  formatTrendDayLabel,
+  formatWeekRange,
+} from "@ui/shared/formatMetrics.js";
+import {
+  ackDonation,
   acknowledgeWeeklyRecap,
+  isProductivityStats,
+  notifyConfigChange,
   sendRuntimeMessage,
+  sendRuntimeMessageWithRetry,
+  trackDonationPromptShown,
 } from "@ui/shared/runtimeMessaging";
-import { renderEssentialsWorkspacePanel } from "@ui/options/EssentialsWorkspacePanel";
 import { renderGrammarWorkspacePanel } from "@ui/options/GrammarWorkspacePanel";
-import { renderObservabilityWorkspacePanel } from "@ui/options/ObservabilityWorkspacePanel";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import { sanitizeAutoLanguageSitePriors } from "@core/domain/autoLanguageDetection";
 import {
   isLogLevel,
+  sanitizeObservabilityConfig,
   sanitizeObservabilityModuleOverrides,
   type LogLevel,
-  type ObservabilityConfig,
   type ObservabilityEvent,
   type ObservabilityModuleOverride,
   type ObservabilityModuleState,
@@ -36,44 +49,22 @@ import {
   type ObservabilitySummary,
 } from "@core/domain/observability";
 import {
-  KEY_AUTOCOMPLETE,
-  KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_AUTO_LANGUAGE_SITE_PRIORS,
   KEY_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
   KEY_ENABLED_LANGUAGES,
   KEY_NUM_SUGGESTIONS,
-  KEY_MIN_WORD_LENGTH_TO_PREDICT,
-  KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
-  KEY_AUTO_CAPITALIZE,
-  KEY_SELECT_BY_DIGIT,
   KEY_HORIZONTAL_SUGGESTIONS,
-  KEY_TIME_FORMAT,
-  KEY_DATE_FORMAT,
-  KEY_TEXT_EXPANSIONS,
-  KEY_USER_DICTIONARY_LIST,
-  KEY_DOMAIN_LIST_MODE,
   KEY_SHOW_SUGGESTION_FOOTER,
-  KEY_SHOW_REVIEW_BUTTON,
-  KEY_LIVE_GRAMMAR_PROPOSALS,
-  KEY_LOCAL_AI_REVIEW_ENABLED,
-  KEY_LOCAL_AI_REVIEW_TIER,
   KEY_INLINE_SUGGESTION,
   KEY_PREFIX_ONLY_MODE,
-  KEY_PERSONALIZATION_ENABLED,
   KEY_EXTENSION_LANGUAGE,
   KEY_SITE_PROFILES,
-  KEY_ENABLED_GRAMMAR_RULES,
-  KEY_REVIEW_RULE_OVERRIDES,
-  KEY_PREFERRED_TERMINOLOGY,
-  KEY_REVIEW_LONG_SENTENCE_WORDS,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
   KEY_OBSERVABILITY_ENABLED,
   KEY_OBSERVABILITY_MODULE_OVERRIDES,
-  DEFAULT_OBSERVABILITY_ENABLED,
-  DEFAULT_OBSERVABILITY_DEFAULT_LEVEL,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
   CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
   CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
@@ -81,24 +72,26 @@ import {
   CMD_OPTIONS_CLEAR_PERSONALIZATION,
   CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
   CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
-  KEY_PREFER_NATIVE_AUTOCOMPLETE,
-  KEY_CODE_MODE,
+  isDevBuild,
 } from "@core/domain/constants";
 import { PERSONALIZATION_STORAGE_KEY } from "@core/application/personalization/PersonalizationRepository";
-import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
-import { formatTranslation, i18n } from "./fluenttyperI18n.js";
-import { manifest } from "./settingsManifest.js";
+import { EXTENSION_LANGUAGE_STORAGE_KEY, formatTranslation, i18n } from "./fluenttyperI18n.js";
+import { DATA_CARDS, ESSENTIALS_CARDS, OBSERVABILITY_CARDS, manifest } from "./settingsManifest.js";
 import { languageLabel } from "@ui/shared/siteProfileEditor";
-import { createWorkspaceShell, downloadBlob, formatLooseText } from "./workspacePanelUtils.js";
+import { localizeDocument } from "@ui/shared/localizeDocument";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
+import {
+  createButton,
+  createExternalLink,
+  downloadBlob,
+  formatLooseText,
+  renderControlCards,
+} from "./workspacePanelUtils.js";
 
-const PRODUCTIVITY_INSIGHTS_MAX_RETRIES = 5;
-const PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS = 200;
-const OBSERVABILITY_MAX_RETRIES = 4;
-const OBSERVABILITY_RETRY_DELAY_MS = 250;
+const PRODUCTIVITY_INSIGHTS_RETRY_DELAYS_MS = [200, 200, 200, 200, 200];
+const OBSERVABILITY_RETRY_DELAYS_MS = [250, 250, 250, 250];
 const OBSERVABILITY_POLL_INTERVAL_MS = 1500;
-const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 let observabilityLastSignature = "";
-let observabilityBindingsInitialized = false;
 let observabilityCurrentSnapshot: ObservabilitySnapshot | null = null;
 let observabilityRegistry: SettingsRegistry | null = null;
 const observabilityUIState = {
@@ -112,73 +105,21 @@ const observabilityUIState = {
 };
 const observabilityLogger = createLogger("OptionsObservability");
 
-function resolveOptionsObservabilityConfig(registry: SettingsRegistry) {
-  const enabled = registry[KEY_OBSERVABILITY_ENABLED]?.get();
-  const defaultLevel = registry[KEY_OBSERVABILITY_DEFAULT_LEVEL]?.get();
-  return {
-    enabled: typeof enabled === "boolean" ? enabled : DEFAULT_OBSERVABILITY_ENABLED,
-    defaultLevel: isLogLevel(defaultLevel) ? defaultLevel : DEFAULT_OBSERVABILITY_DEFAULT_LEVEL,
-    moduleOverrides: getObservabilityModuleOverrides(registry),
-  };
-}
-
 function applyOptionsObservabilityRuntime(registry: SettingsRegistry) {
-  if (!IS_DEV_BUILD) {
+  if (!isDevBuild()) {
     return;
   }
   installObservabilityRelay({
-    config: resolveOptionsObservabilityConfig(registry),
+    config: sanitizeObservabilityConfig({
+      enabled: registry[KEY_OBSERVABILITY_ENABLED]?.get(),
+      defaultLevel: registry[KEY_OBSERVABILITY_DEFAULT_LEVEL]?.get(),
+      moduleOverrides: registry[KEY_OBSERVABILITY_MODULE_OVERRIDES]?.get(),
+    }),
     source: "options",
     eventCommand: CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
     modulesCommand: CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
   });
 }
-
-function optionsPageConfigChange() {
-  const message = {
-    command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE",
-    context: {},
-  };
-  void chrome.runtime.sendMessage(message);
-}
-
-const CONFIG_REFRESH_KEYS = [
-  KEY_AUTOCOMPLETE,
-  KEY_AUTOCOMPLETE_ON_ENTER,
-  KEY_AUTOCOMPLETE_ON_TAB,
-  KEY_LANGUAGE,
-  KEY_ENABLED_LANGUAGES,
-  KEY_DOMAIN_LIST_MODE,
-  KEY_FALLBACK_LANGUAGE,
-  KEY_NUM_SUGGESTIONS,
-  KEY_MIN_WORD_LENGTH_TO_PREDICT,
-  KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
-  KEY_AUTO_CAPITALIZE,
-  KEY_SELECT_BY_DIGIT,
-  KEY_HORIZONTAL_SUGGESTIONS,
-  KEY_ENABLED_GRAMMAR_RULES,
-  KEY_REVIEW_RULE_OVERRIDES,
-  KEY_PREFERRED_TERMINOLOGY,
-  KEY_REVIEW_LONG_SENTENCE_WORDS,
-  KEY_TIME_FORMAT,
-  KEY_DATE_FORMAT,
-  KEY_TEXT_EXPANSIONS,
-  KEY_USER_DICTIONARY_LIST,
-  KEY_SHOW_SUGGESTION_FOOTER,
-  KEY_SHOW_REVIEW_BUTTON,
-  KEY_LIVE_GRAMMAR_PROPOSALS,
-  KEY_LOCAL_AI_REVIEW_ENABLED,
-  KEY_LOCAL_AI_REVIEW_TIER,
-  KEY_INLINE_SUGGESTION,
-  KEY_PREFER_NATIVE_AUTOCOMPLETE,
-  KEY_CODE_MODE,
-  KEY_PERSONALIZATION_ENABLED,
-  KEY_EXTENSION_LANGUAGE,
-  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-  KEY_OBSERVABILITY_ENABLED,
-  KEY_OBSERVABILITY_DEFAULT_LEVEL,
-  ...Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS),
-];
 
 const OBSERVABILITY_REFRESH_KEYS = new Set([
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
@@ -186,44 +127,11 @@ const OBSERVABILITY_REFRESH_KEYS = new Set([
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
 ]);
 
-function refreshObservabilitySnapshot(): void {
-  const root = document.getElementById("observabilityRoot");
-  if (!root) {
-    return;
-  }
-  observabilityLastSignature = "";
-  void loadObservabilitySnapshot(root);
-}
-
-function handleConfigRefreshTrigger(registry: SettingsRegistry, key: string): void {
-  if (key === KEY_OBSERVABILITY_ENABLED || key === KEY_OBSERVABILITY_DEFAULT_LEVEL) {
-    applyOptionsObservabilityRuntime(registry);
-  }
-
-  optionsPageConfigChange();
-
-  if (OBSERVABILITY_REFRESH_KEYS.has(key)) {
-    refreshObservabilitySnapshot();
-  }
-}
-
-function wireValidationHandlers(registry: SettingsRegistry, store: Store): void {
-  for (const key of [KEY_LANGUAGE, KEY_ENABLED_LANGUAGES]) {
-    registry[key]?.addEvent("action", () => {
-      void validateLanguageSettings(registry, store);
-    });
-  }
-}
-
 function wireImportExportHandlers(registry: SettingsRegistry): void {
   registry.exportSettingButton.addEvent("action", function () {
     chrome.storage.local.get(null, function (items) {
       const result = JSON.stringify(createSettingsExportSnapshot(items));
-      downloadBlob(
-        new Blob([result], { type: "application/json" }),
-        "FluentTyperSettings.json",
-        1500,
-      );
+      downloadBlob(new Blob([result], { type: "application/json" }), "FluentTyperSettings.json");
     });
     dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_exported") });
   });
@@ -232,20 +140,31 @@ function wireImportExportHandlers(registry: SettingsRegistry): void {
   importInputElem.type = "file";
   importInputElem.accept = ".json";
   // A native file input can't look like the other buttons; a wrapping label can.
-  const importLabel = document.createElement("label");
-  importLabel.className = "button";
-  importLabel.textContent = i18n.get("import_settings_btn");
+  const importLabel = createElement("label", {
+    className: "button",
+    textContent: i18n.get("import_settings_btn"),
+  });
   importInputElem.className = "is-sr-only";
   importInputElem.replaceWith(importLabel);
   importLabel.appendChild(importInputElem);
-  importInputElem.addEventListener("input", importSettingButtonFileSelected.bind(null, registry));
+  importInputElem.addEventListener("input", () => {
+    const file = importInputElem.files?.[0];
+    importInputElem.value = "";
+    void file?.text().then((text) => importSettings(registry, text));
+  });
 }
 
 function applyInlineSuggestionLocks(registry: SettingsRegistry, enabled: boolean): void {
   if (enabled) {
-    registry[KEY_AUTOCOMPLETE_ON_TAB].set(true);
-    registry[KEY_NUM_SUGGESTIONS].set(10);
-    registry[KEY_PREFIX_ONLY_MODE].set(true);
+    const locks: Array<[string, unknown]> = [
+      [KEY_AUTOCOMPLETE_ON_TAB, true],
+      [KEY_NUM_SUGGESTIONS, 10],
+      [KEY_PREFIX_ONLY_MODE, true],
+    ];
+    for (const [key, value] of locks) {
+      // A select control gives its value as a string.
+      if (String(registry[key].get()) !== String(value)) registry[key].set(value);
+    }
   }
   registry[KEY_AUTOCOMPLETE_ON_TAB].setDisabled(enabled);
   registry[KEY_PREFIX_ONLY_MODE].setDisabled(enabled);
@@ -262,18 +181,20 @@ export function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
 
   registry[KEY_EXTENSION_LANGUAGE]?.addEvent("persisted", () => {
     const langValue = registry[KEY_EXTENSION_LANGUAGE].get();
-    const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
-    localStorage.setItem(storageKey, JSON.stringify(langValue));
-    optionsPageConfigChange();
+    localStorage.setItem(EXTENSION_LANGUAGE_STORAGE_KEY, JSON.stringify(langValue));
     setTimeout(() => location.reload(), 100);
   });
 
-  for (const key of CONFIG_REFRESH_KEYS) {
-    const setting = registry[key];
-    if (!setting || typeof setting.addEvent !== "function") {
-      continue;
-    }
-    setting.addEvent("persisted", () => handleConfigRefreshTrigger(registry, key));
+  for (const key of Object.keys(registry)) {
+    registry[key].addEvent("persisted", () => {
+      if (key === KEY_OBSERVABILITY_ENABLED || key === KEY_OBSERVABILITY_DEFAULT_LEVEL) {
+        applyOptionsObservabilityRuntime(registry);
+      }
+      void notifyConfigChange();
+      if (OBSERVABILITY_REFRESH_KEYS.has(key)) {
+        scheduleRefresh(true);
+      }
+    });
   }
 }
 
@@ -296,20 +217,12 @@ async function sanitizeStoredForEnabledLanguages(
 export async function validateLanguageSettings(registry: SettingsRegistry, store: Store) {
   const enabledLanguagesRaw = await store.get(KEY_ENABLED_LANGUAGES);
   const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
-  const allowAutoDetect = enabledLanguages.length > 1;
   const language = ((await store.get(KEY_LANGUAGE)) as string | undefined) || enabledLanguages[0];
   const fallbackLanguage =
     ((await store.get(KEY_FALLBACK_LANGUAGE)) as string | undefined) || enabledLanguages[0];
 
-  const resolvedLanguage =
-    language === "auto_detect" && allowAutoDetect
-      ? "auto_detect"
-      : enabledLanguages.includes(language)
-        ? language
-        : enabledLanguages[0];
-  const resolvedFallbackLanguage = enabledLanguages.includes(fallbackLanguage)
-    ? fallbackLanguage
-    : enabledLanguages[0];
+  const resolvedLanguage = resolvePrimaryLanguage(language, enabledLanguages);
+  const resolvedFallbackLanguage = resolveFallbackLanguage(fallbackLanguage, enabledLanguages);
   let didSanitize = false;
   if (
     !Array.isArray(enabledLanguagesRaw) ||
@@ -344,35 +257,27 @@ export async function validateLanguageSettings(registry: SettingsRegistry, store
     sanitizeAutoLanguageSitePriors,
   );
   if (siteProfilesChanged || sitePriorsChanged || didSanitize) {
-    optionsPageConfigChange();
+    void notifyConfigChange();
   }
 }
 
-function importSettingButtonFileSelected(registry: SettingsRegistry) {
-  const importInputElem = registry.importSettingButton.element as HTMLInputElement;
-  const fr = new FileReader();
-  fr.addEventListener("load", () => {
-    try {
-      const jsonSettings = sanitizeSettingsImportSnapshot(
-        JSON.parse(fr.result as string) as Record<string, unknown>,
-      );
-      void chrome.storage.local.set(jsonSettings);
+function importSettings(registry: SettingsRegistry, text: string) {
+  try {
+    const jsonSettings = sanitizeSettingsImportSnapshot(JSON.parse(text));
+    void chrome.storage.local.set(jsonSettings).then(() => {
       dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_imported") });
-      optionsPageConfigChange();
+      void notifyConfigChange();
       location.reload();
-    } catch (error) {
-      const block = document.createElement("div");
-      block.className = "block";
-      const notification = document.createElement("div");
-      notification.className = "notification is-danger";
-      notification.textContent = `Failed to import JSON file:  ${String(error)}`;
-      block.appendChild(notification);
-      registry.importSettingButton.rootElement.appendChild(block);
-    }
-  });
-
-  fr.readAsText((importInputElem.files as FileList)[0]);
-  importInputElem.value = "";
+    });
+  } catch (error) {
+    const block = createElement("div", { className: "block" });
+    const notification = createElement("div", {
+      className: "notification is-danger",
+      textContent: `Failed to import JSON file:  ${String(error)}`,
+    });
+    block.appendChild(notification);
+    registry.importSettingButton.rootElement.appendChild(block);
+  }
 }
 
 export function createSettingsExportSnapshot(
@@ -383,33 +288,15 @@ export function createSettingsExportSnapshot(
   return exportableItems;
 }
 
-export function sanitizeSettingsImportSnapshot(
-  items: Record<string, unknown>,
-): Record<string, unknown> {
-  const importableItems = { ...items };
+export function sanitizeSettingsImportSnapshot(items: unknown): Record<string, unknown> {
+  if (typeof items !== "object" || items === null || Array.isArray(items)) {
+    throw new TypeError("The settings file must contain a JSON object.");
+  }
+  const importableItems: Record<string, unknown> = { ...items };
   delete importableItems["store.settings.revertOnBackspace"];
   delete importableItems[PERSONALIZATION_STORAGE_KEY];
   return importableItems;
 }
-
-const themePresets = {
-  default: { ...DEFAULT_SUGGESTION_THEME_SETTINGS },
-  compact: {
-    suggestionBgLight: "rgba(255, 255, 255, 0.85)",
-    suggestionTextLight: "#1a202c",
-    suggestionHighlightBgLight: "rgba(15, 23, 42, 0.96)",
-    suggestionHighlightTextLight: "#ffffff",
-    suggestionBorderLight: "rgba(226, 232, 240, 0.7)",
-    suggestionBgDark: "rgba(15, 23, 42, 0.9)",
-    suggestionTextDark: "#f8fafc",
-    suggestionHighlightBgDark: "rgba(30, 41, 59, 0.92)",
-    suggestionHighlightTextDark: "#f8fafc",
-    suggestionBorderDark: "rgba(71, 85, 105, 0.72)",
-    suggestionFontSize: "0.8rem",
-    suggestionPaddingVertical: "0.4rem",
-    suggestionPaddingHorizontal: "0.6rem",
-  },
-};
 
 function setupSaveToast() {
   const toast = document.getElementById("settings-save-toast");
@@ -419,10 +306,7 @@ function setupSaveToast() {
   }
   let timerId = 0;
   window.addEventListener("fluenttyper:settings-save-status", (event) => {
-    const detail = (event as CustomEvent<{ state?: string; message?: string }>).detail;
-    if (!detail?.state) {
-      return;
-    }
+    const detail = (event as CustomEvent<{ state: string; message?: string }>).detail;
     window.clearTimeout(timerId);
     toast.classList.remove("is-hidden", "is-error");
     if (detail.state === "saving") {
@@ -440,282 +324,193 @@ function setupSaveToast() {
   });
 }
 
-function localizeStaticShell() {
-  document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((element) => {
-    const key = element.dataset.i18n;
-    if (key) {
-      element.textContent = i18n.get(key);
-    }
-  });
-
-  document.querySelectorAll<HTMLInputElement>("[data-i18n-placeholder]").forEach((element) => {
-    const key = element.dataset.i18nPlaceholder;
-    if (key) {
-      element.placeholder = i18n.get(key);
-    }
-  });
-
-  document.querySelectorAll<HTMLElement>("[data-i18n-aria-label]").forEach((element) => {
-    const key = element.dataset.i18nAriaLabel;
-    if (key) {
-      element.setAttribute("aria-label", i18n.get(key));
-    }
-  });
-}
-
-let lastMarkedDonationPromptId: string | null = null;
+const markDonationPromptShown = trackDonationPromptShown();
 
 function t(key: string) {
   return i18n.get(key);
 }
 
-function formatLanguageLabel(language: unknown) {
-  if (typeof language !== "string" || !language) {
-    return t("productivity_unknown_language");
+/** Appends a section with an h4 title and, when text is given, a p.trend-value to container. */
+function createInsightsSection(
+  container: HTMLElement,
+  titleText: string,
+  text?: string,
+  className = "productivity-insights-section",
+): HTMLElement {
+  const section = createElement("section", { className });
+  section.appendChild(createElement("h4", { textContent: titleText }));
+  if (text !== undefined) {
+    section.appendChild(createElement("p", { className: "trend-value", textContent: text }));
   }
-  return languageLabel(language);
+  container.appendChild(section);
+  return section;
 }
 
-function formatTrendDayLabel(dateKey: unknown) {
-  if (typeof dateKey !== "string") {
-    return "";
-  }
-  const date = new Date(`${dateKey}T00:00:00`);
-  if (Number.isNaN(date.getTime())) {
-    return dateKey;
-  }
-  return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date);
-}
-
-async function handleDonationPromptAction(
-  prompt: Record<string, unknown>,
-  action: DonationPromptAction,
-) {
-  if (!prompt || typeof prompt.promptId !== "string" || !prompt.promptId) {
-    return;
-  }
-  await acknowledgeDonationPrompt(
-    prompt.promptId,
-    action,
-    typeof prompt.milestoneHours === "number" ? prompt.milestoneHours : null,
-  );
-}
-
-type RankedRow = Record<string, unknown>;
-
-function appendRankedList(
+function appendRankedList<Row>(
   columns: HTMLElement,
   titleText: string,
-  rows: RankedRow[],
+  rows: Row[],
   emptyText: string,
-  rowMapper: (row: RankedRow) => [string, string],
+  rowMapper: (row: Row) => [string, string],
 ) {
-  const container = document.createElement("section");
-  container.className = "productivity-insights-section";
-  const title = document.createElement("h4");
-  title.textContent = titleText;
-  container.appendChild(title);
-  columns.appendChild(container);
-  const list = document.createElement("ul");
-  list.className = "productivity-insights-list";
-  if (!Array.isArray(rows) || rows.length === 0) {
-    const item = document.createElement("li");
-    item.textContent = emptyText;
-    list.appendChild(item);
-    container.appendChild(list);
-    return;
-  }
-  rows.forEach((row) => {
-    const item = document.createElement("li");
-    const [labelText, valueText] = rowMapper(row);
-    const label = document.createElement("span");
-    label.textContent = labelText;
-    const value = document.createElement("strong");
-    value.textContent = valueText;
-    item.appendChild(label);
-    item.appendChild(value);
-    list.appendChild(item);
-  });
+  const container = createInsightsSection(columns, titleText);
+  const list = createElement("ul", { className: "productivity-insights-list" });
+  const items =
+    !Array.isArray(rows) || rows.length === 0
+      ? [createElement("li", { textContent: emptyText })]
+      : rows.map((row) => {
+          const item = createElement("li");
+          const [labelText, valueText] = rowMapper(row);
+          item.append(
+            createElement("span", { textContent: labelText }),
+            createElement("strong", { textContent: valueText }),
+          );
+          return item;
+        });
+  list.append(...items);
   container.appendChild(list);
 }
 
-type MetricStats = {
-  estimatedMinutesSaved: unknown;
-  acceptedSuggestions: unknown;
-  charactersSaved: unknown;
-};
-
-function appendMetricCard(container: HTMLElement, label: string, metric: MetricStats) {
-  const card = document.createElement("article");
-  card.className = "productivity-insights-metric";
-  const title = document.createElement("h4");
-  title.textContent = label;
-  const value = document.createElement("p");
-  value.className = "metric-main";
-  value.textContent = `${formatMetricNumber(metric.estimatedMinutesSaved)} ${t("popup_short_minutes")}`;
-  const details = document.createElement("p");
-  details.className = "metric-meta";
-  details.textContent = `${formatMetricNumber(metric.acceptedSuggestions)} ${t("popup_short_accepted")} • ${formatMetricNumber(
-    metric.charactersSaved,
-  )} ${t("popup_short_chars")}`;
-  card.appendChild(title);
-  card.appendChild(value);
-  card.appendChild(details);
+function appendMetricCard(
+  container: HTMLElement,
+  label: string,
+  metric: ProductivityDashboardStats["today"],
+) {
+  const card = createElement("article", { className: "productivity-insights-metric" });
+  const title = createElement("h4", { textContent: label });
+  const value = createElement("p", {
+    className: "metric-main",
+    textContent: `${formatMetricNumber(metric.estimatedMinutesSaved)} ${t("popup_short_minutes")}`,
+  });
+  const details = createElement("p", {
+    className: "metric-meta",
+    textContent: `${formatMetricNumber(metric.acceptedSuggestions)} ${t("popup_short_accepted")} • ${formatMetricNumber(
+      metric.charactersSaved,
+    )} ${t("popup_short_chars")}`,
+  });
+  card.append(title, value, details);
   container.appendChild(card);
 }
 
-function appendTrendChart(container: HTMLElement, trendPoints: unknown) {
-  const section = document.createElement("section");
-  section.className = "productivity-insights-section";
-  const title = document.createElement("h4");
-  title.textContent = t("productivity_trend_chart_title");
-  section.appendChild(title);
+function appendTrendChart(
+  container: HTMLElement,
+  trendPoints: ProductivityDashboardStats["last7DaysTrend"],
+) {
+  const points = Array.isArray(trendPoints) ? trendPoints : [];
+  const section = createInsightsSection(
+    container,
+    t("productivity_trend_chart_title"),
+    points.length === 0 ? t("productivity_trend_empty") : undefined,
+  );
+  if (points.length === 0) {
+    return;
+  }
 
-  const chart = document.createElement("div");
-  chart.className = "productivity-trend-chart";
-  const points = Array.isArray(trendPoints) ? (trendPoints as Record<string, unknown>[]) : [];
+  const chart = createElement("div", { className: "productivity-trend-chart" });
   const maxMinutes =
     points.reduce(
       (maxValue, point) => Math.max(maxValue, Number(point?.estimatedMinutesSaved) || 0),
       0,
     ) || 1;
 
-  if (points.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "trend-value";
-    empty.textContent = t("productivity_trend_empty");
-    section.appendChild(empty);
-    container.appendChild(section);
-    return;
-  }
-
   points.forEach((point) => {
-    const item = document.createElement("div");
-    item.className = "trend-bar-item";
-    const barTrack = document.createElement("div");
-    barTrack.className = "trend-bar-track";
-    const barFill = document.createElement("div");
-    barFill.className = "trend-bar-fill";
+    const item = createElement("div", { className: "trend-bar-item" });
+    const barTrack = createElement("div", { className: "trend-bar-track" });
+    const barFill = createElement("div", { className: "trend-bar-fill" });
     const minutes = Number(point?.estimatedMinutesSaved) || 0;
     barFill.style.height = `${Math.max(6, Math.round((minutes / maxMinutes) * 100))}%`;
     barTrack.appendChild(barFill);
-    const label = document.createElement("span");
-    label.className = "trend-bar-label";
-    label.textContent = formatTrendDayLabel(point?.dateKey);
+    const label = createElement("span", {
+      className: "trend-bar-label",
+      textContent: formatTrendDayLabel(point?.dateKey),
+    });
     item.appendChild(barTrack);
     item.appendChild(label);
     chart.appendChild(item);
   });
 
   section.appendChild(chart);
-  container.appendChild(section);
 }
 
 function appendMilestoneProgress(
   container: HTMLElement,
-  milestoneProgress: Record<string, unknown>,
+  milestoneProgress: ProductivityDashboardStats["milestoneProgress"],
 ) {
-  const section = document.createElement("section");
-  section.className = "productivity-insights-section";
-  const title = document.createElement("h4");
-  title.textContent = t("productivity_milestone_progress_title");
-  section.appendChild(title);
+  const section = createInsightsSection(
+    container,
+    t("productivity_milestone_progress_title"),
+    `${formatMetricNumber(milestoneProgress?.lifetimeHoursSaved)}h / ${formatMetricNumber(
+      milestoneProgress?.nextMilestoneHours,
+    )}h`,
+  );
 
-  const progressMeta = document.createElement("p");
-  progressMeta.className = "trend-value";
-  progressMeta.textContent = `${formatMetricNumber(milestoneProgress?.lifetimeHoursSaved)}h / ${formatMetricNumber(
-    milestoneProgress?.nextMilestoneHours,
-  )}h`;
-  section.appendChild(progressMeta);
-
-  const progressTrack = document.createElement("div");
-  progressTrack.className = "productivity-progress-track";
-  const progressFill = document.createElement("div");
-  progressFill.className = "productivity-progress-fill";
+  const progressTrack = createElement("div", { className: "productivity-progress-track" });
+  const progressFill = createElement("div", { className: "productivity-progress-fill" });
   progressFill.style.width = `${Math.max(
     0,
     Math.min(100, Number(milestoneProgress?.progressPct) || 0),
   )}%`;
   progressTrack.appendChild(progressFill);
   section.appendChild(progressTrack);
-  container.appendChild(section);
 }
 
-function appendEventSummary(container: HTMLElement, eventSummary: Record<string, unknown>) {
-  const section = document.createElement("section");
-  section.className = "productivity-insights-section";
-  const title = document.createElement("h4");
-  title.textContent = t("productivity_event_summary_title");
-  section.appendChild(title);
-
-  const text = document.createElement("p");
-  text.className = "trend-value";
-  text.textContent = `${formatMetricNumber(eventSummary?.suggestionsShown)} ${t("productivity_events_shown")} • ${formatMetricNumber(
-    eventSummary?.snippetsExpanded,
-  )} ${t("productivity_events_expanded")} • ${formatMetricNumber(
-    eventSummary?.charsInsertedFromSnippet,
-  )} ${t("productivity_events_inserted")} • ${formatMetricNumber(
-    eventSummary?.charsTypedForTrigger,
-  )} ${t("productivity_events_typed")}`;
-  section.appendChild(text);
-  container.appendChild(section);
-}
-
-type ProductivityStats = Record<string, unknown>;
-
-function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats) {
+function renderProductivityInsights(root: HTMLElement, stats: ProductivityDashboardStats) {
   root.innerHTML = "";
 
-  const shell = document.createElement("section");
-  shell.className = "productivity-insights";
+  const shell = createElement("section", { className: "productivity-insights" });
 
-  const header = document.createElement("div");
-  header.className = "productivity-insights-header";
-  const refreshBtn = document.createElement("button");
-  refreshBtn.className = "button is-small is-light";
-  refreshBtn.type = "button";
-  refreshBtn.textContent = t("productivity_refresh_btn");
-  refreshBtn.setAttribute("data-action", "refresh-productivity-stats");
+  const header = createElement("div", { className: "productivity-insights-header" });
+  const refreshBtn = createButton(
+    t("productivity_refresh_btn"),
+    "button is-small is-light",
+    () => void loadProductivityInsights(root),
+  );
   header.appendChild(refreshBtn);
   shell.appendChild(header);
 
-  const metricGrid = document.createElement("div");
-  metricGrid.className = "productivity-insights-grid";
-  appendMetricCard(metricGrid, t("productivity_metric_today"), stats.today as MetricStats);
-  appendMetricCard(metricGrid, t("productivity_metric_last7"), stats.last7Days as MetricStats);
-  appendMetricCard(metricGrid, t("productivity_metric_lifetime"), stats.lifetime as MetricStats);
+  const metricGrid = createElement("div", { className: "productivity-insights-grid" });
+  appendMetricCard(metricGrid, t("productivity_metric_today"), stats.today);
+  appendMetricCard(metricGrid, t("productivity_metric_last7"), stats.last7Days);
+  appendMetricCard(metricGrid, t("productivity_metric_lifetime"), stats.lifetime);
   shell.appendChild(metricGrid);
 
-  const trendSection = document.createElement("section");
-  trendSection.className = "productivity-insights-section";
-  const trendTitle = document.createElement("h4");
-  trendTitle.textContent = t("productivity_week_over_week_title");
-  const trendValue = document.createElement("p");
-  trendValue.className = "trend-value";
   const weekOverWeekDeltaPct = Number(stats.weekOverWeekDeltaPct);
-  if (stats.weekOverWeekDeltaPct === null || !Number.isFinite(weekOverWeekDeltaPct)) {
-    trendValue.textContent = t("productivity_week_over_week_empty");
-  } else {
-    trendValue.textContent = `${weekOverWeekDeltaPct >= 0 ? "+" : ""}${weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`;
-  }
-  trendSection.appendChild(trendTitle);
-  trendSection.appendChild(trendValue);
-  shell.appendChild(trendSection);
+  createInsightsSection(
+    shell,
+    t("productivity_week_over_week_title"),
+    stats.weekOverWeekDeltaPct === null || !Number.isFinite(weekOverWeekDeltaPct)
+      ? t("productivity_week_over_week_empty")
+      : `${weekOverWeekDeltaPct >= 0 ? "+" : ""}${weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`,
+  );
   appendTrendChart(shell, stats.last7DaysTrend);
-  appendMilestoneProgress(shell, stats.milestoneProgress as Record<string, unknown>);
-  appendEventSummary(shell, stats.last7DaysEvents as Record<string, unknown>);
+  appendMilestoneProgress(shell, stats.milestoneProgress);
+  const eventSummary = stats.last7DaysEvents;
+  createInsightsSection(
+    shell,
+    t("productivity_event_summary_title"),
+    `${formatMetricNumber(eventSummary?.suggestionsShown)} ${t("productivity_events_shown")} • ${formatMetricNumber(
+      eventSummary?.snippetsExpanded,
+    )} ${t("productivity_events_expanded")} • ${formatMetricNumber(
+      eventSummary?.charsInsertedFromSnippet,
+    )} ${t("productivity_events_inserted")} • ${formatMetricNumber(
+      eventSummary?.charsTypedForTrigger,
+    )} ${t("productivity_events_typed")}`,
+  );
 
-  const columns = document.createElement("div");
-  columns.className = "productivity-insights-columns";
+  const columns = createElement("div", { className: "productivity-insights-columns" });
 
-  const languageRow = (row: RankedRow): [string, string] => [
-    formatLanguageLabel(row.language),
+  const languageRow = (
+    row: ProductivityDashboardStats["perLanguageLifetime"][number],
+  ): [string, string] => [
+    typeof row.language === "string" && row.language
+      ? languageLabel(row.language)
+      : t("productivity_unknown_language"),
     `${formatMetricNumber(row.estimatedMinutesSaved)} ${t("popup_short_minutes")}`,
   ];
   appendRankedList(
     columns,
     t("productivity_top_snippets_title"),
-    (stats.topSnippets as RankedRow[]) || [],
+    stats.topSnippets || [],
     t("productivity_top_snippets_empty"),
     (row) => [
       formatLooseText(row.snippet),
@@ -725,44 +520,39 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
   appendRankedList(
     columns,
     t("productivity_languages_last7_title"),
-    (stats.perLanguageLast7Days as RankedRow[]) || [],
+    stats.perLanguageLast7Days || [],
     t("productivity_languages_empty"),
     languageRow,
   );
   appendRankedList(
     columns,
     t("productivity_languages_lifetime_title"),
-    (stats.perLanguageLifetime as RankedRow[]) || [],
+    stats.perLanguageLifetime || [],
     t("productivity_languages_empty"),
     languageRow,
   );
   shell.appendChild(columns);
 
-  const weeklyRecap = stats.weeklyRecap as Record<string, unknown> | undefined;
-  const recapSection = document.createElement("section");
-  recapSection.className = "productivity-insights-section recap-section";
-  const recapTitle = document.createElement("h4");
-  recapTitle.textContent = `${t("productivity_weekly_recap_title")} (${formatWeekRange(weeklyRecap?.weekKey)})`;
-  const recapSummary = document.createElement("p");
-  recapSummary.textContent = `${formatMetricNumber(weeklyRecap?.acceptedSuggestions)} ${t("popup_short_accepted")} • ${formatMetricNumber(
-    weeklyRecap?.charactersSaved,
-  )} ${t("popup_short_chars")} • ${formatMetricNumber(
-    weeklyRecap?.estimatedMinutesSaved,
-  )} ${t("popup_short_minutes")}`;
-  recapSection.appendChild(recapTitle);
+  const weeklyRecap = stats.weeklyRecap;
+  const recapSection = createInsightsSection(
+    shell,
+    `${t("productivity_weekly_recap_title")} (${formatWeekRange(weeklyRecap?.weekKey)})`,
+    undefined,
+    "productivity-insights-section recap-section",
+  );
+  const recapSummary = createElement("p", { textContent: formatSavingsSummary(weeklyRecap) });
   recapSection.appendChild(recapSummary);
-  const recapTopSnippet = document.createElement("p");
-  recapTopSnippet.className = "recap-top-snippet";
-  const topSnippet = weeklyRecap?.topSnippet as Record<string, unknown> | undefined;
+  const recapTopSnippet = createElement("p", { className: "recap-top-snippet" });
+  const topSnippet = weeklyRecap?.topSnippet;
   recapTopSnippet.textContent = topSnippet
     ? `${t("productivity_top_snippet_label")}: ${formatLooseText(topSnippet.snippet)} (${formatMetricNumber(topSnippet.count)}x)`
     : t("productivity_top_snippet_empty");
   recapSection.appendChild(recapTopSnippet);
   if (stats.shouldShowWeeklyRecap) {
-    const recapAction = document.createElement("button");
-    recapAction.type = "button";
-    recapAction.className = "button is-small is-light recap-action";
-    recapAction.textContent = t("productivity_weekly_recap_mark_seen");
+    const recapAction = createButton(
+      t("productivity_weekly_recap_mark_seen"),
+      "button is-small is-light recap-action",
+    );
     recapAction.onclick = async () => {
       const weekKey = weeklyRecap?.weekKey;
       if (typeof weekKey === "string" && weekKey) {
@@ -772,53 +562,41 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
     };
     recapSection.appendChild(recapAction);
   }
-  shell.appendChild(recapSection);
 
-  const donationPrompt = stats.donationPrompt as Record<string, unknown> | undefined;
+  const donationPrompt = stats.donationPrompt ?? null;
+  markDonationPromptShown(donationPrompt);
   if (donationPrompt) {
-    if (lastMarkedDonationPromptId !== donationPrompt.promptId) {
-      lastMarkedDonationPromptId = String(donationPrompt.promptId);
-      void handleDonationPromptAction(donationPrompt, "shown");
-    }
-    const donationSection = document.createElement("div");
-    donationSection.className = "productivity-insights-donation";
-    const donationText = document.createElement("span");
-    const lifetime = stats.lifetime as Record<string, unknown>;
-    donationText.textContent = formatTranslation("support_saved_time", {
-      minutes: formatMetricNumber(lifetime.estimatedMinutesSaved),
+    const donationSection = createElement("div", { className: "productivity-insights-donation" });
+    const donationText = createElement("span", {
+      textContent: formatTranslation("support_saved_time", {
+        minutes: formatMetricNumber(stats.lifetime.estimatedMinutesSaved),
+      }),
     });
-    const donationActions = document.createElement("div");
-    donationActions.className = "productivity-insights-donation-actions";
-    const laterButton = document.createElement("button");
-    laterButton.type = "button";
-    laterButton.className = "button is-small is-light";
-    laterButton.textContent = t("popup_donation_later");
+    const donationActions = createElement("div", {
+      className: "productivity-insights-donation-actions",
+    });
+    const laterButton = createButton(t("popup_donation_later"), "button is-small is-light");
     laterButton.onclick = async () => {
-      await handleDonationPromptAction(donationPrompt, "snooze");
+      await ackDonation(donationPrompt, "snooze");
       await loadProductivityInsights(root);
     };
-    const donationLink = document.createElement("a");
-    donationLink.href = "https://www.buymeacoffee.com/FluentTyper";
-    donationLink.target = "_blank";
-    donationLink.rel = "noopener noreferrer";
-    donationLink.textContent = t("popup_donation_support");
+    const donationLink = createExternalLink(
+      "https://www.buymeacoffee.com/FluentTyper",
+      undefined,
+      t("popup_donation_support"),
+    );
     donationLink.onclick = () => {
-      void handleDonationPromptAction(donationPrompt, "support_clicked");
+      void ackDonation(donationPrompt, "support_clicked");
     };
-    const dismissButton = document.createElement("button");
-    dismissButton.type = "button";
-    dismissButton.className = "popup-text-button";
-    dismissButton.textContent = t("support_dismiss");
+    const dismissButton = createButton(t("support_dismiss"), "popup-text-button");
     dismissButton.onclick = async () => {
-      await handleDonationPromptAction(donationPrompt, "dismiss");
+      await ackDonation(donationPrompt, "dismiss");
       await loadProductivityInsights(root);
     };
     donationActions.append(donationLink, laterButton, dismissButton);
     donationSection.appendChild(donationText);
     donationSection.appendChild(donationActions);
     shell.appendChild(donationSection);
-  } else {
-    lastMarkedDonationPromptId = null;
   }
 
   root.appendChild(shell);
@@ -826,54 +604,38 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
 
 function renderProductivityInsightsStatus(root: HTMLElement, messageKey: string) {
   root.innerHTML = "";
-  const status = document.createElement("div");
-  status.className = "productivity-insights-status";
-  status.textContent = t(messageKey);
-  const refreshBtn = document.createElement("button");
-  refreshBtn.className = "button is-small is-light";
-  refreshBtn.type = "button";
-  refreshBtn.textContent = t("productivity_retry_btn");
-  refreshBtn.setAttribute("data-action", "refresh-productivity-stats");
+  const status = createElement("div", {
+    className: "productivity-insights-status",
+    textContent: t(messageKey),
+  });
+  const refreshBtn = createButton(
+    t("productivity_retry_btn"),
+    "button is-small is-light",
+    () => void loadProductivityInsights(root),
+  );
   status.appendChild(refreshBtn);
   root.appendChild(status);
 }
 
-async function loadProductivityInsights(root: HTMLElement, retryCount = 0) {
-  if (retryCount === 0) {
-    renderProductivityInsightsStatus(root, "productivity_insights_loading");
-  }
-  const response = await sendRuntimeMessage({
-    command: CMD_POPUP_GET_PRODUCTIVITY_STATS,
-    context: {},
-  });
-  if (!response || typeof response !== "object" || Array.isArray(response) || "ok" in response) {
-    if (retryCount < PRODUCTIVITY_INSIGHTS_MAX_RETRIES) {
-      window.setTimeout(() => {
-        void loadProductivityInsights(root, retryCount + 1);
-      }, PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS);
-      return;
-    }
+async function loadProductivityInsights(root: HTMLElement) {
+  renderProductivityInsightsStatus(root, "productivity_insights_loading");
+  const response = await sendRuntimeMessageWithRetry(
+    { command: CMD_POPUP_GET_PRODUCTIVITY_STATS, context: {} },
+    isProductivityStats,
+    PRODUCTIVITY_INSIGHTS_RETRY_DELAYS_MS,
+  );
+  if (!response) {
     renderProductivityInsightsStatus(root, "productivity_insights_failed");
     return;
   }
-  renderProductivityInsights(root, response as ProductivityStats);
+  renderProductivityInsights(root, response);
 }
 
 function setupProductivityInsights() {
   const root = document.getElementById("productivityStatsRoot");
-  if (!root || root.dataset.bound === "true") {
+  if (!root) {
     return;
   }
-  root.dataset.bound = "true";
-  root.addEventListener("click", (event) => {
-    const target = event.target;
-    if (
-      target instanceof HTMLElement &&
-      target.getAttribute("data-action") === "refresh-productivity-stats"
-    ) {
-      void loadProductivityInsights(root);
-    }
-  });
   window.addEventListener("focus", () => {
     void loadProductivityInsights(root);
   });
@@ -898,19 +660,13 @@ function formatClockTime(timestampMs: unknown) {
 }
 
 function createPredictorToggleAction(label: string, key: string, enabled: boolean) {
-  const row = document.createElement("div");
-  row.className = "predictor-debug-toggle-row";
+  const row = createElement("div", { className: "predictor-debug-toggle-row" });
+  row.appendChild(createElement("span", { textContent: label }));
 
-  const title = document.createElement("span");
-  title.textContent = label;
-  row.appendChild(title);
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = enabled
-    ? "button is-small is-danger is-light"
-    : "button is-small is-link is-light";
-  button.textContent = enabled ? "Disable" : "Enable";
+  const button = createButton(
+    enabled ? "Disable" : "Enable",
+    enabled ? "button is-small is-danger is-light" : "button is-small is-link is-light",
+  );
   button.setAttribute("data-action", "set-predictor-toggle");
   button.setAttribute("data-key", key);
   button.setAttribute("data-enabled", enabled ? "false" : "true");
@@ -931,82 +687,33 @@ function isObservabilitySnapshot(snapshot: unknown): snapshot is ObservabilitySn
   );
 }
 
-function buildObservabilitySnapshotSignature(snapshot: ObservabilitySnapshot) {
-  try {
-    return JSON.stringify({
-      ...snapshot,
-      generatedAtMs: 0,
-    });
-  } catch {
-    return "";
-  }
-}
-
 function getObservabilityModuleOverrides(
   registry: SettingsRegistry,
 ): Record<string, ObservabilityModuleOverride> {
   return sanitizeObservabilityModuleOverrides(registry[KEY_OBSERVABILITY_MODULE_OVERRIDES]?.get());
 }
 
-function setObservabilityModuleOverrides(
-  registry: SettingsRegistry,
-  overrides: Record<string, ObservabilityModuleOverride>,
-) {
-  const setting = registry[KEY_OBSERVABILITY_MODULE_OVERRIDES];
-  if (!setting || typeof setting.set !== "function") {
-    return;
-  }
-  setting.set(overrides);
-}
-
 function renderObservabilityStatus(root: HTMLElement, text: string, isError = false) {
   root.innerHTML = "";
-  const shell = document.createElement("div");
-  shell.className = "observability-status";
-  if (isError) {
-    shell.classList.add("is-error");
-  }
-  const message = document.createElement("p");
-  message.textContent = text;
-  shell.appendChild(message);
-  const refreshButton = document.createElement("button");
-  refreshButton.type = "button";
-  refreshButton.className = "button is-small is-light";
-  refreshButton.textContent = "Refresh";
-  refreshButton.setAttribute("data-action", "refresh-observability");
-  shell.appendChild(refreshButton);
-  root.appendChild(shell);
-}
-
-function createObservabilityLevelSelect(value: unknown, moduleId: string) {
-  const select = document.createElement("select");
-  select.className = "input";
-  select.setAttribute("data-action", "set-observability-module-level");
-  select.setAttribute("data-module-id", moduleId);
-  ["debug", "info", "warn", "error"].forEach((level) => {
-    const option = document.createElement("option");
-    option.value = level;
-    option.textContent = level;
-    option.selected = value === level;
-    select.appendChild(option);
+  const shell = createElement("div", {
+    className: isError ? "observability-status is-error" : "observability-status",
   });
-  return select;
+  const refreshButton = createButton("Refresh", "button is-small is-light");
+  refreshButton.setAttribute("data-action", "refresh-observability");
+  shell.append(createElement("p", { textContent: text }), refreshButton);
+  root.appendChild(shell);
 }
 
 function createObservabilitySelect(
   action: string,
   selectedValue: string,
   options: Array<{ value: string; label: string }>,
+  className = "input observability-select",
 ) {
-  const select = document.createElement("select");
-  select.className = "input observability-select";
+  const select = createElement("select", { className });
   select.setAttribute("data-action", action);
-  options.forEach((optionConfig) => {
-    const option = document.createElement("option");
-    option.value = optionConfig.value;
-    option.textContent = optionConfig.label;
-    option.selected = optionConfig.value === selectedValue;
-    select.appendChild(option);
+  options.forEach(({ value, label }) => {
+    select.appendChild(new Option(label, value, false, value === selectedValue));
   });
   return select;
 }
@@ -1017,9 +724,7 @@ function createObservabilitySearchInput(
   placeholder: string,
   ariaLabel: string,
 ) {
-  const input = document.createElement("input");
-  input.type = "search";
-  input.className = "input observability-search";
+  const input = createInputElement("search", "input observability-search");
   input.value = value;
   input.placeholder = placeholder;
   input.setAttribute("aria-label", ariaLabel);
@@ -1031,36 +736,39 @@ function createObservabilityBadge(
   label: string,
   tone: "neutral" | "accent" | "success" | "warn" | "error" = "neutral",
 ) {
-  const badge = document.createElement("span");
-  badge.className = `observability-badge is-${tone}`;
-  badge.textContent = label;
-  return badge;
+  return createElement("span", { className: `observability-badge is-${tone}`, textContent: label });
 }
 
-function createObservabilityCard(title: string, eyebrow?: string) {
-  const card = document.createElement("article");
-  card.className = "observability-card";
-  if (eyebrow) {
-    const eyebrowElement = document.createElement("p");
-    eyebrowElement.className = "observability-card-eyebrow";
-    eyebrowElement.textContent = eyebrow;
-    card.appendChild(eyebrowElement);
-  }
-  const heading = document.createElement("h4");
-  heading.textContent = title;
-  card.appendChild(heading);
+function createObservabilityPane(title: string, subtitle: string, ...toolbar: HTMLElement[]) {
+  const section = createElement("section", { className: "observability-pane" });
+  const header = createElement("div", { className: "observability-pane-header" });
+  const titleBlock = document.createElement("div");
+  titleBlock.append(
+    createElement("h4", { textContent: title }),
+    createElement("p", { textContent: subtitle }),
+  );
+  const toolbarElement = createElement("div", { className: "observability-pane-toolbar" });
+  toolbarElement.append(...toolbar);
+  header.append(titleBlock, toolbarElement);
+  section.appendChild(header);
+  return section;
+}
+
+function createObservabilityCard(title: string, eyebrow: string, rows: Array<[string, string]>) {
+  const card = createElement("article", { className: "observability-card" });
+  card.append(
+    createElement("p", { className: "observability-card-eyebrow", textContent: eyebrow }),
+    createElement("h4", { textContent: title }),
+    ...rows.map(([label, value]) => {
+      const row = createElement("div", { className: "observability-info-row" });
+      row.append(
+        createElement("span", { textContent: label }),
+        createElement("strong", { textContent: value }),
+      );
+      return row;
+    }),
+  );
   return card;
-}
-
-function appendObservabilityInfoItem(container: HTMLElement, label: string, value: string) {
-  const row = document.createElement("div");
-  row.className = "observability-info-row";
-  const key = document.createElement("span");
-  key.textContent = label;
-  const val = document.createElement("strong");
-  val.textContent = value;
-  row.append(key, val);
-  container.appendChild(row);
 }
 
 function readObservabilityScrollState(root: HTMLElement) {
@@ -1087,17 +795,17 @@ function restoreObservabilityScrollState(
   });
 }
 
-function levelBadgeTone(level: unknown) {
-  return level === "error"
-    ? "error"
-    : level === "warn"
-      ? "warn"
-      : level === "info"
-        ? "success"
-        : "neutral";
-}
+const LEVEL_BADGE_TONE = {
+  error: "error",
+  warn: "warn",
+  info: "success",
+  debug: "neutral",
+} as const satisfies Record<LogLevel, string>;
 
-function formatObservabilityUpdatedStatus(generatedAtMs: number) {
+function formatObservabilityLiveStatus(generatedAtMs: number) {
+  if (observabilityUIState.livePaused) {
+    return "Live updates paused";
+  }
   return observabilityUIState.scopeDomain === "all"
     ? `Updated ${formatClockTime(generatedAtMs)}`
     : `Updated ${formatClockTime(generatedAtMs)} · scope ${observabilityUIState.scopeDomain}`;
@@ -1144,16 +852,11 @@ function buildScopedObservabilitySnapshot(
     return snapshot;
   }
 
-  const normalizedDomain = scopeDomain.trim().toLowerCase();
-  if (!normalizedDomain) {
-    return snapshot;
-  }
-
   const scopedContentRuntimes = snapshot.contentRuntimes.filter(
-    (runtime) => runtime.domain === normalizedDomain,
+    (runtime) => runtime.domain === scopeDomain,
   );
   const scopedAutoLanguageRuntimes = snapshot.autoLanguageRuntimes.filter(
-    (runtime) => runtime.domain === normalizedDomain,
+    (runtime) => runtime.domain === scopeDomain,
   );
   const matchingTabIds = new Set<number>(
     [...scopedContentRuntimes, ...scopedAutoLanguageRuntimes].map((runtime) => runtime.tabId),
@@ -1162,20 +865,17 @@ function buildScopedObservabilitySnapshot(
   const scopedEvents = snapshot.events.filter(
     (event) => typeof event.tabId === "number" && matchingTabIds.has(event.tabId),
   );
+  const sourcePredictor = snapshot.predictor as { traces?: unknown } | null | undefined;
   const predictor =
-    snapshot.predictor && typeof snapshot.predictor === "object"
-      ? ({
-          ...snapshot.predictor,
-          traces: Array.isArray((snapshot.predictor as Record<string, unknown>).traces)
-            ? (
-                (snapshot.predictor as Record<string, unknown>).traces as Array<
-                  Record<string, unknown>
-                >
-              ).filter((trace) =>
-                typeof trace.tabId === "number" ? matchingTabIds.has(trace.tabId) : false,
+    sourcePredictor && typeof sourcePredictor === "object"
+      ? {
+          ...sourcePredictor,
+          traces: Array.isArray(sourcePredictor.traces)
+            ? (sourcePredictor.traces as Array<{ tabId: number }>).filter((trace) =>
+                matchingTabIds.has(trace.tabId),
               )
             : [],
-        } satisfies Record<string, unknown>)
+        }
       : snapshot.predictor;
 
   return {
@@ -1188,28 +888,18 @@ function buildScopedObservabilitySnapshot(
   };
 }
 
-function matchesObservabilityModuleFilter(
-  moduleState: Partial<ObservabilityModuleState>,
-  query: string,
-  filter: typeof observabilityUIState.moduleFilter,
-) {
-  const normalizedQuery = query.trim().toLowerCase();
-  const haystack = [
-    String(moduleState.moduleId || ""),
-    ...(Array.isArray(moduleState.sources)
-      ? moduleState.sources.map((value) => String(value))
-      : []),
-  ]
-    .join(" ")
-    .toLowerCase();
+function matchesObservabilityModuleFilter(moduleState: ObservabilityModuleState) {
+  const { moduleQuery, moduleFilter: filter } = observabilityUIState;
+  const normalizedQuery = moduleQuery.trim().toLowerCase();
+  const haystack = [moduleState.moduleId, ...moduleState.sources].join(" ").toLowerCase();
   if (normalizedQuery && !haystack.includes(normalizedQuery)) {
     return false;
   }
   if (filter === "overrides") {
-    return Boolean(moduleState.hasOverride);
+    return moduleState.hasOverride;
   }
   if (filter === "enabled") {
-    return Boolean(moduleState.enabled);
+    return moduleState.enabled;
   }
   if (filter === "unregistered") {
     return !moduleState.registered;
@@ -1217,28 +907,24 @@ function matchesObservabilityModuleFilter(
   return true;
 }
 
-function matchesObservabilityEventFilter(
-  event: Partial<ObservabilityEvent>,
-  query: string,
-  source: typeof observabilityUIState.eventSource,
-  level: typeof observabilityUIState.eventLevel,
-) {
+function matchesObservabilityEventFilter(event: ObservabilityEvent) {
+  const { eventQuery, eventSource: source, eventLevel: level } = observabilityUIState;
   if (source !== "all" && event.source !== source) {
     return false;
   }
   if (level !== "all" && event.level !== level) {
     return false;
   }
-  const normalizedQuery = query.trim().toLowerCase();
+  const normalizedQuery = eventQuery.trim().toLowerCase();
   if (!normalizedQuery) {
     return true;
   }
   const haystack = [
-    String(event.moduleId || ""),
-    String(event.source || ""),
-    String(event.level || ""),
-    String(event.message || ""),
-    String(event.traceId || ""),
+    event.moduleId,
+    event.source,
+    event.level,
+    event.message,
+    event.traceId ?? "",
     String(event.requestId ?? ""),
     String(event.tabId ?? ""),
     String(event.frameId ?? ""),
@@ -1292,6 +978,15 @@ function renderObservabilitySnapshot(
   const pageScrollX = window.scrollX;
   const pageScrollY = window.scrollY;
   const scrollState = readObservabilityScrollState(root);
+  // The render removes the focused search box. Keep its action and caret to focus the new one.
+  const focusedSearch =
+    document.activeElement instanceof HTMLInputElement &&
+    document.activeElement.type === "search" &&
+    root.contains(document.activeElement)
+      ? document.activeElement
+      : null;
+  const focusedSearchAction = focusedSearch?.getAttribute("data-action");
+  const focusedSearchCaret = focusedSearch?.selectionStart ?? null;
   const availableScopeDomains = collectObservabilityScopeDomains(snapshot);
   if (
     observabilityUIState.scopeDomain !== "all" &&
@@ -1303,35 +998,13 @@ function renderObservabilitySnapshot(
     snapshot,
     observabilityUIState.scopeDomain,
   );
-  const events = scopedSnapshot.events;
-  const modules = scopedSnapshot.modules;
-  const config: ObservabilityConfig = scopedSnapshot.config;
-  const summary: ObservabilitySummary = scopedSnapshot.summary;
+  const { events, modules, config, summary } = scopedSnapshot;
   const predictor =
     scopedSnapshot.predictor && typeof scopedSnapshot.predictor === "object"
       ? (scopedSnapshot.predictor as Record<string, unknown>)
       : null;
-  const filteredModules = modules.filter((moduleStateRecord) =>
-    matchesObservabilityModuleFilter(
-      moduleStateRecord,
-      observabilityUIState.moduleQuery,
-      observabilityUIState.moduleFilter,
-    ),
-  );
-  const filteredEvents = events
-    .filter((eventRecord) =>
-      matchesObservabilityEventFilter(
-        eventRecord,
-        observabilityUIState.eventQuery,
-        observabilityUIState.eventSource,
-        observabilityUIState.eventLevel,
-      ),
-    )
-    .slice(0, 120);
-  const summaryEventsByLevel =
-    summary.eventsByLevel && typeof summary.eventsByLevel === "object"
-      ? (summary.eventsByLevel as Partial<Record<LogLevel, number>>)
-      : {};
+  const filteredModules = modules.filter(matchesObservabilityModuleFilter);
+  const filteredEvents = events.filter(matchesObservabilityEventFilter).slice(0, 120);
   const predictorConfig = predictor?.config as
     | {
         debugPresagePredictorEnabled?: boolean;
@@ -1339,25 +1012,20 @@ function renderObservabilitySnapshot(
     | undefined;
   const predictorTraces = Array.isArray(predictor?.traces) ? predictor.traces : [];
   root.innerHTML = "";
-  root.setAttribute("data-raw-snapshot", JSON.stringify(snapshot, null, 2));
-  root.setAttribute("data-raw-snapshot-scoped", JSON.stringify(scopedSnapshot, null, 2));
 
-  const shell = document.createElement("section");
-  shell.className = "observability-dashboard";
+  const shell = createElement("section", { className: "observability-dashboard" });
 
-  const header = document.createElement("div");
-  header.className = "observability-header";
+  const header = createElement("div", { className: "observability-header" });
   const titleBlock = document.createElement("div");
-  const title = document.createElement("h3");
-  title.textContent = "Observability Control Room";
-  const subtitle = document.createElement("p");
-  subtitle.textContent = formatObservabilityUpdatedStatus(snapshot.generatedAtMs);
+  const title = createElement("h3", { textContent: "Observability Control Room" });
+  const subtitle = createElement("p", {
+    textContent: formatObservabilityLiveStatus(snapshot.generatedAtMs),
+  });
   subtitle.setAttribute("data-observability-live-status", "true");
   titleBlock.append(title, subtitle);
   header.appendChild(titleBlock);
 
-  const actions = document.createElement("div");
-  actions.className = "observability-actions";
+  const actions = createElement("div", { className: "observability-actions" });
   actions.appendChild(
     createObservabilitySelect("set-observability-scope-domain", observabilityUIState.scopeDomain, [
       { value: "all", label: "All sites" },
@@ -1371,91 +1039,26 @@ function renderObservabilitySnapshot(
     ["Copy Site Snapshot", "copy-scoped-observability"],
     [observabilityUIState.livePaused ? "Resume Live" : "Pause Live", "toggle-observability-live"],
   ].forEach(([label, action]) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "button is-small is-light";
-    button.textContent = label;
+    const button = createButton(label, "button is-small is-light");
     button.setAttribute("data-action", action);
     actions.appendChild(button);
   });
   header.appendChild(actions);
   shell.appendChild(header);
 
-  const summaryGrid = document.createElement("div");
-  summaryGrid.className = "observability-summary-grid";
+  const summaryGrid = createElement("div", { className: "observability-summary-grid" });
 
-  const systemCard = createObservabilityCard("Environment", "System status");
-  appendObservabilityInfoItem(systemCard, "Build", snapshot.devBuild ? "dev" : "release");
-  appendObservabilityInfoItem(
-    systemCard,
-    "Observability",
-    snapshot.available ? "available" : String(snapshot.reason || "unavailable"),
+  const predictorCard = createObservabilityCard(
+    "Predictor Diagnostics",
+    "Route controls",
+    predictor
+      ? [
+          ["Presage route", predictorConfig?.debugPresagePredictorEnabled ? "enabled" : "disabled"],
+          ["Recent traces", String(predictorTraces.length)],
+        ]
+      : [["State", "Unavailable"]],
   );
-  appendObservabilityInfoItem(
-    systemCard,
-    "Live refresh",
-    observabilityUIState.livePaused ? "paused" : "active",
-  );
-  appendObservabilityInfoItem(systemCard, "Global enabled", String(config.enabled ?? false));
-  appendObservabilityInfoItem(systemCard, "Default level", String(config.defaultLevel || "n/a"));
-  summaryGrid.appendChild(systemCard);
-
-  const coverageCard = createObservabilityCard("Coverage", "What is currently visible");
-  appendObservabilityInfoItem(
-    coverageCard,
-    "Registered modules",
-    `${modules.filter((moduleState) => moduleState.registered).length} / ${modules.length}`,
-  );
-  appendObservabilityInfoItem(
-    coverageCard,
-    "Overrides",
-    String(modules.filter((moduleState) => moduleState.hasOverride).length),
-  );
-  appendObservabilityInfoItem(
-    coverageCard,
-    "Content runtimes",
-    String(
-      Array.isArray(scopedSnapshot.contentRuntimes) ? scopedSnapshot.contentRuntimes.length : 0,
-    ),
-  );
-  appendObservabilityInfoItem(
-    coverageCard,
-    "Auto-language runtimes",
-    String(
-      Array.isArray(scopedSnapshot.autoLanguageRuntimes)
-        ? scopedSnapshot.autoLanguageRuntimes.length
-        : 0,
-    ),
-  );
-  summaryGrid.appendChild(coverageCard);
-
-  const eventVolumeCard = createObservabilityCard("Event Volume", "Current buffer");
-  appendObservabilityInfoItem(eventVolumeCard, "Buffered events", String(summary.totalEvents || 0));
-  appendObservabilityInfoItem(
-    eventVolumeCard,
-    "Debug / info",
-    `${summaryEventsByLevel.debug || 0} / ${summaryEventsByLevel.info || 0}`,
-  );
-  appendObservabilityInfoItem(
-    eventVolumeCard,
-    "Warn / error",
-    `${summaryEventsByLevel.warn || 0} / ${summaryEventsByLevel.error || 0}`,
-  );
-  appendObservabilityInfoItem(
-    eventVolumeCard,
-    "Visible events",
-    `${filteredEvents.length} / ${events.length}`,
-  );
-  summaryGrid.appendChild(eventVolumeCard);
-
-  const predictorCard = createObservabilityCard("Predictor Diagnostics", "Route controls");
   if (predictor) {
-    appendObservabilityInfoItem(
-      predictorCard,
-      "Presage route",
-      predictorConfig?.debugPresagePredictorEnabled ? "enabled" : "disabled",
-    );
-    appendObservabilityInfoItem(predictorCard, "Recent traces", String(predictorTraces.length));
     predictorCard.appendChild(
       createPredictorToggleAction(
         "Presage route toggle",
@@ -1463,27 +1066,39 @@ function renderObservabilitySnapshot(
         Boolean(predictorConfig?.debugPresagePredictorEnabled),
       ),
     );
-  } else {
-    appendObservabilityInfoItem(predictorCard, "State", "Unavailable");
   }
-  summaryGrid.appendChild(predictorCard);
+  summaryGrid.append(
+    createObservabilityCard("Environment", "System status", [
+      ["Build", snapshot.devBuild ? "dev" : "release"],
+      ["Observability", "available"],
+      ["Live refresh", observabilityUIState.livePaused ? "paused" : "active"],
+      ["Global enabled", String(config.enabled ?? false)],
+      ["Default level", String(config.defaultLevel || "n/a")],
+    ]),
+    createObservabilityCard("Coverage", "What is currently visible", [
+      [
+        "Registered modules",
+        `${modules.filter((moduleState) => moduleState.registered).length} / ${modules.length}`,
+      ],
+      ["Overrides", String(modules.filter((moduleState) => moduleState.hasOverride).length)],
+      ["Content runtimes", String(scopedSnapshot.contentRuntimes.length)],
+      ["Auto-language runtimes", String(scopedSnapshot.autoLanguageRuntimes.length)],
+    ]),
+    createObservabilityCard("Event Volume", "Current buffer", [
+      ["Buffered events", String(summary.totalEvents)],
+      ["Debug / info", `${summary.eventsByLevel.debug} / ${summary.eventsByLevel.info}`],
+      ["Warn / error", `${summary.eventsByLevel.warn} / ${summary.eventsByLevel.error}`],
+      ["Visible events", `${filteredEvents.length} / ${events.length}`],
+    ]),
+    predictorCard,
+  );
   shell.appendChild(summaryGrid);
 
-  const workspaceGrid = createWorkspaceShell("workspace-main-grid");
+  const workspaceGrid = createElement("div", { className: "workspace-main-grid" });
 
-  const modulesSection = document.createElement("section");
-  modulesSection.className = "observability-pane";
-  const modulesHeader = document.createElement("div");
-  modulesHeader.className = "observability-pane-header";
-  const modulesTitleBlock = document.createElement("div");
-  const modulesTitle = document.createElement("h4");
-  modulesTitle.textContent = "Module Controls";
-  const modulesSubtitle = document.createElement("p");
-  modulesSubtitle.textContent = `${filteredModules.length} of ${modules.length} modules shown`;
-  modulesTitleBlock.append(modulesTitle, modulesSubtitle);
-  const modulesToolbar = document.createElement("div");
-  modulesToolbar.className = "observability-pane-toolbar";
-  modulesToolbar.append(
+  const modulesSection = createObservabilityPane(
+    "Module Controls",
+    `${filteredModules.length} of ${modules.length} modules shown`,
     createObservabilitySearchInput(
       "filter-observability-modules",
       observabilityUIState.moduleQuery,
@@ -1501,124 +1116,82 @@ function renderObservabilitySnapshot(
       ],
     ),
   );
-  modulesHeader.append(modulesTitleBlock, modulesToolbar);
-  modulesSection.appendChild(modulesHeader);
-  const modulesList = document.createElement("div");
-  modulesList.className = "observability-scroll-region observability-module-list";
+  const modulesList = createElement("div", {
+    className: "observability-scroll-region observability-module-list",
+  });
   modulesList.setAttribute("data-observability-scroll-key", "modules");
   const activeOverrides = getObservabilityModuleOverrides(registry);
-  filteredModules.forEach((moduleStateRecord) => {
-    const moduleState = moduleStateRecord as {
-      moduleId?: string;
-      enabled?: boolean;
-      level?: string;
-      registered?: boolean;
-      hasOverride?: boolean;
-      sources?: string[];
-      lastEventAt?: number;
-    };
-    const moduleId = String(moduleState.moduleId || "unknown");
-    const card = document.createElement("article");
-    card.className = "observability-module-row";
-    const topRow = document.createElement("div");
-    topRow.className = "observability-row-top";
-    const name = document.createElement("strong");
-    name.textContent = moduleId;
-    const badges = document.createElement("div");
-    badges.className = "observability-badge-row";
-    badges.appendChild(
+  filteredModules.forEach((moduleState) => {
+    const moduleId = moduleState.moduleId || "unknown";
+    const card = createElement("article", { className: "observability-module-row" });
+    const topRow = createElement("div", { className: "observability-row-top" });
+    const name = createElement("strong", { textContent: moduleId });
+    const badges = createElement("div", { className: "observability-badge-row" });
+    badges.append(
       createObservabilityBadge(
         moduleState.registered ? "registered" : "unregistered",
         moduleState.registered ? "success" : "warn",
       ),
-    );
-    badges.appendChild(
       createObservabilityBadge(
         moduleState.enabled ? "enabled" : "disabled",
         moduleState.enabled ? "accent" : "neutral",
       ),
+      ...(moduleState.hasOverride ? [createObservabilityBadge("override", "accent")] : []),
     );
-    if (moduleState.hasOverride) {
-      badges.appendChild(createObservabilityBadge("override", "accent"));
-    }
     topRow.append(name, badges);
     card.appendChild(topRow);
 
-    const detail = document.createElement("div");
-    detail.className = "observability-module-meta";
-    detail.appendChild(
-      createObservabilityBadge(
-        `level ${String(moduleState.level || "debug")}`,
-        levelBadgeTone(moduleState.level),
+    const detail = createElement("div", { className: "observability-module-meta" });
+    detail.append(
+      createObservabilityBadge(`level ${moduleState.level}`, LEVEL_BADGE_TONE[moduleState.level]),
+      ...(moduleState.sources.length > 0 ? moduleState.sources : ["no source yet"]).map((label) =>
+        createObservabilityBadge(label),
       ),
-    );
-    if (Array.isArray(moduleState.sources) && moduleState.sources.length > 0) {
-      moduleState.sources.forEach((sourceValue) => {
-        detail.appendChild(createObservabilityBadge(String(sourceValue), "neutral"));
-      });
-    } else {
-      detail.appendChild(createObservabilityBadge("no source yet", "neutral"));
-    }
-    detail.appendChild(
       createObservabilityBadge(
         `last ${typeof moduleState.lastEventAt === "number" ? formatClockTime(moduleState.lastEventAt) : "none"}`,
-        "neutral",
       ),
     );
     card.appendChild(detail);
 
-    const controls = document.createElement("div");
-    controls.className = "observability-module-controls";
-    const enabledLabel = document.createElement("label");
-    enabledLabel.className = "observability-inline-toggle";
-    const enabledToggle = document.createElement("input");
-    enabledToggle.type = "checkbox";
+    const controls = createElement("div", { className: "observability-module-controls" });
+    const enabledLabel = createElement("label", { className: "observability-inline-toggle" });
+    const enabledToggle = createInputElement("checkbox");
     enabledToggle.checked = Boolean(
       activeOverrides[moduleId]?.enabled ?? moduleState.enabled ?? config.enabled,
     );
     enabledToggle.setAttribute("data-action", "toggle-observability-module");
     enabledToggle.setAttribute("data-module-id", moduleId);
-    const enabledText = document.createElement("span");
-    enabledText.textContent = "Enabled";
+    const enabledText = createElement("span", { textContent: "Enabled" });
     enabledLabel.append(enabledToggle, enabledText);
     controls.appendChild(enabledLabel);
-    const levelControl = document.createElement("label");
-    levelControl.className = "observability-inline-select";
-    const levelLabel = document.createElement("span");
-    levelLabel.textContent = "Level";
-    levelControl.append(
-      levelLabel,
-      createObservabilityLevelSelect(
-        activeOverrides[moduleId]?.level || moduleState.level || "debug",
-        moduleId,
-      ),
+    const levelControl = createElement("label", { className: "observability-inline-select" });
+    const levelLabel = createElement("span", { textContent: "Level" });
+    const levelSelect = createObservabilitySelect(
+      "set-observability-module-level",
+      activeOverrides[moduleId]?.level || moduleState.level || "debug",
+      ["debug", "info", "warn", "error"].map((level) => ({ value: level, label: level })),
+      "input",
     );
+    levelSelect.setAttribute("data-module-id", moduleId);
+    levelControl.append(levelLabel, levelSelect);
     controls.appendChild(levelControl);
     card.appendChild(controls);
     modulesList.appendChild(card);
   });
   if (filteredModules.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "observability-empty";
-    empty.textContent = "No modules match the current filter.";
-    modulesList.appendChild(empty);
+    modulesList.appendChild(
+      createElement("p", {
+        className: "observability-empty",
+        textContent: "No modules match the current filter.",
+      }),
+    );
   }
   modulesSection.appendChild(modulesList);
   workspaceGrid.appendChild(modulesSection);
 
-  const eventsSection = document.createElement("section");
-  eventsSection.className = "observability-pane";
-  const eventsHeader = document.createElement("div");
-  eventsHeader.className = "observability-pane-header";
-  const eventsTitleBlock = document.createElement("div");
-  const eventsTitle = document.createElement("h4");
-  eventsTitle.textContent = "Recent Events";
-  const eventsSubtitle = document.createElement("p");
-  eventsSubtitle.textContent = `${filteredEvents.length} of ${events.length} events shown`;
-  eventsTitleBlock.append(eventsTitle, eventsSubtitle);
-  const eventsToolbar = document.createElement("div");
-  eventsToolbar.className = "observability-pane-toolbar";
-  eventsToolbar.append(
+  const eventsSection = createObservabilityPane(
+    "Recent Events",
+    `${filteredEvents.length} of ${events.length} events shown`,
     createObservabilitySearchInput(
       "filter-observability-events",
       observabilityUIState.eventQuery,
@@ -1639,138 +1212,112 @@ function renderObservabilitySnapshot(
       { value: "error", label: "Error" },
     ]),
   );
-  eventsHeader.append(eventsTitleBlock, eventsToolbar);
-  eventsSection.appendChild(eventsHeader);
   if (events.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "observability-empty";
-    empty.textContent = "No observability events captured yet.";
-    eventsSection.appendChild(empty);
+    eventsSection.appendChild(
+      createElement("p", {
+        className: "observability-empty",
+        textContent: "No observability events captured yet.",
+      }),
+    );
   } else {
-    const list = document.createElement("div");
-    list.className = "observability-scroll-region observability-event-list";
+    const list = createElement("div", {
+      className: "observability-scroll-region observability-event-list",
+    });
     list.setAttribute("data-observability-scroll-key", "events");
-    filteredEvents.forEach((eventRecord) => {
-      const event = eventRecord as {
-        moduleId?: string;
-        level?: string;
-        timestampMs?: number;
-        source?: string;
-        message?: string;
-        traceId?: string;
-        requestId?: number;
-        tabId?: number;
-        frameId?: number;
-        context?: unknown;
-      };
-      const card = document.createElement("article");
-      card.className = "observability-event-card";
-      const topRow = document.createElement("div");
-      topRow.className = "observability-row-top";
-      const main = document.createElement("strong");
-      main.textContent = String(event.moduleId || "module");
-      const eventTime = document.createElement("span");
-      eventTime.textContent = formatClockTime(event.timestampMs);
+    filteredEvents.forEach((event) => {
+      const card = createElement("article", { className: "observability-event-card" });
+      const topRow = createElement("div", { className: "observability-row-top" });
+      const main = createElement("strong", { textContent: event.moduleId || "module" });
+      const eventTime = createElement("span", { textContent: formatClockTime(event.timestampMs) });
       topRow.append(main, eventTime);
       card.appendChild(topRow);
-      const chips = document.createElement("div");
-      chips.className = "observability-badge-row";
-      chips.appendChild(
-        createObservabilityBadge(String(event.level || "debug"), levelBadgeTone(event.level)),
+      const chips = createElement("div", { className: "observability-badge-row" });
+      chips.append(
+        createObservabilityBadge(event.level, LEVEL_BADGE_TONE[event.level]),
+        createObservabilityBadge(event.source, event.source === "options" ? "accent" : "neutral"),
+        ...[
+          event.traceId && `trace ${event.traceId}`,
+          typeof event.requestId === "number" && `req ${event.requestId}`,
+          typeof event.tabId === "number" && `tab ${event.tabId}`,
+          typeof event.frameId === "number" && `frame ${event.frameId}`,
+        ]
+          .filter((label): label is string => Boolean(label))
+          .map((label) => createObservabilityBadge(label)),
       );
-      chips.appendChild(
-        createObservabilityBadge(
-          String(event.source || "unknown"),
-          event.source === "options" ? "accent" : "neutral",
-        ),
-      );
-      if (event.traceId) {
-        chips.appendChild(createObservabilityBadge(`trace ${event.traceId}`, "neutral"));
-      }
-      if (typeof event.requestId === "number") {
-        chips.appendChild(createObservabilityBadge(`req ${event.requestId}`, "neutral"));
-      }
-      if (typeof event.tabId === "number") {
-        chips.appendChild(createObservabilityBadge(`tab ${event.tabId}`, "neutral"));
-      }
-      if (typeof event.frameId === "number") {
-        chips.appendChild(createObservabilityBadge(`frame ${event.frameId}`, "neutral"));
-      }
       card.appendChild(chips);
-      const message = document.createElement("p");
-      message.className = "observability-event-message";
-      message.textContent = String(event.message || "");
-      card.appendChild(message);
-      if (event.context && typeof event.context === "object") {
-        const details = document.createElement("details");
-        details.className = "observability-event-context";
-        const contextSummary = document.createElement("summary");
-        contextSummary.textContent = "Context";
-        const context = document.createElement("pre");
-        context.textContent = JSON.stringify(event.context, null, 2);
+      card.appendChild(
+        createElement("p", {
+          className: "observability-event-message",
+          textContent: event.message,
+        }),
+      );
+      if (event.context) {
+        const details = createElement("details", { className: "observability-event-context" });
+        const contextSummary = createElement("summary", { textContent: "Context" });
+        const context = createElement("pre", {
+          textContent: JSON.stringify(event.context, null, 2),
+        });
         details.append(contextSummary, context);
         card.appendChild(details);
       }
       list.appendChild(card);
     });
     if (filteredEvents.length === 0) {
-      const empty = document.createElement("p");
-      empty.className = "observability-empty";
-      empty.textContent = "No events match the current filter.";
-      list.appendChild(empty);
+      list.appendChild(
+        createElement("p", {
+          className: "observability-empty",
+          textContent: "No events match the current filter.",
+        }),
+      );
     }
     eventsSection.appendChild(list);
   }
   workspaceGrid.appendChild(eventsSection);
 
-  const rawSection = document.createElement("section");
-  rawSection.className = "observability-pane workspace-span-full";
-  const rawTitle = document.createElement("h4");
-  rawTitle.textContent = "Raw Snapshot";
-  const rawDetails = document.createElement("details");
-  rawDetails.className = "observability-raw";
-  const rawSummary = document.createElement("summary");
-  rawSummary.textContent =
-    observabilityUIState.scopeDomain === "all"
-      ? "Inspect full machine-readable snapshot"
-      : `Inspect machine-readable snapshot for ${observabilityUIState.scopeDomain}`;
-  const raw = document.createElement("pre");
-  raw.className = "observability-raw-preview";
-  raw.textContent = JSON.stringify(scopedSnapshot, null, 2);
+  const rawSection = createElement("section", {
+    className: "observability-pane workspace-span-full",
+  });
+  const rawTitle = createElement("h4", { textContent: "Raw Snapshot" });
+  const rawDetails = createElement("details", { className: "observability-raw" });
+  const rawSummary = createElement("summary", {
+    textContent:
+      observabilityUIState.scopeDomain === "all"
+        ? "Inspect full machine-readable snapshot"
+        : `Inspect machine-readable snapshot for ${observabilityUIState.scopeDomain}`,
+  });
+  const raw = createElement("pre", {
+    className: "observability-raw-preview",
+    textContent: JSON.stringify(scopedSnapshot, null, 2),
+  });
   rawDetails.append(rawSummary, raw);
   rawSection.append(rawTitle, rawDetails);
   workspaceGrid.appendChild(rawSection);
   shell.appendChild(workspaceGrid);
 
   root.appendChild(shell);
-  updateObservabilityLiveStatus(
-    root,
-    observabilityUIState.livePaused
-      ? "Live updates paused"
-      : formatObservabilityUpdatedStatus(snapshot.generatedAtMs),
-  );
+  if (focusedSearchAction) {
+    const search = root.querySelector<HTMLInputElement>(`[data-action="${focusedSearchAction}"]`);
+    search?.focus();
+    if (focusedSearchCaret !== null) {
+      search?.setSelectionRange(focusedSearchCaret, focusedSearchCaret);
+    }
+  }
   window.requestAnimationFrame(() => {
     window.scrollTo(pageScrollX, pageScrollY);
     restoreObservabilityScrollState(root, scrollState);
   });
 }
 
-async function loadObservabilitySnapshot(root: HTMLElement, retryCount = 0) {
-  const hasRenderedDashboard = Boolean(root.querySelector(".observability-dashboard"));
-  if (retryCount === 0 && !hasRenderedDashboard) {
+async function loadObservabilitySnapshot(root: HTMLElement) {
+  if (!root.querySelector(".observability-dashboard")) {
     renderObservabilityStatus(root, "Loading observability dashboard...");
   }
-  const response = await sendRuntimeMessage({
-    command: CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
-    context: {},
-  });
-  if (!isObservabilitySnapshot(response)) {
-    if (retryCount < OBSERVABILITY_MAX_RETRIES) {
-      window.setTimeout(() => {
-        void loadObservabilitySnapshot(root, retryCount + 1);
-      }, OBSERVABILITY_RETRY_DELAY_MS);
-      return;
-    }
+  const response = await sendRuntimeMessageWithRetry(
+    { command: CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT, context: {} },
+    isObservabilitySnapshot,
+    OBSERVABILITY_RETRY_DELAYS_MS,
+  );
+  if (!response) {
     renderObservabilityStatus(root, "Observability snapshot unavailable.", true);
     return;
   }
@@ -1779,18 +1326,9 @@ async function loadObservabilitySnapshot(root: HTMLElement, retryCount = 0) {
     return;
   }
   observabilityCurrentSnapshot = response;
-  const signature = buildObservabilitySnapshotSignature(response);
-  if (
-    signature &&
-    signature === observabilityLastSignature &&
-    root.querySelector(".observability-dashboard, .observability-status")
-  ) {
-    updateObservabilityLiveStatus(
-      root,
-      observabilityUIState.livePaused
-        ? "Live updates paused"
-        : `Updated ${formatClockTime(response.generatedAtMs)}`,
-    );
+  const signature = JSON.stringify({ ...response, generatedAtMs: 0 });
+  if (signature === observabilityLastSignature && root.querySelector(".observability-dashboard")) {
+    updateObservabilityLiveStatus(root, formatObservabilityLiveStatus(response.generatedAtMs));
     return;
   }
   observabilityLastSignature = signature;
@@ -1799,51 +1337,53 @@ async function loadObservabilitySnapshot(root: HTMLElement, retryCount = 0) {
   }
 }
 
+const mountIfNeeded = () => document.getElementById("observabilityRoot");
+
+/** The UI state field that each dashboard select sets. */
+const OBSERVABILITY_SELECT_FIELDS = new Map<string, keyof typeof observabilityUIState>([
+  ["set-observability-module-filter", "moduleFilter"],
+  ["set-observability-event-source", "eventSource"],
+  ["set-observability-event-level", "eventLevel"],
+  ["set-observability-scope-domain", "scopeDomain"],
+]);
+
+function scheduleRefresh(force = false) {
+  const root = mountIfNeeded();
+  if (!root) {
+    return;
+  }
+  if (!force && shouldDeferObservabilityRefresh(root)) {
+    updateObservabilityLiveStatus(
+      root,
+      observabilityUIState.livePaused
+        ? "Live updates paused"
+        : "Live updates paused while you inspect the dashboard",
+    );
+    return;
+  }
+  if (force) {
+    observabilityLastSignature = "";
+  }
+  void loadObservabilitySnapshot(root);
+}
+
 function setupObservabilityDashboard(registry: SettingsRegistry) {
-  if (!IS_DEV_BUILD) {
+  if (!isDevBuild()) {
     return;
   }
   observabilityRegistry = registry;
-  const mountIfNeeded = () => document.getElementById("observabilityRoot");
-  const scheduleRefresh = (force = false) => {
-    const root = mountIfNeeded();
-    if (root) {
-      if (!force && shouldDeferObservabilityRefresh(root)) {
-        updateObservabilityLiveStatus(
-          root,
-          observabilityUIState.livePaused
-            ? "Live updates paused"
-            : "Live updates paused while you inspect the dashboard",
-        );
-        return;
-      }
-      if (force) {
-        observabilityLastSignature = "";
-      }
-      void loadObservabilitySnapshot(root);
-    }
-  };
   const root = mountIfNeeded();
-  if (root) {
-    applyOptionsObservabilityRuntime(registry);
-    observabilityLogger.info("Mounting observability dashboard");
-    scheduleRefresh(true);
-  }
-  if (observabilityBindingsInitialized) {
+  if (!root) {
     return;
   }
-  observabilityBindingsInitialized = true;
-
+  observabilityLogger.info("Mounting observability dashboard");
+  scheduleRefresh(true);
   document.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
     }
     const action = target.getAttribute("data-action");
-    const root = mountIfNeeded();
-    if (!root) {
-      return;
-    }
     if (action === "refresh-observability") {
       observabilityLogger.debug("Refreshing observability dashboard");
       scheduleRefresh(true);
@@ -1868,31 +1408,28 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
       return;
     }
     if (action === "set-predictor-toggle") {
-      const key = target.getAttribute("data-key");
       const nextEnabled = target.getAttribute("data-enabled") === "true";
-      if (key) {
-        const setting = registry[key];
-        if (setting && typeof setting.set === "function") {
-          setting.set(nextEnabled);
-          applyOptionsObservabilityRuntime(registry);
-          observabilityLogger.info("Updating predictor debug toggle", {
-            key,
-            nextEnabled,
-          });
-          optionsPageConfigChange();
-          window.setTimeout(() => scheduleRefresh(true), 120);
-        }
-      }
+      registry[KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED].set(nextEnabled);
+      observabilityLogger.info("Updating predictor debug toggle", {
+        key: KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+        nextEnabled,
+      });
+      window.setTimeout(() => scheduleRefresh(true), 120);
       return;
     }
-    if (action === "copy-observability" || action === "copy-scoped-observability") {
-      const raw =
-        root.getAttribute(
-          action === "copy-observability" ? "data-raw-snapshot" : "data-raw-snapshot-scoped",
-        ) || "";
-      if (raw && navigator.clipboard?.writeText) {
-        void navigator.clipboard.writeText(raw);
-      }
+    if (
+      (action === "copy-observability" || action === "copy-scoped-observability") &&
+      observabilityCurrentSnapshot &&
+      navigator.clipboard?.writeText
+    ) {
+      const snapshot =
+        action === "copy-observability"
+          ? observabilityCurrentSnapshot
+          : buildScopedObservabilitySnapshot(
+              observabilityCurrentSnapshot,
+              observabilityUIState.scopeDomain,
+            );
+      void navigator.clipboard.writeText(JSON.stringify(snapshot, null, 2));
     }
   });
 
@@ -1902,10 +1439,6 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
       return;
     }
     const action = target.getAttribute("data-action");
-    const root = mountIfNeeded();
-    if (!root) {
-      return;
-    }
     if (action === "filter-observability-modules" && target instanceof HTMLInputElement) {
       observabilityUIState.moduleQuery = target.value;
       renderStoredObservabilitySnapshot(root, registry);
@@ -1926,37 +1459,9 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
     if (!action) {
       return;
     }
-    const root = mountIfNeeded();
-    if (!root) {
-      return;
-    }
-    if (action === "set-observability-module-filter" && target instanceof HTMLSelectElement) {
-      observabilityUIState.moduleFilter =
-        target.value === "overrides" ||
-        target.value === "enabled" ||
-        target.value === "unregistered"
-          ? target.value
-          : "all";
-      renderStoredObservabilitySnapshot(root, registry);
-      return;
-    }
-    if (action === "set-observability-event-source" && target instanceof HTMLSelectElement) {
-      observabilityUIState.eventSource =
-        target.value === "background" ||
-        target.value === "content_script" ||
-        target.value === "options"
-          ? target.value
-          : "all";
-      renderStoredObservabilitySnapshot(root, registry);
-      return;
-    }
-    if (action === "set-observability-event-level" && target instanceof HTMLSelectElement) {
-      observabilityUIState.eventLevel = isLogLevel(target.value) ? target.value : "all";
-      renderStoredObservabilitySnapshot(root, registry);
-      return;
-    }
-    if (action === "set-observability-scope-domain" && target instanceof HTMLSelectElement) {
-      observabilityUIState.scopeDomain = target.value || "all";
+    const field = OBSERVABILITY_SELECT_FIELDS.get(action);
+    if (field && target instanceof HTMLSelectElement) {
+      Object.assign(observabilityUIState, { [field]: target.value });
       renderStoredObservabilitySnapshot(root, registry);
       return;
     }
@@ -1973,14 +1478,13 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
       current.level = isLogLevel(target.value) ? target.value : "debug";
     }
     overrides[moduleId] = current;
-    setObservabilityModuleOverrides(registry, overrides);
+    registry[KEY_OBSERVABILITY_MODULE_OVERRIDES]?.set(overrides);
     applyOptionsObservabilityRuntime(registry);
     observabilityLogger.info("Updating module override", {
       moduleId,
       enabled: current.enabled,
       level: current.level,
     });
-    optionsPageConfigChange();
     window.setTimeout(() => scheduleRefresh(true), 120);
   });
 
@@ -1998,7 +1502,7 @@ function setupObservabilityDashboard(registry: SettingsRegistry) {
 }
 
 window.addEventListener("DOMContentLoaded", function () {
-  localizeStaticShell();
+  localizeDocument(["placeholder", "aria-label"]);
   setupSaveToast();
   const defaults: Record<string, unknown> = {};
   for (const setting of manifest.settings) {
@@ -2015,13 +1519,11 @@ window.addEventListener("DOMContentLoaded", function () {
       searchInput: document.getElementById("options-search-input") as HTMLInputElement | null,
     },
     store,
-    name: manifest.name,
-    icon: manifest.icon,
   });
   const registry = engine.buildFromManifest(manifest);
 
   void (async () => {
-    renderEssentialsWorkspacePanel(registry.essentialsWorkspacePanel.element, registry);
+    renderControlCards(registry.essentialsWorkspacePanel.element, registry, ESSENTIALS_CARDS);
     renderGrammarWorkspacePanel(registry.grammarWorkspacePanel.element, registry);
     new LanguageSettingsPanel(registry.languagePreferencesPanel.element, registry, store);
     new TextAssetsPanel(registry.writingAssetsPanel.element, registry, store);
@@ -2029,18 +1531,26 @@ window.addEventListener("DOMContentLoaded", function () {
       registry.siteManagementPanel.element,
       registry,
       store,
-      optionsPageConfigChange,
+      () => void notifyConfigChange(),
     );
-    new AppearanceStudio(registry.appearanceStudioPanel.element, registry, themePresets);
-    renderDataDiagnosticsPanel(registry.dataDiagnosticsPanel.element, registry);
-    if (IS_DEV_BUILD && registry.observabilityWorkspacePanel?.element) {
-      renderObservabilityWorkspacePanel(registry.observabilityWorkspacePanel.element, registry);
+    new AppearanceStudio(registry.appearanceStudioPanel.element, registry);
+    renderControlCards(registry.dataDiagnosticsPanel.element, registry, DATA_CARDS);
+    if (isDevBuild() && registry.observabilityWorkspacePanel?.element) {
+      renderControlCards(
+        registry.observabilityWorkspacePanel.element,
+        registry,
+        OBSERVABILITY_CARDS,
+      );
     }
     renderSupportWorkspacePanel(registry.supportWorkspacePanel.element);
     renderAboutWorkspacePanel(registry.aboutWorkspacePanel.element);
     applyOptionsObservabilityRuntime(registry);
 
-    wireValidationHandlers(registry, store);
+    for (const key of [KEY_LANGUAGE, KEY_ENABLED_LANGUAGES]) {
+      registry[key]?.addEvent("action", () => {
+        void validateLanguageSettings(registry, store);
+      });
+    }
     await validateLanguageSettings(registry, store);
     setupProductivityInsights();
     setupObservabilityDashboard(registry);
@@ -2061,16 +1571,11 @@ window.addEventListener("DOMContentLoaded", function () {
         return;
       }
       void (async () => {
-        const response = await sendRuntimeMessage({
+        const response = await sendRuntimeMessage<{ ok?: boolean }>({
           command: CMD_OPTIONS_CLEAR_PERSONALIZATION,
           context: {},
         });
-        if (
-          response &&
-          typeof response === "object" &&
-          !Array.isArray(response) &&
-          (response as { ok?: boolean }).ok
-        ) {
+        if (response?.ok) {
           dispatchSettingsSaveStatus("saved", {
             message: i18n.get("clear_personalization_success"),
           });

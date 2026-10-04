@@ -4,29 +4,24 @@ import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler
 import { TemplateExpander } from "../src/adapters/chrome/background/TemplateExpander";
 import { KEY_TEXT_EXPANSIONS } from "../src/core/domain/constants";
 import { manifest } from "../src/ui/options/settingsManifest";
+import { predictionConfig, runPrediction } from "./support/predictionConfig";
 
 function createHandler(
   textExpansions: Array<[string, string]>,
   overrides: { minWordLengthToPredict?: number; prefixOnlyMode?: boolean } = {},
 ) {
   const handler = new PresageHandler(mod);
-  handler.setConfig({
-    numSuggestions: 5,
-    minWordLengthToPredict: 0,
-    insertSpaceAfterAutocomplete: false,
-    autoCapitalize: false,
-    textExpansions: textExpansions as unknown as Array<[string, object]>,
-    prefixOnlyMode: false,
-    timeFormat: "",
-    dateFormat: "",
-    userDictionaryList: [],
-    ...overrides,
-  });
+  handler.setConfig(
+    predictionConfig({
+      textExpansions: textExpansions as unknown as Array<[string, object]>,
+      ...overrides,
+    }),
+  );
   return handler;
 }
 
 function predict(handler: PresageHandler, text: string, lang = "en_US") {
-  return handler.runPrediction(text, "", lang);
+  return runPrediction(handler, text, "", lang);
 }
 
 const expansions: Array<[string, string]> = [
@@ -35,8 +30,10 @@ const expansions: Array<[string, string]> = [
   ["sig", "Best, Bart"],
 ];
 
-const defaultExpansions = manifest.settings.find((setting) => setting.name === KEY_TEXT_EXPANSIONS)
-  ?.default as Array<[string, string]>;
+const expansionsSetting = manifest.settings.find((setting) => setting.name === KEY_TEXT_EXPANSIONS);
+const defaultExpansions = (
+  expansionsSetting && "default" in expansionsSetting ? expansionsSetting.default : undefined
+) as Array<[string, string]>;
 
 afterEach(() => {
   mod.PresageCallback.predictions = [];

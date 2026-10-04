@@ -1,7 +1,7 @@
 import type { SettingsManager } from "./settingsManager";
 import { getErrorMessage } from "@core/domain/error";
-import { normalizeDomainHost } from "@core/domain/siteProfiles";
-import { getSettingStorageKey } from "@core/domain/contracts/settings";
+import { normalizeDomainHost, urlHostname } from "@core/domain/siteProfiles";
+import { getSettingStorageKey, type DomainListMode } from "@core/domain/contracts/settings";
 
 export const SETTINGS_DOMAIN_BLACKLIST = getSettingStorageKey("domainList");
 const SETTINGS_ENABLED = getSettingStorageKey("enabled");
@@ -19,13 +19,6 @@ export function toStoredString(value: unknown): string | null {
   return null;
 }
 
-function isDomainAllowedByMode(
-  mode: "blackList" | "whiteList",
-  isDomainOnBWList: boolean,
-): boolean {
-  return (mode === "blackList" && !isDomainOnBWList) || (mode === "whiteList" && isDomainOnBWList);
-}
-
 async function getDomainList(settings: SettingsManager): Promise<string[]> {
   const domainList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
   return Array.isArray(domainList)
@@ -35,23 +28,12 @@ async function getDomainList(settings: SettingsManager): Promise<string[]> {
     : [];
 }
 
-async function getDomainListMode(settings: SettingsManager): Promise<"blackList" | "whiteList"> {
+async function getDomainListMode(settings: SettingsManager): Promise<DomainListMode> {
   const mode = await settings.get(SETTINGS_DOMAIN_LIST_MODE);
   return mode === "whiteList" ? "whiteList" : "blackList";
 }
 
-async function isEnabledGlobally(settings: SettingsManager): Promise<boolean> {
-  const enabled = await settings.get(SETTINGS_ENABLED);
-  return typeof enabled === "boolean" ? enabled : true;
-}
-
-export function getDomain(url: string): string | undefined {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return undefined;
-  }
-}
+export const getDomain = urlHostname;
 
 export async function isDomainOnList(
   settings: SettingsManager,
@@ -94,10 +76,9 @@ export async function removeDomainFromList(
   }
   try {
     const domainList = await getDomainList(settings);
-    const index = domainList.findIndex((entry) => normalizeDomainHost(entry) === normalizedDomain);
-    if (index !== -1) {
-      domainList.splice(index, 1);
-      await settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
+    const kept = domainList.filter((entry) => normalizeDomainHost(entry) !== normalizedDomain);
+    if (kept.length !== domainList.length) {
+      await settings.set(SETTINGS_DOMAIN_BLACKLIST, kept);
     }
   } catch (error: unknown) {
     console.error(`Error removing domain from list: ${getErrorMessage(error)}`);
@@ -108,12 +89,11 @@ export async function isEnabledForDomain(
   settings: SettingsManager,
   domainURL: string,
 ): Promise<boolean> {
-  const [enabled, domainListMode, isDomainOnBWList] = await Promise.all([
-    isEnabledGlobally(settings),
-    getDomainListMode(settings),
-    isDomainOnList(settings, domainURL),
+  const [enabled, allowed] = await Promise.all([
+    settings.get(SETTINGS_ENABLED),
+    isDomainAllowedByPreference(settings, domainURL),
   ]);
-  return enabled && isDomainAllowedByMode(domainListMode, isDomainOnBWList);
+  return enabled !== false && allowed;
 }
 
 export async function isDomainAllowedByPreference(
@@ -125,7 +105,7 @@ export async function isDomainAllowedByPreference(
     isDomainOnList(settings, domainURL),
   ]);
 
-  return isDomainAllowedByMode(domainListMode, isDomainOnBWList);
+  return isDomainOnBWList === (domainListMode === "whiteList");
 }
 
 export async function blockUnBlockDomain(

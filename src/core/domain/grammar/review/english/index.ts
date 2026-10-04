@@ -62,8 +62,17 @@ import * as agreementFrames from "./agreementFrames";
 import * as plainWords from "./plainWords";
 import * as neighbourTypos from "./neighbourTypos";
 import * as clashFrames from "./clashFrames";
+import type { PhraseRow } from "../englishPhraseTables";
+import type { ReviewDetectorEntry } from "../reviewDetectors";
 
-const MODULES = [
+type Tables = {
+  PHRASES?: readonly PhraseRow[];
+  COMPOUNDS?: readonly PhraseRow[];
+  STYLE?: readonly PhraseRow[];
+  DETECTORS: readonly ReviewDetectorEntry[];
+};
+
+const MODULES: readonly Tables[] = [
   fixedPhrases,
   confusions1,
   confusions2,
@@ -128,7 +137,7 @@ const MODULES = [
   neighbourTypos,
   clashFrames,
 ];
-export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
-export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);
-export const EXTENSION_STYLE = MODULES.flatMap((m) => m.STYLE);
+export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES ?? []);
+export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS ?? []);
+export const EXTENSION_STYLE = MODULES.flatMap((m) => m.STYLE ?? []);
 export const EXTENSION_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);

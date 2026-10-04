@@ -130,9 +130,6 @@ textarea {
   font-weight: 650;
   letter-spacing: -0.03em;
 }
-.brand img {
-  object-fit: contain;
-}
 .hero {
   padding-block: 54px 42px;
   text-align: center;
@@ -444,10 +441,6 @@ input::placeholder {
   color: var(--ink);
   font-weight: 600;
 }
-code {
-  color: var(--ink);
-  font-size: 1em;
-}
 .native-practice {
   margin-top: 28px;
 }
@@ -594,9 +587,6 @@ code {
   }
   .feature-tour {
     padding-bottom: 44px;
-  }
-  .editor-sample {
-    padding: 20px;
   }
   .example-note {
     padding-inline: 12px;

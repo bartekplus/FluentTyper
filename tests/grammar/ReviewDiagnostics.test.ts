@@ -8,7 +8,6 @@ import {
 import {
   REVIEW_RULE_METADATA,
   REVIEW_SUPPORTED_RULE_IDS,
-  reviewCoverageMap,
   reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
@@ -18,8 +17,6 @@ import {
 } from "../../src/core/domain/grammar/review/reviewDetectors";
 import { detectAll } from "../../src/core/domain/grammar/review/phraseTemplates";
 import {
-  MAX_REVIEW_CHARS,
-  REVIEW_CHUNK_CHARS,
   detectReviewDiagnostics,
   finalizeReview,
   prepareReview,
@@ -27,39 +24,23 @@ import {
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import type {
-  ProtectedRange,
-  ReviewDiagnostic,
-  ReviewOptions,
+import {
+  MAX_REVIEW_CHARS,
+  REVIEW_CHUNK_CHARS,
+  type ReviewDiagnostic,
+  type ReviewOptions,
+  type ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import { reviewOptions, reviewSnapshot } from "./grammarTestUtils";
 
 const ALL_RULES = GRAMMAR_RULE_IDS;
-
-function options(overrides: Partial<ReviewOptions> = {}): ReviewOptions {
-  return {
-    lang: "en_US",
-    enabledRules: ALL_RULES,
-    userDictionary: [],
-    insertSpaceAfterAutocomplete: true,
-    ...overrides,
-  };
-}
-
-function review(
+const options = (overrides: Partial<ReviewOptions> = {}) =>
+  reviewOptions({ enabledRules: ALL_RULES, ...overrides });
+const review = (
   text: string,
   overrides: Partial<ReviewOptions> = {},
-  extra: { scope?: { start: number; end: number }; protectedRanges?: ProtectedRange[] } = {},
-): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    {
-      id: "snap",
-      text,
-      scope: extra.scope ?? { start: 0, end: text.length },
-      protectedRanges: extra.protectedRanges ?? [],
-    },
-    options(overrides),
-  ).diagnostics;
-}
+  extra: Partial<ReviewSourceSnapshot> = {},
+) => detectReviewDiagnostics(reviewSnapshot(text, extra), options(overrides)).diagnostics;
 
 /** [ruleId, highlighted text, [start, end], corrected text of the highlight]. */
 function summary(diagnostics: ReviewDiagnostic[]) {
@@ -82,9 +63,24 @@ function fixOne(text: string, diagnostic: ReviewDiagnostic): string {
   return result;
 }
 
+test("the English extension tables load first without an import-order error", () => {
+  const entry = new URL("../../src/core/domain/grammar/review/english/index.ts", import.meta.url);
+  const { exitCode, stderr } = Bun.spawnSync([
+    process.execPath,
+    "-e",
+    `await import(${JSON.stringify(entry.pathname)})`,
+  ]);
+  expect(stderr.toString()).toBe("");
+  expect(exitCode).toBe(0);
+});
+
+/** Every catalog rule with its Review metadata, in catalog order. */
+const coverageMap = () =>
+  GRAMMAR_RULE_CATALOG.map((entry) => ({ ruleId: entry.id, ...REVIEW_RULE_METADATA[entry.id] }));
+
 describe("review rule coverage map", () => {
   test("classifies every catalog rule explicitly", () => {
-    const map = reviewCoverageMap();
+    const map = coverageMap();
     expect(map.map((entry) => entry.ruleId)).toEqual(GRAMMAR_RULE_CATALOG.map((e) => e.id));
     for (const entry of map) {
       if (entry.review === "excluded") expect(entry.reason.length).toBeGreaterThan(10);
@@ -97,7 +93,7 @@ describe("review rule coverage map", () => {
 
   test("every capitalization check shares one category, so one filter and color cover it", () => {
     const categories = new Set(
-      reviewCoverageMap().flatMap((entry) =>
+      coverageMap().flatMap((entry) =>
         entry.review === "supported" && entry.kind === "capitalization" ? [entry.category] : [],
       ),
     );
@@ -120,7 +116,7 @@ describe("review rule coverage map", () => {
   });
 
   test("review defaults are independent of typing and leave optional style off", () => {
-    const supported = reviewCoverageMap()
+    const supported = coverageMap()
       .filter((entry) => entry.review === "supported")
       .map((entry) => entry.ruleId);
     expect(REVIEW_SUPPORTED_RULE_IDS).toEqual(supported);
@@ -797,12 +793,7 @@ describe("adversarial review regressions: detection", () => {
       const start = text.indexOf("code");
       const end = text.indexOf("Done");
       const prepared = prepareReview(
-        {
-          id: "s",
-          text,
-          scope: { start: 0, end: text.length },
-          protectedRanges: [{ start, end, reason: "code" }],
-        },
+        reviewSnapshot(text, { protectedRanges: [{ start, end, reason: "code" }] }),
         options(),
       );
       const masked = prepared.text.slice(start, end);
@@ -972,17 +963,14 @@ describe("review detection invariants", () => {
     // Code mode leaves only code-safe rules, none of which review supports.
     expect(review(DEMO, { enabledRules: ["autoBracketClose"] })).toEqual([]);
     const german = detectReviewDiagnostics(
-      { id: "s", text: "teh cat , ok", scope: { start: 0, end: 12 }, protectedRanges: [] },
+      reviewSnapshot("teh cat , ok"),
       options({ lang: "de_DE" }),
     );
     expect(german.diagnostics.map((d) => d.ruleId)).toEqual([
       "capitalizeSentenceStart",
       "commaPeriodSpacing",
     ]);
-    const prepared = prepareReview(
-      { id: "s", text: "x", scope: { start: 0, end: 1 }, protectedRanges: [] },
-      options({ lang: "de_DE" }),
-    );
+    const prepared = prepareReview(reviewSnapshot("x"), options({ lang: "de_DE" }));
     expect(prepared.languageSkipped).toContain("englishTypoWhitelistCorrection");
   });
 
@@ -1075,10 +1063,7 @@ describe("review scope and protection", () => {
     expect(
       review("so i `x` has time", { enabledRules: ["englishPronounVerbWhitelistAgreement"] }),
     ).toEqual([]);
-    const result = detectReviewDiagnostics(
-      { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      options(),
-    );
+    const result = detectReviewDiagnostics(reviewSnapshot(text), options());
     // "`their is teh`" and the three-line fence, newlines included.
     expect(result.coverage.skipped.code).toBe(14 + 11);
   });
@@ -1134,7 +1119,7 @@ describe("review scope and protection", () => {
     const line = "teh cat sat on the mat and then left the room quietly.\n";
     const text = line.repeat(Math.ceil(12_000 / line.length));
     const prepared = prepareReview(
-      { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      reviewSnapshot(text),
       options({ enabledRules: ["englishTypoWhitelistCorrection"] }),
     );
     const chunks = reviewChunks(prepared);
@@ -1171,10 +1156,7 @@ describe("review scope and protection", () => {
       text += i % 3 === 0 ? `${paragraph}\n` : `${paragraph} `;
     }
     text += `\n${paragraph} `.repeat(1) + `${paragraph} `.repeat(60);
-    const prepared = prepareReview(
-      { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      options(),
-    );
+    const prepared = prepareReview(reviewSnapshot(text), options());
     const chunks = reviewChunks(prepared);
     expect(chunks.length).toBeGreaterThan(5);
     const chunked = finalizeReview(
@@ -1202,10 +1184,7 @@ describe("review scope and protection", () => {
       const lastSpace = phrase.lastIndexOf(" ");
       const padding = "x".repeat(REVIEW_CHUNK_CHARS - lastSpace - 1);
       const text = `${padding} ${phrase} Ok.`;
-      const prepared = prepareReview(
-        { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-        options(),
-      );
+      const prepared = prepareReview(reviewSnapshot(text), options());
       const chunks = reviewChunks(prepared);
       expect(chunks[0].end).toBe(REVIEW_CHUNK_CHARS + 1);
       expect(text.slice(chunks[0].end)).toStartWith(phrase.slice(lastSpace + 1));
@@ -1220,7 +1199,7 @@ describe("review scope and protection", () => {
   test("a long single line is still split into bounded chunks", () => {
     const text = "one teh two ".repeat(2_000);
     const prepared = prepareReview(
-      { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      reviewSnapshot(text),
       options({ enabledRules: ["englishTypoWhitelistCorrection"] }),
     );
     const chunks = reviewChunks(prepared);
@@ -1238,7 +1217,7 @@ describe("review scope and protection", () => {
 
   test("a throwing detector is reported as a coverage gap, not as no issues", () => {
     const prepared = prepareReview(
-      { id: "s", text: "teh", scope: { start: 0, end: 3 }, protectedRanges: [] },
+      reviewSnapshot("teh"),
       options({ enabledRules: ["englishTypoWhitelistCorrection"] }),
     );
     const scan = scanReviewChunk(prepared, { start: 0, end: 3 });

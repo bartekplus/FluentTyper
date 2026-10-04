@@ -3,19 +3,17 @@ import {
   CMD_TOGGLE_FT_ACTIVE_LANG,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
+  isDevBuild,
 } from "@core/domain/constants";
 import { createLogger } from "@core/application/logging/Logger";
 import type { CommandRouter } from "../router/CommandRouter";
-
-declare const __FT_DEV_BUILD__: boolean | undefined;
+import { isExtensionPageSender } from "../extensionSender";
 
 type RuntimeTestGlobals = typeof globalThis & {
   triggerCommandForTesting?: (command: string) => Promise<void> | void;
 };
 
 const TEST_MSG_TRIGGER_COMMAND = "TEST_TRIGGER_COMMAND";
-const ENABLE_RUNTIME_TEST_HOOKS =
-  typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 const logger = createLogger("RuntimeTestHooks");
 const TEST_TRIGGER_COMMAND_ALLOW_LIST = new Set<string>([
   CMD_TOGGLE_FT_ACTIVE_TAB,
@@ -27,7 +25,7 @@ const TEST_TRIGGER_COMMAND_ALLOW_LIST = new Set<string>([
 const testGlobals: RuntimeTestGlobals = globalThis;
 
 export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
-  if (!ENABLE_RUNTIME_TEST_HOOKS) {
+  if (!isDevBuild()) {
     return;
   }
   logger.info("Registering runtime test hooks");
@@ -36,7 +34,7 @@ export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
   };
 
   const isTrustedInternalSender = (sender: chrome.runtime.MessageSender): boolean => {
-    if (typeof sender.url === "string" && sender.url.startsWith(chrome.runtime.getURL(""))) {
+    if (isExtensionPageSender(sender)) {
       return true;
     }
     return sender.id === chrome.runtime.id && typeof sender.tab === "undefined";

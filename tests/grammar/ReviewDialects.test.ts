@@ -1,16 +1,15 @@
 import { expect, test } from "bun:test";
 import { REVIEW_RULE_METADATA } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review as runReview } from "./grammarTestUtils";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan } from "./reviewHarness";
 
 // Opt-in dialect and house-style rules of english/dialects.ts. All sentences are our own.
 const US: CatalogRuleId = "englishAmericanSpelling";
 const UK: CatalogRuleId = "englishBritishSpelling";
 
-function review(text: string, rules: CatalogRuleId[]) {
-  return scan(text, { enabledRules: rules });
-}
+const review = (text: string, rules: CatalogRuleId[]) =>
+  runReview(text, {}, { enabledRules: rules }).diagnostics;
 /** Every finding's offered repairs, each applied to the whole text. */
 const repaired = (text: string, rule: CatalogRuleId) =>
   review(text, [rule]).map((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));
@@ -71,6 +70,7 @@ const positives: [CatalogRuleId, string, string[]][] = [
   // Prose slashes are words, not paths.
   ["stylePhrasing", "I left w/o my keys.", ["I left without my keys."]],
   ["stylePhrasing", "Use the prev/next arrows.", ["Use the previous/next arrows."]],
+  ["styleSpelledNumbers", "WE FEED THE 9 PIGS.", ["WE FEED THE NINE PIGS."]],
 ];
 test.each(positives)("%s repairs %s", (rule, text, repairs) => {
   expect(repaired(text, rule)).toEqual([repairs]);

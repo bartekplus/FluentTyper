@@ -1,9 +1,6 @@
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { SettingsManager } from "@core/application/settingsManager";
 import { getSettingStorageKey } from "@core/domain/contracts/settings";
-import { resolveSiteProfiles } from "@core/domain/siteProfiles";
-import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
-import { SiteProfileRepository } from "@core/application/repositories/SiteProfileRepository";
 
 const LEGACY_REVERT_ON_BACKSPACE_KEY = "revertOnBackspace";
 const LAST_VERSION_CUTOFF_STORE = "2023.09.30";
@@ -14,27 +11,16 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
   const settingsManager = new SettingsManager();
 
   if (shouldMigrate(lastVersion, LAST_VERSION_CUTOFF_STORE)) {
-    chrome.storage.sync.get(null, (result: { [key: string]: unknown }) => {
-      void chrome.storage.local.set(result);
-      void chrome.storage.local.set({ lastVersion: currentVersion });
-    });
+    // Copy before the migrations below, so that the copy cannot write old values over them.
+    await chrome.storage.local.set(await chrome.storage.sync.get(null));
   }
 
   if (shouldMigrate(lastVersion, LAST_VERSION_CUTOFF_LANGUAGE)) {
     await migrateLanguageSettings(settingsManager);
   }
 
-  if (typeof settingsManager.removeRaw === "function") {
-    await settingsManager.removeRaw(LEGACY_REVERT_ON_BACKSPACE_KEY);
-  }
-
-  const coreSettings = new CoreSettingsRepository(settingsManager);
-  const siteProfileRepository = new SiteProfileRepository(settingsManager);
-  const enabledLanguages = await coreSettings.getEnabledLanguages();
-  const rawSiteProfiles = await siteProfileRepository.getRawSiteProfiles();
-  await siteProfileRepository.setSiteProfiles(
-    resolveSiteProfiles(rawSiteProfiles, enabledLanguages),
-  );
+  await settingsManager.removeRaw(LEGACY_REVERT_ON_BACKSPACE_KEY);
+  // Site profiles are normalized later, by sanitizeLanguageSettings in updatePresageConfig.
 
   void chrome.storage.local.set({ lastVersion: currentVersion });
 }

@@ -155,7 +155,8 @@ describe("review engine over messaging", () => {
   test("an abort cancels the request in the background and rejects at once", async () => {
     const host = new ReviewEngineHost();
     const sent: ReviewEngineRequest[] = [];
-    let scanning: Promise<unknown> | null = null;
+    let scanning = null as Promise<unknown> | null;
+
     const engine = new MessagingReviewEngine((message) => {
       sent.push(message.context);
       const answer = host.handle(message.context, { tabId: 1, frameId: 0 });
@@ -191,15 +192,18 @@ describe("review engine over messaging", () => {
         throw new Error("Deadline was not registered");
       };
       const realSetTimeout = globalThis.setTimeout;
-      const timer = spyOn(globalThis, "setTimeout").mockImplementation(
-        (handler, timeout, ...args) => {
-          if (timeout === 10_000)
-            expire = () => {
-              if (typeof handler === "function") handler(...args);
-            };
-          return realSetTimeout(handler, timeout, ...args);
-        },
-      );
+      // The cast drops the Node-only __promisify__ member of setTimeout.
+      const timer = spyOn(globalThis, "setTimeout").mockImplementation(((
+        handler: TimerHandler,
+        timeout?: number,
+        ...args: unknown[]
+      ) => {
+        if (timeout === 10_000)
+          expire = () => {
+            if (typeof handler === "function") handler(...args);
+          };
+        return realSetTimeout(handler, timeout, ...args);
+      }) as typeof setTimeout);
       try {
         const pending =
           op === "scan"

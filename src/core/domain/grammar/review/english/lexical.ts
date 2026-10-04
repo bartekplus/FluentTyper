@@ -7,22 +7,14 @@ import {
 import { englishNounForms } from "../../implementations/helpers/EnglishNounNumber";
 import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
-import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, hasUserOrCasedWord, SPACE } from "../phraseTemplates";
+import { lastNonBlankBefore } from "../../implementations/helpers/EnglishRuleShared";
+import { caseLike, frameMatches, hasUserOrCasedWord, SPACE } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { quotedMention } from "./grammarStyle1";
-import { caseLike } from "./slotWords";
+import { english } from "./grammarStyle1";
 import { finding } from "../finding";
 
 // Checks that lean on the dictionary-derived lexicon (EnglishLexicon) rather than phrase rows:
 // regularized irregular forms, missing possessive apostrophes and misplaced spaces.
-
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
-
-type Finding = RawFinding;
 
 const lower = (word: string) => word.toLowerCase();
 const context = (ctx: DetectContext, start: number, end: number) => ({
@@ -82,7 +74,7 @@ const VERB_BEFORE =
 
 /** The irregular form for a word the dictionary does not know, or null. */
 function irregularFor(word: string, before: string): string[] | null {
-  const w = lower(word);
+  const w = word.toLowerCase();
   const verb = REGULAR_PASTS.get(w);
   if (verb) {
     if (!VERB_BEFORE.test(before) || known(w)) return null;
@@ -128,7 +120,7 @@ function irregularFor(word: string, before: string): string[] | null {
 const SHORT_WORDS = new Set(
   "a i am an as at be by do go he if in is it me my no of oh ok on or so to up us we".split(" "),
 );
-const shortOk = (word: string) => word.length > 2 || SHORT_WORDS.has(lower(word));
+const shortOk = (word: string) => word.length > 2 || SHORT_WORDS.has(word.toLowerCase());
 
 // Function words glued to the next word ("thisinstead"). Words that also start ordinary
 // compounds (in, on, up, out, over) stay out ("inline", "onboarding", "uptime"), and so do
@@ -146,7 +138,7 @@ const CAPITAL_GLUED = new Set("this that the these those".split(" "));
 
 /** "thisinstead" -> "this instead": a function word glued to a word the lexicon knows. */
 function splitGlued(word: string): string | null {
-  const w = lower(word);
+  const w = word.toLowerCase();
   if (w.length < 6) return null;
   const heads = word === w ? GLUED : CAPITAL_GLUED;
   for (let cut = 2; cut <= 6 && cut <= w.length - 3; cut++) {
@@ -179,7 +171,8 @@ function boundaryFix(first: string, second: string): string[] {
         known(a) &&
         known(b) &&
         (both ||
-          (Math.min(first.length, second.length) < 3 && (GLUED.has(lower(a)) || GLUED.has(b)))),
+          (Math.min(first.length, second.length) < 3 &&
+            (GLUED.has(a.toLowerCase()) || GLUED.has(b)))),
     )
     .map(([a, b]) => `${a} ${b}`);
   if (!fixes.length && second.length > 2 && known(first) && !known(second)) {
@@ -205,21 +198,26 @@ const LATIN_PAIRS = new Set([
 const ruleOn = (ctx: DetectContext, rule: string) => !ctx.rules || ctx.rules.has(rule);
 
 /** One pass over the words for the irregular-form and space checks. */
-function wordChecks(ctx: DetectContext): Finding[] {
+function wordChecks(ctx: DetectContext): RawFinding[] {
   const irregular = ruleOn(ctx, "englishIrregularForms");
   const spaces = ruleOn(ctx, "englishAlotCorrection");
-  const findings: Finding[] = [];
+  const findings: RawFinding[] = [];
   const words = new RegExp(WORD);
   words.lastIndex = Math.max(0, ctx.from - 40);
   let last: { index: number; word: string; unknown: boolean } | null = null;
-  for (let m = words.exec(ctx.scanText); m && m.index < ctx.to; m = words.exec(ctx.scanText)) {
+  // Reads one word past the chunk: a word-boundary fix belongs to its first word.
+  for (
+    let m = words.exec(ctx.scanText);
+    m && (!last || last.index < ctx.to);
+    m = words.exec(ctx.scanText)
+  ) {
     const { index } = m;
     const word = m[0];
-    const w = lower(word);
+    const w = word.toLowerCase();
     const unknown = !known(w);
     const prev = last;
     last = { index, word, unknown };
-    const owned = index >= ctx.from;
+    const owned = index >= ctx.from && index < ctx.to;
     // Most words are known, and so is their neighbour: nothing to check.
     const regular =
       irregular &&
@@ -257,7 +255,8 @@ function wordChecks(ctx: DetectContext): Finding[] {
     }
     if (!spaces) continue;
     // A single space between two words of two letters or more, one of them unknown.
-    if (!prev || prev.index < ctx.from || prev.index + prev.word.length !== index - 1) continue;
+    if (!prev || prev.index < ctx.from || prev.index >= ctx.to) continue;
+    if (prev.index + prev.word.length !== index - 1) continue;
     if (ctx.text[index - 1] !== " " || prev.word.length < 2 || word.length < 2) continue;
     if (!plainAt(ctx, prev.word, prev.index) || /^[A-Z]/.test(word)) continue;
     if (ctx.dictionary.has(lower(prev.word))) continue;
@@ -350,9 +349,10 @@ const nounInfo = (word: string): { info: EnglishWordInfo | null; plural: boolean
 
 /** The word before `index` (lowercased), "" at the start of a clause. */
 function wordBefore(ctx: DetectContext, index: number): string {
+  const last = lastNonBlankBefore(ctx.text, index);
+  if (last < 0 || /[.!?;:"“\n]/.test(ctx.text[last])) return "";
   const before = ctx.text.slice(Math.max(0, index - 40), index);
-  if (/(?:^|[.!?;:"“\n])[ \t\u00a0]*$/.test(before)) return "";
-  return lower(/([A-Za-z]+)[ \t\u00a0]+$/.exec(before)?.[1] ?? "?");
+  return (/([A-Za-z]+)[ \t\u00a0]+$/.exec(before)?.[1] ?? "?").toLowerCase();
 }
 
 /**
@@ -361,8 +361,8 @@ function wordBefore(ctx: DetectContext, index: number): string {
  * the phrase ends after a preposition or a perception verb, or a singular determiner rules
  * the plural out.
  */
-function possessiveNouns(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function possessiveNouns(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, POSSESSIVE_FRAME, "owner")) {
     const { det, owner, head, next } = m.groups!;
     // The frame is case-insensitive: capitals name something ("the Beatles song").
@@ -373,7 +373,7 @@ function possessiveNouns(ctx: DetectContext): Finding[] {
     if (!headNoun) continue;
     const verbal = !!headNoun.info?.verbs.length;
     const before = wordBefore(ctx, m.index);
-    const n = next ? lower(next) : "";
+    const n = next ? next.toLowerCase() : "";
     const nextInfo = n ? info(n) : null;
     const finite =
       MODALS.has(n) ||
@@ -381,7 +381,7 @@ function possessiveNouns(ctx: DetectContext): Finding[] {
       (!!nextInfo?.verbs.some((v) => v.form === "past") && !nextInfo.noun);
     const ends = !next;
     const ok =
-      SINGLE_DETERMINERS.has(lower(det)) ||
+      SINGLE_DETERMINERS.has(det.toLowerCase()) ||
       (finite && (!verbal || before === "" || PREPOSITIONS.has(before))) ||
       (ends && PREPOSITIONS.has(before)) ||
       (ends && !verbal && PERCEPTION.has(before));
@@ -403,8 +403,8 @@ function possessiveNouns(ctx: DetectContext): Finding[] {
 const YOU_OF = `(?<target>You)${SPACE}(?<noun>[a-z]{4,})${SPACE}of(?![\\p{L}\\p{N}_'’@/#\\\\-])`;
 
 /** "You combination of artist and teacher.": "Your" or "You're a" before a lone noun. */
-function youNounOf(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
+function youNounOf(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
   for (const m of frameMatches(ctx, YOU_OF)) {
     if (wordBefore(ctx, m.index) !== "" || hasUserOrCasedWord(ctx, m.groups!.noun)) continue;
     const read = info(m.groups!.noun);
@@ -424,12 +424,6 @@ function youNounOf(ctx: DetectContext): Finding[] {
   }
   return findings;
 }
-
-/** English only; findings inside a quoted or parenthesized example are dropped. */
-const english =
-  (detect: (ctx: DetectContext) => Finding[]) =>
-  (ctx: DetectContext): Finding[] =>
-    ctx.lang !== "en_US" ? [] : detect(ctx).filter((f) => !quotedMention(ctx, f));
 
 /** Context detectors appended to REVIEW_DETECTORS. */
 export const DETECTORS: readonly ReviewDetectorEntry[] = [

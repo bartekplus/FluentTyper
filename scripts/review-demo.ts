@@ -5,16 +5,16 @@
  * native undo restores the original).
  *
  *   bun run build
- *   E2E_EXTENSION_PATH=$PWD/build bun scripts/review-demo.ts [--out=dir]
+ *   bun scripts/review-demo.ts [--out=dir]
  *
  * Chrome by default; E2E_BROWSER=firefox with PUPPETEER_EXECUTABLE_PATH for
  * Firefox. As root or in a container, also set CI=true (no sandbox).
  * The page is served on 127.0.0.1; nothing is uploaded.
  */
-import { createServer } from "node:http";
 import path from "node:path";
 import { mkdir } from "node:fs/promises";
 import process from "node:process";
+import { parseArgs } from "node:util";
 import {
   clickReviewControl,
   getBackgroundContext,
@@ -23,12 +23,14 @@ import {
   sleep,
   textPoint,
   triggerReview,
+  pressUndo,
+  serveHtml,
   waitUntil,
 } from "../tests/e2e/e2e-helpers";
 
-const outArg = process.argv.find((arg) => arg.startsWith("--out="));
 const OUT = path.resolve(
-  outArg?.slice(6) ?? path.join(import.meta.dir, "../docs/images/review-mode"),
+  parseArgs({ args: process.argv.slice(2), options: { out: { type: "string" } } }).values.out ??
+    path.join(import.meta.dir, "../docs/images/review-mode"),
 );
 
 const PAGE = `<!doctype html><html><head><meta charset="utf-8"><title>Review demo</title><style>
@@ -47,19 +49,13 @@ function check(condition: boolean, message: string): void {
 }
 
 await mkdir(OUT, { recursive: true });
-const server = createServer((_request, response) => {
-  response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-  response.end(PAGE);
-});
-await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-const address = server.address();
-const port = typeof address === "object" && address ? address.port : 0;
+const server = serveHtml(PAGE);
 const browser = await launchBrowser();
 try {
   const worker = await getBackgroundContext(browser);
   const page = await browser.newPage();
   await page.setViewport({ width: 1080, height: 560, deviceScaleFactor: 1 });
-  await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "domcontentloaded" });
+  await page.goto(`http://127.0.0.1:${server.port}/`, { waitUntil: "domcontentloaded" });
   await sleep(800);
   await page.bringToFront();
   const html = () => page.evaluate(() => document.querySelector("#doc")!.innerHTML);
@@ -113,7 +109,6 @@ try {
     { timeoutMs: 4000 },
   );
   await sleep(600);
-  await shot("3-applied-one");
 
   // 3. Ignore another finding.
   point = await textPoint(page, "#doc", "monday", 1);
@@ -143,13 +138,8 @@ try {
 
   // 5. Native undo: contenteditable undoes one fix per step.
   await page.evaluate(() => document.querySelector<HTMLElement>("#doc")!.focus());
-  // macOS undoes with Cmd+Z, which synthetic keys only perform when the command is named.
-  const isMac = process.platform === "darwin";
-  const modifier = isMac ? "Meta" : "Control";
   for (let step = 0; step < 6 && (await html()) !== original; step += 1) {
-    await page.keyboard.down(modifier);
-    await page.keyboard.press("z", isMac ? { commands: ["Undo"] } : undefined);
-    await page.keyboard.up(modifier);
+    await pressUndo(page);
     await sleep(80);
   }
   await sleep(900);
@@ -184,10 +174,11 @@ try {
   check((await html()) === unknown, "an unknown word changes nothing until a word is picked");
   await shot("7-spelling-choice");
   await clickReviewControl(page, '.card button.suggestion[data-index="0"]');
-  await waitUntil("picked", async () => (await html()).includes("Where was the new build"), {
-    timeoutMs: 4000,
-  });
-  check(true, "picking a suggestion replaces only that word");
+  await waitUntil(
+    "picking a suggestion replaces only that word",
+    async () => (await html()).includes("Where was the new build"),
+    { timeoutMs: 4000 },
+  );
 
   // 7. The in-field button: on the box being written in, it reviews that box.
   await page.keyboard.press("Escape");
@@ -211,5 +202,5 @@ try {
   check(!(await readReviewPanel(page)).open, "the button alone starts nothing");
 } finally {
   await browser.close();
-  server.close();
+  server.stop(true);
 }

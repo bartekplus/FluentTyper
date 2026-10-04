@@ -1,4 +1,5 @@
 import type { Store } from "@core/application/storage/Store.js";
+import { createElement } from "../dom/createElement.js";
 
 let _uid = Date.now();
 export function getUniqueID(): string {
@@ -33,20 +34,6 @@ class TypedEventEmitter {
   }
 }
 
-export interface FieldControl<TValue = unknown> {
-  /** Inner widget element (<input>, <select>, <div>, etc.) */
-  readonly element: HTMLElement;
-  /** Outer wrapper <div class="field"> */
-  readonly rootElement: HTMLElement;
-
-  get(): TValue;
-  set(value: TValue, silent?: boolean): this;
-  setDisabled(disabled: boolean): void;
-  addEvent(type: "action" | "change", fn: ValueEventHandler<TValue>): void;
-  addEvent(type: string, fn: EventHandler<TValue>): void;
-  destroy(): void;
-}
-
 type SettingsSaveStatusState = "saving" | "saved" | "error";
 
 export function dispatchSettingsSaveStatus(
@@ -63,25 +50,12 @@ export function dispatchSettingsSaveStatus(
   );
 }
 
-export function createFieldRoot(className = "field"): HTMLDivElement {
-  const root = document.createElement("div");
-  root.className = className;
-  return root;
-}
-
-export function createControlContainer(): HTMLDivElement {
-  const control = document.createElement("div");
-  control.className = "control";
-  return control;
-}
-
 export function appendLabel(parent: HTMLElement, label?: string): HTMLLabelElement | undefined {
   if (!label) {
     return undefined;
   }
 
-  const element = document.createElement("label");
-  element.className = "label";
+  const element = createElement("label", { className: "label" });
   element.innerHTML = label;
   parent.appendChild(element);
   return element;
@@ -96,7 +70,7 @@ export function createInputElement(type: string, className?: string): HTMLInputE
   return input;
 }
 
-export abstract class BaseControl<TValue> implements FieldControl<TValue> {
+export abstract class BaseControl<TValue> {
   protected readonly emitter = new TypedEventEmitter();
   protected readonly storage: Store;
   protected readonly name: string | undefined;
@@ -131,10 +105,6 @@ export abstract class BaseControl<TValue> implements FieldControl<TValue> {
       (this._element as HTMLInputElement).disabled = disabled;
     }
     this._rootElement?.classList.toggle("is-disabled", disabled);
-  }
-
-  destroy(): void {
-    this._rootElement?.remove();
   }
 
   protected async loadFromStorage(): Promise<void> {

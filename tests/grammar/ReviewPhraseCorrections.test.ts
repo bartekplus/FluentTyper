@@ -1,8 +1,7 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review, planBulkFix } from "./grammarTestUtils";
 import { phraseCorrections } from "../../src/core/domain/grammar/review/englishPhraseCorrections";
 import {
   CLOSED_COMPOUNDS,
@@ -14,7 +13,6 @@ import {
 } from "../../src/core/domain/grammar/review/englishPhraseTables";
 import type { ProtectedRange, ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
-import { scan as reviewScan } from "./reviewHarness";
 
 const IDS: CatalogRuleId[] = [
   "englishPhraseCorrections",
@@ -31,12 +29,11 @@ function scan(
     protectedRanges = [] as ProtectedRange[],
   } = {},
 ): ReviewDiagnostic[] {
-  return reviewScan(text, {
-    lang,
-    enabledRules,
-    userDictionary,
-    snapshot: { protectedRanges },
-  }).filter((d) => IDS.includes(d.ruleId as CatalogRuleId));
+  return review(
+    text,
+    { protectedRanges },
+    { lang, enabledRules, userDictionary },
+  ).diagnostics.filter((d) => IDS.includes(d.ruleId as CatalogRuleId));
 }
 const previews = (d: ReviewDiagnostic) => d.alternatives.map((a) => a.preview);
 
@@ -407,20 +404,7 @@ test("each occurrence in a long text is reported once, in any chunk", () => {
 });
 
 test("a more specific rule explains a duplicate fix", () => {
-  const findings = detectReviewDiagnostics(
-    {
-      id: "dupe",
-      text: "For all intensive purposes, the test is complete.",
-      scope: { start: 0, end: 49 },
-      protectedRanges: [],
-    },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
+  const findings = review("For all intensive purposes, the test is complete.").diagnostics;
   expect(findings.map((d) => d.ruleId)).toEqual(["englishUsagePhrases"]);
 });
 

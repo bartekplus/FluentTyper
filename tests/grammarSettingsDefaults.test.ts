@@ -1,4 +1,3 @@
-import "./setup";
 import { afterEach, describe, expect, test } from "bun:test";
 import { Store } from "../src/core/application/storage/Store";
 import { KEY_ENABLED_GRAMMAR_RULES } from "../src/core/domain/constants";

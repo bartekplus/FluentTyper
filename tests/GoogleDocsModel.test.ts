@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  isBoundary,
   isGoogleDocsURL,
   readModel,
   snapshotFor,
@@ -62,11 +61,13 @@ describe("Google Docs logical edits", () => {
     expect(readModel("abc", [{ anchor: NaN, focus: 1 }])).toBeNull();
   });
   test("preserves graphemes including accents emoji ZWJ flags and Indic clusters", () => {
+    const caretAt = (value: string, index: number) =>
+      readModel(value, [{ anchor: index, focus: index }]);
     for (const value of ["e\u0301", "😀", "👨‍👩‍👧‍👦", "🇵🇱", "क्ष"]) {
-      expect(isBoundary(value, 0)).toBe(true);
-      expect(isBoundary(value, value.length)).toBe(true);
+      expect(caretAt(value, 0)).not.toBeNull();
+      expect(caretAt(value, value.length)).not.toBeNull();
       for (let index = 1; index < value.length; index += 1)
-        expect(isBoundary(value, index)).toBe(false);
+        expect(caretAt(value, index)).toBeNull();
     }
   });
   test("performs spelling replacements rather than suffix-only completion", () => {

@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   LocalAiReviewProvider,
-  type LocalAiPort,
   type LocalAiRuntime,
 } from "../src/adapters/chrome/content-script/review/LocalAiReviewProvider";
 import {
@@ -10,24 +9,11 @@ import {
   CMD_LOCAL_AI_GET_STATUS,
   CMD_LOCAL_AI_OPEN_SETUP,
 } from "../src/core/domain/constants";
-import {
-  LOCAL_AI_REVIEW_PORT,
-  type LocalAiStatus,
-  type ReviewPortClientMessage,
-} from "../src/core/domain/contracts/localAi";
+import { LOCAL_AI_REVIEW_PORT, type LocalAiStatus } from "../src/core/domain/contracts/localAi";
 import type { AiGenerationRequest } from "../src/core/domain/grammar/review/ai/types";
+import { FakePort, readyStatus } from "./support/localAiFakes";
 
-const STATUS: LocalAiStatus = {
-  enabled: true,
-  consented: true,
-  tier: "standard",
-  modelId: "model-a",
-  displayName: "Standard",
-  downloadBytes: 1,
-  install: "complete",
-  runtime: "ready",
-  offerSetup: false,
-};
+const STATUS = readyStatus();
 
 const REQUEST: AiGenerationRequest = {
   mode: "correct",
@@ -37,40 +23,6 @@ const REQUEST: AiGenerationRequest = {
   contextAfter: "",
   segments: [{ id: "s0", text: "She go home." }],
 };
-
-class FakePort implements LocalAiPort {
-  posted: ReviewPortClientMessage[] = [];
-  disconnected = false;
-  private messageListeners: Array<(message: unknown) => void> = [];
-  private disconnectListeners: Array<() => void> = [];
-  onMessage = {
-    addListener: (listener: (message: unknown) => void) => this.messageListeners.push(listener),
-  };
-  onDisconnect = { addListener: (listener: () => void) => this.disconnectListeners.push(listener) };
-
-  postMessage(message: ReviewPortClientMessage): void {
-    this.posted.push(message);
-  }
-
-  disconnect(): void {
-    this.disconnected = true;
-  }
-
-  /** A message from the host. */
-  send(message: unknown): void {
-    for (const listener of this.messageListeners) listener(message);
-  }
-
-  /** The host went away. */
-  drop(): void {
-    for (const listener of this.disconnectListeners) listener();
-  }
-
-  lastRequestId(): string {
-    const generate = this.posted.filter((message) => message.type === "generate").at(-1);
-    return generate!.requestId;
-  }
-}
 
 function runtime({ ensure = { ok: true, status: STATUS } as unknown } = {}) {
   const sent: string[] = [];
@@ -92,8 +44,6 @@ function runtime({ ensure = { ok: true, status: STATUS } as unknown } = {}) {
   return { fake, sent, ports, names };
 }
 
-const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
-
 describe("LocalAiReviewProvider", () => {
   test("status comes from the background; a refusal rejects", async () => {
     const r = runtime();
@@ -113,33 +63,33 @@ describe("LocalAiReviewProvider", () => {
     expect(r.ports).toHaveLength(0);
 
     const first = provider.generate(REQUEST, new AbortController().signal);
-    await tick();
+    await Bun.sleep(0);
     expect(r.sent).toEqual([CMD_LOCAL_AI_ENSURE_HOST]);
     expect(r.names).toEqual([LOCAL_AI_REVIEW_PORT]);
     const port = r.ports[0];
-    expect(port.posted[0]).toMatchObject({ type: "generate", request: REQUEST });
+    expect(port.messages[0]).toMatchObject({ type: "generate", request: REQUEST });
     const requestId = port.lastRequestId();
 
     // Malformed and unknown messages are dropped.
-    port.send({ type: "result", requestId, outcome: { ok: true, segments: [{ id: 1 }] } });
-    port.send({ type: "result", requestId, modelId: "m", promptVersion: "p", outcome: "x" });
-    port.send({ type: "surprise", requestId });
-    port.send(null);
-    port.send({ type: "status", status: { enabled: "yes" } });
-    port.send({ type: "status", status: { ...STATUS, runtime: "generating" } });
+    port.emit({ type: "result", requestId, outcome: { ok: true, segments: [{ id: 1 }] } });
+    port.emit({ type: "result", requestId, modelId: "m", promptVersion: "p", outcome: "x" });
+    port.emit({ type: "surprise", requestId });
+    port.emit(null);
+    port.emit({ type: "status", status: { enabled: "yes" } });
+    port.emit({ type: "status", status: { ...STATUS, runtime: "generating" } });
     expect(statuses.map((status) => status.runtime)).toEqual(["ready", "generating"]);
 
     const outcome = { ok: true as const, segments: [{ id: "s0", text: "She goes home." }] };
-    port.send({ type: "result", requestId, modelId: "model-a", promptVersion: "v1", outcome });
+    port.emit({ type: "result", requestId, modelId: "model-a", promptVersion: "v1", outcome });
     expect(await first).toEqual({ outcome, modelId: "model-a", promptVersion: "v1" });
 
     // A second generation reuses the port and the host.
     const second = provider.generate(REQUEST, new AbortController().signal);
-    await tick();
+    await Bun.sleep(0);
     expect(r.ports).toHaveLength(1);
     expect(r.sent).toEqual([CMD_LOCAL_AI_ENSURE_HOST]);
     expect(port.lastRequestId()).not.toBe(requestId);
-    port.send({
+    port.emit({
       type: "result",
       requestId: port.lastRequestId(),
       modelId: "model-a",
@@ -154,16 +104,16 @@ describe("LocalAiReviewProvider", () => {
     const provider = new LocalAiReviewProvider(r.fake);
     const abort = new AbortController();
     const pending = provider.generate(REQUEST, abort.signal);
-    await tick();
+    await Bun.sleep(0);
     const port = r.ports[0];
     const requestId = port.lastRequestId();
     let settled = false;
     void pending.then(() => (settled = true));
     abort.abort();
-    expect(port.posted.at(-1)).toEqual({ type: "cancel", requestId });
-    await tick();
+    expect(port.messages.at(-1)).toEqual({ type: "cancel", requestId });
+    await Bun.sleep(0);
     expect(settled).toBe(false);
-    port.send({
+    port.emit({
       type: "result",
       requestId,
       modelId: "model-a",
@@ -178,7 +128,7 @@ describe("LocalAiReviewProvider", () => {
     const provider = new LocalAiReviewProvider(r.fake, 5);
     const abort = new AbortController();
     const pending = provider.generate(REQUEST, abort.signal);
-    await tick();
+    await Bun.sleep(0);
     abort.abort();
     expect((await pending).outcome).toEqual({ ok: false, error: "cancelled" });
   });
@@ -187,13 +137,13 @@ describe("LocalAiReviewProvider", () => {
     const r = runtime();
     const provider = new LocalAiReviewProvider(r.fake);
     const pending = provider.generate(REQUEST, new AbortController().signal);
-    await tick();
-    r.ports[0].drop();
-    await tick();
+    await Bun.sleep(0);
+    r.ports[0].close();
+    await Bun.sleep(0);
     expect(r.ports).toHaveLength(2);
     expect(r.sent).toEqual([CMD_LOCAL_AI_ENSURE_HOST, CMD_LOCAL_AI_ENSURE_HOST]);
-    expect(r.ports[1].posted[0]).toMatchObject({ type: "generate", request: REQUEST });
-    r.ports[1].drop();
+    expect(r.ports[1].messages[0]).toMatchObject({ type: "generate", request: REQUEST });
+    r.ports[1].close();
     expect((await pending).outcome).toEqual({ ok: false, error: "unavailable" });
   });
 
@@ -209,7 +159,7 @@ describe("LocalAiReviewProvider", () => {
     const r = runtime();
     const provider = new LocalAiReviewProvider(r.fake);
     const pending = provider.generate(REQUEST, new AbortController().signal);
-    await tick();
+    await Bun.sleep(0);
     provider.openSetup();
     provider.dismissSetupOffer();
     provider.dispose();
@@ -228,12 +178,12 @@ describe("LocalAiReviewProvider", () => {
     const statuses: LocalAiStatus[] = [];
     provider.onStatus((status) => statuses.push(status));
     document.dispatchEvent(new Event("visibilitychange"));
-    await tick();
+    await Bun.sleep(0);
     expect(r.sent).toEqual([CMD_LOCAL_AI_GET_STATUS]);
     expect(statuses).toEqual([STATUS]);
     provider.dispose();
     document.dispatchEvent(new Event("visibilitychange"));
-    await tick();
+    await Bun.sleep(0);
     expect(r.sent).toEqual([CMD_LOCAL_AI_GET_STATUS]);
   });
 
@@ -256,13 +206,13 @@ describe("LocalAiReviewProvider", () => {
     const statuses: string[] = [];
     provider.onStatus((status) => statuses.push(status.runtime));
     await provider.status();
-    await tick();
+    await Bun.sleep(0);
     expect(sent).toContain(CMD_LOCAL_AI_ENSURE_HOST);
     expect(ports).toHaveLength(1);
-    ports[0].send({ type: "status", status: STATUS });
+    ports[0].emit({ type: "status", status: STATUS });
     expect(statuses.at(-1)).toBe(STATUS.runtime);
     await provider.status();
-    await tick();
+    await Bun.sleep(0);
     expect(ports).toHaveLength(1);
     provider.dispose();
   });
@@ -282,7 +232,7 @@ describe("LocalAiReviewProvider", () => {
     const statuses: string[] = [];
     provider.onStatus((status) => statuses.push(status.runtime));
     await provider.status();
-    await new Promise((resolve) => setTimeout(resolve, 60));
+    await Bun.sleep(60);
     expect(statuses).toEqual(["loading", STATUS.runtime]);
     // Settled: no more reads.
     expect(reads).toBe(3);

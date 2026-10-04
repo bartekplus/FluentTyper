@@ -3,34 +3,40 @@ import type {
   ContentScriptUsageEventContext,
   DonationPromptAction,
   ProductivityDashboardStats,
+  ProductivityEventSummary,
 } from "@core/domain/messageTypes";
-import { DonationPromptPolicy } from "@core/domain/productivityStats/DonationPromptPolicy";
-import { RecapPolicy } from "@core/domain/productivityStats/RecapPolicy";
-import { StatsAggregator } from "@core/domain/productivityStats/StatsAggregator";
-import { StatsSanitizer } from "@core/domain/productivityStats/StatsSanitizer";
+import * as donationPromptPolicy from "@core/domain/productivityStats/DonationPromptPolicy";
+import * as recapPolicy from "@core/domain/productivityStats/RecapPolicy";
+import * as aggregator from "@core/domain/productivityStats/StatsAggregator";
+import type { SnippetUsageUpdate } from "@core/domain/productivityStats/StatsAggregator";
+import * as sanitizer from "@core/domain/productivityStats/StatsSanitizer";
+import { serialQueue } from "@core/domain/serialQueue";
+import { createLogger } from "@core/application/logging/Logger";
 import type {
   DailyProductivityState,
   ProductivityStatsState,
 } from "@core/domain/productivityStats/types";
-import { StatsRepository } from "./StatsRepository";
+
+const logger = createLogger("ProductivityStatsService");
+
+function eventSummary({
+  suggestionsShown,
+  snippetsExpanded,
+  charsInsertedFromSnippet,
+  charsTypedForTrigger,
+}: ProductivityEventSummary): ProductivityEventSummary {
+  return { suggestionsShown, snippetsExpanded, charsInsertedFromSnippet, charsTypedForTrigger };
+}
 
 export class ProductivityStatsService {
-  private mutationQueue: Promise<void> = Promise.resolve();
+  private readonly mutationQueue = serialQueue();
   private snippetShortcuts: Set<string> = new Set<string>();
   private readonly now: () => Date;
 
-  private readonly sanitizer: StatsSanitizer;
-  private readonly aggregator: StatsAggregator;
-  private readonly recapPolicy: RecapPolicy;
-  private readonly donationPromptPolicy: DonationPromptPolicy;
-  private readonly repository: StatsRepository;
-
-  constructor(settingsManager: SettingsManager, options: { now?: () => Date } = {}) {
-    this.sanitizer = new StatsSanitizer();
-    this.aggregator = new StatsAggregator(this.sanitizer);
-    this.recapPolicy = new RecapPolicy(this.sanitizer, this.aggregator);
-    this.donationPromptPolicy = new DonationPromptPolicy(this.sanitizer);
-    this.repository = new StatsRepository(settingsManager);
+  constructor(
+    private readonly settingsManager: SettingsManager,
+    options: { now?: () => Date } = {},
+  ) {
     this.now = options.now || (() => new Date());
   }
 
@@ -38,40 +44,21 @@ export class ProductivityStatsService {
     state: ProductivityStatsState,
     now: Date,
   ): { todayKey: string; todayBucket: DailyProductivityState } {
-    const todayKey = this.sanitizer.toLocalDateKey(now);
+    const todayKey = sanitizer.toLocalDateKey(now);
     return {
       todayKey,
-      todayBucket: state.daily[todayKey] || this.sanitizer.createDailyState(),
+      todayBucket: state.daily[todayKey] || sanitizer.createDailyState(),
     };
-  }
-
-  private recordLanguageUsage(
-    state: ProductivityStatsState,
-    todayBucket: DailyProductivityState,
-    language: string,
-    charactersSaved: number,
-  ): void {
-    this.aggregator.incrementLanguageUsageCounter(state.languageUsage, language, charactersSaved);
-    this.aggregator.incrementLanguageUsageCounter(
-      todayBucket.languageUsage,
-      language,
-      charactersSaved,
-    );
   }
 
   private recordSnippetUsage(
     state: ProductivityStatsState,
     todayBucket: DailyProductivityState,
     snippetKey: string,
-    update: {
-      countDelta?: number;
-      charsSavedDelta?: number;
-      charsInsertedDelta?: number;
-      charsTypedDelta?: number;
-    },
+    update: SnippetUsageUpdate,
   ): void {
-    this.aggregator.incrementSnippetUsageCounter(state.snippetUsage, snippetKey, update);
-    this.aggregator.incrementSnippetUsageCounter(todayBucket.snippetUsage, snippetKey, update);
+    aggregator.incrementSnippetUsageCounter(state.snippetUsage, snippetKey, update);
+    aggregator.incrementSnippetUsageCounter(todayBucket.snippetUsage, snippetKey, update);
   }
 
   setSnippetShortcuts(textExpansions: unknown): void {
@@ -81,18 +68,22 @@ export class ProductivityStatsService {
     }
 
     const shortcuts = textExpansions
-      .map((entry) => (Array.isArray(entry) ? this.sanitizer.normalizeSnippetKey(entry[0]) : ""))
+      .map((entry) => (Array.isArray(entry) ? sanitizer.normalizeSnippetKey(entry[0]) : ""))
       .filter((shortcut) => shortcut.length > 0);
     this.snippetShortcuts = new Set(shortcuts);
   }
 
   async recordUsageEvent(event: ContentScriptUsageEventContext): Promise<void> {
+    logger.debug("Recording productivity usage event", {
+      eventType: event.eventType,
+      language: "language" in event ? event.language : undefined,
+    });
     await this.enqueueMutation((state) => {
       const { todayKey, todayBucket } = this.getTodayBucket(state, this.now());
 
       switch (event.eventType) {
         case "suggestion_shown": {
-          const suggestionCount = this.sanitizer.clampCount(event.suggestionCount);
+          const suggestionCount = sanitizer.clampCount(event.suggestionCount);
           if (suggestionCount <= 0) {
             break;
           }
@@ -102,14 +93,20 @@ export class ProductivityStatsService {
         }
 
         case "suggestion_accepted": {
-          const typedTextLength = this.sanitizer.clampCount(event.typedTextLength);
-          const insertedTextLength = this.sanitizer.clampCount(event.insertedTextLength);
+          const typedTextLength = sanitizer.clampCount(event.typedTextLength);
+          const insertedTextLength = sanitizer.clampCount(event.insertedTextLength);
           const charactersSaved = Math.max(0, insertedTextLength - typedTextLength);
-          const language = this.sanitizer.normalizeLanguageKey(event.language);
+          const language = sanitizer.normalizeLanguageKey(event.language);
 
           state.acceptedSuggestions += 1;
           state.charactersSaved += charactersSaved;
-          this.recordLanguageUsage(state, todayBucket, language, charactersSaved);
+          aggregator.addLanguageUsageCounters(state.languageUsage, language, 1, charactersSaved);
+          aggregator.addLanguageUsageCounters(
+            todayBucket.languageUsage,
+            language,
+            1,
+            charactersSaved,
+          );
 
           todayBucket.acceptedSuggestions += 1;
           todayBucket.charactersSaved += charactersSaved;
@@ -117,13 +114,13 @@ export class ProductivityStatsService {
         }
 
         case "snippet_expanded": {
-          const normalizedSnippetKey = this.sanitizer.normalizeSnippetKey(event.triggerText);
+          const normalizedSnippetKey = sanitizer.normalizeSnippetKey(event.triggerText);
           if (!normalizedSnippetKey || !this.snippetShortcuts.has(normalizedSnippetKey)) {
             break;
           }
 
-          const typedTextLength = this.sanitizer.clampCount(event.typedTextLength);
-          const insertedTextLength = this.sanitizer.clampCount(event.insertedTextLength);
+          const typedTextLength = sanitizer.clampCount(event.typedTextLength);
+          const insertedTextLength = sanitizer.clampCount(event.insertedTextLength);
           const charactersSaved = Math.max(0, insertedTextLength - typedTextLength);
 
           state.snippetsExpanded += 1;
@@ -135,102 +132,67 @@ export class ProductivityStatsService {
           break;
         }
 
-        case "chars_inserted_from_snippet": {
-          const normalizedSnippetKey = this.sanitizer.normalizeSnippetKey(event.triggerText);
-          const insertedChars = this.sanitizer.clampCount(event.amount);
-          if (
-            !normalizedSnippetKey ||
-            insertedChars <= 0 ||
-            !this.snippetShortcuts.has(normalizedSnippetKey)
-          ) {
-            break;
-          }
-
-          state.charsInsertedFromSnippet += insertedChars;
-          todayBucket.charsInsertedFromSnippet += insertedChars;
-          this.recordSnippetUsage(state, todayBucket, normalizedSnippetKey, {
-            charsInsertedDelta: insertedChars,
-          });
-          break;
-        }
-
+        case "chars_inserted_from_snippet":
         case "chars_typed_for_trigger": {
-          const normalizedSnippetKey = this.sanitizer.normalizeSnippetKey(event.triggerText);
-          const typedChars = this.sanitizer.clampCount(event.amount);
+          const normalizedSnippetKey = sanitizer.normalizeSnippetKey(event.triggerText);
+          const amount = sanitizer.clampCount(event.amount);
           if (
             !normalizedSnippetKey ||
-            typedChars <= 0 ||
+            amount <= 0 ||
             !this.snippetShortcuts.has(normalizedSnippetKey)
           ) {
             break;
           }
 
-          state.charsTypedForTrigger += typedChars;
-          todayBucket.charsTypedForTrigger += typedChars;
+          const [stateField, deltaKey] =
+            event.eventType === "chars_inserted_from_snippet"
+              ? (["charsInsertedFromSnippet", "charsInsertedDelta"] as const)
+              : (["charsTypedForTrigger", "charsTypedDelta"] as const);
+          state[stateField] += amount;
+          todayBucket[stateField] += amount;
           this.recordSnippetUsage(state, todayBucket, normalizedSnippetKey, {
-            charsTypedDelta: typedChars,
+            [deltaKey]: amount,
           });
           break;
         }
-
-        default:
-          break;
       }
 
       state.daily[todayKey] = todayBucket;
-      this.aggregator.pruneDailyBuckets(state.daily);
+      aggregator.pruneDailyBuckets(state.daily);
     });
   }
 
   async getDashboardStats(): Promise<ProductivityDashboardStats> {
-    await this.mutationQueue;
+    await this.mutationQueue(() => Promise.resolve());
     const state = await this.loadState();
     const now = this.now();
 
     const { todayBucket } = this.getTodayBucket(state, now);
-    const today = this.aggregator.metricsFromCounters(
+    const today = aggregator.metricsFromCounters(
       todayBucket.acceptedSuggestions,
       todayBucket.charactersSaved,
     );
 
-    const last7Range = this.aggregator.aggregateRange(
-      state.daily,
-      this.sanitizer.addDays(now, -6),
-      now,
-    );
-    const last7Days = this.aggregator.metricsFromCounters(
+    const last7Range = aggregator.aggregateRange(state.daily, sanitizer.addDays(now, -6), now);
+    const last7Days = aggregator.metricsFromCounters(
       last7Range.acceptedSuggestions,
       last7Range.charactersSaved,
     );
 
-    const lifetime = this.aggregator.metricsFromCounters(
+    const lifetime = aggregator.metricsFromCounters(
       state.acceptedSuggestions,
       state.charactersSaved,
     );
 
-    const lifetimeEvents = {
-      suggestionsShown: state.suggestionsShown,
-      snippetsExpanded: state.snippetsExpanded,
-      charsInsertedFromSnippet: state.charsInsertedFromSnippet,
-      charsTypedForTrigger: state.charsTypedForTrigger,
-    };
+    const perLanguageLifetime = aggregator.getLanguageSummaries(state.languageUsage);
+    const perLanguageLast7Days = aggregator.getLanguageSummaries(last7Range.languageUsage);
+    const topSnippets = aggregator.getTopSnippets(state.snippetUsage, 5);
+    const last7DaysTrend = aggregator.getLast7DayTrend(state.daily, now);
 
-    const last7DaysEvents = {
-      suggestionsShown: last7Range.suggestionsShown,
-      snippetsExpanded: last7Range.snippetsExpanded,
-      charsInsertedFromSnippet: last7Range.charsInsertedFromSnippet,
-      charsTypedForTrigger: last7Range.charsTypedForTrigger,
-    };
-
-    const perLanguageLifetime = this.aggregator.getLanguageSummaries(state.languageUsage);
-    const perLanguageLast7Days = this.aggregator.getLanguageSummaries(last7Range.languageUsage);
-    const topSnippets = this.aggregator.getTopSnippets(state.snippetUsage, 5);
-    const last7DaysTrend = this.aggregator.getLast7DayTrend(state.daily, now);
-
-    const currentWeekStart = this.sanitizer.getWeekStart(now);
-    const previousWeekStart = this.sanitizer.addDays(currentWeekStart, -7);
-    const currentWeek = this.recapPolicy.summarizeWeek(state.daily, currentWeekStart);
-    const previousWeek = this.recapPolicy.summarizeWeek(state.daily, previousWeekStart);
+    const currentWeekStart = sanitizer.getWeekStart(now);
+    const previousWeekStart = sanitizer.addDays(currentWeekStart, -7);
+    const currentWeek = recapPolicy.summarizeWeek(state, currentWeekStart);
+    const previousWeek = recapPolicy.summarizeWeek(state, previousWeekStart);
 
     const weekOverWeekDeltaPct =
       previousWeek.estimatedMinutesSaved > 0
@@ -241,27 +203,23 @@ export class ProductivityStatsService {
           )
         : null;
 
-    const shouldShowWeeklyRecapCard = this.recapPolicy.shouldShowWeeklyRecap(
-      state,
-      previousWeek,
-      now,
-    );
+    const shouldShowWeeklyRecapCard = recapPolicy.shouldShowWeeklyRecap(state, previousWeek, now);
 
     return {
       today,
       last7Days,
       lifetime,
-      lifetimeEvents,
-      last7DaysEvents,
+      lifetimeEvents: eventSummary(state),
+      last7DaysEvents: eventSummary(last7Range),
       last7DaysTrend,
       perLanguageLifetime,
       perLanguageLast7Days,
       topSnippets,
       weekOverWeekDeltaPct,
-      milestoneProgress: this.aggregator.getMilestoneProgress(lifetime.estimatedMinutesSaved),
+      milestoneProgress: aggregator.getMilestoneProgress(lifetime.estimatedMinutesSaved),
       weeklyRecap: previousWeek,
       shouldShowWeeklyRecap: shouldShowWeeklyRecapCard,
-      donationPrompt: this.donationPromptPolicy.toDonationPrompt(
+      donationPrompt: donationPromptPolicy.toDonationPrompt(
         state,
         lifetime,
         now,
@@ -292,7 +250,7 @@ export class ProductivityStatsService {
     }
 
     await this.enqueueMutation((state) => {
-      this.donationPromptPolicy.applyAction(
+      donationPromptPolicy.applyAction(
         state,
         normalizedPromptId,
         action,
@@ -303,36 +261,31 @@ export class ProductivityStatsService {
   }
 
   async resetStats(): Promise<void> {
-    const operation = this.mutationQueue.then(async () => {
+    logger.warn("Resetting productivity stats");
+    await this.mutationQueue(async () => {
       const { donationPromptsDisabled } = await this.loadState();
-      await this.repository.saveState({
-        ...this.sanitizer.createDefaultStatsState(),
+      await this.saveState({
+        ...sanitizer.createDefaultStatsState(),
         donationPromptsDisabled,
       });
     });
-
-    this.mutationQueue = operation.catch((error: unknown) => {
-      console.error("Failed to reset productivity stats", error);
-    });
-    await operation;
   }
 
   private async enqueueMutation(
     mutation: (state: ProductivityStatsState) => Promise<void> | void,
   ): Promise<void> {
-    const operation = this.mutationQueue.then(async () => {
+    await this.mutationQueue(async () => {
       const state = await this.loadState();
       await mutation(state);
-      await this.repository.saveState(state);
+      await this.saveState(state);
     });
-
-    this.mutationQueue = operation.catch((error: unknown) => {
-      console.error("Failed to update productivity stats", error);
-    });
-    return operation;
   }
 
   private async loadState(): Promise<ProductivityStatsState> {
-    return this.sanitizer.sanitizeStatsState(await this.repository.loadState());
+    return sanitizer.sanitizeStatsState(await this.settingsManager.getRaw("productivityStats"));
+  }
+
+  private async saveState(state: ProductivityStatsState): Promise<void> {
+    await this.settingsManager.set("productivityStats", state);
   }
 }

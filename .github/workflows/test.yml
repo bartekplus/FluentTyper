@@ -27,8 +27,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
@@ -47,8 +45,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
@@ -58,12 +54,7 @@ jobs:
       - name: Install hunspell and bsdtar for build-tooling tests
         run: sudo apt-get update && sudo apt-get install -y hunspell libarchive-tools
       - name: Python build-tooling tests
-        run: |
-          for suite in scripts/test_*.py; do
-            echo "::group::$suite"
-            python3 -B "$suite"
-            echo "::endgroup::"
-          done
+        run: python3 -B -m unittest discover -s scripts -p 'test_*.py'
 
   e2e-smoke:
     name: E2E Smoke (${{ matrix.browser }})
@@ -77,8 +68,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
@@ -86,28 +75,7 @@ jobs:
       - name: Install Firefox for Puppeteer
         if: matrix.browser == 'firefox'
         run: bunx puppeteer browsers install firefox
-      - name: Run smoke e2e (10s target, non-blocking runtime report)
-        env:
-          BROWSER: ${{ matrix.browser }}
-          CI: "true"
-        run: |
-          python - <<'PY'
-          import os
-          import subprocess
-          import sys
-          import time
-
-          browser = os.environ["BROWSER"]
-          budget_seconds = 10
-          start = time.time()
-          result = subprocess.run(["bun", "run", "test:e2e", f"--platform={browser}"], check=False)
-          elapsed = time.time() - start
-          print(f"smoke_elapsed_seconds={elapsed:.2f}")
-          if result.returncode != 0:
-            sys.exit(result.returncode)
-          if elapsed > budget_seconds:
-            print(f"::warning::Smoke e2e exceeded {budget_seconds}s target on {browser}: {elapsed:.2f}s")
-          PY
+      - run: bun run test:e2e --platform=${{ matrix.browser }}
 
   performance-smoke:
     name: Extension performance lifecycle smoke
@@ -122,7 +90,6 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run perf:smoke
         env:
-          CI: "true"
           PERF_OUTPUT: .tmp/performance/ci
       - uses: actions/upload-artifact@v4
         if: always()
@@ -140,8 +107,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
@@ -161,8 +126,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
@@ -172,8 +135,6 @@ jobs:
         run: bunx puppeteer browsers install firefox
       - name: Full regression, including Gutenberg fixtures
         run: bun run test:e2e:full --platform=${{ matrix.browser }}
-        env:
-          CI: "true"
 
   wordpress-persistence:
     name: WordPress persistence (${{ matrix.browser }})
@@ -198,5 +159,3 @@ jobs:
         if: matrix.browser == 'firefox'
         run: bunx puppeteer browsers install firefox
       - run: bun run test:e2e:wordpress --platform=${{ matrix.browser }} --runtime=playground
-        env:
-          CI: "true"

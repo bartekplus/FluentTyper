@@ -9,12 +9,15 @@ import {
   MASS_WITH_COUNT_SENSE,
 } from "../../src/core/domain/grammar/implementations/helpers/EnglishCountability";
 import {
-  REVIEW_RULE_METADATA,
   REVIEW_SUPPORTED_RULE_IDS,
+  reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import type { CatalogRuleId } from "../../src/core/domain/grammar/types";
+import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+
+/** The rules a user has on by default. */
+const DEFAULT_ON = new Set<string>(reviewRuleIds({ codeMode: false }));
 
 // English checks added in the eighth LanguageTool parity wave: lexicon plurals and countability.
 // All sentences are our own. Every supported rule runs; default-on findings outside style count.
@@ -30,9 +33,7 @@ function review(text: string, rules: readonly CatalogRuleId[] = REVIEW_SUPPORTED
   ).diagnostics;
 }
 const scan = (text: string) =>
-  review(text).filter(
-    (d) => d.category !== "style" && REVIEW_RULE_METADATA[d.ruleId]?.defaultEnabled,
-  );
+  review(text).filter((d) => d.category !== "style" && DEFAULT_ON.has(d.ruleId));
 const fixed = (text: string) => {
   const found = scan(text);
   return {

@@ -1,7 +1,7 @@
 import type { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { isNativeUndoChord } from "./keyboardShortcuts";
 import { TextTargetAdapter } from "./TextTargetAdapter";
-import type { SuggestionEntry } from "./types";
+import type { ExtensionEditSnapshot, SuggestionEntry } from "./types";
 
 /**
  * Narrow contenteditable surface used to validate accepted-suggestion trailing-space state.
@@ -27,6 +27,10 @@ export function clearAcceptedSuggestionTransientState(
   state: AcceptedSuggestionTransientState,
 ): void {
   state.pendingExtensionEdit = null;
+  clearAcceptedSuggestionSpaceState(state);
+}
+
+export function clearAcceptedSuggestionSpaceState(state: AcceptedSuggestionSpaceState): void {
   state.missingTrailingSpace = false;
   state.expectedCursorPos = 0;
   state.expectedCursorPosIsBlockLocal = false;
@@ -70,13 +74,17 @@ export function resolveAcceptedSuggestionSpaceState(args: {
   };
 }
 
+// ArrowUp and ArrowDown are not here: they move the selection in the suggestion menu.
+const CARET_MOVE_KEYS = ["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"];
+
+function isSelectAll(event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey">): boolean {
+  return (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a";
+}
+
 export function shouldDismissSuggestionsOnKeydown(
   event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey">,
 ): boolean {
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
-    return true;
-  }
-  return ["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key);
+  return isSelectAll(event) || CARET_MOVE_KEYS.includes(event.key);
 }
 
 export function shouldInvalidatePendingExtensionEditOnKeydown(
@@ -88,21 +96,12 @@ export function shouldInvalidatePendingExtensionEditOnKeydown(
   if (isNativeUndoChord(event)) {
     return false;
   }
-  if (
-    [
-      "ArrowLeft",
-      "ArrowRight",
-      "ArrowUp",
-      "ArrowDown",
-      "Home",
-      "End",
-      "PageUp",
-      "PageDown",
-    ].includes(event.key)
-  ) {
-    return true;
-  }
-  return (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a";
+  return (
+    CARET_MOVE_KEYS.includes(event.key) ||
+    event.key === "ArrowUp" ||
+    event.key === "ArrowDown" ||
+    isSelectAll(event)
+  );
 }
 
 /**
@@ -153,6 +152,34 @@ export function syncAcceptedSuggestionTrailingSpaceState(
   ) {
     clearAcceptedSuggestionTransientState(entry);
   }
+}
+
+/**
+ * The caret block and its text when the caret is still collapsed in the unchanged
+ * block of a block-scoped pending edit, between the edit start and the caret after it.
+ * Else null.
+ */
+export function resolveLiveBlockScopedEdit(
+  elem: SuggestionEntry["elem"],
+  pendingEdit: ExtensionEditSnapshot,
+  contentEditableAdapter: AcceptedSuggestionContentEditableAdapter,
+): { activeBlock: HTMLElement; blockFullText: string } | null {
+  const activeBlock = contentEditableAdapter.getActiveBlockElement(elem);
+  const blockContext = contentEditableAdapter.getBlockContext(elem);
+  if (
+    !activeBlock ||
+    !blockContext ||
+    !TextTargetAdapter.hasCollapsedSelection(elem) ||
+    activeBlock !== (pendingEdit.blockElement ?? null)
+  ) {
+    return null;
+  }
+  const blockFullText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
+  return blockFullText === (pendingEdit.postEditBlockText ?? "") &&
+    blockContext.beforeCursor.length >= pendingEdit.replaceStart &&
+    blockContext.beforeCursor.length <= pendingEdit.cursorAfter
+    ? { activeBlock, blockFullText }
+    : null;
 }
 
 function resolveTrailingCharAfterAcceptedSuggestion(

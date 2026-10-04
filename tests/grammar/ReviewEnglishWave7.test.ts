@@ -1,10 +1,13 @@
 import { expect, test } from "bun:test";
 import {
-  REVIEW_RULE_METADATA,
   REVIEW_SUPPORTED_RULE_IDS,
+  reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+
+/** The rules a user has on by default. */
+const DEFAULT_ON = new Set<string>(reviewRuleIds({ codeMode: false }));
 
 // English grammar frames added in the seventh LanguageTool parity wave. All sentences are our own.
 // Every supported rule runs; only default-on findings outside style are compared.
@@ -17,9 +20,7 @@ function scan(text: string) {
       userDictionary: [],
       insertSpaceAfterAutocomplete: true,
     },
-  ).diagnostics.filter(
-    (d) => d.category !== "style" && REVIEW_RULE_METADATA[d.ruleId]?.defaultEnabled,
-  );
+  ).diagnostics.filter((d) => d.category !== "style" && DEFAULT_ON.has(d.ruleId));
 }
 const fixed = (text: string) => {
   const found = scan(text);
@@ -178,7 +179,7 @@ test.each([
   "We were early, weren't we?",
   "It's possible demand is low.",
 ])("keeps %s", (input) => {
-  const found = scan(input).filter((d) => REVIEW_RULE_METADATA[d.ruleId]?.defaultEnabled);
+  const found = scan(input).filter((d) => DEFAULT_ON.has(d.ruleId));
   expect({ input, found: found.map((d) => input.slice(d.range.start, d.range.end)) }).toEqual({
     input,
     found: [],
@@ -211,7 +212,7 @@ test("the missing article check is opt-in and offers a/an or the", () => {
     "Life is short.",
   ])
     expect(articles(fine)).toEqual([]);
-  expect(REVIEW_RULE_METADATA.englishMissingArticle.defaultEnabled).toBe(false);
+  expect(DEFAULT_ON.has("englishMissingArticle")).toBe(false);
 });
 
 test("Oxford spelling is opt-in and writes -ize", () => {
@@ -237,5 +238,5 @@ test("Oxford spelling is opt-in and writes -ize", () => {
   ]);
   expect(oxford("We advertise, then prise the lid open.")).toEqual([]);
   expect(oxford("The word 'organisation' is British.")).toEqual([]);
-  expect(REVIEW_RULE_METADATA.englishOxfordSpelling.defaultEnabled).toBe(false);
+  expect(DEFAULT_ON.has("englishOxfordSpelling")).toBe(false);
 });

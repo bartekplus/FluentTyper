@@ -2,6 +2,7 @@ import type { ReviewTargetRead, ReviewApplyResult } from "@core/application/revi
 import { editTouches } from "@core/domain/grammar/review/textRanges";
 import type { TextRange } from "@core/domain/grammar/review/types";
 import type { ReviewTargetHandle } from "./ReviewTargets";
+import { MAX_MAPPED_CHARS } from "./ContentEditableTextMap";
 import {
   WORD_REVIEW_EVENT,
   WORD_REVIEW_RESPONSE,
@@ -16,8 +17,7 @@ type RenderedSegment = { node: Text | Element; start: number; end: number };
 
 /** Word's rendered pages are not contenteditable; all reads and edits use its model. */
 export class WordReviewTarget implements ReviewTargetHandle {
-  readonly kind = "model-editor" as const;
-  readonly capabilities = { inline: true, apply: true, bulk: true, undo: "single-step" as const };
+  readonly capabilities = { apply: true, bulk: true };
   composing = false;
   private snapshot: WordReviewSnapshot | null = null;
   private startupSnapshot: WordReviewSnapshot | null = null;
@@ -68,7 +68,7 @@ export class WordReviewTarget implements ReviewTargetHandle {
           range.end <= reply.text.length;
         if (
           typeof reply.text !== "string" ||
-          reply.text.length > 200_000 ||
+          reply.text.length > MAX_MAPPED_CHARS ||
           typeof reply.signature !== "string" ||
           typeof reply.token !== "string" ||
           (reply.bodyType !== null && !Number.isInteger(reply.bodyType)) ||
@@ -291,7 +291,6 @@ export class WordReviewTarget implements ReviewTargetHandle {
         : dom?.startContainer.parentElement;
     parent?.scrollIntoView({ block: "center", inline: "nearest" });
   }
-  setMeasurementRoot(_root: ShadowRoot): void {}
   focusEditor(): void {
     if (this.inputProxy.isConnected && this.element.contains(this.inputProxy))
       this.inputProxy.focus({ preventScroll: true });

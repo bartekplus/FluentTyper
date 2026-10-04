@@ -4,6 +4,7 @@ import {
   isSuggestionMenuReversed,
 } from "../suggestions/SuggestionMenuHost";
 import { SuggestionMenuView } from "../suggestions/SuggestionMenuView";
+import { resolveSuggestionMenuHostId } from "../suggestions/SuggestionMenuHost";
 import { SuggestionMenuPresenter } from "../suggestions/SuggestionMenuPresenter";
 import { SuggestionPositioningService } from "../suggestions/SuggestionPositioningService";
 import { InlineSuggestionView } from "../suggestions/InlineSuggestionView";
@@ -107,7 +108,7 @@ export class GoogleDocsView {
       accept: (index: number) => void;
     },
   ) {
-    this.elements.menu.id = SuggestionMenuView.resolveHostId(DOCS_SESSION_ID);
+    this.elements.menu.id = resolveSuggestionMenuHostId(DOCS_SESSION_ID);
     this.live.setAttribute("role", "status");
     this.live.setAttribute("aria-live", "polite");
     this.live.setAttribute("aria-atomic", "true");
@@ -118,7 +119,7 @@ export class GoogleDocsView {
     this.font.setAttribute("aria-hidden", "true");
     this.font.style.cssText = "position:fixed;left:-9999px;top:0;visibility:hidden";
     document.body.appendChild(this.font);
-    // Preserve Docs focus. Shadow DOM composedPath is required for option hit-testing.
+    // Keep the focus in Docs.
     this.elements.list.addEventListener("pointerdown", (event) => {
       if (event.button !== 0) return;
       const item = (event.target as Element).closest<HTMLElement>("li[data-index]");
@@ -206,11 +207,6 @@ export class GoogleDocsView {
     return visible;
   }
   /**
-   * Move the selection of a menu that is already showing. A full render hides it first,
-   * and showing it again replays the panel's pop-in animation: the popup blinks on every
-   * arrow press. False when there is no open menu to move within (the inline ghost).
-   */
-  /**
    * The open menu lists suggestions bottom-up (opened above the caret). A hidden
    * menu keeps its last placement, which must not flip arrows for an inline ghost.
    */
@@ -220,6 +216,11 @@ export class GoogleDocsView {
       isSuggestionMenuReversed(this.elements.menu)
     );
   }
+  /**
+   * Move the selection of a menu that is already showing. A full render hides it first,
+   * and showing it again replays the panel's pop-in animation: the popup blinks on every
+   * arrow press. False when there is no open menu to move within (the inline ghost).
+   */
   highlight(suggestions: string[], index: number): boolean {
     if (!this.presenter.isVisible(this.elements.menu, suggestions.length)) return false;
     this.presenter.updateHighlight(this.elements.list, index);

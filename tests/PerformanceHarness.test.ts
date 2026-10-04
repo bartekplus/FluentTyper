@@ -13,6 +13,20 @@ function fixture() {
 }
 
 describe("performance harness", () => {
+  test("perf:ai stops when PERF_AI_EXTENSION is not set", async () => {
+    const env = { ...process.env };
+    delete env.PERF_AI_EXTENSION;
+    const proc = Bun.spawn(["bun", "scripts/performance/ai.ts"], {
+      cwd: new URL("..", import.meta.url).pathname,
+      env,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [exitCode, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("Set PERF_AI_EXTENSION");
+  }, 15_000);
+
   test("detects one intentionally undisposed synthetic listener", () => {
     const { dom, snapshot } = fixture();
     try {
@@ -55,7 +69,8 @@ describe("performance harness", () => {
   });
 
   test("reports empty samples and nearest-rank distributions", () => {
-    expect(distribution([])).toEqual({
+    const empty: Record<string, number | null> = distribution([]);
+    expect(empty).toEqual({
       n: 0,
       min: null,
       p50: null,

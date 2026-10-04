@@ -19,7 +19,7 @@ import {
   unclosedQuotation,
 } from "./reviewLanguageFixtures/words";
 import { MATRIX_LANGUAGES, type RuleFixtures } from "./reviewLanguageFixtures/types";
-import { scan } from "./reviewHarness";
+import { review } from "./grammarTestUtils";
 
 /** Every rule Review runs in every supported language, with its fixtures. */
 const MATRIX: Array<[CatalogRuleId, RuleFixtures]> = [
@@ -39,16 +39,20 @@ const MATRIX: Array<[CatalogRuleId, RuleFixtures]> = [
 ];
 
 function findings(ruleId: CatalogRuleId, text: string, lang: string) {
-  return scan(text, {
-    enabledRules: [ruleId],
-    lang,
-    longSentenceWords: 12,
-    preferredTerminology: {
-      version: 1,
-      enabled: true,
-      entries: TERMINOLOGY_ENTRIES as PreferredTerm[],
+  return review(
+    text,
+    {},
+    {
+      enabledRules: [ruleId],
+      lang,
+      longSentenceWords: 12,
+      preferredTerminology: {
+        version: 1,
+        enabled: true,
+        entries: TERMINOLOGY_ENTRIES as PreferredTerm[],
+      },
     },
-  }).filter((d) => d.ruleId === ruleId);
+  ).diagnostics.filter((d) => d.ruleId === ruleId);
 }
 
 /** The text with every finding's first alternative applied. */

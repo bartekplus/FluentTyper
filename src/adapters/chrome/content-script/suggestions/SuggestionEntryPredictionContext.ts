@@ -1,4 +1,5 @@
 import type { PredictionInputAction } from "@core/domain/messageTypes";
+import type { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 import type { SuggestionEntry, SuggestionSnapshot } from "./types";
 
@@ -24,30 +25,17 @@ interface EditableCursorContext {
   safeForGrammar: boolean;
 }
 
-/**
- * Minimal contenteditable adapter surface needed by cursor-context resolution.
- * The helper keeps this separate from the full adapter class so callers can
- * pass a narrow mock in tests or reuse existing adapters without extra wiring.
- */
-export interface SuggestionEntrySessionContentEditableAdapter {
-  getBlockContext(elem: HTMLElement): CursorContextBlock | null;
-  getBlockContextBySelection(elem: HTMLElement): CursorContextBlock | null;
-  isCollapsedSelectionBeforeBlockBoundary(elem: HTMLElement): boolean;
-  getPreviousBlockTextBySelection(elem: HTMLElement): string | null;
-}
-
-function createEmptySnapshot(): SuggestionSnapshot {
-  return {
-    beforeCursor: "",
-    afterCursor: "",
-    cursorOffset: 0,
-  };
-}
+/** The contenteditable adapter methods that cursor-context resolution uses. */
+export type SuggestionEntrySessionContentEditableAdapter = Pick<
+  ContentEditableAdapter,
+  | "getBlockContext"
+  | "getBlockContextBySelection"
+  | "isCollapsedSelectionBeforeBlockBoundary"
+  | "getPreviousBlockTextBySelection"
+>;
 
 /**
- * Resolves the cursor context used for prediction and grammar processing.
- *
- * The result mirrors SuggestionEntrySession behavior:
+ * Resolves the cursor context used for prediction and grammar processing:
  * - text-value snapshots pass through unchanged
  * - empty contenteditable blocks can fall back to the previous block text
  *   while preserving full-text offsets for edits
@@ -85,7 +73,7 @@ export function resolveEditableCursorContext({
   const fullTextOffsetsContext = (beforeCursor: string): EditableCursorContext => ({
     beforeCursor,
     afterCursor: "",
-    snapshot: snapshot ?? createEmptySnapshot(),
+    snapshot: snapshot ?? { beforeCursor: "", afterCursor: "", cursorOffset: 0 },
     applyContext: {
       beforeCursor: snapshot?.beforeCursor ?? "",
       afterCursor: snapshot?.afterCursor ?? "",
@@ -139,10 +127,7 @@ export function resolveEditableCursorContext({
     inputAction !== "delete" &&
     blockContext.beforeCursor.length === 0 &&
     typeof typedKey === "string" &&
-    typedKey.length === 1 &&
     typedKey.trim().length > 0 &&
-    resolvedLeadingChar.length === 1 &&
-    snapshotLeadingChar.length === 1 &&
     (exactKeyMatch || capitalizedKeyMatch);
   if (shouldSeedTypedKey) {
     return {
@@ -180,21 +165,25 @@ export function resolveEditableCursorContext({
     blockContext.beforeCursor === resolvedSnapshot.beforeCursor &&
     resolvedSnapshot.beforeCursor.endsWith(pendingEdit.replacementText);
   if (shouldSeedPendingGrammarEdit || shouldSeedPendingGrammarEditFromMergedSnapshot) {
+    const afterCursor = rawAfterCursor.startsWith(pendingEdit.replacementText)
+      ? rawAfterCursor.slice(pendingEdit.replacementText.length)
+      : rawAfterCursor.length > 0
+        ? rawAfterCursor
+        : resolvedAfterCursor;
     return {
       beforeCursor: pendingEdit.replacementText,
-      afterCursor: rawAfterCursor.startsWith(pendingEdit.replacementText)
-        ? rawAfterCursor.slice(pendingEdit.replacementText.length)
-        : rawAfterCursor.length > 0
-          ? rawAfterCursor
-          : resolvedAfterCursor,
-      snapshot: {
-        beforeCursor: `${resolvedSnapshot.beforeCursor}${pendingEdit.replacementText}`,
-        afterCursor: resolvedSnapshot.afterCursor.slice(pendingEdit.replacementText.length),
-        cursorOffset: resolvedSnapshot.cursorOffset + pendingEdit.replacementText.length,
-      },
+      afterCursor,
+      // A merged snapshot already ends with the replacement.
+      snapshot: shouldSeedPendingGrammarEdit
+        ? {
+            beforeCursor: `${resolvedSnapshot.beforeCursor}${pendingEdit.replacementText}`,
+            afterCursor: resolvedSnapshot.afterCursor.slice(pendingEdit.replacementText.length),
+            cursorOffset: resolvedSnapshot.cursorOffset + pendingEdit.replacementText.length,
+          }
+        : resolvedSnapshot,
       applyContext: {
         beforeCursor: pendingEdit.replacementText,
-        afterCursor: rawAfterCursor.slice(pendingEdit.replacementText.length),
+        afterCursor,
         useFullTextOffsets: false,
       },
       safeForGrammar: true,
@@ -250,10 +239,13 @@ export function resolveEditableCursorContext({
   };
 }
 
+export function inputTypeOf(event: Event | undefined): string {
+  const inputType = (event as InputEvent | undefined)?.inputType;
+  return typeof inputType === "string" ? inputType : "";
+}
+
 /**
- * Resolves the input action used for prediction and grammar scheduling.
- *
- * Resolution order matches SuggestionEntrySession:
+ * Resolves the input action used for prediction and grammar scheduling, in this order:
  * - event.inputType when available
  * - the last keydown intent
  * - before-cursor length comparison against the previous snapshot
@@ -269,8 +261,7 @@ export function resolvePredictionInputAction(
     lastBeforeCursorText: string | null;
   },
 ): PredictionInputAction {
-  const inputEvent = event as Event & { inputType?: unknown };
-  const inputType = typeof inputEvent.inputType === "string" ? inputEvent.inputType : "";
+  const inputType = inputTypeOf(event);
   if (inputType.startsWith("delete")) {
     return "delete";
   }

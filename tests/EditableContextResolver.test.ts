@@ -1,13 +1,8 @@
 import { TextTargetAdapter } from "../src/adapters/chrome/content-script/suggestions/TextTargetAdapter";
-import { beforeEach, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { EditableContextResolver } from "../src/adapters/chrome/content-script/suggestions/EditableContextResolver";
-
-beforeEach(() => {
-  document.body.innerHTML = "";
-  const selection = window.getSelection();
-  selection?.removeAllRanges();
-});
+import { createEditor, setCaret } from "./codeContextTestUtils";
 
 test("resolves full text-input context from one snapshot", () => {
   const input = document.createElement("input");
@@ -35,27 +30,8 @@ test("returns null for non-text-value elements", () => {
 });
 
 test("resolves contenteditable with exact block-local values when block context is available", () => {
-  const editable = document.createElement("div");
-  editable.setAttribute("contenteditable", "true");
-  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-  editable.innerHTML = "<p>Alpha beta</p><p>Gamma</p>";
-  document.body.appendChild(editable);
-
-  const paragraphText = editable.querySelector("p")?.firstChild;
-  if (!paragraphText || paragraphText.nodeType !== Node.TEXT_NODE) {
-    throw new Error("Expected paragraph text node");
-  }
-
-  const selection = window.getSelection();
-  if (!selection) {
-    throw new Error("Selection API unavailable");
-  }
-
-  const range = document.createRange();
-  range.setStart(paragraphText, 5);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
+  const editable = createEditor("<p>Alpha beta</p><p>Gamma</p>");
+  setCaret(editable.querySelector("p")!.firstChild!, 5);
 
   const resolver = new EditableContextResolver();
   const context = resolver.resolve(editable);
@@ -68,64 +44,12 @@ test("resolves contenteditable with exact block-local values when block context 
   });
 });
 
-test("marks contenteditable selectionStable true for a collapsed caret inside one block", () => {
-  const editable = document.createElement("div");
-  editable.setAttribute("contenteditable", "true");
-  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-  editable.innerHTML = "<p>Alpha beta</p><p>Gamma</p>";
-  document.body.appendChild(editable);
-
-  const paragraphText = editable.querySelector("p")?.firstChild;
-  if (!paragraphText || paragraphText.nodeType !== Node.TEXT_NODE) {
-    throw new Error("Expected paragraph text node");
-  }
-
-  const selection = window.getSelection();
-  if (!selection) {
-    throw new Error("Selection API unavailable");
-  }
-
-  const range = document.createRange();
-  range.setStart(paragraphText, 2);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
-
-  const resolver = new EditableContextResolver();
-  const context = resolver.resolve(editable);
-
-  expect(context?.selectionStable).toBe(true);
-});
-
 test("marks contenteditable selectionStable false for a cross-block selection", () => {
-  const editable = document.createElement("div");
-  editable.setAttribute("contenteditable", "true");
-  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-  editable.innerHTML = "<p>Alpha</p><p>Beta</p>";
-  document.body.appendChild(editable);
-
+  const editable = createEditor("<p>Alpha</p><p>Beta</p>");
   const paragraphs = editable.querySelectorAll("p");
-  const startText = paragraphs[0]?.firstChild;
-  const endText = paragraphs[1]?.firstChild;
-  if (
-    !startText ||
-    startText.nodeType !== Node.TEXT_NODE ||
-    !endText ||
-    endText.nodeType !== Node.TEXT_NODE
-  ) {
-    throw new Error("Expected paragraph text nodes");
-  }
-
-  const selection = window.getSelection();
-  if (!selection) {
-    throw new Error("Selection API unavailable");
-  }
-
-  const range = document.createRange();
-  range.setStart(startText, 1);
-  range.setEnd(endText, 2);
-  selection.removeAllRanges();
-  selection.addRange(range);
+  window
+    .getSelection()!
+    .setBaseAndExtent(paragraphs[0]!.firstChild!, 1, paragraphs[1]!.firstChild!, 2);
 
   const resolver = new EditableContextResolver();
   const context = resolver.resolve(editable);
@@ -134,30 +58,11 @@ test("marks contenteditable selectionStable false for a cross-block selection", 
 });
 
 test("marks contenteditable selectionStable false when selection is outside the editable", () => {
-  const editable = document.createElement("div");
-  editable.setAttribute("contenteditable", "true");
-  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-  editable.innerHTML = "<p>Alpha beta</p>";
+  const editable = createEditor("<p>Alpha beta</p>");
   const outside = document.createElement("div");
   outside.textContent = "Outside selection";
-  document.body.appendChild(editable);
   document.body.appendChild(outside);
-
-  const outsideText = outside.firstChild;
-  if (!outsideText || outsideText.nodeType !== Node.TEXT_NODE) {
-    throw new Error("Expected outside text node");
-  }
-
-  const selection = window.getSelection();
-  if (!selection) {
-    throw new Error("Selection API unavailable");
-  }
-
-  const range = document.createRange();
-  range.setStart(outsideText, 0);
-  range.setEnd(outsideText, 7);
-  selection.removeAllRanges();
-  selection.addRange(range);
+  window.getSelection()!.setBaseAndExtent(outside.firstChild!, 0, outside.firstChild!, 7);
 
   const resolver = new EditableContextResolver();
   const context = resolver.resolve(editable);
@@ -170,11 +75,7 @@ test("marks contenteditable selectionStable false when selection is outside the 
 });
 
 test("uses contenteditable adapter block context and selection-safety results directly", () => {
-  const editable = document.createElement("div");
-  editable.setAttribute("contenteditable", "true");
-  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-  editable.textContent = "Snapshot text";
-  document.body.appendChild(editable);
+  const editable = createEditor("Snapshot text");
 
   const originalGetBlockContext = ContentEditableAdapter.prototype.getBlockContext;
   const originalHasUnstableSelection = ContentEditableAdapter.prototype.hasUnstableSelection;
@@ -202,16 +103,8 @@ test("uses contenteditable adapter block context and selection-safety results di
 });
 
 test("FT-INV-2 block context does not extract a 50k editor until full text is requested", () => {
-  const editable = document.createElement("div");
-  editable.setAttribute("contenteditable", "true");
-  Object.defineProperty(editable, "isContentEditable", { value: true });
-  editable.innerHTML = `<p>Hello</p><p>${"x".repeat(50000)}</p>`;
-  document.body.append(editable);
-  const range = document.createRange();
-  range.setStart(editable.firstChild!.firstChild!, 5);
-  range.collapse(true);
-  window.getSelection()!.removeAllRanges();
-  window.getSelection()!.addRange(range);
+  const editable = createEditor(`<p>Hello</p><p>${"x".repeat(50000)}</p>`);
+  setCaret(editable.firstChild!.firstChild!, 5);
   const original = TextTargetAdapter.snapshot;
   let extracts = 0;
   TextTargetAdapter.snapshot = (...args) => {

@@ -1,30 +1,22 @@
 import { namedExampleBefore } from "./exampleCues";
 import { POLISH_SPLIT_WORDS } from "./polish";
-import { SPACE, WORD_START as EDGE_BEFORE, isLang } from "./phraseTemplates";
+import { caseLike, isLang, ownedMatches, SPACE, TOKEN_END, WORD_START } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
-import { carryCase } from "../implementations/helpers/GenericRuleShared";
+import { withTextApostrophes } from "./textRanges";
 
 /**
  * Review-only extensions of English rules to the other supported languages.
  * Each is a bounded word table; a form that also reads correctly somewhere is
- * left out, and every finding is individual-only.
+ * left out. Findings are individual-only, except the English accent mark (´) as an
+ * apostrophe.
  */
-
-const EDGE_AFTER = "(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])";
 
 function wordTable(entries: Record<string, string>): { regex: RegExp; map: Map<string, string> } {
   const map = new Map(Object.entries(entries));
   return {
-    regex: new RegExp(`${EDGE_BEFORE}(?:${[...map.keys()].join("|")})${EDGE_AFTER}`, "giu"),
+    regex: new RegExp(`${WORD_START}(?:${[...map.keys()].join("|")})${TOKEN_END}`, "giu"),
     map,
   };
-}
-
-function* ownedWords(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArray> {
-  regex.lastIndex = ctx.from;
-  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
-    yield m;
-  }
 }
 
 // ------------------------------------------------------------ doubled degree
@@ -83,7 +75,7 @@ const DEGREE: Record<string, DegreeTable> = {
 };
 for (const table of Object.values(DEGREE)) {
   table.regex = new RegExp(
-    `${EDGE_BEFORE}(?<target>(?<marker>${table.marker})${SPACE}(?<word>${table.words}))${EDGE_AFTER}`,
+    `${WORD_START}(?<target>(?<marker>${table.marker})${SPACE}(?<word>${table.words}))${TOKEN_END}`,
     "giu",
   );
 }
@@ -93,7 +85,7 @@ export function doubledDegreeByLanguage(ctx: DetectContext): RawFinding[] {
   const table = DEGREE[ctx.lang.slice(0, 2)];
   if (!table) return [];
   const findings: RawFinding[] = [];
-  for (const m of ownedWords(ctx, table.regex!)) {
+  for (const m of ownedMatches(ctx, table.regex!)) {
     const start = m.index;
     const end = start + m[0].length;
     const { marker, word } = m.groups!;
@@ -106,7 +98,7 @@ export function doubledDegreeByLanguage(ctx: DetectContext): RawFinding[] {
       ruleId: "englishDoubledDegree",
       messageKey: "review_msg_doubled_degree",
       range: { start, end },
-      alternatives: [carryCase(marker, word)],
+      alternatives: [caseLike(marker, word)],
       context: { start: Math.max(0, start - 64), end },
       bulkBlock: "context-dependent",
     });
@@ -221,7 +213,7 @@ export function splitWords(ctx: DetectContext): RawFinding[] {
   const table = SPLIT_TABLES.get(ctx.lang.slice(0, 2));
   if (!table) return [];
   const findings: RawFinding[] = [];
-  for (const m of ownedWords(ctx, table.regex)) {
+  for (const m of ownedMatches(ctx, table.regex)) {
     const typed = m[0];
     const lower = typed.toLowerCase();
     if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
@@ -243,7 +235,7 @@ export function splitWords(ctx: DetectContext): RawFinding[] {
       ruleId: "englishAlotCorrection",
       messageKey: "review_msg_split_words",
       range: { start: m.index, end: m.index + typed.length },
-      alternatives: [carryCase(typed, replacement)],
+      alternatives: [caseLike(typed, replacement)],
       dictionaryWord: typed,
       bulkBlock: "context-dependent",
     });
@@ -272,29 +264,23 @@ const FRENCH_ELISIONS = wordTable({
   puisquil: "puisqu'il",
 });
 
-/** The text's own apostrophe style near `index`: curly only where no straight one is used. */
-function apostropheAt(ctx: DetectContext, index: number): string {
-  const nearby = ctx.text.slice(Math.max(0, index - 400), index + 400);
-  return nearby.includes("’") && !nearby.includes("'") ? "’" : "'";
-}
-
 /** "cest", "jai", "aujourdhui": a French elision missing its apostrophe. */
 export function frenchElisions(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
-  for (const m of ownedWords(ctx, FRENCH_ELISIONS.regex)) {
+  for (const m of ownedMatches(ctx, FRENCH_ELISIONS.regex)) {
     const typed = m[0];
     const lower = typed.toLowerCase();
     if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
     // "15:00 CEST": only the capital form is the time zone. A lowercase
     // "cest" after a time ("À 20:40, cest terminé.") is still "c'est".
     if (typed === "CEST") continue;
-    const replacement = FRENCH_ELISIONS.map.get(lower)!.replaceAll("'", apostropheAt(ctx, m.index));
+    const replacement = withTextApostrophes(ctx.text, m.index, FRENCH_ELISIONS.map.get(lower)!);
     findings.push({
       ruleId: "englishContractionNormalization",
       messageKey: "review_msg_contraction",
       range: { start: m.index, end: m.index + typed.length },
-      alternatives: [carryCase(typed, replacement)],
+      alternatives: [caseLike(typed, replacement)],
       bulkBlock: "context-dependent",
     });
   }
@@ -341,7 +327,7 @@ export function markedApostrophes(ctx: DetectContext): RawFinding[] {
   const regex = MARKED_APOSTROPHE[lang];
   if (!regex) return [];
   const findings: RawFinding[] = [];
-  for (const m of ownedWords(ctx, regex)) {
+  for (const m of ownedMatches(ctx, regex)) {
     const mark = m[lang === "en" ? 2 : 1];
     const start = m.index + m[0].indexOf(mark, m.groups?.base.length ?? 0);
     if (namedExampleBefore(ctx.text, start)) continue;
@@ -367,7 +353,7 @@ export function markedApostrophes(ctx: DetectContext): RawFinding[] {
       ruleId: "englishContractionNormalization",
       messageKey: "review_msg_apostrophe_mark",
       range: { start, end: start + 1 },
-      alternatives: [apostropheAt(ctx, start)],
+      alternatives: [withTextApostrophes(ctx.text, start, "'")],
       context: { start: m.index, end: Math.min(ctx.text.length, m.index + m[0].length + 1) },
       // Only the English accent is certain; a semicolon or backtick may be meant.
       bulkBlock: lang === "en" && mark === "´" ? undefined : "context-dependent",
@@ -381,7 +367,7 @@ export function markedApostrophes(ctx: DetectContext): RawFinding[] {
 // Nouns, so always capitalized; the adverbs ("montags") and compounds stay as
 // typed. "august" is also an adjective: only after a date word.
 const GERMAN_NOUNS = new RegExp(
-  `${EDGE_BEFORE}(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag|januar|jänner|februar|märz|april|mai|juni|juli|september|oktober|november|dezember|weihnachten|ostern|pfingsten|august)${EDGE_AFTER}`,
+  `${WORD_START}(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag|januar|jänner|februar|märz|april|mai|juni|juli|september|oktober|november|dezember|weihnachten|ostern|pfingsten|august)${TOKEN_END}`,
   "gu",
 );
 const AUGUST_CONTEXT =
@@ -391,7 +377,7 @@ const AUGUST_CONTEXT =
 export function germanNounCapitals(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "de")) return [];
   const findings: RawFinding[] = [];
-  for (const m of ownedWords(ctx, GERMAN_NOUNS)) {
+  for (const m of ownedMatches(ctx, GERMAN_NOUNS)) {
     const typed = m[0];
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
     if (typed === "august" && !AUGUST_CONTEXT.test(before)) continue;

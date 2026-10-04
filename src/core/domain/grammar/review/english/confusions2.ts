@@ -1,21 +1,16 @@
-import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import type { PhraseRow } from "../englishPhraseTables";
-import { namedExampleBefore } from "../exampleCues";
+import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import {
-  gluedAfter,
-  hasUserOrCasedWord,
-  WORD_END,
-  WORD_START,
-  wordSet as words,
-  isLang,
-} from "../phraseTemplates";
+  applyWordCase,
+  detectWordCase,
+  wordKey,
+  wordSet,
+} from "../../implementations/helpers/GenericRuleShared";
+import { each, type PhraseRow } from "../englishPhraseTables";
+import { namedExampleBefore } from "../exampleCues";
+import { gluedAfter, hasUserOrCasedWord, WORD_END, WORD_START, isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { finding } from "../finding";
 
-/** One row per form: `~` stands for each form in both columns. */
-const each = (forms: readonly string[], typed: string, replacement: string): PhraseRow[] =>
-  forms.map((form) => [typed.replace("~", form), replacement.replace("~", form)]);
 const NEGATED = [
   "can't",
   "cant",
@@ -40,7 +35,7 @@ const NEGATED = [
   "shouldn't",
 ];
 
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
+/** Rows for englishPhraseCorrections. */
 export const PHRASES: readonly PhraseRow[] = [
   ["hazzle", "hassle"],
   ["hazzles", "hassles"],
@@ -92,25 +87,24 @@ export const PHRASES: readonly PhraseRow[] = [
   ),
 ];
 export const COMPOUNDS: readonly PhraseRow[] = [["likely hood", "likelihood"]];
-export const STYLE: readonly PhraseRow[] = [];
 
 // Closed-class word sets; open-class decisions go through the lexicon.
-const DET = words(
+const DET = wordSet(
   "the a an this that these those my your his her its our their each every no another",
 );
-const SUBJECTS = words("i you we they he she it");
-const OBJECTS = words("me him her us them you it");
-const WH = words("what where which who whom whose how why when");
-const MODALS = words(
+const SUBJECTS = wordSet("i you we they he she it");
+const OBJECTS = wordSet("me him her us them you it");
+const WH = wordSet("what where which who whom whose how why when");
+const MODALS = wordSet(
   "will would could should can can't cannot might must mustn't shouldn't won't wouldn't couldn't may shall",
 );
-const BE = words("am is are was were be been being isn't aren't wasn't weren't ain't");
-const HAVE = words("have has had haven't hasn't hadn't");
-const AUX = new Set([...MODALS, ...BE, ...HAVE, ...words("do does did don't doesn't didn't to")]);
-const ADVERBS = words(
+const BE = wordSet("am is are was were be been being isn't aren't wasn't weren't ain't");
+const HAVE = wordSet("have has had haven't hasn't hadn't");
+const AUX = new Set([...MODALS, ...BE, ...HAVE, ...wordSet("do does did don't doesn't didn't to")]);
+const ADVERBS = wordSet(
   "not never just really also still always only even actually sometimes often usually rarely seldom certainly definitely probably already",
 );
-const PREPOSITIONS = words(
+const PREPOSITIONS = wordSet(
   "of for about with from into onto at by against between among without toward towards under through during despite to on in upon via over across along around behind beside near after before since until till inside outside beyond below above within throughout unlike",
 );
 // Words the lexicon also lists as nouns ("in", "behind") that never head a noun phrase here.
@@ -122,28 +116,28 @@ const CLOSED = new Set([
   ...AUX,
   ...ADVERBS,
   ...PREPOSITIONS,
-  ...words(
+  ...wordSet(
     "and or but so if as than then there here now that some any all both more most less much many such own same other else itself themselves yet too very",
   ),
 ]);
 // Time, frequency and direction words a locative "there" takes: "lived there years".
-const TIME = words(
+const TIME = wordSet(
   "today tonight tomorrow yesterday morning afternoon evening night nights time times years year months month weeks week days day hours hour minutes decades ages once twice early late last next soon forever overnight recently daily north south east west home abroad online offline upstairs downstairs inland overseas downtown uptown onward onwards straight ahead",
 );
 // Lemmas that take a bare clause ("I think they're…"), or a place ("went there…") after them.
-const BARE_CLAUSE = words(
+const BARE_CLAUSE = wordSet(
   "think know hope believe say guess suppose feel wish mean see hear suggest insist find ensure notice assume bet admit doubt swear fear reckon figure understand learn remember forget realize realise prove imagine pretend seem appear look sound agree argue claim decide expect explain hold note predict read report reveal state worry confirm verify make trust wonder deny recall watch be have do get go come need dare",
 );
 // These take their object first: "tell them they're…", but "Tell they the news" is wrong.
-const OBJECT_FIRST = words("tell show remind promise assure convince teach inform warn let help");
+const OBJECT_FIRST = wordSet("tell show remind promise assure convince teach inform warn let help");
 const CLAUSE_LEMMAS = new Set([...BARE_CLAUSE, ...OBJECT_FIRST]);
-const PLACE_LEMMAS = words(
+const PLACE_LEMMAS = wordSet(
   "go come get arrive stay live work sit stand wait sleep eat die lie meet stop remain park settle belong exist happen drive fly walk run ride travel head return sail swim hike rush hurry move relocate commute visit",
 );
 // "remember/forget there was…" needs a be-verb, so only these block a following noun.
 const THERE_BLOCK = new Set([
   ...PLACE_LEMMAS,
-  ...words(
+  ...wordSet(
     "be have do see watch hear notice find think know believe say guess suppose feel hope mean seem appear look sound tell show prove imagine wish bet swear claim",
   ),
 ]);
@@ -155,7 +149,6 @@ const WORD_AFTER = new RegExp(
   `^[ \\t\\u00a0]+(${TOKEN})(?![\\p{L}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])`,
   "u",
 );
-const key = (raw: string) => raw.toLowerCase().replace(/’/g, "'");
 
 /** Up to `max` words before `index` on the same clause, nearest first. */
 function wordsBefore(text: string, index: number, max: number): Word[] {
@@ -164,7 +157,7 @@ function wordsBefore(text: string, index: number, max: number): Word[] {
     const match = WORD_BEFORE.exec(text.slice(Math.max(0, at - 48), at));
     if (!match) break;
     const start = at - match[0].length;
-    found.push({ w: key(match[1]), raw: match[1], start, end: start + match[1].length });
+    found.push({ w: wordKey(match[1]), raw: match[1], start, end: start + match[1].length });
     at = start;
   }
   return found;
@@ -176,7 +169,7 @@ function wordsAfter(text: string, index: number, max: number): Word[] {
     const match = WORD_AFTER.exec(text.slice(at, at + 48));
     if (!match) break;
     const end = at + match[0].length;
-    found.push({ w: key(match[1]), raw: match[1], start: end - match[1].length, end });
+    found.push({ w: wordKey(match[1]), raw: match[1], start: end - match[1].length, end });
     at = end;
   }
   return found;
@@ -190,23 +183,21 @@ function opens(text: string, index: number): boolean {
 const closes = (text: string, index: number) =>
   /^[ \t\u00a0]{0,8}(?:[.!?,;:)\]"”…]|--|[—–]|$)/.test(text.slice(index, index + 12));
 
-const info = (word: string) => englishWordInfo(word);
-const hasForm = (word: string, ...forms: string[]) =>
-  info(word)?.verbs.some((verb) => forms.includes(verb.form)) ?? false;
 const lemmaIn = (word: string, lemmas: ReadonlySet<string>) =>
-  lemmas.has(word) || (info(word)?.verbs.some((verb) => lemmas.has(verb.lemma)) ?? false);
-const adjective = (word: string) => info(word)?.adjective ?? false;
+  lemmas.has(word) ||
+  (englishWordInfo(word)?.verbs.some((verb) => lemmas.has(verb.lemma)) ?? false);
+const adjective = (word: string) => englishWordInfo(word)?.adjective ?? false;
 /** A noun reading; an unlisted lowercase word is a long pure noun the lexicon omits. */
 function nounish(word: string): boolean {
   if (CLOSED.has(word) || TIME.has(word)) return false;
-  const entry = info(word);
+  const entry = englishWordInfo(word);
   if (!entry) return /^[a-z]{4,}$/.test(word);
   if (!entry.verbs.length && !entry.noun && !entry.adjective && !entry.adverb) return true;
   return (entry.noun || entry.plural) && !entry.adverb && !entry.adjective;
 }
 /** A finite verb that cannot be a noun or adjective: "sprinted", "facilitates". */
 function pureFinite(word: string): boolean {
-  const entry = info(word);
+  const entry = englishWordInfo(word);
   return (
     !!entry &&
     entry.verbs.some((verb) => verb.form === "past" || verb.form === "third") &&
@@ -218,28 +209,29 @@ function pureFinite(word: string): boolean {
 /** Index of the head noun of a short noun phrase at `from` ("relatively low density"), or -1. */
 function nounPhrase(next: readonly Word[], from: number, compound = true): number {
   let k = from;
-  const entry = next[k] && info(next[k].w);
+  const entry = next[k] && englishWordInfo(next[k].w);
   if (entry && entry.adverb && !entry.adjective && !entry.noun && !CLOSED.has(next[k].w)) k += 1;
   const modifier = next[k]?.w;
   if (
     modifier &&
     next[k + 1] &&
     !CLOSED.has(modifier) &&
-    (adjective(modifier) || hasForm(modifier, "past", "participle")) &&
+    (adjective(modifier) || hasVerbForm(modifier, "past", "participle")) &&
     nounish(next[k + 1].w)
   )
     k += 1;
   if (!next[k] || !nounish(next[k].w)) return -1;
   // A noun compound: "backup plan", "return policy".
-  if (compound && next[k + 1] && nounish(next[k + 1].w) && !info(next[k].w)?.plural) k += 1;
+  if (compound && next[k + 1] && nounish(next[k + 1].w) && !englishWordInfo(next[k].w)?.plural)
+    k += 1;
   // A gerund with an object is a clause: "I love they're doing this".
   const after = next[k + 1]?.w ?? "";
-  if (hasForm(next[k].w, "ing") && (DET.has(after) || OBJECTS.has(after) || after === "to"))
+  if (hasVerbForm(next[k].w, "ing") && (DET.has(after) || OBJECTS.has(after) || after === "to"))
     return -1;
   return k;
 }
 // Noun + participle compounds that are adjectives: "They're family owned".
-const COMPOUND_PARTICIPLES = words(
+const COMPOUND_PARTICIPLES = wordSet(
   "owned operated run based driven focused oriented led funded backed made built minded",
 );
 /** The noun phrase at 0 is a subject: a verb that is not a noun follows it. */
@@ -251,9 +243,10 @@ function subjectPhrase(next: readonly Word[], compound = true): boolean {
   const verb = next[head + 1]?.w;
   if (!verb || COMPOUND_PARTICIPLES.has(verb)) return false;
   if (/^(?:is|was|are|were|has|have|had)$/.test(verb)) return true;
-  const like = hasForm(verb, "third") && next[head + 2]?.w === "like";
+  const like = hasVerbForm(verb, "third") && next[head + 2]?.w === "like";
   // A plural head + "-ed" may be a reduced relative: "They're students funded by…".
-  if (info(next[head].w)?.plural) return (hasForm(verb, "third") && pureFinite(verb)) || like;
+  if (englishWordInfo(next[head].w)?.plural)
+    return (hasVerbForm(verb, "third") && pureFinite(verb)) || like;
   return pureFinite(verb) || like;
 }
 /** A transitive verb with "there"/"they're" as its object's determiner. */
@@ -263,7 +256,12 @@ function objectVerb(
   before: Word | undefined,
   blocked: ReadonlySet<string>,
 ): boolean {
-  if (!verb || CLOSED.has(verb.w) || LOCATIVE_LEAD.has(verb.w) || !info(verb.w)?.verbs.length)
+  if (
+    !verb ||
+    CLOSED.has(verb.w) ||
+    LOCATIVE_LEAD.has(verb.w) ||
+    !englishWordInfo(verb.w)?.verbs.length
+  )
     return false;
   if (lemmaIn(verb.w, blocked) || lemmaIn(verb.w, PLACE_LEMMAS)) return false;
   // "the reason they're…", "Reaching there takes…": a noun or a gerund subject.
@@ -272,25 +270,25 @@ function objectVerb(
     (DET.has(before.w) ||
       (adjective(before.w) &&
         !CLOSED.has(before.w) &&
-        !info(before.w)?.verbs.length &&
-        !info(before.w)?.adverb))
+        !englishWordInfo(before.w)?.verbs.length &&
+        !englishWordInfo(before.w)?.adverb))
   )
     return false;
-  return !(hasForm(verb.w, "ing") && opens(text, verb.start));
+  return !(hasVerbForm(verb.w, "ing") && opens(text, verb.start));
 }
 /** A gerund head ("they're hearing") needs "of" after it, or a past verb before it. */
 function gerundHeadOk(hit: Hit, verb: Word | undefined): boolean {
   const k = nounPhrase(hit.N, 0);
   const head = hit.N[k];
-  if (!head || !hasForm(head.w, "ing")) return true;
+  if (!head || !hasVerbForm(head.w, "ing")) return true;
   const after = hit.N[k + 1]?.w ?? "";
   if (after === "of") return true;
   // "lost their hearing might…": a past verb, then the gerund ends its phrase.
-  if (!verb || !hasForm(verb.w, "past", "participle")) return false;
+  if (!verb || !hasVerbForm(verb.w, "past", "participle")) return false;
   return closes(hit.ctx.text, head.end) || FINITE.has(after) || PREPOSITIONS.has(after);
 }
-const THERE_PREPOSITIONS = words("about to of from with for into on by");
-const LOCATIVE_LEAD = words("out up down over in back away here near far right straight just");
+const THERE_PREPOSITIONS = wordSet("about to of from with for into on by");
+const LOCATIVE_LEAD = wordSet("out up down over in back away here near far right straight just");
 /**
  * "narratives about there past", "stems from there potential to…": a mid-clause preposition,
  * then a noun phrase that ends its phrase. "far from there people live…" goes on with a verb.
@@ -301,7 +299,7 @@ function prepositionObject(hit: Hit): boolean {
   if (LOCATIVE_LEAD.has(p1.w) || CLOSED.has(p1.w) || lemmaIn(p1.w, THERE_BLOCK)) return false;
   const from = /^(?:most|more|less|least)$/.test(hit.N[0]?.w ?? "") ? 1 : 0;
   let head = nounPhrase(hit.N, from);
-  const entry = hit.N[from] && info(hit.N[from].w);
+  const entry = hit.N[from] && englishWordInfo(hit.N[from].w);
   // A noun that is also an adjective ("potential") still heads the phrase.
   if (head < 0 && entry?.noun && !entry.adverb && !TIME.has(hit.N[from].w)) head = from;
   if (head < 0) return false;
@@ -315,7 +313,7 @@ function prepositionObject(hit: Hit): boolean {
   );
 }
 // A clause after these conjunctions has its own subject: "…, but their backup plan worked".
-const CONJUNCTIONS = words("and but so yet while whereas because although");
+const CONJUNCTIONS = wordSet("and but so yet while whereas because although");
 const clauseStart = (hit: Hit) =>
   opens(hit.ctx.text, hit.start) || CONJUNCTIONS.has(hit.P[0]?.w ?? "");
 
@@ -383,81 +381,83 @@ const skip = (list: readonly Word[], set: ReadonlySet<string>, from = 0) => {
   return i;
 };
 
-const COLD_COMPOUNDS = words(
+const COLD_COMPOUNDS = wordSet(
   "build call email brew press start boot read pitch shoulder plunge smoke roll cut message text contact approach",
 );
-const PLEAS_INTRANSITIVE = words(
+const PLEAS_INTRANSITIVE = wordSet(
   "go are were have had do remain seem become fall come continue grow mount",
 );
-const BOARDING_PLACES = words(
+const BOARDING_PLACES = wordSet(
   "school schools house college academy hostel hall inn ship home family dorm dormitory farm",
 );
-const DIRECTIONS = words("left right top bottom side sides edge edges inside outside");
-const THREAT_COMPOUNDS = words(
+const DIRECTIONS = wordSet("left right top bottom side sides edge edges inside outside");
+const THREAT_COMPOUNDS = wordSet(
   "model models modeling modelling hunt hunting assess assessment intelligence actor actors level levels vector vectors landscape surface",
 );
 const SHUT_AUX = new Set([
   ...MODALS,
   ...HAVE,
-  ...words("to did didn't don't doesn't please i'll we'll you'll they'll he'll she'll"),
+  ...wordSet("to did didn't don't doesn't please i'll we'll you'll they'll he'll she'll"),
 ]);
-const SHUT_OBJECT = new Set([...DET, ...words("it them everything all any some")]);
-const THOUGHT_NEXT = words(
+const SHUT_OBJECT = new Set([...DET, ...wordSet("it them everything all any some")]);
+const THOUGHT_NEXT = wordSet(
   "i you we they he she it that this there so about of the a maybe it's i'd i'll you'd he'd she'd they'd we'd i'm you're they're we're he's she's there's that's he'll she'll they'll we'll you'll",
 );
-const MUCH_NEXT = words("more less longer further better worse bigger");
-const MUCH_CLAUSE = words(
+const MUCH_NEXT = wordSet("more less longer further better worse bigger");
+const MUCH_CLAUSE = wordSet(
   "i you we they he she it to do does did have has had will would should can could",
 );
-const INTENSIFIERS = words(
+const INTENSIFIERS = wordSet(
   "really very so super quite too extremely incredibly totally pretty truly especially",
 );
 const PERSONAL_BE = /^(?:i'm|you're|we're|they're|he's|she's)$/;
-const EXCITED_LINK = words("feel feels felt get gets got getting seem seems seemed");
-const READY_NOT = words("willing early");
-const WAIST_NOT = words(
+const EXCITED_LINK = wordSet("feel feels felt get gets got getting seem seems seemed");
+const READY_NOT = wordSet("willing early");
+const WAIST_NOT = wordSet(
   "the a an this that these those about around approximately roughly nearly almost over under just only less more some up",
 );
-const WASTE_ADJECTIVES = words(
+const WASTE_ADJECTIVES = wordSet(
   "total complete huge big massive utter absolute pure real colossal enormous terrible horrible awful needless unnecessary great such entire giant",
 );
 const RELAY_LEAD = new Set([
   ...MODALS,
-  ...words(
+  ...wordSet(
     "please often always still usually generally mostly heavily really also just to don't doesn't didn't not never i you we they",
   ),
 ]);
-const THINK_KNOW = words("think thinks thought thinking know knows knew known knowing");
-const OFF_IDIOMS = words("top cuff record wall bat beaten coast shore");
-const PRIZE_LEAD = words(
+const THINK_KNOW = wordSet("think thinks thought thinking know knows knew known knowing");
+const OFF_IDIOMS = wordSet("top cuff record wall bat beaten coast shore");
+const PRIZE_LEAD = wordSet(
   "a the several many two three four five some first second third top big major cash grand another any no",
 );
-const WIN = words("win wins won winning");
-const LOSE_OBJECT = words(
+const WIN = wordSet("win wins won winning");
+const LOSE_OBJECT = wordSet(
   "it them him her me us you everything anything something weight money time data track sight interest hope control focus my your his our their all",
 );
-const SETTING_VERBS = words(
+const SETTING_VERBS = wordSet(
   "set sets switch switched change changed turn turned adjust adjusted go went move moved shift",
 );
-const THEM_PREPOSITIONS = words(
+const THEM_PREPOSITIONS = wordSet(
   "to with against between among amongst from into onto toward towards about via upon beside behind at",
 );
-const THEM_NEXT = words(
+const THEM_NEXT = wordSet(
   "the a an my your his her our their this that these those for about in on at via with during when how what why where as today tomorrow tonight later again back up down out off to",
 );
 const THEM_LEAD = new Set([
   ...MODALS,
-  ...words("i you we they he she to please don't didn't not also just let's and"),
+  ...wordSet("i you we they he she to please don't didn't not also just let's and"),
 ]);
-const FINITE = new Set([...MODALS, ...BE, ...HAVE, ...words("do does did 're")]);
-const CUES = words(
+const FINITE = new Set([...MODALS, ...BE, ...HAVE, ...wordSet("do does did 're")]);
+const CUES = wordSet(
   "said says say heard hear think thought guess hope know knew suspect sure maybe perhaps because since if when that",
 );
-const PLACE_VERBS = words("put place leave set move keep store drop hang stick lay park position");
-const PLACE_NEXT = words("to beside next near by for until and so");
-const LINKING_LEMMAS = words("look feel seem act sound get stay become");
-const SPEECH_LEMMAS = words("speak talk sing shout yell play laugh whisper");
-const WERE_PREDICATES = words(
+const PLACE_VERBS = wordSet(
+  "put place leave set move keep store drop hang stick lay park position",
+);
+const PLACE_NEXT = wordSet("to beside next near by for until and so");
+const LINKING_LEMMAS = wordSet("look feel seem act sound get stay become");
+const SPEECH_LEMMAS = wordSet("speak talk sing shout yell play laugh whisper");
+const WERE_PREDICATES = wordSet(
   "able aware allowed sure ready happy right wrong lucky done finished serious awake busy okay ok alright there",
 );
 
@@ -472,7 +472,7 @@ const HANDLERS: Record<string, Handler> = {
       (/^(?:it|you)$/.test(p0.w) &&
         (opens(hit.ctx.text, p0.start) ||
           /^(?:and|but|so|if|when|because|that)$/.test(p1?.w ?? "")));
-    if (!subject || !(ADVERBS.has(n0.w) || hasForm(n0.w, "base"))) return null;
+    if (!subject || !(ADVERBS.has(n0.w) || hasVerbForm(n0.w, "base"))) return null;
     return typo(hit, "could", p0, n0);
   },
   // "He dos not" → does. An all-caps DOS beside a lowercase pronoun is the system name.
@@ -504,10 +504,10 @@ const HANDLERS: Record<string, Handler> = {
   // "It is rally going" → really: be + rally + a participle or an adjective.
   rally(hit) {
     const n0 = hit.N[0];
-    const entry = n0 && info(n0.w);
+    const entry = n0 && englishWordInfo(n0.w);
     if (
       !entry ||
-      !(hasForm(n0.w, "ing") || (entry.adjective && !entry.noun && !entry.verbs.length))
+      !(hasVerbForm(n0.w, "ing") || (entry.adjective && !entry.noun && !entry.verbs.length))
     )
       return null;
     const i = hit.P[0]?.w === "not" ? 1 : 0;
@@ -522,7 +522,7 @@ const HANDLERS: Record<string, Handler> = {
   // "Pleas review this" → please: a request verb with an object after a clause start or "you".
   pleas(hit) {
     const [n0, n1] = hit.N;
-    if (!n0 || !hasForm(n0.w, "base") || PLEAS_INTRANSITIVE.has(n0.w)) return null;
+    if (!n0 || !hasVerbForm(n0.w, "base") || PLEAS_INTRANSITIVE.has(n0.w)) return null;
     if (n1 && PREPOSITIONS.has(n1.w)) return null;
     const p0 = hit.P[0]?.w ?? "";
     if (!opens(hit.ctx.text, hit.start) && !/^(?:you|and|but|so|then|now|just|kindly)$/.test(p0))
@@ -547,7 +547,8 @@ const HANDLERS: Record<string, Handler> = {
     const [p0, p1] = hit.P;
     if (!p0) return null;
     const ok =
-      DET.has(p0.w) || (adjective(p0.w) && !info(p0.w)?.verbs.length && DET.has(p1?.w ?? ""));
+      DET.has(p0.w) ||
+      (adjective(p0.w) && !englishWordInfo(p0.w)?.verbs.length && DET.has(p1?.w ?? ""));
     return ok ? typo(hit, "thief", p0) : null;
   },
   // "I will threat the vendor" → threaten (or treat): a modal with its subject before it.
@@ -577,9 +578,9 @@ const HANDLERS: Record<string, Handler> = {
     const p0 = hit.P[0];
     const n0 = hit.N[0];
     if (!p0 || !n0 || !DET.has(p0.w) || n0.w === "worth") return null;
-    if (!nounish(n0.w) && !info(n0.w)?.noun) return null;
+    if (!nounish(n0.w) && !englishWordInfo(n0.w)?.noun) return null;
     // "The principle underlying it": a participle after it modifies the noun "principle".
-    if (CLOSED.has(n0.w) || hasForm(n0.w, "third", "past", "ing") || n0.w.endsWith("ing"))
+    if (CLOSED.has(n0.w) || hasVerbForm(n0.w, "third", "past", "ing") || n0.w.endsWith("ing"))
       return null;
     return typo(hit, "principal", p0, n0);
   },
@@ -625,7 +626,7 @@ const HANDLERS: Record<string, Handler> = {
   heart(hit) {
     if (hit.N[0]?.w !== "of") return null;
     const P = hit.P;
-    const i = skip(P, words("ever never not already just all also"));
+    const i = skip(P, wordSet("ever never not already just all also"));
     const p = P[i];
     if (!p) return null;
     const ok =
@@ -645,9 +646,9 @@ const HANDLERS: Record<string, Handler> = {
     if (hit.word === "match") {
       const [n0, n1] = hit.N;
       if (!n0) return null;
-      const entry = info(n0.w);
+      const entry = englishWordInfo(n0.w);
       const singular = entry
-        ? entry.noun && !entry.plural && !hasForm(n0.w, "third", "past", "ing")
+        ? entry.noun && !entry.plural && !hasVerbForm(n0.w, "third", "past", "ing")
         : /^[a-z]{4,}$/.test(n0.w);
       if (!(n0.w === "of" || MUCH_NEXT.has(n0.w) || (singular && MUCH_CLAUSE.has(n1?.w ?? ""))))
         return null;
@@ -657,7 +658,7 @@ const HANDLERS: Record<string, Handler> = {
   // "She is exited about" → excited: be + exited + an emotion's complement.
   exited(hit) {
     const P = hit.P;
-    let i = skip(P, words("not"));
+    let i = skip(P, wordSet("not"));
     const intense = INTENSIFIERS.has(P[i]?.w ?? "");
     i = skip(P, INTENSIFIERS, i);
     const be = P[i];
@@ -692,8 +693,10 @@ const HANDLERS: Record<string, Handler> = {
     let ok = (p1?.w === "in" || p1?.w === "of") && p2?.w !== "as";
     if (!ok && n0) {
       if (/^(?:of|for|around)$/.test(n0.w)) ok = true;
-      else if (n0.w === "to") ok = !n1 || !(adjective(n1.w) && !info(n1.w)?.verbs.length);
-      else if (/s$/.test(n0.w)) ok = !!info(n0.w)?.plural || (!info(n0.w) && nounish(n0.w));
+      else if (n0.w === "to")
+        ok = !n1 || !(adjective(n1.w) && !englishWordInfo(n1.w)?.verbs.length);
+      else if (/s$/.test(n0.w))
+        ok = !!englishWordInfo(n0.w)?.plural || (!englishWordInfo(n0.w) && nounish(n0.w));
     }
     if (!ok) return null;
     return emit(
@@ -711,13 +714,13 @@ const HANDLERS: Record<string, Handler> = {
     const [n0, n1] = hit.N;
     const [p0, p1] = hit.P;
     if (n0?.w !== "to" || !n1 || !p0 || OBJECTS.has(n1.w)) return null;
-    const next = info(n1.w);
+    const next = englishWordInfo(n1.w);
     if (next?.verbs.some((v) => v.form === "base") && !next.noun && !next.adjective) return null;
     if (/^(?:had|made|let|helped|did|done|been|used|got)$/.test(p0.w)) return null;
     const ok =
-      hasForm(p0.w, "past") ||
-      (hasForm(p0.w, "base") && MODALS.has(p1?.w ?? "")) ||
-      (!!info(p0.w)?.adverb && !CLOSED.has(p0.w) && hasForm(p1?.w ?? "", "past"));
+      hasVerbForm(p0.w, "past") ||
+      (hasVerbForm(p0.w, "base") && MODALS.has(p1?.w ?? "")) ||
+      (!!englishWordInfo(p0.w)?.adverb && !CLOSED.has(p0.w) && hasVerbForm(p1?.w ?? "", "past"));
     return ok ? typo(hit, "due", p0, n1) : null;
   },
   // "a waist of time" → waste; a body's "waist of 30 inches" or "the waist of the dress" stays.
@@ -738,8 +741,8 @@ const HANDLERS: Record<string, Handler> = {
     const p = hit.P[0];
     const ok = p
       ? RELAY_LEAD.has(p.w) ||
-        (/ly$/.test(p.w) && !!info(p.w)?.adverb) ||
-        (!!info(p.w)?.plural && !DET.has(hit.P[1]?.w ?? ""))
+        (/ly$/.test(p.w) && !!englishWordInfo(p.w)?.adverb) ||
+        (!!englishWordInfo(p.w)?.plural && !DET.has(hit.P[1]?.w ?? ""))
       : opens(hit.ctx.text, hit.start) && OBJECTS.has(n1.w);
     return ok ? typo(hit, "rely", p, n0) : null;
   },
@@ -779,8 +782,8 @@ const HANDLERS: Record<string, Handler> = {
     if (!WIN.has(hit.P[i]?.w ?? "")) return null;
     const n0 = hit.N[0];
     if (n0 && !CLOSED.has(n0.w) && !TIME.has(n0.w) && !n0.w.includes("'")) {
-      const entry = info(n0.w);
-      if (entry ? (entry.noun || entry.plural) && !hasForm(n0.w, "past") : nounish(n0.w))
+      const entry = englishWordInfo(n0.w);
+      if (entry ? (entry.noun || entry.plural) && !hasVerbForm(n0.w, "past") : nounish(n0.w))
         return null;
     }
     return typo(hit, /s$/.test(hit.word) ? "prizes" : "prize", hit.P[i]);
@@ -815,7 +818,7 @@ const HANDLERS: Record<string, Handler> = {
     if (n0 && (FINITE.has(n0.w) || pureFinite(n0.w))) return null;
     const ok =
       (THEM_PREPOSITIONS.has(p0.w) && !(p0.w === "about" && WH.has(p1?.w ?? ""))) ||
-      (hasForm(p0.w, "base") &&
+      (hasVerbForm(p0.w, "base") &&
         !AUX.has(p0.w) &&
         !lemmaIn(p0.w, BARE_CLAUSE) &&
         !!n0 &&
@@ -839,7 +842,7 @@ const HANDLERS: Record<string, Handler> = {
     const [p0, p1] = hit.P;
     const [n0, n1] = hit.N;
     if (!n0) return null;
-    if (p0 && CUES.has(p0.w) && n1 && hasForm(n0.w, "ing") && !/^(?:being|going)$/.test(n0.w))
+    if (p0 && CUES.has(p0.w) && n1 && hasVerbForm(n0.w, "ing") && !/^(?:being|going)$/.test(n0.w))
       return theirFamily(hit, "review_msg_they_are", "they're", p0);
     const object =
       !opens(text, hit.start) &&
@@ -950,10 +953,10 @@ function contextualConfusions(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "en")) return [];
   const findings: RawFinding[] = [];
   const regex = new RegExp(TRIGGER);
-  // "all ready" starts one word before its trigger.
-  regex.lastIndex = Math.max(0, ctx.from - 8);
-  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
-    const word = key(m[0]);
+  regex.lastIndex = ctx.from;
+  // "all ready" starts one word before its trigger, so read a little past the chunk.
+  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to + 16; m = regex.exec(ctx.scanText)) {
+    const word = wordKey(m[0]);
     const start = m.index;
     const end = start + m[0].length;
     // Context words are read only when a handler asks: "to", "do" and "there" are frequent.

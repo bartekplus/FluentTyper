@@ -1,14 +1,17 @@
 import type { RawFinding } from "./reviewDetectors";
 import type { ProtectedRange, ReviewSourceSnapshot } from "./types";
 import { MAX_REVIEW_CHARS } from "./types";
+import { TOKEN_END, WORD_START } from "./phraseTemplates";
 
 // Acronyms whose last letter already names the noun after them.
-const PLEONASMS = [
+const PAIRS = [
   ...["PIN number", "VIN number", "ISBN number", "ATM machine", "GUI interface", "TUI interface"],
   ...["CLI interface", "LCD display", "LED diode", "LLM model", "USD dollar", "PCB board"],
   ...["BWT transform", "FFT transform", "DFT transform", "HIV virus", "RAM memory", "NIC card"],
   "UPC code",
-]
+];
+const SINGULAR_NOUNS = new Set(PAIRS.map((pair) => pair.split(" ")[1]));
+const PLEONASMS = PAIRS
   // A shouted pair and plurals too: "VIN NUMBER", "ATM machines".
   .map((pair) => {
     const [acronym, noun] = pair.split(" ");
@@ -16,10 +19,7 @@ const PLEONASMS = [
     return `${acronym}[ \\t\\u00a0]{1,8}(?:${noun}(?:${plural})?|${noun.toUpperCase()}(?:${plural.toUpperCase()})?)`;
   })
   .join("|");
-const PLEONASM = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])(?:${PLEONASMS})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])`,
-  "gu",
-);
+const PLEONASM = new RegExp(`${WORD_START}(?:${PLEONASMS})${TOKEN_END}`, "gu");
 
 /** Explicit acronym pairs only; this does not rewrite voice, hedges or measurements. */
 export function redundantAcronyms(
@@ -85,7 +85,9 @@ export function redundantAcronyms(
       messageKey: "review_msg_style_redundancy",
       range: { start, end },
       // "ATM machines" -> "ATMs"; an amount in "USD dollars" stays "USD".
-      alternatives: [/s$/i.test(noun) && acronym !== "USD" ? `${acronym}s` : acronym],
+      alternatives: [
+        !SINGULAR_NOUNS.has(noun.toLowerCase()) && acronym !== "USD" ? `${acronym}s` : acronym,
+      ],
       context: { start: 0, end: text.length },
     });
   }

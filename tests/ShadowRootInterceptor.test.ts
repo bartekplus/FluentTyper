@@ -198,7 +198,7 @@ test("FT-INV-3 disabling restores the MAIN-world shadow hook and cancels queued 
   const queued: (() => void)[] = [];
   let allowInline = true;
   const injection = jest.spyOn(document.head, "appendChild").mockImplementation((node) => {
-    if (allowInline && node instanceof page.window.HTMLElement && node.tagName === "SCRIPT")
+    if (allowInline && node instanceof page.window.HTMLElement && node.nodeName === "SCRIPT")
       new Function(
         "window",
         "Element",

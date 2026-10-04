@@ -9,9 +9,8 @@ import {
   toOpaqueHex,
   type RGBAColor,
 } from "@core/domain/color";
-
-export { calculateThemeContrast, parseThemeColor };
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
+import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js";
 import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
@@ -49,22 +48,58 @@ import {
   computeSuggestionPopupStyleVars,
   themeScaleFromValues,
 } from "@core/domain/suggestionPopup/metrics";
-import { resolveSuggestionAccents } from "@core/domain/suggestionPopup/palette";
+import { BACKDROP, resolveSuggestionAccents } from "@core/domain/suggestionPopup/palette";
 import { SUGGESTION_POPUP_SHADOW_CSS } from "@core/domain/suggestionPopup/styles";
 import { i18n } from "./fluenttyperI18n.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
 import {
   bindRerender,
+  createButton,
+  createDisclosure,
+  createInlineCard,
   createStackField,
-  createWorkspaceShell,
   formatLooseText,
+  replaceChildrenKeepingDisclosures,
 } from "./workspacePanelUtils.js";
 
-type ThemePreset = Record<string, string>;
-
 type ThemeKey = keyof SuggestionThemeSettings;
+
+const THEME_PRESETS: Record<"default" | "compact", SuggestionThemeSettings> = {
+  default: DEFAULT_SUGGESTION_THEME_SETTINGS,
+  compact: {
+    suggestionBgLight: "rgba(255, 255, 255, 0.85)",
+    suggestionTextLight: "#1a202c",
+    suggestionHighlightBgLight: "rgba(15, 23, 42, 0.96)",
+    suggestionHighlightTextLight: "#ffffff",
+    suggestionBorderLight: "rgba(226, 232, 240, 0.7)",
+    suggestionBgDark: "rgba(15, 23, 42, 0.9)",
+    suggestionTextDark: "#f8fafc",
+    suggestionHighlightBgDark: "rgba(30, 41, 59, 0.92)",
+    suggestionHighlightTextDark: "#f8fafc",
+    suggestionBorderDark: "rgba(71, 85, 105, 0.72)",
+    suggestionFontSize: "0.8rem",
+    suggestionPaddingVertical: "0.4rem",
+    suggestionPaddingHorizontal: "0.6rem",
+  },
+};
 const THEME_KEYS = Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS) as ThemeKey[];
-const LIGHT_THEME_CANVAS = "#ffffff";
-const DARK_THEME_CANVAS = "#020617";
+const MODES = ["light", "dark"] as const;
+const MODE_KEYS = {
+  light: {
+    bg: KEY_SUGGESTION_BG_LIGHT,
+    text: KEY_SUGGESTION_TEXT_LIGHT,
+    highlightBg: KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
+    highlightText: KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
+    border: KEY_SUGGESTION_BORDER_LIGHT,
+  },
+  dark: {
+    bg: KEY_SUGGESTION_BG_DARK,
+    text: KEY_SUGGESTION_TEXT_DARK,
+    highlightBg: KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
+    highlightText: KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
+    border: KEY_SUGGESTION_BORDER_DARK,
+  },
+} as const;
 /** Settings besides the theme that change what the popup shows. */
 const PREVIEW_OPTION_KEYS = [
   KEY_SELECT_BY_DIGIT,
@@ -90,9 +125,6 @@ function previewCanvasContext(): CanvasRenderingContext2D | null {
  */
 function measurePreviewLengthPx(value: string, property: string): number | null {
   const root = document.body ?? document.documentElement;
-  if (!root) {
-    return null;
-  }
   const container = document.createElement("div");
   container.style.position = "absolute";
   container.style.visibility = "hidden";
@@ -169,19 +201,14 @@ export function mergeColorPickerValue(pickerHex: string, previousRawValue: strin
 export class AppearanceStudio {
   private readonly root: HTMLElement;
   private readonly registry: SettingsRegistry;
-  private readonly presets: Record<string, ThemePreset>;
   private previewMode: "light" | "dark" = "light";
-  private livePreview?: HTMLElement;
-  private liveContrastSection?: HTMLElement;
+  private livePreview!: HTMLElement;
+  private liveContrastSection!: HTMLElement;
 
-  constructor(root: HTMLElement, registry: SettingsRegistry, presets: Record<string, ThemePreset>) {
+  constructor(root: HTMLElement, registry: SettingsRegistry) {
     this.root = root;
     this.registry = registry;
-    this.presets = presets;
-    THEME_KEYS.forEach((key) => {
-      bindRerender(this.registry[key], () => this.render());
-    });
-    PREVIEW_OPTION_KEYS.forEach((key) => {
+    [...THEME_KEYS, ...PREVIEW_OPTION_KEYS].forEach((key) => {
       bindRerender(this.registry[key], () => this.render());
     });
     this.render();
@@ -189,48 +216,39 @@ export class AppearanceStudio {
 
   render(): void {
     const theme = this.readThemeValues();
-    const shell = createWorkspaceShell();
-    const topGrid = createWorkspaceShell("workspace-main-grid");
+    const shell = createElement("div", { className: "workspace-panel-stack" });
+    const topGrid = createElement("div", { className: "workspace-main-grid" });
     topGrid.append(this.createPresetCards(), this.createPreviewCard(theme));
 
-    const lowerGrid = createWorkspaceShell("workspace-main-grid");
+    const lowerGrid = createElement("div", { className: "workspace-main-grid" });
     lowerGrid.append(this.createTypographyCard(theme), this.createContrastWarnings(theme));
 
     shell.append(topGrid, lowerGrid, this.createAdvancedColors(theme));
-    this.root.replaceChildren(shell);
+    replaceChildrenKeepingDisclosures(this.root, () => shell);
   }
 
   private createPresetCards(): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "settings-inline-card";
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("appearance_presets_title");
-    shell.appendChild(title);
-    shell.appendChild(this.createHelperText(i18n.get("appearance_presets_copy")));
+    const shell = createInlineCard(
+      i18n.get("appearance_presets_title"),
+      i18n.get("appearance_presets_copy"),
+    );
 
-    const grid = document.createElement("div");
-    grid.className = "preset-grid";
-    Object.entries(this.presets).forEach(([presetName, preset]) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "preset-card";
-      const label = document.createElement("strong");
-      label.textContent =
-        presetName === "compact"
-          ? i18n.get("use_compact_theme_btn")
-          : i18n.get("use_default_theme_btn");
-      button.appendChild(label);
-      const desc = document.createElement("span");
-      desc.textContent =
-        presetName === "compact"
-          ? i18n.get("use_compact_theme_desc")
-          : i18n.get("use_default_theme_desc");
-      button.appendChild(desc);
-      button.addEventListener("click", () => {
+    const grid = createElement("div", { className: "preset-grid" });
+    Object.entries(THEME_PRESETS).forEach(([presetName, preset]) => {
+      const button = createButton("", "preset-card", () => {
         Object.entries(preset).forEach(([key, value]) => {
           this.registry[key]?.set(value);
         });
       });
+      const compact = presetName === "compact";
+      button.append(
+        createElement("strong", {
+          textContent: i18n.get(compact ? "use_compact_theme_btn" : "use_default_theme_btn"),
+        }),
+        createElement("span", {
+          textContent: i18n.get(compact ? "use_compact_theme_desc" : "use_default_theme_desc"),
+        }),
+      );
       grid.appendChild(button);
     });
     shell.appendChild(grid);
@@ -238,38 +256,31 @@ export class AppearanceStudio {
   }
 
   private createPreviewCard(theme: Record<ThemeKey, string>): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "settings-inline-card";
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("appearance_preview_title");
-    shell.appendChild(title);
-    shell.appendChild(this.createHelperText(i18n.get("appearance_preview_copy")));
+    const shell = createInlineCard(
+      i18n.get("appearance_preview_title"),
+      i18n.get("appearance_preview_copy"),
+    );
 
-    const toggle = document.createElement("div");
-    toggle.className = "segmented-control";
-    ["light", "dark"].forEach((mode) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "segmented-control-button";
+    const toggle = createElement("div", { className: "segmented-control" });
+    MODES.forEach((mode) => {
+      const button = createButton(
+        i18n.get(`appearance_${mode}_preview`),
+        "segmented-control-button",
+        () => {
+          this.previewMode = mode;
+          this.render();
+        },
+      );
       if (mode === this.previewMode) {
         button.classList.add("is-active");
       }
-      button.textContent =
-        mode === "light"
-          ? i18n.get("appearance_light_preview")
-          : i18n.get("appearance_dark_preview");
-      button.addEventListener("click", () => {
-        this.previewMode = mode as "light" | "dark";
-        this.render();
-      });
       toggle.appendChild(button);
     });
     shell.appendChild(toggle);
 
     // The real popup's stylesheet, markup and sizing, in a shadow root like on
     // web pages, so the preview cannot drift from what users see.
-    const preview = document.createElement("div");
-    preview.className = "appearance-preview";
+    const preview = createElement("div", { className: "appearance-preview" });
     const shadowRoot = preview.attachShadow({ mode: "open" });
     shadowRoot.innerHTML = `<style>${SUGGESTION_POPUP_SHADOW_CSS}</style>${this.buildPreviewPanelHtml()}`;
     this.livePreview = preview;
@@ -280,12 +291,10 @@ export class AppearanceStudio {
   }
 
   private createTypographyCard(theme: Record<ThemeKey, string>): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "settings-inline-card";
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("appearance_density_title");
-    shell.appendChild(title);
-    shell.appendChild(this.createHelperText(i18n.get("appearance_density_copy")));
+    const shell = createInlineCard(
+      i18n.get("appearance_density_title"),
+      i18n.get("appearance_density_copy"),
+    );
 
     const fields: Array<[string, ThemeKey, Array<[string, string]>]> = [
       [
@@ -323,126 +332,71 @@ export class AppearanceStudio {
       ],
     ];
     fields.forEach(([titleKey, key, options]) => {
-      shell.appendChild(
-        this.createSelectField(
-          i18n.get(titleKey),
-          theme[key],
-          options,
-          (value) => this.registry[key].set(value),
-          (value) => this.syncLiveTheme({ ...theme, [key]: value }),
-        ),
-      );
+      const select = createElement("select", { className: "input" });
+      select.append(...options.map(([value, label]) => new Option(label, value)));
+      select.value = theme[key];
+      select.addEventListener("input", () => this.syncLiveTheme({ ...theme, [key]: select.value }));
+      select.addEventListener("change", () => this.registry[key].set(select.value));
+      shell.appendChild(createStackField(i18n.get(titleKey), select));
     });
     return shell;
   }
 
   private createAdvancedColors(theme: Record<ThemeKey, string>): HTMLElement {
-    const shell = document.createElement("details");
-    shell.className = "settings-disclosure";
-    const summary = document.createElement("summary");
-    summary.textContent = i18n.get("appearance_advanced_colors");
-    shell.appendChild(summary);
+    const shell = createDisclosure(i18n.get("appearance_advanced_colors"));
     const draftTheme = { ...theme };
-    shell.appendChild(this.createHelperText(i18n.get("appearance_advanced_colors_copy")));
+    shell.appendChild(
+      createElement("p", {
+        className: "settings-inline-help",
+        textContent: i18n.get("appearance_advanced_colors_copy"),
+      }),
+    );
 
-    shell.appendChild(
-      this.createColorFieldGroup(
-        i18n.get("appearance_light_surface_title"),
-        i18n.get("appearance_light_surface_copy"),
-        [
-          [KEY_SUGGESTION_BG_LIGHT, i18n.get("appearance_background_title")],
-          [KEY_SUGGESTION_TEXT_LIGHT, i18n.get("appearance_text_title")],
-          [KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT, i18n.get("appearance_selected_row_bg_title")],
-          [KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT, i18n.get("appearance_selected_row_text_title")],
-          [KEY_SUGGESTION_BORDER_LIGHT, i18n.get("appearance_border_title")],
-        ],
-        theme,
-        draftTheme,
-      ),
-    );
-    shell.appendChild(
-      this.createColorFieldGroup(
-        i18n.get("appearance_dark_surface_title"),
-        i18n.get("appearance_dark_surface_copy"),
-        [
-          [KEY_SUGGESTION_BG_DARK, i18n.get("appearance_background_title")],
-          [KEY_SUGGESTION_TEXT_DARK, i18n.get("appearance_text_title")],
-          [KEY_SUGGESTION_HIGHLIGHT_BG_DARK, i18n.get("appearance_selected_row_bg_title")],
-          [KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK, i18n.get("appearance_selected_row_text_title")],
-          [KEY_SUGGESTION_BORDER_DARK, i18n.get("appearance_border_title")],
-        ],
-        theme,
-        draftTheme,
-      ),
-    );
+    for (const mode of MODES) {
+      const keys = MODE_KEYS[mode];
+      shell.appendChild(
+        this.createColorFieldGroup(
+          i18n.get(`appearance_${mode}_surface_title`),
+          i18n.get(`appearance_${mode}_surface_copy`),
+          [
+            [keys.bg, i18n.get("appearance_background_title")],
+            [keys.text, i18n.get("appearance_text_title")],
+            [keys.highlightBg, i18n.get("appearance_selected_row_bg_title")],
+            [keys.highlightText, i18n.get("appearance_selected_row_text_title")],
+            [keys.border, i18n.get("appearance_border_title")],
+          ],
+          draftTheme,
+        ),
+      );
+    }
 
     return shell;
   }
 
   private createContrastWarnings(theme: Record<ThemeKey, string>): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "settings-inline-card";
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("appearance_contrast_checks");
-    shell.appendChild(title);
-    shell.appendChild(this.createHelperText(i18n.get("appearance_contrast_copy")));
+    const shell = createInlineCard(
+      i18n.get("appearance_contrast_checks"),
+      i18n.get("appearance_contrast_copy"),
+    );
     this.liveContrastSection = shell;
     this.updateContrastWarnings(theme);
     return shell;
-  }
-
-  private createSelectField(
-    labelText: string,
-    value: string,
-    options: Array<[string, string]>,
-    onChange: (value: string) => void,
-    onInput?: (value: string) => void,
-  ): HTMLElement {
-    const select = document.createElement("select");
-    select.className = "input";
-    options.forEach(([optionValue, optionLabel]) => {
-      const option = document.createElement("option");
-      option.value = optionValue;
-      option.textContent = optionLabel;
-      select.appendChild(option);
-    });
-    select.value = value;
-    select.addEventListener("input", () => onInput?.(select.value));
-    select.addEventListener("change", () => onChange(select.value));
-    return createStackField(labelText, select);
-  }
-
-  private createHelperText(copy: string): HTMLElement {
-    const text = document.createElement("p");
-    text.className = "settings-inline-help";
-    text.textContent = copy;
-    return text;
   }
 
   private createColorFieldGroup(
     titleText: string,
     copy: string,
     fields: Array<[ThemeKey, string]>,
-    theme: Record<ThemeKey, string>,
     draftTheme: Record<ThemeKey, string>,
   ): HTMLElement {
-    const group = document.createElement("section");
-    group.className = "settings-inline-card";
-
-    const title = document.createElement("h4");
-    title.textContent = titleText;
-    group.appendChild(title);
-    group.appendChild(this.createHelperText(copy));
+    const group = createInlineCard(titleText, copy);
 
     fields.forEach(([key, label]) => {
-      const inputs = document.createElement("div");
-      inputs.className = "is-flex is-align-items-center";
+      const inputs = createElement("div", { className: "is-flex is-align-items-center" });
       inputs.style.gap = "0.75rem";
 
-      const rawInput = document.createElement("input");
-      rawInput.type = "text";
-      rawInput.className = "input";
-      rawInput.value = theme[key];
+      const rawInput = createInputElement("text", "input");
+      rawInput.value = draftTheme[key];
       rawInput.addEventListener("input", () => {
         draftTheme[key] = rawInput.value.trim();
         pickerInput.value = getColorPickerValue(draftTheme[key]);
@@ -453,11 +407,9 @@ export class AppearanceStudio {
         this.registry[key].set(rawInput.value.trim());
       });
 
-      const pickerInput = document.createElement("input");
-      pickerInput.type = "color";
-      pickerInput.className = "input";
-      pickerInput.value = getColorPickerValue(theme[key]);
-      pickerInput.disabled = !parseThemeColor(theme[key]);
+      const pickerInput = createInputElement("color", "input");
+      pickerInput.value = getColorPickerValue(draftTheme[key]);
+      pickerInput.disabled = !parseThemeColor(draftTheme[key]);
       pickerInput.addEventListener("input", () => {
         const mergedValue = mergeColorPickerValue(pickerInput.value, rawInput.value);
         rawInput.value = mergedValue;
@@ -533,11 +485,7 @@ export class AppearanceStudio {
   }
 
   private updatePreviewCard(theme: Record<ThemeKey, string>): void {
-    if (!this.livePreview) {
-      return;
-    }
     const preview = this.livePreview;
-    preview.setAttribute("data-mode", this.previewMode);
     preview.setAttribute("data-ft-color-scheme", this.previewMode);
     if (this.registry[KEY_HORIZONTAL_SUGGESTIONS]?.get() === true) {
       preview.setAttribute("data-ft-layout", "horizontal");
@@ -560,82 +508,54 @@ export class AppearanceStudio {
     for (const [name, value] of Object.entries(sizeVars)) {
       preview.style.setProperty(name, value);
     }
-    const isLight = this.previewMode === "light";
-    const bg = isLight ? theme[KEY_SUGGESTION_BG_LIGHT] : theme[KEY_SUGGESTION_BG_DARK];
-    const text = isLight ? theme[KEY_SUGGESTION_TEXT_LIGHT] : theme[KEY_SUGGESTION_TEXT_DARK];
-    const highlightBg = isLight
-      ? theme[KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT]
-      : theme[KEY_SUGGESTION_HIGHLIGHT_BG_DARK];
-    const highlightText = isLight
-      ? theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT]
-      : theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK];
-    const border = isLight ? theme[KEY_SUGGESTION_BORDER_LIGHT] : theme[KEY_SUGGESTION_BORDER_DARK];
+    const keys = MODE_KEYS[this.previewMode];
 
     const context = previewCanvasContext();
     const accents = resolveSuggestionAccents(theme, (color) => normalizeCssColor(color, context))[
       this.previewMode
     ];
     // The preview mirrors the selected mode into both light and dark variables.
-    for (const suffix of ["light", "dark"]) {
+    for (const suffix of MODES) {
       preview.style.setProperty(`--suggestion-accent-${suffix}`, accents.accent);
       preview.style.setProperty(`--suggestion-highlight-accent-${suffix}`, accents.highlightAccent);
-      preview.style.setProperty(`--suggestion-bg-${suffix}`, bg);
-      preview.style.setProperty(`--suggestion-text-${suffix}`, text);
-      preview.style.setProperty(`--suggestion-highlight-bg-${suffix}`, highlightBg);
-      preview.style.setProperty(`--suggestion-highlight-text-${suffix}`, highlightText);
-      preview.style.setProperty(`--suggestion-border-color-${suffix}`, border);
+      preview.style.setProperty(`--suggestion-bg-${suffix}`, theme[keys.bg]);
+      preview.style.setProperty(`--suggestion-text-${suffix}`, theme[keys.text]);
+      preview.style.setProperty(`--suggestion-highlight-bg-${suffix}`, theme[keys.highlightBg]);
+      preview.style.setProperty(`--suggestion-highlight-text-${suffix}`, theme[keys.highlightText]);
+      preview.style.setProperty(`--suggestion-border-color-${suffix}`, theme[keys.border]);
     }
-    preview.style.color = text;
+    preview.style.color = theme[keys.text];
   }
 
   private updateContrastWarnings(theme: Record<ThemeKey, string>): void {
-    if (!this.liveContrastSection) {
-      return;
-    }
     this.liveContrastSection
       .querySelectorAll(".appearance-contrast-warning")
       .forEach((item) => item.remove());
 
-    const warnings = [
-      {
-        label: i18n.get("appearance_contrast_light_text_label"),
-        ratio: calculateThemeContrast(
-          theme[KEY_SUGGESTION_BG_LIGHT],
-          theme[KEY_SUGGESTION_TEXT_LIGHT],
-          LIGHT_THEME_CANVAS,
-        ),
-      },
-      {
-        label: i18n.get("appearance_contrast_light_selected_label"),
-        ratio: calculateThemeContrast(
-          theme[KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT],
-          theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT],
-          toOpaqueHex(resolveOpaqueColor(theme[KEY_SUGGESTION_BG_LIGHT], LIGHT_THEME_CANVAS)),
-        ),
-      },
-      {
-        label: i18n.get("appearance_contrast_dark_text_label"),
-        ratio: calculateThemeContrast(
-          theme[KEY_SUGGESTION_BG_DARK],
-          theme[KEY_SUGGESTION_TEXT_DARK],
-          DARK_THEME_CANVAS,
-        ),
-      },
-      {
-        label: i18n.get("appearance_contrast_dark_selected_label"),
-        ratio: calculateThemeContrast(
-          theme[KEY_SUGGESTION_HIGHLIGHT_BG_DARK],
-          theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK],
-          toOpaqueHex(resolveOpaqueColor(theme[KEY_SUGGESTION_BG_DARK], DARK_THEME_CANVAS)),
-        ),
-      },
-    ];
+    const warnings = MODES.flatMap((mode) => {
+      const keys = MODE_KEYS[mode];
+      return [
+        {
+          label: i18n.get(`appearance_contrast_${mode}_text_label`),
+          ratio: calculateThemeContrast(theme[keys.bg], theme[keys.text], BACKDROP[mode]),
+        },
+        {
+          label: i18n.get(`appearance_contrast_${mode}_selected_label`),
+          ratio: calculateThemeContrast(
+            theme[keys.highlightBg],
+            theme[keys.highlightText],
+            toOpaqueHex(resolveOpaqueColor(theme[keys.bg], BACKDROP[mode])),
+          ),
+        },
+      ];
+    });
 
     warnings.forEach((warning) => {
-      const item = document.createElement("p");
-      item.className = "settings-inline-help appearance-contrast-warning";
-      item.textContent = `${warning.label}: ${this.describeContrast(warning.ratio)}`;
-      this.liveContrastSection?.appendChild(item);
+      const item = createElement("p", {
+        className: "settings-inline-help appearance-contrast-warning",
+        textContent: `${warning.label}: ${this.describeContrast(warning.ratio)}`,
+      });
+      this.liveContrastSection.appendChild(item);
     });
   }
 

@@ -7,20 +7,17 @@ import re
 import shutil
 import tempfile
 import urllib.error
-import urllib.request
 import zipfile
 from pathlib import Path
+
+from build_aspell_dictionary import download_file
+from rebuild_libpresage import run_main
 
 
 BASE_URL = "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries"
 PT_BR_ZIP_URL = "https://pt-br.libreoffice.org/assets/Uploads/PT-BR-Documents/VERO/ptBR-2013-10-30AOC-2.zip"
 # Arabic is not in wooorm/dictionaries; use the AyaSpell hunspell dictionary.
 AYASPELL_BASE_URL = "https://raw.githubusercontent.com/linuxscout/ayaspell/master/dict/builddict"
-
-
-def download_file(url: str, output_path: Path, timeout: int = 15) -> None:
-    with urllib.request.urlopen(url, timeout=timeout) as response, output_path.open("wb") as output_file:
-        shutil.copyfileobj(response, output_file)
 
 
 def try_download_language(lang_code: str, dest_lang_name: str, dest_dir: Path) -> bool:
@@ -34,7 +31,7 @@ def try_download_language(lang_code: str, dest_lang_name: str, dest_dir: Path) -
         download_file(aff_url, aff_target)
         download_file(dic_url, dic_target)
         return True
-    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError):
+    except (urllib.error.URLError, TimeoutError):
         return False
 
 
@@ -164,11 +161,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except (urllib.error.URLError, TimeoutError) as exc:
-        print(f"Failed to download hunspell dictionary: {exc}")
-        raise SystemExit(1)
-    except RuntimeError as exc:
-        print(exc)
-        raise SystemExit(1)
+    run_main(main)

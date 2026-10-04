@@ -5,18 +5,6 @@ import {
   stripIgnoredWordChars,
 } from "../src/core/domain/lang";
 
-function findMentionToken(beforeCursor: string, separatorRegex: RegExp): string {
-  let start = beforeCursor.length;
-  while (start > 0) {
-    const current = beforeCursor.charAt(start - 1);
-    if (separatorRegex.test(current)) {
-      break;
-    }
-    start -= 1;
-  }
-  return beforeCursor.slice(start);
-}
-
 describe("lang separators", () => {
   test("default separators include advanced typography boundary characters", () => {
     const separators = [
@@ -44,13 +32,13 @@ describe("lang separators", () => {
 
   test("default separators do not split contractions on closing apostrophe", () => {
     expect(DEFAULT_SEPARATOR_CHARS_REGEX.test("\u2019")).toBe(false);
-    expect(findMentionToken("don\u2019t", DEFAULT_SEPARATOR_CHARS_REGEX)).toBe("don\u2019t");
+    expect("don\u2019t".split(DEFAULT_SEPARATOR_CHARS_REGEX).at(-1)).toBe("don\u2019t");
   });
 
   test("french separator profile still treats apostrophe as separator", () => {
     expect(LANG_SEPARATOR_CHARS_REGEX.fr_FR.test("'")).toBe(true);
     expect(LANG_SEPARATOR_CHARS_REGEX.fr_FR.test("\u2019")).toBe(true);
-    expect(findMentionToken("l\u2019amour", LANG_SEPARATOR_CHARS_REGEX.fr_FR)).toBe("amour");
+    expect("l\u2019amour".split(LANG_SEPARATOR_CHARS_REGEX.fr_FR).at(-1)).toBe("amour");
   });
 
   test.each(["ar_SA", "en_US", "fr_FR"])(
@@ -72,10 +60,10 @@ describe("lang separators", () => {
     // Treating it as a separator split the token into fragments and handed
     // Presage only the tail ("اب").
     expect(LANG_SEPARATOR_CHARS_REGEX.ar_SA.test("\u0640")).toBe(false);
-    expect(findMentionToken("كتـــاب", LANG_SEPARATOR_CHARS_REGEX.ar_SA)).toBe("كتـــاب");
+    expect("كتـــاب".split(LANG_SEPARATOR_CHARS_REGEX.ar_SA).at(-1)).toBe("كتـــاب");
   });
 
   test("Arabic punctuation still ends the mention token", () => {
-    expect(findMentionToken("كتاب،", LANG_SEPARATOR_CHARS_REGEX.ar_SA)).toBe("");
+    expect("كتاب،".split(LANG_SEPARATOR_CHARS_REGEX.ar_SA).at(-1)).toBe("");
   });
 });

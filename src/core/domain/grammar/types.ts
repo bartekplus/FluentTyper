@@ -64,26 +64,28 @@ export interface GrammarRule {
   readonly id: GrammarRuleId;
   readonly triggers: GrammarEventType[];
 
-  apply(context: GrammarContext): GrammarEdit[] | GrammarEdit | null;
+  apply(context: GrammarContext): GrammarEdit | null;
 }
 
 interface CatalogEntryFields {
-  name: string;
   titleI18nKey: string;
-  descriptionI18nKey: string;
-  exampleI18nKey: string;
   languageScope: "all" | "en_US";
-  safetyTier: "safe" | "advanced";
-  defaultRollout: "on" | "off";
-  recommended: boolean;
   priority: number;
   /** Safe to run while code mode is on: never rewrites code. */
   codeSafe?: true;
 }
 
 /**
- * A typing rule (no `typing` key, a GrammarRuleId), or a native Review-only check
- * (`typing: false`). The catalog defines the Review-only ids (CatalogRuleId).
+ * A typing rule (no `typing` key, a GrammarRuleId) shows a description and an example.
+ * A native Review-only check (`typing: false`) does not. The catalog defines the
+ * Review-only ids (CatalogRuleId).
  */
-export type GrammarRuleCatalogEntry = CatalogEntryFields &
-  ({ id: GrammarRuleId; typing?: undefined } | { id: string; typing: false });
+export type GrammarRuleCatalogEntry =
+  | (CatalogEntryFields & {
+      id: GrammarRuleId;
+      typing?: undefined;
+      descriptionI18nKey: string;
+      exampleI18nKey: string;
+      defaultRollout: "on" | "off";
+    })
+  | (CatalogEntryFields & { id: string; typing: false });

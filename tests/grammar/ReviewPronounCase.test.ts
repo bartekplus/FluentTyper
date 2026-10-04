@@ -1,22 +1,19 @@
 import { expect, test } from "bun:test";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
+import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
-import { scanResult } from "./reviewHarness";
+import { expectOneRepair, review } from "./grammarTestUtils";
 
 const ruleId = "englishPronounCase";
-function scan(
+const scan = (
   text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-  options: Partial<ReviewOptions> = {},
-) {
-  return scanResult(text, { ...options, snapshot: extra });
-}
-const review = (text: string) => scan(text).diagnostics.filter((d) => d.ruleId === ruleId);
+  extra?: Partial<ReviewSourceSnapshot>,
+  options?: Partial<ReviewOptions>,
+) => review(text, extra, options).diagnostics.filter((d) => d.ruleId === ruleId);
 
 const positives = [
   // Object pronouns in a clause-initial coordinated subject; "I" goes last.
@@ -88,6 +85,7 @@ const positives = [
   ["This matters to we developers.", "This matters to us developers."],
   ["Us developers are tired.", "We developers are tired."],
   ["Us students were late.", "We students were late."],
+  ["SHE WENT WITH SAM AND I.", "SHE WENT WITH SAM AND ME."],
   // Present base verbs after "me", openers before the pair, "myself" for "I" or "me".
   ["Nadia and me cook on Sundays.", "Nadia and I cook on Sundays."],
   ["Still, Omar and me disagree.", "Still, Omar and I disagree."],
@@ -101,16 +99,9 @@ const positives = [
   ["Write to Omar and I about it.", "Write to Omar and me about it."],
 ] as const;
 test.each(positives)("repairs %s", (source, expected) => {
-  const findings = review(source);
-  expect(findings).toHaveLength(1);
-  const finding = findings[0];
-  expect(finding.original).toBe(source.slice(finding.range.start, finding.range.end));
-  expect(finding.context.start).toBeLessThanOrEqual(finding.range.start);
-  expect(finding.context.end).toBeGreaterThanOrEqual(finding.range.end);
+  const finding = expectOneRepair(scan(source), source, expected, scan);
   expect(finding.alternatives).toHaveLength(1);
   expect(finding.bulk).toEqual({ eligible: false, reason: "rule-not-batch-approved" });
-  expect(applyEdits(source, finding.alternatives[0].edits)).toBe(expected);
-  expect(review(expected)).toEqual([]);
 });
 
 const negatives = [
@@ -202,42 +193,31 @@ const negatives = [
   "US developers are busy.",
   "Let us developers decide.",
 ];
-test.each(negatives)("preserves %s", (text) => expect(review(text)).toEqual([]));
+test.each(negatives)("preserves %s", (text) => expect(scan(text)).toEqual([]));
 
 test("preserves dictionary, language, scope and protected islands", () => {
   const text = "Me and Sam went home.";
-  const only = (result: ReturnType<typeof scan>) =>
-    result.diagnostics.filter((d) => d.ruleId === ruleId);
-  expect(only(scan(text))).toHaveLength(1);
-  expect(only(scan(text, {}, { userDictionary: ["sam"] }))).toEqual([]);
-  expect(only(scan(text, {}, { lang: "fr_FR" }))).toEqual([]);
-  expect(only(scan(text, { scope: { start: 7, end: text.length } }))).toEqual([]);
-  expect(only(scan(text, { protectedRanges: [{ start: 7, end: 10, reason: "code" }] }))).toEqual(
-    [],
-  );
+  expect(scan(text)).toHaveLength(1);
+  expect(scan(text, {}, { userDictionary: ["sam"] })).toEqual([]);
+  expect(scan(text, {}, { lang: "fr_FR" })).toEqual([]);
+  expect(scan(text, { scope: { start: 7, end: text.length } })).toEqual([]);
+  expect(scan(text, { protectedRanges: [{ start: 7, end: 10, reason: "code" }] })).toEqual([]);
   expect(
-    only(
-      scan(
-        text,
-        {},
-        { enabledRules: reviewRuleIds({ codeMode: false }).filter((id) => id !== ruleId) },
-      ),
+    scan(
+      text,
+      {},
+      { enabledRules: reviewRuleIds({ codeMode: false }).filter((id) => id !== ruleId) },
     ),
   ).toEqual([]);
 });
 
 test("chunk-edge evidence keeps exact offsets and typing never instantiates the rule", () => {
   const text = "😀 Hi. " + "word ".repeat(795) + ". Me and him went.\r\nWhom is coming?";
-  const findings = review(text);
+  const findings = scan(text);
   expect(findings.map((f) => f.original)).toEqual(["Me and him", "Whom"]);
   let corrected = text;
   for (const finding of [...findings].reverse())
     corrected = applyEdits(corrected, finding.alternatives[0].edits)!;
   expect(corrected).toBe(text.replace("Me and him", "He and I").replace("Whom", "Who"));
-  expect(
-    createGrammarRuleCatalogRuntime({
-      insertSpaceAfterAutocomplete: true,
-      userDictionaryList: [],
-    }).map((r) => r.id),
-  ).not.toContain(ruleId);
+  expect(TYPING_RULE_IDS as readonly string[]).not.toContain(ruleId);
 });

@@ -6,12 +6,22 @@ import process from "node:process";
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createInterface } from "node:readline/promises";
+import { parseArgs } from "node:util";
 import puppeteer, { type Page } from "puppeteer";
 import { readModel } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
+import { pressRedo, pressUndo, waitUntil } from "../tests/e2e/e2e-helpers";
 
-const args = process.argv.slice(2);
-const value = (key: string) => args.find((arg) => arg.startsWith(`${key}=`))?.slice(key.length + 1);
-if (args.includes("--help")) {
+const { values: args } = parseArgs({
+  args: process.argv.slice(2),
+  options: {
+    url: { type: "string" },
+    extension: { type: "string" },
+    profile: { type: "string" },
+    "allow-edits": { type: "boolean", default: false },
+    help: { type: "boolean", default: false },
+  },
+});
+if (args.help) {
   console.log(`Real Google Docs operator-assisted smoke test (writes to the chosen document).
 
 bun run test:e2e:docs:live -- \\
@@ -32,10 +42,8 @@ No Google credentials, cookies, document text or account data are uploaded.`);
 }
 
 async function main(): Promise<void> {
-  const urlValue = value("--url");
-  const extensionValue = value("--extension");
-  const profileValue = value("--profile");
-  if (!args.includes("--allow-edits") || !urlValue || !extensionValue || !profileValue) {
+  const { url: urlValue, extension: extensionValue, profile: profileValue } = args;
+  if (!args["allow-edits"] || !urlValue || !extensionValue || !profileValue) {
     throw new Error(
       "Explicit --allow-edits, --url, --extension and --profile are required. Use --help.",
     );
@@ -113,11 +121,10 @@ async function main(): Promise<void> {
     await page.keyboard.press("Tab");
     await waitForText(page, offered);
     report.checks.push({ name: "actual prediction and Tab acceptance", status: "passed" });
-    const modifier = process.platform === "darwin" ? "Meta" : "Control";
-    await page.keyboard.press(`${modifier}+z`);
+    await pressUndo(page);
     await waitForText(page, "hel");
     report.checks.push({ name: "native undo returns the typed trigger", status: "passed" });
-    await page.keyboard.press(`${modifier}+Shift+z`);
+    await pressRedo(page);
     await waitForText(page, offered);
     report.checks.push({ name: "native redo restores the completion", status: "passed" });
     const saved = await cli.question(
@@ -168,17 +175,11 @@ async function read(page: Page) {
   return model;
 }
 async function waitForText(page: Page, expected: string): Promise<void> {
-  const deadline = Date.now() + 15000;
-  while (Date.now() < deadline) {
-    try {
-      if ((await read(page)).text === expected) return;
-    } catch {
-      // A reload can temporarily make the capability unavailable. No edits are retried.
-    }
-    await new Promise<void>((resolve) => setTimeout(resolve, 100));
-  }
-  throw new Error(
-    "Expected logical text was not observed; no automatic retry or repair was attempted.",
+  // A reload can make the capability unavailable for a short time. No edits are retried.
+  await waitUntil(
+    "the expected logical text (no automatic retry or repair was attempted)",
+    async () => (await read(page).catch(() => null))?.text === expected,
+    { timeoutMs: 15000, intervalMs: 100 },
   );
 }
 void main().catch((error: unknown) => {

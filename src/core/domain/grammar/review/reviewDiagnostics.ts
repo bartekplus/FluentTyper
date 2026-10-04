@@ -15,12 +15,11 @@ import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
 import { isGermanAbbreviationToken } from "./german/abbreviations";
 import { GERMAN_SLASH_PAIR } from "./german/suspendedHyphen";
 import { SPANISH_PROSE_DOTTED_TOKEN } from "./spanish/typography";
-import { PROSE_SLASH_TOKEN } from "./english/dialects";
 import { NUMERIC_DATE_TOKEN } from "./english/dates";
 import { digitValue, ISO_DATE_TOKEN, versionWordBefore } from "./isoDates";
 import { TOKEN_LEAD, TOKEN_TRAIL, unwrapEmphasis } from "./markdownEmphasis";
 import { notationToken } from "./english/typography";
-import { slashedProseWord } from "./english/remaining";
+import { PROSE_SLASH_TOKEN, slashedProseWord } from "./english/remaining";
 import { PLACE_STATE_TOKEN, PORTUGUESE_PROSE_TOKEN } from "./portuguese/typography";
 import { POLISH_PROSE_TOKEN } from "./polish/shared";
 import { applyEdits, positionMapper } from "./textRanges";
@@ -38,8 +37,6 @@ import {
   type TextRange,
 } from "./types";
 
-export { casingDiagnostic, spellingDiagnostic } from "./reviewFindings";
-export { MAX_REVIEW_CHARS, REVIEW_CHUNK_CHARS };
 // Above this many proofs in one chunk, scanning the chunk once is cheaper.
 const PROOF_WINDOWS_PER_CHUNK = 8;
 // How far past its chunk a detector's forward scan may need to read.
@@ -297,7 +294,7 @@ function technicalRanges(source: string, from: number, to: number, lang: string)
   return ranges;
 }
 
-/** Scope split into line-aligned chunks of about REVIEW_CHUNK_CHARS. */
+/** Scope split into chunks of about REVIEW_CHUNK_CHARS that end at a line end, else a space. */
 export function reviewChunks(prepared: PreparedReview): TextRange[] {
   const { start, end } = prepared.snapshot.scope;
   const chunks: TextRange[] = [];

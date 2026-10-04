@@ -7,6 +7,9 @@ import {
   SUGGESTION_POPUP_TEXT_TRANSFORM,
   SUGGESTION_POPUP_WORD_SPACING,
 } from "./typography";
+import { clamp } from "../guards";
+
+export { clamp };
 
 /** The popup's widest size per layout (never wider than the viewport allows). */
 export const SUGGESTION_POPUP_MAX_WIDTH_PX = { list: 460, row: 640 } as const;
@@ -53,11 +56,7 @@ export function themeScaleFor(
 }
 
 /** px, rem and em lengths; null for anything that needs the browser to resolve. */
-export function parseCssLengthPx(
-  value: string,
-  rootFontSizePx = 16,
-  fontSizePx = 16,
-): number | null {
+export function parseCssLengthPx(value: string, remPx = 16, emPx = 16): number | null {
   const match = value
     .trim()
     .toLowerCase()
@@ -65,22 +64,25 @@ export function parseCssLengthPx(
   if (!match) {
     return value.trim() === "0" ? 0 : null;
   }
-  const unitPx = match[2] === "px" ? 1 : match[2] === "rem" ? rootFontSizePx : fontSizePx;
+  const unitPx = match[2] === "px" ? 1 : match[2] === "rem" ? remPx : emPx;
   return Number.parseFloat(match[1]) * unitPx;
 }
 
 /**
  * The popup's theme scale from Appearance values. px, rem and em are read
- * directly; pass `resolveLength` (the browser) for any other CSS length, as the
- * popup on web pages does.
+ * directly (`remPx` and `emPx` are the root and text font sizes); pass
+ * `resolveLength` (the browser) for any other CSS length.
  */
 export function themeScaleFromValues(
   values: Record<keyof SuggestionPopupThemeScale, string>,
-  resolveLength: CssLengthResolver = (value) => parseCssLengthPx(value),
+  resolveLength: CssLengthResolver = () => null,
+  remPx = 16,
+  emPx = 16,
 ): SuggestionPopupThemeScale {
   const scale = (key: keyof SuggestionPopupThemeScale) => {
     const { reference, min, property } = THEME_SCALE_REFERENCES[key];
-    const toPx = (value: string) => parseCssLengthPx(value) ?? resolveLength(value, property);
+    const toPx = (value: string) =>
+      parseCssLengthPx(value, remPx, emPx) ?? resolveLength(value, property);
     return themeScaleFor(toPx(values[key]), toPx(reference), min);
   };
   return {
@@ -119,8 +121,6 @@ export function computeSuggestionPopupStyleVars(args: {
     "--ft-radius": `${radiusPx}px`,
     "--ft-panel-min-width": `${minWidthPx}px`,
     "--suggestion-font-size": `${fontPx}px`,
-    "--suggestion-padding-vertical": `${padY}px`,
-    "--suggestion-padding-horizontal": `${padX}px`,
     "--ft-font-family": SUGGESTION_POPUP_FONT_FAMILY,
     "--ft-font-weight": SUGGESTION_POPUP_FONT_WEIGHT,
     "--ft-font-style": SUGGESTION_POPUP_FONT_STYLE,
@@ -129,8 +129,4 @@ export function computeSuggestionPopupStyleVars(args: {
     "--ft-word-spacing": SUGGESTION_POPUP_WORD_SPACING,
     "--ft-text-transform": SUGGESTION_POPUP_TEXT_TRANSFORM,
   };
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(value, max));
 }

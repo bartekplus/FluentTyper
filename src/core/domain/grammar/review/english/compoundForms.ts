@@ -4,6 +4,7 @@ import type { PhraseRow } from "../englishPhraseTables";
 import {
   alternation,
   frameMatches,
+  group,
   hasUserOrCasedWord,
   isLang,
   SPACE as S,
@@ -185,7 +186,6 @@ export const STYLE: readonly PhraseRow[] = [];
 type Finding = RawFinding;
 const lower = (word: string | undefined) => (word ?? "").toLowerCase();
 const info = (word: string | undefined) => (word ? englishWordInfo(lower(word)) : null);
-const group = (m: RegExpExecArray, name: string) => m.indices!.groups![name];
 const nextWord = (ctx: DetectContext, end: number) =>
   /^[ \t ]{1,8}(["“]?[\p{L}\p{N}][\p{L}\p{N}'’-]*)/u.exec(ctx.text.slice(end, end + 48))?.[1] ?? "";
 // A determiner, possessive or object pronoun after a particle makes it a preposition with its

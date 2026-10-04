@@ -1,6 +1,7 @@
 import type { ValueOnlyConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
-import { BaseControl, createFieldRoot, createInputElement } from "./FieldControl.js";
+import { createElement } from "../dom/createElement.js";
+import { BaseControl } from "./FieldControl.js";
 
 export class ValueOnlyControl extends BaseControl<unknown> {
   private _value: unknown;
@@ -8,12 +9,8 @@ export class ValueOnlyControl extends BaseControl<unknown> {
   constructor(params: ValueOnlyConfig, store: Store) {
     super(params, store);
 
-    const root = createFieldRoot("");
-    this._rootElement = root;
-
-    const input = createInputElement("hidden");
-    root.appendChild(input);
-    this._element = input;
+    this._rootElement = createElement("div");
+    this._element = this._rootElement;
 
     void this.loadFromStorage();
   }
@@ -24,9 +21,12 @@ export class ValueOnlyControl extends BaseControl<unknown> {
 
   set(value: unknown, silent?: boolean): this {
     this._value = value;
-    this.emitter.fireEvent("change", value);
+    // Start the write before "change", so that a listener that reads the store gets the new value.
     if (!silent) {
       this.persistToStorage(value);
+    }
+    this.emitter.fireEvent("change", value);
+    if (!silent) {
       this.emitter.fireEvent("action", value);
     }
     return this;

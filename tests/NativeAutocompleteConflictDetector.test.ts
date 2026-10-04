@@ -1,12 +1,11 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { isSensitiveField } from "../src/adapters/chrome/content-script/suggestions/FieldEligibility";
 import {
   hasActiveAutocompletePopup,
   reservesAutocompleteArrow,
-  NativeAutocompleteConflictDetector,
+  classifyField,
 } from "../src/adapters/chrome/content-script/suggestions/NativeAutocompleteConflictDetector";
 
-const detector = new NativeAutocompleteConflictDetector();
 function field(html: string): HTMLElement {
   document.body.innerHTML = html;
   return document.body.firstElementChild as HTMLElement;
@@ -29,9 +28,6 @@ function popup(): HTMLElement {
 }
 
 describe("native field eligibility and interaction evidence", () => {
-  beforeEach(() => {
-    document.body.innerHTML = "";
-  });
   test.each([
     '<input list="missing">',
     '<input list="empty"><datalist id="empty"></datalist>',
@@ -45,15 +41,15 @@ describe("native field eligibility and interaction evidence", () => {
     '<textarea role="combobox"></textarea>',
     '<input type="search" role="combobox">',
   ])("automatically enables writing fields: %s", (html) => {
-    expect(detector.classify(field(html))).toEqual({ kind: "automatic" });
+    expect(classifyField(field(html))).toEqual({ kind: "automatic" });
   });
   test("only usable datalist options hold a field", () => {
     const input = field(
       '<input list="choices"><datalist id="choices"><option disabled value="Paris"></option><option value=""></option></datalist>',
     );
-    expect(detector.classify(input).kind).toBe("automatic");
+    expect(classifyField(input).kind).toBe("automatic");
     document.querySelector("option")!.disabled = false;
-    expect(detector.classify(input)).toEqual({ kind: "manual", reason: "browser" });
+    expect(classifyField(input)).toEqual({ kind: "manual", reason: "browser" });
   });
   test.each([
     '<input list="missing">',
@@ -117,7 +113,7 @@ describe("native field eligibility and interaction evidence", () => {
   ])("structured purpose remains manual: %s", (purpose) => {
     const input = field("<input>");
     input.setAttribute("autocomplete", purpose);
-    expect(detector.classify(input)).toEqual({ kind: "manual", reason: "structured" });
+    expect(classifyField(input)).toEqual({ kind: "manual", reason: "structured" });
   });
   test.each([
     '<input type="password">',
@@ -148,7 +144,7 @@ describe("native field eligibility and interaction evidence", () => {
     "<input disabled>",
     '<div role="combobox"></div>',
   ])("cannot activate protected or locked controls: %s", (html) => {
-    expect(detector.classify(field(html)).kind).toBe("blocked");
+    expect(classifyField(field(html)).kind).toBe("blocked");
   });
   test.each([
     '<input name="username">',
@@ -159,22 +155,22 @@ describe("native field eligibility and interaction evidence", () => {
     '<input inputmode="numeric">',
     '<input inputmode="tel">',
   ])("structured account and input-mode hints stay manual: %s", (html) => {
-    expect(detector.classify(field(html))).toEqual({ kind: "manual", reason: "structured" });
+    expect(classifyField(field(html))).toEqual({ kind: "manual", reason: "structured" });
   });
   test.each(["toolbar", "menubar", "menu", "spinbutton"])(
     "blocks non-writing controls through ancestors and shadow roots: %s",
     (role) => {
       const wrapper = field(`<div role="${role}"><input role="combobox"></div>`);
       const input = wrapper.firstElementChild as HTMLInputElement;
-      expect(detector.classify(input)).toEqual({ kind: "blocked" });
+      expect(classifyField(input)).toEqual({ kind: "blocked" });
       expect(isSensitiveField(input)).toBe(true);
       const host = document.createElement("div");
       wrapper.append(host);
       host.attachShadow({ mode: "open" }).append(input);
-      expect(detector.classify(input)).toEqual({ kind: "blocked" });
+      expect(classifyField(input)).toEqual({ kind: "blocked" });
       wrapper.removeAttribute("role");
       input.setAttribute("role", role);
-      expect(detector.classify(input)).toEqual({ kind: "blocked" });
+      expect(classifyField(input)).toEqual({ kind: "blocked" });
     },
   );
   test("blocks Word floating formatting controls without toolbar roles", () => {
@@ -182,11 +178,11 @@ describe("native field eligibility and interaction evidence", () => {
       '<div id="FontFormattingGroup"><input role="combobox" aria-label="Font Size"></div>',
     );
     const input = group.firstElementChild as HTMLInputElement;
-    expect(detector.classify(input)).toEqual({ kind: "blocked" });
+    expect(classifyField(input)).toEqual({ kind: "blocked" });
     expect(isSensitiveField(input)).toBe(true);
   });
   test("a selector role alone does not suppress prose", () => {
-    expect(detector.classify(field('<input role="combobox">'))).toEqual({
+    expect(classifyField(field('<input role="combobox">'))).toEqual({
       kind: "automatic",
     });
   });
@@ -222,7 +218,7 @@ describe("native field eligibility and interaction evidence", () => {
       document.body.append(wrapper);
       const list = popup();
       wrapper.append(list);
-      expect(detector.classify(input)).toEqual({ kind: "automatic" });
+      expect(classifyField(input)).toEqual({ kind: "automatic" });
       expect(hasActiveAutocompletePopup(input)).toBe(true);
       wrapper.hidden = true;
       expect(hasActiveAutocompletePopup(input)).toBe(false);

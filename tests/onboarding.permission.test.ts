@@ -1,24 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { JSDOM } from "jsdom";
-import { acquireDomGlobalLock } from "./support/domGlobalLock";
-
-const baseGlobals = {
-  window: globalThis.window,
-  document: globalThis.document,
-  navigator: globalThis.navigator,
-  Node: globalThis.Node,
-  HTMLElement: globalThis.HTMLElement,
-  HTMLButtonElement: globalThis.HTMLButtonElement,
-  HTMLTextAreaElement: globalThis.HTMLTextAreaElement,
-  Event: globalThis.Event,
-  chrome: (globalThis as unknown as { chrome: unknown }).chrome,
-};
+import { installJsdom } from "./support/jsdomGlobals";
 
 let importNonce = 0;
 let activeDom: JSDOM | null = null;
-let releaseDomGlobalLock: (() => void) | null = null;
+let restoreGlobals: (() => void) | null = null;
 
 function freshModulePath(pathname: string): string {
   importNonce += 1;
@@ -32,22 +20,7 @@ function installOnboardingDom(): JSDOM {
     pretendToBeVisual: true,
     url: "https://example.test/new_installation/index.html",
   });
-  const windowRef = dom.window;
-
-  (globalThis as unknown as { window: Window }).window = windowRef as unknown as Window;
-  (globalThis as unknown as { document: Document }).document = windowRef.document;
-  (globalThis as unknown as { navigator: Navigator }).navigator = windowRef.navigator;
-  (globalThis as unknown as { Node: typeof Node }).Node = windowRef.Node as unknown as typeof Node;
-  (globalThis as unknown as { HTMLElement: typeof HTMLElement }).HTMLElement =
-    windowRef.HTMLElement as unknown as typeof HTMLElement;
-  (globalThis as unknown as { HTMLButtonElement: typeof HTMLButtonElement }).HTMLButtonElement =
-    windowRef.HTMLButtonElement as unknown as typeof HTMLButtonElement;
-  (
-    globalThis as unknown as { HTMLTextAreaElement: typeof HTMLTextAreaElement }
-  ).HTMLTextAreaElement = windowRef.HTMLTextAreaElement as unknown as typeof HTMLTextAreaElement;
-  (globalThis as unknown as { Event: typeof Event }).Event =
-    windowRef.Event as unknown as typeof Event;
-
+  restoreGlobals = installJsdom(dom);
   return dom;
 }
 
@@ -57,31 +30,11 @@ async function flushAsyncWork(rounds = 6): Promise<void> {
   }
 }
 
-beforeEach(async () => {
-  releaseDomGlobalLock = await acquireDomGlobalLock();
-});
-
 afterEach(() => {
-  if (activeDom) {
-    activeDom.window.close();
-    activeDom = null;
-  }
-
-  (globalThis as unknown as { window: Window }).window = baseGlobals.window;
-  (globalThis as unknown as { document: Document }).document = baseGlobals.document;
-  (globalThis as unknown as { navigator: Navigator }).navigator = baseGlobals.navigator;
-  (globalThis as unknown as { Node: typeof Node }).Node = baseGlobals.Node;
-  (globalThis as unknown as { HTMLElement: typeof HTMLElement }).HTMLElement =
-    baseGlobals.HTMLElement;
-  (globalThis as unknown as { HTMLButtonElement: typeof HTMLButtonElement }).HTMLButtonElement =
-    baseGlobals.HTMLButtonElement;
-  (
-    globalThis as unknown as { HTMLTextAreaElement: typeof HTMLTextAreaElement }
-  ).HTMLTextAreaElement = baseGlobals.HTMLTextAreaElement;
-  (globalThis as unknown as { Event: typeof Event }).Event = baseGlobals.Event;
-  (globalThis as unknown as { chrome: unknown }).chrome = baseGlobals.chrome;
-  releaseDomGlobalLock?.();
-  releaseDomGlobalLock = null;
+  activeDom?.window.close();
+  activeDom = null;
+  restoreGlobals?.();
+  restoreGlobals = null;
 });
 
 describe("onboarding permission status", () => {
@@ -235,11 +188,11 @@ test("translates all onboarding content and attributes with a consistent locale 
       expect(Object.keys(entry).sort()).toEqual([...locales].sort());
       expect(Object.values(entry).every((text) => text.trim().length > 0)).toBe(true);
     }
-    for (const locale of [...locales, "pt", "ja"] as const) {
+    for (const locale of [...locales, "ja"] as const) {
       i18n.lang = locale;
       translateOnboarding();
       expect(document.documentElement.lang).toBe(
-        locale === "pr" || locale === "pt" ? "pt" : locale === "ja" ? "en" : locale,
+        locale === "pr" ? "pt" : locale === "ja" ? "en" : locale,
       );
       expect(document.title).toBe(i18n.get("onboarding_title"));
       for (const element of document.querySelectorAll("[data-i18n]")) {
@@ -247,7 +200,7 @@ test("translates all onboarding content and attributes with a consistent locale 
         expect(i18n.get(key)).not.toBe(key);
         expect(element.textContent).toBe(i18n.get(key));
       }
-      const language = locale === "pt" ? "pr" : locale === "ja" ? "en" : locale;
+      const language = locale === "ja" ? "en" : locale;
       let richElementCount = 0;
       for (const [key, translations] of Object.entries(onboardingTranslations)) {
         const expected = document.createElement("div");
@@ -282,6 +235,13 @@ test("translates all onboarding content and attributes with a consistent locale 
   } finally {
     i18n.lang = previousLanguage;
   }
+});
+
+test("a Portuguese browser language selects the Portuguese text", async () => {
+  activeDom = installOnboardingDom();
+  Object.defineProperty(window.navigator, "language", { configurable: true, value: "pt-BR" });
+  const { i18n } = await import(freshModulePath("../src/ui/options/fluenttyperI18n"));
+  expect(i18n.lang).toBe("pr");
 });
 
 test("does not interpret unknown rich translation keys as HTML", async () => {

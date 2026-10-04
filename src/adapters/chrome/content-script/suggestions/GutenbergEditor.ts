@@ -1,5 +1,5 @@
 import type { ReviewApplyResult, ReviewTargetText } from "@core/application/review/ReviewSession";
-import type { ReviewEdit, TextRange } from "@core/domain/grammar/review/types";
+import type { TextRange } from "@core/domain/grammar/review/types";
 import {
   applyEdits,
   editTouches,
@@ -14,6 +14,7 @@ import { formattingPreservingEdits } from "../review/RichTextFormatting";
 import { isHiddenField, isLockedField, isSensitiveField } from "./FieldEligibility";
 import { gutenbergFields, isGutenbergField } from "./GutenbergEnvironment";
 import type { HostEditorApplyResult, HostEditorSession } from "./HostEditorAdapterResolver";
+import { NOT_APPLIED, type HostEditorReviewApplyRequest } from "./HostEditorBridgeProtocol";
 
 type Attributes = Record<string, unknown>;
 interface Block {
@@ -162,12 +163,7 @@ export interface GutenbergSnapshot extends ReviewTargetText {
   fields: { index: number; start: number; end: number }[];
   scope: TextRange | null;
 }
-export type GutenbergApplyRequest = {
-  edits: ReviewEdit[];
-  before: string;
-  after: string;
-  signature: string;
-};
+export type GutenbergApplyRequest = HostEditorReviewApplyRequest;
 
 const identities = new WeakMap<object, number>();
 const composing = new WeakSet<HTMLElement>();
@@ -1163,7 +1159,7 @@ export function replaceGutenbergBlock(
     !gutenbergBlockContext(source) ||
     !Number.isSafeInteger(request.cursorAfter)
   )
-    return { applied: false, didDispatchInput: false };
+    return NOT_APPLIED;
   const edit = {
     start: request.replaceStart,
     end: request.replaceEnd,
@@ -1172,7 +1168,7 @@ export function replaceGutenbergBlock(
   };
   const after = applyEdits(before.value.text, [edit]);
   if (after === null || request.cursorAfter < 0 || request.cursorAfter > after.length)
-    return { applied: false, didDispatchInput: false };
+    return NOT_APPLIED;
   const result = apply(
     source,
     { edits: [edit], before: before.value.text, after, signature: before.value.signature },

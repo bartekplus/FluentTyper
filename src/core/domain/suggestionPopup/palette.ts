@@ -5,7 +5,7 @@ import type { SuggestionThemeSettings } from "../themeDefaults";
 export const SUGGESTION_POPUP_ACCENT = { light: "#185fa8", dark: "#7cc4ff" } as const;
 
 /** What the popup is drawn over when its own colors are translucent. */
-const BACKDROP = { light: "#ffffff", dark: "#020617" } as const;
+export const BACKDROP = { light: "#ffffff", dark: "#020617" } as const;
 
 const COLOR_KEYS = [
   "suggestionBgLight",

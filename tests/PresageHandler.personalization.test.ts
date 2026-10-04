@@ -1,21 +1,10 @@
 import { mod } from "./fakeLibPresage.js";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
+import type { PredictionConfig } from "../src/adapters/chrome/background/PredictionOrchestrator";
+import { predictionConfig, runPrediction } from "./support/predictionConfig";
 
-function createConfig(overrides: Partial<Parameters<PresageHandler["setConfig"]>[0]> = {}) {
-  return {
-    numSuggestions: 2,
-    engineNumSuggestions: 10,
-    minWordLengthToPredict: 0,
-    insertSpaceAfterAutocomplete: false,
-    autoCapitalize: false,
-    textExpansions: [],
-    prefixOnlyMode: false,
-    personalizationEnabled: false,
-    timeFormat: "",
-    dateFormat: "",
-    userDictionaryList: [],
-    ...overrides,
-  };
+function createConfig(overrides: Partial<PredictionConfig> = {}) {
+  return predictionConfig({ numSuggestions: 2, personalizationEnabled: false, ...overrides });
 }
 
 describe("PresageHandler personalized candidate pool", () => {
@@ -31,7 +20,7 @@ describe("PresageHandler personalized candidate pool", () => {
     });
     handler.setConfig(createConfig({ personalizationEnabled: false }));
 
-    await expect(handler.runPrediction("a", "", "en_US")).resolves.toEqual({
+    await expect(runPrediction(handler, "a", "", "en_US")).resolves.toEqual({
       predictions: ["alpha", "beta"],
     });
   });
@@ -49,28 +38,38 @@ describe("PresageHandler personalized candidate pool", () => {
     });
     handler.setConfig(createConfig({ personalizationEnabled: true }));
 
-    await expect(handler.runPrediction("a", "", "en_US")).resolves.toEqual({
+    await expect(runPrediction(handler, "a", "", "en_US")).resolves.toEqual({
       predictions: ["gamma", "alpha"],
     });
     expect(snapshotProvider).toHaveBeenCalledTimes(1);
   });
 
-  test("keeps exact matches pinned ahead of learned candidates", async () => {
-    mod.PresageCallback.predictions = ["gamma", "beta", "alpha"];
-    const handler = new PresageHandler(mod, {
-      getPersonalizationSnapshot: () => ({
-        en_US: {
-          gamma: { display: "gamma", score: 5, updatedAtMs: 1_000 },
-        },
-      }),
-      now: () => 1_000,
-    });
-    handler.setConfig(createConfig({ personalizationEnabled: true }));
+  // The exact match is the current word only: inside a sentence it goes first, after a space
+  // nothing is pinned.
+  test.each([
+    [true, "alpha", ["gamma", "beta", "alpha"], ["alpha", "gamma"]],
+    [true, "the alpha", ["gamma", "beta", "alpha"], ["alpha", "gamma"]],
+    [false, "the act", ["action", "act", "actor"], ["act", "action"]],
+    [false, "act ", ["now", "act", "the"], ["now", "act"]],
+  ])(
+    "keeps exact matches pinned ahead of learned candidates (personalized %p, %p)",
+    async (personalizationEnabled, input, predictions, expected) => {
+      mod.PresageCallback.predictions = predictions;
+      const handler = new PresageHandler(mod, {
+        getPersonalizationSnapshot: () => ({
+          en_US: {
+            gamma: { display: "gamma", score: 5, updatedAtMs: 1_000 },
+          },
+        }),
+        now: () => 1_000,
+      });
+      handler.setConfig(createConfig({ personalizationEnabled }));
 
-    await expect(handler.runPrediction("alpha", "", "en_US")).resolves.toEqual({
-      predictions: ["alpha", "gamma"],
-    });
-  });
+      await expect(runPrediction(handler, input, "", "en_US")).resolves.toEqual({
+        predictions: expected,
+      });
+    },
+  );
 
   test("leaves configured text expansion ordering untouched", async () => {
     mod.PresageCallback.predictions = ["expansion output", "gamma", "alpha"];
@@ -90,7 +89,7 @@ describe("PresageHandler personalized candidate pool", () => {
       }),
     );
 
-    await expect(handler.runPrediction("asap", "", "en_US")).resolves.toEqual({
+    await expect(runPrediction(handler, "asap", "", "en_US")).resolves.toEqual({
       predictions: ["expansion output", "gamma"],
     });
     expect(snapshotProvider).not.toHaveBeenCalled();
@@ -114,7 +113,7 @@ describe("PresageHandler personalized candidate pool", () => {
       }),
     );
 
-    await expect(handler.runPrediction("A", "", "en_US")).resolves.toEqual({
+    await expect(runPrediction(handler, "A", "", "en_US")).resolves.toEqual({
       predictions: ["Gamma ", "Alpha "],
     });
   });

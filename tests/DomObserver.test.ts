@@ -1,46 +1,16 @@
-import { beforeEach, describe, expect, jest, test } from "bun:test";
-
-let importNonce = 0;
-
-async function loadDomObserverClass() {
-  importNonce += 1;
-  const module = await import(
-    `../src/adapters/chrome/content-script/DomObserver?bun_test_nonce_dom_observer=${importNonce}`
-  );
-  return module.DomObserver;
-}
+import { describe, expect, jest, test } from "bun:test";
+import { DomObserver } from "../src/adapters/chrome/content-script/DomObserver";
 
 describe("DomObserver", () => {
-  beforeEach(() => {
-    document.body.innerHTML = "";
-  });
-
-  test("observes native autocomplete conflict attributes", async () => {
-    const observe = jest.fn();
-    const disconnect = jest.fn();
-    const originalMutationObserver = globalThis.MutationObserver;
-    const originalWindowMutationObserver = window.MutationObserver;
-
-    class MockMutationObserver {
-      constructor() {}
-
-      observe = observe;
-      disconnect = disconnect;
-    }
-
-    (
-      globalThis as typeof globalThis & { MutationObserver: typeof MutationObserver }
-    ).MutationObserver = MockMutationObserver as unknown as typeof MutationObserver;
-    (window as Window & { MutationObserver: typeof MutationObserver }).MutationObserver =
-      MockMutationObserver as unknown as typeof MutationObserver;
-
+  test("observes native autocomplete conflict attributes", () => {
+    const observe = jest.spyOn(MutationObserver.prototype, "observe");
+    const observer = new DomObserver(document.body, jest.fn());
     try {
-      const DomObserver = await loadDomObserverClass();
-      const observer = new DomObserver(document.body, jest.fn());
       observer.attach();
 
       const observeOptions = observe.mock.calls[0]?.[1];
       expect(observe).toHaveBeenCalled();
+      expect(observeOptions).not.toHaveProperty("characterData");
       expect(observeOptions).toEqual(
         expect.objectContaining({
           attributes: true,
@@ -57,11 +27,33 @@ describe("DomObserver", () => {
         }),
       );
     } finally {
-      (
-        globalThis as typeof globalThis & { MutationObserver: typeof MutationObserver }
-      ).MutationObserver = originalMutationObserver;
-      (window as Window & { MutationObserver: typeof MutationObserver }).MutationObserver =
-        originalWindowMutationObserver;
+      observer.disconnect();
+      observe.mockRestore();
+    }
+  });
+
+  test("reports added fields and ignores text changes", async () => {
+    const root = document.createElement("div");
+    const text = document.createTextNode("a");
+    root.appendChild(text);
+    document.body.appendChild(root);
+    const callback = jest.fn();
+    const observer = new DomObserver(root, callback);
+    try {
+      observer.attach();
+
+      text.data = "b";
+      await Promise.resolve();
+      expect(callback).not.toHaveBeenCalled();
+
+      const input = document.createElement("input");
+      root.appendChild(input);
+      await Promise.resolve();
+      const records = callback.mock.calls.flatMap(([batch]) => batch as MutationRecord[]);
+      expect(records.some((record) => Array.from(record.addedNodes).includes(input))).toBe(true);
+    } finally {
+      observer.disconnect();
+      root.remove();
     }
   });
 });

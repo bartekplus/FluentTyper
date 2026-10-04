@@ -1,6 +1,11 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import type { Store } from "@core/application/storage/Store.js";
-import { SUPPORTED_PREDICTION_LANGUAGE_KEYS, resolveEnabledLanguages } from "@core/domain/lang";
+import {
+  SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+  resolveEnabledLanguages,
+  resolveFallbackLanguage,
+  resolvePrimaryLanguage,
+} from "@core/domain/lang";
 import {
   KEY_ENABLED_LANGUAGES,
   KEY_EXTENSION_LANGUAGE,
@@ -12,34 +17,44 @@ import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import { fetchAutoLanguageStatus } from "@ui/shared/runtimeMessaging";
 import { appendLanguageOptions, languageLabel } from "@ui/shared/siteProfileEditor";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
+import { createElement } from "@ui/settings-engine/dom/createElement.js";
+import { getUniqueID } from "@ui/settings-engine/controls/FieldControl.js";
 import {
   bindRerender,
+  createButton,
+  createInlineCard,
   createWorkspaceCard,
-  createWorkspaceShell,
   moveControlToBody,
   pruneEmptySettingsGroups,
+  replaceChildrenKeepingDisclosures,
 } from "./workspacePanelUtils.js";
 
 export class LanguageSettingsPanel {
   private readonly root: HTMLElement;
   private readonly registry: SettingsRegistry;
   private readonly store: Store;
+  private renderSeq = 0;
 
   constructor(root: HTMLElement, registry: SettingsRegistry, store: Store) {
     this.root = root;
     this.registry = registry;
     this.store = store;
 
-    bindRerender(this.registry[KEY_LANGUAGE], () => this.render());
-    bindRerender(this.registry[KEY_EXTENSION_LANGUAGE], () => this.render());
-    bindRerender(this.registry[KEY_ENABLED_LANGUAGES], () => this.render());
-    bindRerender(this.registry[KEY_FALLBACK_LANGUAGE], () => this.render());
-    bindRerender(this.registry[KEY_SITE_PROFILES], () => this.render());
+    for (const key of [
+      KEY_LANGUAGE,
+      KEY_EXTENSION_LANGUAGE,
+      KEY_ENABLED_LANGUAGES,
+      KEY_FALLBACK_LANGUAGE,
+      KEY_SITE_PROFILES,
+    ]) {
+      bindRerender(this.registry[key], () => this.render());
+    }
 
     void this.render();
   }
 
   async render(): Promise<void> {
+    const seq = ++this.renderSeq;
     const [enabledLanguagesRaw, languageRaw, fallbackLanguageRaw, siteProfilesRaw] =
       await Promise.all([
         this.store.get(KEY_ENABLED_LANGUAGES),
@@ -47,44 +62,46 @@ export class LanguageSettingsPanel {
         this.store.get(KEY_FALLBACK_LANGUAGE),
         this.store.get(KEY_SITE_PROFILES),
       ]);
+    if (seq !== this.renderSeq) {
+      return;
+    }
 
     const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
-    const language =
-      typeof languageRaw === "string" && languageRaw.length > 0 ? languageRaw : enabledLanguages[0];
-    const fallbackLanguage =
-      typeof fallbackLanguageRaw === "string" && fallbackLanguageRaw.length > 0
-        ? fallbackLanguageRaw
-        : enabledLanguages[0];
-    const siteProfiles = resolveSiteProfiles(siteProfilesRaw, enabledLanguages);
-    const usageCounts = this.countSiteProfileUsage(siteProfiles);
+    const text = (value: unknown) => (typeof value === "string" ? value : "");
+    const language = resolvePrimaryLanguage(text(languageRaw), enabledLanguages);
+    const fallbackLanguage = resolveFallbackLanguage(text(fallbackLanguageRaw), enabledLanguages);
+    const usageCounts: Record<string, number> = {};
+    for (const profile of Object.values(resolveSiteProfiles(siteProfilesRaw, enabledLanguages))) {
+      usageCounts[profile.language] = (usageCounts[profile.language] || 0) + 1;
+    }
     const autoLanguageStatus = language === "auto_detect" ? await fetchAutoLanguageStatus() : null;
+    if (seq !== this.renderSeq) {
+      return;
+    }
 
-    const shell = createWorkspaceShell();
+    replaceChildrenKeepingDisclosures(this.root, () => {
+      const shell = createElement("div", { className: "workspace-panel-stack" });
 
-    const topGrid = createWorkspaceShell("workspace-top-grid");
-    topGrid.append(
-      this.createControlCard("extension_ui_language", KEY_EXTENSION_LANGUAGE),
-      this.createSummary(enabledLanguages, language, fallbackLanguage, autoLanguageStatus),
-    );
+      const extensionLanguage = createWorkspaceCard(i18n.get("extension_ui_language"));
+      moveControlToBody(this.registry, KEY_EXTENSION_LANGUAGE, extensionLanguage.body);
+      const topGrid = createElement("div", { className: "workspace-top-grid" });
+      topGrid.append(
+        extensionLanguage.card,
+        this.createSummary(enabledLanguages, language, fallbackLanguage, autoLanguageStatus),
+      );
 
-    const lowerGrid = createWorkspaceShell("workspace-main-grid");
-    const languageGridSection = this.createLanguageGridSection(enabledLanguages, usageCounts);
-    languageGridSection.classList.add("workspace-span-full");
-    lowerGrid.append(
-      languageGridSection,
-      ...this.createBehaviorCards(enabledLanguages, language, fallbackLanguage),
-    );
+      const lowerGrid = createElement("div", { className: "workspace-main-grid" });
+      const languageGridSection = this.createLanguageGridSection(enabledLanguages, usageCounts);
+      languageGridSection.classList.add("workspace-span-full");
+      lowerGrid.append(
+        languageGridSection,
+        ...this.createBehaviorCards(enabledLanguages, language, fallbackLanguage),
+      );
 
-    shell.append(topGrid, lowerGrid);
-
-    this.root.replaceChildren(shell);
+      shell.append(topGrid, lowerGrid);
+      return shell;
+    });
     pruneEmptySettingsGroups(this.root);
-  }
-
-  private createControlCard(titleKey: string, controlKey: string): HTMLElement {
-    const { card, body } = createWorkspaceCard(i18n.get(titleKey));
-    moveControlToBody(this.registry, controlKey, body);
-    return card;
   }
 
   private createSummary(
@@ -93,79 +110,61 @@ export class LanguageSettingsPanel {
     fallbackLanguage: string,
     autoLanguageStatus: { language: string; locked: boolean } | null,
   ): HTMLElement {
-    const shell = document.createElement("section");
-    shell.className = "settings-inline-card language-panel-summary";
+    const shell = createInlineCard(i18n.get("language_panel_summary_title"));
+    shell.classList.add("language-panel-summary");
 
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("language_panel_summary_title");
-    shell.appendChild(title);
-
-    const text = document.createElement("p");
-    const primaryLabel =
-      language === "auto_detect" ? i18n.get("language_panel_auto_detect") : languageLabel(language);
     const fallbackLabel = languageLabel(fallbackLanguage);
-    if (enabledLanguages.length > 1) {
-      text.textContent =
-        language === "auto_detect"
-          ? formatTranslation("language_panel_summary_multi", {
-              count: enabledLanguages.length,
-              primary: primaryLabel,
-              fallback: fallbackLabel,
-            })
-          : formatTranslation("language_panel_summary_multi_fixed", {
-              count: enabledLanguages.length,
-              primary: primaryLabel,
-            });
-    } else {
-      text.textContent = formatTranslation("language_panel_summary_single", {
-        language: languageLabel(enabledLanguages[0]),
-      });
-    }
-    shell.appendChild(text);
-
-    if (language === "auto_detect" && autoLanguageStatus?.language) {
-      const activeStatus = document.createElement("p");
-      activeStatus.className = "settings-inline-help";
-      const activeLabel = languageLabel(autoLanguageStatus.language);
-      activeStatus.textContent = formatTranslation("language_panel_auto_detect_current", {
-        language: activeLabel,
-      });
-      if (autoLanguageStatus.locked) {
-        activeStatus.textContent += ` ${i18n.get("language_panel_auto_detect_locked")}`;
-      }
-      shell.appendChild(activeStatus);
-    } else if (language === "auto_detect") {
-      const waitingStatus = document.createElement("p");
-      waitingStatus.className = "settings-inline-help";
-      waitingStatus.textContent = formatTranslation("language_panel_auto_detect_waiting", {
-        language: fallbackLabel,
-      });
-      shell.appendChild(waitingStatus);
-    }
+    const count = enabledLanguages.length;
+    shell.appendChild(
+      createElement("p", {
+        textContent:
+          count <= 1
+            ? formatTranslation("language_panel_summary_single", {
+                language: languageLabel(enabledLanguages[0]),
+              })
+            : language === "auto_detect"
+              ? formatTranslation("language_panel_summary_multi", {
+                  count,
+                  primary: i18n.get("language_panel_auto_detect"),
+                  fallback: fallbackLabel,
+                })
+              : formatTranslation("language_panel_summary_multi_fixed", {
+                  count,
+                  primary: languageLabel(language),
+                }),
+      }),
+    );
 
     if (language === "auto_detect") {
-      const behaviorStatus = document.createElement("p");
-      behaviorStatus.className = "settings-inline-help";
-      behaviorStatus.textContent = autoLanguageStatus?.locked
-        ? i18n.get("language_panel_auto_detect_locked_reason")
-        : autoLanguageStatus?.language
-          ? i18n.get("language_panel_auto_detect_live_reason")
-          : formatTranslation("language_panel_auto_detect_waiting_reason", {
-              language: fallbackLabel,
-            });
-      shell.appendChild(behaviorStatus);
-
-      const learningStatus = document.createElement("p");
-      learningStatus.className = "settings-inline-help";
-      learningStatus.textContent = i18n.get("language_panel_auto_detect_learning");
-      shell.appendChild(learningStatus);
+      const activeLanguage = autoLanguageStatus?.language;
+      const locked = autoLanguageStatus?.locked;
+      shell.append(
+        helpText(
+          activeLanguage
+            ? formatTranslation("language_panel_auto_detect_current", {
+                language: languageLabel(activeLanguage),
+              }) + (locked ? ` ${i18n.get("language_panel_auto_detect_locked")}` : "")
+            : formatTranslation("language_panel_auto_detect_waiting", { language: fallbackLabel }),
+        ),
+        helpText(
+          locked
+            ? i18n.get("language_panel_auto_detect_locked_reason")
+            : activeLanguage
+              ? i18n.get("language_panel_auto_detect_live_reason")
+              : formatTranslation("language_panel_auto_detect_waiting_reason", {
+                  language: fallbackLabel,
+                }),
+        ),
+        helpText(i18n.get("language_panel_auto_detect_learning")),
+      );
     }
 
-    const link = document.createElement("a");
-    link.href = "#site_mgmt_tab";
-    link.textContent = i18n.get("language_panel_site_overrides_link");
-    shell.appendChild(link);
-
+    shell.appendChild(
+      createElement("a", {
+        textContent: i18n.get("language_panel_site_overrides_link"),
+        attributes: { href: "#site_mgmt_tab" },
+      }),
+    );
     return shell;
   }
 
@@ -177,39 +176,12 @@ export class LanguageSettingsPanel {
       i18n.get("options_panel_language_label"),
       i18n.get("options_panel_language_desc"),
     );
-    const section = document.createElement("div");
-    section.className = "language-card-grid";
+    const section = createElement("div", { className: "language-card-grid" });
 
     SUPPORTED_PREDICTION_LANGUAGE_KEYS.forEach((languageKey) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "language-card";
-      if (enabledLanguages.includes(languageKey)) {
-        button.classList.add("is-active");
-      }
-
-      const title = document.createElement("strong");
-      title.textContent = languageLabel(languageKey);
-      button.appendChild(title);
-
-      const meta = document.createElement("span");
-      meta.className = "language-card-meta";
-      const count = usageCounts[languageKey] || 0;
-      meta.textContent =
-        count > 0
-          ? formatTranslation("language_panel_usage_count", { count })
-          : i18n.get("language_panel_site_available");
-      button.appendChild(meta);
-
-      if (count > 0 && enabledLanguages.includes(languageKey)) {
-        const warning = document.createElement("span");
-        warning.className = "language-card-warning";
-        warning.textContent = i18n.get("language_panel_site_override_warning");
-        button.appendChild(warning);
-      }
-
-      button.addEventListener("click", () => {
-        const next = enabledLanguages.includes(languageKey)
+      const enabled = enabledLanguages.includes(languageKey);
+      const button = createButton("", "language-card", () => {
+        const next = enabled
           ? enabledLanguages.filter((entry) => entry !== languageKey)
           : SUPPORTED_PREDICTION_LANGUAGE_KEYS.filter(
               (entry) => entry === languageKey || enabledLanguages.includes(entry),
@@ -219,6 +191,27 @@ export class LanguageSettingsPanel {
         }
         this.registry[KEY_ENABLED_LANGUAGES].set(next);
       });
+      button.classList.toggle("is-active", enabled);
+
+      const count = usageCounts[languageKey] || 0;
+      button.append(
+        createElement("strong", { textContent: languageLabel(languageKey) }),
+        createElement("span", {
+          className: "language-card-meta",
+          textContent:
+            count > 0
+              ? formatTranslation("language_panel_usage_count", { count })
+              : i18n.get("language_panel_site_available"),
+        }),
+      );
+      if (count > 0) {
+        button.appendChild(
+          createElement("span", {
+            className: "language-card-warning",
+            textContent: i18n.get("language_panel_site_override_warning"),
+          }),
+        );
+      }
 
       section.appendChild(button);
     });
@@ -232,87 +225,59 @@ export class LanguageSettingsPanel {
     language: string,
     fallbackLanguage: string,
   ): HTMLElement[] {
-    const primaryCard = document.createElement("section");
-    primaryCard.className = "settings-inline-card";
-    const primaryLabel = document.createElement("label");
-    primaryLabel.textContent = i18n.get("primary_lang_label");
-    primaryCard.appendChild(primaryLabel);
-    const primarySelect = document.createElement("select");
-    primarySelect.className = "input";
-    if (enabledLanguages.length > 1) {
-      const autoDetect = document.createElement("option");
-      autoDetect.value = "auto_detect";
-      autoDetect.textContent = i18n.get("language_panel_auto_detect");
-      primarySelect.appendChild(autoDetect);
+    const multiple = enabledLanguages.length > 1;
+    const primarySelect = createElement("select", { className: "input", id: getUniqueID() });
+    const primaryLabel = createElement("label", { textContent: i18n.get("primary_lang_label") });
+    primaryLabel.htmlFor = primarySelect.id;
+    if (multiple) {
+      primarySelect.appendChild(new Option(i18n.get("language_panel_auto_detect"), "auto_detect"));
     }
     appendLanguageOptions(primarySelect, enabledLanguages);
-    primarySelect.value =
-      language === "auto_detect" && enabledLanguages.length > 1
-        ? "auto_detect"
-        : enabledLanguages.includes(language)
-          ? language
-          : enabledLanguages[0];
+    primarySelect.value = language;
     primarySelect.addEventListener("change", () => {
       this.registry[KEY_LANGUAGE].set(primarySelect.value);
     });
-    primaryCard.appendChild(primarySelect);
-    const primaryHelp = document.createElement("p");
-    primaryHelp.className = "settings-inline-help";
-    primaryHelp.textContent = i18n.get("language_panel_primary_help");
-    primaryCard.appendChild(primaryHelp);
+    const primaryCard = createElement("section", { className: "settings-inline-card" });
+    primaryCard.append(
+      primaryLabel,
+      primarySelect,
+      helpText(i18n.get("language_panel_primary_help")),
+    );
 
-    const detectionCard = document.createElement("section");
-    detectionCard.className = "settings-inline-card";
-    const detectionTitle = document.createElement("label");
-    detectionTitle.textContent = i18n.get("language_panel_detection_title");
-    detectionCard.appendChild(detectionTitle);
-    const detectionCopy = document.createElement("p");
-    detectionCopy.className = "settings-inline-help";
-    detectionCopy.textContent =
-      enabledLanguages.length > 1
-        ? i18n.get("language_panel_detection_multi")
-        : i18n.get("language_panel_detection_single");
-    detectionCard.appendChild(detectionCopy);
-
-    if (enabledLanguages.length > 1) {
-      const stabilityCopy = document.createElement("p");
-      stabilityCopy.className = "settings-inline-help";
-      stabilityCopy.textContent = i18n.get("language_panel_detection_stable");
-      detectionCard.appendChild(stabilityCopy);
-
-      const lockCopy = document.createElement("p");
-      lockCopy.className = "settings-inline-help";
-      lockCopy.textContent = formatTranslation("language_panel_detection_lock_and_fallback", {
-        language: languageLabel(fallbackLanguage),
-      });
-      detectionCard.appendChild(lockCopy);
-    }
-
-    if (enabledLanguages.length > 1 && primarySelect.value === "auto_detect") {
-      const fallbackSelect = document.createElement("select");
-      fallbackSelect.className = "input";
-      appendLanguageOptions(fallbackSelect, enabledLanguages);
-      fallbackSelect.value = enabledLanguages.includes(fallbackLanguage)
-        ? fallbackLanguage
-        : enabledLanguages[0];
-      fallbackSelect.addEventListener("change", () => {
-        this.registry[KEY_FALLBACK_LANGUAGE].set(fallbackSelect.value);
-      });
-      detectionCard.appendChild(fallbackSelect);
+    const detectionCard = createElement("section", { className: "settings-inline-card" });
+    detectionCard.append(
+      createElement("label", { textContent: i18n.get("language_panel_detection_title") }),
+      helpText(
+        i18n.get(multiple ? "language_panel_detection_multi" : "language_panel_detection_single"),
+      ),
+    );
+    if (multiple) {
+      detectionCard.append(
+        helpText(i18n.get("language_panel_detection_stable")),
+        helpText(
+          formatTranslation("language_panel_detection_lock_and_fallback", {
+            language: languageLabel(fallbackLanguage),
+          }),
+        ),
+      );
+      if (language === "auto_detect") {
+        const fallbackSelect = createElement("select", {
+          className: "input",
+          attributes: { "aria-label": i18n.get("fallback_lang_label") },
+        });
+        appendLanguageOptions(fallbackSelect, enabledLanguages);
+        fallbackSelect.value = fallbackLanguage;
+        fallbackSelect.addEventListener("change", () => {
+          this.registry[KEY_FALLBACK_LANGUAGE].set(fallbackSelect.value);
+        });
+        detectionCard.appendChild(fallbackSelect);
+      }
     }
 
     return [primaryCard, detectionCard];
   }
+}
 
-  private countSiteProfileUsage(
-    siteProfiles: Record<string, { language: string }>,
-  ): Record<string, number> {
-    return Object.values(siteProfiles).reduce<Record<string, number>>((acc, profile) => {
-      if (!profile.language) {
-        return acc;
-      }
-      acc[profile.language] = (acc[profile.language] || 0) + 1;
-      return acc;
-    }, {});
-  }
+function helpText(textContent: string): HTMLParagraphElement {
+  return createElement("p", { className: "settings-inline-help", textContent });
 }

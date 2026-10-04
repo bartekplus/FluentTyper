@@ -1,3 +1,4 @@
+import { lowerBound } from "@core/domain/grammar/review/textRanges";
 import type { ProtectedRange, TextRange } from "@core/domain/grammar/review/types";
 import { ZERO_WIDTH_FILLER_CHARS } from "@core/domain/spacingRules";
 import { ancestorContext } from "../suggestions/CodeContextResolver";
@@ -253,44 +254,6 @@ export function buildContentEditableTextMap(root: HTMLElement): ContentEditableT
   };
 }
 
-/** One block of the editor, read on its own, and where its text sits in the whole. */
-export interface BlockText {
-  element: HTMLElement;
-  offset: number;
-  map: ContentEditableTextMap;
-}
-
-/**
- * The nearest block element inside `root` that holds `range`, read on its own,
- * for verifying a write without re-reading the whole editor. Null when there is
- * no such block or its text does not line up exactly with `text` (the whole
- * editor's text, mapped by `map`): the caller then reads everything.
- */
-export function readBlockAt(
-  root: HTMLElement,
-  map: ContentEditableTextMap,
-  range: Range,
-  text: string,
-): BlockText | null {
-  let node: Node | null = range.commonAncestorContainer;
-  while (
-    node &&
-    node !== root &&
-    !(node.nodeType === 1 && BLOCK_TAGS.has((node as Element).tagName.toUpperCase()))
-  ) {
-    node = node.parentNode;
-  }
-  if (!node || node === root) return null;
-  const element = node as HTMLElement;
-  let offset = map.nodeStarts.get(element);
-  if (offset === undefined) return null;
-  const local = buildContentEditableTextMap(element);
-  // The whole map may open the block with a virtual break the block's own read lacks.
-  if (text[offset] === "\n" && !local.text.startsWith("\n")) offset += 1;
-  if (text.slice(offset, offset + local.text.length) !== local.text) return null;
-  return { element, offset, map: local };
-}
-
 /** Snapshot offset of a DOM position (text or element offset), or null when outside the map. */
 export function domPositionToOffset(
   map: ContentEditableTextMap,
@@ -317,16 +280,9 @@ export function domPositionToOffset(
 }
 
 export function segmentContaining(map: ContentEditableTextMap, index: number): TextSegment | null {
-  let low = 0;
-  let high = map.segments.length - 1;
-  while (low <= high) {
-    const middle = (low + high) >> 1;
-    const segment = map.segments[middle];
-    if (index < segment.start) high = middle - 1;
-    else if (index >= segment.end) low = middle + 1;
-    else return segment;
-  }
-  return null;
+  const segment =
+    map.segments[lowerBound(map.segments.length, (i) => map.segments[i].end <= index)];
+  return segment && segment.start <= index ? segment : null;
 }
 
 /** The same text segment a collapsed insertion range attaches to. */

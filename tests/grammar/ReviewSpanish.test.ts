@@ -2542,7 +2542,7 @@ test("Spanish les and os before a plural noun read as the article", () => {
 
 test("a lone Spanish d, n or l before a determiner or noun lost its vowel", () => {
   const fixes = (text: string) =>
-    findings("spanishConfusions", text).map((d) => d.alternatives.map((a) => a.label ?? ""));
+    findings("spanishConfusions", text).map((d) => d.alternatives.map((a) => a.preview));
   expect(findings("spanishConfusions", "Habló d su viaje a Roma.")).toHaveLength(1);
   expect(findings("spanishConfusions", "Vive n esta calle desde niño.")).toHaveLength(1);
   expect(findings("spanishConfusions", "Ayer l perro ladró toda la noche.")).toHaveLength(1);

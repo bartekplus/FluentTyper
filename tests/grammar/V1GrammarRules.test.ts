@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { GrammarContext } from "../../src/core/domain/grammar/types";
+import { context, edit, typeText } from "./grammarTestUtils";
 import { CapitalizeSentenceStartRule } from "../../src/core/domain/grammar/implementations/CapitalizeSentenceStartRule";
 import { CapitalizeAfterLineBreakRule } from "../../src/core/domain/grammar/implementations/CapitalizeAfterLineBreakRule";
 import { CommaPeriodSpacingRule } from "../../src/core/domain/grammar/implementations/CommaPeriodSpacingRule";
@@ -12,45 +12,21 @@ import { CollapseRepeatedSpacesRule } from "../../src/core/domain/grammar/implem
 import { TrimSpaceBeforeLineBreakRule } from "../../src/core/domain/grammar/implementations/TrimSpaceBeforeLineBreakRule";
 import { ZERO_WIDTH_FILLER_CHARS } from "../../src/core/domain/spacingRules";
 
-function context(beforeCursor: string, hints?: GrammarContext["hints"]): GrammarContext {
-  return {
-    beforeCursor,
-    afterCursor: "",
-    ...(hints ? { hints } : {}),
-  };
-}
-
 describe("V1 grammar rules", () => {
   describe("CapitalizeSentenceStartRule", () => {
     test("capitalizes sequence start and sentence start after punctuation", () => {
       const rule = new CapitalizeSentenceStartRule();
 
-      expect(rule.apply(context("hello "))).toEqual({
-        replacement: "Hello ",
-        deleteBackwards: 6,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("hello "))).toEqual(edit("Hello ", 6));
 
-      expect(rule.apply(context("Hello. world "))).toEqual({
-        replacement: "World ",
-        deleteBackwards: 6,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("Hello. world "))).toEqual(edit("World ", 6));
 
-      expect(rule.apply(context("hello,\n"))).toEqual({
-        replacement: "Hello,\n",
-        deleteBackwards: 7,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("hello,\n"))).toEqual(edit("Hello,\n", 7));
     });
 
     test("supports optional closing quotes/brackets after sentence punctuation", () => {
       const rule = new CapitalizeSentenceStartRule();
-      expect(rule.apply(context('Hello." world '))).toEqual({
-        replacement: "World ",
-        deleteBackwards: 6,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context('Hello." world '))).toEqual(edit("World ", 6));
     });
 
     test("waits for the word boundary", () => {
@@ -58,7 +34,6 @@ describe("V1 grammar rules", () => {
       expect(rule.apply(context("h"))).toBeNull();
       expect(rule.apply(context("Hello. w"))).toBeNull();
       expect(rule.apply(context("hello  "))).toBeNull();
-      expect(rule.apply(context("hello ", { inputAction: "delete" }))).toBeNull();
     });
 
     test("does not capitalize without sentence boundary gap", () => {
@@ -87,17 +62,9 @@ describe("V1 grammar rules", () => {
     test("capitalizes a completed word after one or more line breaks", () => {
       const rule = new CapitalizeAfterLineBreakRule();
 
-      expect(rule.apply(context("Hello\nworld "))).toEqual({
-        replacement: "World ",
-        deleteBackwards: 6,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("Hello\nworld "))).toEqual(edit("World ", 6));
 
-      expect(rule.apply(context("Hello\n\n   world\n"))).toEqual({
-        replacement: "World\n",
-        deleteBackwards: 6,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("Hello\n\n   world\n"))).toEqual(edit("World\n", 6));
     });
 
     test("does not capitalize without line break context or before the word is complete", () => {
@@ -120,60 +87,33 @@ describe("V1 grammar rules", () => {
       expect(rule.apply(context("Hello.w", prose))).toBeNull();
       // The user's space after it confirms the sentence end, and the stray
       // spaces before it go.
-      expect(rule.apply(context("Hello . ", prose))).toEqual({
-        replacement: ". ",
-        deleteBackwards: 3,
-        deleteForwards: 0,
-      });
-      expect(rule.apply(context("Hello  . ", prose))).toEqual({
-        replacement: ". ",
-        deleteBackwards: 4,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("Hello . ", prose))).toEqual(edit(". ", 3));
+      expect(rule.apply(context("Hello  . ", prose))).toEqual(edit(". ", 4));
       expect(rule.apply(context("Hello. ", prose))).toBeNull();
       // "?" and "!" close the same way, keeping the typed mark.
       for (const mark of ["?", "!", "؟"]) {
-        expect(rule.apply(context(`Really ${mark} `, prose))).toEqual({
-          replacement: `${mark} `,
-          deleteBackwards: 3,
-          deleteForwards: 0,
-        });
+        expect(rule.apply(context(`Really ${mark} `, prose))).toEqual(edit(`${mark} `, 3));
         expect(rule.apply(context(`Really ${mark}`, prose))).toBeNull();
         expect(rule.apply(context(`Really${mark} `, prose))).toBeNull();
       }
       // French keeps its space before high punctuation; Canadian French does not.
       expect(rule.apply(context("Vraiment ? ", { ...prose, lang: "fr_FR" }))).toBeNull();
-      expect(rule.apply(context("Vraiment ? ", { ...prose, lang: "fr_CA" }))).toEqual({
-        replacement: "? ",
-        deleteBackwards: 3,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("Vraiment ? ", { ...prose, lang: "fr_CA" }))).toEqual(
+        edit("? ", 3),
+      );
       expect(rule.apply(context("x != ", prose))).toBeNull();
       expect(rule.apply(context("Path .. ", prose))).toBeNull();
-      expect(rule.apply(context("Hello   ,"))).toEqual({
-        replacement: ", ",
-        deleteBackwards: 4,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("Hello   ,"))).toEqual(edit(", ", 4));
     });
 
-    test("respects delete-intent suppression and insertSpaceAfterAutocomplete=false", () => {
-      const insertRule = new CommaPeriodSpacingRule(true);
+    test("respects insertSpaceAfterAutocomplete=false", () => {
       const noInsertRule = new CommaPeriodSpacingRule(false);
 
-      expect(insertRule.apply(context("Hello,", { inputAction: "delete" }))).toBeNull();
-      expect(insertRule.apply(context("Hello . ", { inputAction: "delete" }))).toBeNull();
       expect(noInsertRule.apply(context("Hello,"))).toBeNull();
-      expect(noInsertRule.apply(context("Hello . ", { inputAction: "insert" }))).toEqual({
-        replacement: ". ",
-        deleteBackwards: 3,
-        deleteForwards: 0,
-      });
-      expect(noInsertRule.apply(context("Hello   ,"))).toEqual({
-        replacement: ",",
-        deleteBackwards: 4,
-        deleteForwards: 0,
-      });
+      expect(noInsertRule.apply(context("Hello . ", { inputAction: "insert" }))).toEqual(
+        edit(". ", 3),
+      );
+      expect(noInsertRule.apply(context("Hello   ,"))).toEqual(edit(",", 4));
     });
 
     test("only completes deferred numeric punctuation for direct prose typing", () => {
@@ -184,11 +124,7 @@ describe("V1 grammar rules", () => {
         measurementContext: "prose" as const,
       };
 
-      expect(rule.apply(context("There were 2,a", prose))).toEqual({
-        replacement: ", a",
-        deleteBackwards: 2,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("There were 2,a", prose))).toEqual(edit(", a", 2));
       expect(rule.apply(context("Values: 1.5", prose))).toBeNull();
       expect(rule.apply(context("Values: 1,2", prose))).toBeNull();
       expect(rule.apply(context("Value 1.e", prose))).toBeNull();
@@ -208,7 +144,7 @@ describe("V1 grammar rules", () => {
         inputAction: "insert" as const,
         measurementContext: "prose" as const,
       };
-      const spaced = { replacement: ", ", deleteBackwards: 1, deleteForwards: 0 };
+      const spaced = edit(", ", 1);
 
       // Deferring in a context the repair cannot reach would drop the space forever.
       expect(rule.apply({ ...context("There were 2,", prose), afterCursor: "xyz" })).toEqual(
@@ -227,10 +163,11 @@ describe("V1 grammar rules", () => {
         let text = "";
         for (const char of input) {
           text += char;
-          const edit = rule.apply(
+          const result = rule.apply(
             context(text, { lang, inputAction: "insert", measurementContext: "prose" }),
           );
-          if (edit) text = text.slice(0, text.length - edit.deleteBackwards) + edit.replacement;
+          if (result)
+            text = text.slice(0, text.length - result.deleteBackwards) + result.replacement;
         }
         return text;
       };
@@ -259,11 +196,7 @@ describe("V1 grammar rules", () => {
 
     test("closes a quote tight after a comma", () => {
       const rule = new CommaPeriodSpacingRule(true);
-      expect(rule.apply(context('"Hi, "'))).toEqual({
-        replacement: '"',
-        deleteBackwards: 2,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context('"Hi, "'))).toEqual(edit('"', 2));
     });
 
     test("treats zero-width fillers as ignorable separators for duplicate commas", () => {
@@ -272,21 +205,19 @@ describe("V1 grammar rules", () => {
       for (const filler of ZERO_WIDTH_FILLER_CHARS) {
         expect(rule.apply(context(`Hello,${filler},`))).toBeNull();
         expect(rule.apply(context(`Hello,\u00A0${filler},`))).toBeNull();
+        // The fillers before a typed comma go with the spaces.
+        expect(rule.apply(context(`word ${filler},`))).toEqual(edit(", ", 3));
       }
     });
   });
 
   describe("OpeningBracketSpacingRule", () => {
     test("keeps a bracket typed against a word attached", () => {
-      const rule = new OpeningBracketSpacingRule(true);
+      const rule = new OpeningBracketSpacingRule();
 
       expect(rule.apply(context("item("))).toBeNull();
 
-      expect(rule.apply(context("if (x){"))).toEqual({
-        replacement: " {",
-        deleteBackwards: 1,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("if (x){"))).toEqual(edit(" {", 1));
 
       expect(rule.apply(context("console.log("))).toBeNull();
       expect(rule.apply(context("myArray["))).toBeNull();
@@ -297,26 +228,16 @@ describe("V1 grammar rules", () => {
     test("removes inner pre-close spaces and adds prose trailing space", () => {
       const rule = new ClosingBracketSpacingRule(true);
 
-      expect(rule.apply(context("foo(bar() )"))).toEqual({
-        replacement: ")",
-        deleteBackwards: 2,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("foo(bar() )"))).toEqual(edit(")", 2));
 
-      expect(rule.apply(context("Hello (world)"))).toEqual({
-        replacement: ") ",
-        deleteBackwards: 1,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("Hello (world)"))).toEqual(edit(") ", 1));
 
       expect(rule.apply(context("foo(bar())"))).toBeNull();
     });
 
-    test("supports delete-intent suppression and no trailing-space mode", () => {
-      const withInsert = new ClosingBracketSpacingRule(true);
+    test("supports no trailing-space mode", () => {
       const noInsert = new ClosingBracketSpacingRule(false);
 
-      expect(withInsert.apply(context("Hello (world)", { inputAction: "delete" }))).toBeNull();
       expect(noInsert.apply(context("Hello (world)"))).toBeNull();
     });
   });
@@ -325,60 +246,34 @@ describe("V1 grammar rules", () => {
     test("compacts protocol spacing and applies operator spacing only in operator context", () => {
       const rule = new SlashContextSpacingRule(true);
 
-      expect(rule.apply(context("https: /"))).toEqual({
-        replacement: "/",
-        deleteBackwards: 2,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("https: /"))).toEqual(edit("/", 2));
 
-      expect(rule.apply(context("x /"))).toEqual({
-        replacement: "/ ",
-        deleteBackwards: 1,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("x /"))).toEqual(edit("/ ", 1));
 
       expect(rule.apply(context("src/"))).toBeNull();
       expect(rule.apply(context("</"))).toBeNull();
-    });
-
-    test("does not re-insert the space after the slash when the user deletes it", () => {
-      const rule = new SlashContextSpacingRule(true);
-
-      expect(rule.apply(context("A /", { inputAction: "delete" }))).toBeNull();
     });
   });
 
   describe("MathOperatorSpacingRule", () => {
     test("normalizes compact math/operator forms in safe contexts", () => {
-      const rule = new MathOperatorSpacingRule(true);
+      const rule = new MathOperatorSpacingRule();
 
-      expect(rule.apply(context("x=y"))).toEqual({
-        replacement: "x = y",
-        deleteBackwards: 3,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("x=y"))).toEqual(edit("x = y", 3));
 
-      expect(rule.apply(context("y+1"))).toEqual({
-        replacement: "y + 1",
-        deleteBackwards: 3,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("y+1"))).toEqual(edit("y + 1", 3));
 
-      expect(rule.apply(context("x*y"))).toEqual({
-        replacement: "x * y",
-        deleteBackwards: 3,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("x*y"))).toEqual(edit("x * y", 3));
     });
 
     test("does not alter comparator chains or prose-like compact tokens", () => {
-      const rule = new MathOperatorSpacingRule(true);
+      const rule = new MathOperatorSpacingRule();
       expect(rule.apply(context("x==y"))).toBeNull();
       expect(rule.apply(context("foo+b"))).toBeNull();
     });
 
     test("leaves HTML attributes inside an open tag alone", () => {
-      const rule = new MathOperatorSpacingRule(true);
+      const rule = new MathOperatorSpacingRule();
       expect(rule.apply(context('<span title="'))).toBeNull();
       expect(rule.apply(context('<img src="a.png" alt="'))).toBeNull();
       expect(rule.apply(context("Use <td colspan=2"))).toBeNull();
@@ -390,20 +285,16 @@ describe("V1 grammar rules", () => {
 
   describe("TechnicalTokenCompactionRule", () => {
     test("compacts time/ratio spacing but never a digit-period-digit sentence", () => {
-      const rule = new TechnicalTokenCompactionRule(true);
+      const rule = new TechnicalTokenCompactionRule();
 
       // "We sold 12. 5 were returned" is a sentence boundary, not a decimal.
       expect(rule.apply(context("3. 1"))).toBeNull();
 
-      expect(rule.apply(context("12: 3"))).toEqual({
-        replacement: ":3",
-        deleteBackwards: 3,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("12: 3"))).toEqual(edit(":3", 3));
     });
 
     test("preserves spacing after dotted words without language-specific detection", () => {
-      const rule = new TechnicalTokenCompactionRule(true);
+      const rule = new TechnicalTokenCompactionRule();
       expect(rule.apply(context("Hello. w"))).toBeNull();
       expect(rule.apply(context("old_word. X"))).toBeNull();
       expect(rule.apply(context("Read on. Duplicate. W"))).toBeNull();
@@ -421,17 +312,14 @@ describe("V1 grammar rules", () => {
     test("collapses repeated trailing spaces outside indentation context", () => {
       const rule = new CollapseRepeatedSpacesRule();
 
-      expect(rule.apply(context("hello  "))).toEqual({
-        replacement: " ",
-        deleteBackwards: 2,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("hello  "))).toEqual(edit(" ", 2));
 
-      expect(rule.apply(context("hello   "))).toEqual({
-        replacement: " ",
-        deleteBackwards: 3,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("hello   "))).toEqual(edit(" ", 3));
+    });
+
+    test("leaves two spaces to doubleSpaceToPeriod when a space sends two events", () => {
+      for (const docs of [false, true])
+        expect(typeText("Hello  ", { sequence: true, docs }).beforeCursor).toBe("Hello. ");
     });
 
     test("preserves indentation-like leading spaces", () => {
@@ -445,17 +333,9 @@ describe("V1 grammar rules", () => {
     test("trims spaces before newline", () => {
       const rule = new TrimSpaceBeforeLineBreakRule();
 
-      expect(rule.apply(context("Hello \n"))).toEqual({
-        replacement: "\n",
-        deleteBackwards: 2,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("Hello \n"))).toEqual(edit("\n", 2));
 
-      expect(rule.apply(context("Hello   \n"))).toEqual({
-        replacement: "\n",
-        deleteBackwards: 4,
-        deleteForwards: 0,
-      });
+      expect(rule.apply(context("Hello   \n"))).toEqual(edit("\n", 4));
     });
 
     test("does not edit when no trailing spaces precede newline", () => {

@@ -12,7 +12,7 @@ interface CacheEntry {
 /**
  * Short-lived cache for per-domain runtime settings.
  *
- * `resolveDomainRuntimeSettings` performs 5 parallel chrome.storage reads on
+ * `resolveDomainRuntimeSettings` performs several chrome.storage reads on
  * every call. During rapid typing each keystroke triggers a new prediction
  * request, so without this cache those reads dominate end-to-end latency.
  *

@@ -12,19 +12,11 @@ interface SuggestionElementDiscoveryOptions {
 }
 
 export class SuggestionElementDiscovery {
-  private readonly selectors: string;
-  private readonly isCandidateElementPredicate: (elem: HTMLElement) => elem is SuggestionElement;
-  private readonly onShadowRootDiscovered?: (root: ShadowRoot) => void;
-
-  constructor(options: SuggestionElementDiscoveryOptions) {
-    this.selectors = options.selectors;
-    this.isCandidateElementPredicate = options.isCandidateElement;
-    this.onShadowRootDiscovered = options.onShadowRootDiscovered;
-  }
+  constructor(private readonly options: SuggestionElementDiscoveryOptions) {}
 
   public queryCandidates(root?: Element): SuggestionElement[] {
     let elements: Element[];
-    if (root instanceof Element && root.matches(this.selectors)) {
+    if (root instanceof Element && root.matches(this.options.selectors)) {
       elements = [root, ...this.deepQuerySelectorAll(root)];
     } else {
       elements = this.deepQuerySelectorAll(root ?? document);
@@ -33,14 +25,14 @@ export class SuggestionElementDiscovery {
   }
 
   private deepQuerySelectorAll(root: Element | ShadowRoot | Document): Element[] {
-    const results: Element[] = Array.from(root.querySelectorAll(this.selectors));
+    const results: Element[] = Array.from(root.querySelectorAll(this.options.selectors));
     if (root instanceof Element && root.shadowRoot) {
-      this.onShadowRootDiscovered?.(root.shadowRoot);
+      this.options.onShadowRootDiscovered?.(root.shadowRoot);
       results.push(...this.deepQuerySelectorAll(root.shadowRoot));
     }
     for (const el of Array.from(root.querySelectorAll("*"))) {
       if (el.shadowRoot) {
-        this.onShadowRootDiscovered?.(el.shadowRoot);
+        this.options.onShadowRootDiscovered?.(el.shadowRoot);
         results.push(...this.deepQuerySelectorAll(el.shadowRoot));
       }
     }
@@ -50,7 +42,7 @@ export class SuggestionElementDiscovery {
   private isEligibleElement(elem: Element): elem is SuggestionElement {
     return (
       elem instanceof HTMLElement &&
-      this.isCandidateElementPredicate(elem) &&
+      this.options.isCandidateElement(elem) &&
       isVisiblyInteractive(elem)
     );
   }

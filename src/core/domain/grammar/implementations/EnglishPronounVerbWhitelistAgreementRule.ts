@@ -1,5 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { matchTrailingEnglishPhrase, opensClause } from "./helpers/EnglishRuleShared";
+import { matchTrailingEnglishPhrase, opensClause, replaceFrom } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
 export const AGREEMENT_REGEX = /\b(i\s+is|i\s+has|you\s+was|(he|she|it)\s+are)(\s+\S+)$/i;
@@ -24,8 +24,8 @@ export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
     const { boundary: boundaryContext, match, phraseStart } = matched;
     const phrase = match[1];
 
-    const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase());
-    if (!corrected) {
+    const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "))!;
+    if (phrase.split(/\s+/)[0] === "i" && isVariableI(boundaryContext.core, phraseStart)) {
       return null;
     }
     // "Getting away from you was the point": the same guard as Review.
@@ -35,12 +35,24 @@ export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
 
     const [pronoun, verb] = correctPronounVerb(phrase, corrected);
 
-    return {
-      replacement: `${pronoun} ${verb}${match[3] ?? ""}${boundaryContext.trailing}`,
-      deleteBackwards: boundaryContext.input.length - phraseStart,
-      deleteForwards: 0,
-    };
+    return replaceFrom(
+      boundaryContext,
+      phraseStart,
+      `${pronoun}${phrase.match(/\s+/)![0]}${verb}${match[3]}`,
+    );
   }
+}
+
+// "i is"/"i has" is a variable after a condition or an identifier word ("while i has
+// items", "the i has"); "if i go" is still the pronoun, so this only guards those verbs.
+// Review uses the identifier words in a different order: the build finds that string to
+// make sure that Review detection is not in a content script.
+const VARIABLE_CONTEXT_BEFORE =
+  /\b(?:if|while|until|unless|whether|when|where|the|a|each|every|index|variable|counter|iterator|loop)\s+$/i;
+
+/** True when the lowercase "i" at `start` is a variable: "if i is None", "the i has". */
+export function isVariableI(text: string, start: number): boolean {
+  return VARIABLE_CONTEXT_BEFORE.test(text.slice(Math.max(0, start - 24), start));
 }
 
 /** [pronoun, verb] of `corrected` ("i am") in the case of the typed `phrase`. */

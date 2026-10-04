@@ -33,7 +33,6 @@ import { CurrencySpacingRule } from "./implementations/CurrencySpacingRule";
 
 export function createGrammarRuleCatalogRuntime(options: {
   insertSpaceAfterAutocomplete: boolean;
-  userDictionaryList: string[];
 }): GrammarRule[] {
   const insertSpaceAfterAutocomplete = options.insertSpaceAfterAutocomplete;
 
@@ -43,30 +42,26 @@ export function createGrammarRuleCatalogRuntime(options: {
     capitalizeAfterLineBreak: new CapitalizeAfterLineBreakRule(),
     englishPronounICapitalization: new EnglishPronounICapitalizationRule(),
     englishContractionNormalization: new EnglishContractionNormalizationRule(),
-    englishTypoWhitelistCorrection: new EnglishTypoWhitelistCorrectionRule(
-      options.userDictionaryList,
-    ),
+    englishTypoWhitelistCorrection: new EnglishTypoWhitelistCorrectionRule(),
     doubleSpaceToPeriod: new DoubleSpaceToPeriodRule(),
     englishModalOfCorrection: new EnglishModalOfCorrectionRule(),
     englishYourWelcomeCorrection: new EnglishYourWelcomeCorrectionRule(),
     englishTheirThereBeVerb: new EnglishTheirThereBeVerbRule(),
-    englishAlotCorrection: new EnglishAlotCorrectionRule(options.userDictionaryList),
+    englishAlotCorrection: new EnglishAlotCorrectionRule(),
     englishPronounVerbWhitelistAgreement: new EnglishPronounVerbWhitelistAgreementRule(),
-    englishArticleAnCorrection: new EnglishArticleAnCorrectionRule(options.userDictionaryList),
+    englishArticleAnCorrection: new EnglishArticleAnCorrectionRule(),
     englishOrdinalSuffix: new EnglishOrdinalSuffixRule(),
-    englishProperNounCapitalization: new EnglishProperNounCapitalizationRule(
-      options.userDictionaryList,
-    ),
+    englishProperNounCapitalization: new EnglishProperNounCapitalizationRule(),
 
     // Spacing and punctuation rules share the autocomplete spacing toggle.
     commaPeriodSpacing: new CommaPeriodSpacingRule(insertSpaceAfterAutocomplete),
-    openingBracketSpacing: new OpeningBracketSpacingRule(insertSpaceAfterAutocomplete),
+    openingBracketSpacing: new OpeningBracketSpacingRule(),
     closingBracketSpacing: new ClosingBracketSpacingRule(insertSpaceAfterAutocomplete),
     slashContextSpacing: new SlashContextSpacingRule(insertSpaceAfterAutocomplete),
-    mathOperatorSpacing: new MathOperatorSpacingRule(insertSpaceAfterAutocomplete),
+    mathOperatorSpacing: new MathOperatorSpacingRule(),
     measurementUnitFormatting: new MeasurementUnitFormattingRule(),
     currencySpacing: new CurrencySpacingRule(),
-    technicalTokenCompaction: new TechnicalTokenCompactionRule(insertSpaceAfterAutocomplete),
+    technicalTokenCompaction: new TechnicalTokenCompactionRule(),
     collapseRepeatedSpaces: new CollapseRepeatedSpacesRule(),
     trimSpaceBeforeLineBreak: new TrimSpaceBeforeLineBreakRule(),
 

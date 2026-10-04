@@ -4,11 +4,9 @@ import {
   resolvePredictionInputAction,
   type SuggestionEntrySessionContentEditableAdapter,
 } from "../src/adapters/chrome/content-script/suggestions/SuggestionEntryPredictionContext";
-import { createSuggestionEntry } from "./suggestionTestUtils";
-import type {
-  ExtensionEditSnapshot,
-  SuggestionSnapshot,
-} from "../src/adapters/chrome/content-script/suggestions/types";
+import { createEditor, setCaret } from "./codeContextTestUtils";
+import { createPendingEdit, createSuggestionEntry } from "./suggestionTestUtils";
+import type { SuggestionSnapshot } from "../src/adapters/chrome/content-script/suggestions/types";
 
 const defaultContentEditableAdapter: SuggestionEntrySessionContentEditableAdapter = {
   getBlockContext: () => null,
@@ -16,30 +14,6 @@ const defaultContentEditableAdapter: SuggestionEntrySessionContentEditableAdapte
   isCollapsedSelectionBeforeBlockBoundary: () => false,
   getPreviousBlockTextBySelection: () => null,
 };
-
-function createGrammarPendingEdit(overrides: Partial<ExtensionEditSnapshot> = {}) {
-  return {
-    replaceStart: 0,
-    originalText: "",
-    replacementText: "",
-    cursorBefore: 0,
-    cursorAfter: 0,
-    postEditFingerprint: {
-      fullText: "",
-      cursorOffset: 0,
-      selectionCollapsed: true,
-    },
-    source: "grammar" as const,
-    ...overrides,
-  };
-}
-
-function createContentEditableElement(): HTMLDivElement {
-  const editable = document.createElement("div");
-  editable.setAttribute("contenteditable", "true");
-  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-  return editable;
-}
 
 function createContentEditableAdapter(
   overrides: Partial<SuggestionEntrySessionContentEditableAdapter> = {},
@@ -76,7 +50,7 @@ describe("resolveEditableCursorContext", () => {
   });
 
   test("falls back to previous block text when caret sits on an empty block boundary", () => {
-    const entry = createSuggestionEntry({ elem: createContentEditableElement() });
+    const entry = createSuggestionEntry({ elem: createEditor("") });
     const snapshot: SuggestionSnapshot = {
       beforeCursor: "Alpha",
       afterCursor: "",
@@ -111,7 +85,7 @@ describe("resolveEditableCursorContext", () => {
   });
 
   test("seeds a typed key into an empty block when the host reports it only after the caret", () => {
-    const entry = createSuggestionEntry({ elem: createContentEditableElement() });
+    const entry = createSuggestionEntry({ elem: createEditor("") });
     const snapshot: SuggestionSnapshot = {
       beforeCursor: "",
       afterCursor: "A",
@@ -151,7 +125,7 @@ describe("resolveEditableCursorContext", () => {
 
   function resolveAtFirstBlockEnd(afterCursor: string) {
     return resolveEditableCursorContext({
-      entry: createSuggestionEntry({ elem: createContentEditableElement() }),
+      entry: createSuggestionEntry({ elem: createEditor("") }),
       snapshot: { beforeCursor: "ok brb", afterCursor, cursorOffset: 6 },
       contentEditableAdapter: createContentEditableAdapter({
         getBlockContext: () => ({ beforeCursor: "ok brb", afterCursor: "" }),
@@ -175,28 +149,19 @@ describe("resolveEditableCursorContext", () => {
   // Firefox's input path resolves the context without a precomputed snapshot,
   // so the merge check must read what follows the caret from the live DOM.
   function resolveAtFirstBlockEndWithoutSnapshot(html: string) {
-    const elem = createContentEditableElement();
-    elem.innerHTML = html;
-    document.body.appendChild(elem);
-    const range = document.createRange();
-    range.setStart(elem.firstChild!.firstChild!, "ok brb".length);
-    window.getSelection()!.removeAllRanges();
-    window.getSelection()!.addRange(range);
-    try {
-      return resolveEditableCursorContext({
-        entry: createSuggestionEntry({ elem }),
-        snapshot: null,
-        contentEditableAdapter: createContentEditableAdapter({
-          getBlockContext: () => ({ beforeCursor: "ok brb", afterCursor: "" }),
-          isCollapsedSelectionBeforeBlockBoundary: () => true,
-        }),
-        hasMultipleBlockDescendants: true,
-        inputAction: "insert",
-        typedKey: "b",
-      }).beforeCursor;
-    } finally {
-      elem.remove();
-    }
+    const elem = createEditor(html);
+    setCaret(elem.firstChild!.firstChild!, "ok brb".length);
+    return resolveEditableCursorContext({
+      entry: createSuggestionEntry({ elem }),
+      snapshot: null,
+      contentEditableAdapter: createContentEditableAdapter({
+        getBlockContext: () => ({ beforeCursor: "ok brb", afterCursor: "" }),
+        isCollapsedSelectionBeforeBlockBoundary: () => true,
+      }),
+      hasMultipleBlockDescendants: true,
+      inputAction: "insert",
+      typedKey: "b",
+    }).beforeCursor;
   }
 
   test("keeps the whole line above another block when no snapshot is provided", () => {
@@ -210,8 +175,9 @@ describe("resolveEditableCursorContext", () => {
   });
 
   test("seeds a pending grammar replacement into block-local prediction context", () => {
-    const entry = createSuggestionEntry({ elem: createContentEditableElement() });
-    entry.pendingExtensionEdit = createGrammarPendingEdit({
+    const entry = createSuggestionEntry({ elem: createEditor("") });
+    entry.pendingExtensionEdit = createPendingEdit({
+      source: "grammar",
       replaceStart: 6,
       replacementText: "world",
     });
@@ -250,12 +216,45 @@ describe("resolveEditableCursorContext", () => {
       safeForGrammar: true,
     });
   });
+
+  // Regression: a merged snapshot already ends with the replacement ("AlphaP" became "AlphaPP").
+  test.each(["", "z"])(
+    "keeps a merged grammar snapshot as it is (text after the block caret: %p)",
+    (blockAfter) => {
+      const entry = createSuggestionEntry({ elem: createEditor("") });
+      entry.pendingExtensionEdit = createPendingEdit({
+        source: "grammar",
+        replaceStart: 5,
+        originalText: "p",
+        replacementText: "P",
+      });
+      const snapshot: SuggestionSnapshot = {
+        beforeCursor: "AlphaP",
+        afterCursor: "",
+        cursorOffset: 6,
+      };
+
+      const context = resolveEditableCursorContext({
+        entry,
+        snapshot,
+        contentEditableAdapter: createContentEditableAdapter({
+          getBlockContext: () => ({ beforeCursor: "AlphaP", afterCursor: blockAfter }),
+          isCollapsedSelectionBeforeBlockBoundary: () => true,
+        }),
+        hasMultipleBlockDescendants: true,
+        inputAction: "insert",
+      });
+
+      expect(context.snapshot).toEqual(snapshot);
+      expect(context.afterCursor).toBe(blockAfter);
+      expect(context.applyContext?.afterCursor).toBe(blockAfter);
+    },
+  );
 });
 
 describe("resolvePredictionInputAction", () => {
   test("prefers event inputType when resolving the prediction action", () => {
-    const inputEvent = new Event("input") as Event & { inputType?: string };
-    inputEvent.inputType = "deleteContentBackward";
+    const inputEvent = new window.InputEvent("input", { inputType: "deleteContentBackward" });
     const action = resolvePredictionInputAction(inputEvent, "hell", {
       lastKeydownKey: null,
       lastBeforeCursorText: "hello",

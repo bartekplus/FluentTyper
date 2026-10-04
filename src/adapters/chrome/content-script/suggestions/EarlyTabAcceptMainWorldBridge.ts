@@ -43,14 +43,15 @@ function findManagedSuggestionTarget(start: HTMLElement, doc: Document): HTMLEle
 }
 
 function resolveManagedSuggestionTarget(event: KeyboardEvent, doc: Document): HTMLElement | null {
-  const path = typeof event.composedPath === "function" ? event.composedPath() : [event.target];
-  for (const node of path) {
-    if (node instanceof HTMLElement) {
-      const match = findManagedSuggestionTarget(node, doc);
-      if (match) {
-        return match;
-      }
-    }
+  // The composed path already holds every ancestor of the target.
+  const match = event
+    .composedPath()
+    .find(
+      (node): node is HTMLElement =>
+        node instanceof HTMLElement && isManagedSuggestionTarget(node, doc),
+    );
+  if (match) {
+    return match;
   }
 
   const activeElement = gutenbergSelectedField(doc.activeElement);
@@ -103,11 +104,8 @@ export function installEarlyTabAcceptMainWorldBridge(doc: Document = document): 
     )
       return;
 
-    const entryId = target.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
-    if (!entryId) {
-      return;
-    }
-
+    // isManagedSuggestionTarget checked that the entry id is not empty.
+    const entryId = target.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR)!;
     win.postMessage(
       {
         source: EARLY_TAB_ACCEPT_REQUEST_EVENT,
@@ -139,14 +137,3 @@ export function uninstallEarlyTabAcceptMainWorldBridge(doc: Document = document)
 
   delete win[EARLY_TAB_ACCEPT_MAIN_WORLD_FLAG];
 }
-
-export {
-  EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
-  EARLY_TAB_ACCEPT_ENABLED_ATTR,
-  EARLY_TAB_ACCEPT_ENTRY_ID_ATTR,
-  EARLY_TAB_ACCEPT_MESSAGE_TYPE,
-  EARLY_TAB_ACCEPT_REQUEST_EVENT,
-  EARLY_TAB_ACCEPT_VISIBLE_ATTR,
-};
-
-export const resetEarlyTabAcceptMainWorldBridgeForTests = uninstallEarlyTabAcceptMainWorldBridge;

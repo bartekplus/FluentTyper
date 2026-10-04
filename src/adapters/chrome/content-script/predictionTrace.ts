@@ -5,14 +5,8 @@ export interface PredictionTraceContext {
   traceStartedAtMs: number;
 }
 
-export function createPredictionTraceContext(
-  startedAtMs: number = Date.now(),
-  traceId?: string,
-): PredictionTraceContext {
-  return {
-    traceId: traceId ?? `pred-${randomUUID()}`,
-    traceStartedAtMs: startedAtMs,
-  };
+export function createPredictionTraceContext(): PredictionTraceContext {
+  return { traceId: `pred-${randomUUID()}`, traceStartedAtMs: Date.now() };
 }
 
 export function resolveTraceAgeMs(traceStartedAtMs?: number): number | null {

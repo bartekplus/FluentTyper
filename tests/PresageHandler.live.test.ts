@@ -1,4 +1,4 @@
-import { createLiveConfig, createLiveHandler } from "./support/presageLive";
+import { createLiveConfig, createLiveHandler, runPrediction } from "./support/presageLive";
 
 describe("PresageHandler live user dictionary", () => {
   test("custom words appear in suggestions when userDictionaryList is set", async () => {
@@ -11,7 +11,7 @@ describe("PresageHandler live user dictionary", () => {
       userDictionaryList: ["fluenttypertest"],
     });
 
-    const result = await handler.runPrediction("fluenttypert", "", "en_US");
+    const result = await runPrediction(handler, "fluenttypert", "", "en_US");
     expect(result.predictions.map((p) => p.trim())).toContain("fluenttypertest");
   });
 });
@@ -21,7 +21,7 @@ describe("PresageHandler live text expansion config refresh", () => {
     const handler = await createLiveHandler();
 
     handler.setConfig(createLiveConfig([["asap", "as soon as possible"]]));
-    await expect(handler.runPrediction("asap", "", "textExpander")).resolves.toEqual({
+    await expect(runPrediction(handler, "asap", "", "textExpander")).resolves.toEqual({
       predictions: ["as soon as possible "],
     });
 
@@ -32,7 +32,7 @@ describe("PresageHandler live text expansion config refresh", () => {
       ]),
     );
 
-    const refreshed = await handler.runPrediction("asap", "", "textExpander");
+    const refreshed = await runPrediction(handler, "asap", "", "textExpander");
 
     expect(refreshed.predictions).toHaveLength(2);
     expect(refreshed.predictions).toEqual(
@@ -54,12 +54,11 @@ describe("PresageHandler live personalized ranking", () => {
     handler.setConfig({
       ...createLiveConfig([]),
       numSuggestions: 3,
-      engineNumSuggestions: 10,
       insertSpaceAfterAutocomplete: false,
       personalizationEnabled: true,
     });
 
-    const result = await handler.runPrediction("th", "", "en_US");
+    const result = await runPrediction(handler, "th", "", "en_US");
 
     expect(result.predictions).toEqual(["through", "the", "that"]);
   });
