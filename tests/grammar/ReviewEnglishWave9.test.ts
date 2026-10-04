@@ -258,6 +258,14 @@ test("no chunk stalls on runs of this wave's frame words", () => {
     "I complaint cause though bit apologies helped carrying used to goes ".repeat(500),
     "if is either nor want wanted greater that 10 there after be replaces ".repeat(500),
     "go went gone going goes ".repeat(800),
+    // verbSlots, nounSlots and agreementFrames: long chains between "and" and an -s word,
+    // "of" heads, "it", modals and "Here".
+    "It reads files words lines and print does not means ".repeat(400),
+    "the reports of the outage data is one of our client the worlds best ".repeat(300),
+    "Here the specs of the phone of the case of the box ".repeat(300),
+    "it make sense can someone wrote will based the US try this make no ".repeat(300),
+    `${"a ".repeat(2000)}lot`,
+    `there are ${"many ".repeat(1500)}computer`,
   ])
     expect(Math.min(slowestChunkMs(text), slowestChunkMs(text))).toBeLessThan(30);
 });
