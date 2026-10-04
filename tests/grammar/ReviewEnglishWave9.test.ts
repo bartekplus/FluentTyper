@@ -116,6 +116,17 @@ test.each([
   ["That car is one of the kind.", "That car is one of a kind."],
   ["This is the most common errors.", "This is the most common error."],
   ["This is most popular game.", "This is the most popular game."],
+  ["This make no sense.", "This makes no sense."],
+  ["I hope that look nice.", "I hope that looks nice."],
+  ["Peter did went home.", "Peter did go home."],
+  ["Sadly, one of our client decided to go.", "Sadly, one of our clients decided to go."],
+  ["They sell items of all kind of shapes.", "They sell items of all kinds of shapes."],
+  ["The shop has a collection of book.", "The shop has a collection of books."],
+  ["We are all animal.", "We are all animals."],
+  ["There are a few computer to test.", "There are a few computers to test."],
+  ["Tom has already complaint about it.", "Tom has already complained about it."],
+  ["He is bagging for mercy.", "He is begging for mercy."],
+  ["My begs are full.", "My bags are full."],
 ])("repairs %s", (input, expected) => {
   const found = review(input);
   expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -211,6 +222,18 @@ test.each([
   "I look forward to the trip.",
   "This is most likely wrong.",
   "It has no signed contract.",
+  "This make of car is rare.",
+  "That sound was loud.",
+  "This felt so wrong.",
+  "One of the best is here.",
+  "I like the best of all time.",
+  "A range of motion is normal.",
+  "We are all set.",
+  "There are many people here.",
+  "There are 101 file sharing tools.",
+  "A couple of model predicted values.",
+  "I beg of you.",
+  "Those standing were all men.",
 ])("leaves %s", (text) => {
   expect(review(text).map((d) => d.original)).toEqual([]);
 });

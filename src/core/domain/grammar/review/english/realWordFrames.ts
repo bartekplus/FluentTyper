@@ -127,7 +127,7 @@ function verbOfNoun(noun: string): { verb: string; plural: boolean } | null {
   const verb = nounVerb(noun);
   return verb ? { verb, plural: /s$/.test(noun) && !/ss$/.test(noun) } : null;
 }
-function nounVerb(noun: string): string | null {
+export function nounVerb(noun: string): string | null {
   const singular = /ies$/.test(noun)
     ? `${noun.slice(0, -3)}y`
     : /(?:[^s]s|ss)$/.test(noun) && !/ss$/.test(noun)

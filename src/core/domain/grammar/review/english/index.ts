@@ -58,6 +58,7 @@ import * as clauseGaps from "./clauseGaps";
 import * as misheardWords from "./misheardWords";
 import * as verbSlots from "./verbSlots";
 import * as nounSlots from "./nounSlots";
+import * as agreementFrames from "./agreementFrames";
 
 const MODULES = [
   fixedPhrases,
@@ -119,6 +120,7 @@ const MODULES = [
   misheardWords,
   verbSlots,
   nounSlots,
+  agreementFrames,
 ];
 export const EXTENSION_PHRASES = MODULES.flatMap((m) => m.PHRASES);
 export const EXTENSION_COMPOUNDS = MODULES.flatMap((m) => m.COMPOUNDS);
