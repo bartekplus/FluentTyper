@@ -1224,7 +1224,22 @@ export const STYLE: readonly PhraseRow[] = [
   ...forms(["reporter", "reporte", "reporté"], "à plus tard"),
   ...forms(["s'esclaffer", "s'esclaffe", "s'esclaffent"], "de rire"),
   ...forms(["prédire", "prédit", "prédisent"], "l'avenir"),
+  ...forms(["anéantir", "anéantit", "anéanti", "anéantie", "anéantis"], "complètement"),
+  ...forms(["commencer", "commence", "commencent", "commencé"], "d'abord par", [
+    "commencer par",
+    "commence par",
+    "commencent par",
+    "commencé par",
+  ]),
   ...rows(`
+complètement anéanti = anéanti
+complètement anéantie = anéantie
+double alternative = alternative
+doubles alternatives = alternatives
+opportunité de pouvoir = opportunité de
+occasion de pouvoir = occasion de
+en direct live = en direct
+live en direct = en direct
 mais pourtant = mais; pourtant
 mais cependant = mais; cependant
 mais néanmoins = mais; néanmoins
