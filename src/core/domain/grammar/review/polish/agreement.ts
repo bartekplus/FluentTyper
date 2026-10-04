@@ -155,7 +155,9 @@ function prepositionCase(ctx: DetectContext): RawFinding[] {
     const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
     if (!prepositionClash(prep.toLowerCase(), noun, before)) continue;
     const start = m.index + m[0].length - noun.length;
-    const fixes = recased(noun, governedBy(prep.toLowerCase(), before)!);
+    // "z" takes the accusative only for a rough amount ("z godzinę"): no fix offers it.
+    const wanted = governedBy(prep.toLowerCase(), before)!;
+    const fixes = recased(noun, /^ze?$/iu.test(prep) ? wanted & ~cases("As Ap") : wanted);
     findings.push({
       ...findingAt(ctx, start, start + noun.length, fixes, RULE, "review_msg_pl_preposition_case"),
       context: { start: m.index, end: start + noun.length },

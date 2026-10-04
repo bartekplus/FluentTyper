@@ -122,6 +122,9 @@ function verbAt(list: readonly Word[], i: number): boolean {
   // "to znaczy", "to jest" (that is) and "na chybił trafił" link; they are no predicate.
   if (list[i - 1]?.lower === "to" && /^(?:znaczy|jest)$/u.test(word)) return false;
   if (/^(?:chybił|trafił)$/u.test(word)) return false;
+  // "prze siebie", "prze piękny": a typo for "przed", "przez" or "prze-" (typos.ts), not "przeć".
+  if (word === "prze" && /^(?:siebie|ze|zemnie)$|y$|a$|e$/u.test(list[i + 1]?.lower ?? ""))
+    return false;
   // "może" is also "maybe", unless an infinitive follows ("może być").
   if (word === "może") return INFINITIVE.test(list[i + 1]?.lower ?? "");
   if (PREDICATIVE.test(word) || finiteVerb(word) || impersonalVerb(word)) return true;

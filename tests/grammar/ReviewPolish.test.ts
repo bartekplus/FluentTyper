@@ -135,6 +135,9 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
     {
       pos: [
         ["Skłam najlepsze życzenia.", "Składam najlepsze życzenia."],
+        ["Widok z wieży był prze piękny.", "Widok z wieży był przepiękny."],
+        ["Pies pobiegł prze siebie.", "Pies pobiegł przed siebie."],
+        ["Ten tort upieczono prze ze mnie.", "Ten tort upieczono przeze mnie."],
         ["Spacerowali wzdłuż polnej drużki.", "Spacerowali wzdłuż polnej dróżki."],
         ["Z daleka widać kilku wierz kościoła.", "Z daleka widać kilku wież kościoła."],
         ["Kupiłem lakier do podług w hurtowni.", "Kupiłem lakier do podłóg w hurtowni."],
@@ -204,6 +207,8 @@ export const POLISH_CASES: Array<[CatalogRuleId, string, Case]> = [
         ["Długo się wahał się z odpowiedzią.", "Długo się wahał z odpowiedzią."],
       ],
       neg: [
+        "Tłum prze naprzód.",
+        "Woda prze z całą siłą na tamę.",
         "Drużki szły za panną młodą.",
         "Wiejska drużka niosła kwiaty.",
         "Wierz mi, to prawda.",
