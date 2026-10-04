@@ -184,6 +184,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchHomophones",
     {
       pos: [
+        ["Julien à travaillé toute la nuit.", "Julien a travaillé toute la nuit."],
         ["Julie à raison sur ce point.", "Julie a raison sur ce point."],
         ["La voiture à toujours un pneu crevé.", "La voiture a toujours un pneu crevé."],
         ["Hélène à le dos fragile.", "Hélène a le dos fragile."],
@@ -296,6 +297,8 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Le trajet dure prêt de trois heures.", "Le trajet dure près de trois heures."],
       ],
       neg: [
+        "Merci à tous pour votre aide.",
+        "Bienvenue à bord du navire.",
         "Face à une demande forte, ils construisent.",
         "La tarte à la crème est prête.",
         "Il a été accusé à tort.",

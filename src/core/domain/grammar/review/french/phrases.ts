@@ -576,7 +576,15 @@ de d'autres = d'autres
     "80",
     "90",
     "2000",
+    // "les années 1970": every decade from 1900 to 2020.
+    ...Array.from({ length: 13 }, (_, i) => String(1900 + i * 10)).filter((d) => d !== "2000"),
   ].map((decade): PhraseRow => [`des ans ${decade}`, `des années ${decade}`]),
+  ...rows(`
+an-lumière = année-lumière
+ans-lumière = années-lumière
+ans-lumières = années-lumière
+ans lumière = années-lumière
+`),
   // Subject + elided "ne" or object glued to the auxiliary.
   ...one(["il ~", "elle ~", "on ~", "qui ~"], "na", "n'a"),
   ...one(["ils ~", "elles ~", "qui ~"], "mont", "m'ont"),
@@ -1054,6 +1062,43 @@ quoique je fasse = quoi que je fasse
 quoique tu dises = quoi que tu dises
 quoique vous disiez = quoi que vous disiez
 entant que = en tant que
+bailler d'ennui = bâiller d'ennui
+baille d'ennui = bâille d'ennui
+baillent d'ennui = bâillent d'ennui
+baillait d'ennui = bâillait d'ennui
+me la bâillez belle = me la baillez belle
+me la bayez belle = me la baillez belle
+l'avait bâillé belle = l'avait baillé belle
+l'avait bayé belle = l'avait baillé belle
+un baille = un bail
+dizaines de foie = dizaines de fois
+centaines de foie = centaines de fois
+preuve de foie = preuve de foi
+peu de foie = peu de foi
+deux foies = deux fois
+trois foies = trois fois
+plusieurs foies = plusieurs fois
+quelques foies = quelques fois
+fois de volaille = foie de volaille
+fois de veau = foie de veau
+de bonne foies = de bonne foi
+emprunt de douleur = empreint de douleur
+emprunt de tristesse = empreint de tristesse
+emprunt de nostalgie = empreint de nostalgie
+belle emprunte = belle empreinte
+magnifique emprunte = magnifique empreinte
+mis à pars = mis à part
+fois pars an = fois par an
+fois pars jour = fois par jour
+chemise en soi = chemise en soie
+foulard en soi = foulard en soie
+draps en soi = draps en soie
+robe en soi = robe en soie
+cravate en soi = cravate en soie
+près pour le départ = prêt pour le départ
+près au décollage = prêt au décollage
+demande de prés = demande de prêt
+offre de près = offre de prêt
 `),
   // "au court de tennis" is the court: only a time word or a possessive after "de" marks "cours".
   ...one(

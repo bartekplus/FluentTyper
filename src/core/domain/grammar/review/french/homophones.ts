@@ -163,9 +163,11 @@ function graveToA(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // A name or "qui", then a participle. A noun + "à" + participle is as often an infinitive
   // misspelt ("une eau à captée"), and "à tout" a locution ("réponse à tout").
   if (!after[0] || !isParticiple(after[0].w) || clitics.length) return null;
+  // "Paul à travaillé": a first name opening the sentence counts too.
   const name =
     /^\p{Lu}/u.test(ctx.text.slice(subject.start, subject.end)) &&
-    !sentenceStart(ctx.text, subject.start);
+    (!sentenceStart(ctx.text, subject.start) ||
+      (before.length === 1 && subjectOpens(ctx.text, before, i)));
   return name || subject.w === "qui" ? fix("a") : null;
 }
 
