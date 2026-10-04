@@ -1,40 +1,15 @@
 import { expect, test } from "bun:test";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
-import type {
-  ReviewOptions,
-  ReviewSourceSnapshot,
-} from "../../src/core/domain/grammar/review/types";
+import {
+  expectChunkSplitParity,
+  expectOneRepair,
+  expectReviewGuards,
+  prepared,
+  review,
+} from "./grammarTestUtils";
 const rule = "englishPerfectParticiples";
-function all(
-  text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-  options: Partial<ReviewOptions> = {},
-) {
-  return detectReviewDiagnostics(
-    {
-      id: "participles",
-      text,
-      scope: { start: 0, end: text.length },
-      protectedRanges: [],
-      ...extra,
-    },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  ).diagnostics;
-}
-const scan = (text: string) => all(text).filter((d) => d.ruleId === rule);
+const scan = (text: string) => review(text).diagnostics.filter((d) => d.ruleId === rule);
 const errors: [string, string][] = [
   ["I have went through the report.", "I have gone through the report."],
   ["She has wrote the summary.", "She has written the summary."],
@@ -118,16 +93,10 @@ const errors: [string, string][] = [
   ["The bell has rang.", "The bell has rung."],
 ];
 test.each(errors)("perfect participles repair %s", (source, expected) => {
-  const findings = scan(source);
-  expect(findings).toHaveLength(1);
-  const d = findings[0];
-  expect(d.original).toBe(source.slice(d.range.start, d.range.end));
-  expect(d.bulk.eligible).toBe(false);
+  const d = expectOneRepair(scan(source), source, expected, scan);
   expect(d.alternatives[0].edits).toHaveLength(1);
   expect(d.context.start).toBeLessThan(d.range.start);
   expect(d.context.end).toBeGreaterThan(d.range.end);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
   for (const e of d.alternatives[0].edits) {
     expect(e.start).toBeGreaterThanOrEqual(d.range.start);
     expect(e.end).toBeLessThanOrEqual(d.range.end);
@@ -241,7 +210,9 @@ test.each([
 test("agreement owns a wrong auxiliary, then the participle recheck only changes the verb", () => {
   const source = "They has went home.";
   expect(scan(source)).toEqual([]);
-  const agreement = all(source).filter((d) => d.ruleId === "englishPronounVerbWhitelistAgreement");
+  const agreement = review(source).diagnostics.filter(
+    (d) => d.ruleId === "englishPronounVerbWhitelistAgreement",
+  );
   expect(agreement).toHaveLength(1);
   const next = applyEdits(source, agreement[0].alternatives[0].edits);
   expect(next).toBe("They have went home.");
@@ -253,36 +224,21 @@ test("agreement owns a wrong auxiliary, then the participle recheck only changes
 });
 test("perfect participles preserve dictionary, language, scope and protected evidence", () => {
   const text = "I have went through the report.";
-  const d = scan(text)[0];
-  const only = (extra: Partial<ReviewSourceSnapshot>, options: Partial<ReviewOptions> = {}) =>
-    all(text, extra, { enabledRules: [rule], ...options });
-  expect(only({}, { lang: "fr_FR" })).toEqual([]);
-  expect(only({}, { userDictionary: ["went"] })).toEqual([]);
-  expect(only({ protectedRanges: [{ ...d.range, reason: "code" }] })).toEqual([]);
-  expect(only({ scope: { start: d.range.start + 1, end: d.range.end } })).toEqual([]);
-  expect(only({ scope: d.range })).toHaveLength(1);
-  expect(only({ id: "new" })[0].id).not.toBe(d.id);
+  expectReviewGuards(
+    (text, extra, options) => review(text, extra, { enabledRules: [rule], ...options }).diagnostics,
+    text,
+    scan(text)[0],
+    { dictionaryWord: "went", protectedReason: "code" },
+  );
   expect(scan("I have saw\uFFFC the results.")).toEqual([]);
 });
 test.each([
   '😀 Café.\r\nShe said, "I have went home." We have ran the tests.',
   "😀 Ok. The car was stole. I'm work on it now; she is write a letter.",
 ])("participle frames own one chunk and keep UTF-16 offsets: %s", (text) => {
-  const prepared = prepareReview(
-    { id: "chunks", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "en_US", enabledRules: [rule], userDictionary: [], insertSpaceAfterAutocomplete: true },
-  );
   const expected = scan(text);
   expect(expected).toHaveLength(text.includes("stole") ? 3 : 2);
-  for (let cut = 1; cut < text.length; cut++) {
-    const raw = [
-      ...scanReviewChunk(prepared, { start: 0, end: cut }).findings,
-      ...scanReviewChunk(prepared, { start: cut, end: text.length }).findings,
-    ].sort((a, b) => a.range.start - b.range.start);
-    expect(raw.map((d) => [d.range, text.slice(d.range.start, d.range.end)])).toEqual(
-      expected.map((d) => [d.range, d.original]),
-    );
-  }
+  expectChunkSplitParity(prepared(text, {}, { enabledRules: [rule] }), text, expected);
 });
 
 const progressive: [string, string, string][] = [
@@ -378,13 +334,8 @@ const afterBe: [string, string][] = [
   ["IT WAS WROTE IN 2019.", "IT WAS WRITTEN IN 2019."],
 ];
 test.each(afterBe)("be takes the participle: %s", (source, expected) => {
-  const findings = scan(source);
-  expect(findings).toHaveLength(1);
-  const d = findings[0];
+  const d = expectOneRepair(scan(source), source, expected, scan);
   expect(d.requiresChoice).toBeUndefined();
-  expect(d.bulk.eligible).toBe(false);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
 });
 
 const baseAfterBe: [string, string, string][] = [

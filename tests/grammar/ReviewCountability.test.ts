@@ -1,40 +1,14 @@
 import { expect, test } from "bun:test";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
-import type {
-  ReviewOptions,
-  ReviewSourceSnapshot,
-} from "../../src/core/domain/grammar/review/types";
+import {
+  expectChunkSplitParity,
+  expectOneRepair,
+  expectReviewGuards,
+  prepared,
+  review,
+} from "./grammarTestUtils";
 const rule = "englishCountability";
-function all(
-  text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-  options: Partial<ReviewOptions> = {},
-) {
-  return detectReviewDiagnostics(
-    {
-      id: "countability",
-      text,
-      scope: { start: 0, end: text.length },
-      protectedRanges: [],
-      ...extra,
-    },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  ).diagnostics;
-}
-const scan = (text: string) => all(text).filter((d) => d.ruleId === rule);
+const scan = (text: string) => review(text).diagnostics.filter((d) => d.ruleId === rule);
 const repairs: [string, string][] = [
   ["The page contains useful informations.", "The page contains useful information."],
   ["This guide provides helpful informations.", "This guide provides helpful information."],
@@ -86,16 +60,9 @@ const repairs: [string, string][] = [
   ["I observed 9 phenomenon.", "I observed 9 phenomena."],
 ];
 test.each(repairs)("countability repair %s", (source, expected) => {
-  const findings = scan(source);
-  expect(findings).toHaveLength(1);
-  const d = findings[0];
-  expect(d.original).toBe(source.slice(d.range.start, d.range.end));
-  expect(d.bulk.eligible).toBe(false);
+  const d = expectOneRepair(scan(source), source, expected, scan);
   expect(d.alternatives).toHaveLength(1);
   expect(d.context.start).toBeLessThan(d.range.start);
-  expect(d.context.end).toBeGreaterThanOrEqual(d.range.end);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
 });
 const valid = [
   'The term "one criteria." is quoted.',
@@ -203,16 +170,14 @@ test.each(valid)("countability preserves %s", (text) => expect(scan(text)).toEqu
 test("countability preserves quantities, protected evidence and independent controls", () => {
   expect(TYPING_RULE_IDS as readonly string[]).not.toContain(rule);
   for (const [text] of [repairs[0], repairs[12], repairs[24], repairs[36]]) {
-    const d = scan(text)[0];
-    const only = (extra: Partial<ReviewSourceSnapshot>, options: Partial<ReviewOptions> = {}) =>
-      all(text, extra, { enabledRules: [rule], ...options });
-    expect(only({}, { lang: "fr_FR" })).toEqual([]);
-    expect(only({}, { enabledRules: [] })).toEqual([]);
-    expect(only({}, { userDictionary: [d.original] })).toEqual([]);
-    expect(only({ protectedRanges: [{ ...d.range, reason: "structure" }] })).toEqual([]);
-    expect(only({ scope: { start: d.range.start + 1, end: d.range.end } })).toEqual([]);
-    expect(only({ scope: d.range })).toHaveLength(1);
-    expect(only({ id: "next" })[0].id).not.toBe(d.id);
+    expectReviewGuards(
+      (text, extra, options) =>
+        review(text, extra, { enabledRules: [rule], ...options }).diagnostics,
+      text,
+      scan(text)[0],
+      { protectedReason: "structure" },
+    );
+    expect(review(text, {}, { enabledRules: [] }).diagnostics).toEqual([]);
   }
   expect(scan("The page contains useful\uFFFC informations.")).toEqual([]);
   expect(scan("Thanks for the\tuseful advices.")).toHaveLength(1);
@@ -221,21 +186,9 @@ test("countability preserves quantities, protected evidence and independent cont
 test("countability owns one chunk and exposes all specialist evidence", () => {
   const text =
     '😀 Café.\r\nShe said, "Thanks for the helpful advices." This is one important criteria.';
-  const prepared = prepareReview(
-    { id: "chunks", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "en_US", enabledRules: [rule], userDictionary: [], insertSpaceAfterAutocomplete: true },
-  );
   const expected = scan(text);
   expect(expected).toHaveLength(2);
-  for (let cut = 1; cut < text.length; cut++) {
-    const raw = [
-      ...scanReviewChunk(prepared, { start: 0, end: cut }).findings,
-      ...scanReviewChunk(prepared, { start: cut, end: text.length }).findings,
-    ].sort((a, b) => a.range.start - b.range.start);
-    expect(raw.map((d) => [d.range, text.slice(d.range.start, d.range.end)])).toEqual(
-      expected.map((d) => [d.range, d.original]),
-    );
-  }
+  expectChunkSplitParity(prepared(text, {}, { enabledRules: [rule] }), text, expected);
   const base = "The page contains useful informations; ordinary prose.";
   const d = scan(base)[0];
   expect(d.context.end).toBe(base.length);

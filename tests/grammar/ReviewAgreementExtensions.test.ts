@@ -1,10 +1,5 @@
 import { expect, test } from "bun:test";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
+import { scanReviewChunk } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import {
   EnglishPronounVerbWhitelistAgreementRule,
@@ -15,25 +10,15 @@ import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import { expectOneRepair, expectReviewGuards, prepared, review } from "./grammarTestUtils";
 
 const pronoun = "englishPronounVerbWhitelistAgreement";
 const existential = "englishExistentialAgreement";
-function scan(
+const scan = (
   text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-  options: Partial<ReviewOptions> = {},
-) {
-  return detectReviewDiagnostics(
-    { id: "agreement", text, scope: { start: 0, end: text.length }, protectedRanges: [], ...extra },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  ).diagnostics;
-}
+  extra?: Partial<ReviewSourceSnapshot>,
+  options?: Partial<ReviewOptions>,
+) => review(text, extra, options).diagnostics;
 const only = (text: string, rule: typeof pronoun | typeof existential) =>
   scan(text).filter((d) => d.ruleId === rule);
 
@@ -78,16 +63,10 @@ for (const [rule, cases] of [
   [existential, existentialErrors],
 ] as const) {
   test.each(cases)(`${rule} repairs %s`, (source, expected) => {
-    const findings = only(source, rule);
-    expect(findings).toHaveLength(1);
-    const d = findings[0];
-    expect(d.original).toBe(source.slice(d.range.start, d.range.end));
+    const d = expectOneRepair(only(source, rule), source, expected, (text) => only(text, rule));
     expect(d.alternatives[0].edits).toHaveLength(1);
-    expect(d.bulk.eligible).toBe(false);
     expect(d.context.start).toBeLessThan(d.range.start);
     expect(d.context.end).toBeGreaterThan(d.range.end);
-    expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-    expect(only(expected, rule)).toEqual([]);
   });
 }
 
@@ -210,38 +189,18 @@ test("dictionary, language, protection, selections and new snapshot IDs stay iso
     ["There is two errors.", existential],
   ] as const) {
     const d = only(text, rule)[0];
-    expect(scan(text, {}, { enabledRules: [rule], lang: "fr_FR" })).toEqual([]);
-    expect(scan(text, {}, { enabledRules: [rule], userDictionary: [d.original] })).toEqual([]);
-    expect(
-      scan(text, { protectedRanges: [{ ...d.range, reason: "code" }] }, { enabledRules: [rule] }),
-    ).toEqual([]);
-    expect(
-      scan(
-        text,
-        { scope: { start: d.range.start + 1, end: d.range.end } },
-        { enabledRules: [rule] },
-      ),
-    ).toEqual([]);
-    expect(scan(text, { scope: d.range }, { enabledRules: [rule] })).toHaveLength(1);
-    expect(scan(text, { id: "next" }, { enabledRules: [rule] })[0].id).not.toBe(d.id);
+    expectReviewGuards((t, e, o) => scan(t, e, { enabledRules: [rule], ...o }), text, d, {
+      protectedReason: "code",
+    });
   }
 });
 
 test("verb ownership crosses chunks without changing quantity, noun or Unicode offsets", () => {
   const text = "😀 Café́.\r\nThere is 12 errors in the report.";
-  const options = {
-    lang: "en_US",
-    enabledRules: [existential],
-    userDictionary: [],
-    insertSpaceAfterAutocomplete: true,
-  };
-  const prepared = prepareReview(
-    { id: "edge", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    options,
-  );
+  const chunks = prepared(text, {}, { enabledRules: [existential] });
   const start = text.indexOf("is");
-  expect(scanReviewChunk(prepared, { start: 0, end: start }).findings).toEqual([]);
-  expect(scanReviewChunk(prepared, { start, end: text.length }).findings).toHaveLength(1);
+  expect(scanReviewChunk(chunks, { start: 0, end: start }).findings).toEqual([]);
+  expect(scanReviewChunk(chunks, { start, end: text.length }).findings).toHaveLength(1);
   expect(applyEdits(text, only(text, existential)[0].alternatives[0].edits)).toBe(
     text.replace("is", "are"),
   );
@@ -316,11 +275,7 @@ test.each([
   ["We usually takes the bus.", "We usually take the bus."],
   ["I does the dishes.", "I do the dishes."],
 ])("pronoun agreement covers I, clause ends and lexical verbs: %s", (source, expected) => {
-  const findings = only(source, pronoun);
-  expect(findings).toHaveLength(1);
-  expect(findings[0].bulk.eligible).toBe(false);
-  expect(applyEdits(source, findings[0].alternatives[0].edits)).toBe(expected);
-  expect(only(expected, pronoun)).toEqual([]);
+  expectOneRepair(only(source, pronoun), source, expected, (text) => only(text, pronoun));
 });
 test.each([
   "He cut the rope.",

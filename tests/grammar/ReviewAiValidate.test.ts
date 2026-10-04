@@ -1,6 +1,5 @@
 import conservativeCorpus from "../fixtures/conservative-review.json";
 import { describe, expect, test } from "bun:test";
-import { prepareReview } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import {
   REVIEW_LOCAL_AI_CHECK,
@@ -14,6 +13,7 @@ import {
   correctionFindings,
   rewriteProposal,
 } from "../../src/core/domain/grammar/review/ai/validate";
+import { prepared as prepare } from "./grammarTestUtils";
 
 interface Extra {
   scope?: TextRange;
@@ -22,21 +22,11 @@ interface Extra {
   maxChunkChars?: number;
 }
 
-function prepared(text: string, extra: Extra = {}) {
-  return prepareReview(
-    {
-      id: "snap",
-      text,
-      scope: extra.scope ?? { start: 0, end: text.length },
-      protectedRanges: extra.protectedRanges ?? [],
-    },
-    {
-      lang: "en_US",
-      enabledRules: [],
-      userDictionary: extra.userDictionary ?? [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  );
+function prepared(
+  text: string,
+  { scope = { start: 0, end: text.length }, protectedRanges = [], userDictionary = [] }: Extra = {},
+) {
+  return prepare(text, { scope, protectedRanges }, { enabledRules: [], userDictionary });
 }
 
 /**

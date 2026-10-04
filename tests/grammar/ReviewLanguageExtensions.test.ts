@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import {
   reviewLanguageScope,
   reviewRuleIds,
@@ -7,14 +6,14 @@ import {
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { review } from "./grammarTestUtils";
 
 type Fixture = { pos: Array<[string, string]>; neg: string[] };
 
 function findings(ruleId: CatalogRuleId, text: string, lang: string) {
-  return detectReviewDiagnostics(
-    { id: "ext", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { enabledRules: [ruleId], lang, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => d.ruleId === ruleId);
+  return review(text, {}, { enabledRules: [ruleId], lang }).diagnostics.filter(
+    (d) => d.ruleId === ruleId,
+  );
 }
 
 /** English rules Review extends to other languages with their own bounded tables. */

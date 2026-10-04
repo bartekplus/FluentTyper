@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
-import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 import type { GrammarContext } from "../../src/core/domain/grammar/types";
+import { typeText } from "./grammarTestUtils";
 
 const RULE = "englishProperNounCapitalization";
 const DEFAULTS: string[] = DEFAULT_CURRENT_GRAMMAR_RULES;
@@ -16,27 +16,14 @@ function type(
   hints: GrammarContext["hints"] = {},
   userDictionaryList: string[] = [],
 ): string {
-  const engine = new GrammarRuleEngine();
-  for (const item of createGrammarRuleCatalogRuntime({
-    insertSpaceAfterAutocomplete: true,
+  const { beforeCursor, afterCursor } = typeText(input, {
+    hints: { measurementContext: undefined, ...hints },
+    rules,
+    sequence: true,
+    sentenceEndBoundary: true,
     userDictionaryList,
-  })) {
-    engine.registerRule(item);
-  }
-  let state: GrammarContext = {
-    beforeCursor: "",
-    afterCursor: "",
-    hints: { lang: "en_US", inputAction: "insert", ...hints },
-  };
-  for (const char of input) {
-    state.beforeCursor += char;
-    const events: ("insertChar" | "wordBoundary")[] =
-      char === " " || char === "\n" ? ["wordBoundary"] : ["insertChar"];
-    if (/[.!?]/.test(char)) events.push("wordBoundary");
-    const edit = engine.processSequence(events, state, rules);
-    if (edit) state = applyGrammarEditToContext(state, edit);
-  }
-  return state.beforeCursor + state.afterCursor;
+  });
+  return beforeCursor + afterCursor;
 }
 
 function expectFixed(input: string, expected: string): void {

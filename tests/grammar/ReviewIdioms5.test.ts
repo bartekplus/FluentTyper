@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review } from "./grammarTestUtils";
 
 const RULES = new Set([
   "englishPhraseCorrections",
@@ -12,17 +12,10 @@ const RULES = new Set([
   "englishSentenceStructure",
   "stylePhrasing",
 ]);
-function findings(text: string) {
-  return detectReviewDiagnostics(
-    { id: "idioms5", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => RULES.has(d.ruleId));
-}
+const findings = (text: string) =>
+  review(text, {}, { enabledRules: REVIEW_SUPPORTED_RULE_IDS }).diagnostics.filter((d) =>
+    RULES.has(d.ruleId),
+  );
 const repairsOf = (text: string) =>
   findings(text).flatMap((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));
 
@@ -192,7 +185,7 @@ describe("Review idioms5: fixed expressions and their context (M-Z)", () => {
     expect(repairsOf(typed)).toContain(repaired);
   });
 
-  test.each(silent.map((text) => [text]))("stays silent: %s", (text) => {
+  test.each(silent)("stays silent: %s", (text) => {
     expect(findings(text).map((d) => d.ruleId)).toEqual([]);
   });
 

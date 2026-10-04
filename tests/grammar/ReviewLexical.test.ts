@@ -6,8 +6,8 @@ import {
   englishListedWithoutPlural,
 } from "../../src/core/domain/grammar/implementations/helpers/EnglishLexicon";
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review as runReview } from "./grammarTestUtils";
 
 // Lexicon-backed checks of english/lexical.ts. All sentences are our own.
 const RULES = new Set([
@@ -17,17 +17,10 @@ const RULES = new Set([
   "englishYourYouAre",
   "styleRedundancy",
 ]);
-function review(text: string) {
-  return detectReviewDiagnostics(
-    { id: "lex", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      lang: "en_US",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => RULES.has(d.ruleId));
-}
+const review = (text: string) =>
+  runReview(text, {}, { enabledRules: REVIEW_SUPPORTED_RULE_IDS }).diagnostics.filter((d) =>
+    RULES.has(d.ruleId),
+  );
 
 const positives = [
   // Regularized irregular verbs, past or participle by the word before.
@@ -128,13 +121,12 @@ test.each(negatives)("lexical checks stay silent: %s", (text) => {
 
 test("the user dictionary protects a word", () => {
   const text = "Two womans waved at us.";
-  const findings = detectReviewDiagnostics(
-    { id: "lex", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+  const findings = runReview(
+    text,
+    {},
     {
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      lang: "en_US",
+      enabledRules: REVIEW_SUPPORTED_RULE_IDS,
       userDictionary: ["womans"],
-      insertSpaceAfterAutocomplete: true,
     },
   ).diagnostics.filter((d) => RULES.has(d.ruleId));
   expect(findings).toEqual([]);

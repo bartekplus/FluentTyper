@@ -5,6 +5,17 @@ import { CommaPeriodSpacingRule } from "../../src/core/domain/grammar/implementa
 import { DuplicatePunctuationCollapseRule } from "../../src/core/domain/grammar/implementations/DuplicatePunctuationCollapseRule";
 import { ZERO_WIDTH_FILLER_CHARS } from "../../src/core/domain/spacingRules";
 
+function recordingRule(id: string, log: string[]): GrammarRule {
+  return {
+    id,
+    triggers: ["insertChar"],
+    apply: () => {
+      log.push(id);
+      return null;
+    },
+  };
+}
+
 describe("GrammarRuleEngine", () => {
   let engine: GrammarRuleEngine;
 
@@ -14,27 +25,8 @@ describe("GrammarRuleEngine", () => {
 
   test("pipeline ordering triggers rules in sequence of registration", () => {
     const applyOrder: string[] = [];
-
-    const rule1: GrammarRule = {
-      id: "rule1",
-      triggers: ["insertChar"],
-      apply: () => {
-        applyOrder.push("rule1");
-        return null;
-      },
-    };
-
-    const rule2: GrammarRule = {
-      id: "rule2",
-      triggers: ["insertChar"],
-      apply: () => {
-        applyOrder.push("rule2");
-        return null;
-      },
-    };
-
-    engine.registerRule(rule1);
-    engine.registerRule(rule2);
+    engine.registerRule(recordingRule("rule1", applyOrder));
+    engine.registerRule(recordingRule("rule2", applyOrder));
 
     engine.process("insertChar", { beforeCursor: "test", afterCursor: "" });
 
@@ -43,27 +35,8 @@ describe("GrammarRuleEngine", () => {
 
   test("enabledRules filter prevents disabled rules from running", () => {
     const applyOrder: string[] = [];
-
-    const rule1: GrammarRule = {
-      id: "rule1",
-      triggers: ["insertChar"],
-      apply: () => {
-        applyOrder.push("rule1");
-        return null;
-      },
-    };
-
-    const rule2: GrammarRule = {
-      id: "rule2",
-      triggers: ["insertChar"],
-      apply: () => {
-        applyOrder.push("rule2");
-        return null;
-      },
-    };
-
-    engine.registerRule(rule1);
-    engine.registerRule(rule2);
+    engine.registerRule(recordingRule("rule1", applyOrder));
+    engine.registerRule(recordingRule("rule2", applyOrder));
 
     engine.process("insertChar", { beforeCursor: "test", afterCursor: "" }, ["rule2"]);
 

@@ -24,21 +24,13 @@ const PAGE_KEYS: PageMessageKey[] = [
 const source = (file: string) => readFileSync(path.join(REVIEW_DIR, file), "utf8");
 const tableKeys = (text: string) => [...text.matchAll(/^ {2}(review_\w+): \[$/gm)].map((m) => m[1]);
 
-function sourceFiles(dir: string): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
-    entry.isDirectory()
-      ? sourceFiles(path.join(dir, entry.name))
-      : entry.name.endsWith(".ts")
-        ? [path.join(dir, entry.name)]
-        : [],
-  );
-}
-
 /** Every message key a finding or the rule catalog names. */
 const USED_KEYS = new Set<string>([
-  ...sourceFiles(REVIEW_DIR).flatMap((file) =>
-    [...readFileSync(file, "utf8").matchAll(/messageKey: "(review_msg_\w+)"/g)].map((m) => m[1]),
-  ),
+  ...readdirSync(REVIEW_DIR, { recursive: true, encoding: "utf8" })
+    .filter((file) => file.endsWith(".ts"))
+    .flatMap((file) =>
+      [...source(file).matchAll(/messageKey: "(review_msg_\w+)"/g)].map((m) => m[1]),
+    ),
   ...GRAMMAR_RULE_CATALOG.map((rule) => rule.titleI18nKey).filter((key) =>
     key.startsWith("review_msg_"),
   ),

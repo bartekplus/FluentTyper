@@ -1,23 +1,12 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review } from "./grammarTestUtils";
 import type { ReviewOptions } from "../../src/core/domain/grammar/review/types";
 
 // Lookalike words chosen by their slot (englishConfusedWords) and the fixed rows of confusions1.
 const OWN = new Set(["englishConfusedWords", "englishPhraseCorrections", "englishClosedCompounds"]);
-function scan(text: string, options: Partial<ReviewOptions> = {}) {
-  return detectReviewDiagnostics(
-    { id: "c1", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      lang: "en_US",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  ).diagnostics.filter((d) => OWN.has(d.ruleId));
-}
+const scan = (text: string, options: Partial<ReviewOptions> = {}) =>
+  review(text, {}, options).diagnostics.filter((d) => OWN.has(d.ruleId));
 const repairs = (text: string) =>
   scan(text).flatMap((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));
 

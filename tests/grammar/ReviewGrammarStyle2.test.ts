@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review as runReview } from "./grammarTestUtils";
 
 // Grammar, style and format checks of english/grammarStyle2.ts. All sentences are our own.
 const RULES = new Set([
@@ -17,17 +17,10 @@ const RULES = new Set([
   "measurementUnitFormatting",
   "stylePhrasing",
 ]);
-function review(text: string) {
-  return detectReviewDiagnostics(
-    { id: "gs2", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      lang: "en_US",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics.filter((d) => RULES.has(d.ruleId));
-}
+const review = (text: string) =>
+  runReview(text, {}, { enabledRules: REVIEW_SUPPORTED_RULE_IDS }).diagnostics.filter((d) =>
+    RULES.has(d.ruleId),
+  );
 
 const positives = [
   // Phrase rows.

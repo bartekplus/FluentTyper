@@ -1,32 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { prepareReview } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import {
   aiRequestForChunk,
   buildAiChunks,
   type AiChunkOptions,
 } from "../../src/core/domain/grammar/review/ai/segments";
 import type { AiChunk } from "../../src/core/domain/grammar/review/ai/types";
-import type { ProtectedRange, TextRange } from "../../src/core/domain/grammar/review/types";
+import type { ReviewSourceSnapshot } from "../../src/core/domain/grammar/review/types";
+import { prepared as prepare } from "./grammarTestUtils";
 
-function prepared(
-  text: string,
-  extra: { scope?: TextRange; protectedRanges?: ProtectedRange[]; lang?: string } = {},
-) {
-  return prepareReview(
-    {
-      id: "snap",
-      text,
-      scope: extra.scope ?? { start: 0, end: text.length },
-      protectedRanges: extra.protectedRanges ?? [],
-    },
-    {
-      lang: extra.lang ?? "en_US",
-      enabledRules: [],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  );
-}
+const prepared = (text: string, extra: Partial<ReviewSourceSnapshot> = {}) =>
+  prepare(text, extra, { enabledRules: [] });
 
 const CORRECT: AiChunkOptions = { mode: "correct", style: null };
 // Rewrite packs several sentences per chunk; Correct packs at most two.

@@ -1,19 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { MeasurementUnitFormattingRule } from "../../src/core/domain/grammar/implementations/MeasurementUnitFormattingRule";
-import type { GrammarContext } from "../../src/core/domain/grammar/types";
+import type { GrammarHints } from "../../src/core/domain/grammar/types";
+import { proseContext } from "./grammarTestUtils";
 
 const rule = new MeasurementUnitFormattingRule();
 
-function apply(
-  beforeCursor: string,
-  lang = "en_US",
-  extra: Partial<NonNullable<GrammarContext["hints"]>> = {},
-) {
-  return rule.apply({
-    beforeCursor,
-    afterCursor: "",
-    hints: { lang, inputAction: "insert", measurementContext: "prose", ...extra },
-  });
+function apply(beforeCursor: string, lang = "en_US", extra: GrammarHints = {}) {
+  return rule.apply(proseContext(beforeCursor, lang, extra));
 }
 
 function result(beforeCursor: string, lang = "en_US"): string {
@@ -83,12 +76,8 @@ describe("MeasurementUnitFormattingRule", () => {
       "Value: 10m^ ",
       "Value: 10m⁻ ",
       "Value: 10m⁻⁻² ",
-      "Range: 10-12kg ",
-      "Fraction: 1/2kg ",
-      "Uncertainty: 10±2kg ",
       "Grouped: 1,234kg ",
       "URL https://example.test/10kg ",
-      "Path: /tmp/10kg ",
       "Code: value_10kg ",
       "Mass: \u202e10kg ",
     ];

@@ -1,20 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review as runReview } from "./grammarTestUtils";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
-function review(text: string, ruleId: CatalogRuleId, lang = "en_US") {
-  return detectReviewDiagnostics(
-    { id: "format", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [...reviewRuleIds({ codeMode: false }), ruleId],
-      lang,
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
+const review = (text: string, ruleId: CatalogRuleId, lang = "en_US") =>
+  runReview(
+    text,
+    {},
+    { lang, enabledRules: [...reviewRuleIds({ codeMode: false }), ruleId] },
   ).diagnostics.filter((d) => d.ruleId === ruleId);
-}
 
 /** The text with every finding's first alternative applied. */
 function repaired(text: string, ruleId: CatalogRuleId, lang = "en_US"): string {

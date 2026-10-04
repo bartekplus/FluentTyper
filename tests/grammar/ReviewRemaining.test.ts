@@ -1,26 +1,14 @@
 import { expect, test } from "bun:test";
 import { findLiveGrammarProposals } from "../../src/core/domain/grammar/review/liveProposals";
-import {
-  REVIEW_SUPPORTED_RULE_IDS,
-  reviewRuleIds,
-} from "../../src/core/domain/grammar/review/reviewCatalog";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review as runReview, reviewOptions } from "./grammarTestUtils";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/types";
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 
 // Checks of english/remaining.ts and the leftovers it closed in other detectors. All sentences are our own.
-function review(text: string) {
-  return detectReviewDiagnostics(
-    { id: "rem", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      enabledRules: [...REVIEW_SUPPORTED_RULE_IDS],
-      lang: "en_US",
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
-}
+const review = (text: string) =>
+  runReview(text, {}, { enabledRules: REVIEW_SUPPORTED_RULE_IDS }).diagnostics;
 
 const positives: [CatalogRuleId, string, string][] = [
   // The end of the field closes the sentence in a full Review.
@@ -162,11 +150,8 @@ test.each(["Mia left early. He forget", "I know we should of", "She is one of th
   (beforeCursor) => {
     expect(
       findLiveGrammarProposals(beforeCursor, {
-        lang: "en_US",
-        enabledRules: reviewRuleIds({ codeMode: false }),
+        ...reviewOptions(),
         liveRules: DEFAULT_CURRENT_GRAMMAR_RULES,
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
       }),
     ).toEqual([]);
   },

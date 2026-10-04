@@ -1,17 +1,12 @@
 import { expect, test } from "bun:test";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
+import { scanReviewChunk } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
-import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+import { TYPING_RULE_IDS, type CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import { expectOneRepair, prepared, review } from "./grammarTestUtils";
 
 const ids = [
   "englishThenThan",
@@ -20,28 +15,11 @@ const ids = [
   "englishToToo",
   "englishWereWhere",
 ] as const;
-function scan(
+const scan = (
   text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-  options: Partial<ReviewOptions> = {},
-) {
-  return detectReviewDiagnostics(
-    {
-      id: "confusions",
-      text,
-      scope: { start: 0, end: text.length },
-      protectedRanges: [],
-      ...extra,
-    },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  ).diagnostics;
-}
+  extra?: Partial<ReviewSourceSnapshot>,
+  options?: Partial<ReviewOptions>,
+) => review(text, extra, options).diagnostics;
 const only = (text: string, rule: CatalogRuleId) => scan(text).filter((d) => d.ruleId === rule);
 
 const positives: Record<(typeof ids)[number], [string, string][]> = {
@@ -166,16 +144,10 @@ const positives: Record<(typeof ids)[number], [string, string][]> = {
 };
 for (const rule of ids) {
   test.each(positives[rule])(`${rule} repairs %s`, (source, expected) => {
-    const findings = only(source, rule);
-    expect(findings).toHaveLength(1);
-    const d = findings[0];
-    expect(d.original).toBe(source.slice(d.range.start, d.range.end));
-    expect(d.context.start).toBeLessThanOrEqual(d.range.start);
+    const d = expectOneRepair(only(source, rule), source, expected, (text) => only(text, rule));
     expect(d.context.end).toBeGreaterThan(d.range.end);
     expect(d.bulk).toEqual({ eligible: false, reason: "rule-not-batch-approved" });
     expect(d.alternatives[0].edits).toHaveLength(1);
-    expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-    expect(only(expected, rule)).toEqual([]);
   });
 }
 
@@ -393,27 +365,15 @@ test("existing your-welcome and their-is checks retain sole ownership; typing is
   expect(findings.filter((d) => (ids as readonly string[]).includes(d.ruleId))).toEqual([]);
   expect(findings.filter((d) => d.ruleId === "englishYourWelcomeCorrection")).toHaveLength(1);
   expect(findings.filter((d) => d.ruleId === "englishTheirThereBeVerb")).toHaveLength(1);
-  const runtime = createGrammarRuleCatalogRuntime({
-    insertSpaceAfterAutocomplete: true,
-    userDictionaryList: [],
-  });
-  for (const rule of ids) expect(runtime.map((r) => r.id)).not.toContain(rule);
+  for (const rule of ids) expect(TYPING_RULE_IDS as readonly string[]).not.toContain(rule);
 });
 
 test("chunk ownership follows the corrected word even when its evidence starts earlier", () => {
   const text = "This version is faster then the old version.";
-  const prepared = prepareReview(
-    { id: "edge", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: ["englishThenThan"],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  );
+  const chunks = prepared(text, {}, { enabledRules: ["englishThenThan"] });
   const cut = text.indexOf("then");
-  expect(scanReviewChunk(prepared, { start: 0, end: cut }).findings).toEqual([]);
-  const owned = scanReviewChunk(prepared, { start: cut, end: text.length }).findings;
+  expect(scanReviewChunk(chunks, { start: 0, end: cut }).findings).toEqual([]);
+  const owned = scanReviewChunk(chunks, { start: cut, end: text.length }).findings;
   expect(owned).toHaveLength(1);
   expect(owned[0].range.start).toBe(cut);
 });
@@ -424,10 +384,9 @@ test.each([
   ["Ping me when your out of the meeting.", "Ping me when you're out of the meeting."],
   ["Your going to play this.", "You're going to play this."],
 ])("you're frames repair %s", (source, expected) => {
-  const findings = only(source, "englishYourYouAre");
-  expect(findings).toHaveLength(1);
-  expect(applyEdits(source, findings[0].alternatives[0].edits)).toBe(expected);
-  expect(only(expected, "englishYourYouAre")).toEqual([]);
+  expectOneRepair(only(source, "englishYourYouAre"), source, expected, (text) =>
+    only(text, "englishYourYouAre"),
+  );
 });
 test.each([
   ["Did you every fix that?", "Did you ever fix that?"],

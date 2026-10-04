@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
-import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
 import { CapitalizeSentenceStartRule } from "../../src/core/domain/grammar/implementations/CapitalizeSentenceStartRule";
 import {
@@ -13,11 +10,8 @@ import {
   TYPOGRAPHY_GRAMMAR_RULES,
 } from "../../src/core/domain/grammar/ruleCatalog";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
-import type {
-  GrammarContext,
-  GrammarEventType,
-  GrammarHints,
-} from "../../src/core/domain/grammar/types";
+import type { GrammarHints } from "../../src/core/domain/grammar/types";
+import { review, typeText } from "./grammarTestUtils";
 
 const NBSP = " ";
 const NNBSP = " ";
@@ -29,25 +23,15 @@ function type(
   measurementContext: GrammarHints["measurementContext"] = "prose",
   rules: readonly string[] = TYPOGRAPHY_GRAMMAR_RULES,
 ): string {
-  const engine = new GrammarRuleEngine();
-  for (const rule of createGrammarRuleCatalogRuntime({
-    insertSpaceAfterAutocomplete: true,
-    userDictionaryList: [],
-  }))
-    engine.registerRule(rule);
-  let context: GrammarContext = {
-    beforeCursor: "",
-    afterCursor: "",
-    hints: { lang, inputAction: "insert", measurementContext },
-  };
-  for (const char of input) {
-    context.beforeCursor += char;
-    const triggers: GrammarEventType[] = [char === " " ? "wordBoundary" : "insertChar"];
-    if (/[.!?]/.test(char)) triggers.push("wordBoundary");
-    const edit = engine.processSequence(triggers, context, [...rules]);
-    if (edit) context = applyGrammarEditToContext(context, edit);
-  }
-  return context.beforeCursor + context.afterCursor;
+  const { beforeCursor, afterCursor } = typeText(input, {
+    lang,
+    hints: { measurementContext },
+    rules,
+    sequence: true,
+    boundaries: [" "],
+    sentenceEndBoundary: true,
+  });
+  return beforeCursor + afterCursor;
 }
 
 describe("language-aware typography preset", () => {
@@ -488,28 +472,16 @@ describe("sentence starts after language abbreviations", () => {
     ["es_ES", "Vive en la Avda. del Mar."],
     ["fr_FR", "Voir chap. deux."],
   ])("%s: %s", (lang, text) => {
-    const found = detectReviewDiagnostics(
-      { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        enabledRules: ["capitalizeSentenceStart"],
-        lang,
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics;
+    const found = review(text, {}, { enabledRules: ["capitalizeSentenceStart"], lang }).diagnostics;
     expect(found).toEqual([]);
   });
 
   test("words that end sentences in their own language still do", () => {
     const text = "C'est de l'art. puis on part.";
-    const found = detectReviewDiagnostics(
-      { id: "abbr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        enabledRules: ["capitalizeSentenceStart"],
-        lang: "fr_FR",
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
+    const found = review(
+      text,
+      {},
+      { enabledRules: ["capitalizeSentenceStart"], lang: "fr_FR" },
     ).diagnostics;
     expect(found.map((d) => d.original)).toEqual(["p"]);
   });
@@ -518,15 +490,10 @@ describe("sentence starts after language abbreviations", () => {
 test("Review removes a space before the Greek question mark only in Greek", () => {
   const text = "Τι κάνεις ; Καλά. Ένα ; δύο.";
   const found = (lang: string) =>
-    detectReviewDiagnostics(
-      { id: "gr", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        enabledRules: ["commaPeriodSpacing"],
-        lang,
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics.map((d) => [d.original, d.alternatives[0].preview]);
+    review(text, {}, { enabledRules: ["commaPeriodSpacing"], lang }).diagnostics.map((d) => [
+      d.original,
+      d.alternatives[0].preview,
+    ]);
   expect(found("el_GR")).toEqual([
     [" ;", ";"],
     [" ;", ";"],
@@ -566,16 +533,7 @@ describe("typing capitalization after language abbreviations", () => {
 
 describe("unresolved auto-detect", () => {
   const text = "The the report is on monday, alot better. Hello , world.\n\nnext line.";
-  const found = (lang: string) =>
-    detectReviewDiagnostics(
-      { id: "auto", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      {
-        enabledRules: reviewRuleIds({ codeMode: false }),
-        lang,
-        userDictionary: [],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics.map((d) => d.ruleId);
+  const found = (lang: string) => review(text, {}, { lang }).diagnostics.map((d) => d.ruleId);
 
   test("runs only the language-independent rules", () => {
     const rules = new Set(found("auto_detect"));

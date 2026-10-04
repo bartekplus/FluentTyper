@@ -1,39 +1,23 @@
 import { expect, test } from "bun:test";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import {
+  expectChunkSplitParity,
+  expectOneRepair,
+  expectReviewGuards,
+  prepared,
+  review,
+} from "./grammarTestUtils";
 const rule = "englishVerbComplements";
-function scan(
+const scan = (
   text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-  options: Partial<ReviewOptions> = {},
-) {
-  return detectReviewDiagnostics(
-    {
-      id: "complements",
-      text,
-      scope: { start: 0, end: text.length },
-      protectedRanges: [],
-      ...extra,
-    },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  ).diagnostics.filter((d) => d.ruleId === rule);
-}
+  extra?: Partial<ReviewSourceSnapshot>,
+  options?: Partial<ReviewOptions>,
+) => review(text, extra, options).diagnostics.filter((d) => d.ruleId === rule);
 const errors: [string, string][] = [
   ["We need fix this bug.", "We need to fix this bug."],
   ["They plan deploy tomorrow.", "They plan to deploy tomorrow."],
@@ -67,16 +51,10 @@ const errors: [string, string][] = [
   ["He doesn't look forward to take a break.", "He doesn't look forward to taking a break."],
 ];
 test.each(errors)("verb complements repair %s", (source, expected) => {
-  const findings = scan(source);
-  expect(findings).toHaveLength(1);
-  const d = findings[0];
-  expect(d.original).toBe(source.slice(d.range.start, d.range.end));
-  expect(d.bulk.eligible).toBe(false);
+  const d = expectOneRepair(scan(source), source, expected, scan);
   expect(d.alternatives[0].edits).toHaveLength(1);
   expect(d.context.start).toBeLessThan(d.range.start);
   expect(d.context.end).toBeGreaterThan(d.range.end);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
 });
 const valid = [
   "We need not change it.",
@@ -210,13 +188,7 @@ const frameErrors: [string, string][] = [
   ["We are helping them to wrote the docs.", "We are helping them to write the docs."],
 ];
 test.each(frameErrors)("complement frame repairs %s", (source, expected) => {
-  const findings = scan(source);
-  expect(findings).toHaveLength(1);
-  const d = findings[0];
-  expect(d.bulk.eligible).toBe(false);
-  expect(d.alternatives).toHaveLength(1);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
+  expect(expectOneRepair(scan(source), source, expected, scan).alternatives).toHaveLength(1);
 });
 test.each([
   ["It allows to edit files.", "It allows editing files.", "It allows you to edit files."],
@@ -415,12 +387,7 @@ const broaderErrors: [string, string][] = [
   ["We tested it and suggested to add a check.", "We tested it and suggested adding a check."],
 ];
 test.each(broaderErrors)("broader complement frames repair %s", (source, expected) => {
-  const findings = scan(source);
-  expect(findings).toHaveLength(1);
-  const [d] = findings;
-  expect(d.alternatives).toHaveLength(1);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
+  expect(expectOneRepair(scan(source), source, expected, scan).alternatives).toHaveLength(1);
 });
 test("verbs that take -ing explain their own frame", () => {
   expect(scan("I enjoy to read books.")[0].messageKey).toBe("review_msg_gerund_complement");
@@ -534,30 +501,13 @@ test.each(broaderValid)("broader complement frames preserve %s", (text) =>
 test("complement evidence respects dictionary, language, protection, selection and chunk ownership", () => {
   for (const [text] of [errors[0], errors[12], frameErrors[0], frameErrors[18], frameErrors[24]]) {
     const d = scan(text)[0];
-    expect(scan(text, {}, { lang: "fr_FR" })).toEqual([]);
-    expect(scan(text, {}, { userDictionary: [d.original] })).toEqual([]);
-    expect(scan(text, { protectedRanges: [{ ...d.range, reason: "code" }] })).toEqual([]);
-    expect(scan(text, { scope: { start: d.range.start + 1, end: d.range.end } })).toEqual([]);
-    expect(scan(text, { scope: d.range })).toHaveLength(1);
-    expect(scan(text, { id: "new" })[0].id).not.toBe(d.id);
+    expectReviewGuards(scan, text, d, { protectedReason: "code" });
   }
   const text =
     '😀 Café.\r\nShe said, "We need fix this bug." I look forward to meet you. It is worth to try. ' +
     "Let me to do it. It allows to edit files. We went ahead and fix it. She helped me fixed it.";
-  const prepared = prepareReview(
-    { id: "chunks", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "en_US", enabledRules: [rule], userDictionary: [], insertSpaceAfterAutocomplete: true },
-  );
   const expected = scan(text);
   expect(expected).toHaveLength(7);
-  for (let cut = 1; cut < text.length; cut++) {
-    const raw = [
-      ...scanReviewChunk(prepared, { start: 0, end: cut }).findings,
-      ...scanReviewChunk(prepared, { start: cut, end: text.length }).findings,
-    ].sort((a, b) => a.range.start - b.range.start);
-    expect(raw.map((d) => [d.range, text.slice(d.range.start, d.range.end)])).toEqual(
-      expected.map((d) => [d.range, d.original]),
-    );
-  }
+  expectChunkSplitParity(prepared(text, {}, { enabledRules: [rule] }), text, expected);
   expect(scan("We need fix\uFFFC this bug.")).toEqual([]);
 });

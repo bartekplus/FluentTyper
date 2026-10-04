@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import {
   REVIEW_RULE_METADATA,
   reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review as runReview } from "./grammarTestUtils";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
 // The last fixes, the opt-in possible-mistakes check and the opt-in alternative phrasing.
@@ -13,17 +13,8 @@ const POSSIBLE: CatalogRuleId = "englishPossibleErrors";
 const ALTERNATIVE: CatalogRuleId = "styleAlternativePhrasing";
 const DEFAULTS = reviewRuleIds({ codeMode: false });
 
-function review(text: string, rules: readonly CatalogRuleId[]) {
-  return detectReviewDiagnostics(
-    { id: "final", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    {
-      lang: "en_US",
-      enabledRules: [...rules],
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-    },
-  ).diagnostics;
-}
+const review = (text: string, rules: readonly CatalogRuleId[]) =>
+  runReview(text, {}, { enabledRules: rules }).diagnostics;
 /** Each finding of `rule`: its offered repairs, each applied to the whole text. */
 const repaired = (text: string, rule: CatalogRuleId, rules: readonly CatalogRuleId[] = [rule]) =>
   review(text, rules)

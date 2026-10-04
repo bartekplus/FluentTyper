@@ -1,15 +1,11 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { REVIEW_RULE_METADATA } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review as runReview } from "./grammarTestUtils";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
-function review(text: string, rule: CatalogRuleId, lang = "en_US") {
-  return detectReviewDiagnostics(
-    { id: "style1", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang, enabledRules: [rule], userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics;
-}
+const review = (text: string, rule: CatalogRuleId, lang = "en_US") =>
+  runReview(text, {}, { lang, enabledRules: [rule] }).diagnostics;
 /** Every finding's offered repairs, each applied to the whole text. */
 const repaired = (text: string, rule: CatalogRuleId) =>
   review(text, rule).map((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));
@@ -198,15 +194,8 @@ test("quoted examples, other languages and the user dictionary stay untouched", 
   expect(review('Never write "these criterion" here.', "englishCountability")).toEqual([]);
   expect(review("These criterion differ.", "englishCountability", "de_DE")).toEqual([]);
   expect(
-    detectReviewDiagnostics(
-      { id: "dict", text: "Many ppl came.", scope: { start: 0, end: 14 }, protectedRanges: [] },
-      {
-        lang: "en_US",
-        enabledRules: ["stylePhrasing"],
-        userDictionary: ["ppl"],
-        insertSpaceAfterAutocomplete: true,
-      },
-    ).diagnostics,
+    runReview("Many ppl came.", {}, { enabledRules: ["stylePhrasing"], userDictionary: ["ppl"] })
+      .diagnostics,
   ).toEqual([]);
 });
 

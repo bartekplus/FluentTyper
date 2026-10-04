@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import {
   reviewRuleIds,
   REVIEW_RULE_METADATA,
@@ -11,24 +10,13 @@ import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import { review, term } from "./grammarTestUtils";
 const rules = ["styleRedundancy", "styleLongSentence"];
-const options: ReviewOptions = {
-  lang: "en_US",
-  enabledRules: rules,
-  userDictionary: [],
-  insertSpaceAfterAutocomplete: true,
-  longSentenceWords: 10,
-};
-function scan(
+const scan = (
   text: string,
   opts: Partial<ReviewOptions> = {},
   extra: Partial<ReviewSourceSnapshot> = {},
-) {
-  return detectReviewDiagnostics(
-    { id: "style", text, scope: { start: 0, end: text.length }, protectedRanges: [], ...extra },
-    { ...options, ...opts },
-  );
-}
+) => review(text, extra, { enabledRules: rules, longSentenceWords: 10, ...opts });
 test("style is explicitly opt-in, never typing, recommended or safe bulk", () => {
   const defaults = reviewRuleIds({ codeMode: false });
   for (const id of rules) {
@@ -135,18 +123,7 @@ test("readability warnings coexist with preferred terminology because they propo
     preferredTerminology: {
       version: 1,
       enabled: true,
-      entries: [
-        {
-          id: "acme",
-          source: "Acme Suite",
-          replacement: "Acme Workspace",
-          casePolicy: "exact",
-          explanation: "Our name",
-          language: "en_US",
-          scope: "all-prose",
-          enabled: true,
-        },
-      ],
+      entries: [term({ explanation: "Our name" })],
     },
   });
   expect(result.diagnostics.map((d) => d.ruleId).toSorted()).toEqual([

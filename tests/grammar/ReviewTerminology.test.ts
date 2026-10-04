@@ -1,7 +1,5 @@
 import { expect, test } from "bun:test";
 import {
-  detectReviewDiagnostics,
-  prepareReview,
   scanReviewChunk,
   finalizeReview,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
@@ -9,41 +7,15 @@ import { spellingCandidates } from "../../src/core/domain/grammar/review/reviewS
 import { GRAMMAR_RULE_IDS, TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
-import type { PreferredTerm } from "../../src/core/domain/grammar/review/preferredTerminology";
-import type {
-  ReviewOptions,
-  ReviewSourceSnapshot,
-} from "../../src/core/domain/grammar/review/types";
-const term = (overrides: Partial<PreferredTerm> = {}): PreferredTerm => ({
-  id: "acme",
-  source: "Acme Suite",
-  replacement: "Acme Workspace",
-  casePolicy: "exact",
-  explanation: "Our preferred product name.",
-  language: "en_US",
-  scope: "all-prose",
-  enabled: true,
-  ...overrides,
-});
-const options = (entries = [term()]): ReviewOptions => ({
-  lang: "en_US",
-  enabledRules: ["preferredTerminology"],
-  userDictionary: [],
-  insertSpaceAfterAutocomplete: true,
-  preferredTerminology: { version: 1, enabled: true, entries },
-});
-const snapshot = (
-  text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-): ReviewSourceSnapshot => ({
-  id: "terms",
-  text,
-  scope: { start: 0, end: text.length },
-  protectedRanges: [],
-  ...extra,
-});
+import type { ReviewSourceSnapshot } from "../../src/core/domain/grammar/review/types";
+import { prepared, review, reviewOptions, term } from "./grammarTestUtils";
+const options = (entries = [term()]) =>
+  reviewOptions({
+    enabledRules: ["preferredTerminology"],
+    preferredTerminology: { version: 1, enabled: true, entries },
+  });
 const scan = (text: string, opts = options(), extra: Partial<ReviewSourceSnapshot> = {}) =>
-  detectReviewDiagnostics(snapshot(text, extra), opts).diagnostics;
+  review(text, extra, opts).diagnostics;
 
 test("enabled literal terminology preserves stable entry identity and authored explanation", () => {
   const text = "We use Acme Suite today.";
@@ -154,26 +126,27 @@ test("preferred words own native and spelling corrections without changing the d
   expect(d.map((f) => f.ruleId)).toEqual(["preferredTerminology"]);
   const fixed = applyEdits(source, d[0].alternatives[0].edits)!;
   expect(scan(fixed, opts)).toEqual([]);
-  const prepared = prepareReview(snapshot(fixed), opts);
-  expect(spellingCandidates(prepared, []).map((c) => c.word)).not.toContain("github");
+  expect(spellingCandidates(prepared(fixed, {}, opts), []).map((c) => c.word)).not.toContain(
+    "github",
+  );
   expect(opts.userDictionary).toEqual([]);
 });
 
 test("terminology ownership is stable across every chunk split and entry reordering", () => {
   const text = "😀 Cafe\u0301. Acme Suite is here.\r\nAcme Suite is useful.";
-  const prepared = prepareReview(snapshot(text), options());
+  const p = prepared(text, {}, options());
   for (let cut = 1; cut < text.length; cut++)
     expect(
-      finalizeReview(prepared, [
-        scanReviewChunk(prepared, { start: 0, end: cut }),
-        scanReviewChunk(prepared, { start: cut, end: text.length }),
+      finalizeReview(p, [
+        scanReviewChunk(p, { start: 0, end: cut }),
+        scanReviewChunk(p, { start: cut, end: text.length }),
       ]).diagnostics,
     ).toEqual(scan(text));
 });
 
 test("oversized direct scans report the terminology limit instead of silently claiming coverage", () => {
   const text = "Plain text. ".repeat(5000) + "Acme Suite.";
-  const result = detectReviewDiagnostics(snapshot(text), options());
+  const result = review(text, {}, options());
   expect(result.diagnostics).toEqual([]);
   expect(result.coverage.skipped["size-limit"]).toBe(text.length - 50000);
 });

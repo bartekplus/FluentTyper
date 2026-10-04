@@ -1,37 +1,19 @@
 import { expect, test } from "bun:test";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import {
   englishNounForms,
   knownEnglishNounNumber,
 } from "../../src/core/domain/grammar/implementations/helpers/EnglishNounNumber";
-import type {
-  ReviewOptions,
-  ReviewSourceSnapshot,
-} from "../../src/core/domain/grammar/review/types";
+import {
+  expectChunkSplitParity,
+  expectOneRepair,
+  expectReviewGuards,
+  prepared,
+  review,
+} from "./grammarTestUtils";
 const rule = "englishNounNumber";
-function all(
-  text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-  options: Partial<ReviewOptions> = {},
-) {
-  return detectReviewDiagnostics(
-    { id: "number", text, scope: { start: 0, end: text.length }, protectedRanges: [], ...extra },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  ).diagnostics;
-}
+const all = (text: string) => review(text).diagnostics;
 const scan = (text: string) => all(text).filter((d) => d.ruleId === rule);
 const repairs: [string, string][] = [
   ["One of the device failed.", "One of the devices failed."],
@@ -78,16 +60,9 @@ const repairs: [string, string][] = [
   ["We interviewed 2 fisherman.", "We interviewed 2 fishermen."],
 ];
 test.each(repairs)("noun number repairs %s", (source, expected) => {
-  const findings = scan(source);
-  expect(findings).toHaveLength(1);
-  const d = findings[0];
-  expect(d.original).toBe(source.slice(d.range.start, d.range.end));
-  expect(d.bulk.eligible).toBe(false);
+  const d = expectOneRepair(scan(source), source, expected, scan);
   expect(d.alternatives).toHaveLength(1);
-  expect(d.context.start).toBeLessThanOrEqual(d.range.start);
   expect(d.context.end).toBeGreaterThan(d.range.end);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
 });
 const choices: [string, string, string][] = [
   ["Those file failed.", "Those files failed.", "That file failed."],
@@ -224,34 +199,21 @@ test("shared noun forms are explicit and existential agreement follows quantity 
 test("number findings preserve dictionary, scope, language and protected evidence", () => {
   for (const text of [repairs[0][0], repairs[12][0], repairs[24][0], choices[0][0]]) {
     const d = scan(text)[0];
-    const only = (extra: Partial<ReviewSourceSnapshot>, options: Partial<ReviewOptions> = {}) =>
-      all(text, extra, { enabledRules: [rule], ...options });
-    expect(only({}, { lang: "fr_FR" })).toEqual([]);
-    expect(only({}, { userDictionary: [d.original.split(" ").at(-1)!] })).toEqual([]);
-    expect(only({ protectedRanges: [{ ...d.range, reason: "code" }] })).toEqual([]);
-    expect(only({ scope: { start: d.range.start + 1, end: d.range.end } })).toEqual([]);
-    expect(only({ scope: d.range })).toHaveLength(1);
-    expect(only({ id: "new" })[0].id).not.toBe(d.id);
+    expectReviewGuards(
+      (text, extra, options) =>
+        review(text, extra, { enabledRules: [rule], ...options }).diagnostics,
+      text,
+      d,
+      { dictionaryWord: d.original.split(" ").at(-1)!, protectedReason: "code" },
+    );
   }
   expect(scan("Those file\uFFFC are missing.")).toEqual([]);
 });
 test("fixed and ambiguous ranges belong to one chunk in Unicode quoted prose", () => {
   const text = '😀 Café.\r\nShe said, "Those file failed." We found two error in the report.';
-  const prepared = prepareReview(
-    { id: "chunks", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "en_US", enabledRules: [rule], userDictionary: [], insertSpaceAfterAutocomplete: true },
-  );
   const expected = scan(text);
   expect(expected).toHaveLength(2);
-  for (let cut = 1; cut < text.length; cut++) {
-    const raw = [
-      ...scanReviewChunk(prepared, { start: 0, end: cut }).findings,
-      ...scanReviewChunk(prepared, { start: cut, end: text.length }).findings,
-    ].sort((a, b) => a.range.start - b.range.start);
-    expect(raw.map((d) => [d.range, text.slice(d.range.start, d.range.end)])).toEqual(
-      expected.map((d) => [d.range, d.original]),
-    );
-  }
+  expectChunkSplitParity(prepared(text, {}, { enabledRules: [rule] }), text, expected);
 });
 
 test.each([
@@ -262,11 +224,7 @@ test.each([
   ["One of the user account is locked.", "One of the user accounts is locked."],
   ["We saw one of these elephant.", "We saw one of these elephants."],
 ])("one of + singular pluralizes %s", (source, expected) => {
-  const [d] = scan(source);
-  expect(scan(source)).toHaveLength(1);
-  expect(d.bulk.eligible).toBe(false);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(scan(expected)).toEqual([]);
+  expectOneRepair(scan(source), source, expected, scan);
 });
 test.each([
   "One of the file formats is old.",

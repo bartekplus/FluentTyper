@@ -1,10 +1,5 @@
 import { expect, test } from "bun:test";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  scanReviewChunk,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
-import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
+import { scanReviewChunk } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import {
@@ -15,30 +10,14 @@ import type {
   ReviewOptions,
   ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import { expectOneRepair, expectReviewGuards, prepared, review } from "./grammarTestUtils";
 
 const ids = ["englishItsContext", "englishLetsContext", "englishElsePossessive"] as const;
-function scan(
+const scan = (
   text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-  options: Partial<ReviewOptions> = {},
-) {
-  return detectReviewDiagnostics(
-    {
-      id: "possessives",
-      text,
-      scope: { start: 0, end: text.length },
-      protectedRanges: [],
-      ...extra,
-    },
-    {
-      lang: "en_US",
-      enabledRules: reviewRuleIds({ codeMode: false }),
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
-      ...options,
-    },
-  ).diagnostics;
-}
+  extra?: Partial<ReviewSourceSnapshot>,
+  options?: Partial<ReviewOptions>,
+) => review(text, extra, options).diagnostics;
 const only = (text: string, rule: (typeof ids)[number]) =>
   scan(text).filter((d) => d.ruleId === rule);
 const errors: Array<[(typeof ids)[number], string, string]> = [
@@ -88,16 +67,9 @@ const errors: Array<[(typeof ids)[number], string, string]> = [
   [ids[2], "We found somebody elses blue cover.", "We found somebody else's blue cover."],
 ];
 test.each(errors)("%s repairs %s", (rule, source, expected) => {
-  const findings = only(source, rule);
-  expect(findings).toHaveLength(1);
-  const d = findings[0];
-  expect(d.original).toBe(source.slice(d.range.start, d.range.end));
-  expect(d.bulk.eligible).toBe(false);
-  expect(d.context.start).toBeLessThanOrEqual(d.range.start);
+  const d = expectOneRepair(only(source, rule), source, expected, (text) => only(text, rule));
   expect(d.context.end).toBeGreaterThan(d.range.end);
   expect(d.alternatives[0].edits).toHaveLength(1);
-  expect(applyEdits(source, d.alternatives[0].edits)).toBe(expected);
-  expect(only(expected, rule)).toEqual([]);
 });
 const negatives: Record<(typeof ids)[number], string[]> = {
   englishItsContext: [
@@ -203,40 +175,21 @@ for (const rule of ids)
 test("contextual apostrophes preserve pipeline protections, dictionary, scope and language", () => {
   for (const [rule, text] of [errors[0], errors[6], errors[12], errors[24]]) {
     const d = only(text, rule)[0];
-    expect(scan(text, {}, { enabledRules: [rule], lang: "fr_FR" })).toEqual([]);
-    expect(scan(text, {}, { enabledRules: [rule], userDictionary: [d.original] })).toEqual([]);
-    expect(
-      scan(text, { protectedRanges: [{ ...d.range, reason: "code" }] }, { enabledRules: [rule] }),
-    ).toEqual([]);
-    expect(
-      scan(
-        text,
-        { scope: { start: d.range.start + 1, end: d.range.end } },
-        { enabledRules: [rule] },
-      ),
-    ).toEqual([]);
-    expect(scan(text, { scope: d.range }, { enabledRules: [rule] })).toHaveLength(1);
-    expect(scan(text, { id: "new" }, { enabledRules: [rule] })[0].id).not.toBe(d.id);
+    expectReviewGuards((t, e, o) => scan(t, e, { enabledRules: [rule], ...o }), text, d, {
+      protectedReason: "code",
+    });
   }
 });
 test("mixed corpus preserves UTF-16 ownership across chunks, CRLF and normal quoted prose", () => {
   const text = '😀 Café.\r\n"Its ready to use."\r\nLets try again. This is someone elses folder.';
-  const options = {
-    lang: "en_US",
-    enabledRules: [...ids],
-    userDictionary: [],
-    insertSpaceAfterAutocomplete: true,
-  };
-  const prepared = prepareReview(
-    { id: "chunks", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    options,
-  );
+  const options = { enabledRules: [...ids] };
+  const prep = prepared(text, {}, options);
   const expected = scan(text, {}, options);
   expect(expected).toHaveLength(3);
   for (let boundary = 1; boundary < text.length; boundary++) {
     const chunks = [
-      ...scanReviewChunk(prepared, { start: 0, end: boundary }).findings,
-      ...scanReviewChunk(prepared, { start: boundary, end: text.length }).findings,
+      ...scanReviewChunk(prep, { start: 0, end: boundary }).findings,
+      ...scanReviewChunk(prep, { start: boundary, end: text.length }).findings,
     ];
     expect(
       chunks.map((d) => [d.ruleId, d.range, text.slice(d.range.start, d.range.end)]).sort(),
@@ -296,11 +249,9 @@ test.each([
   ["It\u2019s wheels are loose.", "Its wheels are loose."],
   ["\uD83D\uDE00 Its time to go.", "\uD83D\uDE00 It's time to go."],
 ])("its/it's frames repair %s", (source, expected) => {
-  const findings = only(source, "englishItsContext");
-  expect(findings).toHaveLength(1);
-  expect(findings[0].bulk.eligible).toBe(false);
-  expect(applyEdits(source, findings[0].alternatives[0].edits)).toBe(expected);
-  expect(only(expected, "englishItsContext")).toEqual([]);
+  expectOneRepair(only(source, "englishItsContext"), source, expected, (text) =>
+    only(text, "englishItsContext"),
+  );
 });
 test.each([
   "The team celebrated its victory.",

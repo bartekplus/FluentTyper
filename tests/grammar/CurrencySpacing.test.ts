@@ -1,52 +1,25 @@
 import { describe, expect, test } from "bun:test";
-import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
-import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
-import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 import { CurrencySpacingRule } from "../../src/core/domain/grammar/implementations/CurrencySpacingRule";
 import type { GrammarContext } from "../../src/core/domain/grammar/types";
 import { SuggestionGrammarCoordinator } from "../../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
+import { proseContext, typeText } from "./grammarTestUtils";
 
 const NBSP = " ";
 const rule = new CurrencySpacingRule();
 const DEFAULTS: string[] = DEFAULT_CURRENT_GRAMMAR_RULES;
 const DEFAULTS_WITHOUT_RULE = DEFAULTS.filter((id) => id !== "currencySpacing");
 
-function context(
-  beforeCursor: string,
-  lang = "en_US",
-  hints: GrammarContext["hints"] = {},
-): GrammarContext {
-  return {
-    beforeCursor,
-    afterCursor: "",
-    hints: { lang, inputAction: "insert", measurementContext: "prose", ...hints },
-  };
-}
-
 function applyRule(input: string, lang = "en_US", hints: GrammarContext["hints"] = {}): string {
-  const edit = rule.apply(context(input, lang, hints));
+  const edit = rule.apply(proseContext(input, lang, hints));
   if (!edit) return input;
   return input.slice(0, input.length - edit.deleteBackwards) + edit.replacement;
 }
 
 /** Types `input` one keystroke at a time; `rules` undefined runs every registered rule. */
 function type(input: string, lang: string, rules?: string[]): string {
-  const engine = new GrammarRuleEngine();
-  for (const item of createGrammarRuleCatalogRuntime({
-    insertSpaceAfterAutocomplete: true,
-    userDictionaryList: [],
-  })) {
-    engine.registerRule(item);
-  }
-  let state = context("", lang);
-  for (const char of input) {
-    state.beforeCursor += char;
-    const event = char === " " || char === "\n" ? "wordBoundary" : "insertChar";
-    const edit = engine.processSequence([event], state, rules);
-    if (edit) state = applyGrammarEditToContext(state, edit);
-  }
-  return state.beforeCursor + state.afterCursor;
+  const { beforeCursor, afterCursor } = typeText(input, { lang, rules, sequence: true });
+  return beforeCursor + afterCursor;
 }
 
 /** The rule leaves `input` alone on its own, keystroke by keystroke, and in the default pipeline. */
@@ -146,7 +119,7 @@ describe("currency spacing", () => {
     for (const lang of ["en_GB", "pt_PT", "en"]) {
       expectUnchanged("Budget: 250EUR ", lang);
     }
-    expect(rule.apply({ ...context("Budget: 250EUR "), afterCursor: "x" })).toBeNull();
+    expect(rule.apply({ ...proseContext("Budget: 250EUR "), afterCursor: "x" })).toBeNull();
   });
 
   test("coordinator leaves protected, paste, delete and idle input alone", () => {

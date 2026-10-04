@@ -1,32 +1,16 @@
 import { expect, test } from "bun:test";
 import {
-  detectReviewDiagnostics,
-  prepareReview,
   scanReviewChunk,
   stillDetectedAfter,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { planBulkFix } from "../../src/core/domain/grammar/review/bulkPlanner";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import type { ReviewSourceSnapshot } from "../../src/core/domain/grammar/review/types";
+import { prepared, review } from "./grammarTestUtils";
 const rule = "unclosedQuotation";
-const options = {
-  lang: "en_US",
-  enabledRules: [rule],
-  userDictionary: [],
-  insertSpaceAfterAutocomplete: true,
-};
-const snapshot = (
-  text: string,
-  extra: Partial<ReviewSourceSnapshot> = {},
-): ReviewSourceSnapshot => ({
-  id: "quotes",
-  text,
-  scope: { start: 0, end: text.length },
-  protectedRanges: [],
-  ...extra,
-});
+const options = { enabledRules: [rule] };
 const scan = (text: string, extra: Partial<ReviewSourceSnapshot> = {}) =>
-  detectReviewDiagnostics(snapshot(text, extra), options).diagnostics;
+  review(text, extra, options).diagnostics;
 const warnings = [
   "He wrote, “The build is ready.",
   'She said, "We should leave now.',
@@ -105,9 +89,7 @@ test("quotation warnings require complete unprotected evidence", () => {
   expect(TYPING_RULE_IDS as readonly string[]).not.toContain(rule);
 });
 const inLang = (text: string, lang: string) =>
-  detectReviewDiagnostics(snapshot(text), { ...options, lang }).diagnostics.filter(
-    (d) => d.ruleId === rule,
-  );
+  review(text, {}, { ...options, lang }).diagnostics.filter((d) => d.ruleId === rule);
 test.each([
   ["de_DE", "Er sagte „Hallo“ und ging.", "Er sagte „Hallo und ging."],
   ["de_DE", "Er sagte »Hallo« und ging.", "Er sagte »Hallo und ging."],
@@ -134,12 +116,12 @@ test("another language's quotation style is not paired as the reviewed one", () 
 test("quotation warning ownership is independent of scan chunk splits", () => {
   const text =
     "😀 Café. He wrote, “First.\r\n\r\n“Another paragraph with ‘an unclosed nested quote.";
-  const prepared = prepareReview(snapshot(text), options);
-  expect(prepared.quotationFindings).toHaveLength(2);
+  const p = prepared(text, {}, options);
+  expect(p.quotationFindings).toHaveLength(2);
   for (let cut = 1; cut < text.length; cut++) {
     const raw = [
-      ...scanReviewChunk(prepared, { start: 0, end: cut }).findings,
-      ...scanReviewChunk(prepared, { start: cut, end: text.length }).findings,
+      ...scanReviewChunk(p, { start: 0, end: cut }).findings,
+      ...scanReviewChunk(p, { start: cut, end: text.length }).findings,
     ];
     expect(raw.map((d) => d.range)).toEqual(scan(text).map((d) => d.range));
   }
@@ -148,5 +130,5 @@ test("warning-only diagnostics cannot become edits even with forged bulk metadat
   const text = warnings[0];
   const d = scan(text)[0];
   expect(planBulkFix(text, [{ ...d, bulk: { eligible: true, alternative: 0 } }]).edits).toEqual([]);
-  expect(stillDetectedAfter(prepareReview(snapshot(text), options), [d], [])).toEqual([false]);
+  expect(stillDetectedAfter(prepared(text, {}, options), [d], [])).toEqual([false]);
 });

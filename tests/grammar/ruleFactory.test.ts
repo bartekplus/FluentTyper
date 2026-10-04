@@ -1,14 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
 import { TYPING_RULE_CATALOG } from "../../src/core/domain/grammar/ruleCatalog";
-import type { GrammarContext } from "../../src/core/domain/grammar/types";
-
-function context(beforeCursor: string): GrammarContext {
-  return {
-    beforeCursor,
-    afterCursor: "",
-  };
-}
+import { context } from "./grammarTestUtils";
 
 describe("ruleFactory", () => {
   test("creates runtime rules in explicit catalog priority order", () => {

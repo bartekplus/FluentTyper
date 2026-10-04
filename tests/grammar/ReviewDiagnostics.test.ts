@@ -24,38 +24,20 @@ import {
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type {
-  ProtectedRange,
   ReviewDiagnostic,
   ReviewOptions,
+  ReviewSourceSnapshot,
 } from "../../src/core/domain/grammar/review/types";
+import { reviewOptions, reviewSnapshot } from "./grammarTestUtils";
 
 const ALL_RULES = GRAMMAR_RULE_IDS;
-
-function options(overrides: Partial<ReviewOptions> = {}): ReviewOptions {
-  return {
-    lang: "en_US",
-    enabledRules: ALL_RULES,
-    userDictionary: [],
-    insertSpaceAfterAutocomplete: true,
-    ...overrides,
-  };
-}
-
-function review(
+const options = (overrides: Partial<ReviewOptions> = {}) =>
+  reviewOptions({ enabledRules: ALL_RULES, ...overrides });
+const review = (
   text: string,
   overrides: Partial<ReviewOptions> = {},
-  extra: { scope?: { start: number; end: number }; protectedRanges?: ProtectedRange[] } = {},
-): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    {
-      id: "snap",
-      text,
-      scope: extra.scope ?? { start: 0, end: text.length },
-      protectedRanges: extra.protectedRanges ?? [],
-    },
-    options(overrides),
-  ).diagnostics;
-}
+  extra: Partial<ReviewSourceSnapshot> = {},
+) => detectReviewDiagnostics(reviewSnapshot(text, extra), options(overrides)).diagnostics;
 
 /** [ruleId, highlighted text, [start, end], corrected text of the highlight]. */
 function summary(diagnostics: ReviewDiagnostic[]) {
@@ -718,12 +700,7 @@ describe("adversarial review regressions: detection", () => {
       const start = text.indexOf("code");
       const end = text.indexOf("Done");
       const prepared = prepareReview(
-        {
-          id: "s",
-          text,
-          scope: { start: 0, end: text.length },
-          protectedRanges: [{ start, end, reason: "code" }],
-        },
+        reviewSnapshot(text, { protectedRanges: [{ start, end, reason: "code" }] }),
         options(),
       );
       const masked = prepared.text.slice(start, end);
@@ -887,17 +864,14 @@ describe("review detection invariants", () => {
     // Code mode leaves only code-safe rules, none of which review supports.
     expect(review(DEMO, { enabledRules: ["autoBracketClose"] })).toEqual([]);
     const german = detectReviewDiagnostics(
-      { id: "s", text: "teh cat , ok", scope: { start: 0, end: 12 }, protectedRanges: [] },
+      reviewSnapshot("teh cat , ok"),
       options({ lang: "de_DE" }),
     );
     expect(german.diagnostics.map((d) => d.ruleId)).toEqual([
       "capitalizeSentenceStart",
       "commaPeriodSpacing",
     ]);
-    const prepared = prepareReview(
-      { id: "s", text: "x", scope: { start: 0, end: 1 }, protectedRanges: [] },
-      options({ lang: "de_DE" }),
-    );
+    const prepared = prepareReview(reviewSnapshot("x"), options({ lang: "de_DE" }));
     expect(prepared.languageSkipped).toContain("englishTypoWhitelistCorrection");
   });
 
@@ -990,10 +964,7 @@ describe("review scope and protection", () => {
     expect(
       review("so i `x` has time", { enabledRules: ["englishPronounVerbWhitelistAgreement"] }),
     ).toEqual([]);
-    const result = detectReviewDiagnostics(
-      { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      options(),
-    );
+    const result = detectReviewDiagnostics(reviewSnapshot(text), options());
     // "`their is teh`" and the three-line fence, newlines included.
     expect(result.coverage.skipped.code).toBe(14 + 11);
   });
@@ -1049,7 +1020,7 @@ describe("review scope and protection", () => {
     const line = "teh cat sat on the mat and then left the room quietly.\n";
     const text = line.repeat(Math.ceil(12_000 / line.length));
     const prepared = prepareReview(
-      { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      reviewSnapshot(text),
       options({ enabledRules: ["englishTypoWhitelistCorrection"] }),
     );
     const chunks = reviewChunks(prepared);
@@ -1086,10 +1057,7 @@ describe("review scope and protection", () => {
       text += i % 3 === 0 ? `${paragraph}\n` : `${paragraph} `;
     }
     text += `\n${paragraph} `.repeat(1) + `${paragraph} `.repeat(60);
-    const prepared = prepareReview(
-      { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-      options(),
-    );
+    const prepared = prepareReview(reviewSnapshot(text), options());
     const chunks = reviewChunks(prepared);
     expect(chunks.length).toBeGreaterThan(5);
     const chunked = finalizeReview(
@@ -1117,10 +1085,7 @@ describe("review scope and protection", () => {
       const lastSpace = phrase.lastIndexOf(" ");
       const padding = "x".repeat(REVIEW_CHUNK_CHARS - lastSpace - 1);
       const text = `${padding} ${phrase} Ok.`;
-      const prepared = prepareReview(
-        { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-        options(),
-      );
+      const prepared = prepareReview(reviewSnapshot(text), options());
       const chunks = reviewChunks(prepared);
       expect(chunks[0].end).toBe(REVIEW_CHUNK_CHARS + 1);
       expect(text.slice(chunks[0].end)).toStartWith(phrase.slice(lastSpace + 1));
@@ -1135,7 +1100,7 @@ describe("review scope and protection", () => {
   test("a long single line is still split into bounded chunks", () => {
     const text = "one teh two ".repeat(2_000);
     const prepared = prepareReview(
-      { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+      reviewSnapshot(text),
       options({ enabledRules: ["englishTypoWhitelistCorrection"] }),
     );
     const chunks = reviewChunks(prepared);
@@ -1153,7 +1118,7 @@ describe("review scope and protection", () => {
 
   test("a throwing detector is reported as a coverage gap, not as no issues", () => {
     const prepared = prepareReview(
-      { id: "s", text: "teh", scope: { start: 0, end: 3 }, protectedRanges: [] },
+      reviewSnapshot("teh"),
       options({ enabledRules: ["englishTypoWhitelistCorrection"] }),
     );
     const scan = scanReviewChunk(prepared, { start: 0, end: 3 });

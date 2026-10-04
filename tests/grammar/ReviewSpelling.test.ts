@@ -1,45 +1,31 @@
 import { describe, expect, test } from "bun:test";
 import { GRAMMAR_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
-import {
-  detectReviewDiagnostics,
-  prepareReview,
-  spellingDiagnostic,
-} from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import { spellingDiagnostic } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import {
   otherLanguageParagraphs,
   parseSpellingRequest,
   rankSpellingSuggestions,
   spellingCandidates,
 } from "../../src/core/domain/grammar/review/reviewSpelling";
-import type { ProtectedRange, ReviewOptions } from "../../src/core/domain/grammar/review/types";
+import type {
+  ProtectedRange,
+  ReviewOptions,
+  ReviewSourceSnapshot,
+} from "../../src/core/domain/grammar/review/types";
+import { prepared as prepare, review } from "./grammarTestUtils";
 
-function options(overrides: Partial<ReviewOptions> = {}): ReviewOptions {
-  return {
-    lang: "en_US",
-    enabledRules: GRAMMAR_RULE_IDS,
-    userDictionary: [],
-    insertSpaceAfterAutocomplete: true,
-    ...overrides,
-  };
-}
-
-function prepared(
+const prepared = (
   text: string,
+  extra: Partial<ReviewSourceSnapshot> = {},
   overrides: Partial<ReviewOptions> = {},
-  protectedRanges: ProtectedRange[] = [],
-) {
-  return prepareReview(
-    { id: "s", text, scope: { start: 0, end: text.length }, protectedRanges },
-    options(overrides),
-  );
-}
+) => prepare(text, extra, { enabledRules: GRAMMAR_RULE_IDS, ...overrides });
 
 function words(
   text: string,
   overrides: Partial<ReviewOptions> = {},
   protectedRanges: ProtectedRange[] = [],
 ) {
-  return spellingCandidates(prepared(text, overrides, protectedRanges), []).map((c) => c.word);
+  return spellingCandidates(prepared(text, { protectedRanges }, overrides), []).map((c) => c.word);
 }
 
 describe("review spelling: which words are looked up", () => {
@@ -76,10 +62,10 @@ describe("review spelling: which words are looked up", () => {
 
   test("a selection looks up only the whole words it contains", () => {
     const scoped = (text: string, start: number, end: number) =>
-      spellingCandidates(
-        prepareReview({ id: "s", text, scope: { start, end }, protectedRanges: [] }, options()),
-        [],
-      ).map((candidate) => [candidate.word, candidate.range.start]);
+      spellingCandidates(prepared(text, { scope: { start, end } }), []).map((candidate) => [
+        candidate.word,
+        candidate.range.start,
+      ]);
     // Starting inside "carefully" (or inside "don't"): the cut word is not a word.
     expect(scoped("carefully done", 1, 14)).toEqual([["done", 10]]);
     expect(scoped("I don't know", 6, 12)).toEqual([["know", 8]]);
@@ -248,10 +234,7 @@ describe("review spelling: findings", () => {
   });
 
   test("the rule-based review is unchanged: spelling is a separate, later step", () => {
-    const found = detectReviewDiagnostics(
-      { id: "s", text: "Where wa it?", scope: { start: 0, end: 12 }, protectedRanges: [] },
-      options(),
-    ).diagnostics;
+    const found = review("Where wa it?", {}, { enabledRules: GRAMMAR_RULE_IDS }).diagnostics;
     expect(found).toEqual([]);
   });
 });
@@ -265,10 +248,7 @@ describe("review spelling: paragraphs in another language", () => {
   );
 
   function marked(text: string, scope = { start: 0, end: text.length }) {
-    const review = prepareReview(
-      { id: "s", text, scope, protectedRanges: [] },
-      options({ enabledRules: [] }),
-    );
+    const review = prepared(text, { scope }, { enabledRules: [] });
     const lookups = spellingCandidates(review, []).map(({ range, lookup }) => ({
       range,
       known: ENGLISH.has(lookup.toLowerCase()),

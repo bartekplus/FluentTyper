@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review } from "./grammarTestUtils";
 import {
   COMPOUNDS,
   PHRASES,
@@ -23,12 +23,10 @@ const OWN: CatalogRuleId[] = [
   "englishToToo",
   "englishVerbComplements",
 ];
-function scan(text: string, enabledRules: string[] = OWN): ReviewDiagnostic[] {
-  return detectReviewDiagnostics(
-    { id: "fixed", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "en_US", enabledRules, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics.filter((d) => OWN.includes(d.ruleId as CatalogRuleId));
-}
+const scan = (text: string, enabledRules: string[] = OWN): ReviewDiagnostic[] =>
+  review(text, {}, { enabledRules }).diagnostics.filter((d) =>
+    OWN.includes(d.ruleId as CatalogRuleId),
+  );
 const previews = (d: ReviewDiagnostic) => d.alternatives.map((a) => a.preview);
 
 const TABLES: [CatalogRuleId, readonly PhraseRow[]][] = [

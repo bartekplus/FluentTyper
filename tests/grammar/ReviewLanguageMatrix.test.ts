@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 import type { PreferredTerm } from "../../src/core/domain/grammar/review/preferredTerminology";
@@ -20,6 +19,7 @@ import {
   unclosedQuotation,
 } from "./reviewLanguageFixtures/words";
 import { MATRIX_LANGUAGES, type RuleFixtures } from "./reviewLanguageFixtures/types";
+import { review } from "./grammarTestUtils";
 
 /** Every rule Review runs in every supported language, with its fixtures. */
 const MATRIX: Array<[CatalogRuleId, RuleFixtures]> = [
@@ -39,13 +39,12 @@ const MATRIX: Array<[CatalogRuleId, RuleFixtures]> = [
 ];
 
 function findings(ruleId: CatalogRuleId, text: string, lang: string) {
-  return detectReviewDiagnostics(
-    { id: "matrix", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
+  return review(
+    text,
+    {},
     {
       enabledRules: [ruleId],
       lang,
-      userDictionary: [],
-      insertSpaceAfterAutocomplete: true,
       longSentenceWords: 12,
       preferredTerminology: {
         version: 1,

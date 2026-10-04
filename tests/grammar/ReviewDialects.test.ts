@@ -1,19 +1,15 @@
 import { expect, test } from "bun:test";
-import { detectReviewDiagnostics } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { REVIEW_RULE_METADATA } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
+import { review as runReview } from "./grammarTestUtils";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 
 // Opt-in dialect and house-style rules of english/dialects.ts. All sentences are our own.
 const US: CatalogRuleId = "englishAmericanSpelling";
 const UK: CatalogRuleId = "englishBritishSpelling";
 
-function review(text: string, rules: CatalogRuleId[]) {
-  return detectReviewDiagnostics(
-    { id: "dialects", text, scope: { start: 0, end: text.length }, protectedRanges: [] },
-    { lang: "en_US", enabledRules: rules, userDictionary: [], insertSpaceAfterAutocomplete: true },
-  ).diagnostics;
-}
+const review = (text: string, rules: CatalogRuleId[]) =>
+  runReview(text, {}, { enabledRules: rules }).diagnostics;
 /** Every finding's offered repairs, each applied to the whole text. */
 const repaired = (text: string, rule: CatalogRuleId) =>
   review(text, [rule]).map((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));

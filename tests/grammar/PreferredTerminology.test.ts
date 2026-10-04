@@ -7,18 +7,8 @@ import {
   MAX_TERMINOLOGY_IMPORT_BYTES,
   type PreferredTerm,
 } from "../../src/core/domain/grammar/review/preferredTerminology";
-const entry = (overrides: Partial<PreferredTerm> = {}): PreferredTerm => ({
-  id: "acme-suite",
-  source: "Acme Suite",
-  replacement: "Acme Workspace",
-  casePolicy: "exact",
-  explanation: "Our preferred product name.",
-  language: "en_US",
-  scope: "all-prose",
-  enabled: true,
-  ...overrides,
-});
-const config = (entries = [entry()]) => ({ version: 1, enabled: true, entries });
+import { term } from "./grammarTestUtils";
+const config = (entries = [term()]) => ({ version: 1, enabled: true, entries });
 
 test("terminology defaults are empty and off; explicit settings round-trip without generating IDs", () => {
   expect(emptyTerminology()).toEqual({ version: 1, enabled: false, entries: [] });
@@ -69,28 +59,28 @@ test.each([
   { enabled: 1 },
   { extra: "field" },
 ])("invalid preferred-term entry is rejected: %j", (overrides) => {
-  expect(
-    validateTerminology(config([{ ...entry(), ...overrides } as PreferredTerm])),
-  ).toMatchObject({ ok: false, error: "entry", index: 0 });
+  expect(validateTerminology(config([{ ...term(), ...overrides } as PreferredTerm]))).toMatchObject(
+    { ok: false, error: "entry", index: 0 },
+  );
 });
 
 test("terminology rejects duplicate sources and IDs without partial import", () => {
   for (const second of [
-    entry(),
-    entry({ id: "another" }),
-    entry({ id: "another", source: "acme suite", casePolicy: "insensitive" }),
-    entry({ source: "Other source" }),
+    term(),
+    term({ id: "another" }),
+    term({ id: "another", source: "acme suite", casePolicy: "insensitive" }),
+    term({ source: "Other source" }),
   ]) {
-    expect(validateTerminology(config([entry(), second]))).toMatchObject({
+    expect(validateTerminology(config([term(), second]))).toMatchObject({
       ok: false,
       error: "duplicate",
     });
   }
+  expect(validateTerminology(config([term(), term({ id: "french", language: "fr_FR" })])).ok).toBe(
+    true,
+  );
   expect(
-    validateTerminology(config([entry(), entry({ id: "french", language: "fr_FR" })])).ok,
-  ).toBe(true);
-  expect(
-    validateTerminology(config([entry(), entry({ id: "lowercase", source: "acme suite" })])).ok,
+    validateTerminology(config([term(), term({ id: "lowercase", source: "acme suite" })])).ok,
   ).toBe(true);
 });
 
@@ -121,7 +111,7 @@ test.each(
   ].map((pairs) => ({ pairs })),
 )("terminology rejects direct and neighboring-phrase cycles: %j", ({ pairs }) => {
   const entries = pairs.map(([source, replacement], index) =>
-    entry({ id: `term-${index}`, source, replacement }),
+    term({ id: `term-${index}`, source, replacement }),
   );
   expect(validateTerminology(config(entries))).toMatchObject({ ok: false, error: "cycle" });
   expect(validateTerminology(config(entries.map((e) => ({ ...e, enabled: false }))))).toMatchObject(
@@ -132,22 +122,22 @@ test.each(
 test("case repairs stabilize, acyclic chains and independent languages are allowed", () => {
   for (const casePolicy of ["exact", "insensitive"] as const)
     expect(
-      validateTerminology(config([entry({ source: "github", replacement: "GitHub", casePolicy })]))
+      validateTerminology(config([term({ source: "github", replacement: "GitHub", casePolicy })]))
         .ok,
     ).toBe(true);
   expect(
     validateTerminology(
       config([
-        entry({ id: "a", source: "A", replacement: "B" }),
-        entry({ id: "b", source: "B", replacement: "C" }),
+        term({ id: "a", source: "A", replacement: "B" }),
+        term({ id: "b", source: "B", replacement: "C" }),
       ]),
     ).ok,
   ).toBe(true);
   expect(
     validateTerminology(
       config([
-        entry({ id: "a", source: "A", replacement: "B", language: "en_US" }),
-        entry({ id: "b", source: "B", replacement: "A", language: "fr_FR" }),
+        term({ id: "a", source: "A", replacement: "B", language: "en_US" }),
+        term({ id: "b", source: "B", replacement: "A", language: "fr_FR" }),
       ]),
     ).ok,
   ).toBe(true);
@@ -155,7 +145,7 @@ test("case repairs stabilize, acyclic chains and independent languages are allow
 
 test("literal metacharacters and HTML are data in terminology JSON", () => {
   const value = config([
-    entry({
+    term({
       source: "Acme (old)",
       replacement: "<script>alert(1)</script>",
       explanation: '<img src=x onerror="alert(1)">',
@@ -175,18 +165,18 @@ test("terminology import and entry counts have hard bounds", () => {
   });
   expect(importTerminology("not JSON")).toEqual({ ok: false, error: "schema" });
   const entries = Array.from({ length: MAX_TERMINOLOGY_ENTRIES }, (_, i) =>
-    entry({ id: `id-${i}`, source: `old${i}`, replacement: `new${i}` }),
+    term({ id: `id-${i}`, source: `old${i}`, replacement: `new${i}` }),
   );
   expect(validateTerminology(config(entries)).ok).toBe(true);
-  expect(validateTerminology(config([...entries, entry()]))).toEqual({ ok: false, error: "limit" });
+  expect(validateTerminology(config([...entries, term()]))).toEqual({ ok: false, error: "limit" });
 });
 
 test("opposing exact-case preferences are a cycle even though each case repair is stable alone", () => {
   expect(
     validateTerminology(
       config([
-        entry({ id: "lower", source: "github", replacement: "GitHub" }),
-        entry({ id: "upper", source: "GitHub", replacement: "github" }),
+        term({ id: "lower", source: "github", replacement: "GitHub" }),
+        term({ id: "upper", source: "GitHub", replacement: "github" }),
       ]),
     ),
   ).toMatchObject({ ok: false, error: "cycle" });
@@ -196,16 +186,16 @@ test("Unicode insensitive folds cannot hide duplicate sources or replacement cyc
   expect(
     validateTerminology(
       config([
-        entry({ id: "first", source: "A", replacement: "σ", casePolicy: "insensitive" }),
-        entry({ id: "second", source: "ς", replacement: "A", casePolicy: "insensitive" }),
+        term({ id: "first", source: "A", replacement: "σ", casePolicy: "insensitive" }),
+        term({ id: "second", source: "ς", replacement: "A", casePolicy: "insensitive" }),
       ]),
     ),
   ).toMatchObject({ ok: false, error: "cycle" });
   expect(
     validateTerminology(
       config([
-        entry({ id: "first", source: "σ", replacement: "one", casePolicy: "insensitive" }),
-        entry({ id: "second", source: "ς", replacement: "two", casePolicy: "insensitive" }),
+        term({ id: "first", source: "σ", replacement: "one", casePolicy: "insensitive" }),
+        term({ id: "second", source: "ς", replacement: "two", casePolicy: "insensitive" }),
       ]),
     ),
   ).toMatchObject({ ok: false, error: "duplicate" });
