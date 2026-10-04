@@ -75,6 +75,7 @@ w razie pytać = w razie pytań
 na papieże = na papierze
 w tak sposób = w taki sposób
 po prost = po prostu
+po trzeba = potrzeba
 po kątem = pod kątem
 tan naprawdę = tak naprawdę
 nie wolo = nie wolno
