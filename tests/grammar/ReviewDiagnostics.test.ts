@@ -777,13 +777,13 @@ describe("adversarial review regressions: detection", () => {
     expect(after.bulk).toEqual({ eligible: false, reason: "ambiguous" });
   });
 
-  test("indented code is protected with CRLF and whitespace-only blank lines too", () => {
+  test("indented prose (a pasted git log body) is checked, not skipped as code", () => {
     for (const text of [
-      "Intro text.\r\n\r\n    let teh = dont;\r\n",
-      "Intro text.\n \n    let teh = dont;\n",
+      "    Code and docs: five rounds.\r\n\r\n    I think teh tests pass.\r\n",
+      "    Code and docs: five rounds.\n \n    I think teh tests pass.\n",
     ]) {
       const findings = review(text);
-      expect(findings.filter((d) => d.range.start > text.indexOf("let"))).toEqual([]);
+      expect(findings.some((d) => text.slice(d.range.start, d.range.end) === "teh")).toBe(true);
     }
   });
 

@@ -841,7 +841,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
       throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel())}`);
     });
     let panel = await reviewPanel();
-    expect(panel.items).toEqual(["␣␣ \u2192 ␣", "teh \u2192 the"]);
+    expect(panel.items).toEqual(["it?␣␣We \u2192 it?␣We", "teh \u2192 the"]);
     expect(panel.notes).not.toContain("outside");
     await evaluate("review.dispose()");
 
@@ -860,7 +860,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
       throw new Error(`${String(error)} ${JSON.stringify(await reviewPanel())}`);
     });
     panel = await reviewPanel();
-    expect(panel.items).toEqual(["␣␣ \u2192 ␣", "teh \u2192 the"]);
+    expect(panel.items).toEqual(["it?␣␣We \u2192 it?␣We", "teh \u2192 the"]);
     expect((await model()).pastes).toBe(0);
     await evaluate("review.dispose()");
   });

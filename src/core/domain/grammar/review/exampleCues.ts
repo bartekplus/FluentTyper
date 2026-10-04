@@ -5,7 +5,7 @@
  */
 const CUE_WORDS = [
   // en
-  "writes?|types?|spell(?:s|ed|ing)?|phrases?|words?|examples?|literals?|texts?|terms?|forms?",
+  "writes?|types?|avoid|spell(?:s|ed|ing)?|phrases?|words?|examples?|literals?|texts?|terms?|forms?",
   "headings?|titles?|labels?|identifiers?|property|variables?|names?",
   // de
   "schreib|schreibe|schreibt|schreiben|tippe|tippt|tippen|wort|wortes|wörter|begriff\\p{L}*|ausdruck\\p{L}*|beispiel\\p{L}*",

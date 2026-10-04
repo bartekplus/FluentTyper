@@ -5,6 +5,7 @@ import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/r
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
   detectReviewDiagnostics,
+  finalizeReview,
   prepareReview,
   scanReviewChunk,
   type PreparedReview,
@@ -84,11 +85,12 @@ export function expectChunkSplitParity(
   expected: readonly ReviewDiagnostic[],
 ): void {
   for (let cut = 1; cut < text.length; cut++) {
-    const raw = [
-      ...scanReviewChunk(prepared, { start: 0, end: cut }).findings,
-      ...scanReviewChunk(prepared, { start: cut, end: text.length }).findings,
-    ].sort((a, b) => a.range.start - b.range.start);
-    expect(raw.map((d) => [d.range, text.slice(d.range.start, d.range.end)])).toEqual(
+    // Two detectors may report one finding; finalizeReview keeps it once, as for the whole text.
+    const { diagnostics } = finalizeReview(prepared, [
+      scanReviewChunk(prepared, { start: 0, end: cut }),
+      scanReviewChunk(prepared, { start: cut, end: text.length }),
+    ]);
+    expect(diagnostics.map((d) => [d.range, d.original])).toEqual(
       expected.map((d) => [d.range, d.original]),
     );
   }

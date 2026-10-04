@@ -336,10 +336,45 @@ test("explicit quoted error examples stay unchanged while ordinary dialogue is c
     ),
   ).toBe(true);
 });
-test("dictionary candidates preserve quoted examples and numeric second abbreviations", () => {
+test("quoted and parenthesized prose is checked like other prose, but never in Fix all", () => {
+  const text = [
+    "the feature work correctly",
+    '"the feature work correctly"',
+    '"the results looks good"',
+    "the results looks good",
+    "",
+    "each of the tests have passed",
+    '"each of the tests have passed"',
+    "(the feature work correctly)",
+  ].join("\n");
+  const agreement = scan(text).filter((d) => d.ruleId === "englishSubjectVerbAgreement");
+  expect(agreement.map((d) => d.original)).toEqual([
+    "work",
+    "work",
+    "looks",
+    "looks",
+    "have",
+    "have",
+    "work",
+  ]);
+  // A named example ("the word ...") is still cited on purpose: no rule finding.
+  expect(scan('Use the word "the feature work correctly" as a bad example.')).toEqual([]);
+  // A batchable fix inside a quotation is offered one at a time.
+  const [typo] = scan('She said, "Please recieve it."').filter(
+    (d) => d.ruleId === "englishTypoWhitelistCorrection",
+  );
+  expect(typo.bulk).toEqual({ eligible: false, reason: "quoted" });
+  const [plain] = scan("Please recieve it.").filter(
+    (d) => d.ruleId === "englishTypoWhitelistCorrection",
+  );
+  expect(plain.bulk.eligible).toBe(true);
+});
+test("dictionary candidates include quoted examples, not numeric second abbreviations", () => {
   const text = "The example “recieve” is wrong. We waited 0.75 sec. Please recieve it.";
   const candidates = spellingCandidates(prepared(text, {}, { enabledRules: [] }), []);
+  // A cited misspelling is still offered as a choice; the user ignores it if it is deliberate.
   expect(candidates.filter((c) => c.word === "recieve").map((c) => c.range.start)).toEqual([
+    text.indexOf("recieve"),
     text.lastIndexOf("recieve"),
   ]);
   expect(candidates.some((c) => c.word === "sec")).toBe(false);

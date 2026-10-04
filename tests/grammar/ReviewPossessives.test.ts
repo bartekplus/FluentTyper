@@ -1,5 +1,8 @@
 import { expect, test } from "bun:test";
-import { scanReviewChunk } from "../../src/core/domain/grammar/review/reviewDiagnostics";
+import {
+  finalizeReview,
+  scanReviewChunk,
+} from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
 import {
@@ -187,13 +190,13 @@ test("mixed corpus preserves UTF-16 ownership across chunks, CRLF and normal quo
   const expected = scan(text, {}, options);
   expect(expected).toHaveLength(3);
   for (let boundary = 1; boundary < text.length; boundary++) {
-    const chunks = [
-      ...scanReviewChunk(prep, { start: 0, end: boundary }).findings,
-      ...scanReviewChunk(prep, { start: boundary, end: text.length }).findings,
-    ];
-    expect(
-      chunks.map((d) => [d.ruleId, d.range, text.slice(d.range.start, d.range.end)]).sort(),
-    ).toEqual(expected.map((d) => [d.ruleId, d.range, d.original]).sort());
+    const { diagnostics } = finalizeReview(prep, [
+      scanReviewChunk(prep, { start: 0, end: boundary }),
+      scanReviewChunk(prep, { start: boundary, end: text.length }),
+    ]);
+    expect(diagnostics.map((d) => [d.ruleId, d.range, d.original])).toEqual(
+      expected.map((d) => [d.ruleId, d.range, d.original]),
+    );
   }
 });
 test("new identities stay out of typing and do not duplicate existing contraction corrections", () => {

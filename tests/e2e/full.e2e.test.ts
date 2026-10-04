@@ -6102,9 +6102,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const fallback = await waitForReview(
         page,
         "English variant fallback",
-        (p) => p.notes.includes("Language: en_GB") && p.checking === "partial",
+        (p) => p.language === "English (UK)" && p.checking === "partial",
       );
-      expect(fallback.notes).toContain("Dictionary: en_US");
+      expect(fallback.notes).toContain("A compatible dictionary is in use.");
       expect(fallback.items.some((item) => item.text.startsWith("recieve →"))).toBe(true);
       expect(fallback.items.some((item) => item.text.startsWith("colour →"))).toBe(false);
       await clickReviewControl(page, '[data-action="retry"]');
@@ -6127,7 +6127,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "completed empty check",
         (p) => p.checking === "checked" && p.status === "No issues found by the review checks.",
       );
-      expect(complete.notes).toContain("Language: en_US (explicit choice)");
+      expect(complete.language).toBe("English (US)");
+      expect(complete.notes).not.toContain("en_US");
       await setTextarea("これは日本語の文章です。");
       const unsupported = await waitForReview(
         page,
@@ -6156,7 +6157,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         const panel = await waitForReview(page, "Swedish gender finding", (p) =>
           p.items.some((item) => item.text.startsWith("ett →") && item.category !== "spelling"),
         );
-        expect(panel.notes).toContain("Language: sv_SE");
+        expect(panel.language).toBe("Swedish");
         await finishReview();
       } finally {
         await setSetting(worker, KEY_LANGUAGE, "en_US");
@@ -7004,6 +7005,87 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           )}`,
         );
       });
+    },
+    suiteTimeout(45000, 60000),
+  );
+
+  test(
+    "Gutenberg iframe Review card moves away from parent-page UI that covers it",
+    async () => {
+      await prepareReviewPage({ enableGutenberg: true, gutenbergIframe: true });
+      const surface = await waitUntil(
+        "Gutenberg blob canvas",
+        async () =>
+          page
+            .frames()
+            .find((frame) => frame.name() === "editor-canvas" || frame.url().startsWith("blob:")) ??
+          false,
+      );
+      await page.$eval('iframe[name="editor-canvas"]', (frame) =>
+        frame.scrollIntoView({ block: "start" }),
+      );
+      const selector = "#test-gutenberg .block-editor-rich-text__editable";
+      await waitForInputReady(surface, selector);
+      await surface.$eval(selector, (element) => (element as HTMLElement).focus());
+      await triggerReview(worker);
+      const panel = await waitForReview(surface, "Gutenberg findings", (p) =>
+        p.items.some((item) => item.text === "teh → the"),
+      );
+      const item = panel.items.find((finding) => finding.text === "teh → the")!;
+      // The card's place in the parent page's coordinates.
+      const cardInParent = () =>
+        surface.evaluate((hostSelector) => {
+          const card = document.querySelector(hostSelector)?.shadowRoot?.querySelector(".card");
+          const box = card!.getBoundingClientRect();
+          const frame = window.frameElement!.getBoundingClientRect();
+          return {
+            left: frame.left + box.left,
+            top: frame.top + box.top,
+            right: frame.left + box.right,
+            bottom: frame.top + box.bottom,
+          };
+        }, REVIEW_HOST_SELECTOR);
+      const openCard = async () => {
+        await clickReviewControl(surface, `.item[data-id="${item.id}"]`);
+        await waitForReview(surface, "card open", (p) => p.card.open);
+        // The card places itself again 150 ms after it opens.
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return cardInParent();
+      };
+      const first = await openCard();
+      await page.keyboard.press("Escape");
+      await waitForReview(surface, "card closed", (p) => !p.card.open);
+      // Parent-page UI the size of Gutenberg's block toolbar, over the card's first place.
+      const strip = {
+        left: first.left,
+        top: first.top,
+        right: first.right,
+        bottom: first.top + 48,
+      };
+      await page.evaluate((box) => {
+        const cover = document.createElement("div");
+        cover.id = "ft-test-parent-toolbar";
+        Object.assign(cover.style, {
+          position: "fixed",
+          left: `${box.left}px`,
+          top: `${box.top}px`,
+          width: `${box.right - box.left}px`,
+          height: `${box.bottom - box.top}px`,
+          zIndex: "100000",
+          background: "rgba(0, 0, 0, 0.2)",
+        });
+        document.body.append(cover);
+      }, strip);
+      try {
+        const second = await openCard();
+        const overlap =
+          Math.max(0, Math.min(strip.right, second.right) - Math.max(strip.left, second.left)) *
+          Math.max(0, Math.min(strip.bottom, second.bottom) - Math.max(strip.top, second.top));
+        expect({ first, second, overlap }).toMatchObject({ overlap: 0 });
+      } finally {
+        await page.evaluate(() => document.getElementById("ft-test-parent-toolbar")?.remove());
+        await finishReview();
+      }
     },
     suiteTimeout(45000, 60000),
   );
@@ -8217,7 +8299,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(panel.items.map((item) => item.text)).toEqual([
         "i → I",
         "teh → the",
-        "␣, → ,",
+        "ready␣, → ready,",
         "their is → there is",
         "could of → could have",
         "monday → Monday",
@@ -8227,7 +8309,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         new Set(["spelling", "grammar", "punctuation", "typography"]),
       );
       expect(panel.marks).toHaveLength(panel.items.length);
-      expect(panel.notes).toContain("Skipped as code or protected text: 11 characters.");
+      expect(panel.notes).toContain("Code and embedded content are not checked.");
       expect(panel.fixAll).toMatchObject({ text: "Fix all safe (7)", disabled: false });
 
       await clickReviewControl(page, "[data-action=fix-all]");
@@ -8258,7 +8340,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "Review native grammar applies individual edits with native undo",
     async () => {
       for (const [source, expected, highlight] of [
-        ["I opened the the report.", "I opened the report.", "the␣the → the"],
+        ["I opened the the report.", "I opened the report.", "the the → the"],
         ["Did she went home?", "Did she go home?", "Did she went → Did she go"],
         [
           "This version is faster then the old version.",
@@ -8278,11 +8360,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ["I have went through the report.", "I have gone through the report.", "went → gone"],
         ["She has wrote the summary.", "She has written the summary.", "wrote → written"],
         ["We had took the wrong turn.", "We had taken the wrong turn.", "took → taken"],
-        ["We need fix this bug.", "We need to fix this bug.", "fix → to␣fix"],
-        ["They plan deploy tomorrow.", "They plan to deploy tomorrow.", "deploy → to␣deploy"],
+        ["We need fix this bug.", "We need to fix this bug.", "fix → to fix"],
+        ["They plan deploy tomorrow.", "They plan to deploy tomorrow.", "deploy → to deploy"],
         ["I look forward to meet you.", "I look forward to meeting you.", "meet → meeting"],
-        ["Despite of the delay, we finished.", "Despite the delay, we finished.", "of␣ → "],
-        ["We discussed about the release.", "We discussed the release.", "about␣ → "],
+        ["Despite of the delay, we finished.", "Despite the delay, we finished.", "of  → "],
+        ["We discussed about the release.", "We discussed the release.", "about  → "],
         ["I am interested on learning Rust.", "I am interested in learning Rust.", "on → in"],
         ["The router lost it's connection.", "The router lost its connection.", "it's → its"],
         ["Its ready to use.", "It's ready to use.", "Its → It's"],
@@ -8320,17 +8402,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     [
       "For all intensive purposes, the test is complete.",
       "For all intents and purposes, the test is complete.",
-      "intensive → intents␣and",
+      "intensive → intents and",
     ],
     ["They are one in the same.", "They are one and the same.", "in → and"],
     ["That feature peaked my interest.", "That feature piqued my interest.", "peaked → piqued"],
     [
       "This approach is more easier to test.",
       "This approach is easier to test.",
-      "more␣easier → easier",
+      "more easier → easier",
     ],
-    ["The revised result is more better.", "The revised result is better.", "more␣better → better"],
-    ["This is the most fastest option.", "This is the fastest option.", "most␣fastest → fastest"],
+    ["The revised result is more better.", "The revised result is better.", "more better → better"],
+    ["This is the most fastest option.", "This is the fastest option.", "most fastest → fastest"],
     [
       "The page contains useful informations.",
       "The page contains useful information.",
@@ -8347,7 +8429,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     ],
     ["The transport is based on webrtc.", "The transport is based on WebRTC.", "webrtc → WebRTC"],
     ["iphone sales increased.", "iPhone sales increased.", "iphone → iPhone"],
-    ["I use this tool everyday.", "I use this tool every day.", "everyday → every␣day"],
+    ["I use this tool everyday.", "I use this tool every day.", "everyday. → every␣day."],
     ["Please login to continue.", "Please log in to continue.", "login → log␣in"],
     ["We need to setup the environment.", "We need to set up the environment.", "setup → set␣up"],
     ["The feature look promising.", "The feature looks promising.", "look → looks"],
@@ -8546,7 +8628,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setTextarea(source);
       await triggerReview(worker);
       const panel = await waitForReview(page, "long native finding", (p) =>
-        p.items.some((i) => i.text === "about␣ → "),
+        p.items.some((i) => i.text === "about  → "),
       );
       expect(panel.items).toHaveLength(1);
       await clickReviewControl(page, ".item");
@@ -8571,7 +8653,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForReview(
         page,
         "fence invalidation",
-        (p) => p.items.length === 0 && p.notes.includes("Skipped as code or protected text"),
+        (p) =>
+          p.items.length === 0 && p.notes.includes("Code and embedded content are not checked."),
       );
       expect(await textareaValue()).toBe("```\n" + source);
     },
@@ -8810,14 +8893,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     [
       "Review usage phrase replacement preserves split formatting",
       "<p>For all <b>int</b><i>ensive</i> purposes, the test is complete.</p>",
-      "intensive → intents␣and",
+      "intensive → intents and",
       "For all intents and purposes, the test is complete.",
       { b: "int", i: "ents and" },
     ],
     [
       "Review degree deletion preserves the formatted comparison",
       "<p>This approach is <b>more </b><i>easier</i> to test.</p>",
-      "more␣easier → easier",
+      "more easier → easier",
       "This approach is easier to test.",
       { i: "easier" },
     ],
@@ -8889,7 +8972,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-contenteditable";
       const original = "<p>We need <b>f</b><i>ix</i> this bug.</p>";
-      const panel = await applyFormattedFinding(original, "fix → to␣fix");
+      const panel = await applyFormattedFinding(original, "fix → to fix");
       expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
       await waitUntil(
         "split insertion",
@@ -8975,7 +9058,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "two matching occurrences ignored",
         (p) => p.items.length === 1 && p.notes.includes("Ignored: 2"),
       );
-      expect(ignored.items[0].text).toBe("A␣a → A");
+      expect(ignored.items[0].text).toBe("A a → A");
       expect(ignored.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
       expect(await textareaValue()).toBe(source);
       await page.focus("#test-textarea");
@@ -9522,11 +9605,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(panel.items.map((item) => item.text)).toEqual([
         "teh → the",
         "teh → the",
-        "␣, → ,",
+        "dog␣, → dog,",
         "recieve → receive",
         "t → T",
         "their is → there is",
-        "alot → a␣lot",
+        "alot. → a␣lot.",
       ]);
       // Painted with namespaced CSS Custom Highlights; no element added to the editor.
       expect(panel.highlights.sort()).toEqual([
@@ -9584,7 +9667,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
 
       expect((await readReviewPanel(page)).fixAll.hidden).toBe(false);
-      for (const text of ["␣, → ,", "their is → there is", "alot → a␣lot"])
+      for (const text of ["dog␣, → dog,", "their is → there is", "alot. → a␣lot."])
         await applyIndividualReviewFix(text);
       // The line-start capital is individual-only and stays for the user to decide.
       panel = await waitForReview(

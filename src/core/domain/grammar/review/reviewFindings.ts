@@ -132,9 +132,11 @@ export function toDiagnostic(prepared: PreparedReview, finding: Finding): Review
     overlapsSortedRanges(prepared.terminology.ranges, range)
   )
     return null;
-  // The opt-in possible-mistakes check reads quoted examples on purpose.
+  // A quoted example is cited on purpose: only the opt-in possible-mistakes check
+  // and an unknown word (a choice, never applied in bulk) are shown in it.
   if (
     finding.ruleId !== "englishPossibleErrors" &&
+    !(finding.ruleId === REVIEW_SPELLING_CHECK && finding.requiresChoice) &&
     overlapsSortedRanges(prepared.quotations.examples, range)
   )
     return null;
@@ -192,6 +194,8 @@ export function toDiagnostic(prepared: PreparedReview, finding: Finding): Review
     bulk = { eligible: false, reason: "rule-not-batch-approved" };
   else if (alternatives.length !== 1) bulk = { eligible: false, reason: "ambiguous" };
   else if (finding.bulkBlock) bulk = { eligible: false, reason: finding.bulkBlock };
+  else if (overlapsSortedRanges(prepared.quotations.ranges, range))
+    bulk = { eligible: false, reason: "quoted" };
   else bulk = { eligible: true, alternative: 0 };
 
   const context = finding.context ?? range;

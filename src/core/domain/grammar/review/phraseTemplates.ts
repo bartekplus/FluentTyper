@@ -374,6 +374,21 @@ export type PhraseTemplate = {
 };
 
 /**
+ * The text start, closing punctuation or a blank line before `index`; a soft line wrap is not.
+ * An opening quote or parenthesis also opens a sentence after a line break.
+ */
+export function opensSentence(text: string, index: number): boolean {
+  let before = text.slice(Math.max(0, index - 96), index);
+  const opened = /["“‘„«(]$/.test(before);
+  if (opened) before = before.slice(0, -1);
+  return (
+    (index <= 96 && /^[ \t\u00a0]*$/.test(before)) ||
+    /(?:[.!?;:][ \t\r\n\u00a0]{0,8}|\n\r?\n[ \t\u00a0]{0,8})$/.test(before) ||
+    (opened && /\n[ \t\u00a0]{0,8}$/.test(before))
+  );
+}
+
+/**
  * Shared bounded phrase matching; templates provide explicit grammatical context.
  * Changes to reads/pattern bounds must also audit NativeReviewCache's read contract.
  */
@@ -385,13 +400,7 @@ export function detectPhraseTemplates(
   const findings: RawFinding[] = [];
   for (const { pattern, replacement, messageKey, clauseStart } of templates) {
     for (const match of frameMatches(ctx, pattern)) {
-      const before = ctx.scanText.slice(Math.max(0, match.index - 96), match.index);
-      if (
-        clauseStart &&
-        !(match.index <= 96 && /^[ \t\u00a0]*$/.test(before)) &&
-        !/(?:[.!?;:][ \t\r\n\u00a0]{0,8}|\n\r?\n[ \t\u00a0]{0,8})$/.test(before)
-      )
-        continue;
+      if (clauseStart && !opensSentence(ctx.scanText, match.index)) continue;
       // "TypeScript" is the one mixed-case word a template names itself.
       if (hasUserOrCasedWord(ctx, match[0].replace(/\bTypeScript\b/g, ""))) continue;
       findings.push(

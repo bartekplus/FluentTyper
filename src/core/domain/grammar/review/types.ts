@@ -95,7 +95,13 @@ export type BulkDecision =
   | {
       eligible: false;
       reason:
-        "rule-not-batch-approved" | "ambiguous" | "context-dependent" | "local-ai" | "warning-only";
+        | "rule-not-batch-approved"
+        | "ambiguous"
+        | "context-dependent"
+        | "local-ai"
+        | "warning-only"
+        /** Inside a quotation: it can cite someone's words verbatim, so the user decides. */
+        | "quoted";
     };
 
 export interface ReviewDiagnostic {

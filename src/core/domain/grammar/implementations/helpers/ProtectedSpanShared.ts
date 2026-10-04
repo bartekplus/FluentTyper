@@ -111,20 +111,18 @@ export function isInsideMarkdownCode(text: string): boolean {
  * Unlike isInsideProtectedSpan, which reads a prefix whose closer may still be
  * typed, this sees the finished text, so it follows CommonMark exactly where
  * that is safe: a backtick run without a matching run before the paragraph
- * ends is literal (6.1). An unclosed fence still runs to the end (4.5). An
- * indented line after a blank line (4.4) counts as code too, conservatively.
+ * ends is literal (6.1). An unclosed fence still runs to the end (4.5).
+ * Indented code (4.4) is not detected: any field can hold indented prose (a
+ * pasted `git log` body, a quoted email), and skipping it silently is worse
+ * than a finding in code.
  */
 export function findMarkdownCodeRanges(text: string): Array<[number, number]> {
   const ranges: Array<[number, number]> = [];
-  if (!text.includes("`") && !text.includes("~~~") && !/(?:^|\n[ \t\r]*\n)(?: {4}|\t)/.test(text)) {
-    return ranges;
-  }
+  if (!text.includes("`") && !text.includes("~~~")) return ranges;
   const lines = text.split("\n");
   let fence: { char: string; length: number; start: number } | null = null;
   // Paragraph text outside fences, scanned for spans once a paragraph ends.
   let paragraphStart = -1;
-  let previousBlank = true;
-  let indentedCode = false;
   let lineStart = 0;
   const flushParagraph = (end: number) => {
     if (paragraphStart >= 0) findCodeSpans(text, paragraphStart, end, ranges);
@@ -144,20 +142,9 @@ export function findMarkdownCodeRanges(text: string): Array<[number, number]> {
       fence = { char: found.run[0], length: found.run.length, start: lineStart };
     } else if (line.trim() === "") {
       flushParagraph(lineStart);
-      previousBlank = true;
-      lineStart = lineEnd + 1;
-      continue;
-    } else if ((previousBlank || indentedCode) && paragraphStart < 0 && /^(?: {4}|\t)/.test(line)) {
-      ranges.push([lineStart, lineEnd]);
-      indentedCode = true;
-      previousBlank = false;
-      lineStart = lineEnd + 1;
-      continue;
     } else if (paragraphStart < 0) {
       paragraphStart = lineStart;
     }
-    indentedCode = false;
-    previousBlank = false;
     lineStart = lineEnd + 1;
   }
   if (fence) ranges.push([fence.start, text.length]);

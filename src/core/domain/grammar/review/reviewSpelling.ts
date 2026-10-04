@@ -67,9 +67,9 @@ export function spellingCandidates(
   const { text } = prepared;
   const { scope } = prepared.snapshot;
   const protectedRanges = prepared.protectedRanges;
-  const taken = [...covered, ...prepared.terminology.ranges, ...prepared.quotations.examples].sort(
-    (a, b) => a.start - b.start,
-  );
+  // A cited example ('words such as "recieve"') is still looked up: the finding
+  // is a choice the user makes, so a deliberate misspelling is only ignored.
+  const taken = [...covered, ...prepared.terminology.ranges].sort((a, b) => a.start - b.start);
   let nextProtected = 0;
   let nextTaken = 0;
   const candidates: SpellingCandidate[] = [];

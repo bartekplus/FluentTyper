@@ -368,14 +368,16 @@ describe("text ranges", () => {
 });
 
 describe("markdown code ranges in finished text", () => {
-  test("spans, fences, unclosed backticks, escapes and indented code", () => {
+  test("spans, fences, unclosed backticks and escapes", () => {
     const text =
       "a `b` c ``d ` e`` f\\`g ` lone\n\n```js\ncode\n```\nafter\n\n    indented\n    more\ntext";
     const ranges = findMarkdownCodeRanges(text).map(([s, e]) => text.slice(s, e));
-    expect(ranges).toEqual(["`b`", "``d ` e``", "```js\ncode\n```", "    indented", "    more"]);
+    expect(ranges).toEqual(["`b`", "``d ` e``", "```js\ncode\n```"]);
     expect(findMarkdownCodeRanges("~~~\nopen fence to end")).toEqual([[0, 21]]);
     expect(findMarkdownCodeRanges("plain prose")).toEqual([]);
-    // A list continuation (no blank line before) is not indented code.
-    expect(findMarkdownCodeRanges("- item\n    continued")).toEqual([]);
+    // Indented prose (a pasted `git log` body) is not code: only fences and spans are.
+    expect(findMarkdownCodeRanges("    Code and docs: five rounds.\n\n    Tests only.")).toEqual(
+      [],
+    );
   });
 });

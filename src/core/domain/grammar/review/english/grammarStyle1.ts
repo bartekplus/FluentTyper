@@ -23,6 +23,7 @@ import {
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { finding } from "../finding";
+import { namedExampleBefore } from "../exampleCues";
 
 // ---------------------------------------------------------------------------- tables
 
@@ -1269,20 +1270,15 @@ function serialCommas(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-const OPENERS = '"“`(';
-const CLOSERS = '"”`)';
-
-/** Inside a short quotation or parenthesis on its line: an example under discussion. */
+/**
+ * Inside a named example (`the word "he go"`): an error cited on purpose. Other
+ * quotations and parentheses are the writer's prose and are checked; their
+ * fixes stay out of Fix all (toDiagnostic).
+ */
 export function quotedMention(ctx: DetectContext, finding: RawFinding): boolean {
-  const before = ctx.text.slice(Math.max(0, finding.range.start - 48), finding.range.start);
-  const after = ctx.text.slice(finding.range.end, finding.range.end + 48);
-  const open = Math.max(...[...OPENERS].map((mark) => before.lastIndexOf(mark)));
-  if (open < 0 || /[\n.!?]/.test(before.slice(open + 1))) return false;
-  const closer = CLOSERS[OPENERS.indexOf(before[open])];
-  const close = after.indexOf(closer);
-  return close >= 0 && !/\n/.test(after.slice(0, close));
+  return namedExampleBefore(ctx.text, finding.range.start);
 }
-/** English only; findings inside a quoted or parenthesized example are dropped. */
+/** English only; findings inside a named example are dropped. */
 export const english =
   (...detectors: ((ctx: DetectContext) => RawFinding[])[]) =>
   (ctx: DetectContext): RawFinding[] =>

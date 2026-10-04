@@ -248,6 +248,21 @@ describe("review spelling: findings", () => {
     expect(spellingDiagnostic(review, candidate, [])).toBeNull();
   });
 
+  test("a misspelling cited as an example is offered, never fixed in bulk", () => {
+    const text = 'It accepts words such as "recieve", "seperate" and "untill" without a warning.';
+    const review = prepared(text);
+    const cited = spellingCandidates(review, []).filter((c) =>
+      ["recieve", "seperate", "untill"].includes(c.word),
+    );
+    expect(cited.map((c) => c.word)).toEqual(["recieve", "seperate", "untill"]);
+    for (const candidate of cited) {
+      expect(spellingDiagnostic(review, candidate, ["receive"])).toMatchObject({
+        requiresChoice: true,
+        bulk: { eligible: false },
+      });
+    }
+  });
+
   test("the rule-based review is unchanged: spelling is a separate, later step", () => {
     const found = review("Where wa it?", {}, { enabledRules: GRAMMAR_RULE_IDS }).diagnostics;
     expect(found).toEqual([]);

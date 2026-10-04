@@ -2,6 +2,8 @@ import {
   detectPhraseTemplates,
   frameMatches,
   group,
+  hasUserOrCasedWord,
+  opensSentence,
   plainToken,
   SPACE,
   WORD_END,
@@ -18,7 +20,13 @@ import {
 } from "../implementations/helpers/EnglishNounNumber";
 import { englishInitialSound } from "../implementations/helpers/EnglishInitialSound";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
+import {
+  ENGLISH_MASS_NOUNS,
+  MASS_WITH_COUNT_SENSE,
+} from "../implementations/helpers/EnglishCountability";
 import { atClauseStart } from "./englishParticiples";
+import { COLLECTIVE } from "./english/agreementSlots";
+import { nounNumber } from "./english/nounNumberSlots";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
 function* clauseMatches(
@@ -287,6 +295,82 @@ function bareExistentialAgreement(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// "The build work correctly.", "These tests runs slowly.": a determiner, one counted noun, a
+// verb and an -ly adverb (or a linking verb and an adjective) that close the clause. The closing
+// word makes the verb a verb: "the build work" alone may be a compound noun.
+const DETERMINER_SUBJECT = `(?<det>the|this|that|these|those|our|your|my|its|their|his|her|every|each)${SPACE}(?<noun>[a-z]+)${SPACE}(?<verb>[a-z]+)${SPACE}(?<tail>[a-z]+)${WORD_END}(?=[ \\t\\u00a0]{0,8}(?:[.!,;:]|$))`;
+const LINKING = /^(?:look|seem|sound|feel|appear)s?$/;
+const AUXILIARY =
+  /^(?:is|are|am|was|were|be|been|being|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must|ought|need|needs|dare|used)$/;
+
+/** An -ly adverb with no other reading, or an adjective that is no verb ("good", not "fine"). */
+const only = (word: string, is: "adverb" | "adjective") => {
+  const info = englishWordInfo(word);
+  return (
+    !!info?.[is] &&
+    !info.verbs.length &&
+    (is === "adverb" ? !info.noun && !info.adjective && /ly$/.test(word) : !info.adverb)
+  );
+};
+
+function determinerSubjects(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, DETERMINER_SUBJECT, "verb")) {
+    const { det, noun, verb, tail } = m.groups!;
+    // Only a sentence opening establishes the subject: not "make the build work", "that the build
+    // run", "does the build work", or a soft line wrap ("The system and\nthe application work").
+    if (!opensSentence(ctx.scanText, m.index)) continue;
+    // The "i" flag lets [a-z] match capitals: a capitalized noun or verb names something.
+    if (`${noun} ${verb} ${tail}` !== `${noun} ${verb} ${tail}`.toLowerCase()) continue;
+    if (hasUserOrCasedWord(ctx, m[0]) || AUXILIARY.test(verb)) continue;
+    if (!(only(tail, "adverb") || (LINKING.test(verb) && only(tail, "adjective")))) continue;
+    // nounNumber reads the whole lexicon and leaves out invariant nouns ("series", "news").
+    const forms = nounNumber(noun);
+    const number = forms?.number;
+    if (
+      !number ||
+      [COLLECTIVE, ENGLISH_MASS_NOUNS, MASS_WITH_COUNT_SENSE].some((s) => s.has(forms.singular))
+    )
+      continue;
+    // "the general", "the final": an adjective may modify a noun in the verb slot.
+    if (englishWordInfo(noun)?.adjective) continue;
+    const d = det.toLowerCase();
+    if (
+      number === "singular" ? /^(?:these|those)$/.test(d) : /^(?:this|that|its|every|each)$/.test(d)
+    )
+      continue;
+    const verbForms = englishVerbForms(verb);
+    const info = englishWordInfo(verb);
+    const has = (form: string) => !!info?.verbs.some((v) => v.form === form);
+    let fix: string | null | undefined;
+    if (number === "singular") {
+      // A base that is also a past ("set", "cut") may be a participle after a compound noun.
+      if (
+        verbForms
+          ? verb === verbForms.lemma &&
+            verb !== verbForms.past &&
+            !verbForms.ambiguous.includes(verb)
+          : has("base") && !has("past") && !has("participle")
+      )
+        fix = verbForms?.third ?? englishInflect(verb, "third");
+    } else if (verbForms ? verb === verbForms.third : has("third"))
+      fix = verbForms?.lemma ?? englishLemma(verb, "third");
+    if (!fix || fix === verb) continue;
+    const [start, end] = group(m, "verb");
+    findings.push({
+      ruleId: "englishSubjectVerbAgreement",
+      messageKey: "review_msg_pronoun_verb",
+      range: { start, end },
+      alternatives: [fix],
+      context: {
+        start: Math.max(0, m.index - 96),
+        end: Math.min(ctx.text.length, m.index + m[0].length + 2),
+      },
+    });
+  }
+  return findings;
+}
+
 /** Audited noun heads and predicates; no suffix or collective-number inference. */
 export function subjectAgreement(ctx: DetectContext): RawFinding[] {
   const determiner = `(?:the|this|that|our|your)${SPACE}(?:(?:new|old|current|original)${SPACE})?`;
@@ -327,11 +411,15 @@ export function subjectAgreement(ctx: DetectContext): RawFinding[] {
     replacement: "sound",
     messageKey: "review_msg_pronoun_verb",
   });
-  return detectPhraseTemplates(
+  const fixed = detectPhraseTemplates(
     ctx,
     patterns.map((p) => ({ ...p, clauseStart: true as const })),
     "englishSubjectVerbAgreement",
-  ).filter(
+  );
+  const general = determinerSubjects(ctx).filter(
+    (d) => !fixed.some((f) => f.range.start === d.range.start),
+  );
+  return [...fixed, ...general].filter(
     (d) =>
       ctx.source.slice(d.range.start, d.range.end) ===
         ctx.source.slice(d.range.start, d.range.end).toLowerCase() &&

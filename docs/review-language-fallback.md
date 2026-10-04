@@ -48,7 +48,7 @@ The repository contains these ten Hunspell dictionaries in `resources_js/<langua
 
 Bare supported language codes resolve to their shipped resource.
 English `en_GB`, `en_AU`, and `en_CA` use `en_US` for limited dictionary checking.
-The selected variant stays visible. The panel names the fallback dictionary and reports partial coverage.
+The selected variant stays visible. The panel says that a compatible dictionary is in use and reports partial coverage.
 Dictionary lookup preserves accepted spellings from the English dialect tables in both directions.
 Variant fallback offers only corrections from the authored typo whitelist. Other unknown forms remain unchanged.
 It does not infer an error merely because the US dictionary lacks a word.
@@ -87,7 +87,7 @@ Protected regions, fallback uncertainty, missing native rules, and resource fail
 The packaged Presage module loads all dictionaries through one shared initialization promise.
 Concurrent requests reuse it. Successful initialization is reused offline.
 A rejected initialization remains rejected for typing. A new dictionary request can retry it.
-Review caches negative dictionary outcomes until **Retry checks**, a language change, or a new session.
+Review caches negative dictionary outcomes until **Check again**, a language change, or a new session.
 It does not retry failures on every keystroke. Retry preserves feature settings.
 Spelling caches reset between scans after reaching 4,096 entries. Per-pass and per-request limits still apply.
 Documents with more unique words than the cache can retain can remain partially checked across repeated passes.

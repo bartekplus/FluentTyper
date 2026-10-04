@@ -107,8 +107,10 @@ per-category filters (each a badge and its count, named in its tooltip), the
 findings, and **Fix all safe (N)**, which stays pinned at the bottom. The scope
 is labelled only when it is narrower than the whole field. The Local AI offer
 and coverage notes (skipped code, undo behavior) follow the findings. Fix all applies only the findings that are
-visible under the current filters, whose rule is batch-approved, and whose fix
-is proven not to conflict with another fix. Everything else stays for review
+visible under the current filters, whose rule is batch-approved, whose fix is
+outside a quotation, and whose fix is proven not to conflict with another fix.
+A quotation can cite someone's words verbatim, so you decide each fix in it.
+Everything else stays for review
 one by one. While filters are on, or fixes are left for individual review, the
 line under the button says what Fix all covers. When nothing is left, the panel
 shows only the outcome (with a check mark) and what can follow it.
@@ -629,6 +631,10 @@ ranked for the words before it.
   its suggestions use the text's apostrophe style ("don't"). The apostrophe fix
   shows again when you ignore the spelling finding, and on the next check after
   you fix the word. A Local AI fix of the word is also kept.
+- **Quoted examples are checked too.** A misspelling cited on purpose
+  (`words such as "recieve"`) still gets this finding. Rules do not flag a
+  quoted example, but the dictionary check offers it as a choice. Select
+  **Ignore** when the misspelling is deliberate.
 - **When it runs:** after the rule results are shown ("Checking spelling…"
   while it runs), a few words at a time, with answers remembered for rechecks.
   Each different word is looked up once, and each request to the background
@@ -803,8 +809,9 @@ Review never flags or edits:
 
 - **Code:** `code`, `pre`, `kbd` and `samp` elements; Quill code blocks; code
   editors (CodeMirror, Monaco, Ace…); code mode (none of the supported rules
-  is code-safe); and Markdown code: backtick spans, ` ``` ` and `~~~`
-  fences, and indented blocks.
+  is code-safe); and Markdown code: backtick spans, and ` ``` ` and `~~~`
+  fences. Indented lines stay prose: a plain field often holds indented text,
+  such as a pasted `git log` body.
 - **Technical tokens:** URLs, e-mail addresses, paths, @mentions, #hashtags,
   dotted names, and any token over 100 characters (hashes, base64, minified code).
 - **Structure:** images, embeds and `contenteditable=false` islands (read as
@@ -812,7 +819,15 @@ Review never flags or edits:
   zero-width cursor guards.
 
 Protected text is masked for the detectors, so no pattern can join words
-across it. The panel reports how much text was skipped.
+across it. The panel says when code or embedded content was not checked.
+
+### Quotations and parentheses
+
+Text in quotation marks or parentheses is checked like other prose. A fix
+inside a quotation is never in Fix all. A quotation after a word that names
+it as an example (`the word "teh"`, `words such as "recieve"`, `avoid "could
+of"`) is cited on purpose. Rules do not flag it; only the dictionary check
+offers its unknown words, as a choice.
 
 Formatting-only changes, such as text turned into code, change the snapshot
 signature and invalidate pending fixes.

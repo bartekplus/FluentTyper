@@ -69,11 +69,50 @@ export interface ReviewMark {
 
 type Box = Pick<DOMRect, "left" | "top" | "right" | "bottom">;
 
+/** The language selector's options: the shared languages plus English variants checked with en_US. */
+const REVIEW_LANGUAGES: Record<string, string> = {
+  ...SUPPORTED_LANGUAGES,
+  en_GB: "English (UK)",
+  en_AU: "English (Australia)",
+  en_CA: "English (Canada)",
+};
+
 function overlapArea(a: Box, b: Box): number {
   return (
     Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
     Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
   );
+}
+
+/**
+ * The part (0 to 1) of `box`, in this frame's viewport, that the parent page
+ * covers. In a same-origin iframe (the Gutenberg canvas) the parent's UI, such
+ * as the block toolbar, paints above everything in the frame, even the top layer.
+ */
+function coveredByParent(view: Window, box: Box): number {
+  let frame: Element | null;
+  try {
+    frame = view.frameElement;
+  } catch {
+    return 0;
+  }
+  if (!frame) return 0;
+  const rect = frame.getBoundingClientRect();
+  // Zoomed-out canvases scale the frame: map frame pixels to parent pixels.
+  const scale = (rect.width - 2 * frame.clientLeft) / view.innerWidth || 1;
+  let covered = 0;
+  for (const fx of [0.1, 0.5, 0.9]) {
+    for (const fy of [0.1, 0.5, 0.9]) {
+      const x = box.left + fx * (box.right - box.left);
+      const y = box.top + fy * (box.bottom - box.top);
+      const hit: Element | null = frame.ownerDocument.elementFromPoint(
+        rect.left + frame.clientLeft + x * scale,
+        rect.top + frame.clientTop + y * scale,
+      );
+      if (hit && hit !== frame) covered += 1;
+    }
+  }
+  return covered / 9;
 }
 
 const BADGES: Record<ReviewCategory, string> = {
@@ -188,35 +227,49 @@ function appendRegions(
   parent.append(doc.createTextNode(text.slice(cursor)));
 }
 
-/** Makes spaces visible in a short change preview ("word ," -> "word\u2423,"). */
-function visibleWhitespace(text: string): string {
-  return text
-    .replace(/ /g, "\u2423")
+/**
+ * Makes whitespace visible in a short change preview ("word ," -> "word\u2423,"). The card
+ * shows a changed space as a highlighted gap instead (`spaces` false).
+ */
+function visibleWhitespace(text: string, spaces = true): string {
+  return (spaces ? text.replace(/ /g, "\u2423") : text)
     .replace(/\u00A0/g, "\u237D")
     .replace(/\n/g, "\u21B5");
 }
 
-/** The common prefix and suffix, and whether whitespace itself is what changes. */
+/** The common prefix and suffix, and whether only whitespace changes. */
 function changeShape(from: string, to: string) {
   const { prefix, suffix } = commonAffixes(from, to);
   const changed = from.slice(prefix, from.length - suffix) + to.slice(prefix, to.length - suffix);
-  return { prefix, suffix, whitespace: /\s/.test(changed) };
+  return { prefix, suffix, whitespace: changed !== "" && !/\S/.test(changed) };
+}
+
+/**
+ * The text before and after a fix. A change of whitespace alone also shows the word on
+ * each side: ". → .\u2423" says nothing, "report.We → report.\u2423We" does.
+ */
+function previewPair(diagnostic: ReviewDiagnostic, to: string, text: string) {
+  const from = diagnostic.original;
+  const { start, end } = diagnostic.range;
+  if (!changeShape(from, to).whitespace || text.slice(start, end) !== from) return { from, to };
+  const before = /\S{0,40}$/.exec(text.slice(Math.max(0, start - 40), start))![0];
+  const after = /^\S{0,40}/.exec(text.slice(end, end + 40))![0];
+  return { from: before + from + after, to: before + to + after };
 }
 
 /** How many suggestions a pick-one finding shows in the list; the card shows all. */
 const LIST_CHOICES = 3;
 
 /** "teh → the"; a pick-one finding lists its first suggestions: "wa → was / way / war". */
-function listPreview(diagnostic: ReviewDiagnostic, warningLabel: string): string {
+function listPreview(diagnostic: ReviewDiagnostic, warningLabel: string, text: string): string {
   if (diagnostic.warningOnly) return `${warningLabel}: ${diagnostic.original}`;
   if (diagnostic.requiresChoice) {
     const choices = diagnostic.alternatives.map((alternative) => alternative.preview);
     const shown = choices.slice(0, LIST_CHOICES).join(" / ");
     return `${diagnostic.original} \u2192 ${shown}${choices.length > LIST_CHOICES ? " / \u2026" : ""}`;
   }
-  const from = diagnostic.original;
-  const to = diagnostic.alternatives[0].preview;
-  // Whitespace is shown as symbols only when whitespace itself is what changes.
+  const { from, to } = previewPair(diagnostic, diagnostic.alternatives[0].preview, text);
+  // Whitespace is shown as symbols only when only whitespace changes.
   return changeShape(from, to).whitespace
     ? `${visibleWhitespace(from)} \u2192 ${visibleWhitespace(to)}`
     : `${from} \u2192 ${to}`;
@@ -269,9 +322,12 @@ function appendDiff(
   const { prefix, suffix, whitespace } = changeShape(from, to);
   const text = side === "from" ? from : to;
   const changed = text.slice(prefix, text.length - suffix);
-  const show = whitespace ? visibleWhitespace : (value: string) => value;
+  const show = whitespace
+    ? (value: string) => visibleWhitespace(value, false)
+    : (value: string) => value;
   parent.append(doc.createTextNode(show(text.slice(0, prefix))));
-  if (changed) parent.append(element(doc, "mark", {}, show(changed)));
+  if (changed)
+    parent.append(element(doc, "mark", whitespace ? { class: "gap" } : {}, show(changed)));
   parent.append(doc.createTextNode(show(text.slice(text.length - suffix))));
 }
 
@@ -295,6 +351,7 @@ export class ReviewUi {
   private readonly body: HTMLElement;
   private readonly languageControls: HTMLElement;
   private readonly languageSelect: HTMLSelectElement;
+  private readonly autoLanguageOption: HTMLOptionElement;
   private readonly retry: HTMLButtonElement;
   private readonly prev: HTMLButtonElement;
   private readonly next: HTMLButtonElement;
@@ -406,14 +463,10 @@ export class ReviewUi {
       "aria-label": this.t("review_language_label"),
       "data-action": "language",
     }));
-    for (const [value, label] of Object.entries({
-      ...SUPPORTED_LANGUAGES,
-      en_GB: "English (UK)",
-      en_AU: "English (Australia)",
-      en_CA: "English (Canada)",
-    })) {
+    for (const [value, label] of Object.entries(REVIEW_LANGUAGES)) {
       language.append(element(doc, "option", { value }, label));
     }
+    this.autoLanguageOption = language.options[0];
     language.addEventListener("change", (event) => {
       if (event.isTrusted) this.callbacks.setLanguage?.(language.value);
     });
@@ -668,9 +721,9 @@ export class ReviewUi {
   }
 
   /**
-   * Puts the panel in the viewport corner that covers the least of the editor
-   * and, above all, never covers `focus` (the current finding) when a corner
-   * avoids it.
+   * Puts the panel in the viewport corner that covers the least of the editor,
+   * where the parent page does not cover it (iframe editors) and, above all,
+   * never covers `focus` (the current finding) when a corner avoids it.
    */
   placeAwayFrom(rect: DOMRect | null, focus: DOMRect | null = null): void {
     const view = this.doc.defaultView;
@@ -683,11 +736,15 @@ export class ReviewUi {
       ["top-right", view.innerWidth - 12 - width, 12],
       ["top-left", 12, 12],
     ] as const;
-    const score = ([, left, top]: (typeof corners)[number]) =>
-      overlapArea({ left, top, right: left + width, bottom: top + height }, rect) +
-      (focus
-        ? 1000 * overlapArea({ left, top, right: left + width, bottom: top + height }, focus)
-        : 0);
+    const score = ([, left, top]: (typeof corners)[number]) => {
+      const box = { left, top, right: left + width, bottom: top + height };
+      return (
+        overlapArea(box, rect) +
+        // Under the parent page's UI is worse than over the whole editor.
+        2 * width * height * coveredByParent(view, box) +
+        (focus ? 1000 * overlapArea(box, focus) : 0)
+      );
+    };
     const best = corners.reduce((a, b) => (score(b) < score(a) ? b : a));
     this.panel.dataset.corner = best[0];
   }
@@ -766,8 +823,13 @@ export class ReviewUi {
     this.status.textContent = this.statusText(state);
     // Whether suggestions for unknown words may still join the results.
     this.panel.dataset.checking = state.checking;
-    this.languageSelect.value =
-      state.language.source === "explicit" ? state.language.language : "auto_detect";
+    const explicit = state.language.source === "explicit";
+    this.languageSelect.value = explicit ? state.language.language : "auto_detect";
+    // Auto detect names the language it chose, so the notes need not repeat it.
+    this.autoLanguageOption.textContent =
+      explicit || state.language.source === "unresolved"
+        ? REVIEW_LANGUAGES.auto_detect
+        : `${REVIEW_LANGUAGES.auto_detect}: ${languageName(state.language.language)}`;
     this.languageSelect.disabled = state.status === "applying";
     this.retry.disabled = state.status === "applying";
     this.panel.dataset.spelling = state.status === "ready" ? state.spelling : "idle";
@@ -1074,7 +1136,12 @@ export class ReviewUi {
       const diagnostic = state.diagnostics.find((d) => d.id === id);
       if (diagnostic)
         changes.append(
-          element(doc, "li", { dir: "auto" }, listPreview(diagnostic, this.t("review_warning"))),
+          element(
+            doc,
+            "li",
+            { dir: "auto" },
+            listPreview(diagnostic, this.t("review_warning"), state.text),
+          ),
         );
     }
     const parts: HTMLElement[] = [
@@ -1214,20 +1281,16 @@ export class ReviewUi {
   private renderNotes(state: ReviewViewState): void {
     const lines: string[] = this.capabilityKeys.map((key) => this.t(key));
     if (state.status === "ready") {
-      lines.push(
-        this.t("review_language_status", {
-          language: state.language.language,
-          source: this.t(`review_language_${state.language.source}`),
-          resource: state.language.resource ?? this.t("review_language_unavailable"),
-        }),
-      );
+      if (state.language.source === "fallback")
+        lines.push(
+          this.t("review_language_fallback", { language: languageName(state.language.language) }),
+        );
+      if (state.language.source === "unresolved") lines.push(this.t("review_language_unresolved"));
       if (state.language.resource && state.language.resource !== state.language.language)
         lines.push(this.t("review_language_dictionary_fallback"));
       if (state.nativeGrammarDisabled) lines.push(this.t("review_status_grammar_off"));
       const skipped = state.coverage?.skipped ?? {};
-      const protectedChars = (skipped.code ?? 0) + (skipped.structure ?? 0);
-      if (protectedChars > 0)
-        lines.push(this.t("review_status_skipped", { count: protectedChars }));
+      if (skipped.code || skipped.structure) lines.push(this.t("review_status_skipped"));
       if (state.truncated > 0)
         lines.push(this.t("review_status_size_limit", { count: state.truncated }));
       if (state.unread > 0) lines.push(this.t("review_status_window", { count: state.unread }));
@@ -1331,7 +1394,7 @@ export class ReviewUi {
         "aria-current": String(diagnostic.id === state.selectedId),
       });
       const change = element(this.doc, "span", { class: "change", dir: "auto" });
-      change.textContent = listPreview(diagnostic, this.t("review_warning"));
+      change.textContent = listPreview(diagnostic, this.t("review_warning"), state.text);
       const why = element(
         this.doc,
         "span",
@@ -1396,6 +1459,9 @@ export class ReviewUi {
     this.renderCard(diagnostic);
     this.card.hidden = false;
     this.positionCard();
+    // A host editor can show its own UI for the click that opened the card
+    // (Gutenberg's block toolbar) a little later: place the card again once.
+    this.doc.defaultView?.setTimeout(() => this.positionCard(), 150);
   }
 
   closeCard(): void {
@@ -1485,8 +1551,9 @@ export class ReviewUi {
     const diff = element(doc, "div", { class: "diff", "aria-label": this.t("review_card_change") });
     const from = element(doc, "span", { class: "from", dir: "auto" });
     const to = element(doc, "span", { class: "to", dir: "auto" });
-    appendDiff(doc, from, diagnostic.original, alternative.preview, "from");
-    appendDiff(doc, to, diagnostic.original, alternative.preview, "to");
+    const pair = previewPair(diagnostic, alternative.preview, state?.text ?? "");
+    appendDiff(doc, from, pair.from, pair.to, "from");
+    appendDiff(doc, to, pair.from, pair.to, "to");
     // One line, as it reads: the text as written, struck through, then the fix.
     diff.append(
       from,
@@ -1717,8 +1784,8 @@ export class ReviewUi {
 
   /**
    * Places the card next to its finding (below, above, right or left) where it
-   * covers neither the finding nor the panel; failing that, where it covers
-   * the least, the finding counting most.
+   * covers neither the finding nor the panel, and the parent page does not
+   * cover it; failing that, where it covers the least, the finding counting most.
    */
   private positionCard(): void {
     const view = this.doc.defaultView;
@@ -1748,7 +1815,12 @@ export class ReviewUi {
     if (candidates.length === 0) candidates.push(fit(8, 8));
     const score = ({ left, top }: { left: number; top: number }) => {
       const box = { left, top, right: left + width, bottom: top + height };
-      return (anchor ? 4 * overlapArea(box, anchor) : 0) + (panel ? overlapArea(box, panel) : 0);
+      return (
+        (anchor ? 4 * overlapArea(box, anchor) : 0) +
+        (panel ? overlapArea(box, panel) : 0) +
+        // Hidden under the parent page's UI is as bad as covering the finding.
+        4 * width * height * coveredByParent(view, box)
+      );
     };
     const best = candidates.reduce((a, b) => (score(b) < score(a) ? b : a));
     this.card.style.left = `${best.left}px`;
@@ -1846,4 +1918,8 @@ export class ReviewUi {
   destroy(): void {
     this.host.remove();
   }
+}
+
+function languageName(language: string): string {
+  return REVIEW_LANGUAGES[language] ?? language;
 }

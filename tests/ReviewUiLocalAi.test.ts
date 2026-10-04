@@ -221,7 +221,9 @@ describe("ReviewUi: Local AI", () => {
         language: { language: "en_GB", resource: "en_US", source: "explicit" },
       }),
     );
-    expect(ui.root.textContent).toContain("Dictionary: en_US");
+    expect(ui.root.textContent).toContain(reviewText("review_language_dictionary_fallback", "en"));
+    // The selector shows an explicit language; the notes do not repeat it.
+    expect(ui.root.textContent).not.toContain("Language:");
     expect(ui.root.querySelector<HTMLSelectElement>('[data-action="language"]')?.value).toBe(
       "en_GB",
     );
@@ -268,6 +270,29 @@ describe("ReviewUi: Local AI", () => {
     expect(select.value).toBe(TEXT_EXPANDER_LANG);
     expect(select.selectedOptions[0]?.textContent).toContain("Text Expander");
     expect(ui.root.querySelector("[data-done]")).toBeNull();
+  });
+
+  test.each([
+    ["detected", "Auto detect: Polish", null],
+    ["fallback", "Auto detect: Polish", "The language is uncertain. Checked as Polish."],
+    ["unresolved", "Auto detect", "The language could not be detected. Choose a language."],
+  ] as const)("auto detect with a %s language names it once", (source, label, note) => {
+    ui.render(state({ language: { language: "pl_PL", resource: "pl_PL", source } }));
+    const select = $<HTMLSelectElement>('[data-action="language"]');
+    expect(select.value).toBe("auto_detect");
+    expect(select.selectedOptions[0]?.textContent).toBe(label);
+    const notes = ui.root.querySelector(".notes")?.textContent ?? "";
+    if (note) expect(notes).toContain(note);
+    expect(notes).not.toContain("pl_PL");
+    ui.render(state({ language: { language: "pl_PL", resource: "pl_PL", source: "explicit" } }));
+    expect(select.options[0]?.textContent).toBe("Auto detect");
+  });
+
+  test("skipped code is one note, without a character count", () => {
+    ui.render(state({ coverage: { checkedRules: [], failedRules: [], skipped: { code: 623 } } }));
+    const notes = ui.root.querySelector(".notes")?.textContent ?? "";
+    expect(notes).toContain("Code and embedded content are not checked.");
+    expect(notes).not.toContain("623");
   });
 
   test("language and retry controls use session callbacks only for trusted events", () => {
@@ -438,6 +463,86 @@ describe("ReviewUi: Local AI", () => {
     expect($(".card").textContent).toContain("user-authored advice");
     expect($(".card").querySelector("img")).toBeNull();
     expect($(".card").getAttribute("aria-label")).toContain("user-authored advice");
+  });
+
+  test("a spacing fix shows the words around it, and the card shows the space as a gap", () => {
+    const text = "I got the report.We left.";
+    const at = text.indexOf(".We");
+    const spacing = finding("space", {
+      ruleId: "commaPeriodSpacing",
+      category: "punctuation",
+      messageKey: "review_msg_space_after_mark",
+      range: { start: at, end: at + 1 },
+      original: ".",
+      alternatives: [
+        { edits: [{ start: at + 1, end: at + 1, original: "", replacement: " " }], preview: ". " },
+      ],
+    });
+    const words = finding("words", {
+      range: { start: 6, end: 13 },
+      original: "the the",
+      alternatives: [{ edits: [], preview: "the" }],
+    });
+    ui.render(state({ text, diagnostics: [spacing, words] }));
+    const changes = Array.from(ui.root.querySelectorAll(".item .change")).map((c) => c.textContent);
+    // Not ". → .␣": the words around the change; a word change keeps plain spaces.
+    expect(changes).toEqual(["report.We \u2192 report.\u2423We", "the the \u2192 the"]);
+    ui.openCard(spacing, null);
+    expect($(".card .from").textContent).toBe("report.We");
+    expect($(".card .to").textContent).toBe("report. We");
+    expect($(".card .to mark.gap")?.textContent).toBe(" ");
+  });
+
+  test("in an iframe, the card avoids places that the parent page covers", () => {
+    const diagnostic = finding("a");
+    ui.render(state({ diagnostics: [diagnostic] }));
+    const anchor = new DOMRect(100, 300, 60, 20);
+    const card = () => $<HTMLElement>(".card");
+    ui.openCard(diagnostic, anchor);
+    // Alone, the card goes below its finding.
+    expect(parseFloat(card().style.top)).toBeGreaterThan(anchor.bottom);
+    // A parent toolbar (Gutenberg's block toolbar) covers everything below the finding.
+    const frame = document.createElement("iframe");
+    const parentDoc = {
+      elementFromPoint: (_x: number, y: number) => (y > anchor.bottom ? toolbar : frame),
+    };
+    const toolbar = document.createElement("div");
+    Object.defineProperties(frame, {
+      ownerDocument: { value: parentDoc },
+      getBoundingClientRect: { value: () => new DOMRect(0, 0, window.innerWidth, 600) },
+    });
+    Object.defineProperty(window, "frameElement", { value: frame, configurable: true });
+    try {
+      ui.updateCardAnchor(anchor);
+      expect(parseFloat(card().style.top)).toBeLessThan(anchor.top);
+    } finally {
+      Object.defineProperty(window, "frameElement", { value: null, configurable: true });
+    }
+  });
+
+  test("in an iframe, the panel avoids corners that the parent page covers", () => {
+    const panel = () => $<HTMLElement>(".panel");
+    const editor = new DOMRect(0, 0, 200, 200);
+    ui.placeAwayFrom(editor);
+    expect(panel().dataset.corner).toBe("bottom-right");
+    // Parent UI covers the whole bottom half of the frame.
+    const frame = document.createElement("iframe");
+    const cover = document.createElement("div");
+    Object.defineProperties(frame, {
+      ownerDocument: {
+        value: { elementFromPoint: (_x: number, y: number) => (y > 300 ? cover : frame) },
+      },
+      getBoundingClientRect: {
+        value: () => new DOMRect(0, 0, window.innerWidth, window.innerHeight),
+      },
+    });
+    Object.defineProperty(window, "frameElement", { value: frame, configurable: true });
+    try {
+      ui.placeAwayFrom(editor);
+      expect(panel().dataset.corner).toBe("top-right");
+    } finally {
+      Object.defineProperty(window, "frameElement", { value: null, configurable: true });
+    }
   });
 
   test("rule findings show the explanation sent with them; the page explains its own", () => {
