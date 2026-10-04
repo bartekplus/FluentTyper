@@ -876,6 +876,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
       ],
       neg: [
         "Il est la demain.",
+        "Elle est la vice présidente du club.",
         "Il prend le bois et le travaille.",
         "Elle le bloque et le retourne.",
         "Un gâteau aux mures du jardin.",

@@ -51,9 +51,9 @@ const SWAP: Record<string, [string | null, string | null]> = {
   aucune: ["aucun", "aucun"],
 };
 // Adverbs and prefixes written apart that sit between a determiner and its noun ("une tout
-// autre", "la post saison").
+// autre", "la post saison", "la vice présidente").
 const NOT_HEADS = new Set(
-  "tout bien mieux plus moins très trop peu mini maxi post pré anti ex super hyper ultra".split(
+  "tout bien mieux plus moins très trop peu mini maxi post pré anti ex super hyper ultra vice".split(
     " ",
   ),
 );

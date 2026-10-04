@@ -1169,6 +1169,39 @@ ci contre = ci-contre
 jusque la = jusque-là
 jusque là = jusque-là
 `),
+  // Wave 17: compounds written apart where the two words make no phrase of their own.
+  ...rows(`
+d'outre mer = d'outre-mer
+par ouï dire = par ouï-dire
+non stop = non-stop
+pique nique = pique-nique
+pic nique = pique-nique
+pique niques = pique-niques
+arrière pensée = arrière-pensée
+arrière pensées = arrière-pensées
+à mis-voix = à mi-voix
+médecin chef = médecin-chef
+médecins chefs = médecins-chefs
+porte feuille = portefeuille
+porte-feuilles = portefeuilles
+boîte-aux-lettres = boîte aux lettres
+boîtes-aux-lettres = boîtes aux lettres
+collé serré = collé-serré
+double cliquez = double-cliquez
+double cliquer = double-cliquer
+double clic = double-clic
+manque de savoir vivre = manque de savoir-vivre
+le savoir vivre = le savoir-vivre
+du savoir vivre = du savoir-vivre
+`),
+  ...["le", "un", "ce", "du", "des"].map((det): PhraseRow => [
+    `${det} va et vient`,
+    `${det} va-et-vient`,
+  ]),
+  ...["ma", "sa", "ta", "mon", "son", "ton", "votre", "notre"].flatMap((det): PhraseRow[] => [
+    [`${det} bien aimée`, `${det} bien-aimée`],
+    [`${det} bien aimé`, `${det} bien-aimé`],
+  ]),
   ...["te", "vous"].flatMap((p) =>
     ["plaît", "plait"].flatMap((v): PhraseRow[] => [
       [`s'il-${p}-${v}`, `s'il ${p} ${v}`],
