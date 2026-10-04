@@ -191,3 +191,15 @@ test("user dictionary words, quoted mentions and code abstain", () => {
   expect(scan("Siehe https://example.com/Standart heute.", "de_DE")).toEqual([]);
   expect(scan("Le mot « parmis » est fautif.", "fr_FR")).toEqual([]);
 });
+
+test("a lowercase row typed capitalized after a capitalized word is part of a name", () => {
+  const typed = (text: string, lang: string) => scan(text, lang).map((d) => d.original);
+  expect(typed("La pintora Rosa Nadien expone hoy.", "es_ES")).toEqual([]);
+  expect(typed("Ontem o Doutor Mendingo chegou.", "pt_BR")).toEqual([]);
+  // A sentence start, a capital that starts the sentence before it, and a lowercase word before
+  // it keep the row.
+  expect(typed("Hoy. Nadien vino.", "es_ES")).toEqual(["Nadien"]);
+  expect(typed("Szanowni Pastwo, dziękuję.", "pl_PL")).toEqual(["Pastwo"]);
+  expect(typed("Aquí no vino nadien hoy.", "es_ES")).toEqual(["nadien"]);
+  expect(typed("Ontem o mendingo chegou.", "pt_BR")).toEqual(["mendingo"]);
+});

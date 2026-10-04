@@ -287,6 +287,20 @@ function toFinding(
   if (namedExampleBefore(ctx.text, start)) return null;
   // French "Mary Quant, Quant on": a capitalized word inside a sentence is a name.
   if (isLang(ctx, "fr") && capitalizedName(ctx.text, start, typed)) return null;
+  // "de Fernando Asín": a one-word lowercase row typed capitalized right after a capitalized word
+  // inside the sentence is part of a name. English titles capitalize every word ("An Eagle Eyed
+  // Reviewer"), so English rows stay.
+  if (
+    !isLang(ctx, "en") &&
+    phrase.ruleId !== "englishCanonicalCasing" &&
+    /^\p{Lu}\p{Ll}+$/u.test(typed) &&
+    !/\p{Lu}/u.test(phrase.source) &&
+    phrase.replacements.every((r) => !/^\P{L}*\p{Lu}/u.test(r)) &&
+    /[^\s.!?…:;"“”«»(][ \t\u00a0]+\p{Lu}\p{Ll}+[ \t\u00a0]+$/u.test(
+      ctx.text.slice(Math.max(0, start - 48), start),
+    )
+  )
+    return null;
   // English "The Old Home Town", "Two Fold Clothing": capitalized words joined into one are a name;
   // a hyphen keeps a title's words ("An Eagle Eyed Reviewer" -> "Eagle-Eyed").
   if (
