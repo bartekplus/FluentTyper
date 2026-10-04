@@ -130,6 +130,11 @@ test.each([
   ["die", "dies", "died", "dying"],
   ["dye", "dyes", "dyed", "dyeing"],
   ["revisit", "revisits", "revisited", "revisiting"],
+  // Irregular: the table's forms, never a doubled regular past ("getted", "runned").
+  ["get", "gets", "got", "getting"],
+  ["run", "runs", "ran", "running"],
+  ["put", "puts", "put", "putting"],
+  ["go", "goes", "went", "going"],
   // Known, not a base verb.
   ["such", null, null, null],
   ["combated", null, null, null],

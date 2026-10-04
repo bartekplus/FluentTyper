@@ -8544,7 +8544,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "Optional style advice stays off by default and separates counts warnings and native undo",
+    "Only redundancy advice is on by default; style advice separates counts warnings and native undo",
     async () => {
       const previous = await getSetting(worker, KEY_REVIEW_RULE_OVERRIDES);
       await setSetting(worker, KEY_REVIEW_RULE_OVERRIDES, {});
@@ -8556,8 +8556,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await triggerReview(worker);
         await waitForReview(
           page,
-          "style disabled",
-          (p) => p.status === "No issues found by the review checks." && p.items.length === 0,
+          "style defaults",
+          (p) =>
+            p.status === "No issues found by the review checks. Style advice: 1." &&
+            p.items.length === 1 &&
+            p.items[0].id.includes("styleRedundancy"),
         );
         await setSetting(worker, KEY_REVIEW_RULE_OVERRIDES, {
           styleRedundancy: true,
@@ -8603,11 +8606,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                 ?.shadowRoot?.querySelectorAll('.card [data-action="apply"]').length,
           ),
         ).toBe(0);
-        await setSetting(worker, KEY_REVIEW_RULE_OVERRIDES, {});
+        await setSetting(worker, KEY_REVIEW_RULE_OVERRIDES, { styleRedundancy: false });
         await notifyConfigChange(browser, worker);
         await waitForReview(
           page,
-          "style disabled again",
+          "style disabled",
           (p) => p.items.length === 0 && !p.status.includes("Style advice"),
         );
       } finally {
@@ -9813,8 +9816,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await triggerReview(worker);
       let panel = await waitForReview(page, "panel focused", (p) => p.status === "Issues: 2");
       expect(panel.focus).toBe("h2");
-      // Tab moves through review controls to the first issue.
-      for (let i = 0; i < 12 && (await readReviewPanel(page)).focus !== "button.item"; i += 1) {
+      // Tab moves through review controls (the Style chip too: redundancy advice is on) to
+      // the first issue.
+      for (let i = 0; i < 16 && (await readReviewPanel(page)).focus !== "button.item"; i += 1) {
         await page.keyboard.press("Tab");
       }
       await page.keyboard.press("Enter");

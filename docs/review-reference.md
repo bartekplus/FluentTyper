@@ -195,9 +195,9 @@ category. Each rule has a **While typing** and an **In Review** switch in
 **Settings → Grammar → Correction rules**, grouped by Review category. A rule
 that cannot run in one of these places has no switch in that column.
 English-only rules show an "English only" tag.
-Core checks default on. Style and readability advice, dialect spellings, possible
-errors, and the ellipsis, dash and prime checks default off; **Restore defaults**
-keeps them off. The **While typing** switches control only automatic corrections.
+Core checks default on, and so does redundancy advice ("PIN number" → "PIN"). The other
+style and readability advice, dialect spellings, possible errors, and the ellipsis, dash
+and prime checks default off; **Restore defaults** keeps them off. The **While typing** switches control only automatic corrections.
 A native finding's **Disable this check in Review** action saves that rule's choice
 and refreshes open reviews. Restore it in settings, individually or with **Restore defaults**.
 Disabling every native check leaves dictionary spelling and separately configured Local AI available.
@@ -1120,6 +1120,7 @@ includes one layout of the mirror (about 150 ms).
 ## Optional style and readability advice
 
 In **Settings → Grammar → Correction rules**, **In Review** column, enable any optional style check explicitly.
+Redundancy advice is the only style check that is on by default.
 They never run while typing or enter **Fix all safe**. The panel has a separate **Style advice** count and filter;
 these findings do not count as grammar/spelling errors. Applying or ignoring advice
 also stays separate from resolved/ignored errors.

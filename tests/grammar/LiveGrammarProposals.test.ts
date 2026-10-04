@@ -57,6 +57,14 @@ describe("findLiveGrammarProposals", () => {
     );
   });
 
+  test("leaves style advice to Review, even when its switch is on", () => {
+    expect(find("Use your PIN number at the ATM machine and ")).toEqual([]);
+    const enabledRules = ["stylePhrasing", "styleWordChoice"];
+    expect(find("We did it in order to win and it is very important ", { enabledRules })).toEqual(
+      [],
+    );
+  });
+
   test("follows the Review switches, language and code mode", () => {
     expect(
       find("We is ready. ", {
