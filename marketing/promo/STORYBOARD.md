@@ -20,12 +20,12 @@ Version 2, 2026-10-04. Version 1 (42 s, light) is kept word for word in `STORYBO
 - **Spine:** the cyan caret. It blinks alone at the start, types every line, jumps between editors on match cuts, and at the end slides into the logo's F.
 - **Brand:** `frame.md` (bespoke "FluentTyper Keynote"): black stage, ink #F5F5F7, grey ladder #A1A1A6 / #6E6E73, logo gradient #1BD9FD → #1FA7F3 (sampled from `public/icon/icon256.png`), system-ui type.
 - **Bans:** no feature titles; no small print; no fake product UI; no static end card; no side-by-side explainer layouts; no more than one gradient element per frame. Motion failures to avoid: the slideshow (a new card for every beat) and the screensaver (motion that says nothing).
-- **Held frame:** Frame 13. Nothing moves; the privacy line lands.
+- **Held frame:** Frame 9. The privacy line lands and holds.
 - **Truthfulness:** the large typed line repeats, letter for letter, the text of the recorded field at that moment. Every UI panel is a real capture of the current build with synthetic text. Key caps and the pointer are labelled marketing annotations (ASSETS.md).
 
 ## Still open
 
-- Google Docs shot: resolved. The Docs e2e page says "NOT Google Docs" on screen, so Docs is named in the copy only. Frame 11 shows the mail window, a real WordPress 7.1.2 editor (local Playground) and a synthetic Notes app on the real Slate editor.
+- Google Docs shot: resolved. The Docs e2e page says "NOT Google Docs" on screen, so Docs is named in the copy only. Frame 7 shows the mail window, a real WordPress 7.1.2 editor (local Playground) and a synthetic Notes app on the real Slate editor.
 - Not in the film (say so if you want them): per-site settings, preferred terminology, measurement formatting, the stats dashboard.
 
 ## Changes after review (2026-10-04, v2.1)
@@ -39,6 +39,11 @@ What the note meant and what moved:
 - Lost: one plain caption under the window says what happened at every beat, with key chips inside the sentence.
 - Taste review (design-taste-frontend): no cyan glow, near-black stage (#0a0a0c), the accent only on the caret and the opening word, no middle-dot lists.
 - 17 frames became 13: the separate typed lines, crops and big-type feature frames were folded into the window.
+
+Second note, verbatim: "at 0:36 there is popup in top left corner, is that a bug? ... at 0:45 Works offline, it somehow feel strange, I don't like it! remove it ? improve it? replace it ?"
+
+- 0:36 was a product bug: a caret set between child nodes had no box, so the popup fell back to the field's top-left corner. Fixed in `SuggestionPositioningService` (measure at the nearest text); the Local AI capture now uses a text caret and closes the popup.
+- 0:45: the offline window shot is gone. The privacy frame holds 6.5 s and adds "Nothing is uploaded. It works offline, too." 13 frames became 12.
 
 ## Locked
 
@@ -128,48 +133,37 @@ Caption: "Works where you write." / "Mail, WordPress, Google Docs and more."
 
 Caption: "Rewrite a draft with optional Local AI." / "Chrome and Edge. Runs on your device."
 
-## Frame 9 — Your device (40.5–44, 3.5 s)
+## Frame 9 — Your device (40.5–47, 6.5 s)
 
 - status: animated
 - src: compositions/frames/09-device.html
-- duration: 3.5s
+- duration: 6.5s
 - transition_in: cut
-- scene: Held frame: "Your words stay on your device."
+- scene: Held frame: "Your words stay on your device." Then one quiet line: "Nothing is uploaded. It works offline, too."
 - asset_candidates: none
 
-## Frame 10 — Offline (44–47, 3 s)
+## Frame 10 — Free (47–51, 4 s)
 
 - status: animated
-- src: compositions/frames/10-offline.html
-- duration: 3s
-- transition_in: cut
-- scene: The window returns with a suggestion recorded offline.
-- asset_candidates: assets/ui/v2-offline.png
-
-Caption: "Works offline, too."
-
-## Frame 11 — Free (47–51, 4 s)
-
-- status: animated
-- src: compositions/frames/11-free.html
+- src: compositions/frames/10-free.html
 - duration: 4s
 - transition_in: cut
 - scene: "Free. Open source." one line at a time.
 - asset_candidates: none
 
-## Frame 12 — Browsers (51–54, 3 s)
+## Frame 11 — Browsers (51–54, 3 s)
 
 - status: animated
-- src: compositions/frames/12-browsers.html
+- src: compositions/frames/11-browsers.html
 - duration: 3s
 - transition_in: cut
 - scene: "Chrome. Firefox. Edge." on three beats.
 - asset_candidates: none
 
-## Frame 13 — Logo (54–60, 6 s)
+## Frame 12 — Logo (54–60, 6 s)
 
 - status: animated
-- src: compositions/frames/13-logo.html
+- src: compositions/frames/12-logo.html
 - duration: 6s
 - transition_in: cut
 - scene: The caret slides into the logo; "FluentTyper", "Less typing. More you.", "Free for Chrome, Firefox and Edge".

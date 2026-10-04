@@ -129,9 +129,12 @@ try {
     const doc = document.querySelector<HTMLElement>("#doc")!;
     doc.textContent = text;
     doc.focus();
-    getSelection()!.collapse(doc, 1);
+    getSelection()!.collapse(doc.firstChild!, text.length);
   }, REWRITE_TEXT);
   await sleep(500);
+  // The "before" shot shows the draft alone, without the next-word popup.
+  await page.keyboard.press("Escape");
+  await sleep(300);
   await page.screenshot({ path: resolve(OUT, "v2-ai-before.png") });
   await triggerReview(worker);
   await waitForReview(page, "Review open", (panel) => panel.open && panel.status !== "");

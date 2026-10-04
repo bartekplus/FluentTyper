@@ -396,27 +396,19 @@ const scene = (id: string, d: number, html: string, motion: string) => {
   scene("localai", 5, html, motion);
 }
 
-// ---------------------------------------------------------------- 09 your device (40.5–44)
+// ---------------------------------------------------------------- 09 your device (40.5–47)
+// The privacy promise holds; one quiet line adds the offline proof (README).
 scene(
   "device",
-  3.5,
+  6.5,
   clip(
     0,
-    3.5,
+    6.5,
     2,
-    `<div id="f9" class="line h1" style="top:380px;opacity:0">Your words stay<br>on your device.</div>`,
+    `<div id="f9" class="line h1" style="top:340px;opacity:0">Your words stay<br>on your device.</div>` +
+      `<div id="f9-b" class="line lead" style="top:640px;opacity:0">Nothing is uploaded. It works offline, too.</div>`,
   ),
-  show("#f9", 0.15, 0.6),
-);
-
-// ---------------------------------------------------------------- 10 offline (44–47)
-scene(
-  "offline",
-  3,
-  clip(0, 3, 1, `<div class="cam">${windowWith("f10", ["v2-offline"])}</div>`) +
-    clip(0, 3, 3, caption("f10-a", "Works offline, too.")),
-  `tl.fromTo("#f10",{opacity:0,y:40},{opacity:1,y:0,duration:.5,ease:"power3.out"},0);` +
-    show("#f10-a", 0.4),
+  show("#f9", 0.15, 0.6) + show("#f9-b", 2.6, 0.6),
 );
 
 // ---------------------------------------------------------------- 11 free (47–51)

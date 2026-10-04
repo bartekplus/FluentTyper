@@ -43,7 +43,7 @@ def level(at):
         return 0.019, 0.026
     if at < 40.5:
         return 0.022, 0.032
-    if at < 44.0:
+    if at < 47.0:
         return 0.0, 0.0
     return 0.021, 0.028
 
@@ -61,9 +61,10 @@ for bar in range(25):
     for k in range(4):
         if pluck:
             tone(at + k * 0.6, 0.7, chord[(k + bar) % 4] * 2, pluck, "pluck")
-# Held frame (40.5–44.0): one sustained Gmaj7.
+# Held frame (40.5–47.0): one sustained Gmaj7, a soft note under the second line.
 for f in CHORDS[2]:
-    tone(40.5, 3.8, f, 0.02)
+    tone(40.5, 6.8, f, 0.02)
+tone(43.1, 1.2, 587.33, 0.03, "pluck")
 # Final chord resolves on D at 57.6, ringing to the end.
 for f in (146.832, 220, 293.665, 369.994):
     tone(57.6, 2.4, f, 0.024)

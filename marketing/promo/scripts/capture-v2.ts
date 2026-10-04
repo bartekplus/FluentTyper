@@ -254,22 +254,6 @@ try {
   await expectText("Thanks for the report.\nI'll review it today.");
   await shot("v2-inline-accepted");
 
-  // Frame 14: inline mode with the network off.
-  await page.setOfflineMode(true);
-  await reset("See you ");
-  await page.keyboard.type("tomo", { delay: 110 });
-  const offline = await waitUntil(
-    "offline inline ending",
-    async () => {
-      const now = await inlineGhost();
-      if (process.env.PROMO_DEBUG) console.log("offline ghost:", JSON.stringify(now));
-      return now.trim() === "rrow" ? now : false;
-    },
-    { timeoutMs: 10000 },
-  );
-  await shot("v2-offline", { ghost: offline, offline: true });
-  await page.keyboard.press("Escape");
-  await page.setOfflineMode(false);
   await config({ inline_suggestion: false });
 
   // Frame 5: saved reply.
