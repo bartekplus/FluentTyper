@@ -40,9 +40,12 @@ describe("migrateToLocalStore", () => {
       },
       storage: {
         sync: {
-          get: jest.fn((_: unknown, callback: (result: unknown) => void) =>
-            callback({ key: "value" }),
-          ),
+          // The real API answers later, by promise or by callback.
+          get: jest.fn((_: unknown, callback?: (result: unknown) => void) => {
+            const result = new Promise((resolve) => setTimeout(() => resolve({ key: "value" }), 5));
+            if (callback) void result.then(callback);
+            return result;
+          }),
         },
         local: {
           set: jest.fn(),
@@ -72,10 +75,13 @@ describe("migrateToLocalStore", () => {
 
     await migrateToLocalStore("2023.01.01");
 
-    expect(global.chrome.storage.sync.get).toHaveBeenCalledWith(null, expect.any(Function));
-    expect(global.chrome.storage.local.set).toHaveBeenCalledWith({
-      key: "value",
-    });
+    const localSet = global.chrome.storage.local.set as unknown as jest.Mock;
+    const copy = localSet.mock.calls.findIndex(([items]) => items.key === "value");
+    // The copy ends before the language migration writes.
+    expect(copy).toBeGreaterThanOrEqual(0);
+    expect(localSet.mock.invocationCallOrder[copy]).toBeLessThan(
+      settingsSet.mock.invocationCallOrder[0],
+    );
     expect(global.chrome.storage.local.set).toHaveBeenCalledWith({
       lastVersion: "2026.2.1",
     });
