@@ -361,7 +361,7 @@ const FRAMES: readonly Frame[] = [
   {
     rule: AGREEMENT,
     cue: ["as", "once", "when", "if", "because", "since", "until", "after", "before"],
-    pattern: `(?:as|once|when|if|because|since|until|after|before)${S}(?<name>[A-Z][a-z]+)${S}(?<target>[a-z]+)${S}(?:us|me|him|her|them|it|this|that|the)${E}`,
+    pattern: `(?:as|once|when|if|because|since|until|after|before)${S}(?<name>[a-z]{2,})${S}(?<target>[a-z]+)${S}(?:us|me|him|her|them|it|this|that|the)${E}`,
     fix: (m) => {
       const { name, target } = m.groups!;
       if (!/^[A-Z][a-z]+[^s]$/.test(name) || read(name)?.noun || nounOnly(name.toLowerCase()))
@@ -379,7 +379,7 @@ const FRAMES: readonly Frame[] = [
   // "David and I's cat": David's and my.
   {
     rule: CONTEXT,
-    pattern: `(?<target>(?<who>[A-Z][a-z]+|my${S}[a-z]+)${S}and${S}I['’]s)${E}`,
+    pattern: `(?<target>(?<who>[a-z]{2,}|my${S}[a-z]+)${S}and${S}I['’]s)${E}`,
     fix: (m, ctx) => (wordBefore(ctx, m.index) === "the" ? null : `${m.groups!.who}'s and my`),
   },
 ];

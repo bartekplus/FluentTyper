@@ -273,7 +273,7 @@ function youAre(ctx: DetectContext): RawFinding[] {
 }
 
 // "Have Mary bought a ticket?": a name takes has; "Have Tom report to me" is causative.
-const HAVE_NAME = `(?<target>have|haven['’]t)${S}(?<name>[A-Z][a-z]+)${S}(?<part>[a-z]+)${E}`;
+const HAVE_NAME = `(?<target>have|haven['’]t)${S}(?<name>[a-z]{2,})${S}(?<part>[a-z]+)${E}`;
 
 function haveName(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];

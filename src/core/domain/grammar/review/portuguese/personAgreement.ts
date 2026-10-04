@@ -127,10 +127,10 @@ const PRONOUNS: Record<string, Person> = {
 };
 const ADVERBS = `(?:(?:não|já|também|sempre|só|ainda|nunca|quase|realmente)${S}){0,2}`;
 const CLITIC = `(?:(?:me|te|se|lhe|lhes|nos|vos)${S})?`;
-const PRONOUN_SUBJECT = `(?<pronoun>eu|tu|ele|ela|você|nós|eles|elas|vocês)${S}${ADVERBS}${CLITIC}(?<target>\\p{Ll}{2,})${W}(?!-)`;
+const PRONOUN_SUBJECT = `(?<pronoun>eu|tu|ele|ela|você|nós|eles|elas|vocês)${S}${ADVERBS}${CLITIC}(?<target>\\p{L}{2,})${W}(?!-)`;
 // "Eu e a Rita", "Tu e eu", "Ele e eu": a subject with "eu" in it is "nós".
-const WITH_ME = `(?:eu${S}e${S}(?:ele|ela|você|eles|elas|vocês|tu|\\p{Lu}\\p{Ll}+|(?:o|a|os|as|meu|minha|meus|minhas)${S}\\p{L}+)|(?:tu|ele|ela|você|eles|elas|vocês|\\p{Lu}\\p{Ll}+)${S}e${S}eu)`;
-const WE_SUBJECT = `(?<we>${WITH_ME})${S}${ADVERBS}${CLITIC}(?<target>\\p{Ll}{2,})${W}(?!-)`;
+const WITH_ME = `(?:eu${S}e${S}(?:ele|ela|você|eles|elas|vocês|tu|\\p{L}{2,}|(?:o|a|os|as|meu|minha|meus|minhas)${S}\\p{L}+)|(?:tu|ele|ela|você|eles|elas|vocês|\\p{L}{2,})${S}e${S}eu)`;
+const WE_SUBJECT = `(?<we>${WITH_ME})${S}${ADVERBS}${CLITIC}(?<target>\\p{L}{2,})${W}(?!-)`;
 const KNOWN = new Set(
   "eu e tu ele ela você eles elas vocês o a os as meu minha meus minhas".split(" "),
 );
@@ -154,7 +154,7 @@ const PLURAL_LEAD =
   "os|as|uns|umas|estes|estas|esses|essas|aqueles|aquelas|meus|minhas|seus|suas|nossos|nossas|alguns|algumas|muitos|muitas|vários|várias";
 // The phrase's noun is no infinitive ("de prosseguir") nor a relative ("nas quais").
 const PHRASE = `${S}(?:de|do|da|dos|das|no|na|nos|nas|em|com)${S}(?:(?:o|a|os|as|um|uma|meu|minha|meus|minhas|seu|sua|seus|suas|nosso|nossa)${S})?(?!(?:qual|quais|que|quem|cujo|cuja|cujos|cujas|onde)${W})\\p{L}{2,}(?<![aeiô]r)`;
-const NP_SUBJECT = `(?<lead>${SINGULAR_LEAD}|${PLURAL_LEAD})${S}(?<noun>\\p{Ll}{3,})${PHRASE}${S}${ADVERBS}${CLITIC}(?<target>\\p{Ll}{3,})${W}(?!-)`;
+const NP_SUBJECT = `(?<lead>${SINGULAR_LEAD}|${PLURAL_LEAD})${S}(?<noun>\\p{L}{3,})${PHRASE}${S}${ADVERBS}${CLITIC}(?<target>\\p{L}{3,})${W}(?!-)`;
 // Heads that may agree with the plural after them: "A maioria dos alunos passaram".
 const COLLECTIVE = new Set(
   "maioria minoria parte metade grupo porcentagem percentagem conjunto série totalidade resto número quantidade multidão bando dezena centena milhar milhão bilhão trilhão".split(

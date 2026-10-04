@@ -31,7 +31,7 @@ const ENDINGS: Array<[RegExp, string, string]> = [
 ];
 
 const CLAUSE = new RegExp(
-  `(?<![\\p{L}])(?<conj>żeby|ażeby|aby|gdyby)(?<person>m|ś|śmy|ście)?(?<between>(?:[ \\t\\u00a0]{1,8}(?!(?:że|który|która|które|i|a|ale|lub|oraz)[ \\t\\u00a0])\\p{L}{1,15}){0,3}?)[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}{2,}(?:łbym|łabym|łbyś|łabyś|libyśmy|łybyśmy|libyście|łybyście|łem|łam|łeś|łaś|liśmy|łyśmy|liście|łyście))(?![\\p{L}])`,
+  `(?<![\\p{L}])(?<conj>żeby|ażeby|aby|gdyby)(?<person>m|ś|śmy|ście)?(?<between>(?:[ \\t\\u00a0]{1,8}(?!(?:że|który|która|które|i|a|ale|lub|oraz)[ \\t\\u00a0])\\p{L}{1,15}){0,3}?)[ \\t\\u00a0]{1,8}(?<verb>\\p{L}{2,}(?:łbym|łabym|łbyś|łabyś|libyśmy|łybyśmy|libyście|łybyście|łem|łam|łeś|łaś|liśmy|łyśmy|liście|łyście))(?![\\p{L}])`,
   "giu",
 );
 
@@ -64,7 +64,7 @@ function conjunctionEndings(ctx: DetectContext): RawFinding[] {
 
 /** "żebyś przeczyta", "by będzie": a present or future form where the past one goes. */
 const PRESENT_AFTER = new RegExp(
-  `(?<![\\p{L}])(?:żeby|ażeby|aby|by)(?:m|ś|śmy|ście)?[ \\t\\u00a0]{1,8}(?:(?:nie|się)[ \\t\\u00a0]{1,8})?(?<verb>\\p{Ll}{2,})(?![\\p{L}])`,
+  `(?<![\\p{L}])(?:żeby|ażeby|aby|by)(?:m|ś|śmy|ście)?[ \\t\\u00a0]{1,8}(?:(?:nie|się)[ \\t\\u00a0]{1,8})?(?<verb>\\p{L}{2,})(?![\\p{L}])`,
   "giu",
 );
 const PAST = /(?:ł|ła|ło|li|ły)$/u;
@@ -91,7 +91,7 @@ const CLITICS =
 // ", że przeczytaj" (a reported clause after its comma: "tyle że uważaj" is a contrast),
 // "Czy przeczytaj" opening a question ("idź czy zostań" offers a choice).
 const IMPERATIVE_AFTER = new RegExp(
-  `(?:,[ \\t\\u00a0]{0,8}(?:że|iż)|${CLAUSE_START}czy)[ \\t\\u00a0]{1,8}${CLITICS}(?<verb>\\p{Ll}{2,})(?![\\p{L}])`,
+  `(?:,[ \\t\\u00a0]{0,8}(?:że|iż)|${CLAUSE_START}czy)[ \\t\\u00a0]{1,8}${CLITICS}(?<verb>\\p{L}{2,})(?![\\p{L}])`,
   "giud",
 );
 

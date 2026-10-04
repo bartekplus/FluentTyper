@@ -1373,7 +1373,7 @@ function relativeAgreement(ctx: DetectContext, m: RegExpExecArray): RawFinding |
 const AND_A_HALF =
   /(?<![\p{L}\p{M}\p{N}_'’-])(?<noun>\p{L}+)[ \t]+et[ \t]+(?<half>demi(?:e|s|es)?)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const HALF_BEFORE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<half>demie)(?:[ \t]+|-)(?<noun>\p{Ll}+)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<half>demie)(?:[ \t]+|-)(?<noun>\p{L}+)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 /** "trois heures et demi" -> "demie", "deux ans et demie" -> "demi": after its noun, "demi"
  * takes the noun's gender, in the singular; "une demie heure" -> "demi-heure": before it, it

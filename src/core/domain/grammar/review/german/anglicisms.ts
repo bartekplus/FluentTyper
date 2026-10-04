@@ -61,7 +61,7 @@ const PHRASAL_NOUN = new RegExp(
 );
 
 const DETERMINER =
-  /^(?:der|die|das|den|dem|des|(?:k?ein|mein|dein|sein|ihr|unser|eu[e]?r|dies|jen|jed|welch)\p{Ll}*|\p{N}.*)$/iu;
+  /^(?:der|die|das|den|dem|des|(?:k?ein|mein|dein|sein|ihr|unser|eu[e]?r|dies|jen|jed|welch)\p{L}*|\p{N}.*)$/iu;
 
 function anglicisms(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];

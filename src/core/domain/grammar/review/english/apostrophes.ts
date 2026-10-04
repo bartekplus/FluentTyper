@@ -300,7 +300,7 @@ function pluralSubjects(ctx: DetectContext): Finding[] {
 }
 
 // "he see's", "it last's", "Michael really want's": a verb's -s ending takes no apostrophe.
-const VERB_S = `(?<subject>he|she|it|who|[A-Z][a-z]+|that)(?:${S}(?<adverb>really|just|also|always|never|often|still|only|usually|sometimes|actually|probably|rarely|even|simply))?${S}(?<v>[a-z]{2,})${A}s${E}`;
+const VERB_S = `(?<subject>he|she|it|who|[a-z]{2,}|that)(?:${S}(?<adverb>really|just|also|always|never|often|still|only|usually|sometimes|actually|probably|rarely|even|simply))?${S}(?<v>[a-z]{2,})${A}s${E}`;
 const AFTER_VERB = words(
   "to the a an my your his her our their its this that these those it him them me us you all " +
     "over up out on off in into for with about back away down not too so very like well really " +
@@ -361,7 +361,7 @@ function doubledApostrophes(ctx: DetectContext): Finding[] {
 }
 
 // "I' m", "they 're", "Julia' s new": a contraction or possessive split by a space.
-const SPACED = `(?<w>I|you|we|they|he|she|it|[A-Z][a-z]+)(?<gap>${A}${S}|${S}${A})(?<s>m|re|ve|ll|d|s)${E}`;
+const SPACED = `(?<w>I|you|we|they|he|she|it|[a-z]{2,})(?<gap>${A}${S}|${S}${A})(?<s>m|re|ve|ll|d|s)${E}`;
 const ENDINGS: Record<string, string> = {
   i: "m ve ll d",
   you: "re ve ll d",

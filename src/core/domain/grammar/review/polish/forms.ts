@@ -69,7 +69,7 @@ export const FRAMES: readonly Frame[] = [
   // Abbreviations that keep the word's last letter take no dot: "nr 2", "3 mln złotych".
   {
     // "pod nr. 2" (numerem) is an oblique case, which keeps the dot.
-    pattern: `(?<!(?:^|[^\\p{L}])(?:${PREPOSITIONS})${S})(?<target>(?<abbr>nr|mln|mld|ha|kg|km|cm|mm)\\.)(?=[ \\t\\u00a0]+(?:\\p{Ll}|\\d))`,
+    pattern: `(?<!(?:^|[^\\p{L}])(?:${PREPOSITIONS})${S})(?<target>(?<abbr>nr|mln|mld|ha|kg|km|cm|mm)\\.)(?=[ \\t\\u00a0]+(?:\\p{L}|\\d))`,
     fix: (m) => m.groups!.abbr,
     ruleId: RULE,
     messageKey: "review_msg_pl_abbreviation_dot",
@@ -77,7 +77,7 @@ export const FRAMES: readonly Frame[] = [
   },
   // "3 m. tkaniny", "200 g. mąki": a unit after a number takes no dot inside the sentence.
   {
-    pattern: `(?<=\\p{N}${S})(?<target>(?<abbr>m|g|mg|ml|dag)\\.)(?=[ \\t\\u00a0]+\\p{Ll})`,
+    pattern: `(?<=\\p{N}${S})(?<target>(?<abbr>m|g|mg|ml|dag)\\.)(?=[ \\t\\u00a0]+\\p{L})`,
     fix: (m) => m.groups!.abbr,
     ruleId: RULE,
     messageKey: "review_msg_pl_abbreviation_dot",
@@ -86,7 +86,7 @@ export const FRAMES: readonly Frame[] = [
   // "Dr. Kowalski", "mgr. Anna Nowak", "Dr. hab. Nowak" -> no dot before a name in the
   // nominative (the dot marks "doktora", "magistra").
   {
-    pattern: `(?<target>(?<abbr>dr|mgr|dyr)\\.)(?=${S}(?:hab\\.${S})?(?:\\p{Lu}\\p{Ll}+${S})?\\p{Lu}\\p{Ll}*(?:ski|cki|dzki|ska|cka|dzka)${NOT_LETTER})`,
+    pattern: `(?<target>(?<abbr>dr|mgr|dyr)\\.)(?=${S}(?:hab\\.${S})?(?:\\p{L}{2,}${S})?\\p{L}+(?:ski|cki|dzki|ska|cka|dzka)${NOT_LETTER})`,
     fix: (m) => m.groups!.abbr,
     ruleId: RULE,
     messageKey: "review_msg_pl_abbreviation_dot",
@@ -95,7 +95,7 @@ export const FRAMES: readonly Frame[] = [
   // "dr", "mgr" keep the last letter of "doktor" only: a man's name in an oblique case takes
   // "dr." ("dzięki dr. Kowalskiemu"); a woman's title does not inflect ("z dr Kowalską").
   {
-    pattern: `(?<target>dr|mgr|dyr)(?=${S}(?:\\p{Lu}\\p{Ll}+${S})?\\p{Lu}\\p{Ll}*(?:skiego|ckiego|dzkiego|skiemu|ckiemu|dzkiemu|skim|ckim|dzkim|owi)${NOT_LETTER})`,
+    pattern: `(?<target>dr|mgr|dyr)(?=${S}(?:\\p{L}{2,}${S})?\\p{L}+(?:skiego|ckiego|dzkiego|skiemu|ckiemu|dzkiemu|skim|ckim|dzkim|owi)${NOT_LETTER})`,
     fix: (m) => `${m.groups!.target}.`,
     ruleId: RULE,
     messageKey: "review_msg_pl_abbreviation_dot",
