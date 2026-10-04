@@ -4,6 +4,7 @@ import {
   adjectiveReadings,
   genderable,
   isInflectedNoun,
+  isNounLemma,
   isVerbHomograph,
   JE,
   nounGender,
@@ -172,6 +173,23 @@ function accentedPlural(word: string): string | null {
   return noun ? `${singular}s` : null;
 }
 
+/** The noun a verb form in -e drops it for: "trafique" -> "trafic", "appelle" -> "appel",
+ * "gèle" -> "gel", "envoie" -> "envoi"; null when no masculine noun is spelled so. */
+function nounStem(form: string): string | null {
+  if (!form.endsWith("e")) return null;
+  const stem = form.slice(0, -1);
+  const candidates = [
+    stem.replace(/qu$/, "c"),
+    stem.replace(/([lnpt])\1$/, "$1"),
+    stem.replace(/è(?=[^aeiouyéèê]+$)/, "e"),
+  ];
+  return (
+    candidates.find(
+      (c) => c !== form && isNounLemma(c) && nounGender(c) !== "f" && !verbReadings(c).length,
+    ) ?? null
+  );
+}
+
 const AFTER_VERB = new Set(["pas", "plus", "jamais", "rien"]);
 const CLITIC_BEFORE = new Set(["ne", "n'"]);
 
@@ -236,7 +254,15 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
       if (noun !== word && nounGender(noun) && (!gender || nounGender(noun) === gender))
         return nounFinding([noun]);
     }
-    return null;
+    // "un trafique", "au travaille", "des appelles": a verb form in -e(s) for the noun without it.
+    // After "et le", "le" is the pronoun ("il le prend et le travaille").
+    const previous = tokensBefore(ctx.text, m.index, 1)[0];
+    if (!ONLY_DETERMINERS.has(det) && previous && !PREPOSITIONS.has(previous.w)) return null;
+    const stem = nounStem(number === "p" ? word.replace(/s$/, "") : word);
+    if (!stem || gender === "f") return null;
+    // "aux mures": with no gender in the determiner, "mûres" is as likely as "murs".
+    if (!gender && isInflectedNoun(word.replace(/u(?=[^u]*$)/, "û"))) return null;
+    return nounFinding([number === "p" ? `${stem}s` : stem]);
   }
   // "son ressentie", "mes démêlées": a feminine participle for the masculine noun it comes from.
   const lemma = word.replace(/es?$/, "");

@@ -94,15 +94,20 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (NOT_NOUNS.has(word) || namedExampleBefore(ctx.text, m.index)) return null;
   // "quatre enfant": a number from two up is a plural determiner, unless a determiner or a
   // label before makes it a name or a rank ("le numéro deux allemand", "les trois été").
-  if (NUMBER_DETERMINERS.has(determiner)) {
-    const before = tokensBefore(ctx.text, m.index, 1)[0];
+  const digits = /^\d/.test(determiner);
+  if (digits && !countable(ctx, m, determiner)) return null;
+  if (NUMBER_DETERMINERS.has(determiner) || digits) {
+    const before = digits ? undefined : tokensBefore(ctx.text, m.index, 1)[0];
     if (before && (PLURAL.has(before.w) || SINGULAR.has(before.w) || RANKS.has(before.w)))
       return null;
     // "cinq et six", "cent pour cent", "à neuf": parts of a number, a ratio, an adjective.
     if (before && (before.w === "et" || before.w === "pour" || NUMBER_DETERMINERS.has(before.w)))
       return null;
-    if (adjectiveReadings(word).length) return null;
-    if (isVerbForm(word) || /[sxz]$/.test(word) || !isInflectedNoun(word)) return null;
+    // "4 ami", "en 3 partie": after a figure, a noun entry is the noun.
+    if (adjectiveReadings(word).length && !(digits && nounGender(word))) return null;
+    // "en 10 minute": after a figure, a gendered noun that is also a verb form is the noun.
+    const verb = isVerbForm(word) && !(digits && isVerbHomograph(word) && nounGender(word));
+    if (verb || /[sxz]$/.test(word) || !isInflectedNoun(word)) return null;
     const [start] = m.indices!.groups!.noun;
     const after = ctx.text.slice(start + typed.length, start + typed.length + 12);
     if (/^[-'’]|^[\s ]{0,8}(?:,|et\b|ou\b)/u.test(after)) return null;
@@ -179,6 +184,35 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   });
 }
 
+// Nouns after a figure that name a place or a score, not a count ("au 12 rue", "à 3 contre 1"),
+// and abbreviations ("5 min", "2 vol.").
+const NOT_COUNTED = new Set(
+  "rue avenue boulevard place allée impasse chemin quai route contre min max hab vol".split(" "),
+);
+
+/** "j'ai 4 enfant", "en 3 partie": a figure from 2 up counts the noun after it. Not a year, a
+ * decimal, a range, a score or a label ("page 4 ligne"): only after a preposition, a plural
+ * determiner, a verb or at a clause start. */
+function countable(ctx: DetectContext, m: RegExpExecArray, figure: string): boolean {
+  const value = Number(figure.replace(/\D/g, ""));
+  if (value < 2 || (figure.length === 4 && value >= 1000 && value < 2100)) return false;
+  const noun = m.groups!.noun.toLowerCase();
+  if (NOT_COUNTED.has(noun) || /^i?[eè]me$/.test(noun)) return false;
+  const rest = ctx.text.slice(m.indices!.groups!.noun[1], m.indices!.groups!.noun[1] + 3);
+  // "4 partie 2", "420 sujet(s)": a label, an inclusive ending.
+  if (/^(?:[\s\u00a0]*\d|[(*·])/u.test(rest)) return false;
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  if (!before || /[.!?:;\n]/.test(ctx.text.slice(before.end, m.index))) return true;
+  const readings = verbReadings(before.w);
+  return (
+    PREPOSITIONS.has(before.w) ||
+    PLURAL.has(before.w) ||
+    before.w === "et" ||
+    before.w === "en" ||
+    (readings.length > 0 && (!isInflectedNoun(before.w) || readings.every((r) => r.slot === "Q")))
+  );
+}
+
 const NUMBER_DETERMINERS = new Set(
   (
     "deux trois quatre cinq six sept huit dix onze douze treize quatorze quinze seize vingt " +
@@ -191,7 +225,7 @@ const RANKS = new Set(
 );
 
 const DETERMINER_NOUN = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>${[...PLURAL, ...SINGULAR, ...NUMBER_DETERMINERS].join("|")})(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
+  `(?:(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>${[...PLURAL, ...SINGULAR, ...NUMBER_DETERMINERS].join("|")}|(?<![\\d.,:/°#№]|n°[ \\t]?)\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+|(?<![\\d.,:/°#№]|n°[ \\t]?)\\d+))(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
   "dgiu",
 );
 

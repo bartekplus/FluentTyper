@@ -858,6 +858,9 @@ function skipRelative(tokens: Token[], i: number): number {
   return mainVerbAfter(tokens, k + 1);
 }
 
+// A comma, "et" or "ou", then one more letter ("à" and "y" are words): "a, b", "a et b".
+const LETTER_LIST = /^\s*(?:,|\s(?:et|ou)\s)\s*[^\P{L}àyY](?![\p{L}'’])/u;
+
 /** The verb at `i` (past ne and object pronouns) with another person than `person`. `direct`: the
  * subject is a noun phrase right before, in a clause of its own. */
 function verbFinding(
@@ -895,6 +898,8 @@ function verbFinding(
   if (!verb || verb.hyphen || ctx.dictionary.has(verb.w) || NOT_HEADS.has(verb.w)) return null;
   const typed = ctx.text.slice(verb.start, verb.end);
   if (typed !== verb.w) return null;
+  // "les valeurs a, b et c", "les points a et b": a letter in a list of letters is a variable.
+  if (verb.w.length === 1 && LETTER_LIST.test(ctx.text.slice(verb.end, verb.end + 8))) return null;
   // "les enfants joue" may be a noun phrase ("la joue"): only a pronoun or ne marks the verb.
   // "est" and "a" after a subject are the verbs ("les côtes est" is too rare to weigh).
   // After a plural subject and its complement or adjective, a singular homograph is no noun ("les

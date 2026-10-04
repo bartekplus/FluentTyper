@@ -11,7 +11,7 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { hAspire } from "./elision";
-import { sontForSon } from "./homophones";
+import { LA_ADVERB_FOLLOWERS, sontForSon } from "./homophones";
 import {
   ownedFrenchWords,
   PREPOSITIONS,
@@ -51,9 +51,9 @@ const SWAP: Record<string, [string | null, string | null]> = {
   aucune: ["aucun", "aucun"],
 };
 // Adverbs and prefixes written apart that sit between a determiner and its noun ("une tout
-// autre", "la post saison").
+// autre", "la post saison", "la vice présidente").
 const NOT_HEADS = new Set(
-  "tout bien mieux plus moins très trop peu mini maxi post pré anti ex super hyper ultra".split(
+  "tout bien mieux plus moins très trop peu mini maxi post pré anti ex super hyper ultra vice".split(
     " ",
   ),
 );
@@ -92,6 +92,8 @@ function gender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "EDF SA": an acronym, not a possessive.
   if (typedDet.length > 1 && typedDet === typedDet.toUpperCase()) return null;
   if (NOT_HEADS.has(word) || word.endsWith("ième")) return null;
+  // "il est la demain": "là" before an adverb, which the homophone check offers.
+  if (det === "la" && LA_ADVERB_FOLLOWERS.has(word)) return null;
   const nounGenderOf: Gender | null = nounGender(word) ?? genderBeforeNoun(ctx, m, word);
   if (!nounGenderOf || (nounGenderOf === "f") === FEMININE.has(det)) return null;
   const [start] = m.indices!.groups!.noun;
