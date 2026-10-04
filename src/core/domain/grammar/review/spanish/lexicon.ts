@@ -33,6 +33,10 @@ export const NOUN_ENDING =
 /** A plural-taking entry without -o/-a gender forms: a noun ("casa", "mano", "feliz"). */
 export const isNounEntry = (word: string) =>
   (NOUN_ENDING.test(word) && word !== "mismo") || has(`n${word}`);
+/** An adjective with one form for both genders that the dictionary files as a noun ("fácil"). */
+export const isInvariantEntry = (word: string) => has(`j${word}`);
+/** A noun or adjective that only rare verbs spell as a finite form: "amigo" (amigar). */
+export const nounForm = (word: string) => has(`f${word}`);
 /** A masculine entry with -o/-a gender forms: an adjective or a gendered noun ("lleno"). */
 export const isGenderedEntry = (masculine: string) => has(`a${masculine}`);
 
@@ -79,9 +83,13 @@ export function genderedForm(word: string): Agreement | null {
   if (ending === "o" || ending === "os") candidates.push([`${stem}o`, { feminine: false, plural }]);
   if (f)
     candidates.push([`${stem}o`, { feminine: true, plural }], [stem, { feminine: true, plural }]);
-  if (ending === "" && /[^aeiouáéíóús]$/u.test(stem))
+  // "francés", "alemán": a masculine in -s or -n stresses and accents its last syllable.
+  if (ending === "" && /(?:[^aeiouáéíóús]|[áéíóú]s)$/u.test(stem))
     candidates.push([stem, { feminine: false, plural: false }]);
   if (ending === "es") candidates.push([stem, { feminine: false, plural: true }]);
+  // "alemana", "franceses", "bailarinas": the other forms drop that accent.
+  if (ending && !ending.startsWith("o") && accentLast(stem) !== stem)
+    candidates.push([accentLast(stem), { feminine: f, plural }]);
   const hit = candidates.find(([masculine]) => isGenderedEntry(masculine));
   return hit ? hit[1] : null;
 }
@@ -89,14 +97,19 @@ export function genderedForm(word: string): Agreement | null {
 /** A participle or a gendered adjective/noun form: what may follow "está" as its attribute. */
 export const attribute = (word: string): Agreement | null => participle(word) ?? genderedForm(word);
 
-/** A noun the dictionary lists (or its regular plural): "vez", "casas", "mano". */
 const ACUTE: Record<string, string> = { a: "á", e: "é", i: "í", o: "ó", u: "ú" };
+/** The written accent the singular takes back: "camion" -> "camión", "ingles" -> "inglés". */
+export function accentLast(stem: string): string {
+  const m = /([aeiou])([ns])$/u.exec(stem);
+  return m ? `${stem.slice(0, m.index)}${ACUTE[m[1]]}${m[2]}` : stem;
+}
+
+/** A noun the dictionary lists (or its regular plural): "vez", "casas", "mano". */
 export function isNoun(word: string): boolean {
   if (isNounEntry(word)) return true;
   if (word.endsWith("es") && isNounEntry(word.slice(0, -2))) return true;
   // "acciones", "razones", "intereses": the singular's last syllable takes the accent.
-  const stressed = /^(\p{L}+)([aeiou])([ns])es$/u.exec(word);
-  if (stressed && isNounEntry(`${stressed[1]}${ACUTE[stressed[2]]}${stressed[3]}`)) return true;
+  if (word.endsWith("es") && isNounEntry(accentLast(word.slice(0, -2)))) return true;
   if (word.endsWith("ces") && isNounEntry(`${word.slice(0, -3)}z`)) return true;
   return word.endsWith("s") && isNounEntry(word.slice(0, -1));
 }
@@ -190,6 +203,7 @@ const conjugates = (stem: string, ending: string, infinitives: string[]) =>
  * -> "volver", "continúa" -> "continuar", "hable" -> "hablar", "coman" -> "comer".
  */
 export function presentInfinitive(word: string): string | null {
+  if (nounForm(word)) return null;
   const m = /^(\p{L}{2,}?)(a|an|e|en)$/u.exec(word);
   if (!m) return null;
   const [, typed, ending] = m;
@@ -216,6 +230,7 @@ const IRREGULAR_SUBJUNCTIVE = new Set(
 /** A present subjunctive look: "importe", "aproveche", "vengas", "llueva". */
 export function subjunctiveLike(word: string): boolean {
   if (IRREGULAR_SUBJUNCTIVE.has(word)) return true;
+  if (nounForm(word)) return false;
   if (INDICATIVE.has(word)) return false;
   // "podemos" is "poder" before it is "podar": a form both ways reads as indicative.
   const ar = /^(\p{L}+?)(e|es|en|emos)$/u.exec(word);
@@ -245,6 +260,7 @@ const IRREGULAR_SECOND_PERSON = new Set(
 /** A second person singular verb form ("cantas", "fuiste", "serás"), never a plural noun. */
 export function secondPersonVerb(word: string): boolean {
   if (IRREGULAR_SECOND_PERSON.has(word)) return true;
+  if (nounForm(word)) return false;
   if (isNoun(word)) return false;
   // Future and conditional, accented or not: "serás", "seras", "comprarías".
   let m = /^(\p{L}+?[aeií]r)(ás|ías|as|ias)$/u.exec(word);
@@ -316,6 +332,7 @@ const denominalPlural = (stem: string, ending: string) =>
 /** A finite verb form ("cuenta", "mejoran", "ordenamos", "cantará"), noun homographs included. */
 export function finiteVerb(word: string): boolean {
   if (IRREGULAR_FINITE.has(word)) return true;
+  if (nounForm(word)) return false;
   const strong = STRONG_PRETERITE.exec(word);
   if (strong && isVerb(`${strong[1]}${STRONG_INFINITIVE[strong[2]]}`)) return true;
   const short = SHORT_FUTURE.exec(word);

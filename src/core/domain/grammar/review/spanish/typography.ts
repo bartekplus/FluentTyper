@@ -371,6 +371,16 @@ function typography(ctx: DetectContext): RawFinding[] {
         `${m[0].slice(0, 3)}.`,
       ]),
     );
+  // "uno, dos…etc.": the ellipsis and "etc." say the same; keep one of them.
+  const both = /(?:,[ \t]*)?(?:\.{3}|…)[ \t]*etc(?!\p{L})\.?/giu;
+  both.lastIndex = ctx.from;
+  for (let m = both.exec(ctx.scanText); m && m.index < ctx.to; m = both.exec(ctx.scanText))
+    findings.push(
+      finding(RULE, "review_msg_spanish_abbreviation", m.index, m.index + m[0].length, [
+        ", etc.",
+        "…",
+      ]),
+    );
   return findings;
 }
 

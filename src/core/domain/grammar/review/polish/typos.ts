@@ -60,6 +60,9 @@ export const WORDS: readonly PhraseRow[] = [
 /** Word pairs where the typed form is never right. */
 export const PHRASES: readonly PhraseRow[] = [
   ["półwieku temu", "pół wieku temu"],
+  // "byłoby" split into "był" and the wish "oby" or the letters "o by".
+  ["był oby", "byłoby"],
+  ["był o by", "byłoby"],
   ["nie jetem", "nie jestem"],
   ["od dawana", "od dawna"],
   ["do niedawana", "do niedawna"],
@@ -191,6 +194,30 @@ const NEXT_WORD = `(?=${S}\\p{Ll})`;
 const CLAUSE_END = "(?=[ \\t\\u00a0]*(?:[.!?,;]|$))";
 
 const FRAMES: readonly Frame[] = [
+  // "wzdłuż polnej drużki" -> "dróżki": a path ("dróżka"), not a bridesmaid ("drużka").
+  {
+    pattern: `(?=drużk)(?<=(?:^|[^\\p{L}])(?:wzdłuż|poln|leśn|wąsk|błotnist|kamienist|kręt|piaszczyst|wydeptan|górsk)\\p{Ll}{0,3}${S})(?<target>drużk(?<end>a|i|ę|ą|ce|ami|om|ach))${END}`,
+    fix: (m) => `dróżk${m.groups!.end}`,
+    ...RULE,
+  },
+  // "dwóch wierz", "oprócz wierz" -> "wież": the genitive plural of "wieża", not "wierz" (believe).
+  {
+    pattern: `(?=wierz)(?<=(?:^|[^\\p{L}])(?:dwóch|dwu|trzech|czterech|pięciu|sześciu|kilku|kilkunastu|kilkudziesięciu|wielu|paru|oprócz|spośród|wśród)${S})(?<target>wierz)${END}`,
+    fix: "wież",
+    ...RULE,
+  },
+  // "kity do podług" -> "podłóg" (floors): no preposition stands after "do".
+  {
+    pattern: `(?=podług)(?<=(?:^|[^\\p{L}])(?:do|dla|kilku|wielu|dwóch|trzech|czterech|pięciu)${S})(?<target>podług)${END}`,
+    fix: "podłóg",
+    ...RULE,
+  },
+  // "ciszej nisz przednie" -> "niż": a comparison ("-ej", "-szy"), not niches.
+  {
+    pattern: `(?=nisz)(?<=(?:^|[^\\p{L}])(?:\\p{Ll}{2,16}ej|\\p{Ll}{1,14}sz[yae])${S})(?<target>nisz)${END}`,
+    fix: "niż",
+    ...RULE,
+  },
   // "Skłam serdeczne życzenia" -> "Składam".
   {
     pattern: `(?<target>skłamy?)(?=(?:${S}\\p{Ll}{3,20}(?:e|ie)){1,2}${S}życzenia${END})`,
