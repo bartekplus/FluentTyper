@@ -33,6 +33,7 @@ import { isLang } from "../phraseTemplates";
 import {
   type ClauseProfile,
   skipComplements,
+  skipCoordinated,
   skipNounPhrase,
   skipPostnominal,
   verbAfterRelative,
@@ -422,11 +423,11 @@ function coordinatedVerb(
   person: number,
   firstReadings: VerbReading[],
 ): RawFinding | null {
-  const all = tokensAfter(ctx.text, first.end, 10);
+  const all = tokensAfter(ctx.text, first.end, 14);
   // "il rentra dans la chambre et senti": its complement may come before "et", as long as no
   // other verb, pronoun or relative does.
   const k = all.findIndex((t) => t.w === "et");
-  if (k < 0 || k > 6) return null;
+  if (k < 0 || k > 10) return null;
   const between = all.slice(0, k);
   const blocked = between.some(
     (t) =>
@@ -457,9 +458,19 @@ function coordinatedVerb(
     const tenses = new Set(firstReadings.map((r) => r.tense));
     const same = readings.filter((r) => tenses.has(r.tense));
     forms = (same.length ? same : readings).flatMap((r) => conjugate(r, person).slice(0, 1));
-  } else if (readings.every((r) => r.slot === "Q")) {
-    // "il rentra et senti": the participle for the first verb's tense.
-    const tense = firstReadings.find((r) => r.tense > 2)?.tense;
+  } else if (readings.every((r) => r.slot === "Q" || r.slot === "I")) {
+    // "il rentra et senti": the participle for the first verb's tense. "vous rentrez et mangé",
+    // "elle se reposait et se dorer": an -é or -er form sounds like the -ez of the present or
+    // the -ait of the imperfect. An infinitive or a participle before "et" may be the one it
+    // joins ("il aime chanter et danser").
+    if (between.some((t) => verbReadings(t.w).some((r) => r.slot === "I" || r.slot === "Q")))
+      return null;
+    const past = readings.every((r) => r.slot === "Q");
+    const tense =
+      (past ? firstReadings.find((r) => r.tense > 2)?.tense : undefined) ??
+      (/(?:er|é)$/.test(verb.w)
+        ? firstReadings.find((r) => r.tense === 2 || (r.tense === 1 && person === VOUS))?.tense
+        : undefined);
     if (tense === undefined) return null;
     // The participle's own flag spells no tense: the infinitive's carries the conjugation.
     forms = readings.flatMap((r) =>
@@ -751,7 +762,8 @@ function postnominal(t: Token | undefined): boolean {
     t.w.length < 3 ||
     SUBJECT_PRONOUNS_ALL.has(t.w) ||
     CLITICS.has(t.w) ||
-    COMPLEMENT_PREPOSITIONS.has(t.w)
+    COMPLEMENT_PREPOSITIONS.has(t.w) ||
+    QUANTIFIERS.has(t.w)
   )
     return false;
   const readings = verbReadings(t.w);
@@ -1131,8 +1143,13 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
     if (tokens[k] && /^\p{Lu}/u.test(ctx.text[tokens[k].start])) k++;
     return verbFinding(ctx, tokens, k, person, anchor);
   }
-  // "Les enfants, qui lui a dit cela, sont là": a relative set off by commas.
-  if (i === head && !tokens[i]) return commaRelative(ctx, tokens[i - 1], person, anchor);
+  // "Les enfants, qui lui a dit cela, sont là": a relative set off by commas; "les exercices,
+  // quoique longs, sont utiles": an aside.
+  if (!tokens[i])
+    return (
+      (i === head ? commaRelative(ctx, tokens[i - 1], person, anchor) : null) ??
+      commaAside(ctx, tokens[i - 1], person, anchor)
+    );
   // "l'autre vous condamner" after "et" may leave out a modal: an object pronoun before the verb
   // is read only for a noun phrase that opens its own clause right before it.
   const own = before?.w !== "et";
@@ -1153,6 +1170,42 @@ function commaRelative(
   if (end >= 0 && ctx.text[last.end + end] !== ".") return null;
   const tokens = tokensAfter(ctx.text, last.end + comma[0].length, 8);
   return verbFinding(ctx, tokens, 1, person, from);
+}
+
+// Words that open an aside between commas, which adds nothing to the subject: "les exercices,
+// quoique longs, sont". "comme", "ainsi que" and "avec" may add to it and stay out.
+const ASIDE =
+  /^(?:quoique|bien que|même si|en plus d[e']|à la fois|selon|malgré|pourtant|cependant|toutefois|néanmoins|d'ailleurs|par exemple|notamment|en effet|de plus|en outre|par ailleurs|semble-t-il|paraît-il|dit-on|à mon avis|en général|sans doute|peut-être|heureusement|malheureusement|souvent|parfois|toujours|enfin|également)(?![\p{L}\p{M}])/u;
+// The stressed pronoun that takes up a subject: "mon enfant, lui, ne m'en veut pas".
+const TAKEN_UP: Record<number, string[]> = { [IL]: ["lui", "elle"], [ILS]: ["eux", "elles"] };
+
+/** The verb after an aside set off by commas ("les exercices, quoique longs, était") or a
+ * stressed pronoun that takes up the subject ("mon enfant, lui, ne m'en veux pas"). */
+function commaAside(
+  ctx: DetectContext,
+  last: Token,
+  person: number,
+  from: number,
+): RawFinding | null {
+  const comma = /^[ \t\u00a0]*,[ \t\u00a0]*/u.exec(ctx.text.slice(last.end, last.end + 12));
+  if (!comma) return null;
+  const at = last.end + comma[0].length;
+  const words = tokensAfter(ctx.text, at, 2);
+  let verbAt: number;
+  if (words[0] && !words[0].hyphen && TAKEN_UP[person]?.includes(words[0].w)) {
+    const pause = /^[ \t\u00a0]*,?[ \t\u00a0]*/u.exec(ctx.text.slice(words[0].end))![0];
+    verbAt = words[0].end + pause.length;
+  } else {
+    const aside = ctx.text
+      .slice(at, at + 120)
+      .toLowerCase()
+      .replaceAll("’", "'");
+    if (!ASIDE.test(aside)) return null;
+    const close = aside.search(/[,.;:!?…\n()]/u);
+    if (close < 0 || aside[close] !== ",") return null;
+    verbAt = at + close + 1;
+  }
+  return verbFinding(ctx, tokensAfter(ctx.text, verbAt, 8), 0, person, from);
 }
 
 const QUI = /(?<![\p{L}\p{M}\p{N}_'’-])qui(?=[ \t])/giu;
@@ -1422,6 +1475,75 @@ export function subjectEndsAt(text: string, index: number): boolean {
   return false;
 }
 
+// Words after which the subject may follow its verb: "là où vivent les loups", "lorsque
+// s'annonce un orage", "le livre que lisent les enfants".
+const INVERSION =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:où|lorsque|quand|que)(?=[ \t])|(?:lorsqu|qu)['’](?=\p{L}))/giu;
+// Pronouns between the opener and the verb; "le", "la", "les" may open the subject instead.
+const INVERTED_CLITICS = new Set("ne n' se s' y en me m' te t' lui leur".split(" "));
+
+/** "où vit les loups" -> "vivent", "lorsque s'annonce des orages" -> "s'annoncent": a verb before
+ * its noun phrase subject, which closes the clause. */
+function invertedSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const tokens = tokensAfter(ctx.text, m.index + m[0].length, 16);
+  let j = 0;
+  while (tokens[j] && INVERTED_CLITICS.has(tokens[j].w)) j++;
+  const verb = tokens[j];
+  if (!verb || verb.hyphen || ctx.dictionary.has(verb.w)) return null;
+  const typed = ctx.text.slice(verb.start, verb.end);
+  if (typed !== verb.w) return null;
+  // A form that is also a noun is the verb after a pronoun ("lorsque s'annonce") or after "où",
+  // "lorsque" and "quand"; "que justice soit faite" may open with a bare noun.
+  const opener = m[0].toLowerCase().replace("’", "'");
+  const marked = j > 0 || (opener !== "que" && opener !== "qu'");
+  if (isVerbHomograph(verb.w) && !AUXILIARY_HOMOGRAPHS.has(verb.w) && !marked) return null;
+  const readings = verbReadings(verb.w);
+  // "Qu'importe les détails": a fixed phrase that may stay singular.
+  if (!readings.length || !readings.every(finite) || verb.w === "importe") return null;
+  let k = j + 1;
+  // "où était installés les tuteurs", "qu'a été dévoilés les films": a participle after être or
+  // avoir.
+  const auxiliary = readings.some((r) => r.lemma === "être" || r.lemma === "avoir");
+  if (auxiliary && tokens[k]?.w === "été") k++;
+  if (auxiliary && verbReadings(tokens[k]?.w ?? "").every((r) => r.slot === "Q")) k++;
+  while (tokens[k] && ADVERBS.has(tokens[k].w)) k++;
+  const nouns: number[] = [];
+  const phrase = skipNounPhrase(FRENCH_CLAUSE, ctx.text, tokens, k, nouns);
+  if (phrase === k) return null;
+  const noun = tokens[nouns[0]];
+  const nounTyped = ctx.text.slice(noun.start, noun.end);
+  if (nounTyped !== noun.w || COLLECTIVES.has(noun.w.replace(/[sx]$/, ""))) return null;
+  const plural = PLURAL_DETERMINERS.has(tokens[k].w) || NUMBERS.has(tokens[k + 1]?.w ?? "");
+  if (plural && !/[sx]$/.test(noun.w)) return null;
+  // "où vivent un lion et une lionne": an inverted verb may also agree with the nearer noun
+  // phrase only, so a second one adds no check.
+  const first = skipComplements(FRENCH_CLAUSE, ctx.text, tokens, phrase);
+  const end = skipCoordinated(FRENCH_CLAUSE, ctx.text, tokens, first);
+  const person = plural ? ILS : IL;
+  // The subject closes the clause ("où vivent les loups.") or the main verb follows it ("le
+  // livre que lisent les enfants est vieux"). Another word may make the noun phrase an object
+  // ("que mange le chat chaque soir" is left alone too).
+  const main = tokens[end];
+  if (main) {
+    const homograph = isVerbHomograph(main.w) && !AUXILIARY_HOMOGRAPHS.has(main.w);
+    if (main.hyphen || homograph || !verbReadings(main.w).some(finite)) return null;
+  } else if (
+    tokens.length === 16 ||
+    !/^[ \t ]*(?:[.!?;:…,)»"”]|$)/u.test(ctx.text.slice(tokens[end - 1].end))
+  )
+    return null;
+  const persons = readings.reduce((mask, r) => mask | (r.slot as number), 0);
+  if (persons & person || (end > first && persons & ILS)) return null;
+  const alternatives = [...new Set(readings.flatMap((r) => conjugate(r, person).slice(0, 1)))];
+  if (!alternatives.length || alternatives.length > 2) return null;
+  const fixed = alternatives.map((alt) => carryCase(typed, alt));
+  return finding(RULE, MESSAGE, verb.start, verb.end, fixed, {
+    context: { start: m.index, end: tokens[end - 1].end },
+    ...(fixed.length > 1 ? { requiresChoice: true as const } : {}),
+  });
+}
+
 const NOUN_SUBJECT = new RegExp(
   `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:l['’](?=\\p{L})|(?:${[
     ...SINGULAR_DETERMINERS,
@@ -1462,6 +1584,10 @@ function subjectVerbAgreement(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, NAME)) {
     const finding = nameSubject(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, INVERSION)) {
+    const finding = invertedSubject(ctx, m);
     if (finding) findings.push(finding);
   }
   return findings;
