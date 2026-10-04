@@ -1133,8 +1133,13 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
     if (tokens[k] && /^\p{Lu}/u.test(ctx.text[tokens[k].start])) k++;
     return verbFinding(ctx, tokens, k, person, anchor);
   }
-  // "Les enfants, qui lui a dit cela, sont là": a relative set off by commas.
-  if (i === head && !tokens[i]) return commaRelative(ctx, tokens[i - 1], person, anchor);
+  // "Les enfants, qui lui a dit cela, sont là": a relative set off by commas; "les exercices,
+  // quoique longs, sont utiles": an aside.
+  if (!tokens[i])
+    return (
+      (i === head ? commaRelative(ctx, tokens[i - 1], person, anchor) : null) ??
+      commaAside(ctx, tokens[i - 1], person, anchor)
+    );
   // "l'autre vous condamner" after "et" may leave out a modal: an object pronoun before the verb
   // is read only for a noun phrase that opens its own clause right before it.
   const own = before?.w !== "et";
@@ -1155,6 +1160,42 @@ function commaRelative(
   if (end >= 0 && ctx.text[last.end + end] !== ".") return null;
   const tokens = tokensAfter(ctx.text, last.end + comma[0].length, 8);
   return verbFinding(ctx, tokens, 1, person, from);
+}
+
+// Words that open an aside between commas, which adds nothing to the subject: "les exercices,
+// quoique longs, sont". "comme", "ainsi que" and "avec" may add to it and stay out.
+const ASIDE =
+  /^(?:quoique|bien que|même si|en plus d[e']|à la fois|selon|malgré|pourtant|cependant|toutefois|néanmoins|d'ailleurs|par exemple|notamment|en effet|de plus|en outre|par ailleurs|semble-t-il|paraît-il|dit-on|à mon avis|en général|sans doute|peut-être|heureusement|malheureusement|souvent|parfois|toujours|enfin|également)(?![\p{L}\p{M}])/u;
+// The stressed pronoun that takes up a subject: "mon enfant, lui, ne m'en veut pas".
+const TAKEN_UP: Record<number, string[]> = { [IL]: ["lui", "elle"], [ILS]: ["eux", "elles"] };
+
+/** The verb after an aside set off by commas ("les exercices, quoique longs, était") or a
+ * stressed pronoun that takes up the subject ("mon enfant, lui, ne m'en veux pas"). */
+function commaAside(
+  ctx: DetectContext,
+  last: Token,
+  person: number,
+  from: number,
+): RawFinding | null {
+  const comma = /^[ \t\u00a0]*,[ \t\u00a0]*/u.exec(ctx.text.slice(last.end, last.end + 12));
+  if (!comma) return null;
+  const at = last.end + comma[0].length;
+  const words = tokensAfter(ctx.text, at, 2);
+  let verbAt: number;
+  if (words[0] && !words[0].hyphen && TAKEN_UP[person]?.includes(words[0].w)) {
+    const pause = /^[ \t\u00a0]*,?[ \t\u00a0]*/u.exec(ctx.text.slice(words[0].end))![0];
+    verbAt = words[0].end + pause.length;
+  } else {
+    const aside = ctx.text
+      .slice(at, at + 120)
+      .toLowerCase()
+      .replaceAll("’", "'");
+    if (!ASIDE.test(aside)) return null;
+    const close = aside.search(/[,.;:!?…\n()]/u);
+    if (close < 0 || aside[close] !== ",") return null;
+    verbAt = at + close + 1;
+  }
+  return verbFinding(ctx, tokensAfter(ctx.text, verbAt, 8), 0, person, from);
 }
 
 const QUI = /(?<![\p{L}\p{M}\p{N}_'’-])qui(?=[ \t])/giu;

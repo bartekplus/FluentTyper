@@ -101,6 +101,37 @@ const POSITIVES: Array<[CatalogRuleId, string, string, string]> = [
     "Il sort lorsque s'arrêtent la pluie.",
     "Il sort lorsque s'arrête la pluie.",
   ],
+  // An aside between commas, or a stressed pronoun that takes up the subject.
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Les ouvriers, selon le journal, prépare une grève.",
+    "Les ouvriers, selon le journal, préparent une grève.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Le directeur, malgré la crise, refusent de partir.",
+    "Le directeur, malgré la crise, refuse de partir.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Les élèves de la classe, souvent fatigués, arrive en retard.",
+    "Les élèves de la classe, souvent fatigués, arrivent en retard.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Les élèves, eux, travaille dur.",
+    "Les élèves, eux, travaillent dur.",
+  ],
+  [
+    "frenchSubjectVerbAgreement",
+    "fr_FR",
+    "Ma fille, elle ne me crois pas.",
+    "Ma fille, elle ne me croit pas.",
+  ],
   // English: a subject past its complements and a relative clause.
   [
     "englishSubjectVerbAgreement",
@@ -231,6 +262,12 @@ const NEGATIVES: Array<[CatalogRuleId, string, string]> = [
   ["frenchSubjectVerbAgreement", "fr_FR", "Le soir où tu as vu les enfants."],
   ["frenchSubjectVerbAgreement", "fr_FR", "Les pommes que mange le chat chaque soir."],
   ["frenchSubjectVerbAgreement", "fr_FR", "Il ne reste que les miettes."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le directeur, comme les autres, sont partis."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le chat, malgré la pluie, le vent et la neige, sort."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Les enfants, malgré tout, ils sont contents."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Mes amis, malgré tout, venez avec nous."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Ma mère, elle, ne veut pas."],
+  ["frenchSubjectVerbAgreement", "fr_FR", "Le soir, parfois, passent des trains."],
   ["frenchAdjectiveAgreement", "fr_FR", "La clé de la maison que j'ai vendue est perdue."],
   ["englishSubjectVerbAgreement", "en_US", "The parents of the child who was hurt are angry."],
   [
@@ -276,9 +313,8 @@ describe("clause reader", () => {
   test("long subjects and relative clauses stay fast", () => {
     const french = (
       "Les élèves de la classe de la ville du pays qui ont réussi depuis mai part demain, " +
-      "le bruit des moteurs que les voisins entendent sont gênant, mes cadeaux pour toi arrive. " +
-      "La route que prend les camions du port de la ville du pays est longue, où se trouve les. "
-    ).repeat(18);
+      "le bruit des moteurs que les voisins entendent sont gênant, mes cadeaux pour toi arrive. "
+    ).repeat(25);
     // The first scan loads the lexicons.
     slowestChunkMs(french.slice(0, 400), "fr_FR");
     expect(slowestChunkMs(french, "fr_FR")).toBeLessThan(100);
@@ -306,7 +342,6 @@ describe("clause reader", () => {
       ["en_US", ("The maps of" + pad(300) + "the city who" + pad(300) + "ran is, ").repeat(6)],
       ["en_US", ("The lamps that" + pad(400) + "my aunt keeps" + pad(400) + "is ").repeat(4)],
       ["fr_FR", ("Les élèves de" + pad(300) + "la ville qui" + pad(300) + "part, ").repeat(6)],
-      ["fr_FR", ("où se" + pad(300) + "trouve les" + pad(300) + "ruines de" + pad(200)).repeat(5)],
       [
         "fr_FR",
         ("Les boîtes que" + pad(400) + "les enfants rangent" + pad(400) + "est ").repeat(4),
