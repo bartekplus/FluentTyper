@@ -114,3 +114,17 @@ test.each([
 ])("a %s pair that is no range keeps its hyphen: %s", (lang, text) => {
   expect(dashes(text, lang)).toEqual([]);
 });
+
+test("a German plural auxiliary after a singular pronoun is no clause end", () => {
+  const commas = (text: string) =>
+    review(text, "de_DE")
+      .filter((d) => d.ruleId === "germanCommas")
+      .map((d) => d.alternatives.map((a) => applyEdits(text, a.edits)));
+  // "wurden" is a slip for "worden": germanVerbAgreement fixes it; no comma after it.
+  expect(commas("Nachdem er besiegt wurden war, ging er nach Hause.")).toEqual([]);
+  expect(commas("Nachdem es repariert wurden war, lief es.")).toEqual([]);
+  // With a plural subject the clause ends there and takes its comma.
+  expect(commas("Als sie gewählt wurden waren alle froh.")).toEqual([
+    ["Als sie gewählt wurden, waren alle froh."],
+  ]);
+});
