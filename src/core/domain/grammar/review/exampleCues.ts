@@ -53,6 +53,7 @@ export const CUE_AND_QUOTE = new RegExp(
 // cites here: `replace "their going"` names the text to change.
 const CUE_BEFORE_EXAMPLE = new RegExp(`${cue(`${CUE_WORDS}|${SPEECH_WORDS}|replace`)}$`, "iu");
 const QUOTES = new Set(OPENING_QUOTES);
+const QUOTE_OR_LINE = new RegExp(`[${OPENING_QUOTES}\\n\\r\\uFFFC]`);
 // The cue's last word, tested alone first: a `$`-anchored alternation is retried from every
 // position, which costs milliseconds per call when the regex JIT is off.
 const CUE_TAIL = new RegExp(`^(?:${CUE_WORDS}|${SPEECH_WORDS}|replace|${LINKING}|as)$`, "iu");
@@ -78,6 +79,8 @@ function lastWord(text: string): string {
  */
 export function namedExampleBefore(text: string, index: number): boolean {
   const floor = Math.max(0, index - 128);
+  // Cheap gate: most frame matches have no quote and no line end in reach.
+  if (!QUOTE_OR_LINE.test(text.slice(Math.max(floor, index - 81), index))) return false;
   // Each opening quote on the line within reach; the cue right before it is read from a
   // short window that starts on a word boundary, not the whole 128 characters.
   for (let q = index - 1; q >= floor && q >= index - 81; q--) {
