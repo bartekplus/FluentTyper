@@ -23,7 +23,7 @@ An ordinary input with only `role="combobox"` activates automatically.
 ARIA roles, popup hints, and stale expanded flags do not prevent automatic activation.
 Structured purpose attributes and usable browser datalists keep manual activation.
 
-`EditorCapabilities.ts` returns a fixed, text-free record. It reports inspection, mapping, suggestions, replacement, selection/Undo requirements, Review, key ownership, conflict, and reason.
+`EditorCapabilities.ts` returns a fixed, text-free record. It has these fields: `inspectProse`, `displaySuggestions`, `renderReview`, `reviewApply`, `consumeAcceptanceKey`, `conflict`, `context` (`prose`, `code`, `protected`, or `unknown`), and `reason`.
 It does no model reads, stores no history, and creates no observers.
 The runtime checks this record before interaction. Review uses the same metadata gate before its text safety checks.
 `reviewApply` requires the target's separate `ReviewCapabilities` evidence. Typing permission never grants Review write permission.
@@ -40,7 +40,7 @@ Review-only finding cards offer Copy. Clipboard writes require a trusted click a
 
 ## Capability and reason matrix
 
-| Context                                                    | Prose inspection / mapping     | Typing suggestions / acceptance                                             | Review / Apply                              | Reason or limit                                    |
+| Context                                                    | Prose inspection               | Typing suggestions / acceptance                                             | Review / Apply                              | Reason or limit                                    |
 | ---------------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------- | ------------------------------------------- | -------------------------------------------------- |
 | Ordinary input or textarea, including stale ARIA hints     | Yes                            | Yes, when a valid action is visible                                         | Yes / native transaction required           | `available`                                        |
 | Associated visible native popup                            | Yes                            | Temporarily paused with the preference enabled                              | Yes / target transaction required           | `native-popup`                                     |
@@ -52,8 +52,8 @@ Review-only finding cards offer Copy. Clipboard writes require a trusted click a
 | Mixed prose and code                                       | Prose with protected ranges    | Fresh code predictions keep capitalization suppression                      | Prose only / protected ranges cannot change | Current context is separate from host eligibility  |
 | Credential, disabled, read-only, hidden, or detached field | No                             | No                                                                          | No                                          | `sensitive`, `restricted`, `hidden`, or `detached` |
 
-`replaceText` permits an attempt through the editor's writer. It does not prove that an arbitrary replacement will succeed.
-`preserveSelectionAndUndo: transaction-required` has the same limitation. A transaction must validate its target, range, selection, and result.
+No field in the record proves that a write will succeed. `displaySuggestions` and `reviewApply` permit only an attempt.
+Each write goes through a transaction. The transaction must validate its target, range, selection, result, and Undo behavior.
 The diagnostic record contains no text, identifiers, URLs, or accumulated event history. It is not uploaded or persisted.
 
 ## Settings and lifecycle precedence
