@@ -103,13 +103,6 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
   {
     tab: "observability_tab",
     group: i18n.get("observability_controls_group"),
-    name: "observabilityHint",
-    type: "description",
-    text: `<p>${i18n.get("observability_desc")}</p>`,
-  },
-  {
-    tab: "observability_tab",
-    group: i18n.get("observability_controls_group"),
     name: KEY_OBSERVABILITY_ENABLED,
     type: "checkbox",
     label: buildFieldLabel(

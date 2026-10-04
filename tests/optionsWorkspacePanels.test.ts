@@ -119,7 +119,6 @@ describe("options workspace panels", () => {
     const { panelRoot, registry } = createGroups(
       {
         Controls: {
-          observabilityHint: "Observability hint",
           [KEY_OBSERVABILITY_ENABLED]: "Observability enabled",
           [KEY_OBSERVABILITY_DEFAULT_LEVEL]: "Default log level",
         },

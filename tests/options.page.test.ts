@@ -46,6 +46,26 @@ describe("options page scripts", () => {
     );
   });
 
+  test("the dev manifest does not repeat the observability card help text", async () => {
+    const globals = globalThis as { __FT_DEV_BUILD__?: boolean };
+    globals.__FT_DEV_BUILD__ = true;
+    try {
+      const manifestPath = "../src/ui/options/settingsManifest.ts?dev_manifest";
+      const { manifest } = (await import(
+        manifestPath
+      )) as typeof import("../src/ui/options/settingsManifest.js");
+      const { i18n } = await import("../src/ui/options/fluenttyperI18n.js");
+      expect(manifest.tabs.map((tab) => tab.id)).toContain("observability_tab");
+      // The Controls card shows observability_desc as its help text.
+      const repeats = manifest.settings.filter(
+        (setting) => "text" in setting && setting.text?.includes(i18n.get("observability_desc")),
+      );
+      expect(repeats).toEqual([]);
+    } finally {
+      delete globals.__FT_DEV_BUILD__;
+    }
+  });
+
   test("exposes opt-in personalization and a separate clear action", async () => {
     const { manifest } = await import("../src/ui/options/settingsManifest.js");
     const personalization = manifest.settings.find(

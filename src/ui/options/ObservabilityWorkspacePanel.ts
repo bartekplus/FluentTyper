@@ -22,7 +22,6 @@ export function renderObservabilityWorkspacePanel(
     i18n.get("observability_controls_group"),
     i18n.get("observability_desc"),
   );
-  moveControlToBody(registry, "observabilityHint", controls.body);
   moveControlToBody(registry, KEY_OBSERVABILITY_ENABLED, controls.body);
   moveControlToBody(registry, KEY_OBSERVABILITY_DEFAULT_LEVEL, controls.body);
   shell.appendChild(controls.card);
