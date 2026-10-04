@@ -31,6 +31,8 @@ export class SuggestionMenuView {
     list.className = SuggestionMenuView.LIST_CLASS;
     if (typeof menu.attachShadow === "function") {
       this.applyBaseHostStyles(menu, true);
+      // The mutation pipeline skips owned UI, so menu moves do not start a scan.
+      menu.setAttribute(SuggestionMenuView.OWNED_ATTR, "true");
       const shadowRoot = menu.attachShadow({ mode: "open" });
       shadowRoot.appendChild(this.createShadowStyle(doc));
       shadowRoot.appendChild(this.createPanel(doc, list));

@@ -1,4 +1,5 @@
 import { MutationPipeline } from "../src/adapters/chrome/content-script/MutationPipeline";
+import { SuggestionMenuView } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuView";
 
 function childListMutation(addedNodes: Node[], target: Node = document.body): MutationRecord {
   return {
@@ -97,8 +98,8 @@ test("FT-INV-2 typing 100 or 1000 characters never triggers editor discovery", (
 
 test("FT-INV-2 FluentTyper UI bursts never trigger discovery", () => {
   const pipeline = new MutationPipeline(200, 64);
-  const menu = document.createElement("div");
-  menu.setAttribute("data-ft-suggestion-owned", "true");
+  // The real shadow menu host, as the runtime makes it.
+  const { menu } = SuggestionMenuView.ensureMenu();
   const overlay = document.createElement("div");
   overlay.setAttribute("data-fluenttyper-review", "true");
   document.body.append(menu, overlay);
