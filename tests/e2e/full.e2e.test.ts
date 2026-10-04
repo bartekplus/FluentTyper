@@ -7010,6 +7010,87 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Gutenberg iframe Review card moves away from parent-page UI that covers it",
+    async () => {
+      await prepareReviewPage({ enableGutenberg: true, gutenbergIframe: true });
+      const surface = await waitUntil(
+        "Gutenberg blob canvas",
+        async () =>
+          page
+            .frames()
+            .find((frame) => frame.name() === "editor-canvas" || frame.url().startsWith("blob:")) ??
+          false,
+      );
+      await page.$eval('iframe[name="editor-canvas"]', (frame) =>
+        frame.scrollIntoView({ block: "start" }),
+      );
+      const selector = "#test-gutenberg .block-editor-rich-text__editable";
+      await waitForInputReady(surface, selector);
+      await surface.$eval(selector, (element) => (element as HTMLElement).focus());
+      await triggerReview(worker);
+      const panel = await waitForReview(surface, "Gutenberg findings", (p) =>
+        p.items.some((item) => item.text === "teh → the"),
+      );
+      const item = panel.items.find((finding) => finding.text === "teh → the")!;
+      // The card's place in the parent page's coordinates.
+      const cardInParent = () =>
+        surface.evaluate((hostSelector) => {
+          const card = document.querySelector(hostSelector)?.shadowRoot?.querySelector(".card");
+          const box = card!.getBoundingClientRect();
+          const frame = window.frameElement!.getBoundingClientRect();
+          return {
+            left: frame.left + box.left,
+            top: frame.top + box.top,
+            right: frame.left + box.right,
+            bottom: frame.top + box.bottom,
+          };
+        }, REVIEW_HOST_SELECTOR);
+      const openCard = async () => {
+        await clickReviewControl(surface, `.item[data-id="${item.id}"]`);
+        await waitForReview(surface, "card open", (p) => p.card.open);
+        // The card places itself again 150 ms after it opens.
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return cardInParent();
+      };
+      const first = await openCard();
+      await page.keyboard.press("Escape");
+      await waitForReview(surface, "card closed", (p) => !p.card.open);
+      // Parent-page UI the size of Gutenberg's block toolbar, over the card's first place.
+      const strip = {
+        left: first.left,
+        top: first.top,
+        right: first.right,
+        bottom: first.top + 48,
+      };
+      await page.evaluate((box) => {
+        const cover = document.createElement("div");
+        cover.id = "ft-test-parent-toolbar";
+        Object.assign(cover.style, {
+          position: "fixed",
+          left: `${box.left}px`,
+          top: `${box.top}px`,
+          width: `${box.right - box.left}px`,
+          height: `${box.bottom - box.top}px`,
+          zIndex: "100000",
+          background: "rgba(0, 0, 0, 0.2)",
+        });
+        document.body.append(cover);
+      }, strip);
+      try {
+        const second = await openCard();
+        const overlap =
+          Math.max(0, Math.min(strip.right, second.right) - Math.max(strip.left, second.left)) *
+          Math.max(0, Math.min(strip.bottom, second.bottom) - Math.max(strip.top, second.top));
+        expect({ first, second, overlap }).toMatchObject({ overlap: 0 });
+      } finally {
+        await page.evaluate(() => document.getElementById("ft-test-parent-toolbar")?.remove());
+        await finishReview();
+      }
+    },
+    suiteTimeout(45000, 60000),
+  );
+
+  test(
     "Gutenberg real RichText accepts popup predictions and text expansions through native data",
     async () => {
       await setSetting(worker, KEY_LANGUAGE, "en_US");
