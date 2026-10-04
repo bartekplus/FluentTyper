@@ -1509,8 +1509,9 @@ test("no French chunk stalls on adversarial input", () => {
     "une petit maison le belle saison les charmant villages un très jolie jardin ".repeat(150),
   ];
   // Warm-up: the first scan of a frame compiles it. That one-time cost is not a stall. The
-  // start of each input holds all its words, so it compiles the same frames.
-  for (const text of inputs) slowest(text.slice(0, 5_000));
+  // start of each input holds all its words. Two chunks: the regex JIT compiles one time for the
+  // masked (16-bit) scan text of a chunk with text after it and one time for the 8-bit last one.
+  for (const text of inputs) slowest(text.slice(0, 6_000));
   for (const text of inputs) expect(slowest(text)).toBeLessThan(100);
 });
 
