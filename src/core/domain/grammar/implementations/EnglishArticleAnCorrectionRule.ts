@@ -2,6 +2,7 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import { englishInitialSound } from "./helpers/EnglishInitialSound";
 import {
   isPartOfTechnicalToken,
+  replaceFrom,
   resolveEnglishBoundaryContext,
   resolveUserDictionarySet,
 } from "./helpers/EnglishRuleShared";
@@ -99,11 +100,7 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
     }
 
     const between = core.slice(articleStart + article.length, core.length - word.length);
-    return {
-      replacement: `${corrected}${between}${word}${boundaryContext.trailing}`,
-      deleteBackwards: boundaryContext.input.length - articleStart,
-      deleteForwards: 0,
-    };
+    return replaceFrom(boundaryContext, articleStart, `${corrected}${between}${word}`);
   }
 }
 

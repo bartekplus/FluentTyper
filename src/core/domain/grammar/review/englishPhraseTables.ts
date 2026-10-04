@@ -1,9 +1,10 @@
 /**
  * Fixed English phrases whose conventional form is not in doubt. A row is
  * [typed forms, replacements]; several replacements mean the writer chooses.
- * Matching is whole-word and case-insensitive with any run of spaces between
- * words, so a row stays out whenever its typed form is also ordinary English
- * ("every one of them", "keep on going", "in the other hand she held…").
+ * Matching is whole-word and case-insensitive with 1 to 8 spaces, tabs or
+ * no-break spaces between words, so a row stays out whenever its typed form
+ * is also ordinary English ("every one of them", "keep on going", "in the
+ * other hand she held…").
  */
 export type PhraseRow = readonly [
   typed: string | readonly string[],

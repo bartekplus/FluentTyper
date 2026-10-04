@@ -56,7 +56,7 @@ export function pluralNoun(word: string): "noun" | "ambiguous" | null {
 // "I he went": two subject pronouns left over from an edit. Both readings agree with the verb.
 // Reporting verbs leave a comma-less parenthetical possible ("They he said were late").
 const DOUBLE_SUBJECT = frame(
-  `${CLAUSE_START}(?<a>I|we|they|he|she)${SPACE}(?<b>I|we|they|he|she)${SPACE}(?!(?:said|told|thought|knew|felt|believed|claimed|heard|guessed|supposed|reckoned)${WORD_END})(?:${MODALS}|had|did|${PASTS.join("|")}|[a-z]{2,}ed)${WORD_END}`,
+  `${CLAUSE_START}(?<a>I|we|they|he|she)${SPACE}(?<b>I|we|they|he|she)${SPACE}(?!(?:said|told|thought|knew|felt|believed|claimed|heard|guessed|supposed|reckoned)${WORD_END})(?:${MODALS}|${PASTS.join("|")}|[a-z]{2,}ed)${WORD_END}`,
 );
 function doubleSubjects(ctx: DetectContext): Finding[] {
   const findings: Finding[] = [];

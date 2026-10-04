@@ -1,4 +1,4 @@
-import type { GrammarContext } from "../../types";
+import type { GrammarContext, GrammarEdit } from "../../types";
 import { lastNonSpaceBefore, normalizeWordSet } from "./GenericRuleShared";
 
 const TRAILING_DELIMITER_REGEX = /[\s.,!?;:)\]"}]/;
@@ -47,6 +47,19 @@ export function resolveEnglishBoundaryContext(
   }
 
   return { input, core, trailing };
+}
+
+/** Replaces the input from `start` with `text`, and keeps the typed trailing delimiters. */
+export function replaceFrom(
+  boundary: EnglishBoundaryContext,
+  start: number,
+  text: string,
+): GrammarEdit {
+  return {
+    replacement: `${text}${boundary.trailing}`,
+    deleteBackwards: boundary.input.length - start,
+    deleteForwards: 0,
+  };
 }
 
 export function findTrailingLetterToken(input: string): TrailingTokenInfo | null {

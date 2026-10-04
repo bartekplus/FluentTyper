@@ -111,7 +111,7 @@ export function closesAbbreviation(text: string, index: number, lang?: string): 
     token.length <= 1 || token.includes(".") || abbreviationsFor(lang).has(token.toLowerCase())
   );
 }
-// Includes every closing quote the typography profiles emit: „…“ ‚…‘ «…» ›…‹.
+// Includes every closing quote the typography profiles emit (in „…“ ‚…‘ «…»), and a typed "›".
 export const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’", "“", "‘", "»", "›"]);
 // French padding inside a closing guillemet and before "!" or "?": "« Oui ! »".
 export const CLOSING_PADDING_CHARS = new Set(["\u00A0", "\u202F"]);

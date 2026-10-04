@@ -29,7 +29,6 @@ const FUNCTION_WORDS = new Set(
 );
 // Memoized: the same words recur, and a lexicon lookup tries every affix rule.
 const INFO = new Map<string, EnglishWordInfo | null>();
-const KNOWN = new Map<string, boolean>();
 function info(word: string): EnglishWordInfo | null {
   const w = word.toLowerCase();
   let hit = INFO.get(w);
@@ -42,13 +41,7 @@ function info(word: string): EnglishWordInfo | null {
 }
 function known(word: string): boolean {
   const w = word.toLowerCase();
-  let hit = KNOWN.get(w);
-  if (hit === undefined) {
-    if (KNOWN.size > 20000) KNOWN.clear();
-    hit = FUNCTION_WORDS.has(w) || !!info(w) || englishListedNoun(w) !== null;
-    KNOWN.set(w, hit);
-  }
-  return hit;
+  return FUNCTION_WORDS.has(w) || !!info(w) || englishListedNoun(w) !== null;
 }
 
 /** Lowercase, or capitalized at the start of a clause: no name, acronym or code. */

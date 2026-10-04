@@ -721,20 +721,6 @@ function includingButNotLimited(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-/** "°K" opening the text; the measurement rule covers it after a number or a space. */
-function kelvinAtStart(ctx: DetectContext): RawFinding[] {
-  if (ctx.from > 0 || !/^°K(?![\p{L}\p{N}_])/u.test(ctx.text)) return [];
-  return [
-    {
-      ruleId: "measurementUnitFormatting",
-      messageKey: "review_msg_kelvin_degree",
-      range: { start: 0, end: 2 },
-      alternatives: ["K"],
-      context: { start: 0, end: 2 },
-    },
-  ];
-}
-
 const ENGLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["englishSentenceStructure"],
@@ -772,11 +758,9 @@ const ENGLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
 ];
 
 /** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  ...ENGLISH_DETECTORS.map(({ rules, detect }): ReviewDetectorEntry => ({
+export const DETECTORS: readonly ReviewDetectorEntry[] = ENGLISH_DETECTORS.map(
+  ({ rules, detect }): ReviewDetectorEntry => ({
     rules,
     detect: (ctx) => (ctx.lang !== "en_US" ? [] : detect(ctx)),
-  })),
-  // The "°K" check applies to all languages.
-  { rules: ["measurementUnitFormatting"], detect: kelvinAtStart },
-];
+  }),
+);

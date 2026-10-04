@@ -1194,7 +1194,7 @@ function currencyPlacement(ctx: DetectContext): RawFinding[] {
 function kelvinDegree(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   const separator = resolveMeasurementLocale(ctx.lang)?.separator ?? " ";
-  for (const match of ownedMatches(ctx, /(?<=[\p{N}\s(])°K(?![\p{L}\p{N}_])/gu)) {
+  for (const match of ownedMatches(ctx, /(?<=^|[\p{N}\s(])°K(?![\p{L}\p{N}_])/gu)) {
     const start = match.index;
     const glued = /\p{N}/u.test(ctx.text[start - 1]);
     findings.push({

@@ -1,5 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { matchTrailingEnglishPhrase, opensClause } from "./helpers/EnglishRuleShared";
+import { matchTrailingEnglishPhrase, opensClause, replaceFrom } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
 export const AGREEMENT_REGEX = /\b(i\s+is|i\s+has|you\s+was|(he|she|it)\s+are)(\s+\S+)$/i;
@@ -35,11 +35,11 @@ export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
 
     const [pronoun, verb] = correctPronounVerb(phrase, corrected);
 
-    return {
-      replacement: `${pronoun}${phrase.match(/\s+/)![0]}${verb}${match[3]}${boundaryContext.trailing}`,
-      deleteBackwards: boundaryContext.input.length - phraseStart,
-      deleteForwards: 0,
-    };
+    return replaceFrom(
+      boundaryContext,
+      phraseStart,
+      `${pronoun}${phrase.match(/\s+/)![0]}${verb}${match[3]}`,
+    );
   }
 }
 

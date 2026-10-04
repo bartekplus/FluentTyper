@@ -2,6 +2,7 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import {
   findTrailingLetterToken,
   isPartOfTechnicalToken,
+  replaceFrom,
   resolveEnglishBoundaryContext,
   resolveUserDictionarySet,
 } from "./helpers/EnglishRuleShared";
@@ -52,11 +53,7 @@ export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
       return null;
     }
 
-    return {
-      replacement: `${replacementToken}${tokenInfo.trailing}`,
-      deleteBackwards: boundaryContext.input.length - tokenInfo.tokenStart,
-      deleteForwards: 0,
-    };
+    return replaceFrom(boundaryContext, tokenInfo.tokenStart, replacementToken);
   }
 }
 

@@ -158,17 +158,10 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       return null;
     }
 
-    let spaceRunLength = 0;
-    let i = length - 2;
-    while (i >= 0 && SPACING_OR_FILLER_CHARS.includes(inputStr[i])) {
-      if (SPACE_CHARS.includes(inputStr[i])) {
-        spaceRunLength += 1;
-      }
-      i -= 1;
-    }
+    const i = lastNonSpaceBefore(inputStr, length - 1, SPACING_OR_FILLER_CHARS);
     const previousSignificantChar = i >= 0 ? inputStr[i] : "";
 
-    const spaceBeforeViolated = spaceRunLength > 0;
+    const spaceBeforeViolated = SPACE_CHARS.some((ch) => inputStr.slice(i + 1, -1).includes(ch));
     const insertSpaceAfter = this.insertSpaceAfterAutocomplete;
     const inputAction = context.hints?.inputAction;
 

@@ -257,7 +257,7 @@ function cue(b: Tok[]): Cue | null {
     if (w === "you" && isWord(b[i + 1])) {
       const p = b[i + 1].w;
       if (!MODAL.has(p) && !CONJUNCTION.has(p) && !isAdverb(p) && hasVerb(p)) return null;
-      if (/^(?:to|for|with|of|thank|than)$/.test(p) && p !== "than") return null;
+      if (/^(?:to|for|with|of|thank)$/.test(p)) return null;
     }
     return { kind: "subject", ...base };
   }
@@ -340,7 +340,7 @@ function make(
 // Handlers, one per target word family. Each returns the replacement(s) or null.
 
 type Hit = { start: number; end: number; alts: string[]; key?: ReviewMessageKey };
-type Handler = (ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]) => Hit | Hit[] | null;
+type Handler = (ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]) => Hit | null;
 const hit = (t: Tok, ...alts: string[]): Hit => ({ start: t.start, end: t.end, alts });
 
 // A noun typed in a verb slot: "I thing", "can advice", "to breath some air".
@@ -399,8 +399,7 @@ function effect(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const c = cue(b);
   const alt = third ? "affects" : "affect";
   if (c) {
-    if (third ? c.kind === "third" && c.adverbs >= 0 : c.kind === "modal" || c.kind === "subject")
-      return hit(t, alt);
+    if (third ? c.kind === "third" : c.kind === "modal" || c.kind === "subject") return hit(t, alt);
     if (!third && c.kind === "to" && infinitiveTo(b, c, next) && OBJECT_START.has(next.w))
       return hit(t, alt);
     if (!third && c.kind === "to" && TO_HEAD.has(b[c.at + 1]?.w ?? "")) return hit(t, alt);
@@ -683,7 +682,7 @@ function rogue(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
 // "He roller skated home": the verb is hyphenated; "the roller skated" is a noun subject.
 function roller(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
   const n = a[0];
-  if (n?.w !== "skated" || ctx.text.slice(t.end, n.start).includes("\n")) return null;
+  if (n?.w !== "skated") return null;
   if (isWord(b[0]) && (DETERMINER.has(b[0].w) || plainAdjective(b[0].w))) return null;
   const sep = ctx.text.slice(t.end, n.start);
   if (!/^[ \t\u00a0]+$/.test(sep)) return null;
@@ -986,7 +985,7 @@ function lets(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
     // "let's" + object pronoun: "it let's us do", "let's me do".
     if (!/^(?:me|us|him|her|them|you)$/.test(n.w) || !isWord(a[1]) || !hasVerbForm(a[1].w, "base"))
       return null;
-    return { ...hit(t, "lets"), key: KEY };
+    return hit(t, "lets");
   }
   if (!opens(b[0]) && !(isWord(b[0]) && LETS_CUE.has(b[0].w))) return null;
   // "let Align = new…": a capitalized name after it is code or a title.
@@ -1138,12 +1137,10 @@ function confusedWords(ctx: DetectContext): RawFinding[] {
       continue;
     const t: Tok = { text, w, start: m.index, end: m.index + text.length };
     const handler = w.startsWith("dissembl") ? dissemble : HANDLERS[w];
-    const result = handler(ctx, t, before(ctx, t.start), after(ctx, t.end));
-    for (const h of [result ?? []].flat()) {
-      if (mentioned(ctx, h)) continue;
-      const finding = make(ctx, h.start, h.end, h.alts, h.key);
-      if (finding) findings.push(finding);
-    }
+    const h = handler(ctx, t, before(ctx, t.start), after(ctx, t.end));
+    if (!h || mentioned(ctx, h)) continue;
+    const finding = make(ctx, h.start, h.end, h.alts, h.key);
+    if (finding) findings.push(finding);
   }
   return findings;
 }

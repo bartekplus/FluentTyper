@@ -1,5 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { matchTrailingEnglishPhrase } from "./helpers/EnglishRuleShared";
+import { matchTrailingEnglishPhrase, replaceFrom } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
 export const THEIR_THERE_BE_REGEX = /\btheir\s+(is|are|was|were)$/i;
@@ -20,11 +20,7 @@ export class EnglishTheirThereBeVerbRule implements GrammarRule {
     const verb = match[1];
 
     const [there, normalizedVerb] = correctTheirBeVerb(firstToken, verb);
-    return {
-      replacement: `${there} ${normalizedVerb}${boundaryContext.trailing}`,
-      deleteBackwards: boundaryContext.input.length - phraseStart,
-      deleteForwards: 0,
-    };
+    return replaceFrom(boundaryContext, phraseStart, `${there} ${normalizedVerb}`);
   }
 }
 

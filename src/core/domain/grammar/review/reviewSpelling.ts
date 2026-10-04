@@ -52,7 +52,6 @@ const SHORT_S_WORDS: Record<string, ReadonlySet<string>> = {
 function shortSWord(word: string, lang: string): boolean {
   return SHORT_S_WORDS[lang.slice(0, 2)]?.has(word.toLowerCase()) ?? false;
 }
-const SENTENCE_BREAK = /[.!?؟\n￼]/u;
 
 /**
  * Words worth a dictionary lookup, in document order: prose words inside the
@@ -197,13 +196,7 @@ function opensSentence(prepared: PreparedReview, start: number): boolean {
 /** Up to two words before `start` in the same sentence, for ranking candidates in context. */
 function wordsBefore(text: string, start: number): string {
   const window = text.slice(Math.max(0, start - 48), start);
-  let cut = 0;
-  for (let i = window.length - 1; i >= 0; i -= 1) {
-    if (SENTENCE_BREAK.test(window[i])) {
-      cut = i + 1;
-      break;
-    }
-  }
+  const cut = window.search(/[^.!?؟\n￼]*$/u);
   const words = window.slice(cut).match(CONTEXT_WORD) ?? [];
   // The first word of a cut-off window may be partial.
   const complete = cut === 0 && start > 48 ? words.slice(1) : words;

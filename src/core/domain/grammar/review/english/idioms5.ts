@@ -349,13 +349,18 @@ const RISE: Record<string, string> = {
   rised: "rose",
 };
 const RANKS = `(?<target>(?<verb>rise|rises|rose|risen|rising|rised|raise|raises|raised|raising)(?<mid>(?:${S}up)?(?:${S}(?:in|through))?)${S}(?<the>the${S}(?<rank>ranks?)))${E}(?!${S}and${S}file${E})`;
-/** Errors: a missing preposition, "raise", "rised", or a singular "rank". */
-function riseRanks(m: RegExpExecArray): FixResult {
-  const verb = (m.groups!.verb ?? "").toLowerCase();
-  const mid = (m.groups!.mid ?? "")
+/** The words between the verb and "the ranks", lowercase and one space apart. */
+function ranksMid(m: RegExpExecArray): string {
+  const { mid } = m.groups!;
+  return mid
     .toLowerCase()
     .trim()
     .replace(/[ \t\u00a0]+/g, " ");
+}
+/** Errors: a missing preposition, "raise", "rised", or a singular "rank". */
+function riseRanks(m: RegExpExecArray): FixResult {
+  const verb = m.groups!.verb.toLowerCase();
+  const mid = ranksMid(m);
   const plural = /s$/i.test(m.groups!.rank);
   const insert: Fix = { alternatives: ["through the ranks"], range: group(m, "the") };
   if (!(verb in RISE)) {
@@ -371,11 +376,8 @@ function riseRanks(m: RegExpExecArray): FixResult {
 }
 /** Style: "rise up the ranks", "rise in the ranks" for the set "rise through the ranks". */
 function riseRanksStyle(m: RegExpExecArray): FixResult {
-  const mid = (m.groups!.mid ?? "")
-    .toLowerCase()
-    .trim()
-    .replace(/[ \t\u00a0]+/g, " ");
-  if ((m.groups!.verb ?? "").toLowerCase() in RISE || !mid || mid === "through") return null;
+  const mid = ranksMid(m);
+  if (m.groups!.verb.toLowerCase() in RISE || !mid || mid === "through") return null;
   return /s$/i.test(m.groups!.rank) ? `${m.groups!.verb} through the ranks` : null;
 }
 
@@ -403,7 +405,7 @@ const PHRASAL_CUE = Object.keys(PHRASAL);
 const PHRASAL_OWN = Object.keys(PHRASAL)
   .filter((word) => word !== "setup")
   .join("|");
-const phrasal = (m: RegExpExecArray) => PHRASAL[(m.groups!.target ?? "").toLowerCase()];
+const phrasal = (m: RegExpExecArray) => PHRASAL[m.groups!.target.toLowerCase()];
 // "need to backup if it fails" may name the backup system.
 const phrasalInfinitive = (m: RegExpExecArray, ctx: DetectContext) =>
   /^(?:if|when|unless|because|before|after|until|while|and|or|in)$/i.test(
@@ -800,7 +802,7 @@ const FRAMES: readonly Frame[] = [
     pattern: `(?<target>(?<first>${FREQUENCY})${S}(?<second>${FREQUENCY}))${E}`,
     fix: (m) => {
       const { first, second } = m.groups!;
-      return (first ?? "").toLowerCase() === (second ?? "").toLowerCase()
+      return first.toLowerCase() === second.toLowerCase()
         ? null
         : { alternatives: [first, second], raw: true };
     },
@@ -823,7 +825,7 @@ const FRAMES: readonly Frame[] = [
     cue: ["eat", "eats", "ate", "eaten", "eating"],
     pattern: `(?<target>(?<verb>eat|eats|ate|eaten|eating))${S}(?:(?:the|my|your|his|her|their|our|some|these|those|this|that|prescribed)${S}){0,2}(?:${MEDICINE})${E}`,
     fix: (m) => {
-      const verb = (m.groups!.verb ?? "").toLowerCase();
+      const verb = m.groups!.verb.toLowerCase();
       return verb === "ate"
         ? ["took", "swallowed"]
         : ({ eat: "take", eats: "takes", eaten: "taken", eating: "taking" } as const)[

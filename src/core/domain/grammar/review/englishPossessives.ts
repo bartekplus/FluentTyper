@@ -31,7 +31,7 @@ const CONSTRUCTIONS = (
     },
     {
       messageKey: "review_msg_its_contraction",
-      pattern: `(?<target>its)${SPACE}(?:unclear${SPACE}whether${SPACE}(?:the${SPACE}change${SPACE}will${SPACE}affect${SPACE}us|it${SPACE}will${SPACE}work)|ready${SPACE}to${SPACE}(?:use|go|open|start)|(?:cold|warm)${SPACE}outside|(?:working|raining|snowing)${SPACE}(?:now|again|today)|been${SPACE}(?:fixed|updated|removed|replaced)|already${SPACE}(?:been${SPACE})?(?:fixed|updated|removed|replaced))${COMPLETE}`,
+      pattern: `(?<target>its)${SPACE}(?:unclear${SPACE}whether${SPACE}(?:the${SPACE}change${SPACE}will${SPACE}affect${SPACE}us|it${SPACE}will${SPACE}work)|ready${SPACE}to${SPACE}(?:use|go|open|start)|(?:cold|warm)${SPACE}outside|working${SPACE}(?:now|again|today)|already${SPACE}(?:been${SPACE})?(?:fixed|updated|removed|replaced))${COMPLETE}`,
       replacement: "it's",
       clause: true,
     },
@@ -43,7 +43,7 @@ const CONSTRUCTIONS = (
     },
     {
       messageKey: "review_msg_its_contraction",
-      pattern: `(?<target>its)${SPACE}(?:(?:also|just|still|really|very|pretty|quite|always|never)${SPACE})?(?:hard|easy|common|important|critical|crucial|essential|vital|necessary|possible|impossible|likely|unlikely|clear|obvious|true|amazing|nice|great|good|bad|fine|okay|ok|worth|better|best|worse|safe|fun|strange|weird|odd|interesting|useful|helpful|difficult|annoying|frustrating|sad|funny|normal|free|done|over|here|there|now)(?=${SPACE}(?:to|for|that|if|when|because|how|what|why)(?!${EDGE})|${COMPLETE})`,
+      pattern: `(?<target>its)${SPACE}(?:(?:also|just|still|really|very|pretty|quite)${SPACE})?(?:hard|easy|common|important|critical|crucial|essential|vital|necessary|possible|impossible|likely|unlikely|clear|obvious|true|amazing|nice|great|good|bad|fine|okay|ok|worth|better|best|worse|safe|fun|strange|weird|odd|interesting|useful|helpful|difficult|annoying|frustrating|sad|funny|normal|free|done|over|here|there|now)(?=${SPACE}(?:to|for|that|if|when|because|how|what|why)(?!${EDGE})|${COMPLETE})`,
       replacement: "it's",
       cue: true,
     },

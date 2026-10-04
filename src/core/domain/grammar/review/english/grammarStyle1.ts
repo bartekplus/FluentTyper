@@ -444,7 +444,7 @@ function greekPlurals(ctx: DetectContext): RawFinding[] {
     );
     // "twenty one phenomena", "one or two criterion", "section one criteria".
     if (/\bof[ \t\u00a0]+$/i.test(before) || hasCountPrefix(before)) continue;
-    // A bare "many criterion" is left to the core count rule.
+    // A bare "many criterion" is not flagged: no rule has enough evidence for it.
     if (/^many[ \t\u00a0]+$/i.test(count[0])) continue;
     const corrected = noun.replace(/(?:on|a)$/, plural ? "a" : "on");
     findings.push({

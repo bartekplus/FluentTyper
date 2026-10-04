@@ -118,7 +118,7 @@ export class AutoBracketCloseRule implements GrammarRule {
     const beforeTyped = beforeCursor.slice(0, -1);
 
     // For > specifically: don't overtype when preceded by certain patterns
-    // that suggest comparison/shift operators (e.g., "a>", "1>", ">>")
+    // that suggest comparison/shift operators (e.g., "a>", "1>")
     if (closeChar === ">" && isWordChar(beforeTyped.at(-1) ?? "")) {
       return null;
     }

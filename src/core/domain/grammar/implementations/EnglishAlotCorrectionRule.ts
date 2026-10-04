@@ -1,5 +1,9 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { matchTrailingEnglishPhrase, resolveUserDictionarySet } from "./helpers/EnglishRuleShared";
+import {
+  matchTrailingEnglishPhrase,
+  replaceFrom,
+  resolveUserDictionarySet,
+} from "./helpers/EnglishRuleShared";
 import { detectWordCase, normalizeWordSet } from "./helpers/GenericRuleShared";
 
 export const ALOT_REGEX = /\balot$/i;
@@ -29,11 +33,7 @@ export class EnglishAlotCorrectionRule implements GrammarRule {
 
     const replacementPhrase = correctAlot(phrase);
 
-    return {
-      replacement: `${replacementPhrase}${boundaryContext.trailing}`,
-      deleteBackwards: boundaryContext.input.length - phraseStart,
-      deleteForwards: 0,
-    };
+    return replaceFrom(boundaryContext, phraseStart, replacementPhrase);
   }
 }
 

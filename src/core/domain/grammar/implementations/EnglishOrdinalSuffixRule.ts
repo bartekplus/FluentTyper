@@ -1,5 +1,9 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { isPartOfTechnicalToken, resolveEnglishBoundaryContext } from "./helpers/EnglishRuleShared";
+import {
+  isPartOfTechnicalToken,
+  replaceFrom,
+  resolveEnglishBoundaryContext,
+} from "./helpers/EnglishRuleShared";
 import { isInsideProtectedSpan } from "./helpers/ProtectedSpanShared";
 
 // Only a whole token of digits plus a lowercase "nd" or "th" is a candidate. It
@@ -34,7 +38,7 @@ export class EnglishOrdinalSuffixRule implements GrammarRule {
       return null;
     }
 
-    const [token, digits, suffix] = match;
+    const [, digits, suffix] = match;
     const expected = ordinalSuffix(digits);
     if (suffix === expected) {
       return null;
@@ -50,10 +54,6 @@ export class EnglishOrdinalSuffixRule implements GrammarRule {
       return null;
     }
 
-    return {
-      replacement: `${digits}${expected}${boundaryContext.trailing}`,
-      deleteBackwards: token.length + boundaryContext.trailing.length,
-      deleteForwards: 0,
-    };
+    return replaceFrom(boundaryContext, tokenStart, `${digits}${expected}`);
   }
 }

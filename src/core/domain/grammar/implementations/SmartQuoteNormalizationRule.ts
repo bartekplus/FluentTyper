@@ -142,7 +142,7 @@ function quoteBalance(input: string, straight: string, open: string, close: stri
   return balance;
 }
 
-// "”", "’" and "»" always close a quote in every profile they appear in, so
+// "’" and "»" always close a quote in every profile they appear in, so
 // they unambiguously mark quoted content. "“" and "‘" don't: "“" is also
 // French's nested-quote opener and "‘" is English's single opener, so they
 // only count when they are the active profile's own closing mark.

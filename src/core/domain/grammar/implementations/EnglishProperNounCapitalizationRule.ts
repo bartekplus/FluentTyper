@@ -1,5 +1,6 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import {
+  replaceFrom,
   resolveEnglishBoundaryContext,
   resolveUserDictionarySet,
 } from "./helpers/EnglishRuleShared";
@@ -149,7 +150,7 @@ export class EnglishProperNounCapitalizationRule implements GrammarRule {
     if (!boundary) {
       return null;
     }
-    const { core, trailing, input } = boundary;
+    const { core, trailing } = boundary;
     // "monday." may still become "monday.com" or "june.pdf"; wait for the next key.
     if (trailing === ".") {
       return null;
@@ -174,11 +175,7 @@ export class EnglishProperNounCapitalizationRule implements GrammarRule {
       return null;
     }
 
-    return {
-      replacement: `${replaced}${core.slice(found.end)}${trailing}`,
-      deleteBackwards: input.length - found.start,
-      deleteForwards: 0,
-    };
+    return replaceFrom(boundary, found.start, `${replaced}${core.slice(found.end)}`);
   }
 }
 

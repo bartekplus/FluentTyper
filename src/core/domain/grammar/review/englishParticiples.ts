@@ -62,7 +62,7 @@ const LEADS: Readonly<Record<string, RegExp>> = {
   re: /^(?:you|we|they)$/,
   m: /^i$/,
 };
-const ADVERB = `(?:not|never|already|just|ever|really|still|also|even|only|all|both|since|then|now|always|[a-z]+ly)`;
+const ADVERB = `(?:${[...ADVERBS].join("|")}|[a-z]+ly)`;
 // A chained auxiliary is not the verb, so "has been took" is still scanned from "been".
 const TAIL = `(?<adverbs>(?:${SPACE}${ADVERB}){0,2})${SPACE}(?!(?:be|been|being|have|having)${WORD_END})(?<verb>[A-Za-z]+)(?!${EDGE})`;
 // have/be in every spelling, clitics on their owner ("I'd", "it's") and dropped apostrophes.

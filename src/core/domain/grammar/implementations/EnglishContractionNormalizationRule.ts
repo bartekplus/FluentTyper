@@ -2,6 +2,7 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import {
   findTrailingLetterToken,
   isPartOfTechnicalToken,
+  replaceFrom,
   resolveEnglishBoundaryContext,
 } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
@@ -57,11 +58,7 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
       return null;
     }
 
-    return {
-      replacement: `${normalizedToken}${tokenInfo.trailing}`,
-      deleteBackwards: boundaryContext.input.length - tokenInfo.tokenStart,
-      deleteForwards: 0,
-    };
+    return replaceFrom(boundaryContext, tokenInfo.tokenStart, normalizedToken);
   }
 }
 
