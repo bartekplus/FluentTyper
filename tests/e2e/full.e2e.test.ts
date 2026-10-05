@@ -22,6 +22,7 @@ import {
   KEY_LANGUAGE,
   KEY_INLINE_SUGGESTION,
   KEY_NUM_SUGGESTIONS,
+  DEFAULT_NUM_SUGGESTIONS,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_PERSONALIZATION_ENABLED,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
@@ -87,6 +88,16 @@ const LEXICAL_SELECTOR = "#test-lexical-editor";
 const PROSEMIRROR_SELECTOR = "#test-prosemirror-editor";
 const SLATE_SELECTOR = "#test-slate-editor";
 const GENERIC_INPUT_SELECTORS = ["#test-input"];
+/**
+ * Inline mode off. While inline mode is on, the options page also stores
+ * prefix-only mode, Tab acceptance and 10 suggestions. These go back to their defaults.
+ */
+const INLINE_MODE_OFF = {
+  [KEY_INLINE_SUGGESTION]: false,
+  [KEY_PREFIX_ONLY_MODE]: false,
+  [KEY_AUTOCOMPLETE_ON_TAB]: true,
+  [KEY_NUM_SUGGESTIONS]: DEFAULT_NUM_SUGGESTIONS,
+};
 const timeoutProfile = getTimeoutProfile();
 
 const NAVIGATION_TIMEOUT_MS = timeoutProfile.navigationMs;
@@ -879,6 +890,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     if (takeSettingsWritten()) {
       // Keep the legacy baseline for non-grammar E2E flows so popup/inline
       // prediction scenarios remain deterministic regardless of defaults.
+      // An earlier test can leave inline mode, its locks or the space after
+      // an accepted word changed.
+      await setSettings(worker, {
+        ...INLINE_MODE_OFF,
+        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
+      });
       await setGrammarRules(worker, []);
       await notifyConfigChange(browser, worker);
       takeSettingsWritten();
@@ -939,6 +956,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     await gotoTestPage(page);
     await waitForInputReady(page, selector);
     await clearInputContent(page, selector);
+  }
+
+  /** Turns inline mode off and puts back the settings that it locks, plus `settings`. */
+  async function restoreInlineMode(settings: Record<string, unknown> = {}): Promise<void> {
+    await setSettings(worker, { ...INLINE_MODE_OFF, ...settings });
+    await notifyConfigChange(browser, worker);
   }
 
   test(
@@ -1696,12 +1719,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect(elementText).not.toBe("impor\t");
         expect(elementText.length).toBeGreaterThan(5);
       } finally {
-        await setSettings(worker, {
-          [KEY_NUM_SUGGESTIONS]: 5,
-          [KEY_INLINE_SUGGESTION]: false,
-          [KEY_SITE_PROFILES]: {},
-        });
-        await notifyConfigChange(browser, worker);
+        await restoreInlineMode({ [KEY_SITE_PROFILES]: {} });
       }
     },
     suiteTimeout(30000, 50000),
@@ -2029,13 +2047,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             (await readSlateBlocks())[0],
         );
       } finally {
-        // On Chrome, notifyConfigChange opens the options page; with inline suggestions on,
-        // that page also stores prefix-only mode.
-        await setSettings(worker, {
-          [KEY_INLINE_SUGGESTION]: false,
-          [KEY_PREFIX_ONLY_MODE]: false,
-        });
-        await notifyConfigChange(browser, worker);
+        await restoreInlineMode();
       }
     },
     suiteTimeout(30000, 50000),
@@ -2327,21 +2339,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           await optionsPage.close();
         }
 
-        await setSetting(worker, KEY_INLINE_SUGGESTION, false);
-        await notifyConfigChange(browser, worker);
+        await restoreInlineMode();
         await expectFirstMenuSuggestion("the");
       } finally {
         await sendExtensionCommand(browser, worker, CMD_OPTIONS_CLEAR_PERSONALIZATION, {
           requireOk: true,
         }).catch(() => undefined);
-        await setSettings(worker, {
+        await restoreInlineMode({
           [KEY_PERSONALIZATION_ENABLED]: false,
-          [KEY_INLINE_SUGGESTION]: false,
-          [KEY_PREFIX_ONLY_MODE]: false,
           [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
-          [KEY_NUM_SUGGESTIONS]: 5,
         });
-        await notifyConfigChange(browser, worker);
       }
     },
     suiteTimeout(120000, 180000),
@@ -3796,9 +3803,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // Should be a word starting with "w" followed by a normal space or NBSP.
       expect(elementText).toMatch(/^w\S*[ \xa0]$/i);
 
-      // Cleanup
-      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
-      await notifyConfigChange(browser, worker);
+      await restoreInlineMode();
     },
     suiteTimeout(30000, 45000),
   );
@@ -3879,11 +3884,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           expect(Math.abs(preview.left - accepted.left)).toBeLessThan(1);
         }
       } finally {
-        await setSettings(worker, {
-          [KEY_INLINE_SUGGESTION]: false,
-          [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
-        });
-        await notifyConfigChange(browser, worker);
+        await restoreInlineMode({ [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true });
       }
     },
     suiteTimeout(30000, 45000),
@@ -3901,11 +3902,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   }
 
   async function resetArabicInlineSuggestions() {
-    await setSettings(worker, {
-      [KEY_INLINE_SUGGESTION]: false,
-      [KEY_LANGUAGE]: "en_US",
-    });
-    await notifyConfigChange(browser, worker);
+    await restoreInlineMode({ [KEY_LANGUAGE]: "en_US" });
   }
 
   async function waitForInlineGhostText(label: string): Promise<string> {
@@ -4162,11 +4159,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         expect(finalText).toBe(previewText);
       } finally {
-        await setSettings(worker, {
-          [KEY_INLINE_SUGGESTION]: false,
-          [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
-        });
-        await notifyConfigChange(browser, worker);
+        await restoreInlineMode({ [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true });
       }
     },
     suiteTimeout(45000, 70000),
@@ -4234,12 +4227,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         expect(finalText).toMatch(/^OK[ \xa0]+rest$/);
       } finally {
-        await setSettings(worker, {
-          [KEY_INLINE_SUGGESTION]: false,
-          [KEY_LANGUAGE]: "en_US",
-          [KEY_TEXT_EXPANSIONS]: [],
-        });
-        await notifyConfigChange(browser, worker);
+        await restoreInlineMode({ [KEY_LANGUAGE]: "en_US", [KEY_TEXT_EXPANSIONS]: [] });
       }
     },
     suiteTimeout(30000, 45000),
@@ -4287,12 +4275,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         expect(finalText).toMatch(/^signature block[ \xa0]?$/);
       } finally {
-        await setSettings(worker, {
-          [KEY_INLINE_SUGGESTION]: false,
-          [KEY_LANGUAGE]: "en_US",
-          [KEY_TEXT_EXPANSIONS]: [],
-        });
-        await notifyConfigChange(browser, worker);
+        await restoreInlineMode({ [KEY_LANGUAGE]: "en_US", [KEY_TEXT_EXPANSIONS]: [] });
       }
     },
     suiteTimeout(30000, 45000),
@@ -4403,12 +4386,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect(state.blocks[1]).toBe("-- Bart");
         expect(state.focused).toBeTrue();
       } finally {
-        await setSettings(worker, {
-          [KEY_INLINE_SUGGESTION]: false,
-          [KEY_LANGUAGE]: "en_US",
-          [KEY_TEXT_EXPANSIONS]: [],
-        });
-        await notifyConfigChange(browser, worker);
+        await restoreInlineMode({ [KEY_LANGUAGE]: "en_US", [KEY_TEXT_EXPANSIONS]: [] });
       }
     },
     suiteTimeout(30000, 45000),
@@ -5738,6 +5716,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setGrammarRules(worker, ["measurementUnitFormatting"]);
       await setSettings(worker, {
         [KEY_LANGUAGE]: "en_US",
+        // An earlier test can leave Polish out of the enabled languages.
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
         [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
       });
       await notifyConfigChange(browser, worker);
@@ -8032,8 +8012,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           (await page.$eval(selector, (element) => element.textContent)) ===
           `Thanks for the rep${suffix} X`,
       );
-      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
-      await notifyConfigChange(browser, worker);
+      await restoreInlineMode();
       await gutenbergWriting();
       await page.keyboard.type("wo", { delay: 40 });
       const prediction = await waitUntil(
@@ -8085,10 +8064,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
       await finishReview();
 
-      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSetting(worker, KEY_INLINE_SUGGESTION, false);
-      await setSetting(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
-      await notifyConfigChange(browser, worker);
+      await restoreInlineMode({
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: false,
+      });
       await focusField();
       await page.keyboard.type(" wo", { delay: 40 });
       const prediction = await waitUntil(
@@ -10672,12 +10651,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     await setSettings(worker, {
       // An earlier test in the same browser can leave these off.
       [KEY_AUTOCOMPLETE]: true,
-      [KEY_AUTOCOMPLETE_ON_TAB]: true,
+      ...INLINE_MODE_OFF,
       [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
       [KEY_LANGUAGE]: "en_US",
       [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
       [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
-      [KEY_INLINE_SUGGESTION]: false,
       [KEY_TEXT_EXPANSIONS]: [],
       ...options.settings,
     });
