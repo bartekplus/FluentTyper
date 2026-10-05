@@ -840,9 +840,18 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   beforeEach(async () => {
     worker = await ensureWorker(browser, worker);
     if (takeSettingsWritten()) {
-      // Keep the legacy baseline for non-grammar E2E flows so popup/inline
-      // prediction scenarios remain deterministic regardless of defaults.
-      await setGrammarRules(worker, []);
+      await setSettings(worker, {
+        // Keep the legacy baseline for non-grammar E2E flows so popup/inline
+        // prediction scenarios remain deterministic regardless of defaults.
+        [KEY_ENABLED_GRAMMAR_RULES]: grammarRuleSelectionToOverrides([]),
+        // Language tests narrow the enabled languages. A narrowed list silently
+        // changes a later test's language to the first enabled one.
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_FALLBACK_LANGUAGE]: "en_US",
+        [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
+        [KEY_SITE_PROFILES]: {},
+      });
       await notifyConfigChange(browser, worker);
       takeSettingsWritten();
     }
@@ -5579,8 +5588,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "Grammar Rule Engine formats measurement units only in verified prose typing",
     async () => {
       const selector = "#test-input";
-      // Enables every language too: the pl_PL step below falls back to the
-      // first enabled language when an earlier test left pl_PL disabled.
       await openEnglishField(selector, ["measurementUnitFormatting"]);
       await typeInInput(page, selector, "Mass: 10kg ");
       await waitUntil(
@@ -5609,7 +5616,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         async () => (await getInputContent(page, selector)) === "Masa: 1,50\u00a0kg ",
         { timeoutMs: suiteTimeout(5000, 8000) },
       );
-      await setSetting(worker, KEY_LANGUAGE, "en_US");
     },
     suiteTimeout(25000, 40000),
   );
