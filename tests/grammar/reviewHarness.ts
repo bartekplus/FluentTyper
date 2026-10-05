@@ -10,11 +10,13 @@ import {
   runsInReviewLanguage,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { setReviewClock } from "../../src/core/domain/grammar/review/reviewClock";
+import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { loadAllReviewData } from "../../src/core/domain/grammar/review/reviewLanguageSources";
 import { TEST_REVIEW_NOW } from "../reviewTestClock";
 import { review } from "./grammarTestUtils";
 import type {
   ReviewDiagnostic,
+  ReviewEdit,
   ReviewOptions,
   ReviewScanResult,
   ReviewSourceSnapshot,
@@ -48,6 +50,43 @@ export function scanResult(
 /** The diagnostics of scanResult. */
 export function scan(text: string, options: ScanOptions = {}): ReviewDiagnostic[] {
   return scanResult(text, options).diagnostics;
+}
+
+/**
+ * One round of "fix everything": each fixable finding's chosen fix, in text order.
+ * A fix that touches an earlier one in the round is deferred to the next round.
+ */
+export function fixRound(text: string, options: ScanOptions = {}) {
+  const fixable = scan(text, options)
+    .filter((d) => !d.warningOnly && d.alternatives.length > 0)
+    .sort((a, b) => a.range.start - b.range.start || a.range.end - b.range.end);
+  const applied: ReviewDiagnostic[] = [];
+  const deferred: ReviewDiagnostic[] = [];
+  const edits: ReviewEdit[] = [];
+  for (const d of fixable) {
+    const own = d.alternatives[d.bulk.eligible ? d.bulk.alternative : 0].edits;
+    if (own.some((e) => edits.some((o) => e.start <= o.end && o.start <= e.end))) deferred.push(d);
+    else {
+      applied.push(d);
+      edits.push(...own);
+    }
+  }
+  const next = applyEdits(text, edits);
+  if (next === null) throw new Error("fixRound: the chosen edits overlap");
+  return { applied, deferred, text: next };
+}
+
+/** fixRound again and again until a round has nothing to fix (at most `limit` rounds). */
+export function fixRounds(text: string, options: ScanOptions = {}, limit = 6) {
+  const rounds: Array<ReturnType<typeof fixRound>> = [];
+  let current = text;
+  for (let i = 0; i < limit; i += 1) {
+    const round = fixRound(current, options);
+    if (round.applied.length === 0) break;
+    rounds.push(round);
+    current = round.text;
+  }
+  return { rounds, text: current };
 }
 
 /* ------------------------------------------------------------- worst cases */

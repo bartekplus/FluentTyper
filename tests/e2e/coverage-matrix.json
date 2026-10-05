@@ -1295,6 +1295,27 @@
       ]
     },
     {
+      "id": "review_repair_pass",
+      "description": "Review applies safe contraction fixes to a shadow text and gives each finding they hide in the first round, as one fix with the repair when it changes the repaired word, so a fixed text needs no second round.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewRepairPass.test.ts",
+          "test": "one fix repairs both errors: %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewRepairPassConvergence.test.ts",
+          "test": "the sample text needs one round of fixes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewEngine.test.ts",
+          "test": "a scan with a contraction typo gives the composite of in-process detection"
+        }
+      ]
+    },
+    {
       "id": "grammar_english_typo_whitelist",
       "description": "English-only typo whitelist correction applies conservative typo fixes and dictionary bypass.",
       "coverage": [
