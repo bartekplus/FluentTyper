@@ -47,10 +47,10 @@ test("the shadow maps positions both ways", () => {
   const text = "We didnt see it and dont care.";
   const shadow = repairShadow(selectRepairs(scan(text)));
   expect(shadow.repairs.map((d) => d.original)).toEqual(["didnt", "dont"]);
-  // Outside the repaired words, a position goes there and back unchanged.
-  for (const position of [0, 3, 9, 16, 20, text.length])
-    expect(shadow.fromShadow(shadow.toShadow(position))).toBe(position);
   const shadowText = "We didn't see it and don't care.";
+  // Outside the repaired words, a shadow position maps back to the same character.
+  for (const word of ["We", "see", "it", "and", "care"])
+    expect(shadow.fromShadow(shadowText.indexOf(word))).toBe(text.indexOf(word));
   expect(shadow.spans.map((span) => shadowText.slice(span.start, span.end))).toEqual([
     "didn't",
     "don't",

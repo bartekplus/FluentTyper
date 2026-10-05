@@ -50,11 +50,9 @@ export function selectRepairs(diagnostics: readonly ReviewDiagnostic[]): ReviewD
 }
 
 export interface RepairShadow {
-  repairs: ReviewDiagnostic[];
+  repairs: readonly ReviewDiagnostic[];
   /** Every repair's edits, in positions of the original text. */
   edits: ReviewEdit[];
-  /** Original position -> shadow position. */
-  toShadow: (position: number) => number;
   /** Shadow position -> original position (exact outside the repaired words). */
   fromShadow: (position: number) => number;
   /** Each repaired word in the shadow text, in the order of `repairs` (sorted, disjoint). */
@@ -94,9 +92,8 @@ export function repairShadow(repairs: readonly ReviewDiagnostic[]): RepairShadow
   });
   const fromShadow = positionMapper(inverse);
   return {
-    repairs: [...repairs],
+    repairs,
     edits,
-    toShadow,
     fromShadow,
     spans: repairs.map((repair) => ({
       start: toShadow(repair.range.start),
@@ -141,13 +138,13 @@ export interface ShadowFinding {
 }
 
 /**
- * One fix of the original text. `repairIds` names the repairs the fix includes
- * (its edit changes a repaired word: "cant" -> "can"); empty when the fix changes
+ * One fix of the original text. `repairs` are the repairs the fix includes (its
+ * edit changes a repaired word: "cant" -> "can"); empty when the fix changes
  * other words only and stands next to the repairs.
  */
 export interface Composite {
   finding: RawFinding;
-  repairIds: string[];
+  repairs: ReviewDiagnostic[];
 }
 
 const editsKey = (edits: readonly ReviewEdit[]) =>
@@ -202,6 +199,12 @@ export function composeRepairs(
     )
       continue;
     const { range } = diagnostic;
+    const base = {
+      ruleId: finding.ruleId,
+      messageKey: finding.messageKey,
+      bulkBlock: "context-dependent" as const,
+      ...(finding.requiresChoice ? { requiresChoice: true as const } : {}),
+    };
     const touched = new Set(
       diagnostic.alternatives.flatMap((a) =>
         a.edits.flatMap((edit) => spansAt(shadow.spans, edit)),
@@ -220,18 +223,15 @@ export function composeRepairs(
       if (alternatives.some((alternative) => alternative === null)) continue;
       composites.push({
         finding: {
-          ruleId: finding.ruleId,
-          messageKey: finding.messageKey,
+          ...base,
           range: { start, end },
           alternatives: alternatives as string[],
           context: {
             start: shadow.fromShadow(diagnostic.context.start),
             end: shadow.fromShadow(diagnostic.context.end),
           },
-          bulkBlock: "context-dependent",
-          ...(finding.requiresChoice ? { requiresChoice: true as const } : {}),
         },
-        repairIds: [],
+        repairs: [],
       });
       continue;
     }
@@ -249,18 +249,15 @@ export function composeRepairs(
     const after = shadowText.slice(range.end, union.end);
     composites.push({
       finding: {
-        ruleId: finding.ruleId,
-        messageKey: finding.messageKey,
+        ...base,
         range: { start: shadow.fromShadow(union.start), end: shadow.fromShadow(union.end) },
         alternatives: diagnostic.alternatives.map(({ preview }) => before + preview + after),
         context: {
           start: shadow.fromShadow(Math.min(diagnostic.context.start, union.start)),
           end: shadow.fromShadow(Math.max(diagnostic.context.end, union.end)),
         },
-        bulkBlock: "context-dependent",
-        ...(finding.requiresChoice ? { requiresChoice: true as const } : {}),
       },
-      repairIds: [...touched].map((index) => shadow.repairs[index].id),
+      repairs: [...touched].map((index) => shadow.repairs[index]),
     });
   }
   return composites;
