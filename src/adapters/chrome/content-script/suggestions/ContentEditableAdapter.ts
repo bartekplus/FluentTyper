@@ -1,6 +1,7 @@
 import { InjectedHostEditorPageBridge } from "./HostEditorPageBridge";
 import { rangeInsideTarget } from "./TextTargetAdapter";
 import { HOST_MODEL_EDITOR_SELECTOR } from "./EditorCapabilities";
+import { DOM_EDITOR_SELECTOR } from "./ReviewDomEditors";
 import { isGutenbergField, isGutenbergContainer } from "./GutenbergEnvironment";
 import { isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement } from "@core/application/dom-utils";
@@ -258,17 +259,17 @@ export class ContentEditableAdapter {
     // to a foreign DOM edit when they decline it (FT-INV-5).
     if (
       elem.closest(
-        "[data-lexical-editor], [data-slate-editor], .DraftEditor-root, [data-contents], .ck-editor__editable, .ProseMirror, trix-editor, .cke_editable, .fr-element, .note-editable",
+        "[data-lexical-editor], [data-slate-editor], .DraftEditor-root, [data-contents], .ck-editor__editable, .ProseMirror, trix-editor",
       )
     ) {
       restoreSelection();
       return refused;
     }
-    if (elem.matches(".mce-content-body")) {
+    if (elem.matches(DOM_EDITOR_SELECTOR)) {
       const prefix = range.cloneRange();
       prefix.selectNodeContents(elem);
       prefix.setEnd(startPosition.container, startPosition.offset);
-      const result = new InjectedHostEditorPageBridge(elem.ownerDocument).applyTinyMCE(elem, {
+      const result = new InjectedHostEditorPageBridge(elem.ownerDocument).applyDomEditor(elem, {
         before: beforeEditorText,
         prefix: prefix.toString(),
         selected: range.toString(),

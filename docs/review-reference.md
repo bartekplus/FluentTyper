@@ -937,12 +937,19 @@ Batches across text nodes, formatting runs, paragraphs or noneditable islands ar
 refused before any write. Individual supported fixes remain available. Native
 whole-node restrictions also apply to batches.
 
-Quill supports Fix all when its owning instance can be verified through the public
-`window.Quill.find` API and its history module is available. One Delta retains
-untouched model content and each replacement's attributes. History boundaries
-separate the batch from nearby typing. The bridge verifies the resulting Delta
-and checks again after host reconciliation. Bundled Quill instances that do not
-expose this API retain individual native fixes, without Fix all.
+Quill supports Fix all when its owning instance can be verified through the
+`Quill.find` API and its history module is available. The bridge takes the class
+from `window.Quill`, or, for a bundled Quill 1 such as Slack's composer, from the
+instance that Quill 1 stores on its container (`.ql-container.__quill`). One Delta
+retains untouched model content and each replacement's attributes. History
+boundaries separate the batch from nearby typing. The bridge verifies the
+resulting Delta and checks again after host reconciliation. A bundled Quill 2
+keeps its instances in a private map, so Review cannot reach its model. Review
+then sends each fix as an `insertReplacementText` beforeinput, which Quill 2
+applies to its own model with the formats of the first replaced character, and
+verifies the rendered text. An insertion is anchored on the character before
+it. An event that nobody cancels changes nothing, and the fix is refused.
+Quill's history puts a batch into one undo step.
 
 Explicit AI rewrites offer Copy instead of Apply on editors without a batch
 transaction. Supported rewrites use the same transaction checks.

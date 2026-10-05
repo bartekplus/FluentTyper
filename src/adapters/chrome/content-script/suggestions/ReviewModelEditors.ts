@@ -3,13 +3,20 @@ import type { ReviewEdit, TextRange } from "@core/domain/grammar/review/types";
 import { applyEdits, positionThroughEdits } from "@core/domain/grammar/review/textRanges";
 import {
   buildContentEditableTextMap,
+  domPositionToOffset,
   offsetRangeToDomRange,
   type ContentEditableTextMap,
 } from "../review/ContentEditableTextMap";
 import { formattingPreservingEdits } from "../review/RichTextFormatting";
 import { isHiddenField, isLockedField, isSensitiveField } from "./FieldEligibility";
 import { hasOtherFocusedEditor } from "./TextTargetAdapter";
-import type { HostEditorReviewApplyRequest } from "./HostEditorBridgeProtocol";
+import {
+  NOT_APPLIED,
+  type HostEditorBlockReplacement,
+  type HostEditorReviewApplyRequest,
+} from "./HostEditorBridgeProtocol";
+import { isValidBlockReplacement, type LineEditorBlockContext } from "./HostEditorControllerUtils";
+import type { HostEditorApplyResult } from "./HostEditorAdapterResolver";
 
 /**
  * Review writes for editors that keep their own document model: Lexical,
@@ -31,8 +38,12 @@ interface ModelAdapter<Ref> {
   resolve(range: Range, offsets: TextRange): Ref | null;
   /** The model text at `ref`, or null when the model and the DOM differ there. */
   text(ref: Ref): string | null;
-  /** Writes all edits, in document order, as one undoable transaction. */
-  write(edits: { ref: Ref; edit: ReviewEdit }[]): void;
+  /**
+   * Writes all edits, in document order, as one undoable transaction. With
+   * `caret`, the selection ends collapsed `caret` characters after the start
+   * of the last edit; otherwise it follows the edits.
+   */
+  write(edits: { ref: Ref; edit: ReviewEdit }[], caret?: number): void;
 }
 type AdapterFactory = (
   root: HTMLElement,
@@ -214,7 +225,7 @@ const draft: AdapterFactory = (root) => {
         ? ref.data.slice(ref.start, ref.end)
         : null;
     },
-    write(edits) {
+    write(edits, caret) {
       let next = content;
       const byBlock = new Map<string, ReviewEdit[]>();
       for (const { ref, edit } of [...edits].reverse()) {
@@ -247,10 +258,21 @@ const draft: AdapterFactory = (root) => {
       const selection = state.getSelection();
       const remap = (key: string, offset: number) =>
         positionThroughEdits(offset, byBlock.get(key) ?? []);
-      const after = selection.merge({
-        anchorOffset: remap(selection.getAnchorKey(), selection.getAnchorOffset()),
-        focusOffset: remap(selection.getFocusKey(), selection.getFocusOffset()),
-      });
+      const last = edits.at(-1)!.ref;
+      const at = last.base + last.start + (caret ?? 0);
+      const after =
+        caret === undefined
+          ? selection.merge({
+              anchorOffset: remap(selection.getAnchorKey(), selection.getAnchorOffset()),
+              focusOffset: remap(selection.getFocusKey(), selection.getFocusOffset()),
+            })
+          : selection.merge({
+              anchorKey: last.key,
+              anchorOffset: at,
+              focusKey: last.key,
+              focusOffset: at,
+              isBackward: false,
+            });
       next = next.merge({ selectionBefore: selection, selectionAfter: after });
       // "insert-fragment" is always its own undo step: it never merges with typing.
       // Not "spellcheck-change": Draft.js leaves its undo to the browser's native undo.
@@ -378,7 +400,7 @@ const trix: AdapterFactory = (root, map) => {
     composing: () => false,
     resolve: (_range, offsets) => ({ start: offsets.start, end: offsets.end }),
     text: (ref) => map.text.slice(ref.start, ref.end),
-    write(edits) {
+    write(edits, caret) {
       const [anchor, focus] = editor.getSelectedRange();
       const shifted = edits.map(({ ref, edit }) => ({ ...edit, start: ref.start, end: ref.end }));
       editor.recordUndoEntry("Review");
@@ -387,10 +409,12 @@ const trix: AdapterFactory = (root, map) => {
         if (edit.replacement) editor.insertString(edit.replacement);
         else editor.deleteInDirection("forward");
       }
-      editor.setSelectedRange([
-        positionThroughEdits(anchor, shifted),
-        positionThroughEdits(focus, shifted),
-      ]);
+      const at = caret === undefined ? null : edits.at(-1)!.ref.start + caret;
+      editor.setSelectedRange(
+        at === null
+          ? [positionThroughEdits(anchor, shifted), positionThroughEdits(focus, shifted)]
+          : [at, at],
+      );
     },
   };
   return adapter as ModelAdapter<never>;
@@ -442,6 +466,87 @@ function snapshot(root: HTMLElement) {
     signature: JSON.stringify([adapter.identity.map(identityOf), map.signature]),
   };
   return { map, adapter, text };
+}
+
+/**
+ * Typing in Draft.js and Trix: the line that holds the DOM selection, in the
+ * model's own text. Lines are the "\n"-separated parts of the mapped text.
+ */
+function selectionLine(root: HTMLElement) {
+  const current = snapshot(root);
+  const selection = root.ownerDocument.getSelection();
+  if (!current || !selection?.rangeCount) return null;
+  const range = selection.getRangeAt(0);
+  const start = domPositionToOffset(current.map, range.startContainer, range.startOffset);
+  const { text } = current.map;
+  if (start === null || !root.contains(range.startContainer)) return null;
+  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+  const lineEnd = text.indexOf("\n", start);
+  const blockText = text.slice(lineStart, lineEnd < 0 ? text.length : lineEnd);
+  return { current, lineStart, blockText, caret: start - lineStart };
+}
+
+export function modelBlockContext(root: HTMLElement): LineEditorBlockContext | null {
+  try {
+    const line = selectionLine(root);
+    return line
+      ? {
+          beforeCursor: line.blockText.slice(0, line.caret),
+          afterCursor: line.blockText.slice(line.caret),
+          blockText: line.blockText,
+        }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** One typing edit as one model transaction (its own undo step), caret after it. */
+export function replaceModelBlock(
+  root: HTMLElement,
+  request: HostEditorBlockReplacement,
+): HostEditorApplyResult {
+  let line: ReturnType<typeof selectionLine>;
+  let ref: unknown;
+  const edit: ReviewEdit = {
+    start: 0,
+    end: 0,
+    original: "",
+    replacement: request.replacementText,
+  };
+  try {
+    line = selectionLine(root);
+    if (
+      !line ||
+      hasOtherFocusedEditor(root) ||
+      line.blockText !== request.expectedBlockText ||
+      !isValidBlockReplacement(line.blockText, request)
+    )
+      return NOT_APPLIED;
+    edit.start = line.lineStart + request.replaceStart;
+    edit.end = line.lineStart + request.replaceEnd;
+    edit.original = line.blockText.slice(request.replaceStart, request.replaceEnd);
+    const range = offsetRangeToDomRange(line.current.map, edit, root.ownerDocument);
+    // The replaced word lies in one text node: one model location, one set of marks.
+    if (
+      !range ||
+      range.startContainer !== range.endContainer ||
+      range.startContainer.nodeType !== 3
+    )
+      return NOT_APPLIED;
+    ref = line.current.adapter.resolve(range, edit);
+    const text = ref === null ? null : line.current.adapter.text(ref);
+    if (text === null || !sameText(text, edit.original)) return NOT_APPLIED;
+  } catch {
+    return NOT_APPLIED;
+  }
+  try {
+    line.current.adapter.write([{ ref, edit }], request.cursorAfter - request.replaceStart);
+  } catch {
+    // A host can throw after committing: never retry the edit.
+    return { ...NOT_APPLIED, unverified: true };
+  }
+  return { applied: true, didDispatchInput: false };
 }
 
 export function readReviewModel(root: HTMLElement): ReviewTargetText | null {

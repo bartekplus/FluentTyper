@@ -911,7 +911,57 @@ describe("contenteditable writes", () => {
     container.append(quill);
     document.body.append(container);
     expect(new ContentEditableReviewTarget(quill).kind).toBe("quill");
-    expect(new ContentEditableReviewTarget(quill).capabilities.apply).toBe(false);
+  });
+
+  test("a Quill without a reachable model (bundled Quill 2) writes through its beforeinput handling", async () => {
+    const container = document.createElement("div");
+    container.className = "ql-container";
+    const quill = createEditor("<p>We saw teh cat.</p>");
+    quill.className = "ql-editor";
+    container.append(quill);
+    document.body.append(container);
+    const target = new ContentEditableReviewTarget(quill);
+    expect(target.capabilities).toEqual({ apply: true, bulk: true });
+    const snapshot = target.read();
+    if (!snapshot.ok) throw new Error("Quill text was not read.");
+    const request = {
+      before: snapshot.text,
+      after: "We saw the cat.",
+      signature: snapshot.signature,
+      edits: [{ start: 7, end: 10, original: "teh", replacement: "the" }],
+    };
+    // Nobody cancels the event: nothing changes.
+    expect(await target.apply(request)).toEqual({ status: "rejected", reason: "host-refused" });
+    expect(quill.textContent).toBe("We saw teh cat.");
+    // The test DOM keeps no target ranges; a browser does.
+    const NativeInputEvent = globalThis.InputEvent;
+    globalThis.InputEvent = class extends NativeInputEvent {
+      private readonly ranges: StaticRange[];
+      constructor(type: string, init: InputEventInit = {}) {
+        super(type, init);
+        this.ranges = init.targetRanges ?? [];
+      }
+      override getTargetRanges() {
+        return this.ranges;
+      }
+    };
+    try {
+      // Like Quill 2: apply the target range to the model, render it, cancel the event.
+      quill.addEventListener("beforeinput", (event) => {
+        const [staticRange] = event.getTargetRanges();
+        const range = document.createRange();
+        range.setStart(staticRange.startContainer, staticRange.startOffset);
+        range.setEnd(staticRange.endContainer, staticRange.endOffset);
+        range.deleteContents();
+        range.insertNode(document.createTextNode(event.data ?? ""));
+        quill.normalize();
+        event.preventDefault();
+      });
+      expect((await target.apply(request)).status).toBe("applied");
+    } finally {
+      globalThis.InputEvent = NativeInputEvent;
+    }
+    expect(quill.textContent).toBe("We saw the cat.");
   });
 });
 

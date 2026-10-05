@@ -260,6 +260,37 @@ function writeNative(
   return true;
 }
 
+/**
+ * A Quill without a reachable instance (a bundled Quill 2) applies an
+ * insertReplacementText beforeinput to its own model, as typing does, and
+ * cancels the event. An event that nobody cancels changes nothing.
+ */
+function writeQuillInput(root: HTMLElement, range: Range, edit: ReviewEdit): boolean {
+  const target = range.cloneRange();
+  let text = edit.replacement;
+  if (range.collapsed) {
+    // Quill handles only a non-empty target: anchor the insertion on the
+    // character before it, whose formats it then takes, as typing does.
+    const node = range.startContainer as Text;
+    const at = range.startOffset;
+    let from = at - 1;
+    while (from > 0 && !isGraphemeBoundary(node.data, from)) from -= 1;
+    if (from < 0) return false;
+    target.setStart(node, from);
+    text = node.data.slice(from, at) + text;
+  }
+  const event = new InputEvent("beforeinput", {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    inputType: "insertReplacementText",
+    data: text,
+    targetRanges: [new StaticRange(target)],
+  });
+  root.dispatchEvent(event);
+  return event.defaultPrevented;
+}
+
 const TEXT_CAPABILITIES: ReviewCapabilities = { apply: true, bulk: true };
 
 function nextFrame(win: Window): Promise<void> {
@@ -438,11 +469,14 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
   private map: ContentEditableTextMap | null = null;
   private readonly pageBridge = new InjectedHostEditorPageBridge();
   private readonly quillModel: boolean;
+  /** Any Quill: without its model, Review writes through Quill's beforeinput handling. */
+  private readonly quill: boolean;
 
   constructor(readonly element: HTMLElement) {
     const quill = element.classList.contains("ql-editor") && !!element.closest(".ql-container");
     const eligible = editorCapabilities(element).renderReview;
     this.quillModel = eligible && quill && !!this.pageBridge.readQuill(element);
+    this.quill = eligible && quill;
     const proseMirror =
       eligible && element.matches(".ProseMirror") && !!this.pageBridge.readProseMirror(element);
     const slate =
@@ -470,7 +504,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       this.kind === "prosemirror" || this.kind === "slate" || this.kind === "host-model";
     const writable =
       model ||
-      this.quillModel ||
+      this.quill ||
       ((this.kind === "contenteditable" || this.kind === "host-dom") && native);
     // Each batch uses one native command or one host-model transaction.
     this.adapterCapabilities = { apply: writable, bulk: writable };
@@ -651,9 +685,14 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
   ): ReviewApplyResult | null {
     const root = this.element;
     const edit = planned[0];
-    if (planned.length > 1 && this.kind === "host-dom") {
+    const write = (range: Range, part: ReviewEdit, text: string) =>
+      this.kind === "quill"
+        ? writeQuillInput(root, range, part)
+        : writeNative(doc, selection, range, part, text);
+    if (planned.length > 1 && (this.kind === "host-dom" || this.kind === "quill")) {
       // The host undo step holds the batch, so each edit can be its own native
-      // edit in its own text node. From the end: earlier offsets stay valid.
+      // edit in its own text node. Quill merges changes of one moment into one
+      // undo step. From the end: earlier offsets stay valid.
       let wrote = false;
       for (const part of [...planned].sort((a, b) => b.start - a.start)) {
         const current = buildContentEditableTextMap(root);
@@ -662,7 +701,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
           !range ||
           range.toString() !== part.original ||
           range.startContainer !== range.endContainer ||
-          !writeNative(doc, selection, range, part, current.text)
+          !write(range, part, current.text)
         )
           break;
         wrote = true;
@@ -693,8 +732,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       // Equivalent formatting does not prove that sibling nodes have no host state.
       if (range.startContainer !== range.endContainer)
         return { status: "rejected", reason: "unsupported" };
-      if (!writeNative(doc, selection, range, edit, before))
-        return { status: "rejected", reason: "host-refused" };
+      if (!write(range, edit, before)) return { status: "rejected", reason: "host-refused" };
     }
     return null;
   }

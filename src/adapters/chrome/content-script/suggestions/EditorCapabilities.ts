@@ -1,6 +1,8 @@
 import type { ReviewCapabilities } from "@core/application/review/ReviewSession";
 import { GUTENBERG_FIELD_SELECTOR, isGutenbergField } from "./GutenbergEnvironment";
 import { ancestorContext, resolveCodeContext, type CodeContext } from "./CodeContextResolver";
+import { DOM_EDITOR_SELECTOR } from "./ReviewDomEditors";
+import { MODEL_TYPING_SELECTOR } from "./HostEditorBridgeProtocol";
 import { isCredentialField, isHiddenField, isSensitiveField } from "./FieldEligibility";
 import { classifyField, hasActiveAutocompletePopup } from "./NativeAutocompleteConflictDetector";
 
@@ -72,7 +74,7 @@ export function editorCapabilities(
     !model ||
     isGutenbergField(element) ||
     element.matches(
-      `${HOST_MODEL_EDITOR_SELECTOR}, .mce-content-body, .ck-editor__editable, [data-lexical-editor]`,
+      `${HOST_MODEL_EDITOR_SELECTOR}, ${DOM_EDITOR_SELECTOR}, ${MODEL_TYPING_SELECTOR}, .ck-editor__editable, [data-lexical-editor]`,
     );
   const preferNative = options.preferNativeAutocomplete !== false;
   const manual = preferNative && eligibility.kind === "manual" && !options.fieldActivated;

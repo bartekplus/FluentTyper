@@ -31,10 +31,11 @@ import {
   HOST_EDITOR_REQUEST_ATTR,
   HOST_EDITOR_REQUEST_EVENT,
   HOST_EDITOR_RESPONSE_ATTR,
+  MODEL_TYPING_SELECTOR,
   NOT_APPLIED,
   type HostEditorBlockReplacement,
   type HostEditorBridgeRequest,
-  type TinyMCEReplacement,
+  type DomEditorReplacement,
 } from "./HostEditorBridgeProtocol";
 import {
   applyLineEditorReplacement,
@@ -48,9 +49,11 @@ import { TextTargetAdapter } from "./TextTargetAdapter";
 import {
   applyReviewModel,
   flushCKEditor5PendingMutations,
+  modelBlockContext,
   readReviewModel,
+  replaceModelBlock,
 } from "./ReviewModelEditors";
-import { findTinyMCE, reviewTransaction } from "./ReviewDomEditors";
+import { reviewTransaction } from "./ReviewDomEditors";
 
 type BridgeWindow = Window & { [HOST_EDITOR_MAIN_WORLD_FLAG]?: boolean };
 
@@ -344,18 +347,12 @@ function applyBlockReplacement(
     : NOT_APPLIED;
 }
 
-// TinyMCE owns history even though its content model is the DOM. Enclose the
-// native minimal edit in its transaction instead of merging into prior typing.
-function applyTinyMCE(elem: HTMLElement, request: TinyMCEReplacement) {
+// TinyMCE, CKEditor 4, Froala and Summernote own history even though their
+// content model is the DOM. Enclose the native minimal edit in one host undo
+// step instead of merging into prior typing.
+function applyDomEditor(elem: HTMLElement, request: DomEditorReplacement) {
   const win = elem.ownerDocument.defaultView;
-  if (!win) return NOT_APPLIED;
-  let editor: ReturnType<typeof findTinyMCE>;
-  try {
-    editor = findTinyMCE(elem);
-  } catch {
-    return NOT_APPLIED;
-  }
-  if (!editor) return NOT_APPLIED;
+  if (!win || !reviewTransaction(elem, "probe")) return NOT_APPLIED;
   const matches = () => {
     const selection = win.getSelection();
     if (
@@ -373,12 +370,14 @@ function applyTinyMCE(elem: HTMLElement, request: TinyMCEReplacement) {
     return prefix.toString() === request.prefix && range.toString() === request.selected;
   };
   if (!matches()) return NOT_APPLIED;
-  editor.undoManager.transact(() => {
+  if (!reviewTransaction(elem, "begin")) return NOT_APPLIED;
+  try {
     if (matches()) elem.ownerDocument.execCommand("insertText", false, request.replacement);
-  });
+  } finally {
+    reviewTransaction(elem, "end");
+  }
   const after = elem.textContent ?? "";
   if (after === request.before) return NOT_APPLIED;
-  editor.nodeChanged();
   const expected =
     request.prefix +
     request.replacement +
@@ -502,6 +501,7 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
         const controller = findLineEditorController(source);
         const ckEditor = controller ? null : findCKEditor5Instance(source);
         const slate = source.matches(SLATE_ROOT_SELECTOR);
+        const modelTyping = source.matches(MODEL_TYPING_SELECTOR);
         if (request.action === "readGutenberg" || request.action === "readGutenbergSelection") {
           const snapshot = readGutenberg(source, request.action === "readGutenbergSelection");
           if (snapshot) response = { ok: true, snapshot };
@@ -512,8 +512,8 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
           if (blockContext) response = { ok: true, blockContext };
         } else if (request.action === "applyBlockReplacement" && isGutenbergField(source)) {
           response = { ok: true, result: replaceGutenbergBlock(source, request) };
-        } else if (request.action === "applyTinyMCE") {
-          response = { ok: true, result: applyTinyMCE(source, request) };
+        } else if (request.action === "applyDomEditor") {
+          response = { ok: true, result: applyDomEditor(source, request) };
         } else if (request.action === "readQuill") {
           const snapshot = readQuill(source);
           if (snapshot) response = { ok: true, snapshot };
@@ -544,7 +544,9 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
               ? getCKEditor5BlockContext(ckEditor)
               : slate
                 ? slateBlockContext(source)
-                : proseMirrorBlockContext(source);
+                : modelTyping
+                  ? modelBlockContext(source)
+                  : proseMirrorBlockContext(source);
           if (blockContext) {
             response = { ok: true, blockContext };
           }
@@ -554,6 +556,8 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
           response = { ok: true, result: applyCKEditor5BlockReplacement(ckEditor, request) };
         } else if (request.action === "applyBlockReplacement" && slate) {
           response = { ok: true, result: replaceSlateBlock(source, request) };
+        } else if (request.action === "applyBlockReplacement" && modelTyping) {
+          response = { ok: true, result: replaceModelBlock(source, request) };
         } else if (request.action === "applyBlockReplacement") {
           response = { ok: true, result: replaceProseMirrorBlock(source, request) };
         }

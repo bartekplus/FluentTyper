@@ -27,14 +27,14 @@ function editorWindows(elem: HTMLElement): Window[] {
   return windows;
 }
 
-export interface TinyMCEEditor {
+interface TinyMCEEditor {
   getBody(): HTMLElement;
   mode?: { isReadOnly?(): boolean };
   undoManager: { transact(callback: () => void): void; add(): unknown };
   nodeChanged(): void;
 }
 
-export function findTinyMCE(elem: HTMLElement): TinyMCEEditor | null {
+function findTinyMCE(elem: HTMLElement): TinyMCEEditor | null {
   type TinyWindow = Window & { tinymce?: { get?(): TinyMCEEditor[] } };
   return (
     editorWindows(elem)
@@ -140,6 +140,9 @@ export const REVIEW_DOM_EDITORS: [
   [".fr-element", froala],
   [".note-editable", summernote],
 ];
+
+/** DOM-model editors that FluentTyper writes with a native edit in one host undo step. */
+export const DOM_EDITOR_SELECTOR = REVIEW_DOM_EDITORS.map(([selector]) => selector).join(", ");
 
 /** True when the editor exists and accepts writes, and the phase ran. */
 export function reviewTransaction(elem: HTMLElement, phase: ReviewTransactionPhase): boolean {
