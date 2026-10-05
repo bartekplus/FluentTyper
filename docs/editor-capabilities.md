@@ -91,6 +91,8 @@ The session remains attached during a temporary native popup. Requests issued be
 Closure restores eligibility without a reload. Fresh suggestions use the next input or explicit request, so native choices are not replayed as corrections.
 Removed fields lose their sessions, listeners, timers, and UI. Replacement fields receive new sessions.
 If a model mounts on the same host during Review, Apply becomes unavailable. Reopen Review to resolve the new model adapter.
+A Lexical, Draft.js, CKEditor 5 or Trix field whose DOM text differs from its model when Review opens is review-only until the model reads. The open Review reads the model again on each read and once a second.
+A difference that stays keeps the field review-only. A partial read is not safe: a model write renders the changed block again from the model and can remove text that only the DOM has.
 There is no negative cache. FluentTyper UI stays outside serialized editor content.
 
 ## Limits and manual smoke procedure

@@ -378,7 +378,9 @@ export class ReviewController {
           !current.isConnected ||
           (target instanceof WordReviewTarget && target.sourceChanged(session.sourceText)) ||
           (target instanceof GutenbergReviewTarget && target.sourceChanged()) ||
-          (isTextControl(current) && current.value !== session.sourceText);
+          (isTextControl(current) && current.value !== session.sourceText) ||
+          // A model that was behind its DOM when Review opened can read now.
+          (target instanceof ContentEditableReviewTarget && target.resolveModelWriter());
         if (changed) session.notifySourceChanged();
       }, SOURCE_POLL_MS);
       active.cleanup.push(() => view.clearInterval(poll));
@@ -515,10 +517,7 @@ export class ReviewController {
     if (target instanceof GoogleDocsReviewTarget) {
       if (!target.canHighlight()) capabilityKeys.push("review_cap_docs");
     }
-    if (!target.capabilities.apply) capabilityKeys.push("review_cap_review_only");
-    else if (!target.capabilities.bulk) {
-      capabilityKeys.push("review_cap_undo_per_edit");
-    }
+    capabilityKeys.push(...writeCapabilityKeys(target));
     return new ReviewUi(
       target.element.ownerDocument,
       this.lang,
@@ -727,6 +726,9 @@ export class ReviewController {
       active.ui.setCapabilityKeys(active.target.canHighlight() ? [] : ["review_cap_docs"]);
       // Docs' menus, dialogs and bubbles sit over the page: never mark over them.
       blockers = docsPopupBoxes(active.target.element.ownerDocument);
+    } else {
+      // A model editor can get its writer after Review opened.
+      active.ui.setCapabilityKeys(writeCapabilityKeys(active.target));
     }
     if (active.cssHighlights) {
       this.paintCss(active, diagnostics, state?.selectedId ?? null);
@@ -975,6 +977,11 @@ const NOTICE_CALLBACKS: ReviewUiCallbacks = {
 
 /** How often an open review checks for changes that fire no event. */
 const SOURCE_POLL_MS = 1000;
+
+function writeCapabilityKeys(target: ReviewTargetHandle): ReviewTextKey[] {
+  if (!target.capabilities.apply) return ["review_cap_review_only"];
+  return target.capabilities.bulk ? [] : ["review_cap_undo_per_edit"];
+}
 
 /**
  * Where FluentTyper's own layers go for `element`: the open modal dialog

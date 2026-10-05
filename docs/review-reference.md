@@ -905,7 +905,13 @@ duration of the write, so the edit never merges into the user's previous typing.
 
 Lexical, Draft.js, CKEditor 5 and Trix keep their own document model. A read is
 valid only while every mapped DOM text node holds the model's own text at the
-same place; otherwise the editor stays review-only. Each batch is one model
+same place; otherwise the editor stays review-only. A difference when Review
+opens can be temporary, for example a DOM that is ahead of a pending model
+render. The open Review reads the model again on each read and once a second.
+When the model reads, Apply becomes available. A difference that stays keeps
+the editor review-only. Review does not read only the matching blocks: a model
+write makes the host render the changed block again from its model, and text
+that only the DOM has can disappear before the read-back finds it. Each batch is one model
 transaction, last edit first, that keeps the marks of the replaced text:
 
 - Lexical: the editor and node keys that Lexical stores on its DOM; `spliceText`

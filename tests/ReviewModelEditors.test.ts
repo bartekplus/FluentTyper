@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import {
@@ -22,13 +22,19 @@ import {
 import { registerRichText, HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { createEmptyHistoryState, registerHistory } from "@lexical/history";
 import { applyEdits } from "../src/core/domain/grammar/review/textRanges";
-import type { HostEditorReviewApplyRequest } from "../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
+import {
+  HOST_EDITOR_ENABLED_ATTR,
+  HOST_EDITOR_ENABLED_EVENT,
+  type HostEditorReviewApplyRequest,
+} from "../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
 import {
   applyReviewModel,
   modelBlockContext,
   readReviewModel,
   replaceModelBlock,
 } from "../src/adapters/chrome/content-script/suggestions/ReviewModelEditors";
+import { ContentEditableReviewTarget } from "../src/adapters/chrome/content-script/review/ReviewTargets";
+import { createReviewController } from "./reviewTestUtils";
 // The bridge records IME compositions for the Trix writer, which has no composition state of its own.
 import "../src/adapters/chrome/content-script/suggestions/HostEditorMainWorldBridge";
 
@@ -401,6 +407,110 @@ describe("Review model writer – Draft.js", () => {
     expect(caret()).toEqual([10, 10]);
     set(EditorState.undo(state()));
     expect(text()).toBe(SEED);
+  });
+
+  /** Puts text into the DOM after " cat." that the model does not have: native typing before Draft.js takes it. */
+  function typeAheadOfModel(root: HTMLElement, typed: string): void {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if ((node as Text).data !== " cat.") continue;
+      (node as Text).data += typed;
+      return;
+    }
+    throw new Error("No text node holds ' cat.'");
+  }
+
+  /** Turns the MAIN-world bridge on, as the content script does, for the Review target. */
+  function enableBridge(enabled: boolean): void {
+    document.documentElement.setAttribute(HOST_EDITOR_ENABLED_ATTR, String(enabled));
+    document.dispatchEvent(new Event(HOST_EDITOR_ENABLED_EVENT));
+    document.documentElement.removeAttribute(HOST_EDITOR_ENABLED_ATTR);
+  }
+  beforeEach(() => enableBridge(true));
+  afterEach(() => enableBridge(false));
+
+  test("a DOM ahead of the model when Review opens gets Apply after the model takes the text", async () => {
+    const { root, state, set, text } = mountDraft();
+    typeAheadOfModel(root, " It");
+    const target = new ContentEditableReviewTarget(root);
+    expect(target.capabilities).toEqual({ apply: false, bulk: false });
+    // Draft.js takes the typed text into its model, and the DOM already shows it.
+    const content = Modifier.insertText(state().getCurrentContent(), state().getSelection(), " It");
+    set(EditorState.push(state(), content, "insert-characters"));
+    expect(text()).toBe(`${SEED} It`);
+
+    const read = target.read();
+    expect(target.capabilities).toEqual({ apply: true, bulk: true });
+    if (!read.ok) throw new Error(`Review cannot read the editor: ${read.reason}`);
+    expect(read.text).toBe(`${SEED} It`);
+    const edits = [{ start: 7, end: 10, original: "teh", replacement: "the" }];
+    const request = {
+      edits,
+      before: read.text,
+      after: applyEdits(read.text, edits)!,
+      signature: read.signature,
+    };
+    // The target waits for React to render the write, as in a browser. act() would
+    // keep the render until the write returns, so React renders on its own here.
+    globals.IS_REACT_ACT_ENVIRONMENT = false;
+    try {
+      expect((await target.apply(request)).status).toBe("applied");
+    } finally {
+      globals.IS_REACT_ACT_ENVIRONMENT = true;
+    }
+    expect(text()).toBe("We saw the cat. It");
+    // One Undo removes the Review edit only.
+    set(EditorState.undo(state()));
+    expect(text()).toBe(`${SEED} It`);
+  });
+
+  test("an open Review loses its Review-only note when the model takes the text", async () => {
+    const { root, state, set } = mountDraft();
+    typeAheadOfModel(root, " It");
+    act(() => root.focus());
+    const review = createReviewController();
+    const notes = () =>
+      document.querySelector("[data-fluenttyper-review]")?.shadowRoot?.querySelector(".notes")
+        ?.textContent ?? "";
+    // The open Review checks the editor once a second. Its events can update Draft.js.
+    const until = async (condition: () => boolean) => {
+      for (let wait = 0; !condition() && wait < 60; wait++) await act(() => Bun.sleep(50));
+      expect(condition()).toBe(true);
+    };
+    try {
+      act(() => review.invoke());
+      await until(() => notes().includes("Review only"));
+      const content = Modifier.insertText(
+        state().getCurrentContent(),
+        state().getSelection(),
+        " It",
+      );
+      set(EditorState.push(state(), content, "insert-characters"));
+      await until(() => !notes().includes("Review only"));
+    } finally {
+      act(() => review.close());
+    }
+  });
+
+  test("DOM text that the model never takes keeps the editor Review-only and writes nothing", async () => {
+    const { root, text } = mountDraft();
+    typeAheadOfModel(root, " It");
+    const target = new ContentEditableReviewTarget(root);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const read = target.read();
+      expect(read.ok && read.text).toBe(`${SEED} It`);
+      expect(target.capabilities).toEqual({ apply: false, bulk: false });
+    }
+    const request = {
+      edits: [{ start: 7, end: 10, original: "teh", replacement: "the" }],
+      before: `${SEED} It`,
+      after: "We saw the cat. It",
+      signature: "[]",
+    };
+    expect(await target.apply(request)).toEqual({ status: "rejected", reason: "unsupported" });
+    expect(applyReviewModel(root, request)).toEqual({ status: "rejected", reason: "unsupported" });
+    expect(text()).toBe(SEED);
+    expect(root.textContent).toBe(`${SEED} It`);
   });
 });
 

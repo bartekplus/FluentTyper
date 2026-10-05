@@ -463,8 +463,8 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
 
 /** Native rich-text transactions and verified host-model transactions. */
 export class ContentEditableReviewTarget implements ReviewTargetHandle {
-  readonly kind: ContentEditableKind;
-  private readonly adapterCapabilities: ReviewCapabilities;
+  kind: ContentEditableKind;
+  private adapterCapabilities: ReviewCapabilities;
   composing = false;
   private map: ContentEditableTextMap | null = null;
   private readonly pageBridge = new InjectedHostEditorPageBridge();
@@ -519,11 +519,30 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     return newModel ? { apply: false, bulk: false } : this.adapterCapabilities;
   }
 
+  /**
+   * A model editor without a writer when Review opened: its DOM can be ahead of
+   * its model for a moment (a pending render). When the model reads now, with
+   * all of its checks, the model writer takes over. Returns true when that occurs.
+   */
+  resolveModelWriter(): boolean {
+    if (
+      this.kind !== "model-editor" ||
+      this.composing ||
+      !editorCapabilities(this.element).renderReview ||
+      !this.pageBridge.readReviewModel(this.element)
+    )
+      return false;
+    this.kind = "host-model";
+    this.adapterCapabilities = { apply: true, bulk: true };
+    return true;
+  }
+
   read(): ReviewTargetRead {
     if (!editorCapabilities(this.element).renderReview) {
       return { ok: false, reason: isInDocument(this.element) ? "ineligible" : "detached" };
     }
     if (this.composing) return { ok: false, reason: "composing" };
+    this.resolveModelWriter();
     this.map = buildContentEditableTextMap(this.element);
     if (
       this.kind === "prosemirror" ||

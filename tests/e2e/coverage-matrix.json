@@ -3171,6 +3171,27 @@
       ]
     },
     {
+      "id": "review_model_dom_mismatch",
+      "description": "A Lexical, Draft.js, CKEditor 5 or Trix field whose DOM is ahead of its model when Review opens starts Review-only. The open Review reads the model again, and Apply and Fix all become available when the model has the text; one Undo removes the fix. DOM text that the model never takes keeps the field Review-only, and nothing is written.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewModelEditors.test.ts",
+          "test": "a DOM ahead of the model when Review opens gets Apply after the model takes the text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewModelEditors.test.ts",
+          "test": "an open Review loses its Review-only note when the model takes the text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewModelEditors.test.ts",
+          "test": "DOM text that the model never takes keeps the editor Review-only and writes nothing"
+        }
+      ]
+    },
+    {
       "id": "review_command_routing",
       "description": "The review command reaches every frame of the active tab without changing settings; the dev runtime reviews through the real command router. From the popup, the page acts once it regains focus, including focus that returns into a child frame (Google Docs' input frame).",
       "coverage": [
