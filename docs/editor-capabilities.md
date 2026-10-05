@@ -136,6 +136,7 @@ The MAIN-world early Tab bridge still sends an asynchronous request. An interven
 The receiving session revalidates the edit. The context check reduces this race but does not eliminate all asynchronous host changes.
 
 The automated tests use synthetic pages and editor fixtures. They do not establish current live-site compatibility.
+For Gmail, Outlook on the web and Notion, see the [large editor surfaces report](editor-surfaces.md).
 For a live smoke check:
 
 1. Open a non-sensitive composer with the production extension.
