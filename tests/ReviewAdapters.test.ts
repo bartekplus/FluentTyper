@@ -1699,6 +1699,8 @@ describe("adversarial review regressions", () => {
       svg.remove();
       document.dispatchEvent(new window.MouseEvent("pointerup", { bubbles: true }));
       await until(() => (panel().querySelector(".notes")?.textContent ?? "").includes(docsNote));
+      // Docs applies one fix at a time: a paint keeps that note too.
+      expect(panel().querySelector(".notes")?.textContent).toContain("Apply fixes individually.");
       expect(marks()).toHaveLength(0);
       review.close();
       expect(keys.size).toBe(0);

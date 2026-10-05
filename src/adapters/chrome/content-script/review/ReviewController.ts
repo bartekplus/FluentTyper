@@ -723,7 +723,10 @@ export class ReviewController {
     if (active.target instanceof GoogleDocsReviewTarget) {
       // Docs shows runs only for an allowed extension and only for rendered
       // pages: the "listed only" note follows what it shows now.
-      active.ui.setCapabilityKeys(active.target.canHighlight() ? [] : ["review_cap_docs"]);
+      active.ui.setCapabilityKeys([
+        ...(active.target.canHighlight() ? [] : (["review_cap_docs"] as const)),
+        ...writeCapabilityKeys(active.target),
+      ]);
       // Docs' menus, dialogs and bubbles sit over the page: never mark over them.
       blockers = docsPopupBoxes(active.target.element.ownerDocument);
     } else {
