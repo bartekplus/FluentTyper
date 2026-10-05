@@ -852,7 +852,7 @@ signature and invalidate pending fixes.
 | `<textarea>`, text `<input>`                                          | overlay measured through a hidden mirror in FluentTyper's shadow root   | yes                                      | yes                        | one native undo step for the whole batch |
 | `contenteditable`                                                     | CSS Custom Highlights (overlay fallback, e.g. inside shadow DOM)        | yes, validated native transaction        | within one Text node       | one native Undo step per supported batch |
 | Quill                                                                 | CSS Custom Highlights                                                   | yes                                      | with verified model bridge | one Quill history event per batch        |
-| ProseMirror (verified host bridge)                                    | yes                                                                     | yes                                      | yes                        | one host undo step for the batch         |
+| ProseMirror, also Tiptap (verified host bridge)                       | yes                                                                     | yes                                      | yes                        | one host undo step for the batch         |
 | Word for the web                                                      | overlay where the rendered text matches the model                       | yes, native Word transaction             | yes                        | one Word Undo step per transaction       |
 | Slate (verified host bridge)                                          | yes                                                                     | yes                                      | yes                        | one slate-history step for the batch     |
 | Lexical, Draft.js, CKEditor 5, Trix (verified host bridge)            | yes                                                                     | yes                                      | yes                        | one host undo step for the batch         |
@@ -883,7 +883,8 @@ Findings are located by offsets into that snapshot, never by searching for the t
 
 ProseMirror writes go through its owning view's document transactions, with one
 history event per correction or Fix-all batch. The bridge discovers the view during
-normal focus, selection and document updates, without test globals. If its private
+normal focus, selection and document updates, without test globals. Tiptap renders
+a ProseMirror view, so it uses this path. If its private
 DOM descriptor is unavailable or the owning view has not been verified, it stays
 review-only. Edits are prepared before dispatch and the complete resulting model
 is checked, including marks, links, attributes, structure and protected nodes.

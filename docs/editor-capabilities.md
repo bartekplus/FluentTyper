@@ -30,7 +30,7 @@ The runtime checks this record before interaction. Review uses the same metadata
 
 The typing adapters write as follows:
 
-- ProseMirror and Slate: a host transaction through the MAIN-world bridge.
+- ProseMirror and Slate: a host transaction through the MAIN-world bridge. Tiptap renders a ProseMirror view, so it uses the ProseMirror path.
 - CKEditor 5: one `model.change` batch through the MAIN-world bridge. The batch replaces the text of the model block at the DOM selection and keeps the attributes of the text at the caret.
   An inline object without DOM text, for example an inline image, has one model offset and no text, as a `softBreak`. The bridge refuses an edit that contains an inline object, or that has one between the edit and the caret. The inserted text never takes the attributes of an object. An element that shows text, for example a mention, gives no block context. Then CKEditor 5 takes the write as `beforeinput` into its typing batch, and Undo also removes the typed text.
 - Draft.js and Trix (`MODEL_TYPING_SELECTOR`): one model transaction through their Review writer, with the caret after the accepted word. Draft.js gets one `insert-fragment` push. Trix gets one recorded undo entry.
@@ -62,7 +62,7 @@ Review-only finding cards offer Copy. Clipboard writes require a trusted click a
 | Usable browser datalist                                    | Yes for prose                  | Manual activation; acceptance keys yield while native preference is enabled | Yes / target transaction required            | `manual-activation` (conflict `browser-unknown`)   |
 | Model-editor fingerprint without a typing path             | Yes                            | Disabled                                                                    | Review and Copy / no Apply                   | `unverified-writer`                                |
 | Typing-path fingerprint without its editor                 | Yes                            | Shown; each write is refused                                                | Review and Copy / no Apply                   | `available`; the record permits only an attempt    |
-| Verified ProseMirror or Slate Review bridge                | Yes                            | Host transaction through the bridge                                         | Yes / verified model transaction             | Each edit revalidates model and ranges             |
+| Verified ProseMirror (also Tiptap) or Slate Review bridge  | Yes                            | Host transaction through the bridge                                         | Yes / verified model transaction             | Each edit revalidates model and ranges             |
 | Quill, also a bundled Quill                                | Yes                            | Native input that Quill applies to its own model                            | Yes / Delta transaction or Quill beforeinput | Own undo step except for a bundled Quill 2         |
 | Verified Draft.js or Trix bridge                           | Yes                            | One model transaction through the Review writer                             | Yes / verified model transaction             | Each edit revalidates model and ranges             |
 | Verified CKEditor 5 bridge                                 | Yes                            | One `model.change` batch through the bridge                                 | Yes / verified model transaction             | Each edit revalidates model and ranges             |

@@ -126,6 +126,7 @@ const REVIEW_EDITORS = [
   "summernote",
   "quill1",
   "quill2",
+  "tiptap",
 ] as const;
 type ReviewEditor = (typeof REVIEW_EDITORS)[number];
 /** Review editor fixtures with a typing path; Quill 1 and Quill 2 are bundled without window.Quill. */
@@ -137,6 +138,7 @@ const TYPING_EDITORS = [
   { editor: "summernote", name: "Summernote" },
   { editor: "quill1", name: "bundled Quill 1" },
   { editor: "quill2", name: "bundled Quill 2" },
+  { editor: "tiptap", name: "Tiptap" },
 ] as const;
 type TypingEditor = (typeof TYPING_EDITORS)[number]["editor"];
 
