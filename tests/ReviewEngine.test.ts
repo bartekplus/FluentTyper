@@ -79,6 +79,26 @@ describe("review engine over messaging", () => {
     expect(direct.diagnostics.map((d) => d.alternatives[0]?.preview)).toContain("can");
   });
 
+  test("a scan stops when it is cancelled during the repair pass", async () => {
+    const controller = new AbortController();
+    let pauses = 0;
+    const engine = new LocalReviewEngine(async () => {
+      pauses += 1;
+      // The first pause follows the only chunk; the next ones are in the repair pass.
+      if (pauses === 2) controller.abort();
+    });
+    const base = scanRequest("I cant hardly understand it.");
+    const request = {
+      ...base,
+      snapshot: { ...base.snapshot, protectedRanges: [] },
+      options: reviewOptions(),
+    };
+    await expect(engine.scan(request, controller.signal)).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    expect(pauses).toBe(2);
+  });
+
   test("a scan through the background finds what in-process detection finds", async () => {
     const text = "x(1) teh cat. teh dog";
     const request = scanRequest(text);

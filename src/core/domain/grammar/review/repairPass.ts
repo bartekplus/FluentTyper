@@ -1,6 +1,6 @@
 import type { RawFinding } from "./reviewDetectors";
 import { isMarksOnlyFix } from "./reviewFindings";
-import { applyEdits, editTouches, lowerBound, positionMapper } from "./textRanges";
+import { applyEdits, editTouches, lowerBound, mergeRanges, positionMapper } from "./textRanges";
 import {
   REVIEW_CHUNK_CHARS,
   type ReviewDiagnostic,
@@ -25,8 +25,8 @@ const APOSTROPHES = /['’]/g;
 /**
  * The contraction fixes the pass applies: exactly one alternative that only adds
  * apostrophes ("cant" -> "can't"), and that its detector does not doubt. A detector
- * marks doubt as "context-dependent" ("wont", "ill" read from the next words) or
- * "ambiguous" (a word glued to a hyphen).
+ * marks doubt as "context-dependent" ("wont", "ill" read from the next words; every
+ * French elision, which shares the message) or "ambiguous" (a word glued to a hyphen).
  */
 export function selectRepairs(diagnostics: readonly ReviewDiagnostic[]): ReviewDiagnostic[] {
   return diagnostics.filter((diagnostic) => {
@@ -41,11 +41,7 @@ export function selectRepairs(diagnostics: readonly ReviewDiagnostic[]): ReviewD
       (diagnostic.bulk.reason === "context-dependent" || diagnostic.bulk.reason === "ambiguous")
     )
       return false;
-    const { preview } = diagnostic.alternatives[0];
-    return (
-      preview.length > diagnostic.original.length &&
-      preview.replace(APOSTROPHES, "") === diagnostic.original
-    );
+    return diagnostic.alternatives[0].preview.replace(APOSTROPHES, "") === diagnostic.original;
   });
 }
 
@@ -110,20 +106,13 @@ export function repairShadow(repairs: readonly ReviewDiagnostic[]): RepairShadow
  * split point is correct.
  */
 export function repairWindows(spans: readonly TextRange[], scope: TextRange): TextRange[] {
-  const sorted = spans
+  const windows = spans
     .map((span) => ({
       start: Math.max(scope.start, span.start - REPAIR_WINDOW),
       end: Math.min(scope.end, span.end + REPAIR_WINDOW),
     }))
-    .filter((window) => window.start < window.end)
-    .sort((a, b) => a.start - b.start);
-  const joined: TextRange[] = [];
-  for (const window of sorted) {
-    const last = joined.at(-1);
-    if (last && window.start <= last.end) last.end = Math.max(last.end, window.end);
-    else joined.push({ ...window });
-  }
-  return joined.flatMap((window) => {
+    .filter((window) => window.start < window.end);
+  return mergeRanges(windows, true).flatMap((window) => {
     const parts: TextRange[] = [];
     for (let start = window.start; start < window.end; start += REVIEW_CHUNK_CHARS)
       parts.push({ start, end: Math.min(window.end, start + REVIEW_CHUNK_CHARS) });

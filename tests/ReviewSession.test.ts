@@ -294,6 +294,19 @@ describe("ReviewSession", () => {
     expect(fixes()).toEqual([["dont", "don't"]]);
   });
 
+  test("Fix all applies the plain repair of an ignored fix", async () => {
+    const h = harness("It dont work.", {
+      rules: ["englishPronounVerbWhitelistAgreement", "englishContractionNormalization"],
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    h.session.ignore(h.last().diagnostics[0].id);
+    expect(h.last().bulk.count).toBe(1);
+    const fixing = h.session.fixAll();
+    await h.settle();
+    expect(await fixing).toEqual({ status: "applied" });
+    expect(h.editor.text).toBe("It don't work.");
+  });
+
   test("editing the ignored occurrence itself drops the ignore", async () => {
     const h = harness("teh a");
     await Promise.all([h.session.start(), h.settle()]);

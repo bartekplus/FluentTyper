@@ -200,3 +200,13 @@ test("a hidden finding with two fixes keeps both as a choice", () => {
     found.map((d) => [d.original, d.alternatives.map((a) => a.preview), d.requiresChoice]),
   ).toEqual([["He isnt write", ["He isn't writing", "He doesn't write"], true]]);
 });
+
+test("a French elision shares the contraction message but is no repair", () => {
+  const found = scan("Bon, cest vrai.", { lang: "fr_FR" });
+  expect(found.map((d) => [d.messageKey, d.original])).toContainEqual([
+    "review_msg_contraction",
+    "cest",
+  ]);
+  // Its detector marks it context-dependent, so no shadow scan starts from it.
+  expect(selectRepairs(found)).toEqual([]);
+});
