@@ -1305,6 +1305,45 @@ describe("review controller lifecycle", () => {
     }
   });
 
+  test("a review opened during an IME composition in a Notion block reads again when it ends", async () => {
+    // Notion keeps focus on its page root: the composition events fire there, not on the leaf.
+    for (const type of ["compositionstart", "compositionend"])
+      document.addEventListener(type, recordComposition, true);
+    const page = document.createElement("div");
+    try {
+      page.contentEditable = "true";
+      page.tabIndex = 0;
+      page.setAttribute("data-content-editable-root", "true");
+      Object.defineProperty(page, "isContentEditable", { value: true });
+      const content = page.appendChild(document.createElement("div"));
+      content.className = "notion-page-content";
+      const leaf = content.appendChild(document.createElement("div"));
+      leaf.contentEditable = "true";
+      leaf.setAttribute("data-content-editable-leaf", "true");
+      Object.defineProperty(leaf, "isContentEditable", { value: true });
+      leaf.textContent = "We saw teh cat.";
+      document.body.append(page);
+      page.focus();
+      setCaret(leaf.firstChild!, 3);
+      page.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+      const { review } = controller();
+      review.invoke();
+      expect(review.reviewedElement).toBe(leaf);
+      await until(
+        () => root()?.querySelector(".status")?.textContent === "Paused while you compose text.",
+      );
+      expect(root()!.querySelector(".card [data-action=apply]")).toBeNull();
+
+      page.dispatchEvent(new Event("compositionend", { bubbles: true }));
+      await until(() => root()?.querySelector(".status")?.textContent === "Issues: 1");
+      review.close();
+    } finally {
+      page.remove();
+      for (const type of ["compositionstart", "compositionend"])
+        document.removeEventListener(type, recordComposition, true);
+    }
+  });
+
   test("closing a review in the middle of a write resumes suggestions", async () => {
     const field = textarea("We saw teh cat.");
     const { review, suspend, resume } = controller();

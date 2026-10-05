@@ -22,6 +22,7 @@ import { WordReviewTarget } from "./WordReviewTarget";
 import { GutenbergReviewTarget } from "./GutenbergReviewTarget";
 import { isWordInputProxy } from "../suggestions/CodeContextResolver";
 import { isComposingIn } from "../suggestions/HostEditorControllerUtils";
+import { notionRootOf } from "../suggestions/NotionEnvironment";
 import {
   ContentEditableReviewTarget,
   isTextControl,
@@ -315,11 +316,13 @@ export class ReviewController {
       // A composition can run already when the review opens.
       target.composing = isComposingIn(element);
       on(element, "input", () => session.notifySourceChanged());
-      on(element, "compositionstart", () => {
+      // A Notion leaf takes no focus: its composition events fire on the page root.
+      const composition = notionRootOf(element) ?? element;
+      on(composition, "compositionstart", () => {
         target.composing = true;
         session.notifySourceChanged();
       });
-      on(element, "compositionend", () => {
+      on(composition, "compositionend", () => {
         target.composing = false;
         session.notifySourceChanged();
       });
