@@ -114,7 +114,7 @@ Limits that stay:
 ## Live checks that are still open
 
 1. A real IME composition in Outlook and Notion: the writers must refuse.
-2. Firefox: all three surfaces.
+2. Firefox on the live sites. The synthetic RoosterJS and Notion-like fixtures pass the full e2e suite on Firefox and Chrome.
 
 ---
 
