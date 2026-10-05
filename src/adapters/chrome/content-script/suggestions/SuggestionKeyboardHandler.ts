@@ -105,7 +105,12 @@ export class SuggestionKeyboardHandler {
     }
 
     if (key === "Escape") {
+      // Escape that closes our popup is ours: the page must not also act on it
+      // (Notion would select the block, and the next keys would type nothing).
+      const showing = this.options.isMenuVisible(entry) || entry.inlineSuggestion !== null;
       this.options.clearSuggestions(entry);
+      if (showing && this.options.canAccept?.(entry) !== false)
+        this.options.consumeKeyboardEvent(keyboardEvent);
       return;
     }
 

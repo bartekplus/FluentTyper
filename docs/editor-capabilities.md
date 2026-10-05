@@ -46,6 +46,7 @@ Review writes need the MAIN-world bridge to find the editor itself: Lexical, Dra
 A fingerprint without a working bridge gives Review only. It cannot select a generic Review DOM writer.
 
 Acceptance handlers consume keys only after a synchronous action succeeds. Tab does not queue acceptance of an unseen inline suggestion.
+Escape that closes a visible popup or inline suggestion is consumed, so the page does not also act on it (Notion would select the block, and the next keys would type nothing). With nothing visible, or while acceptance keys yield to a native list, Escape goes to the page.
 Code/prose transitions invalidate predictions, also when the text stays the same. The early Tab bridge checks the context recorded when the menu rendered.
 Temporary unknown selection states keep the host reconciliation path.
 ARIA-disabled and ARIA-readonly ancestors block interaction across shadow boundaries.
