@@ -411,6 +411,25 @@ export async function setSettings(
   );
 }
 
+/**
+ * True when a stored setting is not equal to its value in `settings`. It also
+ * finds writes from extension pages and commands, which `setSettings` does not see.
+ */
+export async function storedSettingsDiffer(
+  worker: BackgroundContext,
+  settings: Record<string, unknown>,
+): Promise<boolean> {
+  const stored = await withWorker(worker, (context) =>
+    context.evaluate(
+      (keys) => chrome.storage.local.get(keys),
+      Object.keys(settings).map((key) => `${SETTINGS_PREFIX}${key}`),
+    ),
+  );
+  return Object.entries(settings).some(
+    ([key, value]) => stored[`${SETTINGS_PREFIX}${key}`] !== JSON.stringify(value),
+  );
+}
+
 export async function setSetting(
   worker: BackgroundContext,
   key: string,
