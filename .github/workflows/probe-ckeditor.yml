@@ -28,6 +28,6 @@ jobs:
           for c in $(seq $(nproc)); do (while :; do :; done) & done
           failed=0
           for i in $(seq 15); do
-            bun run test:e2e:full --platform=firefox --test-name-pattern="caret is mid-word" > run.log 2>&1 || { echo "RUN $i FAILED"; grep -E "CKEditor state|error:" run.log; failed=1; }
+            bun run test:e2e:full --platform=firefox --test-name-pattern="caret is mid-word|paragraph break when accepting|active second paragraph" > run.log 2>&1 || { echo "RUN $i FAILED"; grep -E "CKEditor state|error:" run.log; failed=1; }
           done
           exit $failed
