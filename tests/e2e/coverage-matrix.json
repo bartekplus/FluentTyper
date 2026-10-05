@@ -4720,6 +4720,22 @@
       ]
     },
     {
+      "id": "late_body_without_restart",
+      "description": "A content script that starts while its document is still loading, before the body (CKEditor 4 writes its editing frame so), observes the root element. When the body appears under that root, the watchdog observes the body and does not restart the runtime, so a visible menu stays and Tab still accepts from it.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/content_script.behavior.test.ts",
+          "test": "watchdog observes a body that appeared under the observed root without a restart"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "%s typing expands a snippet in one native undo step"
+        }
+      ]
+    },
+    {
       "id": "rich_editor_snippet_expansion",
       "description": "In real Draft.js, Trix, CKEditor 4, Froala, Summernote, Tiptap and RoosterJS editors and in bundled Quill 1 and Quill 2, a text expansion replaces its shortcut in the second paragraph of the editor's own model, keeps bold and links, and native Undo restores the shortcut in one step. A bundled Quill 2's Undo can also remove the typing of the last second.",
       "coverage": [

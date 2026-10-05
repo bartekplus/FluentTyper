@@ -886,6 +886,20 @@ describe("content_script behavior", () => {
     expect(sendMessage).toHaveBeenCalled();
   });
 
+  test("watchdog observes a body that appeared under the observed root without a restart", async () => {
+    const { fluentTyper, domObserverInstances } = await loadContentScript();
+    const domObserver = domObserverInstances[0];
+    const restartSpy = jest.spyOn(fluentTyper, "restart");
+    fluentTyper.enabled = true;
+    // The script started while the page was loading: there was no body, so it observes the root.
+    domObserver.getNode.mockReturnValue(document.documentElement);
+
+    fluentTyper.watchDog();
+
+    expect(restartSpy).not.toHaveBeenCalled();
+    expect(domObserver.setNode).toHaveBeenCalledWith(document.body);
+  });
+
   test("watchdog prefers a host change over a node change and skips the DOM restart", async () => {
     const { fluentTyper, domObserverInstances } = await loadContentScript();
     const domObserver = domObserverInstances[0];
