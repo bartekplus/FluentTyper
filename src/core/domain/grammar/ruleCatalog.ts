@@ -403,6 +403,21 @@ const CATALOG = [
 /** Every catalog rule id: the typing rules (GrammarRuleId) and the Review-only checks. */
 export type CatalogRuleId = (typeof CATALOG)[number]["id"];
 
+/**
+ * Opposite rules: each one undoes the fix of the others, so only one rule of a group can be on.
+ * Review keeps the first enabled rule of a group in catalog order.
+ */
+export const EXCLUSIVE_RULE_GROUPS: readonly (readonly CatalogRuleId[])[] = [
+  ["styleOxfordComma", "styleNoOxfordComma"],
+  ["englishAmericanSpelling", "englishBritishSpelling"],
+];
+
+/** The other rules of `ruleId`'s exclusive group; none when it is in no group. */
+export function exclusiveRivals(ruleId: string): readonly CatalogRuleId[] {
+  const group = EXCLUSIVE_RULE_GROUPS.find((ids) => ids.includes(ruleId as CatalogRuleId)) ?? [];
+  return group.filter((id) => id !== ruleId);
+}
+
 export const GRAMMAR_RULE_CATALOG: readonly (GrammarRuleCatalogEntry & { id: CatalogRuleId })[] =
   CATALOG;
 

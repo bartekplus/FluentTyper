@@ -198,6 +198,36 @@ describe("options workspace panels", () => {
     expect(review.get()).toEqual({});
   });
 
+  test("turning on one rule of an opposite pair turns the other off, and the description says so", () => {
+    const root = document.createElement("div");
+    document.body.append(root);
+    const registry = fakeRegistry(
+      { [KEY_ENABLED_GRAMMAR_RULES]: {}, [KEY_REVIEW_RULE_OVERRIDES]: {} },
+      { [KEY_ENABLED_GRAMMAR_RULES]: "Typing", [KEY_REVIEW_RULE_OVERRIDES]: "Review" },
+    );
+    const review = registry[KEY_REVIEW_RULE_OVERRIDES];
+    renderGrammarWorkspacePanel(root, registry);
+    const switchFor = (rule: string) =>
+      root.querySelector<HTMLInputElement>(
+        `input[data-setting="${KEY_REVIEW_RULE_OVERRIDES}"][value="${rule}"]`,
+      )!;
+    const turnOn = (rule: string) => {
+      switchFor(rule).checked = true;
+      switchFor(rule).dispatchEvent(new Event("change"));
+    };
+
+    turnOn("styleOxfordComma");
+    turnOn("styleNoOxfordComma");
+    expect(review.get()).toEqual({ styleOxfordComma: false, styleNoOxfordComma: true });
+    expect(switchFor("styleOxfordComma").checked).toBe(false);
+    expect(switchFor("styleNoOxfordComma").checked).toBe(true);
+
+    const description = root.querySelector(
+      '[data-rule="styleNoOxfordComma"] .rule-matrix-description',
+    )!.textContent;
+    expect(description).toContain(i18n.get("grammar_rule_styleOxfordComma"));
+  });
+
   test("each rule row shows a title, a marked example and a description behind its info button", () => {
     const root = document.createElement("div");
     document.body.append(root);

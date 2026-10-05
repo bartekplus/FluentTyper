@@ -1,6 +1,10 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { KEY_ENABLED_GRAMMAR_RULES, KEY_REVIEW_RULE_OVERRIDES } from "@core/domain/constants";
-import { GRAMMAR_RULE_CATALOG, TYPING_RULE_IDS } from "@core/domain/grammar/ruleCatalog";
+import {
+  GRAMMAR_RULE_CATALOG,
+  TYPING_RULE_IDS,
+  exclusiveRivals,
+} from "@core/domain/grammar/ruleCatalog";
 import {
   REVIEW_RULE_METADATA,
   REVIEW_SUPPORTED_RULE_IDS,
@@ -16,7 +20,7 @@ import {
   migrateLegacyGrammarRuleSelection,
   resolveGrammarRuleSelection,
 } from "@core/domain/grammar/GrammarRuleSettings";
-import { htmlLang, i18n } from "./fluenttyperI18n.js";
+import { formatTranslation, htmlLang, i18n } from "./fluenttyperI18n.js";
 import { GRAMMAR_RULE_EXAMPLES, type RuleExample } from "./grammarRuleCopy.js";
 import { createInputElement, getUniqueID } from "@ui/settings-engine/controls/FieldControl.js";
 import { createElement } from "@ui/settings-engine/dom/createElement.js";
@@ -51,11 +55,26 @@ const COLUMNS: Column[] = [
     label: i18n.get("grammar_matrix_review"),
     ruleIds: new Set(REVIEW_SUPPORTED_RULE_IDS),
     enabled: (value) => new Set(reviewRuleIds({ codeMode: false, overrides: value })),
-    toggle: (value, rule, on) => ({ ...normalizeReviewRuleOverrides(value), [rule]: on }),
+    // Turning on one rule of an opposite pair turns the others off.
+    toggle: (value, rule, on) => ({
+      ...normalizeReviewRuleOverrides(value),
+      ...Object.fromEntries(on ? exclusiveRivals(rule).map((id) => [id, false]) : []),
+      [rule]: on,
+    }),
   },
 ];
 
 const languageNames = new Intl.DisplayNames([htmlLang(i18n.lang)], { type: "language" });
+
+const TITLE_KEYS = new Map(GRAMMAR_RULE_CATALOG.map((rule) => [rule.id, rule.titleI18nKey]));
+
+/** The description, and for a rule with opposites, which rules turning it on turns off. */
+function ruleDescription(rule: (typeof GRAMMAR_RULE_CATALOG)[number]): string {
+  const description = i18n.get(rule.descriptionI18nKey);
+  const rivals = exclusiveRivals(rule.id).map((id) => i18n.get(TITLE_KEYS.get(id)!));
+  if (rivals.length === 0) return description;
+  return `${description} ${formatTranslation("grammar_matrix_exclusive", { rules: rivals.join(", ") })}`;
+}
 
 const RULES = GRAMMAR_RULE_CATALOG.filter((rule) =>
   COLUMNS.some((column) => column.ruleIds.has(rule.id)),
@@ -65,7 +84,7 @@ const RULES = GRAMMAR_RULE_CATALOG.filter((rule) =>
   return {
     id: rule.id,
     title: i18n.get(rule.titleI18nKey),
-    description: i18n.get(rule.descriptionI18nKey),
+    description: ruleDescription(rule),
     example: GRAMMAR_RULE_EXAMPLES[rule.id],
     section: REVIEW_RULE_METADATA[rule.id].category,
     language: language && language[0].toLocaleUpperCase() + language.slice(1),

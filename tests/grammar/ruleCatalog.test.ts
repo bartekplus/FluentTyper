@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
+  EXCLUSIVE_RULE_GROUPS,
   DEFAULT_V3_GRAMMAR_RULES,
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
@@ -10,6 +11,7 @@ import {
   isCodeSafeGrammarRule,
   normalizeGrammarRuleSelection,
 } from "../../src/core/domain/grammar/ruleCatalog";
+import { isReviewSupportedRule } from "../../src/core/domain/grammar/review/reviewCatalog";
 
 describe("ruleCatalog", () => {
   test("code mode keeps only code-safe rules", () => {
@@ -22,6 +24,18 @@ describe("ruleCatalog", () => {
         "unknownRule",
       ].filter(isCodeSafeGrammarRule),
     ).toEqual(["autoBracketClose"]);
+  });
+
+  test("each exclusive group has two or more Review rules, and a rule is in one group only", () => {
+    const seen = new Set<string>();
+    for (const group of EXCLUSIVE_RULE_GROUPS) {
+      expect(group.length).toBeGreaterThanOrEqual(2);
+      for (const id of group) {
+        expect(isReviewSupportedRule(id)).toBe(true);
+        expect(seen.has(id)).toBe(false);
+        seen.add(id);
+      }
+    }
   });
 
   test("exposes stable ordered catalog ids", () => {

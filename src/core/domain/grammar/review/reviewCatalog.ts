@@ -1,6 +1,11 @@
 import { isObjectRecord } from "../../guards";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS, TEXT_EXPANDER_LANG } from "../../lang";
-import { GRAMMAR_RULE_CATALOG, isCodeSafeGrammarRule, type CatalogRuleId } from "../ruleCatalog";
+import {
+  GRAMMAR_RULE_CATALOG,
+  exclusiveRivals,
+  isCodeSafeGrammarRule,
+  type CatalogRuleId,
+} from "../ruleCatalog";
 import {
   REVIEW_LOCAL_AI_CHECK,
   REVIEW_SPELLING_CHECK,
@@ -871,13 +876,17 @@ export function reviewRuleIds({
   overrides?: unknown;
 }): CatalogRuleId[] {
   const choices = normalizeReviewRuleOverrides(overrides);
-  return REVIEW_SUPPORTED_RULE_IDS.filter((id) => {
+  const enabled = REVIEW_SUPPORTED_RULE_IDS.filter((id) => {
     const metadata = REVIEW_RULE_METADATA[id];
     return (
       (!codeMode || isCodeSafeGrammarRule(id)) &&
       (choices[id] ?? (metadata.review === "supported" && metadata.defaultEnabled))
     );
   });
+  // Stored settings can have both rules of an opposite pair on: keep the first, so fixes settle.
+  return enabled.filter(
+    (id, index) => !exclusiveRivals(id).some((rival) => enabled.slice(0, index).includes(rival)),
+  );
 }
 
 export const DEFAULT_LONG_SENTENCE_WORDS = 35;
