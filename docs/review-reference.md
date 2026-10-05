@@ -960,19 +960,25 @@ refuses when Rooster is in an IME composition (`isInIME()`) or in shadow edit,
 does not have focus, or has no range selection. After the write, Rooster must
 have an undo step (`canMove(-1)`); otherwise the result is unverified.
 
-Notion has no in-page editor API. Its page root is one contenteditable, and
-each text block is a nested leaf; Review reviews the leaf that holds the caret,
-never the page. Notion reads the leaf into its model on input, but a live probe
-saw it revert a write that came right after the caret moved into the leaf. So
-each fix is one native edit in that leaf with these extra checks: Review gives
-focus back to the page root and waits 100 ms (a Review closed in this wait
-writes nothing); the caret must already be in the reviewed leaf (Review never
-moves it there) and no composition may run; after the write the leaf must hold
-the expected text, and must still hold it after Notion's input handling (1 s,
-watched for a revert). A revert gives "unverified", and nothing is written
-again. Each fix is one Notion undo step, so Fix all is not offered. These
-checks read the DOM, not Notion's model; the tests use a synthetic Notion-like
-page, and a live check in Chrome passed ([details](editor-capabilities.md#notion),
+Notion has no in-page editor API. Its page root is one contenteditable.
+Each text block is a nested leaf. Review reviews the leaf that holds the caret.
+It never reviews the full page. Notion reads the leaf into its model on input.
+A live probe saw Notion revert a write that came right after the caret moved into the leaf.
+Thus each fix is one native edit in that leaf, with these checks:
+
+1. Review gives focus back to the page root and waits 100 ms.
+   If the user closes Review in this wait, Review writes nothing.
+2. The caret must already be in the reviewed leaf. Review never moves the caret there.
+3. No IME composition may run.
+4. After the write, the leaf must hold the expected text.
+5. The leaf must still hold that text 1 s after the write.
+   If Notion reverts the write in this time, the result is "unverified".
+   Review does not write again.
+
+Each fix is one Notion undo step. Thus Review does not offer Fix all.
+These checks read the DOM, not the model of Notion.
+The tests use a synthetic Notion-like page.
+A live check in Chrome passed ([details](editor-capabilities.md#notion),
 [live check results](editor-surfaces.md#live-check-results)).
 
 Plain contenteditable snapshots also capture formatting wrappers and attributes.
