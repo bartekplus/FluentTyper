@@ -8,7 +8,17 @@ import {
   type ContentBlock,
   type ContentState,
 } from "draft-js";
-import { container, fail, flaggedRuns, LINK, publish, SEED_TEXT } from "./shared";
+import {
+  blockSeed,
+  container,
+  EXTRA_LIST_ITEM,
+  EXTRA_PARAGRAPH,
+  fail,
+  flaggedRuns,
+  LINK,
+  publish,
+  SEED_TEXT,
+} from "./shared";
 
 // Bundled with React 18: Draft.js uses ReactDOM.findDOMNode, which React 19 removed.
 try {
@@ -50,6 +60,18 @@ try {
           entityRanges: [{ offset: 19, length: 3, key: 0 }],
           data: {},
         },
+        ...(blockSeed()
+          ? [
+              { key: "seed2", text: EXTRA_PARAGRAPH, type: "unstyled" },
+              { key: "seed3", text: EXTRA_LIST_ITEM, type: "unordered-list-item" },
+            ].map((block) => ({
+              ...block,
+              depth: 0,
+              inlineStyleRanges: [],
+              entityRanges: [],
+              data: {},
+            }))
+          : []),
       ],
       entityMap: { 0: { type: "LINK", mutability: "MUTABLE", data: { url: LINK } } },
     }),

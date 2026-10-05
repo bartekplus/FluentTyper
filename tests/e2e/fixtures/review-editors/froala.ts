@@ -1,5 +1,5 @@
 import FroalaEditor from "froala-editor";
-import { container, domModel, fail, loadStylesheet, publish, SEED_HTML } from "./shared";
+import { container, domModel, fail, loadStylesheet, publish, seedHtml } from "./shared";
 
 interface Froala {
   el: HTMLElement;
@@ -8,7 +8,7 @@ interface Froala {
 try {
   loadStylesheet("/node_modules/froala-editor/css/froala_editor.min.css");
   const target = container();
-  target.innerHTML = SEED_HTML;
+  target.innerHTML = seedHtml();
   new FroalaEditor(target, {
     events: {
       initialized(this: Froala) {

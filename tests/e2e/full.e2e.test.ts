@@ -128,6 +128,17 @@ const REVIEW_EDITORS = [
   "quill2",
 ] as const;
 type ReviewEditor = (typeof REVIEW_EDITORS)[number];
+/** Review editor fixtures with a typing path; Quill 1 and Quill 2 are bundled without window.Quill. */
+const TYPING_EDITORS = [
+  { editor: "draft", name: "Draft.js" },
+  { editor: "trix", name: "Trix" },
+  { editor: "ckeditor4", name: "CKEditor 4" },
+  { editor: "froala", name: "Froala" },
+  { editor: "summernote", name: "Summernote" },
+  { editor: "quill1", name: "bundled Quill 1" },
+  { editor: "quill2", name: "bundled Quill 2" },
+] as const;
+type TypingEditor = (typeof TYPING_EDITORS)[number]["editor"];
 
 // Draft.js calls ReactDOM.findDOMNode, which React 19 removed: its fixture uses React 18.
 const REACT_18: BunPlugin = {
@@ -530,10 +541,13 @@ async function gotoTestPage(
     gutenbergIframe?: boolean;
     tinyMceMode?: "iframe" | "inline";
     reviewEditor?: ReviewEditor;
+    /** "blocks" adds a second paragraph and a list item to the Review editor fixture. */
+    reviewSeed?: "blocks";
   } = {},
 ) {
   const params = new URLSearchParams();
   if (options.reviewEditor) params.set("reviewEditor", options.reviewEditor);
+  if (options.reviewSeed) params.set("reviewSeed", options.reviewSeed);
   if (options.enableCkEditor) {
     params.set("enableCkEditor", "1");
   }
@@ -6147,6 +6161,33 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     await waitForInputReady(page, "#test-textarea");
   }
 
+  /** The Review editor fixture of the loaded page: its editing surface and model reader. */
+  async function reviewEditorFixture(name: ReviewEditor) {
+    const fixture = await waitUntil(
+      `${name} fixture`,
+      () =>
+        page.evaluate(() => {
+          if (window.__testReviewEditorError) throw new Error(window.__testReviewEditorError);
+          const editor = window.__testReviewEditor;
+          return editor ? { frame: editor.frame, editable: editor.editable } : false;
+        }),
+      { timeoutMs: INPUT_READY_TIMEOUT_MS },
+    );
+    const surface: Page | Frame = fixture.frame
+      ? await waitUntil(
+          `${name} editing frame`,
+          async () => (await (await page.$(fixture.frame!))?.contentFrame()) ?? false,
+          { timeoutMs: INPUT_READY_TIMEOUT_MS },
+        )
+      : page;
+    const model = () =>
+      page.evaluate(() => {
+        const editor = window.__testReviewEditor!;
+        return { text: editor.text().replace(/\u00a0/g, " "), runs: editor.runs() };
+      });
+    return { surface, editable: fixture.editable, model };
+  }
+
   async function applyIndividualReviewFix(text: string, surface: Page | Frame = page) {
     let panel = await readReviewPanel(surface);
     if (panel.card.open) {
@@ -7430,6 +7471,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     selector: string;
     surface?: "tinymce" | "gutenberg";
     setup?: (surface: Page | Frame) => Promise<void>;
+    /** A Review editor fixture: its own surface, editable and model text. */
+    fixture?: TypingEditor;
   }> = [
     { name: "textarea", options: {}, selector: "#test-textarea" },
     { name: "input", options: {}, selector: "#test-input" },
@@ -7474,11 +7517,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
       },
     })),
+    ...TYPING_EDITORS.map(({ editor, name }) => ({
+      name,
+      options: { reviewEditor: editor },
+      selector: "",
+      fixture: editor,
+    })),
   ];
 
   test.each(caretEditors)(
     "Accepted predictions leave the caret after the inserted word in $name",
-    async ({ options, selector, surface: surfaceKind, setup }) => {
+    async ({ options, selector: fieldSelector, surface: surfaceKind, setup, fixture }) => {
       await setGrammarRules(worker, []);
       await setSetting(worker, KEY_LANGUAGE, "en_US");
       await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
@@ -7492,8 +7541,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         waitUntil("editor frame", async () => page.frames().find(pick) ?? false, {
           timeoutMs: INPUT_READY_TIMEOUT_MS,
         });
-      const surface: Page | Frame =
-        surfaceKind === "tinymce"
+      const editor = fixture ? await reviewEditorFixture(fixture) : null;
+      const selector = editor?.editable ?? fieldSelector;
+      let surface: Page | Frame = editor
+        ? editor.surface
+        : surfaceKind === "tinymce"
           ? await waitUntil(
               "TinyMCE editing frame",
               async () => (await (await page.$("#test-tinymce_ifr"))?.contentFrame()) ?? false,
@@ -7507,22 +7559,37 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             : page;
       await setup?.(surface);
       await waitForInputReady(surface, selector);
-      const text = () =>
-        surface.$eval(selector, (element) => {
-          if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)
-            return element.value.replace(/\u00a0/g, " ");
-          // Placeholders (Slate) are not text.
-          const copy = element.cloneNode(true) as HTMLElement;
-          copy.querySelectorAll('[contenteditable="false"]').forEach((node) => node.remove());
-          return (copy.textContent ?? "").replace(/\u00a0/g, " ").replace(/[\u200b\ufeff]/g, "");
-        });
+      // A fixture's text comes from its editor's own model, after its seed paragraph.
+      const text = async () =>
+        editor
+          ? (await editor.model()).text.replace(/^We saw teh cat and teh dog\. /, "")
+          : surface.$eval(selector, (element) => {
+              if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)
+                return element.value.replace(/\u00a0/g, " ");
+              // Placeholders (Slate) are not text.
+              const copy = element.cloneNode(true) as HTMLElement;
+              copy.querySelectorAll('[contenteditable="false"]').forEach((node) => node.remove());
+              return (copy.textContent ?? "")
+                .replace(/\u00a0/g, " ")
+                .replace(/[\u200b\ufeff]/g, "");
+            });
       const failures: string[] = [];
       for (const where of ["end", "middle"] as const) {
         for (const key of ["Tab", "Enter", "mouse"] as const) {
           const label = `${where} ${key}`;
           // Model editors (Lexical, Slate) ignore a select-all command but read the DOM
           // selection, Slate after a throttle.
+          if (fixture) {
+            // Trix 2.1.19 loses its block element when a Backspace deletes all of its
+            // text, and typing then changes nothing: a fresh fixture, typed after its seed.
+            await gotoTestPage(page, options);
+            surface = (await reviewEditorFixture(fixture)).surface;
+            await waitForInputReady(surface, selector);
+            await placeCaretAfter(surface, selector, "dog.");
+            await page.keyboard.type(" ");
+          }
           await waitUntil(`${label} cleared`, async () => {
+            if (fixture) return (await text()) === "";
             await surface.$eval(selector, (element) => {
               (element as HTMLElement).focus();
               if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)
@@ -7536,7 +7603,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           await page.keyboard.type("Hello there world", { delay: 20 });
           await waitUntil(`${label} typed`, async () =>
             (await text()).includes("Hello there world"),
-          );
+          ).catch(async (cause) => {
+            throw new Error(`${label} text: ${JSON.stringify(await text())}`, { cause });
+          });
           if (where === "middle") {
             for (let step = 0; step < " there world".length; step++)
               await page.keyboard.press("ArrowLeft");
@@ -7575,9 +7644,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             }
             await page.mouse.click(point.x + (offset?.x ?? 0), point.y + (offset?.y ?? 0));
           } else await page.keyboard.press(key);
-          await waitUntil(`${label} acceptance`, async () => (await text()).includes(prediction), {
-            timeoutMs: 3000,
-          }).catch(() => undefined);
+          await waitUntil(
+            `${label} acceptance`,
+            async () =>
+              (await text()).includes(prediction) &&
+              // Draft.js renders its model later (React). A key typed before that goes
+              // into the old DOM, and Draft.js reads that DOM back into its model.
+              (!editor || (await renderedText(surface, selector)).includes(prediction)),
+            { timeoutMs: 3000 },
+          ).catch(() => undefined);
           await page.keyboard.type("Z");
           const expected =
             where === "end"
@@ -10381,28 +10456,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "%s Review applies individual and batch fixes in the editor model with formatting and native undo",
     async (name) => {
       await prepareReviewPage({ reviewEditor: name });
-      const fixture = await waitUntil(
-        `${name} fixture`,
-        () =>
-          page.evaluate(() => {
-            if (window.__testReviewEditorError) throw new Error(window.__testReviewEditorError);
-            const editor = window.__testReviewEditor;
-            return editor ? { frame: editor.frame, editable: editor.editable } : false;
-          }),
-        { timeoutMs: INPUT_READY_TIMEOUT_MS },
-      );
-      const surface: Page | Frame = fixture.frame
-        ? await waitUntil(
-            `${name} editing frame`,
-            async () => (await (await page.$(fixture.frame!))?.contentFrame()) ?? false,
-            { timeoutMs: INPUT_READY_TIMEOUT_MS },
-          )
-        : page;
-      const model = () =>
-        page.evaluate(() => {
-          const editor = window.__testReviewEditor!;
-          return { text: editor.text().replace(/\u00a0/g, " "), runs: editor.runs() };
-        });
+      const { surface, editable, model } = await reviewEditorFixture(name);
       const original = await model();
       expect(original).toEqual({
         text: "We saw teh cat and teh dog.",
@@ -10411,11 +10465,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const teh = (panel: { items: { text: string }[] }) =>
         panel.items.filter((item) => item.text === "teh → the").length;
       const undo = async () => {
-        await surface.focus(fixture.editable);
+        await surface.focus(editable);
         await pressUndo(page);
       };
       // A real click puts the caret in the editor, as a user does.
-      await surface.click(fixture.editable);
+      await surface.click(editable);
       await triggerReview(worker);
       const panel = await waitForReview(surface, `${name} findings`, (p) => teh(p) === 2);
       expect(panel.notes).not.toContain("Review only");
@@ -10440,7 +10494,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await setGrammarRules(worker, DEFAULT_CURRENT_GRAMMAR_RULES);
       await notifyConfigChange(browser, worker);
-      await surface.focus(fixture.editable);
+      await surface.focus(editable);
       await triggerReview(worker);
       await waitForReview(
         surface,
@@ -10468,47 +10522,68 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     suiteTimeout(50000, 70000),
   );
 
-  test.each(["ckeditor4", "froala", "summernote", "quill1", "quill2", "trix", "draft"] as const)(
+  /** Loads a typing editor fixture with prediction settings that each typing test needs. */
+  async function openTypingEditor(
+    name: TypingEditor,
+    options: { seed?: "blocks"; settings?: Record<string, unknown> } = {},
+  ) {
+    await setSettings(worker, {
+      // An earlier test in the same browser can leave these off.
+      [KEY_AUTOCOMPLETE]: true,
+      [KEY_AUTOCOMPLETE_ON_TAB]: true,
+      [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
+      [KEY_LANGUAGE]: "en_US",
+      [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+      [KEY_INLINE_SUGGESTION]: false,
+      [KEY_TEXT_EXPANSIONS]: [],
+      ...options.settings,
+    });
+    await setGrammarRules(worker, []);
+    await notifyConfigChange(browser, worker);
+    await gotoTestPage(page, { reviewEditor: name, reviewSeed: options.seed });
+    const fixture = await reviewEditorFixture(name);
+    await waitForInputReady(fixture.surface, fixture.editable);
+    return fixture;
+  }
+
+  /**
+   * Puts the DOM caret after `marker` in the editable. The model editors read
+   * the DOM selection on "selectionchange".
+   */
+  async function placeCaretAfter(surface: Page | Frame, editable: string, marker: string) {
+    await surface.$eval(
+      editable,
+      (root, text) => {
+        (root as HTMLElement).focus();
+        const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          const index = node.textContent!.indexOf(text);
+          if (index < 0) continue;
+          root.ownerDocument.getSelection()!.collapse(node, index + text.length);
+          return;
+        }
+        throw new Error(`No text node contains ${text}`);
+      },
+      marker,
+    );
+    // The editors take the DOM selection into their models on the next tasks.
+    await sleep(150);
+  }
+
+  function renderedText(surface: Page | Frame, editable: string) {
+    return surface.$eval(editable, (root) => (root.textContent ?? "").replace(/\u00a0/g, " "));
+  }
+
+  /** The model text of the "blocks" seed, blocks joined by "\n". */
+  const BLOCK_SEED_TEXT = "We saw teh cat and teh dog.\nSecond line here.\nList item here.";
+
+  test.each(TYPING_EDITORS.map(({ editor }) => editor))(
     "%s typing accepts a prediction with formatting kept and one native undo step",
     async (name) => {
-      await setSettings(worker, {
-        // An earlier test in the same browser can leave these off.
-        [KEY_AUTOCOMPLETE]: true,
-        [KEY_AUTOCOMPLETE_ON_TAB]: true,
-        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
-        [KEY_LANGUAGE]: "en_US",
-        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
-        [KEY_INLINE_SUGGESTION]: false,
-      });
-      await setGrammarRules(worker, []);
-      await notifyConfigChange(browser, worker);
-      await gotoTestPage(page, { reviewEditor: name });
-      const fixture = await waitUntil(
-        `${name} fixture`,
-        () =>
-          page.evaluate(() => {
-            if (window.__testReviewEditorError) throw new Error(window.__testReviewEditorError);
-            const editor = window.__testReviewEditor;
-            return editor ? { frame: editor.frame, editable: editor.editable } : false;
-          }),
-        { timeoutMs: INPUT_READY_TIMEOUT_MS },
-      );
-      const surface: Page | Frame = fixture.frame
-        ? await waitUntil(
-            `${name} editing frame`,
-            async () => (await (await page.$(fixture.frame!))?.contentFrame()) ?? false,
-            { timeoutMs: INPUT_READY_TIMEOUT_MS },
-          )
-        : page;
-      const model = () =>
-        page.evaluate(() => {
-          const editor = window.__testReviewEditor!;
-          return { text: editor.text().replace(/\u00a0/g, " "), runs: editor.runs() };
-        });
+      const { surface, editable, model } = await openTypingEditor(name);
       const seed = "We saw teh cat and teh dog.";
-      await waitForInputReady(surface, fixture.editable);
-      await surface.click(fixture.editable);
+      await surface.click(editable);
       await page.keyboard.press("End");
       await page.keyboard.type(" w");
       const prediction = await waitUntil(
@@ -10537,7 +10612,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect((await model()).text.toLowerCase()).toBe(
         `${seed} ${prediction.replace(/\xa0/g, " ")}`.toLowerCase(),
       );
-      await surface.focus(fixture.editable);
+      await surface.focus(editable);
       await pressUndo(page);
       // Quill puts the changes of the last second into one undo step, as for its own
       // typing: undo can also remove the typed prefix.
@@ -10547,6 +10622,111 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       ).catch(async (cause) => {
         throw new Error(`${name} model after undo: ${JSON.stringify(await model())}`, { cause });
       });
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  test.each(
+    TYPING_EDITORS.flatMap(({ editor }) =>
+      [
+        { where: "mid-line", marker: "We saw" },
+        { where: "in the second paragraph", marker: "Second line here." },
+        { where: "in a list item", marker: "List item here." },
+      ].map((place) => ({ editor, ...place })),
+    ),
+  )(
+    "$editor typing accepts a prediction $where and keeps the caret after the word",
+    async ({ editor: name, where, marker }) => {
+      const { surface, editable, model } = await openTypingEditor(name, {
+        seed: "blocks",
+        settings: { [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: false },
+      });
+      const failure = async (cause: unknown, details: object = {}) => {
+        throw new Error(`${name} ${where}: ${JSON.stringify({ ...details, ...(await model()) })}`, {
+          cause,
+        });
+      };
+      expect((await model()).text).toBe(BLOCK_SEED_TEXT);
+      await placeCaretAfter(surface, editable, marker);
+      await page.keyboard.type(" w");
+      const prediction = await waitUntil(
+        `${name} ${where} prediction`,
+        async () => {
+          const text = (await getVisibleSuggestionTexts(surface))[0]?.trim();
+          return text && /^w\S*$/i.test(text) ? text : false;
+        },
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      ).catch(failure);
+      await page.keyboard.press("Tab");
+      // The text after the caret stays unchanged and after the accepted word.
+      const withWord = (word: string) =>
+        BLOCK_SEED_TEXT.replace(marker, `${marker} ${word}`).toLowerCase();
+      await waitUntil(
+        `${name} ${where} acceptance`,
+        async () => (await model()).text.toLowerCase() === withWord(prediction),
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      ).catch((cause) => failure(cause, { prediction }));
+      // Draft.js renders its model later (see the caret test above).
+      await waitUntil(`${name} ${where} rendered`, async () =>
+        (await renderedText(surface, editable)).toLowerCase().includes(prediction.toLowerCase()),
+      );
+      // The model caret is after the accepted word: the next key goes there.
+      await page.keyboard.type("Z");
+      await waitUntil(
+        `${name} ${where} caret after the word`,
+        async () => (await model()).text.toLowerCase() === withWord(`${prediction}z`),
+      ).catch((cause) => failure(cause, { prediction }));
+      expect((await model()).runs).toEqual({ bold: ["teh"], links: ["teh"] });
+      // The list item stays a list item.
+      expect(
+        await surface.$eval(editable, (root) =>
+          Array.from(root.querySelectorAll("li"), (item) => item.textContent),
+        ),
+      ).toEqual([BLOCK_SEED_TEXT.split("\n")[2].replace(marker, `${marker} ${prediction}Z`)]);
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  test.each(TYPING_EDITORS.map(({ editor }) => editor))(
+    "%s typing expands a snippet in one native undo step",
+    async (name) => {
+      const { surface, editable, model } = await openTypingEditor(name, {
+        seed: "blocks",
+        settings: { [KEY_TEXT_EXPANSIONS]: [["ftsig", "Best regards"]] },
+      });
+      const marker = "Second line here.";
+      const withText = (text: string) => BLOCK_SEED_TEXT.replace(marker, `${marker} ${text}`);
+      // A trailing space of the expansion is not part of the check.
+      const text = async () => (await model()).text.replace(/ +(\n|$)/g, "$1");
+      try {
+        await placeCaretAfter(surface, editable, marker);
+        await page.keyboard.type(" ftsig");
+        await highlightSuggestion(page, "Best regards", surface);
+        await page.keyboard.press("Tab");
+        await waitUntil(
+          `${name} snippet expansion`,
+          async () => (await text()) === withText("Best regards"),
+          { timeoutMs: SUGGESTION_TIMEOUT_MS },
+        ).catch(async (cause) => {
+          throw new Error(`${name} model: ${JSON.stringify(await model())}`, { cause });
+        });
+        expect((await model()).runs).toEqual({ bold: ["teh"], links: ["teh"] });
+        await surface.focus(editable);
+        await pressUndo(page);
+        // Quill puts the changes of the last second into one undo step (see above).
+        const undone = name.startsWith("quill")
+          ? [withText("ftsig"), BLOCK_SEED_TEXT]
+          : [withText("ftsig")];
+        await waitUntil(`${name} undo restores the shortcut`, async () =>
+          undone.includes(await text()),
+        ).catch(async (cause) => {
+          throw new Error(`${name} model after undo: ${JSON.stringify(await model())}`, {
+            cause,
+          });
+        });
+      } finally {
+        await setSetting(worker, KEY_TEXT_EXPANSIONS, []);
+      }
     },
     suiteTimeout(30000, 50000),
   );

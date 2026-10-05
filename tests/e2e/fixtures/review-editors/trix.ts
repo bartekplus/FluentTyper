@@ -1,5 +1,5 @@
 import "trix";
-import { container, fail, flaggedRuns, LINK, publish } from "./shared";
+import { container, fail, flaggedRuns, LINK, publish, seedHtml } from "./shared";
 
 interface TrixElement extends HTMLElement {
   editor: {
@@ -15,7 +15,10 @@ try {
   input.type = "hidden";
   input.id = "test-review-trix-input";
   // Trix keeps blocks as <div>: this is the seed paragraph in its own markup.
-  input.value = `<div>We saw <strong>teh</strong> cat and <a href="${LINK}">teh</a> dog.</div>`;
+  input.value = seedHtml(
+    `<div>We saw <strong>teh</strong> cat and <a href="${LINK}">teh</a> dog.</div>`,
+    "div",
+  );
   const element = document.createElement("trix-editor") as TrixElement;
   element.setAttribute("input", input.id);
   element.addEventListener("trix-initialize", () => {

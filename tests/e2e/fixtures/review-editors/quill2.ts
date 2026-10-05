@@ -1,11 +1,11 @@
 import Quill from "quill";
-import { container, fail, flaggedRuns, LINK, loadStylesheet, publish, SEED_HTML } from "./shared";
+import { container, fail, flaggedRuns, LINK, loadStylesheet, publish, seedHtml } from "./shared";
 
 // Quill 2 bundled into the page: no window.Quill, and no instance on its container.
 try {
   loadStylesheet("/node_modules/quill/dist/quill.core.css");
   const target = container();
-  target.innerHTML = SEED_HTML;
+  target.innerHTML = seedHtml();
   const quill = new Quill(target);
   if ("Quill" in window) throw new Error("The bundled Quill 2 must not set window.Quill");
   quill.history.clear();

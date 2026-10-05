@@ -1,4 +1,4 @@
-import { container, domModel, fail, loadScript, publish, SEED_HTML } from "./shared";
+import { container, domModel, fail, loadScript, publish, seedHtml } from "./shared";
 
 interface CKEditor4 {
   editable(): { $: HTMLElement };
@@ -15,7 +15,7 @@ declare global {
 window.CKEDITOR_BASEPATH = "/node_modules/ckeditor4/";
 const textarea = document.createElement("textarea");
 textarea.id = "test-review-ckeditor4";
-textarea.value = SEED_HTML;
+textarea.value = seedHtml();
 container().append(textarea);
 loadScript("/node_modules/ckeditor4/ckeditor.js")
   .then(() => {

@@ -6,6 +6,20 @@
 export const LINK = "https://example.com/keep";
 export const SEED_TEXT = "We saw teh cat and teh dog.";
 export const SEED_HTML = `<p>We saw <strong>teh</strong> cat and <a href="${LINK}">teh</a> dog.</p>`;
+/** With `?reviewSeed=blocks`, the typing tests get these blocks after the seeded paragraph. */
+export const EXTRA_PARAGRAPH = "Second line here.";
+export const EXTRA_LIST_ITEM = "List item here.";
+
+export function blockSeed(): boolean {
+  return new URLSearchParams(location.search).get("reviewSeed") === "blocks";
+}
+
+/** The seed in the HTML that the editor reads, with its blocks when the page asks for them. */
+export function seedHtml(paragraph = SEED_HTML, tag = "p"): string {
+  return blockSeed()
+    ? `${paragraph}<${tag}>${EXTRA_PARAGRAPH}</${tag}><ul><li>${EXTRA_LIST_ITEM}</li></ul>`
+    : paragraph;
+}
 
 export interface ReviewEditorRuns {
   bold: string[];
