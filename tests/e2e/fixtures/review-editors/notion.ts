@@ -6,8 +6,8 @@
  * - One root contenteditable holds the page. Each text block has its own nested
  *   contenteditable leaf. Thus focus stays on the root.
  * - The page keeps its own model. On "input" it reads the DOM of the changed
- *   leaf into the model, with one undo step for each input. It does Undo and
- *   Redo itself.
+ *   leaf into the model, with one undo step for each input. It does Undo
+ *   itself.
  * - Its own selection model follows "selectionchange" and focus. A key or an
  *   input while that model is not in the leaf that changes is dropped, and the
  *   DOM change is reverted a moment later.
@@ -18,11 +18,10 @@
  */
 import { container, EXTRA_PARAGRAPH, fail, LINK, publish } from "./shared";
 
-export const NOTION_THIRD_BLOCK = "Third block here.";
 const SEED_BLOCKS = [
   `We saw <span data-bold="true" style="font-weight:600">teh</span> cat and <a href="${LINK}">teh</a> dog.`,
   EXTRA_PARAGRAPH,
-  NOTION_THIRD_BLOCK,
+  "Third block here.",
 ];
 /** Notion reverted an unsettled write "within 1 s". */
 const REVERT_DELAY_MS = 200;
@@ -37,7 +36,6 @@ interface Block {
 interface NotionStats {
   droppedKeys: number;
   reverted: number;
-  undoDepth: number;
   /** Attribute changes in the leaves that the DOM lock reverted. */
   lockedAttributes: number;
 }
@@ -90,11 +88,9 @@ try {
   const stats: NotionStats = {
     droppedKeys: 0,
     reverted: 0,
-    undoDepth: 0,
     lockedAttributes: 0,
   };
-  const undo: { block: Block; before: string; after: string }[] = [];
-  const redo: typeof undo = [];
+  const undo: { block: Block; before: string }[] = [];
   let selected: Block | null = null;
 
   const blockOf = (node: Node | null) =>
@@ -123,21 +119,14 @@ try {
     document.getSelection()?.removeAllRanges();
     document.getSelection()?.addRange(caret);
   };
-  const history = (from: typeof undo, to: typeof undo, side: "before" | "after") => {
-    const step = from.pop();
-    if (!step) return;
-    to.push(step);
-    render(step.block, step[side]);
-    stats.undoDepth = undo.length;
-  };
 
   root.addEventListener("keydown", (event) => {
     if (event.defaultPrevented || event.isComposing) return;
     if (["Shift", "Meta", "Control", "Alt", "CapsLock"].includes(event.key)) return;
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+    if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
       event.preventDefault();
-      if (event.shiftKey) history(redo, undo, "after");
-      else history(undo, redo, "before");
+      const step = undo.pop();
+      if (step) render(step.block, step.before);
       return;
     }
     // Notion splits blocks on Enter and indents on Tab; this page does neither.
@@ -163,10 +152,8 @@ try {
     const changed = blocks.filter((block) => block.leaf.innerHTML !== block.html);
     if (changed.length === 1 && changed[0] === selected) {
       const block = changed[0];
-      undo.push({ block, before: block.html, after: block.leaf.innerHTML });
-      redo.length = 0;
+      undo.push({ block, before: block.html });
       block.html = block.leaf.innerHTML;
-      stats.undoDepth = undo.length;
       return;
     }
     // An input outside the page's own selection: the page renders its model again.
@@ -194,23 +181,24 @@ try {
 
   container().append(root, outline);
   window.__testNotion = { stats, selectedBlock: () => selected?.id ?? null };
-  const model = () => blocks.map((block) => block.html);
+  // The model, not the DOM: a reverted DOM change never reaches it.
+  const model = () =>
+    blocks.map((block) => {
+      const element = document.createElement("div");
+      element.innerHTML = block.html;
+      return element;
+    });
   const texts = (selector: string) =>
-    blocks.flatMap((block) =>
-      Array.from(block.leaf.querySelectorAll(selector), (element) => element.textContent ?? ""),
+    model().flatMap((block) =>
+      Array.from(block.querySelectorAll(selector), (element) => element.textContent ?? ""),
     );
   publish({
     frame: null,
     // FluentTyper attaches to each block leaf, not to the page root.
     editable: '.notion-page-content [data-block-id="block-1"] [data-content-editable-leaf]',
-    // The model text, not the DOM: a reverted DOM change never reaches it.
     text: () =>
       model()
-        .map((html) => {
-          const element = document.createElement("div");
-          element.innerHTML = html;
-          return element.textContent ?? "";
-        })
+        .map((block) => block.textContent ?? "")
         .join("\n"),
     runs: () => ({ bold: texts("[data-bold]"), links: texts(`a[href="${LINK}"]`) }),
   });

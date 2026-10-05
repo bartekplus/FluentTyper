@@ -1,8 +1,4 @@
-import {
-  HOST_EDITOR_ENABLED_ATTR,
-  HOST_EDITOR_ENABLED_EVENT,
-} from "../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import {
   HOST_EDITOR_REQUEST_ATTR,
   HOST_EDITOR_REQUEST_EVENT,
@@ -10,6 +6,7 @@ import {
 } from "../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
 // Importing the module auto-installs the bridge via installHostEditorMainWorldBridge().
 import "../src/adapters/chrome/content-script/suggestions/HostEditorMainWorldBridge";
+import { enableHostEditorBridge } from "./suggestionTestUtils";
 
 // ---------------------------------------------------------------------------
 // CKEditor-5 model mock
@@ -689,11 +686,7 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
   });
 });
 
-beforeEach(() => {
-  document.documentElement.setAttribute(HOST_EDITOR_ENABLED_ATTR, "true");
-  document.dispatchEvent(new Event(HOST_EDITOR_ENABLED_EVENT));
-  document.documentElement.removeAttribute(HOST_EDITOR_ENABLED_ATTR);
-});
+beforeEach(() => enableHostEditorBridge());
 
 // ── IME composition ─────────────────────────────────────────────────
 // No bridge writer may change the text while an input method composes in the field.
@@ -710,86 +703,36 @@ const typing = (expectedBlockText: string, replaceStart: number, replacementText
   expectedBlockText,
 });
 
-/** The public API of the `trix-editor` element that the Review writer uses. */
-function mountTrix(initial: string) {
-  const element = document.createElement("trix-editor");
-  element.setAttribute("contenteditable", "true");
-  Object.defineProperty(element, "isContentEditable", { configurable: true, value: true });
-  const block = element.appendChild(document.createElement("div"));
-  block.textContent = initial;
-  const text = () => block.textContent ?? "";
-  // Trix keeps one immutable document object until the text changes.
-  let trixDocument = { toString: () => `${text()}\n` };
-  let range: [number, number] = [initial.length, initial.length];
-  const replace = (value: string) => {
-    block.textContent = text().slice(0, range[0]) + value + text().slice(range[1]);
-    range = [range[0] + value.length, range[0] + value.length];
-    trixDocument = { toString: () => `${text()}\n` };
+/** A CodeMirror 5 controller on a contenteditable field with one line. */
+function mountCodeMirror(initial: string) {
+  const editable = document.body.appendChild(document.createElement("div"));
+  editable.setAttribute("contenteditable", "true");
+  let line = initial;
+  (editable as HTMLElement & { editorCtl?: unknown }).editorCtl = {
+    replaceRange(value: string, from: { ch: number }, to?: { ch: number }) {
+      line = `${line.slice(0, from.ch)}${value}${line.slice(to?.ch ?? from.ch)}`;
+    },
+    setCursor: () => undefined,
+    getCursor: () => ({ line: 0, ch: line.length }),
+    getLine: () => line,
+    posFromIndex: (index: number) => ({ line: 0, ch: index }),
+    indexFromPos: (position: { ch: number }) => position.ch,
   };
-  (element as HTMLElement & { editor: unknown }).editor = {
-    getDocument: () => trixDocument,
-    getSelectedRange: () => range,
-    setSelectedRange: (next: [number, number]) => (range = next),
-    insertString: replace,
-    deleteInDirection: () => replace(""),
-    recordUndoEntry: () => undefined,
-  };
-  document.body.appendChild(element);
-  document.getSelection()!.collapse(block.firstChild, initial.length);
-  return { element, text };
+  return { editable, line: () => line };
 }
 
 describe("HostEditorMainWorldBridge – IME composition", () => {
-  test("Trix refuses Review reads, Review writes and typing writes while composing", () => {
-    const { element, text } = mountTrix("We saw teh");
-    const read = dispatchBridgeRequest(element, { action: "readReviewModel" }) as {
-      snapshot: { text: string; signature: string };
-    };
-    expect(read.snapshot.text).toBe("We saw teh");
-    const review = {
-      action: "applyReviewModel",
-      edits: [{ start: 7, end: 10, original: "teh", replacement: "the" }],
-      before: "We saw teh",
-      after: "We saw the",
-      signature: read.snapshot.signature,
-    };
-
-    compose(element, "compositionstart");
-    expect(dispatchBridgeRequest(element, { action: "readReviewModel" })).toEqual({ ok: false });
-    expect(dispatchBridgeRequest(element, review)).toEqual({
-      ok: true,
-      reviewResult: { status: "rejected", reason: "unsupported" },
-    });
-    expect(dispatchBridgeRequest(element, typing("We saw teh", 7, "the"))).toEqual({
-      ok: true,
-      result: { applied: false, didDispatchInput: false },
-    });
-    expect(text()).toBe("We saw teh");
-
-    compose(element, "compositionend");
-    expect(dispatchBridgeRequest(element, review)).toEqual({
-      ok: true,
-      reviewResult: { status: "applied" },
-    });
-    expect(text()).toBe("We saw the");
-  });
-
   test("a composition that starts while the bridge is off still blocks writes after it turns on", () => {
-    const setEnabled = (on: boolean) => {
-      document.documentElement.setAttribute(HOST_EDITOR_ENABLED_ATTR, String(on));
-      document.dispatchEvent(new Event(HOST_EDITOR_ENABLED_EVENT));
-      document.documentElement.removeAttribute(HOST_EDITOR_ENABLED_ATTR);
-    };
-    const { element, text } = mountTrix("We saw teh");
-    setEnabled(false);
-    compose(element, "compositionstart");
-    setEnabled(true);
-    expect(dispatchBridgeRequest(element, typing("We saw teh", 7, "the"))).toEqual({
+    const { editable, line } = mountCodeMirror("teh");
+    enableHostEditorBridge(false);
+    compose(editable, "compositionstart");
+    enableHostEditorBridge();
+    expect(dispatchBridgeRequest(editable, typing("teh", 0, "the"))).toEqual({
       ok: true,
       result: { applied: false, didDispatchInput: false },
     });
-    expect(text()).toBe("We saw teh");
-    compose(element, "compositionend");
+    expect(line()).toBe("teh");
+    compose(editable, "compositionend");
   });
 
   test("CKEditor 5 typing refuses to write while its view composes", () => {
@@ -814,33 +757,21 @@ describe("HostEditorMainWorldBridge – IME composition", () => {
   });
 
   test("a CodeMirror 5 controller refuses to write while the field composes", () => {
-    const editable = document.body.appendChild(document.createElement("div"));
-    editable.setAttribute("contenteditable", "true");
-    let line = "teh";
-    (editable as HTMLElement & { editorCtl?: unknown }).editorCtl = {
-      replaceRange(value: string, from: { ch: number }, to?: { ch: number }) {
-        line = `${line.slice(0, from.ch)}${value}${line.slice(to?.ch ?? from.ch)}`;
-      },
-      setCursor: () => undefined,
-      getCursor: () => ({ line: 0, ch: line.length }),
-      getLine: () => line,
-      posFromIndex: (index: number) => ({ line: 0, ch: index }),
-      indexFromPos: (position: { ch: number }) => position.ch,
-    };
+    const { editable, line } = mountCodeMirror("teh");
 
     compose(editable, "compositionstart");
     expect(dispatchBridgeRequest(editable, typing("teh", 0, "the"))).toEqual({
       ok: true,
       result: { applied: false, didDispatchInput: false },
     });
-    expect(line).toBe("teh");
+    expect(line()).toBe("teh");
 
     compose(editable, "compositionend");
     expect(dispatchBridgeRequest(editable, typing("teh", 0, "the"))).toEqual({
       ok: true,
       result: { applied: true, didDispatchInput: false },
     });
-    expect(line).toBe("the");
+    expect(line()).toBe("the");
   });
 
   test("a DOM-model editor (TinyMCE) refuses its native edit while the field composes", () => {

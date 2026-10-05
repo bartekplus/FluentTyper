@@ -22,11 +22,7 @@ import {
 import { registerRichText, HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { createEmptyHistoryState, registerHistory } from "@lexical/history";
 import { applyEdits } from "../src/core/domain/grammar/review/textRanges";
-import {
-  HOST_EDITOR_ENABLED_ATTR,
-  HOST_EDITOR_ENABLED_EVENT,
-  type HostEditorReviewApplyRequest,
-} from "../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
+import type { HostEditorReviewApplyRequest } from "../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
 import {
   applyReviewModel,
   modelBlockContext,
@@ -34,7 +30,8 @@ import {
   replaceModelBlock,
 } from "../src/adapters/chrome/content-script/suggestions/ReviewModelEditors";
 import { ContentEditableReviewTarget } from "../src/adapters/chrome/content-script/review/ReviewTargets";
-import { createReviewController } from "./reviewTestUtils";
+import { createReviewController, until } from "./reviewTestUtils";
+import { enableHostEditorBridge } from "./suggestionTestUtils";
 // The bridge records IME compositions for the Trix writer, which has no composition state of its own.
 import "../src/adapters/chrome/content-script/suggestions/HostEditorMainWorldBridge";
 
@@ -78,6 +75,9 @@ beforeAll(async () => {
 afterAll(() => {
   for (const cleanup of cleanups.reverse()) cleanup();
 });
+
+/** A pause in act(): React renders and runs its effects in it. */
+const settle = (ms: number) => act(() => Bun.sleep(ms));
 
 let reactRoot: Root | undefined;
 afterEach(() => {
@@ -374,9 +374,7 @@ describe("Review model writer – Draft.js", () => {
 
     act(() => compose(root, "compositionend"));
     // Draft.js leaves composition mode on its own timer, 20 ms after compositionend.
-    for (let wait = 0; state().isInCompositionMode() && wait < 50; wait++)
-      await act(() => new Promise((resolve) => setTimeout(resolve, 5)));
-    expect(state().isInCompositionMode()).toBe(false);
+    await until(() => !state().isInCompositionMode(), 250, settle);
     expect(apply(request)).toEqual({ status: "applied" });
     expect(text()).toBe("We saw the cat.");
   });
@@ -420,14 +418,9 @@ describe("Review model writer – Draft.js", () => {
     throw new Error("No text node holds ' cat.'");
   }
 
-  /** Turns the MAIN-world bridge on, as the content script does, for the Review target. */
-  function enableBridge(enabled: boolean): void {
-    document.documentElement.setAttribute(HOST_EDITOR_ENABLED_ATTR, String(enabled));
-    document.dispatchEvent(new Event(HOST_EDITOR_ENABLED_EVENT));
-    document.documentElement.removeAttribute(HOST_EDITOR_ENABLED_ATTR);
-  }
-  beforeEach(() => enableBridge(true));
-  afterEach(() => enableBridge(false));
+  // The content script turns the MAIN-world bridge on for the Review target.
+  beforeEach(() => enableHostEditorBridge());
+  afterEach(() => enableHostEditorBridge(false));
 
   test("a DOM ahead of the model when Review opens gets Apply after the model takes the text", async () => {
     const { root, state, set, text } = mountDraft();
@@ -473,20 +466,16 @@ describe("Review model writer – Draft.js", () => {
       document.querySelector("[data-fluenttyper-review]")?.shadowRoot?.querySelector(".notes")
         ?.textContent ?? "";
     // The open Review checks the editor once a second. Its events can update Draft.js.
-    const until = async (condition: () => boolean) => {
-      for (let wait = 0; !condition() && wait < 60; wait++) await act(() => Bun.sleep(50));
-      expect(condition()).toBe(true);
-    };
     try {
       act(() => review.invoke());
-      await until(() => notes().includes("Review only"));
+      await until(() => notes().includes("Review only"), 3000, settle);
       const content = Modifier.insertText(
         state().getCurrentContent(),
         state().getSelection(),
         " It",
       );
       set(EditorState.push(state(), content, "insert-characters"));
-      await until(() => !notes().includes("Review only"));
+      await until(() => !notes().includes("Review only"), 3000, settle);
     } finally {
       act(() => review.close());
     }
@@ -611,12 +600,23 @@ describe("Review model writer – Trix", () => {
   test("refuses reads and writes during a composition that the bridge records, and writes after it", async () => {
     const { element, text } = await mountTrix();
     const request = planFix(element);
+    // The caret is after "teh": without the composition, the typing write applies.
+    document.getSelection()!.collapse(element.querySelector("strong")!.firstChild!, 3);
     compose(element, "compositionstart");
     expect(readReviewModel(element)).toBeNull();
     expect(applyReviewModel(element, request)).toEqual({
       status: "rejected",
       reason: "unsupported",
     });
+    expect(
+      replaceModelBlock(element, {
+        expectedBlockText: SEED,
+        replaceStart: 7,
+        replaceEnd: 10,
+        replacementText: "the",
+        cursorAfter: 10,
+      }),
+    ).toEqual({ applied: false, didDispatchInput: false });
     expect(text()).toBe(SEED);
 
     compose(element, "compositionend");

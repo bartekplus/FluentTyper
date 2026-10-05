@@ -5,15 +5,11 @@
  * polyfills below add only browser features that JSDOM does not have; the
  * editor libraries are not changed.
  */
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { TinyMCE } from "tinymce";
 import type FroalaEditorClass from "froala-editor";
-import {
-  HOST_EDITOR_ENABLED_ATTR,
-  HOST_EDITOR_ENABLED_EVENT,
-} from "../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
 import { InjectedHostEditorPageBridge } from "../src/adapters/chrome/content-script/suggestions/HostEditorPageBridge";
 import { isComposingIn } from "../src/adapters/chrome/content-script/suggestions/HostEditorControllerUtils";
 import { reviewTransaction } from "../src/adapters/chrome/content-script/suggestions/ReviewDomEditors";
@@ -21,63 +17,91 @@ import { ContentEditableReviewTarget } from "../src/adapters/chrome/content-scri
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 // Installs the MAIN-world bridge on this document; Review and typing reach it through events.
 import "../src/adapters/chrome/content-script/suggestions/HostEditorMainWorldBridge";
+import { setCaret, setCaretAtTextOffset } from "./codeContextTestUtils";
+import { enableHostEditorBridge } from "./suggestionTestUtils";
 
 // ── Browser features that JSDOM does not implement ──────────────────
+// Unit files can share one process: afterAll removes each change below.
 const win = window as unknown as Record<string, unknown> & typeof window;
+const globals = globalThis as Record<string, unknown>;
+const cleanups: (() => void)[] = [];
+/** Defines `name` on `target` until the end of this file. */
+function override(target: object, name: string, descriptor: PropertyDescriptor): void {
+  const previous = Object.getOwnPropertyDescriptor(target, name);
+  const writable = "value" in descriptor ? { writable: true } : {};
+  Object.defineProperty(target, name, { configurable: true, ...writable, ...descriptor });
+  cleanups.push(() =>
+    previous ? Object.defineProperty(target, name, previous) : Reflect.deleteProperty(target, name),
+  );
+}
+// The libraries add their own globals to the window when they load, and
+// tslib helpers (__assign, __extends...) to the global object.
+const windowKeys = new Set(Object.getOwnPropertyNames(window));
+const globalKeys = new Set(Object.getOwnPropertyNames(globalThis));
+cleanups.push(() => {
+  for (const key of Object.getOwnPropertyNames(window))
+    if (!windowKeys.has(key)) Reflect.deleteProperty(window, key);
+  for (const key of Object.getOwnPropertyNames(globalThis))
+    if (key.startsWith("__") && !globalKeys.has(key)) Reflect.deleteProperty(globalThis, key);
+});
+afterAll(() => {
+  for (const cleanup of cleanups.reverse()) cleanup();
+});
 // TinyMCE detects the device type with media queries.
-win.matchMedia = (media: string) =>
-  ({
-    matches: false,
-    media,
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
-    addListener: () => undefined,
-    removeListener: () => undefined,
-  }) as unknown as MediaQueryList;
+override(win, "matchMedia", {
+  value: (media: string) =>
+    ({
+      matches: false,
+      media,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+    }) as unknown as MediaQueryList,
+});
 // Froala reads the cookie domain of the page.
-Object.defineProperty(document, "domain", { configurable: true, value: "localhost" });
+override(document, "domain", { value: "localhost", writable: false });
 // Editing hosts: the editors set and read contentEditable and isContentEditable.
-Object.defineProperties(window.HTMLElement.prototype, {
-  contentEditable: {
-    configurable: true,
-    get(this: HTMLElement) {
-      return this.getAttribute("contenteditable") ?? "inherit";
-    },
-    set(this: HTMLElement, value: string) {
-      if (value === "inherit") this.removeAttribute("contenteditable");
-      else this.setAttribute("contenteditable", value);
-    },
+override(window.HTMLElement.prototype, "contentEditable", {
+  get(this: HTMLElement) {
+    return this.getAttribute("contenteditable") ?? "inherit";
   },
-  isContentEditable: {
-    configurable: true,
-    get(this: HTMLElement) {
-      const host = this.closest("[contenteditable]");
-      return !!host && host.getAttribute("contenteditable") !== "false";
-    },
+  set(this: HTMLElement, value: string) {
+    if (value === "inherit") this.removeAttribute("contenteditable");
+    else this.setAttribute("contenteditable", value);
+  },
+});
+override(window.HTMLElement.prototype, "isContentEditable", {
+  get(this: HTMLElement) {
+    const host = this.closest("[contenteditable]");
+    return !!host && host.getAttribute("contenteditable") !== "false";
   },
 });
 // TinyMCE measures caret positions.
-window.Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
-window.Range.prototype.getBoundingClientRect = () => new DOMRect();
+override(window.Range.prototype, "getClientRects", { value: () => [] as unknown as DOMRectList });
+override(window.Range.prototype, "getBoundingClientRect", { value: () => new DOMRect() });
 // Summernote measures installed fonts on a 2D canvas when it loads.
-window.HTMLCanvasElement.prototype.getContext = (() => ({
-  clearRect: () => undefined,
-  fillText: () => undefined,
-  getImageData: () => ({ data: [] }),
-})) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+override(window.HTMLCanvasElement.prototype, "getContext", {
+  value: () => ({
+    clearRect: () => undefined,
+    fillText: () => undefined,
+    getImageData: () => ({ data: [] }),
+  }),
+});
 // The libraries use browser globals by their bare names (DOMParser, Range, getSelection...).
-const globals = globalThis as Record<string, unknown>;
 for (const key of Object.getOwnPropertyNames(window)) {
   if (key in globals) continue;
   const value = win[key];
-  globals[key] = typeof value === "function" && /^[a-z]/.test(key) ? value.bind(window) : value;
+  override(globals, key, {
+    value: typeof value === "function" && /^[a-z]/.test(key) ? value.bind(window) : value,
+  });
 }
 
 // ── The real libraries ──────────────────────────────────────────────
 await import("tinymce/tinymce");
 const tinymce = win.tinymce as TinyMCE;
 // The TinyMCE plugin files register on the bare global `tinymce`.
-globals.tinymce = tinymce;
+override(globals, "tinymce", { value: tinymce });
 // These parts of TinyMCE have no type declarations; they only register themselves.
 for (const part of ["tinymce/icons/default", "tinymce/themes/silver", "tinymce/models/dom"])
   await import(part);
@@ -309,11 +333,6 @@ function caretOffset(editable: HTMLElement): number {
   return prefix.toString().replace(/\u200b/g, "").length;
 }
 
-function putCaretAtEnd(editable: HTMLElement): void {
-  const last = textNodeOf(editable, "cat.");
-  document.getSelection()!.collapse(last, last.length);
-}
-
 /** A Review read, then one "teh" -> "the" edit with that read's text and signature. */
 function reviewEdit(target: ContentEditableReviewTarget) {
   const read = target.read();
@@ -345,17 +364,6 @@ function typeReplacement(editable: HTMLElement, before = editable.textContent ??
   });
 }
 
-/** Puts a collapsed caret at a character offset in the editable's text. */
-function putCaretAt(editable: HTMLElement, offset: number): void {
-  const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const length = (node as Text).length;
-    if (offset <= length) return void document.getSelection()!.collapse(node, offset);
-    offset -= length;
-  }
-  throw new Error("The offset is after the text");
-}
-
 /** The typing path of FluentTyper: the adapter selects "teh" and replaces it. */
 function typeThroughAdapter(editable: HTMLElement) {
   editable.focus();
@@ -375,11 +383,7 @@ const visibleText = (editable: HTMLElement) => (editable.textContent ?? "").repl
 const boldText = (editable: HTMLElement) =>
   [...editable.querySelectorAll("b, strong")].map((node) => node.textContent);
 
-beforeEach(() => {
-  document.documentElement.setAttribute(HOST_EDITOR_ENABLED_ATTR, "true");
-  document.dispatchEvent(new Event(HOST_EDITOR_ENABLED_EVENT));
-  document.documentElement.removeAttribute(HOST_EDITOR_ENABLED_ATTR);
-});
+beforeEach(() => enableHostEditorBridge());
 
 afterEach(() => {
   try {
@@ -417,7 +421,7 @@ describe.each(EDITORS)("$name Review writer (real library)", (editor) => {
 describe.each([...EDITORS, ROOSTER])("$name Review and typing writer (real library)", (editor) => {
   test("one Review edit keeps the formatting wrapper and the caret", async () => {
     const editable = await mount(editor);
-    putCaretAtEnd(editable);
+    setCaret(textNodeOf(editable, "cat."));
     const caret = caretOffset(editable);
     const target = new ContentEditableReviewTarget(editable);
     const request = reviewEdit(target);
@@ -431,7 +435,7 @@ describe.each([...EDITORS, ROOSTER])("$name Review and typing writer (real libra
 
   test("a Review batch across two text nodes is one host undo step", async () => {
     const editable = await mount(editor);
-    putCaretAtEnd(editable);
+    setCaret(textNodeOf(editable, "cat."));
     const target = new ContentEditableReviewTarget(editable);
     const read = target.read();
     if (!read.ok) throw new Error(`unreadable: ${read.reason}`);
@@ -459,7 +463,7 @@ describe.each([...EDITORS, ROOSTER])("$name Review and typing writer (real libra
     const editable = await mount(editor);
     // Typing that the host has not recorded as an undo step yet.
     textNodeOf(editable, "cat.").appendData(" Hi");
-    putCaretAtEnd(editable);
+    setCaret(textNodeOf(editable, "cat."));
     const target = new ContentEditableReviewTarget(editable);
     expect(await target.apply(reviewEdit(target))).toEqual({ status: "applied" });
     expect(editable.textContent).toBe("We saw the cat. Hi");
@@ -488,7 +492,7 @@ describe.each([...EDITORS, ROOSTER])("$name Review and typing writer (real libra
 
   test("refuses Review and typing edits during an IME composition, then writes after it", async () => {
     const editable = await mount(editor);
-    putCaretAtEnd(editable);
+    setCaret(textNodeOf(editable, "cat."));
     const target = new ContentEditableReviewTarget(editable);
     const request = reviewEdit(target);
 
@@ -527,7 +531,7 @@ describe.each([...EDITORS, ROOSTER].filter(({ name }) => name !== "TinyMCE"))(
         // Typing that the host has not recorded as an undo step yet.
         textNodeOf(editable, "cat.").appendData(" Hi");
         editable.focus();
-        putCaretAt(editable, caret);
+        setCaretAtTextOffset(editable, caret);
         expect(typeThroughAdapter(editable).appliedBy).toBe("host-beforeinput");
         expect(editable.textContent).toBe("We saw the cat. Hi");
 
@@ -567,7 +571,7 @@ describe.each([...EDITORS, ROOSTER].filter(({ name }) => name !== "TinyMCE"))(
       const editable = await mount(editor);
       textNodeOf(editable, "cat.").appendData(" Hi");
       editable.focus();
-      putCaretAt(editable, 17);
+      setCaretAtTextOffset(editable, 17);
       const target = new ContentEditableReviewTarget(editable);
       expect(await target.apply(reviewEdit(target))).toEqual({ status: "applied" });
 
@@ -632,7 +636,7 @@ describe("RoosterJS writer (Outlook on the web)", () => {
 
   test("refuses Review and typing edits while Rooster reports an IME composition", async () => {
     const editable = await mount(ROOSTER);
-    putCaretAtEnd(editable);
+    setCaret(textNodeOf(editable, "cat."));
     const target = new ContentEditableReviewTarget(editable);
     const request = reviewEdit(target);
     // Outlook's editor has isInIME(); no DOM composition event reached the bridge.

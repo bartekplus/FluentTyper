@@ -435,12 +435,22 @@
     },
     {
       "id": "ckeditor_inline_object_typing",
-      "description": "CKEditor 5 accepts a prediction typed after an inline image in one model batch: the image stays and one Undo removes only the accepted word. An edit that contains an inline object, or has one between the edit and the caret, is refused.",
+      "description": "CKEditor 5 accepts a prediction typed after an inline image in one model batch: the image stays and one Undo removes only the accepted word. An edit that contains an inline object, or has one between the edit and the caret, is refused. The unit test of an edit across an inline image is a guard: it passes also without the inline object support.",
       "coverage": [
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "CKEditor accepts a prediction after an inline image in one model batch and keeps the image"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/HostEditorCKEditor5Bridge.test.ts",
+          "test": "a replacement after an inline image uses model offsets and keeps the image"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/HostEditorCKEditor5Bridge.test.ts",
+          "test": "a collapsed insertion at a softBreak goes to the caret's side of the break"
         },
         {
           "layer": "unit",
@@ -3224,7 +3234,7 @@
     },
     {
       "id": "dom_editor_undo_caret",
-      "description": "In TinyMCE, CKEditor 4, Froala, Summernote and RoosterJS, the host undo step before a typing write or a Review fix holds the user's caret, not the replaced range. After Undo, the caret is collapsed where the user had it, and the next key extends the typed word.",
+      "description": "In TinyMCE, CKEditor 4, Froala, Summernote and RoosterJS, the host undo step before a typing write or a Review fix holds the user's caret, not the replaced range. After Undo, the caret is collapsed where the user had it, and the next key extends the typed word. The unit test of the Review fix is a guard: a Review fix kept the caret also before this support.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3240,6 +3250,98 @@
           "layer": "unit",
           "file": "tests/ReviewDomEditors.test.ts",
           "test": "after a Review fix, Undo puts back the caret of the user"
+        }
+      ]
+    },
+    {
+      "id": "ime_composition_blocks_writes",
+      "description": "While an IME composition runs in a field, no writer changes its text. Review reads and writes and typing writes are refused in CKEditor 5, CodeMirror 5, TinyMCE, CKEditor 4, Froala, Summernote, RoosterJS, Lexical, Draft.js, Trix, Slate, ProseMirror and a Notion block leaf. A composition that starts while the bridge is off also blocks writes. A Review that opens during a composition gets its writer when the composition ends.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/HostEditorCKEditor5Bridge.test.ts",
+          "test": "a composition that starts while the bridge is off still blocks writes after it turns on"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/HostEditorCKEditor5Bridge.test.ts",
+          "test": "CKEditor 5 typing refuses to write while its view composes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/HostEditorCKEditor5Bridge.test.ts",
+          "test": "a CodeMirror 5 controller refuses to write while the field composes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/HostEditorCKEditor5Bridge.test.ts",
+          "test": "a DOM-model editor (TinyMCE) refuses its native edit while the field composes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewDomEditors.test.ts",
+          "test": "refuses Review and typing edits during an IME composition, then writes after it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewDomEditors.test.ts",
+          "test": "refuses Review and typing edits while Rooster reports an IME composition"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewModelEditors.test.ts",
+          "test": "refuses reads and writes while Lexical composes, and writes after the composition"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewModelEditors.test.ts",
+          "test": "refuses reads and writes while Draft.js composes, and writes after the composition"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewModelEditors.test.ts",
+          "test": "refuses reads and writes during a composition that the bridge records, and writes after it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SlateEditor.test.ts",
+          "test": "an IME composition blocks Review reads, Review writes and typing writes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SlateEditor.test.ts",
+          "test": "a Review opened during an IME composition gets the Slate writer after it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ProseMirrorReview.test.ts",
+          "test": "a Review opened during an IME composition gets the ProseMirror writer after it"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a review opened during an IME composition writes nothing until the composition ends"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a review opened during an IME composition in a Notion block reads again when it ends"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/NotionEnvironment.test.ts",
+          "test": "a typing write in a Notion leaf needs the selection already in that leaf"
+        }
+      ]
+    },
+    {
+      "id": "google_docs_per_edit_note",
+      "description": "Google Docs Review applies one fix at a time. The panel keeps the \"Apply fixes individually\" note also after a paint without the text runs of Docs.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Docs highlights follow its text runs, step aside for its menus and answer only clicks"
         }
       ]
     },

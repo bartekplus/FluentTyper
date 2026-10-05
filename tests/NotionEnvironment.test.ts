@@ -54,25 +54,6 @@ function notionPage(...blocks: string[]) {
   return { root, leaves };
 }
 
-/** A stand-in for the browser's insertText: it replaces the selected range. */
-function withInsertText(run: () => void): void {
-  const original = document.execCommand;
-  document.execCommand = ((command: string, _ui?: boolean, value?: string) => {
-    const range = document.getSelection()!.getRangeAt(0);
-    if (command !== "insertText") return false;
-    range.deleteContents();
-    const text = document.createTextNode(value ?? "");
-    range.insertNode(text);
-    setCaret(text);
-    return true;
-  }) as typeof document.execCommand;
-  try {
-    run();
-  } finally {
-    document.execCommand = original;
-  }
-}
-
 test("the leaf that holds the selection is the field, never the Notion page root", () => {
   const { root, leaves } = notionPage("First block", "Second block");
   root.focus();
@@ -201,7 +182,9 @@ test("a Notion leaf that detaches leaves the shared root state to the other leav
 test("a typing write in a Notion leaf needs the selection already in that leaf", () => {
   const { root, leaves } = notionPage("We saw teh", "Other block");
   const adapter = new ContentEditableAdapter();
-  withInsertText(() => {
+  // A kept write starts a revert check timer: fake timers end it in this test.
+  jest.useFakeTimers();
+  try {
     // The root has no focus: refused, and nothing moves focus or the selection.
     setCaret(leaves[0].firstChild!, 10);
     expect(adapter.replaceTextByOffsets(leaves[0], 7, 10, "the", 10).appliedBy).toBe("refused");
@@ -226,7 +209,10 @@ test("a typing write in a Notion leaf needs the selection already in that leaf",
     expect(result.unverified).toBeUndefined();
     expect(leaves[0].textContent).toBe("We saw the");
     expect(leaves[1].textContent).toBe("Other block");
-  });
+    jest.runOnlyPendingTimers();
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 test("a Review fix in Notion writes nothing when the review closes during the focus wait", async () => {
@@ -237,40 +223,35 @@ test("a Review fix in Notion writes nothing when the review closes during the fo
   // Focus is elsewhere (the Review panel): the fix gives focus back to the root and waits.
   setCaret(leaves[0].firstChild!, 10);
   root.blur();
-  const original = document.execCommand;
-  document.execCommand = ((command: string, _ui?: boolean, value?: string) => {
-    if (command !== "insertText") return false;
-    const range = document.getSelection()!.getRangeAt(0);
-    range.deleteContents();
-    range.insertNode(document.createTextNode(value ?? ""));
-    return true;
-  }) as typeof document.execCommand;
-  try {
-    const pending = target.apply({
-      edits: [{ start: 7, end: 10, original: "teh", replacement: "the" }],
-      before: read.text,
-      after: "We saw the",
-      signature: read.signature,
-    });
-    // Notion puts its selection back in the leaf when its root gets focus.
-    setCaret(leaves[0].firstChild!, 10);
-    // The user closes Review while the fix waits for Notion.
-    target.dispose();
-    expect(await pending).toEqual({ status: "rejected", reason: "host-refused" });
-    expect(leaves[0].textContent).toBe("We saw teh");
-  } finally {
-    document.execCommand = original;
-  }
+  const pending = target.apply({
+    edits: [{ start: 7, end: 10, original: "teh", replacement: "the" }],
+    before: read.text,
+    after: "We saw the",
+    signature: read.signature,
+  });
+  // Notion puts its selection back in the leaf when its root gets focus.
+  setCaret(leaves[0].firstChild!, 10);
+  // The user closes Review while the fix waits for Notion.
+  target.dispose();
+  expect(await pending).toEqual({ status: "rejected", reason: "host-refused" });
+  expect(leaves[0].textContent).toBe("We saw teh");
 });
 
 test("a Notion write counts as kept only when Notion does not revert it in the window", async () => {
-  const { leaves } = notionPage("We saw the", "We saw the");
-  const [kept, reverted] = [
-    notionWriteKept(leaves[0], "We saw teh"),
-    notionWriteKept(leaves[1], "We saw teh"),
-  ];
-  // Notion renders its model again: the old text, then later text typed on top.
-  setTimeout(() => (leaves[1].textContent = "We saw teh"), 50);
-  setTimeout(() => (leaves[1].textContent = "We saw teh!"), 100);
-  expect(await Promise.all([kept, reverted])).toEqual([true, false]);
+  jest.useFakeTimers();
+  try {
+    const { leaves } = notionPage("We saw the", "We saw the");
+    const kept = notionWriteKept(leaves[0], "We saw teh");
+    const reverted = notionWriteKept(leaves[1], "We saw teh");
+    // Notion renders its model again: the old text, then later text typed on top.
+    leaves[1].textContent = "We saw teh";
+    await Promise.resolve();
+    leaves[1].textContent = "We saw teh!";
+    await Promise.resolve();
+    // The revert window ends.
+    jest.runOnlyPendingTimers();
+    expect(await Promise.all([kept, reverted])).toEqual([true, false]);
+  } finally {
+    jest.useRealTimers();
+  }
 });

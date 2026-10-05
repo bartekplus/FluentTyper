@@ -226,12 +226,12 @@ export function querySuggestionMenuItemByIndex(
 type LinePosition = { line: number; ch: number };
 
 /**
- * Turns on the MAIN-world host editor bridge in this window. A page controller
- * expando is visible only there, as in a browser.
+ * Turns the MAIN-world host editor bridge in this window on or off. A page
+ * controller expando is visible only there, as in a browser.
  */
-export function enableHostEditorBridge(): void {
+export function enableHostEditorBridge(enabled = true): void {
   installHostEditorMainWorldBridge();
-  document.documentElement.setAttribute(HOST_EDITOR_ENABLED_ATTR, "true");
+  document.documentElement.setAttribute(HOST_EDITOR_ENABLED_ATTR, String(enabled));
   document.dispatchEvent(new Event(HOST_EDITOR_ENABLED_EVENT));
   document.documentElement.removeAttribute(HOST_EDITOR_ENABLED_ATTR);
 }

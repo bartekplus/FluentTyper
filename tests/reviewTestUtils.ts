@@ -25,3 +25,16 @@ export function createReviewController(
     ...overrides,
   });
 }
+
+/** Waits until `predicate` is true. A React test passes a `wait` that runs in act(). */
+export async function until(
+  predicate: () => boolean,
+  timeoutMs = 1000,
+  wait: (ms: number) => Promise<unknown> = Bun.sleep,
+): Promise<void> {
+  for (let elapsed = 0; elapsed < timeoutMs; elapsed += 5) {
+    if (predicate()) return;
+    await wait(5);
+  }
+  if (!predicate()) throw new Error("condition not reached");
+}

@@ -1,7 +1,7 @@
 import { detectReviewDiagnostics } from "../src/core/domain/grammar/review/reviewDiagnostics";
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import { createEditor, setCaret } from "./codeContextTestUtils";
-import { createReviewController } from "./reviewTestUtils";
+import { createReviewController, until } from "./reviewTestUtils";
 import {
   buildContentEditableTextMap,
   domPositionToOffset,
@@ -95,14 +95,6 @@ function textarea(value: string): HTMLTextAreaElement {
 
 function edit(start: number, end: number, original: string, replacement: string): ReviewEdit {
   return { start, end, original, replacement };
-}
-
-async function until(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
-  for (let i = 0; i < timeoutMs / 5; i += 1) {
-    if (predicate()) return;
-    await Bun.sleep(5);
-  }
-  throw new Error("condition not reached");
 }
 
 afterEach(() => {

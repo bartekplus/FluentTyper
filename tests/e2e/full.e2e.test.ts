@@ -39,6 +39,7 @@ import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
 import { grammarRuleSelectionToOverrides } from "../../src/core/domain/grammar/GrammarRuleSettings";
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 import type { BackgroundContext } from "./e2e-helpers";
+import { EXTRA_LIST_ITEM, EXTRA_PARAGRAPH, SEED_TEXT } from "./fixtures/review-editors/shared";
 import {
   BROWSER_TYPE,
   clickFirstVisibleSuggestion,
@@ -779,6 +780,18 @@ async function waitForVisibleSuggestions(
   timeoutMs = SUGGESTION_TIMEOUT_MS,
 ): Promise<number> {
   return (await waitForVisibleSuggestionTexts(page, timeoutMs)).length;
+}
+
+/** Waits for a first suggestion for the typed prefix "w" and returns it, trimmed. */
+async function wPrediction(surface: Page | Frame, label: string): Promise<string> {
+  return waitUntil(
+    label,
+    async () => {
+      const text = (await getVisibleSuggestionTexts(surface))[0]?.trim();
+      return text && /^w\S*$/i.test(text) ? text : false;
+    },
+    { timeoutMs: SUGGESTION_TIMEOUT_MS },
+  );
 }
 
 async function highlightSuggestion(
@@ -2428,7 +2441,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         setData(data: string): void;
         editing: { view: { focus(): void } };
         model: {
-          document: { getRoot(): { getChild(index: number): unknown } };
+          document: {
+            getRoot(): { getChild(index: number): { getChildren(): Iterable<ModelNode> } };
+          };
           change(
             callback: (writer: {
               insertText(text: string, parent: unknown, offset: number | "end"): void;
@@ -2465,15 +2480,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const model = () =>
         page.evaluate(() => {
           const root = (
-            window as typeof window & {
-              __testCkEditor?: {
-                model: {
-                  document: {
-                    getRoot(): { getChild(index: number): { getChildren(): Iterable<ModelNode> } };
-                  };
-                };
-              };
-            }
+            window as typeof window & { __testCkEditor?: ModelEditor }
           ).__testCkEditor!.model.document.getRoot();
           return Array.from(root.getChild(0).getChildren(), (node) =>
             node.is("$text") ? node.data : `[${node.name}]`,
@@ -2482,14 +2489,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(await model()).toBe("We saw[imageInline]");
 
       await page.keyboard.type(" w");
-      const prediction = await waitUntil(
-        "CKEditor prediction after the inline image",
-        async () => {
-          const text = (await getVisibleSuggestionTexts(page))[0]?.trim();
-          return text && /^w\S*$/i.test(text) ? text : false;
-        },
-        { timeoutMs: SUGGESTION_TIMEOUT_MS },
-      );
+      const prediction = await wPrediction(page, "CKEditor prediction after the inline image");
       await page.keyboard.press("Tab");
       await waitUntil(
         "CKEditor accepts the word after the inline image",
@@ -10718,13 +10718,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   }
 
   /** The model text of the "blocks" seed, blocks joined by "\n". */
-  const BLOCK_SEED_TEXT = "We saw teh cat and teh dog.\nSecond line here.\nList item here.";
+  const BLOCK_SEED_TEXT = [SEED_TEXT, EXTRA_PARAGRAPH, EXTRA_LIST_ITEM].join("\n");
 
   test.each(TYPING_EDITORS.map(({ editor }) => editor))(
     "%s typing accepts a prediction with formatting kept and one native undo step",
     async (name) => {
       const { surface, editable, model } = await openTypingEditor(name);
-      const seed = "We saw teh cat and teh dog.";
+      const seed = SEED_TEXT;
       // Not a click and End: in a focused Firefox window, Trix 2.1.19 moves the caret
       // to the start of the text on focus, and End does not move it from there.
       await placeCaretAfter(surface, editable, "dog.");
@@ -10793,14 +10793,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect((await model()).text).toBe(BLOCK_SEED_TEXT);
       await placeCaretAfter(surface, editable, marker);
       await page.keyboard.type(" w");
-      const prediction = await waitUntil(
-        `${name} ${where} prediction`,
-        async () => {
-          const text = (await getVisibleSuggestionTexts(surface))[0]?.trim();
-          return text && /^w\S*$/i.test(text) ? text : false;
-        },
-        { timeoutMs: SUGGESTION_TIMEOUT_MS },
-      ).catch(failure);
+      const prediction = await wPrediction(surface, `${name} ${where} prediction`).catch(failure);
       await page.keyboard.press("Tab");
       // The text after the caret stays unchanged and after the accepted word.
       const withWord = (word: string) =>
@@ -10835,7 +10828,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "RoosterJS typing acceptance after a click snapshot is one Rooster undo step, and Redo restores it",
     async () => {
       const { surface, editable, model } = await openTypingEditor("roosterjs");
-      const seed = "We saw teh cat and teh dog.";
+      const seed = SEED_TEXT;
       await surface.click(editable);
       await page.keyboard.press("End");
       await page.keyboard.type(" w");
@@ -10887,7 +10880,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "%s Undo of an accepted prediction leaves the caret after the typed prefix",
     async (name) => {
       const { surface, editable, model } = await openTypingEditor(name);
-      const seed = "We saw teh cat and teh dog.";
+      const seed = SEED_TEXT;
       await surface.click(editable);
       await page.keyboard.press("End");
       await page.keyboard.type(" w");
@@ -10969,7 +10962,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
   // ------------------------------------------------------------ Notion-like page
 
-  const NOTION_SEED = "We saw teh cat and teh dog.\nSecond line here.\nThird block here.";
+  const NOTION_SEED = [SEED_TEXT, EXTRA_PARAGRAPH, "Third block here."].join("\n");
   const notionLeaf = (block: number) =>
     `.notion-page-content [data-block-id="block-${block}"] [data-content-editable-leaf]`;
   const notionStats = () => page.evaluate(() => window.__testNotion!.stats);
@@ -10986,17 +10979,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     await page.keyboard.press("End");
   }
 
-  async function notionPrediction(label: string) {
-    return waitUntil(
-      label,
-      async () => {
-        const text = (await getVisibleSuggestionTexts(page))[0]?.trim();
-        return text && /^w\S*$/i.test(text) ? text : false;
-      },
-      { timeoutMs: SUGGESTION_TIMEOUT_MS },
-    );
-  }
-
   test(
     "Notion-like page: typing accepts a prediction in the block leaf, as one undo step of the page",
     async () => {
@@ -11006,7 +10988,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect((await model()).text).toBe(NOTION_SEED);
       await clickNotionBlockEnd(1);
       await page.keyboard.type(" w");
-      const prediction = await notionPrediction("Notion-like prediction in block 1");
+      const prediction = await wPrediction(page, "Notion-like prediction in block 1");
       // The field is the leaf of the block. Its state is on the page root, which
       // Notion does not lock.
       expect(
@@ -11026,9 +11008,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         { timeoutMs: SUGGESTION_TIMEOUT_MS },
       );
       expect((await model()).runs).toEqual({ bold: ["teh"], links: ["teh"] });
-      // The page kept the write: no revert. One Undo removes only the accepted word.
-      await sleep(400); // longer than the page's revert delay (200 ms)
-      expect((await model()).text.toLowerCase()).toBe(accepted);
+      // The page kept the write: it counts a revert on the input event itself.
+      // One Undo removes only the accepted word.
       expect((await notionStats()).reverted).toBe(0);
       await pressUndo(page);
       await waitUntil(
@@ -11058,7 +11039,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         });
       });
       await page.keyboard.type("w");
-      const prediction = await notionPrediction("Notion-like prediction with the DOM lock");
+      const prediction = await wPrediction(page, "Notion-like prediction with the DOM lock");
       // The menu renders on the key: FluentTyper put no state on a leaf, so the lock had no work.
       expect((await notionStats()).lockedAttributes).toBe(0);
       await page.keyboard.press("Tab");
@@ -11087,7 +11068,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       });
       await clickNotionBlockEnd(2);
       await page.keyboard.type(" w");
-      const prediction = await notionPrediction("Notion-like prediction in block 2");
+      const prediction = await wPrediction(page, "Notion-like prediction in block 2");
       await page.keyboard.press("Tab");
       const withWord = (word: string) =>
         NOTION_SEED.replace("here.\nThird", `here. ${word}\nThird`).toLowerCase();
@@ -11112,7 +11093,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const { model } = await openTypingEditor("notion");
       await clickNotionBlockEnd(2);
       await page.keyboard.type(" w");
-      await notionPrediction("Notion-like prediction before Escape");
+      await wPrediction(page, "Notion-like prediction before Escape");
       await page.keyboard.press("Escape");
       await waitUntil(
         "Notion-like popup closed",
@@ -11200,7 +11181,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           p.status.includes("The editor refused the change.") &&
           p.items.filter((finding) => finding.text === "teh → the").length === 2,
       );
-      await sleep(400); // longer than the page's revert delay (200 ms)
+      // Negative check: no event marks the absence of a late write. Wait longer
+      // than the page's revert delay (200 ms), then check that nothing changed.
+      await sleep(400);
       expect((await model()).text).toBe(NOTION_SEED);
       expect(await page.$eval(notionLeaf(1), (leaf) => leaf.textContent)).toBe(
         NOTION_SEED.split("\n")[0],
