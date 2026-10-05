@@ -18,7 +18,7 @@ import {
   type ReviewLanguageData,
 } from "@core/domain/grammar/review/reviewLanguageData";
 import {
-  finalizeReview,
+  finalizeReviewAsync,
   prepareReview,
   reviewChunks,
   scanReviewChunk,
@@ -80,7 +80,10 @@ export class LocalReviewEngine implements ReviewEngine {
       await this.pause();
       signal?.throwIfAborted();
     }
-    const result = finalizeReview(prepared, scans, request.gaps);
+    const result = await finalizeReviewAsync(prepared, scans, request.gaps, async () => {
+      await this.pause();
+      signal?.throwIfAborted();
+    });
     this.last = prepared;
     const { snapshot, options: _options, rules, dictionary, text, ...data } = prepared;
     return {

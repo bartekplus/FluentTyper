@@ -388,6 +388,43 @@ export function finalizeReview(
   scans: readonly ChunkScan[],
   extraGaps: Partial<Record<CoverageGap, number>> = {},
 ): ReviewScanResult {
+  return drain(finalizeSteps(prepared, scans, extraGaps));
+}
+
+/** finalizeReview, pausing (`pause`) at each step so the page stays responsive. */
+export function finalizeReviewAsync(
+  prepared: PreparedReview,
+  scans: readonly ChunkScan[],
+  extraGaps: Partial<Record<CoverageGap, number>>,
+  pause: () => Promise<void>,
+): Promise<ReviewScanResult> {
+  return drainAsync(finalizeSteps(prepared, scans, extraGaps), pause);
+}
+
+/** Runs `steps` to the end without pausing. */
+function drain<T>(steps: Generator<void, T, void>): T {
+  for (let step = steps.next(); ; step = steps.next()) {
+    if (step.done) return step.value;
+  }
+}
+
+/** Runs `steps` to the end, calling `pause` at each yield so the page stays responsive. */
+async function drainAsync<T>(
+  steps: Generator<void, T, void>,
+  pause: () => Promise<void>,
+): Promise<T> {
+  for (let step = steps.next(); ; step = steps.next()) {
+    if (step.done) return step.value;
+    await pause();
+  }
+}
+
+// eslint-disable-next-line require-yield -- The repair pass (next commit) adds the yields.
+function* finalizeSteps(
+  prepared: PreparedReview,
+  scans: readonly ChunkScan[],
+  extraGaps: Partial<Record<CoverageGap, number>>,
+): Generator<void, ReviewScanResult, void> {
   const seen = new Set<string>();
   const diagnostics: ReviewDiagnostic[] = [];
   const failed = new Set<CatalogRuleId>();
@@ -505,38 +542,33 @@ export function stillDetectedAfter(
   diagnostics: readonly ReviewDiagnostic[],
   otherEdits: readonly ReviewEdit[],
 ): boolean[] {
-  const steps = proofSteps(prepared, diagnostics, otherEdits);
-  for (let step = steps.next(); ; step = steps.next()) {
-    if (step.done) return step.value;
-  }
+  return drain(proofSteps(prepared, diagnostics, otherEdits));
 }
 
 /** stillDetectedAfter, pausing (`pause`) between its scans so the page stays responsive. */
-export async function stillDetectedAfterAsync(
+export function stillDetectedAfterAsync(
   prepared: PreparedReview,
   diagnostics: readonly ReviewDiagnostic[],
   otherEdits: readonly ReviewEdit[],
   pause: () => Promise<void>,
 ): Promise<boolean[]> {
-  const steps = proofSteps(prepared, diagnostics, otherEdits);
-  for (let step = steps.next(); ; step = steps.next()) {
-    if (step.done) return step.value;
-    await pause();
-  }
+  return drainAsync(proofSteps(prepared, diagnostics, otherEdits), pause);
 }
 
-/** The proof as steps: it yields after preparing and after each scan. */
-function* proofSteps(
-  prepared: PreparedReview,
-  diagnostics: readonly ReviewDiagnostic[],
-  otherEdits: readonly ReviewEdit[],
-): Generator<void, boolean[], void> {
-  const { snapshot } = prepared;
-  const text = applyEdits(snapshot.text, otherEdits);
-  if (text === null) return diagnostics.map(() => false);
-  const shift = positionMapper(otherEdits);
-  const shifted = {
-    id: `${snapshot.id}~`,
+/**
+ * `snapshot` as it would be after `edits`: the text, the scope and the protected
+ * ranges move with the edits. Null when the edits do not apply.
+ */
+function shiftedSnapshot(
+  snapshot: ReviewSourceSnapshot,
+  edits: readonly ReviewEdit[],
+  id: string,
+): ReviewSourceSnapshot | null {
+  const text = applyEdits(snapshot.text, edits);
+  if (text === null) return null;
+  const shift = positionMapper(edits);
+  return {
+    id,
     incomplete: snapshot.incomplete,
     selection: snapshot.selection,
     text,
@@ -547,6 +579,18 @@ function* proofSteps(
       end: shift(range.end),
     })),
   };
+}
+
+/** The proof as steps: it yields after preparing and after each scan. */
+function* proofSteps(
+  prepared: PreparedReview,
+  diagnostics: readonly ReviewDiagnostic[],
+  otherEdits: readonly ReviewEdit[],
+): Generator<void, boolean[], void> {
+  const { snapshot } = prepared;
+  const shifted = shiftedSnapshot(snapshot, otherEdits, `${snapshot.id}~`);
+  if (shifted === null) return diagnostics.map(() => false);
+  const shift = positionMapper(otherEdits);
   const next = prepareReview(shifted, prepared.options);
   yield;
   const expected = diagnostics.map((diagnostic) => {
