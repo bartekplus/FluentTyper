@@ -995,7 +995,11 @@ export class ReviewSession {
     const key = [this.diagnostics, this.ignored, this.categories, this.accepted];
     if (!this.listCache || !sameItems(this.listCache.key, key)) {
       const shown = this.diagnostics.flatMap((d) => {
-        if (this.isIgnored(d) || !this.categories.has(d.category)) return [];
+        // A fix that includes a contraction repair: the plain repair shows in its place.
+        if (this.isIgnored(d) || !this.categories.has(d.category))
+          return (d.repairs ?? []).filter(
+            (r) => !this.isIgnored(r) && this.categories.has(r.category),
+          );
         if (d.warningOnly || this.accepted.length === 0) return [d];
         const alternatives = d.alternatives.filter((a) => !this.reversesAccepted(a.edits));
         return alternatives.length === 0

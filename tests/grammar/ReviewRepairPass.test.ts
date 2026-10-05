@@ -143,7 +143,8 @@ test("a fix the text already has is not offered again with the repair", () => {
 test("no two fixes collide around repairs", () => {
   const text =
     "We dont need no tests because nobody didnt report any issues. I cant hardly see. " +
-    "It doesnt seem reliable. The company changed it's policy. I didnt see nothing nowhere.";
+    "It doesnt seem reliable. The company changed it's policy. I didnt see nothing nowhere. " +
+    "dont do that. Hello.\ndont go. wasnt it fun? We like it. doesnt matter.";
   const edits = scan(text)
     .filter((d) => !d.warningOnly && d.alternatives.length > 0)
     .flatMap((d) => d.alternatives[0].edits);

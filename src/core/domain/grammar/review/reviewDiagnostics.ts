@@ -504,12 +504,15 @@ function* repairSteps(
     // One composite per repair: the more specific rule (later in the catalog) wins.
     (a, b) => (PRIORITY.get(b.finding.ruleId) ?? 0) - (PRIORITY.get(a.finding.ruleId) ?? 0),
   );
+  const byId = new Map(repairs.map((repair) => [repair.id, repair]));
   for (const { finding, repairIds } of composites) {
     if (repairIds.some((id) => absorbed.has(id))) continue;
     const diagnostic = toDiagnostic(prepared, finding);
     if (!diagnostic || seen.has(diagnostic.id)) continue;
     seen.add(diagnostic.id);
-    added.push(diagnostic);
+    // The repairs stay on the fix: Review shows them when the fix is ignored or hidden.
+    const included = repairIds.flatMap((id) => byId.get(id) ?? []);
+    added.push(included.length > 0 ? { ...diagnostic, repairs: included } : diagnostic);
     for (const id of repairIds) absorbed.add(id);
   }
   if (added.length === 0) return diagnostics;

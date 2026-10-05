@@ -1,6 +1,6 @@
 import type { RawFinding } from "./reviewDetectors";
 import { isMarksOnlyFix } from "./reviewFindings";
-import { applyEdits, editTouches, positionMapper, rangesOverlap } from "./textRanges";
+import { applyEdits, editTouches, lowerBound, positionMapper } from "./textRanges";
 import {
   REVIEW_CHUNK_CHARS,
   type ReviewDiagnostic,
@@ -57,26 +57,42 @@ export interface RepairShadow {
   toShadow: (position: number) => number;
   /** Shadow position -> original position (exact outside the repaired words). */
   fromShadow: (position: number) => number;
-  /** Each repaired word in the shadow text, in the order of `repairs`. */
+  /** Each repaired word in the shadow text, in the order of `repairs` (sorted, disjoint). */
   spans: TextRange[];
+  /** The characters the repairs inserted, in the shadow text (sorted, disjoint). */
+  inserted: TextRange[];
+}
+
+/**
+ * The indices of the sorted, disjoint `spans` that `range` overlaps or, when it
+ * is an insertion, touches. A binary search: a text full of repairs stays linear.
+ */
+function spansAt(spans: readonly TextRange[], range: TextRange): number[] {
+  const indices: number[] = [];
+  for (
+    let index = lowerBound(spans.length, (i) => spans[i].end < range.start);
+    index < spans.length && spans[index].start <= range.end;
+    index += 1
+  )
+    if (editTouches(range, spans[index])) indices.push(index);
+  return indices;
 }
 
 /** The repairs applied: their edits and the position mappers both ways. */
 export function repairShadow(repairs: readonly ReviewDiagnostic[]): RepairShadow {
   const edits = repairs.flatMap((repair) => repair.alternatives[0].edits);
   const toShadow = positionMapper(edits);
-  const fromShadow = positionMapper(
-    edits.map((edit) => {
-      // An insertion stays after its position, so this is where its text starts.
-      const start = toShadow(edit.start);
-      return {
-        start,
-        end: start + edit.replacement.length,
-        original: edit.replacement,
-        replacement: edit.original,
-      };
-    }),
-  );
+  const inverse = edits.map((edit) => {
+    // An insertion stays after its position, so this is where its text starts.
+    const start = toShadow(edit.start);
+    return {
+      start,
+      end: start + edit.replacement.length,
+      original: edit.replacement,
+      replacement: edit.original,
+    };
+  });
+  const fromShadow = positionMapper(inverse);
   return {
     repairs: [...repairs],
     edits,
@@ -86,6 +102,7 @@ export function repairShadow(repairs: readonly ReviewDiagnostic[]): RepairShadow
       start: toShadow(repair.range.start),
       end: toShadow(repair.range.end),
     })),
+    inserted: inverse.map(({ start, end }) => ({ start, end })),
   };
 }
 
@@ -163,25 +180,34 @@ export function composeRepairs(
       diagnostic.alternatives.length === 0 ||
       finding.terminology ||
       finding.dictionaryWord ||
-      !shadow.spans.some((span) => rangesOverlap(span, diagnostic.context))
+      spansAt(shadow.spans, diagnostic.context).length === 0
+    )
+      continue;
+    // Away from the inserted apostrophes, positions map back exactly. Edits the
+    // original scan already proposes there ("d" -> "D" at a sentence start) are
+    // not new, even when they change a repaired word.
+    const mapped = diagnostic.alternatives.map((a) =>
+      a.edits.map((edit) => ({
+        ...edit,
+        start: shadow.fromShadow(edit.start),
+        end: shadow.fromShadow(edit.end),
+      })),
+    );
+    if (
+      diagnostic.alternatives.some(
+        (a, index) =>
+          a.edits.every((edit) => spansAt(shadow.inserted, edit).length === 0) &&
+          known.has(editsKey(mapped[index])),
+      )
     )
       continue;
     const { range } = diagnostic;
-    const touched = new Set<number>();
-    shadow.spans.forEach((span, index) => {
-      if (diagnostic.alternatives.some((a) => a.edits.some((edit) => editTouches(edit, span))))
-        touched.add(index);
-    });
+    const touched = new Set(
+      diagnostic.alternatives.flatMap((a) =>
+        a.edits.flatMap((edit) => spansAt(shadow.spans, edit)),
+      ),
+    );
     if (touched.size === 0) {
-      // Outside the repaired words, positions map back exactly.
-      const mapped = diagnostic.alternatives.map((a) =>
-        a.edits.map((edit) => ({
-          ...edit,
-          start: shadow.fromShadow(edit.start),
-          end: shadow.fromShadow(edit.end),
-        })),
-      );
-      if (mapped.some((edits) => known.has(editsKey(edits)))) continue;
       const start = shadow.fromShadow(range.start);
       const end = shadow.fromShadow(range.end);
       const typed = sourceText.slice(start, end);
@@ -217,9 +243,7 @@ export function composeRepairs(
         union.start = Math.min(union.start, shadow.spans[index].start);
         union.end = Math.max(union.end, shadow.spans[index].end);
       }
-      shadow.spans.forEach((span, index) => {
-        if (rangesOverlap(span, union)) touched.add(index);
-      });
+      for (const index of spansAt(shadow.spans, union)) touched.add(index);
     }
     const before = shadowText.slice(union.start, range.start);
     const after = shadowText.slice(range.end, union.end);

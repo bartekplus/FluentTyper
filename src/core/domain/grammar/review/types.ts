@@ -133,6 +133,12 @@ export interface ReviewDiagnostic {
    * its possible replacements). Never part of Fix all.
    */
   requiresChoice?: true;
+  /**
+   * The contraction fixes this fix includes (repairPass.ts: "cant" -> "can" includes
+   * "cant" -> "can't"). Review shows them instead when this fix is ignored or its
+   * category is hidden, so the typo fix is not lost.
+   */
+  repairs?: ReviewDiagnostic[];
 }
 
 /**

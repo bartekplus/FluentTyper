@@ -58,3 +58,14 @@ test.each(CLEAN)("a missing apostrophe reaches the same text in one round: %s", 
   expect(typoRounds.text).toBe(fixRounds(clean).text);
   expect(describeFixes(typoRounds.rounds[1])).toEqual([]);
 });
+
+test.each([
+  ["dont do that.", "Don't do that."],
+  ["Hello.\ndont go.", "Hello.\nDon't go."],
+  ["wasnt it fun?", "Wasn't it fun?"],
+  ["We like it. doesnt matter.", "We like it. Doesn't matter."],
+])("a repair at a sentence start is fixed in one round: %s", (typo, fixed) => {
+  const { rounds, text } = fixRounds(typo);
+  expect(text).toBe(fixed);
+  expect(rounds).toHaveLength(1);
+});
