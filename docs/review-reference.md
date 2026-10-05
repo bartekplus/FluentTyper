@@ -965,14 +965,14 @@ each text block is a nested leaf; Review reviews the leaf that holds the caret,
 never the page. Notion reads the leaf into its model on input, but a live probe
 saw it revert a write that came right after the caret moved into the leaf. So
 each fix is one native edit in that leaf with these extra checks: Review gives
-focus back to the page root and waits 100 ms; the caret must already be in the
-reviewed leaf (Review never moves it there) and no composition may run; after
-the write the leaf must hold the expected text, and must still hold it after
-Notion's input handling (1 s, watched for a revert). A revert gives
-"unverified", and nothing is written again. Each fix is one Notion undo step,
-so Fix all is not offered. These checks read the DOM, not Notion's model; the
-tests use a synthetic Notion-like page, and a live check in Chrome passed
-([details](editor-capabilities.md#notion),
+focus back to the page root and waits 100 ms (a Review closed in this wait
+writes nothing); the caret must already be in the reviewed leaf (Review never
+moves it there) and no composition may run; after the write the leaf must hold
+the expected text, and must still hold it after Notion's input handling (1 s,
+watched for a revert). A revert gives "unverified", and nothing is written
+again. Each fix is one Notion undo step, so Fix all is not offered. These
+checks read the DOM, not Notion's model; the tests use a synthetic Notion-like
+page, and a live check in Chrome passed ([details](editor-capabilities.md#notion),
 [live check results](editor-surfaces.md#live-check-results)).
 
 Plain contenteditable snapshots also capture formatting wrappers and attributes.

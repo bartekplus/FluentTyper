@@ -479,6 +479,8 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
   private adapterCapabilities: ReviewCapabilities;
   composing = false;
   private map: ContentEditableTextMap | null = null;
+  /** The review closed: no write may start after this. */
+  private disposed = false;
   private readonly pageBridge = new InjectedHostEditorPageBridge();
   private readonly quillModel: boolean;
   /** Any Quill: without its model, Review writes through Quill's beforeinput handling. */
@@ -663,6 +665,8 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
         notion.focus({ preventScroll: true });
         // ponytail: a fixed wait; Notion signals no "selection taken". The checks below still refuse.
         await new Promise((resolve) => win.setTimeout(resolve, NOTION_SETTLE_MS));
+        // The user can close Review during the wait.
+        if (this.disposed) return { status: "rejected", reason: "host-refused" };
       }
       if (isComposingIn(root)) return { status: "rejected", reason: "composing" };
     } else root.focus({ preventScroll: true });
@@ -881,6 +885,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.map = null;
   }
 }

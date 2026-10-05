@@ -230,6 +230,40 @@ test("a typing write in a Notion leaf needs the selection already in that leaf",
   });
 });
 
+test("a Review fix in Notion writes nothing when the review closes during the focus wait", async () => {
+  const { root, leaves } = notionPage("We saw teh", "Other block");
+  const target = new ContentEditableReviewTarget(leaves[0]);
+  const read = target.read();
+  if (!read.ok) throw new Error(`unreadable: ${read.reason}`);
+  // Focus is elsewhere (the Review panel): the fix gives focus back to the root and waits.
+  setCaret(leaves[0].firstChild!, 10);
+  root.blur();
+  const original = document.execCommand;
+  document.execCommand = ((command: string, _ui?: boolean, value?: string) => {
+    if (command !== "insertText") return false;
+    const range = document.getSelection()!.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(document.createTextNode(value ?? ""));
+    return true;
+  }) as typeof document.execCommand;
+  try {
+    const pending = target.apply({
+      edits: [{ start: 7, end: 10, original: "teh", replacement: "the" }],
+      before: read.text,
+      after: "We saw the",
+      signature: read.signature,
+    });
+    // Notion puts its selection back in the leaf when its root gets focus.
+    setCaret(leaves[0].firstChild!, 10);
+    // The user closes Review while the fix waits for Notion.
+    target.dispose();
+    expect(await pending).toEqual({ status: "rejected", reason: "host-refused" });
+    expect(leaves[0].textContent).toBe("We saw teh");
+  } finally {
+    document.execCommand = original;
+  }
+});
+
 test("a Notion write counts as kept only when Notion does not revert it in the window", async () => {
   const { leaves } = notionPage("We saw the", "We saw the");
   const [kept, reverted] = [
