@@ -129,7 +129,7 @@ function cacheChromeExtensionHost(candidate: string | null | undefined): void {
 
 function isRetriableBackgroundContextError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Session closed|Target closed|Connection closed|background worker is unavailable|Waiting failed|NoSuchFrameError|Browsing Context with id .* not found/i.test(
+  return /Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Session closed|Target closed|Connection closed|background worker is unavailable|Waiting failed|Timed out after waiting \d+ms|NoSuchFrameError|Browsing Context with id .* not found/i.test(
     message,
   );
 }
@@ -408,6 +408,25 @@ export async function setSettings(
   );
   await withWorker(worker, (context) =>
     context.evaluate((items) => chrome.storage.local.set(items), values),
+  );
+}
+
+/**
+ * True when a stored setting is not equal to its value in `settings`. It also
+ * finds writes from extension pages and commands, which `setSettings` does not see.
+ */
+export async function storedSettingsDiffer(
+  worker: BackgroundContext,
+  settings: Record<string, unknown>,
+): Promise<boolean> {
+  const stored = await withWorker(worker, (context) =>
+    context.evaluate(
+      (keys) => chrome.storage.local.get(keys),
+      Object.keys(settings).map((key) => `${SETTINGS_PREFIX}${key}`),
+    ),
+  );
+  return Object.entries(settings).some(
+    ([key, value]) => stored[`${SETTINGS_PREFIX}${key}`] !== JSON.stringify(value),
   );
 }
 

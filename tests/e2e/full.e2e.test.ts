@@ -62,6 +62,7 @@ import {
   sendExtensionCommand,
   setSetting,
   setSettings,
+  storedSettingsDiffer,
   sleep,
   startTestPageServer,
   takeSettingsWritten,
@@ -89,8 +90,8 @@ const PROSEMIRROR_SELECTOR = "#test-prosemirror-editor";
 const SLATE_SELECTOR = "#test-slate-editor";
 const GENERIC_INPUT_SELECTORS = ["#test-input"];
 /**
- * Inline mode off. While inline mode is on, the options page also stores
- * prefix-only mode, Tab acceptance and 10 suggestions. These go back to their defaults.
+ * Inline mode off, and the settings that inline mode tests change go back to
+ * their defaults: prefix-only mode, Tab acceptance and the number of suggestions.
  */
 const INLINE_MODE_OFF = {
   [KEY_INLINE_SUGGESTION]: false,
@@ -843,6 +844,23 @@ async function highlightSuggestion(
   );
 }
 
+/** The settings that each test starts from: the defaults, with no grammar rules. */
+const PER_TEST_RESET_SETTINGS = {
+  // Keep the legacy baseline for non-grammar E2E flows so popup/inline
+  // prediction scenarios remain deterministic regardless of defaults.
+  [KEY_ENABLED_GRAMMAR_RULES]: grammarRuleSelectionToOverrides([]),
+  // Language tests narrow the enabled languages. A narrowed list silently
+  // changes a later test's language to the first enabled one.
+  [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+  [KEY_LANGUAGE]: "en_US",
+  [KEY_FALLBACK_LANGUAGE]: "en_US",
+  [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
+  [KEY_SITE_PROFILES]: {},
+  ...INLINE_MODE_OFF,
+  [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
+  [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+};
+
 describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   let browser: Browser;
   let page: Page;
@@ -887,16 +905,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   // timeout kills the subprocesses of the file: the browser of the whole shard.
   beforeEach(async () => {
     worker = await ensureWorker(browser, worker);
-    if (takeSettingsWritten()) {
-      // Keep the legacy baseline for non-grammar E2E flows so popup/inline
-      // prediction scenarios remain deterministic regardless of defaults.
-      // An earlier test can leave inline mode, its locks or the space after
-      // an accepted word changed.
-      await setSettings(worker, {
-        ...INLINE_MODE_OFF,
-        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
-      });
-      await setGrammarRules(worker, []);
+    // The popup, the options page and commands write settings without the flag.
+    if (takeSettingsWritten() || (await storedSettingsDiffer(worker, PER_TEST_RESET_SETTINGS))) {
+      await setSettings(worker, PER_TEST_RESET_SETTINGS);
       await notifyConfigChange(browser, worker);
       takeSettingsWritten();
     }
@@ -4421,11 +4432,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(storedLanguage).toBe("de_DE");
 
       await popupPage.close();
-
-      await setSettings(worker, {
-        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-        [KEY_LANGUAGE]: "en_US",
-      });
     },
     suiteTimeout(5000, 15000),
   );
@@ -4812,46 +4818,36 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "Auto-detect keeps the stored global language while typing in a detected language",
     async () => {
       const selector = "#test-input";
-      try {
-        await setSettings(worker, {
-          enable: true,
-          [KEY_ENABLED_LANGUAGES]: ["en_US", "el_GR"],
-          [KEY_LANGUAGE]: "auto_detect",
-          [KEY_FALLBACK_LANGUAGE]: "en_US",
-          [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
-          [KEY_SITE_PROFILES]: {},
-          [KEY_INLINE_SUGGESTION]: false,
-          [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
-          [KEY_NUM_SUGGESTIONS]: 5,
-        });
-        await notifyConfigChange(browser, worker);
+      await setSettings(worker, {
+        enable: true,
+        [KEY_ENABLED_LANGUAGES]: ["en_US", "el_GR"],
+        [KEY_LANGUAGE]: "auto_detect",
+        [KEY_FALLBACK_LANGUAGE]: "en_US",
+        [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
+        [KEY_SITE_PROFILES]: {},
+        [KEY_INLINE_SUGGESTION]: false,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_NUM_SUGGESTIONS]: 5,
+      });
+      await notifyConfigChange(browser, worker);
 
-        await gotoTestPage(page);
-        await waitForInputReady(page, selector);
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, "φιλο");
-        await typeInInput(page, selector, "σ");
-        const greekSuggestions = await waitForVisibleSuggestionTexts(
-          page,
-          suiteTimeout(12000, 15000),
-        ).catch(() => []);
-        if (greekSuggestions.length > 0) {
-          expect(greekSuggestions.some((text) => text.toLowerCase().includes("φιλοσοφία"))).toBe(
-            true,
-          );
-        } else {
-          expect((await getInputContent(page, selector)).toLowerCase()).toContain("φιλοσ");
-        }
-        expect(await getSetting<string>(worker, KEY_LANGUAGE)).toBe("auto_detect");
-      } finally {
-        await setSettings(worker, {
-          [KEY_LANGUAGE]: "en_US",
-          [KEY_FALLBACK_LANGUAGE]: "en_US",
-          [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
-          [KEY_SITE_PROFILES]: {},
-        });
-        await notifyConfigChange(browser, worker);
+      await gotoTestPage(page);
+      await waitForInputReady(page, selector);
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "φιλο");
+      await typeInInput(page, selector, "σ");
+      const greekSuggestions = await waitForVisibleSuggestionTexts(
+        page,
+        suiteTimeout(12000, 15000),
+      ).catch(() => []);
+      if (greekSuggestions.length > 0) {
+        expect(greekSuggestions.some((text) => text.toLowerCase().includes("φιλοσοφία"))).toBe(
+          true,
+        );
+      } else {
+        expect((await getInputContent(page, selector)).toLowerCase()).toContain("φιλοσ");
       }
+      expect(await getSetting<string>(worker, KEY_LANGUAGE)).toBe("auto_detect");
     },
     suiteTimeout(20000, 35000),
   );
@@ -4860,47 +4856,37 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "Auto-detect switches to Arabic for Arabic-script typing",
     async () => {
       const selector = "#test-input";
-      try {
-        await setSettings(worker, {
-          enable: true,
-          [KEY_ENABLED_LANGUAGES]: ["en_US", "ar_SA"],
-          [KEY_LANGUAGE]: "auto_detect",
-          [KEY_FALLBACK_LANGUAGE]: "en_US",
-          [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
-          [KEY_SITE_PROFILES]: {},
-          [KEY_INLINE_SUGGESTION]: false,
-          [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
-          [KEY_NUM_SUGGESTIONS]: 5,
-        });
-        await notifyConfigChange(browser, worker);
+      await setSettings(worker, {
+        enable: true,
+        [KEY_ENABLED_LANGUAGES]: ["en_US", "ar_SA"],
+        [KEY_LANGUAGE]: "auto_detect",
+        [KEY_FALLBACK_LANGUAGE]: "en_US",
+        [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
+        [KEY_SITE_PROFILES]: {},
+        [KEY_INLINE_SUGGESTION]: false,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_NUM_SUGGESTIONS]: 5,
+      });
+      await notifyConfigChange(browser, worker);
 
-        await gotoTestPage(page);
-        await waitForInputReady(page, selector);
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, "الي");
-        let latest: string[] = [];
-        await waitUntil(
-          "Arabic auto-detect suggestion",
-          async () => {
-            latest = await getVisibleSuggestionTexts(page).catch(() => []);
-            return latest.some((text) => text.includes("اليوم")) ? latest : false;
-          },
-          { timeoutMs: suiteTimeout(12000, 15000) },
-        ).catch(() => {
-          throw new Error(
-            `Expected an Arabic suggestion containing "اليوم", got: ${latest.join(" | ")}`,
-          );
-        });
-        expect(await getSetting<string>(worker, KEY_LANGUAGE)).toBe("auto_detect");
-      } finally {
-        await setSettings(worker, {
-          [KEY_LANGUAGE]: "en_US",
-          [KEY_FALLBACK_LANGUAGE]: "en_US",
-          [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
-          [KEY_SITE_PROFILES]: {},
-        });
-        await notifyConfigChange(browser, worker);
-      }
+      await gotoTestPage(page);
+      await waitForInputReady(page, selector);
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "الي");
+      let latest: string[] = [];
+      await waitUntil(
+        "Arabic auto-detect suggestion",
+        async () => {
+          latest = await getVisibleSuggestionTexts(page).catch(() => []);
+          return latest.some((text) => text.includes("اليوم")) ? latest : false;
+        },
+        { timeoutMs: suiteTimeout(12000, 15000) },
+      ).catch(() => {
+        throw new Error(
+          `Expected an Arabic suggestion containing "اليوم", got: ${latest.join(" | ")}`,
+        );
+      });
+      expect(await getSetting<string>(worker, KEY_LANGUAGE)).toBe("auto_detect");
     },
     suiteTimeout(20000, 35000),
   );
@@ -4909,83 +4895,73 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "CMD_TOGGLE_FT_ACTIVE_LANG creates an auto-detect session lock without persisting site overrides",
     async () => {
       const selector = "#test-input";
-      try {
-        await setSettings(worker, {
-          enable: true,
-          [KEY_ENABLED_LANGUAGES]: ["en_US", "el_GR"],
-          [KEY_LANGUAGE]: "auto_detect",
-          [KEY_FALLBACK_LANGUAGE]: "en_US",
-          [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
-          [KEY_SITE_PROFILES]: {},
-          [KEY_INLINE_SUGGESTION]: false,
-          [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
-          [KEY_NUM_SUGGESTIONS]: 5,
-        });
-        await notifyConfigChange(browser, worker);
+      await setSettings(worker, {
+        enable: true,
+        [KEY_ENABLED_LANGUAGES]: ["en_US", "el_GR"],
+        [KEY_LANGUAGE]: "auto_detect",
+        [KEY_FALLBACK_LANGUAGE]: "en_US",
+        [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
+        [KEY_SITE_PROFILES]: {},
+        [KEY_INLINE_SUGGESTION]: false,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_NUM_SUGGESTIONS]: 5,
+      });
+      await notifyConfigChange(browser, worker);
 
-        await gotoTestPage(page);
-        await waitForInputReady(page, selector);
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, "φιλο");
-        await typeInInput(page, selector, "σ");
-        const greekSuggestions = await waitForVisibleSuggestionTexts(
-          page,
-          suiteTimeout(12000, 15000),
-        ).catch(() => []);
-        if (greekSuggestions.length > 0) {
-          expect(greekSuggestions.some((text) => text.toLowerCase().includes("φιλοσοφία"))).toBe(
-            true,
-          );
-        } else {
-          expect((await getInputContent(page, selector)).toLowerCase()).toContain("φιλοσ");
-        }
-        await triggerCommandForTesting(worker, "CMD_TOGGLE_FT_ACTIVE_LANG");
-
-        const globalLanguage = await waitForSettingMatch<string>(
-          worker,
-          KEY_LANGUAGE,
-          (value) => value === "auto_detect",
-          suiteTimeout(3000, 7000),
+      await gotoTestPage(page);
+      await waitForInputReady(page, selector);
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "φιλο");
+      await typeInInput(page, selector, "σ");
+      const greekSuggestions = await waitForVisibleSuggestionTexts(
+        page,
+        suiteTimeout(12000, 15000),
+      ).catch(() => []);
+      if (greekSuggestions.length > 0) {
+        expect(greekSuggestions.some((text) => text.toLowerCase().includes("φιλοσοφία"))).toBe(
+          true,
         );
-        expect(globalLanguage).toBe("auto_detect");
+      } else {
+        expect((await getInputContent(page, selector)).toLowerCase()).toContain("φιλοσ");
+      }
+      await triggerCommandForTesting(worker, "CMD_TOGGLE_FT_ACTIVE_LANG");
 
-        const siteProfiles = await getSetting<Record<string, unknown>>(worker, KEY_SITE_PROFILES);
-        expect(siteProfiles ?? {}).toEqual({});
+      const globalLanguage = await waitForSettingMatch<string>(
+        worker,
+        KEY_LANGUAGE,
+        (value) => value === "auto_detect",
+        suiteTimeout(3000, 7000),
+      );
+      expect(globalLanguage).toBe("auto_detect");
 
-        const sitePriors = await waitForSettingMatch<Record<string, Record<string, number>>>(
-          worker,
-          KEY_AUTO_LANGUAGE_SITE_PRIORS,
-          (value) =>
-            Boolean(
-              value?.[TEST_HOST] &&
-              typeof value[TEST_HOST].en_US === "number" &&
-              value[TEST_HOST].en_US > 0,
-            ),
-          suiteTimeout(3000, 7000),
-        );
-        expect(sitePriors?.[TEST_HOST]?.en_US).toBeGreaterThan(0);
+      const siteProfiles = await getSetting<Record<string, unknown>>(worker, KEY_SITE_PROFILES);
+      expect(siteProfiles ?? {}).toEqual({});
 
-        await page.bringToFront();
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, "φιλο");
-        await typeInInput(page, selector, "σ");
-        const lockedGreekSuggestions = await waitForVisibleSuggestionTexts(
-          page,
-          suiteTimeout(12000, 15000),
-        ).catch(() => []);
-        if (lockedGreekSuggestions.length > 0) {
-          expect(lockedGreekSuggestions.length).toBeGreaterThan(0);
-        } else {
-          expect((await getInputContent(page, selector)).toLowerCase()).toContain("φιλοσ");
-        }
-      } finally {
-        await setSettings(worker, {
-          [KEY_LANGUAGE]: "en_US",
-          [KEY_FALLBACK_LANGUAGE]: "en_US",
-          [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {},
-          [KEY_SITE_PROFILES]: {},
-        });
-        await notifyConfigChange(browser, worker);
+      const sitePriors = await waitForSettingMatch<Record<string, Record<string, number>>>(
+        worker,
+        KEY_AUTO_LANGUAGE_SITE_PRIORS,
+        (value) =>
+          Boolean(
+            value?.[TEST_HOST] &&
+            typeof value[TEST_HOST].en_US === "number" &&
+            value[TEST_HOST].en_US > 0,
+          ),
+        suiteTimeout(3000, 7000),
+      );
+      expect(sitePriors?.[TEST_HOST]?.en_US).toBeGreaterThan(0);
+
+      await page.bringToFront();
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "φιλο");
+      await typeInInput(page, selector, "σ");
+      const lockedGreekSuggestions = await waitForVisibleSuggestionTexts(
+        page,
+        suiteTimeout(12000, 15000),
+      ).catch(() => []);
+      if (lockedGreekSuggestions.length > 0) {
+        expect(lockedGreekSuggestions.length).toBeGreaterThan(0);
+      } else {
+        expect((await getInputContent(page, selector)).toLowerCase()).toContain("φιλοσ");
       }
     },
     suiteTimeout(30000, 50000),
@@ -5713,18 +5689,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "Grammar Rule Engine formats measurement units only in verified prose typing",
     async () => {
       const selector = "#test-input";
-      await setGrammarRules(worker, ["measurementUnitFormatting"]);
-      await setSettings(worker, {
-        [KEY_LANGUAGE]: "en_US",
-        // An earlier test can leave Polish out of the enabled languages.
-        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
-      });
-      await notifyConfigChange(browser, worker);
-      await gotoTestPage(page);
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
+      await openEnglishField(selector, ["measurementUnitFormatting"]);
       await typeInInput(page, selector, "Mass: 10kg ");
       await waitUntil(
         "measurement separator",
@@ -5752,7 +5717,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         async () => (await getInputContent(page, selector)) === "Masa: 1,50\u00a0kg ",
         { timeoutMs: suiteTimeout(5000, 8000) },
       );
-      await setSetting(worker, KEY_LANGUAGE, "en_US");
     },
     suiteTimeout(25000, 40000),
   );
