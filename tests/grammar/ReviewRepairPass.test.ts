@@ -192,3 +192,10 @@ test("a quote-style fix never takes over a repair", () => {
     ["englishContractionNormalization", "dont"],
   ]);
 });
+
+test("a hidden finding with two fixes keeps both as a choice", () => {
+  const found = scan("He isnt write the docs.");
+  expect(
+    found.map((d) => [d.original, d.alternatives.map((a) => a.preview), d.requiresChoice]),
+  ).toEqual([["He isnt write", ["He isn't writing", "He doesn't write"], true]]);
+});

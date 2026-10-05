@@ -141,8 +141,9 @@ const editsKey = (edits: readonly ReviewEdit[]) =>
  * A finding depends on the repairs when its evidence reads a repaired word and the
  * original scan does not propose the same edits. When its edit changes a repaired
  * word, its fix includes that repair. Otherwise its fix changes only its own words,
- * and the repair keeps its own finding. Style advice, quote-style fixes, warnings
- * and dictionary findings are never taken from the shadow.
+ * and the repair keeps its own finding. A choice between fixes stays a choice.
+ * Style advice, quote-style fixes, warnings and dictionary findings are never
+ * taken from the shadow.
  */
 export function composeRepairs(
   shadow: RepairShadow,
@@ -162,7 +163,6 @@ export function composeRepairs(
       diagnostic.alternatives.length === 0 ||
       finding.terminology ||
       finding.dictionaryWord ||
-      finding.requiresChoice ||
       !shadow.spans.some((span) => rangesOverlap(span, diagnostic.context))
     )
       continue;
@@ -203,6 +203,7 @@ export function composeRepairs(
             end: shadow.fromShadow(diagnostic.context.end),
           },
           bulkBlock: "context-dependent",
+          ...(finding.requiresChoice ? { requiresChoice: true as const } : {}),
         },
         repairIds: [],
       });
@@ -233,6 +234,7 @@ export function composeRepairs(
           end: shadow.fromShadow(Math.max(diagnostic.context.end, union.end)),
         },
         bulkBlock: "context-dependent",
+        ...(finding.requiresChoice ? { requiresChoice: true as const } : {}),
       },
       repairIds: [...touched].map((index) => shadow.repairs[index].id),
     });
