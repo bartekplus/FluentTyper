@@ -514,7 +514,7 @@ describe("Review model writer – Draft.js", () => {
   });
 });
 
-// ── Trix────────────────────────────────────────────────────────────
+// ── Trix ────────────────────────────────────────────────────────────
 interface TrixElement extends HTMLElement {
   editor: {
     getDocument(): {
