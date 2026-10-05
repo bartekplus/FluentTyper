@@ -73,7 +73,7 @@ Review-only finding cards offer Copy. Clipboard writes require a trusted click a
 | Verified CKEditor 5 bridge                                 | Yes                            | One `model.change` batch through the bridge                                 | Yes / verified model transaction             | Each edit revalidates model and ranges             |
 | Verified Lexical bridge                                    | Yes                            | `beforeinput` that Lexical applies to its own model                         | Yes / verified model transaction             | Each edit revalidates ranges and result text       |
 | CodeMirror 5 with the `contenteditable` input style        | No                             | Code predictions; `replaceRange` in one `operation`                         | No                                           | `code`                                             |
-| Notion block leaf                                          | Yes                            | Native edit in the leaf that holds the caret, checked after Notion's input  | Yes, one fix at a time / no Fix all          | No editor API; the live check is pending           |
+| Notion block leaf                                          | Yes                            | Native edit in the leaf that holds the caret, checked after Notion's input  | Yes, one fix at a time / no Fix all          | No editor API; live check passed in Chrome         |
 | Verified TinyMCE, CKEditor 4, Froala or Summernote bridge  | Yes                            | Native edit in one host undo step                                           | Yes / native edit in one host undo step      | Each edit revalidates DOM, ranges and formatting   |
 | RoosterJS editor in the developer tools list               | Yes                            | Native edit between two Rooster snapshots                                   | Yes / native edit in one Rooster undo step   | Each edit revalidates DOM, ranges and formatting   |
 | RoosterJS identified without its editor instance           | Yes                            | Shown; each write is refused                                                | Review and Copy / no Apply                   | `available`; the record permits only an attempt    |
@@ -110,7 +110,7 @@ The fingerprint (the root with `.notion-page-content`, and a leaf in it) grants 
 Notion's DOM lock removes each foreign attribute of a leaf. Thus FluentTyper keeps the `data-ft-*` state of a leaf on the page root, which Notion does not lock. The root names the entry of the leaf that shows the menu, and the early Tab bridge reads it there.
 
 Review applies one fix at a time. Each fix is one input, thus one Notion undo step. Fix all is not available ("Apply fixes individually").
-Limits: the checks read the DOM after Notion's input handling, not Notion's model. A revert after 1 s is not seen. The 100 ms and 1 s values come from one live probe. The tests use a synthetic Notion-like page (`tests/e2e/fixtures/review-editors/notion.ts`), not Notion. A live check on Notion is pending.
+Limits: the checks read the DOM after Notion's input handling, not Notion's model. A revert after 1 s is not seen. The 100 ms and 1 s values come from one live probe. The tests use a synthetic Notion-like page (`tests/e2e/fixtures/review-editors/notion.ts`), not Notion. A live check on Notion in Chrome passed; see the [live check results](editor-surfaces.md#live-check-results).
 
 ## Settings and lifecycle precedence
 

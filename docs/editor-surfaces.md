@@ -5,15 +5,16 @@
 This report covers three high-traffic editors that had no verified writer: Gmail compose, Outlook on the web (RoosterJS) and Notion.
 The evidence comes from public sources, open-source code, synthetic fixtures and one live probe in a test session (October 2026).
 The live probe used only a new, empty Outlook draft and one new Notion test block. It read no mail and no other page text.
+A live check of the writers followed in the same way, in Chrome with a development build (see [Live check results](#live-check-results)).
 **[V]** marks a verified fact. **[I]** marks an inference.
 
 ## Summary
 
-| Surface             | Editor model                                       | Generic path safe?                          | Writer now                                         | Status                        |
-| ------------------- | -------------------------------------------------- | ------------------------------------------- | -------------------------------------------------- | ----------------------------- |
-| Gmail compose       | DOM is the model [I]                               | Yes, with limits [I]                        | Generic contenteditable path                       | No change                     |
-| Outlook (RoosterJS) | DOM plus a cached Content Model, snapshot Undo [V] | **No**: Undo and Redo can lose the edit [V] | RoosterJS snapshot transaction                     | Supported; live check pending |
-| Notion              | Block tree with server sync, own Undo [V]          | Only when the caret is in the block [V]     | Native edit in one block leaf, with a revert watch | Supported; live check pending |
+| Surface             | Editor model                                       | Generic path safe?                          | Writer now                                         | Status                                |
+| ------------------- | -------------------------------------------------- | ------------------------------------------- | -------------------------------------------------- | ------------------------------------- |
+| Gmail compose       | DOM is the model [I]                               | Yes, with limits [I]                        | Generic contenteditable path                       | No change                             |
+| Outlook (RoosterJS) | DOM plus a cached Content Model, snapshot Undo [V] | **No**: Undo and Redo can lose the edit [V] | RoosterJS snapshot transaction                     | Supported; live check passed (Chrome) |
+| Notion              | Block tree with server sync, own Undo [V]          | Only when the caret is in the block [V]     | Native edit in one block leaf, with a revert watch | Supported; live check passed (Chrome) |
 
 ## Gmail compose
 
@@ -81,11 +82,39 @@ Now the state of a leaf is on the page root, which Notion does not lock [V]. The
 - The 100 ms and one-second limits come from one live probe.
 - Each block gets its own session and a hidden popup host.
 
+## Live check results
+
+Chrome, development build, October 2026. All text was synthetic. The test blocks were removed after the check. The test draft was cleared and closed, and it was not sent.
+
+| #   | Check                                                                          | Result |
+| --- | ------------------------------------------------------------------------------ | ------ |
+| 1   | Outlook: the developer tools list holds the compose editor                     | Pass   |
+| 2   | Outlook: Tab acceptance, then one Undo and one Redo                            | Pass   |
+| 3   | Outlook: the same after a click at the line end and after a space              | Pass   |
+| 4   | Outlook: Review has no "Review only" note; one fix and Fix all, each one Undo  | Pass   |
+| 5   | Outlook: the "To" field keeps the generic path                                 | Pass   |
+| 6   | Outlook: Outlook's autocorrect does not change the accepted word               | Pass   |
+| 7   | Notion: Tab acceptance in a block, one Undo, the word stays after a reload     | Pass   |
+| 8   | Notion: acceptance in a second block stays after a reload                      | Pass   |
+| 9   | Notion: Escape with the popup open closes only the popup                       | Pass   |
+| 10  | Notion: Review note, no Fix all, one fix, one Undo, the fix stays after reload | Pass   |
+| 11  | Notion: a fix with the caret in another block is refused                       | Pass   |
+
+The check found two bugs. Both have a fix and a regression test:
+
+- Outlook: after Undo of an accepted word, the typed prefix stayed selected (see [Outlook](#outlook-on-the-web-roosterjs)).
+- Notion: the DOM lock removed FluentTyper's attributes from the leaves (see [Notion](#notion)).
+
+Limits that stay:
+
+- Notion: a one-line block shows no Review button. The launcher needs a field of at least 36 px height (`ReviewLauncher.ts`), and a one-line leaf is 28 px high. Open Review with the shortcut or the popup.
+- Notion: one Undo can remove the user's typing and a FluentTyper autocorrect together. Notion puts them into one undo step.
+- Outlook: the "To" field gets the capitalization of the first word ("hello" becomes "Hello"), as a prose field does.
+
 ## Live checks that are still open
 
-1. Outlook: Tab acceptance and Fix all, each undone and redone in one step; refusal during a real IME composition; the "To" field keeps the generic path.
-2. Notion: Escape with the popup open; acceptance in block 1 and block N survives a reload; one Review fix survives a reload and undoes in one step; a fix with the caret in another block is refused.
-3. Firefox: all three surfaces.
+1. A real IME composition in Outlook and Notion: the writers must refuse.
+2. Firefox: all three surfaces.
 
 ---
 
