@@ -32,6 +32,7 @@ The typing adapters write as follows:
 
 - ProseMirror and Slate: a host transaction through the MAIN-world bridge.
 - CKEditor 5: one `model.change` batch through the MAIN-world bridge. The batch replaces the text of the model block at the DOM selection and keeps the attributes of the text at the caret.
+  An inline object without DOM text, for example an inline image, has one model offset and no text, as a `softBreak`. The bridge refuses an edit that contains an inline object, or that has one between the edit and the caret. The inserted text never takes the attributes of an object. An element that shows text, for example a mention, gives no block context. Then CKEditor 5 takes the write as `beforeinput` into its typing batch, and Undo also removes the typed text.
 - Draft.js and Trix (`MODEL_TYPING_SELECTOR`): one model transaction through their Review writer, with the caret after the accepted word. Draft.js gets one `insert-fragment` push. Trix gets one recorded undo entry.
 - TinyMCE, CKEditor 4, Froala and Summernote: a native edit in one host undo step.
 - Lexical: no bridge path. FluentTyper sends a synthetic `insertReplacementText` `beforeinput` event on the replaced range. Lexical applies the event to its own model. If no handler takes the event, the write is refused.

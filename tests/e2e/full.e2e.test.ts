@@ -2395,6 +2395,110 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "CKEditor accepts a prediction after an inline image in one model batch and keeps the image",
+    async () => {
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: false,
+      });
+      await setGrammarRules(worker, []);
+      await notifyConfigChange(browser, worker);
+      await gotoTestPage(page, { enableCkEditor: true });
+      await waitForInputReady(page, CKEDITOR_SELECTOR);
+
+      type ModelNode = { data?: string; name?: string; is(type: string): boolean };
+      type ModelEditor = {
+        setData(data: string): void;
+        editing: { view: { focus(): void } };
+        model: {
+          document: { getRoot(): { getChild(index: number): unknown } };
+          change(
+            callback: (writer: {
+              insertText(text: string, parent: unknown, offset: number | "end"): void;
+              insertElement(
+                name: string,
+                attributes: Record<string, string>,
+                parent: unknown,
+                offset: number | "end",
+              ): void;
+              setSelection(parent: unknown, offset: number | "end"): void;
+            }) => void,
+          ): void;
+        };
+      };
+      // "We saw" <imageInline> with the caret after the image, set through the model.
+      await page.evaluate(() => {
+        const editor = (window as typeof window & { __testCkEditor?: ModelEditor }).__testCkEditor!;
+        editor.setData("<p></p>");
+        editor.editing.view.focus();
+        editor.model.change((writer) => {
+          const paragraph = editor.model.document.getRoot().getChild(0);
+          writer.insertText("We saw", paragraph, 0);
+          const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'/>";
+          writer.insertElement(
+            "imageInline",
+            { src: `data:image/svg+xml,${encodeURIComponent(svg)}` },
+            paragraph,
+            "end",
+          );
+          writer.setSelection(paragraph, "end");
+        });
+      });
+      // The model paragraph, with each element as [name].
+      const model = () =>
+        page.evaluate(() => {
+          const root = (
+            window as typeof window & {
+              __testCkEditor?: {
+                model: {
+                  document: {
+                    getRoot(): { getChild(index: number): { getChildren(): Iterable<ModelNode> } };
+                  };
+                };
+              };
+            }
+          ).__testCkEditor!.model.document.getRoot();
+          return Array.from(root.getChild(0).getChildren(), (node) =>
+            node.is("$text") ? node.data : `[${node.name}]`,
+          ).join("");
+        });
+      expect(await model()).toBe("We saw[imageInline]");
+
+      await page.keyboard.type(" w");
+      const prediction = await waitUntil(
+        "CKEditor prediction after the inline image",
+        async () => {
+          const text = (await getVisibleSuggestionTexts(page))[0]?.trim();
+          return text && /^w\S*$/i.test(text) ? text : false;
+        },
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      );
+      await page.keyboard.press("Tab");
+      await waitUntil(
+        "CKEditor accepts the word after the inline image",
+        async () =>
+          (await model()).toLowerCase() === `we saw[imageinline] ${prediction}`.toLowerCase(),
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      ).catch(async (cause) => {
+        throw new Error(`CKEditor model: ${JSON.stringify({ prediction, model: await model() })}`, {
+          cause,
+        });
+      });
+      // The accept is its own model batch: one undo keeps the typed prefix and the image.
+      await pressUndo(page, CKEDITOR_SELECTOR);
+      await waitUntil(
+        "CKEditor undo removes only the accepted word",
+        async () => (await model()) === "We saw[imageInline] w",
+      ).catch(async (cause) => {
+        throw new Error(`CKEditor model after undo: ${JSON.stringify(await model())}`, { cause });
+      });
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  test(
     "CKEditor popup dismisses immediately when Enter is pressed",
     async () => {
       await setSettings(worker, {

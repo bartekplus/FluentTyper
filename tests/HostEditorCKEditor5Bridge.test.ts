@@ -899,3 +899,232 @@ describe("HostEditorMainWorldBridge – IME composition", () => {
     }
   });
 });
+
+// ── Inline objects ──────────────────────────────────────────────────
+// An inline object (an inline image) has one model offset and no DOM text, as a
+// softBreak. An edit must never contain it, and the inserted text must never take
+// its attributes.
+
+type Attributes = Record<string, unknown>;
+type Item = { char: string; attrs: Attributes } | { element: string; attrs: Attributes };
+
+/** A CKEditor 5 paragraph of text and elements, as a flat list of model offsets. */
+function createCKEditorInlineMock(
+  segments: (string | { element: string; attrs?: Attributes; domText?: string })[],
+  caret: number,
+) {
+  let items: Item[] = segments.flatMap((segment): Item[] =>
+    typeof segment === "string"
+      ? Array.from(segment, (char) => ({ char, attrs: {} }))
+      : [{ element: segment.element, attrs: segment.attrs ?? {} }],
+  );
+  const domTexts = new Map(
+    segments.flatMap((segment) =>
+      typeof segment === "string" ? [] : [[segment.element, segment.domText ?? ""] as const],
+    ),
+  );
+  let cursor = caret;
+  const node = (item: Item, data?: string) => ({
+    ...("element" in item ? { name: item.element } : { data }),
+    getAttributes: () => Object.entries(item.attrs),
+    is: (type: string, name?: string) =>
+      "element" in item
+        ? type === "element" && (name === undefined || name === item.element)
+        : type === "$text",
+  });
+  const children = () => {
+    const nodes: ReturnType<typeof node>[] = [];
+    let text = "";
+    let first: Item | null = null;
+    const flush = () => {
+      if (first) nodes.push(node(first, text));
+      text = "";
+      first = null;
+    };
+    for (const item of items) {
+      if ("element" in item) {
+        flush();
+        nodes.push(node(item));
+      } else if (!first || JSON.stringify(first.attrs) === JSON.stringify(item.attrs)) {
+        first ??= item;
+        text += item.char;
+      } else {
+        flush();
+        first = item;
+        text = item.char;
+      }
+    }
+    flush();
+    return nodes;
+  };
+  const block = {
+    is: (type: string) => type === "element" || type === "paragraph",
+    getChildren: children,
+  };
+  const at = (offset: number) => {
+    const before = items[offset - 1];
+    const after = items[offset];
+    const inText = before && after && "char" in before && "char" in after;
+    return {
+      parent: block,
+      offset,
+      textNode: inText ? node(before, before.char) : null,
+      nodeBefore: before ? node(before, "char" in before ? before.char : undefined) : null,
+      nodeAfter: after ? node(after, "char" in after ? after.char : undefined) : null,
+    };
+  };
+  const inserted: Attributes[] = [];
+  const writer = {
+    createPositionAt: (_parent: unknown, offset: number) => ({ offset }),
+    createRange: (start: { offset: number }, end: { offset: number }) => ({ start, end }),
+    remove(range: { start: { offset: number }; end: { offset: number } }) {
+      // CKEditor 5 throws "model-textproxy-wrong-length" for an inverted range.
+      if (range.start.offset > range.end.offset) throw new Error("inverted range");
+      items = [...items.slice(0, range.start.offset), ...items.slice(range.end.offset)];
+    },
+    insertText(text: string, attrsOrPosition: unknown, maybePosition?: { offset: number }) {
+      const position = maybePosition ?? (attrsOrPosition as { offset: number });
+      const attrs = maybePosition ? (attrsOrPosition as Attributes) : {};
+      inserted.push(attrs);
+      items = [
+        ...items.slice(0, position.offset),
+        ...Array.from(text, (char) => ({ char, attrs })),
+        ...items.slice(position.offset),
+      ];
+    },
+    setSelection(position: { offset: number }) {
+      cursor = position.offset;
+    },
+  };
+  const editor = {
+    model: {
+      schema: {
+        isObject: (item: { name?: string }) => item.name !== undefined && item.name !== "softBreak",
+        isInline: () => true,
+      },
+      document: { selection: { getFirstPosition: () => at(cursor) } },
+      change(callback: (w: typeof writer) => void) {
+        callback(writer);
+      },
+    },
+    editing: {
+      mapper: { toViewElement: (item: { name?: string }) => ({ viewOf: item.name }) },
+      view: {
+        domConverter: {
+          mapViewToDom: (view: { viewOf: string }) => {
+            const span = document.createElement("span");
+            span.textContent = domTexts.get(view.viewOf) ?? "";
+            return span;
+          },
+        },
+      },
+    },
+  };
+  return {
+    editor,
+    model: () =>
+      items.map((item) => ("element" in item ? `[${item.element}]` : item.char)).join(""),
+    cursor: () => cursor,
+    inserted,
+  };
+}
+
+const IMAGE = { element: "imageInline", attrs: { src: "local.png" } };
+
+describe("HostEditorMainWorldBridge – CKEditor 5 inline objects", () => {
+  test("block context next to an inline image has the text around it and the caret", () => {
+    // Model: "We saw"[imageInline]" w", caret at the end (model offset 9).
+    const mock = createCKEditorInlineMock(["We saw", IMAGE, " w"], 9);
+    const editable = mountCkEditor(mock.editor);
+    expect(dispatchBridgeRequest(editable, { action: "getBlockContext" })).toEqual({
+      ok: true,
+      blockContext: { beforeCursor: "We saw w", afterCursor: "", blockText: "We saw w" },
+    });
+  });
+
+  test("a replacement after an inline image uses model offsets and keeps the image", () => {
+    const mock = createCKEditorInlineMock(["We saw", IMAGE, " w"], 9);
+    const editable = mountCkEditor(mock.editor);
+    expect(dispatchBridgeRequest(editable, typing("We saw w", 7, "word"))).toEqual({
+      ok: true,
+      result: { applied: true, didDispatchInput: false },
+    });
+    expect(mock.model()).toBe("We saw[imageInline] word");
+    expect(mock.cursor()).toBe(12);
+    expect(mock.inserted).toEqual([{}]);
+  });
+
+  test("a replacement across an inline image is refused and the model stays", () => {
+    // DOM text "We sawx": the token "sawx" contains the image.
+    const mock = createCKEditorInlineMock(["We saw", IMAGE, "x"], 8);
+    const editable = mountCkEditor(mock.editor);
+    expect(dispatchBridgeRequest(editable, typing("We sawx", 3, "sawing"))).toEqual({
+      ok: true,
+      result: { applied: false, didDispatchInput: false },
+    });
+    expect(mock.model()).toBe("We saw[imageInline]x");
+  });
+
+  test("a word before an inline image is refused when the caret is after the image", () => {
+    // DOM text "We saw" with the caret after the image: the word is not at the caret.
+    const mock = createCKEditorInlineMock(["We saw", IMAGE], 7);
+    const editable = mountCkEditor(mock.editor);
+    expect(dispatchBridgeRequest(editable, typing("We saw", 3, "sawing"))).toEqual({
+      ok: true,
+      result: { applied: false, didDispatchInput: false },
+    });
+    expect(mock.model()).toBe("We saw[imageInline]");
+  });
+
+  test("an insertion right after an inline image does not take the image's attributes", () => {
+    const mock = createCKEditorInlineMock(["We saw", IMAGE], 7);
+    const editable = mountCkEditor(mock.editor);
+    expect(
+      dispatchBridgeRequest(editable, {
+        action: "applyBlockReplacement",
+        replaceStart: 6,
+        replaceEnd: 6,
+        replacementText: " it",
+        cursorAfter: 9,
+        expectedBlockText: "We saw",
+      }),
+    ).toEqual({ ok: true, result: { applied: true, didDispatchInput: false } });
+    expect(mock.model()).toBe("We saw[imageInline] it");
+    expect(mock.cursor()).toBe(10);
+    expect(mock.inserted).toEqual([{}]);
+  });
+
+  test("an inline object that shows text is refused for context and writes", () => {
+    const mention = { element: "mention", domText: "@ann" };
+    const mock = createCKEditorInlineMock(["Hi ", mention, " w"], 6);
+    const editable = mountCkEditor(mock.editor);
+    expect(dispatchBridgeRequest(editable, { action: "getBlockContext" })).toEqual({ ok: false });
+    expect(dispatchBridgeRequest(editable, typing("Hi  w", 4, "well"))).toEqual({
+      ok: true,
+      result: { applied: false, didDispatchInput: false },
+    });
+    expect(mock.model()).toBe("Hi [mention] w");
+  });
+
+  test("a collapsed insertion at a softBreak goes to the caret's side of the break", () => {
+    for (const [caret, expected] of [
+      [2, "abX[softBreak]cd"],
+      [3, "ab[softBreak]Xcd"],
+    ] as const) {
+      const mock = createCKEditorInlineMock(["ab", { element: "softBreak" }, "cd"], caret);
+      const editable = mountCkEditor(mock.editor);
+      expect(
+        dispatchBridgeRequest(editable, {
+          action: "applyBlockReplacement",
+          replaceStart: 2,
+          replaceEnd: 2,
+          replacementText: "X",
+          cursorAfter: 3,
+          expectedBlockText: "abcd",
+        }),
+      ).toEqual({ ok: true, result: { applied: true, didDispatchInput: false } });
+      expect(mock.model()).toBe(expected);
+      expect(mock.cursor()).toBe(caret + 1);
+    }
+  });
+});

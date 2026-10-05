@@ -434,6 +434,22 @@
       ]
     },
     {
+      "id": "ckeditor_inline_object_typing",
+      "description": "CKEditor 5 accepts a prediction typed after an inline image in one model batch: the image stays and one Undo removes only the accepted word. An edit that contains an inline object, or has one between the edit and the caret, is refused.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "CKEditor accepts a prediction after an inline image in one model batch and keeps the image"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/HostEditorCKEditor5Bridge.test.ts",
+          "test": "a replacement across an inline image is refused and the model stays"
+        }
+      ]
+    },
+    {
       "id": "contenteditable_enter_dismisses_popup",
       "description": "Pressing Enter on a contenteditable element dismisses the suggestion popup immediately, since the caret moves to a new block and predictions are no longer valid.",
       "coverage": [

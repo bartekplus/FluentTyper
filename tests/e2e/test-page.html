@@ -283,10 +283,11 @@
             return;
           }
 
-          const { ClassicEditor, Essentials, Paragraph, Bold, Italic } = CKEDITOR;
+          const { ClassicEditor, Essentials, Paragraph, Bold, Italic, ImageInline } = CKEDITOR;
 
           class TestClassicEditor extends ClassicEditor {
-            static builtinPlugins = [Essentials, Paragraph, Bold, Italic];
+            // ImageInline puts an inline object into a paragraph (typing next to it).
+            static builtinPlugins = [Essentials, Paragraph, Bold, Italic, ImageInline];
             static defaultConfig = {
               toolbar: {
                 items: ["bold", "italic"],
