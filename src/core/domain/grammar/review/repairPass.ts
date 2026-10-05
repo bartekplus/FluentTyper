@@ -1,6 +1,12 @@
 import type { RawFinding } from "./reviewDetectors";
-import { positionMapper, rangesOverlap } from "./textRanges";
-import { REVIEW_CHUNK_CHARS, type ReviewDiagnostic, type ReviewEdit, type TextRange } from "./types";
+import { isMarksOnlyFix } from "./reviewFindings";
+import { applyEdits, editTouches, positionMapper, rangesOverlap } from "./textRanges";
+import {
+  REVIEW_CHUNK_CHARS,
+  type ReviewDiagnostic,
+  type ReviewEdit,
+  type TextRange,
+} from "./types";
 
 /*
  * The repair pass. A contraction typo hides every finding that needs the
@@ -117,55 +123,94 @@ export interface ShadowFinding {
   diagnostic: ReviewDiagnostic;
 }
 
-/** One fix of the original text, and the ids of the repairs that fix includes. */
+/**
+ * One fix of the original text. `repairIds` names the repairs the fix includes
+ * (its edit changes a repaired word: "cant" -> "can"); empty when the fix changes
+ * other words only and stands next to the repairs.
+ */
 export interface Composite {
   finding: RawFinding;
   repairIds: string[];
 }
 
+const editsKey = (edits: readonly ReviewEdit[]) =>
+  JSON.stringify(edits.map(({ start, end, replacement }) => [start, end, replacement]));
+
 /**
  * The shadow findings that depend on a repair, as findings of the original text.
- * A finding depends on a repair when its evidence reads the repaired word, and it
- * is not a finding the original scan already reports. Style advice, warnings and
- * dictionary findings never absorb a repair.
+ * A finding depends on the repairs when its evidence reads a repaired word and the
+ * original scan does not propose the same edits. When its edit changes a repaired
+ * word, its fix includes that repair. Otherwise its fix changes only its own words,
+ * and the repair keeps its own finding. Style advice, quote-style fixes, warnings
+ * and dictionary findings are never taken from the shadow.
  */
 export function composeRepairs(
   shadow: RepairShadow,
   original: readonly ReviewDiagnostic[],
   found: readonly ShadowFinding[],
   shadowText: string,
+  sourceText: string,
 ): Composite[] {
+  const known = new Set(original.flatMap((d) => d.alternatives.map((a) => editsKey(a.edits))));
   const composites: Composite[] = [];
   for (const { finding, diagnostic } of found) {
     if (
       diagnostic.warningOnly ||
       diagnostic.category === "style" ||
+      // A quote-style fix of the apostrophe a repair inserts is not a second error.
+      isMarksOnlyFix(diagnostic) ||
       diagnostic.alternatives.length === 0 ||
       finding.terminology ||
       finding.dictionaryWord ||
-      finding.requiresChoice
+      finding.requiresChoice ||
+      !shadow.spans.some((span) => rangesOverlap(span, diagnostic.context))
     )
       continue;
+    const { range } = diagnostic;
     const touched = new Set<number>();
     shadow.spans.forEach((span, index) => {
-      if (rangesOverlap(span, diagnostic.context)) touched.add(index);
+      if (diagnostic.alternatives.some((a) => a.edits.some((edit) => editTouches(edit, span))))
+        touched.add(index);
     });
-    if (touched.size === 0) continue;
-    const { range } = diagnostic;
-    if (!shadow.spans.some((span) => rangesOverlap(span, range))) {
+    if (touched.size === 0) {
+      // Outside the repaired words, positions map back exactly.
+      const mapped = diagnostic.alternatives.map((a) =>
+        a.edits.map((edit) => ({
+          ...edit,
+          start: shadow.fromShadow(edit.start),
+          end: shadow.fromShadow(edit.end),
+        })),
+      );
+      if (mapped.some((edits) => known.has(editsKey(edits)))) continue;
       const start = shadow.fromShadow(range.start);
       const end = shadow.fromShadow(range.end);
-      // The original text has the same finding: it does not need the repair.
-      if (
-        original.some(
-          (d) => d.ruleId === diagnostic.ruleId && d.range.start === start && d.range.end === end,
-        )
-      )
-        continue;
+      const typed = sourceText.slice(start, end);
+      const alternatives = mapped.map((edits) =>
+        applyEdits(
+          typed,
+          edits.map((edit) => ({ ...edit, start: edit.start - start, end: edit.end - start })),
+        ),
+      );
+      if (alternatives.some((alternative) => alternative === null)) continue;
+      composites.push({
+        finding: {
+          ruleId: finding.ruleId,
+          messageKey: finding.messageKey,
+          range: { start, end },
+          alternatives: alternatives as string[],
+          context: {
+            start: shadow.fromShadow(diagnostic.context.start),
+            end: shadow.fromShadow(diagnostic.context.end),
+          },
+          bulkBlock: "context-dependent",
+        },
+        repairIds: [],
+      });
+      continue;
     }
-    // The finding and the repairs it reads, grown over any repair inside them.
+    // The finding and the repaired words it changes, grown over any repair inside them.
     const union = { start: range.start, end: range.end };
-    for (let size = -1; size !== touched.size; ) {
+    for (let size = -1; size !== touched.size;) {
       size = touched.size;
       for (const index of touched) {
         union.start = Math.min(union.start, shadow.spans[index].start);

@@ -10,6 +10,13 @@ import { isTechnicalToken, normalizeWordSet } from "../implementations/helpers/G
 import { isReviewSupportedRule, runsInReviewLanguage } from "./reviewCatalog";
 import { REVIEW_DETECTORS, type RawFinding } from "./reviewDetectors";
 import { toDiagnostic } from "./reviewFindings";
+import {
+  composeRepairs,
+  repairShadow,
+  repairWindows,
+  selectRepairs,
+  type ShadowFinding,
+} from "./repairPass";
 import { isLang, PartialDetection, takeFrameFailure } from "./phraseTemplates";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
 import { isGermanAbbreviationToken } from "./german/abbreviations";
@@ -419,7 +426,6 @@ async function drainAsync<T>(
   }
 }
 
-// eslint-disable-next-line require-yield -- The repair pass (next commit) adds the yields.
 function* finalizeSteps(
   prepared: PreparedReview,
   scans: readonly ChunkScan[],
@@ -439,7 +445,7 @@ function* finalizeSteps(
     }
   }
   diagnostics.sort((a, b) => a.range.start - b.range.start || a.range.end - b.range.end);
-  const unique = dropDuplicateFixes(diagnostics);
+  const unique = yield* repairSteps(prepared, dropDuplicateFixes(diagnostics));
 
   const skipped: Partial<Record<CoverageGap, number>> = { ...extraGaps };
   const protectedChars = protectedCharsInScope(prepared);
@@ -458,6 +464,60 @@ function* finalizeSteps(
       skipped,
     },
   };
+}
+
+/**
+ * The repair pass (repairPass.ts): the safe contraction fixes are applied to a
+ * shadow text, the shadow is scanned near them, and each finding that needs a
+ * repair becomes one fix of the original text that includes it. The repair's own
+ * finding is then removed. No repair: `diagnostics`, unchanged, at no cost.
+ */
+function* repairSteps(
+  prepared: PreparedReview,
+  diagnostics: ReviewDiagnostic[],
+): Generator<void, ReviewDiagnostic[], void> {
+  const repairs = selectRepairs(diagnostics);
+  if (repairs.length === 0) return diagnostics;
+  const shadow = repairShadow(repairs);
+  const snapshot = shiftedSnapshot(prepared.snapshot, shadow.edits, `${prepared.snapshot.id}+`);
+  if (snapshot === null) return diagnostics;
+  const next = prepareReview(snapshot, prepared.options);
+  yield;
+  const found: ShadowFinding[] = [];
+  for (const window of repairWindows(shadow.spans, snapshot.scope)) {
+    for (const finding of scanReviewChunk(next, window).findings) {
+      const diagnostic = toDiagnostic(next, finding);
+      if (diagnostic) found.push({ finding, diagnostic });
+    }
+    yield;
+  }
+  const seen = new Set(diagnostics.map((d) => d.id));
+  const absorbed = new Set<string>();
+  const added: ReviewDiagnostic[] = [];
+  const composites = composeRepairs(
+    shadow,
+    diagnostics,
+    found,
+    snapshot.text,
+    prepared.snapshot.text,
+  ).sort(
+    // One composite per repair: the more specific rule (later in the catalog) wins.
+    (a, b) => (PRIORITY.get(b.finding.ruleId) ?? 0) - (PRIORITY.get(a.finding.ruleId) ?? 0),
+  );
+  for (const { finding, repairIds } of composites) {
+    if (repairIds.some((id) => absorbed.has(id))) continue;
+    const diagnostic = toDiagnostic(prepared, finding);
+    if (!diagnostic || seen.has(diagnostic.id)) continue;
+    seen.add(diagnostic.id);
+    added.push(diagnostic);
+    for (const id of repairIds) absorbed.add(id);
+  }
+  if (added.length === 0) return diagnostics;
+  return dropDuplicateFixes(
+    [...diagnostics.filter((d) => !absorbed.has(d.id)), ...added].sort(
+      (a, b) => a.range.start - b.range.start || a.range.end - b.range.end,
+    ),
+  );
 }
 
 const PRIORITY = new Map<string, number>(

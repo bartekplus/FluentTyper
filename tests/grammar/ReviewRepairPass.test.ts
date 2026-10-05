@@ -11,9 +11,11 @@ import {
   repairWindows,
   selectRepairs,
 } from "../../src/core/domain/grammar/review/repairPass";
+import { findLiveGrammarProposals } from "../../src/core/domain/grammar/review/liveProposals";
+import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { REVIEW_CHUNK_CHARS } from "../../src/core/domain/grammar/review/types";
-import { prepared } from "./grammarTestUtils";
-import { scan } from "./reviewHarness";
+import { prepared, reviewOptions } from "./grammarTestUtils";
+import { DEFAULT_RULES, scan } from "./reviewHarness";
 
 function scansOf(text: string) {
   const ready = prepared(text);
@@ -75,4 +77,118 @@ test("repair windows are clipped, joined and split", () => {
   expect(windows[0].start).toBe(0);
   expect(windows.at(-1)?.end).toBe(9_904 + REPAIR_WINDOW);
   for (let i = 1; i < windows.length; i += 1) expect(windows[i].start).toBe(windows[i - 1].end);
+});
+
+const fixes = (text: string) =>
+  scan(text).map((d) => [d.messageKey, d.original, d.alternatives[0]?.preview]);
+
+test.each([
+  ["I cant hardly understand it.", "I can hardly understand it."],
+  ["We couldnt hardly hear the speaker.", "We could hardly hear the speaker."],
+])("one fix repairs both errors: %s", (input, expected) => {
+  const found = scan(input).filter((d) => !d.warningOnly);
+  expect(found).toHaveLength(1);
+  expect(found[0].messageKey).not.toBe("review_msg_contraction");
+  expect(applyEdits(input, found[0].alternatives[0].edits)).toBe(expected);
+  expect(scan(expected).filter((d) => !d.warningOnly)).toEqual([]);
+});
+
+test("cant, can't and cannot before hardly give the same hint", () => {
+  const hint = [["review_msg_negated_hardly", expect.any(String), "can"]];
+  for (const word of ["cant", "can't", "cannot"])
+    expect(fixes(`I ${word} hardly understand it.`)).toEqual(hint);
+});
+
+test("a repair with no dependent finding stays as it is", () => {
+  expect(fixes("Bob cant go.")).toEqual([["review_msg_contraction", "cant", "can't"]]);
+});
+
+test.each(["The political cant hardly matters.", "I wont hardly notice it.", "I CANT hardly see."])(
+  "no repair, no composite: %s",
+  (text) => {
+    const composite = scan(text).filter(
+      (d) => /cant|wont/i.test(d.original) && d.messageKey !== "review_msg_contraction",
+    );
+    expect(composite).toEqual([]);
+  },
+);
+
+test("a composite follows the text's apostrophe style", () => {
+  const previews = scan("It’s odd: I cant hardly see.").map((d) => d.alternatives[0]?.preview);
+  expect(previews).toContain("can");
+  expect(fixes("It’s odd: we didnt see nothing.")).toContainEqual([
+    "review_msg_contraction",
+    "didnt",
+    "didn’t",
+  ]);
+});
+
+test("an error the repair reveals in another word gets its own fix in the same round", () => {
+  const input = "We didnt see nothing.";
+  expect(fixes(input)).toEqual([
+    ["review_msg_contraction", "didnt", "didn't"],
+    ["review_msg_double_negative", "nothing", "anything"],
+  ]);
+  const edits = scan(input).flatMap((d) => d.alternatives[0].edits);
+  expect(applyEdits(input, edits)).toBe("We didn't see anything.");
+});
+
+test("a fix the text already has is not offered again with the repair", () => {
+  // "had" -> "have" is found with or without the apostrophe.
+  const found = scan("We didnt had enough time.").filter((d) => !d.warningOnly);
+  const edits = found.flatMap((d) => d.alternatives[0].edits);
+  expect(applyEdits("We didnt had enough time.", edits)).toBe("We didn't have enough time.");
+});
+
+test("no two fixes collide around repairs", () => {
+  const text =
+    "We dont need no tests because nobody didnt report any issues. I cant hardly see. " +
+    "It doesnt seem reliable. The company changed it's policy. I didnt see nothing nowhere.";
+  const edits = scan(text)
+    .filter((d) => !d.warningOnly && d.alternatives.length > 0)
+    .flatMap((d) => d.alternatives[0].edits);
+  expect(applyEdits(text, edits)).not.toBeNull();
+});
+
+test("style advice never absorbs a repair", () => {
+  const found = scan("Bob cant go.", { enabledRules: [...DEFAULT_RULES, "styleContractions"] });
+  expect(found.some((d) => d.original === "cant" && d.alternatives[0]?.preview === "can't")).toBe(
+    true,
+  );
+});
+
+test("a composite is never in Fix all safe", () => {
+  const composite = scan("I cant hardly understand it.").find((d) => d.original === "cant");
+  expect(composite?.alternatives[0].preview).toBe("can");
+  expect(composite?.bulk.eligible).toBe(false);
+});
+
+test("a repair in code starts no chain", () => {
+  expect(scan("Run `cant hardly` now.").filter((d) => /cant/.test(d.original))).toEqual([]);
+});
+
+test("typing-time proposals offer the composite", () => {
+  const proposals = findLiveGrammarProposals("I cant hardly understand it. ", {
+    ...reviewOptions(),
+    liveRules: [],
+  });
+  expect(proposals.map((p) => [p.original, p.replacement])).toContainEqual(["cant", "can"]);
+  expect(proposals.some((p) => p.replacement === "can't")).toBe(false);
+});
+
+test("the async finalize pauses inside the repair pass", async () => {
+  const { ready, scans } = scansOf("We dont need no tests. I cant hardly wait.");
+  let pauses = 0;
+  const result = await finalizeReviewAsync(ready, scans, {}, async () => {
+    pauses += 1;
+  });
+  expect(result).toEqual(finalizeReview(ready, scans));
+  expect(pauses).toBeGreaterThan(0);
+});
+
+test("a quote-style fix never takes over a repair", () => {
+  const found = scan("I dont know.", { enabledRules: [...DEFAULT_RULES, "typographicQuotes"] });
+  expect(found.map((d) => [d.ruleId, d.original])).toEqual([
+    ["englishContractionNormalization", "dont"],
+  ]);
 });
