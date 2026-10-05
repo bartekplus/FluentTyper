@@ -10725,8 +10725,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async (name) => {
       const { surface, editable, model } = await openTypingEditor(name);
       const seed = "We saw teh cat and teh dog.";
-      await surface.click(editable);
-      await page.keyboard.press("End");
+      // Not a click and End: in a focused Firefox window, Trix 2.1.19 moves the caret
+      // to the start of the text on focus, and End does not move it from there.
+      await placeCaretAfter(surface, editable, "dog.");
       await page.keyboard.type(" w");
       const prediction = await waitUntil(
         `${name} prediction for the typed prefix`,
