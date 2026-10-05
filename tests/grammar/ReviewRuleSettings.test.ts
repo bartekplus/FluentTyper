@@ -106,3 +106,21 @@ test("selection serialization and reset never copy typing choices or invalid IDs
   );
   expect(reviewRuleIds({ codeMode: false, overrides: undefined })).toEqual(DEFAULT_REVIEW_IDS);
 });
+
+test("opposite Review rules never run together: the first of each group in catalog order wins", () => {
+  const both = {
+    styleOxfordComma: true,
+    styleNoOxfordComma: true,
+    englishAmericanSpelling: true,
+    englishBritishSpelling: true,
+  };
+  const enabled = reviewRuleIds({ codeMode: false, overrides: both });
+  expect(enabled).toContain("styleOxfordComma");
+  expect(enabled).not.toContain("styleNoOxfordComma");
+  expect(enabled).toContain("englishAmericanSpelling");
+  expect(enabled).not.toContain("englishBritishSpelling");
+  // One rule of a group alone stays on.
+  expect(reviewRuleIds({ codeMode: false, overrides: { styleNoOxfordComma: true } })).toContain(
+    "styleNoOxfordComma",
+  );
+});

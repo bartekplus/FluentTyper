@@ -199,6 +199,17 @@ i18n.extend({
     pl: "Szczegóły",
     pr: "Detalhes",
   },
+  grammar_matrix_exclusive: {
+    en: "Turning this rule on turns off: {rules}.",
+    fr: "Activer cette règle désactive : {rules}.",
+    hr: "Uključivanje ovog pravila isključuje: {rules}.",
+    es: "Al activar esta regla se desactiva: {rules}.",
+    el: "Η ενεργοποίηση αυτού του κανόνα απενεργοποιεί: {rules}.",
+    sv: "Om du slår på den här regeln stängs detta av: {rules}.",
+    de: "Wenn Sie diese Regel einschalten, wird ausgeschaltet: {rules}.",
+    pl: "Włączenie tej reguły wyłącza: {rules}.",
+    pr: "Ativar esta regra desativa: {rules}.",
+  },
   grammar_matrix_unavailable: {
     en: "Not available",
     fr: "Non disponible",
