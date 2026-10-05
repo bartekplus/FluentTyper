@@ -1748,3 +1748,62 @@ test("a late prose prediction cannot capitalize code after a same-text context c
   setCaret(root.firstElementChild!.firstChild!);
   expect(session.refreshInteraction()).toBe(true);
 });
+
+test("a caret move without a text change dismisses a contenteditable menu", () => {
+  // Focus puts the caret at the start: the menu is for an empty before-cursor text.
+  const root = createEditor("<p>We saw teh cat.</p><p>Second line.</p>");
+  const fullText = () => {
+    const snapshot = TextTargetAdapter.snapshot(root);
+    return `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+  };
+  setCaret(root.firstElementChild!.firstChild!, 0);
+  const entry = createSuggestionEntry({
+    elem: root,
+    suggestions: ["We"],
+    visibleSuggestionBeforeCursorText: "",
+    visibleSuggestionFullText: fullText(),
+  });
+  const dismissEntry = jest.fn();
+  const session = makeSession({ entry });
+
+  // The page moves the caret after "We saw": a Space must not accept "We" there.
+  setCaret(root.firstElementChild!.firstChild!, "We saw".length);
+  session.reconcileSelection({ dismissEntry });
+  expect(dismissEntry).toHaveBeenCalledTimes(1);
+
+  // Typing that reaches the selection before its keydown keeps the menu.
+  root.firstElementChild!.firstChild!.textContent = "We saw teh cat.";
+  entry.visibleSuggestionBeforeCursorText = "We s";
+  entry.visibleSuggestionFullText = "We s";
+  setCaret(root.firstElementChild!.firstChild!, "We sa".length);
+  session.reconcileSelection({ dismissEntry });
+  expect(dismissEntry).toHaveBeenCalledTimes(1);
+});
+
+test("a response for a caret place that the page moved away from is not shown", () => {
+  // Focus asks for predictions at the start; the page then puts the caret after "We saw".
+  const root = createEditor("<p>We saw teh cat.</p>");
+  const text = root.firstElementChild!.firstChild!;
+  const renderMenu = jest.fn();
+  const entry = createSuggestionEntry({ elem: root, requestId: 2 });
+  const session = makeSession({ entry, renderMenu });
+  const response = (requestId: number, before: string, nextChar: string) =>
+    partialResponse({
+      requestId,
+      suggestionId: entry.id,
+      predictions: ["We"],
+      text: before,
+      nextChar,
+    });
+
+  setCaret(text, "We saw".length);
+  session.handlePredictionResponse(response(2, "", "W"));
+  expect(entry.suggestions).toEqual([]);
+  expect(renderMenu).not.toHaveBeenCalled();
+
+  // Typing after the request changes only the text before the caret: still shown.
+  entry.requestId = 3;
+  session.handlePredictionResponse(response(3, "We sa", " "));
+  expect(entry.suggestions).toEqual(["We"]);
+  expect(renderMenu).toHaveBeenCalledTimes(1);
+});
