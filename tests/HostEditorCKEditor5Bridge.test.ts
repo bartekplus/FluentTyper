@@ -773,4 +773,111 @@ describe("HostEditorMainWorldBridge – IME composition", () => {
     });
     expect(text()).toBe("We saw the");
   });
+
+  test("CKEditor 5 typing refuses to write while its view composes", () => {
+    const mock = createCKEditorMock("hello world", 1);
+    const editor = mock.editor as typeof mock.editor & { editing?: unknown };
+    const view = { document: { isComposing: true } };
+    editor.editing = { view };
+    const editable = mountCkEditor(editor);
+
+    expect(dispatchBridgeRequest(editable, typing("hello world", 6, "there"))).toEqual({
+      ok: true,
+      result: { applied: false, didDispatchInput: false },
+    });
+    expect(mock.getText()).toBe("hello world");
+
+    view.document.isComposing = false;
+    expect(dispatchBridgeRequest(editable, typing("hello world", 6, "there"))).toEqual({
+      ok: true,
+      result: { applied: true, didDispatchInput: false },
+    });
+    expect(mock.getText()).toBe("hello there");
+  });
+
+  test("a CodeMirror 5 controller refuses to write while the field composes", () => {
+    const editable = document.body.appendChild(document.createElement("div"));
+    editable.setAttribute("contenteditable", "true");
+    let line = "teh";
+    (editable as HTMLElement & { editorCtl?: unknown }).editorCtl = {
+      replaceRange(value: string, from: { ch: number }, to?: { ch: number }) {
+        line = `${line.slice(0, from.ch)}${value}${line.slice(to?.ch ?? from.ch)}`;
+      },
+      setCursor: () => undefined,
+      getCursor: () => ({ line: 0, ch: line.length }),
+      getLine: () => line,
+      posFromIndex: (index: number) => ({ line: 0, ch: index }),
+      indexFromPos: (position: { ch: number }) => position.ch,
+    };
+
+    compose(editable, "compositionstart");
+    expect(dispatchBridgeRequest(editable, typing("teh", 0, "the"))).toEqual({
+      ok: true,
+      result: { applied: false, didDispatchInput: false },
+    });
+    expect(line).toBe("teh");
+
+    compose(editable, "compositionend");
+    expect(dispatchBridgeRequest(editable, typing("teh", 0, "the"))).toEqual({
+      ok: true,
+      result: { applied: true, didDispatchInput: false },
+    });
+    expect(line).toBe("the");
+  });
+
+  test("a DOM-model editor (TinyMCE) refuses its native edit while the field composes", () => {
+    const body = document.body.appendChild(document.createElement("div"));
+    body.className = "mce-content-body";
+    body.setAttribute("contenteditable", "true");
+    body.tabIndex = 0;
+    body.textContent = "teh";
+    const editor = {
+      getBody: () => body,
+      undoManager: { transact: (callback: () => void) => callback(), add: () => undefined },
+      nodeChanged: () => undefined,
+    };
+    const win = window as unknown as { tinymce?: unknown };
+    win.tinymce = { get: () => [editor] };
+    const commands: string[] = [];
+    const execCommand = Object.getOwnPropertyDescriptor(document, "execCommand");
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: (_command: string, _ui: boolean, value: string) => {
+        commands.push(value);
+        body.textContent = value;
+        return true;
+      },
+    });
+    try {
+      body.focus();
+      const request = () => {
+        document.getSelection()!.selectAllChildren(body);
+        return {
+          action: "applyDomEditor",
+          before: "teh",
+          prefix: "",
+          selected: "teh",
+          replacement: "the",
+        };
+      };
+
+      compose(body, "compositionstart");
+      expect(dispatchBridgeRequest(body, request())).toEqual({
+        ok: true,
+        result: { applied: false, didDispatchInput: false },
+      });
+      expect(commands).toEqual([]);
+
+      compose(body, "compositionend");
+      expect(dispatchBridgeRequest(body, request())).toEqual({
+        ok: true,
+        result: { applied: true, didDispatchInput: false },
+      });
+      expect(commands).toEqual(["the"]);
+    } finally {
+      delete win.tinymce;
+      if (execCommand) Object.defineProperty(document, "execCommand", execCommand);
+      else delete (document as unknown as { execCommand?: unknown }).execCommand;
+    }
+  });
 });

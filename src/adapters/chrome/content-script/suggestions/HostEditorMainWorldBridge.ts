@@ -40,6 +40,7 @@ import {
 import {
   applyLineEditorReplacement,
   findLineEditorController,
+  isComposingIn,
   isValidBlockReplacement,
   readLineEditorBlockContext,
   recordComposition,
@@ -77,6 +78,7 @@ interface CKEditorInstance {
   editing?: {
     mapper?: { toModelPosition(viewPosition: any): any };
     view?: {
+      document?: { isComposing?: boolean };
       domConverter?: { domPositionToView(domParent: Node, domOffset?: number): any };
       _observers?: Map<unknown, { flush?: () => void; _mutationObserver?: unknown }>;
     };
@@ -226,6 +228,7 @@ function getCKEditor5SelectionPosition(editor: CKEditorInstance): any {
 function readCKEditor5Block(
   editor: CKEditorInstance,
 ): { position: any; block: any; mapping: BlockTextMapping } | null {
+  if (editor.editing?.view?.document?.isComposing) return null;
   flushCKEditor5PendingMutations(editor);
   const position = getCKEditor5SelectionPosition(editor);
   const block = position?.parent;
@@ -339,6 +342,7 @@ function applyBlockReplacement(
   elem: HTMLElement,
   request: HostEditorBlockReplacement,
 ) {
+  if (isComposingIn(elem)) return NOT_APPLIED;
   return applyLineEditorReplacement(
     controller,
     TextTargetAdapter.findBackingTextValueTarget(elem),
@@ -359,6 +363,7 @@ function applyDomEditor(elem: HTMLElement, request: DomEditorReplacement) {
     const selection = win.getSelection();
     if (
       !elem.isConnected ||
+      isComposingIn(elem) ||
       elem.ownerDocument.activeElement !== elem ||
       elem.textContent !== request.before ||
       !selection?.rangeCount
