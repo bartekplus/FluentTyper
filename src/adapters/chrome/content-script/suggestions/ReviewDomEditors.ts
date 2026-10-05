@@ -34,7 +34,7 @@ function editorWindows(elem: HTMLElement): Window[] {
 interface TinyMCEEditor {
   getBody(): HTMLElement;
   mode?: { isReadOnly?(): boolean };
-  undoManager: { transact(callback: () => void): void; add(): unknown };
+  undoManager: { transact(callback: () => void): void; add(): unknown; beforeChange(): void };
   nodeChanged(): void;
 }
 
@@ -52,7 +52,11 @@ function tinymce(elem: HTMLElement): Transaction | null {
   if (!editor || editor.mode?.isReadOnly?.()) return null;
   return {
     // add() records a level only when the content differs from the last one.
-    begin: () => void editor.undoManager.add(),
+    // Undo restores the bookmark of beforeChange(): else that of the typing start.
+    begin() {
+      editor.undoManager.add();
+      editor.undoManager.beforeChange();
+    },
     end() {
       editor.undoManager.add();
       editor.nodeChanged();

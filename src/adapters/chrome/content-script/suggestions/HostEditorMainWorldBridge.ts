@@ -394,6 +394,16 @@ function applyBlockReplacement(
     : NOT_APPLIED;
 }
 
+/** The text node and offset at a character offset in the text of `root`. */
+function textPosition(root: HTMLElement, offset: number): [Text, number] | null {
+  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+    if (offset <= node.length) return [node, offset];
+    offset -= node.length;
+  }
+  return null;
+}
+
 // TinyMCE, CKEditor 4, Froala, Summernote and RoosterJS own history even though
 // their content model is the DOM. Enclose the native minimal edit in one host
 // undo step instead of merging into prior typing.
@@ -418,7 +428,17 @@ function applyDomEditor(elem: HTMLElement, request: DomEditorReplacement) {
     return prefix.toString() === request.prefix && range.toString() === request.selected;
   };
   if (!matches()) return NOT_APPLIED;
-  if (!reviewTransaction(elem, "begin")) return NOT_APPLIED;
+  // The host's undo step before the edit keeps the selection of this moment,
+  // and its Undo restores it. Record the user's caret there, not the replaced
+  // range: else Undo leaves the typed text selected, and the next key replaces it.
+  const selection = win.getSelection()!;
+  const replaced = selection.getRangeAt(0).cloneRange();
+  const caret = textPosition(elem, request.caret);
+  if (caret) selection.collapse(caret[0], caret[1]);
+  const begun = reviewTransaction(elem, "begin");
+  selection.removeAllRanges();
+  selection.addRange(replaced);
+  if (!begun) return NOT_APPLIED;
   let recorded: boolean;
   try {
     if (matches()) elem.ownerDocument.execCommand("insertText", false, request.replacement);

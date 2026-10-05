@@ -10654,7 +10654,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
   /** Loads a typing editor fixture with prediction settings that each typing test needs. */
   async function openTypingEditor(
-    name: TypingEditor | "notion",
+    name: TypingEditor | "tinymce" | "notion",
     options: { seed?: "blocks"; settings?: Record<string, unknown> } = {},
   ) {
     await setSettings(worker, {
@@ -10862,6 +10862,50 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         async () => (await text()) === accepted,
       ).catch(async (cause) => {
         throw new Error(`model after redo: ${JSON.stringify(await model())}`, { cause });
+      });
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  // The DOM-model editors restore the selection of their undo step before the
+  // edit. Live Outlook: that step held the replaced range, so after Undo the
+  // typed prefix stayed selected, and the next key replaced it.
+  test.each(["tinymce", "ckeditor4", "froala", "summernote", "roosterjs"] as const)(
+    "%s Undo of an accepted prediction leaves the caret after the typed prefix",
+    async (name) => {
+      const { surface, editable, model } = await openTypingEditor(name);
+      const seed = "We saw teh cat and teh dog.";
+      await surface.click(editable);
+      await page.keyboard.press("End");
+      await page.keyboard.type(" w");
+      await waitUntil(
+        `${name} prediction for the typed prefix`,
+        async () => /^w\S*[ \xa0]$/i.test((await getVisibleSuggestionTexts(surface))[0] ?? ""),
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      );
+      await page.keyboard.press("Tab");
+      await waitUntil(
+        `${name} contains the accepted prediction`,
+        async () => (await model()).text.trimEnd() !== `${seed} w`,
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      );
+      await pressUndo(page);
+      await waitUntil(
+        `${name} undo removes the accepted prediction`,
+        async () => (await model()).text.trimEnd() === `${seed} w`,
+      ).catch(async (cause) => {
+        throw new Error(`model after undo: ${JSON.stringify(await model())}`, { cause });
+      });
+      expect(
+        await surface.$eval(editable, (root) => root.ownerDocument.getSelection()!.isCollapsed),
+      ).toBe(true);
+      // The next key extends the typed word.
+      await page.keyboard.type("e");
+      await waitUntil(
+        `${name} the next key extends the typed prefix`,
+        async () => (await model()).text.trimEnd() === `${seed} we`,
+      ).catch(async (cause) => {
+        throw new Error(`model after typing: ${JSON.stringify(await model())}`, { cause });
       });
     },
     suiteTimeout(30000, 50000),

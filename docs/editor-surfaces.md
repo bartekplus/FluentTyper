@@ -46,6 +46,10 @@ The MAIN-world bridge finds the editor in `window.__ROOSTERJS_DEVTOOLS_EDITORS__
 An editor that is identified without that list gets Review and Copy only. Typing acceptance and Review Apply are each one Rooster Undo step.
 The e2e fixture uses the real `roosterjs` package as a dev dependency.
 
+**Bug found.** After Undo of an accepted word, the typed prefix stayed selected, and the next key replaced it [V, live].
+The first snapshot recorded the replaced range, and Rooster's Undo restores the selection of that snapshot.
+Now the bridge puts the user's caret back before the first snapshot and selects the range again for the edit. TinyMCE, CKEditor 4, Froala and Summernote had the same problem and get the same fix. TinyMCE also records the caret with `beforeChange()`.
+
 **Risks.**
 
 - The devtools list is marked internal. If Microsoft removes it, Outlook falls back to Review only.

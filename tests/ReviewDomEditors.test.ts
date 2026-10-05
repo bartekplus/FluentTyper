@@ -305,7 +305,8 @@ function caretOffset(editable: HTMLElement): number {
   const prefix = document.createRange();
   prefix.selectNodeContents(editable);
   prefix.setEnd(range.startContainer, range.startOffset);
-  return prefix.toString().length;
+  // CKEditor 4 puts a caret filler of zero-width spaces at the caret.
+  return prefix.toString().replace(/\u200b/g, "").length;
 }
 
 function putCaretAtEnd(editable: HTMLElement): void {
@@ -340,7 +341,32 @@ function typeReplacement(editable: HTMLElement, before = editable.textContent ??
     prefix: before.slice(0, before.indexOf("teh")),
     selected: "teh",
     replacement: "the",
+    caret: before.indexOf("teh") + 3,
   });
+}
+
+/** Puts a collapsed caret at a character offset in the editable's text. */
+function putCaretAt(editable: HTMLElement, offset: number): void {
+  const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const length = (node as Text).length;
+    if (offset <= length) return void document.getSelection()!.collapse(node, offset);
+    offset -= length;
+  }
+  throw new Error("The offset is after the text");
+}
+
+/** The typing path of FluentTyper: the adapter selects "teh" and replaces it. */
+function typeThroughAdapter(editable: HTMLElement) {
+  editable.focus();
+  const start = (editable.textContent ?? "").indexOf("teh");
+  return new ContentEditableAdapter().replaceTextByOffsets(
+    editable,
+    start,
+    start + 3,
+    "the",
+    start + 3,
+  );
 }
 
 /** CKEditor 4 puts a caret filler of zero-width spaces where its Undo restores the caret. */
@@ -484,23 +510,54 @@ describe.each([...EDITORS, ROOSTER])("$name Review and typing writer (real libra
   });
 });
 
+// JSDOM: TinyMCE's Undo restores no selection there. The e2e suite checks TinyMCE.
+describe.each([...EDITORS, ROOSTER].filter(({ name }) => name !== "TinyMCE"))(
+  "$name Undo after a write",
+  (editor) => {
+    // The host's Undo restores the selection of its step before the edit. That
+    // step must hold the user's caret, not the replaced range (live Outlook: the
+    // typed prefix stayed selected, and the next key replaced it).
+    test.each([
+      ["after the typed word (Tab acceptance)", 10],
+      ["after the next space (autocorrect)", 11],
+    ])(
+      "after a typing edit with the caret %s, Undo puts back the collapsed caret",
+      async (_, caret) => {
+        const editable = await mount(editor);
+        // Typing that the host has not recorded as an undo step yet.
+        textNodeOf(editable, "cat.").appendData(" Hi");
+        editable.focus();
+        putCaretAt(editable, caret);
+        expect(typeThroughAdapter(editable).appliedBy).toBe("host-beforeinput");
+        expect(editable.textContent).toBe("We saw the cat. Hi");
+
+        mounted!.undo();
+        expect(visibleText(editable)).toBe("We saw teh cat. Hi");
+        expect(document.getSelection()!.isCollapsed).toBe(true);
+        expect(caretOffset(editable)).toBe(caret);
+      },
+    );
+
+    test("after a Review fix, Undo puts back the caret of the user", async () => {
+      const editable = await mount(editor);
+      textNodeOf(editable, "cat.").appendData(" Hi");
+      editable.focus();
+      putCaretAt(editable, 17);
+      const target = new ContentEditableReviewTarget(editable);
+      expect(await target.apply(reviewEdit(target))).toEqual({ status: "applied" });
+
+      mounted!.undo();
+      expect(visibleText(editable)).toBe("We saw teh cat. Hi");
+      expect(document.getSelection()!.isCollapsed).toBe(true);
+      expect(caretOffset(editable)).toBe(17);
+    });
+  },
+);
+
 describe("RoosterJS writer (Outlook on the web)", () => {
   const editors = () => (window as RoosterWindow).__ROOSTERJS_DEVTOOLS_EDITORS__;
   const editorOf = (editable: HTMLElement) =>
     editors()!.find((editor) => editor.getDOMHelper().isNodeInEditor(editable))!;
-
-  /** The generic typing path of FluentTyper: the adapter, not the bridge. */
-  function typeThroughAdapter(editable: HTMLElement) {
-    editable.focus();
-    const start = (editable.textContent ?? "").indexOf("teh");
-    return new ContentEditableAdapter().replaceTextByOffsets(
-      editable,
-      start,
-      start + 3,
-      "the",
-      start + 3,
-    );
-  }
 
   test("finds the editor in the developer tools list; only an identified editor loses the generic write", async () => {
     const editable = await mount(ROOSTER);

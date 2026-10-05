@@ -286,12 +286,19 @@ export class ContentEditableAdapter {
       const prefix = range.cloneRange();
       prefix.selectNodeContents(elem);
       prefix.setEnd(startPosition.container, startPosition.offset);
+      // The user's caret before this write; without it, the end of the replaced range.
+      const userCaret = selectionAnchors?.endPosition;
+      const caret = prefix.cloneRange();
+      if (userCaret && elem.contains(userCaret.container))
+        caret.setEnd(userCaret.container, userCaret.offset);
+      else caret.setEnd(endPosition.container, endPosition.offset);
       const bridge = new InjectedHostEditorPageBridge(elem.ownerDocument);
       const result = bridge.applyDomEditor(elem, {
         before: beforeEditorText,
         prefix: prefix.toString(),
         selected: range.toString(),
         replacement: replacementText,
+        caret: caret.toString().length,
       });
       if (result.applied)
         return {

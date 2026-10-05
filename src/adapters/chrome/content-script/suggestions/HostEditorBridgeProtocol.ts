@@ -19,6 +19,8 @@ export interface DomEditorReplacement {
   prefix: string;
   selected: string;
   replacement: string;
+  /** The user's caret before the write, as a character offset in `before`. */
+  caret: number;
 }
 
 export interface HostEditorReviewApplyRequest {

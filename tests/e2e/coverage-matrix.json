@@ -3223,6 +3223,27 @@
       ]
     },
     {
+      "id": "dom_editor_undo_caret",
+      "description": "In TinyMCE, CKEditor 4, Froala, Summernote and RoosterJS, the host undo step before a typing write or a Review fix holds the user's caret, not the replaced range. After Undo, the caret is collapsed where the user had it, and the next key extends the typed word.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "%s Undo of an accepted prediction leaves the caret after the typed prefix"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewDomEditors.test.ts",
+          "test": "after a typing edit with the caret %s, Undo puts back the collapsed caret"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewDomEditors.test.ts",
+          "test": "after a Review fix, Undo puts back the caret of the user"
+        }
+      ]
+    },
+    {
       "id": "review_model_dom_mismatch",
       "description": "A Lexical, Draft.js, CKEditor 5 or Trix field whose DOM is ahead of its model when Review opens starts Review-only. The open Review reads the model again, and Apply and Fix all become available when the model has the text; one Undo removes the fix. DOM text that the model never takes keeps the field Review-only, and nothing is written.",
       "coverage": [

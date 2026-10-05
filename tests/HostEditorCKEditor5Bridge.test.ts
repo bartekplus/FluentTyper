@@ -851,7 +851,11 @@ describe("HostEditorMainWorldBridge – IME composition", () => {
     body.textContent = "teh";
     const editor = {
       getBody: () => body,
-      undoManager: { transact: (callback: () => void) => callback(), add: () => undefined },
+      undoManager: {
+        transact: (callback: () => void) => callback(),
+        add: () => undefined,
+        beforeChange: () => undefined,
+      },
       nodeChanged: () => undefined,
     };
     const win = window as unknown as { tinymce?: unknown };
@@ -876,6 +880,7 @@ describe("HostEditorMainWorldBridge – IME composition", () => {
           prefix: "",
           selected: "teh",
           replacement: "the",
+          caret: 3,
         };
       };
 
