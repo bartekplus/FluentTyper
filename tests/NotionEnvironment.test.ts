@@ -160,6 +160,45 @@ test("FluentTyper keeps the state of a Notion leaf on the page root, not on the 
   expect(ownAttributes(root)).toEqual([]);
 });
 
+// All leaves share the page root as state host: one leaf that detaches (a
+// Review write suspends it) must not take the state of the other leaves.
+test("a Notion leaf that detaches leaves the shared root state to the other leaves", () => {
+  const { root, leaves } = notionPage("We saw teh", "Other block");
+  for (const element of [root, ...leaves]) element.setAttribute("contenteditable", "true");
+  const runtime = new SuggestionManagerRuntime(
+    createRuntimeOptions({ selectors: "[contenteditable]" }),
+  );
+  const entryId = (leaf: Element) =>
+    (runtime as unknown as { entryByElement: WeakMap<Element, { id: number }> }).entryByElement.get(
+      leaf,
+    )?.id;
+  try {
+    root.focus();
+    setCaret(leaves[0].firstChild!, 10);
+    runtime.queryAndAttachHelper();
+    setCaret(leaves[1].firstChild!, 5);
+    runtime.queryAndAttachHelper();
+    const other = entryId(leaves[1]);
+    expect(entryId(leaves[0])).toBeNumber();
+    expect(other).toBeNumber();
+    // The root names the last attached leaf; make it name the leaf that detaches.
+    root.setAttribute("data-ft-suggestion-id", String(entryId(leaves[0])));
+
+    runtime.suspendForReview(leaves[0]);
+    expect(entryId(leaves[0])).toBeUndefined();
+    expect(root.getAttribute("data-suggestion")).toBe("true");
+    expect(root.getAttribute("data-ft-autocomplete-on-tab")).toBe("true");
+    expect(root.getAttribute("data-ft-early-tab-bridge")).toBe("true");
+    expect(root.getAttribute("data-ft-suggestion-id")).toBe(String(other));
+    expect(root.getAttribute("data-ft-suggestion-visible")).toBe("false");
+  } finally {
+    runtime.detachAllHelpers();
+  }
+  expect(root.getAttributeNames().filter((name) => /^data-(ft-|suggestion$)/.test(name))).toEqual(
+    [],
+  );
+});
+
 test("a typing write in a Notion leaf needs the selection already in that leaf", () => {
   const { root, leaves } = notionPage("We saw teh", "Other block");
   const adapter = new ContentEditableAdapter();

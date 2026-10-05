@@ -654,14 +654,28 @@ export class SuggestionManagerRuntime {
     this.lifecycleController.detachEntryListeners(entry);
     entry.menu.remove();
     const stateHost = resolveSuggestionStateHost(entry.elem);
+    // A shared host (a Notion page root for all its leaves) keeps the state of the other leaves.
+    const sharer =
+      stateHost === entry.elem
+        ? undefined
+        : [...this.entries.values()].find(
+            (other) => other.id !== id && resolveSuggestionStateHost(other.elem) === stateHost,
+          );
 
-    stateHost.removeAttribute("data-suggestion");
-    stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
-    stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
-    stateHost.removeAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR);
-    stateHost.removeAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR);
-    stateHost.removeAttribute(EARLY_TAB_ACCEPT_CONTEXT_ATTR);
-    stateHost.removeAttribute("data-ft-avoid-conflicts");
+    if (sharer) {
+      if (stateHost.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR) === String(id)) {
+        stateHost.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, String(sharer.id));
+        stateHost.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
+      }
+    } else {
+      stateHost.removeAttribute("data-suggestion");
+      stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
+      stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
+      stateHost.removeAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR);
+      stateHost.removeAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR);
+      stateHost.removeAttribute(EARLY_TAB_ACCEPT_CONTEXT_ATTR);
+      stateHost.removeAttribute("data-ft-avoid-conflicts");
+    }
 
     this.entries.delete(id);
     this.entryByElement.delete(entry.elem);
