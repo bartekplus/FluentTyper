@@ -911,8 +911,13 @@ transaction, last edit first, that keeps the marks of the replaced text:
 - Lexical: the editor and node keys that Lexical stores on its DOM; `spliceText`
   in one discrete update tagged `history-push`, so the batch never merges into typing.
 - Draft.js: the editor component, found through React's fiber; the page's own
-  `EditorState.push` with the `spellcheck-change` type, which is always its own
-  undo step. Review waits for React to render the new text.
+  `EditorState.push` with the `insert-fragment` type. Draft.js merges a push into
+  the previous undo step only for `insert-characters`, `backspace-character` and
+  `delete-character`, so each `insert-fragment` push is its own undo step, and
+  Draft.js undoes it in its model. The `spellcheck-change` type is not used:
+  Draft.js gives its undo to the browser's native undo, which has no entry for a
+  model write. An editor with `allowUndo` off records no undo step. Review waits
+  for React to render the new text.
 - CKEditor 5: the public DOM converter and mapper give the model ranges; one
   `model.change` batch.
 - Trix: the public `editor` API in one recorded undo entry, while the document

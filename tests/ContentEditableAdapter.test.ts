@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { createEditor, setCaret } from "./codeContextTestUtils";
+import { editorCapabilities } from "../src/adapters/chrome/content-script/suggestions/EditorCapabilities";
 
 function ensureNodeFilterApi(): void {
   if (typeof (globalThis as { NodeFilter?: unknown }).NodeFilter !== "undefined") {
@@ -644,3 +645,53 @@ test("refuses a rich-text edit when native editing is unavailable", () => {
     document.execCommand = original;
   }
 });
+
+// A typing-path fingerprint permits only an attempt. Without its editor, the write is refused.
+for (const fingerprint of [
+  ".ProseMirror",
+  "[data-slate-editor]",
+  "[data-lexical-editor]",
+  ".ck-editor__editable",
+  "trix-editor",
+  ".DraftEditor-root .public-DraftEditor-content",
+  ".mce-content-body",
+  ".cke_editable",
+  ".fr-element",
+  ".note-editable",
+]) {
+  test(`a ${fingerprint} fingerprint without its editor never gets a generic DOM write`, () => {
+    const host = createEditor("");
+    let editable: HTMLElement = host;
+    for (const part of fingerprint.split(" ")) {
+      const next = part === "trix-editor" ? document.createElement("trix-editor") : editable;
+      if (part.startsWith(".")) next.classList.add(part.slice(1));
+      else if (part.startsWith("[")) next.setAttribute(part.slice(1, -1), "true");
+      if (next !== editable) editable.append(next);
+      editable = next;
+      if (part === ".DraftEditor-root") {
+        editable.removeAttribute("contenteditable");
+        editable = editable.appendChild(document.createElement("div"));
+      }
+    }
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { configurable: true, value: true });
+    editable.textContent = "teh cat";
+    editable.focus();
+    setCaret(editable.firstChild!, 3);
+    expect(editorCapabilities(editable).displaySuggestions).toBe(true);
+    const original = document.execCommand;
+    let writes = 0;
+    document.execCommand = () => {
+      writes++;
+      return true;
+    };
+    try {
+      const result = new ContentEditableAdapter().replaceTextByOffsets(editable, 0, 3, "the", 3);
+      expect(result).toMatchObject({ appliedBy: "refused", didMutateDom: false });
+      expect(writes).toBe(0);
+      expect(editable.textContent).toBe("teh cat");
+    } finally {
+      document.execCommand = original;
+    }
+  });
+}
