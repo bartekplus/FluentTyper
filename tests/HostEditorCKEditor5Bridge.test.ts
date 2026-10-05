@@ -694,3 +694,83 @@ beforeEach(() => {
   document.dispatchEvent(new Event(HOST_EDITOR_ENABLED_EVENT));
   document.documentElement.removeAttribute(HOST_EDITOR_ENABLED_ATTR);
 });
+
+// ── IME composition ─────────────────────────────────────────────────
+// No bridge writer may change the text while an input method composes in the field.
+
+const compose = (elem: HTMLElement, type: "compositionstart" | "compositionend") =>
+  elem.dispatchEvent(new Event(type, { bubbles: true, composed: true }));
+
+const typing = (expectedBlockText: string, replaceStart: number, replacementText: string) => ({
+  action: "applyBlockReplacement",
+  replaceStart,
+  replaceEnd: expectedBlockText.length,
+  replacementText,
+  cursorAfter: replaceStart + replacementText.length,
+  expectedBlockText,
+});
+
+/** The public API of the `trix-editor` element that the Review writer uses. */
+function mountTrix(initial: string) {
+  const element = document.createElement("trix-editor");
+  element.setAttribute("contenteditable", "true");
+  Object.defineProperty(element, "isContentEditable", { configurable: true, value: true });
+  const block = element.appendChild(document.createElement("div"));
+  block.textContent = initial;
+  const text = () => block.textContent ?? "";
+  // Trix keeps one immutable document object until the text changes.
+  let trixDocument = { toString: () => `${text()}\n` };
+  let range: [number, number] = [initial.length, initial.length];
+  const replace = (value: string) => {
+    block.textContent = text().slice(0, range[0]) + value + text().slice(range[1]);
+    range = [range[0] + value.length, range[0] + value.length];
+    trixDocument = { toString: () => `${text()}\n` };
+  };
+  (element as HTMLElement & { editor: unknown }).editor = {
+    getDocument: () => trixDocument,
+    getSelectedRange: () => range,
+    setSelectedRange: (next: [number, number]) => (range = next),
+    insertString: replace,
+    deleteInDirection: () => replace(""),
+    recordUndoEntry: () => undefined,
+  };
+  document.body.appendChild(element);
+  document.getSelection()!.collapse(block.firstChild, initial.length);
+  return { element, text };
+}
+
+describe("HostEditorMainWorldBridge – IME composition", () => {
+  test("Trix refuses Review reads, Review writes and typing writes while composing", () => {
+    const { element, text } = mountTrix("We saw teh");
+    const read = dispatchBridgeRequest(element, { action: "readReviewModel" }) as {
+      snapshot: { text: string; signature: string };
+    };
+    expect(read.snapshot.text).toBe("We saw teh");
+    const review = {
+      action: "applyReviewModel",
+      edits: [{ start: 7, end: 10, original: "teh", replacement: "the" }],
+      before: "We saw teh",
+      after: "We saw the",
+      signature: read.snapshot.signature,
+    };
+
+    compose(element, "compositionstart");
+    expect(dispatchBridgeRequest(element, { action: "readReviewModel" })).toEqual({ ok: false });
+    expect(dispatchBridgeRequest(element, review)).toEqual({
+      ok: true,
+      reviewResult: { status: "rejected", reason: "unsupported" },
+    });
+    expect(dispatchBridgeRequest(element, typing("We saw teh", 7, "the"))).toEqual({
+      ok: true,
+      result: { applied: false, didDispatchInput: false },
+    });
+    expect(text()).toBe("We saw teh");
+
+    compose(element, "compositionend");
+    expect(dispatchBridgeRequest(element, review)).toEqual({
+      ok: true,
+      reviewResult: { status: "applied" },
+    });
+    expect(text()).toBe("We saw the");
+  });
+});

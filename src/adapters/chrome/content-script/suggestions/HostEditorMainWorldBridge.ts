@@ -42,6 +42,8 @@ import {
   findLineEditorController,
   isValidBlockReplacement,
   readLineEditorBlockContext,
+  recordComposition,
+  setCompositionTarget,
   type LineEditorBlockContext,
   type LineEditorController,
 } from "./HostEditorControllerUtils";
@@ -398,6 +400,7 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
 
   let enabled = false;
   const observe = (event: Event) => {
+    recordComposition(event);
     const source = gutenbergSelectedField(event.composedPath()[0] as Element | null);
     if (source instanceof HTMLElement && isGutenbergField(source)) {
       if (event.type === "compositionstart" || event.type === "compositionend")
@@ -441,6 +444,8 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
     const next = doc.documentElement.getAttribute(HOST_EDITOR_ENABLED_ATTR) === "true";
     if (next === enabled) return;
     enabled = next;
+    // The listeners stop or start now: a composition that they saw can end unseen.
+    setCompositionTarget(null);
     setProseMirrorObservationEnabled(enabled);
     for (const name of names) {
       if (enabled) doc.addEventListener(name, observe, true);

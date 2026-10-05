@@ -15,7 +15,11 @@ import {
   type HostEditorBlockReplacement,
   type HostEditorReviewApplyRequest,
 } from "./HostEditorBridgeProtocol";
-import { isValidBlockReplacement, type LineEditorBlockContext } from "./HostEditorControllerUtils";
+import {
+  isComposingIn,
+  isValidBlockReplacement,
+  type LineEditorBlockContext,
+} from "./HostEditorControllerUtils";
 import type { HostEditorApplyResult } from "./HostEditorAdapterResolver";
 
 /**
@@ -397,7 +401,8 @@ const trix: AdapterFactory = (root, map) => {
   if (text.replace(/ /g, " ") !== map.text.replace(/ /g, " ")) return null;
   const adapter: ModelAdapter<TextRange> = {
     identity: [editor, document],
-    composing: () => false,
+    // Trix has no public composition state; the bridge records the IME events.
+    composing: () => isComposingIn(root),
     resolve: (_range, offsets) => ({ start: offsets.start, end: offsets.end }),
     text: (ref) => map.text.slice(ref.start, ref.end),
     write(edits, caret) {
