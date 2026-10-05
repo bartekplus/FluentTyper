@@ -538,6 +538,31 @@ describe.each([...EDITORS, ROOSTER].filter(({ name }) => name !== "TinyMCE"))(
       },
     );
 
+    // After Enter, a next-word prediction has an empty token at the start of the
+    // new block. Its text offset is also the end of the block before it.
+    test("after a typing edit at the start of a second block, Undo puts the caret back in that block", async () => {
+      const editable = await mount(editor);
+      // A new block that the host has not recorded as an undo step yet.
+      const block = editable.appendChild(document.createElement("p"));
+      block.append("Hi");
+      editable.focus();
+      document.getSelection()!.collapse(block, 0);
+      const start = "We saw teh cat.".length;
+      expect(
+        new ContentEditableAdapter().replaceTextByOffsets(editable, start, start, "Yes ", start + 4)
+          .appliedBy,
+      ).toBe("host-beforeinput");
+      expect(block.textContent).toBe("Yes Hi");
+
+      mounted!.undo();
+      expect(visibleText(editable)).toBe("We saw teh cat.Hi");
+      expect(document.getSelection()!.isCollapsed).toBe(true);
+      // Some hosts restore their snapshot as new nodes: find the caret's block again.
+      const anchor = document.getSelection()!.anchorNode!;
+      const caretBlock = (anchor instanceof Element ? anchor : anchor.parentElement)!.closest("p");
+      expect(caretBlock?.textContent?.replace(/\u200b/g, "")).toBe("Hi");
+    });
+
     test("after a Review fix, Undo puts back the caret of the user", async () => {
       const editable = await mount(editor);
       textNodeOf(editable, "cat.").appendData(" Hi");

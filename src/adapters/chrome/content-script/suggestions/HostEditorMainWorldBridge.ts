@@ -433,7 +433,12 @@ function applyDomEditor(elem: HTMLElement, request: DomEditorReplacement) {
   // range: else Undo leaves the typed text selected, and the next key replaces it.
   const selection = win.getSelection()!;
   const replaced = selection.getRangeAt(0).cloneRange();
-  const caret = textPosition(elem, request.caret);
+  // A caret at the end of the replaced range stays in its node: the same text
+  // offset at a block start also maps to the end of the block before it.
+  const caret =
+    request.caret === request.prefix.length + request.selected.length
+      ? ([replaced.endContainer, replaced.endOffset] as const)
+      : textPosition(elem, request.caret);
   if (caret) selection.collapse(caret[0], caret[1]);
   const begun = reviewTransaction(elem, "begin");
   selection.removeAllRanges();
