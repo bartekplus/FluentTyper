@@ -48,6 +48,17 @@ class FluentTyper {
       this.runtimeController.handleEarlyTabAcceptRequest(event.data.entryId);
     }
   };
+  // document.open() (CKEditor 4 writes its editing frame so, also on setData) erases
+  // every listener of this script and replaces the root element. Only an observer of
+  // the document itself sees that: then a new instance starts on the new document.
+  private readonly root = document.documentElement;
+  private readonly documentRewriteObserver = new MutationObserver(() => {
+    if (!document.documentElement || document.documentElement === this.root) return;
+    logger.info("Document rewritten; restarting content script");
+    this.destroy();
+    window.FluentTyper = new FluentTyper();
+  });
+  private destroyed = false;
 
   constructor() {
     logger.info("Initializing content script", {
@@ -88,6 +99,7 @@ class FluentTyper {
     });
 
     chrome.runtime.onMessage.addListener(this.boundMessageHandler);
+    this.documentRewriteObserver.observe(document, { childList: true });
     this.getConfig();
   }
 
@@ -137,6 +149,8 @@ class FluentTyper {
 
   destroy(): void {
     logger.info("Destroying content script instance");
+    this.destroyed = true;
+    this.documentRewriteObserver.disconnect();
     this.hostChangeWatcher.stop();
     this.runtimeController.disable();
     window.removeEventListener("message", this.boundEarlyTabAcceptHandler);
@@ -154,7 +168,8 @@ class FluentTyper {
     };
     chrome.runtime.sendMessage(msg, (response: unknown) => {
       checkLastError();
-      this.messageHandler(response as Message);
+      // A late answer must not enable a destroyed instance again.
+      if (!this.destroyed) this.messageHandler(response as Message);
     });
   }
 }

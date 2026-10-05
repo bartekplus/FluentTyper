@@ -4704,6 +4704,22 @@
       ]
     },
     {
+      "id": "rewritten_document_restart",
+      "description": "When a page rewrites a document with document.open() (CKEditor 4 writes its editing frame so, also on setData), every listener in it is erased and its root element is replaced. FluentTyper then starts a new content script instance on the new document, which sends the enabled state to the main-world bridge again; a late config answer does not enable the old instance. Typing in the rewritten CKEditor 4 frame accepts a prediction with Tab.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/content_script.behavior.test.ts",
+          "test": "a rewritten document (document.open) starts a new instance that enables the host bridge again"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "CKEditor 4 setData rewrites its frame with document.open, and typing still accepts a prediction"
+        }
+      ]
+    },
+    {
       "id": "rich_editor_snippet_expansion",
       "description": "In real Draft.js, Trix, CKEditor 4, Froala, Summernote, Tiptap and RoosterJS editors and in bundled Quill 1 and Quill 2, a text expansion replaces its shortcut in the second paragraph of the editor's own model, keeps bold and links, and native Undo restores the shortcut in one step. A bundled Quill 2's Undo can also remove the typing of the last second.",
       "coverage": [

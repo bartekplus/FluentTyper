@@ -18,6 +18,10 @@ import {
   EARLY_TAB_ACCEPT_MESSAGE_TYPE,
   EARLY_TAB_ACCEPT_REQUEST_EVENT,
 } from "../src/adapters/chrome/content-script/suggestions/EarlyTabAcceptBridgeProtocol";
+import {
+  HOST_EDITOR_ENABLED_ATTR,
+  HOST_EDITOR_ENABLED_EVENT,
+} from "../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
 
 type SuggestionLike = {
   queryAndAttachHelper: jest.Mock;
@@ -896,6 +900,46 @@ describe("content_script behavior", () => {
 
     expect(getConfigSpy).toHaveBeenCalled();
     expect(domObserver.setNode).not.toHaveBeenCalled();
+  });
+
+  test("a rewritten document (document.open) starts a new instance that enables the host bridge again", async () => {
+    const { fluentTyper, sendMessage } = await loadContentScript();
+    const lateConfig = sendMessage.mock.calls[0][1] as (response: unknown) => void;
+    fluentTyper.setConfig(defaultConfig());
+    expect(fluentTyper.enabled).toBe(true);
+
+    // document.open() erases every listener and replaces the root element.
+    const oldRoot = document.documentElement;
+    const newRoot = document.createElement("html");
+    newRoot.append(document.createElement("head"), document.createElement("body"));
+    document.replaceChild(newRoot, oldRoot);
+    try {
+      await Promise.resolve();
+      const restarted = (window as Window & { FluentTyper?: LoadedContentScript["fluentTyper"] })
+        .FluentTyper!;
+      behaviorHarness.fluentTyperInstances.push(restarted);
+      expect(restarted).not.toBe(fluentTyper);
+      expect(sendMessage.mock.calls.at(-1)?.[0]).toEqual(
+        expect.objectContaining({ command: CMD_CONTENT_SCRIPT_GET_CONFIG }),
+      );
+
+      // A late config answer to the old instance does not enable it again.
+      const handled = jest.spyOn(fluentTyper, "messageHandler");
+      lateConfig({ command: CMD_BACKGROUND_PAGE_SET_CONFIG, context: defaultConfig() });
+      expect(handled).not.toHaveBeenCalled();
+
+      // The main-world bridge lost its state: the new instance sends "enabled" again.
+      const bridgeStates: (string | null)[] = [];
+      const record = () =>
+        bridgeStates.push(document.documentElement.getAttribute(HOST_EDITOR_ENABLED_ATTR));
+      document.addEventListener(HOST_EDITOR_ENABLED_EVENT, record);
+      restarted.setConfig(defaultConfig());
+      document.removeEventListener(HOST_EDITOR_ENABLED_EVENT, record);
+      expect(bridgeStates).toEqual(["true"]);
+    } finally {
+      for (const instance of behaviorHarness.fluentTyperInstances) instance.destroy();
+      document.replaceChild(oldRoot, newRoot);
+    }
   });
 
   test("watchdog does nothing when host and observed node are unchanged", async () => {

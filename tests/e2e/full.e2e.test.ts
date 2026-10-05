@@ -40,7 +40,12 @@ import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
 import { grammarRuleSelectionToOverrides } from "../../src/core/domain/grammar/GrammarRuleSettings";
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 import type { BackgroundContext } from "./e2e-helpers";
-import { EXTRA_LIST_ITEM, EXTRA_PARAGRAPH, SEED_TEXT } from "./fixtures/review-editors/shared";
+import {
+  EXTRA_LIST_ITEM,
+  EXTRA_PARAGRAPH,
+  SEED_HTML,
+  SEED_TEXT,
+} from "./fixtures/review-editors/shared";
 import {
   BROWSER_TYPE,
   clickFirstVisibleSuggestion,
@@ -10762,6 +10767,49 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           Array.from(root.querySelectorAll("li"), (item) => item.textContent),
         ),
       ).toEqual([BLOCK_SEED_TEXT.split("\n")[2].replace(marker, `${marker} ${prediction}Z`)]);
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  test(
+    "CKEditor 4 setData rewrites its frame with document.open, and typing still accepts a prediction",
+    async () => {
+      const first = await openTypingEditor("ckeditor4");
+      // FluentTyper runs in the editing frame before the rewrite.
+      await placeCaretAfter(first.surface, first.editable, "dog.");
+      await page.keyboard.type(" w");
+      await wPrediction(first.surface, "CKEditor 4 prediction before setData");
+      // setData writes the frame again: document.open() erases every listener in it
+      // and replaces its root element. The iframe and its window stay.
+      await page.evaluate(
+        (html) =>
+          new Promise<void>((resolve) => {
+            type Editor = { setData(data: string, options: { callback(): void }): void };
+            const ck = (window as unknown as { CKEDITOR: { instances: Record<string, Editor> } })
+              .CKEDITOR;
+            ck.instances["test-review-ckeditor4"].setData(html, { callback: resolve });
+          }),
+        SEED_HTML,
+      );
+      // Puppeteer can report the rewritten frame as a new frame.
+      const { surface, editable, model } = await reviewEditorFixture("ckeditor4");
+      expect((await model()).text).toBe(SEED_TEXT);
+      await placeCaretAfter(surface, editable, "dog.");
+      await page.keyboard.type(" w");
+      const prediction = await wPrediction(surface, "CKEditor 4 prediction after setData");
+      await page.keyboard.press("Tab");
+      await waitUntil(
+        "CKEditor 4 accepts the prediction after setData",
+        async () =>
+          normalizeSuggestionText((await model()).text) ===
+          normalizeSuggestionText(`${SEED_TEXT} ${prediction}`),
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      ).catch(async (cause) => {
+        throw new Error(`ckeditor4 model: ${JSON.stringify({ prediction, ...(await model()) })}`, {
+          cause,
+        });
+      });
+      expect((await model()).runs).toEqual({ bold: ["teh"], links: ["teh"] });
     },
     suiteTimeout(30000, 50000),
   );
