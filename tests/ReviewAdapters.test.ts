@@ -13,6 +13,7 @@ import {
   resolveReviewTarget,
 } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import { InjectedHostEditorPageBridge } from "../src/adapters/chrome/content-script/suggestions/HostEditorPageBridge";
+import { recordComposition } from "../src/adapters/chrome/content-script/suggestions/HostEditorControllerUtils";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import {
   explanationTable,
@@ -1274,6 +1275,34 @@ describe("review controller lifecycle", () => {
     await until(() => resume.mock.calls.length === 1);
     expect(resume).toHaveBeenCalledWith(field);
     review.close();
+  });
+
+  test("a review opened during an IME composition writes nothing until the composition ends", async () => {
+    // As the content runtime does from its start.
+    for (const type of ["compositionstart", "compositionend"])
+      document.addEventListener(type, recordComposition, true);
+    try {
+      setExecCommand(textControlInsert);
+      const field = textarea("We saw teh cat.");
+      field.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+      const { review } = controller();
+      review.invoke();
+      await until(
+        () => root()?.querySelector(".status")?.textContent === "Paused while you compose text.",
+      );
+      expect(root()!.querySelector(".card [data-action=apply]")).toBeNull();
+      expect(field.value).toBe("We saw teh cat.");
+
+      field.dispatchEvent(new Event("compositionend", { bubbles: true }));
+      await until(() => root()?.querySelector(".status")?.textContent === "Issues: 1");
+      root()!.querySelector<HTMLElement>(".item")!.click();
+      root()!.querySelector<HTMLElement>(".card [data-action=apply]")!.click();
+      await until(() => field.value === "We saw the cat.");
+      review.close();
+    } finally {
+      for (const type of ["compositionstart", "compositionend"])
+        document.removeEventListener(type, recordComposition, true);
+    }
   });
 
   test("closing a review in the middle of a write resumes suggestions", async () => {

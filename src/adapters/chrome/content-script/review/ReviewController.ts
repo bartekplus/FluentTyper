@@ -21,6 +21,7 @@ import { GoogleDocsReviewTarget, type GoogleDocsReviewSurface } from "./GoogleDo
 import { WordReviewTarget } from "./WordReviewTarget";
 import { GutenbergReviewTarget } from "./GutenbergReviewTarget";
 import { isWordInputProxy } from "../suggestions/CodeContextResolver";
+import { isComposingIn } from "../suggestions/HostEditorControllerUtils";
 import {
   ContentEditableReviewTarget,
   isTextControl,
@@ -311,6 +312,8 @@ export class ReviewController {
 
     on(doc, "visibilitychange", () => session.notifySourceChanged());
     if (!(target instanceof GoogleDocsReviewTarget)) {
+      // A composition can run already when the review opens.
+      target.composing = isComposingIn(element);
       on(element, "input", () => session.notifySourceChanged());
       on(element, "compositionstart", () => {
         target.composing = true;
