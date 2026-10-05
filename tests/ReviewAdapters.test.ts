@@ -1,7 +1,7 @@
 import { detectReviewDiagnostics } from "../src/core/domain/grammar/review/reviewDiagnostics";
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import { createEditor, setCaret } from "./codeContextTestUtils";
-import { createReviewController } from "./reviewTestUtils";
+import { createReviewController, until } from "./reviewTestUtils";
 import {
   buildContentEditableTextMap,
   domPositionToOffset,
@@ -13,6 +13,7 @@ import {
   resolveReviewTarget,
 } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import { InjectedHostEditorPageBridge } from "../src/adapters/chrome/content-script/suggestions/HostEditorPageBridge";
+import { recordComposition } from "../src/adapters/chrome/content-script/suggestions/HostEditorControllerUtils";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import {
   explanationTable,
@@ -94,14 +95,6 @@ function textarea(value: string): HTMLTextAreaElement {
 
 function edit(start: number, end: number, original: string, replacement: string): ReviewEdit {
   return { start, end, original, replacement };
-}
-
-async function until(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
-  for (let i = 0; i < timeoutMs / 5; i += 1) {
-    if (predicate()) return;
-    await Bun.sleep(5);
-  }
-  throw new Error("condition not reached");
 }
 
 afterEach(() => {
@@ -1276,6 +1269,73 @@ describe("review controller lifecycle", () => {
     review.close();
   });
 
+  test("a review opened during an IME composition writes nothing until the composition ends", async () => {
+    // As the content runtime does from its start.
+    for (const type of ["compositionstart", "compositionend"])
+      document.addEventListener(type, recordComposition, true);
+    try {
+      setExecCommand(textControlInsert);
+      const field = textarea("We saw teh cat.");
+      field.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+      const { review } = controller();
+      review.invoke();
+      await until(
+        () => root()?.querySelector(".status")?.textContent === "Paused while you compose text.",
+      );
+      expect(root()!.querySelector(".card [data-action=apply]")).toBeNull();
+      expect(field.value).toBe("We saw teh cat.");
+
+      field.dispatchEvent(new Event("compositionend", { bubbles: true }));
+      await until(() => root()?.querySelector(".status")?.textContent === "Issues: 1");
+      root()!.querySelector<HTMLElement>(".item")!.click();
+      root()!.querySelector<HTMLElement>(".card [data-action=apply]")!.click();
+      await until(() => field.value === "We saw the cat.");
+      review.close();
+    } finally {
+      for (const type of ["compositionstart", "compositionend"])
+        document.removeEventListener(type, recordComposition, true);
+    }
+  });
+
+  test("a review opened during an IME composition in a Notion block reads again when it ends", async () => {
+    // Notion keeps focus on its page root: the composition events fire there, not on the leaf.
+    for (const type of ["compositionstart", "compositionend"])
+      document.addEventListener(type, recordComposition, true);
+    const page = document.createElement("div");
+    try {
+      page.contentEditable = "true";
+      page.tabIndex = 0;
+      page.setAttribute("data-content-editable-root", "true");
+      Object.defineProperty(page, "isContentEditable", { value: true });
+      const content = page.appendChild(document.createElement("div"));
+      content.className = "notion-page-content";
+      const leaf = content.appendChild(document.createElement("div"));
+      leaf.contentEditable = "true";
+      leaf.setAttribute("data-content-editable-leaf", "true");
+      Object.defineProperty(leaf, "isContentEditable", { value: true });
+      leaf.textContent = "We saw teh cat.";
+      document.body.append(page);
+      page.focus();
+      setCaret(leaf.firstChild!, 3);
+      page.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+      const { review } = controller();
+      review.invoke();
+      expect(review.reviewedElement).toBe(leaf);
+      await until(
+        () => root()?.querySelector(".status")?.textContent === "Paused while you compose text.",
+      );
+      expect(root()!.querySelector(".card [data-action=apply]")).toBeNull();
+
+      page.dispatchEvent(new Event("compositionend", { bubbles: true }));
+      await until(() => root()?.querySelector(".status")?.textContent === "Issues: 1");
+      review.close();
+    } finally {
+      page.remove();
+      for (const type of ["compositionstart", "compositionend"])
+        document.removeEventListener(type, recordComposition, true);
+    }
+  });
+
   test("closing a review in the middle of a write resumes suggestions", async () => {
     const field = textarea("We saw teh cat.");
     const { review, suspend, resume } = controller();
@@ -1670,6 +1730,8 @@ describe("adversarial review regressions", () => {
       svg.remove();
       document.dispatchEvent(new window.MouseEvent("pointerup", { bubbles: true }));
       await until(() => (panel().querySelector(".notes")?.textContent ?? "").includes(docsNote));
+      // Docs applies one fix at a time: a paint keeps that note too.
+      expect(panel().querySelector(".notes")?.textContent).toContain("Apply fixes individually.");
       expect(marks()).toHaveLength(0);
       review.close();
       expect(keys.size).toBe(0);

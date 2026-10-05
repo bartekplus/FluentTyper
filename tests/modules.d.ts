@@ -33,14 +33,30 @@ declare module "draft-js" {
     ): void;
   }
   export interface ContentState {
+    getBlockForKey(key: string): ContentBlock;
     getEntity(key: string): { getType(): string; getData(): unknown };
     getBlocksAsArray(): ContentBlock[];
     getPlainText(delimiter?: string): string;
   }
+  export class SelectionState {
+    static createEmpty(blockKey: string): SelectionState;
+    merge(values: Record<string, unknown>): SelectionState;
+    getAnchorOffset(): number;
+    getFocusOffset(): number;
+  }
   export class EditorState {
     static createWithContent(content: ContentState, decorator?: CompositeDecorator): EditorState;
+    static push(state: EditorState, content: ContentState, changeType: string): EditorState;
+    static acceptSelection(state: EditorState, selection: SelectionState): EditorState;
+    static undo(state: EditorState): EditorState;
     getCurrentContent(): ContentState;
+    getSelection(): SelectionState;
+    isInCompositionMode(): boolean;
   }
+  export const Modifier: {
+    insertText(content: ContentState, selection: SelectionState, text: string): ContentState;
+    applyInlineStyle(content: ContentState, selection: SelectionState, style: string): ContentState;
+  };
   export class CompositeDecorator {
     constructor(
       decorators: {
@@ -59,3 +75,4 @@ declare module "draft-js" {
   }>;
   export function convertFromRaw(raw: unknown): ContentState;
 }
+declare module "trix";

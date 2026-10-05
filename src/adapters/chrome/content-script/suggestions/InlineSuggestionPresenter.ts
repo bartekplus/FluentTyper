@@ -81,8 +81,8 @@ export class InlineSuggestionPresenter {
       return;
     }
 
-    if (!suffix) {
-      // Nothing to preview, but Tab may still accept (a no-op completion).
+    if (!suffix.trim()) {
+      // Nothing visible to preview, but Tab may still accept (a no-op completion).
       this.clearForEntry(entry.id);
       return;
     }

@@ -2,6 +2,7 @@ import type { ReviewTargetText, ReviewApplyResult } from "@core/application/revi
 import type { HostEditorApplyResult } from "./HostEditorAdapterResolver";
 import type { LineEditorBlockContext } from "./HostEditorControllerUtils";
 import type { GutenbergSnapshot } from "./GutenbergEditor";
+import type { ReviewTransactionPhase } from "./ReviewDomEditors";
 import {
   HOST_EDITOR_REQUEST_ATTR,
   HOST_EDITOR_REQUEST_EVENT,
@@ -86,6 +87,11 @@ export class InjectedHostEditorPageBridge {
       : { status: "rejected", reason: "unsupported" };
   }
 
+  /** Starts a new Quill undo step; see quillHistoryBoundary in QuillEditor.ts. */
+  public quillHistoryBoundary(elem: HTMLElement): void {
+    this.dispatchRequest(elem, { action: "quillHistoryBoundary" });
+  }
+
   public readSlate(elem: HTMLElement): ReviewTargetText | null {
     const response = this.dispatchRequest(elem, { action: "readSlate" });
     return response?.ok && "snapshot" in response ? response.snapshot : null;
@@ -115,10 +121,11 @@ export class InjectedHostEditorPageBridge {
   }
 
   /**
-   * TinyMCE, CKEditor 4, Froala or Summernote: "probe" finds a writable editor,
-   * "begin" and "end" enclose a native Review edit in one host undo step.
+   * TinyMCE, CKEditor 4, Froala, Summernote or RoosterJS: "probe" finds a writable
+   * editor, "begin" and "end" enclose a native Review edit in one host undo step.
+   * "identify" finds the editor also when it has no writable instance.
    */
-  public reviewTransaction(elem: HTMLElement, phase: "probe" | "begin" | "end"): boolean {
+  public reviewTransaction(elem: HTMLElement, phase: ReviewTransactionPhase): boolean {
     const response = this.dispatchRequest(elem, { action: "reviewTransaction", phase });
     return !!(response?.ok && "result" in response && response.result.applied);
   }

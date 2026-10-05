@@ -1,8 +1,10 @@
 import { InjectedHostEditorPageBridge } from "./HostEditorPageBridge";
 import { rangeInsideTarget } from "./TextTargetAdapter";
-import { HOST_MODEL_EDITOR_SELECTOR } from "./EditorCapabilities";
+import { HOST_MODEL_EDITOR_SELECTOR, MODEL_EDITOR_SELECTOR } from "./EditorCapabilities";
 import { DOM_EDITOR_SELECTOR } from "./ReviewDomEditors";
 import { isGutenbergField, isGutenbergContainer } from "./GutenbergEnvironment";
+import { notionRootOf, notionSelectionSettledIn, notionWriteKept } from "./NotionEnvironment";
+import { isComposingIn } from "./HostEditorControllerUtils";
 import { isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
@@ -108,6 +110,12 @@ export class ContentEditableAdapter {
       replaceEnd > beforeScopeText.length
     )
       return refused;
+    // A Notion block leaf: the root keeps focus, and Notion reverts a write that
+    // comes before its selection is in the leaf. Thus never focus or move there.
+    const notion = !!notionRootOf(elem);
+    if (notion && (!notionSelectionSettledIn(elem) || isComposingIn(elem))) return refused;
+    const focused = () =>
+      notion ? notionSelectionSettledIn(elem) : getDeepActiveElement(elem.ownerDocument) === elem;
     const expectedScopeText =
       beforeScopeText.slice(0, replaceStart) + replacementText + beforeScopeText.slice(replaceEnd);
     const verified = () =>
@@ -156,10 +164,18 @@ export class ContentEditableAdapter {
       }
     };
 
-    elem.focus({ preventScroll: true });
+    // Quill merges the changes of the last second into one undo step. A boundary
+    // before and after the write keeps the write apart from typed text.
+    // It runs page code, so it comes before focus and the checks after focus.
+    const bridge = new InjectedHostEditorPageBridge(elem.ownerDocument);
+    const quillHistoryBoundary = () => {
+      if (elem.matches(".ql-editor")) bridge.quillHistoryBoundary(elem);
+    };
+    quillHistoryBoundary();
+    if (!notion) elem.focus({ preventScroll: true });
     // Focus runs arbitrary page code. Never use nodes/offsets captured before it.
     if (
-      getDeepActiveElement(elem.ownerDocument) !== elem ||
+      !focused() ||
       !editScope.isConnected ||
       !editScope.contains(startPosition.container) ||
       !editScope.contains(endPosition.container) ||
@@ -231,6 +247,7 @@ export class ContentEditableAdapter {
     const didMutateDom = textAfterBeforeInput !== beforeText;
 
     if (beforeInputEvent.defaultPrevented || didMutateDom) {
+      quillHistoryBoundary();
       logger.debug("Contenteditable replacement handled by host", {
         defaultPrevented: beforeInputEvent.defaultPrevented,
         didMutateDom,
@@ -247,7 +264,7 @@ export class ContentEditableAdapter {
     }
 
     if (
-      getDeepActiveElement(elem.ownerDocument) !== elem ||
+      !focused() ||
       !editScope.contains(startPosition.container) ||
       !editScope.contains(endPosition.container) ||
       editScope.textContent !== beforeScopeText ||
@@ -269,31 +286,48 @@ export class ContentEditableAdapter {
       const prefix = range.cloneRange();
       prefix.selectNodeContents(elem);
       prefix.setEnd(startPosition.container, startPosition.offset);
-      const result = new InjectedHostEditorPageBridge(elem.ownerDocument).applyDomEditor(elem, {
+      // The user's caret before this write; without it, the end of the replaced range.
+      const userCaret = selectionAnchors?.endPosition;
+      const caret = prefix.cloneRange();
+      if (userCaret && elem.contains(userCaret.container))
+        caret.setEnd(userCaret.container, userCaret.offset);
+      else caret.setEnd(endPosition.container, endPosition.offset);
+      const result = bridge.applyDomEditor(elem, {
         before: beforeEditorText,
         prefix: prefix.toString(),
         selected: range.toString(),
         replacement: replacementText,
+        caret: caret.toString().length,
       });
-      if (!result.applied) {
+      if (result.applied)
+        return {
+          appliedBy: "host-beforeinput",
+          didMutateDom: true,
+          didDispatchInput: result.didDispatchInput,
+          nativeUndo: true,
+          ...(result.unverified || !verified() ? { unverified: true } : {}),
+        };
+      // A field that only shares the RoosterJS markup keeps the generic path.
+      if (elem.closest(MODEL_EDITOR_SELECTOR) || bridge.reviewTransaction(elem, "identify")) {
         restoreSelection();
         return refused;
       }
-      return {
-        appliedBy: "host-beforeinput",
-        didMutateDom: true,
-        didDispatchInput: result.didDispatchInput,
-        nativeUndo: true,
-        ...(result.unverified || !verified() ? { unverified: true } : {}),
-      };
     }
     if (this.tryNativeReplacement(elem, replacementText)) {
+      // Quill 1 reads this DOM change later; the boundary records it now.
+      quillHistoryBoundary();
       // execCommand leaves the caret at the end of the inserted text. Plain
       // contenteditable has no async host reconciliation to override us, so
       // place the caret at the final offset synchronously. This prevents a
       // race where a fast follow-up keystroke (e.g. auto-close "()" then an
       // immediate "x") lands before a deferred caret correction runs.
       if (verified()) this.setCaret(editScope, cursorAfter);
+      // Notion reads the DOM into its model on input, but can revert it later.
+      // A revert is reported, never repaired: the user saw and chose the word.
+      if (notion && verified())
+        void notionWriteKept(elem, beforeEditorText).then(
+          (kept) => kept || logger.warn("Notion reverted a typing write"),
+        );
       logger.debug("Contenteditable replacement handled by execCommand fallback", {
         didDispatchInput: false,
         editorTextLength: (elem.textContent ?? "").length,

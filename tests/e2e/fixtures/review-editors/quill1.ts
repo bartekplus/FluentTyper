@@ -1,6 +1,6 @@
 // @ts-expect-error Quill 1.3.7 ships no types.
 import Quill from "quill1";
-import { container, fail, flaggedRuns, LINK, loadStylesheet, publish, SEED_HTML } from "./shared";
+import { container, fail, flaggedRuns, LINK, loadStylesheet, publish, seedHtml } from "./shared";
 
 interface Quill1 {
   root: HTMLElement;
@@ -13,7 +13,7 @@ interface Quill1 {
 try {
   loadStylesheet("/node_modules/quill1/dist/quill.core.css");
   const target = container();
-  target.innerHTML = SEED_HTML;
+  target.innerHTML = seedHtml();
   const quill = new Quill(target) as Quill1;
   if ("Quill" in window) throw new Error("The bundled Quill 1 must not set window.Quill");
   quill.history.clear();

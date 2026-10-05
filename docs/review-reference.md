@@ -852,11 +852,14 @@ signature and invalidate pending fixes.
 | `<textarea>`, text `<input>`                                          | overlay measured through a hidden mirror in FluentTyper's shadow root   | yes                                      | yes                        | one native undo step for the whole batch |
 | `contenteditable`                                                     | CSS Custom Highlights (overlay fallback, e.g. inside shadow DOM)        | yes, validated native transaction        | within one Text node       | one native Undo step per supported batch |
 | Quill                                                                 | CSS Custom Highlights                                                   | yes                                      | with verified model bridge | one Quill history event per batch        |
-| ProseMirror (verified host bridge)                                    | yes                                                                     | yes                                      | yes                        | one host undo step for the batch         |
+| ProseMirror, also Tiptap (verified host bridge)                       | yes                                                                     | yes                                      | yes                        | one host undo step for the batch         |
 | Word for the web                                                      | overlay where the rendered text matches the model                       | yes, native Word transaction             | yes                        | one Word Undo step per transaction       |
 | Slate (verified host bridge)                                          | yes                                                                     | yes                                      | yes                        | one slate-history step for the batch     |
 | Lexical, Draft.js, CKEditor 5, Trix (verified host bridge)            | yes                                                                     | yes                                      | yes                        | one host undo step for the batch         |
 | TinyMCE, CKEditor 4, Froala, Summernote (verified host bridge)        | yes                                                                     | yes, validated native transaction        | yes                        | one host undo step for the batch         |
+| RoosterJS, Outlook on the web (editor in the developer tools list)    | yes                                                                     | yes, validated native transaction        | yes                        | one Rooster snapshot step for the batch  |
+| RoosterJS identified without its editor                               | yes                                                                     | no: review-only; Copy for the suggestion | no                         | —                                        |
+| Notion (block leaf that holds the caret)                              | CSS Custom Highlights                                                   | yes: one verified native edit at a time  | no                         | one Notion undo step per fix             |
 | Other model-editor fingerprints, or one of the above without a bridge | yes                                                                     | no: review-only; Copy for the suggestion | no                         | —                                        |
 | Google Docs                                                           | overlay over the text Docs shows; list only where Docs has not drawn it | yes: one verified replacement at a time  | no                         | Docs history                             |
 | Code editors, sensitive and ineligible fields                         | refused with an explanation                                             | —                                        | —                          | —                                        |
@@ -883,7 +886,8 @@ Findings are located by offsets into that snapshot, never by searching for the t
 
 ProseMirror writes go through its owning view's document transactions, with one
 history event per correction or Fix-all batch. The bridge discovers the view during
-normal focus, selection and document updates, without test globals. If its private
+normal focus, selection and document updates, without test globals. Tiptap renders
+a ProseMirror view, so it uses this path. If its private
 DOM descriptor is unavailable or the owning view has not been verified, it stays
 review-only. Edits are prepared before dispatch and the complete resulting model
 is checked, including marks, links, attributes, structure and protected nodes.
@@ -905,14 +909,25 @@ duration of the write, so the edit never merges into the user's previous typing.
 
 Lexical, Draft.js, CKEditor 5 and Trix keep their own document model. A read is
 valid only while every mapped DOM text node holds the model's own text at the
-same place; otherwise the editor stays review-only. Each batch is one model
+same place; otherwise the editor stays review-only. A difference when Review
+opens can be temporary, for example a DOM that is ahead of a pending model
+render. The open Review reads the model again on each read and once a second.
+When the model reads, Apply becomes available. A difference that stays keeps
+the editor review-only. Review does not read only the matching blocks: a model
+write makes the host render the changed block again from its model, and text
+that only the DOM has can disappear before the read-back finds it. Each batch is one model
 transaction, last edit first, that keeps the marks of the replaced text:
 
 - Lexical: the editor and node keys that Lexical stores on its DOM; `spliceText`
   in one discrete update tagged `history-push`, so the batch never merges into typing.
 - Draft.js: the editor component, found through React's fiber; the page's own
-  `EditorState.push` with the `spellcheck-change` type, which is always its own
-  undo step. Review waits for React to render the new text.
+  `EditorState.push` with the `insert-fragment` type. Draft.js merges a push into
+  the previous undo step only for `insert-characters`, `backspace-character` and
+  `delete-character`, so each `insert-fragment` push is its own undo step, and
+  Draft.js undoes it in its model. The `spellcheck-change` type is not used:
+  Draft.js gives its undo to the browser's native undo, which has no entry for a
+  model write. An editor with `allowUndo` off records no undo step. Review waits
+  for React to render the new text.
 - CKEditor 5: the public DOM converter and mapper give the model ranges; one
   `model.change` batch.
 - Trix: the public `editor` API in one recorded undo entry, while the document
@@ -923,6 +938,48 @@ writes them with its own validated native edits, one per text node, and encloses
 the batch in one host undo step: TinyMCE undo levels, CKEditor 4 snapshots,
 Froala steps and Summernote history. Typing that the host has not recorded yet
 becomes its own step first.
+
+RoosterJS (Outlook on the web) also keeps its content in the DOM, but its Undo
+restores HTML snapshots and records only its own input. A native edit that Rooster
+did not record is lost: one Undo removes two steps, and Redo cannot restore the
+edit. Rooster has no fingerprint of its own. The Outlook compose body is a
+`[contenteditable="true"][data-ms-editor="true"]` element, and other pages
+(for example with Microsoft Editor) can have the same attributes. Thus the
+MAIN-world bridge identifies the editor:
+
+- roosterjs 9.59 and later add each editor to `window.__ROOSTERJS_DEVTOOLS_EDITORS__`.
+  The writer uses the editor whose content div is the field and that is not disposed.
+- Without that editor, the text nodes that Rooster rendered from its model
+  (`__roosterjsContentModel`) identify it. Then the field is review-only, and
+  typing writes are refused.
+- A field with the attributes and no Rooster evidence keeps the generic path.
+
+The writer uses the steps of Rooster's own find and replace: `takeSnapshot()`,
+the validated native edits, `takeSnapshot()` and a `contentChanged` event. It
+refuses when Rooster is in an IME composition (`isInIME()`) or in shadow edit,
+does not have focus, or has no range selection. After the write, Rooster must
+have an undo step (`canMove(-1)`); otherwise the result is unverified.
+
+Notion has no in-page editor API. Its page root is one contenteditable.
+Each text block is a nested leaf. Review reviews the leaf that holds the caret.
+It never reviews the full page. Notion reads the leaf into its model on input.
+A live probe saw Notion revert a write that came right after the caret moved into the leaf.
+Thus each fix is one native edit in that leaf, with these checks:
+
+1. Review gives focus back to the page root and waits 100 ms.
+   If the user closes Review in this wait, Review writes nothing.
+2. The caret must already be in the reviewed leaf. Review never moves the caret there.
+3. No IME composition may run.
+4. After the write, the leaf must hold the expected text.
+5. The leaf must still hold that text 1 s after the write.
+   If Notion reverts the write in this time, the result is "unverified".
+   Review does not write again.
+
+Each fix is one Notion undo step. Thus Review does not offer Fix all.
+These checks read the DOM, not the model of Notion.
+The tests use a synthetic Notion-like page.
+A live check in Chrome passed ([details](editor-capabilities.md#notion),
+[live check results](editor-surfaces.md#live-check-results)).
 
 Plain contenteditable snapshots also capture formatting wrappers and attributes.
 A native correction must retain existing elements. Changes across text nodes are

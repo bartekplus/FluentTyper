@@ -424,6 +424,18 @@ export class SuggestionEntrySession {
     ) {
       return;
     }
+    const currentPredictionContext = this.resolveCurrentPredictionContext();
+    // Typing changes the text before the caret only. When the text on both sides
+    // changed, the caret moved forward after the request: the predictions are for
+    // another place. A caret behind the request can be a host's stale selection.
+    if (
+      typeof context.text === "string" &&
+      !context.text.startsWith(currentPredictionContext.beforeCursor) &&
+      context.nextChar !== currentPredictionContext.afterCursor.charAt(0)
+    ) {
+      this.clearSuggestions();
+      return;
+    }
 
     this.entry.suggestions = Array.isArray(context.predictions) ? context.predictions.slice() : [];
     this.snippetShortcuts = context.snippetShortcuts;
@@ -435,7 +447,6 @@ export class SuggestionEntrySession {
       this.options.showSuggestionFooter && context.lang && SUPPORTED_LANGUAGES[context.lang]
         ? suggestionLanguageLabel(SUPPORTED_LANGUAGES[context.lang])
         : null;
-    const currentPredictionContext = this.resolveCurrentPredictionContext();
     this.entry.visibleSuggestionBeforeCursorText = currentPredictionContext.beforeCursor;
     this.entry.visibleSuggestionFullText = currentPredictionContext.fullText;
     // Stamp the token the response was predicted for: latestMentionText may
@@ -761,9 +772,14 @@ export class SuggestionEntrySession {
       const blockContext = this.options.contentEditableAdapter.getBlockContext(this.entry.elem);
       const currentBeforeCursor = blockContext?.beforeCursor ?? "";
       const visibleBefore = this.entry.visibleSuggestionBeforeCursorText;
+      // A longer before-cursor text is related only when it was typed: a caret move
+      // forward over the same text makes the menu stale.
+      const typedAhead =
+        currentBeforeCursor.startsWith(visibleBefore) &&
+        this.resolveCurrentPredictionContext().fullText !== this.entry.visibleSuggestionFullText;
       const stillRelated =
         currentBeforeCursor === visibleBefore ||
-        currentBeforeCursor.startsWith(visibleBefore) ||
+        typedAhead ||
         visibleBefore.startsWith(currentBeforeCursor);
       if (!stillRelated) {
         controls.dismissEntry();
@@ -1021,11 +1037,16 @@ export class SuggestionEntrySession {
     return reconcileInsert(predictionContext.afterCursor);
   }
 
-  private resolveCurrentPredictionContext(): { beforeCursor: string; fullText: string } {
+  private resolveCurrentPredictionContext(): {
+    beforeCursor: string;
+    afterCursor: string;
+    fullText: string;
+  } {
     const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
     const context = this.resolveEditableCursorContext(snapshot);
     return {
       beforeCursor: context.beforeCursor,
+      afterCursor: context.afterCursor,
       fullText: `${snapshot.beforeCursor}${snapshot.afterCursor}`,
     };
   }

@@ -1,4 +1,5 @@
 import type { ReviewEdit } from "@core/domain/grammar/review/types";
+import type { ReviewTransactionPhase } from "./ReviewDomEditors";
 
 export const HOST_EDITOR_REQUEST_EVENT = "ft-host-editor-request";
 export const HOST_EDITOR_REQUEST_ATTR = "data-ft-host-editor-request";
@@ -19,6 +20,8 @@ export interface DomEditorReplacement {
   prefix: string;
   selected: string;
   replacement: string;
+  /** The user's caret before the write, as a character offset in `before`. */
+  caret: number;
 }
 
 export interface HostEditorReviewApplyRequest {
@@ -51,6 +54,7 @@ export type HostEditorBridgeRequest =
       action:
         "applyProseMirror" | "applyQuill" | "applySlate" | "applyGutenberg" | "applyReviewModel";
     } & HostEditorReviewApplyRequest)
-  | { action: "reviewTransaction"; phase: "probe" | "begin" | "end" }
+  | { action: "reviewTransaction"; phase: ReviewTransactionPhase }
+  | { action: "quillHistoryBoundary" }
   | { action: "getBlockContext" }
   | ({ action: "applyBlockReplacement" } & HostEditorBlockReplacement);

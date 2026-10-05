@@ -270,6 +270,46 @@ test.each(["Tab", "Enter", " ", "1"])("reserved acceptance does not apply or con
   expect(event.defaultPrevented).toBe(false);
 });
 
+test("Escape that closes a visible popup or inline suggestion never reaches the page", () => {
+  // Notion selects the whole block on Escape; then the next keys type nothing.
+  const consumeKeyboardEvent = jest.fn((event: KeyboardEvent) => event.preventDefault());
+  const clear = jest.fn();
+  const menu = createHandler({
+    inlineSuggestionEnabled: false,
+    isMenuVisible: () => true,
+    clearSuggestions: clear,
+    consumeKeyboardEvent,
+  });
+  const entry = createSuggestionEntry({ suggestions: ["hello"] });
+  const event = createEvent("Escape");
+  menu.handle(entry, event);
+  expect(clear).toHaveBeenCalledWith(entry);
+  expect(event.defaultPrevented).toBe(true);
+
+  const inline = createHandler({ consumeKeyboardEvent, isInlineVisible: () => true });
+  const ghost = createEvent("Escape");
+  inline.handle(createSuggestionEntry({ inlineSuggestion: "hello" }), ghost);
+  expect(ghost.defaultPrevented).toBe(true);
+
+  // With nothing showing, Escape stays the page's.
+  const idle = createEvent("Escape");
+  createHandler({ consumeKeyboardEvent }).handle(createSuggestionEntry({ suggestions: [] }), idle);
+  expect(idle.defaultPrevented).toBe(false);
+});
+
+test("Escape with an armed inline suggestion that shows no ghost goes to the page", () => {
+  // An exact match ("hello" typed, "hello" predicted) has an empty suffix: no
+  // ghost shows, but Tab still accepts. A page Escape (close a dialog) must work.
+  const consumeKeyboardEvent = jest.fn((event: KeyboardEvent) => event.preventDefault());
+  const clear = jest.fn();
+  const handler = createHandler({ consumeKeyboardEvent, clearSuggestions: clear });
+  const entry = createSuggestionEntry({ inlineSuggestion: "hello" });
+  const event = createEvent("Escape");
+  handler.handle(entry, event);
+  expect(clear).toHaveBeenCalledWith(entry);
+  expect(event.defaultPrevented).toBe(false);
+});
+
 test("reserved acceptance does not block Escape dismissal", () => {
   const clear = jest.fn();
   const handler = createHandler({ canAccept: () => false, clearSuggestions: clear });

@@ -266,6 +266,20 @@ describe("real ProseMirror corrections", () => {
     ).toBe(false);
   });
 
+  test("a Review opened during an IME composition gets the ProseMirror writer after it", () => {
+    editor([paragraph("teh")]);
+    const dom = view!.dom as HTMLElement;
+    dom.dispatchEvent(new Event("compositionstart", { bubbles: true, composed: true }));
+    const target = new ContentEditableReviewTarget(dom);
+    expect(target.kind).toBe("model-editor");
+    expect(target.resolveModelWriter()).toBe(false);
+
+    dom.dispatchEvent(new Event("compositionend", { bubbles: true, composed: true }));
+    expect(target.resolveModelWriter()).toBe(true);
+    expect(target.kind).toBe("prosemirror");
+    expect(target.capabilities).toEqual({ apply: true, bulk: true });
+  });
+
   test.each(["grammar", "suggestion", "spacing"])(
     "host normalization is unverified without losing mutation state: %s",
     (mode) => {

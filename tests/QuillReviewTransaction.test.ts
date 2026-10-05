@@ -2,8 +2,10 @@ import { afterEach, expect, mock, test } from "bun:test";
 import Delta from "quill-delta";
 import {
   applyQuill,
+  quillHistoryBoundary,
   readQuill,
 } from "../src/adapters/chrome/content-script/suggestions/QuillEditor";
+import { recordComposition } from "../src/adapters/chrome/content-script/suggestions/HostEditorControllerUtils";
 
 // Model simulation for deterministic refusal/fault tests, not browser history proof.
 function fixture() {
@@ -24,6 +26,7 @@ function fixture() {
     container,
     selection: { composing: false },
     history: { cutoff: mock(() => {}) },
+    update: mock((_source: string) => {}),
     isEnabled: () => true,
     getContents: (index = 0, length = model.length()) => model.slice(index, index + length),
     getText: (index = 0, length = model.length()) =>
@@ -236,4 +239,48 @@ test("a bundled Quill 1 without window.Quill is found through its container (Sla
   expect(readQuill(root)?.text).toBe(request.before);
   expect(applyQuill(root, request)).toEqual({ status: "applied", signature: expect.any(String) });
   expect(root.textContent).toBe("the and the");
+});
+
+test("a Quill history boundary records pending input before it cuts the history", () => {
+  const { root, quill } = fixture();
+  const calls: string[] = [];
+  quill.update.mockImplementation((source) => calls.push(`update:${source}`));
+  quill.history.cutoff.mockImplementation(() => calls.push("cutoff"));
+  expect(quillHistoryBoundary(root)).toBe(true);
+  expect(calls).toEqual(["update:user", "cutoff"]);
+  expect(quill.updateContents).not.toHaveBeenCalled();
+  expect(root.textContent).toBe("teh and teh");
+});
+
+test("a Quill history boundary is refused without an eligible, enabled and idle instance", () => {
+  for (const mode of ["ineligible", "disabled", "composing", "ime", "no instance"]) {
+    const { root, quill } = fixture();
+    if (mode === "ineligible") root.setAttribute("contenteditable", "false");
+    if (mode === "disabled") quill.isEnabled = () => false;
+    if (mode === "composing") quill.selection.composing = true;
+    if (mode === "ime") {
+      root.addEventListener("compositionstart", recordComposition);
+      root.dispatchEvent(new Event("compositionstart"));
+    }
+    if (mode === "no instance") delete (window as Window & { Quill?: unknown }).Quill;
+    expect(quillHistoryBoundary(root)).toBe(false);
+    expect(quill.update).not.toHaveBeenCalled();
+    expect(quill.history.cutoff).not.toHaveBeenCalled();
+    if (mode === "ime") root.dispatchEvent(new Event("compositionend"));
+    root.parentElement!.remove();
+  }
+});
+
+test("a Quill history boundary finds a bundled Quill 1 through its container", () => {
+  const { root, quill } = fixture();
+  const find = (window as Window & { Quill?: { find: unknown } }).Quill!.find;
+  delete (window as Window & { Quill?: unknown }).Quill;
+  class BundledQuill {
+    static find = find;
+  }
+  Object.setPrototypeOf(quill, BundledQuill.prototype);
+  Object.assign(root.parentElement!, { __quill: quill });
+  expect(quillHistoryBoundary(root)).toBe(true);
+  expect(quill.update).toHaveBeenCalledWith("user");
+  expect(quill.history.cutoff).toHaveBeenCalledTimes(1);
 });

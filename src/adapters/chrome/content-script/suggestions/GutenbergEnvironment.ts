@@ -1,3 +1,5 @@
+import { isNotionRoot, NOTION_LEAF_SELECTOR, NOTION_ROOT_SELECTOR } from "./NotionEnvironment";
+
 /** Gutenberg fields are model-owned. A missing native writer must not enable DOM writes. */
 export const GUTENBERG_FIELD_SELECTOR =
   ".block-editor-rich-text__editable, .editor-post-title__input, .wp-block-post-title[contenteditable], .wp-block-post-title [contenteditable='true']";
@@ -69,26 +71,28 @@ export function gutenbergFields(source: HTMLElement): HTMLElement[] {
 }
 
 /** WritingFlow may make the surrounding canvas an editing host. Each native
- * RichText field still requires its own binding and suggestion session. */
+ * RichText field still requires its own binding and suggestion session.
+ * A Notion page root is such a canvas too: each block leaf is the field. */
 export function isGutenbergContainer(element: HTMLElement): boolean {
   return (
     !isGutenbergField(element) &&
     element.isContentEditable &&
     // closest() first: querySelector() scans the whole subtree of large editors on other sites.
     (!!element.closest(".block-editor-block-list__layout") ||
-      !!element.querySelector(GUTENBERG_FIELD_SELECTOR))
+      !!element.querySelector(GUTENBERG_FIELD_SELECTOR) ||
+      isNotionRoot(element))
   );
 }
 
 /** An editing-host canvas keeps focus and receives the key and input events.
- * The selection identifies the RichText field that is edited. */
+ * The selection identifies the RichText field (or Notion block leaf) that is edited. */
 export function gutenbergSelectedField<T extends Element | null>(element: T): T | HTMLElement {
   // Runs on each keystroke: no subtree scan, only the selection's ancestors.
   if (!(element instanceof HTMLElement) || !element.isContentEditable || isGutenbergField(element))
     return element;
   const anchor = element.ownerDocument.getSelection()?.anchorNode;
   const field = (anchor instanceof Element ? anchor : anchor?.parentElement)?.closest<HTMLElement>(
-    GUTENBERG_FIELD_SELECTOR,
+    element.matches(NOTION_ROOT_SELECTOR) ? NOTION_LEAF_SELECTOR : GUTENBERG_FIELD_SELECTOR,
   );
   return field && element.contains(field) ? field : element;
 }

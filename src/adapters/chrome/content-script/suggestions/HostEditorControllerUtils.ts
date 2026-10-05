@@ -21,6 +21,27 @@ export interface LineEditorController {
   focus?(): void;
 }
 
+/**
+ * The target of the IME composition that runs now. The MAIN-world bridge and
+ * the content script each keep their own value in their own module instance.
+ */
+let compositionTarget: Node | null = null;
+
+/** Records the target of a compositionstart or compositionend event. */
+export function recordComposition(event: Event): void {
+  compositionTarget = event.type === "compositionstart" ? (event.composedPath()[0] as Node) : null;
+}
+
+/**
+ * True while an IME composition runs in `root`, in a descendant or in an
+ * ancestor of it. During a composition the DOM holds text that the editor
+ * model does not have yet. Thus no writer may change the text then.
+ */
+export function isComposingIn(root: Node): boolean {
+  const target = compositionTarget;
+  return !!target?.isConnected && (root.contains(target) || target.contains(root));
+}
+
 export interface LineEditorBlockContext {
   beforeCursor: string;
   afterCursor: string;

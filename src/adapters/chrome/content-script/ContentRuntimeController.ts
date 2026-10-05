@@ -3,6 +3,7 @@ import {
   HOST_EDITOR_ENABLED_ATTR,
   HOST_EDITOR_ENABLED_EVENT,
 } from "./suggestions/HostEditorBridgeProtocol";
+import { recordComposition } from "./suggestions/HostEditorControllerUtils";
 import type { FieldPreferenceResponse } from "@core/domain/fieldPreferences";
 import { languageMatchesScript, resolveReviewLanguage, resolveUiLanguage } from "@core/domain/lang";
 import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
@@ -122,6 +123,9 @@ export class ContentRuntimeController {
       onRuntimeActivity: (runtimeGeneration: number) => void;
     },
   ) {
+    // Review reads the composition state when it opens. Thus record it from the start.
+    for (const type of ["compositionstart", "compositionend"])
+      document.addEventListener(type, recordComposition, true);
     this.domObserver = new DomObserver(
       document.body || document.documentElement,
       this.onMutationCallbackBound,

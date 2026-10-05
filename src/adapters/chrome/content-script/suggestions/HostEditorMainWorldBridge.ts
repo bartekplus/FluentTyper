@@ -1,4 +1,4 @@
-import { readQuill, applyQuill } from "./QuillEditor";
+import { readQuill, applyQuill, quillHistoryBoundary } from "./QuillEditor";
 import {
   readSlate,
   applySlate,
@@ -40,8 +40,10 @@ import {
 import {
   applyLineEditorReplacement,
   findLineEditorController,
+  isComposingIn,
   isValidBlockReplacement,
   readLineEditorBlockContext,
+  recordComposition,
   type LineEditorBlockContext,
   type LineEditorController,
 } from "./HostEditorControllerUtils";
@@ -70,12 +72,17 @@ const APPLIED = { applied: true, didDispatchInput: false };
 interface CKEditorInstance {
   model: {
     document: { selection: { getFirstPosition(): any } };
+    schema?: { isObject(node: any): boolean; isInline(node: any): boolean };
     change(callback: (writer: any) => void): void;
   };
   editing?: {
-    mapper?: { toModelPosition(viewPosition: any): any };
+    mapper?: { toModelPosition(viewPosition: any): any; toViewElement?(element: any): any };
     view?: {
-      domConverter?: { domPositionToView(domParent: Node, domOffset?: number): any };
+      document?: { isComposing?: boolean };
+      domConverter?: {
+        domPositionToView(domParent: Node, domOffset?: number): any;
+        mapViewToDom?(viewNode: any): Node | undefined;
+      };
       _observers?: Map<unknown, { flush?: () => void; _mutationObserver?: unknown }>;
     };
   };
@@ -102,22 +109,39 @@ function findCKEditor5Instance(elem: HTMLElement): CKEditorInstance | null {
 
 /**
  * Mapping between plain-text offsets (used by FluentTyper / DOM textContent)
- * and CKEditor-5 model offsets.  softBreak elements count as 1 model offset
- * but contribute 0 text characters, so every softBreak before a position adds
- * +1 to the model offset relative to the text offset.
+ * and CKEditor-5 model offsets.  softBreak elements and inline objects without
+ * DOM text (an inline image) count as 1 model offset but contribute 0 text
+ * characters, so every such element before a position adds +1 to the model
+ * offset relative to the text offset.
  */
 interface BlockTextMapping {
   text: string;
-  /** Model offsets at which softBreak elements occur (sorted ascending). */
+  /** Model offsets of the softBreaks and the inline objects (sorted ascending). */
   softBreakModelOffsets: number[];
+  /** Model offsets of the inline objects. An edit must not contain one. */
+  objectModelOffsets: number[];
 }
 
-function extractModelBlockMapping(block: any): BlockTextMapping | null {
+/** An inline object, for example an inline image, that shows no DOM text. */
+function isTextlessInlineObject(editor: CKEditorInstance, child: any): boolean {
+  try {
+    const schema = editor.model.schema;
+    if (!schema?.isObject(child) || !schema.isInline(child)) return false;
+    const view = editor.editing?.mapper?.toViewElement?.(child);
+    const dom = view ? editor.editing?.view?.domConverter?.mapViewToDom?.(view) : null;
+    return !!dom && dom.textContent === "";
+  } catch {
+    return false;
+  }
+}
+
+function extractModelBlockMapping(editor: CKEditorInstance, block: any): BlockTextMapping | null {
   if (!block || typeof block.getChildren !== "function") {
     return null;
   }
   let text = "";
   const softBreakModelOffsets: number[] = [];
+  const objectModelOffsets: number[] = [];
   let modelOffset = 0;
   for (const child of block.getChildren()) {
     if (typeof child.data === "string") {
@@ -126,15 +150,19 @@ function extractModelBlockMapping(block: any): BlockTextMapping | null {
     } else if (child.is && (child.is("softBreak") || child.is("element", "softBreak"))) {
       softBreakModelOffsets.push(modelOffset);
       modelOffset += 1;
+    } else if (isTextlessInlineObject(editor, child)) {
+      softBreakModelOffsets.push(modelOffset);
+      objectModelOffsets.push(modelOffset);
+      modelOffset += 1;
     } else if (child.is && !child.is("$text") && !child.is("$textProxy")) {
-      // Inline object (image, widget, etc.) – offsets diverge unpredictably.
+      // Other elements (a widget that shows text) – offsets diverge unpredictably.
       return null;
     } else if (!child.is) {
       // Unknown node type without an `is` method (exotic 3rd-party plugin).
       return null;
     }
   }
-  return { text, softBreakModelOffsets };
+  return { text, softBreakModelOffsets, objectModelOffsets };
 }
 
 /**
@@ -224,10 +252,11 @@ function getCKEditor5SelectionPosition(editor: CKEditorInstance): any {
 function readCKEditor5Block(
   editor: CKEditorInstance,
 ): { position: any; block: any; mapping: BlockTextMapping } | null {
+  if (editor.editing?.view?.document?.isComposing) return null;
   flushCKEditor5PendingMutations(editor);
   const position = getCKEditor5SelectionPosition(editor);
   const block = position?.parent;
-  const mapping = block ? extractModelBlockMapping(block) : null;
+  const mapping = block ? extractModelBlockMapping(editor, block) : null;
   return mapping ? { position, block, mapping } : null;
 }
 
@@ -263,23 +292,37 @@ function applyCKEditor5BlockReplacement(
     return NOT_APPLIED;
 
   // Translate text offsets to model offsets (accounting for softBreaks).
-  const modelReplaceStart = textOffsetToModelOffset(
+  const startAfterBreaks = textOffsetToModelOffset(
     request.replaceStart,
     mapping.softBreakModelOffsets,
   );
-  const modelReplaceEnd = textOffsetToModelOffset(
+  const endBeforeBreaks = textOffsetToModelOffset(
     request.replaceEnd,
     mapping.softBreakModelOffsets,
     "end",
   );
+  // A collapsed edit at a softBreak or an object has two model positions:
+  // before and after it. Use the one on the caret's side (one position, never
+  // an inverted range).
+  const collapsed = request.replaceStart === request.replaceEnd;
+  const collapsedAt = position.offset <= endBeforeBreaks ? endBeforeBreaks : startAfterBreaks;
+  const modelReplaceStart = collapsed ? collapsedAt : startAfterBreaks;
+  const modelReplaceEnd = collapsed ? collapsedAt : endBeforeBreaks;
+  // An inline object must not be removed, and must not be between the edit and
+  // the caret (the DOM text reads the words on its two sides as one word).
+  const spanStart = Math.min(modelReplaceStart, position.offset);
+  const spanEnd = Math.max(modelReplaceEnd, position.offset);
+  if (mapping.objectModelOffsets.some((offset) => offset >= spanStart && offset < spanEnd))
+    return NOT_APPLIED;
   // After the replacement, softBreaks inside the deleted range no longer
   // exist.  Filter them out, then shift the survivors that come after the
-  // edit by the length delta.
+  // edit by the length delta. A softBreak at a collapsed edit is after the
+  // inserted text, so it moves too.
   const replacedLength = request.replaceEnd - request.replaceStart;
   const lengthDelta = request.replacementText.length - replacedLength;
   const updatedSoftBreakOffsets = mapping.softBreakModelOffsets
-    .filter((sbOffset) => sbOffset <= modelReplaceStart || sbOffset >= modelReplaceEnd)
-    .map((sbOffset) => (sbOffset > modelReplaceStart ? sbOffset + lengthDelta : sbOffset));
+    .filter((sbOffset) => sbOffset < modelReplaceStart || sbOffset >= modelReplaceEnd)
+    .map((sbOffset) => (sbOffset >= modelReplaceEnd ? sbOffset + lengthDelta : sbOffset));
   // Use "end" when the cursor sits at the replacement boundary so it stays
   // on the same line as the replaced text (before a softBreak).  Use "start"
   // when the cursor is past the replacement (e.g. on the next line).
@@ -291,11 +334,14 @@ function applyCKEditor5BlockReplacement(
     cursorIsAtReplacementBoundary ? "end" : "start",
   );
 
-  // Capture text attributes (bold, italic, etc.) at the replacement start so
-  // the inserted text preserves the surrounding formatting.
+  // Capture text attributes (bold, italic, etc.) at the caret so the inserted
+  // text preserves the surrounding formatting. Only a text node gives them:
+  // the attributes of an inline image (src) or a softBreak are not text formatting.
   let textAttrs: Record<string, unknown> | null = null;
   try {
-    const node = position.textNode ?? position.nodeBefore ?? position.nodeAfter;
+    const node = [position.textNode, position.nodeBefore, position.nodeAfter].find(
+      (candidate) => candidate?.is?.("$text") || candidate?.is?.("$textProxy"),
+    );
     if (node && typeof node.getAttributes === "function") {
       const attrs: Record<string, unknown> = Object.fromEntries(node.getAttributes());
       if (Object.keys(attrs).length > 0) {
@@ -337,6 +383,7 @@ function applyBlockReplacement(
   elem: HTMLElement,
   request: HostEditorBlockReplacement,
 ) {
+  if (isComposingIn(elem)) return NOT_APPLIED;
   return applyLineEditorReplacement(
     controller,
     TextTargetAdapter.findBackingTextValueTarget(elem),
@@ -347,9 +394,19 @@ function applyBlockReplacement(
     : NOT_APPLIED;
 }
 
-// TinyMCE, CKEditor 4, Froala and Summernote own history even though their
-// content model is the DOM. Enclose the native minimal edit in one host undo
-// step instead of merging into prior typing.
+/** The text node and offset at a character offset in the text of `root`. */
+function textPosition(root: HTMLElement, offset: number): [Text, number] | null {
+  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+    if (offset <= node.length) return [node, offset];
+    offset -= node.length;
+  }
+  return null;
+}
+
+// TinyMCE, CKEditor 4, Froala, Summernote and RoosterJS own history even though
+// their content model is the DOM. Enclose the native minimal edit in one host
+// undo step instead of merging into prior typing.
 function applyDomEditor(elem: HTMLElement, request: DomEditorReplacement) {
   const win = elem.ownerDocument.defaultView;
   if (!win || !reviewTransaction(elem, "probe")) return NOT_APPLIED;
@@ -357,6 +414,7 @@ function applyDomEditor(elem: HTMLElement, request: DomEditorReplacement) {
     const selection = win.getSelection();
     if (
       !elem.isConnected ||
+      isComposingIn(elem) ||
       elem.ownerDocument.activeElement !== elem ||
       elem.textContent !== request.before ||
       !selection?.rangeCount
@@ -370,11 +428,27 @@ function applyDomEditor(elem: HTMLElement, request: DomEditorReplacement) {
     return prefix.toString() === request.prefix && range.toString() === request.selected;
   };
   if (!matches()) return NOT_APPLIED;
-  if (!reviewTransaction(elem, "begin")) return NOT_APPLIED;
+  // The host's undo step before the edit keeps the selection of this moment,
+  // and its Undo restores it. Record the user's caret there, not the replaced
+  // range: else Undo leaves the typed text selected, and the next key replaces it.
+  const selection = win.getSelection()!;
+  const replaced = selection.getRangeAt(0).cloneRange();
+  // A caret at the end of the replaced range stays in its node: the same text
+  // offset at a block start also maps to the end of the block before it.
+  const caret =
+    request.caret === request.prefix.length + request.selected.length
+      ? ([replaced.endContainer, replaced.endOffset] as const)
+      : textPosition(elem, request.caret);
+  if (caret) selection.collapse(caret[0], caret[1]);
+  const begun = reviewTransaction(elem, "begin");
+  selection.removeAllRanges();
+  selection.addRange(replaced);
+  if (!begun) return NOT_APPLIED;
+  let recorded: boolean;
   try {
     if (matches()) elem.ownerDocument.execCommand("insertText", false, request.replacement);
   } finally {
-    reviewTransaction(elem, "end");
+    recorded = reviewTransaction(elem, "end");
   }
   const after = elem.textContent ?? "";
   if (after === request.before) return NOT_APPLIED;
@@ -382,7 +456,7 @@ function applyDomEditor(elem: HTMLElement, request: DomEditorReplacement) {
     request.prefix +
     request.replacement +
     request.before.slice(request.prefix.length + request.selected.length);
-  return { ...APPLIED, ...(after === expected ? {} : { unverified: true }) };
+  return { ...APPLIED, ...(after === expected && recorded ? {} : { unverified: true }) };
 }
 
 export function installHostEditorMainWorldBridge(doc: Document = document): void {
@@ -437,6 +511,9 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
       doc.addEventListener(type, listener, capture);
     return result;
   } as typeof doc.open;
+  // Always on: a composition that starts while the bridge is off must still block writes.
+  listen("compositionstart", recordComposition, true);
+  listen("compositionend", recordComposition, true);
   listen(HOST_EDITOR_ENABLED_EVENT, () => {
     const next = doc.documentElement.getAttribute(HOST_EDITOR_ENABLED_ATTR) === "true";
     if (next === enabled) return;
@@ -519,6 +596,9 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
           if (snapshot) response = { ok: true, snapshot };
         } else if (request.action === "applyQuill") {
           response = { ok: true, reviewResult: applyQuill(source, request) };
+        } else if (request.action === "quillHistoryBoundary") {
+          const applied = quillHistoryBoundary(source);
+          response = { ok: true, result: { applied, didDispatchInput: false } };
         } else if (request.action === "readSlate") {
           const snapshot = readSlate(source);
           if (snapshot) response = { ok: true, snapshot };

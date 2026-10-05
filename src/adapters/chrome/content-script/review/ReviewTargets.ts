@@ -2,6 +2,7 @@ import { editorCapabilities, MODEL_EDITOR_SELECTOR } from "../suggestions/Editor
 import { prepareNativeReviewTransaction } from "./NativeReviewTransaction";
 import { expectedFormatting, formattingPreservingEdits } from "./RichTextFormatting";
 import { InjectedHostEditorPageBridge } from "../suggestions/HostEditorPageBridge";
+import { DOM_EDITOR_SELECTOR } from "../suggestions/ReviewDomEditors";
 import type {
   ReviewApplyResult,
   ReviewCapabilities,
@@ -23,6 +24,12 @@ import { hasOtherFocusedEditor, rangeInsideTarget } from "../suggestions/TextTar
 import { wordEditor } from "./WordReviewProtocol";
 import { WordReviewTarget } from "./WordReviewTarget";
 import { GutenbergReviewTarget } from "./GutenbergReviewTarget";
+import {
+  notionRootOf,
+  notionSelectionSettledIn,
+  notionWriteKept,
+} from "../suggestions/NotionEnvironment";
+import { isComposingIn } from "../suggestions/HostEditorControllerUtils";
 import {
   isGutenbergField,
   isGutenbergContainer,
@@ -46,6 +53,8 @@ type ContentEditableKind =
   | "host-model"
   // TinyMCE, CKEditor 4, Froala or Summernote: a native edit in one host undo step.
   | "host-dom"
+  // A Notion block leaf: one native edit, one Notion undo step, checked after Notion's input handling.
+  | "notion"
   | "model-editor";
 
 export interface ReviewTargetHandle extends ReviewTargetPort {
@@ -194,6 +203,9 @@ function sameExceptEdgeSpaces(
   }
   return true;
 }
+
+/** How long Notion gets to take the selection after its page root takes focus. */
+const NOTION_SETTLE_MS = 100;
 
 /** Gecko's editor, for its native editing quirks (feature detection cannot see them). */
 function isGecko(doc: Document): boolean {
@@ -463,10 +475,12 @@ export class TextControlReviewTarget implements ReviewTargetHandle {
 
 /** Native rich-text transactions and verified host-model transactions. */
 export class ContentEditableReviewTarget implements ReviewTargetHandle {
-  readonly kind: ContentEditableKind;
-  private readonly adapterCapabilities: ReviewCapabilities;
+  kind: ContentEditableKind;
+  private adapterCapabilities: ReviewCapabilities;
   composing = false;
   private map: ContentEditableTextMap | null = null;
+  /** The review closed: no write may start after this. */
+  private disposed = false;
   private readonly pageBridge = new InjectedHostEditorPageBridge();
   private readonly quillModel: boolean;
   /** Any Quill: without its model, Review writes through Quill's beforeinput handling. */
@@ -477,37 +491,56 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const eligible = editorCapabilities(element).renderReview;
     this.quillModel = eligible && quill && !!this.pageBridge.readQuill(element);
     this.quill = eligible && quill;
+    [this.kind, this.adapterCapabilities] = this.detect();
+  }
+
+  /** The writer kind and its capabilities, from what the bridge finds now. */
+  private detect(): [ContentEditableKind, ReviewCapabilities] {
+    const element = this.element;
+    const quill = element.classList.contains("ql-editor") && !!element.closest(".ql-container");
+    const eligible = editorCapabilities(element).renderReview;
     const proseMirror =
       eligible && element.matches(".ProseMirror") && !!this.pageBridge.readProseMirror(element);
     const slate =
       eligible && element.matches("[data-slate-editor]") && !!this.pageBridge.readSlate(element);
     // Other fingerprints get a writer only when the bridge finds their editor.
-    const fingerprint = !proseMirror && !slate && !quill && element.closest(MODEL_EDITOR_SELECTOR);
+    // A RoosterJS editor has no own fingerprint: the bridge identifies it.
+    const notion = eligible && !!notionRootOf(element);
+    const fingerprint =
+      !notion &&
+      !proseMirror &&
+      !slate &&
+      !quill &&
+      (!!element.closest(MODEL_EDITOR_SELECTOR) ||
+        (element.matches(DOM_EDITOR_SELECTOR) &&
+          this.pageBridge.reviewTransaction(element, "identify")));
     const hostModel = eligible && fingerprint && !!this.pageBridge.readReviewModel(element);
     const hostDom =
       eligible && fingerprint && !hostModel && this.pageBridge.reviewTransaction(element, "probe");
     const native = typeof element.ownerDocument.execCommand === "function";
-    this.kind = proseMirror
-      ? "prosemirror"
-      : slate
-        ? "slate"
-        : quill
-          ? "quill"
-          : hostModel
-            ? "host-model"
-            : hostDom && native
-              ? "host-dom"
-              : fingerprint
-                ? "model-editor"
-                : "contenteditable";
-    const model =
-      this.kind === "prosemirror" || this.kind === "slate" || this.kind === "host-model";
+    const kind: ContentEditableKind = notion
+      ? "notion"
+      : proseMirror
+        ? "prosemirror"
+        : slate
+          ? "slate"
+          : quill
+            ? "quill"
+            : hostModel
+              ? "host-model"
+              : hostDom && native
+                ? "host-dom"
+                : fingerprint
+                  ? "model-editor"
+                  : "contenteditable";
+    const model = kind === "prosemirror" || kind === "slate" || kind === "host-model";
     const writable =
       model ||
       this.quill ||
-      ((this.kind === "contenteditable" || this.kind === "host-dom") && native);
+      ((kind === "contenteditable" || kind === "host-dom" || notion) && native);
     // Each batch uses one native command or one host-model transaction.
-    this.adapterCapabilities = { apply: writable, bulk: writable };
+    // Notion: each fix is its own write and its own Notion undo step, so no Fix all.
+    return [kind, { apply: writable, bulk: writable && !notion }];
   }
 
   get capabilities(): ReviewCapabilities {
@@ -519,11 +552,28 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     return newModel ? { apply: false, bulk: false } : this.adapterCapabilities;
   }
 
+  /**
+   * A model editor without a writer when Review opened: its DOM can be ahead of
+   * its model for a moment (a pending render), or an IME composition blocked
+   * the read. When the editor reads now, with all of its checks, its writer
+   * takes over. Returns true when that occurs.
+   */
+  resolveModelWriter(): boolean {
+    if (this.kind !== "model-editor" || this.composing) return false;
+    const [kind, capabilities] = this.detect();
+    // A fingerprint without its editor stays Review only: never the generic writer.
+    if (!["prosemirror", "slate", "host-model", "host-dom"].includes(kind)) return false;
+    this.kind = kind;
+    this.adapterCapabilities = capabilities;
+    return true;
+  }
+
   read(): ReviewTargetRead {
     if (!editorCapabilities(this.element).renderReview) {
       return { ok: false, reason: isInDocument(this.element) ? "ineligible" : "detached" };
     }
     if (this.composing) return { ok: false, reason: "composing" };
+    this.resolveModelWriter();
     this.map = buildContentEditableTextMap(this.element);
     if (
       this.kind === "prosemirror" ||
@@ -607,13 +657,28 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     // Inside a shadow root the document selection is retargeted; read the scoped one.
     const saved = this.captureSelection(map, readSelectionRange(root));
 
-    root.focus({ preventScroll: true });
-    // The write lands wherever focus is: it must be this editor.
+    const notion = this.kind === "notion" ? notionRootOf(root) : null;
+    if (notion) {
+      // Notion keeps focus on its page root and reverts a write that comes before
+      // its selection is in the leaf: give focus back, then let Notion take it.
+      if (doc.activeElement !== notion) {
+        notion.focus({ preventScroll: true });
+        // ponytail: a fixed wait; Notion signals no "selection taken". The checks below still refuse.
+        await new Promise((resolve) => win.setTimeout(resolve, NOTION_SETTLE_MS));
+        // The user can close Review during the wait.
+        if (this.disposed) return { status: "rejected", reason: "host-refused" };
+      }
+      if (isComposingIn(root)) return { status: "rejected", reason: "composing" };
+    } else root.focus({ preventScroll: true });
+    // The write lands wherever focus is: it must be this editor. In Notion, the
+    // selection must already be in this leaf (the user's caret, not ours).
     const focusInside = () => {
+      if (notion) return notionSelectionSettledIn(root);
       const focused = getDeepActiveElement(doc);
       return !!focused && (focused === root || root.contains(focused));
     };
     if (!focusInside()) return { status: "rejected", reason: "host-refused" };
+    const beforeContent = root.textContent ?? "";
     // Focus handlers run page code, which may have changed the text or only its
     // markup (text moved into <code>): re-read everything before the first write.
     if (!editorCapabilities(root).renderReview) return { status: "rejected", reason: "ineligible" };
@@ -634,12 +699,15 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     if (transaction && !this.pageBridge.reviewTransaction(root, "begin"))
       return { status: "rejected", reason: "unsupported" };
     let refused: ReviewApplyResult | null;
+    let recorded = true;
     try {
       refused = this.writePlanned(doc, selection, map, planned, request.before);
     } finally {
-      if (transaction) this.pageBridge.reviewTransaction(root, "end");
+      if (transaction) recorded = this.pageBridge.reviewTransaction(root, "end");
     }
     if (refused) return refused;
+    // The host has no undo step for the edit.
+    if (!recorded) return { status: "unverified" };
     const observed = buildContentEditableTextMap(root);
     const current = observed.text;
     if (!sameExceptEdgeSpaces(current, request.after, planned)) {
@@ -655,6 +723,8 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const focusOffset = afterSelection?.focusOffset;
     // Let an unknown host revert or normalize the edit, then confirm it kept the text.
     await nextFrame(win);
+    // Notion reads the leaf into its model on input; a revert comes later.
+    if (notion && !(await notionWriteKept(root, beforeContent))) return { status: "unverified" };
     const final = buildContentEditableTextMap(root);
     if (
       !root.isConnected ||
@@ -803,7 +873,8 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
   }
 
   focusEditor(): void {
-    this.element.focus({ preventScroll: true });
+    // A Notion leaf takes no focus: its page root does.
+    (notionRootOf(this.element) ?? this.element).focus({ preventScroll: true });
   }
 
   reveal(range: TextRange): void {
@@ -814,6 +885,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.map = null;
   }
 }

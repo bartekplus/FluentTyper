@@ -268,6 +268,20 @@ describe("InlineSuggestionPresenter", () => {
     expect(entry.inlineRenderRejected).toBe(false);
   });
 
+  test("keeps a suggestion armed without a ghost when only white space is left to preview", () => {
+    const renderSpy = jest
+      .spyOn(InlineSuggestionView, "render")
+      .mockImplementation(() => document.createElement("div"));
+    const { entry, render } = setupInputPresenter({ value: "function", suggestion: "function " });
+
+    render();
+
+    // An invisible ghost would make Escape look like it closes a suggestion.
+    expect(renderSpy).not.toHaveBeenCalled();
+    expect(entry.inlineSuggestion).toBe("function ");
+    expect(entry.inlineRenderRejected).toBe(false);
+  });
+
   test("clearForEntry only removes ghost for the specified entry", () => {
     const removeForEntrySpy = jest
       .spyOn(InlineSuggestionView, "removeForEntry")
