@@ -197,6 +197,26 @@ describe("options page settings handlers", () => {
       expect(writes).toEqual([...expected]);
     },
   );
+
+  test("inline mode shows prefix-only mode as on but keeps the stored value", () => {
+    stubConfigChangeSender();
+    const registry = fakeRegistry({
+      [KEY_INLINE_SUGGESTION]: false,
+      [KEY_AUTOCOMPLETE_ON_TAB]: true,
+      [KEY_NUM_SUGGESTIONS]: "10",
+      [KEY_PREFIX_ONLY_MODE]: false,
+    });
+    wireRuntimeSettingsHandlers(registry);
+    const prefixOnly = registry[KEY_PREFIX_ONLY_MODE];
+
+    registry[KEY_INLINE_SUGGESTION].set(true);
+    expect(prefixOnly.get()).toBe(true);
+
+    registry[KEY_INLINE_SUGGESTION].set(false);
+    expect(prefixOnly.get()).toBe(false);
+    // ConfigAssembler forces prefix-only mode while inline mode is on, so no write is needed.
+    expect(prefixOnly.calls.every((call) => call.silent)).toBe(true);
+  });
 });
 
 async function flushPage(rounds = 30): Promise<void> {

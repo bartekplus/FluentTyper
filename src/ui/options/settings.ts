@@ -154,17 +154,29 @@ function wireImportExportHandlers(registry: SettingsRegistry): void {
   });
 }
 
+// The stored prefix-only value of each control while inline mode shows it as on.
+const prefixOnlyBeforeInline = new WeakMap<object, unknown>();
+
 function applyInlineSuggestionLocks(registry: SettingsRegistry, enabled: boolean): void {
+  const prefixOnly = registry[KEY_PREFIX_ONLY_MODE];
   if (enabled) {
     const locks: Array<[string, unknown]> = [
       [KEY_AUTOCOMPLETE_ON_TAB, true],
       [KEY_NUM_SUGGESTIONS, 10],
-      [KEY_PREFIX_ONLY_MODE, true],
     ];
     for (const [key, value] of locks) {
       // A select control gives its value as a string.
       if (String(registry[key].get()) !== String(value)) registry[key].set(value);
     }
+    // ConfigAssembler forces prefix-only mode while inline mode is on. Thus show it without a write,
+    // so that the user's value comes back when inline mode goes off.
+    if (prefixOnly.get() !== true) {
+      prefixOnlyBeforeInline.set(prefixOnly, prefixOnly.get());
+      prefixOnly.set(true, true);
+    }
+  } else if (prefixOnlyBeforeInline.has(prefixOnly)) {
+    prefixOnly.set(prefixOnlyBeforeInline.get(prefixOnly), true);
+    prefixOnlyBeforeInline.delete(prefixOnly);
   }
   registry[KEY_AUTOCOMPLETE_ON_TAB].setDisabled(enabled);
   registry[KEY_PREFIX_ONLY_MODE].setDisabled(enabled);
