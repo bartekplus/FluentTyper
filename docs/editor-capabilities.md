@@ -35,6 +35,9 @@ The typing adapters write as follows:
   An inline object without DOM text, for example an inline image, has one model offset and no text, as a `softBreak`. The bridge refuses an edit that contains an inline object, or that has one between the edit and the caret. The inserted text never takes the attributes of an object. An element that shows text, for example a mention, gives no block context. Then CKEditor 5 takes the write as `beforeinput` into its typing batch, and Undo also removes the typed text.
 - Draft.js and Trix (`MODEL_TYPING_SELECTOR`): one model transaction through their Review writer, with the caret after the accepted word. Draft.js gets one `insert-fragment` push. Trix gets one recorded undo entry.
 - TinyMCE, CKEditor 4, Froala and Summernote: a native edit in one host undo step.
+- RoosterJS (Outlook on the web): a native edit between two Rooster snapshots, then a `contentChanged` event, as Rooster's own find and replace does.
+  The bridge finds the editor in `window.__ROOSTERJS_DEVTOOLS_EDITORS__` (roosterjs 9.59 and later). It refuses during an IME composition, in shadow edit, without focus or without a range selection. After the write, Rooster must have an undo step.
+  A native edit that Rooster does not record is lost on Undo and Redo. Thus an identified Rooster editor without its instance gets no generic write.
 - Lexical: no bridge path. FluentTyper sends a synthetic `insertReplacementText` `beforeinput` event on the replaced range. Lexical applies the event to its own model. If no handler takes the event, the write is refused.
 - Quill, also a bundled Quill such as Slack's composer: native input that Quill applies to its own model. Quill 2 takes the synthetic `insertReplacementText` `beforeinput` event. Quill 1 ignores that event, so FluentTyper uses the browser's `insertText` command, and Quill reads the DOM change into its model. Quill's history puts the changes of the last second into one undo step.
   Thus, before and after the write, the bridge records the pending DOM changes (`quill.update`) and starts a new undo step (`history.cutoff()`). Then Undo removes only the accepted word, not the typed text before it.
@@ -42,7 +45,7 @@ The typing adapters write as follows:
 - CodeMirror 5: the bridge finds the CodeMirror instance by its methods (`replaceRange`, `getLine`, `getCursor`) on the field or an ancestor. It replaces the caret line range with `replaceRange` and the `+input` origin in one `operation`. This path needs a contenteditable field, so it needs CodeMirror's `contenteditable` input style.
 
 Their typing paths validate each write. Their fingerprints alone do not grant Review writes.
-Review writes need the MAIN-world bridge to find the editor itself: Lexical, Draft.js, CKEditor 5 and Trix get a model transaction, and TinyMCE, CKEditor 4, Froala and Summernote get a native edit inside one host undo step.
+Review writes need the MAIN-world bridge to find the editor itself: Lexical, Draft.js, CKEditor 5 and Trix get a model transaction, and TinyMCE, CKEditor 4, Froala, Summernote and RoosterJS get a native edit inside one host undo step.
 A fingerprint without a working bridge gives Review only. It cannot select a generic Review DOM writer.
 
 Acceptance handlers consume keys only after a synchronous action succeeds. Tab does not queue acceptance of an unseen inline suggestion.
@@ -70,6 +73,9 @@ Review-only finding cards offer Copy. Clipboard writes require a trusted click a
 | Verified Lexical bridge                                    | Yes                            | `beforeinput` that Lexical applies to its own model                         | Yes / verified model transaction             | Each edit revalidates ranges and result text       |
 | CodeMirror 5 with the `contenteditable` input style        | No                             | Code predictions; `replaceRange` in one `operation`                         | No                                           | `code`                                             |
 | Verified TinyMCE, CKEditor 4, Froala or Summernote bridge  | Yes                            | Native edit in one host undo step                                           | Yes / native edit in one host undo step      | Each edit revalidates DOM, ranges and formatting   |
+| RoosterJS editor in the developer tools list               | Yes                            | Native edit between two Rooster snapshots                                   | Yes / native edit in one Rooster undo step   | Each edit revalidates DOM, ranges and formatting   |
+| RoosterJS identified without its editor instance           | Yes                            | Shown; each write is refused                                                | Review and Copy / no Apply                   | `available`; the record permits only an attempt    |
+| `data-ms-editor` field without RoosterJS evidence          | Yes                            | Generic path                                                                | Yes / native transaction required            | `available`                                        |
 | Mixed prose and code                                       | Prose with protected ranges    | Fresh code predictions keep capitalization suppression                      | Prose only / protected ranges cannot change  | Current context is separate from host eligibility  |
 | Credential, disabled, read-only, hidden, or detached field | No                             | No                                                                          | No                                           | `sensitive`, `restricted`, `hidden`, or `detached` |
 
@@ -77,6 +83,7 @@ A typing-path fingerprint is on the field itself. It is one of `.ProseMirror`, `
 The other fingerprints of `MODEL_EDITOR_SELECTOR` have no typing path, for example `.DraftEditor-root` or `[data-contents]` on the field. A field that is only inside a fingerprint, and has no typing-path fingerprint itself, also has no typing path.
 A typing-path fingerprint without its editor never gets a generic DOM write. `ContentEditableAdapter.ts` refuses ProseMirror, Slate and Gutenberg before it sends an event.
 It refuses the other model fingerprints when no handler takes the synthetic `beforeinput` event. It refuses the DOM-model editors when the bridge finds no host undo integration.
+RoosterJS has no fingerprint of its own: `[contenteditable="true"][data-ms-editor="true"]` is only a candidate, because other pages and Microsoft Editor can use the attribute. The MAIN-world bridge identifies a Rooster editor through the developer tools list or through the marks that Rooster's DOM index puts on the text nodes that it rendered. A candidate without this evidence keeps the generic path. Without the bridge, FluentTyper cannot identify RoosterJS.
 
 No field in the record proves that a write will succeed. `displaySuggestions` and `reviewApply` permit only an attempt.
 Each write goes through a transaction. The transaction must validate its target, range, selection, result, and Undo behavior.

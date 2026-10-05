@@ -394,9 +394,9 @@ function applyBlockReplacement(
     : NOT_APPLIED;
 }
 
-// TinyMCE, CKEditor 4, Froala and Summernote own history even though their
-// content model is the DOM. Enclose the native minimal edit in one host undo
-// step instead of merging into prior typing.
+// TinyMCE, CKEditor 4, Froala, Summernote and RoosterJS own history even though
+// their content model is the DOM. Enclose the native minimal edit in one host
+// undo step instead of merging into prior typing.
 function applyDomEditor(elem: HTMLElement, request: DomEditorReplacement) {
   const win = elem.ownerDocument.defaultView;
   if (!win || !reviewTransaction(elem, "probe")) return NOT_APPLIED;
@@ -419,10 +419,11 @@ function applyDomEditor(elem: HTMLElement, request: DomEditorReplacement) {
   };
   if (!matches()) return NOT_APPLIED;
   if (!reviewTransaction(elem, "begin")) return NOT_APPLIED;
+  let recorded: boolean;
   try {
     if (matches()) elem.ownerDocument.execCommand("insertText", false, request.replacement);
   } finally {
-    reviewTransaction(elem, "end");
+    recorded = reviewTransaction(elem, "end");
   }
   const after = elem.textContent ?? "";
   if (after === request.before) return NOT_APPLIED;
@@ -430,7 +431,7 @@ function applyDomEditor(elem: HTMLElement, request: DomEditorReplacement) {
     request.prefix +
     request.replacement +
     request.before.slice(request.prefix.length + request.selected.length);
-  return { ...APPLIED, ...(after === expected ? {} : { unverified: true }) };
+  return { ...APPLIED, ...(after === expected && recorded ? {} : { unverified: true }) };
 }
 
 export function installHostEditorMainWorldBridge(doc: Document = document): void {

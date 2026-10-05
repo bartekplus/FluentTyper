@@ -1,17 +1,21 @@
+import { isComposingIn } from "./HostEditorControllerUtils";
+
 /**
  * Undo integration for editors whose document model is the DOM: TinyMCE,
- * CKEditor 4, Froala and Summernote. Runs in the MAIN world, where the editor
- * instances are visible. Review writes these editors with its own verified
- * native edits; `begin` and `end` enclose them in one host undo step. A caller
- * that ran `begin` always runs `end`.
+ * CKEditor 4, Froala, Summernote and RoosterJS. Runs in the MAIN world, where
+ * the editor instances are visible. Review writes these editors with its own
+ * verified native edits; `begin` and `end` enclose them in one host undo step.
+ * A caller that ran `begin` always runs `end`.
+ * "identify" is true when the element belongs to an editor of this list, also
+ * when no writable instance is found: then the element gets no generic write.
  */
-export type ReviewTransactionPhase = "probe" | "begin" | "end";
+export type ReviewTransactionPhase = "probe" | "begin" | "end" | "identify";
 
 interface Transaction {
-  /** Records pending typing as its own undo step, so the edit does not merge into it. */
-  begin(): void;
-  /** Records the edit as one undo step and tells the editor that its content changed. */
-  end(): void;
+  /** Records pending typing as its own undo step, so the edit does not merge into it. False refuses the edit. */
+  begin(): boolean | void;
+  /** Records the edit as one undo step and tells the editor that its content changed. False: Undo cannot revert it. */
+  end(): boolean | void;
 }
 
 /** The element's window and its parent: a classic editor edits in a same-origin iframe. */
@@ -48,7 +52,7 @@ function tinymce(elem: HTMLElement): Transaction | null {
   if (!editor || editor.mode?.isReadOnly?.()) return null;
   return {
     // add() records a level only when the content differs from the last one.
-    begin: () => editor.undoManager.add(),
+    begin: () => void editor.undoManager.add(),
     end() {
       editor.undoManager.add();
       editor.nodeChanged();
@@ -69,7 +73,10 @@ function ckeditor4(elem: HTMLElement): Transaction | null {
     .find((candidate) => candidate.editable?.()?.$ === elem);
   if (!editor || editor.readOnly || editor.mode !== "wysiwyg") return null;
   // A snapshot records a step only when the content changed; it fires "change".
-  return { begin: () => editor.fire("saveSnapshot"), end: () => editor.fire("saveSnapshot") };
+  return {
+    begin: () => void editor.fire("saveSnapshot"),
+    end: () => void editor.fire("saveSnapshot"),
+  };
 }
 
 function froala(elem: HTMLElement): Transaction | null {
@@ -130,28 +137,109 @@ function summernote(elem: HTMLElement): Transaction | null {
   };
 }
 
+interface RoosterEditor {
+  isDisposed(): boolean;
+  getDOMHelper(): { isNodeInEditor(node: Node, excludingRoot?: boolean): boolean };
+  hasFocus(): boolean;
+  isInShadowEdit(): boolean;
+  /** Outlook's editor has it; the open-source 9.x editor keeps the state in its core. */
+  isInIME?(): boolean;
+  core?: { domEvent?: { isInIME?: boolean } } | null;
+  getDOMSelection(): { type: string } | null;
+  takeSnapshot(): unknown;
+  triggerEvent(type: "contentChanged", data: { source: string }): unknown;
+  getSnapshotsManager(): { canMove(step: number): boolean };
+}
+
+/**
+ * The RoosterJS editor whose content div is `elem`. roosterjs 9.59 and later add
+ * each editor to this list for developer tools. It is the only handle: the
+ * editor puts no reference on its DOM.
+ */
+function findRooster(elem: HTMLElement): RoosterEditor | null {
+  type RoosterWindow = Window & { __ROOSTERJS_DEVTOOLS_EDITORS__?: unknown };
+  const editors = (elem.ownerDocument.defaultView as RoosterWindow | null)
+    ?.__ROOSTERJS_DEVTOOLS_EDITORS__;
+  if (!Array.isArray(editors)) return null;
+  return (
+    (editors as RoosterEditor[]).find((editor) => {
+      if (editor.isDisposed()) return false;
+      const helper = editor.getDOMHelper();
+      return helper.isNodeInEditor(elem) && !helper.isNodeInEditor(elem, true);
+    }) ?? null
+  );
+}
+
+/**
+ * A RoosterJS content div also without the list: Rooster's DOM index marks the
+ * text nodes that it rendered from its model.
+ * ponytail: reads the first 50 text nodes; text typed into an empty editor has no mark yet.
+ */
+function isRooster(elem: HTMLElement): boolean {
+  if (findRooster(elem)) return true;
+  const walker = elem.ownerDocument.createTreeWalker(elem, NodeFilter.SHOW_TEXT);
+  for (let count = 0, node = walker.nextNode(); node && count < 50; count++) {
+    if (Object.hasOwn(node, "__roosterjsContentModel")) return true;
+    node = walker.nextNode();
+  }
+  return false;
+}
+
+function rooster(elem: HTMLElement): Transaction | null {
+  const editor = findRooster(elem);
+  if (!editor) return null;
+  return {
+    // Rooster's undo restores HTML snapshots and takes one only for its own
+    // input. Its find-and-replace uses the same steps.
+    begin() {
+      if (
+        editor.isDisposed() ||
+        !editor.hasFocus() ||
+        editor.isInShadowEdit() ||
+        (editor.isInIME?.() ?? editor.core?.domEvent?.isInIME) ||
+        isComposingIn(elem) ||
+        editor.getDOMSelection()?.type !== "range"
+      )
+        return false;
+      editor.takeSnapshot();
+    },
+    end() {
+      if (editor.isDisposed()) return false;
+      editor.takeSnapshot();
+      editor.triggerEvent("contentChanged", { source: "Replace" });
+      return editor.getSnapshotsManager().canMove(-1);
+    },
+  };
+}
+
 /** Editable elements of the DOM-model editors that have Review undo integration. */
 export const REVIEW_DOM_EDITORS: [
   selector: string,
   find: (elem: HTMLElement) => Transaction | null,
+  /** Without it, the selector identifies the editor. */
+  identify?: (elem: HTMLElement) => boolean,
 ][] = [
   [".mce-content-body", tinymce],
   [".cke_editable", ckeditor4],
   [".fr-element", froala],
   [".note-editable", summernote],
+  // Outlook on the web marks its compose body so. Other pages can use the
+  // attribute too: only an identified RoosterJS editor loses the generic write.
+  ['[contenteditable="true"][data-ms-editor="true"]', rooster, isRooster],
 ];
 
 /** DOM-model editors that FluentTyper writes with a native edit in one host undo step. */
 export const DOM_EDITOR_SELECTOR = REVIEW_DOM_EDITORS.map(([selector]) => selector).join(", ");
 
-/** True when the editor exists and accepts writes, and the phase ran. */
+/** True when the editor exists and accepts writes, and the phase ran and did not refuse. */
 export function reviewTransaction(elem: HTMLElement, phase: ReviewTransactionPhase): boolean {
   try {
-    const find = REVIEW_DOM_EDITORS.find(([selector]) => elem.matches(selector))?.[1];
-    const transaction = find?.(elem);
+    const entry = REVIEW_DOM_EDITORS.find(([selector]) => elem.matches(selector));
+    if (phase === "identify") return !!entry && (entry[2]?.(elem) ?? true);
+    const transaction = entry?.[1](elem);
     if (!transaction) return false;
-    if (phase === "begin") transaction.begin();
-    else if (phase === "end") transaction.end();
+    if (phase === "begin") return transaction.begin() !== false;
+    if (phase === "end") return transaction.end() !== false;
     return true;
   } catch {
     return false;

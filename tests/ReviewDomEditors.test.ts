@@ -1,6 +1,6 @@
 /**
- * Review and typing writes into the real TinyMCE, CKEditor 4, Froala and
- * Summernote libraries that the e2e fixtures use (tests/e2e/fixtures/review-editors).
+ * Review and typing writes into the real TinyMCE, CKEditor 4, Froala,
+ * Summernote and RoosterJS libraries that the e2e fixtures use (tests/e2e/fixtures/review-editors).
  * Each editor runs in its iframe-less mode on the shared JSDOM document. The
  * polyfills below add only browser features that JSDOM does not have; the
  * editor libraries are not changed.
@@ -18,6 +18,7 @@ import { InjectedHostEditorPageBridge } from "../src/adapters/chrome/content-scr
 import { isComposingIn } from "../src/adapters/chrome/content-script/suggestions/HostEditorControllerUtils";
 import { reviewTransaction } from "../src/adapters/chrome/content-script/suggestions/ReviewDomEditors";
 import { ContentEditableReviewTarget } from "../src/adapters/chrome/content-script/review/ReviewTargets";
+import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 // Installs the MAIN-world bridge on this document; Review and typing reach it through events.
 import "../src/adapters/chrome/content-script/suggestions/HostEditorMainWorldBridge";
 
@@ -83,6 +84,7 @@ for (const part of ["tinymce/icons/default", "tinymce/themes/silver", "tinymce/m
 const { default: FroalaEditor } = await import("froala-editor");
 const { default: jQuery } = await import("jquery");
 await import("summernote/dist/summernote-lite.js");
+const Rooster = await import("roosterjs");
 
 interface CKEditor4 {
   editable(): { $: HTMLElement };
@@ -237,6 +239,45 @@ const EDITORS: EditorCase[] = [
   },
 ];
 
+/** The Outlook compose body: RoosterJS has no fingerprint of its own. */
+function roosterTarget(): HTMLDivElement {
+  const target = document.body.appendChild(document.createElement("div"));
+  target.setAttribute("contenteditable", "true");
+  target.setAttribute("data-ms-editor", "true");
+  return target;
+}
+
+type RoosterEditor = InstanceType<typeof Rooster.Editor>;
+type RoosterWindow = typeof window & { __ROOSTERJS_DEVTOOLS_EDITORS__?: RoosterEditor[] };
+
+const ROOSTER: EditorCase = {
+  name: "RoosterJS",
+  fingerprint: "",
+  async mount() {
+    let changes = 0;
+    const target = roosterTarget();
+    const editor = new Rooster.Editor(target, {
+      plugins: [
+        {
+          getName: () => "TestChanges",
+          initialize: () => undefined,
+          dispose: () => undefined,
+          onPluginEvent(event) {
+            if (event.eventType === "contentChanged") changes++;
+          },
+        },
+      ],
+      initialModel: Rooster.createModelFromHtml(SEED_HTML),
+    });
+    return {
+      editable: target,
+      undo: () => Rooster.undo(editor),
+      changes: () => changes,
+      destroy: () => editor.dispose(),
+    };
+  },
+};
+
 // ── Helpers ─────────────────────────────────────────────────────────
 let mounted: Mounted | null = null;
 
@@ -345,7 +386,9 @@ describe.each(EDITORS)("$name Review writer (real library)", (editor) => {
     expect(typeReplacement(bare).applied).toBe(false);
     expect(bare.innerHTML).toBe(SEED_HTML);
   });
+});
 
+describe.each([...EDITORS, ROOSTER])("$name Review and typing writer (real library)", (editor) => {
   test("one Review edit keeps the formatting wrapper and the caret", async () => {
     const editable = await mount(editor);
     putCaretAtEnd(editable);
@@ -438,5 +481,88 @@ describe.each(EDITORS)("$name Review writer (real library)", (editor) => {
     // The typing write is one host undo step too.
     mounted!.undo();
     expect(visibleText(editable)).toBe("We saw teh cat.");
+  });
+});
+
+describe("RoosterJS writer (Outlook on the web)", () => {
+  const editors = () => (window as RoosterWindow).__ROOSTERJS_DEVTOOLS_EDITORS__;
+  const editorOf = (editable: HTMLElement) =>
+    editors()!.find((editor) => editor.getDOMHelper().isNodeInEditor(editable))!;
+
+  /** The generic typing path of FluentTyper: the adapter, not the bridge. */
+  function typeThroughAdapter(editable: HTMLElement) {
+    editable.focus();
+    const start = (editable.textContent ?? "").indexOf("teh");
+    return new ContentEditableAdapter().replaceTextByOffsets(
+      editable,
+      start,
+      start + 3,
+      "the",
+      start + 3,
+    );
+  }
+
+  test("finds the editor in the developer tools list; only an identified editor loses the generic write", async () => {
+    const editable = await mount(ROOSTER);
+    expect(editors()).toContain(editorOf(editable));
+    expect(reviewTransaction(editable, "probe")).toBe(true);
+    expect(new ContentEditableReviewTarget(editable).kind).toBe("host-dom");
+
+    // Without the list (roosterjs before 9.59), Rooster's DOM index still identifies it.
+    const list = editors();
+    (window as RoosterWindow).__ROOSTERJS_DEVTOOLS_EDITORS__ = undefined;
+    try {
+      expect(reviewTransaction(editable, "probe")).toBe(false);
+      expect(reviewTransaction(editable, "identify")).toBe(true);
+      const target = new ContentEditableReviewTarget(editable);
+      expect(target.kind).toBe("model-editor");
+      expect(target.capabilities.apply).toBe(false);
+      expect(typeThroughAdapter(editable).appliedBy).toBe("refused");
+      expect(editable.textContent).toBe("We saw teh cat.");
+    } finally {
+      (window as RoosterWindow).__ROOSTERJS_DEVTOOLS_EDITORS__ = list;
+    }
+
+    // The same markup without RoosterJS (another page, or Microsoft Editor) keeps the generic path.
+    const plain = asBrowserEditable(roosterTarget());
+    plain.innerHTML = SEED_HTML;
+    expect(reviewTransaction(plain, "identify")).toBe(false);
+    const plainTarget = new ContentEditableReviewTarget(plain);
+    expect(plainTarget.kind).toBe("contenteditable");
+    expect(plainTarget.capabilities.apply).toBe(true);
+    expect(typeThroughAdapter(plain).appliedBy).toBe("fallback-dom");
+    expect(plain.textContent).toBe("We saw the cat.");
+  });
+
+  test("an edit after a Rooster snapshot (a click) is one Undo step, and Redo restores it", async () => {
+    const editable = await mount(ROOSTER);
+    const editor = editorOf(editable);
+    // Rooster takes this snapshot on a mouse click; then it sees no new content.
+    editor.takeSnapshot();
+    expect(typeReplacement(editable)).toEqual({ applied: true, didDispatchInput: false });
+    expect(editable.textContent).toBe("We saw the cat.");
+    Rooster.undo(editor);
+    expect(editable.textContent).toBe("We saw teh cat.");
+    Rooster.redo(editor);
+    expect(editable.textContent).toBe("We saw the cat.");
+    expect(boldText(editable)).toEqual(["the"]);
+  });
+
+  test("refuses Review and typing edits while Rooster reports an IME composition", async () => {
+    const editable = await mount(ROOSTER);
+    putCaretAtEnd(editable);
+    const target = new ContentEditableReviewTarget(editable);
+    const request = reviewEdit(target);
+    // Outlook's editor has isInIME(); no DOM composition event reached the bridge.
+    const editor = editorOf(editable) as RoosterEditor & { isInIME?: () => boolean };
+    editor.isInIME = () => true;
+
+    expect(await target.apply(request)).toEqual({ status: "rejected", reason: "unsupported" });
+    expect(typeReplacement(editable).applied).toBe(false);
+    expect(editable.textContent).toBe("We saw teh cat.");
+
+    editor.isInIME = () => false;
+    expect(typeReplacement(editable).applied).toBe(true);
+    expect(editable.textContent).toBe("We saw the cat.");
   });
 });

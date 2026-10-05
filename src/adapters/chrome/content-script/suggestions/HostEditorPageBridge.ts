@@ -121,10 +121,14 @@ export class InjectedHostEditorPageBridge {
   }
 
   /**
-   * TinyMCE, CKEditor 4, Froala or Summernote: "probe" finds a writable editor,
-   * "begin" and "end" enclose a native Review edit in one host undo step.
+   * TinyMCE, CKEditor 4, Froala, Summernote or RoosterJS: "probe" finds a writable
+   * editor, "begin" and "end" enclose a native Review edit in one host undo step.
+   * "identify" finds the editor also when it has no writable instance.
    */
-  public reviewTransaction(elem: HTMLElement, phase: "probe" | "begin" | "end"): boolean {
+  public reviewTransaction(
+    elem: HTMLElement,
+    phase: "probe" | "begin" | "end" | "identify",
+  ): boolean {
     const response = this.dispatchRequest(elem, { action: "reviewTransaction", phase });
     return !!(response?.ok && "result" in response && response.result.applied);
   }

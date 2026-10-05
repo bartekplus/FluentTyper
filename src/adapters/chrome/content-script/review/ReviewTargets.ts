@@ -2,6 +2,7 @@ import { editorCapabilities, MODEL_EDITOR_SELECTOR } from "../suggestions/Editor
 import { prepareNativeReviewTransaction } from "./NativeReviewTransaction";
 import { expectedFormatting, formattingPreservingEdits } from "./RichTextFormatting";
 import { InjectedHostEditorPageBridge } from "../suggestions/HostEditorPageBridge";
+import { DOM_EDITOR_SELECTOR } from "../suggestions/ReviewDomEditors";
 import type {
   ReviewApplyResult,
   ReviewCapabilities,
@@ -482,7 +483,14 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const slate =
       eligible && element.matches("[data-slate-editor]") && !!this.pageBridge.readSlate(element);
     // Other fingerprints get a writer only when the bridge finds their editor.
-    const fingerprint = !proseMirror && !slate && !quill && element.closest(MODEL_EDITOR_SELECTOR);
+    // A RoosterJS editor has no own fingerprint: the bridge identifies it.
+    const fingerprint =
+      !proseMirror &&
+      !slate &&
+      !quill &&
+      (!!element.closest(MODEL_EDITOR_SELECTOR) ||
+        (element.matches(DOM_EDITOR_SELECTOR) &&
+          this.pageBridge.reviewTransaction(element, "identify")));
     const hostModel = eligible && fingerprint && !!this.pageBridge.readReviewModel(element);
     const hostDom =
       eligible && fingerprint && !hostModel && this.pageBridge.reviewTransaction(element, "probe");
@@ -653,12 +661,15 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     if (transaction && !this.pageBridge.reviewTransaction(root, "begin"))
       return { status: "rejected", reason: "unsupported" };
     let refused: ReviewApplyResult | null;
+    let recorded = true;
     try {
       refused = this.writePlanned(doc, selection, map, planned, request.before);
     } finally {
-      if (transaction) this.pageBridge.reviewTransaction(root, "end");
+      if (transaction) recorded = this.pageBridge.reviewTransaction(root, "end");
     }
     if (refused) return refused;
+    // The host has no undo step for the edit.
+    if (!recorded) return { status: "unverified" };
     const observed = buildContentEditableTextMap(root);
     const current = observed.text;
     if (!sameExceptEdgeSpaces(current, request.after, planned)) {

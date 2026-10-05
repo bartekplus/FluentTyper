@@ -1,6 +1,6 @@
 import { InjectedHostEditorPageBridge } from "./HostEditorPageBridge";
 import { rangeInsideTarget } from "./TextTargetAdapter";
-import { HOST_MODEL_EDITOR_SELECTOR } from "./EditorCapabilities";
+import { HOST_MODEL_EDITOR_SELECTOR, MODEL_EDITOR_SELECTOR } from "./EditorCapabilities";
 import { DOM_EDITOR_SELECTOR } from "./ReviewDomEditors";
 import { isGutenbergField, isGutenbergContainer } from "./GutenbergEnvironment";
 import { isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
@@ -278,23 +278,26 @@ export class ContentEditableAdapter {
       const prefix = range.cloneRange();
       prefix.selectNodeContents(elem);
       prefix.setEnd(startPosition.container, startPosition.offset);
-      const result = new InjectedHostEditorPageBridge(elem.ownerDocument).applyDomEditor(elem, {
+      const bridge = new InjectedHostEditorPageBridge(elem.ownerDocument);
+      const result = bridge.applyDomEditor(elem, {
         before: beforeEditorText,
         prefix: prefix.toString(),
         selected: range.toString(),
         replacement: replacementText,
       });
-      if (!result.applied) {
+      if (result.applied)
+        return {
+          appliedBy: "host-beforeinput",
+          didMutateDom: true,
+          didDispatchInput: result.didDispatchInput,
+          nativeUndo: true,
+          ...(result.unverified || !verified() ? { unverified: true } : {}),
+        };
+      // A field that only shares the RoosterJS markup keeps the generic path.
+      if (elem.closest(MODEL_EDITOR_SELECTOR) || bridge.reviewTransaction(elem, "identify")) {
         restoreSelection();
         return refused;
       }
-      return {
-        appliedBy: "host-beforeinput",
-        didMutateDom: true,
-        didDispatchInput: result.didDispatchInput,
-        nativeUndo: true,
-        ...(result.unverified || !verified() ? { unverified: true } : {}),
-      };
     }
     if (this.tryNativeReplacement(elem, replacementText)) {
       // Quill 1 reads this DOM change later; the boundary records it now.

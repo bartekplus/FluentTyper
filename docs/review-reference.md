@@ -857,6 +857,8 @@ signature and invalidate pending fixes.
 | Slate (verified host bridge)                                          | yes                                                                     | yes                                      | yes                        | one slate-history step for the batch     |
 | Lexical, Draft.js, CKEditor 5, Trix (verified host bridge)            | yes                                                                     | yes                                      | yes                        | one host undo step for the batch         |
 | TinyMCE, CKEditor 4, Froala, Summernote (verified host bridge)        | yes                                                                     | yes, validated native transaction        | yes                        | one host undo step for the batch         |
+| RoosterJS, Outlook on the web (editor in the developer tools list)    | yes                                                                     | yes, validated native transaction        | yes                        | one Rooster snapshot step for the batch  |
+| RoosterJS identified without its editor                               | yes                                                                     | no: review-only; Copy for the suggestion | no                         | —                                        |
 | Other model-editor fingerprints, or one of the above without a bridge | yes                                                                     | no: review-only; Copy for the suggestion | no                         | —                                        |
 | Google Docs                                                           | overlay over the text Docs shows; list only where Docs has not drawn it | yes: one verified replacement at a time  | no                         | Docs history                             |
 | Code editors, sensitive and ineligible fields                         | refused with an explanation                                             | —                                        | —                          | —                                        |
@@ -935,6 +937,27 @@ writes them with its own validated native edits, one per text node, and encloses
 the batch in one host undo step: TinyMCE undo levels, CKEditor 4 snapshots,
 Froala steps and Summernote history. Typing that the host has not recorded yet
 becomes its own step first.
+
+RoosterJS (Outlook on the web) also keeps its content in the DOM, but its Undo
+restores HTML snapshots and records only its own input. A native edit that Rooster
+did not record is lost: one Undo removes two steps, and Redo cannot restore the
+edit. Rooster has no fingerprint of its own. The Outlook compose body is a
+`[contenteditable="true"][data-ms-editor="true"]` element, and other pages
+(for example with Microsoft Editor) can have the same attributes. Thus the
+MAIN-world bridge identifies the editor:
+
+- roosterjs 9.59 and later add each editor to `window.__ROOSTERJS_DEVTOOLS_EDITORS__`.
+  The writer uses the editor whose content div is the field and that is not disposed.
+- Without that editor, the text nodes that Rooster rendered from its model
+  (`__roosterjsContentModel`) identify it. Then the field is review-only, and
+  typing writes are refused.
+- A field with the attributes and no Rooster evidence keeps the generic path.
+
+The writer uses the steps of Rooster's own find and replace: `takeSnapshot()`,
+the validated native edits, `takeSnapshot()` and a `contentChanged` event. It
+refuses when Rooster is in an IME composition (`isInIME()`) or in shadow edit,
+does not have focus, or has no range selection. After the write, Rooster must
+have an undo step (`canMove(-1)`); otherwise the result is unverified.
 
 Plain contenteditable snapshots also capture formatting wrappers and attributes.
 A native correction must retain existing elements. Changes across text nodes are

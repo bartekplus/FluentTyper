@@ -127,6 +127,7 @@ const REVIEW_EDITORS = [
   "quill1",
   "quill2",
   "tiptap",
+  "roosterjs",
 ] as const;
 type ReviewEditor = (typeof REVIEW_EDITORS)[number];
 /** Review editor fixtures with a typing path; Quill 1 and Quill 2 are bundled without window.Quill. */
@@ -139,6 +140,7 @@ const TYPING_EDITORS = [
   { editor: "quill1", name: "bundled Quill 1" },
   { editor: "quill2", name: "bundled Quill 2" },
   { editor: "tiptap", name: "Tiptap" },
+  { editor: "roosterjs", name: "RoosterJS" },
 ] as const;
 type TypingEditor = (typeof TYPING_EDITORS)[number]["editor"];
 
@@ -10810,6 +10812,55 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           Array.from(root.querySelectorAll("li"), (item) => item.textContent),
         ),
       ).toEqual([BLOCK_SEED_TEXT.split("\n")[2].replace(marker, `${marker} ${prediction}Z`)]);
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  test(
+    "RoosterJS typing acceptance after a click snapshot is one Rooster undo step, and Redo restores it",
+    async () => {
+      const { surface, editable, model } = await openTypingEditor("roosterjs");
+      const seed = "We saw teh cat and teh dog.";
+      await surface.click(editable);
+      await page.keyboard.press("End");
+      await page.keyboard.type(" w");
+      const prediction = await waitUntil(
+        "RoosterJS prediction for the typed prefix",
+        async () => {
+          const text = (await getVisibleSuggestionTexts(surface))[0];
+          return text && /^w\S*[ \xa0]$/i.test(text) ? text : false;
+        },
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      );
+      // The press of a click: Rooster records the typed text as an undo snapshot
+      // and then sees no new content. FluentTyper keeps its menu until the click ends.
+      // A native edit now is lost: Undo removes two steps, and Redo cannot restore it.
+      await surface.$eval(editable, (root) =>
+        root.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 })),
+      );
+      await page.keyboard.press("Tab");
+      const accepted = normalizeSuggestionText(`${seed} ${prediction}`);
+      const text = async () => normalizeSuggestionText((await model()).text);
+      await waitUntil(
+        "RoosterJS contains the accepted prediction",
+        async () => (await text()) === accepted,
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      );
+      await surface.focus(editable);
+      await pressUndo(page);
+      await waitUntil(
+        "RoosterJS undo removes only the accepted prediction",
+        async () => (await model()).text.trimEnd() === `${seed} w`,
+      ).catch(async (cause) => {
+        throw new Error(`model after undo: ${JSON.stringify(await model())}`, { cause });
+      });
+      await pressRedo(page);
+      await waitUntil(
+        "RoosterJS redo restores the accepted prediction",
+        async () => (await text()) === accepted,
+      ).catch(async (cause) => {
+        throw new Error(`model after redo: ${JSON.stringify(await model())}`, { cause });
+      });
     },
     suiteTimeout(30000, 50000),
   );

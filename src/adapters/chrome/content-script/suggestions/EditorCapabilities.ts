@@ -6,7 +6,11 @@ import { MODEL_TYPING_SELECTOR } from "./HostEditorBridgeProtocol";
 import { isCredentialField, isHiddenField, isSensitiveField } from "./FieldEligibility";
 import { classifyField, hasActiveAutocompletePopup } from "./NativeAutocompleteConflictDetector";
 
-/** Fingerprints restrict generic writes. They never prove that a host adapter works. */
+/**
+ * Fingerprints restrict generic writes. They never prove that a host adapter works.
+ * RoosterJS has none: its DOM_EDITOR_SELECTOR entry is a candidate that the
+ * MAIN-world bridge must identify (ReviewDomEditors.ts).
+ */
 export const MODEL_EDITOR_SELECTOR =
   "[data-lexical-editor], .ProseMirror, [data-slate-editor], .DraftEditor-root, " +
   "[data-contents], .ck-editor__editable, trix-editor, .cke_editable, " +
