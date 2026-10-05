@@ -129,7 +129,7 @@ function cacheChromeExtensionHost(candidate: string | null | undefined): void {
 
 function isRetriableBackgroundContextError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Session closed|Target closed|Connection closed|background worker is unavailable|Waiting failed|NoSuchFrameError|Browsing Context with id .* not found/i.test(
+  return /Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Session closed|Target closed|Connection closed|background worker is unavailable|Waiting failed|Timed out after waiting \d+ms|NoSuchFrameError|Browsing Context with id .* not found/i.test(
     message,
   );
 }
