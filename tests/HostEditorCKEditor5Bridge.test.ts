@@ -774,6 +774,24 @@ describe("HostEditorMainWorldBridge – IME composition", () => {
     expect(text()).toBe("We saw the");
   });
 
+  test("a composition that starts while the bridge is off still blocks writes after it turns on", () => {
+    const setEnabled = (on: boolean) => {
+      document.documentElement.setAttribute(HOST_EDITOR_ENABLED_ATTR, String(on));
+      document.dispatchEvent(new Event(HOST_EDITOR_ENABLED_EVENT));
+      document.documentElement.removeAttribute(HOST_EDITOR_ENABLED_ATTR);
+    };
+    const { element, text } = mountTrix("We saw teh");
+    setEnabled(false);
+    compose(element, "compositionstart");
+    setEnabled(true);
+    expect(dispatchBridgeRequest(element, typing("We saw teh", 7, "the"))).toEqual({
+      ok: true,
+      result: { applied: false, didDispatchInput: false },
+    });
+    expect(text()).toBe("We saw teh");
+    compose(element, "compositionend");
+  });
+
   test("CKEditor 5 typing refuses to write while its view composes", () => {
     const mock = createCKEditorMock("hello world", 1);
     const editor = mock.editor as typeof mock.editor & { editing?: unknown };

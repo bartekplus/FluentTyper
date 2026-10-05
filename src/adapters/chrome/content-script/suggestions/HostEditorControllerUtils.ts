@@ -27,10 +27,6 @@ export interface LineEditorController {
  */
 let compositionTarget: Node | null = null;
 
-export function setCompositionTarget(target: Node | null): void {
-  compositionTarget = target;
-}
-
 /** Records the target of a compositionstart or compositionend event. */
 export function recordComposition(event: Event): void {
   if (event.type === "compositionstart" || event.type === "compositionend")
