@@ -15,6 +15,8 @@ interface SuggestionKeyboardHandlerOptions {
   consumeKeyboardEvent: (event: KeyboardEvent) => void;
   clearSuggestions: (entry: SuggestionEntry) => void;
   isMenuVisible: (entry: SuggestionEntry) => boolean;
+  /** An inline ghost for this entry is in the page (an armed suggestion can show none). */
+  isInlineVisible: (entry: SuggestionEntry) => boolean;
   updateSelectionHighlight: (entry: SuggestionEntry) => void;
   acceptSuggestion: (entry: SuggestionEntry, suggestion: string) => boolean;
   acceptSuggestionAtIndex: (entry: SuggestionEntry, index: number) => boolean;
@@ -107,7 +109,7 @@ export class SuggestionKeyboardHandler {
     if (key === "Escape") {
       // Escape that closes our popup is ours: the page must not also act on it
       // (Notion would select the block, and the next keys would type nothing).
-      const showing = this.options.isMenuVisible(entry) || entry.inlineSuggestion !== null;
+      const showing = this.options.isMenuVisible(entry) || this.options.isInlineVisible(entry);
       this.options.clearSuggestions(entry);
       if (showing && this.options.canAccept?.(entry) !== false)
         this.options.consumeKeyboardEvent(keyboardEvent);

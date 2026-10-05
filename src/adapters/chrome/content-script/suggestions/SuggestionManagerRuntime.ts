@@ -180,6 +180,8 @@ export class SuggestionManagerRuntime {
       consumeKeyboardEvent: this.consumeCancelableEvent.bind(this),
       clearSuggestions: this.clearSuggestions.bind(this),
       isMenuVisible: (entry) => this.menuPresenter.isVisible(entry.menu, this.menuRowCount(entry)),
+      isInlineVisible: (entry) =>
+        InlineSuggestionView.hasForEntry(entry.id, entry.elem.ownerDocument),
       updateSelectionHighlight: (entry) => this.updateSelectionHighlight(entry),
       acceptSuggestion: (entry, suggestion) =>
         this.getSession(entry.id)?.acceptSuggestion(suggestion) ?? false,

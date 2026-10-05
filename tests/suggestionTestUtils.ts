@@ -169,6 +169,7 @@ export function createHandler(
     consumeKeyboardEvent: jest.fn(),
     clearSuggestions: jest.fn(),
     isMenuVisible: jest.fn(() => false),
+    isInlineVisible: jest.fn(() => false),
     updateSelectionHighlight: jest.fn(),
     acceptSuggestion: jest.fn(),
     acceptSuggestionAtIndex: jest.fn(),

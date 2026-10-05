@@ -286,7 +286,7 @@ test("Escape that closes a visible popup or inline suggestion never reaches the 
   expect(clear).toHaveBeenCalledWith(entry);
   expect(event.defaultPrevented).toBe(true);
 
-  const inline = createHandler({ consumeKeyboardEvent });
+  const inline = createHandler({ consumeKeyboardEvent, isInlineVisible: () => true });
   const ghost = createEvent("Escape");
   inline.handle(createSuggestionEntry({ inlineSuggestion: "hello" }), ghost);
   expect(ghost.defaultPrevented).toBe(true);
@@ -295,6 +295,19 @@ test("Escape that closes a visible popup or inline suggestion never reaches the 
   const idle = createEvent("Escape");
   createHandler({ consumeKeyboardEvent }).handle(createSuggestionEntry({ suggestions: [] }), idle);
   expect(idle.defaultPrevented).toBe(false);
+});
+
+test("Escape with an armed inline suggestion that shows no ghost goes to the page", () => {
+  // An exact match ("hello" typed, "hello" predicted) has an empty suffix: no
+  // ghost shows, but Tab still accepts. A page Escape (close a dialog) must work.
+  const consumeKeyboardEvent = jest.fn((event: KeyboardEvent) => event.preventDefault());
+  const clear = jest.fn();
+  const handler = createHandler({ consumeKeyboardEvent, clearSuggestions: clear });
+  const entry = createSuggestionEntry({ inlineSuggestion: "hello" });
+  const event = createEvent("Escape");
+  handler.handle(entry, event);
+  expect(clear).toHaveBeenCalledWith(entry);
+  expect(event.defaultPrevented).toBe(false);
 });
 
 test("reserved acceptance does not block Escape dismissal", () => {
