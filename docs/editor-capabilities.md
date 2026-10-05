@@ -28,7 +28,8 @@ It does no model reads, stores no history, and creates no observers.
 The runtime checks this record before interaction. Review uses the same metadata gate before its text safety checks.
 `reviewApply` requires the target's separate `ReviewCapabilities` evidence. Typing permission never grants Review write permission.
 
-The typing adapters support host transactions for ProseMirror, Slate and TinyMCE, and verified host input handling for CKEditor and Lexical.
+The typing adapters support host transactions for ProseMirror and Slate, one model transaction for Draft.js and Trix (their Review writer), a native edit in one host undo step for TinyMCE, CKEditor 4, Froala and Summernote, and verified host input handling for CKEditor 5 and Lexical.
+Quill, also a bundled Quill such as Slack's composer, takes typing through native input that Quill applies to its own model. Quill's history puts the changes of the last second into one undo step, as it does for its own typing.
 Their typing paths validate each write. Their fingerprints alone do not grant Review writes.
 Review writes need the MAIN-world bridge to find the editor itself: Lexical, Draft.js, CKEditor 5 and Trix get a model transaction, and TinyMCE, CKEditor 4, Froala and Summernote get a native edit inside one host undo step.
 A fingerprint without a working bridge gives Review only. It cannot select a generic Review DOM writer.
@@ -51,7 +52,7 @@ Review-only finding cards offer Copy. Clipboard writes require a trusted click a
 | Model-editor fingerprint without its editor                | Yes                            | Disabled                                                                    | Review and Copy / no Apply                  | `unverified-writer`                                |
 | Verified Quill, ProseMirror or Slate Review bridge         | Yes                            | Typing transaction path                                                     | Yes / verified model transaction            | Each edit revalidates model and ranges             |
 | Verified Lexical, Draft.js, CKEditor 5 or Trix bridge      | Yes                            | Typing path where one exists, else disabled                                 | Yes / verified model transaction            | Each edit revalidates model and ranges             |
-| Verified TinyMCE, CKEditor 4, Froala or Summernote bridge  | Yes                            | Typing path where one exists, else disabled                                 | Yes / native edit in one host undo step     | Each edit revalidates DOM, ranges and formatting   |
+| Verified TinyMCE, CKEditor 4, Froala or Summernote bridge  | Yes                            | Native edit in one host undo step                                           | Yes / native edit in one host undo step     | Each edit revalidates DOM, ranges and formatting   |
 | Mixed prose and code                                       | Prose with protected ranges    | Fresh code predictions keep capitalization suppression                      | Prose only / protected ranges cannot change | Current context is separate from host eligibility  |
 | Credential, disabled, read-only, hidden, or detached field | No                             | No                                                                          | No                                          | `sensitive`, `restricted`, `hidden`, or `detached` |
 

@@ -222,3 +222,18 @@ test("Quill snapshot text accounts for embeds and exactly one terminal newline",
   root.querySelector("p")!.lastChild!.textContent = " dog.";
   expect(readQuill(root)).toBeNull();
 });
+
+test("a bundled Quill 1 without window.Quill is found through its container (Slack)", () => {
+  const { root, quill, request } = fixture();
+  const find = (window as Window & { Quill?: { find: unknown } }).Quill!.find;
+  delete (window as Window & { Quill?: unknown }).Quill;
+  // Quill 1 stores the instance as container.__quill; the class has a static find.
+  class BundledQuill {
+    static find = find;
+  }
+  Object.setPrototypeOf(quill, BundledQuill.prototype);
+  Object.assign(root.parentElement!, { __quill: quill });
+  expect(readQuill(root)?.text).toBe(request.before);
+  expect(applyQuill(root, request)).toEqual({ status: "applied", signature: expect.any(String) });
+  expect(root.textContent).toBe("the and the");
+});

@@ -12,6 +12,7 @@ import {
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_CLEAR_PERSONALIZATION,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+  KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_AUTO_LANGUAGE_SITE_PRIORS,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
@@ -123,6 +124,8 @@ const REVIEW_EDITORS = [
   "trix",
   "froala",
   "summernote",
+  "quill1",
+  "quill2",
 ] as const;
 type ReviewEditor = (typeof REVIEW_EDITORS)[number];
 
@@ -10468,6 +10471,89 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       });
     },
     suiteTimeout(50000, 70000),
+  );
+
+  test.each(["ckeditor4", "froala", "summernote", "quill1", "quill2", "trix", "draft"] as const)(
+    "%s typing accepts a prediction with formatting kept and one native undo step",
+    async (name) => {
+      await setSettings(worker, {
+        // An earlier test in the same browser can leave these off.
+        [KEY_AUTOCOMPLETE]: true,
+        [KEY_AUTOCOMPLETE_ON_TAB]: true,
+        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_INLINE_SUGGESTION]: false,
+      });
+      await setGrammarRules(worker, []);
+      await notifyConfigChange(browser, worker);
+      await gotoTestPage(page, { reviewEditor: name });
+      const fixture = await waitUntil(
+        `${name} fixture`,
+        () =>
+          page.evaluate(() => {
+            if (window.__testReviewEditorError) throw new Error(window.__testReviewEditorError);
+            const editor = window.__testReviewEditor;
+            return editor ? { frame: editor.frame, editable: editor.editable } : false;
+          }),
+        { timeoutMs: INPUT_READY_TIMEOUT_MS },
+      );
+      const surface: Page | Frame = fixture.frame
+        ? await waitUntil(
+            `${name} editing frame`,
+            async () => (await (await page.$(fixture.frame!))?.contentFrame()) ?? false,
+            { timeoutMs: INPUT_READY_TIMEOUT_MS },
+          )
+        : page;
+      const model = () =>
+        page.evaluate(() => {
+          const editor = window.__testReviewEditor!;
+          return { text: editor.text().replace(/\u00a0/g, " "), runs: editor.runs() };
+        });
+      const seed = "We saw teh cat and teh dog.";
+      await waitForInputReady(surface, fixture.editable);
+      await surface.click(fixture.editable);
+      await page.keyboard.press("End");
+      await page.keyboard.type(" w");
+      const prediction = await waitUntil(
+        `${name} prediction for the typed prefix`,
+        async () => {
+          const text = (await getVisibleSuggestionTexts(surface))[0];
+          return text && /^w\S*[ \xa0]$/i.test(text) ? text : false;
+        },
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      ).catch(async (cause) => {
+        throw new Error(`${name} model: ${JSON.stringify(await model())}`, { cause });
+      });
+      await page.keyboard.press("Tab");
+      const accepted = normalizeSuggestionText(`${seed} ${prediction}`);
+      await waitUntil(
+        `${name} contains the accepted prediction`,
+        async () => normalizeSuggestionText((await model()).text) === accepted,
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      ).catch(async (cause) => {
+        throw new Error(`${name} model: ${JSON.stringify({ prediction, ...(await model()) })}`, {
+          cause,
+        });
+      });
+      expect((await model()).runs).toEqual({ bold: ["teh"], links: ["teh"] });
+      // The accepted word keeps its trailing space, so the next word starts apart.
+      expect((await model()).text.toLowerCase()).toBe(
+        `${seed} ${prediction.replace(/\xa0/g, " ")}`.toLowerCase(),
+      );
+      await surface.focus(fixture.editable);
+      await pressUndo(page);
+      // Quill puts the changes of the last second into one undo step, as for its own
+      // typing: undo can also remove the typed prefix.
+      const undone = name.startsWith("quill") ? [`${seed} w`, seed] : [`${seed} w`];
+      await waitUntil(`${name} undo removes the accepted prediction`, async () =>
+        undone.includes((await model()).text.trimEnd()),
+      ).catch(async (cause) => {
+        throw new Error(`${name} model after undo: ${JSON.stringify(await model())}`, { cause });
+      });
+    },
+    suiteTimeout(30000, 50000),
   );
 
   test(

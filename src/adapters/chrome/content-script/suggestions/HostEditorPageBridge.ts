@@ -10,7 +10,7 @@ import {
   type HostEditorBlockReplacement,
   type HostEditorBridgeRequest,
   type HostEditorReviewApplyRequest,
-  type TinyMCEReplacement,
+  type DomEditorReplacement,
 } from "./HostEditorBridgeProtocol";
 
 /** The part of the bridge that typing sessions use (tests pass a fake). */
@@ -54,8 +54,8 @@ export class InjectedHostEditorPageBridge {
       : { status: "rejected", reason: "unsupported" };
   }
 
-  public applyTinyMCE(elem: HTMLElement, request: TinyMCEReplacement): HostEditorApplyResult {
-    const response = this.dispatchRequest(elem, { action: "applyTinyMCE", ...request });
+  public applyDomEditor(elem: HTMLElement, request: DomEditorReplacement): HostEditorApplyResult {
+    const response = this.dispatchRequest(elem, { action: "applyDomEditor", ...request });
     return response?.ok && "result" in response ? response.result : NOT_APPLIED;
   }
 

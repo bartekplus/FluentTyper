@@ -46,9 +46,14 @@ function isEligible(root: HTMLElement): boolean {
 }
 
 function owningQuill(root: HTMLElement): { quill: QuillInstance; library: QuillClass } | null {
-  const library = (root.ownerDocument.defaultView as (Window & { Quill?: QuillClass }) | null)
-    ?.Quill;
-  const container = root.closest<HTMLElement>(".ql-container");
+  const container = root.closest<HTMLElement & { __quill?: { constructor?: QuillClass } }>(
+    ".ql-container",
+  );
+  // A bundled Quill 1 (Slack, react-quill) has no window.Quill. Its class is
+  // the constructor of the instance that it stores on the container.
+  const library =
+    container?.__quill?.constructor ??
+    (root.ownerDocument.defaultView as (Window & { Quill?: QuillClass }) | null)?.Quill;
   if (!isEligible(root) || !container || typeof library?.find !== "function") return null;
   const quill = library.find(container) as QuillInstance | null;
   if (

@@ -11,7 +11,10 @@ export const HOST_EDITOR_ENABLED_ATTR = "data-ft-host-editor-enabled";
 
 export const NOT_APPLIED = { applied: false, didDispatchInput: false };
 
-export interface TinyMCEReplacement {
+/** Editors whose typing edits are written by their Review model adapter. */
+export const MODEL_TYPING_SELECTOR = "trix-editor, .public-DraftEditor-content";
+
+export interface DomEditorReplacement {
   before: string;
   prefix: string;
   selected: string;
@@ -34,7 +37,7 @@ export interface HostEditorBlockReplacement {
 }
 
 export type HostEditorBridgeRequest =
-  | ({ action: "applyTinyMCE" } & TinyMCEReplacement)
+  | ({ action: "applyDomEditor" } & DomEditorReplacement)
   | {
       action:
         | "readProseMirror"
