@@ -18,6 +18,7 @@ import {
 import { ContentEditableReviewTarget } from "../src/adapters/chrome/content-script/review/ReviewTargets";
 import { editorCapabilities } from "../src/adapters/chrome/content-script/suggestions/EditorCapabilities";
 import {
+  applySlate,
   readSlate,
   replaceSlateBlock,
   slateBlockContext,
@@ -38,6 +39,8 @@ for (const name of [
   "Text",
   "Selection",
   "DataTransfer",
+  "HTMLInputElement",
+  "HTMLTextAreaElement",
   "requestAnimationFrame",
   "cancelAnimationFrame",
 ] as const) {
@@ -236,6 +239,42 @@ describe("real Slate corrections", () => {
         expectedBlockText: "other",
       }),
     ).toEqual({ applied: false, didDispatchInput: false });
+  });
+
+  test("an IME composition blocks Review reads, Review writes and typing writes", async () => {
+    const { editor, dom } = mount([{ type: "paragraph", children: [{ text: "We saw teh" }] }]);
+    act(() => editor.select({ path: [0, 0], offset: 10 }));
+    await settle();
+    const before = readSlate(dom)!;
+    const edits = [fix(before.text, "teh", "the")];
+    const review = { edits, before: before.text, after: "We saw the", signature: before.signature };
+    const typing = {
+      replaceStart: 7,
+      replaceEnd: 10,
+      replacementText: "the",
+      cursorAfter: 10,
+      expectedBlockText: "We saw teh",
+    };
+    const compose = (type: string) =>
+      act(() => dom.dispatchEvent(new Event(type, { bubbles: true, composed: true })));
+
+    compose("compositionstart");
+    // While the IME composes, the DOM holds text that the model does not have yet.
+    expect(readSlate(dom)).toBeNull();
+    expect(slateBlockContext(dom)).toBeNull();
+    expect(applySlate(dom, review)).toEqual({ status: "rejected", reason: "unsupported" });
+    expect(replaceSlateBlock(dom, typing)).toEqual({ applied: false, didDispatchInput: false });
+    expect<unknown>(editor.children).toEqual([
+      { type: "paragraph", children: [{ text: "We saw teh" }] },
+    ]);
+
+    compose("compositionend");
+    await act(async () => {
+      expect(replaceSlateBlock(dom, typing)).toEqual({ applied: true, didDispatchInput: false });
+    });
+    expect<unknown>(editor.children).toEqual([
+      { type: "paragraph", children: [{ text: "We saw the" }] },
+    ]);
   });
 
   test("an unflushed or unrendered model is not read", async () => {

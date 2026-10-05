@@ -6,7 +6,11 @@ import {
 } from "../review/ContentEditableTextMap";
 import { formattingPreservingEdits } from "../review/RichTextFormatting";
 import { isHiddenField, isLockedField, isSensitiveField } from "./FieldEligibility";
-import { isValidBlockReplacement, type LineEditorBlockContext } from "./HostEditorControllerUtils";
+import {
+  isComposingIn,
+  isValidBlockReplacement,
+  type LineEditorBlockContext,
+} from "./HostEditorControllerUtils";
 import type { HostEditorApplyResult } from "./HostEditorAdapterResolver";
 import {
   NOT_APPLIED,
@@ -90,7 +94,9 @@ function owningSlate(root: HTMLElement): SlateEditor | null {
     !root.isContentEditable ||
     isLockedField(root) ||
     isSensitiveField(root) ||
-    isHiddenField(root)
+    isHiddenField(root) ||
+    // ReactEditor.isComposing() is not reachable; the bridge records the IME events.
+    isComposingIn(root)
   )
     return null;
   type Fiber = { return?: Fiber | null; memoizedProps?: { editor?: unknown; value?: unknown } };
