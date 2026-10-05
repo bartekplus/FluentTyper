@@ -941,6 +941,49 @@ describe("SuggestionManagerRuntime", () => {
     runtime.detachAllHelpers();
   });
 
+  test("Escape drops the prediction answers that are still on their way", () => {
+    const runtime = makeRuntime();
+    document.body.innerHTML = "<input>";
+    const input = document.querySelector("input")!;
+    runtime.queryAndAttachHelper();
+    input.focus();
+    input.value = "hel";
+    input.setSelectionRange(3, 3);
+    const entry = entryFor(runtime, input);
+    const answer = (requestId: number) =>
+      runtime.fulfillPrediction({
+        suggestionId: entry.id,
+        requestId,
+        predictions: ["hello", "help"],
+        text: "hel",
+        nextChar: "",
+        lang: "en_US",
+        tabId: 1,
+        frameId: 0,
+      });
+    answer(entry.requestId);
+    expect(entry.suggestions).toEqual(["hello", "help"]);
+    // The user typed on: a debounced request waits, and a sent request has no answer yet.
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(entry.pendingRequestTimer).not.toBeNull();
+    const sent = ++entry.requestId;
+
+    const escape = new window.KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(escape);
+    expect(escape.defaultPrevented).toBe(true);
+    expect(entry.suggestions).toEqual([]);
+    expect(entry.pendingRequestTimer).toBeNull();
+    // The late answer must not show the menu again.
+    answer(sent);
+    expect(entry.suggestions).toEqual([]);
+    expect(entry.menu.style.display).toBe("none");
+    runtime.detachAllHelpers();
+  });
+
   test.each(["ArrowUp", "ArrowDown", "Escape"])(
     "manually activated datalist dismisses suggestions before yielding %s",
     (key) => {

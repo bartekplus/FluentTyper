@@ -178,7 +178,8 @@ export class SuggestionManagerRuntime {
           onSuccessfulUndo: (edit) => this.recordPersonalizationReversal(edit),
         }),
       consumeKeyboardEvent: this.consumeCancelableEvent.bind(this),
-      clearSuggestions: this.clearSuggestions.bind(this),
+      // Escape: an answer that is still on its way must not show the menu again.
+      clearSuggestions: (entry) => this.dismissEntry(entry, true),
       isMenuVisible: (entry) => this.menuPresenter.isVisible(entry.menu, this.menuRowCount(entry)),
       isInlineVisible: (entry) =>
         InlineSuggestionView.hasForEntry(entry.id, entry.elem.ownerDocument),

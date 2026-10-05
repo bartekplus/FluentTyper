@@ -13,6 +13,7 @@ interface SuggestionKeyboardHandlerOptions {
   handleMissingSpaceAfterAccept: (entry: SuggestionEntry, event: KeyboardEvent) => void;
   tryUndoLastExtensionEdit: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
   consumeKeyboardEvent: (event: KeyboardEvent) => void;
+  /** Hides the suggestions and drops the prediction requests that have no answer yet. */
   clearSuggestions: (entry: SuggestionEntry) => void;
   isMenuVisible: (entry: SuggestionEntry) => boolean;
   /** An inline ghost for this entry is in the page (an armed suggestion can show none). */
