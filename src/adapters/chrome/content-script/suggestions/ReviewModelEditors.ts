@@ -252,8 +252,9 @@ const draft: AdapterFactory = (root) => {
         focusOffset: remap(selection.getFocusKey(), selection.getFocusOffset()),
       });
       next = next.merge({ selectionBefore: selection, selectionAfter: after });
-      // "spellcheck-change" is always its own undo step: it never merges with typing.
-      const pushed = state.constructor.push(state, next, "spellcheck-change");
+      // "insert-fragment" is always its own undo step: it never merges with typing.
+      // Not "spellcheck-change": Draft.js leaves its undo to the browser's native undo.
+      const pushed = state.constructor.push(state, next, "insert-fragment");
       if (typeof component.update === "function") component.update(pushed);
       else component.props.onChange!(pushed);
     },
