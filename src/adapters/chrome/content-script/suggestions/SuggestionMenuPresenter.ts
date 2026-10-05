@@ -1,6 +1,7 @@
 import { resolveCodeContext } from "./CodeContextResolver";
 import {
   EARLY_TAB_ACCEPT_CONTEXT_ATTR,
+  EARLY_TAB_ACCEPT_ENTRY_ID_ATTR,
   EARLY_TAB_ACCEPT_VISIBLE_ATTR,
 } from "./EarlyTabAcceptBridgeProtocol";
 import { SUGGESTION_MENU_LAYOUT_ATTR, isSuggestionMenuHostVisible } from "./SuggestionMenuHost";
@@ -114,15 +115,17 @@ export class SuggestionMenuPresenter {
     }
     model.menu.style.setProperty("display", "block", "important");
     model.menu.style.setProperty("visibility", "visible", "important");
-    resolveSuggestionStateHost(model.target).setAttribute(
-      EARLY_TAB_ACCEPT_CONTEXT_ATTR,
-      resolveCodeContext(model.target),
-    );
+    const stateHost = resolveSuggestionStateHost(model.target);
+    // A shared host (a Notion page root for all its leaves) names the entry that shows the menu.
+    const entryId = String(model.menuId);
+    if (
+      stateHost !== model.target &&
+      stateHost.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR) !== entryId
+    )
+      stateHost.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, entryId);
+    stateHost.setAttribute(EARLY_TAB_ACCEPT_CONTEXT_ATTR, resolveCodeContext(model.target));
     // Tab is claimed only when it has a row to accept: an unselected proposal leaves it alone.
-    resolveSuggestionStateHost(model.target).setAttribute(
-      EARLY_TAB_ACCEPT_VISIBLE_ATTR,
-      String(model.selectedIndex >= 0),
-    );
+    stateHost.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, String(model.selectedIndex >= 0));
     return true;
   }
 

@@ -71,6 +71,10 @@ The e2e fixture is a synthetic page with Notion's DOM shape. It contains no Noti
 
 **Bug found.** Escape closed the FluentTyper popup but also reached the page. In Notion, Escape selects the block, and the next keys typed nothing. Now Escape is consumed only when it closes a visible FluentTyper popup or inline suggestion.
 
+**Bug found (live check).** Notion's DOM lock removes each foreign attribute of a block leaf at once, also each FluentTyper `data-ft-*` attribute. It logs a "Reverting mutation of attribute" warning for each [V].
+Thus the MAIN-world early Tab bridge did not see FluentTyper's state, and Tab used the slower path. FluentTyper does not write again when an attribute is removed: it writes only on its own events (attach, menu render). This is not a loop.
+Now the state of a leaf is on the page root, which Notion does not lock [V]. The root names the entry of the leaf that shows the menu.
+
 **Risks.**
 
 - Verification reads the DOM, not Notion's model. A revert later than one second is not seen.

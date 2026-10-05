@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, jest, test } from "bun:test";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { editorCapabilities } from "../src/adapters/chrome/content-script/suggestions/EditorCapabilities";
 import {
@@ -16,7 +16,12 @@ import {
   ContentEditableReviewTarget,
   resolveReviewTarget,
 } from "../src/adapters/chrome/content-script/review/ReviewTargets";
+import { SuggestionManagerRuntime } from "../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime";
+import { SuggestionMenuPresenter } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuPresenter";
+import { SuggestionMenuView } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuView";
+import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
 import { setCaret } from "./codeContextTestUtils";
+import { createRuntimeOptions } from "./suggestionTestUtils";
 
 afterEach(() => {
   recordComposition(new Event("compositionend"));
@@ -107,6 +112,52 @@ test("the Notion leaf markup alone, outside a Notion page, is no Notion leaf", (
   Object.defineProperty(root, "isContentEditable", { value: true });
   document.body.append(root);
   expect(isGutenbergContainer(root)).toBe(false);
+});
+
+// Notion's DOM lock removes each foreign attribute of a block leaf at once (live
+// check). Its page root keeps them, and the MAIN-world early Tab bridge reads them there.
+test("FluentTyper keeps the state of a Notion leaf on the page root, not on the leaf", () => {
+  const { root, leaves } = notionPage("We saw teh", "Other block");
+  // jsdom has no contentEditable property: discovery needs the attribute.
+  for (const element of [root, ...leaves]) element.setAttribute("contenteditable", "true");
+  const runtime = new SuggestionManagerRuntime(
+    createRuntimeOptions({ selectors: "[contenteditable]" }),
+  );
+  const ownAttributes = (element: Element) =>
+    element.getAttributeNames().filter((name) => /^data-(ft-|suggestion$)/.test(name));
+  try {
+    root.focus();
+    setCaret(leaves[0].firstChild!, 10);
+    runtime.queryAndAttachHelper();
+    expect(leaves.map(ownAttributes)).toEqual([[], []]);
+    expect(root.getAttribute("data-suggestion")).toBe("true");
+
+    // The root names the entry of the leaf that shows the menu.
+    const { menu, list } = SuggestionMenuView.ensureMenu();
+    const positioning = {
+      syncMenuTypography: jest.fn(),
+      positionMenu: jest.fn(() => true),
+    } as unknown as SuggestionPositioningService;
+    expect(
+      new SuggestionMenuPresenter(positioning).render({
+        menuId: 41,
+        menu,
+        list,
+        target: leaves[0],
+        suggestions: ["teh"],
+        selectedIndex: 0,
+        showShortcutDigits: false,
+        menuHeader: null,
+        mentionText: "",
+      }),
+    ).toBe(true);
+    expect(leaves.map(ownAttributes)).toEqual([[], []]);
+    expect(root.getAttribute("data-ft-suggestion-id")).toBe("41");
+    expect(root.getAttribute("data-ft-suggestion-visible")).toBe("true");
+  } finally {
+    runtime.detachAllHelpers();
+  }
+  expect(ownAttributes(root)).toEqual([]);
 });
 
 test("a typing write in a Notion leaf needs the selection already in that leaf", () => {

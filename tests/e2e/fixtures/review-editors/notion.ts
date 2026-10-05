@@ -13,6 +13,8 @@
  *   DOM change is reverted a moment later.
  * - Escape selects the block (Notion's published shortcut): the next keys are
  *   dropped until a click.
+ * - Its DOM lock reverts each attribute change in a block leaf that the page did
+ *   not make, also each FluentTyper data-ft-* attribute. The page root is not locked.
  */
 import { container, EXTRA_PARAGRAPH, fail, LINK, publish } from "./shared";
 
@@ -36,6 +38,8 @@ interface NotionStats {
   droppedKeys: number;
   reverted: number;
   undoDepth: number;
+  /** Attribute changes in the leaves that the DOM lock reverted. */
+  lockedAttributes: number;
 }
 
 declare global {
@@ -83,7 +87,12 @@ try {
   outline.dataset.blockId = blocks[0].id;
   outline.textContent = "Outline";
 
-  const stats: NotionStats = { droppedKeys: 0, reverted: 0, undoDepth: 0 };
+  const stats: NotionStats = {
+    droppedKeys: 0,
+    reverted: 0,
+    undoDepth: 0,
+    lockedAttributes: 0,
+  };
   const undo: { block: Block; before: string; after: string }[] = [];
   const redo: typeof undo = [];
   let selected: Block | null = null;
@@ -166,6 +175,22 @@ try {
       for (const block of changed) block.leaf.innerHTML = block.html;
     }, REVERT_DELAY_MS);
   });
+
+  // The DOM lock: it puts back the old value of each changed leaf attribute,
+  // newest change first, and ignores its own changes.
+  const lock = new MutationObserver((records) => {
+    const foreign = records.filter((record) =>
+      blocks.some((block) => block.leaf === record.target),
+    );
+    for (const record of foreign.reverse()) {
+      const leaf = record.target as HTMLElement;
+      if (record.oldValue === null) leaf.removeAttribute(record.attributeName!);
+      else leaf.setAttribute(record.attributeName!, record.oldValue);
+    }
+    stats.lockedAttributes += foreign.length;
+    lock.takeRecords();
+  });
+  lock.observe(root, { subtree: true, attributes: true, attributeOldValue: true });
 
   container().append(root, outline);
   window.__testNotion = { stats, selectedBlock: () => selected?.id ?? null };

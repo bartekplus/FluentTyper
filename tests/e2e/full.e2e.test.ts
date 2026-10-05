@@ -763,7 +763,11 @@ async function waitForInputReady(page: Page | Frame, selector: string) {
     async () =>
       page.evaluate((sel) => {
         const target = document.querySelector(sel);
-        const stateHost = target === document.body ? document.documentElement : target;
+        // As resolveSuggestionStateHost: a Notion page root holds the state of its leaves.
+        const stateHost =
+          target === document.body
+            ? document.documentElement
+            : (target?.closest("[data-content-editable-root]") ?? target);
         return stateHost?.hasAttribute("data-suggestion") ?? false;
       }, selector),
     { timeoutMs: INPUT_READY_TIMEOUT_MS },
@@ -10994,7 +10998,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await clickNotionBlockEnd(1);
       await page.keyboard.type(" w");
       const prediction = await notionPrediction("Notion-like prediction in block 1");
-      // The field is the leaf of the block, not the page root.
+      // The field is the leaf of the block. Its state is on the page root, which
+      // Notion does not lock.
       expect(
         await page.evaluate(
           (leaf) => [
@@ -11003,7 +11008,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           ],
           notionLeaf(1),
         ),
-      ).toEqual([true, false]);
+      ).toEqual([false, true]);
       await page.keyboard.press("Tab");
       const accepted = NOTION_SEED.replace("dog.", `dog. ${prediction}`).toLowerCase();
       await waitUntil(
@@ -11021,6 +11026,46 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         "Notion-like undo removes the accepted word",
         async () => (await model()).text === NOTION_SEED.replace("dog.", "dog. w"),
       );
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  // Notion's DOM lock reverts each data-ft-* attribute on a block leaf (live check).
+  test(
+    "Notion-like page: the leaf DOM lock causes no attribute write loop, and the early Tab bridge accepts",
+    async () => {
+      const { model } = await openTypingEditor("notion", {
+        settings: { [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: false },
+      });
+      await clickNotionBlockEnd(1);
+      await page.keyboard.type(" ");
+      await page.evaluate(() => {
+        window.__testNotion!.stats.lockedAttributes = 0;
+        // The MAIN-world early Tab bridge asks the content script with this message.
+        const counted = window as typeof window & { earlyTabRequests?: number };
+        counted.earlyTabRequests = 0;
+        window.addEventListener("message", (event: MessageEvent<{ source?: string }>) => {
+          if (event.data?.source === "ft-early-tab-accept-request") counted.earlyTabRequests! += 1;
+        });
+      });
+      await page.keyboard.type("w");
+      const prediction = await notionPrediction("Notion-like prediction with the DOM lock");
+      // The menu renders on the key: FluentTyper put no state on a leaf, so the lock had no work.
+      expect((await notionStats()).lockedAttributes).toBe(0);
+      await page.keyboard.press("Tab");
+      await waitUntil(
+        "Notion-like acceptance with the DOM lock",
+        async () =>
+          (await model()).text.toLowerCase() ===
+          NOTION_SEED.replace("dog.", `dog. ${prediction}`).toLowerCase(),
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      );
+      // The MAIN-world bridge found the state on the page root and took Tab.
+      expect(
+        await page.evaluate(
+          () => (window as typeof window & { earlyTabRequests?: number }).earlyTabRequests,
+        ),
+      ).toBe(1);
     },
     suiteTimeout(30000, 50000),
   );

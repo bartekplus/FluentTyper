@@ -5668,6 +5668,22 @@
       ]
     },
     {
+      "id": "notion_state_on_page_root",
+      "description": "Notion's DOM lock removes each foreign attribute of a block leaf. FluentTyper keeps the data-ft-* state of a Notion leaf on the page root, which Notion does not lock, and the root names the entry of the leaf that shows the menu. A key press writes no state attribute on a leaf, and the MAIN-world early Tab bridge reads the root and accepts.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/NotionEnvironment.test.ts",
+          "test": "FluentTyper keeps the state of a Notion leaf on the page root, not on the leaf"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Notion-like page: the leaf DOM lock causes no attribute write loop, and the early Tab bridge accepts"
+        }
+      ]
+    },
+    {
       "id": "notion_block_leaf_writes",
       "description": "On a Notion page the root contenteditable is a canvas: each block leaf that holds the selection is the field for typing, block context and Review. A typing or Review write needs the root's focus and the selection already in that leaf, no composition, and the expected leaf text after the native edit; Review also watches for Notion's revert and offers one fix at a time, each one Notion undo step. A synthetic Notion-like page covers it; Notion itself is not tested.",
       "coverage": [

@@ -107,6 +107,8 @@ The fingerprint (the root with `.notion-page-content`, and a leaf in it) grants 
 3. The edit range is in the leaf's text and the leaf's text did not change.
 4. After the `insertText` command, the leaf holds the expected text. FluentTyper then watches the leaf for 1 s. When Notion reverts the write in that time, Review reports the fix as unverified. A typing write that Notion reverts is logged, not written again.
 
+Notion's DOM lock removes each foreign attribute of a leaf. Thus FluentTyper keeps the `data-ft-*` state of a leaf on the page root, which Notion does not lock. The root names the entry of the leaf that shows the menu, and the early Tab bridge reads it there.
+
 Review applies one fix at a time. Each fix is one input, thus one Notion undo step. Fix all is not available ("Apply fixes individually").
 Limits: the checks read the DOM after Notion's input handling, not Notion's model. A revert after 1 s is not seen. The 100 ms and 1 s values come from one live probe. The tests use a synthetic Notion-like page (`tests/e2e/fixtures/review-editors/notion.ts`), not Notion. A live check on Notion is pending.
 
