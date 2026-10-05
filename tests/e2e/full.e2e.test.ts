@@ -2016,7 +2016,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             (await readSlateBlocks())[0],
         );
       } finally {
-        await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+        // On Chrome, notifyConfigChange opens the options page; with inline suggestions on,
+        // that page also stores prefix-only mode.
+        await setSettings(worker, {
+          [KEY_INLINE_SUGGESTION]: false,
+          [KEY_PREFIX_ONLY_MODE]: false,
+        });
         await notifyConfigChange(browser, worker);
       }
     },
@@ -3175,6 +3180,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         [KEY_LANGUAGE]: "en_US",
         [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
         [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        // The caret ends up directly before "next": prefix-only mode has no candidate there.
+        [KEY_INLINE_SUGGESTION]: false,
+        [KEY_PREFIX_ONLY_MODE]: false,
       });
       await notifyConfigChange(browser, worker);
 
