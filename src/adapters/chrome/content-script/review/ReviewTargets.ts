@@ -489,6 +489,14 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const eligible = editorCapabilities(element).renderReview;
     this.quillModel = eligible && quill && !!this.pageBridge.readQuill(element);
     this.quill = eligible && quill;
+    [this.kind, this.adapterCapabilities] = this.detect();
+  }
+
+  /** The writer kind and its capabilities, from what the bridge finds now. */
+  private detect(): [ContentEditableKind, ReviewCapabilities] {
+    const element = this.element;
+    const quill = element.classList.contains("ql-editor") && !!element.closest(".ql-container");
+    const eligible = editorCapabilities(element).renderReview;
     const proseMirror =
       eligible && element.matches(".ProseMirror") && !!this.pageBridge.readProseMirror(element);
     const slate =
@@ -508,7 +516,7 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const hostDom =
       eligible && fingerprint && !hostModel && this.pageBridge.reviewTransaction(element, "probe");
     const native = typeof element.ownerDocument.execCommand === "function";
-    this.kind = notion
+    const kind: ContentEditableKind = notion
       ? "notion"
       : proseMirror
         ? "prosemirror"
@@ -523,15 +531,14 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
                 : fingerprint
                   ? "model-editor"
                   : "contenteditable";
-    const model =
-      this.kind === "prosemirror" || this.kind === "slate" || this.kind === "host-model";
+    const model = kind === "prosemirror" || kind === "slate" || kind === "host-model";
     const writable =
       model ||
       this.quill ||
-      ((this.kind === "contenteditable" || this.kind === "host-dom" || notion) && native);
+      ((kind === "contenteditable" || kind === "host-dom" || notion) && native);
     // Each batch uses one native command or one host-model transaction.
     // Notion: each fix is its own write and its own Notion undo step, so no Fix all.
-    this.adapterCapabilities = { apply: writable, bulk: writable && !notion };
+    return [kind, { apply: writable, bulk: writable && !notion }];
   }
 
   get capabilities(): ReviewCapabilities {
@@ -545,19 +552,17 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
 
   /**
    * A model editor without a writer when Review opened: its DOM can be ahead of
-   * its model for a moment (a pending render). When the model reads now, with
-   * all of its checks, the model writer takes over. Returns true when that occurs.
+   * its model for a moment (a pending render), or an IME composition blocked
+   * the read. When the editor reads now, with all of its checks, its writer
+   * takes over. Returns true when that occurs.
    */
   resolveModelWriter(): boolean {
-    if (
-      this.kind !== "model-editor" ||
-      this.composing ||
-      !editorCapabilities(this.element).renderReview ||
-      !this.pageBridge.readReviewModel(this.element)
-    )
-      return false;
-    this.kind = "host-model";
-    this.adapterCapabilities = { apply: true, bulk: true };
+    if (this.kind !== "model-editor" || this.composing) return false;
+    const [kind, capabilities] = this.detect();
+    // A fingerprint without its editor stays Review only: never the generic writer.
+    if (!["prosemirror", "slate", "host-model", "host-dom"].includes(kind)) return false;
+    this.kind = kind;
+    this.adapterCapabilities = capabilities;
     return true;
   }
 

@@ -277,6 +277,26 @@ describe("real Slate corrections", () => {
     ]);
   });
 
+  test("a Review opened during an IME composition gets the Slate writer after it", async () => {
+    const { dom } = mount([{ type: "paragraph", children: [{ text: "We saw teh" }] }]);
+    await settle();
+    const compose = (type: string) =>
+      act(() => dom.dispatchEvent(new Event(type, { bubbles: true, composed: true })));
+    compose("compositionstart");
+    const target = new ContentEditableReviewTarget(dom);
+    // During the composition the model does not read: Review only.
+    expect(target.kind).toBe("model-editor");
+    expect(target.capabilities.apply).toBe(false);
+    expect(target.resolveModelWriter()).toBe(false);
+
+    compose("compositionend");
+    expect(target.resolveModelWriter()).toBe(true);
+    expect(target.kind).toBe("slate");
+    expect(target.capabilities).toEqual({ apply: true, bulk: true });
+    const read = target.read();
+    expect(read.ok && read.text).toBe("We saw teh");
+  });
+
   test("an unflushed or unrendered model is not read", async () => {
     const { editor, dom } = mount([{ type: "paragraph", children: [{ text: "teh" }] }]);
     expect(readSlate(dom)?.text).toBe("teh");
