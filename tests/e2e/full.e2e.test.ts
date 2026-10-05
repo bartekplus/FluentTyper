@@ -3984,7 +3984,27 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             return text.length > 0 ? text : false;
           },
           { timeoutMs: suiteTimeout(3000, 6000) },
-        );
+        ).catch(async (cause) => {
+          const state = await page.evaluate(() => {
+            const editable = document.querySelector<HTMLElement>(".ck-editor__editable")!;
+            const selection = window.getSelection();
+            return {
+              dom: editable.textContent,
+              model: (
+                window as typeof window & { __testCkEditor?: { getData(): string } }
+              ).__testCkEditor?.getData(),
+              caret:
+                selection?.anchorNode === editable.querySelector("p")?.firstChild
+                  ? selection?.anchorOffset
+                  : `${selection?.anchorNode?.nodeName}:${selection?.anchorOffset}`,
+              focused: document.activeElement === editable,
+              ft: Array.from(editable.attributes, (attribute) => attribute.name)
+                .filter((name) => name.startsWith("data-ft"))
+                .map((name) => `${name}=${editable.getAttribute(name)}`),
+            };
+          });
+          throw new Error(`CKEditor state: ${JSON.stringify(state)}`, { cause });
+        });
 
         // The preview must read as the post-acceptance text: a single word
         // starting with "Thr" followed by " dog walked the street" with no

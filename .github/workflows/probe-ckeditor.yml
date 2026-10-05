@@ -1,0 +1,45 @@
+# Temporary: reproduce the Firefox CKEditor mid-word flake. Removed before merge.
+name: Probe CKEditor mid-word
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  shard:
+    name: Firefox shard 2/2 (copy ${{ matrix.copy }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        copy: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bunx puppeteer browsers install firefox
+      - run: bun run test:e2e:full --platform=firefox --shard=2/2
+
+  alone:
+    name: Firefox CKEditor mid-word alone x10
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bunx puppeteer browsers install firefox
+      - run: |
+          failed=0
+          for i in $(seq 10); do
+            bun run test:e2e:full --platform=firefox --test-name-pattern="caret is mid-word" || { echo "RUN $i FAILED"; failed=1; }
+          done
+          exit $failed
