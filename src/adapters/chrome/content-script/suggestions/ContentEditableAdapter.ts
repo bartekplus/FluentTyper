@@ -156,6 +156,14 @@ export class ContentEditableAdapter {
       }
     };
 
+    // Quill merges the changes of the last second into one undo step. A boundary
+    // before and after the write keeps the write apart from typed text.
+    // It runs page code, so it comes before focus and the checks after focus.
+    const quillHistoryBoundary = () => {
+      if (elem.matches(".ql-editor"))
+        new InjectedHostEditorPageBridge(elem.ownerDocument).quillHistoryBoundary(elem);
+    };
+    quillHistoryBoundary();
     elem.focus({ preventScroll: true });
     // Focus runs arbitrary page code. Never use nodes/offsets captured before it.
     if (
@@ -231,6 +239,7 @@ export class ContentEditableAdapter {
     const didMutateDom = textAfterBeforeInput !== beforeText;
 
     if (beforeInputEvent.defaultPrevented || didMutateDom) {
+      quillHistoryBoundary();
       logger.debug("Contenteditable replacement handled by host", {
         defaultPrevented: beforeInputEvent.defaultPrevented,
         didMutateDom,
@@ -288,6 +297,8 @@ export class ContentEditableAdapter {
       };
     }
     if (this.tryNativeReplacement(elem, replacementText)) {
+      // Quill 1 reads this DOM change later; the boundary records it now.
+      quillHistoryBoundary();
       // execCommand leaves the caret at the end of the inserted text. Plain
       // contenteditable has no async host reconciliation to override us, so
       // place the caret at the final offset synchronously. This prevents a

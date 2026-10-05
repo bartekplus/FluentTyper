@@ -2679,6 +2679,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
         [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
       });
+      // A capitalization fix after the accepted word is a separate write and undo step.
+      await setGrammarRules(worker, []);
       await notifyConfigChange(browser, worker);
 
       await gotoTestPage(page, { enableQuill: true });
@@ -2749,6 +2751,24 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(acceptedState.secondLine).toBe("next");
       expect(acceptedState.firstLine).toMatch(/^h\S+$/i);
       expect(acceptedState.selectionIndex).toBeGreaterThanOrEqual(acceptedState.firstLine.length);
+
+      // window.Quill gives the history boundary: one undo removes only the accepted word.
+      await pressUndo(page, QUILL_SELECTOR);
+      await waitUntil("quill undo keeps the typed prefix", async () =>
+        page.evaluate(
+          () =>
+            (window as typeof window & { __testQuill?: { getText: () => string } }).__testQuill
+              ?.getText()
+              .replace(/ /g, " ") === "h\nnext\n",
+        ),
+      ).catch(async (cause) => {
+        const text = await page.evaluate(() =>
+          (
+            window as typeof window & { __testQuill?: { getText: () => string } }
+          ).__testQuill?.getText(),
+        );
+        throw new Error(`Quill text after undo: ${JSON.stringify(text)}`, { cause });
+      });
     },
     suiteTimeout(30000, 50000),
   );
@@ -10614,9 +10634,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
       await surface.focus(editable);
       await pressUndo(page);
-      // Quill puts the changes of the last second into one undo step, as for its own
-      // typing: undo can also remove the typed prefix.
-      const undone = name.startsWith("quill") ? [`${seed} w`, seed] : [`${seed} w`];
+      // Quill puts the changes of the last second into one undo step. A history boundary
+      // keeps the accepted word apart. A bundled Quill 2 keeps its instance in a
+      // module-private map: no boundary, so undo can also remove the typed prefix.
+      const undone = name === "quill2" ? [`${seed} w`, seed] : [`${seed} w`];
       await waitUntil(`${name} undo removes the accepted prediction`, async () =>
         undone.includes((await model()).text.trimEnd()),
       ).catch(async (cause) => {
@@ -10713,10 +10734,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect((await model()).runs).toEqual({ bold: ["teh"], links: ["teh"] });
         await surface.focus(editable);
         await pressUndo(page);
-        // Quill puts the changes of the last second into one undo step (see above).
-        const undone = name.startsWith("quill")
-          ? [withText("ftsig"), BLOCK_SEED_TEXT]
-          : [withText("ftsig")];
+        // A bundled Quill 2 has no history boundary (see above).
+        const undone =
+          name === "quill2" ? [withText("ftsig"), BLOCK_SEED_TEXT] : [withText("ftsig")];
         await waitUntil(`${name} undo restores the shortcut`, async () =>
           undone.includes(await text()),
         ).catch(async (cause) => {

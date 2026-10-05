@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { createEditor, setCaret } from "./codeContextTestUtils";
 import { editorCapabilities } from "../src/adapters/chrome/content-script/suggestions/EditorCapabilities";
+import {
+  HOST_EDITOR_REQUEST_ATTR,
+  HOST_EDITOR_REQUEST_EVENT,
+} from "../src/adapters/chrome/content-script/suggestions/HostEditorBridgeProtocol";
 
 function ensureNodeFilterApi(): void {
   if (typeof (globalThis as { NodeFilter?: unknown }).NodeFilter !== "undefined") {
@@ -695,3 +699,78 @@ for (const fingerprint of [
     }
   });
 }
+
+/** Records the order of focus, the replacement events, native writes and bridge requests. */
+function recordWriteSteps(editable: HTMLElement, handleBeforeInput: boolean) {
+  const steps: string[] = [];
+  const onRequest = (event: Event) => {
+    const source = event.composedPath()[0] as HTMLElement;
+    steps.push(JSON.parse(source.getAttribute(HOST_EDITOR_REQUEST_ATTR)!).action);
+  };
+  document.addEventListener(HOST_EDITOR_REQUEST_EVENT, onRequest, true);
+  editable.addEventListener("focus", () => steps.push("focus"));
+  editable.addEventListener("beforeinput", (event) => {
+    steps.push("beforeinput");
+    if (!handleBeforeInput) return;
+    // Quill 2 applies the replacement to its model and cancels the event.
+    window.getSelection()!.getRangeAt(0).deleteContents();
+    editable.firstChild!.textContent = "the cat";
+    event.preventDefault();
+  });
+  const original = document.execCommand;
+  document.execCommand = ((command: string, _ui?: boolean, value?: string) => {
+    steps.push("execCommand");
+    const range = window.getSelection()!.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(document.createTextNode(value ?? ""));
+    return command === "insertText";
+  }) as typeof document.execCommand;
+  return {
+    steps,
+    restore() {
+      document.removeEventListener(HOST_EDITOR_REQUEST_EVENT, onRequest, true);
+      document.execCommand = original;
+    },
+  };
+}
+
+// Quill's history merges changes of the last second. Boundaries keep an accepted
+// word apart from the typed prefix and from later typing.
+for (const [name, handled, expected] of [
+  ["Quill 2 takes the beforeinput", true, ["beforeinput", "quillHistoryBoundary"]],
+  [
+    "Quill 1 ignores the beforeinput",
+    false,
+    ["beforeinput", "execCommand", "quillHistoryBoundary"],
+  ],
+] as const) {
+  test(`a Quill write is its own undo step when ${name}`, () => {
+    const editable = createEditor("teh cat");
+    editable.classList.add("ql-editor");
+    editable.tabIndex = 0;
+    const record = recordWriteSteps(editable, handled);
+    try {
+      const result = new ContentEditableAdapter().replaceTextByOffsets(editable, 0, 3, "the", 3);
+      expect(result.appliedBy).toBe(handled ? "host-beforeinput" : "fallback-dom");
+      expect(editable.textContent).toBe("the cat");
+      expect(record.steps).toEqual(["quillHistoryBoundary", "focus", ...expected]);
+    } finally {
+      record.restore();
+      editable.remove();
+    }
+  });
+}
+
+test("a contenteditable write outside Quill sends no Quill history boundary", () => {
+  const editable = createEditor("teh cat");
+  editable.tabIndex = 0;
+  const record = recordWriteSteps(editable, false);
+  try {
+    new ContentEditableAdapter().replaceTextByOffsets(editable, 0, 3, "the", 3);
+    expect(editable.textContent).toBe("the cat");
+    expect(record.steps).toEqual(["focus", "beforeinput", "execCommand"]);
+  } finally {
+    record.restore();
+    editable.remove();
+  }
+});

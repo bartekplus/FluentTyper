@@ -52,5 +52,6 @@ export type HostEditorBridgeRequest =
         "applyProseMirror" | "applyQuill" | "applySlate" | "applyGutenberg" | "applyReviewModel";
     } & HostEditorReviewApplyRequest)
   | { action: "reviewTransaction"; phase: "probe" | "begin" | "end" }
+  | { action: "quillHistoryBoundary" }
   | { action: "getBlockContext" }
   | ({ action: "applyBlockReplacement" } & HostEditorBlockReplacement);

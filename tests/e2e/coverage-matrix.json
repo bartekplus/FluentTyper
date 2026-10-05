@@ -4488,12 +4488,27 @@
     },
     {
       "id": "dom_editor_typing_transactions",
-      "description": "Real CKEditor 4, Froala and Summernote editors accept a typing prediction as a native edit in one host undo step, and real Trix and Draft.js editors as one model transaction; bold and links are kept and native Undo restores the typed prefix. Quill 1 and Quill 2 bundled without window.Quill (Slack) accept typing through native input; Quill's Undo groups it with the typing of the last second.",
+      "description": "Real CKEditor 4, Froala and Summernote editors accept a typing prediction as a native edit in one host undo step, and real Trix and Draft.js editors as one model transaction; bold and links are kept and native Undo restores the typed prefix. Quill 1 and Quill 2 bundled without window.Quill (Slack) accept typing through native input. A history boundary before and after the write makes the accepted word one Quill undo step for window.Quill (also the page's Quill 2) and a bundled Quill 1; a bundled Quill 2 has no reachable instance, and its Undo can also remove the typing of the last second.",
       "coverage": [
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "%s typing accepts a prediction with formatting kept and one native undo step"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Quill preserves block structure and caret-correct insertion on Tab acceptance"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/QuillReviewTransaction.test.ts",
+          "test": "a Quill history boundary records pending input before it cuts the history"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ContentEditableAdapter.test.ts",
+          "test": "a Quill write is its own undo step when ${name}"
         }
       ]
     },
@@ -4515,7 +4530,7 @@
     },
     {
       "id": "rich_editor_snippet_expansion",
-      "description": "In real Draft.js, Trix, CKEditor 4, Froala and Summernote editors and in bundled Quill 1 and Quill 2, a text expansion replaces its shortcut in the second paragraph of the editor's own model, keeps bold and links, and native Undo restores the shortcut in one step. Quill's Undo can also remove the typing of the last second.",
+      "description": "In real Draft.js, Trix, CKEditor 4, Froala and Summernote editors and in bundled Quill 1 and Quill 2, a text expansion replaces its shortcut in the second paragraph of the editor's own model, keeps bold and links, and native Undo restores the shortcut in one step. A bundled Quill 2's Undo can also remove the typing of the last second.",
       "coverage": [
         {
           "layer": "e2e-full",

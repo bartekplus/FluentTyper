@@ -86,6 +86,12 @@ export class InjectedHostEditorPageBridge {
       : { status: "rejected", reason: "unsupported" };
   }
 
+  /** Starts a new Quill undo step; see quillHistoryBoundary in QuillEditor.ts. */
+  public quillHistoryBoundary(elem: HTMLElement): boolean {
+    const response = this.dispatchRequest(elem, { action: "quillHistoryBoundary" });
+    return !!(response?.ok && "result" in response && response.result.applied);
+  }
+
   public readSlate(elem: HTMLElement): ReviewTargetText | null {
     const response = this.dispatchRequest(elem, { action: "readSlate" });
     return response?.ok && "snapshot" in response ? response.snapshot : null;

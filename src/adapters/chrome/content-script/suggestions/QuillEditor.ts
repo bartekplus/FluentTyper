@@ -1,5 +1,6 @@
 import { isLockedField, isSensitiveField, isHiddenField } from "./FieldEligibility";
 import { hasOtherFocusedEditor } from "./TextTargetAdapter";
+import { isComposingIn } from "./HostEditorControllerUtils";
 import type { ReviewApplyResult, ReviewTargetText } from "@core/application/review/ReviewSession";
 import type { HostEditorReviewApplyRequest } from "./HostEditorBridgeProtocol";
 import { applyEdits } from "@core/domain/grammar/review/textRanges";
@@ -31,6 +32,7 @@ interface QuillInstance {
   getText(index?: number, length?: number): string;
   getIndex(blot: unknown): number;
   updateContents(delta: { ops: DeltaOperation[] }, source: "user"): unknown;
+  update?(source: "user"): unknown;
 }
 interface QuillClass {
   find(node: Node, bubble?: boolean): unknown;
@@ -69,6 +71,28 @@ function owningQuill(root: HTMLElement): { quill: QuillInstance; library: QuillC
   )
     return null;
   return { quill, library };
+}
+
+/**
+ * Quill's history merges the changes of the last second into one undo step.
+ * A typing write calls this before and after its native edit, so that the edit
+ * is one undo step apart from the typed text before it and after it.
+ * `update` first records the pending DOM changes (typed text, or Quill 1's
+ * execCommand result); `cutoff` then starts a new undo step. A bundled Quill 2
+ * keeps its instance in a module-private map: there is no instance and no boundary.
+ */
+export function quillHistoryBoundary(root: HTMLElement): boolean {
+  const owner = owningQuill(root);
+  if (!owner || owner.quill.selection?.composing || isComposingIn(root)) return false;
+  const { quill } = owner;
+  if (typeof quill.update !== "function") return false;
+  try {
+    quill.update("user");
+    quill.history.cutoff();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** The public Quill model and DOM must belong to the same editor. */

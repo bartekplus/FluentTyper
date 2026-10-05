@@ -1,4 +1,4 @@
-import { readQuill, applyQuill } from "./QuillEditor";
+import { readQuill, applyQuill, quillHistoryBoundary } from "./QuillEditor";
 import {
   readSlate,
   applySlate,
@@ -528,6 +528,9 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
           if (snapshot) response = { ok: true, snapshot };
         } else if (request.action === "applyQuill") {
           response = { ok: true, reviewResult: applyQuill(source, request) };
+        } else if (request.action === "quillHistoryBoundary") {
+          const applied = quillHistoryBoundary(source);
+          response = { ok: true, result: { applied, didDispatchInput: false } };
         } else if (request.action === "readSlate") {
           const snapshot = readSlate(source);
           if (snapshot) response = { ok: true, snapshot };
