@@ -859,6 +859,7 @@ signature and invalidate pending fixes.
 | TinyMCE, CKEditor 4, Froala, Summernote (verified host bridge)        | yes                                                                     | yes, validated native transaction        | yes                        | one host undo step for the batch         |
 | RoosterJS, Outlook on the web (editor in the developer tools list)    | yes                                                                     | yes, validated native transaction        | yes                        | one Rooster snapshot step for the batch  |
 | RoosterJS identified without its editor                               | yes                                                                     | no: review-only; Copy for the suggestion | no                         | —                                        |
+| Notion (block leaf that holds the caret)                              | CSS Custom Highlights                                                   | yes: one verified native edit at a time  | no                         | one Notion undo step per fix             |
 | Other model-editor fingerprints, or one of the above without a bridge | yes                                                                     | no: review-only; Copy for the suggestion | no                         | —                                        |
 | Google Docs                                                           | overlay over the text Docs shows; list only where Docs has not drawn it | yes: one verified replacement at a time  | no                         | Docs history                             |
 | Code editors, sensitive and ineligible fields                         | refused with an explanation                                             | —                                        | —                          | —                                        |
@@ -958,6 +959,20 @@ the validated native edits, `takeSnapshot()` and a `contentChanged` event. It
 refuses when Rooster is in an IME composition (`isInIME()`) or in shadow edit,
 does not have focus, or has no range selection. After the write, Rooster must
 have an undo step (`canMove(-1)`); otherwise the result is unverified.
+
+Notion has no in-page editor API. Its page root is one contenteditable, and
+each text block is a nested leaf; Review reviews the leaf that holds the caret,
+never the page. Notion reads the leaf into its model on input, but a live probe
+saw it revert a write that came right after the caret moved into the leaf. So
+each fix is one native edit in that leaf with these extra checks: Review gives
+focus back to the page root and waits 100 ms; the caret must already be in the
+reviewed leaf (Review never moves it there) and no composition may run; after
+the write the leaf must hold the expected text, and must still hold it after
+Notion's input handling (1 s, watched for a revert). A revert gives
+"unverified", and nothing is written again. Each fix is one Notion undo step,
+so Fix all is not offered. These checks read the DOM, not Notion's model; the
+tests use a synthetic Notion-like page, and a live check on Notion is pending
+([details](editor-capabilities.md#notion)).
 
 Plain contenteditable snapshots also capture formatting wrappers and attributes.
 A native correction must retain existing elements. Changes across text nodes are

@@ -3,6 +3,8 @@ import { rangeInsideTarget } from "./TextTargetAdapter";
 import { HOST_MODEL_EDITOR_SELECTOR, MODEL_EDITOR_SELECTOR } from "./EditorCapabilities";
 import { DOM_EDITOR_SELECTOR } from "./ReviewDomEditors";
 import { isGutenbergField, isGutenbergContainer } from "./GutenbergEnvironment";
+import { notionRootOf, notionSelectionSettledIn, notionWriteKept } from "./NotionEnvironment";
+import { isComposingIn } from "./HostEditorControllerUtils";
 import { isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
@@ -108,6 +110,12 @@ export class ContentEditableAdapter {
       replaceEnd > beforeScopeText.length
     )
       return refused;
+    // A Notion block leaf: the root keeps focus, and Notion reverts a write that
+    // comes before its selection is in the leaf. Thus never focus or move there.
+    const notion = !!notionRootOf(elem);
+    if (notion && (!notionSelectionSettledIn(elem) || isComposingIn(elem))) return refused;
+    const focused = () =>
+      notion ? notionSelectionSettledIn(elem) : getDeepActiveElement(elem.ownerDocument) === elem;
     const expectedScopeText =
       beforeScopeText.slice(0, replaceStart) + replacementText + beforeScopeText.slice(replaceEnd);
     const verified = () =>
@@ -164,10 +172,10 @@ export class ContentEditableAdapter {
         new InjectedHostEditorPageBridge(elem.ownerDocument).quillHistoryBoundary(elem);
     };
     quillHistoryBoundary();
-    elem.focus({ preventScroll: true });
+    if (!notion) elem.focus({ preventScroll: true });
     // Focus runs arbitrary page code. Never use nodes/offsets captured before it.
     if (
-      getDeepActiveElement(elem.ownerDocument) !== elem ||
+      !focused() ||
       !editScope.isConnected ||
       !editScope.contains(startPosition.container) ||
       !editScope.contains(endPosition.container) ||
@@ -256,7 +264,7 @@ export class ContentEditableAdapter {
     }
 
     if (
-      getDeepActiveElement(elem.ownerDocument) !== elem ||
+      !focused() ||
       !editScope.contains(startPosition.container) ||
       !editScope.contains(endPosition.container) ||
       editScope.textContent !== beforeScopeText ||
@@ -308,6 +316,12 @@ export class ContentEditableAdapter {
       // race where a fast follow-up keystroke (e.g. auto-close "()" then an
       // immediate "x") lands before a deferred caret correction runs.
       if (verified()) this.setCaret(editScope, cursorAfter);
+      // Notion reads the DOM into its model on input, but can revert it later.
+      // A revert is reported, never repaired: the user saw and chose the word.
+      if (notion && verified())
+        void notionWriteKept(elem, beforeEditorText).then(
+          (kept) => kept || logger.warn("Notion reverted a typing write"),
+        );
       logger.debug("Contenteditable replacement handled by execCommand fallback", {
         didDispatchInput: false,
         editorTextLength: (elem.textContent ?? "").length,

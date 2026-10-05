@@ -5,6 +5,7 @@ import { DOM_EDITOR_SELECTOR } from "./ReviewDomEditors";
 import { MODEL_TYPING_SELECTOR } from "./HostEditorBridgeProtocol";
 import { isCredentialField, isHiddenField, isSensitiveField } from "./FieldEligibility";
 import { classifyField, hasActiveAutocompletePopup } from "./NativeAutocompleteConflictDetector";
+import { NOTION_LEAF_SELECTOR, notionRootOf } from "./NotionEnvironment";
 
 /**
  * Fingerprints restrict generic writes. They never prove that a host adapter works.
@@ -15,6 +16,7 @@ export const MODEL_EDITOR_SELECTOR =
   "[data-lexical-editor], .ProseMirror, [data-slate-editor], .DraftEditor-root, " +
   "[data-contents], .ck-editor__editable, trix-editor, .cke_editable, " +
   ".mce-content-body, .fr-element, .note-editable, " +
+  `${NOTION_LEAF_SELECTOR}, ` +
   GUTENBERG_FIELD_SELECTOR;
 
 /** Editors whose model and history accept writes only through the host bridge. */
@@ -77,6 +79,8 @@ export function editorCapabilities(
   const typingWriter =
     !model ||
     isGutenbergField(element) ||
+    // A leaf of a Notion page: a native edit that each write checks in Notion.
+    !!notionRootOf(element) ||
     element.matches(
       `${HOST_MODEL_EDITOR_SELECTOR}, ${DOM_EDITOR_SELECTOR}, ${MODEL_TYPING_SELECTOR}, .ck-editor__editable, [data-lexical-editor]`,
     );

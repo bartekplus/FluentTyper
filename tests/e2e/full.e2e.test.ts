@@ -130,6 +130,8 @@ const REVIEW_EDITORS = [
   "roosterjs",
 ] as const;
 type ReviewEditor = (typeof REVIEW_EDITORS)[number];
+/** Review editor fixtures outside the generic Review matrix: their Fix all differs. */
+type PageEditor = ReviewEditor | "notion";
 /** Review editor fixtures with a typing path; Quill 1 and Quill 2 are bundled without window.Quill. */
 const TYPING_EDITORS = [
   { editor: "draft", name: "Draft.js" },
@@ -544,7 +546,7 @@ async function gotoTestPage(
     enableGutenberg?: boolean;
     gutenbergIframe?: boolean;
     tinyMceMode?: "iframe" | "inline";
-    reviewEditor?: ReviewEditor;
+    reviewEditor?: PageEditor;
     /** "blocks" adds a second paragraph and a list item to the Review editor fixture. */
     reviewSeed?: "blocks";
   } = {},
@@ -843,7 +845,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         `${editor}-test-editor.ts`,
       );
     }
-    for (const editor of REVIEW_EDITORS) {
+    for (const editor of [...REVIEW_EDITORS, "notion"] as const) {
       editorBundles[`/test-review-${editor}.js`] = await bundleTestEditor(
         `review-editors/${editor}.ts`,
         editor === "draft",
@@ -6277,7 +6279,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       enableSlate?: boolean;
       enableGutenberg?: boolean;
       gutenbergIframe?: boolean;
-      reviewEditor?: ReviewEditor;
+      reviewEditor?: PageEditor;
     } = {},
   ) {
     await setSettings(worker, {
@@ -6290,7 +6292,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   }
 
   /** The Review editor fixture of the loaded page: its editing surface and model reader. */
-  async function reviewEditorFixture(name: ReviewEditor) {
+  async function reviewEditorFixture(name: PageEditor) {
     const fixture = await waitUntil(
       `${name} fixture`,
       () =>
@@ -10652,7 +10654,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
   /** Loads a typing editor fixture with prediction settings that each typing test needs. */
   async function openTypingEditor(
-    name: TypingEditor,
+    name: TypingEditor | "notion",
     options: { seed?: "blocks"; settings?: Record<string, unknown> } = {},
   ) {
     await setSettings(worker, {
@@ -10906,6 +10908,209 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       }
     },
     suiteTimeout(30000, 50000),
+  );
+
+  // ------------------------------------------------------------ Notion-like page
+
+  const NOTION_SEED = "We saw teh cat and teh dog.\nSecond line here.\nThird block here.";
+  const notionLeaf = (block: number) =>
+    `.notion-page-content [data-block-id="block-${block}"] [data-content-editable-leaf]`;
+  const notionStats = () => page.evaluate(() => window.__testNotion!.stats);
+
+  /** Puts the caret at the end of a block with a real click, as a user does. */
+  async function clickNotionBlockEnd(block: number) {
+    await page.click(notionLeaf(block));
+    // The page drops a key that comes before it takes the selection, as Notion does.
+    await waitUntil(
+      `Notion-like page selects block ${block}`,
+      async () =>
+        (await page.evaluate(() => window.__testNotion!.selectedBlock())) === `block-${block}`,
+    );
+    await page.keyboard.press("End");
+  }
+
+  async function notionPrediction(label: string) {
+    return waitUntil(
+      label,
+      async () => {
+        const text = (await getVisibleSuggestionTexts(page))[0]?.trim();
+        return text && /^w\S*$/i.test(text) ? text : false;
+      },
+      { timeoutMs: SUGGESTION_TIMEOUT_MS },
+    );
+  }
+
+  test(
+    "Notion-like page: typing accepts a prediction in the block leaf, as one undo step of the page",
+    async () => {
+      const { model } = await openTypingEditor("notion", {
+        settings: { [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: false },
+      });
+      expect((await model()).text).toBe(NOTION_SEED);
+      await clickNotionBlockEnd(1);
+      await page.keyboard.type(" w");
+      const prediction = await notionPrediction("Notion-like prediction in block 1");
+      // The field is the leaf of the block, not the page root.
+      expect(
+        await page.evaluate(
+          (leaf) => [
+            document.querySelector(leaf)!.hasAttribute("data-ft-suggestion-id"),
+            document.querySelector("[data-content-editable-root]")!.hasAttribute("data-suggestion"),
+          ],
+          notionLeaf(1),
+        ),
+      ).toEqual([true, false]);
+      await page.keyboard.press("Tab");
+      const accepted = NOTION_SEED.replace("dog.", `dog. ${prediction}`).toLowerCase();
+      await waitUntil(
+        "Notion-like acceptance in the model",
+        async () => (await model()).text.toLowerCase() === accepted,
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      );
+      expect((await model()).runs).toEqual({ bold: ["teh"], links: ["teh"] });
+      // The page kept the write: no revert. One Undo removes only the accepted word.
+      await sleep(400); // longer than the page's revert delay (200 ms)
+      expect((await model()).text.toLowerCase()).toBe(accepted);
+      expect((await notionStats()).reverted).toBe(0);
+      await pressUndo(page);
+      await waitUntil(
+        "Notion-like undo removes the accepted word",
+        async () => (await model()).text === NOTION_SEED.replace("dog.", "dog. w"),
+      );
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  test(
+    "Notion-like page: typing accepts a prediction in the second block and keeps the caret after it",
+    async () => {
+      const { model } = await openTypingEditor("notion", {
+        settings: { [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: false },
+      });
+      await clickNotionBlockEnd(2);
+      await page.keyboard.type(" w");
+      const prediction = await notionPrediction("Notion-like prediction in block 2");
+      await page.keyboard.press("Tab");
+      const withWord = (word: string) =>
+        NOTION_SEED.replace("here.\nThird", `here. ${word}\nThird`).toLowerCase();
+      await waitUntil(
+        "Notion-like acceptance in block 2",
+        async () => (await model()).text.toLowerCase() === withWord(prediction),
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      );
+      await page.keyboard.type("Z");
+      await waitUntil(
+        "Notion-like caret after the accepted word",
+        async () => (await model()).text.toLowerCase() === withWord(`${prediction}z`),
+      );
+      expect((await notionStats()).reverted).toBe(0);
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  test(
+    "Notion-like page: Escape closes the suggestion popup only, so the next keys still type",
+    async () => {
+      const { model } = await openTypingEditor("notion");
+      await clickNotionBlockEnd(2);
+      await page.keyboard.type(" w");
+      await notionPrediction("Notion-like prediction before Escape");
+      await page.keyboard.press("Escape");
+      await waitUntil(
+        "Notion-like popup closed",
+        async () => (await getVisibleSuggestionTexts(page)).length === 0,
+      );
+      // The page did not take the Escape: it did not select the block.
+      await page.keyboard.type("abc");
+      await page.keyboard.down("Shift");
+      await page.keyboard.press("ArrowLeft");
+      await page.keyboard.up("Shift");
+      await waitUntil(
+        "Notion-like keys after Escape",
+        async () => (await model()).text === NOTION_SEED.replace("here.", "here. wabc"),
+      ).catch(async (cause) => {
+        throw new Error(
+          `Notion-like: ${JSON.stringify({ ...(await model()), ...(await notionStats()) })}`,
+          { cause },
+        );
+      });
+      expect(await page.evaluate(() => document.getSelection()!.toString())).toBe("c");
+      expect((await notionStats()).droppedKeys).toBe(0);
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  test(
+    "Notion-like page: Review applies one fix in the block leaf with its formatting and one undo step",
+    async () => {
+      await prepareReviewPage({ reviewEditor: "notion" });
+      const { model } = await reviewEditorFixture("notion");
+      const original = await model();
+      expect(original).toEqual({ text: NOTION_SEED, runs: { bold: ["teh"], links: ["teh"] } });
+      await clickNotionBlockEnd(1);
+      await triggerReview(worker);
+      const panel = await waitForReview(
+        page,
+        "Notion-like findings",
+        (p) => p.items.filter((item) => item.text === "teh → the").length === 2,
+      );
+      // One fix is one write and one undo step of the page: no Fix all.
+      expect(panel.notes).toContain("Apply fixes individually");
+      expect(panel.fixAll.hidden).toBe(true);
+      await applyIndividualReviewFix("teh → the");
+      await waitUntil(
+        "Notion-like Review fix in the model",
+        async () => (await model()).text === NOTION_SEED.replace("teh", "the"),
+      );
+      expect((await model()).runs).toEqual({ bold: ["the"], links: ["teh"] });
+      expect((await notionStats()).reverted).toBe(0);
+      await finishReview();
+      await page.focus("[data-content-editable-root]");
+      await pressUndo(page);
+      await waitUntil(
+        "Notion-like Review fix undone",
+        async () => JSON.stringify(await model()) === JSON.stringify(original),
+      );
+    },
+    suiteTimeout(50000, 70000),
+  );
+
+  test(
+    "Notion-like page: Review refuses a fix when the caret is in another block",
+    async () => {
+      await prepareReviewPage({ reviewEditor: "notion" });
+      const { model } = await reviewEditorFixture("notion");
+      await clickNotionBlockEnd(1);
+      await triggerReview(worker);
+      await waitForReview(
+        page,
+        "Notion-like findings before the caret moves",
+        (p) => p.items.filter((item) => item.text === "teh → the").length === 2,
+      );
+      // The caret leaves the reviewed block; the review stays open.
+      await clickNotionBlockEnd(3);
+      const panel = await waitForReview(page, "Notion-like review still open", (p) => p.open);
+      const item = panel.items.find((finding) => finding.text === "teh → the")!;
+      await clickReviewControl(page, `.item[data-id="${item.id}"]`);
+      await waitForReview(page, "Notion-like card", (p) => p.card.open);
+      await clickReviewControl(page, ".card [data-action=apply]");
+      // Review does not move the caret into block 1 to write there: Notion would revert it.
+      await waitForReview(
+        page,
+        "Notion-like refusal",
+        (p) =>
+          p.status.includes("The editor refused the change.") &&
+          p.items.filter((finding) => finding.text === "teh → the").length === 2,
+      );
+      await sleep(400); // longer than the page's revert delay (200 ms)
+      expect((await model()).text).toBe(NOTION_SEED);
+      expect(await page.$eval(notionLeaf(1), (leaf) => leaf.textContent)).toBe(
+        NOTION_SEED.split("\n")[0],
+      );
+      expect((await notionStats()).reverted).toBe(0);
+      await finishReview();
+    },
+    suiteTimeout(50000, 70000),
   );
 
   test(

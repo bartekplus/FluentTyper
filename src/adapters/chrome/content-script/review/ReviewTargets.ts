@@ -25,6 +25,12 @@ import { wordEditor } from "./WordReviewProtocol";
 import { WordReviewTarget } from "./WordReviewTarget";
 import { GutenbergReviewTarget } from "./GutenbergReviewTarget";
 import {
+  notionRootOf,
+  notionSelectionSettledIn,
+  notionWriteKept,
+} from "../suggestions/NotionEnvironment";
+import { isComposingIn } from "../suggestions/HostEditorControllerUtils";
+import {
   isGutenbergField,
   isGutenbergContainer,
   gutenbergSelectedField,
@@ -47,6 +53,8 @@ type ContentEditableKind =
   | "host-model"
   // TinyMCE, CKEditor 4, Froala or Summernote: a native edit in one host undo step.
   | "host-dom"
+  // A Notion block leaf: one native edit, one Notion undo step, checked after Notion's input handling.
+  | "notion"
   | "model-editor";
 
 export interface ReviewTargetHandle extends ReviewTargetPort {
@@ -195,6 +203,9 @@ function sameExceptEdgeSpaces(
   }
   return true;
 }
+
+/** How long Notion gets to take the selection after its page root takes focus. */
+const NOTION_SETTLE_MS = 100;
 
 /** Gecko's editor, for its native editing quirks (feature detection cannot see them). */
 function isGecko(doc: Document): boolean {
@@ -484,7 +495,9 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
       eligible && element.matches("[data-slate-editor]") && !!this.pageBridge.readSlate(element);
     // Other fingerprints get a writer only when the bridge finds their editor.
     // A RoosterJS editor has no own fingerprint: the bridge identifies it.
+    const notion = eligible && !!notionRootOf(element);
     const fingerprint =
+      !notion &&
       !proseMirror &&
       !slate &&
       !quill &&
@@ -495,27 +508,30 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const hostDom =
       eligible && fingerprint && !hostModel && this.pageBridge.reviewTransaction(element, "probe");
     const native = typeof element.ownerDocument.execCommand === "function";
-    this.kind = proseMirror
-      ? "prosemirror"
-      : slate
-        ? "slate"
-        : quill
-          ? "quill"
-          : hostModel
-            ? "host-model"
-            : hostDom && native
-              ? "host-dom"
-              : fingerprint
-                ? "model-editor"
-                : "contenteditable";
+    this.kind = notion
+      ? "notion"
+      : proseMirror
+        ? "prosemirror"
+        : slate
+          ? "slate"
+          : quill
+            ? "quill"
+            : hostModel
+              ? "host-model"
+              : hostDom && native
+                ? "host-dom"
+                : fingerprint
+                  ? "model-editor"
+                  : "contenteditable";
     const model =
       this.kind === "prosemirror" || this.kind === "slate" || this.kind === "host-model";
     const writable =
       model ||
       this.quill ||
-      ((this.kind === "contenteditable" || this.kind === "host-dom") && native);
+      ((this.kind === "contenteditable" || this.kind === "host-dom" || notion) && native);
     // Each batch uses one native command or one host-model transaction.
-    this.adapterCapabilities = { apply: writable, bulk: writable };
+    // Notion: each fix is its own write and its own Notion undo step, so no Fix all.
+    this.adapterCapabilities = { apply: writable, bulk: writable && !notion };
   }
 
   get capabilities(): ReviewCapabilities {
@@ -634,13 +650,26 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     // Inside a shadow root the document selection is retargeted; read the scoped one.
     const saved = this.captureSelection(map, readSelectionRange(root));
 
-    root.focus({ preventScroll: true });
-    // The write lands wherever focus is: it must be this editor.
+    const notion = this.kind === "notion" ? notionRootOf(root) : null;
+    if (notion) {
+      // Notion keeps focus on its page root and reverts a write that comes before
+      // its selection is in the leaf: give focus back, then let Notion take it.
+      if (doc.activeElement !== notion) {
+        notion.focus({ preventScroll: true });
+        // ponytail: a fixed wait; Notion signals no "selection taken". The checks below still refuse.
+        await new Promise((resolve) => win.setTimeout(resolve, NOTION_SETTLE_MS));
+      }
+      if (isComposingIn(root)) return { status: "rejected", reason: "composing" };
+    } else root.focus({ preventScroll: true });
+    // The write lands wherever focus is: it must be this editor. In Notion, the
+    // selection must already be in this leaf (the user's caret, not ours).
     const focusInside = () => {
+      if (notion) return notionSelectionSettledIn(root);
       const focused = getDeepActiveElement(doc);
       return !!focused && (focused === root || root.contains(focused));
     };
     if (!focusInside()) return { status: "rejected", reason: "host-refused" };
+    const beforeContent = root.textContent ?? "";
     // Focus handlers run page code, which may have changed the text or only its
     // markup (text moved into <code>): re-read everything before the first write.
     if (!editorCapabilities(root).renderReview) return { status: "rejected", reason: "ineligible" };
@@ -685,6 +714,8 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
     const focusOffset = afterSelection?.focusOffset;
     // Let an unknown host revert or normalize the edit, then confirm it kept the text.
     await nextFrame(win);
+    // Notion reads the leaf into its model on input; a revert comes later.
+    if (notion && !(await notionWriteKept(root, beforeContent))) return { status: "unverified" };
     const final = buildContentEditableTextMap(root);
     if (
       !root.isConnected ||
@@ -833,7 +864,8 @@ export class ContentEditableReviewTarget implements ReviewTargetHandle {
   }
 
   focusEditor(): void {
-    this.element.focus({ preventScroll: true });
+    // A Notion leaf takes no focus: its page root does.
+    (notionRootOf(this.element) ?? this.element).focus({ preventScroll: true });
   }
 
   reveal(range: TextRange): void {

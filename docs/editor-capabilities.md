@@ -43,6 +43,7 @@ The typing adapters write as follows:
   Thus, before and after the write, the bridge records the pending DOM changes (`quill.update`) and starts a new undo step (`history.cutoff()`). Then Undo removes only the accepted word, not the typed text before it.
   The bridge must find the Quill instance: through `window.Quill` (Quill 1 or Quill 2), or through the instance that a bundled Quill 1 keeps on its `.ql-container`. A bundled Quill 2 keeps its instances in a private module map. There, FluentTyper cannot set the boundary, and Undo also removes the text typed in the last second.
 - CodeMirror 5: the bridge finds the CodeMirror instance by its methods (`replaceRange`, `getLine`, `getCursor`) on the field or an ancestor. It replaces the caret line range with `replaceRange` and the `+input` origin in one `operation`. This path needs a contenteditable field, so it needs CodeMirror's `contenteditable` input style.
+- Notion: the browser's `insertText` command in one block leaf. Notion reads the DOM change into its model on `input`. See [Notion](#notion).
 
 Their typing paths validate each write. Their fingerprints alone do not grant Review writes.
 Review writes need the MAIN-world bridge to find the editor itself: Lexical, Draft.js, CKEditor 5 and Trix get a model transaction, and TinyMCE, CKEditor 4, Froala, Summernote and RoosterJS get a native edit inside one host undo step.
@@ -72,6 +73,7 @@ Review-only finding cards offer Copy. Clipboard writes require a trusted click a
 | Verified CKEditor 5 bridge                                 | Yes                            | One `model.change` batch through the bridge                                 | Yes / verified model transaction             | Each edit revalidates model and ranges             |
 | Verified Lexical bridge                                    | Yes                            | `beforeinput` that Lexical applies to its own model                         | Yes / verified model transaction             | Each edit revalidates ranges and result text       |
 | CodeMirror 5 with the `contenteditable` input style        | No                             | Code predictions; `replaceRange` in one `operation`                         | No                                           | `code`                                             |
+| Notion block leaf                                          | Yes                            | Native edit in the leaf that holds the caret, checked after Notion's input  | Yes, one fix at a time / no Fix all          | No editor API; the live check is pending           |
 | Verified TinyMCE, CKEditor 4, Froala or Summernote bridge  | Yes                            | Native edit in one host undo step                                           | Yes / native edit in one host undo step      | Each edit revalidates DOM, ranges and formatting   |
 | RoosterJS editor in the developer tools list               | Yes                            | Native edit between two Rooster snapshots                                   | Yes / native edit in one Rooster undo step   | Each edit revalidates DOM, ranges and formatting   |
 | RoosterJS identified without its editor instance           | Yes                            | Shown; each write is refused                                                | Review and Copy / no Apply                   | `available`; the record permits only an attempt    |
@@ -79,7 +81,7 @@ Review-only finding cards offer Copy. Clipboard writes require a trusted click a
 | Mixed prose and code                                       | Prose with protected ranges    | Fresh code predictions keep capitalization suppression                      | Prose only / protected ranges cannot change  | Current context is separate from host eligibility  |
 | Credential, disabled, read-only, hidden, or detached field | No                             | No                                                                          | No                                           | `sensitive`, `restricted`, `hidden`, or `detached` |
 
-A typing-path fingerprint is on the field itself. It is one of `.ProseMirror`, `[data-slate-editor]`, `[data-lexical-editor]`, `.ck-editor__editable`, `trix-editor`, `.public-DraftEditor-content`, `.mce-content-body`, `.cke_editable`, `.fr-element` and `.note-editable`, or a Gutenberg field.
+A typing-path fingerprint is on the field itself. It is one of `.ProseMirror`, `[data-slate-editor]`, `[data-lexical-editor]`, `.ck-editor__editable`, `trix-editor`, `.public-DraftEditor-content`, `.mce-content-body`, `.cke_editable`, `.fr-element` and `.note-editable`, or a Gutenberg field, or a Notion block leaf.
 The other fingerprints of `MODEL_EDITOR_SELECTOR` have no typing path, for example `.DraftEditor-root` or `[data-contents]` on the field. A field that is only inside a fingerprint, and has no typing-path fingerprint itself, also has no typing path.
 A typing-path fingerprint without its editor never gets a generic DOM write. `ContentEditableAdapter.ts` refuses ProseMirror, Slate and Gutenberg before it sends an event.
 It refuses the other model fingerprints when no handler takes the synthetic `beforeinput` event. It refuses the DOM-model editors when the bridge finds no host undo integration.
@@ -88,6 +90,25 @@ RoosterJS has no fingerprint of its own: `[contenteditable="true"][data-ms-edito
 No field in the record proves that a write will succeed. `displaySuggestions` and `reviewApply` permit only an attempt.
 Each write goes through a transaction. The transaction must validate its target, range, selection, result, and Undo behavior.
 The diagnostic record contains no text, identifiers, URLs, or accumulated event history. It is not uploaded or persisted.
+
+## Notion
+
+Notion has no in-page editor API, so no writer can read its model. A live probe of app.notion.com showed this structure and behavior:
+
+- One root contenteditable (`[data-content-editable-root]`) holds the page. Each text block has its own nested leaf (`[data-content-editable-leaf="true"]` in `.notion-page-content`). Focus and the events stay on the root.
+- Notion reads a leaf's DOM into its model on `input`, with one Notion undo step for each input. It does not take a synthetic `beforeinput` event.
+- A native edit right after the selection moved into the leaf (for example right after a click) showed and was then reverted within 1 s.
+
+Thus FluentTyper handles the Notion root as a canvas, as a Gutenberg canvas (`GutenbergEnvironment.ts`, `NotionEnvironment.ts`). The root gets no session. Each leaf is a field: typing context, block context and Review target are the leaf that holds the selection.
+The fingerprint (the root with `.notion-page-content`, and a leaf in it) grants no write. Each write, typing or Review, does these checks:
+
+1. The root has focus, and the whole selection is already in the leaf. A write never moves the selection into another leaf. Review gives focus back to the root, waits 100 ms for Notion, and refuses when the caret is not in the reviewed leaf.
+2. No IME composition runs in the page.
+3. The edit range is in the leaf's text and the leaf's text did not change.
+4. After the `insertText` command, the leaf holds the expected text. FluentTyper then watches the leaf for 1 s. When Notion reverts the write in that time, Review reports the fix as unverified. A typing write that Notion reverts is logged, not written again.
+
+Review applies one fix at a time. Each fix is one input, thus one Notion undo step. Fix all is not available ("Apply fixes individually").
+Limits: the checks read the DOM after Notion's input handling, not Notion's model. A revert after 1 s is not seen. The 100 ms and 1 s values come from one live probe. The tests use a synthetic Notion-like page (`tests/e2e/fixtures/review-editors/notion.ts`), not Notion. A live check on Notion is pending.
 
 ## Settings and lifecycle precedence
 

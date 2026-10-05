@@ -5645,6 +5645,73 @@
           "test": "Gutenberg native slash menu keeps priority during block transformation"
         }
       ]
+    },
+    {
+      "id": "notion_block_leaf_writes",
+      "description": "On a Notion page the root contenteditable is a canvas: each block leaf that holds the selection is the field for typing, block context and Review. A typing or Review write needs the root's focus and the selection already in that leaf, no composition, and the expected leaf text after the native edit; Review also watches for Notion's revert and offers one fix at a time, each one Notion undo step. A synthetic Notion-like page covers it; Notion itself is not tested.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/NotionEnvironment.test.ts",
+          "test": "the leaf that holds the selection is the field, never the Notion page root"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/NotionEnvironment.test.ts",
+          "test": "the Notion leaf markup alone, outside a Notion page, is no Notion leaf"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/NotionEnvironment.test.ts",
+          "test": "a typing write in a Notion leaf needs the selection already in that leaf"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/NotionEnvironment.test.ts",
+          "test": "a Notion write counts as kept only when Notion does not revert it in the window"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Notion-like page: typing accepts a prediction in the block leaf, as one undo step of the page"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Notion-like page: typing accepts a prediction in the second block and keeps the caret after it"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Notion-like page: Review applies one fix in the block leaf with its formatting and one undo step"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Notion-like page: Review refuses a fix when the caret is in another block"
+        }
+      ]
+    },
+    {
+      "id": "escape_closes_popup_only",
+      "description": "Escape that closes a visible suggestion popup or inline suggestion is consumed, so the page does not also act on it (a Notion-like page would select the block and drop the next keys). With nothing visible, or while acceptance yields to a native list, Escape reaches the page.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionKeyboardHandler.test.ts",
+          "test": "Escape that closes a visible popup or inline suggestion never reaches the page"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionKeyboardHandler.test.ts",
+          "test": "reserved acceptance does not block Escape dismissal"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Notion-like page: Escape closes the suggestion popup only, so the next keys still type"
+        }
+      ]
     }
   ]
 }
