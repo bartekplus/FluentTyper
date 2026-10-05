@@ -4747,6 +4747,27 @@
       ]
     },
     {
+      "id": "late_answer_keeps_arrow_choice",
+      "description": "When the user moves the menu selection with an arrow key and a prediction answer comes after that (it was late), the menu keeps the chosen suggestion highlighted and Tab accepts it. When the new answer does not contain the chosen suggestion, the first row is highlighted. An edit clears the choice.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionKeyboardHandler.test.ts",
+          "test": "arrow keys record the chosen suggestion for a later answer"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionEntrySession.test.ts",
+          "test": "a late answer keeps the suggestion that the user chose with an arrow key"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "A late prediction answer keeps the suggestion that the user chose with an arrow key"
+        }
+      ]
+    },
+    {
       "id": "stale_predictions_after_caret_move",
       "description": "Predictions are for one caret place. When the page moves the caret without a text change (for example after focus), a prediction response for the old place is not shown, and a visible contenteditable menu is dismissed, so Space or Tab cannot write a stale word at the new place.",
       "coverage": [

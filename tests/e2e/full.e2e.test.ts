@@ -5869,6 +5869,48 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "A late prediction answer keeps the suggestion that the user chose with an arrow key",
+    async () => {
+      const selector = "#test-input";
+
+      await openEnglishField(selector);
+      await typeInInput(page, selector, "th");
+      const suggestions = await waitForVisibleSuggestionTexts(page, suiteTimeout(5000, 9000));
+      expect(suggestions.length).toBeGreaterThan(1);
+      const chosen = suggestions[1]!;
+      await highlightSuggestion(page, chosen);
+      // A new answer renders new rows: mark the rows of this one.
+      const rows = () =>
+        page.evaluate(() =>
+          Array.from(document.querySelectorAll('[id^="ft-menu-"]'))
+            .filter((menu) => getComputedStyle(menu).display !== "none")
+            .flatMap((menu) =>
+              Array.from((menu.shadowRoot ?? menu).querySelectorAll("li[data-index]")),
+            )
+            .map((row) => {
+              const marked = row.hasAttribute("data-test-shown");
+              row.setAttribute("data-test-shown", "");
+              return marked;
+            }),
+        );
+      await rows();
+      // An answer that comes after the arrow key, as an answer for typing that was late.
+      await worker.evaluate(async () => {
+        const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+        const tab = tabs.find((candidate) => /^https?:/.test(candidate.url ?? "")) ?? tabs[0];
+        await chrome.tabs.sendMessage(tab!.id!, { command: "CMD_TRIGGER_FT_ACTIVE_TAB" });
+      });
+      await waitUntil("a new prediction answer", async () => {
+        const marked = await rows();
+        return marked.length > 0 && !marked.some(Boolean);
+      });
+      await page.keyboard.press("Tab");
+      await waitForInputContentEqual(page, selector, chosen);
+    },
+    suiteTimeout(25000, 45000),
+  );
+
+  test(
     "Grammar Rule Engine reverts latest auto-fix via Cmd/Ctrl+Z in #test-input",
     async () => {
       const selector = "#test-input";

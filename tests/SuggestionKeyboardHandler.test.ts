@@ -32,6 +32,20 @@ describe("SuggestionKeyboardHandler", () => {
     expect(updateSelectionHighlight).toHaveBeenCalledWith(entry);
   });
 
+  test("arrow keys record the chosen suggestion for a later answer", () => {
+    const handler = createHandler({
+      inlineSuggestionEnabled: false,
+      consumeKeyboardEvent: jest.fn((event: KeyboardEvent) => event.preventDefault()),
+      isMenuVisible: jest.fn(() => true),
+    });
+    const entry = createSuggestionEntry({ suggestions: ["one", "two"], selectedIndex: 0 });
+
+    handler.handle(entry, createEvent("ArrowDown"));
+    expect(entry.chosenSuggestion).toBe("two");
+    handler.handle(entry, createEvent("ArrowDown"));
+    expect(entry.chosenSuggestion).toBe("one");
+  });
+
   test("moves selection the other way when the menu lists suggestions bottom-up", () => {
     const handler = createHandler({
       inlineSuggestionEnabled: false,

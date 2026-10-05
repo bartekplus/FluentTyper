@@ -33,6 +33,7 @@ export function createSuggestionEntry(
     requestId: 0,
     suggestions: [],
     selectedIndex: 0,
+    chosenSuggestion: null,
     menuHeader: null,
     latestMentionText: "",
     latestMentionStart: 0,

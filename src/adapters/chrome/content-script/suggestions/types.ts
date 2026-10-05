@@ -134,6 +134,8 @@ export interface SuggestionEntry {
   requestId: number;
   suggestions: string[];
   selectedIndex: number;
+  /** The suggestion the user moved to with an arrow key after the last edit. A later answer keeps it highlighted. */
+  chosenSuggestion: string | null;
   menuHeader: string | null;
   latestMentionText: string;
   latestMentionStart: number;
