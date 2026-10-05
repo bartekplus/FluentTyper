@@ -12,6 +12,7 @@ import {
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_CLEAR_PERSONALIZATION,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+  KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_AUTO_LANGUAGE_SITE_PRIORS,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
@@ -10476,6 +10477,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "%s typing accepts a prediction with formatting kept and one native undo step",
     async (name) => {
       await setSettings(worker, {
+        // An earlier test in the same browser can leave these off.
+        [KEY_AUTOCOMPLETE]: true,
+        [KEY_AUTOCOMPLETE_ON_TAB]: true,
+        [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]: true,
         [KEY_LANGUAGE]: "en_US",
         [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
         [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
