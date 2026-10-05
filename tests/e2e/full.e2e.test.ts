@@ -5579,16 +5579,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "Grammar Rule Engine formats measurement units only in verified prose typing",
     async () => {
       const selector = "#test-input";
-      await setGrammarRules(worker, ["measurementUnitFormatting"]);
-      await setSettings(worker, {
-        [KEY_LANGUAGE]: "en_US",
-        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
-      });
-      await notifyConfigChange(browser, worker);
-      await gotoTestPage(page);
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
+      // Enables every language too: the pl_PL step below falls back to the
+      // first enabled language when an earlier test left pl_PL disabled.
+      await openEnglishField(selector, ["measurementUnitFormatting"]);
       await typeInInput(page, selector, "Mass: 10kg ");
       await waitUntil(
         "measurement separator",
