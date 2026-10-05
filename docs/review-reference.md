@@ -971,8 +971,9 @@ the write the leaf must hold the expected text, and must still hold it after
 Notion's input handling (1 s, watched for a revert). A revert gives
 "unverified", and nothing is written again. Each fix is one Notion undo step,
 so Fix all is not offered. These checks read the DOM, not Notion's model; the
-tests use a synthetic Notion-like page, and a live check on Notion is pending
-([details](editor-capabilities.md#notion)).
+tests use a synthetic Notion-like page, and a live check in Chrome passed
+([details](editor-capabilities.md#notion),
+[live check results](editor-surfaces.md#live-check-results)).
 
 Plain contenteditable snapshots also capture formatting wrappers and attributes.
 A native correction must retain existing elements. Changes across text nodes are
