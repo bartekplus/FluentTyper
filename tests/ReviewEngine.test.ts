@@ -23,6 +23,7 @@ import {
   stillDetectedAfter,
 } from "../src/core/domain/grammar/review/reviewDiagnostics";
 import type { ContentScriptReviewEngineMessage } from "../src/core/domain/messageTypes";
+import { reviewOptions } from "./grammar/grammarTestUtils";
 
 const OPTIONS = {
   lang: "en_US",
@@ -63,6 +64,41 @@ function wiredEngine(host = new ReviewEngineHost(packaged), tabId = 1) {
 }
 
 describe("review engine over messaging", () => {
+  test("a scan with a contraction typo gives the composite of in-process detection", async () => {
+    const base = scanRequest("I cant hardly understand it.");
+    // The default rules, and no protected text at the start.
+    const request = {
+      ...base,
+      snapshot: { ...base.snapshot, protectedRanges: [] },
+      options: reviewOptions(),
+    };
+    const { engine } = wiredEngine();
+    const response = await engine.scan(request);
+    const direct = detectReviewDiagnostics(request.snapshot, request.options);
+    expect(response.result.diagnostics).toEqual(direct.diagnostics);
+    expect(direct.diagnostics.map((d) => d.alternatives[0]?.preview)).toContain("can");
+  });
+
+  test("a scan stops when it is cancelled during the repair pass", async () => {
+    const controller = new AbortController();
+    let pauses = 0;
+    const engine = new LocalReviewEngine(async () => {
+      pauses += 1;
+      // The first pause follows the only chunk; the next ones are in the repair pass.
+      if (pauses === 2) controller.abort();
+    });
+    const base = scanRequest("I cant hardly understand it.");
+    const request = {
+      ...base,
+      snapshot: { ...base.snapshot, protectedRanges: [] },
+      options: reviewOptions(),
+    };
+    await expect(engine.scan(request, controller.signal)).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    expect(pauses).toBe(2);
+  });
+
   test("a scan through the background finds what in-process detection finds", async () => {
     const text = "x(1) teh cat. teh dog";
     const request = scanRequest(text);

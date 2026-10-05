@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { reviewExplanation } from "../../src/core/domain/grammar/review/reviewExplanations";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { scan as reviewScan } from "./reviewHarness";
 
@@ -41,3 +42,9 @@ test.each([
   "We did not go anywhere.",
   "He didn't scarcely sleep at all.",
 ])("double negatives stay silent: %s", (text) => expect(scan(text)).toEqual([]));
+
+test("the hardly hint fits cannot and can't", () => {
+  expect(reviewExplanation("review_msg_negated_hardly", "en")).toBe(
+    "“Hardly”, “barely” and “scarcely” are already negative; use the verb without the negation.",
+  );
+});

@@ -10,6 +10,13 @@ import { isTechnicalToken, normalizeWordSet } from "../implementations/helpers/G
 import { isReviewSupportedRule, runsInReviewLanguage } from "./reviewCatalog";
 import { REVIEW_DETECTORS, type RawFinding } from "./reviewDetectors";
 import { toDiagnostic } from "./reviewFindings";
+import {
+  composeRepairs,
+  repairShadow,
+  repairWindows,
+  selectRepairs,
+  type ShadowFinding,
+} from "./repairPass";
 import { isLang, PartialDetection, takeFrameFailure } from "./phraseTemplates";
 import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
 import { isGermanAbbreviationToken } from "./german/abbreviations";
@@ -388,6 +395,42 @@ export function finalizeReview(
   scans: readonly ChunkScan[],
   extraGaps: Partial<Record<CoverageGap, number>> = {},
 ): ReviewScanResult {
+  return drain(finalizeSteps(prepared, scans, extraGaps));
+}
+
+/** finalizeReview, pausing (`pause`) at each step so the page stays responsive. */
+export function finalizeReviewAsync(
+  prepared: PreparedReview,
+  scans: readonly ChunkScan[],
+  extraGaps: Partial<Record<CoverageGap, number>>,
+  pause: () => Promise<void>,
+): Promise<ReviewScanResult> {
+  return drainAsync(finalizeSteps(prepared, scans, extraGaps), pause);
+}
+
+/** Runs `steps` to the end without pausing. */
+function drain<T>(steps: Generator<void, T, void>): T {
+  for (let step = steps.next(); ; step = steps.next()) {
+    if (step.done) return step.value;
+  }
+}
+
+/** Runs `steps` to the end, calling `pause` at each yield so the page stays responsive. */
+async function drainAsync<T>(
+  steps: Generator<void, T, void>,
+  pause: () => Promise<void>,
+): Promise<T> {
+  for (let step = steps.next(); ; step = steps.next()) {
+    if (step.done) return step.value;
+    await pause();
+  }
+}
+
+function* finalizeSteps(
+  prepared: PreparedReview,
+  scans: readonly ChunkScan[],
+  extraGaps: Partial<Record<CoverageGap, number>>,
+): Generator<void, ReviewScanResult, void> {
   const seen = new Set<string>();
   const diagnostics: ReviewDiagnostic[] = [];
   const failed = new Set<CatalogRuleId>();
@@ -402,7 +445,7 @@ export function finalizeReview(
     }
   }
   diagnostics.sort((a, b) => a.range.start - b.range.start || a.range.end - b.range.end);
-  const unique = dropDuplicateFixes(diagnostics);
+  const unique = yield* repairSteps(prepared, dropDuplicateFixes(diagnostics));
 
   const skipped: Partial<Record<CoverageGap, number>> = { ...extraGaps };
   const protectedChars = protectedCharsInScope(prepared);
@@ -421,6 +464,59 @@ export function finalizeReview(
       skipped,
     },
   };
+}
+
+/**
+ * The repair pass (repairPass.ts): the safe contraction fixes are applied to a
+ * shadow text, the shadow is scanned near them, and each finding that needs a
+ * repair becomes one fix of the original text that includes it. The repair's own
+ * finding is then removed. No repair: `diagnostics`, unchanged, at no cost.
+ */
+function* repairSteps(
+  prepared: PreparedReview,
+  diagnostics: ReviewDiagnostic[],
+): Generator<void, ReviewDiagnostic[], void> {
+  const repairs = selectRepairs(diagnostics);
+  if (repairs.length === 0) return diagnostics;
+  const shadow = repairShadow(repairs);
+  const snapshot = shiftedSnapshot(prepared.snapshot, shadow.edits, `${prepared.snapshot.id}+`);
+  if (snapshot === null) return diagnostics;
+  const next = prepareReview(snapshot, prepared.options);
+  yield;
+  const found: ShadowFinding[] = [];
+  for (const window of repairWindows(shadow.spans, snapshot.scope)) {
+    for (const finding of scanReviewChunk(next, window).findings) {
+      const diagnostic = toDiagnostic(next, finding);
+      if (diagnostic) found.push({ finding, diagnostic });
+    }
+    yield;
+  }
+  const absorbed = new Set<ReviewDiagnostic>();
+  const added: ReviewDiagnostic[] = [];
+  const composites = composeRepairs(
+    shadow,
+    diagnostics,
+    found,
+    snapshot.text,
+    prepared.snapshot.text,
+  ).sort(
+    // One composite per repair: the more specific rule (later in the catalog) wins.
+    (a, b) => (PRIORITY.get(b.finding.ruleId) ?? 0) - (PRIORITY.get(a.finding.ruleId) ?? 0),
+  );
+  for (const { finding, repairs: included } of composites) {
+    if (included.some((repair) => absorbed.has(repair))) continue;
+    const diagnostic = toDiagnostic(prepared, finding);
+    if (!diagnostic) continue;
+    // The repairs stay on the fix: Review shows them when the fix is ignored or hidden.
+    added.push(included.length > 0 ? { ...diagnostic, repairs: included } : diagnostic);
+    for (const repair of included) absorbed.add(repair);
+  }
+  if (added.length === 0) return diagnostics;
+  return dropDuplicateFixes(
+    [...diagnostics.filter((d) => !absorbed.has(d)), ...added].sort(
+      (a, b) => a.range.start - b.range.start || a.range.end - b.range.end,
+    ),
+  );
 }
 
 const PRIORITY = new Map<string, number>(
@@ -505,38 +601,33 @@ export function stillDetectedAfter(
   diagnostics: readonly ReviewDiagnostic[],
   otherEdits: readonly ReviewEdit[],
 ): boolean[] {
-  const steps = proofSteps(prepared, diagnostics, otherEdits);
-  for (let step = steps.next(); ; step = steps.next()) {
-    if (step.done) return step.value;
-  }
+  return drain(proofSteps(prepared, diagnostics, otherEdits));
 }
 
 /** stillDetectedAfter, pausing (`pause`) between its scans so the page stays responsive. */
-export async function stillDetectedAfterAsync(
+export function stillDetectedAfterAsync(
   prepared: PreparedReview,
   diagnostics: readonly ReviewDiagnostic[],
   otherEdits: readonly ReviewEdit[],
   pause: () => Promise<void>,
 ): Promise<boolean[]> {
-  const steps = proofSteps(prepared, diagnostics, otherEdits);
-  for (let step = steps.next(); ; step = steps.next()) {
-    if (step.done) return step.value;
-    await pause();
-  }
+  return drainAsync(proofSteps(prepared, diagnostics, otherEdits), pause);
 }
 
-/** The proof as steps: it yields after preparing and after each scan. */
-function* proofSteps(
-  prepared: PreparedReview,
-  diagnostics: readonly ReviewDiagnostic[],
-  otherEdits: readonly ReviewEdit[],
-): Generator<void, boolean[], void> {
-  const { snapshot } = prepared;
-  const text = applyEdits(snapshot.text, otherEdits);
-  if (text === null) return diagnostics.map(() => false);
-  const shift = positionMapper(otherEdits);
-  const shifted = {
-    id: `${snapshot.id}~`,
+/**
+ * `snapshot` as it would be after `edits`: the text, the scope and the protected
+ * ranges move with the edits. Null when the edits do not apply.
+ */
+function shiftedSnapshot(
+  snapshot: ReviewSourceSnapshot,
+  edits: readonly ReviewEdit[],
+  id: string,
+): ReviewSourceSnapshot | null {
+  const text = applyEdits(snapshot.text, edits);
+  if (text === null) return null;
+  const shift = positionMapper(edits);
+  return {
+    id,
     incomplete: snapshot.incomplete,
     selection: snapshot.selection,
     text,
@@ -547,6 +638,18 @@ function* proofSteps(
       end: shift(range.end),
     })),
   };
+}
+
+/** The proof as steps: it yields after preparing and after each scan. */
+function* proofSteps(
+  prepared: PreparedReview,
+  diagnostics: readonly ReviewDiagnostic[],
+  otherEdits: readonly ReviewEdit[],
+): Generator<void, boolean[], void> {
+  const { snapshot } = prepared;
+  const shifted = shiftedSnapshot(snapshot, otherEdits, `${snapshot.id}~`);
+  if (shifted === null) return diagnostics.map(() => false);
+  const shift = positionMapper(otherEdits);
   const next = prepareReview(shifted, prepared.options);
   yield;
   const expected = diagnostics.map((diagnostic) => {

@@ -272,6 +272,41 @@ describe("ReviewSession", () => {
     expect(h.last().ignoredCount).toBe(1);
   });
 
+  test("ignoring a fix that includes a repair shows the plain repair", async () => {
+    const h = harness("I cant hardly understand it.", {
+      rules: ["englishUsagePhrases", "englishConfusedWords"],
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    const fixes = () => h.last().diagnostics.map((d) => [d.original, d.alternatives[0].preview]);
+    expect(fixes()).toEqual([["cant", "can"]]);
+    h.session.ignore(h.last().diagnostics[0].id);
+    expect(fixes()).toEqual([["cant", "can't"]]);
+  });
+
+  test("hiding the category of a fix that includes a repair shows the plain repair", async () => {
+    const h = harness("It dont work.", {
+      rules: ["englishPronounVerbWhitelistAgreement", "englishContractionNormalization"],
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    const fixes = () => h.last().diagnostics.map((d) => [d.original, d.alternatives[0].preview]);
+    expect(fixes()).toEqual([["dont", "doesn't"]]);
+    h.session.setCategory(h.last().diagnostics[0].category, false);
+    expect(fixes()).toEqual([["dont", "don't"]]);
+  });
+
+  test("Fix all applies the plain repair of an ignored fix", async () => {
+    const h = harness("It dont work.", {
+      rules: ["englishPronounVerbWhitelistAgreement", "englishContractionNormalization"],
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    h.session.ignore(h.last().diagnostics[0].id);
+    expect(h.last().bulk.count).toBe(1);
+    const fixing = h.session.fixAll();
+    await h.settle();
+    expect(await fixing).toEqual({ status: "applied" });
+    expect(h.editor.text).toBe("It don't work.");
+  });
+
   test("editing the ignored occurrence itself drops the ignore", async () => {
     const h = harness("teh a");
     await Promise.all([h.session.start(), h.settle()]);
