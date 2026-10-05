@@ -29,9 +29,7 @@ let compositionTarget: Node | null = null;
 
 /** Records the target of a compositionstart or compositionend event. */
 export function recordComposition(event: Event): void {
-  if (event.type === "compositionstart" || event.type === "compositionend")
-    compositionTarget =
-      event.type === "compositionstart" ? (event.composedPath()[0] as Node) : null;
+  compositionTarget = event.type === "compositionstart" ? (event.composedPath()[0] as Node) : null;
 }
 
 /**

@@ -1,4 +1,5 @@
 import type { ReviewEdit } from "@core/domain/grammar/review/types";
+import type { ReviewTransactionPhase } from "./ReviewDomEditors";
 
 export const HOST_EDITOR_REQUEST_EVENT = "ft-host-editor-request";
 export const HOST_EDITOR_REQUEST_ATTR = "data-ft-host-editor-request";
@@ -53,7 +54,7 @@ export type HostEditorBridgeRequest =
       action:
         "applyProseMirror" | "applyQuill" | "applySlate" | "applyGutenberg" | "applyReviewModel";
     } & HostEditorReviewApplyRequest)
-  | { action: "reviewTransaction"; phase: "probe" | "begin" | "end" | "identify" }
+  | { action: "reviewTransaction"; phase: ReviewTransactionPhase }
   | { action: "quillHistoryBoundary" }
   | { action: "getBlockContext" }
   | ({ action: "applyBlockReplacement" } & HostEditorBlockReplacement);

@@ -515,12 +515,6 @@ export class ReviewController {
   }
 
   private createUi(target: ReviewTargetHandle): ReviewUi {
-    const capabilityKeys: ReviewTextKey[] = [];
-    // Docs without its text runs (not rendered yet, or hidden): list only, until they appear.
-    if (target instanceof GoogleDocsReviewTarget) {
-      if (!target.canHighlight()) capabilityKeys.push("review_cap_docs");
-    }
-    capabilityKeys.push(...writeCapabilityKeys(target));
     return new ReviewUi(
       target.element.ownerDocument,
       this.lang,
@@ -568,7 +562,7 @@ export class ReviewController {
         applyAiBatch: () => void this.active?.session.applyAiBatch(),
         cancelAiBatch: () => this.active?.session.cancelAiBatch(),
       },
-      capabilityKeys,
+      capabilityKeys(target),
       reviewMountFor(target.element),
     );
   }
@@ -722,20 +716,14 @@ export class ReviewController {
   private paint(active: ActiveReview): void {
     const state = active.state;
     const diagnostics = state?.status === "ready" ? state.diagnostics : [];
-    let blockers: DOMRect[] = [];
-    if (active.target instanceof GoogleDocsReviewTarget) {
-      // Docs shows runs only for an allowed extension and only for rendered
-      // pages: the "listed only" note follows what it shows now.
-      active.ui.setCapabilityKeys([
-        ...(active.target.canHighlight() ? [] : (["review_cap_docs"] as const)),
-        ...writeCapabilityKeys(active.target),
-      ]);
-      // Docs' menus, dialogs and bubbles sit over the page: never mark over them.
-      blockers = docsPopupBoxes(active.target.element.ownerDocument);
-    } else {
-      // A model editor can get its writer after Review opened.
-      active.ui.setCapabilityKeys(writeCapabilityKeys(active.target));
-    }
+    // The keys can change after Review opened: Docs renders its text runs
+    // later, and a model editor can get its writer later.
+    active.ui.setCapabilityKeys(capabilityKeys(active.target));
+    // Docs' menus, dialogs and bubbles sit over the page: never mark over them.
+    const blockers =
+      active.target instanceof GoogleDocsReviewTarget
+        ? docsPopupBoxes(active.target.element.ownerDocument)
+        : [];
     if (active.cssHighlights) {
       this.paintCss(active, diagnostics, state?.selectedId ?? null);
       return;
@@ -984,9 +972,14 @@ const NOTICE_CALLBACKS: ReviewUiCallbacks = {
 /** How often an open review checks for changes that fire no event. */
 const SOURCE_POLL_MS = 1000;
 
-function writeCapabilityKeys(target: ReviewTargetHandle): ReviewTextKey[] {
-  if (!target.capabilities.apply) return ["review_cap_review_only"];
-  return target.capabilities.bulk ? [] : ["review_cap_undo_per_edit"];
+function capabilityKeys(target: ReviewTargetHandle): ReviewTextKey[] {
+  // Docs shows text runs only for an allowed extension and only for rendered
+  // pages. Without the runs, Review only lists the findings.
+  const keys: ReviewTextKey[] =
+    target instanceof GoogleDocsReviewTarget && !target.canHighlight() ? ["review_cap_docs"] : [];
+  if (!target.capabilities.apply) keys.push("review_cap_review_only");
+  else if (!target.capabilities.bulk) keys.push("review_cap_undo_per_edit");
+  return keys;
 }
 
 /**

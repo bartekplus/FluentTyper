@@ -18,7 +18,7 @@ export function notionRootOf(element: Element): HTMLElement | null {
 }
 
 /** A live probe saw Notion revert an unsettled write within 1 s. */
-export const NOTION_REVERT_WINDOW_MS = 1000;
+const NOTION_REVERT_WINDOW_MS = 1000;
 
 /**
  * Resolves false when Notion reverts a write in `leaf`: within the window the

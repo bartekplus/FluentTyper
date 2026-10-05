@@ -118,10 +118,7 @@ export class SuggestionMenuPresenter {
     const stateHost = resolveSuggestionStateHost(model.target);
     // A shared host (a Notion page root for all its leaves) names the entry that shows the menu.
     const entryId = String(model.menuId);
-    if (
-      stateHost !== model.target &&
-      stateHost.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR) !== entryId
-    )
+    if (stateHost.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR) !== entryId)
       stateHost.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, entryId);
     stateHost.setAttribute(EARLY_TAB_ACCEPT_CONTEXT_ATTR, resolveCodeContext(model.target));
     // Tab is claimed only when it has a row to accept: an unselected proposal leaves it alone.

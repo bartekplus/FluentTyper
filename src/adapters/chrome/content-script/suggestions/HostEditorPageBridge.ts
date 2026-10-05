@@ -2,6 +2,7 @@ import type { ReviewTargetText, ReviewApplyResult } from "@core/application/revi
 import type { HostEditorApplyResult } from "./HostEditorAdapterResolver";
 import type { LineEditorBlockContext } from "./HostEditorControllerUtils";
 import type { GutenbergSnapshot } from "./GutenbergEditor";
+import type { ReviewTransactionPhase } from "./ReviewDomEditors";
 import {
   HOST_EDITOR_REQUEST_ATTR,
   HOST_EDITOR_REQUEST_EVENT,
@@ -87,9 +88,8 @@ export class InjectedHostEditorPageBridge {
   }
 
   /** Starts a new Quill undo step; see quillHistoryBoundary in QuillEditor.ts. */
-  public quillHistoryBoundary(elem: HTMLElement): boolean {
-    const response = this.dispatchRequest(elem, { action: "quillHistoryBoundary" });
-    return !!(response?.ok && "result" in response && response.result.applied);
+  public quillHistoryBoundary(elem: HTMLElement): void {
+    this.dispatchRequest(elem, { action: "quillHistoryBoundary" });
   }
 
   public readSlate(elem: HTMLElement): ReviewTargetText | null {
@@ -125,10 +125,7 @@ export class InjectedHostEditorPageBridge {
    * editor, "begin" and "end" enclose a native Review edit in one host undo step.
    * "identify" finds the editor also when it has no writable instance.
    */
-  public reviewTransaction(
-    elem: HTMLElement,
-    phase: "probe" | "begin" | "end" | "identify",
-  ): boolean {
+  public reviewTransaction(elem: HTMLElement, phase: ReviewTransactionPhase): boolean {
     const response = this.dispatchRequest(elem, { action: "reviewTransaction", phase });
     return !!(response?.ok && "result" in response && response.result.applied);
   }

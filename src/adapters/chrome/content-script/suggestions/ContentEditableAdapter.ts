@@ -167,9 +167,9 @@ export class ContentEditableAdapter {
     // Quill merges the changes of the last second into one undo step. A boundary
     // before and after the write keeps the write apart from typed text.
     // It runs page code, so it comes before focus and the checks after focus.
+    const bridge = new InjectedHostEditorPageBridge(elem.ownerDocument);
     const quillHistoryBoundary = () => {
-      if (elem.matches(".ql-editor"))
-        new InjectedHostEditorPageBridge(elem.ownerDocument).quillHistoryBoundary(elem);
+      if (elem.matches(".ql-editor")) bridge.quillHistoryBoundary(elem);
     };
     quillHistoryBoundary();
     if (!notion) elem.focus({ preventScroll: true });
@@ -292,7 +292,6 @@ export class ContentEditableAdapter {
       if (userCaret && elem.contains(userCaret.container))
         caret.setEnd(userCaret.container, userCaret.offset);
       else caret.setEnd(endPosition.container, endPosition.offset);
-      const bridge = new InjectedHostEditorPageBridge(elem.ownerDocument);
       const result = bridge.applyDomEditor(elem, {
         before: beforeEditorText,
         prefix: prefix.toString(),

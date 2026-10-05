@@ -9,7 +9,6 @@ import { classifyField } from "../src/adapters/chrome/content-script/suggestions
 import {
   notionRootOf,
   notionWriteKept,
-  NOTION_REVERT_WINDOW_MS,
 } from "../src/adapters/chrome/content-script/suggestions/NotionEnvironment";
 import { recordComposition } from "../src/adapters/chrome/content-script/suggestions/HostEditorControllerUtils";
 import {
@@ -273,6 +272,5 @@ test("a Notion write counts as kept only when Notion does not revert it in the w
   // Notion renders its model again: the old text, then later text typed on top.
   setTimeout(() => (leaves[1].textContent = "We saw teh"), 50);
   setTimeout(() => (leaves[1].textContent = "We saw teh!"), 100);
-  expect(NOTION_REVERT_WINDOW_MS).toBeLessThanOrEqual(1000);
   expect(await Promise.all([kept, reverted])).toEqual([true, false]);
 });
