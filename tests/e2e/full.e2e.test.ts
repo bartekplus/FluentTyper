@@ -573,6 +573,35 @@ async function gotoTestPage(
   await page.bringToFront();
 }
 
+/**
+ * Puts the CKEditor caret in paragraph `index` at `offset` through the model.
+ * A DOM selection reaches the model only on the next "selectionchange" event,
+ * so a key typed before it lands at the old model caret.
+ */
+async function setCkEditorCaret(page: Page, index: number, offset: number | "end") {
+  await page.evaluate(
+    (index, offset) => {
+      type Editor = {
+        model: {
+          document: { getRoot(): { getChild(index: number): unknown } };
+          change(
+            callback: (writer: { setSelection(node: unknown, offset: unknown): void }) => void,
+          ): void;
+        };
+        editing: { view: { focus(): void } };
+      };
+      const editor = (window as typeof window & { __testCkEditor?: Editor }).__testCkEditor;
+      if (!editor) throw new Error("CKEditor test instance not found");
+      editor.editing.view.focus();
+      editor.model.change((writer) =>
+        writer.setSelection(editor.model.document.getRoot().getChild(index), offset),
+      );
+    },
+    index,
+    offset,
+  );
+}
+
 async function waitForInputReady(page: Page | Frame, selector: string) {
   if (selector === CKEDITOR_SELECTOR) {
     await waitUntil(
@@ -2301,29 +2330,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ckEditor.setData("<p></p><p>next</p>");
       });
 
-      await page.focus(CKEDITOR_SELECTOR);
-      await page.evaluate(() => {
-        const editable = document.querySelector(".ck-editor__editable");
-        const firstParagraph = editable?.querySelector("p");
-        if (!editable || !firstParagraph) {
-          throw new Error("CKEditor editable or first paragraph missing");
-        }
-        const textNode =
-          firstParagraph.firstChild && firstParagraph.firstChild.nodeType === Node.TEXT_NODE
-            ? firstParagraph.firstChild
-            : firstParagraph.appendChild(document.createTextNode(""));
-
-        const selection = window.getSelection();
-        if (!selection) {
-          throw new Error("Selection unavailable");
-        }
-
-        const range = document.createRange();
-        range.setStart(textNode, textNode.textContent?.length ?? 0);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-      });
+      await setCkEditorCaret(page, 0, "end");
 
       await page.keyboard.type("h");
       const liCount = await waitForVisibleSuggestions(page);
@@ -2429,27 +2436,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ckEditor.setData("<p>Quill Rich Text Editor</p><p>fixed </p>");
       });
 
-      await page.focus(CKEDITOR_SELECTOR);
+      await setCkEditorCaret(page, 1, "end");
       await page.evaluate(() => {
         const editable = document.querySelector(".ck-editor__editable");
-        const secondParagraph = editable?.querySelectorAll("p")[1];
-        if (!editable || !secondParagraph) {
-          throw new Error("CKEditor editable or second paragraph missing");
+        if (!editable) {
+          throw new Error("CKEditor editable missing");
         }
-        const textNode =
-          secondParagraph.firstChild && secondParagraph.firstChild.nodeType === Node.TEXT_NODE
-            ? secondParagraph.firstChild
-            : secondParagraph.appendChild(document.createTextNode(""));
-        const selection = window.getSelection();
-        if (!selection) {
-          throw new Error("Selection unavailable");
-        }
-        const range = document.createRange();
-        range.setStart(textNode, textNode.textContent?.length ?? 0);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-
         const debugWindow = window as typeof window & {
           __ftDebugInputs?: Array<{ inputType: string; data: string; text: string }>;
           __ftDebugKeys?: string[];
@@ -3949,25 +3941,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           ckEditor.setData("<p>The dog walked the street</p>");
         });
 
-        await page.focus(CKEDITOR_SELECTOR);
         // Place the caret inside the first word, after "Th".
-        await page.evaluate(() => {
-          const editable = document.querySelector(".ck-editor__editable");
-          const firstParagraph = editable?.querySelector("p");
-          const textNode = firstParagraph?.firstChild;
-          if (!(textNode instanceof Text)) {
-            throw new Error("CKEditor first paragraph text node missing");
-          }
-          const selection = window.getSelection();
-          if (!selection) {
-            throw new Error("Selection unavailable");
-          }
-          const range = document.createRange();
-          range.setStart(textNode, 2); // "Th|e dog walked the street"
-          range.collapse(true);
-          selection.removeAllRanges();
-          selection.addRange(range);
-        });
+        await setCkEditorCaret(page, 0, 2);
 
         // Type "r" so the text becomes "Thr|e dog walked the street".
         await page.keyboard.type("r");
@@ -3984,7 +3959,27 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             return text.length > 0 ? text : false;
           },
           { timeoutMs: suiteTimeout(3000, 6000) },
-        );
+        ).catch(async (cause) => {
+          const state = await page.evaluate(() => {
+            const editable = document.querySelector<HTMLElement>(".ck-editor__editable")!;
+            const selection = window.getSelection();
+            return {
+              dom: editable.textContent,
+              model: (
+                window as typeof window & { __testCkEditor?: { getData(): string } }
+              ).__testCkEditor?.getData(),
+              caret:
+                selection?.anchorNode === editable.querySelector("p")?.firstChild
+                  ? selection?.anchorOffset
+                  : `${selection?.anchorNode?.nodeName}:${selection?.anchorOffset}`,
+              focused: document.activeElement === editable,
+              ft: Array.from(editable.attributes, (attribute) => attribute.name)
+                .filter((name) => name.startsWith("data-ft"))
+                .map((name) => `${name}=${editable.getAttribute(name)}`),
+            };
+          });
+          throw new Error(`CKEditor state: ${JSON.stringify(state)}`, { cause });
+        });
 
         // The preview must read as the post-acceptance text: a single word
         // starting with "Thr" followed by " dog walked the street" with no
