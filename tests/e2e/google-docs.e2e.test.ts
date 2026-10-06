@@ -187,6 +187,44 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     expect((await model()).pastes).toBe(1);
     expect((await evaluate<string[]>("events")).filter((v) => v === "accepted")).toHaveLength(1);
   });
+  // Regression: a click (or an arrow key) that only moved the caret opened the menu. The
+  // dismiss forgot the snapshot, so the next poll read the moved caret as an edit.
+  test("a click or an arrow key that only moves the caret requests no suggestions", async () => {
+    await evaluate('predictions=["hello"]');
+    await page.keyboard.type("hello wor", { delay: TYPING_DELAY_MS });
+    const menuShown = () =>
+      evaluate<boolean>("document.querySelector('iframe').hasAttribute('data-ft-docs-key-state')");
+    await waitUntil("completion", menuShown);
+    const moveCaret = (caret: number) =>
+      page.evaluate((at) => {
+        const f = window as unknown as {
+          model: { text: string };
+          setModel: (text: string, a: number, f: number) => void;
+        };
+        f.setModel(f.model.text, at, at);
+      }, caret);
+    const requested = () => evaluate<number>("requests.length");
+    const before = await requested();
+    // A click: pointerdown in the input frame, then Docs moves the caret.
+    await page
+      .frames()[1]
+      .evaluate(() =>
+        document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true })),
+      );
+    await moveCaret(2);
+    // Several 200ms polls.
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(await menuShown()).toBe(false);
+    expect(await requested()).toBe(before);
+    await page.keyboard.press("ArrowRight");
+    await moveCaret(3);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(await menuShown()).toBe(false);
+    expect(await requested()).toBe(before);
+    // An edit still asks.
+    await page.keyboard.type("l", { delay: TYPING_DELAY_MS });
+    await waitUntil("a request after the edit", async () => (await requested()) > before);
+  });
   test("visible suggestions remain usable across repeated snapshot refreshes", async () => {
     await seed("hel", ["hello"]);
     // Model-driven refreshes, not a fixed sleep: exceed the bridge's eight-token cache.

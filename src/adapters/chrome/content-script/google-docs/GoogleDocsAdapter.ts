@@ -193,6 +193,10 @@ export class GoogleDocsAdapter {
   // Insertion keystrokes seen since grammar last caught up with a quiet document. Replay
   // trusts a text diff only as far as this accounts for it; a paste zeroes it.
   private typed = 0;
+  // An edit since the last dismiss. Only an edit (or an explicit request) asks for
+  // suggestions: a click or an arrow key that moves the caret also reads as "changed",
+  // because dismiss() forgets the snapshot.
+  private edited = false;
   private visible = false;
   private reviewActive = false;
   private readonly reviewSourceListeners = new Set<() => void>();
@@ -217,6 +221,7 @@ export class GoogleDocsAdapter {
   private readonly compositionEnd = () => {
     this.reviewSourceChanged();
     this.composing = false;
+    this.edited = true;
     this.scheduleRefresh("insert", 60);
   };
   private readonly navigationListener = (event: Event) => {
@@ -529,7 +534,9 @@ export class GoogleDocsAdapter {
       this.updateKeyState();
       return;
     }
-    if (snapshot.anchor !== snapshot.focus && !force) {
+    const edited = this.edited;
+    this.edited = false;
+    if ((snapshot.anchor !== snapshot.focus || !edited) && !force) {
       this.clearVisual();
       return;
     }
@@ -699,6 +706,8 @@ export class GoogleDocsAdapter {
     else if (reply.status === "unverified") this.uncertain = tracked;
     this.snapshot = null;
     this.view.status(reply.status);
+    // What follows an accepted word or a correction is still typing.
+    this.edited = true;
     if (!this.uncertain) void this.refresh();
   }
   private learn(acceptance: Acceptance | null): string {
@@ -839,6 +848,7 @@ export class GoogleDocsAdapter {
     if (triggers.includes("paste")) this.typed = 0;
     else if (triggers.includes("insertChar")) this.typed += 1;
     this.pendingAction = action;
+    this.edited = true;
     // The host applies the keystroke later in this same dispatch, so the earliest
     // correct moment to read it back is the next task, not a fixed settle delay.
     // Waiting longer only lets the following keystroke cancel this pass and take the
@@ -928,6 +938,7 @@ export class GoogleDocsAdapter {
     this.bridge.cancel();
     this.clearVisual();
     this.snapshot = null;
+    this.edited = false;
     this.failureStatus = null;
     if (this.refreshTimer !== null) clearTimeout(this.refreshTimer);
     if (this.idleTimer !== null) clearTimeout(this.idleTimer);

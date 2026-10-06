@@ -7802,6 +7802,165 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     suiteTimeout(60000, 90000),
   );
 
+  test.each(
+    [
+      ...caretEditors,
+      {
+        name: "Notion-like page",
+        options: { reviewEditor: "notion" as const },
+        selector: "",
+        surface: undefined,
+        setup: undefined,
+        fixture: "notion" as const,
+      },
+    ].flatMap((entry) => [false, true].map((inline) => ({ ...entry, inline }))),
+  )(
+    "A click or an arrow key that only moves the caret shows no suggestion in $name (inline: $inline)",
+    async ({ options, selector: fieldSelector, surface: surfaceKind, setup, fixture, inline }) => {
+      await setGrammarRules(worker, []);
+      await setSetting(worker, KEY_LANGUAGE, "en_US");
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, inline);
+      await notifyConfigChange(browser, worker);
+      await gotoTestPage(page, options);
+      await page.bringToFront();
+      const editor = fixture ? await reviewEditorFixture(fixture) : null;
+      const selector = editor?.editable ?? fieldSelector;
+      const surface: Page | Frame = editor
+        ? editor.surface
+        : surfaceKind === "tinymce"
+          ? await waitUntil(
+              "TinyMCE editing frame",
+              async () => (await (await page.$("#test-tinymce_ifr"))?.contentFrame()) ?? false,
+              { timeoutMs: INPUT_READY_TIMEOUT_MS },
+            )
+          : surfaceKind === "gutenberg"
+            ? await waitUntil(
+                "editor frame",
+                async () =>
+                  page
+                    .frames()
+                    .find(
+                      (frame) =>
+                        frame.name() === "editor-canvas" || frame.url().startsWith("blob:"),
+                    ) ?? false,
+                { timeoutMs: INPUT_READY_TIMEOUT_MS },
+              )
+            : page;
+      await setup?.(surface);
+      await waitForInputReady(surface, selector);
+      // The Notion-like page drops a key that comes before it selects the block.
+      if (fixture === "notion") {
+        await clickNotionBlockEnd(1);
+        await page.keyboard.type(" ");
+      } else if (fixture) {
+        await placeCaretAfter(surface, selector, "dog.");
+        await page.keyboard.type(" ");
+      } else {
+        await surface.$eval(selector, (element) => {
+          (element as HTMLElement).focus();
+          if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)
+            element.select();
+          else element.ownerDocument.getSelection()!.selectAllChildren(element);
+        });
+        await sleep(250);
+        await page.keyboard.press("Backspace");
+      }
+      await page.keyboard.type("Hello there world wo", { delay: 20 });
+      /** A suggestion menu or an inline ghost is on screen. */
+      const shown = async () =>
+        (await hasVisibleSuggestions(surface)) ||
+        (await surface.evaluate(() =>
+          Boolean(document.querySelector(".ft-suggestion-inline")?.textContent),
+        ));
+      await waitUntil("suggestion after typing", shown, {
+        timeoutMs: SUGGESTION_TIMEOUT_MS,
+      });
+
+      /** Page coordinates of the middle of `needle` in the field. */
+      const pointIn = async (needle: string) => {
+        const point = await surface.$eval(
+          selector,
+          (element, text) => {
+            if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+              const index = element.value.indexOf(text);
+              const style = getComputedStyle(element);
+              const context = document.createElement("canvas").getContext("2d")!;
+              context.font = style.font;
+              const rect = element.getBoundingClientRect();
+              const x =
+                rect.left +
+                parseFloat(style.borderLeftWidth) +
+                parseFloat(style.paddingLeft) +
+                context.measureText(element.value.slice(0, index + text.length / 2)).width -
+                element.scrollLeft;
+              const line = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.2;
+              const y =
+                element instanceof HTMLInputElement
+                  ? rect.top + rect.height / 2
+                  : rect.top +
+                    parseFloat(style.borderTopWidth) +
+                    parseFloat(style.paddingTop) +
+                    line / 2;
+              return { x, y };
+            }
+            const walker = element.ownerDocument.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+              const index = node.textContent!.indexOf(text);
+              if (index < 0) continue;
+              const range = element.ownerDocument.createRange();
+              range.setStart(node, index + Math.floor(text.length / 2));
+              range.collapse(true);
+              const rect = range.getClientRects()[0] ?? range.getBoundingClientRect();
+              return { x: rect.left, y: rect.top + rect.height / 2 };
+            }
+            return null;
+          },
+          needle,
+        );
+        if (!point) throw new Error(`No text ${needle}`);
+        const offset =
+          surface === page ? null : await (await (surface as Frame).frameElement())?.boundingBox();
+        return { x: point.x + (offset?.x ?? 0), y: point.y + (offset?.y ?? 0) };
+      };
+      /** True when a menu shows within `ms` after `action`. */
+      const menuAfter = async (action: () => Promise<void>, ms = 1500) => {
+        await action();
+        const until = Date.now() + ms;
+        while (Date.now() < until) {
+          if (await shown()) return true;
+          await sleep(50);
+        }
+        return false;
+      };
+      const opened: string[] = [];
+      // A click into the text while the menu is open.
+      let point = await pointIn("there");
+      if (await menuAfter(() => page.mouse.click(point.x, point.y)))
+        opened.push("click while the menu is open");
+      // Arrow keys over existing text.
+      if (
+        await menuAfter(async () => {
+          for (const key of ["ArrowLeft", "ArrowLeft", "ArrowRight"] as const)
+            await page.keyboard.press(key);
+        })
+      )
+        opened.push("arrow keys");
+      // Leave the field, then click back into the middle of a word.
+      await page.mouse.click(5, 5);
+      await sleep(300);
+      point = await pointIn("Hello");
+      if (await menuAfter(() => page.mouse.click(point.x, point.y)))
+        opened.push("click into the field from outside");
+      // A second click in the field moves the caret again.
+      point = await pointIn("world");
+      if (await menuAfter(() => page.mouse.click(point.x, point.y)))
+        opened.push("second click in the field");
+      expect(opened).toEqual([]);
+    },
+    suiteTimeout(30000, 50000),
+  );
+
   test(
     "Gutenberg native slash menu keeps priority during block transformation",
     async () => {
