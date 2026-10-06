@@ -40,7 +40,12 @@ import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
 import { grammarRuleSelectionToOverrides } from "../../src/core/domain/grammar/GrammarRuleSettings";
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 import type { BackgroundContext } from "./e2e-helpers";
-import { EXTRA_LIST_ITEM, EXTRA_PARAGRAPH, SEED_TEXT } from "./fixtures/review-editors/shared";
+import {
+  EXTRA_LIST_ITEM,
+  EXTRA_PARAGRAPH,
+  SEED_HTML,
+  SEED_TEXT,
+} from "./fixtures/review-editors/shared";
 import {
   BROWSER_TYPE,
   clickFirstVisibleSuggestion,
@@ -5864,6 +5869,48 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "A late prediction answer keeps the suggestion that the user chose with an arrow key",
+    async () => {
+      const selector = "#test-input";
+
+      await openEnglishField(selector);
+      await typeInInput(page, selector, "th");
+      const suggestions = await waitForVisibleSuggestionTexts(page, suiteTimeout(5000, 9000));
+      expect(suggestions.length).toBeGreaterThan(1);
+      const chosen = suggestions[1]!;
+      await highlightSuggestion(page, chosen);
+      // A new answer renders new rows: mark the rows of this one.
+      const rows = () =>
+        page.evaluate(() =>
+          Array.from(document.querySelectorAll('[id^="ft-menu-"]'))
+            .filter((menu) => getComputedStyle(menu).display !== "none")
+            .flatMap((menu) =>
+              Array.from((menu.shadowRoot ?? menu).querySelectorAll("li[data-index]")),
+            )
+            .map((row) => {
+              const marked = row.hasAttribute("data-test-shown");
+              row.setAttribute("data-test-shown", "");
+              return marked;
+            }),
+        );
+      await rows();
+      // An answer that comes after the arrow key, as an answer for typing that was late.
+      await worker.evaluate(async () => {
+        const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+        const tab = tabs.find((candidate) => /^https?:/.test(candidate.url ?? "")) ?? tabs[0];
+        await chrome.tabs.sendMessage(tab!.id!, { command: "CMD_TRIGGER_FT_ACTIVE_TAB" });
+      });
+      await waitUntil("a new prediction answer", async () => {
+        const marked = await rows();
+        return marked.length > 0 && !marked.some(Boolean);
+      });
+      await page.keyboard.press("Tab");
+      await waitForInputContentEqual(page, selector, chosen);
+    },
+    suiteTimeout(25000, 45000),
+  );
+
+  test(
     "Grammar Rule Engine reverts latest auto-fix via Cmd/Ctrl+Z in #test-input",
     async () => {
       const selector = "#test-input";
@@ -10762,6 +10809,49 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           Array.from(root.querySelectorAll("li"), (item) => item.textContent),
         ),
       ).toEqual([BLOCK_SEED_TEXT.split("\n")[2].replace(marker, `${marker} ${prediction}Z`)]);
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  test(
+    "CKEditor 4 setData rewrites its frame with document.open, and typing still accepts a prediction",
+    async () => {
+      const first = await openTypingEditor("ckeditor4");
+      // FluentTyper runs in the editing frame before the rewrite.
+      await placeCaretAfter(first.surface, first.editable, "dog.");
+      await page.keyboard.type(" w");
+      await wPrediction(first.surface, "CKEditor 4 prediction before setData");
+      // setData writes the frame again: document.open() erases every listener in it
+      // and replaces its root element. The iframe and its window stay.
+      await page.evaluate(
+        (html) =>
+          new Promise<void>((resolve) => {
+            type Editor = { setData(data: string, options: { callback(): void }): void };
+            const ck = (window as unknown as { CKEDITOR: { instances: Record<string, Editor> } })
+              .CKEDITOR;
+            ck.instances["test-review-ckeditor4"].setData(html, { callback: resolve });
+          }),
+        SEED_HTML,
+      );
+      // Puppeteer can report the rewritten frame as a new frame.
+      const { surface, editable, model } = await reviewEditorFixture("ckeditor4");
+      expect((await model()).text).toBe(SEED_TEXT);
+      await placeCaretAfter(surface, editable, "dog.");
+      await page.keyboard.type(" w");
+      const prediction = await wPrediction(surface, "CKEditor 4 prediction after setData");
+      await page.keyboard.press("Tab");
+      await waitUntil(
+        "CKEditor 4 accepts the prediction after setData",
+        async () =>
+          normalizeSuggestionText((await model()).text) ===
+          normalizeSuggestionText(`${SEED_TEXT} ${prediction}`),
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      ).catch(async (cause) => {
+        throw new Error(`ckeditor4 model: ${JSON.stringify({ prediction, ...(await model()) })}`, {
+          cause,
+        });
+      });
+      expect((await model()).runs).toEqual({ bold: ["teh"], links: ["teh"] });
     },
     suiteTimeout(30000, 50000),
   );

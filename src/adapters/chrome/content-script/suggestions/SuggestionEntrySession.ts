@@ -304,6 +304,8 @@ export class SuggestionEntrySession {
       this.deferredInput = event;
       return;
     }
+    // An edit makes a new choice necessary.
+    this.entry.chosenSuggestion = null;
     if (!this.refreshInteraction()) {
       if (this.entry.isComposing) this.handleSuppressedInput();
       return;
@@ -404,6 +406,7 @@ export class SuggestionEntrySession {
     this.snippetSuggestions.clear();
     this.snippetShortcuts = undefined;
     this.entry.selectedIndex = 0;
+    this.entry.chosenSuggestion = null;
     this.entry.visibleSuggestionBeforeCursorText = null;
     this.entry.visibleSuggestionFullText = null;
     this.entry.inlineSuggestion = null;
@@ -442,7 +445,12 @@ export class SuggestionEntrySession {
     this.snippetSuggestions = new Set(
       this.entry.suggestions.filter((_, index) => context.snippetShortcuts?.[index]),
     );
-    this.entry.selectedIndex = 0;
+    // An answer that comes after an arrow key (it was late) keeps the user's choice.
+    const chosen = this.entry.chosenSuggestion
+      ? this.entry.suggestions.indexOf(this.entry.chosenSuggestion)
+      : -1;
+    if (chosen < 0) this.entry.chosenSuggestion = null;
+    this.entry.selectedIndex = Math.max(0, chosen);
     this.entry.menuHeader =
       this.options.showSuggestionFooter && context.lang && SUPPORTED_LANGUAGES[context.lang]
         ? suggestionLanguageLabel(SUPPORTED_LANGUAGES[context.lang])

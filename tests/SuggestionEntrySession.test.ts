@@ -1161,6 +1161,41 @@ test("session ignores stale responses and renders fresh menu responses", () => {
   expect(recordSuggestionShown).toHaveBeenCalledWith({ suggestionCount: 1, language: "en_US" });
 });
 
+test("a late answer keeps the suggestion that the user chose with an arrow key", () => {
+  const renderMenu = jest.fn();
+  const entry = createSuggestionEntry({ requestId: 2, latestMentionText: "th" });
+  const input = entry.elem as HTMLInputElement;
+  input.value = "th";
+  input.selectionStart = 2;
+  input.selectionEnd = 2;
+  const session = makeSession({ entry, renderMenu });
+  const answer = (predictions: string[]) =>
+    session.handlePredictionResponse(
+      partialResponse({ requestId: 2, suggestionId: 1, predictions }),
+    );
+
+  answer(["the", "that", "this"]);
+  // ArrowDown: the keyboard handler records the choice.
+  entry.selectedIndex = 1;
+  entry.chosenSuggestion = "that";
+  // The answer for the typed text comes after the arrow key, in another order.
+  answer(["this", "the", "that"]);
+  expect(entry.selectedIndex).toBe(2);
+  expect(renderMenu).toHaveBeenLastCalledWith(expect.objectContaining({ selectedIndex: 2 }));
+
+  // An answer without the chosen suggestion highlights the first row again.
+  answer(["they", "them"]);
+  expect(entry.selectedIndex).toBe(0);
+  expect(entry.chosenSuggestion).toBeNull();
+
+  // Typing makes a new choice necessary.
+  entry.chosenSuggestion = "them";
+  input.value = "the";
+  input.selectionStart = input.selectionEnd = 3;
+  session.handleInput(new Event("input"));
+  expect(entry.chosenSuggestion).toBeNull();
+});
+
 test("session does not fulfill pending inline accept when the ghost render is vetoed", () => {
   const textEditService = {
     acceptSuggestion: jest.fn(() => null),

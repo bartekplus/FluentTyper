@@ -154,6 +154,7 @@ export class SuggestionKeyboardHandler {
     if (next < rows) {
       entry.selectedIndex = next;
     }
+    entry.chosenSuggestion = next < rows ? entry.suggestions[next] : null;
     this.options.updateSelectionHighlight(entry);
   }
 

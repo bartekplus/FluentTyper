@@ -68,7 +68,15 @@ export class HostChangeWatcher {
     }
 
     const currentNode = document.body || document.documentElement;
-    if (this.dependencies.getObservedNode() === currentNode) {
+    const observedNode = this.dependencies.getObservedNode();
+    if (observedNode === currentNode) {
+      return;
+    }
+    // A script that started while the page was loading, before the body (CKEditor 4
+    // writes its editing frame so), observes the root. The root still holds the body:
+    // a restart would only drop the open suggestions.
+    if (observedNode.isConnected && observedNode.contains(currentNode)) {
+      this.dependencies.setObservedNode(currentNode);
       return;
     }
 
