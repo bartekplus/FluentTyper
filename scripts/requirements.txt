@@ -1,2 +1,2 @@
 marisa-trie==1.2.1
-nltk==3.9.1
+nltk==3.10.3
