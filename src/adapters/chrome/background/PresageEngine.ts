@@ -115,8 +115,15 @@ export class PresageEngine {
     try {
       const started = now();
       const results: Array<string[] | null> = [];
-      for (const { word, before } of words) {
+      for (const { word, before: context } of words) {
         if (results.length > 0 && now() - started >= budgetMs) break;
+        // The recency predictor offers the context's own words: a typo after
+        // itself ("Asd asd") would vouch for itself.
+        const key = word.toLowerCase();
+        const before = context
+          .split(" ")
+          .filter((part) => part.toLowerCase() !== key)
+          .join(" ");
         let answer = this.spellingAnswer(`${before}${word}`, word);
         // A full pool may hold only completions more frequent than the word itself
         // ("Re" under a thousand words starting with "re"): asked again in the

@@ -375,6 +375,9 @@ describe("markdown code ranges in finished text", () => {
     expect(ranges).toEqual(["`b`", "``d ` e``", "```js\ncode\n```"]);
     expect(findMarkdownCodeRanges("~~~\nopen fence to end")).toEqual([[0, 21]]);
     expect(findMarkdownCodeRanges("plain prose")).toEqual([]);
+    // A fence inside a blockquote ends with the quote: the lines after it stay prose.
+    expect(findMarkdownCodeRanges("> ```\n> code\nafter teh")).toEqual([[0, 12]]);
+    expect(findMarkdownCodeRanges("> > ~~~\n> > code\n> after")).toEqual([[0, 16]]);
     // Indented prose (a pasted `git log` body) is not code: only fences and spans are.
     expect(findMarkdownCodeRanges("    Code and docs: five rounds.\n\n    Tests only.")).toEqual(
       [],
