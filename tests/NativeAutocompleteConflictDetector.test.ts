@@ -245,8 +245,17 @@ describe("native field eligibility and interaction evidence", () => {
     list.innerHTML = "No results";
     expect(hasActiveAutocompletePopup(input)).toBe(true);
     list.innerHTML = '<div role="option" aria-disabled="true">Choice</div>';
+    visible(list.firstElementChild!);
     expect(hasActiveAutocompletePopup(input)).toBe(true);
-    // A stale expanded flag with an empty popup does not pause, painted or not.
+    // A stale expanded flag with a visually empty popup does not pause, painted or not.
+    for (const html of [
+      '<div role="option" hidden>Choice</div>',
+      "<template>x</template>",
+      "<!-- portal -->",
+    ]) {
+      list.innerHTML = html;
+      expect(hasActiveAutocompletePopup(input)).toBe(false);
+    }
     list.replaceChildren();
     expect(hasActiveAutocompletePopup(input)).toBe(false);
     list.getClientRects = () => [] as unknown as DOMRectList;

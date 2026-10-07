@@ -113,6 +113,15 @@ function choices(popup: Element): Element[] {
   );
 }
 
+/** A popup that paints only padding, or keeps hidden children, is not an open list. */
+function hasRenderedContent(popup: Element): boolean {
+  return Array.from(popup.childNodes).some((node) =>
+    node.nodeType === Node.TEXT_NODE
+      ? !!node.textContent?.trim()
+      : node.nodeType === Node.ELEMENT_NODE && isVisible(node as Element),
+  );
+}
+
 /** The field, or for the ARIA 1.1 pattern its wrapper combobox, reports an open popup. */
 function isExpanded(element: HTMLElement): boolean {
   const owner = element.hasAttribute("aria-expanded")
@@ -130,9 +139,7 @@ export function hasActiveAutocompletePopup(element: HTMLElement): boolean {
   return linkedAutocompletePopups(element).some(
     (popup) =>
       isVisible(popup) &&
-      // An empty popup that paints only padding is not an open list.
-      ((isExpanded(element) && (!!popup.firstElementChild || !!popup.textContent?.trim())) ||
-        choices(popup).some(isActionable)),
+      ((isExpanded(element) && hasRenderedContent(popup)) || choices(popup).some(isActionable)),
   );
 }
 
