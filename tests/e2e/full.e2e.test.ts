@@ -1083,6 +1083,49 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "An open site list with checkbox rows or no results pauses FluentTyper until it closes",
+    async () => {
+      await gotoTestPage(page);
+      await waitForInputReady(page, "#test-input");
+      await page.evaluate(() => {
+        const input = document.querySelector<HTMLInputElement>("#test-input")!;
+        input.setAttribute("role", "combobox");
+        input.setAttribute("aria-expanded", "false");
+        input.setAttribute("aria-controls", "site-list");
+        const list = document.createElement("div");
+        list.id = "site-list";
+        list.setAttribute("role", "listbox");
+        list.hidden = true;
+        input.parentElement!.append(list);
+      });
+      await typeInInput(page, "#test-input", "th");
+      await waitForVisibleSuggestions(page);
+      // A multi-select site list (itaka.pl) uses checkbox rows, not options.
+      await page.evaluate(() => {
+        const list = document.querySelector<HTMLElement>("#site-list")!;
+        list.innerHTML = '<button role="checkbox"></button><label>Tenerife</label>';
+        list.hidden = false;
+      });
+      await waitForNoVisibleSuggestions(page);
+      // An expanded field keeps its "No results" list; typing stays paused.
+      await page.evaluate(() => {
+        document.querySelector("#test-input")!.setAttribute("aria-expanded", "true");
+        document.querySelector("#site-list")!.innerHTML = "No results";
+      });
+      await page.type("#test-input", "e");
+      await sleep(400);
+      expect(await hasVisibleSuggestions(page)).toBe(false);
+      await page.evaluate(() => {
+        document.querySelector("#test-input")!.setAttribute("aria-expanded", "false");
+        document.querySelector<HTMLElement>("#site-list")!.hidden = true;
+      });
+      await page.type("#test-input", " th");
+      expect(await waitForVisibleSuggestions(page)).toBeGreaterThan(0);
+    },
+    suiteTimeout(10000, 15000),
+  );
+
+  test(
     "Google-style search suggestions inside linked wrappers pause FluentTyper",
     async () => {
       await gotoTestPage(page);

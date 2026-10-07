@@ -190,6 +190,82 @@ describe("native field eligibility and interaction evidence", () => {
     expect(isSensitiveField(field('<input id="passage">'))).toBe(true);
     expect(isSensitiveField(field('<input id="footpath">'))).toBe(true);
   });
+  test("multi-select listboxes with checkbox rows are active popups", () => {
+    const input = field('<input role="combobox" aria-controls="choices">');
+    const list = popup();
+    list.innerHTML = '<div><button role="checkbox"></button><label>Tenerife</label></div>';
+    visible(list.querySelector("button")!);
+    expect(hasActiveAutocompletePopup(input)).toBe(true);
+    for (const row of [
+      '<button role="radio"></button>',
+      "<button>Tenerife</button>",
+      '<input type="checkbox">',
+    ]) {
+      list.innerHTML = row;
+      visible(list.firstElementChild!);
+      expect(hasActiveAutocompletePopup(input)).toBe(true);
+    }
+  });
+  test("individually hidden listbox controls do not reserve arrows", () => {
+    const input = field('<input aria-controls="choices">');
+    const list = popup();
+    const arrow = new window.KeyboardEvent("keydown", { key: "ArrowDown" });
+    for (const html of [
+      '<input type="hidden" name="token">',
+      "<button hidden>Old</button>",
+      "<div hidden><button>Old</button></div>",
+      '<div style="display:none"><button>Old</button></div>',
+      '<div style="opacity:0"><button>Old</button></div>',
+      "<div inert><button>Old</button></div>",
+      '<div aria-hidden="true"><button>Old</button></div>',
+    ]) {
+      list.innerHTML = html;
+      expect(reservesAutocompleteArrow(input, arrow)).toBe(false);
+    }
+    // Choices of a closed (hidden) popup still reserve arrows.
+    list.innerHTML = "<button>Tenerife</button>";
+    list.hidden = true;
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(true);
+  });
+  test("controls in a linked dialog are not choices without an expanded flag", () => {
+    const input = field('<input aria-controls="choices">');
+    const dialog = popup();
+    dialog.setAttribute("role", "dialog");
+    dialog.innerHTML = '<button role="checkbox"></button>';
+    visible(dialog.firstElementChild!);
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
+  });
+  test("an ARIA 1.1 wrapper combobox can own the popup reference", () => {
+    const wrapper = field(
+      '<div role="combobox" aria-expanded="true" aria-controls="choices"><input></div>',
+    );
+    const list = popup();
+    list.innerHTML = "No results";
+    expect(hasActiveAutocompletePopup(wrapper.querySelector("input")!)).toBe(true);
+  });
+  test("an active descendant listbox control links its popup", () => {
+    const input = field('<input aria-activedescendant="choice">');
+    const list = popup();
+    list.innerHTML = '<button role="checkbox" id="choice"></button>';
+    visible(list.firstElementChild!);
+    expect(hasActiveAutocompletePopup(input)).toBe(true);
+  });
+  test("an ARIA 1.1 wrapper combobox reports the expanded state", () => {
+    const wrapper = field(
+      '<div role="combobox" aria-expanded="true"><input aria-controls="choices"></div>',
+    );
+    const input = wrapper.querySelector("input")!;
+    const list = popup();
+    list.innerHTML = "No results";
+    expect(hasActiveAutocompletePopup(input)).toBe(true);
+    wrapper.setAttribute("aria-expanded", "false");
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
+    // A closed wrapper combobox fills its popup only after ArrowDown.
+    list.replaceChildren();
+    expect(
+      reservesAutocompleteArrow(input, new window.KeyboardEvent("keydown", { key: "ArrowDown" })),
+    ).toBe(true);
+  });
   test("linked actionable visibility outranks stale ARIA; unrelated and empty UI is ignored", () => {
     const input = field('<input type="search" aria-controls="choices" aria-expanded="false">');
     const list = popup();
@@ -198,6 +274,7 @@ describe("native field eligibility and interaction evidence", () => {
     input.setAttribute("aria-expanded", "true");
     expect(hasActiveAutocompletePopup(input)).toBe(false);
     list.hidden = false;
+    input.setAttribute("aria-expanded", "false");
     list.firstElementChild!.setAttribute("aria-disabled", "true");
     expect(hasActiveAutocompletePopup(input)).toBe(false);
     list.innerHTML = "No results";
@@ -205,6 +282,28 @@ describe("native field eligibility and interaction evidence", () => {
     list.remove();
     popup();
     input.removeAttribute("aria-controls");
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
+  });
+  test("an expanded field yields to its visible popup even without choices", () => {
+    const input = field('<input role="combobox" aria-controls="choices" aria-expanded="true">');
+    const list = popup();
+    list.innerHTML = "No results";
+    expect(hasActiveAutocompletePopup(input)).toBe(true);
+    list.innerHTML = '<div role="option" aria-disabled="true">Choice</div>';
+    visible(list.firstElementChild!);
+    expect(hasActiveAutocompletePopup(input)).toBe(true);
+    // A stale expanded flag with a visually empty popup does not pause, painted or not.
+    for (const html of [
+      '<div role="option" hidden>Choice</div>',
+      "<template>x</template>",
+      "<!-- portal -->",
+    ]) {
+      list.innerHTML = html;
+      expect(hasActiveAutocompletePopup(input)).toBe(false);
+    }
+    list.replaceChildren();
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
+    list.getClientRects = () => [] as unknown as DOMRectList;
     expect(hasActiveAutocompletePopup(input)).toBe(false);
   });
   test.each(["aria-controls", "aria-owns"])(

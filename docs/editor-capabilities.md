@@ -8,7 +8,7 @@ A fingerprint restricts a writer. It does not prove that an editor supports that
 - `SuggestionElementDiscovery.ts` discovers fields and open shadow roots. Each injected frame has its own runtime.
 - `FieldEligibility.ts` excludes credentials, payment fields, locked controls, and hidden fields before Review reads text.
 - `CodeContextResolver.ts` identifies semantic code and protected selection ranges. Weak CSS names do not exclude a document.
-- `NativeAutocompleteConflictDetector.ts` distinguishes structured fields and browser datalists from prose. It checks linked popup visibility and actionable options.
+- `NativeAutocompleteConflictDetector.ts` distinguishes structured fields and browser datalists from prose. It checks linked popup visibility and actionable options. A linked popup is active when it is visible and either the field (or its wrapper `role="combobox"`) has `aria-expanded="true"` and the popup has content (also with no choices, for example "No results"), or the popup has a visible, enabled choice. Inside a linked listbox, every control is a choice (for example checkbox, radio or button rows).
 - `SuggestionManagerRuntime.ts` manages activation, saved field choices, active sessions, and teardown.
 - `DomObserver.ts`, `MutationPipeline.ts`, and the mutation scheduler process relevant changes. Typing-only mutations do not cause discovery scans.
 - `SuggestionEntrySession.ts` cancels stale requests and timers. `SuggestionTextEditService.ts` uses the adapter transactions.
@@ -20,7 +20,7 @@ Review detection stays in the extension background. Typing handlers do no infere
 ## Capability record
 
 An ordinary input with only `role="combobox"` activates automatically.
-ARIA roles, popup hints, and stale expanded flags do not prevent automatic activation.
+ARIA roles, popup hints, and stale expanded flags do not prevent automatic activation. An expanded flag pauses suggestions only while the linked popup is visible.
 Structured purpose attributes and usable browser datalists keep manual activation.
 
 `EditorCapabilities.ts` returns a fixed, text-free record. It has these fields: `inspectProse`, `displaySuggestions`, `renderReview`, `reviewApply`, `consumeAcceptanceKey`, `conflict`, `context` (`prose`, `code`, `protected`, or `unknown`), and `reason`.

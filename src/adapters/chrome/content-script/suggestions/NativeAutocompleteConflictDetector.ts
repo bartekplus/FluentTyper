@@ -10,6 +10,8 @@ const POPUP_SELECTOR =
   '[role="listbox"], [role="grid"], [role="tree"], [role="menu"], [role="dialog"]';
 const ITEM_SELECTOR =
   '[role="option"], [role="treeitem"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="gridcell"]';
+// Inside a listbox every control is a choice, e.g. itaka.pl checkbox rows.
+const LISTBOX_CHOICE_SELECTOR = `${ITEM_SELECTOR}, [role="checkbox"], [role="radio"], [role="switch"], button, input:not([type="hidden"]), select, a[href], [tabindex]`;
 const STRUCTURED =
   /^(?:username|email|name|honorific-prefix|given-name|additional-name|family-name|honorific-suffix|nickname|street-address|postal-code|url|tel(?:-\w+)?|address-\w+)$/;
 
@@ -83,11 +85,13 @@ function isActionable(element: Element): boolean {
 }
 
 function linkedAutocompletePopups(element: HTMLElement): Element[] {
-  const ids =
-    `${element.getAttribute("aria-controls") ?? ""} ${element.getAttribute("aria-owns") ?? ""}`
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
+  // An ARIA 1.1 wrapper combobox can own the popup reference.
+  const wrapper = element.parentElement?.closest('[role="combobox"]');
+  const ids = [element, wrapper]
+    .flatMap((owner) => [owner?.getAttribute("aria-controls"), owner?.getAttribute("aria-owns")])
+    .join(" ")
+    .split(/\s+/)
+    .filter(Boolean);
   const popups = ids
     .map((id) => findReference(element, id))
     .filter((popup): popup is Element => !!popup)
@@ -96,21 +100,66 @@ function linkedAutocompletePopups(element: HTMLElement): Element[] {
     );
   const activeId = element.getAttribute("aria-activedescendant");
   const active = activeId ? findReference(element, activeId) : null;
-  if (active?.matches(ITEM_SELECTOR) && isActionable(active)) {
-    const popup = active.closest(POPUP_SELECTOR);
-    if (popup) popups.push(popup);
-  }
+  const activePopup = active?.closest(POPUP_SELECTOR);
+  if (active && activePopup && choices(activePopup).includes(active) && isActionable(active))
+    popups.push(activePopup);
   return popups;
 }
 
-/** DOM-only: also used before the MAIN-world bridge captures Tab. */
+function choices(popup: Element): Element[] {
+  return Array.from(
+    popup.querySelectorAll(
+      popup.matches('[role="listbox"]') ? LISTBOX_CHOICE_SELECTOR : ITEM_SELECTOR,
+    ),
+  );
+}
+
+/**
+ * A control hidden below the popup is unusable; one hidden only by a closed popup is not.
+ * Inherited states (visibility) are skipped: a closed popup passes them down to its choices.
+ */
+function hiddenInside(item: Element, popup: Element): boolean {
+  for (let node: Element | null = item; node && node !== popup; node = node.parentElement) {
+    const style = node.ownerDocument.defaultView?.getComputedStyle(node);
+    if (
+      node.hasAttribute("hidden") ||
+      node.hasAttribute("inert") ||
+      node.getAttribute("aria-hidden") === "true" ||
+      style?.display === "none" ||
+      style?.opacity === "0"
+    )
+      return true;
+  }
+  return false;
+}
+
+/** A popup that paints only padding, or keeps hidden children, is not an open list. */
+function hasRenderedContent(popup: Element): boolean {
+  return Array.from(popup.childNodes).some((node) =>
+    node.nodeType === Node.TEXT_NODE
+      ? !!node.textContent?.trim()
+      : node.nodeType === Node.ELEMENT_NODE && isVisible(node as Element),
+  );
+}
+
+/** The field, or for the ARIA 1.1 pattern its wrapper combobox, reports an open popup. */
+function isExpanded(element: HTMLElement): boolean {
+  const owner = element.hasAttribute("aria-expanded")
+    ? element
+    : element.closest('[role="combobox"]');
+  return owner?.getAttribute("aria-expanded") === "true";
+}
+
+/**
+ * DOM-only: also used before the MAIN-world bridge captures Tab.
+ * An expanded field yields to its visible popup even with no choices ("No results"),
+ * so only one list shows at the field and the state does not change with the result count.
+ */
 export function hasActiveAutocompletePopup(element: HTMLElement): boolean {
   return linkedAutocompletePopups(element).some(
     (popup) =>
       isVisible(popup) &&
-      ((popup.getAttribute("role") === "dialog" &&
-        element.getAttribute("aria-expanded") === "true") ||
-        Array.from(popup.querySelectorAll(ITEM_SELECTOR)).some(isActionable)),
+      ((isExpanded(element) && hasRenderedContent(popup)) || choices(popup).some(isActionable)),
   );
 }
 
@@ -130,11 +179,13 @@ export function reservesAutocompleteArrow(element: HTMLElement, event: KeyboardE
     return false;
   return (
     hasUsableDatalist(element) ||
-    // Explicit comboboxes may populate their popup only after the opening gesture.
-    element.getAttribute("role") === "combobox" ||
+    // Explicit comboboxes (also an ARIA 1.1 wrapper) may populate their popup only after the opening gesture.
+    !!element.closest('[role="combobox"]') ||
     linkedAutocompletePopups(element).some((popup) =>
-      Array.from(popup.querySelectorAll(ITEM_SELECTOR)).some(
-        (item) => !item.closest('[aria-disabled="true"], [disabled], [data-ft-suggestion-owned]'),
+      choices(popup).some(
+        (item) =>
+          !hiddenInside(item, popup) &&
+          !item.closest('[aria-disabled="true"], [disabled], [data-ft-suggestion-owned]'),
       ),
     )
   );
