@@ -8,8 +8,9 @@ export type FieldEligibility =
 
 const POPUP_SELECTOR =
   '[role="listbox"], [role="grid"], [role="tree"], [role="menu"], [role="dialog"]';
+// Checkbox: multi-select listboxes (e.g. itaka.pl destinations) use checkbox rows.
 const ITEM_SELECTOR =
-  '[role="option"], [role="treeitem"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="gridcell"]';
+  '[role="option"], [role="treeitem"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="gridcell"], [role="checkbox"]';
 const STRUCTURED =
   /^(?:username|email|name|honorific-prefix|given-name|additional-name|family-name|honorific-suffix|nickname|street-address|postal-code|url|tel(?:-\w+)?|address-\w+)$/;
 
@@ -103,13 +104,16 @@ function linkedAutocompletePopups(element: HTMLElement): Element[] {
   return popups;
 }
 
-/** DOM-only: also used before the MAIN-world bridge captures Tab. */
+/**
+ * DOM-only: also used before the MAIN-world bridge captures Tab.
+ * An expanded field yields to its visible popup even with no choices ("No results"),
+ * so only one list shows at the field and the state does not change with the result count.
+ */
 export function hasActiveAutocompletePopup(element: HTMLElement): boolean {
   return linkedAutocompletePopups(element).some(
     (popup) =>
       isVisible(popup) &&
-      ((popup.getAttribute("role") === "dialog" &&
-        element.getAttribute("aria-expanded") === "true") ||
+      (element.getAttribute("aria-expanded") === "true" ||
         Array.from(popup.querySelectorAll(ITEM_SELECTOR)).some(isActionable)),
   );
 }

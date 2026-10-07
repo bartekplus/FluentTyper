@@ -823,11 +823,11 @@ export class SuggestionManagerRuntime {
         if (capabilities.conflict === "native-popup") {
           this.pauseAnnounced.add(elem);
           this.manualAttachUiManager.showPausedBadge(elem, {
-            label: "Paused for site suggestions",
+            label: "Paused while site list is open",
             hint: "Click to use FluentTyper here",
             title: capabilities.renderReview
-              ? "Website suggestions are active. Review remains available. Typing assistance resumes when the popup closes. Click to use FluentTyper in this field."
-              : "Website suggestions are active. Typing assistance resumes when the popup closes. Click to use FluentTyper in this field.",
+              ? "The website list for this field is open. Review remains available. Typing assistance resumes when the list closes. Click to use FluentTyper in this field."
+              : "The website list for this field is open. Typing assistance resumes when the list closes. Click to use FluentTyper in this field.",
             expand,
             onActivate: () => this.useDespiteSitePopup(entry),
           });

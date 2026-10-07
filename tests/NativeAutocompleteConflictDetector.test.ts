@@ -190,6 +190,13 @@ describe("native field eligibility and interaction evidence", () => {
     expect(isSensitiveField(field('<input id="passage">'))).toBe(true);
     expect(isSensitiveField(field('<input id="footpath">'))).toBe(true);
   });
+  test("multi-select listboxes with checkbox rows are active popups", () => {
+    const input = field('<input role="combobox" aria-controls="choices">');
+    const list = popup();
+    list.innerHTML = '<div><button role="checkbox"></button><label>Tenerife</label></div>';
+    visible(list.querySelector("button")!);
+    expect(hasActiveAutocompletePopup(input)).toBe(true);
+  });
   test("linked actionable visibility outranks stale ARIA; unrelated and empty UI is ignored", () => {
     const input = field('<input type="search" aria-controls="choices" aria-expanded="false">');
     const list = popup();
@@ -198,6 +205,7 @@ describe("native field eligibility and interaction evidence", () => {
     input.setAttribute("aria-expanded", "true");
     expect(hasActiveAutocompletePopup(input)).toBe(false);
     list.hidden = false;
+    input.setAttribute("aria-expanded", "false");
     list.firstElementChild!.setAttribute("aria-disabled", "true");
     expect(hasActiveAutocompletePopup(input)).toBe(false);
     list.innerHTML = "No results";
@@ -205,6 +213,18 @@ describe("native field eligibility and interaction evidence", () => {
     list.remove();
     popup();
     input.removeAttribute("aria-controls");
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
+  });
+  test("an expanded field yields to its visible popup even without choices", () => {
+    const input = field('<input role="combobox" aria-controls="choices" aria-expanded="true">');
+    const list = popup();
+    list.innerHTML = "No results";
+    expect(hasActiveAutocompletePopup(input)).toBe(true);
+    list.innerHTML = '<div role="option" aria-disabled="true">Choice</div>';
+    expect(hasActiveAutocompletePopup(input)).toBe(true);
+    // A stale expanded flag with an empty, unpainted popup does not pause.
+    list.replaceChildren();
+    list.getClientRects = () => [] as unknown as DOMRectList;
     expect(hasActiveAutocompletePopup(input)).toBe(false);
   });
   test.each(["aria-controls", "aria-owns"])(
