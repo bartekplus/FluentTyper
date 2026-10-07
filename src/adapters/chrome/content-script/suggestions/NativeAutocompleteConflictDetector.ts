@@ -113,7 +113,9 @@ export function hasActiveAutocompletePopup(element: HTMLElement): boolean {
   return linkedAutocompletePopups(element).some(
     (popup) =>
       isVisible(popup) &&
-      (element.getAttribute("aria-expanded") === "true" ||
+      // An empty popup that paints only padding is not an open list.
+      ((element.getAttribute("aria-expanded") === "true" &&
+        (!!popup.firstElementChild || !!popup.textContent?.trim())) ||
         Array.from(popup.querySelectorAll(ITEM_SELECTOR)).some(isActionable)),
   );
 }

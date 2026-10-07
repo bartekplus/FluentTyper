@@ -1953,7 +1953,7 @@ i18n.extend({
     en: "Automatically avoid autocomplete conflicts",
   },
   prefer_native_autocomplete_desc: {
-    en: "FluentTyper pauses while website suggestions are active and resumes as you type. Structured fields and browser-managed suggestions may need manual activation.",
+    en: "FluentTyper pauses while a website list for the field is open and resumes when it closes. Structured fields and browser-managed suggestions may need manual activation.",
   },
   code_mode_label: {
     en: "Code mode",

@@ -222,8 +222,9 @@ describe("native field eligibility and interaction evidence", () => {
     expect(hasActiveAutocompletePopup(input)).toBe(true);
     list.innerHTML = '<div role="option" aria-disabled="true">Choice</div>';
     expect(hasActiveAutocompletePopup(input)).toBe(true);
-    // A stale expanded flag with an empty, unpainted popup does not pause.
+    // A stale expanded flag with an empty popup does not pause, painted or not.
     list.replaceChildren();
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
     list.getClientRects = () => [] as unknown as DOMRectList;
     expect(hasActiveAutocompletePopup(input)).toBe(false);
   });
