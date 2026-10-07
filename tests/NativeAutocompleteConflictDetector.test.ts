@@ -251,6 +251,12 @@ describe("native field eligibility and interaction evidence", () => {
     tooltip.innerHTML = '<div role="button" tabindex="0">Katowice</div>';
     visible(tooltip.firstElementChild!);
     expect(hasActiveAutocompletePopup(input)).toBe(true);
+    const arrow = new window.KeyboardEvent("keydown", { key: "ArrowDown" });
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(true);
+    // A closed tooltip keeps its rows but does not take the arrows.
+    tooltip.hidden = true;
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(false);
+    tooltip.hidden = false;
     // A plain hint tooltip has no controls and does not pause.
     tooltip.innerHTML = "Pick an airport";
     expect(hasActiveAutocompletePopup(input)).toBe(false);

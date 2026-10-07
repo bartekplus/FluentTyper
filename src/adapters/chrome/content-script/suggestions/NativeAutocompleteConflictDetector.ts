@@ -99,10 +99,11 @@ function linkedAutocompletePopups(element: HTMLElement): Element[] {
       popup.matches(POPUP_SELECTOR) ? [popup] : Array.from(popup.querySelectorAll(POPUP_SELECTOR)),
     );
   // ryanair.com links its airport list as a tooltip from a field wrapper.
+  // Only a shown tooltip counts: no evidence says an arrow opens a closed one.
   for (let node: Element | null = element; node; node = node.parentElement)
     for (const id of node.getAttribute("aria-describedby")?.split(/\s+/) ?? []) {
       const tooltip = id ? findReference(element, id) : null;
-      if (tooltip?.matches('[role="tooltip"]')) popups.push(tooltip);
+      if (tooltip?.matches('[role="tooltip"]') && isVisible(tooltip)) popups.push(tooltip);
     }
   const activeId = element.getAttribute("aria-activedescendant");
   const active = activeId ? findReference(element, activeId) : null;
