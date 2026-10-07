@@ -574,6 +574,8 @@ describe("Markdown code is detected centrally", () => {
   for (const [input, expected] of [
     ["Use \\` literally. dont ", "Use \\` literally. Don't "],
     ["```x```\ndont ", "```x```\nDon't "],
+    // A fence inside a blockquote ends with the quote.
+    ["> ~~~\n> code\n\ndont ", "> ~~~\n> code\n\nDon't "],
   ])
     test(`corrects ${JSON.stringify(input)}`, () => expect(type(input)).toBe(expected));
 });

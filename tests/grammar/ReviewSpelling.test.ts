@@ -49,6 +49,14 @@ describe("review spelling: which words are looked up", () => {
     // A capitalized word opening a sentence or a line is still checked.
     expect(words("Thsi is.\nKrakow is")).toEqual(["Thsi", "is", "Krakow", "is"]);
     expect(words('"Thsi is" he said')).toEqual(["Thsi", "is", "he", "said"]);
+    // Markdown quote and list markers open the line too.
+    expect(words("> Asd asd\n> > Sad\n- Teh\n2. Wrold")).toEqual([
+      "Asd",
+      "asd",
+      "Sad",
+      "Teh",
+      "Wrold",
+    ]);
     // A capitalized word quoted inside a sentence is treated like a name.
     expect(words('He said "Bartek" twice')).toEqual(["He", "said", "twice"]);
     // One-letter words and words beside protected text are not looked up.

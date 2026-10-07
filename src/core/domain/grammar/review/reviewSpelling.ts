@@ -1,6 +1,7 @@
 import { startsSentence } from "../implementations/CapitalizeSentenceStartRule";
 import { englishNounForms } from "../implementations/helpers/EnglishNounNumber";
 import { lastNonBlankBefore } from "../implementations/helpers/EnglishRuleShared";
+import { CONTAINER_PREFIX_REGEX } from "../implementations/helpers/ProtectedSpanShared";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import type { PreparedReview } from "./reviewDiagnostics";
 import { MASK_CHAR, type TextRange } from "./types";
@@ -188,6 +189,9 @@ function opensSentence(prepared: PreparedReview, start: number): boolean {
   const { text } = prepared;
   const i = lastNonBlankBefore(text, start);
   if (i < 0 || text[i] === "\n") return true;
+  // Only Markdown quote or list markers before the word on its line ("> ", "- ", "2. ").
+  const line = text.slice(text.lastIndexOf("\n", start - 1) + 1, start);
+  if (CONTAINER_PREFIX_REGEX.exec(line)![0] === line) return true;
   // An opening quote or bracket before the word: look past it.
   if (/[("'“‘«»„‚”¿¡[]/u.test(text[i])) return opensSentence(prepared, i);
   return startsSentence(text, start, prepared.options.lang);

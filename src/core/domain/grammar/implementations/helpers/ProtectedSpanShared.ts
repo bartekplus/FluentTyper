@@ -1,7 +1,13 @@
 // Blockquote markers and a list item marker may precede a fence ("> ~~~",
 // "- ```"); CommonMark treats both as container prefixes, not content.
-const CONTAINER_PREFIX_REGEX = /^(?: {0,3}> ?)*(?: {0,3}(?:[-+*]|\d{1,9}[.)])[ \t]+)?/;
+export const CONTAINER_PREFIX_REGEX = /^(?: {0,3}> ?)*(?: {0,3}(?:[-+*]|\d{1,9}[.)])[ \t]+)?/;
 const FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})(.*)$/;
+const QUOTE_PREFIX_REGEX = /^(?: {0,3}> ?)*/;
+
+/** Blockquote markers on `line`: a fence opened inside a quote ends with that quote. */
+function quoteDepth(line: string): number {
+  return QUOTE_PREFIX_REGEX.exec(line)![0].split(">").length - 1;
+}
 
 /** The fence run on `line`, or null. A backtick fence's info string cannot hold a backtick. */
 function readFence(line: string): { run: string; rest: string } | null {
@@ -41,8 +47,8 @@ const PROSE_QUOTE_CLOSERS: Record<string, string> = {
  *
  * - Fenced blocks (CommonMark 4.5): a run of 3+ backticks or tildes opens, also
  *   inside a blockquote or list item; only a line holding a run of the same
- *   character, at least as long, closes it. Everything inside is protected,
- *   including backticks. "```x```" is an inline span, not a fence.
+ *   character, at least as long, or the end of its blockquote closes it.
+ *   Everything inside is protected, including backticks. "```x```" is an inline span, not a fence.
  * - Code spans (CommonMark 6.1): a backtick run closes only at a run of the same
  *   length, so ``a `b` c`` stays open across the inner single backticks. An
  *   escaped backtick (\`) outside a span is literal (CommonMark 2.4).
@@ -53,7 +59,7 @@ export function isInsideProtectedSpan(
   text: string,
   options: { quotations?: boolean } = {},
 ): boolean {
-  let fence: { char: string; length: number } | null = null;
+  let fence: { char: string; length: number; depth: number } | null = null;
   let spanRun = 0;
   let proseCloser = "";
   const lines = text.split("\n");
@@ -62,12 +68,13 @@ export function isInsideProtectedSpan(
     const line = lines[lineIndex];
     if (spanRun === 0) {
       const found = readFence(line);
+      if (fence && quoteDepth(line) < fence.depth) fence = null;
       if (fence) {
         if (closesFence(found, fence)) fence = null;
         continue;
       }
       if (found) {
-        fence = { char: found.run[0], length: found.run.length };
+        fence = { char: found.run[0], length: found.run.length, depth: quoteDepth(line) };
         continue;
       }
     }
@@ -120,7 +127,7 @@ export function findMarkdownCodeRanges(text: string): Array<[number, number]> {
   const ranges: Array<[number, number]> = [];
   if (!text.includes("`") && !text.includes("~~~")) return ranges;
   const lines = text.split("\n");
-  let fence: { char: string; length: number; start: number } | null = null;
+  let fence: { char: string; length: number; depth: number; start: number } | null = null;
   // Paragraph text outside fences, scanned for spans once a paragraph ends.
   let paragraphStart = -1;
   let lineStart = 0;
@@ -132,6 +139,10 @@ export function findMarkdownCodeRanges(text: string): Array<[number, number]> {
   for (const line of lines) {
     const lineEnd = lineStart + line.length;
     const found = readFence(line);
+    if (fence && quoteDepth(line) < fence.depth) {
+      ranges.push([fence.start, lineStart - 1]);
+      fence = null;
+    }
     if (fence) {
       if (closesFence(found, fence)) {
         ranges.push([fence.start, lineEnd]);
@@ -139,7 +150,12 @@ export function findMarkdownCodeRanges(text: string): Array<[number, number]> {
       }
     } else if (found) {
       flushParagraph(lineStart);
-      fence = { char: found.run[0], length: found.run.length, start: lineStart };
+      fence = {
+        char: found.run[0],
+        length: found.run.length,
+        depth: quoteDepth(line),
+        start: lineStart,
+      };
     } else if (line.trim() === "") {
       flushParagraph(lineStart);
     } else if (paragraphStart < 0) {

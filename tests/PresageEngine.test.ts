@@ -153,6 +153,13 @@ describe("PresageEngine", () => {
       expect(engine.lookupWords(words, { budgetMs: 0, now })).toEqual([["was", "way"]]);
     });
 
+    test("the word is left out of its own context, so the recency predictor cannot vouch for it", () => {
+      const { engine, pastStreams } = timedEngine(1);
+      engine.lookupWords([{ word: "asd", before: "Asd " }]);
+      engine.lookupWords([{ word: "wa", before: "Where WA " }]);
+      expect(pastStreams).toEqual(["asd", "Where wa"]);
+    });
+
     test("a failing lookup still restores the typing config", () => {
       const { engine, config, now } = timedEngine(1);
       config.mockClear();
