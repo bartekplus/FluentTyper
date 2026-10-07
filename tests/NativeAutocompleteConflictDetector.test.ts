@@ -243,6 +243,18 @@ describe("native field eligibility and interaction evidence", () => {
     list.innerHTML = "No results";
     expect(hasActiveAutocompletePopup(wrapper.querySelector("input")!)).toBe(true);
   });
+  test("a described-by tooltip with controls is a site list (ryanair.com)", () => {
+    const wrapper = field('<div aria-describedby="choices"><div><input></div></div>');
+    const input = wrapper.querySelector("input")!;
+    const tooltip = popup();
+    tooltip.setAttribute("role", "tooltip");
+    tooltip.innerHTML = '<div role="button" tabindex="0">Katowice</div>';
+    visible(tooltip.firstElementChild!);
+    expect(hasActiveAutocompletePopup(input)).toBe(true);
+    // A plain hint tooltip has no controls and does not pause.
+    tooltip.innerHTML = "Pick an airport";
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
+  });
   test("an active descendant listbox control links its popup", () => {
     const input = field('<input aria-activedescendant="choice">');
     const list = popup();

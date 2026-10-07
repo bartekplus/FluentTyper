@@ -79,6 +79,11 @@
           "test": "an expanded field yields to its visible popup even without choices"
         },
         {
+          "layer": "unit",
+          "file": "tests/NativeAutocompleteConflictDetector.test.ts",
+          "test": "a described-by tooltip with controls is a site list (ryanair.com)"
+        },
+        {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Remembered writing fields survive reload and can be forgotten in settings"
