@@ -71,6 +71,16 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
+          "test": "An open site list with checkbox rows or no results pauses FluentTyper until it closes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/NativeAutocompleteConflictDetector.test.ts",
+          "test": "an expanded field yields to its visible popup even without choices"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
           "test": "Remembered writing fields survive reload and can be forgotten in settings"
         },
         {

@@ -196,6 +196,30 @@ describe("native field eligibility and interaction evidence", () => {
     list.innerHTML = '<div><button role="checkbox"></button><label>Tenerife</label></div>';
     visible(list.querySelector("button")!);
     expect(hasActiveAutocompletePopup(input)).toBe(true);
+    for (const row of ['<button role="radio"></button>', "<button>Tenerife</button>"]) {
+      list.innerHTML = row;
+      visible(list.firstElementChild!);
+      expect(hasActiveAutocompletePopup(input)).toBe(true);
+    }
+  });
+  test("controls in a linked dialog are not choices without an expanded flag", () => {
+    const input = field('<input aria-controls="choices">');
+    const dialog = popup();
+    dialog.setAttribute("role", "dialog");
+    dialog.innerHTML = '<button role="checkbox"></button>';
+    visible(dialog.firstElementChild!);
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
+  });
+  test("an ARIA 1.1 wrapper combobox reports the expanded state", () => {
+    const wrapper = field(
+      '<div role="combobox" aria-expanded="true"><input aria-controls="choices"></div>',
+    );
+    const input = wrapper.querySelector("input")!;
+    const list = popup();
+    list.innerHTML = "No results";
+    expect(hasActiveAutocompletePopup(input)).toBe(true);
+    wrapper.setAttribute("aria-expanded", "false");
+    expect(hasActiveAutocompletePopup(input)).toBe(false);
   });
   test("linked actionable visibility outranks stale ARIA; unrelated and empty UI is ignored", () => {
     const input = field('<input type="search" aria-controls="choices" aria-expanded="false">');
