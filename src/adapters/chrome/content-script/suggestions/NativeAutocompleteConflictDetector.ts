@@ -159,8 +159,8 @@ export function reservesAutocompleteArrow(element: HTMLElement, event: KeyboardE
     return false;
   return (
     hasUsableDatalist(element) ||
-    // Explicit comboboxes may populate their popup only after the opening gesture.
-    element.getAttribute("role") === "combobox" ||
+    // Explicit comboboxes (also an ARIA 1.1 wrapper) may populate their popup only after the opening gesture.
+    !!element.closest('[role="combobox"]') ||
     linkedAutocompletePopups(element).some((popup) =>
       choices(popup).some(
         (item) => !item.closest('[aria-disabled="true"], [disabled], [data-ft-suggestion-owned]'),

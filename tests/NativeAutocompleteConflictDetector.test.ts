@@ -224,6 +224,11 @@ describe("native field eligibility and interaction evidence", () => {
     expect(hasActiveAutocompletePopup(input)).toBe(true);
     wrapper.setAttribute("aria-expanded", "false");
     expect(hasActiveAutocompletePopup(input)).toBe(false);
+    // A closed wrapper combobox fills its popup only after ArrowDown.
+    list.replaceChildren();
+    expect(
+      reservesAutocompleteArrow(input, new window.KeyboardEvent("keydown", { key: "ArrowDown" })),
+    ).toBe(true);
   });
   test("linked actionable visibility outranks stale ARIA; unrelated and empty UI is ignored", () => {
     const input = field('<input type="search" aria-controls="choices" aria-expanded="false">');
