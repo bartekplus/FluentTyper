@@ -114,10 +114,19 @@ function choices(popup: Element): Element[] {
   );
 }
 
-/** A control hidden below the popup is unusable; one hidden only by a closed popup is not. */
+/**
+ * A control hidden below the popup is unusable; one hidden only by a closed popup is not.
+ * Inherited states (visibility) are skipped: a closed popup passes them down to its choices.
+ */
 function hiddenInside(item: Element, popup: Element): boolean {
   for (let node: Element | null = item; node && node !== popup; node = node.parentElement)
-    if (node.hasAttribute("hidden")) return true;
+    if (
+      node.hasAttribute("hidden") ||
+      node.hasAttribute("inert") ||
+      node.getAttribute("aria-hidden") === "true" ||
+      node.ownerDocument.defaultView?.getComputedStyle(node).display === "none"
+    )
+      return true;
   return false;
 }
 

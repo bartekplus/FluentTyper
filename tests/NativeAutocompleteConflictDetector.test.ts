@@ -214,6 +214,9 @@ describe("native field eligibility and interaction evidence", () => {
       '<input type="hidden" name="token">',
       "<button hidden>Old</button>",
       "<div hidden><button>Old</button></div>",
+      '<div style="display:none"><button>Old</button></div>',
+      "<div inert><button>Old</button></div>",
+      '<div aria-hidden="true"><button>Old</button></div>',
     ]) {
       list.innerHTML = html;
       expect(reservesAutocompleteArrow(input, arrow)).toBe(false);
