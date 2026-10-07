@@ -32,6 +32,19 @@ test("metadata does not suppress prose and diagnostics contain no field text", (
   expect(JSON.stringify(editorCapabilities(field))).not.toContain(field.value);
 });
 
+test("contenteditable=false on a native text field does not block it", () => {
+  // GitHub's comment textarea carries this attribute in Firefox.
+  const field = document.createElement("textarea");
+  field.setAttribute("contenteditable", "false");
+  document.body.append(field);
+  expect(editorCapabilities(field)).toMatchObject({
+    inspectProse: true,
+    renderReview: true,
+    context: "prose",
+    reason: "available",
+  });
+});
+
 test("a linked popup changes key ownership without changing Review eligibility", () => {
   const field = input();
   field.setAttribute("aria-controls", "choices");
