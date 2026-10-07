@@ -196,7 +196,11 @@ describe("native field eligibility and interaction evidence", () => {
     list.innerHTML = '<div><button role="checkbox"></button><label>Tenerife</label></div>';
     visible(list.querySelector("button")!);
     expect(hasActiveAutocompletePopup(input)).toBe(true);
-    for (const row of ['<button role="radio"></button>', "<button>Tenerife</button>"]) {
+    for (const row of [
+      '<button role="radio"></button>',
+      "<button>Tenerife</button>",
+      '<input type="checkbox">',
+    ]) {
       list.innerHTML = row;
       visible(list.firstElementChild!);
       expect(hasActiveAutocompletePopup(input)).toBe(true);

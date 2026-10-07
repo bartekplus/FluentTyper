@@ -11,7 +11,7 @@ const POPUP_SELECTOR =
 const ITEM_SELECTOR =
   '[role="option"], [role="treeitem"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="gridcell"]';
 // Inside a listbox every control is a choice, e.g. itaka.pl checkbox rows.
-const LISTBOX_CHOICE_SELECTOR = `${ITEM_SELECTOR}, [role="checkbox"], [role="radio"], [role="switch"], button, a[href], [tabindex]`;
+const LISTBOX_CHOICE_SELECTOR = `${ITEM_SELECTOR}, [role="checkbox"], [role="radio"], [role="switch"], button, input, select, a[href], [tabindex]`;
 const STRUCTURED =
   /^(?:username|email|name|honorific-prefix|given-name|additional-name|family-name|honorific-suffix|nickname|street-address|postal-code|url|tel(?:-\w+)?|address-\w+)$/;
 
