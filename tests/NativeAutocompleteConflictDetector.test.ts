@@ -206,6 +206,19 @@ describe("native field eligibility and interaction evidence", () => {
       expect(hasActiveAutocompletePopup(input)).toBe(true);
     }
   });
+  test("individually hidden listbox controls do not reserve arrows", () => {
+    const input = field('<input aria-controls="choices">');
+    const list = popup();
+    const arrow = new window.KeyboardEvent("keydown", { key: "ArrowDown" });
+    for (const html of ['<input type="hidden" name="token">', "<button hidden>Old</button>"]) {
+      list.innerHTML = html;
+      expect(reservesAutocompleteArrow(input, arrow)).toBe(false);
+    }
+    // Choices of a closed (hidden) popup still reserve arrows.
+    list.innerHTML = "<button>Tenerife</button>";
+    list.hidden = true;
+    expect(reservesAutocompleteArrow(input, arrow)).toBe(true);
+  });
   test("controls in a linked dialog are not choices without an expanded flag", () => {
     const input = field('<input aria-controls="choices">');
     const dialog = popup();

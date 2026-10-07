@@ -11,7 +11,7 @@ const POPUP_SELECTOR =
 const ITEM_SELECTOR =
   '[role="option"], [role="treeitem"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="gridcell"]';
 // Inside a listbox every control is a choice, e.g. itaka.pl checkbox rows.
-const LISTBOX_CHOICE_SELECTOR = `${ITEM_SELECTOR}, [role="checkbox"], [role="radio"], [role="switch"], button, input, select, a[href], [tabindex]`;
+const LISTBOX_CHOICE_SELECTOR = `${ITEM_SELECTOR}, [role="checkbox"], [role="radio"], [role="switch"], button, input:not([type="hidden"]), select, a[href], [tabindex]`;
 const STRUCTURED =
   /^(?:username|email|name|honorific-prefix|given-name|additional-name|family-name|honorific-suffix|nickname|street-address|postal-code|url|tel(?:-\w+)?|address-\w+)$/;
 
@@ -163,7 +163,10 @@ export function reservesAutocompleteArrow(element: HTMLElement, event: KeyboardE
     !!element.closest('[role="combobox"]') ||
     linkedAutocompletePopups(element).some((popup) =>
       choices(popup).some(
-        (item) => !item.closest('[aria-disabled="true"], [disabled], [data-ft-suggestion-owned]'),
+        // A control hidden by itself is unusable; one inside a closed popup is not.
+        (item) =>
+          !item.hasAttribute("hidden") &&
+          !item.closest('[aria-disabled="true"], [disabled], [data-ft-suggestion-owned]'),
       ),
     )
   );
