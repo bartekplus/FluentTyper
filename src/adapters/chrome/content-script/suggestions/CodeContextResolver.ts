@@ -8,7 +8,8 @@ const CODE_CONTEXT =
 // Word's floating formatting group has no toolbar role.
 const NON_WRITING_CONTROL =
   '[role="toolbar"], [role="menubar"], [role="menu"], [role="spinbutton"], #FontFormattingGroup';
-const NON_PROSE_CONTEXT = `[contenteditable="false"], [aria-readonly="true"], ${NON_WRITING_CONTROL}`;
+const NON_PROSE_FIELD = `[aria-readonly="true"], ${NON_WRITING_CONTROL}`;
+const NON_PROSE_CONTEXT = `[contenteditable="false"], ${NON_PROSE_FIELD}`;
 
 export type CodeContext = "prose" | "code" | "protected" | "unknown";
 
@@ -48,7 +49,12 @@ export function ancestorContext(node: Node, stopAt?: Node): CodeContext | null {
     if (current.nodeType !== 1) continue;
     const element = current as Element;
     if (
-      element.matches(NON_PROSE_CONTEXT) &&
+      // contenteditable has no effect on a native text field (seen on GitHub in Firefox).
+      element.matches(
+        element.tagName === "INPUT" || element.tagName === "TEXTAREA"
+          ? NON_PROSE_FIELD
+          : NON_PROSE_CONTEXT,
+      ) &&
       !(
         nativeField &&
         element.matches('[contenteditable="false"]') &&
