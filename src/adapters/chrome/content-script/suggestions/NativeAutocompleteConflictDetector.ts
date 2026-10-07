@@ -98,6 +98,13 @@ function linkedAutocompletePopups(element: HTMLElement): Element[] {
     .flatMap((popup) =>
       popup.matches(POPUP_SELECTOR) ? [popup] : Array.from(popup.querySelectorAll(POPUP_SELECTOR)),
     );
+  // ryanair.com links its airport list as a tooltip from a field wrapper.
+  // Only a shown tooltip counts: no evidence says an arrow opens a closed one.
+  for (let node: Element | null = element; node; node = node.parentElement)
+    for (const id of node.getAttribute("aria-describedby")?.split(/\s+/) ?? []) {
+      const tooltip = id ? findReference(element, id) : null;
+      if (tooltip?.matches('[role="tooltip"]') && isVisible(tooltip)) popups.push(tooltip);
+    }
   const activeId = element.getAttribute("aria-activedescendant");
   const active = activeId ? findReference(element, activeId) : null;
   const activePopup = active?.closest(POPUP_SELECTOR);
@@ -107,9 +114,10 @@ function linkedAutocompletePopups(element: HTMLElement): Element[] {
 }
 
 function choices(popup: Element): Element[] {
+  // An ARIA tooltip holds no controls, so each control in a linked one is a site choice.
   return Array.from(
     popup.querySelectorAll(
-      popup.matches('[role="listbox"]') ? LISTBOX_CHOICE_SELECTOR : ITEM_SELECTOR,
+      popup.matches('[role="listbox"], [role="tooltip"]') ? LISTBOX_CHOICE_SELECTOR : ITEM_SELECTOR,
     ),
   );
 }
