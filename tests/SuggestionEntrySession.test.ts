@@ -307,6 +307,18 @@ test("session clears the pending fallback before processing input", () => {
   expect(predictionCoordinator.schedule).toHaveBeenCalledTimes(1);
 });
 
+test("session does not predict after a browser spellcheck replacement", () => {
+  const predictionCoordinator = fakePredictionCoordinator();
+  const renderMenu = jest.fn();
+  const session = makeSession({ predictionCoordinator, renderMenu });
+
+  session.handleInput(new window.InputEvent("input", { inputType: "insertReplacementText" }));
+
+  expect(predictionCoordinator.schedule).not.toHaveBeenCalled();
+  expect(predictionCoordinator.cancelPending).toHaveBeenCalledTimes(1);
+  expect(renderMenu).not.toHaveBeenCalled();
+});
+
 test("session click and blur cleanup clear accepted transient state", () => {
   const entry = createSuggestionEntry({ requestId: 2 });
   const block = document.createElement("p");
