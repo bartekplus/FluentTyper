@@ -119,14 +119,17 @@ function choices(popup: Element): Element[] {
  * Inherited states (visibility) are skipped: a closed popup passes them down to its choices.
  */
 function hiddenInside(item: Element, popup: Element): boolean {
-  for (let node: Element | null = item; node && node !== popup; node = node.parentElement)
+  for (let node: Element | null = item; node && node !== popup; node = node.parentElement) {
+    const style = node.ownerDocument.defaultView?.getComputedStyle(node);
     if (
       node.hasAttribute("hidden") ||
       node.hasAttribute("inert") ||
       node.getAttribute("aria-hidden") === "true" ||
-      node.ownerDocument.defaultView?.getComputedStyle(node).display === "none"
+      style?.display === "none" ||
+      style?.opacity === "0"
     )
       return true;
+  }
   return false;
 }
 

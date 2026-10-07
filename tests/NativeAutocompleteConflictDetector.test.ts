@@ -215,6 +215,7 @@ describe("native field eligibility and interaction evidence", () => {
       "<button hidden>Old</button>",
       "<div hidden><button>Old</button></div>",
       '<div style="display:none"><button>Old</button></div>',
+      '<div style="opacity:0"><button>Old</button></div>',
       "<div inert><button>Old</button></div>",
       '<div aria-hidden="true"><button>Old</button></div>',
     ]) {
