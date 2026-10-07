@@ -210,7 +210,11 @@ describe("native field eligibility and interaction evidence", () => {
     const input = field('<input aria-controls="choices">');
     const list = popup();
     const arrow = new window.KeyboardEvent("keydown", { key: "ArrowDown" });
-    for (const html of ['<input type="hidden" name="token">', "<button hidden>Old</button>"]) {
+    for (const html of [
+      '<input type="hidden" name="token">',
+      "<button hidden>Old</button>",
+      "<div hidden><button>Old</button></div>",
+    ]) {
       list.innerHTML = html;
       expect(reservesAutocompleteArrow(input, arrow)).toBe(false);
     }
@@ -226,6 +230,21 @@ describe("native field eligibility and interaction evidence", () => {
     dialog.innerHTML = '<button role="checkbox"></button>';
     visible(dialog.firstElementChild!);
     expect(hasActiveAutocompletePopup(input)).toBe(false);
+  });
+  test("an ARIA 1.1 wrapper combobox can own the popup reference", () => {
+    const wrapper = field(
+      '<div role="combobox" aria-expanded="true" aria-controls="choices"><input></div>',
+    );
+    const list = popup();
+    list.innerHTML = "No results";
+    expect(hasActiveAutocompletePopup(wrapper.querySelector("input")!)).toBe(true);
+  });
+  test("an active descendant listbox control links its popup", () => {
+    const input = field('<input aria-activedescendant="choice">');
+    const list = popup();
+    list.innerHTML = '<button role="checkbox" id="choice"></button>';
+    visible(list.firstElementChild!);
+    expect(hasActiveAutocompletePopup(input)).toBe(true);
   });
   test("an ARIA 1.1 wrapper combobox reports the expanded state", () => {
     const wrapper = field(

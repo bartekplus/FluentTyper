@@ -85,11 +85,13 @@ function isActionable(element: Element): boolean {
 }
 
 function linkedAutocompletePopups(element: HTMLElement): Element[] {
-  const ids =
-    `${element.getAttribute("aria-controls") ?? ""} ${element.getAttribute("aria-owns") ?? ""}`
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
+  // An ARIA 1.1 wrapper combobox can own the popup reference.
+  const wrapper = element.parentElement?.closest('[role="combobox"]');
+  const ids = [element, wrapper]
+    .flatMap((owner) => [owner?.getAttribute("aria-controls"), owner?.getAttribute("aria-owns")])
+    .join(" ")
+    .split(/\s+/)
+    .filter(Boolean);
   const popups = ids
     .map((id) => findReference(element, id))
     .filter((popup): popup is Element => !!popup)
@@ -98,10 +100,9 @@ function linkedAutocompletePopups(element: HTMLElement): Element[] {
     );
   const activeId = element.getAttribute("aria-activedescendant");
   const active = activeId ? findReference(element, activeId) : null;
-  if (active?.matches(ITEM_SELECTOR) && isActionable(active)) {
-    const popup = active.closest(POPUP_SELECTOR);
-    if (popup) popups.push(popup);
-  }
+  const activePopup = active?.closest(POPUP_SELECTOR);
+  if (active && activePopup && choices(activePopup).includes(active) && isActionable(active))
+    popups.push(activePopup);
   return popups;
 }
 
@@ -111,6 +112,13 @@ function choices(popup: Element): Element[] {
       popup.matches('[role="listbox"]') ? LISTBOX_CHOICE_SELECTOR : ITEM_SELECTOR,
     ),
   );
+}
+
+/** A control hidden below the popup is unusable; one hidden only by a closed popup is not. */
+function hiddenInside(item: Element, popup: Element): boolean {
+  for (let node: Element | null = item; node && node !== popup; node = node.parentElement)
+    if (node.hasAttribute("hidden")) return true;
+  return false;
 }
 
 /** A popup that paints only padding, or keeps hidden children, is not an open list. */
@@ -163,9 +171,8 @@ export function reservesAutocompleteArrow(element: HTMLElement, event: KeyboardE
     !!element.closest('[role="combobox"]') ||
     linkedAutocompletePopups(element).some((popup) =>
       choices(popup).some(
-        // A control hidden by itself is unusable; one inside a closed popup is not.
         (item) =>
-          !item.hasAttribute("hidden") &&
+          !hiddenInside(item, popup) &&
           !item.closest('[aria-disabled="true"], [disabled], [data-ft-suggestion-owned]'),
       ),
     )
