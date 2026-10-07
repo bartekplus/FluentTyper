@@ -369,6 +369,7 @@ export class SuggestionEntrySession {
     }
     // A spellcheck menu pick (or other whole-word replacement) is not typing.
     if (inputTypeOf(event) === "insertReplacementText") {
+      this.options.predictionCoordinator.cancelPending(this.entry);
       this.handleSuppressedInput();
       return;
     }

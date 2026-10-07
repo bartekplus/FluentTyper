@@ -315,6 +315,7 @@ test("session does not predict after a browser spellcheck replacement", () => {
   session.handleInput(new window.InputEvent("input", { inputType: "insertReplacementText" }));
 
   expect(predictionCoordinator.schedule).not.toHaveBeenCalled();
+  expect(predictionCoordinator.cancelPending).toHaveBeenCalledTimes(1);
   expect(renderMenu).not.toHaveBeenCalled();
 });
 
