@@ -9896,9 +9896,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         control.textContent = "Page action";
         control.style.cssText = `position:fixed;left:${rect.right - 30}px;top:${rect.bottom + 6}px;width:24px;height:24px;`;
         document.body.append(control);
-        field.dispatchEvent(new Event("input", { bubbles: true }));
       });
-      expect(await launcher()).toBeNull();
+      await waitUntil(
+        "Review steps aside for an inserted page control",
+        async () => (await launcher()) === null,
+      );
+      await page.evaluate(() => document.querySelector("#compact-adjacent-control")!.remove());
+      await waitUntil(
+        "Review returns after the page control is removed",
+        async () => (await launcher()) !== null,
+      );
       await page.evaluate(() => {
         const scroller = document.createElement("div");
         scroller.id = "compact-scroller";
@@ -9913,13 +9920,28 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         scroller.scrollIntoView({ block: "center" });
       });
       await page.evaluate(() => {
-        document.querySelector("#compact-adjacent-control")!.remove();
         const field = document.querySelector("#compact-textarea")!;
         field.setAttribute("role", "combobox");
         field.setAttribute("autocomplete", "street-address");
       });
       await page.waitForSelector("#compact-wrapper .ft-manual-attach-button", { visible: true });
       expect(await launcher()).toBeNull();
+      await page.evaluate(() => {
+        const field = document.querySelector("#compact-textarea")!.getBoundingClientRect();
+        const control = document.createElement("button");
+        control.id = "enable-adjacent-control";
+        control.textContent = "Page action";
+        control.style.cssText = `position:fixed;left:${field.right - 30}px;top:${field.bottom + 6}px;width:24px;height:24px;`;
+        document.body.append(control);
+      });
+      await waitUntil("Enable steps aside for an inserted page control", () =>
+        page.$eval(
+          "#compact-wrapper .ft-manual-attach",
+          (el) => (el as HTMLElement).hidden === true,
+        ),
+      );
+      await page.evaluate(() => document.querySelector("#enable-adjacent-control")!.remove());
+      await page.waitForSelector("#compact-wrapper .ft-manual-attach-button", { visible: true });
       const enableAligned = () =>
         page.evaluate(() => {
           const field = document.querySelector("#compact-textarea")!;
