@@ -5217,8 +5217,13 @@
     },
     {
       "id": "slack_emoji_picker_excluded",
-      "description": "Slack emoji search refuses suggestions, manual activation, Review and stale Tab acceptance. Ordinary search and message fields remain eligible.",
+      "description": "Slack emoji search refuses suggestions, manual activation, Review and stale Tab acceptance. Picker marker changes reconcile attached fields and manual activation UI. Ordinary search and message fields remain eligible.",
       "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/DomObserver.test.ts",
+          "test": "reports both emoji-picker marker transitions on a connected ancestor"
+        },
         {
           "layer": "unit",
           "file": "tests/NativeAutocompleteConflictDetector.test.ts",

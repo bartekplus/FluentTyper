@@ -25,6 +25,7 @@ export class DomObserver {
         "id",
         "list",
         "role",
+        "data-qa",
         "autocomplete",
         "aria-autocomplete",
         "aria-expanded",

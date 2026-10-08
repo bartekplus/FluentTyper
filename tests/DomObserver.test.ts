@@ -18,6 +18,7 @@ describe("DomObserver", () => {
           attributeFilter: expect.arrayContaining([
             "list",
             "role",
+            "data-qa",
             "autocomplete",
             "aria-autocomplete",
             "aria-expanded",
@@ -29,6 +30,31 @@ describe("DomObserver", () => {
     } finally {
       observer.disconnect();
       observe.mockRestore();
+    }
+  });
+
+  test("reports both emoji-picker marker transitions on a connected ancestor", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = '<div><input type="text"></div>';
+    document.body.append(root);
+    const wrapper = root.firstElementChild!;
+    const callback = jest.fn();
+    const observer = new DomObserver(root, callback);
+    try {
+      observer.attach();
+      for (const marker of ["emoji-picker", null]) {
+        callback.mockClear();
+        if (marker) wrapper.setAttribute("data-qa", marker);
+        else wrapper.removeAttribute("data-qa");
+        await Promise.resolve();
+        const records = callback.mock.calls.flatMap(([batch]) => batch as MutationRecord[]);
+        expect(
+          records.some((record) => record.target === wrapper && record.attributeName === "data-qa"),
+        ).toBe(true);
+      }
+    } finally {
+      observer.disconnect();
+      root.remove();
     }
   });
 

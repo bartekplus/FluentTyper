@@ -943,6 +943,40 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       expect(results.emojiButton).toBe(false);
       expect(results.normalText).toBe(true);
 
+      // Marker changes must reconcile both attached fields and manual activation UI.
+      await page.evaluate(() => {
+        document.querySelector("#test-emoji-search")!.parentElement!.removeAttribute("data-qa");
+      });
+      await page.waitForFunction(() =>
+        document.querySelector("#test-emoji-search")?.hasAttribute("data-suggestion"),
+      );
+      await page.evaluate(() => {
+        document
+          .querySelector("#test-emoji-search")!
+          .parentElement!.setAttribute("data-qa", "emoji-picker");
+        document
+          .querySelector("#test-native-list")!
+          .parentElement!.setAttribute("data-qa", "emoji-picker");
+      });
+      await page.waitForFunction(() =>
+        ["#test-emoji-search", "#test-native-list"].every((selector) => {
+          const input = document.querySelector(selector)!;
+          return (
+            !input.hasAttribute("data-suggestion") &&
+            !input.parentElement?.querySelector(".ft-manual-attach-button")
+          );
+        }),
+      );
+      await page.evaluate(() => {
+        document.querySelector("#test-native-list")!.parentElement!.removeAttribute("data-qa");
+      });
+      await page.waitForFunction(
+        () =>
+          !!document
+            .querySelector("#test-native-list")
+            ?.parentElement?.querySelector(".ft-manual-attach-button"),
+      );
+
       // A stale expanded flag without a visible popup does not suppress prose.
       await page.evaluate(() => {
         document.querySelector<HTMLElement>("#test-combobox-list")!.hidden = true;
