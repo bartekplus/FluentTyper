@@ -923,6 +923,11 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         toolbarButton: !!document
           .querySelector("#test-toolbar-font")
           ?.parentElement?.querySelector(".ft-manual-attach-button"),
+        emojiSearch:
+          document.querySelector("#test-emoji-search")?.hasAttribute("data-suggestion") ?? false,
+        emojiButton: !!document
+          .querySelector("#test-emoji-search")
+          ?.parentElement?.querySelector(".ft-manual-attach-button"),
         normalText: document.querySelector("#test-input")?.hasAttribute("data-suggestion") ?? false,
       }));
 
@@ -934,6 +939,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       expect(results.comboboxButton).toBe(false);
       expect(results.toolbarFont).toBe(false);
       expect(results.toolbarButton).toBe(false);
+      expect(results.emojiSearch).toBe(false);
+      expect(results.emojiButton).toBe(false);
       expect(results.normalText).toBe(true);
 
       // A stale expanded flag without a visible popup does not suppress prose.

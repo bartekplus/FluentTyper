@@ -9,6 +9,13 @@
         "files": ["tests/CoreSettingsRepository.test.ts"],
         "createdAt": "2026-10-08T12:56:50.665Z",
         "reason": "Agent review: the img literal tests invalid dictionary inputs. It is not rendered UI."
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": ["tests/e2e/test-page.html"],
+        "createdAt": "2026-10-08T13:13:39.729Z",
+        "reason": "Agent: Inter is an existing font in the browser regression fixture. This task changes field eligibility, so the fixture keeps its typography."
       }
     ]
   }

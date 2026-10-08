@@ -5,9 +5,9 @@ import { isGutenbergField } from "./GutenbergEnvironment";
 const CODE_CONTEXT =
   "code, pre, kbd, samp, .ql-code-block, .ql-code-block-container, " +
   ".monaco-editor, .CodeMirror, .cm-editor, .ace_editor";
-// Word's floating formatting group has no toolbar role.
+// Word's floating group and Slack's emoji picker have no non-writing ARIA role.
 const NON_WRITING_CONTROL =
-  '[role="toolbar"], [role="menubar"], [role="menu"], [role="spinbutton"], #FontFormattingGroup';
+  '[role="toolbar"], [role="menubar"], [role="menu"], [role="spinbutton"], #FontFormattingGroup, [data-qa="emoji-picker"]';
 const NON_PROSE_FIELD = `[aria-readonly="true"], ${NON_WRITING_CONTROL}`;
 const NON_PROSE_CONTEXT = `[contenteditable="false"], ${NON_PROSE_FIELD}`;
 
@@ -16,7 +16,7 @@ export type CodeContext = "prose" | "code" | "protected" | "unknown";
 type SelectionRange = Pick<Range, "startContainer" | "startOffset" | "endContainer" | "endOffset">;
 type ScopedSelectionRoot = ShadowRoot & { getSelection?: () => Selection | null };
 
-/** Formatting controls are never writing fields, including inside shadow roots. */
+/** Formatting and picker controls are never writing fields, including inside shadow roots. */
 export function isNonWritingControl(element: HTMLElement): boolean {
   for (let node: Node | null = element; node; node = composedParent(node)) {
     if (node.nodeType === 1 && (node as Element).matches(NON_WRITING_CONTROL)) return true;
