@@ -39,6 +39,7 @@ import { ManualAttachUiManager } from "../src/adapters/chrome/content-script/sug
 import {
   styleFieldActionButton,
   trackFieldActionLayout,
+  FIELD_ACTION_SIZE_PX,
 } from "../src/adapters/chrome/content-script/FieldActionUi";
 import {
   reviewRuleIds,
@@ -1410,6 +1411,36 @@ describe("in-field review button", () => {
           }
         },
       );
+    },
+  );
+
+  test.each([
+    [48, 80, "ltr"],
+    [96, 80, "ltr"],
+    [48, 80, "rtl"],
+    [48, 32, "ltr"],
+  ] as const)(
+    "Enable remains reachable at %s px wide, %s px high, %s",
+    (width, height, direction) => {
+      const field = sized(textarea("What asd asd"), { left: 100, top: 50, width, height });
+      field.style.direction = direction;
+      field.autocomplete = "street-address";
+      const onActivate = jest.fn();
+      const manual = new ManualAttachUiManager({ iconUrl: "/icon/icon16.png", onActivate });
+      try {
+        manual.ensureForElement(field);
+        const container = document.querySelector<HTMLElement>(".ft-manual-attach")!;
+        const button = container.querySelector<HTMLButtonElement>("button")!;
+        expect(container.hidden).toBe(false);
+        expect(Number.parseFloat(container.style.left)).toBeGreaterThanOrEqual(100);
+        expect(Number.parseFloat(container.style.left) + FIELD_ACTION_SIZE_PX).toBeLessThanOrEqual(
+          100 + width,
+        );
+        button.click();
+        expect(onActivate).toHaveBeenCalledWith(field);
+      } finally {
+        manual.removeAll();
+      }
     },
   );
 

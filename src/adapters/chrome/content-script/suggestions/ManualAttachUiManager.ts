@@ -378,7 +378,9 @@ export class ManualAttachUiManager {
     node.setAttribute("data-ft-suggestion-owned", "true");
     node.setAttribute("role", "status");
     const rect = element.getBoundingClientRect();
-    const action = this.isMultilineTarget(element) ? fieldActionSlot(element) : null;
+    const action = this.isMultilineTarget(element)
+      ? fieldActionSlot(element, PADDING_RESERVE_PX)
+      : null;
     const noticeTop = Math.max(rect.bottom, action ? action.top + action.size : 0) + 4;
     Object.assign(node.style, {
       position: "fixed",
@@ -648,7 +650,7 @@ export class ManualAttachUiManager {
     const isTextarea = element.tagName.toLowerCase() === "textarea";
     const isContentEditableTarget = !isTextarea && element.isContentEditable;
     if (this.isMultilineTarget(element)) {
-      const slot = fieldActionSlot(element);
+      const slot = fieldActionSlot(element, PADDING_RESERVE_PX);
       handle.container.hidden = !slot;
       handle.container.style.display = slot ? "" : "none";
       if (!slot) return;

@@ -9,10 +9,11 @@ const fieldActionVisibility = new WeakMap<HTMLElement, boolean>();
 /** Compact editors need space below the text. Larger editors use the inside corner. */
 export function fieldActionSlot(
   field: HTMLElement,
+  minimumWidth = 120,
 ): { left: number; top: number; size: number } | null {
   if (fieldActionVisibility.get(field) === false) return null;
   const rect = field.getBoundingClientRect();
-  if (rect.width < 120 || rect.height < FIELD_ACTION_SIZE_PX) return null;
+  if (rect.width < minimumWidth || rect.height < FIELD_ACTION_SIZE_PX) return null;
   const rtl = field.ownerDocument.defaultView?.getComputedStyle(field).direction === "rtl";
   const scaleX = field.offsetWidth ? rect.width / field.offsetWidth : 1;
   const scaleY = field.offsetHeight ? rect.height / field.offsetHeight : 1;

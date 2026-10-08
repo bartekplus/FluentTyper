@@ -9992,6 +9992,29 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       });
       await waitUntil("Enable returns when its field enters the scroll area", enableAligned);
       await page.$eval("#compact-textarea", (el) => {
+        (el as HTMLElement).style.width = "48px";
+      });
+      await waitUntil("Enable stays reachable in a narrow field", () =>
+        page.evaluate(() => {
+          const field = document.querySelector("#compact-textarea")!.getBoundingClientRect();
+          const container = document.querySelector<HTMLElement>(
+            "#compact-wrapper .ft-manual-attach",
+          )!;
+          const action = container.getBoundingClientRect();
+          return !container.hidden && action.left >= field.left && action.right <= field.right;
+        }),
+      );
+      expect(
+        await page.$eval(
+          "#compact-wrapper .ft-manual-attach-button",
+          (el) => el.getBoundingClientRect().width,
+        ),
+      ).toBe(24);
+      await page.$eval("#compact-textarea", (el) => {
+        (el as HTMLElement).style.width = "300px";
+      });
+      await waitUntil("Enable returns to the wider field's corner", enableAligned);
+      await page.$eval("#compact-textarea", (el) => {
         el.parentElement!.style.height = "auto";
         el.animate([{ height: "32px" }, { height: "80px" }], {
           duration: 200,
