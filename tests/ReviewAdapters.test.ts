@@ -1,6 +1,6 @@
 import { detectReviewDiagnostics } from "../src/core/domain/grammar/review/reviewDiagnostics";
 import { afterEach, describe, expect, jest, test } from "bun:test";
-import { createEditor, setCaret } from "./codeContextTestUtils";
+import { createEditor, setCaret, withProperty } from "./codeContextTestUtils";
 import { createReviewController, until } from "./reviewTestUtils";
 import {
   buildContentEditableTextMap,
@@ -22,6 +22,7 @@ import {
 import {
   ReviewLauncher,
   launcherFieldFor,
+  reviewLauncherSlot,
 } from "../src/adapters/chrome/content-script/review/ReviewLauncher";
 import {
   GoogleDocsReviewTarget,
@@ -34,6 +35,8 @@ import {
   type DocsEdit,
 } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 import { REVIEW_HIGHLIGHT_NAMES } from "../src/adapters/chrome/content-script/review/reviewStyles";
+import { ManualAttachUiManager } from "../src/adapters/chrome/content-script/suggestions/ManualAttachUiManager";
+import { styleFieldActionButton } from "../src/adapters/chrome/content-script/FieldActionUi";
 import {
   reviewRuleIds,
   runsInReviewLanguage,
@@ -1058,7 +1061,151 @@ describe("in-field review button", () => {
     instance.dispose();
   });
 
-  test("hidden without text, while typing, during its review, and when turned off", async () => {
+  test("a prefilled compact field shows on focus without a new line, clear of its text", () => {
+    const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
+    field.focus();
+    const { instance } = launcher();
+    try {
+      expect(shown()).toBe(true);
+      expect(launcherButton()!.style.left).toBe("370px");
+      expect(launcherButton()!.style.top).toBe("88px");
+      expect(reviewLauncherSlot(field)).toEqual({ left: 370, top: 88, size: 24 });
+      field.style.direction = "rtl";
+      instance.refresh();
+      expect(launcherButton()!.style.left).toBe("106px");
+      expect(launcherButton()!.style.top).toBe("88px");
+    } finally {
+      instance.dispose();
+    }
+  });
+
+  test("a compact field never puts the button over nearby controls or text", () => {
+    const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
+    const control = document.createElement("button");
+    const text = document.createElement("p");
+    text.textContent = "Text below the field";
+    document.body.append(control, text);
+    const { instance } = launcher();
+    try {
+      withProperty(
+        document,
+        "elementsFromPoint",
+        () => [control, document.body],
+        () => {
+          focusIn(field);
+          expect(shown()).toBe(false);
+          expect(reviewLauncherSlot(field)).toBeNull();
+        },
+      );
+      withProperty(
+        document,
+        "elementsFromPoint",
+        () => [text, document.body],
+        () => {
+          instance.refresh();
+          expect(shown()).toBe(false);
+        },
+      );
+      withProperty(
+        document,
+        "elementsFromPoint",
+        () => [document.body],
+        () => {
+          instance.refresh();
+          expect(shown()).toBe(true);
+        },
+      );
+    } finally {
+      instance.dispose();
+    }
+  });
+
+  test("a prefilled compact shadow field shows on startup and avoids shadow controls", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = host.attachShadow({ mode: "open" });
+    const field = sized(document.createElement("textarea"), {
+      left: 100,
+      top: 50,
+      width: 300,
+      height: 32,
+    });
+    field.value = "What asd asd";
+    root.append(field);
+    field.focus();
+    withProperty(
+      document,
+      "elementsFromPoint",
+      () => [host, document.body],
+      () => {
+        const { instance } = launcher();
+        try {
+          expect(shown()).toBe(true);
+          const control = document.createElement("button");
+          root.append(control);
+          withProperty(
+            root,
+            "elementsFromPoint",
+            () => [control],
+            () => {
+              instance.refresh();
+              expect(shown()).toBe(false);
+            },
+          );
+        } finally {
+          instance.dispose();
+        }
+      },
+    );
+  });
+
+  test("Enable and Review share one position and size, with no second icon during activation", async () => {
+    const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
+    field.focus();
+    const activate = jest.fn();
+    const manual = new ManualAttachUiManager({ iconUrl: "/icon/icon16.png", onActivate: activate });
+    const { instance } = launcher({ canShowFor: (element) => !manual.has(element) });
+    try {
+      const position = { left: launcherButton()!.style.left, top: launcherButton()!.style.top };
+      const background = launcherButton()!.style.backgroundColor;
+      manual.ensureForElement(field);
+      const enable = document.querySelector<HTMLButtonElement>(".ft-manual-attach-button")!;
+      expect(shown()).toBe(false);
+      expect(enable.parentElement!.style.left).toBe(position.left);
+      expect(enable.parentElement!.style.top).toBe(position.top);
+      expect(enable.style.width).toBe(launcherButton()!.style.width);
+      expect(enable.style.backgroundColor).toBe(background);
+      expect(field.style.paddingRight).toBe("");
+      enable.click();
+      expect(activate).toHaveBeenCalledWith(field);
+      expect(shown()).toBe(false);
+      await until(() => shown());
+      expect(document.querySelector(".ft-manual-attach-button")).toBeNull();
+      expect(launcherButton()!.style.left).toBe(position.left);
+      expect(launcherButton()!.style.top).toBe(position.top);
+    } finally {
+      manual.removeAll();
+      instance.dispose();
+    }
+  });
+
+  test("field actions respect forced colors and reduced motion", () => {
+    const button = document.createElement("button");
+    withProperty(
+      document.defaultView!,
+      "matchMedia",
+      () => ({ matches: true }),
+      () => {
+        styleFieldActionButton(button, "dark", "success");
+        expect(button.style.backgroundColor.toLowerCase()).toBe("buttonface");
+        expect(button.style.color.toLowerCase()).toBe("buttontext");
+        expect(button.style.borderColor.toLowerCase()).toBe("buttontext");
+        expect(button.style.transition).toBe("none");
+      },
+    );
+  });
+
+  test("visible while typing; hidden without text, during its review, and when turned off", () => {
     const field = sized(textarea(""));
     let reviewed: HTMLElement | null = null;
     let enabled = true;
@@ -1071,9 +1218,17 @@ describe("in-field review button", () => {
 
     field.value = "Now some text";
     field.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
-    // Typing: out of the way until the user pauses.
+    // Review is available as soon as the field contains text.
+    expect(shown()).toBe(true);
+    field.value += " while typing";
+    field.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+    expect(shown()).toBe(true);
+
+    field.value = "  ";
+    field.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
     expect(shown()).toBe(false);
-    await Bun.sleep(1000);
+    field.value = "Now some text";
+    field.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
     expect(shown()).toBe(true);
 
     reviewed = field;

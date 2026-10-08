@@ -9860,11 +9860,85 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         paddingBefore,
       );
 
-      // Typing hides it until a pause.
+      // Typing keeps the action available without a pause.
       await page.keyboard.press("End");
       await page.keyboard.type(" More", { delay: 20 });
+      expect(await launcher()).not.toBeNull();
+
+      // An auto-growing textarea can contain one line without room for an inside icon.
+      await page.evaluate(() => {
+        const field = document.createElement("textarea");
+        field.id = "compact-textarea";
+        field.value = "What asd asd";
+        field.style.cssText = "display:block;width:300px;height:32px;box-sizing:border-box;";
+        const wrapper = document.createElement("div");
+        wrapper.id = "compact-wrapper";
+        wrapper.style.cssText =
+          "width:300px;height:32px;margin-bottom:42px;overflow:hidden;transform:translateZ(0);";
+        wrapper.append(field);
+        document.querySelector("#second-textarea")!.after(wrapper);
+        field.focus();
+      });
+      await waitUntil("compact field button on focus", async () => (await launcher()) !== null, {
+        timeoutMs: 5000,
+      });
+      const compact = await box("#compact-textarea");
+      expect((await launcher())!.y - 12).toBeGreaterThan(compact.bottom);
+      await page.keyboard.press("End");
+      await page.keyboard.type(" More", { delay: 20 });
+      expect(await launcher()).not.toBeNull();
+      // Another control below this field owns that space.
+      await page.evaluate(() => {
+        const field = document.querySelector<HTMLTextAreaElement>("#compact-textarea")!;
+        const rect = field.getBoundingClientRect();
+        const control = document.createElement("button");
+        control.id = "compact-adjacent-control";
+        control.textContent = "Page action";
+        control.style.cssText = `position:fixed;left:${rect.right - 30}px;top:${rect.bottom + 6}px;width:24px;height:24px;`;
+        document.body.append(control);
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+      });
       expect(await launcher()).toBeNull();
-      await waitUntil("button back after typing", async () => (await launcher()) !== null, {
+      await page.evaluate(() => {
+        document.querySelector("#compact-adjacent-control")!.remove();
+        const field = document.querySelector("#compact-textarea")!;
+        field.setAttribute("role", "combobox");
+        field.setAttribute("autocomplete", "street-address");
+      });
+      await page.waitForSelector("#compact-wrapper .ft-manual-attach-button", { visible: true });
+      expect(await launcher()).toBeNull();
+      const enablePoint = await page.$eval(
+        "#compact-wrapper .ft-manual-attach-button",
+        (button) => {
+          const rect = button.getBoundingClientRect();
+          return {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2,
+            width: rect.width,
+          };
+        },
+      );
+      expect(enablePoint.width).toBe(24);
+      await page.mouse.click(enablePoint.x, enablePoint.y);
+      await waitUntil(
+        "Review replaces Enable without another edit",
+        async () => (await launcher()) !== null,
+        {
+          timeoutMs: 5000,
+        },
+      );
+      const reviewPoint = (await launcher())!;
+      expect(reviewPoint.x).toBeCloseTo(enablePoint.x, 0);
+      expect(reviewPoint.y).toBeCloseTo(enablePoint.y, 0);
+      await page.evaluate(() => {
+        for (const control of document.querySelectorAll(
+          '[data-ft-suggestion-owned][role="status"]',
+        ))
+          control.querySelector<HTMLButtonElement>("button:last-child")?.click();
+        document.querySelector("#compact-wrapper")!.remove();
+      });
+      await page.focus("#second-textarea");
+      await waitUntil("second field button", async () => (await launcher()) !== null, {
         timeoutMs: 5000,
       });
 

@@ -1,11 +1,19 @@
 import type { FieldEligibility } from "./NativeAutocompleteConflictDetector";
-import { parseThemeColor, relativeLuminance } from "@core/domain/color";
 import { clamp } from "@core/domain/guards";
-import { composedParent, isInDocument } from "@core/application/dom-utils";
+import { isInDocument } from "@core/application/dom-utils";
 import { reviewLauncherSlot } from "../review/ReviewLauncher";
+import { enterTopLayer } from "../review/reviewStyles";
+import {
+  FIELD_ACTION_CHANGE_EVENT,
+  FIELD_ACTION_INSET_PX,
+  FIELD_ACTION_SIZE_PX,
+  fieldActionSlot,
+  fieldActionTone,
+  styleFieldActionButton,
+} from "../FieldActionUi";
 
-const BUTTON_SIZE_PX = 18;
-const FIELD_INSET_PX = 8;
+const BUTTON_SIZE_PX = FIELD_ACTION_SIZE_PX;
+const FIELD_INSET_PX = FIELD_ACTION_INSET_PX;
 const PADDING_RESERVE_PX = BUTTON_SIZE_PX + FIELD_INSET_PX * 2;
 const SUCCESS_STATE_MS = 650;
 const INLINE_OBSTACLE_SELECTOR = [
@@ -71,7 +79,7 @@ export class ManualAttachUiManager {
     const existing = this.handles.get(element);
     if (existing) {
       this.updatePlacement(element, existing);
-      existing.surfaceTone = this.resolveSurfaceTone(element);
+      existing.surfaceTone = fieldActionTone(element);
       if (!existing.successPending) {
         this.applyIdleState(existing);
       }
@@ -94,6 +102,7 @@ export class ManualAttachUiManager {
     if (this.shouldReserveInlinePadding(element)) {
       this.applyPadding(element);
     }
+    element.ownerDocument.dispatchEvent(new Event(FIELD_ACTION_CHANGE_EVENT));
   }
 
   public removeForElement(element: ManualAttachTarget): void {
@@ -111,6 +120,7 @@ export class ManualAttachUiManager {
     if (handle.positioningParent) {
       this.releaseParent(handle.positioningParent);
     }
+    element.ownerDocument.dispatchEvent(new Event(FIELD_ACTION_CHANGE_EVENT));
   }
 
   public removeAll(): void {
@@ -140,7 +150,7 @@ export class ManualAttachUiManager {
     this.removeNotice(element);
     const doc = element.ownerDocument;
     const view = doc.defaultView!;
-    const dark = this.resolveSurfaceTone(element) === "dark";
+    const dark = fieldActionTone(element) === "dark";
     const rtl = view.getComputedStyle(element).direction === "rtl";
     const reducedMotion = view.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
     const rect = element.getBoundingClientRect();
@@ -363,10 +373,12 @@ export class ManualAttachUiManager {
     node.setAttribute("data-ft-suggestion-owned", "true");
     node.setAttribute("role", "status");
     const rect = element.getBoundingClientRect();
+    const action = this.isMultilineTarget(element) ? fieldActionSlot(element) : null;
+    const noticeTop = Math.max(rect.bottom, action ? action.top + action.size : 0) + 4;
     Object.assign(node.style, {
       position: "fixed",
       left: `${Math.max(4, Math.min(rect.left, element.ownerDocument.defaultView!.innerWidth - 290))}px`,
-      top: `${Math.min(rect.bottom + 4, element.ownerDocument.defaultView!.innerHeight - 110)}px`,
+      top: `${Math.min(noticeTop, element.ownerDocument.defaultView!.innerHeight - 110)}px`,
       zIndex: "2147483001",
       maxWidth: "280px",
       padding: "8px",
@@ -428,6 +440,7 @@ export class ManualAttachUiManager {
     if (!notice || (passiveOnly && !notice.passive)) return;
     notice.node.remove();
     this.notices.delete(element);
+    element.ownerDocument.dispatchEvent(new Event(FIELD_ACTION_CHANGE_EVENT));
   }
 
   public pruneNotices(): void {
@@ -450,15 +463,24 @@ export class ManualAttachUiManager {
     element: ManualAttachTarget,
     mountTarget: ManualAttachMountTarget,
   ): ManualAttachUiHandle {
-    if (mountTarget.positioningParent) {
-      this.reserveParent(mountTarget.positioningParent);
+    const positioningParent = this.isMultilineTarget(element)
+      ? null
+      : mountTarget.positioningParent;
+    if (positioningParent) {
+      this.reserveParent(positioningParent);
     }
 
     const container = element.ownerDocument.createElement("div");
     container.className = "ft-manual-attach";
     container.setAttribute("data-ft-suggestion-owned", "true");
+    container.setAttribute("contenteditable", "false");
     Object.assign(container.style, {
-      position: mountTarget.positioningParent === null ? "fixed" : "absolute",
+      position: positioningParent === null ? "fixed" : "absolute",
+      inset: "auto",
+      margin: "0",
+      padding: "0",
+      border: "0",
+      background: "transparent",
       zIndex: "2147483000",
       width: `${BUTTON_SIZE_PX}px`,
       height: `${BUTTON_SIZE_PX}px`,
@@ -470,23 +492,7 @@ export class ManualAttachUiManager {
     button.className = MANUAL_ATTACH_BUTTON_CLASS;
     button.title = MANUAL_ATTACH_TOOLTIP;
     button.setAttribute("aria-label", MANUAL_ATTACH_TOOLTIP);
-    Object.assign(button.style, {
-      width: `${BUTTON_SIZE_PX}px`,
-      height: `${BUTTON_SIZE_PX}px`,
-      position: "relative",
-      borderRadius: "999px",
-      border: "1px solid transparent",
-      padding: "0",
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      pointerEvents: "auto",
-      cursor: "pointer",
-      transition:
-        "transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease, border-color 140ms ease",
-      outline: "none",
-      backdropFilter: "blur(8px) saturate(1.12)",
-    });
+    button.style.position = "relative";
 
     const icon = element.ownerDocument.createElement("img");
     icon.alt = "";
@@ -518,12 +524,12 @@ export class ManualAttachUiManager {
     });
 
     const handle: ManualAttachUiHandle = {
-      positioningParent: mountTarget.positioningParent,
+      positioningParent,
       container,
       button,
       icon,
       checkmark,
-      surfaceTone: this.resolveSurfaceTone(element),
+      surfaceTone: fieldActionTone(element),
       originalPaddingInlineEnd: this.getInlineEndPaddingStyleValue(element),
       successTimer: null,
       successPending: false,
@@ -565,6 +571,7 @@ export class ManualAttachUiManager {
     button.append(icon, checkmark);
     container.appendChild(button);
     mountTarget.containerParent.appendChild(container);
+    if (this.isMultilineTarget(element)) enterTopLayer(container);
     this.applyIdleState(handle);
 
     return handle;
@@ -572,14 +579,7 @@ export class ManualAttachUiManager {
 
   private applyIdleState(handle: ManualAttachUiHandle): void {
     const isDarkSurface = handle.surfaceTone === "dark";
-    Object.assign(handle.button.style, {
-      backgroundColor: isDarkSurface ? "rgba(15, 23, 42, 0.92)" : "rgba(255, 255, 255, 0.9)",
-      borderColor: isDarkSurface ? "rgba(148, 163, 184, 0.34)" : "rgba(148, 163, 184, 0.2)",
-      boxShadow: isDarkSurface
-        ? "0 10px 18px -14px rgba(2, 6, 23, 0.96)"
-        : "0 8px 14px -14px rgba(15, 23, 42, 0.4)",
-      transform: "scale(1)",
-    });
+    styleFieldActionButton(handle.button, handle.surfaceTone, "idle");
     Object.assign(handle.icon.style, {
       opacity: isDarkSurface ? "0.96" : "0.72",
       filter: isDarkSurface
@@ -594,14 +594,7 @@ export class ManualAttachUiManager {
 
   private applyHoverState(handle: ManualAttachUiHandle): void {
     const isDarkSurface = handle.surfaceTone === "dark";
-    Object.assign(handle.button.style, {
-      backgroundColor: isDarkSurface ? "rgba(30, 41, 59, 0.98)" : "rgba(255, 255, 255, 0.98)",
-      borderColor: isDarkSurface ? "rgba(96, 165, 250, 0.48)" : "rgba(14, 165, 233, 0.32)",
-      boxShadow: isDarkSurface
-        ? "0 10px 20px -12px rgba(96, 165, 250, 0.62)"
-        : "0 8px 18px -12px rgba(14, 165, 233, 0.58)",
-      transform: "scale(1.05)",
-    });
+    styleFieldActionButton(handle.button, handle.surfaceTone, "hover");
     Object.assign(handle.icon.style, {
       opacity: "1",
       filter: isDarkSurface ? "drop-shadow(0 1px 2px rgba(2, 6, 23, 0.42))" : "none",
@@ -614,14 +607,7 @@ export class ManualAttachUiManager {
 
   private applySuccessState(handle: ManualAttachUiHandle): void {
     const isDarkSurface = handle.surfaceTone === "dark";
-    Object.assign(handle.button.style, {
-      backgroundColor: isDarkSurface ? "rgba(6, 78, 59, 0.94)" : "rgba(236, 253, 245, 0.98)",
-      borderColor: isDarkSurface ? "rgba(52, 211, 153, 0.48)" : "rgba(16, 185, 129, 0.32)",
-      boxShadow: isDarkSurface
-        ? "0 10px 20px -12px rgba(4, 120, 87, 0.92)"
-        : "0 8px 18px -12px rgba(4, 120, 87, 0.95)",
-      transform: "scale(1.08)",
-    });
+    styleFieldActionButton(handle.button, handle.surfaceTone, "success");
     Object.assign(handle.icon.style, {
       opacity: "0",
       filter: "none",
@@ -637,6 +623,17 @@ export class ManualAttachUiManager {
     const elementRect = element.getBoundingClientRect();
     const isTextarea = element.tagName.toLowerCase() === "textarea";
     const isContentEditableTarget = !isTextarea && element.isContentEditable;
+    if (this.isMultilineTarget(element)) {
+      const slot = fieldActionSlot(element);
+      handle.container.hidden = !slot;
+      handle.container.style.display = slot ? "" : "none";
+      if (!slot) return;
+      const parentRect = handle.positioningParent?.getBoundingClientRect();
+      handle.container.style.left = `${Math.round(slot.left - (parentRect?.left ?? 0))}px`;
+      handle.container.style.top = `${Math.round(slot.top - (parentRect?.top ?? 0))}px`;
+      return;
+    }
+    handle.container.hidden = false;
     const isRtl = element.ownerDocument.defaultView?.getComputedStyle(element).direction === "rtl";
     const inlineObstacle = isContentEditableTarget
       ? this.resolveInlineObstacle(element, handle, isRtl)
@@ -734,33 +731,6 @@ export class ManualAttachUiManager {
     );
   }
 
-  private resolveSurfaceTone(element: ManualAttachTarget): ManualAttachSurfaceTone {
-    const colorSources = [element, ...this.collectAncestorElements(element)];
-    for (const candidate of colorSources) {
-      const backgroundColor =
-        candidate.ownerDocument.defaultView?.getComputedStyle(candidate).backgroundColor;
-      const parsed = backgroundColor ? parseThemeColor(backgroundColor) : null;
-      if (parsed && parsed.a > 0.05) {
-        return relativeLuminance(parsed) < 0.36 ? "dark" : "light";
-      }
-    }
-    return element.ownerDocument.defaultView?.matchMedia?.("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-  }
-
-  private collectAncestorElements(element: ManualAttachTarget): HTMLElement[] {
-    const ancestors: HTMLElement[] = [];
-    for (let node = composedParent(element); node; node = composedParent(node)) {
-      if (node.nodeType === 1) ancestors.push(node as HTMLElement);
-    }
-    const body = element.ownerDocument.body;
-    if (body && !ancestors.includes(body)) {
-      ancestors.push(body);
-    }
-    return ancestors;
-  }
-
   private resolveOffsetTop(height: number, prefersTopInset: boolean): number {
     const maxOffset = Math.max(0, height - BUTTON_SIZE_PX);
     const desired = prefersTopInset ? FIELD_INSET_PX : Math.max(0, (height - BUTTON_SIZE_PX) / 2);
@@ -827,8 +797,15 @@ export class ManualAttachUiManager {
     }
   }
 
+  private isMultilineTarget(element: ManualAttachTarget): boolean {
+    return (
+      element.tagName === "TEXTAREA" ||
+      (element.isContentEditable && element.getAttribute("aria-multiline") !== "false")
+    );
+  }
+
   private shouldReserveInlinePadding(element: ManualAttachTarget): boolean {
-    return !element.isContentEditable;
+    return !element.isContentEditable && !this.isMultilineTarget(element);
   }
 
   private getInlineEndPaddingStyleValue(element: ManualAttachTarget): string {

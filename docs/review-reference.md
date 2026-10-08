@@ -39,13 +39,20 @@ so the page's layout and the field's padding are untouched:
   editors, not search boxes or other single-line inputs), once the field
   holds some text, and only where review can run (not in sensitive, locked,
   code or very small fields, not in Google Docs or Word for the web, not in code mode).
-- It hides while you type, comes back when you pause, and steps aside while
-  that field's review is open. Clicking it keeps your cursor and selection, so
+- It appears on focus for existing text and stays visible while you type.
+  Compact fields place it below the text, only where the space is clear of text
+  and page controls. It steps aside while that field's review is open. Clicking it keeps your cursor and selection, so
   a selection is reviewed on its own, exactly as with the shortcut.
-- One icon per field: where FluentTyper waits for the "enable here" icon
-  (a field with the browser's own autocomplete), that icon shows instead.
+- Enable and Review use the same size, placement, and visual states. Where
+  FluentTyper needs activation, Enable appears first. For eligible text, its
+  success indicator changes to Review without another edit. Single-line
+  inputs offer Enable only because Review does not support those fields.
 - It is not a tab stop; keyboard users have the shortcut. Turn it off under
   **Settings → Grammar → Review text**.
+
+Compact-field preview on a local test page, after Enable changes to Review:
+
+![Review appears below the focused compact field](images/review-mode/9-compact-field-action.jpg)
 
 What gets reviewed:
 
