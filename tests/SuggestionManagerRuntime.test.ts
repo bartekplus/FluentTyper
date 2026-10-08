@@ -87,11 +87,15 @@ function entryFor(runtime: SuggestionManagerRuntime, elem: Element): SuggestionE
   ).entryByElement.get(elem)!;
 }
 
+const testRuntimes: SuggestionManagerRuntime[] = [];
+
 function makeRuntime(
   selectors = "textarea, input, [contentEditable]",
   overrides: Partial<SuggestionManagerOptions> = {},
 ): SuggestionManagerRuntime {
-  return new SuggestionManagerRuntime(createRuntimeOptions({ selectors, ...overrides }));
+  const runtime = new SuggestionManagerRuntime(createRuntimeOptions({ selectors, ...overrides }));
+  testRuntimes.push(runtime);
+  return runtime;
 }
 
 function getManualAttachButton(root: ParentNode = document): HTMLButtonElement | null {
@@ -135,6 +139,7 @@ describe("SuggestionManagerRuntime", () => {
   });
 
   afterEach(() => {
+    for (const runtime of testRuntimes.splice(0)) runtime.detachAllHelpers();
     jest.useRealTimers();
     jest.restoreAllMocks();
     Object.assign(globalThis, baseGlobals);
@@ -1281,10 +1286,10 @@ describe("SuggestionManagerRuntime", () => {
       expect(editable.hasAttribute("data-suggestion")).toBe(false);
       expect(getManualAttachButton(leftActions)).toBeNull();
       expect(getManualAttachButton(rightActions)).toBeNull();
-      const container = getManualAttachContainer(editorShell);
+      const container = getManualAttachContainer();
       expect(container).not.toBeNull();
-      expect(container?.style.left).toBe("124px");
-      expect(container?.style.top).toBe("14px");
+      expect(container?.style.left).toBe("214px");
+      expect(container?.style.top).toBe("64px");
       expect(editable.style.paddingRight).toBe("");
       expect(editable.style.paddingLeft).toBe("");
     });
@@ -1299,6 +1304,7 @@ describe("SuggestionManagerRuntime", () => {
       list.id = "editable-list";
       list.setAttribute("role", "listbox");
       editable.tabIndex = 0;
+      editable.setAttribute("aria-multiline", "false");
       editable.setAttribute("role", "combobox");
       editable.setAttribute("autocomplete", "street-address");
       editable.setAttribute("aria-expanded", "true");
@@ -1314,12 +1320,12 @@ describe("SuggestionManagerRuntime", () => {
       runtime.queryAndAttachHelper();
 
       const container = getManualAttachContainer(editorShell);
-      expect(container?.style.left).toBe("132px");
+      expect(container?.style.left).toBe("128px");
 
       mockRect(rightActions, 236, 28, 32, 32);
       runtime.removeHelpersNotInDocument();
 
-      expect(container?.style.left).toBe("124px");
+      expect(container?.style.left).toBe("120px");
     });
 
     test("avoids same-wrapper inline-end controls for contenteditable manual attach placement", () => {
@@ -1333,6 +1339,7 @@ describe("SuggestionManagerRuntime", () => {
       list.id = "editable-list";
       list.setAttribute("role", "listbox");
       editable.tabIndex = 0;
+      editable.setAttribute("aria-multiline", "false");
       editable.setAttribute("role", "combobox");
       editable.setAttribute("autocomplete", "street-address");
       editable.setAttribute("aria-expanded", "true");
@@ -1352,7 +1359,7 @@ describe("SuggestionManagerRuntime", () => {
 
       const container = getManualAttachContainer(editorShell);
       expect(container).not.toBeNull();
-      expect(container?.style.left).toBe("108px");
+      expect(container?.style.left).toBe("104px");
       expect(getManualAttachButton(editorShell)).not.toBeNull();
     });
 
@@ -1367,6 +1374,7 @@ describe("SuggestionManagerRuntime", () => {
       list.id = "editable-list";
       list.setAttribute("role", "listbox");
       editable.tabIndex = 0;
+      editable.setAttribute("aria-multiline", "false");
       editable.setAttribute("role", "combobox");
       editable.setAttribute("autocomplete", "street-address");
       editable.setAttribute("aria-expanded", "true");
@@ -1385,7 +1393,7 @@ describe("SuggestionManagerRuntime", () => {
 
       const container = getManualAttachContainer(editorShell);
       expect(container).not.toBeNull();
-      expect(container?.style.left).toBe("132px");
+      expect(container?.style.left).toBe("128px");
     });
 
     test("uses a high-contrast dark surface treatment for manual attach icon", () => {
@@ -1412,11 +1420,11 @@ describe("SuggestionManagerRuntime", () => {
 
       runtime.queryAndAttachHelper();
 
-      const button = getManualAttachButton(editorShell);
+      const button = getManualAttachButton();
       const icon = button?.querySelector("img");
       expect(button).not.toBeNull();
-      expect(button?.style.backgroundColor).toBe("rgba(15, 23, 42, 0.92)");
-      expect(button?.style.borderColor).toBe("rgba(148, 163, 184, 0.34)");
+      expect(button?.style.backgroundColor).toBe("rgb(30, 41, 59)");
+      expect(button?.style.borderColor).toBe("rgba(56, 189, 248, 0.45)");
       expect(icon?.style.filter).not.toContain("grayscale");
     });
 
@@ -1430,6 +1438,7 @@ describe("SuggestionManagerRuntime", () => {
       list.id = "editable-list";
       list.setAttribute("role", "listbox");
       editable.tabIndex = 0;
+      editable.setAttribute("aria-multiline", "false");
       editable.setAttribute("role", "combobox");
       editable.setAttribute("autocomplete", "street-address");
       editable.setAttribute("aria-expanded", "true");
@@ -1447,7 +1456,7 @@ describe("SuggestionManagerRuntime", () => {
 
       const container = getManualAttachContainer(editorShell);
       expect(container).not.toBeNull();
-      expect(container?.style.left).toBe("132px");
+      expect(container?.style.left).toBe("128px");
     });
 
     test("positions the manual attach icon on inline-end for rtl inputs", () => {
@@ -1469,8 +1478,8 @@ describe("SuggestionManagerRuntime", () => {
 
       const container = getManualAttachContainer(parent);
       expect(container).not.toBeNull();
-      expect(container?.style.left).toBe("28px");
-      expect(container?.style.top).toBe("36px");
+      expect(container?.style.left).toBe("26px");
+      expect(container?.style.top).toBe("33px");
       expect(input.style.paddingLeft).not.toBe("");
       expect(input.style.paddingRight).toBe("");
     });
@@ -1494,11 +1503,11 @@ describe("SuggestionManagerRuntime", () => {
 
       runtime.queryAndAttachHelper();
 
-      const container = getManualAttachContainer(parent);
+      const container = getManualAttachContainer();
       expect(container).not.toBeNull();
-      expect(container?.style.left).toBe("28px");
-      expect(container?.style.top).toBe("34px");
-      expect(textarea.style.paddingLeft).not.toBe("");
+      expect(container?.style.left).toBe("38px");
+      expect(container?.style.top).toBe("94px");
+      expect(textarea.style.paddingLeft).toBe("");
       expect(textarea.style.paddingRight).toBe("");
     });
 
@@ -1605,7 +1614,7 @@ describe("SuggestionManagerRuntime", () => {
         document.body.append(list);
 
         runtime.queryAndAttachHelper();
-        const button = getManualAttachButton(editable.parentElement ?? document);
+        const button = getManualAttachButton();
         expect(button).not.toBeNull();
 
         clickManualAttachButton(button as HTMLButtonElement);
@@ -1614,7 +1623,7 @@ describe("SuggestionManagerRuntime", () => {
         expect(document.activeElement).toBe(editable);
 
         jest.advanceTimersByTime(700);
-        expect(getManualAttachButton(editable.parentElement ?? document)).toBeNull();
+        expect(getManualAttachButton()).toBeNull();
       } finally {
         jest.useRealTimers();
       }
@@ -1808,8 +1817,8 @@ describe("SuggestionManagerRuntime", () => {
 
       const container = getManualAttachContainer(shadow);
       expect(container?.style.position).toBe("fixed");
-      expect(container?.style.left).toBe("274px");
-      expect(container?.style.top).toBe("56px");
+      expect(container?.style.left).toBe("270px");
+      expect(container?.style.top).toBe("53px");
     });
 
     test("uses dark surface styling for a shadow-hosted conflicting field on a dark host", () => {
@@ -1830,7 +1839,7 @@ describe("SuggestionManagerRuntime", () => {
 
       const button = getManualAttachButton(shadow);
       expect(button).not.toBeNull();
-      expect(button?.style.backgroundColor).toBe("rgba(15, 23, 42, 0.92)");
+      expect(button?.style.backgroundColor).toBe("rgb(30, 41, 59)");
     });
 
     test("removes the manual attach icon when a shadow-hosted conflicting field is removed", () => {

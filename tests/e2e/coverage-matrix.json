@@ -3596,12 +3596,17 @@
     },
     {
       "id": "review_layout_and_lifecycle",
-      "description": "Review highlights follow wrapping and resize, hit-test at device pixel ratio 2, render in dark mode and RTL, pause during IME composition, work across multiple fields, and are cleaned up on navigation.",
+      "description": "Review highlights follow wrapping and resize, stay aligned with centered input text despite custom line height and padding, hit-test at device pixel ratio 2, render in dark mode and RTL, pause during IME composition, work across multiple fields, and are cleaned up on navigation.",
       "coverage": [
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Review mode handles wrapping, resize, RTL, hi-DPI hit-testing, dark mode, IME, multiple fields and navigation cleanup"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "input mirror line height follows the %s block axis"
         }
       ]
     },
@@ -3714,7 +3719,7 @@
     },
     {
       "id": "review_in_field_button",
-      "description": "A Review button on the focused multi-line text box (own shadow layer, page layout untouched) reviews only that box; it hides while typing and during its review, yields to the enable icon, and the setting turns it off.",
+      "description": "A Review button on the focused multi-line text box (own shadow layer, page layout untouched) reviews only that box; it appears for prefilled compact fields without an edit, stays visible while typing, avoids nearby text and controls, hides during its review, shares placement and styling with Enable, changes to Review after activation without another edit, and the setting turns it off. Enable follows page and nested scroll, viewport resize, and animated field resize. Its fallback escapes transformed parents when the Popover API is absent or fails. Inside a modal dialog, the fallback uses local coordinates, borders, scroll offsets, and inverse scale to keep viewport placement and size. Both icons use viewport coordinates for scaled and zoomed fields, including RTL, borders, and scrollbar space. Both icons also follow ancestor-driven movement without a scroll or field resize event. The runtime refreshes compact-slot occupancy when surrounding page content appears or disappears. Both actions follow live color, forced-color, and motion preferences, including the Enable checkmark. Media listeners stop when the action is removed. Fixed actions share one animation frame per page and one visibility observer. Fields outside the visible area do not poll geometry, and their actions return when visible without another edit. Narrow multiline fields retain Enable with the minimum space for its icon and margins. Review keeps its wider threshold. Compact slots avoid controls in adjacent nested shadow roots and non-text surfaces such as embedded frames, media, and canvas. Both actions hide and return when CSS-only changes alter the field's painted visibility, including the Enable fallback.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3729,7 +3734,32 @@
         {
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
-          "test": "hidden without text, while typing, during its review, and when turned off"
+          "test": "visible while typing; hidden without text, during its review, and when turned off"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a prefilled compact field shows on focus without a new line, clear of its text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a compact field never puts the button over nearby controls or text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Enable and Review share one position and size, with no second icon during activation"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a prefilled compact shadow field shows on startup and avoids shadow controls"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "field actions respect forced colors and reduced motion"
         },
         {
           "layer": "unit",
@@ -3740,6 +3770,81 @@
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
           "test": "an editable body (TinyMCE, CKEditor 4 frames) never holds the button"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Enable follows nested scroll and viewport resize, hides offscreen, and stops after removal"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Enable escapes a transformed parent when Popover API %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Enable follows field resize and disconnects its observer on removal"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "field action slots scale client dimensions at %s in %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "%s follows field movement without a scroll or resize event"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "%s follows live media preferences and removes its listeners"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "field actions share one frame and suspend outside the visible area"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "%s hides outside the visible area and returns without a layout change"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Enable remains reachable at %s px wide, %s px high, %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "compact actions avoid controls in adjacent nested shadow roots"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "%s follows CSS-only painted visibility without a layout change"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "painted visibility falls back to inherited CSS visibility"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "compact actions avoid non-text %s surfaces"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Enable maps a modal fallback at scale %s when Popover API %s"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Enable modal fallback retains viewport placement and size through dialog scale"
         }
       ]
     },

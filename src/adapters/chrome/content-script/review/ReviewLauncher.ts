@@ -1,3 +1,11 @@
+import {
+  FIELD_ACTION_CHANGE_EVENT,
+  fieldActionSlot,
+  fieldActionTone,
+  styleFieldActionButton,
+  trackFieldActionLayout,
+} from "../FieldActionUi";
+import { getDeepActiveElement } from "@core/application/dom-utils";
 import { reviewText } from "@core/domain/grammar/review/reviewMessages";
 import { reviewMountFor } from "./ReviewController";
 import { editorCapabilities } from "../suggestions/EditorCapabilities";
@@ -8,14 +16,7 @@ import { gutenbergSelectedField, isGutenbergContainer } from "../suggestions/Gut
 /** Marks FluentTyper's own launcher host; never a review target itself. */
 export const REVIEW_LAUNCHER_ATTRIBUTE = "data-fluenttyper-review-launcher";
 
-const BUTTON_PX = 24;
-const INSET_PX = 6;
-// A field must fit the button with room to spare, and hold some text worth reviewing.
-const MIN_WIDTH_PX = 120;
-const MIN_HEIGHT_PX = 36;
 const MIN_TEXT_CHARS = 3;
-// After the last keystroke, how long the button stays hidden.
-const TYPING_PAUSE_MS = 900;
 
 export interface ReviewLauncherDependencies {
   /** The setting is on and FluentTyper runs here with review rules (not code mode). */
@@ -50,17 +51,6 @@ export function launcherFieldFor(element: Element | null): HTMLElement | null {
   return field && editorCapabilities(field).renderReview ? field : null;
 }
 
-/** Bottom inline-end corner, inside the field and clear of its scrollbar. */
-function launcherPosition(field: HTMLElement): { left: number; top: number } {
-  const rect = field.getBoundingClientRect();
-  const rtl = field.ownerDocument.defaultView?.getComputedStyle(field).direction === "rtl";
-  const innerLeft = rect.left + field.clientLeft;
-  const innerRight = innerLeft + (field.clientWidth || rect.width);
-  const innerBottom = rect.top + field.clientTop + (field.clientHeight || rect.height);
-  const left = rtl ? innerLeft + INSET_PX : innerRight - INSET_PX - BUTTON_PX;
-  return { left, top: innerBottom - INSET_PX - BUTTON_PX };
-}
-
 /**
  * Where the launcher can show on `field`, or null when the field never gets one.
  * Other corner controls use it to sit beside the launcher, not under it.
@@ -68,10 +58,7 @@ function launcherPosition(field: HTMLElement): { left: number; top: number } {
 export function reviewLauncherSlot(
   field: HTMLElement,
 ): { left: number; top: number; size: number } | null {
-  if (launcherFieldFor(field) !== field) return null;
-  const rect = field.getBoundingClientRect();
-  if (rect.width < MIN_WIDTH_PX || rect.height < MIN_HEIGHT_PX) return null;
-  return { ...launcherPosition(field), size: BUTTON_PX };
+  return launcherFieldFor(field) === field ? fieldActionSlot(field) : null;
 }
 
 function fieldText(field: HTMLElement): string {
@@ -84,18 +71,15 @@ function fieldText(field: HTMLElement): string {
  * "Review text" as a button on the field being written in: one small button in
  * the field's bottom inline-end corner, in FluentTyper's own shadow root, so
  * the page's layout, padding and markup are untouched. It appears only on the
- * focused multi-line field once it holds some text, hides while the user types,
- * and hides while that field's review is open. Clicking it keeps the field's
+ * focused multi-line field once it holds some text and remains visible during
+ * typing. It hides while that field's review is open. Clicking it keeps the field's
  * focus and selection and reviews exactly that field.
  */
 export class ReviewLauncher {
   private host: HTMLElement | null = null;
   private button: HTMLButtonElement | null = null;
   private field: HTMLElement | null = null;
-  private typingTimer: ReturnType<typeof setTimeout> | null = null;
-  private frame: number | null = null;
-  private resizeObserver: ResizeObserver | null = null;
-  private readonly view: Window;
+  private stopLayoutTracking: (() => void) | null = null;
 
   private readonly onFocusIn = (event: Event) => {
     this.setField(launcherFieldFor(event.composedPath()[0] as Element | null));
@@ -115,14 +99,9 @@ export class ReviewLauncher {
         gutenbergSelectedField(path[0] as Element | null) !== this.field)
     )
       return;
-    this.hide();
-    if (this.typingTimer !== null) clearTimeout(this.typingTimer);
-    this.typingTimer = setTimeout(() => {
-      this.typingTimer = null;
-      this.refresh();
-    }, TYPING_PAUSE_MS);
+    this.refresh();
   };
-  private readonly onLayout = () => this.schedule();
+  private readonly onActionChange = () => this.refresh();
   // Inside a Gutenberg editing host, moving to another field fires no focus events.
   private readonly onSelectionChange = () => {
     const active = this.doc.activeElement;
@@ -135,15 +114,13 @@ export class ReviewLauncher {
     private readonly doc: Document,
     private readonly deps: ReviewLauncherDependencies,
   ) {
-    this.view = doc.defaultView ?? window;
     doc.addEventListener("focusin", this.onFocusIn, true);
     doc.addEventListener("focusout", this.onFocusOut, true);
     doc.addEventListener("input", this.onInput, true);
     doc.addEventListener("selectionchange", this.onSelectionChange);
-    this.view.addEventListener("scroll", this.onLayout, { capture: true, passive: true });
-    this.view.addEventListener("resize", this.onLayout);
+    doc.addEventListener(FIELD_ACTION_CHANGE_EVENT, this.onActionChange);
     // Focus that was already inside a field when the launcher started.
-    const active = doc.activeElement;
+    const active = getDeepActiveElement(doc);
     if (active && active !== doc.body) this.setField(launcherFieldFor(active));
   }
 
@@ -151,14 +128,27 @@ export class ReviewLauncher {
   refresh(): void {
     const field = this.field;
     if (!field || !this.shouldShow(field)) {
+      this.stopLayoutTracking?.();
+      this.stopLayoutTracking = null;
       this.hide();
       return;
+    }
+    if (!this.stopLayoutTracking) {
+      this.stopLayoutTracking = trackFieldActionLayout(field, () => {
+        if (field.isConnected) this.refresh();
+        else this.setField(null);
+      });
     }
     const button = this.ensureButton(field);
     if (!this.place(field, button)) {
       this.hide();
       return;
     }
+    styleFieldActionButton(
+      button,
+      fieldActionTone(field),
+      button.matches(":hover") ? "hover" : "idle",
+    );
     button.hidden = false;
   }
 
@@ -167,10 +157,8 @@ export class ReviewLauncher {
     this.doc.removeEventListener("focusout", this.onFocusOut, true);
     this.doc.removeEventListener("input", this.onInput, true);
     this.doc.removeEventListener("selectionchange", this.onSelectionChange);
-    this.view.removeEventListener("scroll", this.onLayout, { capture: true });
-    this.view.removeEventListener("resize", this.onLayout);
+    this.doc.removeEventListener(FIELD_ACTION_CHANGE_EVENT, this.onActionChange);
     this.setField(null);
-    if (this.frame !== null) this.view.cancelAnimationFrame(this.frame);
     this.host?.remove();
     this.host = null;
     this.button = null;
@@ -181,47 +169,29 @@ export class ReviewLauncher {
       this.refresh();
       return;
     }
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
-    if (this.typingTimer !== null) clearTimeout(this.typingTimer);
-    this.typingTimer = null;
+    this.stopLayoutTracking?.();
+    this.stopLayoutTracking = null;
     this.field = field;
-    if (field && typeof ResizeObserver === "function") {
-      this.resizeObserver = new ResizeObserver(this.onLayout);
-      this.resizeObserver.observe(field);
-    }
     this.refresh();
   }
 
   private shouldShow(field: HTMLElement): boolean {
-    if (this.typingTimer !== null || !field.isConnected) return false;
+    if (!field.isConnected) return false;
     if (!this.deps.isEnabled() || !this.deps.canShowFor(field)) return false;
     // A Gutenberg review shows its whole canvas, which contains the focused field.
     if (this.deps.reviewedElement()?.contains(field)) return false;
     if (fieldText(field).trim().length < MIN_TEXT_CHARS) return false;
-    const rect = field.getBoundingClientRect();
-    return rect.width >= MIN_WIDTH_PX && rect.height >= MIN_HEIGHT_PX;
+    return true;
   }
 
   /** False when off-screen. */
   private place(field: HTMLElement, button: HTMLButtonElement): boolean {
-    const { left, top } = launcherPosition(field);
-    const visible =
-      top >= 0 &&
-      left >= 0 &&
-      top + BUTTON_PX <= this.view.innerHeight &&
-      left + BUTTON_PX <= this.view.innerWidth;
+    const slot = reviewLauncherSlot(field);
+    if (!slot) return false;
+    const { left, top } = slot;
     button.style.left = `${Math.round(left)}px`;
     button.style.top = `${Math.round(top)}px`;
-    return visible;
-  }
-
-  private schedule(): void {
-    if (this.frame !== null || !this.field) return;
-    this.frame = this.view.requestAnimationFrame(() => {
-      this.frame = null;
-      this.refresh();
-    });
+    return true;
   }
 
   private hide(): void {
@@ -253,6 +223,16 @@ export class ReviewLauncher {
     button.hidden = true;
     // Not a tab stop: the keyboard shortcut reviews the field without leaving it.
     button.tabIndex = -1;
+    const updateStyle = () => {
+      if (this.field)
+        styleFieldActionButton(
+          button,
+          fieldActionTone(this.field),
+          button.matches(":hover, :focus-visible") ? "hover" : "idle",
+        );
+    };
+    for (const event of ["mouseenter", "mouseleave", "focus", "blur"])
+      button.addEventListener(event, updateStyle);
     button.append(svgIcon(this.doc, ["M4 7h11", "M4 12h7", "M4 17h5", "m13 17 3 3 5-6"]));
     // Keep the field's focus and selection: the review reads both.
     const keepFocus = (event: Event) => event.preventDefault();
@@ -279,34 +259,7 @@ export class ReviewLauncher {
 
 const LAUNCHER_STYLES = `
 :host { all: initial; }
-button {
-  position: fixed;
-  pointer-events: auto;
-  width: ${BUTTON_PX}px;
-  height: ${BUTTON_PX}px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  border: 1px solid rgba(79, 70, 229, 0.45);
-  background: #ffffff;
-  color: #4338ca;
-  box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.35);
-  cursor: pointer;
-  transition: box-shadow 150ms ease-out, border-color 150ms ease-out, background-color 150ms ease-out;
-}
-button[hidden] { display: none; }
-button:hover { border-color: #4f46e5; background: #eef2ff; box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.35); }
+button { position: fixed; }
+button[hidden] { display: none !important; }
 svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-@media (prefers-color-scheme: dark) {
-  button { background: #1e293b; color: #38bdf8; border-color: rgba(56, 189, 248, 0.45); }
-  button:hover { background: #243247; border-color: #38bdf8; }
-}
-@media (forced-colors: active) {
-  button { border-color: ButtonText; background: ButtonFace; color: ButtonText; forced-color-adjust: none; }
-}
-@media (prefers-reduced-motion: reduce) {
-  button { transition: none; }
-}
 `;

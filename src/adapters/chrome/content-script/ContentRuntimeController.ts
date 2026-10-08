@@ -393,6 +393,7 @@ export class ContentRuntimeController {
           this.suggestionManager.queryAndAttachHelper(root);
         }
       }
+      this.reviewLauncher?.refresh();
     } finally {
       if (this.enabled) {
         this.domObserver.attach();

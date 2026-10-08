@@ -9811,6 +9811,77 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     suiteTimeout(20000, 30000),
   );
 
+  test("Enable modal fallback retains viewport placement and size through dialog scale", async () => {
+    await prepareReviewPage();
+    const bundle = await bundleTestEditor("field-action.ts");
+    await page.addScriptTag({ content: await bundle.text() });
+    const results = await page.evaluate(async () => {
+      const descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "showPopover");
+      const results = [];
+      try {
+        for (const failure of ["missing", "throws"]) {
+          Object.defineProperty(HTMLElement.prototype, "showPopover", {
+            configurable: true,
+            value:
+              failure === "missing"
+                ? undefined
+                : () => {
+                    throw new Error("Popover refused");
+                  },
+          });
+          for (const scale of [0.5, 2]) {
+            const dialog = document.createElement("dialog");
+            dialog.style.cssText = `position:fixed;left:100px;top:100px;margin:0;width:300px;height:200px;padding:12px;border:2px solid;box-sizing:border-box;overflow:auto;transform-origin:top left;transform:scale(${scale});`;
+            const field = document.createElement("textarea");
+            field.style.cssText =
+              "display:block;width:160px;height:80px;margin:24px;box-sizing:border-box;";
+            const spacer = document.createElement("div");
+            spacer.style.height = "400px";
+            dialog.append(field, spacer);
+            document.body.append(dialog);
+            dialog.showModal();
+            dialog.scrollTop = 20;
+            const manual = new window.__testManualAttachUi({ iconUrl: "", onActivate: () => {} });
+            try {
+              manual.ensureForElement(field);
+              const container = dialog.querySelector<HTMLElement>(".ft-manual-attach")!;
+              const deadline = performance.now() + 3000;
+              while (container.hidden && performance.now() < deadline)
+                await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+              const action = container.querySelector("button")!.getBoundingClientRect();
+              const rect = field.getBoundingClientRect();
+              results.push({
+                hidden: container.hidden,
+                width: action.width,
+                height: action.height,
+                right:
+                  action.right - (rect.left + (field.clientLeft + field.clientWidth) * scale - 6),
+                bottom:
+                  action.bottom - (rect.top + (field.clientTop + field.clientHeight) * scale - 6),
+              });
+            } finally {
+              manual.removeAll();
+              dialog.close();
+              dialog.remove();
+            }
+          }
+        }
+      } finally {
+        if (descriptor) Object.defineProperty(HTMLElement.prototype, "showPopover", descriptor);
+        else Reflect.deleteProperty(HTMLElement.prototype, "showPopover");
+      }
+      return results;
+    });
+    expect(results).toHaveLength(4);
+    for (const result of results) {
+      expect(result.hidden).toBe(false);
+      expect(result.width).toBeCloseTo(24, 0);
+      expect(result.height).toBeCloseTo(24, 0);
+      expect(Math.abs(result.right)).toBeLessThan(1.5);
+      expect(Math.abs(result.bottom)).toBeLessThan(1.5);
+    }
+  });
+
   test(
     "Review button in the focused text box reviews only that box; the setting turns it off",
     async () => {
@@ -9838,6 +9909,30 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           const rect = el.getBoundingClientRect();
           return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
         });
+      const verifyLiveMotion = async (review: boolean) => {
+        if (isFirefox()) return; // Puppeteer media emulation requires Chrome's CDP.
+        try {
+          await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+          await waitUntil("visible action follows reduced motion", () =>
+            page.evaluate((isReview) => {
+              const button = isReview
+                ? document
+                    .querySelector("[data-fluenttyper-review-launcher]")
+                    ?.shadowRoot?.querySelector("button")
+                : document.querySelector("#compact-wrapper .ft-manual-attach-button");
+              return (
+                button !== null &&
+                button !== undefined &&
+                [button, ...button.children].every(
+                  (el) => getComputedStyle(el).transitionDuration === "0s",
+                )
+              );
+            }, review),
+          );
+        } finally {
+          await page.emulateMediaFeatures([]);
+        }
+      };
 
       // The button sits inside the focused box, in its corner; the page's layout is untouched.
       const paddingBefore = await page.$eval(
@@ -9860,11 +9955,310 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         paddingBefore,
       );
 
-      // Typing hides it until a pause.
+      // Typing keeps the action available without a pause.
       await page.keyboard.press("End");
       await page.keyboard.type(" More", { delay: 20 });
+      expect(await launcher()).not.toBeNull();
+
+      // An auto-growing textarea can contain one line without room for an inside icon.
+      await page.evaluate(() => {
+        const field = document.createElement("textarea");
+        field.id = "compact-textarea";
+        field.value = "What asd asd";
+        field.style.cssText = "display:block;width:300px;height:32px;box-sizing:border-box;";
+        const wrapper = document.createElement("div");
+        wrapper.id = "compact-wrapper";
+        wrapper.style.cssText =
+          "width:300px;height:32px;margin-bottom:42px;overflow:hidden;transform:translateZ(0);";
+        wrapper.append(field);
+        document.querySelector("#second-textarea")!.after(wrapper);
+        field.focus();
+      });
+      await waitUntil("compact field button on focus", async () => (await launcher()) !== null, {
+        timeoutMs: 5000,
+      });
+      const compact = await box("#compact-textarea");
+      expect((await launcher())!.y - 12).toBeGreaterThan(compact.bottom);
+      await page.keyboard.press("End");
+      await page.keyboard.type(" More", { delay: 20 });
+      expect(await launcher()).not.toBeNull();
+      // Another control below this field owns that space.
+      await page.evaluate(() => {
+        const field = document.querySelector<HTMLTextAreaElement>("#compact-textarea")!;
+        const rect = field.getBoundingClientRect();
+        const control = document.createElement("div");
+        control.id = "compact-adjacent-control";
+        control.style.cssText = `position:fixed;left:${rect.right - 30}px;top:${rect.bottom + 6}px;width:24px;height:24px;`;
+        const nested = document.createElement("div");
+        const button = document.createElement("button");
+        button.textContent = "Page action";
+        button.style.cssText = "width:24px;height:24px;padding:0;";
+        nested.attachShadow({ mode: "open" }).append(button);
+        control.attachShadow({ mode: "open" }).append(nested);
+        document.body.append(control);
+      });
+      await waitUntil(
+        "Review steps aside for an inserted page control",
+        async () => (await launcher()) === null,
+      );
+      await page.evaluate(() => document.querySelector("#compact-adjacent-control")!.remove());
+      await waitUntil(
+        "Review returns after the page control is removed",
+        async () => (await launcher()) !== null,
+      );
+      await page.evaluate(() => {
+        const rect = document.querySelector("#compact-textarea")!.getBoundingClientRect();
+        const frame = document.createElement("iframe");
+        frame.id = "compact-adjacent-frame";
+        frame.srcdoc = "<button>Page action</button>";
+        frame.style.cssText = `position:fixed;left:${rect.right - 30}px;top:${rect.bottom + 6}px;width:24px;height:24px;border:0;`;
+        document.body.append(frame);
+      });
+      await waitUntil(
+        "Review steps aside for an embedded page control",
+        async () => (await launcher()) === null,
+      );
+      await page.evaluate(() => document.querySelector("#compact-adjacent-frame")!.remove());
+      await waitUntil(
+        "Review returns after the embedded control is removed",
+        async () => (await launcher()) !== null,
+      );
+      await page.evaluate(() => {
+        const scroller = document.createElement("div");
+        scroller.id = "compact-scroller";
+        scroller.style.cssText =
+          "width:320px;height:160px;overflow:auto;overflow-anchor:none;padding-top:40px;margin-bottom:800px;";
+        const wrapper = document.querySelector("#compact-wrapper")!;
+        document.body.append(scroller);
+        scroller.append(wrapper);
+        const spacer = document.createElement("div");
+        spacer.style.height = "300px";
+        scroller.append(spacer);
+        scroller.scrollIntoView({ block: "center" });
+      });
+      await page.evaluate(() => {
+        const field = document.querySelector("#compact-textarea")!;
+        field.setAttribute("role", "combobox");
+        field.setAttribute("autocomplete", "street-address");
+      });
+      await page.waitForSelector("#compact-wrapper .ft-manual-attach-button", { visible: true });
       expect(await launcher()).toBeNull();
-      await waitUntil("button back after typing", async () => (await launcher()) !== null, {
+      await page.evaluate(() => {
+        const field = document.querySelector("#compact-textarea")!.getBoundingClientRect();
+        const control = document.createElement("div");
+        control.id = "enable-adjacent-control";
+        control.style.cssText = `position:fixed;left:${field.right - 30}px;top:${field.bottom + 6}px;width:24px;height:24px;`;
+        const button = document.createElement("canvas");
+        button.style.cssText = "width:24px;height:24px;padding:0;";
+        control.attachShadow({ mode: "open" }).append(button);
+        document.body.append(control);
+      });
+      await waitUntil("Enable steps aside for an inserted page control", () =>
+        page.$eval(
+          "#compact-wrapper .ft-manual-attach",
+          (el) => (el as HTMLElement).hidden === true,
+        ),
+      );
+      await page.evaluate(() => document.querySelector("#enable-adjacent-control")!.remove());
+      await page.waitForSelector("#compact-wrapper .ft-manual-attach-button", { visible: true });
+      const enableAligned = () =>
+        page.evaluate(() => {
+          const field = document.querySelector("#compact-textarea")!;
+          const button = document.querySelector("#compact-wrapper .ft-manual-attach-button")!;
+          const rect = field.getBoundingClientRect();
+          const action = button.getBoundingClientRect();
+          return Math.abs(action.top - rect.bottom - 6) < 1;
+        });
+      await waitUntil("Enable placement before scrolling", enableAligned);
+      await page.evaluate(() => window.scrollBy(0, 20));
+      await waitUntil("Enable follows page scroll", enableAligned);
+      await page.$eval("#compact-scroller", (el) => {
+        el.scrollTop = 20;
+      });
+      await waitUntil("Enable follows nested scroll", enableAligned);
+      await page.$eval("#compact-scroller", (el) => {
+        el.scrollTop = 200;
+      });
+      await waitUntil("Enable hides when its field leaves the scroll area", () =>
+        page.$eval("#compact-wrapper .ft-manual-attach", (el) => (el as HTMLElement).hidden),
+      );
+      await page.$eval("#compact-scroller", (el) => {
+        el.scrollTop = 20;
+      });
+      await waitUntil("Enable returns when its field enters the scroll area", enableAligned);
+      await page.$eval("#compact-textarea", (el) => {
+        (el as HTMLElement).style.width = "48px";
+      });
+      await waitUntil("Enable stays reachable in a narrow field", () =>
+        page.evaluate(() => {
+          const field = document.querySelector("#compact-textarea")!.getBoundingClientRect();
+          const container = document.querySelector<HTMLElement>(
+            "#compact-wrapper .ft-manual-attach",
+          )!;
+          const action = container.getBoundingClientRect();
+          return !container.hidden && action.left >= field.left && action.right <= field.right;
+        }),
+      );
+      expect(
+        await page.$eval(
+          "#compact-wrapper .ft-manual-attach-button",
+          (el) => el.getBoundingClientRect().width,
+        ),
+      ).toBe(24);
+      await page.$eval("#compact-textarea", (el) => {
+        (el as HTMLElement).style.width = "300px";
+      });
+      await waitUntil("Enable returns to the wider field's corner", enableAligned);
+      await page.$eval("#compact-wrapper", (el) => {
+        el.animate([{ opacity: 1 }, { opacity: 0 }], {
+          duration: 50,
+          fill: "forwards",
+        });
+      });
+      await waitUntil("Enable hides with its CSS-hidden field", () =>
+        page.$eval("#compact-wrapper .ft-manual-attach", (el) => (el as HTMLElement).hidden),
+      );
+      await page.$eval("#compact-wrapper", (el) => {
+        for (const animation of el.getAnimations()) animation.cancel();
+      });
+      await waitUntil("Enable returns with its painted field", () =>
+        page.$eval("#compact-wrapper .ft-manual-attach", (el) => !(el as HTMLElement).hidden),
+      );
+      await page.$eval("#compact-textarea", (el) => {
+        el.parentElement!.style.height = "auto";
+        el.animate([{ height: "32px" }, { height: "80px" }], {
+          duration: 200,
+          fill: "forwards",
+        });
+      });
+      await waitUntil("Enable follows an animated field resize", () =>
+        page.evaluate(() => {
+          const field = document.querySelector("#compact-textarea")!;
+          const button = document.querySelector("#compact-wrapper .ft-manual-attach-button")!;
+          const rect = field.getBoundingClientRect();
+          const action = button.getBoundingClientRect();
+          const innerBottom = rect.top + field.clientTop + field.clientHeight;
+          return rect.height === 80 && Math.abs(action.bottom - innerBottom + 6) < 1;
+        }),
+      );
+      await page.$eval("#compact-textarea", (el) => {
+        const field = el as HTMLTextAreaElement;
+        field.style.transform = "scale(0.75)";
+        field.style.transformOrigin = "top left";
+      });
+      const enableInsideField = () =>
+        page.evaluate(() => {
+          const field = document.querySelector("#compact-textarea")!.getBoundingClientRect();
+          const action = document
+            .querySelector("#compact-wrapper .ft-manual-attach-button")!
+            .getBoundingClientRect();
+          return (
+            Math.abs(action.right - field.right + 6) < 2 &&
+            Math.abs(action.bottom - field.bottom + 6) < 2
+          );
+        });
+      await waitUntil("Enable stays inside a scaled field", enableInsideField);
+      await page.$eval("#compact-textarea", (el) => {
+        const field = el as HTMLTextAreaElement;
+        field.style.transform = "";
+        field.style.zoom = "0.75";
+      });
+      await waitUntil("Enable stays inside a zoomed field", enableInsideField);
+      await page.$eval("#compact-textarea", (el) => {
+        const preceding = document.createElement("div");
+        el.before(preceding);
+        preceding.animate([{ height: "0px" }, { height: "40px" }], {
+          duration: 200,
+          fill: "forwards",
+        });
+      });
+      await waitUntil("Enable follows a growing preceding section", async () => {
+        const grown = await page.$eval(
+          "#compact-textarea",
+          (el) => el.previousElementSibling!.getBoundingClientRect().height === 40,
+        );
+        return grown && (await enableInsideField());
+      });
+      await verifyLiveMotion(false);
+      const enablePoint = await page.$eval(
+        "#compact-wrapper .ft-manual-attach-button",
+        (button) => {
+          const rect = button.getBoundingClientRect();
+          return {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2,
+            width: rect.width,
+          };
+        },
+      );
+      expect(enablePoint.width).toBe(24);
+      await page.mouse.click(enablePoint.x, enablePoint.y);
+      await waitUntil(
+        "Review replaces Enable without another edit",
+        async () => (await launcher()) !== null,
+        {
+          timeoutMs: 5000,
+        },
+      );
+      const reviewPoint = (await launcher())!;
+      expect(reviewPoint.x).toBeCloseTo(enablePoint.x, 0);
+      expect(reviewPoint.y).toBeCloseTo(enablePoint.y, 0);
+      await verifyLiveMotion(true);
+      await page.$eval("#compact-wrapper", (el) => {
+        el.animate([{ opacity: 1 }, { opacity: 0 }], {
+          duration: 50,
+          fill: "forwards",
+        });
+      });
+      await waitUntil(
+        "Review hides with its CSS-hidden field",
+        async () => (await launcher()) === null,
+      );
+      await page.$eval("#compact-wrapper", (el) => {
+        for (const animation of el.getAnimations()) animation.cancel();
+      });
+      await waitUntil(
+        "Review returns with its painted field",
+        async () => (await launcher()) !== null,
+      );
+      await page.$eval("#compact-textarea", (el) => {
+        el.previousElementSibling!.animate([{ height: "40px" }, { height: "60px" }], {
+          duration: 200,
+          fill: "forwards",
+        });
+      });
+      await waitUntil("Review follows the growing preceding section", async () => {
+        const grown = await page.$eval(
+          "#compact-textarea",
+          (el) => el.previousElementSibling!.getBoundingClientRect().height === 60,
+        );
+        const point = await launcher();
+        const field = await box("#compact-textarea");
+        return grown && point !== null && Math.abs(point.y + 12 - field.bottom + 6) < 2;
+      });
+      await page.$eval("#compact-scroller", (el) => {
+        el.scrollTop = 250;
+      });
+      await waitUntil(
+        "Review hides when its field leaves the scroll area",
+        async () => (await launcher()) === null,
+      );
+      await page.$eval("#compact-scroller", (el) => {
+        el.scrollTop = 20;
+      });
+      await waitUntil(
+        "Review returns when its field enters the scroll area",
+        async () => (await launcher()) !== null,
+      );
+      await page.evaluate(() => {
+        for (const control of document.querySelectorAll(
+          '[data-ft-suggestion-owned][role="status"]',
+        ))
+          control.querySelector<HTMLButtonElement>("button:last-child")?.click();
+        document.querySelector("#compact-scroller")!.remove();
+      });
+      await page.focus("#second-textarea");
+      await waitUntil("second field button", async () => (await launcher()) !== null, {
         timeoutMs: 5000,
       });
 
@@ -11664,6 +12058,80 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }]);
       }
       expect(await page.evaluate(() => window.devicePixelRatio)).toBe(2);
+      // Allegro uses a search input with padding and a line height larger than its content box.
+      await page.evaluate(() => {
+        const field = document.createElement("input");
+        field.id = "review-search";
+        field.type = "search";
+        field.setAttribute("role", "combobox");
+        field.autocomplete = "off";
+        field.style.cssText =
+          "position:fixed;left:80px;top:60px;width:300px;height:40px;padding:8px;border:1px solid;box-sizing:border-box;font:14px/40px Arial;";
+        field.value = "We saw teh cat.";
+        document.body.append(field);
+        field.focus();
+        field.setSelectionRange(0, 0);
+      });
+      await triggerReview(worker, "popup");
+      let searchPanel = await waitForReview(
+        page,
+        "search input review",
+        (p) => p.status === "Issues: 1",
+      );
+      const searchCenter = await page.$eval("#review-search", (field) => {
+        const rect = field.getBoundingClientRect();
+        return rect.top + rect.height / 2;
+      });
+      expect(searchPanel.marks).toHaveLength(1);
+      expect(
+        Math.abs(searchPanel.marks[0].top + searchPanel.marks[0].height / 2 - searchCenter),
+      ).toBeLessThan(1.5);
+      // Changing line height must not move the native input's centered text or its highlight.
+      await clickReviewControl(page, "[data-action=close]");
+      await page.$eval("#review-search", (field) => {
+        (field as HTMLInputElement).style.lineHeight = "normal";
+        (field as HTMLInputElement).focus();
+      });
+      await triggerReview(worker);
+      searchPanel = await waitForReview(
+        page,
+        "normal search line height",
+        (p) => p.status === "Issues: 1",
+      );
+      expect(
+        Math.abs(searchPanel.marks[0].top + searchPanel.marks[0].height / 2 - searchCenter),
+      ).toBeLessThan(1.5);
+      await clickReviewControl(page, "[data-action=close]");
+      for (const writingMode of ["vertical-rl", "vertical-lr", "sideways-lr"]) {
+        await page.$eval(
+          "#review-search",
+          (field, mode) => {
+            const input = field as HTMLInputElement;
+            input.style.writingMode = mode;
+            input.style.width = "40px";
+            input.style.height = "300px";
+            input.focus();
+            input.setSelectionRange(0, 0);
+          },
+          writingMode,
+        );
+        await triggerReview(worker);
+        searchPanel = await waitForReview(
+          page,
+          `${writingMode} input highlights`,
+          (p) => p.status === "Issues: 1",
+        );
+        const center = await page.$eval("#review-search", (field) => {
+          const rect = field.getBoundingClientRect();
+          return rect.left + rect.width / 2;
+        });
+        expect(searchPanel.marks).toHaveLength(1);
+        expect(
+          Math.abs(searchPanel.marks[0].left + searchPanel.marks[0].width / 2 - center),
+        ).toBeLessThan(1.5);
+        await clickReviewControl(page, "[data-action=close]");
+      }
+      await page.$eval("#review-search", (field) => field.remove());
       // A finding that wraps across two lines gets one mark per line box.
       await page.evaluate(() => {
         const field = document.querySelector("#test-textarea") as HTMLTextAreaElement;

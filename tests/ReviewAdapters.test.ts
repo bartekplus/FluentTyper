@@ -1,6 +1,6 @@
 import { detectReviewDiagnostics } from "../src/core/domain/grammar/review/reviewDiagnostics";
 import { afterEach, describe, expect, jest, test } from "bun:test";
-import { createEditor, setCaret } from "./codeContextTestUtils";
+import { createEditor, setCaret, withProperty } from "./codeContextTestUtils";
 import { createReviewController, until } from "./reviewTestUtils";
 import {
   buildContentEditableTextMap,
@@ -22,6 +22,7 @@ import {
 import {
   ReviewLauncher,
   launcherFieldFor,
+  reviewLauncherSlot,
 } from "../src/adapters/chrome/content-script/review/ReviewLauncher";
 import {
   GoogleDocsReviewTarget,
@@ -34,6 +35,13 @@ import {
   type DocsEdit,
 } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 import { REVIEW_HIGHLIGHT_NAMES } from "../src/adapters/chrome/content-script/review/reviewStyles";
+import { ManualAttachUiManager } from "../src/adapters/chrome/content-script/suggestions/ManualAttachUiManager";
+import {
+  styleFieldActionButton,
+  trackFieldActionLayout,
+  FIELD_ACTION_SIZE_PX,
+  fieldActionSlot,
+} from "../src/adapters/chrome/content-script/FieldActionUi";
 import {
   reviewRuleIds,
   runsInReviewLanguage,
@@ -389,6 +397,29 @@ describe("Google Docs review writes", () => {
 });
 
 describe("text control measuring", () => {
+  test.each(["horizontal-tb", "vertical-rl", "vertical-lr", "sideways-lr"])(
+    "input mirror line height follows the %s block axis",
+    (writingMode) => {
+      const field = document.createElement("input");
+      field.value = "We saw teh cat.";
+      field.style.cssText = `writing-mode:${writingMode};padding:8px 4px;`;
+      document.body.append(field);
+      Object.defineProperties(field, {
+        clientWidth: { value: 38 },
+        clientHeight: { value: 298 },
+      });
+      const host = document.createElement("div");
+      document.body.append(host);
+      const root = host.attachShadow({ mode: "open" });
+      const target = new TextControlReviewTarget(field);
+      target.setMeasurementRoot(root);
+      target.rangeRects({ start: 7, end: 10 });
+      expect(
+        root.querySelector<HTMLElement>("[data-fluenttyper-review-mirror]")!.style.lineHeight,
+      ).toBe(writingMode === "horizontal-tb" ? "282px" : "30px");
+    },
+  );
+
   test("a new measurement root (a rebuilt panel) moves the mirror into it", () => {
     const field = textarea("We saw teh cat.");
     const target = new TextControlReviewTarget(field);
@@ -1058,7 +1089,765 @@ describe("in-field review button", () => {
     instance.dispose();
   });
 
-  test("hidden without text, while typing, during its review, and when turned off", async () => {
+  test("a prefilled compact field shows on focus without a new line, clear of its text", () => {
+    const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
+    field.focus();
+    const { instance } = launcher();
+    try {
+      expect(shown()).toBe(true);
+      expect(launcherButton()!.style.left).toBe("370px");
+      expect(launcherButton()!.style.top).toBe("88px");
+      expect(reviewLauncherSlot(field)).toEqual({ left: 370, top: 88, size: 24 });
+      field.style.direction = "rtl";
+      instance.refresh();
+      expect(launcherButton()!.style.left).toBe("106px");
+      expect(launcherButton()!.style.top).toBe("88px");
+    } finally {
+      instance.dispose();
+    }
+  });
+
+  test.each([
+    [0.5, "ltr", 211, 59],
+    [0.5, "rtl", 107, 59],
+    [2, "ltr", 634, 176],
+    [2, "rtl", 110, 176],
+  ] as const)(
+    "field action slots scale client dimensions at %s in %s",
+    (scale, direction, left, top) => {
+      const field = sized(textarea("What asd asd"), {
+        left: 100,
+        top: 50,
+        width: 300 * scale,
+        height: 80 * scale,
+      });
+      field.style.direction = direction;
+      for (const [name, value] of Object.entries({
+        offsetWidth: 300,
+        offsetHeight: 80,
+        clientLeft: 2,
+        clientTop: 2,
+        clientWidth: 280,
+        clientHeight: 76,
+      }))
+        Object.defineProperty(field, name, { configurable: true, value });
+      expect(reviewLauncherSlot(field)).toEqual({ left, top, size: 24 });
+    },
+  );
+
+  test("a compact field never puts the button over nearby controls or text", () => {
+    const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
+    const control = document.createElement("button");
+    const text = document.createElement("p");
+    text.textContent = "Text below the field";
+    document.body.append(control, text);
+    const { instance } = launcher();
+    try {
+      withProperty(
+        document,
+        "elementsFromPoint",
+        () => [control, document.body],
+        () => {
+          focusIn(field);
+          expect(shown()).toBe(false);
+          expect(reviewLauncherSlot(field)).toBeNull();
+        },
+      );
+      withProperty(
+        document,
+        "elementsFromPoint",
+        () => [text, document.body],
+        () => {
+          instance.refresh();
+          expect(shown()).toBe(false);
+        },
+      );
+      withProperty(
+        document,
+        "elementsFromPoint",
+        () => [document.body],
+        () => {
+          instance.refresh();
+          expect(shown()).toBe(true);
+        },
+      );
+    } finally {
+      instance.dispose();
+    }
+  });
+
+  test("a prefilled compact shadow field shows on startup and avoids shadow controls", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = host.attachShadow({ mode: "open" });
+    const field = sized(document.createElement("textarea"), {
+      left: 100,
+      top: 50,
+      width: 300,
+      height: 32,
+    });
+    field.value = "What asd asd";
+    root.append(field);
+    field.focus();
+    withProperty(
+      document,
+      "elementsFromPoint",
+      () => [host, document.body],
+      () => {
+        const { instance } = launcher();
+        try {
+          expect(shown()).toBe(true);
+          const control = document.createElement("button");
+          root.append(control);
+          withProperty(
+            root,
+            "elementsFromPoint",
+            () => [control],
+            () => {
+              instance.refresh();
+              expect(shown()).toBe(false);
+            },
+          );
+        } finally {
+          instance.dispose();
+        }
+      },
+    );
+  });
+
+  test("Enable and Review share one position and size, with no second icon during activation", async () => {
+    const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
+    field.focus();
+    const activate = jest.fn();
+    const manual = new ManualAttachUiManager({ iconUrl: "/icon/icon16.png", onActivate: activate });
+    const { instance } = launcher({ canShowFor: (element) => !manual.has(element) });
+    try {
+      const position = { left: launcherButton()!.style.left, top: launcherButton()!.style.top };
+      const background = launcherButton()!.style.backgroundColor;
+      manual.ensureForElement(field);
+      const enable = document.querySelector<HTMLButtonElement>(".ft-manual-attach-button")!;
+      expect(shown()).toBe(false);
+      expect(enable.parentElement!.style.left).toBe(position.left);
+      expect(enable.parentElement!.style.top).toBe(position.top);
+      expect(enable.style.width).toBe(launcherButton()!.style.width);
+      expect(enable.style.backgroundColor).toBe(background);
+      expect(field.style.paddingRight).toBe("");
+      enable.click();
+      expect(activate).toHaveBeenCalledWith(field);
+      expect(shown()).toBe(false);
+      await until(() => shown());
+      expect(document.querySelector(".ft-manual-attach-button")).toBeNull();
+      expect(launcherButton()!.style.left).toBe(position.left);
+      expect(launcherButton()!.style.top).toBe(position.top);
+    } finally {
+      manual.removeAll();
+      instance.dispose();
+    }
+  });
+
+  test("field actions respect forced colors and reduced motion", () => {
+    const button = document.createElement("button");
+    withProperty(
+      document.defaultView!,
+      "matchMedia",
+      () => ({ matches: true }),
+      () => {
+        styleFieldActionButton(button, "dark", "success");
+        expect(button.style.backgroundColor.toLowerCase()).toBe("buttonface");
+        expect(button.style.color.toLowerCase()).toBe("buttontext");
+        expect(button.style.borderColor.toLowerCase()).toBe("buttontext");
+        expect(button.style.transition).toBe("none");
+      },
+    );
+  });
+
+  test.each(["video", "iframe", "object", "canvas", "img", "svg", "embed", "audio"])(
+    "compact actions avoid non-text %s surfaces",
+    (tag) => {
+      const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
+      const surface = document.createElement(tag);
+      document.body.append(surface);
+      withProperty(
+        document,
+        "elementsFromPoint",
+        () => [surface],
+        () => {
+          expect(fieldActionSlot(field)).toBeNull();
+        },
+      );
+    },
+  );
+
+  test("compact actions avoid controls in adjacent nested shadow roots", () => {
+    const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = host.attachShadow({ mode: "open" });
+    const nested = document.createElement("div");
+    root.append(nested);
+    const nestedRoot = nested.attachShadow({ mode: "open" });
+    const button = document.createElement("button");
+    button.textContent = "Page action";
+    nestedRoot.append(button);
+    withProperty(
+      document,
+      "elementsFromPoint",
+      () => [host],
+      () => {
+        withProperty(
+          root,
+          "elementsFromPoint",
+          () => [nested, host],
+          () => {
+            withProperty(
+              nestedRoot,
+              "elementsFromPoint",
+              () => [button, nested, host],
+              () => {
+                expect(fieldActionSlot(field)).toBeNull();
+              },
+            );
+          },
+        );
+      },
+    );
+  });
+
+  test("painted visibility falls back to inherited CSS visibility", () => {
+    const field = sized(textarea("What asd asd"));
+    const parent = document.createElement("div");
+    field.before(parent);
+    parent.append(field);
+    withProperty(field, "checkVisibility", undefined, () => {
+      parent.style.visibility = "hidden";
+      expect(fieldActionSlot(field)).toBeNull();
+      parent.style.visibility = "visible";
+      expect(fieldActionSlot(field)).not.toBeNull();
+    });
+  });
+
+  test.each(["Enable", "Review"])(
+    "%s follows CSS-only painted visibility without a layout change",
+    async (action) => {
+      const field = sized(textarea("What asd asd"));
+      let painted = true;
+      Object.defineProperty(field, "checkVisibility", { value: () => painted });
+      const manual = new ManualAttachUiManager({
+        iconUrl: "/icon/icon16.png",
+        onActivate: jest.fn(),
+      });
+      const instance = action === "Review" ? launcher().instance : null;
+      try {
+        if (!instance) {
+          withProperty(HTMLElement.prototype, "showPopover", undefined, () =>
+            manual.ensureForElement(field),
+          );
+        }
+        const container = instance
+          ? launcherButton()!
+          : document.querySelector<HTMLElement>(".ft-manual-attach")!;
+        await new Promise<void>((resolve) =>
+          window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())),
+        );
+        expect(container.hidden).toBe(false);
+        painted = false;
+        await until(() => container.hidden === true);
+        painted = true;
+        await until(() => !container.hidden);
+      } finally {
+        manual.removeAll();
+        instance?.dispose();
+      }
+    },
+  );
+
+  test.each(["Enable textarea", "Enable input", "Review"])(
+    "%s follows live media preferences and removes its listeners",
+    async (action) => {
+      const view = document.defaultView!;
+      const previous = Object.getOwnPropertyDescriptor(view, "matchMedia");
+      const media = new Map<
+        string,
+        {
+          matches: boolean;
+          listeners: Set<() => void>;
+          addEventListener: (name: string, listener: () => void) => void;
+          removeEventListener: (name: string, listener: () => void) => void;
+        }
+      >();
+      Object.defineProperty(view, "matchMedia", {
+        configurable: true,
+        value: (query: string) => {
+          if (!media.has(query)) {
+            const listeners = new Set<() => void>();
+            media.set(query, {
+              matches: false,
+              listeners,
+              addEventListener: (_name, listener) => {
+                listeners.add(listener);
+              },
+              removeEventListener: (_name, listener) => {
+                listeners.delete(listener);
+              },
+            });
+          }
+          return media.get(query)!;
+        },
+      });
+      const bodyBackground = document.body.style.backgroundColor;
+      const rootBackground = document.documentElement.style.backgroundColor;
+      document.body.style.backgroundColor = "transparent";
+      document.documentElement.style.backgroundColor = "transparent";
+      const field =
+        action === "Enable input" ? document.createElement("input") : textarea("What asd asd");
+      if (!field.isConnected) document.body.append(field);
+      field.style.backgroundColor = "transparent";
+      sized(field);
+      const manual = new ManualAttachUiManager({
+        iconUrl: "/icon/icon16.png",
+        onActivate: jest.fn(),
+      });
+      const instance = action === "Review" ? launcher().instance : null;
+      try {
+        if (!instance) manual.ensureForElement(field);
+        const button = instance
+          ? launcherButton()!
+          : document.querySelector<HTMLButtonElement>(".ft-manual-attach-button")!;
+        await new Promise<void>((resolve) =>
+          view.requestAnimationFrame(() => view.requestAnimationFrame(() => resolve())),
+        );
+        const initialBackground = button.style.backgroundColor;
+        const change = (feature: string, matches: boolean) => {
+          const query = [...media.entries()].find(([name]) => name.includes(feature))![1];
+          query.matches = matches;
+          for (const listener of query.listeners) listener();
+        };
+        change("forced-colors", true);
+        change("prefers-reduced-motion", true);
+        await until(
+          () =>
+            button.style.backgroundColor.toLowerCase() === "buttonface" &&
+            button.style.transition === "none",
+        );
+        expect(button.style.getPropertyValue("--ft-field-action-transition")).toBe("none");
+        if (!instance)
+          expect(
+            [...button.children].every(
+              (child) =>
+                (child as HTMLElement).style.transition === "var(--ft-field-action-transition)",
+            ),
+          ).toBe(true);
+        change("forced-colors", false);
+        change("prefers-reduced-motion", false);
+        change("prefers-color-scheme", true);
+        await until(
+          () =>
+            button.style.backgroundColor !== initialBackground &&
+            button.style.backgroundColor.toLowerCase() !== "buttonface",
+        );
+        change("prefers-color-scheme", false);
+        await until(() => button.style.backgroundColor === initialBackground);
+        manual.removeAll();
+        instance?.dispose();
+        expect([...media.values()].every((query) => query.listeners.size === 0)).toBe(true);
+      } finally {
+        manual.removeAll();
+        instance?.dispose();
+        document.body.style.backgroundColor = bodyBackground;
+        document.documentElement.style.backgroundColor = rootBackground;
+        if (previous) Object.defineProperty(view, "matchMedia", previous);
+        else Reflect.deleteProperty(view, "matchMedia");
+      }
+    },
+  );
+
+  test("Enable follows nested scroll and viewport resize, hides offscreen, and stops after removal", async () => {
+    const wrapper = document.createElement("div");
+    const field = sized(textarea("What asd asd"), { left: 100, top: 150, width: 300, height: 32 });
+    document.body.append(wrapper);
+    wrapper.append(field);
+    const manual = new ManualAttachUiManager({
+      iconUrl: "/icon/icon16.png",
+      onActivate: jest.fn(),
+    });
+    try {
+      manual.ensureForElement(field);
+      const container = document.querySelector<HTMLElement>(".ft-manual-attach")!;
+      expect(container.style.top).toBe("188px");
+      sized(field, { left: 100, top: 50, width: 300, height: 32 });
+      wrapper.dispatchEvent(new Event("scroll"));
+      await until(() => container.style.top === "88px");
+      sized(field, { left: 100, top: -100, width: 300, height: 32 });
+      window.dispatchEvent(new Event("scroll"));
+      await until(() => container.hidden === true);
+      sized(field, { left: 200, top: 60, width: 300, height: 32 });
+      window.dispatchEvent(new Event("resize"));
+      await until(() => !container.hidden && container.style.left === "470px");
+      // Queue an update, then remove the field action before that frame runs.
+      window.dispatchEvent(new Event("resize"));
+      manual.removeAll();
+      const requestFrame = jest.spyOn(window, "requestAnimationFrame");
+      try {
+        window.dispatchEvent(new Event("scroll"));
+        window.dispatchEvent(new Event("resize"));
+        expect(requestFrame).not.toHaveBeenCalled();
+      } finally {
+        requestFrame.mockRestore();
+      }
+      expect(container.isConnected).toBe(false);
+    } finally {
+      manual.removeAll();
+    }
+  });
+
+  test.each(["missing", "throws"])(
+    "Enable escapes a transformed parent when Popover API %s",
+    (failure) => {
+      const wrapper = document.createElement("div");
+      wrapper.style.cssText = "transform:translateZ(0);overflow:hidden;";
+      const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
+      wrapper.append(field);
+      document.body.append(wrapper);
+      withProperty(
+        HTMLElement.prototype,
+        "showPopover",
+        failure === "missing"
+          ? undefined
+          : () => {
+              throw new Error("Popover refused");
+            },
+        () => {
+          const manual = new ManualAttachUiManager({
+            iconUrl: "/icon/icon16.png",
+            onActivate: jest.fn(),
+          });
+          try {
+            manual.ensureForElement(field);
+            const container = document.querySelector<HTMLElement>(".ft-manual-attach")!;
+            expect(container.parentElement).toBe(document.documentElement);
+            expect(container.style.position).toBe("fixed");
+            expect(container.style.left).toBe("370px");
+            expect(container.style.top).toBe("88px");
+            expect(wrapper.style.position).toBe("");
+            expect(container.hasAttribute("popover")).toBe(false);
+          } finally {
+            manual.removeAll();
+          }
+        },
+      );
+    },
+  );
+
+  test.each([
+    [48, 80, "ltr"],
+    [96, 80, "ltr"],
+    [48, 80, "rtl"],
+    [48, 32, "ltr"],
+  ] as const)(
+    "Enable remains reachable at %s px wide, %s px high, %s",
+    (width, height, direction) => {
+      const field = sized(textarea("What asd asd"), { left: 100, top: 50, width, height });
+      field.style.direction = direction;
+      field.autocomplete = "street-address";
+      const onActivate = jest.fn();
+      const manual = new ManualAttachUiManager({ iconUrl: "/icon/icon16.png", onActivate });
+      try {
+        manual.ensureForElement(field);
+        const container = document.querySelector<HTMLElement>(".ft-manual-attach")!;
+        const button = container.querySelector<HTMLButtonElement>("button")!;
+        expect(container.hidden).toBe(false);
+        expect(Number.parseFloat(container.style.left)).toBeGreaterThanOrEqual(100);
+        expect(Number.parseFloat(container.style.left) + FIELD_ACTION_SIZE_PX).toBeLessThanOrEqual(
+          100 + width,
+        );
+        button.click();
+        expect(onActivate).toHaveBeenCalledWith(field);
+      } finally {
+        manual.removeAll();
+      }
+    },
+  );
+
+  test("field actions share one frame and suspend outside the visible area", () => {
+    let intersect: IntersectionObserverCallback = () => {};
+    const observe = jest.fn();
+    const unobserve = jest.fn();
+    const disconnect = jest.fn();
+    const constructors = jest.fn();
+    class VisibilityObserver {
+      constructor(callback: IntersectionObserverCallback) {
+        constructors();
+        intersect = callback;
+      }
+      observe = observe;
+      unobserve = unobserve;
+      disconnect = disconnect;
+    }
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 0;
+    const stops: (() => void)[] = [];
+    const reads = Array.from({ length: 40 }, () => {
+      const field = sized(textarea("What asd asd"));
+      return { field, read: jest.spyOn(field, "getBoundingClientRect"), update: jest.fn() };
+    });
+    const visibility = (visible: boolean) => {
+      intersect(
+        reads.slice(0, 2).map(({ field }) => ({
+          target: field,
+          isIntersecting: visible,
+          boundingClientRect: new window.DOMRect(),
+          intersectionRect: new window.DOMRect(),
+          intersectionRatio: visible ? 1 : 0,
+          rootBounds: null,
+          time: 0,
+        })),
+        {} as IntersectionObserver,
+      );
+    };
+    withProperty(globalThis, "IntersectionObserver", VisibilityObserver, () => {
+      withProperty(
+        window,
+        "requestAnimationFrame",
+        (callback: FrameRequestCallback) => {
+          frames.set(++nextFrame, callback);
+          return nextFrame;
+        },
+        () => {
+          withProperty(
+            window,
+            "cancelAnimationFrame",
+            (id: number) => frames.delete(id),
+            () => {
+              try {
+                for (const { field, update } of reads)
+                  stops.push(trackFieldActionLayout(field, update));
+                expect(constructors).toHaveBeenCalledTimes(1);
+                expect(observe).toHaveBeenCalledTimes(40);
+                expect(frames.size).toBe(0);
+                visibility(true);
+                expect(frames.size).toBe(1);
+                for (let count = 0; count < 3; count++) {
+                  const [id, callback] = [...frames][0];
+                  frames.delete(id);
+                  callback(0);
+                  expect(frames.size).toBe(1);
+                }
+                expect(reads.slice(2).every(({ read }) => read.mock.calls.length === 0)).toBe(true);
+                expect(
+                  reads.slice(0, 2).every(({ update }) => update.mock.calls.length === 1),
+                ).toBe(true);
+                visibility(false);
+                expect(frames.size).toBe(0);
+                visibility(true);
+                expect(frames.size).toBe(1);
+                expect(
+                  reads.slice(0, 2).every(({ update }) => update.mock.calls.length === 3),
+                ).toBe(true);
+              } finally {
+                for (const stop of stops) stop();
+                for (const { read } of reads) read.mockRestore();
+              }
+              expect(frames.size).toBe(0);
+              expect(unobserve).toHaveBeenCalledTimes(40);
+              expect(disconnect).toHaveBeenCalledTimes(1);
+            },
+          );
+        },
+      );
+    });
+  });
+
+  test.each(["Enable", "Review"])(
+    "%s hides outside the visible area and returns without a layout change",
+    (action) => {
+      let intersect: IntersectionObserverCallback = () => {};
+      class VisibilityObserver {
+        constructor(callback: IntersectionObserverCallback) {
+          intersect = callback;
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+      const field = sized(textarea("What asd asd"));
+      const manual = new ManualAttachUiManager({
+        iconUrl: "/icon/icon16.png",
+        onActivate: jest.fn(),
+      });
+      let instance: ReviewLauncher | null = null;
+      withProperty(globalThis, "IntersectionObserver", VisibilityObserver, () => {
+        try {
+          if (action === "Enable") manual.ensureForElement(field);
+          else instance = launcher().instance;
+          const container =
+            action === "Enable"
+              ? document.querySelector<HTMLElement>(".ft-manual-attach")!
+              : launcherButton()!;
+          const visibility = (visible: boolean) =>
+            intersect(
+              [
+                {
+                  target: field,
+                  isIntersecting: visible,
+                  boundingClientRect: new window.DOMRect(),
+                  intersectionRect: new window.DOMRect(),
+                  intersectionRatio: visible ? 1 : 0,
+                  rootBounds: null,
+                  time: 0,
+                },
+              ],
+              {} as IntersectionObserver,
+            );
+          expect(container.hidden).toBe(true);
+          visibility(true);
+          expect(container.hidden).toBe(false);
+          visibility(false);
+          expect(container.hidden).toBe(true);
+          visibility(true);
+          expect(container.hidden).toBe(false);
+        } finally {
+          manual.removeAll();
+          instance?.dispose();
+        }
+      });
+    },
+  );
+
+  test.each([
+    [0.5, "missing"],
+    [2, "missing"],
+    [0.5, "throws"],
+    [2, "throws"],
+  ] as const)("Enable maps a modal fallback at scale %s when Popover API %s", (scale, failure) => {
+    const dialog = document.createElement("dialog");
+    dialog.open = true;
+    dialog.style.cssText = `position:fixed;transform:scale(${scale});`;
+    document.body.append(dialog);
+    sized(dialog, { left: 200, top: 100, width: 400 * scale, height: 200 * scale });
+    Object.defineProperties(dialog, {
+      offsetWidth: { value: 400 },
+      offsetHeight: { value: 200 },
+      clientLeft: { value: 2 },
+      clientTop: { value: 2 },
+      scrollLeft: { value: 10 },
+      scrollTop: { value: 20 },
+    });
+    const matches = dialog.matches.bind(dialog);
+    Object.defineProperty(dialog, "matches", {
+      value: (selector: string) => selector === ":modal" || matches(selector),
+    });
+    const field = sized(textarea("What asd asd"), {
+      left: 250,
+      top: 150,
+      width: 300 * scale,
+      height: 80 * scale,
+    });
+    dialog.append(field);
+    const manual = new ManualAttachUiManager({
+      iconUrl: "/icon/icon16.png",
+      onActivate: jest.fn(),
+    });
+    withProperty(
+      HTMLElement.prototype,
+      "showPopover",
+      failure === "missing"
+        ? undefined
+        : () => {
+            throw new Error("Popover refused");
+          },
+      () => {
+        try {
+          manual.ensureForElement(field);
+          const container = dialog.querySelector<HTMLElement>(".ft-manual-attach")!;
+          const slot = fieldActionSlot(field)!;
+          expect(container.style.position).toBe("absolute");
+          expect(
+            Number.parseFloat(container.style.left) * scale + 200 + (2 - 10) * scale,
+          ).toBeCloseTo(slot.left, 0);
+          expect(
+            Number.parseFloat(container.style.top) * scale + 100 + (2 - 20) * scale,
+          ).toBeCloseTo(slot.top, 0);
+          expect(container.style.transform).toBe(`scale(${1 / scale}, ${1 / scale})`);
+        } finally {
+          manual.removeAll();
+        }
+        expect(dialog.style.position).toBe("fixed");
+      },
+    );
+  });
+
+  test("Enable follows field resize and disconnects its observer on removal", async () => {
+    let resize = () => {};
+    const observe = jest.fn();
+    const disconnect = jest.fn();
+    class FieldResizeObserver {
+      constructor(callback: () => void) {
+        resize = callback;
+      }
+      observe = observe;
+      disconnect = disconnect;
+    }
+    const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
+    const manual = new ManualAttachUiManager({
+      iconUrl: "/icon/icon16.png",
+      onActivate: jest.fn(),
+    });
+    try {
+      withProperty(globalThis, "ResizeObserver", FieldResizeObserver, () => {
+        manual.ensureForElement(field);
+      });
+      const container = document.querySelector<HTMLElement>(".ft-manual-attach")!;
+      expect(observe).toHaveBeenCalledWith(field);
+      expect(container.style.top).toBe("88px");
+      sized(field, { left: 100, top: 50, width: 300, height: 80 });
+      resize();
+      await until(() => container.style.top === "100px");
+      manual.removeAll();
+      expect(disconnect).toHaveBeenCalledTimes(1);
+    } finally {
+      manual.removeAll();
+    }
+  });
+
+  test.each(["Enable", "Review"])(
+    "%s follows field movement without a scroll or resize event",
+    async (action) => {
+      const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 80 });
+      const manual = new ManualAttachUiManager({
+        iconUrl: "/icon/icon16.png",
+        onActivate: jest.fn(),
+      });
+      const instance = action === "Review" ? launcher().instance : null;
+      try {
+        if (action === "Enable") manual.ensureForElement(field);
+        const container =
+          action === "Enable"
+            ? document.querySelector<HTMLElement>(".ft-manual-attach")!
+            : launcherButton()!;
+        expect(container.style.top).toBe("100px");
+        sized(field, { left: 100, top: 90, width: 300, height: 80 });
+        await until(() => container.style.top === "140px");
+        sized(field, { left: 160, top: 90, width: 300, height: 80 });
+        await until(() => container.style.left === "430px");
+        const mutations: MutationRecord[] = [];
+        const observer = new MutationObserver((records) => mutations.push(...records));
+        observer.observe(container, { attributes: true });
+        try {
+          await new Promise<void>((resolve) =>
+            window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())),
+          );
+          expect(mutations).toHaveLength(0);
+        } finally {
+          observer.disconnect();
+        }
+      } finally {
+        manual.removeAll();
+        instance?.dispose();
+      }
+    },
+  );
+
+  test("visible while typing; hidden without text, during its review, and when turned off", () => {
     const field = sized(textarea(""));
     let reviewed: HTMLElement | null = null;
     let enabled = true;
@@ -1071,9 +1860,17 @@ describe("in-field review button", () => {
 
     field.value = "Now some text";
     field.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
-    // Typing: out of the way until the user pauses.
+    // Review is available as soon as the field contains text.
+    expect(shown()).toBe(true);
+    field.value += " while typing";
+    field.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+    expect(shown()).toBe(true);
+
+    field.value = "  ";
+    field.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
     expect(shown()).toBe(false);
-    await Bun.sleep(1000);
+    field.value = "Now some text";
+    field.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
     expect(shown()).toBe(true);
 
     reviewed = field;
