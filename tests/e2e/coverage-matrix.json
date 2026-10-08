@@ -3596,7 +3596,7 @@
     },
     {
       "id": "review_layout_and_lifecycle",
-      "description": "Review highlights follow wrapping and resize, hit-test at device pixel ratio 2, render in dark mode and RTL, pause during IME composition, work across multiple fields, and are cleaned up on navigation.",
+      "description": "Review highlights follow wrapping and resize, stay aligned with centered input text despite custom line height and padding, hit-test at device pixel ratio 2, render in dark mode and RTL, pause during IME composition, work across multiple fields, and are cleaned up on navigation.",
       "coverage": [
         {
           "layer": "e2e-full",

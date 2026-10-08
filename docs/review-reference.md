@@ -46,7 +46,7 @@ so the page's layout and the field's padding are untouched:
 - Enable and Review use the same size, placement, and visual states. Where
   FluentTyper needs activation, Enable appears first. For eligible text, its
   success indicator changes to Review without another edit. Single-line
-  inputs offer Enable only because Review does not support those fields.
+  inputs use the popup or shortcut for Review, with no in-field Review icon.
 - It is not a tab stop; keyboard users have the shortcut. Turn it off under
   **Settings → Grammar → Review text**.
 

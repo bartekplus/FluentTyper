@@ -975,6 +975,12 @@ class TextControlMirror {
     important("top", `${rect.top + field.clientTop}px`);
     important("width", `${field.clientWidth}px`);
     important("height", `${field.clientHeight}px`);
+    // Native inputs center text in the content box, regardless of CSS line height.
+    if (!textarea)
+      important(
+        "line-height",
+        `${Math.max(0, field.clientHeight - parseFloat(computed.paddingTop) - parseFloat(computed.paddingBottom))}px`,
+      );
     important("white-space", textarea ? "pre-wrap" : "pre");
     important("overflow-wrap", textarea ? computed.overflowWrap || "break-word" : "normal");
     important("word-break", computed.wordBreak);

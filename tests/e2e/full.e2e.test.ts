@@ -11738,6 +11738,51 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }]);
       }
       expect(await page.evaluate(() => window.devicePixelRatio)).toBe(2);
+      // Allegro uses a search input with padding and a line height larger than its content box.
+      await page.evaluate(() => {
+        const field = document.createElement("input");
+        field.id = "review-search";
+        field.type = "search";
+        field.setAttribute("role", "combobox");
+        field.autocomplete = "off";
+        field.style.cssText =
+          "position:fixed;left:80px;top:60px;width:300px;height:40px;padding:8px;border:1px solid;box-sizing:border-box;font:14px/40px Arial;";
+        field.value = "We saw teh cat.";
+        document.body.append(field);
+        field.focus();
+        field.setSelectionRange(0, 0);
+      });
+      await triggerReview(worker, "popup");
+      let searchPanel = await waitForReview(
+        page,
+        "search input review",
+        (p) => p.status === "Issues: 1",
+      );
+      const searchCenter = await page.$eval("#review-search", (field) => {
+        const rect = field.getBoundingClientRect();
+        return rect.top + rect.height / 2;
+      });
+      expect(searchPanel.marks).toHaveLength(1);
+      expect(
+        Math.abs(searchPanel.marks[0].top + searchPanel.marks[0].height / 2 - searchCenter),
+      ).toBeLessThan(1.5);
+      // Changing line height must not move the native input's centered text or its highlight.
+      await clickReviewControl(page, "[data-action=close]");
+      await page.$eval("#review-search", (field) => {
+        (field as HTMLInputElement).style.lineHeight = "normal";
+        (field as HTMLInputElement).focus();
+      });
+      await triggerReview(worker);
+      searchPanel = await waitForReview(
+        page,
+        "normal search line height",
+        (p) => p.status === "Issues: 1",
+      );
+      expect(
+        Math.abs(searchPanel.marks[0].top + searchPanel.marks[0].height / 2 - searchCenter),
+      ).toBeLessThan(1.5);
+      await clickReviewControl(page, "[data-action=close]");
+      await page.$eval("#review-search", (field) => field.remove());
       // A finding that wraps across two lines gets one mark per line box.
       await page.evaluate(() => {
         const field = document.querySelector("#test-textarea") as HTMLTextAreaElement;
