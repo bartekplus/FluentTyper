@@ -65,7 +65,7 @@ export function fieldActionSlot(
         if (
           !ancestors.has(element) &&
           (element.matches(
-            'a, button, input, textarea, select, [contenteditable], [role="button"], [role="textbox"], [role="combobox"]',
+            'a, button, input, textarea, select, iframe, object, embed, video, audio, canvas, img, svg, [contenteditable], [role="button"], [role="textbox"], [role="combobox"]',
           ) ||
             element.textContent?.trim())
         )

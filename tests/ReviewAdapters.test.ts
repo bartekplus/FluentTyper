@@ -397,6 +397,29 @@ describe("Google Docs review writes", () => {
 });
 
 describe("text control measuring", () => {
+  test.each(["horizontal-tb", "vertical-rl", "vertical-lr", "sideways-lr"])(
+    "input mirror line height follows the %s block axis",
+    (writingMode) => {
+      const field = document.createElement("input");
+      field.value = "We saw teh cat.";
+      field.style.cssText = `writing-mode:${writingMode};padding:8px 4px;`;
+      document.body.append(field);
+      Object.defineProperties(field, {
+        clientWidth: { value: 38 },
+        clientHeight: { value: 298 },
+      });
+      const host = document.createElement("div");
+      document.body.append(host);
+      const root = host.attachShadow({ mode: "open" });
+      const target = new TextControlReviewTarget(field);
+      target.setMeasurementRoot(root);
+      target.rangeRects({ start: 7, end: 10 });
+      expect(
+        root.querySelector<HTMLElement>("[data-fluenttyper-review-mirror]")!.style.lineHeight,
+      ).toBe(writingMode === "horizontal-tb" ? "282px" : "30px");
+    },
+  );
+
   test("a new measurement root (a rebuilt panel) moves the mirror into it", () => {
     const field = textarea("We saw teh cat.");
     const target = new TextControlReviewTarget(field);
@@ -1237,6 +1260,23 @@ describe("in-field review button", () => {
       },
     );
   });
+
+  test.each(["video", "iframe", "object", "canvas", "img", "svg", "embed", "audio"])(
+    "compact actions avoid non-text %s surfaces",
+    (tag) => {
+      const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
+      const surface = document.createElement(tag);
+      document.body.append(surface);
+      withProperty(
+        document,
+        "elementsFromPoint",
+        () => [surface],
+        () => {
+          expect(fieldActionSlot(field)).toBeNull();
+        },
+      );
+    },
+  );
 
   test("compact actions avoid controls in adjacent nested shadow roots", () => {
     const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });

@@ -9936,6 +9936,23 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         async () => (await launcher()) !== null,
       );
       await page.evaluate(() => {
+        const rect = document.querySelector("#compact-textarea")!.getBoundingClientRect();
+        const frame = document.createElement("iframe");
+        frame.id = "compact-adjacent-frame";
+        frame.srcdoc = "<button>Page action</button>";
+        frame.style.cssText = `position:fixed;left:${rect.right - 30}px;top:${rect.bottom + 6}px;width:24px;height:24px;border:0;`;
+        document.body.append(frame);
+      });
+      await waitUntil(
+        "Review steps aside for an embedded page control",
+        async () => (await launcher()) === null,
+      );
+      await page.evaluate(() => document.querySelector("#compact-adjacent-frame")!.remove());
+      await waitUntil(
+        "Review returns after the embedded control is removed",
+        async () => (await launcher()) !== null,
+      );
+      await page.evaluate(() => {
         const scroller = document.createElement("div");
         scroller.id = "compact-scroller";
         scroller.style.cssText =
@@ -9960,8 +9977,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         const control = document.createElement("div");
         control.id = "enable-adjacent-control";
         control.style.cssText = `position:fixed;left:${field.right - 30}px;top:${field.bottom + 6}px;width:24px;height:24px;`;
-        const button = document.createElement("button");
-        button.textContent = "Page action";
+        const button = document.createElement("canvas");
         button.style.cssText = "width:24px;height:24px;padding:0;";
         control.attachShadow({ mode: "open" }).append(button);
         document.body.append(control);
@@ -12015,6 +12031,35 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         Math.abs(searchPanel.marks[0].top + searchPanel.marks[0].height / 2 - searchCenter),
       ).toBeLessThan(1.5);
       await clickReviewControl(page, "[data-action=close]");
+      for (const writingMode of ["vertical-rl", "vertical-lr", "sideways-lr"]) {
+        await page.$eval(
+          "#review-search",
+          (field, mode) => {
+            const input = field as HTMLInputElement;
+            input.style.writingMode = mode;
+            input.style.width = "40px";
+            input.style.height = "300px";
+            input.focus();
+            input.setSelectionRange(0, 0);
+          },
+          writingMode,
+        );
+        await triggerReview(worker);
+        searchPanel = await waitForReview(
+          page,
+          `${writingMode} input highlights`,
+          (p) => p.status === "Issues: 1",
+        );
+        const center = await page.$eval("#review-search", (field) => {
+          const rect = field.getBoundingClientRect();
+          return rect.left + rect.width / 2;
+        });
+        expect(searchPanel.marks).toHaveLength(1);
+        expect(
+          Math.abs(searchPanel.marks[0].left + searchPanel.marks[0].width / 2 - center),
+        ).toBeLessThan(1.5);
+        await clickReviewControl(page, "[data-action=close]");
+      }
       await page.$eval("#review-search", (field) => field.remove());
       // A finding that wraps across two lines gets one mark per line box.
       await page.evaluate(() => {
