@@ -4,11 +4,13 @@ import { composedParent } from "@core/application/dom-utils";
 export const FIELD_ACTION_SIZE_PX = 24;
 export const FIELD_ACTION_INSET_PX = 6;
 export const FIELD_ACTION_CHANGE_EVENT = "fluenttyper-field-action-change";
+const fieldActionVisibility = new WeakMap<HTMLElement, boolean>();
 
 /** Compact editors need space below the text. Larger editors use the inside corner. */
 export function fieldActionSlot(
   field: HTMLElement,
 ): { left: number; top: number; size: number } | null {
+  if (fieldActionVisibility.get(field) === false) return null;
   const rect = field.getBoundingClientRect();
   if (rect.width < 120 || rect.height < FIELD_ACTION_SIZE_PX) return null;
   const rtl = field.ownerDocument.defaultView?.getComputedStyle(field).direction === "rtl";
@@ -163,19 +165,73 @@ export function watchFieldActionMedia(field: HTMLElement, update: () => void): (
   };
 }
 
-/** Keeps fixed field actions aligned through scrolling, resizing, and layout changes. */
+type FieldActionTracker = { dirty: boolean; run: () => void };
+type FieldActionFrames = {
+  view: Window;
+  frame: number | null;
+  fields: Map<HTMLElement, Set<FieldActionTracker>>;
+  active: Set<FieldActionTracker>;
+  observer: IntersectionObserver | null;
+};
+const fieldActionFrames = new WeakMap<Window, FieldActionFrames>();
+
+function queueFieldActionFrame(frames: FieldActionFrames): void {
+  if (!frames.active.size) {
+    if (frames.frame !== null) frames.view.cancelAnimationFrame(frames.frame);
+    frames.frame = null;
+    return;
+  }
+  if (frames.frame !== null) return;
+  frames.frame = frames.view.requestAnimationFrame(() => {
+    frames.frame = null;
+    for (const tracker of [...frames.active]) tracker.run();
+    queueFieldActionFrame(frames);
+  });
+}
+
+function framesFor(view: Window): FieldActionFrames {
+  const existing = fieldActionFrames.get(view);
+  if (existing) return existing;
+  const frames: FieldActionFrames = {
+    view,
+    frame: null,
+    fields: new Map(),
+    active: new Set(),
+    observer: null,
+  };
+  if (typeof IntersectionObserver === "function") {
+    frames.observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const field = entry.target as HTMLElement;
+        const trackers = frames.fields.get(field);
+        if (!trackers) continue;
+        fieldActionVisibility.set(field, entry.isIntersecting);
+        for (const tracker of [...trackers]) {
+          if (entry.isIntersecting) frames.active.add(tracker);
+          else frames.active.delete(tracker);
+          tracker.dirty = true;
+          tracker.run();
+        }
+      }
+      queueFieldActionFrame(frames);
+    });
+  }
+  fieldActionFrames.set(view, frames);
+  return frames;
+}
+
+/** Tracks visible field actions through scrolling, resizing, and layout changes. */
 export function trackFieldActionLayout(field: HTMLElement, update: () => void): () => void {
   const view = field.ownerDocument.defaultView;
   if (!view) return () => {};
-  let frame: number | null = null;
+  const frames = framesFor(view);
   let previousRect: DOMRect | null = null;
-  let dirty = true;
   let stopped = false;
   const schedule = () => {
-    dirty = true;
+    tracker.dirty = true;
+    queueFieldActionFrame(frames);
   };
-  const track = () => {
-    frame = null;
+  const run = () => {
     if (stopped) return;
     if (!field.isConnected) {
       update();
@@ -184,19 +240,19 @@ export function trackFieldActionLayout(field: HTMLElement, update: () => void): 
     }
     const rect = field.getBoundingClientRect();
     if (
-      dirty ||
+      tracker.dirty ||
       !previousRect ||
       rect.left !== previousRect.left ||
       rect.top !== previousRect.top ||
       rect.width !== previousRect.width ||
       rect.height !== previousRect.height
     ) {
-      dirty = false;
+      tracker.dirty = false;
       update();
     }
     previousRect = rect;
-    if (!stopped) frame = view.requestAnimationFrame(track);
   };
+  const tracker: FieldActionTracker = { dirty: true, run };
   const observer = typeof ResizeObserver === "function" ? new ResizeObserver(schedule) : null;
   const stopMedia = watchFieldActionMedia(field, schedule);
   const stop = () => {
@@ -206,12 +262,32 @@ export function trackFieldActionLayout(field: HTMLElement, update: () => void): 
     view.removeEventListener("resize", schedule);
     observer?.disconnect();
     stopMedia();
-    if (frame !== null) view.cancelAnimationFrame(frame);
+    frames.active.delete(tracker);
+    const trackers = frames.fields.get(field)!;
+    trackers.delete(tracker);
+    if (!trackers.size) {
+      frames.fields.delete(field);
+      frames.observer?.unobserve(field);
+      fieldActionVisibility.delete(field);
+    }
+    queueFieldActionFrame(frames);
+    if (!frames.fields.size) {
+      frames.observer?.disconnect();
+      fieldActionFrames.delete(view);
+    }
   };
   view.addEventListener("scroll", schedule, { capture: true, passive: true });
   view.addEventListener("resize", schedule);
   observer?.observe(field);
-  // ponytail: fixed controls read geometry each frame. Use native anchors when all target browsers support them.
-  frame = view.requestAnimationFrame(track);
+  let trackers = frames.fields.get(field);
+  if (!trackers) {
+    frames.fields.set(field, (trackers = new Set()));
+    if (frames.observer) fieldActionVisibility.set(field, false);
+    frames.observer?.observe(field);
+  }
+  trackers.add(tracker);
+  if (fieldActionVisibility.get(field) !== false) frames.active.add(tracker);
+  // ponytail: visible controls read geometry each frame. Use native anchors when all target browsers support them.
+  queueFieldActionFrame(frames);
   return stop;
 }

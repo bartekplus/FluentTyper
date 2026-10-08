@@ -9981,6 +9981,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         el.scrollTop = 20;
       });
       await waitUntil("Enable follows nested scroll", enableAligned);
+      await page.$eval("#compact-scroller", (el) => {
+        el.scrollTop = 200;
+      });
+      await waitUntil("Enable hides when its field leaves the scroll area", () =>
+        page.$eval("#compact-wrapper .ft-manual-attach", (el) => (el as HTMLElement).hidden),
+      );
+      await page.$eval("#compact-scroller", (el) => {
+        el.scrollTop = 20;
+      });
+      await waitUntil("Enable returns when its field enters the scroll area", enableAligned);
       await page.$eval("#compact-textarea", (el) => {
         el.parentElement!.style.height = "auto";
         el.animate([{ height: "32px" }, { height: "80px" }], {
@@ -10076,6 +10086,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         const field = await box("#compact-textarea");
         return grown && point !== null && Math.abs(point.y + 12 - field.bottom + 6) < 2;
       });
+      await page.$eval("#compact-scroller", (el) => {
+        el.scrollTop = 250;
+      });
+      await waitUntil(
+        "Review hides when its field leaves the scroll area",
+        async () => (await launcher()) === null,
+      );
+      await page.$eval("#compact-scroller", (el) => {
+        el.scrollTop = 20;
+      });
+      await waitUntil(
+        "Review returns when its field enters the scroll area",
+        async () => (await launcher()) !== null,
+      );
       await page.evaluate(() => {
         for (const control of document.querySelectorAll(
           '[data-ft-suggestion-owned][role="status"]',

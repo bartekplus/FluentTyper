@@ -36,7 +36,10 @@ import {
 } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 import { REVIEW_HIGHLIGHT_NAMES } from "../src/adapters/chrome/content-script/review/reviewStyles";
 import { ManualAttachUiManager } from "../src/adapters/chrome/content-script/suggestions/ManualAttachUiManager";
-import { styleFieldActionButton } from "../src/adapters/chrome/content-script/FieldActionUi";
+import {
+  styleFieldActionButton,
+  trackFieldActionLayout,
+} from "../src/adapters/chrome/content-script/FieldActionUi";
 import {
   reviewRuleIds,
   runsInReviewLanguage,
@@ -1407,6 +1410,151 @@ describe("in-field review button", () => {
           }
         },
       );
+    },
+  );
+
+  test("field actions share one frame and suspend outside the visible area", () => {
+    let intersect: IntersectionObserverCallback = () => {};
+    const observe = jest.fn();
+    const unobserve = jest.fn();
+    const disconnect = jest.fn();
+    const constructors = jest.fn();
+    class VisibilityObserver {
+      constructor(callback: IntersectionObserverCallback) {
+        constructors();
+        intersect = callback;
+      }
+      observe = observe;
+      unobserve = unobserve;
+      disconnect = disconnect;
+    }
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 0;
+    const stops: (() => void)[] = [];
+    const reads = Array.from({ length: 40 }, () => {
+      const field = sized(textarea("What asd asd"));
+      return { field, read: jest.spyOn(field, "getBoundingClientRect"), update: jest.fn() };
+    });
+    const visibility = (visible: boolean) => {
+      intersect(
+        reads.slice(0, 2).map(({ field }) => ({
+          target: field,
+          isIntersecting: visible,
+          boundingClientRect: new window.DOMRect(),
+          intersectionRect: new window.DOMRect(),
+          intersectionRatio: visible ? 1 : 0,
+          rootBounds: null,
+          time: 0,
+        })),
+        {} as IntersectionObserver,
+      );
+    };
+    withProperty(globalThis, "IntersectionObserver", VisibilityObserver, () => {
+      withProperty(
+        window,
+        "requestAnimationFrame",
+        (callback: FrameRequestCallback) => {
+          frames.set(++nextFrame, callback);
+          return nextFrame;
+        },
+        () => {
+          withProperty(
+            window,
+            "cancelAnimationFrame",
+            (id: number) => frames.delete(id),
+            () => {
+              try {
+                for (const { field, update } of reads)
+                  stops.push(trackFieldActionLayout(field, update));
+                expect(constructors).toHaveBeenCalledTimes(1);
+                expect(observe).toHaveBeenCalledTimes(40);
+                expect(frames.size).toBe(0);
+                visibility(true);
+                expect(frames.size).toBe(1);
+                for (let count = 0; count < 3; count++) {
+                  const [id, callback] = [...frames][0];
+                  frames.delete(id);
+                  callback(0);
+                  expect(frames.size).toBe(1);
+                }
+                expect(reads.slice(2).every(({ read }) => read.mock.calls.length === 0)).toBe(true);
+                expect(
+                  reads.slice(0, 2).every(({ update }) => update.mock.calls.length === 1),
+                ).toBe(true);
+                visibility(false);
+                expect(frames.size).toBe(0);
+                visibility(true);
+                expect(frames.size).toBe(1);
+                expect(
+                  reads.slice(0, 2).every(({ update }) => update.mock.calls.length === 3),
+                ).toBe(true);
+              } finally {
+                for (const stop of stops) stop();
+                for (const { read } of reads) read.mockRestore();
+              }
+              expect(frames.size).toBe(0);
+              expect(unobserve).toHaveBeenCalledTimes(40);
+              expect(disconnect).toHaveBeenCalledTimes(1);
+            },
+          );
+        },
+      );
+    });
+  });
+
+  test.each(["Enable", "Review"])(
+    "%s hides outside the visible area and returns without a layout change",
+    (action) => {
+      let intersect: IntersectionObserverCallback = () => {};
+      class VisibilityObserver {
+        constructor(callback: IntersectionObserverCallback) {
+          intersect = callback;
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+      const field = sized(textarea("What asd asd"));
+      const manual = new ManualAttachUiManager({
+        iconUrl: "/icon/icon16.png",
+        onActivate: jest.fn(),
+      });
+      let instance: ReviewLauncher | null = null;
+      withProperty(globalThis, "IntersectionObserver", VisibilityObserver, () => {
+        try {
+          if (action === "Enable") manual.ensureForElement(field);
+          else instance = launcher().instance;
+          const container =
+            action === "Enable"
+              ? document.querySelector<HTMLElement>(".ft-manual-attach")!
+              : launcherButton()!;
+          const visibility = (visible: boolean) =>
+            intersect(
+              [
+                {
+                  target: field,
+                  isIntersecting: visible,
+                  boundingClientRect: new window.DOMRect(),
+                  intersectionRect: new window.DOMRect(),
+                  intersectionRatio: visible ? 1 : 0,
+                  rootBounds: null,
+                  time: 0,
+                },
+              ],
+              {} as IntersectionObserver,
+            );
+          expect(container.hidden).toBe(true);
+          visibility(true);
+          expect(container.hidden).toBe(false);
+          visibility(false);
+          expect(container.hidden).toBe(true);
+          visibility(true);
+          expect(container.hidden).toBe(false);
+        } finally {
+          manual.removeAll();
+          instance?.dispose();
+        }
+      });
     },
   );
 
