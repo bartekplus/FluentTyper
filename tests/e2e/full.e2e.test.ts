@@ -9952,6 +9952,29 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           return rect.height === 80 && Math.abs(action.bottom - innerBottom + 6) < 1;
         }),
       );
+      await page.$eval("#compact-textarea", (el) => {
+        const field = el as HTMLTextAreaElement;
+        field.style.transform = "scale(0.75)";
+        field.style.transformOrigin = "top left";
+      });
+      const enableInsideField = () =>
+        page.evaluate(() => {
+          const field = document.querySelector("#compact-textarea")!.getBoundingClientRect();
+          const action = document
+            .querySelector("#compact-wrapper .ft-manual-attach-button")!
+            .getBoundingClientRect();
+          return (
+            Math.abs(action.right - field.right + 6) < 2 &&
+            Math.abs(action.bottom - field.bottom + 6) < 2
+          );
+        });
+      await waitUntil("Enable stays inside a scaled field", enableInsideField);
+      await page.$eval("#compact-textarea", (el) => {
+        const field = el as HTMLTextAreaElement;
+        field.style.transform = "";
+        field.style.zoom = "0.75";
+      });
+      await waitUntil("Enable stays inside a zoomed field", enableInsideField);
       const enablePoint = await page.$eval(
         "#compact-wrapper .ft-manual-attach-button",
         (button) => {

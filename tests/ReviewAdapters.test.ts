@@ -1079,6 +1079,34 @@ describe("in-field review button", () => {
     }
   });
 
+  test.each([
+    [0.5, "ltr", 211, 59],
+    [0.5, "rtl", 107, 59],
+    [2, "ltr", 634, 176],
+    [2, "rtl", 110, 176],
+  ] as const)(
+    "field action slots scale client dimensions at %s in %s",
+    (scale, direction, left, top) => {
+      const field = sized(textarea("What asd asd"), {
+        left: 100,
+        top: 50,
+        width: 300 * scale,
+        height: 80 * scale,
+      });
+      field.style.direction = direction;
+      for (const [name, value] of Object.entries({
+        offsetWidth: 300,
+        offsetHeight: 80,
+        clientLeft: 2,
+        clientTop: 2,
+        clientWidth: 280,
+        clientHeight: 76,
+      }))
+        Object.defineProperty(field, name, { configurable: true, value });
+      expect(reviewLauncherSlot(field)).toEqual({ left, top, size: 24 });
+    },
+  );
+
   test("a compact field never puts the button over nearby controls or text", () => {
     const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
     const control = document.createElement("button");

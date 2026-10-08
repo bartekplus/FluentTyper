@@ -12,9 +12,14 @@ export function fieldActionSlot(
   const rect = field.getBoundingClientRect();
   if (rect.width < 120 || rect.height < FIELD_ACTION_SIZE_PX) return null;
   const rtl = field.ownerDocument.defaultView?.getComputedStyle(field).direction === "rtl";
-  const innerLeft = rect.left + field.clientLeft;
-  const innerRight = innerLeft + (field.clientWidth || rect.width);
-  const innerBottom = rect.top + field.clientTop + (field.clientHeight || rect.height);
+  const scaleX = field.offsetWidth ? rect.width / field.offsetWidth : 1;
+  const scaleY = field.offsetHeight ? rect.height / field.offsetHeight : 1;
+  const innerLeft = rect.left + field.clientLeft * scaleX;
+  const innerRight = innerLeft + (field.clientWidth ? field.clientWidth * scaleX : rect.width);
+  const innerBottom =
+    rect.top +
+    field.clientTop * scaleY +
+    (field.clientHeight ? field.clientHeight * scaleY : rect.height);
   const left = rtl
     ? innerLeft + FIELD_ACTION_INSET_PX
     : innerRight - FIELD_ACTION_INSET_PX - FIELD_ACTION_SIZE_PX;
