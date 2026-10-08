@@ -9900,6 +9900,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       });
       expect(await launcher()).toBeNull();
       await page.evaluate(() => {
+        const scroller = document.createElement("div");
+        scroller.id = "compact-scroller";
+        scroller.style.cssText =
+          "width:320px;height:160px;overflow:auto;padding-top:40px;margin-bottom:800px;";
+        const wrapper = document.querySelector("#compact-wrapper")!;
+        document.body.append(scroller);
+        scroller.append(wrapper);
+        const spacer = document.createElement("div");
+        spacer.style.height = "300px";
+        scroller.append(spacer);
+        scroller.scrollIntoView({ block: "center" });
+      });
+      await page.evaluate(() => {
         document.querySelector("#compact-adjacent-control")!.remove();
         const field = document.querySelector("#compact-textarea")!;
         field.setAttribute("role", "combobox");
@@ -9907,6 +9920,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       });
       await page.waitForSelector("#compact-wrapper .ft-manual-attach-button", { visible: true });
       expect(await launcher()).toBeNull();
+      const enableAligned = () =>
+        page.evaluate(() => {
+          const field = document.querySelector("#compact-textarea")!;
+          const button = document.querySelector("#compact-wrapper .ft-manual-attach-button")!;
+          const rect = field.getBoundingClientRect();
+          const action = button.getBoundingClientRect();
+          return Math.abs(action.top - rect.bottom - 6) < 1;
+        });
+      await waitUntil("Enable placement before scrolling", enableAligned);
+      await page.evaluate(() => window.scrollBy(0, 20));
+      await waitUntil("Enable follows page scroll", enableAligned);
+      await page.$eval("#compact-scroller", (el) => {
+        el.scrollTop = 20;
+      });
+      await waitUntil("Enable follows nested scroll", enableAligned);
       const enablePoint = await page.$eval(
         "#compact-wrapper .ft-manual-attach-button",
         (button) => {
@@ -9935,7 +9963,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           '[data-ft-suggestion-owned][role="status"]',
         ))
           control.querySelector<HTMLButtonElement>("button:last-child")?.click();
-        document.querySelector("#compact-wrapper")!.remove();
+        document.querySelector("#compact-scroller")!.remove();
       });
       await page.focus("#second-textarea");
       await waitUntil("second field button", async () => (await launcher()) !== null, {

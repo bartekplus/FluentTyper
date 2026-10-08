@@ -477,13 +477,15 @@ export function svgIcon(doc: Document, paths: readonly string[]): SVGSVGElement 
 }
 
 /** Moves a connected host to the top layer, which escapes page transforms, stacking contexts and clipping. */
-export function enterTopLayer(host: HTMLElement): void {
+export function enterTopLayer(host: HTMLElement): boolean {
   const popover = host as HTMLElement & { showPopover?: () => void };
-  if (typeof popover.showPopover !== "function") return;
+  if (typeof popover.showPopover !== "function") return false;
   try {
     host.setAttribute("popover", "manual");
     popover.showPopover();
+    return true;
   } catch {
     host.removeAttribute("popover");
+    return false;
   }
 }

@@ -1205,6 +1205,83 @@ describe("in-field review button", () => {
     );
   });
 
+  test("Enable follows nested scroll and viewport resize, hides offscreen, and stops after removal", async () => {
+    const wrapper = document.createElement("div");
+    const field = sized(textarea("What asd asd"), { left: 100, top: 150, width: 300, height: 32 });
+    document.body.append(wrapper);
+    wrapper.append(field);
+    const manual = new ManualAttachUiManager({
+      iconUrl: "/icon/icon16.png",
+      onActivate: jest.fn(),
+    });
+    try {
+      manual.ensureForElement(field);
+      const container = document.querySelector<HTMLElement>(".ft-manual-attach")!;
+      expect(container.style.top).toBe("188px");
+      sized(field, { left: 100, top: 50, width: 300, height: 32 });
+      wrapper.dispatchEvent(new Event("scroll"));
+      await until(() => container.style.top === "88px");
+      sized(field, { left: 100, top: -100, width: 300, height: 32 });
+      window.dispatchEvent(new Event("scroll"));
+      await until(() => container.hidden === true);
+      sized(field, { left: 200, top: 60, width: 300, height: 32 });
+      window.dispatchEvent(new Event("resize"));
+      await until(() => !container.hidden && container.style.left === "470px");
+      // Queue an update, then remove the field action before that frame runs.
+      window.dispatchEvent(new Event("resize"));
+      manual.removeAll();
+      const requestFrame = jest.spyOn(window, "requestAnimationFrame");
+      try {
+        window.dispatchEvent(new Event("scroll"));
+        window.dispatchEvent(new Event("resize"));
+        expect(requestFrame).not.toHaveBeenCalled();
+      } finally {
+        requestFrame.mockRestore();
+      }
+      expect(container.isConnected).toBe(false);
+    } finally {
+      manual.removeAll();
+    }
+  });
+
+  test.each(["missing", "throws"])(
+    "Enable escapes a transformed parent when Popover API %s",
+    (failure) => {
+      const wrapper = document.createElement("div");
+      wrapper.style.cssText = "transform:translateZ(0);overflow:hidden;";
+      const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
+      wrapper.append(field);
+      document.body.append(wrapper);
+      withProperty(
+        HTMLElement.prototype,
+        "showPopover",
+        failure === "missing"
+          ? undefined
+          : () => {
+              throw new Error("Popover refused");
+            },
+        () => {
+          const manual = new ManualAttachUiManager({
+            iconUrl: "/icon/icon16.png",
+            onActivate: jest.fn(),
+          });
+          try {
+            manual.ensureForElement(field);
+            const container = document.querySelector<HTMLElement>(".ft-manual-attach")!;
+            expect(container.parentElement).toBe(document.documentElement);
+            expect(container.style.position).toBe("fixed");
+            expect(container.style.left).toBe("370px");
+            expect(container.style.top).toBe("88px");
+            expect(wrapper.style.position).toBe("");
+            expect(container.hasAttribute("popover")).toBe(false);
+          } finally {
+            manual.removeAll();
+          }
+        },
+      );
+    },
+  );
+
   test("visible while typing; hidden without text, during its review, and when turned off", () => {
     const field = sized(textarea(""));
     let reviewed: HTMLElement | null = null;

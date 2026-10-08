@@ -3,6 +3,7 @@ import { clamp } from "@core/domain/guards";
 import { isInDocument } from "@core/application/dom-utils";
 import { reviewLauncherSlot } from "../review/ReviewLauncher";
 import { enterTopLayer } from "../review/reviewStyles";
+import { reviewMountFor } from "../review/ReviewController";
 import {
   FIELD_ACTION_CHANGE_EVENT,
   FIELD_ACTION_INSET_PX,
@@ -56,6 +57,7 @@ interface ManualAttachUiHandle {
   originalPaddingInlineEnd: string;
   successTimer: ReturnType<typeof setTimeout> | null;
   successPending: boolean;
+  stopLayoutTracking: (() => void) | null;
 }
 
 export class ManualAttachUiManager {
@@ -111,6 +113,7 @@ export class ManualAttachUiManager {
       return;
     }
     this.handles.delete(element);
+    handle.stopLayoutTracking?.();
     if (handle.successTimer !== null) {
       clearTimeout(handle.successTimer);
       handle.successTimer = null;
@@ -533,6 +536,7 @@ export class ManualAttachUiManager {
       originalPaddingInlineEnd: this.getInlineEndPaddingStyleValue(element),
       successTimer: null,
       successPending: false,
+      stopLayoutTracking: null,
     };
 
     const enterHover = () => {
@@ -571,7 +575,28 @@ export class ManualAttachUiManager {
     button.append(icon, checkmark);
     container.appendChild(button);
     mountTarget.containerParent.appendChild(container);
-    if (this.isMultilineTarget(element)) enterTopLayer(container);
+    if (this.isMultilineTarget(element) && !enterTopLayer(container)) {
+      (reviewMountFor(element) ?? element.ownerDocument.documentElement).appendChild(container);
+    }
+    const view = element.ownerDocument.defaultView;
+    if (positioningParent === null && view) {
+      let frame: number | null = null;
+      const schedule = () => {
+        if (frame !== null) return;
+        frame = view.requestAnimationFrame(() => {
+          frame = null;
+          if (isInDocument(element)) this.updatePlacement(element, handle);
+          else this.removeForElement(element);
+        });
+      };
+      view.addEventListener("scroll", schedule, { capture: true, passive: true });
+      view.addEventListener("resize", schedule);
+      handle.stopLayoutTracking = () => {
+        view.removeEventListener("scroll", schedule, true);
+        view.removeEventListener("resize", schedule);
+        if (frame !== null) view.cancelAnimationFrame(frame);
+      };
+    }
     this.applyIdleState(handle);
 
     return handle;
