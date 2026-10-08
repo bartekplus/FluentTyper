@@ -1282,6 +1282,39 @@ describe("in-field review button", () => {
     },
   );
 
+  test("Enable follows field resize and disconnects its observer on removal", async () => {
+    let resize = () => {};
+    const observe = jest.fn();
+    const disconnect = jest.fn();
+    class FieldResizeObserver {
+      constructor(callback: () => void) {
+        resize = callback;
+      }
+      observe = observe;
+      disconnect = disconnect;
+    }
+    const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
+    const manual = new ManualAttachUiManager({
+      iconUrl: "/icon/icon16.png",
+      onActivate: jest.fn(),
+    });
+    try {
+      withProperty(globalThis, "ResizeObserver", FieldResizeObserver, () => {
+        manual.ensureForElement(field);
+      });
+      const container = document.querySelector<HTMLElement>(".ft-manual-attach")!;
+      expect(observe).toHaveBeenCalledWith(field);
+      expect(container.style.top).toBe("88px");
+      sized(field, { left: 100, top: 50, width: 300, height: 80 });
+      resize();
+      await until(() => container.style.top === "100px");
+      manual.removeAll();
+      expect(disconnect).toHaveBeenCalledTimes(1);
+    } finally {
+      manual.removeAll();
+    }
+  });
+
   test("visible while typing; hidden without text, during its review, and when turned off", () => {
     const field = sized(textarea(""));
     let reviewed: HTMLElement | null = null;

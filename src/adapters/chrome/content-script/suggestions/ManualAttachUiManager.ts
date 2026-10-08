@@ -591,9 +591,12 @@ export class ManualAttachUiManager {
       };
       view.addEventListener("scroll", schedule, { capture: true, passive: true });
       view.addEventListener("resize", schedule);
+      const observer = typeof ResizeObserver === "function" ? new ResizeObserver(schedule) : null;
+      observer?.observe(element);
       handle.stopLayoutTracking = () => {
         view.removeEventListener("scroll", schedule, true);
         view.removeEventListener("resize", schedule);
+        observer?.disconnect();
         if (frame !== null) view.cancelAnimationFrame(frame);
       };
     }

@@ -9935,6 +9935,23 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         el.scrollTop = 20;
       });
       await waitUntil("Enable follows nested scroll", enableAligned);
+      await page.$eval("#compact-textarea", (el) => {
+        el.parentElement!.style.height = "auto";
+        el.animate([{ height: "32px" }, { height: "80px" }], {
+          duration: 200,
+          fill: "forwards",
+        });
+      });
+      await waitUntil("Enable follows an animated field resize", () =>
+        page.evaluate(() => {
+          const field = document.querySelector("#compact-textarea")!;
+          const button = document.querySelector("#compact-wrapper .ft-manual-attach-button")!;
+          const rect = field.getBoundingClientRect();
+          const action = button.getBoundingClientRect();
+          const innerBottom = rect.top + field.clientTop + field.clientHeight;
+          return rect.height === 80 && Math.abs(action.bottom - innerBottom + 6) < 1;
+        }),
+      );
       const enablePoint = await page.$eval(
         "#compact-wrapper .ft-manual-attach-button",
         (button) => {
