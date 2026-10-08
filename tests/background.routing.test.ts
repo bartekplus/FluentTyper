@@ -193,7 +193,10 @@ function freshModulePath(path: string): string {
   return `${path}?bun_test_nonce_background_routing=${importNonce}`;
 }
 
-async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {}) {
+async function loadBackgroundHarness(
+  stateOverrides: Record<string, unknown> = {},
+  deferStartup = false,
+) {
   mock.restore();
   installBackgroundHarnessModuleMocks();
   jest.clearAllMocks();
@@ -289,9 +292,17 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     sender: chrome.runtime.MessageSender,
     sendResponse: (response?: unknown) => void,
   ) => boolean;
-  const startupHandler = storageLocalGet.mock.calls[0][1] as (
+  const resolveStartup = storageLocalGet.mock.calls[0][1] as (
     result: Record<string, unknown>,
-  ) => Promise<void>;
+  ) => void;
+  const startupHandler = async (result: Record<string, unknown>) => {
+    resolveStartup(result);
+    await flushPromises();
+  };
+  if (!deferStartup) {
+    await startupHandler({ lastVersion: "2026.2.1" });
+    for (const fn of Object.values(backgroundHarnessMocks)) fn.mockClear();
+  }
 
   return {
     module,
@@ -328,7 +339,7 @@ describe("background routing and lifecycle", () => {
   });
 
   test("registers listeners and runs startup initialization pipeline", async () => {
-    const harness = await loadBackgroundHarness();
+    const harness = await loadBackgroundHarness({}, true);
 
     await harness.startupHandler({ lastVersion: "2025.12.0" });
 
@@ -397,10 +408,96 @@ describe("background routing and lifecycle", () => {
     expect(harness.tabSendToAll).toHaveBeenCalledTimes(1);
   });
 
-  test("startup normalizes the stored site profiles after the migrations", async () => {
-    const harness = await loadBackgroundHarness({
-      [KEY_SITE_PROFILES]: { "https://example.com": { language: "fr_FR", numSuggestions: 2 } },
+  test("GET_CONFIG waits for a pending runtime refresh before reading Enter selection", async () => {
+    const harness = await loadBackgroundHarness({ autocompleteOnEnter: true });
+    const worker = new harness.module.BackgroundServiceWorker();
+    const started = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    harness.predictionInitialize.mockImplementationOnce(async () => {
+      started.resolve();
+      await release.promise;
     });
+    const pageConfig = jest.spyOn(worker.configAssembler, "assembleBackgroundPageSetConfig");
+    const refresh = worker.updatePresageConfig();
+    await started.promise;
+    const read = worker.getBackgroundPageSetConfigMsg("example.com");
+    try {
+      await flushPromises();
+      expect(pageConfig).not.toHaveBeenCalled();
+    } finally {
+      harness.state.autocompleteOnEnter = false;
+      release.resolve();
+      await refresh;
+    }
+    expect((await read).context.autocompleteOnEnter).toBe(false);
+  });
+
+  test("GET_CONFIG cannot publish new settings after the predictor refresh fails", async () => {
+    const harness = await loadBackgroundHarness({ insertSpaceAfterAutocomplete: true });
+    const worker = new harness.module.BackgroundServiceWorker();
+    await worker.updatePresageConfig();
+    harness.state.insertSpaceAfterAutocomplete = false;
+    jest
+      .spyOn(worker.configAssembler, "assemblePredictionRuntimeConfig")
+      .mockRejectedValue(new Error("storage read failed"));
+    await expect(worker.updatePresageConfig()).rejects.toThrow("storage read failed");
+    await expect(worker.getBackgroundPageSetConfigMsg("example.com")).rejects.toThrow(
+      "storage read failed",
+    );
+    jest.spyOn(worker.configAssembler, "assemblePredictionRuntimeConfig").mockRestore();
+    const recovered = await worker.getBackgroundPageSetConfigMsg("example.com");
+    expect(recovered.context.insertSpaceAfterAutocomplete).toBe(false);
+    expect(harness.predictionSetConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ insertSpaceAfterAutocomplete: false }),
+    );
+  });
+
+  test("GET_CONFIG waits for startup migration before it enables the page", async () => {
+    const harness = await loadBackgroundHarness({}, true);
+    const response = jest.fn();
+    harness.onMessage(
+      { command: CMD_CONTENT_SCRIPT_GET_CONFIG, context: {} },
+      { tab: { id: 1, url: "https://example.com" } as chrome.tabs.Tab },
+      response,
+    );
+    await flushPromises();
+    expect(response).not.toHaveBeenCalled();
+    harness.migrateToLocalStore.mockImplementationOnce(async () => {
+      harness.state.autocompleteOnEnter = false;
+    });
+    await harness.startupHandler({ lastVersion: "2025.12.0" });
+    await flushPromises();
+    expect(response).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({ enabled: true, autocompleteOnEnter: false }),
+      }),
+    );
+  });
+
+  test("a prediction cannot resolve its language before startup migration", async () => {
+    const harness = await loadBackgroundHarness({ language: "en_US" }, true);
+    const sender = { tab: { id: 1, url: "https://example.com" } as chrome.tabs.Tab, frameId: 0 };
+    await predict(
+      harness,
+      { text: "h", nextChar: "", lang: "en_US", suggestionId: 1, requestId: 1 },
+      sender,
+    );
+    expect(harness.predictionRun).not.toHaveBeenCalled();
+    harness.migrateToLocalStore.mockImplementationOnce(async () => {
+      harness.state.language = "fr_FR";
+    });
+    await harness.startupHandler({ lastVersion: "2025.12.0" });
+    await flushPromises();
+    expect(harness.predictionRun.mock.calls.at(-1)?.[2]).toBe("fr_FR");
+  });
+
+  test("startup normalizes the stored site profiles after the migrations", async () => {
+    const harness = await loadBackgroundHarness(
+      {
+        [KEY_SITE_PROFILES]: { "https://example.com": { language: "fr_FR", numSuggestions: 2 } },
+      },
+      true,
+    );
 
     await harness.startupHandler({ lastVersion: "2025.12.0" });
 
@@ -410,12 +507,26 @@ describe("background routing and lifecycle", () => {
   });
 
   test("startup logs failure when migration rejects", async () => {
-    const harness = await loadBackgroundHarness();
+    const harness = await loadBackgroundHarness({}, true);
     harness.migrateToLocalStore.mockRejectedValueOnce(new Error("boom"));
 
     await harness.startupHandler({ lastVersion: "2025.12.0" });
 
     expect(harness.logError).toHaveBeenCalledWith("lastVersion handler", expect.any(Error));
+    const response = jest.fn();
+    harness.onMessage(
+      { command: CMD_CONTENT_SCRIPT_GET_CONFIG, context: {} },
+      { tab: { id: 1, url: "https://example.com" } as chrome.tabs.Tab },
+      response,
+    );
+    await flushPromises();
+    expect(response).toHaveBeenCalledWith({ ok: false });
+    expect(harness.predictionSetConfig).not.toHaveBeenCalled();
+    response.mockClear();
+    harness.onMessage({ command: CMD_OPTIONS_PAGE_CONFIG_CHANGE, context: {} }, {}, response);
+    await flushPromises();
+    expect(response).toHaveBeenCalledWith({ ok: false });
+    expect(harness.tabSendToAll).not.toHaveBeenCalled();
   });
 
   test("registers no test-only runtime message hook in non-dev builds", async () => {
@@ -425,9 +536,12 @@ describe("background routing and lifecycle", () => {
   });
 
   test("startup ignores debug predictor routing toggles outside dev builds", async () => {
-    const harness = await loadBackgroundHarness({
-      [KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED]: false,
-    });
+    const harness = await loadBackgroundHarness(
+      {
+        [KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED]: false,
+      },
+      true,
+    );
 
     await harness.startupHandler({ lastVersion: "2025.12.0" });
 
@@ -1138,7 +1252,7 @@ describe("background routing and lifecycle", () => {
       .spyOn(harness.module.BackgroundServiceWorker.prototype, "getBackgroundPageSetConfigMsg")
       .mockResolvedValue({
         command: CMD_BACKGROUND_PAGE_SET_CONFIG,
-        context: { enabled: true, lang: "en_US" },
+        context: { enabled: false, lang: "en_US" },
       } as never);
     harness.isEnabledForDomain.mockResolvedValueOnce(false);
 

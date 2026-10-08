@@ -33,6 +33,7 @@ type SuggestionLike = {
   handleEarlyTabAcceptRequest: jest.Mock;
   autocompleteSeparator?: RegExp;
   options?: {
+    autocompleteOnEnter?: boolean;
     enabledGrammarRules?: string[];
     grammarProposalRules?: string[];
     getPrediction?: (context: Record<string, unknown>) => void;
@@ -83,6 +84,7 @@ function defaultConfig(overrides: Record<string, unknown> = {}) {
     autocomplete: true,
     autocompleteOnEnter: true,
     autocompleteOnTab: true,
+    horizontalSuggestions: false,
     insertSpaceAfterAutocomplete: true,
     lang: "en_US",
     selectByDigit: true,
@@ -90,6 +92,9 @@ function defaultConfig(overrides: Record<string, unknown> = {}) {
     showSuggestionFooter: true,
     inline_suggestion: false,
     preferNativeAutocomplete: true,
+    codeMode: false,
+    enabledGrammarRules: [],
+    userDictionaryList: [],
     themeConfig: undefined,
     ...overrides,
   };
@@ -168,7 +173,7 @@ function requestPrediction(manager: SuggestionLike, context: Record<string, unkn
   manager.options!.getPrediction!({ traceId: "trace-1", traceStartedAtMs: Date.now(), ...context });
 }
 
-async function loadContentScript(): Promise<LoadedContentScript> {
+async function loadContentScript(configured = true): Promise<LoadedContentScript> {
   jest.clearAllMocks();
   behaviorHarness.suggestionInstances.length = 0;
   behaviorHarness.domObserverInstances.length = 0;
@@ -191,6 +196,7 @@ async function loadContentScript(): Promise<LoadedContentScript> {
     .FluentTyper!;
 
   behaviorHarness.fluentTyperInstances.push(fluentTyper);
+  if (configured) fluentTyper.setConfig(defaultConfig({ enabled: false }));
 
   return {
     fluentTyper,
@@ -706,19 +712,16 @@ describe("content_script behavior", () => {
       const review = { command: CMD_REVIEW_FT_ACTIVE_TAB, context: { source: "popup" } } as const;
 
       // The request lands while GET_CONFIG is still in flight.
-      const { fluentTyper } = await loadContentScript();
+      const { fluentTyper } = await loadContentScript(false);
       fluentTyper.messageHandler(review);
       expect(notice()).toBeNull();
-      fluentTyper.messageHandler({
-        command: CMD_BACKGROUND_PAGE_SET_CONFIG,
-        context: defaultConfig(),
-      });
+      fluentTyper.setConfig(defaultConfig());
       expect(notice()).toContain("excluded from review");
 
       // Settings that leave FluentTyper off drop the request.
       fluentTyper.destroy();
       document.querySelector("[data-fluenttyper-review]")?.remove();
-      const off = (await loadContentScript()).fluentTyper;
+      const off = (await loadContentScript(false)).fluentTyper;
       off.messageHandler(review);
       off.messageHandler({
         command: CMD_BACKGROUND_PAGE_SET_CONFIG,
@@ -878,7 +881,7 @@ describe("content_script behavior", () => {
 
     hostWatcher(fluentTyper).hostName = window.location.hostname;
     domObserver.getNode.mockReturnValue(document.createElement("div"));
-    fluentTyper.enabled = true;
+    fluentTyper.setConfig(defaultConfig());
     fluentTyper.watchDog();
 
     expect(restartSpy).toHaveBeenCalled();
@@ -993,6 +996,110 @@ describe("content_script behavior", () => {
       expect.objectContaining({ command: CMD_BACKGROUND_PAGE_SET_CONFIG }),
     );
     expect(checkLastError).toHaveBeenCalled();
+  });
+
+  test("a late GET_CONFIG reply cannot restore Enter selection after a newer broadcast", async () => {
+    const { fluentTyper, sendMessage, suggestionInstances } = await loadContentScript(false);
+    const olderReply = sendMessage.mock.calls[0][1] as (response: unknown) => void;
+    fluentTyper.messageHandler({
+      command: CMD_BACKGROUND_PAGE_SET_CONFIG,
+      context: defaultConfig({ autocompleteOnEnter: false }),
+    });
+    const freshReply = sendMessage.mock.calls.at(-1)?.[1] as (response: unknown) => void;
+    olderReply({ command: CMD_BACKGROUND_PAGE_SET_CONFIG, context: defaultConfig() });
+    expect(fluentTyper.enabled).toBe(false);
+    freshReply({
+      command: CMD_BACKGROUND_PAGE_SET_CONFIG,
+      context: defaultConfig({ autocompleteOnEnter: false }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(suggestionInstances.at(-1)?.options?.autocompleteOnEnter).toBe(false);
+  });
+
+  test("enable commands and direct startup wait for the first configuration", async () => {
+    const { fluentTyper, suggestionInstances } = await loadContentScript(false);
+    for (const command of [CMD_POPUP_PAGE_ENABLE, CMD_TOGGLE_FT_ACTIVE_TAB]) {
+      fluentTyper.messageHandler({ command, context: {} });
+      expect(fluentTyper.enabled).toBe(false);
+      expect(suggestionInstances).toHaveLength(0);
+    }
+    fluentTyper.enable();
+    expect(suggestionInstances).toHaveLength(0);
+    fluentTyper.setConfig(defaultConfig({ autocompleteOnEnter: false }));
+    expect(fluentTyper.enabled).toBe(true);
+    expect(suggestionInstances.at(-1)?.options?.autocompleteOnEnter).toBe(false);
+  });
+
+  test("configuration refresh stops the runtime until valid settings arrive", async () => {
+    const { fluentTyper, sendMessage } = await loadContentScript();
+    fluentTyper.setConfig(defaultConfig());
+    const manager = fluentTyper.suggestionManager!;
+    fluentTyper.getConfig();
+    const reply = sendMessage.mock.calls.at(-1)?.[1] as (response: unknown) => void;
+    expect(fluentTyper.enabled).toBe(false);
+    expect(manager.detachAllHelpers).toHaveBeenCalled();
+    expect(fluentTyper.suggestionManager).toBeNull();
+    reply({ ok: false });
+    fluentTyper.messageHandler({ command: CMD_POPUP_PAGE_ENABLE, context: {} });
+    expect(fluentTyper.enabled).toBe(false);
+    fluentTyper.setConfig(defaultConfig({ autocompleteOnEnter: false }));
+    expect(fluentTyper.enabled).toBe(true);
+  });
+
+  test.each([
+    undefined,
+    {},
+    { enabled: true },
+    { ...defaultConfig(), autocompleteOnEnter: "false" },
+  ])("invalid configuration cannot start or retain the runtime: %j", async (config) => {
+    const { fluentTyper, suggestionInstances } = await loadContentScript(false);
+    const apply = () =>
+      fluentTyper.messageHandler({ command: CMD_BACKGROUND_PAGE_SET_CONFIG, context: config });
+    expect(apply).not.toThrow();
+    expect(fluentTyper.enabled).toBe(false);
+    expect(suggestionInstances).toHaveLength(0);
+    fluentTyper.setConfig(defaultConfig());
+    expect(apply).not.toThrow();
+    expect(fluentTyper.enabled).toBe(false);
+    expect(fluentTyper.suggestionManager).toBeNull();
+  });
+
+  test("only the latest GET_CONFIG request can apply its reply", async () => {
+    const { fluentTyper, sendMessage, suggestionInstances } = await loadContentScript(false);
+    const olderReply = sendMessage.mock.calls[0][1] as (response: unknown) => void;
+    fluentTyper.getConfig();
+    const newerReply = sendMessage.mock.calls[1][1] as (response: unknown) => void;
+    newerReply({
+      command: CMD_BACKGROUND_PAGE_SET_CONFIG,
+      context: defaultConfig({ autocompleteOnEnter: false }),
+    });
+    olderReply({ command: CMD_BACKGROUND_PAGE_SET_CONFIG, context: defaultConfig() });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(suggestionInstances.at(-1)?.options?.autocompleteOnEnter).toBe(false);
+  });
+
+  test("a broadcast during GET_CONFIG keeps the runtime stopped until a fresh reply", async () => {
+    const { fluentTyper, sendMessage, suggestionInstances } = await loadContentScript(false);
+    const olderReply = sendMessage.mock.calls[0][1] as (response: unknown) => void;
+    fluentTyper.messageHandler({
+      command: CMD_BACKGROUND_PAGE_SET_CONFIG,
+      context: defaultConfig(),
+    });
+    expect(fluentTyper.enabled).toBe(false);
+    expect(suggestionInstances).toHaveLength(0);
+    const latestRequest = sendMessage.mock.calls.at(-1);
+    expect(latestRequest?.[0]).toEqual(
+      expect.objectContaining({ command: CMD_CONTENT_SCRIPT_GET_CONFIG }),
+    );
+    const freshReply = latestRequest?.[1] as (response: unknown) => void;
+    olderReply({ command: CMD_BACKGROUND_PAGE_SET_CONFIG, context: defaultConfig() });
+    expect(fluentTyper.enabled).toBe(false);
+    freshReply({
+      command: CMD_BACKGROUND_PAGE_SET_CONFIG,
+      context: defaultConfig({ autocompleteOnEnter: false }),
+    });
+    expect(fluentTyper.enabled).toBe(true);
+    expect(suggestionInstances.at(-1)?.options?.autocompleteOnEnter).toBe(false);
   });
 
   test("messageHandler handles empty and unknown messages safely", async () => {

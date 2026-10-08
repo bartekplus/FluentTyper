@@ -42,7 +42,7 @@ import type {
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
 import { hasStringProperty, isFiniteNumber, isObjectRecord } from "@core/domain/guards";
-import { getDomain, isEnabledForDomain } from "@core/application/domain-utils";
+import { getDomain } from "@core/application/domain-utils";
 import {
   ConfigError,
   PredictorError,
@@ -365,6 +365,7 @@ export class MessageRouter {
     const { request, sender, sendResponse, worker } = payload;
     const { tabId, frameId } = requireSenderRoutingContext(sender, "prediction request");
     const domainURL = getDomain(sender.tab?.url || "");
+    await worker.ensureRuntimeConfigReady();
 
     const domainSettings = await rethrowAs(
       () => worker.domainSettingsCache.resolve(worker.settingsManager, domainURL),
@@ -507,12 +508,8 @@ export class MessageRouter {
     const { sender, sendResponse, worker } = payload;
     const domain = getDomain(sender.tab?.url || "") || "";
 
-    const [isEnabled, message] = await rethrowAs(
-      () =>
-        Promise.all([
-          isEnabledForDomain(worker.settingsManager, domain),
-          worker.getBackgroundPageSetConfigMsg(domain),
-        ]),
+    const message = await rethrowAs(
+      () => worker.getBackgroundPageSetConfigMsg(domain),
       (cause) =>
         new ConfigError("Failed to resolve content script config", {
           code: "message_get_content_script_config_failed",
@@ -520,7 +517,6 @@ export class MessageRouter {
         }),
     );
 
-    message.context.enabled = isEnabled;
     sendResponse(message);
   }
 

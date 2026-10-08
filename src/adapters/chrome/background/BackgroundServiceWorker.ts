@@ -4,6 +4,7 @@ import { getErrorMessage, logError } from "@core/domain/error";
 import { isFiniteNumber } from "@core/domain/guards";
 import { serialQueue } from "@core/domain/serialQueue";
 import { SettingsManager } from "@core/application/settingsManager";
+import { isEnabledForDomain } from "@core/application/domain-utils";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { LanguageDetector, type AutoLanguageSessionLookup } from "./LanguageDetector";
 import { PredictionManager } from "./PredictionManager";
@@ -163,14 +164,24 @@ export class BackgroundServiceWorker {
   }
 
   async getBackgroundPageSetConfigMsg(domainURL?: string): Promise<ConfigMessage> {
-    return this.configAssembler.assembleBackgroundPageSetConfig(domainURL);
+    await this.initializationPromise;
+    return this.configUpdates(async () => {
+      if (!this.runtimeConfigReady) await this.applyPresageConfig();
+      const message = await this.configAssembler.assembleBackgroundPageSetConfig(domainURL);
+      message.context.enabled = await isEnabledForDomain(this.settingsManager, domainURL ?? "");
+      return message;
+    });
   }
 
   updatePresageConfig(): Promise<void> {
-    return this.configUpdates(() => this.applyPresageConfig());
+    return this.configUpdates(async () => {
+      await this.initializationPromise;
+      await this.applyPresageConfig();
+    });
   }
 
   private async applyPresageConfig(): Promise<void> {
+    this.runtimeConfigReady = false;
     await sanitizeLanguageSettings(this.settingsManager);
     await Promise.all([
       this.personalizationService.initialize(),
@@ -187,7 +198,7 @@ export class BackgroundServiceWorker {
       observabilityEnabled: runtimeConfig.observabilityConfig?.enabled,
     });
     await this.tabMessenger.sendToAllTabs(
-      await this.getBackgroundPageSetConfigMsg(),
+      await this.configAssembler.assembleBackgroundPageSetConfig(),
       this.settingsManager,
       (domain: string) => this.configAssembler.resolveDomainConfigOverrides(domain),
     );
@@ -234,20 +245,22 @@ export class BackgroundServiceWorker {
     };
   }
 
-  async initialize(lastVersion: string | undefined): Promise<void> {
-    this.initializationPromise ??= (async () => {
+  async initialize(lastVersion: string | undefined | Promise<string | undefined>): Promise<void> {
+    this.initializationPromise ??= this.configUpdates(async () => {
       try {
-        await migrateToLocalStore(lastVersion);
+        await migrateToLocalStore(await lastVersion);
         await runSettingsMigrations(this.settingsManager);
-        await this.updatePresageConfig();
+        await this.applyPresageConfig();
       } catch (error) {
         logError("lastVersion handler", error);
+        throw error;
       }
-    })();
+    });
     await this.initializationPromise;
   }
 
-  private async ensureRuntimeConfigReady(): Promise<void> {
+  async ensureRuntimeConfigReady(): Promise<void> {
+    await this.initializationPromise;
     if (this.runtimeConfigReady) {
       return;
     }

@@ -2,6 +2,8 @@ import { checkLastError } from "@core/application/transport-utils";
 import { createLogger, installObservabilityRelay } from "@core/application/logging/Logger";
 import {
   CMD_CONTENT_SCRIPT_GET_CONFIG,
+  CMD_BACKGROUND_PAGE_SET_CONFIG,
+  CMD_STATUS_COMMAND,
   CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT,
   CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES,
 } from "@core/domain/constants";
@@ -59,6 +61,8 @@ class FluentTyper {
     window.FluentTyper = new FluentTyper();
   });
   private destroyed = false;
+  private configRequest = 0;
+  private configPending = false;
 
   constructor() {
     logger.info("Initializing content script", {
@@ -125,6 +129,8 @@ class FluentTyper {
   }
 
   setConfig(config: SetConfigContext): void {
+    this.configRequest += 1;
+    this.configPending = false;
     this.runtimeController.setConfig(config);
     this.syncPageListeners();
   }
@@ -158,18 +164,31 @@ class FluentTyper {
   }
 
   messageHandler(message: Message | null, sendResponse?: (response: unknown) => void): void {
+    if (message?.command === CMD_BACKGROUND_PAGE_SET_CONFIG && this.configPending) {
+      // The broadcast can precede the queued GET_CONFIG read. Request a fresh reply.
+      this.getConfig();
+      sendResponse?.({ command: CMD_STATUS_COMMAND, context: { enabled: false } });
+      return;
+    }
     this.contentMessageHandler.handleMessage(message, sendResponse);
   }
 
   getConfig(): void {
+    const request = ++this.configRequest;
+    this.configPending = true;
+    this.runtimeController.suspendConfig();
+    this.syncPageListeners();
     const msg: ContentScriptGetConfigMessage = {
       command: CMD_CONTENT_SCRIPT_GET_CONFIG,
       context: {},
     };
     chrome.runtime.sendMessage(msg, (response: unknown) => {
       checkLastError();
-      // A late answer must not enable a destroyed instance again.
-      if (!this.destroyed) this.messageHandler(response as Message);
+      // A broadcast or a later request supersedes this reply.
+      if (!this.destroyed && request === this.configRequest) {
+        this.configPending = false;
+        this.messageHandler(response as Message);
+      }
     });
   }
 }

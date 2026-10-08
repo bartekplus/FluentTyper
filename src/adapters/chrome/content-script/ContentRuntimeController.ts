@@ -35,6 +35,7 @@ import { MessagingReviewEngine } from "./review/MessagingReviewEngine";
 import { ReviewLauncher } from "./review/ReviewLauncher";
 import { whenDocumentFocused } from "./review/whenDocumentFocused";
 import { reviewRuleIds } from "@core/domain/grammar/review/reviewCatalog";
+import { isFiniteNumber, isObjectRecord } from "@core/domain/guards";
 
 import { GoogleDocsAdapter } from "./google-docs/GoogleDocsAdapter";
 import { DocsReviewSurfaceProxy } from "./review/DocsReviewSurfaceProxy";
@@ -59,6 +60,31 @@ async function detectTextLanguage(text: string, failOnError = false): Promise<st
 
 // How long a review asked for from the popup waits for the page to regain focus.
 const POPUP_FOCUS_WAIT_MS = 1500;
+
+function isRuntimeConfig(config: unknown): config is SetConfigContext {
+  return (
+    isObjectRecord(config) &&
+    [
+      "enabled",
+      "autocomplete",
+      "autocompleteOnEnter",
+      "autocompleteOnTab",
+      "insertSpaceAfterAutocomplete",
+      "selectByDigit",
+      "horizontalSuggestions",
+      "inline_suggestion",
+      "preferNativeAutocomplete",
+      "codeMode",
+      "showSuggestionFooter",
+    ].every((key) => typeof config[key] === "boolean") &&
+    typeof config.lang === "string" &&
+    config.lang.length > 0 &&
+    isFiniteNumber(config.minWordLengthToPredict) &&
+    [config.enabledGrammarRules, config.userDictionaryList].every(
+      (value) => Array.isArray(value) && value.every((item) => typeof item === "string"),
+    )
+  );
+}
 
 export class ContentRuntimeController {
   private static readonly SELECTORS = "textarea, input, [contentEditable]";
@@ -142,6 +168,7 @@ export class ContentRuntimeController {
   }
 
   set enabled(newValue: boolean) {
+    if (newValue && !this.configured) return;
     if (this._enabled !== newValue) {
       logger.info("Runtime enabled state changed", { enabled: newValue });
       this._enabled = newValue;
@@ -157,7 +184,19 @@ export class ContentRuntimeController {
     return this._enabled;
   }
 
+  suspendConfig(): void {
+    this.configured = false;
+    this.enabled = false;
+    this.disable();
+    this.suggestionManager = null;
+  }
+
   setConfig(config: SetConfigContext): void {
+    if (!isRuntimeConfig(config)) {
+      logger.error("Invalid runtime configuration");
+      this.suspendConfig();
+      return;
+    }
     const pendingReview = this.configured ? null : this.reviewBeforeConfig;
     this.configured = true;
     this.reviewBeforeConfig = null;
@@ -403,6 +442,7 @@ export class ContentRuntimeController {
   }
 
   enable(): void {
+    if (!this.configured) return;
     this.setHostBridgeEnabled(true);
     logger.info("Enabling content runtime");
     if (!this.suggestionManager || (isGoogleDocsPage() && !this.googleDocs)) {
