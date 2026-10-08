@@ -580,7 +580,13 @@ export class ManualAttachUiManager {
     container.appendChild(button);
     mountTarget.containerParent.appendChild(container);
     if (this.isMultilineTarget(element) && !enterTopLayer(container)) {
-      (reviewMountFor(element) ?? element.ownerDocument.documentElement).appendChild(container);
+      const modal = reviewMountFor(element);
+      if (modal) {
+        handle.positioningParent = modal;
+        this.reserveParent(modal);
+        container.style.position = "absolute";
+      }
+      (modal ?? element.ownerDocument.documentElement).appendChild(container);
     }
     const refreshAppearance = () => {
       handle.surfaceTone = fieldActionTone(element);
@@ -654,9 +660,21 @@ export class ManualAttachUiManager {
       handle.container.hidden = !slot;
       handle.container.style.display = slot ? "" : "none";
       if (!slot) return;
-      const parentRect = handle.positioningParent?.getBoundingClientRect();
-      handle.container.style.left = `${Math.round(slot.left - (parentRect?.left ?? 0))}px`;
-      handle.container.style.top = `${Math.round(slot.top - (parentRect?.top ?? 0))}px`;
+      const parent = handle.positioningParent;
+      const parentRect = parent?.getBoundingClientRect();
+      const scaleX = parent?.offsetWidth ? parentRect!.width / parent.offsetWidth : 1;
+      const scaleY = parent?.offsetHeight ? parentRect!.height / parent.offsetHeight : 1;
+      if (!scaleX || !scaleY) {
+        handle.container.hidden = true;
+        return;
+      }
+      handle.container.style.left = `${Math.round((slot.left - (parentRect?.left ?? 0)) / scaleX - (parent?.clientLeft ?? 0) + (parent?.scrollLeft ?? 0))}px`;
+      handle.container.style.top = `${Math.round((slot.top - (parentRect?.top ?? 0)) / scaleY - (parent?.clientTop ?? 0) + (parent?.scrollTop ?? 0))}px`;
+      if (parent) {
+        // ponytail: modal fallback handles translation and scale. Use matrix mapping if a modal rotates or skews.
+        handle.container.style.transformOrigin = "top left";
+        handle.container.style.transform = `scale(${1 / scaleX}, ${1 / scaleY})`;
+      }
       return;
     }
     handle.container.hidden = false;

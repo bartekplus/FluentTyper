@@ -1713,6 +1713,69 @@ describe("in-field review button", () => {
     },
   );
 
+  test.each([
+    [0.5, "missing"],
+    [2, "missing"],
+    [0.5, "throws"],
+    [2, "throws"],
+  ] as const)("Enable maps a modal fallback at scale %s when Popover API %s", (scale, failure) => {
+    const dialog = document.createElement("dialog");
+    dialog.open = true;
+    dialog.style.cssText = `position:fixed;transform:scale(${scale});`;
+    document.body.append(dialog);
+    sized(dialog, { left: 200, top: 100, width: 400 * scale, height: 200 * scale });
+    Object.defineProperties(dialog, {
+      offsetWidth: { value: 400 },
+      offsetHeight: { value: 200 },
+      clientLeft: { value: 2 },
+      clientTop: { value: 2 },
+      scrollLeft: { value: 10 },
+      scrollTop: { value: 20 },
+    });
+    const matches = dialog.matches.bind(dialog);
+    Object.defineProperty(dialog, "matches", {
+      value: (selector: string) => selector === ":modal" || matches(selector),
+    });
+    const field = sized(textarea("What asd asd"), {
+      left: 250,
+      top: 150,
+      width: 300 * scale,
+      height: 80 * scale,
+    });
+    dialog.append(field);
+    const manual = new ManualAttachUiManager({
+      iconUrl: "/icon/icon16.png",
+      onActivate: jest.fn(),
+    });
+    withProperty(
+      HTMLElement.prototype,
+      "showPopover",
+      failure === "missing"
+        ? undefined
+        : () => {
+            throw new Error("Popover refused");
+          },
+      () => {
+        try {
+          manual.ensureForElement(field);
+          const container = dialog.querySelector<HTMLElement>(".ft-manual-attach")!;
+          const slot = fieldActionSlot(field)!;
+          expect(container.style.position).toBe("absolute");
+          expect(
+            Number.parseFloat(container.style.left) * scale + 200 + (2 - 10) * scale,
+          ).toBeCloseTo(slot.left, 0);
+          expect(
+            Number.parseFloat(container.style.top) * scale + 100 + (2 - 20) * scale,
+          ).toBeCloseTo(slot.top, 0);
+          expect(container.style.transform).toBe(`scale(${1 / scale}, ${1 / scale})`);
+        } finally {
+          manual.removeAll();
+        }
+        expect(dialog.style.position).toBe("fixed");
+      },
+    );
+  });
+
   test("Enable follows field resize and disconnects its observer on removal", async () => {
     let resize = () => {};
     const observe = jest.fn();

@@ -3719,7 +3719,7 @@
     },
     {
       "id": "review_in_field_button",
-      "description": "A Review button on the focused multi-line text box (own shadow layer, page layout untouched) reviews only that box; it appears for prefilled compact fields without an edit, stays visible while typing, avoids nearby text and controls, hides during its review, shares placement and styling with Enable, changes to Review after activation without another edit, and the setting turns it off. Enable follows page and nested scroll, viewport resize, and animated field resize. Its fallback escapes transformed parents when the Popover API is absent or fails. Both icons use viewport coordinates for scaled and zoomed fields, including RTL, borders, and scrollbar space. Both icons also follow ancestor-driven movement without a scroll or field resize event. The runtime refreshes compact-slot occupancy when surrounding page content appears or disappears. Both actions follow live color, forced-color, and motion preferences, including the Enable checkmark. Media listeners stop when the action is removed. Fixed actions share one animation frame per page and one visibility observer. Fields outside the visible area do not poll geometry, and their actions return when visible without another edit. Narrow multiline fields retain Enable with the minimum space for its icon and margins. Review keeps its wider threshold. Compact slots avoid controls in adjacent nested shadow roots and non-text surfaces such as embedded frames, media, and canvas. Both actions hide and return when CSS-only changes alter the field's painted visibility, including the Enable fallback.",
+      "description": "A Review button on the focused multi-line text box (own shadow layer, page layout untouched) reviews only that box; it appears for prefilled compact fields without an edit, stays visible while typing, avoids nearby text and controls, hides during its review, shares placement and styling with Enable, changes to Review after activation without another edit, and the setting turns it off. Enable follows page and nested scroll, viewport resize, and animated field resize. Its fallback escapes transformed parents when the Popover API is absent or fails. Inside a modal dialog, the fallback uses local coordinates, borders, scroll offsets, and inverse scale to keep viewport placement and size. Both icons use viewport coordinates for scaled and zoomed fields, including RTL, borders, and scrollbar space. Both icons also follow ancestor-driven movement without a scroll or field resize event. The runtime refreshes compact-slot occupancy when surrounding page content appears or disappears. Both actions follow live color, forced-color, and motion preferences, including the Enable checkmark. Media listeners stop when the action is removed. Fixed actions share one animation frame per page and one visibility observer. Fields outside the visible area do not poll geometry, and their actions return when visible without another edit. Narrow multiline fields retain Enable with the minimum space for its icon and margins. Review keeps its wider threshold. Compact slots avoid controls in adjacent nested shadow roots and non-text surfaces such as embedded frames, media, and canvas. Both actions hide and return when CSS-only changes alter the field's painted visibility, including the Enable fallback.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3835,6 +3835,16 @@
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
           "test": "compact actions avoid non-text %s surfaces"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "Enable maps a modal fallback at scale %s when Popover API %s"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Enable modal fallback retains viewport placement and size through dialog scale"
         }
       ]
     },

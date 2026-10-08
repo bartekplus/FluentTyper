@@ -9811,6 +9811,77 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     suiteTimeout(20000, 30000),
   );
 
+  test("Enable modal fallback retains viewport placement and size through dialog scale", async () => {
+    await prepareReviewPage();
+    const bundle = await bundleTestEditor("field-action.ts");
+    await page.addScriptTag({ content: await bundle.text() });
+    const results = await page.evaluate(async () => {
+      const descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "showPopover");
+      const results = [];
+      try {
+        for (const failure of ["missing", "throws"]) {
+          Object.defineProperty(HTMLElement.prototype, "showPopover", {
+            configurable: true,
+            value:
+              failure === "missing"
+                ? undefined
+                : () => {
+                    throw new Error("Popover refused");
+                  },
+          });
+          for (const scale of [0.5, 2]) {
+            const dialog = document.createElement("dialog");
+            dialog.style.cssText = `position:fixed;left:100px;top:100px;margin:0;width:300px;height:200px;padding:12px;border:2px solid;box-sizing:border-box;overflow:auto;transform-origin:top left;transform:scale(${scale});`;
+            const field = document.createElement("textarea");
+            field.style.cssText =
+              "display:block;width:160px;height:80px;margin:24px;box-sizing:border-box;";
+            const spacer = document.createElement("div");
+            spacer.style.height = "400px";
+            dialog.append(field, spacer);
+            document.body.append(dialog);
+            dialog.showModal();
+            dialog.scrollTop = 20;
+            const manual = new window.__testManualAttachUi({ iconUrl: "", onActivate: () => {} });
+            try {
+              manual.ensureForElement(field);
+              const container = dialog.querySelector<HTMLElement>(".ft-manual-attach")!;
+              const deadline = performance.now() + 3000;
+              while (container.hidden && performance.now() < deadline)
+                await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+              const action = container.querySelector("button")!.getBoundingClientRect();
+              const rect = field.getBoundingClientRect();
+              results.push({
+                hidden: container.hidden,
+                width: action.width,
+                height: action.height,
+                right:
+                  action.right - (rect.left + (field.clientLeft + field.clientWidth) * scale - 6),
+                bottom:
+                  action.bottom - (rect.top + (field.clientTop + field.clientHeight) * scale - 6),
+              });
+            } finally {
+              manual.removeAll();
+              dialog.close();
+              dialog.remove();
+            }
+          }
+        }
+      } finally {
+        if (descriptor) Object.defineProperty(HTMLElement.prototype, "showPopover", descriptor);
+        else Reflect.deleteProperty(HTMLElement.prototype, "showPopover");
+      }
+      return results;
+    });
+    expect(results).toHaveLength(4);
+    for (const result of results) {
+      expect(result.hidden).toBe(false);
+      expect(result.width).toBeCloseTo(24, 0);
+      expect(result.height).toBeCloseTo(24, 0);
+      expect(Math.abs(result.right)).toBeLessThan(1.5);
+      expect(Math.abs(result.bottom)).toBeLessThan(1.5);
+    }
+  });
+
   test(
     "Review button in the focused text box reviews only that box; the setting turns it off",
     async () => {
