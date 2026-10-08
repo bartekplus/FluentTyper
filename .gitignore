@@ -10,4 +10,5 @@ scripts/community-oscar
 .cache
 .worktrees
 .claude
+.impeccable/hook.cache.json
 __pycache__/

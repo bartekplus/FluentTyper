@@ -2,6 +2,7 @@ import { CMD_BACKGROUND_PAGE_PREDICT_RESP, isDevBuild } from "@core/domain/const
 import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage, logError } from "@core/domain/error";
 import { isFiniteNumber } from "@core/domain/guards";
+import { serialQueue } from "@core/domain/serialQueue";
 import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { LanguageDetector, type AutoLanguageSessionLookup } from "./LanguageDetector";
@@ -48,6 +49,7 @@ export class BackgroundServiceWorker {
   private runtimeConfigReady = false;
   private runtimeConfigLoadPromise: Promise<void> | null = null;
   private initializationPromise: Promise<void> | null = null;
+  private readonly configUpdates = serialQueue();
 
   constructor(localAiEngine: EngineLike | null = null) {
     this.settingsManager = new SettingsManager();
@@ -164,7 +166,11 @@ export class BackgroundServiceWorker {
     return this.configAssembler.assembleBackgroundPageSetConfig(domainURL);
   }
 
-  async updatePresageConfig(): Promise<void> {
+  updatePresageConfig(): Promise<void> {
+    return this.configUpdates(() => this.applyPresageConfig());
+  }
+
+  private async applyPresageConfig(): Promise<void> {
     await sanitizeLanguageSettings(this.settingsManager);
     await Promise.all([
       this.personalizationService.initialize(),

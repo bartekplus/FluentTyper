@@ -17,6 +17,7 @@ import {
   findLayoutOverflow,
   reacquireWorker,
   removeSettings,
+  sendCommand,
   setSetting,
   setSettings,
   sleep,
@@ -655,6 +656,51 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       expect(value.toLowerCase()).toBe(firstSuggestion?.toLowerCase());
     },
     suiteTimeout(10000, 15000),
+  );
+
+  test(
+    "automatic spacing uses the default and follows off/on updates in an open page",
+    async () => {
+      // Options writes defaults on open. A Popup tab preserves the missing setting and stays open.
+      const configPage = await openExtensionPage(browser, worker, "popup/popup.html");
+      try {
+        for (const enabled of [undefined, false, true]) {
+          if (enabled === undefined) {
+            await removeSettings(worker, [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE]);
+          } else {
+            await setSetting(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, enabled);
+          }
+          await sendCommand(configPage, CMD_OPTIONS_PAGE_CONFIG_CHANGE, {}, { requireOk: true });
+          expect(await getSetting(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE)).toBe(enabled);
+          page = await prepareReusableTestPage(browser, page);
+          await page.focus("#test-input");
+          await page.keyboard.type("h");
+
+          const [suggestion] = await waitForVisibleSuggestionTexts(page);
+          expect(suggestion).toBeTruthy();
+          expect(/[ \xa0]$/.test(suggestion!)).toBe(enabled ?? true);
+          await page.keyboard.press("Tab");
+          await waitUntil(
+            "accepted suggestion text",
+            async () =>
+              (await page!.$eval("#test-input", (el) => (el as HTMLInputElement).value)) ===
+              suggestion,
+            { timeoutMs: suiteTimeout(5000, 8000) },
+          );
+          await page.keyboard.type("s");
+          await waitUntil(
+            "typed character after acceptance",
+            async () =>
+              (await page!.$eval("#test-input", (el) => (el as HTMLInputElement).value)) ===
+              `${suggestion}s`,
+            { timeoutMs: suiteTimeout(5000, 8000) },
+          );
+        }
+      } finally {
+        await configPage.close();
+      }
+    },
+    suiteTimeout(20000, 35000),
   );
 
   test(

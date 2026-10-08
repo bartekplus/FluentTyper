@@ -648,6 +648,32 @@
       ]
     },
     {
+      "id": "automatic_spacing_config",
+      "description": "Automatic spacing defaults on, preserves an explicit off value, and applies config refreshes in order to the predictor and all page frames.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ConfigAssembler.localAi.test.ts",
+          "test": "automatic spacing agrees in page and predictor config before Options opens and after toggles"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "overlapping config refreshes cannot restore an old automatic spacing value"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "a failed config refresh does not block the next automatic spacing update"
+        },
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "automatic spacing uses the default and follows off/on updates in an open page"
+        }
+      ]
+    },
+    {
       "id": "missing_space_cancellation",
       "description": "Cursor movement cancels automatic missing-space insertion.",
       "coverage": [
