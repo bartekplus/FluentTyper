@@ -48,6 +48,7 @@ export class BackgroundServiceWorker {
   localAiController!: LocalAiController;
   domainSettingsCache!: DomainSettingsCache;
   private runtimeConfigReady = false;
+  private configUpdateVersion = 0;
   private runtimeConfigLoadPromise: Promise<void> | null = null;
   private initializationPromise: Promise<void> | null = null;
   private readonly configUpdates = serialQueue();
@@ -174,13 +175,15 @@ export class BackgroundServiceWorker {
   }
 
   updatePresageConfig(): Promise<void> {
+    const version = ++this.configUpdateVersion;
+    this.runtimeConfigReady = false;
     return this.configUpdates(async () => {
       await this.initializationPromise;
-      await this.applyPresageConfig();
+      await this.applyPresageConfig(version);
     });
   }
 
-  private async applyPresageConfig(): Promise<void> {
+  private async applyPresageConfig(version = this.configUpdateVersion): Promise<void> {
     this.runtimeConfigReady = false;
     await sanitizeLanguageSettings(this.settingsManager);
     await Promise.all([
@@ -191,7 +194,7 @@ export class BackgroundServiceWorker {
     this.observabilityService.setConfig(runtimeConfig.observabilityConfig);
     this.predictionManager.setConfig(runtimeConfig.predictionConfig);
     this.productivityStats.setSnippetShortcuts(runtimeConfig.predictionConfig.textExpansions);
-    this.runtimeConfigReady = true;
+    this.runtimeConfigReady = version === this.configUpdateVersion;
     // Flush the cache before the broadcast, so that a prediction from a tab reads the new settings.
     this.domainSettingsCache.invalidate();
     logger.info("Broadcasting runtime config update", {
@@ -246,11 +249,12 @@ export class BackgroundServiceWorker {
   }
 
   async initialize(lastVersion: string | undefined | Promise<string | undefined>): Promise<void> {
+    const version = this.configUpdateVersion;
     this.initializationPromise ??= this.configUpdates(async () => {
       try {
         await migrateToLocalStore(await lastVersion);
         await runSettingsMigrations(this.settingsManager);
-        await this.applyPresageConfig();
+        await this.applyPresageConfig(version);
       } catch (error) {
         logError("lastVersion handler", error);
         throw error;

@@ -391,6 +391,65 @@ describe("background routing and lifecycle", () => {
     });
   });
 
+  test.each(["assembly", "broadcast"])(
+    "a prediction waits for a newer refresh queued during %s",
+    async (stage) => {
+      const harness = await loadBackgroundHarness({ insertSpaceAfterAutocomplete: false });
+      const worker = new harness.module.BackgroundServiceWorker();
+      await worker.updatePresageConfig();
+      const assemble = worker.configAssembler.assemblePredictionRuntimeConfig.bind(
+        worker.configAssembler,
+      );
+      const captured = Promise.withResolvers<void>();
+      const releaseAssembly = Promise.withResolvers<void>();
+      const broadcasting = Promise.withResolvers<void>();
+      const releaseBroadcast = Promise.withResolvers<void>();
+      jest
+        .spyOn(worker.configAssembler, "assemblePredictionRuntimeConfig")
+        .mockImplementationOnce(async () => {
+          const config = await assemble();
+          captured.resolve();
+          await releaseAssembly.promise;
+          return config;
+        });
+      harness.tabSendToAll.mockImplementationOnce(async () => {
+        broadcasting.resolve();
+        await releaseBroadcast.promise;
+      });
+
+      const older = worker.updatePresageConfig();
+      await captured.promise;
+      if (stage === "broadcast") {
+        releaseAssembly.resolve();
+        await broadcasting.promise;
+      }
+      harness.state.insertSpaceAfterAutocomplete = true;
+      const newer = worker.updatePresageConfig();
+      releaseAssembly.resolve();
+      await broadcasting.promise;
+      const prediction = worker.runPrediction({
+        text: "h",
+        nextChar: "",
+        lang: "en_US",
+        suggestionId: 1,
+        requestId: 1,
+        tabId: 1,
+        frameId: 0,
+      });
+      try {
+        await flushPromises();
+        expect(harness.predictionRun).not.toHaveBeenCalled();
+      } finally {
+        releaseBroadcast.resolve();
+        await Promise.all([older, newer, prediction]);
+      }
+      expect(harness.predictionSetConfig).toHaveBeenLastCalledWith(
+        expect.objectContaining({ insertSpaceAfterAutocomplete: true }),
+      );
+      expect(harness.predictionRun).toHaveBeenCalledTimes(1);
+    },
+  );
+
   test("a failed config refresh does not block the next automatic spacing update", async () => {
     const harness = await loadBackgroundHarness({ insertSpaceAfterAutocomplete: true });
     const worker = new harness.module.BackgroundServiceWorker();

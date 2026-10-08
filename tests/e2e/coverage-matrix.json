@@ -715,6 +715,11 @@
         {
           "layer": "unit",
           "file": "tests/background.routing.test.ts",
+          "test": "a prediction waits for a newer refresh queued during %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
           "test": "GET_CONFIG cannot publish new settings after the predictor refresh fails"
         },
         {
