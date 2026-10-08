@@ -5206,7 +5206,43 @@
         {
           "layer": "unit",
           "file": "tests/EarlyTabAcceptMainWorldBridge.test.ts",
-          "test": "leaves Tab to a toolbar control with stale managed markers"
+          "test": "leaves Tab to a non-writing control with stale managed markers: %s"
+        },
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "prefers native/page autocomplete for conflicting fields"
+        }
+      ]
+    },
+    {
+      "id": "slack_emoji_picker_excluded",
+      "description": "Slack emoji search refuses suggestions, manual activation, Review and stale Tab acceptance. Picker marker changes reconcile attached fields and manual activation UI. Ordinary search and message fields remain eligible.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/DomObserver.test.ts",
+          "test": "reports both emoji-picker marker transitions on a connected ancestor"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/NativeAutocompleteConflictDetector.test.ts",
+          "test": "blocks Slack emoji search without excluding ordinary search or message fields"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManagerRuntime.test.ts",
+          "test": "excludes Slack emoji search even with preferNativeAutocomplete=%s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "sensitive, locked and non-text fields are excluded"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/EarlyTabAcceptMainWorldBridge.test.ts",
+          "test": "leaves Tab to a non-writing control with stale managed markers: %s"
         },
         {
           "layer": "e2e-smoke",

@@ -1198,6 +1198,25 @@ describe("SuggestionManagerRuntime", () => {
       },
     );
 
+    test.each([true, false])(
+      "excludes Slack emoji search even with preferNativeAutocomplete=%s",
+      (preferNativeAutocomplete) => {
+        const runtime = makeRuntime(undefined, { preferNativeAutocomplete });
+        document.body.innerHTML =
+          '<div data-qa="emoji-picker"><input type="text" aria-label="Emoji name" data-qa="emoji_picker_input"></div><input type="search">';
+        const composer = createEditor("hello");
+        composer.className = "ql-editor";
+        const picker = document.querySelector<HTMLElement>('[data-qa="emoji-picker"]')!;
+        runtime.queryAndAttachHelper();
+        expect(picker.querySelector("input")?.hasAttribute("data-suggestion")).toBe(false);
+        expect(getManualAttachButton(picker)).toBeNull();
+        expect(document.querySelector('[type="search"]')?.getAttribute("data-suggestion")).toBe(
+          "true",
+        );
+        expect(composer.getAttribute("data-suggestion")).toBe("true");
+      },
+    );
+
     test("removes a manual activation icon when a field becomes a toolbar control", () => {
       const runtime = makeRuntime();
       document.body.innerHTML = '<div><input role="combobox" autocomplete="street-address"></div>';

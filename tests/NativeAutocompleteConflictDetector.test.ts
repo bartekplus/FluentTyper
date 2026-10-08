@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { isSensitiveField } from "../src/adapters/chrome/content-script/suggestions/FieldEligibility";
+import { resolveCodeContext } from "../src/adapters/chrome/content-script/suggestions/CodeContextResolver";
+import { createEditor } from "./codeContextTestUtils";
 import {
   hasActiveAutocompletePopup,
   reservesAutocompleteArrow,
@@ -180,6 +182,27 @@ describe("native field eligibility and interaction evidence", () => {
     const input = group.firstElementChild as HTMLInputElement;
     expect(classifyField(input)).toEqual({ kind: "blocked" });
     expect(isSensitiveField(input)).toBe(true);
+  });
+  test("blocks Slack emoji search without excluding ordinary search or message fields", () => {
+    const picker = field(
+      '<div data-qa="emoji-picker"><div><input type="text" aria-label="Emoji name" placeholder="Search all emoji" data-qa="emoji_picker_input" data-feat="emoji_picker"></div></div>',
+    );
+    const input = picker.querySelector("input")!;
+    expect(classifyField(input)).toEqual({ kind: "blocked" });
+    expect(isSensitiveField(input)).toBe(true);
+    expect(resolveCodeContext(input)).toBe("protected");
+    const host = document.createElement("div");
+    picker.append(host);
+    host.attachShadow({ mode: "open" }).append(input);
+    expect(classifyField(input)).toEqual({ kind: "blocked" });
+    picker.removeAttribute("data-qa");
+    expect(classifyField(input)).toEqual({ kind: "automatic" });
+    expect(classifyField(field('<input type="search" aria-label="Search all emoji">'))).toEqual({
+      kind: "automatic",
+    });
+    const composer = createEditor("hello");
+    composer.className = "ql-editor";
+    expect(classifyField(composer)).toEqual({ kind: "automatic" });
   });
   test("a selector role alone does not suppress prose", () => {
     expect(classifyField(field('<input role="combobox">'))).toEqual({

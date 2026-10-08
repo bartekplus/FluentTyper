@@ -23,6 +23,10 @@ An ordinary input with only `role="combobox"` activates automatically.
 ARIA roles, popup hints, and stale expanded flags do not prevent automatic activation. An expanded flag pauses suggestions only while the linked popup is visible.
 Structured purpose attributes and usable browser datalists keep manual activation.
 
+Formatting controls and Slack's emoji picker exclude suggestions, manual activation, Review, and Tab acceptance.
+Normal Slack message fields and ordinary search fields remain eligible.
+The picker exclusion uses its verified `data-qa="emoji-picker"` marker. A change to Slack's markup may require an update.
+
 `EditorCapabilities.ts` returns a fixed, text-free record. It has these fields: `inspectProse`, `displaySuggestions`, `renderReview`, `reviewApply`, `consumeAcceptanceKey`, `conflict`, `context` (`prose`, `code`, `protected`, or `unknown`), and `reason`.
 It does no model reads, stores no history, and creates no observers.
 The runtime checks this record before interaction. Review uses the same metadata gate before its text safety checks.

@@ -923,6 +923,11 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         toolbarButton: !!document
           .querySelector("#test-toolbar-font")
           ?.parentElement?.querySelector(".ft-manual-attach-button"),
+        emojiSearch:
+          document.querySelector("#test-emoji-search")?.hasAttribute("data-suggestion") ?? false,
+        emojiButton: !!document
+          .querySelector("#test-emoji-search")
+          ?.parentElement?.querySelector(".ft-manual-attach-button"),
         normalText: document.querySelector("#test-input")?.hasAttribute("data-suggestion") ?? false,
       }));
 
@@ -934,7 +939,43 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       expect(results.comboboxButton).toBe(false);
       expect(results.toolbarFont).toBe(false);
       expect(results.toolbarButton).toBe(false);
+      expect(results.emojiSearch).toBe(false);
+      expect(results.emojiButton).toBe(false);
       expect(results.normalText).toBe(true);
+
+      // Marker changes must reconcile both attached fields and manual activation UI.
+      await page.evaluate(() => {
+        document.querySelector("#test-emoji-search")!.parentElement!.removeAttribute("data-qa");
+      });
+      await page.waitForFunction(() =>
+        document.querySelector("#test-emoji-search")?.hasAttribute("data-suggestion"),
+      );
+      await page.evaluate(() => {
+        document
+          .querySelector("#test-emoji-search")!
+          .parentElement!.setAttribute("data-qa", "emoji-picker");
+        document
+          .querySelector("#test-native-list")!
+          .parentElement!.setAttribute("data-qa", "emoji-picker");
+      });
+      await page.waitForFunction(() =>
+        ["#test-emoji-search", "#test-native-list"].every((selector) => {
+          const input = document.querySelector(selector)!;
+          return (
+            !input.hasAttribute("data-suggestion") &&
+            !input.parentElement?.querySelector(".ft-manual-attach-button")
+          );
+        }),
+      );
+      await page.evaluate(() => {
+        document.querySelector("#test-native-list")!.parentElement!.removeAttribute("data-qa");
+      });
+      await page.waitForFunction(
+        () =>
+          !!document
+            .querySelector("#test-native-list")
+            ?.parentElement?.querySelector(".ft-manual-attach-button"),
+      );
 
       // A stale expanded flag without a visible popup does not suppress prose.
       await page.evaluate(() => {

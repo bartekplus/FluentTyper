@@ -218,6 +218,12 @@ describe("resolving the review target before any UI opens", () => {
       (input) => (input.readOnly = true),
       (input) => input.setAttribute("role", "spinbutton"),
       (input) => {
+        const picker = document.createElement("div");
+        picker.setAttribute("data-qa", "emoji-picker");
+        document.body.append(picker);
+        picker.append(input);
+      },
+      (input) => {
         const toolbar = document.createElement("div");
         toolbar.setAttribute("role", "toolbar");
         document.body.append(toolbar);

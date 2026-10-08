@@ -155,20 +155,23 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     expect(postMessageSpy).not.toHaveBeenCalled();
   });
 
-  test("leaves Tab to a toolbar control with stale managed markers", () => {
-    const toolbar = document.createElement("div");
-    toolbar.setAttribute("role", "toolbar");
-    const input = bridgeTarget(
-      "31",
-      { "data-ft-avoid-conflicts": "false" },
-      document.createElement("input"),
-    );
-    toolbar.append(input);
-    document.body.append(toolbar, createMenu("31"));
+  test.each(['role="toolbar"', 'data-qa="emoji-picker"'])(
+    "leaves Tab to a non-writing control with stale managed markers: %s",
+    (attribute) => {
+      const toolbar = document.createElement("div");
+      toolbar.innerHTML = `<div ${attribute}></div>`;
+      const input = bridgeTarget(
+        "31",
+        { "data-ft-avoid-conflicts": "false" },
+        document.createElement("input"),
+      );
+      toolbar.firstElementChild!.append(input);
+      document.body.append(toolbar, createMenu("31"));
 
-    expect(pressTab(input).defaultPrevented).toBe(false);
-    expect(postMessageSpy).not.toHaveBeenCalled();
-  });
+      expect(pressTab(input).defaultPrevented).toBe(false);
+      expect(postMessageSpy).not.toHaveBeenCalled();
+    },
+  );
 
   test("posts for a contenteditable body when the bridge markers live on the html root", () => {
     document.body.setAttribute("contenteditable", "true");
