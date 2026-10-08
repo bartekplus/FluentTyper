@@ -6,12 +6,19 @@ export const FIELD_ACTION_INSET_PX = 6;
 export const FIELD_ACTION_CHANGE_EVENT = "fluenttyper-field-action-change";
 const fieldActionVisibility = new WeakMap<HTMLElement, boolean>();
 
+function fieldActionPainted(field: HTMLElement): boolean {
+  if (field.checkVisibility)
+    return field.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+  const visibility = field.ownerDocument.defaultView?.getComputedStyle(field).visibility;
+  return visibility !== "hidden" && visibility !== "collapse";
+}
+
 /** Compact editors need space below the text. Larger editors use the inside corner. */
 export function fieldActionSlot(
   field: HTMLElement,
   minimumWidth = 120,
 ): { left: number; top: number; size: number } | null {
-  if (fieldActionVisibility.get(field) === false) return null;
+  if (fieldActionVisibility.get(field) === false || !fieldActionPainted(field)) return null;
   const rect = field.getBoundingClientRect();
   if (rect.width < minimumWidth || rect.height < FIELD_ACTION_SIZE_PX) return null;
   const rtl = field.ownerDocument.defaultView?.getComputedStyle(field).direction === "rtl";
@@ -45,16 +52,25 @@ export function fieldActionSlot(
       const hits = field.ownerDocument.elementsFromPoint(left + x, top + y);
       if (root !== field.ownerDocument && root.elementsFromPoint)
         hits.push(...root.elementsFromPoint(left + x, top + y));
-      const occupied = hits.some(
-        (element) =>
-          !element.closest("[data-fluenttyper-review-launcher], .ft-manual-attach") &&
+      const seen = new Set<Element>();
+      for (const element of hits) {
+        if (
+          seen.has(element) ||
+          element.closest("[data-fluenttyper-review-launcher], .ft-manual-attach")
+        )
+          continue;
+        seen.add(element);
+        if (element.shadowRoot?.elementsFromPoint)
+          hits.push(...element.shadowRoot.elementsFromPoint(left + x, top + y));
+        if (
           !ancestors.has(element) &&
           (element.matches(
             'a, button, input, textarea, select, [contenteditable], [role="button"], [role="textbox"], [role="combobox"]',
           ) ||
-            element.textContent?.trim()),
-      );
-      if (occupied) return null;
+            element.textContent?.trim())
+        )
+          return null;
+      }
     }
   }
   const view = field.ownerDocument.defaultView;
@@ -227,6 +243,7 @@ export function trackFieldActionLayout(field: HTMLElement, update: () => void): 
   if (!view) return () => {};
   const frames = framesFor(view);
   let previousRect: DOMRect | null = null;
+  let previousPainted: boolean | null = null;
   let stopped = false;
   const schedule = () => {
     tracker.dirty = true;
@@ -240,8 +257,10 @@ export function trackFieldActionLayout(field: HTMLElement, update: () => void): 
       return;
     }
     const rect = field.getBoundingClientRect();
+    const painted = fieldActionPainted(field);
     if (
       tracker.dirty ||
+      painted !== previousPainted ||
       !previousRect ||
       rect.left !== previousRect.left ||
       rect.top !== previousRect.top ||
@@ -252,6 +271,7 @@ export function trackFieldActionLayout(field: HTMLElement, update: () => void): 
       update();
     }
     previousRect = rect;
+    previousPainted = painted;
   };
   const tracker: FieldActionTracker = { dirty: true, run };
   const observer = typeof ResizeObserver === "function" ? new ResizeObserver(schedule) : null;

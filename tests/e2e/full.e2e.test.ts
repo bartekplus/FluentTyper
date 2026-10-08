@@ -9915,10 +9915,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.evaluate(() => {
         const field = document.querySelector<HTMLTextAreaElement>("#compact-textarea")!;
         const rect = field.getBoundingClientRect();
-        const control = document.createElement("button");
+        const control = document.createElement("div");
         control.id = "compact-adjacent-control";
-        control.textContent = "Page action";
         control.style.cssText = `position:fixed;left:${rect.right - 30}px;top:${rect.bottom + 6}px;width:24px;height:24px;`;
+        const nested = document.createElement("div");
+        const button = document.createElement("button");
+        button.textContent = "Page action";
+        button.style.cssText = "width:24px;height:24px;padding:0;";
+        nested.attachShadow({ mode: "open" }).append(button);
+        control.attachShadow({ mode: "open" }).append(nested);
         document.body.append(control);
       });
       await waitUntil(
@@ -9952,10 +9957,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(await launcher()).toBeNull();
       await page.evaluate(() => {
         const field = document.querySelector("#compact-textarea")!.getBoundingClientRect();
-        const control = document.createElement("button");
+        const control = document.createElement("div");
         control.id = "enable-adjacent-control";
-        control.textContent = "Page action";
         control.style.cssText = `position:fixed;left:${field.right - 30}px;top:${field.bottom + 6}px;width:24px;height:24px;`;
+        const button = document.createElement("button");
+        button.textContent = "Page action";
+        button.style.cssText = "width:24px;height:24px;padding:0;";
+        control.attachShadow({ mode: "open" }).append(button);
         document.body.append(control);
       });
       await waitUntil("Enable steps aside for an inserted page control", () =>
@@ -10014,6 +10022,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         (el as HTMLElement).style.width = "300px";
       });
       await waitUntil("Enable returns to the wider field's corner", enableAligned);
+      await page.$eval("#compact-wrapper", (el) => {
+        el.animate([{ opacity: 1 }, { opacity: 0 }], {
+          duration: 50,
+          fill: "forwards",
+        });
+      });
+      await waitUntil("Enable hides with its CSS-hidden field", () =>
+        page.$eval("#compact-wrapper .ft-manual-attach", (el) => (el as HTMLElement).hidden),
+      );
+      await page.$eval("#compact-wrapper", (el) => {
+        for (const animation of el.getAnimations()) animation.cancel();
+      });
+      await waitUntil("Enable returns with its painted field", () =>
+        page.$eval("#compact-wrapper .ft-manual-attach", (el) => !(el as HTMLElement).hidden),
+      );
       await page.$eval("#compact-textarea", (el) => {
         el.parentElement!.style.height = "auto";
         el.animate([{ height: "32px" }, { height: "80px" }], {
@@ -10094,6 +10117,23 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(reviewPoint.x).toBeCloseTo(enablePoint.x, 0);
       expect(reviewPoint.y).toBeCloseTo(enablePoint.y, 0);
       await verifyLiveMotion(true);
+      await page.$eval("#compact-wrapper", (el) => {
+        el.animate([{ opacity: 1 }, { opacity: 0 }], {
+          duration: 50,
+          fill: "forwards",
+        });
+      });
+      await waitUntil(
+        "Review hides with its CSS-hidden field",
+        async () => (await launcher()) === null,
+      );
+      await page.$eval("#compact-wrapper", (el) => {
+        for (const animation of el.getAnimations()) animation.cancel();
+      });
+      await waitUntil(
+        "Review returns with its painted field",
+        async () => (await launcher()) !== null,
+      );
       await page.$eval("#compact-textarea", (el) => {
         el.previousElementSibling!.animate([{ height: "40px" }, { height: "60px" }], {
           duration: 200,

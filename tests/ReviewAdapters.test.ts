@@ -40,6 +40,7 @@ import {
   styleFieldActionButton,
   trackFieldActionLayout,
   FIELD_ACTION_SIZE_PX,
+  fieldActionSlot,
 } from "../src/adapters/chrome/content-script/FieldActionUi";
 import {
   reviewRuleIds,
@@ -1236,6 +1237,89 @@ describe("in-field review button", () => {
       },
     );
   });
+
+  test("compact actions avoid controls in adjacent nested shadow roots", () => {
+    const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 32 });
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = host.attachShadow({ mode: "open" });
+    const nested = document.createElement("div");
+    root.append(nested);
+    const nestedRoot = nested.attachShadow({ mode: "open" });
+    const button = document.createElement("button");
+    button.textContent = "Page action";
+    nestedRoot.append(button);
+    withProperty(
+      document,
+      "elementsFromPoint",
+      () => [host],
+      () => {
+        withProperty(
+          root,
+          "elementsFromPoint",
+          () => [nested, host],
+          () => {
+            withProperty(
+              nestedRoot,
+              "elementsFromPoint",
+              () => [button, nested, host],
+              () => {
+                expect(fieldActionSlot(field)).toBeNull();
+              },
+            );
+          },
+        );
+      },
+    );
+  });
+
+  test("painted visibility falls back to inherited CSS visibility", () => {
+    const field = sized(textarea("What asd asd"));
+    const parent = document.createElement("div");
+    field.before(parent);
+    parent.append(field);
+    withProperty(field, "checkVisibility", undefined, () => {
+      parent.style.visibility = "hidden";
+      expect(fieldActionSlot(field)).toBeNull();
+      parent.style.visibility = "visible";
+      expect(fieldActionSlot(field)).not.toBeNull();
+    });
+  });
+
+  test.each(["Enable", "Review"])(
+    "%s follows CSS-only painted visibility without a layout change",
+    async (action) => {
+      const field = sized(textarea("What asd asd"));
+      let painted = true;
+      Object.defineProperty(field, "checkVisibility", { value: () => painted });
+      const manual = new ManualAttachUiManager({
+        iconUrl: "/icon/icon16.png",
+        onActivate: jest.fn(),
+      });
+      const instance = action === "Review" ? launcher().instance : null;
+      try {
+        if (!instance) {
+          withProperty(HTMLElement.prototype, "showPopover", undefined, () =>
+            manual.ensureForElement(field),
+          );
+        }
+        const container = instance
+          ? launcherButton()!
+          : document.querySelector<HTMLElement>(".ft-manual-attach")!;
+        await new Promise<void>((resolve) =>
+          window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())),
+        );
+        expect(container.hidden).toBe(false);
+        painted = false;
+        await until(() => container.hidden === true);
+        painted = true;
+        await until(() => !container.hidden);
+      } finally {
+        manual.removeAll();
+        instance?.dispose();
+      }
+    },
+  );
 
   test.each(["Enable textarea", "Enable input", "Review"])(
     "%s follows live media preferences and removes its listeners",
