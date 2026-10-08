@@ -1343,6 +1343,44 @@ describe("in-field review button", () => {
     }
   });
 
+  test.each(["Enable", "Review"])(
+    "%s follows field movement without a scroll or resize event",
+    async (action) => {
+      const field = sized(textarea("What asd asd"), { left: 100, top: 50, width: 300, height: 80 });
+      const manual = new ManualAttachUiManager({
+        iconUrl: "/icon/icon16.png",
+        onActivate: jest.fn(),
+      });
+      const instance = action === "Review" ? launcher().instance : null;
+      try {
+        if (action === "Enable") manual.ensureForElement(field);
+        const container =
+          action === "Enable"
+            ? document.querySelector<HTMLElement>(".ft-manual-attach")!
+            : launcherButton()!;
+        expect(container.style.top).toBe("100px");
+        sized(field, { left: 100, top: 90, width: 300, height: 80 });
+        await until(() => container.style.top === "140px");
+        sized(field, { left: 160, top: 90, width: 300, height: 80 });
+        await until(() => container.style.left === "430px");
+        const mutations: MutationRecord[] = [];
+        const observer = new MutationObserver((records) => mutations.push(...records));
+        observer.observe(container, { attributes: true });
+        try {
+          await new Promise<void>((resolve) =>
+            window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())),
+          );
+          expect(mutations).toHaveLength(0);
+        } finally {
+          observer.disconnect();
+        }
+      } finally {
+        manual.removeAll();
+        instance?.dispose();
+      }
+    },
+  );
+
   test("visible while typing; hidden without text, during its review, and when turned off", () => {
     const field = sized(textarea(""));
     let reviewed: HTMLElement | null = null;

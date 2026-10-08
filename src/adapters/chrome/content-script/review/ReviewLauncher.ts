@@ -3,6 +3,7 @@ import {
   fieldActionSlot,
   fieldActionTone,
   styleFieldActionButton,
+  trackFieldActionLayout,
 } from "../FieldActionUi";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { reviewText } from "@core/domain/grammar/review/reviewMessages";
@@ -78,9 +79,7 @@ export class ReviewLauncher {
   private host: HTMLElement | null = null;
   private button: HTMLButtonElement | null = null;
   private field: HTMLElement | null = null;
-  private frame: number | null = null;
-  private resizeObserver: ResizeObserver | null = null;
-  private readonly view: Window;
+  private stopLayoutTracking: (() => void) | null = null;
 
   private readonly onFocusIn = (event: Event) => {
     this.setField(launcherFieldFor(event.composedPath()[0] as Element | null));
@@ -102,7 +101,6 @@ export class ReviewLauncher {
       return;
     this.refresh();
   };
-  private readonly onLayout = () => this.schedule();
   private readonly onActionChange = () => this.refresh();
   // Inside a Gutenberg editing host, moving to another field fires no focus events.
   private readonly onSelectionChange = () => {
@@ -116,14 +114,11 @@ export class ReviewLauncher {
     private readonly doc: Document,
     private readonly deps: ReviewLauncherDependencies,
   ) {
-    this.view = doc.defaultView ?? window;
     doc.addEventListener("focusin", this.onFocusIn, true);
     doc.addEventListener("focusout", this.onFocusOut, true);
     doc.addEventListener("input", this.onInput, true);
     doc.addEventListener("selectionchange", this.onSelectionChange);
     doc.addEventListener(FIELD_ACTION_CHANGE_EVENT, this.onActionChange);
-    this.view.addEventListener("scroll", this.onLayout, { capture: true, passive: true });
-    this.view.addEventListener("resize", this.onLayout);
     // Focus that was already inside a field when the launcher started.
     const active = getDeepActiveElement(doc);
     if (active && active !== doc.body) this.setField(launcherFieldFor(active));
@@ -133,8 +128,16 @@ export class ReviewLauncher {
   refresh(): void {
     const field = this.field;
     if (!field || !this.shouldShow(field)) {
+      this.stopLayoutTracking?.();
+      this.stopLayoutTracking = null;
       this.hide();
       return;
+    }
+    if (!this.stopLayoutTracking) {
+      this.stopLayoutTracking = trackFieldActionLayout(field, () => {
+        if (field.isConnected) this.refresh();
+        else this.setField(null);
+      });
     }
     const button = this.ensureButton(field);
     if (!this.place(field, button)) {
@@ -155,10 +158,7 @@ export class ReviewLauncher {
     this.doc.removeEventListener("input", this.onInput, true);
     this.doc.removeEventListener("selectionchange", this.onSelectionChange);
     this.doc.removeEventListener(FIELD_ACTION_CHANGE_EVENT, this.onActionChange);
-    this.view.removeEventListener("scroll", this.onLayout, { capture: true });
-    this.view.removeEventListener("resize", this.onLayout);
     this.setField(null);
-    if (this.frame !== null) this.view.cancelAnimationFrame(this.frame);
     this.host?.remove();
     this.host = null;
     this.button = null;
@@ -169,13 +169,9 @@ export class ReviewLauncher {
       this.refresh();
       return;
     }
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
+    this.stopLayoutTracking?.();
+    this.stopLayoutTracking = null;
     this.field = field;
-    if (field && typeof ResizeObserver === "function") {
-      this.resizeObserver = new ResizeObserver(this.onLayout);
-      this.resizeObserver.observe(field);
-    }
     this.refresh();
   }
 
@@ -196,14 +192,6 @@ export class ReviewLauncher {
     button.style.left = `${Math.round(left)}px`;
     button.style.top = `${Math.round(top)}px`;
     return true;
-  }
-
-  private schedule(): void {
-    if (this.frame !== null || !this.field) return;
-    this.frame = this.view.requestAnimationFrame(() => {
-      this.frame = null;
-      this.refresh();
-    });
   }
 
   private hide(): void {

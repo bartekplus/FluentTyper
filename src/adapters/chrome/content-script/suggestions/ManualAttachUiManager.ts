@@ -11,6 +11,7 @@ import {
   fieldActionSlot,
   fieldActionTone,
   styleFieldActionButton,
+  trackFieldActionLayout,
 } from "../FieldActionUi";
 
 const BUTTON_SIZE_PX = FIELD_ACTION_SIZE_PX;
@@ -578,27 +579,11 @@ export class ManualAttachUiManager {
     if (this.isMultilineTarget(element) && !enterTopLayer(container)) {
       (reviewMountFor(element) ?? element.ownerDocument.documentElement).appendChild(container);
     }
-    const view = element.ownerDocument.defaultView;
-    if (positioningParent === null && view) {
-      let frame: number | null = null;
-      const schedule = () => {
-        if (frame !== null) return;
-        frame = view.requestAnimationFrame(() => {
-          frame = null;
-          if (isInDocument(element)) this.updatePlacement(element, handle);
-          else this.removeForElement(element);
-        });
-      };
-      view.addEventListener("scroll", schedule, { capture: true, passive: true });
-      view.addEventListener("resize", schedule);
-      const observer = typeof ResizeObserver === "function" ? new ResizeObserver(schedule) : null;
-      observer?.observe(element);
-      handle.stopLayoutTracking = () => {
-        view.removeEventListener("scroll", schedule, true);
-        view.removeEventListener("resize", schedule);
-        observer?.disconnect();
-        if (frame !== null) view.cancelAnimationFrame(frame);
-      };
+    if (positioningParent === null) {
+      handle.stopLayoutTracking = trackFieldActionLayout(element, () => {
+        if (isInDocument(element)) this.updatePlacement(element, handle);
+        else this.removeForElement(element);
+      });
     }
     this.applyIdleState(handle);
 

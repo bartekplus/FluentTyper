@@ -9903,7 +9903,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         const scroller = document.createElement("div");
         scroller.id = "compact-scroller";
         scroller.style.cssText =
-          "width:320px;height:160px;overflow:auto;padding-top:40px;margin-bottom:800px;";
+          "width:320px;height:160px;overflow:auto;overflow-anchor:none;padding-top:40px;margin-bottom:800px;";
         const wrapper = document.querySelector("#compact-wrapper")!;
         document.body.append(scroller);
         scroller.append(wrapper);
@@ -9975,6 +9975,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         field.style.zoom = "0.75";
       });
       await waitUntil("Enable stays inside a zoomed field", enableInsideField);
+      await page.$eval("#compact-textarea", (el) => {
+        const preceding = document.createElement("div");
+        el.before(preceding);
+        preceding.animate([{ height: "0px" }, { height: "40px" }], {
+          duration: 200,
+          fill: "forwards",
+        });
+      });
+      await waitUntil("Enable follows a growing preceding section", async () => {
+        const grown = await page.$eval(
+          "#compact-textarea",
+          (el) => el.previousElementSibling!.getBoundingClientRect().height === 40,
+        );
+        return grown && (await enableInsideField());
+      });
       const enablePoint = await page.$eval(
         "#compact-wrapper .ft-manual-attach-button",
         (button) => {
@@ -9998,6 +10013,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const reviewPoint = (await launcher())!;
       expect(reviewPoint.x).toBeCloseTo(enablePoint.x, 0);
       expect(reviewPoint.y).toBeCloseTo(enablePoint.y, 0);
+      await page.$eval("#compact-textarea", (el) => {
+        el.previousElementSibling!.animate([{ height: "40px" }, { height: "60px" }], {
+          duration: 200,
+          fill: "forwards",
+        });
+      });
+      await waitUntil("Review follows the growing preceding section", async () => {
+        const grown = await page.$eval(
+          "#compact-textarea",
+          (el) => el.previousElementSibling!.getBoundingClientRect().height === 60,
+        );
+        const point = await launcher();
+        const field = await box("#compact-textarea");
+        return grown && point !== null && Math.abs(point.y + 12 - field.bottom + 6) < 2;
+      });
       await page.evaluate(() => {
         for (const control of document.querySelectorAll(
           '[data-ft-suggestion-owned][role="status"]',

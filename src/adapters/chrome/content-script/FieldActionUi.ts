@@ -145,3 +145,54 @@ export function styleFieldActionButton(
       : "background-color 150ms ease-out, border-color 150ms ease-out",
   });
 }
+
+/** Keeps fixed field actions aligned through scrolling, resizing, and layout changes. */
+export function trackFieldActionLayout(field: HTMLElement, update: () => void): () => void {
+  const view = field.ownerDocument.defaultView;
+  if (!view) return () => {};
+  let frame: number | null = null;
+  let previousRect: DOMRect | null = null;
+  let dirty = true;
+  let stopped = false;
+  const schedule = () => {
+    dirty = true;
+  };
+  const track = () => {
+    frame = null;
+    if (stopped) return;
+    if (!field.isConnected) {
+      update();
+      stop();
+      return;
+    }
+    const rect = field.getBoundingClientRect();
+    if (
+      dirty ||
+      !previousRect ||
+      rect.left !== previousRect.left ||
+      rect.top !== previousRect.top ||
+      rect.width !== previousRect.width ||
+      rect.height !== previousRect.height
+    ) {
+      dirty = false;
+      update();
+    }
+    previousRect = rect;
+    if (!stopped) frame = view.requestAnimationFrame(track);
+  };
+  const observer = typeof ResizeObserver === "function" ? new ResizeObserver(schedule) : null;
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    view.removeEventListener("scroll", schedule, true);
+    view.removeEventListener("resize", schedule);
+    observer?.disconnect();
+    if (frame !== null) view.cancelAnimationFrame(frame);
+  };
+  view.addEventListener("scroll", schedule, { capture: true, passive: true });
+  view.addEventListener("resize", schedule);
+  observer?.observe(field);
+  // ponytail: fixed controls read geometry each frame. Use native anchors when all target browsers support them.
+  frame = view.requestAnimationFrame(track);
+  return stop;
+}
