@@ -363,13 +363,14 @@ describe("background routing and lifecycle", () => {
     const older = worker.updatePresageConfig();
     await captured.promise;
     harness.state.insertSpaceAfterAutocomplete = true;
+    const readsBeforeNewer = harness.settingsGet.mock.calls.length;
     const newer = worker.updatePresageConfig();
     try {
-      await flushPromises();
+      expect(harness.settingsGet).toHaveBeenCalledTimes(readsBeforeNewer);
     } finally {
       release.resolve();
+      await Promise.all([older, newer]);
     }
-    await Promise.all([older, newer]);
 
     expect(harness.predictionSetConfig).toHaveBeenLastCalledWith(
       expect.objectContaining({ insertSpaceAfterAutocomplete: true }),

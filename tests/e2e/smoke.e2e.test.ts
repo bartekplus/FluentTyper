@@ -661,8 +661,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "automatic spacing uses the default and follows off/on updates in an open page",
     async () => {
-      // Options writes defaults on open. Use Popup so the missing setting stays missing.
-      const configPage = await openPopupPage(browser, worker);
+      // Options writes defaults on open. A Popup tab preserves the missing setting and stays open.
+      const configPage = await openExtensionPage(browser, worker, "popup/popup.html");
       try {
         for (const enabled of [undefined, false, true]) {
           if (enabled === undefined) {
