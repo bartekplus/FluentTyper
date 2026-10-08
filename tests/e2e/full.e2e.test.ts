@@ -9838,6 +9838,30 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           const rect = el.getBoundingClientRect();
           return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
         });
+      const verifyLiveMotion = async (review: boolean) => {
+        if (isFirefox()) return; // Puppeteer media emulation requires Chrome's CDP.
+        try {
+          await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+          await waitUntil("visible action follows reduced motion", () =>
+            page.evaluate((isReview) => {
+              const button = isReview
+                ? document
+                    .querySelector("[data-fluenttyper-review-launcher]")
+                    ?.shadowRoot?.querySelector("button")
+                : document.querySelector("#compact-wrapper .ft-manual-attach-button");
+              return (
+                button !== null &&
+                button !== undefined &&
+                [button, ...button.children].every(
+                  (el) => getComputedStyle(el).transitionDuration === "0s",
+                )
+              );
+            }, review),
+          );
+        } finally {
+          await page.emulateMediaFeatures([]);
+        }
+      };
 
       // The button sits inside the focused box, in its corner; the page's layout is untouched.
       const paddingBefore = await page.$eval(
@@ -10012,6 +10036,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         return grown && (await enableInsideField());
       });
+      await verifyLiveMotion(false);
       const enablePoint = await page.$eval(
         "#compact-wrapper .ft-manual-attach-button",
         (button) => {
@@ -10035,6 +10060,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const reviewPoint = (await launcher())!;
       expect(reviewPoint.x).toBeCloseTo(enablePoint.x, 0);
       expect(reviewPoint.y).toBeCloseTo(enablePoint.y, 0);
+      await verifyLiveMotion(true);
       await page.$eval("#compact-textarea", (el) => {
         el.previousElementSibling!.animate([{ height: "40px" }, { height: "60px" }], {
           duration: 200,

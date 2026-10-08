@@ -3714,7 +3714,7 @@
     },
     {
       "id": "review_in_field_button",
-      "description": "A Review button on the focused multi-line text box (own shadow layer, page layout untouched) reviews only that box; it appears for prefilled compact fields without an edit, stays visible while typing, avoids nearby text and controls, hides during its review, shares placement and styling with Enable, changes to Review after activation without another edit, and the setting turns it off. Enable follows page and nested scroll, viewport resize, and animated field resize. Its fallback escapes transformed parents when the Popover API is absent or fails. Both icons use viewport coordinates for scaled and zoomed fields, including RTL, borders, and scrollbar space. Both icons also follow ancestor-driven movement without a scroll or field resize event. The runtime refreshes compact-slot occupancy when surrounding page content appears or disappears.",
+      "description": "A Review button on the focused multi-line text box (own shadow layer, page layout untouched) reviews only that box; it appears for prefilled compact fields without an edit, stays visible while typing, avoids nearby text and controls, hides during its review, shares placement and styling with Enable, changes to Review after activation without another edit, and the setting turns it off. Enable follows page and nested scroll, viewport resize, and animated field resize. Its fallback escapes transformed parents when the Popover API is absent or fails. Both icons use viewport coordinates for scaled and zoomed fields, including RTL, borders, and scrollbar space. Both icons also follow ancestor-driven movement without a scroll or field resize event. The runtime refreshes compact-slot occupancy when surrounding page content appears or disappears. Both actions follow live color, forced-color, and motion preferences, including the Enable checkmark. Media listeners stop when the action is removed.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3790,6 +3790,11 @@
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
           "test": "%s follows field movement without a scroll or resize event"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "%s follows live media preferences and removes its listeners"
         }
       ]
     },

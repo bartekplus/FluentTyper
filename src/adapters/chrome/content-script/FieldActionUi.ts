@@ -144,6 +144,23 @@ export function styleFieldActionButton(
       ? "none"
       : "background-color 150ms ease-out, border-color 150ms ease-out",
   });
+  button.style.setProperty(
+    "--ft-field-action-transition",
+    reducedMotion ? "none" : "opacity 140ms ease, filter 140ms ease, transform 140ms ease",
+  );
+}
+
+export function watchFieldActionMedia(field: HTMLElement, update: () => void): () => void {
+  const view = field.ownerDocument.defaultView;
+  const queries = [
+    "(forced-colors: active)",
+    "(prefers-reduced-motion: reduce)",
+    "(prefers-color-scheme: dark)",
+  ].map((query) => view?.matchMedia?.(query));
+  for (const query of queries) query?.addEventListener?.("change", update);
+  return () => {
+    for (const query of queries) query?.removeEventListener?.("change", update);
+  };
 }
 
 /** Keeps fixed field actions aligned through scrolling, resizing, and layout changes. */
@@ -181,12 +198,14 @@ export function trackFieldActionLayout(field: HTMLElement, update: () => void): 
     if (!stopped) frame = view.requestAnimationFrame(track);
   };
   const observer = typeof ResizeObserver === "function" ? new ResizeObserver(schedule) : null;
+  const stopMedia = watchFieldActionMedia(field, schedule);
   const stop = () => {
     if (stopped) return;
     stopped = true;
     view.removeEventListener("scroll", schedule, true);
     view.removeEventListener("resize", schedule);
     observer?.disconnect();
+    stopMedia();
     if (frame !== null) view.cancelAnimationFrame(frame);
   };
   view.addEventListener("scroll", schedule, { capture: true, passive: true });

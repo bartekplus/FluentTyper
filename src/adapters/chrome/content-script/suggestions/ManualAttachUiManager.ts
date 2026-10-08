@@ -12,6 +12,7 @@ import {
   fieldActionTone,
   styleFieldActionButton,
   trackFieldActionLayout,
+  watchFieldActionMedia,
 } from "../FieldActionUi";
 
 const BUTTON_SIZE_PX = FIELD_ACTION_SIZE_PX;
@@ -506,7 +507,7 @@ export class ManualAttachUiManager {
       width: "16px",
       height: "16px",
       display: "block",
-      transition: "opacity 140ms ease, filter 140ms ease",
+      transition: "var(--ft-field-action-transition)",
       pointerEvents: "none",
     });
 
@@ -523,7 +524,7 @@ export class ManualAttachUiManager {
       color: "#047857",
       opacity: "0",
       transform: "scale(0.6)",
-      transition: "opacity 140ms ease, transform 140ms ease",
+      transition: "var(--ft-field-action-transition)",
       pointerEvents: "none",
     });
 
@@ -579,11 +580,21 @@ export class ManualAttachUiManager {
     if (this.isMultilineTarget(element) && !enterTopLayer(container)) {
       (reviewMountFor(element) ?? element.ownerDocument.documentElement).appendChild(container);
     }
+    const refreshAppearance = () => {
+      handle.surfaceTone = fieldActionTone(element);
+      if (handle.successPending) this.applySuccessState(handle);
+      else if (button.matches(":hover")) this.applyHoverState(handle);
+      else this.applyIdleState(handle);
+    };
     if (positioningParent === null) {
       handle.stopLayoutTracking = trackFieldActionLayout(element, () => {
-        if (isInDocument(element)) this.updatePlacement(element, handle);
-        else this.removeForElement(element);
+        if (isInDocument(element)) {
+          this.updatePlacement(element, handle);
+          refreshAppearance();
+        } else this.removeForElement(element);
       });
+    } else {
+      handle.stopLayoutTracking = watchFieldActionMedia(element, refreshAppearance);
     }
     this.applyIdleState(handle);
 

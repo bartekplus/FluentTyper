@@ -1233,6 +1233,106 @@ describe("in-field review button", () => {
     );
   });
 
+  test.each(["Enable textarea", "Enable input", "Review"])(
+    "%s follows live media preferences and removes its listeners",
+    async (action) => {
+      const view = document.defaultView!;
+      const previous = Object.getOwnPropertyDescriptor(view, "matchMedia");
+      const media = new Map<
+        string,
+        {
+          matches: boolean;
+          listeners: Set<() => void>;
+          addEventListener: (name: string, listener: () => void) => void;
+          removeEventListener: (name: string, listener: () => void) => void;
+        }
+      >();
+      Object.defineProperty(view, "matchMedia", {
+        configurable: true,
+        value: (query: string) => {
+          if (!media.has(query)) {
+            const listeners = new Set<() => void>();
+            media.set(query, {
+              matches: false,
+              listeners,
+              addEventListener: (_name, listener) => {
+                listeners.add(listener);
+              },
+              removeEventListener: (_name, listener) => {
+                listeners.delete(listener);
+              },
+            });
+          }
+          return media.get(query)!;
+        },
+      });
+      const bodyBackground = document.body.style.backgroundColor;
+      const rootBackground = document.documentElement.style.backgroundColor;
+      document.body.style.backgroundColor = "transparent";
+      document.documentElement.style.backgroundColor = "transparent";
+      const field =
+        action === "Enable input" ? document.createElement("input") : textarea("What asd asd");
+      if (!field.isConnected) document.body.append(field);
+      field.style.backgroundColor = "transparent";
+      sized(field);
+      const manual = new ManualAttachUiManager({
+        iconUrl: "/icon/icon16.png",
+        onActivate: jest.fn(),
+      });
+      const instance = action === "Review" ? launcher().instance : null;
+      try {
+        if (!instance) manual.ensureForElement(field);
+        const button = instance
+          ? launcherButton()!
+          : document.querySelector<HTMLButtonElement>(".ft-manual-attach-button")!;
+        await new Promise<void>((resolve) =>
+          view.requestAnimationFrame(() => view.requestAnimationFrame(() => resolve())),
+        );
+        const initialBackground = button.style.backgroundColor;
+        const change = (feature: string, matches: boolean) => {
+          const query = [...media.entries()].find(([name]) => name.includes(feature))![1];
+          query.matches = matches;
+          for (const listener of query.listeners) listener();
+        };
+        change("forced-colors", true);
+        change("prefers-reduced-motion", true);
+        await until(
+          () =>
+            button.style.backgroundColor.toLowerCase() === "buttonface" &&
+            button.style.transition === "none",
+        );
+        expect(button.style.getPropertyValue("--ft-field-action-transition")).toBe("none");
+        if (!instance)
+          expect(
+            [...button.children].every(
+              (child) =>
+                (child as HTMLElement).style.transition === "var(--ft-field-action-transition)",
+            ),
+          ).toBe(true);
+        change("forced-colors", false);
+        change("prefers-reduced-motion", false);
+        change("prefers-color-scheme", true);
+        await until(
+          () =>
+            button.style.backgroundColor !== initialBackground &&
+            button.style.backgroundColor.toLowerCase() !== "buttonface",
+        );
+        change("prefers-color-scheme", false);
+        await until(() => button.style.backgroundColor === initialBackground);
+        manual.removeAll();
+        instance?.dispose();
+        expect([...media.values()].every((query) => query.listeners.size === 0)).toBe(true);
+      } finally {
+        manual.removeAll();
+        instance?.dispose();
+        document.body.style.backgroundColor = bodyBackground;
+        document.documentElement.style.backgroundColor = rootBackground;
+        if (previous) Object.defineProperty(view, "matchMedia", previous);
+        else Reflect.deleteProperty(view, "matchMedia");
+      }
+    },
+  );
+
   test("Enable follows nested scroll and viewport resize, hides offscreen, and stops after removal", async () => {
     const wrapper = document.createElement("div");
     const field = sized(textarea("What asd asd"), { left: 100, top: 150, width: 300, height: 32 });
