@@ -21,6 +21,18 @@ async function predictionConfig(seed: Record<string, unknown>, isDevBuild: boole
 }
 
 describe("ConfigAssembler prediction config", () => {
+  test("automatic spacing agrees in page and predictor config before Options opens and after toggles", async () => {
+    const settings = memorySettings();
+    const assembler = new ConfigAssembler(settings, { isDevBuild: false });
+    for (const value of [undefined, false, true]) {
+      await settings.set("insertSpaceAfterAutocomplete", value);
+      const page = await assembler.assembleBackgroundPageSetConfig();
+      const runtime = await assembler.assemblePredictionRuntimeConfig();
+      expect(page.context.insertSpaceAfterAutocomplete).toBe(value ?? true);
+      expect(runtime.predictionConfig.insertSpaceAfterAutocomplete).toBe(value ?? true);
+    }
+  });
+
   test("stale legacy AI predictor settings never reach prediction config", async () => {
     for (const isDevBuild of [false, true]) {
       const config = await predictionConfig(

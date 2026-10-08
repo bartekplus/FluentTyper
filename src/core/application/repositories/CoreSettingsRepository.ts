@@ -152,7 +152,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getInsertSpaceAfterAutocomplete(): Promise<boolean> {
-    return this.getBooleanField("insertSpaceAfterAutocomplete");
+    return this.getBooleanField("insertSpaceAfterAutocomplete", true);
   }
 
   async getAutoLanguageSitePriors(): Promise<Record<string, Record<string, number>>> {

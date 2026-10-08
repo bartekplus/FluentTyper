@@ -4,6 +4,7 @@ node_modules/
 public/third_party/
 src/third_party/
 .claude/
+.impeccable/hook.cache.json
 
 # Generated HyperFrames output and local workflow/cache records.
 marketing/promo/.*

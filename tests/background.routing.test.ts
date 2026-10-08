@@ -343,6 +343,59 @@ describe("background routing and lifecycle", () => {
     expect(harness.tabSendToAll).toHaveBeenCalled();
   });
 
+  test("overlapping config refreshes cannot restore an old automatic spacing value", async () => {
+    const harness = await loadBackgroundHarness({ insertSpaceAfterAutocomplete: false });
+    const worker = new harness.module.BackgroundServiceWorker();
+    const assemble = worker.configAssembler.assemblePredictionRuntimeConfig.bind(
+      worker.configAssembler,
+    );
+    const captured = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    jest
+      .spyOn(worker.configAssembler, "assemblePredictionRuntimeConfig")
+      .mockImplementationOnce(async () => {
+        const config = await assemble();
+        captured.resolve();
+        await release.promise;
+        return config;
+      });
+
+    const older = worker.updatePresageConfig();
+    await captured.promise;
+    harness.state.insertSpaceAfterAutocomplete = true;
+    const newer = worker.updatePresageConfig();
+    try {
+      await flushPromises();
+    } finally {
+      release.resolve();
+    }
+    await Promise.all([older, newer]);
+
+    expect(harness.predictionSetConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ insertSpaceAfterAutocomplete: true }),
+    );
+    expect(harness.tabSendToAll.mock.calls.at(-1)?.[0]).toMatchObject({
+      context: { insertSpaceAfterAutocomplete: true },
+    });
+  });
+
+  test("a failed config refresh does not block the next automatic spacing update", async () => {
+    const harness = await loadBackgroundHarness({ insertSpaceAfterAutocomplete: true });
+    const worker = new harness.module.BackgroundServiceWorker();
+    jest
+      .spyOn(worker.configAssembler, "assemblePredictionRuntimeConfig")
+      .mockRejectedValueOnce(new Error("storage read failed"));
+
+    const failed = worker.updatePresageConfig();
+    const retry = worker.updatePresageConfig();
+    await expect(failed).rejects.toThrow("storage read failed");
+    await retry;
+    expect(harness.predictionSetConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ insertSpaceAfterAutocomplete: true }),
+    );
+    expect(harness.tabSendToAll).toHaveBeenCalledTimes(1);
+  });
+
   test("startup normalizes the stored site profiles after the migrations", async () => {
     const harness = await loadBackgroundHarness({
       [KEY_SITE_PROFILES]: { "https://example.com": { language: "fr_FR", numSuggestions: 2 } },

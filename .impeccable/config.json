@@ -1,0 +1,15 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": ["tests/CoreSettingsRepository.test.ts"],
+        "createdAt": "2026-10-08T12:56:50.665Z",
+        "reason": "Agent review: the img literal tests invalid dictionary inputs. It is not rendered UI."
+      }
+    ]
+  }
+}
