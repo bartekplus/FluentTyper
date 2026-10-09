@@ -184,6 +184,24 @@ describe("TextAssetsPanel", () => {
     expect(values[KEY_TEXT_EXPANSIONS]).toEqual([]);
   });
 
+  test("Save with an empty body shows an error and saves nothing", async () => {
+    const { root, values } = await mount();
+
+    findButtonByText(root, i18n.get("text_assets_new_snippet")).click();
+    const shortcutInput = root.querySelector(".text-assets-editor input") as HTMLInputElement;
+    const bodyInput = root.querySelector(".text-assets-editor textarea") as HTMLTextAreaElement;
+    shortcutInput.value = "aa";
+    shortcutInput.dispatchEvent(new Event("input", { bubbles: true }));
+    bodyInput.value = "  \n";
+    bodyInput.dispatchEvent(new Event("input", { bubbles: true }));
+    findButtonByText(root, i18n.get("text_assets_save_snippet")).click();
+    await flushAsyncWork();
+
+    expect(values[KEY_TEXT_EXPANSIONS]).toEqual([]);
+    const status = root.querySelector(".text-assets-editor .has-text-danger");
+    expect(status?.textContent).toBe(i18n.get("text_assets_snippet_body_required"));
+  });
+
   test("allows saving multiple snippets with the same shortcut", async () => {
     const { root, values } = await mount({ [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]] });
 
@@ -227,6 +245,13 @@ describe("TextAssetsPanel", () => {
       ["sig", "first import"],
       ["sig", "second import"],
     ]);
+  });
+
+  test("csv import skips snippets with an empty body", async () => {
+    const { root, values } = await mount();
+    await importFile(root, ".csv", 'aa,A.A.\nempty,\nblank," "');
+
+    expect(values[KEY_TEXT_EXPANSIONS]).toEqual([["aa", "A.A."]]);
   });
 
   test("keeps multiple unsaved snippet drafts independently editable", async () => {

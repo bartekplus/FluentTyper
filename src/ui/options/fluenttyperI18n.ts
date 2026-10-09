@@ -4057,6 +4057,9 @@ i18n.extend({
   text_assets_snippet_deleted: {
     en: "Snippet deleted.",
   },
+  text_assets_snippet_body_required: {
+    en: "Type the expansion text, then save.",
+  },
   text_assets_snippet_helper_text: {
     en: "Choose a snippet to edit, or start a new one without overwriting the list first.",
   },

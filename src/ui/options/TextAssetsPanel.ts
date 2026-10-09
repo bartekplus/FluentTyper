@@ -336,6 +336,11 @@ export class TextAssetsPanel {
         if (!nextEntry[0]) {
           return;
         }
+        // An empty body never shows as a suggestion (#489).
+        if (!nextEntry[1].trim()) {
+          updateSnippetStatus(i18n.get("text_assets_snippet_body_required"), true);
+          return;
+        }
         let targetRow = this.getSelectedSnippet();
         if (!targetRow) {
           targetRow = this.createSnippetRow({
@@ -588,7 +593,7 @@ export class TextAssetsPanel {
     const seen = new Set<string>();
     return [...existing, ...imported].flatMap(([shortcut, text]) => {
       const normalizedShortcut = shortcut.trim();
-      if (!normalizedShortcut) {
+      if (!normalizedShortcut || !text.trim()) {
         return [];
       }
       const signature = JSON.stringify([normalizedShortcut, text]);
