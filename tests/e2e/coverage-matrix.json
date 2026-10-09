@@ -674,6 +674,72 @@
       ]
     },
     {
+      "id": "content_config_readiness",
+      "description": "The content runtime waits for valid settings. GET_CONFIG waits for startup and queued refreshes. Late replies cannot restore old Enter selection settings.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/content_script.behavior.test.ts",
+          "test": "a late GET_CONFIG reply cannot restore Enter selection after a newer broadcast"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/content_script.behavior.test.ts",
+          "test": "only the latest GET_CONFIG request can apply its reply"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/content_script.behavior.test.ts",
+          "test": "a broadcast during GET_CONFIG keeps the runtime stopped until a fresh reply"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/content_script.behavior.test.ts",
+          "test": "enable commands and direct startup wait for the first configuration"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/content_script.behavior.test.ts",
+          "test": "configuration refresh stops the runtime until valid settings arrive"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/content_script.behavior.test.ts",
+          "test": "invalid configuration cannot start or retain the runtime: %j"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "GET_CONFIG waits for a pending runtime refresh before reading Enter selection"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "a prediction waits for a newer refresh queued during %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "GET_CONFIG cannot publish new settings after the predictor refresh fails"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "GET_CONFIG waits for startup migration before it enables the page"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "a prediction cannot resolve its language before startup migration"
+        },
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "Enter selection uses the default and follows off/on updates in an open page"
+        }
+      ]
+    },
+    {
       "id": "missing_space_cancellation",
       "description": "Cursor movement cancels automatic missing-space insertion.",
       "coverage": [

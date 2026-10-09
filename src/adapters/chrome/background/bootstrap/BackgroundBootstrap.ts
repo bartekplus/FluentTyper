@@ -3,6 +3,7 @@ import { CommandRouter } from "../router/CommandRouter";
 import { MessageRouter } from "../router/MessageRouter";
 import type { EngineLike } from "../localAi/LocalAiHost";
 import { registerRuntimeTestHooks } from "@adapters/chrome/background/testing/RuntimeTestHooks";
+import { logError } from "@core/domain/error";
 
 export class BackgroundBootstrap {
   private readonly worker: BackgroundServiceWorker;
@@ -43,19 +44,16 @@ export class BackgroundBootstrap {
   }
 
   private loadLastVersionAndInitialize(): void {
-    const initializeFromLastVersion = async ({
-      lastVersion,
-    }: {
-      lastVersion?: unknown;
-    }): Promise<void> => {
-      await this.worker.initialize(typeof lastVersion === "string" ? lastVersion : undefined);
-    };
-
-    // Keep listener registration synchronous, but still await startup work once the
-    // persisted version is available so migration/config initialization stays ordered.
-    chrome.storage.local.get(
-      "lastVersion",
-      initializeFromLastVersion as unknown as (items: { [key: string]: unknown }) => void,
-    );
+    const version = new Promise<string | undefined>((resolve, reject) => {
+      chrome.storage.local.get("lastVersion", ({ lastVersion }) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve(typeof lastVersion === "string" ? lastVersion : undefined);
+      });
+    });
+    // Register startup in the queue before the stored version arrives.
+    void this.worker.initialize(version).catch((error) => logError("background startup", error));
   }
 }

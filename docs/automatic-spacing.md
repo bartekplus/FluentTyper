@@ -22,6 +22,21 @@ Config refreshes now use one queue per worker. The queue covers config reads,
 predictor updates, cache invalidation, and page broadcasts. A rejected refresh
 does not prevent the next refresh.
 
+GET_CONFIG also uses this queue. It waits for startup migration and predictor
+configuration before it reads page settings. Predictions wait for startup before
+they resolve the language. A startup failure prevents configuration delivery.
+If a later predictor refresh fails, GET_CONFIG must complete a successful retry
+before it can publish new page settings.
+
+The content runtime stays stopped until it receives valid required settings.
+An enable command cannot start it before that point. A requested configuration
+refresh stops it until settings arrive. A newer request or SET_CONFIG broadcast
+supersedes an older GET_CONFIG reply. Thus a delayed reply cannot restore an old
+spacing or Enter selection value.
+A broadcast during GET_CONFIG can precede that request's storage read. The page
+requests a fresh reply and stays stopped until it arrives. It does not choose
+between two snapshots whose delivery order cannot prove their age.
+
 ## Prediction and acceptance paths
 
 1. `SuggestionPredictionCoordinator` reads the caret context. It sends the first
@@ -73,3 +88,9 @@ The Chrome/Firefox smoke test accepts a real prediction and types another
 character after each missing/off/on value in an open page. The coverage matrix
 records these tests. Existing tests cover delayed spacing, caret cancellation,
 contenteditable blocks, inline acceptance, editor writers, and Google Docs fixtures.
+
+`content_script.behavior.test.ts` covers delayed replies, startup enable commands,
+refresh suspension, and invalid required settings. The routing tests cover
+startup migration, queued GET_CONFIG reads, and language resolution after migration.
+The smoke suite checks Enter selection with missing, off, and on settings.
+When Enter selection is off, Enter inserts a native newline in the textarea.

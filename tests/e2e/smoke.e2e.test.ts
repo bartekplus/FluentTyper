@@ -34,6 +34,7 @@ import {
 import {
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   KEY_DOMAIN_LIST_MODE,
+  KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_EXTENSION_LANGUAGE,
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_ENABLED_LANGUAGES,
@@ -66,6 +67,7 @@ const STATIC_DEFAULT_SETTINGS = {
 };
 
 const PER_TEST_RESET_SETTINGS = {
+  [KEY_AUTOCOMPLETE_ON_ENTER]: true,
   [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE", "textExpander"],
   [KEY_LANGUAGE]: "en_US",
   [KEY_TEXT_EXPANSIONS]: [],
@@ -656,6 +658,49 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       expect(value.toLowerCase()).toBe(firstSuggestion?.toLowerCase());
     },
     suiteTimeout(10000, 15000),
+  );
+
+  test(
+    "Enter selection uses the default and follows off/on updates in an open page",
+    async () => {
+      await setSetting(worker, KEY_ENABLED_GRAMMAR_RULES, grammarRuleSelectionToOverrides([]));
+      const configPage = await openExtensionPage(browser, worker, "popup/popup.html");
+      try {
+        for (const enabled of [undefined, false, true]) {
+          if (enabled === undefined) {
+            await removeSettings(worker, [KEY_AUTOCOMPLETE_ON_ENTER]);
+          } else {
+            await setSetting(worker, KEY_AUTOCOMPLETE_ON_ENTER, enabled);
+          }
+          await sendCommand(configPage, CMD_OPTIONS_PAGE_CONFIG_CHANGE, {}, { requireOk: true });
+          page = await prepareReusableTestPage(browser, page);
+          await page.focus("#test-textarea");
+          await page.keyboard.type("h");
+          const [suggestion] = await waitForVisibleSuggestionTexts(page);
+          expect(suggestion).toBeTruthy();
+          await page.keyboard.press("Enter");
+          await waitUntil(
+            "Enter selection text",
+            async () =>
+              (await page!.$eval("#test-textarea", (el) => (el as HTMLTextAreaElement).value)) ===
+              (enabled === false ? "h\n" : suggestion),
+            { timeoutMs: suiteTimeout(5000, 8000) },
+          ).catch(async (cause) => {
+            const value = await page!.$eval(
+              "#test-textarea",
+              (el) => (el as HTMLTextAreaElement).value,
+            );
+            throw new Error(
+              `Enter setting ${String(enabled)}: ${JSON.stringify(value)}, expected ${JSON.stringify(enabled === false ? "h\n" : suggestion)}`,
+              { cause },
+            );
+          });
+        }
+      } finally {
+        await configPage.close();
+      }
+    },
+    suiteTimeout(20000, 35000),
   );
 
   test(

@@ -4,6 +4,7 @@ import { getErrorMessage, logError } from "@core/domain/error";
 import { isFiniteNumber } from "@core/domain/guards";
 import { serialQueue } from "@core/domain/serialQueue";
 import { SettingsManager } from "@core/application/settingsManager";
+import { isEnabledForDomain } from "@core/application/domain-utils";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { LanguageDetector, type AutoLanguageSessionLookup } from "./LanguageDetector";
 import { PredictionManager } from "./PredictionManager";
@@ -47,6 +48,7 @@ export class BackgroundServiceWorker {
   localAiController!: LocalAiController;
   domainSettingsCache!: DomainSettingsCache;
   private runtimeConfigReady = false;
+  private configUpdateVersion = 0;
   private runtimeConfigLoadPromise: Promise<void> | null = null;
   private initializationPromise: Promise<void> | null = null;
   private readonly configUpdates = serialQueue();
@@ -163,14 +165,26 @@ export class BackgroundServiceWorker {
   }
 
   async getBackgroundPageSetConfigMsg(domainURL?: string): Promise<ConfigMessage> {
-    return this.configAssembler.assembleBackgroundPageSetConfig(domainURL);
+    await this.initializationPromise;
+    return this.configUpdates(async () => {
+      if (!this.runtimeConfigReady) await this.applyPresageConfig();
+      const message = await this.configAssembler.assembleBackgroundPageSetConfig(domainURL);
+      message.context.enabled = await isEnabledForDomain(this.settingsManager, domainURL ?? "");
+      return message;
+    });
   }
 
   updatePresageConfig(): Promise<void> {
-    return this.configUpdates(() => this.applyPresageConfig());
+    const version = ++this.configUpdateVersion;
+    this.runtimeConfigReady = false;
+    return this.configUpdates(async () => {
+      await this.initializationPromise;
+      await this.applyPresageConfig(version);
+    });
   }
 
-  private async applyPresageConfig(): Promise<void> {
+  private async applyPresageConfig(version = this.configUpdateVersion): Promise<void> {
+    this.runtimeConfigReady = false;
     await sanitizeLanguageSettings(this.settingsManager);
     await Promise.all([
       this.personalizationService.initialize(),
@@ -180,14 +194,14 @@ export class BackgroundServiceWorker {
     this.observabilityService.setConfig(runtimeConfig.observabilityConfig);
     this.predictionManager.setConfig(runtimeConfig.predictionConfig);
     this.productivityStats.setSnippetShortcuts(runtimeConfig.predictionConfig.textExpansions);
-    this.runtimeConfigReady = true;
+    this.runtimeConfigReady = version === this.configUpdateVersion;
     // Flush the cache before the broadcast, so that a prediction from a tab reads the new settings.
     this.domainSettingsCache.invalidate();
     logger.info("Broadcasting runtime config update", {
       observabilityEnabled: runtimeConfig.observabilityConfig?.enabled,
     });
     await this.tabMessenger.sendToAllTabs(
-      await this.getBackgroundPageSetConfigMsg(),
+      await this.configAssembler.assembleBackgroundPageSetConfig(),
       this.settingsManager,
       (domain: string) => this.configAssembler.resolveDomainConfigOverrides(domain),
     );
@@ -234,20 +248,23 @@ export class BackgroundServiceWorker {
     };
   }
 
-  async initialize(lastVersion: string | undefined): Promise<void> {
-    this.initializationPromise ??= (async () => {
+  async initialize(lastVersion: string | undefined | Promise<string | undefined>): Promise<void> {
+    const version = this.configUpdateVersion;
+    this.initializationPromise ??= this.configUpdates(async () => {
       try {
-        await migrateToLocalStore(lastVersion);
+        await migrateToLocalStore(await lastVersion);
         await runSettingsMigrations(this.settingsManager);
-        await this.updatePresageConfig();
+        await this.applyPresageConfig(version);
       } catch (error) {
         logError("lastVersion handler", error);
+        throw error;
       }
-    })();
+    });
     await this.initializationPromise;
   }
 
-  private async ensureRuntimeConfigReady(): Promise<void> {
+  async ensureRuntimeConfigReady(): Promise<void> {
+    await this.initializationPromise;
     if (this.runtimeConfigReady) {
       return;
     }
