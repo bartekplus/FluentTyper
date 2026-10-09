@@ -186,7 +186,9 @@ export class TextAssetsPanel {
         }) as unknown[][];
         const imported = parsed
           .filter((row) => row.length === 2)
-          .map((row) => [formatLooseText(row[0]), formatLooseText(row[1])] as TextExpansionEntry);
+          .map((row) => [formatLooseText(row[0]), formatLooseText(row[1])] as TextExpansionEntry)
+          // Skip imported empty bodies only; keep the snippets that are already saved.
+          .filter(([, text]) => text.trim());
         this.syncPersistedRows(this.mergeExpansions(this.getPersistedExpansions(), imported));
         this.snippetDeleteArmed = false;
         this.setSnippetStatus(i18n.get("settings_status_saved"));
@@ -593,7 +595,7 @@ export class TextAssetsPanel {
     const seen = new Set<string>();
     return [...existing, ...imported].flatMap(([shortcut, text]) => {
       const normalizedShortcut = shortcut.trim();
-      if (!normalizedShortcut || !text.trim()) {
+      if (!normalizedShortcut) {
         return [];
       }
       const signature = JSON.stringify([normalizedShortcut, text]);

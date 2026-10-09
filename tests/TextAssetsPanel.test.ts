@@ -247,11 +247,14 @@ describe("TextAssetsPanel", () => {
     ]);
   });
 
-  test("csv import skips snippets with an empty body", async () => {
-    const { root, values } = await mount();
+  test("csv import skips imported empty bodies and keeps saved snippets", async () => {
+    const { root, values } = await mount({ [KEY_TEXT_EXPANSIONS]: [["old", ""]] });
     await importFile(root, ".csv", 'aa,A.A.\nempty,\nblank," "');
 
-    expect(values[KEY_TEXT_EXPANSIONS]).toEqual([["aa", "A.A."]]);
+    expect(values[KEY_TEXT_EXPANSIONS]).toEqual([
+      ["old", ""],
+      ["aa", "A.A."],
+    ]);
   });
 
   test("keeps multiple unsaved snippet drafts independently editable", async () => {
