@@ -8,7 +8,11 @@ import { predictionConfig, runPrediction } from "./support/predictionConfig";
 
 function createHandler(
   textExpansions: Array<[string, string]>,
-  overrides: { minWordLengthToPredict?: number; prefixOnlyMode?: boolean } = {},
+  overrides: {
+    minWordLengthToPredict?: number;
+    prefixOnlyMode?: boolean;
+    numSuggestions?: number;
+  } = {},
 ) {
   const handler = new PresageHandler(mod);
   handler.setConfig(
@@ -195,6 +199,18 @@ describe("PresageHandler snippet suggestions (#366)", () => {
     } finally {
       parse.mockRestore();
     }
+  });
+
+  test("any expansion of a shortcut with more than one body stays ahead of the same word", async () => {
+    mod.PresageCallback.predictions = ["First", "aa", "Second"];
+    const handler = createHandler(
+      [
+        ["aa", "First"],
+        ["aa", "Second"],
+      ],
+      { numSuggestions: 2 },
+    );
+    await expect(predict(handler, "aa")).resolves.toEqual({ predictions: ["First", "aa"] });
   });
 
   test("a saved blank snippet body is not shown and keeps the typed word first", async () => {
