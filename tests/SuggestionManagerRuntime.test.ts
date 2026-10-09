@@ -838,7 +838,7 @@ describe("SuggestionManagerRuntime", () => {
     runtime.detachAllHelpers();
   });
 
-  test("a paused field shows the F badge once per focus and a click resumes FluentTyper over the site list", () => {
+  test("a paused field shows the F badge once per focus and a click resumes FluentTyper over the site list", async () => {
     const runtime = makeRuntime(undefined, { rememberField: jest.fn(async () => undefined) });
     document.body.innerHTML =
       '<textarea id="APjFqb" name="q" role="combobox" aria-expanded="true" aria-controls="choices"></textarea><div id="choices" role="listbox" hidden><div role="option">Choice</div></div>';
@@ -861,10 +861,20 @@ describe("SuggestionManagerRuntime", () => {
     const badge = () => document.querySelector<HTMLButtonElement>(".ft-paused-badge");
     const labelOpen = () => (badge()!.lastElementChild as HTMLElement).style.opacity === "1";
 
+    let width = 300;
+    field.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: width, bottom: 32, width, height: 32 }) as DOMRect;
     popup.hidden = false;
     type("hel");
     expect(badge()).not.toBeNull();
     expect(labelOpen()).toBe(true);
+    expect(badge()!.style.left).toBe("270px");
+    // A page control (Slack's search "Clear") narrows the field after the badge shows.
+    width = 240;
+    await new Promise<void>((resolve) =>
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())),
+    );
+    expect(badge()!.style.left).toBe("210px");
     popup.hidden = true;
     type("hell");
     expect(badge()).toBeNull();
