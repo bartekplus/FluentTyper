@@ -134,6 +134,8 @@ export class PresageHandler {
   private dateFormat?: string;
   private textExpansionsSignature = "";
   private textExpansionsByShortcut = new Map<string, string>();
+  /** Every [shortcut, expansion] pair as JSON; a shortcut can have more than one expansion. */
+  private textExpansionPairs = new Set<string>();
   private userDictionarySignature = "";
   private personalizationEnabled = false;
   private readonly getPersonalizationSnapshot: () => PersonalizationRankingSnapshot;
@@ -177,14 +179,14 @@ export class PresageHandler {
     this.autoCapitalize = config.autoCapitalize;
     this.prefixOnlyMode = config.prefixOnlyMode;
     this.personalizationEnabled = config.personalizationEnabled ?? false;
-    this.textExpansionsByShortcut = new Map(
-      (config.textExpansions ?? []).flatMap(([shortcut, expansion]) =>
-        // Presage drops non-string expansions too (PresageEngine.parsePrediction).
-        typeof expansion === "string"
-          ? [[shortcut.trim().toLocaleLowerCase(), expansion] as [string, string]]
-          : [],
-      ),
+    const textExpansions = (config.textExpansions ?? []).flatMap(([shortcut, expansion]) =>
+      // Presage drops non-string expansions too (PresageEngine.parsePrediction).
+      typeof expansion === "string"
+        ? [[shortcut.trim().toLocaleLowerCase(), expansion] as [string, string]]
+        : [],
     );
+    this.textExpansionsByShortcut = new Map(textExpansions);
+    this.textExpansionPairs = new Set(textExpansions.map((pair) => JSON.stringify(pair)));
 
     this.timeFormat = config.timeFormat;
     this.dateFormat = config.dateFormat;
@@ -306,16 +308,24 @@ export class PresageHandler {
   /** The caller (PredictionOrchestrator) checks first that the context can predict. */
   async predictPresage(context: PresagePredictionContext): Promise<PredictionCandidate[]> {
     const resolver = this.createResolver(context.lang, context.tabId);
-    const predictions = await Promise.all(
-      this.presageEngines[context.lang]
-        .predict(context.predictionInput)
-        .map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
+    const rawPredictions = this.presageEngines[context.lang].predict(context.predictionInput);
+    const resolved = await Promise.all(
+      rawPredictions.map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
     );
+    const exactSnippetTexts = new Set(
+      resolved.filter((_, index) =>
+        this.textExpansionPairs.has(JSON.stringify([context.snippetToken, rawPredictions[index]])),
+      ),
+    );
+    // A snippet or template can be blank (an empty page title); never show a blank suggestion.
+    const predictions = resolved.filter((text) => text.trim());
     const ranked =
       !this.personalizationEnabled || this.isTextExpansionRequest(context.predictionInput)
         ? predictions
         : this.rankPersonalized(predictions, context);
-    const words = ranked.map((text): PredictionCandidate => ({ text }));
+    const words = ranked.map((text): PredictionCandidate =>
+      exactSnippetTexts.has(text) ? { text, exactSnippet: true } : { text },
+    );
     const snippets = await this.predictSnippets(context, ranked, resolver);
     // Keep the top word prediction first so snippets never displace plain autocomplete.
     return [...words.slice(0, 1), ...snippets, ...words.slice(1)];
@@ -389,7 +399,8 @@ export class PresageHandler {
     let predictions = candidates.map(({ text }) => text);
     // Sort prediction so that the most relevant ones are at the top
     // eg. if input is "the act", then "act" will be first and "action" will be second
-    if (candidates.length > 1 && snippetToken) {
+    // A typed snippet shortcut keeps its expansion first, not the same dictionary word (#489).
+    if (candidates.length > 1 && snippetToken && !candidates.some((c) => c.exactSnippet)) {
       const isExact = ({ text }: PredictionCandidate) => text.toLocaleLowerCase() === snippetToken;
       // Stable sort: exact match first, otherwise keep Presage order.
       candidates.sort((a, b) => Number(isExact(b)) - Number(isExact(a)));

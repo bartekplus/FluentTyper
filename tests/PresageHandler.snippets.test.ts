@@ -8,7 +8,11 @@ import { predictionConfig, runPrediction } from "./support/predictionConfig";
 
 function createHandler(
   textExpansions: Array<[string, string]>,
-  overrides: { minWordLengthToPredict?: number; prefixOnlyMode?: boolean } = {},
+  overrides: {
+    minWordLengthToPredict?: number;
+    prefixOnlyMode?: boolean;
+    numSuggestions?: number;
+  } = {},
 ) {
   const handler = new PresageHandler(mod);
   handler.setConfig(
@@ -162,5 +166,57 @@ describe("PresageHandler snippet suggestions (#366)", () => {
     const handler = createHandler(expansions);
     await expect(predict(handler, "ad ")).resolves.toEqual({ predictions: ["Best, Bart"] });
     await expect(predict(handler, "sig")).resolves.toEqual({ predictions: ["Best, Bart"] });
+  });
+
+  // #489: the dictionary word "aa" must not go above the expansion of the "aa" shortcut.
+  test.each([
+    ["aa", ["A.A.", "aa", "aaron"]],
+    ["members aa", ["A.A.", "aa", "aaron"]],
+    ["members AA", ["A.A.", "AA", "AARON"]],
+  ])("keeps an exact shortcut expansion ahead of the same word (%p)", async (input, expected) => {
+    mod.PresageCallback.predictions = ["A.A.", "aa", "aaron"];
+    await expect(predict(createHandler([["aa", "A.A."]]), input)).resolves.toEqual({
+      predictions: expected,
+    });
+  });
+
+  test("an empty snippet body keeps the typed word first", async () => {
+    mod.PresageCallback.predictions = ["actually", "act"];
+    await expect(predict(createHandler([["act", ""]]), "the act")).resolves.toEqual({
+      predictions: ["act", "actually"],
+    });
+  });
+
+  test("an expansion that resolves to empty text is not shown and keeps the typed word first", async () => {
+    mod.PresageCallback.predictions = ["${page_title}", "actually", "act"];
+    const parse = spyOn(TemplateExpander, "parseStringTemplateAsync").mockImplementation(
+      async (text) => (text === "${page_title}" ? "" : text),
+    );
+    try {
+      await expect(predict(createHandler([["act", "${page_title}"]]), "the act")).resolves.toEqual({
+        predictions: ["act", "actually"],
+      });
+    } finally {
+      parse.mockRestore();
+    }
+  });
+
+  test("any expansion of a shortcut with more than one body stays ahead of the same word", async () => {
+    mod.PresageCallback.predictions = ["First", "aa", "Second"];
+    const handler = createHandler(
+      [
+        ["aa", "First"],
+        ["aa", "Second"],
+      ],
+      { numSuggestions: 2 },
+    );
+    await expect(predict(handler, "aa")).resolves.toEqual({ predictions: ["First", "aa"] });
+  });
+
+  test("a saved blank snippet body is not shown and keeps the typed word first", async () => {
+    mod.PresageCallback.predictions = [" \t", "actually", "act"];
+    await expect(predict(createHandler([["act", " \t"]]), "the act")).resolves.toEqual({
+      predictions: ["act", "actually"],
+    });
   });
 });

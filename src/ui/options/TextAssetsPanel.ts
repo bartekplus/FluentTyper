@@ -186,7 +186,9 @@ export class TextAssetsPanel {
         }) as unknown[][];
         const imported = parsed
           .filter((row) => row.length === 2)
-          .map((row) => [formatLooseText(row[0]), formatLooseText(row[1])] as TextExpansionEntry);
+          .map((row) => [formatLooseText(row[0]), formatLooseText(row[1])] as TextExpansionEntry)
+          // Skip imported empty bodies only; keep the snippets that are already saved.
+          .filter(([, text]) => text.trim());
         this.syncPersistedRows(this.mergeExpansions(this.getPersistedExpansions(), imported));
         this.snippetDeleteArmed = false;
         this.setSnippetStatus(i18n.get("settings_status_saved"));
@@ -334,6 +336,11 @@ export class TextAssetsPanel {
       createButton(i18n.get("text_assets_save_snippet"), "button", () => {
         const nextEntry: TextExpansionEntry = [shortcut.value.trim(), body.value];
         if (!nextEntry[0]) {
+          return;
+        }
+        // An empty body never shows as a suggestion (#489).
+        if (!nextEntry[1].trim()) {
+          updateSnippetStatus(i18n.get("text_assets_snippet_body_required"), true);
           return;
         }
         let targetRow = this.getSelectedSnippet();
