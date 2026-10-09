@@ -63,7 +63,10 @@ interface ManualAttachUiHandle {
 }
 
 export class ManualAttachUiManager {
-  private readonly notices = new Map<ManualAttachTarget, { node: HTMLElement; passive: boolean }>();
+  private readonly notices = new Map<
+    ManualAttachTarget,
+    { node: HTMLElement; passive: boolean; stop?: () => void }
+  >();
   private readonly handles = new Map<ManualAttachTarget, ManualAttachUiHandle>();
   private readonly parentPositionStates = new Map<HTMLElement, ParentPositionState>();
 
@@ -158,33 +161,52 @@ export class ManualAttachUiManager {
     const dark = fieldActionTone(element) === "dark";
     const rtl = view.getComputedStyle(element).direction === "rtl";
     const reducedMotion = view.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
-    const rect = element.getBoundingClientRect();
-    // Same spot as the manual attach F: the inline end, centered on one-line fields.
-    let left = this.resolveInlineOffset({ rectStart: rect.left, rectSize: rect.width, isRtl: rtl });
-    let top = rect.top + this.resolveOffsetTop(rect.height, rect.height > 40);
-    const review = reviewLauncherSlot(element);
-    if (review && top < review.top + review.size && top + BUTTON_SIZE_PX > review.top) {
-      // Share the row with the Review button: just before it, centered on it.
-      left = rtl
-        ? review.left + review.size + FIELD_INSET_PX
-        : review.left - FIELD_INSET_PX - BUTTON_SIZE_PX;
-      top = review.top + (review.size - BUTTON_SIZE_PX) / 2;
-    }
-    const calloutAbove = top >= 56;
-
     const node = doc.createElement(options.onActivate ? "button" : "div");
+    // Follows the field: page controls such as a search "Clear" can resize it after the badge shows.
+    const place = () => {
+      const rect = element.getBoundingClientRect();
+      // Same spot as the manual attach F: the inline end, centered on one-line fields.
+      let left = this.resolveInlineOffset({
+        rectStart: rect.left,
+        rectSize: rect.width,
+        isRtl: rtl,
+      });
+      let top = rect.top + this.resolveOffsetTop(rect.height, rect.height > 40);
+      const review = reviewLauncherSlot(element);
+      if (review && top < review.top + review.size && top + BUTTON_SIZE_PX > review.top) {
+        // Share the row with the Review button: just before it, centered on it.
+        left = rtl
+          ? review.left + review.size + FIELD_INSET_PX
+          : review.left - FIELD_INSET_PX - BUTTON_SIZE_PX;
+        top = review.top + (review.size - BUTTON_SIZE_PX) / 2;
+      }
+      node.style.left = `${Math.round(left)}px`;
+      node.style.top = `${Math.round(top)}px`;
+      calloutAbove = top >= 56;
+      for (const [part, gap] of [
+        [callout, 9],
+        [arrow, 5],
+      ] as const) {
+        part.style.top = calloutAbove ? "" : `calc(100% + ${gap}px)`;
+        part.style.bottom = calloutAbove ? `calc(100% + ${gap}px)` : "";
+      }
+      callout.style.transformOrigin = `${calloutAbove ? "bottom" : "top"} ${rtl ? "left" : "right"}`;
+      // Keep the callout on screen when the badge is near the viewport edge.
+      callout.style[rtl ? "left" : "right"] = "-6px";
+      const box = callout.getBoundingClientRect();
+      const overflow = rtl ? box.right - (view.innerWidth - 4) : 4 - box.left;
+      if (overflow > 0) callout.style[rtl ? "left" : "right"] = `${-6 - overflow}px`;
+    };
+    let calloutAbove = true;
+
     if (options.onActivate) node.setAttribute("type", "button");
     node.className = PAUSED_BADGE_CLASS;
     node.setAttribute("data-ft-suggestion-owned", "true");
     node.title = options.title;
     node.setAttribute("aria-label", options.title);
     if (!options.onActivate) node.setAttribute("role", "status");
-    // ponytail: fixed at show time; the badge goes on blur or when the site list closes,
-    // so a scroll while it shows leaves it behind. Reposition on scroll if that shows up.
     Object.assign(node.style, {
       position: "fixed",
-      left: `${Math.round(left)}px`,
-      top: `${Math.round(top)}px`,
       zIndex: "2147483001",
       boxSizing: "border-box",
       width: `${BUTTON_SIZE_PX}px`,
@@ -269,8 +291,6 @@ export class ManualAttachUiManager {
     const callout = doc.createElement("span");
     Object.assign(callout.style, {
       position: "absolute",
-      [calloutAbove ? "bottom" : "top"]: "calc(100% + 9px)",
-      [rtl ? "left" : "right"]: "-6px",
       display: "flex",
       flexDirection: "column",
       gap: "2px",
@@ -283,7 +303,6 @@ export class ManualAttachUiManager {
       textAlign: rtl ? "right" : "left",
       whiteSpace: "nowrap",
       pointerEvents: "none",
-      transformOrigin: `${calloutAbove ? "bottom" : "top"} ${rtl ? "left" : "right"}`,
     });
     const title = doc.createElement("span");
     title.textContent = options.label;
@@ -298,7 +317,6 @@ export class ManualAttachUiManager {
     Object.assign(arrow.style, {
       position: "absolute",
       left: "50%",
-      [calloutAbove ? "bottom" : "top"]: "calc(100% + 5px)",
       width: "8px",
       height: "8px",
       marginLeft: "-4px",
@@ -349,15 +367,16 @@ export class ManualAttachUiManager {
         icon.style.opacity = pause.style.opacity = "0";
         Object.assign(checkmark.style, { opacity: "1", transform: "scale(1)" });
         onActivate();
-        setTimeout(() => node.remove(), SUCCESS_STATE_MS);
+        setTimeout(() => {
+          stop();
+          node.remove();
+        }, SUCCESS_STATE_MS);
       });
     }
     doc.documentElement.append(node);
-    this.notices.set(element, { node, passive: true });
-    // Keep the callout on screen when the badge is near the viewport edge.
-    const box = callout.getBoundingClientRect();
-    const overflow = rtl ? box.right - (view.innerWidth - 4) : 4 - box.left;
-    if (overflow > 0) callout.style[rtl ? "left" : "right"] = `${-6 - overflow}px`;
+    place();
+    const stop = trackFieldActionLayout(element, place);
+    this.notices.set(element, { node, passive: true, stop });
     if (options.expand) {
       void node.offsetWidth; // Start the transition from the hidden state.
       setOpen(true);
@@ -445,6 +464,7 @@ export class ManualAttachUiManager {
   public removeNotice(element: ManualAttachTarget, passiveOnly = false): void {
     const notice = this.notices.get(element);
     if (!notice || (passiveOnly && !notice.passive)) return;
+    notice.stop?.();
     notice.node.remove();
     this.notices.delete(element);
     element.ownerDocument.dispatchEvent(new Event(FIELD_ACTION_CHANGE_EVENT));
