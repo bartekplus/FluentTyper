@@ -182,9 +182,22 @@ export class ManualAttachUiManager {
       }
       node.style.left = `${Math.round(left)}px`;
       node.style.top = `${Math.round(top)}px`;
-      return top;
+      calloutAbove = top >= 56;
+      for (const [part, gap] of [
+        [callout, 9],
+        [arrow, 5],
+      ] as const) {
+        part.style.top = calloutAbove ? "" : `calc(100% + ${gap}px)`;
+        part.style.bottom = calloutAbove ? `calc(100% + ${gap}px)` : "";
+      }
+      callout.style.transformOrigin = `${calloutAbove ? "bottom" : "top"} ${rtl ? "left" : "right"}`;
+      // Keep the callout on screen when the badge is near the viewport edge.
+      callout.style[rtl ? "left" : "right"] = "-6px";
+      const box = callout.getBoundingClientRect();
+      const overflow = rtl ? box.right - (view.innerWidth - 4) : 4 - box.left;
+      if (overflow > 0) callout.style[rtl ? "left" : "right"] = `${-6 - overflow}px`;
     };
-    const calloutAbove = place() >= 56;
+    let calloutAbove = true;
 
     if (options.onActivate) node.setAttribute("type", "button");
     node.className = PAUSED_BADGE_CLASS;
@@ -278,8 +291,6 @@ export class ManualAttachUiManager {
     const callout = doc.createElement("span");
     Object.assign(callout.style, {
       position: "absolute",
-      [calloutAbove ? "bottom" : "top"]: "calc(100% + 9px)",
-      [rtl ? "left" : "right"]: "-6px",
       display: "flex",
       flexDirection: "column",
       gap: "2px",
@@ -292,7 +303,6 @@ export class ManualAttachUiManager {
       textAlign: rtl ? "right" : "left",
       whiteSpace: "nowrap",
       pointerEvents: "none",
-      transformOrigin: `${calloutAbove ? "bottom" : "top"} ${rtl ? "left" : "right"}`,
     });
     const title = doc.createElement("span");
     title.textContent = options.label;
@@ -307,7 +317,6 @@ export class ManualAttachUiManager {
     Object.assign(arrow.style, {
       position: "absolute",
       left: "50%",
-      [calloutAbove ? "bottom" : "top"]: "calc(100% + 5px)",
       width: "8px",
       height: "8px",
       marginLeft: "-4px",
@@ -365,12 +374,9 @@ export class ManualAttachUiManager {
       });
     }
     doc.documentElement.append(node);
+    place();
     const stop = trackFieldActionLayout(element, place);
     this.notices.set(element, { node, passive: true, stop });
-    // Keep the callout on screen when the badge is near the viewport edge.
-    const box = callout.getBoundingClientRect();
-    const overflow = rtl ? box.right - (view.innerWidth - 4) : 4 - box.left;
-    if (overflow > 0) callout.style[rtl ? "left" : "right"] = `${-6 - overflow}px`;
     if (options.expand) {
       void node.offsetWidth; // Start the transition from the hidden state.
       setOpen(true);

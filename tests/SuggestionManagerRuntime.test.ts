@@ -862,8 +862,10 @@ describe("SuggestionManagerRuntime", () => {
     const labelOpen = () => (badge()!.lastElementChild as HTMLElement).style.opacity === "1";
 
     let width = 300;
+    let top = 0;
     field.getBoundingClientRect = () =>
-      ({ left: 0, top: 0, right: width, bottom: 32, width, height: 32 }) as DOMRect;
+      ({ left: 0, top, right: width, bottom: top + 32, width, height: 32 }) as DOMRect;
+    const callout = () => badge()!.lastElementChild as HTMLElement;
     popup.hidden = false;
     type("hel");
     expect(badge()).not.toBeNull();
@@ -875,6 +877,14 @@ describe("SuggestionManagerRuntime", () => {
       window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())),
     );
     expect(badge()!.style.left).toBe("210px");
+    // Near the viewport top the callout opens below the badge; with room above, it flips.
+    expect(callout().style.top).toBe("calc(100% + 9px)");
+    top = 200;
+    await new Promise<void>((resolve) =>
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())),
+    );
+    expect(callout().style.bottom).toBe("calc(100% + 9px)");
+    expect(callout().style.top).toBe("");
     popup.hidden = true;
     type("hell");
     expect(badge()).toBeNull();
