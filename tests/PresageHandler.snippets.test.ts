@@ -175,4 +175,11 @@ describe("PresageHandler snippet suggestions (#366)", () => {
       predictions: expected,
     });
   });
+
+  test("an empty snippet body keeps the typed word first", async () => {
+    mod.PresageCallback.predictions = ["actually", "act"];
+    await expect(predict(createHandler([["act", ""]]), "the act")).resolves.toEqual({
+      predictions: ["act", "actually"],
+    });
+  });
 });
