@@ -2,6 +2,8 @@
 export interface PredictionCandidate {
   text: string;
   snippetShortcut?: string;
+  /** The expansion of the typed shortcut, from Presage; it stays ahead of an exact word. */
+  exactSnippet?: boolean;
 }
 
 export interface PredictionResult {

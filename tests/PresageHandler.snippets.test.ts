@@ -182,4 +182,18 @@ describe("PresageHandler snippet suggestions (#366)", () => {
       predictions: ["act", "actually"],
     });
   });
+
+  test("an expansion that resolves to empty text is not shown and keeps the typed word first", async () => {
+    mod.PresageCallback.predictions = ["${page_title}", "actually", "act"];
+    const parse = spyOn(TemplateExpander, "parseStringTemplateAsync").mockImplementation(
+      async (text) => (text === "${page_title}" ? "" : text),
+    );
+    try {
+      await expect(predict(createHandler([["act", "${page_title}"]]), "the act")).resolves.toEqual({
+        predictions: ["act", "actually"],
+      });
+    } finally {
+      parse.mockRestore();
+    }
+  });
 });

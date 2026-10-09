@@ -306,16 +306,21 @@ export class PresageHandler {
   /** The caller (PredictionOrchestrator) checks first that the context can predict. */
   async predictPresage(context: PresagePredictionContext): Promise<PredictionCandidate[]> {
     const resolver = this.createResolver(context.lang, context.tabId);
-    const predictions = await Promise.all(
-      this.presageEngines[context.lang]
-        .predict(context.predictionInput)
-        .map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
+    const rawPredictions = this.presageEngines[context.lang].predict(context.predictionInput);
+    const resolved = await Promise.all(
+      rawPredictions.map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
     );
+    const exactExpansion = this.textExpansionsByShortcut.get(context.snippetToken);
+    const exactSnippetText = resolved.find((_, index) => rawPredictions[index] === exactExpansion);
+    // A template can resolve to "" (an empty page title); never show an empty suggestion.
+    const predictions = resolved.filter(Boolean);
     const ranked =
       !this.personalizationEnabled || this.isTextExpansionRequest(context.predictionInput)
         ? predictions
         : this.rankPersonalized(predictions, context);
-    const words = ranked.map((text): PredictionCandidate => ({ text }));
+    const words = ranked.map((text): PredictionCandidate =>
+      exactSnippetText && text === exactSnippetText ? { text, exactSnippet: true } : { text },
+    );
     const snippets = await this.predictSnippets(context, ranked, resolver);
     // Keep the top word prediction first so snippets never displace plain autocomplete.
     return [...words.slice(0, 1), ...snippets, ...words.slice(1)];
@@ -390,8 +395,7 @@ export class PresageHandler {
     // Sort prediction so that the most relevant ones are at the top
     // eg. if input is "the act", then "act" will be first and "action" will be second
     // A typed snippet shortcut keeps its expansion first, not the same dictionary word (#489).
-    // PresageEngine drops an empty expansion, so an empty snippet keeps the exact-match sort.
-    if (candidates.length > 1 && snippetToken && !this.textExpansionsByShortcut.get(snippetToken)) {
+    if (candidates.length > 1 && snippetToken && !candidates.some((c) => c.exactSnippet)) {
       const isExact = ({ text }: PredictionCandidate) => text.toLocaleLowerCase() === snippetToken;
       // Stable sort: exact match first, otherwise keep Presage order.
       candidates.sort((a, b) => Number(isExact(b)) - Number(isExact(a)));
