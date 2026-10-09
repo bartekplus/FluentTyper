@@ -196,4 +196,11 @@ describe("PresageHandler snippet suggestions (#366)", () => {
       parse.mockRestore();
     }
   });
+
+  test("a saved blank snippet body is not shown and keeps the typed word first", async () => {
+    mod.PresageCallback.predictions = [" \t", "actually", "act"];
+    await expect(predict(createHandler([["act", " \t"]]), "the act")).resolves.toEqual({
+      predictions: ["act", "actually"],
+    });
+  });
 });

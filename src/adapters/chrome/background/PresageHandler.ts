@@ -312,14 +312,14 @@ export class PresageHandler {
     );
     const exactExpansion = this.textExpansionsByShortcut.get(context.snippetToken);
     const exactSnippetText = resolved.find((_, index) => rawPredictions[index] === exactExpansion);
-    // A template can resolve to "" (an empty page title); never show an empty suggestion.
-    const predictions = resolved.filter(Boolean);
+    // A snippet or template can be blank (an empty page title); never show a blank suggestion.
+    const predictions = resolved.filter((text) => text.trim());
     const ranked =
       !this.personalizationEnabled || this.isTextExpansionRequest(context.predictionInput)
         ? predictions
         : this.rankPersonalized(predictions, context);
     const words = ranked.map((text): PredictionCandidate =>
-      exactSnippetText && text === exactSnippetText ? { text, exactSnippet: true } : { text },
+      text === exactSnippetText ? { text, exactSnippet: true } : { text },
     );
     const snippets = await this.predictSnippets(context, ranked, resolver);
     // Keep the top word prediction first so snippets never displace plain autocomplete.
