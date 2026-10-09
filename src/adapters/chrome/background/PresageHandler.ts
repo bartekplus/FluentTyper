@@ -389,7 +389,8 @@ export class PresageHandler {
     let predictions = candidates.map(({ text }) => text);
     // Sort prediction so that the most relevant ones are at the top
     // eg. if input is "the act", then "act" will be first and "action" will be second
-    if (candidates.length > 1 && snippetToken) {
+    // A typed snippet shortcut keeps its expansion first, not the same dictionary word (#489).
+    if (candidates.length > 1 && snippetToken && !this.textExpansionsByShortcut.has(snippetToken)) {
       const isExact = ({ text }: PredictionCandidate) => text.toLocaleLowerCase() === snippetToken;
       // Stable sort: exact match first, otherwise keep Presage order.
       candidates.sort((a, b) => Number(isExact(b)) - Number(isExact(a)));

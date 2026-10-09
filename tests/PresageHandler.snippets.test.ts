@@ -163,4 +163,16 @@ describe("PresageHandler snippet suggestions (#366)", () => {
     await expect(predict(handler, "ad ")).resolves.toEqual({ predictions: ["Best, Bart"] });
     await expect(predict(handler, "sig")).resolves.toEqual({ predictions: ["Best, Bart"] });
   });
+
+  // #489: the dictionary word "aa" must not go above the expansion of the "aa" shortcut.
+  test.each([
+    ["aa", ["A.A.", "aa", "aaron"]],
+    ["members aa", ["A.A.", "aa", "aaron"]],
+    ["members AA", ["A.A.", "AA", "AARON"]],
+  ])("keeps an exact shortcut expansion ahead of the same word (%p)", async (input, expected) => {
+    mod.PresageCallback.predictions = ["A.A.", "aa", "aaron"];
+    await expect(predict(createHandler([["aa", "A.A."]]), input)).resolves.toEqual({
+      predictions: expected,
+    });
+  });
 });
