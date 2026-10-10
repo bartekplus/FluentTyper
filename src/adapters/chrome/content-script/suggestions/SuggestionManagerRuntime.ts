@@ -842,11 +842,11 @@ export class SuggestionManagerRuntime {
           this.manualAttachUiManager.removeNotice(elem, true);
         }
       },
-      canInteract: (paused) =>
+      canInteract: (yielding) =>
         editorCapabilities(entry.elem, {
           preferNativeAutocomplete: this.options.preferNativeAutocomplete,
           fieldActivated: this.hasFieldActivation(entry.elem),
-          yielding: paused,
+          yielding,
         }).displaySuggestions,
       editableContextResolver: this.editableContextResolver,
       clearPendingFallback: () => this.clearPendingKeyFallback(entry.id),

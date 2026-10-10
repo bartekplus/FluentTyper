@@ -81,6 +81,8 @@ function shouldRunEnterWordBoundaryGrammar(event: KeyboardEvent, entryComposing:
 export class SuggestionEntrySession {
   private readonly entry: SuggestionEntry;
   private paused = false;
+  // Yields to a site list for the rest of this focus while the field stays expanded.
+  private yieldingToSiteList = false;
   private interactionGeneration = 0;
   private protectedBeforeCursor: string | null = null;
   private lastAcceptedSuggestion: string | null = null;
@@ -121,7 +123,8 @@ export class SuggestionEntrySession {
       this.clearSuggestions();
     }
     if (context !== "unknown") this.predictionContext = context;
-    const paused = !this.options.canInteract(this.paused);
+    const paused = !this.options.canInteract(this.yieldingToSiteList);
+    this.yieldingToSiteList = paused;
     if (paused !== this.paused) {
       this.interactionGeneration += 1;
       this.protectedBeforeCursor = !editorCapabilities(this.entry.elem).inspectProse
@@ -720,6 +723,7 @@ export class SuggestionEntrySession {
   }
 
   public handleBlur(controls: { dismissEntry: () => void }): void {
+    this.yieldingToSiteList = false;
     const dismiss = () => {
       this.clearAcceptedSuggestionTransientState();
       this.entry.isComposing = false;

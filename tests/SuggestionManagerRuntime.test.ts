@@ -65,6 +65,7 @@ type SessionInternals = {
   acceptSuggestion?: (suggestion: string) => boolean;
   allowsAutomaticEdit?: (edit: { deleteBackwards: number; replacement: string }) => boolean;
   handleFocus?: () => void;
+  refreshInteraction?: () => boolean;
   handlePaste?: () => void;
   handlePredictionResponse?: (context: {
     requestId: number;
@@ -911,6 +912,30 @@ describe("SuggestionManagerRuntime", () => {
     entry.suggestions = ["hello"];
     expect(session.acceptSuggestion?.("hello")).toBe(true);
     expect(field.value).toStartWith("hello");
+    runtime.detachAllHelpers();
+  });
+
+  test("a stale expanded field does not keep the pause into the next focus", () => {
+    const runtime = makeRuntime();
+    document.body.innerHTML =
+      '<input role="combobox" aria-expanded="true" aria-controls="choices"><div id="choices" role="listbox"><div role="option">Choice</div></div>';
+    const field = document.querySelector("input")!;
+    const popup = document.querySelector<HTMLElement>("#choices")!;
+    for (const node of [popup, popup.firstElementChild!])
+      node.getClientRects = () =>
+        [
+          { left: 10, top: 10, right: 110, bottom: 30, width: 100, height: 20 },
+        ] as unknown as DOMRectList;
+    runtime.queryAndAttachHelper();
+    field.focus();
+    const session = getAttachedSession(runtime, entryFor(runtime, field).id);
+    expect(session.refreshInteraction?.()).toBe(false);
+    // The site hides its list but leaves the field expanded.
+    popup.hidden = true;
+    expect(session.refreshInteraction?.()).toBe(false);
+    field.blur();
+    field.focus();
+    expect(session.refreshInteraction?.()).toBe(true);
     runtime.detachAllHelpers();
   });
 
