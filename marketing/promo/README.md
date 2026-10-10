@@ -14,7 +14,7 @@ Captures, HTML, audio, evidence and renders stay local and are ignored by Git.
 
 ## Make the film
 
-Needs Node 22+, Bun 1.4.2, FFmpeg and Chromium. From the repository root:
+Needs Node 22+, Bun 1.4.3, FFmpeg and Chromium. From the repository root:
 
 ```sh
 bun install --frozen-lockfile

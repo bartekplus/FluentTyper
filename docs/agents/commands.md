@@ -2,7 +2,7 @@
 
 [FluentTyper](../../README.md) / [Contributing](../../CONTRIBUTING.md) / Commands
 
-Run commands from the repository root with **Bun 1.4.2**. `bun.lock` defines reproducible dependencies.
+Run commands from the repository root with **Bun 1.4.3**. `bun.lock` defines reproducible dependencies.
 The project uses TypeScript 7, Oxlint, and Prettier.
 
 ## Common Commands
@@ -29,6 +29,11 @@ The output is `build/`. To try it, follow [step 6 of the setup](../../CONTRIBUTI
 | Run the full Chrome suite     | `bun run test:e2e:full`            |
 | Check development runtime     | `bun run test:e2e:dev`             |
 | Check coverage mapping        | `bun run check:e2e:coverage`       |
+
+`bun run typecheck` uses Bun's built-in type checker, which reports the same errors as `tsc` from TypeScript 7.
+It checks `src/` with `tsconfig.json` and the tests with `tests/tsconfig.json`.
+Because `package.json` has a `check` script, `bun check` runs that script (lint, format, and types), not the type checker alone. The type checker is `bun --check`.
+The `typescript` dev dependency is only for editors. Keep it at the version Bun's checker matches: `bun -p process.versions.typescript`.
 
 `FT_LOG_LEVEL=debug bun run build` sets the default log level (`debug`, `info`, `warn` or `error`). Development builds default to `debug` and production builds to `warn`.
 
