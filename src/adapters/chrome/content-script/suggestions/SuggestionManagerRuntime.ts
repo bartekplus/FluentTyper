@@ -410,9 +410,7 @@ export class SuggestionManagerRuntime {
     const source = fieldSignatureSource(element);
     this.manualAttachUiManager.showNotice(
       element,
-      source
-        ? "Writing assistance enabled for this visit."
-        : "Enabled for this visit. This field has no unique stable identifier to remember.",
+      "Writing assistance enabled for this visit.",
       source
         ? async () => {
             if (

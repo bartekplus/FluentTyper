@@ -1221,6 +1221,47 @@ describe("SuggestionManagerRuntime", () => {
       expect(input.style.paddingRight).not.toBe("");
     });
 
+    test("does not reserve padding when the padding would grow the field", () => {
+      const runtime = makeRuntime();
+      const input = document.createElement("input");
+      input.type = "text";
+      input.setAttribute("autocomplete", "email");
+      // A content-box field: its outer width grows with its padding.
+      input.getBoundingClientRect = () =>
+        new DOMRect(0, 0, 200 + (Number.parseFloat(input.style.paddingRight) || 0), 30);
+      document.body.appendChild(input);
+
+      runtime.queryAndAttachHelper();
+
+      expect(getManualAttachButton(input.parentElement ?? document)).not.toBeNull();
+      expect(input.style.paddingRight).toBe("");
+    });
+
+    test("measures the padding reserve without the field's padding transition", () => {
+      const runtime = makeRuntime();
+      const input = document.createElement("input");
+      input.type = "text";
+      input.setAttribute("autocomplete", "email");
+      input.style.transition = "all 200ms";
+      // While the transition runs, the first measurement still has the old padding.
+      input.getBoundingClientRect = () =>
+        new DOMRect(
+          0,
+          0,
+          200 +
+            (input.style.transition === "none"
+              ? Number.parseFloat(input.style.paddingRight) || 0
+              : 0),
+          30,
+        );
+      document.body.appendChild(input);
+
+      runtime.queryAndAttachHelper();
+
+      expect(input.style.paddingRight).toBe("");
+      expect(input.style.transition).toBe("all 200ms");
+    });
+
     test("shows a manual attach icon for semantic autocomplete conflicts", () => {
       const runtime = makeRuntime();
       const input = document.createElement("input");
@@ -1534,6 +1575,28 @@ describe("SuggestionManagerRuntime", () => {
       expect(input.style.paddingRight).toBe("");
     });
 
+    test("positions the manual attach icon inside a notched-outline fieldset", () => {
+      const runtime = makeRuntime();
+      // Agoda-like: the borderless input overflows the box that its fieldset paints.
+      document.body.innerHTML =
+        '<div><fieldset style="border:1px solid"><legend>Email</legend></fieldset><span><input type="email" autocomplete="email" style="border:0"></span></div>';
+      const wrapper = document.body.firstElementChild!;
+      const span = wrapper.querySelector("span")!;
+      const input = span.querySelector("input")!;
+      mockRect(wrapper, 0, 0, 436, 60);
+      mockRect(wrapper.querySelector("fieldset")!, 0, 0, 436, 60);
+      mockRect(wrapper.querySelector("legend")!, 13, 0, 38, 24);
+      mockRect(span, 0, 12, 420, 47);
+      mockRect(input, 0, 27, 452, 34);
+
+      runtime.queryAndAttachHelper();
+
+      const container = getManualAttachContainer(span);
+      // Inline end of the fieldset (436 - 24 - 6); centred below the legend notch (12 + 12).
+      expect(container?.style.left).toBe("406px");
+      expect(container?.style.top).toBe("12px");
+    });
+
     test("positions the manual attach icon on inline-end for rtl textareas", () => {
       const runtime = makeRuntime("textarea");
       const parent = document.createElement("div");
@@ -1587,6 +1650,38 @@ describe("SuggestionManagerRuntime", () => {
 
         jest.advanceTimersByTime(700);
         expect(getManualAttachButton(input.parentElement ?? document)).toBeNull();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    test("the activation notice fades out unless it offers to remember the field", () => {
+      jest.useFakeTimers();
+      try {
+        const runtime = makeRuntime(undefined, { rememberField: jest.fn(async () => undefined) });
+        document.body.innerHTML =
+          '<input autocomplete="email"><input id="contact_email" autocomplete="email">';
+        const [plain, named] = document.querySelectorAll("input");
+        const notice = () =>
+          [...document.querySelectorAll<HTMLElement>('[role="status"]')].find((node) =>
+            node.textContent?.includes("Writing assistance enabled for this visit."),
+          );
+        runtime.queryAndAttachHelper();
+
+        clickManualAttachButton(getManualAttachButton()!);
+        expect(plain.getAttribute("data-suggestion")).toBe("true");
+        expect(notice()?.textContent).not.toContain("Remember for this field");
+        jest.advanceTimersByTime(3000);
+        expect(notice()?.style.opacity).toBe("0");
+        jest.advanceTimersByTime(300);
+        expect(notice()).toBeUndefined();
+
+        // The first icon is gone after its success state, so this is the named field's icon.
+        clickManualAttachButton(getManualAttachButton()!);
+        expect(named.getAttribute("data-suggestion")).toBe("true");
+        jest.advanceTimersByTime(5000);
+        // A choice to remember the field stays until the user acts.
+        expect(notice()?.textContent).toContain("Remember for this field");
       } finally {
         jest.useRealTimers();
       }
