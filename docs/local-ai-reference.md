@@ -112,12 +112,12 @@ downloading → loading → ready ⇄ generating → unloading`, plus `unavailab
 ## Models
 
 Curated registry: `src/core/domain/localAi/modelRegistry.ts`, pinned to Transformers.js
-4.3.0. Two tiers, chosen from the evaluation: **Recommended = Gemma 4 E4B** (default;
+4.3.1. Two tiers, chosen from the evaluation: **Recommended = Gemma 4 E4B** (default;
 found the most errors, loaded as `Gemma4ForCausalLM` and used for text only,
 `enable_thinking: false` in its chat template) and **Compact = Qwen3 4B Instruct 2507**
 (smaller, fewest changes to correct text; no thinking switch). Both ONNX `q4f16`.
 Local AI runs only for review languages listed in the model record (`languages: ["en"]`).
-Transformers.js 4.3.0 has no JSON-schema constraint; the parser accepts the model's JSON
+Transformers.js 4.3.1 has no JSON-schema constraint; the parser accepts the model's JSON
 (also inside a fenced block) and rejects anything else.
 
 ## Pipeline (pure domain, `src/core/domain/grammar/review/ai/`)
@@ -185,7 +185,7 @@ download host receives, see [Your text stays on your device](local-ai-review.md#
 ## Known limitations
 
 1. **ONNX Runtime Web is a dev pre-release** (`1.31.0-dev.20260914`, pinned exactly by
-   Transformers.js 4.3.0). Use a stable ORT when a compatible Transformers.js release is
+   Transformers.js 4.3.1). Use a stable ORT when a compatible Transformers.js release is
    available.
 2. **Size and speed:** Recommended is a 4.9 GB download, and since the GPU is released after
    every Review, each Review waits ~8 s for the model before the first Local AI finding
