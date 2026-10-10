@@ -885,10 +885,15 @@ describe("SuggestionManagerRuntime", () => {
     );
     expect(callout().style.bottom).toBe("calc(100% + 9px)");
     expect(callout().style.top).toBe("");
+    // A list that only reloads (the field stays expanded) keeps the pause.
     popup.hidden = true;
+    type("hell");
+    expect(badge()).not.toBeNull();
+    field.setAttribute("aria-expanded", "false");
     type("hell");
     expect(badge()).toBeNull();
     popup.hidden = false;
+    field.setAttribute("aria-expanded", "true");
     type("hello");
     // The label already showed during this focus: only the icon comes back.
     expect(labelOpen()).toBe(false);

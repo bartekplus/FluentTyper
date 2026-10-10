@@ -4,7 +4,11 @@ import { ancestorContext, resolveCodeContext, type CodeContext } from "./CodeCon
 import { DOM_EDITOR_SELECTOR } from "./ReviewDomEditors";
 import { MODEL_TYPING_SELECTOR } from "./HostEditorBridgeProtocol";
 import { isCredentialField, isHiddenField, isSensitiveField } from "./FieldEligibility";
-import { classifyField, hasActiveAutocompletePopup } from "./NativeAutocompleteConflictDetector";
+import {
+  classifyField,
+  hasActiveAutocompletePopup,
+  isExpanded,
+} from "./NativeAutocompleteConflictDetector";
 import { NOTION_LEAF_SELECTOR, notionRootOf } from "./NotionEnvironment";
 
 /**
@@ -50,6 +54,8 @@ export function editorCapabilities(
   options: {
     preferNativeAutocomplete?: boolean;
     fieldActivated?: boolean;
+    /** The field already yields to its site list in this interaction. */
+    yielding?: boolean;
     review?: ReviewCapabilities;
   } = {},
 ): EditorCapabilities {
@@ -86,7 +92,9 @@ export function editorCapabilities(
     );
   const preferNative = options.preferNativeAutocomplete !== false;
   const manual = preferNative && eligibility.kind === "manual" && !options.fieldActivated;
-  const popup = hasActiveAutocompletePopup(element);
+  // A site that reloads its list (facebook.com search) unlinks it while it stays
+  // expanded: keep yielding, so FluentTyper does not flash on and off during typing.
+  const popup = hasActiveAutocompletePopup(element) || (!!options.yielding && isExpanded(element));
   // A field the user turned on keeps FluentTyper while the site shows its own list.
   const yieldToPopup = preferNative && popup && !options.fieldActivated;
   const conflict = popup

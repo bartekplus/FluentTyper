@@ -184,7 +184,7 @@ export interface SuggestionEntry {
 }
 
 export interface SuggestionEntrySessionOptions {
-  canInteract: () => boolean;
+  canInteract: (paused: boolean) => boolean;
   onPauseChange: (paused: boolean) => void;
   entry: SuggestionEntry;
   editableContextResolver: {

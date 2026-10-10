@@ -121,7 +121,7 @@ export class SuggestionEntrySession {
       this.clearSuggestions();
     }
     if (context !== "unknown") this.predictionContext = context;
-    const paused = !this.options.canInteract();
+    const paused = !this.options.canInteract(this.paused);
     if (paused !== this.paused) {
       this.interactionGeneration += 1;
       this.protectedBeforeCursor = !editorCapabilities(this.entry.elem).inspectProse

@@ -32,6 +32,23 @@ test("metadata does not suppress prose and diagnostics contain no field text", (
   expect(JSON.stringify(editorCapabilities(field))).not.toContain(field.value);
 });
 
+test("a field that yields keeps yielding while its site list reloads (facebook.com)", () => {
+  const field = input();
+  field.setAttribute("role", "combobox");
+  field.setAttribute("aria-expanded", "true");
+  // The site unlinked its list while new results load.
+  expect(editorCapabilities(field, { yielding: true })).toMatchObject({
+    displaySuggestions: false,
+    conflict: "native-popup",
+    reason: "native-popup",
+  });
+  expect(
+    editorCapabilities(field, { yielding: true, fieldActivated: true }).displaySuggestions,
+  ).toBe(true);
+  field.setAttribute("aria-expanded", "false");
+  expect(editorCapabilities(field, { yielding: true }).displaySuggestions).toBe(true);
+});
+
 test("contenteditable=false on a native text field does not block it", () => {
   // GitHub's comment textarea carries this attribute in Firefox.
   const field = document.createElement("textarea");
