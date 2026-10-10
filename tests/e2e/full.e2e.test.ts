@@ -118,6 +118,8 @@ const ONBOARDING_VIEWPORT = { width: 1280, height: 900 } as const;
 // A development-runtime run executes only the devRuntimeTest cases.
 // E2E_SHARD=i/n runs every n-th declared test (from the i-th) and skips the others,
 // so n processes with their own browsers run the suite in parallel.
+// Each case of a test.each table counts as one test, so no shard gets a whole table of slow
+// browser cases.
 const [E2E_SHARD_INDEX, E2E_SHARD_COUNT] = (process.env.E2E_SHARD ?? "1/1").split("/").map(Number);
 let declaredTests = 0;
 const declaredInShard = () => declaredTests++ % E2E_SHARD_COUNT === E2E_SHARD_INDEX - 1;
@@ -125,7 +127,10 @@ function sharded(run: typeof bunTest): typeof bunTest {
   const shardTest = ((...args: Parameters<typeof bunTest>) =>
     (declaredInShard() ? run : bunTest.skip)(...args)) as typeof bunTest;
   shardTest.each = ((cases: unknown[]) =>
-    (declaredInShard() ? run : bunTest.skip).each(cases)) as unknown as typeof bunTest.each;
+    (...args: Parameters<ReturnType<typeof bunTest.each>>) => {
+      for (const testCase of cases)
+        (declaredInShard() ? run : bunTest.skip).each([testCase])(...args);
+    }) as unknown as typeof bunTest.each;
   shardTest.skip = bunTest.skip;
   return shardTest;
 }

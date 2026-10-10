@@ -127,10 +127,13 @@ export function slowestChunkMs(
 
 /**
  * The slowest chunk time (ms) of each case. All cases are scanned once first, because
- * JavaScriptCore shows the slow path of a regex only when the regex is hot.
+ * JavaScriptCore shows the slow path of a regex only when the regex is hot. With the regex
+ * JIT off, every regex runs in the interpreter, so a check against a fixed limit can skip that
+ * first pass with `warm = false`. A check that compares two cases needs it: else the first
+ * case also pays the one-time JavaScriptCore compilation.
  */
-export function chunkTimes(cases: readonly TimingCase[]): number[] {
-  for (const [lang, text, rules] of cases) slowestChunkMs(text, lang, rules);
+export function chunkTimes(cases: readonly TimingCase[], warm = true): number[] {
+  if (warm) for (const [lang, text, rules] of cases) slowestChunkMs(text, lang, rules);
   return cases.map(([lang, text, rules]) => slowestChunkMs(text, lang, rules));
 }
 
@@ -140,9 +143,9 @@ export function chunkTimes(cases: readonly TimingCase[]): number[] {
  * lookbehind with an unbounded quantifier reads a long run of spaces again at each
  * position, so the time goes quadratic. Without the JIT, this cost is always visible.
  */
-export function chunkTimesWithoutJit(cases: readonly TimingCase[]): number[] {
+export function chunkTimesWithoutJit(cases: readonly TimingCase[], warm = true): number[] {
   const run = Bun.spawnSync([process.execPath, fileURLToPath(import.meta.url)], {
-    stdin: new TextEncoder().encode(JSON.stringify(cases)),
+    stdin: new TextEncoder().encode(JSON.stringify({ cases, warm })),
     env: { ...process.env, BUN_JSC_useRegExpJIT: "0" },
   });
   if (run.exitCode !== 0) throw new Error(run.stderr.toString());
@@ -153,5 +156,9 @@ if (import.meta.main) {
   setReviewClock(TEST_REVIEW_NOW);
   // This child process has no test preload.
   loadAllReviewData();
-  console.log(JSON.stringify(chunkTimes(JSON.parse(await Bun.stdin.text()))));
+  const { cases, warm } = JSON.parse(await Bun.stdin.text()) as {
+    cases: TimingCase[];
+    warm: boolean;
+  };
+  console.log(JSON.stringify(chunkTimes(cases, warm)));
 }

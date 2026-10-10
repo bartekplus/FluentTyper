@@ -175,7 +175,8 @@ test.each<[string, TimingCase[], number]>([
 ])(
   "%s frames stay linear with the regex JIT off",
   (_, cases, limit) => {
-    expect(Math.max(...chunkTimesWithoutJit(cases))).toBeLessThan(limit);
+    // A fixed limit needs no warm-up pass with the regex JIT off.
+    expect(Math.max(...chunkTimesWithoutJit(cases, false))).toBeLessThan(limit);
   },
   120_000,
 );
