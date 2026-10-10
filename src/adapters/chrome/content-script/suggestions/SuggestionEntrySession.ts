@@ -124,7 +124,11 @@ export class SuggestionEntrySession {
     }
     if (context !== "unknown") this.predictionContext = context;
     const paused = !this.options.canInteract(this.yieldingToSiteList);
-    this.yieldingToSiteList = paused;
+    // Only a pause for a site list starts the grace, never another pause reason.
+    this.yieldingToSiteList =
+      paused &&
+      editorCapabilities(this.entry.elem, { yielding: this.yieldingToSiteList }).conflict ===
+        "native-popup";
     if (paused !== this.paused) {
       this.interactionGeneration += 1;
       this.protectedBeforeCursor = !editorCapabilities(this.entry.elem).inspectProse

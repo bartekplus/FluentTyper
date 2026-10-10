@@ -51,6 +51,7 @@ function makeSession({
   },
   clearPendingFallback = () => undefined,
   isFocused = true,
+  canInteract = () => true,
   showSuggestionFooter = true,
   inlineSuggestionEnabled = false,
   hideMenu = jest.fn(),
@@ -91,6 +92,7 @@ function makeSession({
   };
   clearPendingFallback?: () => void;
   isFocused?: boolean;
+  canInteract?: (yielding: boolean) => boolean;
   showSuggestionFooter?: boolean;
   inlineSuggestionEnabled?: boolean;
   hideMenu?: () => void;
@@ -128,7 +130,7 @@ function makeSession({
   insertSpaceAfterAutocomplete?: boolean;
 } = {}): SuggestionEntrySession {
   return new SuggestionEntrySession({
-    canInteract: () => true,
+    canInteract,
     onPauseChange: () => undefined,
     entry,
     editableContextResolver,
@@ -1853,4 +1855,21 @@ test("a response for a caret place that the page moved away from is not shown", 
   session.handlePredictionResponse(response(3, "We sa", " "));
   expect(entry.suggestions).toEqual(["We"]);
   expect(renderMenu).toHaveBeenCalledTimes(1);
+});
+
+test("only a pause for a site list starts the site list grace", () => {
+  const input = document.createElement("input");
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-expanded", "true");
+  document.body.append(input);
+  const canInteract = jest.fn((_yielding: boolean) => false);
+  const session = makeSession({
+    entry: createSuggestionEntry({ elem: input as SuggestionEntry["elem"] }),
+    canInteract,
+  });
+  // A pause for another reason, with a stale expanded field and no site list.
+  session.refreshInteraction();
+  session.refreshInteraction();
+  expect(canInteract.mock.calls).toEqual([[false], [false]]);
+  input.remove();
 });
