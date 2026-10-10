@@ -8,7 +8,7 @@ installs a model.
 
 | Component                                                                   | Version                                  | License    | Notes                                                                                     |
 | --------------------------------------------------------------------------- | ---------------------------------------- | ---------- | ----------------------------------------------------------------------------------------- |
-| [@huggingface/transformers](https://github.com/huggingface/transformers.js) | 4.3.0                                    | Apache-2.0 | Transformers.js; Copyright Hugging Face                                                   |
+| [@huggingface/transformers](https://github.com/huggingface/transformers.js) | 4.3.1                                    | Apache-2.0 | Transformers.js; Copyright Hugging Face                                                   |
 | [@huggingface/tokenizers](https://github.com/huggingface/tokenizers.js)     | 0.2.0                                    | Apache-2.0 | Copyright Hugging Face                                                                    |
 | [@huggingface/jinja](https://github.com/huggingface/huggingface.js)         | 0.5.10                                   | MIT        | Copyright (c) 2023 Hugging Face; chat templates are interpreted, not evaluated as code    |
 | [onnxruntime-web](https://github.com/microsoft/onnxruntime)                 | 1.31.0-dev.20260914-8d85527a0            | MIT        | Copyright (c) Microsoft Corporation; JavaScript in `background.js`, WebAssembly in `ort/` |
