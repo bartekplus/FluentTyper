@@ -724,6 +724,7 @@ export class ManualAttachUiManager {
           box.top > middle ||
           box.bottom < middle ||
           box.right <= rect.left ||
+          box.left >= rect.right ||
           !painted(candidate)
         )
           continue;
