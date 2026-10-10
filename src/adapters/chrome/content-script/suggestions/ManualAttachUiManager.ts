@@ -32,6 +32,8 @@ const INLINE_OBSTACLE_SELECTOR = [
 ].join(", ");
 
 const PAUSED_LABEL_MS = 2200;
+const NOTICE_MS = 3000;
+const NOTICE_FADE_MS = 300;
 const MANUAL_ATTACH_BUTTON_CLASS = "ft-manual-attach-button";
 const PAUSED_BADGE_CLASS = "ft-paused-badge";
 const MANUAL_ATTACH_TOOLTIP = "Click to enable FluentTyper for this field.";
@@ -459,6 +461,30 @@ export class ManualAttachUiManager {
     }
     element.ownerDocument.documentElement.append(node);
     this.notices.set(element, { node, passive: false });
+    // Without a choice to make, the notice is only a confirmation: fade it out.
+    if (!remember) this.fadeOutNotice(element, node);
+  }
+
+  private fadeOutNotice(element: ManualAttachTarget, node: HTMLElement): void {
+    const view = element.ownerDocument.defaultView;
+    const fade = () => {
+      if (this.notices.get(element)?.node !== node) return;
+      if (node.matches(":hover, :focus-within")) {
+        node.addEventListener("mouseleave", fade, { once: true });
+        node.addEventListener("focusout", fade, { once: true });
+        return;
+      }
+      const reducedMotion = view?.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      node.style.transition = reducedMotion ? "none" : `opacity ${NOTICE_FADE_MS}ms ease`;
+      node.style.opacity = "0";
+      setTimeout(
+        () => {
+          if (this.notices.get(element)?.node === node) this.removeNotice(element);
+        },
+        reducedMotion ? 0 : NOTICE_FADE_MS,
+      );
+    };
+    setTimeout(fade, NOTICE_MS);
   }
 
   public removeNotice(element: ManualAttachTarget, passiveOnly = false): void {
@@ -671,8 +697,56 @@ export class ManualAttachUiManager {
     });
   }
 
+  /**
+   * The box the page paints for an input: its own border, or a near wrapper's or a
+   * notched-outline fieldset's border (Agoda, MUI). The input itself can overflow that box.
+   */
+  private resolvePaintedBox(element: ManualAttachTarget): DOMRect {
+    const rect = element.getBoundingClientRect();
+    const view = element.ownerDocument.defaultView;
+    if (!view || element.isContentEditable) return rect;
+    const middle = rect.top + rect.height / 2;
+    const painted = (candidate: Element) => {
+      const style = view.getComputedStyle(candidate);
+      return (["Top", "Right", "Bottom", "Left"] as const).some(
+        (side) =>
+          Number.parseFloat(style[`border${side}Width`]) > 0 &&
+          style[`border${side}Style`] !== "none",
+      );
+    };
+    let node: Element | null = element;
+    for (let depth = 0; node && depth < 5; depth += 1, node = node.parentElement) {
+      if (node.getBoundingClientRect().height > rect.height + 40) break;
+      const outlines = depth === 0 ? [] : node.querySelectorAll(":scope > fieldset");
+      for (const candidate of [node, ...outlines]) {
+        const box = candidate.getBoundingClientRect();
+        if (
+          box.top > middle ||
+          box.bottom < middle ||
+          box.right <= rect.left ||
+          !painted(candidate)
+        )
+          continue;
+        const legend =
+          candidate.tagName === "FIELDSET" ? candidate.querySelector(":scope > legend") : null;
+        const notch = legend ? legend.getBoundingClientRect().height / 2 : 0;
+        // Clamp sideways only, so trailing icons in a wider wrapper keep their space.
+        const left = Math.max(rect.left, box.left);
+        return new DOMRect(
+          left,
+          box.top + notch,
+          Math.min(rect.right, box.right) - left,
+          box.height - notch,
+        );
+      }
+    }
+    return rect;
+  }
+
   private updatePlacement(element: ManualAttachTarget, handle: ManualAttachUiHandle): void {
-    const elementRect = element.getBoundingClientRect();
+    const elementRect = this.isMultilineTarget(element)
+      ? element.getBoundingClientRect()
+      : this.resolvePaintedBox(element);
     const isTextarea = element.tagName.toLowerCase() === "textarea";
     const isContentEditableTarget = !isTextarea && element.isContentEditable;
     if (this.isMultilineTarget(element)) {
@@ -852,7 +926,14 @@ export class ManualAttachUiManager {
           : computedStyle?.paddingRight) || "",
       ) || 0;
     const nextPadding = Math.ceil(computedPadding + PADDING_RESERVE_PX);
+    const original = this.getInlineEndPaddingStyleValue(element);
+    const width = element.getBoundingClientRect().width;
     this.setInlineEndPaddingStyleValue(element, `${nextPadding}px`);
+    // A content-box or auto-width field grows with padding and moves the page (Agoda's
+    // auto-sized sign-in iframe resizes), so the button overlays the field end instead.
+    if (Math.abs(element.getBoundingClientRect().width - width) > 0.5) {
+      this.setInlineEndPaddingStyleValue(element, original);
+    }
   }
 
   private restorePadding(element: ManualAttachTarget, handle: ManualAttachUiHandle): void {
