@@ -109,7 +109,7 @@ async function renderOptions(): Promise<{ registry: SettingsRegistry; card: HTML
   renderGrammarWorkspacePanel(registry.grammarWorkspacePanel.element, registry);
   wireRuntimeSettingsHandlers(registry);
   await flush();
-  return { registry, card: document.getElementById("local-ai")! };
+  return { registry, card: document.querySelector<HTMLElement>(".local-ai-card")! };
 }
 
 function visibleButton(card: HTMLElement, label: string): HTMLButtonElement | undefined {
@@ -335,5 +335,8 @@ describe("Local AI settings section", () => {
 
     expect(card.closest(".content-tab")?.classList.contains("is-active")).toBe(true);
     expect(document.activeElement).toBe(card.querySelector("h4"));
+    // Chrome applies the fragment again before load and clears focus if the target cannot take it.
+    expect(location.hash).toBe("#local-ai");
+    expect(document.getElementById("local-ai")).toBe(card.querySelector("h4"));
   });
 });

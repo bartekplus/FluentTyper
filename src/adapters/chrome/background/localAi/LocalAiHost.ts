@@ -785,7 +785,8 @@ export class LocalAiHost {
     if (!this.config) {
       return "unconfigured";
     }
-    if (this.activity === "checking") {
+    // A queued refresh counts too: a status read right after refresh() must not offer Install yet.
+    if (this.activity === "checking" || this.refreshing > 0) {
       return "checking-support";
     }
     if (this.install === "complete") {

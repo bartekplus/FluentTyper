@@ -68,7 +68,7 @@ try {
   );
   const options = await openExtensionPage(browser, worker, "options/options.html#local-ai");
   await options.waitForFunction(
-    () => !!document.querySelector<HTMLElement>("#local-ai")?.offsetParent,
+    () => !!document.querySelector<HTMLElement>(".local-ai-card")?.offsetParent,
   );
   const gpu = await options.evaluate(async () => {
     const adapter = await (
@@ -81,7 +81,7 @@ try {
   if (!gpu)
     throw new Error(`No WebGPU adapter with shader-f16 (${gpu}); retry with PROMO_AI_HEADED=1`);
   const status = () =>
-    options.$eval("#local-ai .local-ai-status", (element) => element.textContent ?? "");
+    options.$eval(".local-ai-card .local-ai-status", (element) => element.textContent ?? "");
   const settled = await waitUntil(
     "Local AI status",
     async () => {
@@ -94,7 +94,7 @@ try {
   if (!/available offline/.test(settled)) {
     console.log("Installing the Recommended model from the options page…");
     // The styled radio is not clickable by pointer; Standard is the default choice.
-    await options.$eval('#local-ai input[name="local-ai-tier"][value="standard"]', (input) => {
+    await options.$eval('.local-ai-card input[name="local-ai-tier"][value="standard"]', (input) => {
       if (!(input as HTMLInputElement).checked) (input as HTMLInputElement).click();
     });
     // The options tab layout can leave no clickable box in headless mode: click in the page.
@@ -103,13 +103,13 @@ try {
       console.log("click:", await button!.evaluate((el) => el.textContent?.trim()));
       await button!.evaluate((el) => (el as HTMLElement).click());
     };
-    await click("#local-ai > * > .text-assets-actions > .is-link");
-    await click("#local-ai .local-ai-confirm .is-link");
+    await click(".local-ai-card > * > .text-assets-actions > .is-link");
+    await click(".local-ai-card .local-ai-confirm .is-link");
     let last = "";
     await waitUntil(
       "model available offline",
       async () => {
-        const now = `${await status()} | ${await options.$eval("#local-ai", (el) => el.querySelector("progress, .local-ai-progress")?.outerHTML.slice(0, 160) ?? "")}`;
+        const now = `${await status()} | ${await options.$eval(".local-ai-card", (el) => el.querySelector("progress, .local-ai-progress")?.outerHTML.slice(0, 160) ?? "")}`;
         if (now !== last) console.log("install:", (last = now));
         if (/failed|could not|error|incomplete|no longer/i.test(now)) throw new Error(now);
         return /available offline/.test(now);

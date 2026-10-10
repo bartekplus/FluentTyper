@@ -147,10 +147,10 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
   }
 
   const { card, body } = createWorkspaceCard(t("local_ai_title"));
-  card.id = LOCAL_AI_SECTION_ID;
   card.classList.add("local-ai-card");
   const heading = card.querySelector("h4")!;
-  heading.id = `${LOCAL_AI_SECTION_ID}-title`;
+  // The deep-link fragment targets the focusable heading (see revealIfRequested).
+  heading.id = LOCAL_AI_SECTION_ID;
   heading.tabIndex = -1;
   card.setAttribute("aria-labelledby", heading.id);
 
@@ -362,6 +362,9 @@ export function mountLocalAiSettings(anchor: HTMLElement, registry: SettingsRegi
     const tabId = card.closest(".content-tab")?.id;
     if (tabId) {
       document.querySelector<HTMLElement>(`a[href="#${tabId}"]`)?.click();
+      // The tab click rewrote the fragment. Chrome applies the fragment again before load, so
+      // keep it on the heading: a target that cannot take focus makes Chrome clear the focus.
+      history.replaceState(null, "", `#${LOCAL_AI_SECTION_ID}`);
     }
     card.scrollIntoView?.({ block: "start" });
     heading.focus();

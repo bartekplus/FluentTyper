@@ -264,7 +264,11 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
         target.url().endsWith("options/options.html#local-ai"),
       );
       await clickReviewControl(page, "[data-action=ai-setup]");
-      const optionsPage = (await (await optionsTarget).asPage())!;
+      const setupTarget = await optionsTarget;
+      await (await setupTarget.asPage())?.close();
+      // Open the deep link again in a new tab, instrumented before its first script.
+      // A reload is not the same: it restores the scroll and skips the fragment focus.
+      const optionsPage = await browser.newPage();
       try {
         // Record the Local AI commands the page sends from its very first script.
         await optionsPage.evaluateOnNewDocument(() => {
@@ -280,16 +284,13 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
             return original(...args);
           };
         });
-        // Revealing the card selects its parent tab and can rewrite the fragment
-        // before instrumentation is installed. Reload the original setup deep link.
-        await optionsPage.evaluate(() => history.replaceState(null, "", "#local-ai"));
-        await optionsPage.reload({ waitUntil: "domcontentloaded" });
+        await optionsPage.goto(setupTarget.url(), { waitUntil: "domcontentloaded" });
         // The status probe uses IntersectionObserver and waits for a visible tab.
         await optionsPage.bringToFront();
         await optionsPage.waitForFunction(
           () =>
-            document.activeElement?.id === "local-ai-title" &&
-            !!document.querySelector<HTMLElement>("#local-ai")?.offsetParent,
+            document.activeElement?.id === "local-ai" &&
+            !!document.querySelector<HTMLElement>(".local-ai-card")?.offsetParent,
           { timeout: 10000 },
         );
         const sentCommands = () =>
@@ -299,7 +300,7 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
         await waitUntil("status request", async () => (await sentCommands()).length > 0);
 
         // A machine without a usable WebGPU adapter (CI) is told so, with nothing to install.
-        const install = "#local-ai > * > .text-assets-actions > .is-link:not([hidden])";
+        const install = ".local-ai-card > * > .text-assets-actions > .is-link:not([hidden])";
         const shown = await optionsPage.waitForFunction(
           (selector) =>
             document.querySelector(selector)
@@ -313,7 +314,7 @@ describeE2E(`Local AI Review E2E [${BROWSER_TYPE}]`, () => {
         if ((await shown.jsonValue()) === "install") {
           // Install asks first; nothing is sent until the confirm button is pressed.
           await (await optionsPage.$(install))!.click();
-          await optionsPage.waitForSelector("#local-ai .local-ai-confirm:not([hidden])");
+          await optionsPage.waitForSelector(".local-ai-card .local-ai-confirm:not([hidden])");
         }
         expect(new Set(await sentCommands())).toEqual(new Set([CMD_LOCAL_AI_GET_STATUS]));
         expect(await getSetting(worker, KEY_LOCAL_AI_REVIEW_CONSENT)).toBeUndefined();
