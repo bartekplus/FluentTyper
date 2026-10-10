@@ -30,7 +30,8 @@ jobs:
         run: bun run lint
       - name: Prettier
         run: bun run format:check
-      - name: TypeScript
+      # Bun's type checker; each error shows as an annotation on the pull request diff.
+      - name: TypeScript (bun check)
         run: bun run typecheck
 
   unit:

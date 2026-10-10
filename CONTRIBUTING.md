@@ -21,7 +21,7 @@ Keep changes focused. Preserve unrelated work in your checkout.
 
 ## Run the extension locally
 
-Use **Bun 1.4.2**, as pinned in `package.json`. `bun.lock` is the canonical lockfile.
+Use **Bun 1.4.3**, as pinned in `package.json`. `bun.lock` is the canonical lockfile.
 Run commands from the repository root.
 
 1. Fork the repository.

@@ -3,7 +3,7 @@
 [FluentTyper](../../README.md) / [Contributing](../../CONTRIBUTING.md) / Testing
 
 Every pull request needs the baseline below. Add the relevant browser and runtime suites when behavior changes.
-Use [Bun 1.4.2 and the project setup](../../CONTRIBUTING.md#run-the-extension-locally) before running these commands.
+Use [Bun 1.4.3 and the project setup](../../CONTRIBUTING.md#run-the-extension-locally) before running these commands.
 
 ## Baseline Before a PR
 
