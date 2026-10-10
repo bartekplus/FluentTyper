@@ -1,3 +1,4 @@
+import type { EditorCapabilities } from "./EditorCapabilities";
 import type {
   ContentScriptPredictRequestContext,
   PredictResponseContext,
@@ -184,7 +185,7 @@ export interface SuggestionEntry {
 }
 
 export interface SuggestionEntrySessionOptions {
-  canInteract: (yielding: boolean) => boolean;
+  canInteract: (yielding: boolean) => Pick<EditorCapabilities, "displaySuggestions" | "reason">;
   onPauseChange: (paused: boolean) => void;
   entry: SuggestionEntry;
   editableContextResolver: {

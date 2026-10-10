@@ -847,7 +847,7 @@ export class SuggestionManagerRuntime {
           preferNativeAutocomplete: this.options.preferNativeAutocomplete,
           fieldActivated: this.hasFieldActivation(entry.elem),
           yielding,
-        }).displaySuggestions,
+        }),
       editableContextResolver: this.editableContextResolver,
       clearPendingFallback: () => this.clearPendingKeyFallback(entry.id),
       hideMenu: () => this.menuPresenter.hide(entry.menu, entry.list, entry.elem),
