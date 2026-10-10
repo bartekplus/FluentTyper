@@ -5,6 +5,7 @@ import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/su
 import { InlineSuggestionPresenter } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionPresenter";
 import { InlineSuggestionView } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionView";
 import { SuggestionEntrySession } from "../src/adapters/chrome/content-script/suggestions/SuggestionEntrySession";
+import type { CapabilityReason } from "../src/adapters/chrome/content-script/suggestions/EditorCapabilities";
 import type { SuggestionGrammarCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
 import { SuggestionPredictionCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionPredictionCoordinator";
 import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
@@ -51,6 +52,7 @@ function makeSession({
   },
   clearPendingFallback = () => undefined,
   isFocused = true,
+  canInteract = () => ({ displaySuggestions: true, reason: "available" as const }),
   showSuggestionFooter = true,
   inlineSuggestionEnabled = false,
   hideMenu = jest.fn(),
@@ -91,6 +93,10 @@ function makeSession({
   };
   clearPendingFallback?: () => void;
   isFocused?: boolean;
+  canInteract?: (yielding: boolean) => {
+    displaySuggestions: boolean;
+    reason: CapabilityReason;
+  };
   showSuggestionFooter?: boolean;
   inlineSuggestionEnabled?: boolean;
   hideMenu?: () => void;
@@ -128,7 +134,7 @@ function makeSession({
   insertSpaceAfterAutocomplete?: boolean;
 } = {}): SuggestionEntrySession {
   return new SuggestionEntrySession({
-    canInteract: () => true,
+    canInteract,
     onPauseChange: () => undefined,
     entry,
     editableContextResolver,
@@ -1853,4 +1859,24 @@ test("a response for a caret place that the page moved away from is not shown", 
   session.handlePredictionResponse(response(3, "We sa", " "));
   expect(entry.suggestions).toEqual(["We"]);
   expect(renderMenu).toHaveBeenCalledTimes(1);
+});
+
+test("only a pause for a site list starts the site list grace", () => {
+  const input = document.createElement("input");
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-expanded", "true");
+  document.body.append(input);
+  // A visible site list while the caret is in code: the pause comes from the code context.
+  const canInteract = jest.fn((_yielding: boolean) => ({
+    displaySuggestions: false,
+    reason: "code" as const,
+  }));
+  const session = makeSession({
+    entry: createSuggestionEntry({ elem: input as SuggestionEntry["elem"] }),
+    canInteract,
+  });
+  session.refreshInteraction();
+  session.refreshInteraction();
+  expect(canInteract.mock.calls).toEqual([[false], [false]]);
+  input.remove();
 });

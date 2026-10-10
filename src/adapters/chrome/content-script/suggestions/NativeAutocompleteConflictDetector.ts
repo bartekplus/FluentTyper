@@ -151,7 +151,7 @@ function hasRenderedContent(popup: Element): boolean {
 }
 
 /** The field, or for the ARIA 1.1 pattern its wrapper combobox, reports an open popup. */
-function isExpanded(element: HTMLElement): boolean {
+export function isExpanded(element: HTMLElement): boolean {
   const owner = element.hasAttribute("aria-expanded")
     ? element
     : element.closest('[role="combobox"]');
