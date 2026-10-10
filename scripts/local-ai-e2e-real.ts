@@ -196,13 +196,13 @@ async function launch(offline: boolean): Promise<{ browser: Browser; worker: Bac
 async function openOptions(browser: Browser, worker: BackgroundContext): Promise<Page> {
   const page = await openExtensionPage(browser, worker, "options/options.html#local-ai");
   await page.waitForFunction(
-    () => !!document.querySelector<HTMLElement>("#local-ai")?.offsetParent,
+    () => !!document.querySelector<HTMLElement>(".local-ai-card")?.offsetParent,
   );
   return page;
 }
 
 const optionsStatus = (page: Page) =>
-  page.$eval("#local-ai .local-ai-status", (element) => element.textContent ?? "");
+  page.$eval(".local-ai-card .local-ai-status", (element) => element.textContent ?? "");
 
 async function clickOptionsButton(page: Page, selector: string): Promise<void> {
   const button = await page.waitForSelector(`${selector}:not([hidden]):not([disabled])`);
@@ -425,14 +425,14 @@ async function run(): Promise<void> {
       const page = await openOptions(browser, worker);
       await page.waitForFunction(() =>
         /Not set up yet/.test(
-          document.querySelector("#local-ai .local-ai-status")?.textContent ?? "",
+          document.querySelector(".local-ai-card .local-ai-status")?.textContent ?? "",
         ),
       );
-      await page.click(`#local-ai input[name="local-ai-tier"][value="${TIER}"]`);
-      await clickOptionsButton(page, "#local-ai > * > .text-assets-actions > .is-link");
+      await page.click(`.local-ai-card input[name="local-ai-tier"][value="${TIER}"]`);
+      await clickOptionsButton(page, ".local-ai-card > * > .text-assets-actions > .is-link");
       let lastStatus = "";
       const startedAt = performance.now();
-      await clickOptionsButton(page, "#local-ai .local-ai-confirm .is-link");
+      await clickOptionsButton(page, ".local-ai-card .local-ai-confirm .is-link");
       await waitUntil(
         "available offline",
         async () => {
@@ -712,8 +712,8 @@ async function run(): Promise<void> {
 
     await step("(vii) delete from options: cache empty, consent kept, no download", async () => {
       const options = await openOptions(browser, worker);
-      await clickOptionsButton(options, "#local-ai .is-danger");
-      await clickOptionsButton(options, "#local-ai .local-ai-confirm .is-link");
+      await clickOptionsButton(options, ".local-ai-card .is-danger");
+      await clickOptionsButton(options, ".local-ai-card .local-ai-confirm .is-link");
       const status = await waitUntil(
         "model deleted",
         async () => {
