@@ -127,10 +127,11 @@ export function slowestChunkMs(
 
 /**
  * The slowest chunk time (ms) of each case. All cases are scanned once first, because
- * JavaScriptCore shows the slow path of a regex only when the regex is hot.
+ * JavaScriptCore shows the slow path of a regex only when the regex is hot. With the regex
+ * JIT off, every regex runs in the interpreter, so `warm = false` skips that first pass.
  */
-export function chunkTimes(cases: readonly TimingCase[]): number[] {
-  for (const [lang, text, rules] of cases) slowestChunkMs(text, lang, rules);
+export function chunkTimes(cases: readonly TimingCase[], warm = true): number[] {
+  if (warm) for (const [lang, text, rules] of cases) slowestChunkMs(text, lang, rules);
   return cases.map(([lang, text, rules]) => slowestChunkMs(text, lang, rules));
 }
 
@@ -153,5 +154,5 @@ if (import.meta.main) {
   setReviewClock(TEST_REVIEW_NOW);
   // This child process has no test preload.
   loadAllReviewData();
-  console.log(JSON.stringify(chunkTimes(JSON.parse(await Bun.stdin.text()))));
+  console.log(JSON.stringify(chunkTimes(JSON.parse(await Bun.stdin.text()), false)));
 }
