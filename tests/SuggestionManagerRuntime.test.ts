@@ -1237,6 +1237,31 @@ describe("SuggestionManagerRuntime", () => {
       expect(input.style.paddingRight).toBe("");
     });
 
+    test("measures the padding reserve without the field's padding transition", () => {
+      const runtime = makeRuntime();
+      const input = document.createElement("input");
+      input.type = "text";
+      input.setAttribute("autocomplete", "email");
+      input.style.transition = "all 200ms";
+      // While the transition runs, the first measurement still has the old padding.
+      input.getBoundingClientRect = () =>
+        new DOMRect(
+          0,
+          0,
+          200 +
+            (input.style.transition === "none"
+              ? Number.parseFloat(input.style.paddingRight) || 0
+              : 0),
+          30,
+        );
+      document.body.appendChild(input);
+
+      runtime.queryAndAttachHelper();
+
+      expect(input.style.paddingRight).toBe("");
+      expect(input.style.transition).toBe("all 200ms");
+    });
+
     test("shows a manual attach icon for semantic autocomplete conflicts", () => {
       const runtime = makeRuntime();
       const input = document.createElement("input");

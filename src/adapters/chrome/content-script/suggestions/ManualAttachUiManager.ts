@@ -927,6 +927,9 @@ export class ManualAttachUiManager {
       ) || 0;
     const nextPadding = Math.ceil(computedPadding + PADDING_RESERVE_PX);
     const original = this.getInlineEndPaddingStyleValue(element);
+    const transition = element.style.transition;
+    // Measure the final padding, not the first frame of a page transition on it.
+    element.style.transition = "none";
     const width = element.getBoundingClientRect().width;
     this.setInlineEndPaddingStyleValue(element, `${nextPadding}px`);
     // A content-box or auto-width field grows with padding and moves the page (Agoda's
@@ -934,6 +937,7 @@ export class ManualAttachUiManager {
     if (Math.abs(element.getBoundingClientRect().width - width) > 0.5) {
       this.setInlineEndPaddingStyleValue(element, original);
     }
+    element.style.transition = transition;
   }
 
   private restorePadding(element: ManualAttachTarget, handle: ManualAttachUiHandle): void {
