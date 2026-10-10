@@ -320,6 +320,20 @@ describe("LocalAiController status", () => {
     expect(engineCalls).toEqual([]);
   });
 
+  test("the options page probe answers checking until the support check ends", async () => {
+    const { send } = setup();
+    // An earlier "unconfigured" answer showed Install before the check found no WebGPU.
+    const reply = await send(
+      { command: CMD_LOCAL_AI_GET_STATUS, context: { probe: true } },
+      optionsPage,
+    );
+    expect(reply).toMatchObject({ ok: true, status: { runtime: "checking-support" } });
+    await flush();
+    expect(await send({ command: CMD_LOCAL_AI_GET_STATUS })).toMatchObject({
+      status: { runtime: "unconfigured" },
+    });
+  });
+
   test("offer setup only when enabled, not consented, not dismissed and supported", async () => {
     const fresh = setup();
     expect((await fresh.controller.getStatus()).offerSetup).toBe(true);
