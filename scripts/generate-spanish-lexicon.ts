@@ -6,11 +6,12 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
+  accentLast,
   NOUN_ENDING,
   SPANISH_BLOOM_HASHES,
 } from "../src/core/domain/grammar/review/spanish/lexicon";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
-import { bloom, parseAffixRules, readNgrams } from "./lexiconTools";
+import { bloom, bloomFalsePositives, parseAffixRules, readNgrams } from "./lexiconTools";
 
 const root = resolve(import.meta.dir, "..");
 export const SPANISH_LEXICON_SOURCES = {
@@ -28,6 +29,7 @@ const VERB_FLAGS = /[REIX]/;
 const UNSAFE_PREFIXES = new Set(["a", "m"]);
 // 16 bits per key and 11 hashes keep the filter's false positives near 0.05%.
 const BLOOM_BITS_PER_KEY = 16;
+const FREQUENT_PROBES = 30_000;
 
 const ACCENTS: Record<string, string> = { á: "a", é: "e", í: "i", ó: "o", ú: "u" };
 const plain = (word: string) => word.replace(/[áéíóú]/g, (c) => ACCENTS[c]);
@@ -284,12 +286,19 @@ function denominalPlurals(
 const f = (counts: Counts, word: string) => counts.words.get(word) ?? 0;
 
 /**
- * "amigar" spells "amigo", "fechar" spells "fecha": the model never saw the verb in a form
- * that is not also a noun or an adjective, while it saw one of those twins often.
+ * "amigar" spells "amigo", "fechar" spells "fecha": the model saw the verb's own forms (those
+ * that are not also a noun or an adjective) at most 1% as often as its most common twin.
  */
-const nounOnly = (counts: Counts, forms: string[], nominal: Set<string>) =>
-  forms.every((form) => nominal.has(form) || f(counts, form) === 0) &&
-  forms.some((form) => f(counts, form) >= MIN_COUNT);
+const RARE_VERB_SHARE = 0.01;
+const nounOnly = (counts: Counts, forms: string[], nominal: Set<string>) => {
+  let own = 0;
+  let twin = 0;
+  for (const form of forms) {
+    if (nominal.has(form)) twin = Math.max(twin, f(counts, form));
+    else own += f(counts, form);
+  }
+  return twin >= MIN_COUNT && own <= RARE_VERB_SHARE * twin;
+};
 
 /** "amigo" -> "amigos", "alemán" -> "alemanes", "feliz" -> "felices". */
 const pluralOf = (word: string) =>
@@ -332,8 +341,8 @@ const CUES = new Set([...NOMINAL_CUE, ...VERBAL_CUE, ...DETERMINER_CUE, ...DEGRE
 
 /**
  * Gender pairs that are nouns ("señor", "niño", "profesor"): their masculine forms follow a
- * determiner in at least 40% of their uses and never a degree word or a copula ("muy bueno",
- * "está lleno").
+ * determiner in at least 40% of their uses and almost never a degree word or a copula ("muy
+ * bueno", "está lleno"; "es profesor" names a job).
  */
 function genderedNouns(counts: Counts, keys: Set<string>): string[] {
   return [...keys]
@@ -345,7 +354,7 @@ function genderedNouns(counts: Counts, keys: Set<string>): string[] {
       const total = forms.reduce((sum, form) => sum + f(counts, form), 0);
       const det = forms.reduce((sum, form) => sum + (counts.determiner.get(form) ?? 0), 0);
       const degree = forms.reduce((sum, form) => sum + (counts.degree.get(form) ?? 0), 0);
-      return total >= MIN_COUNT && det >= 0.4 * total && degree < 0.01 * total;
+      return total >= MIN_COUNT && det >= 0.4 * total && degree < 0.02 * total;
     });
 }
 
@@ -378,14 +387,16 @@ function bareTwins(counts: Counts, keys: Set<string>, verbs: Set<string>): strin
     .filter((word) => {
       const feminine = word.endsWith("a");
       const other = `${word.slice(0, -1)}${feminine ? "o" : "a"}`;
-      // "la rica comida": an adjective before its noun follows the article too. Its masculine
-      // shows the degree word ("muy rico"), and the feminine is not much more common.
+      // "la rica comida", "la preciosa ciudad": an adjective before its noun follows the article
+      // too. Its masculine shows the degree word ("muy rico") or follows the article about as
+      // often ("el precioso"), and the feminine is not much more common.
+      const article = cue(counts.article, word);
+      const otherArticle = cue(counts.article, other);
       const adjective =
         feminine &&
         keys.has(`a${other}`) &&
-        cue(counts.degree, other) >= MIN_CUE &&
-        f(counts, word) < 2 * f(counts, other);
-      const article = cue(counts.article, word);
+        ((cue(counts.degree, other) >= MIN_CUE && f(counts, word) < 2 * f(counts, other)) ||
+          (otherArticle >= MIN_CUE && article < 2 * otherArticle));
       if (article >= MIN_CUE && article >= cue(counts.degree, word) && !adjective) return false;
       // A masculine participle outnumbers its feminine anyway, in every perfect ("ha comprado").
       return f(counts, word) < (feminine ? 4 : 20) * f(counts, other);
@@ -395,8 +406,10 @@ function bareTwins(counts: Counts, keys: Set<string>, verbs: Set<string>): strin
 /**
  * "alto/NS", "difícil/S": adjectives the dictionary also files as nouns. A masculine with
  * gender forms, or an entry in -e or a consonant, is an adjective where degree words and
- * copulas come before it more often than determiners ("muy alto", "es difícil"). Infinitives
- * and other -o/-a words stay nouns ("es decir", "no hay más remedio").
+ * copulas come before it more often than determiners ("muy alto", "es difícil"). For a
+ * masculine with gender forms, half as often is enough: a determiner also comes before an
+ * adjective that precedes its noun ("los altos cargos"); "más tarde" and "muy bien" are adverbs.
+ * Infinitives and other -o/-a words stay nouns ("es decir", "no hay más remedio").
  */
 function nounAdjectives(counts: Counts, keys: Set<string>, verbs: Set<string>): string[] {
   return (
@@ -408,9 +421,27 @@ function nounAdjectives(counts: Counts, keys: Set<string>, verbs: Set<string>): 
       .filter((word) => word.length > 2 && !CUES.has(word))
       .filter((word) => {
         const degree = cue(counts.degree, word);
-        return degree >= MIN_CUE && degree > cue(counts.article, word);
+        const factor = keys.has(`a${word}`) ? 2 : 1;
+        return degree >= MIN_CUE && factor * degree > cue(counts.article, word);
       })
   );
+}
+
+/**
+ * A word and the spellings Review looks up for it: the singulars of a plural, the accented
+ * stem and the masculine ("fiestas" -> "fiesta", "fiestás", "fiesto").
+ */
+function lookups(word: string): string[] {
+  const out = new Set([word]);
+  if (word.endsWith("s")) out.add(word.slice(0, -1)).add(accentLast(word));
+  if (word.endsWith("es")) {
+    const stem = word.slice(0, -2);
+    out.add(stem).add(accentLast(stem)).add(plain(stem));
+  }
+  if (word.endsWith("ces")) out.add(`${word.slice(0, -3)}z`);
+  const base = /^(\p{L}+?)(?:os|as|o|a)$/u.exec(word)?.[1];
+  if (base) out.add(`${base}o`).add(base).add(accentLast(base));
+  return [...out];
 }
 
 export function buildSpanishLexicon(
@@ -419,10 +450,13 @@ export function buildSpanishLexicon(
   trie: ArrayBuffer,
   counts: ArrayBuffer,
 ): string {
-  const { keys, verbs, accented, plurals } = deriveSpanishLexicon(
-    dic,
-    aff,
-    ngramCounts(trie, counts),
+  const ngrams = ngramCounts(trie, counts);
+  const { keys, verbs, accented, plurals } = deriveSpanishLexicon(dic, aff, ngrams);
+  // The frequent words and the spellings the checks derive from them, under every key prefix:
+  // the filter's false positives among them are listed, so the reader answers those exactly.
+  const frequent = [...ngrams.words].sort((a, b) => b[1] - a[1]).slice(0, FREQUENT_PROBES);
+  const probes = frequent.flatMap(([word]) =>
+    lookups(word).flatMap((form) => [..."njfa"].map((p) => `${p}${form}`)),
   );
   const line = (name: string, value: string) => {
     const one = `export const ${name} = ${JSON.stringify(value)};`;
@@ -432,6 +466,11 @@ export function buildSpanishLexicon(
     "// Generated by bun scripts/generate-spanish-lexicon.ts from es_ES.dic/.aff and the n-gram",
     "// counts. Do not edit.",
     line("SPANISH_BLOOM", bloom(keys, BLOOM_BITS_PER_KEY, SPANISH_BLOOM_HASHES)),
+    "// Frequent words the filter reads as keys though they are none.",
+    line(
+      "SPANISH_NOT_KEYS",
+      bloomFalsePositives(keys, BLOOM_BITS_PER_KEY, SPANISH_BLOOM_HASHES, probes).join(" "),
+    ),
     "// Word graphs (review/wordGraph.ts): the infinitives, and the accented nominals.",
     line("SPANISH_VERBS", encodeWordGraph(verbs.filter((v) => /(?:ar|er|ir|ír)$/.test(v)))),
     line("SPANISH_ACCENTED_NOMINALS", encodeWordGraph(accented)),

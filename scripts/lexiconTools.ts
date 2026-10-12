@@ -89,11 +89,41 @@ export function frontCode(words: readonly string[], radix: 10 | 36, separator: s
  * default when not given), as six bits per character of BLOOM_ALPHABET, lowest bit first.
  */
 export function bloom(keys: readonly string[], bitsPerKey: number, hashes?: number): string {
-  const size = Math.max(6, Math.ceil((keys.length * bitsPerKey) / 6) * 6);
+  return encodeBloom(bloomBitsOf(keys, bloomSize(keys.length, bitsPerKey), hashes));
+}
+
+/**
+ * The probes that bloom(keys, bitsPerKey, hashes) reads as keys though they are none. A reader
+ * that also checks this list answers exactly for every probe.
+ */
+export function bloomFalsePositives(
+  keys: readonly string[],
+  bitsPerKey: number,
+  hashes: number,
+  probes: Iterable<string>,
+): string[] {
+  const keySet = new Set(keys);
+  const size = bloomSize(keys.length, bitsPerKey);
+  const bits = bloomBitsOf(keys, size, hashes);
+  const found = new Set<string>();
+  for (const probe of probes)
+    if (!keySet.has(probe) && bloomBits(probe, size, hashes).every((bit) => bits[bit]))
+      found.add(probe);
+  return [...found].sort();
+}
+
+const bloomSize = (keyCount: number, bitsPerKey: number) =>
+  Math.max(6, Math.ceil((keyCount * bitsPerKey) / 6) * 6);
+
+function bloomBitsOf(keys: readonly string[], size: number, hashes?: number): Uint8Array {
   const bits = new Uint8Array(size);
   for (const key of keys) for (const bit of bloomBits(key, size, hashes)) bits[bit] = 1;
+  return bits;
+}
+
+function encodeBloom(bits: Uint8Array): string {
   let filter = "";
-  for (let i = 0; i < size; i += 6) {
+  for (let i = 0; i < bits.length; i += 6) {
     let value = 0;
     for (let b = 0; b < 6; b++) value |= bits[i + b] << b;
     filter += BLOOM_ALPHABET[value];

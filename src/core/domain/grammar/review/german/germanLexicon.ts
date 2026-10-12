@@ -257,6 +257,8 @@ const TWO_GENDERS = new Set(
 // Compound heads whose compounds differ in gender ("der Mut", "die Armut"; "das Ende",
 // "die Legende"; "der Aufwand", "die Leinwand"; "der Rat", "die Heirat").
 const MIXED_HEADS = new Set("mut ende wand rat gift wort macht mal art".split(" "));
+// A compass point heads no compound by its last letters ("Lohnk|osten").
+const NOT_HEADS = new Set("osten westen norden süden".split(" "));
 // Particles and prepositions that start verb-made nouns of their own gender ("der Einwand").
 const PARTICLES = new Set(
   (
@@ -332,11 +334,26 @@ export function germanGender(word: string): GermanGenderReading | null {
   if (TWO_GENDERS.has(w)) return null;
   const table = genderTable();
   const known = table.get(w);
-  if (known) return known;
+  if (known && known.gender !== "x") return known;
+  const fromParts = genderFromParts(w, table);
+  // "dem Schulweg" shows only "masculine or neuter"; the head ("Weg") tells which.
+  if (known) {
+    const precise = fromParts?.gender === "m" || fromParts?.gender === "n";
+    return precise ? { gender: fromParts.gender, plural: known.plural } : known;
+  }
+  return fromParts;
+}
+
+/** The gender from a compound head, a person noun, a diminutive or a suffix. */
+function genderFromParts(
+  w: string,
+  table: ReadonlyMap<string, GermanGenderReading>,
+): GermanGenderReading | null {
   // A known head wins over a longer guessed agent head: "Kunden|nummer" is no "ennummer" person.
   let agentHead = false;
   for (let i = 3; i <= w.length - 3; i++) {
     const head = w.slice(i);
+    if (NOT_HEADS.has(head)) continue;
     const mixed = TWO_GENDERS.has(head) || MIXED_HEADS.has(head);
     const known = mixed || table.has(head);
     if (!known && (agentHead || head.length < 5 || !agentNoun(head))) continue;

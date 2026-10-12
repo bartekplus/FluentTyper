@@ -9,14 +9,17 @@ const data = () => reviewData<typeof Lexicon>("es");
 
 // Word classes read from es_ES.dic/.aff and the n-gram counts (scripts/generate-spanish-lexicon.ts).
 // Verbs are listed in full; for nouns and adjectives a Bloom filter answers, so about 0.05% of
-// other words read as members too: every check that uses them also needs a closed-class frame
-// around the word, never the lexicon alone.
+// other words read as members too (the frequent ones are listed and answer exactly): every
+// check that uses them also needs a closed-class frame around the word, never the lexicon alone.
 
 export const SPANISH_BLOOM_HASHES = 11;
 let filter: Uint8Array | undefined;
+let notKeys: Set<string> | undefined;
 // The checks ask about the same few words many times in a chunk. Keep the recent answers.
 const has = memoize(
-  (key) => bloomHas((filter ??= decodeBits(data().SPANISH_BLOOM)), key, SPANISH_BLOOM_HASHES),
+  (key) =>
+    bloomHas((filter ??= decodeBits(data().SPANISH_BLOOM)), key, SPANISH_BLOOM_HASHES) &&
+    !(notKeys ??= new Set(data().SPANISH_NOT_KEYS.split(" "))).has(key),
   4096,
 );
 
