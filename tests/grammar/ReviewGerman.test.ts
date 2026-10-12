@@ -1493,7 +1493,8 @@ test.each([
   ["Schreibtisch", "m", false],
   ["Freiheit", "f", false],
   ["Brötchen", "n", true],
-  ["Zimmer", "x", true],
+  ["Zimmer", "n", true],
+  ["Legende", "f", false],
   ["Freund", "m", false],
   ["Schulweg", "m", false],
   ["Vorsicht", "f", false],
@@ -1514,7 +1515,7 @@ test.each([
   expect(germanPastInfinitives(form)).toContain(infinitive);
 });
 
-test.each(["Kinder", "See", "Teil", "Anmut", "Zierrat", "Legende", "Kirchen", "Menschen", "Xyzzy"])(
+test.each(["Kinder", "See", "Teil", "Anmut", "Zierrat", "Kirchen", "Menschen", "Xyzzy"])(
   "%s has no single gender",
   (word) => {
     expect(germanGender(word)).toBeNull();

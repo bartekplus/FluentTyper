@@ -32,9 +32,9 @@ const SUFFIX_FLAGS = "SDGRTYPZJNXVBLH";
 // the prefix flags (by .aff order) its noun reading does not cross.
 const CLASS_FLAGS = "vqwnarsfc0123456789";
 // A count noun: seen at least COUNT_SEEN times in the n-grams, its plural at least COUNT_SHARE as
-// often as the singular ("ball" 695, "balls" 253), never after "much", not an authored mass noun.
+// often as the singular ("ball" 10842, "balls" 2551), never after "much", not an authored mass noun.
 const COUNT_SEEN = 10;
-const COUNT_SHARE = 0.25;
+const COUNT_SHARE = 0.2;
 // The runtime reads s and f as suffix rules of their own.
 const PSEUDO_SUFFIXES = "s  s ;f fe ves fe;f f ves f";
 
@@ -238,7 +238,12 @@ export function deriveEnglishLexicon(dic: string, aff: string, ngrams: Ngrams): 
     if (ves !== word && (lex.has(ves) || verbVes)) {
       flags.add("f");
       absorbed.add(ves);
-    } else if (!flags.has("S") && seen(spell(word, "S"))) flags.add("S");
+    } else if (!flags.has("S")) {
+      // "echos" now and then is a misspelling of the more common "echoes", not a plural.
+      const plural = spell(word, "S");
+      const misspelled = word.endsWith("o") && seen(`${word}es`) >= seen(plural);
+      if (seen(plural) && !misspelled) flags.add("S");
+    }
   }
 
   const isVerb = (word: string) => {

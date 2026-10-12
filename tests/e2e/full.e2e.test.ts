@@ -2251,13 +2251,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       const waitForLearnedScore = async (minimumScore: number): Promise<number> => {
         return await waitUntil(
-          `personalization score for through >= ${minimumScore}`,
+          `personalization score for these >= ${minimumScore}`,
           async () => {
             const store = await getStoredValue<PersonalizationStoreSnapshot>(
               worker,
               PERSONALIZATION_STORAGE_KEY,
             );
-            const score = store?.languages?.en_US?.through?.score;
+            const score = store?.languages?.en_US?.these?.score;
             return typeof score === "number" && score >= minimumScore ? score : false;
           },
           { timeoutMs: suiteTimeout(5000, 10000) },
@@ -2269,26 +2269,26 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitForInputReady(page, "#test-input");
       };
 
-      const acceptThroughFromMenu = async (minimumScore: number): Promise<void> => {
+      const acceptTheseFromMenu = async (minimumScore: number): Promise<void> => {
         await openReadyInput();
         await typeInInput(page, "#test-input", "th");
         const suggestions = await waitUntil(
-          "personalization training candidate through",
+          "personalization training candidate these",
           async () => {
             const texts = await getVisibleSuggestionTexts(page);
-            return texts.map(normalizeSuggestionText).includes("through") ? texts : false;
+            return texts.map(normalizeSuggestionText).includes("these") ? texts : false;
           },
           { timeoutMs: SUGGESTION_TIMEOUT_MS },
         );
-        const throughIndex = suggestions.map(normalizeSuggestionText).indexOf("through");
-        expect(throughIndex).toBeGreaterThanOrEqual(0);
+        const theseIndex = suggestions.map(normalizeSuggestionText).indexOf("these");
+        expect(theseIndex).toBeGreaterThanOrEqual(0);
 
-        await highlightSuggestion(page, "through");
+        await highlightSuggestion(page, "these");
         await page.keyboard.press("Tab");
         await waitUntil(
-          "menu acceptance to insert through",
+          "menu acceptance to insert these",
           async () =>
-            normalizeSuggestionText(await getInputContent(page, "#test-input")) === "through"
+            normalizeSuggestionText(await getInputContent(page, "#test-input")) === "these"
               ? true
               : false,
           { timeoutMs: suiteTimeout(4000, 10000) },
@@ -2311,7 +2311,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect(normalizeSuggestionText(firstSuggestion)).toBe(expected);
       };
 
-      const expectInlineThrough = async (): Promise<void> => {
+      const expectInlineThese = async (): Promise<void> => {
         await openReadyInput();
         await typeInInput(page, "#test-input", "th");
         const suffix = await waitUntil(
@@ -2320,11 +2320,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             const text = await page.evaluate(
               () => document.querySelector(".ft-suggestion-inline")?.textContent ?? "",
             );
-            return normalizeSuggestionText(text) === "rough" ? text : false;
+            return normalizeSuggestionText(text) === "ese" ? text : false;
           },
           { timeoutMs: suiteTimeout(5000, 10000) },
         );
-        expect(normalizeSuggestionText(suffix)).toBe("rough");
+        expect(normalizeSuggestionText(suffix)).toBe("ese");
       };
 
       try {
@@ -2347,31 +2347,31 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
         // Three deliberate selections put the decayed score safely above the
         // two-acceptance promotion threshold even on slower E2E machines.
-        await acceptThroughFromMenu(1);
-        await acceptThroughFromMenu(1.9);
-        await acceptThroughFromMenu(2.9);
+        await acceptTheseFromMenu(1);
+        await acceptTheseFromMenu(1.9);
+        await acceptTheseFromMenu(2.9);
 
         await setSetting(worker, KEY_NUM_SUGGESTIONS, 3);
         await notifyConfigChange(browser, worker);
-        await expectFirstMenuSuggestion("through");
+        await expectFirstMenuSuggestion("these");
 
         worker = await restartExtensionRuntime(browser, worker);
-        await expectFirstMenuSuggestion("through");
+        await expectFirstMenuSuggestion("these");
 
         await setSetting(worker, KEY_INLINE_SUGGESTION, true);
         await notifyConfigChange(browser, worker);
-        await expectInlineThrough();
+        await expectInlineThese();
         await page.keyboard.press("Tab");
         await waitUntil(
-          "inline acceptance to insert through",
+          "inline acceptance to insert these",
           async () =>
-            normalizeSuggestionText(await getInputContent(page, "#test-input")) === "through"
+            normalizeSuggestionText(await getInputContent(page, "#test-input")) === "these"
               ? true
               : false,
           { timeoutMs: suiteTimeout(4000, 10000) },
         );
         await waitForLearnedScore(3.8);
-        await expectInlineThrough();
+        await expectInlineThese();
 
         const optionsPage = await openOptionsPage(browser, worker);
         try {
@@ -9985,7 +9985,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const compact = await box("#compact-textarea");
       expect((await launcher())!.y - 12).toBeGreaterThan(compact.bottom);
       await page.keyboard.press("End");
-      await page.keyboard.type(" More", { delay: 20 });
+      // Text without completions: an open suggestion popup below the field takes the slot too.
+      await page.keyboard.type(" 42", { delay: 20 });
       expect(await launcher()).not.toBeNull();
       // Another control below this field owns that space.
       await page.evaluate(() => {

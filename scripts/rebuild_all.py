@@ -220,7 +220,7 @@ def has_ngram_db(lang: LanguageConfig) -> bool:
 
 
 def rebuild_ngram_db(lang: LanguageConfig, jobs: int) -> None:
-    run_python(REBUILD_NGRAM_PATH, ["-l", lang.short, "-v", lang.variant, "--jobs", str(jobs)])
+    run_python(REBUILD_NGRAM_PATH, ["-l", lang.short, "-v", lang.variant, "--jobs", str(jobs), "--clean-cache"])
 
 
 def prepare_language(

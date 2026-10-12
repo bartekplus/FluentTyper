@@ -492,11 +492,18 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
       return !stems.some((s) => neuter.has(s)) || stems.some((s) => infinitives.has(`${s}en`));
     });
   }
-  // Common nouns the n-gram counts are too thin for, added where they show no gender.
-  const known = new Set(Object.values(lists).flat());
-  for (const [key, words] of Object.entries(AUTHORED_GENDERS)) {
-    for (const word of words.split(" ")) if (!known.has(word)) lists[key].push(word);
-  }
+  // Authored genders win over the counts: a cue such as "ein Professor" only shows "x".
+  const authored = new Set(Object.values(AUTHORED_GENDERS).flatMap((words) => words.split(" ")));
+  for (const key of Object.keys(lists))
+    lists[key] = lists[key].filter((word) => !authored.has(word));
+  for (const [key, words] of Object.entries(AUTHORED_GENDERS)) lists[key].push(...words.split(" "));
+  // "dem Nachbarn", "des Kunden": the -n form of a weak masculine noun shows only "x"; left out,
+  // it reads as the plural of the known noun.
+  const listedNouns = new Set(Object.values(lists).flat());
+  const nForm = (word: string) =>
+    /n$/.test(word) &&
+    [word.slice(0, -1), word.slice(0, -2)].some((s) => s.length >= 3 && listedNouns.has(s));
+  for (const key of ["x", "X"]) lists[key] = lists[key].filter((word) => !nForm(word));
   const line = (name: string, value: string) => {
     const one = `export const ${name} = ${JSON.stringify(value)};`;
     return one.length <= 100 ? one : `export const ${name} =\n  ${JSON.stringify(value)};`;
@@ -571,6 +578,7 @@ const MIN_EVIDENCE = 60;
 // A form in -e seen only after feminine or plural determiners, this often, is a feminine or
 // plural noun ("die Spitze", "der Wüste"): an adjective in -e also follows "das".
 const FEMININE_EVIDENCE = 150;
+const FEMININE_OVER_NEUTER = 10;
 
 /**
  * Lowercase noun forms whose only other reading is an adjective form ("alter", "spitze", "wert")
@@ -623,9 +631,12 @@ function deriveNounsOverAdjectives(dic: string, aff: string, ngrams: string) {
     for (const [d, count] of row)
       if (nounDets.has(d) && !endingFits(d, ending)) add(noun, word, count);
     if (ending !== "e") continue;
-    const neuter = ["das", "dieses", "ein", "kein"].some((d) => row.has(d));
-    const feminine = neuter ? 0 : [...row.values()].reduce((sum, count) => sum + count, 0);
-    if (feminine >= FEMININE_EVIDENCE) add(noun, word, feminine);
+    const neuter = ["das", "dieses", "ein", "kein"].reduce((sum, d) => sum + (row.get(d) ?? 0), 0);
+    const feminine = [...row.values()].reduce((sum, count) => sum + count, 0) - neuter;
+    // "das runde Fenster" now and then; an adjective in -e follows "das" about as often as "die".
+    if (feminine >= FEMININE_EVIDENCE && feminine >= FEMININE_OVER_NEUTER * neuter) {
+      add(noun, word, feminine);
+    }
   }
   return [...candidates]
     .filter((w) => {
