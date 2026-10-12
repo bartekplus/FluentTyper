@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
-from codecs import encode, decode
-from collections import Counter
-import re
+import concurrent.futures
 import multiprocessing
-import itertools
-import functools
-import shutil
+import pickle
+import re
+import subprocess
+import tempfile
+import zlib
+from collections import Counter
+from pathlib import Path
 
 
-NGRAM_COUNT = 4
+NGRAM_ORDER_DEFAULT = 4
 NGRAM_DIV = 1.33
 NGRAM_MIN_COUNT = 10
-CHUNK_SIZE = 100000  # input lines per worker task
+LINE_BLOCK = 2000  # consecutive lines given to one worker
+SPILL_KEYS = 4_000_000  # per-worker Counter size that triggers a spill to disk
+HUNSPELL_BATCH = 50_000
 LANGS = {
     "ar": "arabic",
     "de": "german",
@@ -22,23 +25,19 @@ LANGS = {
     "en": "english",
     "es": "spanish",
     "fr": "french",
-    "hr": "croatian",
+    "hr": "slovene",  # NLTK punkt has no Croatian model; Slovene is the closest one.
     "pl": "polish",
     "pt": "portuguese",
     "sv": "swedish",
 }
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "-i",
-    "--inputfile",
-    help="sentences text file",
-    required=True,
-    type=argparse.FileType("r", encoding="UTF-8", errors="ignore"),
-)
-parser.add_argument(
-    "-l", "--language", type=str, help="language of the sentences", required=True
-)
+parser.add_argument("-i", "--inputfiles", nargs="+", required=True, help="sentence text files (.txt or .txt.zst)")
+parser.add_argument("-l", "--language", type=str, help="language of the sentences", required=True)
+parser.add_argument("--order", type=int, default=NGRAM_ORDER_DEFAULT, help="highest n-gram order")
+parser.add_argument("--max-mb", type=float, default=0, help="read at most this many MB of text, spread over the inputs")
+parser.add_argument("--dict", help="hunspell dictionary path (without extension); n-grams with rejected words are dropped")
+parser.add_argument("--output-prefix", help="output path prefix (default: first input without extension)")
 parser.add_argument(
     "--processes",
     type=int,
@@ -72,7 +71,7 @@ def filter_tokens(tokens_raw, language=None):
             split = True
         elif token.isdigit():
             split = True
-        elif any((x in token) for x in SKIPPED_CHARS):
+        elif not SKIPPED_CHARS.isdisjoint(token):
             split = True
         elif not token[0].isalpha():
             split = True
@@ -118,41 +117,225 @@ def ensure_nltk_tokenizers():
             ) from exc
 
 
-def process_chunk(language, chunk):
-    """Processes a chunk of lines to count n-grams."""
+def make_tokenizer(language):
+    """Return a function that maps one text line to runs of n-gram tokens."""
     from nltk import sent_tokenize
     from nltk.tokenize import TweetTokenizer
-    from nltk.util import ngrams
 
-    local_ngram_counters = [Counter() for _ in range(NGRAM_COUNT)]
-    tk = TweetTokenizer(match_phone_numbers=False)  # Initialize tokenizer per process
-    lines_processed_in_chunk = 0
+    tk = TweetTokenizer(match_phone_numbers=False)
 
-    for line in chunk:
-        try:
-            line = decode(encode(line, "latin-1", "backslashreplace"), "unicode-escape")
-        except UnicodeDecodeError:
-            continue
+    def tokenize_line(line):
+        if language == "ar":
+            sentences = [s for s in re.split(r"[؟.!]+", line) if s.strip()]
+        else:
+            sentences = sent_tokenize(line, language=LANGS[language])
+        runs = []
+        for sentence in sentences:
+            for tokens in filter_tokens(tk.tokenize(sentence.replace("’", "'")), language):
+                if tokens:
+                    runs.append(tokens)
+        return runs
 
-        lines_processed_in_chunk += 1  # Count successfully decoded lines
-        for sentence in (
-            [s for s in re.split(r"[؟.!]+", line) if s.strip()]
-            if language == "ar"
-            else sent_tokenize(line, language=LANGS[language])
-        ):
-            sentence = sentence.replace("’", "'")
-            tokens_raw = tk.tokenize(sentence)
-            tokens_array = filter_tokens(tokens_raw, language)
+    return tokenize_line
 
-            for tokens in tokens_array:
-                if not tokens:
-                    continue
-                for c in range(NGRAM_COUNT):
-                    # Generate n-grams for the current level
-                    n = ngrams(tokens, c + 1)
-                    local_ngram_counters[c].update(n)
 
-    return local_ngram_counters, lines_processed_in_chunk
+def open_text(path):
+    """Yield text lines from a .txt or .txt.zst file."""
+    path = str(path)
+    if not path.endswith(".zst"):
+        with open(path, encoding="utf-8", errors="ignore") as f:
+            yield from f
+        return
+    # stderr is muted: a reader that stops early makes zstd report a broken pipe.
+    proc = subprocess.Popen(["zstd", "-dcq", path], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    finished = False
+    try:
+        for raw in proc.stdout:
+            yield raw.decode("utf-8", errors="ignore")
+        finished = True
+    finally:
+        proc.stdout.close()
+        if not finished:
+            proc.kill()
+        returncode = proc.wait()
+    if returncode != 0:
+        raise RuntimeError(f"zstd could not decompress {path}")
+
+
+def read_lines(paths, max_bytes, worker=0, workers=1):
+    """Yield this worker's share of lines; each file gives at most max_bytes / len(paths) bytes."""
+    per_file = max_bytes / len(paths) if max_bytes else 0
+    for path in paths:
+        used = 0
+        for index, line in enumerate(open_text(path)):
+            used += len(line)
+            if per_file and used > per_file:
+                break
+            if (index // LINE_BLOCK) % workers == worker:
+                yield line
+
+
+def split_runs(runs, vocabulary, bigrams):
+    """Split token runs at words outside the vocabulary and between two words whose bigram
+    is not in `bigrams`, so no n-gram holds such a word or such a bigram."""
+    for tokens in runs:
+        run = []
+        for token in tokens:
+            if token not in vocabulary:
+                if run:
+                    yield run
+                run = []
+                continue
+            if run and f"{run[-1]} {token}" not in bigrams:
+                yield run
+                run = []
+            run.append(token)
+        if run:
+            yield run
+
+
+def count_ngrams(runs, order, counter):
+    for tokens in runs:
+        for n in range(1, order + 1):
+            counter.update(" ".join(tokens[i : i + n]) for i in range(len(tokens) - n + 1))
+
+
+def partition_of(key, partitions):
+    # crc32, not hash(): str hashes differ between worker processes.
+    return zlib.crc32(key.encode()) % partitions
+
+
+def spill(counter, spill_dir, partitions, tag):
+    buckets = [{} for _ in range(partitions)]
+    for key, value in counter.items():
+        buckets[partition_of(key, partitions)][key] = value
+    for p, bucket in enumerate(buckets):
+        # zlib level 1 cuts spill disk use about 3x for little CPU.
+        with open(Path(spill_dir) / f"p{p}_{tag}.pkl.z", "wb") as f:
+            f.write(zlib.compress(pickle.dumps(bucket, protocol=pickle.HIGHEST_PROTOCOL), 1))
+    counter.clear()
+
+
+def count_worker(args):
+    paths, language, order, max_bytes, worker, workers, spill_dir, partitions, vocabulary, bigrams = args
+    tokenize_line = make_tokenizer(language)
+    counter = Counter()
+    lines = spills = 0
+    for line in read_lines(paths, max_bytes, worker, workers):
+        runs = tokenize_line(line)
+        count_ngrams(split_runs(runs, vocabulary, bigrams) if vocabulary is not None else runs, order, counter)
+        lines += 1
+        if len(counter) > SPILL_KEYS:
+            spill(counter, spill_dir, partitions, f"w{worker}_{spills}")
+            spills += 1
+    spill(counter, spill_dir, partitions, f"w{worker}_{spills}")
+    return lines
+
+
+def merge_partition(args):
+    """Sum one partition over all spills; a partition holds the global count of its keys."""
+    spill_dir, p, min_count = args
+    total = Counter()
+    for path in sorted(Path(spill_dir).glob(f"p{p}_*.pkl.z")):
+        # Safe: these are this run's own spill files in a private temp dir.
+        with open(path, "rb") as f:
+            total.update(pickle.loads(zlib.decompress(f.read())))
+        path.unlink()
+    return [(key, value) for key, value in total.items() if value >= min_count]
+
+
+def count_pass(pool, paths, language, order, max_bytes, processes, spill_root, min_count, vocabulary=None, bigrams=None):
+    """One parallel pass: workers count their share of lines and spill; partitions merge in parallel."""
+    partitions = processes * 4
+    with tempfile.TemporaryDirectory(prefix="ngram_spill_", dir=spill_root) as spill_dir:
+        jobs = [
+            (paths, language, order, max_bytes, w, processes, spill_dir, partitions, vocabulary, bigrams)
+            for w in range(processes)
+        ]
+        lines = sum(pool.map(count_worker, jobs))
+        spill_bytes = sum(f.stat().st_size for f in Path(spill_dir).iterdir())
+        print(f"Counted {lines} lines (order {order}); spill {spill_bytes / 1e9:.2f} GB")
+        survivors = {}
+        for part in pool.imap_unordered(merge_partition, [(spill_dir, p, min_count) for p in range(partitions)]):
+            survivors.update(part)
+    return survivors
+
+
+def count_corpus(paths, language, order, max_bytes, processes, spill_root, dict_path=None, min_count=NGRAM_MIN_COUNT):
+    """Count 1..order-grams in parallel. Returns {key: count} with count >= min_count.
+
+    A first pass counts unigrams and bigrams. The vocabulary is the words with count >= min_count
+    (that hunspell accepts, with dict_path). The second pass splits the token stream at every
+    other word and between the two words of every bigram below min_count. An n-gram never
+    occurs more often than a word or bigram in it, so the result is exact, but far fewer
+    one-off n-grams reach the spill files.
+    """
+    with multiprocessing.Pool(processes=processes) as pool:
+        first = count_pass(pool, paths, language, min(order, 2), max_bytes, processes, spill_root, min_count)
+        words = [key for key in first if " " not in key]
+        rejected = rejected_words(words, dict_path) if dict_path else set()
+        if dict_path:
+            print(f"Dictionary gate: rejected {len(rejected)} of {len(words)} words")
+        vocabulary = frozenset(w for w in words if w not in rejected)
+        bigrams = frozenset(
+            key for key in first if " " in key and all(w in vocabulary for w in key.split(" "))
+        )
+        del first
+        return count_pass(pool, paths, language, order, max_bytes, processes, spill_root, min_count, vocabulary, bigrams)
+
+
+def hunspell_accepts(forms, dict_path):
+    """Return the forms that hunspell accepts. One form per line; -L -G prints lines without errors."""
+    batches = [forms[i : i + HUNSPELL_BATCH] for i in range(0, len(forms), HUNSPELL_BATCH)]
+
+    def check(batch):
+        out = subprocess.run(
+            ["hunspell", "-i", "utf-8", "-d", str(dict_path), "-L", "-G"],
+            input="\n".join(batch) + "\n",
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        return set(out.splitlines())
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        return set().union(*executor.map(check, batches))
+
+
+def rejected_words(words, dict_path):
+    """Words that hunspell rejects in both lowercase and Title-case form, or that contain a digit."""
+    candidates = [w for w in words if not any(c.isdigit() for c in w)]
+    forms = sorted({f for w in candidates for f in (w, w[:1].upper() + w[1:])})
+    accepted = hunspell_accepts(forms, dict_path)
+    return {w for w in words if w not in accepted and (w[:1].upper() + w[1:]) not in accepted}
+
+
+def prune(counts, order, min_count=NGRAM_MIN_COUNT):
+    """Per order, keep the most frequent n-grams; each order is capped at 1/NGRAM_DIV of the order below."""
+    by_order = [[] for _ in range(order)]
+    for key, value in counts.items():
+        if value >= min_count:
+            by_order[key.count(" ")].append((key, value))
+    result = []
+    last_count = 0
+    for items in by_order:
+        items.sort(key=lambda kv: (-kv[1], kv[0]))
+        if last_count:
+            items = items[: round(last_count // NGRAM_DIV)]
+        result.append(items)
+        last_count = len(items)
+    return result
+
+
+def write_outputs(pruned, prefix):
+    with open(f"{prefix}_ngram_merged.txt", "w", encoding="utf-8") as merged:
+        for n, items in enumerate(pruned, start=1):
+            with open(f"{prefix}_ngram_{n}.txt", "w", encoding="utf-8") as f:
+                for key, value in items:
+                    line = f"{n} {key}\t{value}\n"
+                    f.write(line)
+                    merged.write(line)
+            print(f"Wrote {len(items)} {n}-grams")
 
 
 if __name__ == "__main__":
@@ -163,54 +346,17 @@ if __name__ == "__main__":
     except RuntimeError as exc:
         print(exc)
         raise SystemExit(1)
-    # Determine number of processes
     num_processes = args.processes if args.processes > 0 else multiprocessing.cpu_count()
     print(f"Using {num_processes} processes for parallel processing.")
-    # Initialize global counters
-    final_ngram_counters = [Counter() for _ in range(NGRAM_COUNT)]
-    base_path = os.path.splitext(args.inputfile.name)[0]
-    total_lines_processed = 0
-    print("Starting n-gram processing...")
-    with multiprocessing.Pool(processes=num_processes) as pool:
-        # Create a partial function with the language argument fixed.
-        # Only the chunk will be passed in each call by imap_unordered.
-        partial_process_chunk = functools.partial(process_chunk, args.language)
+    prefix = args.output_prefix or re.sub(r"(\.txt)?(\.zst)?$", "", args.inputfiles[0])
 
-        # Process chunks in parallel using imap_unordered
-        for result_counters, lines_in_chunk in pool.imap_unordered(
-            partial_process_chunk, itertools.batched(args.inputfile, CHUNK_SIZE)
-        ):
-            # Merge results from the completed chunk processing
-            for i in range(NGRAM_COUNT):
-                final_ngram_counters[i].update(result_counters[i])
-            total_lines_processed += lines_in_chunk
-            print(f"Processed {total_lines_processed} lines...")
-
-    print(f"Finished processing. Total lines: {total_lines_processed}")
-    args.inputfile.close()  # Close the input file
-
-    last_ngram_count = 0
-    filenames = []
-    for c in range(NGRAM_COUNT):
-        f_name = f"{base_path}_ngram_{c+1}.txt"
-        print(f"Generating {f_name}")
-
-        filenames.append(f_name)
-        f_ngram = open(f_name, "w")
-
-        ngram_count = 0
-        for k, v in final_ngram_counters[c].most_common(
-            n=round(last_ngram_count // NGRAM_DIV) if last_ngram_count else None
-        ):
-            if v < NGRAM_MIN_COUNT:
-                break
-            s = f"{c+1} " + " ".join(k) + f"\t{v}\n"
-            f_ngram.write(s)
-            ngram_count += 1
-        last_ngram_count = ngram_count
-        f_ngram.close()
-
-    with open(f"{base_path}_ngram_merged.txt", "w") as outfile:
-        for fname in filenames:
-            with open(fname) as infile:
-                shutil.copyfileobj(infile, outfile)
+    counts = count_corpus(
+        args.inputfiles,
+        args.language,
+        args.order,
+        int(args.max_mb * 1e6),
+        num_processes,
+        spill_root=Path(prefix).parent,
+        dict_path=args.dict,
+    )
+    write_outputs(prune(counts, args.order), prefix)

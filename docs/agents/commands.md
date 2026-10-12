@@ -115,6 +115,62 @@ After you change the template, run a full rebuild: `python3 scripts/rebuild_all.
 Do not use `--repack` for a template change. It skips the language rebuild, so the change does not get to the per-language files.
 As an alternative, apply the same change to each per-language file, then repack.
 
+### Rebuilding the n-gram databases
+
+`scripts/rebuild_ngram_db.py` builds `resources_js/<variant>/ngrams_db/` from the [HPLT 3.0](https://hplt-project.org/datasets/v3.0) web corpus. `rebuild_all.py` runs it for each language.
+
+```
+python3 scripts/rebuild_ngram_db.py -l pl -v pl_PL
+```
+
+Host tools: `curl`, `zstd` and `hunspell`. Python 3.12 or later with `scripts/requirements.txt`.
+
+What the script does:
+
+1. **Stream.** It reads `https://data.hplt-project.org/three/sorted/<lang>.map` and streams shards from the best quality bins (10, 9, 8, …) with `curl | zstd -dc`. It stops each stream when its quota of filtered text is full. A shard is 20 GB or more, so it never goes to disk.
+2. **Filter documents.** It keeps a document only if all of these are true:
+   - HPLT marks it `keep`.
+   - Its language probability is 0.9 or more.
+   - Its web register is everyday writing: forum or Q&A, opinion, review or blog, narrative or news, how-to, or spoken.
+   - It is not machine-translated text, lyrics, an ad or sales text, a legal text, a product description, an encyclopedia text or a research text.
+   - For `pt_BR` only, the host ends in `.br`.
+3. **Filter lines.** It keeps a line only if all of these are true:
+   - Its segment language is the target language.
+   - It has 4 or more words.
+   - It ends like a sentence.
+   - It has no URLs, markup, long numbers, symbol runs or cookie or copyright text.
+   - It is not an exact copy of a line already kept from the same shard.
+4. **Cache.** It writes the filtered text to `scripts/.cache/hplt/<lang>_<variant>_<filter hash>/` as `.txt.zst`, with one held-out shard (`heldout.txt.zst`) for evaluation. The filter hash changes when the filter code changes, so old text is not used again by accident.
+5. **Count.** `gen_ngram.py` counts in parallel, in two passes:
+   - The first pass counts words and bigrams. Hunspell then checks each word once, in lowercase and in Title case. Words it rejects, words that contain digits and words seen fewer than 10 times are removed.
+   - The second pass counts 1- to 4-grams. It splits the text at every removed word and at every bigram seen fewer than 10 times. This gives the same counts as filtering after counting, but uses much less temporary disk.
+   - The pruning is the same as before: each n-gram must be seen 10 times or more, and each order is capped at 75% of the size of the order below it.
+6. **Write.** `ngramtxt2marisa.py` writes `ngrams.trie` and `ngrams.counts`.
+
+Useful flags:
+
+- `--target-mb N`: filtered text to count, in MB. Default 1000.
+- `--order N`: highest n-gram order. Default 4, which agrees with the four `DELTAS` in `presage.xml`.
+- `--corpus-only`: fill the cache only.
+- `--clean-cache`: delete the cache at the end. `rebuild_all.py` always sets it.
+- `--min-free-gb N`: stop when free disk is below N GB. Default 20.
+
+The script prints the cache size and free disk after each stage. `gen_ngram.py` prints the size of its temporary spill files.
+
+The Review lexicon generators (`scripts/generate-<language>-lexicon.ts`) also read these databases. After a rebuild, run `bun run generate:lexicons` and the Review tests.
+
+To compare models, use `scripts/eval_ngram.py`. It copies the presage `SmoothedNgramTriePredictor` scoring and reports keystroke savings (KSR), top-1 and top-5 next-word accuracy on held-out text:
+
+```
+python3 scripts/eval_ngram.py --model resources_js/pl_PL/ngrams_db --heldout scripts/.cache/hplt/<dir>/heldout.txt.zst -l pl
+```
+
+Why 1000 MB and order 4 (study on en and pl, held-out HPLT forum and opinion text):
+
+- More text helps up to about 1000 MB. From 1000 to 3000 MB, KSR goes up by only 0.25 percentage points at the same DB size, but counting takes 3 times as long.
+- Order 5 adds 0.02 percentage points of KSR or less. Order 3 loses about 0.1 points of KSR and 0.3 points of top-1.
+- At the same DB size as the old OSCAR data, HPLT gives about 3 points more KSR for pl.
+
 ## Before a pull request
 
 Run the [baseline checks](testing.md#baseline-before-a-pr), then follow [Prepare the pull request](../../CONTRIBUTING.md#prepare-the-pull-request).
