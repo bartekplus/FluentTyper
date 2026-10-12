@@ -9985,7 +9985,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const compact = await box("#compact-textarea");
       expect((await launcher())!.y - 12).toBeGreaterThan(compact.bottom);
       await page.keyboard.press("End");
-      await page.keyboard.type(" More", { delay: 20 });
+      // Text without completions: an open suggestion popup below the field takes the slot too.
+      await page.keyboard.type(" 42", { delay: 20 });
       expect(await launcher()).not.toBeNull();
       // Another control below this field owns that space.
       await page.evaluate(() => {
