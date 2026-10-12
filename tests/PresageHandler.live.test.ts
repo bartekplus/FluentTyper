@@ -46,7 +46,7 @@ describe("PresageHandler live personalized ranking", () => {
     const handler = await createLiveHandler({
       getPersonalizationSnapshot: () => ({
         en_US: {
-          through: { display: "through", score: 3, updatedAtMs: 1_000 },
+          then: { display: "then", score: 3, updatedAtMs: 1_000 },
         },
       }),
       now: () => 1_000,
@@ -60,6 +60,6 @@ describe("PresageHandler live personalized ranking", () => {
 
     const result = await runPrediction(handler, "th", "", "en_US");
 
-    expect(result.predictions).toEqual(["through", "the", "that"]);
+    expect(result.predictions).toEqual(["then", "the", "that"]);
   });
 });

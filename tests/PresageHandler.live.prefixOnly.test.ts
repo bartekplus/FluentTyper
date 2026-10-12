@@ -11,11 +11,11 @@ describe("PresageHandler live PREFIX_ONLY_MODE", () => {
       insertSpaceAfterAutocomplete: false,
     });
 
-    const result = await runPrediction(handler, "heli", "", "en_US");
+    const result = await runPrediction(handler, "helic", "", "en_US");
     const words = result.predictions.map((p) => p.trim().toLowerCase());
-    // Without prefix-only, spell-correction can return words not starting with "heli"
+    // Without prefix-only, spell-correction can return words not starting with "helic"
     expect(words).toContain("helicopter");
-    expect(words.some((w) => !w.startsWith("heli"))).toBe(true);
+    expect(words.some((w) => !w.startsWith("helic"))).toBe(true);
   });
 
   test("with prefix-only mode, all predictions start with the typed prefix", async () => {
