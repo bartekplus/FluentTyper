@@ -176,6 +176,7 @@ Why `DELTAS` 0.01 0.08 0.3 0.6 (sweep with `eval_ngram.py` on en, pl and de held
 - In the n-gram ranking, only the ratio between the deltas matters. All ratios near 1 : 8 : 32–64 : 32–128 give about the same KSR. The old 1 : 2 : 4 : 6 gives 0.13–0.23 percentage points less KSR, and top-1 is not better.
 - The deltas sum to less than 1, so an n-gram score stays below 1.0. Presage caps a word's merged score at 1.0, and a text expansion scores 1.0, so a larger sum changes the ranking.
 - The Hunspell, Aspell, user dictionary and recency scores are scaled by the same factor as the unigram delta (×0.08). They keep their place among the rarest n-gram words. If you change the unigram delta, scale these scores too.
+- `CORRECTION_WEIGHT` 0.000001: the n-gram model also scores the speller corrections, times this weight. It breaks ties between corrections by frequency in context and does not override the spellers' own order. On 800 synthetic typos per language (live engine, held-out text), top-1 goes up by 2.1–2.6 points for en, pl and de, and KSR does not change. Weights of 0.0001 and more make top-1 worse. The weight is relative to the speller `PROBABILITY`: scale it with that value.
 
 ## Before a pull request
 

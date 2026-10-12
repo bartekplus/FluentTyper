@@ -1062927,6 +1062927,7 @@ wKAŽtf !D[…e5¥¦•>8£;Œ‹f‹‹•u>P+A)„>xd•y¤„Q•Z†5H„axAn5—žnr•w
             <DBFILENAME>/resources_js/el_GR/ngrams_db</DBFILENAME>
             <DELTAS>0.01 0.08 0.3 0.6</DELTAS>
             <COUNT_THRESHOLD>0</COUNT_THRESHOLD>
+            <CORRECTION_WEIGHT>0.000001</CORRECTION_WEIGHT>
             <DatabaseConnector>
                 <LOGGER>ERROR</LOGGER>
             </DatabaseConnector>

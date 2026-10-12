@@ -22,6 +22,29 @@ describe("PresageHandler live user dictionary", () => {
     const result = await runPrediction(handler, "flue", "", "en_US");
     expect(result.predictions.map((p) => p.trim())).toContain("fluenttyper");
   });
+
+  test("an unrelated custom word does not fill empty slots, a typo of one still finds it", async () => {
+    const handler = await createLiveHandler();
+    handler.setConfig({
+      ...createLiveConfig([]),
+      userDictionaryList: ["fluenttyper", "kubernetes"],
+    });
+
+    const fluent = await runPrediction(handler, "fluent", "", "en_US");
+    expect(fluent.predictions.map((p) => p.trim())).not.toContain("kubernetes");
+    const typo = await runPrediction(handler, "fluentyper", "", "en_US");
+    expect(typo.predictions[0].trim()).toBe("fluenttyper");
+  });
+});
+
+describe("PresageHandler live spelling corrections", () => {
+  test("ranks a correction by how common it is after the context", async () => {
+    const handler = await createLiveHandler();
+    handler.setConfig(createLiveConfig([]));
+
+    const result = await runPrediction(handler, "i went to teh", "", "en_US");
+    expect(result.predictions[0].trim()).toBe("the");
+  });
 });
 
 describe("PresageHandler live text expansion config refresh", () => {
