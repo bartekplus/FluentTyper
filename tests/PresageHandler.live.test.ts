@@ -14,6 +14,14 @@ describe("PresageHandler live user dictionary", () => {
     const result = await runPrediction(handler, "fluenttypert", "", "en_US");
     expect(result.predictions.map((p) => p.trim())).toContain("fluenttypertest");
   });
+
+  test("a custom word shows from its first letters, not only when almost typed", async () => {
+    const handler = await createLiveHandler();
+    handler.setConfig({ ...createLiveConfig([]), userDictionaryList: ["fluenttyper"] });
+
+    const result = await runPrediction(handler, "flue", "", "en_US");
+    expect(result.predictions.map((p) => p.trim())).toContain("fluenttyper");
+  });
 });
 
 describe("PresageHandler live text expansion config refresh", () => {

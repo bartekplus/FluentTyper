@@ -171,6 +171,12 @@ Why 1000 MB and order 4 (study on en and pl, held-out HPLT forum and opinion tex
 - Order 5 adds 0.02 percentage points of KSR or less. Order 3 loses about 0.1 points of KSR and 0.3 points of top-1.
 - At the same DB size as the old OSCAR data, HPLT gives about 3 points more KSR for pl.
 
+Why `DELTAS` 0.01 0.08 0.3 0.6 (sweep with `eval_ngram.py` on en, pl and de held-out text):
+
+- In the n-gram ranking, only the ratio between the deltas matters. All ratios near 1 : 8 : 32–64 : 32–128 give about the same KSR. The old 1 : 2 : 4 : 6 gives 0.13–0.23 percentage points less KSR, and top-1 is not better.
+- The deltas sum to less than 1, so an n-gram score stays below 1.0. Presage caps a word's merged score at 1.0, and a text expansion scores 1.0, so a larger sum changes the ranking.
+- The Hunspell, Aspell, user dictionary and recency scores are scaled by the same factor as the unigram delta (×0.08). They keep their place among the rarest n-gram words. If you change the unigram delta, scale these scores too.
+
 ## Before a pull request
 
 Run the [baseline checks](testing.md#baseline-before-a-pr), then follow [Prepare the pull request](../../CONTRIBUTING.md#prepare-the-pull-request).

@@ -108,7 +108,7 @@ class DictionaryGateTest(unittest.TestCase):
 
 class EvaluatorTest(unittest.TestCase):
     def test_default_deltas_match_shipped_presage_config(self) -> None:
-        self.assertEqual(default_deltas(4), [0.125, 0.25, 0.5, 0.75])
+        self.assertEqual(default_deltas(4), [0.01, 0.08, 0.3, 0.6])
 
     def test_context_beats_raw_frequency(self) -> None:
         counts = {("the",): 100, ("tea",): 10, ("green",): 10, ("green", "tea"): 9, ("green", "the"): 1}

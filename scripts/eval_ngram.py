@@ -25,8 +25,11 @@ DEFAULT_K = 5  # DEFAULT_NUM_SUGGESTIONS in src/core/domain/constants.ts
 
 
 def default_deltas(order: int) -> list[float]:
-    # 4 -> 0.125 0.25 0.5 0.75 (the shipped presage.xml); below the top order, each order halves.
-    return [0.5 / 2 ** (order - 2 - k) for k in range(order - 1)] + [0.75]
+    # 4 -> 0.01 0.08 0.3 0.6 (the shipped presage.xml); an extra lower order gets 1/8 of the one above.
+    deltas = [0.01, 0.08, 0.3, 0.6]
+    while len(deltas) < order:
+        deltas.insert(0, deltas[0] / 8)
+    return deltas[-order:]
 
 
 def load_counts(path: Path) -> dict[tuple[str, ...], int]:
