@@ -873,6 +873,9 @@ const NOMINAL_ADJECTIVES = new Set(
     "bliźni dany średni pochodny styczny wypadkowy"
   ).split(" "),
 );
+/** Passive participles by their masculine form ("ogarnięty", "pokryty", "zmęczony", "pisany"). */
+const PARTICIPLE = /(?:[aeo]n|[ęyiu]t|art)y$/u;
+const INSTRUMENTALS = cases("Is Ip");
 const bitCount = (mask: number) => mask.toString(2).replace(/0/g, "").length;
 /** a <-> ą, e <-> ę: the diacritic typed or dropped. */
 const TWIN: Record<string, string> = { a: "ą", ą: "a", e: "ę", ę: "e" };
@@ -910,6 +913,8 @@ function adjectiveClash(
   let tags = nounTags(noun);
   if (!onlyNoun(tags)) return null;
   if (NOMINAL_ADJECTIVES.has(adj.lemma) && tags & cases("Gs Gp")) return null;
+  // A participle governs the instrumental of its agent ("z ogarniętej wojną Ukrainy").
+  if (PARTICIPLE.test(adj.lemma) && !(tags & ALL_CASES & ~INSTRUMENTALS)) return null;
   // Men take their own plural ("nowi synowie"); a soft stem's is its masculine form ("ostatni").
   const men = menOnlyPlural(noun);
   if (men && adjective === virileAdjective(adj.lemma)) return null;
