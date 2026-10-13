@@ -804,6 +804,8 @@ function adjectiveClash(
 ): string[] | null {
   const adj = adjectiveOf(adjective);
   if (!adj || PRONOUNS.has(adj.lemma) || ambiguousAdjective(adjective)) return null;
+  // "15 lutego uczniowie": "lutego", "lutym" name February far more often than "luty" (fierce).
+  if (adj.lemma === "luty") return null;
   if (nounTags(adjective) & ALL_CASES) return null;
   let tags = nounTags(noun);
   if (!onlyNoun(tags)) return null;

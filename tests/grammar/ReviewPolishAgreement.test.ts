@@ -387,6 +387,8 @@ const NEGATIVES = [
   // "-rzy" of a "-rz" noun is its genitive plural, not "-rze".
   "Widziałem polskich żołnierzy.",
   "Harcerzy było wielu, a talerzy brakowało.",
+  // "lutego" is the month here, not "luty" (fierce).
+  "Dnia 15 lutego uczniowie wrócili do szkół.",
 ];
 
 describe("polishCaseAgreement", () => {
