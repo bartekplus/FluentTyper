@@ -7,6 +7,8 @@ import {
   cases,
   finiteVerb,
   MASCULINE,
+  menOnlyPlural,
+  menPluralShape,
   nounTags,
   onlyNoun,
   pastByShape,
@@ -239,8 +241,8 @@ function pluralSubjects(ctx: DetectContext): RawFinding[] {
         OPENS_CLAUSE.test(before.slice(0, det.index));
       if (!opens && !determined) continue;
     } else {
-      // A man's plural that is no accusative or singular form ("studenci", "ludzie").
-      if (!(tags & VIRILE) || tags & cases("Ns Gs As Ap")) continue;
+      // A man's plural that is no accusative or singular form ("studenci", "ludzie"; not "metry").
+      if (!menOnlyPlural(lower) || tags & cases("Ns Gs As Ap")) continue;
       if (!pluralPast(verb)) continue;
     }
     const [start, end] = m.indices!.groups!.verb;
@@ -282,14 +284,17 @@ function predicateAdjectives(ctx: DetectContext): RawFinding[] {
     const virileVerb = /li/u.test(verb.toLowerCase());
     // A subject of the other gender before the verb ("Dzieci byli zmęczone"): the verb is
     // what disagrees (pluralSubjects), not the adjective.
-    const subject = nounTags(
+    const word =
       /(\p{L}+)[ \t ]+$/u
         .exec(ctx.text.slice(Math.max(0, m.index - 30), m.index))?.[1]
-        .toLowerCase() ?? "",
-    );
+        .toLowerCase() ?? "";
+    const subject = nounTags(word);
     if (onlyNoun(subject) && subject & cases("Np")) {
-      const men = (subject & VIRILE) !== 0;
-      if (virileVerb ? !men && !(subject & MASCULINE) : men) continue;
+      // A thing's plural the lexicon also reads as men's ("praktyki", "powody") is no man's; a
+      // man's noun it does not mark ("kolarze") still has a man's shape.
+      const men = menOnlyPlural(word);
+      const maybeMen = men || (subject & MASCULINE && menPluralShape(word));
+      if (virileVerb ? !maybeMen : men) continue;
     }
     let fixes: string[];
     if (virileVerb) {

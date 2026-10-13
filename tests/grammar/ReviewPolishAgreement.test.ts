@@ -203,6 +203,24 @@ const POSITIVES: Array<[string, string, string | null]> = [
     "Małe dziecko bawiło się w piaskownicy.",
   ],
   ["Kupiliśmy szybkie samochód.", "szybkie samochód", "Kupiliśmy szybki samochód."],
+  // A men's plural takes its own form, not "-e".
+  ["Nowy synowie wrócili.", "Nowy synowie", "Nowi synowie wrócili."],
+  ["Duży chłopcy biegną.", "Duży chłopcy", "Duzi chłopcy biegną."],
+  ["Nastoletnie synowie wrócili.", "Nastoletnie synowie", "Nastoletni synowie wrócili."],
+  ["Nowe studenci przyszli.", "Nowe studenci", "Nowi studenci przyszli."],
+  ["Dobre lekarze pomagają.", "Dobre lekarze", "Dobrzy lekarze pomagają."],
+  ["Różne ludzie tu mieszkają.", "Różne ludzie", "Różni ludzie tu mieszkają."],
+  // An adjective before a genitive object: the verb says which word to change.
+  ["Widzę czyste talerzy na stole.", "czyste talerzy", "Widzę czyste talerze na stole."],
+  ["Kupiłem czyste talerzy.", "czyste talerzy", "Kupiłem czyste talerze."],
+  ["Kupiłem czyste talerzy.", "czyste talerzy", "Kupiłem czystych talerzy."],
+  ["Szukam czyste talerzy.", "czyste talerzy", "Szukam czystych talerzy."],
+  ["Nie mam czyste talerzy.", "czyste talerzy", "Nie mam czystych talerzy."],
+  ["Widzę brudne żołnierzy.", "brudne żołnierzy", "Widzę brudnych żołnierzy."],
+  // After a copula with no verb after the noun, the pair is one phrase.
+  ["To są nowe studenci.", "nowe studenci", "To są nowi studenci."],
+  // A predicate adjective follows a subject the lexicon also reads as men's ("praktyk").
+  ["Praktyki były trudni.", "trudni", "Praktyki były trudne."],
   [
     "Spotkałem się z dobrym przyjaciółką.",
     "dobrym przyjaciółką",
@@ -373,6 +391,46 @@ const NEGATIVES = [
   "Książki dostali w prezencie.",
   "Nauczyciele stały dochód cenią.",
   "Usłyszałem dźwięk, jakiego używają pasterze owiec.",
+  // A soft stem's men's plural is its masculine form.
+  "Moi nastoletni synowie grają w piłkę.",
+  "Ostatni goście wyszli.",
+  // Nouns the lexicon also reads as men's ("praktyk", "powód", "metr") are things here.
+  "Najlepsze praktyki są proste.",
+  "Mamy ważne powody, by zostać.",
+  "Kolejne metry były trudne.",
+  // The verb disagrees with a thing's plural, not the adjective: no "ważni".
+  "Powody byli ważne.",
+  // "-rzy" of a "-rz" noun is its genitive plural, not "-rze".
+  "Widziałem polskich żołnierzy.",
+  "Harcerzy było wielu, a talerzy brakowało.",
+  // "lutego" is the month here, not "luty" (fierce).
+  "Dnia 15 lutego uczniowie wrócili do szkół.",
+  // The adjective governs the genitive, agrees with it, or is also a noun ("dane" = data).
+  "Byłam pełna obaw.",
+  "Kupiłem pełne talerzy zupy.",
+  "Widzę nowych studentów.",
+  "Nie mam czystych talerzy.",
+  "Mam dane klientów.",
+  "Kupiłem nowe talerzy.",
+  // An adjective used as a noun, with a genitive after it ("the coach's wards").
+  "Mam prezenty dla podopiecznych trenera.",
+  "Dzwoniłem do znajomych męża.",
+  "Wysłał kwiaty do bliskich ofiary.",
+  "Zapytaj o zdanie przełożonego brata.",
+  "Policzyłem to dla pochodnej funkcji.",
+  // An adverb ("rano") and indeclinable loans ("wideo", "show") after an adjective.
+  "Wstaję o szóstej rano.",
+  "Zobacz na poniższym wideo.",
+  "Wystąpił w polskim show.",
+  // "krok po kroku", "dzień po dniu": an adverbial phrase, not the adjective's noun.
+  "Wszystko zostało przedstawione krok po kroku.",
+  "Zadanie było trudne dzień po dniu.",
+  // A participle and the instrumental of its agent ("ogarnięta wojną").
+  "Uciekli z ogarniętej wojną Ukrainy.",
+  "Wrócił z pokrytej śniegiem góry.",
+  // A comma is missing: the predicate ends its clause and the noun opens the next.
+  "Zadania były trudne uczniowie narzekali.",
+  "Zadanie było bardzo trudne chłopiec narzekał.",
 ];
 
 describe("polishCaseAgreement", () => {

@@ -12,12 +12,15 @@ import {
   FEMININE,
   inflect,
   MASCULINE,
+  menOnlyPlural,
   NEUTER,
   nounTags,
   onlyNoun,
+  pastByShape,
   PLURAL,
   SINGULAR,
   VIRILE,
+  virileAdjective,
 } from "./lexicon";
 import {
   caseLike,
@@ -692,6 +695,91 @@ function negatedObjects(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/* ------------------------------------------- an adjective before a genitive object */
+
+/** The NEGATED_VERBS rows whose object may also stand in the partitive genitive ("kupię chleba"). */
+const PARTITIVE = new Set("kupię kupuję jem zjem piję wypiję biorę dostanę chcę".split(" "));
+const PARTITIVE_FORMS = new Set(
+  NEGATED_VERBS.filter(([present]) => PARTITIVE.has(present.split(" ")[0])).flatMap(
+    ([present, third, past, virile, imperative = ""]) =>
+      [...NEGATED_FORMS.keys()].filter(
+        (form) =>
+          [present, third, imperative].some((list) => list.split(" ").includes(form)) ||
+          form.startsWith(past) ||
+          form.startsWith(virile),
+      ),
+  ),
+);
+/** One form of a GENITIVE_VERBS verb ("szukam", "używali"). */
+const GENITIVE_VERB_FORM = new RegExp(
+  `^${GENITIVE_VERBS.source.slice(
+    GENITIVE_VERBS.source.indexOf("(?<verb>"),
+    GENITIVE_VERBS.source.indexOf(")[ \\t\\u00a0]{1,8}") + 1,
+  )}$`,
+  "iu",
+);
+/** Adjectives that govern the genitive themselves ("pełne wody", "pozbawiony wad", "warte uwagi"). */
+const GENITIVE_ADJECTIVES = new Set(
+  "pełny pozbawiony warty godny niegodny świadomy nieświadomy pewny ciekawy żądny spragniony głodny syty winny bliski chciwy".split(
+    " ",
+  ),
+);
+const VERB_OBJECT = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?:(?<nie>[Nn]ie)[ \\t\\u00a0]{1,8})?(?<verb>\\p{L}{2,})[ \\t\\u00a0]{1,8}(?<adj>\\p{Ll}{3,})[ \\t\\u00a0]{1,8}(?<noun>\\p{Ll}{3,})${WORD}`,
+  "gud",
+);
+
+/**
+ * "Widzę czyste talerzy", "szukam czyste talerzy": an adjective that does not agree with a
+ * genitive-only noun right after a verb. The verb says which word is wrong: an accusative verb
+ * wants the noun changed ("czyste talerze"), a genitive or negated verb the adjective
+ * ("czystych talerzy"), a partitive one ("kupiłem") either.
+ */
+function genitiveObjectAdjectives(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, VERB_OBJECT)) {
+    const { nie, verb, adj, noun } = m.groups!;
+    const groups = m.indices!.groups!;
+    // Overlapping frames: the next scan starts at the word after the verb.
+    VERB_OBJECT.lastIndex = groups.verb[1];
+    const lower = verb.toLowerCase();
+    // "lub" is also "or".
+    const accusative = NEGATED_FORMS.has(lower) && lower !== "lub";
+    const genitive = GENITIVE_VERB_FORM.test(lower) || (accusative && !!nie);
+    if (!accusative && !genitive) continue;
+    const reading = adjectiveOf(adj);
+    if (!reading || PRONOUNS.has(reading.lemma) || GENITIVE_ADJECTIVES.has(reading.lemma)) continue;
+    if (reading.lemma === "luty" || ambiguousAdjective(adj) || nounTags(adj) & ALL_CASES) continue;
+    const tags = nounTags(noun);
+    // A genitive-only noun; a masculine genitive plural also reads as a man's accusative
+    // ("studentów"), which takes the genitive's ending all the same.
+    if (!onlyNoun(tags) || !(tags & GENITIVE_CASES) || tags & ALL_CASES & ~cases("Gs Gp Ap"))
+      continue;
+    const own = tags & ~cases("Ap");
+    if (adjectiveAgrees(reading.ending, own) || userOrNamed(ctx, `${adj} ${noun}`)) continue;
+    const endings = agreeingEndings(own);
+    const adjectiveFix =
+      endings.length === 1 ? [`${adjectiveForm(reading.lemma, endings[0])} ${noun}`] : [];
+    // The noun in the accusative the adjective already has ("czyste talerze").
+    const nounForms = inflect(noun, ACCUSATIVE, GENITIVE_CASES).filter((form) => {
+      const formTags = nounTags(form);
+      return adjectiveAgrees(reading.ending, (formTags & ~ALL_CASES) | (formTags & ACCUSATIVE));
+    });
+    const nounFix = nounForms.length === 1 ? [`${adj} ${nounForms[0]}`] : [];
+    let fixes: string[];
+    if (genitive) fixes = adjectiveFix;
+    else if (PARTITIVE_FORMS.has(lower)) fixes = [...nounFix, ...adjectiveFix];
+    // A man's accusative is the genitive form itself ("widzę polskich żołnierzy").
+    else fixes = nounFix.length || nounForms.length || !(tags & VIRILE) ? nounFix : adjectiveFix;
+    const [start, end] = [groups.adj[0], groups.noun[1]];
+    findings.push({
+      ...findingAt(ctx, start, end, fixes, RULE, "review_msg_pl_agreement"),
+      context: { start: m.index, end },
+    });
+  }
+  return findings;
+}
+
 /* ------------------------------------------------------------ fixed genders */
 
 /** Masculine singular determiners and what they become in the neuter, the plural and the feminine. */
@@ -765,12 +853,29 @@ function fixedGenders(ctx: DetectContext): RawFinding[] {
 
 /** Cases an adjective can govern ("pełna wody", "zajęta pracą"): such a noun may not be its own. */
 const OBLIQUE = cases("Gs Ds Is Ls Gp Dp Ip Lp");
+const NO_LOCATIVE = cases("Gs Ds Is Gp Dp Ip");
 /** Pronouns that inflect like adjectives but stand alone ("o którym mowa", "temu klient"). */
 const PRONOUNS = new Set(
   "ty który jaki taki ten tamten ów czyj każdy żaden wszystek sam jakiś mój twój swój nasz wasz niektóry inny".split(
     " ",
   ),
 );
+/**
+ * Adjectives often used as nouns, with a genitive of their own after them ("dla podopiecznych
+ * trenera", "do znajomych męża", "dla pochodnej funkcji"): such a pair is no clash.
+ */
+const NOMINAL_ADJECTIVES = new Set(
+  (
+    "podopieczny znajomy bliski najbliższy krewny dorosły pełnoletni niepełnoletni nieletni " +
+    "małoletni chory bezrobotny niepełnosprawny poszkodowany pokrzywdzony ranny zmarły " +
+    "oskarżony podejrzany zatrzymany skazany przełożony podwładny narzeczony uczony wierny " +
+    "zainteresowany uprawniony ubezpieczony dyżurny śledczy mundurowy podróżny pieszy święty " +
+    "bliźni dany średni pochodny styczny wypadkowy"
+  ).split(" "),
+);
+/** Passive participles by their masculine form ("ogarnięty", "pokryty", "zmęczony", "pisany"). */
+const PARTICIPLE = /(?:[aeo]n|[ęyiu]t|art)y$/u;
+const INSTRUMENTALS = cases("Is Ip");
 const bitCount = (mask: number) => mask.toString(2).replace(/0/g, "").length;
 /** a <-> ą, e <-> ę: the diacritic typed or dropped. */
 const TWIN: Record<string, string> = { a: "ą", ą: "a", e: "ę", ę: "e" };
@@ -801,10 +906,27 @@ function adjectiveClash(
   { governed, after }: AdjectiveContext = {},
 ): string[] | null {
   const adj = adjectiveOf(adjective);
-  if (!adj || PRONOUNS.has(adj.lemma) || ambiguousAdjective(adjective)) return null;
+  if (!adj || PRONOUNS.has(adj.lemma)) return null;
+  // "15 lutego uczniowie": "lutego", "lutym" name February far more often than "luty" (fierce).
+  if (adj.lemma === "luty") return null;
   if (nounTags(adjective) & ALL_CASES) return null;
   let tags = nounTags(noun);
   if (!onlyNoun(tags)) return null;
+  if (NOMINAL_ADJECTIVES.has(adj.lemma) && tags & cases("Gs Gp")) return null;
+  // A participle governs the instrumental of its agent ("z ogarniętej wojną Ukrainy").
+  if (PARTICIPLE.test(adj.lemma) && !(tags & ALL_CASES & ~INSTRUMENTALS)) return null;
+  // Men take their own plural ("nowi synowie"); a soft stem's is its masculine form ("ostatni").
+  const men = menOnlyPlural(noun);
+  if (men && adjective === virileAdjective(adj.lemma)) return null;
+  // "-e" is no men's plural ("nastoletnie synowie"), unless the noun has another reading for it.
+  const notMen =
+    men &&
+    !after &&
+    governed === undefined &&
+    adj.ending === "e" &&
+    !adjectiveAgrees("e", tags & ~cases("Np Vp"));
+  // A form another word also spells is checked only as "-e" before men ("nowe studenci").
+  if (!notMen && ambiguousAdjective(adjective)) return null;
   if (governed !== undefined) {
     // After a preposition both words stand in a case it governs: compare those readings only,
     // unless the pair agrees in another case ("na różnego rodzaju sprzęt").
@@ -815,8 +937,10 @@ function adjectiveClash(
     // A plural instrumental before a noun that has no plural reading ("prawdziwymi lekarzem")
     // predicates nothing.
     if (adj.ending !== "ymi" || !(tags & cases("Is")) || tags & PLURAL) return null;
-  } else if (after ? !AFTER_ENDINGS.has(adj.ending) : tags & OBLIQUE) return null;
-  if (adjectiveAgrees(adj.ending, tags)) return null;
+    // With no preposition a locative cannot be ("różne ludzie" is no "o ludzie").
+  } else if (after ? !AFTER_ENDINGS.has(adj.ending) : tags & (notMen ? NO_LOCATIVE : OBLIQUE))
+    return null;
+  if (!notMen && adjectiveAgrees(adj.ending, tags)) return null;
   const pair = (a: string, n: string) => (after ? `${n} ${a}` : `${a} ${n}`);
   const fixes = new Set<string>();
   // Of the endings that agree, those closest to the typed one ("szybkie samochód" -> "szybki").
@@ -824,7 +948,9 @@ function adjectiveClash(
   const endings = agreeingEndings(tags);
   const best = Math.max(...endings.map(overlap));
   const closest = endings.filter((ending) => overlap(ending) === best);
-  if (closest.length === 1) fixes.add(pair(adjectiveForm(adj.lemma, closest[0]), noun));
+  const form =
+    men && closest[0] === "e" ? virileAdjective(adj.lemma) : adjectiveForm(adj.lemma, closest[0]);
+  if (closest.length === 1 && form) fixes.add(pair(form, noun));
   const twin = TWIN[noun.at(-1)!];
   if (twin) {
     const toggled = noun.slice(0, -1) + twin;
@@ -863,6 +989,27 @@ function closesPhraseBefore(word: string, adjective: string): boolean {
 }
 
 const COPULA = /^(?:jest|jestem|jesteś|była|byłam|byłaś|będzie|będę|będziesz|to)$/u;
+/** "krok po kroku", "dzień po dniu", "słowo po słowie": the noun opens a repeated phrase. */
+function repeatedAfter(text: string, end: number, noun: string): boolean {
+  const next = /^[ \t\u00a0]+po[ \t\u00a0]+(\p{L}+)/u.exec(text.slice(end))?.[1];
+  if (!next) return false;
+  const [word, other] = [noun.toLowerCase(), next.toLowerCase()];
+  return word.slice(0, 3) === other.slice(0, 3) || inflect(word, ALL_CASES).includes(other);
+}
+
+/** A copula or "się" (a predicate may follow), after which a degree word may stand. */
+const PREDICATE_BEFORE =
+  /(?:^|[^\p{L}])(?:jest|są|był[aoy]?|byli|będzie|będą|zosta(?:ł[aoy]?|li)|się)(?:[ \t\u00a0]+(?:bardzo|zbyt|za|dość|dosyć|całkiem|naprawdę|niezwykle|wyjątkowo|tak|coraz|nadal|wciąż|już|raczej))?[ \t\u00a0]+$/iu;
+
+/**
+ * "Zadania były trudne uczniowie narzekali": the adjective ends the clause of a copula and the
+ * noun opens the next, whose verb follows it. A comma is missing, not an agreement.
+ */
+function runOn(text: string, start: number, end: number): boolean {
+  if (!PREDICATE_BEFORE.test(text.slice(Math.max(0, start - 40), start))) return false;
+  const next = /^[ \t\u00a0]+(\p{L}+)/u.exec(text.slice(end))?.[1]?.toLowerCase();
+  return !!next && (finiteVerb(next) || pastByShape(next));
+}
 
 /**
  * "męska grą" -> "męska gra" or "męską grą": both nominative or both instrumental. Only a
@@ -919,7 +1066,9 @@ function adjectives(ctx: DetectContext): RawFinding[] {
     const adjectiveFirst = adjectiveClash(first.toLowerCase(), second, { governed });
     if (
       adjectiveFirst &&
-      (governed !== undefined || !previous || !closesPhraseBefore(previous, first.toLowerCase()))
+      (governed !== undefined || !previous || !closesPhraseBefore(previous, first.toLowerCase())) &&
+      !runOn(ctx.text, m.index, end) &&
+      !repeatedAfter(ctx.text, end, second)
     ) {
       report(m.index, end, first, adjectiveFirst);
       continue;
@@ -1328,6 +1477,7 @@ export const DETECTORS = [
             ...genitiveNumerals(ctx),
             ...genitiveObjects(ctx),
             ...negatedObjects(ctx),
+            ...genitiveObjectAdjectives(ctx),
             ...fixedGenders(ctx),
             ...adjectives(ctx),
             ...consideredAs(ctx),
