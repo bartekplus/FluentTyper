@@ -418,6 +418,10 @@ const NEGATIVES = [
   "Wysłał kwiaty do bliskich ofiary.",
   "Zapytaj o zdanie przełożonego brata.",
   "Policzyłem to dla pochodnej funkcji.",
+  // An adverb ("rano") and indeclinable loans ("wideo", "show") after an adjective.
+  "Wstaję o szóstej rano.",
+  "Zobacz na poniższym wideo.",
+  "Wystąpił w polskim show.",
   // A comma is missing: the predicate ends its clause and the noun opens the next.
   "Zadania były trudne uczniowie narzekali.",
   "Zadanie było bardzo trudne chłopiec narzekał.",

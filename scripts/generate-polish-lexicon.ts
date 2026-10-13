@@ -184,14 +184,20 @@ function lemmaTags(word: string, flags: string): number {
 // zamian", "na przemian".
 const NOT_NOUNS = (
   "jak bez niż tam ktoś coś kilka tysiąc lada sam warta gratis zbyt prawo lewo brutto netto " +
-  "poza koło dzięki ul nr art akt pkt ust lit zamian przemian"
+  "poza koło dzięki ul nr art akt pkt ust lit zamian przemian " +
+  // "o szóstej rano": the adverb, though the dictionary lists only a noun.
+  "rano"
 ).split(" ");
-/** Irregular plurals the paradigm flags do not spell. */
+/** Irregular plurals and indeclinable forms the paradigm flags do not spell. */
 const EXTRA: Record<string, string> = {
   ręce: "Np Ap Vp",
   razy: "Gp",
   procent: "Gp",
   dni: "Np Ap Vp",
+  // Indeclinable loans the dictionary declines like native nouns ("na poniższym wideo").
+  wideo: "Ns Gs Ds As Is Ls Vs Np Gp Dp Ap Ip Lp Vp",
+  show: "Ns Gs Ds As Is Ls Vs Np Gp Dp Ap Ip Lp Vp",
+  kakao: "Ns Gs Ds As Is Ls Vs",
 };
 /**
  * Plural paradigms the dictionary lists as flagless words or plural-only entries, with their
