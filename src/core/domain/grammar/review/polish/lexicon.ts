@@ -113,6 +113,27 @@ function readNounTags(word: string): number {
 }
 export const nounTags = memoize(readNounTags, ANSWERS);
 
+/** The shapes of a men's plural ("synowie", "studenci", "chłopcy", "doktorzy", "lekarze"). */
+const MEN_PLURAL = /(?:owie|[^kg]i|cy|rzy|dzy|e|a)$/u;
+
+/**
+ * Every noun that reads `word` as a nominative plural names men ("synowie"; not "praktyki"),
+ * and the form has a men's shape: "powody", "metry" are things, whatever the paradigm says.
+ */
+export function menOnlyPlural(word: string): boolean {
+  if (!MEN_PLURAL.test(word)) return false;
+  lexicon ??= load();
+  const plural = cases("Np Vp");
+  const masks = [lexicon.exceptions.get(word) ?? 0];
+  for (let cut = Math.max(0, word.length - lexicon.longest); cut <= word.length; cut++) {
+    const stem = word.slice(0, cut);
+    for (const [id, mask] of lexicon.endings.get(word.slice(cut)) ?? [])
+      if (lexicon.stems[id].has(stem)) masks.push(mask);
+  }
+  const readings = masks.filter((mask) => mask & plural);
+  return readings.length > 0 && readings.every((mask) => mask & VIRILE);
+}
+
 /**
  * The forms of the noun(s) `word` belongs to that carry one of the `wanted` tags, in the
  * paradigm's own number when `wanted` names cases of both ("sklepie", Is -> "sklepem"); only

@@ -12,6 +12,7 @@ import {
   FEMININE,
   inflect,
   MASCULINE,
+  menOnlyPlural,
   NEUTER,
   nounTags,
   onlyNoun,
@@ -807,8 +808,15 @@ function adjectiveClash(
   let tags = nounTags(noun);
   if (!onlyNoun(tags)) return null;
   // Men take their own plural ("nowi synowie"); a soft stem's is its masculine form ("ostatni").
-  const men = (tags & VIRILE) !== 0 && (tags & cases("Np Vp")) !== 0;
+  const men = menOnlyPlural(noun);
   if (men && adjective === virileAdjective(adj.lemma)) return null;
+  // "-e" is no men's plural ("nastoletnie synowie"), unless the noun has another reading for it.
+  const notMen =
+    men &&
+    !after &&
+    governed === undefined &&
+    adj.ending === "e" &&
+    !adjectiveAgrees("e", tags & ~cases("Np Vp"));
   if (governed !== undefined) {
     // After a preposition both words stand in a case it governs: compare those readings only,
     // unless the pair agrees in another case ("na różnego rodzaju sprzęt").
@@ -820,7 +828,7 @@ function adjectiveClash(
     // predicates nothing.
     if (adj.ending !== "ymi" || !(tags & cases("Is")) || tags & PLURAL) return null;
   } else if (after ? !AFTER_ENDINGS.has(adj.ending) : tags & OBLIQUE) return null;
-  if (adjectiveAgrees(adj.ending, tags)) return null;
+  if (!notMen && adjectiveAgrees(adj.ending, tags)) return null;
   const pair = (a: string, n: string) => (after ? `${n} ${a}` : `${a} ${n}`);
   const fixes = new Set<string>();
   // Of the endings that agree, those closest to the typed one ("szybkie samochód" -> "szybki").

@@ -7,6 +7,7 @@ import {
   cases,
   finiteVerb,
   MASCULINE,
+  menOnlyPlural,
   nounTags,
   onlyNoun,
   pastByShape,
@@ -239,8 +240,8 @@ function pluralSubjects(ctx: DetectContext): RawFinding[] {
         OPENS_CLAUSE.test(before.slice(0, det.index));
       if (!opens && !determined) continue;
     } else {
-      // A man's plural that is no accusative or singular form ("studenci", "ludzie").
-      if (!(tags & VIRILE) || tags & cases("Ns Gs As Ap")) continue;
+      // A man's plural that is no accusative or singular form ("studenci", "ludzie"; not "metry").
+      if (!menOnlyPlural(lower) || tags & cases("Ns Gs As Ap")) continue;
       if (!pluralPast(verb)) continue;
     }
     const [start, end] = m.indices!.groups!.verb;

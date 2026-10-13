@@ -206,6 +206,7 @@ const POSITIVES: Array<[string, string, string | null]> = [
   // A men's plural takes its own form, not "-e".
   ["Nowy synowie wrócili.", "Nowy synowie", "Nowi synowie wrócili."],
   ["Duży chłopcy biegną.", "Duży chłopcy", "Duzi chłopcy biegną."],
+  ["Nastoletnie synowie wrócili.", "Nastoletnie synowie", "Nastoletni synowie wrócili."],
   [
     "Spotkałem się z dobrym przyjaciółką.",
     "dobrym przyjaciółką",
@@ -379,6 +380,10 @@ const NEGATIVES = [
   // A soft stem's men's plural is its masculine form.
   "Moi nastoletni synowie grają w piłkę.",
   "Ostatni goście wyszli.",
+  // Nouns the lexicon also reads as men's ("praktyk", "powód", "metr") are things here.
+  "Najlepsze praktyki są proste.",
+  "Mamy ważne powody, by zostać.",
+  "Kolejne metry były trudne.",
 ];
 
 describe("polishCaseAgreement", () => {
