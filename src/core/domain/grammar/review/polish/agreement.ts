@@ -767,6 +767,7 @@ function fixedGenders(ctx: DetectContext): RawFinding[] {
 
 /** Cases an adjective can govern ("pełna wody", "zajęta pracą"): such a noun may not be its own. */
 const OBLIQUE = cases("Gs Ds Is Ls Gp Dp Ip Lp");
+const NO_LOCATIVE = cases("Gs Ds Is Gp Dp Ip");
 /** Pronouns that inflect like adjectives but stand alone ("o którym mowa", "temu klient"). */
 const PRONOUNS = new Set(
   "ty który jaki taki ten tamten ów czyj każdy żaden wszystek sam jakiś mój twój swój nasz wasz niektóry inny".split(
@@ -803,7 +804,7 @@ function adjectiveClash(
   { governed, after }: AdjectiveContext = {},
 ): string[] | null {
   const adj = adjectiveOf(adjective);
-  if (!adj || PRONOUNS.has(adj.lemma) || ambiguousAdjective(adjective)) return null;
+  if (!adj || PRONOUNS.has(adj.lemma)) return null;
   // "15 lutego uczniowie": "lutego", "lutym" name February far more often than "luty" (fierce).
   if (adj.lemma === "luty") return null;
   if (nounTags(adjective) & ALL_CASES) return null;
@@ -819,6 +820,8 @@ function adjectiveClash(
     governed === undefined &&
     adj.ending === "e" &&
     !adjectiveAgrees("e", tags & ~cases("Np Vp"));
+  // A form another word also spells is checked only as "-e" before men ("nowe studenci").
+  if (!notMen && ambiguousAdjective(adjective)) return null;
   if (governed !== undefined) {
     // After a preposition both words stand in a case it governs: compare those readings only,
     // unless the pair agrees in another case ("na różnego rodzaju sprzęt").
@@ -829,7 +832,9 @@ function adjectiveClash(
     // A plural instrumental before a noun that has no plural reading ("prawdziwymi lekarzem")
     // predicates nothing.
     if (adj.ending !== "ymi" || !(tags & cases("Is")) || tags & PLURAL) return null;
-  } else if (after ? !AFTER_ENDINGS.has(adj.ending) : tags & OBLIQUE) return null;
+    // With no preposition a locative cannot be ("różne ludzie" is no "o ludzie").
+  } else if (after ? !AFTER_ENDINGS.has(adj.ending) : tags & (notMen ? NO_LOCATIVE : OBLIQUE))
+    return null;
   if (!notMen && adjectiveAgrees(adj.ending, tags)) return null;
   const pair = (a: string, n: string) => (after ? `${n} ${a}` : `${a} ${n}`);
   const fixes = new Set<string>();

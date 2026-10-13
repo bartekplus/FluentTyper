@@ -115,13 +115,15 @@ export const nounTags = memoize(readNounTags, ANSWERS);
 
 /** The shapes of a men's plural ("synowie", "studenci", "chłopcy", "doktorzy", "lekarze"). */
 const MEN_PLURAL = /(?:owie|[^kg]i|cy|rzy|dzy|e|a)$/u;
+/** `word` has the shape of a men's plural ("lekarze"; not "powody", "praktyki"). */
+export const menPluralShape = (word: string) => MEN_PLURAL.test(word);
 
 /**
  * Every noun that reads `word` as a nominative plural names men ("synowie"; not "praktyki"),
  * and the form has a men's shape: "powody", "metry" are things, whatever the paradigm says.
  */
 export function menOnlyPlural(word: string): boolean {
-  if (!MEN_PLURAL.test(word)) return false;
+  if (!menPluralShape(word)) return false;
   lexicon ??= load();
   const plural = cases("Np Vp");
   const masks = [lexicon.exceptions.get(word) ?? 0];

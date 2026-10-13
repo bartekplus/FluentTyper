@@ -207,6 +207,11 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Nowy synowie wrócili.", "Nowy synowie", "Nowi synowie wrócili."],
   ["Duży chłopcy biegną.", "Duży chłopcy", "Duzi chłopcy biegną."],
   ["Nastoletnie synowie wrócili.", "Nastoletnie synowie", "Nastoletni synowie wrócili."],
+  ["Nowe studenci przyszli.", "Nowe studenci", "Nowi studenci przyszli."],
+  ["Dobre lekarze pomagają.", "Dobre lekarze", "Dobrzy lekarze pomagają."],
+  ["Różne ludzie tu mieszkają.", "Różne ludzie", "Różni ludzie tu mieszkają."],
+  // A predicate adjective follows a subject the lexicon also reads as men's ("praktyk").
+  ["Praktyki były trudni.", "trudni", "Praktyki były trudne."],
   [
     "Spotkałem się z dobrym przyjaciółką.",
     "dobrym przyjaciółką",
@@ -384,6 +389,8 @@ const NEGATIVES = [
   "Najlepsze praktyki są proste.",
   "Mamy ważne powody, by zostać.",
   "Kolejne metry były trudne.",
+  // The verb disagrees with a thing's plural, not the adjective: no "ważni".
+  "Powody byli ważne.",
   // "-rzy" of a "-rz" noun is its genitive plural, not "-rze".
   "Widziałem polskich żołnierzy.",
   "Harcerzy było wielu, a talerzy brakowało.",
