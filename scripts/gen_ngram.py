@@ -13,7 +13,8 @@ from pathlib import Path
 
 
 NGRAM_ORDER_DEFAULT = 4
-NGRAM_DIV = 1.33
+# Longer n-grams (order 2+) kept per unigram, most frequent first: about 2x the DB of the old per-order cap (1.33).
+NGRAM_LONGER_PER_WORD = 4.5
 NGRAM_MIN_COUNT = 10
 LINE_BLOCK = 2000  # consecutive lines given to one worker
 SPILL_KEYS = 4_000_000  # per-worker Counter size that triggers a spill to disk
@@ -310,21 +311,18 @@ def rejected_words(words, dict_path):
     return {w for w in words if w not in accepted and (w[:1].upper() + w[1:]) not in accepted}
 
 
-def prune(counts, order, min_count=NGRAM_MIN_COUNT):
-    """Per order, keep the most frequent n-grams; each order is capped at 1/NGRAM_DIV of the order below."""
+def prune(counts, order, min_count=NGRAM_MIN_COUNT, per_word=NGRAM_LONGER_PER_WORD):
+    """Keep every word seen min_count times, and the most frequent longer n-grams of all orders together,
+    up to per_word for each word. Ranking all orders by count keeps what is frequent in any order."""
     by_order = [[] for _ in range(order)]
     for key, value in counts.items():
         if value >= min_count:
             by_order[key.count(" ")].append((key, value))
-    result = []
-    last_count = 0
-    for items in by_order:
-        items.sort(key=lambda kv: (-kv[1], kv[0]))
-        if last_count:
-            items = items[: round(last_count // NGRAM_DIV)]
-        result.append(items)
-        last_count = len(items)
-    return result
+    by_count = lambda kv: (-kv[1], kv[0])
+    longer = sorted((kv for items in by_order[1:] for kv in items), key=by_count)
+    kept = set(key for key, _ in longer[: round(len(by_order[0]) * per_word)])
+    return [sorted(items, key=by_count) if n == 0 else sorted((kv for kv in items if kv[0] in kept), key=by_count)
+            for n, items in enumerate(by_order)]
 
 
 def write_outputs(pruned, prefix):
