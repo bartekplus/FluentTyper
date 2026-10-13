@@ -16,6 +16,7 @@ import {
   NEUTER,
   nounTags,
   onlyNoun,
+  pastByShape,
   PLURAL,
   SINGULAR,
   VIRILE,
@@ -884,6 +885,19 @@ function closesPhraseBefore(word: string, adjective: string): boolean {
 }
 
 const COPULA = /^(?:jest|jestem|jesteś|była|byłam|byłaś|będzie|będę|będziesz|to)$/u;
+/** A copula or "się" (a predicate may follow), after which a degree word may stand. */
+const PREDICATE_BEFORE =
+  /(?:^|[^\p{L}])(?:jest|są|był[aoy]?|byli|będzie|będą|zosta(?:ł[aoy]?|li)|się)(?:[ \t\u00a0]+(?:bardzo|zbyt|za|dość|dosyć|całkiem|naprawdę|niezwykle|wyjątkowo|tak|coraz|nadal|wciąż|już|raczej))?[ \t\u00a0]+$/iu;
+
+/**
+ * "Zadania były trudne uczniowie narzekali": the adjective ends the clause of a copula and the
+ * noun opens the next, whose verb follows it. A comma is missing, not an agreement.
+ */
+function runOn(text: string, start: number, end: number): boolean {
+  if (!PREDICATE_BEFORE.test(text.slice(Math.max(0, start - 40), start))) return false;
+  const next = /^[ \t\u00a0]+(\p{L}+)/u.exec(text.slice(end))?.[1]?.toLowerCase();
+  return !!next && (finiteVerb(next) || pastByShape(next));
+}
 
 /**
  * "męska grą" -> "męska gra" or "męską grą": both nominative or both instrumental. Only a
@@ -940,7 +954,8 @@ function adjectives(ctx: DetectContext): RawFinding[] {
     const adjectiveFirst = adjectiveClash(first.toLowerCase(), second, { governed });
     if (
       adjectiveFirst &&
-      (governed !== undefined || !previous || !closesPhraseBefore(previous, first.toLowerCase()))
+      (governed !== undefined || !previous || !closesPhraseBefore(previous, first.toLowerCase())) &&
+      !runOn(ctx.text, m.index, end)
     ) {
       report(m.index, end, first, adjectiveFirst);
       continue;

@@ -210,6 +210,8 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Nowe studenci przyszli.", "Nowe studenci", "Nowi studenci przyszli."],
   ["Dobre lekarze pomagają.", "Dobre lekarze", "Dobrzy lekarze pomagają."],
   ["Różne ludzie tu mieszkają.", "Różne ludzie", "Różni ludzie tu mieszkają."],
+  // After a copula with no verb after the noun, the pair is one phrase.
+  ["To są nowe studenci.", "nowe studenci", "To są nowi studenci."],
   // A predicate adjective follows a subject the lexicon also reads as men's ("praktyk").
   ["Praktyki były trudni.", "trudni", "Praktyki były trudne."],
   [
@@ -396,6 +398,9 @@ const NEGATIVES = [
   "Harcerzy było wielu, a talerzy brakowało.",
   // "lutego" is the month here, not "luty" (fierce).
   "Dnia 15 lutego uczniowie wrócili do szkół.",
+  // A comma is missing: the predicate ends its clause and the noun opens the next.
+  "Zadania były trudne uczniowie narzekali.",
+  "Zadanie było bardzo trudne chłopiec narzekał.",
 ];
 
 describe("polishCaseAgreement", () => {
