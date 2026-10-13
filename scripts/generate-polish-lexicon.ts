@@ -76,6 +76,9 @@ function flagCases(
   switch (flag) {
     // q spells virile plurals ("doktorzy") and others ("komentarze") alike.
     case "s":
+      // "-rz" is a soft stem: "-rzy" is its genitive ("żołnierzy", "talerzy"), not "-rze".
+      if (lemma.endsWith("rz") && form.endsWith("rzy")) return GEN_PLURAL;
+    // falls through
     case "z":
     case "A":
     case "q":

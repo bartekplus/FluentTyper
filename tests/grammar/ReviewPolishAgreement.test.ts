@@ -384,6 +384,9 @@ const NEGATIVES = [
   "Najlepsze praktyki są proste.",
   "Mamy ważne powody, by zostać.",
   "Kolejne metry były trudne.",
+  // "-rzy" of a "-rz" noun is its genitive plural, not "-rze".
+  "Widziałem polskich żołnierzy.",
+  "Harcerzy było wielu, a talerzy brakowało.",
 ];
 
 describe("polishCaseAgreement", () => {
