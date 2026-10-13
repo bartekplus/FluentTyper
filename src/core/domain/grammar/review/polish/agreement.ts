@@ -984,6 +984,14 @@ function closesPhraseBefore(word: string, adjective: string): boolean {
 }
 
 const COPULA = /^(?:jest|jestem|jesteś|była|byłam|byłaś|będzie|będę|będziesz|to)$/u;
+/** "krok po kroku", "dzień po dniu", "słowo po słowie": the noun opens a repeated phrase. */
+function repeatedAfter(text: string, end: number, noun: string): boolean {
+  const next = /^[ \t\u00a0]+po[ \t\u00a0]+(\p{L}+)/u.exec(text.slice(end))?.[1];
+  if (!next) return false;
+  const [word, other] = [noun.toLowerCase(), next.toLowerCase()];
+  return word.slice(0, 3) === other.slice(0, 3) || inflect(word, ALL_CASES).includes(other);
+}
+
 /** A copula or "się" (a predicate may follow), after which a degree word may stand. */
 const PREDICATE_BEFORE =
   /(?:^|[^\p{L}])(?:jest|są|był[aoy]?|byli|będzie|będą|zosta(?:ł[aoy]?|li)|się)(?:[ \t\u00a0]+(?:bardzo|zbyt|za|dość|dosyć|całkiem|naprawdę|niezwykle|wyjątkowo|tak|coraz|nadal|wciąż|już|raczej))?[ \t\u00a0]+$/iu;
@@ -1054,7 +1062,8 @@ function adjectives(ctx: DetectContext): RawFinding[] {
     if (
       adjectiveFirst &&
       (governed !== undefined || !previous || !closesPhraseBefore(previous, first.toLowerCase())) &&
-      !runOn(ctx.text, m.index, end)
+      !runOn(ctx.text, m.index, end) &&
+      !repeatedAfter(ctx.text, end, second)
     ) {
       report(m.index, end, first, adjectiveFirst);
       continue;

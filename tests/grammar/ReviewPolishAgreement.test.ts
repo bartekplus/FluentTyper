@@ -422,6 +422,9 @@ const NEGATIVES = [
   "Wstaję o szóstej rano.",
   "Zobacz na poniższym wideo.",
   "Wystąpił w polskim show.",
+  // "krok po kroku", "dzień po dniu": an adverbial phrase, not the adjective's noun.
+  "Wszystko zostało przedstawione krok po kroku.",
+  "Zadanie było trudne dzień po dniu.",
   // A comma is missing: the predicate ends its clause and the noun opens the next.
   "Zadania były trudne uczniowie narzekali.",
   "Zadanie było bardzo trudne chłopiec narzekał.",
