@@ -412,6 +412,12 @@ const NEGATIVES = [
   "Nie mam czystych talerzy.",
   "Mam dane klientów.",
   "Kupiłem nowe talerzy.",
+  // An adjective used as a noun, with a genitive after it ("the coach's wards").
+  "Mam prezenty dla podopiecznych trenera.",
+  "Dzwoniłem do znajomych męża.",
+  "Wysłał kwiaty do bliskich ofiary.",
+  "Zapytaj o zdanie przełożonego brata.",
+  "Policzyłem to dla pochodnej funkcji.",
   // A comma is missing: the predicate ends its clause and the noun opens the next.
   "Zadania były trudne uczniowie narzekali.",
   "Zadanie było bardzo trudne chłopiec narzekał.",

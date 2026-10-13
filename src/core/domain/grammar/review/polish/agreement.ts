@@ -860,6 +860,19 @@ const PRONOUNS = new Set(
     " ",
   ),
 );
+/**
+ * Adjectives often used as nouns, with a genitive of their own after them ("dla podopiecznych
+ * trenera", "do znajomych męża", "dla pochodnej funkcji"): such a pair is no clash.
+ */
+const NOMINAL_ADJECTIVES = new Set(
+  (
+    "podopieczny znajomy bliski najbliższy krewny dorosły pełnoletni niepełnoletni nieletni " +
+    "małoletni chory bezrobotny niepełnosprawny poszkodowany pokrzywdzony ranny zmarły " +
+    "oskarżony podejrzany zatrzymany skazany przełożony podwładny narzeczony uczony wierny " +
+    "zainteresowany uprawniony ubezpieczony dyżurny śledczy mundurowy podróżny pieszy święty " +
+    "bliźni dany średni pochodny styczny wypadkowy"
+  ).split(" "),
+);
 const bitCount = (mask: number) => mask.toString(2).replace(/0/g, "").length;
 /** a <-> ą, e <-> ę: the diacritic typed or dropped. */
 const TWIN: Record<string, string> = { a: "ą", ą: "a", e: "ę", ę: "e" };
@@ -896,6 +909,7 @@ function adjectiveClash(
   if (nounTags(adjective) & ALL_CASES) return null;
   let tags = nounTags(noun);
   if (!onlyNoun(tags)) return null;
+  if (NOMINAL_ADJECTIVES.has(adj.lemma) && tags & cases("Gs Gp")) return null;
   // Men take their own plural ("nowi synowie"); a soft stem's is its masculine form ("ostatni").
   const men = menOnlyPlural(noun);
   if (men && adjective === virileAdjective(adj.lemma)) return null;
