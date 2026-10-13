@@ -210,6 +210,13 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Nowe studenci przyszli.", "Nowe studenci", "Nowi studenci przyszli."],
   ["Dobre lekarze pomagają.", "Dobre lekarze", "Dobrzy lekarze pomagają."],
   ["Różne ludzie tu mieszkają.", "Różne ludzie", "Różni ludzie tu mieszkają."],
+  // An adjective before a genitive object: the verb says which word to change.
+  ["Widzę czyste talerzy na stole.", "czyste talerzy", "Widzę czyste talerze na stole."],
+  ["Kupiłem czyste talerzy.", "czyste talerzy", "Kupiłem czyste talerze."],
+  ["Kupiłem czyste talerzy.", "czyste talerzy", "Kupiłem czystych talerzy."],
+  ["Szukam czyste talerzy.", "czyste talerzy", "Szukam czystych talerzy."],
+  ["Nie mam czyste talerzy.", "czyste talerzy", "Nie mam czystych talerzy."],
+  ["Widzę brudne żołnierzy.", "brudne żołnierzy", "Widzę brudnych żołnierzy."],
   // After a copula with no verb after the noun, the pair is one phrase.
   ["To są nowe studenci.", "nowe studenci", "To są nowi studenci."],
   // A predicate adjective follows a subject the lexicon also reads as men's ("praktyk").
@@ -398,6 +405,13 @@ const NEGATIVES = [
   "Harcerzy było wielu, a talerzy brakowało.",
   // "lutego" is the month here, not "luty" (fierce).
   "Dnia 15 lutego uczniowie wrócili do szkół.",
+  // The adjective governs the genitive, agrees with it, or is also a noun ("dane" = data).
+  "Byłam pełna obaw.",
+  "Kupiłem pełne talerzy zupy.",
+  "Widzę nowych studentów.",
+  "Nie mam czystych talerzy.",
+  "Mam dane klientów.",
+  "Kupiłem nowe talerzy.",
   // A comma is missing: the predicate ends its clause and the noun opens the next.
   "Zadania były trudne uczniowie narzekali.",
   "Zadanie było bardzo trudne chłopiec narzekał.",

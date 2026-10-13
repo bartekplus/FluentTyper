@@ -695,6 +695,91 @@ function negatedObjects(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/* ------------------------------------------- an adjective before a genitive object */
+
+/** The NEGATED_VERBS rows whose object may also stand in the partitive genitive ("kupię chleba"). */
+const PARTITIVE = new Set("kupię kupuję jem zjem piję wypiję biorę dostanę chcę".split(" "));
+const PARTITIVE_FORMS = new Set(
+  NEGATED_VERBS.filter(([present]) => PARTITIVE.has(present.split(" ")[0])).flatMap(
+    ([present, third, past, virile, imperative = ""]) =>
+      [...NEGATED_FORMS.keys()].filter(
+        (form) =>
+          [present, third, imperative].some((list) => list.split(" ").includes(form)) ||
+          form.startsWith(past) ||
+          form.startsWith(virile),
+      ),
+  ),
+);
+/** One form of a GENITIVE_VERBS verb ("szukam", "używali"). */
+const GENITIVE_VERB_FORM = new RegExp(
+  `^${GENITIVE_VERBS.source.slice(
+    GENITIVE_VERBS.source.indexOf("(?<verb>"),
+    GENITIVE_VERBS.source.indexOf(")[ \\t\\u00a0]{1,8}") + 1,
+  )}$`,
+  "iu",
+);
+/** Adjectives that govern the genitive themselves ("pełne wody", "pozbawiony wad", "warte uwagi"). */
+const GENITIVE_ADJECTIVES = new Set(
+  "pełny pozbawiony warty godny niegodny świadomy nieświadomy pewny ciekawy żądny spragniony głodny syty winny bliski chciwy".split(
+    " ",
+  ),
+);
+const VERB_OBJECT = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’-])(?:(?<nie>[Nn]ie)[ \\t\\u00a0]{1,8})?(?<verb>\\p{L}{2,})[ \\t\\u00a0]{1,8}(?<adj>\\p{Ll}{3,})[ \\t\\u00a0]{1,8}(?<noun>\\p{Ll}{3,})${WORD}`,
+  "gud",
+);
+
+/**
+ * "Widzę czyste talerzy", "szukam czyste talerzy": an adjective that does not agree with a
+ * genitive-only noun right after a verb. The verb says which word is wrong: an accusative verb
+ * wants the noun changed ("czyste talerze"), a genitive or negated verb the adjective
+ * ("czystych talerzy"), a partitive one ("kupiłem") either.
+ */
+function genitiveObjectAdjectives(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, VERB_OBJECT)) {
+    const { nie, verb, adj, noun } = m.groups!;
+    const groups = m.indices!.groups!;
+    // Overlapping frames: the next scan starts at the word after the verb.
+    VERB_OBJECT.lastIndex = groups.verb[1];
+    const lower = verb.toLowerCase();
+    // "lub" is also "or".
+    const accusative = NEGATED_FORMS.has(lower) && lower !== "lub";
+    const genitive = GENITIVE_VERB_FORM.test(lower) || (accusative && !!nie);
+    if (!accusative && !genitive) continue;
+    const reading = adjectiveOf(adj);
+    if (!reading || PRONOUNS.has(reading.lemma) || GENITIVE_ADJECTIVES.has(reading.lemma)) continue;
+    if (reading.lemma === "luty" || ambiguousAdjective(adj) || nounTags(adj) & ALL_CASES) continue;
+    const tags = nounTags(noun);
+    // A genitive-only noun; a masculine genitive plural also reads as a man's accusative
+    // ("studentów"), which takes the genitive's ending all the same.
+    if (!onlyNoun(tags) || !(tags & GENITIVE_CASES) || tags & ALL_CASES & ~cases("Gs Gp Ap"))
+      continue;
+    const own = tags & ~cases("Ap");
+    if (adjectiveAgrees(reading.ending, own) || userOrNamed(ctx, `${adj} ${noun}`)) continue;
+    const endings = agreeingEndings(own);
+    const adjectiveFix =
+      endings.length === 1 ? [`${adjectiveForm(reading.lemma, endings[0])} ${noun}`] : [];
+    // The noun in the accusative the adjective already has ("czyste talerze").
+    const nounForms = inflect(noun, ACCUSATIVE, GENITIVE_CASES).filter((form) => {
+      const formTags = nounTags(form);
+      return adjectiveAgrees(reading.ending, (formTags & ~ALL_CASES) | (formTags & ACCUSATIVE));
+    });
+    const nounFix = nounForms.length === 1 ? [`${adj} ${nounForms[0]}`] : [];
+    let fixes: string[];
+    if (genitive) fixes = adjectiveFix;
+    else if (PARTITIVE_FORMS.has(lower)) fixes = [...nounFix, ...adjectiveFix];
+    // A man's accusative is the genitive form itself ("widzę polskich żołnierzy").
+    else fixes = nounFix.length || nounForms.length || !(tags & VIRILE) ? nounFix : adjectiveFix;
+    const [start, end] = [groups.adj[0], groups.noun[1]];
+    findings.push({
+      ...findingAt(ctx, start, end, fixes, RULE, "review_msg_pl_agreement"),
+      context: { start: m.index, end },
+    });
+  }
+  return findings;
+}
+
 /* ------------------------------------------------------------ fixed genders */
 
 /** Masculine singular determiners and what they become in the neuter, the plural and the feminine. */
@@ -1364,6 +1449,7 @@ export const DETECTORS = [
             ...genitiveNumerals(ctx),
             ...genitiveObjects(ctx),
             ...negatedObjects(ctx),
+            ...genitiveObjectAdjectives(ctx),
             ...fixedGenders(ctx),
             ...adjectives(ctx),
             ...consideredAs(ctx),
