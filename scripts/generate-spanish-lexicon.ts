@@ -361,6 +361,10 @@ function genderedNouns(counts: Counts, keys: Set<string>): string[] {
 const cue = (map: Map<string, number>, word: string) =>
   (map.get(word) ?? 0) + (map.get(pluralOf(word)) ?? 0);
 
+// Feminine nouns whose masculine twin also follows the article as a noun ("la física", "el
+// físico"): the article cue reads them as adjectives ("la preciosa", "el precioso").
+const AUTHORED_NOUNS = new Set(["física"]);
+
 /**
  * "comprado/S", "preciosa/S", "rica/S": the dictionary also files some participles and
  * feminine adjectives as nouns. A plural-taking entry that is the regular participle of a verb
@@ -385,6 +389,7 @@ function bareTwins(counts: Counts, keys: Set<string>, verbs: Set<string>): strin
     .filter((key) => key.startsWith("n") && twin(key.slice(1)))
     .map((key) => key.slice(1))
     .filter((word) => {
+      if (AUTHORED_NOUNS.has(word)) return false;
       const feminine = word.endsWith("a");
       const other = `${word.slice(0, -1)}${feminine ? "o" : "a"}`;
       // "la rica comida", "la preciosa ciudad": an adjective before its noun follows the article
@@ -455,9 +460,13 @@ export function buildSpanishLexicon(
   // The frequent words and the spellings the checks derive from them, under every key prefix:
   // the filter's false positives among them are listed, so the reader answers those exactly.
   const frequent = [...ngrams.words].sort((a, b) => b[1] - a[1]).slice(0, FREQUENT_PROBES);
-  const probes = frequent.flatMap(([word]) =>
-    lookups(word).flatMap((form) => [..."njfa"].map((p) => `${p}${form}`)),
-  );
+  // The reader also asks "c" + an infinitive (a stem-changing verb) for every verb.
+  const probes = [
+    ...frequent.flatMap(([word]) =>
+      lookups(word).flatMap((form) => [..."njfa"].map((p) => `${p}${form}`)),
+    ),
+    ...[...verbs].map((verb) => `c${verb}`),
+  ];
   const line = (name: string, value: string) => {
     const one = `export const ${name} = ${JSON.stringify(value)};`;
     return one.length <= 100 ? one : `export const ${name} =\n  ${JSON.stringify(value)};`;

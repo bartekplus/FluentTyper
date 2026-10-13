@@ -87,13 +87,13 @@ class CountingTest(unittest.TestCase):
             self.assertEqual(merged, dict(expected))
             self.assertEqual(list(Path(spill_dir).iterdir()), [])
 
-    def test_prune_applies_min_count_and_per_order_caps(self) -> None:
+    def test_prune_applies_min_count_and_keeps_the_most_frequent_longer_ngrams(self) -> None:
         counts = {"a": 50, "b": 40, "c": 30, "d": 5, "a b": 20, "b c": 15, "c a": 12, "a b c": 11}
-        pruned = prune(counts, 3, min_count=10)
+        pruned = prune(counts, 3, min_count=10, per_word=1)
         self.assertEqual([k for k, _ in pruned[0]], ["a", "b", "c"])
-        # 3 unigrams // 1.33 -> 2 bigrams, 2 // 1.33 -> 1 trigram
-        self.assertEqual([k for k, _ in pruned[1]], ["a b", "b c"])
-        self.assertEqual([k for k, _ in pruned[2]], ["a b c"])
+        # 3 words x 1 -> the 3 most frequent longer n-grams, whatever their order: "a b c" (11) is the 4th.
+        self.assertEqual([k for k, _ in pruned[1]], ["a b", "b c", "c a"])
+        self.assertEqual(pruned[2], [])
 
 
 EN_DICT = SCRIPT_DIR.parent / "resources_js" / "en_US" / "hunspell" / "en_US"

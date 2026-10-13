@@ -185,7 +185,9 @@ const headNoun = (word: string) =>
 /** The plural without its dative -n: "Kindern" → "Kinder"; null when the -n belongs to it. */
 function withoutDativeN(word: string): string | null {
   if (/(?:el|er)n$/.test(word)) return word.slice(0, -1);
-  return /en$/.test(word) && noun(word.slice(0, -1)) ? word.slice(0, -1) : null;
+  // "Unterlagen": a feminine noun in -e takes its -n in every plural case.
+  const stem = word.slice(0, -1);
+  return /en$/.test(word) && noun(stem) && germanGender(stem)?.gender !== "f" ? stem : null;
 }
 /** A form that is only a plural: "Kinder" (Kind), "Mütter" (Mutter), "Äpfel" (Apfel). */
 function pluralOnly(word: string): boolean {
@@ -271,7 +273,7 @@ const genitiveFix: Fixer = (stem, end, adjs, word, gender) => {
   if (end === "en") {
     // "wegen den Autos" (plural), "wegen unseren Termin" (singular).
     if (dativePlural(word)) {
-      // "Fanartikeln" loses its dative -n; "Katzen" or "Geschehnissen" may or may not.
+      // "Fanartikeln" loses its dative -n; "Geschehnissen" may or may not ("Katzen" keeps it).
       const plain = withoutDativeN(word);
       const sure = /(?:el|er)n$/.test(word);
       const plurals = plain ? (sure ? [plain] : [plain, word]) : [word];

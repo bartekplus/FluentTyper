@@ -9787,7 +9787,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       let panel = await waitForReview(page, "spelling finding", (p) => p.items.length > 0);
       expect(panel.items).toHaveLength(1);
       expect(panel.items[0].category).toBe("spelling");
-      expect(panel.items[0].text).toStartWith("wa \u2192 was / way /");
+      // "was" first; the rest follow the n-gram counts ("where water" ranks "water" second).
+      expect(panel.items[0].text).toStartWith("wa \u2192 was / ");
+      expect(panel.items[0].text).toContain(" way ");
       expect(panel.fixAll).toMatchObject({ text: "Fix all safe (0)", disabled: true });
       expect(await textareaValue()).toBe("Where wa it?");
 

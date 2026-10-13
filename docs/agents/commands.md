@@ -144,7 +144,7 @@ What the script does:
 5. **Count.** `gen_ngram.py` counts in parallel, in two passes:
    - The first pass counts words and bigrams. Hunspell then checks each word once, in lowercase and in Title case. Words it rejects, words that contain digits and words seen fewer than 10 times are removed.
    - The second pass counts 1- to 4-grams. It splits the text at every removed word and at every bigram seen fewer than 10 times. This gives the same counts as filtering after counting, but uses much less temporary disk.
-   - The pruning is the same as before: each n-gram must be seen 10 times or more, and each order is capped at 75% of the size of the order below it.
+   - Pruning: each n-gram must be seen 10 times or more. All words are kept. Of the longer n-grams (orders 2 to 4 together), the most frequent ones are kept, up to 4.5 for each word (`NGRAM_LONGER_PER_WORD`).
 6. **Write.** `ngramtxt2marisa.py` writes `ngrams.trie` and `ngrams.counts`.
 
 Useful flags:
@@ -170,6 +170,12 @@ Why 1000 MB and order 4 (study on en and pl, held-out HPLT forum and opinion tex
 - More text helps up to about 1000 MB. From 1000 to 3000 MB, KSR goes up by only 0.25 percentage points at the same DB size, but counting takes 3 times as long.
 - Order 5 adds 0.02 percentage points of KSR or less. Order 3 loses about 0.1 points of KSR and 0.3 points of top-1.
 - At the same DB size as the old OSCAR data, HPLT gives about 3 points more KSR for pl.
+
+Why 4.5 longer n-grams per word (study on en and pl):
+
+- Before, each order was capped at 75% of the order below. That cap dropped about 95% of the en n-grams seen 10 times or more, and most of them were bigrams.
+- Ranking the longer n-grams of all orders together by count gives more KSR than the per-order cap at every DB size. At 3.5 per word: en 1.49 → 2.46 MB, KSR 62.32 → 63.52; pl 5.49 → 8.85 MB, KSR 52.25 → 53.96.
+- 4.5 per word gives about 2 times the old DB size, which is the chosen size budget. With no pruning, KSR goes up by 4.0 (en) and 3.1 (pl) points, but the DBs are 10 to 15 times larger.
 
 Why `DELTAS` 0.01 0.08 0.3 0.6 (sweep with `eval_ngram.py` on en, pl and de held-out text):
 

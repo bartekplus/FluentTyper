@@ -268,6 +268,7 @@ const NOT_FEMININE_DETERMINERS = [
 // ("des Autos", "die Autos").
 const OWN_PLURAL = /(?:e|er|el|en|chen|lein)$/;
 const CLEAR_MAJORITY = 20;
+const NOISE_MAJORITY = 3;
 
 /**
  * "det word count" lines for every determiner + word bigram of the n-gram database the extension
@@ -467,8 +468,14 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
       sum(genitive ? ["das"] : NEUTER_DETERMINERS) - (verbForm ? (row.get("das") ?? 0) : 0);
     const notFeminine = sum(NOT_FEMININE_DETERMINERS);
     // One gender's evidence must outweigh the others' twentyfold: "auf der einen Seite" puts
-    // an adjective "einen" before a feminine noun now and then.
-    const clear = (own: number, others: number) => own > 0 && own >= others * CLEAR_MAJORITY;
+    // an adjective "einen" before a feminine noun now and then. The database also keeps rare
+    // bigrams ("jede gerät", a pronoun before the verb; "was das Kunden bringt"): cues under
+    // 1/CLEAR_MAJORITY of all the word's determiner cues are noise, which the own evidence
+    // must outweigh only NOISE_MAJORITY-fold.
+    const noise = [...row.values()].reduce((total, count) => total + count, 0) / CLEAR_MAJORITY;
+    const clear = (own: number, others: number) =>
+      own > 0 &&
+      (own >= others * CLEAR_MAJORITY || (others < noise && own >= others * NOISE_MAJORITY));
     let gender: string;
     if (clear(feminine, masculine + neuter + notFeminine)) gender = "f";
     else if (clear(masculine, feminine + neuter)) gender = "m";
@@ -476,7 +483,8 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
     else if (clear(notFeminine, feminine) && !masculine && !neuter) gender = "x";
     else continue;
     const sPlural = word.endsWith("s") && nouns.has(word.slice(0, -1));
-    const plural = gender !== "f" && (OWN_PLURAL.test(word) || sPlural || row.has("die"));
+    const plural =
+      gender !== "f" && (OWN_PLURAL.test(word) || sPlural || (row.get("die") ?? 0) >= noise);
     lists[plural ? gender.toUpperCase() : gender].push(word);
   }
   // "der Kinder": the genitive plural of a neuter noun in -er, not a masculine; "Spieler"
@@ -497,13 +505,18 @@ export function buildGermanGender(dic: string, aff: string, bigrams: string): st
   for (const key of Object.keys(lists))
     lists[key] = lists[key].filter((word) => !authored.has(word));
   for (const [key, words] of Object.entries(AUTHORED_GENDERS)) lists[key].push(...words.split(" "));
-  // "dem Nachbarn", "des Kunden": the -n form of a weak masculine noun shows only "x"; left out,
-  // it reads as the plural of the known noun.
+  // "dem Nachbarn", "einen Nachbarn": the -n form of a weak masculine noun shows "x" or "m";
+  // left out, it reads as the plural of the known noun.
   const listedNouns = new Set(Object.values(lists).flat());
-  const nForm = (word: string) =>
+  const masculine = new Set([...lists.m, ...lists.M]);
+  const nForm = (word: string, bases: Set<string>) =>
     /n$/.test(word) &&
-    [word.slice(0, -1), word.slice(0, -2)].some((s) => s.length >= 3 && listedNouns.has(s));
-  for (const key of ["x", "X"]) lists[key] = lists[key].filter((word) => !nForm(word));
+    [word.slice(0, -1), /en$/.test(word) ? word.slice(0, -2) : ""].some(
+      (s) => s.length >= 3 && bases.has(s),
+    );
+  for (const key of ["x", "X"]) lists[key] = lists[key].filter((word) => !nForm(word, listedNouns));
+  for (const key of ["m", "M"])
+    lists[key] = lists[key].filter((word) => authored.has(word) || !nForm(word, masculine));
   const line = (name: string, value: string) => {
     const one = `export const ${name} = ${JSON.stringify(value)};`;
     return one.length <= 100 ? one : `export const ${name} =\n  ${JSON.stringify(value)};`;
@@ -814,6 +827,9 @@ const COMPOUND_PARTICLES = new Set(
 // How often the n-gram counts must show a word for it to join the supplement: rarer compounds
 // cost more bytes than the findings they add.
 const SUPPLEMENT_MIN_COUNT = 20;
+// Everyday compounds the n-gram counts are too thin for (authored); the split still gives
+// their reading.
+const AUTHORED_SUPPLEMENT = ["altgold"];
 /** "abendessen|i": a supplement noun form and its reading (n noun, f finite, i infinitive). */
 type SupplementEntry = `${string}|${"n" | "f" | "i"}`;
 
@@ -878,6 +894,10 @@ export function deriveSupplementNouns(dic: string, aff: string, ngrams: string):
     if (parts.length !== 2 || Number(parts[1]) < SUPPLEMENT_MIN_COUNT) continue;
     if (!/^[a-zäöüß]{6,}$/.test(word) || known.has(word)) continue;
     const reading = split(word, 1);
+    if (reading) entries.set(word, reading);
+  }
+  for (const word of AUTHORED_SUPPLEMENT) {
+    const reading = known.has(word) ? null : split(word, 1);
     if (reading) entries.set(word, reading);
   }
   for (const word of deriveNgramNouns(dic, aff, ngrams))
