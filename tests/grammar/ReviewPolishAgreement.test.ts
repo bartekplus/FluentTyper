@@ -203,6 +203,9 @@ const POSITIVES: Array<[string, string, string | null]> = [
     "Małe dziecko bawiło się w piaskownicy.",
   ],
   ["Kupiliśmy szybkie samochód.", "szybkie samochód", "Kupiliśmy szybki samochód."],
+  // A men's plural takes its own form, not "-e".
+  ["Nowy synowie wrócili.", "Nowy synowie", "Nowi synowie wrócili."],
+  ["Duży chłopcy biegną.", "Duży chłopcy", "Duzi chłopcy biegną."],
   [
     "Spotkałem się z dobrym przyjaciółką.",
     "dobrym przyjaciółką",
@@ -373,6 +376,9 @@ const NEGATIVES = [
   "Książki dostali w prezencie.",
   "Nauczyciele stały dochód cenią.",
   "Usłyszałem dźwięk, jakiego używają pasterze owiec.",
+  // A soft stem's men's plural is its masculine form.
+  "Moi nastoletni synowie grają w piłkę.",
+  "Ostatni goście wyszli.",
 ];
 
 describe("polishCaseAgreement", () => {

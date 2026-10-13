@@ -18,6 +18,7 @@ import {
   PLURAL,
   SINGULAR,
   VIRILE,
+  virileAdjective,
 } from "./lexicon";
 import {
   caseLike,
@@ -805,6 +806,9 @@ function adjectiveClash(
   if (nounTags(adjective) & ALL_CASES) return null;
   let tags = nounTags(noun);
   if (!onlyNoun(tags)) return null;
+  // Men take their own plural ("nowi synowie"); a soft stem's is its masculine form ("ostatni").
+  const men = (tags & VIRILE) !== 0 && (tags & cases("Np Vp")) !== 0;
+  if (men && adjective === virileAdjective(adj.lemma)) return null;
   if (governed !== undefined) {
     // After a preposition both words stand in a case it governs: compare those readings only,
     // unless the pair agrees in another case ("na różnego rodzaju sprzęt").
@@ -824,7 +828,9 @@ function adjectiveClash(
   const endings = agreeingEndings(tags);
   const best = Math.max(...endings.map(overlap));
   const closest = endings.filter((ending) => overlap(ending) === best);
-  if (closest.length === 1) fixes.add(pair(adjectiveForm(adj.lemma, closest[0]), noun));
+  const form =
+    men && closest[0] === "e" ? virileAdjective(adj.lemma) : adjectiveForm(adj.lemma, closest[0]);
+  if (closest.length === 1 && form) fixes.add(pair(form, noun));
   const twin = TWIN[noun.at(-1)!];
   if (twin) {
     const toggled = noun.slice(0, -1) + twin;
