@@ -30,13 +30,12 @@ import {
   NUMBER_FIXERS,
   rangeDash,
 } from "./typography";
-import { verbAgreement } from "./verbAgreement";
+import { FIXERS as VERB_AGREEMENT_FIXERS } from "./verbAgreement";
 
 export const PREDICATES = {
   rangeDash,
   isoDates,
   nounAgreement,
-  verbAgreement,
 } satisfies Record<string, Detector>;
 
 /** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
@@ -62,6 +61,7 @@ export const FIXERS = mergePredicates<AnyFixer>(
   PREDICATE_FIXERS,
   SUBJUNCTIVE_FIXERS,
   AGREEMENT_FIXERS,
+  VERB_AGREEMENT_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/pt_BR.yaml (`filter:`). */

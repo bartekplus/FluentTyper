@@ -101,6 +101,19 @@ fragments:
   FUTURE_CONJUNCTION: "(?:quando|se|enquanto|assim{{S}}que|logo{{S}}que|sempre{{S}}que|depois{{S}}que|caso|conforme)"
   FUTURE_SUBJECT: "(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|a{{S}}gente|(?:o|a|os|as){{S}}\\p{L}+)"
   FEMININE_ADJECTIVES: "boa|linda|bonita|engraçada|perfeita|errada|certa|chata|estranha|esquisita|complicada|ótima|péssima|maravilhosa|necessária|obrigatória|verdadeira|falsa|ridícula|absurda|perigosa|gostosa|divertida|cansativa|curiosa|justa|injusta|correta|incorreta|clara|óbvia|rara|barata|fantástica|horrorosa|nojenta"
+  VERB_PLURAL_LEAD: "os|as|uns|umas|estes|estas|esses|essas|aqueles|aquelas|meus|minhas|teus|tuas|seus|suas|nossos|nossas|alguns|algumas|muitos|muitas|vários|várias"
+  VERB_SINGULAR_LEAD: "o|a|um|uma|este|esta|esse|essa|aquele|aquela|meu|minha|teu|tua|seu|sua|nosso|nossa"
+  POSSESSIVE: "meus|minhas|teus|tuas|seus|suas|nossos|nossas|meu|minha|teu|tua|seu|sua|nosso|nossa"
+  VERB_ADVERBS: "(?:(?:não|já|ainda|também|sempre|nunca|só|quase){{S}}){0,2}"
+  VERB_CLITIC: "(?:(?:se|me|te|lhe|lhes|nos){{S}})?"
+  HOUR: "(?:as{{S}})?(?:duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|0?[2-9]|1\\d|2[0-3])(?:(?:{{S}})?(?:h|hs|horas){{E}}|:[0-5]\\d(?!\\d)|{{S}}d[ae]{{S}}(?:manhã|tarde|noite|madrugada){{E}})"
+  PERIOD: "(?:semana|mês|ano)"
+  PAST_TIME: "(?:(?:antes{{S}}de{{S}})?ontem|anteontem|n[ao]{{S}}{{PERIOD}}{{S}}passad[oa]|n[ao]{{S}}passad[oa]{{S}}{{PERIOD}})"
+  BARE_PAST_TIME: "[ao]{{S}}(?:{{PERIOD}}{{S}}passad[oa]|passad[oa]{{S}}{{PERIOD}}),"
+  FUTURE_TIME: "(?:(?:depois{{S}}de{{S}})?amanhã|n[ao]{{S}}próxim[oa]{{S}}{{PERIOD}}|n[ao]{{S}}{{PERIOD}}{{S}}que{{S}}vem)"
+  TIME_SUBJECT: "(?:(?:os|as|o|a){{S}}(?!(?:que|qua[il]s?){{E}})\\p{L}+{{S}}|(?:eles|elas|ele|ela|tu|vós|nós|vocês|você){{S}})?"
+  FUTURE_FORM: "\\p{L}{2,}(?:ar|er|ir)(?:ão|ás|á|ei|emos|eis)"
+  PAST_FORM: "\\p{L}{2,}(?:aram|eram|iram|aras|eras|iras|ara|era|ira|áreis|êreis|íreis)"
 
 rules:
   - id: pt_BR.accentParonyms
@@ -1046,7 +1059,48 @@ rules:
     predicate: nounAgreement
   - id: pt_BR.verbAgreement
     checks: [portugueseAgreement]
-    predicate: verbAgreement
+    style: match
+    message: review_msg_pt_agreement
+    frames:
+      # A noun-phrase subject opening the sentence and its verb: "Os meninos dança" -> "dançam".
+      - regex: "(?<lead>{{VERB_PLURAL_LEAD}}){{S}}(?:(?:{{POSSESSIVE}}){{S}})?(?<noun>\\p{L}{3,}(?:[aeo]s|ões|ães|ais|éis|óis|res|zes)){{S}}{{VERB_ADVERBS}}{{VERB_CLITIC}}(?<target>\\p{L}{2,}|é){{E}}(?!-)"
+        fixer: verbPluralSubject
+      # "O menino gostam" -> "gosta".
+      - regex: "(?<lead>{{VERB_SINGULAR_LEAD}}){{S}}(?:(?:{{POSSESSIVE}}){{S}})?(?<noun>\\p{L}{3,}){{S}}{{VERB_ADVERBS}}{{VERB_CLITIC}}(?<target>\\p{L}{2,}){{E}}(?!-)"
+        fixer: verbSingularSubject
+      # "A lista dos produtos estão", "Os preços da casa que comprei sobe": the fixer reads the
+      # subject past its complements, a second noun phrase or a relative clause with the shared
+      # clause reader.
+      - regex: "(?<target>{{VERB_PLURAL_LEAD}}|{{VERB_SINGULAR_LEAD}}){{S}}(?=\\p{L})"
+        fixer: verbDistantSubject
+      # Hours take the plural: "Já deu dez horas" -> "deram", "Está dando 10h" -> "Estão". Two
+      # o'clock or later ({{HOUR}}): "uma hora" and "meio-dia" stay singular.
+      - regex: "(?<target>deu|bateu|soou|dava|batia|soava|dará|baterá|soará|daria|bateria)(?={{S}}{{HOUR}})"
+        fixer: verbHour
+      - regex: "(?<target>vai|ia|está|estava|tinha|havia|pode|deve)(?={{S}}(?:dar|bater|soar|dando|batendo|soando|dado|batido|soado){{S}}{{HOUR}})"
+        fixer: verbHourPeriphrasis
+      # "ser" agrees with the pronoun after it: "Quem fez foi eu" -> "fui".
+      - regex: "(?<target>foi|é|será){{S}}(?<pronoun>eu|nós|eles|elas|vocês)(?=[ \\t\\u00a0]{0,2}(?:[.!?,;:]|$)|{{S}}(?:que|quem|mesm[oa]s?|própri[oa]s?){{E}})"
+        fixer: verbSerPronoun
+      # "trata-se de" and "precisa-se de" stay singular.
+      - regex: "(?<target>tratam|precisam|necessitam)-se{{S}}de{{E}}(?!{{S}}(?:manhã|tarde|noite|madrugada|forma|maneira|modo){{E}})"
+        fixer: verbImpersonalSe
+      # A future verb next to "ontem", "na semana passada", "na passada semana"; "a semana
+      # passada" needs its comma. {{TIME_SUBJECT}}: a short subject between the time phrase and
+      # the verb: "os editores", "ela", "vós".
+      - regex: "(?<target>{{FUTURE_FORM}}){{S}}{{PAST_TIME}}{{E}}"
+        message: review_msg_pt_tense_adverb
+        fixer: verbFutureBefore
+      - regex: "(?:{{PAST_TIME}},?|{{BARE_PAST_TIME}}){{S}}{{TIME_SUBJECT}}(?<target>{{FUTURE_FORM}}){{E}}"
+        message: review_msg_pt_tense_adverb
+        fixer: verbFutureAfter
+      # A past verb next to "amanhã": "Enviaram amanhã" -> "Enviarão".
+      - regex: "(?<target>{{PAST_FORM}}){{S}}{{FUTURE_TIME}}{{E}}"
+        message: review_msg_pt_tense_adverb
+        fixer: verbPastBefore
+      - regex: "{{FUTURE_TIME}},?{{S}}{{TIME_SUBJECT}}(?<target>{{PAST_FORM}}){{E}}"
+        message: review_msg_pt_tense_adverb
+        fixer: verbPastAfter
   - id: pt_BR.subjunctives
     checks: [portugueseAgreement]
     style: match
