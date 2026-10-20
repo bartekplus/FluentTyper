@@ -23,7 +23,7 @@ import { FILTERS as PARONYM_FILTERS, FIXERS as PARONYM_FIXERS } from "./paronyms
 import { FIXERS as PERSON_FIXERS } from "./personAgreement";
 import { FIXERS as PREDICATE_FIXERS } from "./predicates";
 import { FIXERS as VERB_FRAME_FIXERS } from "./style";
-import { subjunctives } from "./subjunctive";
+import { FIXERS as SUBJUNCTIVE_FIXERS } from "./subjunctive";
 import {
   FIXERS as TYPOGRAPHY_FIXERS,
   FORMULA_FIXERS,
@@ -38,7 +38,6 @@ export const PREDICATES = {
   agreement,
   nounAgreement,
   verbAgreement,
-  subjunctives,
 } satisfies Record<string, Detector>;
 
 /** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
@@ -62,6 +61,7 @@ export const FIXERS = mergePredicates<AnyFixer>(
   CRASE_FIXERS,
   PERSON_FIXERS,
   PREDICATE_FIXERS,
+  SUBJUNCTIVE_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/pt_BR.yaml (`filter:`). */

@@ -84,6 +84,9 @@ fragments:
   COPULA_ESTAR: "está|estão|estava|estavam|esteve|estiveram|estará|estarão|estaria|estariam|fica|ficam|ficou|ficaram|ficava|ficavam|ficará|ficarão|continua|continuam|continuava|permanece|permanecem"
   PREDICATE_ADVERBS: "(?:(?:muito|bem|tão|bastante|meio|super|mais|menos|sempre|já|ainda|realmente|totalmente|completamente|demasiado|um{{S}}pouco){{S}}){0,2}"
   PLURAL_FEMININE: "duas|duzentas|trezentas|quatrocentas|quinhentas|seiscentas|setecentas|oitocentas|novecentas|as|das|nas|pelas|estas|essas|aquelas|muitas|várias|algumas|tantas|poucas|outras"
+  PRESENT_GOVERNORS: "espero|esperamos|esperam|espera-se|desejo|desejamos|desejam|deseja|deseja-se|quero|queremos|querem|quer|peço|pedimos|pedem|pede|pede-se|exijo|exigimos|exigem|exige|proíbo|proibimos|proíbem|proíbe|duvido|duvidamos|duvidam|prefiro|preferimos|preferem|sugiro|sugerimos|sugerem|sugere|recomendo|recomendamos|recomendam|recomenda|proponho|propomos|propõem|propõe|temo|tememos|temem|evito|evitamos|evitam|evita|evitaremos|nego|negamos|negam|nega|negas|tomara|oxalá|permito|permite|permitem|impede|impedem|impeço|não{{S}}(?:acho|creio|penso|suponho|acredito)|é{{S}}(?:preciso|necessário|importante|possível|provável|fundamental|essencial|imprescindível|bom|natural|normal|urgente)"
+  PAST_GOVERNORS: "esperava|esperavam|esperávamos|esperei|esperou|esperaram|desejava|desejavam|desejei|desejou|queria|queriam|queríamos|quis|quisemos|quiseram|quisera|pedia|pediam|pedi|pediu|pediram|exigia|exigiam|exigi|exigiu|exigiram|proibia|proibi|proibiu|proibiram|proibiria|duvidava|duvidei|duvidou|preferia|preferiam|preferi|preferiu|sugeria|sugeri|sugeriu|sugeriram|recomendava|recomendei|recomendou|propunha|propus|propôs|propuseram|temia|temiam|temi|temeu|evitava|evitei|evitou|evitaria|evitaríamos|negava|negou|neguei|desejaria|gostaria|gostaríamos|gostariam|preferiria|permitia|permitiu|impedia|impediu|mandou|mandava|(?:era|foi|seria){{S}}(?:preciso|necessário|importante|possível|provável|fundamental|essencial|imprescindível|bom|natural|melhor)"
+  CONJUNCTIONS: "embora|conquanto|caso|talvez|nem{{S}}que|a{{S}}não{{S}}ser{{S}}que|a{{S}}menos{{S}}que|sem{{S}}que|antes{{S}}que|contanto{{S}}que|desde{{S}}que(?={{S}}(?:não{{S}})?(?:haja|tenha|seja|esteja|ele|ela|você|eu|nós|eles|elas|vocês))|ainda{{S}}que|mesmo{{S}}que"
 
 rules:
   - id: pt_BR.accentParonyms
@@ -982,7 +985,22 @@ rules:
     predicate: verbAgreement
   - id: pt_BR.subjunctives
     checks: [portugueseAgreement]
-    predicate: subjunctives
+    style: match
+    message: review_msg_pt_subjunctive
+    frames:
+      # A wish, request, fear or doubt and "que": "Espero que você está bem" -> "esteja".
+      - regex: "(?<lead>{{PRESENT_GOVERNORS}}){{S}}que(?=[ \\t\\u00a0])"
+        owner: lead
+        fixer: subjunctivePresent
+      # The same verbs in a past or conditional tense take the imperfect subjunctive: "Queria
+      # que ele vem" -> "viesse".
+      - regex: "(?<lead>{{PAST_GOVERNORS}}){{S}}que(?=[ \\t\\u00a0])"
+        owner: lead
+        fixer: subjunctivePast
+      # Conjunctions that take the present subjunctive ("Embora tem", "Caso parece").
+      - regex: "(?<lead>{{CONJUNCTIONS}})(?=[ \\t\\u00a0])"
+        owner: lead
+        fixer: subjunctivePresent
   - id: pt_BR.subjectPredicates
     checks: [portugueseAgreement]
     style: match
