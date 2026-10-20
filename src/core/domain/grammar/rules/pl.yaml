@@ -1305,9 +1305,22 @@ rules:
         scan: polish
         flags: gdiu
         fixer: imperativeAfterConjunction
+  # Clause boundaries read from finite verbs: two clauses run on without a comma or a
+  # conjunction ("Kupiłem wino chciałem też wodę"), a relative clause left open ("Partie, które
+  # popieram przegrywają"), a contrasting "a" or "więc" between clauses without its comma, and an
+  # adverbial participle phrase ("idąc", "zrobiwszy") not set off from its clause.
   - id: pl.clauses
     checks: [polishMissingComma]
-    predicate: clauses
+    style: match
+    message: review_msg_pl_missing_comma
+    frames:
+      # A stretch of one sentence with no punctuation inside (a spaced " - " is a dash). The scan
+      # starts 400 characters before the chunk; the fixer reads the clause boundaries from its verbs.
+      - regex: "(?:[^,;:.!?\\u2026()[\\]{}\"\\u201E\\u201D\\u201C\\u00AB\\u00BB\\u201A\\u2018\\u2019'\\u2014\\u2013\\n-]|(?<=\\S)-|-(?=\\S))+"
+        scan: owned
+        lookback: 400
+        flags: gu
+        fixer: clauses
   # Pleonasms and wordy officialese (optional `stylePhrasing`) that need a guard.
   - id: pl.style
     checks: [stylePhrasing]
