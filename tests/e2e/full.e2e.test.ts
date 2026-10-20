@@ -9556,7 +9556,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const initial = await waitForReview(
         page,
         "three repeated words",
-        (p) => p.items.length === 3,
+        // A late spelling pass redraws the card and can move its buttons under the mouse.
+        (p) => p.items.length === 3 && p.spelling === "done" && p.checking === "checked",
       );
       await clickReviewControl(page, `.item[data-id="${initial.items[0].id}"]`);
       await waitForReview(page, "matching-ignore card", (p) => p.card.open);
@@ -9585,7 +9586,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const restored = await waitForReview(
         page,
         "all ignored findings restored",
-        (p) => p.items.length === 3 && !p.notes.includes("Ignored:"),
+        (p) =>
+          p.items.length === 3 &&
+          !p.notes.includes("Ignored:") &&
+          p.spelling === "done" &&
+          p.checking === "checked",
       );
       await clickReviewControl(page, `.item[data-id="${restored.items[0].id}"]`);
       await waitForReview(page, "ignore again", (p) => p.card.open);
