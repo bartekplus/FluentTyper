@@ -1,6 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { ci, gated, isGerman, likeTyped } from "./shared";
 
 // Spellings the Duden recommends where two are allowed (opt-in): -graf-, -fon and Fantasie for
@@ -184,6 +185,6 @@ function recommended(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanRecommendedSpelling"], detect: recommended },
-];
+export const PREDICATES = {
+  recommended,
+} satisfies Record<string, Detector>;

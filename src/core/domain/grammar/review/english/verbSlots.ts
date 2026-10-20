@@ -1,8 +1,8 @@
 import { englishInflect, englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { frameDetector, type Frame, type Rule } from "./idioms5";
 import { participle } from "./realWordFrames";
 import { afterBreak, FUNCTION_WORDS, tokensAfter, wordBefore } from "./slotWords";
@@ -12,27 +12,6 @@ import { afterBreak, FUNCTION_WORDS, tokensAfter, wordBefore } from "./slotWords
 // country before a base verb ("it make sense", "the US try"), a coordinated verb that lost
 // its -s ("visits a site and perform"), "told him do" (to do), "explain me" (to me), and a
 // pronoun with no be ("It not required", "How you been?").
-
-export const PHRASES: readonly PhraseRow[] = [
-  [["with regarding to", "in regarding to"], "with regard to"],
-  ["regarding to", "regarding"],
-  ["don not", "do not"],
-  [["i am shore", "i'm shore"], "I am sure"],
-  ...["hope", "grate", "success", "beauti"].map((stem): PhraseRow => [
-    `${stem} full`,
-    `${stem}ful`,
-  ]),
-  [["thank full", "thanks full"], "thankful"],
-  ["hope fully", "hopefully"],
-  ["need full", "needful"],
-  [["fresh up", "freshen-up"], "freshen up"],
-  ...["my", "your", "his", "her", "our", "their", "the"].map((owner): PhraseRow => [
-    `bright ${owner} day`,
-    `brighten ${owner} day`,
-  ]),
-];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const BASE: Rule = { ruleId: "englishAuxiliaryBaseVerb", messageKey: "review_msg_auxiliary_base" };
 const AGREE: Rule = {
@@ -477,16 +456,6 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [
-      "englishAuxiliaryBaseVerb",
-      "englishSubjectVerbAgreement",
-      "englishVerbComplements",
-      "englishSentenceStructure",
-      "englishPerfectParticiples",
-      "englishConfusedWords",
-    ],
-    detect: frameDetector(FRAMES),
-  },
-];
+export const PREDICATES = {
+  verbSlots: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

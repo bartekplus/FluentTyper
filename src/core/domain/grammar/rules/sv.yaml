@@ -1,0 +1,160 @@
+# sv grammar rules. See docs/agents/grammar-rules.md for the format.
+lang: sv
+
+rules:
+  - id: sv.typography
+    checks: [swedishTypography]
+    predicate: typography
+  - id: sv.agreement
+    checks: [swedishAgreement]
+    predicate: agreement
+  - id: sv.mellanTillDeDem
+    checks: [englishPhraseCorrections]
+    predicate: mellanTillDeDem
+  - id: sv.enTillSpeechComma
+    checks: [stylePhrasing]
+    predicate: enTillSpeechComma
+
+# Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
+phrases:
+  words: |
+    igentligen = egentligen
+    antligen = äntligen
+    alldrig = aldrig
+    intresant = intressant
+    komunikation = kommunikation
+    sammarbete = samarbete
+    tillsamans = tillsammans
+    definitift = definitivt
+    skilnad = skillnad
+    sjävklart = självklart
+    anorlunda = annorlunda
+    rekomendera = rekommendera
+    resturang = restaurang
+    tex = t.ex.
+  phrases: |
+    bruka att = bruka
+    brukar att = brukar
+    brukade att = brukade
+    brukat att = brukat
+    ångra på att = ångra att
+    ångrar på att = ångrar att
+    ångrade på att = ångrade att
+    ångrat på att = ångrat att
+    ta självmord = begå självmord
+    tar självmord = begår självmord
+    tog självmord = begick självmord
+    tagit självmord = begått självmord
+    i stor grad = i hög grad
+    i större grad = i högre grad
+    i störst grad = i högst grad
+    i så stor grad = i så hög grad
+    i mycket stor grad = i mycket hög grad
+    i möjligaste motto = i möjligaste måtto
+    i viss motto = i viss måtto
+    planer om att = planer på att
+    släppa los = släppa loss
+    släpper los = släpper loss
+    släppte los = släppte loss
+    släppt los = släppt loss
+    släpp los = släpp loss
+    slita sig los = slita sig loss
+    sliter sig los = sliter sig loss
+    slet sig los = slet sig loss
+    slitit sig los = slitit sig loss
+    bryta los = bryta loss
+    bryter los = bryter loss
+    bröt los = bröt loss
+    brutit los = brutit loss
+  compounds: |
+    dator skärm = datorskärm
+    dator skärmen = datorskärmen
+    kyl skåp = kylskåp
+    kyl skåpet = kylskåpet
+    tand borste = tandborste
+    tand borsten = tandborsten
+    tand läkare = tandläkare
+    tand läkaren = tandläkaren
+    sov rum = sovrum
+    sov rummet = sovrummet
+    vardags rum = vardagsrum
+    vardags rummet = vardagsrummet
+    bok hylla = bokhylla
+    bok hyllan = bokhyllan
+    lunch rast = lunchrast
+    lunch rasten = lunchrasten
+    kaffe kopp = kaffekopp
+    kaffe koppen = kaffekoppen
+    mjölk paket = mjölkpaket
+    mjölk paketet = mjölkpaketet
+    post kontor = postkontor
+    post kontoret = postkontoret
+    sjuk hus = sjukhus
+    sjuk huset = sjukhuset
+    flyg plats = flygplats
+    flyg platsen = flygplatsen
+    järn väg = järnväg
+    järn vägen = järnvägen
+    tåg station = tågstation
+    tåg stationen = tågstationen
+    buss hållplats = busshållplats
+    buss hållplatsen = busshållplatsen
+    arbets plats = arbetsplats
+    arbets platsen = arbetsplatsen
+    barn vagn = barnvagn
+    barn vagnen = barnvagnen
+    regn jacka = regnjacka
+    regn jackan = regnjackan
+    skol gård = skolgård
+    skol gården = skolgården
+    fot boll = fotboll
+    fot bollen = fotbollen
+    hand boll = handboll
+    hand bollen = handbollen
+    köks bord = köksbord
+    köks bordet = köksbordet
+    student lägenhet = studentlägenhet
+    student lägenheten = studentlägenheten
+    kund tjänst = kundtjänst
+    kund tjänsten = kundtjänsten
+    lösen ord = lösenord
+    lösen ordet = lösenordet
+    glass bil = glassbil
+    glass bilen = glassbilen
+  style: |
+    förra chefen = förre chefen
+    förra ordföranden = förre ordföranden
+    förra statsministern = förre statsministern
+    förra presidenten = förre presidenten
+    förra kungen = förre kungen
+    förra ministern = förre ministern
+    förra utrikesministern = förre utrikesministern
+    förra finansministern = förre finansministern
+    förra partiledaren = förre partiledaren
+    förra vd:n = förre vd:n
+    förra rektorn = förre rektorn
+    förra borgmästaren = förre borgmästaren
+    förra tränaren = förre tränaren
+    förra förbundskaptenen = förre förbundskaptenen
+    förra generalsekreteraren = förre generalsekreteraren
+    förra ärkebiskopen = förre ärkebiskopen
+    förra påven = förre påven
+    förra ambassadören = förre ambassadören
+    förra landshövdingen = förre landshövdingen
+    förra direktören = förre direktören
+    förra statsminister = förre statsminister
+    förra president = förre president
+    förra ordförande = förre ordförande
+    förra minister = förre minister
+    förra vd = förre vd
+    allt mer | allt mera = alltmer
+    efterhand = efter hand
+    planer om = planer på; drömmar om
+    klagomål över = klagomål på; klagomål mot
+    t ex = t.ex.
+    m fl = m.fl.
+    bl a = bl.a.
+    s k = s.k.
+    t o m = t.o.m.
+    o s v = osv.
+    m m = m.m.

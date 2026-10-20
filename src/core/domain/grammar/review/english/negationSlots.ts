@@ -1,15 +1,11 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { caseLike, english, evidence } from "./slotWords";
 
 // A second negative in a clause a negated verb already denies: "I didn't see nothing"
 // (anything), "There wasn't nobody there" (anybody), "She could not hardly hear" (could hardly).
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const AUX =
   "(?:do|does|did|can|could|will|would|shall|should|must|may|might|is|are|was|were|am|have|has|had)";
@@ -113,6 +109,6 @@ function negatedHardly(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishUsagePhrases"], detect: english(doubleNegatives, negatedHardly) },
-];
+export const PREDICATES = {
+  doubleNegatives: english(doubleNegatives, negatedHardly),
+} satisfies Record<string, Detector>;

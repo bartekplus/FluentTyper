@@ -2,9 +2,9 @@ import { englishInflect, englishLemma } from "../../implementations/helpers/Engl
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import { NOUN_LIKE_ING } from "../englishParticiples";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { nounNumber } from "./nounNumberSlots";
 import {
   caseLike,
@@ -23,10 +23,6 @@ import { finding } from "../finding";
 
 // Verb complements decided by the lexicon: a missing "to" ("I want go"), a gerund where an
 // infinitive belongs ("can't afford buying") and the reverse ("enjoy to swim").
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const OBJECT = /^(?:me|you|him|her|us|it|them)$/;
 const PARTICLE = /^(?:out|up|down|off|in|on|back|over|away)$/;
@@ -417,17 +413,14 @@ function lookForward(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishVerbComplements"],
-    detect: english(
-      missingTo,
-      gerundForInfinitive,
-      infinitiveForGerund,
-      usedToGerund,
-      adjectiveBeforeBareVerb,
-      wantThat,
-      lookForward,
-    ),
-  },
-];
+export const PREDICATES = {
+  verbComplementSlots: english(
+    missingTo,
+    gerundForInfinitive,
+    infinitiveForGerund,
+    usedToGerund,
+    adjectiveBeforeBareVerb,
+    wantThat,
+    lookForward,
+  ),
+} satisfies Record<string, Detector>;

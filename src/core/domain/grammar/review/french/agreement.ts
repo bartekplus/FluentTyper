@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   conjugate,
@@ -1616,6 +1617,7 @@ function subjectVerbAgreement(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: [RULE], detect: subjectVerbAgreement },
-];
+export const PREDICATES = { subjectVerbAgreement: subjectVerbAgreement } satisfies Record<
+  string,
+  Detector
+>;

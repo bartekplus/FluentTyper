@@ -1,4 +1,5 @@
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { DETERMINER, pluralOf, readNoun } from "./agreement";
 import {
   Around,
@@ -700,4 +701,4 @@ function verbAgreement(ctx: DetectContext): RawFinding[] {
   return [...findings.filter((f) => !taken.has(f.range.start)), ...attributes];
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: verbAgreement }];
+export const PREDICATES = { verbAgreement } satisfies Record<string, Detector>;

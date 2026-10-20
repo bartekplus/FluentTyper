@@ -1,4 +1,5 @@
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   IL,
@@ -193,4 +194,4 @@ function bareNouns(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: bareNouns }];
+export const PREDICATES = { bareNoun: bareNouns } satisfies Record<string, Detector>;

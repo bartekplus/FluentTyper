@@ -1,5 +1,6 @@
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { determinerFits, nominalVerb } from "./articleGender";
 import {
   germanInfinitive,
@@ -551,9 +552,6 @@ function compounds(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["germanCompounds"],
-    detect: (ctx) => [...compounds(ctx), ...nounPairs(ctx), ...boundVerbs(ctx)],
-  },
-];
+export const PREDICATES = {
+  compounds: (ctx) => [...compounds(ctx), ...nounPairs(ctx), ...boundVerbs(ctx)],
+} satisfies Record<string, Detector>;

@@ -1,9 +1,8 @@
 import { englishInflect, englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { CONTEXT, frameDetector, type Frame, type Rule } from "./idioms5";
 import { afterBreak, DETERMINERS, FUNCTION_WORDS, tokensAfter, wordBefore } from "./slotWords";
 
@@ -25,75 +24,6 @@ const COMPLEMENT: Rule = {
   ruleId: "englishVerbComplements",
   messageKey: "review_msg_verb_complements",
 };
-
-/** Misheard set phrases: each typed form is wrong in every context. */
-export const PHRASES: readonly PhraseRow[] = [
-  [["back and fourth", "back in forth", "back in fourth"], "back and forth"],
-  ["bye the way", "by the way"],
-  [["bob wire", "bobbed wire", "barb wire"], "barbed wire"],
-  ["witch haunt", "witch hunt"],
-  ["witch haunts", "witch hunts"],
-  ["flee market", "flea market"],
-  ["flee markets", "flea markets"],
-  [["mary christmas", "marry christmas"], "merry christmas"],
-  ["kind retards", "kind regards"],
-  ["very mush", "very much"],
-  ["on behave of", "on behalf of"],
-  ["a loot of", "a lot of"],
-  ...["daily", "weekly", "monthly", "yearly", "regular", "case-by-case", "permanent"].map(
-    (when): PhraseRow => [`on a ${when} base`, `on a ${when} basis`],
-  ),
-  [["spilling error", "spilling mistake"], "spelling error"],
-  [["spilling errors", "spilling mistakes"], "spelling errors"],
-  [["airplane hanger", "aircraft hanger"], "airplane hangar"],
-  [["airplane hangers", "aircraft hangers"], "airplane hangars"],
-  ["pigeon english", "pidgin English"],
-  ["totem poll", "totem pole"],
-  [["opinion pole", "opinion poles"], "opinion poll"],
-  ["in plain side", "in plain sight"],
-  ["next do nothing", "next to nothing"],
-  [["do to the fact that", "do to the fact"], "due to the fact that"],
-  ["do to the lack of", "due to the lack of"],
-  ["ascetic acid", "acetic acid"],
-  ...["affairs", "relations", "sector", "health", "school", "schools", "library", "transport"].map(
-    (noun): PhraseRow => [`pubic ${noun}`, `public ${noun}`],
-  ),
-  [
-    ["golf medal", "golf medalist", "golf medallist"],
-    ["gold medal", "gold medalist"],
-  ],
-  ["price sensibility", "price sensitivity"],
-  ["aspect ration", "aspect ratio"],
-  ["from than on", "from then on"],
-  ["untied states", "United States"],
-  ...["weapons", "missiles", "warheads", "reactor", "reactors", "arsenal"].map(
-    (noun): PhraseRow => [`unclear ${noun}`, `nuclear ${noun}`],
-  ),
-  ["at the hard of", "at the heart of"],
-  ["peace of cake", "piece of cake"],
-  ["must of the time", "most of the time"],
-  ["ease off use", "ease of use"],
-  ...["concerns", "fears", "doubts", "suspicions"].map((noun): PhraseRow => [
-    `ally ${noun}`,
-    `allay ${noun}`,
-  ]),
-  ...["compromise", "suggestions", "persuasion", "reason"].map((noun): PhraseRow => [
-    `amendable to ${noun}`,
-    `amenable to ${noun}`,
-  ]),
-  ...["bomb", "bombs", "tension", "tensions", "the bomb", "the situation"].map(
-    (noun): PhraseRow => [`diffuse ${noun}`, `defuse ${noun}`],
-  ),
-  ["risk adverse", "risk averse"],
-  ["free reign", "free rein"],
-  ["construction side", "construction site"],
-  ...["positive", "negative", "bright", "flip"].map((kind): PhraseRow => [
-    `on the ${kind} site`,
-    `on the ${kind} side`,
-  ]),
-];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const read = (word: string | undefined) => (word ? englishWordInfo(word.toLowerCase()) : null);
 const verbOnly = (word: string) => {
@@ -404,14 +334,6 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [
-      "englishConfusedWords",
-      "englishPhraseCorrections",
-      "englishAuxiliaryBaseVerb",
-      "englishVerbComplements",
-    ],
-    detect: frameDetector(FRAMES),
-  },
-];
+export const PREDICATES = {
+  realWordFrames: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

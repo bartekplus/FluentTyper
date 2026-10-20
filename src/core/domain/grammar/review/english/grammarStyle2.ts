@@ -6,7 +6,6 @@ import {
   detectWordCase,
   wordSet,
 } from "../../implementations/helpers/GenericRuleShared";
-import { each, type PhraseRow } from "../englishPhraseTables";
 import {
   before,
   COMPLETE,
@@ -18,136 +17,10 @@ import {
   SPACE,
   WORD_END,
 } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { gatedMatches, mentions } from "./grammarStyle1";
 import { finding } from "../finding";
-
-/** Spaced and hyphen-less forms of a hyphenated compound: "blu ray" -> "blu-ray". */
-const hyphenated = (...compounds: string[]): PhraseRow[] =>
-  compounds.map((compound) => [compound.replaceAll("-", " "), compound]);
-
-/** Rows for englishPhraseCorrections. */
-export const PHRASES: readonly PhraseRow[] = [
-  // "very less" is never English: "much less" for an amount, "too little" for too small an amount.
-  ["very less", ["much less", "far less", "a lot less"]],
-  ["quite less", ["quite a lot less", "much less"]],
-  ["too less", "too little"],
-  // "is been" mixes two auxiliaries.
-  ["is been", "has been"],
-  ["isn't been", "hasn't been"],
-  ["are been", "have been"],
-  ["aren't been", "haven't been"],
-  ["each others", "each other's"],
-  ["one anothers", "one another's"],
-  // Prefixes the words never take.
-  ["insecured", "unsecured"],
-  ["unsecure", "insecure"],
-  ["unpossible", "impossible"],
-  ["unvisible", "invisible"],
-  // Misspellings that are never words.
-  [["abandonedware", "abanonedware"], "abandonware"],
-  ["generaly", "generally"],
-  ["childrens", "children's"],
-  ["cheif", "chief"],
-  ["recieved", "received"],
-  ["hes", "he's"],
-  ["shes", "she's"],
-  ["guilded age", "Gilded Age"],
-  ["to to to", "to do to"],
-  [
-    ["to to list", "to-to list"],
-    ["to-do list", "to do list"],
-  ],
-  [
-    ["to to lists", "to-to lists"],
-    ["to-do lists", "to do lists"],
-  ],
-  // "scrap" discards; "scrape" extracts data from the web.
-  ...["", " ", "-"].flatMap((join): PhraseRow[] =>
-    [
-      ["scrap", "scrape"],
-      ["scraps", "scrapes"],
-      ["scrapped", "scraped"],
-      ["scrapper", "scraper"],
-      ["scrappers", "scrapers"],
-      ["scrapping", "scraping"],
-    ].map(([typed, fixed]) => [`web${join}${typed}`, `web${join}${fixed}`]),
-  ),
-  ["scrap html", "scrape html"],
-  ["scraps html", "scrapes html"],
-  ["scrapping html", "scraping html"],
-  ["scrapping web", "scraping web"],
-];
-
-export const COMPOUNDS: readonly PhraseRow[] = [
-  ...hyphenated("blu-ray", "blu-rays", "cross-platform", "post-it note", "post-it notes"),
-  ...hyphenated("double-check", "double-checks", "double-checked", "double-checking"),
-  ...hyphenated("guinea-bissau"),
-  ...each(
-    ["rate", "rates", "conversion", "conversions", "optimization", "optimizations", "ratio"],
-    "click through ~",
-    "click-through ~",
-  ),
-  ...each(
-    ["rate", "rates", "conversion", "conversions", "optimization"],
-    "view through ~",
-    "view-through ~",
-  ),
-  ...each(["", "s", "ed", "ing"], "black list~", "blacklist~"),
-  ...each(["", "s", "ed", "ing"], "white list~", "whitelist~"),
-  ["kindof", "kind of"],
-  ["sortof", "sort of"],
-  ["insteadof", "instead of"],
-  ["intothe", "into the"],
-  ["doesthe", "does the"],
-  ["notnot", "not not"],
-];
-
-const UNIQUE_DEGREE = [
-  "pretty",
-  "fairly",
-  "somewhat",
-  "quite",
-  "rather",
-  "really",
-  "extremely",
-  "so",
-];
-export const STYLE: readonly PhraseRow[] = [
-  ["pretty decent", "decent"],
-  ...each(
-    ["know", "knew", "think", "thought", "believe", "believed", "said", "hope", "feel", "felt"],
-    "~ that that",
-    "~ that",
-  ),
-  ...UNIQUE_DEGREE.map((degree): PhraseRow => [
-    `${degree} unique`,
-    [`${degree} unusual`, `${degree} rare`, "unique"],
-  ]),
-  // Clipped and chat spellings.
-  ["cybersec", "cybersecurity"],
-  ["cuz", "because"],
-  ["legit", "legitimate"],
-  ["perf", "performance"],
-  ["pref", "preference"],
-  ["prefs", "preferences"],
-  ["tho", "though"],
-  ["fwd", "forward"],
-  ["thru", "through"],
-  ["prev", "previous"],
-  ["ctrl", "control"],
-  ["w/o", "without"],
-  [["in-built", "inbuilt"], "built-in"],
-  ["touristic", ["tourist", "touristy"]],
-  // Current names of renamed places.
-  ["bombay", "Mumbai"],
-  ["ayers rock", "Uluru"],
-  ["saigon", "Ho Chi Minh City"],
-  ["the olgas", "Kata Tjuta"],
-  [["leningrad", "petrograd"], "Saint Petersburg"],
-  ["upper volta", "Burkina Faso"],
-  ["ivory coast", "Côte d'Ivoire"],
-];
 
 // Closed-class word sets; open-class decisions go through the lexicon.
 const DET = wordSet(
@@ -717,46 +590,33 @@ function includingButNotLimited(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-const ENGLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishSentenceStructure"],
-    detect: (ctx) => [
-      ...templates(ctx, SENTENCE_TEMPLATES, "englishSentenceStructure"),
-      ...doIAdjective(ctx),
-      ...missingArticle(ctx),
-    ],
-  },
-  {
-    rules: ["englishPhraseCorrections", "englishClosedCompounds", "englishCanonicalCasing"],
-    detect: (ctx) => [
-      ...templates(ctx, PHRASE_TEMPLATES, "englishPhraseCorrections"),
-      ...templates(ctx, COMPOUND_TEMPLATES, "englishClosedCompounds"),
-      ...names(ctx),
-      ...thereAfter(ctx),
-      ...modifiers(ctx),
-    ],
-  },
-  {
-    rules: ["englishUsagePhrases"],
-    detect: (ctx) => templates(ctx, DOUBLE_NEGATIVE, "englishUsagePhrases"),
-  },
-  { rules: ["englishItsContext"], detect: itTime },
-  { rules: ["englishYourYouAre"], detect: youArePredicate },
-  { rules: ["englishRepeatedWords"], detect: doubledTo },
-  { rules: ["englishExistentialAgreement"], detect: existentialPlural },
-  {
-    rules: ["stylePhrasing"],
-    detect: (ctx) => [
-      ...templates(ctx, STYLE_TEMPLATES, "stylePhrasing"),
-      ...includingButNotLimited(ctx),
-    ],
-  },
-];
+// The checks read American English only.
+const usOnly =
+  (detect: Detector): Detector =>
+  (ctx) =>
+    ctx.lang !== "en_US" ? [] : detect(ctx);
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = ENGLISH_DETECTORS.map(
-  ({ rules, detect }): ReviewDetectorEntry => ({
-    rules,
-    detect: (ctx) => (ctx.lang !== "en_US" ? [] : detect(ctx)),
-  }),
-);
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  sentenceTemplates: usOnly((ctx) => [
+    ...templates(ctx, SENTENCE_TEMPLATES, "englishSentenceStructure"),
+    ...doIAdjective(ctx),
+    ...missingArticle(ctx),
+  ]),
+  phraseTemplates: usOnly((ctx) => [
+    ...templates(ctx, PHRASE_TEMPLATES, "englishPhraseCorrections"),
+    ...templates(ctx, COMPOUND_TEMPLATES, "englishClosedCompounds"),
+    ...names(ctx),
+    ...thereAfter(ctx),
+    ...modifiers(ctx),
+  ]),
+  doubleNegativeTemplates: usOnly((ctx) => templates(ctx, DOUBLE_NEGATIVE, "englishUsagePhrases")),
+  itTime: usOnly(itTime),
+  youArePredicate: usOnly(youArePredicate),
+  doubledTo: usOnly(doubledTo),
+  existentialPlural: usOnly(existentialPlural),
+  styleTemplates: usOnly((ctx) => [
+    ...templates(ctx, STYLE_TEMPLATES, "stylePhrasing"),
+    ...includingButNotLimited(ctx),
+  ]),
+} satisfies Record<string, Detector>;

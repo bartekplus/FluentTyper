@@ -1,7 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   afterBreak,
   english,
@@ -15,14 +15,6 @@ import { finding } from "../finding";
 // An adjective where its -ly adverb belongs: between an auxiliary, "to" or a subject and a
 // verb ("could possible go", "to easy achieve"), or before another adjective after be
 // ("is terrible slow").
-
-export const PHRASES: readonly PhraseRow[] = [
-  ...["appreciate", "appreciated", "recommend", "recommended", "regarded", "valued"].map(
-    (verb): PhraseRow => [`high ${verb}`, `highly ${verb}`],
-  ),
-];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 // Colour and shade words combine with each other ("dark blue"), and these adjectives are
 // adverbs too ("fast", "hard", "late", "well").
@@ -196,6 +188,6 @@ function adjectiveForAdverb(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishConfusedWords"], detect: english(adjectiveForAdverb) },
-];
+export const PREDICATES = {
+  adjectiveForAdverb: english(adjectiveForAdverb),
+} satisfies Record<string, Detector>;

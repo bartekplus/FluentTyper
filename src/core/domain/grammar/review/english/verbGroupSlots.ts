@@ -2,9 +2,9 @@ import { englishInflect, englishLemma } from "../../implementations/helpers/Engl
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import { FEELING_VERBS } from "../englishAuxiliaryForms";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   afterBreak,
   AUXILIARIES,
@@ -23,10 +23,6 @@ import { finding } from "../finding";
 // Verb groups whose second verb has the wrong form, read from the lexicon: "have finish",
 // "was establish", "got mislead", "does makes", "can you sent", "is requires", "I seen".
 
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
-
 const ADVERBS =
   "(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly)";
 const ADVERB_RUN = `(?<adverbs>(?:${SPACE}${ADVERBS}){0,2})`;
@@ -41,7 +37,7 @@ const GAP =
 
 /** A base verb in its own spelling that no participle or past shares ("finish", not "put"). */
 function bareBase(word: string): { lemma: string; verbOnly: boolean } | null {
-  if (FUNCTION_WORDS.has(word) || PREDICATES.has(word)) return null;
+  if (FUNCTION_WORDS.has(word) || PREDICATE_WORDS.has(word)) return null;
   const read = englishWordInfo(word);
   if (!read?.verbs.some((v) => v.form === "base" && v.lemma === word)) return null;
   if (read.verbs.some((v) => v.form !== "base" && v.form !== "third")) return null;
@@ -58,7 +54,7 @@ function participleOf(lemma: string): string | null {
 
 // Base verbs that are mostly predicates or names ("weren't awake", "be home", "I am harry");
 // "were shock by" belongs to an englishConfusedWords row.
-const PREDICATES = new Set(
+const PREDICATE_WORDS = new Set(
   "awake home harry close please flatter double further back exempt shock".split(" "),
 );
 
@@ -1089,23 +1085,20 @@ function invertedPassiveBase(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishPerfectParticiples", "englishAuxiliaryBaseVerb", "englishSentenceStructure"],
-    detect: english(
-      perfectWithPastBe,
-      perfectWithThird,
-      perfectWithIng,
-      invertedPassiveBase,
-      perfectWithBase,
-      passiveWithBase,
-      modalBeBase,
-      usedTo,
-      getWithBase,
-      doSupport,
-      invertedModal,
-      beBeforeThird,
-      bareParticiple,
-    ),
-  },
-];
+export const PREDICATES = {
+  verbGroups: english(
+    perfectWithPastBe,
+    perfectWithThird,
+    perfectWithIng,
+    invertedPassiveBase,
+    perfectWithBase,
+    passiveWithBase,
+    modalBeBase,
+    usedTo,
+    getWithBase,
+    doSupport,
+    invertedModal,
+    beBeforeThird,
+    bareParticiple,
+  ),
+} satisfies Record<string, Detector>;

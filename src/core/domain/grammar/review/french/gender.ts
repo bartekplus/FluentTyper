@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { accentedNoun } from "./determiners";
 import {
   adjectiveReadings,
@@ -180,4 +181,4 @@ function genders(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: genders }];
+export const PREDICATES = { gender: genders } satisfies Record<string, Detector>;

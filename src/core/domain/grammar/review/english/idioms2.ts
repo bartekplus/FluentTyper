@@ -1,6 +1,5 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishInitialSound } from "../../implementations/helpers/EnglishInitialSound";
-import { each, PLURAL, TAKE, type PhraseRow } from "../englishPhraseTables";
 import {
   CLAUSE,
   COMPLETE,
@@ -10,104 +9,7 @@ import {
   SPACE as S,
   WORD_END as E,
 } from "../phraseTemplates";
-import type { ReviewDetectorEntry } from "../reviewDetectors";
-
-const GO = ["go", "goes", "went", "going", "gone"];
-const LAST_DITCH = ["effort", "attempt", "bid", "option", "measure", "push", "stand", "fix"];
-const SOMEBODY = ["somebody", "someone", "anybody", "anyone", "everybody", "everyone", "nobody"];
-
-/** Misheard idioms and wrong words in set phrases. */
-export const PHRASES: readonly PhraseRow[] = [
-  ...each(["it's", "that's", "is", "was"], "~ here nor there", "~ neither here nor there"),
-  ...each(["after", "afterward", "afterwards"], "not along ~", "not long ~"),
-  ...each(PLURAL, "ticking time clock~", ["ticking time bomb~", "ticking clock~"]),
-  ["the another", "the other"],
-  ["out of sink", ["out of sync", "out of synch"]],
-  ...each(GO, ["~ through great lengths", "~ to a great length"], "~ to great lengths"),
-  ["read and writes", ["reads and writes", "read and write"]],
-  ...each(TAKE, "~ it personal", "~ it personally"),
-  ...["doubly", "singly", "circular"].flatMap((kind) =>
-    each(PLURAL, `${kind} link list~`, `${kind} linked list~`),
-  ),
-  ...each(PLURAL, "double-link list~", "double-linked list~"),
-  ...each(PLURAL, "link list implementation~", "linked list implementation~"),
-  ["underneath of", ["underneath", "under"]],
-  ...each(PLURAL, ["highly kept secret~", "highly-kept secret~"], "well-kept secret~"),
-  ...each(["you", "them", "us", "these", "those"], "may of ~", "many of ~"),
-  ["yesterday night", "last night"],
-  ["a lots of", ["a lot of", "lots of"]],
-  ["a lots", ["a lot", "a lot's"]],
-  ["lot's and lot's", "lots and lots"],
-  ["per-say", "per se"],
-  ["t he", "the"],
-  ["last but not last", "last but not least"],
-  ["quite many", "quite a few"],
-  ["thanks lot", "thanks a lot"],
-  ["spacial attention", ["special attention", "spatial attention"]],
-  ["very known", "very well-known"],
-  [
-    ["more than what meets the eye", "more that meets the eye", "more that what meets the eye"],
-    "more than meets the eye",
-  ],
-  ["let along", "let alone"],
-  ["similar like", "similar to"],
-  [["the different between", "the differents between"], "the difference between"],
-  ...each(SOMEBODY, ["~'s else", "~'s else's"], "~ else's"),
-  [
-    [
-      ...["in the spur of the moment", "at the spur of the moment"],
-      ...["in the spurt of the moment", "at the spurt of the moment", "on the spurt of the moment"],
-    ],
-    "on the spur of the moment",
-  ],
-  ["unless if", "unless"],
-  ["like as if", "as if"],
-  ["in top of", "on top of"],
-  ["on top off", "on top of"],
-  ...LAST_DITCH.flatMap((noun) =>
-    each(
-      PLURAL,
-      [`last ditch ${noun}~`, `last ditched ${noun}~`, `last-ditched ${noun}~`],
-      `last-ditch ${noun}~`,
-    ),
-  ),
-  ["managerial reigns", "managerial reins"],
-  ...each(PLURAL, "slippy slope~", "slippery slope~"),
-  [["not without a lack of", "not without lack of"], "not for lack of"],
-  ["trail and error", "trial and error"],
-  ["line of codes", ["lines of code", "line of code"]],
-  ["lines of codes", "lines of code"],
-  ...each(["luck", "genius"], "strike of ~", "stroke of ~"),
-  ...each(["luck", "genius"], "strikes of ~", "strokes of ~"),
-  ["the entire of", "the entirety of"],
-  ["without out", "without"],
-  ...each(PLURAL, "sneaky suspicion~", "sneaking suspicion~"),
-  ["on second though", "on second thought"],
-  ["every once and a while", "every once in a while"],
-  [["point of views", "points of views"], "points of view"],
-];
-
-/** Split, joined and hyphenated forms. */
-export const COMPOUNDS: readonly PhraseRow[] = [
-  ["nerve racking", "nerve-racking"],
-  ["nerve wracking", ["nerve-racking", "nerve-wracking"]],
-  ["low hanging fruit", "low-hanging fruit"],
-  ["low hanging fruits", ["low-hanging fruit", "low-hanging fruits"]],
-  ["per-se", "per se"],
-  [["on topof", "ontop off"], "on top of"],
-  ...each(PLURAL, "worst case scenario~", "worst-case scenario~"),
-];
-
-/** Optional advice: accepted variants of an idiom and contested usage. */
-export const STYLE: readonly PhraseRow[] = [
-  ["nerve-wracking", "nerve-racking"],
-  ["low-hanging fruits", "low-hanging fruit"],
-  ["surrealness", "surreality"],
-  ["last but not the least", "last but not least"],
-  ["like no tomorrow", "like there's no tomorrow"],
-  ["was comprised of", ["consisted of", "was composed of"]],
-  ["truth to the fact that", ["truth to the claim that", "truth to the allegation that"]],
-];
+import type { Detector } from "../../engine/reviewRules";
 
 // ---- Context frames: forms that are also ordinary English elsewhere. ----
 
@@ -280,5 +182,12 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
   ],
 };
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = frameDetectors(FRAMES);
+// The frame detector of one rule of FRAMES.
+const frames = (rule: Rule): Detector => frameDetectors({ [rule]: FRAMES[rule] })[0].detect;
+
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  idiomPhrases2: frames("englishPhraseCorrections"),
+  idiomCompounds2: frames("englishClosedCompounds"),
+  idiomStyle2: frames("stylePhrasing"),
+} satisfies Record<string, Detector>;

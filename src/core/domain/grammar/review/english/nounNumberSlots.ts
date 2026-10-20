@@ -7,9 +7,9 @@ import {
 } from "../../implementations/helpers/EnglishLexicon";
 import { ENGLISH_MASS_NOUNS } from "../../implementations/helpers/EnglishCountability";
 import { englishNounForms, hasCountPrefix } from "../../implementations/helpers/EnglishNounNumber";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   ADVERBS,
   afterBreak,
@@ -27,10 +27,6 @@ import { finding } from "../finding";
 
 // Noun number against its determiner or count, with singular/plural forms read from the
 // generated lexicon: "a new issues", "five book", "this errors are", "each children".
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 // Irregular plurals the dictionary does not link to their singular.
 const IRREGULAR = new Map(
@@ -946,25 +942,19 @@ function existentialCount(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishExistentialAgreement", "englishNounNumber"],
-    detect: english(existentialCount),
-  },
-  {
-    rules: ["englishNounNumber", "englishPossibleErrors"],
-    detect: english(
-      articleWithPlural,
-      countWithSingular,
-      thisWithPlural,
-      demonstrativeSingular,
-      demonstrativeSubject,
-      eachWithPlural,
-      articleBeforeCount,
-      muchWithPlural,
-      partitiveSingular,
-      quantityOfSingular,
-      otherAsPronoun,
-    ),
-  },
-];
+export const PREDICATES = {
+  existentialCount: english(existentialCount),
+  nounNumberSlots: english(
+    articleWithPlural,
+    countWithSingular,
+    thisWithPlural,
+    demonstrativeSingular,
+    demonstrativeSubject,
+    eachWithPlural,
+    articleBeforeCount,
+    muchWithPlural,
+    partitiveSingular,
+    quantityOfSingular,
+    otherAsPronoun,
+  ),
+} satisfies Record<string, Detector>;

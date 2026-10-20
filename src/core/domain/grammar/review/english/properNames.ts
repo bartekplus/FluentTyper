@@ -1,251 +1,19 @@
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE as S, WORD_END as E, wordSet as words } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { quotedMention } from "./grammarStyle1";
 import { finding } from "../finding";
+import { table } from "./tables";
 
 // Names written the way their owners do not: brands split, joined or cased wrongly ("You Tube",
 // "Power Point"), misspelled famous names, and nationality or language adjectives in lowercase
 // ("french", "the dutch government").
 
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
-export const PHRASES: readonly PhraseRow[] = [
-  [["bon appetite", "bon apetit", "bon appetit", "bon apetite"], "bon appétit"],
-  ["cote d'azur", "Côte d'Azur"],
-  ["societe generale", "Société Générale"],
-  [["sao paulo", "sao paolo", "são paolo"], "São Paulo"],
-  ["dunkin donuts", "Dunkin' Donuts"],
-  [["societe general", "societé general", "société general"], "Société Générale"],
-  ...["joke", "jokes", "prank", "pranks"].map((thing): PhraseRow => [
-    `april fools ${thing}`,
-    `April Fools' ${thing}`,
-  ]),
-  [
-    ["traveler check", "traveller check"],
-    ["traveler's check", "traveller's check"],
-  ],
-];
-export const COMPOUNDS: readonly PhraseRow[] = [
-  ["pre covid", "pre-COVID"],
-  [["pre covid19", "pre covid-19", "pre covid 19"], "pre-COVID-19"],
-  ["pre corona", "pre-corona"],
-  ["lithium ion", "lithium-ion"],
-  ["lithiumion", "lithium-ion"],
-];
-export const STYLE: readonly PhraseRow[] = [];
-
 /**
  * Names in their owners' spelling, for englishCanonicalCasing: each row's typed forms (any
  * case) become the name exactly. Only forms that are never ordinary English words.
  */
-export const NAMES: readonly PhraseRow[] = [
-  // Brands and products written as one word, or with a hyphen. Not "call of duty" (the idiom)
-  // or "Barca" (a surname and a place).
-  ...(
-    [
-      ["you tube", "YouTube"],
-      ["pay pal", "PayPal"],
-      ["git hub", "GitHub"],
-      ["java script", "JavaScript"],
-      ["type script", "TypeScript"],
-      ["power shell", "PowerShell"],
-      ["share point", "SharePoint"],
-      ["one drive", "OneDrive"],
-      ["face book", "Facebook"],
-      ["snap chat", "Snapchat"],
-      ["whats app", "WhatsApp"],
-      ["tik tok", "TikTok"],
-      ["fed ex", "FedEx"],
-      ["air bnb", "Airbnb"],
-      ["chat gpt", "ChatGPT"],
-      ["open ai", "OpenAI"],
-      ["net flix", "Netflix"],
-      ["star bucks", "Starbucks"],
-      ["wal mart", "Walmart"],
-      [["mac book", "macbook"], "MacBook"],
-      ["chrome book", "Chromebook"],
-      ["air pods", "AirPods"],
-      ["play station", "PlayStation"],
-      ["game boy", "Game Boy"],
-      ["word press", "WordPress"],
-      ["drop box", "Dropbox"],
-      ["linked in profile", "LinkedIn profile"],
-      ["linked in account", "LinkedIn account"],
-      ["linked in page", "LinkedIn page"],
-      ["linked in post", "LinkedIn post"],
-      ["e bay", "eBay"],
-      ["coca cola", "Coca-Cola"],
-      ["rolls royce", "Rolls-Royce"],
-      ["mercedes benz", "Mercedes-Benz"],
-      ["harley davidson", "Harley-Davidson"],
-      ["hewlett packard", "Hewlett-Packard"],
-      ["merriam webster", "Merriam-Webster"],
-      ["alka seltzer", "Alka-Seltzer"],
-      ["jay z", "Jay-Z"],
-      ["objective c", "Objective-C"],
-      ["mar a lago", "Mar-a-Lago"],
-      ["z wave", "Z-Wave"],
-      ["zwave", "Z-Wave"],
-      ["wi fi", "Wi-Fi"],
-      ["7 eleven", "7-Eleven"],
-      [["node js", "nodejs"], "Node.js"],
-      ["space x", "SpaceX"],
-      ["g mail", "Gmail"],
-      ["bit coin", "Bitcoin"],
-      ["cold play", "Coldplay"],
-      ["libre office", "LibreOffice"],
-      ["mac os x", "Mac OS X"],
-      ["mac os", "macOS"],
-      [["black lifes matter", "black lifes matters", "black lives matters"], "Black Lives Matter"],
-      [["karma sutra", "karmasutra"], "Kama Sutra"],
-      ["mercedes amg", "Mercedes-AMG"],
-      [["saint tropez", "st tropez", "st. tropez"], "Saint-Tropez"],
-      ["delta airlines", "Delta Air Lines"],
-      [["jack daniels", "jack daniel"], "Jack Daniel's"],
-      ["kings college", "King's College"],
-      ["wendys", "Wendy's"],
-      ["earl gray tea", "Earl Grey tea"],
-      [["fed xed", "fed-exed", "fedexed"], "FedExed"],
-      ["cap coral", "Cape Coral"],
-      ["los angels", "Los Angeles"],
-      [["jong un", "jongun"], "Jong-un"],
-      [
-        ["red nose reindeer", "red nose raindeer", "red nosed raindeer", "red nosed reindeer"],
-        "Red-Nosed Reindeer",
-      ],
-      ["jesus chris", "Jesus Christ"],
-      [["long island ice tea", "long island iced tea"], "Long Island iced tea"],
-      ["queens gambit", "Queen's Gambit"],
-      ["donald trump", "Donald Trump"],
-      ["donald trumps", "Donald Trump's"],
-      ["astra zeneca", "AstraZeneca"],
-      [["ipad os", "ipados"], "iPadOS"],
-      [["watch os", "watchos"], "watchOS"],
-      [["covid 19", "covid19", "covid-19"], "COVID-19"],
-      [["corona virus", "corona-virus"], "coronavirus"],
-      ["sars cov 2", "SARS-CoV-2"],
-      [["office365", "office 365"], "Office 365"],
-      [["microsoft365", "microsoft 365"], "Microsoft 365"],
-      [["pokemon", "pokémon"], "Pokémon"],
-      ["pokemon go", "Pokémon Go"],
-      ["schrodinger", "Schrödinger"],
-      [["loreal", "l'oreal"], "L'Oréal"],
-    ] as const
-  ).map(([typed, name]): PhraseRow => [typed, name]),
-  // Famous names with a letter missing or swapped.
-  ...(
-    [
-      ["barrack obama", "Barack Obama"],
-      ["ronald regan", "Ronald Reagan"],
-      ["ringo star", "Ringo Starr"],
-      ["jimmy hendrix", "Jimi Hendrix"],
-      ["edgar allen poe", "Edgar Allan Poe"],
-      ["forest gump", "Forrest Gump"],
-      ["jenifer aniston", "Jennifer Aniston"],
-      ["carnegie melon", "Carnegie Mellon"],
-      [["eifel tower", "eiffel tower"], "Eiffel Tower"],
-      ["new zeeland", "New Zealand"],
-      [["rubiks cube", "rubic's cube", "rubics cube"], "Rubik's Cube"],
-      [["mcdonalds", "mc donalds", "mcdonald's"], "McDonald's"],
-      [["kelloggs", "kellogs"], "Kellogg's"],
-      ["sainsburys", "Sainsbury's"],
-      ["macys", "Macy's"],
-      ["trader joes", "Trader Joe's"],
-      ["sams club", "Sam's Club"],
-      ["victorias secret", "Victoria's Secret"],
-      ["schitts creek", "Schitt's Creek"],
-      ["greys anatomy", "Grey's Anatomy"],
-      ["assassins creed", "Assassin's Creed"],
-      ["uncle bens", "Uncle Ben's"],
-    ] as const
-  ).map(([typed, name]): PhraseRow => [typed, name]),
-  // A shape named by its capital letter: "a v-shaped valley" -> "V-shaped".
-  ...[..."cdhltuvxy"].map((letter): PhraseRow => [
-    [`${letter}-shaped`, `${letter} shaped`],
-    `${letter.toUpperCase()}-shaped`,
-  ]),
-  // Proper names spelled in their ordinary words. Not "black sea" or "long island": "a black
-  // sea", "a long island chain"; not "power point": a socket in British English.
-  ...[
-    "Google Analytics",
-    "Google Play",
-    "Google Play Store",
-    "Google Meet",
-    "Google Ads",
-    "Google Cloud",
-    "Google Photos",
-    "Google Translate",
-    "Google Calendar",
-    "Google Search",
-    "Google Slides",
-    "Google Forms",
-    "Apple TV",
-    "Apple ID",
-    "Apple Pay",
-    "Apple Watch",
-    "Apple Music",
-    "Internet Explorer",
-    "MS Word",
-    "MS Excel",
-    "MS Office",
-    "MS Teams",
-    "Nintendo Switch",
-    "Black Lives Matter",
-    "Super Bowl",
-    "Super Tuesday",
-    "World War I",
-    "World War II",
-    "World War One",
-    "World War Two",
-    "Middle Ages",
-    "Caspian Sea",
-    "Cape Cod",
-    "Cape of Good Hope",
-    "Papua New Guinea",
-    "New Guinea",
-    "Union Jack",
-    "Royal Mail",
-    "Royal Air Force",
-    "Royal Navy",
-    "Geiger counter",
-    "Ponzi scheme",
-    "Oxford comma",
-    "Omicron variant",
-    "Delta variant",
-    "U-turn",
-    "T-bone",
-    "T-shirt",
-    "V-neck",
-    "Unicode",
-    "Euclidean",
-    "Celsius",
-    "Fahrenheit",
-    "Pilates",
-    // Holidays and divided countries. Not "independence day" or "good friday": a country's
-    // own day, a good Friday; "thanksgiving" alone is also giving thanks.
-    "Thanksgiving Day",
-    "Thanksgiving dinner",
-    "Thanksgiving weekend",
-    "Thanksgiving break",
-    "Halloween",
-    "Veterans Day",
-    "Memorial Day",
-    "Labor Day",
-    "Boxing Day",
-    "Mother's Day",
-    "Father's Day",
-    "Valentine's Day",
-    "Saint Patrick's Day",
-    "New Year's Day",
-    "New Year's Eve",
-    "Christmas Eve",
-    "Christmas Day",
-    "Easter Sunday",
-    "East Germany",
-    "West Germany",
-    "East Timor",
-  ].map((name): PhraseRow => [name.toLowerCase(), name]),
-];
+export const NAMES = table("properNames.names");
 
 type Finding = RawFinding;
 const context = (ctx: DetectContext, start: number, end: number) => ({
@@ -477,8 +245,8 @@ const english =
       ? []
       : detectors.flatMap((detect) => detect(ctx)).filter((f) => !quotedMention(ctx, f));
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishCanonicalCasing"], detect: english(productNames, superBowl) },
-  { rules: ["englishProperNounCapitalization"], detect: english(nationalities, placeNames) },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  productNames: english(productNames, superBowl),
+  properNouns: english(nationalities, placeNames),
+} satisfies Record<string, Detector>;

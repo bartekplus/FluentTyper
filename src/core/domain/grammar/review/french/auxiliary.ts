@@ -1,4 +1,5 @@
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { verbReadings } from "./frenchLexicon";
 import { ownedFrenchWords, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
@@ -156,4 +157,4 @@ function auxiliaries(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: auxiliaries }];
+export const PREDICATES = { auxiliary: auxiliaries } satisfies Record<string, Detector>;

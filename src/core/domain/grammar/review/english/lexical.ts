@@ -9,7 +9,8 @@ import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
 import { lastNonBlankBefore } from "../../implementations/helpers/EnglishRuleShared";
 import { caseLike, frameMatches, hasUserOrCasedWord, SPACE } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { english } from "./grammarStyle1";
 import { finding } from "../finding";
 
@@ -433,12 +434,9 @@ function youNounOf(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishIrregularForms", "englishAlotCorrection"],
-    detect: english(wordChecks),
-  },
-  { rules: ["englishPossessiveNouns"], detect: english(possessiveNouns) },
-  { rules: ["englishYourYouAre"], detect: english(youNounOf) },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  irregularWordForms: english(wordChecks),
+  possessiveNouns: english(possessiveNouns),
+  youNounOf: english(youNounOf),
+} satisfies Record<string, Detector>;

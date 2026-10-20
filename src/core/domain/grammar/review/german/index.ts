@@ -1,46 +1,6 @@
-// German-only Review checks, one module per area.
-import * as abbreviations from "./abbreviations";
-import * as adjectiveForms from "./adjectiveForms";
-import * as anglicisms from "./anglicisms";
-import * as articleGender from "./articleGender";
-import * as confusions from "./confusions";
-import * as joinedVerbs from "./joinedVerbs";
-import * as nounCasing from "./nounCasing";
-import * as prepositionCase from "./prepositionCase";
-import * as quotes from "./quotes";
-import * as suspendedHyphen from "./suspendedHyphen";
+// German-only Review checks, one module per area. The rule file grammar/rules/de.yaml
+// names them and sets their order.
+import { REVIEW_DETECTORS } from "../reviewDetectors";
 
-import * as dates from "./dates";
-
-import * as colloquial from "./colloquial";
-import * as commas from "./commas";
-import * as compounds from "./compounds";
-import * as numbers from "./numbers";
-import * as questions from "./questions";
-import * as recommended from "./recommended";
-import * as redundancy from "./redundancy";
-import * as verbAgreement from "./verbAgreement";
-
-const MODULES = [
-  compounds,
-  dates,
-  nounCasing,
-  prepositionCase,
-  confusions,
-  adjectiveForms,
-  articleGender,
-  suspendedHyphen,
-  abbreviations,
-  quotes,
-  commas,
-  verbAgreement,
-  questions,
-  numbers,
-  colloquial,
-  recommended,
-  redundancy,
-  anglicisms,
-  joinedVerbs,
-];
-export const GERMAN_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);
+export const GERMAN_DETECTORS = REVIEW_DETECTORS.filter((entry) => entry.source === "de");
 export { germanUnits } from "./numbers";

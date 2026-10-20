@@ -1,6 +1,6 @@
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { frameDetector, type Frame, type Rule } from "./idioms5";
 
 // englishBritishSpelling (optional): American words and spellings that need their context to
@@ -11,38 +11,6 @@ const BRITISH: Rule = {
   ruleId: "englishBritishSpelling",
   messageKey: "review_msg_british_spelling",
 };
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
-
-const OWNERS = ["my", "your", "his", "her", "our", "their", "the", "this", "valid", "new"];
-const LICENSED = ["driving", "software", "fishing", "gun", "marriage", "liquor", "TV", "pilot's"];
-/** Rows for the British table (dialects' englishBritishSpelling index). */
-export const BRITISH_ROWS: readonly PhraseRow[] = [
-  ...[...OWNERS, ...LICENSED].flatMap((owner): PhraseRow[] => [
-    [`${owner} license`, `${owner} licence`],
-    [`${owner} licenses`, `${owner} licences`],
-  ]),
-  ["an apartment", "a flat"],
-  ["apartment", "flat"],
-  ["apartments", "flats"],
-  [["air plane", "air-plane"], "aeroplane"],
-  [["air planes", "air-planes"], "aeroplanes"],
-  ["gotten", "got"],
-  ["anymore", "any more"],
-  ...[
-    ["take", "have"],
-    ["takes", "has"],
-    ["took", "had"],
-    ["taking", "having"],
-  ].flatMap(([take, have]): PhraseRow[] =>
-    ["nap", "rest", "break", "holiday", "lie-in"].map((thing): PhraseRow => [
-      `${take} a ${thing}`,
-      `${have} a ${thing}`,
-    ]),
-  ),
-];
 
 const UNITS: Record<string, string> = {
   meter: "metre",
@@ -89,7 +57,7 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishBritishSpelling"], detect: frameDetector(FRAMES) },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  britishUsage: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

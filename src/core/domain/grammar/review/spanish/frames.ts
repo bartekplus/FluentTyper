@@ -1,4 +1,5 @@
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { DETERMINER, pluralOf, readNoun } from "./agreement";
 import {
   Around,
@@ -554,9 +555,9 @@ const AGREEMENT: Check[] = [
 ];
 const ACCENTS: Check[] = [uarVerb, accentedDeterminer];
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["spanishConfusions"], detect: (ctx) => frames(ctx, CONFUSIONS) },
-  { rules: ["spanishAgreement"], detect: (ctx) => frames(ctx, AGREEMENT) },
-  { rules: ["spanishAccents"], detect: (ctx) => frames(ctx, ACCENTS) },
-  { rules: ["englishRepeatedWords"], detect: (ctx) => frames(ctx, [repeatedPair]) },
-];
+export const PREDICATES = {
+  frameConfusions: (ctx) => frames(ctx, CONFUSIONS),
+  frameAgreement: (ctx) => frames(ctx, AGREEMENT),
+  frameAccents: (ctx) => frames(ctx, ACCENTS),
+  repeatedPair: (ctx) => frames(ctx, [repeatedPair]),
+} satisfies Record<string, Detector>;

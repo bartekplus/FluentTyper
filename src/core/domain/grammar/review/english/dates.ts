@@ -1,8 +1,8 @@
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, group, isLang, SPACE as S } from "../phraseTemplates";
 import { DIGIT, invalidIsoDates } from "../isoDates";
 import { NO_WORD_BEFORE } from "../markdownEmphasis";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   contextYear,
   daysInMonth,
@@ -16,11 +16,6 @@ import { finding } from "../finding";
 
 // Calendar checks: a weekday that does not fall on the date written next to it, and a day the
 // month does not have ("June 31", "2/30/2024"). A date with no year uses the Review clock.
-
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 // Abbreviations, longest first; two-letter ones only with the comma after them ("Mo, 7").
@@ -268,7 +263,7 @@ function detect(ctx: DetectContext): RawFinding[] {
   return [...weekdayMismatch(ctx), ...impossibleDates(ctx)];
 }
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishDateConsistency"], detect },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  dates: detect,
+} satisfies Record<string, Detector>;

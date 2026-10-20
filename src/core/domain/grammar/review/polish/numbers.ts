@@ -1,3 +1,4 @@
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { caseLike, findingAt, isPl, owned, userOrNamed } from "./shared";
 
@@ -366,12 +367,9 @@ function nounForms(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: [RULE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) =>
-      isPl(ctx)
-        ? [...numeralSuffixes(ctx), ...digitCompounds(ctx), ...collectives(ctx), ...nounForms(ctx)]
-        : [],
-  },
-];
+export const PREDICATES = {
+  numerals: (ctx: DetectContext) =>
+    isPl(ctx)
+      ? [...numeralSuffixes(ctx), ...digitCompounds(ctx), ...collectives(ctx), ...nounForms(ctx)]
+      : [],
+} satisfies Record<string, Detector>;

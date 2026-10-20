@@ -1,6 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 import { germanNounReading } from "./germanLexicon";
 import { anyCase, gated, isGerman, likeTyped } from "./shared";
@@ -398,17 +399,10 @@ const RANGE_CODE =
 const RANGE_SCORE =
   /(?:^|[^\p{L}])(?:spiel|sieg|gewann|gewinn|verlor|verlier|unterl[ai]g|endstand|halbzeit|ergebnis|treffer|satz|sätze|partie|unentschieden|steht[ \t ]+es|stand[ \t ]+es)\p{L}*(?:[ \t ]+\p{L}+){0,3}[ \t ]+$/iu;
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanNumbers"], detect: numbers },
-  {
-    rules: ["emdashShortcut"],
-    lang: "de",
-    detect: (ctx) =>
-      isGerman(ctx) ? rangeDashes(ctx, { code: RANGE_CODE, score: RANGE_SCORE }) : [],
-  },
-  {
-    rules: ["germanTypography"],
-    detect: (ctx) => [...times(ctx), ...formulas(ctx), ...thousands(ctx)],
-  },
-  { rules: ["stylePhrasing"], detect: decadeCentury },
-];
+export const PREDICATES = {
+  numbers,
+  rangeDashes: (ctx) =>
+    isGerman(ctx) ? rangeDashes(ctx, { code: RANGE_CODE, score: RANGE_SCORE }) : [],
+  typography: (ctx) => [...times(ctx), ...formulas(ctx), ...thousands(ctx)],
+  decadeCentury,
+} satisfies Record<string, Detector>;

@@ -1,5 +1,6 @@
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   germanAdjective,
   germanInfinitive,
@@ -169,6 +170,6 @@ function suspendedHyphen(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanSuspendedHyphen"], detect: suspendedHyphen },
-];
+export const PREDICATES = {
+  suspendedHyphen,
+} satisfies Record<string, Detector>;

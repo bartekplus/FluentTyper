@@ -1,7 +1,8 @@
 import { namedExampleBefore } from "../exampleCues";
 import { invalidIsoDates } from "../isoDates";
 import { EMPHASIS_MARKS } from "../markdownEmphasis";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   Around,
   attributeOf,
@@ -871,15 +872,12 @@ function decades(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [RULE],
-    detect: (ctx) =>
-      isLang(ctx, "es")
-        ? [...typography(ctx), ...marks(ctx), ...closingMarks(ctx), ...decades(ctx)]
-        : [],
-  },
-  { rules: ["commaPeriodSpacing"], detect: missingSpace },
-  { rules: ["emdashShortcut"], detect: (ctx) => [...dialogueDash(ctx), ...rangeDash(ctx)] },
-  { rules: ["spanishTypographyStyle"], detect: decimalComma },
-];
+export const PREDICATES = {
+  typography: (ctx) =>
+    isLang(ctx, "es")
+      ? [...typography(ctx), ...marks(ctx), ...closingMarks(ctx), ...decades(ctx)]
+      : [],
+  missingSpace,
+  dashes: (ctx) => [...dialogueDash(ctx), ...rangeDash(ctx)],
+  decimalComma,
+} satisfies Record<string, Detector>;

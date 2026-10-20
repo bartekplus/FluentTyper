@@ -1,5 +1,6 @@
 import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   deumlaut,
   germanAdjective,
@@ -1439,6 +1440,6 @@ function confusions(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanConfusedWords"], detect: confusions },
-];
+export const PREDICATES = {
+  confusions,
+} satisfies Record<string, Detector>;

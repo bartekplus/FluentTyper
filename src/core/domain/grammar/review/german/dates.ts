@@ -1,6 +1,7 @@
 import { invalidIsoDates } from "../isoDates";
 import { frameMatches } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   contextYear,
   daysInMonth,
@@ -233,6 +234,6 @@ function dates(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanDates"], detect: dates },
-];
+export const PREDICATES = {
+  dates,
+} satisfies Record<string, Detector>;

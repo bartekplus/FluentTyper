@@ -1,3 +1,4 @@
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { placeForm } from "./lexicon";
 import { findingAt, isPl, owned, S as SP, sentenceStartAt, userOrNamed } from "./shared";
@@ -245,9 +246,6 @@ function capitals(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: [RULE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) => (isPl(ctx) ? capitals(ctx) : []),
-  },
-];
+export const PREDICATES = {
+  capitals: (ctx: DetectContext) => (isPl(ctx) ? capitals(ctx) : []),
+} satisfies Record<string, Detector>;

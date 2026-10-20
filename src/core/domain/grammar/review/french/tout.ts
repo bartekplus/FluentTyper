@@ -1,4 +1,5 @@
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   type Gender,
@@ -476,4 +477,4 @@ function touts(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: touts }];
+export const PREDICATES = { tout: touts } satisfies Record<string, Detector>;

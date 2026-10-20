@@ -5,113 +5,14 @@ import {
   wordKey,
   wordSet,
 } from "../../implementations/helpers/GenericRuleShared";
-import type { PhraseRow } from "../englishPhraseTables";
 import { caseLike, frameMatches, isLang } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import type { ReviewMessageKey } from "../types";
 import { finding } from "../finding";
 
 // Lookalike words decided by their syntactic slot: "I thing" is a verb slot, "good advise" a
 // noun slot. Every frame reads at most a few words on each side of the target, within its block.
-
-/** One row per form: `~` stands for the typed lookalike, replaced by the intended word. */
-const rows = (forms: string[], typed: string, fixed: string): PhraseRow[] =>
-  forms.map((form) => [form.replace("~", typed), form.replace("~", fixed)]);
-
-/** Rows for englishPhraseCorrections. */
-export const PHRASES: readonly PhraseRow[] = [
-  ...rows(["I ~", "you ~", "he ~", "she ~", "it ~", "we ~", "they ~"], "dint", "didn't"),
-  ["over they're", "over there"],
-  ["very quite", "very quiet"],
-  ...rows(["~ often", "~ a few", "~ a bit", "~ a lot", "~ a while"], "quiet", "quite"),
-  ["now and than", "now and then"],
-  ...rows(["it is ~ to", "it's ~ to", "it was ~ to", "is it ~ to", "was it ~ to"], "save", "safe"),
-  ...rows(
-    [
-      "cause and ~",
-      "placebo ~",
-      "greenhouse ~",
-      "ripple ~",
-      "snowball ~",
-      "domino ~",
-      "butterfly ~",
-      "knock-on ~",
-      "with immediate ~",
-      "to great ~",
-      "to good ~",
-      "to little ~",
-    ],
-    "affect",
-    "effect",
-  ),
-  ["baton rogue", "baton rouge"],
-  ["khmer rogue", "khmer rouge"],
-  ...rows(
-    [
-      "go ~",
-      "goes ~",
-      "went ~",
-      "gone ~",
-      "going ~",
-      "a ~ who",
-      "~ nation",
-      "~ nations",
-      "~ state",
-      "~ states",
-      "~ trader",
-      "~ traders",
-      "~ squadron",
-      "~ agent",
-      "~ agents",
-      "~-like",
-      "~-likes",
-      "~-lite",
-      "~ like",
-      "~ likes",
-      "~like",
-      "~likes",
-      "~ wave",
-      "~ waves",
-      "~ planet",
-      "~ process",
-      "~ processes",
-      "~ device",
-      "~ devices",
-      "~ employee",
-      "~ employees",
-      "~ actor",
-      "~ actors",
-    ],
-    "rouge",
-    "rogue",
-  ),
-  ...rows(
-    [
-      "chemotherapy ~",
-      "chemotherapeutic ~",
-      "therapeutic ~",
-      "treatment ~",
-      "dose ~",
-      "dosing ~",
-      "dosage ~",
-      "drug ~",
-      "medication ~",
-      "antibiotic ~",
-      "training ~",
-      "workout ~",
-      "exercise ~",
-      "fitness ~",
-      "skincare ~",
-      "diet ~",
-      "dietary ~",
-      "supplement ~",
-    ].flatMap((form) => [form, `${form}s`]),
-    "regiment",
-    "regimen",
-  ),
-  ...rows(["~ dress", "~ dresses", "~ outfit", "~ outfits"], "summary", "summery"),
-  ["dissembly", "disassembly"],
-];
 
 // ---------------------------------------------------------------------------------------------
 // Tokens around a target, on its line: b[0] is the nearest word before, a[0] the nearest after.
@@ -1156,10 +1057,7 @@ function confusedWords(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [RULE],
-    detect: confusedWords,
-  },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  confusedWords: confusedWords,
+} satisfies Record<string, Detector>;

@@ -1,0 +1,17 @@
+# hr grammar rules. See docs/agents/grammar-rules.md for the format.
+lang: hr
+
+# Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
+phrases:
+  words: |
+    uopče = uopće
+    opčenito = općenito
+    zakljućak = zaključak
+    ćestitam = čestitam
+    ljepo = lijepo
+    djete = dijete
+    gdije = gdje
+  compounds: |
+    bi smo = bismo
+    bi ste = biste
+    sobzirom = s obzirom

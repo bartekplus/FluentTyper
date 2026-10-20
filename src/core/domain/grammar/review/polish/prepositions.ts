@@ -1,3 +1,4 @@
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { caseLike, findingAt, isPl, owned, userOrNamed } from "./shared";
 
@@ -99,9 +100,6 @@ function prepositionForms(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: [RULE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) => (isPl(ctx) ? prepositionForms(ctx) : []),
-  },
-];
+export const PREDICATES = {
+  prepositionForms: (ctx: DetectContext) => (isPl(ctx) ? prepositionForms(ctx) : []),
+} satisfies Record<string, Detector>;

@@ -1,4 +1,5 @@
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   isInflectedNoun,
@@ -748,4 +749,4 @@ function smallWords(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: smallWords }];
+export const PREDICATES = { smallWords: smallWords } satisfies Record<string, Detector>;

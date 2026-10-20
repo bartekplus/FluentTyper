@@ -1,7 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { namedExampleBefore } from "../exampleCues";
 import { quotedMention } from "./grammarStyle1";
 import { finding } from "../finding";
@@ -13,11 +13,6 @@ import { finding } from "../finding";
 // styleIntroductoryComma (optional): the comma after an opening linking word ("However",
 // "In addition"), between an opening phrase and its clause ("With it I can" -> "With it, I"),
 // after a condition ("If I can I will"), and before a name addressed ("Thanks Tom").
-
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 type Finding = RawFinding;
 
@@ -488,9 +483,9 @@ const english =
   (ctx: DetectContext): Finding[] =>
     ctx.lang !== "en_US" ? [] : detect(ctx).filter((f) => !quotedMention(ctx, f));
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishPunctuation"], detect: english(punctuation) },
-  { rules: ["styleIntroductoryComma"], detect: english(introductoryCommas) },
-  { rules: ["styleClauseComma"], detect: english(clauseCommas) },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  punctuation: english(punctuation),
+  introductoryCommas: english(introductoryCommas),
+  clauseCommas: english(clauseCommas),
+} satisfies Record<string, Detector>;

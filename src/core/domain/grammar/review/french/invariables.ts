@@ -1,4 +1,5 @@
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { adjectiveReadings, isInflectedNoun, isVerbHomograph, verbReadings } from "./frenchLexicon";
 import {
   ownedFrenchWords,
@@ -135,4 +136,4 @@ function invariables(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: invariables }];
+export const PREDICATES = { invariables: invariables } satisfies Record<string, Detector>;

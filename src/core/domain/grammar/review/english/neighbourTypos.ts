@@ -1,7 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { frameDetector, TYPO, type Frame, type FixResult, type Rule } from "./idioms5";
 import { afterBreak, DETERMINERS, FUNCTION_WORDS, nounOnly, wordBefore } from "./slotWords";
 
@@ -12,31 +12,6 @@ import { afterBreak, DETERMINERS, FUNCTION_WORDS, nounOnly, wordBefore } from ".
 
 const CONFUSED: Rule = { ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word" };
 const YOUR: Rule = { ruleId: "englishYourYouAre", messageKey: "review_msg_your_possessive" };
-
-export const PHRASES: readonly PhraseRow[] = [
-  [["in another words", "another words"], "in other words"],
-  ["et all", "et al."],
-  ["climate chance", "climate change"],
-  [
-    ["ally concern", "ally fear"],
-    ["allay concern", "allay fear"],
-  ],
-  ["needles to say", "needless to say"],
-  ["let is know", "let us know"],
-  ["dod not", "did not"],
-  ["what a coincident", "what a coincidence"],
-  ["the true is", "the truth is"],
-  ["the filed of", "the field of"],
-  ["shipping mall", "shopping mall"],
-  ["a pare of", "a pair of"],
-  ["in relieve", "in relief"],
-  ["no mater what", "no matter what"],
-  ["brake away from", "break away from"],
-  [["taken a back by", "taken aback by"], "taken aback by"],
-  ["doggy-dog world", "dog-eat-dog world"],
-];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const read = (word: string | undefined) => (word ? englishWordInfo(word.toLowerCase()) : null);
 const OBJECT =
@@ -723,14 +698,6 @@ const YOUR_ADDRESS =
 const singularNoun = (word: string) =>
   !YOUR_ADDRESS.test(word) && !FUNCTION_WORDS.has(word) && nounOnly(word) === "singular";
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [
-      "englishPhraseCorrections",
-      "englishConfusedWords",
-      "englishThenThan",
-      "englishYourYouAre",
-    ],
-    detect: frameDetector(FRAMES),
-  },
-];
+export const PREDICATES = {
+  neighbourTypos: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

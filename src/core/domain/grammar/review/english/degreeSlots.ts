@@ -1,7 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   afterBreak,
   caseLike,
@@ -18,10 +18,6 @@ import { finding } from "../finding";
 // "to" where the degree adverb "too" is meant, decided by what surrounds it: a linking verb
 // before and a predicate adjective after ("it's to late"), a degree word closing the clause
 // ("they cost to much"), or "two much".
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const LINKING =
   "(?:is|are|was|were|am|be|been|being|seems?|seemed|looks?|looked|feels?|felt|sounds?|sounded|gets?|got|getting|become|becomes|became|['’]s|['’]re|['’]m|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)";
@@ -189,6 +185,6 @@ function toForToo(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishToToo"], detect: english(toForToo) },
-];
+export const PREDICATES = {
+  toForToo: english(toForToo),
+} satisfies Record<string, Detector>;

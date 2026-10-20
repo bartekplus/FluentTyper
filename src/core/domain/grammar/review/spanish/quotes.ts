@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { finding } from "../finding";
 import { isLang } from "../phraseTemplates";
 
@@ -44,4 +45,4 @@ function quotes(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: quotes }];
+export const PREDICATES = { quotes } satisfies Record<string, Detector>;

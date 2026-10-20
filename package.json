@@ -7,7 +7,8 @@
   "scripts": {
     "watch": "bun build.ts --mode=development --watch",
     "build": "bun build.ts --mode=production",
-    "check": "bun run lint && bun run format:check && bun run typecheck",
+    "check": "bun run lint && bun run format:check && bun run typecheck && bun run compile:grammar --check",
+    "compile:grammar": "bun scripts/compile-grammar-rules.ts",
     "check:local-ai:artifact": "bun scripts/check-local-ai-artifact.ts",
     "test:local-ai:real": "bun scripts/local-ai-e2e-real.ts",
     "probe:local-ai": "bun scripts/fetch-local-ai-assets.ts",

@@ -1,7 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   afterBreak,
   pushSlot,
@@ -17,10 +17,6 @@ import { MASS, nounNumber } from "./nounNumberSlots";
 // "several other came" (others), "a must see place" (must-see), "The are many" (There are),
 // "drop by an see" (and), "a number of book" (books), "the worlds best" (world's),
 // "58 years-old" (years old), "wash ones hands" (one's), "too all the" (to all).
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 type Rule = Pick<RawFinding, "ruleId" | "messageKey">;
 const CONFUSED: Rule = { ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word" };
@@ -305,12 +301,12 @@ function haveName(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishSubjectVerbAgreement"], detect: english(haveName) },
-  { rules: ["englishYourYouAre"], detect: english(youAre) },
-  { rules: ["englishNounNumber"], detect: english(pluralSlots) },
-  { rules: ["englishConfusedWords"], detect: english(confusedSlots) },
-  { rules: ["englishContextualCompounds"], detect: english(compoundSlots) },
-  { rules: ["englishApostrophes"], detect: english(possessiveSlots) },
-  { rules: ["englishToToo"], detect: english(tooAll) },
-];
+export const PREDICATES = {
+  haveName: english(haveName),
+  youAre: english(youAre),
+  pluralSlots: english(pluralSlots),
+  confusedSlots: english(confusedSlots),
+  compoundSlots: english(compoundSlots),
+  possessiveSlots: english(possessiveSlots),
+  tooAll: english(tooAll),
+} satisfies Record<string, Detector>;

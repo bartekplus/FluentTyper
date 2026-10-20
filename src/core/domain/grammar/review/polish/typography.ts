@@ -1,3 +1,4 @@
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { rangeDashes } from "../rangeDash";
 import { caseLike, findingAt, isPl, owned } from "./shared";
@@ -204,27 +205,17 @@ const SCORE_BEFORE =
   /(?<![\p{L}])(?:wynik|wygra|przegra|remis|mecz|pokona|zwycięż|zakończ|prowadz|set|bramk|gol|punkt|spotkani|starci)\p{L}*(?:[ \u00a0]+\p{L}+){0,4}[ \u00a0]+$/iu;
 const SCORE_AFTER = /^[ \u00a0]+(?:dla|po)(?![\p{L}])/u;
 
-export const DETECTORS = [
-  {
-    rules: [QUOTES] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) => (isPl(ctx) ? quotes(ctx) : []),
-  },
-  {
-    rules: [RULE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) => (isPl(ctx) ? [...dashes(ctx), ...symbols(ctx)] : []),
-  },
-  {
-    rules: ["emdashShortcut"] as RawFinding["ruleId"][],
-    lang: "pl",
-    detect: (ctx: DetectContext) =>
-      isPl(ctx)
-        ? rangeDashes(ctx, {
-            code: ID_BEFORE,
-            score: SCORE_BEFORE,
-            scoreAfter: SCORE_AFTER,
-            // "31-123 Kraków": a postal code.
-            codeShape: (a, b) => a.length === 2 && b.length === 3,
-          })
-        : [],
-  },
-];
+export const PREDICATES = {
+  quotes: (ctx: DetectContext) => (isPl(ctx) ? quotes(ctx) : []),
+  typography: (ctx: DetectContext) => (isPl(ctx) ? [...dashes(ctx), ...symbols(ctx)] : []),
+  rangeDashes: (ctx: DetectContext) =>
+    isPl(ctx)
+      ? rangeDashes(ctx, {
+          code: ID_BEFORE,
+          score: SCORE_BEFORE,
+          scoreAfter: SCORE_AFTER,
+          // "31-123 Kraków": a postal code.
+          codeShape: (a, b) => a.length === 2 && b.length === 3,
+        })
+      : [],
+} satisfies Record<string, Detector>;

@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   genderable,
@@ -407,4 +408,4 @@ function determiners(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: determiners }];
+export const PREDICATES = { determiners: determiners } satisfies Record<string, Detector>;

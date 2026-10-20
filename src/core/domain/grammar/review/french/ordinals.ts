@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { ownedFrenchWords } from "./frenchTokens";
 import { finding } from "../finding";
 import { rangeDashes } from "../rangeDash";
@@ -63,12 +64,8 @@ const RANGE_CODE =
 const RANGE_SCORE =
   /(?:^|[^\p{L}])(?:gagn|perd|battu|victoire|défaite|score|match|nul|mène|menait|emport|impos|set|mi-temps|résultat)\p{L}*(?:[ \t '’]+\p{L}+){0,3}[ \t ]+$/iu;
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: [RULE], detect: ordinals },
-  {
-    rules: ["emdashShortcut"],
-    lang: "fr",
-    detect: (ctx: DetectContext) =>
-      isLang(ctx, "fr") ? rangeDashes(ctx, { code: RANGE_CODE, score: RANGE_SCORE }) : [],
-  },
-];
+export const PREDICATES = {
+  ordinals,
+  rangeDashes: (ctx: DetectContext) =>
+    isLang(ctx, "fr") ? rangeDashes(ctx, { code: RANGE_CODE, score: RANGE_SCORE }) : [],
+} satisfies Record<string, Detector>;

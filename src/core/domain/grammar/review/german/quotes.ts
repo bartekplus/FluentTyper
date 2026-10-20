@@ -1,4 +1,5 @@
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { englishWords, isGerman } from "./shared";
 import { finding } from "../finding";
 
@@ -250,10 +251,7 @@ function innerSpacing(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["germanQuotes"],
-    detect: (ctx) => [...quotes(ctx), ...speech(ctx), ...innerSpacing(ctx)],
-  },
-  { rules: ["germanStraightQuotes"], detect: straight },
-];
+export const PREDICATES = {
+  quotes: (ctx) => [...quotes(ctx), ...speech(ctx), ...innerSpacing(ctx)],
+  straightQuotes: straight,
+} satisfies Record<string, Detector>;

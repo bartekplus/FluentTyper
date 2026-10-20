@@ -9,7 +9,6 @@ import {
 } from "../../implementations/helpers/EnglishLexicon";
 import { canonicalCasing } from "../canonicalCasing";
 import { phraseCorrections } from "../englishPhraseCorrections";
-import type { PhraseRow } from "../englishPhraseTables";
 import { NOUN_LIKE_ING } from "../englishParticiples";
 import { namedExampleBefore } from "../exampleCues";
 import {
@@ -24,35 +23,13 @@ import {
   SPACE,
   WORD_END,
 } from "../phraseTemplates";
-import type { CatalogRuleId } from "../../ruleCatalog";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { english as outsideQuotes, gated as whenMentioned } from "./grammarStyle1";
 import { opensClause } from "./grammarStyle2";
-import { DETECTORS as CONFUSED_WORDS } from "./confusions1";
-import { DETECTORS as FIXED_PHRASES } from "./fixedPhrases";
-import { DETECTORS as IDIOM_FRAMES_1 } from "./idioms1";
-
-/** Rows for englishPhraseCorrections. */
-export const PHRASES: readonly PhraseRow[] = [
-  // A disassembler's view is a disassembly; "dissemble" means to hide one's feelings.
-  ...["tab", "window", "view", "listing", "output", "pane"].map((noun): PhraseRow => [
-    `dissemble ${noun}`,
-    `disassembly ${noun}`,
-  ]),
-  // Taking apart is paired with putting together (see PROSE_SLASH_TOKEN for the slash token).
-  ["dissemble/assemble", "disassemble/assemble"],
-  ["assemble/dissemble", "assemble/disassemble"],
-  // Never English: quoted speech is checked too ("once a twice", he said).
-  ["once a twice", "once or twice"],
-];
-export const STYLE: readonly PhraseRow[] = [
-  ["chicken/egg", ["chicken-and-egg", "chicken & egg"]],
-  // A whole system's infrastructure is uncountable in plain prose.
-  ["an infrastructure for", "infrastructure for"],
-  // The legal "constituted as" (established as) stays; a judgment is "construed as".
-  ["be constituted as a", ["be construed as a", "be constituted a"]],
-  ["be constituted as an", ["be construed as an", "be constituted an"]],
-];
+import { PREDICATES as CONFUSED_WORDS } from "./confusions1";
+import { PREDICATES as FIXED_PHRASES } from "./fixedPhrases";
+import { PREDICATES as IDIOM_FRAMES_1 } from "./idioms1";
 
 /** A detector for English text that only runs on chunks naming its literal. */
 const gated = (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>
@@ -320,10 +297,9 @@ function quotedPhrases(ctx: DetectContext): RawFinding[] {
 }
 
 // The fixed-preposition frames ("inspired from") that a named example before them also hides.
-const PHRASE_FRAMES = IDIOM_FRAMES_1.filter((d) => d.rules.includes("englishPhraseCorrections"));
 const phrasesAndFrames = (view: DetectContext) => [
   ...phraseCorrections(view),
-  ...PHRASE_FRAMES.flatMap((d) => d.detect(view)),
+  ...IDIOM_FRAMES_1.idiomPhrases1(view),
 ];
 
 /**
@@ -999,7 +975,7 @@ const MIXED_CASE = /(?<![\p{L}\p{N}_'’@/#\\.-])\p{L}*\p{Ll}\p{Lu}\p{L}*(?![\p{
 // A copy for matchAll, which starts at the lastIndex of the regex it is given.
 const MIXED_WORDS = new RegExp(MIXED_CASE.source, "gu");
 const casedChecks = (view: DetectContext) => [
-  ...CONFUSED_WORDS.flatMap((d) => d.detect(view)),
+  ...CONFUSED_WORDS.confusedWords(view),
   ...chromeExtension(view),
 ];
 
@@ -1033,7 +1009,7 @@ const QUOTED_RULES: ReadonlySet<string> = new Set([
 ]);
 const quotedChecks = (view: DetectContext) => [
   ...phrasesAndFrames(view),
-  ...FIXED_PHRASES.flatMap((d) => d.detect(view)),
+  ...FIXED_PHRASES.fixedPhrases(view),
 ];
 
 // Still necessary: the default checks skip a named example; only this opt-in check reads it.
@@ -1095,91 +1071,53 @@ function chromeTitle(ctx: DetectContext): RawFinding[] {
     );
 }
 
-const PHRASE_RULES: CatalogRuleId[] = [
-  "englishPhraseCorrections",
-  "englishClosedCompounds",
-  "stylePhrasing",
-  "englishAmericanSpelling",
-  "englishBritishSpelling",
-  "englishOxfordSpelling",
-  "styleWordChoice",
-  "englishCanonicalCasing",
-];
-
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishModalOfCorrection"],
-    detect: gated(/(?:ld|st|ht)(?:n['’]t)?[ \t\u00a0]+of\b/gi, modalOfAtEnd),
-  },
-  { rules: ["englishFixedPrepositions"], detect: gated(/beware/gi, bewareOf) },
-  {
-    rules: ["englishPhraseCorrections"],
-    detect: (ctx) => [
-      ...gated(/\b[io]n[ \t\u00a0]+mass\b/gi, enMasse)(ctx),
-      ...gated(/link[ \t\u00a0]+lists/gi, linkedLists)(ctx),
-      ...gated(/of[ \t\u00a0]+speeches/gi, partsOfSpeech)(ctx),
-      ...gated(/scrap/gi, scrapeWeb)(ctx),
-    ],
-  },
-  { rules: ["stylePhrasing"], detect: gated(/imitat/gi, imitateOf) },
-  { rules: PHRASE_RULES, detect: english(quotedPhrases, afterExamples, wrappedPhrases) },
-  { rules: ["stylePhrasing"], detect: english(shoutedNames) },
-  {
-    rules: ["englishCanonicalCasing"],
-    detect: (ctx) => [
-      ...when(/chrome[ \t\u00a0]+extension/gi, chromeExtension)(ctx),
-      ...when(/day[ \t\u00a0]+one/gi, dayOne)(ctx),
-      ...when(/MacO[Ss]/g, macOS)(ctx),
-    ],
-  },
-  {
-    rules: ["englishClosedCompounds", "englishConfusedWords", "styleWordChoice"],
-    detect: when(/\/\p{L}/gu, slashedWords),
-  },
-  {
-    rules: ["englishTheirThereTheyAre"],
-    detect: (ctx) => [
-      ...when(/that[ \t\u00a0]+there/gi, thatThere)(ctx),
-      ...when(/their[ \t\u00a0]+\p{L}+ing/giu, sawTheir)(ctx),
-    ],
-  },
-  { rules: ["englishArticleAnCorrection"], detect: when(/\ba[ \t\u00a0]+npm/gi, anNpm) },
-  { rules: ["englishIrregularForms"], detect: when(/broke[ \t\u00a0]/gi, brokeInVersion) },
-  { rules: ["englishConfusedWords"], detect: when(/effects[ \t\u00a0]/gi, effectsObject) },
-  {
-    rules: ["englishVerbComplements"],
-    detect: when(/(?:agree|decide)[sd]?[ \t\u00a0]/gi, agreedVerb),
-  },
-  { rules: ["englishPhraseCorrections"], detect: when(/[Ww]ebScrap/g, webScrape) },
-  { rules: ["englishClosedCompounds"], detect: when(/\((?:s|ss)\)/g, pluralMark) },
-  { rules: ["englishPhraseCorrections"], detect: when(/\s\/\p{Ll}/gu, slashPrefixed) },
-  {
-    rules: ["englishPossibleErrors"],
-    // Each check runs only on chunks holding its rare literal.
-    detect: english(
-      when(/\p{Nd}(?:st|rd)/gu, ordinals),
-      when(/their[ \t\u00a0]/gi, theirLeft),
-      when(/\bit[ \t\u00a0]+(?:is|was)\b/gi, subjectIt),
-      when(/cause[ \t\u00a0]+it/gi, causeItIs),
-      bareObjects,
-      when(/\bha(?:ve|s)[ \t\u00a0]+\p{L}+ing\b/giu, haveIng),
-      possibleForms,
-      when(/\p{Ll}\p{Lu}/gu, mixedCase),
-      quotedMentions,
-    ),
-  },
-  {
-    rules: ["styleAlternativePhrasing"],
-    detect: when(/chrome[ \t\u00a0]+extension/gi, chromeTitle),
-  },
-  {
-    rules: ["stylePhrasing"],
-    detect: (ctx) => [
-      ...when(/find(?:s|ing)?[ \t\u00a0]+out/gi, findOut)(ctx),
-      ...when(/\ba[ \t\u00a0]+while/gi, awhile)(ctx),
-      ...when(/argue[ \t]*\n/gi, argueWrapped)(ctx),
-      ...when(/CYBERSEC/g, cybersec)(ctx),
-    ],
-  },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  modalOfAtEnd: gated(/(?:ld|st|ht)(?:n['’]t)?[ \t\u00a0]+of\b/gi, modalOfAtEnd),
+  bewareOf: gated(/beware/gi, bewareOf),
+  rarePhraseFixes: (ctx) => [
+    ...gated(/\b[io]n[ \t\u00a0]+mass\b/gi, enMasse)(ctx),
+    ...gated(/link[ \t\u00a0]+lists/gi, linkedLists)(ctx),
+    ...gated(/of[ \t\u00a0]+speeches/gi, partsOfSpeech)(ctx),
+    ...gated(/scrap/gi, scrapeWeb)(ctx),
+  ],
+  imitateOf: gated(/imitat/gi, imitateOf),
+  quotedPhrases: english(quotedPhrases, afterExamples, wrappedPhrases),
+  shoutedNames: english(shoutedNames),
+  productCasing: (ctx) => [
+    ...when(/chrome[ \t\u00a0]+extension/gi, chromeExtension)(ctx),
+    ...when(/day[ \t\u00a0]+one/gi, dayOne)(ctx),
+    ...when(/MacO[Ss]/g, macOS)(ctx),
+  ],
+  slashedWords: when(/\/\p{L}/gu, slashedWords),
+  thatThereTheir: (ctx) => [
+    ...when(/that[ \t\u00a0]+there/gi, thatThere)(ctx),
+    ...when(/their[ \t\u00a0]+\p{L}+ing/giu, sawTheir)(ctx),
+  ],
+  anNpm: when(/\ba[ \t\u00a0]+npm/gi, anNpm),
+  brokeInVersion: when(/broke[ \t\u00a0]/gi, brokeInVersion),
+  effectsObject: when(/effects[ \t\u00a0]/gi, effectsObject),
+  agreedVerb: when(/(?:agree|decide)[sd]?[ \t\u00a0]/gi, agreedVerb),
+  webScrape: when(/[Ww]ebScrap/g, webScrape),
+  pluralMark: when(/\((?:s|ss)\)/g, pluralMark),
+  slashPrefixed: when(/\s\/\p{Ll}/gu, slashPrefixed),
+  // Each check runs only on chunks holding its rare literal.
+  possibleErrors: english(
+    when(/\p{Nd}(?:st|rd)/gu, ordinals),
+    when(/their[ \t\u00a0]/gi, theirLeft),
+    when(/\bit[ \t\u00a0]+(?:is|was)\b/gi, subjectIt),
+    when(/cause[ \t\u00a0]+it/gi, causeItIs),
+    bareObjects,
+    when(/\bha(?:ve|s)[ \t\u00a0]+\p{L}+ing\b/giu, haveIng),
+    possibleForms,
+    when(/\p{Ll}\p{Lu}/gu, mixedCase),
+    quotedMentions,
+  ),
+  chromeTitle: when(/chrome[ \t\u00a0]+extension/gi, chromeTitle),
+  styleRewordings: (ctx) => [
+    ...when(/find(?:s|ing)?[ \t\u00a0]+out/gi, findOut)(ctx),
+    ...when(/\ba[ \t\u00a0]+while/gi, awhile)(ctx),
+    ...when(/argue[ \t]*\n/gi, argueWrapped)(ctx),
+    ...when(/CYBERSEC/g, cybersec)(ctx),
+  ],
+} satisfies Record<string, Detector>;

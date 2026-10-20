@@ -1,7 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   afterBreak,
   caseLike,
@@ -17,10 +17,6 @@ import { finding } from "../finding";
 
 // "no" and "not" swapped: "there is not time" (no), "I have not issues" (no), "I would no do
 // this" (not), "I'm no going" (not), "I have no begun" (not).
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 // Quantity and focus words "not" rightly negates: "not enough", "not only", "not one".
 const NOT_WORDS = new Set(
@@ -212,6 +208,6 @@ function subjectNoVerb(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishConfusedWords"], detect: english(noForNot, subjectNoVerb) },
-];
+export const PREDICATES = {
+  noForNot: english(noForNot, subjectNoVerb),
+} satisfies Record<string, Detector>;

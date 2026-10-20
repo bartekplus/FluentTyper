@@ -1,0 +1,118 @@
+import { expect, test } from "bun:test";
+import {
+  casingOf,
+  endsSentence,
+  tokenize,
+  tokenKey,
+} from "../../src/core/domain/grammar/engine/tokenizer";
+
+const texts = (text: string) => tokenize(text).map((token) => token.text);
+const types = (text: string) => tokenize(text).map((token) => `${token.type}:${token.text}`);
+
+test("words keep diacritics, apostrophes and combining marks", () => {
+  expect(texts("Zażółć gęślą jaźń")).toEqual(["Zażółć", "gęślą", "jaźń"]);
+  expect(texts("Ça déjà-vu, don't l’homme")).toEqual([
+    "Ça",
+    "déjà",
+    "-",
+    "vu",
+    ",",
+    "don't",
+    "l’homme",
+  ]);
+  expect(texts("Η οδός είναι ωραία;")).toEqual(["Η", "οδός", "είναι", "ωραία", ";"]);
+  // Harakat (\p{M}) stay inside the Arabic word; Arabic punctuation is its own token.
+  expect(texts("كَتَبَ الطالبُ، ثم ذهب؟")).toEqual(["كَتَبَ", "الطالبُ", "،", "ثم", "ذهب", "؟"]);
+});
+
+test("the key is lowercase and drops Arabic harakat and tatweel", () => {
+  expect(tokenKey("Straße")).toBe("straße");
+  expect(tokenKey("كَتَبَ")).toBe("كتب");
+  expect(tokenKey("كتـــاب")).toBe("كتاب");
+});
+
+test("offsets are UTF-16 offsets into the text, also inside a window", () => {
+  const text = "Ein 😀 Test, und 12,5 kg.";
+  for (const token of tokenize(text)) expect(text.slice(token.start, token.end)).toBe(token.text);
+  expect(types(text)).toEqual([
+    "word:Ein",
+    "symbol:😀",
+    "word:Test",
+    "punct:,",
+    "word:und",
+    "number:12,5",
+    "word:kg",
+    "punct:.",
+  ]);
+  const comma = text.indexOf(",");
+  const window = tokenize(text, comma, comma + 10);
+  expect(window[0]).toMatchObject({ text: ",", start: comma });
+  for (const token of window) expect(text.slice(token.start, token.end)).toBe(token.text);
+});
+
+test("whitespace is kept before each token", () => {
+  const tokens = tokenize("a  b\n\tc");
+  expect(tokens.map((token) => token.space)).toEqual(["", "  ", "\n\t"]);
+});
+
+test("protected spans become one token that no rule reads", () => {
+  expect(types("See https://example.com/a?b=1. Mail me@x.org")).toEqual([
+    "word:See",
+    "protected:https://example.com/a?b=1",
+    "punct:.",
+    "word:Mail",
+    "protected:me@x.org",
+  ]);
+  expect(types("Run `npm i` in /usr/local/bin :smile:")).toEqual([
+    "word:Run",
+    "protected:`npm i`",
+    "word:in",
+    "protected:/usr/local/bin",
+    "protected::smile:",
+  ]);
+  // Masked text (U+FFFC) from Review is protected too.
+  expect(types("a ￼￼ b")).toEqual(["word:a", "protected:￼￼", "word:b"]);
+  // "and/or" and a time are not paths or shortcodes.
+  expect(types("and/or at 10:30:")).toEqual([
+    "word:and",
+    "punct:/",
+    "word:or",
+    "word:at",
+    "number:10",
+    "punct::",
+    "number:30",
+    "punct::",
+  ]);
+});
+
+test("sentence starts follow closing punctuation, closers and blank lines", () => {
+  const starts = (text: string) =>
+    tokenize(text)
+      .filter((token) => token.sentenceStart)
+      .map((token) => token.text);
+  expect(starts("one. two! (three) four? «Five.» six")).toEqual([
+    "one",
+    "two",
+    "(",
+    "three",
+    "Five",
+    "six",
+  ]);
+  expect(starts("¿Qué? ¡Nada!")).toEqual(["¿", "Qué", "¡", "Nada"]);
+  expect(starts("para one\n\npara two\nwrapped")).toEqual(["para", "para"]);
+  expect(starts("هل ذهبت؟ نعم")).toEqual(["هل", "نعم"]);
+  expect(starts("Τι ώρα είναι; Τώρα")).toEqual(["Τι", "Τώρα"]);
+});
+
+test("a sentence end follows the token", () => {
+  const tokens = tokenize('He left." Then');
+  expect(endsSentence(tokens, 1)).toBe(true);
+  expect(endsSentence(tokens, 0)).toBe(false);
+  expect(endsSentence(tokenize("end"), 0)).toBe(true);
+});
+
+test("casing profiles", () => {
+  expect(
+    ["word", "Word", "WORD", "iPhone", "I", "ŁÓDŹ", "οδός", "123", "كتاب"].map(casingOf),
+  ).toEqual(["lower", "title", "upper", "mixed", "title", "upper", "lower", "none", "none"]);
+});

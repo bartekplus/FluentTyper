@@ -9,9 +9,9 @@ import {
   englishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { frameDetector, type Frame, type Rule } from "./idioms5";
 import { nounVerb, participle } from "./realWordFrames";
 import { nounNumber } from "./nounNumberSlots";
@@ -21,10 +21,6 @@ import { afterBreak, FUNCTION_WORDS, tokensAfter, wordBefore } from "./slotWords
 // our client" (clients), "of all kind of", "a collection of book", "We are all animal",
 // "There are a few computer", "has already complaint" (complained) and "bagging for mercy"
 // (begging).
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const AGREE: Rule = {
   ruleId: "englishSubjectVerbAgreement",
@@ -263,15 +259,6 @@ function pluralSubject(ctx: DetectContext, index: number, noun: string): boolean
   return nounNumber(noun)?.number === "plural" && !!r?.plural && !r.adjective;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [
-      "englishSubjectVerbAgreement",
-      "englishNounNumber",
-      "englishAuxiliaryBaseVerb",
-      "englishPerfectParticiples",
-      "englishConfusedWords",
-    ],
-    detect: frameDetector(FRAMES),
-  },
-];
+export const PREDICATES = {
+  agreementFrames: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

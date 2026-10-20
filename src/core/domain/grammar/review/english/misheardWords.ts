@@ -1,8 +1,7 @@
 import { englishInflect } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { CONTEXT, frameDetector, TYPO, type Frame, type Rule } from "./idioms5";
 import { afterBreak, DETERMINERS, FUNCTION_WORDS, wordBefore } from "./slotWords";
 
@@ -11,48 +10,6 @@ import { afterBreak, DETERMINERS, FUNCTION_WORDS, wordBefore } from "./slotWords
 // pic the second one" (pick), "a dose not" (does), "of Asian decent" (descent).
 
 const CONFUSED: Rule = { ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word" };
-
-const TAKE = ["take", "takes", "took", "taken", "taking"];
-const KIN = ["mother", "father", "brother", "sister", "son", "daughter", "parents"];
-
-/** Each typed form is wrong in every context. */
-export const PHRASES: readonly PhraseRow[] = [
-  [["route cause", "rout cause"], "root cause"],
-  [["route causes", "rout causes"], "root causes"],
-  ...TAKE.map((verb): PhraseRow => [`${verb} case of`, `${verb} care of`]),
-  ["not ad all", "not at all"],
-  [["all if a sudden", "all over sudden", "all of sudden", "all of the sudden"], "all of a sudden"],
-  ["from no won", "from now on"],
-  ["now worries", "no worries"],
-  [["has far as", "as far has"], "as far as"],
-  ["halve of", "half of"],
-  [["try and error", "try-and-error"], "trial and error"],
-  ["on and of", "on and off"],
-  ["since than", "since then"],
-  [["corral reef", "coral reaf"], "coral reef"],
-  ["corral reefs", "coral reefs"],
-  [["marshal art", "marital art"], "martial art"],
-  [["marshal arts", "marital arts"], "martial arts"],
-  [["marshal artist", "marital artist"], "martial artist"],
-  ["in a sate of", "in a state of"],
-  ["accept for the fact", "except for the fact"],
-  [
-    ["slight of hand", "slights of hand"],
-    ["sleight of hand", "sleights of hand"],
-  ],
-  ["correct spilling", "correct spelling"],
-  ["piece of advise", "piece of advice"],
-  ["pieces of advise", "pieces of advice"],
-  ...["sahara", "gobi", "mojave", "kalahari", "atacama", "sonoran", "arabian"].map(
-    (name): PhraseRow => [`${name} dessert`, `${name} desert`],
-  ),
-  ...["blood", "food", "air", "water", "vector", "insect"].flatMap((source): PhraseRow[] => [
-    [[`${source} born`, `${source}-born`, `${source}born`], `${source}borne`],
-  ]),
-  ...KIN.flatMap((kin): PhraseRow[] => [[[`${kin}-in-low`, `${kin} in low`], `${kin}-in-law`]]),
-];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const read = (word: string | undefined) => (word ? englishWordInfo(word.toLowerCase()) : null);
 /** A base verb with no noun or adjective reading: "write", "learn", "clarify". */
@@ -343,14 +300,6 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [
-      "englishConfusedWords",
-      "englishPhraseCorrections",
-      "englishAuxiliaryBaseVerb",
-      "englishToToo",
-    ],
-    detect: frameDetector(FRAMES),
-  },
-];
+export const PREDICATES = {
+  misheardWords: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

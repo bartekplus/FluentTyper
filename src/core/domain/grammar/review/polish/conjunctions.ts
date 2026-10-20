@@ -1,3 +1,4 @@
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { finiteVerb, imperativeVerb, nounTags } from "./lexicon";
 import { caseLike, CLAUSE_START, findingAt, isPl, owned, userOrNamed } from "./shared";
@@ -107,16 +108,13 @@ function imperativeAfterConjunction(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: [RULE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) =>
-      isPl(ctx)
-        ? [
-            ...conjunctionEndings(ctx),
-            ...presentAfterConjunction(ctx),
-            ...imperativeAfterConjunction(ctx),
-          ]
-        : [],
-  },
-];
+export const PREDICATES = {
+  conjunctions: (ctx: DetectContext) =>
+    isPl(ctx)
+      ? [
+          ...conjunctionEndings(ctx),
+          ...presentAfterConjunction(ctx),
+          ...imperativeAfterConjunction(ctx),
+        ]
+      : [],
+} satisfies Record<string, Detector>;

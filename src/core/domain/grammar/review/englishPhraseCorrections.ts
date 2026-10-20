@@ -12,7 +12,7 @@ import {
   UNAMBIGUOUS_CAPS_ABBREVIATIONS,
   type PhraseRow,
 } from "./englishPhraseTables";
-import { EXTENSION_COMPOUNDS, EXTENSION_PHRASES, EXTENSION_STYLE } from "./english";
+import { EXTENSION_COMPOUNDS, EXTENSION_PHRASES, EXTENSION_STYLE } from "./english/tables";
 import { OPTIONAL_TABLES } from "./english/dialects";
 import { NAMES } from "./english/properNames";
 import { OPTIONAL as PLAIN_OPTIONAL } from "./english/plainStyle";
@@ -144,13 +144,14 @@ function matchPhrase(text: string, phrase: Phrase, at: number): RegExpExecArray 
   return WORD_ENDS.test(text) ? match : null;
 }
 /**
- * Built on first use for each language, not at load: english/* modules import this one while
- * english/index.ts (the source of the EXTENSION_* tables) is still loading. A French text
- * does not pay for the English rows.
+ * Built on first use for each language, not at load: a French text does not pay for the
+ * English rows of grammar/rules/en.yaml.
  */
 function buildIndex(lang: string) {
-  INDEXES.set(lang, new Map());
+  // Read first: the tables of a language with Review data throw until the data is loaded,
+  // and a failed build must not leave an empty index behind.
   const tables = LANGUAGE_PHRASE_TABLES[lang];
+  INDEXES.set(lang, new Map());
   if (tables) {
     index(lang, tables.words, "englishPhraseCorrections", "review_msg_typo");
     index(lang, tables.phrases, "englishPhraseCorrections", "review_msg_contextual_grammar");

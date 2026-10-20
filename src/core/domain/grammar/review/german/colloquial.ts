@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { germanInfinitive, germanNounReading, germanVerbLike } from "./germanLexicon";
 import { englishLine, isGerman, likeTyped } from "./shared";
 
@@ -407,6 +408,6 @@ function colloquial(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanColloquial"], detect: colloquial },
-];
+export const PREDICATES = {
+  colloquial,
+} satisfies Record<string, Detector>;

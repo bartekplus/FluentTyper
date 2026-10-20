@@ -1,19 +1,15 @@
 import { englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { afterBreak, caseLike, english, evidence } from "./slotWords";
 import { finding } from "../finding";
 
 // Auxiliaries in questions: a do-question keeps its verb bare ("how did he smiled" -> smile),
 // one auxiliary leads ("Does anyone can help?" -> Can anyone help?, "Did you have entered" ->
 // Have you entered), and a repeated auxiliary goes ("Can I can", "have already have").
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const PRONOUN = "(?:i|you|we|they|he|she|it)";
 const ADVERB = `(?:${SPACE}(?:ever|really|actually|typically|usually|normally|still|even|just|always|also|never|already|generally|actually))?`;
@@ -226,10 +222,7 @@ function causativeThird(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishAuxiliaryBaseVerb"],
-    detect: english(whDoQuestion, doBeforeModal, didBeforePerfect, repeatedAuxiliary),
-  },
-  { rules: ["englishVerbComplements"], detect: english(causativeThird) },
-];
+export const PREDICATES = {
+  questionAuxiliaries: english(whDoQuestion, doBeforeModal, didBeforePerfect, repeatedAuxiliary),
+  causativeThird: english(causativeThird),
+} satisfies Record<string, Detector>;

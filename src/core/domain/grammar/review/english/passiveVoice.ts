@@ -1,17 +1,12 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE as S, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { quotedMention } from "./grammarStyle1";
 import { finding } from "../finding";
 
 // stylePassiveVoice (optional): a form of "be" with a past participle ("was caused by", "is
 // said to", "have been finalized"). A note, not a fix: turning it active needs the doer.
-
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const ADVERB =
   "not|never|also|already|still|yet|often|always|usually|generally|commonly|widely|long|" +
@@ -68,7 +63,7 @@ const english =
   (ctx: DetectContext): Finding[] =>
     ctx.lang !== "en_US" ? [] : detect(ctx).filter((f) => !quotedMention(ctx, f));
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["stylePassiveVoice"], detect: english(passives) },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  passiveVoice: english(passives),
+} satisfies Record<string, Detector>;

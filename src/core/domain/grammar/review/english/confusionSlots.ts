@@ -1,7 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   afterBreak,
   caseLike,
@@ -16,10 +16,6 @@ import {
 
 // Sound-alike words told apart by the slot around them: "will by" (buy/be), "more … then"
 // (than), "ever day" (every), "don't now" (know), "come an see" (and), "to were" (where).
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 type Rule = "englishConfusedWords" | "englishThenThan" | "englishWereWhere";
 const MESSAGE: Record<Rule, RawFinding["messageKey"]> = {
@@ -429,8 +425,8 @@ function wereWhere(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishConfusedWords"], detect: english(byBuy, everEvery, nowKnow, anAnd) },
-  { rules: ["englishThenThan"], detect: english(thenAfterComparative) },
-  { rules: ["englishWereWhere"], detect: english(wereWhere) },
-];
+export const PREDICATES = {
+  confusionPairs: english(byBuy, everEvery, nowKnow, anAnd),
+  thenAfterComparative: english(thenAfterComparative),
+  wereWhere: english(wereWhere),
+} satisfies Record<string, Detector>;

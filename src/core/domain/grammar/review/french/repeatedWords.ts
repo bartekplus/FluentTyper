@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { finding } from "../finding";
 import { isLang } from "../phraseTemplates";
 import { ownedFrenchWords, tokensAfter, tokensBefore } from "./frenchTokens";
@@ -67,4 +68,4 @@ function repeatedWords(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: repeatedWords }];
+export const PREDICATES = { repeatedWords: repeatedWords } satisfies Record<string, Detector>;

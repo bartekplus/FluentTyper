@@ -2,9 +2,9 @@ import {
   englishLexiconInflect,
   englishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { nounNumber } from "./nounNumberSlots";
 import { frameDetector, TYPO, type Frame, type Rule } from "./idioms5";
 import { afterBreak, FUNCTION_WORDS, nounOnly, tokensAfter, wordBefore } from "./slotWords";
@@ -29,16 +29,6 @@ const MISSING_BE: Rule = {
   messageKey: "review_msg_missing_be",
 };
 const ITS: Rule = { ruleId: "englishItsContext", messageKey: "review_msg_its_contraction" };
-
-export const PHRASES: readonly PhraseRow[] = [
-  ...["a", "the", "this"].map((lead): PhraseRow => [`${lead} serious of`, `${lead} series of`]),
-  ...["the", "my", "his", "her", "our", "their", "your"].map((lead): PhraseRow => [
-    `${lead} live of`,
-    `${lead} life of`,
-  ]),
-];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const read = (word: string | undefined) => (word ? englishWordInfo(word.toLowerCase()) : null);
 /** An adjective with no noun or verb reading: "significant", "unable", "toxic". */
@@ -457,18 +447,6 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [
-      "englishConfusedWords",
-      "englishSubjectVerbAgreement",
-      "englishNounNumber",
-      "englishSentenceStructure",
-      "englishItsContext",
-      "englishAuxiliaryBaseVerb",
-      "englishPhraseCorrections",
-      "englishThenThan",
-    ],
-    detect: frameDetector(FRAMES),
-  },
-];
+export const PREDICATES = {
+  slipFrames: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

@@ -1,3 +1,4 @@
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   adjectiveAgrees,
@@ -1565,29 +1566,26 @@ function relatives(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: [RULE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) =>
-      isPl(ctx)
-        ? [
-            ...prepositionCase(ctx),
-            ...demonstratives(ctx),
-            ...numerals(ctx),
-            ...genitiveNumerals(ctx),
-            ...genitiveObjects(ctx),
-            ...negatedObjects(ctx),
-            ...genitiveObjectAdjectives(ctx),
-            ...fixedGenders(ctx),
-            ...adjectives(ctx),
-            ...consideredAs(ctx),
-            ...relatives(ctx),
-            ...uninflectedNames(ctx),
-            ...smallFrames(ctx),
-            ...numeralForms(ctx),
-            ...subjectsAfterPredicate(ctx),
-            ...pluralPronouns(ctx),
-          ]
-        : [],
-  },
-];
+export const PREDICATES = {
+  caseAgreement: (ctx: DetectContext) =>
+    isPl(ctx)
+      ? [
+          ...prepositionCase(ctx),
+          ...demonstratives(ctx),
+          ...numerals(ctx),
+          ...genitiveNumerals(ctx),
+          ...genitiveObjects(ctx),
+          ...negatedObjects(ctx),
+          ...genitiveObjectAdjectives(ctx),
+          ...fixedGenders(ctx),
+          ...adjectives(ctx),
+          ...consideredAs(ctx),
+          ...relatives(ctx),
+          ...uninflectedNames(ctx),
+          ...smallFrames(ctx),
+          ...numeralForms(ctx),
+          ...subjectsAfterPredicate(ctx),
+          ...pluralPronouns(ctx),
+        ]
+      : [],
+} satisfies Record<string, Detector>;

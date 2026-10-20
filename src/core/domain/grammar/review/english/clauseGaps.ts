@@ -1,17 +1,12 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { frameDetector, type Frame, type Rule } from "./idioms5";
 import { DETERMINERS, FUNCTION_WORDS, wordBefore } from "./slotWords";
 
 // Clauses with a gap or a clash the words around it show: a subordinator with no subject
 // ("if is too long"), "either … nor", two forms of one verb side by side ("want wanted"),
 // "that" for "than" after a comparative, and "there after" for thereafter.
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const STRUCTURE: Rule = {
   ruleId: "englishSentenceStructure",
@@ -165,9 +160,6 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishSentenceStructure", "englishConfusedWords", "englishThenThan"],
-    detect: frameDetector(FRAMES),
-  },
-];
+export const PREDICATES = {
+  clauseGaps: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

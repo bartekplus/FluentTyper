@@ -1,8 +1,8 @@
 import { englishVerbNouns, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   afterBreak,
   caseLike,
@@ -16,10 +16,6 @@ import {
 
 // A determiner before a word that cannot follow it: a bare verb where its noun belongs ("the
 // translate was correct" -> translation) and "the" for "they" before a verb ("The will help").
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 /** A word the lexicon reads only as a base verb, with no noun, adjective or other form. */
 function verbOnly(word: string): boolean {
@@ -267,6 +263,6 @@ function theForThey(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishConfusedWords"], detect: english(verbAsNoun, theForThey) },
-];
+export const PREDICATES = {
+  determinerConfusions: english(verbAsNoun, theForThey),
+} satisfies Record<string, Detector>;

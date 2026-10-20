@@ -1,8 +1,8 @@
 import { englishInflect, englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { COLLECTIVE } from "./agreementSlots";
 import { MASS, nounNumber } from "./nounNumberSlots";
 import {
@@ -22,10 +22,6 @@ import { finding } from "../finding";
 // The verb of a subject relative clause agrees with the noun the relative pronoun stands for:
 // "a report that describe" (describes), "tools that runs" (run), "He who wake" (wakes). The
 // noun must plainly own the clause: not inside a prepositional phrase, a cleft or a list.
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const SINGULAR_PRONOUNS =
   /^(?:he|she|something|anything|everything|nothing|someone|anyone|everyone|somebody|anybody|everybody)$/;
@@ -443,10 +439,7 @@ function gerundSubject(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishSubjectVerbAgreement", "englishPossibleErrors"],
-    detect: english(relativeAgreement, nameSubjects, gerundSubject),
-  },
-  { rules: ["englishPronounVerbWhitelistAgreement"], detect: english(pronounForms) },
-];
+export const PREDICATES = {
+  relativeAgreement: english(relativeAgreement, nameSubjects, gerundSubject),
+  pronounForms: english(pronounForms),
+} satisfies Record<string, Detector>;

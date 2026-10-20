@@ -1,5 +1,6 @@
 import { frameMatches, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { ci, isGerman, WORD_GATE } from "./shared";
 
 // German multi-part abbreviations take a dot after each part and a (non-breaking) space
@@ -177,6 +178,6 @@ function abbreviations(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanAbbreviations", "germanAbbreviationSpacing"], detect: abbreviations },
-];
+export const PREDICATES = {
+  abbreviations,
+} satisfies Record<string, Detector>;

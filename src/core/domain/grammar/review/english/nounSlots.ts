@@ -4,9 +4,9 @@ import {
   englishNounPair,
   englishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { frameDetector, type Frame, type Rule } from "./idioms5";
 import { afterBreak, DETERMINERS, FUNCTION_WORDS, tokensAfter, wordBefore } from "./slotWords";
 
@@ -14,21 +14,6 @@ import { afterBreak, DETERMINERS, FUNCTION_WORDS, tokensAfter, wordBefore } from
 // "a lot" with no "of", "the worlds best", an -ly word before a noun ("a simply solution"),
 // "Is there any chances", "there was updates", "Here the files", "a must read",
 // "the important of", "19 century", "between he and", and plural heads before "of".
-
-export const PHRASES: readonly PhraseRow[] = [
-  [["have a stoke", "had a stoke", "having a stoke", "from a stoke"], "a stroke"],
-  [
-    ["a stoke of genius", "a stoke of luck"],
-    ["a stroke of genius", "a stroke of luck"],
-  ],
-  ["not limited too", "not limited to"],
-  ...["all", "front", "rear", "four"].map((kind): PhraseRow => [
-    `${kind} wheel drive`,
-    `${kind}-wheel drive`,
-  ]),
-];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const NUMBER: Rule = { ruleId: "englishNounNumber", messageKey: "review_msg_noun_count" };
 const AGREE: Rule = {
@@ -527,22 +512,6 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [
-      "englishNounNumber",
-      "englishPhraseCorrections",
-      "englishPossessiveNouns",
-      "englishConfusedWords",
-      "englishExistentialAgreement",
-      "englishSentenceStructure",
-      "englishContextualCompounds",
-      "englishOrdinalSuffix",
-      "englishPronounCase",
-      "englishTheirThereTheyAre",
-      "englishSubjectVerbAgreement",
-      "englishVerbComplements",
-    ],
-    detect: frameDetector(FRAMES),
-  },
-];
+export const PREDICATES = {
+  nounSlots: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

@@ -1,7 +1,6 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { COMPOUND, frameDetector, type Frame, type Rule } from "./idioms5";
 import { afterBreak, nounOnly } from "./slotWords";
 
@@ -16,46 +15,6 @@ const PREPOSITION: Rule = {
 const PRONOUN = "(?:me|you|him|her|us|them|it)";
 const MONTHS =
   /^(?:January|February|March|April|May|June|July|August|September|October|November|December|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/;
-
-export const PHRASES: readonly PhraseRow[] = [
-  ["consider about", "consider"],
-  ["considering about", "considering"],
-  ["named it as", "named it"],
-  [
-    ["spend it for", "spent it for"],
-    ["spend it on", "spent it on"],
-  ],
-  ["talk down about", "talk down to"],
-  ["in the recent years", "in recent years"],
-  ...["go", "goes", "went", "going"].map((verb): PhraseRow => [
-    `${verb} to vacation`,
-    `${verb} on vacation`,
-  ]),
-  ...["prior the", "prior my", "prior his", "prior her", "prior our", "prior their"].map(
-    (typed): PhraseRow => [typed, typed.replace("prior", "prior to")],
-  ),
-  ...[
-    "middle",
-    "top left corner",
-    "top right corner",
-    "bottom left corner",
-    "bottom right corner",
-    "top-left corner",
-    "top-right corner",
-    "bottom-left corner",
-    "bottom-right corner",
-  ].map((place): PhraseRow => [`on the ${place} of`, `in the ${place} of`]),
-  ...["top", "bottom"].flatMap((edge) =>
-    ["screen", "page"].map((place): PhraseRow => [
-      `in the ${edge} of the ${place}`,
-      `at the ${edge} of the ${place}`,
-    ]),
-  ),
-  ["it is sure that", "it is certain that"],
-  ["it's sure that", "it's certain that"],
-];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const ing = (word: string) =>
   !!englishWordInfo(word.toLowerCase())?.verbs.some((v) => v.form === "ing");
@@ -446,9 +405,6 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishFixedPrepositions", "englishContextualCompounds"],
-    detect: frameDetector(FRAMES),
-  },
-];
+export const PREDICATES = {
+  prepositionSlots: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

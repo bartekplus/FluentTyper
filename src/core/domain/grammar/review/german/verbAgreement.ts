@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   germanAdjective,
   germanGender,
@@ -596,21 +597,18 @@ function participleE(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["germanVerbAgreement"],
-    detect: (ctx) =>
-      isGerman(ctx)
-        ? [
-            ...verbAgreement(ctx),
-            ...doubledVerb(ctx),
-            ...pluralSubject(ctx),
-            ...modalInfinitive(ctx),
-            ...finalAuxiliary(ctx),
-            ...imperatives(ctx),
-            ...worden(ctx),
-            ...participleE(ctx),
-          ]
-        : [],
-  },
-];
+export const PREDICATES = {
+  verbAgreement: (ctx) =>
+    isGerman(ctx)
+      ? [
+          ...verbAgreement(ctx),
+          ...doubledVerb(ctx),
+          ...pluralSubject(ctx),
+          ...modalInfinitive(ctx),
+          ...finalAuxiliary(ctx),
+          ...imperatives(ctx),
+          ...worden(ctx),
+          ...participleE(ctx),
+        ]
+      : [],
+} satisfies Record<string, Detector>;

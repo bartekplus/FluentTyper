@@ -1,8 +1,8 @@
 import { englishNounPair, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   afterBreak,
   caseLike,
@@ -19,13 +19,6 @@ import {
 // Small clause frames where only one word fits the slot: "hear form you" (from), "at there
 // house" (their), "Peter though he…" (thought), "That sound great" (sounds), "All car are"
 // (cars), "Please sent it" (send), "I no good at" (am not), "According Anna" (according to).
-
-// "She wold like…": would after a subject; "the wold" stays (open country).
-export const PHRASES: readonly PhraseRow[] = ["i", "you", "he", "she", "we", "they", "it"].map(
-  (subject): PhraseRow => [`${subject} wold`, `${subject} would`],
-);
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 type Rule = Pick<RawFinding, "ruleId" | "messageKey">;
 const CONFUSED: Rule = { ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word" };
@@ -390,12 +383,12 @@ function noAdjective(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishConfusedWords"], detect: english(formFrom, thoughThought) },
-  { rules: ["englishAuxiliaryBaseVerb"], detect: english(toIesVerb, pleasePast) },
-  { rules: ["englishFixedPrepositions"], detect: english(accordingTo) },
-  { rules: ["englishTheirThereTheyAre"], detect: english(thereTheir) },
-  { rules: ["englishSubjectVerbAgreement"], detect: english(linkingSingular) },
-  { rules: ["englishNounNumber"], detect: english(allSingular) },
-  { rules: ["englishSentenceStructure"], detect: english(noAdjective) },
-];
+export const PREDICATES = {
+  clauseConfusions: english(formFrom, thoughThought),
+  clauseAuxiliaries: english(toIesVerb, pleasePast),
+  accordingTo: english(accordingTo),
+  thereTheir: english(thereTheir),
+  linkingSingular: english(linkingSingular),
+  allSingular: english(allSingular),
+  noAdjective: english(noAdjective),
+} satisfies Record<string, Detector>;

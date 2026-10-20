@@ -1,3 +1,4 @@
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { adjectiveForm, adjectiveOf, finiteVerb, hasAdjective } from "./lexicon";
 import { caseLike, findingAt, isPl, owned, S, userOrNamed } from "./shared";
@@ -193,13 +194,7 @@ function comparedWithJak(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: ["englishPhraseCorrections"] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) => (isPl(ctx) ? comparedWithJak(ctx) : []),
-  },
-  {
-    rules: [DOUBLED, STYLE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) => (isPl(ctx) ? degrees(ctx) : []),
-  },
-];
+export const PREDICATES = {
+  comparedWithJak: (ctx: DetectContext) => (isPl(ctx) ? comparedWithJak(ctx) : []),
+  degrees: (ctx: DetectContext) => (isPl(ctx) ? degrees(ctx) : []),
+} satisfies Record<string, Detector>;

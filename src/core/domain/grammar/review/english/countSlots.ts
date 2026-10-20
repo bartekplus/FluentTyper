@@ -1,8 +1,8 @@
 import { MASS_WITH_COUNT_SENSE } from "../../implementations/helpers/EnglishCountability";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { MASS } from "./nounNumberSlots";
 import {
   caseLike,
@@ -19,10 +19,6 @@ import { finding } from "../finding";
 // Count words against the noun they count: "less people" (fewer), "too much meetings" (many),
 // "many money" (much), and an article before an uncountable noun behind adjectives ("a valuable
 // advice").
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 // grammarStyle1's massNouns counts these right after a count word; here only behind adjectives.
 const COUNTED_ELSEWHERE = new Set(
@@ -203,9 +199,6 @@ function articleBeforeMass(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishCountability"],
-    detect: english(amountBeforePlural, countBeforeMass, articleBeforeMass),
-  },
-];
+export const PREDICATES = {
+  countNouns: english(amountBeforePlural, countBeforeMass, articleBeforeMass),
+} satisfies Record<string, Detector>;

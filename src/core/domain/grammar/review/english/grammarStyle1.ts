@@ -5,7 +5,6 @@ import { englishNounForms, hasCountPrefix } from "../../implementations/helpers/
 import { FEELING_VERBS } from "../englishAuxiliaryForms";
 import { SPECIALIST } from "../englishCountability";
 import { doubledDegree } from "../englishDegree";
-import { each, type PhraseRow } from "../englishPhraseTables";
 import {
   around,
   caseLike,
@@ -21,95 +20,11 @@ import {
   WORD_END,
   WORD_START,
 } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { finding } from "../finding";
 import { namedExampleBefore } from "../exampleCues";
 import { objectGapBefore } from "./slotWords";
-
-// ---------------------------------------------------------------------------- tables
-
-const CLICK_ENDINGS = ["", "s", "ed", "ing"];
-
-/** Rows for englishPhraseCorrections. */
-export const PHRASES: readonly PhraseRow[] = [
-  ["less worse", "less bad"],
-  [["least worse", "less worst"], "least bad"],
-  ["wear and tears", "wear and tear"],
-  ["gooder", "better"],
-  ["farer", ["farther", "further"]],
-  ["eg.", "e.g."],
-  // Misspellings with no other reading.
-  ["stoped", "stopped"],
-  ["politicans", "politicians"],
-  ["easir", "easier"],
-  ["breakfest", "breakfast"],
-  ["buget", "budget"],
-  ["misstake", "mistake"],
-  ["misstakes", "mistakes"],
-  ["theem", "them"],
-  ["worthchecking", "worth checking"],
-];
-
-export const COMPOUNDS: readonly PhraseRow[] = [
-  ...["right", "left", "middle", "double"].flatMap((side) =>
-    each(CLICK_ENDINGS, `${side} click~`, `${side}-click~`),
-  ),
-  ...each(["", "s", "ed", "ing"], "miss spell~", "misspell~"),
-  ...each(["", "s", "ed", "ing"], "miss-spell~", "misspell~"),
-  [["miss spelt", "miss-spelt"], "misspelt"],
-  ["afew", "a few"],
-  ...["two", "three", "four", "five", "ten", "hundred", "thousand"].map((count): PhraseRow => [
-    `${count} fold`,
-    `${count}fold`,
-  ]),
-  ...["somewhat", "relatively"].map((before): PhraseRow => [
-    `${before} straight forward`,
-    `${before} straightforward`,
-  ]),
-  ...["a big", "a major", "big", "major", "a real", "a huge"].map((before): PhraseRow => [
-    `${before} break through`,
-    `${before} breakthrough`,
-  ]),
-  [["pre-built", "pre built"], "prebuilt"],
-  ["super users", "superusers"],
-  ["super user", "superuser"],
-  ["de extinction", "de-extinction"],
-];
-
-export const STYLE: readonly PhraseRow[] = [
-  [
-    ["almost nearly", "nearly almost"],
-    ["almost", "nearly"],
-  ],
-  ["as well too", "as well"],
-  ["too as well", "as well"],
-  ["too also", "also"],
-  // Contradictory pairings.
-  ["amateur expert", ["amateur", "expert"]],
-  ["advancing backwards", ["retreating", "moving backwards"]],
-  ["alludes explicitly", "refers explicitly"],
-  ["explicitly alludes", "explicitly refers"],
-  // "first" adds nothing to a verb of origin.
-  ...["coined", "invented", "discovered", "introduced", "released", "originated", "founded"].map(
-    (verb): PhraseRow => [`first ${verb}`, verb],
-  ),
-  // Regional words with a US equivalent.
-  ["aubergine", "eggplant"],
-  ["aubergines", "eggplants"],
-  ["brinjal", "eggplant"],
-  ["coriander", "cilantro"],
-  ["bag of crisps", "bag of chips"],
-  ["footpath", "sidewalk"],
-  ["spanner", "wrench"],
-  ["light globe", "light bulb"],
-  ["windscreen", "windshield"],
-  ["blood nose", "nosebleed"],
-  ["updation", "update"],
-  ["nought", "zero"],
-  ["godown", "warehouse"],
-  [["lakh", "lakhs"], "hundred thousand"],
-  [["crore", "crores"], "ten million"],
-];
 
 // ---------------------------------------------------------------------------- helpers
 
@@ -1383,62 +1298,42 @@ export const english =
   (ctx: DetectContext): RawFinding[] =>
     ctx.lang !== "en_US" ? [] : detectAll(ctx, detectors).filter((f) => !quotedMention(ctx, f));
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishDoubledDegree", "stylePhrasing"],
-    detect: english(gated(/mo(?:re|st)\b/gi, degree)),
-  },
-  {
-    rules: ["englishAuxiliaryBaseVerb", "englishModalOfCorrection"],
-    detect: english(gated(/did|helped/gi, doSupport), gated(/may[ \t\u00a0]+of\b/gi, modalOf)),
-  },
-  {
-    rules: [
-      "englishTypoWhitelistCorrection",
-      "englishPhraseCorrections",
-      "englishContractionNormalization",
-      "englishContextualCompounds",
-    ],
-    detect: english(splitWords, gated(/things/gi, thingsIs)),
-  },
-  {
-    rules: ["englishSentenceStructure"],
-    detect: english(
-      gated(
-        /\b(?:is|are|was|were|am|be|['’](?:s|re|m))(?:[ \t\u00a0]+(?:never|always|also|still|really|probably|definitely|certainly|already))?[ \t\u00a0]+(?:is|are|was|were|am|be)\b/gi,
-        doubleBe,
-      ),
-      gated(/the[ \t\u00a0]+some\b/gi, theSome),
-      gated(
-        /\b(?:the|an?)[ \t\u00a0]+(?:and|or|but|because|nor|although|unless)\b/gi,
-        danglingDeterminers,
-      ),
-      gated(
-        /\b(?:the|an?)[ \t\u00a0]+(?:[a-z]+[ \t\u00a0]+of|is|was|were|be|been|am|has)\b/gi,
-        nounlessDeterminers,
-      ),
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  moreMostDegree: english(gated(/mo(?:re|st)\b/gi, degree)),
+  didModalOf: english(gated(/did|helped/gi, doSupport), gated(/may[ \t\u00a0]+of\b/gi, modalOf)),
+  splitWordsThingsIs: english(splitWords, gated(/things/gi, thingsIs)),
+  doubledBeDeterminers: english(
+    gated(
+      /\b(?:is|are|was|were|am|be|['’](?:s|re|m))(?:[ \t\u00a0]+(?:never|always|also|still|really|probably|definitely|certainly|already))?[ \t\u00a0]+(?:is|are|was|were|am|be)\b/gi,
+      doubleBe,
     ),
-  },
-  {
-    rules: ["englishCountability"],
-    detect: english(gated(/criteri|phenomen/gi, greekPlurals), gated(MASS_GATE, massNouns)),
-  },
-  {
-    rules: ["englishNounNumber", "englishContextualCompounds"],
-    detect: english(
-      gated(/one[ \t\u00a0]+of\b/gi, oneOfPlural),
-      gated(/[0-9]['’]s/g, decades),
-      gated(/each|several|many|numerous/gi, quantifiedNumbers),
-      gated(
-        /[0-9][ \t\u00a0]+(?:day|week|month|year|hour|minute|mile|page|step|point)\b/gi,
-        numberUnits,
-      ),
+    gated(/the[ \t\u00a0]+some\b/gi, theSome),
+    gated(
+      /\b(?:the|an?)[ \t\u00a0]+(?:and|or|but|because|nor|although|unless)\b/gi,
+      danglingDeterminers,
     ),
-  },
-  { rules: ["commaPeriodSpacing"], detect: english(gated(/\p{Ll}[.?!;]\p{L}/gu, missingSpace)) },
-  { rules: ["emdashShortcut"], detect: gated(/[0-9][-—][0-9]/g, numberRanges) },
-  { rules: ["stylePhrasing"], detect: english(optionalStyle) },
-  { rules: ["styleContractions"], detect: english(gated(/['’]/g, contractions)) },
-  { rules: ["styleOxfordComma", "styleNoOxfordComma"], detect: english(serialCommas) },
-];
+    gated(
+      /\b(?:the|an?)[ \t\u00a0]+(?:[a-z]+[ \t\u00a0]+of|is|was|were|be|been|am|has)\b/gi,
+      nounlessDeterminers,
+    ),
+  ),
+  greekAndMassNouns: english(
+    gated(/criteri|phenomen/gi, greekPlurals),
+    gated(MASS_GATE, massNouns),
+  ),
+  numberNounForms: english(
+    gated(/one[ \t\u00a0]+of\b/gi, oneOfPlural),
+    gated(/[0-9]['’]s/g, decades),
+    gated(/each|several|many|numerous/gi, quantifiedNumbers),
+    gated(
+      /[0-9][ \t\u00a0]+(?:day|week|month|year|hour|minute|mile|page|step|point)\b/gi,
+      numberUnits,
+    ),
+  ),
+  missingSentenceSpace: english(gated(/\p{Ll}[.?!;]\p{L}/gu, missingSpace)),
+  numberRangeDashes: gated(/[0-9][-—][0-9]/g, numberRanges),
+  optionalStyle: english(optionalStyle),
+  contractionStyle: english(gated(/['’]/g, contractions)),
+  serialCommas: english(serialCommas),
+} satisfies Record<string, Detector>;

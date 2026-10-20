@@ -1,4 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   adjectiveOf,
@@ -441,9 +442,6 @@ function clauses(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: [RULE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) => (isPl(ctx) ? clauses(ctx) : []),
-  },
-];
+export const PREDICATES = {
+  clauses: (ctx: DetectContext) => (isPl(ctx) ? clauses(ctx) : []),
+} satisfies Record<string, Detector>;

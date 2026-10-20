@@ -1,8 +1,8 @@
 import { englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { MASS, nounNumber } from "./nounNumberSlots";
 import { COMPOUND, CONTEXT, frameDetector, TYPO, type Frame, type Rule } from "./idioms5";
 import {
@@ -34,29 +34,6 @@ const STRUCTURE: Rule = {
   ruleId: "englishSentenceStructure",
   messageKey: "review_msg_sentence_structure",
 };
-
-export const PHRASES: readonly PhraseRow[] = [
-  ["heave use of", "heavy use of"],
-  ["a quite a", "quite a"],
-  ["a rather a", "rather a"],
-  ["the only the", "the only"],
-  ["a such a", "such a"],
-  ...["the", "this", "good", "every", "in the", "Friday", "Sunday"].map((lead): PhraseRow => [
-    `${lead} after noon`,
-    `${lead} afternoon`,
-  ]),
-  ...["to", "please", "can", "need to", "should"].map((lead): PhraseRow => [
-    `${lead} fresh up`,
-    `${lead} freshen up`,
-  ]),
-];
-export const COMPOUNDS: readonly PhraseRow[] = [
-  ...["stated", "turn", "whelm", "whelmed", "whelming"].map((verb): PhraseRow => [
-    `over ${verb}`,
-    `over${verb}`,
-  ]),
-];
-export const STYLE: readonly PhraseRow[] = [];
 
 const read = (word: string | undefined) => (word ? englishWordInfo(word.toLowerCase()) : null);
 // Pronouns the lexicon reads as nouns: "She like everyone was tired" is "like" the preposition.
@@ -430,23 +407,6 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [
-      "englishSubjectVerbAgreement",
-      "englishApostrophes",
-      "englishPhraseCorrections",
-      "englishVerbComplements",
-      "englishConfusedWords",
-      "englishFixedPrepositions",
-      "englishUsagePhrases",
-      "englishNounNumber",
-      "englishPerfectParticiples",
-      "englishSentenceStructure",
-      "englishRepeatedWords",
-      "englishContextualCompounds",
-      "englishCanonicalCasing",
-    ],
-    detect: frameDetector(FRAMES),
-  },
-];
+export const PREDICATES = {
+  clauseFrames: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

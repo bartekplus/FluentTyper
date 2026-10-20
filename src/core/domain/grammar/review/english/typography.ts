@@ -1,6 +1,6 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { namedExampleBefore } from "../exampleCues";
 import { quotedMention } from "./grammarStyle1";
 import { finding } from "../finding";
@@ -11,11 +11,6 @@ import { finding } from "../finding";
 // and academic degrees ("PH.D", "B. Sc.").
 // englishTypography (optional): the typographer's symbols for what a keyboard approximates:
 // × for x, → for ->, © for (c), ± for +-, H₀, curly double quotes and dashes in ranges.
-
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 type Finding = RawFinding;
 
@@ -332,17 +327,13 @@ const english =
   (ctx: DetectContext): Finding[] =>
     ctx.lang !== "en_US" ? [] : detect(ctx).filter((f) => keepQuoted || !quotedMention(ctx, f));
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishNotation"], detect: english(notation) },
-  { rules: ["englishTypography"], detect: english(typography, true) },
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  notation: english(notation),
+  typography: english(typography, true),
   // French and Spanish: the shared symbols only; their quotes and dashes follow other rules.
-  { rules: ["englishTypography"], lang: "fr", detect: symbols },
-  { rules: ["englishTypography"], lang: "es", detect: symbols },
+  typographyFrench: symbols,
+  typographySpanish: symbols,
   // Portuguese: the shared symbols and number ranges.
-  {
-    rules: ["englishTypography"],
-    lang: "pt",
-    detect: (ctx) => [...symbols(ctx), ...numberRanges(ctx)],
-  },
-];
+  typographyPortuguese: (ctx) => [...symbols(ctx), ...numberRanges(ctx)],
+} satisfies Record<string, Detector>;

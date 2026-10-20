@@ -6,7 +6,7 @@ import { frameMatches } from "./phraseTemplates";
 import { GENITIVE as PL_MONTHS } from "./polish/dates";
 import { MONTHS as PT_MONTHS } from "./portuguese/dates";
 import { dateSide, dayCount, recentPast } from "./reviewClock";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "./reviewDetectors";
+import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { MONTH_NAMES as ES_MONTH_NAMES, monthNumber as esMonth } from "./spanish/typography";
 
 /*
@@ -450,7 +450,7 @@ function side(lang: Language, g: Record<string, string | undefined>): Tense {
   return null;
 }
 
-function dateTense(ctx: DetectContext): RawFinding[] {
+export function dateTense(ctx: DetectContext): RawFinding[] {
   const lang = LANGUAGES[ctx.lang.slice(0, 2)];
   if (!lang) return [];
   const findings: RawFinding[] = [];
@@ -474,7 +474,3 @@ function dateTense(ctx: DetectContext): RawFinding[] {
     }
   return findings;
 }
-
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["dateTenseConsistency"], detect: dateTense },
-];

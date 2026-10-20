@@ -1,6 +1,7 @@
 import { hasCanonicalCasing } from "../canonicalCasing";
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   germanAdjective,
   germanAdjectiveNoun,
@@ -852,29 +853,26 @@ function nounCasing(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["germanNounCasing"],
-    detect: (ctx) => {
-      // "mit meinem gewissen vereinbaren": once an idiom makes the word before a noun, a verb
-      // form after it stays a verb.
-      const fixed = idioms(ctx);
-      const nounEnds = new Set(fixed.map((f) => f.range.end));
-      const own = nounCasing(ctx).filter((f) => {
-        let i = f.range.start;
-        while (i > 0 && (ctx.text[i - 1] === " " || ctx.text[i - 1] === "\t")) i--;
-        return !nounEnds.has(i);
-      });
-      return [
-        ...own,
-        ...nominalized(ctx),
-        ...capitalizedAdjectives(ctx),
-        ...capitalizedVerbs(ctx),
-        ...fixed,
-        ...names(ctx),
-        ...salutationCase(ctx),
-        ...politeImperative(ctx),
-      ];
-    },
+export const PREDICATES = {
+  nounCasing: (ctx) => {
+    // "mit meinem gewissen vereinbaren": once an idiom makes the word before a noun, a verb
+    // form after it stays a verb.
+    const fixed = idioms(ctx);
+    const nounEnds = new Set(fixed.map((f) => f.range.end));
+    const own = nounCasing(ctx).filter((f) => {
+      let i = f.range.start;
+      while (i > 0 && (ctx.text[i - 1] === " " || ctx.text[i - 1] === "\t")) i--;
+      return !nounEnds.has(i);
+    });
+    return [
+      ...own,
+      ...nominalized(ctx),
+      ...capitalizedAdjectives(ctx),
+      ...capitalizedVerbs(ctx),
+      ...fixed,
+      ...names(ctx),
+      ...salutationCase(ctx),
+      ...politeImperative(ctx),
+    ];
   },
-];
+} satisfies Record<string, Detector>;

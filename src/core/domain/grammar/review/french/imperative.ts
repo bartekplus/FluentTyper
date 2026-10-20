@@ -1,4 +1,5 @@
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { conjugate, JE, NOUS, TU, verbReadings, VOUS, type VerbReading } from "./frenchLexicon";
 import {
   CLITICS,
@@ -193,7 +194,7 @@ function veillez(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: [RULE], detect: imperatives },
-  { rules: [HOMOPHONES], detect: veillez },
-];
+export const PREDICATES = {
+  imperative: imperatives,
+  veillez,
+} satisfies Record<string, Detector>;

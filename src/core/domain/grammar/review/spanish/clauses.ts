@@ -1,4 +1,5 @@
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   Around,
   CLITICS,
@@ -605,23 +606,20 @@ function scan(...frames: Frame[]) {
   };
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["spanishAccents"], detect: scan(paraQue, framedAccent) },
-  {
-    rules: ["spanishConfusions"],
-    detect: scan(
-      separatedEnclitic,
-      aPunto,
-      altaClitic,
-      permitQue,
-      prepositionFinite,
-      perfectInfinitive,
-      cliticOrder,
-      negativeImperative,
-      doubledSuperlative,
-      dadoQue,
-    ),
-  },
-  { rules: ["stylePhrasing"], detect: scan(agoBack, repeatedAdverb) },
-  { rules: ["spanishAgreement"], detect: scan(impersonalHaber, doubledPronoun) },
-];
+export const PREDICATES = {
+  paraQueAccent: scan(paraQue, framedAccent),
+  clauseConfusions: scan(
+    separatedEnclitic,
+    aPunto,
+    altaClitic,
+    permitQue,
+    prepositionFinite,
+    perfectInfinitive,
+    cliticOrder,
+    negativeImperative,
+    doubledSuperlative,
+    dadoQue,
+  ),
+  clauseStyle: scan(agoBack, repeatedAdverb),
+  clauseAgreement: scan(impersonalHaber, doubledPronoun),
+} satisfies Record<string, Detector>;

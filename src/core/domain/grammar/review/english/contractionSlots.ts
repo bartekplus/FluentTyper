@@ -1,9 +1,9 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { opensSubjectClause } from "../englishWordConfusions";
 import { NOUN_LIKE_ING } from "../englishParticiples";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   adverb,
   afterBreak,
@@ -25,10 +25,6 @@ import { finding } from "../finding";
 
 // its/it's, your/you're and it/its, you/your decided by the word class of what follows, read
 // from the generated lexicon: a possessive needs a noun phrase, a contraction a predicate.
-
-export const PHRASES: readonly PhraseRow[] = [["for all its worth", "for all it's worth"]];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 // Words after which a clause, and so a subject, can start.
 const CUE = new Set(
@@ -574,9 +570,6 @@ function hasItPlural(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishItsContext", "englishYourYouAre"],
-    detect: english(possessiveBeforePredicate, pronounForPossessive, hasItPlural),
-  },
-];
+export const PREDICATES = {
+  possessiveContractions: english(possessiveBeforePredicate, pronounForPossessive, hasItPlural),
+} satisfies Record<string, Detector>;

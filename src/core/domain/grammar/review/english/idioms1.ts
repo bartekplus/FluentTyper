@@ -1,5 +1,4 @@
 import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
-import { each, type PhraseRow } from "../englishPhraseTables";
 import {
   CLAUSE,
   COMPLETE,
@@ -9,140 +8,10 @@ import {
   SPACE as S,
   WORD_END as E,
 } from "../phraseTemplates";
-import type { ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 
 const DETERMINER =
   "(?:a|an|the|this|that|these|those|my|your|his|her|its|our|their|every|each|some|any)";
-
-const CAPITALIZE: [string, string][] = [
-  "ize",
-  "izes",
-  "ized",
-  "izing",
-  "ise",
-  "ises",
-  "ised",
-  "ising",
-].map((ending) => [`capital${ending}`, `capital${ending}`]);
-const COURSE: [string, string][] = [
-  ["curse", "course"],
-  ["curses", "courses"],
-  ["cursed", "coursed"],
-  ["cursing", "coursing"],
-];
-
-/** Rows for englishPhraseCorrections. */
-export const PHRASES: readonly PhraseRow[] = [
-  ["a mean to an end", "a means to an end"],
-  [["a whole another", "a whole 'nother"], "a whole other"],
-  ["as nauseam", "ad nauseam"],
-  [["al be it", "al beit", "all beit", "allbe it", "albe it"], "albeit"],
-  ["all well in good", "all well and good"],
-  ["and the such", "and such"],
-  ["another things", "other things"],
-  ["another ones", "other ones"],
-  ["as compare to", "as compared to"],
-  ["as is evident by", "as is evidenced by"],
-  ["as was evident by", "as was evidenced by"],
-  ["as evident by", "as evidenced by"],
-  ...["this", "that", "which"].map((word): PhraseRow => [
-    `${word} is evident by`,
-    `${word} is evidenced by`,
-  ]),
-  ["as early back as", "as far back as"],
-  ...["anything", "everything"].map((word): PhraseRow => [
-    `as is with ${word}`,
-    [`as with ${word}`, `as is the case with ${word}`],
-  ]),
-  ["as long that", "as long as"],
-  ["as much than", "as much as"],
-  ["as many than", "as many as"],
-  ["as of currently", ["currently", "as of now"]],
-  ["as of lately", "as of late"],
-  ["at all cost", "at all costs"],
-  [["at face values", "on face values"], "at face value"],
-  [["at the expanse of", "at the expance of", "at the expenses of"], "at the expense of"],
-  ["aware about", "aware of"],
-  ["unaware about", "unaware of"],
-  ...each(CAPITALIZE, "~ off of", "~ on"),
-  ...each(CAPITALIZE, "~ off", "~ on"),
-  ["comprises of", ["comprises", "is comprised of"]],
-  ["comprising of", "comprising"],
-  ...["", "my ", "your ", "his ", "her ", "our ", "their ", "the "].flatMap((owner) =>
-    each(COURSE, `~ through ${owner}veins`, `~ through ${owner}veins`),
-  ),
-  [["cutting age", "cutting-age"], "cutting-edge"],
-  ...["will", "would", "to", "must", "should", "can", "could", "may", "might"].map(
-    (word): PhraseRow => [`${word} do diligence`, `${word} do due diligence`],
-  ),
-  ["egg yoke", "egg yolk"],
-  ["egg yokes", "egg yolks"],
-  ["environmental var", "environment var"],
-  ["environmental vars", "environment vars"],
-  ["every once and again", ["every once in a while", "every now and again"]],
-  ["every single of", "every single one of"],
-  ["far and few between", "few and far between"],
-  ["finish touches", "finishing touches"],
-  ["for most part", "for the most part"],
-  ["hidden into", "hidden in"],
-  [["humans beings", "human's beings"], "human beings"],
-  ["hunger pain", "hunger pang"],
-  ["impressed of", ["impressed by", "impressed with"]],
-  ["in ideal world", "in an ideal world"],
-  ["in do course", "in due course"],
-  [
-    ["on hindsight", "on hind sight", "on hind-sight", "in hind sight", "in hind-sight"],
-    "in hindsight",
-  ],
-  [["in lue of", "in leu of", "in liu of", "in lieu off"], "in lieu of"],
-  ["in need for", "in need of"],
-  ["in of itself", ["in and of itself", "in itself"]],
-  ["in of themselves", ["in and of themselves", "in themselves"]],
-  [
-    [
-      "in the grand scale of things",
-      "on the grand scheme of things",
-      "on the grand scale of things",
-    ],
-    "in the grand scheme of things",
-  ],
-  ["in the same vane", "in the same vein"],
-  [["in same vein", "in same vain", "in same vane"], "in the same vein"],
-  ...[".", ",", ";", ":"].map((mark): PhraseRow => [
-    `in the same veins${mark}`,
-    `in the same vein${mark}`,
-  ]),
-  ["incidence report", "incident report"],
-  ["incidence reports", "incident reports"],
-  ["initiatively", "proactively"],
-  ["unsensitive", "insensitive"],
-  ["unsurmountable", "insurmountable"],
-  ...["I", "we", "you", "they"].map((subject): PhraseRow => [
-    `${subject}'ve go to`,
-    `${subject}'ve got to`,
-  ]),
-  ["kinda of", "kind of"],
-  ["sorta of", "sort of"],
-  [["on masse", "in masse"], "en masse"],
-  ["on route to", "en route to"],
-  ["on-route to", "en-route to"],
-];
-export const COMPOUNDS: readonly PhraseRow[] = [
-  ["afterall", "after all"],
-  ["aslong", "as long"],
-  ["in anyway", "in any way"],
-  [["before hand", "before-hand"], "beforehand"],
-];
-export const STYLE: readonly PhraseRow[] = [
-  ["as it so happens", "as it happens"],
-  ["in the best of times", "at the best of times"],
-  ["hearable", "audible"],
-  ["bad rep", "bad rap"],
-  ["brutalness", "brutality"],
-  ["environmental variable", "environment variable"],
-  ["environmental variables", "environment variables"],
-  ["into a different direction", "in a different direction"],
-];
 
 type Rule = "englishPhraseCorrections" | "englishClosedCompounds" | "stylePhrasing";
 
@@ -294,5 +163,12 @@ const FRAMES: Record<Rule, readonly Frame[]> = {
   ],
 };
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = frameDetectors(FRAMES);
+// The frame detector of one rule of FRAMES.
+const frames = (rule: Rule): Detector => frameDetectors({ [rule]: FRAMES[rule] })[0].detect;
+
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  idiomPhrases1: frames("englishPhraseCorrections"),
+  idiomCompounds1: frames("englishClosedCompounds"),
+  idiomStyle1: frames("stylePhrasing"),
+} satisfies Record<string, Detector>;

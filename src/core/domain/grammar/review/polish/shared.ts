@@ -133,22 +133,3 @@ export function* owned(ctx: DetectContext, regex: RegExp): Generator<RegExpExecA
     yield m;
   }
 }
-
-/** The adjective endings of a masculine lemma in -y/-i, every case and gender. */
-const ADJ_ENDINGS = ["y", "a", "e", "ego", "ej", "emu", "ą", "ym", "ych", "ymi"];
-const ADJ_ENDINGS_I = ["i", "a", "e", "ego", "ej", "emu", "ą", "im", "ich", "imi"];
-
-/**
- * Rows for every form of an adjective written apart: `adjectiveRows("krótko trwał", "krótkotrwał")`.
- * Stems end before the case ending; `soft` stems take -i (-ki, -gi, -ni).
- */
-export function adjectiveRows(
-  typedStem: string,
-  fixedStem: string,
-  soft = /[kg]$/.test(typedStem),
-): Array<[string, string]> {
-  return (soft ? ADJ_ENDINGS_I : ADJ_ENDINGS).map((ending) => [
-    typedStem + ending,
-    fixedStem + ending,
-  ]);
-}

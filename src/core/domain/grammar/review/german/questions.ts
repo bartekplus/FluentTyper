@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { germanGender, germanInfinitive } from "./germanLexicon";
 import { englishLine, isGerman, wordSet } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
@@ -185,6 +186,6 @@ function quotedQuestions(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanQuestionMarks"], detect: (ctx) => [...questions(ctx), ...quotedQuestions(ctx)] },
-];
+export const PREDICATES = {
+  questionMarks: (ctx) => [...questions(ctx), ...quotedQuestions(ctx)],
+} satisfies Record<string, Detector>;

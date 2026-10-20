@@ -1,3 +1,4 @@
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { ambiguousVerb, finiteVerb, impersonalVerb, nounTags, onlyNoun } from "./lexicon";
 import { findingAt, isPl, owned, PREPOSITIONS, sentenceStartAt, userOrNamed } from "./shared";
@@ -504,24 +505,18 @@ function missingCompoundCommas(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: [MISPLACED] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) =>
-      isPl(ctx)
-        ? [...commaInsideConjunction(ctx), ...extraCommas(ctx), ...commaAfterPreposition(ctx)]
-        : [],
-  },
-  {
-    rules: [MISSING] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) =>
-      isPl(ctx)
-        ? [
-            ...missingCommas(ctx),
-            ...missingCompoundCommas(ctx),
-            ...adverbBeforeClause(ctx),
-            ...clauseOpeners(ctx),
-          ]
-        : [],
-  },
-];
+export const PREDICATES = {
+  misplacedCommas: (ctx: DetectContext) =>
+    isPl(ctx)
+      ? [...commaInsideConjunction(ctx), ...extraCommas(ctx), ...commaAfterPreposition(ctx)]
+      : [],
+  missingCommas: (ctx: DetectContext) =>
+    isPl(ctx)
+      ? [
+          ...missingCommas(ctx),
+          ...missingCompoundCommas(ctx),
+          ...adverbBeforeClause(ctx),
+          ...clauseOpeners(ctx),
+        ]
+      : [],
+} satisfies Record<string, Detector>;

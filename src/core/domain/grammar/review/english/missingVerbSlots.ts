@@ -1,7 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   afterBreak,
   caseLike,
@@ -17,10 +17,6 @@ import { finding } from "../finding";
 
 // Clauses whose subject has no verb: "It very easy", "I not sure", "There a lot of ways",
 // "Can we able to", "would very helpful", and no/not mixed up next to a verb or noun.
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const BE: Record<string, string> = {
   i: "am",
@@ -538,16 +534,13 @@ function adverbWithoutVerb(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishSentenceStructure", "englishConfusedWords"],
-    detect: english(
-      subjectWithoutBe,
-      existentialWithoutBe,
-      ableWithoutBe,
-      modalDegreeAdjective,
-      noNot,
-      adverbWithoutVerb,
-    ),
-  },
-];
+export const PREDICATES = {
+  missingVerbs: english(
+    subjectWithoutBe,
+    existentialWithoutBe,
+    ableWithoutBe,
+    modalDegreeAdjective,
+    noNot,
+    adverbWithoutVerb,
+  ),
+} satisfies Record<string, Detector>;

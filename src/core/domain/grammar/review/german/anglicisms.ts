@@ -1,7 +1,8 @@
 import { namedExampleBefore } from "../exampleCues";
 import { finding } from "../finding";
 import { frameMatches } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { ci, englishLine, isGerman, tokensAfter, WORD_GATE } from "./shared";
 
 // An English noun of a verb and a particle takes a hyphen in German, the particle in lowercase
@@ -92,6 +93,6 @@ function anglicisms(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanCompounds"], detect: anglicisms },
-];
+export const PREDICATES = {
+  anglicisms,
+} satisfies Record<string, Detector>;

@@ -3,10 +3,10 @@ import {
   englishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
-import type { PhraseRow } from "../englishPhraseTables";
 import { dateSide, dayCount, recentPast } from "../reviewClock";
 import { frameMatches, hasUserOrCasedWord, SPACE as S, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   DETERMINERS,
   english,
@@ -22,10 +22,6 @@ import { finding } from "../finding";
 // "Last week I will call him" (called), and a past verb on a date that has not come yet ("We
 // visited the client on 27/10/2090"), and a future verb on a date that has passed. Dates use
 // the Review clock.
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const SUBJECT = "(?:I|we|you|he|she|they)";
 const DAY_NAME = "(?:mon|tues|wednes|thurs|fri|satur|sun)day";
@@ -239,9 +235,11 @@ function pastDateFutureVerb(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishTenseConsistency"],
-    detect: english(futureWordPastVerb, pastWordFutureVerb, futureDatePastVerb, pastDateFutureVerb),
-  },
-];
+export const PREDICATES = {
+  tenseTimeWords: english(
+    futureWordPastVerb,
+    pastWordFutureVerb,
+    futureDatePastVerb,
+    pastDateFutureVerb,
+  ),
+} satisfies Record<string, Detector>;

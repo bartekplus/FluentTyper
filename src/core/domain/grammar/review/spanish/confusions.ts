@@ -1,4 +1,5 @@
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   Around,
   CLITICS,
@@ -739,14 +740,11 @@ function lostVowel(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [RULE],
-    detect: (ctx) => [
-      ...confusions(ctx),
-      ...rebelReveal(ctx),
-      ...cliticArticle(ctx),
-      ...lostVowel(ctx),
-    ],
-  },
-];
+export const PREDICATES = {
+  confusions: (ctx) => [
+    ...confusions(ctx),
+    ...rebelReveal(ctx),
+    ...cliticArticle(ctx),
+    ...lostVowel(ctx),
+  ],
+} satisfies Record<string, Detector>;

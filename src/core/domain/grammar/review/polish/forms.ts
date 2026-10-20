@@ -1,3 +1,4 @@
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   findingAt,
@@ -220,10 +221,7 @@ function inflectedNames(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: [RULE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) =>
-      isPl(ctx) ? [...runFrames(ctx, FRAMES), ...inflectedNames(ctx)] : [],
-  },
-];
+export const PREDICATES = {
+  wordForms: (ctx: DetectContext) =>
+    isPl(ctx) ? [...runFrames(ctx, FRAMES), ...inflectedNames(ctx)] : [],
+} satisfies Record<string, Detector>;

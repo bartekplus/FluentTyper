@@ -1,5 +1,4 @@
-import type { PhraseRow } from "../englishPhraseTables";
-import { rows } from "../phraseTemplates";
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   adjectiveOf,
@@ -14,7 +13,6 @@ import {
   placeForm,
 } from "./lexicon";
 import {
-  adjectiveRows,
   caseLike,
   CLAUSE_START,
   END,
@@ -35,161 +33,6 @@ import {
  */
 
 const words = (list: string) => list.split(" ");
-
-/** Forms that are no Polish words, whatever their neighbours. */
-export const WORDS: readonly PhraseRow[] = [
-  ["struj", "strój"],
-  ["pryz", "przy"],
-  ["koniczność", "konieczność"],
-  ...adjectiveRows("koniczn", "konieczn"),
-  ...words("drzem drzemu drzemem drzemy drzemów").map((form): PhraseRow => [
-    form,
-    `dżem${form.slice(5)}`,
-  ]),
-  ...words("sytem sytemu sytemie sytemy sytemów").map((form): PhraseRow => [
-    form,
-    `system${form.slice(5)}`,
-  ]),
-  // "rozpatrzać" is no verb: "rozpatrywać" (or the perfective "rozpatrzyć").
-  ["rozpatrzać", "rozpatrywać"],
-  ["rozpatrza", "rozpatruje"],
-  ["rozpatrzają", "rozpatrują"],
-  ["rozpatrzał", ["rozpatrywał", "rozpatrzył"]],
-  ...adjectiveRows("spóln", "wspóln"),
-  ["rozpatrzała", ["rozpatrywała", "rozpatrzyła"]],
-];
-
-/** Word pairs where the typed form is never right. */
-export const PHRASES: readonly PhraseRow[] = [
-  ["półwieku temu", "pół wieku temu"],
-  // "byłoby" split into "był" and the wish "oby" or the letters "o by".
-  ...rows(`
-był oby = byłoby
-był o by = byłoby
-nie jetem = nie jestem
-od dawana = od dawna
-do niedawana = do niedawna
-od niedawana = od niedawna
-ku ucieszy = ku uciesze
-w razie pytać = w razie pytań
-na papieże = na papierze
-w tak sposób = w taki sposób
-po prost = po prostu
-po kątem = pod kątem
-tan naprawdę = tak naprawdę
-nie wolo = nie wolno
-w zgodnie z = zgodnie z; w zgodzie z
-za maż = za mąż
-z dania na dzień = z dnia na dzień
-że względu na = ze względu na
-sadzę, że = sądzę, że
-sadzę że = sądzę że
-nie sadzę = nie sądzę
-wydaja się = wydają się
-ja się okazuje = jak się okazuje
-ja się wydaje = jak się wydaje
-wszech rzeczy = wszechrzeczy
-dla czemu = dlaczego
-dlaczego czy = dlaczego; czy
-co by się stały = co by się stało
-obroną ręką = obronną ręką
-dopóty, dopóty = dopóty, dopóki
-w odróżnieniu, do = w odróżnieniu od
-blade pojecie = blade pojęcie
-mgliste pojecie = mgliste pojęcie
-składa członkowska = składka członkowska
-składę członkowską = składkę członkowską
-na wzdłuż = wzdłuż
-w pośród = pośród
-na całym świcie = na całym świecie
-po całym świcie = po całym świecie
-`),
-  ...([
-    ...rows(`
-jazda kona = jazda konna
-jazdy konej = jazdy konnej
-jazdę koną = jazdę konną
-jazdą koną = jazdą konną
-jeździe konej = jeździe konnej
-błąd litrowy = błąd literowy
-błędu litrowego = błędu literowego
-błędy litrowe = błędy literowe
-błędów litrowych = błędów literowych
-pozycji lezącej = pozycji leżącej
-pozycja leząca = pozycja leżąca
-pozycję lezącą = pozycję leżącą
-miejsce zamieszania = miejsce zamieszkania
-miejsca zamieszania = miejsca zamieszkania
-miejscu zamieszania = miejscu zamieszkania
-adres zamieszania = adres zamieszkania
-wiórki koksowe = wiórki kokosowe
-wiórków koksowych = wiórków kokosowych
-wiórkami koksowymi = wiórkami kokosowymi
-mleko koksowe = mleko kokosowe
-mleczko koksowe = mleczko kokosowe
-`),
-  ] satisfies PhraseRow[]),
-  ...words("tyle mało dużo więcej mniej trochę brak").map((amount): PhraseRow => [
-    `${amount} czasy`,
-    `${amount} czasu`,
-  ]),
-  ...([
-    ...rows(`
-strona internatowa = strona internetowa
-strony internatowej = strony internetowej
-stronę internatową = stronę internetową
-stronie internatowej = stronie internetowej
-mas media = mass media
-mas mediów = mass mediów
-mas mediami = mass mediami
-mas mediach = mass mediach
-`),
-  ] satisfies PhraseRow[]),
-  // "pół godziny": "pól" is the genitive plural of "pole" (fields).
-  ...words("godziny roku litra kilo minuty miesiąca dnia wieku metra tony etatu").map(
-    (span): PhraseRow => [`pól ${span}`, `pół ${span}`],
-  ),
-  ...words("golfowych ryżowych minowych bitewnych naftowych").map((kind): PhraseRow => [
-    `pół ${kind}`,
-    `pól ${kind}`,
-  ]),
-  // "szkoła średnia": "szkoda" is damage.
-  ...(
-    [
-      ["szkoda", "szkoła", "a"],
-      ["szkody", "szkoły", "ej"],
-      ["szkodę", "szkołę", "ą"],
-      ["szkodzie", "szkole", "ej"],
-      ["szkodą", "szkołą", "ą"],
-    ] as const
-  ).flatMap(([typed, fixed, ending]) =>
-    ["średni", "podstawow"].map((kind): PhraseRow => {
-      const adj = `${kind}${ending}`;
-      return [`${typed} ${adj}`, `${fixed} ${adj}`];
-    }),
-  ),
-  // "z tego powodu": "powody" is the plural.
-  ...["", "tego ", "jakiego ", "innego ", "tego samego ", "jakiegoś ", "żadnego "].map(
-    (det): PhraseRow => [`z ${det}powody`, `z ${det}powodu`],
-  ),
-  ...words("tego tamtego całego danego ostatniego").map((det): PhraseRow => [
-    `${det} okresy`,
-    `${det} okresu`,
-  ]),
-  // A cookie cutter cuts ("wykrawacz"); a metal detector detects ("wykrywacz").
-  ...words("wykrywacz wykrywacza wykrywacze wykrywaczem wykrywaczy").flatMap((tool) =>
-    ["do ciastek", "do ciasta"].map((use): PhraseRow => [
-      `${tool} ${use}`,
-      `wykrawacz${tool.slice(9)} ${use}`,
-    ]),
-  ),
-  ...words("wykrawacz wykrawacza wykrawacze wykrawaczem").flatMap((tool) =>
-    ["metali", "min"].map((use): PhraseRow => [
-      `${tool} ${use}`,
-      `wykrywacz${tool.slice(9)} ${use}`,
-    ]),
-  ),
-];
 
 const RULE = {
   ruleId: "englishPhraseCorrections",
@@ -718,12 +561,9 @@ function slips(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: [RULE.ruleId] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) =>
-      isPl(ctx) && (!ctx.rules || ctx.rules.has(RULE.ruleId))
-        ? [...runFrames(ctx, FRAMES), ...slips(ctx)]
-        : [],
-  },
-];
+export const PREDICATES = {
+  typos: (ctx: DetectContext) =>
+    isPl(ctx) && (!ctx.rules || ctx.rules.has(RULE.ruleId))
+      ? [...runFrames(ctx, FRAMES), ...slips(ctx)]
+      : [],
+} satisfies Record<string, Detector>;

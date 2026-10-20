@@ -1,9 +1,9 @@
 import { englishInflect, englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishNounPair, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { MASS, nounNumber } from "./nounNumberSlots";
 import {
   type ClauseProfile,
@@ -29,10 +29,6 @@ import { finding } from "../finding";
 
 // Subject-verb number agreement with noun-phrase subjects the lexicon can number: "The dogs
 // barks", "Some people thinks", "Do your father live…?", "These includes", "This are".
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const TO_PLURAL: Record<string, string> = {
   is: "are",
@@ -1183,22 +1179,16 @@ function distantSubject(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishPronounVerbWhitelistAgreement"],
-    detect: english(thirdPersonBase),
-  },
-  {
-    rules: ["englishSubjectVerbAgreement"],
-    detect: english(
-      nounSubject,
-      irregularPlurals,
-      demonstratives,
-      invertedAuxiliary,
-      relativeClauseSubject,
-      nameSubject,
-      quantifiedSubjects,
-      distantSubject,
-    ),
-  },
-];
+export const PREDICATES = {
+  thirdPersonBase: english(thirdPersonBase),
+  subjectAgreement: english(
+    nounSubject,
+    irregularPlurals,
+    demonstratives,
+    invertedAuxiliary,
+    relativeClauseSubject,
+    nameSubject,
+    quantifiedSubjects,
+    distantSubject,
+  ),
+} satisfies Record<string, Detector>;

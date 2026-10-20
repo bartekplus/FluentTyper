@@ -1,7 +1,6 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { CONTEXT, frameDetector, TYPO, type Frame, type Rule } from "./idioms5";
 import { afterBreak, FUNCTION_WORDS, nounOnly, wordBefore } from "./slotWords";
 
@@ -13,64 +12,6 @@ import { afterBreak, FUNCTION_WORDS, nounOnly, wordBefore } from "./slotWords";
 const CONFUSED: Rule = { ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word" };
 const DET = "(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those)";
 const OBJECT = "(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|it|them|him|us|me)";
-
-export const PHRASES: readonly PhraseRow[] = [
-  [["blueray", "blue-ray", "blu ray"], "Blu-ray"],
-  [["bluerays", "blue-rays"], "Blu-rays"],
-  ["altar ego", "alter ego"],
-  ["alter boy", "altar boy"],
-  ["of coarse", "of course"],
-  ...[
-    "playing",
-    "gold cart",
-    "gold carts",
-    "gold club",
-    "gold clubs",
-    "gold course",
-    "gold ball",
-  ].map((typed): PhraseRow =>
-    typed === "playing" ? ["playing gold", "playing golf"] : [typed, typed.replace("gold", "golf")],
-  ),
-  ...["great", "good", "nice"].map((lead): PhraseRow => [`${lead} jib`, `${lead} job`]),
-  ...["authorized", "military", "medical", "director of", "key", "unauthorized"].map(
-    (lead): PhraseRow => [`${lead} personal`, `${lead} personnel`],
-  ),
-  ...["hours of", "pay for", "paid for"].map((lead): PhraseRow => [
-    `${lead} over time`,
-    `${lead} overtime`,
-  ]),
-  ...["heath department", "heath care", "heath insurance", "mental heath", "public heath"].map(
-    (typed): PhraseRow => [typed, typed.replace("heath", "health")],
-  ),
-  ["world heath organization", "World Health Organization"],
-  [["best of lick", "best of lock"], "best of luck"],
-  ...["to no affect", "an affect on", "the affect on"].map((typed): PhraseRow => [
-    typed,
-    typed.replace("affect", "effect"),
-  ]),
-  [["at soon as possible", "as soon at possible"], "as soon as possible"],
-  ...["route cause", "route causes"].map((typed): PhraseRow => [
-    typed,
-    typed.replace("route", "root"),
-  ]),
-  ...["city", "cities", "town", "towns", "garden"].map((noun): PhraseRow => [
-    `wallet ${noun}`,
-    `walled ${noun}`,
-  ]),
-  ...["bitcoin", "crypto"].map((lead): PhraseRow => [`${lead} walled`, `${lead} wallet`]),
-  ...["hold my", "hold your", "out of", "catch my", "catch your", "a deep", "waste your"].map(
-    (lead): PhraseRow => [`${lead} breathe`, `${lead} breath`],
-  ),
-  ...["free", "30-day", "14-day", "7-day"].map((lead): PhraseRow => [
-    `${lead} trail`,
-    `${lead} trial`,
-  ]),
-  ...["period", "version", "account", "license", "expired", "ends", "ended"].map(
-    (tail): PhraseRow => [`trail ${tail}`, `trial ${tail}`],
-  ),
-];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const read = (word: string | undefined) => (word ? englishWordInfo(word.toLowerCase()) : null);
 const adjectiveWord = (word: string) => !!read(word)?.adjective && !FUNCTION_WORDS.has(word);
@@ -562,9 +503,6 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishPhraseCorrections", "englishConfusedWords"],
-    detect: frameDetector(FRAMES),
-  },
-];
+export const PREDICATES = {
+  neighbourSlots: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

@@ -1,6 +1,5 @@
 import { englishInflect } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import {
   alternation,
   frameMatches,
@@ -10,176 +9,16 @@ import {
   SPACE as S,
   WORD_END as E,
 } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
+import { table } from "./tables";
 
 // Open, closed and hyphenated compounds: rows for forms that are never right written apart,
 // and slot frames for the ones that are a phrase in one position and a compound in another.
 
-/** "a b" -> "ab" (or "a-b"), once per ending added to the second part. */
-const rows = (pairs: string, joiner: "" | "-", endings: readonly string[] = [""]): PhraseRow[] =>
-  pairs
-    .trim()
-    .split(/\s*,\s*/)
-    .flatMap((pair) => {
-      const [a, b] = pair.split(" ");
-      return endings.map((end): PhraseRow => [`${a} ${b}${end}`, `${a}${joiner}${b}${end}`]);
-    });
-
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
-export const PHRASES: readonly PhraseRow[] = [];
-
-export const COMPOUNDS: readonly PhraseRow[] = [
-  // Nouns whose plural cannot be read as a noun and a verb ("my head aches" is left out).
-  ...rows(
-    "foot ball, air port, rain bow, wheel chair, key hole, share holder, stake holder, sky line, " +
-      "cock tail, super market, motor bike, motor cycle, smart phone, fire fighter, goal keeper, " +
-      "trouble maker, ghost writer, house maid, back log, land lord, land lady, out break, " +
-      "eye lid, eye brow, space ship, hair style, finger print, finger nail, counter part, " +
-      "dock yard, ship yard, back yard, grave yard, hand rail, stale mate, swim suit, bath robe, " +
-      "bull dog, breast plate, home town, play ground, mouth piece, score card, video tape, " +
-      "law maker, law breaker, girl friend, boy friend, home owner, door bell, door knob, " +
-      "door step, door way, land line, user name, head phone, ear phone, " +
-      "cyber attack, thunder storm, under graduate, hand book, car pool, day dreamer, " +
-      "sleep walker, well wisher, step son, step daughter, step mother, step father, " +
-      "step brother, step sister, step parent, step dad, step mom, neighbor hood, " +
-      "neighbour hood, web sight",
-    "",
-    ["", "s"],
-  ),
-  ...rows("smart watch, eye lash, hair brush, mail box", "", ["", "es"]),
-  ...rows(
-    "back ache, head ache, tooth ache, law suit, drive ways, left overs, " +
-      "sea food, day light, country side, nut shell, out door, out doors, half way, side ways, " +
-      "eye sight, space craft, cyber security, cyber space, cyber bullying, thunder struck, " +
-      "under stood, under developed, under explored, under appreciated, under rated, " +
-      "under paid, under staffed, over complicated, over thinking, over rated, over priced, " +
-      "over whelming, over whelmed, over looked, over worked, out dated, out spoken, " +
-      "out numbered, out grown, out sourced, out sourcing, up dated, heart broken, " +
-      "heart breaking, ground breaking, bullet proof, water proof, fire proof, sound proof, " +
-      "fool proof, shatter proof, hand cuffs, hand cuffed, hand written, car pooling, " +
-      "tail gating, sleep walking, sleep walked, news worthy, trust worthy, praise worthy, " +
-      "note worthy, sea worthy, step child, step children, business man, business men, " +
-      "business woman, business women, up date, up dates, out perform, out performs, " +
-      "out performed, out performing, out weigh, out weighs, out weighed, out compete, " +
-      "out competed, out competing, safe guarded, safe guarding, over think",
-    "",
-  ),
-  ...["any", "some", "every"].map((q): PhraseRow => [`${q} one else`, `${q}one else`]),
-  ...["any", "some", "every", "no"].map((q): PhraseRow => [`${q} body else`, `${q}body else`]),
-  ["pick up truck", "pickup truck"],
-  ["pick up trucks", "pickup trucks"],
-  ["pick up line", "pickup line"],
-  ["pick up lines", "pickup lines"],
-  ["up and coming", "up-and-coming"],
-  ["editor in chief", "editor-in-chief"],
-  ["editors in chief", "editors-in-chief"],
-  ["well wishes", "well-wishes"],
-  ["one pager", "one-pager"],
-  ["one pagers", "one-pagers"],
-  ["one trick pony", "one-trick pony"],
-  ["one stop shop", "one-stop shop"],
-  ["one stop shops", "one-stop shops"],
-  ["natural born", "natural-born"],
-  ["picture perfect", "picture-perfect"],
-  ["time critical", "time-critical"],
-  ["twin engined", "twin-engined"],
-  ["four engined", "four-engined"],
-  ["Harley Davidson", "Harley-Davidson"],
-  ...["right", "left"].flatMap((side) =>
-    ["man", "side", "corner", "drive", "lane", "turn", "column", "margin"].map(
-      (noun): PhraseRow => [`${side} hand ${noun}`, `${side}-hand ${noun}`],
-    ),
-  ),
-  ...rows("off ramp, on ramp", "-", ["", "s"]),
-  ["passer by", "passer-by"],
-  ["passers by", "passers-by"],
-  ...rows("whole sale, market place, pay roll, steel worker, safe guard", "", ["", "s"]).filter(
-    ([typed]) => typed !== "safe guards" && typed !== "whole sales",
-  ),
-  ...rows("out run, back filled, under appreciate, under appreciated, under appreciates", ""),
-  ...rows("hitch hike, hitch hiked, hitch hiking, hitch hiker, hitch hikers", ""),
-  ["call to action button", "call-to-action button"],
-  ["call to action buttons", "call-to-action buttons"],
-  ...["girls", "boys"].flatMap((kind): PhraseRow[] => [
-    [`all ${kind} school`, `all-${kind} school`],
-    [`all ${kind} schools`, `all-${kind} schools`],
-  ]),
-  ["no go area", "no-go area"],
-  ["no go zone", "no-go zone"],
-  ["week-end", "weekend"],
-  ["week-ends", "weekends"],
-  ["common used", "commonly used"],
-  ...["sign", "log"].flatMap((verb): PhraseRow[] =>
-    ["s", "ing"].flatMap((end): PhraseRow[] =>
-      ["in", "out"].map((particle): PhraseRow => {
-        const form = verb === "log" && end === "ing" ? "logging" : `${verb}${end}`;
-        return [`${form}-${particle}`, `${form} ${particle}`];
-      }),
-    ),
-  ),
-  ...rows("re doing, re done", ""),
-  // Verb compounds whose past form is always the compound ("peer-reviewed evidence").
-  ...rows(
-    "peer reviewed, fact checked, guest edited, spot checked, cross checked, hand delivered, " +
-      "kick started, deep fried, stir fried, daisy chained, guilt tripped, " +
-      "green lighted, fine tuned",
-    "-",
-  ),
-  ["dead lifted", "deadlifted"],
-  ["force fed", "force-fed"],
-  ["spoon fed", "spoon-fed"],
-  ["Miami Dade", "Miami-Dade"],
-  ...rows("water resistant, heat resistant, fire resistant, stain resistant, shock resistant", "-"),
-  ...rows("scratch resistant, wrinkle resistant, tamper resistant", "-"),
-  // Fixed modifiers that only ever precede their noun.
-  ...[
-    ["one night stand", "one-night stand"],
-    ["red light district", "red-light district"],
-    ["money back guarantee", "money-back guarantee"],
-    ["no fly zone", "no-fly zone"],
-    ["set top box", "set-top box"],
-    ["two stroke engine", "two-stroke engine"],
-    ["four stroke engine", "four-stroke engine"],
-    ["subject matter expert", "subject-matter expert"],
-    ["denial of service attack", "denial-of-service attack"],
-    ["push up bra", "push-up bra"],
-    ["dry erase marker", "dry-erase marker"],
-    ["dry erase board", "dry-erase board"],
-    ["zero day exploit", "zero-day exploit"],
-    ["zero day vulnerability", "zero-day vulnerability"],
-    ["near death experience", "near-death experience"],
-    ["to do list", "to-do list"],
-    ["run on sentence", "run-on sentence"],
-    ["button up shirt", "button-up shirt"],
-    ["button down shirt", "button-down shirt"],
-    ["in app purchase", "in-app purchase"],
-    ["black hat hacker", "black-hat hacker"],
-    ["white hat hacker", "white-hat hacker"],
-    ["built up area", "built-up area"],
-    ["chicken and egg problem", "chicken-and-egg problem"],
-    ["chicken and egg situation", "chicken-and-egg situation"],
-    ["same day delivery", "same-day delivery"],
-    ["next day delivery", "next-day delivery"],
-    ["open heart surgery", "open-heart surgery"],
-    ["one term president", "one-term president"],
-    ["two term president", "two-term president"],
-    ["two state solution", "two-state solution"],
-    ["one state solution", "one-state solution"],
-  ].flatMap(([typed, fix]): PhraseRow[] => [
-    [typed, fix],
-    [
-      `${typed}${/(?:x|ss)$/.test(typed) ? "es" : "s"}`,
-      `${fix}${/(?:x|ss)$/.test(fix) ? "es" : "s"}`,
-    ],
-  ]),
-  ["to dos", "to-dos"],
-  ["to do's", "to-dos"],
-  ["open heart surgeries", "open-heart surgeries"],
-];
-
-export const STYLE: readonly PhraseRow[] = [];
+export const COMPOUNDS = table("compoundForms.compounds");
 
 // ---------------------------------------------------------------------------- frames
 
@@ -830,7 +669,7 @@ function detect(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishClosedCompounds", "englishContextualCompounds"], detect },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  compoundForms: detect,
+} satisfies Record<string, Detector>;

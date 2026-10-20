@@ -5,88 +5,11 @@ import {
   wordKey,
   wordSet,
 } from "../../implementations/helpers/GenericRuleShared";
-import { each, type PhraseRow } from "../englishPhraseTables";
 import { namedExampleBefore } from "../exampleCues";
 import { gluedAfter, hasUserOrCasedWord, WORD_END, WORD_START, isLang } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { finding } from "../finding";
-
-const NEGATED = [
-  "can't",
-  "cant",
-  "cannot",
-  "can not",
-  "couldn't",
-  "couldnt",
-  "could not",
-  "don't",
-  "dont",
-  "do not",
-  "doesn't",
-  "doesnt",
-  "does not",
-  "didn't",
-  "didnt",
-  "did not",
-  "won't",
-  "wont",
-  "will not",
-  "wouldn't",
-  "shouldn't",
-];
-
-/** Rows for englishPhraseCorrections. */
-export const PHRASES: readonly PhraseRow[] = [
-  ["hazzle", "hassle"],
-  ["hazzles", "hassles"],
-  ["hazzled", "hassled"],
-  ["hazzling", "hassling"],
-  ["hazzle-free", "hassle-free"],
-  ["at leas", "at least"],
-  ["at lest", "at least"],
-  ["spinal chord", "spinal cord"],
-  ["spinal chords", "spinal cords"],
-  ["umbilical chord", "umbilical cord"],
-  ["umbilical chords", "umbilical cords"],
-  ["electrical chord", "electrical cord"],
-  ["electrical chords", "electrical cords"],
-  ["vocal chord", "vocal cord"],
-  ...each(["strike", "strikes", "struck", "striking"], "~ a cord", "~ a chord"),
-  ["the whether", "the weather"],
-  ["tuff enough", "tough enough"],
-  ["toted as", "touted as"],
-  ...each(["much", "widely", "highly", "often"], "~ toted", "~ touted"),
-  ["much-toted", "much-touted"],
-  ["gun touting", "gun toting"],
-  ["gun-touting", "gun-toting"],
-  ...each(
-    [
-      "is",
-      "are",
-      "was",
-      "were",
-      "be",
-      "been",
-      "being",
-      "am",
-      "not",
-      "isn't",
-      "aren't",
-      "wasn't",
-      "weren't",
-    ],
-    "~ aloud to",
-    "~ allowed to",
-  ),
-  ...NEGATED.flatMap((aux) =>
-    ["to", "for", "until", "till"].map((after): PhraseRow => [
-      `${aux} way ${after}`,
-      // "I can’t way to proxy it" may have lost "find a".
-      after === "to" ? [`${aux} wait to`, `${aux} find a way to`] : `${aux} wait ${after}`,
-    ]),
-  ),
-];
-export const COMPOUNDS: readonly PhraseRow[] = [["likely hood", "likelihood"]];
 
 // Closed-class word sets; open-class decisions go through the lexicon.
 const DET = wordSet(
@@ -986,17 +909,7 @@ function contextualConfusions(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [
-      "englishUsagePhrases",
-      "englishContextualCompounds",
-      "englishPronounCase",
-      "englishTheirThereTheyAre",
-      "englishWereWhere",
-      "englishToToo",
-    ],
-    detect: contextualConfusions,
-  },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  contextualConfusions: contextualConfusions,
+} satisfies Record<string, Detector>;

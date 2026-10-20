@@ -1,5 +1,4 @@
 import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
-import { each, PLURAL, type PhraseRow } from "../englishPhraseTables";
 import {
   type Frame,
   frameDetectors,
@@ -8,156 +7,7 @@ import {
   SPACE as S,
   WORD_END as E,
 } from "../phraseTemplates";
-import type { ReviewDetectorEntry } from "../reviewDetectors";
-
-const DIG: [string, string][] = [
-  ["dig", "look"],
-  ["digs", "looks"],
-  ["dug", "looked"],
-  ["digging", "looking"],
-];
-// "in this day in age", "these days and age": every misheard shape of "in this day and age".
-const DAY_AND_AGE = [
-  "this day in age",
-  "this day an age",
-  "this day of age",
-  "this day and ages",
-  "this day in ages",
-  "this days and age",
-  "these day and age",
-  "these day in age",
-  "these days and age",
-  "these days and ages",
-  "these days in age",
-];
-const REASONS = [
-  "obvious",
-  "other",
-  "financial",
-  "security",
-  "similar",
-  "various",
-  "several",
-  "technical",
-  "personal",
-  "legal",
-  "historical",
-  "practical",
-  "performance",
-  "compatibility",
-  "safety",
-  "health",
-  "privacy",
-  "unknown",
-  "different",
-  "multiple",
-  "numerous",
-  "political",
-  "business",
-];
-const IT_IS = ["it's", "it is", "it was", "that's", "that is"];
-const HEREBY = [
-  "declare",
-  "declares",
-  "declared",
-  "grant",
-  "grants",
-  "granted",
-  "certify",
-  "certifies",
-  "certified",
-  "agree",
-  "confirm",
-  "acknowledge",
-  "authorize",
-  "authorise",
-  "authorized",
-  "authorised",
-  "give",
-  "notify",
-  "resign",
-  "accept",
-  "release",
-  "waive",
-  "appoint",
-  "consent",
-  "revoke",
-  "affirm",
-];
-
-/** Rows for englishPhraseCorrections. */
-export const PHRASES: readonly PhraseRow[] = [
-  [DAY_AND_AGE.map((form) => `in ${form}`), "in this day and age"],
-  [
-    // "people of this day and age" is correct: "of" only goes with a misspelled form.
-    ["at", "by", "is", "it", "of", "to"].flatMap((word) => [
-      ...(word === "of" ? [] : [`${word} this day and age`]),
-      ...DAY_AND_AGE.map((form) => `${word} ${form}`),
-    ]),
-    "in this day and age",
-  ],
-  [DAY_AND_AGE, "in this day and age"],
-  ["far be it for", "far be it from"],
-  ["fascinated about", ["fascinated by", "fascinated with"]],
-  ["fed up of", "fed up with"],
-  ...["first aid", "first-aid", "starter", "travel", "tool"].flatMap((kind) =>
-    each(PLURAL, `${kind} kid~`, `${kind} kit~`),
-  ),
-  [["fish nor bird", "fish nor foul"], "fish nor fowl"],
-  [["full fleshed", "full pledged", "full fledge"], "full fledged"],
-  [["full-fleshed", "full-pledged", "full-fledge"], "full-fledged"],
-  ["fully pledged", "fully fledged"],
-  ["fully-pledged", "fully-fledged"],
-  ["fully fledged out", ["fully fleshed out", "fully fledged"]],
-  ["fully-fledged out", ["fully fleshed out", "fully-fledged"]],
-  ...each(
-    [
-      ["fledge", "flesh"],
-      ["fledges", "fleshes"],
-      ["fledged", "fleshed"],
-      ["fledging", "fleshing"],
-    ],
-    "~ out",
-    "~ out",
-  ),
-  ["a hand full of", "a handful of"],
-  [["hand-full of", "hand - full of"], "handful of"],
-  ...each(["jump", "jumps", "jumped", "jumping"], ["~ a gun", "~ the guns"], "~ the gun"),
-  ["led rise to", "gave rise to"],
-  ...each(["has", "have", "had"], ["~ led rise to", "~ lead rise to"], "~ given rise to"),
-  ["lead rise to", ["give rise to", "gave rise to"]],
-  ["leads rise to", "gives rise to"],
-  ["leading rise to", "giving rise to"],
-  ...each(
-    ["leave", "leaves", "left", "leaving", "flee", "flees", "fled", "fleeing", "quit"],
-    "~ in drones",
-    "~ in droves",
-  ),
-  ...each(IT_IS, "~ little known fact", "~ a little known fact"),
-  ...each(IT_IS, "~ little-known fact", "~ a little-known fact"),
-  ...each(IT_IS, "~ a little known that", "~ little known that"),
-  ...each(IT_IS, "~ a little-known that", "~ little-known that"),
-  ...each(
-    ["someone", "anyone", "everyone", "no one", "somebody", "anybody", "everybody", "nobody"],
-    "~ elses",
-    "~ else's",
-  ),
-  ["for same reason", "for the same reason"],
-  ...each(REASONS, "for ~ reason", "for ~ reasons"),
-];
-export const COMPOUNDS: readonly PhraseRow[] = [
-  ...each(HEREBY, "here by ~", "hereby ~"),
-  ...["left", "right"].flatMap((side) =>
-    ["side", "corner", "column", "pane", "panel", "menu", "edge", "margin", "sidebar"].flatMap(
-      (part) => each(PLURAL, `${side} hand ${part}~`, `${side}-hand ${part}~`),
-    ),
-  ),
-];
-/** Mixed metaphors: "dig under the hood" blends "dig into" and "look under the hood". */
-export const STYLE: readonly PhraseRow[] = [
-  ...each(DIG, "~ under the hood", "~ under the hood"),
-  ...each(DIG, "~ under the bonnet", "~ under the bonnet"),
-];
+import type { Detector } from "../../engine/reviewRules";
 
 // ---- Context frames: forms that are also ordinary English elsewhere. ----
 
@@ -507,5 +357,19 @@ const FRAMES: Record<FrameRule, readonly Frame[]> = {
   ],
 };
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = frameDetectors(FRAMES);
+// The frame detector of one rule of FRAMES.
+const frames = (rule: FrameRule): Detector => frameDetectors({ [rule]: FRAMES[rule] })[0].detect;
+
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  idiomPhrases4: frames("englishPhraseCorrections"),
+  idiomCountability: frames("englishCountability"),
+  idiomAgreement: frames("englishSubjectVerbAgreement"),
+  idiomAuxiliaries: frames("englishAuxiliaryBaseVerb"),
+  idiomComplements: frames("englishVerbComplements"),
+  idiomItsContext: frames("englishItsContext"),
+  idiomCompounds4: frames("englishClosedCompounds"),
+  idiomContextualCompounds: frames("englishContextualCompounds"),
+  idiomStyle4: frames("stylePhrasing"),
+  idiomRedundancy: frames("styleRedundancy"),
+} satisfies Record<string, Detector>;

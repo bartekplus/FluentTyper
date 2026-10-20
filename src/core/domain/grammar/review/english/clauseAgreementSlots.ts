@@ -1,9 +1,9 @@
 import { englishInflect, englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { COLLECTIVE } from "./agreementSlots";
 import { nounNumber } from "./nounNumberSlots";
 import {
@@ -22,10 +22,6 @@ import {
 // Subject-verb agreement across a relative clause that has its own verb and complements:
 // "The laptop that she bought last week run hot", "The keys that I left on the table belongs
 // to Sam". The clause is read token by token; anything it cannot read ends the check.
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const HEAD = `(?<det>the|these|those|my|our|their|his|her|your|this|that|a|an|every|each)${SPACE}(?<head>(?:[a-z]+${SPACE}){0,2}?[a-z]+)${SPACE}(?:who|that)${SPACE}(?=[a-zA-Z])`;
 // Not "and": "The cups and the plate that sit there are clean" coordinates the subject.
@@ -590,15 +586,12 @@ function invertedThirdPerson(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishSubjectVerbAgreement"],
-    detect: english(
-      relativeClauseVerb,
-      asideSubject,
-      whSubject,
-      likeThisSubject,
-      invertedThirdPerson,
-    ),
-  },
-];
+export const PREDICATES = {
+  clauseAgreement: english(
+    relativeClauseVerb,
+    asideSubject,
+    whSubject,
+    likeThisSubject,
+    invertedThirdPerson,
+  ),
+} satisfies Record<string, Detector>;

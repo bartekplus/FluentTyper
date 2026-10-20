@@ -1,7 +1,7 @@
 import { englishListedNoun, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { FUNCTION_WORDS } from "./slotWords";
 import {
   COMPOUND,
@@ -22,155 +22,6 @@ const TAG_QUESTION: Rule = {
   ruleId: "englishSentenceStructure",
   messageKey: "review_msg_tag_question",
 };
-
-/** Fixed phrases with a wrong word in them; matched as whole words by the phrase table. */
-export const PHRASES: readonly PhraseRow[] = [
-  ...[
-    "instead",
-    "because",
-    "regardless",
-    "in front",
-    "in spite",
-    "on behalf",
-    "in favour",
-    "in favor",
-    "by means",
-    "in terms",
-    "as a result",
-  ].map((lead): PhraseRow => [`${lead} off`, `${lead} of`]),
-  ["in any shape or from", "in any shape or form"],
-  ["in the from of", "in the form of"],
-  ["in some from or another", "in some form or another"],
-  [["tattle-tail", "tattle tail", "tattletail"], "tattle-tale"],
-  [["tattle-tails", "tattle tails", "tattletails"], "tattle-tales"],
-  ...["basic", "general", "guiding", "core", "fundamental", "moral", "founding", "key"].flatMap(
-    (kind): PhraseRow[] => [
-      [`${kind} principals`, `${kind} principles`],
-      [`${kind} principal`, `${kind} principle`],
-    ],
-  ),
-  ...["investigator", "component", "residence", "shareholder", "dancer"].flatMap(
-    (noun): PhraseRow[] => [
-      [`principle ${noun}`, `principal ${noun}`],
-      [`principle ${noun}s`, `principal ${noun}s`],
-    ],
-  ),
-  ...["school", "assistant", "vice", "deputy", "high school"].flatMap((kind): PhraseRow[] => [
-    [`${kind} principle`, `${kind} principal`],
-    [`${kind} principles`, `${kind} principals`],
-  ]),
-  ...[
-    ["take", "take"],
-    ["takes", "takes"],
-    ["took", "took"],
-    ["taking", "taking"],
-  ].map(([take]): PhraseRow => [`${take} car of`, `${take} care of`]),
-  ["couldn't car less", "couldn't care less"],
-  ["could car less", "could care less"],
-  ["couldn't careless", "couldn't care less"],
-  ["could not careless", "could not care less"],
-  ["could careless", "could care less"],
-  ["might has well", "might as well"],
-  ["may has well", "may as well"],
-  ["half an our", "half an hour"],
-  ...["ago", "later", "earlier", "away", "long", "or two", "or so"].map((tail): PhraseRow => [
-    `an our ${tail}`,
-    `an hour ${tail}`,
-  ]),
-  ...["cupboard", "supplies", "shop", "store", "items", "order", "drawer", "cabinet"].map(
-    (thing): PhraseRow => [`stationary ${thing}`, `stationery ${thing}`],
-  ),
-  ["office stationary", "office stationery"],
-  ["school stationary", "school stationery"],
-  ["friends and colleges", "friends and colleagues"],
-  ["colleges and friends", "colleagues and friends"],
-  ["family and colleges", "family and colleagues"],
-  ["friend and college", "friend and colleague"],
-  ["free trail", "free trial"],
-  ["free trails", "free trials"],
-  ...["version", "period", "license", "licence", "account", "subscription", "user", "key"].map(
-    (thing): PhraseRow => [`trail ${thing}`, `trial ${thing}`],
-  ),
-  ["error massage", "error message"],
-  ["text massage", "text message"],
-  ["error massages", "error messages"],
-  ["text massages", "text messages"],
-  ["for sometime now", "for some time now"],
-  ["for quite sometime", "for quite some time"],
-  ["in quite sometime", "in quite some time"],
-  ["the vary end", "the very end"],
-  ["listen to movies", "watch movies"],
-  ["listen to films", "watch films"],
-  [["listen to a movie", "listen to movie"], "watch a movie"],
-  ...[
-    ["look", "watch"],
-    ["looks", "watches"],
-    ["looked", "watched"],
-    ["looking", "watching"],
-  ].map(([look, watch]): PhraseRow => [`${look} TV`, `${watch} TV`]),
-  ...[
-    "recording",
-    "recordings",
-    "shot",
-    "shots",
-    "capture",
-    "share",
-    "sharing",
-    "size",
-    "reader",
-  ].map((thing): PhraseRow => [`scree ${thing}`, `screen ${thing}`]),
-  ...[
-    "phone",
-    "smartphone",
-    "laptop",
-    "computer",
-    "TV",
-    "touch",
-    "home",
-    "lock",
-    "login",
-    "loading",
-    "splash",
-  ].map((thing): PhraseRow => [`${thing} scree`, `${thing} screen`]),
-  ["ensue that", "ensure that"],
-  ["ensues that", "ensures that"],
-  ["ensued that", "ensured that"],
-  ["ensuing that", "ensuring that"],
-  // Set phrases with a real word typed for its neighbour.
-  ["save and sound", "safe and sound"],
-  ["safe the date", "save the date"],
-  ["in any from", "in any form"],
-  ["with all do respect", "with all due respect"],
-  ["health car", "health care"],
-  [
-    ["consolation price", "consolation prices"],
-    ["consolation prize", "consolation prizes"],
-  ],
-  [["nobel price", "noble prize"], "Nobel Prize"],
-  ["nobel prices", "Nobel Prizes"],
-  ["by any mans", "by any means"],
-  ["by all mans", "by all means"],
-  ["by no mans", "by no means"],
-  ["by mans of", "by means of"],
-  ["ever once in a while", "every once in a while"],
-  ["happily every after", "happily ever after"],
-  ["bet wishes", "best wishes"],
-  ["first off all", "first of all"],
-  ["of the top of my head", "off the top of my head"],
-  ["comprise of", ["comprise", "consist of"]],
-  ...["look", "looks", "looked", "looking"].flatMap((look) =>
-    ["that", "this", "it"].map((what): PhraseRow => [
-      `${look} in to ${what}`,
-      `${look} into ${what}`,
-    ]),
-  ),
-  ...["split", "divided", "translated", "converted"].map((verb): PhraseRow => [
-    `${verb} in to`,
-    `${verb} into`,
-  ]),
-];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const info = (word: string | undefined) => (word ? englishWordInfo(word.toLowerCase()) : null);
 const isVerb = (word: string | undefined, ...forms: string[]) =>
@@ -1648,16 +1499,7 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [
-      "englishPhraseCorrections",
-      "englishContextualCompounds",
-      "englishSentenceStructure",
-      "englishCanonicalCasing",
-      "englishYourYouAre",
-    ],
-    detect: frameDetector(FRAMES),
-  },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  slotConfusions: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

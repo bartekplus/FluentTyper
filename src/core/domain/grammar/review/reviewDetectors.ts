@@ -98,21 +98,22 @@ import {
 import { ownedMatches } from "./phraseTemplates";
 import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
-import { EXTENSION_DETECTORS } from "./english";
 import { TYPOGRAPHIC_QUOTES } from "./typographicQuotes";
-import { GERMAN_DETECTORS, germanUnits } from "./german";
-import { DETECTORS as GREEK_DETECTORS } from "./greek/detectors";
-import { DETECTORS as SWEDISH_DETECTORS } from "./swedish/detectors";
-import { DETECTORS as ARABIC_DETECTORS } from "./arabic/detectors";
-import { PORTUGUESE_DETECTORS } from "./portuguese";
-import { POLISH_DETECTORS } from "./polish";
-import { SPANISH_DETECTORS } from "./spanish";
-import { FRENCH_DETECTORS } from "./french";
-import { DETECTORS as DATE_TENSE_DETECTORS } from "./dateTense";
+import { germanUnits } from "./german/numbers";
+import { PREDICATES as ENGLISH } from "./english/ruleDetectors";
+import { PREDICATES as GERMAN } from "./german/ruleDetectors";
+import { PREDICATES as GREEK } from "./greek/ruleDetectors";
+import { PREDICATES as SWEDISH } from "./swedish/ruleDetectors";
+import { PREDICATES as ARABIC } from "./arabic/ruleDetectors";
+import { PREDICATES as PORTUGUESE } from "./portuguese/ruleDetectors";
+import { PREDICATES as POLISH } from "./polish/ruleDetectors";
+import { PREDICATES as SPANISH } from "./spanish/ruleDetectors";
+import { PREDICATES as FRENCH } from "./french/ruleDetectors";
+import { dateTense } from "./dateTense";
 
 import { detectAll, PSEUDO_CLEFT_BEFORE, isLang } from "./phraseTemplates";
-import { cacheable } from "./nativeReviewCache";
 import { finding } from "./finding";
+import { buildReviewDetectors } from "../engine/reviewRules";
 
 /**
  * Review detectors read ONE immutable snapshot and never mutate it.
@@ -170,16 +171,14 @@ type Detector = (ctx: DetectContext) => RawFinding[];
 export type ReviewDetectorEntry = {
   rules: CatalogRuleId[];
   detect: Detector;
+  /** The rule file that declares the entry ("common", "en", "de", ...). */
+  source?: string;
   /**
    * The language (two-letter code) of the text the entry checks. Review runs the entry only
    * for that language, also when other languages run its rules. No value: every language.
    */
   lang?: string;
 };
-
-/** Tags a language module's entries with `lang`. An entry that names its own language keeps it. */
-const inLanguage = (lang: string, entries: readonly ReviewDetectorEntry[]) =>
-  entries.map((entry): ReviewDetectorEntry => ({ lang, ...entry }));
 
 // Enough context for every phrase pattern; the patterns themselves are shorter.
 const PHRASE_WINDOW = 96;
@@ -1280,20 +1279,6 @@ const primeSymbols: Detector = (ctx) => {
  * Optional typography: three periods as the one ellipsis character. Longer runs,
  * ranges ("1...5"), paths ("../") and spread syntax ("[...items]") are not ellipses.
  */
-const ellipsisCharacter: Detector = (ctx) => {
-  const findings: RawFinding[] = [];
-  const regex = /(?<![.\p{N}])\.{3}(?![.\p{N}/\\])/gu;
-  for (const match of ownedMatches(ctx, regex)) {
-    const start = match.index;
-    if (/[[({]/.test(ctx.text[start - 1] ?? "") && /[\p{L}_$]/u.test(ctx.text[start + 3] ?? ""))
-      continue;
-    findings.push(
-      finding("ellipsisShortcut", "review_msg_ellipsis_character", start, start + 3, ["…"]),
-    );
-  }
-  return findings;
-};
-
 /**
  * Optional typography: "--" and "---" typed for a dash. "---" is an em dash;
  * "--" is an en dash between numbers ("10--20") and otherwise either dash,
@@ -1591,134 +1576,89 @@ const repeatedWords: Detector = (ctx) => {
   return findings;
 };
 
-/** Per-language modules: they may add context detectors to shared rules or serve their own. */
-export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = [
-  ...inLanguage("de", GERMAN_DETECTORS),
-  ...inLanguage("el", GREEK_DETECTORS),
-  ...inLanguage("sv", SWEDISH_DETECTORS),
-  ...inLanguage("ar", ARABIC_DETECTORS),
-  ...inLanguage("pt", PORTUGUESE_DETECTORS),
-  ...inLanguage("pl", POLISH_DETECTORS),
-  ...inLanguage("es", SPANISH_DETECTORS),
-  ...inLanguage("fr", FRENCH_DETECTORS),
-  // One table per language; any language without a table gets no findings.
-  ...DATE_TENSE_DETECTORS,
-];
+/**
+ * The named shared detectors: common.yaml names them in its Review rules, which set their
+ * checks, languages and order.
+ */
+export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
+  styleFindings: (ctx) => ownedFindings(ctx, ctx.styleFindings),
+  terminology: (ctx) => ownedFindings(ctx, ctx.terminologyFindings),
+  phraseTables: (ctx) => detectAll(ctx, [canonicalCasing, phraseCorrections]),
+  quotationFindings: (ctx) => ownedFindings(ctx, ctx.quotationFindings),
+  typographicQuotes: TYPOGRAPHIC_QUOTES.detect,
+  possessives: contextualPossessives,
+  fixedPrepositions,
+  verbComplements,
+  perfectParticiples,
+  nounNumber: nounNumberConstructions,
+  usagePhrases,
+  doubledDegree: (ctx) =>
+    ctx.lang === "en_US" ? doubledDegree(ctx) : doubledDegreeByLanguage(ctx),
+  countability,
+  contextualCompounds,
+  repeatedWords,
+  auxiliaryForms,
+  pronounCase,
+  sentenceStructure,
+  wordConfusions,
+  capitalizeStarts,
+  pronounI,
+  // English word lists; other languages have their own tables.
+  spelling: (ctx) =>
+    detectAll(
+      ctx,
+      ctx.lang === "en_US"
+        ? [wordSpelling, markedApostrophes]
+        : [splitWords, frenchElisions, markedApostrophes],
+    ),
+  modalOf,
+  yourWelcome,
+  theirThere,
+  pronounVerb,
+  subjectAgreement,
+  existentialAgreement,
+  articleAn,
+  ordinal,
+  properNouns: (ctx) => (ctx.lang === "en_US" ? properNoun(ctx) : germanNounCapitals(ctx)),
+  commaPeriodSpacing,
+  repeatedSpaces,
+  duplicatePunctuation,
+  quoteSpacing,
+  primeSymbols,
+  typedDashes,
+  measurement: (ctx) =>
+    detectAll(ctx, [
+      (c) => measurementLike(c, "measurementUnitFormatting"),
+      kelvinDegree,
+      (c) => germanUnits(c).filter((f) => f.ruleId === "measurementUnitFormatting"),
+    ]),
+  currency: (ctx) =>
+    detectAll(ctx, [
+      (c) => measurementLike(c, "currencySpacing"),
+      currencyPlacement,
+      (c) => germanUnits(c).filter((f) => f.ruleId === "currencySpacing"),
+    ]),
+  dateTense,
+};
 
-/** Review detectors by rule. Rules absent here are excluded from review (see reviewCatalog). */
-export const REVIEW_DETECTORS: ReadonlyArray<ReviewDetectorEntry> = [
-  {
-    rules: ["styleRedundancy", "styleLongSentence"],
-    detect: (ctx) => ownedFindings(ctx, ctx.styleFindings),
-  },
-  {
-    rules: ["preferredTerminology"],
-    detect: (ctx) => ownedFindings(ctx, ctx.terminologyFindings),
-  },
-  {
-    rules: [
-      "englishCanonicalCasing",
-      "englishPhraseCorrections",
-      "englishClosedCompounds",
-      "stylePhrasing",
-      "englishAmericanSpelling",
-      "englishBritishSpelling",
-      "englishOxfordSpelling",
-      "styleWordChoice",
-      "styleAlternativePhrasing",
-      "englishPossibleErrors",
-    ],
-    detect: (ctx) => detectAll(ctx, [canonicalCasing, phraseCorrections]),
-  },
-  {
-    rules: ["unclosedQuotation"],
-    detect: (ctx) => ownedFindings(ctx, ctx.quotationFindings),
-  },
-  TYPOGRAPHIC_QUOTES,
+/**
+ * Review detectors in evaluation order, built from the Review rules of grammar/rules/*.yaml.
+ * Rules absent here are excluded from review (see reviewCatalog).
+ */
+export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors({
+  common: CORE_PREDICATES,
+  en: ENGLISH,
+  de: GERMAN,
+  el: GREEK,
+  sv: SWEDISH,
+  ar_SA: ARABIC,
+  pt_BR: PORTUGUESE,
+  pl: POLISH,
+  es: SPANISH,
+  fr: FRENCH,
+});
 
-  {
-    rules: ["englishItsContext", "englishLetsContext", "englishElsePossessive"],
-    detect: contextualPossessives,
-  },
-  cacheable({ rules: ["englishFixedPrepositions"], detect: fixedPrepositions }),
-  { rules: ["englishVerbComplements"], detect: verbComplements },
-  { rules: ["englishPerfectParticiples"], detect: perfectParticiples },
-  { rules: ["englishNounNumber"], detect: nounNumberConstructions },
-  cacheable({ rules: ["englishUsagePhrases"], detect: usagePhrases }),
-  {
-    rules: ["englishDoubledDegree"],
-    detect: (ctx) => (ctx.lang === "en_US" ? doubledDegree(ctx) : doubledDegreeByLanguage(ctx)),
-  },
-  { rules: ["englishCountability"], detect: countability },
-  { rules: ["englishContextualCompounds"], detect: contextualCompounds },
-  { rules: ["englishRepeatedWords"], detect: repeatedWords },
-  { rules: ["englishAuxiliaryBaseVerb"], detect: auxiliaryForms },
-  { rules: ["englishPronounCase"], detect: pronounCase },
-  { rules: ["englishSentenceStructure"], detect: sentenceStructure },
-  {
-    rules: [
-      "englishThenThan",
-      "englishYourYouAre",
-      "englishTheirThereTheyAre",
-      "englishToToo",
-      "englishWereWhere",
-    ],
-    detect: wordConfusions,
-  },
-  { rules: ["capitalizeSentenceStart", "capitalizeAfterLineBreak"], detect: capitalizeStarts },
-  { rules: ["englishPronounICapitalization"], detect: pronounI },
-  {
-    rules: [
-      "englishTypoWhitelistCorrection",
-      "englishContractionNormalization",
-      "englishAlotCorrection",
-    ],
-    // English word lists; other languages have their own tables.
-    detect: (ctx) =>
-      detectAll(
-        ctx,
-        ctx.lang === "en_US"
-          ? [wordSpelling, markedApostrophes]
-          : [splitWords, frenchElisions, markedApostrophes],
-      ),
-  },
-  { rules: ["englishModalOfCorrection"], detect: modalOf },
-  { rules: ["englishYourWelcomeCorrection"], detect: yourWelcome },
-  { rules: ["englishTheirThereBeVerb"], detect: theirThere },
-  { rules: ["englishPronounVerbWhitelistAgreement"], detect: pronounVerb },
-  { rules: ["englishSubjectVerbAgreement"], detect: subjectAgreement },
-  { rules: ["englishExistentialAgreement"], detect: existentialAgreement },
-  { rules: ["englishArticleAnCorrection"], detect: articleAn },
-  { rules: ["englishOrdinalSuffix"], detect: ordinal },
-  {
-    rules: ["englishProperNounCapitalization"],
-    detect: (ctx) => (ctx.lang === "en_US" ? properNoun(ctx) : germanNounCapitals(ctx)),
-  },
-  { rules: ["commaPeriodSpacing"], detect: commaPeriodSpacing },
-  { rules: ["collapseRepeatedSpaces"], detect: repeatedSpaces },
-  { rules: ["duplicatePunctuationCollapse"], detect: duplicatePunctuation },
-  { rules: ["ellipsisShortcut"], detect: ellipsisCharacter },
-  { rules: ["quoteSpacing"], detect: quoteSpacing },
-  { rules: ["primeSymbols"], detect: primeSymbols },
-  { rules: ["emdashShortcut"], detect: typedDashes },
-  {
-    rules: ["measurementUnitFormatting"],
-    detect: (ctx) =>
-      detectAll(ctx, [
-        (c) => measurementLike(c, "measurementUnitFormatting"),
-        kelvinDegree,
-        (c) => germanUnits(c).filter((f) => f.ruleId === "measurementUnitFormatting"),
-      ]),
-  },
-  {
-    rules: ["currencySpacing"],
-    detect: (ctx) =>
-      detectAll(ctx, [
-        (c) => measurementLike(c, "currencySpacing"),
-        currencyPlacement,
-        (c) => germanUnits(c).filter((f) => f.ruleId === "currencySpacing"),
-      ]),
-  },
-  ...inLanguage("en", EXTENSION_DETECTORS),
-  ...LANGUAGE_DETECTORS,
-];
+/** Per-language entries: they may add context detectors to shared rules or serve their own. */
+export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = REVIEW_DETECTORS.filter(
+  (entry) => entry.source !== "common" && entry.source !== "en",
+);

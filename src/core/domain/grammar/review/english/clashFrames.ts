@@ -1,19 +1,15 @@
 import { englishInflect } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { CONTEXT, frameDetector, type Frame, type Rule } from "./idioms5";
 import { afterBreak, DETERMINERS, wordBefore } from "./slotWords";
 
 // Words that clash in one clause: two auxiliaries ("I'm haven't", "He was hasn't"), a clause
 // after "that's" ("that's you are"), a pronoun and a negative be ("I isn't"), "25 year old",
 // "needs fixed". Opt-in style: "more easy", "the reason is because", a second "please".
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const STRUCTURE: Rule = {
   ruleId: "englishSentenceStructure",
@@ -270,17 +266,6 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [
-      "englishSentenceStructure",
-      "englishPronounVerbWhitelistAgreement",
-      "englishNounNumber",
-      "englishVerbComplements",
-      "stylePhrasing",
-      "englishAuxiliaryBaseVerb",
-      "englishPhraseCorrections",
-    ],
-    detect: frameDetector(FRAMES),
-  },
-];
+export const PREDICATES = {
+  clashFrames: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

@@ -1,7 +1,8 @@
 import { namedExampleBefore } from "../exampleCues";
 import { finding } from "../finding";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { deumlaut, germanNounReading } from "./germanLexicon";
 import { ci, isGerman, WORD_GATE } from "./shared";
 
@@ -115,6 +116,6 @@ function redundancy(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["stylePhrasing"], detect: redundancy },
-];
+export const PREDICATES = {
+  redundancy,
+} satisfies Record<string, Detector>;

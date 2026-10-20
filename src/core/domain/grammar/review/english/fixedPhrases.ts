@@ -1,6 +1,5 @@
 import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { each, type Pair, type PhraseRow, PLURAL, POSSESSIVES, TAKE } from "../englishPhraseTables";
 import {
   before,
   caseLike,
@@ -16,299 +15,18 @@ import {
   WORD_END,
   isLang,
 } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-
-const GET = ["get", "gets", "got", "gotten", "getting"];
-const MAKE = ["make", "makes", "made", "making"];
-const LOOK = ["look", "looks", "looked", "looking"];
-/** A regular verb's four typed forms paired with the replacement's forms. */
-const TENSES = (base: string, to: string, third: string, past: string, ing: string): Pair[] => {
-  const stem = base.replace(/e$/, "");
-  return [
-    [base, to],
-    [`${base}s`, third],
-    [`${stem}ed`, past],
-    [`${stem}ing`, ing],
-  ];
-};
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import { table } from "./tables";
 
 /** Misheard idioms, wrong words in set phrases and their inflections. */
-export const PHRASES: readonly PhraseRow[] = [
-  ["much adieu", "much ado"],
-  ...each(PLURAL, "argument~ to be said", "argument~ to be made"),
-  ...each(
-    PLURAL,
-    ["backhand compliment~", "back hand compliment~", "back-hand compliment~"],
-    "backhanded compliment~",
-  ),
-  ...each(
-    POSSESSIVES,
-    ["bain of ~ existence", "bain of ~ existance", "bane of ~ existance"],
-    "bane of ~ existence",
-  ),
-  ...each(PLURAL, ["bane-marie~", "bane marie~"], "bain-marie~"),
-  ...each(PLURAL, ["commitment~ towards", "commitment~ toward"], "commitment~ to"),
-  [["copywritten", "copywrited", "copywrote"], "copyrighted"],
-  ["copywrites", "copyrights"],
-  ...each(["date", "dates", "dated", "dating"], "~ back from", "~ back to"),
-  ...each(PLURAL, ["double-edge sword~", "double edge sword~"], "double-edged sword~"),
-  ...each(PLURAL, ["expatriot~", "ex-patriot~"], "expatriate~"),
-  ...each(GET, ["~ rid off", "~ ride of", "~ ride off"], "~ rid of"),
-  ...each(PLURAL, "holly war~", "holy war~"),
-  ["in retaliation to", ["in retaliation for", "in response to"]],
-  ["level of details", ["level of detail", "levels of detail"]],
-  ["levels of details", "levels of detail"],
-  ...each(
-    ["several", "multiple", "many", "two", "three", "four", "different", "various"],
-    ["~ level of details", "~ level of detail", "~ levels of details"],
-    "~ levels of detail",
-  ),
-  ...each(["this", "that"], "in ~ regards", "in ~ regard"),
-  ["monumentous", "momentous"],
-  ["monumentously", "monumentally"],
-  ...each(
-    ["is", "are", "was", "were", "do", "does", "did", "has", "have", "had", "can", "could", "will"],
-    "no only ~",
-    "not only ~",
-  ),
-  ["play a factor", ["play a role", "be a factor"]],
-  ["plays a factor", ["plays a role", "is a factor"]],
-  ["played a factor", ["played a role", "was a factor"]],
-  ["playing a factor", ["playing a role", "being a factor"]],
-  [
-    ["reversed engineer", "reversed engineered"],
-    ["reverse engineered", "reverse engineer"],
-  ],
-  [["reversed-engineer", "reversed-engineered"], "reverse-engineered"],
-  ...each(["engineering", "engineers"], ["reversed ~", "reversed-~"], "reverse ~"),
-  ["a bridge to far", "a bridge too far"],
-  [["life's to short", "lifes to short", "lifes too short"], "life's too short"],
-  ["life is to short", "life is too short"],
-  ["to fine a point", "too fine a point"],
-  // "too big too fail" is the to/too frame's.
-  [["to big to fail", "to big too fail"], "too big to fail"],
-  [["to good to be true", "to good too be true"], "too good to be true"],
-  ...each(
-    ["think", "thinks", "thought", "thinking", "worry", "worries", "worried", "worrying"],
-    "~ to much",
-    "~ too much",
-  ),
-  ...each(PLURAL, ["worse-case-scenario~", "worst-case-scenario~"], "worst-case scenario~"),
-  [["worse case scenarios", "worse-case scenarios"], "worst-case scenarios"],
-  ["worst and worst", "worse and worse"],
-  ...each(["turn", "turns", "turned", "turning"], "~ for the worst", "~ for the worse"),
-  ...each(TENSES("combinate", "combine", "combines", "combined", "combining"), "~", "~"),
-  ["condensated", "condensed"],
-  ["condensating", "condensing"],
-  ...each(TENSES("compulse", "compel", "compels", "compelled", "compelling"), "~", "~"),
-  ...each(TENSES("provocate", "provoke", "provokes", "provoked", "provoking"), "~", "~"),
-  ...each(PLURAL, "definitive article~", "definite article~"),
-  ...each(PLURAL, "digestive track~", "digestive tract~"),
-  ...each(["mark", "marks", "point", "points"], "explanation ~", "exclamation ~"),
-  ...each(
-    [
-      ...["a certain", "some", "an", "a large", "a great", "a lesser", "the same", "such an"],
-      ...["what", "the full", "the fullest", "a small"],
-    ],
-    "to ~ extend",
-    "to ~ extent",
-  ),
-  ["to the extend that", "to the extent that"],
-  ...each(TENSES("flaunt", "flout", "flouts", "flouted", "flouting"), "~ the rules", "~ the rules"),
-  ...each(TENSES("flaunt", "flout", "flouts", "flouted", "flouting"), "~ the law", "~ the law"),
-  ...each(TENSES("flaunt", "flout", "flouts", "flouted", "flouting"), "~ authority", "~ authority"),
-  ...each(["foam", "foams", "foamed", "foaming"], "~ out the mouth", "~ at the mouth"),
-  ...each(
-    [
-      ["flip", "foot"],
-      ["flips", "foots"],
-      ["flipped", "footed"],
-      ["flipping", "footing"],
-    ],
-    "~ the bill",
-    "~ the bill",
-  ),
-  ...each(GET, "~ used of", "~ used to"),
-  ...each(["hit", "hits", "hitting", "hitted"], "~ the nail in the head", "~ the nail on the head"),
-  ...each(PLURAL, "infliction point~", "inflection point~"),
-  ["layouted", "laid out"],
-  ["layouting", "laying out"],
-  ...each(LOOK, "~ forward for", "~ forward to"),
-  ...each(["made", "makes", "making"], "~ due with", "~ do with"),
-  ...each(MAKE, "~ senses", "~ sense"),
-  [["point is mute"], "point is moot"],
-  ["point was mute", "point was moot"],
-  ...each(PLURAL, "operative system~", "operating system~"),
-  [["passerbys", "passerby's"], "passersby"],
-  ["passer-bys", "passers-by"],
-  ...each(
-    TENSES("peak", "peek", "peeks", "peeked", "peeking"),
-    "~ behind the curtain",
-    "~ behind the curtain",
-  ),
-  ...each(
-    [...TAKE, "assume", "assumes", "assumed", "assuming", "claim", "claims", "claimed", "claiming"],
-    "~ responsibility of",
-    "~ responsibility for",
-  ),
-  ...each(TAKE, "~ full responsibility of", "~ full responsibility for"),
-  ["an escape goat", "a scapegoat"],
-  ...each(PLURAL, "escape goat~", "scapegoat~"),
-  ...each(["set", "sets", "setting"], "~ up a bad example", "~ a bad example"),
-  ...each(["set", "sets", "setting"], "~ up a good example", "~ a good example"),
-  ...each(
-    [...GET, "am", "are", "were", "I'm", "you're", "we're", "they're"],
-    "~ use to",
-    "~ used to",
-  ),
-  ...each(
-    [
-      ["verse", "play"],
-      ["verses", "plays"],
-      ["versed", "played"],
-      ["versing", "playing"],
-    ],
-    "~ against",
-    "~ against",
-  ),
-  ["versing", "playing"],
-  ...["come", "to", "can", "gonna", "wanna"].flatMap((lead) =>
-    each(["me", "you", "him", "her", "them", "us"], `${lead} verse ~`, `${lead} play ~`),
-  ),
-  ["by wrote", "by rote"],
-  ["by-wrote", "by-rote"],
-  ...each(
-    ["learning", "memorization", "memorisation", "memorizing", "memorising"],
-    "wrote-~",
-    "rote-~",
-  ),
-  // "seam" is a noun and a sewing verb; after a subject and before "to" it is "seem".
-  ...each(
-    [
-      ...["i", "you", "we", "they"].flatMap((s) => [s, `${s} all`, `${s} both`]),
-      ...["can't", "cannot", "don't", "didn't", "doesn't"],
-    ],
-    "~ seam to",
-    "~ seem to",
-  ),
-  ...each(["they", "they all", "they both"], "~ seam", "~ seem"),
-  ...each(
-    [
-      ...["he", "she", "it", "everyone", "everybody", "everything", "someone", "somebody"],
-      ...["nobody", "nothing", "anyone"],
-    ],
-    "~ seams",
-    "~ seems",
-  ),
-  ...each(
-    ["i", "you", "we", "they", "he", "she", "it", "everyone", "everything"],
-    "~ seamed to",
-    "~ seemed to",
-  ),
-];
+export const PHRASES = table("fixedPhrases.phrases");
 
 /** Split, joined and hyphenated forms of single words. */
-export const COMPOUNDS: readonly PhraseRow[] = [
-  ...each(PLURAL, ["ex-pat~", "ex pat~"], "expat~"),
-  ...each(["", "s", "ed", "ing", "er", "ers"], ["hi-jack~", "high jack~", "high-jack~"], "hijack~"),
-  [
-    [
-      ...["now a days", "now a day's", "now-a-days", "now-a-day", "now-adays", "now adays"],
-      ...["nowaday", "now aday's", "nowa days", "now aday", "now-a-day's"],
-    ],
-    "nowadays",
-  ],
-  ...each(PLURAL, "look-a-like~", "lookalike~"),
-  ...each(PLURAL, ["double edged sword~"], "double-edged sword~"),
-];
+export const COMPOUNDS = table("fixedPhrases.compounds");
 
 /** Optional advice: informal abbreviations, contested idiom variants, redundancy. */
-export const STYLE: readonly PhraseRow[] = [
-  ["alloc", ["allocate", "allocation"]],
-  ["allocs", ["allocations", "allocates"]],
-  ["govts", "governments"],
-  ...[
-    ["algo", "algorithm"],
-    ["arg", "argument"],
-    ["coord", "coordinate"],
-    ["decl", "declaration"],
-    ["deref", "dereference"],
-    ["notif", "notification"],
-    ["param", "parameter"],
-    ["ptr", "pointer"],
-  ].flatMap(([short, word]) => each(PLURAL, `${short}~`, `${word}~`)),
-  ["dep", "dependency"],
-  ["deps", "dependencies"],
-  ["dir", "directory"],
-  ["dirs", "directories"],
-  ["vuln", "vulnerability"],
-  ["vulns", "vulnerabilities"],
-  ...each(
-    [
-      ["chomp", "champ"],
-      ["chomps", "champs"],
-      ["chomped", "champed"],
-      ["chomping", "champing"],
-    ],
-    "~ at the bit",
-    "~ at the bit",
-  ),
-  ...each(
-    [
-      ["hone", "home"],
-      ["hones", "homes"],
-      ["honed", "homed"],
-      ["honing", "homing"],
-    ],
-    "~ in on",
-    "~ in on",
-  ),
-  ...each(
-    [
-      "invest",
-      "invests",
-      "invested",
-      "investing",
-      "re-invest",
-      "re-invests",
-      "re-invested",
-      "re-investing",
-      "reinvest",
-      "reinvests",
-      "reinvested",
-      "reinvesting",
-      "investment",
-      "investments",
-    ],
-    "~ into",
-    "~ in",
-  ),
-  ...each(TAKE, "~ control over", "~ control of"),
-  ...each(
-    [
-      ["uncommon", "common"],
-      ["unlikely", "likely"],
-      ["insignificant", "significant"],
-      ["unusual", "usual"],
-      ["unimportant", "important"],
-    ],
-    "not ~",
-    "~",
-  ),
-  [["more preferable", "most preferable"], "preferable"],
-  [["more optimal", "most optimal"], "optimal"],
-  [["most ideal", "more ideal"], "ideal"],
-  ["a side tangent", ["an aside", "a tangent"]],
-  ["side tangent", "tangent"],
-  ["side tangents", "tangents"],
-  ["a whole entire", ["a whole", "an entire"]],
-  [
-    ["whole entire", "entire whole"],
-    ["whole", "entire"],
-  ],
-  [["client's side"], ["client-side", "client side"]],
-  [["server's side"], ["server-side", "server side"]],
-];
+export const STYLE = table("fixedPhrases.style");
 
 // ---- Context detectors: forms that are also ordinary English elsewhere. ----
 
@@ -704,30 +422,21 @@ function styleFrames(ctx: DetectContext): RawFinding[] {
   return kept(out);
 }
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [
-      "englishPhraseCorrections",
-      "englishClosedCompounds",
-      "englishToToo",
-      "englishVerbComplements",
-      "stylePhrasing",
-    ],
-    detect: (ctx) =>
-      isLang(ctx, "en")
-        ? [
-            ...dose(ctx),
-            ...worse(ctx),
-            ...howLooksLike(ctx),
-            ...makeSeem(ctx),
-            ...nerveWreck(ctx),
-            ...bullocks(ctx),
-            ...swaps(ctx),
-            ...tooFar(ctx),
-            ...wroteRote(ctx),
-            ...styleFrames(ctx),
-          ]
-        : [],
-  },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  fixedPhrases: (ctx) =>
+    isLang(ctx, "en")
+      ? [
+          ...dose(ctx),
+          ...worse(ctx),
+          ...howLooksLike(ctx),
+          ...makeSeem(ctx),
+          ...nerveWreck(ctx),
+          ...bullocks(ctx),
+          ...swaps(ctx),
+          ...tooFar(ctx),
+          ...wroteRote(ctx),
+          ...styleFrames(ctx),
+        ]
+      : [],
+} satisfies Record<string, Detector>;

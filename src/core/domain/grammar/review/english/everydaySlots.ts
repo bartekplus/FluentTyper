@@ -1,8 +1,8 @@
 import { englishInflect, englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishNounPair, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   afterBreak,
   pushSlot,
@@ -18,23 +18,6 @@ import { nounNumber } from "./nounNumberSlots";
 // "going be" (to be), "makes me thinking" (think), "Was there many…" (Were), "reading though
 // the contract" (through), "give me advise" (advice), "would we helpful" (be), "do not us
 // this" (use), "take sometime" (some time), "went good" (well), "Do anyone know" (Does).
-
-const WOLD_NEXT =
-  "you|have|be|like|love|not|never|rather|prefer|need|want|go|do|make|get|take|say|see|help";
-export const PHRASES: readonly PhraseRow[] = [
-  ["int he", "in the"],
-  ...WOLD_NEXT.split("|").map((next): PhraseRow => [`wold ${next}`, `would ${next}`]),
-  ...["file", "files", "document", "documents", "spreadsheet", "copy", "report"].map(
-    (noun): PhraseRow => [`attache ${noun}`, `attached ${noun}`],
-  ),
-  [
-    ["see attache", "find attache"],
-    ["see attached", "find attached"],
-  ],
-  ["latter on", "later on"],
-];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 type Rule = Pick<RawFinding, "ruleId" | "messageKey">;
 const CONFUSED: Rule = { ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word" };
@@ -381,13 +364,13 @@ function latter(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishVerbComplements"], detect: english(verbFrames) },
-  { rules: ["englishExistentialAgreement"], detect: english(wasThereMany) },
-  { rules: ["englishConfusedWords"], detect: english(thoughThrough, wordPairs, wentGood, latter) },
-  { rules: ["englishIrregularForms"], detect: english(gotItDone) },
-  { rules: ["englishPhraseCorrections"], detect: english(phrases) },
-  { rules: ["englishContextualCompounds"], detect: english(splitCompounds) },
-  { rules: ["englishNounNumber"], detect: english(moreSingular) },
-  { rules: ["englishSubjectVerbAgreement"], detect: english(doSingular) },
-];
+export const PREDICATES = {
+  verbFrames: english(verbFrames),
+  wasThereMany: english(wasThereMany),
+  everydayConfusions: english(thoughThrough, wordPairs, wentGood, latter),
+  gotItDone: english(gotItDone),
+  everydayPhrases: english(phrases),
+  splitCompounds: english(splitCompounds),
+  moreSingular: english(moreSingular),
+  doSingular: english(doSingular),
+} satisfies Record<string, Detector>;

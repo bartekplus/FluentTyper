@@ -1,4 +1,5 @@
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   IL,
   ILS,
@@ -558,4 +559,4 @@ const ARTICLE_CONTEXT = new Set(
 const WORD_PAIR =
   /(?<![\p{L}\p{M}\p{N}_-])(?<first>\p{Ll}+)(?=[ \t]{1,3}(?<second>\p{Ll}+)(?![\p{L}\p{M}\p{N}_'’-]))/gu;
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: hyphenation }];
+export const PREDICATES = { hyphenation: hyphenation } satisfies Record<string, Detector>;

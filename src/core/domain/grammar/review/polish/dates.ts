@@ -1,4 +1,5 @@
 import { invalidIsoDates } from "../isoDates";
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { contextYear, daysInMonth, weekdayOf, yearsFor, YEAR_DIGITS } from "../reviewClock";
 import { caseLike, findingAt, isPl, owned } from "./shared";
@@ -369,19 +370,16 @@ function longYears(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: [RULE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) =>
-      isPl(ctx)
-        ? [
-            ...impossibleDates(ctx),
-            ...backwardRanges(ctx),
-            ...monthForms(ctx),
-            ...abbreviatedMonths(ctx),
-            ...decades(ctx),
-            ...longYears(ctx),
-          ]
-        : [],
-  },
-];
+export const PREDICATES = {
+  dates: (ctx: DetectContext) =>
+    isPl(ctx)
+      ? [
+          ...impossibleDates(ctx),
+          ...backwardRanges(ctx),
+          ...monthForms(ctx),
+          ...abbreviatedMonths(ctx),
+          ...decades(ctx),
+          ...longYears(ctx),
+        ]
+      : [],
+} satisfies Record<string, Detector>;

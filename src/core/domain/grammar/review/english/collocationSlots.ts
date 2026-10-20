@@ -6,8 +6,8 @@ import {
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
 import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
-import type { PhraseRow } from "../englishPhraseTables";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   afterBreak,
   BE_FINITE,
@@ -27,10 +27,6 @@ import {
 // A word that governs a fixed preposition, typed with another one: "afraid from the dark"
 // (of), "participated to the event" (in), "depends of the weather" (on). One table keyed by the
 // head word; a verb head ending in "+" stands for all its inflections from the lexicon.
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 type Guard = (ctx: DetectContext, head: Token, after: readonly Token[]) => boolean;
 
@@ -474,6 +470,6 @@ function frames(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishFixedPrepositions"], detect: english(collocations, frames) },
-];
+export const PREDICATES = {
+  collocations: english(collocations, frames),
+} satisfies Record<string, Detector>;

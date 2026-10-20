@@ -1,3 +1,4 @@
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   adjectiveForm,
@@ -417,22 +418,19 @@ function jakis(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: [RULE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) =>
-      isPl(ctx)
-        ? [
-            ...pronounGender(ctx),
-            ...zostacAgreement(ctx),
-            ...pluralSubjects(ctx),
-            ...singularSubjects(ctx),
-            ...majority(ctx),
-            ...aspect(ctx),
-            ...doubleNegation(ctx),
-            ...predicateAdjectives(ctx),
-            ...jakis(ctx),
-          ]
-        : [],
-  },
-];
+export const PREDICATES = {
+  subjects: (ctx: DetectContext) =>
+    isPl(ctx)
+      ? [
+          ...pronounGender(ctx),
+          ...zostacAgreement(ctx),
+          ...pluralSubjects(ctx),
+          ...singularSubjects(ctx),
+          ...majority(ctx),
+          ...aspect(ctx),
+          ...doubleNegation(ctx),
+          ...predicateAdjectives(ctx),
+          ...jakis(ctx),
+        ]
+      : [],
+} satisfies Record<string, Detector>;

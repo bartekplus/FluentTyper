@@ -1,5 +1,5 @@
 import { namedExampleBefore } from "./exampleCues";
-import { POLISH_SPLIT_WORDS } from "./polish";
+import { SPLIT_WORDS as POLISH_SPLIT_WORDS } from "./polish/compounds";
 import { caseLike, isLang, ownedMatches, SPACE, TOKEN_END, WORD_START } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { withTextApostrophes } from "./textRanges";

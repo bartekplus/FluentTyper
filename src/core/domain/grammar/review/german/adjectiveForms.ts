@@ -1,6 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   deumlaut,
   germanAdjective,
@@ -561,19 +562,16 @@ function werdenPlural(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["germanAdjectiveForms"],
-    detect: (ctx) =>
-      isGerman(ctx)
-        ? [
-            ...bareAdjectives(ctx),
-            ...werdenPlural(ctx),
-            ...strongAfterArticle(ctx),
-            ...salutationEndings(ctx),
-            ...predicative(ctx),
-            ...officials(ctx),
-          ]
-        : [],
-  },
-];
+export const PREDICATES = {
+  adjectiveForms: (ctx) =>
+    isGerman(ctx)
+      ? [
+          ...bareAdjectives(ctx),
+          ...werdenPlural(ctx),
+          ...strongAfterArticle(ctx),
+          ...salutationEndings(ctx),
+          ...predicative(ctx),
+          ...officials(ctx),
+        ]
+      : [],
+} satisfies Record<string, Detector>;

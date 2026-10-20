@@ -1,51 +1,17 @@
 import { englishInitialSound } from "../../implementations/helpers/EnglishInitialSound";
 import { ENGLISH_MASS_NOUNS } from "../../implementations/helpers/EnglishCountability";
 import { englishCountNoun, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameDetector, type Frame } from "./idioms5";
 import { FUNCTION_WORDS } from "./slotWords";
 import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { quotedMention } from "./grammarStyle1";
 import { finding } from "../finding";
 
 // "the" where English requires it: place names that carry it ("in Netherlands", "on Solomon
 // Islands", "in Gulf of Mexico") and a superlative before its noun ("is hottest city"); "a"
 // in quantity phrases ("in lot of cases", "have bunch of").
-
-const QUANTITY_LEADS = [
-  "in",
-  "have",
-  "has",
-  "had",
-  "got",
-  "with",
-  "for",
-  "are",
-  "is",
-  "was",
-  "were",
-  "take",
-  "takes",
-  "took",
-  "spent",
-  "received",
-  "made",
-];
-
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
-export const PHRASES: readonly PhraseRow[] = [
-  ...QUANTITY_LEADS.flatMap((lead): PhraseRow[] => [
-    [`${lead} lot of`, `${lead} a lot of`],
-    [`${lead} bunch of`, `${lead} a bunch of`],
-    [`${lead} couple of`, `${lead} a couple of`],
-    [`${lead} whole bunch of`, `${lead} a whole bunch of`],
-    [`${lead} majority of`, `${lead} the majority of`],
-    [`${lead} vast majority of`, `${lead} the vast majority of`],
-  ]),
-];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 type Finding = RawFinding;
 
@@ -238,8 +204,8 @@ const english =
       ? []
       : detectors.flatMap((detect) => detect(ctx)).filter((f) => !quotedMention(ctx, f));
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishPhraseCorrections"], detect: english(geographicThe, superlativeThe) },
-  { rules: ["englishMissingArticle"], detect: english(frameDetector(ARTICLE_FRAMES)) },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  geographicThe: english(geographicThe, superlativeThe),
+  missingArticle: english(frameDetector(ARTICLE_FRAMES)),
+} satisfies Record<string, Detector>;

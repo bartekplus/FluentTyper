@@ -1,3 +1,4 @@
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   adjectiveOf,
@@ -76,9 +77,6 @@ function fragments(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: [RULE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) => (isPl(ctx) ? fragments(ctx) : []),
-  },
-];
+export const PREDICATES = {
+  fragments: (ctx: DetectContext) => (isPl(ctx) ? fragments(ctx) : []),
+} satisfies Record<string, Detector>;

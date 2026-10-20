@@ -1,3 +1,4 @@
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   cases,
@@ -495,9 +496,6 @@ function commaFrames(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: [MISSING, EXTRA] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) => (isPl(ctx) ? commaFrames(ctx) : []),
-  },
-];
+export const PREDICATES = {
+  commaFrames: (ctx: DetectContext) => (isPl(ctx) ? commaFrames(ctx) : []),
+} satisfies Record<string, Detector>;

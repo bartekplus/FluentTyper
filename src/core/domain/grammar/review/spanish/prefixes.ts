@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { DETERMINER, readNoun } from "./agreement";
 import {
   Around,
@@ -239,10 +240,7 @@ function doubled(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [RULE],
-    detect: (ctx) =>
-      isLang(ctx, "es") ? [...prefixes(ctx), ...splitCompounds(ctx), ...doubled(ctx)] : [],
-  },
-];
+export const PREDICATES = {
+  prefixes: (ctx) =>
+    isLang(ctx, "es") ? [...prefixes(ctx), ...splitCompounds(ctx), ...doubled(ctx)] : [],
+} satisfies Record<string, Detector>;

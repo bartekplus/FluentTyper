@@ -3,10 +3,10 @@ import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import { knownEnglishNounNumber } from "../../implementations/helpers/EnglishNounNumber";
 import { englishInitialSound } from "../../implementations/helpers/EnglishInitialSound";
-import type { PhraseRow } from "../englishPhraseTables";
 import { nounNumber } from "./nounNumberSlots";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   afterBreak,
   english,
@@ -22,10 +22,6 @@ import { finding } from "../finding";
 // A word of the wrong class or form in a verb slot: a noun after a modal ("I would opportunity
 // for me"), "it" before a noun it owns ("and it suburbs"), a question without do-support
 // ("When go you home?") and a simple tense with "since" ("I work here since 2002").
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 // Nouns that stand alone as adverbs or address: "as soon as we can tomorrow", "I will, sir".
 const ADVERBIAL_NOUNS =
@@ -605,16 +601,13 @@ function forwardPreposition(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishSentenceFragment"],
-    detect: english(subordinateFragment, forwardWithoutObject),
-  },
-  { rules: ["englishFixedPrepositions"], detect: english(forwardPreposition) },
-  { rules: ["englishSentenceStructure"], detect: english(bareBit, stackedArticles) },
-  { rules: ["englishConfusedWords"], detect: english(itForIs) },
-  { rules: ["englishExistentialAgreement"], detect: english(existentialSingular) },
-  { rules: ["englishAuxiliaryBaseVerb"], detect: english(modalNoun, questionWithoutDo) },
-  { rules: ["englishTenseConsistency"], detect: english(sinceWithSimpleTense) },
-  { rules: ["englishItsContext"], detect: english(itBeforeNoun) },
-];
+export const PREDICATES = {
+  sentenceFragments: english(subordinateFragment, forwardWithoutObject),
+  forwardPreposition: english(forwardPreposition),
+  bareBitArticles: english(bareBit, stackedArticles),
+  itForIs: english(itForIs),
+  existentialSingular: english(existentialSingular),
+  modalQuestionForms: english(modalNoun, questionWithoutDo),
+  sinceWithSimpleTense: english(sinceWithSimpleTense),
+  itBeforeNoun: english(itBeforeNoun),
+} satisfies Record<string, Detector>;

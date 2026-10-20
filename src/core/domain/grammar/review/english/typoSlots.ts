@@ -1,7 +1,6 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { COMPOUND, CONTEXT, frameDetector, TYPO, type Frame, type Rule } from "./idioms5";
 import { afterBreak, FUNCTION_WORDS, wordBefore } from "./slotWords";
 
@@ -10,42 +9,6 @@ import { afterBreak, FUNCTION_WORDS, wordBefore } from "./slotWords";
 // "look the door" (lock), "How is it like?" (What), "one the best" (one of the).
 
 const CONFUSED: Rule = { ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word" };
-
-export const PHRASES: readonly PhraseRow[] = [
-  [["once and a while", "once and awhile"], "once in a while"],
-  ...["in the", "final", "death"].map((lead): PhraseRow => [
-    `${lead} throws of`,
-    `${lead} throes of`,
-  ]),
-  ["am note sure", "am not sure"],
-  ["i'm note sure", "i'm not sure"],
-  ["fair sure that", "fairly sure that"],
-  ...["am", "i'm", "was", "be"].map((be): PhraseRow => [`${be} fair sure`, `${be} fairly sure`]),
-  ...["sincere", "my", "our", "your"].map((lead): PhraseRow => [
-    `${lead} complements on`,
-    `${lead} compliments on`,
-  ]),
-  ["take the complement", "take the compliment"],
-  ...["sign", "signed", "signing", "sign the", "breach of", "breach the"].map((lead): PhraseRow => [
-    `${lead} contact`,
-    `${lead} contract`,
-  ]),
-  ...["boxer", "champion", "division", "title", "class"].flatMap((noun): PhraseRow[] => [
-    [`light weight ${noun}`, `lightweight ${noun}`],
-    [`heavy weight ${noun}`, `heavyweight ${noun}`],
-  ]),
-];
-export const COMPOUNDS: readonly PhraseRow[] = [
-  ...["out grow", "out grows", "out grew", "out grown", "out growing"].map((typed): PhraseRow => [
-    typed,
-    typed.replace(" ", ""),
-  ]),
-  ...["back fire", "back fires", "back fired", "back firing"].map((typed): PhraseRow => [
-    typed,
-    typed.replace(" ", ""),
-  ]),
-];
-export const STYLE: readonly PhraseRow[] = [];
 
 const adjectiveOnly = (word: string) => {
   const read = englishWordInfo(word.toLowerCase());
@@ -296,14 +259,6 @@ const FRAMES: readonly Frame[] = [
   },
 ];
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [
-      "englishPhraseCorrections",
-      "englishConfusedWords",
-      "englishToToo",
-      "englishContextualCompounds",
-    ],
-    detect: frameDetector(FRAMES),
-  },
-];
+export const PREDICATES = {
+  typoSlots: frameDetector(FRAMES),
+} satisfies Record<string, Detector>;

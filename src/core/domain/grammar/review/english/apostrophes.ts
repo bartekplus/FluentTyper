@@ -4,9 +4,9 @@ import {
   englishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
 import { memoize } from "../../implementations/helpers/GenericRuleShared";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, SPACE as S, WORD_END as E, wordSet as words } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { quotedMention } from "./grammarStyle1";
 import { finding } from "../finding";
 
@@ -15,82 +15,6 @@ import { finding } from "../finding";
 // ("last weeks meeting", "other's ideas"), and "who's" where "whose" owns the next noun.
 
 const A = "['’]";
-
-/** Rows for englishPhraseCorrections, englishClosedCompounds and stylePhrasing. */
-export const PHRASES: readonly PhraseRow[] = [
-  // Indefinite pronouns own with 's; they have no plural.
-  // ("someone elses" is englishElsePossessive's.)
-  ...["someone", "anyone", "everyone", "somebody", "anybody", "everybody", "nobody"].map(
-    (who): PhraseRow => [`${who}s`, `${who}'s`],
-  ),
-  ["everybodies", "everybody's"],
-  ...["fault", "business", "problem", "concern", "responsibility", "idea"].map(
-    (noun): PhraseRow => [`no ones ${noun}`, `no one's ${noun}`],
-  ),
-  [["ones own", "ones' own"], "one's own"],
-  // Set phrases built on a possessive.
-  ["devils advocate", "devil's advocate"],
-  ["writers block", "writer's block"],
-  ["lions share", "lion's share"],
-  ["a stones throw", "a stone's throw"],
-  [["at arms length", "at arms' length"], "at arm's length"],
-  [["birds eye view", "birds-eye view", "bird's eye view"], "bird's-eye view"],
-  ["beginners luck", "beginner's luck"],
-  ["the straw that broke the camels back", "the straw that broke the camel's back"],
-  ["at deaths door", "at death's door"],
-  ["in harms way", "in harm's way"],
-  ["out of harms way", "out of harm's way"],
-  ["at wits end", "at wit's end"],
-  ["at my wits end", "at my wit's end"],
-  ["for old times sake", "for old times' sake"],
-  ["for goodness sake", ["for goodness' sake", "for goodness's sake"]],
-  ["for heavens sake", "for heaven's sake"],
-  ["for gods sake", "for God's sake"],
-  ["in gods name", "in God's name"],
-  ["for petes sake", "for Pete's sake"],
-  ["mothers maiden name", "mother's maiden name"],
-  ["runners high", "runner's high"],
-  ["a good nights sleep", "a good night's sleep"],
-  ["a nights sleep", "a night's sleep"],
-  ["a days work", "a day's work"],
-  ["a hard days work", "a hard day's work"],
-  ["a days pay", "a day's pay"],
-  ["a weeks notice", "a week's notice"],
-  ["a months notice", "a month's notice"],
-  ["two weeks notice", "two weeks' notice"],
-  ["in a weeks time", "in a week's time"],
-  ["in a years time", "in a year's time"],
-  ["in two weeks time", "in two weeks' time"],
-  ...["bachelor", "master"].flatMap((degree): PhraseRow[] => [
-    [`${degree}s degree`, `${degree}'s degree`],
-    [`${degree}s degrees`, `${degree}'s degrees`],
-    [`${degree}s thesis`, `${degree}'s thesis`],
-    [`${degree}s program`, `${degree}'s program`],
-    [`${degree}s programme`, `${degree}'s programme`],
-  ]),
-  ["doctors appointment", "doctor's appointment"],
-  ["dentists appointment", "dentist's appointment"],
-  [
-    ["drivers license", "drivers licence"],
-    ["driver's license", "driver's licence"],
-  ],
-  ["travelers check", "traveler's check"],
-  ["travelers checks", "traveler's checks"],
-  ["travellers cheque", "traveller's cheque"],
-  ["travellers cheques", "traveller's cheques"],
-  // Eponymous conditions keep the discoverer's possessive.
-  ...["Alzheimer", "Parkinson", "Crohn", "Huntington", "Hodgkin", "Bright"].map(
-    (name): PhraseRow => [`${name.toLowerCase()}s disease`, `${name}'s disease`],
-  ),
-  ...["Asperger", "Tourette"].map((name): PhraseRow => [
-    `${name.toLowerCase()}s syndrome`,
-    `${name}'s syndrome`,
-  ]),
-  ["alzheimers", "Alzheimer's"],
-  ["parkinsons", "Parkinson's"],
-];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 type Finding = RawFinding;
 
@@ -510,21 +434,18 @@ const english =
       ? []
       : detectors.flatMap((detect) => detect(ctx)).filter((f) => !quotedMention(ctx, f));
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishApostrophes"],
-    detect: english(
-      quantifiedPlurals,
-      pluralSubjects,
-      relativePlurals,
-      verbApostrophes,
-      doubledApostrophes,
-      spacedApostrophes,
-      othersPossessive,
-      timePossessives,
-      dayPossessives,
-      whoseOwner,
-    ),
-  },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  apostrophes: english(
+    quantifiedPlurals,
+    pluralSubjects,
+    relativePlurals,
+    verbApostrophes,
+    doubledApostrophes,
+    spacedApostrophes,
+    othersPossessive,
+    timePossessives,
+    dayPossessives,
+    whoseOwner,
+  ),
+} satisfies Record<string, Detector>;

@@ -1,5 +1,4 @@
 import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
-import { each, OWNERS, type PhraseRow } from "../englishPhraseTables";
 import {
   caseLike,
   COMPLETE,
@@ -11,111 +10,8 @@ import {
   SPACE as S,
   WORD_END as E,
 } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-
-/** Every combination of the word lists, joined by spaces ("" drops a slot). */
-const combos = (...parts: readonly (readonly string[])[]): string[] =>
-  parts.reduce<string[]>(
-    (acc, words) => acc.flatMap((a) => words.map((w) => [a, w].filter(Boolean).join(" "))),
-    [""],
-  );
-
-const CHANGE = ["change", "changes", "changed", "changing"];
-const CHICKEN_NOUNS = ["problem", "problems", "situation", "dilemma", "conundrum", "scenario"];
-
-/** Rows for englishPhraseCorrections. */
-export const PHRASES: readonly PhraseRow[] = [
-  ["a some", "some"],
-  ...["in", "for", "after", "quite"].map((word): PhraseRow => [
-    `${word} awhile`,
-    `${word} a while`,
-  ]),
-  ...each(["break", "breaks", "breaking", "broke", "broken"], "all hell ~ out", "all hell ~ loose"),
-  [
-    [
-      "for all intended purposes",
-      "for all intense purposes",
-      "for all intrinsic purposes",
-      "for all intense and purposes",
-      "for all extents and purposes",
-      ...["at", "by", "from", "in", "on", "through", "with"].flatMap((word) => [
-        `${word} all intents and purposes`,
-        `${word} all intensive purposes`,
-        `${word} all intense purposes`,
-      ]),
-    ],
-    "for all intents and purposes",
-  ],
-  [["to all intense and purposes", "to all extents and purposes"], "to all intents and purposes"],
-  ["all intents and purpose", "all intents and purposes"],
-  ["apart of", ["a part of", "apart from"]],
-  ["far a part", "far apart"],
-  ...each(["fall", "falls", "fell", "falling", "fallen"], "~ a part", "~ apart"),
-  ["bare bone", "bare bones"],
-  ["bare-bone", "bare-bones"],
-  ["behind the scene", "behind the scenes"],
-  ["behind-the-scene", "behind-the-scenes"],
-  ...combos(["a"], ["cache", "cash"], ["22", "twenty two"]).map((typed): PhraseRow => [
-    typed,
-    typed.replace(/cache|cash/, "catch"),
-  ]),
-  ...combos(["a"], ["cache-22", "cash-22", "cache twenty-two", "cash twenty-two"]).map(
-    (typed): PhraseRow => [typed, typed.replace(/cache|cash/, "catch")],
-  ),
-  ...["cautionary", "inspirational"].flatMap((word): PhraseRow[] => [
-    [`${word} tail`, `${word} tale`],
-    [`${word} tails`, `${word} tales`],
-  ]),
-  ...combos(CHANGE, ["", ...OWNERS, "it's", "the"], ["tact", "tacts", "tacks"]).map(
-    (typed): PhraseRow => [typed, typed.replace(/\S+$/, "tack")],
-  ),
-  ...combos(["change", "changes", "changing"], ["of"], ["tact", "tacts", "tacks"]).map(
-    (typed): PhraseRow => [typed, typed.replace(/\S+$/, "tack")],
-  ),
-  [["a different tact", "a different tacts"], "a different tack"],
-  ...CHICKEN_NOUNS.flatMap((noun): PhraseRow[] => [
-    [[`chicken-egg ${noun}`, `chicken-or-egg ${noun}`], `chicken-and-egg ${noun}`],
-    [
-      [
-        `chicken egg ${noun}`,
-        `chicken or egg ${noun}`,
-        `chicken or the egg ${noun}`,
-        `chicken and the egg ${noun}`,
-      ],
-      `chicken and egg ${noun}`,
-    ],
-  ]),
-  ["chicken an egg", "chicken and egg"],
-  [
-    ["choke full", "choke-full", "chalk-full", "chocked full", "choked full", "chucked full"],
-    "chock-full",
-  ],
-  ...combos(["tight", "close", "tightly", "closely"], ["nit"]).flatMap((typed): PhraseRow[] => [
-    [typed, typed.replace("nit", "knit")],
-    [typed.replace(" ", "-"), typed.replace(" nit", "-knit")],
-  ]),
-  ...["door", "doors", "gate", "gates", "window", "windows", "mouth", "lid", "slightly"].map(
-    (word): PhraseRow => [`${word} a jar`, `${word} ajar`],
-  ),
-];
-export const COMPOUNDS: readonly PhraseRow[] = [
-  [["a kimbo", "a-kimbo"], "akimbo"],
-  ...["legs", "arms"].map((word): PhraseRow => [`${word}-a-kimbo`, `${word}-akimbo`]),
-  ["a-jar", "ajar"],
-];
-export const STYLE: readonly PhraseRow[] = [
-  // Both forms are current; "think" is the original pun.
-  ["another thing coming", "another think coming"],
-  ...combos(["acoustic", "analog", "analogue"], ["bike", "bicycle"]).flatMap(
-    (typed): PhraseRow[] => [
-      [`an ${typed}`, "a non-electric bike"],
-      [typed, "non-electric bike"],
-      [`${typed}s`, "non-electric bikes"],
-    ],
-  ),
-  // "crave" is transitive; "crave for" is a regional variant.
-  ...["crave", "craves", "craved"].map((verb): PhraseRow => [`${verb} for`, verb]),
-];
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 
 // ---- Context detectors: forms that are also ordinary English elsewhere. ----
 
@@ -466,10 +362,7 @@ function detectFrames(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishPhraseCorrections", "englishFixedPrepositions", "stylePhrasing"],
-    detect: (ctx) => (isLang(ctx, "en") ? detectFrames(ctx) : []),
-  },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
+export const PREDICATES = {
+  idiomFrames3: (ctx) => (isLang(ctx, "en") ? detectFrames(ctx) : []),
+} satisfies Record<string, Detector>;

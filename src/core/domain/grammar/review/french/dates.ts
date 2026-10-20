@@ -1,7 +1,8 @@
 import { namedExampleBefore } from "../exampleCues";
 import { invalidIsoDates } from "../isoDates";
 import { EMPHASIS_MARKS, NO_WORD_AFTER, NO_WORD_BEFORE } from "../markdownEmphasis";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import {
   contextYear,
   daysInMonth,
@@ -204,4 +205,4 @@ function dates(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [{ rules: [RULE], detect: dates }];
+export const PREDICATES = { dates: dates } satisfies Record<string, Detector>;

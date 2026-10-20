@@ -1,5 +1,6 @@
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   germanAdjective,
   germanGender,
@@ -1085,19 +1086,16 @@ function onTheWay(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["germanArticleGender"],
-    detect: (ctx) =>
-      isGerman(ctx)
-        ? [
-            ...articleGender(ctx),
-            ...bareAdjective(ctx),
-            ...alsSolch(ctx),
-            ...genitiveObject(ctx),
-            ...onTheWay(ctx),
-            ...relativePronoun(ctx),
-          ]
-        : [],
-  },
-];
+export const PREDICATES = {
+  articleGender: (ctx) =>
+    isGerman(ctx)
+      ? [
+          ...articleGender(ctx),
+          ...bareAdjective(ctx),
+          ...alsSolch(ctx),
+          ...genitiveObject(ctx),
+          ...onTheWay(ctx),
+          ...relativePronoun(ctx),
+        ]
+      : [],
+} satisfies Record<string, Detector>;

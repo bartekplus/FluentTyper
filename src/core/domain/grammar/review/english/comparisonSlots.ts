@@ -1,17 +1,13 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
 import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
 import { caseLike, english, evidence, FUNCTION_WORDS, nounOnly, tokensAfter } from "./slotWords";
 import { finding } from "../finding";
 
 // Comparison forms: a superlative before its noun takes "the" ("is hottest city", "an oldest
 // city"), "less"/"least" take the plain adjective ("less harder"), and a comparative's "then"
 // before a count or adjective is "than" ("more then one").
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 /** The plain adjective behind a regular -er or -est form ("hotter", "happiest"), or null. */
 function plainAdjective(word: string, suffix: "er" | "est"): string | null {
@@ -118,8 +114,8 @@ function comparisonThen(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["englishPhraseCorrections"], detect: english(superlativeArticle) },
-  { rules: ["englishDoubledDegree"], detect: english(lessComparative) },
-  { rules: ["englishThenThan"], detect: english(comparisonThen) },
-];
+export const PREDICATES = {
+  superlativeArticle: english(superlativeArticle),
+  lessComparative: english(lessComparative),
+  comparisonThen: english(comparisonThen),
+} satisfies Record<string, Detector>;

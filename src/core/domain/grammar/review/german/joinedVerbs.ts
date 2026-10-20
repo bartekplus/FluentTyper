@@ -1,5 +1,6 @@
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { germanVerbLike } from "./germanLexicon";
 import {
   BOUNDARY,
@@ -231,13 +232,10 @@ export function boundVerbs(ctx: DetectContext): RawFinding[] {
   return [...joined(ctx, BOUND_FRAME, bound, "germanCompounds"), ...zuPass(ctx)];
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["germanJoinedVerbs"],
-    detect: (ctx) => {
-      if (!isGerman(ctx)) return [];
-      open ??= tables(OPEN);
-      return joined(ctx, OPEN_FRAME, open, "germanJoinedVerbs");
-    },
+export const PREDICATES = {
+  joinedVerbs: (ctx) => {
+    if (!isGerman(ctx)) return [];
+    open ??= tables(OPEN);
+    return joined(ctx, OPEN_FRAME, open, "germanJoinedVerbs");
   },
-];
+} satisfies Record<string, Detector>;

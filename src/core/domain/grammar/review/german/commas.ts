@@ -1,5 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { germanAdjective, germanGender, germanInfinitive, germanVerbLike } from "./germanLexicon";
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
 import {
@@ -761,9 +762,6 @@ function commas(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["germanCommas"],
-    detect: (ctx) => [...commas(ctx), ...salutationComma(ctx), ...commaFrames(ctx)],
-  },
-];
+export const PREDICATES = {
+  commas: (ctx) => [...commas(ctx), ...salutationComma(ctx), ...commaFrames(ctx)],
+} satisfies Record<string, Detector>;

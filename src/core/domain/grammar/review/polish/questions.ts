@@ -1,3 +1,4 @@
+import type { Detector } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { adjectiveOf, nounTags } from "./lexicon";
 import { findingAt, isPl, owned } from "./shared";
@@ -38,9 +39,6 @@ function questions(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-export const DETECTORS = [
-  {
-    rules: [RULE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) => (isPl(ctx) ? questions(ctx) : []),
-  },
-];
+export const PREDICATES = {
+  questions: (ctx: DetectContext) => (isPl(ctx) ? questions(ctx) : []),
+} satisfies Record<string, Detector>;
