@@ -11,7 +11,7 @@ import {
   splitWords,
 } from "./multilingualLexicon";
 import { countability } from "./englishCountability";
-import { nounNumberConstructions } from "./englishNounNumber";
+import { FIXERS as NUMBER_FIXERS } from "./englishNounNumber";
 import { FIXERS as PARTICIPLE_FIXERS } from "./englishParticiples";
 import { FIXERS as COMPLEMENT_FIXERS } from "./englishComplements";
 import { contextualPossessives } from "./englishPossessives";
@@ -1581,7 +1581,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   quotationFindings: (ctx) => ownedFindings(ctx, ctx.quotationFindings),
   typographicQuotes: TYPOGRAPHIC_QUOTES.detect,
   possessives: contextualPossessives,
-  nounNumber: nounNumberConstructions,
   doubledDegree: (ctx) =>
     ctx.lang === "en_US" ? doubledDegree(ctx) : doubledDegreeByLanguage(ctx),
   countability,
@@ -1650,6 +1649,7 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   CASE_FIXERS,
   CONFUSION_FIXERS,
   AGREEMENT_FIXERS,
+  NUMBER_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */
