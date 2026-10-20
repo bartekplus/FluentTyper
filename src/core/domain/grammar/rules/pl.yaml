@@ -35,6 +35,10 @@ fragments:
   # Month names after a day: the genitive, the nominative and the Roman numerals.
   MONTH_WORD: "stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I"
   DECADE_WORDS: "lata|lat|latach|latami|latom"
+  # Words that may stand between a verb and its noun: a pronoun, an adverb, adjectives.
+  FILLER: "(?:[ \\t\\u00a0]{1,8}(?:on|ona|ono|oni|one|nadal|wciąż|też|także|również|zawsze|często|naprawdę|bardzo|niezwykle|wyjątkowo|szczególnie|dość|coraz|swoją|swój|swoje|jakąś|żadnej|(?:w|we|na|dla|przy|wśród|u)[ \\t\\u00a0]{1,8}\\p{L}+|\\p{L}+(?:ną|ową|ską|cką|ką|ą|ej|e|y|ie))){0,3}"
+  GARMENTS: "płaszcz|kurtkę|sweter|golf|koszulę|bluzkę|sukienkę|spodnie|dżinsy|buty|kozaki|czapkę|kapelusz|rękawiczki|szalik|garnitur|marynarkę|spódnicę|skarpetki|piżamę|kamizelkę|koszulkę|płaszczyk|kurtkę|kalosze"
+  FEATURES: "brodę|wąsy|oczy|włosy|nos|uszy|zęby|wymiary|wzrost|talent|zdolności|poczucie|cierpliwość|odwagę|charakter|temperament|rodzinę|dzieci|rodzeństwo|siostrę|brata|braci|siostry|córkę|syna|przyjaciół|czas|ochotę|pomysł|pomysły|nadzieję|wątpliwości|problem|problemy|wadę|wady|zalety|kota|psa"
   # Months in the locative ("w maju").
   LOCATIVE: "styczniu|lutym|marcu|kwietniu|maju|czerwcu|lipcu|sierpniu|wrześniu|październiku|listopadzie|grudniu"
   # Conjunctions, question words and relative pronouns that open a subordinate clause.
@@ -1028,9 +1032,43 @@ rules:
   - id: pl.clauses
     checks: [polishMissingComma]
     predicate: clauses
+  # Pleonasms and wordy officialese (optional `stylePhrasing`) that need a guard.
   - id: pl.style
     checks: [stylePhrasing]
-    predicate: style
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # "dwie lub więcej godzin" mixes two governments: "co najmniej dwie godziny". The noun (and its
+      # adjectives) follow the numeral's case; when they cannot be read, only the numeral is fixed.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<numeral>dwa|dwie|trzy|cztery|dwom|dwóm|trzem|czterem|dwoma|trzema|czterema|dwóch|trzech|czterech|pięć|pięciu){{S}}lub{{S}}więcej(?<words>(?:{{S}}\\p{L}+){0,3})(?![\\p{L}\\p{N}_'’-]))"
+        scan: polish
+        flags: giu
+        fixer: orMore
+      # Opt-in: "pełni istotną rolę" -> "pełni istotną funkcję" or "odgrywa istotną rolę".
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?:(?<verb>pełni|pełnią|pełnił|pełniła|pełniło|pełnili|pełniły|pełnić|pełniący|pełniąca|pełniące|pełniąc|spełnia|spełniają|spełniał|spełniała|spełniać|spełniając)(?<mid>{{FILLER}}){{S}}(?<noun>rolę|roli)|(?<before>rolę|roli){{S}}(?<after>pełni|pełnią|pełnił|pełniła|pełniło|pełnili|pełniły|pełnić|pełniący|pełniąca|pełniące|pełniąc|spełnia|spełniają|spełniał|spełniała|spełniać|spełniając))(?![\\p{L}\\p{N}_'’-]))"
+        scan: polish
+        flags: giu
+        fixer: playsRole
+      # "ubrać płaszcz", "założyć buty": clothes one puts on ("włożyć").
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<verb>ubrać|ubrał|ubrała|ubrali|ubrały|ubrałem|ubrałam|ubiorę|ubierze|ubierz|ubieram|ubiera|ubierają|ubierał|ubierała|ubierać|założyć|założył|założyła|założyli|założyły|założyłem|założyłam|założyłeś|założyłaś|założyliśmy|założyłyśmy|założę|założy|założysz|założymy|założycie|założą|zakłada|zakładać|zakładał|zakładała|zakładali|zakładały|zakładam|zakładasz|zakładają|zakładamy|zakładacie|załóż|załóżcie)(?<mid>{{FILLER}}){{S}}(?<noun>{{GARMENTS}})(?![\\p{L}\\p{N}_'’-]))"
+        scan: polish
+        flags: giu
+        fixer: putsOn
+      # "napotkać na trudności": one meets difficulties without "na" ("na drodze" stays).
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<verb>napot(?:kać|kał\\p{L}*|kali\\p{L}*|ka|kają|kasz|kam|ykać|yka|ykają|ykał\\p{L}*|ykali\\p{L}*)){{S}}na(?<rest>(?:{{S}}\\p{L}+(?:e|ie|y|i|ą))?{{S}}(?:trudności|trudność|problem|problemy|przeszkody|przeszkodę|opór|sprzeciw|kłopoty))(?![\\p{L}\\p{N}_'’-]))"
+        scan: polish
+        flags: giu
+        fixer: meetsWithoutNa
+      # "pięcioletnia rocznica", "20-letni jubileusz": the noun counts years already ("piąta rocznica").
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<target>(?:\\d+-|\\p{L}+)letni(?:a|ej|ą|ego|emu|m|e|ch|mi)?){{S}}(?:rocznic|jubileusz|urodzin)\\p{L}*(?![\\p{L}\\p{N}_'’-])"
+        scan: polish
+        flags: gdiu
+        fixer: yearsAnniversary
+      # "posiada brodę" -> "ma brodę".
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<verb>posiadam|posiadasz|posiada|posiadamy|posiadacie|posiadają|posiadał|posiadała|posiadali|posiadały|posiadać|posiadając)(?<mid>{{FILLER}}){{S}}(?<noun>{{FEATURES}})(?![\\p{L}\\p{N}_'’-]))"
+        scan: polish
+        flags: giu
+        fixer: possess
   - id: pl.styleFrames
     checks: [stylePhrasing]
     style: polish

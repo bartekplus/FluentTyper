@@ -35,7 +35,6 @@ export const PREDICATES = mergePredicates(
   numbers.PREDICATES,
   prepositions.PREDICATES,
   questions.PREDICATES,
-  style.PREDICATES,
   subjects.PREDICATES,
   typography.PREDICATES,
   typos.PREDICATES,
