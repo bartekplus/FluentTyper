@@ -338,15 +338,18 @@ export class PresageHandler {
     const snippets = await this.predictSnippets(context, ranked, resolver);
     // Keep the top word prediction first so snippets never displace plain autocomplete.
     const candidates = [...words.slice(0, 1), ...snippets, ...words.slice(1)];
-    const emoji = this.predictEmoji(context, candidates);
+    // Emoji get only the slots left after the top word and the user's snippets, and the
+    // words after them make room, so finalizePrediction's slice does not drop the emoji.
+    const numSuggestions = context.effectiveNumSuggestions;
+    const reserved = Math.min(candidates.length, 1 + snippets.length);
+    const emoji = this.predictEmoji(context, candidates).slice(
+      0,
+      Math.max(0, numSuggestions - reserved),
+    );
     if (this.emojiFirst) {
       return [...emoji, ...candidates];
     }
-    // Emoji never take the top word's slot; keep room at the end so finalizePrediction's
-    // slice does not drop them.
-    const numSuggestions = context.effectiveNumSuggestions;
-    const shown = emoji.slice(0, Math.max(0, numSuggestions - Math.min(1, candidates.length)));
-    return [...candidates.slice(0, numSuggestions - shown.length), ...shown];
+    return [...candidates.slice(0, numSuggestions - emoji.length), ...emoji];
   }
 
   /** Emoji named like the word being typed (#504), minus any already in the list. */
@@ -354,7 +357,8 @@ export class PresageHandler {
     context: PresagePredictionContext,
     candidates: PredictionCandidate[],
   ): PredictionCandidate[] {
-    if (!this.emojiSuggestions) {
+    // A typed snippet shortcut keeps its expansion first (#489), so Tab expands it.
+    if (!this.emojiSuggestions || candidates.some(({ exactSnippet }) => exactSnippet)) {
       return [];
     }
     const token = context.snippetToken;

@@ -5,7 +5,7 @@ import { predictionConfig, runPrediction } from "./support/predictionConfig";
 
 function predict(
   text: string,
-  overrides: { emojiSuggestions?: boolean; emojiFirst?: boolean; numSuggestions?: number } = {},
+  overrides: Parameters<typeof predictionConfig>[0] = {},
   lang = "en_US",
 ) {
   const handler = new PresageHandler(mod);
@@ -43,6 +43,30 @@ describe("PresageHandler emoji suggestions (#504)", () => {
     mod.PresageCallback.predictions = [];
     const { predictions } = await predict("fire", { numSuggestions: 1 });
     expect(predictions).toEqual(["🔥"]);
+  });
+
+  test("a typed snippet shortcut keeps its expansion first, with no emoji", async () => {
+    mod.PresageCallback.predictions = ["Best, Bart", "sign", "signal"];
+    const { predictions } = await predict("sig", {
+      emojiFirst: true,
+      textExpansions: [["sig", "Best, Bart"]] as unknown as Array<[string, object]>,
+    });
+    expect(predictions).toEqual(["Best, Bart", "sign", "signal"]);
+  });
+
+  test("emoji never push the user's snippets out of the list", async () => {
+    mod.PresageCallback.predictions = ["fire", "fireplace", "firewall"];
+    const { predictions } = await predict("fire", {
+      numSuggestions: 3,
+      textExpansions: [["firealarm", "Call 112"]] as unknown as Array<[string, object]>,
+    });
+    expect(predictions).toEqual(["fire", "Call 112", "🔥"]);
+  });
+
+  test("emoji first keeps the top word when the list is short", async () => {
+    mod.PresageCallback.predictions = ["fire", "fireplace"];
+    const { predictions } = await predict("fire", { emojiFirst: true, numSuggestions: 2 });
+    expect(predictions).toEqual(["🔥", "fire"]);
   });
 
   test("puts emoji first when asked, above an exact dictionary word", async () => {
