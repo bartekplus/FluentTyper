@@ -24,33 +24,33 @@ import * as typos from "./typos";
 
 export const PREDICATES = mergePredicates(
   agreement.PREDICATES,
-  clauses.PREDICATES,
-  commas.PREDICATES,
-  compounds.PREDICATES,
-  confusions.PREDICATES,
-  conjunctions.PREDICATES,
   dates.PREDICATES,
   degree.PREDICATES,
-  forms.PREDICATES,
-  fragments.PREDICATES,
-  numbers.PREDICATES,
-  prepositions.PREDICATES,
-  questions.PREDICATES,
-  style.PREDICATES,
   subjects.PREDICATES,
   typography.PREDICATES,
-  typos.PREDICATES,
 );
 
 /** The named frame fixes of grammar/rules/pl.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
+  agreement.FIXERS,
   casing.FIXERS,
+  clauses.FIXERS,
   commaFrames.FIXERS,
+  commas.FIXERS,
   compounds.FIXERS,
   confusions.FIXERS,
+  conjunctions.FIXERS,
+  dates.FIXERS,
+  degree.FIXERS,
   forms.FIXERS,
+  fragments.FIXERS,
+  numbers.FIXERS,
   officialese.FIXERS,
+  prepositions.FIXERS,
+  questions.FIXERS,
   style.FIXERS,
+  typography.FIXERS,
+  subjects.FIXERS,
   typos.FIXERS,
 );
 

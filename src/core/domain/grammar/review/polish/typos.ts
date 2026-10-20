@@ -1,5 +1,5 @@
-import type { Detector, Fixer } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Fixer, MatchFixer } from "../../engine/reviewRules";
+import type { DetectContext } from "../reviewDetectors";
 import {
   adjectiveOf,
   ambiguousAdjective,
@@ -12,7 +12,7 @@ import {
   pastByShape,
   placeForm,
 } from "./lexicon";
-import { caseLike, findingAt, isPl, owned, sentenceStartAt, userOrNamed } from "./shared";
+import { caseLike, findingAt, sentenceStartAt, userOrNamed } from "./shared";
 
 /*
  * Real-word slips: a dictionary word typed for its look-alike ("szkody średniej" for
@@ -30,8 +30,8 @@ const RULE = {
 const lower = (fix: string) => (m: RegExpExecArray) =>
   /^\p{Lu}/u.test(m.groups!.target) ? null : fix;
 
-/** The named frame fixes of grammar/rules/pl.yaml (`fixer:`). */
-export const FIXERS = {
+/** The frame fixes of the real-word slip rows. */
+const PHRASE_FIXERS = {
   // "prze" alone is only the verb "przeć" (push on), which takes no adjective and no "siebie":
   // "prze piękny" -> "przepiękny", "prze siebie" -> "przed siebie", "prze ze mnie" -> "przeze".
   typosPrze: (m) => {
@@ -97,32 +97,6 @@ export const FIXERS = {
   typosInn: (m) => m.groups!.target.replace(/jak$/iu, "niż"),
 } satisfies Record<string, Fixer>;
 
-const NO_LETTER_AFTER = "(?![\\p{L}\\p{N}_'’-])";
-/** A preposition straight before an infinitive or an adverbial participle. */
-const PREPOSITION_VERB = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’-])(?<prep>na|do|od|dla|bez|przez|przy|u|z|ze|w|we|o)[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}{3,}(?:ać|eć|ić|yć|ąć|uć|ąc))${NO_LETTER_AFTER}`,
-  "gu",
-);
-/** "cale życie": "cale" (inches) before a neuter noun is "całe". */
-const INCHES = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’-])(?<target>cale)[ \\t\\u00a0]{1,8}(?<noun>\\p{L}{3,20})${NO_LETTER_AFTER}`,
-  "giu",
-);
-/** "bać" is always reflexive: a form with no "się" in its clause. */
-const AFRAID = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’-])(?<verb>bał|bała|bało|bały|bałem|bałam|bałeś|bałaś|baliśmy|bałyśmy|boi|boję|boisz|boimy|boicie|bać)${NO_LETTER_AFTER}`,
-  "giu",
-);
-/** "się bał się": one "się" serves the verb. */
-const TWO_SIE = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’-])się[ \\t\\u00a0]{1,8}(?<verb>\\p{L}{2,20})(?<gap>[ \\t\\u00a0]{1,8})się${NO_LETTER_AFTER}`,
-  "giu",
-);
-/** Two prepositions in a row ("mieszkam w z Warszawie"): one of them is a slip. */
-const TWO_PREPOSITIONS = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’/.-])(?<first>[wW]|[dD]o|[zZ]|[nN]a|[oO]d)[ \\t\\u00a0]{1,8}(?<second>na|z|od|do|w)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)${NO_LETTER_AFTER}`,
-  "gu",
-);
 /** A second preposition that opens a set adverbial phrase ("do w pełni", "z na wpół"). */
 const ADVERBIAL = new Set(
   words(
@@ -135,85 +109,80 @@ const ADVERBIAL = new Set(
 );
 const NEGATION =
   /(?:^|[^\p{L}])(?:nie\p{L}*|ani|nikt|nic|niczego|nikogo|żaden|żadna|żadne|żadnego|żadnej|nigdy|nigdzie|bez)(?![\p{L}])/iu;
-/** "bynajmniej" strengthens a denial; with none in its sentence "przynajmniej" was meant. */
-const AT_LEAST = /(?<![\p{L}])bynajmniej(?=[ \t\u00a0]{1,8}\p{L})/giu;
 const NOT_A_VERB = new Set(
   words("to nie tak już teraz tu tam i a że by jak gdy co też tylko bardzo trochę wtedy znowu"),
 );
 
-function slips(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  const push = (start: number, end: number, fix: string) => {
-    const typed = ctx.source.slice(start, end);
-    if (userOrNamed(ctx, typed)) return;
-    findings.push(findingAt(ctx, start, end, [caseLike(typed, fix)], RULE.ruleId, RULE.messageKey));
-  };
-  for (const m of owned(ctx, PREPOSITION_VERB)) {
+/** A slip on `start`-`end` and its fix in the typed case; none on a user's word. */
+function slip(ctx: DetectContext, start: number, end: number, fix: string) {
+  const typed = ctx.source.slice(start, end);
+  if (userOrNamed(ctx, typed)) return null;
+  return findingAt(ctx, start, end, [caseLike(typed, fix)], RULE.ruleId, RULE.messageKey);
+}
+
+/** The named frame fixes of the slip frames of grammar/rules/pl.yaml (`fixer:`). */
+const SLIPS = {
+  prepositionVerb: (m, ctx) => {
     const { verb } = m.groups!;
-    if (nounTags(verb) || /(?:siąc|zając)$/u.test(verb)) continue;
-    push(m.index, m.index + m[0].length, verb);
-  }
-  for (const m of owned(ctx, INCHES)) {
+    if (nounTags(verb) || /(?:siąc|zając)$/u.test(verb)) return null;
+    return slip(ctx, m.index, m.index + m[0].length, verb);
+  },
+  inchesCale: (m, ctx) => {
     const tags = nounTags(m.groups!.noun);
-    if (!onlyNoun(tags) || !(tags & NEUTER) || !(tags & cases("Ns As"))) continue;
-    if (/^\p{Lu}/u.test(m.groups!.target) && !sentenceStartAt(ctx.text, m.index)) continue;
-    push(m.index, m.index + 4, "całe");
-  }
-  for (const m of owned(ctx, AFRAID)) {
+    if (!onlyNoun(tags) || !(tags & NEUTER) || !(tags & cases("Ns As"))) return null;
+    if (/^\p{Lu}/u.test(m.groups!.target) && !sentenceStartAt(ctx.text, m.index)) return null;
+    return slip(ctx, m.index, m.index + 4, "całe");
+  },
+  afraidSie: (m, ctx) => {
     const start = m.index;
     const end = start + m[0].length;
     const before = ctx.text.slice(Math.max(0, start - 48), start);
     const after = ctx.text.slice(end, end + 40);
     const clauseBefore = before.slice(before.search(/[^.!?;:,\n]*$/u));
     const clauseAfter = after.slice(0, (after.search(/[.!?;:,\n]/u) + 1 || after.length + 1) - 1);
-    if (/(?:^|[^\p{L}])się(?![\p{L}])/iu.test(`${clauseBefore} ${clauseAfter}`)) continue;
+    if (/(?:^|[^\p{L}])się(?![\p{L}])/iu.test(`${clauseBefore} ${clauseAfter}`)) return null;
     // "za boją", "o boi": the noun "boja".
-    if (/(?:^|[^\p{L}])(?:z|za|przed|nad|pod|między|o|na|przy|po|w|we)[ \t\u00a0]+$/iu.test(before))
-      continue;
-    push(start, end, `${m.groups!.verb} się`);
-  }
-  for (const m of owned(ctx, TWO_SIE)) {
+    if (/(?:^|[^\p{L}])(?:z|za|przed|nad|pod|między|o|na|przy|po|w|we)[ \t ]+$/iu.test(before))
+      return null;
+    return slip(ctx, start, end, `${m.groups!.verb} się`);
+  },
+  twoSie: (m, ctx) => {
     const verb = m.groups!.verb;
     const lowerVerb = verb.toLowerCase();
-    if (NOT_A_VERB.has(lowerVerb)) continue;
-    if (!finiteVerb(lowerVerb) && !listedVerb(lowerVerb) && !pastByShape(lowerVerb)) continue;
+    if (NOT_A_VERB.has(lowerVerb)) return null;
+    if (!finiteVerb(lowerVerb) && !listedVerb(lowerVerb) && !pastByShape(lowerVerb)) return null;
     const start = m.index + m[0].indexOf(verb, 3);
-    push(start, m.index + m[0].length, verb);
-  }
-  for (const m of owned(ctx, TWO_PREPOSITIONS)) {
+    return slip(ctx, start, m.index + m[0].length, verb);
+  },
+  twoPrepositions: (m, ctx) => {
     const { first, second, next } = m.groups!;
-    if (first.toLowerCase() === second || ADVERBIAL.has(`${second}|${next}`)) continue;
+    if (first.toLowerCase() === second || ADVERBIAL.has(`${second}|${next}`)) return null;
     // "w od lat zamkniętym domu": the second preposition opens a phrase inside a noun phrase.
     const tail = m.index + m[0].length;
-    const after = /^[ \t\u00a0]+(\p{L}+)/u.exec(ctx.text.slice(tail, tail + 40))?.[1] ?? "";
+    const after = /^[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(tail, tail + 40))?.[1] ?? "";
     const noun = next.toLowerCase();
     if (!(onlyNoun(nounTags(noun)) || placeForm(noun)) || adjectiveOf(after.toLowerCase()))
-      continue;
+      return null;
     const end = m.index + m[0].length - next.length;
     const typed = ctx.source.slice(m.index, end).trimEnd();
-    if (userOrNamed(ctx, typed)) continue;
-    findings.push(
-      findingAt(
-        ctx,
-        m.index,
-        m.index + typed.length,
-        [first, caseLike(first, second)],
-        RULE.ruleId,
-        RULE.messageKey,
-      ),
+    if (userOrNamed(ctx, typed)) return null;
+    return findingAt(
+      ctx,
+      m.index,
+      m.index + typed.length,
+      [first, caseLike(first, second)],
+      RULE.ruleId,
+      RULE.messageKey,
     );
-  }
-  for (const m of owned(ctx, AT_LEAST)) {
+  },
+  atLeast: (m, ctx) => {
     const before = ctx.text.slice(Math.max(0, m.index - 160), m.index);
     const after = ctx.text.slice(m.index, m.index + 160);
     const sentence = `${before.slice(before.search(/[^.!?\n]*$/u))}${after.split(/[.!?\n]/u)[0]}`;
-    if (NEGATION.test(sentence)) continue;
-    push(m.index, m.index + m[0].length, "przynajmniej");
-  }
-  return findings;
-}
+    if (NEGATION.test(sentence)) return null;
+    return slip(ctx, m.index, m.index + m[0].length, "przynajmniej");
+  },
+} satisfies Record<string, MatchFixer>;
 
-export const PREDICATES = {
-  typos: (ctx: DetectContext) =>
-    isPl(ctx) && (!ctx.rules || ctx.rules.has(RULE.ruleId)) ? slips(ctx) : [],
-} satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/pl.yaml (`fixer:`). */
+export const FIXERS = { ...PHRASE_FIXERS, ...SLIPS } satisfies Record<string, Fixer>;

@@ -1,5 +1,5 @@
-import type { Detector } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer, MatchResult } from "../../engine/reviewRules";
+import type { DetectContext } from "../reviewDetectors";
 import {
   adjectiveOf,
   finiteVerb,
@@ -9,7 +9,7 @@ import {
   pastByShape,
   VERB,
 } from "./lexicon";
-import { findingAt, isPl, owned, userOrNamed } from "./shared";
+import { findingAt, userOrNamed } from "./shared";
 
 /*
  * A sentence that is only an adverbial participle phrase: "Przechodząc obok sklepu.",
@@ -19,9 +19,6 @@ import { findingAt, isPl, owned, userOrNamed } from "./shared";
 
 const RULE = "englishSentenceFragment" as const;
 
-/** A sentence on one line that starts with a capital and ends with a full stop. */
-const SENTENCE =
-  /(?<=^|[.!?…][ \t \n]{1,8})\p{Lu}[^.!?…\n]{0,400}\.(?=[ \t \n]{1,8}[\p{Lu}„"—–-]|[ \t \n]*$)/gu;
 /** Commas, dashes and brackets end a part of the sentence. */
 const PART = /[^,;:—–()]+/gu;
 /** Words that open a subordinate clause: its verb is not the sentence's verb. */
@@ -48,35 +45,30 @@ function verbLike(word: string): boolean {
   return !tags && !adjectiveOf(word) && /[iy]$/u.test(word) && word.length > 2;
 }
 
-function fragments(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const sentence of owned(ctx, SENTENCE)) {
-    // Quick gate: most sentences have no "-ąc" word.
-    if (!sentence[0].includes("ąc")) continue;
-    let target: { start: number; end: number } | undefined;
-    let verb = false;
-    for (const part of sentence[0].matchAll(PART)) {
-      const words = [...part[0].matchAll(/\p{L}+/gu)];
-      if (words.length === 0 || SUBORDINATE.test(words[0][0])) continue;
-      for (const word of words) {
-        const lower = word[0].toLowerCase();
-        if (participle(lower)) {
-          if (!target && !COMMENT.test(lower) && !userOrNamed(ctx, word[0])) {
-            const start = sentence.index + part.index + word.index;
-            target = { start, end: start + word[0].length };
-          }
-        } else if (verbLike(lower)) verb = true;
-      }
+function fragments(sentence: RegExpExecArray, ctx: DetectContext): MatchResult {
+  // Quick gate: most sentences have no "-ąc" word.
+  if (!sentence[0].includes("ąc")) return null;
+  let target: { start: number; end: number } | undefined;
+  let verb = false;
+  for (const part of sentence[0].matchAll(PART)) {
+    const words = [...part[0].matchAll(/\p{L}+/gu)];
+    if (words.length === 0 || SUBORDINATE.test(words[0][0])) continue;
+    for (const word of words) {
+      const lower = word[0].toLowerCase();
+      if (participle(lower)) {
+        if (!target && !COMMENT.test(lower) && !userOrNamed(ctx, word[0])) {
+          const start = sentence.index + part.index + word.index;
+          target = { start, end: start + word[0].length };
+        }
+      } else if (verbLike(lower)) verb = true;
     }
-    if (!target || verb) continue;
-    findings.push({
-      ...findingAt(ctx, target.start, target.end, [], RULE, "review_msg_sentence_fragment"),
-      context: { start: sentence.index, end: sentence.index + sentence[0].length },
-    });
   }
-  return findings;
+  if (!target || verb) return null;
+  return {
+    ...findingAt(ctx, target.start, target.end, [], RULE, "review_msg_sentence_fragment"),
+    context: { start: sentence.index, end: sentence.index + sentence[0].length },
+  };
 }
 
-export const PREDICATES = {
-  fragments: (ctx: DetectContext) => (isPl(ctx) ? fragments(ctx) : []),
-} satisfies Record<string, Detector>;
+/** The named frame fixes of the fragment rule of grammar/rules/pl.yaml (`fixer:`). */
+export const FIXERS = { fragments } satisfies Record<string, MatchFixer>;

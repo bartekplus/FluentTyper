@@ -1,7 +1,7 @@
-import type { Detector } from "../../engine/reviewRules";
+import type { Detector, MatchFixer, MatchResult } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { adjectiveForm, adjectiveOf, finiteVerb, hasAdjective } from "./lexicon";
-import { caseLike, findingAt, isPl, owned, S, userOrNamed } from "./shared";
+import { caseLike, findingAt, isPl, owned, userOrNamed } from "./shared";
 
 /*
  * Degrees of comparison. "bardziej" with a form that is already comparative ("bardziej
@@ -152,49 +152,43 @@ function degrees(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-const COMPARED = new RegExp(
-  `(?<![\\p{L}])(?<word>\\p{L}{4,})${S}(?<target>jak)${S}(?<next>\\p{L}+)(?![\\p{L}])`,
-  "giud",
-);
 /** Words after "jak" that make it "if" or "as" ("lepiej jak przyjdziesz", "jak najszybciej"). */
 const CLAUSE_AFTER =
   /^(?:naj\p{L}*|i|ja|ty|on|ona|ono|my|wy|oni|one|się|to|tylko|zwykle|zawsze|wiadomo|wspomniałem|mówiłem|sądzę|myślę|widać|każdy|ktoś|coś|nikt|nic|gdyby|by|już)$/u;
 
 /** "większy jak stary", "lepiej jak w domu" -> "niż": a comparison after a comparative. */
-function comparedWithJak(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, COMPARED)) {
-    const { word, target, next } = m.groups!;
-    const lower = word.toLowerCase();
-    const after = next.toLowerCase();
-    if (lower.startsWith("naj") || !alreadyGraded(lower) || userOrNamed(ctx, word)) continue;
-    // "później, jak wróci": "jak" after a time adverb opens a clause of time.
-    if (lower === "później" || lower === "wcześniej") continue;
-    // "nic więcej jak", "niczym więcej jak" (nothing but) is a set phrase.
-    if (
-      /(?:^|[^\p{L}])(?:nic|niczym|niczego)[ \t\u00a0]+$/iu.test(
-        ctx.text.slice(Math.max(0, m.index - 12), m.index),
-      )
+function comparedWithJak(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { word, target, next } = m.groups!;
+  const lower = word.toLowerCase();
+  const after = next.toLowerCase();
+  if (lower.startsWith("naj") || !alreadyGraded(lower) || userOrNamed(ctx, word)) return null;
+  // "później, jak wróci": "jak" after a time adverb opens a clause of time.
+  if (lower === "później" || lower === "wcześniej") return null;
+  // "nic więcej jak", "niczym więcej jak" (nothing but) is a set phrase.
+  if (
+    /(?:^|[^\p{L}])(?:nic|niczym|niczego)[ \t\u00a0]+$/iu.test(
+      ctx.text.slice(Math.max(0, m.index - 12), m.index),
     )
-      continue;
-    if (CLAUSE_AFTER.test(after) || finiteVerb(after)) continue;
-    const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ...findingAt(
-        ctx,
-        start,
-        end,
-        [caseLike(target, "niż")],
-        "englishPhraseCorrections",
-        "review_msg_contextual_grammar",
-      ),
-      context: { start: m.index, end: m.index + m[0].length },
-    });
-  }
-  return findings;
+  )
+    return null;
+  if (CLAUSE_AFTER.test(after) || finiteVerb(after)) return null;
+  const [start, end] = m.indices!.groups!.target;
+  return {
+    ...findingAt(
+      ctx,
+      start,
+      end,
+      [caseLike(target, "niż")],
+      "englishPhraseCorrections",
+      "review_msg_contextual_grammar",
+    ),
+    context: { start: m.index, end: m.index + m[0].length },
+  };
 }
 
 export const PREDICATES = {
-  comparedWithJak: (ctx: DetectContext) => (isPl(ctx) ? comparedWithJak(ctx) : []),
   degrees: (ctx: DetectContext) => (isPl(ctx) ? degrees(ctx) : []),
 } satisfies Record<string, Detector>;
+
+/** The named frame fixes of the degree rules of grammar/rules/pl.yaml (`fixer:`). */
+export const FIXERS = { comparedWithJak } satisfies Record<string, MatchFixer>;

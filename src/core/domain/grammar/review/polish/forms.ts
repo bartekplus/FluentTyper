@@ -1,6 +1,6 @@
-import type { Detector, Fixer } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { findingAt, isPl, owned, userOrNamed } from "./shared";
+import type { Fixer, MatchResult } from "../../engine/reviewRules";
+import type { DetectContext } from "../reviewDetectors";
+import { findingAt, userOrNamed } from "./shared";
 
 /*
  * Word forms set by convention rather than by a neighbour's meaning:
@@ -38,6 +38,8 @@ const NA_PLACES: Record<string, string> = {
 
 /** The named frame fixes of grammar/rules/pl.yaml (`fixer:`). */
 export const FIXERS = {
+  inflectedNames,
+  acronymEndings,
   // Travel verbs only: "należał do Węgier" (belonged to Hungary) is right.
   formsDo: (m) => NA_PLACES[m.groups!.place.toLowerCase()],
   // "Ważnym jest, aby": the predicative adjective before a clause is neuter "-e".
@@ -62,10 +64,6 @@ export const FIXERS = {
  * pronounced ("Johnie", "Bentleyu", "Andym"), and an acronym takes a hyphen
  * ("SMS-ów", "PKP-u"). Names ending in a silent "-e" keep the apostrophe.
  */
-const NAME_ENDING =
-  /(?<![\p{L}\p{N}'’-])(?<name>\p{Lu}\p{Ll}+)(?<mark>['’])(?<end>a|u|owi|em|iem|ie|om|ów|ach|ami|y|i|ego|emu|go|mu|m|im|ym)(?![\p{L}\p{N}])/gu;
-const ACRONYM_ENDING =
-  /(?<![\p{L}\p{N}'’-])(?<name>\p{Lu}{2,}|\p{Lu}\p{Ll}?\p{Lu}+)(?<mark>['’])?(?<end>a|u|owi|em|ie|om|ów|ach|ami|y|ach)(?![\p{L}\p{N}])/gu;
 
 /**
  * The right spelling of a name ending in a vowel letter with its case ending, or "" when the
@@ -93,64 +91,51 @@ function silentEnding(name: string, end: string): string | undefined {
   return undefined;
 }
 
-function inflectedNames(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, NAME_ENDING)) {
-    const { name, end } = m.groups!;
-    const silent = silentEnding(name, end);
-    if (silent !== undefined) {
-      if (silent && !userOrNamed(ctx, name))
-        findings.push(
-          findingAt(
-            ctx,
-            m.index,
-            m.index + m[0].length,
-            [silent],
-            RULE,
-            "review_msg_pl_inflected_name",
-          ),
-        );
-      continue;
-    }
-    // Silent French endings ("Jacques'a", "Charles'a") and a pronounced "-y" after a
-    // consonant ("Kennedy'ego") keep it too.
-    if (/(?:ques|les|ges|ois|eux|aux|oix|ault|eau|[^aeiouy]y)$/u.test(name)) continue;
-    // "-y" names drop the "i" of the ending: "Bill'im" -> "Billym" is beyond this check.
-    if (/^(?:i|im|ie|iem)$/u.test(end) && /y$/u.test(name)) continue;
-    if (userOrNamed(ctx, name)) continue;
-    findings.push(
-      findingAt(
+function inflectedNames(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { name, end } = m.groups!;
+  const silent = silentEnding(name, end);
+  if (silent !== undefined) {
+    if (silent && !userOrNamed(ctx, name))
+      return findingAt(
         ctx,
         m.index,
         m.index + m[0].length,
-        [name + end],
+        [silent],
         RULE,
         "review_msg_pl_inflected_name",
-      ),
-    );
+      );
+    return null;
   }
-  for (const m of owned(ctx, ACRONYM_ENDING)) {
-    const { name, end } = m.groups!;
-    // A capital or a lowercase run inside ("PiS", "WiN") marks the acronym's own spelling.
-    if (!m.groups!.mark && name.length < 3) continue;
-    // "IPN'ie", "SMS’y": a vowel-initial ending after the apostrophe is the house style of some.
-    if (m.groups!.mark && /^(?:ie|y)$/u.test(end)) continue;
-    if (/^(?:PL|EU|USA|UK|OK)$/u.test(name) && !m.groups!.mark) continue;
-    if (ctx.dictionary.has(m[0].toLowerCase())) continue;
-    findings.push(
-      findingAt(
-        ctx,
-        m.index,
-        m.index + m[0].length,
-        [`${name}-${end}`],
-        RULE,
-        "review_msg_pl_inflected_name",
-      ),
-    );
-  }
-  return findings;
+  // Silent French endings ("Jacques'a", "Charles'a") and a pronounced "-y" after a
+  // consonant ("Kennedy'ego") keep it too.
+  if (/(?:ques|les|ges|ois|eux|aux|oix|ault|eau|[^aeiouy]y)$/u.test(name)) return null;
+  // "-y" names drop the "i" of the ending: "Bill'im" -> "Billym" is beyond this check.
+  if (/^(?:i|im|ie|iem)$/u.test(end) && /y$/u.test(name)) return null;
+  if (userOrNamed(ctx, name)) return null;
+  return findingAt(
+    ctx,
+    m.index,
+    m.index + m[0].length,
+    [name + end],
+    RULE,
+    "review_msg_pl_inflected_name",
+  );
 }
 
-export const PREDICATES = {
-  wordForms: (ctx: DetectContext) => (isPl(ctx) ? inflectedNames(ctx) : []),
-} satisfies Record<string, Detector>;
+function acronymEndings(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { name, end } = m.groups!;
+  // A capital or a lowercase run inside ("PiS", "WiN") marks the acronym's own spelling.
+  if (!m.groups!.mark && name.length < 3) return null;
+  // "IPN'ie", "SMS’y": a vowel-initial ending after the apostrophe is the house style of some.
+  if (m.groups!.mark && /^(?:ie|y)$/u.test(end)) return null;
+  if (/^(?:PL|EU|USA|UK|OK)$/u.test(name) && !m.groups!.mark) return null;
+  if (ctx.dictionary.has(m[0].toLowerCase())) return null;
+  return findingAt(
+    ctx,
+    m.index,
+    m.index + m[0].length,
+    [`${name}-${end}`],
+    RULE,
+    "review_msg_pl_inflected_name",
+  );
+}

@@ -1,5 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer, MatchResult } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   adjectiveOf,
@@ -18,7 +18,7 @@ import {
   pastByShape,
   VIRILE,
 } from "./lexicon";
-import { findingAt, isPl, userOrNamed } from "./shared";
+import { findingAt, userOrNamed } from "./shared";
 
 /*
  * Clause boundaries read from finite verbs: two clauses run on without a comma or a
@@ -29,8 +29,6 @@ import { findingAt, isPl, userOrNamed } from "./shared";
 
 const RULE = "polishMissingComma" as const;
 
-/** A stretch of one sentence with no punctuation inside (a spaced " - " is a dash). */
-const SEGMENT = /(?:[^,;:.!?…()[\]{}"„”“«»‚‘’'—–\n-]|(?<=\S)-|-(?=\S))+/gu;
 const WORD = /\p{L}+/gu;
 
 /** Words that join two clauses or open one: verbs with one of these between them are fine. */
@@ -418,30 +416,23 @@ function runOns(
   return [];
 }
 
-function clauses(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  SEGMENT.lastIndex = Math.max(0, ctx.from - 400);
-  for (let m = SEGMENT.exec(ctx.scanText); m && m.index < ctx.to; m = SEGMENT.exec(ctx.scanText)) {
-    const end = m.index + m[0].length;
-    if (end <= ctx.from || namedExampleBefore(ctx.text, m.index)) continue;
-    const list = words(m[0], m.index);
-    for (const [i, w] of list.entries()) {
-      w.verb = verbAt(list, i);
-      w.participle = adverbialParticiple(w.lower);
-    }
-    if (list.length < 3) continue;
-    const segment: [number, number] = [m.index, end];
-    const afterComma = ctx.text[m.index - 1] === ",";
-    for (const finding of [
-      ...participles(ctx, list, segment),
-      ...purposeOpeners(ctx, list, segment),
-      ...runOns(ctx, list, segment, afterComma),
-    ])
-      if (finding.range.start >= ctx.from && finding.range.start < ctx.to) findings.push(finding);
+function clauses(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const end = m.index + m[0].length;
+  if (end <= ctx.from || namedExampleBefore(ctx.text, m.index)) return null;
+  const list = words(m[0], m.index);
+  for (const [i, w] of list.entries()) {
+    w.verb = verbAt(list, i);
+    w.participle = adverbialParticiple(w.lower);
   }
-  return findings;
+  if (list.length < 3) return null;
+  const segment: [number, number] = [m.index, end];
+  const afterComma = ctx.text[m.index - 1] === ",";
+  return [
+    ...participles(ctx, list, segment),
+    ...purposeOpeners(ctx, list, segment),
+    ...runOns(ctx, list, segment, afterComma),
+  ].filter((finding) => finding.range.start >= ctx.from && finding.range.start < ctx.to);
 }
 
-export const PREDICATES = {
-  clauses: (ctx: DetectContext) => (isPl(ctx) ? clauses(ctx) : []),
-} satisfies Record<string, Detector>;
+/** The named frame fixes of the clause rule of grammar/rules/pl.yaml (`fixer:`). */
+export const FIXERS = { clauses } satisfies Record<string, MatchFixer>;

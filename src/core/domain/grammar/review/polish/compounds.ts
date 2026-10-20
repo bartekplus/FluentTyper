@@ -1,6 +1,6 @@
-import type { Detector, Fixer } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { caseLike, findingAt, isPl, owned, PREPOSITIONS, userOrNamed } from "./shared";
+import type { Fixer, MatchResult } from "../../engine/reviewRules";
+import type { DetectContext } from "../reviewDetectors";
+import { caseLike, findingAt, PREPOSITIONS, userOrNamed } from "./shared";
 import { adjectiveOf, finiteVerb, nounTags } from "./lexicon";
 
 /*
@@ -94,6 +94,9 @@ const COMPOUND = {
 
 /** The named frame fixes of grammar/rules/pl.yaml (`fixer:`). */
 export const FIXERS = {
+  conditionalBy,
+  personEndings,
+  nieJoined,
   // "naj" is no word of its own: "naj lepszy", "naj częściej" -> the superlative.
   compoundsNaj: (m) => `naj${m.groups!.word}`,
   // "po woli dotarcia" (by the will to) and the Warsaw district "Wola" keep the noun.
@@ -142,17 +145,11 @@ export const FIXERS = {
  * "zrobił by" -> "zrobiłby". "by" before an infinitive or a past form is the
  * conjunction ("przyszedł by pomóc"), and after a noun it may stand apart ("Szkoła by zyskała").
  */
-const PAST_VERB =
-  "\\p{L}{1,20}?(?:ał|ała|ało|ali|ały|ił|iła|iło|ili|iły|ył|yła|yło|yli|yły|ął|ęła|ęło|ęli|ęły|ógł|ogła|ogło|ogli|ogły|eł|szedł|szła|szło|szli|szły)";
 // ponytail: hand-listed nouns and adjectives ending like past tenses; a POS lexicon would replace it.
 const NOT_PAST = new Set(
   "siła siły skała skały ciało ciała działo działa mogiła mogiły chwała chwały żyła żyły nawała chwili sali fali stali soli roli woli cali dali wali brali pała pały pali śmiały biały mały cały stały dały wały zapał zapały upał upały kanał kanały szał szały bali dział działy materiał materiały ideał ideały rytuał rytuały okazały spały".split(
     " ",
   ),
-);
-const BY_SPLIT = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’-])(?<verb>${PAST_VERB})(?<space>[ \\t\\u00a0]{1,8})(?<by>by|bym|byś|byśmy|byście)(?![\\p{L}\\p{N}_'’-])`,
-  "giu",
 );
 const NOUN_PHRASE_BEFORE = new RegExp(
   `(?:^|[^\\p{L}])(?:${PREPOSITIONS}|tej|tym|tego|ta|to|te|ten|swojej|mojej|jego|jej)[ \\t\\u00a0]+$`,
@@ -169,67 +166,45 @@ const isInfinitive = (word: string) =>
 const MODAL =
   /^(?:mógł|mogła|mogło|mogli|mogły|chciał|chciała|chciało|chcieli|chciały|musiał|musiała|musiało|musieli|musiały|miał|miała|miało|mieli|miały|umiał|umiała|umieli|potrafił|potrafiła|potrafili|wolał|wolała|woleli|zdołał|zdołała|zdołali|powinien|powinna|powinno|powinni)$/iu;
 
-function conditionalBy(ctx: DetectContext): RawFinding[] {
-  if (!isPl(ctx) || (ctx.rules && !ctx.rules.has(COMPOUND.ruleId))) return [];
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, BY_SPLIT)) {
-    const { verb, by } = m.groups!;
-    if (NOT_PAST.has(verb.toLowerCase()) || verb.length < 3) continue;
-    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
-    // "w tej chwili by", "na fali by": a noun phrase, not a verb.
-    if (NOUN_PHRASE_BEFORE.test(before)) continue;
-    // The conjunction: an infinitive or a past form follows within a few words
-    // ("przyszedł by go zobaczyć", "chciał bym przyszedł").
-    const end = m.index + m[0].length;
-    const next = (ctx.text.slice(end, end + 60).match(/\p{L}+/gu) ?? []).slice(0, 4);
-    // A person ending ("bym") or a modal ("mógł by zrobić") makes it the conditional.
-    if (
-      by.length === 2 &&
-      !MODAL.test(verb) &&
-      next.some((word) => isInfinitive(word.toLowerCase()))
-    )
-      continue;
-    if (/^\p{L}*(?:ł|ła|ło|li|ły)$/u.test(next[0] ?? "")) continue;
-    const typed = m[0];
-    if (userOrNamed(ctx, typed)) continue;
-    findings.push(
-      findingAt(
-        ctx,
-        m.index,
-        m.index + typed.length,
-        [caseLike(typed, verb + by.toLowerCase())],
-        COMPOUND.ruleId,
-        COMPOUND.messageKey,
-      ),
-    );
-  }
-  return findings;
+function conditionalBy(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { verb, by } = m.groups!;
+  if (NOT_PAST.has(verb.toLowerCase()) || verb.length < 3) return null;
+  const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+  // "w tej chwili by", "na fali by": a noun phrase, not a verb.
+  if (NOUN_PHRASE_BEFORE.test(before)) return null;
+  // The conjunction: an infinitive or a past form follows within a few words
+  // ("przyszedł by go zobaczyć", "chciał bym przyszedł").
+  const end = m.index + m[0].length;
+  const next = (ctx.text.slice(end, end + 60).match(/\p{L}+/gu) ?? []).slice(0, 4);
+  // A person ending ("bym") or a modal ("mógł by zrobić") makes it the conditional.
+  if (by.length === 2 && !MODAL.test(verb) && next.some((word) => isInfinitive(word.toLowerCase())))
+    return null;
+  if (/^\p{L}*(?:ł|ła|ło|li|ły)$/u.test(next[0] ?? "")) return null;
+  const typed = m[0];
+  if (userOrNamed(ctx, typed)) return null;
+  return findingAt(
+    ctx,
+    m.index,
+    m.index + typed.length,
+    [caseLike(typed, verb + by.toLowerCase())],
+    COMPOUND.ruleId,
+    COMPOUND.messageKey,
+  );
 }
 
-/** "zrobili śmy": the personal ending "-śmy"/"-ście" is never a word of its own. */
-const PERSON_SPLIT =
-  /(?<![\p{L}\p{N}_'’-])(?<word>\p{L}{2,30})(?<space>[ \t ]{1,8})(?<ending>śmy|ście)(?![\p{L}\p{N}_'’-])/giu;
-
-function personEndings(ctx: DetectContext): RawFinding[] {
-  if (!isPl(ctx) || (ctx.rules && !ctx.rules.has(COMPOUND.ruleId))) return [];
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, PERSON_SPLIT)) {
-    const { word, ending } = m.groups!;
-    if (!/(?:li|ły|by|ło|ła)$/iu.test(word)) continue;
-    const typed = m[0];
-    if (userOrNamed(ctx, typed)) continue;
-    findings.push(
-      findingAt(
-        ctx,
-        m.index,
-        m.index + typed.length,
-        [caseLike(typed, word + ending.toLowerCase())],
-        COMPOUND.ruleId,
-        COMPOUND.messageKey,
-      ),
-    );
-  }
-  return findings;
+function personEndings(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { word, ending } = m.groups!;
+  if (!/(?:li|ły|by|ło|ła)$/iu.test(word)) return null;
+  const typed = m[0];
+  if (userOrNamed(ctx, typed)) return null;
+  return findingAt(
+    ctx,
+    m.index,
+    m.index + typed.length,
+    [caseLike(typed, word + ending.toLowerCase())],
+    COMPOUND.ruleId,
+    COMPOUND.messageKey,
+  );
 }
 
 /*
@@ -238,79 +213,42 @@ function personEndings(ctx: DetectContext): RawFinding[] {
  * "niepalący", "nielepszy", "nietrudno", "niepalenie"). It stays apart in a
  * contrast ("nie dobry, lecz zły"), in a question and after "to" ("To nie zły pomysł").
  */
-/** Adjective endings except "-ą", which a third-person plural verb shares ("giną"). */
-const ADJ = "(?:y|a|e|ego|ej|emu|ym|ych|ymi)";
-const NIE_FORMS = [
-  // Active and passive participles.
-  `\\p{L}{2,}(?:ąc|on|an|ęt)${ADJ}`,
-  // Comparatives and superlatives (a closed list: "-szy" is also a verb ending, "cieszy").
-  `(?:naj)?(?:lepsz|gorsz|większ|wyższ|niższ|starsz|młodsz|dłuższ|krótsz|bliższ|dalsz|tańsz|droższ|szybsz|łatwiejsz|trudniejsz|ważniejsz|ciekawsz|lżejsz|cięższ|ładniejsz|prostsz|mądrzejsz|silniejsz|słabsz|bogatsz|nowsz|zdrowsz|piękniejsz|gorętsz|zimniejsz)${ADJ}`,
-  "(?:naj)?(?:lepiej|gorzej)",
-  // Adjectives in -owy, -ny, -ski and a few common bare ones.
-  `\\p{L}{2,}(?:ow|n|sk|ck)${ADJ}`,
-  `(?:dobr|zł|duż|wielk|mał|łatw|ciekaw|zdrow|chor|pewn|zdoln|grzeczn|uprzejm|wesoł|gotow|świadom|szczęśliw)(?:${ADJ.slice(3, -1)}|zy|i)`,
-  // Adverbs from adjectives, nouns in -ość and verbal nouns in -anie/-enie.
-  "(?:trudno|łatwo|dobrze|źle|daleko|wysoko|nisko|drogo|tanio|długo|dużo|mało|często|rzadko|chętnie|grzecznie|uprzejmie|ważne)",
-  "\\p{L}{2,}ość",
-  "\\p{L}{2,}(?:anie|enie|eniu|aniu)",
-].join("|");
-const NIE_WORD = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’-])(?<nie>nie)(?<sp>[ \\t\\u00a0]+)(?<word>${NIE_FORMS})(?![\\p{L}\\p{N}_-])`,
-  "giu",
-);
 /** Forms that are verbs, pronouns, ordinals or nouns despite the ending. */
 const NIE_APART =
   /(?:zna|^można|stanie|staniu|^inn\p{L}*|^jedyn\p{L}*|^setn\p{L}*|tysięczn\p{L}*|^sam\p{L}*|głow[aeyąę]|mow[aeyąę]|słow[aeoyąę]|budow[aeyąę]|połow[aeyąę]|krow[aeyąę]|^ścian\p{L}*|^zmian\p{L}*|^cen[aeyąę]|^win[aeyąę]|^stron\p{L}*|^scen\p{L}*|^więcej|^mniej|^bardziej)$/iu;
 
-function nieJoined(ctx: DetectContext): RawFinding[] {
-  if (!isPl(ctx) || (ctx.rules && !ctx.rules.has(COMPOUND.ruleId))) return [];
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, NIE_WORD)) {
-    const { nie, word } = m.groups!;
-    if (NIE_APART.test(word) || /^\p{Lu}/u.test(word)) continue;
-    const end = m.index + m[0].length;
-    const sentenceBefore =
-      ctx.text
-        .slice(Math.max(0, m.index - 200), m.index)
-        .split(/[.!?…\n]/u)
-        .at(-1) ?? "";
-    const sentenceAfter = ctx.text.slice(end, end + 200).split(/[.!…\n]/u)[0] ?? "";
-    // A question, or "to nie …" / "czy nie …": the negation is the sentence's, not the word's.
-    if (sentenceAfter.includes("?")) continue;
-    if (
-      /(?:^|[^\p{L}])(?:to|czy|czyż|że|żeby|gdyby|jakby|by|a|ale|lecz|ani)[ \t ]+$/iu.test(
-        sentenceBefore,
-      )
+function nieJoined(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { nie, word } = m.groups!;
+  if (NIE_APART.test(word) || /^\p{Lu}/u.test(word)) return null;
+  const end = m.index + m[0].length;
+  const sentenceBefore =
+    ctx.text
+      .slice(Math.max(0, m.index - 200), m.index)
+      .split(/[.!?…\n]/u)
+      .at(-1) ?? "";
+  const sentenceAfter = ctx.text.slice(end, end + 200).split(/[.!…\n]/u)[0] ?? "";
+  // A question, or "to nie …" / "czy nie …": the negation is the sentence's, not the word's.
+  if (sentenceAfter.includes("?")) return null;
+  if (
+    /(?:^|[^\p{L}])(?:to|czy|czyż|że|żeby|gdyby|jakby|by|a|ale|lecz|ani)[ \t ]+$/iu.test(
+      sentenceBefore,
     )
-      continue;
-    // A comparison keeps the contrastive "nie": "nie lepszy od poprzednika".
-    if (/^[ \t ]+(?:od|niż)(?!\p{L})/iu.test(sentenceAfter)) continue;
-    // A contrast: "nie dobry, lecz zły", "nie tyle X, ile Y".
-    if (
-      /^[^;:]{0,60}?(?:,[ \t ]*(?:ale|lecz|tylko|a|jednak)|[ \t ]lecz)(?!\p{L})/iu.test(
-        sentenceAfter,
-      )
-    )
-      continue;
-    if (userOrNamed(ctx, m[0])) continue;
-    findings.push(
-      findingAt(
-        ctx,
-        m.index,
-        end,
-        [caseLike(nie, "nie") + word.toLowerCase()],
-        COMPOUND.ruleId,
-        COMPOUND.messageKey,
-      ),
-    );
-  }
-  return findings;
+  )
+    return null;
+  // A comparison keeps the contrastive "nie": "nie lepszy od poprzednika".
+  if (/^[ \t ]+(?:od|niż)(?!\p{L})/iu.test(sentenceAfter)) return null;
+  // A contrast: "nie dobry, lecz zły", "nie tyle X, ile Y".
+  if (
+    /^[^;:]{0,60}?(?:,[ \t ]*(?:ale|lecz|tylko|a|jednak)|[ \t ]lecz)(?!\p{L})/iu.test(sentenceAfter)
+  )
+    return null;
+  if (userOrNamed(ctx, m[0])) return null;
+  return findingAt(
+    ctx,
+    m.index,
+    end,
+    [caseLike(nie, "nie") + word.toLowerCase()],
+    COMPOUND.ruleId,
+    COMPOUND.messageKey,
+  );
 }
-
-export const PREDICATES = {
-  compounds: (ctx: DetectContext) => [
-    ...conditionalBy(ctx),
-    ...personEndings(ctx),
-    ...nieJoined(ctx),
-  ],
-} satisfies Record<string, Detector>;
