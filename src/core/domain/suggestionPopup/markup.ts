@@ -1,3 +1,4 @@
+import { isGraphemeBoundary } from "../grammar/review/textRanges";
 import type { SuggestionKeyHint } from "./keyHints";
 
 /**
@@ -42,10 +43,22 @@ function highlightMatch(mentionText: string, suggestion: string): string {
 
 const EMOJI_REGEX = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
 
-/** One emoji grapheme, such as 😂, ✌️, 👩‍🦰 or 🇮🇳 (a trailing space is ignored). */
+/**
+ * One emoji grapheme, such as 😂, ✌️, 👩‍🦰 or 🇮🇳 (a trailing space is ignored).
+ * isGraphemeBoundary works without Intl.Segmenter (Firefox before 125); a joined emoji
+ * then counts as text and shows with its name.
+ */
 function isSingleEmoji(text: string): boolean {
   const trimmed = text.trim();
-  return EMOJI_REGEX.test(trimmed) && [...new Intl.Segmenter().segment(trimmed)].length === 1;
+  if (!EMOJI_REGEX.test(trimmed)) {
+    return false;
+  }
+  for (let index = 1; index < trimmed.length; index += 1) {
+    if (isGraphemeBoundary(trimmed, index)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /**

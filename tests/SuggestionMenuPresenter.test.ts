@@ -177,6 +177,41 @@ describe("SuggestionMenuPresenter", () => {
     expect(mixed.querySelector(".ft-suggestion-detail")?.textContent).toBe("smiley");
   });
 
+  test.each([
+    ["with Intl.Segmenter", true, ["title", "title", "detail"]],
+    ["without Intl.Segmenter (Firefox before 125)", false, ["title", "detail", "detail"]],
+  ])("emoji rows %s", (_label, withSegmenter, expected) => {
+    const intl = Intl as { Segmenter?: unknown };
+    const segmenter = intl.Segmenter;
+    if (!withSegmenter) delete intl.Segmenter;
+    try {
+      const positioning = {
+        syncMenuTypography: jest.fn(),
+        positionMenu: jest.fn(() => true),
+      } as unknown as SuggestionPositioningService;
+      const { menu, list } = SuggestionMenuView.ensureMenu();
+      new SuggestionMenuPresenter(positioning).render({
+        menuId: 1,
+        menu,
+        list,
+        target: document.createElement("input"),
+        // A single emoji, a joined emoji (woman + ZWJ + red hair), two emoji.
+        suggestions: ["😂", "👩‍🦰", "🙂🙂"],
+        snippetShortcuts: ["face_with_tears_of_joy", "woman_red_hair", "smiles"],
+        selectedIndex: 0,
+        showShortcutDigits: false,
+        menuHeader: null,
+        mentionText: "",
+      });
+      const kinds: string[] = Array.from(list.querySelectorAll("li")).map((row) =>
+        row.querySelector(".ft-suggestion-detail") ? "detail" : "title",
+      );
+      expect(kinds).toEqual(expected);
+    } finally {
+      intl.Segmenter = segmenter;
+    }
+  });
+
   test("shows the keys that work in a footer, and none without accept keys", () => {
     const positioning = {
       syncMenuTypography: jest.fn(),
