@@ -1,5 +1,4 @@
-import { frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { graphWords } from "../wordGraph";
 import type * as Data from "./verbStems.generated";
 import { reviewData } from "../reviewLanguageData";
@@ -10,18 +9,9 @@ import { finding } from "../finding";
  * future auxiliary, "poder" or "conseguir" comes an infinitive, so a finite form of an
  * everyday verb that lost its -r is the infinitive. Verbs that also take a noun ("quer
  * ajuda", "deve dinheiro", "precisa ajuda") stay out, as do stems two conjugations share.
+ * The frames are in grammar/rules/pt_BR.yaml.
  */
 
-const AUXILIARY =
-  "vou|vais|vai|vamos|vão|ia|ias|íamos|iam|pode|posso|podes|podemos|podem|podia|podiam|poderá|poderia|consigo|consegue|conseguimos|conseguem";
-// The verb right after, maybe with a hyphenated pronoun: "vão lembra-se" -> "lembrar-se".
-const PATTERN = `(?:${AUXILIARY})${SPACE}(?:(?:não|já|também|ainda|logo|sempre)${SPACE})?(?<target>\\p{L}{2,}[aei])(?=-(?:me|te|se|nos|vos|lhes?)${WORD_END}|${WORD_END})`;
-// "quero come" -> "comer", "deve existe" -> "existir", "tentou abri" -> "abrir": modals that
-// take a noun too ("quero ajuda", "deve dinheiro") only count before an -e or -i form, which
-// is a verb of the second or third conjugation and seldom a noun.
-const MODAL =
-  "quero|queria|quer|queremos|querem|queriam|preciso|precisa|precisamos|precisam|precisava|devo|deve|devemos|devem|devia|deviam|deveria|deveriam|tento|tenta|tentei|tentou|tentamos|tentam|tentar|tentava";
-const MODAL_PATTERN = `(?:${MODAL})${SPACE}(?:(?:não|já|também|ainda|logo|sempre)${SPACE})?(?<target>\\p{L}{2,}[ei])(?=-(?:me|te|se|nos|vos|lhes?)${WORD_END}|${WORD_END})`;
 // Words that end like such a form but are none after an auxiliary.
 const NOT_VERBS = new Set([
   "para",
@@ -62,63 +52,56 @@ export function infinitive(word: string): string | null {
   return `${stem}${ar ? "ar" : er ? "er" : "ir"}`;
 }
 
-// "começou a escrevendo" -> "escrever": "começar a", "passar a", "voltar a" and "tornar a" take
-// the infinitive. "continuar a seguindo" stays out: there "a" may be the object pronoun.
-const BEGINS =
-  "(?:começ|comec|pass|volt|torn)(?:o|a|as|am|amos|ou|ei|aram|ava|avam|ar|ará|arão|aria|ariam|e|em|ando)";
-const GERUND = `${BEGINS}${SPACE}a${SPACE}(?<target>\\p{L}+(?:ando|endo|indo)|pondo)${WORD_END}(?!-)`;
 const GERUND_ENDING: Record<string, string> = { ando: "ar", endo: "er", indo: "ir" };
-// "comecei a escreve" -> "escrever": only -e and -i forms, as after the modals; "passa a bola"
-// has an article and a noun.
-const BEGINS_PATTERN = `${BEGINS}${SPACE}a${SPACE}(?<target>\\p{L}{2,}[ei])(?=-(?:me|te|se|nos|vos|lhes?)${WORD_END}|${WORD_END})`;
 
-// "vão fazerem", "começaram a saberem" -> "fazer", "saber": the infinitive after an auxiliary
-// takes no person ending.
-const PERSONAL = `(?:${AUXILIARY}|${MODAL}|${BEGINS}${SPACE}a|cheg(?:ou|aram|a|am|ava|avam)${SPACE}a)${SPACE}(?:(?:não|já|também|ainda|logo|sempre)${SPACE})?(?<target>\\p{L}{2,}[aeiô]r)em${WORD_END}`;
-
-export function auxiliaryInfinitives(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "pt")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, GERUND)) {
+/** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
+export const FIXERS = {
+  infinitiveGerund: (m, ctx) => {
     const word = m.groups!.target;
-    if (ctx.dictionary.has(word.toLowerCase())) continue;
+    if (ctx.dictionary.has(word.toLowerCase())) return null;
     const lower = word.toLowerCase();
     const fixed =
       lower === "pondo" ? "pôr" : `${lower.slice(0, -4)}${GERUND_ENDING[lower.slice(-4)]}`;
     const [start, end] = m.indices!.groups!.target;
-    findings.push(
-      finding("portugueseAgreement", "review_msg_pt_auxiliary_infinitive", start, end, [fixed], {
+    return finding(
+      "portugueseAgreement",
+      "review_msg_pt_auxiliary_infinitive",
+      start,
+      end,
+      [fixed],
+      {
         context: { start: m.index, end },
-      }),
+      },
     );
-  }
-  for (const m of frameMatches(ctx, PERSONAL)) {
+  },
+  infinitivePersonal: (m, ctx) => {
     const [start, end] = m.indices!.groups!.target;
     const typed = ctx.text.slice(start, end + 2);
-    if (ctx.dictionary.has(typed.toLowerCase())) continue;
-    findings.push(
-      finding(
-        "portugueseAgreement",
-        "review_msg_pt_auxiliary_infinitive",
-        start,
-        end + 2,
-        [m.groups!.target],
-        { context: { start: m.index, end: end + 2 } },
-      ),
+    if (ctx.dictionary.has(typed.toLowerCase())) return null;
+    return finding(
+      "portugueseAgreement",
+      "review_msg_pt_auxiliary_infinitive",
+      start,
+      end + 2,
+      [m.groups!.target],
+      { context: { start: m.index, end: end + 2 } },
     );
-  }
-  for (const pattern of [PATTERN, MODAL_PATTERN, BEGINS_PATTERN])
-    for (const m of frameMatches(ctx, pattern)) {
-      const word = m.groups!.target;
-      if (word.length < 4 || NOT_VERBS.has(word) || ctx.dictionary.has(word)) continue;
-      const fixed = infinitive(word);
-      if (!fixed) continue;
-      const [start, end] = m.indices!.groups!.target;
-      findings.push(
-        finding("portugueseAgreement", "review_msg_pt_auxiliary_infinitive", start, end, [fixed], {
-          context: { start: m.index, end },
-        }),
-      );
-    }
-  return findings;
-}
+  },
+  infinitiveFinite: (m, ctx) => {
+    const word = m.groups!.target;
+    if (word.length < 4 || NOT_VERBS.has(word) || ctx.dictionary.has(word)) return null;
+    const fixed = infinitive(word);
+    if (!fixed) return null;
+    const [start, end] = m.indices!.groups!.target;
+    return finding(
+      "portugueseAgreement",
+      "review_msg_pt_auxiliary_infinitive",
+      start,
+      end,
+      [fixed],
+      {
+        context: { start: m.index, end },
+      },
+    );
+  },
+} satisfies Record<string, MatchFixer>;

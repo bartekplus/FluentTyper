@@ -1,6 +1,5 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, isLang, SPACE as S } from "../phraseTemplates";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { graphWords } from "../wordGraph";
 import type * as Data from "./verbStems.generated";
 import { reviewData } from "../reviewLanguageData";
@@ -16,6 +15,7 @@ import { reviewData } from "../reviewLanguageData";
  * determiner and its noun), a few adverbs and an object pronoun. Regular verbs are only told
  * from nouns through the stems of everyday verbs (verbStems.generated.ts); a stem shared by an
  * -ar and an -er/-ir verb (sentar/sentir: "sente") stays out.
+ * The governor frames are in grammar/rules/pt_BR.yaml.
  */
 
 // Present and imperfect subjunctive of the irregular indicatives (present, and imperfect for
@@ -292,65 +292,39 @@ function fits(form: string, read: Reading, subject: Person | null): boolean {
 
 // -------------------------------------------------------------- governors
 
-const PRESENT_GOVERNORS = [
-  "espero|esperamos|esperam|espera-se|desejo|desejamos|desejam|deseja|deseja-se",
-  "quero|queremos|querem|quer|peço|pedimos|pedem|pede|pede-se|exijo|exigimos|exigem|exige",
-  "proíbo|proibimos|proíbem|proíbe|duvido|duvidamos|duvidam|prefiro|preferimos|preferem",
-  "sugiro|sugerimos|sugerem|sugere|recomendo|recomendamos|recomendam|recomenda|proponho",
-  "propomos|propõem|propõe|temo|tememos|temem|evito|evitamos|evitam|evita|evitaremos|nego",
-  "negamos|negam|nega|negas|tomara|oxalá|permito|permite|permitem|impede|impedem|impeço",
-  `não${S}(?:acho|creio|penso|suponho|acredito)`,
-  `é${S}(?:preciso|necessário|importante|possível|provável|fundamental|essencial|imprescindível|bom|natural|normal|urgente)`,
-].join("|");
-const PAST_GOVERNORS = [
-  "esperava|esperavam|esperávamos|esperei|esperou|esperaram|desejava|desejavam|desejei|desejou",
-  "queria|queriam|queríamos|quis|quisemos|quiseram|quisera|pedia|pediam|pedi|pediu|pediram",
-  "exigia|exigiam|exigi|exigiu|exigiram|proibia|proibi|proibiu|proibiram|proibiria|duvidava",
-  "duvidei|duvidou|preferia|preferiam|preferi|preferiu|sugeria|sugeri|sugeriu|sugeriram",
-  "recomendava|recomendei|recomendou|propunha|propus|propôs|propuseram|temia|temiam|temi",
-  "temeu|evitava|evitei|evitou|evitaria|evitaríamos|negava|negou|neguei|desejaria|gostaria",
-  "gostaríamos|gostariam|preferiria|permitia|permitiu|impedia|impediu|mandou|mandava",
-  `(?:era|foi|seria)${S}(?:preciso|necessário|importante|possível|provável|fundamental|essencial|imprescindível|bom|natural|melhor)`,
-].join("|");
-// Conjunctions that take the present subjunctive.
-const CONJUNCTIONS = `embora|conquanto|caso|talvez|nem${S}que|a${S}não${S}ser${S}que|a${S}menos${S}que|sem${S}que|antes${S}que|contanto${S}que|desde${S}que(?=${S}(?:não${S})?(?:haja|tenha|seja|esteja|ele|ela|você|eu|nós|eles|elas|vocês))|ainda${S}que|mesmo${S}que`;
 // "no caso", "o mesmo que", "acho ainda que": these read as conjunctions only opening a clause.
 const CLAUSE_ONLY = /^(?:caso|ainda|mesmo|antes)/i;
 const CLAUSE_BEFORE = /(?:^|[.!?;:,\n]["'”’»)]*)[ \t ]*$/u;
 const DETERMINER_BEFORE =
   /(?:^|[^\p{L}])(?:o|a|os|as|um|uma|do|da|no|na|ao|pelo|pela|este|esse|aquele|meu|seu|nosso|cada|qualquer|tal|neste|nesse|desse|deste|em|de)[ \t ]+$/iu;
 
-const FRAMES: Array<{ pattern: string; past: boolean }> = [
-  { pattern: `(?<lead>${PRESENT_GOVERNORS})${S}que(?=[ \\t\\u00a0])`, past: false },
-  { pattern: `(?<lead>${PAST_GOVERNORS})${S}que(?=[ \\t\\u00a0])`, past: true },
-  { pattern: `(?<lead>${CONJUNCTIONS})(?=[ \\t\\u00a0])`, past: false },
-];
+/** The subjunctive of the verb of the clause after a governor; `past` asks the imperfect. */
+const subjunctive =
+  (past: boolean): MatchFixer =>
+  (m, ctx) => {
+    const lead = m.groups!.lead;
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (DETERMINER_BEFORE.test(before)) return null;
+    if (CLAUSE_ONLY.test(lead) && !CLAUSE_BEFORE.test(before)) return null;
+    // "Espera que eu já volto": a sentence-opening "espera" is the imperative "wait".
+    if (/^esper[ae]$/i.test(lead) && CLAUSE_BEFORE.test(before)) return null;
+    const clause = clauseVerb(ctx.text, m.index + m[0].length);
+    if (!clause || ctx.dictionary.has(clause.word)) return null;
+    const read = reading(clause.word);
+    if (!read || !fits(clause.word, read, clause.person)) return null;
+    const wanted = past ? read.past : read.present;
+    if (!wanted || wanted === clause.word) return null;
+    return {
+      ruleId: "portugueseAgreement",
+      messageKey: "review_msg_pt_subjunctive",
+      range: { start: clause.start, end: clause.end },
+      alternatives: [applyWordCase(wanted, detectWordCase(clause.word))],
+      context: { start: m.index, end: clause.end },
+    };
+  };
 
-export function subjunctives(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "pt")) return [];
-  const findings: RawFinding[] = [];
-  for (const { pattern, past } of FRAMES) {
-    for (const m of frameMatches(ctx, pattern, "lead")) {
-      const lead = m.groups!.lead;
-      const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
-      if (DETERMINER_BEFORE.test(before)) continue;
-      if (CLAUSE_ONLY.test(lead) && !CLAUSE_BEFORE.test(before)) continue;
-      // "Espera que eu já volto": a sentence-opening "espera" is the imperative "wait".
-      if (/^esper[ae]$/i.test(lead) && CLAUSE_BEFORE.test(before)) continue;
-      const clause = clauseVerb(ctx.text, m.index + m[0].length);
-      if (!clause || ctx.dictionary.has(clause.word)) continue;
-      const read = reading(clause.word);
-      if (!read || !fits(clause.word, read, clause.person)) continue;
-      const wanted = past ? read.past : read.present;
-      if (!wanted || wanted === clause.word) continue;
-      findings.push({
-        ruleId: "portugueseAgreement",
-        messageKey: "review_msg_pt_subjunctive",
-        range: { start: clause.start, end: clause.end },
-        alternatives: [applyWordCase(wanted, detectWordCase(clause.word))],
-        context: { start: m.index, end: clause.end },
-      });
-    }
-  }
-  return findings;
-}
+/** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
+export const FIXERS = {
+  subjunctivePresent: subjunctive(false),
+  subjunctivePast: subjunctive(true),
+} satisfies Record<string, MatchFixer>;

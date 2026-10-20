@@ -1,13 +1,6 @@
 import { invalidIsoDates } from "../isoDates";
-import { frameMatches, isLang } from "../phraseTemplates";
-import {
-  contextYear,
-  daysInMonth,
-  nearestDayOn,
-  weekdayOf,
-  yearsFor,
-  YEAR_DIGITS,
-} from "../reviewClock";
+import type { MatchFixer } from "../../engine/reviewRules";
+import { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 
 /**
@@ -33,20 +26,7 @@ export const MONTHS = [
   "novembro",
   "dezembro",
 ];
-const MONTH_NAME = `(?<month>${MONTHS.join("|")}|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)`;
-const SEP = "[ \\t\\u00a0]{1,4}";
-const NAMED = `(?<target>(?<day>\\d{1,2})[º°]?(?:${SEP}de${SEP}|${SEP}|[/-])${MONTH_NAME}(?![\\p{L}])(?:\\.?(?:,?${SEP}(?:de${SEP})?|[/-])(?<year>${YEAR_DIGITS})(?!\\d))?)`;
-const NUMERIC = `(?<target>(?<day>\\d{1,2})(?<sep>[/.-])(?<month>\\d{1,2})\\k<sep>(?<year>${YEAR_DIGITS}|\\d{2}))(?![\\d/.-]\\d)`;
-
 const WEEKDAYS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
-const WEEKDAY = `(?<weekday>(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo|seg|ter|qua|qui|sex|sáb|dom)\\.?(?:,?${SEP}|${SEP}\\()(?:dia${SEP})?`;
-const WEEKDAY_NAMED = `${WEEKDAY}(?<day>\\d{1,2})(?=[º°]?(?:${SEP}de${SEP}|${SEP})${MONTH_NAME}(?![\\p{L}])\\.?,?${SEP}(?:de${SEP})?(?<year>${YEAR_DIGITS})(?!\\d))`;
-const WEEKDAY_NUMERIC = `${WEEKDAY}(?<day>\\d{1,2})(?=/(?<month>\\d{1,2})/(?<year>${YEAR_DIGITS})(?![\\d/]))`;
-// No year ("Segunda, 7 de outubro", "Seg, outubro 7", "Sexta, 31/10"): the Review clock gives it.
-const WEEKDAY_NAMED_NO_YEAR = `${WEEKDAY}(?<day>\\d{1,2})(?=[º°]?(?:${SEP}de${SEP}|${SEP})${MONTH_NAME}(?![\\p{L}])(?!\\.?,?${SEP}(?:de${SEP})?\\d))`;
-const WEEKDAY_MONTH_DAY = `${WEEKDAY}${MONTH_NAME}\\.?${SEP}(?<day>\\d{1,2})(?![\\d/º°]|,?${SEP}(?:de${SEP})?\\d)`;
-const WEEKDAY_NUMERIC_NO_YEAR = `${WEEKDAY}(?<a>\\d{1,2})/(?<b>\\d{1,2})(?![\\d/]|[.,]\\d)`;
-
 // A word that puts a date after it: "em", "desde", "até", "dia", "data", "prazo", "vence", with
 // an optional verb or colon ("A data é", "Prazo:").
 const DATE_CUE =
@@ -109,38 +89,33 @@ function wrongWeekday(
   };
 }
 
-export function invalidDates(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "pt")) return [];
-  const findings: RawFinding[] = [];
-  const monthOf = (name: string) =>
-    MONTHS.findIndex((month) => month.startsWith(name.toLowerCase())) + 1;
-  const found: (RawFinding | null)[] = [];
-  for (const pattern of [WEEKDAY_NAMED, WEEKDAY_NAMED_NO_YEAR, WEEKDAY_MONTH_DAY])
-    for (const m of frameMatches(ctx, pattern, "weekday"))
-      found.push(wrongWeekday(ctx, m, monthOf(m.groups!.month)));
-  for (const m of frameMatches(ctx, WEEKDAY_NUMERIC, "weekday"))
-    found.push(wrongWeekday(ctx, m, Number(m.groups!.month)));
-  for (const m of frameMatches(ctx, WEEKDAY_NUMERIC_NO_YEAR, "weekday")) {
+const monthOf = (name: string) =>
+  MONTHS.findIndex((month) => month.startsWith(name.toLowerCase())) + 1;
+
+/** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
+export const FIXERS = {
+  weekdayNamed: (m, ctx) => wrongWeekday(ctx, m, monthOf(m.groups!.month)),
+  weekdayNumeric: (m, ctx) => wrongWeekday(ctx, m, Number(m.groups!.month)),
+  weekdayNumericNoYear: (m, ctx) => {
     // Only a field above 12 says which one is the day: "Sexta, 31/10", "Sexta, 10/31".
     const [a, b] = [Number(m.groups!.a), Number(m.groups!.b)];
-    if (a > 12 && b <= 12) found.push(wrongWeekday(ctx, m, b, "a"));
-    else if (b > 12 && a <= 12) found.push(wrongWeekday(ctx, m, a, "b"));
-  }
-  for (const f of found) if (f) findings.push(f);
-  for (const m of frameMatches(ctx, NAMED)) {
+    if (a > 12 && b <= 12) return wrongWeekday(ctx, m, b, "a");
+    if (b > 12 && a <= 12) return wrongWeekday(ctx, m, a, "b");
+    return null;
+  },
+  namedDate: (m) => {
     const { day, month, year } = m.groups!;
     const index = MONTHS.findIndex((name) => name.startsWith(month.toLowerCase())) + 1;
-    if (!exists(Number(day), index, year === undefined ? undefined : Number(year))) {
-      findings.push(finding(matchRange(m)));
-    }
-  }
-  for (const m of frameMatches(ctx, NUMERIC)) {
+    if (exists(Number(day), index, year === undefined ? undefined : Number(year))) return null;
+    return finding(matchRange(m));
+  },
+  numericDate: (m, ctx) => {
     const { day, month, sep } = m.groups!;
     // "00/00/0000" and "99/99/9999" are placeholders, not dates. "32/04/2020" is a date.
-    if (/^(?:0+|9+)$/.test(day + month) && day[0] === month[0]) continue;
+    if (/^(?:0+|9+)$/.test(day + month) && day[0] === month[0]) return null;
     const year = m.groups!.year.length === 4 ? Number(m.groups!.year) : undefined;
     // "1.10.24" is a version number; a dotted date needs a four-digit year.
-    if (sep === "." && year === undefined) continue;
+    if (sep === "." && year === undefined) return null;
     // "2.45.2020" is a version number too: no dotted date has a part above 31. After a date
     // cue ("A data é 32.04.2020", "em 32.04.2020") it is a date. A version word before it
     // ("versão 2.45.2020") keeps it technical before this check.
@@ -149,11 +124,14 @@ export function invalidDates(ctx: DetectContext): RawFinding[] {
       (Number(day) > 31 || Number(month) > 31) &&
       !DATE_CUE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))
     )
-      continue;
-    if (!exists(Number(day), Number(month), year) && !exists(Number(month), Number(day), year)) {
-      findings.push(finding(matchRange(m)));
-    }
-  }
-  for (const range of invalidIsoDates(ctx)) findings.push(finding(range));
-  return findings;
+      return null;
+    if (exists(Number(day), Number(month), year) || exists(Number(month), Number(day), year))
+      return null;
+    return finding(matchRange(m));
+  },
+} satisfies Record<string, MatchFixer>;
+
+/** ISO dates that do not exist ("2023-02-29"): the shared scan of review/isoDates.ts. */
+export function isoDates(ctx: DetectContext): RawFinding[] {
+  return invalidIsoDates(ctx).map(finding);
 }
