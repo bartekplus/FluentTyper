@@ -12,7 +12,7 @@ import {
 } from "./multilingualLexicon";
 import { countability } from "./englishCountability";
 import { nounNumberConstructions } from "./englishNounNumber";
-import { perfectParticiples } from "./englishParticiples";
+import { FIXERS as PARTICIPLE_FIXERS } from "./englishParticiples";
 import { FIXERS as COMPLEMENT_FIXERS } from "./englishComplements";
 import { contextualPossessives } from "./englishPossessives";
 import {
@@ -1585,7 +1585,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   quotationFindings: (ctx) => ownedFindings(ctx, ctx.quotationFindings),
   typographicQuotes: TYPOGRAPHIC_QUOTES.detect,
   possessives: contextualPossessives,
-  perfectParticiples,
   nounNumber: nounNumberConstructions,
   doubledDegree: (ctx) =>
     ctx.lang === "en_US" ? doubledDegree(ctx) : doubledDegreeByLanguage(ctx),
@@ -1651,7 +1650,12 @@ const DETECTOR_FIXERS = {
 } satisfies Record<string, MatchFixer>;
 
 /** The named frame fixes of grammar/rules/common.yaml (`fixer:`). */
-const CORE_FIXERS = mergePredicates<Fixer>(DETECTOR_FIXERS, COMPLEMENT_FIXERS, AUXILIARY_FIXERS);
+const CORE_FIXERS = mergePredicates<Fixer>(
+  DETECTOR_FIXERS,
+  COMPLEMENT_FIXERS,
+  AUXILIARY_FIXERS,
+  PARTICIPLE_FIXERS,
+);
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */
 const CORE_FILTERS = mergePredicates<FindingsFilter>(

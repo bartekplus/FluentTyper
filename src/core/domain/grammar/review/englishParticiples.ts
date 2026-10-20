@@ -10,9 +10,7 @@ import {
 } from "../implementations/helpers/GenericRuleShared";
 import {
   around,
-  EDGE,
   found,
-  frameMatches,
   group,
   hasUserOrCasedWord,
   plainToken,
@@ -20,6 +18,7 @@ import {
   WORD_END,
 } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
+import type { MatchFixer } from "../engine/reviewRules";
 
 const PRONOUN = /^(?:i|you|we|they|he|she|it)$/;
 const DETERMINERS = wordSet(
@@ -65,13 +64,6 @@ const LEADS: Readonly<Record<string, RegExp>> = {
   re: /^(?:you|we|they)$/,
   m: /^i$/,
 };
-const ADVERB = `(?:${[...ADVERBS].join("|")}|[a-z]+ly)`;
-// A chained auxiliary is not the verb, so "has been took" is still scanned from "been".
-const TAIL = `(?<adverbs>(?:${SPACE}${ADVERB}){0,2})${SPACE}(?!(?:be|been|being|have|having)${WORD_END})(?<verb>[A-Za-z]+)(?!${EDGE})`;
-// have/be in every spelling, clitics on their owner ("I'd", "it's") and dropped apostrophes.
-const DECLARATIVE = `(?:(?<lead>[A-Za-z]+)(?<clitic>['’](?:ve|d|s|re|m))|(?<aux>have|has|had|having|be|being|been|am|is|are|was|were|(?:have|has|had|is|are|was|were)n['’]?t|(?:i|you|we|they|could|would|should|must|might)ve|its))${TAIL}`;
-// "Have you ate?", "Was it took?": the auxiliary opens the clause, a subject follows.
-const INVERTED = `(?<aux>have|has|had|am|is|are|was|were|(?:have|has|had|is|are|was|were)n['’]?t)${SPACE}(?<subject>i|you|we|they|he|she|it|(?:the|this|that|these|those|my|your|his|her|our|their|its)${SPACE}[a-z]+)${TAIL}`;
 const OPENS_CLAUSE =
   /(?:[.!?;:,"“(\n]|(?:^|[^A-Za-z])(?:and|but|or|so|why|how|where|when|what|who|which))[ \t\u00a0]*$/i;
 
@@ -172,16 +164,6 @@ function auxKey(aux: string): string {
  * "it's broke". Any subject; possessive have ("I have saw blades"), adjectives ("I am broke"),
  * noun-clause subjects ("What it was took courage") and object gaps abstain.
  */
-function participleAfterAuxiliary(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const inverted of [false, true]) {
-    for (const m of frameMatches(ctx, inverted ? INVERTED : DECLARATIVE, "verb")) {
-      const finding = participleFinding(ctx, m, inverted);
-      if (finding) findings.push(finding);
-    }
-  }
-  return findings;
-}
 
 function participleFinding(
   ctx: DetectContext,
@@ -275,91 +257,77 @@ function participleFinding(
   );
 }
 
-/** Perfect and passive participles, the "I've looking" and "am/is/are + bare verb" frames. */
-export function perfectParticiples(ctx: DetectContext): RawFinding[] {
-  return [...participleAfterAuxiliary(ctx), ...progressiveAfterHave(ctx), ...baseAfterBe(ctx)];
-}
-
 // -ing forms that are also everyday nouns ("We have training on Monday") need an object pronoun.
 export const NOUN_LIKE_ING =
   /^(?:reading|writing|testing|planning|building|training|meeting|painting|drawing|shopping|setting|spending|recording|funding|parking|housing|clothing|seating|heating|lighting|cooking|swimming|dancing|marketing|pricing|timing|booking|warning|opening|ending|beginning|feeling|morning|evening|ceiling|nothing|something|anything|everything|thing|king|ring|spring|string|wedding|pudding|sibling|during)$/;
 const OBJECT = "(?:it|them|him|her|us|me|this|that)";
-// "Ive" lost its apostrophe; a time adverb also closes the progressive ("I've working today").
-// A soft line wrap may split it ("I've\nlooking"); "doing" needs nothing after it.
-const WRAP = `(?:${SPACE}|[ \\t\\u00a0]{0,8}\\r?\\n[ \\t\\u00a0]{0,8})`;
-const PROGRESSIVE = `(?<subject>I|you|we|they|he|she|it)(?:${WRAP}(?<aux>have|has)|(?<contract>['’]ve)|(?<bare>ve))${WRAP}(?:(?<verb>[A-Za-z]{2,}ing)${SPACE}(?<follow>${OBJECT}|(?:(?:on|into|about|at|for|with|to)${SPACE})?(?:${OBJECT}|the|a|an|my|your|our|his|her|their)|today|now|tonight|lately)|(?<doing>doing)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|${SPACE}(?:and|or|but|right|now|here|there)${WORD_END}))(?!${EDGE})`;
-
 /**
  * "I've looking into it": have in place of be before a progressive. A contracted have becomes
  * the contracted be; a full one is offered both ways ("I am", "I'm"), and the perfect progressive.
  */
-function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
+const progressiveAfterHave: MatchFixer = (m, ctx) => {
   const findings: RawFinding[] = [];
-  const owner = (m: RegExpExecArray) =>
-    m.indices!.groups![m.groups!.contract ? "contract" : "subject"][0];
-  for (const m of frameMatches(ctx, PROGRESSIVE, owner)) {
-    const { subject, aux, contract, bare, doing } = m.groups!;
-    const verb = m.groups!.verb ?? doing;
-    const follow = m.groups!.follow ?? "";
-    const [start] = m.indices!.groups![contract ? "contract" : "subject"];
-    const [, end] = m.indices!.groups![contract ? "contract" : aux ? "aux" : "bare"];
-    const singular = /^(?:he|she|it)$/i.test(subject);
-    if (contract || bare ? singular : (aux.toLowerCase() === "has") !== singular) continue;
-    const ing = verb.toLowerCase();
-    if (NOUN_LIKE_ING.test(ing) && !new RegExp(`^${OBJECT}$`, "i").test(follow)) continue;
-    // "any questions you have regarding the trip": a preposition in -ing.
-    if (/^(?:regarding|concerning|including|following|considering|involving|pending)$/.test(ing))
-      continue;
-    const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
-    // "How much junk do you have cluttering…", "the notes you have…": have is the main verb.
-    if (
-      !contract &&
-      !bare &&
-      (/\b(?:do|does|did|don['’]t|doesn['’]t|didn['’]t)[ \t\u00a0]+$/i.test(before) ||
-        objectGapBefore(`${before}${subject} `))
-    )
-      continue;
-    // A modal or question word owns have ("Why have you…", "could have…", "what I have
-    // going"); nothing is ever had "doing" ("what they've doing").
-    if (
-      /\b(?:could|would|should|might|must|may|will|to|what|why|how|where|when|which)[ \t\u00a0]+$/i.test(
-        before,
-      ) &&
-      !(doing && /\bwhat[ \t\u00a0]+$/i.test(before))
-    )
-      continue;
-    if (hasUserOrCasedWord(ctx, m[0])) continue;
-    const typed = contract ?? aux ?? bare;
-    const first = /^i$/i.test(subject);
-    const mark = contract?.[0] ?? "'";
-    const short = `${mark}${first ? "m" : singular ? "s" : "re"}`;
-    const kase = detectWordCase(typed);
-    const cased = (word: string) => applyWordCase(word, kase);
-    let alternatives: string[];
-    if (contract) alternatives = [cased(short), cased(`${mark}ve been`)];
-    else if (bare) alternatives = [subject + cased(short), subject + cased(`${mark}ve been`)];
-    else {
-      const gap = ctx.text.slice(group(m, "subject")[1], group(m, "aux")[0]);
-      const be = first ? "am" : singular ? "is" : "are";
-      alternatives = [
-        `${subject}${gap}${cased(be)}`,
-        `${subject}${cased(short)}`,
-        `${subject}${gap}${cased(`${aux.toLowerCase()} been`)}`,
-      ];
-    }
-    const finding: RawFinding = {
-      ruleId: "englishPerfectParticiples",
-      messageKey: "review_msg_progressive_be",
-      range: { start, end },
-      alternatives,
-      requiresChoice: true,
-      context: around(ctx, m),
-    };
-    // A quoted example under discussion ("She has cleaning the kitchen") is not prose.
-    if (!quotedMention(ctx, finding)) findings.push(finding);
+  const { subject, aux, contract, bare, doing } = m.groups!;
+  const verb = m.groups!.verb ?? doing;
+  const follow = m.groups!.follow ?? "";
+  const [start] = m.indices!.groups![contract ? "contract" : "subject"];
+  const [, end] = m.indices!.groups![contract ? "contract" : aux ? "aux" : "bare"];
+  const singular = /^(?:he|she|it)$/i.test(subject);
+  if (contract || bare ? singular : (aux.toLowerCase() === "has") !== singular) return findings;
+  const ing = verb.toLowerCase();
+  if (NOUN_LIKE_ING.test(ing) && !new RegExp(`^${OBJECT}$`, "i").test(follow)) return findings;
+  // "any questions you have regarding the trip": a preposition in -ing.
+  if (/^(?:regarding|concerning|including|following|considering|involving|pending)$/.test(ing))
+    return findings;
+  const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
+  // "How much junk do you have cluttering…", "the notes you have…": have is the main verb.
+  if (
+    !contract &&
+    !bare &&
+    (/\b(?:do|does|did|don['’]t|doesn['’]t|didn['’]t)[ \t\u00a0]+$/i.test(before) ||
+      objectGapBefore(`${before}${subject} `))
+  )
+    return findings;
+  // A modal or question word owns have ("Why have you…", "could have…", "what I have
+  // going"); nothing is ever had "doing" ("what they've doing").
+  if (
+    /\b(?:could|would|should|might|must|may|will|to|what|why|how|where|when|which)[ \t\u00a0]+$/i.test(
+      before,
+    ) &&
+    !(doing && /\bwhat[ \t\u00a0]+$/i.test(before))
+  )
+    return findings;
+  if (hasUserOrCasedWord(ctx, m[0])) return findings;
+  const typed = contract ?? aux ?? bare;
+  const first = /^i$/i.test(subject);
+  const mark = contract?.[0] ?? "'";
+  const short = `${mark}${first ? "m" : singular ? "s" : "re"}`;
+  const kase = detectWordCase(typed);
+  const cased = (word: string) => applyWordCase(word, kase);
+  let alternatives: string[];
+  if (contract) alternatives = [cased(short), cased(`${mark}ve been`)];
+  else if (bare) alternatives = [subject + cased(short), subject + cased(`${mark}ve been`)];
+  else {
+    const gap = ctx.text.slice(group(m, "subject")[1], group(m, "aux")[0]);
+    const be = first ? "am" : singular ? "is" : "are";
+    alternatives = [
+      `${subject}${gap}${cased(be)}`,
+      `${subject}${cased(short)}`,
+      `${subject}${gap}${cased(`${aux.toLowerCase()} been`)}`,
+    ];
   }
+  const finding: RawFinding = {
+    ruleId: "englishPerfectParticiples",
+    messageKey: "review_msg_progressive_be",
+    range: { start, end },
+    alternatives,
+    requiresChoice: true,
+    context: around(ctx, m),
+  };
+  // A quoted example under discussion ("She has cleaning the kitchen") is not prose.
+  if (!quotedMention(ctx, finding)) findings.push(finding);
   return findings;
-}
+};
 
 /** The subject opens its clause, so no noun-clause opener owns it ("What it was took…"). */
 export function atClauseStart(text: string, index: number): boolean {
@@ -369,7 +337,6 @@ export function atClauseStart(text: string, index: number): boolean {
   );
 }
 
-const BASE = `(?<subject>I|you|we|they|he|she)(?:${SPACE}(?<be>am|is|are)(?<neg>n['’]t)?|(?<contract>['’](?:m|re|s)))(?<adverbs>(?:${SPACE}(?:not|also|just|still|really)){0,2})${SPACE}(?<verb>[A-Za-z]+)(?!${EDGE})`;
 // Closed-class words (prepositions, adverbs, determiners, reflexives), plus adjectives and role
 // nouns that take an object, a clause or a time phrase ("I am sure the build works", "He is mean
 // the whole time", "I am lead on this"). Open classes stay unlisted.
@@ -414,51 +381,59 @@ const WORD_AFTER = new RegExp(
  * The word must be a verb by spelling: an irregular base whose past and participle both differ
  * from it, or a regular base right before an object. Anything else may be an adjective or noun.
  */
-function baseAfterBe(ctx: DetectContext): RawFinding[] {
+const baseAfterBe: MatchFixer = (m, ctx) => {
   const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, BASE, (match) => match.index)) {
-    const { subject, be, neg, contract, adverbs, verb } = m.groups!;
-    const [verbStart, end] = group(m, "verb");
-    if (!atClauseStart(ctx.text, m.index)) continue;
-    if (!agrees(subject, (contract ? contract.slice(1) : be).toLowerCase())) continue;
-    const lemma = verb.toLowerCase();
-    if (!plainToken(ctx, verb) || NOT_A_VERB.has(lemma)) continue;
-    const after = ctx.scanText.slice(end, end + 32);
-    const forms = englishVerbForms(lemma);
-    if (forms) {
-      if (lemma !== forms.lemma || forms.past === lemma || forms.participle === lemma) continue;
-      if (forms.ambiguous.includes(lemma) || !WORD_AFTER.test(after)) continue;
-      if (lemma === "go" && /^[ \t\u00a0]+for\b/i.test(after)) continue; // "We are go for launch."
-    } else if (
-      ADJECTIVE_SHAPE.test(lemma) ||
-      !englishInflect(lemma, "past") ||
-      !OBJECT_AFTER.test(after)
-    )
-      continue;
-    const singular = /^(?:he|she)$/i.test(subject);
-    const negated = !!neg || /\bnot\b/i.test(adverbs);
-    const ing = englishInflect(lemma, "ing");
-    const finite = negated || !singular ? lemma : englishInflect(lemma, "third");
-    if (!ing || !finite) continue;
-    if (hasUserOrCasedWord(ctx, ctx.scanText.slice(m.index, end))) continue;
-    const kase = detectWordCase(verb);
-    const support = applyWordCase(singular ? "does" : "do", kase);
-    const gap = ctx.source.slice(group(m, "adverbs")[1], verbStart);
-    // Negation needs do-support: "I am not go" → "I do not go", "He isn't write" → "He doesn't write".
-    const present = neg
-      ? `${subject} ${support}${neg}${adverbs}`
-      : `${subject}${adverbs.replace(/(?<![A-Za-z])not(?![A-Za-z])/i, (not) => `${support} ${not}`)}`;
-    findings.push({
-      ruleId: "englishPerfectParticiples",
-      messageKey: "review_msg_be_base",
-      range: { start: m.index, end },
-      alternatives: [
-        `${ctx.source.slice(m.index, verbStart)}${applyWordCase(ing, kase)}`,
-        `${present}${gap}${applyWordCase(finite, kase)}`,
-      ],
-      requiresChoice: true,
-      context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, end + 32) },
-    });
-  }
+  if (m.index < ctx.from || m.index >= ctx.to) return null;
+  const { subject, be, neg, contract, adverbs, verb } = m.groups!;
+  const [verbStart, end] = group(m, "verb");
+  if (!atClauseStart(ctx.text, m.index)) return findings;
+  if (!agrees(subject, (contract ? contract.slice(1) : be).toLowerCase())) return findings;
+  const lemma = verb.toLowerCase();
+  if (!plainToken(ctx, verb) || NOT_A_VERB.has(lemma)) return findings;
+  const after = ctx.scanText.slice(end, end + 32);
+  const forms = englishVerbForms(lemma);
+  if (forms) {
+    if (lemma !== forms.lemma || forms.past === lemma || forms.participle === lemma)
+      return findings;
+    if (forms.ambiguous.includes(lemma) || !WORD_AFTER.test(after)) return findings;
+    if (lemma === "go" && /^[ \t\u00a0]+for\b/i.test(after)) return findings; // "We are go for launch."
+  } else if (
+    ADJECTIVE_SHAPE.test(lemma) ||
+    !englishInflect(lemma, "past") ||
+    !OBJECT_AFTER.test(after)
+  )
+    return findings;
+  const singular = /^(?:he|she)$/i.test(subject);
+  const negated = !!neg || /\bnot\b/i.test(adverbs);
+  const ing = englishInflect(lemma, "ing");
+  const finite = negated || !singular ? lemma : englishInflect(lemma, "third");
+  if (!ing || !finite) return findings;
+  if (hasUserOrCasedWord(ctx, ctx.scanText.slice(m.index, end))) return findings;
+  const kase = detectWordCase(verb);
+  const support = applyWordCase(singular ? "does" : "do", kase);
+  const gap = ctx.source.slice(group(m, "adverbs")[1], verbStart);
+  // Negation needs do-support: "I am not go" → "I do not go", "He isn't write" → "He doesn't write".
+  const present = neg
+    ? `${subject} ${support}${neg}${adverbs}`
+    : `${subject}${adverbs.replace(/(?<![A-Za-z])not(?![A-Za-z])/i, (not) => `${support} ${not}`)}`;
+  findings.push({
+    ruleId: "englishPerfectParticiples",
+    messageKey: "review_msg_be_base",
+    range: { start: m.index, end },
+    alternatives: [
+      `${ctx.source.slice(m.index, verbStart)}${applyWordCase(ing, kase)}`,
+      `${present}${gap}${applyWordCase(finite, kase)}`,
+    ],
+    requiresChoice: true,
+    context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, end + 32) },
+  });
   return findings;
-}
+};
+
+/** The named frame fixes of the englishPerfectParticiples frames of grammar/rules/common.yaml. */
+export const FIXERS = {
+  participleAfterAuxiliary: (m, ctx) => participleFinding(ctx, m, false),
+  participleAfterInverted: (m, ctx) => participleFinding(ctx, m, true),
+  progressiveAfterHave,
+  baseAfterBe,
+} satisfies Record<string, MatchFixer>;

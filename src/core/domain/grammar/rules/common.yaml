@@ -4424,6 +4424,9 @@ fragments:
   # Auxiliaries that need a verb after any subject word. Affirmative do can be a main verb
   # ("What I did works"), so only its negative contractions are here.
   AUX_MID_AUXILIARY: "(?:can['’]t|cannot|can|couldn['’]t|could|won['’]t|will|wouldn['’]t|would|shan['’]t|shall|shouldn['’]t|should|mightn['’]t|might|may|mustn['’]t|must|doesn['’]t|don['’]t|didn['’]t)"
+  PARTICIPLE_TAIL: "(?<adverbs>(?:{{S}}(?:not|never|already|just|ever|really|still|also|even|only|all|both|since|then|now|always|often|sometimes|seldom|[a-z]+ly)){0,2}){{S}}(?!(?:be|been|being|have|having){{E}})(?<verb>[A-Za-z]+){{E}}"
+  PARTICIPLE_WRAP: "(?:{{S}}|[ \\t\\u00a0]{0,8}\\r?\\n[ \\t\\u00a0]{0,8})"
+  PARTICIPLE_OBJECT: "(?:it|them|him|her|us|me|this|that)"
 
 rules:
   # Typing rules: each live check names its implementation (engine/liveRules.ts).
@@ -4660,9 +4663,32 @@ rules:
       # recommended to" and "is considered to be" abstain; "suggest to the team" names a recipient.
       - regex: "(?<head>(?:suggest|recommend|avoid|enjoy|consider)(?:s|ed|ing)?|finish(?:es|ed|ing)?|mind){{S}}(?<target>to{{S}}{{COMPLEMENT_WORD}})"
         fixer: gerundTo
+  # Perfect and passive participles, the "I've looking" and "am/is/are + bare verb" frames.
+  # PARTICIPLE_TAIL: a chained auxiliary is not the verb, so "has been took" is still scanned
+  # from "been".
   - id: perfectParticiples
     checks: [englishPerfectParticiples]
-    predicate: perfectParticiples
+    style: match
+    message: review_msg_perfect_participle
+    frames:
+      # have/be in every spelling, clitics on their owner ("I'd", "it's") and dropped apostrophes.
+      - regex: "(?:(?<lead>[A-Za-z]+)(?<clitic>['’](?:ve|d|s|re|m))|(?<aux>have|has|had|having|be|being|been|am|is|are|was|were|(?:have|has|had|is|are|was|were)n['’]?t|(?:i|you|we|they|could|would|should|must|might)ve|its)){{PARTICIPLE_TAIL}}"
+        owner: verb
+        fixer: participleAfterAuxiliary
+      # "Have you ate?", "Was it took?": the auxiliary opens the clause, a subject follows.
+      - regex: "(?<aux>have|has|had|am|is|are|was|were|(?:have|has|had|is|are|was|were)n['’]?t){{S}}(?<subject>i|you|we|they|he|she|it|(?:the|this|that|these|those|my|your|his|her|our|their|its){{S}}[a-z]+){{PARTICIPLE_TAIL}}"
+        owner: verb
+        fixer: participleAfterInverted
+      # "I've looking into it". "Ive" lost its apostrophe; a time adverb also closes the
+      # progressive ("I've working today"). A soft line wrap may split it ("I've\nlooking");
+      # "doing" needs nothing after it.
+      - regex: "(?<subject>I|you|we|they|he|she|it)(?:{{PARTICIPLE_WRAP}}(?<aux>have|has)|(?<contract>['’]ve)|(?<bare>ve)){{PARTICIPLE_WRAP}}(?:(?<verb>[A-Za-z]{2,}ing){{S}}(?<follow>{{PARTICIPLE_OBJECT}}|(?:(?:on|into|about|at|for|with|to){{S}})?(?:{{PARTICIPLE_OBJECT}}|the|a|an|my|your|our|his|her|their)|today|now|tonight|lately)|(?<doing>doing)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|{{S}}(?:and|or|but|right|now|here|there){{E}})){{E}}"
+        owner: contract|subject
+        fixer: progressiveAfterHave
+      # "I am go to the store": be before a bare verb.
+      - regex: "(?<subject>I|you|we|they|he|she)(?:{{S}}(?<be>am|is|are)(?<neg>n['’]t)?|(?<contract>['’](?:m|re|s)))(?<adverbs>(?:{{S}}(?:not|also|just|still|really)){0,2}){{S}}(?<verb>[A-Za-z]+){{E}}"
+        owner: none
+        fixer: baseAfterBe
   - id: nounNumber
     checks: [englishNounNumber]
     predicate: nounNumber
