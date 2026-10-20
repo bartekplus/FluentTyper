@@ -506,35 +506,35 @@ rules:
     frames:
       # A digit (or Roman numeral), a dash or nothing, then a closed set of endings; not a unit ("5kg"):
       # "5-ty" is "5." or "piąty", "6-ciu" is "6" or "sześciu".
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4}|[IVXLC]{1,7})(?<dash>[ \\t]?[-—–][ \\t]?|’|')?(?<end>{{ORDINAL_END}}|{{CARDINAL_END}}|{{NUMERAL_NOUN_END}})(?![\\p{L}\\p{N}_-])(?<rest>[ \\t\\u00a0]+(?<next>\\p{L}+))?)"
+      - regex: "(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4}|[IVXLC]{1,7})(?<dash>[ \\t]?[-—–][ \\t]?|’|')?(?<end>{{ORDINAL_END}}|{{CARDINAL_END}}|{{NUMERAL_NOUN_END}})(?![\\p{L}\\p{N}_-])(?<rest>[ \\t\\u00a0]+(?<next>\\p{L}+))?"
         scan: polish
         flags: gu
         fixer: numeralSuffixes
       # "dwu krotnie", "ilu krotny": a numeral stem typed apart from "-krotny".
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_-])(?<num>dwu|trzy|cztero|pi\\u0119cio|sze\\u015Bcio|siedmio|o\\u015Bmio|dziewi\\u0119cio|dziesi\\u0119cio|kilku|kilkunasto|kilkudziesi\\u0119cio|wielo|ilu|paru|stu)[ \\t\\u00a0]{1,3}(?<part>krotn\\p{L}*)(?![\\p{L}\\p{N}_-]))"
+      - regex: "(?<![\\p{L}\\p{N}_-])(?<num>dwu|trzy|cztero|pi\\u0119cio|sze\\u015Bcio|siedmio|o\\u015Bmio|dziewi\\u0119cio|dziesi\\u0119cio|kilku|kilkunasto|kilkudziesi\\u0119cio|wielo|ilu|paru|stu)[ \\t\\u00a0]{1,3}(?<part>krotn\\p{L}*)(?![\\p{L}\\p{N}_-])"
         scan: polish
         flags: giu
         fixer: wordKrotny
       # A digit compound typed apart: "5 minutowy" (a five-minute ...), "3 krotny", "25 latek".
       # Only singular adjective forms: after a plural numeral a plural adjective can agree on its own
       # ("2 roczne raporty" are two annual reports).
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4})(?<gap>[ \\t\\u00a0]*['’][ \\t\\u00a0]*|[ \\t\\u00a0]+[-–—][ \\t\\u00a0]+|[ \\t\\u00a0]+[-–—]|[-–—][ \\t\\u00a0]+|[–—]|\\.[ \\t\\u00a0]{1,3}(?=krotn)|[ \\t\\u00a0]{1,3})(?<part>{{COMPOUND_PART}})(?![\\p{L}\\p{N}_-]))"
+      - regex: "(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4})(?<gap>[ \\t\\u00a0]*['’][ \\t\\u00a0]*|[ \\t\\u00a0]+[-–—][ \\t\\u00a0]+|[ \\t\\u00a0]+[-–—]|[-–—][ \\t\\u00a0]+|[–—]|\\.[ \\t\\u00a0]{1,3}(?=krotn)|[ \\t\\u00a0]{1,3})(?<part>{{COMPOUND_PART}})(?![\\p{L}\\p{N}_-])"
         scan: polish
         flags: giu
         fixer: compoundNumerals
       # "dwa dzieci" -> "dwoje dzieci": nouns counted with collective numerals.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}])(?<num>dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt)(?<sp>[ \\t\\u00a0]+)(?<noun>dzieci|drzwi|oczy|uszy|sanie|kurczęta|kocięta|szczenięta|źrebięta|cielęta|prosięta|pisklęta|niemowlęta)(?![\\p{L}]))"
+      - regex: "(?<![\\p{L}\\p{N}])(?<num>dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt)(?<sp>[ \\t\\u00a0]+)(?<noun>dzieci|drzwi|oczy|uszy|sanie|kurczęta|kocięta|szczenięta|źrebięta|cielęta|prosięta|pisklęta|niemowlęta)(?![\\p{L}])"
         scan: polish
         flags: giu
         fixer: collectives
       # 1 złoty; 2–4 złote (not 12–14); else złotych; a fraction takes "złotego". A noun after
       # "złote" makes it the adjective "golden": "2 złote medale".
-      - regex: "(?<target>(?<![\\p{L}\\p{N}.,])(?<amount>\\d{1,3}(?:[ \\u00a0]\\d{3})*(?:[.,]\\d+)?)(?<sp>[ \\t\\u00a0]+)(?<unit>złoty|złote|złotych|grosz|grosze|groszy)(?![\\p{L}])(?=[ \\t\\u00a0]*(?:[.!?,;:)…]|$|[ \\t\\u00a0](?:i|a|na|za|do|od|w|z|ze|to|netto|brutto|miesięcznie|rocznie|dziennie)(?![\\p{L}]))))"
+      - regex: "(?<![\\p{L}\\p{N}.,])(?<amount>\\d{1,3}(?:[ \\u00a0]\\d{3})*(?:[.,]\\d+)?)(?<sp>[ \\t\\u00a0]+)(?<unit>złoty|złote|złotych|grosz|grosze|groszy)(?![\\p{L}])(?=[ \\t\\u00a0]*(?:[.!?,;:)…]|$|[ \\t\\u00a0](?:i|a|na|za|do|od|w|z|ze|to|netto|brutto|miesięcznie|rocznie|dziennie)(?![\\p{L}])))"
         scan: polish
         flags: gu
         fixer: currencyForms
       # Unit names that take the plural after a number: "100 gramów", "2 kilogramy".
-      - regex: "(?<target>(?<![\\p{L}\\p{N}.,])(?<num>\\d{1,6}|dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sto|dwieście|trzysta|pięćset|tysiąc|kilka|kilkanaście|kilkadziesiąt|kilkaset)(?<sp>[ \\t\\u00a0]+)(?<unit>gram|kilogram|dekagram|miligram|wolt|amper|wat|kilowat)(?![\\p{L}])(?![ \\t\\u00a0]+(?:w|na|z|ze|o)(?![\\p{L}])))"
+      - regex: "(?<![\\p{L}\\p{N}.,])(?<num>\\d{1,6}|dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sto|dwieście|trzysta|pięćset|tysiąc|kilka|kilkanaście|kilkadziesiąt|kilkaset)(?<sp>[ \\t\\u00a0]+)(?<unit>gram|kilogram|dekagram|miligram|wolt|amper|wat|kilowat)(?![\\p{L}])(?![ \\t\\u00a0]+(?:w|na|z|ze|o)(?![\\p{L}]))"
         scan: polish
         flags: giu
         fixer: unitForms
@@ -548,7 +548,7 @@ rules:
     frames:
       # "27 sierpnia 2014", "27 VIII 2014", "31 września", and dotted "27.08.2014": a day the
       # month does not have, or a weekday that does not fall on the date.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}.,/-])(?:(?<day>\\d{1,2})[ \\t\\u00a0]+(?<mword>{{MONTH_WORD}})(?:[ \\t\\u00a0]+(?<year>\\d{3,4})(?![\\p{N}]))?(?![\\p{L}\\p{N}])|(?<dday>\\d{1,2})\\.(?<dmonth>\\d{1,2})\\.(?<dyear>[0-9]{4})(?![\\p{N}]|\\.\\p{N})))"
+      - regex: "(?<![\\p{L}\\p{N}.,/-])(?:(?<day>\\d{1,2})[ \\t\\u00a0]+(?<mword>{{MONTH_WORD}})(?:[ \\t\\u00a0]+(?<year>\\d{3,4})(?![\\p{N}]))?(?![\\p{L}\\p{N}])|(?<dday>\\d{1,2})\\.(?<dmonth>\\d{1,2})\\.(?<dyear>[0-9]{4})(?![\\p{N}]|\\.\\p{N}))"
         scan: polish
         flags: giu
         fixer: impossibleDates
@@ -562,38 +562,38 @@ rules:
     message: review_msg_pl_impossible_date
     frames:
       # "11–1 lutego", "od 11 do 1 lutego": the range ends before it starts.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{1,2})(?:[ \\t\\u00a0]*[–—-][ \\t\\u00a0]*|[ \\t\\u00a0]+do[ \\t\\u00a0]+)(?<b>\\d{1,2})[ \\t\\u00a0]+(?:stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)(?![\\p{L}]))"
+      - regex: "(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{1,2})(?:[ \\t\\u00a0]*[–—-][ \\t\\u00a0]*|[ \\t\\u00a0]+do[ \\t\\u00a0]+)(?<b>\\d{1,2})[ \\t\\u00a0]+(?:stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)(?![\\p{L}])"
         scan: polish
         flags: giu
         fixer: dayRanges
       # "1915–1840", "1855–40": a year range that runs backwards or repeats.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{3,4})[ \\t\\u00A0]*[\\u2013\\u2014-][ \\t\\u00A0]*(?<b>\\d{1,4})(?![\\p{N}.,]\\d|[\\p{L}\\p{N}-]))"
+      - regex: "(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{3,4})[ \\t\\u00A0]*[\\u2013\\u2014-][ \\t\\u00A0]*(?<b>\\d{1,4})(?![\\p{N}.,]\\d|[\\p{L}\\p{N}-])"
         scan: polish
         flags: gu
         fixer: yearRanges
       # "1 styczeń 2000", "Pierwszy styczeń": the month after a day is in the genitive.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2}|pierwszy|drugi|trzeci|czwarty|piąty)(?<dot>\\.)?(?<sp>[ \\t\\u00a0]+)(?<month>styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia)(?![\\p{L}]))"
+      - regex: "(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2}|pierwszy|drugi|trzeci|czwarty|piąty)(?<dot>\\.)?(?<sp>[ \\t\\u00a0]+)(?<month>styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia)(?![\\p{L}])"
         scan: polish
         flags: giu
         fixer: monthForms
       # "21 Sty 2012": an English-style month abbreviation between day and year.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2})(?<sp1>[ \\t\\u00a0]+)(?<month>sty|lut|mar|kwi|maj|cze|lip|sie|wrz|paź|lis|gru)\\.?(?<sp2>[ \\t\\u00a0]+)(?<year>\\d{4})(?![\\p{L}\\p{N}]))"
+      - regex: "(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2})(?<sp1>[ \\t\\u00a0]+)(?<month>sty|lut|mar|kwi|maj|cze|lip|sie|wrz|paź|lis|gru)\\.?(?<sp2>[ \\t\\u00a0]+)(?<year>\\d{4})(?![\\p{L}\\p{N}])"
         scan: polish
         flags: giu
         fixer: abbreviatedMonths
       # Decades are written with the decade and the century: "lata 90. XX w.", not "lata 1990."
       # (an English calque).
-      - regex: "(?<target>(?<=(?:^|[^\\p{L}])(?:{{DECADE_WORDS}}){{S}})(?<year>1\\d[0-9]0|20[0-9]0)\\.)"
+      - regex: "(?<=(?:^|[^\\p{L}])(?:{{DECADE_WORDS}}){{S}})(?<year>1\\d[0-9]0|20[0-9]0)\\."
         scan: polish
         flags: giu
         fixer: fullDecades
       # A year takes no apostrophe ("lata '90", "Euro '2012").
-      - regex: "(?<target>(?<![\\p{L}\\p{N}])(?<mark>['’])(?<year>\\d{4}|\\d{2})(?![\\p{L}\\p{N}'’]))"
+      - regex: "(?<![\\p{L}\\p{N}])(?<mark>['’])(?<year>\\d{4}|\\d{2})(?![\\p{L}\\p{N}'’])"
         scan: polish
         flags: gu
         fixer: apostropheYears
       # "12 V 20015 r.", "w maju 20015 roku": a year with a digit typed twice.
-      - regex: "(?<target>(?<![\\p{L}])(?:{{MONTH_WORD}}|{{LOCATIVE}}|roku){{S}}(?<year>[12]\\d{4})(?=[ \\t\\u00a0]{0,8}(?:r\\.|rok\\p{L}*)(?![\\p{L}])))"
+      - regex: "(?<![\\p{L}])(?:{{MONTH_WORD}}|{{LOCATIVE}}|roku){{S}}(?<year>[12]\\d{4})(?=[ \\t\\u00a0]{0,8}(?:r\\.|rok\\p{L}*)(?![\\p{L}]))"
         scan: polish
         flags: giu
         fixer: longYears
@@ -606,24 +606,24 @@ rules:
     message: review_msg_pl_misplaced_comma
     frames:
       # "mimo, że" -> "mimo że": a compound conjunction takes the comma before it as a whole.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}])(?:(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+))?(?<head>mimo|pomimo|podczas|chyba|nawet|jeszcze|a|o|pod[ \\t\\u00a0]+warunkiem|tyle)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<tail>że|iż|gdy|żeby|by|jeśli|jeżeli|gdyby|kiedy|zanim|więc|ile)(?![\\p{L}]))"
+      - regex: "(?<![\\p{L}\\p{N}])(?:(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+))?(?<head>mimo|pomimo|podczas|chyba|nawet|jeszcze|a|o|pod[ \\t\\u00a0]+warunkiem|tyle)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<tail>że|iż|gdy|żeby|by|jeśli|jeżeli|gdyby|kiedy|zanim|więc|ile)(?![\\p{L}])"
         scan: polish
         flags: giu
         fixer: commaInsideConjunction
       # Set phrases written without a comma: "tak czy owak", "chcąc nie chcąc".
-      - regex: "(?<target>(?<![\\p{L}])(?<phrase>(?<a>tak|chcąc|bądź|byle|chybił|wypisz)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<b>czy[ \\t\\u00a0]+(?:siak|owak|inaczej)|nie[ \\t\\u00a0]+chcąc|co[ \\t\\u00a0]+bądź|jak|trafił|wymaluj))(?![\\p{L}]))"
+      - regex: "(?<![\\p{L}])(?<phrase>(?<a>tak|chcąc|bądź|byle|chybił|wypisz)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<b>czy[ \\t\\u00a0]+(?:siak|owak|inaczej)|nie[ \\t\\u00a0]+chcąc|co[ \\t\\u00a0]+bądź|jak|trafił|wymaluj))(?![\\p{L}])"
         scan: polish
         flags: giu
         fixer: setPhraseCommas
       # No comma before "itd."/"itp.". The match starts at the first space of a run: a long run of
       # spaces is read once, not at each space.
-      - regex: "(?<target>(?<![ \\t\\u00a0])(?<comma>[ \\t\\u00a0]*,)(?=[ \\t\\u00a0]*(?:itd|itp|etc)\\.))"
+      - regex: "(?<![ \\t\\u00a0])(?<comma>[ \\t\\u00a0]*,)(?=[ \\t\\u00a0]*(?:itd|itp|etc)\\.)"
         scan: polish
         flags: gu
         fixer: commaBeforeEtc
       # "Do, czego", "nie wiem z, kim", "dom w, którym": a comma after a preposition, before the
       # pronoun it governs. The comma goes before the preposition, or away at the sentence start.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}])(?:(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+))?(?<prep>za[ \\t\\u00a0]+pomocą|w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<pronoun>co|czego|czemu|czym|kogo|komu|kim|{{RELATIVE}}|{{JAKI}})(?![\\p{L}]))"
+      - regex: "(?<![\\p{L}\\p{N}])(?:(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+))?(?<prep>za[ \\t\\u00a0]+pomocą|w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<pronoun>co|czego|czemu|czym|kogo|komu|kim|{{RELATIVE}}|{{JAKI}})(?![\\p{L}])"
         scan: polish
         flags: giu
         fixer: commaAfterPreposition
@@ -634,17 +634,17 @@ rules:
     frames:
       # "Wiem że", "dom w którym": a subordinate clause is set off by a comma before its
       # conjunction or relative pronoun.
-      - regex: "(?<target>(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+)(?:(?<prep>w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]+)?(?<sub>{{SUBORDINATORS}})(?![\\p{L}\\p{N}_'’-]))"
+      - regex: "(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+)(?:(?<prep>w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]+)?(?<sub>{{SUBORDINATORS}})(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: gu
         fixer: missingCommas
       # A compound conjunction takes the comma before it as a whole: "zdradził, mimo że".
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+)(?<head>mimo|pomimo|nawet|dopiero|zwłaszcza|szczególnie|tym[ \\t\\u00a0]+bardziej|pod[ \\t\\u00a0]+warunkiem|podczas)[ \\t\\u00a0]+(?<tail>\\p{Ll}+)(?![\\p{L}\\p{N}_'’-]))"
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+)(?<head>mimo|pomimo|nawet|dopiero|zwłaszcza|szczególnie|tym[ \\t\\u00a0]+bardziej|pod[ \\t\\u00a0]+warunkiem|podczas)[ \\t\\u00a0]+(?<tail>\\p{Ll}+)(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: gu
         fixer: missingCompoundCommas
       # "nie dość że" -> "nie dość, że".
-      - regex: "(?<target>(?<![\\p{L}])[Nn]ie[ \\t\\u00a0]+do\\u015B\\u0107(?=[ \\t\\u00a0]+\\u017Ce(?![\\p{L}])))"
+      - regex: "(?<![\\p{L}])[Nn]ie[ \\t\\u00a0]+do\\u015B\\u0107(?=[ \\t\\u00a0]+\\u017Ce(?![\\p{L}]))"
         scan: polish
         flags: gu
         fixer: notEnoughComma
@@ -652,13 +652,13 @@ rules:
       # -> "zatem, żeby"; "uważano jednak iż" -> "jednak, iż"; "poszedł do domu tylko żeby" -> "domu,
       # tylko żeby" or "domu tylko, żeby", "z tym że" -> ", z tym że" or "z tym, że" (the writer
       # chooses where the stress falls).
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}\\p{Ll}*)(?<gap>[ \\t\\u00a0]+)(?<adverb>tylko|tak|właśnie|z[ \\t\\u00a0]+tym|zatem|więc|przeto|jednak|jednakże|przecież|także|również)(?<gap2>[ \\t\\u00a0]+)(?<sub>żeby|ażeby|aby|by|że|iż|gdy|kiedy)[ \\t\\u00a0]+(?:się[ \\t\\u00a0]+)?(?<next>\\p{L}+))"
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}\\p{Ll}*)(?<gap>[ \\t\\u00a0]+)(?<adverb>tylko|tak|właśnie|z[ \\t\\u00a0]+tym|zatem|więc|przeto|jednak|jednakże|przecież|także|również)(?<gap2>[ \\t\\u00a0]+)(?<sub>żeby|ażeby|aby|by|że|iż|gdy|kiedy)[ \\t\\u00a0]+(?:się[ \\t\\u00a0]+)?(?<next>\\p{L}+)"
         scan: polish
         flags: gu
         fixer: adverbBeforeClause
       # Conjunctions that are also other words ("póki czas", "choć raz", "o ile więcej"): they open a
       # clause, and want the comma before them, only before a verb, "nie" or a pronoun subject.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}+(?:-\\p{L}+)?)(?<gap>[ \\t\\u00a0]+)(?<sub>póki|chociaż|choć|dopóty|o[ \\t\\u00a0]+ile)[ \\t\\u00a0]+(?<next>\\p{L}+))"
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}+(?:-\\p{L}+)?)(?<gap>[ \\t\\u00a0]+)(?<sub>póki|chociaż|choć|dopóty|o[ \\t\\u00a0]+ile)[ \\t\\u00a0]+(?<next>\\p{L}+)"
         scan: polish
         flags: gu
         fixer: clauseOpeners
@@ -722,37 +722,37 @@ rules:
     message: review_msg_pl_agreement
     frames:
       # "przed sklepie" -> "przed sklepem": the noun after a preposition takes a case it governs.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’.@/-])(?<prep>bez|beze|dla|do|od|ode|u|z|ze|spod|znad|zza|sprzed|spomiędzy|spośród|wśród|obok|podczas|według|zamiast|oprócz|prócz|wobec|wokół|dookoła|wzdłuż|dzięki|ku|przeciw|przeciwko|wbrew|w|we|na|o|po|przy|przez|przeze|poprzez|przed|przede|za|nad|nade|pod|pode|między|pomiędzy|poza)[ \\t\\u00a0]+(?<noun>\\p{L}+)(?![\\p{L}\\p{N}_'’@/-]))"
+      - regex: "(?<![\\p{L}\\p{N}_'’.@/-])(?<prep>bez|beze|dla|do|od|ode|u|z|ze|spod|znad|zza|sprzed|spomiędzy|spośród|wśród|obok|podczas|według|zamiast|oprócz|prócz|wobec|wokół|dookoła|wzdłuż|dzięki|ku|przeciw|przeciwko|wbrew|w|we|na|o|po|przy|przez|przeze|poprzez|przed|przede|za|nad|nade|pod|pode|między|pomiędzy|poza)[ \\t\\u00a0]+(?<noun>\\p{L}+)(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: giu
         fixer: prepositionCase
       # "te rzeczywistość": a demonstrative agrees with its noun ("to" is never checked).
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’.@/-])(?<det>ten|ta|tę|tą|te|jedne|jedna|jedną)[ \\t\\u00a0]+(?:(?<adj>\\p{L}{3,})[ \\t\\u00a0]+)?(?<noun>\\p{L}+){{WORD}})"
+      - regex: "(?<![\\p{L}\\p{N}_'’.@/-])(?<det>ten|ta|tę|tą|te|jedne|jedna|jedną)[ \\t\\u00a0]+(?:(?<adj>\\p{L}{3,})[ \\t\\u00a0]+)?(?<noun>\\p{L}+){{WORD}}"
         scan: polish
         flags: giu
         fixer: demonstratives
       # "pięć pliki", "trzy godzin": a numeral asks its noun for a case.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|sześćset|siedemset|osiemset|dziewięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset|parę|dwa|dwie|trzy|cztery|oba|obie|dziesiątki|setki|tysiące|miliony|miliardy|dziesiątek|setek|tysięcy|milionów|miliardów|\\d+)[ \\t\\u00a0]+(?<noun>\\p{L}+){{WORD}})"
+      - regex: "(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|sześćset|siedemset|osiemset|dziewięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset|parę|dwa|dwie|trzy|cztery|oba|obie|dziesiątki|setki|tysiące|miliony|miliardy|dziesiątek|setek|tysięcy|milionów|miliardów|\\d+)[ \\t\\u00a0]+(?<noun>\\p{L}+){{WORD}}"
         scan: polish
         flags: giu
         fixer: numeralNouns
       # "5 złoty", "2 mln złoty": after a count from five up, or a large unit, it is "złotych".
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|sześćset|siedemset|osiemset|dziewięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset|parę|\\d+)(?:[ \\t\\u00a0]+(?<unit>tys\\.|mln|mld|tysięcy|milionów|miliardów))?[ \\t\\u00a0]+(?<noun>złoty){{WORD}})"
+      - regex: "(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|sześćset|siedemset|osiemset|dziewięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset|parę|\\d+)(?:[ \\t\\u00a0]+(?<unit>tys\\.|mln|mld|tysięcy|milionów|miliardów))?[ \\t\\u00a0]+(?<noun>złoty){{WORD}}"
         scan: polish
         flags: giu
         fixer: zloty
       # "około dwieście psów" -> "około dwustu psów": a count after a genitive-taking word.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<num>dwa|dwie|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|piętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset)(?={{S}}\\p{L}))"
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<num>dwa|dwie|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|piętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset)(?={{S}}\\p{L})"
         scan: polish
         flags: giu
         fixer: genitiveNumerals
       # "Używają je", "szukam ją": the object pronoun of a genitive-taking verb.
-      - regex: "(?<target>(?<![\\p{L}])(?<verb>używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować|wymag(?:am|a|ają|ał\\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować){{S}}(?<pronoun>je|ją)(?![\\p{L}]))"
+      - regex: "(?<![\\p{L}])(?<verb>używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować|wymag(?:am|a|ają|ał\\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować){{S}}(?<pronoun>je|ją)(?![\\p{L}])"
         scan: polish
         flags: giu
         fixer: genitivePronouns
       # "Używam młotek", "przestrzega przepisy": an accusative object where the verb wants the genitive.
-      - regex: "(?<target>(?<![\\p{L}])(?<verb>używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować|wymag(?:am|a|ają|ał\\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować){{S}}(?:(?<adj>\\p{L}{3,}){{S}})?(?<noun>\\p{L}{3,}){{WORD}})"
+      - regex: "(?<![\\p{L}])(?<verb>używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować|wymag(?:am|a|ają|ał\\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować){{S}}(?:(?<adj>\\p{L}{3,}){{S}})?(?<noun>\\p{L}{3,}){{WORD}}"
         scan: polish
         flags: gdiu
         fixer: genitiveObjects
@@ -766,7 +766,7 @@ rules:
     message: review_msg_pl_agreement
     frames:
       # "ten menu" -> "to menu", "nowy perfum" -> "nowe perfumy", "smaczny pomarańcz" -> "smaczna pomarańcza".
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’.@/-])(?:(?<first>\\p{L}{2,}){{S}})?(?<mod>\\p{L}{2,}){{S}}(?<noun>menu|tiramisu|sushi|salami|kakao|musli|euro|hobby|zoo|graffiti|alibi|kimono|risotto|espresso|bistro|perfum|pomarańcz){{WORD}})"
+      - regex: "(?<![\\p{L}\\p{N}_'’.@/-])(?:(?<first>\\p{L}{2,}){{S}})?(?<mod>\\p{L}{2,}){{S}}(?<noun>menu|tiramisu|sushi|salami|kakao|musli|euro|hobby|zoo|graffiti|alibi|kimono|risotto|espresso|bistro|perfum|pomarańcz){{WORD}}"
         scan: polish
         flags: gdiu
         fixer: fixedGenders
@@ -781,67 +781,67 @@ rules:
     frames:
       # "uznany wielkim aktorem" -> "uznany za wielkiego aktora": "uznać" names what one is
       # taken for with "za" + accusative.
-      - regex: "(?<target>(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły){{S}}(?:go|ją|je|ich|mnie|cię|nas|was|się)){{S}}(?<phrase>(?:(?<adj>\\p{L}{3,}){{S}})?(?<noun>\\p{L}{3,})){{WORD}})"
+      - regex: "(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły){{S}}(?:go|ją|je|ich|mnie|cię|nas|was|się)){{S}}(?<phrase>(?:(?<adj>\\p{L}{3,}){{S}})?(?<noun>\\p{L}{3,})){{WORD}}"
         scan: polish
         flags: giu
         fixer: consideredAs
       # "uznany jako wielki aktor": "za", not "jako".
-      - regex: "(?<target>(?<=(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły|łem|łam){{S}}(?:go|ją|je|ich|mnie|cię|nas|was|się)){{S}})jako(?={{S}}\\p{L}))"
+      - regex: "(?<=(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły|łem|łam){{S}}(?:go|ją|je|ich|mnie|cię|nas|was|się)){{S}})jako(?={{S}}\\p{L})"
         scan: polish
         flags: giu
         fixer: consideredAsJako
       # "człowiek, która dba": "który" agrees in gender and number with its noun.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<noun>\\p{Ll}{3,}),{{S}}(?:(?:bez|beze|dla|do|od|ode|u|z|ze|spod|znad|zza|sprzed|spomiędzy|spośród|wśród|obok|podczas|według|zamiast|oprócz|prócz|wobec|wokół|dookoła|wzdłuż|dzięki|ku|przeciw|przeciwko|wbrew|w|we|na|o|po|przy|przez|przeze|poprzez|przed|przede|za|nad|nade|pod|pode|między|pomiędzy|poza){{S}})?(?<rel>który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy)(?![\\p{L}\\p{N}_'’-]))"
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<noun>\\p{Ll}{3,}),{{S}}(?:(?:bez|beze|dla|do|od|ode|u|z|ze|spod|znad|zza|sprzed|spomiędzy|spośród|wśród|obok|podczas|według|zamiast|oprócz|prócz|wobec|wokół|dookoła|wzdłuż|dzięki|ku|przeciw|przeciwko|wbrew|w|we|na|o|po|przy|przez|przeze|poprzez|przed|przede|za|nad|nade|pod|pode|między|pomiędzy|poza){{S}})?(?<rel>który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy)(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: gdu
         fixer: relatives
       # "prozę Bruno Schulza" -> "Brunona": a Polish surname in an oblique case takes the
       # first name along.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<name>Bruno|Hugo|Otto|Pablo|Mario|Paulo|Leonardo|Ricardo|Fernando|Antonio|Alfonso|Romano|Guido|Sergio|Claudio){{S}}(?<surname>\\p{Lu}\\p{Ll}{2,}?(?<ending>owi|em|a|y|i))(?![\\p{L}\\p{N}_'’-]))"
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<name>Bruno|Hugo|Otto|Pablo|Mario|Paulo|Leonardo|Ricardo|Fernando|Antonio|Alfonso|Romano|Guido|Sergio|Claudio){{S}}(?<surname>\\p{Lu}\\p{Ll}{2,}?(?<ending>owi|em|a|y|i))(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: gdu
         fixer: uninflectedNames
       # "wg niemu", "dla nią" -> "wg niego", "dla niej": these prepositions take only the
       # genitive, so "niemu", "nim", "nią", "nimi" cannot follow.
-      - regex: "(?<target>(?<=(?<![\\p{L}])(?:{{GENITIVE_ONLY}}){{S}})(?:niemu|nim|nią|nimi)(?![\\p{L}]))"
+      - regex: "(?<=(?<![\\p{L}])(?:{{GENITIVE_ONLY}}){{S}})(?:niemu|nim|nią|nimi)(?![\\p{L}])"
         scan: polish
         flags: giu
         fixer: genitiveOnlyPronoun
       # "w twoi mózgu" -> "w twoim mózgu": the dropped "m" (or "-ej" before a feminine noun).
-      - regex: "(?<target>(?<=(?<![\\p{L}])(?:w|we|po|o|na|przy)[ \\t\\u00A0]{1,8})(?:moi|twoi|swoi)(?=[ \\t\\u00A0]{1,8}(?<noun>\\p{L}+)))"
+      - regex: "(?<=(?<![\\p{L}])(?:w|we|po|o|na|przy)[ \\t\\u00A0]{1,8})(?:moi|twoi|swoi)(?=[ \\t\\u00A0]{1,8}(?<noun>\\p{L}+))"
         scan: polish
         flags: giu
         fixer: possessiveLocative
       # "po litewskiemu" -> "po litewsku" (not "po swojemu", "po staremu").
-      - regex: "(?<target>(?<=(?<![\\p{L}])po[ \\t\\u00A0]{1,8})\\p{L}+(?:sk|ck|dzk)iemu(?![\\p{L}]))"
+      - regex: "(?<=(?<![\\p{L}])po[ \\t\\u00A0]{1,8})\\p{L}+(?:sk|ck|dzk)iemu(?![\\p{L}])"
         scan: polish
         flags: giu
         fixer: poLanguage
       # "godzina temu" -> "godzinę temu": "temu" counts back from an accusative. Not "temu"
       # the dative of "ten" before its noun ("ta chwila temu panu umknęła").
-      - regex: "(?<target>(?<![\\p{L}])(?:godzina|minuta|sekunda|chwila|doba)(?=[ \\t\\u00A0]{1,8}temu(?![\\p{L}])(?![ \\t\\u00A0]+\\p{L}+(?:owi|u|emu)(?![\\p{L}]))))"
+      - regex: "(?<![\\p{L}])(?:godzina|minuta|sekunda|chwila|doba)(?=[ \\t\\u00A0]{1,8}temu(?![\\p{L}])(?![ \\t\\u00A0]+\\p{L}+(?:owi|u|emu)(?![\\p{L}])))"
         scan: polish
         flags: giu
         fixer: temuAccusative
       # "półtorej roku" -> "półtora roku", "półtora godziny" -> "półtorej godziny": the noun's
       # gender picks the form.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<num>półtora|półtorej){{S}}(?<noun>\\p{L}{3,}){{WORD}})"
+      - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<num>półtora|półtorej){{S}}(?<noun>\\p{L}{3,}){{WORD}}"
         scan: polish
         flags: gdiu
         fixer: halfForms
       # "dwadzieścia trzej mężczyźni": men's "dwaj", "trzej", "czterej" stand alone, not after tens.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?:dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt){{S}}(?:dwaj|trzej|czterej){{S}}(?<noun>\\p{L}{3,}){{WORD}})"
+      - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?:dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt){{S}}(?:dwaj|trzej|czterej){{S}}(?<noun>\\p{L}{3,}){{WORD}}"
         scan: polish
         flags: gdiu
         fixer: tensMen
       # "Uczestnikami są wyłącznie uczniów": a genitive plural where the subject goes after "są".
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<verb>są|będą){{S}}(?:(?:wyłącznie|głównie|tylko|także|również|zwykle|najczęściej|zawsze|często){{S}})?(?<noun>\\p{Ll}{3,}){{WORD}})"
+      - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<verb>są|będą){{S}}(?:(?:wyłącznie|głównie|tylko|także|również|zwykle|najczęściej|zawsze|często){{S}})?(?<noun>\\p{Ll}{3,}){{WORD}}"
         scan: polish
         flags: gdu
         fixer: subjectsAfterPredicate
       # "tymi człowiekiem", "moimi siostrą". "między innymi handlem": "innymi" is left out,
       # it is part of "między innymi".
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>tymi|Tymi|tamtymi|Tamtymi|takimi|Takimi|jakimi|Jakimi|jakimiś|Jakimiś|moimi|Moimi|twoimi|Twoimi|swoimi|Swoimi|naszymi|Naszymi|waszymi|Waszymi|owymi|Owymi|żadnymi|Żadnymi){{S}}(?<noun>\\p{Ll}{3,}){{WORD}})"
+      - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>tymi|Tymi|tamtymi|Tamtymi|takimi|Takimi|jakimi|Jakimi|jakimiś|Jakimiś|moimi|Moimi|twoimi|Twoimi|swoimi|Swoimi|naszymi|Naszymi|waszymi|Waszymi|owymi|Owymi|żadnymi|Żadnymi){{S}}(?<noun>\\p{Ll}{3,}){{WORD}}"
         scan: polish
         flags: gu
         fixer: pluralPronouns
@@ -1086,22 +1086,22 @@ rules:
     frames:
       # "dwie lub więcej godzin" mixes two governments: "co najmniej dwie godziny". The noun (and its
       # adjectives) follow the numeral's case; when they cannot be read, only the numeral is fixed.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<numeral>dwa|dwie|trzy|cztery|dwom|dwóm|trzem|czterem|dwoma|trzema|czterema|dwóch|trzech|czterech|pięć|pięciu){{S}}lub{{S}}więcej(?<words>(?:{{S}}\\p{L}+){0,3})(?![\\p{L}\\p{N}_'’-]))"
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<numeral>dwa|dwie|trzy|cztery|dwom|dwóm|trzem|czterem|dwoma|trzema|czterema|dwóch|trzech|czterech|pięć|pięciu){{S}}lub{{S}}więcej(?<words>(?:{{S}}\\p{L}+){0,3})(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: giu
         fixer: orMore
       # Opt-in: "pełni istotną rolę" -> "pełni istotną funkcję" or "odgrywa istotną rolę".
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?:(?<verb>pełni|pełnią|pełnił|pełniła|pełniło|pełnili|pełniły|pełnić|pełniący|pełniąca|pełniące|pełniąc|spełnia|spełniają|spełniał|spełniała|spełniać|spełniając)(?<mid>{{FILLER}}){{S}}(?<noun>rolę|roli)|(?<before>rolę|roli){{S}}(?<after>pełni|pełnią|pełnił|pełniła|pełniło|pełnili|pełniły|pełnić|pełniący|pełniąca|pełniące|pełniąc|spełnia|spełniają|spełniał|spełniała|spełniać|spełniając))(?![\\p{L}\\p{N}_'’-]))"
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?:(?<verb>pełni|pełnią|pełnił|pełniła|pełniło|pełnili|pełniły|pełnić|pełniący|pełniąca|pełniące|pełniąc|spełnia|spełniają|spełniał|spełniała|spełniać|spełniając)(?<mid>{{FILLER}}){{S}}(?<noun>rolę|roli)|(?<before>rolę|roli){{S}}(?<after>pełni|pełnią|pełnił|pełniła|pełniło|pełnili|pełniły|pełnić|pełniący|pełniąca|pełniące|pełniąc|spełnia|spełniają|spełniał|spełniała|spełniać|spełniając))(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: giu
         fixer: playsRole
       # "ubrać płaszcz", "założyć buty": clothes one puts on ("włożyć").
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<verb>ubrać|ubrał|ubrała|ubrali|ubrały|ubrałem|ubrałam|ubiorę|ubierze|ubierz|ubieram|ubiera|ubierają|ubierał|ubierała|ubierać|założyć|założył|założyła|założyli|założyły|założyłem|założyłam|założyłeś|założyłaś|założyliśmy|założyłyśmy|założę|założy|założysz|założymy|założycie|założą|zakłada|zakładać|zakładał|zakładała|zakładali|zakładały|zakładam|zakładasz|zakładają|zakładamy|zakładacie|załóż|załóżcie)(?<mid>{{FILLER}}){{S}}(?<noun>{{GARMENTS}})(?![\\p{L}\\p{N}_'’-]))"
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<verb>ubrać|ubrał|ubrała|ubrali|ubrały|ubrałem|ubrałam|ubiorę|ubierze|ubierz|ubieram|ubiera|ubierają|ubierał|ubierała|ubierać|założyć|założył|założyła|założyli|założyły|założyłem|założyłam|założyłeś|założyłaś|założyliśmy|założyłyśmy|założę|założy|założysz|założymy|założycie|założą|zakłada|zakładać|zakładał|zakładała|zakładali|zakładały|zakładam|zakładasz|zakładają|zakładamy|zakładacie|załóż|załóżcie)(?<mid>{{FILLER}}){{S}}(?<noun>{{GARMENTS}})(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: giu
         fixer: putsOn
       # "napotkać na trudności": one meets difficulties without "na" ("na drodze" stays).
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<verb>napot(?:kać|kał\\p{L}*|kali\\p{L}*|ka|kają|kasz|kam|ykać|yka|ykają|ykał\\p{L}*|ykali\\p{L}*)){{S}}na(?<rest>(?:{{S}}\\p{L}+(?:e|ie|y|i|ą))?{{S}}(?:trudności|trudność|problem|problemy|przeszkody|przeszkodę|opór|sprzeciw|kłopoty))(?![\\p{L}\\p{N}_'’-]))"
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<verb>napot(?:kać|kał\\p{L}*|kali\\p{L}*|ka|kają|kasz|kam|ykać|yka|ykają|ykał\\p{L}*|ykali\\p{L}*)){{S}}na(?<rest>(?:{{S}}\\p{L}+(?:e|ie|y|i|ą))?{{S}}(?:trudności|trudność|problem|problemy|przeszkody|przeszkodę|opór|sprzeciw|kłopoty))(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: giu
         fixer: meetsWithoutNa
@@ -1111,7 +1111,7 @@ rules:
         flags: gdiu
         fixer: yearsAnniversary
       # "posiada brodę" -> "ma brodę".
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<verb>posiadam|posiadasz|posiada|posiadamy|posiadacie|posiadają|posiadał|posiadała|posiadali|posiadały|posiadać|posiadając)(?<mid>{{FILLER}}){{S}}(?<noun>{{FEATURES}})(?![\\p{L}\\p{N}_'’-]))"
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<verb>posiadam|posiadasz|posiada|posiadamy|posiadacie|posiadają|posiadał|posiadała|posiadali|posiadały|posiadać|posiadając)(?<mid>{{FILLER}}){{S}}(?<noun>{{FEATURES}})(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: giu
         fixer: possess
@@ -1190,22 +1190,22 @@ rules:
     message: review_msg_pl_subject_verb
     frames:
       # "on poszła", "ona przyszedł": the pronoun disagrees with the past form's gender.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>on|ona){{S}}{{BETWEEN}}(?<verb>\\p{L}{2,}ł(?<fem>a)?)(?![\\p{L}\\p{N}_'’@/-]))"
+      - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>on|ona){{S}}{{BETWEEN}}(?<verb>\\p{L}{2,}ł(?<fem>a)?)(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdiu
         fixer: pronounGender
       # "Przywróciła on pokój": the verb opens the clause, the pronoun follows it.
-      - regex: "(?<target>(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<verb>\\p{L}{3,}ł(?<fem>a)?){{S}}(?<pronoun>on|ona)(?![\\p{L}\\p{N}_'’@/-]))"
+      - regex: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<verb>\\p{L}{3,}ł(?<fem>a)?){{S}}(?<pronoun>on|ona)(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdu
         fixer: pronounGender
       # "zostało zrobiony" -> "zrobione": the nominative after "zostać" takes the verb's gender.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<aux>{{ZOSTAC}}){{S}}(?<word>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-]))"
+      - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<aux>{{ZOSTAC}}){{S}}(?<word>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdiu
         fixer: zostacAgreement
       # "Zrobiony zostało": the participle opens the clause.
-      - regex: "(?<target>(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<word>\\p{L}{3,}){{S}}(?<aux>{{ZOSTAC}})(?![\\p{L}\\p{N}_'’@/-]))"
+      - regex: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<word>\\p{L}{3,}){{S}}(?<aux>{{ZOSTAC}})(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdu
         fixer: zostacAgreement
@@ -1222,24 +1222,24 @@ rules:
     frames:
       # "Większość (ludności kraju) było" -> "była": before "być" or "zostać", which take no object,
       # "większość" is the subject, a feminine singular.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])większość(?<between>(?:{{S}}\\p{L}+){0,3}?){{S}}(?<verb>było|zostało|pozostało)(?![\\p{L}\\p{N}_'’@/-]))"
+      - regex: "(?<![\\p{L}\\p{N}_'’@/-])większość(?<between>(?:{{S}}\\p{L}+){0,3}?){{S}}(?<verb>było|zostało|pozostało)(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdiu
         fixer: majority
       # "będzie zrobić", "będzie zrobił", "zaczął napisać": the compound future's "być" and the phase
       # verbs take an imperfective infinitive.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<aux>będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|zacz(?:ął|ęła|ęło|ęli|ęły|nę|niesz|nie|niemy|niecie|ną)|zaczyna\\p{L}*|przesta\\p{L}*|przestanie|kończy\\p{L}*|skończy\\p{L}*){{S}}(?:(?:się|nie|to|go|ją|je|mu|mi|jej|im|ci|już|znowu|znów){{S}}){0,2}(?<verb>\\p{L}{4,})(?![\\p{L}\\p{N}_'’@/-]))"
+      - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<aux>będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|zacz(?:ął|ęła|ęło|ęli|ęły|nę|niesz|nie|niemy|niecie|ną)|zaczyna\\p{L}*|przesta\\p{L}*|przestanie|kończy\\p{L}*|skończy\\p{L}*){{S}}(?:(?:się|nie|to|go|ją|je|mu|mi|jej|im|ci|już|znowu|znów){{S}}){0,2}(?<verb>\\p{L}{4,})(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdiu
         fixer: aspect
       # "Nigdy tego zrobiłam", "Nikt przyszedł": a negative pronoun or adverb without "nie".
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<neg>nigdy|nikt|nikogo|nikomu|niczego|nigdzie|nic){{S}}(?:(?:tego|to|go|ją|je|mu|mi|jej|im|nam|wam|ci|się|już|tam|tu){{S}}){0,2}(?<verb>\\p{L}{2,})(?![\\p{L}\\p{N}_'’@/-]))"
+      - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<neg>nigdy|nikt|nikogo|nikomu|niczego|nigdzie|nic){{S}}(?:(?:tego|to|go|ją|je|mu|mi|jej|im|nam|wam|ci|się|już|tam|tu){{S}}){0,2}(?<verb>\\p{L}{2,})(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdiu
         fixer: doubleNegation
       # "Oficerowie byli nieobecne" -> "nieobecni", "Kobiety były zmęczeni" -> "zmęczone": a plural
       # "być" or "zostać" and the adjective that ends its clause.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<verb>(?:by|zosta)(?:li|ły)(?:śmy|ście)?){{S}}(?:(?:bardzo|już|nadal|wciąż|też|także|również|zawsze|naprawdę|zbyt|całkiem|zupełnie|wtedy|tam|tu){{S}})?(?<adj>\\p{L}{4,})(?=[ \\t\\u00a0]{0,8}(?:[.,;:!?…)]|$|(?:i|oraz|a|ale)[ \\t\\u00a0])))"
+      - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<verb>(?:by|zosta)(?:li|ły)(?:śmy|ście)?){{S}}(?:(?:bardzo|już|nadal|wciąż|też|także|również|zawsze|naprawdę|zbyt|całkiem|zupełnie|wtedy|tam|tu){{S}})?(?<adj>\\p{L}{4,})(?=[ \\t\\u00a0]{0,8}(?:[.,;:!?…)]|$|(?:i|oraz|a|ale)[ \\t\\u00a0]))"
         scan: polish
         flags: gdiu
         fixer: predicateAdjectives
@@ -1454,7 +1454,7 @@ rules:
     message: review_msg_contextual_grammar
     frames:
       # A preposition straight before an infinitive or an adverbial participle.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<prep>na|do|od|dla|bez|przez|przy|u|z|ze|w|we|o){{S}}(?<verb>\\p{Ll}{3,}(?:ać|eć|ić|yć|ąć|uć|ąc)){{NO_LETTER_AFTER}})"
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<prep>na|do|od|dla|bez|przez|przy|u|z|ze|w|we|o){{S}}(?<verb>\\p{Ll}{3,}(?:ać|eć|ić|yć|ąć|uć|ąc)){{NO_LETTER_AFTER}}"
         scan: polish
         flags: gu
         fixer: prepositionVerb
@@ -1464,22 +1464,22 @@ rules:
         flags: giu
         fixer: inchesCale
       # "bać" is always reflexive: a form with no "się" in its clause.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<verb>bał|bała|bało|bały|bałem|bałam|bałeś|bałaś|baliśmy|bałyśmy|boi|boję|boisz|boimy|boicie|bać){{NO_LETTER_AFTER}})"
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<verb>bał|bała|bało|bały|bałem|bałam|bałeś|bałaś|baliśmy|bałyśmy|boi|boję|boisz|boimy|boicie|bać){{NO_LETTER_AFTER}}"
         scan: polish
         flags: giu
         fixer: afraidSie
       # "się bał się": one "się" serves the verb.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])się{{S}}(?<verb>\\p{L}{2,20})(?<gap>{{S}})się{{NO_LETTER_AFTER}})"
+      - regex: "(?<![\\p{L}\\p{N}_'’-])się{{S}}(?<verb>\\p{L}{2,20})(?<gap>{{S}})się{{NO_LETTER_AFTER}}"
         scan: polish
         flags: giu
         fixer: twoSie
       # Two prepositions in a row ("mieszkam w z Warszawie"): one of them is a slip.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’/.-])(?<first>[wW]|[dD]o|[zZ]|[nN]a|[oO]d){{S}}(?<second>na|z|od|do|w){{S}}(?<next>\\p{L}+){{NO_LETTER_AFTER}})"
+      - regex: "(?<![\\p{L}\\p{N}_'’/.-])(?<first>[wW]|[dD]o|[zZ]|[nN]a|[oO]d){{S}}(?<second>na|z|od|do|w){{S}}(?<next>\\p{L}+){{NO_LETTER_AFTER}}"
         scan: polish
         flags: gu
         fixer: twoPrepositions
       # "bynajmniej" strengthens a denial; with none in its sentence "przynajmniej" was meant.
-      - regex: "(?<target>(?<![\\p{L}])bynajmniej(?={{S}}\\p{L}))"
+      - regex: "(?<![\\p{L}])bynajmniej(?={{S}}\\p{L})"
         scan: polish
         flags: giu
         fixer: atLeast

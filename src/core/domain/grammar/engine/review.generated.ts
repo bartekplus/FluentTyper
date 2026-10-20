@@ -10635,7 +10635,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4}|[IVXLC]{1,7})(?<dash>[ \\t]?[-—–][ \\t]?|’|')?(?<end>w?sz[yaeąę]|w?sz(?:ego|ej|emu|ym|ych|ymi)|wsi|g[iaeą]|gie|gi(?:ego|ej|emu|m|ch|mi)|c[iaeą]|cie|ci(?:ego|ej|emu|m|ch|mi)|[dt]?m[yaeą]|[dt]?m(?:ego|ej|emu|ym|ych|ymi)|s?t[yaeą]|s?t(?:ego|ej|emu|ym|ych|ymi)|go|ego|mu|emu|ej|ym|ych|ymi|y|i|a|e|u|ch|óch|ech|ciu|miu|ściu|tu|stu|ięć|ro|cio|mio|dmio|ścio|oro|oma|ma|[jrt]?(?:ka|ki|kę|ką|kom|kami|kach|ce)|t?ek|jek|rek)(?![\\p{L}\\p{N}_-])(?<rest>[ \\t\\u00a0]+(?<next>\\p{L}+))?)",
+      "(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4}|[IVXLC]{1,7})(?<dash>[ \\t]?[-—–][ \\t]?|’|')?(?<end>w?sz[yaeąę]|w?sz(?:ego|ej|emu|ym|ych|ymi)|wsi|g[iaeą]|gie|gi(?:ego|ej|emu|m|ch|mi)|c[iaeą]|cie|ci(?:ego|ej|emu|m|ch|mi)|[dt]?m[yaeą]|[dt]?m(?:ego|ej|emu|ym|ych|ymi)|s?t[yaeą]|s?t(?:ego|ej|emu|ym|ych|ymi)|go|ego|mu|emu|ej|ym|ych|ymi|y|i|a|e|u|ch|óch|ech|ciu|miu|ściu|tu|stu|ięć|ro|cio|mio|dmio|ścio|oro|oma|ma|[jrt]?(?:ka|ki|kę|ką|kom|kami|kach|ce)|t?ek|jek|rek)(?![\\p{L}\\p{N}_-])(?<rest>[ \\t\\u00a0]+(?<next>\\p{L}+))?",
     literals: [],
     fixer: "pl:numeralSuffixes",
     flags: "gu",
@@ -10643,7 +10643,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_-])(?<num>dwu|trzy|cztero|pi\\u0119cio|sze\\u015Bcio|siedmio|o\\u015Bmio|dziewi\\u0119cio|dziesi\\u0119cio|kilku|kilkunasto|kilkudziesi\\u0119cio|wielo|ilu|paru|stu)[ \\t\\u00a0]{1,3}(?<part>krotn\\p{L}*)(?![\\p{L}\\p{N}_-]))",
+      "(?<![\\p{L}\\p{N}_-])(?<num>dwu|trzy|cztero|pi\\u0119cio|sze\\u015Bcio|siedmio|o\\u015Bmio|dziewi\\u0119cio|dziesi\\u0119cio|kilku|kilkunasto|kilkudziesi\\u0119cio|wielo|ilu|paru|stu)[ \\t\\u00a0]{1,3}(?<part>krotn\\p{L}*)(?![\\p{L}\\p{N}_-])",
     literals: ["krotn"],
     fixer: "pl:wordKrotny",
     flags: "giu",
@@ -10651,7 +10651,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4})(?<gap>[ \\t\\u00a0]*['’][ \\t\\u00a0]*|[ \\t\\u00a0]+[-–—][ \\t\\u00a0]+|[ \\t\\u00a0]+[-–—]|[-–—][ \\t\\u00a0]+|[–—]|\\.[ \\t\\u00a0]{1,3}(?=krotn)|[ \\t\\u00a0]{1,3})(?<part>krotn\\p{L}*|krotnie|letni|latek|latka|latki|latków|latkiem|latkowi|latku|lecie|lecia|leciu|leciem|(?:minutow|sekundow|godzinn|dniow|tygodniow|miesięczn|osobow|pokojow|piętrow|procentow|kilometrow|metrow|centymetrow|litrow|bitow|stopniow|tonow|kilogramow|gramow|punktow|pasmow|drzwiow|biegow|cylindrow|calow|częściow|elementow|tysięczn|milionow|letni|roczn|dzienn)(?:y|a|ego|ej|emu|ą|i))(?![\\p{L}\\p{N}_-]))",
+      "(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4})(?<gap>[ \\t\\u00a0]*['’][ \\t\\u00a0]*|[ \\t\\u00a0]+[-–—][ \\t\\u00a0]+|[ \\t\\u00a0]+[-–—]|[-–—][ \\t\\u00a0]+|[–—]|\\.[ \\t\\u00a0]{1,3}(?=krotn)|[ \\t\\u00a0]{1,3})(?<part>krotn\\p{L}*|krotnie|letni|latek|latka|latki|latków|latkiem|latkowi|latku|lecie|lecia|leciu|leciem|(?:minutow|sekundow|godzinn|dniow|tygodniow|miesięczn|osobow|pokojow|piętrow|procentow|kilometrow|metrow|centymetrow|litrow|bitow|stopniow|tonow|kilogramow|gramow|punktow|pasmow|drzwiow|biegow|cylindrow|calow|częściow|elementow|tysięczn|milionow|letni|roczn|dzienn)(?:y|a|ego|ej|emu|ą|i))(?![\\p{L}\\p{N}_-])",
     literals: [
       "krotn",
       "krotnie",
@@ -10706,7 +10706,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}])(?<num>dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt)(?<sp>[ \\t\\u00a0]+)(?<noun>dzieci|drzwi|oczy|uszy|sanie|kurczęta|kocięta|szczenięta|źrebięta|cielęta|prosięta|pisklęta|niemowlęta)(?![\\p{L}]))",
+      "(?<![\\p{L}\\p{N}])(?<num>dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt)(?<sp>[ \\t\\u00a0]+)(?<noun>dzieci|drzwi|oczy|uszy|sanie|kurczęta|kocięta|szczenięta|źrebięta|cielęta|prosięta|pisklęta|niemowlęta)(?![\\p{L}])",
     literals: [
       "dzieci",
       "drzwi",
@@ -10728,7 +10728,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}.,])(?<amount>\\d{1,3}(?:[ \\u00a0]\\d{3})*(?:[.,]\\d+)?)(?<sp>[ \\t\\u00a0]+)(?<unit>złoty|złote|złotych|grosz|grosze|groszy)(?![\\p{L}])(?=[ \\t\\u00a0]*(?:[.!?,;:)…]|$|[ \\t\\u00a0](?:i|a|na|za|do|od|w|z|ze|to|netto|brutto|miesięcznie|rocznie|dziennie)(?![\\p{L}]))))",
+      "(?<![\\p{L}\\p{N}.,])(?<amount>\\d{1,3}(?:[ \\u00a0]\\d{3})*(?:[.,]\\d+)?)(?<sp>[ \\t\\u00a0]+)(?<unit>złoty|złote|złotych|grosz|grosze|groszy)(?![\\p{L}])(?=[ \\t\\u00a0]*(?:[.!?,;:)…]|$|[ \\t\\u00a0](?:i|a|na|za|do|od|w|z|ze|to|netto|brutto|miesięcznie|rocznie|dziennie)(?![\\p{L}])))",
     literals: ["złoty", "złote", "złotych", "grosz", "grosze", "groszy"],
     fixer: "pl:currencyForms",
     flags: "gu",
@@ -10736,7 +10736,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}.,])(?<num>\\d{1,6}|dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sto|dwieście|trzysta|pięćset|tysiąc|kilka|kilkanaście|kilkadziesiąt|kilkaset)(?<sp>[ \\t\\u00a0]+)(?<unit>gram|kilogram|dekagram|miligram|wolt|amper|wat|kilowat)(?![\\p{L}])(?![ \\t\\u00a0]+(?:w|na|z|ze|o)(?![\\p{L}])))",
+      "(?<![\\p{L}\\p{N}.,])(?<num>\\d{1,6}|dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sto|dwieście|trzysta|pięćset|tysiąc|kilka|kilkanaście|kilkadziesiąt|kilkaset)(?<sp>[ \\t\\u00a0]+)(?<unit>gram|kilogram|dekagram|miligram|wolt|amper|wat|kilowat)(?![\\p{L}])(?![ \\t\\u00a0]+(?:w|na|z|ze|o)(?![\\p{L}]))",
     literals: ["gram", "kilogram", "dekagram", "miligram", "wolt", "amper", "wat", "kilowat"],
     fixer: "pl:unitForms",
     flags: "giu",
@@ -10744,7 +10744,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}.,/-])(?:(?<day>\\d{1,2})[ \\t\\u00a0]+(?<mword>stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)(?:[ \\t\\u00a0]+(?<year>\\d{3,4})(?![\\p{N}]))?(?![\\p{L}\\p{N}])|(?<dday>\\d{1,2})\\.(?<dmonth>\\d{1,2})\\.(?<dyear>[0-9]{4})(?![\\p{N}]|\\.\\p{N})))",
+      "(?<![\\p{L}\\p{N}.,/-])(?:(?<day>\\d{1,2})[ \\t\\u00a0]+(?<mword>stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)(?:[ \\t\\u00a0]+(?<year>\\d{3,4})(?![\\p{N}]))?(?![\\p{L}\\p{N}])|(?<dday>\\d{1,2})\\.(?<dmonth>\\d{1,2})\\.(?<dyear>[0-9]{4})(?![\\p{N}]|\\.\\p{N}))",
     literals: [],
     fixer: "pl:impossibleDates",
     flags: "giu",
@@ -10752,7 +10752,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{1,2})(?:[ \\t\\u00a0]*[–—-][ \\t\\u00a0]*|[ \\t\\u00a0]+do[ \\t\\u00a0]+)(?<b>\\d{1,2})[ \\t\\u00a0]+(?:stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)(?![\\p{L}]))",
+      "(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{1,2})(?:[ \\t\\u00a0]*[–—-][ \\t\\u00a0]*|[ \\t\\u00a0]+do[ \\t\\u00a0]+)(?<b>\\d{1,2})[ \\t\\u00a0]+(?:stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)(?![\\p{L}])",
     literals: [],
     fixer: "pl:dayRanges",
     flags: "giu",
@@ -10760,7 +10760,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{3,4})[ \\t\\u00A0]*[\\u2013\\u2014-][ \\t\\u00A0]*(?<b>\\d{1,4})(?![\\p{N}.,]\\d|[\\p{L}\\p{N}-]))",
+      "(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{3,4})[ \\t\\u00A0]*[\\u2013\\u2014-][ \\t\\u00A0]*(?<b>\\d{1,4})(?![\\p{N}.,]\\d|[\\p{L}\\p{N}-])",
     literals: [],
     fixer: "pl:yearRanges",
     flags: "gu",
@@ -10768,7 +10768,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2}|pierwszy|drugi|trzeci|czwarty|piąty)(?<dot>\\.)?(?<sp>[ \\t\\u00a0]+)(?<month>styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia)(?![\\p{L}]))",
+      "(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2}|pierwszy|drugi|trzeci|czwarty|piąty)(?<dot>\\.)?(?<sp>[ \\t\\u00a0]+)(?<month>styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia)(?![\\p{L}])",
     literals: [
       "styczeń",
       "luty",
@@ -10801,7 +10801,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2})(?<sp1>[ \\t\\u00a0]+)(?<month>sty|lut|mar|kwi|maj|cze|lip|sie|wrz|paź|lis|gru)\\.?(?<sp2>[ \\t\\u00a0]+)(?<year>\\d{4})(?![\\p{L}\\p{N}]))",
+      "(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2})(?<sp1>[ \\t\\u00a0]+)(?<month>sty|lut|mar|kwi|maj|cze|lip|sie|wrz|paź|lis|gru)\\.?(?<sp2>[ \\t\\u00a0]+)(?<year>\\d{4})(?![\\p{L}\\p{N}])",
     literals: ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"],
     fixer: "pl:abbreviatedMonths",
     flags: "giu",
@@ -10809,15 +10809,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<=(?:^|[^\\p{L}])(?:lata|lat|latach|latami|latom)[ \\t\\u00a0]{1,8})(?<year>1\\d[0-9]0|20[0-9]0)\\.)",
+      "(?<=(?:^|[^\\p{L}])(?:lata|lat|latach|latami|latom)[ \\t\\u00a0]{1,8})(?<year>1\\d[0-9]0|20[0-9]0)\\.",
     literals: [],
     fixer: "pl:fullDecades",
     flags: "giu",
     scan: "polish",
   },
   {
-    pattern:
-      "(?<target>(?<![\\p{L}\\p{N}])(?<mark>['’])(?<year>\\d{4}|\\d{2})(?![\\p{L}\\p{N}'’]))",
+    pattern: "(?<![\\p{L}\\p{N}])(?<mark>['’])(?<year>\\d{4}|\\d{2})(?![\\p{L}\\p{N}'’])",
     literals: [],
     fixer: "pl:apostropheYears",
     flags: "gu",
@@ -10825,7 +10824,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}])(?:stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I|styczniu|lutym|marcu|kwietniu|maju|czerwcu|lipcu|sierpniu|wrześniu|październiku|listopadzie|grudniu|roku)[ \\t\\u00a0]{1,8}(?<year>[12]\\d{4})(?=[ \\t\\u00a0]{0,8}(?:r\\.|rok\\p{L}*)(?![\\p{L}])))",
+      "(?<![\\p{L}])(?:stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I|styczniu|lutym|marcu|kwietniu|maju|czerwcu|lipcu|sierpniu|wrześniu|październiku|listopadzie|grudniu|roku)[ \\t\\u00a0]{1,8}(?<year>[12]\\d{4})(?=[ \\t\\u00a0]{0,8}(?:r\\.|rok\\p{L}*)(?![\\p{L}]))",
     literals: [],
     fixer: "pl:longYears",
     flags: "giu",
@@ -10833,7 +10832,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}])(?:(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+))?(?<head>mimo|pomimo|podczas|chyba|nawet|jeszcze|a|o|pod[ \\t\\u00a0]+warunkiem|tyle)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<tail>że|iż|gdy|żeby|by|jeśli|jeżeli|gdyby|kiedy|zanim|więc|ile)(?![\\p{L}]))",
+      "(?<![\\p{L}\\p{N}])(?:(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+))?(?<head>mimo|pomimo|podczas|chyba|nawet|jeszcze|a|o|pod[ \\t\\u00a0]+warunkiem|tyle)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<tail>że|iż|gdy|żeby|by|jeśli|jeżeli|gdyby|kiedy|zanim|więc|ile)(?![\\p{L}])",
     literals: [],
     fixer: "pl:commaInsideConjunction",
     flags: "giu",
@@ -10841,15 +10840,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}])(?<phrase>(?<a>tak|chcąc|bądź|byle|chybił|wypisz)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<b>czy[ \\t\\u00a0]+(?:siak|owak|inaczej)|nie[ \\t\\u00a0]+chcąc|co[ \\t\\u00a0]+bądź|jak|trafił|wymaluj))(?![\\p{L}]))",
+      "(?<![\\p{L}])(?<phrase>(?<a>tak|chcąc|bądź|byle|chybił|wypisz)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<b>czy[ \\t\\u00a0]+(?:siak|owak|inaczej)|nie[ \\t\\u00a0]+chcąc|co[ \\t\\u00a0]+bądź|jak|trafił|wymaluj))(?![\\p{L}])",
     literals: ["tak", "chcąc", "bądź", "byle", "chybił", "wypisz"],
     fixer: "pl:setPhraseCommas",
     flags: "giu",
     scan: "polish",
   },
   {
-    pattern:
-      "(?<target>(?<![ \\t\\u00a0])(?<comma>[ \\t\\u00a0]*,)(?=[ \\t\\u00a0]*(?:itd|itp|etc)\\.))",
+    pattern: "(?<![ \\t\\u00a0])(?<comma>[ \\t\\u00a0]*,)(?=[ \\t\\u00a0]*(?:itd|itp|etc)\\.)",
     literals: [],
     fixer: "pl:commaBeforeEtc",
     flags: "gu",
@@ -10857,7 +10855,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}])(?:(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+))?(?<prep>za[ \\t\\u00a0]+pomocą|w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<pronoun>co|czego|czemu|czym|kogo|komu|kim|który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy|jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi)(?![\\p{L}]))",
+      "(?<![\\p{L}\\p{N}])(?:(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+))?(?<prep>za[ \\t\\u00a0]+pomocą|w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<pronoun>co|czego|czemu|czym|kogo|komu|kim|który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy|jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi)(?![\\p{L}])",
     literals: [],
     fixer: "pl:commaAfterPreposition",
     flags: "giu",
@@ -10865,7 +10863,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+)(?:(?<prep>w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]+)?(?<sub>że|iż|żeby|ażeby|aby|by|ponieważ|gdyż|jeśli|jeżeli|gdyby|zanim|dopóki|gdy|zamiast|ale|lecz|dlaczego|gdzie|kiedy|który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy|jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi)(?![\\p{L}\\p{N}_'’-]))",
+      "(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+)(?:(?<prep>w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]+)?(?<sub>że|iż|żeby|ażeby|aby|by|ponieważ|gdyż|jeśli|jeżeli|gdyby|zanim|dopóki|gdy|zamiast|ale|lecz|dlaczego|gdzie|kiedy|który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy|jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi)(?![\\p{L}\\p{N}_'’-])",
     literals: [],
     fixer: "pl:missingCommas",
     flags: "gu",
@@ -10873,7 +10871,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+)(?<head>mimo|pomimo|nawet|dopiero|zwłaszcza|szczególnie|tym[ \\t\\u00a0]+bardziej|pod[ \\t\\u00a0]+warunkiem|podczas)[ \\t\\u00a0]+(?<tail>\\p{Ll}+)(?![\\p{L}\\p{N}_'’-]))",
+      "(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+)(?<head>mimo|pomimo|nawet|dopiero|zwłaszcza|szczególnie|tym[ \\t\\u00a0]+bardziej|pod[ \\t\\u00a0]+warunkiem|podczas)[ \\t\\u00a0]+(?<tail>\\p{Ll}+)(?![\\p{L}\\p{N}_'’-])",
     literals: [
       "mimo",
       "pomimo",
@@ -10891,7 +10889,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}])[Nn]ie[ \\t\\u00a0]+do\\u015B\\u0107(?=[ \\t\\u00a0]+\\u017Ce(?![\\p{L}])))",
+      "(?<![\\p{L}])[Nn]ie[ \\t\\u00a0]+do\\u015B\\u0107(?=[ \\t\\u00a0]+\\u017Ce(?![\\p{L}]))",
     literals: ["nie"],
     fixer: "pl:notEnoughComma",
     flags: "gu",
@@ -10899,7 +10897,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}\\p{Ll}*)(?<gap>[ \\t\\u00a0]+)(?<adverb>tylko|tak|właśnie|z[ \\t\\u00a0]+tym|zatem|więc|przeto|jednak|jednakże|przecież|także|również)(?<gap2>[ \\t\\u00a0]+)(?<sub>żeby|ażeby|aby|by|że|iż|gdy|kiedy)[ \\t\\u00a0]+(?:się[ \\t\\u00a0]+)?(?<next>\\p{L}+))",
+      "(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}\\p{Ll}*)(?<gap>[ \\t\\u00a0]+)(?<adverb>tylko|tak|właśnie|z[ \\t\\u00a0]+tym|zatem|więc|przeto|jednak|jednakże|przecież|także|również)(?<gap2>[ \\t\\u00a0]+)(?<sub>żeby|ażeby|aby|by|że|iż|gdy|kiedy)[ \\t\\u00a0]+(?:się[ \\t\\u00a0]+)?(?<next>\\p{L}+)",
     literals: [
       "tylko",
       "tak",
@@ -10920,7 +10918,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}+(?:-\\p{L}+)?)(?<gap>[ \\t\\u00a0]+)(?<sub>póki|chociaż|choć|dopóty|o[ \\t\\u00a0]+ile)[ \\t\\u00a0]+(?<next>\\p{L}+))",
+      "(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}+(?:-\\p{L}+)?)(?<gap>[ \\t\\u00a0]+)(?<sub>póki|chociaż|choć|dopóty|o[ \\t\\u00a0]+ile)[ \\t\\u00a0]+(?<next>\\p{L}+)",
     literals: ["póki", "chociaż", "choć", "dopóty", "ile"],
     fixer: "pl:clauseOpeners",
     flags: "gu",
@@ -11015,7 +11013,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   { pattern: "(?<target>ok)(?=[ \\t\\u00a0]+\\d)", literals: [], fix: "ok.", lowercase: true },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’.@/-])(?<prep>bez|beze|dla|do|od|ode|u|z|ze|spod|znad|zza|sprzed|spomiędzy|spośród|wśród|obok|podczas|według|zamiast|oprócz|prócz|wobec|wokół|dookoła|wzdłuż|dzięki|ku|przeciw|przeciwko|wbrew|w|we|na|o|po|przy|przez|przeze|poprzez|przed|przede|za|nad|nade|pod|pode|między|pomiędzy|poza)[ \\t\\u00a0]+(?<noun>\\p{L}+)(?![\\p{L}\\p{N}_'’@/-]))",
+      "(?<![\\p{L}\\p{N}_'’.@/-])(?<prep>bez|beze|dla|do|od|ode|u|z|ze|spod|znad|zza|sprzed|spomiędzy|spośród|wśród|obok|podczas|według|zamiast|oprócz|prócz|wobec|wokół|dookoła|wzdłuż|dzięki|ku|przeciw|przeciwko|wbrew|w|we|na|o|po|przy|przez|przeze|poprzez|przed|przede|za|nad|nade|pod|pode|między|pomiędzy|poza)[ \\t\\u00a0]+(?<noun>\\p{L}+)(?![\\p{L}\\p{N}_'’@/-])",
     literals: [],
     fixer: "pl:prepositionCase",
     flags: "giu",
@@ -11023,7 +11021,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’.@/-])(?<det>ten|ta|tę|tą|te|jedne|jedna|jedną)[ \\t\\u00a0]+(?:(?<adj>\\p{L}{3,})[ \\t\\u00a0]+)?(?<noun>\\p{L}+)(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.)))",
+      "(?<![\\p{L}\\p{N}_'’.@/-])(?<det>ten|ta|tę|tą|te|jedne|jedna|jedną)[ \\t\\u00a0]+(?:(?<adj>\\p{L}{3,})[ \\t\\u00a0]+)?(?<noun>\\p{L}+)(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.))",
     literals: [],
     fixer: "pl:demonstratives",
     flags: "giu",
@@ -11031,7 +11029,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|sześćset|siedemset|osiemset|dziewięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset|parę|dwa|dwie|trzy|cztery|oba|obie|dziesiątki|setki|tysiące|miliony|miliardy|dziesiątek|setek|tysięcy|milionów|miliardów|\\d+)[ \\t\\u00a0]+(?<noun>\\p{L}+)(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.)))",
+      "(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|sześćset|siedemset|osiemset|dziewięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset|parę|dwa|dwie|trzy|cztery|oba|obie|dziesiątki|setki|tysiące|miliony|miliardy|dziesiątek|setek|tysięcy|milionów|miliardów|\\d+)[ \\t\\u00a0]+(?<noun>\\p{L}+)(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.))",
     literals: [],
     fixer: "pl:numeralNouns",
     flags: "giu",
@@ -11039,7 +11037,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|sześćset|siedemset|osiemset|dziewięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset|parę|\\d+)(?:[ \\t\\u00a0]+(?<unit>tys\\.|mln|mld|tysięcy|milionów|miliardów))?[ \\t\\u00a0]+(?<noun>złoty)(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.)))",
+      "(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|sześćset|siedemset|osiemset|dziewięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset|parę|\\d+)(?:[ \\t\\u00a0]+(?<unit>tys\\.|mln|mld|tysięcy|milionów|miliardów))?[ \\t\\u00a0]+(?<noun>złoty)(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.))",
     literals: ["złoty"],
     fixer: "pl:zloty",
     flags: "giu",
@@ -11047,7 +11045,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<num>dwa|dwie|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|piętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset)(?=[ \\t\\u00a0]{1,8}\\p{L}))",
+      "(?<![\\p{L}\\p{N}_'’-])(?<num>dwa|dwie|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|piętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset)(?=[ \\t\\u00a0]{1,8}\\p{L})",
     literals: [
       "dwa",
       "dwie",
@@ -11082,7 +11080,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}])(?<verb>używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować|wymag(?:am|a|ają|ał\\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować)[ \\t\\u00a0]{1,8}(?<pronoun>je|ją)(?![\\p{L}]))",
+      "(?<![\\p{L}])(?<verb>używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować|wymag(?:am|a|ają|ał\\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować)[ \\t\\u00a0]{1,8}(?<pronoun>je|ją)(?![\\p{L}])",
     literals: [
       "używ",
       "unik",
@@ -11111,7 +11109,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}])(?<verb>używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować|wymag(?:am|a|ają|ał\\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować)[ \\t\\u00a0]{1,8}(?:(?<adj>\\p{L}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.)))",
+      "(?<![\\p{L}])(?<verb>używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować|wymag(?:am|a|ają|ał\\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować)[ \\t\\u00a0]{1,8}(?:(?<adj>\\p{L}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.))",
     literals: [
       "używ",
       "unik",
@@ -11140,7 +11138,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’.@/-])(?:(?<first>\\p{L}{2,})[ \\t\\u00a0]{1,8})?(?<mod>\\p{L}{2,})[ \\t\\u00a0]{1,8}(?<noun>menu|tiramisu|sushi|salami|kakao|musli|euro|hobby|zoo|graffiti|alibi|kimono|risotto|espresso|bistro|perfum|pomarańcz)(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.)))",
+      "(?<![\\p{L}\\p{N}_'’.@/-])(?:(?<first>\\p{L}{2,})[ \\t\\u00a0]{1,8})?(?<mod>\\p{L}{2,})[ \\t\\u00a0]{1,8}(?<noun>menu|tiramisu|sushi|salami|kakao|musli|euro|hobby|zoo|graffiti|alibi|kimono|risotto|espresso|bistro|perfum|pomarańcz)(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.))",
     literals: [
       "menu",
       "tiramisu",
@@ -11166,7 +11164,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły)[ \\t\\u00a0]{1,8}(?:go|ją|je|ich|mnie|cię|nas|was|się))[ \\t\\u00a0]{1,8}(?<phrase>(?:(?<adj>\\p{L}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{L}{3,}))(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.)))",
+      "(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły)[ \\t\\u00a0]{1,8}(?:go|ją|je|ich|mnie|cię|nas|was|się))[ \\t\\u00a0]{1,8}(?<phrase>(?:(?<adj>\\p{L}{3,})[ \\t\\u00a0]{1,8})?(?<noun>\\p{L}{3,}))(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.))",
     literals: ["uzna", "uzna"],
     fixer: "pl:consideredAs",
     flags: "giu",
@@ -11174,7 +11172,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<=(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły|łem|łam)[ \\t\\u00a0]{1,8}(?:go|ją|je|ich|mnie|cię|nas|was|się))[ \\t\\u00a0]{1,8})jako(?=[ \\t\\u00a0]{1,8}\\p{L}))",
+      "(?<=(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły|łem|łam)[ \\t\\u00a0]{1,8}(?:go|ją|je|ich|mnie|cię|nas|was|się))[ \\t\\u00a0]{1,8})jako(?=[ \\t\\u00a0]{1,8}\\p{L})",
     literals: ["jako"],
     fixer: "pl:consideredAsJako",
     flags: "giu",
@@ -11182,7 +11180,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<noun>\\p{Ll}{3,}),[ \\t\\u00a0]{1,8}(?:(?:bez|beze|dla|do|od|ode|u|z|ze|spod|znad|zza|sprzed|spomiędzy|spośród|wśród|obok|podczas|według|zamiast|oprócz|prócz|wobec|wokół|dookoła|wzdłuż|dzięki|ku|przeciw|przeciwko|wbrew|w|we|na|o|po|przy|przez|przeze|poprzez|przed|przede|za|nad|nade|pod|pode|między|pomiędzy|poza)[ \\t\\u00a0]{1,8})?(?<rel>który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy)(?![\\p{L}\\p{N}_'’-]))",
+      "(?<![\\p{L}\\p{N}_'’-])(?<noun>\\p{Ll}{3,}),[ \\t\\u00a0]{1,8}(?:(?:bez|beze|dla|do|od|ode|u|z|ze|spod|znad|zza|sprzed|spomiędzy|spośród|wśród|obok|podczas|według|zamiast|oprócz|prócz|wobec|wokół|dookoła|wzdłuż|dzięki|ku|przeciw|przeciwko|wbrew|w|we|na|o|po|przy|przez|przeze|poprzez|przed|przede|za|nad|nade|pod|pode|między|pomiędzy|poza)[ \\t\\u00a0]{1,8})?(?<rel>który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy)(?![\\p{L}\\p{N}_'’-])",
     literals: [
       "który",
       "która",
@@ -11202,7 +11200,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<name>Bruno|Hugo|Otto|Pablo|Mario|Paulo|Leonardo|Ricardo|Fernando|Antonio|Alfonso|Romano|Guido|Sergio|Claudio)[ \\t\\u00a0]{1,8}(?<surname>\\p{Lu}\\p{Ll}{2,}?(?<ending>owi|em|a|y|i))(?![\\p{L}\\p{N}_'’-]))",
+      "(?<![\\p{L}\\p{N}_'’-])(?<name>Bruno|Hugo|Otto|Pablo|Mario|Paulo|Leonardo|Ricardo|Fernando|Antonio|Alfonso|Romano|Guido|Sergio|Claudio)[ \\t\\u00a0]{1,8}(?<surname>\\p{Lu}\\p{Ll}{2,}?(?<ending>owi|em|a|y|i))(?![\\p{L}\\p{N}_'’-])",
     literals: [
       "bruno",
       "hugo",
@@ -11226,7 +11224,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<=(?<![\\p{L}])(?:dla|do|od|bez|u|według|wg|oprócz|prócz|zamiast|obok|koło|wokół|wśród|spośród|spod|znad|zza|sprzed)[ \\t\\u00a0]{1,8})(?:niemu|nim|nią|nimi)(?![\\p{L}]))",
+      "(?<=(?<![\\p{L}])(?:dla|do|od|bez|u|według|wg|oprócz|prócz|zamiast|obok|koło|wokół|wśród|spośród|spod|znad|zza|sprzed)[ \\t\\u00a0]{1,8})(?:niemu|nim|nią|nimi)(?![\\p{L}])",
     literals: ["niemu", "nim", "nią", "nimi"],
     fixer: "pl:genitiveOnlyPronoun",
     flags: "giu",
@@ -11234,15 +11232,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<=(?<![\\p{L}])(?:w|we|po|o|na|przy)[ \\t\\u00A0]{1,8})(?:moi|twoi|swoi)(?=[ \\t\\u00A0]{1,8}(?<noun>\\p{L}+)))",
+      "(?<=(?<![\\p{L}])(?:w|we|po|o|na|przy)[ \\t\\u00A0]{1,8})(?:moi|twoi|swoi)(?=[ \\t\\u00A0]{1,8}(?<noun>\\p{L}+))",
     literals: ["moi", "twoi", "swoi"],
     fixer: "pl:possessiveLocative",
     flags: "giu",
     scan: "polish",
   },
   {
-    pattern:
-      "(?<target>(?<=(?<![\\p{L}])po[ \\t\\u00A0]{1,8})\\p{L}+(?:sk|ck|dzk)iemu(?![\\p{L}]))",
+    pattern: "(?<=(?<![\\p{L}])po[ \\t\\u00A0]{1,8})\\p{L}+(?:sk|ck|dzk)iemu(?![\\p{L}])",
     literals: ["iemu"],
     fixer: "pl:poLanguage",
     flags: "giu",
@@ -11250,7 +11247,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}])(?:godzina|minuta|sekunda|chwila|doba)(?=[ \\t\\u00A0]{1,8}temu(?![\\p{L}])(?![ \\t\\u00A0]+\\p{L}+(?:owi|u|emu)(?![\\p{L}]))))",
+      "(?<![\\p{L}])(?:godzina|minuta|sekunda|chwila|doba)(?=[ \\t\\u00A0]{1,8}temu(?![\\p{L}])(?![ \\t\\u00A0]+\\p{L}+(?:owi|u|emu)(?![\\p{L}])))",
     literals: ["godzina", "minuta", "sekunda", "chwila", "doba"],
     fixer: "pl:temuAccusative",
     flags: "giu",
@@ -11258,7 +11255,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<num>półtora|półtorej)[ \\t\\u00a0]{1,8}(?<noun>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.)))",
+      "(?<![\\p{L}\\p{N}_'’@/-])(?<num>półtora|półtorej)[ \\t\\u00a0]{1,8}(?<noun>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.))",
     literals: ["półtora", "półtorej"],
     fixer: "pl:halfForms",
     flags: "gdiu",
@@ -11266,7 +11263,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?:dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt)[ \\t\\u00a0]{1,8}(?:dwaj|trzej|czterej)[ \\t\\u00a0]{1,8}(?<noun>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.)))",
+      "(?<![\\p{L}\\p{N}_'’@/-])(?:dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt)[ \\t\\u00a0]{1,8}(?:dwaj|trzej|czterej)[ \\t\\u00a0]{1,8}(?<noun>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.))",
     literals: [
       "dwadzieścia",
       "trzydzieści",
@@ -11283,7 +11280,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<verb>są|będą)[ \\t\\u00a0]{1,8}(?:(?:wyłącznie|głównie|tylko|także|również|zwykle|najczęściej|zawsze|często)[ \\t\\u00a0]{1,8})?(?<noun>\\p{Ll}{3,})(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.)))",
+      "(?<![\\p{L}\\p{N}_'’@/-])(?<verb>są|będą)[ \\t\\u00a0]{1,8}(?:(?:wyłącznie|głównie|tylko|także|również|zwykle|najczęściej|zawsze|często)[ \\t\\u00a0]{1,8})?(?<noun>\\p{Ll}{3,})(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.))",
     literals: [],
     fixer: "pl:subjectsAfterPredicate",
     flags: "gdu",
@@ -11291,7 +11288,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>tymi|Tymi|tamtymi|Tamtymi|takimi|Takimi|jakimi|Jakimi|jakimiś|Jakimiś|moimi|Moimi|twoimi|Twoimi|swoimi|Swoimi|naszymi|Naszymi|waszymi|Waszymi|owymi|Owymi|żadnymi|Żadnymi)[ \\t\\u00a0]{1,8}(?<noun>\\p{Ll}{3,})(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.)))",
+      "(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>tymi|Tymi|tamtymi|Tamtymi|takimi|Takimi|jakimi|Jakimi|jakimiś|Jakimiś|moimi|Moimi|twoimi|Twoimi|swoimi|Swoimi|naszymi|Naszymi|waszymi|Waszymi|owymi|Owymi|żadnymi|Żadnymi)[ \\t\\u00a0]{1,8}(?<noun>\\p{Ll}{3,})(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.))",
     literals: [
       "tymi",
       "tymi",
@@ -11784,7 +11781,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<numeral>dwa|dwie|trzy|cztery|dwom|dwóm|trzem|czterem|dwoma|trzema|czterema|dwóch|trzech|czterech|pięć|pięciu)[ \\t\\u00a0]{1,8}lub[ \\t\\u00a0]{1,8}więcej(?<words>(?:[ \\t\\u00a0]{1,8}\\p{L}+){0,3})(?![\\p{L}\\p{N}_'’-]))",
+      "(?<![\\p{L}\\p{N}_'’-])(?<numeral>dwa|dwie|trzy|cztery|dwom|dwóm|trzem|czterem|dwoma|trzema|czterema|dwóch|trzech|czterech|pięć|pięciu)[ \\t\\u00a0]{1,8}lub[ \\t\\u00a0]{1,8}więcej(?<words>(?:[ \\t\\u00a0]{1,8}\\p{L}+){0,3})(?![\\p{L}\\p{N}_'’-])",
     literals: ["więcej"],
     fixer: "pl:orMore",
     flags: "giu",
@@ -11792,7 +11789,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’-])(?:(?<verb>pełni|pełnią|pełnił|pełniła|pełniło|pełnili|pełniły|pełnić|pełniący|pełniąca|pełniące|pełniąc|spełnia|spełniają|spełniał|spełniała|spełniać|spełniając)(?<mid>(?:[ \\t\\u00a0]{1,8}(?:on|ona|ono|oni|one|nadal|wciąż|też|także|również|zawsze|często|naprawdę|bardzo|niezwykle|wyjątkowo|szczególnie|dość|coraz|swoją|swój|swoje|jakąś|żadnej|(?:w|we|na|dla|przy|wśród|u)[ \\t\\u00a0]{1,8}\\p{L}+|\\p{L}+(?:ną|ową|ską|cką|ką|ą|ej|e|y|ie))){0,3})[ \\t\\u00a0]{1,8}(?<noun>rolę|roli)|(?<before>rolę|roli)[ \\t\\u00a0]{1,8}(?<after>pełni|pełnią|pełnił|pełniła|pełniło|pełnili|pełniły|pełnić|pełniący|pełniąca|pełniące|pełniąc|spełnia|spełniają|spełniał|spełniała|spełniać|spełniając))(?![\\p{L}\\p{N}_'’-]))",
+      "(?<![\\p{L}\\p{N}_'’-])(?:(?<verb>pełni|pełnią|pełnił|pełniła|pełniło|pełnili|pełniły|pełnić|pełniący|pełniąca|pełniące|pełniąc|spełnia|spełniają|spełniał|spełniała|spełniać|spełniając)(?<mid>(?:[ \\t\\u00a0]{1,8}(?:on|ona|ono|oni|one|nadal|wciąż|też|także|również|zawsze|często|naprawdę|bardzo|niezwykle|wyjątkowo|szczególnie|dość|coraz|swoją|swój|swoje|jakąś|żadnej|(?:w|we|na|dla|przy|wśród|u)[ \\t\\u00a0]{1,8}\\p{L}+|\\p{L}+(?:ną|ową|ską|cką|ką|ą|ej|e|y|ie))){0,3})[ \\t\\u00a0]{1,8}(?<noun>rolę|roli)|(?<before>rolę|roli)[ \\t\\u00a0]{1,8}(?<after>pełni|pełnią|pełnił|pełniła|pełniło|pełnili|pełniły|pełnić|pełniący|pełniąca|pełniące|pełniąc|spełnia|spełniają|spełniał|spełniała|spełniać|spełniając))(?![\\p{L}\\p{N}_'’-])",
     literals: [
       "pełni",
       "pełnią",
@@ -11837,7 +11834,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<verb>ubrać|ubrał|ubrała|ubrali|ubrały|ubrałem|ubrałam|ubiorę|ubierze|ubierz|ubieram|ubiera|ubierają|ubierał|ubierała|ubierać|założyć|założył|założyła|założyli|założyły|założyłem|założyłam|założyłeś|założyłaś|założyliśmy|założyłyśmy|założę|założy|założysz|założymy|założycie|założą|zakłada|zakładać|zakładał|zakładała|zakładali|zakładały|zakładam|zakładasz|zakładają|zakładamy|zakładacie|załóż|załóżcie)(?<mid>(?:[ \\t\\u00a0]{1,8}(?:on|ona|ono|oni|one|nadal|wciąż|też|także|również|zawsze|często|naprawdę|bardzo|niezwykle|wyjątkowo|szczególnie|dość|coraz|swoją|swój|swoje|jakąś|żadnej|(?:w|we|na|dla|przy|wśród|u)[ \\t\\u00a0]{1,8}\\p{L}+|\\p{L}+(?:ną|ową|ską|cką|ką|ą|ej|e|y|ie))){0,3})[ \\t\\u00a0]{1,8}(?<noun>płaszcz|kurtkę|sweter|golf|koszulę|bluzkę|sukienkę|spodnie|dżinsy|buty|kozaki|czapkę|kapelusz|rękawiczki|szalik|garnitur|marynarkę|spódnicę|skarpetki|piżamę|kamizelkę|koszulkę|płaszczyk|kurtkę|kalosze)(?![\\p{L}\\p{N}_'’-]))",
+      "(?<![\\p{L}\\p{N}_'’-])(?<verb>ubrać|ubrał|ubrała|ubrali|ubrały|ubrałem|ubrałam|ubiorę|ubierze|ubierz|ubieram|ubiera|ubierają|ubierał|ubierała|ubierać|założyć|założył|założyła|założyli|założyły|założyłem|założyłam|założyłeś|założyłaś|założyliśmy|założyłyśmy|założę|założy|założysz|założymy|założycie|założą|zakłada|zakładać|zakładał|zakładała|zakładali|zakładały|zakładam|zakładasz|zakładają|zakładamy|zakładacie|załóż|załóżcie)(?<mid>(?:[ \\t\\u00a0]{1,8}(?:on|ona|ono|oni|one|nadal|wciąż|też|także|również|zawsze|często|naprawdę|bardzo|niezwykle|wyjątkowo|szczególnie|dość|coraz|swoją|swój|swoje|jakąś|żadnej|(?:w|we|na|dla|przy|wśród|u)[ \\t\\u00a0]{1,8}\\p{L}+|\\p{L}+(?:ną|ową|ską|cką|ką|ą|ej|e|y|ie))){0,3})[ \\t\\u00a0]{1,8}(?<noun>płaszcz|kurtkę|sweter|golf|koszulę|bluzkę|sukienkę|spodnie|dżinsy|buty|kozaki|czapkę|kapelusz|rękawiczki|szalik|garnitur|marynarkę|spódnicę|skarpetki|piżamę|kamizelkę|koszulkę|płaszczyk|kurtkę|kalosze)(?![\\p{L}\\p{N}_'’-])",
     literals: [
       "ubrać",
       "ubrał",
@@ -11892,7 +11889,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<verb>napot(?:kać|kał\\p{L}*|kali\\p{L}*|ka|kają|kasz|kam|ykać|yka|ykają|ykał\\p{L}*|ykali\\p{L}*))[ \\t\\u00a0]{1,8}na(?<rest>(?:[ \\t\\u00a0]{1,8}\\p{L}+(?:e|ie|y|i|ą))?[ \\t\\u00a0]{1,8}(?:trudności|trudność|problem|problemy|przeszkody|przeszkodę|opór|sprzeciw|kłopoty))(?![\\p{L}\\p{N}_'’-]))",
+      "(?<![\\p{L}\\p{N}_'’-])(?<verb>napot(?:kać|kał\\p{L}*|kali\\p{L}*|ka|kają|kasz|kam|ykać|yka|ykają|ykał\\p{L}*|ykali\\p{L}*))[ \\t\\u00a0]{1,8}na(?<rest>(?:[ \\t\\u00a0]{1,8}\\p{L}+(?:e|ie|y|i|ą))?[ \\t\\u00a0]{1,8}(?:trudności|trudność|problem|problemy|przeszkody|przeszkodę|opór|sprzeciw|kłopoty))(?![\\p{L}\\p{N}_'’-])",
     literals: ["napot"],
     fixer: "pl:meetsWithoutNa",
     flags: "giu",
@@ -11908,7 +11905,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<verb>posiadam|posiadasz|posiada|posiadamy|posiadacie|posiadają|posiadał|posiadała|posiadali|posiadały|posiadać|posiadając)(?<mid>(?:[ \\t\\u00a0]{1,8}(?:on|ona|ono|oni|one|nadal|wciąż|też|także|również|zawsze|często|naprawdę|bardzo|niezwykle|wyjątkowo|szczególnie|dość|coraz|swoją|swój|swoje|jakąś|żadnej|(?:w|we|na|dla|przy|wśród|u)[ \\t\\u00a0]{1,8}\\p{L}+|\\p{L}+(?:ną|ową|ską|cką|ką|ą|ej|e|y|ie))){0,3})[ \\t\\u00a0]{1,8}(?<noun>brodę|wąsy|oczy|włosy|nos|uszy|zęby|wymiary|wzrost|talent|zdolności|poczucie|cierpliwość|odwagę|charakter|temperament|rodzinę|dzieci|rodzeństwo|siostrę|brata|braci|siostry|córkę|syna|przyjaciół|czas|ochotę|pomysł|pomysły|nadzieję|wątpliwości|problem|problemy|wadę|wady|zalety|kota|psa)(?![\\p{L}\\p{N}_'’-]))",
+      "(?<![\\p{L}\\p{N}_'’-])(?<verb>posiadam|posiadasz|posiada|posiadamy|posiadacie|posiadają|posiadał|posiadała|posiadali|posiadały|posiadać|posiadając)(?<mid>(?:[ \\t\\u00a0]{1,8}(?:on|ona|ono|oni|one|nadal|wciąż|też|także|również|zawsze|często|naprawdę|bardzo|niezwykle|wyjątkowo|szczególnie|dość|coraz|swoją|swój|swoje|jakąś|żadnej|(?:w|we|na|dla|przy|wśród|u)[ \\t\\u00a0]{1,8}\\p{L}+|\\p{L}+(?:ną|ową|ską|cką|ką|ą|ej|e|y|ie))){0,3})[ \\t\\u00a0]{1,8}(?<noun>brodę|wąsy|oczy|włosy|nos|uszy|zęby|wymiary|wzrost|talent|zdolności|poczucie|cierpliwość|odwagę|charakter|temperament|rodzinę|dzieci|rodzeństwo|siostrę|brata|braci|siostry|córkę|syna|przyjaciół|czas|ochotę|pomysł|pomysły|nadzieję|wątpliwości|problem|problemy|wadę|wady|zalety|kota|psa)(?![\\p{L}\\p{N}_'’-])",
     literals: [
       "posiadam",
       "posiadasz",
@@ -12046,7 +12043,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>on|ona)[ \\t\\u00a0]{1,8}(?:(?:się|nie|już|też|także|również|wtedy|wczoraj|dziś|zawsze|nigdy|jednak|często|szybko|nagle|wreszcie|tylko)[ \\t\\u00a0]{1,8}){0,2}(?<verb>\\p{L}{2,}ł(?<fem>a)?)(?![\\p{L}\\p{N}_'’@/-]))",
+      "(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>on|ona)[ \\t\\u00a0]{1,8}(?:(?:się|nie|już|też|także|również|wtedy|wczoraj|dziś|zawsze|nigdy|jednak|często|szybko|nagle|wreszcie|tylko)[ \\t\\u00a0]{1,8}){0,2}(?<verb>\\p{L}{2,}ł(?<fem>a)?)(?![\\p{L}\\p{N}_'’@/-])",
     literals: [],
     fixer: "pl:pronounGender",
     flags: "gdiu",
@@ -12054,7 +12051,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<verb>\\p{L}{3,}ł(?<fem>a)?)[ \\t\\u00a0]{1,8}(?<pronoun>on|ona)(?![\\p{L}\\p{N}_'’@/-]))",
+      "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<verb>\\p{L}{3,}ł(?<fem>a)?)[ \\t\\u00a0]{1,8}(?<pronoun>on|ona)(?![\\p{L}\\p{N}_'’@/-])",
     literals: [],
     fixer: "pl:pronounGender",
     flags: "gdu",
@@ -12062,7 +12059,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<aux>został|została|zostało|zostały)[ \\t\\u00a0]{1,8}(?<word>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-]))",
+      "(?<![\\p{L}\\p{N}_'’@/-])(?<aux>został|została|zostało|zostały)[ \\t\\u00a0]{1,8}(?<word>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])",
     literals: ["został", "została", "zostało", "zostały"],
     fixer: "pl:zostacAgreement",
     flags: "gdiu",
@@ -12070,7 +12067,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<word>\\p{L}{3,})[ \\t\\u00a0]{1,8}(?<aux>został|została|zostało|zostały)(?![\\p{L}\\p{N}_'’@/-]))",
+      "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<word>\\p{L}{3,})[ \\t\\u00a0]{1,8}(?<aux>został|została|zostało|zostały)(?![\\p{L}\\p{N}_'’@/-])",
     literals: ["został", "została", "zostało", "zostały"],
     fixer: "pl:zostacAgreement",
     flags: "gdu",
@@ -12078,7 +12075,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’@/-])większość(?<between>(?:[ \\t\\u00a0]{1,8}\\p{L}+){0,3}?)[ \\t\\u00a0]{1,8}(?<verb>było|zostało|pozostało)(?![\\p{L}\\p{N}_'’@/-]))",
+      "(?<![\\p{L}\\p{N}_'’@/-])większość(?<between>(?:[ \\t\\u00a0]{1,8}\\p{L}+){0,3}?)[ \\t\\u00a0]{1,8}(?<verb>było|zostało|pozostało)(?![\\p{L}\\p{N}_'’@/-])",
     literals: ["większość"],
     fixer: "pl:majority",
     flags: "gdiu",
@@ -12086,7 +12083,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<aux>będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|zacz(?:ął|ęła|ęło|ęli|ęły|nę|niesz|nie|niemy|niecie|ną)|zaczyna\\p{L}*|przesta\\p{L}*|przestanie|kończy\\p{L}*|skończy\\p{L}*)[ \\t\\u00a0]{1,8}(?:(?:się|nie|to|go|ją|je|mu|mi|jej|im|ci|już|znowu|znów)[ \\t\\u00a0]{1,8}){0,2}(?<verb>\\p{L}{4,})(?![\\p{L}\\p{N}_'’@/-]))",
+      "(?<![\\p{L}\\p{N}_'’@/-])(?<aux>będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|zacz(?:ął|ęła|ęło|ęli|ęły|nę|niesz|nie|niemy|niecie|ną)|zaczyna\\p{L}*|przesta\\p{L}*|przestanie|kończy\\p{L}*|skończy\\p{L}*)[ \\t\\u00a0]{1,8}(?:(?:się|nie|to|go|ją|je|mu|mi|jej|im|ci|już|znowu|znów)[ \\t\\u00a0]{1,8}){0,2}(?<verb>\\p{L}{4,})(?![\\p{L}\\p{N}_'’@/-])",
     literals: ["będ", "zacz", "zaczyna", "przesta", "przestanie", "kończy", "skończy"],
     fixer: "pl:aspect",
     flags: "gdiu",
@@ -12094,7 +12091,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<neg>nigdy|nikt|nikogo|nikomu|niczego|nigdzie|nic)[ \\t\\u00a0]{1,8}(?:(?:tego|to|go|ją|je|mu|mi|jej|im|nam|wam|ci|się|już|tam|tu)[ \\t\\u00a0]{1,8}){0,2}(?<verb>\\p{L}{2,})(?![\\p{L}\\p{N}_'’@/-]))",
+      "(?<![\\p{L}\\p{N}_'’@/-])(?<neg>nigdy|nikt|nikogo|nikomu|niczego|nigdzie|nic)[ \\t\\u00a0]{1,8}(?:(?:tego|to|go|ją|je|mu|mi|jej|im|nam|wam|ci|się|już|tam|tu)[ \\t\\u00a0]{1,8}){0,2}(?<verb>\\p{L}{2,})(?![\\p{L}\\p{N}_'’@/-])",
     literals: ["nigdy", "nikt", "nikogo", "nikomu", "niczego", "nigdzie", "nic"],
     fixer: "pl:doubleNegation",
     flags: "gdiu",
@@ -12102,7 +12099,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<verb>(?:by|zosta)(?:li|ły)(?:śmy|ście)?)[ \\t\\u00a0]{1,8}(?:(?:bardzo|już|nadal|wciąż|też|także|również|zawsze|naprawdę|zbyt|całkiem|zupełnie|wtedy|tam|tu)[ \\t\\u00a0]{1,8})?(?<adj>\\p{L}{4,})(?=[ \\t\\u00a0]{0,8}(?:[.,;:!?…)]|$|(?:i|oraz|a|ale)[ \\t\\u00a0])))",
+      "(?<![\\p{L}\\p{N}_'’@/-])(?<verb>(?:by|zosta)(?:li|ły)(?:śmy|ście)?)[ \\t\\u00a0]{1,8}(?:(?:bardzo|już|nadal|wciąż|też|także|również|zawsze|naprawdę|zbyt|całkiem|zupełnie|wtedy|tam|tu)[ \\t\\u00a0]{1,8})?(?<adj>\\p{L}{4,})(?=[ \\t\\u00a0]{0,8}(?:[.,;:!?…)]|$|(?:i|oraz|a|ale)[ \\t\\u00a0]))",
     literals: [],
     fixer: "pl:predicateAdjectives",
     flags: "gdiu",
@@ -12509,7 +12506,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<prep>na|do|od|dla|bez|przez|przy|u|z|ze|w|we|o)[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}{3,}(?:ać|eć|ić|yć|ąć|uć|ąc))(?![\\p{L}\\p{N}_'’-]))",
+      "(?<![\\p{L}\\p{N}_'’-])(?<prep>na|do|od|dla|bez|przez|przy|u|z|ze|w|we|o)[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}{3,}(?:ać|eć|ić|yć|ąć|uć|ąc))(?![\\p{L}\\p{N}_'’-])",
     literals: [],
     fixer: "pl:prepositionVerb",
     flags: "gu",
@@ -12525,7 +12522,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<verb>bał|bała|bało|bały|bałem|bałam|bałeś|bałaś|baliśmy|bałyśmy|boi|boję|boisz|boimy|boicie|bać)(?![\\p{L}\\p{N}_'’-]))",
+      "(?<![\\p{L}\\p{N}_'’-])(?<verb>bał|bała|bało|bały|bałem|bałam|bałeś|bałaś|baliśmy|bałyśmy|boi|boję|boisz|boimy|boicie|bać)(?![\\p{L}\\p{N}_'’-])",
     literals: [
       "bał",
       "bała",
@@ -12550,7 +12547,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’-])się[ \\t\\u00a0]{1,8}(?<verb>\\p{L}{2,20})(?<gap>[ \\t\\u00a0]{1,8})się(?![\\p{L}\\p{N}_'’-]))",
+      "(?<![\\p{L}\\p{N}_'’-])się[ \\t\\u00a0]{1,8}(?<verb>\\p{L}{2,20})(?<gap>[ \\t\\u00a0]{1,8})się(?![\\p{L}\\p{N}_'’-])",
     literals: ["się"],
     fixer: "pl:twoSie",
     flags: "giu",
@@ -12558,14 +12555,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<target>(?<![\\p{L}\\p{N}_'’/.-])(?<first>[wW]|[dD]o|[zZ]|[nN]a|[oO]d)[ \\t\\u00a0]{1,8}(?<second>na|z|od|do|w)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{N}_'’-]))",
+      "(?<![\\p{L}\\p{N}_'’/.-])(?<first>[wW]|[dD]o|[zZ]|[nN]a|[oO]d)[ \\t\\u00a0]{1,8}(?<second>na|z|od|do|w)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{N}_'’-])",
     literals: [],
     fixer: "pl:twoPrepositions",
     flags: "gu",
     scan: "polish",
   },
   {
-    pattern: "(?<target>(?<![\\p{L}])bynajmniej(?=[ \\t\\u00a0]{1,8}\\p{L}))",
+    pattern: "(?<![\\p{L}])bynajmniej(?=[ \\t\\u00a0]{1,8}\\p{L})",
     literals: ["bynajmniej"],
     fixer: "pl:atLeast",
     flags: "giu",
