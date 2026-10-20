@@ -4412,6 +4412,18 @@ fragments:
   COMPLEMENT_INDEFINITE: "(?:any|every|some|no)(?:body|one|{{S}}one)"
   COMPLEMENT_DETERMINERS: "the|an?|my|your|our|their|his|its|these|those"
   COMPLEMENT_OBJECTS: "me|you|him|her|us|them|it"
+  AUX_SUBJECT: "(?:I|you|he|she|it|we|they)"
+  # After a noun, bare can/will/may/must can close a compound noun ("the trash can smells",
+  # "the last will states"), so a determiner-led subject only takes the unambiguous auxiliaries.
+  AUX_NOUN_AUXILIARY: "(?:did(?:n['’]t)?|does(?:n['’]t)?|do(?:n['’]t)?|can(?:not|['’]t)|could(?:n['’]t)?|won['’]t|would(?:n['’]t)?|shall|should(?:n['’]t)?|might|mustn['’]t)"
+  AUX_PREFIX: "(?:{{AUX_SUBJECT}}(?:{{S}}{{AUX_AUXILIARY}}|(?<contraction>['’](?:ll|d)))|(?:{{AUX_WH}}{{S}})?{{AUX_AUXILIARY}}{{S}}(?:{{AUX_SUBJECT}}|this|that)(?:{{S}}please)?|{{AUX_DETERMINER}}{{S}}(?<noun>[a-z]+){{S}}{{AUX_NOUN_AUXILIARY}})"
+  AUX_ADVERB: "(?:not|really|just|ever|even|always|still|actually|never|definitely|certainly|probably|greatly|surely|also|usually|often|sometimes|truly|simply|necessarily|exactly|completely|fully|totally|honestly|seriously)"
+  AUX_AUXILIARY: "(?:did(?:n['’]t)?|does(?:n['’]t)?|do(?:n['’]t)?|can(?:not|['’]t)?|could(?:n['’]t)?|will|won['’]t|would(?:n['’]t)?|shall|should(?:n['’]t)?|may|might|must(?:n['’]t)?)"
+  AUX_DETERMINER: "(?:the|this|that|my|your|our|his|her|their|its|a|an)"
+  AUX_WH: "(?:what|when|where|why|how|who)"
+  # Auxiliaries that need a verb after any subject word. Affirmative do can be a main verb
+  # ("What I did works"), so only its negative contractions are here.
+  AUX_MID_AUXILIARY: "(?:can['’]t|cannot|can|couldn['’]t|could|won['’]t|will|wouldn['’]t|would|shan['’]t|shall|shouldn['’]t|should|mightn['’]t|might|may|mustn['’]t|must|doesn['’]t|don['’]t|didn['’]t)"
 
 rules:
   # Typing rules: each live check names its implementation (engine/liveRules.ts).
@@ -4850,7 +4862,30 @@ rules:
         fixer: repeatedWord
   - id: auxiliaryForms
     checks: [englishAuxiliaryBaseVerb]
-    predicate: auxiliaryForms
+    style: match
+    message: review_msg_auxiliary_base
+    filter: firstPerEnd
+    frames:
+      # Pronoun or determiner + one noun at a clause start, and inverted pronoun questions.
+      - regex: "{{AUX_PREFIX}}(?:{{S}}{{AUX_ADVERB}}){0,2}{{S}}(?<verb>[A-Za-z]+){{E}}"
+        owner: none
+        fixer: afterAuxiliary
+      # "Will the fix works?", "Why did the build failed?": an inverted question with a
+      # determiner + up to three words.
+      - regex: "(?:{{AUX_WH}}{{S}})?{{AUX_AUXILIARY}}{{S}}{{AUX_DETERMINER}}(?<words>(?:{{S}}[A-Za-z]+){2,4}){{E}}"
+        owner: none
+        fixer: invertedNounQuestion
+      # "The fox will ran", "users can't logged in": any subject word before a modal.
+      - regex: "(?<aux>{{AUX_MID_AUXILIARY}})(?:{{S}}{{AUX_ADVERB}}){0,2}{{S}}(?<verb>[A-Za-z]+){{E}}"
+        owner: none
+        fixer: afterSubjectWord
+      # "want to went", "is expected to exists", "To explained the rules": a verb form after "to".
+      - regex: "to(?<adverb>{{S}}[a-z]+ly)?{{S}}(?<verb>[A-Za-z]+){{E}}"
+        owner: none
+        fixer: afterInfinitiveTo
+      # "I need to information": "to" before a noun that is never a verb.
+      - regex: "(?<head>need|needs|needed|needing|want|wants|wanted|wanting|try|tries|tried|trying){{S}}(?<target>to{{S}}(?<noun>[a-z]+)){{E}}"
+        fixer: needToNoun
   - id: pronounCase
     checks: [englishPronounCase]
     predicate: pronounCase

@@ -21,7 +21,7 @@ import {
   subjectAgreement,
 } from "./englishAgreement";
 import { wordConfusions } from "./englishWordConfusions";
-import { auxiliaryForms } from "./englishAuxiliaryForms";
+import { FILTERS as AUXILIARY_FILTERS, FIXERS as AUXILIARY_FIXERS } from "./englishAuxiliaryForms";
 import { pronounCase } from "./englishPronounCase";
 import { sentenceStructure } from "./englishSentenceStructure";
 import type { CatalogRuleId } from "../ruleCatalog";
@@ -1590,7 +1590,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   doubledDegree: (ctx) =>
     ctx.lang === "en_US" ? doubledDegree(ctx) : doubledDegreeByLanguage(ctx),
   countability,
-  auxiliaryForms,
   pronounCase,
   sentenceStructure,
   wordConfusions,
@@ -1652,10 +1651,14 @@ const DETECTOR_FIXERS = {
 } satisfies Record<string, MatchFixer>;
 
 /** The named frame fixes of grammar/rules/common.yaml (`fixer:`). */
-const CORE_FIXERS = mergePredicates<Fixer>(DETECTOR_FIXERS, COMPLEMENT_FIXERS);
+const CORE_FIXERS = mergePredicates<Fixer>(DETECTOR_FIXERS, COMPLEMENT_FIXERS, AUXILIARY_FIXERS);
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */
-const CORE_FILTERS = mergePredicates<FindingsFilter>(USAGE_FILTERS, COMPOUND_FILTERS);
+const CORE_FILTERS = mergePredicates<FindingsFilter>(
+  USAGE_FILTERS,
+  COMPOUND_FILTERS,
+  AUXILIARY_FILTERS,
+);
 
 /**
  * Review detectors in evaluation order, built from the Review rules of grammar/rules/*.yaml.
