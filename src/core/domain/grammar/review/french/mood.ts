@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   conjugate,
   IL,
@@ -14,13 +14,12 @@ import {
 } from "./frenchLexicon";
 import {
   CLITICS,
-  ownedFrenchWords,
+  inChunk,
   tokensAfter,
   tokensBefore,
   wordFinding,
   type Token,
 } from "./frenchTokens";
-import { isLang } from "../phraseTemplates";
 
 // Mood and tense read from closed triggers: "il faut que", "bien que", "vouloir que" take the
 // subjunctive; "si" (if) takes the imperfect, never the conditional; "j'aurai aimé" and "je
@@ -428,13 +427,6 @@ function futureOrConditional(ctx: DetectContext, m: RegExpExecArray): RawFinding
   return fix(`${word}s`);
 }
 
-const QUE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:que|quoique)(?![\p{L}\p{M}\p{N}_'’])|(?:qu|quoiqu)['’](?=\p{L}))/giu;
-const SI = /(?<![\p{L}\p{M}\p{N}_'’-])(?:si(?![\p{L}\p{M}\p{N}_'’])|s['’](?=ils?\b))/giu;
-// "j'aurai": the elided subject is glued on.
-const FIRST_PERSON_FORMS =
-  /(?<![\p{L}\p{M}\p{N}_-])(?:\p{L}+rais?|aura)(?![\p{L}\p{M}\p{N}_'’])/giu;
-
 const INDICATIVE = "review_msg_fr_indicative";
 const SUBJUNCTIVE_TENSE = 6;
 // Triggers of the indicative before "que": "il est vrai que", "j'espère que", "du moment que".
@@ -483,8 +475,6 @@ function indicativeAfterQue(ctx: DetectContext, m: RegExpExecArray): RawFinding 
 }
 
 const MAIN_SUBJECTS = new Set(["je", "j'", "tu", "il", "elle", "on", "ils", "elles"]);
-const MAIN_SUBJECT =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:je|j['’]|tu|il|elle|on|ils|elles)(?![\p{L}\p{M}\p{N}_’-])/giu;
 
 /** "Tu ne la croies pas" -> "crois", "Il comprenne mal" -> "comprend": a subjunctive form in a main
  * clause, where no "que" comes before its pronoun subject. */
@@ -515,30 +505,11 @@ function mainSubjunctive(ctx: DetectContext, m: RegExpExecArray): RawFinding | n
   });
 }
 
-function moods(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, QUE)) {
-    const finding = subjunctiveAfterQue(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, QUE)) {
-    const finding = indicativeAfterQue(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, MAIN_SUBJECT)) {
-    const finding = mainSubjunctive(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, SI)) {
-    const finding = afterSi(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, FIRST_PERSON_FORMS)) {
-    const finding = futureOrConditional(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
-
-export const PREDICATES = { mood: moods } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  subjunctiveAfterQue: inChunk(subjunctiveAfterQue),
+  indicativeAfterQue: inChunk(indicativeAfterQue),
+  mainSubjunctive: inChunk(mainSubjunctive),
+  afterSi: inChunk(afterSi),
+  futureOrConditional: inChunk(futureOrConditional),
+} satisfies Record<string, MatchFixer>;

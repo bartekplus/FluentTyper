@@ -1,14 +1,7 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { conjugate, JE, NOUS, TU, verbReadings, VOUS, type VerbReading } from "./frenchLexicon";
-import {
-  CLITICS,
-  ownedFrenchWords,
-  SENTENCE_START,
-  tokensAfter,
-  wordFinding,
-} from "./frenchTokens";
-import { isLang } from "../phraseTemplates";
+import { CLITICS, inChunk, SENTENCE_START, tokensAfter, wordFinding } from "./frenchTokens";
 
 // A sentence that opens with "ne" and no subject gives an order: the verb is an imperative.
 // "Ne prend pas" -> "Ne prends pas", "N'y vas pas" -> "N'y va pas", "Ne soit pas" -> "Ne sois
@@ -124,7 +117,6 @@ function veillezVeuillez(ctx: DetectContext, m: RegExpExecArray): RawFinding | n
 }
 const HOMOPHONES = "frenchHomophones";
 const HOMOPHONE = "review_msg_fr_homophone";
-const VEILLEZ = /(?<![\p{L}\p{M}\p{N}_'’-])veu?illez(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 /** "Va-y" -> "Vas-y", "Rend-toi" -> "Rends-toi", "Manges-le" -> "Mange-le", "Aller-y" ->
  * "Allez-y": the imperative a hyphenated object pronoun follows. */
@@ -165,36 +157,10 @@ function joinedImperative(ctx: DetectContext, m: RegExpExecArray): RawFinding | 
   const found = wordFinding(ctx, m.index, typed, [form], RULE, MESSAGE);
   return found && { ...found, context: { start: m.index, end: m.index + m[0].length } };
 }
-const JOINED =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<verb>\p{L}+)-(?<pronoun>moi|toi|lui|nous|leur|le|la|les|en|y)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
-const NE = /(?<![\p{L}\p{M}\p{N}_'’-])n(?:e(?![\p{L}\p{M}\p{N}_'’-])|['’](?=\p{L}))/giu;
-
-function imperatives(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, NE)) {
-    const found = negatedOrder(ctx, m);
-    if (found) findings.push(found);
-  }
-  for (const m of ownedFrenchWords(ctx, JOINED)) {
-    const found = joinedImperative(ctx, m);
-    if (found) findings.push(found);
-  }
-  return findings;
-}
-
-function veillez(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, VEILLEZ)) {
-    const found = veillezVeuillez(ctx, m);
-    if (found) findings.push(found);
-  }
-  return findings;
-}
-
-export const PREDICATES = {
-  imperative: imperatives,
-  veillez,
-} satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  negatedOrder: inChunk(negatedOrder),
+  joinedImperative: inChunk(joinedImperative),
+  veillezVeuillez: inChunk(veillezVeuillez),
+} satisfies Record<string, MatchFixer>;

@@ -32,17 +32,17 @@ export const PREDICATES = mergePredicates(
   dates.PREDICATES,
   homophones.PREDICATES,
   hyphenation.PREDICATES,
-  imperative.PREDICATES,
-  mood.PREDICATES,
   ordinals.PREDICATES,
-  smallWords.PREDICATES,
   style.PREDICATES,
-  tout.PREDICATES,
   verbForms.PREDICATES,
 );
 
 /** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
+  imperative.FIXERS,
+  tout.FIXERS,
+  mood.FIXERS,
+  smallWords.FIXERS,
   nounNumber.FIXERS,
   questions.FIXERS,
   negation.FIXERS,

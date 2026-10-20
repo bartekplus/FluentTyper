@@ -130,10 +130,53 @@ rules:
     predicate: adjectives
   - id: fr.tout
     checks: [frenchTout]
-    predicate: tout
+    style: match
+    message: review_msg_fr_tout
+    frames:
+      # FORMS lists the four forms; the pattern is built from them.
+      - regex: "{{WORD_START}}(?:tout|toute|tous|toutes)(?![\\p{L}\\p{M}\\p{N}_'’])(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: tout
+      # "Bonjour à tous", "merci à vous toutes", "le meilleur d'entre tous": "tout" alone at the end
+      # of a greeting or after "d'entre" is the plural pronoun.
+      - regex: "{{WORD_START}}(?:(?:bonjour|bonsoir|salut|merci|bienvenue|bravo)[ \\t]+à[ \\t]+(?:vous[ \\t]+)?|d['’]entre[ \\t]+(?:nous[ \\t]+|vous[ \\t]+)?)(?<tout>tout|toute)(?=[ \\t]*(?:[.!?,;…]|$))(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: pronounTout
   - id: fr.mood
     checks: [frenchMood]
-    predicate: mood
+    style: match
+    message: review_msg_fr_subjunctive
+    frames:
+      - regex: "{{WORD_START}}(?:(?:que|quoique)(?![\\p{L}\\p{M}\\p{N}_'’])|(?:qu|quoiqu)['’](?=\\p{L}))(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: subjunctiveAfterQue
+      - regex: "{{WORD_START}}(?:(?:que|quoique)(?![\\p{L}\\p{M}\\p{N}_'’])|(?:qu|quoiqu)['’](?=\\p{L}))(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: indicativeAfterQue
+      - regex: "{{WORD_START}}(?:je|j['’]|tu|il|elle|on|ils|elles)(?![\\p{L}\\p{M}\\p{N}_’-])(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: mainSubjunctive
+      - regex: "{{WORD_START}}(?:si(?![\\p{L}\\p{M}\\p{N}_'’])|s['’](?=ils?\\b))(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: afterSi
+      # "j'aurai": the elided subject is glued on.
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:\\p{L}+rais?|aura)(?![\\p{L}\\p{M}\\p{N}_'’])(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: futureOrConditional
   - id: fr.negation
     checks: [frenchMissingNe]
     style: match
@@ -151,7 +194,59 @@ rules:
         fixer: pourPasQue
   - id: fr.smallWords
     checks: [frenchHomophones]
-    predicate: smallWords
+    style: match
+    message: review_msg_fr_homophone
+    frames:
+      - regex: "{{WORD_START}}(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes|et|est|nous|vous|soi|soit|sois|soie|çà){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: smallWord
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])d['’]avantage{{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: davantage
+      - regex: "{{WORD_START}}quel(?:le)?s?[ \\t]+que[ \\t]+soi(?:en)?t{{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: quelQueSoit
+      - regex: "{{WORD_START}}(?:\\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|vingt|trente|quarante|cinquante|soixante|cent)[ \\t]+(?<years>années){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: ageInYears
+      - regex: "{{WORD_START}}(?<times>\\p{L}+)[ \\t-]+(?<unit>cents?|vingts?)(?![\\p{L}\\p{M}\\p{N}_'’])(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: hundreds
+      - regex: "{{WORD_START}}cr(?:oî[st]|û[st]?)(?![\\p{L}\\p{M}\\p{N}_'’])(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: growToBelieve
+      - regex: "{{WORD_START}}qu(?:['’]a|a){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: quToQuA
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:aie|aies|ait|aient){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: mainClauseAvoir
+      - regex: "{{WORD_START}}quel(?:le)?s?{{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: quelleForQuElle
+      - regex: "{{WORD_START}}plu{{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: pluForPlus
   - id: fr.determiners
     checks: [frenchNounGender]
     style: match
@@ -257,10 +352,29 @@ rules:
         fixer: pronounAntecedent
   - id: fr.imperative
     checks: [frenchVerbForms]
-    predicate: imperative
+    style: match
+    message: review_msg_fr_imperative
+    frames:
+      - regex: "{{WORD_START}}n(?:e{{WORD_END}}|['’](?=\\p{L}))(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: negatedOrder
+      - regex: "{{WORD_START}}(?<verb>\\p{L}+)-(?<pronoun>moi|toi|lui|nous|leur|le|la|les|en|y){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: joinedImperative
   - id: fr.veillez
     checks: [frenchHomophones]
-    predicate: veillez
+    style: match
+    message: review_msg_fr_homophone
+    frames:
+      - regex: "{{WORD_START}}veu?illez{{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: veillezVeuillez
   - id: fr.invariables
     checks: [frenchAdjectiveAgreement]
     style: match
