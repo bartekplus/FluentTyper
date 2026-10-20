@@ -1,11 +1,10 @@
 import { CUE_AND_QUOTE } from "./exampleCues";
 import { canonicalCasing } from "./canonicalCasing";
 import { phraseCorrections } from "./englishPhraseCorrections";
-import { doubledDegree } from "./englishDegree";
+import { FIXERS as DEGREE_FIXERS } from "./englishDegree";
 import {
-  doubledDegreeByLanguage,
+  FIXERS as LEXICON_FIXERS,
   frenchElisions,
-  germanNounCapitals,
   markedApostrophes,
   quotedContraction,
   splitWords,
@@ -88,11 +87,9 @@ import {
   isTechnicalToken,
   lastNonSpaceBefore,
 } from "../implementations/helpers/GenericRuleShared";
-import { ownedMatches } from "./phraseTemplates";
 import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { TYPOGRAPHIC_QUOTES } from "./typographicQuotes";
-import { germanUnits } from "./german/numbers";
 import {
   FILTERS as ENGLISH_FILTERS,
   FIXERS as ENGLISH_FIXERS,
@@ -965,60 +962,47 @@ const ordinal: MatchFixer = (match, ctx) => {
   return findings;
 };
 
-const properNoun: Detector = (ctx) => {
-  const findings: RawFinding[] = [];
-  // Word ends, digits included: "may 15" is decided at the end of "15".
-  const regex = /[\p{L}\p{N}]+(?:['’]s)?(?![\p{L}\p{N}_])/gu;
-  regex.lastIndex = Math.max(0, ctx.from - 32);
-  for (let match = regex.exec(ctx.scanText); match; match = regex.exec(ctx.scanText)) {
-    const wordEnd = match.index + match[0].length;
-    if (match.index >= ctx.to + 32) break;
-    const before = ctx.text.slice(Math.max(0, match.index - 12), match.index);
-    if (!couldEndProperName(match[0], before)) continue;
-    const windowStart = Math.max(0, wordEnd - 160);
-    const core = ctx.text.slice(windowStart, wordEnd);
-    // Unlike typing, the words after it are here too: "in may," is the month.
-    const found =
-      findProperName(core) ??
-      (isMonthInContext(
-        match[0],
-        ctx.text.slice(Math.max(0, match.index - 48), match.index),
-        ctx.text.slice(wordEnd, wordEnd + 24),
-      )
-        ? {
-            start: core.length - match[0].length,
-            end: core.length,
-            canonical: match[0][0].toUpperCase() + match[0].slice(1),
-            contextual: true,
-          }
-        : null);
-    if (!found) continue;
-    const start = windowStart + found.start;
-    const end = windowStart + found.end;
-    if (!owned(ctx, start) || isGluedToTechnical(ctx.text, start, wordEnd)) continue;
-    const typed = ctx.text.slice(start, end);
-    const replaced = properNameReplacement(typed, found.canonical, ctx.dictionary);
-    if (replaced === null) continue;
-    findings.push(
-      finding("englishProperNounCapitalization", "review_msg_proper_noun", start, end, [replaced], {
-        // may/march/august needed a date or a clause end next to them; that is evidence.
-        context: found.contextual
-          ? { start: Math.max(0, start - 16), end: wordEnd + 16 }
-          : undefined,
-        bulkBlock: found.contextual ? "context-dependent" : undefined,
-      }),
-    );
-  }
-  // "christmas" is found at its own end and again inside "christmas eve": keep the longer name.
-  return findings.filter(
-    (finding) =>
-      !findings.some(
-        (other) =>
-          other !== finding &&
-          other.range.start <= finding.range.start &&
-          other.range.end >= finding.range.end &&
-          other.range.end - other.range.start > finding.range.end - finding.range.start,
-      ),
+/** A proper name that ends at the word of the scan ("christmas", "new york", "in may,"). */
+const properNoun: MatchFixer = (match, ctx) => {
+  if (ctx.lang !== "en_US") return null;
+  const wordEnd = match.index + match[0].length;
+  const before = ctx.text.slice(Math.max(0, match.index - 12), match.index);
+  if (!couldEndProperName(match[0], before)) return null;
+  const windowStart = Math.max(0, wordEnd - 160);
+  const core = ctx.text.slice(windowStart, wordEnd);
+  // Unlike typing, the words after it are here too: "in may," is the month.
+  const found =
+    findProperName(core) ??
+    (isMonthInContext(
+      match[0],
+      ctx.text.slice(Math.max(0, match.index - 48), match.index),
+      ctx.text.slice(wordEnd, wordEnd + 24),
+    )
+      ? {
+          start: core.length - match[0].length,
+          end: core.length,
+          canonical: match[0][0].toUpperCase() + match[0].slice(1),
+          contextual: true,
+        }
+      : null);
+  if (!found) return null;
+  const start = windowStart + found.start;
+  const end = windowStart + found.end;
+  if (!owned(ctx, start) || isGluedToTechnical(ctx.text, start, wordEnd)) return null;
+  const typed = ctx.text.slice(start, end);
+  const replaced = properNameReplacement(typed, found.canonical, ctx.dictionary);
+  if (replaced === null) return null;
+  return finding(
+    "englishProperNounCapitalization",
+    "review_msg_proper_noun",
+    start,
+    end,
+    [replaced],
+    {
+      // may/march/august needed a date or a clause end next to them; that is evidence.
+      context: found.contextual ? { start: Math.max(0, start - 16), end: wordEnd + 16 } : undefined,
+      bulkBlock: found.contextual ? "context-dependent" : undefined,
+    },
   );
 };
 
@@ -1377,22 +1361,18 @@ const currencyPlacement: MatchFixer = (match, ctx) => {
 };
 
 /** "300°K" is "300 K": the kelvin is an absolute unit and takes no degree sign. */
-function kelvinDegree(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
+const kelvinDegree: MatchFixer = (match, ctx) => {
   const separator = resolveMeasurementLocale(ctx.lang)?.separator ?? " ";
-  for (const match of ownedMatches(ctx, /(?<=^|[\p{N}\s(])°K(?![\p{L}\p{N}_])/gu)) {
-    const start = match.index;
-    const glued = /\p{N}/u.test(ctx.text[start - 1]);
-    findings.push({
-      ruleId: "measurementUnitFormatting",
-      messageKey: "review_msg_kelvin_degree",
-      range: { start, end: start + 2 },
-      alternatives: [glued ? `${separator}K` : "K"],
-      context: { start: Math.max(0, start - 1), end: start + 2 },
-    });
-  }
-  return findings;
-}
+  const start = match.index;
+  const glued = /\p{N}/u.test(ctx.text[start - 1]);
+  return {
+    ruleId: "measurementUnitFormatting",
+    messageKey: "review_msg_kelvin_degree",
+    range: { start, end: start + 2 },
+    alternatives: [glued ? `${separator}K` : "K"],
+    context: { start: Math.max(0, start - 1), end: start + 2 },
+  };
+};
 
 // Units typed in the wrong case where the lowercase symbol is the only reading: "10KG", "25Km".
 // "MB" (megabyte, not millibar) and "MS" (not ms) stay out: their case carries meaning.
@@ -1403,104 +1383,104 @@ const UNIT_CASE = new Map([
   ["Km", "km"],
 ]);
 
-function measurementLike(
-  ctx: DetectContext,
-  ruleId: "measurementUnitFormatting" | "currencySpacing",
-): RawFinding[] {
-  const locale = resolveMeasurementLocale(ctx.lang);
-  if (!locale) return [];
-  const findings: RawFinding[] = [];
-  // Tokens, then a digit test: a "[^\s]*\d[^\s]*" pattern backtracks on long tokens.
-  const regex = /[^\s\uFFFC]+/gu;
-  regex.lastIndex = Math.max(0, ctx.from);
-  // Back up to the start of a token cut by `from`.
-  while (regex.lastIndex > 0 && !/[\s\uFFFC]/u.test(ctx.text[regex.lastIndex - 1])) {
-    regex.lastIndex -= 1;
-  }
-  for (let match = regex.exec(ctx.scanText); match; match = regex.exec(ctx.scanText)) {
-    if (match.index >= ctx.to + 64) break;
-    // Only a unit glued to its number is a finding ("10kg", "5$"); plain numbers
-    // skip the window parse, which dominates number-heavy text.
-    if (!/\p{Nd}[^\p{Nd}\s.,]/u.test(match[0])) continue;
-    const bare = match[0].replace(/[.,;:!?)\]]+$/u, "");
-    const tokenEnd = match.index + bare.length;
-    const windowStart = Math.max(0, tokenEnd - 160);
-    const prefix = ctx.text.slice(windowStart, tokenEnd);
-    const parse = (value: string) =>
-      ruleId === "currencySpacing"
-        ? parseMeasurementExpression(value, locale, (text, start) =>
-            CURRENCY_MARKERS.has(text.slice(start)),
-          )
-        : (parseMeasurementExpression(value, locale) ??
-          parseMeasurementExpression(value, locale, (text, start) =>
-            UNIT_CASE.has(text.slice(start)),
-          ));
-    const parsed = parse(prefix);
-    if (!parsed) continue;
-    const unit = prefix.slice(parsed.numberEnd);
-    if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) continue;
-    // Brazilian usage writes clock times and durations glued: "às 10h", "20min", and a new car
-    // is "0km"; French writes "14h" and "14h30" as often as "14 h", so hours stay as typed there.
-    if (
-      ruleId === "measurementUnitFormatting" &&
-      ((ctx.lang === "pt_BR" &&
-        (/^(?:h|min)$/.test(unit) ||
-          (unit === "km" && prefix.slice(parsed.start, parsed.numberEnd) === "0"))) ||
-        (ctx.lang === "fr_FR" && unit === "h"))
-    )
-      continue;
-    // "100m users" counts millions; "Type 42s" and "the 1990s" are plurals, not seconds.
-    if (
-      ruleId === "measurementUnitFormatting" &&
-      ((unit === "m" && /^[ \t]+(?:[a-z]{2,}s|[A-Z]{2,}s)\b/.test(ctx.text.slice(tokenEnd))) ||
-        (unit === "s" && /\b\p{Lu}[\p{L}-]*[ \t]+$/u.test(prefix.slice(0, parsed.start))))
-    )
-      continue;
-    let prosePrefix = prefix.slice(0, parsed.start);
-    // A prose list retains the evidence before its first measurement. Every
-    // preceding item must itself parse; identifiers and arithmetic still abstain.
-    // An item may be already spaced ("10 kg, 25km"), so accepting one finding keeps the rest.
-    while (!isProsePrefix(prosePrefix)) {
-      const item = /(?:^|[ \t])(?:(?<n>[^\s]+)[ \t\u00a0\u202f])?(?<last>[^\s]+),[ \t]+$/du.exec(
-        prosePrefix,
-      );
-      if (!item) break;
-      const { n, last } = item.groups!;
-      let cut: number;
-      if (parse(last)?.start === 0) cut = item.indices!.groups!.last[0];
-      else if (n && parse(n + last)?.start === 0) cut = item.indices!.groups!.n[0];
-      else break;
-      prosePrefix = prosePrefix.slice(0, cut);
+/**
+ * A unit glued to its number ("10kg", "5$") in one token of the scan. The frame's check picks
+ * the units (measurementUnitFormatting) or the currency symbols (currencySpacing).
+ */
+const unitToken: MatchFixer = (match, ctx, frame) => {
+  // The scan starts one character before the chunk. A token cut by the chunk start is read
+  // from its own start: the scan goes back to it.
+  if (match.index < ctx.from) {
+    let cut = ctx.from;
+    while (cut > 0 && !/[\s\uFFFC]/u.test(ctx.text[cut - 1])) cut -= 1;
+    if (match.index > cut) {
+      frame.resume!(cut);
+      return null;
     }
-    if (!isProsePrefix(prosePrefix)) continue;
-    const start = windowStart + parsed.start;
-    if (!owned(ctx, start)) continue;
-    const numberEnd = windowStart + parsed.numberEnd;
-    const lowercase = UNIT_CASE.get(unit);
-    // "LOSE 10KG NOW": shouted text keeps its capitals.
-    if (
-      lowercase &&
-      (/\p{Lu}{2}[ \t]+$/u.test(ctx.text.slice(Math.max(0, start - 24), start)) ||
-        /^[ \t]+\p{Lu}{2}/u.test(ctx.text.slice(tokenEnd, tokenEnd + 24)))
-    )
-      continue;
-    findings.push({
-      ruleId,
-      messageKey:
-        ruleId === "currencySpacing"
-          ? "review_msg_currency_spacing"
-          : lowercase
-            ? "review_msg_measurement_unit_case"
-            : "review_msg_measurement_spacing",
-      range: { start, end: tokenEnd },
-      alternatives: [
-        `${ctx.source.slice(start, numberEnd)}${locale.separator}${lowercase ?? ctx.source.slice(numberEnd, tokenEnd)}`,
-      ],
-      context: { start: windowStart, end: tokenEnd },
-    });
   }
-  return findings;
-}
+  const ruleId = frame.ruleId as "measurementUnitFormatting" | "currencySpacing";
+  // Only a unit glued to its number is a finding ("10kg", "5$"); plain numbers
+  // skip the window parse, which dominates number-heavy text.
+  if (!/\p{Nd}[^\p{Nd}\s.,]/u.test(match[0])) return null;
+  const locale = resolveMeasurementLocale(ctx.lang);
+  if (!locale) return null;
+  const bare = match[0].replace(/[.,;:!?)\]]+$/u, "");
+  const tokenEnd = match.index + bare.length;
+  const windowStart = Math.max(0, tokenEnd - 160);
+  const prefix = ctx.text.slice(windowStart, tokenEnd);
+  const parse = (value: string) =>
+    ruleId === "currencySpacing"
+      ? parseMeasurementExpression(value, locale, (text, start) =>
+          CURRENCY_MARKERS.has(text.slice(start)),
+        )
+      : (parseMeasurementExpression(value, locale) ??
+        parseMeasurementExpression(value, locale, (text, start) =>
+          UNIT_CASE.has(text.slice(start)),
+        ));
+  const parsed = parse(prefix);
+  if (!parsed) return null;
+  const unit = prefix.slice(parsed.numberEnd);
+  if (ruleId === "measurementUnitFormatting" && /^([A-Z]|[dg])$/.test(unit)) return null;
+  // Brazilian usage writes clock times and durations glued: "às 10h", "20min", and a new car
+  // is "0km"; French writes "14h" and "14h30" as often as "14 h", so hours stay as typed there.
+  if (
+    ruleId === "measurementUnitFormatting" &&
+    ((ctx.lang === "pt_BR" &&
+      (/^(?:h|min)$/.test(unit) ||
+        (unit === "km" && prefix.slice(parsed.start, parsed.numberEnd) === "0"))) ||
+      (ctx.lang === "fr_FR" && unit === "h"))
+  )
+    return null;
+  // "100m users" counts millions; "Type 42s" and "the 1990s" are plurals, not seconds.
+  if (
+    ruleId === "measurementUnitFormatting" &&
+    ((unit === "m" && /^[ \t]+(?:[a-z]{2,}s|[A-Z]{2,}s)\b/.test(ctx.text.slice(tokenEnd))) ||
+      (unit === "s" && /\b\p{Lu}[\p{L}-]*[ \t]+$/u.test(prefix.slice(0, parsed.start))))
+  )
+    return null;
+  let prosePrefix = prefix.slice(0, parsed.start);
+  // A prose list retains the evidence before its first measurement. Every
+  // preceding item must itself parse; identifiers and arithmetic still abstain.
+  // An item may be already spaced ("10 kg, 25km"), so accepting one finding keeps the rest.
+  while (!isProsePrefix(prosePrefix)) {
+    const item = /(?:^|[ \t])(?:(?<n>[^\s]+)[ \t\u00a0\u202f])?(?<last>[^\s]+),[ \t]+$/du.exec(
+      prosePrefix,
+    );
+    if (!item) break;
+    const { n, last } = item.groups!;
+    let cut: number;
+    if (parse(last)?.start === 0) cut = item.indices!.groups!.last[0];
+    else if (n && parse(n + last)?.start === 0) cut = item.indices!.groups!.n[0];
+    else break;
+    prosePrefix = prosePrefix.slice(0, cut);
+  }
+  if (!isProsePrefix(prosePrefix)) return null;
+  const start = windowStart + parsed.start;
+  if (!owned(ctx, start)) return null;
+  const numberEnd = windowStart + parsed.numberEnd;
+  const lowercase = UNIT_CASE.get(unit);
+  // "LOSE 10KG NOW": shouted text keeps its capitals.
+  if (
+    lowercase &&
+    (/\p{Lu}{2}[ \t]+$/u.test(ctx.text.slice(Math.max(0, start - 24), start)) ||
+      /^[ \t]+\p{Lu}{2}/u.test(ctx.text.slice(tokenEnd, tokenEnd + 24)))
+  )
+    return null;
+  return {
+    ruleId,
+    messageKey:
+      ruleId === "currencySpacing"
+        ? "review_msg_currency_spacing"
+        : lowercase
+          ? "review_msg_measurement_unit_case"
+          : "review_msg_measurement_spacing",
+    range: { start, end: tokenEnd },
+    alternatives: [
+      `${ctx.source.slice(start, numberEnd)}${locale.separator}${lowercase ?? ctx.source.slice(numberEnd, tokenEnd)}`,
+    ],
+    context: { start: windowStart, end: tokenEnd },
+  };
+};
 
 // Verbs whose "to" opens an infinitive: "We need to to leave" doubles the marker.
 const INFINITIVE_TO_VERBS = new Set([
@@ -1580,8 +1560,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   phraseTables: (ctx) => detectAll(ctx, [canonicalCasing, phraseCorrections]),
   quotationFindings: (ctx) => ownedFindings(ctx, ctx.quotationFindings),
   typographicQuotes: TYPOGRAPHIC_QUOTES.detect,
-  doubledDegree: (ctx) =>
-    ctx.lang === "en_US" ? doubledDegree(ctx) : doubledDegreeByLanguage(ctx),
   // The English word lists are the spellingWords frames; other languages have their own tables.
   spelling: (ctx) =>
     detectAll(
@@ -1593,19 +1571,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   theirThere,
   pronounVerb,
   articleAn,
-  properNouns: (ctx) => (ctx.lang === "en_US" ? properNoun(ctx) : germanNounCapitals(ctx)),
-  measurement: (ctx) =>
-    detectAll(ctx, [
-      (c) => measurementLike(c, "measurementUnitFormatting"),
-      kelvinDegree,
-      (c) => germanUnits(c).filter((f) => f.ruleId === "measurementUnitFormatting"),
-    ]),
-  // English places the symbols in the currencyPlacement frame.
-  currency: (ctx) =>
-    detectAll(ctx, [
-      (c) => measurementLike(c, "currencySpacing"),
-      (c) => germanUnits(c).filter((f) => f.ruleId === "currencySpacing"),
-    ]),
 };
 
 /** The frame fixes of the shared detectors of this module. */
@@ -1617,6 +1582,7 @@ const DETECTOR_FIXERS = {
   spellingContraction: spellingOf("englishContractionNormalization"),
   spellingAlot: spellingOf("englishAlotCorrection"),
   ordinal,
+  properNoun,
   spaceBeforeComma,
   spaceBeforeMark,
   spaceAfterOpeningMark,
@@ -1632,6 +1598,8 @@ const DETECTOR_FIXERS = {
   primePair,
   degreeMinute,
   typedDashes,
+  unitToken,
+  kelvinDegree,
   currencyPlacement,
   repeatedWord,
 } satisfies Record<string, MatchFixer>;
@@ -1644,6 +1612,18 @@ const DETECTOR_FILTERS = {
     const starts = new Set<number>();
     return findings.filter((f) => !starts.has(f.range.start) && !!starts.add(f.range.start));
   },
+  // "christmas" is found at its own end and again inside "christmas eve": keep the longer name.
+  longestName: (_ctx, findings) =>
+    findings.filter(
+      (finding) =>
+        !findings.some(
+          (other) =>
+            other !== finding &&
+            other.range.start <= finding.range.start &&
+            other.range.end >= finding.range.end &&
+            other.range.end - other.range.start > finding.range.end - finding.range.start,
+        ),
+    ),
 } satisfies Record<string, FindingsFilter>;
 
 /** The named frame fixes of grammar/rules/common.yaml (`fixer:`). */
@@ -1660,6 +1640,8 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   POSSESSIVE_FIXERS,
   COUNT_FIXERS,
   DATE_FIXERS,
+  DEGREE_FIXERS,
+  LEXICON_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */
