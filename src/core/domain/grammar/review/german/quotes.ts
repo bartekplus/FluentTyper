@@ -1,4 +1,4 @@
-import type { Detector } from "../../engine/reviewRules";
+import type { Detector, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { englishWords, isGerman } from "./shared";
 import { finding } from "../finding";
@@ -93,7 +93,7 @@ function quotes(ctx: DetectContext): RawFinding[] {
       open--;
     }
   }
-  return [...findings, ...nested(ctx)];
+  return findings;
 }
 
 /** The lines (paragraphs) that overlap the chunk, as [start, end) offsets. */
@@ -171,45 +171,7 @@ function straight(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-// Verbs of saying after a quotation: „Komm!“, rief sie.
-const SAYING =
-  "sagte|sagt|sagten|rief|ruft|riefen|fragte|fragt|fragten|dachte|denkt|meinte|meint|antwortete|" +
-  "antwortet|erwiderte|erwidert|flüsterte|flüstert|schrie|schreit|murmelte|murmelt|erklärte|" +
-  "erklärt|behauptete|behauptet|seufzte|lachte|rief|bat|befahl";
-// Inside a „…“ quotation: a period before the closing mark and a comma or another mark after
-// it („Ich gehe.“, sagte er → „Ich gehe“, sagte er; „Ich gehe.“. → „Ich gehe.“), a comma
-// before the closing mark („Ich gehe,“ sagte er → „Ich gehe“, sagte er), and the comma a
-// question or exclamation needs before the verb of saying („Wirklich?“ fragte sie).
-const SPEECH = new RegExp(
-  `(?<period>\\.)(?=“[ \\t]*[,!?])|(?<=\\.“)(?<after>\\.)|(?<=\\p{L})(?<comma>,“)(?=[ \\t]+\\p{Ll})|(?<=[!?])(?<close>“)(?=[ \\t]+(?:${SAYING})(?![\\p{L}]))`,
-  "gdu",
-);
-
-function speech(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  SPEECH.lastIndex = ctx.from;
-  for (let m = SPEECH.exec(ctx.scanText); m && m.index < ctx.to; m = SPEECH.exec(ctx.scanText)) {
-    // The quotation must open with „ on the same line.
-    const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index);
-    if (!line.includes(OPEN)) continue;
-    const { period, after } = m.groups!;
-    // "z. B.“": a dot that ends an abbreviation stays.
-    if (
-      period &&
-      /(?:(?<!\p{L})\p{L}{1,3}|\d)$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
-    )
-      continue;
-    const replacement = period || after ? "" : "“,";
-    findings.push(quoteFinding(m.index, m.index + m[0].length, replacement));
-  }
-  return findings;
-}
-
-// No space goes right inside quotation marks or brackets: „ Der Hund …“ → „Der Hund …“,
-// (nur kleine ) → (nur kleine). The mark must have its partner on the same line, so a lone
-// mark, a smiley ":( " and Swiss «…» quotes stay alone.
-const INNER = /(?<=[„»(])[ \t]+(?=\p{L})|(?<=[\p{L}.!?…])[ \t]+(?=[“«)])/gu;
+// The partner of each mark, and the mark of the same kind that may not stand between them.
 const PARTNERS: Record<string, [string, string]> = {
   "„": ["“", "„"],
   "»": ["«", "»"],
@@ -219,11 +181,23 @@ const PARTNERS: Record<string, [string, string]> = {
   ")": ["(", ")"],
 };
 
-function innerSpacing(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  INNER.lastIndex = ctx.from;
-  for (let m = INNER.exec(ctx.scanText); m && m.index < ctx.to; m = INNER.exec(ctx.scanText)) {
+/** The named frame fixes of the de.quoteFrames rule (grammar/rules/de.yaml). */
+export const FIXERS = {
+  speech: (m, ctx) => {
+    // The quotation must open with „ on the same line.
+    const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index);
+    if (!line.includes(OPEN)) return null;
+    const { period, after } = m.groups!;
+    // "z. B.“": a dot that ends an abbreviation stays.
+    if (
+      period &&
+      /(?:(?<!\p{L})\p{L}{1,3}|\d)$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    )
+      return null;
+    const replacement = period || after ? "" : "“,";
+    return quoteFinding(m.index, m.index + m[0].length, replacement);
+  },
+  innerSpacing: (m, ctx) => {
     const start = m.index;
     const end = start + m[0].length;
     const opening = /[„»(]/.test(ctx.text[start - 1]);
@@ -236,22 +210,19 @@ function innerSpacing(ctx: DetectContext): RawFinding[] {
       : ctx.text.slice(lineStart, start);
     // The partner nearest the mark, with no other mark of the same kind between.
     const at = opening ? line.indexOf(partner) : line.lastIndexOf(partner);
-    if (at < 0) continue;
+    if (at < 0) return null;
     const between = opening ? line.slice(0, at) : line.slice(at + 1);
-    if (between.includes(same)) continue;
+    if (between.includes(same)) return null;
     // A smiley ":(" or ";-(" is no bracket.
     const open = opening ? start - 1 : lineStart + at;
-    if (ctx.text[open] === "(" && /[:;=-]/.test(ctx.text[open - 1] ?? "")) continue;
-    findings.push(
-      finding("germanQuotes", "review_msg_german_inner_spacing", start, end, [""], {
-        context: { start: Math.max(0, start - 20), end: end + 20 },
-      }),
-    );
-  }
-  return findings;
-}
+    if (ctx.text[open] === "(" && /[:;=-]/.test(ctx.text[open - 1] ?? "")) return null;
+    return finding("germanQuotes", "review_msg_german_inner_spacing", start, end, [""], {
+      context: { start: Math.max(0, start - 20), end: end + 20 },
+    });
+  },
+} satisfies Record<string, MatchFixer>;
 
 export const PREDICATES = {
-  quotes: (ctx) => [...quotes(ctx), ...speech(ctx), ...innerSpacing(ctx)],
+  quotes: (ctx) => [...quotes(ctx), ...nested(ctx)],
   straightQuotes: straight,
 } satisfies Record<string, Detector>;

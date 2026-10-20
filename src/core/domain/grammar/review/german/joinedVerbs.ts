@@ -1,16 +1,7 @@
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { germanVerbLike } from "./germanLexicon";
-import {
-  BOUNDARY,
-  gated,
-  isGerman,
-  PRONOUNS,
-  tokensAfter,
-  tokensBefore,
-  VERB_GOVERNORS,
-} from "./shared";
+import { BOUNDARY, PRONOUNS, tokensAfter, tokensBefore, VERB_GOVERNORS } from "./shared";
 
 // A verb written apart from a first part with which it makes one verb: "zunichte gemacht"
 // (zunichtegemacht), "fest genommen" (festgenommen), "schief gehen" (schiefgehen). The first
@@ -123,18 +114,6 @@ let open: Map<string, Map<string, Kind>> | undefined;
 // Words before the first part that make it a plain adverb: "genauso gut tun", "zu nahe treten".
 const DEGREE = /^(?:zu|allzu|so|genauso|ebenso|ganz|besonders|ziemlich|recht|wie|eher)$/;
 
-const OPEN_FRAME = gated(
-  `(?<first>wieder${SPACE}gut|${Object.keys(OPEN)
-    .filter((first) => first !== "wiedergut")
-    .join("|")})(?<zu>${SPACE}zu)?${SPACE}(?<verb>\\p{Ll}+)${WORD_END}`,
-);
-// "zu teil", "von statten", "zu Pass(e)": a bound first part written as two words.
-const BOUND_FRAME = gated(
-  `(?<first>${Object.keys(BOUND).join("|")}|zu${SPACE}teil|von${SPACE}statten|Preis)(?:(?<zu>${SPACE}zu)?${SPACE}(?<verb>\\p{Ll}+))?${WORD_END}`,
-);
-const ZU_PASS = gated(
-  `(?<first>zu${SPACE}Passe?|zupasse?)(?:${SPACE}(?<verb>\\p{Ll}+))?${WORD_END}`,
-);
 const KOMMEN = /^(?:kommen|kommt|kam|kamen|käme|kämen|gekommen)$/;
 
 /** Whether the clause goes on after a verb form of this kind. */
@@ -147,47 +126,43 @@ function closes(kind: Kind, after: string[]): boolean {
   return VERB_GOVERNORS.has(next) || germanVerbLike(next);
 }
 
+/** The first part of `m` and its verb, joined when the verb ends its clause. */
 function joined(
   ctx: DetectContext,
-  pattern: RegExp,
+  m: RegExpExecArray,
   table: Map<string, Map<string, Kind>>,
   ruleId: "germanCompounds" | "germanJoinedVerbs",
-): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, pattern, "first")) {
-    const typed = m.groups!.first;
-    const first = typed.replace(/[ \t ]+/g, "").toLowerCase();
-    const { zu, verb } = m.groups!;
-    const [start] = m.indices!.groups!.first;
-    const end = m.index + m[0].length;
-    const before = tokensBefore(ctx.text, start, 6);
-    const prior = (before.at(-1) ?? "").toLowerCase();
-    if (DEGREE.test(prior)) continue;
-    const after = tokensAfter(ctx.text, end, 2);
-    const forms = table.get(first);
-    const kind = verb ? forms?.get(verb) : undefined;
-    // "Preis" is a noun after a determiner or an adjective ("einen hohen Preis geben").
-    if (
-      typed === "Preis" &&
-      !/^(?:nicht|nie|es|sich|alles|nichts|kaum|nur|gern|gerne|sofort)$/.test(prior)
-    )
-      continue;
-    if (!kind || (zu && kind !== "infinitive")) {
-      // "zu teil.", "von statten", "Er gab es nicht Preis.": the bound part alone, at the end.
-      if (ruleId !== "germanCompounds" || verb) continue;
-      if (!BOUNDARY.test(after[0] ?? "")) continue;
-      if (first === "preis" && !before.some((t) => /^(?:gab|gibt|gaben|gebe|gibst)$/.test(t)))
-        continue;
-      if (!/[ \t]|^Preis$/.test(typed)) continue;
-      findings.push(finding(ruleId, start, start + typed.length, first));
-      continue;
-    }
-    // "preis geben", "zugute kommen": the infinitive frame of compounds.ts joins these.
-    if (kind === "infinitive" && (typed === "preis" || typed === "zugute")) continue;
-    if (!closes(kind, after)) continue;
-    findings.push(finding(ruleId, start, end, `${first}${zu ? "zu" : ""}${verb}`));
+): RawFinding | null {
+  const typed = m.groups!.first;
+  const first = typed.replace(/[ \t ]+/g, "").toLowerCase();
+  const { zu, verb } = m.groups!;
+  const [start] = m.indices!.groups!.first;
+  const end = m.index + m[0].length;
+  const before = tokensBefore(ctx.text, start, 6);
+  const prior = (before.at(-1) ?? "").toLowerCase();
+  if (DEGREE.test(prior)) return null;
+  const after = tokensAfter(ctx.text, end, 2);
+  const forms = table.get(first);
+  const kind = verb ? forms?.get(verb) : undefined;
+  // "Preis" is a noun after a determiner or an adjective ("einen hohen Preis geben").
+  if (
+    typed === "Preis" &&
+    !/^(?:nicht|nie|es|sich|alles|nichts|kaum|nur|gern|gerne|sofort)$/.test(prior)
+  )
+    return null;
+  if (!kind || (zu && kind !== "infinitive")) {
+    // "zu teil.", "von statten", "Er gab es nicht Preis.": the bound part alone, at the end.
+    if (ruleId !== "germanCompounds" || verb) return null;
+    if (!BOUNDARY.test(after[0] ?? "")) return null;
+    if (first === "preis" && !before.some((t) => /^(?:gab|gibt|gaben|gebe|gibst)$/.test(t)))
+      return null;
+    if (!/[ \t]|^Preis$/.test(typed)) return null;
+    return finding(ruleId, start, start + typed.length, first);
   }
-  return findings;
+  // "preis geben", "zugute kommen": the infinitive frame of compounds.ts joins these.
+  if (kind === "infinitive" && (typed === "preis" || typed === "zugute")) return null;
+  if (!closes(kind, after)) return null;
+  return finding(ruleId, start, end, `${first}${zu ? "zu" : ""}${verb}`);
 }
 
 const finding = (
@@ -203,39 +178,30 @@ const finding = (
   context: { start: Math.max(0, start - 40), end: end + 20 },
 });
 
-/** "zu Pass kam", "kam ihm zu Pass": "zupass" next to a form of "kommen". */
-function zuPass(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, ZU_PASS, "first")) {
+/** The named frame fixes of the de.joinedVerbs and de.compounds rules (grammar/rules/de.yaml). */
+export const FIXERS = {
+  openVerb: (m, ctx) => {
+    open ??= tables(OPEN);
+    return joined(ctx, m, open, "germanJoinedVerbs");
+  },
+  // Bound first parts written apart (germanCompounds).
+  boundVerb: (m, ctx) => {
+    bound ??= tables(BOUND);
+    return joined(ctx, m, bound, "germanCompounds");
+  },
+  // "zu Pass kam", "kam ihm zu Pass": "zupass" next to a form of "kommen".
+  zuPass: (m, ctx) => {
     const typed = m.groups!.first;
     const verb = m.groups!.verb ?? "";
     const [start] = m.indices!.groups!.first;
     const near = KOMMEN.test(verb) || tokensBefore(ctx.text, start, 4).some((t) => KOMMEN.test(t));
-    if (!near || (!/[ \t]/.test(typed) && !KOMMEN.test(verb))) continue;
+    if (!near || (!/[ \t]/.test(typed) && !KOMMEN.test(verb))) return null;
     const fix = `zupass${KOMMEN.test(verb) ? verb : ""}`;
-    findings.push(
-      finding(
-        "germanCompounds",
-        start,
-        KOMMEN.test(verb) ? m.index + m[0].length : start + typed.length,
-        fix,
-      ),
+    return finding(
+      "germanCompounds",
+      start,
+      KOMMEN.test(verb) ? m.index + m[0].length : start + typed.length,
+      fix,
     );
-  }
-  return findings;
-}
-
-/** Bound first parts written apart (germanCompounds). */
-export function boundVerbs(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  bound ??= tables(BOUND);
-  return [...joined(ctx, BOUND_FRAME, bound, "germanCompounds"), ...zuPass(ctx)];
-}
-
-export const PREDICATES = {
-  joinedVerbs: (ctx) => {
-    if (!isGerman(ctx)) return [];
-    open ??= tables(OPEN);
-    return joined(ctx, OPEN_FRAME, open, "germanJoinedVerbs");
   },
-} satisfies Record<string, Detector>;
+} satisfies Record<string, MatchFixer>;

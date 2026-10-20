@@ -1,7 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { Detector } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   deumlaut,
   germanAdjective,
@@ -11,18 +9,13 @@ import {
   germanNounReading,
 } from "./germanLexicon";
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
-import { salutationEndings } from "./salutations";
 import {
   BOUNDARY,
-  ci,
-  gated,
-  isGerman,
   tokensAfter,
   tokensBefore,
   VERB_GOVERNORS,
   wordEntries,
   wordSet,
-  WORD_GATE,
 } from "./shared";
 import { finding } from "../finding";
 
@@ -30,23 +23,6 @@ import { finding } from "../finding";
 // (edler/edles); or a compound written apart: "in echt Zeit" (Echtzeit). And the strong
 // ending after an article that already shows the case: "im mentalem Lexikon" (mentalen).
 
-const NOUN = "\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*";
-// A degree word may stand between the article and the adjective ("eine sehr schön Frau").
-const DEGREE =
-  "sehr|ziemlich|recht|ganz|besonders|wirklich|unglaublich|äußerst|echt|so|relativ|extrem";
-const BARE = new RegExp(
-  `${WORD_GATE}(?<det>\\p{L}+)(?:${SPACE}(?:${DEGREE}))?${SPACE}(?<target>(?<adj>\\p{Ll}+)${SPACE}(?<noun>${NOUN}))${WORD_END}`,
-  "gdu",
-);
-const STRONG_AFTER_ARTICLE = new RegExp(
-  `${WORD_GATE}(?<det>${[
-    "dem im zum vom beim am einem meinem deinem seinem ihrem unserem eurem diesem jedem keinem",
-    "des eines meines deines seines ihres unseres eures dieses jedes keines",
-  ]
-    .flatMap((group) => group.split(" ").map(ci))
-    .join("|")})${SPACE}(?<target>\\p{Ll}+(?:em|es))(?=${SPACE}${NOUN}${WORD_END})`,
-  "gdu",
-);
 // Adjective lemmas that also work as adverbs before a noun phrase ("ein völlig Fremder",
 // "die erst Mitte der 1920er erschienene"), and invariable ones.
 const ADVERBIAL = wordSet(
@@ -201,181 +177,162 @@ function compoundSingular(preposition: string, adj: string, noun: string): strin
   return endings.size <= 2 ? [...endings] : null;
 }
 
-function bareAdjectives(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, BARE)) {
-    const { det, adj, noun } = m.groups!;
-    const low = det.toLowerCase();
-    const isDeterminer =
-      (ARTICLES.has(low) ||
-        DEMONSTRATIVES.has(low) ||
-        /^(?:ein|kein|mein|dein|sein|unser|euer)$/.test(low) ||
-        /^(?:k?ein|[dms]ein|ihr|unser|eur|jed)(?:er|es)$/.test(low)) &&
-      !(
-        det !== low &&
-        m.index > 0 &&
-        !/[.!?:\n„"]\s*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
-      );
-    const isPreposition = PREPOSITIONS.has(low) && det === low;
-    const [start, end] = m.indices!.groups!.target;
-    const glued = adj[0].toUpperCase() + adj.slice(1) + noun.toLowerCase();
-    // "Echtzeit", "Weißgold": the joined word is a known noun.
-    const joinedNoun = !adj.endsWith("e") && germanNounReading(adj + noun.toLowerCase()) !== null;
-    // "Sie trinken lieber rot Wein", "kauft alt Gold": no article, a word that is no adverb.
-    if (!(isDeterminer || isPreposition)) {
-      const known =
-        joinedNoun &&
-        germanAdjective(adj) &&
-        ![ADVERBIAL, CLAUSE_ADVERBS, NOT_ADJECTIVES, ARTICLES].some((set) => set.has(adj));
-      if (
-        (COMPOUND_ALONE.has(adj) || known) &&
-        // "schwarz sehen", "rot sehen": a colour after the verb.
-        !/^(?:seh|sieh|sah)/.test(low) &&
-        !noun.includes("-") &&
-        /^\p{Ll}/u.test(det) &&
-        !ctx.dictionary.has(adj) &&
-        !ctx.dictionary.has(noun.toLowerCase())
-      ) {
-        findings.push(
-          finding("germanAdjectiveForms", "review_msg_closed_compound", start, end, [glued], {
-            context: { start: m.index, end },
-          }),
-        );
-      }
-      continue;
-    }
+const bareAdjective: MatchFixer = (m, ctx) => {
+  const { det, adj, noun } = m.groups!;
+  const low = det.toLowerCase();
+  const isDeterminer =
+    (ARTICLES.has(low) ||
+      DEMONSTRATIVES.has(low) ||
+      /^(?:ein|kein|mein|dein|sein|unser|euer)$/.test(low) ||
+      /^(?:k?ein|[dms]ein|ihr|unser|eur|jed)(?:er|es)$/.test(low)) &&
+    !(
+      det !== low &&
+      m.index > 0 &&
+      !/[.!?:\n„"]\s*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    );
+  const isPreposition = PREPOSITIONS.has(low) && det === low;
+  const [start, end] = m.indices!.groups!.target;
+  const glued = adj[0].toUpperCase() + adj.slice(1) + noun.toLowerCase();
+  // "Echtzeit", "Weißgold": the joined word is a known noun.
+  const joinedNoun = !adj.endsWith("e") && germanNounReading(adj + noun.toLowerCase()) !== null;
+  // "Sie trinken lieber rot Wein", "kauft alt Gold": no article, a word that is no adverb.
+  if (!(isDeterminer || isPreposition)) {
+    const known =
+      joinedNoun &&
+      germanAdjective(adj) &&
+      ![ADVERBIAL, CLAUSE_ADVERBS, NOT_ADJECTIVES, ARTICLES].some((set) => set.has(adj));
     if (
-      !(germanAdjective(adj) || COMPOUND_FIRST.has(adj)) ||
-      // "aus weiß Gold": "weiß" (knows) only where it joins the noun.
-      (NOT_ADJECTIVES.has(adj) && !(joinedNoun && /^wei(?:ß|ss)$/.test(adj))) ||
-      ARTICLES.has(adj)
-    )
-      continue;
-    // "letzte", "erster": already inflected.
-    const inflected = /^(.+?)(?:e|en|er|es|em)$/.exec(adj);
-    if (inflected && germanAdjective(inflected[1])) continue;
-    const [after = "", head = ""] = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 2);
-    // "im liebevoll Oma-Haus genannten Hof": an extended attribute before its
-    // noun; not a participle that ends the clause ("in öffentlich Gebäuden verboten.").
-    if (
-      /^\p{Ll}+(?:te|ten|ter|tes|tem|nde|nden|nder|ndes|ndem|ene|enen|ener|enes)$/u.test(after) &&
-      !(
-        BOUNDARY.test(head) &&
-        /^(?:\p{Ll}*ge\p{Ll}{2,}|(?:ver|be|er|ent|zer)\p{Ll}{2,})(?:t|en)$/u.test(after)
-      )
+      (COMPOUND_ALONE.has(adj) || known) &&
+      // "schwarz sehen", "rot sehen": a colour after the verb.
+      !/^(?:seh|sieh|sah)/.test(low) &&
+      !noun.includes("-") &&
+      /^\p{Ll}/u.test(det) &&
+      !ctx.dictionary.has(adj) &&
+      !ctx.dictionary.has(noun.toLowerCase())
     ) {
-      continue;
-    }
-    if (ctx.dictionary.has(adj) || ctx.dictionary.has(noun.toLowerCase())) continue;
-    // "dicht an dicht Perlen": a fixed pair around the preposition, no attribute.
-    if (isPreposition && tokensBefore(ctx.text, m.index, 1)[0]?.toLowerCase() === adj) continue;
-    const compound = adj + noun.toLowerCase();
-    // "Echtzeit": a bare adjective glued to the noun ("die letzte Bahn" stays).
-    // "in best Form", "aus rot Gold": a superlative stem, or a word that is no adverb after a
-    // preposition.
-    const stemOnly =
-      /^(?:best|mindest|höchst|kleinst|größt)$/.test(adj) ||
-      (isPreposition && COMPOUND_ALONE.has(adj));
-    // A compound the dictionary lists is the fix; one only the n-gram counts show is offered
-    // beside the ending ("das klein Kind": "kleine Kind" or "Kleinkind").
-    const listedJoin = joinedNoun && germanListedNoun(compound) !== null;
-    if ((listedJoin || (stemOnly && !adj.endsWith("e"))) && !noun.includes("-")) {
-      findings.push({
-        ruleId: "germanAdjectiveForms",
-        messageKey: "review_msg_closed_compound",
-        range: { start, end },
-        alternatives: [adj[0].toUpperCase() + compound.slice(1)],
+      return finding("germanAdjectiveForms", "review_msg_closed_compound", start, end, [glued], {
         context: { start: m.index, end },
       });
-      continue;
     }
-    if (ADVERBIAL.has(adj) || nominalized(noun) || !nounKnown(noun) || adj.endsWith("e")) continue;
-    if (isPreposition) {
-      // "in öffentlich Anlagen": the strong ending the preposition's case calls for, before a
-      // plural. "für wichtig halten", "um … zu", "die Jahre über": no preposition there.
-      if (/^(?:um|über|zu|bis|ab)$/.test(low) || PRONOUN_LIKE.test(adj)) continue;
-      // "für verschieden Themen": "für" only before a plural, and not in "für richtig Kinder
-      // zu loben".
-      if (low === "für" && (after === "zu" || !strongEndings(low, noun))) continue;
-      // "mit voll Ausstattung", "aus hart Pappe": before a singular, an adjective that opens
-      // compounds takes its ending or joins the noun.
-      const endings = strongEndings(low, noun) ?? compoundSingular(low, adj, noun);
-      if (!endings) continue;
-      const fixes = endings.map((e) => `${inflect(adj, e)} ${noun}`);
-      if ((COMPOUND_FIRST.has(adj) || joinedNoun) && !noun.includes("-")) fixes.push(glued);
-      findings.push(
-        finding("germanAdjectiveForms", "review_msg_german_adjective_ending", start, end, fixes, {
-          context: { start: m.index, end },
-          ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
-        }),
-      );
-      continue;
-    }
-    const before = tokensBefore(ctx.text, m.index, 2);
-    const prior = before.at(-1) ?? "";
-    const comma = before.length > 1 ? before[0] : "";
-    // "müde", "letzte": the bare form is already the -e form.
-    if (adj.endsWith("e")) continue;
-    // "von denen eines offensichtlich Kinder ansprach": "eines" is a pronoun there.
-    if (/^(?:denen|welchen|davon)$/i.test(prior) && /^k?ein(?:e|er|es)$/.test(low)) continue;
-    // ", in dem ständig Soldaten …": a relative pronoun.
-    if (comma === "," && /^d(?:er|en|em)$/.test(low)) continue;
-    // "der allgemein Anklang fand", "Ich meine wirklich Radio": a pronoun, or the verb.
-    const sentenceStart = prior === "" || /^[.!?:\n„"]$/.test(prior);
-    // "Sie hatte die original Rechnung": after a finite verb the d-word is an article.
-    const stem = /^(\p{Ll}{2,}?)e?(?:te|ten|t)$/u.exec(prior)?.[1];
-    // "hat das sicher Potenzial": a pronoun subject and an adverb, not an article.
-    const pronounRead = /^d(?:er|ie|as)$/.test(low) && CLAUSE_ADVERBS.has(adj);
-    const afterVerb =
-      !pronounRead &&
-      (VERB_GOVERNORS.has(prior) ||
-        (!!stem && !/^ge/.test(prior) && germanInfinitive(`${stem}en`)));
-    if (
-      /^d(?:er|ie|as|en|em)$/.test(low) &&
-      !sentenceStart &&
-      !afterVerb &&
-      !PREPOSITIONS.has(prior.toLowerCase()) &&
-      !COMPOUND_ALONE.has(adj)
-    ) {
-      continue;
-    }
-    // "macht einem richtig Lust": the pronoun "one", not an article.
-    if (/^ein(?:em|er)$/.test(low) && !PREPOSITIONS.has(prior.toLowerCase())) continue;
-    if (/^(?:ich|wir|sie|die)$/i.test(prior) && /^(?:meine|meinen|seine)$/.test(low)) continue;
-    let endings = endingAfter(det, prior, noun);
-    if (!endings) continue;
-    // "ein klein Haus" (kleines), "ein nett Mann" (netter): the noun's gender picks one. The
-    // bare form is also an old poetic one ("dein schmiegsam Weib"), rare enough to flag.
-    const gender = germanGender(noun.split("-").at(-1)!)?.gender;
-    if (endings.length > 1 && (gender === "m" || gender === "n")) {
-      endings = [gender === "m" ? "er" : "es"];
-    }
-    // "ein neu Wagen": "neuer Wagen" or "Neuwagen".
+    return null;
+  }
+  if (
+    !(germanAdjective(adj) || COMPOUND_FIRST.has(adj)) ||
+    // "aus weiß Gold": "weiß" (knows) only where it joins the noun.
+    (NOT_ADJECTIVES.has(adj) && !(joinedNoun && /^wei(?:ß|ss)$/.test(adj))) ||
+    ARTICLES.has(adj)
+  )
+    return null;
+  // "letzte", "erster": already inflected.
+  const inflected = /^(.+?)(?:e|en|er|es|em)$/.exec(adj);
+  if (inflected && germanAdjective(inflected[1])) return null;
+  const [after = "", head = ""] = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 2);
+  // "im liebevoll Oma-Haus genannten Hof": an extended attribute before its
+  // noun; not a participle that ends the clause ("in öffentlich Gebäuden verboten.").
+  if (
+    /^\p{Ll}+(?:te|ten|ter|tes|tem|nde|nden|nder|ndes|ndem|ene|enen|ener|enes)$/u.test(after) &&
+    !(
+      BOUNDARY.test(head) &&
+      /^(?:\p{Ll}*ge\p{Ll}{2,}|(?:ver|be|er|ent|zer)\p{Ll}{2,})(?:t|en)$/u.test(after)
+    )
+  ) {
+    return null;
+  }
+  if (ctx.dictionary.has(adj) || ctx.dictionary.has(noun.toLowerCase())) return null;
+  // "dicht an dicht Perlen": a fixed pair around the preposition, no attribute.
+  if (isPreposition && tokensBefore(ctx.text, m.index, 1)[0]?.toLowerCase() === adj) return null;
+  const compound = adj + noun.toLowerCase();
+  // "Echtzeit": a bare adjective glued to the noun ("die letzte Bahn" stays).
+  // "in best Form", "aus rot Gold": a superlative stem, or a word that is no adverb after a
+  // preposition.
+  const stemOnly =
+    /^(?:best|mindest|höchst|kleinst|größt)$/.test(adj) ||
+    (isPreposition && COMPOUND_ALONE.has(adj));
+  // A compound the dictionary lists is the fix; one only the n-gram counts show is offered
+  // beside the ending ("das klein Kind": "kleine Kind" or "Kleinkind").
+  const listedJoin = joinedNoun && germanListedNoun(compound) !== null;
+  if ((listedJoin || (stemOnly && !adj.endsWith("e"))) && !noun.includes("-")) {
+    return {
+      ruleId: "germanAdjectiveForms",
+      messageKey: "review_msg_closed_compound",
+      range: { start, end },
+      alternatives: [adj[0].toUpperCase() + compound.slice(1)],
+      context: { start: m.index, end },
+    };
+  }
+  if (ADVERBIAL.has(adj) || nominalized(noun) || !nounKnown(noun) || adj.endsWith("e")) return null;
+  if (isPreposition) {
+    // "in öffentlich Anlagen": the strong ending the preposition's case calls for, before a
+    // plural. "für wichtig halten", "um … zu", "die Jahre über": no preposition there.
+    if (/^(?:um|über|zu|bis|ab)$/.test(low) || PRONOUN_LIKE.test(adj)) return null;
+    // "für verschieden Themen": "für" only before a plural, and not in "für richtig Kinder
+    // zu loben".
+    if (low === "für" && (after === "zu" || !strongEndings(low, noun))) return null;
+    // "mit voll Ausstattung", "aus hart Pappe": before a singular, an adjective that opens
+    // compounds takes its ending or joins the noun.
+    const endings = strongEndings(low, noun) ?? compoundSingular(low, adj, noun);
+    if (!endings) return null;
     const fixes = endings.map((e) => `${inflect(adj, e)} ${noun}`);
     if ((COMPOUND_FIRST.has(adj) || joinedNoun) && !noun.includes("-")) fixes.push(glued);
-    findings.push(
-      finding("germanAdjectiveForms", "review_msg_german_adjective_ending", start, end, fixes, {
+    return finding(
+      "germanAdjectiveForms",
+      "review_msg_german_adjective_ending",
+      start,
+      end,
+      fixes,
+      {
         context: { start: m.index, end },
         ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
-      }),
+      },
     );
   }
-  return findings;
-}
+  const before = tokensBefore(ctx.text, m.index, 2);
+  const prior = before.at(-1) ?? "";
+  const comma = before.length > 1 ? before[0] : "";
+  // "müde", "letzte": the bare form is already the -e form.
+  if (adj.endsWith("e")) return null;
+  // "von denen eines offensichtlich Kinder ansprach": "eines" is a pronoun there.
+  if (/^(?:denen|welchen|davon)$/i.test(prior) && /^k?ein(?:e|er|es)$/.test(low)) return null;
+  // ", in dem ständig Soldaten …": a relative pronoun.
+  if (comma === "," && /^d(?:er|en|em)$/.test(low)) return null;
+  // "der allgemein Anklang fand", "Ich meine wirklich Radio": a pronoun, or the verb.
+  const sentenceStart = prior === "" || /^[.!?:\n„"]$/.test(prior);
+  // "Sie hatte die original Rechnung": after a finite verb the d-word is an article.
+  const stem = /^(\p{Ll}{2,}?)e?(?:te|ten|t)$/u.exec(prior)?.[1];
+  // "hat das sicher Potenzial": a pronoun subject and an adverb, not an article.
+  const pronounRead = /^d(?:er|ie|as)$/.test(low) && CLAUSE_ADVERBS.has(adj);
+  const afterVerb =
+    !pronounRead &&
+    (VERB_GOVERNORS.has(prior) || (!!stem && !/^ge/.test(prior) && germanInfinitive(`${stem}en`)));
+  if (
+    /^d(?:er|ie|as|en|em)$/.test(low) &&
+    !sentenceStart &&
+    !afterVerb &&
+    !PREPOSITIONS.has(prior.toLowerCase()) &&
+    !COMPOUND_ALONE.has(adj)
+  ) {
+    return null;
+  }
+  // "macht einem richtig Lust": the pronoun "one", not an article.
+  if (/^ein(?:em|er)$/.test(low) && !PREPOSITIONS.has(prior.toLowerCase())) return null;
+  if (/^(?:ich|wir|sie|die)$/i.test(prior) && /^(?:meine|meinen|seine)$/.test(low)) return null;
+  let endings = endingAfter(det, prior, noun);
+  if (!endings) return null;
+  // "ein klein Haus" (kleines), "ein nett Mann" (netter): the noun's gender picks one. The
+  // bare form is also an old poetic one ("dein schmiegsam Weib"), rare enough to flag.
+  const gender = germanGender(noun.split("-").at(-1)!)?.gender;
+  if (endings.length > 1 && (gender === "m" || gender === "n")) {
+    endings = [gender === "m" ? "er" : "es"];
+  }
+  // "ein neu Wagen": "neuer Wagen" or "Neuwagen".
+  const fixes = endings.map((e) => `${inflect(adj, e)} ${noun}`);
+  if ((COMPOUND_FIRST.has(adj) || joinedNoun) && !noun.includes("-")) fixes.push(glued);
+  return finding("germanAdjectiveForms", "review_msg_german_adjective_ending", start, end, fixes, {
+    context: { start: m.index, end },
+    ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+  });
+};
 
-// A predicative adjective takes no ending: "Er war schnelle." (schnell), "Die sind schlauen."
-const COPULA = "ist|sind|war|waren|bin|bist|seid|wird|werden|wurde|wurden|bleibt|blieb|bleiben";
-const DEGREE_ADVERBS =
-  "sehr|so|ganz|zu|echt|wirklich|ziemlich|richtig|total|nicht|doch|auch|schon|immer|eher|recht|extrem|einfach|leider|wohl";
-const PREDICATIVE = new RegExp(
-  `${WORD_GATE}(?:${COPULA})(?:${SPACE}(?:${DEGREE_ADVERBS}))*${SPACE}(?<target>\\p{Ll}{3,}?(?:e|en))(?=[ \\t]*[.!?])`,
-  "gdu",
-);
-// "Er ist schnelle als ich" → schneller: an ending before "als" where the comparative belongs.
-const BEFORE_ALS = new RegExp(
-  `${WORD_GATE}(?<prior>\\p{L}+)${SPACE}(?<target>\\p{Ll}{3,}?e)(?=${SPACE}als${WORD_END})`,
-  "gdu",
-);
 // Inflected words that are no adjective here: quantifiers, ordinals, pronouns.
 const NOT_PREDICATIVE = wordSet(
   "viele vielen wenige wenigen alle allen beide beiden einige einigen andere anderen manche " +
@@ -397,124 +354,108 @@ function lemmaOf(form: string): string | null {
   return candidates.find((c) => c.length >= 3 && germanAdjective(c)) ?? null;
 }
 
-function predicative(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, PREDICATIVE)) {
-    const typed = m.groups!.target;
-    // "müde", "leise", "böse": the lemma itself ends in -e.
-    if (NOT_PREDICATIVE.has(typed) || germanAdjective(typed) || ctx.dictionary.has(typed)) continue;
-    if (germanNounReading(typed) !== null) continue;
-    const lemma = lemmaOf(typed);
-    if (!lemma) continue;
-    const [start, end] = m.indices!.groups!.target;
-    findings.push(
-      finding("germanAdjectiveForms", "review_msg_german_predicative", start, end, [lemma], {
-        context: { start: m.index, end },
-      }),
-    );
-  }
-  for (const m of frameMatches(ctx, BEFORE_ALS)) {
-    const { prior, target: typed } = m.groups!;
-    // "die rote als Ersatz", "sowohl eine kleine als auch": an elided noun or a pair.
-    if (/^(?:k?ein|[dms]ein|ihr|unser|eu|dies|jen|jed|welch|d)\p{L}*$/iu.test(prior)) continue;
-    if (
-      /^(?:sowohl|als|wie)$/i.test(prior) ||
-      /^als[ \t]+auch/.test(ctx.text.slice(m.index + m[0].length + 1))
-    )
-      continue;
-    if (NOT_PREDICATIVE.has(typed) || germanAdjective(typed) || ctx.dictionary.has(typed)) continue;
-    const lemma = lemmaOf(typed);
-    // A vowel that may take an umlaut in the comparative ("größer") is left out.
-    if (!lemma || /[aou](?![u])/.test(lemma.replace(/[ae]u/g, ""))) continue;
-    const [start, end] = m.indices!.groups!.target;
-    findings.push(
-      finding("germanAdjectiveForms", "review_msg_german_predicative", start, end, [`${lemma}er`], {
-        context: { start: m.index, end: end + 4 },
-      }),
-    );
-  }
-  return findings;
-}
+const predicative: MatchFixer = (m, ctx) => {
+  const typed = m.groups!.target;
+  // "müde", "leise", "böse": the lemma itself ends in -e.
+  if (NOT_PREDICATIVE.has(typed) || germanAdjective(typed) || ctx.dictionary.has(typed))
+    return null;
+  if (germanNounReading(typed) !== null) return null;
+  const lemma = lemmaOf(typed);
+  if (!lemma) return null;
+  const [start, end] = m.indices!.groups!.target;
+  return finding("germanAdjectiveForms", "review_msg_german_predicative", start, end, [lemma], {
+    context: { start: m.index, end },
+  });
+};
 
-function strongAfterArticle(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, STRONG_AFTER_ARTICLE)) {
-    const typed = m.groups!.target;
-    const det = m.groups!.det.toLowerCase();
-    // "-em" after a dative article, "-es" after a genitive one.
-    if (typed.endsWith("es") !== det.endsWith("es")) continue;
-    const stem = typed.slice(0, -2);
-    // "einem einem Haus", "dem diesem": a determiner, not an adjective.
-    if (
-      /^(?:ein|kein|mein|dein|sein|ihr|unser|eur|dies|jen|jed|welch|manch|solch|all|d)$/.test(stem)
-    )
-      continue;
-    if (
-      !germanAdjective(stem) &&
-      !germanAdjective(`${stem}e`) &&
-      !germanAdjective(stem.replace(/(.)([lr])$/, "$1e$2"))
-    ) {
-      continue;
-    }
-    if (ctx.dictionary.has(typed)) continue;
-    const end = m.indices!.groups!.target[1];
-    findings.push(
-      finding("germanAdjectiveForms", "review_msg_german_adjective_ending", end - 2, end, ["en"], {
-        context: { start: m.index, end },
-      }),
-    );
+const beforeAls: MatchFixer = (m, ctx) => {
+  const { prior, target: typed } = m.groups!;
+  // "die rote als Ersatz", "sowohl eine kleine als auch": an elided noun or a pair.
+  if (/^(?:k?ein|[dms]ein|ihr|unser|eu|dies|jen|jed|welch|d)\p{L}*$/iu.test(prior)) return null;
+  if (
+    /^(?:sowohl|als|wie)$/i.test(prior) ||
+    /^als[ \t]+auch/.test(ctx.text.slice(m.index + m[0].length + 1))
+  )
+    return null;
+  if (NOT_PREDICATIVE.has(typed) || germanAdjective(typed) || ctx.dictionary.has(typed))
+    return null;
+  const lemma = lemmaOf(typed);
+  // A vowel that may take an umlaut in the comparative ("größer") is left out.
+  if (!lemma || /[aou](?![u])/.test(lemma.replace(/[ae]u/g, ""))) return null;
+  const [start, end] = m.indices!.groups!.target;
+  return finding(
+    "germanAdjectiveForms",
+    "review_msg_german_predicative",
+    start,
+    end,
+    [`${lemma}er`],
+    {
+      context: { start: m.index, end: end + 4 },
+    },
+  );
+};
+
+const strongAfterArticle: MatchFixer = (m, ctx) => {
+  const typed = m.groups!.target;
+  const det = m.groups!.det.toLowerCase();
+  // "-em" after a dative article, "-es" after a genitive one.
+  if (typed.endsWith("es") !== det.endsWith("es")) return null;
+  const stem = typed.slice(0, -2);
+  // "einem einem Haus", "dem diesem": a determiner, not an adjective.
+  if (/^(?:ein|kein|mein|dein|sein|ihr|unser|eur|dies|jen|jed|welch|manch|solch|all|d)$/.test(stem))
+    return null;
+  if (
+    !germanAdjective(stem) &&
+    !germanAdjective(`${stem}e`) &&
+    !germanAdjective(stem.replace(/(.)([lr])$/, "$1e$2"))
+  ) {
+    return null;
   }
-  return findings;
-}
+  if (ctx.dictionary.has(typed)) return null;
+  const end = m.indices!.groups!.target[1];
+  return finding(
+    "germanAdjectiveForms",
+    "review_msg_german_adjective_ending",
+    end - 2,
+    end,
+    ["en"],
+    {
+      context: { start: m.index, end },
+    },
+  );
+};
 
 // "Beamter" declines like an adjective and has no feminine "die Beamte": "der Beamte", "ein
 // Beamter", "den Beamten", "die Beamten" (plural). The determiner sets the ending.
 const POSSESSIVE_STEMS = "k?ein|mein|dein|sein|ihr|unser|euer";
-const OFFICIAL = new RegExp(
-  `${WORD_GATE}(?<det>[Dd](?:er|ie|en|em|es)|[Dd]ies(?:er|e|en|em|es)|[Jj]ede[rnms]|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser|[Ee]uer)(?:en|em|es|er)?)(?:${SPACE}\\p{Ll}+(?:e|en|er|es|em))?${SPACE}(?<target>\\p{L}*[Bb]eamte[rn]?)${WORD_END}`,
-  "gdu",
-);
 function officialEndings(det: string): string[] {
   const d = det.toLowerCase();
   if (d === "der" || d === "dieser" || d === "jeder") return ["e", "en"];
   if (new RegExp(`^(?:${POSSESSIVE_STEMS})$`).test(d)) return ["er"];
   return ["en"];
 }
-function officials(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, OFFICIAL, "target")) {
-    const { det, target } = m.groups!;
-    // "Beamte", "Beamter", "Beamten": the typed ending after "Beamt".
-    const stem = target.replace(/e[rn]?$/, "");
-    const endings = officialEndings(det);
-    if (endings.includes(target.slice(stem.length)) || ctx.dictionary.has(target.toLowerCase()))
-      continue;
-    const [start, end] = m.indices!.groups!.target;
-    const alternatives = endings.map((e) => stem + e);
-    findings.push(
-      finding(
-        "germanAdjectiveForms",
-        "review_msg_german_adjective_ending",
-        start,
-        end,
-        alternatives,
-        {
-          context: { start: m.index, end },
-          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-        },
-      ),
-    );
-  }
-  return findings;
-}
+const official: MatchFixer = (m, ctx) => {
+  const { det, target } = m.groups!;
+  // "Beamte", "Beamter", "Beamten": the typed ending after "Beamt".
+  const stem = target.replace(/e[rn]?$/, "");
+  const endings = officialEndings(det);
+  if (endings.includes(target.slice(stem.length)) || ctx.dictionary.has(target.toLowerCase()))
+    return null;
+  const [start, end] = m.indices!.groups!.target;
+  const alternatives = endings.map((e) => stem + e);
+  return finding(
+    "germanAdjectiveForms",
+    "review_msg_german_adjective_ending",
+    start,
+    end,
+    alternatives,
+    {
+      context: { start: m.index, end },
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    },
+  );
+};
 
-// "Es werden folgenden Daten gespeichert": with no article, the plural subject after "werden"
-// takes the strong ending -e ("folgende Daten"). A plural in -n or -s may be a dative object
-// ("Die Bücher werden armen Kindern geschenkt"), so it counts only when no subject comes
-// before "werden": the clause opens with a preposition, "es" or an adverb.
-const WERDEN_PLURAL = gated(
-  `(?<=(?:werden|wurden|würden)${SPACE})(?<target>(?<adj>\\p{Ll}{3,}en)${SPACE}(?<noun>\\p{Lu}\\p{Ll}{2,}))${WORD_END}`,
-);
 const EMPTY_SUBJECT = wordSet(
   "es hier dort dann danach nun jetzt heute morgen dabei dadurch damit zudem außerdem zuerst " +
     "anschließend künftig bald oft",
@@ -522,56 +463,46 @@ const EMPTY_SUBJECT = wordSet(
 const PARTICIPLE =
   /^(?:\p{Ll}*ge\p{Ll}{2,}(?:t|en)|\p{Ll}{3,}iert|(?:ver|be|er|ent|zer|miss|unter|über|durch|hinter|wider)\p{Ll}{2,}(?:t|en))$/u;
 
-function werdenPlural(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, WERDEN_PLURAL)) {
-    const { adj, noun } = m.groups!;
-    const stem = adj.slice(0, -2);
-    const participle = /\p{Ll}{3,}end$/u.test(stem) && germanInfinitive(stem.slice(0, -1));
-    if (!(germanAdjective(stem) || participle) || ARTICLES.has(adj) || DEMONSTRATIVES.has(adj))
-      continue;
-    const reading = germanGender(noun);
-    const plural = reading
-      ? reading.plural || reading.gender === "f"
-      : [noun.slice(0, -1), noun.slice(0, -2)].some(
-          (s) => /n$/.test(noun) && s.length >= 3 && nounKnown(s),
-        ) ||
-        // "Bäume", "Projekte": a plural in -e of a known noun.
-        (/e$/.test(noun) && [noun.slice(0, -1), deumlaut(noun.slice(0, -1))].some(nounKnown));
-    // A feminine singular ("folgenden Frage") is no plural; "-n" alone shows the plural.
-    if (!plural || (reading?.gender === "f" && !/n$/.test(noun))) continue;
-    const [start, end] = m.indices!.groups!.target;
-    const [next = "", after = ""] = tokensAfter(ctx.text, end, 2);
-    if (!(PARTICIPLE.test(next) && BOUNDARY.test(after))) continue;
-    if (/[ns]$/.test(noun)) {
-      const clause = ctx.text
-        .slice(Math.max(0, m.index - 80), m.index)
-        .split(/[.!?;:\n,]/)
-        .at(-1)!
-        .match(/\p{L}+/gu) ?? [""];
-      const first = clause[0].toLowerCase();
-      if (!PREPOSITIONS.has(first) && !EMPTY_SUBJECT.has(first)) continue;
-    }
-    if (ctx.dictionary.has(adj) || namedExampleBefore(ctx.text, start)) continue;
-    findings.push(
-      finding("germanAdjectiveForms", "review_msg_german_adjective_ending", start, end, [
-        `${stem}e ${noun}`,
-      ]),
-    );
+const werdenPlural: MatchFixer = (m, ctx) => {
+  const { adj, noun } = m.groups!;
+  const stem = adj.slice(0, -2);
+  const participle = /\p{Ll}{3,}end$/u.test(stem) && germanInfinitive(stem.slice(0, -1));
+  if (!(germanAdjective(stem) || participle) || ARTICLES.has(adj) || DEMONSTRATIVES.has(adj))
+    return null;
+  const reading = germanGender(noun);
+  const plural = reading
+    ? reading.plural || reading.gender === "f"
+    : [noun.slice(0, -1), noun.slice(0, -2)].some(
+        (s) => /n$/.test(noun) && s.length >= 3 && nounKnown(s),
+      ) ||
+      // "Bäume", "Projekte": a plural in -e of a known noun.
+      (/e$/.test(noun) && [noun.slice(0, -1), deumlaut(noun.slice(0, -1))].some(nounKnown));
+  // A feminine singular ("folgenden Frage") is no plural; "-n" alone shows the plural.
+  if (!plural || (reading?.gender === "f" && !/n$/.test(noun))) return null;
+  const [start, end] = m.indices!.groups!.target;
+  const [next = "", after = ""] = tokensAfter(ctx.text, end, 2);
+  if (!(PARTICIPLE.test(next) && BOUNDARY.test(after))) return null;
+  if (/[ns]$/.test(noun)) {
+    const clause = ctx.text
+      .slice(Math.max(0, m.index - 80), m.index)
+      .split(/[.!?;:\n,]/)
+      .at(-1)!
+      .match(/\p{L}+/gu) ?? [""];
+    const first = clause[0].toLowerCase();
+    if (!PREPOSITIONS.has(first) && !EMPTY_SUBJECT.has(first)) return null;
   }
-  return findings;
-}
+  if (ctx.dictionary.has(adj) || namedExampleBefore(ctx.text, start)) return null;
+  return finding("germanAdjectiveForms", "review_msg_german_adjective_ending", start, end, [
+    `${stem}e ${noun}`,
+  ]);
+};
 
-export const PREDICATES = {
-  adjectiveForms: (ctx) =>
-    isGerman(ctx)
-      ? [
-          ...bareAdjectives(ctx),
-          ...werdenPlural(ctx),
-          ...strongAfterArticle(ctx),
-          ...salutationEndings(ctx),
-          ...predicative(ctx),
-          ...officials(ctx),
-        ]
-      : [],
-} satisfies Record<string, Detector>;
+/** The named frame fixes of the de.adjectiveForms rule (grammar/rules/de.yaml). */
+export const FIXERS = {
+  bareAdjective,
+  werdenPlural,
+  strongAfterArticle,
+  predicative,
+  beforeAls,
+  official,
+} satisfies Record<string, MatchFixer>;

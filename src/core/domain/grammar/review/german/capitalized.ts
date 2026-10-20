@@ -1,5 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   germanAdjective,
   germanInfinitive,
@@ -11,11 +11,9 @@ import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
 import {
   BOUNDARY,
   englishLine,
-  isGerman,
   tokensAfter,
   tokensBefore,
   VERB_GOVERNORS,
-  words,
   wordSet,
 } from "./shared";
 import { germanInfinitiveOf } from "./verbAgreement";
@@ -31,41 +29,37 @@ const NAME_CUES = wordSet(
 );
 const PARTICLES = wordSet("aus vor an ab zu");
 
-export function capitalizedAdjectives(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  for (const m of words(ctx)) {
-    const typed = m[0];
-    if (!/^\p{Lu}\p{Ll}{2,}$/u.test(typed)) continue;
-    const low = typed.toLowerCase();
-    if (!germanAdjective(low) || germanMayBeNoun(low) || germanInfinitive(low)) continue;
-    const prior = tokensBefore(ctx.text, m.index, 1)[0] ?? "";
-    if (!/^\p{Ll}+$/u.test(prior) || NAME_CUES.has(prior) || PREPOSITIONS.has(prior)) continue;
-    if (ARTICLES.has(prior) || DEMONSTRATIVES.has(prior)) continue;
-    const end = m.index + typed.length;
-    const [next = "", second = ""] = tokensAfter(ctx.text, end, 2);
-    // The clause ends after it, or after its verb, zu-infinitive or particle ("Weiß gefärbt.",
-    // "Mundtot zu machen", "Kahl aus.").
-    const closes =
-      (BOUNDARY.test(next) && next !== "-") ||
-      (next === "zu" && germanInfinitive(second)) ||
-      ((/^\p{Ll}*(?:ge\p{Ll}+(?:t|en)|iert)$/u.test(next) || PARTICLES.has(next)) &&
-        BOUNDARY.test(second));
-    if (!closes || ctx.dictionary.has(low)) continue;
-    // "Lernt ihr Französisch?", "ist Norddeutsch": a language is a noun, unless it "kommt
-    // einem spanisch vor".
-    if (/(?:isch|deutsch)$/.test(low) && next !== "vor") continue;
-    if (namedExampleBefore(ctx.text, m.index) || englishLine(ctx.text, m.index)) continue;
-    findings.push({
-      ruleId: "germanNounCasing",
-      messageKey: "review_msg_german_not_noun",
-      range: { start: m.index, end: m.index + 1 },
-      alternatives: [typed[0].toLowerCase()],
-      context: { start: Math.max(0, m.index - 40), end },
-    });
-  }
-  return findings;
-}
+const capitalizedAdjective: MatchFixer = (m, ctx) => {
+  const typed = m[0];
+  if (!/^\p{Lu}\p{Ll}{2,}$/u.test(typed)) return null;
+  const low = typed.toLowerCase();
+  if (!germanAdjective(low) || germanMayBeNoun(low) || germanInfinitive(low)) return null;
+  const prior = tokensBefore(ctx.text, m.index, 1)[0] ?? "";
+  if (!/^\p{Ll}+$/u.test(prior) || NAME_CUES.has(prior) || PREPOSITIONS.has(prior)) return null;
+  if (ARTICLES.has(prior) || DEMONSTRATIVES.has(prior)) return null;
+  const end = m.index + typed.length;
+  const [next = "", second = ""] = tokensAfter(ctx.text, end, 2);
+  // The clause ends after it, or after its verb, zu-infinitive or particle ("Weiß gefärbt.",
+  // "Mundtot zu machen", "Kahl aus.").
+  const closes =
+    (BOUNDARY.test(next) && next !== "-") ||
+    (next === "zu" && germanInfinitive(second)) ||
+    ((/^\p{Ll}*(?:ge\p{Ll}+(?:t|en)|iert)$/u.test(next) || PARTICLES.has(next)) &&
+      BOUNDARY.test(second));
+  if (!closes || ctx.dictionary.has(low)) return null;
+  // "Lernt ihr Französisch?", "ist Norddeutsch": a language is a noun, unless it "kommt
+  // einem spanisch vor".
+  if (/(?:isch|deutsch)$/.test(low) && next !== "vor") return null;
+  if (namedExampleBefore(ctx.text, m.index) || englishLine(ctx.text, m.index)) return null;
+  return {
+    ruleId: "germanNounCasing",
+    messageKey: "review_msg_german_not_noun",
+    range: { start: m.index, end: m.index + 1 },
+    alternatives: [typed[0].toLowerCase()],
+    context: { start: Math.max(0, m.index - 40), end },
+  };
+  return null;
+};
 
 // A finite verb capitalized after its subject pronoun: "Ich Koche heute.", "Wir Treffen uns
 // später.", "weil ich Arbeite,". Only where the pronoun opens the sentence (the verb comes
@@ -99,38 +93,40 @@ function agrees(pronoun: string, low: string): boolean {
   }
 }
 
-export function capitalizedVerbs(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  for (const m of words(ctx)) {
-    const pronoun = m[0].toLowerCase();
-    if (!/^(?:ich|du|er|sie|es|wir)$/.test(pronoun)) continue;
-    const end = m.index + m[0].length;
-    const gap = /^[ \t]{1,4}(\p{Lu}\p{Ll}{2,})(?![\p{L}\p{M}\p{N}_-])/u.exec(
-      ctx.text.slice(end, end + 40),
-    );
-    if (!gap) continue;
-    const typed = gap[1];
-    const start = end + gap[0].length - typed.length;
-    const next = tokensAfter(ctx.text, start + typed.length, 1)[0] ?? "";
-    const prior = tokensBefore(ctx.text, m.index, 1)[0];
-    const opens = prior === undefined || /^[.!?:\n„“"»«]$/.test(prior);
-    const subordinate = prior !== undefined && SUBORDINATORS.has(prior.toLowerCase());
-    if (!(opens ? /^\p{Lu}/u.test(m[0]) : subordinate && BOUNDARY.test(next) && next !== "-"))
-      continue;
-    const low = typed.toLowerCase();
-    if (!agrees(pronoun, low) || ctx.dictionary.has(low)) continue;
-    // "Wir Kranken müssen", "Wir Kranken warten": an adjective made a noun after the pronoun.
-    if (VERB_GOVERNORS.has(next) || (/en$/.test(low) && germanAdjective(low.slice(0, -2))))
-      continue;
-    if (namedExampleBefore(ctx.text, m.index) || englishLine(ctx.text, m.index)) continue;
-    findings.push({
-      ruleId: "germanNounCasing",
-      messageKey: "review_msg_german_not_noun",
-      range: { start, end: start + 1 },
-      alternatives: [typed[0].toLowerCase()],
-      context: { start: m.index, end: start + typed.length },
-    });
-  }
-  return findings;
-}
+const capitalizedVerb: MatchFixer = (m, ctx) => {
+  const pronoun = m[0].toLowerCase();
+  if (!/^(?:ich|du|er|sie|es|wir)$/.test(pronoun)) return null;
+  const end = m.index + m[0].length;
+  const gap = /^[ \t]{1,4}(\p{Lu}\p{Ll}{2,})(?![\p{L}\p{M}\p{N}_-])/u.exec(
+    ctx.text.slice(end, end + 40),
+  );
+  if (!gap) return null;
+  const typed = gap[1];
+  const start = end + gap[0].length - typed.length;
+  const next = tokensAfter(ctx.text, start + typed.length, 1)[0] ?? "";
+  const prior = tokensBefore(ctx.text, m.index, 1)[0];
+  const opens = prior === undefined || /^[.!?:\n„“"»«]$/.test(prior);
+  const subordinate = prior !== undefined && SUBORDINATORS.has(prior.toLowerCase());
+  if (!(opens ? /^\p{Lu}/u.test(m[0]) : subordinate && BOUNDARY.test(next) && next !== "-"))
+    return null;
+  const low = typed.toLowerCase();
+  if (!agrees(pronoun, low) || ctx.dictionary.has(low)) return null;
+  // "Wir Kranken müssen", "Wir Kranken warten": an adjective made a noun after the pronoun.
+  if (VERB_GOVERNORS.has(next) || (/en$/.test(low) && germanAdjective(low.slice(0, -2))))
+    return null;
+  if (namedExampleBefore(ctx.text, m.index) || englishLine(ctx.text, m.index)) return null;
+  return {
+    ruleId: "germanNounCasing",
+    messageKey: "review_msg_german_not_noun",
+    range: { start, end: start + 1 },
+    alternatives: [typed[0].toLowerCase()],
+    context: { start: m.index, end: start + typed.length },
+  };
+  return null;
+};
+
+/** The named frame fixes of the capital frames of the de.nounCasing rule (grammar/rules/de.yaml). */
+export const FIXERS = {
+  capitalizedAdjective,
+  capitalizedVerb,
+} satisfies Record<string, MatchFixer>;

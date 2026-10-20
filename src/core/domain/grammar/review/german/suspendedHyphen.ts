@@ -1,6 +1,4 @@
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { Detector } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   germanAdjective,
   germanInfinitive,
@@ -8,7 +6,7 @@ import {
   germanNounReading,
 } from "./germanLexicon";
 import { determinerFits } from "./articleGender";
-import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet, WORD_GATE } from "./shared";
+import { BOUNDARY, tokensAfter, tokensBefore, wordSet } from "./shared";
 
 // The shortened first part of a coordination takes a hyphen: "Vor- und Nachteile",
 // "Ein- und Ausgang", "an- und abmelden". Flagged when the first part is no word of its own
@@ -18,18 +16,9 @@ import { BOUNDARY, isGerman, tokensAfter, tokensBefore, wordSet, WORD_GATE } fro
  * a path; Review's technical-token guard lets them through in German text. */
 export const GERMAN_SLASH_PAIR = /^\p{Lu}\p{Ll}+\/\p{Lu}\p{Ll}+$/u;
 
-const PAIR = new RegExp(
-  `${WORD_GATE}(?<target>\\p{L}+)(?<join>${SPACE}(?:und|oder|bzw\\.|bis)${SPACE}|\\/)(?<second>\\p{L}+)${WORD_END}`,
-  "gdu",
-);
-
 // Singular finite verbs after a subject: "wurde", "ist", "hat".
 const SINGULAR_VERBS =
   /^(?:ist|war|wird|wurde|hat|hatte|kann|muss|soll|darf|bleibt|gilt|steht|liegt|geht|kommt)$/;
-const TORN = new RegExp(
-  `${WORD_GATE}(?<target>(?<hin>[Hh]in)${SPACE}und${SPACE}her${SPACE}gerissen)${WORD_END}`,
-  "gdu",
-);
 const knownNoun = (word: string) => germanNounReading(word) !== null;
 /** A noun, or a compound ending in one ("bestandskunden"). */
 const nounTail = (word: string) =>
@@ -75,20 +64,19 @@ function joins(first: string, second: string, noun: boolean): boolean {
   return false;
 }
 
-function suspendedHyphen(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, PAIR)) {
+/** The named frame fixes of the de.suspendedHyphen rule (grammar/rules/de.yaml). */
+export const FIXERS = {
+  suspendedPart: (m, ctx) => {
     const { target: first, second } = m.groups!;
     // "Ober und untergärige Sorten": a lowercase first part capitalized at a sentence start.
     const opening = BOUNDARY.test(tokensBefore(ctx.text, m.index, 1).at(-1) ?? "");
     const capital = /^\p{Lu}/u.test(first) && !(opening && /^\p{Ll}/u.test(second));
     // Both parts nouns ("Vor und Nachteile") or both lowercase ("ein und auszuloggen").
-    if (capital !== /^\p{Lu}/u.test(second) || first.length > 14) continue;
-    if (!capital && /^\p{Lu}/u.test(first) && !PARTICLES.has(first.toLowerCase())) continue;
+    if (capital !== /^\p{Lu}/u.test(second) || first.length > 14) return null;
+    if (!capital && /^\p{Lu}/u.test(first) && !PARTICLES.has(first.toLowerCase())) return null;
     // "die Unterlagen bis Freitag": "bis" between nouns is a range, not a shortened part.
-    if (capital && /bis/.test(m.groups!.join)) continue;
-    if (ctx.dictionary.has(first.toLowerCase())) continue;
+    if (capital && /bis/.test(m.groups!.join)) return null;
+    if (ctx.dictionary.has(first.toLowerCase())) return null;
     let sure = false;
     if (capital) {
       const low = first.toLowerCase();
@@ -143,33 +131,27 @@ function suspendedHyphen(ctx: DetectContext): RawFinding[] {
         ) &&
         germanListedNoun(second.toLowerCase()) === null &&
         nounTail(second.toLowerCase());
-      if (!sure && !linking && germanNounReading(low) === "noun") continue;
+      if (!sure && !linking && germanNounReading(low) === "noun") return null;
     }
-    if (!sure && !joins(capital ? first : first.toLowerCase(), second, capital)) continue;
+    if (!sure && !joins(capital ? first : first.toLowerCase(), second, capital)) return null;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
+    return {
       ruleId: "germanSuspendedHyphen",
       messageKey: "review_msg_german_suspended_hyphen",
       range: { start, end },
       alternatives: [`${first}-`],
       context: { start: m.index, end: m.index + m[0].length },
-    });
-  }
-  // "hin und her gerissen": torn between two choices, the participle of "hin- und herreißen".
-  for (const m of frameMatches(ctx, TORN)) {
+    };
+  },
+  torn: (m) => {
     const [start, end] = m.indices!.groups!.target;
     const hin = m.groups!.hin;
-    findings.push({
+    return {
       ruleId: "germanSuspendedHyphen",
       messageKey: "review_msg_german_suspended_hyphen",
       range: { start, end },
       alternatives: [`${hin}- und hergerissen`],
       context: { start, end },
-    });
-  }
-  return findings;
-}
-
-export const PREDICATES = {
-  suspendedHyphen,
-} satisfies Record<string, Detector>;
+    };
+  },
+} satisfies Record<string, MatchFixer>;

@@ -1,5 +1,4 @@
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   germanAdjective,
@@ -15,13 +14,11 @@ import { PREPOSITIONS } from "./nounCasing";
 import {
   BOUNDARY,
   ci,
-  isGerman,
   tokensAfter,
   tokensBefore,
   VERB_GOVERNORS,
   wordEntries,
   wordSet,
-  WORD_GATE,
   likeTyped,
 } from "./shared";
 import { finding } from "../finding";
@@ -109,11 +106,6 @@ const DETERMINER = [
 ]
   .flatMap((group) => group.split(" ").map(ci))
   .join("|");
-const PHRASE = new RegExp(
-  `${WORD_GATE}(?<det>${DETERMINER})(?<mods>(?:${SPACE}(?:${DEGREE}|\\p{Ll}+(?:e|en|er|es|em))){0,3})` +
-    `${SPACE}(?<noun>\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*)${WORD_END}`,
-  "gdu",
-);
 
 type Determiner = { kind: Kind; stem: string; ending: string; cases?: Case[]; prep?: string };
 
@@ -578,221 +570,212 @@ const TIME_SPANS = new Set(
 // "Lehrer:innen", and inside a compound "Student:innenvertretung".
 const GENDER_SIGN = /^[*:_/](?:[Ii]n(?:nen)?(?!\p{L})|innen\p{Ll})/u;
 
-function articleGender(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, PHRASE, "det")) {
-    const { det: typed, mods = "", noun } = m.groups!;
-    const det = parse(typed);
-    if (!det) continue;
-    const parts = noun.split("-");
-    const head = parts.at(-1)!;
-    if (head.length < 3 || !/^\p{Lu}/u.test(head)) continue;
-    if (ctx.dictionary.has(noun.toLowerCase()) || ctx.dictionary.has(head.toLowerCase())) continue;
-    // "Kolleg*innen", "Lehrer:innen": a gender sign, then the feminine plural.
-    if (GENDER_SIGN.test(ctx.text.slice(m.indices!.groups!.noun[1]))) continue;
-    const compound = splitCompound(ctx, m, typed, noun);
-    if (compound) {
-      findings.push(compound);
-      continue;
-    }
-    const reading = germanGender(head);
-    if (!reading && !mods.trim()) {
-      const nominal = nominalizedAdjective(ctx, m, det, typed, noun);
-      if (nominal) findings.push(nominal);
-      continue;
-    }
-    // "Die Bild": the newspaper.
-    if (!reading || /^die bild$/i.test(`${typed} ${noun}`)) continue;
-    // "am Bande", "im Walde": the old dative -e of a masculine or neuter noun ("das Band").
-    // A stem of two genders ("Band") counts too.
-    const stem = /\p{Ll}{2}e$/u.test(head) ? head.slice(0, -1) : "";
-    const stemGender = stem ? germanGender(stem) : null;
-    const oldDative = stemGender
-      ? stemGender.gender !== "f"
-      : stem !== "" && germanTwoGenders(stem);
-    if (oldDative && readings(det).some(([g, c]) => c === "dat" && (g === "m" || g === "n"))) {
-      continue;
-    }
-    // "zum Zeitung lesen": a verb phrase made a noun, which the compound check joins.
-    const verb = /^[ \t]+(\p{Ll}+)/u.exec(
-      ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 40),
-    )?.[1];
-    if (/^(?:zum|beim|vom)$/i.test(typed) && !mods.trim() && verb && nominalVerb(verb)) continue;
-    // "die Naturschutz und Umweltthemen": the first part of a shortened compound pair, which
-    // the suspended-hyphen check repairs.
-    const pair = /^[ \t]+(?:und|oder)[ \t]+(\p{Lu}\p{Ll}{4,})/u.exec(
-      ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 40),
-    );
-    if (pair && determinerFits(typed, pair[1]) !== false) continue;
-    const adjectives = mods.trim() ? mods.trim().split(/[ \t\u00a0]+/) : [];
-    const inflected = adjectives.filter((a) => !DEGREE_WORD.test(a));
-    if (!inflected.every(isAdjective)) continue;
-    // "die im folgenden beschriebene", "im wesentlichen Geschmackssache": adjectives that do
-    // not agree with each other, or a lowercased noun after a contraction, head no phrase.
-    if (new Set(inflected.map(endingOf)).size > 1) continue;
-    if (/^(?:im|am|vom|beim)$/i.test(typed) && inflected.length) continue;
-    const before = tokensBefore(ctx.text, m.index, 2);
-    const prior = (before.at(-1) ?? "").toLowerCase();
-    const start = sentenceStart(before);
-    const afterPreposition = PREPOSITIONS.has(prior);
-    const nounEnd = m.indices!.groups!.noun[1];
-    const [detStart] = m.indices!.groups!.det;
-    const end = adjectives.length ? m.indices!.groups!.mods[1] : m.indices!.groups!.det[1];
-    const typedReadings = readings(det);
-    // "ein schöner Haus", "sein erster Werk": after an ein-word without ending the adjective
-    // shows the gender, -es for a neuter noun.
-    const bareEin =
-      det.kind === "ein" &&
-      det.ending === "" &&
-      inflected.length > 0 &&
-      reading.gender === "n" &&
-      !reading.plural &&
-      !(det.stem === "sein" && VERB_GOVERNORS.has(prior));
-    if (bareEin) {
-      // "-er" only: "ein schönen Haus" may want "einem" (the case check below).
-      const want = "es";
-      if (inflected.every((a) => endingOf(a) === "er")) {
-        const words = adjectives.map((a) =>
-          DEGREE_WORD.test(a) ? a : a.replace(/(?:e|en|er|es|em)$/, want),
-        );
-        findings.push({
-          ruleId: "germanArticleGender",
-          messageKey: "review_msg_german_adjective_ending",
-          range: { start: m.indices!.groups!.mods[0] + mods.length - mods.trimStart().length, end },
-          alternatives: [words.join(" ")],
-          context: { start: m.index, end: nounEnd },
-        });
-        continue;
-      }
-    }
-    // "über sein Umzug", "um kein Tisch": a bare ein-word before a masculine noun is only a
-    // nominative, which no preposition governs. Not "was für ein Lärm", "ohne ein Titel zu
-    // sein", "meiner Ansicht nach kein Konflikt", "ein Server internes Problem".
-    const clauseRest = /^[^.!?;,\n]*/.exec(ctx.text.slice(nounEnd, nounEnd + 200))![0];
-    const wrongCase =
-      det.kind === "ein" &&
-      det.ending === "" &&
-      reading.gender === "m" &&
-      !(det.stem === "kein" && prior === "ohne") &&
-      // "den ganzen Winter über ein Einzelgänger": "über" after a time is a postposition.
-      !(prior === "über" && TIME_SPANS.has(before.at(-2) ?? "")) &&
-      // "Halte durch, mein Schatz!": a particle, then someone addressed.
-      !(det.stem === "mein" && /^[ \t]*[!,]/.test(ctx.text.slice(nounEnd, nounEnd + 4))) &&
-      /^(?:für|um|gegen|ohne|durch|über|auf|in|an|unter|vor|hinter|neben|zwischen|mit|von|zu|bei|aus)$/.test(
-        prior,
-      ) &&
-      !/(?<!\p{L})was(?!\p{L})/iu.test(ctx.text.slice(Math.max(0, m.index - 30), m.index)) &&
-      !/(?<!\p{L})(?:sein|werden|bleiben|nach)(?!\p{L})/u.test(clauseRest) &&
-      !/^[ \t]+\p{Ll}+(?:e|es|en|er|em)[ \t]+\p{Lu}/u.test(clauseRest) &&
-      !/(?<!\p{L})(?:nach|und)[ \t]+$/u.test(
-        ctx.text.slice(Math.max(0, m.index - 12), m.index - prior.length - 1),
-      );
-    if (!wrongCase && typedReadings.some(([g, c]) => fits(head, reading, g, c))) {
-      const verb = verbObjectCase(ctx, m.index, nounEnd, det, typed, head, reading, adjectives);
-      if (verb) {
-        findings.push(
-          finding("germanArticleGender", "review_msg_german_verb_case", detStart, end, verb.fixes, {
-            context: { start: m.index, end: nounEnd },
-            ...(verb.fixes.length > 1 ? { requiresChoice: true as const } : {}),
-          }),
-        );
-        continue;
-      }
-      const recipient = indirectObject(
-        ctx,
-        m.index,
-        nounEnd,
-        det,
-        typed,
-        head,
-        reading,
-        adjectives,
-      );
-      if (recipient) {
-        findings.push({
-          ruleId: "germanArticleGender",
-          messageKey: "review_msg_german_verb_case",
-          range: { start: detStart, end },
-          alternatives: [recipient],
-          context: { start: m.index, end: nounEnd },
-        });
-        continue;
-      }
-      const object = objectCase(ctx, m.index, nounEnd, det, typed, reading, adjectives);
-      if (object) {
-        findings.push(
-          finding("germanArticleGender", "review_msg_german_object_case", detStart, end, [object], {
-            context: { start: m.index, end: nounEnd },
-          }),
-        );
-      }
-      continue;
-    }
-    // "der", "die", "diese" are also pronouns: "…, der Auto fährt", "weil die Angst haben".
-    if ((det.kind === "d" || det.kind === "dies") && !det.prep && !start && !afterPreposition) {
-      continue;
-    }
-    // "auf der einen Seite", "das eine Mal": an adjective "eine"; "ich meine", "kann sein",
-    // "ihr" and "einer" also are pronouns or verbs.
-    if (det.kind === "ein") {
-      if (DETERMINER_WORDS.test(prior) || /^(?:ans|aufs|durchs|fürs|ums)$/.test(prior)) continue;
-      if (det.stem === "ihr" || (det.stem === "mein" && /^(?:ich|wir|sie)$/.test(prior))) continue;
-      if (det.stem === "sein" && det.ending === "" && !afterPreposition) continue;
-      if (det.ending === "er" && /^k?ein$/.test(det.stem) && !afterPreposition) continue;
-    }
-    const after = tokensAfter(ctx.text, nounEnd, 2);
-    const next = after[0] ?? "";
-    // "die Hotel Lobby", "das Auto-" written apart, a name after the noun.
-    if (/^\p{Lu}/u.test(next) && !BOUNDARY.test(next)) continue;
-    // "eine Office 2021 Lizenz": an open compound with a number in it.
-    if (/^\p{N}+$/u.test(next) && /^\p{Lu}/u.test(after[1] ?? "")) continue;
-    // "die Rad fahren": a pronoun and a bare object.
-    if (det.kind !== "ein" && !det.prep && germanInfinitive(next)) continue;
-    // "die Gewinn und Verlustrechnung": a compound part missing its hyphen, whose article
-    // belongs to the compound after "und" (germanSuspendedHyphen).
-    if (/^(?:und|oder|sowie|bzw)$/.test(next) && determinerFits(typed, after[1] ?? "")) continue;
-    // The cases left: the typed article's, narrowed by the preposition or the sentence start.
-    let cases = [...new Set(typedReadings.map(([, c]) => c))];
-    const governed = det.prep ? undefined : afterPreposition ? GOVERNED.get(prior) : undefined;
-    if (governed) {
-      const narrowed = cases.filter((c) => governed.includes(c));
-      // "mit das Auto": the preposition's case is wrong too (germanPrepositionCase).
-      if (!narrowed.length) continue;
-      cases = narrowed;
-    } else if (start) {
-      // A sentence opens with its subject as often as not: "Unserer Test war kurz".
-      cases = cases.includes("nom") ? ["nom"] : ["nom", ...cases];
-    }
-    const genders: Gender[] = reading.gender === "x" ? ["m", "n"] : [reading.gender];
-    if (reading.plural && !(det.kind === "ein" && det.stem === "ein")) genders.push("pl");
-    const fixes = new Map<string, string>();
-    for (const c of cases) {
-      for (const g of genders) {
-        if (!fits(head, reading, g, c)) continue;
-        const article = spell(det, g, c, typed);
-        if (!article) continue;
-        const endings = ADJECTIVE_ENDINGS[det.kind === "ein" ? "mixed" : "weak"][g];
-        const ending = endings[CASE_ORDER.indexOf(c)];
-        const words = adjectives.map((a) =>
-          DEGREE_WORD.test(a) ? a : a.replace(/(?:e|en|er|es|em)$/, ending),
-        );
-        const replacement = [article, ...words].join(" ");
-        fixes.set(replacement, replacement);
-      }
-    }
-    if (!fixes.size || fixes.size > 3) continue;
-    findings.push({
-      ruleId: "germanArticleGender",
-      messageKey: "review_msg_german_article_gender",
-      range: { start: detStart, end },
-      alternatives: [...fixes.keys()],
-      context: { start: m.index, end: nounEnd },
-      ...(fixes.size > 1 ? { requiresChoice: true as const } : {}),
-    });
+const articlePhrase: MatchFixer = (m, ctx) => {
+  const { det: typed, mods = "", noun } = m.groups!;
+  const det = parse(typed);
+  if (!det) return null;
+  const parts = noun.split("-");
+  const head = parts.at(-1)!;
+  if (head.length < 3 || !/^\p{Lu}/u.test(head)) return null;
+  if (ctx.dictionary.has(noun.toLowerCase()) || ctx.dictionary.has(head.toLowerCase())) return null;
+  // "Kolleg*innen", "Lehrer:innen": a gender sign, then the feminine plural.
+  if (GENDER_SIGN.test(ctx.text.slice(m.indices!.groups!.noun[1]))) return null;
+  const compound = splitCompound(ctx, m, typed, noun);
+  if (compound) {
+    return compound;
   }
-  return findings;
-}
+  const reading = germanGender(head);
+  if (!reading && !mods.trim()) {
+    const nominal = nominalizedAdjective(ctx, m, det, typed, noun);
+    if (nominal) return nominal;
+    return null;
+  }
+  // "Die Bild": the newspaper.
+  if (!reading || /^die bild$/i.test(`${typed} ${noun}`)) return null;
+  // "am Bande", "im Walde": the old dative -e of a masculine or neuter noun ("das Band").
+  // A stem of two genders ("Band") counts too.
+  const stem = /\p{Ll}{2}e$/u.test(head) ? head.slice(0, -1) : "";
+  const stemGender = stem ? germanGender(stem) : null;
+  const oldDative = stemGender ? stemGender.gender !== "f" : stem !== "" && germanTwoGenders(stem);
+  if (oldDative && readings(det).some(([g, c]) => c === "dat" && (g === "m" || g === "n"))) {
+    return null;
+  }
+  // "zum Zeitung lesen": a verb phrase made a noun, which the compound check joins.
+  const verb = /^[ \t]+(\p{Ll}+)/u.exec(
+    ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 40),
+  )?.[1];
+  if (/^(?:zum|beim|vom)$/i.test(typed) && !mods.trim() && verb && nominalVerb(verb)) return null;
+  // "die Naturschutz und Umweltthemen": the first part of a shortened compound pair, which
+  // the suspended-hyphen check repairs.
+  const pair = /^[ \t]+(?:und|oder)[ \t]+(\p{Lu}\p{Ll}{4,})/u.exec(
+    ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 40),
+  );
+  if (pair && determinerFits(typed, pair[1]) !== false) return null;
+  const adjectives = mods.trim() ? mods.trim().split(/[ \t\u00a0]+/) : [];
+  const inflected = adjectives.filter((a) => !DEGREE_WORD.test(a));
+  if (!inflected.every(isAdjective)) return null;
+  // "die im folgenden beschriebene", "im wesentlichen Geschmackssache": adjectives that do
+  // not agree with each other, or a lowercased noun after a contraction, head no phrase.
+  if (new Set(inflected.map(endingOf)).size > 1) return null;
+  if (/^(?:im|am|vom|beim)$/i.test(typed) && inflected.length) return null;
+  const before = tokensBefore(ctx.text, m.index, 2);
+  const prior = (before.at(-1) ?? "").toLowerCase();
+  const start = sentenceStart(before);
+  const afterPreposition = PREPOSITIONS.has(prior);
+  const nounEnd = m.indices!.groups!.noun[1];
+  const [detStart] = m.indices!.groups!.det;
+  const end = adjectives.length ? m.indices!.groups!.mods[1] : m.indices!.groups!.det[1];
+  const typedReadings = readings(det);
+  // "ein schöner Haus", "sein erster Werk": after an ein-word without ending the adjective
+  // shows the gender, -es for a neuter noun.
+  const bareEin =
+    det.kind === "ein" &&
+    det.ending === "" &&
+    inflected.length > 0 &&
+    reading.gender === "n" &&
+    !reading.plural &&
+    !(det.stem === "sein" && VERB_GOVERNORS.has(prior));
+  if (bareEin) {
+    // "-er" only: "ein schönen Haus" may want "einem" (the case check below).
+    const want = "es";
+    if (inflected.every((a) => endingOf(a) === "er")) {
+      const words = adjectives.map((a) =>
+        DEGREE_WORD.test(a) ? a : a.replace(/(?:e|en|er|es|em)$/, want),
+      );
+      return {
+        ruleId: "germanArticleGender",
+        messageKey: "review_msg_german_adjective_ending",
+        range: { start: m.indices!.groups!.mods[0] + mods.length - mods.trimStart().length, end },
+        alternatives: [words.join(" ")],
+        context: { start: m.index, end: nounEnd },
+      };
+    }
+  }
+  // "über sein Umzug", "um kein Tisch": a bare ein-word before a masculine noun is only a
+  // nominative, which no preposition governs. Not "was für ein Lärm", "ohne ein Titel zu
+  // sein", "meiner Ansicht nach kein Konflikt", "ein Server internes Problem".
+  const clauseRest = /^[^.!?;,\n]*/.exec(ctx.text.slice(nounEnd, nounEnd + 200))![0];
+  const wrongCase =
+    det.kind === "ein" &&
+    det.ending === "" &&
+    reading.gender === "m" &&
+    !(det.stem === "kein" && prior === "ohne") &&
+    // "den ganzen Winter über ein Einzelgänger": "über" after a time is a postposition.
+    !(prior === "über" && TIME_SPANS.has(before.at(-2) ?? "")) &&
+    // "Halte durch, mein Schatz!": a particle, then someone addressed.
+    !(det.stem === "mein" && /^[ \t]*[!,]/.test(ctx.text.slice(nounEnd, nounEnd + 4))) &&
+    /^(?:für|um|gegen|ohne|durch|über|auf|in|an|unter|vor|hinter|neben|zwischen|mit|von|zu|bei|aus)$/.test(
+      prior,
+    ) &&
+    !/(?<!\p{L})was(?!\p{L})/iu.test(ctx.text.slice(Math.max(0, m.index - 30), m.index)) &&
+    !/(?<!\p{L})(?:sein|werden|bleiben|nach)(?!\p{L})/u.test(clauseRest) &&
+    !/^[ \t]+\p{Ll}+(?:e|es|en|er|em)[ \t]+\p{Lu}/u.test(clauseRest) &&
+    !/(?<!\p{L})(?:nach|und)[ \t]+$/u.test(
+      ctx.text.slice(Math.max(0, m.index - 12), m.index - prior.length - 1),
+    );
+  if (!wrongCase && typedReadings.some(([g, c]) => fits(head, reading, g, c))) {
+    const verb = verbObjectCase(ctx, m.index, nounEnd, det, typed, head, reading, adjectives);
+    if (verb) {
+      return finding(
+        "germanArticleGender",
+        "review_msg_german_verb_case",
+        detStart,
+        end,
+        verb.fixes,
+        {
+          context: { start: m.index, end: nounEnd },
+          ...(verb.fixes.length > 1 ? { requiresChoice: true as const } : {}),
+        },
+      );
+    }
+    const recipient = indirectObject(ctx, m.index, nounEnd, det, typed, head, reading, adjectives);
+    if (recipient) {
+      return {
+        ruleId: "germanArticleGender",
+        messageKey: "review_msg_german_verb_case",
+        range: { start: detStart, end },
+        alternatives: [recipient],
+        context: { start: m.index, end: nounEnd },
+      };
+    }
+    const object = objectCase(ctx, m.index, nounEnd, det, typed, reading, adjectives);
+    if (object) {
+      return finding(
+        "germanArticleGender",
+        "review_msg_german_object_case",
+        detStart,
+        end,
+        [object],
+        {
+          context: { start: m.index, end: nounEnd },
+        },
+      );
+    }
+    return null;
+  }
+  // "der", "die", "diese" are also pronouns: "…, der Auto fährt", "weil die Angst haben".
+  if ((det.kind === "d" || det.kind === "dies") && !det.prep && !start && !afterPreposition) {
+    return null;
+  }
+  // "auf der einen Seite", "das eine Mal": an adjective "eine"; "ich meine", "kann sein",
+  // "ihr" and "einer" also are pronouns or verbs.
+  if (det.kind === "ein") {
+    if (DETERMINER_WORDS.test(prior) || /^(?:ans|aufs|durchs|fürs|ums)$/.test(prior)) return null;
+    if (det.stem === "ihr" || (det.stem === "mein" && /^(?:ich|wir|sie)$/.test(prior))) return null;
+    if (det.stem === "sein" && det.ending === "" && !afterPreposition) return null;
+    if (det.ending === "er" && /^k?ein$/.test(det.stem) && !afterPreposition) return null;
+  }
+  const after = tokensAfter(ctx.text, nounEnd, 2);
+  const next = after[0] ?? "";
+  // "die Hotel Lobby", "das Auto-" written apart, a name after the noun.
+  if (/^\p{Lu}/u.test(next) && !BOUNDARY.test(next)) return null;
+  // "eine Office 2021 Lizenz": an open compound with a number in it.
+  if (/^\p{N}+$/u.test(next) && /^\p{Lu}/u.test(after[1] ?? "")) return null;
+  // "die Rad fahren": a pronoun and a bare object.
+  if (det.kind !== "ein" && !det.prep && germanInfinitive(next)) return null;
+  // "die Gewinn und Verlustrechnung": a compound part missing its hyphen, whose article
+  // belongs to the compound after "und" (germanSuspendedHyphen).
+  if (/^(?:und|oder|sowie|bzw)$/.test(next) && determinerFits(typed, after[1] ?? "")) return null;
+  // The cases left: the typed article's, narrowed by the preposition or the sentence start.
+  let cases = [...new Set(typedReadings.map(([, c]) => c))];
+  const governed = det.prep ? undefined : afterPreposition ? GOVERNED.get(prior) : undefined;
+  if (governed) {
+    const narrowed = cases.filter((c) => governed.includes(c));
+    // "mit das Auto": the preposition's case is wrong too (germanPrepositionCase).
+    if (!narrowed.length) return null;
+    cases = narrowed;
+  } else if (start) {
+    // A sentence opens with its subject as often as not: "Unserer Test war kurz".
+    cases = cases.includes("nom") ? ["nom"] : ["nom", ...cases];
+  }
+  const genders: Gender[] = reading.gender === "x" ? ["m", "n"] : [reading.gender];
+  if (reading.plural && !(det.kind === "ein" && det.stem === "ein")) genders.push("pl");
+  const fixes = new Map<string, string>();
+  for (const c of cases) {
+    for (const g of genders) {
+      if (!fits(head, reading, g, c)) return null;
+      const article = spell(det, g, c, typed);
+      if (!article) return null;
+      const endings = ADJECTIVE_ENDINGS[det.kind === "ein" ? "mixed" : "weak"][g];
+      const ending = endings[CASE_ORDER.indexOf(c)];
+      const words = adjectives.map((a) =>
+        DEGREE_WORD.test(a) ? a : a.replace(/(?:e|en|er|es|em)$/, ending),
+      );
+      const replacement = [article, ...words].join(" ");
+      fixes.set(replacement, replacement);
+    }
+  }
+  if (!fixes.size || fixes.size > 3) return null;
+  return {
+    ruleId: "germanArticleGender",
+    messageKey: "review_msg_german_article_gender",
+    range: { start: detStart, end },
+    alternatives: [...fixes.keys()],
+    context: { start: m.index, end: nounEnd },
+    ...(fixes.size > 1 ? { requiresChoice: true as const } : {}),
+  };
+  return null;
+};
 
 // An adjective with no article before its noun takes the strong ending that shows the case:
 // "schönes Wetter", "mit großer Freude", "herzlichen Dank".
@@ -802,10 +785,6 @@ const STRONG: Readonly<Record<Gender, readonly string[]>> = {
   n: ["es", "es", "em", "en"],
   pl: ["e", "e", "en", "er"],
 };
-const BARE = new RegExp(
-  `${WORD_GATE}(?<adj>\\p{L}+(?:e|en|er|es|em))${SPACE}(?<noun>\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*)${WORD_END}`,
-  "gdu",
-);
 // Verbs after which a bare noun phrase is the subject or object: "es gibt", "ist", "hat".
 const BARE_AFTER = wordSet(
   "ist sind war waren gibt gab hat habe haben hatte hatten wird werden bietet bieten braucht " +
@@ -818,69 +797,61 @@ const BARE_AFTER = wordSet(
 const QUANTIFIER =
   /^(?:(?:dies|jen|jed|welch|manch|all|viel|wenig|einig|mehrer|beid|etlich|sämtlich|irgendwelch)\p{Ll}*|inklusive|exklusive)$/u;
 
-function bareAdjective(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, BARE, "adj")) {
-    const { adj, noun } = m.groups!;
-    const low = adj.toLowerCase();
-    // "-er", "-en" and "-em" are left out: "früher", "voller", "weniger" and "vor allem" are
-    // adverbs or idioms.
-    if (!/[^e]es$|[^e]e$/.test(low) || DETERMINER_WORDS.test(low) || QUANTIFIER.test(low)) continue;
-    // "solche Problem": "solch-" inflects like an adjective with no article before it.
-    const solch = low === "solche";
-    if (!solch && !isAdjective(low)) continue;
-    const head = noun.split("-").at(-1)!;
-    if (head.length < 3 || !/^\p{Lu}/u.test(head)) continue;
-    if (ctx.dictionary.has(low) || ctx.dictionary.has(head.toLowerCase())) continue;
-    if (GENDER_SIGN.test(ctx.text.slice(m.indices!.groups!.noun[1]))) continue;
-    const reading = germanGender(head);
-    if (!reading) continue;
-    const before = tokensBefore(ctx.text, m.index, 1);
-    const prior = (before.at(-1) ?? "").toLowerCase();
-    const start = sentenceStart(before);
-    // Only a sentence start, a preposition or a verb before: after an article, an adverb or
-    // another adjective the ending follows other rules.
-    // "zu verstehende Bestimmung": a gerundive, no preposition.
-    const governed = prior === "zu" ? undefined : GOVERNED.get(prior);
-    const neuter = solch && reading.gender === "n" && !reading.plural;
-    if (!start && !governed && !BARE_AFTER.has(prior) && !(neuter && !DETERMINER_WORDS.test(prior)))
-      continue;
-    if (start && adj === low) continue;
-    const next = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
-    if (/^\p{Lu}/u.test(next) && !BOUNDARY.test(next)) continue;
-    const copula = /^(?:ist|sind|war|waren|wird|werden|wäre|wären|bleibt|blieb)$/.test(prior);
-    const cases: Case[] = governed ?? (copula ? ["nom"] : ["nom", "acc"]);
-    const genders: Gender[] = reading.gender === "x" ? ["m", "n"] : [reading.gender];
-    // "Es ist schöne Wetter": a singular copula before the phrase rules out a plural.
-    if (reading.plural && !/^(?:ist|war|wird|wäre|bleibt|blieb)$/.test(prior)) genders.push("pl");
-    const typed = endingOf(low);
-    const allowed = new Set<string>();
-    for (const g of genders) {
-      for (const c of cases)
-        if (fits(head, reading, g, c)) allowed.add(STRONG[g][CASE_ORDER.indexOf(c)]);
-    }
-    if (!allowed.size || allowed.has(typed)) continue;
-    // Every ending the case allows ("herzliche Dank": herzlicher or herzlichen).
-    const stem = adj.slice(0, adj.length - typed.length);
-    const [adjStart, end] = m.indices!.groups!.adj;
-    findings.push({
-      ruleId: "germanArticleGender",
-      messageKey: "review_msg_german_adjective_ending",
-      range: { start: adjStart, end },
-      alternatives: [...allowed].map((e) => stem + e),
-      context: { start: m.index, end: m.indices!.groups!.noun[1] },
-      ...(allowed.size > 1 ? { requiresChoice: true as const } : {}),
-    });
+const articleBareAdjective: MatchFixer = (m, ctx) => {
+  const { adj, noun } = m.groups!;
+  const low = adj.toLowerCase();
+  // "-er", "-en" and "-em" are left out: "früher", "voller", "weniger" and "vor allem" are
+  // adverbs or idioms.
+  if (!/[^e]es$|[^e]e$/.test(low) || DETERMINER_WORDS.test(low) || QUANTIFIER.test(low))
+    return null;
+  // "solche Problem": "solch-" inflects like an adjective with no article before it.
+  const solch = low === "solche";
+  if (!solch && !isAdjective(low)) return null;
+  const head = noun.split("-").at(-1)!;
+  if (head.length < 3 || !/^\p{Lu}/u.test(head)) return null;
+  if (ctx.dictionary.has(low) || ctx.dictionary.has(head.toLowerCase())) return null;
+  if (GENDER_SIGN.test(ctx.text.slice(m.indices!.groups!.noun[1]))) return null;
+  const reading = germanGender(head);
+  if (!reading) return null;
+  const before = tokensBefore(ctx.text, m.index, 1);
+  const prior = (before.at(-1) ?? "").toLowerCase();
+  const start = sentenceStart(before);
+  // Only a sentence start, a preposition or a verb before: after an article, an adverb or
+  // another adjective the ending follows other rules.
+  // "zu verstehende Bestimmung": a gerundive, no preposition.
+  const governed = prior === "zu" ? undefined : GOVERNED.get(prior);
+  const neuter = solch && reading.gender === "n" && !reading.plural;
+  if (!start && !governed && !BARE_AFTER.has(prior) && !(neuter && !DETERMINER_WORDS.test(prior)))
+    return null;
+  if (start && adj === low) return null;
+  const next = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
+  if (/^\p{Lu}/u.test(next) && !BOUNDARY.test(next)) return null;
+  const copula = /^(?:ist|sind|war|waren|wird|werden|wäre|wären|bleibt|blieb)$/.test(prior);
+  const cases: Case[] = governed ?? (copula ? ["nom"] : ["nom", "acc"]);
+  const genders: Gender[] = reading.gender === "x" ? ["m", "n"] : [reading.gender];
+  // "Es ist schöne Wetter": a singular copula before the phrase rules out a plural.
+  if (reading.plural && !/^(?:ist|war|wird|wäre|bleibt|blieb)$/.test(prior)) genders.push("pl");
+  const typed = endingOf(low);
+  const allowed = new Set<string>();
+  for (const g of genders) {
+    for (const c of cases)
+      if (fits(head, reading, g, c)) allowed.add(STRONG[g][CASE_ORDER.indexOf(c)]);
   }
-  return findings;
-}
+  if (!allowed.size || allowed.has(typed)) return null;
+  // Every ending the case allows ("herzliche Dank": herzlicher or herzlichen).
+  const stem = adj.slice(0, adj.length - typed.length);
+  const [adjStart, end] = m.indices!.groups!.adj;
+  return {
+    ruleId: "germanArticleGender",
+    messageKey: "review_msg_german_adjective_ending",
+    range: { start: adjStart, end },
+    alternatives: [...allowed].map((e) => stem + e),
+    context: { start: m.index, end: m.indices!.groups!.noun[1] },
+    ...(allowed.size > 1 ? { requiresChoice: true as const } : {}),
+  };
+  return null;
+};
 
-// "das Haus als solches", "dem Menschen als solchem": "als solch-" after a noun takes the
-// strong ending of the noun's case, gender and number, which its determiner shows.
-const ALS_SOLCH = new RegExp(
-  `${WORD_GATE}(?<det>[Dd](?:er|ie|as|en|em)|[Dd]ies(?:er|e|es|en|em)|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser)(?:e|en|em|er)?)(?:${SPACE}\\p{Ll}{2,30}(?:e|en|er|es|em))?${SPACE}(?<noun>\\p{Lu}\\p{Ll}{2,})${SPACE}als${SPACE}(?<target>solch(?:e|er|es|em|en))${WORD_END}`,
-  "gdu",
-);
 /** The ending the determiner fixes: "der" → "er", "dem" → "em"; null for "ein", "des". */
 function solchEnding(det: string, noun: string): string | null {
   const low = det.toLowerCase();
@@ -895,23 +866,6 @@ function solchEnding(det: string, noun: string): string | null {
   return gender === "m" ? "er" : gender === "n" ? "es" : null;
 }
 
-// Verbs whose object is a genitive: "es bedarf eines Beweises", "wir gedenken der Opfer",
-// and reflexive ones: "sich der Stimme enthalten", "sich eines Erfolgs rühmen".
-const GENITIVE_VERBS =
-  "bedarf|bedürfen|bedurfte|bedurften|bedürfte|gedenke|gedenkt|gedenken|gedachte|gedachten";
-const GENITIVE_REFLEXIVES =
-  "enthielt|enthielten|enthalte|enthältst|enthält|enthaltet|rühmen|rühmt|rühmte|rühmten|rühme|" +
-  "entledigte|entledigten|entledigt|entledigen|entledige|bemächtigte|bemächtigten|bemächtigt|" +
-  "bemächtigen|vergewisserte|vergewissert|vergewissern|erbarmte|erbarmt|erbarmen";
-const GENITIVE_PARTICIPLES = "enthalten|gerühmt|entledigt|bemächtigt|vergewissert|erbarmt";
-const DATIVE_DET =
-  "dem|einem|keinem|meinem|deinem|seinem|ihrem|unserem|eurem|diesem|jenem|jedem|den|meinen|deinen|seinen|ihren|unseren|euren|diesen|jenen";
-const GENITIVE_OBJECT = new RegExp(
-  `${WORD_GATE}(?:(?:${GENITIVE_VERBS})(?:${SPACE}es)?|(?:${GENITIVE_REFLEXIVES})${SPACE}(?:sich|mich|dich|uns|euch))${SPACE}(?<target>${DATIVE_DET})${SPACE}(?<rest>(?:\\p{Ll}+${SPACE}){0,2}\\p{Lu}\\p{Ll}+)${WORD_END}|` +
-    `${WORD_GATE}(?:sich|mich|dich|uns|euch)${SPACE}(?<t2>${DATIVE_DET})${SPACE}(?<rest2>(?:\\p{Ll}+${SPACE}){0,2}\\p{Lu}\\p{Ll}+)(?=${SPACE}(?:${GENITIVE_PARTICIPLES})${WORD_END})`,
-  "gdu",
-);
-
 /** The genitive of a dative determiner: "dem" → "des", "den Kameraden" → "der". */
 function genitiveOf(det: string, noun: string): string | null {
   if (det.endsWith("m")) return `${det.slice(0, -1)}s`;
@@ -921,181 +875,141 @@ function genitiveOf(det: string, noun: string): string | null {
   return null;
 }
 
-function genitiveObject(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    GENITIVE_OBJECT,
-    (match) => match.indices!.groups![match.groups!.target ? "target" : "t2"][0],
-  )) {
-    const name = m.groups!.target ? "target" : "t2";
-    const det = m.groups![name];
-    const noun = (m.groups!.rest ?? m.groups!.rest2).split(/[ \t]+/).at(-1)!;
-    // "Er gedachte den Vertrag zu kündigen": "gedenken" as "intend" takes a zu-infinitive.
-    const end = m.index + m[0].length;
-    if (
-      /^[^.!?;,\n]{0,60}(?<!\p{L})zu[ \t]+\p{Ll}|^[^.!?;,\n]{0,60}\p{Ll}zu\p{Ll}{3,}en(?!\p{L})/u.test(
-        ctx.text.slice(end, end + 80),
-      )
+const genitiveObject: MatchFixer = (m, ctx) => {
+  const name = m.groups!.target ? "target" : "t2";
+  const det = m.groups![name];
+  const noun = (m.groups!.rest ?? m.groups!.rest2).split(/[ \t]+/).at(-1)!;
+  // "Er gedachte den Vertrag zu kündigen": "gedenken" as "intend" takes a zu-infinitive.
+  const end = m.index + m[0].length;
+  if (
+    /^[^.!?;,\n]{0,60}(?<!\p{L})zu[ \t]+\p{Ll}|^[^.!?;,\n]{0,60}\p{Ll}zu\p{Ll}{3,}en(?!\p{L})/u.test(
+      ctx.text.slice(end, end + 80),
     )
-      continue;
-    const fixed = genitiveOf(det.toLowerCase(), noun);
-    if (!fixed || ctx.dictionary.has(det.toLowerCase())) continue;
-    const [start, stop] = m.indices!.groups![name];
-    const article = likeTyped(det, fixed);
-    // "eines neuen Gesetzes", "des Urteils": a masculine or neuter noun takes -s or -es too
-    // ("des Menschen" keeps its -en).
-    const phraseEnd = end;
-    const between = ctx.text.slice(stop, phraseEnd - noun.length);
-    const singular = fixed.endsWith("s") && !/(?:en|n|s)$/.test(noun);
-    const genitive = singular ? noun + (/(?:ß|z|x|sch)$/.test(noun) ? "es" : "s") : null;
-    findings.push({
-      ruleId: "germanArticleGender",
-      messageKey: "review_msg_german_genitive_verb",
-      range: { start, end: genitive ? phraseEnd : stop },
-      alternatives: [genitive ? `${article}${between}${genitive}` : article],
-      context: { start: m.index, end },
-    });
-  }
-  return findings;
-}
+  )
+    return null;
+  const fixed = genitiveOf(det.toLowerCase(), noun);
+  if (!fixed || ctx.dictionary.has(det.toLowerCase())) return null;
+  const [start, stop] = m.indices!.groups![name];
+  const article = likeTyped(det, fixed);
+  // "eines neuen Gesetzes", "des Urteils": a masculine or neuter noun takes -s or -es too
+  // ("des Menschen" keeps its -en).
+  const phraseEnd = end;
+  const between = ctx.text.slice(stop, phraseEnd - noun.length);
+  const singular = fixed.endsWith("s") && !/(?:en|n|s)$/.test(noun);
+  const genitive = singular ? noun + (/(?:ß|z|x|sch)$/.test(noun) ? "es" : "s") : null;
+  return {
+    ruleId: "germanArticleGender",
+    messageKey: "review_msg_german_genitive_verb",
+    range: { start, end: genitive ? phraseEnd : stop },
+    alternatives: [genitive ? `${article}${between}${genitive}` : article],
+    context: { start: m.index, end },
+  };
+  return null;
+};
 
-function alsSolch(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, ALS_SOLCH)) {
-    const { det, noun, target } = m.groups!;
-    const prior = (tokensBefore(ctx.text, m.index, 1).at(-1) ?? "").toLowerCase();
-    // "in der Stadt als solche bekannt": the noun of a prepositional phrase need not be what
-    // "als solche" refers to.
-    if (PREPOSITIONS.has(prior)) continue;
-    if (germanNounReading(noun.toLowerCase()) === null && !germanGender(noun)) continue;
-    // "als solche Menschen": an attribute of the noun after it.
-    const [, end] = m.indices!.groups!.target;
-    const next = tokensAfter(ctx.text, end, 1)[0] ?? "";
-    if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(target.toLowerCase())) continue;
-    const ending = solchEnding(det, noun);
-    if (!ending || target === `solch${ending}`) continue;
-    const [start] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "germanArticleGender",
-      messageKey: "review_msg_german_als_solch",
-      range: { start, end },
-      alternatives: [`solch${ending}`],
-      context: { start: m.index, end },
-    });
-  }
-  return findings;
-}
+const alsSolch: MatchFixer = (m, ctx) => {
+  const { det, noun, target } = m.groups!;
+  const prior = (tokensBefore(ctx.text, m.index, 1).at(-1) ?? "").toLowerCase();
+  // "in der Stadt als solche bekannt": the noun of a prepositional phrase need not be what
+  // "als solche" refers to.
+  if (PREPOSITIONS.has(prior)) return null;
+  if (germanNounReading(noun.toLowerCase()) === null && !germanGender(noun)) return null;
+  // "als solche Menschen": an attribute of the noun after it.
+  const [, end] = m.indices!.groups!.target;
+  const next = tokensAfter(ctx.text, end, 1)[0] ?? "";
+  if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(target.toLowerCase())) return null;
+  const ending = solchEnding(det, noun);
+  if (!ending || target === `solch${ending}`) return null;
+  const [start] = m.indices!.groups!.target;
+  return {
+    ruleId: "germanArticleGender",
+    messageKey: "review_msg_german_als_solch",
+    range: { start, end },
+    alternatives: [`solch${ending}`],
+    context: { start: m.index, end },
+  };
+  return null;
+};
 
-// "das Auto, der da steht" → das: a relative pronoun right after its noun and a comma, as the
-// subject or object of its clause, takes the noun's gender. Only a pronoun that no case of the
-// noun's gender spells is flagged ("die Frau, der ich half" is a dative).
-const RELATIVE = new RegExp(
-  `${WORD_GATE}(?<noun>\\p{Lu}\\p{Ll}+),${SPACE}(?<target>der|die|das)(?=${SPACE}(?<next>\\p{Ll}+)${WORD_END})`,
-  "gdu",
-);
 const RELATIVE_FOR: Readonly<Record<string, string>> = { m: "der", f: "die", n: "das" };
 const WRONG_RELATIVE: Readonly<Record<string, readonly string[]>> = {
   m: ["die", "das"],
   f: ["das"],
   n: ["der", "die"],
 };
-function relativePronoun(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, RELATIVE)) {
-    const { noun, target, next } = m.groups!;
-    const reading = germanGender(noun);
-    if (!reading || reading.plural || reading.gender === "x") continue;
-    // The noun's own determiner, past one adjective ("das neue Auto, der …").
-    const before = tokensBefore(ctx.text, m.index, 3);
-    const at =
-      determinerFits(before.at(-1) ?? "", noun) === null ? before.length - 2 : before.length - 1;
-    const det = before[at] ?? "";
-    if (determinerFits(det, noun) !== true) continue;
-    // "ein Werk über die Landwirtschaft, das …", "zur Verfügung, das …", "das Dach des Hauses,
-    // das …": the pronoun may refer to the noun the phrase belongs to.
-    const prior = (before[at - 1] ?? "").toLowerCase();
-    if (
-      PREPOSITIONS.has(prior) ||
-      Object.hasOwn(CONTRACTIONS, det.toLowerCase()) ||
-      /^des$/i.test(det)
-    )
-      continue;
-    // "das heißt", "die zwei Ferngläser und …": a fixed phrase, a counted list.
-    if (
-      (target === "das" && next === "heißt") ||
-      /^(?:zwei|drei|vier|fünf|beiden|anderen)$/.test(next)
-    ) {
-      continue;
-    }
-    // "das Haus, die alte Scheune": an article before an attribute; "die Frau, das ich sah":
-    // an object whose case the verb picks.
-    const stem = next.replace(/(?:e|en|er|es|em)$/, "");
-    const adjective = stem !== next && (germanAdjective(stem) || germanAdjective(`${stem}e`));
-    if (SUBJECT_PRONOUNS.has(next) || adjective) continue;
-    if (!WRONG_RELATIVE[reading.gender].includes(target)) continue;
-    const [start, end] = m.indices!.groups!.target;
-    // "den Weg, das wissen alle": a demonstrative opens a main clause, its verb second and more
-    // after it; a relative clause ends with its verb ("der Mann, der lacht.").
-    const after = tokensAfter(ctx.text, end, 2);
-    const verb =
-      VERB_GOVERNORS.has(next) ||
-      germanVerbLike(next) ||
-      germanInfinitive(next) ||
-      (/t$/.test(next) && germanInfinitive(`${next.replace(/e?t$/, "")}en`));
-    if (verb && !BOUNDARY.test(after[1] ?? "")) continue;
-    if (ctx.dictionary.has(noun.toLowerCase())) continue;
-    findings.push({
-      ruleId: "germanArticleGender",
-      messageKey: "review_msg_german_relative_pronoun",
-      range: { start, end },
-      alternatives: [RELATIVE_FOR[reading.gender]],
-      context: { start: m.index, end: end + next.length + 1 },
-    });
+const relativePronoun: MatchFixer = (m, ctx) => {
+  const { noun, target, next } = m.groups!;
+  const reading = germanGender(noun);
+  if (!reading || reading.plural || reading.gender === "x") return null;
+  // The noun's own determiner, past one adjective ("das neue Auto, der …").
+  const before = tokensBefore(ctx.text, m.index, 3);
+  const at =
+    determinerFits(before.at(-1) ?? "", noun) === null ? before.length - 2 : before.length - 1;
+  const det = before[at] ?? "";
+  if (determinerFits(det, noun) !== true) return null;
+  // "ein Werk über die Landwirtschaft, das …", "zur Verfügung, das …", "das Dach des Hauses,
+  // das …": the pronoun may refer to the noun the phrase belongs to.
+  const prior = (before[at - 1] ?? "").toLowerCase();
+  if (
+    PREPOSITIONS.has(prior) ||
+    Object.hasOwn(CONTRACTIONS, det.toLowerCase()) ||
+    /^des$/i.test(det)
+  )
+    return null;
+  // "das heißt", "die zwei Ferngläser und …": a fixed phrase, a counted list.
+  if (
+    (target === "das" && next === "heißt") ||
+    /^(?:zwei|drei|vier|fünf|beiden|anderen)$/.test(next)
+  ) {
+    return null;
   }
-  return findings;
-}
+  // "das Haus, die alte Scheune": an article before an attribute; "die Frau, das ich sah":
+  // an object whose case the verb picks.
+  const stem = next.replace(/(?:e|en|er|es|em)$/, "");
+  const adjective = stem !== next && (germanAdjective(stem) || germanAdjective(`${stem}e`));
+  if (SUBJECT_PRONOUNS.has(next) || adjective) return null;
+  if (!WRONG_RELATIVE[reading.gender].includes(target)) return null;
+  const [start, end] = m.indices!.groups!.target;
+  // "den Weg, das wissen alle": a demonstrative opens a main clause, its verb second and more
+  // after it; a relative clause ends with its verb ("der Mann, der lacht.").
+  const after = tokensAfter(ctx.text, end, 2);
+  const verb =
+    VERB_GOVERNORS.has(next) ||
+    germanVerbLike(next) ||
+    germanInfinitive(next) ||
+    (/t$/.test(next) && germanInfinitive(`${next.replace(/e?t$/, "")}en`));
+  if (verb && !BOUNDARY.test(after[1] ?? "")) return null;
+  if (ctx.dictionary.has(noun.toLowerCase())) return null;
+  return {
+    ruleId: "germanArticleGender",
+    messageKey: "review_msg_german_relative_pronoun",
+    range: { start, end },
+    alternatives: [RELATIVE_FOR[reading.gender]],
+    context: { start: m.index, end: end + next.length + 1 },
+  };
+  return null;
+};
 
-// "Wir machen uns auf dem Weg": setting out takes the accusative ("auf den Weg"); not "Ich
-// habe mich auf dem Weg verlaufen" or "Wir machten uns auf dem Heimweg Gedanken", where the
-// way is where it happens.
-const ON_THE_WAY = new RegExp(
-  `${WORD_GATE}(?:mich|dich|sich|uns|euch)(?:${SPACE}\\p{Ll}+){0,2}${SPACE}auf${SPACE}(?<target>dem)${SPACE}(?:\\p{Lu}\\p{Ll}*w|W)eg(?<after>${SPACE}(?:gemacht|machen)${WORD_END})?(?=[ \\t]*[.!?;,)\\n]|[ \\t]*$|${SPACE}(?:nach|zur|zum|ins|in)${WORD_END})`,
-  "gdu",
-);
-function onTheWay(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, ON_THE_WAY)) {
-    const clause = ctx.text
-      .slice(Math.max(0, m.index - 60), m.index)
-      .split(/[.!?;:\n]/)
-      .at(-1)!;
-    if (
-      !m.groups!.after &&
-      !/(?<!\p{L})mach(?:e|st|t|en|te|test|ten|tet)?(?!\p{L})/iu.test(clause)
-    ) {
-      continue;
-    }
-    const [start, end] = m.indices!.groups!.target;
-    findings.push(
-      finding("germanArticleGender", "review_msg_german_preposition_case", start, end, ["den"], {
-        context: { start: m.index, end: m.index + m[0].length },
-      }),
-    );
+const onTheWay: MatchFixer = (m, ctx) => {
+  const clause = ctx.text
+    .slice(Math.max(0, m.index - 60), m.index)
+    .split(/[.!?;:\n]/)
+    .at(-1)!;
+  if (!m.groups!.after && !/(?<!\p{L})mach(?:e|st|t|en|te|test|ten|tet)?(?!\p{L})/iu.test(clause)) {
+    return null;
   }
-  return findings;
-}
+  const [start, end] = m.indices!.groups!.target;
+  return finding("germanArticleGender", "review_msg_german_preposition_case", start, end, ["den"], {
+    context: { start: m.index, end: m.index + m[0].length },
+  });
+};
 
-export const PREDICATES = {
-  articleGender: (ctx) =>
-    isGerman(ctx)
-      ? [
-          ...articleGender(ctx),
-          ...bareAdjective(ctx),
-          ...alsSolch(ctx),
-          ...genitiveObject(ctx),
-          ...onTheWay(ctx),
-          ...relativePronoun(ctx),
-        ]
-      : [],
-} satisfies Record<string, Detector>;
+/** The named frame fixes of the de.articleGender rule (grammar/rules/de.yaml). */
+export const FIXERS = {
+  articlePhrase,
+  articleBareAdjective,
+  alsSolch,
+  genitiveObject,
+  onTheWay,
+  relativePronoun,
+} satisfies Record<string, MatchFixer>;

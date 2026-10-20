@@ -1,19 +1,9 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { Detector } from "../../engine/reviewRules";
+import type { FindingsFilter, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { germanAdjective, germanGender, germanInfinitive, germanVerbLike } from "./germanLexicon";
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
-import {
-  englishLine,
-  isGerman,
-  tokensAfter,
-  tokensBefore,
-  VERB_GOVERNORS,
-  words,
-  wordSet,
-} from "./shared";
-import { commaFrames } from "./commaFrames";
-import { salutationComma } from "./salutations";
+import { englishLine, tokensAfter, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // The comma German sets before a clause or an infinitive group: "Er bleibt, weil es regnet",
@@ -457,311 +447,316 @@ function relativeCommas(ctx: DetectContext, typed: string, at: number): RawFindi
 const OPINION_VERBS =
   /^(?:dachte|dachten|dachtest|denke|glaube|glaubte|hoffe|hoffte|meine|fand|finde)$/;
 
-function commas(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
+/**
+ * The commas that a word of the chunk opens: before a conjunction, an infinitive group, a
+ * relative or an indirect question, and after an opinion verb. The firstCommaPerEnd filter keeps
+ * one comma for each position.
+ */
+const clauseComma: MatchFixer = (m, ctx) => {
   const findings: RawFinding[] = [];
-  const seen = new Set<number>();
   const push = (f: RawFinding | null) => {
-    if (
-      f &&
-      !seen.has(f.range.end) &&
-      !ctx.dictionary.has(ctx.text.slice(f.range.start, f.range.end).toLowerCase())
-    ) {
-      seen.add(f.range.end);
+    if (f && !ctx.dictionary.has(ctx.text.slice(f.range.start, f.range.end).toLowerCase()))
       findings.push(f);
-    }
   };
-  for (const m of words(ctx)) {
-    const typed = m[0];
-    const low = typed.toLowerCase();
-    // Only the words a check below starts at; the reads after this cost more than the test.
-    if (!(
-      CORRELATES.has(low) ||
-      low === "es" ||
-      Object.hasOwn(RELATIVES, low) ||
-      SUBORDINATORS.has(low) ||
-      INFINITIVE_LEADS.has(low) ||
-      isAuxiliary(low) ||
-      low === "sag" ||
-      low === "sagt" ||
-      Object.hasOwn(PAIRS, low) ||
-      OPINIONS.has(low) ||
-      OPINION_QUESTIONS.has(low) ||
-      typed === "vor" ||
-      OPINION_VERBS.test(low) ||
-      low === "soweit" ||
-      low === "sofern" ||
-      W_WORDS.has(low)
-    ))
-      continue;
-    const at = m.index;
-    const end = at + typed.length;
-    if (englishLine(ctx.text, at) || namedExampleBefore(ctx.text, at)) continue;
-    const prior = wordBefore(ctx.text, at);
-    const before = tokensBefore(ctx.text, at, 8);
-    // "Es geht darum euch …", "Es ist wichtig gesund zu essen": an infinitive group that a
-    // correlate or "es" announces.
-    if (typed === low && CORRELATES.has(low)) {
-      const last = correlateComma(ctx, typed, at, before);
-      if (last) push(finding(ctx, last.start, last.word, last.start));
-      continue;
+  const typed = m[0];
+  const low = typed.toLowerCase();
+  // Only the words a check below starts at; the reads after this cost more than the test.
+  if (!(
+    CORRELATES.has(low) ||
+    low === "es" ||
+    Object.hasOwn(RELATIVES, low) ||
+    SUBORDINATORS.has(low) ||
+    INFINITIVE_LEADS.has(low) ||
+    isAuxiliary(low) ||
+    low === "sag" ||
+    low === "sagt" ||
+    Object.hasOwn(PAIRS, low) ||
+    OPINIONS.has(low) ||
+    OPINION_QUESTIONS.has(low) ||
+    typed === "vor" ||
+    OPINION_VERBS.test(low) ||
+    low === "soweit" ||
+    low === "sofern" ||
+    W_WORDS.has(low)
+  ))
+    return findings;
+  const at = m.index;
+  const end = at + typed.length;
+  if (englishLine(ctx.text, at) || namedExampleBefore(ctx.text, at)) return findings;
+  const prior = wordBefore(ctx.text, at);
+  const before = tokensBefore(ctx.text, at, 8);
+  // "Es geht darum euch …", "Es ist wichtig gesund zu essen": an infinitive group that a
+  // correlate or "es" announces.
+  if (typed === low && CORRELATES.has(low)) {
+    const last = correlateComma(ctx, typed, at, before);
+    if (last) push(finding(ctx, last.start, last.word, last.start));
+    return findings;
+  }
+  if (low === "es") {
+    const last = esComma(ctx, at);
+    if (last) push(finding(ctx, last.start, last.word, last.start));
+    return findings;
+  }
+  if (typed === low && RELATIVES[low]) {
+    for (const f of relativeCommas(ctx, typed, at)) push(f);
+    return findings;
+  }
+  // A conjunction inside a sentence: "Er bleibt weil es regnet".
+  const joined = (word: string) =>
+    JOINED.has(word.toLowerCase()) && !(word === "nicht" && (low === "ob" || low === "dass"));
+  if (typed === low && SUBORDINATORS.has(low) && prior && !joined(prior.word)) {
+    const clause = clauseAfter(ctx.text, end, 12);
+    // "sondern" joins any phrase: "kein Zufall, sondern Absicht".
+    const ok =
+      clause.length >= (low === "sondern" ? 1 : 2) &&
+      (low === "sondern" || verbFinal(ctx.text, end)) &&
+      !TIME_SPANS.test(prior.word) &&
+      // "sobald wie möglich" is "so bald", an adverb.
+      !(
+        low === "sobald" && /^[ \t]+(?:wie|als)[ \t]+möglich/.test(ctx.text.slice(end, end + 20))
+      ) &&
+      !(/^(?:wenn|falls|sofern)$/.test(low) && ELLIPTICAL.has(clause[0])) &&
+      // "Insekten sondern Duftstoffe ab": the verb "absondern".
+      !(low === "sondern" && clause.at(-1) === "ab") &&
+      !(low === "nachdem" && prior.word.toLowerCase() === "je");
+    if (ok) push(finding(ctx, prior.start, prior.word, at));
+    return findings;
+  }
+  // "Sie ging um zu lesen": an infinitive group inside the sentence.
+  if (typed === low && INFINITIVE_LEADS.has(low) && prior) {
+    if (JOINED.has(prior.word.toLowerCase())) return findings;
+    const clause = clauseAfter(ctx.text, end, 12);
+    const verb = zuInfinitive(clause);
+    // "ohne Schlüssel zu öffnen", "um 8 Uhr an zu fangen": a preposition before a noun or
+    // a time; "es geht um das Recht zu leben", "sich um etwas zu kümmern": "um" the verb's.
+    if (verb < 0 || /^(?:\p{Lu}|\p{N}|halb$|viertel$)/u.test(clause[0])) return findings;
+    if (clause.slice(0, 3).includes("Uhr")) return findings;
+    // "Sie ging nach Hause um sich umzuziehen": "gehen" and "handeln" take "um" only with
+    // "es" ("es geht um", "es handelt sich um").
+    const impersonal = before.some((t) => /^es$/i.test(t));
+    const umVerb = (t: string) =>
+      UM_VERBS.has(t.toLowerCase()) && (impersonal || !IMPERSONAL_UM.has(t.toLowerCase()));
+    if (low === "um" && [...before, clause[verb]].some(umVerb)) return findings;
+    push(finding(ctx, prior.start, prior.word, at));
+    return findings;
+  }
+  // "Um zu lesen ging sie": an infinitive group that opens the sentence.
+  if (INFINITIVE_LEADS.has(low) && typed !== low && clauseStartBefore(before, before.length)) {
+    const clause = clauseAfter(ctx.text, end, 12);
+    const verb = zuInfinitive(clause);
+    const next = clause[verb + 1];
+    if (verb >= 0 && next && /^\p{Ll}+$/u.test(next) && !JOINED.has(next)) {
+      const verbStart = ctx.text.indexOf(clause[verb], end);
+      push(finding(ctx, verbStart, clause[verb], verbStart));
     }
-    if (low === "es") {
-      const last = esComma(ctx, at);
-      if (last) push(finding(ctx, last.start, last.word, last.start));
-      continue;
-    }
-    if (typed === low && RELATIVES[low]) {
-      for (const f of relativeCommas(ctx, typed, at)) push(f);
-      continue;
-    }
-    // A conjunction inside a sentence: "Er bleibt weil es regnet".
-    const joined = (word: string) =>
-      JOINED.has(word.toLowerCase()) && !(word === "nicht" && (low === "ob" || low === "dass"));
-    if (typed === low && SUBORDINATORS.has(low) && prior && !joined(prior.word)) {
-      const clause = clauseAfter(ctx.text, end, 12);
-      // "sondern" joins any phrase: "kein Zufall, sondern Absicht".
-      const ok =
-        clause.length >= (low === "sondern" ? 1 : 2) &&
-        (low === "sondern" || verbFinal(ctx.text, end)) &&
-        !TIME_SPANS.test(prior.word) &&
-        // "sobald wie möglich" is "so bald", an adverb.
-        !(
-          low === "sobald" && /^[ \t]+(?:wie|als)[ \t]+möglich/.test(ctx.text.slice(end, end + 20))
-        ) &&
-        !(/^(?:wenn|falls|sofern)$/.test(low) && ELLIPTICAL.has(clause[0])) &&
-        // "Insekten sondern Duftstoffe ab": the verb "absondern".
-        !(low === "sondern" && clause.at(-1) === "ab") &&
-        !(low === "nachdem" && prior.word.toLowerCase() === "je");
-      if (ok) push(finding(ctx, prior.start, prior.word, at));
-      continue;
-    }
-    // "Sie ging um zu lesen": an infinitive group inside the sentence.
-    if (typed === low && INFINITIVE_LEADS.has(low) && prior) {
-      if (JOINED.has(prior.word.toLowerCase())) continue;
-      const clause = clauseAfter(ctx.text, end, 12);
-      const verb = zuInfinitive(clause);
-      // "ohne Schlüssel zu öffnen", "um 8 Uhr an zu fangen": a preposition before a noun or
-      // a time; "es geht um das Recht zu leben", "sich um etwas zu kümmern": "um" the verb's.
-      if (verb < 0 || /^(?:\p{Lu}|\p{N}|halb$|viertel$)/u.test(clause[0])) continue;
-      if (clause.slice(0, 3).includes("Uhr")) continue;
-      // "Sie ging nach Hause um sich umzuziehen": "gehen" and "handeln" take "um" only with
-      // "es" ("es geht um", "es handelt sich um").
-      const impersonal = before.some((t) => /^es$/i.test(t));
-      const umVerb = (t: string) =>
-        UM_VERBS.has(t.toLowerCase()) && (impersonal || !IMPERSONAL_UM.has(t.toLowerCase()));
-      if (low === "um" && [...before, clause[verb]].some(umVerb)) continue;
-      push(finding(ctx, prior.start, prior.word, at));
-      continue;
-    }
-    // "Um zu lesen ging sie": an infinitive group that opens the sentence.
-    if (INFINITIVE_LEADS.has(low) && typed !== low && clauseStartBefore(before, before.length)) {
-      const clause = clauseAfter(ctx.text, end, 12);
-      const verb = zuInfinitive(clause);
-      const next = clause[verb + 1];
-      if (verb >= 0 && next && /^\p{Ll}+$/u.test(next) && !JOINED.has(next)) {
-        const verbStart = ctx.text.indexOf(clause[verb], end);
-        push(finding(ctx, verbStart, clause[verb], verbStart));
-      }
-      continue;
-    }
-    // "Als ich es gesagt hatte bin ich gegangen": a clause's last verb right
-    // before the next clause's verb; not a verb chain ("gesehen werden kann").
-    if (typed === low && isAuxiliary(low)) {
-      const next = /^[ \t]+(\p{Ll}+)(?!\p{L})/u.exec(ctx.text.slice(end, end + 24))?.[1];
-      const chain = germanInfinitiveOf(low) === low || germanInfinitiveOf(next ?? "") === next;
-      // "Nachdem er besiegt wurden war": a plural auxiliary after the clause's singular
-      // pronoun is a slip for a participle ("worden"), not the clause's last verb.
-      let lead = before.length - 1;
-      while (lead >= 0 && !SUBORDINATORS.has(before[lead].toLowerCase())) lead--;
-      const slip =
-        low.endsWith("en") &&
-        lead >= 0 &&
-        SINGULAR_SUBJECTS.has((before[lead + 1] ?? "").toLowerCase());
-      if (next && next !== low && isAuxiliary(next) && !chain && !slip) {
-        push(finding(ctx, at, typed, end));
-        continue;
-      }
-    }
-    // "Sag mal hast du Zeit?": the request before the question.
-    if (
-      /^[Ss]agt?$/.test(typed) &&
-      /^[ \t]+mal[ \t]+(\p{Ll}+)/u.test(ctx.text.slice(end, end + 24))
-    ) {
-      const verb = /^[ \t]+mal[ \t]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 24))![1];
-      const malAt = ctx.text.indexOf("mal", end);
-      if (isAuxiliary(verb)) push(finding(ctx, malAt, "mal", malAt));
-      continue;
-    }
-    // "Er kommt auch wenn es regnet": the comma goes before the pair.
-    const pair = PAIRS[low];
-    if (typed === low && pair && prior && !JOINED.has(prior.word.toLowerCase())) {
-      const after = /^[ \t]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 16))?.[1] ?? "";
-      if (pair.includes(after) && verbFinal(ctx.text, end + 1 + after.length)) {
-        push(finding(ctx, prior.start, prior.word, at));
-        continue;
-      }
-    }
-    // "Ich glaube das stimmt", "Meinst du das klappt?", "Peter behauptet seine Mutter …":
-    // a main clause after an opinion verb.
-    const last = before.length - 1;
-    const subjectWord = before[last] ?? "";
-    const pronounSubject =
-      SUBJECTS.has(subjectWord.toLowerCase()) && clauseStartBefore(before, last);
-    // "Peter behauptet …", "Die Menschen glauben …" at a sentence start; not "Für meinen
-    // Bruder", "Wenn behauptet wird", "Was glauben Sie", "John F. Kennedy wissen".
-    const sentenceOpens = (k: number) =>
-      k < 0 || (/^[.!?\n]$/.test(before[k]) && (k === 0 || (before[k - 1] ?? "").length > 1));
-    const subjectLow = subjectWord.toLowerCase();
-    const nounSubject =
-      /^\p{Lu}\p{Ll}+$/u.test(subjectWord) &&
-      !SUBJECTS.has(subjectLow) &&
-      !NOT_SUBJECTS.has(subjectLow) &&
-      !ARTICLES.has(subjectLow) &&
-      !DEMONSTRATIVES.has(subjectLow) &&
-      !PREPOSITIONS.has(subjectLow) &&
-      (sentenceOpens(last - 1) ||
-        (/^(?:der|die|das)$/i.test(before[last - 1] ?? "") && sentenceOpens(last - 2)));
-    const subjectFirst = typed === low && OPINIONS.has(low) && (pronounSubject || nounSubject);
-    const asked = OPINION_QUESTIONS.has(low) && clauseStartBefore(before, before.length);
-    if (subjectFirst || asked) {
-      const clause = clauseAfter(ctx.text, end, 9);
-      // The word the comma follows: the verb, its subject in a question, then fillers.
-      let i = 0;
-      let last = { word: typed, start: at };
-      const take = () => {
-        const start = ctx.text.indexOf(clause[i], last.start + last.word.length);
-        last = { word: clause[i++], start };
-      };
-      if (!subjectFirst) {
-        if (!QUESTION_SUBJECTS.has(clause[0] ?? "")) continue;
-        take();
-      }
-      // "Ich denke mal, …": fillers stay before the comma ("ich hoffe, dir geht es gut").
-      while (i < clause.length && FILLERS.has(clause[i])) take();
-      const rest = clause.slice(i);
-      // The clause's own finite verb within four words, something before it.
-      const verbAt = rest.findIndex((t, k) => k > 0 && k <= 4 && finiteWord(t));
-      if (verbAt < 1) continue;
-      // "Ich finde es seltsam, wie er redet": the verb closes a clause of its own.
-      if (rest.slice(0, verbAt).some((t) => W_WORDS.has(t) || SUBORDINATORS.has(t))) continue;
-      // "Ich glaube an Gott", "ich finde nicht, …": no clause of its own begins here; "Man
-      // hofft und träumt": a second verb of the same clause.
-      if (
-        /^(?:an|auf|daran|darauf|nicht|nichts|kein|keine|so|auch|zu|sehr|und|oder|aber|sowie|sondern|bzw)$/i.test(
-          rest[0],
-        )
-      )
-        continue;
-      push(finding(ctx, last.start, last.word, last.start));
-      continue;
-    }
-    // "Stell dir vor du gewinnst": the clause the imagining introduces.
-    if (
-      typed === "vor" &&
-      /^[ \t]+(?:ich|du|er|sie|es|wir|ihr|man|der|die|das|ein|eine|\p{Lu}\p{Ll}+)[ \t]+\p{Ll}/u.test(
-        ctx.text.slice(end, end + 30),
-      )
-    ) {
-      const opener = ctx.text.slice(Math.max(0, at - 50), at);
-      if (
-        /(?:^|[.!?:\n„"])[ \t]*(?:Stell|Stelle|Stellt|Stellen)[ \t]+(?:dir|euch|Sie[ \t]+sich|sich|mir)(?:[ \t]+(?:doch|mal|nur|einfach|bitte|jetzt|einmal))*[ \t]+$/u.test(
-          opener,
-        )
-      )
-        push(finding(ctx, at, typed, at));
-      continue;
-    }
-    // "Daher dachte ich mir ich frage …": an inverted opinion verb and its subject before a
-    // second clause with its own subject.
-    if (typed === low && OPINION_VERBS.test(low) && !clauseStartBefore(before, before.length)) {
-      const next = tokensAfter(ctx.text, end, 4);
-      const reflexive = /^(?:mir|dir|sich|uns|euch)$/.test(next[1] ?? "") ? 1 : 0;
-      const second = next[1 + reflexive] ?? "";
-      if (
-        /^(?:ich|du|er|sie|wir|ihr|man)$/.test(next[0] ?? "") &&
-        /^(?:ich|du|er|sie|es|wir|ihr|man)$/.test(second) &&
-        (finiteWord(next[2 + reflexive] ?? "") || germanVerbLike(next[2 + reflexive] ?? ""))
-      ) {
-        const word = next[reflexive];
-        const start =
-          ctx.text.indexOf(
-            ` ${word}`,
-            reflexive ? ctx.text.indexOf(next[0], end) + next[0].length : end,
-          ) + 1;
-        push(finding(ctx, start, word, start));
-      }
-      continue;
-    }
-    // "Das ist soweit ich weiß erledigt": a short inserted clause takes a comma on both sides.
-    if (
-      typed === low &&
-      /^(?:soweit|sofern)$/.test(low) &&
-      prior &&
-      !JOINED.has(prior.word.toLowerCase())
-    ) {
-      const inserted =
-        /^[ \t]+(?:ich|wir|man)(?:[ \t]+(?:das|es))?[ \t]+(?:weiß|wissen|sehe|sehen|beurteilen[ \t]+kann|beurteilen[ \t]+können|verstehe|verstanden[ \t]+habe|informiert[ \t]+bin)(?=[ \t]+\p{L})/u.exec(
-          ctx.text.slice(end, end + 50),
-        );
-      // "wofür Sie soweit ich weiß keine Lizenz haben": inside a subordinate clause the
-      // formula may stand without commas.
-      const clause = lastClause(before);
-      const nested = clause.some((t) => W_WORDS.has(t.toLowerCase()) || SUBORDINATORS.has(t));
-      if (inserted && !nested) {
-        const close = end + inserted[0].length;
-        const last = /\p{L}+$/u.exec(inserted[0])![0];
-        push(finding(ctx, prior.start, prior.word, at));
-        push(finding(ctx, close - last.length, last, close));
-      }
-      continue;
-    }
-    // "Er fragt wie das geht": an indirect question.
-    if (typed === low && W_WORDS.has(low) && prior) {
-      // "Sie wissen nicht an was sie glauben": a preposition opens the question.
-      const prep = QUESTION_PREPOSITIONS.has(prior.word) && /^(?:was|wem|wen)$/.test(low);
-      const lead = prep ? wordBefore(ctx.text, prior.start) : prior;
-      const chain = prep ? before.slice(0, -1) : before;
-      if (!lead) continue;
-      let k = chain.length - 1;
-      while (k >= 0 && ASK_FILLERS.has(chain[k].toLowerCase())) k--;
-      // "Weiß die Abteilung warum …": a question opens with the asking verb and its subject.
-      const subject = [k - 1, k - 2, k - 3].find(
-        (i) =>
-          i >= 0 &&
-          ASKING.has(chain[i].toLowerCase()) &&
-          /^\p{Lu}/u.test(chain[i]) &&
-          isClauseEnd(chain[i - 1]) &&
-          chain
-            .slice(i + 1, k + 1)
-            .every(
-              (t) =>
-                /^\p{Lu}/u.test(t) ||
-                /^(?:der|die|das|ein|eine|(?:mein|dein|sein|ihr|unser|eur)e?|euer)$/.test(t),
-            ),
-      );
-      if (subject !== undefined) k = subject;
-      // "Es ist richtig wie du das machst", "Mir ist klar woran es liegt": a predicative
-      // adjective before the clause; "so groß wie", "genauso schnell wie" compare.
-      const predicate =
-        k > 0 &&
-        /^\p{Ll}+$/u.test(chain[k]) &&
-        germanAdjective(chain[k]) &&
-        chain.slice(0, k).some((t) => PREDICATE_VERBS.has(t.toLowerCase())) &&
-        !chain.slice(Math.max(0, k - 2), k).some((t) => COMPARING.has(t.toLowerCase()));
-      if (k < 0 || (!ASKING.has(chain[k].toLowerCase()) && !predicate)) continue;
-      // "weiß schon, warum": a filler after the verb; "so wie" compares.
-      const lw = lead.word.toLowerCase();
-      if (JOINED.has(lw) && !ASK_FILLERS.has(lw)) continue;
-      const clause = clauseAfter(ctx.text, end, 12);
-      const last = clause.at(-1) ?? "";
-      if (clause.length >= 2 && /^\p{Ll}+$/u.test(last) && !OBJECT_PRONOUNS.has(last))
-        push(finding(ctx, lead.start, lead.word, at));
+    return findings;
+  }
+  // "Als ich es gesagt hatte bin ich gegangen": a clause's last verb right
+  // before the next clause's verb; not a verb chain ("gesehen werden kann").
+  if (typed === low && isAuxiliary(low)) {
+    const next = /^[ \t]+(\p{Ll}+)(?!\p{L})/u.exec(ctx.text.slice(end, end + 24))?.[1];
+    const chain = germanInfinitiveOf(low) === low || germanInfinitiveOf(next ?? "") === next;
+    // "Nachdem er besiegt wurden war": a plural auxiliary after the clause's singular
+    // pronoun is a slip for a participle ("worden"), not the clause's last verb.
+    let lead = before.length - 1;
+    while (lead >= 0 && !SUBORDINATORS.has(before[lead].toLowerCase())) lead--;
+    const slip =
+      low.endsWith("en") &&
+      lead >= 0 &&
+      SINGULAR_SUBJECTS.has((before[lead + 1] ?? "").toLowerCase());
+    if (next && next !== low && isAuxiliary(next) && !chain && !slip) {
+      push(finding(ctx, at, typed, end));
+      return findings;
     }
   }
-  return findings;
-}
+  // "Sag mal hast du Zeit?": the request before the question.
+  if (
+    /^[Ss]agt?$/.test(typed) &&
+    /^[ \t]+mal[ \t]+(\p{Ll}+)/u.test(ctx.text.slice(end, end + 24))
+  ) {
+    const verb = /^[ \t]+mal[ \t]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 24))![1];
+    const malAt = ctx.text.indexOf("mal", end);
+    if (isAuxiliary(verb)) push(finding(ctx, malAt, "mal", malAt));
+    return findings;
+  }
+  // "Er kommt auch wenn es regnet": the comma goes before the pair.
+  const pair = PAIRS[low];
+  if (typed === low && pair && prior && !JOINED.has(prior.word.toLowerCase())) {
+    const after = /^[ \t]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 16))?.[1] ?? "";
+    if (pair.includes(after) && verbFinal(ctx.text, end + 1 + after.length)) {
+      push(finding(ctx, prior.start, prior.word, at));
+      return findings;
+    }
+  }
+  // "Ich glaube das stimmt", "Meinst du das klappt?", "Peter behauptet seine Mutter …":
+  // a main clause after an opinion verb.
+  const last = before.length - 1;
+  const subjectWord = before[last] ?? "";
+  const pronounSubject = SUBJECTS.has(subjectWord.toLowerCase()) && clauseStartBefore(before, last);
+  // "Peter behauptet …", "Die Menschen glauben …" at a sentence start; not "Für meinen
+  // Bruder", "Wenn behauptet wird", "Was glauben Sie", "John F. Kennedy wissen".
+  const sentenceOpens = (k: number) =>
+    k < 0 || (/^[.!?\n]$/.test(before[k]) && (k === 0 || (before[k - 1] ?? "").length > 1));
+  const subjectLow = subjectWord.toLowerCase();
+  const nounSubject =
+    /^\p{Lu}\p{Ll}+$/u.test(subjectWord) &&
+    !SUBJECTS.has(subjectLow) &&
+    !NOT_SUBJECTS.has(subjectLow) &&
+    !ARTICLES.has(subjectLow) &&
+    !DEMONSTRATIVES.has(subjectLow) &&
+    !PREPOSITIONS.has(subjectLow) &&
+    (sentenceOpens(last - 1) ||
+      (/^(?:der|die|das)$/i.test(before[last - 1] ?? "") && sentenceOpens(last - 2)));
+  const subjectFirst = typed === low && OPINIONS.has(low) && (pronounSubject || nounSubject);
+  const asked = OPINION_QUESTIONS.has(low) && clauseStartBefore(before, before.length);
+  if (subjectFirst || asked) {
+    const clause = clauseAfter(ctx.text, end, 9);
+    // The word the comma follows: the verb, its subject in a question, then fillers.
+    let i = 0;
+    let last = { word: typed, start: at };
+    const take = () => {
+      const start = ctx.text.indexOf(clause[i], last.start + last.word.length);
+      last = { word: clause[i++], start };
+    };
+    if (!subjectFirst) {
+      if (!QUESTION_SUBJECTS.has(clause[0] ?? "")) return findings;
+      take();
+    }
+    // "Ich denke mal, …": fillers stay before the comma ("ich hoffe, dir geht es gut").
+    while (i < clause.length && FILLERS.has(clause[i])) take();
+    const rest = clause.slice(i);
+    // The clause's own finite verb within four words, something before it.
+    const verbAt = rest.findIndex((t, k) => k > 0 && k <= 4 && finiteWord(t));
+    if (verbAt < 1) return findings;
+    // "Ich finde es seltsam, wie er redet": the verb closes a clause of its own.
+    if (rest.slice(0, verbAt).some((t) => W_WORDS.has(t) || SUBORDINATORS.has(t))) return findings;
+    // "Ich glaube an Gott", "ich finde nicht, …": no clause of its own begins here; "Man
+    // hofft und träumt": a second verb of the same clause.
+    if (
+      /^(?:an|auf|daran|darauf|nicht|nichts|kein|keine|so|auch|zu|sehr|und|oder|aber|sowie|sondern|bzw)$/i.test(
+        rest[0],
+      )
+    )
+      return findings;
+    push(finding(ctx, last.start, last.word, last.start));
+    return findings;
+  }
+  // "Stell dir vor du gewinnst": the clause the imagining introduces.
+  if (
+    typed === "vor" &&
+    /^[ \t]+(?:ich|du|er|sie|es|wir|ihr|man|der|die|das|ein|eine|\p{Lu}\p{Ll}+)[ \t]+\p{Ll}/u.test(
+      ctx.text.slice(end, end + 30),
+    )
+  ) {
+    const opener = ctx.text.slice(Math.max(0, at - 50), at);
+    if (
+      /(?:^|[.!?:\n„"])[ \t]*(?:Stell|Stelle|Stellt|Stellen)[ \t]+(?:dir|euch|Sie[ \t]+sich|sich|mir)(?:[ \t]+(?:doch|mal|nur|einfach|bitte|jetzt|einmal))*[ \t]+$/u.test(
+        opener,
+      )
+    )
+      push(finding(ctx, at, typed, at));
+    return findings;
+  }
+  // "Daher dachte ich mir ich frage …": an inverted opinion verb and its subject before a
+  // second clause with its own subject.
+  if (typed === low && OPINION_VERBS.test(low) && !clauseStartBefore(before, before.length)) {
+    const next = tokensAfter(ctx.text, end, 4);
+    const reflexive = /^(?:mir|dir|sich|uns|euch)$/.test(next[1] ?? "") ? 1 : 0;
+    const second = next[1 + reflexive] ?? "";
+    if (
+      /^(?:ich|du|er|sie|wir|ihr|man)$/.test(next[0] ?? "") &&
+      /^(?:ich|du|er|sie|es|wir|ihr|man)$/.test(second) &&
+      (finiteWord(next[2 + reflexive] ?? "") || germanVerbLike(next[2 + reflexive] ?? ""))
+    ) {
+      const word = next[reflexive];
+      const start =
+        ctx.text.indexOf(
+          ` ${word}`,
+          reflexive ? ctx.text.indexOf(next[0], end) + next[0].length : end,
+        ) + 1;
+      push(finding(ctx, start, word, start));
+    }
+    return findings;
+  }
+  // "Das ist soweit ich weiß erledigt": a short inserted clause takes a comma on both sides.
+  if (
+    typed === low &&
+    /^(?:soweit|sofern)$/.test(low) &&
+    prior &&
+    !JOINED.has(prior.word.toLowerCase())
+  ) {
+    const inserted =
+      /^[ \t]+(?:ich|wir|man)(?:[ \t]+(?:das|es))?[ \t]+(?:weiß|wissen|sehe|sehen|beurteilen[ \t]+kann|beurteilen[ \t]+können|verstehe|verstanden[ \t]+habe|informiert[ \t]+bin)(?=[ \t]+\p{L})/u.exec(
+        ctx.text.slice(end, end + 50),
+      );
+    // "wofür Sie soweit ich weiß keine Lizenz haben": inside a subordinate clause the
+    // formula may stand without commas.
+    const clause = lastClause(before);
+    const nested = clause.some((t) => W_WORDS.has(t.toLowerCase()) || SUBORDINATORS.has(t));
+    if (inserted && !nested) {
+      const close = end + inserted[0].length;
+      const last = /\p{L}+$/u.exec(inserted[0])![0];
+      push(finding(ctx, prior.start, prior.word, at));
+      push(finding(ctx, close - last.length, last, close));
+    }
+    return findings;
+  }
+  // "Er fragt wie das geht": an indirect question.
+  if (typed === low && W_WORDS.has(low) && prior) {
+    // "Sie wissen nicht an was sie glauben": a preposition opens the question.
+    const prep = QUESTION_PREPOSITIONS.has(prior.word) && /^(?:was|wem|wen)$/.test(low);
+    const lead = prep ? wordBefore(ctx.text, prior.start) : prior;
+    const chain = prep ? before.slice(0, -1) : before;
+    if (!lead) return findings;
+    let k = chain.length - 1;
+    while (k >= 0 && ASK_FILLERS.has(chain[k].toLowerCase())) k--;
+    // "Weiß die Abteilung warum …": a question opens with the asking verb and its subject.
+    const subject = [k - 1, k - 2, k - 3].find(
+      (i) =>
+        i >= 0 &&
+        ASKING.has(chain[i].toLowerCase()) &&
+        /^\p{Lu}/u.test(chain[i]) &&
+        isClauseEnd(chain[i - 1]) &&
+        chain
+          .slice(i + 1, k + 1)
+          .every(
+            (t) =>
+              /^\p{Lu}/u.test(t) ||
+              /^(?:der|die|das|ein|eine|(?:mein|dein|sein|ihr|unser|eur)e?|euer)$/.test(t),
+          ),
+    );
+    if (subject !== undefined) k = subject;
+    // "Es ist richtig wie du das machst", "Mir ist klar woran es liegt": a predicative
+    // adjective before the clause; "so groß wie", "genauso schnell wie" compare.
+    const predicate =
+      k > 0 &&
+      /^\p{Ll}+$/u.test(chain[k]) &&
+      germanAdjective(chain[k]) &&
+      chain.slice(0, k).some((t) => PREDICATE_VERBS.has(t.toLowerCase())) &&
+      !chain.slice(Math.max(0, k - 2), k).some((t) => COMPARING.has(t.toLowerCase()));
+    if (k < 0 || (!ASKING.has(chain[k].toLowerCase()) && !predicate)) return findings;
+    // "weiß schon, warum": a filler after the verb; "so wie" compares.
+    const lw = lead.word.toLowerCase();
+    if (JOINED.has(lw) && !ASK_FILLERS.has(lw)) return findings;
+    const clause = clauseAfter(ctx.text, end, 12);
+    const last = clause.at(-1) ?? "";
+    if (clause.length >= 2 && /^\p{Ll}+$/u.test(last) && !OBJECT_PRONOUNS.has(last))
+      push(finding(ctx, lead.start, lead.word, at));
+  }
 
-export const PREDICATES = {
-  commas: (ctx) => [...commas(ctx), ...salutationComma(ctx), ...commaFrames(ctx)],
-} satisfies Record<string, Detector>;
+  return findings;
+};
+
+/** The named frame fixes of the de.commas rule (grammar/rules/de.yaml). */
+export const FIXERS = {
+  clauseComma,
+} satisfies Record<string, MatchFixer>;
+
+/** The named findings filters of the de.commas rule (grammar/rules/de.yaml). */
+export const FILTERS = {
+  // A position gets one comma: the first frame match that gives it.
+  firstCommaPerEnd: (_ctx, findings) => {
+    const seen = new Set<number>();
+    return findings.filter((f) => !seen.has(f.range.end) && !!seen.add(f.range.end));
+  },
+} satisfies Record<string, FindingsFilter>;

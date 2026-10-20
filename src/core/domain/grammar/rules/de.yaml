@@ -12,20 +12,739 @@ fragments:
   DATIVES: "mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen"
   SEIN: "ist|sind|war|waren|bin|bist|seid|wäre|wären|sei|sein|gewesen"
   B: "(?<![\\p{L}\\p{M}])"
+  # The German word gate (WORD_GATE of review/german/shared.ts).
+  WG: "{{NOT_BLANK}}(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])"
+  SEP: "[ \\t\\u00a0]?"
+  REDUNDANT_STEMS: "[rR]und|[wW]eiß|[sS]chwarz|[tT]ot|[aA]lt|[aA]nder|[sS]elten|[fF]alsch|[zZ]eitlich|[sS]emantisch|[vV]iereckig|[jJ]üdisch|[iI]slamisch|[kK]atholisch|[aA]kustisch|[eE]invernehmlich|[wW]ahr|[pP]roblematisch|[kK]ünstlich|[üÜ]blich|[üÜ]berflüssig|[sS]chriftlich|[nN]eu|[gG]roß|[kK]lein|[lL]eer|[lL]etzt|[gG]emeinsam|[eE]hemalig|[wW]eiblich"
+  NOUN_ENDING: "(?:e|en|n|s|es|er|ern|nen)?"
+  RECHT_NOT_AFTER: "das|kein|ein|sein|ihr|mein|dein|unser|euer|jedes|volles|vollem|gutes|zum|im|vom|nach|mit|von|auf|zu|dem|des|dieses|jedem|allem"
+  SAYING: "sagte|sagt|sagten|rief|ruft|riefen|fragte|fragt|fragten|dachte|denkt|meinte|meint|antwortete|antwortet|erwiderte|erwidert|flüsterte|flüstert|schrie|schreit|murmelte|murmelt|erklärte|erklärt|behauptete|behauptet|seufzte|lachte|rief|bat|befahl"
+  # "23.08.2014", "23.8.", "23. August 2014", "23. Aug. 2014", "2015-09-28".
+  DATE: "(?:(?<day>\\d{1,3})\\.(?:(?<month>\\d{1,2})\\.(?<year>[0-9]{4})?|[ \\t\\u00a0]?(?<name>September|November|Dezember|Februar|Oktober|Januar|Jänner|August|April|März|Juni|Juli|Sept|Jan|Jän|Feb|Mär|Apr|Mai|Jun|Jul|Aug|Sep|Okt|Nov|Dez)\\.?(?:[ \\t\\u00a0](?<year2>[0-9]{4}))?)|(?<isoYear>[0-9]{4})-(?<isoMonth>\\d{2})-(?<isoDay>\\d{2}))(?!\\d)"
+  WEEKDAY: "(?<weekday>Sonntag|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonnabend|(?:So|Mo|Di|Mi|Do|Fr|Sa)\\.?)"
+  # A token that starts like a number word, either case: "sechs", "Hundert", "tausendzwei".
+  NUMBER_PART: "(?:[eE]in|[eE]ins|[zZ]wei|[dD]rei|[vV]ier|[fF]ünf|[sS]echs|[sS]ieben|[aA]cht|[nN]eun|[zZ]ehn|[eE]lf|[zZ]wölf|[dD]reizehn|[vV]ierzehn|[fF]ünfzehn|[sS]echzehn|[sS]iebzehn|[aA]chtzehn|[nN]eunzehn|[zZ]wanzig|[dD]reißig|[vV]ierzig|[fF]ünfzig|[sS]echzig|[sS]iebzig|[aA]chtzig|[nN]eunzig|[hH]undert|[tT]ausend)\\p{Ll}*"
+  NUMBER_STARTS: "ein|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|dreizehn|vierzehn|fünfzehn|sechzehn|siebzehn|achtzehn|neunzehn|zwanzig|dreißig|vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig|hundert|tausend"
+  NUMBER_UNITS: "ein|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun"
+  QUANTITY: "zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|hundert|tausend|viele|mehrere|beide|zahlreiche|unzählige"
+  ORDINAL_NOUNS: "Jahrhundert|Jahrhunderts|Jahrtausend|Stock|Stockwerk|Etage|Minute|Platz|Geburtstag|Jahrestag|Lebensjahr|Klasse|Spieltag|Runde|Liga|Etappe|Auflage|Kapitel|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember"
+  RANGE_END: "(?:[1-9]\\d{0,3}|0)\\.?|\\p{Lu}"
+  NUMBER_WORD: "\\d|(?<![\\p{L}])(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|zwanzig|dreißig|fünfzig|hundert|halbes?|paar)"
+  DAY_TIMES: "Morgen|Vormittag|Mittag|Nachmittag|Abend|Nacht|morgen|vormittag|mittag|nachmittag|abend|nacht"
+  NUMBER_SUFFIXES: "seitig|stellig|prozentig|teilig|jährig|tägig|stündig|minütig|wöchig|monatig|sprachig|farbig|geschossig|zimmerig|türig|spurig|köpfig|sitzig|bändig|zeilig|wertig"
+  ADJ_DEGREE: "sehr|ziemlich|recht|ganz|besonders|wirklich|unglaublich|äußerst|echt|so|relativ|extrem"
+  CAP_NOUN: "\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*"
+  DEGREE_ADVERBS: "sehr|so|ganz|zu|echt|wirklich|ziemlich|richtig|total|nicht|doch|auch|schon|immer|eher|recht|extrem|einfach|leider|wohl"
+  COPULA_FORMS: "ist|sind|war|waren|bin|bist|seid|wird|werden|wurde|wurden|bleibt|blieb|bleiben"
+  GREETING_WORDS: "(?:Hallo|Hi|Hey|Moin|Servus|Guten[ \\t]{1,4}(?:Morgen|Tag|Abend))"
+  CLAUSE_CHAR: "[^.!?;:,\\n]"
+  CASE_PREPOSITION: "(?<prep>[mM]it|[vV]on|[bB]ei|[aA]us|[nN]ach|[zZ]u|[sS]eit|[sS]amt|[nN]ebst|[aA]ußer|[gG]emäß|[nN]ahe|[eE]ntsprechend|[wW]egen|[tT]rotz|[wW]ährend|[sS]tatt|[aA]nstatt|[aA]ufgrund|[bB]ezüglich|[aA]ngesichts|[mM]angels|[iI]nfolge|[aA]bzüglich|[zZ]uzüglich|[iI]nklusive|[eE]xklusive|[hH]insichtlich|[aA]nhand|[aA]nlässlich|[sS]eitens|[mM]ithilfe|[fF]ür|[gG]egen|[dD]urch|[wW]ider|[oO]hne|[uU]m|[bB]etreffend)"
+  INFLECTED_ADJ: "\\p{Ll}+(?:e|en|er|es|em)"
+  DATIVE_ONLY: "(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Zz]u|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer)"
+  ARTICLE_DETERMINER: "[dD]er|[dD]ie|[dD]as|[dD]em|[dD]en|[dD]es|[eE]in|[eE]ine|[eE]inen|[eE]inem|[eE]iner|[eE]ines|[kK]ein|[kK]eine|[kK]einen|[kK]einem|[kK]einer|[kK]eines|[mM]ein|[mM]eine|[mM]einen|[mM]einem|[mM]einer|[mM]eines|[dD]ein|[dD]eine|[dD]einen|[dD]einem|[dD]einer|[dD]eines|[sS]ein|[sS]eine|[sS]einen|[sS]einem|[sS]einer|[sS]eines|[iI]hre|[iI]hren|[iI]hrem|[iI]hrer|[iI]hres|[uU]nser|[uU]nsere|[uU]nseren|[uU]nserem|[uU]nserer|[uU]nseres|[eE]uer|[eE]ure|[eE]uren|[eE]urem|[eE]urer|[eE]ures|[dD]ieser|[dD]iese|[dD]ieses|[dD]iesem|[dD]iesen|[jJ]eder|[jJ]ede|[jJ]edes|[jJ]edem|[jJ]eden|[zZ]um|[zZ]ur|[iI]m|[aA]m|[vV]om|[bB]eim|[iI]ns"
+  ARTICLE_DEGREE: "sehr|ganz|so|recht|ziemlich|besonders|wirklich|echt|total|äußerst|relativ|eher|zu"
+  GENITIVE_REFLEXIVES: "enthielt|enthielten|enthalte|enthältst|enthält|enthaltet|rühmen|rühmt|rühmte|rühmten|rühme|entledigte|entledigten|entledigt|entledigen|entledige|bemächtigte|bemächtigten|bemächtigt|bemächtigen|vergewisserte|vergewissert|vergewissern|erbarmte|erbarmt|erbarmen"
+  DATIVE_DET: "dem|einem|keinem|meinem|deinem|seinem|ihrem|unserem|eurem|diesem|jenem|jedem|den|meinen|deinen|seinen|ihren|unseren|euren|diesen|jenen"
+  GENITIVE_VERBS: "bedarf|bedürfen|bedurfte|bedurften|bedürfte|gedenke|gedenkt|gedenken|gedachte|gedachten"
+  GENITIVE_PARTICIPLES: "enthalten|gerühmt|entledigt|bemächtigt|vergewissert|erbarmt"
+  COLLOCATION_VERBS: "(?:nehm|nimm|nahm|nähm|genommen|leist|geleistet|zieh|zog|zög|gezogen|geb|gib|gab|gäb|gegeben|sag|gesagt|weiß|wiss|wusst|gewusst|trag|träg|trug|trüg|getragen|schaff|schuf|geschaffen|halt|hält|hielt|gehalten)\\p{Ll}*"
+  COLLOCATION_STEMS: "(?:nehm|nimm|nahm|nähm|genommen|leist|geleistet|zieh|zog|zög|gezogen|geb|gib|gab|gäb|gegeben|sag|gesagt|weiß|wiss|wusst|gewusst|trag|träg|trug|trüg|getragen|schaff|schuf|geschaffen|halt|hält|hielt|gehalten)"
+  COLLOCATION_NOUNS: "abstand|abschied|anteil|bezug|einfluss|kenntnis|rücksicht|stellung|folge|widerstand|beistand|nutzen|bilanz|bescheid|rechnung|abhilfe|rücksprache"
+  IDIOM_ORDINALS: "ersten|zweiten|dritten|vierten|fünften|sechsten|siebten|achten|neunten|zehnten|elften|zwölften|fünfzehnten|zwanzigsten|dreißigsten|letzten"
+  IDIOM_DEGREE: "sehr|ganz|ziemlich|echt|wirklich|total|so|zu|nicht|überhaupt|recht|richtig|extrem|besonders|gar|nie|immer|doch|auch|schon|eher|absolut|einfach|unheimlich|wahnsinnig"
+  IDIOMS_SEIN: "ist|war|wäre|wird|wurde|sei|sein|bin|bist|sind|seid|waren|wären"
+  POSSESSIVES: "mein|dein|sein|ihr|unser|euer|Ihr"
+  IDIOMS_DATIVES: "[Mm]ir|[Dd]ir|[Ii]hm|ihr|[Uu]ns|[Ee]uch|ihnen|Ihnen"
+  IDIOMS_MONTHS: "Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember"
+  NOMINAL_ADJ: "(?<target>\\p{L}+)"
+  LANGUAGE_NAMES: "deutsch|englisch|französisch|spanisch|italienisch|polnisch|russisch|türkisch|griechisch|schwedisch|portugiesisch|kroatisch|arabisch|chinesisch|japanisch|latein"
+  LOWER_NOUNS: "Tee|Einmaleins|Feuer|Algebra|Geometrie|Rasen|Intelligenz|Netzwerk|Netzwerke|Medien|Energien|Energie|Dienst|Reife|Faden|Buffet|Gewalt|Grüße|Grüßen|Jahr|Winkel|Tür|Feld|Feldstärke|Strom|Bildungsabschluss|Bildungsabschlüsse|Menschenverstand"
+  NAME_NOUNS: "Weltkrieg|Revolution|Krieg|Eisenbahn|Frieden|Mauer|Armee|Kreuz|Meer|Ozean|Abend|Schrift|Geist|Land|Nationen|Union|Zentralbank|Kommission|Osten|Schweiz|Alb|Spiele|Reich|Gericht|Abendmahl|Staaten|Königreich|Republik|Inseln|Stadt|Welt|Zwanziger|Währungsfonds|Strafgerichtshof|Rundfunk|Empfängnis|Gärten|Tatra|Walachei|Bundesamt|Fluss|Fernsehen|Bank|Bund|Volksrepublik|Vater|Garten|Turm|Seiten"
+  RIGHT_VERBS: "haben|hat|hatte|hatten|hast|habe|hätte|hätten|geben|gibt|gab|gaben|gegeben|behalten|behielt|bekommen|bekam"
 
 rules:
   - id: de.compounds
     checks: [germanCompounds]
-    predicate: compounds
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # "Ich bin ihm über den weggelaufen", "aus dem weggehen": "über den Weg laufen", "aus dem
+      # Weg gehen" split the noun from the verb.
+      - regex: "{{WG}}(?:(?<=(?:über{{S}}den|aus{{S}}dem){{S}})(?<target>[Ww]eg(?<verb>(?:ge)?(?:laufen|lief|liefen|läuft|gehen|ging|gingen|geht|gegangen|gelaufen)))){{E}}"
+        flags: dgu
+        fixer: wegVerb
+      # "Nach dem er gewonnen hatte": "dem" before a subject pronoun at the start of a sentence
+      # is the conjunction "nachdem" or "seitdem" (after a comma it may open a relative clause:
+      # "der Schlüssel, nach dem ich suche").
+      - regex: "{{WG}}(?:(?:^|[.!?\\n„\"])[ \\t]*(?<target>(?<first>Nach|Seit){{S}}dem)(?={{S}}(?:ich|du|er|sie|es|wir|ihr|man){{E}})){{E}}"
+        flags: dgu
+        fixer: conjunctionDem
+      # "So weit ich weiß", "so bald das Wetter …": "soweit", "sobald", "solange".
+      - regex: "{{WG}}(?:(?:^|[.!?,;:\\n„\"])[ \\t]*(?<target>(?<first>[Ss]o){{S}}(?<second>weit|bald|lange|lang))(?={{S}}(?:ich|du|er|sie|es|wir|ihr|man|der|die|das){{E}})){{E}}"
+        flags: dgu
+        fixer: soConjunction
+      # "ihr zu Liebe.", "den Eltern zu gute kommen", "Berichten zu Folge", "zu Nichte machen":
+      # fixed adverbs written apart, in the frames where "zu" is no preposition ("zu Liebe statt
+      # Hass", "von Folge zu Folge", "zu gute Noten").
+      - regex: "{{WG}}(?:(?<target>zu{{S}}(?:(?<liebe>Liebe)(?=[ \\t]*[.!?]|,{{S}}(?:weil|da|dass|obwohl|denn))|(?<gute>gute)(?:(?<gverb>{{S}}(?:kommen|kommt|kam|kamen|gekommen|halten|hält|hielt|hielten|gehalten)){{E}}|(?=[ \\t]*[.,!?;]))|(?<folge>Folge)(?=[ \\t]*[,.;]|{{S}}\\p{Ll})|(?<nichte>Nichte)(?=[ \\t]*[.!?]|{{S}}(?:mach|gemacht))))){{E}}"
+        flags: dgu
+        fixer: zuAdverb
+      # "Er freute sich, das zuhören.": an infinitive clause after a comma, its zu written onto
+      # the verb ("zu hören"); the clause ends after it or opens a dass-clause.
+      - regex: "{{WG}}(?:(?<=,{{S}}(?:(?:das|es|dies){{S}})?|(?:mich|dich|ihn|uns|euch){{S}})(?<target>zu(?<verb>\\p{Ll}{3,}))(?=[ \\t]*(?:[.!?;]|,{{S}}(?:dass|ob|wie|was|wo|wer|wann|warum|bevor|hinter){{E}}))){{E}}"
+        flags: dgu
+        fixer: zuJoined
+      # "beim Haare schneiden", "zum Auto fahren", "für das Korrektur lesen": a verb phrase made
+      # a noun is one word ("beim Haareschneiden").
+      - regex: "{{WG}}(?:(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Vv]orm|[Ff]ürs|(?:[Ff]ür|[Üü]ber|[Nn]ach|[Vv]or|[Bb]ei|[Mm]it){{S}}d(?:as|em)){{S}})(?<target>(?<noun>\\p{Lu}\\p{Ll}+){{S}}(?<verb>\\p{Ll}+(?:en|ern|eln)))){{E}}"
+        flags: dgu
+        fixer: nominalPhrase
+      # "Ideen zum selber machen", "beim Selbst Kochen": "selber" or "selbst" with an infinitive
+      # after "zum", "beim" or "fürs" is one noun ("zum Selbermachen").
+      - regex: "{{WG}}(?:(?<=(?:[Zz]um|[Bb]eim|[Ff]ürs){{S}})(?<target>(?<self>[Ss]elb(?:er|st)){{S}}(?<verb>\\p{L}+(?:en|ern|eln)))(?=[ \\t]*(?:[.!?;,]|$))){{E}}"
+        flags: dgu
+        fixer: selfInfinitive
+      # "zulange gewartet" → "zu lange"; "wenn ich da zulange" is "zulangen" (help oneself).
+      - regex: "{{WG}}(?:(?<target>[Zz]ulange)){{E}}"
+        flags: dgu
+        fixer: zulange
+      # A separable verb's zu-infinitive written apart: "auf zu bauen" → "aufzubauen".
+      - regex: "{{WG}}(?:(?<prev>\\p{L}+,?){{S}}(?<target>(?<particle>ab|an|auf|aus|bei|ein|fest|fort|her|herab|heran|herauf|heraus|herbei|herein|herüber|herum|herunter|hervor|hin|hinab|hinauf|hinaus|hinein|hinüber|hinunter|hinweg|los|nach|nieder|vor|voran|voraus|vorbei|vorüber|weg|weiter|wieder|zurück|zusammen|zu|bereit|statt|teil|kennen|fertig|frei|zufrieden|wohl|hoch|dar|empor|entgegen|unter|zurecht){{S}}zu{{S}}(?<verb>\\p{Ll}+))){{E}}"
+        flags: dgu
+        fixer: zuInfinitive
+      # "Falls du ab sagst,", "hat den Brief ab geschickt.", "als sie los gingen": a particle
+      # written apart from its verb at the end of a clause, where a main clause would not split
+      # it. "wieder", "weiter", "zusammen" and the like are left out: both spellings exist.
+      - regex: "{{WG}}(?:(?<target>(?<particle>ab|an|auf|aus|bei|ein|los|nach|vor|weg|zu|dar|her|hin|fort|heraus|herein|hinaus|hinein|herum|statt|teil|unter|bereit|stand){{S}}(?<verb>\\p{Ll}{3,}))(?=(?:{{S}}(?<aux>\\p{Ll}+))?[ \\t]*(?:[,.!?;:)]|$))){{E}}"
+        flags: dgu
+        fixer: splitAtEnd
+      # "sich um zu drehen", "damit um zu gehen": "um" as a particle.
+      - regex: "{{WG}}(?:(?<=(?:sich|damit|dich|mich|uns|euch){{S}})(?<target>um{{S}}zu{{S}}(?<verb>\\p{Ll}+))){{E}}"
+        flags: dgu
+        fixer: umZu
+      # "bereit stellen", "kennen lernen", "fertig stellen": a particle before an infinitive.
+      - regex: "{{WG}}(?:(?<target>(?<particle>bereit|kennen|fertig|zufrieden|statt|teil|nieder|weg|los|vorbei|hinzu|preis|zugute){{S}}(?<verb>\\p{Ll}+(?:en|ern|eln)))){{E}}"
+        flags: dgu
+        fixer: splitInfinitive
+      # Times of day: "Dienstag Abend" → "Dienstagabend".
+      - regex: "{{WG}}(?:(?<=(?:am|jeden|diesen|nächsten|letzten|kommenden|vergangenen|bis|ab|seit|vom|zum|Am|Jeden){{S}})(?<target>(?<day>Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonnabend|Sonntag){{S}}(?<time>{{DAY_TIMES}}))){{E}}"
+        flags: dgu
+        fixer: weekdayTime
+      # Numbers with suffixes: "8 seitig" → "8-seitig".
+      - regex: "(?<![\\p{L}\\p{N}.,-])(?<target>(?<n>\\p{N}+)(?:[ \\t]?)(?<suffix>(?:{{NUMBER_SUFFIXES}}|Seitig|Stellig|Prozentig|Teilig|Jährig|Tägig|Stündig|Minütig|Wöchig|Monatig|Sprachig|Farbig|Geschossig|Zimmerig|Türig|Spurig|Köpfig|Sitzig|Bändig|Zeilig|Wertig)(?:e|en|er|es|em)?)){{E}}"
+        flags: dgu
+        fixer: numberSuffix
+      # "acht hundertmal", "hundert tausendmal": a number word before "-mal" is one word.
+      - regex: "{{WG}}(?:(?<target>(?<count>ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|zwanzig|hundert|tausend){{S}}(?<times>hundertmal|tausendmal))){{E}}"
+        flags: dgu
+        fixer: countTimes
+      # "im 5 Minuten Takt", "ein 9 Euro Ticket": a number and its unit before a noun that a
+      # singular determiner goes with are one hyphenated word ("5-Minuten-Takt"). Without such
+      # a determiner the unit may measure the noun ("3 Tage Urlaub"). A longer chain ("eine 14
+      # Tage Geld zurück Garantie") is left alone.
+      - regex: "{{WG}}(?:(?<=(?<!\\p{L})(?:[Ee]in|[Ee]ine|[Ee]inen|[Ee]inem|[Ee]iner|[Ee]ines|[Ii]m|[Aa]m|[Zz]um|[Zz]ur|[Vv]om|[Bb]eim|[Ii]ns|[Dd]as|[Dd]em|[Dd]es){{S}})(?<target>(?<n>\\p{N}+){{S}}(?<unit>Minuten|Stunden|Tage|Wochen|Monate|Jahre|Euro|Dollar|Cent|Prozent|Punkte|Meter|Kilometer|Zimmer|Sterne|Gänge|Liter|Kilo|Gramm|Seiten|Personen|Zoll|Grad|Tonnen){{S}}(?<noun>\\p{Lu}\\p{Ll}{2,}))(?![ \\t]+(?:\\p{Lu}|zurück))){{E}}"
+        flags: dgu
+        fixer: unitNoun
+      # "3. Klässler" → "Drittklässler".
+      - regex: "(?<![\\p{L}\\p{N}.])(?<target>(?<n>1[0-3]|[1-9])\\.[ \\t]?[Kk]lässler(?<end>in|innen|n)?){{E}}"
+        flags: dgu
+        fixer: klassler
+      # Abbreviations before nouns: "US Bürger" → "US-Bürger".
+      - regex: "{{WG}}(?:(?<target>(?<acronym>US|EU|UN|UNO|IT|PC|PR|EDV|Kfz|KFZ|Pkw|PKW|Lkw|LKW|USB|PDF|HTML|CD|DVD|TV|SMS|GPS|WLAN|SPD|CDU|FDP|DFB|NATO|WHO){{S}}(?<noun>\\p{Lu}\\p{Ll}{2,}))){{E}}"
+        flags: dgu
+        fixer: acronymNoun
+      # "in's Kino", "auf's Dach", "vor'm Haus": a preposition fused with its article takes no
+      # apostrophe.
+      - regex: "{{WG}}(?:(?<target>(?<prep>[Ii]n|[Aa]n|[Aa]uf|[Ff]ür|[Dd]urch|[Uu]m|[Hh]inter|[Üü]ber|[Uu]nter|[Vv]or)['’](?<article>s|n|m))){{E}}"
+        flags: dgu
+        fixer: fusedArticle
+      # "eMail", "e-mail", "E-mail", "EMail" are never right; "Email" (enamel) only after a
+      # determiner that cannot go with "das Email".
+      - regex: "{{WG}}(?:(?<target>(?:eMail|e-mail|E-mail|EMail|e-Mail)(?<rest>s|-\\p{L}[\\p{L}-]*)?)){{E}}"
+        flags: dgu
+        fixer: emailAny
+      # "Spam-Email", "HTML-EMail-Adresse": the mail part of a hyphenated compound.
+      - regex: "{{WG}}(?:(?<target>(?<pre>(?:\\p{Lu}[\\p{L}]*|\\p{Lu}{2,})-)(?:Email|EMail|eMail|E-mail|e-mail|E-MAIL)(?<rest>s|-\\p{L}[\\p{L}-]*)?)){{E}}"
+        flags: dgu
+        fixer: emailTail
+      # "E mail", "e Mails": the letter written apart.
+      - regex: "{{WG}}(?:(?<target>[Ee][ \\t]+[Mm](?:ail|AIL|Ail)(?<rest>s?))){{E}}"
+        flags: dgu
+        fixer: emailApart
+      # "E-Mail Adresse", "E-Mail programm": the noun after it joins with a hyphen ("per E-Mail
+      # Adressen schicken" sends addresses).
+      - regex: "{{WG}}(?:(?<!(?:per|via|als|[Üü]ber|mit){{S}})(?<target>E-Mail{{S}}(?<noun>(?:[Aa]dresse|[Pp]rogramm|[Kk]onto|[Pp]ostfach|[Vv]erkehr|[Aa]nhang|[Ss]ignatur|[Ss]erver|[Vv]erteiler|[Bb]enachrichtigung|[Kk]ommunikation|[Mm]arketing)(?:n|en|e|s|es)?))){{E}}"
+        flags: dgu
+        fixer: emailNoun
+      - regex: "{{WG}}(?:(?<=(?:eine|einer|meine|deine|seine|ihre|Ihre|unsere|eure|keine|jede|diese|per|neue|letzte|kurze){{S}})(?<target>Email(?<rest>-\\p{L}[\\p{L}-]*)?)){{E}}"
+        flags: dgu
+        fixer: emailAfter
+      - regex: "{{WG}}(?:(?<target>Emails|E-Mailadresse|E-Mailadressen)){{E}}"
+        flags: dgu
+        fixer: emails
+      # "DinA4" → "DIN A4".
+      - regex: "{{WG}}(?:(?<target>(?:DIN|Din|din)(?:-|{{S}})?[Aa](?<size>[0-8])(?<rest>(?:-|{{S}})?Blatt|-\\p{L}+)?)){{E}}"
+        flags: dgu
+        fixer: din
+      - regex: "{{WG}}(?:(?<target>(?:AddOn|Addon|addon|AddOns|Addons|addons)(?<rest>-\\p{L}+)?)){{E}}"
+        flags: dgu
+        fixer: addOn
+      # A compound noun written as two words ("die Abfahrts Zeiten"), and an adjective with no
+      # ending that opens a compound ("im roh Zustand"): each word whose start the chunk owns
+      # (a word of letters, not glued into a number, path, mention or dotted token).
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
+        scan: owned
+        flags: gu
+        fixer: nounPair
+      # "zu teil", "von statten": a bound first part written as two words, or written apart from
+      # its verb ("zunichte gemacht").
+      - regex: "{{WG}}(?:(?<first>zunichte|inne|zuteil|vonstatten|zugute|preis|zu{{S}}teil|von{{S}}statten|Preis)(?:(?<zu>{{S}}zu)?{{S}}(?<verb>\\p{Ll}+))?{{E}})"
+        flags: dgu
+        owner: first
+        fixer: boundVerb
+      # "zu Pass(e)": "zupass" next to a form of "kommen".
+      - regex: "{{WG}}(?:(?<first>zu{{S}}Passe?|zupasse?)(?:{{S}}(?<verb>\\p{Ll}+))?{{E}})"
+        flags: dgu
+        owner: first
+        fixer: zuPass
   - id: de.dates
     checks: [germanDates]
-    predicate: dates
+    style: match
+    message: review_msg_german_invalid_date
+    frames:
+      # A weekday before its date: "Sonntag, 23.08.2014", "Samstag den 23. August".
+      - regex: "{{WG}}(?<target>{{WEEKDAY}}(?<sep>,?[ \\t\\u00a0]+(?:(?:den|der|dem)[ \\t\\u00a0]+)?)(?<date>{{DATE}}))"
+        flags: dgu
+        fixer: weekdayDate
+      # A date alone: "31. November", "29.2.2014".
+      - regex: "(?<![\\d.])(?<target>{{DATE}})"
+        flags: dgu
+        fixer: loneDate
+      # "am 31. april 2020": a full month name in lowercase (germanNounCasing reports its case).
+      - regex: "(?<![\\d.])(?<target>(?<day>\\d{1,2})\\.[ \\t\\u00a0]?(?<name>januar|jänner|februar|märz|april|mai|juni|juli|august|september|oktober|november|dezember)(?:[ \\t\\u00a0](?<year2>[0-9]{4}))?)(?![\\p{L}\\d])"
+        flags: dgu
+        fixer: lowerDate
+  - id: de.isoDates
+    checks: [germanDates]
+    # predicate: calls invalidIsoDates of review/isoDates.ts, a shared scan outside the German modules.
+    predicate: isoDates
+  - id: de.dateDots
+    checks: [germanDates]
+    style: match
+    message: review_msg_german_date_punctuation
+    frames:
+      # A day-month date without its closing dot ("am 13.12 um").
+      - regex: "(?<=(?:^|[^\\p{L}])(?:am|vom|zum|bis|dem|den|seit){{S}})(?<target>(?<day>\\d{1,2})\\.(?<month>\\d{1,2}))(?=[ \\t\\u00a0]+[^\\d\\s.]|[ \\t\\u00a0]*[,)]|$)"
+        flags: dgu
+        fixer: dateDot
   - id: de.nounCasing
     checks: [germanNounCasing]
-    predicate: nounCasing
+    style: match
+    message: review_msg_german_idiom_case
+    filter: afterIdiomNoun
+    frames:
+      # A lowercase noun after a determiner, a preposition or a number: "der zugriff", "mit
+      # schnellen schritten", "2 tage". German capitalizes every noun. Each word whose start the
+      # chunk owns.
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
+        scan: owned
+        flags: gu
+        fixer: nounCase
+      # A strong neuter adjective with no determiner and no noun after it is a noun: "Was gibt es
+      # neues?", "Wir wagen neues.", "um schlimmeres zu verhindern".
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
+        scan: owned
+        flags: gu
+        fixer: bareNeuter
+      # Adjectives used as nouns are capitalized: "im Freien", "zum Guten", "aufs Neue". Only where
+      # no noun follows that the adjective could belong to ("im freien Feld" stays). Contractions:
+      # "im klaren", "zum besseren", "ins reine", "aufs neue", "vom schlimmsten".
+      - regex: "(?:^|(?=\\S))(?:(?:im|zum|vom|ins|aufs|beim|fürs|übers|durchs){{S}}{{NOMINAL_ADJ}}){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      # An article with a superlative: "auf das schlimmste", "mit dem schlimmsten", "das beste".
+      - regex: "(?:^|(?=\\S))(?:(?:das|dem|den|des){{S}}(?<sup>\\p{L}+?(?:st|ßt)(?:e|en))){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      # "des weiteren", "des öfteren", "von neuem", "seit längerem", "um ein vielfaches".
+      - regex: "(?:^|(?=\\S))(?:(?:des{{S}}(?:weiteren|öfteren|näheren)|von{{S}}neuem|um{{S}}ein{{S}}vielfaches|als{{S}}(?:erstes|nächstes|letztes)|fürs{{S}}erste|im{{S}}großen{{S}}und{{S}}(?<ganzen>ganzen))){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      # "etwas neues", "nichts gutes", "viel schönes", "etwas ganz besonderes", "nichts allzu
+      # gutes"; "alles gute", "manches schöne". "mit etwas leckerem" (dative), "etwas teures und
+      # schönes" (the second of two).
+      - regex: "(?:^|(?=\\S))(?:(?:etwas|nichts|viel|wenig|allerlei|genug)(?:{{S}}(?:sehr|ganz|wirklich|total|allzu|besonders|ziemlich|richtig|echt|ganz{{S}}schön)){0,2}{{S}}(?<es>\\p{L}+e[sm])|(?:alles|manches){{S}}(?<e>\\p{L}+e)){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      - regex: "(?:^|(?=\\S))(?:(?:etwas|nichts|viel|wenig){{S}}\\p{L}+e[sm]{{S}}(?:und|oder|sowie){{S}}(?<es>\\p{L}+e[sm])){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      # "sein bestes geben", "ihr möglichstes tun", "mein erspartes".
+      - regex: "(?:^|(?=\\S))(?:(?:mein|dein|sein|ihr|unser|euer){{S}}(?<poss>bestes|möglichstes|übriges|erspartes|liebstes)){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      # "das schöne daran", "das wichtige an der Sache", "das gute am Plan".
+      - regex: "(?:^|(?=\\S))(?:[Dd]as{{S}}(?<abs>\\p{L}+e)(?={{S}}(?:daran|dabei|darin|daraus|darauf|am|an{{S}}(?:der|dem|den|diesem|dieser|ihm|ihr)))){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      # "das beste, was …", "das erste, worauf …": a superlative or ordinal with "was" or a wo-word
+      # after it is a noun ("Von den Bildern ist das das schönste, das …" may refer back).
+      - regex: "(?:^|(?=\\S))(?:[Dd]as{{S}}(?<what>\\p{L}+(?:st|ßt)e|erste|letzte|einzige|nächste)(?=,{{S}}(?:was|wo|wor)\\p{L}*{{E}})){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      # "Ich bin die erste, die …", "Er war der letzte, der ging", "Sie wurde erste.": an ordinal
+      # that names a person or thing before its own relative pronoun (not "die erste, das …
+      # umfassende Lehrbefugnis"), or as the predicate. At a sentence end the noun may be left out
+      # ("rechts die erste").
+      - regex: "(?:^|(?=\\S))(?:(?:[Dd]er|[Dd]ie|[Dd]as){{S}}(?<what>erste|zweite|dritte|vierte|fünfte|letzte|nächste)(?=,{{S}}(?:(?<=[Dd]er{{S}}\\p{L}{1,20},{{S}})der|(?<=[Dd]ie{{S}}\\p{L}{1,20},{{S}})die|(?<=[Dd]as{{S}}\\p{L}{1,20},{{S}})das){{S}}(?!(?:erste|zweite|dritte|vierte|fünfte|letzte|nächste){{E}})\\p{L})){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      - regex: "(?:^|(?=\\S))(?:(?:wurde|wurden|wird|werden|ist|war|bin|bist|sind|waren|wäre){{S}}(?:(?:er|sie|es|ich|du|wir|ihr|man){{S}})?(?:(?:wirklich|nur|doch|knapp|erst|schon|trotzdem|auch|wieder){{S}})?(?<rank>(?:erst|zweit|dritt|letzt)e[rs]?)(?=[ \\t]*[.!?](?![.\\p{L}]))){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      # A colour as a noun: "in weiß heiraten", "auf grün stehen", "die Farbe rot".
+      - regex: "(?:^|(?=\\S))(?:(?:in|auf|von|nach|[Ff]arbe){{S}}(?<lang>weiß|schwarz|rot|blau|grün|gelb|grau|braun|lila|rosa|orange|türkis|violett|beige)(?=[ \\t]*[.!?,;])){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      # A language as a noun: "auf deutsch", "in englisch", "kein französisch".
+      - regex: "(?:^|(?=\\S))(?:(?:auf|in|kein){{S}}(?<lang>{{LANGUAGE_NAMES}})){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      # The language one learns, teaches, understands or speaks: "Englisch lernen", "spricht
+      # Deutsch", "kann Französisch sprechen" (not "sich deutsch unterhalten").
+      - regex: "(?:^|(?=\\S))(?:(?<lang>{{LANGUAGE_NAMES}})(?={{S}}(?:zu{{S}})?(?:lernen|lernt|lerne|lernst|gelernt|unterrichten|unterrichtet|unterrichte|verstehen|versteht|verstehe|verstanden|beherrschen|beherrscht|beherrsche|studieren|studiert|studiere){{E}})){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      - regex: "(?:^|(?=\\S))(?:(?<lang>{{LANGUAGE_NAMES}})(?<=(?:kann|kannst|können|könnt|konnte|konnten|möchte|möchten|will|wollen){{S}}(?:\\p{L}{1,20}{{S}})?(?:{{LANGUAGE_NAMES}}))(?={{S}}(?:sprechen|reden|lesen|schreiben){{E}})){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      - regex: "(?:^|(?=\\S))(?:(?<lang>{{LANGUAGE_NAMES}})(?<=(?:lernt|lerne|lernst|lernen|lernte|lernten|unterrichtet|unterrichte|unterrichten|versteht|verstehe|verstehen|beherrscht|beherrsche|beherrschen|studiert|studiere|studieren|spricht|sprichst|spreche|sprechen|sprach){{S}}(?:(?:gut|fließend|perfekt|kein|etwas|nur|auch|schon|gerade|jetzt|noch|wieder|sehr{{S}}gut){{S}})?(?:{{LANGUAGE_NAMES}}))(?=[ \\t]*[.!?,;]|{{S}}(?:und|oder|als|mit|in){{E}})){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      # Fixed phrases with a nominalized adjective or adverb: "im Folgenden", "im Voraus", "im
+      # Übrigen", "zum Besten geben".
+      - regex: "(?:^|(?=\\S))(?:(?:im|Im){{S}}(?<fixed>folgenden|weiteren|voraus|übrigen|nachhinein|vorhinein|allgemeinen|einzelnen|wesentlichen)|zum{{S}}(?<fixed2>besten)(?={{S}}(?:geben|gab|gibt|gegeben|halten|hält|hielt|gehalten|haben))){{E}}"
+        owner: none
+        fixer: nominalizedFrame
+      # An adjective capitalized inside a sentence where it is no noun: "Ich bin dir unendlich
+      # Dankbar.", "Es lief völlig Problemlos."
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
+        scan: owned
+        flags: gu
+        fixer: capitalizedAdjective
+      # A finite verb capitalized after its subject pronoun: "Ich Koche heute.", "Wir Treffen uns
+      # später.", "weil ich Arbeite,".
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
+        scan: owned
+        flags: gu
+        fixer: capitalizedVerb
+      # Fixed phrases whose words change case: a word that is a noun only in the phrase ("die
+      # Schuld", "im Ernst", "zum Dank") and a noun that is an adverb or adjective in it ("mir ist
+      # es recht", "nach links", "ernst nehmen"). "das importieren der Klassen", "beim erstellen
+      # einfacher Regeln": an infinitive after an article with a genitive after it is a noun.
+      - regex: "{{WG}}(?:(?=\\p{Ll}{3,}(?:en|ern|eln){{E}})(?<=(?:[Dd]as|[Dd]em|[Bb]eim|[Zz]um|[Vv]om|[Ii]ns|[Ii]m)(?:{{S}}\\p{Ll}{2,30}(?:e|en))?{{S}})(?<target>\\p{Ll}{3,}(?:en|ern|eln))(?={{S}}(?:des|eines|einer|meines|meiner|seines|seiner|ihres|ihrer|unseres|unserer|dieses|dieser|der|\\p{Ll}{2,30}er{{S}}\\p{Lu}[\\p{L}-]*|von{{S}}(?:\\p{Ll}{2,30}(?:e|en){{S}})?\\p{Lu}\\p{Ll}+){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase1
+      # "beim Suchen und finden", "ein Kennenlernen oder treffen": a lowercase infinitive joined to
+      # one made a noun.
+      - regex: "{{WG}}(?:(?=\\p{Ll}{3,}(?:en|ern|eln){{E}})(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Dd]as|[Dd]em|[Ii]m|[Ii]ns|[Ee]in|\\p{Ll}{2,30}es){{S}}\\p{Lu}\\p{Ll}{2,}(?:en|ern|eln){{S}}(?:und|oder|bzw\\.|sowie){{S}})(?<target>\\p{Ll}{3,}(?:en|ern|eln))(?=[ \\t]*[.!?,;:]|{{S}}(?:des|der|von|würde|wird|ist|war|einladen|\\p{Ll}{2,}t){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase2
+      # "Die Uhr ist nichts Wert", "was das Wert ist": the adjective "wert".
+      - regex: "{{WG}}(?:(?<=(?:nichts|viel|wenig|mehr|einiges|etwas|das|es|nicht|kaum|einen{{S}}Versuch|keinen{{S}}Cent){{S}})(?<target>Wert)(?={{S}}(?:ist|sind|war|waren|sein|wäre|wären|scheint){{E}}|[ \\t]*[.!?,;])){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase3
+      # "bis spät Abends" → spätabends; "Wir essen Abends" → abends: the adverbs of the time of day
+      # are lowercase ("eines Abends", "des Morgens" are nouns).
+      - regex: "{{WG}}(?:(?<target>(?<degree>spät|früh){{S}}(?<time>Abends?|Morgens?|Nachts?|abends|morgens|nachts))|(?=Morgens|Abends|Nachts|Mittags|Vormittags|Nachmittags)(?<!(?:[Dd]es|[Ee]ines|[Jj]eden|[Aa]m|[Zz]um|[Vv]om|bis{{S}}zum|[Ee]ines{{S}}\\p{Ll}{1,20}en){{S}})(?<=\\p{Ll}{{S}})(?<t2>Morgens|Abends|Nachts|Mittags|Vormittags|Nachmittags){{E}}){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase4
+      # "Der angestellte wurde entlassen", "Die jugendlichen benahmen sich": a person named by an
+      # adjective or participle, before the clause's verb.
+      - regex: "{{WG}}(?:(?<=(?:[Dd]er|[Dd]ie|[Dd]en|[Dd]em|[Ee]in|[Ee]ine|[Ee]inen|[Ee]inem|[Kk]ein|[Kk]eine|[Ss]ein|[Ss]eine|[Mm]ein|[Mm]eine|[Ii]hr|[Ii]hre){{S}})(?<target>(?:angestellt|obdachlos|jugendlich|erwachsen|verletzt|verwundet|abgeordnet|bekannt|verwandt|vorsitzend|reisend|studierend|arbeitslos|gefangen|verdächtig|überlebend|behindert|geliebt|verstorben|beschuldigt|angeklagt|auszubildend|selbstständig|selbständig|gläubig|minderjährig|volljährig)(?:e|en|er))(?={{S}}(?:wurde|wurden|ist|sind|war|waren|hat|haben|hatte|hatten|wird|werden|kam|kamen|kann|können|muss|müssen|soll|sollen|benahm|benahmen|sagte|sagten|ging|gingen|starb|starben|bekam|bekamen|darf|dürfen){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase5
+      # "Angst und schrecken verbreiten" → Angst und Schrecken.
+      - regex: "{{WG}}(?:(?<target>[Aa]ngst{{S}}und{{S}}[Ss]chrecken)(?={{S}}(?:verbreiten|verbreitet|verbreitete|verbreiteten|versetzen|versetzt|versetzte|auslösen|ausgelöst){{E}}|[ \\t]*[.!?,;])){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase6
+      # "Hey liebes,", "Hallo ihr lieben": the addressed person is a noun.
+      - regex: "{{WG}}(?:(?<=(?:^|\\n)[ \\t]{0,8}(?:Hey|Hallo|Hi|Moin|Servus|Guten{{S}}(?:Morgen|Abend|Tag)|Gute{{S}}Nacht)(?:{{S}}(?:ihr|mein|meine))?{{S}})(?<target>liebes|lieben|lieber|liebe|süße|süßer|süßes)(?=[ \\t]*(?:[,!.\\n]|$))){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase7
+      # "zu ehren der Gäste", "zur ehre Gottes", "in ehren": the noun "Ehre".
+      - regex: "{{WG}}(?:(?<=(?:[Zz]u|[Ii]n){{S}})(?<target>ehren)(?={{S}}(?:des|der|dem|meines|meiner|seines|seiner|ihres|ihrer|unseres|unserer|\\p{Lu})|{{S}}\\p{Ll}+(?:te|ten|ter|tes|ene|enen|ener){{E}}|[ \\t]*[.!?,;])|(?<=[Zz]ur{{S}})(?<t2>ehre){{E}}){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase8
+      # "Ich mache mir sorgen", "sich keine sorgen machen": the noun "Sorgen".
+      - regex: "{{WG}}(?:(?<=(?:mir|dir|sich|uns|euch|ihm|ihr|keine|viele|große|ernste|unnötige|andere|ganz{{S}}andere|solche|mehr){{S}})(?<target>sorgen)(?={{S}}(?:machen|machst|macht|machte|machten|gemacht|zu{{S}}machen|mache){{E}}|[ \\t]*[.!?,;])){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase9
+      # "abstand nehmen", "folge leisten", "nutzen ziehen", "bescheid geben": the noun of a fixed
+      # noun-and-verb phrase, right before its verb or after it with at most two words between.
+      - regex: "{{WG}}(?:(?<target>{{COLLOCATION_NOUNS}})(?={{S}}(?:(?:davon|darauf|daraus|dazu|damit|darüber){{S}})?(?:zu{{S}})?{{COLLOCATION_VERBS}}{{E}})|(?<t2>{{COLLOCATION_NOUNS}})(?<={{COLLOCATION_STEMS}}\\p{Ll}{0,6}{{S}}(?:\\p{Ll}{1,20}{{S}}){0,2}(?:{{COLLOCATION_NOUNS}}))(?=[ \\t]*[.!?,;]|{{S}}(?:daraus|davon|darauf|dazu|damit|mit|für|zu|an|auf|bei|von){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase10
+      # "zur neige gehen", "im schnitt", "das weite suchen", "einen gefallen tun": a noun in a fixed
+      # phrase that is a verb or adjective form elsewhere.
+      - regex: "{{WG}}(?:(?<=[Zz]ur{{S}})(?<target>neige){{E}}|(?<=[Ii]m{{S}})(?<t2>schnitt)(?=[ \\t]*[.!?,;]|{{S}}(?:\\d+|etwa|rund|ungefähr|knapp|fast|mehr|weniger|nur|pro|alle|jede|jeden){{E}})|(?<=[Dd]as{{S}})(?<t3>weite)(?={{S}}(?:such|gesucht)\\p{Ll}*{{E}})|(?<=[Ee]inen{{S}}(?:gro(?:ß|ss)en{{S}})?)(?<t4>gefallen)(?={{S}}(?:zu{{S}})?(?:tun|tust|tut|tat|tätest|täte|getan|erweisen|erweist|erwies|erwiesen){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase11
+      # "um Gottes Willen", "um des Friedens Willen" → willen: the preposition "um … willen" with a
+      # genitive between ("um den Willen" is the noun).
+      - regex: "{{WG}}(?:(?<=[Uu]m{{S}}(?:(?:des|eines|meines|deines|seines|ihres|unseres|eures|der|meiner|deiner|seiner|ihrer|unserer|eurer){{S}}(?:\\p{Ll}+{{S}})?)?\\p{Lu}\\p{Ll}+{{S}})(?<target>Willen){{E}}|(?<=[Uu]m{{S}}(?:meiner|deiner|seiner|ihrer|unser|euer){{S}}selbst{{S}})(?<t2>Willen){{E}}){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase12
+      # "Er war Zeit seines Lebens …" → zeit: the preposition "zeit" before "meines Lebens"; at a
+      # sentence start, or after a determiner, quantity or adjective ("die schönste Zeit meines
+      # Lebens", "viel Zeit meines Lebens"), it stays the noun.
+      - regex: "{{WG}}(?:(?<=\\p{L}{{S}})(?<target>Zeit)(?={{S}}(?:meines|deines|seines|ihres|unseres|eures|Ihres){{S}}Lebens{{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase13
+      # "mitten im nichts", "im nirgendwo": the nouns "Nichts" and "Nirgendwo".
+      - regex: "{{WG}}(?:(?<=[Ii]m{{S}})(?<target>nichts|nirgendwo)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase14
+      # "vor ärger", "mit bedauern", "zu unserem bedauern": the nouns "Ärger" and "Bedauern" ("es
+      # wird immer ärger" is the comparative).
+      - regex: "{{WG}}(?:(?<target>ärger)(?<=(?:vor|für|aus|viel|keinen|großen|nur|mit){{S}}ärger){{E}}|(?<t2>bedauern)(?<=(?:[Mm]it|[Zz]u{{S}}(?:meinem|unserem|seinem|ihrem|Ihrem|deinem|eurem))(?:{{S}}(?:großem|größtem|tiefem|tiefstem|aufrichtigem|großen|größten|tiefen|aufrichtigen))?{{S}}bedauern){{E}}){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase15
+      # "außer acht lassen", "sich in acht nehmen": the noun "Acht".
+      - regex: "{{WG}}(?:(?<=[Aa]ußer{{S}})(?<target>acht)(?={{S}}(?:lassen|lässt|ließ|ließen|gelassen|zu{{S}}lassen|ließe){{E}}|[ \\t]*[.!?,;])|(?<=(?:sich|dich|mich|euch|uns){{S}}in{{S}})(?<t2>acht)(?={{S}}(?:nehmen|nimmt|nahm|genommen|nimm){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase16
+      # "Das tut mir Leid" → leid ("leidtun"); "Leid tun" → leidtun.
+      - regex: "{{WG}}(?:(?<=(?:tut|tat|täte|tun|getan|tue){{S}}(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen)(?:{{S}}(?:sehr|wirklich|so|echt|furchtbar|aufrichtig|ehrlich|schrecklich|unendlich|total|auch|nicht|schon|doch|ja)){0,2}{{S}})(?<target>Leid)(?=[ \\t]*[.!?,;]|{{S}}(?:dass|für|um|wegen){{E}})|(?<=(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen|noch|sehr|wirklich){{S}})(?<t2>Leid{{S}}tun)(?=[ \\t]*[.!?,;])){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase17
+      # "jedes mal", "beim nächsten mal", "ein für alle mal", "die letzten male": the noun "Mal"
+      # after a determiner or an ordinal; "von Mal zu Mal", "Mal für Mal".
+      - regex: "{{WG}}(?:(?<=(?:[Jj]edes|[Dd]ieses|[Nn]ächstes|[Ll]etztes|[Ee]rstes|[Zz]weites|[Dd]rittes|[Ee]inziges|[Mm]anches|einige|etliche|[Bb]eim{{S}}(?:nächsten|ersten|letzten|zweiten)|[Zz]um{{S}}(?:{{IDIOM_ORDINALS}}|wiederholten|x-ten|hundertsten|tausendsten)|[Dd]as{{S}}(?:erste|zweite|dritte|letzte|nächste|einzige)|ein{{S}}für{{S}}alle){{S}})(?<target>mal){{E}}|(?<=(?:[Dd]ie{{S}}(?:ersten|letzten|nächsten)|einige|etliche|viele|mehrere){{S}})(?<t4>male){{E}}|(?<t2>mal)(?={{S}}(?:zu|für){{S}}[Mm]al{{E}})|(?<=[Mm]al{{S}}(?:zu|für){{S}})(?<t3>mal){{E}}){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase18
+      # "mit ja antworten", "ein klares nein": the answer as a noun.
+      - regex: "{{WG}}(?:(?=ja|nein)(?<=(?:mit|einem|kein|(?:\\p{Ll}{3,20}(?:es|en))|(?:Ja|Nein){{S}}(?:oder|und)){{S}})(?<target>ja|nein)(?=[ \\t]*[.,!?;:]|{{S}}(?:oder|und|beantworten|beantwortet|beantwortete|hätte|hat|war|ist|sagen|gesagt|stimmen|stimmte|gestimmt|antworten|antwortete|geantwortet){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase19
+      # "Ich bin sehr Stolz auf euch", "Das ist nicht Fair.": a predicative adjective stays
+      # lowercase.
+      - regex: "{{WG}}(?:(?<=(?:ist|sind|war|waren|bin|bist|seid|wäre|wären|wird|wurde|bleibt|blieb)(?:{{S}}(?:du|ihr|er|sie|es|wir|ich|man))?(?<degree>(?:{{S}}(?:{{IDIOM_DEGREE}})){0,3}){{S}})(?<target>\\p{Lu}\\p{Ll}{2,})(?=[ \\t]*[.!?,;]|{{S}}(?:auf|über|für|mit|zu|von|gegenüber|darauf|damit|dafür|davon){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        message: review_msg_german_adjective_lowercase
+        fixer: idiomCase20
+      # "die Rechte dritter", "an dritte weitergeben", "am ersten jedes Monats", "der erste, der …":
+      # ordinals as nouns.
+      - regex: "{{WG}}(?:(?<=(?:an|für|gegenüber|durch|vor){{S}})(?<target>dritte[nr]?)(?!{{S}}\\p{Lu}|\\p{L})|(?<=\\p{Lu}\\p{Ll}{2,}{{S}})(?<t2>dritter)(?=[ \\t]*[.,;!?])|(?<=(?:[Aa]m|[Zz]um|[Vv]om){{S}})(?<t3>{{IDIOM_ORDINALS}})(?={{S}}(?:jedes|eines|des|dieses|nächsten){{E}})|(?<=(?:der|die|das){{S}})(?<t4>erste|zweite|dritte|letzte|einzige|nächste)(?=,{{S}}(?<relative>der|die|das|den|dem|welche[rs]?){{S}}\\p{L}+)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase21
+      # "die schuld", "keine schuld", "deine schuld": the noun; "ist Schuld daran": the adjective.
+      - regex: "{{WG}}(?:(?<=(?:die|der|keine|keiner|alle|ohne|von|jede|schwere|große|ganze|meine|deine|seine|ihre|unsere|eure|Ihre){{S}})(?<target>schuld)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase22
+      - regex: "{{WG}}(?:(?<=(?:{{IDIOMS_SEIN}})(?:{{S}}(?:doch|nicht|auch|selbst|allein|ganz|daran|wohl|ja|ich|du|er|sie|es|wir|ihr)){0,4}{{S}})(?<target>Schuld)(?={{S}}daran|[ \\t]*[.!?,;])){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase23
+      # "mein ernst", "im ernst", "ernst machen"; "Ernst nehmen", "Ernst gemeint".
+      - regex: "{{WG}}(?:(?<=(?:{{POSSESSIVES}}|meinen|deinen|vollen|voller|im|allem){{S}})(?<target>ernst)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase24
+      - regex: "{{WG}}(?:(?<target>ernst)(?={{S}}(?:machen|macht|machte|machten|gemacht){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase25
+      - regex: "{{WG}}(?:(?<!(?:der|den|dem|des|vollen|voller|im|mein|dein|sein|meinen|deinen|seinen|Ihr|ihr|für|allem){{S}})(?<=\\p{L}{{S}})(?<target>Ernst)(?={{S}}(?:nehmen|nimm|nimmt|nahm|nahmen|genommen|zu{{S}}nehmen\\p{Ll}*|gemeint|meinen|meint){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase26
+      # "Nimm das Ernst." → ernst: the verb before it.
+      - regex: "{{WG}}(?:(?<!(?:der|den|dem|des|vollen|voller|im|mein|dein|sein|meinen|deinen|seinen|Ihr|ihr|für|allem){{S}})(?<=\\p{L}{{S}})(?<target>Ernst)(?=[ \\t]*[.!?,])){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase27
+      # "in den arm", "im arm", "mit offenen armen", "arm in Arm".
+      - regex: "{{WG}}(?:(?<=(?:in{{S}}den|im|unter{{S}}den|am){{S}})(?<target>arm)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase28
+      - regex: "{{WG}}(?:(?<=offenen{{S}})(?<target>armen)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase29
+      - regex: "{{WG}}(?:(?<target>[Aa]rm{{S}}in{{S}}[Aa]rm)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase30
+      # "zum dank", "der dank", "vielen dank", "Gott sei dank", "zu dank verpflichtet".
+      - regex: "{{WG}}(?:(?<=(?:[Zz]um|der|den|dem|euer|unser|mein|dein|sein|ihr|[Vv]ielen|[Bb]esten|[Hh]erzlichen|großen|großem|sei){{S}})(?<target>dank)(?!{{S}}(?:des|der|dem|den|seiner|ihrer|meiner|deiner|unserer|eurer){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase31
+      - regex: "{{WG}}(?:(?<=zu{{S}}(?:großem{{S}})?)(?<target>dank)(?={{S}}verpflichtet)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase32
+      # "nach Links abbiegen", "von Links nach rechts", "mit Links." → links; "eine Seite mit Links
+      # zum Thema", "der Blick nach Rechts ist …" (a name) stay.
+      - regex: "{{WG}}(?:(?<=(?:nach|halb|ganz|weiter|scharf){{S}})(?<target>Links|Rechts)(?=[ \\t]*[.!?,]|{{S}}(?!(?:ist|sind|war|waren|wird|hat|zum|zur|zu|auf|über|von|für|und){{E}})\\p{Ll})|(?<=von{{S}})(?<t3>Links|Rechts)(?={{S}}nach{{E}})|(?<=mit{{S}})(?<t4>Links)(?=[ \\t]*[.!?])|(?<t2>Links|Rechts)(?={{S}}(?:abbiegen|abbiegt|abgebogen|abbog|einbiegen|halten|ab){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase33
+      # "mir ist Recht", "es geschah ihm Recht", "Recht und billig", "alles Recht machen".
+      - regex: "{{WG}}(?:(?<=(?:{{IDIOMS_DATIVES}})(?:{{S}}(?:ganz|nicht|auch|aber|wirklich|durchaus|doch|schon|nur)){0,3}{{S}})(?<target>Recht)(?={{S}}(?:sein|ist|war|wäre|so){{E}}|[ \\t]*[,.!?])){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase34
+      - regex: "{{WG}}(?:(?<=(?:geschieht|geschah|geschehe){{S}}(?:{{IDIOMS_DATIVES}}){{S}})(?<target>Recht)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase35
+      - regex: "{{WG}}(?:(?<target>Recht)(?={{S}}und{{S}}billig)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase36
+      - regex: "{{WG}}(?:(?<=(?:alles|nichts|es|ihm|ihr|allen){{S}})(?<target>Recht)(?={{S}}(?:zu{{S}})?machen)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase37
+      - regex: "{{WG}}(?:(?<=(?:gehe|gehen|geht)(?:{{S}}(?:ich|wir|du|ihr|Sie))?{{S}})(?<target>Recht)(?={{S}}in{{S}}der{{S}}Annahme)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase38
+      # "Das ist mir Wurst!", "Das kann ihm doch Wurscht sein": "egal" is lowercase; "Das ist
+      # Wurst." with no one it is egal to may be the food.
+      - regex: "{{WG}}(?:(?=Wurs)(?<=(?:{{IDIOMS_SEIN}}|ist|kann|könnte|dürfte)(?:{{S}}\\p{Ll}{2,12}){0,3}{{S}}(?:{{IDIOMS_DATIVES}}|dem|doch|eh|ja|völlig|total|echt|herzlich)(?:{{S}}\\p{Ll}{2,12}){0,2}{{S}})(?<target>Wurs(?:ch)?t)(?=(?:{{S}}sein)?[ \\t]*[.!?,;])){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase39
+      # "Er stand Kopf.", "Ich nehme daran nicht Teil.": the particle of "kopfstehen" and
+      # "teilnehmen" closing a main clause ("den Teil", "am Kopf" are nouns).
+      - regex: "{{WG}}(?:(?=Kopf)(?<=(?:steht|stand|standen|stehen|stehst|stehe){{E}}[^.!?;:,\\n]{0,40}{{S}})(?<!(?:der|die|das|den|dem|des|am|im|zum|beim|vom|auf|über|an|bis|von|mit|ohne|pro|je|kein|ein|mein|dein|sein){{S}})(?<target>Kopf)(?=[ \\t]*[.!?,;])|(?=Teil)(?<=(?:nehme|nimmst|nimmt|nehmen|nehmt|nahm|nahmen|nahmst){{E}}[^.!?;:,\\n]{0,40}{{S}})(?<!(?:der|die|das|den|dem|des|am|im|zum|beim|vom|kein|ein|mein|dein|sein|ihr){{S}})(?<t2>Teil)(?=[ \\t]*[.!?,;])){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase40
+      # "ich bin ihr Gram" → gram.
+      - regex: "{{WG}}(?:(?<=(?:{{IDIOMS_SEIN}}){{S}}(?:{{IDIOMS_DATIVES}})(?:{{S}}(?:nicht|wirklich)){0,2}{{S}})(?<target>Gram)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase41
+      # "mir ist Angst und Bange" → angst und bange; "macht mir angst und bange" → Angst und Bange.
+      - regex: "{{WG}}(?:(?<=(?:(?:{{IDIOMS_DATIVES}}){{S}}(?:{{IDIOMS_SEIN}}|sollte|wurde)|(?:{{IDIOMS_SEIN}}|wurde){{S}}(?:{{IDIOMS_DATIVES}}))(?:{{S}}nicht)?{{S}})(?<target>[Aa]ngst(?:{{S}}und{{S}}[Bb]ange)?)(?={{S}}sein{{E}}|[ \\t]*[,.!?])|(?<=(?:^|[.!?]{{S}}))(?<t2>Angst{{S}}und{{S}}Bange)(?={{S}}(?:{{IDIOMS_SEIN}}){{S}}(?:{{IDIOMS_DATIVES}}){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase42
+      - regex: "{{WG}}(?:(?=[Aa]ngst)(?<=(?:[Mm]ach|[Mm]acht|machen|machte|machten|gemacht){{S}}(?:\\p{Ll}{1,40}{{S}})?(?:{{IDIOMS_DATIVES}}|mich|dich|ihn|sie|uns|euch)(?:{{S}}nicht)?{{S}})(?<target>[Aa]ngst{{S}}und{{S}}[Bb]ange)|(?=[Aa]ngst)(?<=(?:{{IDIOMS_DATIVES}}|mich|dich|uns|euch)(?:{{S}}nicht)?{{S}})(?<t2>[Aa]ngst{{S}}und{{S}}[Bb]ange)(?={{S}}(?:zu{{S}})?(?:machen|gemacht){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase43
+      # "ein riesen Dank", "eine Riesen Freude" → "Riesendank", "Riesen-Freude".
+      - regex: "{{WG}}(?:(?<target>(?:riesen|(?<=(?:ein|eine|einen|einem|einer|eines|unserer|unseres|dieser|dieses|diesen){{S}})Riesen){{S}}(?<noun>\\p{Lu}\\p{Ll}{2,}))){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase44
+      # "behauptet zurecht" → zu Recht; "kommt zu recht" → zurecht.
+      - regex: "{{WG}}(?:(?<target>zurecht|zu{{S}}recht)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase45
+      # "bis ende Januar", "ende des Jahres", "kein ende", "zu ende", "ende gut": the noun; "das
+      # ende ich jetzt" is the verb.
+      - regex: "{{WG}}(?:(?<!(?:ich|[Ii]ch){{S}})(?<target>ende)(?={{S}}(?:{{IDIOMS_MONTHS}}|des|der|dieser|diesen|nächster|nächsten|letzter|letzten|kommender|vergangener|\\d+|[Zz]wanzig|[Dd]reißig|[Vv]ierzig|[Ff]ünfzig|[Ss]echzig|gut){{E}})|(?<=(?:[Dd]as|kein|ein|am|zum|vom|zu|bis){{S}})(?<t2>ende)(?!{{S}}(?:ich|du|wir|ihr){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase46
+      # "auf dem weg", "aus dem weg", "über den weg", "den weg zeigen": the noun.
+      - regex: "{{WG}}(?:(?<=(?:auf|aus|über|[Aa]uf|[Aa]us|[Üü]ber){{S}}(?:dem|den|halbem|halben){{S}})(?<target>weg)|(?<=den{{S}})(?<t2>weg)(?={{S}}(?:gezeigt|zeigen|zeigt|zeigte|finden|findet|fand|gefunden|weisen|gewiesen|kennen|kennt|bahnen|ebnen|geebnet){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase47
+      # "ein schönes paar", "ein zusätzliches paar Augen": "Paar" after an inflected adjective.
+      - regex: "{{WG}}(?:(?=paar)(?<=(?:[Ee]in|[Dd]as|[Dd]ieses|[Jj]edes){{S}}\\p{Ll}{1,30}es{{S}})(?<target>paar)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase48
+      # "keine kosten und mühen scheuen", "weder kosten noch mühen": both nouns of the idiom.
+      - regex: "{{WG}}(?:(?<=(?:[Kk]eine|[Ww]eder){{S}})(?<target>kosten)(?={{S}}(?:und|noch){{S}}[Mm]ühen{{E}})|(?<=(?:[Kk]eine|[Ww]eder){{S}}[Kk]osten{{S}}(?:und|noch){{S}})(?<t2>mühen)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase49
+      # "auf dem gewissen haben", "mit meinem gewissen vereinbaren", "das schlechte gewissen": the
+      # noun, with no noun after it that the adjective "gewiss" could qualify.
+      - regex: "{{WG}}(?:(?<=(?:auf{{S}}dem|meinem|deinem|seinem|ihrem|unserem|euerem|Ihrem|reinem|ruhigem|gutem|schlechtem){{S}})(?<target>gewissen)(?={{S}}(?:haben|hat|hatte|hatten|hast|habe|gehabt|vereinbaren|zu{{S}}vereinbaren|lasten|belasten){{E}}|[ \t]*[.!?,;])|(?<=(?:schlechte|schlechtes|gute|gutes|reine|reines|ruhige|ruhiges|schlechten|guten|reinen){{S}})(?<t2>gewissen)(?=[ \t]*[.!?,;]|{{S}}(?:haben|hat|hatte|hast|habe|plagt|plagte|quält|quälte|machen|gemacht|beruhigen){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase50
+      # "das nachsehen haben": the loser's share, a noun before a form of "haben".
+      - regex: "{{WG}}(?:(?<=[Dd]as{{S}})(?<target>nachsehen)(?={{S}}(?:haben|hat|hatte|hatten|hast|habe|gehabt){{E}})|(?<=(?:hat|hatte|hatten|hast|habe|haben|hätte|hätten)(?:{{S}}\\p{L}+){0,3}{{S}}das{{S}})(?<t2>nachsehen)(?=[ \\t]*[.!,;])){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase51
+      # "im aus", "ins aus gerollt", "das aus für": the noun.
+      - regex: "{{WG}}(?:(?<=(?:im|ins){{S}})(?<target>aus)(?=[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}*ge\\p{Ll}+t|landete|landet|rollte|rollt|ging|geht|gehen|gerät|geriet){{E}})|(?<=[Dd]as{{S}})(?<t2>aus)(?={{S}}für{{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase52
+      # "das ewige hin und her", "ein ständiges auf und ab": a pair made a noun after an article or
+      # an adjective.
+      - regex: "{{WG}}(?:(?<=(?:[Dd](?:as|em|es)|[Dd]ies(?:es|em)|[Ee]in(?:em|es)?|\\p{Ll}+(?:e|en|em|es)){{S}})(?<target>hin{{S}}und{{S}}her|auf{{S}}und{{S}}ab)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase53
+      # "durch Dick und dünn", "über Kurz oder lang", "von Klein auf", "von Nah und fern", "auf
+      # Ewig": the adjectives of these fixed pairs stay lowercase.
+      - regex: "{{WG}}(?:(?<=[Dd]urch{{S}})(?<target>[Dd]ick{{S}}und{{S}}[Dd]ünn)|(?<=[Üü]ber{{S}})(?<t2>[Kk]urz{{S}}oder{{S}}[Ll]ang)|(?<=[Vv]on{{S}})(?<t3>[Kk]lein{{S}}auf|[Nn]ah{{S}}und{{S}}[Ff]ern)|(?<=(?:[Aa]uf|immer{{S}}und){{S}})(?<t4>Ewig)(?!{{S}}\\p{Lu})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase54
+      # "sich sorgen machen", "viele sorgen bereitet", "fragen stellen", "bei bedarf", "auf dem
+      # hinweg": plural nouns before their verbs and nouns after a preposition. "Sie sorgen sich",
+      # "wir fragen ihn", "der Text bedarf einer Kürzung" keep the verb.
+      - regex: "{{WG}}(?:(?<=(?:sich|mir|dir|ihm|uns|euch|ihnen|keine|viele|andere|große|unnötige|ernste|einige|deine|meine|seine|unsere|eure|mehr|weniger)(?:{{S}}\\p{Ll}+)?{{S}})(?<target>sorgen)(?=(?:{{S}}(?:um|wegen){{S}}\\p{L}+)?{{S}}(?:zu{{S}})?(?:machen|machst|macht|machte|machten|gemacht|bereiten|bereitet|bereitete|haben|hat|hatte|hatten){{E}})|(?<t2>fragen)(?={{S}}(?:zu{{S}})?(?:stellen|stellt|stellte|stellten|gestellt|beantworten|beantwortet|beantwortete){{E}}|(?<=(?:ein{{S}}paar|einige|mehrere|weitere|offene){{S}}fragen){{S}}(?:dazu|zum|zur|bezüglich){{E}})|(?<t3>bedarf)(?={{S}}(?:an|daran|besteht|bestand){{E}})|(?<=(?:gibt{{S}}es|gab{{S}}es|[Bb]ei|kein|keinen|großen|hohen|dringenden|weiteren){{S}})(?<t4>bedarf)|(?<=(?:(?:[Aa]uf|[Ff]ür){{S}}(?:dem|den)|[Bb]eim){{S}})(?<t5>hinweg)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase55
+      # "nach seinem aus bei Volkswagen": the noun after a possessive or "dem".
+      - regex: "{{WG}}(?:(?<=(?:[Nn]ach|[Vv]or|[Ss]eit){{S}}(?:dem|seinem|ihrem|deinem|meinem|unserem|eurem|diesem){{S}})(?<target>aus)(?={{S}}(?:bei|beim|im|als|gegen){{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase56
+      # "die Farbe rot", "das blaue vom Himmel", "das gelbe vom Ei": a color named as a noun.
+      - regex: "{{WG}}(?:(?<=(?:[Dd]ie|[Dd]er|[Ee]ine|[Ee]iner){{S}}Farbe{{S}})(?<target>rot|blau|grün|gelb|weiß|schwarz|grau|braun|lila|rosa|orange|violett|pink|türkis|beige)|(?<=[Dd]as{{S}})(?<t2>blaue)(?={{S}}vom{{S}}Himmel{{E}})|(?<=[Dd]as{{S}})(?<t3>gelbe)(?={{S}}vom{{S}}Ei{{E}})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase57
+      # "Danke an Alle", "euch Allen", "ist Alles dabei": the pronoun is lowercase inside a
+      # sentence.
+      - regex: "{{WG}}(?:(?<!(?:[Ee]in{{S}}und|mein|dein|sein|ihr|unser|euer){{S}})(?<=\\p{Ll}{{S}})(?<target>Alle|Alles|Allem|Aller)(?![ \\t]*[„\"“»«])|(?<=(?<!\\p{L})(?:euch|uns|ihnen|Ihnen|an|mit|von|zu|bei|aus|vor|nach|unter){{S}})(?<t2>Allen)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        message: review_msg_german_pronoun_case
+        fixer: idiomCase58
+      # "meine ehe", "aus erster ehe", "ehe und Familie", "kein wunder", "wahre wunder": nouns. "ehe
+      # er kam" is the conjunction; "wunder was", "es nimmt mich wunder" and the adjective "ein
+      # wunder Punkt" stay lowercase.
+      - regex: "{{WG}}(?:(?<=(?:meine|deine|seine|ihre|unsere|eure|die|der|einer|erster|zweiter|dritter|glückliche|glücklichen|offene|offenen){{S}})(?<target>ehe)(?=[ \\t]*[.!?,;)]|{{S}}(?:und|zerstört|geschieden|gescheitert|geschlossen|eingegangen|beendet|hielt|ist|war){{E}})|(?<t2>ehe)(?={{S}}und{{S}}Familie{{E}})|(?<!(?:nimmt|nahm|nehmen|genommen)(?:{{S}}\\p{L}+){0,2}{{S}})(?<=(?:kein|ein|wahre|wahres|ein{{S}}kleines|kleines|großes|vollbrachte|vollbringt|vollbringen|wirkt|wirkte|wirken|Ein){{S}})(?<t3>wunder)(?!{{S}}(?:was|wie|wer|wo|welche[rsnm]?){{E}}|{{S}}\\p{Lu})){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase59
+      # "Der Laden hat Montags geschlossen" → montags; "eines dienstags" → Dienstags.
+      - regex: "{{WG}}(?:(?<!(?:des|eines|jeden|jedes|[Ee]ines){{S}})(?<=\\p{Ll}{{S}})(?<target>(?:Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag)(?:vormittag|nachmittag|abend|morgen|mittag|nacht)?s)|(?<=(?:[Ee]ines|des){{S}})(?<t2>(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)(?:vormittag|nachmittag|abend|morgen|mittag|nacht)?s)){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase60
+      # "Sie bekam eine drei in Physik": a school grade is a noun.
+      - regex: "{{WG}}(?:(?<=(?:[Ee]ine|[Ee]iner|glatte|glatten|guten|gute|schlechte|schlechten){{S}})(?<target>eins|zwei|drei|vier|fünf|sechs)(?!{{S}}(?:\\p{Lu}|\\p{N}|mal|bis|oder|und)|[ \\t]*[-–])){{E}}"
+        flags: dgu
+        owner: target|t2|t3|t4|t5
+        fixer: idiomCase61
+      # Names of two adjectives and a noun, each adjective capitalized: "Heiliges Römisches Reich".
+      - regex: "{{WG}}(?<first>\\p{L}+?(?:e|en|er|es|em)){{S}}(?<second>\\p{L}+?(?:e|en|er|es|em)){{S}}(?<noun>Reich|Fernsehen|Komitee)(?:es|s)?{{E}}"
+        flags: dgu
+        owner: first
+        fixer: nameTriple
+      # Adjective and noun pairs that are no names, so the adjective stays lowercase inside a
+      # sentence: "grüner Tee", "künstliche Intelligenz", "mit freundlichen Grüßen".
+      - regex: "{{WG}}(?<adj>\\p{Lu}\\p{Ll}+?(?:e|en|er|es|em)){{S}}(?<noun>(?:{{LOWER_NOUNS}})(?:es|s|n)?){{E}}"
+        flags: dgu
+        owner: adj
+        fixer: lowercaseAdjective
+      # "Reich deutscher Nation": the genitive closes the name.
+      - regex: "Reich(?:es|s)?{{S}}(?<target>deutscher){{S}}Nation{{E}}"
+        flags: dgu
+        fixer: nameTarget
+      # Adjectives of places in -er are capitalized and never inflect: "Wiener Kongress", "Berliner
+      # Mauer", "Schweizer Käse".
+      - regex: "{{WG}}(?<target>(?:wiener|berliner|münchner|münchener|hamburger|kölner|frankfurter|stuttgarter|dresdner|leipziger|bremer|nürnberger|düsseldorfer|bonner|heidelberger|zürcher|basler|berner|grazer|salzburger|innsbrucker|schweizer|pariser|londoner|römer|prager|mailänder|venezianer){{S}}\\p{Lu}\\p{Ll})"
+        flags: dgu
+        fixer: nameTarget
+      # Names of several words capitalize their adjective too: "der Erste Weltkrieg", "die
+      # Französische Revolution", "im Nahen Osten".
+      - regex: "{{WG}}(?<adj>\\p{Ll}+?(?:e|en|er|es|em)){{S}}(?<noun>(?:{{NAME_NOUNS}})(?:es|s|n)?){{E}}"
+        flags: dgu
+        owner: adj
+        fixer: nameAdjective
+      # "Hallo Liebe Katja" → liebe: after a greeting the adjective is lowercase.
+      - regex: "(?<=(?:^|\\n)[ \\t]{0,8}{{GREETING_WORDS}}[ \\t]{1,4})(?<adj>Lieb(?:e|er|es))(?=[ \\t]+\\p{Lu})"
+        scan: owned
+        flags: gu
+        fixer: salutationCase
+      # A verb in -en right before a lowercase "sie": "Kommen sie bitte herein!" (the polite
+      # imperative).
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<verb>\\p{L}+en)[ \\t]+(?<sie>sie)(?![\\p{L}\\p{M}\\p{N}_-])"
+        scan: owned
+        flags: gu
+        fixer: politeImperative
   - id: de.prepositionCase
     checks: [germanPrepositionCase]
-    predicate: prepositionCase
+    style: match
+    message: review_msg_german_preposition_case
+    frames:
+      # The case a preposition governs, read from the article after it: "mit eine Freundin"
+      # (dative: einer), "wegen dem Regen" (genitive: des Regens), "für deiner Mutter"
+      # (accusative: deine). The polite "Ihr-" is the one capitalized determiner.
+      - regex: "{{WG}}{{CASE_PREPOSITION}}{{S}}(?<target>(?<det>\\p{Ll}+|Ihr\\p{Ll}*)(?<adjs>(?:{{S}}{{INFLECTED_ADJ}}){0,2}){{S}}(?:(?<ordinal>\\d{1,2}\\.){{S}})?(?<noun>{{CAP_NOUN}})){{E}}"
+        flags: dgu
+        fixer: caseAfterPreposition
+      # "mit zwei Kinder" → Kindern: a number or plural quantity, an adjective, and a plural noun
+      # in -e, -er or -el take the dative -n.
+      - regex: "{{WG}}{{DATIVE_ONLY}}{{S}}(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|[2-9]|[1-9]\\d{1,2}|vielen|mehreren|beiden|zahlreichen|wenigen|einigen|\\p{Ll}{3,}en)(?:{{S}}\\p{Ll}+en)?{{S}}(?<target>\\p{Lu}\\p{Ll}+(?:e|er|el)){{E}}"
+        flags: dgu
+        fixer: countedPlural
+      # A plural noun with no article: "zu Götter", "nach Erkenntnisse", "bei Bilder".
+      - regex: "{{WG}}{{DATIVE_ONLY}}{{S}}(?<target>\\p{Lu}\\p{Ll}+(?:e|er)){{E}}"
+        flags: dgu
+        fixer: plainPlural
+      # An adjective in -en before a singular noun with no article: "mit ernsten Blick"
+      # (ernstem), "mit vollen Absicht" (voller). With no article the adjective shows the
+      # dative itself.
+      - regex: "{{WG}}(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer|[Ss]amt){{S}}(?<target>(?<adj>\\p{Ll}{3,}?)en){{S}}(?<noun>\\p{Lu}\\p{Ll}+){{E}}"
+        flags: dgu
+        fixer: strongSingular
+      # A span of time after a number, in the dative: "in 10 Tage" (Tagen), "ab 18 Jahre"
+      # (Jahren).
+      - regex: "{{WG}}(?<prep>[Ii]n|[Vv]or|[Aa]b|[Bb]innen){{S}}(?:[2-9]|[1-9]\\d{1,3}|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|dreißig|hundert){{S}}(?<target>Tage|Jahre|Monate){{E}}"
+        flags: dgu
+        fixer: countedTime
+      # An adjective in -e with no article after a dative preposition, before a noun whose
+      # gender or plural is known: "mit perfekte Make-up" (perfektem), "mit
+      # tageslichtabhängige Steuerung" (-er), "mit neue Felder" (neuen Feldern). "-e" is no
+      # dative ending.
+      - regex: "{{WG}}(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Aa]us|[Aa]ußer|[Ss]amt){{S}}(?<target>(?<adj>\\p{Ll}{3,}?)e{{S}}(?<noun>\\p{Lu}\\p{L}*(?:-\\p{L}+)*)){{E}}"
+        flags: dgu
+        fixer: bareE
+      # "mit spannende Ausstellungen" → spannenden: an adjective in -e before a noun whose
+      # ending only a plural has ("Ausstellungen").
+      - regex: "{{WG}}{{DATIVE_ONLY}}{{S}}(?<target>\\p{Ll}{3,}e){{S}}\\p{Lu}\\p{Ll}+(?:ungen|heiten|keiten|schaften|ionen|täten|innen){{E}}"
+        flags: dgu
+        fixer: barePlural
+      # Pronouns, "keinen der …", "das, was …" and "ohne allem".
+      - regex: "{{WG}}{{CASE_PREPOSITION}}{{S}}(?<target>mich|dich|ihn|mir|dir|ihm|niemanden|jemanden|(?:k?einen)(?={{S}}de[rs]{{E}})|das(?=,{{S}}(?:was|wo){{E}})|allem(?=[ \\t]*[.!?,])){{E}}"
+        flags: dgu
+        fixer: pronounCase
   - id: de.confusions
     checks: [germanConfusedWords]
     style: german
@@ -657,58 +1376,573 @@ rules:
         fixer: deWar
   - id: de.adjectiveForms
     checks: [germanAdjectiveForms]
-    predicate: adjectiveForms
+    style: match
+    message: review_msg_german_adjective_ending
+    frames:
+      # An adjective before a noun without its ending: "eine lang Reise" (lange), "ein edel
+      # Kraut" (edler/edles); or a compound written apart: "in echt Zeit" (Echtzeit). A degree
+      # word may stand between the article and the adjective ("eine sehr schön Frau").
+      - regex: "{{WG}}(?<det>\\p{L}+)(?:{{S}}(?:{{ADJ_DEGREE}}))?{{S}}(?<target>(?<adj>\\p{Ll}+){{S}}(?<noun>{{CAP_NOUN}})){{E}}"
+        flags: dgu
+        fixer: bareAdjective
+      # "Es werden folgenden Daten gespeichert": with no article, the plural subject after
+      # "werden" takes the strong ending -e ("folgende Daten"). A plural in -n or -s may be a
+      # dative object ("Die Bücher werden armen Kindern geschenkt"), so it counts only when no
+      # subject comes before "werden": the clause opens with a preposition, "es" or an adverb.
+      - regex: "{{WG}}(?:(?<=(?:werden|wurden|würden){{S}})(?<target>(?<adj>\\p{Ll}{3,}en){{S}}(?<noun>\\p{Lu}\\p{Ll}{2,})){{E}})"
+        flags: dgu
+        fixer: werdenPlural
+      # The strong ending after an article that already shows the case: "im mentalem Lexikon"
+      # (mentalen).
+      - regex: "{{WG}}(?<det>[dD]em|[iI]m|[zZ]um|[vV]om|[bB]eim|[aA]m|[eE]inem|[mM]einem|[dD]einem|[sS]einem|[iI]hrem|[uU]nserem|[eE]urem|[dD]iesem|[jJ]edem|[kK]einem|[dD]es|[eE]ines|[mM]eines|[dD]eines|[sS]eines|[iI]hres|[uU]nseres|[eE]ures|[dD]ieses|[jJ]edes|[kK]eines){{S}}(?<target>\\p{Ll}+(?:em|es))(?={{S}}{{CAP_NOUN}}{{E}})"
+        flags: dgu
+        fixer: strongAfterArticle
+      # Letter salutations: "Lieber Herr Müller", "Liebe Frau Weber", "Sehr geehrte Damen und
+      # Herren" take the title's gender ("Liebe Herr" → Lieber). At a line start, or after a
+      # greeting.
+      - regex: "(?<=(?:^|\\n)[ \\t]{0,8}(?:{{GREETING_WORDS}}[ \\t]{1,4}|Sehr[ \\t]{1,4})?)(?<adj>[Ll]ieb(?:e|en|er|es)?|geehrt(?:e|en|er|es)?)(?=[ \\t]+(?<title>Herr|Frau|Damen)(?![\\p{L}\\p{M}]))"
+        scan: owned
+        flags: gu
+        fixer: salutationEnding
+      # A predicative adjective takes no ending: "Er war schnelle." (schnell), "Die sind
+      # schlauen."
+      - regex: "{{WG}}(?:{{COPULA_FORMS}})(?:{{S}}(?:{{DEGREE_ADVERBS}}))*{{S}}(?<target>\\p{Ll}{3,}?(?:e|en))(?=[ \\t]*[.!?])"
+        flags: dgu
+        message: review_msg_german_predicative
+        fixer: predicative
+      # "Er ist schnelle als ich" → schneller: an ending before "als" where the comparative
+      # belongs.
+      - regex: "{{WG}}(?<prior>\\p{L}+){{S}}(?<target>\\p{Ll}{3,}?e)(?={{S}}als{{E}})"
+        flags: dgu
+        message: review_msg_german_predicative
+        fixer: beforeAls
+      # "Beamter" declines like an adjective and has no feminine "die Beamte": "der Beamte",
+      # "ein Beamter", "den Beamten", "die Beamten" (plural). The determiner sets the ending.
+      - regex: "{{WG}}(?<det>[Dd](?:er|ie|en|em|es)|[Dd]ies(?:er|e|en|em|es)|[Jj]ede[rnms]|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser|[Ee]uer)(?:en|em|es|er)?)(?:{{S}}\\p{Ll}+(?:e|en|er|es|em))?{{S}}(?<target>\\p{L}*[Bb]eamte[rn]?){{E}}"
+        flags: dgu
+        fixer: official
   - id: de.articleGender
     checks: [germanArticleGender]
-    predicate: articleGender
+    style: match
+    message: review_msg_german_article_gender
+    frames:
+      # An article or ein-word no gender of its noun takes: "der Auto" (das), "mit dem Frau"
+      # (der), "eine schönes Haus" (ein). Degree words may stand between the article and its
+      # adjective ("eine sehr schönes Haus").
+      - regex: "{{WG}}(?<det>{{ARTICLE_DETERMINER}})(?<mods>(?:{{S}}(?:{{ARTICLE_DEGREE}}|\\p{Ll}+(?:e|en|er|es|em))){0,3}){{S}}(?<noun>\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*){{E}}"
+        flags: dgu
+        owner: det
+        fixer: articlePhrase
+      # An adjective with no article before its noun takes the strong ending that shows the
+      # case: "schönes Wetter", "mit großer Freude", "herzlichen Dank".
+      - regex: "{{WG}}(?<adj>\\p{L}+(?:e|en|er|es|em)){{S}}(?<noun>\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*){{E}}"
+        flags: dgu
+        owner: adj
+        message: review_msg_german_adjective_ending
+        fixer: articleBareAdjective
+      # "das Haus als solches", "dem Menschen als solchem": "als solch-" after a noun takes the
+      # strong ending of the noun's case, gender and number, which its determiner shows.
+      - regex: "{{WG}}(?<det>[Dd](?:er|ie|as|en|em)|[Dd]ies(?:er|e|es|en|em)|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser)(?:e|en|em|er)?)(?:{{S}}\\p{Ll}{2,30}(?:e|en|er|es|em))?{{S}}(?<noun>\\p{Lu}\\p{Ll}{2,}){{S}}als{{S}}(?<target>solch(?:e|er|es|em|en)){{E}}"
+        flags: dgu
+        message: review_msg_german_als_solch
+        fixer: alsSolch
+      # Verbs whose object is a genitive: "es bedarf eines Beweises", "wir gedenken der Opfer",
+      # and reflexive ones: "sich der Stimme enthalten", "sich eines Erfolgs rühmen".
+      - regex: "{{WG}}(?:(?:{{GENITIVE_VERBS}})(?:{{S}}es)?|(?:{{GENITIVE_REFLEXIVES}}){{S}}(?:sich|mich|dich|uns|euch)){{S}}(?<target>{{DATIVE_DET}}){{S}}(?<rest>(?:\\p{Ll}+{{S}}){0,2}\\p{Lu}\\p{Ll}+){{E}}|{{WG}}(?:sich|mich|dich|uns|euch){{S}}(?<t2>{{DATIVE_DET}}){{S}}(?<rest2>(?:\\p{Ll}+{{S}}){0,2}\\p{Lu}\\p{Ll}+)(?={{S}}(?:{{GENITIVE_PARTICIPLES}}){{E}})"
+        flags: dgu
+        owner: target|t2
+        message: review_msg_german_genitive_verb
+        fixer: genitiveObject
+      # "Wir machen uns auf dem Weg": setting out takes the accusative ("auf den Weg"); not "Ich
+      # habe mich auf dem Weg verlaufen" or "Wir machten uns auf dem Heimweg Gedanken", where
+      # the way is where it happens.
+      - regex: "{{WG}}(?:mich|dich|sich|uns|euch)(?:{{S}}\\p{Ll}+){0,2}{{S}}auf{{S}}(?<target>dem){{S}}(?:\\p{Lu}\\p{Ll}*w|W)eg(?<after>{{S}}(?:gemacht|machen){{E}})?(?=[ \\t]*[.!?;,)\\n]|[ \\t]*$|{{S}}(?:nach|zur|zum|ins|in){{E}})"
+        flags: dgu
+        message: review_msg_german_preposition_case
+        fixer: onTheWay
+      # "das Auto, der da steht" → das: a relative pronoun right after its noun and a comma, as
+      # the subject or object of its clause, takes the noun's gender. Only a pronoun that no
+      # case of the noun's gender spells is flagged ("die Frau, der ich half" is a dative).
+      - regex: "{{WG}}(?<noun>\\p{Lu}\\p{Ll}+),{{S}}(?<target>der|die|das)(?={{S}}(?<next>\\p{Ll}+){{E}})"
+        flags: dgu
+        message: review_msg_german_relative_pronoun
+        fixer: relativePronoun
   - id: de.suspendedHyphen
     checks: [germanSuspendedHyphen]
-    predicate: suspendedHyphen
+    style: match
+    message: review_msg_german_suspended_hyphen
+    frames:
+      # Two words joined by "und", "oder", "bzw." or "bis", or by a slash: "Vor und Nachteile".
+      - regex: "{{WG}}(?<target>\\p{L}+)(?<join>{{S}}(?:und|oder|bzw\\.|bis){{S}}|\\/)(?<second>\\p{L}+){{E}}"
+        flags: dgu
+        fixer: suspendedPart
+      # "hin und her gerissen": torn between two choices, the participle of "hin- und
+      # herreißen".
+      - regex: "{{WG}}(?<target>(?<hin>[Hh]in){{S}}und{{S}}her{{S}}gerissen){{E}}"
+        flags: dgu
+        fixer: torn
   - id: de.abbreviations
     checks: [germanAbbreviations, germanAbbreviationSpacing]
-    predicate: abbreviations
+    style: match
+    message: review_msg_german_abbreviation
+    frames:
+      # Multi-part abbreviations typed with a part's dot or the space missing ("z.B.", "zB",
+      # "u.a", "Dr.med."): one scan for all of them, the longer forms first ("Dr. med. dent."
+      # before "Dr. med."). This frame gives the forms with a dot missing.
+      - regex: "{{WG}}(?<target>[DD]r\\.?{{SEP}}med\\.?{{SEP}}dent\\.?|[DD]r\\.?{{SEP}}rer\\.?{{SEP}}nat\\.?|[DD]r\\.?{{SEP}}rer\\.?{{SEP}}pol\\.?|[DD]r\\.?{{SEP}}med\\.?{{SEP}}vet\\.?|[iI]\\.?{{SEP}}d\\.?{{SEP}}R\\.?|[uU]\\.?{{SEP}}v\\.?{{SEP}}a\\.?|[uU]\\.?{{SEP}}v\\.?{{SEP}}m\\.?|[aA]\\.?{{SEP}}a\\.?{{SEP}}O\\.?|[bB]\\.?{{SEP}}a\\.?{{SEP}}W\\.?|[DD]r\\.?{{SEP}}phil\\.?|[PP]rof\\.?{{SEP}}Dr\\.?|[DD]r\\.?{{SEP}}med\\.?|[DD]r\\.?{{SEP}}jur\\.?|[nN]\\.?{{SEP}}Chr\\.?|[vV]\\.?{{SEP}}Chr\\.?|[zZ]\\.?{{SEP}}Hdn\\.?|[zZ]\\.?{{SEP}}Hd\\.?|[zZ]\\.?{{SEP}}B\\.?|[dD]\\.?{{SEP}}h\\.?|[uU]\\.?{{SEP}}a\\.?|[oO]\\.?{{SEP}}Ä\\.?|[uU]\\.?{{SEP}}Ä\\.?|[oO]\\.?{{SEP}}ä\\.?|[uU]\\.?{{SEP}}ä\\.?|[mM]\\.?{{SEP}}E\\.?|[sS]\\.?{{SEP}}o\\.?|[sS]\\.?{{SEP}}u\\.?|[iI]\\.?{{SEP}}A\\.?|[eE]\\.?{{SEP}}V\\.?|[nN]\\.?{{SEP}}V\\.?|[zZ]\\.?{{SEP}}T\\.?|[pP]\\.?{{SEP}}a\\.?|[cC]\\.?{{SEP}}t\\.?|[sS]\\.?{{SEP}}t\\.?)(?![\\p{L}\\p{N}])"
+        flags: dgu
+        fixer: abbreviationParts
+      # The same scan: the forms with every dot, only the spaces missing (optional advice).
+      - regex: "{{WG}}(?<target>[DD]r\\.?{{SEP}}med\\.?{{SEP}}dent\\.?|[DD]r\\.?{{SEP}}rer\\.?{{SEP}}nat\\.?|[DD]r\\.?{{SEP}}rer\\.?{{SEP}}pol\\.?|[DD]r\\.?{{SEP}}med\\.?{{SEP}}vet\\.?|[iI]\\.?{{SEP}}d\\.?{{SEP}}R\\.?|[uU]\\.?{{SEP}}v\\.?{{SEP}}a\\.?|[uU]\\.?{{SEP}}v\\.?{{SEP}}m\\.?|[aA]\\.?{{SEP}}a\\.?{{SEP}}O\\.?|[bB]\\.?{{SEP}}a\\.?{{SEP}}W\\.?|[DD]r\\.?{{SEP}}phil\\.?|[PP]rof\\.?{{SEP}}Dr\\.?|[DD]r\\.?{{SEP}}med\\.?|[DD]r\\.?{{SEP}}jur\\.?|[nN]\\.?{{SEP}}Chr\\.?|[vV]\\.?{{SEP}}Chr\\.?|[zZ]\\.?{{SEP}}Hdn\\.?|[zZ]\\.?{{SEP}}Hd\\.?|[zZ]\\.?{{SEP}}B\\.?|[dD]\\.?{{SEP}}h\\.?|[uU]\\.?{{SEP}}a\\.?|[oO]\\.?{{SEP}}Ä\\.?|[uU]\\.?{{SEP}}Ä\\.?|[oO]\\.?{{SEP}}ä\\.?|[uU]\\.?{{SEP}}ä\\.?|[mM]\\.?{{SEP}}E\\.?|[sS]\\.?{{SEP}}o\\.?|[sS]\\.?{{SEP}}u\\.?|[iI]\\.?{{SEP}}A\\.?|[eE]\\.?{{SEP}}V\\.?|[nN]\\.?{{SEP}}V\\.?|[zZ]\\.?{{SEP}}T\\.?|[pP]\\.?{{SEP}}a\\.?|[cC]\\.?{{SEP}}t\\.?|[sS]\\.?{{SEP}}t\\.?)(?![\\p{L}\\p{N}])"
+        flags: dgu
+        check: germanAbbreviationSpacing
+        fixer: abbreviationSpacing
+      # "max 5 Leute", "min 3 Tage": the abbreviation before a number takes its dot.
+      - regex: "{{WG}}(?<target>max|min)(?=[ \\t]\\p{N})"
+        flags: dgu
+        fixer: abbreviationDot
+      # "Müller et al (2021)", "ad lib": the Latin abbreviation takes its dot.
+      - regex: "{{WG}}(?<target>et[ \\t]al|ad[ \\t]lib)(?![\\p{L}\\p{N}.])"
+        flags: dgu
+        fixer: abbreviationDot
+      # "Dipl.-Ing.", "Dipl.-Kfm.": a dot, a hyphen and a dot.
+      - regex: "{{WG}}(?<target>Dipl(?:\\.?-|\\.[ \\t]|[ \\t]?-[ \\t]?)(?<subject>\\p{Lu}\\p{Ll}{1,10})\\.?){{E}}"
+        flags: dgu
+        fixer: diploma
+      # "Dr. Frau Hayali", "Professor Herr Meier": the form of address comes first ("Frau Dr.").
+      - regex: "{{WG}}(?<target>(?<title>Dr\\.|Prof\\.|Doktor|Doktorin|Professor|Professorin)[ \\t]+(?<address>Frau|Herr|Herrn|Fr\\.|Hr\\.))(?=[ \\t]+\\p{Lu})"
+        flags: dgu
+        fixer: titleOrder
+      # "3%" → "3 %": German sets the percent sign off with a no-break space (optional advice);
+      # "20%-Gutschein" and "5%ige" are compounds.
+      - regex: "(?<![\\p{L}\\p{N}.,_])(?<target>(?<n>\\d+(?:[.,]\\d+)*)%)(?![\\p{L}\\p{N}_-])"
+        flags: dgu
+        check: germanAbbreviationSpacing
+        fixer: percentSpacing
+      # "2 mio", "3 Mrd": the abbreviated numbers take a capital and a dot.
+      - regex: "(?<=\\p{N}[ \\t\\u00a0])(?<target>[mM](?:io|rd)|Mill|Bill)(?![\\p{L}\\p{N}.])"
+        flags: dgu
+        fixer: largeNumber
   - id: de.quotes
     checks: [germanQuotes]
+    # Each mark changes the count of open „ for the next marks, and a skipped English quotation
+    # moves the scan; nested quotes use a stack of the marks of each line.
+    # predicate: a stateful scan; the count of open quotes from the paragraph start decides each mark.
     predicate: quotes
+  - id: de.quoteFrames
+    checks: [germanQuotes]
+    style: match
+    message: review_msg_german_quotes
+    frames:
+      # Inside a „…“ quotation: a period before the closing mark and a comma or another mark
+      # after it („Ich gehe.“, sagte er → „Ich gehe“, sagte er; „Ich gehe.“. → „Ich gehe.“), a
+      # comma before the closing mark („Ich gehe,“ sagte er → „Ich gehe“, sagte er), and the
+      # comma a question or exclamation needs before the verb of saying („Wirklich?“ fragte
+      # sie).
+      - regex: "(?<target>(?<period>\\.)(?=“[ \\t]*[,!?])|(?<=\\.“)(?<after>\\.)|(?<=\\p{L})(?<comma>,“)(?=[ \\t]+\\p{Ll})|(?<=[!?])(?<close>“)(?=[ \\t]+(?:{{SAYING}})(?![\\p{L}])))"
+        scan: owned
+        flags: dgu
+        fixer: speech
+      # No space goes right inside quotation marks or brackets: „ Der Hund …“ → „Der Hund …“,
+      # (nur kleine ) → (nur kleine). The mark must have its partner on the same line, so a
+      # lone mark, a smiley ":( " and Swiss «…» quotes stay alone.
+      - regex: "(?<target>(?<=[\\u201E\\u00BB(])[ \\t]+(?=\\p{L})|(?<=[\\p{L}.!?\\u2026])[ \\t]+(?=[\\u201C\\u00AB)]))"
+        scan: owned
+        flags: gu
+        fixer: innerSpacing
   - id: de.straightQuotes
     checks: [germanStraightQuotes]
+    # An odd count of straight marks leaves the line alone.
+    # predicate: pairs the straight marks of each line by an indexOf walk, not by a regex scan.
     predicate: straightQuotes
   - id: de.commas
     checks: [germanCommas]
-    predicate: commas
+    style: match
+    message: review_msg_german_comma
+    filter: firstCommaPerEnd
+    frames:
+      # The comma German sets before a clause or an infinitive group: "Er bleibt, weil es
+      # regnet", "Sie ging, um zu lesen", "Ich glaube, das stimmt". Each word whose start the
+      # chunk owns (a word of letters, not glued into a number, path, mention or dotted token).
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
+        scan: owned
+        flags: gu
+        fixer: clauseComma
+  - id: de.commaFrames
+    checks: [germanCommas]
+    style: match
+    message: review_msg_german_comma
+    frames:
+      # A salutation alone on its line: "Sehr geehrte Frau Weber", "Liebe Anna!" take a comma.
+      - regex: "(?<=(?:^|\\n)[ \\t]{0,8})(?:Sehr[ \\t]{1,4}geehrte[r]?|Liebe[r]?)[ \\t]{1,4}(?:Herr|Frau|Damen[ \\t]{1,4}und[ \\t]{1,4}Herren|Kolleginnen[ \\t]{1,4}und[ \\t]{1,4}Kollegen|\\p{Lu}\\p{Ll}+)(?:[ \\t]{1,4}(?:Dr\\.|Prof\\.|\\p{Lu}[\\p{Ll}-]+)){0,3}!?(?=[ \\t]*(?:\\n|$))"
+        scan: owned
+        flags: gu
+        fixer: salutationComma
+      # Paired words ("teils lustig, teils traurig", "halb …, halb …", "einerseits …,
+      # andererseits", "je …, desto", "So weit, so gut"): the word that takes the comma after
+      # it. The gate first checks the paired word after it, so the long lookbehinds run only
+      # there.
+      - regex: "{{WG}}(?:(?=\\p{L}+{{S}}(?:teils|halb|andererseits|desto|umso|so){{E}})(?:(?<=(?:[Tt]eils){{S}}(?:{{CLAUSE_CHAR}}{0,60}?{{S}})?)(?<word>\\p{L}+)(?={{S}}teils{{E}})|(?<=[Hh]alb{{S}})(?<w2>\\p{L}+)(?={{S}}halb{{S}}\\p{L})|(?<=(?:^|[.!?;:\\n]{{S}}?)[Ee]inerseits{{S}}{{CLAUSE_CHAR}}{0,80}?)(?<w3>\\p{L}+)(?={{S}}andererseits{{E}})|(?<=(?:^|[.!?\\n,]{{S}}?)[Jj]e{{S}}{{CLAUSE_CHAR}}{0,80}?)(?<w4>\\p{L}+)(?={{S}}(?:desto|umso){{E}})|(?<=[Ss]o{{S}})(?<w5>weit)(?={{S}}so{{S}}gut{{E}})))"
+        flags: dgu
+        owner: word|w2|w3|w4|w5
+        fixer: pairedWords
+      # "Wo denkst du ist es?": a w-question's verb follows an inserted "denkst du".
+      - regex: "{{WG}}(?:(?<=(?:^|[.!?\\n][ \\t]*)(?:Wo|Was|Wie|Wann|Warum|Wieso|Weshalb|Wer|Wen|Wem|Wohin|Woher|Welche\\p{Ll}*){{S}}(?:denkst|glaubst|meinst|denkt|glaubt|meint|dachtest|dachtet|dachten|glaubtest|glaubten|meintest|meinten|denken|glauben|meinen){{S}})(?<word>du|ihr|Sie)(?={{S}}(?:ist|sind|war|waren|soll|sollte|sollen|kann|könnte|wird|würde|hat|hätte|muss|müsste|sei|wäre|kommt|geht|passiert|liegt|steht|gibt){{E}}))"
+        flags: dgu
+        owner: word
+        fixer: commaAfterWord
+      # "Hallo wie geht es euch?": a greeting before a sentence takes a comma ("Hallo du" and
+      # "Hallo ihr beiden" address someone).
+      - regex: "{{WG}}(?:(?<=(?:^|\\n|[„\"]))(?<word>Hallo|Hi|Hey|Servus|Moin)(?={{S}}(?:wie|was|wo|wann|warum|ich|wir|da|habt|hast|kannst|könnt|seid|bist){{E}}))"
+        flags: dgu
+        owner: word
+        fixer: commaAfterWord
+      # "Du kommst morgen oder?", "Das stimmt nicht wahr?": the tag question after a statement.
+      - regex: "{{WG}}(?:(?<word>\\p{L}+)(?={{S}}(?:oder(?:{{S}}etwa{{S}}nicht)?|nicht{{S}}wahr|gell|stimmt's|stimmts)[ \\t]*\\?))"
+        flags: dgu
+        owner: word
+        fixer: tagQuestion
+      # "Das ist glaube ich egal": an inserted "glaube ich" after the finite verb.
+      - regex: "{{WG}}(?:(?<=(?:ist|sind|war|waren|hat|haben|hatte|hatten|wird|werden|kann|können|muss|müssen|soll|sollte|wäre|würde)(?:{{S}}(?:aber|doch|ja|auch))?{{S}})(?<target>(?:glaube|denke|finde|meine|schätze|vermute){{S}}ich)(?={{S}}\\p{L}))"
+        flags: dgu
+        fixer: insertedOpinion
   - id: de.verbAgreement
     checks: [germanVerbAgreement]
-    predicate: verbAgreement
+    style: match
+    message: review_msg_german_verb_agreement
+    frames:
+      # A subject pronoun and its verb in the wrong person: "Wir sollte heute gehen", "Sollte
+      # wir uns kümmern?". Each word whose start the chunk owns.
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
+        scan: owned
+        flags: gu
+        fixer: subjectVerb
+      # The finite verb written twice in one clause: "Max wird Wirt wird." (the second goes),
+      # "dass er hat Hunger hat" (the first goes, a subordinate clause ends in its verb). The
+      # scan reads each word that ends a clause.
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_'\\u2019-])(\\p{Ll}{3,})(?=[ \\t]*[.!?,;:])"
+        scan: owned
+        flags: gu
+        message: review_msg_german_double_verb
+        fixer: doubledVerb
+      # A plural noun subject opening the sentence and a singular verb right after it: "Die
+      # Schüler soll" (sollen), "Die Frauen wurde" (wurden). The noun is plural when "die"
+      # stands before a masculine or neuter noun, or before a feminine noun's -en/-n form.
+      - regex: "(?<=(?:^|[.!?:\\n\\u201E\"][ \\t]{0,4}))(?:Die|Diese|Alle|Meine|Deine|Seine|Ihre|Unsere|Eure|Viele|Manche|Einige|Beide)(?:[ \\t]+\\p{Ll}+(?:e|en))?[ \\t]+(?<noun>\\p{Lu}\\p{Ll}{2,})[ \\t]+(?<verb>\\p{Ll}+)(?![\\p{L}\\p{M}])"
+        scan: owned
+        flags: gu
+        fixer: pluralSubject
+      # After a modal or "werden" in the same main clause, the verb that ends it is an
+      # infinitive: "Ich will ein Auto kaufe" (kaufen), "Ich möchte Lehrer werde" (werden).
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_'\\u2019-])(\\p{Ll}{3,})(?=[ \\t]*[.!?,;:])"
+        scan: owned
+        flags: gu
+        message: review_msg_german_modal_infinitive
+        fixer: modalInfinitive
+      # A subordinate clause with a pronoun subject and an auxiliary at its end: "weil du
+      # gelogen hat" (hast), "als wir gekündigt wurde" (wurden). Only lowercase words that are
+      # no subject pronoun or finite verb between them, so no other clause or subject
+      # intervenes. The scan starts 120 characters before the chunk; the verb must be in it.
+      - regex: "(?<![\\p{L}\\p{M}])(?:[Ww]eil|[Ww]enn|[Aa]ls|[Dd]ass|[Oo]b|[Oo]bwohl|[Nn]achdem|[Bb]evor|[Ff]alls|[Ss]obald|[Ww]arum|[Ww]ieso|[Ww]eshalb|[Ww]ann|[Ww]ohin|[Ww]oher|[Dd]amit|[Ss]eitdem)[ \\t]+(?<subject>ich|du|wir|ihr)(?<middle>(?:[ \\t]+\\p{L}+){1,6}?)[ \\t]+(?<verb>\\p{Ll}+)(?=[ \\t]*[,.!?;])"
+        scan: owned
+        lookback: 120
+        flags: gu
+        fixer: finalAuxiliary
+      # The "du" imperative of an e→i verb written with its "e": "Sprech nicht so laut"
+      # (Sprich), "Ess weniger!" (Iss), "Dann bewerbe dich" (bewirb).
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<prefix>(?:be|emp|er|ent|ver|zer|über|unter|wider|miss)?)(?<stem>geb|nehm|sprech|les|seh|ess|helf|werf|treff|gess|mess|brech|stech|sterb|werb|derb|fehl|stehl|fress|tret)(?<e>e?)(?![\\p{L}\\p{M}\\p{N}_'’-])"
+        scan: owned
+        flags: giu
+        fixer: imperative
+      # The passive's participle "worden" written as a form of "werden": "nachdem er besiegt
+      # wurden war" (worden), and the reverse, "Die Sachen worden gegessen" (wurden). The scan
+      # starts 40 characters before the chunk; the typed form must be in it.
+      - regex: "(?<![\\p{L}\\p{M}])(?<participle>\\p{Ll}{3,}(?:t|en))[ \\t]+(?<target>wurden|werden|w\\u00FCrden|wurde)(?=[ \\t]+(?:war|ist|bist|sind|waren|seid|w\\u00E4re|w\\u00E4ren|sei|seien)[ \\t]*[.!?,;])|(?<![\\p{L}\\p{M}])(?<t2>worden)(?=[ \\t]+ge\\p{Ll}{2,}(?:t|en)[ \\t]*[.!?,;])"
+        scan: owned
+        lookback: 40
+        flags: gu
+        fixer: worden
+      # A participle with an adjective's "-e" before the auxiliary that closes its clause: "was
+      # sie gesagte hatte" (gesagt).
+      - regex: "(?<![\\p{L}\\p{M}])(?<target>ge\\p{Ll}{2,}te)(?=[ \\t]+(?:hatte|hatten|hattest|hat|habe|haben|hast|h\\u00E4tte|h\\u00E4tten)[ \\t]*[.!?,;:])"
+        scan: owned
+        flags: gu
+        fixer: participleE
   - id: de.questionMarks
     checks: [germanQuestionMarks]
-    predicate: questionMarks
+    style: match
+    message: review_msg_question_mark
+    frames:
+      # A full stop or a "!" after a letter that closes a line or comes before a capital: the
+      # end of a sentence that may be a question ("Wann kommst du.").
+      - regex: "(?<=\\p{L})(?<target>[.!])(?=[ \\t]*(?:\\n|$)|[ \\t]+\\p{Lu})"
+        scan: owned
+        flags: gu
+        fixer: statementQuestion
+      # Quoted speech that a verb of asking reports, closed without a question mark: '"Wohin
+      # gehst du", fragte sie.' → '"Wohin gehst du?"'.
+      - regex: "(?<=\\p{L})(?<target>\\.?(?<quote>[\"\\u201C\\u201D\\u00AB\\u00BB]))(?=,?[ \\t]+(?:fragte|fragten|fragt|erkundigte|erkundigten|erkundigt|wollten?(?:[ \\t]+\\p{Ll}+)?[ \\t]+wissen)(?!\\p{L}))"
+        scan: owned
+        flags: gu
+        fixer: quotedQuestion
   - id: de.numbers
     checks: [germanNumbers]
-    predicate: numbers
+    style: match
+    message: review_msg_german_numbers
+    filter: firstNumberFix
+    frames:
+      # Number words written apart: "sechs und zwanzig", "Zwei Hundert", "hundert tausend mal".
+      - regex: "{{WG}}(?:(?<target>(?<first>{{NUMBER_PART}})(?<rest>(?:{{S}}(?:und{{S}})?{{NUMBER_PART}})+)(?:{{S}}(?<mal>mal))?)){{E}}"
+        flags: dgu
+        fixer: numberApart
+      # "acht mal versucht" → "achtmal"; "acht mal zwei" multiplies and stays.
+      - regex: "{{WG}}(?:(?<target>(?<first>{{NUMBER_PART}}){{S}}mal)(?!{{S}}(?:{{NUMBER_PART}}|\\d))){{E}}"
+        flags: dgu
+        fixer: singleMal
+      # "Achtmal zwei ist 16" → "Acht mal zwei".
+      - regex: "{{WG}}(?:(?<target>(?<first>{{NUMBER_PART}})mal)(?={{S}}(?:(?!ein)(?:{{NUMBER_STARTS}})\\p{Ll}*|\\d+){{E}}(?:{{S}}\\p{L}+)?{{S}}(?:ist|gleich|ergibt|macht|sind|=))){{E}}"
+        flags: dgu
+        fixer: joinedTimes
+      # "zwei an halb" → "zweieinhalb".
+      - regex: "{{WG}}(?:(?<target>(?<n>{{NUMBER_UNITS}}|zehn|elf|zwölf|1[0-2]|[1-9]){{S}}an{{S}}halb)){{E}}"
+        flags: dgu
+        fixer: anHalb
+      # "bis Drei", "unter Null", "wir Fünf": a number that is no noun there.
+      - regex: "{{WG}}(?:(?<=(?:bis|um|durch|über|unter|gegen|zu|auf|[Ww]ir|[Ii]hr|[Dd]iese|als|an{{S}}die){{S}})(?<target>(?:Null|Zwei|Drei|Vier|Fünf|Sechs|Sieben|Acht|Neun|Zehn|Elf|Zwölf|\\p{Lu}\\p{Ll}*(?:zig|ßig|zehn|hundert|tausend)\\p{Ll}*))(?!{{S}}\\p{Lu})){{E}}"
+        flags: dgu
+        fixer: capitalNumber
+      # "zwei Million", "viele Möglichkeit": a singular after a plural quantity. ("einige
+      # Übung", "wenige Hoffnung" take a mass noun in the singular.)
+      - regex: "{{WG}}(?:(?=\\p{Lu})(?<=(?:(?:{{QUANTITY}})|(?:Vielzahl|Reihe|Menge|Anzahl|Fülle){{S}}(?:von|an))(?:{{S}}\\p{Ll}{1,30}(?:e|en))?{{S}})(?<target>\\p{Lu}\\p{Ll}+(?:ung|heit|keit|schaft|ion|tät))(?!\\p{L})|(?<=(?:{{QUANTITY}}|[2-9]|\\d{2,12}(?:,\\d{1,6})?){{S}})(?<t2>Million|Milliarde|Billion)(?!\\p{L})){{E}}"
+        flags: dgu
+        owner: target|t2
+        fixer: singularAfterCount
+      # "eine halbe Millionen", "eine Viertelmilliarden", "1 Millionen": a half, a quarter or
+      # one is one ("2,1 Millionen" is a decimal).
+      - regex: "{{WG}}(?:(?<=(?:[Hh]albe|[Hh]alben|[Hh]alber|(?<!\\p{L})[Ee]iner?|(?<![\\p{N},.])1){{S}})(?<target>Millionen|Milliarden|Billionen|Billiarden)|(?<=(?:[Ee]ine|[Ee]iner|[Dd]ie|[Dd]er){{S}})(?<t2>Viertel(?:millionen|milliarden))){{E}}"
+        flags: dgu
+        owner: target|t2
+        fixer: halfMillion
+      # "12,450,300", "4,250.75": English digit groups. German groups thousands with a point
+      # and writes a decimal comma ("1,250" alone is a decimal).
+      - regex: "{{WG}}(?:(?<![\\p{N},.])(?<target>[1-9]\\d{0,2}(?:(?:,\\d{3}){2,}(?:\\.\\d{1,2})?|,\\d{3}\\.\\d{1,2}))(?![\\p{N},.]\\d|\\p{L})){{E}}"
+        flags: dgu
+        fixer: englishDigits
+      # "im 20 Jahrhundert", "am 3 Mai", "in den 4 Stock": a numeral between a definite article
+      # and a noun that counts in order is an ordinal and takes its dot.
+      - regex: "{{WG}}(?:(?<=(?:[Ii]m|[Aa]m|[Zz]um|[Vv]om|[Bb]eim|[Dd]em|[Dd]en|[Dd]er|[Dd]as|[Ss]eit{{S}}dem|[Ii]n{{S}}den|[Ii]n{{S}}der|[Aa]b{{S}}der|[Aa]b{{S}}dem){{S}})(?<target>[1-9]\\d{0,2})(?={{S}}(?:{{ORDINAL_NOUNS}}){{E}})){{E}}"
+        flags: dgu
+        fixer: ordinalDot
+      # "von 9–10 Uhr", "Seiten von A-Z", "vom 7.-10. März", "zwischen 2019 – 2021": after "von"
+      # or "zwischen" the dash stands for "bis" or "und", which German writes out.
+      - regex: "{{WG}}(?:(?<=(?:[Vv]on|[Vv]om|[Zz]wischen){{S}}(?:(?:\\p{Lu}\\p{Ll}{2,12}|S\\.|Nr\\.){{S}})?)(?<target>(?<from>{{RANGE_END}})[ \\t]?[-–][ \\t]?(?<to>{{RANGE_END}}))(?![-–\\d])){{E}}"
+        flags: dgu
+        fixer: numberRange
   - id: de.rangeDashes
     checks: [emdashShortcut]
+    # German gives only the guards of the shared scan.
+    # predicate: calls rangeDashes of review/rangeDash.ts, a shared scan outside the German modules.
     predicate: rangeDashes
   - id: de.typography
     checks: [germanTypography]
-    predicate: typography
+    style: match
+    message: review_msg_typographic_symbol
+    frames:
+      # Typeset German multiplies with × or ·: "6,6 x 10⁻³⁴", "5*2", "a * b" (opt-in). "0x1F" is
+      # hexadecimal; a "*" without spaces between words is a gender star or emphasis.
+      - regex: "(?<target>(?<=(?<![\\p{L}\\p{N}.,])\\d+(?:[.,]\\d+)?[ \\u00A0]?)[x*](?=[ \\u00A0]?\\d)|(?<=[\\p{L}\\p{N}][ \\u00A0])\\*(?=[ \\u00A0][\\p{L}\\p{N}]))"
+        scan: owned
+        flags: gu
+        fixer: timesSign
+      # A chemical formula takes subscript counts: "CO2", "H2O", "CO²" → "CO₂", "H₂O" (opt-in).
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_])(?:[A-Z][a-z]?[0-9\\u00B2\\u00B3]*){1,6}(?![\\p{L}\\p{N}_]))"
+        scan: owned
+        flags: gu
+        fixer: chemicalFormula
+      # A long number groups its thousands with a point: "250000 Besucher" → "250.000"
+      # (opt-in).
+      - regex: "(?<target>(?<![\\p{L}\\p{N}.,:/#+_-])[1-9]\\d{4,}(?![\\p{L}\\p{N}.,:/_-]))"
+        scan: owned
+        flags: gu
+        message: review_msg_german_thousands
+        fixer: thousands
   - id: de.decadeCentury
     checks: [stylePhrasing]
-    predicate: decadeCentury
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # "in den 1970er Jahren des 20. Jahrhunderts": the four-digit decade names its century
+      # already (opt-in style advice).
+      - regex: "{{WG}}(?:(?<target>(?<decade>(?:1[0-9]|20)\\d0er(?:-|{{S}})Jahren?){{S}}des{{S}}(?:vorigen|letzten|vergangenen|\\d{1,2}\\.|neunzehnten|zwanzigsten|einundzwanzigsten){{S}}Jahrhunderts)){{E}}"
+        flags: dgu
+        fixer: decadeCentury
   - id: de.colloquial
     checks: [germanColloquial]
-    predicate: colloquial
+    style: match
+    message: review_msg_german_colloquial
+    frames:
+      # Spoken short forms (authored): an article without "ei-" ("n netter Typ", "ne Frage"),
+      # a verb with "es" or "du" joined to it ("ich mags", "gehts", "meinste").
+      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_'’.-])(?:(?<article>n|ne|nen|nem|ner)(?=[ \\t]+(?<adjective>\\p{Ll}+(?:e|en|er|es|em)[ \\t]+)?\\p{Lu}\\p{Ll})|(?<joined>[mM]ags|[lL]iebs|[gG]ebs|[hH]abs|[nN]ehms|[mM]achs|[kK]enns|[wW]ills|[kK]anns|[sS]tehts|[gG]efällts|[gG]ehts|[gG]ibts|[kK]ommts|[sS]iehts|[lL]äufts|[kK]lappts|[pP]assts|[hH]aste|[bB]iste|[kK]annste|[wW]eißte|[sS]iehste|[wW]illste|[mM]einste|[gG]uckste|[mM]achste|[hH]örste|[gG]ehste|[kK]ommste))(?![\\p{L}\\p{M}\\p{N}_'’-]))"
+        scan: owned
+        flags: gu
+        fixer: spokenForm
+      # "Du brauchst nicht kommen" → "zu kommen": "brauchen" with a negation or "nur" takes
+      # "zu". The scan starts 80 characters before the chunk; the verb must be in the chunk.
+      - regex: "(?<target>(?<![\\p{L}\\p{M}])(?:[Bb]rauch(?:e|st|t|en|te|test|ten|tet))(?<middle>(?:[ \\t]+[\\p{L}\\p{M}]+){1,6}?)[ \\t]+(?<verb>\\p{Ll}{3,}(?:en|ern|eln))(?=[ \\t]*[.!?,;:\"\\u201C\\u201D]|[ \\t]*$))"
+        scan: owned
+        lookback: 80
+        flags: gu
+        fixer: needsZu
+      # A preposition with an interrogative "was" is spoken German; writing uses the wo(r)-
+      # adverb: "Für was kämpft er?" (Wofür), "um was es geht" (worum). Not the indefinite
+      # "was" ("für was Neues", "gegen was neues").
+      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_-])(?<prep>[Aa]us|[Uu]m|[Aa]uf|[Ff]\\u00FCr|[Dd]urch|[Mm]it|[\\u00DC\\u00FC]ber|[Aa]n|[Vv]on|[Nn]ach|[Zz]u|[Ii]n|[Bb]ei|[Gg]egen|[Vv]or)[ \\t]+was(?![\\p{L}\\p{M}\\p{N}_-]))"
+        scan: owned
+        flags: gu
+        fixer: prepositionWhat
+      # "Sinn machen" copies the English phrase; German says "Sinn ergeben". The phrase table
+      # holds the adjacent forms; this frame takes the verb a few words before "Sinn" ("Das
+      # macht für mich wenig Sinn", "Macht es vielleicht Sinn") and "Sinn zu machen". The scan
+      # starts 64 characters before the chunk; the verb must be in the chunk.
+      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_-])(?<verb>[Mm]acht|[Mm]achen|[Mm]achte|[Mm]achten|[Mm]achst|[Mm]ache)(?<gap>(?:[ \\t]+\\p{Ll}+){1,4}?)[ \\t]+(?:einen[ \\t]+|keinen[ \\t]+)?Sinn(?![\\p{L}\\p{M}\\p{N}_-])|Sinn[ \\t]+zu[ \\t]+(?<zu>machen)(?![\\p{L}\\p{M}\\p{N}_-]))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: makesSense
+      # Clipped words of speech and their written forms ("Mathe", "Infos", "Kuli").
+      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_@/#.-])(?:Mathe|Info|Infos|Uni|Unis|Abi|Kuli|Kulis|Limo|Deo|Klo|Reli)(?![\\p{L}\\p{M}\\p{N}_@/#-]))"
+        scan: owned
+        flags: gu
+        fixer: clipped
+      # Spoken names of a measured quantity and of arithmetic, and their written forms: "die
+      # Voltzahl" (elektrische Spannung), "5 Kilo" (Kilogramm), "plus rechnen" (addieren),
+      # "schneller als 50 Kilometer" (Kilometer pro Stunde: a speed, not a distance). These
+      # scans start 64 characters before the chunk; a match must start in the chunk.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}-])(?<unit>Volt|Ampere|Coulomb|Watt|Kilowatt|Megawatt|PS|Hertz|Joule|Kilogramm|Gramm)-?[Zz]ahl(?<plural>en)?(?![\\p{L}\\p{N}-]))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: unitCount
+      # The word first, then a bounded look back: cheap on long runs of spaces without the
+      # regex JIT.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}-])Kilo(?![\\p{L}\\p{N}-])(?<=(?:{{NUMBER_WORD}})[ \\t]{1,8}Kilo))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: kilo
+      - regex: "(?<target>(?<![\\p{L}\\p{N}-])Kilometer(?![\\p{L}\\p{N}-])(?:(?<=(?:schneller|langsamer)[ \\t]{1,8}als[ \\t]{1,8}(?:\\d+(?:,\\d+)?|\\p{Ll}+)[ \\t]{1,8}Kilometer)(?![ \\t]+(?:pro|je|in)(?![\\p{L}]))|(?<=(?:{{NUMBER_WORD}})[ \\t]{1,8}Kilometer)(?=[ \\t]{1,8}(?:schneller|langsamer)(?![\\p{L}]))))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: speed
+      - regex: "(?<target>(?<![\\p{L}\\p{N}-])(?<op>plus|minus|geteilt)[ \\t]+(?<verb>rechnen|rechnet|rechnest|rechne|gerechnet)(?![\\p{L}\\p{N}-]))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: rechnen
+      - regex: "(?<target>(?<![\\p{L}\\p{N}-])(?<op>Plus|Minus|Geteilt|Mal)-Rechnen(?![\\p{L}\\p{N}-]))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: rechnenNoun
+      # The spoken short forms of her-/hin- particles before a verb ("reingehen", "rumsitzen"),
+      # and "rum", "rüber", "runter", "rauf", "raus" on their own.
+      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_\\-'\\u2019])(?<short>[Rr](?:an|um|aus|ein|auf|unter|\\u00FCber))(?<rest>\\p{Ll}*)(?![\\p{L}\\p{M}\\p{N}_\\-'\\u2019]))"
+        scan: owned
+        flags: gu
+        fixer: herParticle
   - id: de.recommended
     checks: [germanRecommendedSpelling]
-    predicate: recommended
+    style: match
+    message: review_msg_german_recommended_spelling
+    frames:
+      # "Geographie", "Paragraph", "Photographin", "Mikrophon", "Phantasie", "Delphin": a Greek
+      # ph German now writes f. "Graph" and "Graphen" (graphene) alone, "Phonetik",
+      # "Philosophie" stay.
+      - regex: "{{WG}}(?:(?<target>\\p{L}*?(?:[Gg]eo|[Bb]io|[Pp]ara|[Ff]oto|[Pp]hoto|[Oo]rtho|[Kk]rypto|[Cc]horeo|[Tt]ele|[Kk]alli|[Tt]opo|[Ee]thno|[Dd]emo|[Ss]teno|[Ll]itho|[Hh]olo|[Ss]eismo|[Kk]arto|[Tt]ypo)graph\\p{Ll}*|\\p{L}*?(?:[Mm]ikro|[Ss]axo|[Xx]ylo|[Mm]ega|[Gg]rammo|[Tt]ele)phon(?:e|en|s|es|ist|istin|istinnen|isten)?|\\p{Lu}*?(?:GEO|BIO|PARA|FOTO|PHOTO|ORTHO|KRYPTO|CHOREO|TELE|TOPO|TYPO)GRAPH\\p{Lu}*|(?:[Pp]hantas(?:ie|ien|tisch|tische[nmrs]?|ievoll|ievolle[nmrs]?|ielos|t|ten|tin)|PHANTASIE)|[Gg]raphi(?:k|ken|sch|sche|schen|scher|sches|schem|ker|kerin)|[Dd]elphin(?:e|en|s)?|[Pp]hoto(?:s|apparat|album|kopie)?)){{E}}"
+        flags: dgu
+        fixer: phSpelling
+      # A preposition and a noun the Duden recommends joining, where the phrase is that adverb
+      # ("auf Grund des Wetters", "an Hand der Daten"); stylePhrasing has "infrage",
+      # "zugunsten" and the like.
+      - regex: "{{WG}}(?:(?<target>[aA]uf{{S}}Grund)(?={{S}}(?:des|der|dessen|deren|von|eines|einer|seines|seiner|ihres|ihrer){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:des|der|dessen|deren|von|eines|einer|seines|seiner|ihres|ihrer){{E}})){{E}}"
+        flags: dgu
+        fixer: joinedAdverb
+      - regex: "{{WG}}(?:(?<target>[aA]n{{S}}Hand)(?={{S}}(?:des|der|von|eines|einer|dieser|dieses){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:des|der|von|eines|einer|dieser|dieses){{E}})){{E}}"
+        flags: dgu
+        fixer: joinedAdverb
+      - regex: "{{WG}}(?:(?<target>[zZ]u{{S}}Tage)(?={{S}}(?:treten|tritt|trat|traten|getreten|fördern|fördert|förderte|gefördert|bringen|gebracht){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:treten|tritt|trat|traten|getreten|fördern|fördert|förderte|gefördert|bringen|gebracht){{E}})){{E}}"
+        flags: dgu
+        fixer: joinedAdverb
+      - regex: "{{WG}}(?:(?<target>[zZ]u{{S}}Rande)(?={{S}}(?:kommen|kommt|kam|kamen|gekommen){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:kommen|kommt|kam|kamen|gekommen){{E}})){{E}}"
+        flags: dgu
+        fixer: joinedAdverb
+      - regex: "{{WG}}(?:(?<target>[iI]n{{S}}Stand)(?={{S}}(?:setzen|setzt|setzte|gesetzt|halten|hält|hielt|gehalten|zu{{S}}setzen){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:setzen|setzt|setzte|gesetzt|halten|hält|hielt|gehalten|zu{{S}}setzen){{E}})){{E}}"
+        flags: dgu
+        fixer: joinedAdverb
+      # The Duden spells "To-do", "To-dos" and "To-do-Liste": "ToDo", "Todos", "TODO", "Todo
+      # Liste".
+      - regex: "{{WG}}(?:(?<target>(?:ToDo|Todo|TODO|To-Do|To{{S}}Do)(?<plural>s)?(?:(?<list>-?Liste|{{S}}Liste|-?Lists?|liste)(?<lists>n)?)?)){{E}}"
+        flags: dgu
+        fixer: todo
+      # An adverb and a participle the Duden recommends joining: "ein viel sagender Blick"
+      # (vielsagender), "hoch begabt", "schwer behindert", "allein erziehend".
+      - regex: "{{WG}}(?:(?<target>(?<lead>[Vv]iel|[Hh]och|[Ss]chwer|[Aa]llein|[Ww]ohl){{S}}(?<rest>(?<stem>sagend|begabt|behindert|erziehend|geschätzt|erzogen|temperiert)(?:e|en|er|es|em)?))){{E}}"
+        flags: dgu
+        fixer: together
+      # "recht haben", "recht geben" (the Duden prefers lowercase over "Recht haben"), and "bis
+      # auf Weiteres", "ohne Weiteres" (it prefers the capital). "das Recht haben" is the noun.
+      - regex: "{{WG}}(?:(?<!(?:{{RECHT_NOT_AFTER}}){{S}})(?<=\\p{Ll}{{S}})(?<target>Recht)(?={{S}}(?:{{RIGHT_VERBS}}){{E}})|(?<!(?:{{RECHT_NOT_AFTER}}){{S}})(?<=(?:{{RIGHT_VERBS}})(?:{{S}}\\p{Ll}+){0,3}{{S}})(?<t2>Recht)(?=[ \\t]*[.!?,;])|(?<=(?:bis{{S}}auf|[Oo]hne|[Dd]es){{S}})(?<t3>weiteres|weiteren)(?=[ \\t]*[.!?,;]|{{S}}\\p{Ll})){{E}}"
+        flags: dgu
+        owner: target|t2|t3
+        fixer: rechtWeiteres
+      # An adverb and a participle the Duden recommends writing apart: "tiefbetrübt" (tief
+      # betrübt), "nichtrostend", "freistehend".
+      - regex: "{{WG}}(?:(?<target>(?<lead>[Tt]ief|[Hh]och|[Vv]iel|[Nn]icht|[Ff]rei|[Rr]ot|[Nn]eu)(?<rest>(?:betrübt|hängend|kompliziert|beschäftigt|rostend|stehend|lackiert|bekehrt)(?:e|en|er|es|em)?))){{E}}"
+        flags: dgu
+        fixer: apartPairs
+      # "Wir sind zuhause", "bekanntgegeben", "verlorengegangen": written apart.
+      - regex: "{{WG}}(?:(?<target>zuhause)|(?<t2>(?<lead>bekannt|verloren)(?<verb>gegeben|gab|gaben|geben|gibt|zugeben|gemacht|machte|machten|machen|macht|zumachen|gegangen|ging|gingen|gehen|geht|zugehen))){{E}}"
+        flags: dgu
+        owner: target|t2
+        fixer: apart
   - id: de.redundancy
     checks: [stylePhrasing]
-    predicate: redundancy
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # An adjective that the noun already says ("eine runde Kugel", "die toten Leichen", "eine
+      # weibliche Ärztin": a feminine person noun says it already).
+      - regex: "{{WG}}(?<adj>(?<stem>{{REDUNDANT_STEMS}})(?:e|en|er|es|em)?){{S}}(?<noun>\\p{Lu}\\p{Ll}+){{E}}"
+        flags: dgu
+        owner: adj
+        fixer: redundantAdjective
+      # A compound whose first part the second already says ("Glasvitrine", "Fußpedal").
+      - regex: "{{WG}}(?<prefix>Trommel|Glas|Fuß|Baum|Außen|Eier|Papp|Internet|Alt|Billig|Haar|Gesichts|Vogel|Holz|Zeit|Haupt|Einzel|Lebens|Rück)(?<head>revolver|vitrine|pedal|allee|fassade|omelett|omelette|karton|blog|veteran|discounter|frisur|mimik|voliere|xylophon|xylofon|verzögerung|protagonist|protagonistin|individuum|biografie|biographie|erinnerung)(?<ending>{{NOUN_ENDING}}){{E}}"
+        flags: dgu
+        owner: prefix
+        fixer: redundantCompound
   - id: de.anglicisms
     checks: [germanCompounds]
-    predicate: anglicisms
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # A capital first part (a German noun), then the particle: apart, with a hyphen, or joined.
+      - regex: "{{WG}}(?<target>(?<verb>[C]heck|[M]ake|[S]tand|[B]urn|[P]op|[A]dd|[P]lug|[L]og|[D]rive|[B]uy|[K]ick|[F]ollow|[P]ush|[C]oming|[R]oll|[S]et|[S]it|[W]arm|[C]ool|[S]tart|[T]ake|[P]ick|[W]alk|[K]nock|[T]each|[B]reak|[M]ust)(?<sep>[ \\t]+|-)?(?<particle>[iI]n|[oO]ut|[uU]p|[oO]n|[oO]ff|[dD]own|[eE]ven|[hH]ave)(?<plural>s)?)(?![\\p{L}\\p{N}-])(?![ \\t]+\\p{Lu})"
+        flags: dgu
+        fixer: phrasalNoun
   - id: de.joinedVerbs
     checks: [germanJoinedVerbs]
-    predicate: joinedVerbs
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # An adjective or adverb written apart from a verb with which it makes one verb: "fest
+      # genommen" (festgenommen), "schief gehen" (schiefgehen).
+      - regex: "{{WG}}(?:(?<first>wieder{{S}}gut|fest|klar|kalt|krank|hoch|groß|klein|schwarz|rot|schief|glatt|zufrieden|allein|satt|gut|heilig|kürzer|schwer|sicher|kurz|nahe|wieder)(?<zu>{{S}}zu)?{{S}}(?<verb>\\p{Ll}+){{E}})"
+        flags: dgu
+        owner: first
+        fixer: openVerb
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

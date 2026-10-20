@@ -38,18 +38,6 @@ export const wordEntries = <T>(words: string, value: T) =>
 /** A token that ends a clause, or no token at all. */
 export const BOUNDARY = /^(?:[.!?:;,()"“”„«»–—\n-]|$)/;
 
-// A word of letters, not glued into a number, path, mention or dotted token.
-const WORD =
-  /(?<![\p{L}\p{M}\p{N}_@/#\\.-])\p{L}[\p{L}\p{M}]*(?![\p{L}\p{M}\p{N}_@/#\\]|\.\p{L})/gu;
-
-/** The words whose start the chunk owns. */
-export function* words(ctx: DetectContext): Generator<RegExpExecArray> {
-  WORD.lastIndex = ctx.from;
-  for (let m = WORD.exec(ctx.scanText); m && m.index < ctx.to; m = WORD.exec(ctx.scanText)) {
-    yield m;
-  }
-}
-
 // Words (with "_", "/" or "-" joins: "Pädagog_in", "Partner/in", "Grammatik-Regeln"), line
 // breaks and single marks; a hyphen at a word edge ("Vor- und") stays a mark.
 const TOKEN = /\n|[\p{L}\p{M}\p{N}_]+(?:[-/][\p{L}\p{M}\p{N}_]+)*|[^\s\p{L}\p{M}\p{N}_]/gu;

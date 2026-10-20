@@ -1,9 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
 import { finding } from "../finding";
-import { frameMatches } from "../phraseTemplates";
-import type { Detector } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { ci, englishLine, isGerman, tokensAfter, WORD_GATE } from "./shared";
+import type { MatchFixer } from "../../engine/reviewRules";
+import { englishLine, tokensAfter } from "./shared";
 
 // An English noun of a verb and a particle takes a hyphen in German, the particle in lowercase
 // (Duden): "Check In", "Check-In" → "Check-in", "Make Up" → "Make-up", "Burn Out" → "Burn-out".
@@ -52,47 +50,31 @@ const JOINED_WRONG = new Set([
   "breakeven",
   "musthave",
 ]);
-const cap = (w: string) => `[${w[0].toUpperCase()}]${w.slice(1)}`;
-const PARTICLES = [...new Set(Object.values(PAIRS).flat())];
-// A capital first part (a German noun), then the particle: apart, with a hyphen, or joined.
-const PHRASAL_NOUN = new RegExp(
-  `${WORD_GATE}(?<target>(?<verb>${Object.keys(PAIRS).map(cap).join("|")})(?<sep>[ \\t]+|-)?(?<particle>${PARTICLES.map(ci).join("|")})(?<plural>s)?)(?![\\p{L}\\p{N}-])(?![ \\t]+\\p{Lu})`,
-  "gdu",
-);
-
 const DETERMINER =
   /^(?:der|die|das|den|dem|des|(?:k?ein|mein|dein|sein|ihr|unser|eu[e]?r|dies|jen|jed|welch)\p{L}*|\p{N}.*)$/iu;
 
-function anglicisms(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, PHRASAL_NOUN)) {
+/** The named frame fixes of the de.anglicisms rule (grammar/rules/de.yaml). */
+export const FIXERS = {
+  phrasalNoun: (m, ctx) => {
     const { target, verb, sep, particle, plural } = m.groups!;
     const low = verb.toLowerCase();
-    if (!PAIRS[low].includes(particle.toLowerCase())) continue;
+    if (!PAIRS[low].includes(particle.toLowerCase())) return null;
     // Already right, or joined where the joined form is in use.
-    if (sep === "-" && particle === particle.toLowerCase()) continue;
-    if (!sep && !JOINED_WRONG.has(low + particle.toLowerCase())) continue;
+    if (sep === "-" && particle === particle.toLowerCase()) return null;
+    if (!sep && !JOINED_WRONG.has(low + particle.toLowerCase())) return null;
     const [start, end] = m.indices!.groups!.target;
     // "das Log in den Ordner", "zum Check in eine Werkstatt": the German preposition "in".
     if (particle === "in" && sep !== "-" && DETERMINER.test(tokensAfter(ctx.text, end, 1)[0] ?? ""))
-      continue;
-    if (ctx.dictionary.has(target.toLowerCase()) || englishLine(ctx.text, start)) continue;
-    if (namedExampleBefore(ctx.text, start)) continue;
-    findings.push(
-      finding(
-        "germanCompounds",
-        "review_msg_closed_compound",
-        start,
-        end,
-        [`${verb}-${particle.toLowerCase()}${plural ?? ""}`],
-        { context: { start, end } },
-      ),
+      return null;
+    if (ctx.dictionary.has(target.toLowerCase()) || englishLine(ctx.text, start)) return null;
+    if (namedExampleBefore(ctx.text, start)) return null;
+    return finding(
+      "germanCompounds",
+      "review_msg_closed_compound",
+      start,
+      end,
+      [`${verb}-${particle.toLowerCase()}${plural ?? ""}`],
+      { context: { start, end } },
     );
-  }
-  return findings;
-}
-
-export const PREDICATES = {
-  anglicisms,
-} satisfies Record<string, Detector>;
+  },
+} satisfies Record<string, MatchFixer>;
