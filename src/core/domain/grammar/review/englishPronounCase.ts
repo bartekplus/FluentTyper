@@ -4,7 +4,7 @@ import { applyWordCase, detectWordCase } from "../implementations/helpers/Generi
 import { PASTS, pluralNoun, tightAround } from "./englishSentenceStructure";
 import { group, hasUserOrCasedWord, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
-import type { FindingsFilter, MatchFixer } from "../engine/reviewRules";
+import type { MatchFixer } from "../engine/reviewRules";
 import { finding } from "./finding";
 
 const NEGATIVE = "n['’]t";
@@ -373,13 +373,3 @@ export const FIXERS = {
   usSubject,
   myselfObjects,
 } satisfies Record<string, MatchFixer>;
-
-/** The named findings filters of grammar/rules/common.yaml (`filter:`). */
-export const FILTERS = {
-  // Two frames may find the same pair ("Me and Sam went" is a coordination with a finite verb
-  // and with a base verb): the first finding at a start wins.
-  firstPerStart: (_ctx, findings) => {
-    const starts = new Set<number>();
-    return findings.filter((f) => !starts.has(f.range.start) && !!starts.add(f.range.start));
-  },
-} satisfies Record<string, FindingsFilter>;

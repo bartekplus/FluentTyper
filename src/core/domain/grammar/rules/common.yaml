@@ -4622,9 +4622,11 @@ rules:
   # Review rules: each names a shared detector (CORE_PREDICATES in review/reviewDetectors.ts).
   - id: styleFindings
     checks: [styleRedundancy, styleLongSentence]
+    # predicate: reads the style findings that Review made before the scan; no regex scan.
     predicate: styleFindings
   - id: terminology
     checks: [preferredTerminology]
+    # predicate: reads the terminology findings that Review made before the scan; no regex scan.
     predicate: terminology
   - id: phraseTables
     checks:
@@ -4640,12 +4642,15 @@ rules:
         styleAlternativePhrasing,
         englishPossibleErrors,
       ]
+    # predicate: the phrase rows and the casing scan both report englishCanonicalCasing.
     predicate: phraseTables
   - id: quotationFindings
     checks: [unclosedQuotation]
+    # predicate: reads the quotation findings that Review made before the scan; no regex scan.
     predicate: quotationFindings
   - id: typographicQuotes
     checks: [typographicQuotes]
+    # predicate: typographicQuotes.ts pairs the quote marks of each line with a stack.
     predicate: typographicQuotes
   # Full bounded phrases, never a guess about arbitrary names or singular/plural ownership.
   - id: possessives
@@ -4894,6 +4899,7 @@ rules:
     cacheable: true
   - id: doubledDegree
     checks: [englishDoubledDegree]
+    # predicate: english/grammarStyle1.ts calls the English scan (doubledDegree).
     predicate: doubledDegree
   # Ordinary-prose frames only. Quantified mass nouns abstain; no invented amount or unit.
   - id: countability
@@ -5354,12 +5360,15 @@ rules:
     predicate: spelling
   - id: modalOf
     checks: [englishModalOfCorrection]
+    # predicate: runs the typing rule's end-anchored pattern on the tokens before each word end.
     predicate: modalOf
   - id: yourWelcome
     checks: [englishYourWelcomeCorrection]
+    # predicate: runs the typing rule's end-anchored pattern on the tokens before each word end.
     predicate: yourWelcome
   - id: theirThere
     checks: [englishTheirThereBeVerb]
+    # predicate: runs the typing rule's end-anchored pattern on the tokens before each word end.
     predicate: theirThere
   # Additional finished-text coverage under the existing agreement identity.
   - id: pronounVerbFrames
@@ -5470,6 +5479,7 @@ rules:
         fixer: bareExistential
   - id: articleAn
     checks: [englishArticleAnCorrection]
+    # predicate: runs the typing rule's end-anchored pattern on the tokens before each word end.
     predicate: articleAn
   - id: ordinal
     checks: [englishOrdinalSuffix]
@@ -5482,6 +5492,7 @@ rules:
         fixer: ordinal
   - id: properNouns
     checks: [englishProperNounCapitalization]
+    # predicate: the name scan reads 32 characters past the chunk and keeps the longest name.
     predicate: properNouns
   - id: commaPeriodSpacing
     checks: [commaPeriodSpacing]
@@ -5609,13 +5620,11 @@ rules:
         fixer: typedDashes
   - id: measurement
     checks: [measurementUnitFormatting]
-    # predicate: the unit scan starts at the token that the chunk start cuts and reads 64
-    # characters after the chunk; the kelvin and German scans share its check.
+    # predicate: the unit scan reads from the cut token to 64 characters past the chunk.
     predicate: measurement
   - id: currency
     checks: [currencySpacing]
-    # predicate: the unit scan starts at the token that the chunk start cuts and reads 64
-    # characters after the chunk; the German scan shares its check.
+    # predicate: the unit scan reads from the cut token to 64 characters past the chunk.
     predicate: currency
   # English writes "$", "£" and "¥" before the amount and "¢" after it: "25$" is "$25".
   - id: currencyPlacement

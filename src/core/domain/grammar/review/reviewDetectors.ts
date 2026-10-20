@@ -18,7 +18,7 @@ import { FIXERS as POSSESSIVE_FIXERS } from "./englishPossessives";
 import { FILTERS as AGREEMENT_FILTERS, FIXERS as AGREEMENT_FIXERS } from "./englishAgreement";
 import { FIXERS as CONFUSION_FIXERS } from "./englishWordConfusions";
 import { FILTERS as AUXILIARY_FILTERS, FIXERS as AUXILIARY_FIXERS } from "./englishAuxiliaryForms";
-import { FILTERS as CASE_FILTERS, FIXERS as CASE_FIXERS } from "./englishPronounCase";
+import { FIXERS as CASE_FIXERS } from "./englishPronounCase";
 import { FIXERS as STRUCTURE_FIXERS } from "./englishSentenceStructure";
 import type { CatalogRuleId } from "../ruleCatalog";
 import {
@@ -1636,6 +1636,16 @@ const DETECTOR_FIXERS = {
   repeatedWord,
 } satisfies Record<string, MatchFixer>;
 
+/** The findings filters of the shared rules of this module. */
+const DETECTOR_FILTERS = {
+  // Two frames may find the same words: the first finding at a start wins, as when a detector
+  // skipped a match at the start of an earlier finding.
+  firstPerStart: (_ctx, findings) => {
+    const starts = new Set<number>();
+    return findings.filter((f) => !starts.has(f.range.start) && !!starts.add(f.range.start));
+  },
+} satisfies Record<string, FindingsFilter>;
+
 /** The named frame fixes of grammar/rules/common.yaml (`fixer:`). */
 const CORE_FIXERS = mergePredicates<Fixer>(
   DETECTOR_FIXERS,
@@ -1657,7 +1667,7 @@ const CORE_FILTERS = mergePredicates<FindingsFilter>(
   USAGE_FILTERS,
   COMPOUND_FILTERS,
   AUXILIARY_FILTERS,
-  CASE_FILTERS,
+  DETECTOR_FILTERS,
   AGREEMENT_FILTERS,
 );
 
