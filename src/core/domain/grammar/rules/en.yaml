@@ -1242,7 +1242,33 @@ rules:
     predicate: verbComplementSlots
   - id: en.missingVerbs
     checks: [englishSentenceStructure, englishConfusedWords]
-    predicate: missingVerbs
+    style: match
+    message: review_msg_clause_be
+    filter: slotFindingsOncePerStart
+    frames:
+      # "It very easy", "I not sure", "He a racist", "You going to be there": a subject and no be.
+      - regex: "(?<target>I|you|he|she|it|we|they|this){{S}}(?=[a-z])"
+        fixer: missingSubjectBe
+      # "There a lot of ways", "Here my new song", "if there any questions": there/here + no verb.
+      - regex: "(?<target>there|here){{S}}(?<det>a|an|some|any|no|nothing|nobody|several|many|my|our|your){{E}}"
+        fixer: missingExistentialBe
+      # "Can we able to…", "Have you able to…": able needs be/been.
+      - regex: "(?<aux>can|could|would|will|should|can['’]t|couldn['’]t|have|has|haven['’]t|hasn['’]t){{S}}(?<target>we|you|they|he|she|it|I|anyone|someone|everyone)(?:{{S}}(?:ever|still|not))?{{S}}(?:able|unable){{S}}to{{E}}"
+        fixer: missingAbleBe
+      # "It would very helpful", "It will OK to go": a modal before a degree word and an adjective.
+      - regex: "(?<modal>would|will|could|should|might|may|must|can)(?<target>{{S}})(?:(?:very|too|so|extremely|quite|pretty|forever){{S}}(?<adjective>[a-z]+)|(?<fixed>ok|okay|worth)){{E}}"
+        fixer: missingModalBe
+      # "She could no hear": no for not.
+      - regex: "(?:could|would|should|can|will|might|must|does|do|did|am|is|are|was|were|['’]m|['’]re){{S}}(?<target>no){{S}}(?<word>[a-z]+){{E}}"
+        check: englishConfusedWords
+        fixer: missingNoForNot
+      # "There is not time", "I have not idea": not for no.
+      - regex: "(?<lead>there{{S}}(?:is|are|was|were|['’]s)|(?:i|we|you|they){{S}}(?:have|['’]ve)|(?:he|she|it){{S}}has){{S}}(?<target>not){{S}}(?<word>[a-z]+){{E}}"
+        check: englishConfusedWords
+        fixer: missingNotForNo
+      # "I quickly the flashlight": a subject, an -ly adverb and then a determiner, no verb.
+      - regex: "(?:I|we|you|they|he|she){{S}}(?<target>[a-z]+ly){{S}}(?:the|a|an|my|your|his|her|our|their|these|those){{E}}"
+        fixer: missingAdverbVerb
   - id: en.determinerConfusions
     checks: [englishConfusedWords]
     predicate: determinerConfusions
