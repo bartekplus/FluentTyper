@@ -22,7 +22,6 @@ import {
   wordBefore,
 } from "./slotWords";
 import { finding } from "../finding";
-import { alone } from "./confusionSlots";
 
 // Noun number against its determiner or count, with singular/plural forms read from the
 // generated lexicon: "a new issues", "five book", "this errors are", "each children".
@@ -247,7 +246,8 @@ const PLURAL_ONLY =
 // "Over there is…", "out there are…": a place adverb, not existential there.
 const PLACE_BEFORE = /\b(?:over|out|in|up|down|from|back|under|right|around)[ \t\u00a0]+$/i;
 
-const MATCH = {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
   numberArticlePlural: (m, ctx) => {
     const article = m.groups!.target;
     if (article !== article.toLowerCase() && !afterBreak(ctx, m.index)) return null;
@@ -847,11 +847,4 @@ const MATCH = {
       );
     return null;
   },
-} satisfies Record<string, MatchFixer>;
-
-/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
-export const FIXERS = {
-  ...MATCH,
-  numberExistentialAlone: alone("englishExistentialAgreement", MATCH.numberExistential),
-  numberQuantityOfAlone: alone("englishNounNumber", MATCH.numberQuantityOf),
 } satisfies Record<string, MatchFixer>;

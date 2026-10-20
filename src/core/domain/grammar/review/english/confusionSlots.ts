@@ -360,15 +360,6 @@ export const FIXERS = {
   },
 } satisfies Record<string, MatchFixer>;
 
-/**
- * The fixer of a second frame for a match that reports two checks: it runs only when `first`,
- * the check of the first frame, is off. With both checks on, the first frame alone finds them.
- */
-export const alone =
-  (first: string, fix: MatchFixer): MatchFixer =>
-  (m, ctx, frame) =>
-    ctx.rules && !ctx.rules.has(first) ? fix(m, ctx, frame) : null;
-
 /** A finding of a slot rule stays when it starts in the chunk, outside a named example. */
 const kept = (ctx: DetectContext, f: RawFinding) =>
   f.range.start >= ctx.from && f.range.start < ctx.to && !quotedMention(ctx, f);

@@ -17,7 +17,6 @@ import {
   tokensAfter,
 } from "./slotWords";
 import { finding } from "../finding";
-import { alone } from "./confusionSlots";
 
 // The verb of a subject relative clause agrees with the noun the relative pronoun stands for:
 // "a report that describe" (describes), "tools that runs" (run), "He who wake" (wakes). The
@@ -145,7 +144,8 @@ const pronounForm = (
   context: evidence(ctx, from, end),
 });
 
-const MATCH = {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
   relativeVerb: (m, ctx) => {
     const { noun, verb } = m.groups!;
     const pronoun = m.groups!.pronoun.toLowerCase();
@@ -390,10 +390,4 @@ const MATCH = {
     const [start, end] = m.indices!.groups!.verb;
     return pronounForm(ctx, start, end, verb, fix, m.index);
   },
-} satisfies Record<string, MatchFixer>;
-
-/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
-export const FIXERS = {
-  ...MATCH,
-  relativeNamePairAlone: alone("englishSubjectVerbAgreement", MATCH.relativeNamePair),
 } satisfies Record<string, MatchFixer>;

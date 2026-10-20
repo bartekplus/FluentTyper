@@ -2186,13 +2186,10 @@ rules:
         check: englishYourYouAre
         fixer: contractionYour
       # "You friend will call", "thanks for you help", "It face was red", "on it movement". The
-      # frame reports both checks: the second frame serves englishYourYouAre when
-      # englishItsContext is off.
+      # frame reports both checks.
       - regex: "(?<target>you|it){{S}}(?=[a-z])"
+        anyCheck: true
         fixer: contractionPronounOwner
-      - regex: "(?<target>you|it){{S}}(?=[a-z])"
-        check: englishYourYouAre
-        fixer: contractionPronounOwnerAlone
       # "It has it limits": has + it + a plural noun the clause's subject owns.
       - regex: "(?:has|(?<=(?:has|have){{S}})had){{S}}(?<target>it){{S}}(?<noun>[a-z]+){{E}}"
         fixer: contractionHasIt
@@ -2242,15 +2239,11 @@ rules:
       # "There is many problems", "Here is some great alternatives": a plural count after a
       # singular existential verb; "There are many problem", "There are no book here": a
       # singular noun after a plural one. Findings start at the noun: the filter keeps the
-      # chunk's. A frame runs under one check: the second frame serves englishNounNumber when
-      # englishExistentialAgreement is off.
+      # chunk's. The frame reports both checks.
       - regex: "(?<there>there|here)(?:{{S}}(?<verb>is|was|are|were)|(?<contracted>['’]s)){{S}}(?:(?:only|still|also|just|really){{S}})?(?<count>{{NOUNNUMBERSLOTS_EXISTENTIAL_COUNT}}){{S}}(?=[a-z])"
         owner: none
+        anyCheck: true
         fixer: numberExistential
-      - regex: "(?<there>there|here)(?:{{S}}(?<verb>is|was|are|were)|(?<contracted>['’]s)){{S}}(?:(?:only|still|also|just|really){{S}})?(?<count>{{NOUNNUMBERSLOTS_EXISTENTIAL_COUNT}}){{S}}(?=[a-z])"
-        owner: none
-        check: englishNounNumber
-        fixer: numberExistentialAlone
   - id: en.nounNumberSlots
     checks: [englishNounNumber, englishPossibleErrors]
     style: match
@@ -2299,15 +2292,11 @@ rules:
         fixer: numberPartitive
       # "a lot of car", "a number of issue": a quantity takes a plural count noun. Only the
       # authored count nouns, which have little mass use ("a lot of work" is right). A noun that
-      # is not authored reports englishPossibleErrors: the second frame serves it when
-      # englishNounNumber is off.
+      # is not authored reports englishPossibleErrors.
       - regex: "(?:(?:a{{S}}(?:lot|bunch|couple|(?:great|large|small|huge|certain){{S}}number|number)|lots|plenty|dozens|hundreds|thousands|millions){{S}}of){{S}}(?=[a-z])"
         owner: none
+        anyCheck: true
         fixer: numberQuantityOf
-      - regex: "(?:(?:a{{S}}(?:lot|bunch|couple|(?:great|large|small|huge|certain){{S}}number|number)|lots|plenty|dozens|hundreds|thousands|millions){{S}}of){{S}}(?=[a-z])"
-        owner: none
-        check: englishPossibleErrors
-        fixer: numberQuantityOfAlone
       # "Other might benefit", "what other think": the pronoun is "others".
       - regex: "(?<target>other){{S}}(?<next>[a-z]+){{E}}"
         owner: none
@@ -2708,16 +2697,11 @@ rules:
         fixer: relativeVerb
       # Two names joined by "and" are plural ("Xavier and Aidan is friends" -> are). Brand pairs
       # ("Johnson and Johnson") and titles ("Tom and Jerry is a cartoon") stay silent. A pair
-      # that is not sure to be two names reports englishPossibleErrors. A frame runs under one
-      # check, so a second frame serves englishPossibleErrors alone.
+      # that is not sure to be two names reports englishPossibleErrors.
       - regex: "(?<=(?<![\\p{L}'’-])(?<first>[A-Za-z]{2,30}){{S}})and{{S}}(?<second>[A-Za-z]{2,30}){{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
+        anyCheck: true
         fixer: relativeNamePair
-      # The same pairs when englishSubjectVerbAgreement is off and englishPossibleErrors is on.
-      - regex: "(?<=(?<![\\p{L}'’-])(?<first>[A-Za-z]{2,30}){{S}})and{{S}}(?<second>[A-Za-z]{2,30}){{S}}(?<verb>[a-z]+){{E}}"
-        owner: verb
-        check: englishPossibleErrors
-        fixer: relativeNamePairAlone
       # One name with a base verb and his/her after it is singular ("Tim make his life worse"
       # -> makes).
       - regex: "(?<=(?<![\\p{L}'’-])(?<name>[A-Za-z]{2,30}){{S}}(?<verb>[a-z]{2,30}){{S}})(?:his|her){{E}}"
