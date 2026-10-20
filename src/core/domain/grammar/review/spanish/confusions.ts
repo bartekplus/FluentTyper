@@ -550,7 +550,8 @@ function confusions(ctx: DetectContext): RawFinding[] {
     }
     // Existential "haber" has no plural: "han habido quejas" is "ha habido"; "han habido de
     // irse" (haber de + infinitive, had to) agrees with its subject.
-    const singular = PLURAL_HABER[token.lower];
+    // An own key only: "constructor" is no form of "haber".
+    const singular = Object.hasOwn(PLURAL_HABER, token.lower) ? PLURAL_HABER[token.lower] : null;
     if (singular && at.next() === "habido" && at.next(2) !== "de") {
       const span = {
         ...token,
@@ -600,7 +601,7 @@ function confusions(ctx: DetectContext): RawFinding[] {
       if (finding) findings.push(finding);
       continue;
     }
-    const check = CHECKS[token.lower];
+    const check = Object.hasOwn(CHECKS, token.lower) ? CHECKS[token.lower] : undefined;
     const fixes = check?.(at);
     if (!fixes) continue;
     const finding = replaceToken(

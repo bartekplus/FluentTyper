@@ -288,7 +288,8 @@ const mark0 = (at: Around) => opensQuestion(at) !== null || inQuestion(at);
 
 function interrogative(at: Around): string | null {
   const word = at.tokens[at.i].lower;
-  const accented = INTERROGATIVE[word];
+  // An own key only: "constructor" is no question word.
+  const accented = Object.hasOwn(INTERROGATIVE, word) ? INTERROGATIVE[word] : undefined;
   if (!accented) return null;
   const next = at.next();
   const nextToken = at.tokens[at.i + 1];
@@ -646,7 +647,7 @@ const PLAIN_RELATIVE: Record<string, string> = {
 /** "No tengo nada qué hacer", "alguien en quién confiar": a relative after its antecedent. */
 function relative(at: Around): string | null {
   const word = at.tokens[at.i].lower;
-  const plainForm = PLAIN_RELATIVE[word];
+  const plainForm = Object.hasOwn(PLAIN_RELATIVE, word) ? PLAIN_RELATIVE[word] : undefined;
   if (!plainForm || at.tokens[at.i - 1]?.text === "¿") return null;
   const k = PREPOSITIONS.has(at.prev()) ? 2 : 1;
   const antecedent = at.prev(k);
