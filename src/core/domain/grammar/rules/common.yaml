@@ -4891,9 +4891,41 @@ rules:
   - id: doubledDegree
     checks: [englishDoubledDegree]
     predicate: doubledDegree
+  # Ordinary-prose frames only. Quantified mass nouns abstain; no invented amount or unit.
   - id: countability
     checks: [englishCountability]
-    predicate: countability
+    style: match
+    message: review_msg_contextual_grammar
+    frames:
+      # Templates; a template without a replacement only gives a warning.
+      - regex: "(?:we|they){{S}}received{{S}}(?<target>many{{S}}(?:useful{{S}})?feedbacks){{S}}from{{S}}(?:our|their){{S}}users(?:{{COMPLETE}}|{{S}}and{{S}})"
+        fixer: countWarning
+      - regex: "(?:and|received){{S}}(?<target>several{{S}}(?:important{{S}})?informations){{S}}from{{S}}the{{S}}testing{{S}}team{{COMPLETE}}"
+        fixer: countWarning
+      - regex: "gave{{S}}us{{S}}(?<target>(?:two|three|four|[2-9]){{S}}advices){{S}}about{{S}}the{{S}}user{{S}}interface{{E}}"
+        fixer: countWarning
+      - regex: "(?:received|provides?|suggests?){{S}}(?<target>a{{S}}information){{COMPLETE}}"
+        fixer: countWarning
+      - regex: "(?:buy|need){{S}}new{{S}}(?<target>equipments){{S}}for{{S}}the{{S}}(?:laboratory|office){{COMPLETE}}"
+        message: review_msg_mass_noun
+        fixer: countEquipment
+      - regex: "all{{S}}the{{S}}(?<target>datas){{S}}collected{{S}}during{{S}}(?:previous{{S}})?tests{{E}}"
+        fixer: countData
+      - regex: "which{{S}}(?<target>criterias){{S}}should{{S}}be{{S}}used{{COMPLETE}}"
+        fixer: countCriteria
+      # Mass nouns after a frame of ordinary prose, and counted Greek plurals.
+      - regex: "(?:the|this){{S}}(?:page|guide|report|document){{S}}(?:contains|provides|includes){{S}}(?:useful|helpful|important|relevant|detailed|additional){{S}}(?<noun>informations){{COMPLETE}}"
+        owner: noun
+        fixer: massNoun
+      - regex: "(?:thanks{{S}}for|thank{{S}}you{{S}}for|we{{S}}appreciate|I{{S}}appreciate){{S}}(?:the|your){{S}}(?:helpful|useful|practical|valuable|thoughtful|excellent){{S}}(?<noun>advices){{COMPLETE}}"
+        owner: noun
+        fixer: massNoun
+      - regex: "(?:we|they|you){{S}}(?:need|use|bought|ordered|checked|tested){{S}}(?:the|our|your){{S}}(?:new|old|necessary|available|basic|standard){{S}}(?<noun>equipments){{COMPLETE}}"
+        owner: noun
+        fixer: massNoun
+      - regex: "(?<count>one|two|three|four|five|six|seven|eight|nine|ten|[1-9]){{S}}(?:(?:important|essential|useful|unusual|observable|natural){{S}})?(?<noun>criterion|criteria|phenomenon|phenomena){{COMPLETE}}"
+        owner: noun
+        fixer: massNoun
   - id: contextualCompounds
     checks: [englishContextualCompounds]
     style: template

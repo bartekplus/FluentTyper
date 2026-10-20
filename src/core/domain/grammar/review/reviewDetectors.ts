@@ -10,7 +10,7 @@ import {
   quotedContraction,
   splitWords,
 } from "./multilingualLexicon";
-import { countability } from "./englishCountability";
+import { FIXERS as COUNT_FIXERS } from "./englishCountability";
 import { FIXERS as NUMBER_FIXERS } from "./englishNounNumber";
 import { FIXERS as PARTICIPLE_FIXERS } from "./englishParticiples";
 import { FIXERS as COMPLEMENT_FIXERS } from "./englishComplements";
@@ -1582,7 +1582,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   typographicQuotes: TYPOGRAPHIC_QUOTES.detect,
   doubledDegree: (ctx) =>
     ctx.lang === "en_US" ? doubledDegree(ctx) : doubledDegreeByLanguage(ctx),
-  countability,
   // The English word lists are the spellingWords frames; other languages have their own tables.
   spelling: (ctx) =>
     detectAll(
@@ -1650,6 +1649,7 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   AGREEMENT_FIXERS,
   NUMBER_FIXERS,
   POSSESSIVE_FIXERS,
+  COUNT_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */
