@@ -1081,49 +1081,279 @@ rules:
         styleWordChoice,
         englishCanonicalCasing,
       ]
+    # predicate: reads the quotation and example ranges. Its soft-wrap scan feeds the phrase
+    # tables, whose findings have eight checks; a frame runs only when its own check is on.
     predicate: quotedPhrases
   - id: en.shoutedNames
     checks: [stylePhrasing]
-    predicate: shoutedNames
+    style: match
+    message: review_msg_name_casing
+    frames:
+      # A run of capitalized words: a heading, a sign, or shouting. Optional: names written in
+      # capitals ("SOUTH AMERICA") in their usual casing.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'\\u2019@/#\\\\.-])[A-Z]{2,}(?:[ \\t\\u00A0]+[A-Z]{2,})*(?![\\p{L}\\p{N}_'\\u2019@/#\\\\-]))"
+        scan: owned
+        flags: gu
+        fixer: shoutedNames
+  - id: en.chromeExtension
+    checks: [englishCanonicalCasing]
+    style: match
+    message: review_msg_canonical_casing
+    frames:
+      # Lowercase "chrome extension" is the browser's add-on; "Chrome Extension" is offered too.
+      - regex: "(?<target>(?<chrome>chrome){{S}}(?<ext>extensions?)){{E}}"
+        gate: "chrome[ \\t\\u00a0]+extension"
+        fixer: chromeExtension
   - id: en.productCasing
     checks: [englishCanonicalCasing]
-    predicate: productCasing
+    style: match
+    message: review_msg_canonical_casing
+    frames:
+      # "Day One" is the journaling app; "day one" is the first day.
+      - regex: "(?<target>day{{S}}one){{E}}"
+        gate: "day[ \\t\\u00a0]+one"
+        fixer: dayOne
+      # Apple writes "macOS" even at the start of a sentence.
+      - regex: "(?<![\\p{L}\\p{N}_'\\u2019@/#\\\\.-])(?<target>MacO[Ss])(?![\\p{L}\\p{N}_'\\u2019@/#\\\\-])"
+        flags: dgu
+        gate: "MacO[Ss]"
+        gateFlags: g
+        fix: macOS
   - id: en.slashedWords
     checks: [englishClosedCompounds, englishConfusedWords, styleWordChoice]
-    predicate: slashedWords
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # Words wrong on the left of a slash; the slash token is otherwise read as a path. One
+      # frame for each check: a frame runs only when its check is on.
+      - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?<target>infront)(?=\\/\\p{L}+(?![\\p{L}\\p{N}_'’@/#\\\\.-]|\\.\\p{L}))"
+        scan: owned
+        flags: dgiu
+        gate: "\\/\\p{L}"
+        gateFlags: gu
+        fixer: slashedWord
+      # "bias" needs a form of "be" before it ("I am bias/prefer…").
+      - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?<target>bias)(?=\\/\\p{L}+(?![\\p{L}\\p{N}_'’@/#\\\\.-]|\\.\\p{L}))"
+        check: englishConfusedWords
+        scan: owned
+        flags: dgiu
+        gate: "\\/\\p{L}"
+        gateFlags: gu
+        fixer: slashedWord
+      - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?<target>deref|derefs|dirs)(?=\\/\\p{L}+(?![\\p{L}\\p{N}_'’@/#\\\\.-]|\\.\\p{L}))"
+        check: styleWordChoice
+        scan: owned
+        flags: dgiu
+        gate: "\\/\\p{L}"
+        gateFlags: gu
+        fixer: slashedWord
   - id: en.thatThereTheir
     checks: [englishTheirThereTheyAre]
-    predicate: thatThereTheir
+    style: match
+    message: review_msg_their_possessive
+    frames:
+      # "Is that there dog?": the dialect demonstrative or a slip for the possessive.
+      # The lookahead first: the clause lookbehind runs only where "is/was that" stands.
+      - regex: "(?=(?:is|was){{S}}that{{S}})(?<=(?:^|[.!?][\"”’)]{0,3}{{S}}|\\n[ \\t]{0,8}))(?:is|was){{S}}that{{S}}(?<target>there){{S}}(?<noun>\\p{L}+)(?=[ \\t\\u00a0]*\\?)"
+        gate: "that[ \\t\\u00a0]+there"
+        fixer: thatThere
+      # "I saw their running through the park": a seen action, not a possession.
+      - regex: "(?:saw|see|sees|seen|seeing|watched|noticed|spotted){{S}}(?<target>their){{S}}(?<ing>\\p{L}+ing){{S}}(?:through|across|along|around|down|up|into|past|toward|towards|over|away|off){{E}}"
+        message: review_msg_confused_word
+        gate: "their[ \\t\\u00a0]+\\p{L}+ing"
+        gateFlags: giu
+        fixer: sawTheir
   - id: en.anNpm
     checks: [englishArticleAnCorrection]
-    predicate: anNpm
+    style: match
+    message: review_msg_article
+    frames:
+      # "npm" is spelled out letter by letter: "an npm package".
+      - regex: "(?<target>a){{S}}npm{{E}}"
+        gate: "\\ba[ \\t\\u00a0]+npm"
+        fixer: anNpm
   - id: en.brokeInVersion
     checks: [englishIrregularForms]
-    predicate: brokeInVersion
+    style: match
+    message: review_msg_irregular_form
+    frames:
+      # "all are broke under 3.5.1": software is broken in a version; people are broke.
+      - regex: "(?:is|are|was|were|be|been|being|got|gets|get){{S}}(?<target>broke){{S}}(?:again{{S}})?(?:under|on|in|since|after|with|from|for){{S}}v?\\p{Nd}+(?:\\.\\p{Nd}+)+{{E}}"
+        gate: "broke[ \\t\\u00a0]"
+        fixer: brokeInVersion
   - id: en.effectsObject
     checks: [englishConfusedWords]
-    predicate: effectsObject
+    style: match
+    message: review_msg_confused_word
+    frames:
+      # "This policy effects employee morale": a singular subject acting on a bare object.
+      - regex: "(?:this|that|the|our|their|his|her|its|my|your|each|every|any){{S}}(?<subject>\\p{L}{3,}){{S}}(?<target>effects){{S}}(?<object>\\p{L}+(?:{{S}}\\p{L}+){0,2})(?=[ \\t\\u00a0]*(?:[.!?;]|$))"
+        gate: "effects[ \\t\\u00a0]"
+        fixer: effectsObject
   - id: en.agreedVerb
     checks: [englishVerbComplements]
-    predicate: agreedVerb
+    style: match
+    message: review_msg_missing_to
+    frames:
+      # "They agreed meet at dawn": "agree" and "decide" take an infinitive, never a bare verb.
+      # The verb is no adjective or adverb ("agreed long ago") and a preposition, adverb or
+      # object follows it, so "decided work was…" (a clause) stays.
+      - regex: "(?:agree|agrees|agreed|decide|decides|decided){{S}}(?<target>\\p{L}+){{S}}(?<next>at|on|in|with|by|for|from|before|after|early|later|soon|today|tonight|tomorrow|together|again|now|the|a|an|this|that|it|them|him|her|us|me|you|our|their|his|its|my|your){{E}}"
+        gate: "(?:agree|decide)[sd]?[ \\t\\u00a0]"
+        fixer: agreedVerb
   - id: en.webScrape
     checks: [englishPhraseCorrections]
-    predicate: webScrape
+    style: match
+    message: review_msg_phrase_correction
+    frames:
+      # "WebScrappers", "WebScrapping": a web scraper scrapes; "scrap" discards.
+      - regex: "(?<![\\p{L}\\p{N}])[Ww]eb(?<target>Scrap(?:p(?:ers?|ing|ed))|Scraps(?=[ \\t\\u00A0]+(?:the|a|an|data|pages|sites|websites)\\b))(?![\\p{L}\\p{N}])"
+        flags: dgu
+        gate: "[Ww]ebScrap"
+        gateFlags: g
+        fixer: webScrape
   - id: en.pluralMark
     checks: [englishClosedCompounds]
-    predicate: pluralMark
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # "each person (s)", "person(ss)": the optional plural is "(s)", attached.
+      - regex: "(?<=\\p{L})(?<target>[ \\t\\u00A0]+\\(s\\)|\\(ss\\))(?![\\p{L}\\p{N}])"
+        flags: dgu
+        gate: "\\((?:s|ss)\\)"
+        gateFlags: g
+        fixer: pluralMark
   - id: en.slashPrefixed
     checks: [englishPhraseCorrections]
-    predicate: slashPrefixed
+    style: match
+    message: review_msg_phrase_correction
+    frames:
+      # "the most insulting /backhand compliment": one slash typed before a dictionary word in
+      # a sentence is a typo, not a path ("/usr", "/tmp") or a command at a line start ("/help").
+      - regex: "(?<=\\p{Ll}[,]?[ \\t])(?<target>\\/)(?=\\p{Ll}{3,}[ \\t]+\\p{Ll})"
+        scan: owned
+        flags: gu
+        gate: "\\s\\/\\p{Ll}"
+        gateFlags: gu
+        fixer: slashPrefixed
   - id: en.possibleErrors
     checks: [englishPossibleErrors]
-    predicate: possibleErrors
+    style: match
+    message: review_msg_possible_error
+    frames:
+      # "the 2st", "1012rd": "st" (stone) and "rd" (rod) are units too, so the default rule
+      # leaves them; here the ordinal is offered unless a pound count follows ("11st 4lb").
+      - regex: "(?<=^|[\\s([])(?<target>(?<digits>\\p{Nd}{1,9})(?<suffix>st|rd))(?![\\p{L}\\p{N}_/@#\\\\-])"
+        scan: owned
+        flags: gu
+        gate: "\\p{Nd}(?:st|rd)"
+        gateFlags: gu
+        fixer: oddOrdinal
+      # "Their two options left.": "There are …" when what is left is counted.
+      - regex: "(?<target>their){{S}}(?:two|three|four|five|six|seven|eight|nine|ten|no|several|many|\\p{Nd}+|a{{S}}few){{S}}(?<noun>\\p{L}+){{S}}left(?=[ \\t\\u00a0]*(?:[.!?]|$))"
+        gate: "their[ \\t\\u00a0]"
+        fixer: theirLeft
+      # "The cause it is unclear.": a pronoun repeating the subject before an adjective that
+      # ends the sentence. "cause" may also have been "because".
+      - regex: "(?<target>(?<det>the|this|that|our|my|your|their|his|her){{S}}(?<noun>\\p{L}+){{S}}it{{S}}(?<be>is|was)){{S}}(?<adj>\\p{L}+)(?=[ \\t\\u00a0]*(?:[.!?]|$))"
+        gate: "\\bit[ \\t\\u00a0]+(?:is|was)\\b"
+        fixer: subjectIt
+      # "Stress can cause it is not obvious.": a clause missing "That", or a clause after "it".
+      - regex: "(?<target>(?<subject>\\p{L}+){{S}}(?<modal>can|could|may|might|will|would|should|must|does|did){{S}}cause{{S}}it{{S}}(?<be>is|was)){{E}}"
+        gate: "cause[ \\t\\u00a0]+it"
+        fixer: causeItIsPossible
+      # "The artist painted portrait in studio.": a lone countable noun after a past verb, with
+      # a lone noun after its preposition or an adverb closing the sentence.
+      - regex: "(?:the|a|an|this|that|my|our|their|his|her){{S}}\\p{L}+{{S}}(?<verb>\\p{L}+){{S}}(?<obj>\\p{L}+){{S}}(?:(?:in|on|at|under|near|into|onto|behind|beside){{S}}(?<place>\\p{L}+)|(?<adverb>\\p{L}+ly|outside|inside|nearby|indoors|outdoors))(?=[ \\t\\u00a0]*[.!?])"
+        owner: obj
+        fixer: bareObjects
+      # "They have writing today.": the progressive takes "be"; "have been writing" keeps
+      # "have". The default rule leaves -ing words that are also nouns ("We have training
+      # today") and a clause ending on the verb; this opt-in check offers both readings there.
+      - regex: "(?<target>(?<subject>I|you|we|they|he|she|it){{S}}(?<have>have|has){{S}}(?<ing>\\p{L}+ing))(?={{S}}(?:today|now|tonight|tomorrow|again){{E}}|(?<end>[ \\t\\u00a0]*(?:[.!?]|$)))"
+        gate: "\\bha(?:ve|s)[ \\t\\u00a0]+\\p{L}+ing\\b"
+        gateFlags: giu
+        fixer: haveIng
+      # "It doesn't quiet.": "quite" closing a negated clause (the default rule needs a next
+      # word).
+      - regex: "\\p{L}+n['’]t{{S}}(?<target>quiet){{COMPLETE}}"
+        fixer: notQuiet
+      # "you have more good" -> "better", unless more good is weighed against harm.
+      - regex: "(?<target>more{{S}}good){{COMPLETE}}"
+        fixer: moreGood
+      # "they often sort after the total": a habit is "sought after" or "sort by"; "sort after
+      # the join" (then) has no frequency adverb before it.
+      - regex: "(?:often|usually|always|generally|typically|commonly|normally|sometimes|mostly){{S}}(?<target>sort{{S}}after){{S}}(?:the|a|an|their|its|his|her|our|my|your){{E}}"
+        fixer: sortAfter
+      # "scrap page", "scrapped pages": scraping extracts a page; scrapping discards it.
+      - regex: "(?<target>scrap(?:s|ped|ping)?){{S}}(?:web{{S}})?(?:pages?|webpages?|websites?|sites?){{E}}"
+        fixer: scrapPages
+      # "I adore markdown": the formatting language is "Markdown"; a price cut keeps lowercase.
+      - regex: "(?<!(?:a|an|the|this|that|any|no|big|huge|steep|deep|small|price|\\p{Nd}+%?){{S}})(?<target>markdown){{E}}(?!{{S}}(?:of|on|in|to|from|price|prices){{E}})"
+        fixer: markdownName
+      # "She wants finish early": "want" and "need" take "to" before a verb.
+      - regex: "(?:want|wants|wanted|need|needs|needed){{S}}(?<target>\\p{L}+){{S}}(?:early|later|soon|now|today|tonight|tomorrow|first|quickly|again|together|immediately){{E}}"
+        fixer: wantsVerb
+      # "because affect is hidden": the noun is usually "effect" ("affect" is a mood in
+      # psychology).
+      - regex: "(?:because|since|although|though|while|if|when|and|but|so){{S}}(?<target>affect){{S}}(?:is|was|has|will|can|may|might|seems){{E}}"
+        fixer: affectNoun
+      # "helps you weight small things": "weigh" measures; "weight" assigns a weight.
+      - regex: "(?:help|helps|helped|helping|let|lets|make|makes){{S}}(?:you|me|us|them|him|her|people|users){{S}}(?<target>weight){{E}}"
+        fixer: weightVerb
+      # "You boxes": "Your boxes", or "You box".
+      - regex: "(?<target>you{{S}}(?<word>\\p{L}+s))(?=[ \\t\\u00a0]*(?:[.!?]|$)|{{S}}(?:are|were|look|seem){{E}})"
+        fixer: youPlural
+      # "The Putin's war": a name's possessive takes no article. Names that take "the" stay.
+      - regex: "(?<target>the{{S}})(?<name>\\p{L}+)['’]s{{S}}\\p{L}"
+        fixer: theName
+      # "I HoP we can…", "cHrOmE eXtEnSiOn": words typed with random capitals hide the default
+      # checks, which abstain on cased words (names like "iPhone"). Read lowercased, they apply.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'\\u2019@/#\\\\.-])\\p{L}*\\p{Ll}\\p{Lu}\\p{L}*(?![\\p{L}\\p{N}_'\\u2019@/#\\\\-]))"
+        scan: owned
+        flags: gu
+        gate: "\\p{Ll}\\p{Lu}"
+        gateFlags: gu
+        fixer: mixedCase
+  - id: en.quotedMentions
+    checks: [englishPossibleErrors]
+    # predicate: reads the quotation ranges, not a regex; each quotation is checked in a view.
+    predicate: quotedMentions
   - id: en.chromeTitle
     checks: [styleAlternativePhrasing]
-    predicate: chromeTitle
+    style: match
+    message: review_msg_alternative_phrasing
+    frames:
+      # "Chrome extension": the store's own title case, "Chrome Extension", is offered on
+      # request.
+      - regex: "(?<target>(?<chrome>chrome){{S}}(?<ext>extensions?)){{E}}"
+        gate: "chrome[ \\t\\u00a0]+extension"
+        fixer: chromeTitle
   - id: en.styleRewordings
     checks: [stylePhrasing]
-    predicate: styleRewordings
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # "find out the answer": "find" names what was looked for; "find out" stays before a
+      # clause, "about", a pronoun or a time ("find out the next day").
+      - regex: "(?<target>(?<verb>find|finds|finding){{S}}out){{S}}(?<next>\\p{L}+)(?:{{S}}(?<second>\\p{L}+))?"
+        gate: "find(?:s|ing)?[ \\t\\u00a0]+out"
+        fixer: findOut
+      # "After thinking a while, …": as an adverb right after its verb it is one word,
+      # "awhile". "took a while", "spent a while", "be a while" keep the noun phrase.
+      - regex: "(?<verb>\\p{L}{3,}){{S}}(?<target>a{{S}}while)(?=[ \\t\\u00a0]*(?:[.,;!?]|$))"
+        gate: "\\ba[ \\t\\u00a0]+while"
+        fixer: awhile
+      # The filler "I would argue that" (grammarStyle1) over a soft wrap.
+      - regex: "(?<target>I{{S}}would{{S}}argue[ \\t]*\\n[ \\t]*that{{S}})(?=[A-Za-z])"
+        gate: "argue[ \\t]*\\n"
+        fix: ""
+      # The clipped "cybersec" (grammarStyle2) shouted: its capitals are kept.
+      - regex: "(?<![\\p{L}\\p{N}_'\\u2019@/#\\\\.-])(?<target>CYBERSEC)(?![\\p{L}\\p{N}_'\\u2019@/#\\\\-])"
+        flags: dgu
+        gate: CYBERSEC
+        gateFlags: g
+        fix: CYBERSECURITY
   - id: en.compoundForms
     checks: [englishClosedCompounds, englishContextualCompounds]
     predicate: compoundForms
