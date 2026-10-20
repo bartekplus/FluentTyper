@@ -37,6 +37,9 @@ const inputs = [
   ("Ne" + pad(400) + "prend" + pad(400) + "pas ! Nous" + pad(400) + "eu ").repeat(3),
   ("Que mange-tu" + pad(400) + "qu'il" + pad(400) + "ai, et" + pad(400) + "ça vont ").repeat(3),
   ("une" + pad(400) + "très" + pad(400) + "petit" + pad(400) + "maison ").repeat(3),
+  ("pia-" + pad(1) + "niste jour-nal " + pad(400)).repeat(6),
+  (". Construit" + pad(8) + "en" + pad(400) + ", la" + pad(400) + "cabane a ").repeat(3),
+  ("Comment est" + pad(400) + "venue" + pad(400) + "le facteur ? Peut" + pad(4) + "tu ?").repeat(3),
   ("en" + pad(400) + "1 000 000" + pad(400) + "partie ").repeat(4),
   "j'ai 12" + " 345".repeat(600) + " enfant ",
 ];

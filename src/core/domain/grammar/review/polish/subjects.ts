@@ -343,8 +343,10 @@ function aspect(ctx: DetectContext): RawFinding[] {
       const before = /(\p{L}+)[ \t ]+$/u.exec(
         ctx.text.slice(Math.max(0, m.index - 30), m.index),
       )?.[1];
-      if (before && !FUTURE_SUBJECT.test(before) && !onlyNoun(nounTags(before.toLowerCase())))
-        continue;
+      const tags = before ? nounTags(before.toLowerCase()) : 0;
+      if (before && !FUTURE_SUBJECT.test(before) && !onlyNoun(tags)) continue;
+      // "Pierwszym krokiem będzie wyjechać": an instrumental noun makes "będzie" the copula.
+      if (tags & cases("Is Ip") && !(tags & cases("Ns Np"))) continue;
       // "Będą umrzeć musieli": the modal comes after its infinitive.
       const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30);
       if (/^[ \t ]+(?:mus|mog|móg|chci|chcie|mia|mie|potraf|umia|umie)\p{L}*/iu.test(after))

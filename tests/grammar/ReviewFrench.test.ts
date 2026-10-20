@@ -406,6 +406,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     "frenchHyphenation",
     {
       pos: [
+        // A word cut by a hyphen whose parts are no words of their own.
+        ["C'est une vio-loniste célèbre.", "C'est une violoniste célèbre."],
+        ["Il a lu le jour-nal du matin.", "Il a lu le journal du matin."],
         ["Yat-il du pain ?", "Y a-t-il du pain ?"],
         ["Que vat-elle dire ?", "Que va-t-elle dire ?"],
         ["Donne-le moi plus tard.", "Donne-le-moi plus tard."],
@@ -428,6 +431,14 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Le bureau est au rez de chaussée.", "Le bureau est au rez-de-chaussée."],
       ],
       neg: [
+        "Il va le dé-placer.",
+        "Envoie un e-mail.",
+        "Il est arrivé là-bas.",
+        "Donne-moi ça.",
+        "C'est un co-auteur du livre.",
+        "Les start-ups recrutent.",
+        "Un produit éco-responsable avec un éco-label.",
+        "Le Jean-Marc de la classe.",
         "Va-t-elle venir ?",
         "Prends-le en photo.",
         "Allez-vous y aller ?",
@@ -456,6 +467,12 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
     {
       pos: [
         ["C'est toi qui a gagné.", "C'est toi qui as gagné."],
+        [
+          "Les vieux murs (pierre et chaux) retient l'humidité.",
+          "Les vieux murs (pierre et chaux) retiennent l'humidité.",
+        ],
+        // The subjunctive of être after a plural noun subject.
+        ["Je doute que nos invités soit ponctuels.", "Je doute que nos invités soient ponctuels."],
         ["Et moi qui croyait le contraire.", "Et moi qui croyais le contraire."],
         ["C'est nous qui viendront demain.", "C'est nous qui viendrons demain."],
         ["Ceux me l'avait promis.", "Ceux me l'avaient promis."],
@@ -481,6 +498,11 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Elle est arrivé hier.", "Elle est arrivée hier."],
         // An inverted subject pronoun agrees with its verb.
         ["Les volets sont-il fermés ?", "Les volets sont-ils fermés ?"],
+        // An inverted question with no hyphen and a verb of another person.
+        ["Peut tu m'aider ?", "Peux-tu m'aider ?"],
+        ["Peut je entrer ?", "Puis-je entrer ?"],
+        ["Ont il fini leurs devoirs ?", "Ont-ils fini leurs devoirs ?"],
+        ["Comment vas il rentrer ?", "Comment va-t-il rentrer ?"],
         ["Que cherche-tu dans ce tiroir ?", "Que cherches-tu dans ce tiroir ?"],
         ["Comment pouvait-je le savoir ?", "Comment pouvais-je le savoir ?"],
         ["Quand rentreront-nous à la maison ?", "Quand rentrerons-nous à la maison ?"],
@@ -568,6 +590,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["De plus vous oublier vos clés.", "De plus vous oubliez vos clés."],
       ],
       neg: [
+        "Pourquoi il dort encore ?",
+        "Mange il viendra ce soir.",
+        "Porte il y en a une au fond ?",
         "Les valeurs a, b, c et d sont positives.",
         "Les points a et b sont alignés sur la droite.",
         "Les cas a ou b restent rares.",
@@ -765,6 +790,10 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ],
         ["Elle a eu de fortes douleur au dos.", "Elle a eu de fortes douleurs au dos."],
         ["Il prend un autre trains demain.", "Il prend un autre train demain."],
+        // After a participle or an infinitive, "les" and "la" are determiners; after a number
+        // word, a noun that a verb also spells is the noun.
+        ["Il a lavé les tasse du matin.", "Il a lavé les tasses du matin."],
+        ["Il faut ranger la tasses du matin.", "Il faut ranger la tasse du matin."],
       ],
       neg: [
         "Lisez la scène 4 acte 2 avant demain.",
@@ -803,6 +832,13 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Il a soixante et un ans.",
         "Les lundi et mardi sont fériés.",
         "Je suis sûr de les avoir vus.",
+        "Il veut la voir demain.",
+        "Il a pu les porter seul.",
+        "Les trois mangent ensemble.",
+        "Une famille sur trois cuisine le dimanche.",
+        "Six moins deux fait quatre.",
+        // "les autres" is the subject: "excellent" is its verb.
+        "Les autres excellent en maths.",
       ],
     },
   ],
@@ -927,6 +963,9 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "La sauvage s'est enfuie dans les bois.",
         "Il range le dessus de la table.",
         "Toutes les cours de l'école sont fermées.",
+        // Person nouns in -yste and -iatre name a man or a woman.
+        "Elle a consulté une psychanalyste réputée.",
+        "Elle consulte une psychiatre et une analyste.",
       ],
     },
   ],
@@ -952,6 +991,64 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
           "Elle est rentrée tard et elle a préparé le dîner.",
         ],
         ["Nous avons un climat chaude.", "Nous avons un climat chaud."],
+        // Two adjectives joined by "et": "sur" after them is the preposition; "pratiques" is
+        // no "tu" verb here.
+        [
+          "Elle note le coût fixe et variables sur la facture.",
+          "Elle note le coût fixe et variable sur la facture.",
+        ],
+        ["Studio calme et pratiques.", "Studio calme et pratique."],
+        // "de" before an adjective and a plural noun is the plural article.
+        ["La côte offre de belle criques.", "La côte offre de belles criques."],
+        ["Il a de mauvais habitudes.", "Il a de mauvaises habitudes."],
+        ["Elle a de grand projets.", "Elle a de grands projets."],
+        // "divers", "différents", "pareil" as determiners agree with their plural noun.
+        ["Le chef ajoute divers épices.", "Le chef ajoute diverses épices."],
+        ["On voit rarement pareil tempêtes.", "On voit rarement pareilles tempêtes."],
+        // A far subject: past "seules", past "petit à petit".
+        ["Seules la soupe et la salade sont servis.", "Seules la soupe et la salade sont servies."],
+        ["La neige s'est peu à peu accumulé.", "La neige s'est peu à peu accumulée."],
+        // A person noun of either gender takes its determiner's gender after a verb too.
+        ["J'ai croisé une guide anglais au musée.", "J'ai croisé une guide anglaise au musée."],
+        // "je", "tu", "nous" keep one gender across the sentence.
+        [
+          "Je suis partie tôt et je suis rentré tard.",
+          "Je suis partie tôt et je suis rentrée tard.",
+        ],
+        [
+          "Nous sommes allés au marché et sommes revenues à pied.",
+          "Nous sommes allés au marché et sommes revenus à pied.",
+        ],
+        ["Tu es né à Lyon et tu t'es établie là-bas.", "Tu es né à Lyon et tu t'es établi là-bas."],
+        // After "et", a feminine adjective right after a masculine noun is wrong either way.
+        [
+          "Il reçoit des remarques et des avis négatives.",
+          "Il reçoit des remarques et des avis négatifs.",
+        ],
+        // A participle before its inverted subject agrees with it.
+        [
+          "Au fond du jardin sont planté les rosiers.",
+          "Au fond du jardin sont plantés les rosiers.",
+        ],
+        ["Comment est tombée le facteur ?", "Comment est tombé le facteur ?"],
+        ["Où est partie le facteur ?", "Où est parti le facteur ?"],
+        // A second participle or adjective after a participle of être agrees with the subject.
+        ["Nous sommes rentrées trempé.", "Nous sommes rentrées trempées."],
+        ["Il est reparti fâchée.", "Il est reparti fâché."],
+        // A fronted interrogative object before an inverted avoir.
+        ["Quelle robe as-tu choisi ?", "Quelle robe as-tu choisie ?"],
+        ["Quels livres avez-vous lu cet été ?", "Quels livres avez-vous lus cet été ?"],
+        ["Laquelle as-tu pris ?", "Laquelle as-tu prise ?"],
+        ["Combien de photos as-tu pris ?", "Combien de photos as-tu prises ?"],
+        // The participle of être after "qui" agrees with the noun before it.
+        [
+          "Je lis une lettre qui est arrivé ce matin.",
+          "Je lis une lettre qui est arrivée ce matin.",
+        ],
+        [
+          "J'ai vu des oiseaux qui sont posé près du toit.",
+          "J'ai vu des oiseaux qui sont posés près du toit.",
+        ],
         ["Range les dossiers triées dans l'armoire.", "Range les dossiers triés dans l'armoire."],
         ["Cette réunion est annulé.", "Cette réunion est annulée."],
         ["Hier soir, Sophie était vraiment fatigué.", "Hier soir, Sophie était vraiment fatiguée."],
@@ -1024,6 +1121,51 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ["Mes parents ont vendus leur maison.", "Mes parents ont vendu leur maison."],
       ],
       neg: [
+        "Je suis partie tôt. Je suis rentré tard.",
+        "Je suis partie et il dit : « je suis rentré ».",
+        "Nous sommes allés au marché et vous êtes revenues à pied.",
+        "Il voit des chevaux et des vaches blanches.",
+        "Il a des problèmes et des erreurs graves.",
+        "Il range les livres et les revues anciens.",
+        "Il est de nouveau malade.",
+        "Ces idées paraissent sur le moment tout à fait sérieuses.",
+        "Il a vu pareil cas.",
+        "C'est pareil partout.",
+        "Les avis sont divers.",
+        "Je salue de chers cousines et cousins.",
+        "Il fait preuve de bon sens.",
+        "Il parle de bonne foi.",
+        "Elle a fait de grands progrès.",
+        "C'est le fruit de longues années.",
+        "Combien de semaines as-tu décidé de partir ?",
+        "Nous nous sommes laissés tromper par la publicité.",
+        "Quand es-tu devenu professeur ?",
+        // A causative before a word that should be an infinitive: no agreement to fix.
+        "Elles se sont laissées surpris par l'orage.",
+        "Ils se sont fait prendre au piège.",
+        "Quelle chanson as-tu entendu chanter ?",
+        "Quel livre as-tu voulu lire ?",
+        "Que as-tu mangé ?",
+        "C'est la fille du voisin qui est venu hier.",
+        "Voici la maison qui est construite.",
+        "La voiture de Paul qui est garé devant.",
+        "Elles sont allées chercher du pain.",
+        "Ils sont venus nombreux.",
+        "Elle est restée assise.",
+        "Désolé pour le retard, la réunion commence.",
+        "Assis près de la fenêtre, le repas nous a plu.",
+        "Des centaines de cyclistes sont passés la semaine dernière sur ce pont.",
+        "De nombreux enfants sont venus la veille.",
+        "Seul, le directeur décide.",
+        "Connu de tous, le village attire du monde.",
+        "Arrivé à Paris, il dit que la ville est belle.",
+        "Président depuis 2010, la ville le garde.",
+        "Où sont passés les enfants ?",
+        "Comment est venue l'idée ?",
+        "La porte est fermée la nuit.",
+        "Il est arrivé le premier.",
+        // An unknown word after the pair may be its noun, misspelled.
+        "Des volets rouge et blancs paintés.",
         "Elle se sent bonne aujourd'hui.",
         "Il a choisi une coupe courte.",
         "Les marrons grillés sentent bon.",
@@ -1056,6 +1198,7 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Ils sont bien sûr partis à l'heure.",
         "Il porte une chemise bleu clair et un pull rouge.",
         "Thomas passe ses journées enfermé dans sa chambre.",
+        "Il boit son café brûlant chaque matin.",
         "La loi contraint chacun à payer.",
         "Une main tenant un flambeau orne la façade.",
         "Elle porte des chaussures marron.",
@@ -1110,6 +1253,35 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ],
         ["Tous le monde est content.", "Tout le monde est content."],
         ["Elles sont toute deux parties.", "Elles sont toutes deux parties."],
+        // "tout seul" agrees as an adverb before a feminine adjective, after any word.
+        ["Cette porte s'ouvre tout seule la nuit.", "Cette porte s'ouvre toute seule la nuit."],
+        ["Elles rentrent toute seules ce soir.", "Elles rentrent toutes seules ce soir."],
+        // A plural subject and its floating "tous": the object follows the participle.
+        ["Ils ont tout obtenu un diplôme.", "Ils ont tous obtenu un diplôme."],
+        ["Elles ont toute signé le contrat.", "Elles ont toutes signé le contrat."],
+        ["Elles n'avaient pas toute un ticket.", "Elles n'avaient pas toutes un ticket."],
+        [
+          "Elles savaient toute que la porte était close.",
+          "Elles savaient toutes que la porte était close.",
+        ],
+        // A feminine noun after a verb, before a preposition.
+        [
+          "Elle garde tout confiance dans son équipe.",
+          "Elle garde toute confiance dans son équipe.",
+        ],
+        // "toute" alone at a clause end is the pronoun "toutes".
+        ["Elle chante mieux que toute.", "Elle chante mieux que toutes."],
+        // "tout" before an adjective and its noun, and "c'est tout", "malgré tout".
+        [
+          "Un cadeau est prévu pour tout nouvelle adhésion.",
+          "Un cadeau est prévu pour toute nouvelle adhésion.",
+        ],
+        ["Bon, c'est tous !", "Bon, c'est tout !"],
+        // "tout" before a bare noun of the other number.
+        ["Tout hommes est mortel.", "Tous hommes est mortel."],
+        ["Toutes personne doit signer.", "Toute personne doit signer."],
+        ["Malgré tous, nous avons gagné le match.", "Malgré tout, nous avons gagné le match."],
+        ["Il les a appelées toute, une par une.", "Il les a appelées toutes, une par une."],
       ],
       neg: [
         "Bonjour à tout le monde.",
@@ -1137,6 +1309,31 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Je remercie avant tout ceux qui sont venus.",
         "Il a dit à tous la vérité.",
         "Tout ou partie du texte sera repris.",
+        "Ils ont tout mangé avant midi.",
+        "Ils ont tout reçu.",
+        "Elles ont toute une journée devant elles.",
+        "Ils mangent tout le gâteau.",
+        "Ils savent tout ce qu'il faut.",
+        "Elles pensent tout de même venir.",
+        "Il fait tout seul ses devoirs.",
+        "Ils sont tous seuls.",
+        "Elle est toute.",
+        "Une toute.",
+        // "en avant toute" (full speed ahead), "À toute !" (see you soon).
+        "Le bateau file en avant toute, cap au nord.",
+        "À toute !",
+        "Il pense à tout.",
+        "Un tout petit chien aboie.",
+        "Des habits tout neufs.",
+        "Ils sont tous ensemble.",
+        "Tous droits réservés.",
+        "On a tous envie de partir.",
+        "Vous en aviez tous conscience.",
+        "Il offre à tous accès au jardin.",
+        "Ces idées paraissent tout à fait sérieuses.",
+        "De tous temps, les marins ont chanté.",
+        "Elle est arrivée après tous.",
+        "Ce sont tous des amis.",
       ],
     },
   ],
@@ -1157,6 +1354,20 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ],
         ["Il vaut mieux que tu pars tôt.", "Il vaut mieux que tu partes tôt."],
         ["Je souhaite qu'il réussit son examen.", "Je souhaite qu'il réussisse son examen."],
+        // More triggers: détester, plaire, faire plaisir, trouver + adjective, "se fait-il",
+        // "à supposer que"; and a pronoun subject before a form in -is.
+        ["Elle déteste que tu prends sa place.", "Elle déteste que tu prennes sa place."],
+        ["Ça me plaît que vous partez ensemble.", "Ça me plaît que vous partiez ensemble."],
+        ["Ça leur fait plaisir que nous chantons.", "Ça leur fait plaisir que nous chantions."],
+        ["Je trouve normal qu'il part tôt.", "Je trouve normal qu'il parte tôt."],
+        ["Comment se fait-il qu'il est absent ?", "Comment se fait-il qu'il soit absent ?"],
+        ["À supposer qu'il vient, nous partirons.", "À supposer qu'il vienne, nous partirons."],
+        ["Pourvu qu'elle choisit bien.", "Pourvu qu'elle choisisse bien."],
+        // A subjunctive where the clause takes the indicative.
+        ["Je sais que le train parte à midi.", "Je sais que le train part à midi."],
+        ["J'espère qu'il vienne demain.", "J'espère qu'il vient demain."],
+        ["Tu ne la croies jamais.", "Tu ne la crois jamais."],
+        ["Il comprenne mal la consigne.", "Il comprend mal la consigne."],
         ["Si j'aurais su, je serais venu.", "Si j'avais su, je serais venu."],
         ["S'ils viendront demain, préviens-moi.", "S'ils viennent demain, préviens-moi."],
         ["J'aurai aimé connaître la fin.", "J'aurais aimé connaître la fin."],
@@ -1177,6 +1388,20 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         ],
       ],
       neg: [
+        // A left-out "que" after a verb, "que je sache", and a fragment that opens the text.
+        "Il voulait tu viennes.",
+        "Autant que je sache, rien n'a changé.",
+        "il faille partir tôt",
+        "Qu'il vienne demain !",
+        "Je ne crois pas qu'elle parte.",
+        "Vive la France !",
+        "Il est vrai qu'elle chante.",
+        "Penses-tu qu'il vienne ?",
+        "Il ne dit pas qu'il vienne.",
+        "Il faut qu'elle et lui viennent.",
+        "Je trouve qu'il part tôt.",
+        "Il me plaît, ce film que tu as choisi.",
+        "Je trouve étrange qu'elle soit là.",
         "Je sais bien que tu reviendras.",
         "Il est probable qu'il viendra.",
         "Je pense que tu as raison.",
@@ -1221,6 +1446,33 @@ const FIXTURES: Array<[CatalogRuleId, Fixture]> = [
         "Le fichier v2ème.txt est là.",
         "Il a gagné 1ème place.",
         "La version 2.3ème est sortie.",
+      ],
+    },
+  ],
+  [
+    "frenchRepeatedWords",
+    {
+      pos: [
+        ["Ce film est très très long.", "Ce film est très long."],
+        ["Il travaille beaucoup beaucoup trop.", "Il travaille beaucoup trop."],
+        ["Le gâteau est bien bien cuit.", "Le gâteau est bien cuit."],
+        ["Je pense que tu as tu as raison.", "Je pense que tu as raison."],
+        ["Elle voit de moins de moins de clients.", "Elle voit de moins de clients."],
+        // "vous vous" after another subject, or before "ne": one pronoun too many.
+        ["Tu nous nous montres le chemin.", "Tu nous montres le chemin."],
+        ["Il faut que nous nous ne mentions pas.", "Il faut que nous ne mentions pas."],
+      ],
+      neg: [
+        "Vous vous trompez de porte.",
+        "Nous nous voyons demain.",
+        "Elle s'amuse en en lisant plusieurs.",
+        "Lui lui a tout raconté.",
+        "Ah ah, très drôle !",
+        "Oh là là, quelle chaleur !",
+        "Non non, merci bien.",
+        "Bla bla bla, toujours la même chose.",
+        "Il a dit : « Le le est un article. »",
+        "Le mot p p est une coquille.",
       ],
     },
   ],
@@ -1510,6 +1762,9 @@ test("French impossible days and months are flagged without a fix", () => {
     "Voir réf. 31/13/2020 pour le détail.",
     "Il reste 31/13/20 en stock.",
     "Nous avons noté les 45 janvier de la liste.",
+    // An issue or volume number before a month name: "n° 41 avril 2023", "tome 52 mars".
+    "Lisez le magazine n° 41 avril 2023 en ligne.",
+    "La revue, tome 52 mars-juin 2001, est épuisée.",
   ])
     expect(findings("frenchDates", text)).toEqual([]);
 });

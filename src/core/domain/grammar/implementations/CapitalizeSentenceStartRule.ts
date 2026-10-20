@@ -69,6 +69,8 @@ const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
     ...["tłum", "oprac", "red", "dot", "dn", "ob", "ang", "niem", "łac", "przyp", "jw."],
     ...["wsp.", "bp", "br.", "proc.", "ew", "ww", "ub", "dz", "nast", "wym", "mkw", "art"],
     ...["tab", "pt", "prez", "doc", "zw", "wł", "płn", "płd", "wsch", "zach", "zał", "ryc"],
+    // "op. cit." and company names ("Spółdz. Mlecz."); "mlecz" is also a plant, so it can end one.
+    ...["op", "spółdz", "mlecz."],
   ],
   es: [
     ...["sr", "sra", "srta", "ej", "aprox", "pág", "núm", "ud", "uds", "dra", "avda"],
@@ -324,6 +326,9 @@ export function closesAbbreviation(
   if (token.endsWith(".")) {
     return true;
   }
+  // One short word alone in parentheses is a label: "(ed.)", "(mus.)".
+  if (text[start - 1] === "(" && text[index + 1] === ")" && /^\p{L}{1,5}$/u.test(token))
+    return true;
   if (!/\p{L}/u.test(token)) {
     // "2026." and "12." end sentences in English; elsewhere they are ordinals.
     return token.length > 0 && ORDINAL_PERIOD_LOCALES.has(lang ?? "");

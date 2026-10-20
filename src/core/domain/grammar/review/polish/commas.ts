@@ -99,6 +99,45 @@ function commaInsideConjunction(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+const RELATIVE = "który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy";
+const JAKI = "jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi";
+
+/**
+ * "Do, czego", "nie wiem z, kim", "dom w, którym": a comma after a preposition, before the
+ * pronoun it governs. The comma goes before the preposition, or away at the sentence start.
+ */
+const AFTER_PREPOSITION = new RegExp(
+  `(?<![\\p{L}\\p{N}])(?:(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+))?(?<prep>za[ \\t\\u00a0]+pomocą|${PREPOSITIONS})[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<pronoun>co|czego|czemu|czym|kogo|komu|kim|${RELATIVE}|${JAKI})(?![\\p{L}])`,
+  "giu",
+);
+
+function commaAfterPreposition(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, AFTER_PREPOSITION)) {
+    const { prev, gap, prep, pronoun } = m.groups!;
+    const prepStart = m.index + (prev ? prev.length + gap.length : 0);
+    // "O, kogo widzę!": the interjection "o" opens the sentence.
+    if (/^o$/iu.test(prep) && (!prev || NO_COMMA_AFTER.has(prev.toLowerCase()))) continue;
+    // "bez, co gorsza, kurtki": an aside opens after the preposition.
+    const end = m.index + m[0].length;
+    if (/^[ \t\u00a0]*\p{L}+[ \t\u00a0]*,/u.test(ctx.text.slice(end, end + 30))) continue;
+    const joined = `${prep} ${pronoun}`;
+    const moved =
+      prev && !NO_COMMA_AFTER.has(prev.toLowerCase()) && !sentenceStartAt(ctx.text, prepStart);
+    findings.push(
+      findingAt(
+        ctx,
+        moved ? m.index : prepStart,
+        end,
+        [moved ? `${prev},${gap}${joined}` : joined],
+        MISPLACED,
+        "review_msg_pl_misplaced_comma",
+      ),
+    );
+  }
+  return findings;
+}
+
 /** Set phrases written without a comma, and no comma before "itd."/"itp.". */
 const SET_PHRASES = new RegExp(
   `(?<![\\p{L}])(?<phrase>(?<a>tak|chcąc|bądź|byle|chybił|wypisz)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<b>czy[ \\t\\u00a0]+(?:siak|owak|inaczej)|nie[ \\t\\u00a0]+chcąc|co[ \\t\\u00a0]+bądź|jak|trafił|wymaluj))(?![\\p{L}])`,
@@ -153,10 +192,8 @@ function extraCommas(ctx: DetectContext): RawFinding[] {
 
 /* ------------------------------------------------------ missing comma before */
 
-const RELATIVE = "który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy";
 /** Question words that open an indirect question or a clause of place: "nie wiem, gdzie". */
 const QUESTION_WORDS = "dlaczego|gdzie|kiedy";
-const JAKI = "jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi";
 const SUBORDINATORS = `że|iż|żeby|ażeby|aby|by|ponieważ|gdyż|jeśli|jeżeli|gdyby|zanim|dopóki|gdy|zamiast|ale|lecz|${QUESTION_WORDS}|${RELATIVE}|${JAKI}`;
 /** What makes the word after a subordinator part of a set phrase: "kiedy indziej", "póki co". */
 const SET_AFTER: Record<string, RegExp> = {
@@ -283,7 +320,11 @@ function missingCommas(ctx: DetectContext): RawFinding[] {
         /^(?:\d|pół|półtor|jed|dw|trz|czter|pięć|pięci|sześ|siedem|siedmi|osiem|ośmi|dziewię|dziesię|kilk|par|set|stu|sto|tysi)/iu.test(
           next,
         ) ||
-        /^[^.!\n]*[?!]/u.test(ctx.text.slice(end, end + 200)))
+        /^[^.!\n]*[?!]/u.test(ctx.text.slice(end, end + 200)) ||
+        // "jak bałwan jaki": after a comparison "jaki" is the particle "some", not a relative.
+        /(?:^|[^\p{L}])(?:jak|niczym|jakby)[ \t\u00a0]+$/iu.test(
+          ctx.text.slice(Math.max(0, m.index - 12), m.index),
+        ))
     )
       continue;
     // "zamiast" opens a clause only before an infinitive ("zamiast pracować"), not a noun.
@@ -467,7 +508,9 @@ export const DETECTORS = [
   {
     rules: [MISPLACED] as RawFinding["ruleId"][],
     detect: (ctx: DetectContext) =>
-      isPl(ctx) ? [...commaInsideConjunction(ctx), ...extraCommas(ctx)] : [],
+      isPl(ctx)
+        ? [...commaInsideConjunction(ctx), ...extraCommas(ctx), ...commaAfterPreposition(ctx)]
+        : [],
   },
   {
     rules: [MISSING] as RawFinding["ruleId"][],

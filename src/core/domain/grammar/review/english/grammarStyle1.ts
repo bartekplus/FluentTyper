@@ -24,6 +24,7 @@ import {
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { finding } from "../finding";
 import { namedExampleBefore } from "../exampleCues";
+import { objectGapBefore } from "./slotWords";
 
 // ---------------------------------------------------------------------------- tables
 
@@ -308,6 +309,26 @@ function doSupport(ctx: DetectContext): RawFinding[] {
       if (!isDid && (/^(?:do|have|be)$/.test(lemma) || verb.toLowerCase() === "given")) continue;
       if (isDid && NOUN_CLAUSE.test(ctx.text.slice(Math.max(0, m.index - 48), m.index))) continue;
       if (isDid && /^(?:supposed|used)$/.test(verb.toLowerCase())) continue;
+      // "did not found any towns": found/ground/wound are base verbs too; "didn't found it"
+      // still gets the fix.
+      if (
+        isDid &&
+        /^(?:found|ground|wound)$/.test(verb) &&
+        !/^(?:it|them|him|her|me|us|you)$/.test(nextLowerWord(ctx, m.index + m[0].length))
+      )
+        continue;
+      // "The survey we did showed…": did closes a relative clause after a noun. A time word
+      // is no head ("Yesterday I did showed").
+      const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
+      if (
+        isDid &&
+        !m.groups!.negated &&
+        objectGapBefore(before) &&
+        !/\b(?:yesterday|today|tonight|tomorrow|now|then|once|sometimes|finally)[ \t\u00a0]+\S+[ \t\u00a0]+$/i.test(
+          before,
+        )
+      )
+        continue;
       // "Did you bored?" asks with be: englishAuxiliaryForms offers "Were you bored".
       if (
         isDid &&
@@ -389,6 +410,17 @@ function doubleBe(ctx: DetectContext): RawFinding[] {
     const second = m.groups!.second;
     // Identical pairs are repeated words; "the question is are we" asks a question.
     if (first.replace(/^['’]/, "").toLowerCase() === second.toLowerCase()) continue;
+    // "Was IS weakened", "The IS was": an all-caps IS is a name, not a verb.
+    const caps = (w: string) => w.length > 1 && w === w.toUpperCase();
+    if (caps(first) !== caps(second)) continue;
+    // "his team's was flat": after a noun, "'s" is a possessive that stands for its noun.
+    if (
+      /^['’]s$/i.test(first) &&
+      !/(?:^|[^\p{L}])(?:he|she|it|that|this|what|who|where|how|there|here|everyone|everything|nothing|nobody|someone|something)$/iu.test(
+        ctx.text.slice(Math.max(0, m.index - 16), m.index),
+      )
+    )
+      continue;
     if (/^(?:I|you|we|they|he|she|it|there)$/i.test(nextLowerWord(ctx, m.index + m[0].length)))
       continue;
     // "My motto is never be late": after a noun subject, an imperative complement.
@@ -642,8 +674,21 @@ function massNouns(ctx: DetectContext): RawFinding[] {
     const start = m.index - before.length + counted.index;
     const end = m.index + noun.length;
     if (noun !== n || hasUserOrCasedWord(ctx, ctx.text.slice(start, end))) continue;
-    // "a software engineer": the noun modifies the next one.
+    // "a software engineer": the noun modifies the next one. So does a coordinated
+    // modifier: "a feedback and planning tool".
     if (compoundHead(ctx, end)) continue;
+    const joined = /^[ \t\u00a0]+(?:and|or|&)[ \t\u00a0]+([a-z]+)/i.exec(
+      ctx.text.slice(end, end + 32),
+    );
+    if (
+      joined &&
+      !FUNCTION_WORDS.test(joined[1]) &&
+      !/^(?:a|an|the|some|any|my|your|his|her|our|their|its|no|more|other|lots|plenty)$/i.test(
+        joined[1],
+      ) &&
+      compoundHead(ctx, end + joined[0].length)
+    )
+      continue;
     // "a information" is the core rule's warning.
     if (n === "information" && single && /^an?$/i.test(single)) continue;
     const { unit, count = [] } = MASS[n];
@@ -708,7 +753,7 @@ const COLLECTIVE =
 // Words that end the search for the noun: a plural is already right ("the trees behind him"),
 // and a pronoun, preposition or number is not the head ("the many notes she included").
 const NOT_A_HEAD_NOUN =
-  /^(?:people|men|women|children|feet|teeth|mice|geese|police|data|media|criteria|phenomena|today|tonight|tomorrow|yesterday|overnight|few|many|several|i|me|you|he|him|she|her|it|we|us|they|them|this|that|these|those|behind|above|below|under|over|after|before|between|among|without|within|during|about|around|into|onto|upon|across|along|against|toward|towards|near|beside|beyond|through|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|hundred|thousand|million)$/;
+  /^(?:people|men|women|children|feet|teeth|mice|geese|police|data|media|criteria|phenomena|today|tonight|tomorrow|yesterday|overnight|few|many|several|i|me|you|he|him|she|her|it|we|us|they|them|this|that|these|those|behind|above|below|under|over|after|before|between|among|without|within|during|about|around|into|onto|upon|across|along|against|toward|towards|near|beside|beyond|through|in|on|at|by|for|from|to|with|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|hundred|thousand|million)$/;
 
 /** Where "one of the …" ends: a clause end, a function word or a verb ("node loses"). */
 function closesNounPhrase(next: string | undefined, after: string): boolean {
@@ -923,6 +968,14 @@ function danglingDeterminers(ctx: DetectContext): RawFinding[] {
   for (const m of frameMatches(ctx, DANGLING, (match) => match.index)) {
     if (m.groups!.target && !/^the[ \t\u00a0]+[a-z]+$/i.test(m.groups!.target)) continue;
     if (m.groups!.target && /[A-Z]/.test(m.groups!.target.split(/\s+/)[1])) continue;
+    // "the or operator", "the and keyword": the word is named, not used.
+    if (
+      m.groups!.target &&
+      /^(?:operators?|keywords?|gates?|clauses?|conditions?|statements?|functions?|buttons?|options?|cases?|keys?|logic|query|queries|search|searches|filters?|mode|rule)$/i.test(
+        nextLowerWord(ctx, m.index + m[0].length),
+      )
+    )
+      continue;
     const finding = found(
       ctx,
       m,
@@ -934,6 +987,52 @@ function danglingDeterminers(ctx: DetectContext): RawFinding[] {
     findings.push({ ...finding, warningOnly: true });
   }
   return findings;
+}
+
+/** "The widespread of", "the is better": an article with no noun after it. */
+function nounlessDeterminers(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, NOUNLESS, (match) => match.index)) {
+    const { det, word, be } = m.groups!;
+    if (word && (word !== word.toLowerCase() || !adjectiveOnly(word))) continue;
+    if (be) {
+      // "I think the is…", "if Ic an be": "the" or "an" before a lowercase be. A letter
+      // names a thing ("Let a be", "Annex A is", "An was"), and "a be-all" is an idiom.
+      const lead = det.toLowerCase();
+      if (be !== be.toLowerCase() || lead === "a") continue;
+      if (det !== lead && !atClauseStart(ctx, m.index)) continue;
+      if (lead === "the" && be === "be") continue;
+      if (lead === "an" && !/^(?:be|has|was)$/.test(be)) continue;
+      if (hasUserOrCasedWord(ctx, m[0])) continue;
+    }
+    const finding = found(ctx, m, "englishSentenceStructure", "review_msg_sentence_structure", []);
+    findings.push({ ...finding, warningOnly: true });
+  }
+  return findings;
+}
+
+// "The widespread of", "an unusual of": an article and an adjective with no noun before "of".
+// "I think the is better": an article before a form of be.
+const NOUNLESS = `(?<target>(?<det>the|an?)${SPACE}(?:(?<word>[a-z]+)(?=${SPACE}of${WORD_END})|(?<be>is|was|were|be|has)${WORD_END}(?![–—])))`;
+// Adjectives that name a group of people ("the rich of the town"), and words the lexicon reads
+// as no noun that still head a phrase before "of" (ordinals, comparison words).
+const NOUNLESS_ALLOWED =
+  /^(?:rich|poor|young|old|elderly|wealthy|sick|dead|living|blind|deaf|homeless|unemployed|needy|faithful|brave|injured|wounded|disabled|famous|powerful|weak|innocent|guilty|lucky|chosen|slain|fallen|damned|departed|deceased|accused|condemned|wretched|best|worst|most|least|more|less|lesser|greater|former|latter|first|last|next|only|other|same|very|whole|rest|remainder|likes|many|few|several|each|all|both|none|bulk|majority|minority)$/;
+
+const NOUN_IN_MATH = /^(?:exponential|dual|conjugate|reciprocal|transpose|integral|differential)$/;
+
+/** A known word with no noun, verb or adverb reading: "widespread", "additional". */
+function adjectiveOnly(word: string): boolean {
+  if (FUNCTION_WORDS.test(word) || NOUNLESS_ALLOWED.test(word)) return false;
+  // Comparatives and superlatives head "the larger of the two", "the finest of",
+  // "the northernmost of"; math names a function ("the exponential of", "the dual of").
+  if (/(?:er|est|most)$/.test(word) || NOUN_IN_MATH.test(word)) return false;
+  // Other checks repair these with their noun: "the important of" (importance), "a serious
+  // of" (series), "the numerous of" (number).
+  if (/^(?:serious|numerous)$/.test(word) || englishWordInfo(word.replace(/t$/, "ce"))?.noun)
+    return false;
+  const info = englishWordInfo(word);
+  return !!info && !info.noun && !info.plural && !info.adverb && !info.verbs.length;
 }
 
 // ---------------------------------------------------------------------------- typography
@@ -1314,6 +1413,10 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       gated(
         /\b(?:the|an?)[ \t\u00a0]+(?:and|or|but|because|nor|although|unless)\b/gi,
         danglingDeterminers,
+      ),
+      gated(
+        /\b(?:the|an?)[ \t\u00a0]+(?:[a-z]+[ \t\u00a0]+of|is|was|were|be|been|am|has)\b/gi,
+        nounlessDeterminers,
       ),
     ),
   },

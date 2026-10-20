@@ -50,6 +50,22 @@ compadra = comadre
 compadras = comadres
 princeza = princesa
 duqueza = duquesa
+visconda = viscondessa
+viscondas = viscondessas
+duqua = duquesa
+duquas = duquesas
+alcaida = alcaidessa
+alcaidas = alcaidessas
+sulta = sultana
+sultas = sultanas
+frada = freira
+fradas = freiras
+heroíno = herói
+heroínos = heróis
+zangona = abelha
+zangonas = abelhas
+abelho = zangão
+abelhos = zangões
 `),
   // Verbs whose only participle is the short one.
   ...rows(`
@@ -159,7 +175,18 @@ const MAU_FORMS = [
   ["más", "as"],
 ] as const;
 
+/** "estar prestes a" and "bater palmas" keep their plural noun. */
+const FIXED_PLURALS: PhraseRow[] = [
+  ..."estou está estás estamos estão estava estavas estávamos estavam estive esteve estivemos estiveram estar estando esteja estejam estivesse estivessem"
+    .split(" ")
+    .map((verb): PhraseRow => [`${verb} preste a`, `${verb} prestes a`]),
+  ..."bater bato bate bates batemos batem bati bateu bateram batia batiam batendo bata batam"
+    .split(" ")
+    .map((verb): PhraseRow => [`${verb} palma`, `${verb} palmas`]),
+];
+
 export const PORTUGUESE_PHRASES: PhraseRow[] = [
+  ...FIXED_PLURALS,
   ...COMPARED_COMPOUNDS,
   ...DOUBLED_DETERMINERS,
   // No crase before a masculine noun, a pronoun or a verb: "a pé", "a mim", "a esta", "a partir".

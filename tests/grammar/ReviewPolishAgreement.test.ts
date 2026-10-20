@@ -58,6 +58,21 @@ const POSITIVES: Array<[string, string, string | null]> = [
   ["Chcą, aby to zrobiliście.", "aby to zrobiliście", "Chcą, abyście to zrobili."],
   ["Gdybyś wiedziałaś, nie pytałabyś.", "Gdybyś wiedziałaś", "Gdybyś wiedziała, nie pytałabyś."],
   ["Mama prosi, żebyś posprząta pokój.", "posprząta", null],
+  // The subject after an instrumental predicate stands in the nominative.
+  [
+    "Uczestnikami konkursu są wyłącznie uczniów szkół.",
+    "uczniów",
+    "Uczestnikami konkursu są wyłącznie uczniowie szkół.",
+  ],
+  [
+    "Autorami raportu będą pracowników firmy.",
+    "pracowników",
+    "Autorami raportu będą pracownicy firmy.",
+  ],
+  // A plural pronoun before a singular instrumental noun.
+  ["Okazał się jakimiś potworem.", "jakimiś", "Okazał się jakimś potworem."],
+  ["Rozmawiałem długo z tymi człowiekiem.", "tymi", "Rozmawiałem długo z tym człowiekiem."],
+  ["Opiekuje się moimi siostrą.", "moimi", "Opiekuje się moją siostrą."],
   ["Zrobię wszystko, aby będzie dobrze.", "będzie", null],
   // "nigdy", "nikt", "nic", "nigdzie" with a verb that lacks "nie".
   ["Nigdy tam byłem zimą.", "byłem", "Nigdy tam nie byłem zimą."],
@@ -361,6 +376,14 @@ const NEGATIVES = [
   "Trzeba będzie pomóc sąsiadom.",
   "Trzeba to będzie zrobić jutro.",
   "Najlepiej będzie wyznać wszystko.",
+  "Ofiarami są głównie dzieci.",
+  "Członkami są przedstawiciele gmin.",
+  "Przyczyną są błędy ludzi.",
+  "Zajmuje się między innymi handlem.",
+  "Między tymi domami stał płot.",
+  "Rządził nimi żelazną ręką.",
+  "Moim pierwszym krokiem będzie poskarżyć się dyrektorowi.",
+  "Naszym zadaniem będzie odnaleźć klucz.",
   "Zmuszona będę uciec się do ojca.",
   "Będą umrzeć musieli.",
   "Będzie mógł to zrobić sam.",

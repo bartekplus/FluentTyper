@@ -12,6 +12,7 @@ import {
   type Token,
 } from "./common";
 import { isGenderedEntry, isNoun } from "./lexicon";
+import { readNoun } from "./agreement";
 import {
   contextYear,
   daysInMonth,
@@ -450,6 +451,19 @@ function marks(ctx: DetectContext): RawFinding[] {
     },
     "review_msg_spanish_unit",
   );
+  // "la 2.º vez" -> "2.ª", "su 25ª aniversario" -> "25º": the raised letter takes the gender
+  // of the noun after it.
+  scan(
+    new RegExp(GENDERED_ORDINAL),
+    ([, n, dot, letter, word]) => {
+      const noun = readNoun(word.toLowerCase());
+      if (!noun?.gender || noun.paired || noun.plural || !/^\p{Lu}?\p{Ll}+$/u.test(word))
+        return null;
+      const fixed = noun.gender === "f" ? "ª" : "º";
+      return fixed === letter ? null : `${n}${dot}${fixed}`;
+    },
+    "review_msg_spanish_ordinal",
+  );
   // "25ºC", "1 ºC": a degree sign, not the ordinal o, and a space before it ("3º C" is a
   // floor and a door).
   scan(new RegExp(ORDINAL_DEGREE), ([, n, unit]) => `${n} °${unit}`, "review_msg_spanish_unit");
@@ -562,6 +576,9 @@ const ABBREVIATION_FORMS: Record<string, string> = {
 };
 const PLAIN_ABBREVIATION =
   /(?<![\p{L}\p{N}.])(nº|n\.°|num|pag|pags|telf|tlf|tlfn)\.?:?[ \t]?(?=\p{N})/giu;
+// "2.º vez", "25ª aniversario": a numeric ordinal and the noun after it.
+const GENDERED_ORDINAL =
+  /(?<![\p{L}\p{N}.,])(\d{1,3})(\.?)([ºª])(?=[ \t]{1,8}(\p{L}+)(?![\p{L}\p{N}]))/gu;
 const DEGREE_ORDINAL =
   /(?<=(?:^|[\s(])(el|la|del|al|El|La|Del|Al)[ \t]{1,8})(\d{1,3})[ \t]?°(?=[ \t]{1,8}(\p{Ll}+))/gu;
 const NOT_ORDINAL_AFTER = /^(?:cent|fahr|kel|grad|norte|sur|este|oeste|latitud|longitud|bajo)/u;
@@ -688,6 +705,53 @@ const MISSING_SPACE = new RegExp(
   "gu",
 );
 
+/**
+ * 'Dijo " sí".' -> 'Dijo "sí".': no space inside a straight pair. The marks of a line pair up
+ * in order, so a line with an odd count, or with a mark after a digit (6" for inches), is
+ * left alone.
+ */
+function quoteSpaces(ctx: DetectContext, findings: RawFinding[]): void {
+  const text = ctx.text;
+  let lineStart = text.lastIndexOf("\n", ctx.from - 1) + 1;
+  while (lineStart < ctx.to) {
+    const next = text.indexOf("\n", lineStart);
+    const lineEnd = next < 0 ? text.length : next;
+    const marks: number[] = [];
+    for (let k = text.indexOf('"', lineStart); k >= 0 && k < lineEnd; k = text.indexOf('"', k + 1))
+      marks.push(k);
+    const usable =
+      marks.length >= 2 &&
+      marks.length % 2 === 0 &&
+      !marks.some((k) => /\d/.test(text[k - 1] ?? ""));
+    for (let p = 0; usable && p < marks.length; p += 2) {
+      const [open, close] = [marks[p], marks[p + 1]];
+      const inner = text.slice(open + 1, close);
+      if (!inner.trim() || inner.length > 200 || namedExampleBefore(text, open)) continue;
+      const lead = /^[ \t ]+(?=[\p{L}\p{N}¿¡])/u.exec(inner)?.[0].length ?? 0;
+      const trail = /(?<=[\p{L}\p{N}.!?…])[ \t ]+$/u.exec(inner)?.[0].length ?? 0;
+      if (lead && open >= ctx.from && open < ctx.to)
+        findings.push({
+          ruleId: "commaPeriodSpacing",
+          messageKey: "review_msg_space_after_opening_mark",
+          range: { start: open, end: open + 1 + lead },
+          alternatives: ['"'],
+          context: { start: open, end: close + 1 },
+          bulkBlock: "context-dependent",
+        });
+      if (trail && close >= ctx.from && close < ctx.to)
+        findings.push({
+          ruleId: "commaPeriodSpacing",
+          messageKey: "review_msg_space_before_mark",
+          range: { start: close - trail, end: close + 1 },
+          alternatives: ['"'],
+          context: { start: open, end: close + 1 },
+          bulkBlock: "context-dependent",
+        });
+    }
+    lineStart = lineEnd + 1;
+  }
+}
+
 /** A sentence mark glued to the next sentence: "frase.Y otra" -> "frase. Y otra". */
 function missingSpace(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "es")) return [];
@@ -727,6 +791,7 @@ function missingSpace(ctx: DetectContext): RawFinding[] {
       bulkBlock: "context-dependent",
     });
   }
+  quoteSpaces(ctx, findings);
   return findings;
 }
 const COLON_SPACING = /(?<=\p{L})[ \t]+[:;](?=[ \t]|$)|(?<=\p{L}\p{Ll});(?=\p{Ll}{2})/gmu;

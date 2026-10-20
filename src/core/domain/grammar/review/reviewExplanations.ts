@@ -3524,6 +3524,17 @@ const EXPLANATIONS = {
     "To zdanie wymaga trybu łączącego (il faut que tu viennes, bien qu'il soit tard).",
     "Esta oração pede o subjuntivo (il faut que tu viennes, bien qu'il soit tard).",
   ],
+  review_msg_fr_indicative: [
+    "This clause takes the indicative (il est certain qu'il part, j'espère que tu viens).",
+    "Cette proposition demande l'indicatif (il est certain qu'il part, j'espère que tu viens).",
+    "Ova rečenica traži indikativ (il est certain qu'il part, j'espère que tu viens).",
+    "Esta oración pide indicativo (il est certain qu'il part, j'espère que tu viens).",
+    "Αυτή η πρόταση θέλει οριστική (il est certain qu'il part, j'espère que tu viens).",
+    "Den här satsen kräver indikativ (il est certain qu'il part, j'espère que tu viens).",
+    "Dieser Satz verlangt den Indikativ (il est certain qu'il part, j'espère que tu viens).",
+    "To zdanie wymaga trybu oznajmującego (il est certain qu'il part, j'espère que tu viens).",
+    "Esta oração pede o indicativo (il est certain qu'il part, j'espère que tu viens).",
+  ],
   review_msg_fr_conditional: [
     "Future or conditional: si takes the imperfect, a plain future plan the future (si j'avais su, je viendrai demain).",
     "Futur ou conditionnel : si se construit avec l’imparfait, un projet certain avec le futur (si j'avais su, je viendrai demain).",

@@ -2,6 +2,8 @@ import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   adjectiveReadings,
+  finitePersons,
+  ILS,
   isInflectedNoun,
   isNounLemma,
   isVerbHomograph,
@@ -105,7 +107,8 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       return null;
     // "4 ami", "en 3 partie": after a figure, a noun entry is the noun.
     if (adjectiveReadings(word).length && !(digits && nounGender(word))) return null;
-    // "en 10 minute": after a figure, a gendered noun that is also a verb form is the noun.
+    // "en 10 minute": after a figure, a gendered noun that is also a verb form is the noun
+    // ("une famille sur trois cuisine", "six moins deux fait": after a number word it is the verb).
     const verb = isVerbForm(word) && !(digits && isVerbHomograph(word) && nounGender(word));
     if (verb || /[sxz]$/.test(word) || !isInflectedNoun(word)) return null;
     const [start] = m.indices!.groups!.noun;
@@ -160,9 +163,17 @@ function nounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       // "les voyant si nerveux", "de les avoir vus": a present participle or an infinitive.
       if (verbReadings(word).some((r) => r.slot === "G" || r.slot === "I")) return null;
       const before = tokensBefore(ctx.text, m.index, 1)[0];
+      // "lavé les tasse", "ranger la tasses": after a participle or an infinitive, a finite
+      // form cannot follow an object pronoun.
+      const nonFinite =
+        !!before &&
+        verbReadings(before.w).length > 0 &&
+        verbReadings(before.w).every((r) => r.slot === "Q" || r.slot === "I") &&
+        verbReadings(word).every((r) => typeof r.slot === "number");
       const nounSlot =
         !before ||
         PREPOSITIONS.has(before.w) ||
+        nonFinite ||
         (!isVerbHomograph(before.w) &&
           verbReadings(before.w).some((r) => typeof r.slot === "number") &&
           !SUBJECTS.has(before.w));
@@ -259,6 +270,8 @@ function adjectiveNounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding
   if (isVerbForm(word) && !isVerbHomograph(word)) return null;
   // "laisser les autres noyer", "les seuls restant": an infinitive or a present participle.
   if (verbReadings(word).some((r) => r.slot === "I" || r.slot === "G")) return null;
+  // "les autres excellent en maths": a plural adjective used as a noun, and its verb.
+  if (PLURAL_ADJECTIVES.has(adjective) && finitePersons(word) & ILS) return null;
   const tokens = tokensBefore(ctx.text, m.index, 4);
   const at = tokens.findIndex((t) => !DEGREE_WORDS.has(t.w));
   const before = tokens[at];

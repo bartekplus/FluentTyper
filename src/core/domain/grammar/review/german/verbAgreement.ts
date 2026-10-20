@@ -360,8 +360,13 @@ function infinitiveOf(form: string): string | null {
   const listed = germanInfinitiveOf(form);
   if (listed) return listed;
   if (/(?:en|ern|eln)$/.test(form) || NOT_VERBS.has(form) || germanAdjective(form)) return null;
-  // "gekauft", "besucht", "verkauft", "probiert": participles.
-  if (/^(?:ge|be|ver|er|ent|zer|emp|miss)\p{Ll}+(?:t|en)$|iert$/u.test(form)) return null;
+  // "gekauft", "besucht", "verkauft", "probiert", "unterstützt", "überprüft": participles.
+  if (
+    /^(?:ge|be|ver|er|ent|zer|emp|miss|unter|über|durch|hinter|wider)\p{Ll}+(?:t|en)$|iert$/u.test(
+      form,
+    )
+  )
+    return null;
   if (germanNounReading(form) !== null) return null;
   const stem = /^(\p{Ll}{2,}?)(?:te|e|st|t|est|et)$/u.exec(form)?.[1];
   if (!stem) return null;

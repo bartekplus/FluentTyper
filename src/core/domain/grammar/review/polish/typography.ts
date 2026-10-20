@@ -144,6 +144,15 @@ const SWAPS: Swap[] = [
     regex: /(?<=(?<![\p{L}])\p{Ll}{2,}[ouy])[–—](?=,)/gu,
     fix: () => "-",
   },
+  // "Ad. 1" -> "Ad 1": the Latin "ad" is a word, not an abbreviation.
+  { regex: /(?<![\p{L}.])([Aa]d)\.(?=[ \u00a0]+\(?\p{N})/gu, fix: (m) => m[1] },
+  // "dom– jak", "dom –jak" -> "dom – jak": a dash between words has a space on both sides
+  // ("jedno– i dwukonne" is a hanging prefix before a conjunction).
+  {
+    regex: /(?<=\p{L}{2})[–—](?=[ \u00a0](?!(?:i|oraz|lub|albo|czy|a)[ \u00a0])\p{L})/gu,
+    fix: (m) => ` ${m[0]}`,
+  },
+  { regex: /(?<=\p{L}[ \u00a0])[–—](?=\p{L}{2})/gu, fix: (m) => `${m[0]} ` },
   // "przykład.," -> "przykład,": a full word takes no dot before a comma.
   { regex: /(?<=(?<![\p{L}.])\p{Ll}{5,})\.(?=,)/gu, fix: () => "" },
 ];

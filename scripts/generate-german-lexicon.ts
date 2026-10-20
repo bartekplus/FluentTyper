@@ -352,14 +352,14 @@ const AUTHORED_GENDERS: Record<string, string> = {
     "durchschnitt ausblick komplex tag monat abend preis kauf verkauf " +
     "vertrag termin besuch gast freund kollege chef mensch mann sohn vater hund baum wald " +
     "berg weg platz park hof raum boden tisch stuhl sessel teppich vorhang ofen herd " +
-    "kühlschrank bildschirm link zugang zugriff test versuch erfolg grund zweck sinn zweifel " +
+    "kühlschrank bildschirm link zugang zugriff test versuch erfolg grund zweck sinn " +
     "wunsch traum gedanke eindruck rat hinweis vorschlag beitrag bericht brief text satz " +
-    "begriff titel inhalt umfang bereich punkt schritt prozess ablauf zeitraum zeitpunkt " +
+    "begriff inhalt umfang bereich punkt schritt prozess ablauf zeitraum zeitpunkt " +
     "anfang beginn schluss ausgang eingang zug bus flug hafen bahnhof flughafen verkehr unfall " +
-    "schaden lärm schnee wind sturm nebel himmel mond stern sommer winter frühling urlaub " +
-    "ausflug spaß ärger schlaf kaffee wein reis zucker honig knopf ring schuh rock pullover " +
-    "gürtel stoff kopf zahn mund bauch körper puls arzt patient schmerz husten schnupfen " +
-    "schirm kalender schreibtisch " +
+    "schaden lärm schnee wind sturm nebel mond stern frühling urlaub " +
+    "ausflug spaß ärger schlaf kaffee wein reis zucker honig knopf ring schuh rock " +
+    "stoff kopf zahn mund bauch puls arzt patient schmerz husten schnupfen " +
+    "schirm schreibtisch " +
     // Frequent n-gram words that show no gender (wave 10).
     "absatz herr gegensatz alkohol bescheid onlineshop pkw abfall schatz chat präsident " +
     "vormittag auszug zoll humor roman podcast dollar trick ausfall umstand notar gesang " +
@@ -369,7 +369,7 @@ const AUTHORED_GENDERS: Record<string, string> = {
     "kanton therapeut sektor stadtrat zorn turm pfad journalist essig mord beirat " +
     "einspruch ehemann aushang bauherr investor stromausfall alarm durchfall pfeil draht " +
     "student ehrgeiz kamin blitz psalm schein helm sturz monitor ausschnitt mandant " +
-    "protest kontinent singular stamm diesel profit frust teich schlaganfall kerl sack zoo " +
+    "protest kontinent singular stamm profit frust teich schlaganfall kerl sack zoo " +
     "schrott dreck frost spezialist bräutigam aufzug spargel unsinn befehl planet " +
     "durchgang anreiz herzinfarkt hahn appell beleg paragraph korb aufbruch betreff " +
     "schlauch vulkan architekt akteur stier auftakt rundfunk deal hagel altar stau ozean " +
@@ -381,12 +381,14 @@ const AUTHORED_GENDERS: Record<string, string> = {
     "referent soldat sarg befund pokal bachelor chip leuchtturm käfig pastor krimi " +
     "zwilling busch einwand favorit aufruhr steg abdruck auslauf ast dozent kalk marmor " +
     "skandal anlauf ausspruch steinbruch pilot aufschlag entzug generator aufsatz abflug " +
-    "schlamm umlauf dieb frosch nerv selbstmord lehm abgrund assistent kilometer " +
-    "zentimeter millimeter quadratmeter sound mix salon tabak wortschatz ultraschall professor dank code",
+    "schlamm umlauf dieb frosch nerv selbstmord lehm abgrund assistent " +
+    "sound mix salon tabak wortschatz ultraschall professor dank code",
   M:
     "onkel enkel kaiser haufen rücken käse laden politiker berater träger begleiter makler " +
     "koffer musiker lehrer schüler fahrer computer drucker rechner server browser keller " +
-    "teller löffel schlüssel spiegel sessel kuchen kragen knochen muskel daumen finger",
+    "teller löffel schlüssel spiegel sessel kuchen kragen knochen muskel daumen finger " +
+    // Own plurals ("die Zweifel", "die Titel").
+    "zweifel titel kalender körper pullover gürtel himmel kilometer zentimeter millimeter quadratmeter sommer winter diesel",
   n:
     "schaf heft pech " +
     "prozent casino holz personal impressum jahrhundert level obst fach vitamin schloss gas " +
@@ -404,15 +406,15 @@ const AUTHORED_GENDERS: Record<string, string> = {
     "stichwort jubiläum königreich asyl mobbing augenmerk organ szenario stadion flair " +
     "album kilogramm unglück benzin experiment inventar limit ritual dasein laub atelier " +
     "magazin abwasser kloster kennwort interieur kilo schach kupfer kasino unkraut eiweiß " +
-    "protein magnesium parkett orchester lexikon tattoo quartier siegel drama dilemma " +
+    "protein magnesium parkett lexikon tattoo quartier siegel drama dilemma " +
     "meeting handicap exemplar sekretariat denkmal mikrofon gremium klinikum armband " +
     "platin laminat hirn jahrzehnt besteck horn horoskop schema diagramm implantat depot " +
     "investment timing visier sponsoring glied pulver saatgut mandat stativ lamm plenum " +
     "areal pseudonym referat dreieck terrain cockpit panorama gemüt polyester apartment " +
     "cello komma plakat aquarium porzellan beet heu gefäß mobiliar picknick territorium " +
     "duo gebäck kalzium nikotin gramm watt volt camping gedicht nest schwert manuskript " +
-    "thermometer kompliment symptom abbild fass",
-  N: "lager vorhaben kapitel gewerbe knie fenster zimmer gebäude theater mittel examen ufer muster",
+    "kompliment symptom abbild fass",
+  N: "lager vorhaben kapitel gewerbe knie fenster zimmer gebäude theater mittel examen ufer muster orchester thermometer",
 };
 
 const NUMBER_WORDS =

@@ -60,6 +60,7 @@ const CATALOG = [
   reviewOnly("frenchMissingNe", 150),
   reviewOnly("frenchCommas", 150),
   reviewOnly("frenchOrdinals", 150),
+  reviewOnly("frenchRepeatedWords", 150),
   reviewOnly("arabicAgreement", 179),
   reviewOnly("frenchNounGender", 178),
   reviewOnly("arabicCaseEndings", 180),
@@ -398,6 +399,7 @@ const CATALOG = [
   reviewOnly("germanColloquial", 60),
   reviewOnly("germanRecommendedSpelling", 55),
   reviewOnly("germanTypography", 40),
+  reviewOnly("germanJoinedVerbs", 50),
 ] as const satisfies readonly GrammarRuleCatalogEntry[];
 
 /** Every catalog rule id: the typing rules (GrammarRuleId) and the Review-only checks. */

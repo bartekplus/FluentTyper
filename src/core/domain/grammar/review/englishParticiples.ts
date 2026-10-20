@@ -1,5 +1,6 @@
 import { englishInflect } from "../implementations/helpers/EnglishInflection";
 import { quotedMention } from "./english/grammarStyle1";
+import { objectGapBefore } from "./english/slotWords";
 import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import {
@@ -122,7 +123,8 @@ function nounHead(word: string, before: string | undefined): boolean {
   return (
     (info.plural && !info.verbs.some((v) => v.form === "third")) ||
     !info.verbs.length ||
-    (before !== undefined && DETERMINERS.has(before))
+    // "Whatever time he had went…": a free relative's head.
+    (before !== undefined && (DETERMINERS.has(before) || /^(?:whatever|whichever)$/.test(before)))
   );
 }
 
@@ -305,7 +307,18 @@ function progressiveAfterHave(ctx: DetectContext): RawFinding[] {
     if (contract || bare ? singular : (aux.toLowerCase() === "has") !== singular) continue;
     const ing = verb.toLowerCase();
     if (NOUN_LIKE_ING.test(ing) && !new RegExp(`^${OBJECT}$`, "i").test(follow)) continue;
+    // "any questions you have regarding the trip": a preposition in -ing.
+    if (/^(?:regarding|concerning|including|following|considering|involving|pending)$/.test(ing))
+      continue;
     const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
+    // "How much junk do you have cluttering…", "the notes you have…": have is the main verb.
+    if (
+      !contract &&
+      !bare &&
+      (/\b(?:do|does|did|don['’]t|doesn['’]t|didn['’]t)[ \t\u00a0]+$/i.test(before) ||
+        objectGapBefore(`${before}${subject} `))
+    )
+      continue;
     // A modal or question word owns have ("Why have you…", "could have…", "what I have
     // going"); nothing is ever had "doing" ("what they've doing").
     if (

@@ -7,6 +7,7 @@ import type * as Data from "./verbs.generated";
 import { reviewData } from "../reviewLanguageData";
 import { analyze, SENTENCE_START } from "./nounAgreement";
 import { infinitive } from "./infinitives";
+import { verbStems } from "./subjunctive";
 import {
   type ClauseProfile,
   clauseTokensAfter,
@@ -332,41 +333,87 @@ const present = (verb: string) =>
   (rStems ??= new Set(graphWords(reviewData<typeof Data>("pt").PORTUGUESE_R_STEMS))).has(
     verb.replace(/(?:am|a)$/, ""),
   );
-const FUTURE = "\\p{L}{2,}(?:ar|er|ir)(?:ão|á|ei)";
-const PAST = "\\p{L}{2,}(?:aram|eram|iram|ara|era|ira)";
+const FUTURE = "\\p{L}{2,}(?:ar|er|ir)(?:ão|ás|á|ei|emos|eis)";
+const PAST = "\\p{L}{2,}(?:aram|eram|iram|aras|eras|iras|ara|era|ira|áreis|êreis|íreis)";
 const DETERMINER_BEFORE =
-  /(?:^|[^\p{L}])(?:o|a|os|as|um|uma|do|da|no|na|pelo|pela|este|esse|aquele|meu|seu|nosso)[ \t\u00a0]+$/iu;
+  /(?:^|[^\p{L}])(?:o|a|os|as|um|uma|do|da|no|na|pelo|pela|este|esse|aquele|meu|seu|nosso)[ \t ]+$/iu;
+const PERIOD = "(?:semana|mês|ano)";
+// "ontem", "na semana passada", "na passada semana"; "a semana passada" needs its comma.
+const PAST_TIME = `(?:(?:antes${S}de${S})?ontem|anteontem|n[ao]${S}${PERIOD}${S}passad[oa]|n[ao]${S}passad[oa]${S}${PERIOD})`;
+const BARE_PAST_TIME = `[ao]${S}(?:${PERIOD}${S}passad[oa]|passad[oa]${S}${PERIOD}),`;
+const FUTURE_TIME = `(?:(?:depois${S}de${S})?amanhã|n[ao]${S}próxim[oa]${S}${PERIOD}|n[ao]${S}${PERIOD}${S}que${S}vem)`;
+// A short subject between the time phrase and the verb: "os editores", "ela", "vós".
+const SUBJECT = `(?:(?:os|as|o|a)${S}(?!(?:que|qua[il]s?)${W})\\p{L}+${S}|(?:eles|elas|ele|ela|tu|vós|nós|vocês|você)${S})?`;
+// Even indexes put the verb before the time phrase, odd ones after it.
 const TENSE_FRAMES = [
-  `(?<target>${FUTURE})${S}(?:ontem|anteontem)${W}`,
-  `(?:ontem|anteontem),?${S}(?<target>${FUTURE})${W}`,
-  `(?<target>${PAST})${S}amanhã${W}`,
-  `amanhã,?${S}(?<target>${PAST})${W}`,
+  `(?<target>${FUTURE})${S}${PAST_TIME}${W}`,
+  `(?:${PAST_TIME},?|${BARE_PAST_TIME})${S}${SUBJECT}(?<target>${FUTURE})${W}`,
+  `(?<target>${PAST})${S}${FUTURE_TIME}${W}`,
+  `${FUTURE_TIME},?${S}${SUBJECT}(?<target>${PAST})${W}`,
 ];
+// Only a time phrase that opens its clause rules the verb: not "Quem chegou ontem enviará".
+const FRONT_OPENING =
+  /(?:^|[.!?;:,\n]["'”’»)]*)[ \t ]*(?:(?:eu|tu|ele|ela|nós|vós|eles|elas|você|vocês)[ \t]+)?$/iu;
+// Endings that nouns have too ("bandeiras", "eras") need a known verb stem.
+const RARE_ENDING = /(?:ás|emos|eis|aras|eras|iras|áreis|êreis|íreis)$/u;
+const CONJUGATION: Record<string, "ar" | "er" | "ir"> = {
+  ar: "ar",
+  er: "er",
+  ir: "ir",
+  a: "ar",
+  á: "ar",
+  e: "er",
+  ê: "er",
+  i: "ir",
+  í: "ir",
+};
+
+/** A form whose stem is a known verb of its conjugation: "enviaras" (envi-ar). */
+function knownVerb(form: string): boolean {
+  const m =
+    /^(\p{L}+?)(ar|er|ir)(?:ás|emos|eis)$/u.exec(form) ??
+    /^(\p{L}+?)([aeiáêí])r(?:as|eis)$/u.exec(form);
+  return !!m && verbStems()[CONJUGATION[m[2]]].has(m[1]);
+}
 
 function pastOf(future: string): string[] {
-  const stem = future.replace(/(?:ão|á|ei)$/, "");
+  const stem = future.replace(/(?:ão|ás|á|ei|emos|eis)$/, "");
   const vowel = stem.slice(-2, -1);
   if (/ão$/.test(future)) return [`${stem}am`];
   if (/ei$/.test(future)) return [`${stem.slice(0, -2)}${vowel === "a" ? "ei" : "i"}`];
+  if (/emos$/.test(future)) return [`${stem.slice(0, -1)}mos`];
+  if (/eis$/.test(future)) {
+    const accented = ({ a: "á", e: "ê", i: "í" } as Record<string, string>)[vowel];
+    return [`${stem.slice(0, -1)}stes`, `${stem.slice(0, -2)}${accented}reis`];
+  }
+  if (/ás$/.test(future)) return [`${stem.slice(0, -1)}ste`, `${stem}as`];
   const preterite = `${stem.slice(0, -2)}${{ a: "ou", e: "eu", i: "iu" }[vowel]}`;
   return [preterite, `${stem}a`];
 }
 
+function futureOf(past: string): string {
+  const plain: Record<string, string> = { á: "a", ê: "e", í: "i" };
+  if (/reis$/.test(past)) return past.replace(/([áêí])reis$/, (_, v: string) => `${plain[v]}reis`);
+  if (past.endsWith("m")) return `${past.slice(0, -2)}ão`;
+  if (past.endsWith("s")) return `${past.slice(0, -2)}ás`;
+  return `${past.slice(0, -1)}á`;
+}
+
 function tenses(ctx: DetectContext, findings: RawFinding[]): void {
-  for (const pattern of TENSE_FRAMES) {
+  TENSE_FRAMES.forEach((pattern, index) => {
     for (const m of frameMatches(ctx, pattern)) {
       const target = m.groups!.target.toLowerCase();
       const [start] = m.indices!.groups!.target;
+      const opening = ctx.text.slice(Math.max(0, m.index - 8), m.index);
+      if (index % 2 === 1 && !FRONT_OPENING.test(opening)) continue;
       if (DETERMINER_BEFORE.test(ctx.text.slice(Math.max(0, start - 12), start))) continue;
-      if (/ra?m?$/.test(target) && !/[áã]/.test(target)) {
+      if (RARE_ENDING.test(target) && !knownVerb(target)) continue;
+      if (index >= 2) {
         if (present(target)) continue;
-        const future = target.endsWith("m")
-          ? `${target.slice(0, -2)}ão`
-          : `${target.slice(0, -1)}á`;
-        push(findings, ctx, m, "target", [future], "review_msg_pt_tense_adverb");
+        push(findings, ctx, m, "target", [futureOf(target)], "review_msg_pt_tense_adverb");
       } else push(findings, ctx, m, "target", pastOf(target), "review_msg_pt_tense_adverb");
     }
-  }
+  });
 }
 
 export function verbAgreement(ctx: DetectContext): RawFinding[] {

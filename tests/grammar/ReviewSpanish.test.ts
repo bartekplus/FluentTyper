@@ -58,6 +58,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Quiero que este en casa a las diez.", "Quiero que esté en casa a las diez."],
         ["Vivo con está chica desde hace un año.", "Vivo con esta chica desde hace un año."],
         ["Para está ocasión me pondré traje.", "Para esta ocasión me pondré traje."],
+        ["Ya esta terminada la obra.", "Ya está terminada la obra."],
+        ["Todavía esta cerrada la tienda.", "Todavía está cerrada la tienda."],
         ["Está misma tarde te llamo.", "Esta misma tarde te llamo."],
         ["Mi abuela no vino, esta resfriada.", "Mi abuela no vino, está resfriada."],
         ["Esta sentada en el sofá.", "Está sentada en el sofá."],
@@ -66,6 +68,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
       ],
       neg: [
         "Esta subida de precios preocupa a todos.",
+        "Ya esta llamada no sirve de nada.",
         "Ya que esta depende de ti, decide tú.",
         "Aunque esta fuera la última vez, iría.",
         "¿Dónde has puesto esta carta?",
@@ -397,6 +400,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["No tienes por que venir.", "No tienes por qué venir."],
         ["Nadie sabe por que se fue.", "Nadie sabe por qué se fue."],
         ["Ignoro por que razón lo hizo.", "Ignoro por qué razón lo hizo."],
+        ["¿Sabes ya por que lo eligieron?", "¿Sabes ya por qué lo eligieron?"],
       ],
       neg: [
         "Lo haré porque me apetece.",
@@ -470,6 +474,13 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
     {
       pos: [
         ["Los vecinos tiene un perro.", "Los vecinos tienen un perro."],
+        ["Ustedes ahora vendrá con nosotros.", "Ustedes ahora vendrán con nosotros."],
+        ["Ellos todavía no sabe nada.", "Ellos todavía no saben nada."],
+        ["La idea parecen que funciona.", "La idea parece que funciona."],
+        [
+          "El asunto habían parecido que estaba claro.",
+          "El asunto había parecido que estaba claro.",
+        ],
         ["Juan tienen dos gatos.", "Juan tiene dos gatos."],
         ["Dijo que Iker vienen mañana.", "Dijo que Iker viene mañana."],
         ["Marta Ruiz llegan hoy.", "Marta Ruiz llega hoy."],
@@ -499,6 +510,8 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "No me gustan esa clase de bromas.",
         "Ellos hace años que no se ven.",
         "Las cosas parece que mejoran.",
+        "Las cosas había parecido que mejoraban.",
+        "Los vecinos parecen contentos.",
         "Son resultado de mucho trabajo.",
         "No eran pecado.",
         "Mi amigo Eren es de Turquía.",
@@ -509,6 +522,7 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         "Ella es médico en un hospital.",
         "Su profesión es abogado.",
         "La vida es puro teatro.",
+        "Mis primas parecen niños traviesos.",
         "La casa está justo enfrente.",
         "La sala estaba mal iluminada.",
       ],
@@ -703,9 +717,13 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["En el 4to. piso hay goteras.", "En el 4.º piso hay goteras."],
         ["Abre a las 9 hrs. de la mañana.", "Abre a las 9 h de la mañana."],
         ["Añade 200grs de harina.", "Añade 200 g de harina."],
+        ["Es la 2º vez que lo llamo.", "Es la 2ª vez que lo llamo."],
+        ["Celebraron su 25ª Aniversario.", "Celebraron su 25º Aniversario."],
       ],
       neg: [
         "Vivo en el 3.º izquierda.",
+        "Vive en el 3º C.",
+        "Es la 2.ª vez que lo llamo.",
         "Llegó el 2 de mayo.",
         "Vivían 500 h. de distintas nacionalidades.",
         "Añade 200 g de harina.",
@@ -796,9 +814,19 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Plantaron las árboles ayer.", "Plantaron los árboles ayer."],
         ["Nunca vi tanto gente junta.", "Nunca vi tanta gente junta."],
         ["No sé cuanto horas faltan.", "No sé cuantas horas faltan."],
+        ["Perdimos la tren de las ocho.", "Perdimos el tren de las ocho."],
+        ["Vimos una gran tsunami en el documental.", "Vimos un gran tsunami en el documental."],
+        ["Leí el frase dos veces.", "Leí la frase dos veces."],
+        ["Tiene una corazón enorme.", "Tiene un corazón enorme."],
+        ["Limpiaron el superficie del lago.", "Limpiaron la superficie del lago."],
+        ["Pedimos una menú del día.", "Pedimos un menú del día."],
       ],
       neg: [
         "Hay tanto hombres como mujeres.",
+        "Me sorprende tanto una respuesta tan corta.",
+        "Estoy al corriente de todo.",
+        "Pidió un café con leche en el tren.",
+        "La frase del cartel era corta.",
         "¿Cuánto cuesta?",
         "¿Cuántos coches ha tenido él?",
         "La mar estaba en calma.",
@@ -860,8 +888,15 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Lo pensé mucho .Al final dije que no.", "Lo pensé mucho. Al final dije que no."],
         ["Me lo explicó así : primero el agua.", "Me lo explicó así: primero el agua."],
         ["Lo intenté;luego me rendí.", "Lo intenté; luego me rendí."],
+        ['Me contestó " vale" y colgó.', 'Me contestó "vale" y colgó.'],
+        ['"Hasta mañana ", se despidió.', '"Hasta mañana", se despidió.'],
+        ['Escribió "gracias " en la tarjeta.', 'Escribió "gracias" en la tarjeta.'],
       ],
       neg: [
+        'La pantalla mide 6" y la otra 7" de ancho.',
+        'Me contestó "vale" y colgó.',
+        'Dijo " y luego se fue.',
+        'Usa " " como separador.',
         "Visita la web ejemplo.es para más datos.",
         "Abre el archivo datos.Final antes de salir.",
         "Lo firmó J.R.Tolkien en persona.",
@@ -1056,8 +1091,20 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Os deseo buenas noches amigos.", "Os deseo buenas noches, amigos."],
         ["¿Cómo estás Marta?", "¿Cómo estás, Marta?"],
         ["Afortunadamente nadie se hizo daño.", "Afortunadamente, nadie se hizo daño."],
+        ["Abrimos las ventanas ya que hacía calor.", "Abrimos las ventanas, ya que hacía calor."],
+        [
+          "Cerramos temprano puesto que no había clientes.",
+          "Cerramos temprano, puesto que no había clientes.",
+        ],
       ],
       neg: [
+        "Ya que estás aquí, ayúdame.",
+        "Te he dicho ya que no.",
+        "Sabes ya que te quiero.",
+        "El puesto que ocupa es nuevo.",
+        "Consiguió un buen puesto que le encanta.",
+        "Lo ha puesto que no se vea.",
+        "Y ya que lo preguntas, sí.",
         "No te pido sino que te escuches.",
         "No es azul sino verde.",
         "Estaba cansado pero feliz.",
@@ -1365,8 +1412,16 @@ const FIXTURES: Array<[CatalogRuleId, string, Fixture]> = [
         ["Leí la tres novelas del verano.", "Leí las tres novelas del verano."],
         ["Vivió en los tres casas del barrio.", "Vivió en las tres casas del barrio."],
         ["Estos dos casas son nuevas.", "Estas dos casas son nuevas."],
+        ["Nos sirvieron un buena guiso.", "Nos sirvieron un buen guiso."],
+        ["Compró unas nuevos camisas.", "Compró unas nuevas camisas."],
+        ["Era la primero vez que venía.", "Era la primera vez que venía."],
+        ["Vimos los mismas películas.", "Vimos las mismas películas."],
       ],
       neg: [
+        "Fue un buen día para todos.",
+        "Tengo una buena idea.",
+        "Llegó el mismo día.",
+        "Usa la misma radio de siempre.",
         "Había demasiado pocas sillas para todos.",
         "Uno tardó dos días y otro tres días.",
         "Es la tres veces campeona de Europa.",
@@ -2616,6 +2671,7 @@ test("a Spanish subject pronoun with a verb of another person is flagged", () =>
     ["Vosotras podíamos venir.", "podíais"],
     ["Yo cantabas bien.", "cantaba"],
     ["Tú volverían pronto.", "volverías"],
+    ["Vosotros ahora vendrán al cine.", "vendréis"],
   ]) {
     const found = findings("spanishAgreement", text);
     expect(found).toHaveLength(1);
@@ -2999,4 +3055,15 @@ test.each([
   ["spanishAgreement", "Comimos juntos al mediodía."],
 ] as Array<[CatalogRuleId, string]>)("%s guesses no gender in %p", (ruleId, text) => {
   expect(findings(ruleId, text)).toEqual([]);
+});
+
+test("hacia before así or medio día offers the preposition and the verb hacía", () => {
+  for (const [text, choices] of [
+    ["Tiró de la cuerda hacia así con fuerza.", ["hacia sí", "hacía así"]],
+    ["Llegaron hacia medio día al pueblo.", ["hacia mediodía", "hacía medio día"]],
+  ] as const) {
+    const found = findings("englishPhraseCorrections", text);
+    expect(found).toHaveLength(1);
+    expect(found[0].alternatives.map((a) => a.preview)).toEqual([...choices]);
+  }
 });

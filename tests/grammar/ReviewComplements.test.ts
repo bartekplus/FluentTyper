@@ -221,6 +221,45 @@ test.each([
   expect(scan(ing)).toEqual([]);
   expect(scan(object)).toEqual([]);
 });
+test.each([
+  ["She advised to wait a day.", "She advised waiting a day."],
+  ["We encourage to ask questions.", "We encourage asking questions."],
+  ["The method requires to sort the list first.", "The method requires sorting the list first."],
+  ["The rules permit to park here.", "The rules permit parking here."],
+  ["Posters try to encourage to vote early.", "Posters try to encourage voting early."],
+])("advise, encourage, require and permit without an object take -ing: %s", (source, ing) => {
+  const [d] = scan(source);
+  expect(d.messageKey).toBe("review_msg_gerund_complement");
+  expect(d.alternatives.map((a) => applyEdits(source, a.edits))).toEqual([ing]);
+  expect(scan(ing)).toEqual([]);
+});
+test.each([
+  ["We may require to sign a new form.", "We may be required to sign a new form."],
+  ["They will require to show their tickets.", "They will be required to show their tickets."],
+])("a person after a modal is required to do it: %s", (source, fixed) => {
+  const [d] = scan(source);
+  expect(d.messageKey).toBe("review_msg_modal_be");
+  expect(d.alternatives.map((a) => applyEdits(source, a.edits))).toEqual([fixed]);
+  expect(scan(fixed)).toEqual([]);
+});
+test.each([
+  "She advised them to wait a day.",
+  "Visitors are advised to book early.",
+  "We encourage you to ask questions.",
+  "Staff are encouraged to share ideas.",
+  "The method requires us to sort the list.",
+  "It is required to log in.",
+  "The update will require a restart.",
+  "The rules permit us to park here.",
+  "Weather permitting to some degree, we sail.",
+  "It has the speed it requires to win.",
+  "That is what the law requires to start.",
+  "The time that a task requires to finish varies.",
+  "The extra room that you may require to work is free.",
+  "This step will likely require to restart.",
+])("advise and friends with an object or a passive stay: %s", (text) => {
+  expect(scan(text)).toEqual([]);
+});
 const frameValid = [
   // look forward to: nouns, pronouns, gerunds and unproven verbs
   "I'm looking forward to the weekend.",

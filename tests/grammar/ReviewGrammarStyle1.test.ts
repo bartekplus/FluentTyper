@@ -216,6 +216,42 @@ test.each(negatives)("%s leaves %s", (rule, text) => {
   expect(review(text, rule)).toEqual([]);
 });
 
+// An article before an adjective and "of", or before a form of be: the noun is missing.
+test.each([
+  ["The widespread of fake news worried us.", "The widespread"],
+  ["She praised the additional of two rooms.", "the additional"],
+  ["We saw an unusual of red birds.", "an unusual"],
+  ["Maybe the is a typo here.", "the is"],
+  ["Ask if the team an be there.", "an be"],
+])("the noun-less determiner warning finds %s", (text, original) => {
+  const found = review(text, "englishSentenceStructure");
+  expect(found.map((d) => [d.original, d.warningOnly])).toEqual([[original, true]]);
+});
+test.each([
+  "The rich of the town gave money.",
+  "She is the elderly of the family.",
+  "He is the larger of the two.",
+  "It was the best of times.",
+  "They chose the lesser of two evils.",
+  "We met the first of the guests.",
+  "The latter of the two won.",
+  "He showed the whole of the map.",
+  "I read the Daily of London.",
+  "The is-a relation holds.",
+  "The is–ought gap remains.",
+  "Let a be the side length.",
+  "Annex A is attached.",
+  "Then An was crowned king.",
+  "Rest is not the be all of life.",
+  "Oslo is the northernmost of the three.",
+  "Take the exponential of x.",
+  "The slain of the war rest here.",
+  "The Wretched of the Earth is a book.",
+  "A has-been of the stage spoke.",
+])("the noun-less determiner warning leaves %s", (text) => {
+  expect(review(text, "englishSentenceStructure")).toEqual([]);
+});
+
 test("quoted examples, other languages and the user dictionary stay untouched", () => {
   expect(review('Never write "these criterion" here.', "englishCountability")).toEqual([]);
   expect(review("These criterion differ.", "englishCountability", "de_DE")).toEqual([]);

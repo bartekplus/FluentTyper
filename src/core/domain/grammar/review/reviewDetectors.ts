@@ -81,6 +81,7 @@ import {
   isArticleContext,
 } from "../implementations/EnglishArticleAnCorrectionRule";
 import { ordinalSuffix } from "../implementations/EnglishOrdinalSuffixRule";
+import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import {
   couldEndProperName,
   findProperName,
@@ -240,6 +241,15 @@ const ownedFindings = (ctx: DetectContext, list: readonly RawFinding[] | undefin
 // Words after which a lowercase "i" names something ("the variable i"): an identifier.
 const IDENTIFIER_WORDS = "each|every|the|a|index|variable|counter|iterator|loop";
 const IDENTIFIER_BEFORE = new RegExp(`\\b(?:${IDENTIFIER_WORDS})\\s+$`, "i");
+// A preposition, an operator word or a symbol before "i" makes it a variable: "from 1 to
+// i", "the square of i", "base + i", "let i be". The pronoun is never the object here.
+const FORMULA_BEFORE =
+  /(?:\b(?:of|by|to|from|let|plus|minus|equals|for all)|[+×*=<>÷^−]|(?:^|[^\p{L}])\p{L},[ \t\u00A0]+(?:and|or))[ \t\u00A0]+$/iu;
+const PRONOUN_VERB_AFTER =
+  /^[ \t\u00a0]+(?:can|could|will|would|shall|should|may|might|must|am|was|have|had|do|did|don['’]t|didn['’]t|can['’]t|think|know|want|need|guess|hope|feel|mean|said|got|went|love|like)(?![\p{L}])/iu;
+// After "i": "i times R", "i squared", "i and j", or a list "i x, ii y".
+const FORMULA_AFTER =
+  /^[ \t\u00A0]+(?:times|squared|and[ \t\u00A0]+[jkn])(?![\p{L}\p{N}])|^[ \t\u00A0]+\p{L}+,[ \t\u00A0]+ii(?![\p{L}\p{N}])/iu;
 // Words naming a numbered part: "Part i.", "Appendix i." is the roman numeral.
 const NUMERAL_BEFORE =
   /\b(?:part|chapter|section|appendix|volume|vol|book|act|phase|step|stage|level|type|class|article|annex|item|figure|fig|table|option|case|grade|war|page|no)\s+$/i;
@@ -436,6 +446,16 @@ const pronounI: Detector = (ctx) => {
     if (/[@#/\\.=$\-[]/.test(before) || before === MASK_CHAR) continue;
     if (IDENTIFIER_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) continue;
     const rest = ctx.text.slice(start + 1, start + 1 + 40);
+    // "If we need to i can meet": a modal or verb after it makes it the subject again.
+    if (
+      FORMULA_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start)) &&
+      !PRONOUN_VERB_AFTER.test(rest)
+    )
+      continue;
+    if (FORMULA_AFTER.test(rest)) continue;
+    // The letter itself: "the short i sound" ("i sound tired" is the pronoun).
+    if (/\b(?:short|long)[ \t\u00A0]+$/i.test(ctx.text.slice(Math.max(0, start - 8), start)))
+      if (/^[ \t\u00A0]+sounds?\b/i.test(rest)) continue;
     let contextEnd = start + 1;
     let sentenceEnd = false;
     if (/^['’](?:m|ve|ll|d)(?![\p{L}\p{N}])/u.test(rest)) {
@@ -716,6 +736,12 @@ const theirThere: Detector = (ctx) => {
   return findings;
 };
 
+// A preposition or an -ing verb before "it": "it" is an object ("Behind it are …").
+const OBJECT_IT_BEFORE =
+  /(?:\b(?:behind|beside|besides|below|beneath|under|underneath|above|over|around|within|inside|outside|against|among|beyond|near|with|without|on|in|at|from|to|for|of|by|about)|\b[a-z]{2,}ing)[ \t\u00a0]+$/i;
+// "the day I called you was", "the time that we saw you was": a noun, a subject and a verb.
+const OBJECT_GAP_YOU =
+  /\b([a-z]+)[ \t\u00a0]+(?:that[ \t\u00a0]+)?(?:I|we|they|he|she)[ \t\u00a0]+(?:(?:did|had|have|first|last|never)[ \t\u00a0]+)?[a-z]+[ \t\u00a0]+$/;
 // Subordinators after which "you" opens a clause as its subject: "if you was".
 const YOU_SUBJECT_BEFORE = new Set([
   ...["if", "when", "whenever", "because", "while", "although", "though", "unless"],
@@ -738,11 +764,23 @@ const pronounVerb: Detector = (ctx) => {
       if (NON_PRONOUN_FOLLOWERS.has(inputVerb.toLowerCase())) continue;
       if (isVariableI(ctx.text, phraseRange.start)) continue;
     }
+    const lookback = ctx.text.slice(Math.max(0, phraseRange.start - 48), phraseRange.start);
+    // "Behind it are two towers", "Backing it are banks": "it" is the object of the word before.
+    if (inputPronoun.toLowerCase() === "it" && OBJECT_IT_BEFORE.test(lookback)) continue;
+    // "the set I is", "an I is", "phase I is": a capital letter that names a thing.
+    if (
+      inputPronoun === "I" &&
+      /\b(?:a|an|the|set|ideal|matrix|phase|stage|type|part)[ \t\u00a0]+$/i.test(lookback)
+    )
+      continue;
     let bulkBlock: RawFinding["bulkBlock"];
     if (inputPronoun.toLowerCase() === "you") {
       // "Everything I told you was", "Seeing you was", "the gift for you was":
       // "you" is the object of the word before it, and "was" is right.
       if (isObjectYou(ctx.text, phraseRange.start)) continue;
+      // "The day I called you was": "you" is the object inside a relative clause.
+      if (OBJECT_GAP_YOU.test(lookback) && englishWordInfo(OBJECT_GAP_YOU.exec(lookback)![1])?.noun)
+        continue;
       const previous = PREVIOUS_WORD.exec(
         ctx.text.slice(Math.max(0, phraseRange.start - 32), phraseRange.start),
       )?.[1].toLowerCase();

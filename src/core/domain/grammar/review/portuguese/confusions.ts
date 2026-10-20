@@ -869,9 +869,10 @@ const FRAMES: Frame[] = [
     alternatives: ["em"],
     messageKey: "review_msg_pt_regency",
   },
-  // "Fui á praia" -> "à" or "a": a lone "a" takes the grave accent or none. "o á" is the letter.
+  // "Fui á praia" -> "à" or "a": a lone "a" takes the grave accent or none. "o á" is the letter,
+  // and "Á..." is a cut-off word.
   {
-    pattern: `(?<!(?<![\\p{L}])(?:o|um|no|do|ao|pelo|num|dum|letra)${S})(?<target>á)${W}(?!-)`,
+    pattern: `(?<!(?<![\\p{L}])(?:o|um|no|do|ao|pelo|num|dum|letra)${S})(?<target>á)${W}(?!-|\\.\\.|…)`,
     alternatives: ["à", "a"],
     messageKey: "review_msg_pt_crase",
   },

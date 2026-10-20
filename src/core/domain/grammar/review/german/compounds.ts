@@ -8,6 +8,7 @@ import {
   germanVerbLike,
 } from "./germanLexicon";
 import { gated, isGerman, likeTyped, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
+import { boundVerbs } from "./joinedVerbs";
 import { nounPairs } from "./nounPairs";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
@@ -273,10 +274,12 @@ const FRAMES: Array<[RegExp, Fix]> = [
     (m, ctx) => {
       const { liebe, gute, folge } = m.groups!;
       const prior = tokensBefore(ctx.text, m.index, 1)[0] ?? "";
-      // "ihr zu Liebe", "den Eltern zu Liebe": a dative before it.
+      // "ihr zu Liebe", "den Eltern zu Liebe": a dative before it; "kam zu gute", "etwas zu
+      // gute kommen": the verb or its object.
       if (
         (liebe || gute) &&
-        !/^(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen|\p{Lu}\p{Ll}+n?)$/u.test(prior)
+        !/^(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen|\p{Lu}\p{Ll}+n?)$/u.test(prior) &&
+        !(gute && /^(?:kam|kamen|kommt|käme|halte|hält|hielt|etwas|nichts|viel|wenig)$/.test(prior))
       )
         return null;
       // "Berichten zu Folge", not "von Folge zu Folge".
@@ -405,6 +408,29 @@ const FRAMES: Array<[RegExp, Fix]> = [
         return null;
       }
       if (before.some((t) => /^[Vv]on$/.test(t)) || before.at(-1) === "Berg") return null;
+      // "hat die Tür zu gemacht": after a form of "haben", "zu" and a participle make one
+      // verb; "ist zu gelassen", "wirkte zu gelassen" are "too calm".
+      const zuParticiple = particle === "zu" && /^ge(\p{Ll}{2,}?)(?:en|t)$/u.exec(verb);
+      if (zuParticiple) {
+        const clause =
+          ctx.text
+            .slice(Math.max(0, m.index - 80), m.index)
+            .split(/[.!?;:,\n]/)
+            .at(-1)!
+            .match(/\p{L}+/gu) ?? [];
+        const haben = clause.some((t) =>
+          /^(?:hab(?:e|en|t)|hast|hat|hatte\p{Ll}*|hätte\p{Ll}*)$/u.test(t),
+        );
+        const linking = clause.some(
+          (t) =>
+            COPULAS.has(t) || /^(?:wirk|schein|schien|bleib|blieb|wird|wurde)\p{Ll}*$/u.test(t),
+        );
+        // "hatte da nichts zu gesagt": a split "dazu", "wozu".
+        const split = clause.some((t) => /^(?:da|wo)$/i.test(t));
+        return haben && !linking && !split && !aux && germanInfinitive(`zu${zuParticiple[1]}en`)
+          ? `zu${verb}`
+          : null;
+      }
       return joinsVerb(particle, verb) ? particle + verb : null;
     },
   ],
@@ -526,5 +552,8 @@ function compounds(ctx: DetectContext): RawFinding[] {
 }
 
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["germanCompounds"], detect: (ctx) => [...compounds(ctx), ...nounPairs(ctx)] },
+  {
+    rules: ["germanCompounds"],
+    detect: (ctx) => [...compounds(ctx), ...nounPairs(ctx), ...boundVerbs(ctx)],
+  },
 ];

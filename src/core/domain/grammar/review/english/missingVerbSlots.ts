@@ -134,11 +134,22 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
     // (wordFormSlots).
     if (tokens[0]?.lower === "not" && tokens[1]?.lower === "only") continue;
     if (tokens[0]?.lower === "maybe") continue;
+    // "It too much work", "it too many steps": too + a quantity is a predicate.
+    const tooMuch = /^too (?:much|many)$/.test(adverbs.join(" "));
     if (INTENSIFIERS.test(word) || (adverbs.length === 0 && /ly$/.test(word))) continue;
     const before = wordBefore(ctx, m.index);
     let ok = false;
     let clauseAfter = false;
-    if (/^(?:a|an|the|my|our|your)$/.test(word) && k === 0) {
+    if (
+      lower !== "this" &&
+      (tooMuch || (word === "one" && next?.kind === "word" && next.lower === "of"))
+    )
+      // "It still one of my picks", "It too much work": "one of" and "too much" need be.
+      ok =
+        !/^(?:make|makes|made|count|counts|counted|call|calls|called|consider|considered|think|thought|find|found)$/.test(
+          before,
+        );
+    else if (/^(?:a|an|the|my|our|your)$/.test(word) && k === 0) {
       // "I bought a book and he a ruler" (gapping), "think it a distinction" (object + NP).
       ok =
         (lower !== "this" || word !== "my") &&
@@ -189,8 +200,10 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
                 before,
               )))))
     )
-      // "We nifty workarounds" has a noun after it: no predicate.
+      // "We handy tricks" has a noun after it: no predicate. After "also" or "still"
+      // the adjective starts a predicate noun phrase: "She also good friends with Ana".
       ok = !(
+        !/^(?:also|still)$/.test(adverbs[0] ?? "") &&
         !closes &&
         next?.kind === "word" &&
         (nounOnly(next.lower) ||

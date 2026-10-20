@@ -1,6 +1,8 @@
+import { namedExampleBefore } from "../exampleCues";
 import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
+  deumlaut,
   germanAdjective,
   germanGender,
   germanInfinitive,
@@ -10,7 +12,9 @@ import {
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
 import { salutationEndings } from "./salutations";
 import {
+  BOUNDARY,
   ci,
+  gated,
   isGerman,
   tokensAfter,
   tokensBefore,
@@ -160,7 +164,7 @@ const PREPOSITION_CASES = new Map<string, number[]>([
 
 /** The strong endings an adjective takes after a preposition before this noun, or null. */
 function strongEndings(preposition: string, noun: string): string[] | null {
-  const cases = PREPOSITION_CASES.get(preposition);
+  let cases = PREPOSITION_CASES.get(preposition);
   const head = noun.split("-").at(-1)!;
   const reading = germanGender(head);
   if (!cases) return null;
@@ -175,6 +179,9 @@ function strongEndings(preposition: string, noun: string): string[] | null {
   ) {
     // "Anlagen", "Regeln", "Preisen": a plural in -n or -en of a known noun.
     genders = ["pl"];
+    // "Gebäuden", "Kindern": the -n of a masculine or neuter plural marks the dative.
+    const singular = germanGender(head.slice(0, -1));
+    if (singular && singular.gender !== "f" && cases.includes(2)) cases = [2];
   } else return null;
   // Only a plural: before a singular the word is as often an adverb ("mit maximal Tempo").
   if (!genders.includes("pl") || genders.length > 1) return null;
@@ -246,12 +253,21 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     // "letzte", "erster": already inflected.
     const inflected = /^(.+?)(?:e|en|er|es|em)$/.exec(adj);
     if (inflected && germanAdjective(inflected[1])) continue;
-    const after = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
-    // "im scherzhaft Gedankenstrich-Krieg genannten Diskurs": an extended attribute.
-    if (/^\p{Ll}+(?:te|ten|ter|tes|tem|nde|nden|nder|ndes|ndem|ene|enen|ener|enes)$/u.test(after)) {
+    const [after = "", head = ""] = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 2);
+    // "im liebevoll Oma-Haus genannten Hof": an extended attribute before its
+    // noun; not a participle that ends the clause ("in öffentlich Gebäuden verboten.").
+    if (
+      /^\p{Ll}+(?:te|ten|ter|tes|tem|nde|nden|nder|ndes|ndem|ene|enen|ener|enes)$/u.test(after) &&
+      !(
+        BOUNDARY.test(head) &&
+        /^(?:\p{Ll}*ge\p{Ll}{2,}|(?:ver|be|er|ent|zer)\p{Ll}{2,})(?:t|en)$/u.test(after)
+      )
+    ) {
       continue;
     }
     if (ctx.dictionary.has(adj) || ctx.dictionary.has(noun.toLowerCase())) continue;
+    // "dicht an dicht Perlen": a fixed pair around the preposition, no attribute.
+    if (isPreposition && tokensBefore(ctx.text, m.index, 1)[0]?.toLowerCase() === adj) continue;
     const compound = adj + noun.toLowerCase();
     // "Echtzeit": a bare adjective glued to the noun ("die letzte Bahn" stays).
     // "in best Form", "aus rot Gold": a superlative stem, or a word that is no adverb after a
@@ -276,7 +292,10 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     if (isPreposition) {
       // "in öffentlich Anlagen": the strong ending the preposition's case calls for, before a
       // plural. "für wichtig halten", "um … zu", "die Jahre über": no preposition there.
-      if (/^(?:für|um|über|zu|bis|ab)$/.test(low) || PRONOUN_LIKE.test(adj)) continue;
+      if (/^(?:um|über|zu|bis|ab)$/.test(low) || PRONOUN_LIKE.test(adj)) continue;
+      // "für verschieden Themen": "für" only before a plural, and not in "für richtig Kinder
+      // zu loben".
+      if (low === "für" && (after === "zu" || !strongEndings(low, noun))) continue;
       // "mit voll Ausstattung", "aus hart Pappe": before a singular, an adjective that opens
       // compounds takes its ending or joins the noun.
       const endings = strongEndings(low, noun) ?? compoundSingular(low, adj, noun);
@@ -296,6 +315,8 @@ function bareAdjectives(ctx: DetectContext): RawFinding[] {
     const comma = before.length > 1 ? before[0] : "";
     // "müde", "letzte": the bare form is already the -e form.
     if (adj.endsWith("e")) continue;
+    // "von denen eines offensichtlich Kinder ansprach": "eines" is a pronoun there.
+    if (/^(?:denen|welchen|davon)$/i.test(prior) && /^k?ein(?:e|er|es)$/.test(low)) continue;
     // ", in dem ständig Soldaten …": a relative pronoun.
     if (comma === "," && /^d(?:er|en|em)$/.test(low)) continue;
     // "der allgemein Anklang fand", "Ich meine wirklich Radio": a pronoun, or the verb.
@@ -486,6 +507,60 @@ function officials(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+// "Es werden folgenden Daten gespeichert": with no article, the plural subject after "werden"
+// takes the strong ending -e ("folgende Daten"). A plural in -n or -s may be a dative object
+// ("Die Bücher werden armen Kindern geschenkt"), so it counts only when no subject comes
+// before "werden": the clause opens with a preposition, "es" or an adverb.
+const WERDEN_PLURAL = gated(
+  `(?<=(?:werden|wurden|würden)${SPACE})(?<target>(?<adj>\\p{Ll}{3,}en)${SPACE}(?<noun>\\p{Lu}\\p{Ll}{2,}))${WORD_END}`,
+);
+const EMPTY_SUBJECT = wordSet(
+  "es hier dort dann danach nun jetzt heute morgen dabei dadurch damit zudem außerdem zuerst " +
+    "anschließend künftig bald oft",
+);
+const PARTICIPLE =
+  /^(?:\p{Ll}*ge\p{Ll}{2,}(?:t|en)|\p{Ll}{3,}iert|(?:ver|be|er|ent|zer|miss|unter|über|durch|hinter|wider)\p{Ll}{2,}(?:t|en))$/u;
+
+function werdenPlural(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, WERDEN_PLURAL)) {
+    const { adj, noun } = m.groups!;
+    const stem = adj.slice(0, -2);
+    const participle = /\p{Ll}{3,}end$/u.test(stem) && germanInfinitive(stem.slice(0, -1));
+    if (!(germanAdjective(stem) || participle) || ARTICLES.has(adj) || DEMONSTRATIVES.has(adj))
+      continue;
+    const reading = germanGender(noun);
+    const plural = reading
+      ? reading.plural || reading.gender === "f"
+      : [noun.slice(0, -1), noun.slice(0, -2)].some(
+          (s) => /n$/.test(noun) && s.length >= 3 && nounKnown(s),
+        ) ||
+        // "Bäume", "Projekte": a plural in -e of a known noun.
+        (/e$/.test(noun) && [noun.slice(0, -1), deumlaut(noun.slice(0, -1))].some(nounKnown));
+    // A feminine singular ("folgenden Frage") is no plural; "-n" alone shows the plural.
+    if (!plural || (reading?.gender === "f" && !/n$/.test(noun))) continue;
+    const [start, end] = m.indices!.groups!.target;
+    const [next = "", after = ""] = tokensAfter(ctx.text, end, 2);
+    if (!(PARTICIPLE.test(next) && BOUNDARY.test(after))) continue;
+    if (/[ns]$/.test(noun)) {
+      const clause = ctx.text
+        .slice(Math.max(0, m.index - 80), m.index)
+        .split(/[.!?;:\n,]/)
+        .at(-1)!
+        .match(/\p{L}+/gu) ?? [""];
+      const first = clause[0].toLowerCase();
+      if (!PREPOSITIONS.has(first) && !EMPTY_SUBJECT.has(first)) continue;
+    }
+    if (ctx.dictionary.has(adj) || namedExampleBefore(ctx.text, start)) continue;
+    findings.push(
+      finding("germanAdjectiveForms", "review_msg_german_adjective_ending", start, end, [
+        `${stem}e ${noun}`,
+      ]),
+    );
+  }
+  return findings;
+}
+
 export const DETECTORS: readonly ReviewDetectorEntry[] = [
   {
     rules: ["germanAdjectiveForms"],
@@ -493,6 +568,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       isGerman(ctx)
         ? [
             ...bareAdjectives(ctx),
+            ...werdenPlural(ctx),
             ...strongAfterArticle(ctx),
             ...salutationEndings(ctx),
             ...predicative(ctx),

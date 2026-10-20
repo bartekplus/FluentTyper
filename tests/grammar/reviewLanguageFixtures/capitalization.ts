@@ -61,6 +61,8 @@ export const sentenceStart: RuleFixtures = {
       "Mam 10 tys. złotych.",
       "To tzw. problem.",
       "Mieszkam przy ul. długiej.",
+      "Zob. Kowalski, op. cit., s. 40.",
+      "Pracuje w Spółdz. Mlecz. w Kutnie.",
       "Plik app.js działa.",
       "Krzyknął „Stój!” i uciekł.",
     ],

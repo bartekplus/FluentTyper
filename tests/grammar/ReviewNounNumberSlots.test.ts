@@ -41,6 +41,11 @@ test("noun number follows its determiner or count", () => {
     ["There were a few chair in the hall.", "There were a few chairs in the hall."],
     ["That was a smart ideas though.", "That was a smart idea though."],
     ["We may need a clean towels later.", "We may need a clean towel later."],
+    // A mass noun after "of these"; these/those + a singular subject before its verb.
+    ["Much of these advice is old.", "Much of this advice is old."],
+    ["These chair would break soon.", "These chairs would break soon."],
+    ["Those table was too small.", "That table was too small."],
+    ["These old lamp are bright.", "These old lamps are bright."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -94,6 +99,14 @@ test("compounds, pronoun counts and invariant nouns keep their number", () => {
     "Worth a 1000 words.",
     "He took the car a few miles further.",
     "We spent a few days there.",
+    "One of these elephant toys broke.",
+    "These include a map.",
+    "Those interested may apply.",
+    "These cost more than ours.",
+    "Those present voted yes.",
+    "Those standing were tired.",
+    "Those affected will be told.",
+    "These days are long.",
   ])
     expect({ text, found: scan(text).map((d) => d.original) }).toEqual({ text, found: [] });
 });

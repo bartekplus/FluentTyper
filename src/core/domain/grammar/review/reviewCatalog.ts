@@ -431,6 +431,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "grammar",
     kind: "usage",
     bulk: "individual",
+    languages: ["en_US", "pl_PL"],
   },
   // English tables and typography (review/english/, en-tables2).
   englishApostrophes: {
@@ -760,6 +761,10 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     off: true,
     note: "Optional: 2ème and 1ère are common; typographic usage writes 2e and 1re.",
   }),
+  frenchRepeatedWords: only(["fr_FR"], "style", "repetition", {
+    off: true,
+    note: "Optional: spoken French doubles words for emphasis (très très).",
+  }),
   frenchCommas: only(["fr_FR"], "punctuation", "marks"),
   // German-only Review checks (review/german/).
   germanNounCasing: only(["de_DE"], "typography", "capitalization"),
@@ -775,7 +780,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   germanCommas: only(["de_DE"], "punctuation", "marks"),
   germanVerbAgreement: only(["de_DE"], "grammar", "agreement"),
   germanArticleGender: only(["de_DE"], "grammar", "agreement"),
-  germanQuestionMarks: only(["de_DE"], "punctuation", "marks", { off: true }),
+  germanQuestionMarks: only(["de_DE", "pl_PL"], "punctuation", "marks", { off: true }),
   germanNumbers: only(["de_DE"], "grammar", "numbers"),
   germanStraightQuotes: only(["de_DE"], "typography", "marks", { off: true }),
   germanColloquial: only(["de_DE"], "style", "usage", { off: true }),
@@ -783,6 +788,10 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   germanTypography: only(["de_DE"], "typography", "marks", {
     off: true,
     note: "Optional typography: x and * between numbers are common in plain text.",
+  }),
+  germanJoinedVerbs: only(["de_DE"], "grammar", "boundary", {
+    off: true,
+    note: "Optional: some of these pairs also have a literal sense written apart.",
   }),
 };
 

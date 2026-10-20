@@ -62,3 +62,16 @@ describe("Polish clause boundaries", () => {
       expect(slowest(text)).toBeLessThan(100);
   });
 });
+
+test("no chunk stalls on long sentences for the opt-in fragment and question checks", () => {
+  const rules = ["englishSentenceFragment", "germanQuestionMarks", "polishMisplacedComma"];
+  const slowest = (text: string) => slowestChunkMs(text, "pl_PL", rules);
+  slowest("Przechodząc Obok ".repeat(50));
+  for (const text of [
+    "Przechodząc Obok ".repeat(800),
+    "Czy Gdzie mieszkasz ".repeat(600),
+    "w, którym do, czego ".repeat(500),
+    "Idąc tam. ".repeat(1_000),
+  ])
+    expect(slowest(text)).toBeLessThan(100);
+});

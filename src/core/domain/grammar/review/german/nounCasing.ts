@@ -11,7 +11,7 @@ import {
   germanVerbLike,
   type GermanNounReading,
 } from "./germanLexicon";
-import { capitalizedAdjectives } from "./capitalized";
+import { capitalizedAdjectives, capitalizedVerbs } from "./capitalized";
 import { idioms } from "./idioms";
 import { names } from "./names";
 import { politeImperative, salutationCase } from "./salutations";
@@ -624,6 +624,11 @@ function adjectiveNounHolds(kind: Trigger, before: string[], at: number, after: 
   if (BOUNDARY.test(next) || COORDINATORS.has(next) || VERB_GOVERNORS.has(next)) return true;
   if (ARTICLES.has(next) || DEMONSTRATIVES.has(next) || PREPOSITIONS.has(next)) return true;
   if (clauseVerb) return true;
+  // "einem fest installierten Display": an adverb before a participle with the determiner's
+  // ending.
+  const participle =
+    /^(?:\p{Ll}*(?:ge|ver|be|er|ent|zer)\p{Ll}{2,}t|\p{Ll}{3,}iert)(e|en|er|es|em)$/u.exec(next);
+  if (participle && endingsAfter(det)?.includes(participle[1])) return false;
   return (
     /^\p{Ll}/u.test(next) &&
     !germanAdjective(next) &&
@@ -864,6 +869,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
         ...own,
         ...nominalized(ctx),
         ...capitalizedAdjectives(ctx),
+        ...capitalizedVerbs(ctx),
         ...fixed,
         ...names(ctx),
         ...salutationCase(ctx),

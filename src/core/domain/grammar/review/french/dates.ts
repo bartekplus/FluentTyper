@@ -87,7 +87,9 @@ function impossible(m: RegExpExecArray): RawFinding {
 }
 
 // A label that makes the next number a code: "dossier n° 12/34/2020", "réf. 31/13/2020".
-const CODE_LABEL = /(?:^|[\s(])(?:n[°o]\.?|num\.?|numéro|#|réf\.?|code|dossier)\s*:?\s{0,8}$/iu;
+// "n° 41 avril 2023", "tome 52 mars": an issue or volume number before a month name.
+const CODE_LABEL =
+  /(?:^|[\s(])(?:n[°o]\.?|num\.?|numéro|#|réf\.?|code|dossier|tome|vol\.?|volume)\s*:?\s{0,8}$/iu;
 // "le", "du", "au", "né" or "née" before a date, also before emphasis: "le **32.04.2020**".
 const DATED_BEFORE = new RegExp(
   `(?:^|[^\\p{L}])(?:le|du|au|né|née)[ \\t]+${EMPHASIS_MARKS}$`,
@@ -104,7 +106,8 @@ const PLURAL_BEFORE = /(?:^|[^\p{L}])(?:les|des|ces|mes|tes|ses|nos|vos|leurs)[ 
 function fullDate(ctx: DetectContext, m: RegExpExecArray): boolean {
   const { day, month, year, sep } = m.groups!;
   const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
-  if (!/^\d+$/.test(month)) return day.length <= 2 && !PLURAL_BEFORE.test(before);
+  if (!/^\d+$/.test(month))
+    return day.length <= 2 && !PLURAL_BEFORE.test(before) && !CODE_LABEL.test(before);
   return (
     (sep ?? "/") === "/" &&
     year?.length === 4 &&

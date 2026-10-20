@@ -35,6 +35,11 @@ test("a clause without its verb gets be, and no/not swap where a verb or noun fo
     ["I am not sure it worth the money.", "I am not sure it is worth the money."],
     ["I think we fine now.", "I think we are fine now."],
     ["You ready to go?", "Are you ready to go?"],
+    // A pronoun and "one of", "too much" or an adverb before an adjective and its noun.
+    ["It still one of my top picks.", "It is still one of my top picks."],
+    ["Honestly, it one of the worst days.", "Honestly, it is one of the worst days."],
+    ["It too much work for one person.", "It is too much work for one person."],
+    ["She also good friends with Ana.", "She is also good friends with Ana."],
   ]) {
     const found = scan(input);
     expect({ input, count: found.length }).toEqual({ input, count: 1 });
@@ -70,6 +75,10 @@ test("objects, gapping, idioms and verbs stay silent", () => {
     "Keep it safe for later.",
     "Lena and I cooking dinner was fun.",
     "The meeting rooms they booking left.",
+    "I love it too much.",
+    "We handy tricks.",
+    "Make it one of the rules.",
+    "Count it one of the wins.",
   ])
     expect({ text, found: scan(text).map((d) => d.original) }).toEqual({ text, found: [] });
 });

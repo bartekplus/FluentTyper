@@ -60,7 +60,13 @@ const PLURAL_VERB: Record<string, string> = Object.fromEntries(
 
 /** A third-person verb's number ("tiene" -> singular, "siguen" -> plural), or null. */
 function verbNumber(word: string): "singular" | "plural" | null {
-  if (PREPOSITIONS.has(word) || CONJUNCTIONS.has(word) || IMPERSONAL.test(word)) return null;
+  // "Las cosas parece que…": only the singular is impersonal; "La cosa parecen que…" agrees.
+  if (
+    PREPOSITIONS.has(word) ||
+    CONJUNCTIONS.has(word) ||
+    (IMPERSONAL.test(word) && !/n$/u.test(word))
+  )
+    return null;
   if (SINGULAR_VERB[word]) return "singular";
   if (PLURAL_VERB[word]) return "plural";
   if (!finiteVerb(word) || word.length < 3) return null;
@@ -96,7 +102,9 @@ const IMPERSONAL = /^(?:hace|hacía|hay|puede|podía|parec\p{L}*|sobre|bajo)$/u;
 const SINGULAR_PRONOUNS = words("él ella usted");
 const PLURAL_PRONOUNS = words("ellos ellas ustedes");
 // Words that may stand between a subject and its verb: "Los niños no se lo dan".
-const BETWEEN = words("no se me te le les lo la los las nos os ya también nunca siempre");
+const BETWEEN = words(
+  "no se me te le les lo la los las nos os ya también tampoco nunca jamás siempre ahora todavía aún hoy ayer",
+);
 // Words after which a clause starts.
 const CLAUSE_OPENERS = words("que pero cuando si porque aunque mientras donde");
 // Noun phrases that are times, not subjects ("Los domingos abre"), and collectives that
@@ -352,7 +360,7 @@ function subjectVerb(ctx: DetectContext, tokens: Tokens, i: number): RawFinding 
   const number = verbNumber(verb);
   if (!number || number === subject) return null;
   // "Las cosas había parecido que…": an impersonal perfect.
-  if (IMPERSONAL.test(tokens[v + 1]?.lower ?? "")) return null;
+  if (number === "singular" && IMPERSONAL.test(tokens[v + 1]?.lower ?? "")) return null;
   // "El problema son los precios": "ser" agrees with a plural complement after it.
   // "Su pasión han sido las fresas": the perfect of "ser" too.
   const sido = /^(?:ha|han|había|habían)$/u.test(verb) && tokens[v + 1]?.lower === "sido";
@@ -588,6 +596,16 @@ function attribute(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | 
     after &&
     !participle(word) &&
     (DETERMINER.has(after) || (readNoun(after) && !readNoun(after)?.paired))
+  )
+    return null;
+  // "Mis primas parecen niños traviesos": a noun with its own adjective after it.
+  const afterForm = after ? genderedForm(after) : null;
+  if (
+    afterForm &&
+    !participle(word) &&
+    afterForm.plural === form.plural &&
+    afterForm.feminine === form.feminine &&
+    afterForm.feminine !== feminine
   )
     return null;
   const numberClash = form.plural !== plural;

@@ -69,6 +69,25 @@ export function objectGapBefore(before: string): boolean {
   return !!read && (read.noun || read.plural) && !FUNCTION_WORDS.has(head);
 }
 
+/**
+ * "need write access to it", "want read rights.": after a verb, a permission noun that ends
+ * its phrase. "need write access courses" still has "access courses" as its object.
+ */
+export const PERMISSION_AFTER =
+  /^[ \t\u00a0]+(?:access|permissions?|rights|privileges)(?:[ \t\u00a0]*(?:[.!?,;:)]|$)|[ \t\u00a0]+(?:to|for|on|in|at|and|or|so|from|is|was|are|were)(?![\p{L}]))/iu;
+
+// A fronted object before a subject pronoun: "which book would you", "the code that you".
+const FRONTED_OBJECT =
+  /(?:\b(?:which|what)\b[^.!?;:\n]{0,40}\b(?:would|will|do|does|did|can|could|should)|\b[a-z]+[ \t\u00a0]+(?:that|which))[ \t\u00a0]+(?:I|you|we|they|he|she)[ \t\u00a0]+$/i;
+
+/**
+ * "the app you recommended", "Which book would you recommend", "the code that you
+ * recommended": `before` (the text before a verb) puts the verb's object first.
+ */
+export function frontedObjectBefore(before: string): boolean {
+  return objectGapBefore(before) || FRONTED_OBJECT.test(before);
+}
+
 /** "…help you should ask": a subject pronoun and an auxiliary at `index` open a new clause. */
 export function clauseAfter(ctx: DetectContext, index: number): boolean {
   const [subject, verb] = tokensAfter(ctx, index, 2);

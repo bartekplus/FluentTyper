@@ -102,7 +102,8 @@ const finiteOf = (word: string, tense: number) =>
 const WILL = new Set(
   (
     "vouloir souhaiter exiger ordonner désirer préférer aimer falloir craindre redouter regretter " +
-    "douter attendre permettre refuser interdire empêcher suffire demander déplorer"
+    "douter attendre permettre refuser interdire empêcher suffire demander déplorer détester " +
+    "plaire"
   ).split(" "),
 );
 const CONJUNCTIONS = new Set(["pour", "afin", "avant", "sans", "pourvu"]);
@@ -127,6 +128,9 @@ const hasLemma = (word: string, lemmas: Set<string>) =>
     (r) => lemmas.has(r.lemma) && (typeof r.slot === "number" || r.lemma === "falloir"),
   );
 
+const FAIRE = new Set(["faire"]);
+const TROUVER = new Set(["trouver"]);
+
 function triggersSubjunctive(before: Token[]): boolean {
   const [b0, b1, b2] = before.map((t) => t.w);
   if (!b0) return false;
@@ -137,6 +141,16 @@ function triggersSubjunctive(before: Token[]): boolean {
   if (b0 === "attendant" && b1 === "en") return true;
   if (b0 === "ce" && b1 === "à" && before[2]?.w === "jusqu'") return true;
   if (b0 === "dommage") return true;
+  // "ça lui fait plaisir que", "je trouve normal que", "à supposer que".
+  if (b0 === "plaisir") return !!b1 && hasLemma(b1, FAIRE);
+  if (
+    b1 &&
+    hasLemma(b1, TROUVER) &&
+    (IMPERSONAL.has(b0) ||
+      EMOTION.test(b0) ||
+      /^(?:sympa|bizarre|étrange|dommage|génial|super|bien)$/.test(b0))
+  )
+    return true;
   if (IMPERSONAL.has(b0) || b0 === "probable") {
     if (b0 === "probable" && b1 !== "peu") return false;
     const verb = b0 === "probable" ? b2 : b1;
@@ -145,6 +159,10 @@ function triggersSubjunctive(before: Token[]): boolean {
   if (EMOTION.test(b0)) return !!b1 && !DEGREE.has(b1) && (ETRE.has(b1) || isFinite(b1));
   if (b0 === "mieux") return !!b1 && hasLemma(b1, new Set(["valoir"]));
   if ((b0 === "peut" || b0 === "pourrait") && b1 === "se") return true;
+  if (b0 === "supposer" && b1 === "à") return true;
+  // "comment se fait-il que", "se peut-il que": the inverted "il" after faire or pouvoir.
+  if (b0 === "il" && before[1]?.hyphen && b2 === "se")
+    return hasLemma(before[1].w, new Set(["faire", "pouvoir"]));
   // "faut-il que": the inverted subject after its verb.
   if (PERSON[b0] && before[1]?.hyphen) return hasLemma(before[1].w, WILL);
   let i = 0;
@@ -196,7 +214,10 @@ function subjunctiveAfterQue(ctx: DetectContext, m: RegExpExecArray): RawFinding
   const { verb } = found;
   const typed = ctx.text.slice(verb.start, verb.end);
   if (/\p{Lu}/u.test(typed) || verb.hyphen) return null;
-  const readings = verbReadings(verb.w);
+  // "que tu finis": a form right after its pronoun subject is no participle.
+  const readings = verbReadings(verb.w).filter(
+    (r) => !(found.person && r.slot === "Q" && verb === after[1]),
+  );
   // Only a form that reads as a present or future indicative and as nothing else.
   if (
     !readings.length ||
@@ -413,11 +434,99 @@ const SI = /(?<![\p{L}\p{M}\p{N}_'’-])(?:si(?![\p{L}\p{M}\p{N}_'’])|s['’](
 const FIRST_PERSON_FORMS =
   /(?<![\p{L}\p{M}\p{N}_-])(?:\p{L}+rais?|aura)(?![\p{L}\p{M}\p{N}_'’])/giu;
 
+const INDICATIVE = "review_msg_fr_indicative";
+const SUBJUNCTIVE_TENSE = 6;
+// Triggers of the indicative before "que": "il est vrai que", "j'espère que", "du moment que".
+const STATING = new Set(["espérer", "affirmer", "dire", "assurer", "savoir", "promettre"]);
+const TRUE = new Set(["vrai", "certain", "sûr", "clair", "évident", "exact"]);
+
+function triggersIndicative(before: Token[]): boolean {
+  const [b0, b1, b2] = before.map((t) => t.w);
+  if (!b0 || before.some((t) => NEGATION.has(t.w) || t.hyphen)) return false;
+  if (b0 === "moment" && b1 === "du") return true;
+  if (TRUE.has(b0)) return !!b1 && ETRE.has(b1) && b2 === "il";
+  if (b0 === "paraît" || b0 === "parait") return b1 === "il";
+  return verbReadings(b0).some((r) => typeof r.slot === "number" && STATING.has(r.lemma));
+}
+
+/** The present indicative of a subjunctive form, for the person the clause gives it. */
+function indicativeOf(word: string, person: number): string[] {
+  const readings = verbReadings(word);
+  if (!readings.length || !readings.every((r) => typeof r.slot === "number")) return [];
+  if (!readings.every((r) => r.tense === SUBJUNCTIVE_TENSE)) return [];
+  const forms = new Set<string>();
+  for (const r of readings) {
+    // A noun subject is a third person.
+    const mask = (r.slot as number) & (person || IL | ILS);
+    if (!mask) continue;
+    const form = conjugate({ ...r, tense: PRESENT }, lowest(mask))[0];
+    if (form) forms.add(form);
+  }
+  return [...forms];
+}
+
+/** "il est certain qu'il parte" -> "part", "j'espère que tu viennes" -> "viens". */
+function indicativeAfterQue(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (!triggersIndicative(tokensBefore(ctx.text, m.index, 3))) return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 8);
+  const found = clauseVerb(after, ctx.text);
+  if (!found || found.verb.hyphen) return null;
+  const typed = ctx.text.slice(found.verb.start, found.verb.end);
+  if (/\p{Lu}/u.test(typed) || found.verb.w === "soit") return null;
+  const forms = indicativeOf(found.verb.w, found.person);
+  if (forms.length !== 1) return null;
+  return wordFinding(ctx, found.verb.start, typed, forms, RULE, INDICATIVE, {
+    start: m.index,
+    end: found.verb.end,
+  });
+}
+
+const MAIN_SUBJECTS = new Set(["je", "j'", "tu", "il", "elle", "on", "ils", "elles"]);
+const MAIN_SUBJECT =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:je|j['’]|tu|il|elle|on|ils|elles)(?![\p{L}\p{M}\p{N}_’-])/giu;
+
+/** "Tu ne la croies pas" -> "crois", "Il comprenne mal" -> "comprend": a subjunctive form in a main
+ * clause, where no "que" comes before its pronoun subject. */
+function mainSubjunctive(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const subject = m[0].toLowerCase().replaceAll("’", "'");
+  if (!MAIN_SUBJECTS.has(subject) || ctx.text[m.index - 1] === "-") return null;
+  // "il faille partir...": a lowercase fragment at the text start may be cut after "que".
+  if (m.index === 0 && m[0] === subject) return null;
+  // "Il voulait tu viennes": a "que" left out after a verb.
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  if (previous && verbReadings(previous.w).some((r) => typeof r.slot === "number")) return null;
+  const start = sentenceBounds(ctx.text, m.index)[0];
+  const clause = ctx.text.slice(start, m.index);
+  if (/(?:^|[^\p{L}])(?:que|qu['’]|quoique|quoiqu['’])/iu.test(clause)) return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 5);
+  let i = 0;
+  while (after[i] && (NEGATION.has(after[i].w) || CLITICS.has(after[i].w))) i++;
+  const verb = after[i];
+  // "que je sache", "je ne sache pas": fixed phrases.
+  if (!verb || verb.hyphen || verb.w === "soit" || verb.w === "sache") return null;
+  const typed = ctx.text.slice(verb.start, verb.end);
+  if (typed !== verb.w) return null;
+  const forms = indicativeOf(verb.w, PERSON[subject]);
+  if (forms.length !== 1) return null;
+  return wordFinding(ctx, verb.start, typed, forms, RULE, INDICATIVE, {
+    start: m.index,
+    end: verb.end,
+  });
+}
+
 function moods(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, QUE)) {
     const finding = subjunctiveAfterQue(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, QUE)) {
+    const finding = indicativeAfterQue(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, MAIN_SUBJECT)) {
+    const finding = mainSubjunctive(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, SI)) {

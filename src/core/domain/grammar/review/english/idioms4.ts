@@ -204,8 +204,11 @@ const OURS: Record<string, string> = {
   them: "theirs",
 };
 // "how come", "how dare you" and "how people…" are not a missing "to".
+// Auxiliaries open a question ("How have these changes helped?"), not a how-to.
 const NOT_HOW_TO = new Set(
-  "come dare do go people be say mean will can may might must shall should would could".split(" "),
+  "come dare do does did go people be say mean will can may might must shall should would could have has had".split(
+    " ",
+  ),
 );
 const ORDINAL =
   "(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|(?:thir|four|fif|six|seven|eigh|nine)teenth|twentieth|thirtieth|hundredth|thousandth|millionth|billionth|umpteenth|nth|last|[0-9]+(?:st|nd|rd|th))";

@@ -196,7 +196,9 @@ const FRAMES: readonly Frame[] = [
       if (
         word !== lower(word) ||
         !baseVerb(word) ||
-        /^(?:please|thank|need|dare|ought)$/.test(word)
+        /^(?:please|thank|need|dare|ought)$/.test(word) ||
+        // "it cost us a lot", "it hit me": a past form like its base.
+        read(word)?.verbs.some((v) => v.form === "past")
       )
         return null;
       const before = wordBefore(ctx, m.index);

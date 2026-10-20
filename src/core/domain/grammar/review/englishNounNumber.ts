@@ -30,6 +30,11 @@ const templates = [
 ];
 
 /** Known inflections only; explicit counts win, ambiguous demonstratives require a choice. */
+// A determiner and a label before the number: "a grade 9", "my term 1", "the iOS 12". Not an
+// ordinal or a quantity word ("the last 3 car").
+const LABEL_WITH_NUMBER =
+  /\b(?:an?|the|this|that|its|his|her|their|our|my|your|every|each)[ \t\u00a0]+(?!(?:first|last|next|other|top|best|only|few|many|same|final|initial|whole|entire|remaining|extra)\b)[\p{L}]+[ \t\u00a0]+$/iu;
+
 export function nounNumberConstructions(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const pattern of templates) {
@@ -40,12 +45,17 @@ export function nounNumberConstructions(ctx: DetectContext): RawFinding[] {
       if (!forms) continue;
       const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
       if (count && hasCountPrefix(before)) continue;
-      // "a 1990 car", "the 3 bedroom flat": a year or a label modifies the noun.
+      // "a 1990 car", "the 3 bedroom flat": a year or a label modifies the noun. So does a
+      // name or label with its number: "a grade 9 student", "a Word 97 file", "N+1 queries".
       if (
         count &&
         /^[0-9]/.test(count) &&
         (/^(?:1[6-9]|20)[0-9]{2}$/.test(count) ||
-          /\b(?:an?|the|this|that|its|his|her|their|our|my|your|every|each)[ \t ]+$/i.test(before))
+          /\b(?:an?|the|this|that|its|his|her|their|our|my|your|every|each)[ \t ]+$/i.test(
+            before,
+          ) ||
+          /[+−×*/^-]$/.test(before) ||
+          LABEL_WITH_NUMBER.test(before))
       )
         continue;
       // Clause-initial "One leaves." is the pronoun and a verb; "One files arrived." is a count.

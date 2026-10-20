@@ -13,7 +13,7 @@ import {
   WORD_END as E,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { clauseAfter, objectGapBefore } from "./slotWords";
+import { clauseAfter, objectGapBefore, PERMISSION_AFTER } from "./slotWords";
 
 const REFLEXIVES = [
   ...["myself", "yourself", "himself", "herself", "itself", "oneself"],
@@ -308,6 +308,10 @@ const OBJECT_START = /^(?:the|a|an|my|your|his|her|its|our|their|it|them|him|me|
 // "need help the most": a degree phrase, not an object.
 const DEGREE_AFTER_THE =
   /^[ \t\u00a0]+the[ \t\u00a0]+(?:most|least|best|whole|rest|same|entire|other)\b/i;
+const TIME_AFTER =
+  /^[ \t\u00a0]+(?:an?|the|this|that|every)[ \t\u00a0]+(?:hour|minute|moment|second|day|week|month|year|while|night|morning|evening)\b/i;
+const SUBORDINATE_LEAD =
+  /(?:^|[.!?;:\n][ \t\u00a0"“]*)(?:when|whenever|if|after|before|because|while|once|until|since)\b[^.!?;:,\n]*$/i;
 function missingTo(m: RegExpExecArray, ctx: DetectContext): string | null {
   const verb = m.groups!.target;
   const known = englishWordInfo(verb);
@@ -328,12 +332,19 @@ function missingTo(m: RegExpExecArray, ctx: DetectContext): string | null {
   // text before the governor is the match without its last two words.
   if (objectGapBefore(`${before(ctx, m.index, 48)}${m[0]}`.replace(/\s*\S+\s+\S+$/, "")))
     return null;
-  if (!known.noun && !known.adjective && !known.plural && !known.adverb) return `to ${verb}`;
-  // A word that is also a noun needs an object or "about" after it: "need talk about".
   const end = matchEnd(m);
   const next = nextWord(ctx, end);
+  // "need write access", "want read rights": the verb names a kind of permission.
+  if (PERMISSION_AFTER.test(ctx.text.slice(end, end + 32))) return null;
+  if (!known.noun && !known.adjective && !known.plural && !known.adverb) return `to ${verb}`;
+  // "When we needed help the neighbours came": after a fronted subordinate clause, a noun
+  // object can end the clause before the main clause (with no comma).
+  if (SUBORDINATE_LEAD.test(before(ctx, m.index, 64))) return null;
+  // A word that is also a noun needs an object or "about" after it: "need talk about". A time
+  // phrase is no object: "wanted cake an hour ago".
   if (/^about$/i.test(next)) return `to ${verb}`;
-  return OBJECT_START.test(next) && !DEGREE_AFTER_THE.test(ctx.text.slice(end, end + 32))
+  const after = ctx.text.slice(end, end + 32);
+  return OBJECT_START.test(next) && !DEGREE_AFTER_THE.test(after) && !TIME_AFTER.test(after)
     ? `to ${verb}`
     : null;
 }
