@@ -29,6 +29,7 @@ fragments:
   QUANTITY: "zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|hundert|tausend|viele|mehrere|beide|zahlreiche|unzählige"
   ORDINAL_NOUNS: "Jahrhundert|Jahrhunderts|Jahrtausend|Stock|Stockwerk|Etage|Minute|Platz|Geburtstag|Jahrestag|Lebensjahr|Klasse|Spieltag|Runde|Liga|Etappe|Auflage|Kapitel|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember"
   RANGE_END: "(?:[1-9]\\d{0,3}|0)\\.?|\\p{Lu}"
+  NUMBER_WORD: "\\d|(?<![\\p{L}])(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|zwanzig|dreißig|fünfzig|hundert|halbes?|paar)"
   RIGHT_VERBS: "haben|hat|hatte|hatten|hast|habe|hätte|hätten|geben|gibt|gab|gaben|gegeben|behalten|behielt|bekommen|bekam"
 
 rules:
@@ -910,7 +911,80 @@ rules:
         fixer: decadeCentury
   - id: de.colloquial
     checks: [germanColloquial]
-    predicate: colloquial
+    style: match
+    message: review_msg_german_colloquial
+    frames:
+      # Spoken short forms (authored): an article without "ei-" ("n netter Typ", "ne Frage"),
+      # a verb with "es" or "du" joined to it ("ich mags", "gehts", "meinste").
+      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_'’.-])(?:(?<article>n|ne|nen|nem|ner)(?=[ \\t]+(?<adjective>\\p{Ll}+(?:e|en|er|es|em)[ \\t]+)?\\p{Lu}\\p{Ll})|(?<joined>[mM]ags|[lL]iebs|[gG]ebs|[hH]abs|[nN]ehms|[mM]achs|[kK]enns|[wW]ills|[kK]anns|[sS]tehts|[gG]efällts|[gG]ehts|[gG]ibts|[kK]ommts|[sS]iehts|[lL]äufts|[kK]lappts|[pP]assts|[hH]aste|[bB]iste|[kK]annste|[wW]eißte|[sS]iehste|[wW]illste|[mM]einste|[gG]uckste|[mM]achste|[hH]örste|[gG]ehste|[kK]ommste))(?![\\p{L}\\p{M}\\p{N}_'’-]))"
+        scan: owned
+        flags: gu
+        fixer: spokenForm
+      # "Du brauchst nicht kommen" → "zu kommen": "brauchen" with a negation or "nur" takes
+      # "zu". The scan starts 80 characters before the chunk; the verb must be in the chunk.
+      - regex: "(?<target>(?<![\\p{L}\\p{M}])(?:[Bb]rauch(?:e|st|t|en|te|test|ten|tet))(?<middle>(?:[ \\t]+[\\p{L}\\p{M}]+){1,6}?)[ \\t]+(?<verb>\\p{Ll}{3,}(?:en|ern|eln))(?=[ \\t]*[.!?,;:\"\\u201C\\u201D]|[ \\t]*$))"
+        scan: owned
+        lookback: 80
+        flags: gu
+        fixer: needsZu
+      # A preposition with an interrogative "was" is spoken German; writing uses the wo(r)-
+      # adverb: "Für was kämpft er?" (Wofür), "um was es geht" (worum). Not the indefinite
+      # "was" ("für was Neues", "gegen was neues").
+      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_-])(?<prep>[Aa]us|[Uu]m|[Aa]uf|[Ff]\\u00FCr|[Dd]urch|[Mm]it|[\\u00DC\\u00FC]ber|[Aa]n|[Vv]on|[Nn]ach|[Zz]u|[Ii]n|[Bb]ei|[Gg]egen|[Vv]or)[ \\t]+was(?![\\p{L}\\p{M}\\p{N}_-]))"
+        scan: owned
+        flags: gu
+        fixer: prepositionWhat
+      # "Sinn machen" copies the English phrase; German says "Sinn ergeben". The phrase table
+      # holds the adjacent forms; this frame takes the verb a few words before "Sinn" ("Das
+      # macht für mich wenig Sinn", "Macht es vielleicht Sinn") and "Sinn zu machen". The scan
+      # starts 64 characters before the chunk; the verb must be in the chunk.
+      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_-])(?<verb>[Mm]acht|[Mm]achen|[Mm]achte|[Mm]achten|[Mm]achst|[Mm]ache)(?<gap>(?:[ \\t]+\\p{Ll}+){1,4}?)[ \\t]+(?:einen[ \\t]+|keinen[ \\t]+)?Sinn(?![\\p{L}\\p{M}\\p{N}_-])|Sinn[ \\t]+zu[ \\t]+(?<zu>machen)(?![\\p{L}\\p{M}\\p{N}_-]))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: makesSense
+      # Clipped words of speech and their written forms ("Mathe", "Infos", "Kuli").
+      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_@/#.-])(?:Mathe|Info|Infos|Uni|Unis|Abi|Kuli|Kulis|Limo|Deo|Klo|Reli)(?![\\p{L}\\p{M}\\p{N}_@/#-]))"
+        scan: owned
+        flags: gu
+        fixer: clipped
+      # Spoken names of a measured quantity and of arithmetic, and their written forms: "die
+      # Voltzahl" (elektrische Spannung), "5 Kilo" (Kilogramm), "plus rechnen" (addieren),
+      # "schneller als 50 Kilometer" (Kilometer pro Stunde: a speed, not a distance). These
+      # scans start 64 characters before the chunk; a match must start in the chunk.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}-])(?<unit>Volt|Ampere|Coulomb|Watt|Kilowatt|Megawatt|PS|Hertz|Joule|Kilogramm|Gramm)-?[Zz]ahl(?<plural>en)?(?![\\p{L}\\p{N}-]))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: unitCount
+      # The word first, then a bounded look back: cheap on long runs of spaces without the
+      # regex JIT.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}-])Kilo(?![\\p{L}\\p{N}-])(?<=(?:{{NUMBER_WORD}})[ \\t]{1,8}Kilo))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: kilo
+      - regex: "(?<target>(?<![\\p{L}\\p{N}-])Kilometer(?![\\p{L}\\p{N}-])(?:(?<=(?:schneller|langsamer)[ \\t]{1,8}als[ \\t]{1,8}(?:\\d+(?:,\\d+)?|\\p{Ll}+)[ \\t]{1,8}Kilometer)(?![ \\t]+(?:pro|je|in)(?![\\p{L}]))|(?<=(?:{{NUMBER_WORD}})[ \\t]{1,8}Kilometer)(?=[ \\t]{1,8}(?:schneller|langsamer)(?![\\p{L}]))))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: speed
+      - regex: "(?<target>(?<![\\p{L}\\p{N}-])(?<op>plus|minus|geteilt)[ \\t]+(?<verb>rechnen|rechnet|rechnest|rechne|gerechnet)(?![\\p{L}\\p{N}-]))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: rechnen
+      - regex: "(?<target>(?<![\\p{L}\\p{N}-])(?<op>Plus|Minus|Geteilt|Mal)-Rechnen(?![\\p{L}\\p{N}-]))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: rechnenNoun
+      # The spoken short forms of her-/hin- particles before a verb ("reingehen", "rumsitzen"),
+      # and "rum", "rüber", "runter", "rauf", "raus" on their own.
+      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_\\-'\\u2019])(?<short>[Rr](?:an|um|aus|ein|auf|unter|\\u00FCber))(?<rest>\\p{Ll}*)(?![\\p{L}\\p{M}\\p{N}_\\-'\\u2019]))"
+        scan: owned
+        flags: gu
+        fixer: herParticle
   - id: de.recommended
     checks: [germanRecommendedSpelling]
     style: match

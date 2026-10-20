@@ -26,7 +26,6 @@ import * as verbAgreement from "./verbAgreement";
 export const PREDICATES = mergePredicates(
   adjectiveForms.PREDICATES,
   articleGender.PREDICATES,
-  colloquial.PREDICATES,
   commas.PREDICATES,
   compounds.PREDICATES,
   dates.PREDICATES,
@@ -52,6 +51,7 @@ export const FIXERS = mergePredicates<Fixer>(
   quotes.FIXERS,
   dates.FIXERS,
   numbers.FIXERS,
+  colloquial.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */
