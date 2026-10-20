@@ -184,9 +184,55 @@ A rule can also give:
 
 All frame styles run in one loop: `detectFrames` in `engine/frameStyles.ts`. A style is a row of the `STYLES` table there, not a loop of its own. To change how a style reads a match, change its row.
 
+### Match Frames
+
+Use `style: match` when a fix needs logic that a frame cannot state: a lexicon lookup, a look at the words around the match, or a finding of another shape. The rule file gives the regex and the scan. A named fixer reads each match and decides.
+
+```yaml
+- id: en.bewareOf
+  checks: [englishFixedPrepositions]
+  style: match
+  message: review_msg_fixed_prepositions
+  filter: outsideExamples
+  frames:
+    # "Beware on the step": the thing to beware of takes "of".
+    - regex: "beware{{S}}(?<target>in|on|at){{S}}(?:the|that|this|these|those){{E}}"
+      gate: beware
+      fixer: bewareOf
+```
+
+```ts
+export const FIXERS = {
+  bewareOf: (m, ctx) => (opensClause(ctx, m.index) ? caseLike(m.groups!.target, "of") : null),
+} satisfies Record<string, MatchFixer>;
+```
+
+The fixer gets the match, the chunk context and the frame (its `ruleId` and `messageKey`). It returns:
+
+- `null`, `undefined` or `[]`: no finding.
+- A string or a list of strings: a finding that replaces the `target` group, 96 characters of context before the match and 9 after it.
+- A `RawFinding` or a list of them: findings of any other shape.
+
+Register the fixer in the `FIXERS` record of `review/<lang>/ruleDetectors.ts` (`CORE_FIXERS` of `review/reviewDetectors.ts` for `common.yaml`). Use `fixer: <file>:<name>` to name a fixer of another rule file.
+
+| Field       | Meaning                                                                                                                                                                                                         |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scan`      | `frame` (default): a frame scan with the word-start guard. `owned`: the regex over the scan text, from `lookback` characters before the chunk. `text`: the same over the text. `polish`: the Polish owned scan. |
+| `flags`     | The regex flags of a complete regex. A frame scan needs `g` and `d`; the other scans need `g`.                                                                                                                  |
+| `lookback`  | `owned` and `text` scans: the characters read before the chunk.                                                                                                                                                 |
+| `lookahead` | `owned` and `text` scans: a match may start this many characters after the chunk.                                                                                                                               |
+| `owner`     | Frame scans: the group whose start must be in the chunk (default `target`). `a\|b`: the first group that matched. `none`: every match.                                                                          |
+| `gate`      | A regex that must occur near the chunk before the frame runs (a rare word). `gateFlags` sets its flags (default `gi`).                                                                                          |
+| `check`     | The check of the frame, when it is not the rule's first check.                                                                                                                                                  |
+| `anyCheck`  | The frame runs when any check of the rule is on. Its fixer returns findings of several checks.                                                                                                                  |
+
+A fixer of an `owned`, `text` or `polish` frame can call `frame.resume(index)`: the scan reads its next match from `index`, for matches that overlap.
+
+A rule `filter: <name>` names a function of the `FILTERS` record. It gets all findings of the rule and returns the ones to keep, for example the first finding at each start.
+
 ### Named Predicates
 
-Use a predicate only for logic that a pattern cannot state: a phonetic test, a lexicon, an agreement check, or a clause reader.
+Use a predicate only when the rule does not scan the text with a regex: a walk over a token list, a pairing of quote marks with a stack, or findings that Review made before. Any rule that scans with a regex is a frame rule; put the logic in a fixer of a `style: match` rule. A predicate rule in a rule file has a `# predicate:` comment that says why it is not a frame rule.
 
 - **Token predicates** (`engine/predicates.ts`) test one token in a pattern, for example `enStartsWithVowelSound`, `isMeasurementUnit` or `isNotAbbreviation`. They must stay small: content scripts load them.
 - **Review detectors** are functions `(ctx) => RawFinding[]`. A language registers them in the `PREDICATES` record of `review/<lang>/ruleDetectors.ts`. The shared detectors are in `CORE_PREDICATES` of `review/reviewDetectors.ts`. A rule names one with `predicate: <name>`. Use `<file>:<name>` to name a detector of another file.
