@@ -60,9 +60,16 @@ rules:
         fixer: verbAccents
   - id: es.paraQueAccent
     checks: [spanishAccents]
-    # predicate: walks the chunk tokens; each token frame reads the words around
-    # "para que" and the accented forms.
-    predicate: paraQueAccent
+    style: match
+    message: review_msg_spanish_interrogative
+    frames:
+      # "para que" before an indicative, and "ingles", "Paris" and "seria" after the
+      # words that ask for the accent. The fixer reads the words around the token
+      # (review/spanish/clauses.ts).
+      - regex: "(?:que|ingles|paris|seria){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: paraQueAccent
   - id: es.frameAccents
     checks: [spanishAccents]
     # predicate: walks the chunk tokens; each token frame reads the words before
@@ -140,9 +147,15 @@ rules:
     predicate: porque
   - id: es.clauseConfusions
     checks: [spanishConfusions]
-    # predicate: walks the chunk tokens; each token frame reads the clause
-    # around its word.
-    predicate: clauseConfusions
+    style: match
+    message: review_msg_spanish_confusion
+    frames:
+      # Every word: the frames key on gerunds, infinitives and present forms, which are no
+      # closed list. The fixer reads the clause around the token (review/spanish/clauses.ts).
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        fixer: clauseConfusions
   - id: es.frameConfusions
     checks: [spanishConfusions]
     # predicate: walks the chunk tokens; each token frame reads the words before
@@ -477,9 +490,15 @@ rules:
         fixer: verbAttribute
   - id: es.clauseAgreement
     checks: [spanishAgreement]
-    # predicate: walks the chunk tokens; each token frame reads the clause
-    # around its word.
-    predicate: clauseAgreement
+    style: match
+    message: review_msg_spanish_impersonal_haber
+    frames:
+      # A plural modal before the impersonal "haber", and "a" before a doubled pronoun. The
+      # fixer reads the clause around the token (review/spanish/clauses.ts).
+      - regex: "(?:a|pueden|pod[ií]an|podr[ií]an|pudieron|deben|deb[ií]an|deber[ií]an|suelen|sol[ií]an|van|iban|tienen|ten[ií]an|tendr[aá]n|tendr[ií]an){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: clauseAgreement
   - id: es.frameAgreement
     checks: [spanishAgreement]
     # predicate: walks the chunk tokens; each token frame reads the gender and
@@ -487,9 +506,15 @@ rules:
     predicate: frameAgreement
   - id: es.clauseStyle
     checks: [stylePhrasing]
-    # predicate: walks the chunk tokens; each token frame reads the clause around
-    # its word.
-    predicate: clauseStyle
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # "hace ... atrás", and an adverb that the clause repeats. The fixer reads the clause
+      # around the token (review/spanish/clauses.ts).
+      - regex: "(?:hace|tambi[eé]n|tampoco|ya|s[oó]lo|a[uú]n|todav[ií]a|siempre|nunca){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: clauseStyle
   - id: es.quotes
     checks: [spanishQuotes]
     style: match

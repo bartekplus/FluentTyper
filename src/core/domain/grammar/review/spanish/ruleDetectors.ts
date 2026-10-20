@@ -21,7 +21,6 @@ export const PREDICATES = mergePredicates(
   porque.PREDICATES,
   typography.PREDICATES,
   commas.PREDICATES,
-  clauses.PREDICATES,
   frames.PREDICATES,
 );
 
@@ -34,6 +33,7 @@ export const FIXERS = mergePredicates<Fixer>(
   verbForms.FIXERS,
   agreement.FIXERS,
   verbAgreement.FIXERS,
+  clauses.FIXERS,
   prefixes.FIXERS,
   typography.FIXERS,
   quotes.FIXERS,
