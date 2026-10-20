@@ -92,11 +92,32 @@ export function namedExampleBefore(text: string, index: number): boolean {
     if ((char === "'" || char === "’") && LETTER_OR_DIGIT.test(text[q - 1] ?? "")) continue;
     let start = Math.max(floor, q - 48);
     while (start > floor && /[\p{L}\p{M}]/u.test(text[start - 1])) start++;
-    const cue = text.slice(start, q);
-    const word = lastWord(cue);
-    if (word && CUE_TAIL.test(word) && CUE_BEFORE_EXAMPLE.test(cue)) return true;
+    if (citesBefore(text, start, q)) return true;
   }
   return false;
+}
+
+// The text whose cue tests are cached, and the results by quote position and cue start: one
+// quote is tested again for each frame match after it.
+let CUES_TEXT: string | undefined;
+let CUES = new Map<number, boolean>();
+
+/** text[start, q) ends with a cue that names the example opened at `q`. */
+function citesBefore(text: string, start: number, q: number): boolean {
+  if (text !== CUES_TEXT) {
+    CUES_TEXT = text;
+    CUES = new Map();
+  }
+  // start lies in [q - 48, q]: the key holds both.
+  const key = q * 64 + (q - start);
+  let cites = CUES.get(key);
+  if (cites === undefined) {
+    const cue = text.slice(start, q);
+    const word = lastWord(cue);
+    cites = !!word && CUE_TAIL.test(word) && CUE_BEFORE_EXAMPLE.test(cue);
+    CUES.set(key, cites);
+  }
+  return cites;
 }
 
 /** Words naming a quotation mark itself: `the character "`, `das Zeichen „`. */
