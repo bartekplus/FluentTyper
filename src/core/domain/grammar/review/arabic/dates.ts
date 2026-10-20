@@ -1,5 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
-import { DIGIT, digitValue, invalidIsoDates } from "../isoDates";
+import { DIGIT, digitValue } from "../isoDates";
 import { contextYear, daysInMonth, weekdayOf, yearsFor } from "../reviewClock";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { FindingsFilter, FrameRef, MatchFixer } from "../../engine/reviewRules";
@@ -160,23 +160,12 @@ export const FIXERS = {
 
 /** The named findings filters of the date rule of grammar/rules/ar_SA.yaml (`filter:`). */
 export const FILTERS = {
-  /**
-   * The ISO date findings come after the date and year frames. A date-order finding that
-   * starts in an earlier finding is dropped.
-   */
-  isoDatesAndOrder: (ctx, findings) => {
-    if (ctx.rules && !ctx.rules.has("arabicDates")) return findings;
+  /** A date-order finding (the last frames) that starts in an earlier finding is dropped. */
+  dateOrderAfterOthers: (_ctx, findings) => {
     const split = findings.findIndex((f) => f.messageKey === "review_msg_arabic_date_order");
-    const kept = split < 0 ? [...findings] : findings.slice(0, split);
-    for (const range of invalidIsoDates(ctx))
-      kept.push({
-        ruleId: "arabicDates",
-        messageKey: "review_msg_arabic_impossible_date",
-        range,
-        alternatives: [],
-        warningOnly: true,
-      });
-    for (const f of split < 0 ? [] : findings.slice(split))
+    if (split < 0) return findings;
+    const kept = findings.slice(0, split);
+    for (const f of findings.slice(split))
       if (!kept.some((k) => k.range.start <= f.range.start && f.range.start < k.range.end))
         kept.push(f);
     return kept;

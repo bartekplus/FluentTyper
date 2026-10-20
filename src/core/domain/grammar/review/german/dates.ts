@@ -1,5 +1,4 @@
-import { invalidIsoDates } from "../isoDates";
-import type { Detector, MatchFixer } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import type { RawFinding } from "../reviewDetectors";
 import { contextYear, daysInMonth, utcDate, weekdayOf, yearsFor } from "../reviewClock";
 
@@ -149,7 +148,7 @@ export const FIXERS = {
   loneDate: (m, ctx) => {
     const g = m.groups!;
     const date = parse(g);
-    // invalidIsoDates checks the ISO form ("2025-02-30") below.
+    // The de.isoDates rule checks the ISO form ("2025-02-30").
     if (!date || g.isoYear || valid(date)) return null;
     // "1.0.", "0.5.": version numbers and decimals. A month past 12 only with a year
     // ("11.13.2014"), so "3.14." stays. With a four-digit year, a zero day or month is a wrong
@@ -194,10 +193,3 @@ export const FIXERS = {
     return dateFinding(start, end, [`${m.groups!.target}.`], "review_msg_german_date_punctuation");
   },
 } satisfies Record<string, MatchFixer>;
-
-export const PREDICATES = {
-  isoDates: (ctx) =>
-    invalidIsoDates(ctx).map(({ start, end }) =>
-      dateFinding(start, end, [], "review_msg_german_invalid_date"),
-    ),
-} satisfies Record<string, Detector>;

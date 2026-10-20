@@ -13,7 +13,7 @@ import { FIXERS as COMMA_FIXERS } from "./commas";
 import { CRASE_FIXERS, FIXERS as CONFUSION_FIXERS } from "./confusions";
 import { FIXERS as CONTRACTION_FIXERS } from "./contractions";
 import { FIXERS as WORD_CHOICE_FIXERS } from "./wordChoice";
-import { FIXERS as DATE_FIXERS, isoDates } from "./dates";
+import { FIXERS as DATE_FIXERS } from "./dates";
 import { FIXERS as FORMAL_FIXERS } from "./formal";
 import { FIXERS as INFINITIVE_FIXERS } from "./infinitives";
 import { FIXERS as MARK_FIXERS } from "./marks";
@@ -24,18 +24,10 @@ import { FIXERS as PERSON_FIXERS } from "./personAgreement";
 import { FIXERS as PREDICATE_FIXERS } from "./predicates";
 import { FIXERS as VERB_FRAME_FIXERS } from "./style";
 import { FIXERS as SUBJUNCTIVE_FIXERS } from "./subjunctive";
-import {
-  FIXERS as TYPOGRAPHY_FIXERS,
-  FORMULA_FIXERS,
-  NUMBER_FIXERS,
-  rangeDash,
-} from "./typography";
+import { FIXERS as TYPOGRAPHY_FIXERS, FORMULA_FIXERS, NUMBER_FIXERS } from "./typography";
 import { FIXERS as VERB_AGREEMENT_FIXERS } from "./verbAgreement";
 
-export const PREDICATES = {
-  rangeDash,
-  isoDates,
-} satisfies Record<string, Detector>;
+export const PREDICATES = {} satisfies Record<string, Detector>;
 
 /** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<AnyFixer>(

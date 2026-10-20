@@ -1,7 +1,6 @@
-import { isLang } from "../phraseTemplates";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { DetectContext } from "../reviewDetectors";
 import type { MatchFixer } from "../../engine/reviewRules";
-import { rangeDashes } from "../rangeDash";
+import { rangeDashFixer } from "../rangeDash";
 
 /**
  * Portuguese number writing. portugueseNumberFormat (on): hour abbreviations
@@ -21,6 +20,14 @@ const UF = "(?:AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO
 export const PLACE_STATE_TOKEN = new RegExp(`^\\p{Lu}[\\p{Ll}\\p{M}]+/${UF}$`, "u");
 /** Prose that looks technical: a dotted ordinal ("12.º", "3.ª", "12.o"), "e.t.c", "kW/h". */
 export const PORTUGUESE_PROSE_TOKEN = /^(?:\d{1,4}\.[ºªoa]s?|e\.t\.c|[kK]W[/.]h)$/u;
+
+// "páginas 10-15" -> "10–15" (emdashShortcut, opt-in). Not after a label of a code or a law
+// ("tel. 12-34", "art. 3-5", "CEP 12-14").
+const RANGE_CODE =
+  /(?:^|[^\p{L}])(?:tel|telefone|celular|fax|whatsapp|cep|nº|n\.º|no|número|ref|referência|processo|protocolo|art|artigo|lei|decreto|inciso|parágrafo|cpf|cnpj|rg|conta|agência|pedido|nota|versão|voo|linha|modelo|matrícula|isbn)\.?[ \t ]*:?[ \t ]*$|§[ \t ]*$/iu;
+// "venceu 3-1", "o jogo terminou 2-2", "placar de 1-0".
+const RANGE_SCORE =
+  /(?:^|[^\p{L}])(?:venc|ganh|perd|derrot|empat|golead|goleou|placar|resultado|partida|jogo|set|vitória|derrota)\p{L}*(?:[ \t ]+\p{L}+){0,3}[ \t ]+$/iu;
 
 /** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
 export const NUMBER_FIXERS = {
@@ -112,17 +119,5 @@ export const FORMULA_FIXERS = {
       alternatives: [lead + body.replace(/\d/g, (digit) => SUB[Number(digit)])],
     };
   },
+  rangeDash: rangeDashFixer({ code: RANGE_CODE, score: RANGE_SCORE }),
 } satisfies Record<string, MatchFixer>;
-
-// "páginas 10-15" -> "10–15" (emdashShortcut, opt-in). Not after a label of a code or a law
-// ("tel. 12-34", "art. 3-5", "CEP 12-14").
-const RANGE_CODE =
-  /(?:^|[^\p{L}])(?:tel|telefone|celular|fax|whatsapp|cep|nº|n\.º|no|número|ref|referência|processo|protocolo|art|artigo|lei|decreto|inciso|parágrafo|cpf|cnpj|rg|conta|agência|pedido|nota|versão|voo|linha|modelo|matrícula|isbn)\.?[ \t ]*:?[ \t ]*$|§[ \t ]*$/iu;
-// "venceu 3-1", "o jogo terminou 2-2", "placar de 1-0".
-const RANGE_SCORE =
-  /(?:^|[^\p{L}])(?:venc|ganh|perd|derrot|empat|golead|goleou|placar|resultado|partida|jogo|set|vitória|derrota)\p{L}*(?:[ \t ]+\p{L}+){0,3}[ \t ]+$/iu;
-
-export function rangeDash(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "pt")) return [];
-  return rangeDashes(ctx, { code: RANGE_CODE, score: RANGE_SCORE });
-}

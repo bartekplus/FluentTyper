@@ -1,7 +1,7 @@
 import { group } from "../phraseTemplates";
-import { DIGIT, invalidIsoDates } from "../isoDates";
+import { DIGIT } from "../isoDates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector, MatchFixer } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   contextYear,
   daysInMonth,
@@ -225,9 +225,3 @@ export const FIXERS = {
     return impossible(m.index, m.index + m[0].length);
   },
 } satisfies Record<string, MatchFixer>;
-
-/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
-export const PREDICATES = {
-  // "2025-02-30", also after a weekday ("Friday, 2025-02-30"): the weekday check skips it.
-  isoDates: (ctx) => invalidIsoDates(ctx).map(({ start, end }) => impossible(start, end)),
-} satisfies Record<string, Detector>;

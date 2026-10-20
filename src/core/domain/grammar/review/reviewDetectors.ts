@@ -141,6 +141,7 @@ import {
   PREDICATES as FRENCH,
 } from "./french/ruleDetectors";
 import { FIXERS as DATE_FIXERS } from "./dateTense";
+import { FIXERS as ISO_DATE_FIXERS } from "./isoDates";
 
 import { detectAll, PSEUDO_CLEFT_BEFORE, isLang } from "./phraseTemplates";
 import { finding } from "./finding";
@@ -1660,6 +1661,7 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   POSSESSIVE_FIXERS,
   COUNT_FIXERS,
   DATE_FIXERS,
+  ISO_DATE_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */

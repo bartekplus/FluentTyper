@@ -1,11 +1,11 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { Detector, FindingsFilter, MatchFixer } from "../../engine/reviewRules";
+import type { FindingsFilter, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 import { germanNounReading } from "./germanLexicon";
 import { isGerman, likeTyped } from "./shared";
 import { finding } from "../finding";
-import { rangeDashes } from "../rangeDash";
+import { rangeDashFixer } from "../rangeDash";
 
 // German numbers written in words: one word up to a million ("sechs und zwanzig" →
 // "sechsundzwanzig", "drei hundert" → "dreihundert", "acht mal" → "achtmal", "zwei an halb"
@@ -324,11 +324,6 @@ const RANGE_CODE =
 const RANGE_SCORE =
   /(?:^|[^\p{L}])(?:spiel|sieg|gewann|gewinn|verlor|verlier|unterl[ai]g|endstand|halbzeit|ergebnis|treffer|satz|sätze|partie|unentschieden|steht[ \t ]+es|stand[ \t ]+es)\p{L}*(?:[ \t ]+\p{L}+){0,3}[ \t ]+$/iu;
 
-export const PREDICATES = {
-  rangeDashes: (ctx) =>
-    isGerman(ctx) ? rangeDashes(ctx, { code: RANGE_CODE, score: RANGE_SCORE }) : [],
-} satisfies Record<string, Detector>;
-
 /** The named frame fixes of the de.numbers, de.typography and de.decadeCentury rules. */
 export const FIXERS = {
   ...NUMBER_FIXERS,
@@ -336,4 +331,5 @@ export const FIXERS = {
   chemicalFormula,
   thousands,
   decadeCentury,
+  rangeDash: rangeDashFixer({ code: RANGE_CODE, score: RANGE_SCORE }),
 } satisfies Record<string, MatchFixer>;

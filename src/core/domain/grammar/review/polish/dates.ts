@@ -1,8 +1,8 @@
-import { invalidIsoDates } from "../isoDates";
-import type { Detector, MatchFixer, MatchResult } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { invalidIsoDate } from "../isoDates";
+import type { MatchFixer, MatchResult } from "../../engine/reviewRules";
+import type { DetectContext } from "../reviewDetectors";
 import { contextYear, daysInMonth, weekdayOf, yearsFor } from "../reviewClock";
-import { caseLike, findingAt, isPl } from "./shared";
+import { caseLike, findingAt } from "./shared";
 
 /*
  * Dates: a day the month does not have ("31 września", "29 lutego 2023"), a
@@ -147,11 +147,11 @@ function impossibleDates(m: RegExpExecArray, ctx: DetectContext): MatchResult {
   return findingAt(ctx, Math.max(0, wStart), wEnd, [], RULE, key);
 }
 
-/** ISO dates ("2023-02-30") that name no day. */
-const isoDates = (ctx: DetectContext): RawFinding[] =>
-  invalidIsoDates(ctx).map(({ start, end }) =>
-    findingAt(ctx, start, end, [], RULE, "review_msg_pl_impossible_date"),
-  );
+/** An ISO date ("2023-02-30") that names no day. */
+const isoDate: MatchFixer = (m, ctx) => {
+  const range = invalidIsoDate(m, ctx);
+  return range && findingAt(ctx, range.start, range.end, [], RULE, "review_msg_pl_impossible_date");
+};
 
 function dayRanges(m: RegExpExecArray, ctx: DetectContext): MatchResult {
   if (Number(m.groups!.a) >= Number(m.groups!.b))
@@ -301,12 +301,9 @@ function longYears(m: RegExpExecArray, ctx: DetectContext): MatchResult {
   return findingAt(ctx, start, start + year.length, years, RULE, "review_msg_pl_impossible_date");
 }
 
-export const PREDICATES = {
-  isoDates: (ctx: DetectContext) => (isPl(ctx) ? isoDates(ctx) : []),
-} satisfies Record<string, Detector>;
-
 /** The named frame fixes of the date rules of grammar/rules/pl.yaml (`fixer:`). */
 export const FIXERS = {
+  isoDate,
   impossibleDates,
   dayRanges,
   yearRanges,

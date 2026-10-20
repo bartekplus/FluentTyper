@@ -1,5 +1,4 @@
 import { namedExampleBefore } from "../exampleCues";
-import { invalidIsoDates } from "../isoDates";
 import { EMPHASIS_MARKS } from "../markdownEmphasis";
 import type { Detector, FindingsFilter, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
@@ -17,7 +16,7 @@ import { readNoun } from "./agreement";
 import { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
 import { PREPOSITIONS, verbLike } from "./common";
 import { finding } from "../finding";
-import { rangeDashes } from "../rangeDash";
+import { rangeDashFixer } from "../rangeDash";
 import { isLang } from "../phraseTemplates";
 
 const known = (word: string) =>
@@ -285,16 +284,6 @@ const numericDate: MatchFixer = (m, ctx) => {
   return dayFinding(ctx, m.index, m[1], month, year);
 };
 
-/** "2026-02-30": an ISO date the calendar does not have. */
-const isoDates = (ctx: DetectContext): RawFinding[] =>
-  invalidIsoDates(ctx).map((range) => ({
-    ruleId: RULE,
-    messageKey: "review_msg_spanish_date",
-    range,
-    alternatives: [],
-    warningOnly: true,
-  }));
-
 function typography(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "es")) return [];
   const tokens = tokenize(ctx);
@@ -454,8 +443,6 @@ const CODE_BEFORE =
 // A result: "ganó 3-1", "empataron 2-2", "el marcador 1-2".
 const SCORE_BEFORE =
   /(?:^|\s)(?:gan\p{L}*|perd\p{L}*|venc\p{L}*|empat\p{L}*|derrot\p{L}*|golea\p{L}*|marcador|resultado|partido|set|sets|tanteo)[ \t]{1,8}(?:\p{L}+[ \t]{1,8}){0,2}$/iu;
-const rangeDash = (ctx: DetectContext) =>
-  rangeDashes(ctx, { code: CODE_BEFORE, score: SCORE_BEFORE });
 
 /** "Pesa 1.4 kg" -> "1,4 kg", "9,349.5" -> "9.349,5": the Spanish decimal comma. */
 const decimalPoint: MatchFixer = (m, ctx) =>
@@ -640,13 +627,12 @@ const decade: MatchFixer = (m, ctx) => {
 
 export const PREDICATES = {
   typography,
-  isoDates,
   quoteSpaces,
-  rangeDash,
 } satisfies Record<string, Detector>;
 
 /** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
 export const FIXERS = {
+  rangeDash: rangeDashFixer({ code: CODE_BEFORE, score: SCORE_BEFORE }),
   namedDate,
   noSuchDay,
   numericDate,
