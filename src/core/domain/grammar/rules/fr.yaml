@@ -25,21 +25,28 @@ rules:
     style: match
     message: review_msg_fr_infinitive
     frames:
+      # A word that may be a verb form: an infinitive, a participle or a "vous" form.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])\\p{L}+(?:er|é|ez|re|ir|oir)(?![\\p{L}\\p{M}\\p{N}_-])(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: verbCandidate
+      # "il est partit", "elles étaient misent", "il a été dis": a finite form after être for its
+      # participle, agreed with the subject the pronoun or the auxiliary shows.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:suis|es|est|sommes|êtes|sont|étais|était|étions|étiez|étaient|serai|seras|sera|serons|serez|seront|serais|serait|serions|seriez|seraient|fus|fut|furent|été){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: finiteAfterEtre
+      # "j'ai comprit", "il a reçut", "on a mange": a finite form after avoir for its participle.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:avoir|ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?![\\p{L}\\p{M}\\p{N}_'’])(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: finiteAfterAvoir
+      # "un blesse", "les associes ne", "un terrain accidente", "le groupe reclasse arrive": a
+      # first-group participle missing its accent, where a finite verb cannot stand: right after an
+      # article, or after a noun phrase when the clause already has its verb before or after it.
       - regex: "{{WORD_START}}\\p{Ll}{2,}es?{{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
@@ -50,56 +57,71 @@ rules:
     style: match
     message: review_msg_fr_homophone
     frames:
+      # A word that has a homophone: each word checks its own confusion.
       - regex: "{{WORD_START}}(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|mon|ton|sont|son|on|non|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\\p{L}\\p{M}\\p{N}_'’])(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: homophoneCandidate
+      # "Il c'en rend compte", "elle c'est trompée", "ne c'était": the reflexive "s'".
       - regex: "{{WORD_START}}[cC]['’](?=\\p{L})\\p{L}+(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: cToS
+      # "un an difficile", "l'an scolaire", "mes ans scolaires": a year described is "année".
       - regex: "{{WORD_START}}(?<det>un|[lL]['’]|cet|les|des|mes|ces|nos|vos|ses|Un|Les|Mes|Ces)[ \\t]{0,8}(?<=['’]|[ \\t])(?<an>ans?)[ \\t]{1,8}(?<adj>\\p{Ll}+){{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: anToAnnee
+      # "des 1980", "des 11 h", "livraison offerte des 20 €": "dès" (from) before a date, a time, an
+      # age or a threshold.
       - regex: "{{WORD_START}}[dD]es(?=[ \\t\\u00a0]+[\\d$€£])(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: desToDes
+      # "il croit aveuglement" (the adverb aveuglément), "son aveuglément" (the noun aveuglement).
       - regex: "{{WORD_START}}[aA]veugl[eé]ment{{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: aveuglement
+      # "il dure prêt de deux heures": "près de" (nearly) before a number, right after a verb. "Un
+      # prêt de 2 000 euros" (a loan) has its determiner.
       - regex: "{{WORD_START}}(?<pret>[pP]rêts?)[ \\t]+de[ \\t]+(?:\\d|(?:deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|quarante|cinquante|soixante|cent|mille){{WORD_END}})(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: pretToPres
+      # "Tache de partir tôt", "il tache que tout aille bien": tâcher (to try), not tacher (to
+      # stain).
       - regex: "{{WORD_START}}[tT]ach(?:e|es|ez|ons|ent|ais|ait|aient|iez|ions|era|erai|eras|erons|erez|eront){{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: tacherToTacher
+      # "une tâche de café" -> "tache", "accomplir la tache" -> "tâche", "j'ai tâché ma chemise" ->
+      # "taché": the stain (tache, tacher) against the task (tâche) and trying (tâcher de).
       - regex: "{{WORD_START}}[tT][aâ]ch(?:es?|é|ée|és|ées|er){{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: tacheToTache
+      # "il est venu comme même": "quand même"; "comme même ses amis" (like even) stays.
       - regex: "{{WORD_START}}comme[ \\t]+même{{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: commeMeme
+      # "ce truc-la", "celui la.": the adverb after a demonstrative.
       - regex: "(?<=\\p{L})(?:-|[ \\t])la{{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: hyphenLa
+      # "est" for "et", or "et" for "est".
       - regex: "{{WORD_START}}(?:est|et){{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
@@ -110,51 +132,67 @@ rules:
     style: match
     message: review_msg_fr_hyphen
     frames:
+      # "pouvez vous", "a t il", "est ce que": an inverted subject joined with hyphens.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<verb>\\p{L}+)(?:[ \\t]*-[ \\t]+|[ \\t]+-[ \\t]*|[ \\t]+(?<t>t['’]|t[ \\t]+|-t-|t-)[ \\t]*|[ \\t]+)(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles|ce){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: inversion
+      # "il partira peut être demain", "peu être": the adverb "peut-être".
       - regex: "{{WORD_START}}peut?[ \\t]+être{{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: maybe
+      # "Dis lui bonjour" -> "Dis-lui", "Regarde la." -> "Regarde-la".
       - regex: "{{WORD_START}}(?<verb>\\p{L}+)[ \\t]+(?<pronoun>moi|toi|lui|nous|vous|leur|le|la|les|en|y|m['’]en|t['’]en){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: imperative
+      # "At-il", "vat-elle", "Yat-il": the euphonic t glued to its verb.
       - regex: "{{WORD_START}}(?<y>y[ \\t]?)?(?<verb>a|va)t-(?<pronoun>il|elle|on){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: gluedT
+      # "Donne-le moi" -> "Donne-le-moi", "Souvenez-vous en." -> "Souvenez-vous-en": a second
+      # pronoun after a hyphenated imperative joins it too.
       - regex: "(?<=\\p{L}-)(?<first>le|la|les|moi|toi|lui|nous|vous|leur)[ \\t]+(?<second>moi|toi|lui|nous|vous|leur|en|y){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: secondPronoun
+      # "il peut-être têtu" -> "peut être": pouvoir + être after a subject pronoun.
       - regex: "{{WORD_START}}peut-être{{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: verbalMaybe
+      # A prefix and its word written apart or with a hyphen: the dictionary spelling of the
+      # compound ("co incidences" -> "coïncidences").
       - regex: "{{WORD_START}}(?<prefix>anti|auto|néo|géo|méga|mini|ultra|hyper|multi|psycho|franco|afro|vice|vidéo|micro|macro|post|co|cyber|extra|inter|intra|semi|pseudo|quasi|poly|télé|bio|éco|rétro|zig|anglo|germano|italo|hispano|gréco|judéo|sino|russo|austro|euro|sur|sous|contre)(?:[ \\t]+|-)(?<word>\\p{L}{3,}){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: prefixCompound
+      # "un coffre fort", "les non voyants", "l'agro industrie": a compound the dictionary
+      # hyphenates, written as two words after a determiner, or with a combining form in -o ("agro",
+      # "anglo") that is no word of its own.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<first>\\p{Ll}+)(?=[ \\t]{1,3}(?<second>\\p{Ll}+){{WORD_END}})(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: spacedCompound
+      # "vio-loniste" -> "violoniste", "jour-nal" -> "journal": a word cut by a hyphen, where a part
+      # is no word of its own and the joined form is one.
       - regex: "{{WORD_START}}(?<first>\\p{Ll}[\\p{Ll}\\p{M}]*)-[ ]?(?<second>\\p{Ll}[\\p{Ll}\\p{M}]*){{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: splitWord
+      # "Aix en Provence", "Jean Marc", "le rez de chaussée": a name the dictionary hyphenates (its
+      # case as listed) or a compound noun of three parts or more after a determiner.
       - regex: "{{WORD_START}}\\p{L}+(?:['’]\\p{L}+)?(?=[ \\t]{1,8}\\p{L}|-\\p{L})(?<target>)"
         flags: gu
         scan: owned
@@ -171,11 +209,13 @@ rules:
         scan: owned
         lookback: 1
         fixer: pronounSubject
+      # A subject noun: its verb's agreement, or the verb of an object relative clause.
       - regex: "{{WORD_START}}(?:l['’](?=\\p{L})|(?:le|la|un|une|ce|cet|cette|mon|ton|son|ma|ta|sa|notre|votre|chaque|les|des|ces|mes|tes|ses|nos|vos|leurs|plusieurs|moi|toi|lui|nous|vous|eux|ceux|celles|celui|celle|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|vingt|trente|quarante|cinquante|soixante|cent|mille|plusieurs|quelques){{WORD_END}}|(?<![\\p{N},.][ \\u00a0]?)\\d+(?=[ \\u00a0]+\\p{L}))(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: nounSubjectOrRelative
+      # "cet homme qui travail", "l'ordinateur qui crash": a noun where the relative's verb goes.
       - regex: "{{WORD_START}}qui(?=[ \\t])(?<target>)"
         flags: giu
         scan: owned
@@ -188,11 +228,13 @@ rules:
         scan: owned
         lookback: 1
         fixer: quantitySubject
+      # "La plupart pense" -> "pensent": "la plupart" alone stands for a plural subject.
       - regex: "{{WORD_START}}la[ \\t]+plupart{{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: pluralPlupart
+      # "Dominique peux venir", "Sam et Marie comprit": a name opening its clause and its verb.
       - regex: "{{WORD_START}}\\p{Lu}\\p{Ll}+(?:-\\p{Lu}\\p{Ll}+)?{{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
@@ -210,26 +252,33 @@ rules:
     style: match
     message: review_msg_fr_elision
     frames:
+      # "jarrive", "sil", "nen", "dun": an elided word glued to the next without its apostrophe.
       - regex: "{{WORD_START}}(?:[cCjJsSnNmMtTdDlL]|[qQ]u)\\p{Ll}+{{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: gluedElision
+      # "je aime", "que il", "le arbre": the full word before a vowel.
       - regex: "{{WORD_START}}(?<word>je|me|te|se|le|la|ne|de|que|lorsque|puisque|quoique)(?=(?<space>[ \\t]+)(?<next>\\p{L}[\\p{L}\\p{M}]*){{WORD_END}})(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: missingElision
+      # "l arbre", "qu il", "d’ enfants": the apostrophe missing, or followed by a space.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_'’.-])(?<letter>[cdjlmnst]|qu)(?:(?<mark>[ \\t]*['’][ \\t]+|[ \\t]+['’][ \\t]*)|[ \\t]+)(?<next>\\p{L}[\\p{L}\\p{M}]*){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: spacedElision
+      # "ce arbre" -> "cet", "un vieux ami" -> "vieil": a masculine singular noun or adjective that
+      # starts with a vowel or a mute h.
       - regex: "{{WORD_START}}(?<word>ce|vieux|beau|nouveau|fou|mou)[ \\t\\u00a0]+(?<next>\\p{L}[\\p{L}\\p{M}]*)(?![\\p{L}\\p{M}\\p{N}_'’])(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: liaisonForm
+      # "l'hibou", "j'hurle", "l'oui": an elision before a word that refuses it; "l'femme": the
+      # article elided before a consonant.
       - regex: "{{WORD_START}}(?<letter>[jJdDlLmMtTsSnN]|[qQ]u)['’](?<next>\\p{L}[\\p{L}\\p{M}]*){{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
@@ -273,16 +322,21 @@ rules:
     style: match
     message: review_msg_fr_noun_number
     frames:
+      # A determiner and the noun right after it share their number: "mes livres", "la route".
       - regex: "(?:{{WORD_START}}(?<det>les|des|mes|tes|ses|nos|vos|leurs|ces|aux|plusieurs|quelques|le|la|un|une|mon|ma|ton|ta|son|sa|ce|cet|cette|au|du|chaque|notre|votre|deux|trois|quatre|cinq|six|sept|huit|dix|onze|douze|treize|quatorze|quinze|seize|vingt|trente|quarante|cinquante|soixante|cent|mille|(?<![\\d.,:/°#№]|n°[ \\t]?)\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+|(?<![\\d.,:/°#№]|n°[ \\t]?)\\d+))(?=[ \\t]+(?<noun>\\p{L}+){{WORD_END}})(?<target>)"
         flags: dgiu
         scan: owned
         lookback: 1
         fixer: nounNumber
+      # "de grosses société", "leurs propres démarcation", "un autre jours": a noun after an
+      # adjective that stands before it takes the number the adjective and its determiner show.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<adj>grand|grande|petit|petite|grosse|beau|belle|bon|bonne|mauvaise|jeune|vieille|nouveau|nouvelle|joli|jolie|long|longue|haut|haute|vrai|vraie|fausse|propre|premier|première|dernier|dernière|prochain|prochaine|seul|seule|même|autre|meilleur|meilleure|pire|gentil|gentille|excellent|excellente|grands|grandes|petits|petites|grosses|beaux|belles|bons|bonnes|mauvaises|jeunes|vieilles|nouveaux|nouvelles|jolis|jolies|longs|longues|hauts|hautes|vrais|vraies|fausses|propres|premiers|premières|derniers|dernières|prochains|prochaines|seuls|seules|mêmes|autres|meilleurs|meilleures|pires|gentils|gentilles|excellents|excellentes|\\p{L}+es)(?=[ \\t]+(?<noun>\\p{L}+){{WORD_END}})(?<target>)"
         flags: dgiu
         scan: owned
         lookback: 1
         fixer: adjectiveNounNumber
+      # "Les plus beau garçon" -> "Le", "la plus beaux parcs" -> "les": before a degree word, an
+      # adjective and a noun that agree, the determiner takes their number.
       - regex: "{{WORD_START}}(?<det>le|la|les|au|aux|ce|cette|ces|leur|leurs)(?=[ \\t]+(?<degree>plus|moins|très)[ \\t]+(?<adj>\\p{L}+)[ \\t]+(?<noun>\\p{L}+){{WORD_END}})(?<target>)"
         flags: dgiu
         scan: owned
@@ -293,6 +347,7 @@ rules:
     style: match
     message: review_msg_fr_noun_gender
     frames:
+      # A singular determiner takes the gender of its noun: "une maison", "un arbre", "cette idée".
       - regex: "(?:{{WORD_START}}|(?<={{WORD_START}}(?:[dD]|[qQ]u)['’]))(?<det>un|une|le|la|ce|cet|cette|du|au|mon|ton|son|ma|ta|sa|aucun|aucune)(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_]))(?<target>)"
         flags: dgiu
         scan: owned
@@ -303,41 +358,53 @@ rules:
     style: match
     message: review_msg_fr_adjective_agreement
     frames:
+      # "trois heures et demi" -> "demie": "demi" after its noun.
       - regex: "{{WORD_START}}(?<noun>\\p{L}+)[ \\t]+et[ \\t]+(?<half>demi(?:e|s|es)?){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: andAHalf
+      # "une demie heure" -> "demi-heure": "demi" before its noun.
       - regex: "{{WORD_START}}(?<half>demie)(?:[ \\t]+|-)(?<noun>\\p{L}+){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: halfBefore
+      # "l'homme avec laquelle tu parles" -> "lequel", "la femme auquel" -> "à laquelle": the
+      # relative pronoun takes the gender and number of the noun right before it.
       - regex: "{{WORD_START}}(?:lequel|laquelle|lesquels|lesquelles|auquel|auxquels|auxquelles|duquel|desquels|desquelles){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: relativeAgreement
+      # "des bons gens" -> "bonnes", "des gens cultivées" -> "cultivés": an adjective right before
+      # "gens" takes its feminine form when it has one; an adjective after it stays masculine.
       - regex: "{{WORD_START}}gens{{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: gensAgreement
+      # "des filles tel que Marie" -> "telles", "Tel est la question" -> "Telle", "tel une femme" ->
+      # "telle": "tel" takes the gender and number of the noun it compares or announces.
       - regex: "{{WORD_START}}tel(?:le)?s?{{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: telAgreement
+      # "des yeux verts clairs", "une jupe bleue foncée": a compound color after its noun.
       - regex: "{{WORD_START}}(?:bleu|bleue|bleus|bleues|vert|verte|verts|vertes|rouge|rouges|jaune|jaunes|gris|grise|grises|noir|noire|noirs|noires|blanc|blanche|blancs|blanches|rose|roses|violet|violette|violets|violettes|brun|brune|bruns|brunes|beige|beiges|mauve|mauves)[ \\t]{1,8}(?:clair|claire|clairs|claires|foncé|foncée|foncés|foncées|pâle|pâles|vif|vive|vifs|vives|sombre|sombres|canard|canards|océan|océans|améthyste|améthystes|émeraude|émeraudes|turquoise|turquoises|électrique|électriques|fluo|fluos|marine|nuit|ciel|pétrole){{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: colorShade
+      # "un effet direct et indirects", "une entrée indépendante et séparé": two adjectives joined
+      # by "et" or "ou" after their noun (or after être) share its gender and number.
       - regex: "{{WORD_START}}\\p{Ll}+(?=[ \\t]{1,8}(?:et|ou)[ \\t]{1,8}\\p{Ll})(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: adjectivePair
+      # An adjective after its pronoun or noun subject, or before its noun.
       - regex: "{{WORD_START}}(?:[lj]['’](?=\\p{L})|(?:celui|celle|ceux|celles)(?=-)|(?:le|la|un|une|ce|cet|cette|mon|ton|son|ma|ta|sa|notre|votre|leur|les|ces|mes|tes|ses|nos|vos|leurs|des|je|tu|il|elle|nous|ils|elles|celui|celle|ceux|celles|certains|certaines|beaucoup|plusieurs){{WORD_END}})|(?<=\\p{L}-)(?:je|tu|il|elle|nous|ils|elles){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
@@ -349,11 +416,14 @@ rules:
         scan: owned
         lookback: 1
         fixer: ellipticSubject
+      # A first name as the subject of an adjective.
       - regex: "{{WORD_START}}\\p{Lu}\\p{Ll}+(?:-\\p{Lu}\\p{Ll}+)?{{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: firstNameSubject
+      # The participle after avoir: invariable with no object before it ("nous avons mangé"),
+      # agreeing with a noun that "que" brings before it ("les hommes que j'ai aidés").
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
@@ -368,26 +438,35 @@ rules:
     style: match
     message: review_msg_fr_adjective_agreement
     frames:
+      # "divers épices" -> "diverses", "pareil tempêtes" -> "pareilles": an adjective that serves as
+      # the determiner of a plural noun takes its gender and number.
       - regex: "{{WORD_START}}(?:divers|diverse|diverses|différents|différentes|pareil|pareille|pareils|pareilles)(?=[ \\t]+\\p{L})(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: adjectiveDeterminer
+      # "de" or "d'" before an adjective and its noun: the adjective agrees with the noun.
       - regex: "{{WORD_START}}(?:de{{WORD_END}}|d['’](?=\\p{L}))(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: deBeforeNoun
+      # "une lettre qui est arrivé" -> "arrivée": after "qui" and être, the participle agrees with
+      # the noun before "qui", the nearest one whose number the verb shows ("la fille du voisin qui
+      # est venu": the neighbour).
       - regex: "{{WORD_START}}qui[ \\t]{1,4}(?<verb>est|sont|était|étaient|sera|seront|fut|furent|semble|semblent|paraît|paraissent|reste|restent){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: quiParticiple
+      # "Au fond du jardin sont planté les rosiers" -> "plantés", "Comment est venu le facteur ?":
+      # after être with no subject before it, the participle agrees with the subject after it.
       - regex: "{{WORD_START}}(?:est|sont|était|étaient|sera|seront|fut|furent){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: invertedParticiple
+      # An inverted form of avoir and its participle: "Les as-tu lu ?" -> "lus".
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?:-t)?-(?:je|tu|il|elle|on|nous|vous|ils|elles){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
@@ -416,21 +495,26 @@ rules:
     style: match
     message: review_msg_fr_subjunctive
     frames:
+      # "il faut que tu viens" -> "viennes", "bien qu'il est tard" -> "soit".
       - regex: "{{WORD_START}}(?:(?:que|quoique)(?![\\p{L}\\p{M}\\p{N}_'’])|(?:qu|quoiqu)['’](?=\\p{L}))(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: subjunctiveAfterQue
+      # "il est certain qu'il parte" -> "part", "j'espère que tu viennes" -> "viens".
       - regex: "{{WORD_START}}(?:(?:que|quoique)(?![\\p{L}\\p{M}\\p{N}_'’])|(?:qu|quoiqu)['’](?=\\p{L}))(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: indicativeAfterQue
+      # "Tu ne la croies pas" -> "crois", "Il comprenne mal" -> "comprend": a subjunctive form in a
+      # main clause, where no "que" comes before its pronoun subject.
       - regex: "{{WORD_START}}(?:je|j['’]|tu|il|elle|on|ils|elles)(?![\\p{L}\\p{M}\\p{N}_’-])(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: mainSubjunctive
+      # "si j'aurais su" -> "avais", "si tu viendras" -> "viens".
       - regex: "{{WORD_START}}(?:si(?![\\p{L}\\p{M}\\p{N}_'’])|s['’](?=ils?\\b))(?<target>)"
         flags: giu
         scan: owned
@@ -447,11 +531,14 @@ rules:
     style: match
     message: review_msg_fr_missing_ne
     frames:
+      # A negation word with no "ne" before the verb: "j'ai pas compris" -> "je n'ai pas compris".
       - regex: "{{WORD_START}}(?:pas|jamais|plus|rien|personne|guère|aucune?){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: missingNe
+      # "pour pas qu'il se fâche" -> "pour qu'il ne se fâche pas": the written negation of the
+      # purpose clause wraps its verb.
       - regex: "{{WORD_START}}pour[ \\t]+pas[ \\t]+qu(?:e[ \\t]+|['’])(?<target>)"
         flags: giu
         scan: owned
@@ -462,51 +549,68 @@ rules:
     style: match
     message: review_msg_fr_homophone
     frames:
+      # A short word that a homophone may stand for: "il ni arrive pas" -> "n'y", "mes je pense" ->
+      # "mais", "cela leurs permet" -> "leur".
       - regex: "{{WORD_START}}(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes|et|est|nous|vous|soi|soit|sois|soie|çà){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: smallWord
+      # "je pense d'avantage à toi" -> "davantage" (more); "tirer avantage" keeps the noun.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])d['’]avantage{{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: davantage
+      # "quel que soit sa raison" -> "quelle que soit", "quelles que soit ses idées" -> "quels que
+      # soient": "quel" and "soit" take the gender and number of the noun.
       - regex: "{{WORD_START}}quel(?:le)?s?[ \\t]+que[ \\t]+soi(?:en)?t{{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: quelQueSoit
+      # "elle a sept années" -> "ans": an age counts years.
       - regex: "{{WORD_START}}(?:\\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|vingt|trente|quarante|cinquante|soixante|cent)[ \\t]+(?<years>années){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: ageInYears
+      # "trois cent timbres" -> "cents", "deux cents trois" -> "cent", "quatre-vingt ans" ->
+      # "vingts": a multiplied cent or vingt takes an s only when it ends the number.
       - regex: "{{WORD_START}}(?<times>\\p{L}+)[ \\t-]+(?<unit>cents?|vingts?)(?![\\p{L}\\p{M}\\p{N}_'’])(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: hundreds
+      # "croît", "crû": forms of croître (to grow) where croire (to believe) is meant: "il ne croît
+      # rien" -> "croit".
       - regex: "{{WORD_START}}cr(?:oî[st]|û[st]?)(?![\\p{L}\\p{M}\\p{N}_'’])(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: growToBelieve
+      # "il n'a qua partir" -> "qu'à", "pour qu'a la fin" -> "qu'à": "que" and the preposition.
       - regex: "{{WORD_START}}qu(?:['’]a|a){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: quToQuA
+      # The subjunctive of avoir with no "que" or relative to govern it: "il ait venu" -> "est",
+      # "j'aie fini" -> "ai".
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:aie|aies|ait|aient){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: mainClauseAvoir
+      # "il pense quelle a menti", "dès quel ouvre la porte": "qu'elle" before a verb. "Il se
+      # demande quelle est la date" (an indirect question) keeps "quelle".
       - regex: "{{WORD_START}}quel(?:le)?s?{{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: quelleForQuElle
+      # "plu grand", "plu tard" -> "plus": "plu" is the participle of plaire and pleuvoir, and
+      # stands only after avoir ("ça m'a beaucoup plu", "a-t-il plu ?").
       - regex: "{{WORD_START}}plu{{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
@@ -517,16 +621,19 @@ rules:
     style: match
     message: review_msg_fr_double_determiner
     frames:
+      # "nos cette langue", "des sa naissance", "du notre site": two determiners in a row.
       - regex: "{{WORD_START}}(?<first>le|la|les|un|une|des|du|au|aux|ce|cet|cette|ces|mon|ton|son|ma|ta|sa|mes|tes|ses|notre|votre|nos|vos|leur|leurs)[ \\t]{1,8}(?<second>(?:le|la|les|un|une|des|du|au|aux|ce|cet|cette|ces|mon|ton|son|ma|ta|sa|mes|tes|ses|notre|votre|nos|vos|leur|leurs)(?![\\p{L}\\p{M}\\p{N}_-])|l['’](?=\\p{L}))(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: determinerPair
+      # "des plusieurs" -> "de plusieurs", "de des" -> "de" or "des", "à aux" -> "aux" or "à".
       - regex: "{{WORD_START}}(?<first>des|les|ces|mes|tes|ses|nos|vos|de|du|à)[ \\t]{1,8}(?<second>plusieurs|certains|certaines|toutes|tous|des|de|aux|entre){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: quantifierPair
+      # A noun written like a verb form or participle after a determiner: the noun's spelling.
       - regex: "{{WORD_START}}(?<det>(?:le|la|les|un|une|des|du|au|aux|ce|cet|cette|ces|mon|ton|son|ma|ta|sa|mes|tes|ses|notre|votre|nos|vos|leur|leurs)(?=[ \\t])|l['’])[ \\t]{0,8}(?<noun>\\p{L}[\\p{L}\\p{M}]*)(?![\\p{L}\\p{M}\\p{N}_])(?<target>)"
         flags: dgiu
         scan: owned
@@ -599,6 +706,7 @@ rules:
     style: match
     message: review_msg_fr_subject_verb
     frames:
+      # "sont-il" -> "sont-ils", "mange-tu" -> "manges-tu", "pouvait-ils" -> "pouvaient-ils".
       - regex: "{{WORD_START}}(?<verb>\\p{L}+)-(?<t>t-)?(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
@@ -610,6 +718,7 @@ rules:
         scan: owned
         lookback: 1
         fixer: spacedInversion
+      # "C'est toi qui a" -> "as", "Et moi qui pensait" -> "pensais".
       - regex: "{{WORD_START}}(?:(?<pronoun>moi|toi|lui|elle|nous|vous|eux|elles)(?:[ \\t]+seule?s?)?[ \\t]+qui|(?<demonstrative>ceux|celles)){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
@@ -620,11 +729,14 @@ rules:
     style: match
     message: review_msg_fr_imperative
     frames:
+      # "Ne prend pas", "N'aies pas peur", "Ne vous laisser pas faire": a negated order.
       - regex: "{{WORD_START}}n(?:e{{WORD_END}}|['’](?=\\p{L}))(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: negatedOrder
+      # "Va-y" -> "Vas-y", "Rend-toi" -> "Rends-toi", "Manges-le" -> "Mange-le", "Aller-y" ->
+      # "Allez-y": the imperative a hyphenated object pronoun follows.
       - regex: "{{WORD_START}}(?<verb>\\p{L}+)-(?<pronoun>moi|toi|lui|nous|leur|le|la|les|en|y){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
@@ -635,6 +747,8 @@ rules:
     style: match
     message: review_msg_fr_homophone
     frames:
+      # "Veillez ne pas" -> "Veuillez": veiller takes "à"; "Veuillez à" -> "Veillez à": vouloir
+      # takes a bare infinitive.
       - regex: "{{WORD_START}}veu?illez{{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
@@ -645,11 +759,13 @@ rules:
     style: match
     message: review_msg_fr_invariable_colour
     frames:
+      # "La vie coûte chère" -> "cher", "Ces fleurs sentent bonnes" -> "bon".
       - regex: "{{WORD_START}}(?:chère|chères|chers|basse|basses|haute|hautes|hauts|bonne|bonnes|bons|mauvaise|mauvaises|justes|fausse|fausses|claire|claires|clairs|droite|droites|droits|franche|franches|francs|forte|fortes|forts|courte|courtes|courts|dure|dures|durs|lourde|lourdes|lourds){{WORD_END}}(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: adverbialAdjective
+      # "des yeux marrons" -> "marron", "des robes bleues claires" -> "bleu clair".
       - regex: "{{WORD_START}}(?:marron|kaki|crème|turquoise|émeraude|ocre|saumon|olive|ivoire|bordeaux|prune|cerise|chocolat|caramel|moutarde|corail|azur|sable|citron|framboise|lavande|abricot|bronze|argent|cuivre|acajou|anthracite|indigo|bleu|vert|rouge|jaune|gris|brun|noir|blanc|violet|orange|beige)\\p{Ll}{0,3}{{WORD_END}}(?<target>)"
         flags: gu
         scan: owned
@@ -674,16 +790,21 @@ rules:
         scan: owned
         lookback: 1
         fixer: styleWord
+      # "Je me rappelle de ce jour" -> "Je me rappelle ce jour": "se rappeler" takes a direct
+      # object.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])rappel(?:le|les|lent|ons|ez|ais|ait|aient|é|ée|és|ées|er)(?![\\p{L}\\p{M}\\p{N}_-])(?<target>)"
         flags: giu
         scan: owned
         lookback: 1
         fixer: rememberOf
+      # "Y a un problème", "si y a pas le choix", "qu'y a": spoken French leaves out "il" (and
+      # "ne"); written French says "il y a", "s'il n'y a pas", "qu'il y a".
       - regex: "(?:(?<=(?<!\\p{L})[qQ]u['’])|{{WORD_START}})[yY](?=[ \\t]+(?:en[ \\t]+)?a{{WORD_END}})(?<target>)"
         flags: gu
         scan: owned
         lookback: 1
         fixer: spokenYa
+      # "C'est la voiture à moi" -> "ma voiture": after "c'est" or "ce sont", the possessive.
       - regex: "{{WORD_START}}(?<det>le|la|les|l['’])[ \\t]*(?<noun>\\p{L}+)[ \\t]+à[ \\t]+(?<who>moi|toi|lui|elle|nous|vous|eux|elles)(?![\\p{L}\\p{M}\\p{N}_'’])(?<target>)"
         flags: giu
         scan: owned
