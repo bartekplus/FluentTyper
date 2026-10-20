@@ -439,6 +439,13 @@ const FRAMES: readonly Frame[] = [
     "to|this|that|it|a|an|the|some|more",
     "want",
   ),
+  // Lowercase only: "Ned" is a name ("Will Ned help?").
+  slot(
+    "i|we|you|they|don['’]t|doesn['’]t|didn['’]t|won['’]t|not|will|would|really|just|also|might|may",
+    "ned",
+    "to|too|a|an|the|some|more|help|it|this|that|your|my|our|their|them|you|me|us",
+    (m) => (m.groups!.target === "ned" ? "need" : null),
+  ),
   slot(
     "wouldn['’]t|won['’]t|to|will|can|could|should|must|might|['’]ll|don['’]t",
     "git",

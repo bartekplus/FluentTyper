@@ -773,6 +773,52 @@ describe("ReviewSession spelling", () => {
     expect(h.last().diagnostics).toEqual([]);
   });
 
+  test("two unknown words split by one space are joined when the dictionary knows the joined word", async () => {
+    const fake = fakeLookup({ shoul: ["should", "shoulder"], "dn't": ["don't", "didn't"] });
+    const h = harness("Do not split words you shoul dn't split.", { lookupSpelling: fake.lookup });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(fake.words()).toContain("shouldn't");
+    expect(
+      h.last().diagnostics.map((d) => [d.original, d.alternatives.map((a) => a.preview)]),
+    ).toEqual([["shoul dn't", ["shouldn't"]]]);
+    const [finding] = h.last().diagnostics;
+    expect(finding.messageKey).toBe("review_msg_split_word");
+    await Promise.all([h.session.apply(finding.id, 0), h.settle()]);
+    expect(h.editor.text).toBe("Do not split words you shouldn't split.");
+    expect(h.last().diagnostics).toEqual([]);
+  });
+
+  test("a failed join lookup leaves the halves as separate findings", async () => {
+    const fake = fakeLookup({ shoul: ["should"], "dn't": ["don't"] });
+    const h = harness("You shoul dn't wait.", {
+      lookupSpelling: (lang, words) =>
+        words.some(({ word }) => word === "shouldn't")
+          ? Promise.reject(new Error("offline"))
+          : fake.lookup(lang, words),
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.originals()).toEqual(["shoul", "dn't"]);
+    expect(h.last().spelling).toBe("done");
+  });
+
+  test("two unknown words stay separate findings when the joined word is unknown too", async () => {
+    const fake = fakeLookup({
+      infor: ["inform", "info"],
+      matoin: ["motion"],
+      informatoin: ["information"],
+      frob: ["from"],
+      nix: ["mix"],
+    });
+    const h = harness("Send the infor matoin to the frob nix tool.", {
+      lookupSpelling: fake.lookup,
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(fake.words()).toContain("informatoin");
+    // No suggestion for "frob" starts "frobnix": not asked.
+    expect(fake.words()).not.toContain("frobnix");
+    expect(h.originals()).toEqual(["infor", "matoin", "frob", "nix"]);
+  });
+
   test("with typographicQuotes on, a misspelled word with a straight apostrophe still gets its spelling fix", async () => {
     const calls: string[] = [];
     const h = harness("I odn't know if it's here.", {

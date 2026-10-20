@@ -19,6 +19,7 @@ const REVIEW_DIR = path.join(import.meta.dir, "../../src/core/domain/grammar/rev
 const LANGS = ["en", "fr", "hr", "es", "el", "sv", "de", "pl", "pr"];
 const PAGE_KEYS: PageMessageKey[] = [
   "review_msg_unknown_word",
+  "review_msg_split_word",
   "review_msg_two_initial_capitals",
   "review_msg_local_ai",
 ];

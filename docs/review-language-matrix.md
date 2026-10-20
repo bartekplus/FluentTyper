@@ -238,10 +238,11 @@ Fixture files (all under `tests/grammar/`):
 
 ## Dictionary checks
 
-| Check                 | en  | fr  | de  | pl  | es  | pt  | sv  | hr  | el  | ar  | auto | Fixtures / reason                                                                                                                                                          |
-| --------------------- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Spelling (dictionary) | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | U    | SP. The language's Presage dictionary. de: capitalized words inside a sentence (nouns and names alike) are not looked up. auto: no dictionary until the language is known. |
-| Two initial capitals  | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | U    | SP. Acronym plurals ("IDs") abstain except the language's own short words ("LEs", "LOs", "DAs", "WAs"). ar: Latin runs only. auto: no dictionary.                          |
+| Check                 | en  | fr  | de  | pl  | es  | pt  | sv  | hr  | el  | ar  | auto | Fixtures / reason                                                                                                                                                                                                       |
+| --------------------- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Spelling (dictionary) | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | U    | SP. The language's Presage dictionary. de: capitalized words inside a sentence (nouns and names alike) are not looked up. auto: no dictionary until the language is known.                                              |
+| Two initial capitals  | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | U    | SP. Acronym plurals ("IDs") abstain except the language's own short words ("LEs", "LOs", "DAs", "WAs"). ar: Latin runs only. auto: no dictionary.                                                                       |
+| Split word            | S   | S   | S   | S   | S   | S   | S   | S   | S   | S   | U    | SP. Two unknown words with one space between them ("shoul dn't") become one fix when a suggestion for the first part starts the joined word and the dictionary knows it. A known part stays apart. auto: no dictionary. |
 
 ## Shared helpers
 

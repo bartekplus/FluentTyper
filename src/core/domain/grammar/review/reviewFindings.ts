@@ -2,7 +2,7 @@ import type { PreparedReview } from "./reviewDiagnostics";
 import type { RawFinding } from "./reviewDetectors";
 import { reviewMetadataFor } from "./reviewCatalog";
 import { isReadabilityLiteral } from "./readability";
-import type { SpellingCandidate } from "./reviewSpelling";
+import type { SpellingCandidate, SplitWord } from "./reviewSpelling";
 import {
   editTouches,
   hashText,
@@ -109,6 +109,22 @@ export function casingDiagnostic(
     range: candidate.range,
     alternatives: [candidate.casing],
     dictionaryWord: candidate.word,
+  });
+}
+
+/** Two unknown words the dictionary knows joined ("shoul dn't"): one fix, never in bulk. */
+export function splitWordDiagnostic(
+  prepared: PreparedReview,
+  pair: SplitWord,
+): ReviewDiagnostic | null {
+  const word = prepared.text.slice(pair.first.range.start, pair.second.range.end);
+  return toDiagnostic(prepared, {
+    ruleId: REVIEW_SPELLING_CHECK,
+    messageKey: "review_msg_split_word",
+    range: { start: pair.first.range.start, end: pair.second.range.end },
+    // The written halves keep their own apostrophe style.
+    alternatives: [word.replace(" ", "")],
+    requiresChoice: true,
   });
 }
 

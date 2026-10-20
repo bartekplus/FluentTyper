@@ -20,6 +20,17 @@ const PAGE_EXPLANATIONS = {
     "Tego słowa nie ma w słowniku. Wybierz właściwe słowo.",
     "Esta palavra não está no dicionário. Escolha a palavra que queria.",
   ],
+  review_msg_split_word: [
+    "These two parts make one word. Write them together.",
+    "Ces deux parties forment un seul mot. Écrivez-les ensemble.",
+    "Ova dva dijela čine jednu riječ. Napišite ih zajedno.",
+    "Estas dos partes forman una sola palabra. Escríbalas juntas.",
+    "Αυτά τα δύο μέρη σχηματίζουν μία λέξη. Γράψτε τα μαζί.",
+    "De här två delarna är ett ord. Skriv dem ihop.",
+    "Diese zwei Teile bilden ein Wort. Schreiben Sie sie zusammen.",
+    "Te dwie części tworzą jedno słowo. Napisz je razem.",
+    "Estas duas partes formam uma só palavra. Escreva-as juntas.",
+  ],
   review_msg_two_initial_capitals: [
     "Only the first letter of this word should be a capital.",
     "Seule la première lettre de ce mot doit être en majuscule.",

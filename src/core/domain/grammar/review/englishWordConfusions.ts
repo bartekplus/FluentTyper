@@ -1,5 +1,6 @@
 import { ENGLISH_COMPARATIVES } from "../implementations/helpers/EnglishDegreeForms";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
+import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import { atClauseStart } from "./englishParticiples";
 import { COMPLETE_OR_PAREN, frameMatches, group, SPACE, WORD_END } from "./phraseTemplates";
@@ -275,13 +276,21 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
     `(?<target>too)${SPACE}(?:the|a|an|him|them|me|us|my|your|his|our|their)${WORD_END}`,
   ))
     push(match, "englishToToo", "review_msg_to_infinitive", "to");
+  // "n't" + one word ("don't need too worry", even with a misspelled verb) has the same
+  // slot; a pronoun there is a subject ("Don't we too need help?").
   for (const match of frameMatches(
     ctx,
-    `(?:want|wants|wanted|need|needs|needed|going|able|trying|try|tried|supposed|used|have|has|had|like|love|hope|plan|decided)${SPACE}(?<target>too)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+    `(?:want|wants|wanted|need|needs|needed|going|able|trying|try|tried|supposed|used|have|has|had|like|love|hope|plan|decided|n['’]t${SPACE}(?!(?:i|you|we|they|he|she|it)${WORD_END})[a-z]+)${SPACE}(?<target>too)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
   )) {
     const verb = match.groups!.verb.toLowerCase();
     const forms = englishVerbForms(verb);
-    if (verb === "be" || (forms?.lemma === verb && !forms.ambiguous.includes(verb)))
+    const info = forms ? null : englishWordInfo(verb);
+    // A regular verb only when no adjective or adverb reading fits "too" ("too slow", "too long").
+    if (
+      verb === "be" ||
+      (forms?.lemma === verb && !forms.ambiguous.includes(verb)) ||
+      (info?.verbs.some((v) => v.form === "base") && !info.adjective && !info.adverb)
+    )
       push(match, "englishToToo", "review_msg_to_infinitive", "to");
   }
   // were: a subject pronoun before where + a predicate that cannot start a place clause.
