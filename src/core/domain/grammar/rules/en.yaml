@@ -1416,9 +1416,44 @@ rules:
   - id: en.noForNot
     checks: [englishConfusedWords]
     predicate: noForNot
+  # Subject-verb agreement across a relative clause or an aside. The relative-clause part keeps
+  # one finding per verb start (usSlotsOnePerStart), so it is a rule of its own.
   - id: en.clauseAgreement
     checks: [englishSubjectVerbAgreement]
-    predicate: clauseAgreement
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # "The laptop that she bought last week run hot", "The keys that I left on the table
+      # belongs to Sam": the verb after a relative clause agrees with the noun before who/that.
+      - regex: "(?<det>the|these|those|my|our|their|his|her|your|this|that|a|an|every|each){{S}}(?<head>(?:[a-z]+{{S}}){0,2}?[a-z]+){{S}}(?:who|that){{S}}(?=[a-zA-Z])"
+        owner: none
+        fixer: clauseAgreementRelativeClauseVerb
+  - id: en.clauseAgreementAsides
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlots
+    frames:
+      # "My mother, for example, are a doctor", "The dog, whose owner likes you, eat": the verb
+      # after a comma-closed aside agrees with the subject before it.
+      - regex: "(?:(?<det>the|my|your|his|her|our|their|this|that|these|those|many|most|some){{S}})?(?<head>[A-Za-z]+)(?=[ \\t\\u00a0]*,|{{S}}(?:[a-z]+|(?:in|of|from){{S}}(?:[a-z]+{{S}})?[A-Za-z]+)[ \\t\\u00a0]*,)"
+        owner: none
+        fixer: clauseAgreementAsideSubject
+      # "Who send the invoices?", "What make the sky blue?": a subject wh-word takes the -s form.
+      - regex: "(?<wh>who|what){{S}}(?=[a-z])"
+        owner: none
+        fixer: clauseAgreementWhSubject
+      # "A study like this one rely on…", "Cars like these only takes…": "like this" or "such as
+      # that one" between a subject and its verb.
+      - regex: "(?:(?<pronoun>anything|something|nothing|everything|anyone|someone)|(?:(?<det>the|a|an|my|your|our|their|his|her|this|that|these|those|any|every|each|some){{S}})?(?<head>[a-z]+)){{S}}(?:like|such{{S}}as){{S}}(?:this|that|these|those)(?<one>{{S}}ones?)?{{S}}(?=[a-z])"
+        owner: none
+        fixer: clauseAgreementLikeThisSubject
+      # "Have she bought a ticket?", "When have he arrived?", "Do he know?": an inverted
+      # auxiliary before he/she takes the third-person form.
+      - regex: "(?<aux>have|do|are|haven['’]t|don['’]t|aren['’]t){{S}}(?<subject>he|she){{S}}(?<next>[a-z]+)"
+        owner: aux
+        fixer: clauseAgreementInvertedThirdPerson
   - id: en.sentenceFragments
     checks: [englishSentenceFragment]
     style: match
@@ -2195,25 +2230,77 @@ rules:
         fixer: britishUsageTrunks2
   - id: en.clauseConfusions
     checks: [englishConfusedWords]
-    predicate: clauseConfusions
+    style: match
+    message: review_msg_confused_word
+    filter: usSlots
+    frames:
+      # "hear form you", "come form the": verbs and adverbs of source or motion take "from".
+      # idioms3 owns "apart form".
+      - regex: "(?:hear|heard|hearing|come|comes|came|coming|away|aside|far|derived|received|receive|got|get|gets|bought|borrowed|took|taken|returned|return|arrived|arrive|moved|graduated|downloaded|copied|sent|fled|escaped|removed|deleted|resigned|retired|suffer|suffers|suffered|benefit|benefits|benefited|benefitted)(?:{{S}}(?:it|them|one|this|that))?{{S}}(?<target>form)(?:{{S}}(?:me|you|him|her|us|them|it|the|a|an|my|your|his|our|their|its|this|that|these|those|all|both){{E}}|(?=[ \\t\\u00a0]*[?!.,;:)]))"
+        fixer: clauseFormFrom
+      # "Peter though he could win": a name, then though, then a clause's subject: "thought"
+      # (englishUsagePhrases owns "I/we/he though").
+      - regex: "(?<subject>[a-z]{2,}){{S}}(?<target>though){{S}}(?:I|you|he|she|it|we|they|that){{E}}"
+        fixer: clauseThoughThought
   - id: en.clauseAuxiliaries
     checks: [englishAuxiliaryBaseVerb]
-    predicate: clauseAuxiliaries
+    style: match
+    message: review_msg_to_base
+    filter: usSlots
+    frames:
+      # "I wanted to priorities the task": a plural noun whose -ize verb the dictionary lists.
+      - regex: "to{{S}}(?<target>(?<stem>[a-z]{3,})ies){{E}}"
+        fixer: clauseToIesVerb
+      # "Please sent the file": please opens an imperative, which takes the base verb.
+      - regex: "(?<lead>please){{S}}(?<target>[a-z]+){{S}}(?<object>[a-z]+){{E}}"
+        message: review_msg_please_base
+        fixer: clausePleasePast
   - id: en.accordingTo
     checks: [englishFixedPrepositions]
-    predicate: accordingTo
+    style: match
+    message: review_msg_fixed_prepositions
+    filter: usSlots
+    frames:
+      # "According Anna, …": according takes "to" (archaic "according as" aside). A wrong
+      # preposition after it is replaced: "According about a survey".
+      - regex: "(?<target>according(?:{{S}}(?<wrong>about|on|with|for|from|by|of|at))?){{S}}(?!(?:to|as|ly){{E}})(?=[A-Za-z])"
+        fixer: clauseAccordingTo
   - id: en.thereTheir
     checks: [englishTheirThereTheyAre]
-    predicate: thereTheir
+    style: match
+    message: review_msg_their_possessive
+    filter: usSlots
+    frames:
+      # "They yelled at there son": after a preposition, "there" before a plain noun is "their".
+      - regex: "(?:at|to|for|with|of|from|about|by|into|onto|toward|towards|without|against|like){{S}}(?<target>there){{S}}(?<first>[a-z]+)(?:{{S}}(?<second>[a-z]+))?{{E}}"
+        fixer: clauseThereTheir
   - id: en.linkingSingular
     checks: [englishSubjectVerbAgreement]
-    predicate: linkingSingular
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlots
+    frames:
+      # "That sound great", "it look nice": a linking verb after a singular pronoun takes -s.
+      - regex: "(?<subject>that|this|it){{S}}(?<target>sound|look|seem|feel|smell|taste){{S}}(?<adjective>[a-z]+){{E}}"
+        fixer: clauseLinkingSingular
   - id: en.allSingular
     checks: [englishNounNumber]
-    predicate: allSingular
+    style: match
+    message: review_msg_noun_count
+    filter: usSlots
+    frames:
+      # "All car are moving": "all" before a singular count noun and a plural verb.
+      - regex: "(?<lead>all){{S}}(?<target>[a-z]+){{S}}(?:are|were|have|do|seem|look|need){{E}}"
+        fixer: clauseAllSingular
   - id: en.noAdjective
     checks: [englishSentenceStructure]
-    predicate: noAdjective
+    style: match
+    message: review_msg_clause_be
+    filter: usSlots
+    frames:
+      # "I no good at math": a subject, "no" and a predicate adjective lack "am not".
+      - regex: "(?<subject>I|you|we|they|he|she|it){{S}}(?<target>no){{S}}(?<adjective>[a-z]+){{E}}"
+        fixer: clauseNoAdjective
   - id: en.verbFrames
     checks: [englishVerbComplements]
     style: match

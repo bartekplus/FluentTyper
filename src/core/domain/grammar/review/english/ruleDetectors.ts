@@ -91,7 +91,6 @@ export const PREDICATES = mergePredicates(
   collocationSlots.PREDICATES,
   tenseSlots.PREDICATES,
   noNotSlots.PREDICATES,
-  clauseAgreementSlots.PREDICATES,
   apostrophes.PREDICATES,
   properNames.PREDICATES,
   typography.PREDICATES,
@@ -99,7 +98,6 @@ export const PREDICATES = mergePredicates(
   passiveVoice.PREDICATES,
   punctuation.PREDICATES,
   articles.PREDICATES,
-  clauseSlots.PREDICATES,
 );
 
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
@@ -131,6 +129,8 @@ export const FIXERS = mergePredicates<Fixer>(
   verbGroupSlots.FIXERS,
   agreementSlots.FIXERS,
   wordClassSlots.FIXERS,
+  clauseAgreementSlots.FIXERS,
+  clauseSlots.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */

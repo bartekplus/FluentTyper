@@ -1,9 +1,8 @@
 import { englishInflect, englishLemma } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
-import { frameMatches, SPACE } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { COLLECTIVE } from "./agreementSlots";
 import { nounNumber } from "./nounNumberSlots";
 import {
@@ -11,7 +10,6 @@ import {
   afterBreak,
   caseLike,
   nounOnly,
-  english,
   evidence,
   FUNCTION_WORDS,
   type Token,
@@ -22,8 +20,8 @@ import {
 // Subject-verb agreement across a relative clause that has its own verb and complements:
 // "The laptop that she bought last week run hot", "The keys that I left on the table belongs
 // to Sam". The clause is read token by token; anything it cannot read ends the check.
+// The frames are in grammar/rules/en.yaml.
 
-const HEAD = `(?<det>the|these|those|my|our|their|his|her|your|this|that|a|an|every|each)${SPACE}(?<head>(?:[a-z]+${SPACE}){0,2}?[a-z]+)${SPACE}(?:who|that)${SPACE}(?=[a-zA-Z])`;
 // Not "and": "The cups and the plate that sit there are clean" coordinates the subject.
 const CLAUSE_CUE = /^(?:whether|when|if|that|because|since|while|where|but|so)$/;
 const SUBJECT = /^(?:i|you|he|she|we|they)$/;
@@ -278,66 +276,6 @@ function fixFor(
   return englishInflect(word, "third");
 }
 
-/**
- * "The laptop that she bought last week run hot", "The keys that I left on the table belongs
- * to Sam": the verb after a relative clause agrees with the noun before who/that.
- */
-function relativeClauseVerb(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, HEAD, null)) {
-    if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) continue;
-    if (!/[ \t ](?:who|that)[ \t ]+$/.test(m[0])) continue;
-    const words = m.groups!.head.split(/[ \t ]+/);
-    if (words.some((w) => FUNCTION_WORDS.has(w) || AUX.test(w))) continue;
-    if (words.slice(0, -1).some((w) => englishWordInfo(w)?.verbs.some((v) => v.form !== "base")))
-      continue;
-    const head = words.at(-1)!;
-    if (CONTENT_NOUN.test(head) || CONTENT_NOUN.test(head.replace(/s$/, ""))) continue;
-    const det = m.groups!.det.toLowerCase();
-    const headRead = englishWordInfo(head);
-    // "painting", "guys": the lexicon's noun reading where the noun pairs have none.
-    const number =
-      head === "one"
-        ? { singular: "one", number: "singular" as const }
-        : (nounNumber(head) ??
-          (headRead?.noun
-            ? {
-                singular: head,
-                number:
-                  headRead.plural && /s$/.test(head) ? ("plural" as const) : ("singular" as const),
-              }
-            : null));
-    if (!number || COLLECTIVE.has(number.singular)) continue;
-    const plural = number.number === "plural";
-    if (
-      plural
-        ? /^(?:a|an|this|that|every|each)$/.test(det)
-        : /^(?:these|those)$/.test(det) || (head !== "one" && headRead?.adjective)
-    )
-      continue;
-    const tokens = tokensAfter(ctx, m.index + m[0].length, 16);
-    if (tokens.some((t) => t.kind === "other")) continue;
-    const found = mainVerbIndex(tokens);
-    if (!found) continue;
-    const verb = tokens[found.index];
-    if (verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))
-      continue;
-    // "were" after a singular head may be a subjunctive.
-    if (!plural && verb.lower === "were") continue;
-    const fix = fixFor(verb, tokens[found.index + 1], plural, found.free);
-    if (!fix || fix === verb.lower) continue;
-    if (findings.some((f) => f.range.start === verb.start)) continue;
-    findings.push({
-      ruleId: "englishSubjectVerbAgreement",
-      messageKey: "review_msg_subject_verb",
-      range: { start: verb.start, end: verb.end },
-      alternatives: [caseLike(verb.text, fix)],
-      context: evidence(ctx, m.index, verb.end),
-    });
-  }
-  return findings;
-}
-
 const SAME_PLURAL = /^(?:fish|deer|moose|salmon|trout|cod|bison|swine|offspring|aircraft|craft)$/;
 const ASIDE_OPENER =
   /^(?:for|in|of|however|therefore|though|too|who|which|whose|mostly|mainly|largely|chiefly|primarily|especially)$/;
@@ -360,19 +298,92 @@ function asideEnd(tokens: Token[], j: number): number {
   return -1;
 }
 
-/**
- * "My mother, for example, are a doctor", "The dog, whose owner likes you, eat", "Marketing,
- * for instance, mean trouble": the verb after a comma-closed aside agrees with the subject
- * before it.
- */
-function asideSubject(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?:(?<det>the|my|your|his|her|our|their|this|that|these|those|many|most|some)${SPACE})?(?<head>[A-Za-z]+)(?=[ \t\u00a0]*,|${SPACE}(?:[a-z]+|(?:in|of|from)${SPACE}(?:[a-z]+${SPACE})?[A-Za-z]+)[ \t\u00a0]*,)`,
-    null,
-  )) {
-    if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) continue;
+function agreementFinding(ctx: DetectContext, verb: Token, fix: string, from: number): RawFinding {
+  return {
+    ruleId: "englishSubjectVerbAgreement",
+    messageKey: "review_msg_subject_verb",
+    range: { start: verb.start, end: verb.end },
+    alternatives: [caseLike(verb.text, fix)],
+    context: evidence(ctx, from, verb.end),
+  };
+}
+
+// "What time the shop opens…", "What size shoes…": nouns that "what" modifies.
+const WHAT_NOUNS =
+  /^(?:time|kind|sort|type|size|colou?r|way|place|part|use|name|number|day|year|age|price|level|page|line|version|model|brand|course|book|song|film|movie|team|language|shape|form|stage|step|role|job|work|food|sport|subject)$/;
+
+const THIRD_AUX: Record<string, string> = {
+  have: "has",
+  do: "does",
+  are: "is",
+  "haven't": "hasn't",
+  "don't": "doesn't",
+  "aren't": "isn't",
+};
+
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  /**
+   * "The laptop that she bought last week run hot", "The keys that I left on the table belongs
+   * to Sam": the verb after a relative clause agrees with the noun before who/that.
+   */
+  clauseAgreementRelativeClauseVerb: (m, ctx) => {
+    if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) return null;
+    if (!/[ \t ](?:who|that)[ \t ]+$/.test(m[0])) return null;
+    const words = m.groups!.head.split(/[ \t ]+/);
+    if (words.some((w) => FUNCTION_WORDS.has(w) || AUX.test(w))) return null;
+    if (words.slice(0, -1).some((w) => englishWordInfo(w)?.verbs.some((v) => v.form !== "base")))
+      return null;
+    const head = words.at(-1)!;
+    if (CONTENT_NOUN.test(head) || CONTENT_NOUN.test(head.replace(/s$/, ""))) return null;
+    const det = m.groups!.det.toLowerCase();
+    const headRead = englishWordInfo(head);
+    // "painting", "guys": the lexicon's noun reading where the noun pairs have none.
+    const number =
+      head === "one"
+        ? { singular: "one", number: "singular" as const }
+        : (nounNumber(head) ??
+          (headRead?.noun
+            ? {
+                singular: head,
+                number:
+                  headRead.plural && /s$/.test(head) ? ("plural" as const) : ("singular" as const),
+              }
+            : null));
+    if (!number || COLLECTIVE.has(number.singular)) return null;
+    const plural = number.number === "plural";
+    if (
+      plural
+        ? /^(?:a|an|this|that|every|each)$/.test(det)
+        : /^(?:these|those)$/.test(det) || (head !== "one" && headRead?.adjective)
+    )
+      return null;
+    const tokens = tokensAfter(ctx, m.index + m[0].length, 16);
+    if (tokens.some((t) => t.kind === "other")) return null;
+    const found = mainVerbIndex(tokens);
+    if (!found) return null;
+    const verb = tokens[found.index];
+    if (verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))
+      return null;
+    // "were" after a singular head may be a subjunctive.
+    if (!plural && verb.lower === "were") return null;
+    const fix = fixFor(verb, tokens[found.index + 1], plural, found.free);
+    if (!fix || fix === verb.lower) return null;
+    return {
+      ruleId: "englishSubjectVerbAgreement",
+      messageKey: "review_msg_subject_verb",
+      range: { start: verb.start, end: verb.end },
+      alternatives: [caseLike(verb.text, fix)],
+      context: evidence(ctx, m.index, verb.end),
+    };
+  },
+  /**
+   * "My mother, for example, are a doctor", "The dog, whose owner likes you, eat", "Marketing,
+   * for instance, mean trouble": the verb after a comma-closed aside agrees with the subject
+   * before it.
+   */
+  clauseAgreementAsideSubject: (m, ctx) => {
+    if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) return null;
     const det = m.groups!.det?.toLowerCase();
     const tokens = tokensAfter(ctx, m.index, 24);
     let j = det ? 1 : 0;
@@ -388,114 +399,88 @@ function asideSubject(ctx: DetectContext): RawFinding[] {
       }
       head = tokens[j++];
     }
-    if (!head || tokens[j]?.kind !== "comma") continue;
+    if (!head || tokens[j]?.kind !== "comma") return null;
     const word = head.lower;
     let plural: boolean;
     if (det) {
-      if (head.text !== word || FUNCTION_WORDS.has(word)) continue;
+      if (head.text !== word || FUNCTION_WORDS.has(word)) return null;
       const number = nounNumber(word);
-      if (!number || COLLECTIVE.has(number.singular) || SAME_PLURAL.test(word)) continue;
+      if (!number || COLLECTIVE.has(number.singular) || SAME_PLURAL.test(word)) return null;
       // Modifiers before the head must not be verbs: "The man running, …".
       if (
         tokens
           .slice(1, tokens.indexOf(head))
           .some((t) => t.kind !== "word" || englishWordInfo(t.lower)?.verbs.length)
       )
-        continue;
+        return null;
       plural = number.number === "plural";
-      if (plural ? /^(?:this|that)$/.test(det) : /^(?:these|those|many|most)$/.test(det)) continue;
+      if (plural ? /^(?:this|that)$/.test(det) : /^(?:these|those|many|most)$/.test(det))
+        return null;
     } else {
       // Without a determiner: a capitalized gerund ("Marketing") or a name before who/whose.
-      if (tokens.indexOf(head) !== 0 || head.text === word) continue;
+      if (tokens.indexOf(head) !== 0 || head.text === word) return null;
       const aside = tokens[j + 1]?.lower ?? "";
       const gerund = /^[A-Z][a-z]+ing$/.test(head.text) && !!englishWordInfo(word)?.noun;
       const name =
         /^[A-Z][a-z]+$/.test(head.text) && !englishWordInfo(word) && /^(?:who|whose)$/.test(aside);
-      if (!gerund && !name) continue;
+      if (!gerund && !name) return null;
       plural = false;
     }
     const end = asideEnd(tokens, j + 1);
-    if (end < 0) continue;
+    if (end < 0) return null;
     const verb = tokens[end];
     if (verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))
-      continue;
-    if (!plural && verb.lower === "were") continue;
+      return null;
+    if (!plural && verb.lower === "were") return null;
     const fix = fixFor(verb, tokens[end + 1], plural, true, true);
-    if (!fix || fix === verb.lower) continue;
-    findings.push({
+    if (!fix || fix === verb.lower) return null;
+    return {
       ruleId: "englishSubjectVerbAgreement",
       messageKey: "review_msg_subject_verb",
       range: { start: verb.start, end: verb.end },
       alternatives: [caseLike(verb.text, fix)],
       context: evidence(ctx, m.index, verb.end),
-    });
-  }
-  return findings;
-}
-
-function agreementFinding(ctx: DetectContext, verb: Token, fix: string, from: number): RawFinding {
-  return {
-    ruleId: "englishSubjectVerbAgreement",
-    messageKey: "review_msg_subject_verb",
-    range: { start: verb.start, end: verb.end },
-    alternatives: [caseLike(verb.text, fix)],
-    context: evidence(ctx, from, verb.end),
-  };
-}
-
-// "What time the shop opens…", "What size shoes…": nouns that "what" modifies.
-const WHAT_NOUNS =
-  /^(?:time|kind|sort|type|size|colou?r|way|place|part|use|name|number|day|year|age|price|level|page|line|version|model|brand|course|book|song|film|movie|team|language|shape|form|stage|step|role|job|work|food|sport|subject)$/;
-
-/** "Who send the invoices?", "What make the sky blue?": a subject wh-word takes the -s form. */
-function whSubject(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, `(?<wh>who|what)${SPACE}(?=[a-z])`, null)) {
-    if (!afterBreak(ctx, m.index)) continue;
+    };
+  },
+  /** "Who send the invoices?", "What make the sky blue?": a subject wh-word takes the -s form. */
+  clauseAgreementWhSubject: (m, ctx) => {
+    if (!afterBreak(ctx, m.index)) return null;
     const wh = m.groups!.wh.toLowerCase();
     const [verb, next] = tokensAfter(ctx, m.index + m[0].length, 2);
     if (verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))
-      continue;
+      return null;
     if (
       (FUNCTION_WORDS.has(verb.lower) && verb.lower !== "own") ||
       AUX.test(verb.lower) ||
       MODAL.test(verb.lower)
     )
-      continue;
+      return null;
     // A determiner or object pronoun next: the word between is the verb.
     if (
       next?.kind !== "word" ||
       !/^(?:the|a|an|my|your|our|their|his|its|this|these|those|me|him|us|them)$/.test(next.lower)
     )
-      continue;
+      return null;
     const r = englishWordInfo(verb.lower);
-    if (!r?.verbs.some((v) => v.form === "base" && v.lemma === verb.lower) || r.adjective) continue;
-    if (englishVerbForms(verb.lower)?.past === verb.lower) continue;
-    if (wh === "what" && r.noun && WHAT_NOUNS.test(verb.lower)) continue;
+    if (!r?.verbs.some((v) => v.form === "base" && v.lemma === verb.lower) || r.adjective)
+      return null;
+    if (englishVerbForms(verb.lower)?.past === verb.lower) return null;
+    if (wh === "what" && r.noun && WHAT_NOUNS.test(verb.lower)) return null;
     const fix = englishInflect(verb.lower, "third");
-    if (fix && fix !== verb.lower) findings.push(agreementFinding(ctx, verb, fix, m.index));
-  }
-  return findings;
-}
-
-/**
- * "A study like this one rely on…", "Cars like these only takes…": "like this" or "such as
- * that one" between a subject and its verb.
- */
-function likeThisSubject(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?:(?<pronoun>anything|something|nothing|everything|anyone|someone)|(?:(?<det>the|a|an|my|your|our|their|his|her|this|that|these|those|any|every|each|some)${SPACE})?(?<head>[a-z]+))${SPACE}(?:like|such${SPACE}as)${SPACE}(?:this|that|these|those)(?<one>${SPACE}ones?)?${SPACE}(?=[a-z])`,
-    null,
-  )) {
-    if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) continue;
+    if (fix && fix !== verb.lower) return agreementFinding(ctx, verb, fix, m.index);
+  },
+  /**
+   * "A study like this one rely on…", "Cars like these only takes…": "like this" or "such as
+   * that one" between a subject and its verb.
+   */
+  clauseAgreementLikeThisSubject: (m, ctx) => {
+    if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) return null;
     const { det, pronoun, one } = m.groups!;
     const head = m.groups!.head?.toLowerCase();
     let plural = false;
     if (head) {
       const number = nounNumber(head);
-      if (!number || COLLECTIVE.has(number.singular) || SAME_PLURAL.test(head)) continue;
+      if (!number || COLLECTIVE.has(number.singular) || SAME_PLURAL.test(head)) return null;
       plural = number.number === "plural";
       // Without a determiner, only a plural noun opening its clause: "Phones such as these…",
       // not a verb ("Looks like this is live").
@@ -505,64 +490,46 @@ function likeThisSubject(ctx: DetectContext): RawFinding[] {
           !afterBreak(ctx, m.index) ||
           (!/such/i.test(m[0]) && englishWordInfo(head)?.verbs.some((v) => v.form === "third")))
       )
-        continue;
+        return null;
       if (
         det &&
         (plural ? /^(?:a|an|this|that|every|each|any)$/i.test(det) : /^(?:these|those)$/i.test(det))
       )
-        continue;
-    } else if (!pronoun) continue;
+        return null;
+    } else if (!pronoun) return null;
     // "Anything like this exist?": a question that dropped its "does".
     if (/^[^.!?\n]*\?/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 200)))
-      continue;
+      return null;
     const tokens = tokensAfter(ctx, m.index + m[0].length, 3);
     let j = 0;
     while (j < 2 && adverbish(tokens[j])) j++;
     const verb = tokens[j];
     if (verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))
-      continue;
+      return null;
     // Without "one" or an adverb, "like this" may be a determiner: "like this research shows".
     const r = englishWordInfo(verb.lower);
     if (!one && j === 0 && !AUX.test(normal(verb.lower)) && (r?.noun || r?.adjective || r?.plural))
-      continue;
-    if (!plural && verb.lower === "were") continue;
+      return null;
+    if (!plural && verb.lower === "were") return null;
     const fix = fixFor(verb, tokens[j + 1], plural, true, true);
-    if (fix && fix !== verb.lower) findings.push(agreementFinding(ctx, verb, fix, m.index));
-  }
-  return findings;
-}
-
-const THIRD_AUX: Record<string, string> = {
-  have: "has",
-  do: "does",
-  are: "is",
-  "haven't": "hasn't",
-  "don't": "doesn't",
-  "aren't": "isn't",
-};
-
-/**
- * "Have she bought a ticket?", "When have he arrived?", "Do he know?": an inverted auxiliary
- * before he/she takes the third-person form.
- */
-function invertedThirdPerson(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?<aux>have|do|are|haven['’]t|don['’]t|aren['’]t)${SPACE}(?<subject>he|she)${SPACE}(?<next>[a-z]+)`,
-    "aux",
-  )) {
+    if (fix && fix !== verb.lower) return agreementFinding(ctx, verb, fix, m.index);
+  },
+  /**
+   * "Have she bought a ticket?", "When have he arrived?", "Do he know?": an inverted auxiliary
+   * before he/she takes the third-person form.
+   */
+  clauseAgreementInvertedThirdPerson: (m, ctx) => {
     const before = wordBefore(ctx, m.index);
     if (!afterBreak(ctx, m.index) && !/^(?:when|where|why|how|what|who|which)$/.test(before))
-      continue;
+      return null;
     const { aux, subject, next } = m.groups!;
     const fix = THIRD_AUX[normal(aux)];
-    if (!fix) continue;
+    if (!fix) return null;
     // The frame is case-blind: only he/she, as typed.
-    if (!/^(?:he|she)$/.test(subject)) continue;
+    if (!/^(?:he|she)$/.test(subject)) return null;
     // A question: the sentence ends in "?".
     if (!/^[^.!\n]*\?/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 160)))
-      continue;
+      return null;
     // The verb after the subject fits the auxiliary.
     const read = englishWordInfo(next);
     const a = normal(aux).replace("n't", "");
@@ -573,25 +540,14 @@ function invertedThirdPerson(ctx: DetectContext): RawFinding[] {
           ? !!read?.verbs.some((v) => v.form === "base" && v.lemma === next)
           : !!read?.adjective ||
             !!read?.verbs.some((v) => v.form === "ing" || v.form === "participle");
-    if (!fits) continue;
+    if (!fits) return null;
     const [start, end] = m.indices!.groups!.aux;
-    findings.push({
+    return {
       ruleId: "englishSubjectVerbAgreement",
       messageKey: "review_msg_subject_verb",
       range: { start, end },
       alternatives: [caseLike(aux, fix.replaceAll("'", aux.includes("’") ? "’" : "'"))],
       context: evidence(ctx, m.index, m.index + m[0].length),
-    });
-  }
-  return findings;
-}
-
-export const PREDICATES = {
-  clauseAgreement: english(
-    relativeClauseVerb,
-    asideSubject,
-    whSubject,
-    likeThisSubject,
-    invertedThirdPerson,
-  ),
-} satisfies Record<string, Detector>;
+    };
+  },
+} satisfies Record<string, MatchFixer>;
