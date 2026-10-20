@@ -34,6 +34,8 @@ Then run `bun run compile:grammar`. The build runs the same step. No engine or d
 | `src/core/domain/grammar/engine/tokenizer.ts`            | The single-pass tokenizer                                              |
 | `src/core/domain/grammar/engine/matcher.ts`              | Pattern matching with the literal anchor index                         |
 | `src/core/domain/grammar/engine/predicates.ts`           | Named token predicates                                                 |
+| `src/core/domain/grammar/engine/phraseRows.ts`           | The phrase-table kind: row index and row matcher on the engine tokens  |
+| `src/core/domain/grammar/engine/reviewTokens.ts`         | The tokens of a Review chunk: one pass for all rule kinds              |
 | `src/core/domain/grammar/engine/reviewRules.ts`          | Builds the Review detectors from the compiled rules                    |
 | `src/core/domain/grammar/engine/liveRules.ts`            | Builds the typing rules from the compiled rules                        |
 | `src/core/domain/grammar/review/<lang>/ruleDetectors.ts` | The named Review detectors of a language                               |
@@ -158,7 +160,7 @@ A name that no module defines stops the extension at load. The unit tests find i
 
 ## Phrase Tables
 
-A language file can hold phrase tables: rows of "typed = fix". They feed `englishPhraseCorrections`, `englishClosedCompounds` and `stylePhrasing`.
+A language file can hold phrase tables: rows of "typed = fix". They feed `englishPhraseCorrections`, `englishClosedCompounds` and `stylePhrasing`. The engine runs them (`engine/phraseRows.ts`): each word token of a chunk reads the rows that start with it, longest first, and a literal matcher confirms the row. The Review checks that only Review needs (names, quotations, article gender, casing) are in `review/englishPhraseCorrections.ts`.
 
 ```yaml
 phrases:

@@ -40,7 +40,9 @@ test("offsets are UTF-16 offsets into the text, also inside a window", () => {
     "word:Test",
     "punct:,",
     "word:und",
-    "number:12,5",
+    "number:12",
+    "punct:,",
+    "number:5",
     "word:kg",
     "punct:.",
   ]);
@@ -55,33 +57,35 @@ test("whitespace is kept before each token", () => {
   expect(tokens.map((token) => token.space)).toEqual(["", "  ", "\n\t"]);
 });
 
-test("protected spans become one token that no rule reads", () => {
-  expect(types("See https://example.com/a?b=1. Mail me@x.org")).toEqual([
-    "word:See",
-    "protected:https://example.com/a?b=1",
-    "punct:.",
-    "word:Mail",
-    "protected:me@x.org",
-  ]);
-  expect(types("Run `npm i` in /usr/local/bin :smile:")).toEqual([
-    "word:Run",
-    "protected:`npm i`",
-    "word:in",
-    "protected:/usr/local/bin",
-    "protected::smile:",
-  ]);
-  // Masked text (U+FFFC) from Review is protected too.
-  expect(types("a ￼￼ b")).toEqual(["word:a", "protected:￼￼", "word:b"]);
+const shielded = (text: string) =>
+  tokenize(text)
+    .filter((token) => token.protected || token.type === "protected")
+    .map((token) => token.text)
+    .join("");
+
+test("protected spans flag their tokens; masked text is one token", () => {
+  // The words inside stay tokens (the phrase checks see them); patterns skip them.
+  expect(shielded("See https://example.com/a?b=1. Mail me@x.org")).toBe(
+    "https://example.com/a?b=1me@x.org",
+  );
+  expect(texts("Mail me@x.org")).toEqual(["Mail", "me", "@", "x", ".", "org"]);
+  expect(shielded("Run `npm i` in /usr/local/bin :smile:")).toBe("`npmi`/usr/local/bin:smile:");
+  // Masked text (U+FFFC) from Review is one protected token.
+  expect(types("a \uFFFC\uFFFC b")).toEqual(["word:a", "protected:\uFFFC\uFFFC", "word:b"]);
   // "and/or" and a time are not paths or shortcodes.
-  expect(types("and/or at 10:30:")).toEqual([
-    "word:and",
-    "punct:/",
-    "word:or",
-    "word:at",
-    "number:10",
-    "punct::",
-    "number:30",
-    "punct::",
+  expect(shielded("and/or at 10:30:")).toBe("");
+});
+
+test("words follow the phrase-table word rule", () => {
+  // Letters and digits make one word; digits alone make a number.
+  expect(types("2nd 1,7 l'eau years' ")).toEqual([
+    "word:2nd",
+    "number:1",
+    "punct:,",
+    "number:7",
+    "word:l'eau",
+    "word:years",
+    "punct:'",
   ]);
 });
 
@@ -101,7 +105,7 @@ test("sentence starts follow closing punctuation, closers and blank lines", () =
   expect(starts("¿Qué? ¡Nada!")).toEqual(["¿", "Qué", "¡", "Nada"]);
   expect(starts("para one\n\npara two\nwrapped")).toEqual(["para", "para"]);
   expect(starts("هل ذهبت؟ نعم")).toEqual(["هل", "نعم"]);
-  expect(starts("Τι ώρα είναι; Τώρα")).toEqual(["Τι", "Τώρα"]);
+  expect(starts("Τι ώρα είναι\u037E Τώρα")).toEqual(["Τι", "Τώρα"]);
 });
 
 test("a sentence end follows the token", () => {

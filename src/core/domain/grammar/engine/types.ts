@@ -20,6 +20,8 @@ export interface Token {
   casing: Casing;
   /** First token of a sentence: text start, blank line, or after closing punctuation. */
   sentenceStart: boolean;
+  /** Part of a URL, e-mail address, path, inline code or shortcode: patterns skip it. */
+  protected?: true;
 }
 
 /** One element of a token pattern. Every field narrows the match; none matches any token. */

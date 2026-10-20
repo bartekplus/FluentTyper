@@ -1,8 +1,6 @@
-import {
-  applyWordCase,
-  detectWordCase,
-  wordKey as plainWordKey,
-} from "../implementations/helpers/GenericRuleShared";
+import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
+import { addRows, scanRows, type PhraseEntry, type PhraseIndex } from "../engine/phraseRows";
+import { chunkTokens } from "../engine/reviewTokens";
 import { namedExampleBefore, quotedSpan } from "./exampleCues";
 import {
   CLOSED_COMPOUNDS,
@@ -22,127 +20,12 @@ import { capitalizedName } from "./french/frenchTokens";
 import { LANGUAGE_PHRASE_TABLES } from "./languagePhraseTables";
 import { analyze as analyzeNoun } from "./portuguese/nounAgreement";
 import { PORTUGUESE_DE_PHRASE_TAIL } from "./portuguese/phrases";
-import { EDGE, isLang, ownedMatches, SPACE, TOKEN_END } from "./phraseTemplates";
+import { isLang } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { finding } from "./finding";
 
-type Phrase = {
-  /** The typed words only: literals and spaces. Compiled on the row's first lookup, so the
-   * first Review call does not build thousands of regexes it never reads. */
-  source: string;
-  body?: RegExp;
-  /** Ends in a letter or digit: the next character must not continue the word. */
-  bounded: boolean;
-  replacements: readonly string[];
-  ruleId: RawFinding["ruleId"];
-  messageKey: RawFinding["messageKey"];
-  length: number;
-  /** The second word's key when it is a whole word after one space: other rows are skipped. */
-  second: string | null;
-};
-
-// A word keeps its combining marks: Arabic harakat and shadda sit between its letters.
-const WORD = /[\p{L}\p{N}][\p{L}\p{M}\p{N}]*(?:['’][\p{L}\p{N}][\p{L}\p{M}\p{N}]*)*/gu;
-// Arabic harakat, shadda, sukun, the dagger alif and the tatweel: optional in writing.
-const HARAKAT = "[\\u064B-\\u065F\\u0670\\u0640]";
-const stripHarakat = (word: string) => word.replace(new RegExp(HARAKAT, "gu"), "");
-const wordKey = (word: string) => stripHarakat(plainWordKey(word));
-/** A row's second word, when the text's next word must equal it for the row to match. */
-function secondKey(form: string): string | null {
-  const [first, second] = form.split(" ");
-  if (second === undefined || first.match(WORD)?.[0] !== first) return null;
-  const word = second.match(WORD)?.[0];
-  // "years'" ends on its apostrophe, which the text's word may continue ("years's").
-  if (!word || !second.startsWith(word) || /^['’]/.test(second.slice(word.length))) return null;
-  return /^[\x20-\x7e]+$/.test(word) ? wordKey(word) : null;
-}
-// The word after one run of spaces. ASCII only: case-insensitive matching folds a few other
-// letters onto ASCII ones (U+212A Kelvin sign ~ k), so those text words skip no row.
-const NEXT_WORD = /[ \t\u00a0]{1,8}([\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*)/uy;
-function nextWordKey(text: string, end: number): string | null {
-  NEXT_WORD.lastIndex = end;
-  const word = NEXT_WORD.exec(text)?.[1];
-  if (word === undefined) return "";
-  return /^[\x20-\x7e’]+$/.test(word) ? wordKey(word) : null;
-}
-
-// French elided articles and pronouns stay attached: "l'addresse", "d'apeller".
-const ELIDED = "(?:[cdjlmnst]|qu|jusqu|lorsqu|puisqu)['’]";
-const FRENCH_ELIDED = new RegExp(`^${ELIDED}(?=\\p{L})`, "iu");
-
-// Word boundaries are checked once per position, not compiled into every row: a
-// Unicode property class costs about a millisecond per regex to build in V8.
-const WORD_STARTS = new Map(
-  ["en", "fr"].map((lang) => [
-    lang,
-    new RegExp(
-      `(?<![.])${lang === "fr" ? `(?:(?<=(?<!\\p{L})${ELIDED})|(?<!${EDGE}))` : `(?<!${EDGE})`}`,
-      "iuy",
-    ),
-  ]),
-);
-const WORD_ENDS = new RegExp(TOKEN_END, "iuy");
-// Arabic "و" (and) and "ف" (so) are written onto the next word: "وقال", "فإن".
-WORD_STARTS.set(
-  "ar",
-  new RegExp(`(?<![.])(?:(?<=(?<![\\p{L}\\p{M}])[وف]\\p{M}*)|(?<!${EDGE}))`, "uy"),
-);
-/** "و" or "ف" with its harakat before a word of two letters or more: "وَقال". */
-const ARABIC_PREFIX = /^[وف]\p{M}*(?=\p{L}\p{M}*\p{L})/u;
-const startsWord = (text: string, at: number, lang: string) => {
-  const regex = WORD_STARTS.get(lang === "fr" || lang === "ar" ? lang : "en")!;
-  regex.lastIndex = at;
-  return regex.test(text);
-};
-
-// One lookup per language and word: phrases are indexed by their first word, longest first.
-const INDEXES = new Map<string, Map<string, Phrase[]>>();
-function index(
-  lang: string,
-  rows: readonly PhraseRow[] = [],
-  ruleId: Phrase["ruleId"],
-  messageKey: Phrase["messageKey"],
-) {
-  const INDEX = INDEXES.get(lang) ?? new Map<string, Phrase[]>();
-  INDEXES.set(lang, INDEX);
-  for (const [typed, replacement] of rows) {
-    for (const row of [typed].flat()) {
-      // Arabic rows match with or without harakat on either side.
-      const form = lang === "ar" ? stripHarakat(row) : row;
-      const body = form
-        .split(" ")
-        .map((word) => {
-          const literal = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/'/g, "['’]");
-          return lang === "ar" ? literal.replace(/\p{L}/gu, `$&${HARAKAT}*`) : literal;
-        })
-        .join(SPACE);
-      const key = wordKey(form.match(WORD)![0]);
-      const list = INDEX.get(key) ?? [];
-      list.push({
-        source: body,
-        bounded: /[\p{L}\p{N}]$/u.test(form),
-        replacements: [replacement].flat(),
-        ruleId,
-        messageKey,
-        length: form.length,
-        second: secondKey(form),
-      });
-      INDEX.set(key, list);
-    }
-  }
-  // Stable: rows of equal length keep table order.
-  for (const list of INDEX.values()) list.sort((a, b) => b.length - a.length);
-}
-
-/** A row typed at `at`: its words, then (for a bounded row) no word continuing them. */
-function matchPhrase(text: string, phrase: Phrase, at: number): RegExpExecArray | null {
-  const body = (phrase.body ??= new RegExp(phrase.source, "iuy"));
-  body.lastIndex = at;
-  const match = body.exec(text);
-  if (!match || !phrase.bounded) return match;
-  WORD_ENDS.lastIndex = at + match[0].length;
-  return WORD_ENDS.test(text) ? match : null;
-}
+// The phrase index of each language, built from the rule files on first use.
+const INDEXES = new Map<string, PhraseIndex>();
 /**
  * Built on first use for each language, not at load: a French text does not pay for the
  * English rows of grammar/rules/en.yaml.
@@ -151,21 +34,30 @@ function buildIndex(lang: string) {
   // Read first: the tables of a language with Review data throw until the data is loaded,
   // and a failed build must not leave an empty index behind.
   const tables = LANGUAGE_PHRASE_TABLES[lang];
-  INDEXES.set(lang, new Map());
+  const INDEX: PhraseIndex = new Map();
+  INDEXES.set(lang, INDEX);
   if (tables) {
-    index(lang, tables.words, "englishPhraseCorrections", "review_msg_typo");
-    index(lang, tables.phrases, "englishPhraseCorrections", "review_msg_contextual_grammar");
-    index(lang, tables.compounds, "englishClosedCompounds", "review_msg_closed_compound");
-    index(lang, tables.style, "stylePhrasing", "review_msg_style_phrasing");
+    addRows(INDEX, lang, tables.words, "englishPhraseCorrections", "review_msg_typo");
+    addRows(
+      INDEX,
+      lang,
+      tables.phrases,
+      "englishPhraseCorrections",
+      "review_msg_contextual_grammar",
+    );
+    addRows(INDEX, lang, tables.compounds, "englishClosedCompounds", "review_msg_closed_compound");
+    addRows(INDEX, lang, tables.style, "stylePhrasing", "review_msg_style_phrasing");
   }
   if (lang !== "en") return;
-  index(
+  addRows(
+    INDEX,
     "en",
     [...PHRASE_CORRECTIONS, ...EXTENSION_PHRASES],
     "englishPhraseCorrections",
     "review_msg_phrase_correction",
   );
-  index(
+  addRows(
+    INDEX,
     "en",
     [...CLOSED_COMPOUNDS, ...EXTENSION_COMPOUNDS],
     "englishClosedCompounds",
@@ -173,9 +65,16 @@ function buildIndex(lang: string) {
   );
   // Before style: a dialect row outranks a style row on the same word when both are on.
   for (const { rows, ruleId, messageKey } of [...OPTIONAL_TABLES, ...PLAIN_OPTIONAL])
-    index("en", rows, ruleId, messageKey);
-  index("en", [...STYLE_PHRASES, ...EXTENSION_STYLE], "stylePhrasing", "review_msg_style_phrasing");
-  index(
+    addRows(INDEX, "en", rows, ruleId, messageKey);
+  addRows(
+    INDEX,
+    "en",
+    [...STYLE_PHRASES, ...EXTENSION_STYLE],
+    "stylePhrasing",
+    "review_msg_style_phrasing",
+  );
+  addRows(
+    INDEX,
     "en",
     [...NAME_CASING.map((name): PhraseRow => [name.toLowerCase(), name]), ...NAMES],
     "englishCanonicalCasing",
@@ -284,41 +183,27 @@ export function phraseCorrections(ctx: DetectContext): RawFinding[] {
   const INDEX = INDEXES.get(lang)!;
   if (!INDEX.size) return [];
   const findings: RawFinding[] = [];
-  const words = new RegExp(WORD);
-  for (const word of ownedMatches(ctx, words)) {
-    // A French word may also start after its elided article: "l'" + "addresse".
-    const elided = isLang(ctx, "fr")
-      ? (FRENCH_ELIDED.exec(word[0])?.[0].length ?? 0)
-      : isLang(ctx, "ar")
-        ? (ARABIC_PREFIX.exec(word[0])?.[0].length ?? 0)
-        : 0;
-    lookup: for (const at of elided ? [0, elided] : [0]) {
-      const phrases = INDEX.get(wordKey(word[0].slice(at)));
-      if (!phrases || !startsWord(ctx.scanText, word.index + at, ctx.lang.slice(0, 2))) continue;
-      let next: string | null | undefined;
-      for (const phrase of phrases) {
-        if (ctx.rules && !ctx.rules.has(phrase.ruleId)) continue;
-        if (phrase.second !== null) {
-          next ??= nextWordKey(ctx.scanText, word.index + word[0].length);
-          if (next !== null && next !== phrase.second) continue;
-        }
-        const match = matchPhrase(ctx.scanText, phrase, word.index + at);
-        if (!match) continue;
-        const finding = toFinding(ctx, phrase, match[0], match.index);
-        if (finding) {
-          findings.push(finding);
-          words.lastIndex = finding.range.end;
-        }
-        break lookup;
-      }
-    }
-  }
+  scanRows(
+    chunkTokens(ctx),
+    ctx.scanText,
+    ctx.from,
+    ctx.to,
+    lang,
+    INDEX,
+    (phrase) => !ctx.rules || ctx.rules.has(phrase.ruleId),
+    (phrase, typed, start) => {
+      const found = toFinding(ctx, phrase, typed, start);
+      if (!found) return null;
+      findings.push(found);
+      return found.range.end;
+    },
+  );
   return findings;
 }
 
 function toFinding(
   ctx: DetectContext,
-  phrase: Phrase,
+  phrase: PhraseEntry,
   typed: string,
   start: number,
 ): RawFinding | null {
@@ -413,7 +298,9 @@ function toFinding(
     return curly ? cased.replace(/'/g, "’") : cased;
   });
   if (alternatives.includes(typed)) return null;
-  return finding(phrase.ruleId, phrase.messageKey, start, end, alternatives, {
+  // buildIndex gives each row a catalog rule and a message key.
+  const ruleId = phrase.ruleId as RawFinding["ruleId"];
+  return finding(ruleId, phrase.messageKey as RawFinding["messageKey"], start, end, alternatives, {
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
   });
 }

@@ -40,7 +40,12 @@ function accepts(
 ): boolean {
   const at = first + j;
   const token = tokens[at];
-  if (m.type ? !m.type.includes(token.type) : token.type === "protected") return false;
+  // Protected text matches only an element that names the "protected" type.
+  const shielded = token.type === "protected" || token.protected === true;
+  if (
+    m.type ? !m.type.includes(token.type) && !(shielded && m.type.includes("protected")) : shielded
+  )
+    return false;
   if (m.lower && !m.lower.includes(token.key)) return false;
   if (m.surface && !m.surface.includes(token.text)) return false;
   if (m.casing && !m.casing.includes(token.casing)) return false;

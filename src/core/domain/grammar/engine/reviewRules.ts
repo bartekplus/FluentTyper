@@ -4,7 +4,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../review/r
 import type { ReviewMessageKey } from "../review/types";
 import { findMatches, type PatternSet } from "./matcher";
 import { REVIEW_PATTERNS, REVIEW_RULES } from "./review.generated";
-import { tokenize } from "./tokenizer";
+import { chunkTokens } from "./reviewTokens";
 
 /** A named Review detector: a predicate a rule file names with `predicate:`. */
 export type Detector = ReviewDetectorEntry["detect"];
@@ -25,18 +25,12 @@ export function mergePredicates(
   return merged;
 }
 
-// Context read around a chunk for pattern rules; a pattern is far shorter.
-const WINDOW = 256;
-// One tokenizer pass and one match walk per chunk serve every pattern rule.
+// One match walk per chunk serves every pattern rule.
 const SCANS = new WeakMap<DetectContext, Map<number, RawFinding[]>>();
 
 /** The findings of every pattern rule in the chunk of `ctx`, by pattern index. */
 function scan(ctx: DetectContext, set: PatternSet): Map<number, RawFinding[]> {
-  let from = Math.max(0, ctx.from - WINDOW);
-  // Start at whitespace, so the window does not cut a token in two.
-  while (from > 0 && !/\s/.test(ctx.text[from - 1])) from -= 1;
-  const to = Math.min(ctx.scanText.length, ctx.to + WINDOW);
-  const tokens = tokenize(ctx.scanText, from, to);
+  const tokens = chunkTokens(ctx);
   const byPattern = new Map<number, RawFinding[]>();
   const matches = findMatches(
     set,
