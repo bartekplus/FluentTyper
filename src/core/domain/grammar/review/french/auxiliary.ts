@@ -1,10 +1,9 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { verbReadings } from "./frenchLexicon";
-import { ownedFrenchWords, tokensAfter, tokensBefore } from "./frenchTokens";
+import { inChunk, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
-import { isLang } from "../phraseTemplates";
 
 // The auxiliary a verb takes: "je suis allé" not "j'ai allé", "il a nagé" not "il est nagé",
 // "il a été" not "il est été"; and "avoir raison/tort", "avoir 20 ans".
@@ -142,19 +141,5 @@ function auxiliary(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   });
 }
 
-const AUXILIARY = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_-])(?:${[...Object.keys(AVOIR_TO_ETRE), ...Object.keys(ETRE_TO_AVOIR)].join("|")})(?![\\p{L}\\p{M}\\p{N}_'’-])`,
-  "giu",
-);
-
-function auxiliaries(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, AUXILIARY)) {
-    const finding = auxiliary(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
-
-export const PREDICATES = { auxiliary: auxiliaries } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = { auxiliary: inChunk(auxiliary) } satisfies Record<string, MatchFixer>;

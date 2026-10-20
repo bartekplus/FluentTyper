@@ -29,9 +29,6 @@ import * as verbForms from "./verbForms";
 export const PREDICATES = mergePredicates(
   adjectives.PREDICATES,
   agreement.PREDICATES,
-  auxiliary.PREDICATES,
-  bareNoun.PREDICATES,
-  commas.PREDICATES,
   dates.PREDICATES,
   determiners.PREDICATES,
   elision.PREDICATES,
@@ -53,6 +50,10 @@ export const PREDICATES = mergePredicates(
 
 /** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
+  auxiliary.FIXERS,
+  bareNoun.FIXERS,
+  commas.FIXERS,
+  dates.FIXERS,
   countries.FIXERS,
   ordinals.FIXERS,
   repeatedWords.FIXERS,

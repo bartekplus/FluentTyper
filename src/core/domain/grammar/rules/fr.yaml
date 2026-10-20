@@ -8,6 +8,11 @@ fragments:
   WORD_END: "(?![\\p{L}\\p{M}\\p{N}_'’-])"
   # The country names of review/french/countries.ts, longest first.
   COUNTRY_NAMES: "Nouvelle-Zélande|Arabie saoudite|Côte d['’]Ivoire|Biélorussie|Afghanistan|Ouzbékistan|Azerbaïdjan|Royaume-Uni|Philippines|Angleterre|Mauritanie|Californie|Luxembourg|Bangladesh|Kazakhstan|Mozambique|États-Unis|Seychelles|Madagascar|Allemagne|Slovaquie|Macédoine|Thaïlande|Indonésie|Australie|Argentine|Normandie|Bourgogne|Aquitaine|Sardaigne|Catalogne|Venezuela|Guatemala|Nicaragua|Groenland|Singapour|Belgique|Autriche|Roumanie|Bulgarie|Slovénie|Tchéquie|Moldavie|Lituanie|Lettonie|Finlande|Jordanie|Mongolie|Malaisie|Birmanie|Éthiopie|Tanzanie|Colombie|Jamaïque|Bretagne|Provence|Lorraine|Équateur|Portugal|Danemark|Paraguay|Honduras|Salvador|Cambodge|Pakistan|Cameroun|Zimbabwe|Botswana|Pays-Bas|Maldives|Antilles|Espagne|Pologne|Hongrie|Croatie|Albanie|Ukraine|Estonie|Norvège|Irlande|Islande|Turquie|Géorgie|Arménie|Algérie|Tunisie|Somalie|Namibie|Ouganda|Bolivie|Floride|Bavière|Uruguay|Ontario|Mexique|Vietnam|Sénégal|Nigeria|Burundi|Bahamas|Comores|Bahreïn|Maurice|France|Suisse|Italie|Serbie|Bosnie|Russie|Écosse|Égypte|Zambie|Guinée|Guyane|Alsace|Sicile|Canada|Québec|Brésil|Koweït|Rwanda|Soudan|Chypre|Monaco|Taïwan|Grèce|Suède|Syrie|Chine|Corée|Libye|Corse|Pérou|Chili|Japon|Népal|Tibet|Liban|Qatar|Yémen|Maroc|Niger|Tchad|Gabon|Congo|Kenya|Bénin|Ghana|Malte|Haïti|Inde|Iran|Irak|Laos|Mali|Togo|Cuba"
+  # Markdown emphasis around a date is not a word: "le **32/04/2020**", "_32 janvier_".
+  DATE_START: "(?<![\\p{L}\\p{N}][*_~]{0,3})"
+  DATE_END: "(?![*_~]{0,3}[\\p{L}\\p{N}])"
+  WEEKDAY: "(?:(?<weekday>dimanche|lundi|mardi|mercredi|jeudi|vendredi|samedi)[ \\t]{0,8},?[ \\t]{1,8})?"
+  MONTH_NAMES: "janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre"
   # One word, also with an elision ("qu'on").
   REPEAT_WORD: "\\p{L}[\\p{L}\\p{M}]*(?:['’]\\p{L}[\\p{L}\\p{M}]*)?"
 
@@ -32,7 +37,37 @@ rules:
     predicate: elision
   - id: fr.dates
     checks: [frenchDates]
-    predicate: dates
+    style: match
+    message: review_msg_fr_date
+    frames:
+      # "vendredi 28 août 2014", "le 31 septembre", "1er mars", "le 32 janvier"
+      - regex: "{{DATE_START}}{{WEEKDAY}}(?<day>\\d{1,4})(?:er)?[ \\t]{0,8}[ \\t/-][ \\t]{0,8}(?<month>{{MONTH_NAMES}})(?:[ \\t/-]{1,8}(?<year>[0-9]{4}))?{{DATE_END}}(?<target>)"
+        flags: dgiu
+        scan: owned
+        lookback: 1
+        fixer: checkDate
+      # "28/08/2014", "31-09-1969", "31.11.89", "28/août/2014"
+      - regex: "{{DATE_START}}{{WEEKDAY}}(?<day>\\d{1,4})(?<sep>[/.-])(?<month>\\d{1,2}|{{MONTH_NAMES}})\\k<sep>(?<year>[0-9]{4}|\\d{2}){{DATE_END}}(?<target>)"
+        flags: dgiu
+        scan: owned
+        lookback: 1
+        fixer: checkDate
+      # "le 31/04", "née le 30.02": a day and a month after "le" or "du".
+      - regex: "(?<={{DATE_START}}(?:le|du|au)[ \\t]{1,8}[*_~]{0,3})(?<day>\\d{1,4})(?<sep>[/.])(?<month>\\d{1,2})(?![\\p{L}\\p{N}_/]|[.,/]\\d)(?<target>)"
+        flags: dgiu
+        scan: owned
+        lookback: 1
+        fixer: checkDate
+      # "vendredi 2014/08/28"
+      - regex: "{{DATE_START}}{{WEEKDAY}}(?<year>[0-9]{4})\\/(?<month>\\d{1,2})\\/(?<day>\\d{1,2}){{DATE_END}}(?<target>)"
+        flags: dgiu
+        scan: owned
+        lookback: 1
+        fixer: checkDate
+  - id: fr.isoDates
+    checks: [frenchDates]
+    # predicate: runs the shared ISO date reader of review/isoDates.ts.
+    predicate: isoDates
   - id: fr.nounNumber
     checks: [frenchNounNumber]
     predicate: nounNumber
@@ -75,7 +110,28 @@ rules:
     predicate: rangeDashes
   - id: fr.commas
     checks: [frenchCommas]
-    predicate: commas
+    style: match
+    message: review_msg_fr_stray_comma
+    frames:
+      # A comma between two words of one clause: "Il, arrive", "les, jolies filles".
+      - regex: "(?<=\\p{L})[ \\t]?,[ \\t]{1,4}(?=\\p{Ll})(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: strayComma
+      # A reporting verb inverted with its subject is set off by commas: "Il viendra, dit-elle,
+      # demain".
+      - regex: "[ \\t]{1,4}(?:(?:me|te|lui|leur|nous|vous)[ \\t]{1,4})?(?:dit|disait|répondit|répond|ajouta|ajoute|demanda|demande|répliqua|réplique|expliqua|explique|poursuivit|poursuit|reprit|murmura|murmure|cria|lança|lance|affirma|affirme|déclara|déclare|souffla|souffle|soupira|soupire|précisa|précise|insista|insiste|conclut|répéta|répète)-(?:t-)?(?:il|elle|on|ils|elles){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: reportingComma
+      # A fronted phrase taken up by "c'est" or by a pronoun: "Ces photos je les aime".
+      - regex: "(?<=\\p{L})[ \\t]{1,4}(?=c['’]|(?:ce|cela|ça|je|tu|il|elle|on|nous|vous|ils|elles)(?![\\p{L}\\p{M}\\p{N}_-]))(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: frontedComma
   - id: fr.countries
     checks: [frenchNounGender]
     style: match
@@ -89,7 +145,15 @@ rules:
         fixer: countryPreposition
   - id: fr.auxiliary
     checks: [frenchVerbForms]
-    predicate: auxiliary
+    style: match
+    message: review_msg_fr_auxiliary
+    frames:
+      # A simple form of avoir or être: "j'ai allé" -> "je suis allé", "il est nagé" -> "il a nagé".
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient|suis|est|sommes|êtes|sont|étais|était|étions|étiez|étaient|serai|seras|sera|serons|serez|seront|serais|serait|serions|seriez|seraient|es){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: auxiliary
   - id: fr.questions
     checks: [frenchSubjectVerbAgreement]
     predicate: questions
@@ -107,7 +171,15 @@ rules:
     predicate: style
   - id: fr.bareNoun
     checks: [frenchNounGender]
-    predicate: bareNoun
+    style: match
+    message: review_msg_fr_missing_determiner
+    frames:
+      # A lowercase word that closes its clause.
+      - regex: "{{WORD_START}}\\p{Ll}[\\p{Ll}\\p{M}]{2,}(?=[ \\t\\u00A0]*(?:[.!?…;,]|$))(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: bareNoun
   - id: fr.repeatedWords
     checks: [frenchRepeatedWords]
     style: match

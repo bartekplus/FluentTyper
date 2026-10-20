@@ -25,7 +25,7 @@ function suffixFor(number: string, typed: string): string | null {
 
 /** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
 export const FIXERS = {
-  ordinal: inChunk((m, ctx) => {
+  ordinal: inChunk((ctx, m) => {
     const { number, join = "", suffix } = m.groups!;
     // "Il a 16 ans, 2 me suffisent": a lowercase "me" may be the pronoun; "DIX", "MIXER" words.
     if (/^mes?$/.test(suffix) && join) return null;

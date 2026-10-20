@@ -37,7 +37,7 @@ function extraPronoun(ctx: DetectContext, start: number, end: number): boolean {
 
 /** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
 export const FIXERS = {
-  repeatedWord: inChunk((m, ctx) => {
+  repeatedWord: inChunk((ctx, m) => {
     const unit = m.groups!.unit;
     const lower = unit.toLowerCase().replaceAll("’", "'");
     const words = lower.split(/[ \t]+/);

@@ -1,20 +1,18 @@
 import { namedExampleBefore } from "../exampleCues";
 import { invalidIsoDates } from "../isoDates";
-import { EMPHASIS_MARKS, NO_WORD_AFTER, NO_WORD_BEFORE } from "../markdownEmphasis";
+import { EMPHASIS_MARKS } from "../markdownEmphasis";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { Detector, MatchFixer } from "../../engine/reviewRules";
 import {
   contextYear,
   daysInMonth,
   nearestDayOn,
   weekdayOf,
   yearsFor,
-  YEAR_DIGITS,
 } from "../reviewClock";
-import { ownedFrenchWords } from "./frenchTokens";
+import { inChunk } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
-import { isLang } from "../phraseTemplates";
 
 // Dates the calendar rules out: a day past the month's end ("31 septembre", "29 février 2023")
 // and a weekday that contradicts a full date ("vendredi 28 août 2014" was a Thursday). A weekday
@@ -38,41 +36,12 @@ export const MONTHS = [
   ["décembre", "decembre"],
 ];
 const WEEKDAYS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
-const MONTH_NAMES = MONTHS.flat().join("|");
-const WEEKDAY_NAMES = WEEKDAYS.join("|");
 
 const monthIndex = (month: string) => {
   if (/^\d+$/.test(month)) return Number(month) - 1;
   const lower = month.toLowerCase();
   return MONTHS.findIndex((names) => names.includes(lower));
 };
-
-// Markdown emphasis around a date is not a word: "le **32/04/2020**", "_32 janvier_".
-const B = NO_WORD_BEFORE;
-const E = NO_WORD_AFTER;
-const WEEKDAY = `(?:(?<weekday>${WEEKDAY_NAMES})[ \\t]{0,8},?[ \\t]{1,8})?`;
-const DATES = [
-  // "vendredi 28 août 2014", "le 31 septembre", "1er mars", "le 32 janvier"
-  new RegExp(
-    `${B}${WEEKDAY}(?<day>\\d{1,4})(?:er)?[ \\t]{0,8}[ \\t/-][ \\t]{0,8}(?<month>${MONTH_NAMES})(?:[ \\t/-]{1,8}(?<year>${YEAR_DIGITS}))?${E}`,
-    "giud",
-  ),
-  // "28/08/2014", "31-09-1969", "31.11.89", "28/août/2014"
-  new RegExp(
-    `${B}${WEEKDAY}(?<day>\\d{1,4})(?<sep>[/.-])(?<month>\\d{1,2}|${MONTH_NAMES})\\k<sep>(?<year>${YEAR_DIGITS}|\\d{2})${E}`,
-    "giud",
-  ),
-  // "le 31/04", "née le 30.02": a day and a month after "le" or "du".
-  new RegExp(
-    `(?<=${B}(?:le|du|au)[ \\t]{1,8}${EMPHASIS_MARKS})(?<day>\\d{1,4})(?<sep>[/.])(?<month>\\d{1,2})(?![\\p{L}\\p{N}_/]|[.,/]\\d)`,
-    "giud",
-  ),
-  // "vendredi 2014/08/28"
-  new RegExp(
-    `${B}${WEEKDAY}(?<year>${YEAR_DIGITS})/(?<month>\\d{1,2})/(?<day>\\d{1,2})${E}`,
-    "giud",
-  ),
-];
 
 /** A day or month no calendar has ("32 janvier", "11/50/2014"): flagged, nothing to offer. */
 function impossible(m: RegExpExecArray): RawFinding {
@@ -186,23 +155,16 @@ function weekdayNoYear(
   );
 }
 
-function dates(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const pattern of DATES)
-    for (const m of ownedFrenchWords(ctx, pattern)) {
-      const finding = checkDate(ctx, m);
-      if (finding) findings.push(finding);
-    }
-  for (const range of invalidIsoDates(ctx))
-    findings.push({
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = { checkDate: inChunk(checkDate) } satisfies Record<string, MatchFixer>;
+
+export const PREDICATES = {
+  isoDates: (ctx) =>
+    invalidIsoDates(ctx).map((range) => ({
       ruleId: RULE,
       messageKey: MESSAGE,
       range,
       alternatives: [],
       warningOnly: true,
-    });
-  return findings;
-}
-
-export const PREDICATES = { dates: dates } satisfies Record<string, Detector>;
+    })),
+} satisfies Record<string, Detector>;

@@ -151,9 +151,9 @@ export function* ownedFrenchWords(ctx: DetectContext, pattern: RegExp) {
  * starts one character before the chunk; a match that starts there is not owned.
  */
 export const inChunk =
-  (fix: (m: RegExpExecArray, ctx: DetectContext) => MatchResult): MatchFixer =>
+  (fix: (ctx: DetectContext, m: RegExpExecArray) => MatchResult): MatchFixer =>
   (m, ctx) =>
-    m.index < ctx.from ? null : fix(m, ctx);
+    m.index < ctx.from ? null : fix(ctx, m);
 
 /**
  * A finding on one word unless the user's dictionary holds it, its casing is unusual (a name,

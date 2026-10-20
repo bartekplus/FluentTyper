@@ -70,5 +70,5 @@ function countryPreposition(ctx: DetectContext, m: RegExpExecArray): RawFinding 
 
 /** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
 export const FIXERS = {
-  countryPreposition: inChunk((m, ctx) => countryPreposition(ctx, m)),
+  countryPreposition: inChunk(countryPreposition),
 } satisfies Record<string, MatchFixer>;
