@@ -15,10 +15,10 @@ import { contractions } from "./contractions";
 import { FIXERS as WORD_CHOICE_FIXERS } from "./wordChoice";
 import { invalidDates } from "./dates";
 import { formalVerbs } from "./formal";
-import { auxiliaryInfinitives } from "./infinitives";
-import { markSpacing, unitSpacing } from "./marks";
+import { FIXERS as INFINITIVE_FIXERS } from "./infinitives";
+import { FIXERS as MARK_FIXERS } from "./marks";
 import { nounAgreement } from "./nounAgreement";
-import { sentenceStartNumbers } from "./numbers";
+import { FIXERS as NUMBER_START_FIXERS } from "./numbers";
 import { accentParonyms } from "./paronyms";
 import { personAgreement } from "./personAgreement";
 import {
@@ -59,12 +59,8 @@ export const PREDICATES = {
   fixedAgreements,
   passiveNumber,
   personAgreement,
-  auxiliaryInfinitives,
   verbFrames,
   formalVerbs,
-  sentenceStartNumbers,
-  markSpacing,
-  unitSpacing,
 } satisfies Record<string, Detector>;
 
 /** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
@@ -73,6 +69,9 @@ export const FIXERS = mergePredicates<AnyFixer>(
   WORD_CHOICE_FIXERS,
   NUMBER_FIXERS,
   TYPOGRAPHY_FIXERS,
+  INFINITIVE_FIXERS,
+  MARK_FIXERS,
+  NUMBER_START_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/pt_BR.yaml (`filter:`). */

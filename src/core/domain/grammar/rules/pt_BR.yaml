@@ -39,6 +39,9 @@ fragments:
   SHOW: "arte|artes|cinema|filmes|fotografia|fotografias|teatro|dança|design|pintura|escultura"
   NOT_INFINITIVE: "azar|mar|lugar|par|bar|amor|calor|favor|humor|cor|dor|pior|melhor|maior|menor"
   LOSS: "\\d|tempo|dinheiro|energia|peso|sangue|memória|vidas?|receitas?|produção|calor|carga|água|dados|qualidade|valor|empregos?|clientes"
+  BEGINS: "(?:começ|comec|pass|volt|torn)(?:o|a|as|am|amos|ou|ei|aram|ava|avam|ar|ará|arão|aria|ariam|e|em|ando)"
+  MODAL: "quero|queria|quer|queremos|querem|queriam|preciso|precisa|precisamos|precisam|precisava|devo|deve|devemos|devem|devia|deviam|deveria|deveriam|tento|tenta|tentei|tentou|tentamos|tentam|tentar|tentava"
+  AUXILIARY: "vou|vais|vai|vamos|vão|ia|ias|íamos|iam|pode|posso|podes|podemos|podem|podia|podiam|poderá|poderia|consigo|consegue|conseguimos|conseguem"
 
 rules:
   - id: pt_BR.accentParonyms
@@ -698,7 +701,30 @@ rules:
     predicate: personAgreement
   - id: pt_BR.auxiliaryInfinitives
     checks: [portugueseAgreement]
-    predicate: auxiliaryInfinitives
+    style: match
+    message: review_msg_pt_auxiliary_infinitive
+    frames:
+      # "começou a escrevendo" -> "escrever": "começar a", "passar a", "voltar a" and "tornar a"
+      # take the infinitive. "continuar a seguindo" stays out: there "a" may be the object
+      # pronoun.
+      - regex: "{{BEGINS}}{{S}}a{{S}}(?<target>\\p{L}+(?:ando|endo|indo)|pondo){{E}}(?!-)"
+        fixer: infinitiveGerund
+      # "vão fazerem", "começaram a saberem" -> "fazer", "saber": the infinitive after an
+      # auxiliary takes no person ending.
+      - regex: "(?:{{AUXILIARY}}|{{MODAL}}|{{BEGINS}}{{S}}a|cheg(?:ou|aram|a|am|ava|avam){{S}}a){{S}}(?:(?:não|já|também|ainda|logo|sempre){{S}})?(?<target>\\p{L}{2,}[aeiô]r)em{{E}}"
+        fixer: infinitivePersonal
+      # The verb right after, maybe with a hyphenated pronoun: "vão lembra-se" -> "lembrar-se".
+      - regex: "(?:{{AUXILIARY}}){{S}}(?:(?:não|já|também|ainda|logo|sempre){{S}})?(?<target>\\p{L}{2,}[aei])(?=-(?:me|te|se|nos|vos|lhes?){{E}}|{{E}})"
+        fixer: infinitiveFinite
+      # "quero come" -> "comer", "deve existe" -> "existir", "tentou abri" -> "abrir": modals
+      # that take a noun too ("quero ajuda", "deve dinheiro") only count before an -e or -i
+      # form, which is a verb of the second or third conjugation and seldom a noun.
+      - regex: "(?:{{MODAL}}){{S}}(?:(?:não|já|também|ainda|logo|sempre){{S}})?(?<target>\\p{L}{2,}[ei])(?=-(?:me|te|se|nos|vos|lhes?){{E}}|{{E}})"
+        fixer: infinitiveFinite
+      # "comecei a escreve" -> "escrever": only -e and -i forms, as after the modals; "passa a
+      # bola" has an article and a noun.
+      - regex: "{{BEGINS}}{{S}}a{{S}}(?<target>\\p{L}{2,}[ei])(?=-(?:me|te|se|nos|vos|lhes?){{E}}|{{E}})"
+        fixer: infinitiveFinite
   - id: pt_BR.verbFrames
     checks: [stylePhrasing]
     predicate: verbFrames
@@ -707,13 +733,40 @@ rules:
     predicate: formalVerbs
   - id: pt_BR.sentenceStartNumbers
     checks: [styleSpelledNumbers]
-    predicate: sentenceStartNumbers
+    style: match
+    message: review_msg_spelled_numbers
+    frames:
+      # A figure that opens a sentence, before a lowercase word: "12 pessoas chegaram." A line
+      # with no full stop is a list item or a recipe line ("2 xícaras de farinha"), not a
+      # sentence; one with another figure is a date, an address or a measure ("29 fevereiro
+      # 2000.").
+      - regex: "(?=[1-9])(?<=(?:^|[.!?]{{S}}|\\n[ \\t\\u00a0]{0,8}))(?<target>[1-9]\\d{0,2})(?={{S}}(?<noun>\\p{L}{3,}){{E}}(?<rest>[^\\n.!?]*)[.!?])"
+        fixer: sentenceStartNumber
   - id: pt_BR.markSpacing
     checks: [commaPeriodSpacing]
-    predicate: markSpacing
+    style: match
+    message: review_msg_space_before_mark
+    frames:
+      # After a lowercase word: a capitalized title ("History of the Caribbean : a study") may
+      # follow the library convention of a spaced colon.
+      - regex: "(?<=(?<![\\p{L}])\\p{Ll}\\p{L}*)(?<target>[ \\u00A0]+[:;])(?=[ \\t\\u00A0\\n]|$)"
+        flags: dgu
+        fixer: markBefore
+      - regex: "(?<=\\p{L})(?<target>\\.{3}|\\u2026)(?=\\p{Ll}{2})"
+        flags: dgu
+        fixer: markGlued
+      # After a word of 4 letters or more: "e o …", "do …" mark an omission.
+      - regex: "(?<=\\p{L}{4})(?<target>[ \\u00A0]+\\u2026)(?=[ \\t\\u00A0]*(?:\\n|$|[\"\\u201D\\u00BB)]))"
+        flags: dgu
+        fixer: markSpaced
   - id: pt_BR.unitSpacing
     checks: [measurementUnitFormatting]
-    predicate: unitSpacing
+    style: match
+    message: review_msg_measurement_spacing
+    frames:
+      - regex: "(?<![\\p{L}\\p{N}.,])(?<target>(?<number>\\d+(?:[.,]\\d+)*)(?<unit>kB|KB|MB|GB|TB|kbps|Mbps|Gbps|MWh|GWh))(?![\\p{L}\\p{N}])"
+        flags: dgu
+        fixer: dataUnit
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

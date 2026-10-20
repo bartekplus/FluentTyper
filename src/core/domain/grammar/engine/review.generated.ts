@@ -2516,7 +2516,9 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "pt_BR.auxiliaryInfinitives",
     checks: ["portugueseAgreement"],
     lang: "pt",
-    predicate: "pt_BR:auxiliaryInfinitives",
+    frames: [1437, 1438, 1439, 1440, 1441],
+    message: "review_msg_pt_auxiliary_infinitive",
+    style: "match",
     source: "pt_BR",
   },
   {
@@ -2537,21 +2539,27 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "pt_BR.sentenceStartNumbers",
     checks: ["styleSpelledNumbers"],
     lang: "pt",
-    predicate: "pt_BR:sentenceStartNumbers",
+    frames: [1442],
+    message: "review_msg_spelled_numbers",
+    style: "match",
     source: "pt_BR",
   },
   {
     id: "pt_BR.markSpacing",
     checks: ["commaPeriodSpacing"],
     lang: "pt",
-    predicate: "pt_BR:markSpacing",
+    frames: [1443, 1444, 1445],
+    message: "review_msg_space_before_mark",
+    style: "match",
     source: "pt_BR",
   },
   {
     id: "pt_BR.unitSpacing",
     checks: ["measurementUnitFormatting"],
     lang: "pt",
-    predicate: "pt_BR:unitSpacing",
+    frames: [1446],
+    message: "review_msg_measurement_spacing",
+    style: "match",
     source: "pt_BR",
   },
   {
@@ -14327,6 +14335,96 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "(?:em|de|para|até)[ \\t\\u00a0]{1,8}\\p{Lu}[\\p{Ll}\\p{M}]+(?:[ \\t\\u00a0-](?:d[aoe]s?|\\p{Lu}[\\p{Ll}\\p{M}]+)){0,6}(?<target>[ \\t\\u00a0]?\\((?:AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)\\))",
     literals: [],
     fixer: "pt_BR:styleT2",
+  },
+  {
+    pattern:
+      "(?:começ|comec|pass|volt|torn)(?:o|a|as|am|amos|ou|ei|aram|ava|avam|ar|ará|arão|aria|ariam|e|em|ando)[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}(?<target>\\p{L}+(?:ando|endo|indo)|pondo)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!-)",
+    literals: ["começ", "comec", "pass", "volt", "torn"],
+    fixer: "pt_BR:infinitiveGerund",
+  },
+  {
+    pattern:
+      "(?:vou|vais|vai|vamos|vão|ia|ias|íamos|iam|pode|posso|podes|podemos|podem|podia|podiam|poderá|poderia|consigo|consegue|conseguimos|conseguem|quero|queria|quer|queremos|querem|queriam|preciso|precisa|precisamos|precisam|precisava|devo|deve|devemos|devem|devia|deviam|deveria|deveriam|tento|tenta|tentei|tentou|tentamos|tentam|tentar|tentava|(?:começ|comec|pass|volt|torn)(?:o|a|as|am|amos|ou|ei|aram|ava|avam|ar|ará|arão|aria|ariam|e|em|ando)[ \\t\\u00a0]{1,8}a|cheg(?:ou|aram|a|am|ava|avam)[ \\t\\u00a0]{1,8}a)[ \\t\\u00a0]{1,8}(?:(?:não|já|também|ainda|logo|sempre)[ \\t\\u00a0]{1,8})?(?<target>\\p{L}{2,}[aeiô]r)em(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fixer: "pt_BR:infinitivePersonal",
+  },
+  {
+    pattern:
+      "(?:vou|vais|vai|vamos|vão|ia|ias|íamos|iam|pode|posso|podes|podemos|podem|podia|podiam|poderá|poderia|consigo|consegue|conseguimos|conseguem)[ \\t\\u00a0]{1,8}(?:(?:não|já|também|ainda|logo|sempre)[ \\t\\u00a0]{1,8})?(?<target>\\p{L}{2,}[aei])(?=-(?:me|te|se|nos|vos|lhes?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fixer: "pt_BR:infinitiveFinite",
+  },
+  {
+    pattern:
+      "(?:quero|queria|quer|queremos|querem|queriam|preciso|precisa|precisamos|precisam|precisava|devo|deve|devemos|devem|devia|deviam|deveria|deveriam|tento|tenta|tentei|tentou|tentamos|tentam|tentar|tentava)[ \\t\\u00a0]{1,8}(?:(?:não|já|também|ainda|logo|sempre)[ \\t\\u00a0]{1,8})?(?<target>\\p{L}{2,}[ei])(?=-(?:me|te|se|nos|vos|lhes?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [
+      "quero",
+      "queria",
+      "quer",
+      "queremos",
+      "querem",
+      "queriam",
+      "preciso",
+      "precisa",
+      "precisamos",
+      "precisam",
+      "precisava",
+      "devo",
+      "deve",
+      "devemos",
+      "devem",
+      "devia",
+      "deviam",
+      "deveria",
+      "deveriam",
+      "tento",
+      "tenta",
+      "tentei",
+      "tentou",
+      "tentamos",
+      "tentam",
+      "tentar",
+      "tentava",
+    ],
+    fixer: "pt_BR:infinitiveFinite",
+  },
+  {
+    pattern:
+      "(?:começ|comec|pass|volt|torn)(?:o|a|as|am|amos|ou|ei|aram|ava|avam|ar|ará|arão|aria|ariam|e|em|ando)[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}(?<target>\\p{L}{2,}[ei])(?=-(?:me|te|se|nos|vos|lhes?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["começ", "comec", "pass", "volt", "torn"],
+    fixer: "pt_BR:infinitiveFinite",
+  },
+  {
+    pattern:
+      "(?=[1-9])(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>[1-9]\\d{0,2})(?=[ \\t\\u00a0]{1,8}(?<noun>\\p{L}{3,})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<rest>[^\\n.!?]*)[.!?])",
+    literals: [],
+    fixer: "pt_BR:sentenceStartNumber",
+  },
+  {
+    pattern: "(?<=(?<![\\p{L}])\\p{Ll}\\p{L}*)(?<target>[ \\u00A0]+[:;])(?=[ \\t\\u00A0\\n]|$)",
+    literals: [],
+    fixer: "pt_BR:markBefore",
+    flags: "dgu",
+  },
+  {
+    pattern: "(?<=\\p{L})(?<target>\\.{3}|\\u2026)(?=\\p{Ll}{2})",
+    literals: [],
+    fixer: "pt_BR:markGlued",
+    flags: "dgu",
+  },
+  {
+    pattern:
+      '(?<=\\p{L}{4})(?<target>[ \\u00A0]+\\u2026)(?=[ \\t\\u00A0]*(?:\\n|$|["\\u201D\\u00BB)]))',
+    literals: [],
+    fixer: "pt_BR:markSpaced",
+    flags: "dgu",
+  },
+  {
+    pattern:
+      "(?<![\\p{L}\\p{N}.,])(?<target>(?<number>\\d+(?:[.,]\\d+)*)(?<unit>kB|KB|MB|GB|TB|kbps|Mbps|Gbps|MWh|GWh))(?![\\p{L}\\p{N}])",
+    literals: [],
+    fixer: "pt_BR:dataUnit",
+    flags: "dgu",
   },
 ];
 
