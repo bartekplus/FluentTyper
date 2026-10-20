@@ -5,9 +5,9 @@ import {
   wordKey,
   wordSet,
 } from "../../implementations/helpers/GenericRuleShared";
-import { caseLike, frameMatches, isLang } from "../phraseTemplates";
+import { caseLike } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import { frameRuleDetector, type MatchFixer } from "../../engine/reviewRules";
 import type { ReviewMessageKey } from "../types";
 import { finding } from "../finding";
 
@@ -1020,14 +1020,6 @@ const HANDLERS: Record<string, Handler> = {
   "you're": youre,
   were,
 };
-const TARGET = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?:${Object.keys(HANDLERS)
-    .map((w) => w.replaceAll("'", "['’]"))
-    .sort((x, y) => y.length - x.length)
-    .join("|")}|dissembl[a-z]*)(?![\\p{L}\\p{N}_'’@#\\\\])`,
-  "giu",
-);
-
 const QUOTE = /^["“”'‘’]$/;
 /** A quoted example: a quote within a word of each side ("I cant go" in a style guide). */
 function mentioned(ctx: DetectContext, h: Hit): boolean {
@@ -1036,28 +1028,27 @@ function mentioned(ctx: DetectContext, h: Hit): boolean {
   return b.some((t) => QUOTE.test(t.text)) && a.some((t) => QUOTE.test(t.text));
 }
 
-function confusedWords(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "en")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, TARGET, (x) => x.index)) {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  confusedWord: (m, ctx) => {
+    // The target word owns the match.
+    if (m.index < ctx.from || m.index >= ctx.to) return null;
     const text = m[0];
     const w = wordKey(text);
     // Mixed case names something; a user word is the user's.
-    if (applyWordCase(text, detectWordCase(text)) !== text || ctx.dictionary.has(w)) continue;
+    if (applyWordCase(text, detectWordCase(text)) !== text || ctx.dictionary.has(w)) return null;
     const glue = ctx.text[m.index + text.length];
     if ((glue === "-" && w !== "summery") || (glue === "/" && !/^(?:dissembl|bias)/.test(w)))
-      continue;
+      return null;
     const t: Tok = { text, w, start: m.index, end: m.index + text.length };
     const handler = w.startsWith("dissembl") ? dissemble : HANDLERS[w];
     const h = handler(ctx, t, before(ctx, t.start), after(ctx, t.end));
-    if (!h || mentioned(ctx, h)) continue;
-    const finding = make(ctx, h.start, h.end, h.alts, h.key);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
+    if (!h || mentioned(ctx, h)) return null;
+    return make(ctx, h.start, h.end, h.alts, h.key);
+  },
+} satisfies Record<string, MatchFixer>;
 
-/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
-export const PREDICATES = {
-  confusedWords: confusedWords,
-} satisfies Record<string, Detector>;
+const confusedWordsRule = frameRuleDetector("en.confusedWords", { en: FIXERS });
+/** The confused-word frame, whatever checks are on: other checks read it in a view. */
+export const confusedWords = (view: DetectContext) =>
+  confusedWordsRule({ ...view, rules: undefined });

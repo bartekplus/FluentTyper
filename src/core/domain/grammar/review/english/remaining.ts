@@ -22,7 +22,7 @@ import {
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { Detector, MatchFixer } from "../../engine/reviewRules";
 import { opensClause } from "./grammarStyle2";
-import { PREDICATES as CONFUSED_WORDS } from "./confusions1";
+import { confusedWords } from "./confusions1";
 import { fixedPhrases } from "./fixedPhrases";
 import { FIXERS as IDIOM_FIXERS_1 } from "./idioms1";
 import { frameRuleDetector } from "../../engine/reviewRules";
@@ -410,10 +410,7 @@ const lowerTarget = (alternatives: string[]) =>
 // given.
 const MIXED_WORDS =
   /(?<![\p{L}\p{N}_'’@/#\\.-])\p{L}*\p{Ll}\p{Lu}\p{L}*(?![\p{L}\p{N}_'’@/#\\-])/gu;
-const casedChecks = (view: DetectContext) => [
-  ...CONFUSED_WORDS.confusedWords(view),
-  ...chromeExtension(view),
-];
+const casedChecks = (view: DetectContext) => [...confusedWords(view), ...chromeExtension(view)];
 
 // Quoted wording is checked too: the tables' quotation and example guards keep a mention
 // ("'chalk full' is nonstandard") as typed, and this opt-in check reads it anyway.

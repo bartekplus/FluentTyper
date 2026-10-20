@@ -189,7 +189,16 @@ rules:
         fixer: wishWere
   - id: en.confusedWords
     checks: [englishConfusedWords]
-    predicate: confusedWords
+    style: match
+    message: review_msg_confused_word
+    frames:
+      # Lookalike words decided by their syntactic slot: "I thing" is a verb slot, "good
+      # advise" a noun slot. One alternative for each handler word of confusions1.ts; the word
+      # owns the match.
+      - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?:brandishing|brandishes|brandished|prejudice|you['’]re|emphasis|response|brandish|whatever|whenever|wherever|everyday|let['’]s|believe|breathe|concern|denying|opening|effects|affects|summery|whoever|it['’]s|advice|belief|breath|intent|advise|intend|denies|denied|opened|effect|affect|weight|hoping|roller|theses|thing|worry|shock|opens|bough|quiet|hopes|hoped|rogue|bias|deny|open|safe|fell|find|hops|hope|cant|that|then|lets|were|hop|its|let|dissembl[a-z]*)(?![\\p{L}\\p{N}_'’@#\\\\])"
+        flags: dgiu
+        owner: none
+        fixer: confusedWord
   - id: en.contextualConfusions
     checks:
       [
@@ -200,6 +209,9 @@ rules:
         englishWereWhere,
         englishToToo,
       ]
+    # predicate: its scan reads 16 characters past the chunk ("all ready" starts one word
+    # before its trigger); no frame scan stops there. One match also gives findings of six
+    # checks, and a frame runs only when its own check is on.
     predicate: contextualConfusions
   - id: en.idiomPhrases1
     checks: [englishPhraseCorrections]
