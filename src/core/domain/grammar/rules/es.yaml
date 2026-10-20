@@ -3,9 +3,6 @@ lang: es
 
 # Regex fragments of the frame rules: {{NAME}}.
 fragments:
-  # An owned or text scan reads no target group: the fixer gives its own findings. This empty
-  # group at the end of the regex only satisfies the compiler; it changes no match.
-  NO_TARGET: "(?<target>)"
   # Prefixes that are no word of their own, so a space after them is always a split.
   BOUND: "anti|ciber|pre|re|vice|hiper|inter|neuro|geo|nano|agro|sub|semi|multi|pos|infra|intra|seudo|pseudo|archi|hemi|co|fito|meso|hidro|termo|electro|cardio|psico|sero"
   # Prefixes that are also words; FREE in review/spanish/prefixes.ts holds the same list.
@@ -66,7 +63,7 @@ rules:
     frames:
       # "anti ruso" -> "antirruso", "ex-colonias" -> "excolonias": a prefix joins the word it
       # modifies. Apart or hyphenated only before a capital, a number or a phrase.
-      - regex: "(?<![\\p{L}\\p{N}\\-'’@/#.])({{BOUND}}|{{FREE}})(?:(-)|[ \\t]+)(\\p{L}[\\p{L}\\p{M}]{2,})(?![\\p{L}\\p{N}\\-'’@/]){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}\\-'’@/#.])({{BOUND}}|{{FREE}})(?:(-)|[ \\t]+)(\\p{L}[\\p{L}\\p{M}]{2,})(?![\\p{L}\\p{N}\\-'’@/])"
         flags: giu
         scan: owned
         lookback: 16
@@ -82,7 +79,7 @@ rules:
     message: review_msg_closed_compound
     frames:
       # "pilla-pilla", "taca-taca": a doubled word is one compound.
-      - regex: "(?<![\\p{L}\\p{N}\\-'\\u2019@/#.])([a-z\\u00F1]{2,5})-([a-z\\u00F1]{2,5})(?![\\p{L}\\p{N}\\-'\\u2019@/]){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}\\-'\\u2019@/#.])([a-z\\u00F1]{2,5})-([a-z\\u00F1]{2,5})(?![\\p{L}\\p{N}\\-'\\u2019@/])"
         flags: gu
         scan: owned
         lookback: 16
@@ -114,20 +111,20 @@ rules:
     frames:
       # "31 de abril de 2020", "29 de febrero 2023", and a weekday before a full date
       # ("lunes, 7 de octubre de 2014").
-      - regex: "(?<![\\p{L}\\p{N}.,/-])(?:(domingo|lunes|martes|miércoles|jueves|viernes|sábado)(,?[ \\t]+))?(\\d{1,2})(?:[ \\t]+de)?[ \\t]+({{MONTH_NAMES}})(?:[ \\t]+(?:de|del)?[ \\t]*([0-9]{4}))?(?![\\p{L}\\p{N}]){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}.,/-])(?:(domingo|lunes|martes|miércoles|jueves|viernes|sábado)(,?[ \\t]+))?(\\d{1,2})(?:[ \\t]+de)?[ \\t]+({{MONTH_NAMES}})(?:[ \\t]+(?:de|del)?[ \\t]*([0-9]{4}))?(?![\\p{L}\\p{N}])"
         flags: giu
         scan: owned
         lookback: 16
         fixer: namedDate
       # "el 32 de enero", "el 0 de abril": a day no month has, after the article a date takes.
-      - regex: "(?<=(?:^|[\\s(])(?:el|del|al|El|Del|Al)[ \\t]{1,8})(00?|3[2-9]|[4-9]\\d|\\d{3})(?:[ \\t]{1,8}de)?[ \\t]{1,8}(?:{{MONTH_NAMES}})(?![\\p{L}\\p{N}]){{NO_TARGET}}"
+      - regex: "(?<=(?:^|[\\s(])(?:el|del|al|El|Del|Al)[ \\t]{1,8})(00?|3[2-9]|[4-9]\\d|\\d{3})(?:[ \\t]{1,8}de)?[ \\t]{1,8}(?:{{MONTH_NAMES}})(?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 16
         fixer: noSuchDay
       # "31/11/1988", "30-2-2001". Numeric dates need a four-digit year: "30/2" alone is a
       # ratio. A two-digit year ("31.11.89") or none ("el 31.04.") only where a date goes.
-      - regex: "(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|{{MONTH_NAMES}}|{{MONTH_SHORT}})(?:\\2([0-9]{4}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N}){{NO_TARGET}}"
+      - regex: "(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|{{MONTH_NAMES}}|{{MONTH_SHORT}})(?:\\2([0-9]{4}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})"
         flags: giu
         scan: owned
         lookback: 16
@@ -142,27 +139,27 @@ rules:
     message: review_msg_spanish_abbreviation_period
     frames:
       # "etc..." and "etc…": the abbreviation ends in one point.
-      - regex: "(?<!\\p{L})etc(?:\\.{2,}|…|\\.…){{NO_TARGET}}"
+      - regex: "(?<!\\p{L})etc(?:\\.{2,}|…|\\.…)"
         flags: giu
         scan: owned
         fixer: etcDots
         message: review_msg_spanish_abbreviation
       # "uno, dos…etc.": the ellipsis and "etc." say the same; keep one of them.
-      - regex: "(?:,[ \\t]*)?(?:\\.{3}|…)[ \\t]*etc(?!\\p{L})\\.?{{NO_TARGET}}"
+      - regex: "(?:,[ \\t]*)?(?:\\.{3}|…)[ \\t]*etc(?!\\p{L})\\.?"
         flags: giu
         scan: owned
         fixer: etcEllipsis
         message: review_msg_spanish_abbreviation
       # "2do", "5ta.", "1er": ordinal abbreviations take a period and a raised letter: "2.º",
       # "1.er".
-      - regex: "(?<![\\p{L}\\p{N}.,])(\\d{1,3})(do|da|ro|ra|to|ta|vo|va|no|na|mo|ma|ero|era|er|r)(\\.(?=[ \\t]{1,8}\\p{Ll}))?(?![\\p{L}\\p{N}]){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}.,])(\\d{1,3})(do|da|ro|ra|to|ta|vo|va|no|na|mo|ma|ero|era|er|r)(\\.(?=[ \\t]{1,8}\\p{Ll}))?(?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 8
         fixer: ordinal
         message: review_msg_spanish_ordinal
       # "5 hrs", "48hrs", "15 h. será", "5grs": unit symbols take no plural and no period.
-      - regex: "(?<![\\p{L}\\p{N}.,])(\\d+(?:[.,:]\\d+)?)([ \\t]?)(hrs|hr|hs|HRS|HS|grs|gr|GRS|h)(\\.(?=[ \\t]{1,8}\\p{Ll}))?(?![\\p{L}\\p{N}]){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}.,])(\\d+(?:[.,:]\\d+)?)([ \\t]?)(hrs|hr|hs|HRS|HS|grs|gr|GRS|h)(\\.(?=[ \\t]{1,8}\\p{Ll}))?(?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 8
@@ -170,7 +167,7 @@ rules:
         message: review_msg_spanish_unit
       # "la 2.º vez" -> "2.ª", "su 25ª aniversario" -> "25º": the raised letter takes the
       # gender of the noun after it.
-      - regex: "(?<![\\p{L}\\p{N}.,])(\\d{1,3})(\\.?)([\\u00BA\\u00AA])(?=[ \\t]{1,8}(\\p{L}+)(?![\\p{L}\\p{N}])){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}.,])(\\d{1,3})(\\.?)([\\u00BA\\u00AA])(?=[ \\t]{1,8}(\\p{L}+)(?![\\p{L}\\p{N}]))"
         flags: gu
         scan: owned
         lookback: 8
@@ -178,7 +175,7 @@ rules:
         message: review_msg_spanish_ordinal
       # "25ºC", "1 ºC": a degree sign, not the ordinal o, and a space before it ("3º C" is a
       # floor and a door).
-      - regex: "(?<![\\p{L}\\p{N}.,])(\\p{N}+(?:[.,]\\p{N}+)?)[ \\t]?\\u00BA([CF])(?![\\p{L}\\p{N}]){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}.,])(\\p{N}+(?:[.,]\\p{N}+)?)[ \\t]?\\u00BA([CF])(?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 8
@@ -186,7 +183,7 @@ rules:
         message: review_msg_spanish_unit
       # "n° 18", "n°18": the number sign is "n.º", with the raised o, not a degree. A degree
       # sign right after a lowercase "n" only; "N° 54" heads forms and is left alone.
-      - regex: "(?<![\\p{L}\\p{N}])(n)[ \\t]?\\u00B0[ \\t]?(?=\\p{N}){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}])(n)[ \\t]?\\u00B0[ \\t]?(?=\\p{N})"
         flags: gu
         scan: owned
         lookback: 8
@@ -194,13 +191,13 @@ rules:
         message: review_msg_spanish_ordinal
       # "el Sr García", "en el núm 25": an abbreviation before a name or a number takes its
       # period.
-      - regex: "(?<![\\p{L}\\p{N}.])(?:(?:Sr|Sra|Srta|Dr|Dra|Avda|Av|Lic|Ing|Prof|Mr|Mrs)(?=[ \\t]\\p{Lu}\\p{Ll})|(?:n\\u00FAm|p\\u00E1g|p\\u00E1gs)(?=[ \\t]\\p{N}))(?![.\\p{L}]){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}.])(?:(?:Sr|Sra|Srta|Dr|Dra|Avda|Av|Lic|Ing|Prof|Mr|Mrs)(?=[ \\t]\\p{Lu}\\p{Ll})|(?:n\\u00FAm|p\\u00E1g|p\\u00E1gs)(?=[ \\t]\\p{N}))(?![.\\p{L}])"
         flags: gu
         scan: owned
         lookback: 8
         fixer: bareAbbreviation
       # "2000euros", "5000habitantes": a number glued to the noun it counts.
-      - regex: "(?<![\\p{L}\\p{N}.,])(\\p{N}+(?:[.,]\\p{N}{3})*)(\\p{Ll}{4,})(?![\\p{L}\\p{N}]){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}.,])(\\p{N}+(?:[.,]\\p{N}{3})*)(\\p{Ll}{4,})(?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 8
@@ -208,94 +205,94 @@ rules:
         message: review_msg_spanish_number_space
       # "LA semana pasada", "EL 2 de diciembre": an article in capitals opening a sentence of
       # lowercase words.
-      - regex: "(?<=(?:^|[.!?\\u00A1\\u00BF][ \\t]{0,8}|\\n))(?:EL|LA|LOS|LAS|UN|UNA|UNOS|UNAS|NO|ES|SE|LO|YO|HAY|YA|MUY|ESTE|ESTA|ESTO|ESO)(?=[ \\t]{1,8}(?:\\p{N}+[ \\t]{1,8})?\\p{Ll}\\p{Ll}){{NO_TARGET}}"
+      - regex: "(?<=(?:^|[.!?\\u00A1\\u00BF][ \\t]{0,8}|\\n))(?:EL|LA|LOS|LAS|UN|UNA|UNOS|UNAS|NO|ES|SE|LO|YO|HAY|YA|MUY|ESTE|ESTA|ESTO|ESO)(?=[ \\t]{1,8}(?:\\p{N}+[ \\t]{1,8})?\\p{Ll}\\p{Ll})"
         flags: gu
         scan: owned
         lookback: 8
         fixer: shoutedArticle
         message: review_msg_spanish_capital_article
       # "rojo, azul, etc", "el s XVIII", "N.I.F", "J. K Rowling": the abbreviation's period.
-      - regex: "(?<![\\p{L}\\p{N}.])etc(?![\\p{L}\\p{N}.\\u2026]){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}.])etc(?![\\p{L}\\p{N}.\\u2026])"
         flags: giu
         scan: owned
         lookback: 8
         fixer: bareEtc
-      - regex: "(?<=(?:^|[\\s(])(?:el|del|al|los|en|El|Del|Al|Los|En)[ \\t]{1,8}|^|[.!?][ \\t]{1,8})[sS](?=[ \\t]{1,8}{{ROMAN}}(?![\\p{L}\\p{N}])){{NO_TARGET}}"
+      - regex: "(?<=(?:^|[\\s(])(?:el|del|al|los|en|El|Del|Al|Los|En)[ \\t]{1,8}|^|[.!?][ \\t]{1,8})[sS](?=[ \\t]{1,8}{{ROMAN}}(?![\\p{L}\\p{N}]))"
         flags: gu
         scan: owned
         lookback: 8
         fixer: bareCentury
       # "N.I.F", "D.C", "S. A,": the last letter of dotted initials lost its period. A lone
       # "A", "E", "O", "U" or "Y" may be a word opening the next sentence.
-      - regex: "(?<![\\p{L}\\p{N}.])(?:\\p{Lu}\\.){1,5}\\p{Lu}(?![\\p{L}\\p{N}.\\-/@_])|(?<=(?<![\\p{L}\\p{N}.])\\p{Lu}\\.[ \\t])(?:[B-DF-NP-TV-XZ](?=[ \\t]\\p{Lu}\\p{Ll})|\\p{Lu}(?=,)){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}.])(?:\\p{Lu}\\.){1,5}\\p{Lu}(?![\\p{L}\\p{N}.\\-/@_])|(?<=(?<![\\p{L}\\p{N}.])\\p{Lu}\\.[ \\t])(?:[B-DF-NP-TV-XZ](?=[ \\t]\\p{Lu}\\p{Ll})|\\p{Lu}(?=,))"
         flags: gu
         scan: owned
         lookback: 8
         fixer: openInitials
       # "p.ej.", "nº 18", "pag 4", "telf 666": the standard forms "p. ej.", "n.º", "pág.",
       # "tel.".
-      - regex: "(?<![\\p{L}\\p{N}.])([pP])(?:[ \\t]?\\.[ \\t]?e(?:j[ \\t]?)?|[ \\t]ej[ \\t]?)\\.(?![\\p{L}\\p{N}]){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}.])([pP])(?:[ \\t]?\\.[ \\t]?e(?:j[ \\t]?)?|[ \\t]ej[ \\t]?)\\.(?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 8
         fixer: forExample
         message: review_msg_spanish_abbreviation_form
-      - regex: "(?<![\\p{L}\\p{N}.])(n\\u00BA|n\\.\\u00B0|num|pag|pags|telf|tlf|tlfn)\\.?:?[ \\t]?(?=\\p{N}){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}.])(n\\u00BA|n\\.\\u00B0|num|pag|pags|telf|tlf|tlfn)\\.?:?[ \\t]?(?=\\p{N})"
         flags: giu
         scan: owned
         lookback: 8
         fixer: plainAbbreviation
         message: review_msg_spanish_abbreviation_form
       # "el 9° clasificado", "la 2° edición": a degree sign for the ordinal's raised letter.
-      - regex: "(?<=(?:^|[\\s(])(el|la|del|al|El|La|Del|Al)[ \\t]{1,8})(\\d{1,3})[ \\t]?\\u00B0(?=[ \\t]{1,8}(\\p{Ll}+)){{NO_TARGET}}"
+      - regex: "(?<=(?:^|[\\s(])(el|la|del|al|El|La|Del|Al)[ \\t]{1,8})(\\d{1,3})[ \\t]?\\u00B0(?=[ \\t]{1,8}(\\p{Ll}+))"
         flags: gu
         scan: owned
         lookback: 8
         fixer: degreeOrdinal
         message: review_msg_spanish_ordinal
       # "del '90", "los años '71": a shortened year takes no apostrophe.
-      - regex: "(?:(?<=(?:^|[\\s(])(?:del|el|los|a\\u00F1os|d\\u00E9cada|en)[ \\t]{1,8})|(?<=['\\u2019\\u2018]\\d\\d[\\u2014\\u2013-]))['\\u2019\\u2018](\\d\\d)(?![\\p{L}\\p{N}'\\u2019]){{NO_TARGET}}"
+      - regex: "(?:(?<=(?:^|[\\s(])(?:del|el|los|a\\u00F1os|d\\u00E9cada|en)[ \\t]{1,8})|(?<=['\\u2019\\u2018]\\d\\d[\\u2014\\u2013-]))['\\u2019\\u2018](\\d\\d)(?![\\p{L}\\p{N}'\\u2019])"
         flags: giu
         scan: owned
         lookback: 8
         fixer: yearApostrophe
         message: review_msg_spanish_year_apostrophe
       # "la sra. García": abbreviations of address take a capital.
-      - regex: "(?<![\\p{L}\\p{N}.])(?:sr|sra|srta|sres|sras|dr|dra)\\.(?=[ \\t]\\p{Lu}\\p{Ll}){{NO_TARGET}}"
+      - regex: "(?<![\\p{L}\\p{N}.])(?:sr|sra|srta|sres|sras|dr|dra)\\.(?=[ \\t]\\p{Lu}\\p{Ll})"
         flags: gu
         scan: owned
         lookback: 8
         fixer: lowerTreatment
         message: review_msg_spanish_treatment_capital
       # "Sí sí, ven": a repeated "sí" or "no" takes a comma between.
-      - regex: "(?<=(?:^|[.!?\\u00A1\\u00BF\\n])[ \\t]{0,8})(?:(S\\u00ED|s\\u00ED|S\\u00CD)[ \\t]+(s\\u00ED|S\\u00CD)|(No|no|NO)[ \\t]+(no|NO))(?=[ \\t]*[,.!?]){{NO_TARGET}}"
+      - regex: "(?<=(?:^|[.!?\\u00A1\\u00BF\\n])[ \\t]{0,8})(?:(S\\u00ED|s\\u00ED|S\\u00CD)[ \\t]+(s\\u00ED|S\\u00CD)|(No|no|NO)[ \\t]+(no|NO))(?=[ \\t]*[,.!?])"
         flags: gu
         scan: owned
         lookback: 8
         fixer: repeatedAnswer
         message: review_msg_spanish_repeated_answer
       # "Es él ─dijo": a box-drawing or Hangul stroke typed for the long dash.
-      - regex: "(?<=[\\p{Script=Latin}.,!?][ \\t]?)[\\u2500\\u2501\\u3161](?=\\p{Script=Latin}){{NO_TARGET}}"
+      - regex: "(?<=[\\p{Script=Latin}.,!?][ \\t]?)[\\u2500\\u2501\\u3161](?=\\p{Script=Latin})"
         flags: gu
         scan: owned
         lookback: 8
         fixer: strokeDash
         message: review_msg_spanish_dialogue_dash
       # "Adiós,. le dije": a comma and a period together; either one may be meant.
-      - regex: "(?<=\\p{L}),\\.(?!\\.){{NO_TARGET}}"
+      - regex: "(?<=\\p{L}),\\.(?!\\.)"
         flags: gu
         scan: owned
         fixer: commaPeriod
         message: review_msg_duplicate_punctuation
       # "¿Qué es lo que pasa aquí." -> "aquí?", "¡Qué bonito" -> "bonito!": an opening mark
       # whose sentence ends without a closing one.
-      - regex: "[¿¡]{{NO_TARGET}}"
+      - regex: "[¿¡]"
         flags: gu
         scan: text
         fixer: closingMark
         message: review_msg_spanish_closing_mark
       # "los años 1930s", "los 80's": a decade takes no plural ending in Spanish.
-      - regex: "(?<=(?<![\\p{L}])(?:a\\u00F1os|los)[ \\t]{1,4})((?:1[0-9]|20)?[0-9]0)(?:['\\u2019]s|s)(?:[ \\t]+y[ \\t]+((?:1[0-9]|20)?[0-9]0)(?:['\\u2019]s|s))?(?![\\p{L}\\p{N}]){{NO_TARGET}}"
+      - regex: "(?<=(?<![\\p{L}])(?:a\\u00F1os|los)[ \\t]{1,4})((?:1[0-9]|20)?[0-9]0)(?:['\\u2019]s|s)(?:[ \\t]+y[ \\t]+((?:1[0-9]|20)?[0-9]0)(?:['\\u2019]s|s))?(?![\\p{L}\\p{N}])"
         flags: giu
         scan: owned
         lookback: 8
@@ -314,13 +311,13 @@ rules:
       # "frase.Y otra", "así?Siempre", "Ven.¿Como…?", "así…siempre", and "así .Siempre" with
       # the space on the wrong side. Lowercase only after "…": "archivo .txt" and "web?id" are
       # not prose.
-      - regex: "(?<=\\p{L}\\p{Ll})(?:\\.(?=(?:{{STARTERS}})(?![\\p{L}\\p{N}])|[¿¡])|[?!](?=[¿¡]|\\p{Lu}\\p{Ll})|…(?=[¿¡]|\\p{L}))|(?<=\\p{L})[ \\t]+(?:[.?!]|…)(?=[¿¡]|\\p{Lu}\\p{Ll}){{NO_TARGET}}"
+      - regex: "(?<=\\p{L}\\p{Ll})(?:\\.(?=(?:{{STARTERS}})(?![\\p{L}\\p{N}])|[¿¡])|[?!](?=[¿¡]|\\p{Lu}\\p{Ll})|…(?=[¿¡]|\\p{L}))|(?<=\\p{L})[ \\t]+(?:[.?!]|…)(?=[¿¡]|\\p{Lu}\\p{Ll})"
         flags: gu
         scan: owned
         fixer: missingSpace
       # "dijo : ven" -> "dijo: ven", "vino;pero" -> "vino; pero": Spanish sets no space before
       # a colon or a semicolon, and one after a semicolon between words.
-      - regex: "(?<=\\p{L})[ \\t]+[:;](?=[ \\t]|$)|(?<=\\p{L}\\p{Ll});(?=\\p{Ll}{2}){{NO_TARGET}}"
+      - regex: "(?<=\\p{L})[ \\t]+[:;](?=[ \\t]|$)|(?<=\\p{L}\\p{Ll});(?=\\p{Ll}{2})"
         flags: gmu
         scan: owned
         fixer: colonSpacing
@@ -336,14 +333,14 @@ rules:
     frames:
       # "Ven -dijo.", "-¿Perdón?": the dialogue dash, an optional typography check like the
       # dash. Verbs of saying after a dialogue line use the long dash.
-      - regex: "(?<=[\\p{L}.,!?…][ \\t]?)[-–‒](?=(?:{{SAYING}})(?![\\p{L}]))|(?<=^|\\n)[-–‒](?=[¿¡]|\\p{Lu}\\p{Ll})|(?<=[ \\t]|^)--(?=[ \\t]|$){{NO_TARGET}}"
+      - regex: "(?<=[\\p{L}.,!?…][ \\t]?)[-–‒](?=(?:{{SAYING}})(?![\\p{L}]))|(?<=^|\\n)[-–‒](?=[¿¡]|\\p{Lu}\\p{Ll})|(?<=[ \\t]|^)--(?=[ \\t]|$)"
         flags: gu
         scan: owned
         lookback: 8
         fixer: dialogueDash
       # "Se fue -¿no?-, y volvió", "Finol –medalla de bronce– ganó": a remark set off by a pair
       # of hyphens or en dashes, open after a space and closed before a space or a mark.
-      - regex: "(?<=[ \\t])[-\\u2013](?=[\\p{L}\\u00BF\\u00A1])[^-\\u2013\\n]{0,150}?[\\p{L}\\p{N}?!.\\u2026][-\\u2013](?=[ \\t,.;:)]|$){{NO_TARGET}}"
+      - regex: "(?<=[ \\t])[-\\u2013](?=[\\p{L}\\u00BF\\u00A1])[^-\\u2013\\n]{0,150}?[\\p{L}\\p{N}?!.\\u2026][-\\u2013](?=[ \\t,.;:)]|$)"
         flags: gu
         scan: owned
         lookback: 160
@@ -358,20 +355,20 @@ rules:
     message: review_msg_spanish_decimal
     frames:
       # "9,349.5", "21,999,349": English digit groups, with a decimal point or with two commas.
-      - regex: "(?<![\\p{N}.,])\\d{1,3}(?:(?:,\\d{3})+\\.\\d{1,3}|(?:,\\d{3}){2,})(?![\\p{N}]|[.,]\\p{N}){{NO_TARGET}}"
+      - regex: "(?<![\\p{N}.,])\\d{1,3}(?:(?:,\\d{3})+\\.\\d{1,3}|(?:,\\d{3}){2,})(?![\\p{N}]|[.,]\\p{N})"
         flags: gu
         scan: owned
         lookback: 32
         fixer: decimalPoint
       # "1.4 kg", "9349.5", "1 999 349.56": a decimal point before a unit, after four digits or
       # closing a group spaced by thousands. "a las 9.30", "versión 2.5" and "3.2.1" stay.
-      - regex: "(?<![\\p{N}.,])(?:\\d{1,3}(?: \\d{3})+|\\d{4,}|\\d{1,3}(?=\\.\\d{1,2}{{UNIT_AFTER}}))\\.\\d{1,2}(?![\\p{N}]|[.,]\\p{N}){{NO_TARGET}}"
+      - regex: "(?<![\\p{N}.,])(?:\\d{1,3}(?: \\d{3})+|\\d{4,}|\\d{1,3}(?=\\.\\d{1,2}{{UNIT_AFTER}}))\\.\\d{1,2}(?![\\p{N}]|[.,]\\p{N})"
         flags: gu
         scan: owned
         lookback: 32
         fixer: decimalPoint
       # "30 km2", "por m3": a unit's exponent is a superscript.
-      - regex: "(?<=(?:\\d[ \\t\\u00a0]?|\\bpor[ \\t]|\\/))(?:km|cm|mm|dm|m)[23](?![\\p{L}\\p{N}]){{NO_TARGET}}"
+      - regex: "(?<=(?:\\d[ \\t\\u00a0]?|\\bpor[ \\t]|\\/))(?:km|cm|mm|dm|m)[23](?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 8
@@ -409,12 +406,12 @@ rules:
     frames:
       # A straight pair around a phrase on one line: opening after a space, a bracket or a dash
       # and before a letter, closing after a letter, digit or sentence mark.
-      - regex: "(?<=^|[\\s([{\\u00BF\\u00A1\\u2014\\u2013-])\"(?=[\\p{L}\\p{N}\\u00BF\\u00A1])([^\"\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])\"(?![\\p{L}\\p{N}]){{NO_TARGET}}"
+      - regex: "(?<=^|[\\s([{\\u00BF\\u00A1\\u2014\\u2013-])\"(?=[\\p{L}\\p{N}\\u00BF\\u00A1])([^\"\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])\"(?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 256
         fixer: doubleQuotes
-      - regex: "(?<=^|[\\s([{\\u00BF\\u00A1\\u2014\\u2013-])'(?=[\\p{L}\\p{N}\\u00BF\\u00A1])([^'\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])'(?![\\p{L}\\p{N}]){{NO_TARGET}}"
+      - regex: "(?<=^|[\\s([{\\u00BF\\u00A1\\u2014\\u2013-])'(?=[\\p{L}\\p{N}\\u00BF\\u00A1])([^'\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])'(?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 256

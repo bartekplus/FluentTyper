@@ -9664,7 +9664,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{L}\\p{N}\\-'’@/#.])(anti|ciber|pre|re|vice|hiper|inter|neuro|geo|nano|agro|sub|semi|multi|pos|infra|intra|seudo|pseudo|archi|hemi|co|fito|meso|hidro|termo|electro|cardio|psico|sero|ex|pro|des|post|poli|tele|video|foto|euro|afro|micro|macro|mini|ultra|super|súper|auto|radio|bio|eco|socio|mega|giga|kilo|zoo|extra|astro|hispano|anglo|franco|luso|físico|químico|cuasi)(?:(-)|[ \\t]+)(\\p{L}[\\p{L}\\p{M}]{2,})(?![\\p{L}\\p{N}\\-'’@/])(?<target>)",
+      "(?<![\\p{L}\\p{N}\\-'’@/#.])(anti|ciber|pre|re|vice|hiper|inter|neuro|geo|nano|agro|sub|semi|multi|pos|infra|intra|seudo|pseudo|archi|hemi|co|fito|meso|hidro|termo|electro|cardio|psico|sero|ex|pro|des|post|poli|tele|video|foto|euro|afro|micro|macro|mini|ultra|super|súper|auto|radio|bio|eco|socio|mega|giga|kilo|zoo|extra|astro|hispano|anglo|franco|luso|físico|químico|cuasi)(?:(-)|[ \\t]+)(\\p{L}[\\p{L}\\p{M}]{2,})(?![\\p{L}\\p{N}\\-'’@/])",
     literals: [],
     fixer: "es:prefixed",
     flags: "giu",
@@ -9673,7 +9673,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{L}\\p{N}\\-'\\u2019@/#.])([a-z\\u00F1]{2,5})-([a-z\\u00F1]{2,5})(?![\\p{L}\\p{N}\\-'\\u2019@/])(?<target>)",
+      "(?<![\\p{L}\\p{N}\\-'\\u2019@/#.])([a-z\\u00F1]{2,5})-([a-z\\u00F1]{2,5})(?![\\p{L}\\p{N}\\-'\\u2019@/])",
     literals: [],
     fixer: "es:doubled",
     flags: "gu",
@@ -9682,7 +9682,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{L}\\p{N}.,/-])(?:(domingo|lunes|martes|miércoles|jueves|viernes|sábado)(,?[ \\t]+))?(\\d{1,2})(?:[ \\t]+de)?[ \\t]+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)(?:[ \\t]+(?:de|del)?[ \\t]*([0-9]{4}))?(?![\\p{L}\\p{N}])(?<target>)",
+      "(?<![\\p{L}\\p{N}.,/-])(?:(domingo|lunes|martes|miércoles|jueves|viernes|sábado)(,?[ \\t]+))?(\\d{1,2})(?:[ \\t]+de)?[ \\t]+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)(?:[ \\t]+(?:de|del)?[ \\t]*([0-9]{4}))?(?![\\p{L}\\p{N}])",
     literals: [
       "enero",
       "febrero",
@@ -9705,7 +9705,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<=(?:^|[\\s(])(?:el|del|al|El|Del|Al)[ \\t]{1,8})(00?|3[2-9]|[4-9]\\d|\\d{3})(?:[ \\t]{1,8}de)?[ \\t]{1,8}(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)(?![\\p{L}\\p{N}])(?<target>)",
+      "(?<=(?:^|[\\s(])(?:el|del|al|El|Del|Al)[ \\t]{1,8})(00?|3[2-9]|[4-9]\\d|\\d{3})(?:[ \\t]{1,8}de)?[ \\t]{1,8}(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)(?![\\p{L}\\p{N}])",
     literals: [
       "enero",
       "febrero",
@@ -9728,7 +9728,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|ene|feb|mar|abr|may|jun|jul|ago|sep|sept|set|oct|nov|dic)(?:\\2([0-9]{4}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})(?<target>)",
+      "(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|ene|feb|mar|abr|may|jun|jul|ago|sep|sept|set|oct|nov|dic)(?:\\2([0-9]{4}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})",
     literals: [],
     fixer: "es:numericDate",
     flags: "giu",
@@ -9736,7 +9736,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     lookback: 16,
   },
   {
-    pattern: "(?<!\\p{L})etc(?:\\.{2,}|…|\\.…)(?<target>)",
+    pattern: "(?<!\\p{L})etc(?:\\.{2,}|…|\\.…)",
     literals: ["etc"],
     fixer: "es:etcDots",
     message: "review_msg_spanish_abbreviation",
@@ -9744,7 +9744,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     scan: "owned",
   },
   {
-    pattern: "(?:,[ \\t]*)?(?:\\.{3}|…)[ \\t]*etc(?!\\p{L})\\.?(?<target>)",
+    pattern: "(?:,[ \\t]*)?(?:\\.{3}|…)[ \\t]*etc(?!\\p{L})\\.?",
     literals: ["etc"],
     fixer: "es:etcEllipsis",
     message: "review_msg_spanish_abbreviation",
@@ -9753,7 +9753,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{L}\\p{N}.,])(\\d{1,3})(do|da|ro|ra|to|ta|vo|va|no|na|mo|ma|ero|era|er|r)(\\.(?=[ \\t]{1,8}\\p{Ll}))?(?![\\p{L}\\p{N}])(?<target>)",
+      "(?<![\\p{L}\\p{N}.,])(\\d{1,3})(do|da|ro|ra|to|ta|vo|va|no|na|mo|ma|ero|era|er|r)(\\.(?=[ \\t]{1,8}\\p{Ll}))?(?![\\p{L}\\p{N}])",
     literals: [],
     fixer: "es:ordinal",
     message: "review_msg_spanish_ordinal",
@@ -9763,7 +9763,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{L}\\p{N}.,])(\\d+(?:[.,:]\\d+)?)([ \\t]?)(hrs|hr|hs|HRS|HS|grs|gr|GRS|h)(\\.(?=[ \\t]{1,8}\\p{Ll}))?(?![\\p{L}\\p{N}])(?<target>)",
+      "(?<![\\p{L}\\p{N}.,])(\\d+(?:[.,:]\\d+)?)([ \\t]?)(hrs|hr|hs|HRS|HS|grs|gr|GRS|h)(\\.(?=[ \\t]{1,8}\\p{Ll}))?(?![\\p{L}\\p{N}])",
     literals: [],
     fixer: "es:unit",
     message: "review_msg_spanish_unit",
@@ -9773,7 +9773,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{L}\\p{N}.,])(\\d{1,3})(\\.?)([\\u00BA\\u00AA])(?=[ \\t]{1,8}(\\p{L}+)(?![\\p{L}\\p{N}]))(?<target>)",
+      "(?<![\\p{L}\\p{N}.,])(\\d{1,3})(\\.?)([\\u00BA\\u00AA])(?=[ \\t]{1,8}(\\p{L}+)(?![\\p{L}\\p{N}]))",
     literals: [],
     fixer: "es:genderedOrdinal",
     message: "review_msg_spanish_ordinal",
@@ -9782,8 +9782,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     lookback: 8,
   },
   {
-    pattern:
-      "(?<![\\p{L}\\p{N}.,])(\\p{N}+(?:[.,]\\p{N}+)?)[ \\t]?\\u00BA([CF])(?![\\p{L}\\p{N}])(?<target>)",
+    pattern: "(?<![\\p{L}\\p{N}.,])(\\p{N}+(?:[.,]\\p{N}+)?)[ \\t]?\\u00BA([CF])(?![\\p{L}\\p{N}])",
     literals: [],
     fixer: "es:ordinalDegree",
     message: "review_msg_spanish_unit",
@@ -9792,7 +9791,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     lookback: 8,
   },
   {
-    pattern: "(?<![\\p{L}\\p{N}])(n)[ \\t]?\\u00B0[ \\t]?(?=\\p{N})(?<target>)",
+    pattern: "(?<![\\p{L}\\p{N}])(n)[ \\t]?\\u00B0[ \\t]?(?=\\p{N})",
     literals: [],
     fixer: "es:numberSign",
     message: "review_msg_spanish_ordinal",
@@ -9802,7 +9801,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{L}\\p{N}.])(?:(?:Sr|Sra|Srta|Dr|Dra|Avda|Av|Lic|Ing|Prof|Mr|Mrs)(?=[ \\t]\\p{Lu}\\p{Ll})|(?:n\\u00FAm|p\\u00E1g|p\\u00E1gs)(?=[ \\t]\\p{N}))(?![.\\p{L}])(?<target>)",
+      "(?<![\\p{L}\\p{N}.])(?:(?:Sr|Sra|Srta|Dr|Dra|Avda|Av|Lic|Ing|Prof|Mr|Mrs)(?=[ \\t]\\p{Lu}\\p{Ll})|(?:n\\u00FAm|p\\u00E1g|p\\u00E1gs)(?=[ \\t]\\p{N}))(?![.\\p{L}])",
     literals: [],
     fixer: "es:bareAbbreviation",
     flags: "gu",
@@ -9810,8 +9809,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     lookback: 8,
   },
   {
-    pattern:
-      "(?<![\\p{L}\\p{N}.,])(\\p{N}+(?:[.,]\\p{N}{3})*)(\\p{Ll}{4,})(?![\\p{L}\\p{N}])(?<target>)",
+    pattern: "(?<![\\p{L}\\p{N}.,])(\\p{N}+(?:[.,]\\p{N}{3})*)(\\p{Ll}{4,})(?![\\p{L}\\p{N}])",
     literals: [],
     fixer: "es:gluedCount",
     message: "review_msg_spanish_number_space",
@@ -9821,7 +9819,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<=(?:^|[.!?\\u00A1\\u00BF][ \\t]{0,8}|\\n))(?:EL|LA|LOS|LAS|UN|UNA|UNOS|UNAS|NO|ES|SE|LO|YO|HAY|YA|MUY|ESTE|ESTA|ESTO|ESO)(?=[ \\t]{1,8}(?:\\p{N}+[ \\t]{1,8})?\\p{Ll}\\p{Ll})(?<target>)",
+      "(?<=(?:^|[.!?\\u00A1\\u00BF][ \\t]{0,8}|\\n))(?:EL|LA|LOS|LAS|UN|UNA|UNOS|UNAS|NO|ES|SE|LO|YO|HAY|YA|MUY|ESTE|ESTA|ESTO|ESO)(?=[ \\t]{1,8}(?:\\p{N}+[ \\t]{1,8})?\\p{Ll}\\p{Ll})",
     literals: [],
     fixer: "es:shoutedArticle",
     message: "review_msg_spanish_capital_article",
@@ -9830,7 +9828,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     lookback: 8,
   },
   {
-    pattern: "(?<![\\p{L}\\p{N}.])etc(?![\\p{L}\\p{N}.\\u2026])(?<target>)",
+    pattern: "(?<![\\p{L}\\p{N}.])etc(?![\\p{L}\\p{N}.\\u2026])",
     literals: ["etc"],
     fixer: "es:bareEtc",
     flags: "giu",
@@ -9839,7 +9837,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<=(?:^|[\\s(])(?:el|del|al|los|en|El|Del|Al|Los|En)[ \\t]{1,8}|^|[.!?][ \\t]{1,8})[sS](?=[ \\t]{1,8}(?:X{1,2}(?:IX|IV|V?I{0,3})|IX|IV|V?I{1,3}|V)(?![\\p{L}\\p{N}]))(?<target>)",
+      "(?<=(?:^|[\\s(])(?:el|del|al|los|en|El|Del|Al|Los|En)[ \\t]{1,8}|^|[.!?][ \\t]{1,8})[sS](?=[ \\t]{1,8}(?:X{1,2}(?:IX|IV|V?I{0,3})|IX|IV|V?I{1,3}|V)(?![\\p{L}\\p{N}]))",
     literals: [],
     fixer: "es:bareCentury",
     flags: "gu",
@@ -9848,7 +9846,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{L}\\p{N}.])(?:\\p{Lu}\\.){1,5}\\p{Lu}(?![\\p{L}\\p{N}.\\-/@_])|(?<=(?<![\\p{L}\\p{N}.])\\p{Lu}\\.[ \\t])(?:[B-DF-NP-TV-XZ](?=[ \\t]\\p{Lu}\\p{Ll})|\\p{Lu}(?=,))(?<target>)",
+      "(?<![\\p{L}\\p{N}.])(?:\\p{Lu}\\.){1,5}\\p{Lu}(?![\\p{L}\\p{N}.\\-/@_])|(?<=(?<![\\p{L}\\p{N}.])\\p{Lu}\\.[ \\t])(?:[B-DF-NP-TV-XZ](?=[ \\t]\\p{Lu}\\p{Ll})|\\p{Lu}(?=,))",
     literals: [],
     fixer: "es:openInitials",
     flags: "gu",
@@ -9857,7 +9855,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{L}\\p{N}.])([pP])(?:[ \\t]?\\.[ \\t]?e(?:j[ \\t]?)?|[ \\t]ej[ \\t]?)\\.(?![\\p{L}\\p{N}])(?<target>)",
+      "(?<![\\p{L}\\p{N}.])([pP])(?:[ \\t]?\\.[ \\t]?e(?:j[ \\t]?)?|[ \\t]ej[ \\t]?)\\.(?![\\p{L}\\p{N}])",
     literals: [],
     fixer: "es:forExample",
     message: "review_msg_spanish_abbreviation_form",
@@ -9867,7 +9865,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{L}\\p{N}.])(n\\u00BA|n\\.\\u00B0|num|pag|pags|telf|tlf|tlfn)\\.?:?[ \\t]?(?=\\p{N})(?<target>)",
+      "(?<![\\p{L}\\p{N}.])(n\\u00BA|n\\.\\u00B0|num|pag|pags|telf|tlf|tlfn)\\.?:?[ \\t]?(?=\\p{N})",
     literals: [],
     fixer: "es:plainAbbreviation",
     message: "review_msg_spanish_abbreviation_form",
@@ -9877,7 +9875,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<=(?:^|[\\s(])(el|la|del|al|El|La|Del|Al)[ \\t]{1,8})(\\d{1,3})[ \\t]?\\u00B0(?=[ \\t]{1,8}(\\p{Ll}+))(?<target>)",
+      "(?<=(?:^|[\\s(])(el|la|del|al|El|La|Del|Al)[ \\t]{1,8})(\\d{1,3})[ \\t]?\\u00B0(?=[ \\t]{1,8}(\\p{Ll}+))",
     literals: [],
     fixer: "es:degreeOrdinal",
     message: "review_msg_spanish_ordinal",
@@ -9887,7 +9885,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?:(?<=(?:^|[\\s(])(?:del|el|los|a\\u00F1os|d\\u00E9cada|en)[ \\t]{1,8})|(?<=['\\u2019\\u2018]\\d\\d[\\u2014\\u2013-]))['\\u2019\\u2018](\\d\\d)(?![\\p{L}\\p{N}'\\u2019])(?<target>)",
+      "(?:(?<=(?:^|[\\s(])(?:del|el|los|a\\u00F1os|d\\u00E9cada|en)[ \\t]{1,8})|(?<=['\\u2019\\u2018]\\d\\d[\\u2014\\u2013-]))['\\u2019\\u2018](\\d\\d)(?![\\p{L}\\p{N}'\\u2019])",
     literals: [],
     fixer: "es:yearApostrophe",
     message: "review_msg_spanish_year_apostrophe",
@@ -9896,8 +9894,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     lookback: 8,
   },
   {
-    pattern:
-      "(?<![\\p{L}\\p{N}.])(?:sr|sra|srta|sres|sras|dr|dra)\\.(?=[ \\t]\\p{Lu}\\p{Ll})(?<target>)",
+    pattern: "(?<![\\p{L}\\p{N}.])(?:sr|sra|srta|sres|sras|dr|dra)\\.(?=[ \\t]\\p{Lu}\\p{Ll})",
     literals: [],
     fixer: "es:lowerTreatment",
     message: "review_msg_spanish_treatment_capital",
@@ -9907,7 +9904,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<=(?:^|[.!?\\u00A1\\u00BF\\n])[ \\t]{0,8})(?:(S\\u00ED|s\\u00ED|S\\u00CD)[ \\t]+(s\\u00ED|S\\u00CD)|(No|no|NO)[ \\t]+(no|NO))(?=[ \\t]*[,.!?])(?<target>)",
+      "(?<=(?:^|[.!?\\u00A1\\u00BF\\n])[ \\t]{0,8})(?:(S\\u00ED|s\\u00ED|S\\u00CD)[ \\t]+(s\\u00ED|S\\u00CD)|(No|no|NO)[ \\t]+(no|NO))(?=[ \\t]*[,.!?])",
     literals: [],
     fixer: "es:repeatedAnswer",
     message: "review_msg_spanish_repeated_answer",
@@ -9916,8 +9913,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     lookback: 8,
   },
   {
-    pattern:
-      "(?<=[\\p{Script=Latin}.,!?][ \\t]?)[\\u2500\\u2501\\u3161](?=\\p{Script=Latin})(?<target>)",
+    pattern: "(?<=[\\p{Script=Latin}.,!?][ \\t]?)[\\u2500\\u2501\\u3161](?=\\p{Script=Latin})",
     literals: [],
     fixer: "es:strokeDash",
     message: "review_msg_spanish_dialogue_dash",
@@ -9926,7 +9922,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     lookback: 8,
   },
   {
-    pattern: "(?<=\\p{L}),\\.(?!\\.)(?<target>)",
+    pattern: "(?<=\\p{L}),\\.(?!\\.)",
     literals: [],
     fixer: "es:commaPeriod",
     message: "review_msg_duplicate_punctuation",
@@ -9934,7 +9930,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     scan: "owned",
   },
   {
-    pattern: "[¿¡](?<target>)",
+    pattern: "[¿¡]",
     literals: [],
     fixer: "es:closingMark",
     message: "review_msg_spanish_closing_mark",
@@ -9943,7 +9939,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<=(?<![\\p{L}])(?:a\\u00F1os|los)[ \\t]{1,4})((?:1[0-9]|20)?[0-9]0)(?:['\\u2019]s|s)(?:[ \\t]+y[ \\t]+((?:1[0-9]|20)?[0-9]0)(?:['\\u2019]s|s))?(?![\\p{L}\\p{N}])(?<target>)",
+      "(?<=(?<![\\p{L}])(?:a\\u00F1os|los)[ \\t]{1,4})((?:1[0-9]|20)?[0-9]0)(?:['\\u2019]s|s)(?:[ \\t]+y[ \\t]+((?:1[0-9]|20)?[0-9]0)(?:['\\u2019]s|s))?(?![\\p{L}\\p{N}])",
     literals: [],
     fixer: "es:decade",
     message: "review_msg_spanish_decade",
@@ -9953,14 +9949,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<=\\p{L}\\p{Ll})(?:\\.(?=(?:El|La|Los|Las|Lo|Un|Una|Unos|Unas|Y|Pero|Es|Son|Era|Fue|Está|Hay|No|Sí|Yo|Tú|Él|Ella|Ellos|Ellas|Nosotros|Usted|Este|Esta|Estos|Estas|Eso|Esto|Ese|Esa|Se|Me|Te|Le|Les|Nos|Mi|Su|Sus|Tu|En|Del|Al|Con|Por|Para|Sin|Como|Cuando|Si|Que|Qué|Cómo|Dónde|Cuándo|Pues|Así|Luego|Después|Entonces|Ahora|Hoy|Ayer|También|Además|Ya|Todo|Siempre|Nunca|Aquí|Allí|Hola|Gracias|Bueno|Claro|Aunque|Porque|Mientras|Desde|Hasta|Según)(?![\\p{L}\\p{N}])|[¿¡])|[?!](?=[¿¡]|\\p{Lu}\\p{Ll})|…(?=[¿¡]|\\p{L}))|(?<=\\p{L})[ \\t]+(?:[.?!]|…)(?=[¿¡]|\\p{Lu}\\p{Ll})(?<target>)",
+      "(?<=\\p{L}\\p{Ll})(?:\\.(?=(?:El|La|Los|Las|Lo|Un|Una|Unos|Unas|Y|Pero|Es|Son|Era|Fue|Está|Hay|No|Sí|Yo|Tú|Él|Ella|Ellos|Ellas|Nosotros|Usted|Este|Esta|Estos|Estas|Eso|Esto|Ese|Esa|Se|Me|Te|Le|Les|Nos|Mi|Su|Sus|Tu|En|Del|Al|Con|Por|Para|Sin|Como|Cuando|Si|Que|Qué|Cómo|Dónde|Cuándo|Pues|Así|Luego|Después|Entonces|Ahora|Hoy|Ayer|También|Además|Ya|Todo|Siempre|Nunca|Aquí|Allí|Hola|Gracias|Bueno|Claro|Aunque|Porque|Mientras|Desde|Hasta|Según)(?![\\p{L}\\p{N}])|[¿¡])|[?!](?=[¿¡]|\\p{Lu}\\p{Ll})|…(?=[¿¡]|\\p{L}))|(?<=\\p{L})[ \\t]+(?:[.?!]|…)(?=[¿¡]|\\p{Lu}\\p{Ll})",
     literals: [],
     fixer: "es:missingSpace",
     flags: "gu",
     scan: "owned",
   },
   {
-    pattern: "(?<=\\p{L})[ \\t]+[:;](?=[ \\t]|$)|(?<=\\p{L}\\p{Ll});(?=\\p{Ll}{2})(?<target>)",
+    pattern: "(?<=\\p{L})[ \\t]+[:;](?=[ \\t]|$)|(?<=\\p{L}\\p{Ll});(?=\\p{Ll}{2})",
     literals: [],
     fixer: "es:colonSpacing",
     flags: "gmu",
@@ -9968,7 +9964,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<=[\\p{L}.,!?…][ \\t]?)[-–‒](?=(?:dijo|dije|dice|digo|respondió|contestó|preguntó|añadió|exclamó|gritó|susurró|murmuró|explicó|comentó|replicó|insistió|pensó|repuso|admitió|aclaró)(?![\\p{L}]))|(?<=^|\\n)[-–‒](?=[¿¡]|\\p{Lu}\\p{Ll})|(?<=[ \\t]|^)--(?=[ \\t]|$)(?<target>)",
+      "(?<=[\\p{L}.,!?…][ \\t]?)[-–‒](?=(?:dijo|dije|dice|digo|respondió|contestó|preguntó|añadió|exclamó|gritó|susurró|murmuró|explicó|comentó|replicó|insistió|pensó|repuso|admitió|aclaró)(?![\\p{L}]))|(?<=^|\\n)[-–‒](?=[¿¡]|\\p{Lu}\\p{Ll})|(?<=[ \\t]|^)--(?=[ \\t]|$)",
     literals: [],
     fixer: "es:dialogueDash",
     flags: "gu",
@@ -9977,7 +9973,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<=[ \\t])[-\\u2013](?=[\\p{L}\\u00BF\\u00A1])[^-\\u2013\\n]{0,150}?[\\p{L}\\p{N}?!.\\u2026][-\\u2013](?=[ \\t,.;:)]|$)(?<target>)",
+      "(?<=[ \\t])[-\\u2013](?=[\\p{L}\\u00BF\\u00A1])[^-\\u2013\\n]{0,150}?[\\p{L}\\p{N}?!.\\u2026][-\\u2013](?=[ \\t,.;:)]|$)",
     literals: [],
     fixer: "es:remarkDashes",
     flags: "gu",
@@ -9986,7 +9982,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{N}.,])\\d{1,3}(?:(?:,\\d{3})+\\.\\d{1,3}|(?:,\\d{3}){2,})(?![\\p{N}]|[.,]\\p{N})(?<target>)",
+      "(?<![\\p{N}.,])\\d{1,3}(?:(?:,\\d{3})+\\.\\d{1,3}|(?:,\\d{3}){2,})(?![\\p{N}]|[.,]\\p{N})",
     literals: [],
     fixer: "es:decimalPoint",
     flags: "gu",
@@ -9995,7 +9991,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{N}.,])(?:\\d{1,3}(?: \\d{3})+|\\d{4,}|\\d{1,3}(?=\\.\\d{1,2}[ \\t\\u00a0]?(?:%|‰|€|\\$|kg|g|mg|km|m|cm|mm|ml|l|t|°|°C|ºC|m²|m³|km²|ha|kWh|kW|W|V|GB|MB|TB|Hz|kHz|MHz|GHz|kilos?|metros?|litros?|euros?|dólares|grados|millones)(?![\\p{L}\\p{N}])))\\.\\d{1,2}(?![\\p{N}]|[.,]\\p{N})(?<target>)",
+      "(?<![\\p{N}.,])(?:\\d{1,3}(?: \\d{3})+|\\d{4,}|\\d{1,3}(?=\\.\\d{1,2}[ \\t\\u00a0]?(?:%|‰|€|\\$|kg|g|mg|km|m|cm|mm|ml|l|t|°|°C|ºC|m²|m³|km²|ha|kWh|kW|W|V|GB|MB|TB|Hz|kHz|MHz|GHz|kilos?|metros?|litros?|euros?|dólares|grados|millones)(?![\\p{L}\\p{N}])))\\.\\d{1,2}(?![\\p{N}]|[.,]\\p{N})",
     literals: [],
     fixer: "es:decimalPoint",
     flags: "gu",
@@ -10003,8 +9999,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     lookback: 32,
   },
   {
-    pattern:
-      "(?<=(?:\\d[ \\t\\u00a0]?|\\bpor[ \\t]|\\/))(?:km|cm|mm|dm|m)[23](?![\\p{L}\\p{N}])(?<target>)",
+    pattern: "(?<=(?:\\d[ \\t\\u00a0]?|\\bpor[ \\t]|\\/))(?:km|cm|mm|dm|m)[23](?![\\p{L}\\p{N}])",
     literals: [],
     fixer: "es:exponent",
     message: "review_msg_typographic_symbol",
@@ -10014,7 +10009,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      '(?<=^|[\\s([{\\u00BF\\u00A1\\u2014\\u2013-])"(?=[\\p{L}\\p{N}\\u00BF\\u00A1])([^"\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])"(?![\\p{L}\\p{N}])(?<target>)',
+      '(?<=^|[\\s([{\\u00BF\\u00A1\\u2014\\u2013-])"(?=[\\p{L}\\p{N}\\u00BF\\u00A1])([^"\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])"(?![\\p{L}\\p{N}])',
     literals: [],
     fixer: "es:doubleQuotes",
     flags: "gu",
@@ -10023,7 +10018,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<=^|[\\s([{\\u00BF\\u00A1\\u2014\\u2013-])'(?=[\\p{L}\\p{N}\\u00BF\\u00A1])([^'\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])'(?![\\p{L}\\p{N}])(?<target>)",
+      "(?<=^|[\\s([{\\u00BF\\u00A1\\u2014\\u2013-])'(?=[\\p{L}\\p{N}\\u00BF\\u00A1])([^'\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])'(?![\\p{L}\\p{N}])",
     literals: [],
     fixer: "es:singleQuotes",
     flags: "gu",
