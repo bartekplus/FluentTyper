@@ -35,6 +35,16 @@ describe("PresageHandler emoji suggestions (#504)", () => {
     expect(snippetShortcuts?.at(-2)).toBe("fire");
   });
 
+  test("emoji last never take the only slot from the top word", async () => {
+    mod.PresageCallback.predictions = ["fire", "fireplace"];
+    await expect(predict("fire", { numSuggestions: 1 })).resolves.toEqual({
+      predictions: ["fire"],
+    });
+    mod.PresageCallback.predictions = [];
+    const { predictions } = await predict("fire", { numSuggestions: 1 });
+    expect(predictions).toEqual(["🔥"]);
+  });
+
   test("puts emoji first when asked, above an exact dictionary word", async () => {
     mod.PresageCallback.predictions = ["fire", "fireplace"];
     const { predictions } = await predict("fire", { emojiFirst: true });

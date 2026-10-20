@@ -342,11 +342,11 @@ export class PresageHandler {
     if (this.emojiFirst) {
       return [...emoji, ...candidates];
     }
-    // Keep room at the end so finalizePrediction's slice does not drop the emoji.
-    return [
-      ...candidates.slice(0, Math.max(0, context.effectiveNumSuggestions - emoji.length)),
-      ...emoji,
-    ];
+    // Emoji never take the top word's slot; keep room at the end so finalizePrediction's
+    // slice does not drop them.
+    const numSuggestions = context.effectiveNumSuggestions;
+    const shown = emoji.slice(0, Math.max(0, numSuggestions - Math.min(1, candidates.length)));
+    return [...candidates.slice(0, numSuggestions - shown.length), ...shown];
   }
 
   /** Emoji named like the word being typed (#504), minus any already in the list. */
