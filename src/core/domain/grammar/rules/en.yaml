@@ -23,6 +23,8 @@ fragments:
   NEGATION: "don['’]t|doesn['’]t|didn['’]t|never|not"
   VERB_OBJECT: "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what"
   SUBJECT: "I|you|we|they|he|she|it"
+  DEGREESLOTS_LINKING: "(?:is|are|was|were|am|be|been|being|seems?|seemed|looks?|looked|feels?|felt|sounds?|sounded|gets?|got|getting|become|becomes|became|['’]s|['’]re|['’]m|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)"
+  DEGREESLOTS_BETWEEN: "(?:not|way|far|just|much|still|also|really|simply|already|probably|a[ \\t\\u00a0]+bit|definitely|getting|being|kind[ \\t\\u00a0]+of)"
   RELATIVESLOTS_ADVERB: "(?:always|also|never|still|just|only|usually|often|really|actually|already|now)"
   APOSTROPHES_QUANTIFIERS: "two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|hundred|dozens|hundreds|thousands|millions|many|several|few|numerous|various|multiple|these|those|both|all|some|(?:lots?|couple|number|plenty|dozens|all|most|some|many|several|both){{S}}of|[2-9]|[1-9][0-9]+"
   CONFUSIONSLOTS_MODAL: "(?:will|would|can|could|should|shall|may|might|must|cannot|['’]ll|['’]d|(?:won|wouldn|can|couldn|shouldn|don|doesn|didn)['’]t)"
@@ -1227,7 +1229,41 @@ rules:
     predicate: possessiveContractions
   - id: en.toForToo
     checks: [englishToToo]
-    predicate: toForToo
+    style: match
+    message: review_msg_to_too
+    filter: slotFindingsOncePerStart
+    frames:
+      # A linking verb: "It's to late.", "The box is not to heavy to carry." Words may stand
+      # between the linking verb and "to": "it's way to late", "not to big".
+      - regex: "(?:[a-z]+(?=['’]))?{{DEGREESLOTS_LINKING}}(?:{{S}}{{DEGREESLOTS_BETWEEN}}){0,2}{{S}}(?<target>to)(?={{S}}[a-z])"
+        fixer: degreeLinking
+      # A degree adverb: "came much to soon", "way to early".
+      - regex: "(?:much|far|way){{S}}(?<target>to)(?={{S}}[a-z])"
+        fixer: degreeAdverb
+      # A clause-final degree word after a lexical verb: "They cost to much.", "It fails to often."
+      - regex: "(?<verb>[a-z]+){{S}}(?<target>to){{S}}(?<degree>much|often|soon|late)(?=[ \\t\\u00a0]{0,8}(?:[.!?;)]|$))"
+        fixer: degreeClauseEnd
+      # Trying hard: "I was trying to hard."
+      - regex: "(?:try|tries|tried|trying|push|pushing|pushed|work|working|worked){{S}}(?<target>to){{S}}hard(?=[ \\t\\u00a0]{0,8}(?:[.!?;,)]|$))"
+        fixer: degreeTryHard
+      # A measured excess: "10 percent to high", "5% to much", "two days to late".
+      - regex: "(?:[0-9]+(?:[ \\t\\u00a0]?%|{{S}}(?:percent|per[ \\t\\u00a0]?cent))|(?:[0-9]+|a|one|two|three|few|several){{S}}(?:years?|months?|weeks?|days?|hours?|minutes?|seconds?)){{S}}(?<target>to)(?={{S}}[a-z])"
+        fixer: degreeMeasured
+      # An excessive amount as an object: "She has to much work", "We spent to much money".
+      - regex: "(?<verb>has|have|had|having|spent|spend|spends|spending|ate|eat|eats|drank|drink|drinks|avoid|avoided|gave|give|gives){{S}}(?<target>to){{S}}(?<amount>much|many){{S}}(?<noun>[a-z]+){{E}}"
+        fixer: degreeObjectAmount
+      # A clause-opening quantity subject: "because to much snow fell", "To many people came."
+      - regex: "(?<target>to){{S}}(?:much|many){{S}}(?<noun>[a-z]+){{S}}(?<verb>is|was|are|were|will|would|has|have|had|can|could|[a-z]+ed){{E}}"
+        fixer: degreeSubjectAmount
+      # "two much", "two many" (not "two much bigger rooms").
+      - regex: "(?<target>two){{S}}(?:much|many){{E}}"
+        fixer: degreeTwoMuch
+      # "one to many beers".
+      - regex: "one{{S}}(?<target>to){{S}}many{{S}}(?<noun>[a-z]+){{E}}"
+        fixer: degreeOneToMany
+      # A sentence opening "To late." or "To bad that…", also after an interjection ("Ah to late").
+      - regex: "(?<target>[Tt]o){{S}}(?<word>[a-z]+){{E}}"
+        fixer: degreeOpening
   - id: en.existentialCount
     checks: [englishExistentialAgreement, englishNounNumber]
     predicate: existentialCount

@@ -75,7 +75,6 @@ export const PREDICATES = mergePredicates(
   dates.PREDICATES,
   usageTables.PREDICATES,
   contractionSlots.PREDICATES,
-  degreeSlots.PREDICATES,
   nounNumberSlots.PREDICATES,
   verbGroupSlots.PREDICATES,
   complementSlots.PREDICATES,
@@ -131,6 +130,7 @@ export const FIXERS = mergePredicates<Fixer>(
   apostrophes.FIXERS,
   relativeSlots.FIXERS,
   missingVerbSlots.FIXERS,
+  degreeSlots.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */
