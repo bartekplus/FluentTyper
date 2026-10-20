@@ -1,7 +1,7 @@
-import type { Detector, MatchFixer, MatchResult } from "../../engine/reviewRules";
+import type { MatchFixer, MatchResult } from "../../engine/reviewRules";
 import type { DetectContext } from "../reviewDetectors";
-import { rangeDashes } from "../rangeDash";
-import { caseLike, findingAt, isPl } from "./shared";
+import { rangeDashFixer } from "../rangeDash";
+import { caseLike, findingAt } from "./shared";
 
 /*
  * Polish typesetting: „…” quotes (opt-in), one dash style per inserted phrase, spaces
@@ -116,22 +116,16 @@ const SCORE_BEFORE =
   /(?<![\p{L}])(?:wynik|wygra|przegra|remis|mecz|pokona|zwycięż|zakończ|prowadz|set|bramk|gol|punkt|spotkani|starci)\p{L}*(?:[ \u00a0]+\p{L}+){0,4}[ \u00a0]+$/iu;
 const SCORE_AFTER = /^[ \u00a0]+(?:dla|po)(?![\p{L}])/u;
 
-export const PREDICATES = {
-  rangeDashes: (ctx: DetectContext) =>
-    isPl(ctx)
-      ? rangeDashes(ctx, {
-          code: ID_BEFORE,
-          score: SCORE_BEFORE,
-          scoreAfter: SCORE_AFTER,
-          // "31-123 Kraków": a postal code.
-          codeShape: (a, b) => a.length === 2 && b.length === 3,
-        })
-      : [],
-} satisfies Record<string, Detector>;
-
 /** The named frame fixes of the typography rules of grammar/rules/pl.yaml (`fixer:`). */
 export const FIXERS = {
   ...QUOTE_FIXERS,
   dashPair,
+  rangeDash: rangeDashFixer({
+    code: ID_BEFORE,
+    score: SCORE_BEFORE,
+    scoreAfter: SCORE_AFTER,
+    // "31-123 Kraków": a postal code.
+    codeShape: (a, b) => a.length === 2 && b.length === 3,
+  }),
   ...SYMBOL_FIXERS,
 } satisfies Record<string, MatchFixer>;

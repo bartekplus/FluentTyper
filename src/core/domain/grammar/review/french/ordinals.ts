@@ -1,10 +1,8 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext } from "../reviewDetectors";
-import type { Detector, MatchFixer } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { inChunk } from "./frenchTokens";
 import { finding } from "../finding";
-import { rangeDashes } from "../rangeDash";
-import { isLang } from "../phraseTemplates";
+import { rangeDashFixer } from "../rangeDash";
 
 // Ordinal abbreviations (opt-in): typographic French writes "2e", "1re", "1er", "2d", not "2ème",
 // "2eme", "2ième", "1ère" or "2nd".
@@ -22,6 +20,14 @@ function suffixFor(number: string, typed: string): string | null {
   // "1ème" is neither 1er nor 1re: left alone.
   return number === "1" || number === "I" ? null : `e${plural}`;
 }
+
+// "pages 10-15" -> "10–15" (emdashShortcut, opt-in). Not after a label of a code or a law
+// ("tél. 12-34", "art. 3-5", "n° 12-14").
+const RANGE_CODE =
+  /(?:^|[^\p{L}])(?:tél|tel|téléphone|portable|mobile|fax|n°|no|numéro|réf|référence|code|cp|dossier|facture|commande|compte|iban|art|article|loi|décret|alinéa|al|version|vol|ligne|quai|chambre|salle|modèle|type|isbn)\.?[ \t ]*:?[ \t ]*$|§[ \t ]*$/iu;
+// "gagné 3-1", "le match s'est terminé 2-2", "mène 1-0".
+const RANGE_SCORE =
+  /(?:^|[^\p{L}])(?:gagn|perd|battu|victoire|défaite|score|match|nul|mène|menait|emport|impos|set|mi-temps|résultat)\p{L}*(?:[ \t '’]+\p{L}+){0,3}[ \t ]+$/iu;
 
 /** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
 export const FIXERS = {
@@ -42,17 +48,5 @@ export const FIXERS = {
       context: { start: m.index, end },
     });
   }),
+  rangeDash: rangeDashFixer({ code: RANGE_CODE, score: RANGE_SCORE }),
 } satisfies Record<string, MatchFixer>;
-
-// "pages 10-15" -> "10–15" (emdashShortcut, opt-in). Not after a label of a code or a law
-// ("tél. 12-34", "art. 3-5", "n° 12-14").
-const RANGE_CODE =
-  /(?:^|[^\p{L}])(?:tél|tel|téléphone|portable|mobile|fax|n°|no|numéro|réf|référence|code|cp|dossier|facture|commande|compte|iban|art|article|loi|décret|alinéa|al|version|vol|ligne|quai|chambre|salle|modèle|type|isbn)\.?[ \t ]*:?[ \t ]*$|§[ \t ]*$/iu;
-// "gagné 3-1", "le match s'est terminé 2-2", "mène 1-0".
-const RANGE_SCORE =
-  /(?:^|[^\p{L}])(?:gagn|perd|battu|victoire|défaite|score|match|nul|mène|menait|emport|impos|set|mi-temps|résultat)\p{L}*(?:[ \t '’]+\p{L}+){0,3}[ \t ]+$/iu;
-
-export const PREDICATES = {
-  rangeDashes: (ctx: DetectContext) =>
-    isLang(ctx, "fr") ? rangeDashes(ctx, { code: RANGE_CODE, score: RANGE_SCORE }) : [],
-} satisfies Record<string, Detector>;

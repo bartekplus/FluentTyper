@@ -1,8 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
-import { invalidIsoDates } from "../isoDates";
 import { EMPHASIS_MARKS } from "../markdownEmphasis";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector, MatchFixer } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
 import { inChunk } from "./frenchTokens";
 import { finding } from "../finding";
@@ -151,14 +150,3 @@ function weekdayNoYear(
 
 /** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
 export const FIXERS = { checkDate: inChunk(checkDate) } satisfies Record<string, MatchFixer>;
-
-export const PREDICATES = {
-  isoDates: (ctx) =>
-    invalidIsoDates(ctx).map((range) => ({
-      ruleId: RULE,
-      messageKey: MESSAGE,
-      range,
-      alternatives: [],
-      warningOnly: true,
-    })),
-} satisfies Record<string, Detector>;

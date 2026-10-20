@@ -1,4 +1,3 @@
-import { invalidIsoDates } from "../isoDates";
 import type { MatchFixer } from "../../engine/reviewRules";
 import { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
@@ -130,8 +129,3 @@ export const FIXERS = {
     return finding(matchRange(m));
   },
 } satisfies Record<string, MatchFixer>;
-
-/** ISO dates that do not exist ("2023-02-29"): the shared scan of review/isoDates.ts. */
-export function isoDates(ctx: DetectContext): RawFinding[] {
-  return invalidIsoDates(ctx).map(finding);
-}

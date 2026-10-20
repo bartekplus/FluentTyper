@@ -3,6 +3,7 @@ lang: de
 
 # Regex fragments of the frame rules: {{NAME}}.
 fragments:
+  DIGIT: "[0-9٠-٩۰-۹]"
   NOT_BLANK: "(?:^|(?=\\S))"
   W: "\\p{L}+"
   MONTHS: "Januar|Februar|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember"
@@ -226,8 +227,18 @@ rules:
         fixer: lowerDate
   - id: de.isoDates
     checks: [germanDates]
-    # predicate: calls invalidIsoDates of review/isoDates.ts, a shared scan outside the German modules.
-    predicate: isoDates
+    style: match
+    message: review_msg_german_invalid_date
+    frames:
+      # An ISO date that no calendar has ("2025-02-30", "2023-02-29"). The year first makes the
+      # form clear in each language. A fourth numeric part before or after ("1-2025-02-30",
+      # "2025-02-30-7", "2025-02-30.1") makes it an ID, not a date. Arabic-Indic digits count too
+      # ("٢٠٢٥-٠٢-٣٠"). Markdown emphasis around the date is not a word ("_2025-02-30_"); an
+      # underscore glued to a word is ("build_2025-02-30_x"). The match start owns the match.
+      - regex: "(?<![\\p{L}\\p{N}][*_~]{0,3})(?<![\\p{L}\\p{N}][-./])(?<year>{{DIGIT}}{4})-(?<month>{{DIGIT}}{2})-(?<day>{{DIGIT}}{2})(?![*_~]{0,3}[\\p{L}\\p{N}])(?![-./][\\p{L}\\p{N}])"
+        flags: gdu
+        owner: none
+        fixer: common:invalidIsoDate
   - id: de.dateDots
     checks: [germanDates]
     style: match
@@ -1739,8 +1750,17 @@ rules:
   - id: de.rangeDashes
     checks: [emdashShortcut]
     # German gives only the guards of the shared scan.
-    # predicate: calls rangeDashes of review/rangeDash.ts, a shared scan outside the German modules.
-    predicate: rangeDashes
+    style: match
+    message: review_msg_range_dash
+    frames:
+      # "pages 10-15", "1990-1995": two numbers of up to four digits joined by a hyphen. A dash,
+      # a colon, a slash or a digit group after the second number makes a date, a phone number
+      # or a code ("12-05-2020", "2024-05-01"); a decimal or a time ("8.00-9.00") stays.
+      - regex: "(?<![\\p{L}\\p{N}.,:/#+\\u2013\\u2014-])(\\d{1,4})([-\\u2014])(\\d{1,4})(?![\\p{L}\\p{N}_]|[-\\u2013\\u2014/:.,]\\p{N})"
+        scan: owned
+        lookback: 8
+        flags: gu
+        fixer: rangeDash
   - id: de.typography
     checks: [germanTypography]
     style: match

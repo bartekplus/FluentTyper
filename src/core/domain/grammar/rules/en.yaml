@@ -3,6 +3,7 @@ lang: en
 
 # Regex fragments of the frame rules: {{NAME}}.
 fragments:
+  DIGIT: "[0-9٠-٩۰-۹]"
   MOVERS: "move|moves|moved|moving|arrive|arrives|arrived|arriving|leave|leaves|left|leaving|flee|flees|fled|fleeing|resign|resigns|resigned|resigning|quit|quits|quitting|migrate|migrates|migrated|migrating|desert|deserted|gather|gathered|protest|protested|walked{{S}}out"
   AFTER_MASS: "yesterday|today|tonight|again|now|then|last|this|that|from|to|into|across|after|before|when|and|but|as|over|toward|towards"
   CLOSED: "(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)"
@@ -2161,9 +2162,19 @@ rules:
         fixer: impossibleNumericDate
   - id: en.isoDates
     checks: [englishDateConsistency]
-    # predicate: calls the shared invalidIsoDates helper (isoDates.ts) that the German,
-    # Portuguese, Polish and Spanish date checks also use.
-    predicate: isoDates
+    style: match
+    message: review_msg_impossible_date
+    frames:
+      # Also after a weekday ("Friday, 2025-02-30"): the weekday check skips it.
+      # An ISO date that no calendar has ("2025-02-30", "2023-02-29"). The year first makes the
+      # form clear in each language. A fourth numeric part before or after ("1-2025-02-30",
+      # "2025-02-30-7", "2025-02-30.1") makes it an ID, not a date. Arabic-Indic digits count too
+      # ("٢٠٢٥-٠٢-٣٠"). Markdown emphasis around the date is not a word ("_2025-02-30_"); an
+      # underscore glued to a word is ("build_2025-02-30_x"). The match start owns the match.
+      - regex: "(?<![\\p{L}\\p{N}][*_~]{0,3})(?<![\\p{L}\\p{N}][-./])(?<year>{{DIGIT}}{4})-(?<month>{{DIGIT}}{2})-(?<day>{{DIGIT}}{2})(?![*_~]{0,3}[\\p{L}\\p{N}])(?![-./][\\p{L}\\p{N}])"
+        flags: gdu
+        owner: none
+        fixer: common:invalidIsoDate
   - id: en.usageFrames
     checks: [stylePhrasing]
     style: match
