@@ -1,4 +1,4 @@
-import { detectPhraseTemplates } from "../engine/frameStyles";
+import type { MatchFixer } from "../engine/reviewRules";
 import { englishInflect, englishLemma } from "../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
@@ -7,21 +7,10 @@ import {
   detectWordCase,
   wordSet,
 } from "../implementations/helpers/GenericRuleShared";
-import {
-  COMPLETE,
-  EDGE,
-  frameMatches,
-  group,
-  hasUserOrCasedWord,
-  SPACE,
-  WORD_END,
-} from "./phraseTemplates";
+import { COMPLETE, group, hasUserOrCasedWord, SPACE, WORD_END } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { frontedObjectBefore } from "./english/slotWords";
 
-const SUBJECT = "(?:I|you|we|they|he|she|it)";
-const NEGATIVE = `(?:(?:(?:do|does|did)${SPACE}not|(?:don't|doesn't|didn't|don’t|doesn’t|didn’t))${SPACE})?`;
-const MODALS = "(?:can|could|will|would|should|may|might|must)";
 // Complete arguments distinguish verbs from noun uses: "need work" is deliberately absent.
 const COMPLEMENTS: Readonly<Record<string, string>> = {
   fix: "(?:this|the) bug",
@@ -49,7 +38,6 @@ const OBJECTS = "me|you|him|her|us|them|it";
 // anyone, everybody, no one, "any one"
 const INDEFINITE = `(?:any|every|some|no)(?:body|one|${SPACE}one)`;
 const DETERMINERS = "the|an?|my|your|our|their|his|its|these|those";
-const WORD = `(?<word>[A-Za-z]+)${WORD_END}`;
 // Closed-class words that spelling alone would take for a base verb ("to all the", "and others").
 const FUNCTION_WORDS = wordSet(
   `me you him her us them it the a an my your our their his its these those i we they he she this
@@ -262,16 +250,15 @@ function helpHeadsClause(words: readonly string[], help: string): boolean {
 }
 
 type Repair = Pick<RawFinding, "messageKey" | "alternatives" | "requiresChoice">;
-type Frame = {
-  /** <target> is the replaced range; <word> is the verb, the frame's last word. */
-  pattern: string;
-  /** Lowercase alternatives for <target> given the verb and the text after it; null abstains. */
-  repair: (word: string, tail: string, m: RegExpExecArray, ctx: DetectContext) => Repair | null;
-};
+/** Lowercase alternatives for <target> given the verb and the text after it; null abstains. */
+type Repairer = (
+  word: string,
+  tail: string,
+  m: RegExpExecArray,
+  ctx: DetectContext,
+) => Repair | null;
 
 const BASE: RawFinding["messageKey"] = "review_msg_causative_base";
-const STRESS = "(?:not|really|so|truly|all|also|still|very|definitely|eagerly|certainly|genuinely)";
-const BE_SUBJECT = `(?:${SUBJECT}${SPACE}(?:am|is|are|was|were|(?:have|has|had)${SPACE}been|will${SPACE}be)|I['’]m|(?:we|you|they)['’]re|(?:he|she)['’]s|(?:I|we|you|they)['’](?:ve|d)${SPACE}been)`;
 
 /** "it", "this" or "that" is the subject of "worth", or a question or modal starts the clause. */
 function dummyWorth(words: readonly string[]): boolean {
@@ -284,279 +271,226 @@ function dummyWorth(words: readonly string[]): boolean {
   return w === "" && i > 0;
 }
 
-const FRAMES: readonly Frame[] = [
-  {
-    // "I'm looking forward to meet you": -ing after "look forward to". Nouns end this phrase
-    // ("to dinner.", "to spring"), so an ambiguous verb needs an object after it. A bare
-    // imperative "Look forward to see the road" looks ahead.
-    pattern: `(?:(?:${SUBJECT}(?:['’](?:ll|d))?|${MODALS}|${STRESS}|always|greatly)${SPACE}${NEGATIVE}(?:look|looks|looked)|${BE_SUBJECT}${SPACE}(?:${STRESS}${SPACE}){0,2}looking|(?<=(?:^|[.!?,\\n]|\\band)[ \\t\\u00a0"“]{0,8})(?<bare>looking))${SPACE}forward${SPACE}to${SPACE}(?<target>${WORD})`,
-    repair(word, tail, m) {
-      const verb = baseVerb(word);
-      // A subjectless "Looking forward to see the road" can look ahead; a person cannot be seen
-      // that way: "Looking forward to meet you", "to hear from you".
-      if (m.groups!.bare && !PERSON_NEXT.test(tail) && !FROM_NEXT.test(tail)) return null;
-      const evidence =
-        verb &&
-        (!verb.ambiguous ||
-          OBJECT_NEXT.test(tail) ||
-          (verb.irregular && FROM_NEXT.test(tail)) ||
-          (Object.hasOwn(COMPLEMENTS, verb.lemma) && complementTail(verb.lemma).test(tail)));
-      const ing = evidence && englishInflect(verb.lemma, "ing");
-      return ing ? { messageKey: "review_msg_forward_gerund", alternatives: [ing] } : null;
-    },
+/** The repair of each inflected frame (the frames are in grammar/rules/common.yaml). */
+const REPAIRS = {
+  lookForward(word, tail, m) {
+    const verb = baseVerb(word);
+    // A subjectless "Looking forward to see the road" can look ahead; a person cannot be seen
+    // that way: "Looking forward to meet you", "to hear from you".
+    if (m.groups!.bare && !PERSON_NEXT.test(tail) && !FROM_NEXT.test(tail)) return null;
+    const evidence =
+      verb &&
+      (!verb.ambiguous ||
+        OBJECT_NEXT.test(tail) ||
+        (verb.irregular && FROM_NEXT.test(tail)) ||
+        (Object.hasOwn(COMPLEMENTS, verb.lemma) && complementTail(verb.lemma).test(tail)));
+    const ing = evidence && englishInflect(verb.lemma, "ing");
+    return ing ? { messageKey: "review_msg_forward_gerund", alternatives: [ing] } : null;
   },
-  {
-    // "It is worth to try": -ing after "worth". A noun "worth" ("its worth to society", "the
-    // worth to investors") takes a recipient, so the verb must not read as one.
-    pattern: `worth${SPACE}(?<target>to${SPACE}${WORD})`,
-    repair(word, tail, m, ctx) {
-      const verb = baseVerb(word);
-      const words = verb && wordsBefore(ctx.text, m.index);
-      if (!verb || !words || !worthPredicate(words)) return null;
-      const evidence =
-        !verb.ambiguous ||
-        (dummyWorth(words) && !/^\s+(?:who|whom|whose|like)\b/i.test(tail)) ||
-        objectNext(tail) ||
-        QUANTIFIER_NEXT.test(tail) ||
-        END_NEXT.test(tail) ||
-        PREPOSITION_NEXT.test(tail);
-      const ing = evidence && englishInflect(verb.lemma, "ing");
-      return ing ? { messageKey: "review_msg_worth_gerund", alternatives: [ing] } : null;
-    },
+  worthTo(word, tail, m, ctx) {
+    const verb = baseVerb(word);
+    const words = verb && wordsBefore(ctx.text, m.index);
+    if (!verb || !words || !worthPredicate(words)) return null;
+    const evidence =
+      !verb.ambiguous ||
+      (dummyWorth(words) && !/^\s+(?:who|whom|whose|like)\b/i.test(tail)) ||
+      objectNext(tail) ||
+      QUANTIFIER_NEXT.test(tail) ||
+      END_NEXT.test(tail) ||
+      PREPOSITION_NEXT.test(tail);
+    const ing = evidence && englishInflect(verb.lemma, "ing");
+    return ing ? { messageKey: "review_msg_worth_gerund", alternatives: [ing] } : null;
   },
-  {
-    // "It is worth of reading": "worth" takes the -ing form directly.
-    pattern: `worth${SPACE}(?<target>of${SPACE})${WORD}`,
-    repair(word, _tail, m, ctx) {
-      const words = wordsBefore(ctx.text, m.index);
-      if (!words || !worthPredicate(words)) return null;
-      const i = skipAuxiliaries(words);
-      if (i === 0 && !dummyWorth(words)) return null;
-      return englishLemma(word, "ing")
-        ? { messageKey: "review_msg_worth_gerund", alternatives: [""] }
-        : null;
-    },
+  worthOf(word, _tail, m, ctx) {
+    const words = wordsBefore(ctx.text, m.index);
+    if (!words || !worthPredicate(words)) return null;
+    const i = skipAuxiliaries(words);
+    if (i === 0 && !dummyWorth(words)) return null;
+    return englishLemma(word, "ing")
+      ? { messageKey: "review_msg_worth_gerund", alternatives: [""] }
+      : null;
   },
-  {
-    // "Let me to do it": no "to" after causative let/make and an object. "Made it to" means
-    // reached; "let it/them to" can mean rent out, so those need a verb-only reading. A noun
-    // phrase object is read for let only: "made a trip to see her" is a purpose.
-    pattern: `(?<gov>let|lets|let['’]s|letting|make|makes|made|making)${SPACE}(?<object>${OBJECTS}|${INDEFINITE}|(?:${DETERMINERS})(?:${SPACE}(?!to\\b)[a-z]+){1,3}|[a-z]+s)${SPACE}(?<target>to${SPACE})(?<word>[A-Za-z]+)(?:/(?<alt>[A-Za-z]+))?${WORD_END}`,
-    repair(first, rest, m) {
-      const gov = m.groups!.gov.toLowerCase();
-      const object = m.groups!.object.toLowerCase().split(/\s+/);
-      const make = /^ma/.test(gov);
-      const pronoun = object.length === 1 && new RegExp(`^(?:${OBJECTS})$`).test(object[0]);
-      const indefinite = new RegExp(`^${INDEFINITE}$`).test(object.join(" "));
-      if (make && (!(pronoun || indefinite) || object[0] === "it")) return null;
-      if (!pronoun && !indefinite && !objectPhrase(object)) return null;
-      // "let the chance to win slip away": the noun takes its own infinitive.
-      if (
-        /^(?:chance|opportunity|time|way|right|ability|decision|need|attempt|plan|effort|desire|permission|reason|try|urge|temptation|power|freedom)$/.test(
-          object[object.length - 1],
-        )
+  causativeTo(first, rest, m) {
+    const gov = m.groups!.gov.toLowerCase();
+    const object = m.groups!.object.toLowerCase().split(/\s+/);
+    const make = /^ma/.test(gov);
+    const pronoun = object.length === 1 && new RegExp(`^(?:${OBJECTS})$`).test(object[0]);
+    const indefinite = new RegExp(`^${INDEFINITE}$`).test(object.join(" "));
+    if (make && (!(pronoun || indefinite) || object[0] === "it")) return null;
+    if (!pronoun && !indefinite && !objectPhrase(object)) return null;
+    // "let the chance to win slip away": the noun takes its own infinitive.
+    if (
+      /^(?:chance|opportunity|time|way|right|ability|decision|need|attempt|plan|effort|desire|permission|reason|try|urge|temptation|power|freedom)$/.test(
+        object[object.length - 1],
       )
-        return null;
-      const { word, tail } = verbAfterAdverb(first, rest);
-      const verb = baseVerb(word);
-      if (!verb || (m.groups!.alt && !baseVerb(m.groups!.alt))) return null;
-      const rentable = !indefinite && !(pronoun && !/^(?:it|them)$/.test(object[0]));
-      if (rentable && verb.ambiguous && !verb.irregular && !objectNext(tail)) return null;
-      return { messageKey: BASE, alternatives: [""] };
-    },
+    )
+      return null;
+    const { word, tail } = verbAfterAdverb(first, rest);
+    const verb = baseVerb(word);
+    if (!verb || (m.groups!.alt && !baseVerb(m.groups!.alt))) return null;
+    const rentable = !indefinite && !(pronoun && !/^(?:it|them)$/.test(object[0]));
+    if (rentable && verb.ambiguous && !verb.irregular && !objectNext(tail)) return null;
+    return { messageKey: BASE, alternatives: [""] };
   },
-  {
-    // "It allows to edit files": allow and enable take an object or -ing. Passive "are allowed
-    // to" and questions ("Are you allowed to") abstain. A bare "allow"/"allowing" can be recipe
-    // ellipsis ("Allow to cool"), so it needs a noun phrase after the verb.
-    pattern: `(?<!(?:am|is|are|was|were|be|been|being|get|gets|got|getting|isn['’]t|wasn['’]t|aren['’]t|weren['’]t)${SPACE})(?:(?<subject>${SUBJECT})${SPACE}(?:${MODALS}${SPACE}(?:not${SPACE})?|${NEGATIVE})(?:allow|allowed|enable|enabled)|(?<head>allows|enables)|(?<bare>allow|allowing))${SPACE}(?<target>to${SPACE}${WORD})`,
-    repair(word, tail, m) {
-      // "allows to easily edit": an -ly word is an adverb unless an object or the end follows.
-      if (/ly$/i.test(word) && !objectNext(tail) && !END_NEXT.test(tail)) return null;
-      const verb = baseVerb(word);
-      if (!verb || (m.groups!.bare && !nounPhraseNext(tail))) return null;
-      const ing = englishInflect(verb.lemma, "ing");
-      // "You should allow you to" repeats the subject.
-      const object = m.groups!.subject?.toLowerCase() === "you" ? "them" : "you";
-      return ing
-        ? {
-            messageKey: "review_msg_allow_object",
-            alternatives: [ing, `${object} to ${word.toLowerCase()}`],
-            requiresChoice: true,
-          }
-        : null;
-    },
-  },
-  {
-    // "She advised to wait", "The method requires to sort the list": with no object, these
-    // verbs take the -ing form. A passive ("are advised to") has its subject as the object.
-    pattern: `(?<!(?:am|is|are|was|were|be|been|being|get|gets|got|getting|isn['’]t|wasn['’]t|aren['’]t|weren['’]t)${SPACE})(?:(?:(?<subject>${SUBJECT})|(?<plural>[a-z]{3,}s))${SPACE}(?:${MODALS}${SPACE}(?:not${SPACE})?|${NEGATIVE})(?:advise|advised|encourage|encouraged|permit|permitted)|to${SPACE}(?:advise|encourage|permit)|(?<head>advises|encourages|requires))${SPACE}(?<target>to${SPACE}${WORD})`,
-    repair(word, tail, m, ctx) {
-      // "the hours that a backup requires to finish", "what the form requires to submit":
-      // the object comes first, and "to" means "in order to".
-      const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
-      if (
-        m.groups!.head &&
-        (/\b(?:what|whatever|that|which)\b[^.!?;:,\n]{0,40}$/i.test(before) ||
-          /\b[a-z]+[ \t\u00a0]+(?:it|he|she|they|we|you|I)[ \t\u00a0]*$/.test(before))
-      )
-        return null;
-      const plural = m.groups!.plural;
-      if (plural && (!englishWordInfo(plural)?.plural || FUNCTION_WORDS.has(plural))) return null;
-      if (/ly$/i.test(word) && !objectNext(tail) && !END_NEXT.test(tail)) return null;
-      const verb = baseVerb(word);
-      if (!verb || verb.lemma === "be") return null;
-      const ing = englishInflect(verb.lemma, "ing");
-      return ing ? { messageKey: "review_msg_gerund_complement", alternatives: [ing] } : null;
-    },
-  },
-  {
-    // "We may require to sign": a person after a modal is required to do something.
-    pattern: `(?<subject>(?!(?:it|this|that|there|what|which|who)${WORD_END})[A-Za-z]+)${SPACE}${MODALS}(?:${SPACE}not)?${SPACE}(?<target>require)${SPACE}to${SPACE}${WORD}`,
-    repair(word, _tail, m, ctx) {
-      // A name is capitalized ("GAIL will"); "the capacity that you may require to meet" is a
-      // relative clause with a purpose to.
-      const subject = m.groups!.subject;
-      if (!/^(?:i|we|you|they|he|she)$/i.test(subject) && !/^\p{Lu}/u.test(subject)) return null;
-      const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
-      if (/\b(?:that|which|what|whatever)[ \t\u00a0]+$/i.test(before)) return null;
-      return baseVerb(word)
-        ? { messageKey: "review_msg_modal_be", alternatives: ["be required"] }
-        : null;
-    },
-  },
-  {
-    // "We went ahead and fix it": the second verb shares the tense of went, gone or goes; "go
-    // ahead and fixed it" shares the base form. A noun can start a new clause ("went ahead and
-    // rain fell"), so an ambiguous word must not be followed by a verb.
-    pattern: `(?<gov>went|gone|goes|go)${SPACE}ahead${SPACE}and${SPACE}(?<target>${WORD})`,
-    repair(word, tail, m) {
-      const gov = m.groups!.gov.toLowerCase();
-      let form: string | null;
-      if (gov === "go") {
-        if (!objectNext(tail) && !END_NEXT.test(tail)) return null;
-        form = englishLemma(word, "past");
-      } else {
-        const verb = baseVerb(word);
-        if (!verb) return null;
-        if (verb.ambiguous && !objectNext(tail) && !END_NEXT.test(tail)) {
-          const next = nextWord(tail);
-          if (!next || AUXILIARIES.has(next) || englishWordInfo(next)?.verbs.length) return null;
+  allowTo(word, tail, m) {
+    // "allows to easily edit": an -ly word is an adverb unless an object or the end follows.
+    if (/ly$/i.test(word) && !objectNext(tail) && !END_NEXT.test(tail)) return null;
+    const verb = baseVerb(word);
+    if (!verb || (m.groups!.bare && !nounPhraseNext(tail))) return null;
+    const ing = englishInflect(verb.lemma, "ing");
+    // "You should allow you to" repeats the subject.
+    const object = m.groups!.subject?.toLowerCase() === "you" ? "them" : "you";
+    return ing
+      ? {
+          messageKey: "review_msg_allow_object",
+          alternatives: [ing, `${object} to ${word.toLowerCase()}`],
+          requiresChoice: true,
         }
-        form =
-          gov === "went"
-            ? englishInflect(verb.lemma, "past")
-            : gov === "goes"
-              ? englishInflect(verb.lemma, "third")
-              : (englishVerbForms(verb.lemma)?.participle ?? englishInflect(verb.lemma, "past"));
-      }
-      return form && form !== word.toLowerCase()
-        ? { messageKey: "review_msg_ahead_and_tense", alternatives: [form] }
-        : null;
-    },
+      : null;
   },
-  {
-    // "I helped built it", "She helped me fixed it", "He helps us to understood": base verb
-    // after help. Without an object, a past form that is also a participle can be an adjective
-    // ("helped injured people"), so it needs a verb's continuation; serving food ("helped them
-    // to drinks", "to baked potatoes") needs one after "to".
-    pattern: `(?<help>help|helps|helped|helping)${SPACE}(?:(?<object>${OBJECTS}|${INDEFINITE})${SPACE})?(?:(?<to>to)${SPACE})?(?<target>${WORD})`,
-    repair(word, tail, m, ctx) {
-      const w = word.toLowerCase();
-      const i = englishWordInfo(w);
-      // found, saw, read: also base verbs
-      if (!i || i.verbs.some((v) => v.form === "base")) return null;
-      const has = (form: string) => i.verbs.some((v) => v.form === form);
-      const object = objectNext(tail);
-      const end = END_NEXT.test(tail);
-      let lemma: string | null = null;
-      if (m.groups!.to) {
-        if (has("past") && (object || end)) lemma = englishLemma(w, "past");
-        else if (has("third") && !i.plural && object) lemma = englishLemma(w, "third");
-        else if (has("ing") && (object || PLURAL_NEXT.test(tail))) lemma = englishLemma(w, "ing");
-      } else if (m.groups!.object) {
-        if (object || end)
-          lemma = has("past")
-            ? englishLemma(w, "past")
-            : has("third")
-              ? englishLemma(w, "third")
-              : null;
-      } else {
+  adviseTo(word, tail, m, ctx) {
+    // "the hours that a backup requires to finish", "what the form requires to submit":
+    // the object comes first, and "to" means "in order to".
+    const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+    if (
+      m.groups!.head &&
+      (/\b(?:what|whatever|that|which)\b[^.!?;:,\n]{0,40}$/i.test(before) ||
+        /\b[a-z]+[ \t\u00a0]+(?:it|he|she|they|we|you|I)[ \t\u00a0]*$/.test(before))
+    )
+      return null;
+    const plural = m.groups!.plural;
+    if (plural && (!englishWordInfo(plural)?.plural || FUNCTION_WORDS.has(plural))) return null;
+    if (/ly$/i.test(word) && !objectNext(tail) && !END_NEXT.test(tail)) return null;
+    const verb = baseVerb(word);
+    if (!verb || verb.lemma === "be") return null;
+    const ing = englishInflect(verb.lemma, "ing");
+    return ing ? { messageKey: "review_msg_gerund_complement", alternatives: [ing] } : null;
+  },
+  requireTo(word, _tail, m, ctx) {
+    // A name is capitalized ("GAIL will"); "the capacity that you may require to meet" is a
+    // relative clause with a purpose to.
+    const subject = m.groups!.subject;
+    if (!/^(?:i|we|you|they|he|she)$/i.test(subject) && !/^\p{Lu}/u.test(subject)) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
+    if (/\b(?:that|which|what|whatever)[ \t\u00a0]+$/i.test(before)) return null;
+    return baseVerb(word)
+      ? { messageKey: "review_msg_modal_be", alternatives: ["be required"] }
+      : null;
+  },
+  aheadAnd(word, tail, m) {
+    const gov = m.groups!.gov.toLowerCase();
+    let form: string | null;
+    if (gov === "go") {
+      if (!objectNext(tail) && !END_NEXT.test(tail)) return null;
+      form = englishLemma(word, "past");
+    } else {
+      const verb = baseVerb(word);
+      if (!verb) return null;
+      if (verb.ambiguous && !objectNext(tail) && !END_NEXT.test(tail)) {
+        const next = nextWord(tail);
+        if (!next || AUXILIARIES.has(next) || englishWordInfo(next)?.verbs.length) return null;
+      }
+      form =
+        gov === "went"
+          ? englishInflect(verb.lemma, "past")
+          : gov === "goes"
+            ? englishInflect(verb.lemma, "third")
+            : (englishVerbForms(verb.lemma)?.participle ?? englishInflect(verb.lemma, "past"));
+    }
+    return form && form !== word.toLowerCase()
+      ? { messageKey: "review_msg_ahead_and_tense", alternatives: [form] }
+      : null;
+  },
+  helpBase(word, tail, m, ctx) {
+    const w = word.toLowerCase();
+    const i = englishWordInfo(w);
+    // found, saw, read: also base verbs
+    if (!i || i.verbs.some((v) => v.form === "base")) return null;
+    const has = (form: string) => i.verbs.some((v) => v.form === form);
+    const object = objectNext(tail);
+    const end = END_NEXT.test(tail);
+    let lemma: string | null = null;
+    if (m.groups!.to) {
+      if (has("past") && (object || end)) lemma = englishLemma(w, "past");
+      else if (has("third") && !i.plural && object) lemma = englishLemma(w, "third");
+      else if (has("ing") && (object || PLURAL_NEXT.test(tail))) lemma = englishLemma(w, "ing");
+    } else if (m.groups!.object) {
+      if (object || end)
         lemma = has("past")
           ? englishLemma(w, "past")
-          : has("third") && !i.plural
+          : has("third")
             ? englishLemma(w, "third")
             : null;
-        const loose = !has("past") || has("participle");
-        if (
-          loose &&
-          !(
-            object ||
-            end ||
-            QUANTIFIER_NEXT.test(tail) ||
-            NUMBER_NEXT.test(tail) ||
-            PREPOSITION_NEXT.test(tail) ||
-            coordinatedVerbNext(tail)
-          )
-        )
-          return null;
-      }
-      if (!lemma || lemma === w) return null;
-      const words = wordsBefore(ctx.text, m.index);
-      if (!words || !helpHeadsClause(words, m.groups!.help.toLowerCase())) return null;
-      return { messageKey: BASE, alternatives: [lemma] };
-    },
-  },
-  {
-    // "I suggest to use it", "We avoid to call it": these verbs take -ing. Passive "it is
-    // recommended to" and "is considered to be" abstain; "suggest to the team" names a recipient.
-    pattern: `(?<head>(?:suggest|recommend|avoid|enjoy|consider)(?:s|ed|ing)?|finish(?:es|ed|ing)?|mind)${SPACE}(?<target>to${SPACE}${WORD})`,
-    repair(word, tail, m, ctx) {
-      const head = m.groups!.head.toLowerCase();
-      const lemma = /^(?:suggest|recommend|avoid|enjoy|consider|finish|mind)/.exec(head)![0];
-      const verb = baseVerb(word);
-      if (!verb || (lemma === "consider" && verb.lemma === "be")) return null;
-      if (/^(?:suggest|recommend)$/.test(lemma) && verb.ambiguous && !objectNext(tail)) return null;
-      // "Which book would you recommend to learn it?": the object comes first; "to" means
-      // "in order to".
+    } else {
+      lemma = has("past")
+        ? englishLemma(w, "past")
+        : has("third") && !i.plural
+          ? englishLemma(w, "third")
+          : null;
+      const loose = !has("past") || has("participle");
       if (
-        /^(?:suggest|recommend)$/.test(lemma) &&
-        frontedObjectBefore(ctx.text.slice(Math.max(0, m.index - 64), m.index))
+        loose &&
+        !(
+          object ||
+          end ||
+          QUANTIFIER_NEXT.test(tail) ||
+          NUMBER_NEXT.test(tail) ||
+          PREPOSITION_NEXT.test(tail) ||
+          coordinatedVerbNext(tail)
+        )
       )
         return null;
-      const words = wordsBefore(ctx.text, m.index);
-      if (!words) return null;
-      const i = skipAuxiliaries(words);
-      if (head.endsWith("ing")) {
-        if (!words.slice(0, i).some((w) => BE_WORDS.has(w))) return null;
-      } else {
-        // "It's strongly recommended to use"
-        if (words.slice(0, i + 1).some((w) => BE_WORDS.has(w) || GET_WORDS.has(w))) return null;
-        // "We tested it and suggested to add tests": a shared pronoun subject with no relative
-        // clause or be in between ("It is unsafe and not recommended to")
-        const rest = words.slice(i + 1);
-        const shared = rest.findIndex((w) => SUBJECTS.has(w));
-        const subject =
-          SUBJECTS.has(words[i]) ||
-          (CONJUNCTIONS.has(words[i]) &&
-            shared >= 0 &&
-            !rest
-              .slice(0, shared)
-              .some((w) => RELATIVES.has(w) || BE_WORDS.has(w) || GET_WORDS.has(w)));
-        if ((/ed$/.test(head) || /^(?:consider|finish|mind)$/.test(lemma)) && !subject) return null;
-        if (
-          lemma === "mind" &&
-          !words
-            .slice(0, i + 2)
-            .some((w) => /^(?:would|do|does|did|don|didn|doesn|wouldn|never|'t|not)$/.test(w))
-        )
-          return null;
-      }
-      const ing = englishInflect(verb.lemma, "ing");
-      return ing ? { messageKey: "review_msg_gerund_complement", alternatives: [ing] } : null;
-    },
+    }
+    if (!lemma || lemma === w) return null;
+    const words = wordsBefore(ctx.text, m.index);
+    if (!words || !helpHeadsClause(words, m.groups!.help.toLowerCase())) return null;
+    return { messageKey: BASE, alternatives: [lemma] };
   },
-];
+  gerundTo(word, tail, m, ctx) {
+    const head = m.groups!.head.toLowerCase();
+    const lemma = /^(?:suggest|recommend|avoid|enjoy|consider|finish|mind)/.exec(head)![0];
+    const verb = baseVerb(word);
+    if (!verb || (lemma === "consider" && verb.lemma === "be")) return null;
+    if (/^(?:suggest|recommend)$/.test(lemma) && verb.ambiguous && !objectNext(tail)) return null;
+    // "Which book would you recommend to learn it?": the object comes first; "to" means
+    // "in order to".
+    if (
+      /^(?:suggest|recommend)$/.test(lemma) &&
+      frontedObjectBefore(ctx.text.slice(Math.max(0, m.index - 64), m.index))
+    )
+      return null;
+    const words = wordsBefore(ctx.text, m.index);
+    if (!words) return null;
+    const i = skipAuxiliaries(words);
+    if (head.endsWith("ing")) {
+      if (!words.slice(0, i).some((w) => BE_WORDS.has(w))) return null;
+    } else {
+      // "It's strongly recommended to use"
+      if (words.slice(0, i + 1).some((w) => BE_WORDS.has(w) || GET_WORDS.has(w))) return null;
+      // "We tested it and suggested to add tests": a shared pronoun subject with no relative
+      // clause or be in between ("It is unsafe and not recommended to")
+      const rest = words.slice(i + 1);
+      const shared = rest.findIndex((w) => SUBJECTS.has(w));
+      const subject =
+        SUBJECTS.has(words[i]) ||
+        (CONJUNCTIONS.has(words[i]) &&
+          shared >= 0 &&
+          !rest
+            .slice(0, shared)
+            .some((w) => RELATIVES.has(w) || BE_WORDS.has(w) || GET_WORDS.has(w)));
+      if ((/ed$/.test(head) || /^(?:consider|finish|mind)$/.test(lemma)) && !subject) return null;
+      if (
+        lemma === "mind" &&
+        !words
+          .slice(0, i + 2)
+          .some((w) => /^(?:would|do|does|did|don|didn|doesn|wouldn|never|'t|not)$/.test(w))
+      )
+        return null;
+    }
+    const ing = englishInflect(verb.lemma, "ing");
+    return ing ? { messageKey: "review_msg_gerund_complement", alternatives: [ing] } : null;
+  },
+} satisfies Record<string, Repairer>;
 
 /** "worth" is a predicate, not a noun after a determiner or adjective ("its worth", "true worth"). */
 function worthPredicate(words: readonly string[]): boolean {
@@ -574,57 +508,46 @@ function objectPhrase(words: readonly string[]): boolean {
   return words.slice(1).every((w) => !FUNCTION_WORDS.has(w) && nounPhraseWord(w)) && (!i || i.noun);
 }
 
-function inflectedFrames(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const { pattern, repair } of FRAMES) {
-    for (const m of frameMatches(ctx, pattern)) {
-      const word = m.groups!.word;
-      // A capitalized verb names something ("to Meet the Team"); shouting keeps its case.
-      if (word !== word.toLowerCase() && m[0] !== m[0].toUpperCase()) continue;
-      if (hasUserOrCasedWord(ctx, m[0])) continue;
-      const end = m.index + m[0].length;
-      const found = repair(word, ctx.scanText.slice(end, end + 128), m, ctx);
-      if (!found) continue;
-      const [start, targetEnd] = group(m, "target");
-      const style = detectWordCase(m.groups!.target.trim());
-      findings.push({
-        ruleId: "englishVerbComplements",
-        ...found,
-        range: { start, end: targetEnd },
-        alternatives: found.alternatives.map((text) => applyWordCase(text, style)),
-        context: {
-          start: Math.max(0, m.index - 96),
-          end: Math.min(ctx.text.length, end + 48),
-        },
-      });
-    }
-  }
-  return findings;
-}
-
-/** Only complete complement frames; missing subjects and ambiguous fragments abstain. */
-export function verbComplements(ctx: DetectContext): RawFinding[] {
-  const findings = detectPhraseTemplates(
-    ctx,
-    [
-      {
-        pattern: `${SUBJECT}${SPACE}(?:decided|decide|decides)${SPACE}(?<target>testing)${SPACE}the${SPACE}(?:feature|application)(?:${SPACE}again)?(?:${SPACE}tomorrow)?(?!${EDGE})(?=[ \\t\\u00a0]{0,8}(?:[.!?]|$))`,
-        replacement: "to test",
-        messageKey: "review_msg_contextual_grammar" as const,
+/** The fixer of an inflected frame: <target> is the replaced range; <word> is the verb. */
+const inflected =
+  (repair: Repairer): MatchFixer =>
+  (m, ctx) => {
+    const word = m.groups!.word;
+    // A capitalized verb names something ("to Meet the Team"); shouting keeps its case.
+    if (word !== word.toLowerCase() && m[0] !== m[0].toUpperCase()) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const end = m.index + m[0].length;
+    const found = repair(word, ctx.scanText.slice(end, end + 128), m, ctx);
+    if (!found) return null;
+    const [start, targetEnd] = group(m, "target");
+    const style = detectWordCase(m.groups!.target.trim());
+    return {
+      ruleId: "englishVerbComplements",
+      ...found,
+      range: { start, end: targetEnd },
+      alternatives: found.alternatives.map((text) => applyWordCase(text, style)),
+      context: {
+        start: Math.max(0, m.index - 96),
+        end: Math.min(ctx.text.length, end + 48),
       },
-    ],
-    "englishVerbComplements",
-  );
-  // "We need fix this bug": the verb and its complete argument come from COMPLEMENTS.
-  const pattern = `${SUBJECT}${SPACE}${NEGATIVE}(?:need|needs|needed|want|wants|wanted|plan|plans|planned)${SPACE}(?<target>${Object.keys(COMPLEMENTS).join("|")})(?!${EDGE})`;
-  for (const match of frameMatches(ctx, pattern)) {
+    };
+  };
+
+/** The named frame fixes of the englishVerbComplements frames of grammar/rules/common.yaml. */
+export const FIXERS = {
+  // A template frame: the casing of the target, no user or cased word in the match.
+  decidedToTest: (m, ctx) =>
+    hasUserOrCasedWord(ctx, m[0])
+      ? null
+      : applyWordCase("to test", detectWordCase(m.groups!.target)),
+  missingTo: (match, ctx) => {
     const [start, end] = group(match, "target");
     const target = match.groups!.target;
     const tail = complementTail(target.toLowerCase()).exec(ctx.scanText.slice(end, end + 128));
-    if (!tail) continue;
+    if (!tail) return null;
     const phraseEnd = end + tail[0].length;
-    if (hasUserOrCasedWord(ctx, ctx.scanText.slice(match.index, phraseEnd))) continue;
-    findings.push({
+    if (hasUserOrCasedWord(ctx, ctx.scanText.slice(match.index, phraseEnd))) return null;
+    return {
       ruleId: "englishVerbComplements",
       messageKey: "review_msg_missing_to",
       range: { start, end },
@@ -633,7 +556,9 @@ export function verbComplements(ctx: DetectContext): RawFinding[] {
         start: Math.max(0, match.index - 96),
         end: Math.min(ctx.text.length, phraseEnd + 9),
       },
-    });
-  }
-  return [...findings, ...inflectedFrames(ctx)];
-}
+    };
+  },
+  ...(Object.fromEntries(
+    Object.entries(REPAIRS).map(([name, repair]) => [name, inflected(repair)]),
+  ) as Record<keyof typeof REPAIRS, MatchFixer>),
+} satisfies Record<string, MatchFixer>;

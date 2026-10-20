@@ -4404,6 +4404,14 @@ fragments:
   ALPHABETIC: "[\\p{Script=Latin}\\p{Script=Greek}\\p{Script=Cyrillic}\\p{N}]"
   REPEAT_BEFORE: "(?<![\\p{L}\\p{M}\\p{N}_'’–—-])"
   REPEAT_GAP: "(?:{{S}}|[ \\t\\u00a0]{0,8}\\r?\\n[ \\t\\u00a0]{0,8})\\1(?![\\p{L}\\p{M}\\p{N}_'’–—-])"
+  COMPLEMENT_NEGATIVE: "(?:(?:(?:do|does|did){{S}}not|(?:don't|doesn't|didn't|don’t|doesn’t|didn’t)){{S}})?"
+  COMPLEMENT_BE_SUBJECT: "(?:(?:I|you|we|they|he|she|it){{S}}(?:am|is|are|was|were|(?:have|has|had){{S}}been|will{{S}}be)|I['’]m|(?:we|you|they)['’]re|(?:he|she)['’]s|(?:I|we|you|they)['’](?:ve|d){{S}}been)"
+  COMPLEMENT_STRESS: "(?:not|really|so|truly|all|also|still|very|definitely|eagerly|certainly|genuinely)"
+  COMPLEMENT_WORD: "(?<word>[A-Za-z]+){{E}}"
+  COMPLEMENT_MODALS: "(?:can|could|will|would|should|may|might|must)"
+  COMPLEMENT_INDEFINITE: "(?:any|every|some|no)(?:body|one|{{S}}one)"
+  COMPLEMENT_DETERMINERS: "the|an?|my|your|our|their|his|its|these|those"
+  COMPLEMENT_OBJECTS: "me|you|him|her|us|them|it"
 
 rules:
   # Typing rules: each live check names its implementation (engine/liveRules.ts).
@@ -4584,9 +4592,62 @@ rules:
         fix: "in"
         message: review_msg_interested_on
     cacheable: true
+  # Only complete complement frames; missing subjects and ambiguous fragments abstain.
   - id: verbComplements
     checks: [englishVerbComplements]
-    predicate: verbComplements
+    style: match
+    message: review_msg_contextual_grammar
+    frames:
+      - regex: "{{SUBJECT}}{{S}}(?:decided|decide|decides){{S}}(?<target>testing){{S}}the{{S}}(?:feature|application)(?:{{S}}again)?(?:{{S}}tomorrow)?{{E}}(?=[ \\t\\u00a0]{0,8}(?:[.!?]|$))"
+        fixer: decidedToTest
+      # "We need fix this bug": the verb and its complete argument come from COMPLEMENTS
+      # (englishComplements.ts).
+      - regex: "{{SUBJECT}}{{S}}{{COMPLEMENT_NEGATIVE}}(?:need|needs|needed|want|wants|wanted|plan|plans|planned){{S}}(?<target>fix|deploy|meet|make|take|write|run|come|see|learn|visit|read|send|go){{E}}"
+        fixer: missingTo
+      # "I'm looking forward to meet you": -ing after "look forward to". Nouns end this phrase
+      # ("to dinner.", "to spring"), so an ambiguous verb needs an object after it. A bare
+      # imperative "Look forward to see the road" looks ahead.
+      - regex: "(?:(?:{{SUBJECT}}(?:['’](?:ll|d))?|{{COMPLEMENT_MODALS}}|{{COMPLEMENT_STRESS}}|always|greatly){{S}}{{COMPLEMENT_NEGATIVE}}(?:look|looks|looked)|{{COMPLEMENT_BE_SUBJECT}}{{S}}(?:{{COMPLEMENT_STRESS}}{{S}}){0,2}looking|(?<=(?:^|[.!?,\\n]|\\band)[ \\t\\u00a0\"“]{0,8})(?<bare>looking)){{S}}forward{{S}}to{{S}}(?<target>{{COMPLEMENT_WORD}})"
+        fixer: lookForward
+      # "It is worth to try": -ing after "worth". A noun "worth" ("its worth to society", "the
+      # worth to investors") takes a recipient, so the verb must not read as one.
+      - regex: "worth{{S}}(?<target>to{{S}}{{COMPLEMENT_WORD}})"
+        fixer: worthTo
+      # "It is worth of reading": "worth" takes the -ing form directly.
+      - regex: "worth{{S}}(?<target>of{{S}}){{COMPLEMENT_WORD}}"
+        fixer: worthOf
+      # "Let me to do it": no "to" after causative let/make and an object. "Made it to" means
+      # reached; "let it/them to" can mean rent out, so those need a verb-only reading. A noun
+      # phrase object is read for let only: "made a trip to see her" is a purpose.
+      - regex: "(?<gov>let|lets|let['’]s|letting|make|makes|made|making){{S}}(?<object>{{COMPLEMENT_OBJECTS}}|{{COMPLEMENT_INDEFINITE}}|(?:{{COMPLEMENT_DETERMINERS}})(?:{{S}}(?!to\\b)[a-z]+){1,3}|[a-z]+s){{S}}(?<target>to{{S}})(?<word>[A-Za-z]+)(?:/(?<alt>[A-Za-z]+))?{{E}}"
+        fixer: causativeTo
+      # "It allows to edit files": allow and enable take an object or -ing. Passive "are allowed
+      # to" and questions ("Are you allowed to") abstain. A bare "allow"/"allowing" can be recipe
+      # ellipsis ("Allow to cool"), so it needs a noun phrase after the verb.
+      - regex: "(?<!(?:am|is|are|was|were|be|been|being|get|gets|got|getting|isn['’]t|wasn['’]t|aren['’]t|weren['’]t){{S}})(?:(?<subject>{{SUBJECT}}){{S}}(?:{{COMPLEMENT_MODALS}}{{S}}(?:not{{S}})?|{{COMPLEMENT_NEGATIVE}})(?:allow|allowed|enable|enabled)|(?<head>allows|enables)|(?<bare>allow|allowing)){{S}}(?<target>to{{S}}{{COMPLEMENT_WORD}})"
+        fixer: allowTo
+      # "She advised to wait", "The method requires to sort the list": with no object, these
+      # verbs take the -ing form. A passive ("are advised to") has its subject as the object.
+      - regex: "(?<!(?:am|is|are|was|were|be|been|being|get|gets|got|getting|isn['’]t|wasn['’]t|aren['’]t|weren['’]t){{S}})(?:(?:(?<subject>{{SUBJECT}})|(?<plural>[a-z]{3,}s)){{S}}(?:{{COMPLEMENT_MODALS}}{{S}}(?:not{{S}})?|{{COMPLEMENT_NEGATIVE}})(?:advise|advised|encourage|encouraged|permit|permitted)|to{{S}}(?:advise|encourage|permit)|(?<head>advises|encourages|requires)){{S}}(?<target>to{{S}}{{COMPLEMENT_WORD}})"
+        fixer: adviseTo
+      # "We may require to sign": a person after a modal is required to do something.
+      - regex: "(?<subject>(?!(?:it|this|that|there|what|which|who){{E}})[A-Za-z]+){{S}}{{COMPLEMENT_MODALS}}(?:{{S}}not)?{{S}}(?<target>require){{S}}to{{S}}{{COMPLEMENT_WORD}}"
+        fixer: requireTo
+      # "We went ahead and fix it": the second verb shares the tense of went, gone or goes; "go
+      # ahead and fixed it" shares the base form. A noun can start a new clause ("went ahead and
+      # rain fell"), so an ambiguous word must not be followed by a verb.
+      - regex: "(?<gov>went|gone|goes|go){{S}}ahead{{S}}and{{S}}(?<target>{{COMPLEMENT_WORD}})"
+        fixer: aheadAnd
+      # "I helped built it", "She helped me fixed it", "He helps us to understood": base verb
+      # after help. Without an object, a past form that is also a participle can be an adjective
+      # ("helped injured people"), so it needs a verb's continuation; serving food ("helped them
+      # to drinks", "to baked potatoes") needs one after "to".
+      - regex: "(?<help>help|helps|helped|helping){{S}}(?:(?<object>{{COMPLEMENT_OBJECTS}}|{{COMPLEMENT_INDEFINITE}}){{S}})?(?:(?<to>to){{S}})?(?<target>{{COMPLEMENT_WORD}})"
+        fixer: helpBase
+      # "I suggest to use it", "We avoid to call it": these verbs take -ing. Passive "it is
+      # recommended to" and "is considered to be" abstain; "suggest to the team" names a recipient.
+      - regex: "(?<head>(?:suggest|recommend|avoid|enjoy|consider)(?:s|ed|ing)?|finish(?:es|ed|ing)?|mind){{S}}(?<target>to{{S}}{{COMPLEMENT_WORD}})"
+        fixer: gerundTo
   - id: perfectParticiples
     checks: [englishPerfectParticiples]
     predicate: perfectParticiples

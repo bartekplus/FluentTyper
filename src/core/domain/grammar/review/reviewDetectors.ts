@@ -13,7 +13,7 @@ import {
 import { countability } from "./englishCountability";
 import { nounNumberConstructions } from "./englishNounNumber";
 import { perfectParticiples } from "./englishParticiples";
-import { verbComplements } from "./englishComplements";
+import { FIXERS as COMPLEMENT_FIXERS } from "./englishComplements";
 import { contextualPossessives } from "./englishPossessives";
 import {
   additionalPronounAgreement,
@@ -1585,7 +1585,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   quotationFindings: (ctx) => ownedFindings(ctx, ctx.quotationFindings),
   typographicQuotes: TYPOGRAPHIC_QUOTES.detect,
   possessives: contextualPossessives,
-  verbComplements,
   perfectParticiples,
   nounNumber: nounNumberConstructions,
   doubledDegree: (ctx) =>
@@ -1653,7 +1652,7 @@ const DETECTOR_FIXERS = {
 } satisfies Record<string, MatchFixer>;
 
 /** The named frame fixes of grammar/rules/common.yaml (`fixer:`). */
-const CORE_FIXERS = mergePredicates<Fixer>(DETECTOR_FIXERS);
+const CORE_FIXERS = mergePredicates<Fixer>(DETECTOR_FIXERS, COMPLEMENT_FIXERS);
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */
 const CORE_FILTERS = mergePredicates<FindingsFilter>(USAGE_FILTERS, COMPOUND_FILTERS);
