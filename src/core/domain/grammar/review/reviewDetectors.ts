@@ -153,6 +153,7 @@ import {
   mergePredicates,
   type FindingsFilter,
   type Fixer,
+  type MatchFixer,
 } from "../engine/reviewRules";
 
 /**
@@ -270,6 +271,27 @@ function lastIndexFinder(text: string, needle: string): (position: number) => nu
   };
 }
 
+// Per chunk: the match fixers of a rule share their finders, as one detector call did.
+const FINDERS = new WeakMap<DetectContext, Map<string, (position: number) => number>>();
+
+/** The lastIndexFinder of `needle` in the text of `ctx`, made once per chunk. */
+function finderOf(ctx: DetectContext, needle: string): (position: number) => number {
+  let finders = FINDERS.get(ctx);
+  if (!finders) FINDERS.set(ctx, (finders = new Map<string, (position: number) => number>()));
+  let finder = finders.get(needle);
+  if (!finder) finders.set(needle, (finder = lastIndexFinder(ctx.text, needle)));
+  return finder;
+}
+
+const ALIGNED = new WeakMap<DetectContext, Map<number, boolean>>();
+
+/** The aligned lines of the chunk (repeatedSpaces), by line start: each line is read once. */
+function alignedLines(ctx: DetectContext): Map<number, boolean> {
+  let aligned = ALIGNED.get(ctx);
+  if (!aligned) ALIGNED.set(ctx, (aligned = new Map<number, boolean>()));
+  return aligned;
+}
+
 function owned(ctx: DetectContext, start: number): boolean {
   return start >= ctx.from && start < ctx.to;
 }
@@ -327,73 +349,78 @@ function previousTokensStart(text: string, index: number, count: number): number
 
 // ---------------------------------------------------------------- capitalization
 
-const capitalizeStarts: Detector = (ctx) => {
-  const findings: RawFinding[] = [];
-  const regex = /[^\s\uFFFC]+/gu;
-  for (const match of ownedMatches(ctx, regex)) {
-    const wordStart = match.index;
-    // A token must start after whitespace or at the text start.
-    if (wordStart > 0 && !/\s/.test(ctx.text[wordStart - 1])) continue;
-    const word = match[0];
-    const letterIndex = wordStart + (SENTENCE_OPENING_MARKS.has(word[0]) ? 1 : 0);
-    if (!isLowercaseLetter(ctx.text[letterIndex] ?? "")) continue;
-    const letterEnd = graphemeEnd(ctx.text, letterIndex);
-    const letter = ctx.source.slice(letterIndex, letterEnd);
-    const bare = word.replace(TRAILING_PUNCTUATION_REGEX, "");
-    if (isTechnicalToken(bare) || keepsOwnCasing(bare)) continue;
-    // "a = 2 · x² + 5": a variable before a relation or operator.
-    if (bare.length === 1 && /^[ \t]*[=<>≤≥≠+−·×÷]/u.test(ctx.text.slice(wordStart + 1))) continue;
-    const upper = letter.toUpperCase();
-    if (upper === letter) continue;
-    const range = { start: letterIndex, end: letterEnd };
-    const wordEnd = wordStart + bare.length;
+/** The lowercase letter that opens the token `match` (capitalize frames), or null. */
+function lowercaseStart(ctx: DetectContext, match: RegExpExecArray) {
+  const wordStart = match.index;
+  // A token must start after whitespace or at the text start.
+  if (wordStart > 0 && !/\s/.test(ctx.text[wordStart - 1])) return null;
+  const word = match[0];
+  const letterIndex = wordStart + (SENTENCE_OPENING_MARKS.has(word[0]) ? 1 : 0);
+  if (!isLowercaseLetter(ctx.text[letterIndex] ?? "")) return null;
+  const letterEnd = graphemeEnd(ctx.text, letterIndex);
+  const letter = ctx.source.slice(letterIndex, letterEnd);
+  const bare = word.replace(TRAILING_PUNCTUATION_REGEX, "");
+  if (isTechnicalToken(bare) || keepsOwnCasing(bare)) return null;
+  // "a = 2 · x² + 5": a variable before a relation or operator.
+  if (bare.length === 1 && /^[ \t]*[=<>≤≥≠+−·×÷]/u.test(ctx.text.slice(wordStart + 1))) return null;
+  const upper = letter.toUpperCase();
+  if (upper === letter) return null;
+  const range = { start: letterIndex, end: letterEnd };
+  return { wordStart, range, upper, wordEnd: wordStart + bare.length };
+}
 
-    if (startsSentence(ctx.text, wordStart, ctx.lang)) {
-      const end = sentenceEndBefore(ctx.text, wordStart);
-      const mark = ctx.text[end.mark];
-      if (overlapsSortedRanges(ctx.exampleRanges ?? [], { start: end.mark, end: end.mark + 1 }))
-        continue;
-      // "“Stop!” she shouted", "(really?) and": a quoted or bracketed "!" or
-      // "?" before a lowercase word ends the quotation, not the sentence.
-      if (end.closed && mark !== ".") continue;
-      // "press . to repeat", "type ? for help": a named mark is a symbol, not
-      // a sentence end. French spaces "?" and "!" on purpose.
-      if (
-        end.mark >= 0 &&
-        namesMark(ctx.text, end.mark) &&
-        !(mark !== "." && usesFrenchPunctuationSpacing(ctx.lang))
-      ) {
-        continue;
-      }
-      // The mark AND the word it closes decide it: "etc." or, when the mark
-      // stands alone, the word before it ("approx .", "etc .").
-      const previous = previousTokensStart(ctx.text, wordStart, 1);
-      const evidence = /[\p{L}\p{N}]/u.test(ctx.text.slice(previous, wordStart))
-        ? previous
-        : previousTokensStart(ctx.text, wordStart, 2);
-      findings.push({
-        ruleId: "capitalizeSentenceStart",
-        messageKey: "review_msg_sentence_start",
-        range,
-        alternatives: [upper],
-        context: { start: evidence, end: wordEnd },
-        // 'He said "stop." she left': the quotation may end inside the sentence.
-        bulkBlock: end.closed ? "context-dependent" : undefined,
-      });
-      continue;
-    }
-    const lineBreak = lineBreakBefore(ctx.text, wordStart);
-    if (lineBreak !== null && previousLineEndsParagraphOrSentence(ctx.text, lineBreak, ctx.lang)) {
-      findings.push({
-        ruleId: "capitalizeAfterLineBreak",
-        messageKey: "review_msg_line_start",
-        range,
-        alternatives: [upper],
-        context: { start: lineBreak, end: wordEnd },
-      });
-    }
+/** A lowercase word that starts a sentence. */
+const capitalizeSentenceStart: MatchFixer = (match, ctx) => {
+  const word = lowercaseStart(ctx, match);
+  if (!word || !startsSentence(ctx.text, word.wordStart, ctx.lang)) return null;
+  const { wordStart, range, upper, wordEnd } = word;
+  const end = sentenceEndBefore(ctx.text, wordStart);
+  const mark = ctx.text[end.mark];
+  if (overlapsSortedRanges(ctx.exampleRanges ?? [], { start: end.mark, end: end.mark + 1 }))
+    return null;
+  // "“Stop!” she shouted", "(really?) and": a quoted or bracketed "!" or
+  // "?" before a lowercase word ends the quotation, not the sentence.
+  if (end.closed && mark !== ".") return null;
+  // "press . to repeat", "type ? for help": a named mark is a symbol, not
+  // a sentence end. French spaces "?" and "!" on purpose.
+  if (
+    end.mark >= 0 &&
+    namesMark(ctx.text, end.mark) &&
+    !(mark !== "." && usesFrenchPunctuationSpacing(ctx.lang))
+  ) {
+    return null;
   }
-  return findings;
+  // The mark AND the word it closes decide it: "etc." or, when the mark
+  // stands alone, the word before it ("approx .", "etc .").
+  const previous = previousTokensStart(ctx.text, wordStart, 1);
+  const evidence = /[\p{L}\p{N}]/u.test(ctx.text.slice(previous, wordStart))
+    ? previous
+    : previousTokensStart(ctx.text, wordStart, 2);
+  return {
+    ruleId: "capitalizeSentenceStart",
+    messageKey: "review_msg_sentence_start",
+    range,
+    alternatives: [upper],
+    context: { start: evidence, end: wordEnd },
+    // 'He said "stop." she left': the quotation may end inside the sentence.
+    bulkBlock: end.closed ? "context-dependent" : undefined,
+  };
+};
+
+/** A lowercase word that starts a line after a closed sentence or paragraph. */
+const capitalizeAfterLineBreak: MatchFixer = (match, ctx) => {
+  const word = lowercaseStart(ctx, match);
+  if (!word || startsSentence(ctx.text, word.wordStart, ctx.lang)) return null;
+  const lineBreak = lineBreakBefore(ctx.text, word.wordStart);
+  if (lineBreak === null || !previousLineEndsParagraphOrSentence(ctx.text, lineBreak, ctx.lang))
+    return null;
+  return {
+    ruleId: "capitalizeAfterLineBreak",
+    messageKey: "review_msg_line_start",
+    range: word.range,
+    alternatives: [word.upper],
+    context: { start: lineBreak, end: word.wordEnd },
+  };
 };
 
 /**
@@ -475,177 +502,184 @@ function previousLineEndsParagraphOrSentence(
   );
 }
 
-const pronounI: Detector = (ctx) => {
+const pronounI: MatchFixer = (match, ctx) => {
   const findings: RawFinding[] = [];
-  // "Hawai‘i": a letter and a left quote mark before it make it part of a word (the okina).
-  const regex = /(?<![\p{L}\p{N}_'’]|\p{L}‘)i(?![\p{L}\p{N}_])/gu;
-  for (const match of ownedMatches(ctx, regex)) {
-    const start = match.index;
-    const before = ctx.text[start - 1] ?? "";
-    if (/[@#/\\.=$\-[]/.test(before) || before === MASK_CHAR) continue;
-    if (IDENTIFIER_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) continue;
-    const rest = ctx.text.slice(start + 1, start + 1 + 40);
-    // "If we need to i can meet": a modal or verb after it makes it the subject again.
-    if (
-      FORMULA_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start)) &&
-      !PRONOUN_VERB_AFTER.test(rest)
-    )
-      continue;
-    if (FORMULA_AFTER.test(rest)) continue;
-    // The letter itself: "the short i sound" ("i sound tired" is the pronoun).
-    if (/\b(?:short|long)[ \t\u00A0]+$/i.test(ctx.text.slice(Math.max(0, start - 8), start)))
-      if (/^[ \t\u00A0]+sounds?\b/i.test(rest)) continue;
-    let contextEnd = start + 1;
-    let sentenceEnd = false;
-    if (/^['’](?:m|ve|ll|d)(?![\p{L}\p{N}])/u.test(rest)) {
-      contextEnd += rest.match(/^['’]\w+/)![0].length;
-    } else if (before === "(" && !/^[ \t ]/.test(rest)) {
-      // "(i think)" is the pronoun; "(i)", "(i, ii)" and "f(i)" are not.
-      continue;
-    } else if (/^[,;!?]/.test(rest)) {
-      contextEnd += 1;
-    } else if (/^\.(?:\s|$)/u.test(rest)) {
-      // Unlike typing, what follows the period is here: not "i.e.", so "than i." ends
-      // a sentence. A roman numeral opening a list line or naming a part is not, nor is
-      // a spaced-out "i. e.".
-      if (/^\.\s+e\./i.test(rest)) continue;
-      const lineStart = ctx.text.lastIndexOf("\n", start - 1) + 1;
-      if (ctx.text.slice(lineStart, start).trim() === "") continue;
-      if (NUMERAL_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) continue;
-      contextEnd += 1;
+  const start = match.index;
+  const before = ctx.text[start - 1] ?? "";
+  if (/[@#/\\.=$\-[]/.test(before) || before === MASK_CHAR) return null;
+  if (IDENTIFIER_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) return null;
+  const rest = ctx.text.slice(start + 1, start + 1 + 40);
+  // "If we need to i can meet": a modal or verb after it makes it the subject again.
+  if (
+    FORMULA_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start)) &&
+    !PRONOUN_VERB_AFTER.test(rest)
+  )
+    return null;
+  if (FORMULA_AFTER.test(rest)) return null;
+  // The letter itself: "the short i sound" ("i sound tired" is the pronoun).
+  if (/\b(?:short|long)[ \t\u00A0]+$/i.test(ctx.text.slice(Math.max(0, start - 8), start)))
+    if (/^[ \t\u00A0]+sounds?\b/i.test(rest)) return null;
+  let contextEnd = start + 1;
+  let sentenceEnd = false;
+  if (/^['’](?:m|ve|ll|d)(?![\p{L}\p{N}])/u.test(rest)) {
+    contextEnd += rest.match(/^['’]\w+/)![0].length;
+  } else if (before === "(" && !/^[ \t ]/.test(rest)) {
+    // "(i think)" is the pronoun; "(i)", "(i, ii)" and "f(i)" are not.
+    return null;
+  } else if (/^[,;!?]/.test(rest)) {
+    contextEnd += 1;
+  } else if (/^\.(?:\s|$)/u.test(rest)) {
+    // Unlike typing, what follows the period is here: not "i.e.", so "than i." ends
+    // a sentence. A roman numeral opening a list line or naming a part is not, nor is
+    // a spaced-out "i. e.".
+    if (/^\.\s+e\./i.test(rest)) return null;
+    const lineStart = ctx.text.lastIndexOf("\n", start - 1) + 1;
+    if (ctx.text.slice(lineStart, start).trim() === "") return null;
+    if (NUMERAL_BEFORE.test(ctx.text.slice(Math.max(0, start - 24), start))) return null;
+    contextEnd += 1;
+    sentenceEnd = true;
+  } else {
+    // Whitespace alone does not say pronoun or variable; the next word does.
+    const next = rest.match(/^[ \t\u00A0]+(\S+)/);
+    if (!next) {
+      // "stronger than i" closing the text is the pronoun.
+      if (
+        !/^\s*$/.test(rest) ||
+        !/\b(?:than|and|as)[ \t\u00A0]+$/i.test(ctx.text.slice(Math.max(0, start - 12), start))
+      )
+        return null;
       sentenceEnd = true;
     } else {
-      // Whitespace alone does not say pronoun or variable; the next word does.
-      const next = rest.match(/^[ \t\u00A0]+(\S+)/);
-      if (!next) {
-        // "stronger than i" closing the text is the pronoun.
-        if (
-          !/^\s*$/.test(rest) ||
-          !/\b(?:than|and|as)[ \t\u00A0]+$/i.test(ctx.text.slice(Math.max(0, start - 12), start))
-        )
-          continue;
-        sentenceEnd = true;
-      } else {
-        const following = next[1].replace(TRAILING_PUNCTUATION_REGEX, "");
-        // Unlike typing, the next word is complete here: "i don't" is the pronoun too.
-        if (
-          !/^\p{L}+(?:['’]\p{L}+)?$/u.test(following) ||
-          NON_PRONOUN_FOLLOWERS.has(following.toLowerCase())
-        ) {
-          continue;
-        }
-        contextEnd += next[0].length;
+      const following = next[1].replace(TRAILING_PUNCTUATION_REGEX, "");
+      // Unlike typing, the next word is complete here: "i don't" is the pronoun too.
+      if (
+        !/^\p{L}+(?:['’]\p{L}+)?$/u.test(following) ||
+        NON_PRONOUN_FOLLOWERS.has(following.toLowerCase())
+      ) {
+        return null;
       }
+      contextEnd += next[0].length;
     }
-    findings.push(
-      finding("englishPronounICapitalization", "review_msg_pronoun_i", start, start + 1, ["I"], {
-        // The word before decided it as well as the one after.
-        context: { start: previousTokensStart(ctx.text, start, 1), end: contextEnd },
-        // "increment i." can still be a variable: one at a time.
-        bulkBlock: sentenceEnd ? "context-dependent" : undefined,
-      }),
-    );
   }
+  findings.push(
+    finding("englishPronounICapitalization", "review_msg_pronoun_i", start, start + 1, ["I"], {
+      // The word before decided it as well as the one after.
+      context: { start: previousTokensStart(ctx.text, start, 1), end: contextEnd },
+      // "increment i." can still be a variable: one at a time.
+      bulkBlock: sentenceEnd ? "context-dependent" : undefined,
+    }),
+  );
   return findings;
 };
 
 // -------------------------------------------------------------------- spelling
 
-const wordSpelling: Detector = (ctx) => {
+/** The spelling finding of one ASCII word (spelling frames): at most one. */
+function spellingFindings(match: RegExpExecArray, ctx: DetectContext): RawFinding[] {
+  // These word lists are English.
+  if (ctx.lang !== "en_US") return [];
+  const start = match.index;
+  const end = start + match[0].length;
+  // Letters glued to other word characters are part of a longer token ("teh2").
+  if (WORD_CHAR.test(ctx.text[start - 1] ?? "") || WORD_CHAR.test(ctx.text[end] ?? "")) return [];
   const findings: RawFinding[] = [];
-  for (const { start, end } of asciiWords(ctx)) {
-    if (isGluedToTechnical(ctx.text, start, end)) continue;
-    // "--dont-ask", "dont-care", "alot-lib": a hyphen after the word makes it
-    // part of a longer name, and typing never reaches a word boundary there.
-    // A double hyphen is a dash ("I dont--really--care"): like a space.
-    if (ctx.text[end] === "-" && ctx.text[end + 1] !== "-") continue;
-    // Typing still corrects the end of "x-teh" or "--dont", so review flags it,
-    // but only one at a time: a compound or an option name may be deliberate.
-    const glued: RawFinding["bulkBlock"] = ctx.text[start - 1] === "-" ? "ambiguous" : undefined;
-    const word = ctx.text.slice(start, end);
-    const range = { start, end };
-    const typo = correctWhitelistedTypo(word, ctx.dictionary);
-    if (typo) {
-      findings.push({
-        ruleId: "englishTypoWhitelistCorrection",
-        messageKey: "review_msg_typo",
-        range,
-        alternatives: [typo],
-        dictionaryWord: word,
-        bulkBlock: glued,
-      });
-      continue;
-    }
-    const before = ctx.text.slice(Math.max(0, start - PHRASE_WINDOW), start);
-    // "IM" is an acronym, except before a predicate: "IM not sure", "IM curious".
-    const shoutedIm =
-      word === "IM" &&
-      ctx.text.slice(start, end + 24) !== ctx.text.slice(start, end + 24).toUpperCase() &&
-      /(?:^|[.!?:;"“\n]|\b(?:and|but|although|because|that|if|think))[ \t]*$/i.test(before) &&
-      /^[ \t]+(?:not|very|really|sure|glad|sorry|happy|curious|trying|afraid|interested|tired|busy|ready|late|looking|thinking|still|just)\b/.test(
-        ctx.text.slice(end, end + 24),
-      );
-    const contraction = ctx.dictionary.has(word.toLowerCase())
-      ? null
-      : shoutedIm
-        ? "I'm"
-        : normalizeContractionToken(word, before);
-    // "the im tag", "an ive file": after a determiner it is a word, not "I'm".
-    const pronounForm = /^i(?:m|ve)$/i.test(word);
-    // "by Ive Mažuran": mid-sentence, a capitalized "Ive"/"Im" before a capitalized word is a name.
-    const name =
-      pronounForm &&
-      /^I[a-z]/.test(word) &&
-      !/(?:^|[.!?:;"“\n])[ \t]*$/.test(before) &&
-      /^[ \t]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 4));
-    if (
-      contraction &&
-      !name &&
-      !(pronounForm && DETERMINER_BEFORE.test(before)) &&
-      !germanIm(word, before, ctx.text.slice(end, end + 40))
-    ) {
-      findings.push({
-        ruleId: "englishContractionNormalization",
-        messageKey: "review_msg_contraction",
-        range,
-        alternatives: [contraction],
-        // The name guard reads the previous word on the line.
-        context: { start: Math.max(0, ctx.text.lastIndexOf(" ", start - 2) + 1), end },
-        // "im"/"ive" can still be a tag, an abbreviation or a name: one at a time.
-        bulkBlock: pronounForm ? "ambiguous" : glued,
-      });
-      continue;
-    }
-    // Unlike typing, the next word is here: "i cant go" is "can't", "the cant" is not.
-    const after = ctx.text.slice(end, end + 40);
-    const inContext = ctx.dictionary.has(word.toLowerCase())
-      ? null
-      : normalizeContractionInContext(word, before, after);
-    if (inContext) {
-      const verbEnd = end + (/^[ \t]+\p{L}+(?:[ \t]+\p{L}+)?/u.exec(after)?.[0].length ?? 0);
-      findings.push({
-        ruleId: "englishContractionNormalization",
-        messageKey: "review_msg_contraction",
-        range,
-        alternatives: [inContext],
-        context: { start: previousTokensStart(ctx.text, start, 1), end: verbEnd },
-        bulkBlock: "context-dependent",
-      });
-      continue;
-    }
-    if (ALOT_REGEX.test(word) && !ctx.dictionary.has("alot")) {
-      findings.push({
-        ruleId: "englishAlotCorrection",
-        messageKey: "review_msg_alot",
-        range,
-        alternatives: [correctAlot(word)],
-        dictionaryWord: word,
-        bulkBlock: glued,
-      });
-    }
+  if (isGluedToTechnical(ctx.text, start, end)) return findings;
+  // "--dont-ask", "dont-care", "alot-lib": a hyphen after the word makes it
+  // part of a longer name, and typing never reaches a word boundary there.
+  // A double hyphen is a dash ("I dont--really--care"): like a space.
+  if (ctx.text[end] === "-" && ctx.text[end + 1] !== "-") return findings;
+  // Typing still corrects the end of "x-teh" or "--dont", so review flags it,
+  // but only one at a time: a compound or an option name may be deliberate.
+  const glued: RawFinding["bulkBlock"] = ctx.text[start - 1] === "-" ? "ambiguous" : undefined;
+  const word = ctx.text.slice(start, end);
+  const range = { start, end };
+  const typo = correctWhitelistedTypo(word, ctx.dictionary);
+  if (typo) {
+    findings.push({
+      ruleId: "englishTypoWhitelistCorrection",
+      messageKey: "review_msg_typo",
+      range,
+      alternatives: [typo],
+      dictionaryWord: word,
+      bulkBlock: glued,
+    });
+    return findings;
+  }
+  const before = ctx.text.slice(Math.max(0, start - PHRASE_WINDOW), start);
+  // "IM" is an acronym, except before a predicate: "IM not sure", "IM curious".
+  const shoutedIm =
+    word === "IM" &&
+    ctx.text.slice(start, end + 24) !== ctx.text.slice(start, end + 24).toUpperCase() &&
+    /(?:^|[.!?:;"“\n]|\b(?:and|but|although|because|that|if|think))[ \t]*$/i.test(before) &&
+    /^[ \t]+(?:not|very|really|sure|glad|sorry|happy|curious|trying|afraid|interested|tired|busy|ready|late|looking|thinking|still|just)\b/.test(
+      ctx.text.slice(end, end + 24),
+    );
+  const contraction = ctx.dictionary.has(word.toLowerCase())
+    ? null
+    : shoutedIm
+      ? "I'm"
+      : normalizeContractionToken(word, before);
+  // "the im tag", "an ive file": after a determiner it is a word, not "I'm".
+  const pronounForm = /^i(?:m|ve)$/i.test(word);
+  // "by Ive Mažuran": mid-sentence, a capitalized "Ive"/"Im" before a capitalized word is a name.
+  const name =
+    pronounForm &&
+    /^I[a-z]/.test(word) &&
+    !/(?:^|[.!?:;"“\n])[ \t]*$/.test(before) &&
+    /^[ \t]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 4));
+  if (
+    contraction &&
+    !name &&
+    !(pronounForm && DETERMINER_BEFORE.test(before)) &&
+    !germanIm(word, before, ctx.text.slice(end, end + 40))
+  ) {
+    findings.push({
+      ruleId: "englishContractionNormalization",
+      messageKey: "review_msg_contraction",
+      range,
+      alternatives: [contraction],
+      // The name guard reads the previous word on the line.
+      context: { start: Math.max(0, ctx.text.lastIndexOf(" ", start - 2) + 1), end },
+      // "im"/"ive" can still be a tag, an abbreviation or a name: one at a time.
+      bulkBlock: pronounForm ? "ambiguous" : glued,
+    });
+    return findings;
+  }
+  // Unlike typing, the next word is here: "i cant go" is "can't", "the cant" is not.
+  const after = ctx.text.slice(end, end + 40);
+  const inContext = ctx.dictionary.has(word.toLowerCase())
+    ? null
+    : normalizeContractionInContext(word, before, after);
+  if (inContext) {
+    const verbEnd = end + (/^[ \t]+\p{L}+(?:[ \t]+\p{L}+)?/u.exec(after)?.[0].length ?? 0);
+    findings.push({
+      ruleId: "englishContractionNormalization",
+      messageKey: "review_msg_contraction",
+      range,
+      alternatives: [inContext],
+      context: { start: previousTokensStart(ctx.text, start, 1), end: verbEnd },
+      bulkBlock: "context-dependent",
+    });
+    return findings;
+  }
+  if (ALOT_REGEX.test(word) && !ctx.dictionary.has("alot")) {
+    findings.push({
+      ruleId: "englishAlotCorrection",
+      messageKey: "review_msg_alot",
+      range,
+      alternatives: [correctAlot(word)],
+      dictionaryWord: word,
+      bulkBlock: glued,
+    });
   }
   return findings;
-};
+}
+
+/** The spelling frames: one per check, so each check can run alone. */
+const spellingOf =
+  (ruleId: CatalogRuleId): MatchFixer =>
+  (match, ctx) =>
+    spellingFindings(match, ctx).filter((f) => f.ruleId === ruleId);
 
 // --------------------------------------------------------------------- grammar
 
@@ -891,50 +925,47 @@ function isAllCapsContext(text: string, start: number, end: number): boolean {
   return [before, after].some((word) => word && word.length > 1 && word === word.toUpperCase());
 }
 
-const ordinal: Detector = (ctx) => {
+const ordinal: MatchFixer = (match, ctx) => {
   const findings: RawFinding[] = [];
-  const regex = /(?<=^|[\s([])(\d+)(st|nd|rd|th)(?![\p{L}\p{N}])/giu;
-  for (const match of ownedMatches(ctx, regex)) {
-    const start = match.index;
-    const [token, digits, suffix] = match;
-    const expected = ordinalSuffix(digits);
-    const end = start + token.length;
-    if (suffix === expected || isGluedToTechnical(ctx.text, start, end)) continue;
-    if (suffix !== suffix.toLowerCase()) {
-      // "2ND" is "2nd" in a sentence; "42RD" (road) and all-caps headings are not.
-      if (
-        suffix.toLowerCase() !== expected ||
-        isAllCapsContext(ctx.text, start, end) ||
-        overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })
-      )
-        continue;
-      findings.push({
-        ruleId: "englishOrdinalSuffix",
-        messageKey: "review_msg_ordinal_case",
-        context: { start: Math.max(0, start - 24), end: Math.min(ctx.text.length, end + 24) },
-        range: { start, end },
-        alternatives: [`${digits}${expected}`],
-        bulkBlock: "context-dependent",
-      });
-      continue;
-    }
-    // "rd" is also rod ("a 16rd chain").
-    if (suffix === "rd") continue;
-    // "st" is also stone. Only a named month disambiguates this new coverage.
+  const start = match.index;
+  const [token, digits, suffix] = match;
+  const expected = ordinalSuffix(digits);
+  const end = start + token.length;
+  if (suffix === expected || isGluedToTechnical(ctx.text, start, end)) return findings;
+  if (suffix !== suffix.toLowerCase()) {
+    // "2ND" is "2nd" in a sentence; "42RD" (road) and all-caps headings are not.
     if (
-      suffix === "st" &&
-      !/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)[ \t\u00a0]+$/i.test(
-        ctx.text.slice(Math.max(0, start - 24), start),
-      )
+      suffix.toLowerCase() !== expected ||
+      isAllCapsContext(ctx.text, start, end) ||
+      overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })
     )
-      continue;
-    if (overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })) continue;
-    findings.push(
-      finding("englishOrdinalSuffix", "review_msg_ordinal", start, end, [`${digits}${expected}`], {
-        context: { start: Math.max(0, start - 24), end },
-      }),
-    );
+      return findings;
+    findings.push({
+      ruleId: "englishOrdinalSuffix",
+      messageKey: "review_msg_ordinal_case",
+      context: { start: Math.max(0, start - 24), end: Math.min(ctx.text.length, end + 24) },
+      range: { start, end },
+      alternatives: [`${digits}${expected}`],
+      bulkBlock: "context-dependent",
+    });
+    return findings;
   }
+  // "rd" is also rod ("a 16rd chain").
+  if (suffix === "rd") return findings;
+  // "st" is also stone. Only a named month disambiguates this new coverage.
+  if (
+    suffix === "st" &&
+    !/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)[ \t\u00a0]+$/i.test(
+      ctx.text.slice(Math.max(0, start - 24), start),
+    )
+  )
+    return findings;
+  if (overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })) return findings;
+  findings.push(
+    finding("englishOrdinalSuffix", "review_msg_ordinal", start, end, [`${digits}${expected}`], {
+      context: { start: Math.max(0, start - 24), end },
+    }),
+  );
   return findings;
 };
 
@@ -1001,240 +1032,216 @@ const properNoun: Detector = (ctx) => {
 // Scripts without case (Arabic) have no capital to start a sentence with: any letter counts.
 const STANDALONE_MARK_FOLLOWER = /^[ \t\u00A0]+["'“‘«„([¿¡]?[\p{Ll}\p{Lo}]/u;
 
-// A fullwidth "，" or ideographic "、" comma between words of an alphabetic
-// script ("red，green") is an input-method slip; CJK text keeps its own.
-const ALPHABETIC = "[\\p{Script=Latin}\\p{Script=Greek}\\p{Script=Cyrillic}\\p{N}]";
-const WIDE_COMMA = new RegExp(
-  `(?<=^|${ALPHABETIC})[ \\u00A0]*[，、][ \\u00A0]*(?=${ALPHABETIC}|\\s|$)`,
-  "gu",
-);
-
-const commaPeriodSpacing: Detector = (ctx) => {
+const spaceBeforeComma: MatchFixer = (match, ctx) => {
   const findings: RawFinding[] = [];
-  // Space before a comma: "word , next".
-  // "،" and "؛" are the Arabic comma and semicolon.
-  const before = /(?<=[\p{L}\p{N})\]"”’])[ \u00A0]+(?=[,،؛](?![,،؛]))/gu;
-  for (const match of ownedMatches(ctx, before)) {
-    const start = match.index;
-    const end = start + match[0].length;
-    // "word ,next": the space belongs after the comma.
-    const moveSpace =
-      ctx.insertSpaceAfterAutocomplete && /^\p{L}{2}/u.test(ctx.text.slice(end + 1, end + 3));
-    findings.push({
-      ruleId: "commaPeriodSpacing",
-      messageKey:
-        ctx.source[end] === "؛" ? "review_msg_space_before_mark" : "review_msg_space_before_comma",
-      range: { start, end: end + 1 },
-      alternatives: [moveSpace ? `${ctx.source[end]} ` : ctx.source[end]],
-      context: { start: start - 1, end: end + (moveSpace ? 2 : 1) },
-      // Newer language extensions stay individual-only.
-      bulkBlock: ctx.source[end] === "؛" ? "context-dependent" : undefined,
-    });
-  }
-
-  // Space before a sentence mark followed by whitespace or the end: "Hello . Next".
-  const frenchSpacing = usesFrenchPunctuationSpacing(ctx.lang);
-  // Greek writes its question mark as ";" (or U+037E); Arabic as "؟".
-  const mark = /(?<=[\p{L}\p{N})\]}"”’»])[ \u00A0]+([.?!;\u037E؟])(?=\s|$)/gu;
-  for (const match of ownedMatches(ctx, mark)) {
-    const start = match.index;
-    if (match[1] !== "." && frenchSpacing) continue;
-    if (/[;\u037E]/.test(match[1]) && !isGreekQuestionMark(match[1], ctx.lang)) continue;
-    const end = start + match[0].length;
-    // "press . to repeat", "type ? for help": before a lowercase word, a
-    // named mark is a symbol, not a sentence end.
-    if (
-      STANDALONE_MARK_FOLLOWER.test(ctx.text.slice(end, end + 8)) &&
-      namesMark(ctx.text, end - 1)
-    ) {
-      continue;
-    }
-    findings.push(
-      finding("commaPeriodSpacing", "review_msg_space_before_mark", start, end, [match[1]], {
-        context: { start: start - 1, end },
-        bulkBlock: /[.?!]/.test(match[1]) ? undefined : "context-dependent",
-      }),
-    );
-  }
-
-  // Spanish opening marks hug their sentence: "¿ Qué?" is "¿Qué?".
-  const opening = /(?<=(?:^|[\s([“"«])[¿¡]+)[ \u00A0]+(?=\p{L})/gu;
-  for (const match of ownedMatches(ctx, opening)) {
-    const start = match.index;
-    const end = start + match[0].length;
-    findings.push({
-      ruleId: "commaPeriodSpacing",
-      messageKey: "review_msg_space_after_opening_mark",
-      range: { start: start - 1, end },
-      alternatives: [ctx.source[start - 1]],
-      context: { start: start - 1, end: end + 1 },
-      bulkBlock: "context-dependent",
-    });
-  }
-
-  for (const match of ownedMatches(ctx, WIDE_COMMA)) {
-    const start = match.index;
-    const end = start + match[0].length;
-    const wordFollows = end < ctx.text.length && !/\s/.test(ctx.text[end]);
-    findings.push({
-      ruleId: "commaPeriodSpacing",
-      messageKey: "review_msg_wide_comma",
-      range: { start, end },
-      alternatives: [wordFollows ? ", " : ","],
-      context: { start: start - 1, end: end + 1 },
-    });
-  }
-
-  // "20%CPU" is "20% CPU". URL escapes ("%C3%A9", "%20Hello") have a letter or "%" before
-  // the digits, and a token with code marks ("cpu=20%idle") is left alone.
-  const percent = /(?<![\p{L}\p{N}_.,%])\p{Nd}+(?:[.,]\p{Nd}+)?%(?=\p{L}{2,}(?![\p{L}\p{N}_]))/gu;
-  for (const match of ownedMatches(ctx, percent)) {
-    const sign = match.index + match[0].length - 1;
-    let tokenStart = match.index;
-    while (tokenStart > 0 && !/\s/.test(ctx.text[tokenStart - 1])) tokenStart -= 1;
-    const tokenEnd = ctx.text.slice(sign).search(/\s|$/) + sign;
-    if (/[￼@#/\\_=:;<>{}[\]$&+]/u.test(ctx.text.slice(tokenStart, tokenEnd))) continue;
-    findings.push({
-      ruleId: "commaPeriodSpacing",
-      messageKey: "review_msg_space_after_mark",
-      range: { start: sign, end: sign + 1 },
-      alternatives: ["% "],
-      context: { start: tokenStart, end: tokenEnd },
-    });
-  }
-
-  // Missing space after a comma between words: "one,two". Only between words
-  // of two or more letters, never in a comma-separated token ("a,b", "x,y,z").
-  if (!ctx.insertSpaceAfterAutocomplete) return findings;
-  const after = /(?<=\p{L}{2})[,،](?=\p{L}{2})/gu;
-  for (const match of ownedMatches(ctx, after)) {
-    const start = match.index;
-    let tokenStart = start;
-    while (tokenStart > 0 && !/\s/.test(ctx.text[tokenStart - 1])) tokenStart -= 1;
-    let tokenEnd = start;
-    while (tokenEnd < ctx.text.length && !/\s/.test(ctx.text[tokenEnd])) tokenEnd += 1;
-    const token = ctx.text.slice(tokenStart, tokenEnd);
-    if ((token.match(/[,،]/g)?.length ?? 0) > 1 || /[\uFFFC@#/\\_=.:;]/u.test(token)) continue;
-    findings.push({
-      ruleId: "commaPeriodSpacing",
-      messageKey: "review_msg_space_after_comma",
-      range: { start, end: start + 1 },
-      alternatives: [`${ctx.source[start]} `],
-      context: { start: tokenStart, end: tokenEnd },
-    });
-  }
+  const start = match.index;
+  const end = start + match[0].length;
+  // "word ,next": the space belongs after the comma.
+  const moveSpace =
+    ctx.insertSpaceAfterAutocomplete && /^\p{L}{2}/u.test(ctx.text.slice(end + 1, end + 3));
+  findings.push({
+    ruleId: "commaPeriodSpacing",
+    messageKey:
+      ctx.source[end] === "؛" ? "review_msg_space_before_mark" : "review_msg_space_before_comma",
+    range: { start, end: end + 1 },
+    alternatives: [moveSpace ? `${ctx.source[end]} ` : ctx.source[end]],
+    context: { start: start - 1, end: end + (moveSpace ? 2 : 1) },
+    // Newer language extensions stay individual-only.
+    bulkBlock: ctx.source[end] === "؛" ? "context-dependent" : undefined,
+  });
   return findings;
 };
 
-const repeatedSpaces: Detector = (ctx) => {
+const spaceBeforeMark: MatchFixer = (match, ctx) => {
+  const findings: RawFinding[] = [];
+  const frenchSpacing = usesFrenchPunctuationSpacing(ctx.lang);
+  const start = match.index;
+  if (match[1] !== "." && frenchSpacing) return findings;
+  if (/[;\u037E]/.test(match[1]) && !isGreekQuestionMark(match[1], ctx.lang)) return findings;
+  const end = start + match[0].length;
+  // "press . to repeat", "type ? for help": before a lowercase word, a
+  // named mark is a symbol, not a sentence end.
+  if (STANDALONE_MARK_FOLLOWER.test(ctx.text.slice(end, end + 8)) && namesMark(ctx.text, end - 1)) {
+    return findings;
+  }
+  findings.push(
+    finding("commaPeriodSpacing", "review_msg_space_before_mark", start, end, [match[1]], {
+      context: { start: start - 1, end },
+      bulkBlock: /[.?!]/.test(match[1]) ? undefined : "context-dependent",
+    }),
+  );
+  return findings;
+};
+
+const spaceAfterOpeningMark: MatchFixer = (match, ctx) => {
+  const findings: RawFinding[] = [];
+  const start = match.index;
+  const end = start + match[0].length;
+  findings.push({
+    ruleId: "commaPeriodSpacing",
+    messageKey: "review_msg_space_after_opening_mark",
+    range: { start: start - 1, end },
+    alternatives: [ctx.source[start - 1]],
+    context: { start: start - 1, end: end + 1 },
+    bulkBlock: "context-dependent",
+  });
+  return findings;
+};
+
+const wideComma: MatchFixer = (match, ctx) => {
+  const findings: RawFinding[] = [];
+  const start = match.index;
+  const end = start + match[0].length;
+  const wordFollows = end < ctx.text.length && !/\s/.test(ctx.text[end]);
+  findings.push({
+    ruleId: "commaPeriodSpacing",
+    messageKey: "review_msg_wide_comma",
+    range: { start, end },
+    alternatives: [wordFollows ? ", " : ","],
+    context: { start: start - 1, end: end + 1 },
+  });
+  return findings;
+};
+
+const spaceAfterPercent: MatchFixer = (match, ctx) => {
+  const findings: RawFinding[] = [];
+  const sign = match.index + match[0].length - 1;
+  let tokenStart = match.index;
+  while (tokenStart > 0 && !/\s/.test(ctx.text[tokenStart - 1])) tokenStart -= 1;
+  const tokenEnd = ctx.text.slice(sign).search(/\s|$/) + sign;
+  if (/[￼@#/\\_=:;<>{}[\]$&+]/u.test(ctx.text.slice(tokenStart, tokenEnd))) return findings;
+  findings.push({
+    ruleId: "commaPeriodSpacing",
+    messageKey: "review_msg_space_after_mark",
+    range: { start: sign, end: sign + 1 },
+    alternatives: ["% "],
+    context: { start: tokenStart, end: tokenEnd },
+  });
+  return findings;
+};
+
+const spaceAfterComma: MatchFixer = (match, ctx) => {
+  const findings: RawFinding[] = [];
+  if (!ctx.insertSpaceAfterAutocomplete) return findings;
+  const start = match.index;
+  let tokenStart = start;
+  while (tokenStart > 0 && !/\s/.test(ctx.text[tokenStart - 1])) tokenStart -= 1;
+  let tokenEnd = start;
+  while (tokenEnd < ctx.text.length && !/\s/.test(ctx.text[tokenEnd])) tokenEnd += 1;
+  const token = ctx.text.slice(tokenStart, tokenEnd);
+  if ((token.match(/[,،]/g)?.length ?? 0) > 1 || /[\uFFFC@#/\\_=.:;]/u.test(token)) return findings;
+  findings.push({
+    ruleId: "commaPeriodSpacing",
+    messageKey: "review_msg_space_after_comma",
+    range: { start, end: start + 1 },
+    alternatives: [`${ctx.source[start]} `],
+    context: { start: tokenStart, end: tokenEnd },
+  });
+  return findings;
+};
+
+const repeatedSpaces: MatchFixer = (match, ctx) => {
   const findings: RawFinding[] = [];
   // Per line start: a long line is measured once, not once per gap.
-  const aligned = new Map<number, boolean>();
-  const newlineBefore = lastIndexFinder(ctx.text, "\n");
-  const regex = /(?<=[^\s])[ \u00A0]{2,}(?=[^\s])/gu;
-  for (const match of ownedMatches(ctx, regex)) {
-    const start = match.index;
-    const lineStart = newlineBefore(start) + 1;
-    if (!aligned.has(lineStart)) {
-      let lineEnd = ctx.text.indexOf("\n", start);
-      if (lineEnd < 0) lineEnd = ctx.text.length;
-      const line = ctx.text.slice(lineStart, lineEnd);
-      const gaps = line.match(/(?<=\S)[ \u00A0]{2,}(?=\S)/gu);
-      const trimmed = line.trim();
-      // Several wide gaps on one line are alignment (a plain-text table), not
-      // typos; so is the padding of a Markdown table row ("| a  | b |").
-      aligned.set(
-        lineStart,
-        (gaps?.length ?? 0) > 1 ||
-          (trimmed.length > 1 && trimmed.startsWith("|") && trimmed.endsWith("|")),
-      );
-    }
-    if (aligned.get(lineStart)) continue;
-    const end = start + match[0].length;
-    // Keep the first space: a no-break space placed on purpose stays.
-    findings.push(
-      finding("collapseRepeatedSpaces", "review_msg_repeated_spaces", start, end, [
-        ctx.source[start],
-      ]),
+  const aligned = alignedLines(ctx);
+  const newlineBefore = finderOf(ctx, "\n");
+  const start = match.index;
+  const lineStart = newlineBefore(start) + 1;
+  if (!aligned.has(lineStart)) {
+    let lineEnd = ctx.text.indexOf("\n", start);
+    if (lineEnd < 0) lineEnd = ctx.text.length;
+    const line = ctx.text.slice(lineStart, lineEnd);
+    const gaps = line.match(/(?<=\S)[ \u00A0]{2,}(?=\S)/gu);
+    const trimmed = line.trim();
+    // Several wide gaps on one line are alignment (a plain-text table), not
+    // typos; so is the padding of a Markdown table row ("| a  | b |").
+    aligned.set(
+      lineStart,
+      (gaps?.length ?? 0) > 1 ||
+        (trimmed.length > 1 && trimmed.startsWith("|") && trimmed.endsWith("|")),
     );
   }
+  if (aligned.get(lineStart)) return findings;
+  const end = start + match[0].length;
+  // Keep the first space: a no-break space placed on purpose stays.
+  findings.push(
+    finding("collapseRepeatedSpaces", "review_msg_repeated_spaces", start, end, [
+      ctx.source[start],
+    ]),
+  );
   return findings;
 };
 
-const duplicatePunctuation: Detector = (ctx) => {
+const doubledMarks: MatchFixer = (match, ctx) => {
   const findings: RawFinding[] = [];
-  // ",," ";;" ", ," and the Arabic equivalents. ":" is left out: "std::vector".
-  const run = /([,;،؛])(?:[ \u00A0]*\1)+/gu;
-  for (const match of ownedMatches(ctx, run)) {
-    const start = match.index;
-    const end = start + match[0].length;
-    if (isGluedToTechnical(ctx.text, start, start)) continue;
-    // Polish typists write ",," for the opening „ when a word and a closing quote follow.
-    const polishQuote =
-      isLang(ctx, "pl") &&
-      match[0] === ",," &&
-      /^$|\s$/u.test(ctx.text.slice(Math.max(0, start - 1), start)) &&
-      /^[\p{L}\p{N}][^\n„]{0,200}?[\p{L}\p{N}.!?…](?:”|"|''|’’)/u.test(
-        ctx.text.slice(end, end + 210),
-      );
-    findings.push(
-      finding("duplicatePunctuationCollapse", "review_msg_duplicate_punctuation", start, end, [
-        polishQuote ? "„" : match[1],
-      ]),
+  const start = match.index;
+  const end = start + match[0].length;
+  if (isGluedToTechnical(ctx.text, start, start)) return findings;
+  // Polish typists write ",," for the opening „ when a word and a closing quote follow.
+  const polishQuote =
+    isLang(ctx, "pl") &&
+    match[0] === ",," &&
+    /^$|\s$/u.test(ctx.text.slice(Math.max(0, start - 1), start)) &&
+    /^[\p{L}\p{N}][^\n„]{0,200}?[\p{L}\p{N}.!?…](?:”|"|''|’’)/u.test(
+      ctx.text.slice(end, end + 210),
     );
-  }
-  // "word.." (never "..." or "../"): a doubled period or a short ellipsis that trails off.
-  // Before a lowercase word the sentence goes on, so only the ellipsis fits; elsewhere
-  // the writer chooses. Arabic writes ".." as a short ellipsis ("وهذا ما دعاني إلى..").
-  const periods = /(?<=(?![\p{Script=Arabic}])[\p{L}\p{N})\]"”’])\.\.(?=\s|$)/gu;
-  for (const match of ownedMatches(ctx, periods)) {
-    const start = match.index;
-    // German "am 30.11.." ends a sentence on a date: its own dot, then the period.
-    const before = ctx.text.slice(Math.max(0, start - 8), start);
-    if (isLang(ctx, "de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(before)) continue;
-    const range = { start, end: start + 2 };
-    if (/^\s+\p{Ll}/u.test(ctx.text.slice(start + 2, start + 12))) {
-      findings.push({
-        ruleId: "duplicatePunctuationCollapse",
-        messageKey: "review_msg_ellipsis_length",
-        range,
-        alternatives: ["..."],
-      });
-      continue;
-    }
+  findings.push(
+    finding("duplicatePunctuationCollapse", "review_msg_duplicate_punctuation", start, end, [
+      polishQuote ? "„" : match[1],
+    ]),
+  );
+  return findings;
+};
+
+const doubledPeriods: MatchFixer = (match, ctx) => {
+  const findings: RawFinding[] = [];
+  const start = match.index;
+  // German "am 30.11.." ends a sentence on a date: its own dot, then the period.
+  const before = ctx.text.slice(Math.max(0, start - 8), start);
+  if (isLang(ctx, "de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(before)) return findings;
+  const range = { start, end: start + 2 };
+  if (/^\s+\p{Ll}/u.test(ctx.text.slice(start + 2, start + 12))) {
     findings.push({
       ruleId: "duplicatePunctuationCollapse",
-      messageKey: "review_msg_duplicate_punctuation",
+      messageKey: "review_msg_ellipsis_length",
       range,
-      alternatives: [".", "..."],
-      requiresChoice: true,
-    });
-  }
-  // A line of two dots alone is a short ellipsis or a stray period.
-  for (const match of ownedMatches(ctx, /(?<=^|\n)\.\.(?=[ \t]*(?:\r?\n|$))/gu)) {
-    findings.push({
-      ruleId: "duplicatePunctuationCollapse",
-      messageKey: "review_msg_ellipsis_length",
-      range: { start: match.index, end: match.index + 2 },
-      alternatives: ["...", "."],
-      requiresChoice: true,
-    });
-  }
-  // An ellipsis has three dots: "So..... anyway". Digits
-  // or a path around the run ("1....5", "..../"), dot leaders (10+) and a year still unknown
-  // ("(1957-....)") are not one.
-  const ellipsis = /(?<![.\p{N}-])\.{4,9}(?![.\p{N}/\\])/gu;
-  for (const match of ownedMatches(ctx, ellipsis)) {
-    const start = match.index;
-    findings.push({
-      ruleId: "duplicatePunctuationCollapse",
-      messageKey: "review_msg_ellipsis_length",
-      range: { start, end: start + match[0].length },
       alternatives: ["..."],
-      // Four dots can be a sentence period plus an ellipsis: one at a time.
-      bulkBlock: match[0].length === 4 ? "context-dependent" : undefined,
     });
+    return findings;
   }
+  findings.push({
+    ruleId: "duplicatePunctuationCollapse",
+    messageKey: "review_msg_duplicate_punctuation",
+    range,
+    alternatives: [".", "..."],
+    requiresChoice: true,
+  });
+  return findings;
+};
+
+const twoDotLine: MatchFixer = (match) => {
+  const findings: RawFinding[] = [];
+  findings.push({
+    ruleId: "duplicatePunctuationCollapse",
+    messageKey: "review_msg_ellipsis_length",
+    range: { start: match.index, end: match.index + 2 },
+    alternatives: ["...", "."],
+    requiresChoice: true,
+  });
+  return findings;
+};
+
+const longEllipsis: MatchFixer = (match) => {
+  const findings: RawFinding[] = [];
+  const start = match.index;
+  findings.push({
+    ruleId: "duplicatePunctuationCollapse",
+    messageKey: "review_msg_ellipsis_length",
+    range: { start, end: start + match[0].length },
+    alternatives: ["..."],
+    // Four dots can be a sentence period plus an ellipsis: one at a time.
+    bulkBlock: match[0].length === 4 ? "context-dependent" : undefined,
+  });
   return findings;
 };
 
@@ -1245,73 +1252,67 @@ const duplicatePunctuation: Detector = (ctx) => {
  * marks the paragraph opened before it, and the other side is offered too.
  * Inches and seconds ('5"x7"') are left alone.
  */
-const quoteSpacing: Detector = (ctx) => {
+const quoteSpacing: MatchFixer = (match, ctx) => {
   const findings: RawFinding[] = [];
   const [open, close] = resolveTypographyProfile(ctx.lang).double;
   const directional = open !== close;
   const marks = directional ? `"${open}${close}` : `"${open}`;
-  // '“Good morning,”said Hal': a closing mark after a sentence mark also needs the space.
-  const regex = new RegExp(
-    `(?:(?<=[\\p{L}\\p{N}])[${marks}]${directional ? `|(?<=[.,!?])${close}` : ""})(?=[\\p{L}\\p{N}])`,
-    "gu",
-  );
-  const paragraphBefore = lastIndexFinder(ctx.text, "\n\n");
-  for (const match of ownedMatches(ctx, regex)) {
-    const start = match.index;
-    const mark = match[0];
-    const spaceBefore = ` ${ctx.source[start]}`;
-    const spaceAfter = `${ctx.source[start]} `;
-    let alternatives: string[];
-    if (directional && mark !== '"') {
-      alternatives = [mark === open ? spaceBefore : spaceAfter];
-    } else {
-      if (/\p{N}/u.test(ctx.text[start - 1])) continue;
-      // 'We"ll', 'Tom"s': a contraction that the apostrophe check corrects.
-      if (ctx.lang.startsWith("en") && quotedContraction(ctx.text, start)) continue;
-      const paragraphStart = paragraphBefore(start);
-      const paragraph = ctx.text.slice(paragraphStart < 0 ? 0 : paragraphStart + 2, start);
-      const opened = paragraph.split(mark).length % 2 === 0;
-      alternatives = opened ? [spaceAfter, spaceBefore] : [spaceBefore, spaceAfter];
-    }
-    findings.push(
-      finding("quoteSpacing", "review_msg_quote_spacing", start, start + 1, alternatives, {
-        context: { start: Math.max(0, start - 1), end: start + 2 },
-      }),
-    );
+  // The frame finds the marks of every language: keep those of this one.
+  const at = match.index;
+  if (
+    !(/[\p{L}\p{N}]/u.test(ctx.scanText[at - 1] ?? "") && marks.includes(match[0])) &&
+    !(directional && match[0] === close && /[.,!?]/.test(ctx.scanText[at - 1] ?? ""))
+  )
+    return null;
+  const paragraphBefore = finderOf(ctx, "\n\n");
+  const start = match.index;
+  const mark = match[0];
+  const spaceBefore = ` ${ctx.source[start]}`;
+  const spaceAfter = `${ctx.source[start]} `;
+  let alternatives: string[];
+  if (directional && mark !== '"') {
+    alternatives = [mark === open ? spaceBefore : spaceAfter];
+  } else {
+    if (/\p{N}/u.test(ctx.text[start - 1])) return findings;
+    // 'We"ll', 'Tom"s': a contraction that the apostrophe check corrects.
+    if (ctx.lang.startsWith("en") && quotedContraction(ctx.text, start)) return findings;
+    const paragraphStart = paragraphBefore(start);
+    const paragraph = ctx.text.slice(paragraphStart < 0 ? 0 : paragraphStart + 2, start);
+    const opened = paragraph.split(mark).length % 2 === 0;
+    alternatives = opened ? [spaceAfter, spaceBefore] : [spaceBefore, spaceAfter];
   }
+  findings.push(
+    finding("quoteSpacing", "review_msg_quote_spacing", start, start + 1, alternatives, {
+      context: { start: Math.max(0, start - 1), end: start + 2 },
+    }),
+  );
   return findings;
 };
 
-// A number, a single mark, a number and a double mark: feet and inches or
-// minutes and seconds ("5'7\"", "30′ 15\""). Group 1 and 3 are the marks.
-const PRIME_PAIR =
-  /(?<=(?<![\p{L}\p{N}.,])\d+[  ]?)(['’‘′])([  ]?\d+(?:[.,]\d+)?[  ]?)(["”“″])(?!\p{N})/gu;
-// Degrees then minutes with no seconds after them ("48°51'N").
-const DEGREE_MINUTE = /(?<=\d°[  ]?\d+[  ]?)['’‘](?![  ]?\d|\p{L}{2})/gu;
-
 /** Optional typography: prime marks for feet, inches, minutes and seconds typed as quotes. */
-const primeSymbols: Detector = (ctx) => {
+const primePair: MatchFixer = (match, ctx) => {
   const findings: RawFinding[] = [];
-  for (const match of ownedMatches(ctx, PRIME_PAIR)) {
-    if (match[1] === "′" && match[3] === "″") continue;
-    const start = match.index;
-    const end = start + match[0].length;
-    findings.push({
-      ruleId: "primeSymbols",
-      messageKey: "review_msg_prime_symbols",
-      range: { start, end },
-      alternatives: [`′${ctx.source.slice(start + 1, end - 1)}″`],
-      context: { start: Math.max(0, start - 8), end: Math.min(ctx.text.length, end + 1) },
-    });
-  }
-  for (const match of ownedMatches(ctx, DEGREE_MINUTE)) {
-    const start = match.index;
-    findings.push(
-      finding("primeSymbols", "review_msg_prime_symbols", start, start + 1, ["′"], {
-        context: { start: Math.max(0, start - 8), end: Math.min(ctx.text.length, start + 2) },
-      }),
-    );
-  }
+  if (match[1] === "′" && match[3] === "″") return findings;
+  const start = match.index;
+  const end = start + match[0].length;
+  findings.push({
+    ruleId: "primeSymbols",
+    messageKey: "review_msg_prime_symbols",
+    range: { start, end },
+    alternatives: [`′${ctx.source.slice(start + 1, end - 1)}″`],
+    context: { start: Math.max(0, start - 8), end: Math.min(ctx.text.length, end + 1) },
+  });
+  return findings;
+};
+
+const degreeMinute: MatchFixer = (match, ctx) => {
+  const findings: RawFinding[] = [];
+  const start = match.index;
+  findings.push(
+    finding("primeSymbols", "review_msg_prime_symbols", start, start + 1, ["′"], {
+      context: { start: Math.max(0, start - 8), end: Math.min(ctx.text.length, start + 2) },
+    }),
+  );
   return findings;
 };
 
@@ -1326,31 +1327,29 @@ const primeSymbols: Detector = (ctx) => {
  * Line-leading runs (rules, list markers, SQL comments, signatures), command
  * options ("--force") and HTML comments are not dashes.
  */
-const typedDashes: Detector = (ctx) => {
+const typedDashes: MatchFixer = (match, ctx) => {
   const findings: RawFinding[] = [];
   const english = isLang(ctx, "en");
-  for (const match of ownedMatches(ctx, /(?<![-<!])-{2,3}(?![->])/gu)) {
-    const start = match.index;
-    const end = start + match[0].length;
-    const before = ctx.text[start - 1] ?? "";
-    const after = ctx.text[end] ?? "";
-    const lineStart = ctx.text.lastIndexOf("\n", start - 1) + 1;
-    if (ctx.text.slice(lineStart, start).trim() === "") continue;
-    if (/\s/.test(before) && /[\p{L}\p{N}]/u.test(after)) continue;
-    const alternatives =
-      match[0].length === 3
-        ? ["—"]
-        : /\p{N}/u.test(before) && /\p{N}/u.test(after)
-          ? ["–"]
-          : english
-            ? ["—", "–"]
-            : ["–", "—"];
-    findings.push(
-      finding("emdashShortcut", "review_msg_typed_dash", start, end, alternatives, {
-        context: { start: Math.max(0, start - 1), end: Math.min(ctx.text.length, end + 1) },
-      }),
-    );
-  }
+  const start = match.index;
+  const end = start + match[0].length;
+  const before = ctx.text[start - 1] ?? "";
+  const after = ctx.text[end] ?? "";
+  const lineStart = ctx.text.lastIndexOf("\n", start - 1) + 1;
+  if (ctx.text.slice(lineStart, start).trim() === "") return findings;
+  if (/\s/.test(before) && /[\p{L}\p{N}]/u.test(after)) return findings;
+  const alternatives =
+    match[0].length === 3
+      ? ["—"]
+      : /\p{N}/u.test(before) && /\p{N}/u.test(after)
+        ? ["–"]
+        : english
+          ? ["—", "–"]
+          : ["–", "—"];
+  findings.push(
+    finding("emdashShortcut", "review_msg_typed_dash", start, end, alternatives, {
+      context: { start: Math.max(0, start - 1), end: Math.min(ctx.text.length, end + 1) },
+    }),
+  );
   return findings;
 };
 
@@ -1360,30 +1359,26 @@ const typedDashes: Detector = (ctx) => {
  * French Canada, "R$ 25"), so this is English only. A line with "$" before a
  * name is math or a shell ("$x = 5$", "$HOME"), and is left alone.
  */
-function currencyPlacement(ctx: DetectContext): RawFinding[] {
-  if (ctx.lang !== "en_US") return [];
+const currencyPlacement: MatchFixer = (match, ctx) => {
+  if (ctx.lang !== "en_US") return null;
   const findings: RawFinding[] = [];
-  const regex =
-    /(?<![\p{L}\p{N}$£¥¢.,_])(?:(\d[\d,]*(?:\.\d+)?)(st|nd|rd|th)?[  ]*([$£¥])|¢(\d+))(?![\p{L}\p{N}$£¥¢_])/gu;
-  for (const match of ownedMatches(ctx, regex)) {
-    const start = match.index;
-    const end = start + match[0].length;
-    const lineStart = ctx.text.lastIndexOf("\n", start) + 1;
-    let lineEnd = ctx.text.indexOf("\n", end);
-    if (lineEnd < 0) lineEnd = ctx.text.length;
-    if (match[3] === "$" && /\$[\p{L}\\{(_]/u.test(ctx.text.slice(lineStart, lineEnd))) continue;
-    findings.push({
-      ruleId: "currencySpacing",
-      messageKey: "review_msg_currency_placement",
-      range: { start, end },
-      // "my 20th$" is "my $20th".
-      alternatives: [match[4] ? `${match[4]}¢` : `${match[3]}${match[1]}${match[2] ?? ""}`],
-      context: { start: lineStart, end: lineEnd },
-      bulkBlock: "context-dependent",
-    });
-  }
+  const start = match.index;
+  const end = start + match[0].length;
+  const lineStart = ctx.text.lastIndexOf("\n", start) + 1;
+  let lineEnd = ctx.text.indexOf("\n", end);
+  if (lineEnd < 0) lineEnd = ctx.text.length;
+  if (match[3] === "$" && /\$[\p{L}\\{(_]/u.test(ctx.text.slice(lineStart, lineEnd))) return null;
+  findings.push({
+    ruleId: "currencySpacing",
+    messageKey: "review_msg_currency_placement",
+    range: { start, end },
+    // "my 20th$" is "my $20th".
+    alternatives: [match[4] ? `${match[4]}¢` : `${match[3]}${match[1]}${match[2] ?? ""}`],
+    context: { start: lineStart, end: lineEnd },
+    bulkBlock: "context-dependent",
+  });
   return findings;
-}
+};
 
 /** "300°K" is "300 K": the kelvin is an absolute unit and takes no degree sign. */
 function kelvinDegree(ctx: DetectContext): RawFinding[] {
@@ -1511,40 +1506,6 @@ function measurementLike(
   return findings;
 }
 
-// ponytail: small closed-class allowlists (articles, prepositions,
-// conjunctions, demonstratives, a few auxiliaries); expand only with ambiguity
-// fixtures. Open-class words stay out: without a part of speech "record record
-// profits" or "very very" cannot be told from a slip. Words that legitimately
-// double are left out: en "that that"/"had had"/"can can"/"her her", de "die
-// die"/"das das" (relative + article) and "und und und", fr "nous nous"/"vous
-// vous" (reflexive), es "es es" and pt "é é" ("lo que es es"), es/pt "para para"
-// (verb + preposition), sv "om om"/"för för"/"var var", hr "je je" (verb +
-// clitic), el "με με" (pronoun + preposition), "και και" (both … and) and
-// "είναι είναι", ar "من من".
-const REPEATABLE_WORDS: Record<string, string> = {
-  en: "the|an|a|is|are|was|were|be|am|in|on|at|for|with|from|of|to|and|or|but|nor|as|by|into|onto|about|than|this|these|those|its|your|our|their|would|should|could|has|been",
-  de: "ein|eine|einen|einem|einer|eines|im|mit|von|für|auf|bei|aus|nach|zum|zur|dass|weil|ist|sind|hat|wird|über|unter|durch|ohne|gegen",
-  // "un un": "en acheter un un jour" is a pronoun and an article.
-  fr: "le|les|une|des|du|au|aux|dans|pour|avec|sur|et|mais|est|sont|par|ce|cette|ces|sans|je|tu|il|ils|on|à|mon|ma|mes|ton|ta|tes|son|sa|ses",
-  es: "el|los|las|un|una|en|con|del|al|y|pero|por|sin|sobre|entre|desde|hasta|este|esta|estos|estas",
-  pt: "os|um|uma|em|com|do|da|dos|das|no|na|e|mas|por|pelo|pela|sem|sobre|entre|este|esta|isto|isso",
-  pl: "się|na|do|od|dla|przez|że|i|oraz|ale|lub|w|z|o|po|jest|są",
-  sv: "att|ett|på|till|med|av|och|men|eller|är|vid|från|under|över|utan",
-  hr: "na|za|od|iz|do|i|ali|ili|u|s|sa|o|po|pri|kod|prema",
-  el: "στο|στη|στην|στον|στα|από|για|ένα|μια|αλλά|στις|στους|προς|χωρίς",
-  ar: "في|على|إلى|عن|مع|هذا|هذه|ثم",
-};
-const REPEATED_WORD_REGEX = new Map(
-  Object.entries(REPEATABLE_WORDS).map(([lang, words]) => [
-    lang,
-    new RegExp(
-      // A soft line wrap may sit between the pair ("is\nis"); a blank line ends the paragraph.
-      `(?<![\\p{L}\\p{M}\\p{N}_'’–—-])(${words})(?:[ \\t\\u00a0]{1,8}|[ \\t\\u00a0]{0,8}\\r?\\n[ \\t\\u00a0]{0,8})\\1(?![\\p{L}\\p{M}\\p{N}_'’–—-])`,
-      "giu",
-    ),
-  ]),
-);
-
 // Verbs whose "to" opens an infinitive: "We need to to leave" doubles the marker.
 const INFINITIVE_TO_VERBS = new Set([
   ...["need", "needs", "needed", "have", "has", "had", "want", "wants", "wanted", "going"],
@@ -1575,44 +1536,41 @@ function doubledTo(before: string, after: string): boolean {
   );
 }
 
-const repeatedWords: Detector = (ctx) => {
+/** A doubled word of the language (one repeatedWords rule per language). */
+const repeatedWord: MatchFixer = (match, ctx) => {
   const findings: RawFinding[] = [];
-  const regex = REPEATED_WORD_REGEX.get(ctx.lang.slice(0, 2));
-  if (!regex) return findings;
-  for (const match of ownedMatches(ctx, regex)) {
-    const start = match.index;
-    const end = start + match[0].length;
-    const context = {
-      start: Math.max(0, start - PHRASE_WINDOW),
-      end: Math.min(ctx.text.length, end + 2),
-    };
-    const before = ctx.text.slice(context.start, start);
-    const word = match[1].toLowerCase();
-    if (ctx.dictionary.has(word) || isGluedToTechnical(ctx.text, start, end)) continue;
-    // Across a line break only a wrapped prose line counts: a line holding just the word
-    // ("the\nthe report") may be a list item or a heading.
-    if (match[0].includes("\n") && !/\p{L}[^\n]*[ \t\u00a0]$/u.test(before)) continue;
-    // A run gets one repair, including when a later pair belongs to another chunk.
-    if (before.match(/(\p{L}+)[ \t\u00a0]{1,8}$/u)?.[1].toLowerCase() === word) continue;
-    // A named, quoted example is evidence, not prose to repair. Normal quotations still run.
-    if (CUE_AND_QUOTE.test(before)) continue;
-    if (word === "to" && !doubledTo(before, ctx.text.slice(end, end + 16))) continue;
-    // "What it is is a mess": a pseudo-cleft's clause ends on the first verb.
-    if (/^(?:is|was)$/.test(word) && isLang(ctx, "en") && PSEUDO_CLEFT_BEFORE.test(before))
-      continue;
-    // "the The Beatles album": a capitalized repeat after a lowercase word opens a name;
-    // "P A O L A A N": a spelled-out run of single letters.
-    const second = match[0].slice(-match[1].length);
-    if (/^\p{Ll}/u.test(match[1]) && /^\p{Lu}/u.test(second)) continue;
-    if (word.length === 1 && /(?:^|\s)\p{L}[ \t ]+$/u.test(before)) continue;
-    findings.push({
-      ruleId: "englishRepeatedWords",
-      messageKey: "review_msg_repeated_words",
-      range: { start, end },
-      alternatives: [ctx.source.slice(start, start + match[1].length)],
-      context,
-    });
-  }
+  const start = match.index;
+  const end = start + match[0].length;
+  const context = {
+    start: Math.max(0, start - PHRASE_WINDOW),
+    end: Math.min(ctx.text.length, end + 2),
+  };
+  const before = ctx.text.slice(context.start, start);
+  const word = match[1].toLowerCase();
+  if (ctx.dictionary.has(word) || isGluedToTechnical(ctx.text, start, end)) return null;
+  // Across a line break only a wrapped prose line counts: a line holding just the word
+  // ("the\nthe report") may be a list item or a heading.
+  if (match[0].includes("\n") && !/\p{L}[^\n]*[ \t\u00a0]$/u.test(before)) return null;
+  // A run gets one repair, including when a later pair belongs to another chunk.
+  if (before.match(/(\p{L}+)[ \t\u00a0]{1,8}$/u)?.[1].toLowerCase() === word) return null;
+  // A named, quoted example is evidence, not prose to repair. Normal quotations still run.
+  if (CUE_AND_QUOTE.test(before)) return null;
+  if (word === "to" && !doubledTo(before, ctx.text.slice(end, end + 16))) return null;
+  // "What it is is a mess": a pseudo-cleft's clause ends on the first verb.
+  if (/^(?:is|was)$/.test(word) && isLang(ctx, "en") && PSEUDO_CLEFT_BEFORE.test(before))
+    return null;
+  // "the The Beatles album": a capitalized repeat after a lowercase word opens a name;
+  // "P A O L A A N": a spelled-out run of single letters.
+  const second = match[0].slice(-match[1].length);
+  if (/^\p{Ll}/u.test(match[1]) && /^\p{Lu}/u.test(second)) return null;
+  if (word.length === 1 && /(?:^|\s)\p{L}[ \t ]+$/u.test(before)) return null;
+  findings.push({
+    ruleId: "englishRepeatedWords",
+    messageKey: "review_msg_repeated_words",
+    range: { start, end },
+    alternatives: [ctx.source.slice(start, start + match[1].length)],
+    context,
+  });
   return findings;
 };
 
@@ -1633,20 +1591,15 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   doubledDegree: (ctx) =>
     ctx.lang === "en_US" ? doubledDegree(ctx) : doubledDegreeByLanguage(ctx),
   countability,
-  repeatedWords,
   auxiliaryForms,
   pronounCase,
   sentenceStructure,
   wordConfusions,
-  capitalizeStarts,
-  pronounI,
-  // English word lists; other languages have their own tables.
+  // The English word lists are the spellingWords frames; other languages have their own tables.
   spelling: (ctx) =>
     detectAll(
       ctx,
-      ctx.lang === "en_US"
-        ? [wordSpelling, markedApostrophes]
-        : [splitWords, frenchElisions, markedApostrophes],
+      ctx.lang === "en_US" ? [markedApostrophes] : [splitWords, frenchElisions, markedApostrophes],
     ),
   modalOf,
   yourWelcome,
@@ -1655,31 +1608,52 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   subjectAgreement,
   existentialAgreement,
   articleAn,
-  ordinal,
   properNouns: (ctx) => (ctx.lang === "en_US" ? properNoun(ctx) : germanNounCapitals(ctx)),
-  commaPeriodSpacing,
-  repeatedSpaces,
-  duplicatePunctuation,
-  quoteSpacing,
-  primeSymbols,
-  typedDashes,
   measurement: (ctx) =>
     detectAll(ctx, [
       (c) => measurementLike(c, "measurementUnitFormatting"),
       kelvinDegree,
       (c) => germanUnits(c).filter((f) => f.ruleId === "measurementUnitFormatting"),
     ]),
+  // English places the symbols in the currencyPlacement frame.
   currency: (ctx) =>
     detectAll(ctx, [
       (c) => measurementLike(c, "currencySpacing"),
-      currencyPlacement,
       (c) => germanUnits(c).filter((f) => f.ruleId === "currencySpacing"),
     ]),
   dateTense,
 };
 
+/** The frame fixes of the shared detectors of this module. */
+const DETECTOR_FIXERS = {
+  capitalizeSentenceStart,
+  capitalizeAfterLineBreak,
+  pronounI,
+  spellingTypo: spellingOf("englishTypoWhitelistCorrection"),
+  spellingContraction: spellingOf("englishContractionNormalization"),
+  spellingAlot: spellingOf("englishAlotCorrection"),
+  ordinal,
+  spaceBeforeComma,
+  spaceBeforeMark,
+  spaceAfterOpeningMark,
+  wideComma,
+  spaceAfterPercent,
+  spaceAfterComma,
+  repeatedSpaces,
+  doubledMarks,
+  doubledPeriods,
+  twoDotLine,
+  longEllipsis,
+  quoteSpacing,
+  primePair,
+  degreeMinute,
+  typedDashes,
+  currencyPlacement,
+  repeatedWord,
+} satisfies Record<string, MatchFixer>;
+
 /** The named frame fixes of grammar/rules/common.yaml (`fixer:`). */
-const CORE_FIXERS = mergePredicates<Fixer>();
+const CORE_FIXERS = mergePredicates<Fixer>(DETECTOR_FIXERS);
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */
 const CORE_FILTERS = mergePredicates<FindingsFilter>(USAGE_FILTERS, COMPOUND_FILTERS);

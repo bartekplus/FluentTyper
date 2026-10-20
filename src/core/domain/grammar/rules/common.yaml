@@ -4401,6 +4401,9 @@ fragments:
   KNEW_ADVERB: "(?:always|never|often|already|just|really|still|also|sometimes|usually|probably|certainly|clearly|somehow|instantly|immediately|suddenly|finally|then)"
   KNEW_CLAUSE: "(?:it|that|this|there|what|who|how|why|when|where|I|you|he|she|we|they)"
   ENGLISHCOMPOUNDS_SUBJECT: "(?:I|you|we|they|he|she)"
+  ALPHABETIC: "[\\p{Script=Latin}\\p{Script=Greek}\\p{Script=Cyrillic}\\p{N}]"
+  REPEAT_BEFORE: "(?<![\\p{L}\\p{M}\\p{N}_'’–—-])"
+  REPEAT_GAP: "(?:{{S}}|[ \\t\\u00a0]{0,8}\\r?\\n[ \\t\\u00a0]{0,8})\\1(?![\\p{L}\\p{M}\\p{N}_'’–—-])"
 
 rules:
   # Typing rules: each live check names its implementation (engine/liveRules.ts).
@@ -4672,9 +4675,118 @@ rules:
       - regex: "(?:a|an|the|my|our|your|their|his|her|its|of|in|for|beyond|these|those|such|and){{S}}(?<target>every{{S}}day){{S}}(?:life|thing|things|problem|routine|routines|use|items|objects|language|tasks|activities|situations|problems|clothes|people|essentials|conversation|conversations|basis|tools|work){{E}}"
         fix: "everyday"
         message: review_msg_everyday_adjective
-  - id: repeatedWords
+  # A doubled word. Small closed-class allowlists (articles, prepositions,
+  # conjunctions, demonstratives, a few auxiliaries); expand only with ambiguity
+  # fixtures. Open-class words stay out: without a part of speech "record record
+  # profits" or "very very" cannot be told from a slip. Words that legitimately
+  # double are left out: en "that that"/"had had"/"can can"/"her her", de "die
+  # die"/"das das" (relative + article) and "und und und", fr "nous nous"/"vous
+  # vous" (reflexive), es "es es" and pt "é é" ("lo que es es"), es/pt "para para"
+  # (verb + preposition), sv "om om"/"för för"/"var var", hr "je je" (verb +
+  # clitic), el "με με" (pronoun + preposition), "και και" (both … and) and
+  # "είναι είναι", ar "من من". A soft line wrap may sit between the pair ("is\nis");
+  # a blank line ends the paragraph. One rule for each language.
+  - id: repeatedWords.en
     checks: [englishRepeatedWords]
-    predicate: repeatedWords
+    lang: en
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      - regex: "{{REPEAT_BEFORE}}(?<target>the|an|a|is|are|was|were|be|am|in|on|at|for|with|from|of|to|and|or|but|nor|as|by|into|onto|about|than|this|these|those|its|your|our|their|would|should|could|has|been){{REPEAT_GAP}}"
+        scan: owned
+        flags: giu
+        fixer: repeatedWord
+  - id: repeatedWords.de
+    checks: [englishRepeatedWords]
+    lang: de
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      - regex: "{{REPEAT_BEFORE}}(?<target>ein|eine|einen|einem|einer|eines|im|mit|von|für|auf|bei|aus|nach|zum|zur|dass|weil|ist|sind|hat|wird|über|unter|durch|ohne|gegen){{REPEAT_GAP}}"
+        scan: owned
+        flags: giu
+        fixer: repeatedWord
+  # "un un": "en acheter un un jour" is a pronoun and an article.
+  - id: repeatedWords.fr
+    checks: [englishRepeatedWords]
+    lang: fr
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      - regex: "{{REPEAT_BEFORE}}(?<target>le|les|une|des|du|au|aux|dans|pour|avec|sur|et|mais|est|sont|par|ce|cette|ces|sans|je|tu|il|ils|on|à|mon|ma|mes|ton|ta|tes|son|sa|ses){{REPEAT_GAP}}"
+        scan: owned
+        flags: giu
+        fixer: repeatedWord
+  - id: repeatedWords.es
+    checks: [englishRepeatedWords]
+    lang: es
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      - regex: "{{REPEAT_BEFORE}}(?<target>el|los|las|un|una|en|con|del|al|y|pero|por|sin|sobre|entre|desde|hasta|este|esta|estos|estas){{REPEAT_GAP}}"
+        scan: owned
+        flags: giu
+        fixer: repeatedWord
+  - id: repeatedWords.pt
+    checks: [englishRepeatedWords]
+    lang: pt
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      - regex: "{{REPEAT_BEFORE}}(?<target>os|um|uma|em|com|do|da|dos|das|no|na|e|mas|por|pelo|pela|sem|sobre|entre|este|esta|isto|isso){{REPEAT_GAP}}"
+        scan: owned
+        flags: giu
+        fixer: repeatedWord
+  - id: repeatedWords.pl
+    checks: [englishRepeatedWords]
+    lang: pl
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      - regex: "{{REPEAT_BEFORE}}(?<target>się|na|do|od|dla|przez|że|i|oraz|ale|lub|w|z|o|po|jest|są){{REPEAT_GAP}}"
+        scan: owned
+        flags: giu
+        fixer: repeatedWord
+  - id: repeatedWords.sv
+    checks: [englishRepeatedWords]
+    lang: sv
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      - regex: "{{REPEAT_BEFORE}}(?<target>att|ett|på|till|med|av|och|men|eller|är|vid|från|under|över|utan){{REPEAT_GAP}}"
+        scan: owned
+        flags: giu
+        fixer: repeatedWord
+  - id: repeatedWords.hr
+    checks: [englishRepeatedWords]
+    lang: hr
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      - regex: "{{REPEAT_BEFORE}}(?<target>na|za|od|iz|do|i|ali|ili|u|s|sa|o|po|pri|kod|prema){{REPEAT_GAP}}"
+        scan: owned
+        flags: giu
+        fixer: repeatedWord
+  - id: repeatedWords.el
+    checks: [englishRepeatedWords]
+    lang: el
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      - regex: "{{REPEAT_BEFORE}}(?<target>στο|στη|στην|στον|στα|από|για|ένα|μια|αλλά|στις|στους|προς|χωρίς){{REPEAT_GAP}}"
+        scan: owned
+        flags: giu
+        fixer: repeatedWord
+  - id: repeatedWords.ar
+    checks: [englishRepeatedWords]
+    lang: ar
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      - regex: "{{REPEAT_BEFORE}}(?<target>في|على|إلى|عن|مع|هذا|هذه|ثم){{REPEAT_GAP}}"
+        scan: owned
+        flags: giu
+        fixer: repeatedWord
   - id: auxiliaryForms
     checks: [englishAuxiliaryBaseVerb]
     predicate: auxiliaryForms
@@ -4690,12 +4802,54 @@ rules:
     predicate: wordConfusions
   - id: capitalizeStarts
     checks: [capitalizeSentenceStart, capitalizeAfterLineBreak]
-    predicate: capitalizeStarts
+    style: match
+    message: review_msg_sentence_start
+    frames:
+      # Each token of the chunk. One frame for each check, so that each check can run alone.
+      - regex: "(?<target>[^\\s\\uFFFC]+)"
+        scan: owned
+        flags: gu
+        fixer: capitalizeSentenceStart
+      - regex: "(?<target>[^\\s\\uFFFC]+)"
+        scan: owned
+        flags: gu
+        check: capitalizeAfterLineBreak
+        fixer: capitalizeAfterLineBreak
   - id: pronounI
     checks: [englishPronounICapitalization]
-    predicate: pronounI
+    style: match
+    message: review_msg_pronoun_i
+    frames:
+      # "Hawai‘i": a letter and a left quote mark before it make it part of a word (the okina).
+      - regex: "(?<![\\p{L}\\p{N}_'’]|\\p{L}‘)(?<target>i)(?![\\p{L}\\p{N}_])"
+        scan: owned
+        flags: gu
+        fixer: pronounI
+  # The English word lists, for each ASCII word. One frame for each check, so that each check
+  # can run alone.
+  - id: spellingWords
+    checks: [englishTypoWhitelistCorrection, englishContractionNormalization, englishAlotCorrection]
+    lang: en
+    style: match
+    message: review_msg_typo
+    frames:
+      - regex: "(?<target>[A-Za-z]+)"
+        scan: owned
+        flags: g
+        fixer: spellingTypo
+      - regex: "(?<target>[A-Za-z]+)"
+        scan: owned
+        flags: g
+        check: englishContractionNormalization
+        fixer: spellingContraction
+      - regex: "(?<target>[A-Za-z]+)"
+        scan: owned
+        flags: g
+        check: englishAlotCorrection
+        fixer: spellingAlot
   - id: spelling
     checks: [englishTypoWhitelistCorrection, englishContractionNormalization, englishAlotCorrection]
+    # predicate: the word tables of multilingualLexicon.ts read each token themselves.
     predicate: spelling
   - id: modalOf
     checks: [englishModalOfCorrection]
@@ -4720,19 +4874,94 @@ rules:
     predicate: articleAn
   - id: ordinal
     checks: [englishOrdinalSuffix]
-    predicate: ordinal
+    style: match
+    message: review_msg_ordinal
+    frames:
+      - regex: "(?<=^|[\\s([])(?<target>\\d+)(st|nd|rd|th)(?![\\p{L}\\p{N}])"
+        scan: owned
+        flags: giu
+        fixer: ordinal
   - id: properNouns
     checks: [englishProperNounCapitalization]
     predicate: properNouns
   - id: commaPeriodSpacing
     checks: [commaPeriodSpacing]
-    predicate: commaPeriodSpacing
+    style: match
+    message: review_msg_space_before_comma
+    frames:
+      # Space before a comma: "word , next".
+      # "،" and "؛" are the Arabic comma and semicolon.
+      - regex: "(?<=[\\p{L}\\p{N})\\]\"”’])(?<target>[ \\u00A0]+)(?=[,،؛](?![,،؛]))"
+        scan: owned
+        flags: gu
+        fixer: spaceBeforeComma
+      # Space before a sentence mark followed by whitespace or the end: "Hello . Next".
+      # Greek writes its question mark as ";" (or U+037E); Arabic as "؟".
+      - regex: "(?<=[\\p{L}\\p{N})\\]}\"”’»])[ \\u00A0]+(?<target>[.?!;\\u037E؟])(?=\\s|$)"
+        scan: owned
+        flags: gu
+        fixer: spaceBeforeMark
+      # Spanish opening marks hug their sentence: "¿ Qué?" is "¿Qué?".
+      - regex: "(?<=(?:^|[\\s([“\"«])[¿¡]+)(?<target>[ \\u00A0]+)(?=\\p{L})"
+        scan: owned
+        flags: gu
+        fixer: spaceAfterOpeningMark
+      # A fullwidth "，" or ideographic "、" comma between words of an alphabetic
+      # script ("red，green") is an input-method slip; CJK text keeps its own.
+      - regex: "(?<=^|{{ALPHABETIC}})(?<target>[ \\u00A0]*[，、][ \\u00A0]*)(?={{ALPHABETIC}}|\\s|$)"
+        scan: owned
+        flags: gu
+        fixer: wideComma
+      # "20%CPU" is "20% CPU". URL escapes ("%C3%A9", "%20Hello") have a letter or "%" before
+      # the digits, and a token with code marks ("cpu=20%idle") is left alone.
+      - regex: "(?<![\\p{L}\\p{N}_.,%])(?<target>\\p{Nd}+(?:[.,]\\p{Nd}+)?%)(?=\\p{L}{2,}(?![\\p{L}\\p{N}_]))"
+        scan: owned
+        flags: gu
+        fixer: spaceAfterPercent
+      # Missing space after a comma between words: "one,two". Only between words
+      # of two or more letters, never in a comma-separated token ("a,b", "x,y,z").
+      - regex: "(?<=\\p{L}{2})(?<target>[,،])(?=\\p{L}{2})"
+        scan: owned
+        flags: gu
+        fixer: spaceAfterComma
   - id: repeatedSpaces
     checks: [collapseRepeatedSpaces]
-    predicate: repeatedSpaces
+    style: match
+    message: review_msg_repeated_spaces
+    frames:
+      - regex: "(?<=[^\\s])(?<target>[ \\u00A0]{2,})(?=[^\\s])"
+        scan: owned
+        flags: gu
+        fixer: repeatedSpaces
   - id: duplicatePunctuation
     checks: [duplicatePunctuationCollapse]
-    predicate: duplicatePunctuation
+    style: match
+    message: review_msg_duplicate_punctuation
+    frames:
+      # ",," ";;" ", ," and the Arabic equivalents. ":" is left out: "std::vector".
+      - regex: "(?<target>[,;،؛])(?:[ \\u00A0]*\\1)+"
+        scan: owned
+        flags: gu
+        fixer: doubledMarks
+      # "word.." (never "..." or "../"): a doubled period or a short ellipsis that trails off.
+      # Before a lowercase word the sentence goes on, so only the ellipsis fits; elsewhere
+      # the writer chooses. Arabic writes ".." as a short ellipsis ("وهذا ما دعاني إلى..").
+      - regex: "(?<=(?![\\p{Script=Arabic}])[\\p{L}\\p{N})\\]\"”’])(?<target>\\.\\.)(?=\\s|$)"
+        scan: owned
+        flags: gu
+        fixer: doubledPeriods
+      # A line of two dots alone is a short ellipsis or a stray period.
+      - regex: "(?<=^|\\n)(?<target>\\.\\.)(?=[ \\t]*(?:\\r?\\n|$))"
+        scan: owned
+        flags: gu
+        fixer: twoDotLine
+      # An ellipsis has three dots: "So..... anyway". Digits
+      # or a path around the run ("1....5", "..../"), dot leaders (10+) and a year still unknown
+      # ("(1957-....)") are not one.
+      - regex: "(?<![.\\p{N}-])(?<target>\\.{4,9})(?![.\\p{N}/\\\\])"
+        scan: owned
+        flags: gu
+        fixer: longEllipsis
   # "..." typed for an ellipsis.
   - id: ellipsis
     checks: [ellipsisShortcut]
@@ -4744,19 +4973,62 @@ rules:
     message: review_msg_ellipsis_character
   - id: quoteSpacing
     checks: [quoteSpacing]
-    predicate: quoteSpacing
+    style: match
+    message: review_msg_quote_spacing
+    frames:
+      # A double quotation mark glued to a word on both sides, with the marks of every
+      # language; the fixer keeps the marks of the text's language. '“Good morning,”said
+      # Hal': a closing mark after a sentence mark also needs the space.
+      - regex: "(?<target>(?<=[\\p{L}\\p{N}])[\"“”„«»]|(?<=[.,!?])[”“»])(?=[\\p{L}\\p{N}])"
+        scan: owned
+        flags: gu
+        fixer: quoteSpacing
   - id: primeSymbols
     checks: [primeSymbols]
-    predicate: primeSymbols
+    style: match
+    message: review_msg_prime_symbols
+    frames:
+      # A number, a single mark, a number and a double mark: feet and inches or
+      # minutes and seconds ("5'7\"", "30′ 15\""). Group 1 and 3 are the marks.
+      - regex: "(?<=(?<![\\p{L}\\p{N}.,])\\d+[ \\u00a0]?)(?<target>['’‘′])([ \\u00a0]?\\d+(?:[.,]\\d+)?[ \\u00a0]?)([\"”“″])(?!\\p{N})"
+        scan: owned
+        flags: gu
+        fixer: primePair
+      # Degrees then minutes with no seconds after them ("48°51'N").
+      - regex: "(?<=\\d°[ \\u00a0]?\\d+[ \\u00a0]?)(?<target>['’‘])(?![ \\u00a0]?\\d|\\p{L}{2})"
+        scan: owned
+        flags: gu
+        fixer: degreeMinute
   - id: typedDashes
     checks: [emdashShortcut]
-    predicate: typedDashes
+    style: match
+    message: review_msg_typed_dash
+    frames:
+      - regex: "(?<![-<!])(?<target>-{2,3})(?![->])"
+        scan: owned
+        flags: gu
+        fixer: typedDashes
   - id: measurement
     checks: [measurementUnitFormatting]
+    # predicate: the unit scan starts at the token that the chunk start cuts and reads 64
+    # characters after the chunk; the kelvin and German scans share its check.
     predicate: measurement
   - id: currency
     checks: [currencySpacing]
+    # predicate: the unit scan starts at the token that the chunk start cuts and reads 64
+    # characters after the chunk; the German scan shares its check.
     predicate: currency
+  # English writes "$", "£" and "¥" before the amount and "¢" after it: "25$" is "$25".
+  - id: currencyPlacement
+    checks: [currencySpacing]
+    lang: en
+    style: match
+    message: review_msg_currency_placement
+    frames:
+      - regex: "(?<![\\p{L}\\p{N}$£¥¢.,_])(?:(?<target>\\d[\\d,]*(?:\\.\\d+)?)(st|nd|rd|th)?[ \\u00a0]*([$£¥])|¢(\\d+))(?![\\p{L}\\p{N}$£¥¢_])"
+        scan: owned
+        flags: gu
+        fixer: currencyPlacement
   # Date and tense agreement runs after every language's own rules.
   - id: dateTense
     checks: [dateTenseConsistency]
