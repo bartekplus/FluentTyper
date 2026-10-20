@@ -95,6 +95,14 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getBooleanField("personalizationEnabled");
   }
 
+  async getEmojiSuggestions(): Promise<boolean> {
+    return this.getBooleanField("emojiSuggestions");
+  }
+
+  async getEmojiFirst(): Promise<boolean> {
+    return this.getBooleanField("emojiFirst");
+  }
+
   async getPreferNativeAutocomplete(): Promise<boolean> {
     return this.getBooleanField("preferNativeAutocomplete", true);
   }

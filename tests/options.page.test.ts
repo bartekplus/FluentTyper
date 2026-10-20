@@ -66,6 +66,15 @@ describe("options page scripts", () => {
     }
   });
 
+  test("exposes emoji suggestions and emoji first as opt-in checkboxes", async () => {
+    const { manifest } = await import("../src/ui/options/settingsManifest.js");
+    for (const name of ["emojiSuggestions", "emojiFirst"]) {
+      expect(manifest.settings.find((setting) => setting.name === name)).toEqual(
+        expect.objectContaining({ type: "checkbox", default: false }),
+      );
+    }
+  });
+
   test("exposes opt-in personalization and a separate clear action", async () => {
     const { manifest } = await import("../src/ui/options/settingsManifest.js");
     const personalization = manifest.settings.find(

@@ -105,6 +105,7 @@
     "buffer": "^6.0.3",
     "csv-parse": "^7.0.3",
     "csv-stringify": "^6.9.0",
+    "emojilib": "4.0.3",
     "luxon": "^3.7.2"
   }
 }

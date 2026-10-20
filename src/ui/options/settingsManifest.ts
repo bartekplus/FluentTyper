@@ -48,6 +48,8 @@ import {
   KEY_INLINE_SUGGESTION,
   KEY_PREFIX_ONLY_MODE,
   KEY_PERSONALIZATION_ENABLED,
+  KEY_EMOJI_SUGGESTIONS,
+  KEY_EMOJI_FIRST,
   DEFAULT_NUM_SUGGESTIONS,
   isDevBuild,
 } from "@core/domain/constants";
@@ -282,6 +284,25 @@ const manifest: ManifestDefinition = {
         i18n.get("personalization_enabled_label"),
         i18n.get("personalization_enabled_desc"),
       ),
+      default: false,
+    },
+    {
+      tab: "core_settings",
+      group: i18n.get("prediction_engine"),
+      name: KEY_EMOJI_SUGGESTIONS,
+      type: "checkbox",
+      label: buildFieldLabel(
+        i18n.get("emoji_suggestions_label"),
+        i18n.get("emoji_suggestions_desc"),
+      ),
+      default: false,
+    },
+    {
+      tab: "core_settings",
+      group: i18n.get("prediction_engine"),
+      name: KEY_EMOJI_FIRST,
+      type: "checkbox",
+      label: buildFieldLabel(i18n.get("emoji_first_label"), i18n.get("emoji_first_desc")),
       default: false,
     },
     {
@@ -660,6 +681,8 @@ export const ESSENTIALS_CARDS: ControlCardSpec[] = [
       KEY_HORIZONTAL_SUGGESTIONS,
       KEY_NUM_SUGGESTIONS,
       KEY_PERSONALIZATION_ENABLED,
+      KEY_EMOJI_SUGGESTIONS,
+      KEY_EMOJI_FIRST,
     ],
   },
   {

@@ -22,7 +22,10 @@ import { normalizeNumSuggestions } from "@core/domain/siteProfiles";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { rankPersonalizedCandidates } from "@core/domain/personalization/PersonalizationRanker";
 import type { PersonalizationRankingSnapshot } from "@core/domain/personalization/types";
+import { matchEmoji } from "@core/domain/emojiSuggestions";
 const SUGGESTION_COUNT = 5;
+// Common words match many emoji ("love" -> 39); a short list keeps words visible.
+const MAX_EMOJI_SUGGESTIONS = 2;
 const NBSP_REGEX = /\xA0/g;
 const NO_DICTIONARY_WORDS: ReadonlySet<string> = new Set();
 const logger = createLogger("PresageHandler");
@@ -86,6 +89,8 @@ export interface PresageConfig {
   textExpansions: Array<[string, object]>;
   prefixOnlyMode: boolean;
   personalizationEnabled?: boolean;
+  emojiSuggestions?: boolean;
+  emojiFirst?: boolean;
 
   timeFormat?: string;
   dateFormat?: string;
@@ -138,6 +143,8 @@ export class PresageHandler {
   private textExpansionPairs = new Set<string>();
   private userDictionarySignature = "";
   private personalizationEnabled = false;
+  private emojiSuggestions = false;
+  private emojiFirst = false;
   private readonly getPersonalizationSnapshot: () => PersonalizationRankingSnapshot;
   private readonly now: () => number;
 
@@ -179,6 +186,8 @@ export class PresageHandler {
     this.autoCapitalize = config.autoCapitalize;
     this.prefixOnlyMode = config.prefixOnlyMode;
     this.personalizationEnabled = config.personalizationEnabled ?? false;
+    this.emojiSuggestions = config.emojiSuggestions ?? false;
+    this.emojiFirst = config.emojiFirst ?? false;
     const textExpansions = (config.textExpansions ?? []).flatMap(([shortcut, expansion]) =>
       // Presage drops non-string expansions too (PresageEngine.parsePrediction).
       typeof expansion === "string"
@@ -328,7 +337,35 @@ export class PresageHandler {
     );
     const snippets = await this.predictSnippets(context, ranked, resolver);
     // Keep the top word prediction first so snippets never displace plain autocomplete.
-    return [...words.slice(0, 1), ...snippets, ...words.slice(1)];
+    const candidates = [...words.slice(0, 1), ...snippets, ...words.slice(1)];
+    const emoji = this.predictEmoji(context, candidates);
+    if (this.emojiFirst) {
+      return [...emoji, ...candidates];
+    }
+    // Keep room at the end so finalizePrediction's slice does not drop the emoji.
+    return [
+      ...candidates.slice(0, Math.max(0, context.effectiveNumSuggestions - emoji.length)),
+      ...emoji,
+    ];
+  }
+
+  /** Emoji named like the word being typed (#504), minus any already in the list. */
+  private predictEmoji(
+    context: PresagePredictionContext,
+    candidates: PredictionCandidate[],
+  ): PredictionCandidate[] {
+    if (!this.emojiSuggestions) {
+      return [];
+    }
+    const seen = new Set(candidates.map(({ text }) => normalizePrediction(text)));
+    return matchEmoji(context.snippetToken, MAX_EMOJI_SUGGESTIONS)
+      .filter(({ emoji }) => !seen.has(emoji))
+      .map(({ emoji, name }) => ({
+        text: emoji,
+        snippetShortcut: name,
+        // Emoji first must stay first: exactSnippet stops the exact-word sort in finalizePrediction.
+        ...(this.emojiFirst && { exactSnippet: true }),
+      }));
   }
 
   /**

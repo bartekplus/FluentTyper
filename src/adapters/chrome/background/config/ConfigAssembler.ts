@@ -130,6 +130,8 @@ export class ConfigAssembler {
       prefixOnlyMode,
       inlineSuggestion,
       personalizationEnabled,
+      emojiSuggestions,
+      emojiFirst,
     ] = await Promise.all([
       this.coreSettingsRepository.getNumSuggestions(),
       this.coreSettingsRepository.getMinWordLengthToPredict(),
@@ -145,6 +147,8 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getPrefixOnlyMode(),
       this.coreSettingsRepository.getInlineSuggestion(),
       this.coreSettingsRepository.getPersonalizationEnabled(),
+      this.coreSettingsRepository.getEmojiSuggestions(),
+      this.coreSettingsRepository.getEmojiFirst(),
     ]);
     const autoCapitalize = enabledGrammarRules.includes("capitalizeSentenceStart");
 
@@ -158,6 +162,8 @@ export class ConfigAssembler {
         textExpansions,
         prefixOnlyMode: prefixOnlyMode || inlineSuggestion,
         personalizationEnabled,
+        emojiSuggestions,
+        emojiFirst,
 
         timeFormat,
         dateFormat,

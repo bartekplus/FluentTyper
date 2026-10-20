@@ -158,6 +158,16 @@ describe("ConfigAssembler.assemblePredictionRuntimeConfig prefixOnlyMode", () =>
     );
     expect(config.personalizationEnabled).toBe(true);
   });
+
+  test("passes the emoji settings to prediction config, off by default", async () => {
+    const off = await predictionConfig(baseSettings, false);
+    expect([off.emojiSuggestions, off.emojiFirst]).toEqual([false, false]);
+    const on = await predictionConfig(
+      { ...baseSettings, emojiSuggestions: true, emojiFirst: true },
+      false,
+    );
+    expect([on.emojiSuggestions, on.emojiFirst]).toEqual([true, true]);
+  });
 });
 
 describe("set-config for auto-detect", () => {
