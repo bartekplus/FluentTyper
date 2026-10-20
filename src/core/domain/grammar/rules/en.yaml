@@ -1251,10 +1251,123 @@ rules:
     predicate: determinerConfusions
   - id: en.thirdPersonBase
     checks: [englishPronounVerbWhitelistAgreement]
-    predicate: thirdPersonBase
+    style: match
+    message: review_msg_pronoun_verb
+    filter: usSlots
+    frames:
+      # "It only matter to me", "I hope he go away", "and it become dark": he/she/it + a bare
+      # verb.
+      - regex: "(?<target>he|she|it){{S}}(?=[a-z])"
+        fixer: agreementThirdPersonBase
+  # Subject-verb number agreement with noun-phrase subjects the lexicon can number. Each part
+  # keeps one finding per verb start (usSlotsOnePerStart), so each part is a rule of its own.
   - id: en.subjectAgreement
     checks: [englishSubjectVerbAgreement]
-    predicate: subjectAgreement
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # "The dogs barks loudly", "The dog are released": a determiner-led subject and its verb.
+      - regex: "(?<target>the|these|those|my|your|his|her|our|their|many|some|most|both|several|this|that|all|each){{S}}(?=[a-z])"
+        fixer: agreementNounSubject
+      # "Cars is useful", "Grammatical errors is bad": a plural with no determiner opens the
+      # clause.
+      - regex: "(?<=(?:^|[.!?;:\\n\"“(—–]|(?:^|[^\\p{L}])(?:because|since|when|while|if|although|though|whereas|unless|until|but|whether|where)[ \\t\\u00a0])[ \\t\\u00a0\"“‘']{0,8})(?<target>[A-Za-z][a-z]+){{S}}(?=[a-z])"
+        fixer: agreementBareSubject
+  - id: en.subjectAgreementIrregular
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # "Some people thinks", "people who knows": irregular plural subjects with a singular verb.
+      - regex: "(?:(?<det>some|most|many|these|those|the|our|their|my|your|all|other){{S}})?(?<target>people|children|men|women){{S}}(?=[a-z])"
+        fixer: agreementIrregularPlurals
+  - id: en.subjectAgreementDemonstratives
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # "These includes", "Those two is", "This are my notes": a demonstrative and its verb.
+      - regex: "(?<target>these|those)(?:{{S}}(?:two|three|four|five|both|all))?{{S}}(?=[a-z])"
+        fixer: agreementDemonstratives1
+      - regex: "(?<target>this|that){{S}}(?<verb>are|were){{E}}"
+        fixer: agreementDemonstratives2
+  - id: en.subjectAgreementInverted
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlots
+    frames:
+      # "Do your father live…?", "Has your parents told…?", "Where is your dogs?": an inverted
+      # aux.
+      - regex: "(?<aux>do|does|have|has|is|are|was|were){{S}}(?:the|your|my|his|her|our|their){{S}}(?<noun>[a-z]+)(?:{{S}}(?:ever|never|already|really|just|always|also|still|actually)(?={{S}}[a-z]+{{E}}))?(?:{{S}}(?<verb>[a-z]+))?{{E}}"
+        owner: aux
+        fixer: agreementInvertedAuxiliary1
+      # "Does you have…?", "Does anyone knows?": do + a pronoun or indefinite subject.
+      - regex: "(?<aux>does){{S}}(?<subject>you|I|we|they){{E}}"
+        owner: aux
+        fixer: agreementInvertedAuxiliary2
+      - regex: "(?:does|do|did){{S}}(?:anyone|anybody|someone|somebody|everyone|nobody)(?:{{S}}here)?{{S}}(?<verb>[a-z]+s){{E}}"
+        owner: verb
+        fixer: agreementInvertedAuxiliary3
+  - id: en.subjectAgreementRelative
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # "The ladies who talk loudly annoys me", "The tall woman that I met yesterday manage the
+      # team": the main verb after a relative clause agrees with the noun before who/that.
+      - regex: "(?<det>the|these|those|my|our|their|his|her|your|all|many|some|most|this|that|a|an|every|each){{S}}(?<head>(?:[a-z]+{{S}}){0,2}?[a-z]+){{S}}(?:who|that){{S}}(?=[a-z])"
+        owner: none
+        fixer: agreementRelativeClauseSubject
+      - regex: "(?<head>anyone|anybody|someone|somebody|everyone|everybody|nobody){{S}}who{{S}}(?=[a-z])"
+        owner: none
+        fixer: agreementRelativeClauseSubject
+  - id: en.subjectAgreementName
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # "Tom live in Rome", "Microsoft speak to its customers": a name before a bare verb.
+      - regex: "(?<name>[a-z]{2,}){{S}}(?<target>[a-z]+){{E}}"
+        fixer: agreementNameSubject
+  - id: en.subjectAgreementQuantified
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # each of / the number of: a singular head. "Each of the kids are" (is), "The number of
+      # users have" (has).
+      - regex: "(?:each{{S}}of{{S}}(?:them|us|you|(?:the|these|those|my|your|our|their|his|her|its)(?:{{S}}[a-z]+){1,2})|the{{S}}number{{S}}of(?:{{S}}[a-z]+){1,2}){{S}}(?<verb>are|were|have|do){{E}}"
+        owner: verb
+        fixer: agreementQuantifiedSubjects1
+      # both of them / both + plural subject: a plural verb. "Both of them believes" (believe).
+      - regex: "both{{S}}of{{S}}(?:them|us|you|these|those){{S}}(?<verb>[a-z]+s){{E}}"
+        owner: verb
+        fixer: agreementQuantifiedSubjects2
+      # "Tina and her brother sings": a second conjunct with its own determiner.
+      - regex: "(?:[a-z]{2,}|(?:the|my|your|his|her|our|their){{S}}[a-z]+){{S}}and{{S}}(?:the|my|your|his|her|our|their){{S}}(?<noun>[a-z]+){{S}}(?<verb>is|was|has|does|[a-z]+s){{E}}"
+        owner: verb
+        fixer: agreementQuantifiedSubjects3
+      # "Does dogs sleep…?": do before a bare plural.
+      - regex: "(?<aux>does|doesn['’]t){{S}}(?<noun>[a-z]+s){{S}}(?<verb>[a-z]+){{E}}"
+        owner: aux
+        fixer: agreementQuantifiedSubjects4
+  - id: en.subjectAgreementDistant
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # "The dusty books about ants and termites seems", "The drivers who ran the light fatally
+      # injures": a subject read past its complements and a relative clause, and the main verb.
+      - regex: "(?<target>the|these|those|my|your|his|her|our|their|many|some|most|both|several|this|that|all|each){{S}}(?=[a-z])"
+        fixer: agreementDistantSubject
   - id: en.adjectiveForAdverb
     checks: [englishConfusedWords]
     predicate: adjectiveForAdverb
