@@ -1601,29 +1601,29 @@ rules:
     filter: usOutsideExamples
     frames:
       # A comma right before a sentence mark: ",." ",!".
-      - regex: "(?<=\\p{L}|\\p{N}|[)\"\\u201D\\u2019])(?<target>[,;])(?=[.!?](?!\\.))"
+      - regex: "(?<=\\p{L}|\\p{N}|[)\"\\u201D\\u2019])[,;](?=[.!?](?!\\.))"
         scan: polish
         flags: gu
         fixer: punctuationCommaMark
       # A comma inside a closing parenthesis: ",)".
-      - regex: "(?<=[\\p{L}\\p{N}])(?<target>,\\))"
+      - regex: "(?<=[\\p{L}\\p{N}]),\\)"
         scan: polish
         flags: gu
         fixer: punctuationCommaParen
       # "for a “spell checker.”.": a period inside the closing quote and another after it.
       # Only after a lowercase word: "Acme Corp.".", "Cyc."." (a title) and "etc."." keep theirs.
-      - regex: "(?<=(?<![\\p{L}\\p{N}.])(?<word>\\p{Ll}{3,})\\.[\"\\u201D])(?<target>\\.)(?!\\.)"
+      - regex: "(?<=(?<![\\p{L}\\p{N}.])(?<word>\\p{Ll}{3,})\\.[\"\\u201D])\\.(?!\\.)"
         scan: polish
         flags: gu
         fixer: punctuationPeriodQuotePeriod
       # "Where did she go." A capitalized question word, an auxiliary and a pronoun open a
       # direct question; no comma or other mark comes before its period.
-      - regex: "(?<=(?:^|[.!?][\"\\u201D\\u2019)]?[ \\t\\u00A0]{1,8}|\\n[ \\t\\u00A0]{0,8}))(?:What|Where|When|Why|How|Who|Which)[ \\t\\u00A0]+(?:do|does|did|is|are|was|were|can|could|will|would|should|shall|have|has)(?:n['\\u2019]t)?[ \\t\\u00A0]+(?:I|you|he|she|we|they|it)(?![\\p{L}'\\u2019])[^.!?,;:\\n\"\\u201C\\u201D()]{0,80}(?<target>\\.)(?![.\\p{L}\\p{N}])"
+      - regex: "(?<=(?:^|[.!?][\"\\u201D\\u2019)]?[ \\t\\u00A0]{1,8}|\\n[ \\t\\u00A0]{0,8}))(?:What|Where|When|Why|How|Who|Which)[ \\t\\u00A0]+(?:do|does|did|is|are|was|were|can|could|will|would|should|shall|have|has)(?:n['\\u2019]t)?[ \\t\\u00A0]+(?:I|you|he|she|we|they|it)(?![\\p{L}'\\u2019])[^.!?,;:\\n\"\\u201C\\u201D()]{0,80}\\.(?![.\\p{L}\\p{N}])"
         scan: polish
         flags: gu
         fixer: punctuationWhQuestion
       # "neither rich, nor poor": two items take no comma.
-      - regex: "\\bneither\\b(?<items>[^,.;:!?\\n]{1,60})(?<target>,)(?=[ \\u00A0]+nor\\b(?![^.;:!?\\n]*,[ \\u00A0]*nor\\b))"
+      - regex: "\\bneither\\b(?<items>[^,.;:!?\\n]{1,60}),(?=[ \\u00A0]+nor\\b(?![^.;:!?\\n]*,[ \\u00A0]*nor\\b))"
         scan: polish
         flags: giu
         fixer: punctuationLastMark
@@ -1643,7 +1643,7 @@ rules:
       # The comma after an opening linking word ("However", "In addition"). Bounded gaps: an
       # unbounded run in the lookbehind is reread at every position of a long run of spaces
       # (quadratic, and 100+ ms a chunk once JavaScriptCore runs the regex interpreted).
-      - regex: "(?<=(?:^|[.!?][\"”’)]?{{S}}|\\n[ \\t\\u00a0]{0,8}))(?<w>{{PUNCTUATION_LINKING}})(?<target>(?<gap>[ \\t\\u00a0]+))(?<next>[\\p{L}]+)"
+      - regex: "(?<=(?:^|[.!?][\"”’)]?{{S}}|\\n[ \\t\\u00a0]{0,8}))(?<w>{{PUNCTUATION_LINKING}})(?<gap>[ \\t\\u00a0]+)(?<next>[\\p{L}]+)"
         scan: polish
         flags: gu
         fixer: introductoryOpener
@@ -1658,12 +1658,12 @@ rules:
         fixer: introductoryCondition
       # "Hey there this is great", "Great please have a look", "Awesome thanks for the help": a
       # greeting or a one-word reply opens the sentence before its clause.
-      - regex: "(?<=(?:^|[.!?][\"”’)]?{{S}}|\\n[ \\t\\u00a0]{0,8}))(?<w>(?:Hey|Hi|Hello) there|(?:Great|Awesome|Perfect|Cool|Nice|Excellent|Wonderful|Fantastic|Brilliant|Okay|Ok|Sure)(?=[ \\t\\u00a0]+(?:please|thanks|thank you)(?![\\p{L}'’])))(?<target>(?<gap>[ \\t\\u00a0]+))(?=[\\p{L}])(?!(?:and|or|but)(?![\\p{L}]))"
+      - regex: "(?<=(?:^|[.!?][\"”’)]?{{S}}|\\n[ \\t\\u00a0]{0,8}))(?<w>(?:Hey|Hi|Hello) there|(?:Great|Awesome|Perfect|Cool|Nice|Excellent|Wonderful|Fantastic|Brilliant|Okay|Ok|Sure)(?=[ \\t\\u00a0]+(?:please|thanks|thank you)(?![\\p{L}'’])))(?<gap>[ \\t\\u00a0]+)(?=[\\p{L}])(?!(?:and|or|but)(?![\\p{L}]))"
         scan: polish
         flags: gu
         fixer: introductoryGreeting
       # "I for one think so": the aside takes commas on both sides.
-      - regex: "(?<![\\p{L}'\\u2019])(?<target>I[ \\t\\u00A0]+for[ \\t\\u00A0]+one)(?=[ \\t\\u00A0]+[a-z])"
+      - regex: "(?<![\\p{L}'\\u2019])I[ \\t\\u00A0]+for[ \\t\\u00A0]+one(?=[ \\t\\u00A0]+[a-z])"
         scan: polish
         flags: gu
         fixer: introductoryIForOne
@@ -1684,12 +1684,12 @@ rules:
       # "She isn't coming is she?": a question tag. A tag pairs a negative auxiliary with a
       # positive statement ("isn't she?") or a positive one with a negative statement ("is
       # she?"); "do it?" ends in an object, not a tag.
-      - regex: "(?<=[\\p{L}\\p{N}])(?<target>(?<gap>[ \\t\\u00A0]+))(?:(?<neg>isn't|wasn't|aren't|weren't|don't|doesn't|didn't|won't|wouldn't|can't|couldn't|haven't|hasn't|shouldn't)[ \\t\\u00A0]+(?:I|you|he|she|it|we|they|there)|(?<pos>is|was|are|were|do|does|did|will|would|can|could|have|has|should)[ \\t\\u00A0]+(?:I|you|he|she|we|they|there|it(?<=(?:is|was)[ \\t\\u00A0]+it)))[ \\t\\u00A0]*\\?"
+      - regex: "(?<=[\\p{L}\\p{N}])(?<gap>[ \\t\\u00A0]+)(?:(?<neg>isn't|wasn't|aren't|weren't|don't|doesn't|didn't|won't|wouldn't|can't|couldn't|haven't|hasn't|shouldn't)[ \\t\\u00A0]+(?:I|you|he|she|it|we|they|there)|(?<pos>is|was|are|were|do|does|did|will|would|can|could|have|has|should)[ \\t\\u00A0]+(?:I|you|he|she|we|they|there|it(?<=(?:is|was)[ \\t\\u00A0]+it)))[ \\t\\u00A0]*\\?"
         scan: polish
         flags: gu
         fixer: clauseTag
       # "I found it thanks.", "Sounds good thanks.": a short reply, then its thanks.
-      - regex: "(?<=[\\p{L}\\p{N}])(?<target>(?<gap>[ \\t\\u00a0]+))thanks(?=[ \\t\\u00a0]*[.!])"
+      - regex: "(?<=[\\p{L}\\p{N}])(?<gap>[ \\t\\u00a0]+)thanks(?=[ \\t\\u00a0]*[.!])"
         scan: polish
         flags: giu
         fixer: clauseClosingThanks
@@ -1697,7 +1697,7 @@ rules:
       # by a coordinator take a comma. Both sides must read as clauses: the first opens with its
       # subject and has a finite verb; the second opens with a subject and its verb, an inverted
       # question, or "please" + a request.
-      - regex: "(?<=[\\p{L}\\p{N}%)'\\u2019])(?<target>(?<gap>[ \\t\\u00a0]+))(?<conj>and|but|or|so|yet|although)(?=[ \\t\\u00a0])"
+      - regex: "(?<=[\\p{L}\\p{N}%)'\\u2019])(?<gap>[ \\t\\u00a0]+)(?<conj>and|but|or|so|yet|although)(?=[ \\t\\u00a0])"
         scan: polish
         flags: gu
         fixer: clauseJoiner

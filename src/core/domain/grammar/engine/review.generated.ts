@@ -5661,21 +5661,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     fixer: "en:plainReturnBack",
   },
   {
-    pattern: '(?<=\\p{L}|\\p{N}|[)"\\u201D\\u2019])(?<target>[,;])(?=[.!?](?!\\.))',
+    pattern: '(?<=\\p{L}|\\p{N}|[)"\\u201D\\u2019])[,;](?=[.!?](?!\\.))',
     literals: [],
     fixer: "en:punctuationCommaMark",
     flags: "gu",
     scan: "polish",
   },
   {
-    pattern: "(?<=[\\p{L}\\p{N}])(?<target>,\\))",
+    pattern: "(?<=[\\p{L}\\p{N}]),\\)",
     literals: [],
     fixer: "en:punctuationCommaParen",
     flags: "gu",
     scan: "polish",
   },
   {
-    pattern: '(?<=(?<![\\p{L}\\p{N}.])(?<word>\\p{Ll}{3,})\\.["\\u201D])(?<target>\\.)(?!\\.)',
+    pattern: '(?<=(?<![\\p{L}\\p{N}.])(?<word>\\p{Ll}{3,})\\.["\\u201D])\\.(?!\\.)',
     literals: [],
     fixer: "en:punctuationPeriodQuotePeriod",
     flags: "gu",
@@ -5683,7 +5683,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<=(?:^|[.!?][\"\\u201D\\u2019)]?[ \\t\\u00A0]{1,8}|\\n[ \\t\\u00A0]{0,8}))(?:What|Where|When|Why|How|Who|Which)[ \\t\\u00A0]+(?:do|does|did|is|are|was|were|can|could|will|would|should|shall|have|has)(?:n['\\u2019]t)?[ \\t\\u00A0]+(?:I|you|he|she|we|they|it)(?![\\p{L}'\\u2019])[^.!?,;:\\n\"\\u201C\\u201D()]{0,80}(?<target>\\.)(?![.\\p{L}\\p{N}])",
+      "(?<=(?:^|[.!?][\"\\u201D\\u2019)]?[ \\t\\u00A0]{1,8}|\\n[ \\t\\u00A0]{0,8}))(?:What|Where|When|Why|How|Who|Which)[ \\t\\u00A0]+(?:do|does|did|is|are|was|were|can|could|will|would|should|shall|have|has)(?:n['\\u2019]t)?[ \\t\\u00A0]+(?:I|you|he|she|we|they|it)(?![\\p{L}'\\u2019])[^.!?,;:\\n\"\\u201C\\u201D()]{0,80}\\.(?![.\\p{L}\\p{N}])",
     literals: ["what", "where", "when", "why", "how", "who", "which"],
     fixer: "en:punctuationWhQuestion",
     flags: "gu",
@@ -5691,7 +5691,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "\\bneither\\b(?<items>[^,.;:!?\\n]{1,60})(?<target>,)(?=[ \\u00A0]+nor\\b(?![^.;:!?\\n]*,[ \\u00A0]*nor\\b))",
+      "\\bneither\\b(?<items>[^,.;:!?\\n]{1,60}),(?=[ \\u00A0]+nor\\b(?![^.;:!?\\n]*,[ \\u00A0]*nor\\b))",
     literals: ["neither"],
     fixer: "en:punctuationLastMark",
     flags: "giu",
@@ -5727,7 +5727,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      '(?<=(?:^|[.!?]["”’)]?[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<w>However|Nonetheless|Nevertheless|Besides|Alas|Similarly|Also|Furthermore|Moreover|Therefore|Consequently|Meanwhile|Otherwise|Additionally|Finally|Firstly|Secondly|Lastly|Unfortunately|Fortunately|Of course|For example|For instance|In fact|In addition|In conclusion|In summary|On the other hand|As a result|In other words|By default|That said|Indeed|Instead|Likewise)(?<target>(?<gap>[ \\t\\u00a0]+))(?<next>[\\p{L}]+)',
+      '(?<=(?:^|[.!?]["”’)]?[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<w>However|Nonetheless|Nevertheless|Besides|Alas|Similarly|Also|Furthermore|Moreover|Therefore|Consequently|Meanwhile|Otherwise|Additionally|Finally|Firstly|Secondly|Lastly|Unfortunately|Fortunately|Of course|For example|For instance|In fact|In addition|In conclusion|In summary|On the other hand|As a result|In other words|By default|That said|Indeed|Instead|Likewise)(?<gap>[ \\t\\u00a0]+)(?<next>[\\p{L}]+)',
     literals: [
       "however",
       "nonetheless",
@@ -5785,15 +5785,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<=(?:^|[.!?][\"”’)]?[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<w>(?:Hey|Hi|Hello) there|(?:Great|Awesome|Perfect|Cool|Nice|Excellent|Wonderful|Fantastic|Brilliant|Okay|Ok|Sure)(?=[ \\t\\u00a0]+(?:please|thanks|thank you)(?![\\p{L}'’])))(?<target>(?<gap>[ \\t\\u00a0]+))(?=[\\p{L}])(?!(?:and|or|but)(?![\\p{L}]))",
+      "(?<=(?:^|[.!?][\"”’)]?[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<w>(?:Hey|Hi|Hello) there|(?:Great|Awesome|Perfect|Cool|Nice|Excellent|Wonderful|Fantastic|Brilliant|Okay|Ok|Sure)(?=[ \\t\\u00a0]+(?:please|thanks|thank you)(?![\\p{L}'’])))(?<gap>[ \\t\\u00a0]+)(?=[\\p{L}])(?!(?:and|or|but)(?![\\p{L}]))",
     literals: [],
     fixer: "en:introductoryGreeting",
     flags: "gu",
     scan: "polish",
   },
   {
-    pattern:
-      "(?<![\\p{L}'\\u2019])(?<target>I[ \\t\\u00A0]+for[ \\t\\u00A0]+one)(?=[ \\t\\u00A0]+[a-z])",
+    pattern: "(?<![\\p{L}'\\u2019])I[ \\t\\u00A0]+for[ \\t\\u00A0]+one(?=[ \\t\\u00A0]+[a-z])",
     literals: ["for"],
     fixer: "en:introductoryIForOne",
     flags: "gu",
@@ -5815,14 +5814,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<=[\\p{L}\\p{N}])(?<target>(?<gap>[ \\t\\u00A0]+))(?:(?<neg>isn't|wasn't|aren't|weren't|don't|doesn't|didn't|won't|wouldn't|can't|couldn't|haven't|hasn't|shouldn't)[ \\t\\u00A0]+(?:I|you|he|she|it|we|they|there)|(?<pos>is|was|are|were|do|does|did|will|would|can|could|have|has|should)[ \\t\\u00A0]+(?:I|you|he|she|we|they|there|it(?<=(?:is|was)[ \\t\\u00A0]+it)))[ \\t\\u00A0]*\\?",
+      "(?<=[\\p{L}\\p{N}])(?<gap>[ \\t\\u00A0]+)(?:(?<neg>isn't|wasn't|aren't|weren't|don't|doesn't|didn't|won't|wouldn't|can't|couldn't|haven't|hasn't|shouldn't)[ \\t\\u00A0]+(?:I|you|he|she|it|we|they|there)|(?<pos>is|was|are|were|do|does|did|will|would|can|could|have|has|should)[ \\t\\u00A0]+(?:I|you|he|she|we|they|there|it(?<=(?:is|was)[ \\t\\u00A0]+it)))[ \\t\\u00A0]*\\?",
     literals: [],
     fixer: "en:clauseTag",
     flags: "gu",
     scan: "polish",
   },
   {
-    pattern: "(?<=[\\p{L}\\p{N}])(?<target>(?<gap>[ \\t\\u00a0]+))thanks(?=[ \\t\\u00a0]*[.!])",
+    pattern: "(?<=[\\p{L}\\p{N}])(?<gap>[ \\t\\u00a0]+)thanks(?=[ \\t\\u00a0]*[.!])",
     literals: ["thanks"],
     fixer: "en:clauseClosingThanks",
     flags: "giu",
@@ -5830,7 +5829,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<=[\\p{L}\\p{N}%)'\\u2019])(?<target>(?<gap>[ \\t\\u00a0]+))(?<conj>and|but|or|so|yet|although)(?=[ \\t\\u00a0])",
+      "(?<=[\\p{L}\\p{N}%)'\\u2019])(?<gap>[ \\t\\u00a0]+)(?<conj>and|but|or|so|yet|although)(?=[ \\t\\u00a0])",
     literals: [],
     fixer: "en:clauseJoiner",
     flags: "gu",
