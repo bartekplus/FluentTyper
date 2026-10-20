@@ -104,7 +104,7 @@ import {
 } from "./english/ruleDetectors";
 import { FILTERS as USAGE_FILTERS } from "./englishUsagePhrases";
 import { FILTERS as COMPOUND_FILTERS } from "./englishCompounds";
-import { PREDICATES as GERMAN } from "./german/ruleDetectors";
+import { FIXERS as GERMAN_FIXERS, PREDICATES as GERMAN } from "./german/ruleDetectors";
 import { PREDICATES as GREEK } from "./greek/ruleDetectors";
 import { PREDICATES as SWEDISH } from "./swedish/ruleDetectors";
 import { PREDICATES as ARABIC } from "./arabic/ruleDetectors";
@@ -1658,7 +1658,7 @@ export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors(
     es: SPANISH,
     fr: FRENCH,
   },
-  { en: ENGLISH_FIXERS, pl: POLISH_FIXERS, pt_BR: PORTUGUESE_FIXERS },
+  { en: ENGLISH_FIXERS, pl: POLISH_FIXERS, pt_BR: PORTUGUESE_FIXERS, de: GERMAN_FIXERS },
   { common: { ...USAGE_FILTERS, ...COMPOUND_FILTERS }, en: ENGLISH_FILTERS },
 );
 

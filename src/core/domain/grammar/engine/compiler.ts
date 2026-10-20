@@ -106,6 +106,7 @@ const FRAME_KEYS = new Set([
   "verbatim",
   "lowercase",
   "capitalized",
+  "ownCase",
 ]);
 const BUILTIN_FRAGMENTS: Readonly<Record<string, string>> = {
   S: SPACE,
@@ -474,6 +475,8 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           errors.push(`${at}: a template has one "fix" string and no "raw"`);
         if (spec.style !== "template" && spec.style !== "portuguese" && entry.clauseStart)
           errors.push(`${at}: "clauseStart" needs style "template" or "portuguese"`);
+        if (spec.style !== "german" && entry.ownCase)
+          errors.push(`${at}: "ownCase" needs style "german"`);
         if (spec.style !== "portuguese" && entry.capitalized)
           errors.push(`${at}: "capitalized" needs style "portuguese"`);
         if (spec.style === "portuguese" && entry.fix !== undefined && !Array.isArray(entry.fix))
@@ -490,12 +493,14 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           if (!/^\p{Ll}+$/u.test(word)) errors.push(`${at}: cue "${word}" is not a lowercase word`);
         const pattern = expandFrame(entry.regex, file.fragments ?? {}, at, errors);
         try {
-          if (entry.wordStart === false) new RegExp(pattern, "gidu");
+          if (spec.style === "german") new RegExp(pattern, "gdu");
+          else if (entry.wordStart === false) new RegExp(pattern, "gidu");
           else frame(pattern);
         } catch (error) {
           errors.push(`${at}: regex does not compile: ${String(error)}`);
         }
-        if (!pattern.includes("(?<target>")) errors.push(`${at}: a frame needs a "target" group`);
+        if (spec.style !== "german" && !pattern.includes("(?<target>"))
+          errors.push(`${at}: a frame needs a "target" group`);
         frames.push({
           pattern,
           literals: requiredLiterals(pattern),
@@ -512,6 +517,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           ...(entry.verbatim ? { verbatim: true as const } : {}),
           ...(entry.lowercase ? { lowercase: true as const } : {}),
           ...(entry.capitalized ? { capitalized: true as const } : {}),
+          ...(entry.ownCase ? { ownCase: true as const } : {}),
         });
         return frames.length - 1;
       });

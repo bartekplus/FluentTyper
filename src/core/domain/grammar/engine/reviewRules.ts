@@ -5,6 +5,10 @@ import type { ReviewMessageKey } from "../review/types";
 import { frameDetector as slotFrames, type Frame as SlotFrame } from "../review/english/idioms5";
 import { runFrames as polishFrames, type Frame as PolishFrame } from "../review/polish/shared";
 import {
+  runGermanFrames as germanFrames,
+  type Frame as GermanFrame,
+} from "../review/german/confusions";
+import {
   runConfusionFrames as portugueseFrames,
   type Frame as PortugueseFrame,
 } from "../review/portuguese/confusions";
@@ -138,7 +142,14 @@ export function frameRuleDetector(
     return found;
   };
   let detect: Detector;
-  if (rule.style === "portuguese") {
+  if (rule.style === "german") {
+    const frames: GermanFrame[] = compiled.map((frame) => ({
+      regex: new RegExp(frame.pattern, "gdu"),
+      fix: fixOf(frame.fix, frame.fixer) as GermanFrame["fix"],
+      ...(frame.ownCase ? { ownCase: true as const } : {}),
+    }));
+    detect = (ctx) => germanFrames(ctx, frames);
+  } else if (rule.style === "portuguese") {
     const frames: PortugueseFrame[] = compiled.map((frame) => ({
       pattern: frame.pattern,
       alternatives: fixOf(frame.fix, frame.fixer) as PortugueseFrame["alternatives"],

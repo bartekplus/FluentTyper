@@ -115,6 +115,8 @@ export interface FrameSpec {
   lowercase?: boolean;
   /** Portuguese rules: the target must start with a capital. */
   capitalized?: boolean;
+  /** German rules: the fix sets its own case. */
+  ownCase?: boolean;
 }
 
 /** An executable rule: a token pattern, a list of frames, or a named detector predicate. */
@@ -155,9 +157,11 @@ export interface RuleSpec {
    * quoted examples skipped, and fixers that may also give the range to replace. "polish":
    * Polish text, a check per frame, user-dictionary words and names skipped, context 96/32.
    * "portuguese": Portuguese text, a list of alternatives per frame (or a fixer of the typed
-   * target), `clauseStart` and `capitalized`, and the match as context.
+   * target), `clauseStart` and `capitalized`, and the match as context. "german": German text,
+   * complete case-sensitive regexes (flags "gdu"), the first named group other than `noun`
+   * replaced, and `ownCase`.
    */
-  style?: "frame" | "template" | "slot" | "polish" | "portuguese";
+  style?: "frame" | "template" | "slot" | "polish" | "portuguese" | "german";
   /** A named filter of the rule's findings (a `FILTERS` record of the rule file). */
   filter?: string;
 }
@@ -231,7 +235,7 @@ export interface CompiledRule {
   frames?: readonly number[];
   /** The message of a frame rule. */
   message?: string;
-  style?: "template" | "slot" | "polish" | "portuguese";
+  style?: "template" | "slot" | "polish" | "portuguese" | "german";
   /** "<file>:<name>" of a named findings filter. */
   filter?: string;
   cacheable?: true;
@@ -256,4 +260,5 @@ export interface CompiledFrame {
   verbatim?: true;
   lowercase?: true;
   capitalized?: true;
+  ownCase?: true;
 }

@@ -1,6 +1,8 @@
 // The named Review detectors of grammar/rules/de.yaml; the rule file sets their checks,
 // languages and order.
-import { mergePredicates } from "../../engine/reviewRules";
+import { mergePredicates, type Fixer } from "../../engine/reviewRules";
+import * as idiomFrames from "./idiomFrames";
+import * as lookalikes from "./lookalikes";
 import * as abbreviations from "./abbreviations";
 import * as adjectiveForms from "./adjectiveForms";
 import * as anglicisms from "./anglicisms";
@@ -29,7 +31,6 @@ export const PREDICATES = mergePredicates(
   colloquial.PREDICATES,
   commas.PREDICATES,
   compounds.PREDICATES,
-  confusions.PREDICATES,
   dates.PREDICATES,
   joinedVerbs.PREDICATES,
   nounCasing.PREDICATES,
@@ -41,4 +42,11 @@ export const PREDICATES = mergePredicates(
   redundancy.PREDICATES,
   suspendedHyphen.PREDICATES,
   verbAgreement.PREDICATES,
+);
+
+/** The named frame fixes of grammar/rules/de.yaml (`fixer:`). */
+export const FIXERS = mergePredicates<Fixer>(
+  confusions.FIXERS,
+  lookalikes.FIXERS,
+  idiomFrames.FIXERS,
 );

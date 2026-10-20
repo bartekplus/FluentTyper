@@ -2173,7 +2173,23 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "de.confusions",
     checks: ["germanConfusedWords"],
     lang: "de",
-    predicate: "de:confusions",
+    frames: [
+      976, 977, 978, 979, 980, 981, 982, 983, 984, 985, 986, 987, 988, 989, 990, 991, 992, 993, 994,
+      995, 996, 997, 998, 999, 1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010,
+      1011, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1019, 1020, 1021, 1022, 1023, 1024, 1025,
+      1026, 1027, 1028, 1029, 1030, 1031, 1032, 1033, 1034, 1035, 1036, 1037, 1038, 1039, 1040,
+      1041, 1042, 1043, 1044, 1045, 1046, 1047, 1048, 1049, 1050, 1051, 1052, 1053, 1054, 1055,
+      1056, 1057, 1058, 1059, 1060, 1061, 1062, 1063, 1064, 1065, 1066, 1067, 1068, 1069, 1070,
+      1071, 1072, 1073, 1074, 1075, 1076, 1077, 1078, 1079, 1080, 1081, 1082, 1083, 1084, 1085,
+      1086, 1087, 1088, 1089, 1090, 1091, 1092, 1093, 1094, 1095, 1096, 1097, 1098, 1099, 1100,
+      1101, 1102, 1103, 1104, 1105, 1106, 1107, 1108, 1109, 1110, 1111, 1112, 1113, 1114, 1115,
+      1116, 1117, 1118, 1119, 1120, 1121, 1122, 1123, 1124, 1125, 1126, 1127, 1128, 1129, 1130,
+      1131, 1132, 1133, 1134, 1135, 1136, 1137, 1138, 1139, 1140, 1141, 1142, 1143, 1144, 1145,
+      1146, 1147, 1148, 1149, 1150, 1151, 1152, 1153, 1154, 1155, 1156, 1157, 1158, 1159, 1160,
+      1161, 1162, 1163, 1164, 1165, 1166, 1167, 1168,
+    ],
+    message: "review_msg_contextual_grammar",
+    style: "german",
     source: "de",
   },
   {
@@ -2302,16 +2318,16 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     checks: ["portugueseConfusions"],
     lang: "pt",
     frames: [
-      976, 977, 978, 979, 980, 981, 982, 983, 984, 985, 986, 987, 988, 989, 990, 991, 992, 993, 994,
-      995, 996, 997, 998, 999, 1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010,
-      1011, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1019, 1020, 1021, 1022, 1023, 1024, 1025,
-      1026, 1027, 1028, 1029, 1030, 1031, 1032, 1033, 1034, 1035, 1036, 1037, 1038, 1039, 1040,
-      1041, 1042, 1043, 1044, 1045, 1046, 1047, 1048, 1049, 1050, 1051, 1052, 1053, 1054, 1055,
-      1056, 1057, 1058, 1059, 1060, 1061, 1062, 1063, 1064, 1065, 1066, 1067, 1068, 1069, 1070,
-      1071, 1072, 1073, 1074, 1075, 1076, 1077, 1078, 1079, 1080, 1081, 1082, 1083, 1084, 1085,
-      1086, 1087, 1088, 1089, 1090, 1091, 1092, 1093, 1094, 1095, 1096, 1097, 1098, 1099, 1100,
-      1101, 1102, 1103, 1104, 1105, 1106, 1107, 1108, 1109, 1110, 1111, 1112, 1113, 1114, 1115,
-      1116, 1117, 1118, 1119, 1120, 1121,
+      1169, 1170, 1171, 1172, 1173, 1174, 1175, 1176, 1177, 1178, 1179, 1180, 1181, 1182, 1183,
+      1184, 1185, 1186, 1187, 1188, 1189, 1190, 1191, 1192, 1193, 1194, 1195, 1196, 1197, 1198,
+      1199, 1200, 1201, 1202, 1203, 1204, 1205, 1206, 1207, 1208, 1209, 1210, 1211, 1212, 1213,
+      1214, 1215, 1216, 1217, 1218, 1219, 1220, 1221, 1222, 1223, 1224, 1225, 1226, 1227, 1228,
+      1229, 1230, 1231, 1232, 1233, 1234, 1235, 1236, 1237, 1238, 1239, 1240, 1241, 1242, 1243,
+      1244, 1245, 1246, 1247, 1248, 1249, 1250, 1251, 1252, 1253, 1254, 1255, 1256, 1257, 1258,
+      1259, 1260, 1261, 1262, 1263, 1264, 1265, 1266, 1267, 1268, 1269, 1270, 1271, 1272, 1273,
+      1274, 1275, 1276, 1277, 1278, 1279, 1280, 1281, 1282, 1283, 1284, 1285, 1286, 1287, 1288,
+      1289, 1290, 1291, 1292, 1293, 1294, 1295, 1296, 1297, 1298, 1299, 1300, 1301, 1302, 1303,
+      1304, 1305, 1306, 1307, 1308, 1309, 1310, 1311, 1312, 1313, 1314,
     ],
     message: "review_msg_pt_homophone",
     style: "portuguese",
@@ -10750,6 +10766,1375 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "(?<!(?:^|[^\\p{L}])(?:nikt|nic|ktoś|coś|kto|co|któż|cóż|nikogo|niczego|nikomu|niczym|nikim)[ \\t\\u00a0]{1,8})(?<target>inn(?:y|a|e|i|ego|ej|emu|ą|ym|ych|ymi)[ \\t\\u00a0]{1,8}jak)(?=[ \\t\\u00a0]{1,8}(?!nie(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))\\p{L})",
     literals: ["inn"],
     fixer: "pl:typosInn",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}])[iI]hr[ \\t\\u00a0]{1,8})(?<target>seit)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:gestern|vorgestern|wann|langem|kurzem|jeher|damals|neuestem|Jahren|Monaten|Wochen|Tagen|Stunden|Minuten|Sekunden|Jahrzehnten|Jahrhunderten|Ewigkeiten|Generationen|geraumer|einigen|wenigen|vielen|mehreren|letztem|letzter|über|ca|etwa|Anfang|Ende|Mitte|Beginn|Bestehen|Gründung|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|hundert|dem|einem|einer|meinem|meiner|deinem|deiner|seinem|seiner|ihrem|ihrer|unserem|unserer|eurem|eurer|diesem|dieser|jedem|jeder|keinem|keiner|den|\\p{N}|\\p{Lu})))",
+    literals: ["seit"],
+    fix: "seid",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>seit)(?=[ \\t]*[.!?,;]))",
+    literals: ["seit"],
+    fix: "seid",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?:]\\s{1,8}|\\n)[„\"]?)(?<target>Seit)(?=[ \\t\\u00a0]{1,8}(?:ihr[ \\t\\u00a0]{1,8}[^,.!?\\n]*\\?|(?:bitte|mir|uns|ruhig|leise|vorsichtig|wachsam|still|willkommen|nett|brav|froh|dankbar|gespannt|bereit|gegrüßt|nicht|doch|bloß|mal)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[^,\\n]*[!.])))",
+    literals: ["seit"],
+    fix: "Seid",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=[sS]eid(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?<!(?<![\\p{L}])[iI]hr[ \\t\\u00a0]{1,8}(?:\\p{L}{1,40}[ \\t\\u00a0]{1,8}){0,2})(?<target>[sS]eid)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}ihr(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?=[ \\t\\u00a0]{1,8}(?:(?:gestern|vorgestern|wann|langem|kurzem|jeher|damals|neuestem|Jahren|Monaten|Wochen|Tagen|Stunden|Minuten|Sekunden|Jahrzehnten|Jahrhunderten|Ewigkeiten|Generationen|geraumer|einigen|wenigen|vielen|mehreren|letztem|letzter|über|ca|etwa|Anfang|Ende|Mitte|Beginn|Bestehen|Gründung|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|hundert|ein[ \\t\\u00a0]{1,8}paar|mehr[ \\t\\u00a0]{1,8}als|\\p{N}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?:dem|einem|diesem|dieser|der|einer|letztem|letzter|letzten|vergangenem|vergangenen|vorigem|vorigen)[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8})?(?:Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|Jahr|Monat|Tag|Morgen|Abend|Beginn|Anfang|Ende|Sommer|Winter|Frühling|Herbst|Krieg|Unfall|Umzug|Start|Woche|Zeit|Nacht|Stunde|Saison|Kindheit|Jugend|Geburt|Schule|Studium)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))))",
+    literals: ["seid"],
+    fix: "seit",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[sS]eid)(?=[ \\t\\u00a0]{1,8}(?:ich|du|er|es|wir|man)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t]*(?:,|und(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|oder(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))))",
+    literals: ["seid"],
+    fixer: "de:deSs",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[mM]ir)(?=[ \\t\\u00a0]{1,8}(?:dem|einem|einer|meinem|meiner|deinem|deiner|seinem|seiner|ihrem|ihrer|unserem|unserer|eurem|eurer|diesem|jedem|keinem)[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8}){0,2}\\p{Lu}))",
+    literals: ["mir"],
+    fix: "mit",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?]\\s{1,8}))(?<target>Mir)(?=[ \\t\\u00a0]{1,8}wem(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["mir"],
+    fix: "Mit",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?:[tT]ut|[tT]at|[tT]äte)[ \\t\\u00a0]{1,8}(?<target>mit)(?=[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8})?leid(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?:[gG]efällt|[gG]efiel|[fF]ällt|[fF]iel)[ \\t\\u00a0]{1,8}(?<t2>mit)(?=[ \\t\\u00a0]{1,8}(?:gut|sehr|nicht|besser|schon|auch|auf|ein)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,])|(?:[sS]ag|[sS]agt|[gG]ib|[gG]ebt|[zZ]eig|[zZ]eigt|[sS]chick|[sS]chickt|[hH]ilf|[hH]elft|[bB]ring|[bB]ringt|[eE]rklär|[eE]rklärt)[ \\t\\u00a0]{1,8}(?<t3>mit)(?=[ \\t\\u00a0]{1,8}bitte(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?:[kK]ann|[kK]önnte)[ \\t\\u00a0]{1,8}(?<t4>mit)(?=[ \\t\\u00a0]{1,8}(?:bitte[ \\t\\u00a0]{1,8})?jemand(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: [
+      "tut",
+      "tat",
+      "täte",
+      "gefällt",
+      "gefiel",
+      "fällt",
+      "fiel",
+      "sag",
+      "sagt",
+      "gib",
+      "gebt",
+      "zeig",
+      "zeigt",
+      "schick",
+      "schickt",
+      "hilf",
+      "helft",
+      "bring",
+      "bringt",
+      "erklär",
+      "erklärt",
+      "kann",
+      "könnte",
+    ],
+    fix: "mir",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?:freue|freu|bedanke|beeile|kümmere|entscheide|irre|schäme|wundere|ärgere|beschwere|erhole|verspäte|konzentriere|interessiere|gewöhne|verabschiede|entschuldige|verliebe|frage)[ \\t\\u00a0]{1,8}(?:ich[ \\t\\u00a0]{1,8})?(?<target>mir)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [
+      "freue",
+      "freu",
+      "bedanke",
+      "beeile",
+      "kümmere",
+      "entscheide",
+      "irre",
+      "schäme",
+      "wundere",
+      "ärgere",
+      "beschwere",
+      "erhole",
+      "verspäte",
+      "konzentriere",
+      "interessiere",
+      "gewöhne",
+      "verabschiede",
+      "entschuldige",
+      "verliebe",
+      "frage",
+    ],
+    fix: "mich",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<![\\p{L}](?:bei|mit|zu|von|an|vor|nach|aus|außer|gegenüber)[ \\t\\u00a0]{1,8})(?<target>mir)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=(?:[ \\t\\u00a0]{1,8}(?:sehr|so|riesig|total|wirklich|echt|herzlich|herzlichst|wahnsinnig|schon|auch|nicht|leider|immer|darum|darüber|dafür|bei|Ihnen|dir|euch|dafür|vielmals|nochmals|gleich))*[ \\t\\u00a0]{1,8}(?:freuen|bedanken|beeilen|kümmern|entscheiden|irren|schämen|wundern|ärgern|beschweren|erholen|verspäten|konzentrieren|verlieben|verabschieden|entschuldigen|vertan|geirrt|gefreut|bedankt|beeilt|gekümmert|geschämt|gewundert|geärgert|beschwert|erholt|verspätet|verliebt|verabschiedet)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[ \\t]*(?:[.!?,;]|$)))",
+    literals: ["mir"],
+    fix: "mich",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!(?<![\\p{L}])(?:[lL]ass|[lL]asst|[lL]assen|[lL]ieß|[lL]ießen|[üÜ]ber|[fF]ür|[gG]egen|[uU]m|[dD]urch|[oO]hne|[aA]n|[aA]uf)[ \\t\\u00a0]{1,8})(?<target>mich)(?=[ \\t\\u00a0]{1,8}(?:Sorgen|Bescheid|erlaubt|erlauben|geholfen|helfen|sagen|gesagt|gedankt|vorstellen,[ \\t\\u00a0]{1,8}dass|wünschen,[ \\t\\u00a0]{1,8}dass)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["mich"],
+    fix: "mir",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?:[wW]ünsche|[wW]ünscht|[wW]ünschte)[ \\t\\u00a0]{1,8}(?<target>mich)(?=,[ \\t\\u00a0]{1,8}dass(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["wünsche", "wünscht", "wünschte"],
+    fix: "mir",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>mir)(?=[ \\t\\u00a0]{1,8}(?:bitte[ \\t\\u00a0]{1,8})?(?:unterstützt|zurückrufen|anrufen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["mir"],
+    fix: "mich",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:(?:weiß|wusste|wussten|wüsste|weißt|wissen|sagt|sagte|sagten|gesagt|sage|sagen|schreibt|schrieb|hofften|glaubten|dachten|merkten|geschrieben|hoffe|hoffen|hofft|glaube|glauben|glaubt|denke|denkt|dachte|gedacht|finde|findet|meine|meint|heißt|bedeutet|klar|sicher|sehe|sieht|merke|merkt|zeigt|zeigte|erwarte|fürchte|behauptet|behauptete|gewährleistet|versprochen|vergessen|gehört|bemerkt|erfahren|verstanden|möglich|wichtig|schade|interessant|überzeugt|beklagt|höre|hören|hört|bedeutet|folgt|fest|beschwert|erstaunt|bewusst|froh|stolz|besorgt|gemerkt|erkannt|festgestellt|bewiesen|Folge|dessen)(?:[ \\t\\u00a0]{1,8}(?:nicht|kaum|auch|schon|nur|sehr|genau|wohl))?|Nicht),[ \\t\\u00a0]{1,8})(?<target>das)(?=[ \\t\\u00a0]{1,8}(?:ich|du|er|sie|es|wir|man|alle|das|der|die|den|dem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>(?<verb>weiß|wusste|wussten|wüsste|weißt|wissen|sagt|sagte|sagten|gesagt|sage|sagen|schreibt|schrieb|hofften|glaubten|dachten|merkten|geschrieben|hoffe|hoffen|hofft|glaube|glauben|glaubt|denke|denkt|dachte|gedacht|finde|findet|meine|meint|heißt|bedeutet|klar|sicher|sehe|sieht|merke|merkt|zeigt|zeigte|erwarte|fürchte|behauptet|behauptete|gewährleistet|versprochen|vergessen|gehört|bemerkt|erfahren|verstanden|möglich|wichtig|schade|interessant|überzeugt|beklagt|höre|hören|hört|bedeutet|folgt|fest|beschwert|erstaunt|bewusst|froh|stolz|besorgt|gemerkt|erkannt|festgestellt|bewiesen|Folge|dessen)[ \\t\\u00a0]{1,8}das)(?=[ \\t\\u00a0]{1,8}(?:(?:ich|du|er|sie|es|wir|man)[ \\t\\u00a0]{1,8}\\p{Ll}|(?:der|die|den|dem|ein|eine|einen|mein\\p{Ll}*|dein\\p{Ll}*|sein\\p{Ll}*|unser\\p{Ll}*)[ \\t\\u00a0]{1,8}\\p{Lu})))",
+    literals: [
+      "das",
+      "wei",
+      "wusste",
+      "wussten",
+      "wüsste",
+      "wei",
+      "wissen",
+      "sagt",
+      "sagte",
+      "sagten",
+      "gesagt",
+      "sage",
+      "sagen",
+      "schreibt",
+      "schrieb",
+      "hofften",
+      "glaubten",
+      "dachten",
+      "merkten",
+      "geschrieben",
+      "hoffe",
+      "hoffen",
+      "hofft",
+      "glaube",
+      "glauben",
+      "glaubt",
+      "denke",
+      "denkt",
+      "dachte",
+      "gedacht",
+      "finde",
+      "findet",
+      "meine",
+      "meint",
+      "hei",
+      "bedeutet",
+      "klar",
+      "sicher",
+      "sehe",
+      "sieht",
+      "merke",
+      "merkt",
+      "zeigt",
+      "zeigte",
+      "erwarte",
+      "fürchte",
+      "behauptet",
+      "behauptete",
+      "gewährleistet",
+      "versprochen",
+      "vergessen",
+      "gehört",
+      "bemerkt",
+      "erfahren",
+      "verstanden",
+      "möglich",
+      "wichtig",
+      "schade",
+      "interessant",
+      "überzeugt",
+      "beklagt",
+      "höre",
+      "hören",
+      "hört",
+      "bedeutet",
+      "folgt",
+      "fest",
+      "beschwert",
+      "erstaunt",
+      "bewusst",
+      "froh",
+      "stolz",
+      "besorgt",
+      "gemerkt",
+      "erkannt",
+      "festgestellt",
+      "bewiesen",
+      "folge",
+      "dessen",
+    ],
+    fixer: "de:deDas",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Das)(?=[ \\t\\u00a0]{1,8}(?:ich|du|er|sie|es|wir|man)[ \\t\\u00a0]{1,8}\\p{Ll}))",
+    literals: ["das"],
+    fix: "Dass",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Das)(?=[ \\t\\u00a0]{1,8}(?:dem|der|den|die|ein\\p{Ll}*|mein\\p{Ll}*|dein\\p{Ll}*|sein\\p{Ll}*|ihr\\p{Ll}*|unser\\p{Ll}*|alle|alles|jemand|niemand|hier|so)[ \\t\\u00a0]{1,8}(?<clause>[^.!?\\n,]*\\p{Ll}),[ \\t\\u00a0]{1,8}(?:ist|war|wäre|freut|ärgert|stört|wundert|zeigt|bedeutet|macht|liegt|hat|gefällt|beweist|spricht|überrascht)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["das"],
+    fixer: "de:deDas2",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>(?<adj>(?:(?:[sS]ehr|[wW]irklich|[eE]cht|[gG]anz)[ \\t\\u00a0]{1,8})?(?:[gG]ut|[sS]chön|[sS]uper|[tT]oll|[sS]chade|[kK]lasse|[pP]rima|[wW]ichtig|[kK]omisch|[sS]eltsam|[kK]lar|[lL]ogisch|[mM]erkwürdig|[eE]rstaunlich|[iI]nteressant))[ \\t\\u00a0]{1,8}das)(?=[ \\t\\u00a0]{1,8}(?!(?:ist|war|wäre|wird|kann|muss|soll|hat|hatte|sei|bleibt)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?:nicht|jetzt|erst|selbst|fast|endlich|\\p{Ll}+(?<!t))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[^.!?\\n,]*\\p{Ll}[ \\t]*[.!?…]))",
+    literals: [
+      "gut",
+      "schön",
+      "super",
+      "toll",
+      "schade",
+      "klasse",
+      "prima",
+      "wichtig",
+      "komisch",
+      "seltsam",
+      "klar",
+      "logisch",
+      "merkwürdig",
+      "erstaunlich",
+      "interessant",
+    ],
+    fixer: "de:deAdj",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<head>\\p{L}+)[ \\t\\u00a0]{1,8}das)(?=[ \\t\\u00a0]{1,8}(?<next>\\p{Lu}\\p{Ll}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<rest>[^.!?\\n,;:]{0,80}\\p{Ll})[ \\t]*(?:[.!?,;:]|$)))",
+    literals: ["das"],
+    fixer: "de:deHead",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<![fF]ür[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8})(?<target>wider)(?=[ \\t\\u00a0]{1,8}(?!(?:den|die|das|dem|des|ein|eine|einen|einem|eines|einer|jede|jeden|jedes|jeder|alle|allen|alles|aller|besseres|besseren|bessere|kein\\p{Ll}*|mein\\p{Ll}*|dein\\p{Ll}*|sein\\p{Ll}*|ihr\\p{Ll}*|unser\\p{Ll}*|eur\\p{Ll}*|diese\\p{Ll}*|jegliche\\p{Ll}*|solche\\p{Ll}*)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}\\p{Lu})|[ \\t]*(?:[.!?,;]|$)))",
+    literals: ["wider"],
+    fixer: "de:deWider",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[wW]ieder)(?=[ \\t\\u00a0]{1,8}Erwarten(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["wieder"],
+    fix: "wider",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[iI]n|[aA]n|[aA]uf|[fF]ür|[dD]urch|[gG]egen|[uU]m|[oO]hne|[üÜ]ber|[uU]nter|[vV]or|[hH]inter|[nN]eben|[zZ]wischen)[ \\t\\u00a0]{1,8})(?<target>denn)(?=[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8})?\\p{Lu}))",
+    literals: ["denn"],
+    fix: "den",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:\\p{L}er|[mM]ehr)[ \\t\\u00a0]{1,8})(?<target>den)(?=[ \\t\\u00a0]{1,8}je(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=[eE]s[ \\t\\u00a0]{1,8}sei[ \\t\\u00a0]{1,8})(?<t2>den)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<target3>den)(?=[ \\t\\u00a0]{1,8}(?:los|eigentlich|überhaupt|bitte|nun|jetzt|genau|wirklich)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[^.!\\n]*\\?))",
+    literals: ["den", "den", "den"],
+    fix: "denn",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Den)(?=[ \\t\\u00a0]{1,8}(?:ich|du|er|wir|ihr|man)[ \\t\\u00a0]{1,8}\\p{Ll}))",
+    literals: ["den"],
+    fix: "Denn",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Den)(?=[ \\t\\u00a0]{1,8}(?:das|die|diese|dieser|dieses)[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}+(?:t|en))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}\\p{Lu})))",
+    literals: ["den"],
+    fixer: "de:deDen",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=[\\p{L}][ \\t\\u00a0]{1,8})(?<target>schon(?:e|en|er|es|em))(?=[ \\t\\u00a0]{1,8}(?:\\p{Ll}+(?:e|en|er|es|em)[ \\t\\u00a0]{1,8})?\\p{Lu}))",
+    literals: ["schon"],
+    fixer: "de:deSchon",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=[gG]anz[ \\t\\u00a0]{1,8})(?<target>schon)(?=[ \\t\\u00a0]{1,8}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:wieder|da|fertig))))",
+    literals: ["schon"],
+    fix: "schön",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!und[ \\t\\u00a0]{1,8})(?<=zu[ \\t\\u00a0]{1,8})(?<target>seien)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:sie|wir|die|es|alle)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?<noun>[ \\t\\u00a0]{1,8}\\p{Lu})?)",
+    literals: ["seien"],
+    fixer: "de:deSeien",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[eE]twas)(?=[ \\t\\u00a0]{1,8}(?:\\p{N}+(?:[.,]\\p{N}+)?|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|zwanzig|hundert|tausend)[ \\t\\u00a0]{1,8}(?:bis|Prozent|%|Jahre|Jahren|Monate|Monaten|Wochen|Tage|Tagen|Stunden|Minuten|Millionen|Milliarden|Euro|Meter|Kilometer|km|Leute|Menschen|Personen|Mal)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["etwas"],
+    fix: "etwa",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Ja)(?=[ \\t\\u00a0]{1,8}\\p{Ll}+er(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[^.!?\\n]*,[ \\t\\u00a0]{1,8}(?:desto|umso)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: [],
+    fix: "Je",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>aller)(?=[ \\t\\u00a0]{1,8}(?:\\p{N}+|zwei|drei|vier|fünf|sechs|acht|zehn|zwölf)[ \\t\\u00a0]{1,8}(?:Jahre|Monate|Wochen|Tage|Stunden|Minuten)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["aller"],
+    fix: "alle",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[iI]mmer|[sS]elbst|[jJ]edes[ \\t\\u00a0]{1,8}Mal)[ \\t\\u00a0]{1,8})(?<target>wen)(?=[ \\t\\u00a0]{1,8}(?:ich|du|er|sie|es|wir|ihr|man)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["wen"],
+    fix: "wenn",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!Made[ \\t\\u00a0]{1,8})(?<target>(?<prep>[aA]us|[iI]n|[nN]ach|[vV]on)[ \\t\\u00a0]{1,8}(?<country>Türkei|Schweiz|Ukraine|Slowakei|Mongolei|Tschechei|Vatikan|Jemen|Libanon|Sudan|Tschad|Kongo|Niederlande|USA|VAE|Bahamas|Malediven|Seychellen|Philippinen))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [
+      "türkei",
+      "schweiz",
+      "ukraine",
+      "slowakei",
+      "mongolei",
+      "tschechei",
+      "vatikan",
+      "jemen",
+      "libanon",
+      "sudan",
+      "tschad",
+      "kongo",
+      "niederlande",
+      "usa",
+      "vae",
+      "bahamas",
+      "malediven",
+      "seychellen",
+      "philippinen",
+    ],
+    fixer: "de:dePrep",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[hH]at|[hH]ast|[hH]aben|[hH]abt|[hH]atte|[hH]atten|[hH]attest|[hH]ätte|[hH]ätten|[hH]abe)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=(?:[ \\t\\u00a0]{1,8}[^\\s,.;:!?]+){0,5}?[ \\t\\u00a0]{1,8}(?:gegangen|gekommen|angekommen|abgereist|eingeschlafen|gestorben|verstorben|verschwunden|gescheitert|aufgefallen|eingefallen|erschienen|entstanden|davongekommen|geblieben|passiert|geschehen|gewesen|geworden|aufgewacht|aufgestanden|gewachsen|gestiegen|gesunken|gelungen|misslungen|ertrunken|gereist|gerannt|zurückgekehrt|umgekommen|ausgewandert|eingewandert|eingetroffen|hingefallen|gestolpert|explodiert)[ \\t]*(?:[.,;:!?]|$)))",
+    literals: [
+      "hat",
+      "hast",
+      "haben",
+      "habt",
+      "hatte",
+      "hatten",
+      "hattest",
+      "hätte",
+      "hätten",
+      "habe",
+    ],
+    fixer: "de:deHh",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?:[dD]er|[dD]ie|[dD]as|[dD]en|[dD]em|[dD]es|[eE]in|[eE]ine|[eE]inen|[eE]inem|[eE]iner|[eE]ines|[kK]ein|[kK]eine|[kK]einen|[kK]einem|[kK]einer|[mM]ein|[mM]eine|[mM]einen|[mM]einem|[mM]einer|[sS]ein|[sS]eine|[sS]einen|[sS]einem|[sS]einer|[iI]hre|[iI]hren|[iI]hrem|[iI]hrer|[uU]nser|[uU]nsere|[uU]nseren|[uU]nserem|[dD]ein|[dD]eine|[dD]einen|[dD]einem|[eE]ure|[eE]uren|[zZ]wei|[dD]rei|[vV]ier|\\p{N}+)[ \\t\\u00a0]{1,8}(?<target>eign(?:e|en|er|es|em))(?=[ \\t\\u00a0]{1,8}\\p{Lu}))",
+    literals: ["eign"],
+    fixer: "de:deEign",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<noun>\\p{L}+)[ \\t\\u00a0]{1,8}(?<target>kamm)(?=[ \\t\\u00a0]{1,8}\\p{Ll}))",
+    literals: ["kamm"],
+    fixer: "de:deKamm",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<noun>\\p{Ll}+er|anders)[ \\t\\u00a0]{1,8}(?<target>wie)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["wie"],
+    fixer: "de:deWie",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?:und|oder)[ \\t\\u00a0]{1,8}auch)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["auch"],
+    fixer: "de:deUnd",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?:[bB]in|[bB]ist|[iI]st|[sS]ind|[sS]eid|[wW]ar|[wW]aren|[wW]äre|[wW]ären|[hH]ätte|[hH]ätten|[hH]abe|[hH]at|[hH]atte|[hH]atten|[iI]n|[zZ]u|[mM]it|[vV]on|[bB]ei|[fF]ür)[ \\t\\u00a0]{1,8}(?<target>fasst)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["fasst"],
+    fix: "fast",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<noun>\\p{Ll}+)[ \\t\\u00a0]{1,8}(?<target>diene)(?=[ \\t\\u00a0]{1,8}\\p{Lu}))",
+    literals: ["diene"],
+    fixer: "de:deDiene",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?:[Ww]ohin|[Ww]oher)[ \\t\\u00a0]{1,8}\\p{Ll}+(?:[ \\t\\u00a0]{1,8}\\p{Ll}+){0,3}?(?<target>[ \\t]+(?:hin|her))(?=[ \\t]*\\?))",
+    literals: ["wohin", "woher"],
+    fix: "",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Öö]konomisch(?<end>e[mnrs]?)?)(?=[ \\t\\u00a0]{1,8}(?=\\p{Lu})\\p{L}{0,20}?(?:[Gg]ottesdienst|[Aa]ndacht|[Tt]rauerfeier|[Gg]ebet|[Kk]irchentag|[Ss]egnung)\\p{Ll}*(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>[Öö]kologisch(?<end2>e[mnrs]?)?)(?=[ \\t\\u00a0]{1,8}(?=\\p{Lu})\\p{L}{0,20}?[Gg]ottesdienst\\p{Ll}*(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["ökonomisch", "ökologisch"],
+    fixer: "de:deÖö",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Tt]ür|[Tt]üren|[Ff]enster|[Ss]chublade|[Ss]chubladen|[Ss]chrank|[Kk]iste|[Dd]eckel|[Uu]mschlag|[Bb]riefumschlag|[Tt]resor|[Ss]afe|[Pp]forte|[Ff]ensterladen)(?:[ \\t\\u00a0]{1,8}(?:nicht|schon|noch|wieder|nie|gut|richtig|sofort|endlich|luftdicht|fest|ab|zu)){0,3}[ \\t\\u00a0]{1,8})(?<target>(?:ab|ver|zu)?geschossen|schießen|schoss|schossen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>[Vv]erschossene[mnrs]?)(?=[ \\t\\u00a0]{1,8}(?:Tür|Briefumschlag|Umschlag|Schublade|Kiste|Behälter|Raum|Schrank)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["geschossen", "schie", "schoss", "schossen", "verschossene"],
+    fixer: "de:deAb",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=einweis|eingewiesen)(?<=[ \\t\\u00a0]{1,8}in[ \\t\\u00a0]{1,8}(?:\\p{L}{1,20}[ \\t\\u00a0]{1,8}){0,2}(?:Geheimnis|Geheimnisse|Plan|Pläne|Vorhaben|Mysterium|Mysterien)(?:[ \\t\\u00a0]{1,8}\\p{L}{1,20}){0,3}[ \\t\\u00a0]{1,8})(?<target>einweis(?:t|e|en|test|tet)|eingewiesen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["einweis", "eingewiesen"],
+    fixer: "de:deEinweis",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>versengt(?:e|en)?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["versengt"],
+    fixer: "de:deVersengt",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:du|ihr|Sie|er|sie|es|man|wir|ich)[ \\t\\u00a0]{1,8})(?<target>den)(?=[ \\t]*\\?))",
+    literals: ["den"],
+    fixer: "de:deDen2",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>zu)(?<![\\p{L}](?:Schule|Arbeit)[ \\t\\u00a0]{1,8}zu)(?=[ \\t\\u00a0]{1,8}(?:Verfügung|Genüge|Kenntnis|Rede|Wehr|Schule(?=[ \\t\\u00a0]{1,8}(?:geh|ging|gegangen|komm|kam|gekommen|fahr|fuhr|gefahren|bring|bracht|gebracht))|Arbeit(?=[ \\t\\u00a0]{1,8}(?:geh|ging|gegangen|fahr|fuhr|gefahren|komm|kam|gekommen))|Welt(?=[ \\t\\u00a0]{1,8}(?:komm|kam|gekommen|bring|bracht|gebracht)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: [],
+    fix: "zur",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>gegen)(?<=(?:\\p{Lu}\\p{Ll}{1,30}|das|es|wenig|viel|alles|etwas)[ \\t\\u00a0]{1,8}gegen)(?=[ \\t]*\\?|[ \\t\\u00a0]{1,8}(?:hast|hat|habe|haben|habt|hatte|hatten|wurde|wurden|werden|worden|wird)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["gegen"],
+    fixer: "de:deGegen",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ss]tehts)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["stehts"],
+    fixer: "de:deSs2",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ss]tart(?:e|en|et|ete|eten))(?=(?:[ \\t\\u00a0]{1,8}\\p{L}+){1,4}[ \\t\\u00a0]{1,8}an[ \\t]*[.!?,;]))",
+    literals: ["start"],
+    fixer: "de:deSs3",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Bb]iss)(?=[ \\t\\u00a0]{1,8}(?:\\d|Ende|Anfang|Mitte|[Aa]uf[ \\t\\u00a0]{1,8}[Ww]eiteres|zum|zur|morgen|übermorgen|heute|später|bald|dahin|jetzt|nächste[mnrs]?|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|Januar|Februar|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember|März)))",
+    literals: ["biss"],
+    fix: "bis",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>bewehr(?:t|en|te|ten|e|st))(?<=(?:sich|mich|dich|uns|euch)(?:[ \\t\\u00a0]{1,8}(?:nicht|immer|gut|sehr|schon|bereits|bestens|wieder|stets|auch)){0,3}[ \\t\\u00a0]{1,8}bewehr\\p{Ll}{0,3})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>bewehr(?:t|en|te|ten))(?=[ \\t\\u00a0]{1,8}sich(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["bewehr", "bewehr"],
+    fixer: "de:deBewehr",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ss]chrieben)(?<=(?:[Ii]m|[Dd]em|[Ee]inem|[Ii]hrem|[Ss]einem|[Mm]einem|[Uu]nserem|[Dd]iesem|[Dd]ieses|[Ii]hr|[Ss]ein|[Mm]ein|[Ee]in)(?:[ \\t\\u00a0]{1,8}\\p{Ll}{1,30}(?:e|en|em))?[ \\t\\u00a0]{1,8}[Ss]chrieben)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["schrieben"],
+    fix: "Schreiben",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>Partei)(?<=mit[ \\t\\u00a0]{1,8}von[ \\t\\u00a0]{1,8}der[ \\t\\u00a0]{1,8}Partei)(?=[ \\t]*[.!?,;]|[ \\t\\u00a0]{1,8}(?:sein|ist|bin|bist|sind|seid|war|waren|wäre)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>Partei)(?=[ \\t\\u00a0]{1,8}(?:Schach|Skat|Billard|Tennis|Golf|Poker|Dame|Mühle|Tischtennis)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["partei", "partei"],
+    fix: "Partie",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Nn]achdem|[Ss]eitdem|[Aa]ußerdem)(?=[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}{2,})(?:[ \\t\\u00a0]{1,8}\\p{Ll}+[ \\t\\u00a0]{1,8}\\p{L}|[ \\t]*\\?)))",
+    literals: ["nachdem", "seitdem", "erdem"],
+    fixer: "de:deNn",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>Komma)(?<=(?:[Ii]ns|[Ii]m|[Aa]us[ \\t\\u00a0]{1,8}dem|[Ii]n[ \\t\\u00a0]{1,8}ein|[Ii]n[ \\t\\u00a0]{1,8}einem)[ \\t\\u00a0]{1,8}Komma)(?=[ \\t\\u00a0]{1,8}(?:fall|fiel|gefallen|lieg|lag|gelegen|versetz|gesunken|sank|erwach|geholt)\\p{Ll}*(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;])|(?<t2>Koma)(?<=Punkt[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8}Koma)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["komma", "koma"],
+    fixer: "de:deKomma",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>wage)(?<=(?:eine|einer|nur|sehr|ganz|ziemlich)[ \\t\\u00a0]{1,8}wage)(?=[ \\t\\u00a0]{1,8}(?:Ahnung|Vorstellung|Erinnerung|Idee|Vermutung|Hoffnung|Andeutung|Aussage|Angabe)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>wage)(?<=(?:erinnere|erinnerst|erinnert|erinnern|erinnerte|erinnerten)[ \\t\\u00a0]{1,8}(?:mich|dich|sich|uns|euch|ihn|sie|es)[ \\t\\u00a0]{1,8}wage)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["wage", "wage"],
+    fix: "vage",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>Wiese|Weiße|Waise|Weisse)(?<=[Aa]rt[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8}\\p{L}{5,6})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>Weiße|Weisse)(?<=(?:auf|in)[ \\t\\u00a0]{1,8}(?:seine|ihre|meine|deine|unsere|eure|diese|jene|andere|gleiche|eine|keine)[ \\t\\u00a0]{1,8}\\p{L}{5,6})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["wiese", "wei", "waise", "weisse", "wei", "weisse"],
+    fix: "Weise",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>Sichtweise)(?<=(?:in|außer|aus|auf)[ \\t\\u00a0]{1,8}Sichtweise)(?=[ \\t]*[.!?,;]|[ \\t\\u00a0]{1,8}(?:kommen|kam|gekommen|bleiben|blieb|geblieben|ist|war|sein)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>Sichtweite)(?<=(?:subjektive|persönliche|eigene|andere|einseitige)[ \\t\\u00a0]{1,8}Sichtweite)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["sichtweise", "sichtweite"],
+    fixer: "de:deSichtweise",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>wurden|wurde|würden)(?<=(?:ge\\p{Ll}{2,30}(?:t|en)|\\p{Ll}{2,30}iert|(?:be|er|ver|ent|zer)\\p{Ll}{2,30}t)[ \\t\\u00a0]{1,8}w\\p{Ll}{3,5})(?=[ \\t]*[.!?,;]))",
+    literals: ["wurden", "wurde", "würden"],
+    fixer: "de:deWurden",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>Merz)(?<=(?:\\d{1,2}\\.|[Ii]m|[Aa]nfang|[Ee]nde|[Mm]itte)[ \\t\\u00a0]{1,8}Merz)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>Merz)(?<=(?:[Vv]on|[Aa]b|[Ss]eit)[ \\t\\u00a0]{1,8}Merz)(?=[ \\t\\u00a0]{1,8}(?:bis|-|–)[ \\t\\u00a0]{1,8}(?:Januar|Februar|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t3>Merz)(?<=(?:Januar|Februar|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)[ \\t\\u00a0]{1,8}(?:bis|-|–)[ \\t\\u00a0]{1,8}Merz)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["merz", "merz", "merz"],
+    fix: "März",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>mir)(?=[ \\t\\u00a0]{1,8}(?:ihm|ihnen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{1,8}ihr[ \t]*[.!?,;]))",
+    literals: ["mir"],
+    fix: "mit",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>mir)(?<!(?:^|[^\\p{L}])(?:[Dd](?:er|ie|as|en|em|es|enen|eren|essen)|[Aa]ll(?:en|er|e)|[Ww]elche[mnrs]?|[Dd]iese[mnrs]?|[Jj]ene[mnrs]?|[Ss]olche[mnrs]?|mit|von|bei|zu|aus|nach|seit|in|an|auf|unter|vor|für|über|durch)[ \\t\\u00a0]{1,8}mir)(?=[ \\t\\u00a0]{1,8}(?<adj>\\p{Ll}{3,}(?:em|er|en))[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}{2,})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["mir"],
+    fixer: "de:deMir",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Ss]ein|[Mm]ein|[Dd]ein|[Kk]ein|[Ee]uer|[Uu]nser|[Ee]in|[Dd]er[ \\t\\u00a0]{1,8}(?:erste|zweite|volle|richtige|eigene))[ \\t\\u00a0]{1,8})(?<target>(?:Vor|Nach|Ruf|Familien|Spitz|Mädchen)nahme)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=mit[ \\t\\u00a0]{1,8})(?<t2>(?:Vor|Nach|Ruf|Familien)nahmen)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+|[^.!?\\n]{0,40}heiß)|(?=(?:Vor|Nach)nahmen)(?<=heiß\\p{Ll}{0,6}[ \\t\\u00a0]{1,8}(?:\\p{L}{1,20}[ \\t\\u00a0]{1,8}){0,2}mit[ \\t\\u00a0]{1,8})(?<t3>(?:Vor|Nach)nahmen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["nahme", "nahmen", "nahmen"],
+    fixer: "de:deVor",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=in[ \\t\\u00a0]{1,8}(?:\\d{1,3}|zwei|drei|vier|fünf|sechs|zehn|zwölf)(?:[ \\t\\u00a0]{1,8}(?:monatlichen|wöchentlichen|gleichen|kleinen))?[ \\t\\u00a0]{1,8})(?<target>Ratten)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?:Maus|Mäuse|Mäusen|Flöhe|Kakerlaken|Schaben|Milben|Tauben)[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8})(?<t2>Raten?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t3>Raten?)(?=[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8}(?:Maus|Mäuse|Flöhe|Kakerlaken|Schaben|Milben|Tauben)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["ratten", "rate", "rate"],
+    fixer: "de:deRatten",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Dd]ass)(?=[ \\t\\u00a0]{1,8}(?:ist|sind|war|wäre|sei|hat|hast|hatte|hätte|kann|kannst|muss|musst|soll|sollte|wird|würde|scheint|scheinst|bleibt|klingt|stimmt|geht)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=\\p{Lu}\\p{Ll}+,[ \\t\\u00a0]{1,8})(?<t2>dass)(?=[ \\t\\u00a0]{1,8}(?:(?:nicht|dort|hier|gerade|schon|noch|nie|immer|sehr|zu|auch|kaum|oft)[ \\t\\u00a0]{1,8}){0,3}(?:\\p{Ll}+[ \\t\\u00a0]{1,8}){0,2}\\p{Ll}+(?:t|te)[ \\t]*[.!?,;]))",
+    literals: ["dass", "dass"],
+    fixer: "de:deDd",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ss]oweit)(?=,[ \\t\\u00a0]{1,8}so[ \\t\\u00a0]{1,8}gut|[ \\t\\u00a0]{1,8}(?:gekommen|gegangen|gelaufen|gefahren|entfernt|weg|weggelaufen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?]))",
+    literals: ["soweit"],
+    fixer: "de:deSs4",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[bB]in|[bB]ist|[iI]st|[sS]ind|[sS]eid|[wW]ar|[wW]aren|[wW]ird|[wW]erden|[wW]urde|[wW]urden|[bB]leibt)[ \\t\\u00a0]{1,8}(?:(?:bereits|schon|gut|bestens|nicht|endlich|immer|ausreichend|nun)[ \\t\\u00a0]{1,8})?)(?<target>vorsorgt)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>vorsorgt)(?=[ \\t\\u00a0]{1,8}(?:[dD]as|[dD]ie|[dD]en|[dD]em|[dD]er|[eE]in|[eE]ine|[eE]inen|[sS]ich|[uU]ns|[eE]uch|[mM]ich|[dD]ich|[iI]hn|[sS]ie|[eE]s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["vorsorgt", "vorsorgt"],
+    fix: "versorgt",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Dd]ienen?)(?=[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:und|oder|sowie)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*,)))",
+    literals: ["diene"],
+    fixer: "de:deDd2",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:,|[BB]escheid|[sS]agen|[sS]ag|[sS]agt|[BB]escheid)[ \\t\\u00a0]{1,8})(?<target>wen)(?=(?:[ \\t\\u00a0]{1,8}[^\\s,.;:!?]+){1,3}?[ \\t\\u00a0]{1,8}\\p{Ll}+[ \\t\\u00a0]{1,8}(?:ist|sind|war|waren|wäre|wären|wird|werden|bist|bin)[ \\t]*(?:[.,;:!?]|$)))",
+    literals: ["wen"],
+    fix: "wenn",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=,[ \\t\\u00a0]{1,8})(?<target>sonder)(?=[ \\t\\u00a0]{1,8}\\p{L}+))",
+    literals: ["sonder"],
+    fix: "sondern",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=,[ \\t\\u00a0]{1,8})(?<target>als[ \\t\\u00a0]{1,8}dass)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["dass"],
+    fixer: "de:deAls",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<prep>[zZ]wischen|[sS]eit)[ \\t\\u00a0]{1,8}(?<a>\\d{1,4}(?:[.:]\\d{1,2})?|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)[ \\t\\u00a0]{1,8}bis[ \\t\\u00a0]{1,8}(?<b>\\d{1,4}(?:[.:]\\d{1,2})?|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["zwischen", "seit"],
+    fixer: "de:dePrep2",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[dD]a[ \\t\\u00a0]{1,8}(?<prep>durch|nach|für|mit|von|bei|gegen))(?=,[ \\t\\u00a0]{1,8}dass(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{1,8}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["durch", "nach", "für", "mit", "von", "bei", "gegen"],
+    fixer: "de:deDd3",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}])(?:[Ii]ch|[Ee]r)[ \\t\\u00a0]{1,8})(?<target>wahr)(?=[ \\t\\u00a0]{1,8}\\p{Ll})|(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<t2>Wahr)(?=[ \\t\\u00a0]{1,8}(?:ich|du|er|sie|es|wir|ihr|der|die|das)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[^.!?\\n,]*\\?))",
+    literals: ["wahr", "wahr"],
+    fixer: "de:deWahr",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[fF]uhr|[fF]uhren|[fF]ahre|[fF]ährt|[fF]ahren|[gG]ing|[gG]ingen|[gG]ehe|[gG]eht|[gG]ehen|[lL]ief|[lL]iefen|[lL]aufe|[lL]äuft|[lL]aufen|[fF]log|[fF]logen|[fF]liegt|[fF]liegen|[rR]annte|[rR]annten|[rR]adelte|[rR]adelten)[ \\t\\u00a0]{1,8})(?<target>zu)(?=[ \\t\\u00a0]{1,8}Hause[ \\t]*[.,;!?])|(?<t2>zu)(?=[ \\t\\u00a0]{1,8}Hause[ \\t\\u00a0]{1,8}(?:gefahren|gegangen|gelaufen|geflogen|gerannt|geradelt|fahren|gehen|laufen|fliegen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t3>mit|auf)(?=[ \\t\\u00a0]{1,8}Hause(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: [],
+    fix: "nach",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>im)(?=[ \\t\\u00a0]{1,8}\\d{1,2}(?::\\d{2}|[ \\t\\u00a0]{1,8}Uhr(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?!(?:[ \\t\\u00a0]{1,8}Uhr)?[ \\t\\u00a0]{1,8}\\p{Lu})))",
+    literals: [],
+    fix: "um",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Aa]ll)(?=[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}{2,})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["all"],
+    fixer: "de:deAa",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[zZ]um|[zZ]ur|[aA]m|[aA]ns|[iI]ns|[iI]m|[vV]om|[bB]eim|[aA]ufs|[fF]ürs|[üÜ]bers|[uU]ms|[dD]urchs)(?=[ \\t\\u00a0]{1,8}(?:d(?:er|ie|as|en|em|es)|(?:mein|dein|sein|ihr|unser|eur|dies|jen)(?:e|er|es|en|em)?|euer)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: [],
+    fixer: "de:deZz",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}])[Ii]ch[ \\t\\u00a0]{1,8})(?<target>verbiete)(?=[ \\t\\u00a0]{1,8}(?:mir|uns)[ \\t\\u00a0]{1,8}(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|mein\\p{Ll}*|dein\\p{Ll}*|sein\\p{Ll}*|ihr\\p{Ll}*|unser\\p{Ll}*|euer|eure\\p{Ll}*|dies\\p{Ll}*|jene\\p{Ll}*|alle\\p{Ll}*|jede\\p{Ll}*|solche\\p{Ll}*|derart|so\\p{Ll}*|\\p{Lu}))(?![^.!?\\n]*(?:,|\\bzu\\b)))",
+    literals: ["verbiete"],
+    fix: "verbitte",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>bereist)(?=[ \\t\\u00a0]{1,8}(?!(?:und|oder|sowie|hat|habe|haben|hatte|hatten|ist|sind|war|waren|wird|werden|wurde|wurden)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[\\p{L}\\p{N}]))",
+    literals: ["bereist"],
+    fixer: "de:deBereist",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=\\p{Ll}(?:en|ern|eln)[ \\t\\u00a0]{1,8})(?<target>lies)(?=[ \\t]*[.,;!?]))",
+    literals: ["lies"],
+    fixer: "de:deLies",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:ge|be|ver|er|ent|zer)\\p{Ll}{2,}(?:t|en)[ \\t\\u00a0]{1,8})(?<target>erden|erde)(?=[ \\t]*[.,;!?])|(?<t2>erden|erde)(?=[ \\t\\u00a0]{1,8}(?:ge|be|ver|er|ent|zer)\\p{Ll}{2,}(?:t|en)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["erden", "erde", "erden", "erde"],
+    fixer: "de:deErden",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[gG]enaue|[eE]xakte|[aA]ktuelle|[rR]ichtige|[wW]elche|Datum[ \\t\\u00a0]{1,8}und)[ \\t\\u00a0]{1,8})(?<target>Urzeit)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>Urzeit)(?=[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8}Datum(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["urzeit", "urzeit"],
+    fix: "Uhrzeit",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[vV]or|[sS]eit)[ \\t\\u00a0]{1,8})(?<target>Uhrzeiten)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["uhrzeiten"],
+    fix: "Urzeiten",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:einem|eines)[ \\t\\u00a0]{1,8})(?<target>paar)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["paar"],
+    fix: "Paar",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[nN]ur|[kK]eine|[dD]iese|[sS]eine|[iI]hre|[dD]eine|[mM]eine|[aA]lle)[ \\t\\u00a0]{1,8})(?<target>lehren?)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["lehre"],
+    fixer: "de:deLehren",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=[Ii]ch[ \\t\\u00a0]{1,8}(?:[fF]reue|[bB]edanke|[bB]eeile|[eE]rinnere|[eE]ntschuldige|[kK]ümmere|[mM]elde|[wW]ürde|[wW]erde|[mM]öchte|[wW]ill|[mM]uss)[ \\t\\u00a0]{1,8})(?<target>ich)(?=[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8})?(?:freuen|bedanken|beeilen|erinnern|entschuldigen|kümmern|melden|auf|bei|für|um|sehr|schon|riesig|darauf|daran)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=[Ww]ir[ \\t\\u00a0]{1,8}(?:freuen|bedanken|beeilen|erinnern|entschuldigen|kümmern|melden)[ \\t\\u00a0]{1,8})(?<t2>und)(?=[ \\t\\u00a0]{1,8}(?:auf|bei|für|um|sehr|schon|riesig|herzlich\\p{Ll}*)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["ich", "und"],
+    fixer: "de:deIch",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>bedenke|bedenken|bedenkt)(?=[ \\t\\u00a0]{1,8}(?:mich|dich|uns|euch|sich)[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8})?(?:herzlich\\p{Ll}*|für|bei)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:mich|dich|uns|euch|sich)[ \\t\\u00a0]{1,8}(?:noch[ \\t\\u00a0]{1,8})?)(?<t2>bedenken)(?=[ \\t\\u00a0]{1,8}für(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["bedenke", "bedenken", "bedenkt", "bedenken"],
+    fixer: "de:deBedenke",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[iI]st|[wW]ar|[sS]ind|[wW]aren|[wW]ird|[wW]äre|[eE]ine|[eE]in|[eE]inen|[eE]inem|[eE]iner|[sS]o|[nN]icht)[ \\t\\u00a0]{1,8})(?<target>seht)(?=[ \\t\\u00a0]{1,8}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["seht"],
+    fix: "sehr",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[hH]ätte|[hH]ätten|[wW]äre|[wW]ären|[hH]atte|[wW]ar|[hH]abe|[bB]in|[iI]st|[hH]at|[wW]ürde)[ \\t\\u00a0]{1,8}(?:ich|er|sie|es|wir)[ \\t\\u00a0]{1,8})(?<target>fasst)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["fasst"],
+    fix: "fast",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[iI]st|[wW]ar|[sS]ind|[wW]aren|[wW]ird)[ \\t\\u00a0]{1,8})(?<target>leide)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["leide"],
+    fix: "leider",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[wW]äre|[iI]st|[wW]ar|[wW]ären)[ \\t\\u00a0]{1,8})(?<target>schon)(?=,[ \\t\\u00a0]{1,8}(?:wenn|dass)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>schön)(?=[ \\t\\u00a0]{1,8}sehr(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["schon", "schön"],
+    fixer: "de:deSchon2",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[gG]rüße|[gG]rüßen|[gG]ing|[gG]ingen|[fF]uhr|[fF]uhren|[fF]log|[fF]logen|[zZ]og|[zZ]ogen|[kK]am|[kK]amen|[rR]eiste|[rR]eisten)[ \\t\\u00a0]{1,8})(?<target>mach)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["mach"],
+    fix: "nach",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=[Ii]ch[ \\t\\u00a0]{1,8})(?<target>lieber)(?=[ \\t\\u00a0]{1,8}(?:dich|euch|ihn)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["lieber"],
+    fix: "liebe",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Ii]ch|ich)[ \\t\\u00a0]{1,8})(?<target>hohle)(?=[ \\t\\u00a0]{1,8}(?:dir|dich|mir|uns|euch|ihn|ihm|sie|es|das|die|den)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<t2>Hohl)(?=[ \\t\\u00a0]{1,8}(?:mir|uns|ihm|ihr)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:^|[.!?]\\s{1,8}|\\n)[Dd]ann[ \\t\\u00a0]{1,8})(?<t3>hohle)(?=[ \\t\\u00a0]{1,8}ich(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["hohle", "hohl", "hohle"],
+    fixer: "de:deHohle",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Wird)(?=[ \\t\\u00a0]{1,8}(?:sind|haben|hatten|waren|können|müssen|wollen|sollen|dürfen|werden|würden|gehen|kommen|freuen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["wird"],
+    fix: "Wir",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}])(?:[eE]inen|[eE]inem|[eE]iner|[eE]ines)[ \\t\\u00a0]{1,8})(?<target>neun)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}\\p{Ll}+(?:e|en|er|es|em)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))))",
+    literals: ["neun"],
+    fix: "neuen",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[mM]einer|[dD]einer|[sS]einer|[iI]hrer|[uU]nserer|[eE]urer|[aA]us)[ \\t\\u00a0]{1,8})(?<target>Sich)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["sich"],
+    fix: "Sicht",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:Hallo|Tag|Abend|Morgen|geehrter|[Ll]ieber)[ \\t,]{1,8})(?<target>Her|Heer)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["her", "heer"],
+    fix: "Herr",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[sS]eit|[iI]m|[aA]nfang|[eE]nde|[mM]itte|\\d{1,2}\\.)[ \\t\\u00a0]{1,8})(?<target>Mär)(?![\\p{L}.]))",
+    literals: ["mär"],
+    fix: "März",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[iI]m|[sS]eit|[aA]nfang|[eE]nde|[mM]itte|[mM]onat)[ \\t\\u00a0]{1,8})(?<target>Julie)(?![\\p{L}]))",
+    literals: ["julie"],
+    fix: "Juli",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:eine|einer)[ \\t\\u00a0]{1,8}(?:\\p{Ll}+e[ \\t\\u00a0]{1,8})?)(?<target>Freunde)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["freunde"],
+    fix: "Freude",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[dD]ie|[dD]er|[dD]en|[aA]lle|[gG]roße)[ \\t\\u00a0]{1,8})(?<target>Unterscheide)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["unterscheide"],
+    fix: "Unterschiede",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!(?:[Dd]u|bist)[ \\t\\u00a0]{1,8})(?<target>bist)(?=[ \\t\\u00a0]{1,8}(?:morgen|übermorgen|heute|nächste\\p{Ll}*|spätestens|zum|Ende|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|\\d))(?![ \\t\\u00a0]{1,8}\\S+[ \\t\\u00a0]{1,8}du(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["bist"],
+    fix: "bis",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>weißt)(?=[ \\t\\u00a0]{1,8}[^.!?,;\\n]{1,60}?[ \\t\\u00a0]{1,8}(?:auf|hin|zurück|ab|an|aus)[ \\t]*[.!?,;]))",
+    literals: ["wei"],
+    fixer: "de:deWeißt",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:dem|der|den)[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+[ \\t\\u00a0]{1,8})(?<target>zur[ \\t\\u00a0]{1,8}Liebe)(?=[ \\t]*[.,!?;]))",
+    literals: ["liebe"],
+    fix: "zuliebe",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<n>\\d+)(?:-?[Tt]ätig(?<end>e|en|er|es|em)?|[ \\t\\u00a0]{1,8}[Tt]ätig(?<e2>e|en|er|es|em)(?=[ \\t\\u00a0]{1,8}\\p{Lu})))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["tätig", "tätig"],
+    fixer: "de:deN",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>Harz[ \\t\\u00a0]{1,8}(?:4|IV))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?:im|dem)[ \\t\\u00a0]{1,8})(?<t2>Hartz)(?![ \\t\\u00a0]{1,8}(?:4|IV)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["harz", "hartz"],
+    fixer: "de:deHarz",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=in[ \\t\\u00a0]{1,8})(?<target>Schacht)(?=[ \\t\\u00a0]{1,8}(?:zu[ \\t\\u00a0]{1,8})?(?:halten|hält|hielt|hielten|gehalten)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,](?<=(?:halten|hält|hielt|hielten)[ \\t\\u00a0]{1,8}(?:\\p{L}+[ \\t\\u00a0]{1,8}){0,3}in[ \\t\\u00a0]{1,8}Schacht[ \\t]*[.!?,]))|(?<=auf[ \\t\\u00a0]{1,8})(?<t2>Trapp)(?=[ \\t\\u00a0]{1,8}(?:zu[ \\t\\u00a0]{1,8})?(?:halten|hält|hielt|hielten|gehalten|sein|ist|war|bringen|gebracht)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,]))",
+    literals: ["schacht", "trapp"],
+    fixer: "de:deSchacht",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Vv]iele)(?=[ \\t\\u00a0]{1,8}(?:Erfolg|Spaß|Glück|Vergnügen|Geduld|Kraft)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>[Vv]iele[ \\t\\u00a0]{1,8}Danke?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["viele", "viele"],
+    fixer: "de:deVv",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:\\d|Millionen|Milliarden|paar|viele)[ \\t\\u00a0]{1,8}(?:US-)?)(?<target>Doller)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["doller"],
+    fix: "Dollar",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<head>(?:Geheim|Insider|Spar|Reise|Profi|Experten|Garten|Koch|Buch|Lese|Film|Wett|Anlage|Gesundheits|Spiel)tip)(?<s>s)?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [
+      "geheim",
+      "insider",
+      "spar",
+      "reise",
+      "profi",
+      "experten",
+      "garten",
+      "koch",
+      "buch",
+      "lese",
+      "film",
+      "wett",
+      "anlage",
+      "gesundheits",
+      "spiel",
+    ],
+    fixer: "de:deHead2",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[dD]as|[dD]em|[dD]es|[eE]in|[kK]ein|[nN]eues|[nN]eue|[nN]euen|[dD]ieses|[dD]iesem|[jJ]edes)[ \\t\\u00a0]{1,8})(?<target>Gesetzt)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["gesetzt"],
+    fix: "Gesetz",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>versanden)(?=[ \\t]*(?:[.,;:!?]|$)))",
+    literals: ["versanden"],
+    fixer: "de:deVersanden",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>schient)(?=[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8}){0,3}(?:zu[ \\t\\u00a0]{1,8}\\p{Ll}+|\\p{Ll}+zu\\p{Ll}+en)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["schient"],
+    fix: "scheint",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[sS]ofort|[sS]chnell|[pP]rompt|[gG]elassen|[vV]erärgert|[eE]mpfindlich|[aA]llergisch|[sS]auer)[ \\t\\u00a0]{1,8})(?<target>regiert)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>regiert)(?=[ \\t\\u00a0]{1,8}(?:sofort|prompt|gelassen|verärgert|allergisch)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["regiert", "regiert"],
+    fix: "reagiert",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:wurde|wurden|worden)[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8}){0,2})(?<target>verendet|geendet)(?=[ \\t]*[.,;!?])|(?<t2>verendet|geendet)(?=[ \\t\\u00a0]{1,8}worden(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["verendet", "geendet", "verendet", "geendet"],
+    fixer: "de:deVerendet",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>beleibt)(?=[ \\t\\u00a0]{1,8}(?:bei|unter)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["beleibt"],
+    fix: "beliebt",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:\\p{L}*[Aa]larm|Panik|Reaktion|Diskussion|Debatte|Explosion)[ \\t\\u00a0]{1,8}(?:\\p{L}+[ \\t\\u00a0]{1,8}){0,2})(?<target>ausgelost)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["ausgelost"],
+    fix: "ausgelöst",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[tT]rinkt|[tT]rinke|[tT]rinken|[tT]rank|[tT]ranken|Glas|Flasche|Schoppen)[ \\t\\u00a0]{1,8}(?:gerne?[ \\t\\u00a0]{1,8}|ein[ \\t\\u00a0]{1,8}Glas[ \\t\\u00a0]{1,8})?)(?<target>Wien)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["wien"],
+    fix: "Wein",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=dabei[ \\t\\u00a0]{1,8}(?:nicht[ \\t\\u00a0]{1,8})?)(?<target>beenden)(?=[ \\t\\u00a0]{1,8}lassen(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?]))",
+    literals: ["beenden"],
+    fix: "bewenden",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}])zu[ \\t\\u00a0]{1,8})(?<target>\\p{Ll}{4,}en)(?=[ \\t]*[.!?,;]))",
+    literals: [],
+    fixer: "de:deP",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>\\p{Ll}{3,}e)(?=[ \\t\\u00a0]{1,8}(?:müssen|können|sollen|dürfen|wollen)[ \\t]*[.!?,;])|(?<t2>\\p{Ll}{3,}ier)(?=[ \\t\\u00a0]{1,8}(?:haben|hat|habe|hatte|hätte|hast)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: [],
+    fixer: "de:deP2",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Nn]iemanden|[Jj]emanden)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+[ \\t\\u00a0]{1,8}(?:gegeben|geben|gibt|gab|verlieh|verleiht|verliehen|geliehen|geschenkt|schenkt|schenkte)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["niemanden", "jemanden"],
+    fixer: "de:deNn2",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[sS]agt|[sS]ag|[gG]ebt|[gG]ib)[ \\t\\u00a0]{1,8})(?<target>und)(?=[ \\t\\u00a0]{1,8}(?:(?:doch|bitte)[ \\t\\u00a0]{1,8})*Bescheid(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["und"],
+    fix: "uns",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>des)(?=[ \\t\\u00a0]{1,8}(?:ein|eine|ihm|ihr|mir|dir|uns|nicht)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["des"],
+    fix: "es",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[jJ]etzt|[gG]erade|[eE]ben|[hH]eute|[gG]estern)[ \\t\\u00a0]{1,8})(?<target>erste)(?=[ \\t\\u00a0]{1,8}\\p{Ll}+[ \\t]*[.,;!?]))",
+    literals: ["erste"],
+    fix: "erst",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[eE]inen|[eE]inem|[eE]ines|[eE]iner|[dD]en|[dD]em)[ \\t\\u00a0]{1,8}(?:\\p{Ll}+(?:en|em|er|es)[ \\t\\u00a0]{1,8})?)(?<target>fischen)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["fischen"],
+    fix: "frischen",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[dD]er|[dD]en|[dD]em|[dD]es|[iI]m|[vV]om|[zZ]um)[ \\t\\u00a0]{1,8})(?<target>Vertreib)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["vertreib"],
+    fix: "Vertrieb",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[mM]it|[mM]einem|[uU]nserem|[sS]einem|[iI]hrem|[dD]einem|[eE]urem|[gG]roßem|[gG]roßen|[bB]lankem)[ \\t\\u00a0]{1,8})(?<target>Entsetzten)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["entsetzten"],
+    fix: "Entsetzen",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>War)(?=[ \\t\\u00a0]{1,8}für[ \\t\\u00a0]{1,8}ein\\p{Ll}*(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["war"],
+    fix: "Was",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[üÜ]ber|[mM]it|[vV]on|[zZ]u|[nN]ach|[bB]ei|[aA]us|[aA]uf|[iI]n|[aA]n|[vV]or|[hH]inter|[uU]nter)[ \\t\\u00a0]{1,8})(?<target>dm)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: [],
+    fix: "dem",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ww]eist)(?=[ \\t\\u00a0]{1,8}du,[ \\t\\u00a0]{1,8}(?:ob|dass|wie|wo|was|warum|wer|wann)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["weist"],
+    fixer: "de:deWw",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<pre>\\p{L}+)-Chanel(?<s>s)?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["chanel"],
+    fixer: "de:dePre",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>überlasen)(?=[ \\t]*(?:[.,;:!?]|$)))",
+    literals: ["überlasen"],
+    fixer: "de:deÜberlasen",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=[Aa]uf[ \\t\\u00a0]{1,8})(?<target>dem)(?=[ \\t\\u00a0]{1,8}(?:Geist|Wecker|Keks|Senkel|Zeiger|Nerv)(?:[ \\t\\u00a0]{1,8}\\p{Ll}+){0,2}[ \\t\\u00a0]{1,8}(?:gehen|gehst|geht|ging|gingst|gingen|gegangen|gehe)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:[Gg]eh|[Gg]eht|[Gg]ehst|ging|gingen)[ \\t\\u00a0]{1,8}(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen)(?:[ \\t\\u00a0]{1,8}\\p{Ll}+){0,2}[ \\t\\u00a0]{1,8}auf[ \\t\\u00a0]{1,8})(?<t2>dem)(?=[ \\t\\u00a0]{1,8}(?:Geist|Wecker|Keks|Senkel|Zeiger|Nerv)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["dem", "dem"],
+    fix: "den",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=erstarr\\p{Ll}*[ \\t\\u00a0]{1,8}zur[ \\t\\u00a0]{1,8})(?<target>Salzsäure|Salzseule|Salzeule|Salzkeule)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=zur[ \\t\\u00a0]{1,8})(?<t2>Salzsäure|Salzseule|Salzeule|Salzkeule)(?=[ \\t\\u00a0]{1,8}(?:erstarrt|erstarren|erstarrte|erstarrten)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: [
+      "salzsäure",
+      "salzseule",
+      "salzeule",
+      "salzkeule",
+      "salzsäure",
+      "salzseule",
+      "salzeule",
+      "salzkeule",
+    ],
+    fix: "Salzsäule",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:Tor|Tore|Toren|Eigentor|Eigentore|Eigentoren|Elfmeter|Freistoß|Pilze[ \\t\\u00a0]{1,8}aus[ \\t\\u00a0]{1,8}dem[ \\t\\u00a0]{1,8}Boden)[ \\t\\u00a0]{1,8})(?<target>scheißen|scheißt|scheiße|geschissen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>scheißen|scheißt|scheiße)(?=[ \\t\\u00a0]{1,8}wie[ \\t\\u00a0]{1,8}Pilze[ \\t\\u00a0]{1,8}aus[ \\t\\u00a0]{1,8}dem[ \\t\\u00a0]{1,8}Boden(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:echt|totale|totaler|große|reine|einfach|ja|nur|alles|so[ \\t\\u00a0]{1,8}eine|eine)[ \\t\\u00a0]{1,8})(?<t3>Schieße)(?=[ \\t]*(?:[.!?,;]|$)))",
+    literals: ["schei", "schei", "schei", "geschissen", "schei", "schei", "schei", "schie"],
+    fixer: "de:deScheißen",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=[Oo]hne[ \\t\\u00a0]{1,8})(?<target>Punk)(?=[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8}Komma(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=springende[n]?[ \\t\\u00a0]{1,8})(?<t2>Punk)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t3>Punk)(?=[ \\t\\u00a0]{1,8}für[ \\t\\u00a0]{1,8}Punkt?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=Punkt[ \\t\\u00a0]{1,8}für[ \\t\\u00a0]{1,8})(?<t4>Punk)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["punk", "punk", "punk", "punk"],
+    fix: "Punkt",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Ii]ch|[Ee]r|[Ss]ie|[Mm]an|[Ee]s|[Dd]as)(?:[ \\t\\u00a0]{1,8}(?:doch|auch|ja|schon|halt|eben|selbst|genau|wirklich|ehrlich|leider))?[ \\t\\u00a0]{1,8})(?<target>weis)(?=[ \\t\\u00a0]{1,8}(?:nicht|nichts|es|das|ich|auch|doch|schon|ja|nur|genau|noch|wirklich|gar|überhaupt|eben|leider|selbst)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.,!?])|(?<!(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen|etwas|nichts|was)[ \\t\\u00a0]{1,8})(?<t2>weis)(?=[ \\t\\u00a0]{1,8}ich(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:^|[.!?:„\"«»][ \\t\\u00a0]{1,8}?|\\n))(?<t3>Weis)(?=[ \\t\\u00a0]{1,8}(?:ich|nicht|auch|wirklich|es|leider)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:^|[.!?:„\"«»][ \\t\\u00a0]{1,8}?|\\n))(?<t4>Weiß)(?=[ \\t\\u00a0]{1,8}du(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=[Ii]n[ \\t\\u00a0]{1,8})(?<t5>weis)(?=[ \\t]*[.,!?;]))",
+    literals: ["weis", "weis", "weis", "wei", "weis"],
+    fixer: "de:deWeis",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Oo]ben|[Uu]nten|[Hh]inten|[Vv]orne|[Vv]orn|ganz)[ \\t\\u00a0]{1,8})(?<target>link)(?=[ \\t]*[.,!?;]|[ \\t\\u00a0]{1,8}(?:\\p{Ll}|oben|unten|hinten|vorne|vorn)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<!(?:der|den|dem|des|einen|ein|einem|diesen|diesem|im|am|zum|the|a|this|your|my)[ \\t\\u00a0]{1,8})(?<t2>link)(?=[ \\t\\u00a0]{1,8}(?:oben|unten|hinten|vorne|vorn)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["link", "link"],
+    fix: "links",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=[Ss]owohl[ \\t\\u00a0]{1,8}[^.!?;,\\n]{1,60}?[ \\t\\u00a0]{1,8})(?<target>aber[ \\t\\u00a0]{1,8}auch|sowie[ \\t\\u00a0]{1,8}auch)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["aber", "sowie"],
+    fix: "als auch",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:ist|sind|war|waren|bin|bist|seid|wäre|wären|sei|sein|gewesen|befindet|befinden|stehen|steht|stand|standen)(?:[ \\t\\u00a0]{1,8}\\p{L}+){0,3}[ \\t\\u00a0]{1,8})(?<target>in)(?=[ \\t\\u00a0]{1,8}Einsatz(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t]*[-–]))|(?<t2>in)(?=[ \\t\\u00a0]{1,8}Einsatz[ \\t\\u00a0]{1,8}(?:ist|sind|war|waren|bin|bist|seid|wäre|wären|sei|sein|gewesen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t3>in)(?=[ \\t\\u00a0]{1,8}(?:Nullkommanichts|Nullkommanix)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: [],
+    fix: "im",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!Made[ \\t\\u00a0]{1,8})(?<target>(?:in|nach|aus|von|In|Nach|Aus|Von)[ \\t\\u00a0]{1,8}Vereinigten?[ \\t\\u00a0]{1,8}(?:Staaten(?<noun>[ \\t\\u00a0]{1,8}von[ \\t\\u00a0]{1,8}Amerika)?|Arabischen?[ \\t\\u00a0]{1,8}Emiraten?))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["vereinigte"],
+    fixer: "de:deIn",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=[Aa]uf[ \\t\\u00a0]{1,8})(?<target>halben)(?=[ \\t\\u00a0]{1,8}Wege?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["halben"],
+    fix: "halbem",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!(?:ihr|Ihr)[ \\t\\u00a0]{1,8}(?:\\p{L}+[ \\t\\u00a0]{1,8}){0,2})(?<![,!][ \\t\\u00a0]{1,8}?)(?<target>lauft)(?![ \\t\\u00a0]{1,8}(?:ihr|Ihr)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*!)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}|\\n))(?<t2>Lauft)(?=[ \\t\\u00a0]{1,8}(?:es|er|das|der|die|alles|denn|bei)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["lauft", "lauft"],
+    fix: "läuft",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:Tür|Türen|Fenster|Tresor|Schrank|Kiste|Dose|Deckel|luftdicht|fest)[ \\t\\u00a0]{1,8})(?<target>verschossen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>schoss|schossen)(?=[ \\t\\u00a0]{1,8}(?:die|das|den|seine|ihre)[ \\t\\u00a0]{1,8}(?:Tür|Türen|Fenster|Augen|Laden)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{1,8}sich[ \\t\\u00a0]{1,8}zusammen(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["verschossen", "schoss", "schossen"],
+    fixer: "de:deVerschossen",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?\\n„\"]|[Ee]rst|[Kk]urz|[Gg]leich|[Ll]ange|[Bb]ald|[Ss]chon|[Dd]irekt|[Uu]nmittelbar)[ \\t]*)(?<target>[Nn]ach[ \\t\\u00a0]{1,8}dem)(?=[ \\t\\u00a0]{1,8}(?:ich|du|er|sie|es|wir|ihr|man|der|die|das|dieser|diese|mein|meine|sein|seine|unser|unsere)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[^.!?;,\\n]{1,80}\\p{Ll}[ \\t]*,))",
+    literals: ["nach"],
+    fixer: "de:deNn3",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>soweit)(?=[ \\t\\u00a0]{1,8}(?:das[ \\t\\u00a0]{1,8}Auge|seine[ \\t\\u00a0]{1,8}Augen|ihre[ \\t\\u00a0]{1,8}Augen)[ \\t\\u00a0]{1,8}reicht)|(?<=(?:ist|sind|war|wäre|bin|bist)[ \\t\\u00a0]{1,8}(?:es[ \\t\\u00a0]{1,8})?)(?<t2>soweit)(?=[ \\t]*[.!?])|(?<t3>sobald)(?=[ \\t\\u00a0]{1,8}(?:wie|als)[ \\t\\u00a0]{1,8}möglich(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{1,8}nicht[ \\t\\u00a0]{1,8}wieder(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=nicht[ \\t\\u00a0]{1,8})(?<t4>sobald)(?=[ \\t\\u00a0]{1,8}wieder(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["soweit", "soweit", "sobald", "sobald"],
+    fixer: "de:deSoweit",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:kann|könnte|muss|müsste|soll|sollte|wird|würde|darf|dürfte|mag)(?:[ \\t\\u00a0]{1,8}(?:doch|gar|nicht|ja|schon|wohl|auch|noch|so))*[ \\t\\u00a0]{1,8})(?<target>seien)(?=[ \\t]*[.!?,;]))",
+    literals: ["seien"],
+    fix: "sein",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:ist|sei|wäre|kann|könnte|muss|darf)(?:[ \\t\\u00a0]{1,8}(?:doch|ja|gar|einfach))*[ \\t\\u00a0]{1,8}nicht[ \\t\\u00a0]{1,8})(?<target>war)(?=[ \\t]*[.!?,]|[ \\t\\u00a0]{1,8}sein(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=,[ \\t\\u00a0]{1,8}nicht[ \\t\\u00a0]{1,8})(?<t2>war)(?=[ \\t]*\\?)|(?<t3>war)(?=[ \\t\\u00a0]{1,8}(?:werden|wird)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["war", "war", "war"],
+    fix: "wahr",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:zu|sehr|ziemlich|so[ \\t\\u00a0]{1,8}sehr)[ \\t\\u00a0]{1,8})(?<target>fiel)(?=[ \\t\\u00a0]{1,8}\\p{L}))",
+    literals: ["fiel"],
+    fix: "viel",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>starte|starten)(?=[ \\t\\u00a0]{1,8}(?:ins[ \\t\\u00a0]{1,8}Leere|auf[ \\t\\u00a0]{1,8}(?:den|das|seinen|ihren)[ \\t\\u00a0]{1,8}(?:Monitor|Bildschirm|Boden|Fernseher|Display|Handy))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["starte", "starten"],
+    fixer: "de:deStarte",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:bin|bist|ist|sind|seid|war|waren|wäre)[ \\t\\u00a0]{1,8}(?:(?:ich|du|er|sie|wir|ihr)[ \\t\\u00a0]{1,8})?(?:es|das|so)(?:[ \\t\\u00a0]{1,8}(?:so|nicht|schon|einfach|halt|eben|ja))*[ \\t\\u00a0]{1,8})(?<target>gewöhnt)(?=[ \\t]*[.!?,]))",
+    literals: ["gewöhnt"],
+    fixer: "de:deGewöhnt",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Dd]eine|[Mm]eine|[Ss]eine|[Ii]hre|[Uu]nsere|[Ee]ure|gute|tolle|neue|viele|keine)[ \\t\\u00a0]{1,8})(?<target>Iden)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>Ideen)(?=[ \\t\\u00a0]{1,8}des[ \\t\\u00a0]{1,8}März))",
+    literals: ["iden", "ideen"],
+    fixer: "de:deIden",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:Glas|Gläser|Flasche|Flaschen|trank|tranken|trinken|trinkt)[ \\t\\u00a0]{1,8})(?<target>Champagne)(?![\\p{L}-])|(?<=(?:versteinerter|ernster|finsterer|ausdrucksloser|betretener|mürrischer|unbewegter|säuerlicher|gute)[ \\t\\u00a0]{1,8})(?<t2>Mine)(?![\\p{L}-])|(?<t3>\\p{L}*(?:Kugelschreiber|Bleistift|Kuli|Stift)mienen?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["champagne", "mine", "miene"],
+    fixer: "de:deChampagne",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ee]thische[nmrs]?)(?=[ \\t\\u00a0]{1,8}(?:Minderheit|Minderheiten|Säuberung|Säuberungen|Herkunft|Gruppe|Gruppen|Zugehörigkeit)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>[Ee]thnische[nmrs]?)(?=[ \\t\\u00a0]{1,8}(?:Bedenken|Grundsätze|Fragen|Werte|Verantwortung|Normen|Gründe|Prinzipien)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["ethische", "ethnische"],
+    fixer: "de:deEe",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:hat|hatte|haben|hätte|gibt[ \\t\\u00a0]{1,8}es)[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8})?einen[ \\t\\u00a0]{1,8})(?<target>Hacken)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["hacken"],
+    fix: "Haken",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!(?:Bitte|Dann|Jetzt|Nun|Also|Und|Oder|Aber|Hier|Da|Doch|Einfach|Erst|Zuerst|Nochmal|bitte|dann|jetzt|nun|und|oder|aber|doch|einfach|erst|mal|nochmal)[ \\t\\u00a0]{1,8})(?<=(?:\\p{Lu}\\p{Ll}+|er|sie|man)[ \\t\\u00a0]{1,8})(?<target>lies)(?=[ \\t\\u00a0]{1,8}(?:die|den|das|sich|ihn|mich|uns|ihm|ihr)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["lies"],
+    fix: "ließ",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}|\\n))(?<target>Bein)(?=[ \\t\\u00a0]{1,8}\\p{Ll}+en[ \\t\\u00a0]{1,8}\\p{L})|(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}|\\n))(?<t2>Nach)(?=[ \\t\\u00a0]{1,8}(?:am|im|in|an)[ \\t\\u00a0]{1,8}(?:selben|derselben|demselben|gleichen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}|\\n))(?<t3>Sei)(?=[ \\t\\u00a0]{1,8}(?:ließ|hat|hatte|war|ist|kam|ging|sagte|wollte|konnte)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:weil|dass|ob|obwohl)[ \\t\\u00a0]{1,8})(?<t4>sei)(?=[ \\t\\u00a0]{1,8}(?:die|den|das|der|ein|eine|einen|ihn|ihm|ihr|mir|dir|uns)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["bein", "nach", "sei", "sei"],
+    fixer: "de:deBein",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:Bundesland|Freistaat)[ \\t\\u00a0]{1,8})(?<target>Sachen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>Sachen)(?=[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8}(?:Thüringen|Bayern|Brandenburg|Hessen|Berlin)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:Thüringen|Bayern|Brandenburg|Hessen|Berlin)[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8})(?<t3>Sachen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["sachen", "sachen", "sachen"],
+    fix: "Sachsen",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>strickt)(?=[ \\t\\u00a0]{1,8}(?:einzuhalten|verboten|untersagt|abgelehnt|getrennt|vertraulich|limitiert)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=nicht[ \\t\\u00a0]{1,8})(?<t2>strickt)(?=[ \\t\\u00a0]{1,8}gegen(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t3>strickte[nmrs]?)(?=[ \\t\\u00a0]{1,8}(?:Bettruhe|Regel|Regeln|Vorgabe|Vorgaben|Trennung|Verbot|Diät|Ablehnung|Einhaltung|Neutralität)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["strickt", "strickt", "strickte"],
+    fixer: "de:deStrickt",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:mich|dich|sich|uns|euch)(?:[ \\t\\u00a0]{1,8}(?:jetzt|aber|doch|mal|noch|ja|besser))*[ \\t\\u00a0]{1,8})(?<target>spurten)(?=[ \\t]*[.!?,])|(?<=(?:[Aa]nders|[Bb]esser|[Ee]infach|[Vv]orsichtig|[Ss]alopp|[Dd]rastisch|mich|dich|sich|uns|euch)(?:[ \\t\\u00a0]{1,8}\\p{Ll}+){0,3}[ \\t\\u00a0]{1,8})(?<t2>ausgerückt)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["spurten", "ausgerückt"],
+    fixer: "de:deSpurten",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=[Vv]on[ \\t\\u00a0]{1,8}(?:\\p{Lu}\\p{Ll}+|links|rechts|oben|unten|vorne|hinten)[ \\t\\u00a0]{1,8})(?<target>ach|mach)(?=[ \\t\\u00a0]{1,8}(?:\\p{Lu}\\p{Ll}+|links|rechts|oben|unten|vorne|hinten)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["ach", "mach"],
+    fix: "nach",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:erkläre|erklärt|erklärst|erklärte|erklärten|erklären)[ \\t\\u00a0]{1,8}(?:mich|dich|sich|uns|euch)[ \\t\\u00a0]{1,8})(?<target>breit)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?:mich|dich|sich|uns|euch)(?:[ \\t\\u00a0]{1,8}\\p{Ll}+){0,2}[ \\t\\u00a0]{1,8})(?<t2>breit)(?=[ \\t\\u00a0]{1,8}(?:erklärt|erkläre|erklärst|erklären|erklärte|erklärten)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=[Ww]eit[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8})(?<t3>bereit)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["breit", "breit", "bereit"],
+    fixer: "de:deBreit",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<!\\p{L})\\p{Ll}+[ \\t\\u00a0]{1,8})(?<target>soviel)(?![ \\t\\u00a0]{1,8}(?:ich|wir|man|du|er|sie|ihr|mir|bekannt|wie|als)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["soviel"],
+    fix: "so viel",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:steil|wieder|es|geht|ging|nur|stetig)[ \\t\\u00a0]{1,8})(?<target>Berg[ \\t\\u00a0]{1,8}(?<noun>ab|auf))(?=[ \\t]*[.!?,]|[ \\t\\u00a0]{1,8}(?:mit|geht|ging|gehen|gegangen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["berg"],
+    fixer: "de:deBerg",
+    ownCase: true,
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<noun>\\d{2,3})(?:g|zig|ig)(?:ste[rnms]?|(?<t2>ern?)))(?![\\p{L}\\p{N}]))",
+    literals: [],
+    fixer: "de:deNoun",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!,[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8})?(?:[Dd]ie|der|den)[ \\t\\u00a0]{1,8})(?<=(?:[Dd]ie|der|den|[Dd]iese|dieser|[Mm]eine|[Dd]eine|[Ss]eine|[Ii]hre|[Uu]nsere|[Ee]ure)[ \\t\\u00a0]{1,8})(?<target>beide)(?=[ \\t\\u00a0]{1,8}(?:\\p{Ll}+en[ \\t\\u00a0]{1,8})?\\p{Lu}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:auf|in|an|über|unter|für|durch|um|vor|hinter)[ \\t\\u00a0]{1,8})(?<t2>da)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:sich|mich|dich|uns|euch)[ \\t\\u00a0]{1,8}bei[ \\t\\u00a0]{1,8})(?<t3>im)(?=[ \\t\\u00a0]{1,8}\\p{Ll})|(?<t4>im)(?=[ \\t\\u00a0]{1,8}zu[ \\t]*[.!?,]))",
+    literals: [],
+    fixer: "de:deBeide",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<noun>\\p{Lu}\\p{Ll}{2,})[ \\t\\u00a0]{1,8}Haft(?:e|en|er|es|em)?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["haft"],
+    fixer: "de:deNoun2",
+    ownCase: true,
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])(?:[Aa]uf|[Uu]nter)[ \\t\\u00a0]{1,8})(?<target>dem)(?=[ \\t\\u00a0]{1,8}(?<noun>Punkt|Kopf|Plan|Teppich)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>[Aa]uf[ \\t\\u00a0]{1,8}dem)(?=[ \\t\\u00a0]{1,8}Leim(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t3>im)(?=[ \\t\\u00a0]{1,8}(?:Strömen|Schach)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?<![\\p{L}\\p{M}])an[ \\t\\u00a0]{1,8})(?<t4>einen)(?=[ \\t\\u00a0]{1,8}Strang(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?<![\\p{L}\\p{M}])über[ \\t\\u00a0]{1,8}die[ \\t\\u00a0]{1,8})(?<t5>Strenge)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?<![\\p{L}\\p{M}])im[ \\t\\u00a0]{1,8})(?<t6>Zaun)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?<![\\p{L}\\p{M}])vom[ \\t\\u00a0]{1,8})(?<t7>Zaum)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t8>in[ \\t\\u00a0]{1,8}den[ \\t\\u00a0]{1,8}Angriff)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t9>[Aa]uf[ \\t\\u00a0]{1,8}Plan)(?=[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8}){0,2}(?:ge)?ruf))",
+    literals: [],
+    fixer: "de:deDem",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!Auge[ \\t\\u00a0]{1,8})(?<target>in)(?=[ \\t\\u00a0]{1,8}Auge(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:in|und|um)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))))",
+    literals: [],
+    fixer: "de:deIn2",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])[Zz]u[ \\t\\u00a0]{1,8})(?<target>(?:mein|dein|sein|ihr|unser|eur|Ihr)en)(?=[ \\t\\u00a0]{1,8}(?:Bedauern|Erstaunen|Entsetzen|Leidwesen|Glück|Unglück|Vergnügen|Ärger|Verdruss|Missfallen|Wohl)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["mein", "dein", "sein", "ihr", "unser", "eur", "ihr"],
+    fixer: "de:deMein",
+    ownCase: true,
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Vv]om|[Zz]um|[Bb]eim)(?=[ \\t\\u00a0]{1,8}(?:mir|dir|ihm|uns|euch|ihnen|Ihnen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}\\p{Ll}+(?:e|en|em|er|es)[ \\t\\u00a0]{1,8}\\p{Lu})))",
+    literals: ["vom", "zum", "beim"],
+    fixer: "de:deVv2",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])(?:[Aa]uf)[ \\t\\u00a0]{1,8})(?<target>den)(?=[ \\t\\u00a0]{1,8}Laufenden(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}\\p{Lu}))|(?<=(?<![\\p{L}\\p{M}])(?:[Aa]us)[ \\t\\u00a0]{1,8})(?<t2>den)(?=[ \\t\\u00a0]{1,8}Vollen(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}\\p{Lu})))",
+    literals: ["den", "den"],
+    fix: "dem",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])(?:[Aa]us|[Mm]it|[Vv]on|[Bb]ei|[Ss]eit|[Nn]ach|[Ss]amt|[Gg]egenüber)[ \\t\\u00a0]{1,8})(?<target>(?:mehrer|einig|viel|wenig|verschieden|zahlreich|ander|beid)e)(?=[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}+n)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?<![\\p{L}\\p{M}])(?:[Ii]n|[Aa]us|[Mm]it|[Vv]on|[Bb]ei|[Zz]u|[Ss]eit|[Nn]ach|[Aa]n|[Aa]uf|[Uu]nter|[Vv]or)[ \\t\\u00a0]{1,8})(?<t2>mehren)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: [
+      "mehrer",
+      "einig",
+      "viel",
+      "wenig",
+      "verschieden",
+      "zahlreich",
+      "ander",
+      "beid",
+      "mehren",
+    ],
+    fixer: "de:deMehrer",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])(?:[Ee]in|[Kk]ein)[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8})?)(?<target>anders)(?=[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["anders"],
+    fixer: "de:deAnders",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])[Ii]n[ \\t\\u00a0]{1,8})(?<target>\\p{Ll}{2,}sche)(?=[ \\t\\u00a0]{1,8}Sprache(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["sche"],
+    fixer: "de:deP3",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ss]eit|[Vv]om)(?=[ \\t\\u00a0]{1,8}(?:Anfang|Beginn|Geburt|Kindheit|Kindesbeinen|Jugend)[ \\t\\u00a0]{1,8}an(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{1,8}(?:klein|Grund|Kind)[ \\t\\u00a0]{1,8}auf(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["seit", "vom"],
+    fix: "von",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])(?:[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser|[Dd]em|[Ii]m|[Vv]om|[Gg]anzem|[Gg]anzes|[Gg]roßes)[ \\t\\u00a0]{1,8})(?<target>Hertz)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?<![\\p{L}\\p{M}])\\d[ \\t\\u00a0]{1,8})(?<t2>Herz)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["hertz", "herz"],
+    fixer: "de:deHertz",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ww]ehrend|[Ww]ähren|[Ww]ährenden)(?=[ \\t\\u00a0]{1,8}(?:der|des|dieser|dieses|meiner|meines|seiner|seines|ihrer|ihres|unserer|unseres|eines|einer)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["wehrend", "währen", "währenden"],
+    fix: "während",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Zz]ur[ \\t\\u00a0]{1,8}Zeit)(?=[ \\t\\u00a0]{1,8}(?:krank|nicht|noch|leider|sehr|kein|keine|keinen|nur|beschäftigt|unterwegs|verfügbar|erreichbar|ausgebucht|geschlossen|geöffnet|arbeitslos)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["zeit"],
+    fix: "zurzeit",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])(?:[mM]acht|[mM]achen|[mM]achte|[eE]rgibt|[eE]rgeben|[eE]rgab|[hH]at|[hH]aben|[hH]atte|[hH]abe)(?:[ \\t\\u00a0]{1,8}(?:es|das|doch|ja|absolut|überhaupt|gar|wirklich|echt|einfach|hier|so|halt)){0,2}[ \\t\\u00a0]{1,8})(?<target>kein)(?=[ \\t\\u00a0]{1,8}Sinn(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["kein"],
+    fix: "keinen",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>zu)(?=[ \\t\\u00a0]{1,8}Hause[ \\t\\u00a0]{1,8}(?:gegangen|gekommen|gefahren|gelaufen|geflogen|gehen|kommen|fahren|laufen|fliegen|geht|kommt|fährt|läuft|gehe|komme|fahre)[ \\t]*[.!?,;]))",
+    literals: [],
+    fix: "nach",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])(?:[aA]n|[zZ]u|[mM]it|[vV]on|[bB]ei|[fF]ür|[üÜ]ber|[gG]egen|[oO]hne|[dD]urch|[uU]m|[nN]ach|[vV]or|[nN]eben|[hH]inter|[aA]us|[sS]eit)[ \\t\\u00a0]{1,8})(?<target>Herr)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["herr"],
+    fix: "Herrn",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Aa]n)(?=[ \\t\\u00a0]{1,8}(?:(?:letzten|nächsten|kommenden|vergangenen|übernächsten|vorigen)[ \\t\\u00a0]{1,8})?(?:Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonnabend|Sonntag|Wochenende)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: [],
+    fix: "am",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])(?<noun>[hH]elfe|[hH]ilfst|[hH]ilft|[hH]elft|[hH]elfen|[hH]alf|[hH]alfen|[gG]eholfen|[dD]anke|[dD]ankst|[dD]ankt|[dD]anken|[dD]ankte|[dD]ankten|[gG]edankt|[vV]ertraue|[vV]ertraust|[vV]ertraut|[vV]ertrauen|[vV]ertraute|[vV]ertrauten|[gG]ratuliere|[gG]ratulierst|[gG]ratuliert|[gG]ratulieren|[gG]ratulierte|[gG]ratulierten|[bB]egegne|[bB]egegnest|[bB]egegnet|[bB]egegnen|[bB]egegnete|[bB]egegneten|[gG]efällt|[gG]efiel|[gG]efielen|[gG]ehören|[gG]ehörten|[wW]iderspreche|[wW]idersprichst|[wW]iderspricht|[wW]idersprechen|[wW]idersprach|[wW]idersprachen)[ \\t\\u00a0]{1,8})(?<target>ihn|mich|dich)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:zu|selbst)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["ihn", "mich", "dich"],
+    fixer: "de:deIhn",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ww]ider)(?=[ \\t\\u00a0]{1,8}(?:nach|zum|zur|zu|ins|im|da|hier|dort|einmal|mal|gut|so|neu|auf|aus|nicht|ganz|zurück|alles|etwas|gesund|frei|offen|los)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["wider"],
+    fix: "wieder",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!(?<![\\p{L}\\p{M}])(?:[dD]ie|[dD]en|[dD]er|[aA]m|[zZ]um|[zZ]u|[aA]ufs)[ \\t\\u00a0]{1,8})(?<target>[Ww]enigsten|[Mm]indesten)(?=[ \\t\\u00a0]{1,8}(?:einen|eine|ein|einmal|mal|kurz|das|die|den|ich|du|er|sie|wir|ihr|so|noch|zwei|drei|vier|fünf|zehn|\\d+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["wenigsten", "mindesten"],
+    fixer: "de:deWw2",
+    ownCase: true,
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?\\n][ \\t]*)(?:Wie|Wo|Was|Wann|Warum|Wieso|Weshalb|Wer|Wen|Wem|Wohin|Woher|Welche\\p{Ll}*)[ \\t\\u00a0]{1,8}\\p{Ll}+[ \\t\\u00a0]{1,8})(?<target>den)(?=[ \\t\\u00a0]{1,8}(?:der|die|das|ein|eine|es|er|sie|du|ihr|man)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["den"],
+    fix: "denn",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Hh]aute)(?=[ \\t\\u00a0]{1,8}(?:gehe|gehst|geht|gehen|ist|bin|bist|sind|kommt|komme|kommen|habe|hat|haben|war|waren|abend|morgen|früh|nacht|nicht|noch|schon|Abend|Morgen|Nacht|Mittag|Nachmittag)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>Ziegen)(?=[ \\t\\u00a0]{1,8}Sie[ \\t\\u00a0]{1,8}(?:mir|uns|ihm|ihr|ihnen|bitte|doch)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["haute", "ziegen"],
+    fixer: "de:deHh2",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])(?:[Ww]o|[Ww]ie|[Ww]er|[Ww]arum|[Ww]ann)[ \\t\\u00a0]{1,8})(?<target>bis)(?=[ \\t\\u00a0]{1,8}du(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?<![\\p{L}\\p{M}])du[ \\t\\u00a0]{1,8})(?<t2>bis)(?=[ \\t]*[.!?]))",
+    literals: ["bis", "bis"],
+    fix: "bist",
+  },
+  {
+    pattern:
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>war)(?=[ \\t]*[.!?,;]))",
+    literals: ["war"],
+    fixer: "de:deWar",
   },
   {
     pattern:
