@@ -3829,6 +3829,16 @@
         },
         {
           "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "a watched field keeps its panel hidden when the UI language changes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewAdapters.test.ts",
+          "test": "dispose ends a watch that has not started yet"
+        },
+        {
+          "layer": "unit",
           "file": "tests/CoreSettingsRepository.test.ts",
           "test": "%s with %o resolves to %p"
         }

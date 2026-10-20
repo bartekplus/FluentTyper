@@ -760,10 +760,6 @@ export class ReviewUi {
     this.panel.hidden = ambient;
   }
 
-  get isAmbient(): boolean {
-    return this.ambient;
-  }
-
   /** True when the panel sits over `rect`. */
   panelCovers(rect: DOMRect): boolean {
     return !this.panel.hidden && overlapArea(this.panel.getBoundingClientRect(), rect) > 0;

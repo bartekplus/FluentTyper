@@ -10392,8 +10392,32 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           // The fix from the card counts as this review's: "Fixed: 1. Issues: 1".
           (p) => !p.panelHidden && p.items.length === 1 && /Issues: 1$/.test(p.status),
         );
+        // Back in the text, Escape closes the review. The field keeps focus (no focus
+        // event): its underlines come back without the panel.
+        await page.focus("#test-textarea");
         await page.keyboard.press("Escape");
-        await waitForReview(page, "review closed", (p) => !p.open);
+        await waitForReview(
+          page,
+          "underlines again after the panel closed",
+          (p) => p.open && p.panelHidden && p.marks.length === 1,
+        );
+
+        // A word being typed is not underlined while the caret is at it; leaving the field shows it.
+        await page.evaluate(() => {
+          const field = document.querySelector<HTMLTextAreaElement>("#test-textarea")!;
+          field.focus();
+          field.setSelectionRange(field.value.length, field.value.length);
+        });
+        await page.keyboard.type(" We go quikly");
+        // A mark that must not show gives no event: wait past the recheck (400 ms) and a lookup.
+        await sleep(1200);
+        expect((await readReviewPanel(page)).marks).toHaveLength(1);
+        await page.evaluate(() => (document.activeElement as HTMLElement).blur());
+        await waitForReview(
+          page,
+          "the typed word underlined after leaving",
+          (p) => p.marks.length === 2,
+        );
 
         // A contenteditable field: CSS highlights, which move with the DOM by themselves.
         const spellingRanges = () =>

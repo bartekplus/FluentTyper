@@ -1989,6 +1989,34 @@ describe("review controller lifecycle", () => {
     review.dispose();
   });
 
+  test("a watched field keeps its panel hidden when the UI language changes", async () => {
+    const field = textarea("We saw teh cat.");
+    let language = "en";
+    const { review } = controller(() => language);
+    review.watch(field);
+    const panel = () => root()?.querySelector<HTMLElement>(".panel");
+    await until(() => panel()?.hidden === true, 2000);
+
+    language = "de_DE";
+    review.handleOptionsChanged();
+
+    await until(() => root()?.querySelector("h2")?.textContent === "Prüfung", 2000);
+    expect(panel()!.hidden).toBe(true);
+    review.dispose();
+    field.remove();
+  });
+
+  test("dispose ends a watch that has not started yet", async () => {
+    const field = textarea("We saw teh cat.");
+    const { review } = controller(() => "en");
+    review.watch(field);
+    review.dispose();
+    // Past the watch delay (300 ms): nothing starts.
+    await Bun.sleep(400);
+    expect(root()).toBeNull();
+    field.remove();
+  });
+
   test("an open review switches to a new UI language, keeping its findings", async () => {
     const field = textarea("We saw teh cat.");
     let language = "en";

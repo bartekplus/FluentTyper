@@ -52,8 +52,8 @@ const SCAN_LOOKAHEAD = 1_024;
 const CONTEXT_MARGIN = 512;
 // An incremental scan rescans from this far before an edit (a finding there may read
 // SCAN_LOOKAHEAD into it) to this far after it (look-behind).
-export const INCREMENTAL_BACK = SCAN_LOOKAHEAD;
-export const INCREMENTAL_FORWARD = CONTEXT_MARGIN;
+const INCREMENTAL_BACK = SCAN_LOOKAHEAD;
+const INCREMENTAL_FORWARD = CONTEXT_MARGIN;
 const DOUBLE_QUOTES = /["“”„«»]/;
 
 export interface PreparedReview {

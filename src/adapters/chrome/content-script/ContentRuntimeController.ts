@@ -354,7 +354,11 @@ export class ContentRuntimeController {
         return response?.ok === true && Array.isArray(response.results) ? response.results : null;
       },
       getDocsSurface: () => (this.googleDocs ? this.docsReviewSurface : null),
-      onActiveChange: () => this.reviewLauncher?.refresh(),
+      onActiveChange: () => {
+        this.reviewLauncher?.refresh();
+        // A closed review gives its still-focused field back to underlines while typing.
+        this.watchField(this.reviewLauncher?.focusedField ?? null);
+      },
       // Created even with the preference off, so turning it on reaches an open Review
       // (`aiEnabled` and the status keep it "off" until then; nothing connects before a job).
       createAiProvider: () =>

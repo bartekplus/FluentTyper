@@ -9,8 +9,12 @@ import {
   type ReviewEngineResponse,
 } from "@core/domain/contracts/reviewEngine";
 
-/** Open review sessions kept at once; the least recently used is released first. */
-const MAX_SESSIONS = 8;
+/**
+ * Review sessions kept at once, for all tabs: open reviews and fields watched for
+ * underlines while typing. The least recently used is released first (its next
+ * recheck is a full scan). Each keeps at most one 50k text.
+ */
+const MAX_SESSIONS = 16;
 
 const packagedFiles = new Map<string, Promise<Readonly<Record<string, string>> | undefined>>();
 

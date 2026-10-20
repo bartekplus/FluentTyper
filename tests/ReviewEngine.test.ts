@@ -420,7 +420,7 @@ describe("ReviewEngineHost", () => {
     const released: string[] = [];
     const sessions = (host as unknown as { sessions: Map<string, { engine: LocalReviewEngine }> })
       .sessions;
-    for (let tab = 1; tab <= 10; tab += 1) {
+    for (let tab = 1; tab <= 18; tab += 1) {
       await host.handle(
         { op: "scan", session: "s", id: 1, request: scanRequest("x(1) teh") },
         { tabId: tab, frameId: 0 },
@@ -432,12 +432,12 @@ describe("ReviewEngineHost", () => {
         release();
       };
     }
-    expect(sessions.size).toBe(8);
+    expect(sessions.size).toBe(16);
     expect([...sessions.keys()][0]).toBe("3:0:s");
     expect(released).toEqual(["1", "2"]);
     await host.handle(
       { op: "scan", session: "s", id: 1, request: scanRequest("x(1) teh") },
-      { tabId: 11, frameId: 0 },
+      { tabId: 19, frameId: 0 },
     );
     expect(released).toEqual(["1", "2", "3"]);
   });

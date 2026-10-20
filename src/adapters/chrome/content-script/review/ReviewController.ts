@@ -182,7 +182,7 @@ export class ReviewController {
     // Tabbing through a form starts nothing.
     this.watchTimer = setTimeout(() => {
       this.watchTimer = null;
-      if (this.active && !this.active.ambient) return;
+      if (this.active && (!this.active.ambient || this.active.target.element === field)) return;
       const resolution = resolveReviewTarget(document, undefined);
       if (!resolution.ok) return;
       const { target } = resolution;
@@ -531,6 +531,10 @@ export class ReviewController {
       },
       true,
     );
+    // Leaving the field ends the typing there: findings at the caret show again.
+    on(element, "focusout", () => {
+      if (active.ambient) this.stopTyping(active);
+    });
     // The page's context menu is about the page: the card steps aside.
     on<MouseEvent>(
       doc,
@@ -588,6 +592,7 @@ export class ReviewController {
     const cardAlternative = previous.cardAlternativeIndex();
     const cardHadFocus = previous.cardHasFocus();
     const ui = this.createUi(active.target);
+    ui.setAmbient(active.ambient);
     active.target.setMeasurementRoot?.(ui.root);
     ui.placeAwayFrom(active.target.element.getBoundingClientRect());
     active.ui = ui;
@@ -630,10 +635,17 @@ export class ReviewController {
           ? (id) => {
               this.active?.ui.closeCard();
               void this.active?.session.disableReviewRule(id);
-              this.active?.ui.focusPanel();
+              this.focusHome();
             }
           : undefined,
-        addToDictionary: (id) => void this.active?.session.addToDictionary(id),
+        addToDictionary: (id) => {
+          void this.active?.session.addToDictionary(id);
+          // A watched field has no panel to show the outcome: back to the text.
+          if (this.active?.ambient) {
+            this.active.ui.closeCard();
+            this.focusHome();
+          }
+        },
         fixAll: (viaKeyboard) => void this.fixAll(viaKeyboard),
         toggleCategory: (category: ReviewCategory, shown) =>
           this.active?.session.setCategory(category, shown),
@@ -659,6 +671,12 @@ export class ReviewController {
       capabilityKeys(target),
       reviewMountFor(target.element),
     );
+  }
+
+  /** Where the keyboard goes after a card action: the panel, or the text of a watched field. */
+  private focusHome(): void {
+    if (this.active?.ambient) this.active.target.focusEditor();
+    else this.active?.ui.focusPanel();
   }
 
   close(): void {
@@ -1186,6 +1204,8 @@ export class ReviewController {
   dispose(): void {
     this.close();
     this.dismissNotice();
+    // close() may have handed the focused field back to a watch.
+    this.stopWatching();
   }
 }
 

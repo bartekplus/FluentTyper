@@ -178,15 +178,17 @@ off.
   edit stay where they were measured, with no new layout. The other marks wait
   for the recheck. A scroll in that time hides the marks.
 - While the user types, a finding that touches the caret is not shown: its
-  word may be unfinished. A click in the field or an arrow, Home, End or Page
-  key shows it again.
+  word may be unfinished. A click in the field, an arrow, Home, End or Page
+  key, or leaving the field shows it again.
 - No Local AI, no Fix all planning and no panel rendering. A click on a mark
-  opens the card. Apply and Ignore return focus to the editor. Escape closes
-  the card, and otherwise stays the page's key.
+  opens the card. Its actions (Apply, Ignore, Disable this check, Add to
+  dictionary) return focus to the editor. Escape closes the card, and
+  otherwise stays the page's key.
 - **Review all** on the card, the Review button or the shortcut opens the
   panel on the same session, with no new scan, and adds Local AI.
 - One field is watched at a time. Focus on another eligible field ends the
-  old watch. An open review panel is never replaced.
+  old watch. An open review panel is never replaced. When a review closes,
+  the field that still has focus is watched again.
 - Word for the web, Gutenberg and Google Docs are not watched: each pass would
   read their whole model.
 - Paragraph languages (`reviewLanguageRegions`) are cached per page, up to
@@ -1149,8 +1151,9 @@ SuggestionEntrySession (proposals)  CMD_CONTENT_SCRIPT_REVIEW_ENGINE
   load, the checks that need it count as a rule error and give no findings.
 - Sessions are keyed by sender tab, frame and a random session id, so a tab can
   never cancel or read another's work. Each keeps its own native-result cache
-  and last prepared snapshot; at most 8 are kept (least recently used released
-  first), and a review's close releases its own. A restarted worker starts them
+  and last prepared snapshot; at most 16 are kept for all tabs, open reviews and
+  watched fields together (least recently used released first), and a review's
+  close releases its own. A restarted worker starts them
   again empty (proofs prepare their snapshot again).
 - The scan yields between chunks, so typing predictions for every tab never wait
   behind a long one. A newer scan, an edit or close cancels the one in flight
