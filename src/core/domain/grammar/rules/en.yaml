@@ -23,6 +23,7 @@ fragments:
   NEGATION: "don['’]t|doesn['’]t|didn['’]t|never|not"
   VERB_OBJECT: "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what"
   SUBJECT: "I|you|we|they|he|she|it"
+  CONFUSIONSLOTS_MODAL: "(?:will|would|can|could|should|shall|may|might|must|cannot|['’]ll|['’]d|(?:won|wouldn|can|couldn|shouldn|don|doesn|didn)['’]t)"
   PUNCTUATION_LINKING: "However|Nonetheless|Nevertheless|Besides|Alas|Similarly|Also|Furthermore|Moreover|Therefore|Consequently|Meanwhile|Otherwise|Additionally|Finally|Firstly|Secondly|Lastly|Unfortunately|Fortunately|Of course|For example|For instance|In fact|In addition|In conclusion|In summary|On the other hand|As a result|In other words|By default|That said|Indeed|Instead|Likewise"
   PUNCTUATION_PREPOSITIONS: "with|for|to|at|about|on|in|by|after|around|from|into|without|like"
   PUNCTUATION_OBJECT: "it|you|me|him|her|them|us"
@@ -1254,13 +1255,58 @@ rules:
     predicate: adjectiveForAdverb
   - id: en.confusionPairs
     checks: [englishConfusedWords]
-    predicate: confusionPairs
+    style: match
+    message: review_msg_confused_word
+    filter: slotFindingsOncePerStart
+    frames:
+      # "I would by a new phone", "Soup cannot by eaten with a fork", "wants you to by happy".
+      # Also after a subject and a frequency adverb ("I usually by my food at…") or an inverted
+      # do ("Does he by his food here?").
+      - regex: "(?:(?<lead>{{CONFUSIONSLOTS_MODAL}}|to)(?:{{S}}(?:also|really|definitely|probably|surely|likely|never|not|always|soon|just|still|only|then|first))?|(?<subject>I|you|we|they){{S}}(?:usually|always|often|never|sometimes|rarely|normally|also)|(?<inverted>(?:do|does|did)(?:n['’]t)?{{S}}(?:I|you|we|they|he|she))){{S}}(?<target>by){{E}}"
+        fixer: confusionByBuy
+      # "I do this ever day", "Ever member was there".
+      - regex: "(?<target>ever){{S}}(?=[A-Za-z0-9])"
+        fixer: confusionEverEvery
+      # "Has this every worked?", "Have you every been there": every before a participle.
+      - regex: "(?:have|has|had|haven['’]t|hasn['’]t|you|this|it|they|we|i){{S}}(?<target>every){{S}}(?<verb>[a-z]+){{E}}"
+        fixer: confusionEveryEver
+      # "Did you every try it?", "Why would I every do that": every between auxiliary + subject
+      # and a verb, unless a time phrase follows ("Did you every day go…").
+      - regex: "(?:can|could|would|will|should|shall|might|may|did|do|does|have|has|had|don['’]?t|doesn['’]?t|didn['’]?t|won['’]t|wouldn['’]t|can['’]t|couldn['’]t){{S}}(?:I|you|we|they|he|she|it){{S}}(?<target>every){{S}}(?!(?:day|days|time|times|morning|night|week|weekend|month|year|hour|minute|second|one|single|other|so|now|last|bit|once|few|two|three){{E}})[a-z]+{{E}}"
+        fixer: confusionEveryAfterSubject
+      # "I don't now where it is", "Thanks for letting us now.": know after do-not and let.
+      - regex: "(?:(?:do|does|did)(?:n['’]t|{{S}}not)|let(?:ting|s)?{{S}}(?:me|us|him|her|them|you)){{S}}(?<target>now){{E}}"
+        fixer: confusionNowKnow
+      # "come an have a look", "removed an migrated", "great an he is fast": "an" for "and".
+      - regex: "(?<target>an){{S}}(?=[A-Za-z])"
+        fixer: confusionAnAnd
   - id: en.thenAfterComparative
     checks: [englishThenThan]
-    predicate: thenAfterComparative
+    style: match
+    message: review_msg_then_than
+    filter: slotFindings
+    frames:
+      # "more expensive on some systems then others", "much smoother then our flight": than.
+      - regex: "(?<target>then){{S}}(?=[A-Za-z0-9])"
+        fixer: confusionThenThan
   - id: en.wereWhere
     checks: [englishWereWhere]
-    predicate: wereWhere
+    style: match
+    message: review_msg_were_where
+    filter: slotFindingsOncePerStart
+    frames:
+      # "Go back to were you came from".
+      - regex: "(?:to|from){{S}}(?<target>were){{S}}(?=(?:I|you|he|she|it|we|they|the|this|that){{E}})"
+        fixer: confusionToWere
+      # "If I where a carpenter".
+      - regex: "(?:if|wish|as{{S}}if|as{{S}}though){{S}}(?:I|he|she|it|we|they|you){{S}}(?<target>where){{E}}"
+        fixer: confusionIfWhere
+      # A plural subject before where + an -ing verb: "the runners where running".
+      - regex: "(?<target>where){{S}}(?<verb>[a-z]+ing){{E}}"
+        fixer: confusionWhereIng
+      # "Where you ever able to…?", "Where you really hurt?": a yes/no question with be.
+      - regex: "(?<target>Where){{S}}(?:you|they|we)(?:{{S}}(?:ever|really|also|all|both))?{{S}}(?<pred>[a-z]+){{E}}"
+        fixer: confusionWhereYou
   - id: en.countNouns
     checks: [englishCountability]
     predicate: countNouns

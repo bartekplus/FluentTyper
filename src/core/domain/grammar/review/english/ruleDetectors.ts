@@ -83,7 +83,6 @@ export const PREDICATES = mergePredicates(
   determinerSlots.PREDICATES,
   agreementSlots.PREDICATES,
   adverbSlots.PREDICATES,
-  confusionSlots.PREDICATES,
   countSlots.PREDICATES,
   negationSlots.PREDICATES,
   relativeSlots.PREDICATES,
@@ -131,6 +130,7 @@ export const FIXERS = mergePredicates<Fixer>(
   remaining.FIXERS,
   compoundForms.FIXERS,
   punctuation.FIXERS,
+  confusionSlots.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */
@@ -138,4 +138,5 @@ export const FILTERS = mergePredicates<FindingsFilter>(
   articles.FILTERS,
   grammarStyle1.FILTERS,
   punctuation.FILTERS,
+  confusionSlots.FILTERS,
 );

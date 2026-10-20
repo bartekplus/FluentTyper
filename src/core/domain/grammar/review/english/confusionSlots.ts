@@ -1,11 +1,10 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { FindingsFilter, MatchFixer } from "../../engine/reviewRules";
+import { quotedMention } from "./grammarStyle1";
 import {
   afterBreak,
   caseLike,
-  english,
   evidence,
   FUNCTION_WORDS,
   nounOnly,
@@ -24,27 +23,6 @@ const MESSAGE: Record<Rule, RawFinding["messageKey"]> = {
   englishWereWhere: "review_msg_were_where",
 };
 
-function push(
-  ctx: DetectContext,
-  findings: RawFinding[],
-  ruleId: Rule,
-  start: number,
-  end: number,
-  typed: string,
-  alternatives: string[],
-  from: number,
-): void {
-  if (findings.some((f) => f.range.start === start)) return;
-  findings.push({
-    ruleId,
-    messageKey: MESSAGE[ruleId],
-    range: { start, end },
-    alternatives: alternatives.map((a) => caseLike(typed, a)),
-    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-    context: evidence(ctx, from, end),
-  });
-}
-
 const lower = (t: Token | undefined) => (t?.kind === "word" ? t.lower : "");
 const verbsOf = (word: string) => englishWordInfo(word)?.verbs ?? [];
 const participle = (word: string) =>
@@ -52,7 +30,6 @@ const participle = (word: string) =>
 
 // ------------------------------------------------------------------------------- by -> buy/be
 
-const MODAL = `(?:will|would|can|could|should|shall|may|might|must|cannot|['’]ll|['’]d|(?:won|wouldn|can|couldn|shouldn|don|doesn|didn)['’]t)`;
 // Heads that take "to" + a bare verb.
 const TO_HEADS =
   /^(?:want|wants|wanted|need|needs|needed|going|have|has|had|try|tries|tried|trying|able|plan|plans|planned|decided|like|love|afford|hope|hoping|forgot|remember|me|you|him|her|us|them|wish)$/;
@@ -64,31 +41,77 @@ const BY_PHRASE =
 const BY_TIME =
   /^(?:time|point|stage|date|day|week|month|year|morning|evening|afternoon|night|weekend|deadline|hour|end|count|estimate|reckoning|standards?|measure|logic|definition|own|account|calculation|side|request|leave|choice|design)$/;
 
-/** "I would by a new phone", "Soup cannot by eaten with a fork", "wants you to by happy". */
-function byBuy(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    // Also after a subject and a frequency adverb ("I usually by my food at…") or an inverted
-    // do ("Does he by his food here?").
-    `(?:(?<lead>${MODAL}|to)(?:${SPACE}(?:also|really|definitely|probably|surely|likely|never|not|always|soon|just|still|only|then|first))?|(?<subject>I|you|we|they)${SPACE}(?:usually|always|often|never|sometimes|rarely|normally|also)|(?<inverted>(?:do|does|did)(?:n['’]t)?${SPACE}(?:I|you|we|they|he|she)))${SPACE}(?<target>by)${WORD_END}`,
-  )) {
+// ------------------------------------------------------------------------------- then -> than
+
+// "-er" words that are not comparatives, or compare in time ("later then").
+const NOT_COMPARATIVE =
+  /^(?:after|never|over|under|whether|either|neither|ever|together|other|later|earlier|order|number|water|matter|paper|power|user|server|letter|member|computer|summer|winter|corner|answer|manner|offer|enter|cover|consider|remember|wonder|differ|prefer|refer|suffer|deliver|discover|gather|bother|weather|father|mother|brother|sister|daughter|leader|player|owner|customer|partner|teacher|writer|reader|driver|finger|dinner|center|chapter|character|register|filter|folder|header|footer|layer|buffer|parameter|counter|monster|master|meter|liter|litter|butter|hammer|ladder|lower|upper|outer|inner|former|latter|proper|super|clever|tender|sober|bitter|eager|slender|rather)$/;
+const COMPARATIVE_WORDS = /^(?:more|less|fewer|better|worse|rather|else|other)$/;
+// What may follow a comparison's "than": noun phrases, pronoun objects, numbers and time words.
+const COMPARED =
+  /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|me|him|us|them|others|another|any|anyone|anything|anywhere|everyone|everything|everybody|anybody|ever|usual|before|expected|necessary|needed|last|in|at|on|for|with|one|two|three|four|five|ten|hundred|a)$/;
+
+function comparative(word: string): boolean {
+  if (COMPARATIVE_WORDS.test(word)) return true;
+  if (!/^[a-z]{3,}er$/.test(word) || NOT_COMPARATIVE.test(word)) return false;
+  const read = englishWordInfo(word);
+  // "faster", "smoother", "scarier": the adjective or adverb's -er form, never a noun.
+  return !!read && (read.adjective || read.adverb) && !read.noun && !read.verbs.length;
+}
+
+// ------------------------------------------------------------------------------- ever -> every
+
+const WEEKDAYS = /^(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/;
+// "ever" before a time, count or noun that only "every" can take.
+const EVERY_NOUNS =
+  /^(?:day|week|month|year|time|morning|evening|night|hour|minute|second|other|single|member|user|person|student|child|kid|team|player|employee|customer|girl|boy|man|woman|step|page|item|line|file)$/;
+
+// ------------------------------------------------------------------------------- now -> know
+
+// ------------------------------------------------------------------------------- an -> and
+
+const PRONOUN_SUBJECT = /^(?:i|he|she|we|they|you)$/;
+
+// ------------------------------------------------------------------------------- were/where
+
+function slot(
+  ctx: DetectContext,
+  ruleId: Rule,
+  start: number,
+  end: number,
+  typed: string,
+  alternatives: string[],
+  from: number,
+): RawFinding {
+  return {
+    ruleId,
+    messageKey: MESSAGE[ruleId],
+    range: { start, end },
+    alternatives: alternatives.map((a) => caseLike(typed, a)),
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    context: evidence(ctx, from, end),
+  };
+}
+
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  confusionByBuy: (m, ctx) => {
     const lead = m.groups!.lead ?? "will";
     const strict = !m.groups!.lead;
-    if (m.groups!.inverted && !afterBreak(ctx, m.index)) continue;
-    if (lead === "to" && !TO_HEADS.test(wordBefore(ctx, m.index))) continue;
+    if (m.groups!.inverted && !afterBreak(ctx, m.index)) return null;
+    if (lead === "to" && !TO_HEADS.test(wordBefore(ctx, m.index))) return null;
     // "at will by", "Uncle Zebulon's Will by": the noun will; a mid-sentence capital names.
-    if (lead !== lead.toLowerCase() && !afterBreak(ctx, m.index)) continue;
+    if (lead !== lead.toLowerCase() && !afterBreak(ctx, m.index)) return null;
     if (
       /^will$/i.test(lead) &&
       /^(?:at|free|good|ill|own|the|his|her|their|my|your|our)$/.test(wordBefore(ctx, m.index))
     )
-      continue;
+      return null;
     const [start, end] = m.indices!.groups!.target;
     const [next, after] = tokensAfter(ctx, end, 2);
-    if (next?.kind !== "word" || next.text !== next.lower) continue;
+    if (next?.kind !== "word" || next.text !== next.lower) return null;
     const word = next.lower;
-    if (BY_PHRASE.test(word) || /ing$/.test(word)) continue;
+    if (BY_PHRASE.test(word) || /ing$/.test(word)) return null;
     const read = englishWordInfo(word);
     let fix: string | null = null;
     // "cannot by eaten", "to by happy": a participle or adjective that no noun reading shares.
@@ -122,36 +145,12 @@ function byBuy(ctx: DetectContext): RawFinding[] {
         !/(?:er|or|ist|ian)$/.test(after.lower))
     )
       fix = "buy";
-    if (!fix) continue;
-    push(ctx, findings, "englishConfusedWords", start, end, m.groups!.target, [fix], m.index);
-  }
-  return findings;
-}
-
-// ------------------------------------------------------------------------------- then -> than
-
-// "-er" words that are not comparatives, or compare in time ("later then").
-const NOT_COMPARATIVE =
-  /^(?:after|never|over|under|whether|either|neither|ever|together|other|later|earlier|order|number|water|matter|paper|power|user|server|letter|member|computer|summer|winter|corner|answer|manner|offer|enter|cover|consider|remember|wonder|differ|prefer|refer|suffer|deliver|discover|gather|bother|weather|father|mother|brother|sister|daughter|leader|player|owner|customer|partner|teacher|writer|reader|driver|finger|dinner|center|chapter|character|register|filter|folder|header|footer|layer|buffer|parameter|counter|monster|master|meter|liter|litter|butter|hammer|ladder|lower|upper|outer|inner|former|latter|proper|super|clever|tender|sober|bitter|eager|slender|rather)$/;
-const COMPARATIVE_WORDS = /^(?:more|less|fewer|better|worse|rather|else|other)$/;
-// What may follow a comparison's "than": noun phrases, pronoun objects, numbers and time words.
-const COMPARED =
-  /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|me|him|us|them|others|another|any|anyone|anything|anywhere|everyone|everything|everybody|anybody|ever|usual|before|expected|necessary|needed|last|in|at|on|for|with|one|two|three|four|five|ten|hundred|a)$/;
-
-function comparative(word: string): boolean {
-  if (COMPARATIVE_WORDS.test(word)) return true;
-  if (!/^[a-z]{3,}er$/.test(word) || NOT_COMPARATIVE.test(word)) return false;
-  const read = englishWordInfo(word);
-  // "faster", "smoother", "scarier": the adjective or adverb's -er form, never a noun.
-  return !!read && (read.adjective || read.adverb) && !read.noun && !read.verbs.length;
-}
-
-/** "more expensive on some systems then others", "much smoother then our flight": than. */
-function thenAfterComparative(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, `(?<target>then)${SPACE}(?=[A-Za-z0-9])`)) {
+    if (!fix) return null;
+    return slot(ctx, "englishConfusedWords", start, end, m.groups!.target, [fix], m.index);
+  },
+  confusionThenThan: (m, ctx) => {
     const target = m.groups!.target;
-    if (target !== "then") continue;
+    if (target !== "then") return null;
     const before = ctx.text.slice(Math.max(0, m.index - 80), m.index);
     // "If I get stronger at this then I…", "when you feel better then you…": a sequence.
     const sentence = /[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, m.index - 200), m.index))![0];
@@ -160,14 +159,14 @@ function thenAfterComparative(ctx: DetectContext): RawFinding[] {
         sentence,
       )
     )
-      continue;
+      return null;
     // The comparison and "then" share a clause: no punctuation or linking word between.
     const clause = /[^.!?;:,\n(]*$/.exec(before)![0];
     const words = clause.toLowerCase().match(/[a-z]+/g) ?? [];
     let k = words.length - 1;
     while (k >= 0 && !comparative(words[k])) k--;
     // Right after the comparative, englishWordConfusions decides; here words stand between.
-    if (k < 0 || k === words.length - 1 || words.length - k > 7) continue;
+    if (k < 0 || k === words.length - 1 || words.length - k > 7) return null;
     const gap = words.slice(k + 1);
     if (
       gap.some(
@@ -177,14 +176,14 @@ function thenAfterComparative(ctx: DetectContext): RawFinding[] {
             !englishWordInfo(w)?.noun),
       )
     )
-      continue;
+      return null;
     // "even more then"? "If you need more, then call": a sequence needs a clause after then.
     if (
       /^(?:and|or|but|just|since|until|by|from|back|even|only|right|since)$/.test(
         words.at(-1) ?? "",
       )
     )
-      continue;
+      return null;
     const [next, after] = tokensAfter(ctx, m.index + m[0].length, 2);
     const word = lower(next);
     const subjectComparison =
@@ -196,10 +195,10 @@ function thenAfterComparative(ctx: DetectContext): RawFinding[] {
       next?.kind === "number" ||
       COMPARED.test(word) ||
       (next?.kind === "word" && nounOnly(word) === "plural");
-    if (!subjectComparison && !nounPhrase) continue;
+    if (!subjectComparison && !nounPhrase) return null;
     // "…then the old version failed": a clause after then is a sequence; names and code abstain.
     const rest = tokensAfter(ctx, m.index + m[0].length, 6);
-    if (rest.some((t) => t.kind === "other")) continue;
+    if (rest.some((t) => t.kind === "other")) return null;
     if (
       !subjectComparison &&
       rest.some(
@@ -210,26 +209,13 @@ function thenAfterComparative(ctx: DetectContext): RawFinding[] {
               !englishWordInfo(t.lower)?.noun)),
       )
     )
-      continue;
+      return null;
     // "more then the next day": a time sequence noun after "then".
-    if (/^(?:next|following)$/.test(lower(after))) continue;
+    if (/^(?:next|following)$/.test(lower(after))) return null;
     const start = m.index;
-    push(ctx, findings, "englishThenThan", start, start + 4, target, ["than"], start);
-  }
-  return findings;
-}
-
-// ------------------------------------------------------------------------------- ever -> every
-
-const WEEKDAYS = /^(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/;
-// "ever" before a time, count or noun that only "every" can take.
-const EVERY_NOUNS =
-  /^(?:day|week|month|year|time|morning|evening|night|hour|minute|second|other|single|member|user|person|student|child|kid|team|player|employee|customer|girl|boy|man|woman|step|page|item|line|file)$/;
-
-/** "I do this ever day", "Ever member was there", "Has this every worked?". */
-function everEvery(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, `(?<target>ever)${SPACE}(?=[A-Za-z0-9])`)) {
+    return slot(ctx, "englishThenThan", start, start + 4, target, ["than"], start);
+  },
+  confusionEverEvery: (m, ctx) => {
     const target = m.groups!.target;
     const [start, end] = m.indices!.groups!.target;
     const prev = wordBefore(ctx, m.index);
@@ -239,7 +225,7 @@ function everEvery(ctx: DetectContext): RawFinding[] {
         prev,
       )
     )
-      continue;
+      return null;
     const [next] = tokensAfter(ctx, end, 1);
     const word = next?.kind === "word" ? next.lower : "";
     // "a blackout ever Monday" closes a noun phrase; only a verb or clause start before it.
@@ -249,79 +235,48 @@ function everEvery(ctx: DetectContext): RawFinding[] {
       (WEEKDAYS.test(word) && !prevNoun) ||
       (EVERY_NOUNS.test(word) &&
         (next?.kind !== "word" || next.text === next.lower || WEEKDAYS.test(word)));
-    if (!ok || /^(?:since|after|so|more|again)$/.test(word)) continue;
-    push(ctx, findings, "englishConfusedWords", start, end, target, ["every"], m.index);
-  }
-  // "Has this every worked?", "Have you every been there": every before a participle.
-  for (const m of frameMatches(
-    ctx,
-    `(?:have|has|had|haven['’]t|hasn['’]t|you|this|it|they|we|i)${SPACE}(?<target>every)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
-  )) {
+    if (!ok || /^(?:since|after|so|more|again)$/.test(word)) return null;
+    return slot(ctx, "englishConfusedWords", start, end, target, ["every"], m.index);
+  },
+  confusionEveryEver: (m, ctx) => {
     const verb = m.groups!.verb;
     const read = englishWordInfo(verb);
-    if (!read || read.noun || !participle(verb)) continue;
+    if (!read || read.noun || !participle(verb)) return null;
     const [start, end] = m.indices!.groups!.target;
-    push(ctx, findings, "englishConfusedWords", start, end, m.groups!.target, ["ever"], m.index);
-  }
-  // "Did you every try it?", "Why would I every do that": every between auxiliary + subject
-  // and a verb, unless a time phrase follows ("Did you every day go…").
-  for (const m of frameMatches(
-    ctx,
-    `(?:can|could|would|will|should|shall|might|may|did|do|does|have|has|had|don['’]?t|doesn['’]?t|didn['’]?t|won['’]t|wouldn['’]t|can['’]t|couldn['’]t)${SPACE}(?:I|you|we|they|he|she|it)${SPACE}(?<target>every)${SPACE}(?!(?:day|days|time|times|morning|night|week|weekend|month|year|hour|minute|second|one|single|other|so|now|last|bit|once|few|two|three)${WORD_END})[a-z]+${WORD_END}`,
-  )) {
+    return slot(ctx, "englishConfusedWords", start, end, m.groups!.target, ["ever"], m.index);
+  },
+  confusionEveryAfterSubject: (m, ctx) => {
     const [start, end] = m.indices!.groups!.target;
-    if (findings.some((f) => f.range.start === start)) continue;
-    findings.push({
+    return {
       ruleId: "englishConfusedWords",
       messageKey: "review_msg_ever_every",
       range: { start, end },
       alternatives: [caseLike(m.groups!.target, "ever")],
       context: evidence(ctx, m.index, m.index + m[0].length),
-    });
-  }
-  return findings;
-}
-
-// ------------------------------------------------------------------------------- now -> know
-
-/** "I don't now where it is", "Thanks for letting us now.": know after do-not and let. */
-function nowKnow(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?:(?:do|does|did)(?:n['’]t|${SPACE}not)|let(?:ting|s)?${SPACE}(?:me|us|him|her|them|you))${SPACE}(?<target>now)${WORD_END}`,
-  )) {
+    };
+  },
+  confusionNowKnow: (m, ctx) => {
     const [start, end] = m.indices!.groups!.target;
     const [next] = tokensAfter(ctx, end, 1);
     const word = lower(next);
     const closes =
       (next?.kind === "end" && /^let/i.test(m[0]) && /^[.!]/.test(next.text)) ||
       /^(?:what|where|when|why|how|who|whether|if|about|which|anything|much)$/.test(word);
-    if (!closes) continue;
-    push(ctx, findings, "englishConfusedWords", start, end, m.groups!.target, ["know"], m.index);
-  }
-  return findings;
-}
-
-// ------------------------------------------------------------------------------- an -> and
-
-const PRONOUN_SUBJECT = /^(?:i|he|she|we|they|you)$/;
-
-/** "come an have a look", "removed an migrated", "great an he is fast": "an" for "and". */
-function anAnd(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, `(?<target>an)${SPACE}(?=[A-Za-z])`)) {
+    if (!closes) return null;
+    return slot(ctx, "englishConfusedWords", start, end, m.groups!.target, ["know"], m.index);
+  },
+  confusionAnAnd: (m, ctx) => {
     const target = m.groups!.target;
-    if (target !== "an") continue;
+    if (target !== "an") return null;
     const [start, end] = m.indices!.groups!.target;
     const [next, after] = tokensAfter(ctx, end, 2);
-    if (next?.kind !== "word") continue;
+    if (next?.kind !== "word") return null;
     const word = next.lower;
     const read = englishWordInfo(word);
     const prev = wordBefore(ctx, m.index);
     // The word before must end a phrase: a verb, adjective, adverb or noun, not a preposition.
     if (!prev || (FUNCTION_WORDS.has(prev) && !/^(?:on|off|up|down|in|out|over|once)$/.test(prev)))
-      continue;
+      return null;
     let ok = false;
     // A capitalized pronoun or a lowercase word with a consonant sound: "an" is no article here.
     if (word === "i" || (PRONOUN_SUBJECT.test(word) && next.text === next.lower)) ok = true;
@@ -349,21 +304,10 @@ function anAnd(ctx: DetectContext): RawFinding[] {
       /^(?:the|a|my|your|our|their|his|her|its|them|it|us|me|him)$/.test(after.lower)
     )
       ok = true;
-    if (!ok) continue;
-    push(ctx, findings, "englishConfusedWords", start, end, target, ["and"], m.index);
-  }
-  return findings;
-}
-
-// ------------------------------------------------------------------------------- were/where
-
-/** "Go back to were you came from", "If I where a carpenter", "The runners where running". */
-function wereWhere(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?:to|from)${SPACE}(?<target>were)${SPACE}(?=(?:I|you|he|she|it|we|they|the|this|that)${WORD_END})`,
-  )) {
+    if (!ok) return null;
+    return slot(ctx, "englishConfusedWords", start, end, target, ["and"], m.index);
+  },
+  confusionToWere: (m, ctx) => {
     // "next to were the boxes"? Only a clause with its own verb after.
     const [start, end] = m.indices!.groups!.target;
     const tokens = tokensAfter(ctx, end, 4);
@@ -374,21 +318,17 @@ function wereWhere(ctx: DetectContext): RawFinding[] {
           (t) => t.kind === "word" && verbsOf(t.lower).length && !englishWordInfo(t.lower)?.noun,
         )
     )
-      continue;
-    push(ctx, findings, "englishWereWhere", start, end, m.groups!.target, ["where"], m.index);
-  }
-  for (const m of frameMatches(
-    ctx,
-    `(?:if|wish|as${SPACE}if|as${SPACE}though)${SPACE}(?:I|he|she|it|we|they|you)${SPACE}(?<target>where)${WORD_END}`,
-  )) {
+      return null;
+    return slot(ctx, "englishWereWhere", start, end, m.groups!.target, ["where"], m.index);
+  },
+  confusionIfWhere: (m, ctx) => {
     const [start, end] = m.indices!.groups!.target;
-    push(ctx, findings, "englishWereWhere", start, end, m.groups!.target, ["were"], m.index);
-  }
-  // A plural subject before where + an -ing verb: "the runners where running".
-  for (const m of frameMatches(ctx, `(?<target>where)${SPACE}(?<verb>[a-z]+ing)${WORD_END}`)) {
+    return slot(ctx, "englishWereWhere", start, end, m.groups!.target, ["were"], m.index);
+  },
+  confusionWhereIng: (m, ctx) => {
     const verb = m.groups!.verb;
     const read = englishWordInfo(verb);
-    if (!read?.verbs.some((v) => v.form === "ing")) continue;
+    if (!read?.verbs.some((v) => v.form === "ing")) return null;
     const prev = wordBefore(ctx, m.index);
     const prevRead = englishWordInfo(prev);
     const subject =
@@ -398,19 +338,15 @@ function wereWhere(ctx: DetectContext): RawFinding[] {
         !/^(?:places|areas|cases|situations|times|days|conditions|jobs|countries|cities|events)$/.test(
           prev,
         ));
-    if (!subject) continue;
+    if (!subject) return null;
     // "conditions where working is hard": a gerund subject with its own verb.
     const [next] = tokensAfter(ctx, m.index + m[0].length, 1);
-    if (/^(?:is|was|has|can|will|would|seems|becomes|makes)$/.test(lower(next))) continue;
+    if (/^(?:is|was|has|can|will|would|seems|becomes|makes)$/.test(lower(next))) return null;
     const [start, end] = m.indices!.groups!.target;
-    push(ctx, findings, "englishWereWhere", start, end, m.groups!.target, ["were"], m.index);
-  }
-  // "Where you ever able to…?", "Where you really hurt?": a yes/no question with be.
-  for (const m of frameMatches(
-    ctx,
-    `(?<target>Where)${SPACE}(?:you|they|we)(?:${SPACE}(?:ever|really|also|all|both))?${SPACE}(?<pred>[a-z]+)${WORD_END}`,
-  )) {
-    if (!afterBreak(ctx, m.index)) continue;
+    return slot(ctx, "englishWereWhere", start, end, m.groups!.target, ["were"], m.index);
+  },
+  confusionWhereYou: (m, ctx) => {
+    if (!afterBreak(ctx, m.index)) return null;
     const pred = m.groups!.pred;
     const read = englishWordInfo(pred);
     const ok =
@@ -418,15 +354,29 @@ function wereWhere(ctx: DetectContext): RawFinding[] {
       (!!read &&
         read.verbs.some((v) => v.form === "participle") &&
         !read.verbs.some((v) => v.form === "base"));
-    if (!ok || !/^[^.!\n]*\?/.test(ctx.text.slice(m.index, m.index + 160))) continue;
+    if (!ok || !/^[^.!\n]*\?/.test(ctx.text.slice(m.index, m.index + 160))) return null;
     const [start, end] = m.indices!.groups!.target;
-    push(ctx, findings, "englishWereWhere", start, end, m.groups!.target, ["were"], m.index);
-  }
-  return findings;
-}
+    return slot(ctx, "englishWereWhere", start, end, m.groups!.target, ["were"], m.index);
+  },
+} satisfies Record<string, MatchFixer>;
 
-export const PREDICATES = {
-  confusionPairs: english(byBuy, everEvery, nowKnow, anAnd),
-  thenAfterComparative: english(thenAfterComparative),
-  wereWhere: english(wereWhere),
-} satisfies Record<string, Detector>;
+/** A finding of a slot rule stays when it starts in the chunk, outside a named example. */
+const kept = (ctx: DetectContext, f: RawFinding) =>
+  f.range.start >= ctx.from && f.range.start < ctx.to && !quotedMention(ctx, f);
+
+/** The named findings filters of grammar/rules/en.yaml (`filter:`). */
+export const FILTERS = {
+  /** US English only; the findings that start in the chunk, outside named examples. */
+  slotFindings: (ctx, findings) =>
+    ctx.lang !== "en_US" ? [] : findings.filter((f) => kept(ctx, f)),
+  /** The same, and only the first finding at each start: an earlier frame wins. */
+  slotFindingsOncePerStart: (ctx, findings) => {
+    if (ctx.lang !== "en_US") return [];
+    const starts = new Set<number>();
+    return findings.filter((f) => {
+      if (starts.has(f.range.start)) return false;
+      starts.add(f.range.start);
+      return kept(ctx, f);
+    });
+  },
+} satisfies Record<string, FindingsFilter>;
