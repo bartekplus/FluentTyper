@@ -5,15 +5,14 @@ import {
 } from "../../implementations/helpers/EnglishLexicon";
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
 import { namedExampleBefore } from "../exampleCues";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import { hasUserOrCasedWord } from "../phraseTemplates";
+import type { DetectContext } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   afterBreak,
   BE_FINITE,
   caseLike,
   DETERMINERS,
-  english,
   evidence,
   FUNCTION_WORDS,
   nounOnly,
@@ -242,57 +241,6 @@ function table(): Map<string, Entry[]> {
   return heads;
 }
 
-const WORD =
-  /(?<![\p{L}\p{M}\p{N}_'’@/#\\.-])[A-Za-z]+(?![\p{L}\p{M}\p{N}_'’@/#\\-]|\.[\p{L}\p{N}])/gu;
-
-function collocations(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  const rows = table();
-  WORD.lastIndex = Math.max(0, ctx.from - 40);
-  for (let m = WORD.exec(ctx.text); m && m.index < ctx.to; m = WORD.exec(ctx.text)) {
-    const lower = m[0].toLowerCase();
-    const entries = rows.get(lower);
-    if (!entries || ctx.dictionary.has(lower)) continue;
-    // Lowercase, or capitalized at a sentence start.
-    if (m[0] !== lower && m[0] !== lower[0].toUpperCase() + lower.slice(1)) continue;
-    const head: Token = {
-      text: m[0],
-      lower,
-      start: m.index,
-      end: m.index + m[0].length,
-      kind: "word",
-    };
-    const after = tokensAfter(ctx, head.end, 4);
-    const prep = after[0];
-    if (prep?.kind !== "word" || prep.text !== prep.lower || ctx.dictionary.has(prep.lower))
-      continue;
-    const entry = entries.find(
-      (e) => e.wrong.has(prep.lower) && (!e.guard || e.guard(ctx, head, after)),
-    );
-    if (!entry || idiom(prep, after) || namedExampleBefore(ctx.text, head.start)) continue;
-    const deletion = entry.right.length === 1 && entry.right[0] === "";
-    // A deletion takes the space after the word, as the phrase templates do ("discuss about ").
-    const range = deletion
-      ? { start: prep.start, end: after[1].start }
-      : { start: prep.start, end: prep.end };
-    findings.push({
-      ruleId: "englishFixedPrepositions",
-      messageKey: "review_msg_fixed_prepositions",
-      range,
-      alternatives: [...entry.right],
-      ...(entry.right.length > 1 ? { requiresChoice: true as const } : {}),
-      context: evidence(ctx, head.start, prep.end),
-    });
-  }
-  return findings;
-}
-
-const DAY = "(?:mon|tues|wednes|thurs|fri|satur|sun)days?";
-const NUMBER =
-  "(?:[0-9]+(?:[.,][0-9]+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)";
-const MOTION =
-  "(?:go|goes|going|gone|went|come|comes|coming|came|get|gets|getting|got|return|returns|returned|returning|head|heads|headed|heading|walk|walks|walked|walking|drive|drives|drove|driving|run|runs|ran|running|hurry|hurried|rush|rushed|take|takes|took|taking|bring|brings|brought|send|sends|sent)";
-const LOOSE_SPACE = "[ \\t\\u00a0]{0,8}";
 /** No noun follows: the phrase ends, or a clause or adverb word comes next. */
 function phraseEnd(ctx: DetectContext, end: number): boolean {
   const next = tokensAfter(ctx, end, 1)[0];
@@ -315,161 +263,129 @@ function ingOf(verb: string): string | null {
   return englishLexiconInflect(lower, "ing") ?? null;
 }
 
-type Frame = {
-  pattern: string;
-  fix: (m: RegExpExecArray, ctx: DetectContext) => string | null;
-};
-const FRAMES: readonly Frame[] = [
-  // "see you in Monday", "closed at Sunday": days take "on".
-  {
-    // "be in Monday", "weighed in Wednesday", "slept in Tuesday": particles stay. Only after an
-    // event or a meeting, and not before a possessive ("in Friday night's briefing").
-    pattern: `(?<target>in|at)${SPACE}${DAY}${WORD_END}`,
-    fix: (m, ctx) => {
-      const before = wordBefore(ctx, m.index);
-      const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
-      if (next?.kind === "word" && /['’]/.test(next.text)) return null;
-      return /^(?:you|meet|meeting|meetings|class|classes|appointment|party|exam|test|game|match|starts|start|begins|ends|closed|opens|open|due|deadline|leave|leaves|leaving|arrive|arrives|arriving|arrived|born|held|scheduled|planned)$/.test(
-        before,
-      ) ||
-        (m.groups!.target.toLowerCase() === "at" && afterBreak(ctx, m.index))
-        ? "on"
-        : null;
-    },
-  },
-  // "born on 1990", "founded at 2015": a bare year takes "in".
-  {
-    pattern: `(?:born|died|married|founded|built|established|launched|released|published|started|began|opened|retired|graduated|moved|formed|created)${SPACE}(?<target>on|at)${SPACE}(?:1[5-9]|20)[0-9]{2}${WORD_END}(?![/.:-][0-9])`,
-    fix: (m, ctx) => (phraseEnd(ctx, m.index + m[0].length) ? "in" : null),
-  },
-  // "starts in 5 pm": a clock time takes "at".
-  {
-    pattern: `(?<target>in|on)${SPACE}(?:[0-9]|1[0-2])(?::[0-5][0-9])?${LOOSE_SPACE}(?:am|pm|a\\.m\\.|p\\.m\\.|o['’]clock)(?![\\p{L}\\p{N}])`,
-    fix: () => "at",
-  },
-  // "at the morning" → "in"; "on the evening" without "of" → "in".
-  {
-    pattern: `(?<target>at|on)${SPACE}the${SPACE}(?:morning|afternoon|evening)${WORD_END}`,
-    fix: (m, ctx) => {
-      // "on the evening of May 5", "on the morning before": a particular day keeps "on".
-      const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
-      return !next ||
-        next.kind === "end" ||
-        next.kind === "comma" ||
-        /^(?:and|but|so|because|too|again|together|alone|anyway)$/.test(next.lower)
-        ? "in"
-        : null;
-    },
-  },
-  // "A lot people came": "a lot of"; not "liked it a lot people say".
-  {
-    pattern: `(?<![\\p{L}'’])a${SPACE}(?<target>lot)${SPACE}(?<noun>[a-z]+)${WORD_END}`,
-    fix: (m, ctx) => {
-      if (OBJECT_PRONOUNS.has(wordBefore(ctx, m.index))) return null;
-      const noun = m.groups!.noun.toLowerCase();
-      return noun === "people" ||
-        (nounOnly(noun) === "plural" &&
-          !/^(?:times|ways|days|years|months|weeks|hours|minutes|seconds)$/.test(noun))
-        ? "lot of"
-        : null;
-    },
-  },
-  // "between three to five": "between ... and".
-  {
-    pattern: `between${SPACE}${NUMBER}(?:${LOOSE_SPACE}(?:%|am|pm|percent|years|hours|days|weeks|months|minutes))?${SPACE}(?<target>to)${SPACE}${NUMBER}${WORD_END}`,
-    fix: () => "and",
-  },
-  // "went to home": "home" is the direction itself.
-  {
-    pattern: `${MOTION}(?:${SPACE}(?:back|straight|directly|me|him|her|us|them|you))?(?<target>${SPACE}to)${SPACE}home${WORD_END}`,
-    fix: (m, ctx) => (/home$/.test(m[0]) && phraseEnd(ctx, m.index + m[0].length) ? "" : null),
-  },
-  {
-    pattern: `(?:return|returns|returned|returning)(?<target>${SPACE}at)${SPACE}home${WORD_END}`,
-    fix: (m, ctx) => (/home$/.test(m[0]) && phraseEnd(ctx, m.index + m[0].length) ? "" : null),
-  },
-  // "stopped him of leaving": hindering verbs take "from".
-  {
-    pattern: `(?:stop|stops|stopped|stopping|prevent|prevents|prevented|preventing|prohibit|prohibits|prohibited|prohibiting|discourage|discourages|discouraged|discouraging|dissuade|dissuaded|ban|bans|banned|banning)${SPACE}(?:me|you|him|her|us|them|it|people|others|users|(?:the|my|your|his|her|our|their)${SPACE}[a-z]+)${SPACE}(?<target>of)${SPACE}(?<ing>[a-z]+ing)${WORD_END}`,
-    fix: (m) =>
-      englishWordInfo(m.groups!.ing.toLowerCase())?.verbs.some((v) => v.form === "ing")
-        ? "from"
-        : null,
-  },
-  // "insisted to pay" → "insisted on paying"; "succeeded to open", "capable to finish".
-  {
-    pattern: `(?<head>insist|insists|insisted|insisting|succeed|succeeds|succeeded|succeeding|capable|incapable)${SPACE}(?<target>to${SPACE}(?<verb>[a-z]+))${WORD_END}`,
-    fix: (m, ctx) => {
-      const { head, verb } = m.groups!;
-      const ing = ingOf(verb);
-      if (!ing) return null;
-      const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
-      const object =
-        next?.kind === "word" && (DETERMINERS.has(next.lower) || OBJECT_PRONOUNS.has(next.lower));
-      // "succeeded to power in 1990": a noun reading needs an object after it.
-      if (englishWordInfo(verb.toLowerCase())?.noun && !object) return null;
-      const prep = /^ins/i.test(head) ? "on" : /^suc/i.test(head) ? "in" : "of";
-      return `${prep} ${ing}`;
-    },
-  },
-  // "listen music", "listened the song": "listen to".
-  {
-    pattern: `(?<target>listen|listens|listened|listening)${SPACE}(?:the|a|an|my|your|his|our|their|him|them|us|music|songs?|podcasts?|radio|audiobooks?)${WORD_END}`,
-    fix: (m) => `${m.groups!.target} to`,
-  },
-  // "travel with a bus": "by bus".
-  {
-    pattern: `(?:travel|travels|traveled|travelled|traveling|travelling|commute|commutes|commuted|commuting)${SPACE}(?<target>with${SPACE}(?:a|the)${SPACE}(?<vehicle>bus|train|plane|taxi|boat|ship|ferry|subway|metro|tram|coach))${WORD_END}`,
-    fix: (m, ctx) => (phraseEnd(ctx, m.index + m[0].length) ? `by ${m.groups!.vehicle}` : null),
-  },
-  {
-    pattern: `(?:take|takes|took|taken|taking)${SPACE}into${SPACE}(?:consideration|account)(?<target>${SPACE}of)${WORD_END}`,
-    fix: () => "",
-  },
-  {
-    pattern: `in${SPACE}front${SPACE}(?<target>to)${SPACE}(?=(?:the|a|an|my|your|his|her|our|their|this|that|these|those|me|him|us|them|everyone)${WORD_END})`,
-    // "from the sternum in front to the spine behind": a span, not "in front of".
-    fix: (m, ctx) =>
-      /\bfrom\b[^.!?;]*$/i.test(ctx.text.slice(Math.max(0, m.index - 60), m.index)) ? null : "of",
-  },
-  // "in my birthday" → "on"; "in page 21" → "on"; "in the left hand side" → "on".
-  {
-    pattern: `(?<target>in)${SPACE}(?:my|your|his|her|our|their|the)${SPACE}birthday${WORD_END}`,
-    fix: (m, ctx) => (phraseEnd(ctx, m.index + m[0].length) ? "on" : null),
-  },
-  {
-    pattern: `(?<target>in)${SPACE}page${SPACE}[0-9]+${WORD_END}`,
-    fix: () => "on",
-  },
-  {
-    pattern: `(?<target>in)${SPACE}the${SPACE}(?:left|right)(?:(?:${SPACE}|-)hand)?${SPACE}side${WORD_END}`,
-    fix: () => "on",
-  },
-  { pattern: `in${SPACE}exchange${SPACE}(?<target>of)${WORD_END}`, fix: () => "for" },
-];
+/** A frame fixer: `fix` gives the preposition for the `target` group, or null. */
+const framed =
+  (fix: (m: RegExpExecArray, ctx: DetectContext) => string | null): MatchFixer =>
+  (m, ctx) => {
+    const [start, end] = m.indices!.groups!.target;
+    const target = m.groups!.target.trim();
+    // Lowercase, or capitalized at a sentence start ("In Monday"); never a user word.
+    if (target.slice(1) !== target.slice(1).toLowerCase() || hasUserOrCasedWord(ctx, m[0]))
+      return null;
+    const fixed = fix(m, ctx);
+    if (fixed === null) return null;
+    return {
+      ruleId: "englishFixedPrepositions",
+      messageKey: "review_msg_fixed_prepositions",
+      range: { start, end },
+      alternatives: [caseLike(m.groups!.target, fixed)],
+      context: evidence(ctx, m.index, end),
+    };
+  };
 
-function frames(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const { pattern, fix } of FRAMES)
-    for (const m of frameMatches(ctx, pattern)) {
-      const [start, end] = m.indices!.groups!.target;
-      const target = m.groups!.target.trim();
-      // Lowercase, or capitalized at a sentence start ("In Monday"); never a user word.
-      if (target.slice(1) !== target.slice(1).toLowerCase() || hasUserOrCasedWord(ctx, m[0]))
-        continue;
-      const fixed = fix(m, ctx);
-      if (fixed === null) continue;
-      findings.push({
-        ruleId: "englishFixedPrepositions",
-        messageKey: "review_msg_fixed_prepositions",
-        range: { start, end },
-        alternatives: [caseLike(m.groups!.target, fixed)],
-        context: evidence(ctx, m.index, end),
-      });
-    }
-  return findings;
-}
+const homeFix = (m: RegExpExecArray, ctx: DetectContext) =>
+  /home$/.test(m[0]) && phraseEnd(ctx, m.index + m[0].length) ? "" : null;
 
-export const PREDICATES = {
-  collocations: english(collocations, frames),
-} satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  // A word of the head table and the wrong preposition after it.
+  collocationHead: (m, ctx) => {
+    const rows = table();
+    const lower = m[0].toLowerCase();
+    const entries = rows.get(lower);
+    if (!entries || ctx.dictionary.has(lower)) return null;
+    // Lowercase, or capitalized at a sentence start.
+    if (m[0] !== lower && m[0] !== lower[0].toUpperCase() + lower.slice(1)) return null;
+    const head: Token = {
+      text: m[0],
+      lower,
+      start: m.index,
+      end: m.index + m[0].length,
+      kind: "word",
+    };
+    const after = tokensAfter(ctx, head.end, 4);
+    const prep = after[0];
+    if (prep?.kind !== "word" || prep.text !== prep.lower || ctx.dictionary.has(prep.lower))
+      return null;
+    const entry = entries.find(
+      (e) => e.wrong.has(prep.lower) && (!e.guard || e.guard(ctx, head, after)),
+    );
+    if (!entry || idiom(prep, after) || namedExampleBefore(ctx.text, head.start)) return null;
+    const deletion = entry.right.length === 1 && entry.right[0] === "";
+    // A deletion takes the space after the word, as the phrase templates do ("discuss about ").
+    const range = deletion
+      ? { start: prep.start, end: after[1].start }
+      : { start: prep.start, end: prep.end };
+    return {
+      ruleId: "englishFixedPrepositions",
+      messageKey: "review_msg_fixed_prepositions",
+      range,
+      alternatives: [...entry.right],
+      ...(entry.right.length > 1 ? { requiresChoice: true as const } : {}),
+      context: evidence(ctx, head.start, prep.end),
+    };
+  },
+  collocationDayOn: framed((m, ctx) => {
+    const before = wordBefore(ctx, m.index);
+    const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (next?.kind === "word" && /['’]/.test(next.text)) return null;
+    return /^(?:you|meet|meeting|meetings|class|classes|appointment|party|exam|test|game|match|starts|start|begins|ends|closed|opens|open|due|deadline|leave|leaves|leaving|arrive|arrives|arriving|arrived|born|held|scheduled|planned)$/.test(
+      before,
+    ) ||
+      (m.groups!.target.toLowerCase() === "at" && afterBreak(ctx, m.index))
+      ? "on"
+      : null;
+  }),
+  collocationYearIn: framed((m, ctx) => (phraseEnd(ctx, m.index + m[0].length) ? "in" : null)),
+  collocationClockAt: framed(() => "at"),
+  collocationPartOfDayIn: framed((m, ctx) => {
+    // "on the evening of May 5", "on the morning before": a particular day keeps "on".
+    const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
+    return !next ||
+      next.kind === "end" ||
+      next.kind === "comma" ||
+      /^(?:and|but|so|because|too|again|together|alone|anyway)$/.test(next.lower)
+      ? "in"
+      : null;
+  }),
+  collocationLotOf: framed((m, ctx) => {
+    if (OBJECT_PRONOUNS.has(wordBefore(ctx, m.index))) return null;
+    const noun = m.groups!.noun.toLowerCase();
+    return noun === "people" ||
+      (nounOnly(noun) === "plural" &&
+        !/^(?:times|ways|days|years|months|weeks|hours|minutes|seconds)$/.test(noun))
+      ? "lot of"
+      : null;
+  }),
+  collocationBetweenAnd: framed(() => "and"),
+  collocationHome: framed(homeFix),
+  collocationFrom: framed((m) =>
+    englishWordInfo(m.groups!.ing.toLowerCase())?.verbs.some((v) => v.form === "ing")
+      ? "from"
+      : null,
+  ),
+  collocationGerund: framed((m, ctx) => {
+    const { head, verb } = m.groups!;
+    const ing = ingOf(verb);
+    if (!ing) return null;
+    const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
+    const object =
+      next?.kind === "word" && (DETERMINERS.has(next.lower) || OBJECT_PRONOUNS.has(next.lower));
+    // "succeeded to power in 1990": a noun reading needs an object after it.
+    if (englishWordInfo(verb.toLowerCase())?.noun && !object) return null;
+    const prep = /^ins/i.test(head) ? "on" : /^suc/i.test(head) ? "in" : "of";
+    return `${prep} ${ing}`;
+  }),
+  collocationListenTo: framed((m) => `${m.groups!.target} to`),
+  collocationByVehicle: framed((m, ctx) =>
+    phraseEnd(ctx, m.index + m[0].length) ? `by ${m.groups!.vehicle}` : null,
+  ),
+  collocationDrop: framed(() => ""),
+  // "from the sternum in front to the spine behind": a span, not "in front of".
+  collocationInFrontOf: framed((m, ctx) =>
+    /\bfrom\b[^.!?;]*$/i.test(ctx.text.slice(Math.max(0, m.index - 60), m.index)) ? null : "of",
+  ),
+  collocationBirthdayOn: framed((m, ctx) => (phraseEnd(ctx, m.index + m[0].length) ? "on" : null)),
+  collocationOn: framed(() => "on"),
+  collocationFor: framed(() => "for"),
+} satisfies Record<string, MatchFixer>;

@@ -6,6 +6,24 @@ fragments:
   MOVERS: "move|moves|moved|moving|arrive|arrives|arrived|arriving|leave|leaves|left|leaving|flee|flees|fled|fleeing|resign|resigns|resigned|resigning|quit|quits|quitting|migrate|migrates|migrated|migrating|desert|deserted|gather|gathered|protest|protested|walked{{S}}out"
   AFTER_MASS: "yesterday|today|tonight|again|now|then|last|this|that|from|to|into|across|after|before|when|and|but|as|over|toward|towards"
   CLOSED: "(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)"
+  # A number in a range: "between three to five".
+  COLLOCATION_NUMBER: "(?:[0-9]+(?:[.,][0-9]+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)"
+  # The time words and dates of en.tenseTimeWords. A sentence start: the text start or a
+  # sentence end before it.
+  TENSE_START: "(?<=(?:^|[.!?\\n][ \\t\\u00a0\"“]{0,8}|^[\"“]))"
+  TENSE_SUBJECT: "(?:I|we|you|he|she|they)"
+  TENSE_UNIT: "(?:week|month|year|weekend|summer|winter|spring|autumn|fall|semester|term)"
+  TENSE_DAY_NAME: "(?:mon|tues|wednes|thurs|fri|satur|sun)day"
+  TENSE_FUTURE_WORD: "(?:tomorrow|next{{S}}(?:{{TENSE_UNIT}}|{{TENSE_DAY_NAME}}))"
+  TENSE_PAST_WORD: "(?:yesterday|last{{S}}(?:night|{{TENSE_UNIT}}|{{TENSE_DAY_NAME}}))"
+  TENSE_AGO: "(?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|a{{S}}few|several|[0-9]{1,3}){{S}}(?:days|weeks|months|years|day|week|month|year){{S}}ago"
+  TENSE_MONTH: "(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\\.?)"
+  TENSE_DATE: "(?<date>(?<a>[0-9]{1,2})(?<sep>[/.-])(?<b>[0-9]{1,2})\\k<sep>(?<y1>2[0-9]{3})|(?<d2>[0-9]{1,2})(?:st|nd|rd|th)?(?:{{S}}of)?{{S}}(?<m2>{{TENSE_MONTH}}),?{{S}}(?<y2>2[0-9]{3})|(?<m3>{{TENSE_MONTH}}){{S}}(?<d3>[0-9]{1,2})(?:st|nd|rd|th)?,?{{S}}(?<y3>2[0-9]{3}))(?![\\p{L}\\p{N}]|[./-][0-9])"
+  TENSE_PERFECT_ADVERB: "(?:(?:already|just|also|finally|first|then|once){{S}})?"
+  TENSE_VERB_PHRASE: "(?<verb>(?<aux>have|has|had){{S}}{{TENSE_PERFECT_ADVERB}}(?<part>[a-z]+)|(?<simple>[a-z]+))"
+  # Up to two adverbs in a verb group; a question also takes "please": "can you please send…".
+  VERBGROUP_ADVERB_RUN: "(?<adverbs>(?:{{S}}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly)){0,2})"
+  VERBGROUP_QUESTION_RUN: "(?<adverbs>(?:{{S}}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly|please)){0,2})"
   BE_FORM: "am|is|are|was|were|be|been|being|(?:I|you|we|they|he|she|it|that|there|who|what|this)['’](?:m|re|s)"
   IDIOMS5_ORDINAL: "[0-9]+(?:st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth"
   AUXILIARY: "can|could|will|would|shall|should|may|might|must|do|does|did|am|is|are|was|were|have|has|had"
@@ -1148,9 +1166,95 @@ rules:
   - id: en.nounNumberSlots
     checks: [englishNounNumber, englishPossibleErrors]
     predicate: nounNumberSlots
+  # Verb groups whose second verb has the wrong form, read from the lexicon. Each part of
+  # verbGroups is a rule of its own when it keeps one finding per range.
   - id: en.verbGroups
     checks: [englishPerfectParticiples, englishAuxiliaryBaseVerb, englishSentenceStructure]
-    predicate: verbGroups
+    style: match
+    message: review_msg_perfect_participle
+    filter: usSlots
+    frames:
+      # "I have was there", "Where have you were?": a past of be after have is "been".
+      - regex: "(?:(?<subject>i|you|we|they|he|she|it)(?:{{S}}(?:have|has|had)|['’]ve)|(?:have|has|had){{S}}(?:i|you|we|they|he|she|it|there)){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>was|were|are){{E}}"
+        owner: verb
+        fixer: verbGroupPerfectWithPastBe
+      # "He has uses the laptop": an -s verb with its object after have.
+      - regex: "(?:(?<pronoun>i|you|we|they|he|she|it)(?:{{S}}(?:have|has|had)|['’]ve)|[a-z]+{{S}}(?:has|have)){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+s){{E}}"
+        owner: verb
+        fixer: verbGroupPerfectWithThird
+      # "We've also cooking a cake", "will have compiling the data": have + an -ing form.
+      - regex: "(?:(?:i|you|we|they|he|she|it|who)(?:{{S}}(?:have|has|had)|['’]ve)|(?:will|would|could|should|must|might|may){{S}}have){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+ing){{E}}"
+        owner: verb
+        fixer: verbGroupPerfectWithIng
+      # "When was it send?", "Were they build last year?": an inverted passive with a bare verb.
+      # "Were you use the old login?": a person and a verb before its object.
+      - regex: "(?<be>was|were|is|are|wasn['’]t|weren['’]t|isn['’]t|aren['’]t){{S}}(?<subject>it|they|these|those|this|that|you|we|he|she|i){{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        message: review_msg_be_participle
+        fixer: verbGroupInvertedPassiveBase
+  - id: en.verbGroupsPerfectBase
+    checks: [englishPerfectParticiples, englishAuxiliaryBaseVerb, englishSentenceStructure]
+    style: match
+    message: review_msg_perfect_participle
+    filter: usSlotsOnePerRange
+    frames:
+      # "I have finish", "could have change", "Have you use…": a perfect with a bare verb.
+      - regex: "(?:(?:i|you|we|they|he|she|it|who){{S}}(?:have|has|had)(?:n['’]t)?|(?:i|you|we|they|who)['’]ve|(?:could|would|should|must|might|may|will)(?:{{S}}(?:not|never))?{{S}}have|(?:could|would|should|must|might)['’]ve|[a-z]+{{S}}(?:has|have|had)){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        fixer: verbGroupPerfectWithBase
+      - regex: "(?:have|has)(?:n['’]t)?{{S}}(?:i|you|we|they|he|she|it|anyone|anybody|someone|somebody|everyone|[a-z]{2,}){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        fixer: verbGroupPerfectWithBase
+  - id: en.verbGroupsBareVerbs
+    checks: [englishPerfectParticiples, englishAuxiliaryBaseVerb, englishSentenceStructure]
+    style: match
+    message: review_msg_be_participle
+    filter: usSlots
+    frames:
+      # "The software was introduce", "It can be use by everyone": be + a bare verb as a passive.
+      - regex: "(?<be>be|been|being|is|are|was|were|am|isn['’]t|aren['’]t|wasn['’]t|weren['’]t){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        fixer: verbGroupPassiveWithBase
+      # "It can't be check because…", "won't be fix until May": modal + be + a bare verb.
+      - regex: "(?:can|could|will|would|should|must|might|may|can['’]t|cannot|couldn['’]t|won['’]t|wouldn['’]t|shouldn['’]t|mustn['’]t){{S}}be{{S}}(?<verb>[a-z]+)(?=[ \\t\\u00a0]*[.,!?;:]|[ \\t\\u00a0]*$|{{S}}(?:because|until|unless|yet|anymore|properly|correctly|automatically|manually|now|soon|today|by|in time){{E}})"
+        owner: verb
+        fixer: verbGroupModalBeBase
+      # "I'm so use to it", "not use to working": be + "use to" is "used to".
+      - regex: "(?:am|is|are|was|were|be|been|being|['’]m|['’]re|['’]s)(?:{{S}}(?:so|not|very|really|quite|already|still|never|totally|completely|pretty|just|more)){0,2}{{S}}(?<verb>use){{S}}to{{S}}(?=[a-z]+ing{{E}}|(?:it|this|that|them|him|her|me|us|the|a|an|my|your|our|their|his|its|being){{E}})"
+        owner: verb
+        fixer: verbGroupUsedTo
+      # "It got receive by everyone", "is getting spend": get + a bare verb as a passive.
+      - regex: "(?:get|gets|got|getting|gotten){{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        fixer: verbGroupGetWithBase
+      # "That does makes sense", "he does not has", "Peter did went": do-support + a non-base
+      # verb.
+      - regex: "(?<subject>[a-z]+){{S}}(?<aux>does|do|did)(?:{{S}}not)?{{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        check: englishAuxiliaryBaseVerb
+        message: review_msg_auxiliary_base
+        fixer: verbGroupDoSupport
+      # "Which car would you bought?", "can you please attached": an inverted modal question.
+      - regex: "(?:can|could|would|will|should|shall|may|might|must){{S}}(?<subject>i|you|we|they|he|she|anyone|someone|anybody|everyone|somebody){{VERBGROUP_QUESTION_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        check: englishAuxiliaryBaseVerb
+        message: review_msg_auxiliary_base
+        fixer: verbGroupInvertedModal
+      # "Your order is requires approval", "She is always goes": be before an -s verb.
+      - regex: "(?<subject>[a-z]+){{S}}(?<be>is|am|are)(?<adverbs>(?:{{S}}(?:also|only|always|often|usually|never|sometimes|really|just|still))?){{S}}(?<verb>[a-z]+s){{E}}"
+        owner: be
+        check: englishSentenceStructure
+        message: review_msg_sentence_structure
+        fixer: verbGroupBeBeforeThird
+      # "I seen it", "He done it", "You could been there": a participle with no have.
+      - regex: "(?<subject>I|he|she|it|we|they)(?<adverbs>(?:{{S}}(?:never|already|just|not|also))?){{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        message: review_msg_perfect_participle
+        fixer: verbGroupBareParticiple1
+      # "could been", "can been", "used to been".
+      - regex: "(?<modal>could|would|should|might|must|may|can|will|to){{S}}(?<target>been){{E}}"
+        message: review_msg_perfect_participle
+        fixer: verbGroupBareParticiple2
   - id: en.verbComplementSlots
     checks: [englishVerbComplements]
     predicate: verbComplementSlots
@@ -1162,13 +1266,137 @@ rules:
     predicate: determinerConfusions
   - id: en.thirdPersonBase
     checks: [englishPronounVerbWhitelistAgreement]
-    predicate: thirdPersonBase
+    style: match
+    message: review_msg_pronoun_verb
+    filter: usSlots
+    frames:
+      # "It only matter to me", "I hope he go away", "and it become dark": he/she/it + a bare
+      # verb.
+      - regex: "(?<target>he|she|it){{S}}(?=[a-z])"
+        fixer: agreementThirdPersonBase
+  # Subject-verb number agreement with noun-phrase subjects the lexicon can number. Each part
+  # keeps one finding per verb start (usSlotsOnePerStart), so each part is a rule of its own.
   - id: en.subjectAgreement
     checks: [englishSubjectVerbAgreement]
-    predicate: subjectAgreement
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # "The dogs barks loudly", "The dog are released": a determiner-led subject and its verb.
+      - regex: "(?<target>the|these|those|my|your|his|her|our|their|many|some|most|both|several|this|that|all|each){{S}}(?=[a-z])"
+        fixer: agreementNounSubject
+      # "Cars is useful", "Grammatical errors is bad": a plural with no determiner opens the
+      # clause.
+      - regex: "(?<=(?:^|[.!?;:\\n\"“(—–]|(?:^|[^\\p{L}])(?:because|since|when|while|if|although|though|whereas|unless|until|but|whether|where)[ \\t\\u00a0])[ \\t\\u00a0\"“‘']{0,8})(?<target>[A-Za-z][a-z]+){{S}}(?=[a-z])"
+        fixer: agreementBareSubject
+  - id: en.subjectAgreementIrregular
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # "Some people thinks", "people who knows": irregular plural subjects with a singular verb.
+      - regex: "(?:(?<det>some|most|many|these|those|the|our|their|my|your|all|other){{S}})?(?<target>people|children|men|women){{S}}(?=[a-z])"
+        fixer: agreementIrregularPlurals
+  - id: en.subjectAgreementDemonstratives
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # "These includes", "Those two is", "This are my notes": a demonstrative and its verb.
+      - regex: "(?<target>these|those)(?:{{S}}(?:two|three|four|five|both|all))?{{S}}(?=[a-z])"
+        fixer: agreementDemonstratives1
+      - regex: "(?<target>this|that){{S}}(?<verb>are|were){{E}}"
+        fixer: agreementDemonstratives2
+  - id: en.subjectAgreementInverted
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlots
+    frames:
+      # "Do your father live…?", "Has your parents told…?", "Where is your dogs?": an inverted
+      # aux.
+      - regex: "(?<aux>do|does|have|has|is|are|was|were){{S}}(?:the|your|my|his|her|our|their){{S}}(?<noun>[a-z]+)(?:{{S}}(?:ever|never|already|really|just|always|also|still|actually)(?={{S}}[a-z]+{{E}}))?(?:{{S}}(?<verb>[a-z]+))?{{E}}"
+        owner: aux
+        fixer: agreementInvertedAuxiliary1
+      # "Does you have…?", "Does anyone knows?": do + a pronoun or indefinite subject.
+      - regex: "(?<aux>does){{S}}(?<subject>you|I|we|they){{E}}"
+        owner: aux
+        fixer: agreementInvertedAuxiliary2
+      - regex: "(?:does|do|did){{S}}(?:anyone|anybody|someone|somebody|everyone|nobody)(?:{{S}}here)?{{S}}(?<verb>[a-z]+s){{E}}"
+        owner: verb
+        fixer: agreementInvertedAuxiliary3
+  - id: en.subjectAgreementRelative
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # "The ladies who talk loudly annoys me", "The tall woman that I met yesterday manage the
+      # team": the main verb after a relative clause agrees with the noun before who/that.
+      - regex: "(?<det>the|these|those|my|our|their|his|her|your|all|many|some|most|this|that|a|an|every|each){{S}}(?<head>(?:[a-z]+{{S}}){0,2}?[a-z]+){{S}}(?:who|that){{S}}(?=[a-z])"
+        owner: none
+        fixer: agreementRelativeClauseSubject
+      - regex: "(?<head>anyone|anybody|someone|somebody|everyone|everybody|nobody){{S}}who{{S}}(?=[a-z])"
+        owner: none
+        fixer: agreementRelativeClauseSubject
+  - id: en.subjectAgreementName
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # "Tom live in Rome", "Microsoft speak to its customers": a name before a bare verb.
+      - regex: "(?<name>[a-z]{2,}){{S}}(?<target>[a-z]+){{E}}"
+        fixer: agreementNameSubject
+  - id: en.subjectAgreementQuantified
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # each of / the number of: a singular head. "Each of the kids are" (is), "The number of
+      # users have" (has).
+      - regex: "(?:each{{S}}of{{S}}(?:them|us|you|(?:the|these|those|my|your|our|their|his|her|its)(?:{{S}}[a-z]+){1,2})|the{{S}}number{{S}}of(?:{{S}}[a-z]+){1,2}){{S}}(?<verb>are|were|have|do){{E}}"
+        owner: verb
+        fixer: agreementQuantifiedSubjects1
+      # both of them / both + plural subject: a plural verb. "Both of them believes" (believe).
+      - regex: "both{{S}}of{{S}}(?:them|us|you|these|those){{S}}(?<verb>[a-z]+s){{E}}"
+        owner: verb
+        fixer: agreementQuantifiedSubjects2
+      # "Tina and her brother sings": a second conjunct with its own determiner.
+      - regex: "(?:[a-z]{2,}|(?:the|my|your|his|her|our|their){{S}}[a-z]+){{S}}and{{S}}(?:the|my|your|his|her|our|their){{S}}(?<noun>[a-z]+){{S}}(?<verb>is|was|has|does|[a-z]+s){{E}}"
+        owner: verb
+        fixer: agreementQuantifiedSubjects3
+      # "Does dogs sleep…?": do before a bare plural.
+      - regex: "(?<aux>does|doesn['’]t){{S}}(?<noun>[a-z]+s){{S}}(?<verb>[a-z]+){{E}}"
+        owner: aux
+        fixer: agreementQuantifiedSubjects4
+  - id: en.subjectAgreementDistant
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # "The dusty books about ants and termites seems", "The drivers who ran the light fatally
+      # injures": a subject read past its complements and a relative clause, and the main verb.
+      - regex: "(?<target>the|these|those|my|your|his|her|our|their|many|some|most|both|several|this|that|all|each){{S}}(?=[a-z])"
+        fixer: agreementDistantSubject
   - id: en.adjectiveForAdverb
     checks: [englishConfusedWords]
-    predicate: adjectiveForAdverb
+    style: match
+    message: review_msg_adverb_form
+    filter: usSlotsOnePerStart
+    frames:
+      # "could possible go", "to easy achieve": an adjective between an auxiliary, "to" or a
+      # subject and a verb. The lead sits in a lookbehind so that "It could possible work" is
+      # not consumed by "It".
+      - regex: "(?<=(?<![\\p{L}'’])(?:could|would|should|can|will|might|must|may|won['’]t|can['’]t|couldn['’]t|didn['’]t|doesn['’]t|don['’]t|does|did|to|have|has|had|I|we|you|they|it|he|she){{S}})(?<target>[a-z]+)(?={{S}}(?<verb>[a-z]+){{E}})"
+        fixer: adverbAdjectiveForAdverb1
+      # "Your site is terrible slow": be + adjective + adjective.
+      - regex: "(?<=(?:(?<![\\p{L}'’])(?:is|are|was|were|be|been|seems?|seemed|looks?)|[\\p{L}](?:['’]s|['’]m|['’]re)){{S}})(?<target>[a-z]+)(?={{S}}(?<next>[a-z]+){{E}})"
+        fixer: adverbAdjectiveForAdverb2
   - id: en.confusionPairs
     checks: [englishConfusedWords]
     predicate: confusionPairs
@@ -1198,49 +1426,266 @@ rules:
     predicate: causativeThird
   - id: en.superlativeArticle
     checks: [englishPhraseCorrections]
-    predicate: superlativeArticle
+    style: match
+    message: review_msg_superlative_the
+    filter: usSlots
+    frames:
+      # "Kyoto is an oldest city": a/an before a superlative and its noun is "the". A bare one
+      # after be ("is hottest city") is articles.ts's superlativeThe.
+      - regex: "(?<article>an?){{S}}(?<adjective>best|worst|[a-z]+est){{S}}(?<noun>[a-z]+){{E}}"
+        owner: article
+        fixer: comparisonSuperlativeArticle
   - id: en.lessComparative
     checks: [englishDoubledDegree]
-    predicate: lessComparative
+    style: match
+    message: review_msg_doubled_degree
+    filter: usSlots
+    frames:
+      # "This is less harder", "the least hardest task": less/least take the plain adjective.
+      - regex: "(?<!\\bat{{S}})(?<degree>less|least){{S}}(?<adjective>[a-z]+(?:er|est)){{E}}"
+        owner: adjective
+        fixer: comparisonLessComparative
   - id: en.comparisonThen
     checks: [englishThenThan]
-    predicate: comparisonThen
+    style: match
+    message: review_msg_then_than
+    filter: usSlots
+    frames:
+      # "return more then one tag", "less then ten", "more then happy": then after a comparison.
+      - regex: "(?:more|less|fewer|rather){{S}}(?<target>then){{S}}(?:\\d|(?:one|two|three|four|five|six|seven|eight|nine|ten|twenty|hundred|half|once|twice|enough|happy|willing|glad|ever|usual|expected|necessary){{E}})"
+        fixer: comparisonComparisonThen
   - id: en.collocations
     checks: [englishFixedPrepositions]
-    predicate: collocations
+    style: match
+    message: review_msg_fixed_prepositions
+    filter: usSlots
+    frames:
+      # A word that governs a fixed preposition, typed with another one: "afraid from the dark"
+      # (of), "participated to the event" (in). Every word from 40 characters before the chunk
+      # is looked up in the head table of collocationSlots.
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])"
+        scan: text
+        lookback: 40
+        flags: gu
+        fixer: collocationHead
+      # "see you in Monday", "closed at Sunday": days take "on". "be in Monday", "weighed in
+      # Wednesday", "slept in Tuesday": particles stay. Only after an event or a meeting, and
+      # not before a possessive ("in Friday night's briefing").
+      - regex: "(?<target>in|at){{S}}(?:mon|tues|wednes|thurs|fri|satur|sun)days?{{E}}"
+        fixer: collocationDayOn
+      # "born on 1990", "founded at 2015": a bare year takes "in".
+      - regex: "(?:born|died|married|founded|built|established|launched|released|published|started|began|opened|retired|graduated|moved|formed|created){{S}}(?<target>on|at){{S}}(?:1[5-9]|20)[0-9]{2}{{E}}(?![/.:-][0-9])"
+        fixer: collocationYearIn
+      # "starts in 5 pm": a clock time takes "at".
+      - regex: "(?<target>in|on){{S}}(?:[0-9]|1[0-2])(?::[0-5][0-9])?[ \\t\\u00a0]{0,8}(?:am|pm|a\\.m\\.|p\\.m\\.|o['’]clock)(?![\\p{L}\\p{N}])"
+        fixer: collocationClockAt
+      # "at the morning" → "in"; "on the evening" without "of" → "in".
+      - regex: "(?<target>at|on){{S}}the{{S}}(?:morning|afternoon|evening){{E}}"
+        fixer: collocationPartOfDayIn
+      # "A lot people came": "a lot of"; not "liked it a lot people say".
+      - regex: "(?<![\\p{L}'’])a{{S}}(?<target>lot){{S}}(?<noun>[a-z]+){{E}}"
+        fixer: collocationLotOf
+      # "between three to five": "between ... and".
+      - regex: "between{{S}}{{COLLOCATION_NUMBER}}(?:[ \\t\\u00a0]{0,8}(?:%|am|pm|percent|years|hours|days|weeks|months|minutes))?{{S}}(?<target>to){{S}}{{COLLOCATION_NUMBER}}{{E}}"
+        fixer: collocationBetweenAnd
+      # "went to home": "home" is the direction itself.
+      - regex: "(?:go|goes|going|gone|went|come|comes|coming|came|get|gets|getting|got|return|returns|returned|returning|head|heads|headed|heading|walk|walks|walked|walking|drive|drives|drove|driving|run|runs|ran|running|hurry|hurried|rush|rushed|take|takes|took|taking|bring|brings|brought|send|sends|sent)(?:{{S}}(?:back|straight|directly|me|him|her|us|them|you))?(?<target>{{S}}to){{S}}home{{E}}"
+        fixer: collocationHome
+      - regex: "(?:return|returns|returned|returning)(?<target>{{S}}at){{S}}home{{E}}"
+        fixer: collocationHome
+      # "stopped him of leaving": hindering verbs take "from".
+      - regex: "(?:stop|stops|stopped|stopping|prevent|prevents|prevented|preventing|prohibit|prohibits|prohibited|prohibiting|discourage|discourages|discouraged|discouraging|dissuade|dissuaded|ban|bans|banned|banning){{S}}(?:me|you|him|her|us|them|it|people|others|users|(?:the|my|your|his|her|our|their){{S}}[a-z]+){{S}}(?<target>of){{S}}(?<ing>[a-z]+ing){{E}}"
+        fixer: collocationFrom
+      # "insisted to pay" → "insisted on paying"; "succeeded to open", "capable to finish".
+      - regex: "(?<head>insist|insists|insisted|insisting|succeed|succeeds|succeeded|succeeding|capable|incapable){{S}}(?<target>to{{S}}(?<verb>[a-z]+)){{E}}"
+        fixer: collocationGerund
+      # "listen music", "listened the song": "listen to".
+      - regex: "(?<target>listen|listens|listened|listening){{S}}(?:the|a|an|my|your|his|our|their|him|them|us|music|songs?|podcasts?|radio|audiobooks?){{E}}"
+        fixer: collocationListenTo
+      # "travel with a bus": "by bus".
+      - regex: "(?:travel|travels|traveled|travelled|traveling|travelling|commute|commutes|commuted|commuting){{S}}(?<target>with{{S}}(?:a|the){{S}}(?<vehicle>bus|train|plane|taxi|boat|ship|ferry|subway|metro|tram|coach)){{E}}"
+        fixer: collocationByVehicle
+      - regex: "(?:take|takes|took|taken|taking){{S}}into{{S}}(?:consideration|account)(?<target>{{S}}of){{E}}"
+        fixer: collocationDrop
+      - regex: "in{{S}}front{{S}}(?<target>to){{S}}(?=(?:the|a|an|my|your|his|her|our|their|this|that|these|those|me|him|us|them|everyone){{E}})"
+        fixer: collocationInFrontOf
+      # "in my birthday" → "on"; "in page 21" → "on"; "in the left hand side" → "on".
+      - regex: "(?<target>in){{S}}(?:my|your|his|her|our|their|the){{S}}birthday{{E}}"
+        fixer: collocationBirthdayOn
+      - regex: "(?<target>in){{S}}page{{S}}[0-9]+{{E}}"
+        fixer: collocationOn
+      - regex: "(?<target>in){{S}}the{{S}}(?:left|right)(?:(?:{{S}}|-)hand)?{{S}}side{{E}}"
+        fixer: collocationOn
+      - regex: "in{{S}}exchange{{S}}(?<target>of){{E}}"
+        fixer: collocationFor
   - id: en.tenseTimeWords
     checks: [englishTenseConsistency]
-    predicate: tenseTimeWords
+    style: match
+    message: review_msg_tense_time_word
+    filter: usSlots
+    frames:
+      # "Tomorrow we visited", "We visited them tomorrow": the future asks for "will".
+      - regex: "{{TENSE_START}}{{TENSE_FUTURE_WORD}},?{{S}}{{TENSE_SUBJECT}}{{S}}(?<target>[a-z]+){{E}}(?!['’])"
+        fixer: tenseFutureWordPastVerb
+      - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}{{S}}(?<target>[a-z]+)(?<between>(?:{{S}}[a-z]+){0,4}){{S}}(?<when>{{TENSE_FUTURE_WORD}}){{E}}(?![ \\t\\u00a0]*['’])(?=[ \\t\\u00a0]*[.!?,;]|[ \\t\\u00a0]*$)"
+        fixer: tenseFutureWordPastVerb
+      # "Yesterday I will call him", "We will call him two days ago": the past asks for the past.
+      - regex: "{{TENSE_START}}(?:{{TENSE_PAST_WORD}}|{{TENSE_AGO}}),?{{S}}{{TENSE_SUBJECT}}(?:{{S}}|['’])(?<target>(?:will|shall|ll){{S}}(?<verb>[a-z]+)){{E}}"
+        fixer: tensePastWordFutureVerb
+      - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}(?:{{S}}|['’])(?<target>(?:will|shall|ll){{S}}(?<verb>[a-z]+))(?<between>(?:{{S}}[a-z]+){1,4}){{S}}(?<when>{{TENSE_PAST_WORD}}|{{TENSE_AGO}}){{E}}(?=[ \\t\\u00a0]*[.!?,;]|[ \\t\\u00a0]*$)"
+        fixer: tensePastWordFutureVerb
+      # "We visited the client on 27/10/2090": a past verb on a date that is still to come.
+      - regex: "{{TENSE_START}}On{{S}}{{TENSE_DATE}},?{{S}}{{TENSE_SUBJECT}}{{S}}{{TENSE_PERFECT_ADVERB}}{{TENSE_VERB_PHRASE}}{{E}}"
+        owner: date
+        message: review_msg_future_date_past
+        fixer: tenseFutureDatePastVerb
+      - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}{{S}}{{TENSE_PERFECT_ADVERB}}{{TENSE_VERB_PHRASE}}(?<between>(?:{{S}}[a-z]+){0,4}){{S}}on{{S}}{{TENSE_DATE}}(?=[ \\t\\u00a0]*[.!?;]|[ \\t\\u00a0]*$)"
+        owner: date
+        message: review_msg_future_date_past
+        fixer: tenseFutureDatePastVerb
+      # "We will visit the client on 27/10/2025" when that date has passed: a future verb on a
+      # past date. Only a date of the last three years: older dates are history, which can use
+      # "will" for the future in the past.
+      - regex: "{{TENSE_START}}On{{S}}{{TENSE_DATE}},?{{S}}{{TENSE_SUBJECT}}(?:{{S}}|['’])(?:will|shall|ll){{S}}(?<inf>[a-z]+){{E}}"
+        owner: date
+        message: review_msg_past_date_future
+        fixer: tensePastDateFutureVerb
+      - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}(?:{{S}}|['’])(?:will|shall|ll){{S}}(?<inf>[a-z]+)(?<between>(?:{{S}}[a-z]+){0,4}){{S}}on{{S}}{{TENSE_DATE}}(?=[ \\t\\u00a0]*[.!?;]|[ \\t\\u00a0]*$)"
+        owner: date
+        message: review_msg_past_date_future
+        fixer: tensePastDateFutureVerb
   - id: en.noForNot
     checks: [englishConfusedWords]
     predicate: noForNot
+  # Subject-verb agreement across a relative clause or an aside. The relative-clause part keeps
+  # one finding per verb start (usSlotsOnePerStart), so it is a rule of its own.
   - id: en.clauseAgreement
     checks: [englishSubjectVerbAgreement]
-    predicate: clauseAgreement
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlotsOnePerStart
+    frames:
+      # "The laptop that she bought last week run hot", "The keys that I left on the table
+      # belongs to Sam": the verb after a relative clause agrees with the noun before who/that.
+      - regex: "(?<det>the|these|those|my|our|their|his|her|your|this|that|a|an|every|each){{S}}(?<head>(?:[a-z]+{{S}}){0,2}?[a-z]+){{S}}(?:who|that){{S}}(?=[a-zA-Z])"
+        owner: none
+        fixer: clauseAgreementRelativeClauseVerb
+  - id: en.clauseAgreementAsides
+    checks: [englishSubjectVerbAgreement]
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlots
+    frames:
+      # "My mother, for example, are a doctor", "The dog, whose owner likes you, eat": the verb
+      # after a comma-closed aside agrees with the subject before it.
+      - regex: "(?:(?<det>the|my|your|his|her|our|their|this|that|these|those|many|most|some){{S}})?(?<head>[A-Za-z]+)(?=[ \\t\\u00a0]*,|{{S}}(?:[a-z]+|(?:in|of|from){{S}}(?:[a-z]+{{S}})?[A-Za-z]+)[ \\t\\u00a0]*,)"
+        owner: none
+        fixer: clauseAgreementAsideSubject
+      # "Who send the invoices?", "What make the sky blue?": a subject wh-word takes the -s form.
+      - regex: "(?<wh>who|what){{S}}(?=[a-z])"
+        owner: none
+        fixer: clauseAgreementWhSubject
+      # "A study like this one rely on…", "Cars like these only takes…": "like this" or "such as
+      # that one" between a subject and its verb.
+      - regex: "(?:(?<pronoun>anything|something|nothing|everything|anyone|someone)|(?:(?<det>the|a|an|my|your|our|their|his|her|this|that|these|those|any|every|each|some){{S}})?(?<head>[a-z]+)){{S}}(?:like|such{{S}}as){{S}}(?:this|that|these|those)(?<one>{{S}}ones?)?{{S}}(?=[a-z])"
+        owner: none
+        fixer: clauseAgreementLikeThisSubject
+      # "Have she bought a ticket?", "When have he arrived?", "Do he know?": an inverted
+      # auxiliary before he/she takes the third-person form.
+      - regex: "(?<aux>have|do|are|haven['’]t|don['’]t|aren['’]t){{S}}(?<subject>he|she){{S}}(?<next>[a-z]+)"
+        owner: aux
+        fixer: clauseAgreementInvertedThirdPerson
   - id: en.sentenceFragments
     checks: [englishSentenceFragment]
-    predicate: sentenceFragments
+    style: match
+    message: review_msg_sentence_fragment
+    filter: usSlots
+    frames:
+      # "Because he was a great musician.", "When the wind howls in the trees.": a sentence that
+      # is only a subordinate clause. Opt-in: answers and asides use such fragments on purpose.
+      - regex: "(?<target>because|although|though|when|whenever|after|before|since|unless|while|whereas|until|if|(?:so|even)(?:[ \\t\\u00a0]*,)?{{S}}(?:if|though)|so(?:[ \\t\\u00a0]*,)?{{S}}even{{S}}if|so{{S}}that|in{{S}}order{{S}}that|provided{{S}}that){{S}}(?=[A-Za-z])"
+        fixer: wordClassSubordinateFragment
+      # "I look forward.", "I'm looking forward!": the phrase needs "to" and what is awaited.
+      - regex: "(?:(?:I|we){{S}}(?<target>look)|(?:am|are|[a-z]+['’](?:m|re)|be){{S}}(?:(?:really|so|all|most|very|truly){{S}})?(?<target2>looking)){{S}}forward(?=[ \\t\\u00a0]*[.!])"
+        owner: target|target2
+        fixer: wordClassForwardWithoutObject
   - id: en.forwardPreposition
     checks: [englishFixedPrepositions]
-    predicate: forwardPreposition
+    style: match
+    message: review_msg_fixed_prepositions
+    filter: usSlots
+    frames:
+      # "look forward your reply", "looking forward in hearing from you": the phrase takes "to".
+      - regex: "(?:look|looks|looked|looking){{S}}(?<target>forward(?:{{S}}(?<wrong>in|of|at|for))?){{S}}(?<next>[a-z]+){{E}}"
+        fixer: wordClassForwardPreposition
   - id: en.bareBitArticles
     checks: [englishSentenceStructure]
-    predicate: bareBitArticles
+    style: match
+    message: review_msg_sentence_structure
+    filter: usSlots
+    frames:
+      # "I was bit confused", "I'm bit tired": "a bit" before an adjective lost its article.
+      - regex: "(?:am|is|are|was|were|[a-z]+['’](?:m|re|s)|feel|feels|felt|seem|seems|seemed|look|looks|looked|get|got|getting){{S}}(?<target>bit){{S}}(?<next>[a-z]+){{E}}"
+        fixer: wordClassBareBit
+      # "an a flower", "the this idea", "a this dog": two determiners where one belongs.
+      - regex: "(?<first>the|an|a){{S}}(?<second>a|an|this|these|those){{S}}(?<noun>[a-z]+){{E}}"
+        owner: first
+        message: review_msg_determiner_clash
+        fixer: wordClassStackedArticles
   - id: en.itForIs
     checks: [englishConfusedWords]
-    predicate: itForIs
+    style: match
+    message: review_msg_confused_word
+    filter: usSlots
+    frames:
+      # "the script it not visible", "nothing it working", "this it the same issue": "it" typed
+      # for "is" after a subject that is a noun phrase or an indefinite pronoun.
+      - regex: "(?<target>it){{S}}(?<next>[a-z]+){{E}}"
+        fixer: wordClassItForIs
   - id: en.existentialSingular
     checks: [englishExistentialAgreement]
-    predicate: existentialSingular
+    style: match
+    message: review_msg_existential_agreement
+    filter: usSlots
+    frames:
+      # "There are a theory…", "There exist a school…", "There are argument whether…":
+      # existential there with a plural verb and one singular noun.
+      - regex: "(?<there>there){{S}}(?<verb>are|were|exist){{S}}(?=[a-z])"
+        owner: verb
+        fixer: wordClassExistentialSingular
   - id: en.modalQuestionForms
     checks: [englishAuxiliaryBaseVerb]
-    predicate: modalQuestionForms
+    style: match
+    message: review_msg_auxiliary_base
+    filter: usSlots
+    frames:
+      # "I would opportunity for me", "This will user OpenAI": a noun where the modal needs a verb.
+      - regex: "(?<subject>I|you|we|they|he|she|it|this|that|which|who)(?:{{S}}(?:usually|really|also|just|probably|definitely|certainly|still|then|now|only))?{{S}}(?:can|could|will|would|should|must|might|shall)(?:{{S}}(?:usually|really|also|just|probably|definitely|certainly|still|then|now|only|quickly|easily))?{{S}}(?<target>[a-z]+){{E}}"
+        fixer: wordClassModalNoun
+      # "When go you home?", "Where went she?": a fronted lexical verb needs do-support.
+      - regex: "(?<wh>when|why|how|where){{S}}(?<target>(?<verb>[a-z]+){{S}}(?<subject>you|he|she|we|they|I)){{E}}"
+        message: review_msg_question_do
+        fixer: wordClassQuestionWithoutDo
   - id: en.sinceWithSimpleTense
     checks: [englishTenseConsistency]
-    predicate: sinceWithSimpleTense
+    style: match
+    message: review_msg_since_perfect
+    filter: usSlots
+    frames:
+      # "I work here since 2002", "The boy is here since 10": since + a starting point needs a
+      # perfect.
+      - regex: "(?<subject>I|you|we|they|he|she|it|(?:the|my|our|your|his|her|their){{S}}[a-z]+){{S}}(?<target>[a-z]+)(?:{{S}}(?:here|there))?{{S}}since{{S}}(?<point>[0-9]{1,4}(?![0-9])|last|yesterday|childhood|birth){{E}}"
+        fixer: wordClassSinceWithSimpleTense
   - id: en.itBeforeNoun
     checks: [englishItsContext]
-    predicate: itBeforeNoun
+    style: match
+    message: review_msg_its_possessive
+    filter: usSlots
+    frames:
+      # "It origins date back", "Adelaide and it suburbs", "ten times it size": "it" before a
+      # noun that cannot be its object's complement is the possessive.
+      - regex: "(?<target>it){{S}}(?<noun>[a-z]+){{E}}"
+        fixer: wordClassItBeforeNoun
   - id: en.apostrophes
     checks: [englishApostrophes]
     predicate: apostrophes
@@ -1926,70 +2371,279 @@ rules:
         fixer: britishUsageTrunks2
   - id: en.clauseConfusions
     checks: [englishConfusedWords]
-    predicate: clauseConfusions
+    style: match
+    message: review_msg_confused_word
+    filter: usSlots
+    frames:
+      # "hear form you", "come form the": verbs and adverbs of source or motion take "from".
+      # idioms3 owns "apart form".
+      - regex: "(?:hear|heard|hearing|come|comes|came|coming|away|aside|far|derived|received|receive|got|get|gets|bought|borrowed|took|taken|returned|return|arrived|arrive|moved|graduated|downloaded|copied|sent|fled|escaped|removed|deleted|resigned|retired|suffer|suffers|suffered|benefit|benefits|benefited|benefitted)(?:{{S}}(?:it|them|one|this|that))?{{S}}(?<target>form)(?:{{S}}(?:me|you|him|her|us|them|it|the|a|an|my|your|his|our|their|its|this|that|these|those|all|both){{E}}|(?=[ \\t\\u00a0]*[?!.,;:)]))"
+        fixer: clauseFormFrom
+      # "Peter though he could win": a name, then though, then a clause's subject: "thought"
+      # (englishUsagePhrases owns "I/we/he though").
+      - regex: "(?<subject>[a-z]{2,}){{S}}(?<target>though){{S}}(?:I|you|he|she|it|we|they|that){{E}}"
+        fixer: clauseThoughThought
   - id: en.clauseAuxiliaries
     checks: [englishAuxiliaryBaseVerb]
-    predicate: clauseAuxiliaries
+    style: match
+    message: review_msg_to_base
+    filter: usSlots
+    frames:
+      # "I wanted to priorities the task": a plural noun whose -ize verb the dictionary lists.
+      - regex: "to{{S}}(?<target>(?<stem>[a-z]{3,})ies){{E}}"
+        fixer: clauseToIesVerb
+      # "Please sent the file": please opens an imperative, which takes the base verb.
+      - regex: "(?<lead>please){{S}}(?<target>[a-z]+){{S}}(?<object>[a-z]+){{E}}"
+        message: review_msg_please_base
+        fixer: clausePleasePast
   - id: en.accordingTo
     checks: [englishFixedPrepositions]
-    predicate: accordingTo
+    style: match
+    message: review_msg_fixed_prepositions
+    filter: usSlots
+    frames:
+      # "According Anna, …": according takes "to" (archaic "according as" aside). A wrong
+      # preposition after it is replaced: "According about a survey".
+      - regex: "(?<target>according(?:{{S}}(?<wrong>about|on|with|for|from|by|of|at))?){{S}}(?!(?:to|as|ly){{E}})(?=[A-Za-z])"
+        fixer: clauseAccordingTo
   - id: en.thereTheir
     checks: [englishTheirThereTheyAre]
-    predicate: thereTheir
+    style: match
+    message: review_msg_their_possessive
+    filter: usSlots
+    frames:
+      # "They yelled at there son": after a preposition, "there" before a plain noun is "their".
+      - regex: "(?:at|to|for|with|of|from|about|by|into|onto|toward|towards|without|against|like){{S}}(?<target>there){{S}}(?<first>[a-z]+)(?:{{S}}(?<second>[a-z]+))?{{E}}"
+        fixer: clauseThereTheir
   - id: en.linkingSingular
     checks: [englishSubjectVerbAgreement]
-    predicate: linkingSingular
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlots
+    frames:
+      # "That sound great", "it look nice": a linking verb after a singular pronoun takes -s.
+      - regex: "(?<subject>that|this|it){{S}}(?<target>sound|look|seem|feel|smell|taste){{S}}(?<adjective>[a-z]+){{E}}"
+        fixer: clauseLinkingSingular
   - id: en.allSingular
     checks: [englishNounNumber]
-    predicate: allSingular
+    style: match
+    message: review_msg_noun_count
+    filter: usSlots
+    frames:
+      # "All car are moving": "all" before a singular count noun and a plural verb.
+      - regex: "(?<lead>all){{S}}(?<target>[a-z]+){{S}}(?:are|were|have|do|seem|look|need){{E}}"
+        fixer: clauseAllSingular
   - id: en.noAdjective
     checks: [englishSentenceStructure]
-    predicate: noAdjective
+    style: match
+    message: review_msg_clause_be
+    filter: usSlots
+    frames:
+      # "I no good at math": a subject, "no" and a predicate adjective lack "am not".
+      - regex: "(?<subject>I|you|we|they|he|she|it){{S}}(?<target>no){{S}}(?<adjective>[a-z]+){{E}}"
+        fixer: clauseNoAdjective
   - id: en.verbFrames
     checks: [englishVerbComplements]
-    predicate: verbFrames
+    style: match
+    message: review_msg_gerund_complement
+    filter: usSlots
+    frames:
+      # "I keep see errors": keep takes the -ing form.
+      - regex: "(?:keep|keeps|kept|keeping){{S}}(?<target>[a-z]+){{E}}"
+        fixer: everydayKeep
+      # "It's going be hard": going takes "to".
+      - regex: "(?:am|is|are|was|were|['’]m|['’]re|(?:it|that|he|she|there|what|who|this)['’]s){{S}}going{{S}}(?<target>[a-z]+){{E}}"
+        message: review_msg_missing_to
+        fixer: everydayGoing
+      # "That makes me thinking": make/let + an object + the base verb.
+      - regex: "(?:make|makes|made|making|let|lets|letting){{S}}(?:me|you|him|her|us|them|someone|everyone|people){{S}}(?<target>[a-z]+ing){{E}}"
+        message: review_msg_causative_base
+        fixer: everydayCausative
   - id: en.wasThereMany
     checks: [englishExistentialAgreement]
-    predicate: wasThereMany
+    style: match
+    message: review_msg_existential_agreement
+    filter: usSlots
+    frames:
+      # "Was there too many people?", "Is there several options?": the plural takes were/are.
+      - regex: "(?<target>was|is){{S}}there{{S}}(?:(?:too|so){{S}})?(?<quantity>many|several|a{{S}}few|a{{S}}lot{{S}}of|lots{{S}}of|plenty{{S}}of|dozens{{S}}of){{S}}(?<noun>[a-z]+){{E}}"
+        fixer: everydayWasThere
   - id: en.everydayConfusions
     checks: [englishConfusedWords]
-    predicate: everydayConfusions
+    style: match
+    message: review_msg_confused_word
+    filter: usSlots
+    frames:
+      # "reading though the contract": a verb of passage takes "through" before its noun phrase.
+      - regex: "(?:go|goes|going|went|gone|read|reads|reading|look|looks|looking|looked|walk|walks|walked|walking|pass|passed|passing|get|got|getting|gets|flip|flipped|browse|browsed|scroll|scrolled|sift|search|searched|searching|dig|came|come|coming|run|ran|running|lived|living|break|broke|sailed|been){{S}}(?<target>though){{S}}(?:the|a|an|this|that|these|those|my|your|his|her|our|their|it|all|some|each|every){{E}}"
+        fixer: everydayThough
+      # "give me advise on it": the noun is advice.
+      - regex: "(?:give|gives|gave|giving|given|need|needs|needed|some|any|your|my|his|our|their|good|bad|great|expert|legal|medical|financial|professional|helpful|useful|no|for|the){{S}}(?:me{{S}}|us{{S}}|him{{S}}|them{{S}}|you{{S}})?(?<target>advise)(?={{S}}(?:on|about|for|from|regarding|please){{E}}|[ \\t\\u00a0]*(?:[.,!?;:]|$))"
+        fixer: everydayAdvise
+      # "That would we very helpful": a modal, then "we" where "be" belongs.
+      - regex: "(?<modal>would|will|could|should|might|may|must)(?:{{S}}(?:probably|definitely|certainly|also|really|surely))?{{S}}(?<target>we){{S}}(?<next>very|so|really|quite|too|great|good|fine|helpful|useful|nice|possible|able|happy|glad|better|best|ready|available|appreciated|interesting|important|necessary){{E}}"
+        fixer: everydayWeBe
+      # "Please do not us this door": a verb slot before a determiner object.
+      - regex: "(?:do{{S}}not|don['’]t|please|can|will|should|must|would|could|cannot|can['’]t|won['’]t|shouldn['’]t|didn['’]t){{S}}(?<target>us){{S}}(?:the|this|that|these|those|a|an|my|your|our|their|it|them|any|some){{E}}"
+        fixer: everydayUsUse
+      # "Doe he like me?": does/do.
+      - regex: "(?<target>doe){{S}}(?<subject>he|she|it|you|they|we|i){{S}}[a-z]+{{E}}"
+        fixer: everydayDoe
+      # "Everything went good", "the clutch worked good": the verb takes the adverb "well".
+      - regex: "(?:went|goes|go|going|gone|worked|works|work|working|ran|runs|run|running|performed|played|slept|shifted){{S}}(?<target>good)(?=[ \\t\\u00a0]*(?:[.,!?;:]|$)|{{S}}(?:until|and|but|so|today|yesterday|overall|too|though|enough|at){{E}})"
+        message: review_msg_adverb_form
+        fixer: everydayWentGood
+      # "the later of the two" is the latter.
+      - regex: "the{{S}}(?<target>later){{S}}of{{S}}(?:the|these|those|two|both){{E}}"
+        fixer: everydayLatter
   - id: en.gotItDone
     checks: [englishIrregularForms]
-    predicate: gotItDone
+    style: match
+    message: review_msg_irregular_form
+    filter: usSlots
+    frames:
+      # "I got it did yesterday": get + an object + the participle "done".
+      - regex: "(?:got|get|gets|getting){{S}}(?:it|them|this|that|everything|all{{S}}of{{S}}it|most{{S}}of{{S}}it|(?:my|her|his|our|their|the|your){{S}}[a-z]+){{S}}(?<target>did)(?=[ \\t\\u00a0]*(?:[.,!?;:]|$)|{{S}}(?:yesterday|today|already|early|before|by|in|on|last|quickly|fast){{E}})"
+        fixer: everydayGotDid
   - id: en.everydayPhrases
     checks: [englishPhraseCorrections]
-    predicate: everydayPhrases
+    style: match
+    message: review_msg_phrase_correction
+    filter: usSlots
+    frames:
+      # "Kind regard," closes a letter: regards.
+      - regex: "(?:kind|best|warm|warmest|warmer){{S}}(?<target>regard)(?=[ \\t\\u00a0]*(?:[,!.]|$|\\n))"
+        fixer: everydayRegard
+      # "everyone of you": every one.
+      - regex: "(?<target>everyone|everybody){{S}}of{{S}}(?:you|us|them|the|these|those|my|our|your|their|his|her){{E}}"
+        fixer: everydayEveryOne
   - id: en.splitCompounds
     checks: [englishContextualCompounds]
-    predicate: splitCompounds
+    style: match
+    message: review_msg_compounds
+    filter: usSlots
+    frames:
+      # "Is there anyway to fix it?", "We need sometime to think", "need anymore information":
+      # the two-word forms.
+      - regex: "(?:there(?:{{S}}(?:is|was)|['’]s)|is{{S}}there|was{{S}}there|find|found|no|know{{S}}of|have|has){{S}}(?<target>anyway){{S}}to{{E}}"
+        fixer: everydayAnyWay
+      # After "for", only a duration ("for sometime now"): "schedule it for sometime" names a time.
+      - regex: "(?:(?:take|takes|took|taking|taken|need|needs|needed|have|has|had|having|spend|spent|spending|give|gave|given|giving|allow|allowed){{S}}(?<target>sometime)(?={{S}}(?:to|for|off|with|now|ago|alone|together|out|away|apart){{E}}|[ \\t\\u00a0]*(?:[.,!?;:]|$))|for{{S}}(?<target2>sometime)(?={{S}}(?:now|already|ago){{E}}))"
+        owner: none
+        fixer: everydaySomeTime
+      - regex: "(?<target>anymore){{S}}(?<noun>[a-z]+){{E}}"
+        fixer: everydayAnyMore
   - id: en.moreSingular
     checks: [englishNounNumber]
-    predicate: moreSingular
+    style: match
+    message: review_msg_noun_count
+    filter: usSlots
+    frames:
+      # "More person are coming": more + a singular count noun + a plural verb.
+      - regex: "(?:more|fewer){{S}}(?<target>[a-z]+){{S}}(?:are|were|have|do){{E}}"
+        fixer: everydayMoreSingular
   - id: en.doSingular
     checks: [englishSubjectVerbAgreement]
-    predicate: doSingular
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlots
+    frames:
+      # "Do anyone know…?", "Do that mean…?", "…, do he?": does after a singular subject.
+      - regex: "(?<target>do|don['’]t){{S}}(?:anyone|anybody|someone|somebody|everyone|everybody|nobody|anything|something|everything|that|this|it|he|she){{S}}(?<verb>[a-z]+){{E}}"
+        fixer: everydayDoSingular
+      - regex: "(?<=,{{S}})(?<target>do|don['’]t){{S}}(?:he|she|it)(?=[ \\t\\u00a0]*\\?)"
+        fixer: everydayDoTag
   - id: en.haveName
     checks: [englishSubjectVerbAgreement]
-    predicate: haveName
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlots
+    frames:
+      # "Have Mary bought a ticket?": a name takes has; "Have Tom report to me" is causative.
+      - regex: "(?<target>have|haven['’]t){{S}}(?<name>[a-z]{2,}){{S}}(?<part>[a-z]+){{E}}"
+        fixer: wordFormHaveName
   - id: en.youAre
     checks: [englishYourYouAre]
-    predicate: youAre
+    style: match
+    message: review_msg_your_you_are
+    filter: usSlots
+    frames:
+      # "the file your looking for", "what your selling": your before a bare -ing after a noun
+      # or a wh-word is "you're".
+      - regex: "(?<before>[a-z]+){{S}}(?<target>your){{S}}(?<ing>[a-z]+ing){{E}}"
+        fixer: wordFormYourIng
+      # "I think your all set".
+      - regex: "(?<target>your){{S}}all{{S}}(?:set|done|good|ready|invited|welcome|right|wrong|fine|wrong|alone|over|here|there){{E}}"
+        fixer: wordFormYourAll
   - id: en.pluralSlots
     checks: [englishNounNumber]
-    predicate: pluralSlots
+    style: match
+    message: review_msg_noun_count
+    filter: usSlots
+    frames:
+      # "There're problem in it": a plural existential before a singular count noun.
+      - regex: "there(?:['’]re|{{S}}are|{{S}}were){{S}}(?<target>[a-z]+){{E}}"
+        fixer: wordFormThereAre
+      # "A number of book", "dozens of reason": a count that needs a plural.
+      - regex: "(?:a{{S}}(?:number|couple|pair|multitude|series|majority)|dozens|hundreds|thousands){{S}}of{{S}}(?<target>[a-z]+){{E}}"
+        fixer: wordFormCountOf
   - id: en.confusedSlots
     checks: [englishConfusedWords]
-    predicate: confusedSlots
+    style: match
+    message: review_msg_confused_word
+    filter: usSlots
+    frames:
+      # "The files are know being checked": now before an -ing form.
+      - regex: "(?:is|are|was|were|am|['’]re|['’]m){{S}}(?<target>know){{S}}(?<next>[a-z]+ing){{E}}"
+        fixer: wordFormKnow
+      # "Tom and several other came": a pronoun "others" before a verb or the end.
+      - regex: "(?:several|many|some|few|both){{S}}(?<target>other)(?=[ \\t\\u00a0]*(?:[.!?,;:]|$)|{{S}}(?<next>[a-z]+){{E}})"
+        fixer: wordFormOther
+      # "The are many people here": there at the clause start.
+      - regex: "(?<target>the){{S}}(?:are|were){{S}}(?:many|several|some|no|plenty|lots|a{{S}}lot|a{{S}}few|two|three|four|five|ten){{E}}"
+        fixer: wordFormTheAre
+      # "I might not make sense to ask": the dummy subject it.
+      - regex: "(?<target>I)(?:{{S}}(?:might|may|would|will|could|does|doesn['’]t|did|didn['’]t|wouldn['’]t|won['’]t)(?:{{S}}not)?)?{{S}}(?:make|makes|made){{S}}sense{{S}}to{{S}}[a-z]+{{E}}"
+        fixer: wordFormISense
+      # "It maybe helpful": the modal "may be" before a predicate.
+      - regex: "(?:I|you|he|she|it|we|they|this|that|there){{S}}(?<target>maybe){{S}}(?<next>[a-z]+){{E}}"
+        fixer: wordFormMaybe
+      # "I'll drop by an see you": "an" before a bare verb.
+      - regex: "(?<target>an){{S}}(?<verb>[a-z]+){{E}}"
+        fixer: wordFormAnVerb
   - id: en.compoundSlots
     checks: [englishContextualCompounds]
-    predicate: compoundSlots
+    style: match
+    message: review_msg_compounds
+    filter: usSlots
+    frames:
+      # "a must see place": the compound modifier is hyphenated.
+      - regex: "(?:a|an|the|another){{S}}(?<target>must{{S}}(?<verb>see|read|have|do|visit|watch|try|buy|attend|hear|eat|own)){{S}}(?<noun>[a-z]+){{E}}"
+        fixer: wordFormMust
+      # "He was 58 years-old.": predicative ages are open.
+      - regex: "(?<=[0-9]{{S}}|(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety){{S}})(?<target>(?:years|months|weeks|days)-old)(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|{{S}}(?:and|but|when|at|in|by|now|today){{E}})"
+        fixer: wordFormYearsOld
   - id: en.possessiveSlots
     checks: [englishApostrophes]
-    predicate: possessiveSlots
+    style: match
+    message: review_msg_noun_possessive
+    filter: usSlots
+    frames:
+      # "the worlds best player": the world's.
+      - regex: "the{{S}}(?<target>worlds){{S}}(?:best|largest|biggest|greatest|most|first|oldest|fastest|richest|highest|tallest|leading|top|smallest|longest|deepest|strongest|happiest|favorite|favourite|population|economy|attention){{E}}"
+        fixer: wordFormWorlds
+      # "One should wash ones hands": one's before a noun.
+      - regex: "(?:wash|brush|clean|change|mind|lose|lost|keep|know|follow|raise|use|express|share|do|cross|count|in|of|on|for|to|with|about|into|from){{S}}(?<target>ones){{S}}(?<noun>[a-z]+){{E}}"
+        fixer: wordFormOnes
   - id: en.tooAll
     checks: [englishToToo]
-    predicate: tooAll
+    style: match
+    message: review_msg_to_too
+    filter: usSlots
+    frames:
+      # "We expanded too all the sites": the preposition.
+      - regex: "(?<target>too){{S}}all{{S}}(?:the|of|my|our|your|their|his|her|these|those){{E}}"
+        fixer: wordFormTooAll
   - id: en.typoSlots
     checks:
       [englishPhraseCorrections, englishConfusedWords, englishToToo, englishContextualCompounds]

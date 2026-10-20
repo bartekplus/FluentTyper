@@ -78,23 +78,15 @@ export const PREDICATES = mergePredicates(
   contractionSlots.PREDICATES,
   degreeSlots.PREDICATES,
   nounNumberSlots.PREDICATES,
-  verbGroupSlots.PREDICATES,
   complementSlots.PREDICATES,
   missingVerbSlots.PREDICATES,
   determinerSlots.PREDICATES,
-  agreementSlots.PREDICATES,
-  adverbSlots.PREDICATES,
   confusionSlots.PREDICATES,
   countSlots.PREDICATES,
   negationSlots.PREDICATES,
   relativeSlots.PREDICATES,
   questionSlots.PREDICATES,
-  comparisonSlots.PREDICATES,
-  collocationSlots.PREDICATES,
-  tenseSlots.PREDICATES,
   noNotSlots.PREDICATES,
-  clauseAgreementSlots.PREDICATES,
-  wordClassSlots.PREDICATES,
   apostrophes.PREDICATES,
   properNames.PREDICATES,
   typography.PREDICATES,
@@ -102,9 +94,6 @@ export const PREDICATES = mergePredicates(
   passiveVoice.PREDICATES,
   punctuation.PREDICATES,
   articles.PREDICATES,
-  clauseSlots.PREDICATES,
-  everydaySlots.PREDICATES,
-  wordFormSlots.PREDICATES,
 );
 
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
@@ -131,7 +120,22 @@ export const FIXERS = mergePredicates<Fixer>(
   typoSlots.FIXERS,
   verbSlots.FIXERS,
   remaining.FIXERS,
+  everydaySlots.FIXERS,
+  wordFormSlots.FIXERS,
+  verbGroupSlots.FIXERS,
+  agreementSlots.FIXERS,
+  wordClassSlots.FIXERS,
+  clauseAgreementSlots.FIXERS,
+  clauseSlots.FIXERS,
+  collocationSlots.FIXERS,
+  adverbSlots.FIXERS,
+  comparisonSlots.FIXERS,
+  tenseSlots.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>(articles.FILTERS, grammarStyle1.FILTERS);
+export const FILTERS = mergePredicates<FindingsFilter>(
+  articles.FILTERS,
+  grammarStyle1.FILTERS,
+  everydaySlots.FILTERS,
+);

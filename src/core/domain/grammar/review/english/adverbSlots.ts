@@ -1,20 +1,12 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
-import {
-  afterBreak,
-  english,
-  evidence,
-  FUNCTION_WORDS,
-  type Token,
-  tokensAfter,
-} from "./slotWords";
+import type { MatchFixer } from "../../engine/reviewRules";
+import { afterBreak, evidence, FUNCTION_WORDS, type Token, tokensAfter } from "./slotWords";
 import { finding } from "../finding";
 
 // An adjective where its -ly adverb belongs: between an auxiliary, "to" or a subject and a
 // verb ("could possible go", "to easy achieve"), or before another adjective after be
-// ("is terrible slow").
+// ("is terrible slow"). The frames are in grammar/rules/en.yaml.
 
 // Colour and shade words combine with each other ("dark blue"), and these adjectives are
 // adverbs too ("fast", "hard", "late", "well").
@@ -99,36 +91,24 @@ function verbAfter(
   );
 }
 
-function push(
-  ctx: DetectContext,
-  findings: RawFinding[],
-  m: RegExpExecArray,
-  adverb: string,
-): void {
+// The rule keeps one finding per start: its filter is usSlotsOnePerStart.
+function push(ctx: DetectContext, m: RegExpExecArray, adverb: string): RawFinding {
   const [start, end] = m.indices!.groups!.target;
-  if (findings.some((f) => f.range.start === start)) return;
-  findings.push(
-    finding("englishConfusedWords", "review_msg_adverb_form", start, end, [adverb], {
-      context: evidence(ctx, m.index, end + 24),
-    }),
-  );
+  return finding("englishConfusedWords", "review_msg_adverb_form", start, end, [adverb], {
+    context: evidence(ctx, m.index, end + 24),
+  });
 }
 
-function adjectiveForAdverb(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    // The lead sits in a lookbehind so that "It could possible work" is not consumed by "It".
-    `(?<=(?<![\\p{L}'’])(?:could|would|should|can|will|might|must|may|won['’]t|can['’]t|couldn['’]t|didn['’]t|doesn['’]t|don['’]t|does|did|to|have|has|had|I|we|you|they|it|he|she)${SPACE})(?<target>[a-z]+)(?=${SPACE}(?<verb>[a-z]+)${WORD_END})`,
-    "target",
-  )) {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  adverbAdjectiveForAdverb1: (m, ctx) => {
     const { target, verb } = m.groups!;
     const lead = /([A-Za-z'’]+)[ \t\u00a0]+$/.exec(
       ctx.text.slice(Math.max(0, m.index - 16), m.index),
     )![1];
-    if (ctx.dictionary.has(target) || target !== target.toLowerCase()) continue;
+    if (ctx.dictionary.has(target) || target !== target.toLowerCase()) return null;
     const adverb = adverbOf(target);
-    if (!adverb) continue;
+    if (!adverb) return null;
     const l = lead.toLowerCase();
     const kind = /^(?:have|has|had)$/.test(l)
       ? "participle"
@@ -146,26 +126,21 @@ function adjectiveForAdverb(ctx: DetectContext): RawFinding[] {
         ctx.text.slice(Math.max(0, m.index - 24), m.index),
       )
     )
-      continue;
+      return null;
     // "Should intent be part of…": an inverted modal makes the next word its subject.
-    if (kind === "base" && afterBreak(ctx, m.index - lead.length - 1)) continue;
+    if (kind === "base" && afterBreak(ctx, m.index - lead.length - 1)) return null;
     // "We cold call them": an adjective-noun compound verb.
-    if (COMPOUND_VERBS.has(`${target} ${verb}`)) continue;
+    if (COMPOUND_VERBS.has(`${target} ${verb}`)) return null;
     const after = tokensAfter(ctx, m.indices!.groups!.verb[1], 1)[0];
-    if (!verbAfter(verb, kind, after, /(?:ily|ally|bly)$/.test(adverb))) continue;
-    push(ctx, findings, m, adverb);
-  }
-  // "Your site is terrible slow": be + adjective + adjective.
-  for (const m of frameMatches(
-    ctx,
-    `(?<=(?:(?<![\\p{L}'’])(?:is|are|was|were|be|been|seems?|seemed|looks?)|[\\p{L}](?:['’]s|['’]m|['’]re))${SPACE})(?<target>[a-z]+)(?=${SPACE}(?<next>[a-z]+)${WORD_END})`,
-    "target",
-  )) {
+    if (!verbAfter(verb, kind, after, /(?:ily|ally|bly)$/.test(adverb))) return null;
+    return push(ctx, m, adverb);
+  },
+  adverbAdjectiveForAdverb2: (m, ctx) => {
     const { target, next } = m.groups!;
-    if (target !== target.toLowerCase() || ctx.dictionary.has(target)) continue;
-    if (!/(?:ble|al|ary|ic|ent|ous|ive|ful|ple|real|easy)$/.test(target)) continue;
+    if (target !== target.toLowerCase() || ctx.dictionary.has(target)) return null;
+    if (!/(?:ble|al|ary|ic|ent|ous|ive|ful|ple|real|easy)$/.test(target)) return null;
     const adverb = adverbOf(target);
-    if (!adverb) continue;
+    if (!adverb) return null;
     const read = englishWordInfo(next);
     // The second word must be a predicate adjective or participle, never a noun.
     if (
@@ -174,20 +149,15 @@ function adjectiveForAdverb(ctx: DetectContext): RawFinding[] {
       read.plural ||
       !(read.adjective || read.verbs.some((v) => v.form === "participle"))
     )
-      continue;
-    if (NOT_ADVERB_BASE.has(next) || FUNCTION_WORDS.has(next)) continue;
+      return null;
+    if (NOT_ADVERB_BASE.has(next) || FUNCTION_WORDS.has(next)) return null;
     // "be reasonable based on", "necessary soon": a preposition-like participle or an adverb.
     if (
       /^(?:soon|early|late|later|earlier|sooner|longer|enough|then|based|compared|given|considering|including|regarding)$/.test(
         next,
       )
     )
-      continue;
-    push(ctx, findings, m, adverb);
-  }
-  return findings;
-}
-
-export const PREDICATES = {
-  adjectiveForAdverb: english(adjectiveForAdverb),
-} satisfies Record<string, Detector>;
+      return null;
+    return push(ctx, m, adverb);
+  },
+} satisfies Record<string, MatchFixer>;
