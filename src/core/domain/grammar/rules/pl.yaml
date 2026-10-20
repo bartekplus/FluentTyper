@@ -32,6 +32,11 @@ fragments:
   # Short words that may stand between a subject pronoun and its verb ("ona już wyszła").
   BETWEEN: "(?:(?:się|nie|już|też|także|również|wtedy|wczoraj|dziś|zawsze|nigdy|jednak|często|szybko|nagle|wreszcie|tylko)[ \\t\\u00a0]{1,8}){0,2}"
   ZOSTAC: "został|została|zostało|zostały"
+  # Month names after a day: the genitive, the nominative and the Roman numerals.
+  MONTH_WORD: "stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I"
+  DECADE_WORDS: "lata|lat|latach|latami|latom"
+  # Months in the locative ("w maju").
+  LOCATIVE: "styczniu|lutym|marcu|kwietniu|maju|czerwcu|lipcu|sierpniu|wrześniu|październiku|listopadzie|grudniu"
   # Conjunctions, question words and relative pronouns that open a subordinate clause.
   SUBORDINATORS: "że|iż|żeby|ażeby|aby|by|ponieważ|gdyż|jeśli|jeżeli|gdyby|zanim|dopóki|gdy|zamiast|ale|lecz|dlaczego|gdzie|kiedy|który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy|jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi"
 
@@ -483,9 +488,65 @@ rules:
   - id: pl.numerals
     checks: [polishNumerals]
     predicate: numerals
+  # Dates: a day the month does not have ("31 września", "29 lutego 2023"), a weekday that does
+  # not fall on the date, a range that runs backwards, and the month's form after a day number
+  # ("1 stycznia", not "1 styczeń", "1. stycznia" or the English-style "1 Sty").
   - id: pl.dates
     checks: [polishDates]
-    predicate: dates
+    style: match
+    message: review_msg_pl_impossible_date
+    frames:
+      # "27 sierpnia 2014", "27 VIII 2014", "31 września", and dotted "27.08.2014": a day the
+      # month does not have, or a weekday that does not fall on the date.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}.,/-])(?:(?<day>\\d{1,2})[ \\t\\u00a0]+(?<mword>{{MONTH_WORD}})(?:[ \\t\\u00a0]+(?<year>\\d{3,4})(?![\\p{N}]))?(?![\\p{L}\\p{N}])|(?<dday>\\d{1,2})\\.(?<dmonth>\\d{1,2})\\.(?<dyear>[0-9]{4})(?![\\p{N}]|\\.\\p{N})))"
+        scan: polish
+        flags: giu
+        fixer: impossibleDates
+  - id: pl.isoDates
+    checks: [polishDates]
+    # predicate: reads the impossible ISO dates of the shared isoDates module; it has no scan of its own.
+    predicate: isoDates
+  - id: pl.datesFrames
+    checks: [polishDates]
+    style: match
+    message: review_msg_pl_impossible_date
+    frames:
+      # "11–1 lutego", "od 11 do 1 lutego": the range ends before it starts.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{1,2})(?:[ \\t\\u00a0]*[–—-][ \\t\\u00a0]*|[ \\t\\u00a0]+do[ \\t\\u00a0]+)(?<b>\\d{1,2})[ \\t\\u00a0]+(?:stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)(?![\\p{L}]))"
+        scan: polish
+        flags: giu
+        fixer: dayRanges
+      # "1915–1840", "1855–40": a year range that runs backwards or repeats.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{3,4})[ \\t\\u00A0]*[\\u2013\\u2014-][ \\t\\u00A0]*(?<b>\\d{1,4})(?![\\p{N}.,]\\d|[\\p{L}\\p{N}-]))"
+        scan: polish
+        flags: gu
+        fixer: yearRanges
+      # "1 styczeń 2000", "Pierwszy styczeń": the month after a day is in the genitive.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2}|pierwszy|drugi|trzeci|czwarty|piąty)(?<dot>\\.)?(?<sp>[ \\t\\u00a0]+)(?<month>styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia)(?![\\p{L}]))"
+        scan: polish
+        flags: giu
+        fixer: monthForms
+      # "21 Sty 2012": an English-style month abbreviation between day and year.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2})(?<sp1>[ \\t\\u00a0]+)(?<month>sty|lut|mar|kwi|maj|cze|lip|sie|wrz|paź|lis|gru)\\.?(?<sp2>[ \\t\\u00a0]+)(?<year>\\d{4})(?![\\p{L}\\p{N}]))"
+        scan: polish
+        flags: giu
+        fixer: abbreviatedMonths
+      # Decades are written with the decade and the century: "lata 90. XX w.", not "lata 1990."
+      # (an English calque).
+      - regex: "(?<target>(?<=(?:^|[^\\p{L}])(?:{{DECADE_WORDS}}){{S}})(?<year>1\\d[0-9]0|20[0-9]0)\\.)"
+        scan: polish
+        flags: giu
+        fixer: fullDecades
+      # A year takes no apostrophe ("lata '90", "Euro '2012").
+      - regex: "(?<target>(?<![\\p{L}\\p{N}])(?<mark>['’])(?<year>\\d{4}|\\d{2})(?![\\p{L}\\p{N}'’]))"
+        scan: polish
+        flags: gu
+        fixer: apostropheYears
+      # "12 V 20015 r.", "w maju 20015 roku": a year with a digit typed twice.
+      - regex: "(?<target>(?<![\\p{L}])(?:{{MONTH_WORD}}|{{LOCATIVE}}|roku){{S}}(?<year>[12]\\d{4})(?=[ \\t\\u00a0]{0,8}(?:r\\.|rok\\p{L}*)(?![\\p{L}])))"
+        scan: polish
+        flags: giu
+        fixer: longYears
   # Polish commas: a subordinate clause is set off by a comma before its conjunction or relative
   # pronoun ("Wiem, że…", "dom, w którym…"), and a compound conjunction takes the comma before
   # it as a whole ("…, mimo że", not "mimo, że").

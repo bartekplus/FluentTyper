@@ -49,6 +49,7 @@ export const FIXERS = mergePredicates<Fixer>(
   commas.FIXERS,
   compounds.FIXERS,
   confusions.FIXERS,
+  dates.FIXERS,
   forms.FIXERS,
   officialese.FIXERS,
   style.FIXERS,

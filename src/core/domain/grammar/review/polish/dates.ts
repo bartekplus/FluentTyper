@@ -1,8 +1,8 @@
 import { invalidIsoDates } from "../isoDates";
-import type { Detector } from "../../engine/reviewRules";
+import type { Detector, MatchFixer, MatchResult } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { contextYear, daysInMonth, weekdayOf, yearsFor, YEAR_DIGITS } from "../reviewClock";
-import { caseLike, findingAt, isPl, owned } from "./shared";
+import { contextYear, daysInMonth, weekdayOf, yearsFor } from "../reviewClock";
+import { caseLike, findingAt, isPl } from "./shared";
 
 /*
  * Dates: a day the month does not have ("31 września", "29 lutego 2023"), a
@@ -78,13 +78,6 @@ const monthOf = (word: string): number => {
   return genitive >= 0 ? genitive + 1 : NOMINATIVE.indexOf(lower) + 1;
 };
 
-// "27 sierpnia 2014", "27 VIII 2014", "31 września", and dotted "27.08.2014".
-const MONTH_WORD = `${GENITIVE.join("|")}|${NOMINATIVE.join("|")}|${ROMAN.slice().reverse().join("|")}`;
-const DATE = new RegExp(
-  `(?<![\\p{L}\\p{N}.,/-])(?:(?<day>\\d{1,2})[ \\t\\u00a0]+(?<mword>${MONTH_WORD})(?:[ \\t\\u00a0]+(?<year>\\d{3,4})(?![\\p{N}]))?(?![\\p{L}\\p{N}])|(?<dday>\\d{1,2})\\.(?<dmonth>\\d{1,2})\\.(?<dyear>${YEAR_DIGITS})(?![\\p{N}]|\\.\\p{N}))`,
-  "giu",
-);
-
 /** Weekdays in the nominative, Sunday first as Date.getUTCDay counts. */
 const NOMINATIVE_WEEKDAYS = [
   "niedziela",
@@ -102,174 +95,142 @@ function weekdayNamed(word: string): number | null {
   return null;
 }
 
-function impossibleDates(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, DATE)) {
-    const { mword, dmonth } = m.groups!;
-    const day = m.groups!.day ?? m.groups!.dday;
-    const year = m.groups!.year ?? m.groups!.dyear;
-    // A Roman month needs a year, or it may be a chapter or a list number.
-    if (mword && /^[IVX]+$/.test(mword) && !year) continue;
-    if (mword && /^[ivx]+$/.test(mword)) continue;
-    const month = mword ? monthOf(mword) : Number(dmonth);
-    const y = year ? Number(year) : undefined;
-    const d = Number(day);
-    const start = m.index;
-    const end = start + m[0].length;
-    if (month < 1 || month > 12 || d < 1 || d > daysInMonth(month, y)) {
-      findings.push(findingAt(ctx, start, end, [], RULE, "review_msg_pl_impossible_date"));
-      continue;
-    }
-    // A weekday right before ("wtorek, 27 sierpnia 2014") or after ("…2014, wtorek", "(wtorek)").
-    // No year: the years the date can mean (reviewClock).
-    const years =
-      y === undefined ? yearsFor(month, d, contextYear(ctx.text, start, ctx.lang)) : [y];
-    const weekdays = [...new Set(years.map((year) => weekdayOf(year, month, d)))];
-    const before = new RegExp(
-      `(?<![\\p{L}])(?<w>${WEEKDAY})[ \\t\\u00a0]*,?[ \\t\\u00a0]*$`,
-      "iu",
-    ).exec(ctx.text.slice(Math.max(0, start - 24), start));
-    const after = new RegExp(
-      `^[ \\t\\u00a0]*[,(][ \\t\\u00a0]*(?<w>${WEEKDAY})(?![\\p{L}])`,
-      "iu",
-    ).exec(ctx.text.slice(end, end + 24));
-    const named = before ?? after;
-    if (!named) continue;
-    const said = weekdayNamed(named.groups!.w);
-    if (said === null || !years.length || weekdays.includes(said)) continue;
-    const key = y === undefined ? "review_msg_weekday_no_year" : "review_msg_pl_weekday_date";
-    const typed = named.groups!.w;
-    const wordStart = before ? start - before[0].length : end + after![0].indexOf(typed);
-    // A weekday in the nominative ("wtorek, 13 października") is replaced. After a preposition
-    // ("w środę") the case changes the form, so it only gets a warning.
-    const afterPreposition =
-      /(?:^|[^\p{L}])(?:w|we|na|od|do|przez|za|po|przed)[ \t\u00a0]+$/iu.test(
-        ctx.text.slice(Math.max(0, wordStart - 12), wordStart),
-      );
-    if (!afterPreposition && NOMINATIVE_WEEKDAYS.includes(typed.toLowerCase())) {
-      const alternatives = weekdays.map((w) => caseLike(typed, NOMINATIVE_WEEKDAYS[w]));
-      // The day can be the slip instead: nothing is preselected.
-      findings.push({
-        ...findingAt(ctx, wordStart, wordStart + typed.length, alternatives, RULE, key),
-        requiresChoice: true,
-      });
-      continue;
-    }
-    const wStart = before ? start - before[0].length : end;
-    const wEnd = before ? end : end + after![0].length;
-    findings.push(findingAt(ctx, Math.max(0, wStart), wEnd, [], RULE, key));
+function impossibleDates(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { mword, dmonth } = m.groups!;
+  const day = m.groups!.day ?? m.groups!.dday;
+  const year = m.groups!.year ?? m.groups!.dyear;
+  // A Roman month needs a year, or it may be a chapter or a list number.
+  if (mword && /^[IVX]+$/.test(mword) && !year) return null;
+  if (mword && /^[ivx]+$/.test(mword)) return null;
+  const month = mword ? monthOf(mword) : Number(dmonth);
+  const y = year ? Number(year) : undefined;
+  const d = Number(day);
+  const start = m.index;
+  const end = start + m[0].length;
+  if (month < 1 || month > 12 || d < 1 || d > daysInMonth(month, y)) {
+    return findingAt(ctx, start, end, [], RULE, "review_msg_pl_impossible_date");
   }
-  for (const { start, end } of invalidIsoDates(ctx))
-    findings.push(findingAt(ctx, start, end, [], RULE, "review_msg_pl_impossible_date"));
-  return findings;
+  // A weekday right before ("wtorek, 27 sierpnia 2014") or after ("…2014, wtorek", "(wtorek)").
+  // No year: the years the date can mean (reviewClock).
+  const years = y === undefined ? yearsFor(month, d, contextYear(ctx.text, start, ctx.lang)) : [y];
+  const weekdays = [...new Set(years.map((year) => weekdayOf(year, month, d)))];
+  const before = new RegExp(
+    `(?<![\\p{L}])(?<w>${WEEKDAY})[ \\t\\u00a0]*,?[ \\t\\u00a0]*$`,
+    "iu",
+  ).exec(ctx.text.slice(Math.max(0, start - 24), start));
+  const after = new RegExp(
+    `^[ \\t\\u00a0]*[,(][ \\t\\u00a0]*(?<w>${WEEKDAY})(?![\\p{L}])`,
+    "iu",
+  ).exec(ctx.text.slice(end, end + 24));
+  const named = before ?? after;
+  if (!named) return null;
+  const said = weekdayNamed(named.groups!.w);
+  if (said === null || !years.length || weekdays.includes(said)) return null;
+  const key = y === undefined ? "review_msg_weekday_no_year" : "review_msg_pl_weekday_date";
+  const typed = named.groups!.w;
+  const wordStart = before ? start - before[0].length : end + after![0].indexOf(typed);
+  // A weekday in the nominative ("wtorek, 13 października") is replaced. After a preposition
+  // ("w środę") the case changes the form, so it only gets a warning.
+  const afterPreposition = /(?:^|[^\p{L}])(?:w|we|na|od|do|przez|za|po|przed)[ \t\u00a0]+$/iu.test(
+    ctx.text.slice(Math.max(0, wordStart - 12), wordStart),
+  );
+  if (!afterPreposition && NOMINATIVE_WEEKDAYS.includes(typed.toLowerCase())) {
+    const alternatives = weekdays.map((w) => caseLike(typed, NOMINATIVE_WEEKDAYS[w]));
+    // The day can be the slip instead: nothing is preselected.
+    return {
+      ...findingAt(ctx, wordStart, wordStart + typed.length, alternatives, RULE, key),
+      requiresChoice: true,
+    };
+  }
+  const wStart = before ? start - before[0].length : end;
+  const wEnd = before ? end : end + after![0].length;
+  return findingAt(ctx, Math.max(0, wStart), wEnd, [], RULE, key);
 }
 
-// "11–1 lutego", "od 11 do 1 lutego": the range ends before it starts.
-const DAY_RANGE = new RegExp(
-  `(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{1,2})(?:[ \\t\\u00a0]*[–—-][ \\t\\u00a0]*|[ \\t\\u00a0]+do[ \\t\\u00a0]+)(?<b>\\d{1,2})[ \\t\\u00a0]+(?:${GENITIVE.join("|")}|${ROMAN.slice().reverse().join("|")})(?![\\p{L}])`,
-  "giu",
-);
-// "1915–1840", "1855–40": a year range that runs backwards or repeats.
-const YEAR_RANGE =
-  /(?<![\p{L}\p{N}.,/-])(?<a>\d{3,4})[ \t ]*[–—-][ \t ]*(?<b>\d{1,4})(?![\p{N}.,]\d|[\p{L}\p{N}-])/gu;
+/** ISO dates ("2023-02-30") that name no day. */
+const isoDates = (ctx: DetectContext): RawFinding[] =>
+  invalidIsoDates(ctx).map(({ start, end }) =>
+    findingAt(ctx, start, end, [], RULE, "review_msg_pl_impossible_date"),
+  );
 
-function backwardRanges(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, DAY_RANGE)) {
-    if (Number(m.groups!.a) >= Number(m.groups!.b))
-      findings.push(
-        findingAt(ctx, m.index, m.index + m[0].length, [], RULE, "review_msg_pl_impossible_date"),
-      );
-  }
-  for (const m of owned(ctx, YEAR_RANGE)) {
-    const { a, b } = m.groups!;
-    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 24);
-    if (/^[ \t\u00a0]*\d/u.test(after)) continue;
-    // Years before Christ run backwards: "1814–1781 p.n.e." is right, "715–1840 p.n.e." is not.
-    const beforeChrist =
-      /^[ \t\u00a0]*(?:p\.?[ \t\u00a0]*n\.?[ \t\u00a0]*e|przed[ \t\u00a0]+(?:naszą|Chrystusem)|BC)/iu.test(
-        after,
-      );
-    // "1962 – 272" is a year and a count; a longer end year is a year only before Christ.
-    if (b.length !== a.length && b.length > 2 && !(beforeChrist && b.length > a.length)) continue;
-    // Only in a year context: "w latach", "w okresie", "lata".
-    const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
-    if (!/(?:latach|lata|okresie|sezonie|rok\p{L}*|w|od)[ \t ]+$/iu.test(before)) continue;
-    const start = Number(a);
-    const endYear = b.length < a.length ? Number(a.slice(0, a.length - b.length) + b) : Number(b);
-    if (beforeChrist ? endYear < start : endYear > start) continue;
-    findings.push(
-      findingAt(ctx, m.index, m.index + m[0].length, [], RULE, "review_msg_pl_impossible_date"),
+function dayRanges(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  if (Number(m.groups!.a) >= Number(m.groups!.b))
+    return findingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [],
+      RULE,
+      "review_msg_pl_impossible_date",
     );
-  }
-  return findings;
+  return null;
 }
 
-// "1 styczeń 2000", "Pierwszy styczeń": the month after a day is in the genitive.
-const NOMINATIVE_MONTH = new RegExp(
-  `(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2}|pierwszy|drugi|trzeci|czwarty|piąty)(?<dot>\\.)?(?<sp>[ \\t\\u00a0]+)(?<month>${NOMINATIVE.join("|")}|${GENITIVE.join("|")})(?![\\p{L}])`,
-  "giu",
-);
-
-function monthForms(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, NOMINATIVE_MONTH)) {
-    const { day, dot, sp, month } = m.groups!;
-    const index = NOMINATIVE.indexOf(month.toLowerCase());
-    const spelled = /^\p{L}/u.test(day);
-    // "Maj" capitalized after "1" names the holiday; "w maju" etc. never reach here.
-    if (index >= 0 && /^\p{Lu}/u.test(month)) continue;
-    if (index < 0 && !dot) continue;
-    if (spelled && (dot || index < 0)) continue;
-    const genitive = index >= 0 ? GENITIVE[index] : month.toLowerCase();
-    if (dot) {
-      // "1. stycznia": no dot after the day before a month name.
-      const fixed = `${day}${sp}${genitive}`;
-      findings.push(
-        findingAt(ctx, m.index, m.index + m[0].length, [fixed], RULE, "review_msg_pl_month_form"),
-      );
-      continue;
-    }
-    const start = m.index + day.length + sp.length;
-    findings.push(
-      findingAt(
-        ctx,
-        start,
-        start + month.length,
-        [caseLike(month, genitive)],
-        RULE,
-        "review_msg_pl_month_form",
-      ),
+function yearRanges(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { a, b } = m.groups!;
+  const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 24);
+  if (/^[ \t\u00a0]*\d/u.test(after)) return null;
+  // Years before Christ run backwards: "1814–1781 p.n.e." is right, "715–1840 p.n.e." is not.
+  const beforeChrist =
+    /^[ \t\u00a0]*(?:p\.?[ \t\u00a0]*n\.?[ \t\u00a0]*e|przed[ \t\u00a0]+(?:naszą|Chrystusem)|BC)/iu.test(
+      after,
     );
-  }
-  return findings;
+  // "1962 – 272" is a year and a count; a longer end year is a year only before Christ.
+  if (b.length !== a.length && b.length > 2 && !(beforeChrist && b.length > a.length)) return null;
+  // Only in a year context: "w latach", "w okresie", "lata".
+  const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
+  if (!/(?:latach|lata|okresie|sezonie|rok\p{L}*|w|od)[ \t ]+$/iu.test(before)) return null;
+  const start = Number(a);
+  const endYear = b.length < a.length ? Number(a.slice(0, a.length - b.length) + b) : Number(b);
+  if (beforeChrist ? endYear < start : endYear > start) return null;
+  return findingAt(ctx, m.index, m.index + m[0].length, [], RULE, "review_msg_pl_impossible_date");
 }
 
-// "21 Sty 2012": an English-style month abbreviation between day and year.
-const ABBREVIATED_MONTH = new RegExp(
-  `(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2})(?<sp1>[ \\t\\u00a0]+)(?<month>${ABBREVIATED.join("|")})\\.?(?<sp2>[ \\t\\u00a0]+)(?<year>\\d{4})(?![\\p{L}\\p{N}])`,
-  "giu",
-);
-
-function abbreviatedMonths(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, ABBREVIATED_MONTH)) {
-    const { day, month, year } = m.groups!;
-    const index = ABBREVIATED.indexOf(month.toLowerCase());
-    // "1 maj 2012" is the nominative month, which monthForms puts in the genitive.
-    if (month === "maj") continue;
-    findings.push(
-      findingAt(
-        ctx,
-        m.index,
-        m.index + m[0].length,
-        [`${day} ${ROMAN[index]} ${year}`, `${day} ${GENITIVE[index]} ${year}`],
-        RULE,
-        "review_msg_pl_month_form",
-      ),
+function monthForms(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { day, dot, sp, month } = m.groups!;
+  const index = NOMINATIVE.indexOf(month.toLowerCase());
+  const spelled = /^\p{L}/u.test(day);
+  // "Maj" capitalized after "1" names the holiday; "w maju" etc. never reach here.
+  if (index >= 0 && /^\p{Lu}/u.test(month)) return null;
+  if (index < 0 && !dot) return null;
+  if (spelled && (dot || index < 0)) return null;
+  const genitive = index >= 0 ? GENITIVE[index] : month.toLowerCase();
+  if (dot) {
+    // "1. stycznia": no dot after the day before a month name.
+    const fixed = `${day}${sp}${genitive}`;
+    return findingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [fixed],
+      RULE,
+      "review_msg_pl_month_form",
     );
   }
-  return findings;
+  const start = m.index + day.length + sp.length;
+  return findingAt(
+    ctx,
+    start,
+    start + month.length,
+    [caseLike(month, genitive)],
+    RULE,
+    "review_msg_pl_month_form",
+  );
+}
+
+function abbreviatedMonths(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { day, month, year } = m.groups!;
+  const index = ABBREVIATED.indexOf(month.toLowerCase());
+  // "1 maj 2012" is the nominative month, which monthForms puts in the genitive.
+  if (month === "maj") return null;
+  return findingAt(
+    ctx,
+    m.index,
+    m.index + m[0].length,
+    [`${day} ${ROMAN[index]} ${year}`, `${day} ${GENITIVE[index]} ${year}`],
+    RULE,
+    "review_msg_pl_month_form",
+  );
 }
 
 /*
@@ -277,10 +238,6 @@ function abbreviatedMonths(ctx: DetectContext): RawFinding[] {
  * "lata 1990." (an English calque), and a year takes no apostrophe ("lata '90").
  */
 const DECADE_WORDS = "lata|lat|latach|latami|latom";
-const FULL_DECADE = new RegExp(
-  `(?<=(?:^|[^\\p{L}])(?:${DECADE_WORDS})[ \\t\\u00a0]{1,8})(?<year>1\\d[0-9]0|20[0-9]0)\\.`,
-  "giu",
-);
 const ROMAN_CENTURY = [
   "",
   "I",
@@ -305,81 +262,57 @@ const ROMAN_CENTURY = [
   "XX",
   "XXI",
 ];
-const APOSTROPHE_YEAR = new RegExp(
-  `(?<![\\p{L}\\p{N}])(?<mark>['’])(?<year>\\d{4}|\\d{2})(?![\\p{L}\\p{N}'’])`,
-  "gu",
-);
 
-function decades(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, FULL_DECADE)) {
-    const year = Number(m.groups!.year);
-    const century = ROMAN_CENTURY[Math.floor(year / 100) + 1];
-    // "lata 1900." has no "lata 00.": the fix names the years ("lata 1900–1909").
-    findings.push(
-      findingAt(
-        ctx,
-        m.index,
-        m.index + m[0].length,
-        [year % 100 ? `${year % 100}. ${century} w.` : `${year}–${year + 9}`],
-        RULE,
-        "review_msg_pl_decade",
-      ),
-    );
-  }
-  for (const m of owned(ctx, APOSTROPHE_YEAR)) {
-    const { year } = m.groups!;
-    // "Euro '2012": a full year needs no apostrophe; "lata '90" is the decade "90.".
-    const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
-    let fixed: string | null = null;
-    if (year.length === 4) fixed = year;
-    else if (new RegExp(`(?:^|[^\\p{L}])(?:${DECADE_WORDS})[ \\t\\u00a0]+$`, "iu").test(before))
-      fixed = /^[ \t ]*[.]/u.test(ctx.text.slice(m.index + m[0].length)) ? year : `${year}.`;
-    if (!fixed) continue;
-    findings.push(
-      findingAt(ctx, m.index, m.index + m[0].length, [fixed], RULE, "review_msg_pl_decade"),
-    );
-  }
-  return findings;
+function fullDecades(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const year = Number(m.groups!.year);
+  const century = ROMAN_CENTURY[Math.floor(year / 100) + 1];
+  // "lata 1900." has no "lata 00.": the fix names the years ("lata 1900–1909").
+  return findingAt(
+    ctx,
+    m.index,
+    m.index + m[0].length,
+    [year % 100 ? `${year % 100}. ${century} w.` : `${year}–${year + 9}`],
+    RULE,
+    "review_msg_pl_decade",
+  );
 }
 
-/** Months in the locative ("w maju"). */
-const LOCATIVE =
-  "styczniu|lutym|marcu|kwietniu|maju|czerwcu|lipcu|sierpniu|wrześniu|październiku|listopadzie|grudniu";
-// "12 V 20015 r.", "w maju 20015 roku": a year with a digit typed twice.
-const LONG_YEAR = new RegExp(
-  `(?<![\\p{L}])(?:${MONTH_WORD}|${LOCATIVE}|roku)[ \\t\\u00a0]{1,8}(?<year>[12]\\d{4})(?=[ \\t\\u00a0]{0,8}(?:r\\.|rok\\p{L}*)(?![\\p{L}]))`,
-  "giu",
-);
+function apostropheYears(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { year } = m.groups!;
+  // "Euro '2012": a full year needs no apostrophe; "lata '90" is the decade "90.".
+  const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
+  let fixed: string | null = null;
+  if (year.length === 4) fixed = year;
+  else if (new RegExp(`(?:^|[^\\p{L}])(?:${DECADE_WORDS})[ \\t\\u00a0]+$`, "iu").test(before))
+    fixed = /^[ \t ]*[.]/u.test(ctx.text.slice(m.index + m[0].length)) ? year : `${year}.`;
+  if (!fixed) return null;
+  return findingAt(ctx, m.index, m.index + m[0].length, [fixed], RULE, "review_msg_pl_decade");
+}
 
-function longYears(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, LONG_YEAR)) {
-    const year = m.groups!.year;
-    // Drop one digit of a doubled pair: one year from 1000 to 2099, or no fix.
-    const fixes = new Set<string>();
-    for (let i = 1; i < year.length; i++)
-      if (year[i] === year[i - 1]) fixes.add(year.slice(0, i) + year.slice(i + 1));
-    const years = [...fixes].filter((fix) => /^(?:1\d|20)\d\d$/.test(fix));
-    if (years.length !== 1) continue;
-    const start = m.index + m[0].length - year.length;
-    findings.push(
-      findingAt(ctx, start, start + year.length, years, RULE, "review_msg_pl_impossible_date"),
-    );
-  }
-  return findings;
+function longYears(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const year = m.groups!.year;
+  // Drop one digit of a doubled pair: one year from 1000 to 2099, or no fix.
+  const fixes = new Set<string>();
+  for (let i = 1; i < year.length; i++)
+    if (year[i] === year[i - 1]) fixes.add(year.slice(0, i) + year.slice(i + 1));
+  const years = [...fixes].filter((fix) => /^(?:1\d|20)\d\d$/.test(fix));
+  if (years.length !== 1) return null;
+  const start = m.index + m[0].length - year.length;
+  return findingAt(ctx, start, start + year.length, years, RULE, "review_msg_pl_impossible_date");
 }
 
 export const PREDICATES = {
-  dates: (ctx: DetectContext) =>
-    isPl(ctx)
-      ? [
-          ...impossibleDates(ctx),
-          ...backwardRanges(ctx),
-          ...monthForms(ctx),
-          ...abbreviatedMonths(ctx),
-          ...decades(ctx),
-          ...longYears(ctx),
-        ]
-      : [],
+  isoDates: (ctx: DetectContext) => (isPl(ctx) ? isoDates(ctx) : []),
 } satisfies Record<string, Detector>;
+
+/** The named frame fixes of the date rules of grammar/rules/pl.yaml (`fixer:`). */
+export const FIXERS = {
+  impossibleDates,
+  dayRanges,
+  yearRanges,
+  monthForms,
+  abbreviatedMonths,
+  fullDecades,
+  apostropheYears,
+  longYears,
+} satisfies Record<string, MatchFixer>;
