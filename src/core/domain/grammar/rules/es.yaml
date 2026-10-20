@@ -96,9 +96,15 @@ rules:
         fixer: lostVowel
   - id: es.verbForms
     checks: [spanishConfusions]
-    # predicate: walks the chunk tokens; the decision reads the auxiliary, the
-    # clitics and the verb forms around each verb.
-    predicate: verbForms
+    style: match
+    message: review_msg_spanish_verb_form
+    frames:
+      # Every word: the checks key on verb forms, which are no closed list. The fixer reads the
+      # auxiliary, the clitics and the verb forms around the token (review/spanish/verbForms.ts).
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        fixer: verbForms
   - id: es.prefixes
     checks: [spanishConfusions]
     style: match
@@ -438,9 +444,15 @@ rules:
         message: review_msg_typographic_symbol
   - id: es.agreement
     checks: [spanishAgreement]
-    # predicate: walks the chunk tokens; the decision reads the gender and number
-    # of each noun phrase.
-    predicate: agreement
+    style: match
+    message: review_msg_spanish_agreement
+    frames:
+      # Every word: the checks key on nouns, adjectives and determiners. The fixer reads the
+      # gender and number of the noun phrase at the token (review/spanish/agreement.ts).
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        fixer: agreement
   - id: es.verbAgreement
     checks: [spanishAgreement]
     # predicate: walks the chunk tokens; the decision reads the subject and the
