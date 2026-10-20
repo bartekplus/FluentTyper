@@ -1,5 +1,7 @@
+// Color emoji fonts before the generic family: without them Firefox draws text-default
+// emoji such as ✌️ with a monochrome or missing glyph (#504).
 export const SUGGESTION_POPUP_FONT_FAMILY =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
 
 export const SUGGESTION_POPUP_FONT_WEIGHT = "500";
 export const SUGGESTION_POPUP_FONT_STYLE = "normal";
