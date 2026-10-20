@@ -4462,6 +4462,23 @@ fragments:
   # After a preposition the pair also ends before a relative or a closed word: "of Tom and I
   # when we were young", "between Ann and I which".
   CASE_PAIR_ENDS: "(?:{{COMPLETE_OR_PAREN}}|{{E}}(?={{S}}(?:and|which|who|whom|when|if|that|about|before|after|into|with|on|at|in|to|from|by|for){{E}}))"
+  CONFUSION_NOUN: "(?:passwords?|accounts?|files?|documents?|names?|address(?:es)?|keys?|reports?|versions?|models?|results?|plans?|answers?)"
+  # The comparatives of EnglishDegreeForms.ts (ENGLISH_COMPARATIVES).
+  CONFUSION_COMPARATIVE: "(?:faster|slower|larger|smaller|better|worse|newer|older|cheaper|safer)"
+  CONFUSION_MORE_COMPARATIVES: "(?:more|less|fewer|other|bigger|taller|shorter|longer|higher|lower|younger|stronger|weaker|smarter|harder|easier|simpler|busier|happier|greater|closer|quicker|louder|quieter|heavier|lighter|wider|warmer|colder|hotter|nicer)"
+  CONFUSION_ARGUMENT: "(?:(?:the|my|your|our|their){{S}}(?:(?:old|new|previous|other){{S}})?{{CONFUSION_NOUN}}|me|him|her|us|them)"
+  # A dash also closes a they’re predicate: "Their just kidding--don’t worry".
+  CONFUSION_CLAUSE_END: "(?:{{E}}(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|[—–]|$))|--(?!-))"
+  CONFUSION_THEY_ARE_TAIL: "{{S}}(?:(?:not|already|still|probably|always|just|also|really|all|both|never|definitely|actually|so){{S}})?(?:(?<pred>going|gonna|coming|leaving|trying|planning|running|moving|waiting|looking|getting|doing|making|taking|kidding|joking|working|staying|sitting|standing|playing|talking|arriving|ready|sure|here|late|early|busy|done|able|allowed|available|invited|supposed|happy|right|wrong|fine|okay|away|finished|tired|aware|afraid|excited|interested|responsible|safe|cool|sorry|healthy|strong|serious|proud|loyal|offline|online){{S}}(?<follow>to|for|at|in|on|with|about|until|by|from|over|into|behind|right|now|today|tonight|tomorrow|again|yet|anymore|here|there|home|back|out|up|away|off|a|an|the|this|that|it|them|us|me|him|her|you|my|your|our|his|their|some|any|next|last|where|what|how|why){{E}}|(?<pred2>ready|sure|here|there|late|early|busy|done|right|wrong|fine|okay|home|back|away|gone|finished|tired|kidding|joking|coming|leaving|waiting|working|offline|online|safe|cool|sorry|healthy|serious|proud|loyal|happy|excited|even){{CONFUSION_CLAUSE_END}}|(?:in|on|at|off){{S}}(?:the|a|an|my|your|our|his|her|their|this|that|work|home|school|lunch|risk)|to{{S}}(?:blame|meet|be|see|go)|far{{S}}(?:too|more|less|better|worse)|(?<pred3>(?:not|probably|definitely|obviously|currently|actually|still|just|always|already|really|also|never){{S}}[a-z]{3,}ing){{S}}(?:to|for|at|in|on|with|about|over|into|a|an|the|any|some|this|that|it|them|us|me|him|her|you|my|your|our|his|their|where|what|how|why)|the|a|an)(?:{{E}}|(?<=--))"
+  CONFUSION_PREPOSITION: "(?:of|for|about|with|from|into|onto|at|by|against|between|among|without|toward|towards|under|through|during|despite|to|on|in)"
+  CONFUSION_LOCATIVE: "(?:been|go|goes|went|gone|going|stay|stayed|staying|stand|standing|sit|sitting|put|left|leave|meet|park|wait|waited|waiting|sat|stood|stop|stopped|paused|live|lived|get|got|over|right|safer|back|up|down|out)"
+  # Comparatives beyond the shared list; "later"/"earlier" stay out ("earlier then him" may be
+  # a sequence).
+  CONFUSION_COMPARISON_WORDS: "(?:bigger|higher|lower|longer|shorter|stronger|weaker|easier|harder|simpler|greater|wider|deeper|heavier|lighter|louder|quieter|clearer|cleaner|happier|busier|richer|poorer|taller|warmer|colder|hotter|cooler|thicker|thinner|closer|further|farther|crazier|smarter|stupider|more|less|fewer|rather)"
+  # Only a comparison continues with these; "then" + a clause ("then we left") never does here.
+  CONFUSION_COMPARED: "(?:me|him|us|them|hers|his|ours|theirs|yours|mine|anyone|anything|anybody|nothing|nobody|ever|before|usual|expected|necessary|needed|last|[0-9]+)"
+  CONFUSION_DEGREE_ADJECTIVE: "(?:big|small|large|short|hot|cold|late|early|hard|easy|good|bad|high|loud|heavy|tired|hungry|busy|far|soon|much|many|expensive|difficult|complicated|ambitious|young|old|strict|risky|dangerous|tight|full|sweet|weak|strong|lazy)"
+  CONFUSION_LINKING: "(?:is|are|was|were|am|be|been|being|seems?|seemed|looks?|looked|feels?|felt|sounds?|sounded|gets?|got|became|becomes|['’]s|['’]re|['’]m)"
 
 rules:
   # Typing rules: each live check names its implementation (engine/liveRules.ts).
@@ -5050,10 +5067,118 @@ rules:
       - regex: "(?=not{{S}}only{{S}})(?:{{STRUCTURE_CLAUSE_START}}|(?<=(?:^|[^\\p{L}\\p{N}_'’-]){{STRUCTURE_OPENER}},?{{S}}))not{{S}}only{{S}}(?<subject>I|you|he|she|it|we|they)(?:(?<contraction>['’](?:s|re|ve|m|ll))|{{S}}(?<verb>[a-z]+)){{E}}"
         owner: none
         fixer: notOnlyInversion
+  # Independently selectable families (one check each), using explicit grammatical evidence.
   - id: wordConfusions
     checks:
       [englishThenThan, englishYourYouAre, englishTheirThereTheyAre, englishToToo, englishWereWhere]
-    predicate: wordConfusions
+    style: match
+    message: review_msg_then_than
+    filter: firstPerStart
+    frames:
+      # Copular comparison + complete comparison argument; temporal sentence tails abstain.
+      - regex: "(?:is|are|was|were){{S}}(?:(?:much|even|far|slightly){{S}})?{{CONFUSION_COMPARATIVE}}{{S}}(?<target>then){{S}}{{CONFUSION_ARGUMENT}}{{COMPLETE_OR_PAREN}}"
+        fixer: thenThan
+      # A comparison closed by an object pronoun or "ever": "taller then me", "busier then ever",
+      # and the fixed "rather then" and "easier said then done". "earlier then him" and
+      # "then you/her/it" can be a sequence or a new clause, so they are left out.
+      - regex: "(?:{{CONFUSION_COMPARATIVE}}|{{CONFUSION_MORE_COMPARATIVES}}){{S}}(?<target>then){{S}}(?:me|him|us|them|mine|yours|hers|ours|theirs|ever|usual|expected){{E}}"
+        fixer: thenThan
+      # "I would rather then leave" may be "rather, then,": only "X rather then Y".
+      - regex: "(?<!(?:would|had|should|['’]d){{S}})rather{{S}}(?<target>then){{E}}"
+        fixer: thenThan
+      - regex: "easier{{S}}said{{S}}(?<target>then){{S}}done{{E}}"
+        fixer: thenThan
+      # "going to" + a known lexical verb and object, closed before another predicate.
+      # "Your going away upset us" and "Your going to work upset us" remain noun phrases.
+      - regex: "(?<target>your|their|there){{S}}going{{S}}to{{S}}(?:like|enjoy|need|want|understand|remember){{S}}(?:this|that|it|them|us|me){{COMPLETE_OR_PAREN}}"
+        check: englishYourYouAre
+        fixer: goingToYour
+      - regex: "(?<target>your|their|there){{S}}going{{S}}to{{S}}(?:like|enjoy|need|want|understand|remember){{S}}(?:this|that|it|them|us|me){{COMPLETE_OR_PAREN}}"
+        check: englishTheirThereTheyAre
+        fixer: goingToTheir
+      # An object-taking verb + own + a known noun supplies a complete possessive phrase.
+      - regex: "(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|used|found|lost){{S}}(?<target>you['’]re){{S}}own{{S}}{{CONFUSION_NOUN}}{{COMPLETE_OR_PAREN}}"
+        check: englishYourYouAre
+        fixer: youreOwn
+      # No light/fast/slow: those adjectives are also base verbs after prospective "is to".
+      - regex: "(?:is|are|was|were|am|be|seems?|looks?){{S}}(?<target>to){{S}}(?:heavy|large|small|hot|cold|late|early|expensive|difficult|hard|tired){{S}}to{{S}}(?:lift|carry|fit|eat|drink|finish|move|read|use|reach|leave|start|stop|understand){{E}}"
+        check: englishToToo
+        fixer: toTooAdjective
+      # their/there/they're in frames where only one reading is grammatical. A finding at a start
+      # where an earlier one is stays out (filter firstPerStart).
+      # Existential there: modal/perfect "be", negative contractions and "their's a …".
+      - regex: "(?<target>their){{S}}(?:(?:will|won['’]t|can|could|should|would|may|might|must)(?:n['’]t)?{{S}}(?:not{{S}})?be|(?:has|have)(?:n['’]t)?{{S}}been|(?:isn|aren|wasn|weren)['’]t|used{{S}}to{{S}}be){{E}}"
+        check: englishTheirThereTheyAre
+        fixer: thereBe
+      - regex: "(?<target>their['’]s){{S}}(?:a|an|the|no|another|enough|nothing|something|always|still|also|just|plenty|some|more|lots|one|only){{E}}"
+        check: englishTheirThereTheyAre
+        fixer: theresA
+      # Location there: a possessive never precedes a preposition or ends a clause.
+      - regex: "(?<verb>{{CONFUSION_LOCATIVE}}){{S}}(?<target>their)(?:{{S}}(?:on|in|at|by|near|beside|until|after|before|among|inside|outside|under|behind|during|without|within|to|and|again|yet|anymore|once|already|now|today|tonight|tomorrow|mid){{E}}|(?<end>(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))))"
+        check: englishTheirThereTheyAre
+        fixer: thereLocation
+      # They're: a clause-opening "their" before a predicate, a participle or an article.
+      - regex: "(?<target>their){{CONFUSION_THEY_ARE_TAIL}}"
+        check: englishTheirThereTheyAre
+        fixer: theyAre
+      # A determiner never precedes a preposition phrase: "the keys their on the counter"; a
+      # clause-opening one is "they're".
+      - regex: "(?<target>their){{S}}(?:on|in|at|by|near|beside|behind|inside|outside|under|until|among){{S}}(?:the|a|an|my|your|our|his|her|this|that){{E}}"
+        check: englishTheirThereTheyAre
+        fixer: thereBeforePlace
+      # Possessive: a preposition never takes "they're"; "they're X were" has no room for a verb.
+      - regex: "{{CONFUSION_PREPOSITION}}{{S}}(?<target>they['’]?re){{S}}[a-z]+{{E}}"
+        check: englishTheirThereTheyAre
+        fixer: theirPossessive
+      - regex: "(?<target>they['’]?re){{S}}(?!(?:not|all|both|each|also|still|just|really|never|always|so|too|very|already|probably|certainly|here|there|now|then|what|who|which|whoever|whatever|where|how|why|when|that|this|it|one|someone|something|everything|everyone|anything|nothing){{E}})[a-z]+{{S}}(?:is|are|was|were|has|have|had)(?:n['’]t)?{{E}}"
+        check: englishTheirThereTheyAre
+        fixer: theirPossessive
+      # "they're own" + a word is only ever the possessive; "there own" also reads
+      # "people there own cars", so it needs a clause start, preposition or verb before it.
+      - regex: "(?<target>there|they['’]?re){{S}}own{{S}}[a-z]+{{E}}"
+        check: englishTheirThereTheyAre
+        fixer: theirOwn
+      # then/than and to/too where the other reading has no grammatical slot. Identifiers and
+      # names in the evidence ("versionName") abstain.
+      - regex: "(?=[a-z]+(?:{{S}}[a-z]+)?{{S}}then(?![\\p{L}]))(?<!(?:more|most|less){{S}})(?:{{CONFUSION_COMPARATIVE}}|{{CONFUSION_COMPARISON_WORDS}}|(?:more|less){{S}}(?![a-z]+er{{E}})[a-z]+|(?<=(?:no{{S}}one|nobody|nothing|anything|anyone|someone|something|none|no){{S}})other){{S}}(?<target>then){{S}}(?:{{CONFUSION_COMPARED}}|(?:(?:the|a|an|my|your|our|their|its|this|that|those|these)(?:{{S}}(?!(?:[a-z]+ed){{E}})[a-z]+){1,3}|you|her)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|{{S}}(?:at|in|for|on|with|by|when|so){{E}})){{E}}"
+        fixer: thenComparison
+      - regex: "(?:now{{S}}and|until|till|since|by|back){{S}}(?<target>than)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:…)]|$))"
+        fixer: thanTemporal
+      # you're: the they're frames for "your", plus "your out of/at…" and intensifier + adjective.
+      - regex: "(?<target>your){{CONFUSION_THEY_ARE_TAIL}}"
+        check: englishYourYouAre
+        fixer: youAre
+      - regex: "(?<target>your){{S}}(?:(?:completely|totally|still|already){{S}})?out{{S}}(?:of|at|on|in|with|under|for){{E}}"
+        check: englishYourYouAre
+        fixer: youAre
+      - regex: "(?<target>your)(?:{{S}}(?:so|very|really|too|totally|completely|absolutely|pretty|quite|extremely|barely|surprisingly)){1,3}{{S}}(?!own{{E}})[a-z]+{{COMPLETE_OR_PAREN}}"
+        check: englishYourYouAre
+        fixer: youAre
+      # Degree "too": a linking verb + to + adjective, then an infinitive, for-phrase or clause end.
+      # A clitic keeps its owner ("It’s to hard"); a soft line break may split the frame.
+      - regex: "(?:[a-z]+(?=['’]))?{{CONFUSION_LINKING}}(?:{{S}}|[ \\t\\u00a0]{0,8}\\r?\\n[ \\t\\u00a0]{0,8})(?:(?:not|way|far|just|a{{S}}bit|much|still|also|really|simply){{S}})?(?<target>to){{S}}{{CONFUSION_DEGREE_ADJECTIVE}}(?:{{S}}(?:to|for){{S}}[a-z]+{{E}}|(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)))"
+        check: englishToToo
+        fixer: toTooDegree
+      - regex: "(?:(?:go|goes|going|gone|went|take|takes|took|taken|push|pushed|carry|carried|speak|spoke|spoken|speaking|talk|talked|celebrate|celebrated|act|acted|judge|judged){{S}}(?<target>to){{S}}(?:far|soon)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|{{S}}(?:with|for|on|in|this|and|but|when|because|like){{E}})|(?<![Tt]he{{S}}|[Aa]{{S}}|[Tt]his{{S}}|[Tt]hat{{S}}|[Oo]ne{{S}}|[Nn]o{{S}}|[Bb]est{{S}}|[Ww]hich{{S}})way{{S}}(?<target>to){{S}}(?:much|many|long|big|small|far|late|early|hard|easy|fast|slow|good|bad|high|low|expensive|complicated|little|often)){{E}}"
+        check: englishToToo
+        fixer: toTooDegree
+      # "too" never precedes a determiner or object pronoun, nor a bare verb after want/need…
+      - regex: "(?<target>too){{S}}(?:the|a|an|him|them|me|us|my|your|his|our|their){{E}}"
+        check: englishToToo
+        fixer: tooBeforeDeterminer
+      # "n't" + one word ("don't need too worry", even with a misspelled verb) has the same
+      # slot; a pronoun, demonstrative or name there is a subject ("Didn't Sam too notice?").
+      - regex: "(?:want|wants|wanted|need|needs|needed|going|able|trying|try|tried|supposed|used|have|has|had|like|love|hope|plan|decided|n['’]t{{S}}(?!(?:i|you|we|they|he|she|it|this|that|these|those){{E}})(?<middle>[a-z]+)){{S}}(?<target>too){{S}}(?<verb>[a-z]+){{E}}"
+        check: englishToToo
+        fixer: tooBeforeVerb
+      # were: a subject pronoun before where + a predicate that cannot start a place clause.
+      - regex: "(?:we|they|you){{S}}(?<target>where){{S}}(?:(?:not|all|still|just|already|also|never|always|almost){{S}})?(?:right|wrong|happy|able|told|asked|supposed|going|done|ready|sure|late|busy|here|there|the{{S}}only|allowed|given|shown|sent|invited|expected|lucky|about|trying|waiting|working|looking|talking|finished|gone){{E}}"
+        check: englishWereWhere
+        fixer: wereSubject
+      # where: a verb of knowing or finding before were + a subject and more clause.
+      - regex: "(?:go|goes|went|look|looked|know|knows|knew|forgot|forget|remember|remembers|found|find|check|asked|ask|wonder|wondered|show|showed|tell|told|see|saw|sure|idea){{S}}(?:(?:me|us|him|her|them){{S}})?(?<target>were){{S}}(?:I|he|she|it|we|they|you|the{{S}}[a-z]+{{S}}(?:is|was|are|were|[a-z]+ed)){{E}}"
+        check: englishWereWhere
+        fixer: whereClause
   - id: capitalizeStarts
     checks: [capitalizeSentenceStart, capitalizeAfterLineBreak]
     style: match
