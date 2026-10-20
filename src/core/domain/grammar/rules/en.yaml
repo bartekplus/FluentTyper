@@ -8,6 +8,19 @@ fragments:
   CLOSED: "(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)"
   # A number in a range: "between three to five".
   COLLOCATION_NUMBER: "(?:[0-9]+(?:[.,][0-9]+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)"
+  # The time words and dates of en.tenseTimeWords. A sentence start: the text start or a
+  # sentence end before it.
+  TENSE_START: "(?<=(?:^|[.!?\\n][ \\t\\u00a0\"“]{0,8}|^[\"“]))"
+  TENSE_SUBJECT: "(?:I|we|you|he|she|they)"
+  TENSE_UNIT: "(?:week|month|year|weekend|summer|winter|spring|autumn|fall|semester|term)"
+  TENSE_DAY_NAME: "(?:mon|tues|wednes|thurs|fri|satur|sun)day"
+  TENSE_FUTURE_WORD: "(?:tomorrow|next{{S}}(?:{{TENSE_UNIT}}|{{TENSE_DAY_NAME}}))"
+  TENSE_PAST_WORD: "(?:yesterday|last{{S}}(?:night|{{TENSE_UNIT}}|{{TENSE_DAY_NAME}}))"
+  TENSE_AGO: "(?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|a{{S}}few|several|[0-9]{1,3}){{S}}(?:days|weeks|months|years|day|week|month|year){{S}}ago"
+  TENSE_MONTH: "(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\\.?)"
+  TENSE_DATE: "(?<date>(?<a>[0-9]{1,2})(?<sep>[/.-])(?<b>[0-9]{1,2})\\k<sep>(?<y1>2[0-9]{3})|(?<d2>[0-9]{1,2})(?:st|nd|rd|th)?(?:{{S}}of)?{{S}}(?<m2>{{TENSE_MONTH}}),?{{S}}(?<y2>2[0-9]{3})|(?<m3>{{TENSE_MONTH}}){{S}}(?<d3>[0-9]{1,2})(?:st|nd|rd|th)?,?{{S}}(?<y3>2[0-9]{3}))(?![\\p{L}\\p{N}]|[./-][0-9])"
+  TENSE_PERFECT_ADVERB: "(?:(?:already|just|also|finally|first|then|once){{S}})?"
+  TENSE_VERB_PHRASE: "(?<verb>(?<aux>have|has|had){{S}}{{TENSE_PERFECT_ADVERB}}(?<part>[a-z]+)|(?<simple>[a-z]+))"
   # Up to two adverbs in a verb group; a question also takes "please": "can you please send…".
   VERBGROUP_ADVERB_RUN: "(?<adverbs>(?:{{S}}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly)){0,2})"
   VERBGROUP_QUESTION_RUN: "(?<adverbs>(?:{{S}}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly|please)){0,2})"
@@ -1372,7 +1385,18 @@ rules:
         fixer: agreementDistantSubject
   - id: en.adjectiveForAdverb
     checks: [englishConfusedWords]
-    predicate: adjectiveForAdverb
+    style: match
+    message: review_msg_adverb_form
+    filter: usSlotsOnePerStart
+    frames:
+      # "could possible go", "to easy achieve": an adjective between an auxiliary, "to" or a
+      # subject and a verb. The lead sits in a lookbehind so that "It could possible work" is
+      # not consumed by "It".
+      - regex: "(?<=(?<![\\p{L}'’])(?:could|would|should|can|will|might|must|may|won['’]t|can['’]t|couldn['’]t|didn['’]t|doesn['’]t|don['’]t|does|did|to|have|has|had|I|we|you|they|it|he|she){{S}})(?<target>[a-z]+)(?={{S}}(?<verb>[a-z]+){{E}})"
+        fixer: adverbAdjectiveForAdverb1
+      # "Your site is terrible slow": be + adjective + adjective.
+      - regex: "(?<=(?:(?<![\\p{L}'’])(?:is|are|was|were|be|been|seems?|seemed|looks?)|[\\p{L}](?:['’]s|['’]m|['’]re)){{S}})(?<target>[a-z]+)(?={{S}}(?<next>[a-z]+){{E}})"
+        fixer: adverbAdjectiveForAdverb2
   - id: en.confusionPairs
     checks: [englishConfusedWords]
     predicate: confusionPairs
@@ -1402,13 +1426,34 @@ rules:
     predicate: causativeThird
   - id: en.superlativeArticle
     checks: [englishPhraseCorrections]
-    predicate: superlativeArticle
+    style: match
+    message: review_msg_superlative_the
+    filter: usSlots
+    frames:
+      # "Kyoto is an oldest city": a/an before a superlative and its noun is "the". A bare one
+      # after be ("is hottest city") is articles.ts's superlativeThe.
+      - regex: "(?<article>an?){{S}}(?<adjective>best|worst|[a-z]+est){{S}}(?<noun>[a-z]+){{E}}"
+        owner: article
+        fixer: comparisonSuperlativeArticle
   - id: en.lessComparative
     checks: [englishDoubledDegree]
-    predicate: lessComparative
+    style: match
+    message: review_msg_doubled_degree
+    filter: usSlots
+    frames:
+      # "This is less harder", "the least hardest task": less/least take the plain adjective.
+      - regex: "(?<!\\bat{{S}})(?<degree>less|least){{S}}(?<adjective>[a-z]+(?:er|est)){{E}}"
+        owner: adjective
+        fixer: comparisonLessComparative
   - id: en.comparisonThen
     checks: [englishThenThan]
-    predicate: comparisonThen
+    style: match
+    message: review_msg_then_than
+    filter: usSlots
+    frames:
+      # "return more then one tag", "less then ten", "more then happy": then after a comparison.
+      - regex: "(?:more|less|fewer|rather){{S}}(?<target>then){{S}}(?:\\d|(?:one|two|three|four|five|six|seven|eight|nine|ten|twenty|hundred|half|once|twice|enough|happy|willing|glad|ever|usual|expected|necessary){{E}})"
+        fixer: comparisonComparisonThen
   - id: en.collocations
     checks: [englishFixedPrepositions]
     style: match
@@ -1475,7 +1520,40 @@ rules:
         fixer: collocationFor
   - id: en.tenseTimeWords
     checks: [englishTenseConsistency]
-    predicate: tenseTimeWords
+    style: match
+    message: review_msg_tense_time_word
+    filter: usSlots
+    frames:
+      # "Tomorrow we visited", "We visited them tomorrow": the future asks for "will".
+      - regex: "{{TENSE_START}}{{TENSE_FUTURE_WORD}},?{{S}}{{TENSE_SUBJECT}}{{S}}(?<target>[a-z]+){{E}}(?!['’])"
+        fixer: tenseFutureWordPastVerb
+      - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}{{S}}(?<target>[a-z]+)(?<between>(?:{{S}}[a-z]+){0,4}){{S}}(?<when>{{TENSE_FUTURE_WORD}}){{E}}(?![ \\t\\u00a0]*['’])(?=[ \\t\\u00a0]*[.!?,;]|[ \\t\\u00a0]*$)"
+        fixer: tenseFutureWordPastVerb
+      # "Yesterday I will call him", "We will call him two days ago": the past asks for the past.
+      - regex: "{{TENSE_START}}(?:{{TENSE_PAST_WORD}}|{{TENSE_AGO}}),?{{S}}{{TENSE_SUBJECT}}(?:{{S}}|['’])(?<target>(?:will|shall|ll){{S}}(?<verb>[a-z]+)){{E}}"
+        fixer: tensePastWordFutureVerb
+      - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}(?:{{S}}|['’])(?<target>(?:will|shall|ll){{S}}(?<verb>[a-z]+))(?<between>(?:{{S}}[a-z]+){1,4}){{S}}(?<when>{{TENSE_PAST_WORD}}|{{TENSE_AGO}}){{E}}(?=[ \\t\\u00a0]*[.!?,;]|[ \\t\\u00a0]*$)"
+        fixer: tensePastWordFutureVerb
+      # "We visited the client on 27/10/2090": a past verb on a date that is still to come.
+      - regex: "{{TENSE_START}}On{{S}}{{TENSE_DATE}},?{{S}}{{TENSE_SUBJECT}}{{S}}{{TENSE_PERFECT_ADVERB}}{{TENSE_VERB_PHRASE}}{{E}}"
+        owner: date
+        message: review_msg_future_date_past
+        fixer: tenseFutureDatePastVerb
+      - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}{{S}}{{TENSE_PERFECT_ADVERB}}{{TENSE_VERB_PHRASE}}(?<between>(?:{{S}}[a-z]+){0,4}){{S}}on{{S}}{{TENSE_DATE}}(?=[ \\t\\u00a0]*[.!?;]|[ \\t\\u00a0]*$)"
+        owner: date
+        message: review_msg_future_date_past
+        fixer: tenseFutureDatePastVerb
+      # "We will visit the client on 27/10/2025" when that date has passed: a future verb on a
+      # past date. Only a date of the last three years: older dates are history, which can use
+      # "will" for the future in the past.
+      - regex: "{{TENSE_START}}On{{S}}{{TENSE_DATE}},?{{S}}{{TENSE_SUBJECT}}(?:{{S}}|['’])(?:will|shall|ll){{S}}(?<inf>[a-z]+){{E}}"
+        owner: date
+        message: review_msg_past_date_future
+        fixer: tensePastDateFutureVerb
+      - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}(?:{{S}}|['’])(?:will|shall|ll){{S}}(?<inf>[a-z]+)(?<between>(?:{{S}}[a-z]+){0,4}){{S}}on{{S}}{{TENSE_DATE}}(?=[ \\t\\u00a0]*[.!?;]|[ \\t\\u00a0]*$)"
+        owner: date
+        message: review_msg_past_date_future
+        fixer: tensePastDateFutureVerb
   - id: en.noForNot
     checks: [englishConfusedWords]
     predicate: noForNot
