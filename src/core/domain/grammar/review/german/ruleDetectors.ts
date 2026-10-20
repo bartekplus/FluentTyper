@@ -31,7 +31,6 @@ export const PREDICATES = mergePredicates(
   nounCasing.PREDICATES,
   numbers.PREDICATES,
   quotes.PREDICATES,
-  verbAgreement.PREDICATES,
 );
 
 /** The named frame fixes of grammar/rules/de.yaml (`fixer:`). */
@@ -56,6 +55,7 @@ export const FIXERS = mergePredicates<Fixer>(
   commaFrames.FIXERS,
   salutations.FIXERS,
   prepositionCase.FIXERS,
+  verbAgreement.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */
