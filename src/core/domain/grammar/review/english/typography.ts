@@ -1,8 +1,7 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer, MatchResult } from "../../engine/reviewRules";
 import { namedExampleBefore } from "../exampleCues";
-import { quotedMention } from "./grammarStyle1";
 import { finding } from "../finding";
 
 // English notation and typography.
@@ -25,24 +24,6 @@ export const notationToken = (source: string, start: number, bare: string) =>
 type Rule = "englishNotation" | "englishTypography";
 type MessageKey = RawFinding["messageKey"];
 
-/**
- * Matches of a global regex starting in [from, to), scanned from shortly before `from`. A
- * `gate` every match contains skips the scan when the text lacks it: most prose has no
- * notation, and these regexes open with lookbehinds the engine tries at every position.
- */
-function* owned(
-  ctx: DetectContext,
-  regex: RegExp,
-  gate?: RegExp,
-  lookback = 64,
-): Generator<RegExpExecArray> {
-  if (gate && !gate.test(ctx.scanText.slice(Math.max(0, ctx.from - lookback)))) return;
-  regex.lastIndex = Math.max(0, ctx.from - lookback);
-  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
-    if (m[0] === "") regex.lastIndex += 1;
-    if (m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)) yield m;
-  }
-}
 const notationFinding = (
   ruleId: Rule,
   messageKey: MessageKey,
@@ -54,151 +35,36 @@ const notationFinding = (
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
   });
 
+/**
+ * A fixer of an owned scan that starts 64 characters before the chunk: a match that starts
+ * before the chunk, or inside a named example, gives no finding.
+ */
+const owned =
+  (fix: (m: RegExpExecArray, ctx: DetectContext) => MatchResult): MatchFixer =>
+  (m, ctx) =>
+    m.index < ctx.from || namedExampleBefore(ctx.text, m.index) ? null : fix(m, ctx);
+
 // ---------------------------------------------------------------------------- englishNotation
 
-const UNIT =
-  "%|‰|percent|per cent|million|billion|trillion|thousand|[KMGT]B|kg|g|mg|km|m|cm|mm|ml|l|°";
-// "12,5%", "$12,50", "2,5 million": a decimal comma before a unit or after a currency sign.
-const DECIMAL_COMMA = new RegExp(
-  `(?<![\\p{N}.,])(?:(?<sign>[$£€])(?<a>\\d{1,3}),(?<b>\\d{1,2})|(?<c>\\d{1,3}),(?<d>\\d{1,2})(?=[ \\u00a0]?(?:${UNIT})(?![\\p{L}\\p{N}])))(?![\\p{N},]|\\.\\p{N})`,
-  "gu",
-);
-// "32.500.000", "32.000,23": dots between digit groups and a comma before the decimals.
-const DOT_GROUPS = /(?<![\p{N}.,])\d{1,3}(?:\.\d{3}){2,3}(?:,\d{1,2})?(?![\p{N}]|[.,]\p{N})/gu;
-const DOT_DECIMAL = /(?<![\p{N}.,])\d{1,3}\.\d{3},\d{1,2}(?![\p{N}]|[.,]\p{N})/gu;
-// "32.000 users": a whole thousand before a counted noun.
-const DOT_THOUSAND = /(?<![\p{N}.,])(\d{1,3})\.000(?=[  ]+([a-z]+)(?![\p{L}]))/gu;
 const MEASURES = new Set(
   (
     "seconds minutes hours days meters metres grams liters litres miles kilometers kilometres " +
     "inches feet pounds ounces degrees volts amps watts points percent units years"
   ).split(" "),
 );
-const ORDINAL_SPLIT = /(?<![\p{N}.,])(\d{1,4})[  ](st|nd|rd|th)(?![\p{L}\p{N}])/gu;
-// The full-width comma is commaPeriodSpacing's.
-const FULL_WIDTH = /(?<=[A-Za-z])[？！]/gu;
 const FULL_WIDTH_ASCII: Record<string, string> = { "？": "?", "！": "!" };
-// "U.S.A", "e.g": an initialism that lost its last period.
-const INITIALISM =
-  /(?<![\p{L}\p{N}.'’@/\\_-])(?:[A-Z]\.){1,4}[A-Z](?![\p{L}\p{N}.'’@/\\_-])|(?<![\p{L}\p{N}.'’@/\\_-])(?:e\.g|i\.e|a\.k\.a)(?![\p{L}\p{N}.'’@/\\_-])/gu;
-const PHD = /(?<![\p{L}.])(?<core>P[Hh](?:\. ?| )D|PHD|Phd|PhD)\.?(?![\p{L}])/gu;
-const DEGREE = /(?<![\p{L}.])(?<l>[BM])\. ?(?<d>Sc|Eng|Ed|Phil|Arch|Com|Tech)\.?(?![\p{L}])/gu;
-const DOTTED_DEGREE = /(?<![\p{L}.])(?<d>BSc|MSc|BEng|MEng|MPhil|DPhil|MBA)\.(?=[  ]+\p{Ll})/gu;
 
 function ordinalSuffix(n: number): string {
   if (n % 100 >= 11 && n % 100 <= 13) return "th";
   return ["th", "st", "nd", "rd"][n % 10] ?? "th";
 }
 
-function notation(ctx: DetectContext): Finding[] {
-  const out: Finding[] = [];
-  const add = (key: MessageKey, start: number, end: number, alternatives: string[]) =>
-    out.push(notationFinding("englishNotation", key, start, end, alternatives));
-  for (const m of owned(ctx, DECIMAL_COMMA, /\d,\d/)) {
-    const g = m.groups!;
-    const fixed = g.sign ? `${g.sign}${g.a}.${g.b}` : `${g.c}.${g.d}`;
-    add("review_msg_english_decimal", m.index, m.index + m[0].length, [fixed]);
-  }
-  for (const m of owned(ctx, DOT_GROUPS, /\d\.\d/)) {
-    const groups = m[0].split(/[.,]/);
-    // "192.168.100.200" is an address.
-    if (!m[0].includes(",") && groups.length === 4 && groups.every((x) => Number(x) <= 255))
-      continue;
-    const fixed = m[0].replace(/,/, "#").replace(/\./g, ",").replace("#", ".");
-    add("review_msg_english_digit_groups", m.index, m.index + m[0].length, [fixed]);
-  }
-  for (const m of owned(ctx, DOT_DECIMAL, /\d\.\d/)) {
-    const fixed = m[0].replace(".", ",").replace(/,(\d{1,2})$/, ".$1");
-    add("review_msg_english_digit_groups", m.index, m.index + m[0].length, [fixed]);
-  }
-  for (const m of owned(ctx, DOT_THOUSAND, /\d\.000/)) {
-    const noun = m[2];
-    if (MEASURES.has(noun) || !englishWordInfo(noun)?.plural) continue;
-    add("review_msg_english_digit_groups", m.index, m.index + m[0].length, [`${m[1]},000`]);
-  }
-  for (const m of owned(ctx, ORDINAL_SPLIT, /\d[ \u00a0](?:st|nd|rd|th)/)) {
-    if (ordinalSuffix(Number(m[1])) !== m[2]) continue;
-    add("review_msg_ordinal", m.index, m.index + m[0].length, [`${m[1]}${m[2]}`]);
-  }
-  for (const m of owned(ctx, FULL_WIDTH, /[？！]/)) {
-    add("review_msg_full_width_mark", m.index, m.index + 1, [FULL_WIDTH_ASCII[m[0]]]);
-  }
-  for (const m of owned(ctx, INITIALISM, /[A-Za-z]\.[A-Za-z]/)) {
-    const end = m.index + m[0].length;
-    const alternatives = /[A-Z]/.test(m[0]) ? [`${m[0]}.`, m[0].replace(/\./g, "")] : [`${m[0]}.`];
-    add("review_msg_initialism_period", m.index, end, alternatives);
-  }
-  for (const m of owned(ctx, PHD, /P[Hh]/)) {
-    const { core } = m.groups!;
-    // "PhD." ends its sentence; "Ph. D", "PH.D" are the dotted form.
-    const dotted = /[. ]/.test(core);
-    if (dotted ? m[0] === "Ph.D." : core === "PhD") continue;
-    const end = m.index + (dotted ? m[0].length : core.length);
-    add("review_msg_degree_abbreviation", m.index, end, [dotted ? "Ph.D." : "PhD"]);
-  }
-  for (const m of owned(ctx, DEGREE, /[BM]\./)) {
-    const fixed = `${m.groups!.l}.${m.groups!.d}.`;
-    if (m[0] === fixed) continue;
-    // "B.Sc" at a sentence end keeps the sentence's period.
-    const end = m.index + m[0].length;
-    if (!m[0].endsWith(".") && !m[0].includes(" ") && ctx.text[end] === ".") continue;
-    add("review_msg_degree_abbreviation", m.index, end, [fixed]);
-  }
-  for (const m of owned(ctx, DOTTED_DEGREE, /(?:Sc|Eng|Phil|MBA)\./)) {
-    const d = m.groups!.d;
-    const dotted = d.replace(/^([A-Z])([A-Z]?[a-z]*)([A-Z])?$/, (_, a, b, c) =>
-      c ? `${a}.${b}.${c}.` : `${a}.${b}.`,
-    );
-    add("review_msg_degree_abbreviation", m.index, m.index + m[0].length, [d, dotted]);
-  }
-  for (const m of owned(ctx, SPACED_ABBREVIATION, /(?:e\.|i\.|o['’])[ \u00a0]/)) {
-    add("review_msg_initialism_period", m.index, m.index + m[0].length, [
-      m[0].replace(/[  ]/g, ""),
-    ]);
-  }
-  for (const m of owned(ctx, DATE_COMMAS, /\d/)) {
-    const at = (name: string) => m.indices!.groups![name]?.[0];
-    const glued = at("glued");
-    const monthComma = at("monthComma");
-    const gap = at("dayGap") ?? at("weekGap");
-    if (glued !== undefined) add("review_msg_date_comma", glued, glued + 1, [", "]);
-    else if (monthComma !== undefined)
-      add("review_msg_date_comma", monthComma, monthComma + 1, [""]);
-    else if (gap !== undefined) add("review_msg_date_comma", gap, gap + 1, [", "]);
-  }
-  for (const m of owned(ctx, CLOCK_OCLOCK, /clock/)) {
-    const { h, mm } = m.groups!;
-    add(
-      "review_msg_oclock",
-      m.index,
-      m.index + m[0].length,
-      mm === "00" ? [`${h}:00`, `${h} o'clock`] : [`${h}:${mm}`],
-    );
-  }
-  return out;
-}
-
-// "e. g.", "i. e.", "o' clock": abbreviations without their inner spaces.
-const SPACED_ABBREVIATION = /(?<![\p{L}.])(?:e\.[  ]g\.|i\.[  ]e\.|o['’][  ]clock)(?![\p{L}])/gu;
-const MONTH_NAME =
-  "January|February|March|April|May|June|July|August|September|October|November|December";
-const WEEKDAY_NAME = "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday";
-// "June 16,1963", "October, 1958", "October 18 1983", "Friday July 15".
-const DATE_COMMAS = new RegExp(
-  `(?<![\\p{L}])(?:(?:${MONTH_NAME})(?<monthComma>,)(?=[ \\u00a0](?:1[5-9]|20)\\d\\d(?![\\p{N},]|[.:]\\p{N}))` +
-    `|(?:${MONTH_NAME})[ \\u00a0]\\d{1,2}(?<glued>,)(?=(?:1[5-9]|20)\\d\\d(?!\\p{N}))` +
-    `|(?:${MONTH_NAME})[ \\u00a0]\\d{1,2}(?<dayGap>)(?=[ \\u00a0](?:1[5-9]|20)\\d\\d(?![\\p{N}:]|[.,]\\p{N}))` +
-    `|(?:${WEEKDAY_NAME})(?<weekGap>)(?=[ \\u00a0](?:${MONTH_NAME})[ \\u00a0]\\d))`,
-  "gdu",
-);
-// "7:00 o'clock": a clock time or "o'clock", not both.
-const CLOCK_OCLOCK = /(?<![\p{N}:])(?<h>\d{1,2}):(?<mm>[0-5]\d)[  ]o['’][  ]?clock(?![\p{L}])/gu;
+/** An englishNotation finding on the whole match. */
+const whole = (m: RegExpExecArray, key: MessageKey, alternatives: string[]): Finding =>
+  notationFinding("englishNotation", key, m.index, m.index + m[0].length, alternatives);
 
 // ---------------------------------------------------------------------------- englishTypography
 
-// "6.626 x 10⁻³⁴", "1920x1080", "5 * 2": numbers multiplied.
-const TIMES = /(?<![\p{L}\p{N}.,])(?<a>\d+(?:[.,]\d+)?)(?<op>[  ]?[xX*][  ]?)(?=\d)/gu;
-const ARROW = /(?<=^|[ \t (])(?<a>-->|->|<-|<->|<=>|=>)(?=[ \t )]|$)/gmu;
 const ARROWS: Record<string, string> = {
   "-->": "→",
   "->": "→",
@@ -207,133 +73,164 @@ const ARROWS: Record<string, string> = {
   "<=>": "⇔",
   "=>": "⇒",
 };
-const SIGNS = /(?<pre>Copyright[  ]+)?(?<s>\((?:c|C|R|TM|tm)\))/gu;
-const PLUS_MINUS = /(?<=\d[  ]?)(?:\+-|-\+|\+\/-)(?=[  ]?\d)/gu;
 const SUBSCRIPTS = "₀₁₂₃₄₅₆₇₈₉";
-const HYPOTHESIS = /(?<=^|\n|[.!?][ \t]{1,8})H(?<n>[0-9])(?=:[ \t])/gu;
-const LOW_QUOTES = /[„“]/gu;
-const RANGE_UNIT = "(?:[ \\u00a0]?(?:BC|AD|BCE|CE|am|pm|AM|PM))?";
-// "1901 - 1978", "8am - 5pm", "30 BC - AD 284", "1990-1995": a range takes an en dash. A date or
-// a decimal after a spaced hyphen ("Festival 2014 - 31/10/2014") is a separator, not a range.
-const NUMBER_RANGE = new RegExp(
-  `(?<![\\p{L}\\p{N}.,/-])(?:\\d{1,4}${RANGE_UNIT}(?<spaced>[ \\u00a0]+-[ \\u00a0]+)(?:(?:AD|BC)[ \\u00a0])?\\d(?!\\d*[./:]\\d)|(?<y1>1[5-9]\\d\\d|20\\d\\d)(?<joined>-)(?<y2>1[5-9]\\d\\d|20\\d\\d)(?![\\p{N}-]))`,
-  "gu",
-);
-const DAY_NAMES =
-  "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|January|February|March|April|May|June|July|August|September|October|November|December";
-const NAME_RANGE = new RegExp(
-  `(?<=\\b(?:${DAY_NAMES}))(?:[ \\u00a0]+-[ \\u00a0]+|-)(?=(?:${DAY_NAMES})\\b)`,
-  "gu",
-);
-// "different - like": a spaced hyphen between words is a dash.
-const SPACED_HYPHEN = /(?<=\p{Ll}) - (?=\p{Ll})/gu;
+const typographic = (key: MessageKey, start: number, end: number, alternatives: string[]) =>
+  notationFinding("englishTypography", key, start, end, alternatives);
 
-/** The symbols any language typesets the same way: ×, arrows, ©, ®, ™ and ±. */
-function symbols(ctx: DetectContext): Finding[] {
-  const out: Finding[] = [];
-  const add = (key: MessageKey, start: number, end: number, alternatives: string[]) =>
-    out.push(notationFinding("englishTypography", key, start, end, alternatives));
-  for (const m of owned(ctx, TIMES, /\d[ \u00a0]?[xX*]/)) {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  decimalComma: owned((m) => {
+    const g = m.groups!;
+    const fixed = g.sign ? `${g.sign}${g.a}.${g.b}` : `${g.c}.${g.d}`;
+    return whole(m, "review_msg_english_decimal", [fixed]);
+  }),
+  dotGroups: owned((m) => {
+    const groups = m[0].split(/[.,]/);
+    // "192.168.100.200" is an address.
+    if (!m[0].includes(",") && groups.length === 4 && groups.every((x) => Number(x) <= 255))
+      return null;
+    const fixed = m[0].replace(/,/, "#").replace(/\./g, ",").replace("#", ".");
+    return whole(m, "review_msg_english_digit_groups", [fixed]);
+  }),
+  dotDecimal: owned((m) =>
+    whole(m, "review_msg_english_digit_groups", [
+      m[0].replace(".", ",").replace(/,(\d{1,2})$/, ".$1"),
+    ]),
+  ),
+  dotThousand: owned((m) => {
+    const noun = m[2];
+    if (MEASURES.has(noun) || !englishWordInfo(noun)?.plural) return null;
+    return whole(m, "review_msg_english_digit_groups", [`${m[1]},000`]);
+  }),
+  ordinalSplit: owned((m) =>
+    ordinalSuffix(Number(m[1])) === m[2]
+      ? whole(m, "review_msg_ordinal", [`${m[1]}${m[2]}`])
+      : null,
+  ),
+  fullWidthMark: owned((m) =>
+    notationFinding("englishNotation", "review_msg_full_width_mark", m.index, m.index + 1, [
+      FULL_WIDTH_ASCII[m[0]],
+    ]),
+  ),
+  initialism: owned((m) =>
+    whole(
+      m,
+      "review_msg_initialism_period",
+      /[A-Z]/.test(m[0]) ? [`${m[0]}.`, m[0].replace(/\./g, "")] : [`${m[0]}.`],
+    ),
+  ),
+  phd: owned((m) => {
+    const { core } = m.groups!;
+    // "PhD." ends its sentence; "Ph. D", "PH.D" are the dotted form.
+    const dotted = /[. ]/.test(core);
+    if (dotted ? m[0] === "Ph.D." : core === "PhD") return null;
+    const end = m.index + (dotted ? m[0].length : core.length);
+    return notationFinding("englishNotation", "review_msg_degree_abbreviation", m.index, end, [
+      dotted ? "Ph.D." : "PhD",
+    ]);
+  }),
+  degree: owned((m, ctx) => {
+    const fixed = `${m.groups!.l}.${m.groups!.d}.`;
+    if (m[0] === fixed) return null;
+    // "B.Sc" at a sentence end keeps the sentence's period.
+    const end = m.index + m[0].length;
+    if (!m[0].endsWith(".") && !m[0].includes(" ") && ctx.text[end] === ".") return null;
+    return whole(m, "review_msg_degree_abbreviation", [fixed]);
+  }),
+  dottedDegree: owned((m) => {
+    const d = m.groups!.d;
+    const dotted = d.replace(/^([A-Z])([A-Z]?[a-z]*)([A-Z])?$/, (_, a, b, c) =>
+      c ? `${a}.${b}.${c}.` : `${a}.${b}.`,
+    );
+    return whole(m, "review_msg_degree_abbreviation", [d, dotted]);
+  }),
+  spacedAbbreviation: owned((m) =>
+    whole(m, "review_msg_initialism_period", [m[0].replace(/[  ]/g, "")]),
+  ),
+  dateComma: owned((m) => {
+    const at = (name: string) => m.indices!.groups![name]?.[0];
+    const glued = at("glued");
+    const monthComma = at("monthComma");
+    const gap = at("dayGap") ?? at("weekGap");
+    const add = (start: number, alternatives: string[]) =>
+      notationFinding("englishNotation", "review_msg_date_comma", start, start + 1, alternatives);
+    if (glued !== undefined) return add(glued, [", "]);
+    if (monthComma !== undefined) return add(monthComma, [""]);
+    return gap !== undefined ? add(gap, [", "]) : null;
+  }),
+  clockOclock: owned((m) => {
+    const { h, mm } = m.groups!;
+    return whole(
+      m,
+      "review_msg_oclock",
+      mm === "00" ? [`${h}:00`, `${h} o'clock`] : [`${h}:${mm}`],
+    );
+  }),
+  timesSign: owned((m) => {
     const { a, op } = m.groups!;
     // "0x1F" is hexadecimal.
-    if (a === "0" && op === "x") continue;
+    if (a === "0" && op === "x") return null;
     const start = m.index + a.length;
-    add("review_msg_typographic_symbol", start, start + op.length, [
+    return typographic("review_msg_typographic_symbol", start, start + op.length, [
       op.replace(/[xX*]/g, "×").includes(" ") ? " × " : "×",
     ]);
-  }
-  for (const m of owned(ctx, ARROW, /[<>]/)) {
-    add("review_msg_typographic_symbol", m.index, m.index + m[0].length, [ARROWS[m[0]]]);
-  }
-  for (const m of owned(ctx, SIGNS, /\([cCRTt]/)) {
+  }),
+  arrowSign: owned((m) =>
+    typographic("review_msg_typographic_symbol", m.index, m.index + m[0].length, [ARROWS[m[0]]]),
+  ),
+  legalSign: owned((m, ctx) => {
     const { pre, s } = m.groups!;
     const start = m.index + (pre?.length ?? 0);
     const before = ctx.text[start - 1] ?? "";
     const upper = s.toUpperCase();
     // "(c)" is a list item unless it follows "Copyright" or precedes a year.
-    if (upper === "(C)" && !pre && !/^[  ]?(?:1[89]|20)\d\d\b/.test(ctx.text.slice(start + 3)))
-      continue;
+    if (upper === "(C)" && !pre && !/^[  ]?(?:1[89]|20)\d\d\b/.test(ctx.text.slice(start + 3)))
+      return null;
     // "(a) …, (b) …, (c) 2014 itens": after "(b)" a "(c)" is a list item.
-    if (s === "(c)" && /\([bB]\)/.test(ctx.text.slice(Math.max(0, start - 80), start))) continue;
+    if (s === "(c)" && /\([bB]\)/.test(ctx.text.slice(Math.max(0, start - 80), start))) return null;
     // "Burr (D) and Hagan (R)": party letters after names.
-    if (s === "(R)" && /\([DI]\)/.test(ctx.text.slice(Math.max(0, start - 80), start))) continue;
+    if (s === "(R)" && /\([DI]\)/.test(ctx.text.slice(Math.max(0, start - 80), start))) return null;
     // "(R)" and "(TM)" mark a name right before them.
     if (upper !== "(C)" && (!/[\p{L}\p{N} ]/u.test(before) || s === "(tm)" || s === "(r)"))
-      continue;
+      return null;
     if (
       upper === "(R)" &&
-      !/\p{Lu}[\p{L}]*[  ]?$/u.test(ctx.text.slice(Math.max(0, start - 24), start))
+      !/\p{Lu}[\p{L}]*[  ]?$/u.test(ctx.text.slice(Math.max(0, start - 24), start))
     )
-      continue;
+      return null;
     const sign = upper === "(C)" ? "©" : upper === "(R)" ? "®" : "™";
-    add("review_msg_typographic_symbol", start, start + s.length, [sign]);
-  }
-  for (const m of owned(ctx, PLUS_MINUS, /\+/)) {
-    add("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"]);
-  }
-  return out;
-}
-
-/** "1901 - 1978", "1990-1995": a range of numbers takes an en dash. */
-function numberRanges(ctx: DetectContext): Finding[] {
-  const out: Finding[] = [];
-  for (const m of owned(ctx, NUMBER_RANGE, /-/)) {
-    const { spaced, joined, y1, y2 } = m.groups!;
-    if (joined && Number(y2) <= Number(y1)) continue;
-    const dash = spaced ?? joined;
-    const start = m.index + m[0].indexOf(dash);
-    out.push(
-      notationFinding("englishTypography", "review_msg_range_dash", start, start + dash.length, [
-        "–",
-      ]),
-    );
-  }
-  return out;
-}
-
-function typography(ctx: DetectContext): Finding[] {
-  const out = symbols(ctx);
-  const add = (key: MessageKey, start: number, end: number, alternatives: string[]) =>
-    out.push(notationFinding("englishTypography", key, start, end, alternatives));
-  for (const m of owned(ctx, HYPOTHESIS, /H\d:/)) {
-    add("review_msg_typographic_symbol", m.index, m.index + 2, [
+    return typographic("review_msg_typographic_symbol", start, start + s.length, [sign]);
+  }),
+  plusMinus: owned((m) =>
+    typographic("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"]),
+  ),
+  hypothesis: owned((m) =>
+    typographic("review_msg_typographic_symbol", m.index, m.index + 2, [
       `H${SUBSCRIPTS[Number(m.groups!.n)]}`,
-    ]);
-  }
+    ]),
+  ),
   // „…“ is German; English opens with “ and closes with ”. A “ after a „ on its line closes it.
   // Straight quotes stay: they are just as correct, and often code.
-  for (const m of owned(ctx, LOW_QUOTES)) {
+  lowQuote: owned((m, ctx) => {
     const opened = ctx.text.lastIndexOf("„", m.index);
-    if (m[0] === "„") add("review_msg_english_quotes", m.index, m.index + 1, ["“"]);
-    else if (
-      opened > ctx.text.lastIndexOf("\n", m.index) &&
+    if (m[0] === "„") return typographic("review_msg_english_quotes", m.index, m.index + 1, ["“"]);
+    return opened > ctx.text.lastIndexOf("\n", m.index) &&
       opened > ctx.text.lastIndexOf("”", m.index)
-    )
-      add("review_msg_english_quotes", m.index, m.index + 1, ["”"]);
-  }
-  out.push(...numberRanges(ctx));
-  for (const m of owned(ctx, NAME_RANGE, /-/)) {
-    add("review_msg_range_dash", m.index, m.index + m[0].length, ["–"]);
-  }
-  for (const m of owned(ctx, SPACED_HYPHEN, / - /)) {
-    add("review_msg_typed_dash", m.index, m.index + 3, ["—", " — "]);
-  }
-  return out;
-}
-
-/** English only; findings inside a quoted or parenthesized example are dropped. */
-const english =
-  (detect: (ctx: DetectContext) => Finding[], keepQuoted = false) =>
-  (ctx: DetectContext): Finding[] =>
-    ctx.lang !== "en_US" ? [] : detect(ctx).filter((f) => keepQuoted || !quotedMention(ctx, f));
-
-/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
-export const PREDICATES = {
-  notation: english(notation),
-  typography: english(typography, true),
-  // French and Spanish: the shared symbols only; their quotes and dashes follow other rules.
-  typographyFrench: symbols,
-  typographySpanish: symbols,
-  // Portuguese: the shared symbols and number ranges.
-  typographyPortuguese: (ctx) => [...symbols(ctx), ...numberRanges(ctx)],
-} satisfies Record<string, Detector>;
+      ? typographic("review_msg_english_quotes", m.index, m.index + 1, ["”"])
+      : null;
+  }),
+  /** "1901 - 1978", "1990-1995": a range of numbers takes an en dash. */
+  numberRangeDash: owned((m) => {
+    const { spaced, joined, y1, y2 } = m.groups!;
+    if (joined && Number(y2) <= Number(y1)) return null;
+    const dash = spaced ?? joined;
+    const start = m.index + m[0].indexOf(dash);
+    return typographic("review_msg_range_dash", start, start + dash.length, ["–"]);
+  }),
+  nameRangeDash: owned((m) =>
+    typographic("review_msg_range_dash", m.index, m.index + m[0].length, ["–"]),
+  ),
+  spacedHyphen: owned((m) =>
+    typographic("review_msg_typed_dash", m.index, m.index + 3, ["—", " — "]),
+  ),
+} satisfies Record<string, MatchFixer>;

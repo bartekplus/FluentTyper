@@ -56,6 +56,12 @@ fragments:
   DIALECTS_BE: "(?:am|is|are|was|were|be|been|being|isn['’]?t|aren['’]?t|wasn['’]?t|weren['’]?t|its|\\p{L}+['’](?:s|re))"
   DIALECTS_CARD_ADVERBS: "(?:not|just|really|probably|definitely|certainly|still|also|already|never|ever|likely|possibly|clearly|simply|even|again|all|quite|maybe|perhaps|hardly)"
   DIALECTS_CARD_FOLLOWERS: "(?:for|at|but|and|or|any|anytime|again|anymore|now|right|yet|either|though|since|so|then|previously|back|soon|until|unless|if|because|as|with|too|just|after|before|when|while|ever|in|this|that|these|those)"
+  TYPOGRAPHY_MONTH: "January|February|March|April|May|June|July|August|September|October|November|December"
+  TYPOGRAPHY_TIMES: "(?<![\\p{L}\\p{N}.,])(?<a>\\d+(?:[.,]\\d+)?)(?<op>[ \\u00A0]?[xX*][ \\u00A0]?)(?=\\d)"
+  TYPOGRAPHY_ARROW: "(?<=^|[ \\t\\u00A0(])(?<a>-->|->|<-|<->|<=>|=>)(?=[ \\t\\u00A0)]|$)"
+  TYPOGRAPHY_SIGNS: "(?<pre>Copyright[ \\u00A0]+)?(?<s>\\((?:c|C|R|TM|tm)\\))"
+  TYPOGRAPHY_PLUS_MINUS: "(?<=\\d[ \\u00A0]?)(?:\\+-|-\\+|\\+\\/-)(?=[ \\u00A0]?\\d)"
+  TYPOGRAPHY_NUMBER_RANGE: "(?<![\\p{L}\\p{N}.,/-])(?:\\d{1,4}(?:[ \\u00a0]?(?:BC|AD|BCE|CE|am|pm|AM|PM))?(?<spaced>[ \\u00a0]+-[ \\u00a0]+)(?:(?:AD|BC)[ \\u00a0])?\\d(?!\\d*[./:]\\d)|(?<y1>1[5-9]\\d\\d|20\\d\\d)(?<joined>-)(?<y2>1[5-9]\\d\\d|20\\d\\d)(?![\\p{N}-]))"
 
 rules:
   - id: en.fixedPhrases
@@ -2132,22 +2138,318 @@ rules:
     predicate: properNouns
   - id: en.notation
     checks: [englishNotation]
-    predicate: notation
+    style: match
+    message: review_msg_english_decimal
+    filter: outsideExamples
+    # englishNotation (on by default): decimal commas and European digit groups in English
+    # numbers, a split ordinal ("8 th"), full-width marks, an initialism missing its last period
+    # ("U.S.A"), and academic degrees ("PH.D", "B. Sc."). Each scan starts 64 characters before
+    # the chunk. A gate that every match holds near its start skips the scan when the text
+    # lacks it: most prose has no notation, and these regexes open with lookbehinds the engine
+    # tries at every position.
+    frames:
+      # "12,5%", "$12,50", "2,5 million": a decimal comma before a unit or after a currency sign.
+      - regex: "(?<![\\p{N}.,])(?:(?<sign>[$£€])(?<a>\\d{1,3}),(?<b>\\d{1,2})|(?<c>\\d{1,3}),(?<d>\\d{1,2})(?=[ \\u00a0]?(?:%|‰|percent|per cent|million|billion|trillion|thousand|[KMGT]B|kg|g|mg|km|m|cm|mm|ml|l|°)(?![\\p{L}\\p{N}])))(?![\\p{N},]|\\.\\p{N})"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d,\\d"
+        gateFlags: g
+        fixer: decimalComma
+      # "32.500.000", "32.000,23": dots between digit groups and a comma before the decimals.
+      - regex: "(?<![\\p{N}.,])\\d{1,3}(?:\\.\\d{3}){2,3}(?:,\\d{1,2})?(?![\\p{N}]|[.,]\\p{N})"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d\\.\\d"
+        gateFlags: g
+        fixer: dotGroups
+      - regex: "(?<![\\p{N}.,])\\d{1,3}\\.\\d{3},\\d{1,2}(?![\\p{N}]|[.,]\\p{N})"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d\\.\\d"
+        gateFlags: g
+        fixer: dotDecimal
+      # "32.000 users": a whole thousand before a counted noun.
+      - regex: "(?<![\\p{N}.,])(\\d{1,3})\\.000(?=[ \\u00A0]+([a-z]+)(?![\\p{L}]))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d\\.000"
+        gateFlags: g
+        fixer: dotThousand
+      # "8 th": a split ordinal.
+      - regex: "(?<![\\p{N}.,])(\\d{1,4})[ \\u00A0](st|nd|rd|th)(?![\\p{L}\\p{N}])"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d[ \\u00a0](?:st|nd|rd|th)"
+        gateFlags: g
+        fixer: ordinalSplit
+      # Full-width marks after Latin letters. The full-width comma is commaPeriodSpacing's.
+      - regex: "(?<=[A-Za-z])[\\uFF1F\\uFF01]"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "[？！]"
+        gateFlags: g
+        fixer: fullWidthMark
+      # "U.S.A", "e.g": an initialism that lost its last period.
+      - regex: "(?<![\\p{L}\\p{N}.'’@/\\\\_-])(?:[A-Z]\\.){1,4}[A-Z](?![\\p{L}\\p{N}.'’@/\\\\_-])|(?<![\\p{L}\\p{N}.'’@/\\\\_-])(?:e\\.g|i\\.e|a\\.k\\.a)(?![\\p{L}\\p{N}.'’@/\\\\_-])"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "[A-Za-z]\\.[A-Za-z]"
+        gateFlags: g
+        fixer: initialism
+      # Academic degrees: "PH.D", "Phd", "B. Sc", "BSc." before a lowercase word.
+      - regex: "(?<![\\p{L}.])(?<core>P[Hh](?:\\. ?| )D|PHD|Phd|PhD)\\.?(?![\\p{L}])"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "P[Hh]"
+        gateFlags: g
+        fixer: phd
+      - regex: "(?<![\\p{L}.])(?<l>[BM])\\. ?(?<d>Sc|Eng|Ed|Phil|Arch|Com|Tech)\\.?(?![\\p{L}])"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "[BM]\\."
+        gateFlags: g
+        fixer: degree
+      - regex: "(?<![\\p{L}.])(?<d>BSc|MSc|BEng|MEng|MPhil|DPhil|MBA)\\.(?=[ \\u00A0]+\\p{Ll})"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "(?:Sc|Eng|Phil|MBA)\\."
+        gateFlags: g
+        fixer: dottedDegree
+      # "e. g.", "i. e.", "o' clock": abbreviations without their inner spaces.
+      - regex: "(?<![\\p{L}.])(?:e\\.[ \\u00A0]g\\.|i\\.[ \\u00A0]e\\.|o['’][ \\u00A0]clock)(?![\\p{L}])"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "(?:e\\.|i\\.|o['’])[ \\u00a0]"
+        gateFlags: g
+        fixer: spacedAbbreviation
+      # "June 16,1963", "October, 1958", "October 18 1983", "Friday July 15".
+      - regex: "(?<![\\p{L}])(?:(?:{{TYPOGRAPHY_MONTH}})(?<monthComma>,)(?=[ \\u00a0](?:1[5-9]|20)\\d\\d(?![\\p{N},]|[.:]\\p{N}))|(?:{{TYPOGRAPHY_MONTH}})[ \\u00a0]\\d{1,2}(?<glued>,)(?=(?:1[5-9]|20)\\d\\d(?!\\p{N}))|(?:{{TYPOGRAPHY_MONTH}})[ \\u00a0]\\d{1,2}(?<dayGap>)(?=[ \\u00a0](?:1[5-9]|20)\\d\\d(?![\\p{N}:]|[.,]\\p{N}))|(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?<weekGap>)(?=[ \\u00a0](?:{{TYPOGRAPHY_MONTH}})[ \\u00a0]\\d))"
+        scan: owned
+        lookback: 64
+        flags: dgu
+        gate: "\\d"
+        gateFlags: g
+        fixer: dateComma
+      # "7:00 o'clock": a clock time or "o'clock", not both.
+      - regex: "(?<![\\p{N}:])(?<h>\\d{1,2}):(?<mm>[0-5]\\d)[ \\u00A0]o['’][ \\u00A0]?clock(?![\\p{L}])"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: clock
+        gateFlags: g
+        fixer: clockOclock
   - id: en.typography
     checks: [englishTypography]
-    predicate: typography
+    style: match
+    message: review_msg_typographic_symbol
+    # englishTypography (optional): the typographer's symbols for what a keyboard
+    # approximates: × for x, → for ->, © for (c), ± for +-, H₀, curly double quotes and dashes
+    # in ranges. Quoted examples keep their findings.
+    frames:
+      # "6.626 x 10⁻³⁴", "1920x1080", "5 * 2": numbers multiplied. A long number holds a run of
+      # 30 digits near its start.
+      - regex: "{{TYPOGRAPHY_TIMES}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
+        gateFlags: g
+        fixer: timesSign
+      - regex: "{{TYPOGRAPHY_ARROW}}"
+        scan: owned
+        lookback: 64
+        flags: gmu
+        gate: "[<>]"
+        gateFlags: g
+        fixer: arrowSign
+      # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
+      - regex: "{{TYPOGRAPHY_SIGNS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "Copyright|\\([cCRTt]"
+        gateFlags: g
+        fixer: legalSign
+      - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\+"
+        gateFlags: g
+        fixer: plusMinus
+      # "H0: …": a hypothesis takes a subscript.
+      - regex: "(?<=^|\\n|[.!?][ \\t]{1,8})H(?<n>[0-9])(?=:[ \\t])"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "H\\d:"
+        gateFlags: g
+        fixer: hypothesis
+      # „…“ is German; English opens with “ and closes with ”.
+      - regex: "[\\u201E\\u201C]"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: lowQuote
+      # "1901 - 1978", "8am - 5pm", "30 BC - AD 284", "1990-1995": a range takes an en dash. The
+      # gate is the digit that opens the match: the spaces before the hyphen have no limit.
+      - regex: "{{TYPOGRAPHY_NUMBER_RANGE}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d"
+        gateFlags: g
+        fixer: numberRangeDash
+      # "Monday - Friday", "May-June": a range of names takes an en dash.
+      - regex: "(?<=\\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|{{TYPOGRAPHY_MONTH}}))(?:[ \\u00a0]+-[ \\u00a0]+|-)(?=(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|{{TYPOGRAPHY_MONTH}})\\b)"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "-"
+        gateFlags: g
+        fixer: nameRangeDash
+      # "different - like": a spaced hyphen between words is a dash.
+      - regex: "(?<=\\p{Ll}) - (?=\\p{Ll})"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: " - "
+        gateFlags: g
+        fixer: spacedHyphen
   - id: en.typographyFrench
     checks: [englishTypography]
-    predicate: typographyFrench
     lang: fr
+    style: match
+    message: review_msg_typographic_symbol
+    # French: the shared symbols only; its quotes and dashes follow other rules.
+    frames:
+      # "6.626 x 10⁻³⁴", "1920x1080", "5 * 2": numbers multiplied. A long number holds a run of
+      # 30 digits near its start.
+      - regex: "{{TYPOGRAPHY_TIMES}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
+        gateFlags: g
+        fixer: timesSign
+      - regex: "{{TYPOGRAPHY_ARROW}}"
+        scan: owned
+        lookback: 64
+        flags: gmu
+        gate: "[<>]"
+        gateFlags: g
+        fixer: arrowSign
+      # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
+      - regex: "{{TYPOGRAPHY_SIGNS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "Copyright|\\([cCRTt]"
+        gateFlags: g
+        fixer: legalSign
+      - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\+"
+        gateFlags: g
+        fixer: plusMinus
   - id: en.typographySpanish
     checks: [englishTypography]
-    predicate: typographySpanish
     lang: es
+    style: match
+    message: review_msg_typographic_symbol
+    # Spanish: the shared symbols only; its quotes and dashes follow other rules.
+    frames:
+      # "6.626 x 10⁻³⁴", "1920x1080", "5 * 2": numbers multiplied. A long number holds a run of
+      # 30 digits near its start.
+      - regex: "{{TYPOGRAPHY_TIMES}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
+        gateFlags: g
+        fixer: timesSign
+      - regex: "{{TYPOGRAPHY_ARROW}}"
+        scan: owned
+        lookback: 64
+        flags: gmu
+        gate: "[<>]"
+        gateFlags: g
+        fixer: arrowSign
+      # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
+      - regex: "{{TYPOGRAPHY_SIGNS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "Copyright|\\([cCRTt]"
+        gateFlags: g
+        fixer: legalSign
+      - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\+"
+        gateFlags: g
+        fixer: plusMinus
   - id: en.typographyPortuguese
     checks: [englishTypography]
-    predicate: typographyPortuguese
     lang: pt
+    style: match
+    message: review_msg_typographic_symbol
+    # Portuguese: the shared symbols and number ranges.
+    frames:
+      # "6.626 x 10⁻³⁴", "1920x1080", "5 * 2": numbers multiplied. A long number holds a run of
+      # 30 digits near its start.
+      - regex: "{{TYPOGRAPHY_TIMES}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
+        gateFlags: g
+        fixer: timesSign
+      - regex: "{{TYPOGRAPHY_ARROW}}"
+        scan: owned
+        lookback: 64
+        flags: gmu
+        gate: "[<>]"
+        gateFlags: g
+        fixer: arrowSign
+      # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
+      - regex: "{{TYPOGRAPHY_SIGNS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "Copyright|\\([cCRTt]"
+        gateFlags: g
+        fixer: legalSign
+      - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\+"
+        gateFlags: g
+        fixer: plusMinus
+      # "1901 - 1978", "8am - 5pm", "30 BC - AD 284", "1990-1995": a range takes an en dash. The
+      # gate is the digit that opens the match: the spaces before the hyphen have no limit.
+      - regex: "{{TYPOGRAPHY_NUMBER_RANGE}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d"
+        gateFlags: g
+        fixer: numberRangeDash
   - id: en.plainStyle
     checks: [stylePhrasing]
     predicate: plainStyle
