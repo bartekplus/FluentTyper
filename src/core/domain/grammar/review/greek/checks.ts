@@ -18,7 +18,7 @@ const as = (frame: FrameRef, f: Finding): RawFinding => ({
 
 /** The word before `at` in lowercase, "" at a clause boundary. */
 function wordBefore(text: string, at: number): string {
-  return /(\p{L}+['’]?)[ \t ]+$/u.exec(text.slice(Math.max(0, at - 24), at))?.[1] ?? "";
+  return /(\p{L}+['’]?)[ \t\u00a0]+$/u.exec(text.slice(Math.max(0, at - 24), at))?.[1] ?? "";
 }
 
 /** A ν or Ν in the typed word's case. */
@@ -64,11 +64,11 @@ const MASCULINE = new Set(
 const MASCULINE_SUFFIX = /(?:σμ|γμ|χμ|θμ)ο$/;
 
 const PREPOSITION =
-  /(?<!\p{L})(?:(?:γι|σ|μ|απ|κατ|μετ|παρ)['’][ \t ]*|(?:για|σε|με|από|προς|χωρίς|κατά|μετά|παρά|ως|μέχρι|έως)[ \t ]+)$/iu;
+  /(?<!\p{L})(?:(?:γι|σ|μ|απ|κατ|μετ|παρ)['’][ \t\u00a0]*|(?:για|σε|με|από|προς|χωρίς|κατά|μετά|παρά|ως|μέχρι|έως)[ \t\u00a0]+)$/iu;
 
-const LEAD = /(?:(?:από|απ['’]|για|ως|μέχρι|και|κι)[ \t ]+)?$/iu;
-const SENTENCE_START = /[.!;;?…\n][ \t "«“‘'(]*$/u;
-const AT_START = /^[ \t "«“‘'(]*$/u;
+const LEAD = /(?:(?:από|απ['’]|για|ως|μέχρι|και|κι)[ \t\u00a0]+)?$/iu;
+const SENTENCE_START = /[.!;;?…\n][ \t\u00a0"«“‘'(]*$/u;
+const AT_START = /^[ \t\u00a0"«“‘'(]*$/u;
 
 // Words that can also be an adjective or a noun ("Αντίθετα αποτελέσματα", "Τέλος
 // εποχής") need a clause right after them: an article, a pronoun or a particle.
@@ -128,7 +128,7 @@ export const FIXERS = {
     if (!isGreek(next) || !(MASCULINE.has(noun) || MASCULINE_SUFFIX.test(noun))) return null;
     // "ένα" before a masculine noun is the article "έναν", never the neuter numeral.
     // "αυτό το λόγο" -> "αυτόν τον λόγο": the demonstrative agrees too.
-    const lead = /(?<!\p{L})(αυτό|εκείνο)([ \t ]+)$/iu.exec(
+    const lead = /(?<!\p{L})(αυτό|εκείνο)([ \t\u00a0]+)$/iu.exec(
       ctx.text.slice(Math.max(0, m.index - 12), m.index),
     );
     const found = finding(m, withNu(word));

@@ -53,7 +53,7 @@ const FULL_NUMERIC = new RegExp(
 const NUMBER_BEFORE = new RegExp(`(?:${DIGIT}${SEP}|#[ \\t\\u00a0]*)$`, "u");
 const NUMBER_AFTER = new RegExp(`^${SEP}${DIGIT}`, "u");
 const ID_CUE =
-  /(?:الإصدار|إصدار|الاصدار|اصدار|النسخة|نسخة|التحديث|تحديث|رقم|الرقم|هاتف|الهاتف|كود|الكود|رمز|الرمز|version|(?<!\p{L})v)[ \t :]*$/iu;
+  /(?:الإصدار|إصدار|الاصدار|اصدار|النسخة|نسخة|التحديث|تحديث|رقم|الرقم|هاتف|الهاتف|كود|الكود|رمز|الرمز|version|(?<!\p{L})v)[ \t\u00a0:]*$/iu;
 
 function fullDate(text: string, m: RegExpExecArray): boolean {
   const before = text.slice(Math.max(0, m.index - 24), m.index);
@@ -76,7 +76,7 @@ const order =
   (fix: (g: Record<string, string>, gap: string) => string): MatchFixer =>
   (m, ctx, frame) => {
     if (!owns(ctx, m)) return null;
-    const gap = /[ \t ]+/.exec(m[0])![0];
+    const gap = /[ \t\u00a0]+/.exec(m[0])![0];
     return as(frame, {
       messageKey: "review_msg_arabic_date_order",
       range: { start: m.index, end: m.index + m[0].length },

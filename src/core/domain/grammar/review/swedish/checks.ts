@@ -34,7 +34,7 @@ const ORDINAL_BEFORE = new Set(
   ),
 );
 const ORDINAL_NOUNS =
-  /^[ \t ]+(?:plats(?:en)?|gången|klass(?:en)?|våning(?:en)?|upplaga(?:n)?|århundradet|kvartalet|omgången|försöket|priset|raden|sidan|stycket|hand|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)(?![\p{L}])/u;
+  /^[ \t\u00a0]+(?:plats(?:en)?|gången|klass(?:en)?|våning(?:en)?|upplaga(?:n)?|århundradet|kvartalet|omgången|försöket|priset|raden|sidan|stycket|hand|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)(?![\p{L}])/u;
 
 // After these the -s is a plural ("två PCs"), before these the word ends its phrase.
 const PLURAL_BEFORE = new Set(
@@ -51,7 +51,7 @@ const NOT_NOUNS = new Set(
 // "Mars" is also the planet and "Maj" a first name: only in a date.
 const DATE_ONLY = /^(?:Mars|Maj)$/;
 const DATE_BEFORE =
-  /(?:\d\.?|(?<!\p{L})(?:i|av|sedan|från|till|under|början|slutet|mitten))[ \t ]+$/u;
+  /(?:\d\.?|(?<!\p{L})(?:i|av|sedan|från|till|under|början|slutet|mitten))[ \t\u00a0]+$/u;
 
 const CLAUSE_OPENERS = new Set(
   "att och men när om eftersom då så medan innan tills fast fastän ifall därför hur varför var vad sedan".split(
@@ -97,10 +97,10 @@ export const FIXERS = {
   acronymGenitive: (m, ctx, frame) => {
     if (namedExampleBefore(ctx.text, m.index)) return null;
     const end = m.index + m[0].length;
-    const next = /^[ \t ]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 32))?.[1];
+    const next = /^[ \t\u00a0]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 32))?.[1];
     if (!next || NOT_NOUNS.has(next)) return null;
     const before = wordBefore(ctx.text, m.index).toLowerCase();
-    if (PLURAL_BEFORE.has(before) || /\d[ \t ]+$/u.test(ctx.text.slice(m.index - 4, m.index)))
+    if (PLURAL_BEFORE.has(before) || /\d[ \t\u00a0]+$/u.test(ctx.text.slice(m.index - 4, m.index)))
       return null;
     if (ctx.dictionary.has(m[0].toLowerCase())) return null;
     return as(frame, {
@@ -118,8 +118,8 @@ export const FIXERS = {
     // A title or a name around it ("Svarta Fredagen", "Maj Andersson").
     const end = m.index + word.length;
     if (
-      /\p{Lu}\p{Ll}*[ \t ]+$/u.test(before) ||
-      /^[ \t ]+\p{Lu}/u.test(ctx.text.slice(end, end + 3))
+      /\p{Lu}\p{Ll}*[ \t\u00a0]+$/u.test(before) ||
+      /^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(end, end + 3))
     )
       return null;
     if (ctx.dictionary.has(word.toLowerCase())) return null;
@@ -139,7 +139,7 @@ export const FIXERS = {
     const end =
       m.index + article.length + gap1.length + adjective.length + gap2.length + noun.length;
     // The noun is itself a modifier when a noun or adjective follows it.
-    const next = /^[ \t ]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 40))?.[1];
+    const next = /^[ \t\u00a0]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 40))?.[1];
     if (next && (adjectiveForm(next) || (next.length > 3 && nounGender(next)))) return null;
     if ([adjective, noun].some((word) => ctx.dictionary.has(word))) return null;
     if (namedExampleBefore(ctx.text, m.index)) return null;
@@ -189,7 +189,7 @@ export const FIXERS = {
     const word = m.groups!.target;
     const before = ctx.text.slice(Math.max(0, m.index - 3), m.index);
     const opener = wordBefore(ctx.text, m.index).toLowerCase();
-    if (!atSentenceStart(ctx.text, m.index) && !/,[ \t ]*$/u.test(before))
+    if (!atSentenceStart(ctx.text, m.index) && !/,[ \t\u00a0]*$/u.test(before))
       if (!CLAUSE_OPENERS.has(opener)) return null;
     if (ctx.dictionary.has(word.toLowerCase())) return null;
     return as(frame, {
