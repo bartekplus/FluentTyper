@@ -1,7 +1,7 @@
 import { wordKey as plainWordKey } from "../implementations/helpers/GenericRuleShared";
 import { EDGE, SPACE, TOKEN_END } from "../review/phraseTemplates";
 import type { PhraseRow } from "./rows";
-import type { Token } from "./types";
+import { forEachWord } from "./tokenizer";
 
 /*
  * The phrase-table kind of the engine: rows of literal words ("typed = fix") indexed by their
@@ -130,13 +130,13 @@ export function matchPhrase(text: string, phrase: PhraseEntry, at: number): RegE
 }
 
 /**
- * The phrase rows of `INDEX` in the chunk [from, to) of `text`. Each word token looks up the
+ * The phrase rows of `INDEX` in the chunk [from, to) of `text`. Each word token of the engine
+ * tokenizer (forEachWord) looks up the
  * rows that start with it, longest first, and the first row that matches decides the word.
  * A French elided article or an Arabic "و"/"ف" glued to the word gives a second lookup after
  * it. `accept` turns a match into a finding and returns the end to resume at, or null.
  */
 export function scanRows(
-  tokens: readonly Token[],
   text: string,
   from: number,
   to: number,
@@ -147,21 +147,25 @@ export function scanRows(
 ): void {
   const words = new RegExp(WORD.source, "uy");
   let cursor = from;
-  for (const token of tokens) {
-    if (token.start >= to) break;
-    if (token.end <= cursor || (token.type !== "word" && token.type !== "number")) continue;
-    let start = token.start;
-    let word = token.text;
+  // Start at a token boundary at or before the chunk.
+  let begin = from;
+  while (begin > 0 && !/\s/.test(text[begin - 1])) begin -= 1;
+  forEachWord(text, begin, (tokenStart, tokenText) => {
+    if (tokenStart >= to) return false;
+    const tokenEnd = tokenStart + tokenText.length;
+    if (tokenEnd <= cursor) return true;
+    let start = tokenStart;
+    let word = tokenText;
     if (start < cursor) {
       // The chunk or a finding starts inside this word: the word rule resumes there.
       let found: RegExpExecArray | null = null;
-      for (let at = cursor; at < token.end && !found; at += 1) {
+      for (let at = cursor; at < tokenEnd && !found; at += 1) {
         words.lastIndex = at;
         found = words.exec(text);
       }
-      if (!found) continue;
+      if (!found) return true;
       [start, word] = [found.index, found[0]];
-      if (start >= to) break;
+      if (start >= to) return false;
     }
     cursor = start + word.length;
     const elided =
@@ -187,5 +191,6 @@ export function scanRows(
         break lookup;
       }
     }
-  }
+    return true;
+  });
 }

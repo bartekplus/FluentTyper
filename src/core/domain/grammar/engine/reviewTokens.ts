@@ -9,21 +9,24 @@ export interface ChunkText {
   to: number;
 }
 
-// Context read around a chunk; a rule is far shorter.
-const WINDOW = 256;
+// Context read before a chunk: patterns read at most the token before a match. After it: a
+// pattern that starts in the chunk ends within 96 characters (the old phrase window). Repair
+// rescans many small windows, so a larger margin costs more than the window itself.
+const BEFORE = 32;
+const AFTER = 96;
 // One tokenizer pass per chunk serves the pattern rules and the phrase tables.
 const TOKENS = new WeakMap<ChunkText, Token[]>();
 
 /**
- * The tokens around the chunk of `ctx`: from 256 characters before it (at whitespace, so no
- * token is cut in two) to 256 characters after it. Computed once per chunk context.
+ * The tokens around the chunk of `ctx`: from 32 characters before it (at whitespace, so no
+ * token is cut in two) to 96 characters after it. Computed once per chunk context.
  */
 export function chunkTokens(ctx: ChunkText): Token[] {
   let tokens = TOKENS.get(ctx);
   if (!tokens) {
-    let from = Math.max(0, ctx.from - WINDOW);
+    let from = Math.max(0, ctx.from - BEFORE);
     while (from > 0 && !/\s/.test(ctx.text[from - 1])) from -= 1;
-    tokens = tokenize(ctx.scanText, from, Math.min(ctx.scanText.length, ctx.to + WINDOW));
+    tokens = tokenize(ctx.scanText, from, Math.min(ctx.scanText.length, ctx.to + AFTER));
     TOKENS.set(ctx, tokens);
   }
   return tokens;

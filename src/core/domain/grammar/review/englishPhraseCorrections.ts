@@ -1,6 +1,5 @@
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import { addRows, scanRows, type PhraseEntry, type PhraseIndex } from "../engine/phraseRows";
-import { chunkTokens } from "../engine/reviewTokens";
 import { namedExampleBefore, quotedSpan } from "./exampleCues";
 import {
   CLOSED_COMPOUNDS,
@@ -184,7 +183,6 @@ export function phraseCorrections(ctx: DetectContext): RawFinding[] {
   if (!INDEX.size) return [];
   const findings: RawFinding[] = [];
   scanRows(
-    chunkTokens(ctx),
     ctx.scanText,
     ctx.from,
     ctx.to,

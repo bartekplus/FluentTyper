@@ -22,6 +22,7 @@ import {
   type PhraseTemplate,
 } from "../review/phraseTemplates";
 import { chunkTokens } from "./reviewTokens";
+import { tokenKey } from "./tokenizer";
 import type { CompiledFrame } from "./types";
 
 /** A named Review detector: a predicate a rule file names with `predicate:`. */
@@ -64,10 +65,28 @@ export function mergePredicates<T = Detector>(
 // One match walk per chunk serves every pattern rule.
 const SCANS = new WeakMap<DetectContext, Map<number, RawFinding[]>>();
 
+// The anchor literals of a small anchored pattern set, for a test before tokenizing.
+const LITERALS = new WeakMap<PatternSet, string[] | null>();
+const literalsOf = (set: PatternSet) => {
+  let literals = LITERALS.get(set);
+  if (literals === undefined) {
+    const keys = Object.keys(set.anchors);
+    literals = set.structural.length === 0 && keys.length <= 64 ? keys : null;
+    LITERALS.set(set, literals);
+  }
+  return literals;
+};
+
 /** The findings of every pattern rule in the chunk of `ctx`, by pattern index. */
 function scan(ctx: DetectContext, set: PatternSet): Map<number, RawFinding[]> {
-  const tokens = chunkTokens(ctx);
   const byPattern = new Map<number, RawFinding[]>();
+  // No anchor literal in the chunk and its margins: no pattern can match, so no tokens.
+  const literals = literalsOf(set);
+  if (literals) {
+    const lower = tokenKey(ctx.scanText.slice(Math.max(0, ctx.from - 32), ctx.to + 96));
+    if (!literals.some((literal) => lower.includes(literal))) return byPattern;
+  }
+  const tokens = chunkTokens(ctx);
   const matches = findMatches(
     set,
     tokens,
@@ -217,10 +236,11 @@ export function buildReviewDetectors(
       if (!found) throw new Error(`Grammar rule ${rule.id}: no detector "${rule.predicate}"`);
       detect = found;
     }
+    // One shape for every entry: the scan reads them all for each chunk.
     const entry: ReviewDetectorEntry = {
       rules: rule.checks as CatalogRuleId[],
       detect,
-      ...(rule.lang ? { lang: rule.lang } : {}),
+      lang: rule.lang,
       source: rule.source,
     };
     return rule.cacheable ? cacheable(entry) : entry;

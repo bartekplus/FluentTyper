@@ -66,6 +66,24 @@ function accepts(
   return m.predicate === undefined || TOKEN_PREDICATES[m.predicate](tokens, at, lang);
 }
 
+type Check = (tokens: readonly Token[], first: number, j: number, lang: string) => boolean;
+// An element that only names literal keys is a set lookup; others take the general check.
+const CHECKS = new WeakMap<CompiledMatcher, Check>();
+function checkOf(m: CompiledMatcher): Check {
+  let check = CHECKS.get(m);
+  if (!check) {
+    if (m.lower && Object.keys(m).length === 1) {
+      const keys = new Set(m.lower);
+      check = (tokens, first, j) => {
+        const token = tokens[first + j];
+        return keys.has(token.key) && token.type !== "protected" && token.protected !== true;
+      };
+    } else check = (tokens, first, j, lang) => accepts(m, tokens, first, j, lang);
+    CHECKS.set(m, check);
+  }
+  return check;
+}
+
 function matchAt(
   pattern: CompiledPattern,
   tokens: readonly Token[],
@@ -76,7 +94,7 @@ function matchAt(
   if (first < 0 || first + elements.length > tokens.length) return false;
   for (let j = 0; j < elements.length; j += 1) {
     if (j > 0 && !pattern.crossLines && tokens[first + j].space.includes("\n")) return false;
-    if (!accepts(elements[j], tokens, first, j, lang)) return false;
+    if (!checkOf(elements[j])(tokens, first, j, lang)) return false;
   }
   return true;
 }

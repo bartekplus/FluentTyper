@@ -53,6 +53,8 @@ function protectedSpans(text: string): number[] {
 const TOKEN =
   /(\uFFFC+)|([\p{L}\p{N}][\p{L}\p{M}\p{N}]*(?:['’][\p{L}\p{N}][\p{L}\p{M}\p{N}]*)*)|(\s+)|(\p{P})|[\s\S]/gu;
 const DIGITS = /^\p{N}+$/u;
+// The same token rule for forEachWord, which must not move TOKEN's lastIndex.
+const WORDS = new RegExp(TOKEN.source, "gu");
 
 // U+037E is the Greek question mark.
 const SENTENCE_END = new Set([".", "!", "?", "\u061F", "\u203C", "\u2047", "\u037E"]);
@@ -68,25 +70,46 @@ export function tokenKey(text: string): string {
   return /[\u0600-\u06FF]/.test(lower) ? lower.replace(ARABIC_MARKS, "") : lower;
 }
 
+/** The casing from letter counts: all lower, all upper, a capital first letter, or mixed. */
+function casingFrom(letters: number, upper: number, firstUpper: boolean): Casing {
+  if (letters === 0) return "none";
+  if (upper === 0) return "lower";
+  if (upper === letters) return letters === 1 ? "title" : "upper";
+  return firstUpper && upper === 1 ? "title" : "mixed";
+}
+
 /** The casing of the letters of `text`. */
 export function casingOf(text: string): Casing {
+  // ASCII words (most words) need no case mapping per character.
+  let letters = 0;
+  let upper = 0;
+  let firstUpper = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const code = text.charCodeAt(i);
+    if (code > 127) return unicodeCasing(text);
+    if (code >= 65 && code <= 90) {
+      letters += 1;
+      upper += 1;
+      if (letters === 1) firstUpper = true;
+    } else if (code >= 97 && code <= 122) letters += 1;
+  }
+  return casingFrom(letters, upper, firstUpper);
+}
+
+function unicodeCasing(text: string): Casing {
   let letters = 0;
   let upper = 0;
   let firstUpper = false;
   for (const char of text) {
     const lower = char.toLowerCase();
-    const up = char.toUpperCase();
-    if (lower === up) continue;
+    if (lower === char.toUpperCase()) continue;
     letters += 1;
     if (char !== lower) {
       upper += 1;
       if (letters === 1) firstUpper = true;
     }
   }
-  if (letters === 0) return "none";
-  if (upper === 0) return "lower";
-  if (upper === letters) return letters === 1 ? "title" : "upper";
-  return firstUpper && upper === 1 ? "title" : "mixed";
+  return casingFrom(letters, upper, firstUpper);
 }
 
 /**
@@ -152,4 +175,19 @@ export function endsSentence(tokens: readonly Token[], index: number): boolean {
     next += 1;
   const token = tokens[next];
   return token === undefined || (token.type === "punct" && SENTENCE_END.has(token.text));
+}
+
+/**
+ * The word and number tokens of `text` from `start` (a token boundary) on, as tokenize gives
+ * them, without token objects: the phrase tables read only words. `visit` returns false to
+ * stop.
+ */
+export function forEachWord(
+  text: string,
+  start: number,
+  visit: (start: number, word: string) => boolean,
+): void {
+  WORDS.lastIndex = start;
+  for (let m = WORDS.exec(text); m; m = WORDS.exec(text))
+    if (m[2] !== undefined && !visit(m.index, m[2])) return;
 }
