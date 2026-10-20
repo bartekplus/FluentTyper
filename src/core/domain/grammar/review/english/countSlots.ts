@@ -1,12 +1,11 @@
 import { MASS_WITH_COUNT_SENSE } from "../../implementations/helpers/EnglishCountability";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { frameMatches, hasUserOrCasedWord, SPACE, WORD_END } from "../phraseTemplates";
+import { hasUserOrCasedWord } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { MASS } from "./nounNumberSlots";
 import {
   caseLike,
-  english,
   evidence,
   FUNCTION_WORDS,
   nounOnly,
@@ -34,21 +33,6 @@ const AMOUNT_UNITS =
 // Nouns of address after "thank you so much": "Thanks so much guys".
 const VOCATIVES = /^(?:guys|folks|ladies|gentlemen|friends|kids|boys|girls)$/;
 
-function push(
-  ctx: DetectContext,
-  findings: RawFinding[],
-  start: number,
-  end: number,
-  alternatives: string[],
-  from: number,
-): void {
-  findings.push(
-    finding("englishCountability", "review_msg_countability", start, end, alternatives, {
-      context: evidence(ctx, from, end),
-    }),
-  );
-}
-
 /** A plural noun the lexicon reads as nothing else, heading its phrase (no noun after it). */
 function pluralHead(ctx: DetectContext, noun: string, end: number, verbNext: boolean): boolean {
   // After less/much an -s word is no verb: "engineers" counts though "to engineer" exists.
@@ -72,70 +56,12 @@ const SINGULAR_S =
 const CLAUSE_LINKS = /^(?:after|before|since|until|than|then|ago|when|while)$/;
 const IRREGULAR_PLURALS = /^(?:people|children|men|women|feet|teeth|mice|geese)$/;
 
-/** "less people" -> fewer; "too much meetings" -> many. */
-function amountBeforePlural(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, `(?<target>less|much)${SPACE}(?<noun>[a-z]+)${WORD_END}`)) {
-    const { target, noun } = m.groups!;
-    const word = target.toLowerCase();
-    const end = m.index + m[0].length;
-    if (ctx.dictionary.has(noun) || !pluralHead(ctx, noun, end, word === "less")) continue;
-    const before = wordBefore(ctx, m.index);
-    // "no less", "more or less", "much less" (let alone) keep their own sense; "a little less
-    // points", "is less taxes" weigh an amount; "revenue less expenses" subtracts.
-    if (/^(?:no|or|much|any|the|than|little|is|are|was|were|be)$/.test(before)) continue;
-    if (/[\d%][ \t\u00a0]*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))) continue;
-    if (word === "less" && before && nounOnly(before)) continue;
-    if (word === "much") {
-      // "how much companies are capable", "not much changes": a clause after much; only a
-      // noun-only plural closing its phrase ("this much drugs.", "much videos of it") counts.
-      if (before === "how" || nounOnly(noun) !== "plural" || VOCATIVES.test(noun)) continue;
-      const next = tokensAfter(ctx, end, 1)[0];
-      if (next?.kind === "word" && !PREPOSITIONS.has(next.lower)) continue;
-      // "Thank you so much guys", "I miss you so much folks": a vocative, not a count.
-      const clause = /[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, m.index - 80), m.index))![0];
-      if (/\b(?:thanks?|love|miss|appreciate)\b/i.test(clause)) continue;
-    }
-    const [start, targetEnd] = m.indices!.groups!.target;
-    push(
-      ctx,
-      findings,
-      start,
-      targetEnd,
-      [caseLike(target, word === "less" ? "fewer" : "many")],
-      m.index,
-    );
-  }
-  return findings;
-}
-
 const MASS_COUNT: Record<string, string> = {
   many: "much",
   few: "little",
   several: "some",
   fewer: "less",
 };
-
-/** "many money", "a few homework": a count word before an uncountable noun. */
-function countBeforeMass(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?<target>many|few|several|fewer)${SPACE}(?<noun>${MASS_WORDS})${WORD_END}`,
-  )) {
-    const { target, noun } = m.groups!;
-    if (COUNTED_ELSEWHERE.has(noun) || COUNT_SENSE.has(noun)) continue;
-    if (hasUserOrCasedWord(ctx, m[0])) continue;
-    // "many research papers", "many junk bonds": the noun modifies the next one.
-    const phraseEnd = m.index + m[0].length;
-    const next = tokensAfter(ctx, phraseEnd, 1)[0];
-    if (compound(ctx, phraseEnd) || (next?.kind === "word" && englishWordInfo(next.lower)?.plural))
-      continue;
-    const [start, end] = m.indices!.groups!.target;
-    push(ctx, findings, start, end, [caseLike(target, MASS_COUNT[target.toLowerCase()])], m.index);
-  }
-  return findings;
-}
 
 /** The next word continues a compound noun ("a research paper", "much news coverage"). */
 function compound(ctx: DetectContext, end: number): boolean {
@@ -150,21 +76,73 @@ function compound(ctx: DetectContext, end: number): boolean {
   return read.noun || read.plural;
 }
 
-const MASS_WORDS = [...MASS].join("|");
+const countFinding = (
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  alternatives: string[],
+  from: number,
+): RawFinding =>
+  finding("englishCountability", "review_msg_countability", start, end, alternatives, {
+    context: evidence(ctx, from, end),
+  });
 
-/** "A knowledge is power", "an incorrect advice": a/an before an uncountable noun. */
-function articleBeforeMass(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?<=(?<![\\p{L}'’-])(?<article>an?)(?<adjectives>(?:${SPACE}[a-z]{1,30}){0,3}?)${SPACE})(?<noun>${MASS_WORDS})${WORD_END}`,
-    "article",
-  )) {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  countAmountPlural: (m, ctx) => {
+    const { target, noun } = m.groups!;
+    const word = target.toLowerCase();
+    const end = m.index + m[0].length;
+    if (ctx.dictionary.has(noun) || !pluralHead(ctx, noun, end, word === "less")) return null;
+    const before = wordBefore(ctx, m.index);
+    // "no less", "more or less", "much less" (let alone) keep their own sense; "a little less
+    // points", "is less taxes" weigh an amount; "revenue less expenses" subtracts.
+    if (/^(?:no|or|much|any|the|than|little|is|are|was|were|be)$/.test(before)) return null;
+    if (/[\d%][ \t\u00a0]*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))) return null;
+    if (word === "less" && before && nounOnly(before)) return null;
+    if (word === "much") {
+      // "how much companies are capable", "not much changes": a clause after much; only a
+      // noun-only plural closing its phrase ("this much drugs.", "much videos of it") counts.
+      if (before === "how" || nounOnly(noun) !== "plural" || VOCATIVES.test(noun)) return null;
+      const next = tokensAfter(ctx, end, 1)[0];
+      if (next?.kind === "word" && !PREPOSITIONS.has(next.lower)) return null;
+      // "Thank you so much guys", "I miss you so much folks": a vocative, not a count.
+      const clause = /[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, m.index - 80), m.index))![0];
+      if (/\b(?:thanks?|love|miss|appreciate)\b/i.test(clause)) return null;
+    }
+    const [start, targetEnd] = m.indices!.groups!.target;
+    return countFinding(
+      ctx,
+      start,
+      targetEnd,
+      [caseLike(target, word === "less" ? "fewer" : "many")],
+      m.index,
+    );
+  },
+  countBeforeMass: (m, ctx) => {
+    const { target, noun } = m.groups!;
+    if (COUNTED_ELSEWHERE.has(noun) || COUNT_SENSE.has(noun)) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    // "many research papers", "many junk bonds": the noun modifies the next one.
+    const phraseEnd = m.index + m[0].length;
+    const next = tokensAfter(ctx, phraseEnd, 1)[0];
+    if (compound(ctx, phraseEnd) || (next?.kind === "word" && englishWordInfo(next.lower)?.plural))
+      return null;
+    const [start, end] = m.indices!.groups!.target;
+    return countFinding(
+      ctx,
+      start,
+      end,
+      [caseLike(target, MASS_COUNT[target.toLowerCase()])],
+      m.index,
+    );
+  },
+  countArticleMass: (m, ctx) => {
     const { article, adjectives, noun } = m.groups!;
-    if (COUNT_SENSE.has(noun)) continue;
+    if (COUNT_SENSE.has(noun)) return null;
     const words = adjectives.trim().split(/\s+/).filter(Boolean);
     // Right after the article, grammarStyle1's massNouns owns these nouns.
-    if (!words.length && COUNTED_ELSEWHERE.has(noun)) continue;
+    if (!words.length && COUNTED_ELSEWHERE.has(noun)) return null;
     // "a little advice", "a lot of": only plain adjectives (and degree words) stand between.
     if (
       !words.every(
@@ -176,13 +154,13 @@ function articleBeforeMass(ctx: DetectContext): RawFinding[] {
             !englishWordInfo(w)?.plural),
       )
     )
-      continue;
+      return null;
     const end = m.index + m[0].length;
     // "a good knowledge of French" is standard; "a research project" is a compound; "a news
     // and media company" coordinates modifiers.
     const next = tokensAfter(ctx, end, 1)[0];
-    if ((noun === "knowledge" && next?.lower === "of") || compound(ctx, end)) continue;
-    if (/^(?:and|or)$/.test(next?.lower ?? "")) continue;
+    if ((noun === "knowledge" && next?.lower === "of") || compound(ctx, end)) return null;
+    if (/^(?:and|or)$/.test(next?.lower ?? "")) return null;
     // "a deep respect for", "a direct mail of 25,000": a described abstract noun with its
     // complement can take "a"; the core nouns never do.
     if (
@@ -190,15 +168,10 @@ function articleBeforeMass(ctx: DetectContext): RawFinding[] {
       /^(?:of|for|to|toward|towards|in|with|that)$/.test(next?.lower ?? "") &&
       !COUNTED_ELSEWHERE.has(noun)
     )
-      continue;
-    if (hasUserOrCasedWord(ctx, ctx.text.slice(m.indices!.groups!.article[0], end))) continue;
+      return null;
+    if (hasUserOrCasedWord(ctx, ctx.text.slice(m.indices!.groups!.article[0], end))) return null;
     const rest = ctx.text.slice(m.indices!.groups!.article[1], end).replace(/^[ \t\u00a0]+/, "");
     const [start] = m.indices!.groups!.article;
-    push(ctx, findings, start, end, [caseLike(article, rest)], start);
-  }
-  return findings;
-}
-
-export const PREDICATES = {
-  countNouns: english(amountBeforePlural, countBeforeMass, articleBeforeMass),
-} satisfies Record<string, Detector>;
+    return countFinding(ctx, start, end, [caseLike(article, rest)], start);
+  },
+} satisfies Record<string, MatchFixer>;

@@ -1,17 +1,10 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { frameMatches, SPACE as S, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
-import { quotedMention } from "./grammarStyle1";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { finding } from "../finding";
 
 // stylePassiveVoice (optional): a form of "be" with a past participle ("was caused by", "is
 // said to", "have been finalized"). A note, not a fix: turning it active needs the doer.
 
-const ADVERB =
-  "not|never|also|already|still|yet|often|always|usually|generally|commonly|widely|long|" +
-  "previously|now|just|recently|partly|largely|mostly|entirely|being|[a-z]{3,}ly";
-const PASSIVE = `(?<be>am|is|are|was|were|be|been|being|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)(?:${S}(?:${ADVERB})){0,3}${S}(?<p>[a-z]{3,})(?:${S}(?:up|out|down|off|over|away|back))?${WORD_END}(?<after>${S}(?:by|to|that)${WORD_END})?`;
 // Participles that usually describe a state ("is closed", "was tired"): passive only with "by".
 const STATIVE = new Set(
   (
@@ -32,38 +25,22 @@ const REPORTING = new Set(
   ),
 );
 
-type Finding = RawFinding;
-
-function passives(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
-  for (const m of frameMatches(ctx, PASSIVE, "be")) {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  stylePassive: (m, ctx) => {
     const { p, after } = m.groups!;
     const read = englishWordInfo(p);
-    if (!read?.verbs.some((v) => v.form === "participle") || ctx.dictionary.has(p)) continue;
+    if (!read?.verbs.some((v) => v.form === "participle") || ctx.dictionary.has(p)) return null;
     const link = after?.trim().toLowerCase() ?? "";
     const agent = link === "by";
     const reported = (link === "to" || link === "that") && REPORTING.has(p);
-    if (!agent && !reported && (STATIVE.has(p) || read.adjective)) continue;
+    if (!agent && !reported && (STATIVE.has(p) || read.adjective)) return null;
     // "is used to it", "are supposed to": set phrases, not passives.
-    if (link === "to" && !reported) continue;
+    if (link === "to" && !reported) return null;
     const start = m.index;
     const end = m.index + m[0].length - (after?.length ?? 0);
-    findings.push(
-      finding("stylePassiveVoice", "review_msg_passive_voice", start, end, [], {
-        warningOnly: true,
-      }),
-    );
-  }
-  return findings;
-}
-
-/** English only; findings inside a quoted or parenthesized example are dropped. */
-const english =
-  (detect: (ctx: DetectContext) => Finding[]) =>
-  (ctx: DetectContext): Finding[] =>
-    ctx.lang !== "en_US" ? [] : detect(ctx).filter((f) => !quotedMention(ctx, f));
-
-/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
-export const PREDICATES = {
-  passiveVoice: english(passives),
-} satisfies Record<string, Detector>;
+    return finding("stylePassiveVoice", "review_msg_passive_voice", start, end, [], {
+      warningOnly: true,
+    });
+  },
+} satisfies Record<string, MatchFixer>;

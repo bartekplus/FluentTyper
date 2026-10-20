@@ -1,12 +1,10 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
-import { namedExampleBefore } from "../exampleCues";
+import type { RawFinding } from "../reviewDetectors";
+import type { FindingsFilter, MatchFixer } from "../../engine/reviewRules";
 import { quotedMention } from "./grammarStyle1";
 import { finding } from "../finding";
 
-// English commas and stray marks.
+// English commas and stray marks; grammar/rules/en.yaml holds their frames.
 // englishPunctuation (on by default): a comma right before a sentence mark (",." ",!"), a comma
 // inside a closing parenthesis (",)"), a comma splitting "neither … nor" or an indirect
 // question from its verb ("Do you know, if").
@@ -16,151 +14,29 @@ import { finding } from "../finding";
 
 type Finding = RawFinding;
 
-/** Matches of a global regex starting in [from, to), outside named examples. */
-function* owned(ctx: DetectContext, regex: RegExp): Generator<RegExpExecArray> {
-  regex.lastIndex = Math.max(0, ctx.from - 64);
-  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText))
-    if (m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)) yield m;
-}
-
 // ---------------------------------------------------------------------------- englishPunctuation
 
-const COMMA_MARK = /(?<=\p{L}|\p{N}|[)"”’])[,;](?=[.!?](?!\.))/gu;
-const COMMA_PAREN = /(?<=[\p{L}\p{N}]),\)/gu;
-// "for a “spell checker.”.": a period inside the closing quote and another after it.
-// Only after a lowercase word: "Acme Corp.".", "Cyc."." (a title) and "etc."." keep theirs.
-const PERIOD_QUOTE_PERIOD = /(?<=(?<![\p{L}\p{N}.])(?<word>\p{Ll}{3,})\.["”])\.(?!\.)/gu;
 const ABBREVIATION = /^(?:etc|inc|ltd|corp|approx|vol|eds|misc|dept|est|fig|ibid|viz|incl)$/;
-// "Where did she go." A capitalized question word, an auxiliary and a pronoun open a direct
-// question; no comma or other mark comes before its period.
-const WH_QUESTION =
-  /(?<=(?:^|[.!?]["”’)]?[ \t ]{1,8}|\n[ \t ]{0,8}))(?:What|Where|When|Why|How|Who|Which)[ \t ]+(?:do|does|did|is|are|was|were|can|could|will|would|should|shall|have|has)(?:n['’]t)?[ \t ]+(?:I|you|he|she|we|they|it)(?![\p{L}'’])[^.!?,;:\n"“”()]{0,80}\.(?![.\p{L}\p{N}])/gu;
 // Set phrases that end with a period: "What do you know.", "How do you do.", and a
 // suggestion "Why don't you call her first."
 const NOT_A_QUESTION = /^(?:What do you know\.$|How do you do\.$|Why don['’]t (?:you|we)\b)/;
-// "neither rich, nor poor": two items take no comma.
-const NEITHER =
-  /\bneither\b(?<items>[^,.;:!?\n]{1,60}),(?=[  ]+nor\b(?![^.;:!?\n]*,[  ]*nor\b))/giu;
-const INDIRECT = `(?<lead>let me know|let us know|I wonder|I'm wondering|I am wondering|I was wondering|I don't know|I do not know|do you know|does anyone know|does anybody know|I'm not sure|I am not sure)(?<comma>,)${S}(?:if|whether|who|what|where|when|why|how)${E}`;
-const POLITE_IF = `(?:would be (?:great|nice|good|helpful|wonderful)|would appreciate it|would be grateful|would you mind)(?<comma>,)${S}if${S}(?:you|we|I|someone|anyone|somebody|anybody)${E}`;
 
-// "She isn't coming is she?": a question tag; "I found it thanks.": a closing thanks.
-// A tag pairs a negative auxiliary with a positive statement ("isn't she?") or a positive one
-// with a negative statement ("is she?"); "do it?" ends in an object, not a tag.
-const TAG =
-  /(?<=[\p{L}\p{N}])(?<gap>[ \t ]+)(?:(?<neg>isn't|wasn't|aren't|weren't|don't|doesn't|didn't|won't|wouldn't|can't|couldn't|haven't|hasn't|shouldn't)[ \t ]+(?:I|you|he|she|it|we|they|there)|(?<pos>is|was|are|were|do|does|did|will|would|can|could|have|has|should)[ \t ]+(?:I|you|he|she|we|they|there|it(?<=(?:is|was)[ \t ]+it)))[ \t ]*\?/gu;
 const QUESTION_OPENING =
   /^(?:is|isn't|was|wasn't|are|aren't|were|weren't|do|don't|does|doesn't|did|didn't|will|won't|would|wouldn't|can|can't|could|couldn't|have|haven't|has|hasn't|should|shouldn't|shall|may|might|must|what|who|whom|whose|which|where|when|why|how)\b/i;
-// "I found it thanks.", "Sounds good thanks.": a short reply, then its thanks.
-const CLOSING_THANKS = /(?<=[\p{L}\p{N}])(?<gap>[ \t\u00a0]+)thanks(?=[ \t\u00a0]*[.!])/giu;
 const BEFORE_THANKS = new Set(
   "it that this them good great perfect fine awesome helpful nice cool works worked helped helps done fixed".split(
     " ",
   ),
 );
 
-function asideCommas(ctx: DetectContext): Finding[] {
-  const out: Finding[] = [];
-  const add = (start: number, gap: string) =>
-    out.push(
-      finding("styleClauseComma", "review_msg_aside_comma", start, start + gap.length, [
-        `,${gap.replace(/^[ \t ]*/, " ")}`,
-      ]),
-    );
-  for (const m of owned(ctx, TAG)) {
-    // The statement before the tag opens its sentence with neither an auxiliary nor a wh-word.
-    const before = ctx.text.slice(Math.max(0, m.index - 200), m.index);
-    const cut = Math.max(...[...".!?\n￼"].map((c) => before.lastIndexOf(c)));
-    const sentence = before.slice(cut + 1).trim();
-    if (!sentence || QUESTION_OPENING.test(sentence) || /,$/.test(sentence)) continue;
-    // "Guess who is it?", "I wonder what is it?": an embedded question, not a tag.
-    if (
-      /\b(?:who|what|which|where|when|why|how|whether|if|than|as|so|that|because)$/i.test(sentence)
-    )
-      continue;
-    if (!/\b(?:I|you|he|she|it|we|they|there|this|that)\b|^\p{Lu}/u.test(sentence)) continue;
-    const negative = /n['’]t\b|\bnot\b|\bnever\b/i.test(sentence);
-    if (m.groups!.neg ? negative : !negative) continue;
-    add(m.index, m.groups!.gap);
-  }
-  for (const m of owned(ctx, CLOSING_THANKS)) {
-    const word = /([\p{L}\p{N}']+)$/u.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1];
-    if (!word || !BEFORE_THANKS.has(word.toLowerCase())) continue;
-    // The sentence before has a verb or is a reply ("Sounds good thanks").
-    add(m.index, m.groups!.gap);
-  }
-  return out;
-}
-
-function punctuation(ctx: DetectContext): Finding[] {
-  const out: Finding[] = [];
-  const add = (start: number, end: number, alternatives: string[]) =>
-    out.push(
-      finding("englishPunctuation", "review_msg_stray_comma", start, end, alternatives, {
-        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-      }),
-    );
-  for (const m of owned(ctx, COMMA_MARK)) add(m.index, m.index + 1, [""]);
-  for (const m of owned(ctx, COMMA_PAREN)) add(m.index, m.index + 2, ["),", ")"]);
-  for (const m of owned(ctx, PERIOD_QUOTE_PERIOD)) {
-    if (ABBREVIATION.test(m.groups!.word)) continue;
-    out.push(
-      finding("englishPunctuation", "review_msg_duplicate_punctuation", m.index, m.index + 1, [""]),
-    );
-  }
-  for (const m of owned(ctx, WH_QUESTION)) {
-    if (NOT_A_QUESTION.test(m[0])) continue;
-    const at = m.index + m[0].length - 1;
-    out.push(finding("englishPunctuation", "review_msg_question_mark", at, at + 1, ["?"]));
-  }
-  for (const m of owned(ctx, NEITHER)) {
-    const start = m.index + m[0].length - 1;
-    add(start, start + 1, [""]);
-  }
-  for (const pattern of [INDIRECT, POLITE_IF])
-    for (const m of frameMatches(ctx, pattern, "comma")) {
-      const [start] = m.indices!.groups!.comma;
-      add(start, start + 1, [""]);
-    }
-  return out;
-}
-
 // ---------------------------------------------------------------------------- styleIntroductoryComma
 
-const LINKING =
-  "However|Nonetheless|Nevertheless|Besides|Alas|Similarly|Also|Furthermore|Moreover|Therefore|" +
-  "Consequently|Meanwhile|Otherwise|Additionally|Finally|Firstly|Secondly|Lastly|Unfortunately|" +
-  "Fortunately|Of course|For example|For instance|In fact|In addition|In conclusion|In summary|" +
-  "On the other hand|As a result|In other words|By default|That said|Indeed|Instead|Likewise";
-// Bounded gaps: an unbounded run in the lookbehind is reread at every position of a long run
-// of spaces (quadratic, and 100+ ms a chunk once JavaScriptCore runs the regex interpreted).
-const OPENER = new RegExp(
-  `(?<=(?:^|[.!?]["”’)]?[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<w>${LINKING})(?<gap>[ \\t\\u00a0]+)(?<next>[\\p{L}]+)`,
-  "gu",
-);
 // "However large errors can occur" reads as "in whatever way large": only before a subject.
 const SUBJECT_STARTS = new Set(
   "I you he she it we they this that these those there the a an my your his her our their its".split(
     " ",
   ),
 );
-const OBJECT = "it|you|me|him|her|them|us";
-const SUBJECT = "I|we|you|they|he|she|it";
-const PREPOSITIONS = "with|for|to|at|about|on|in|by|after|around|from|into|without|like";
-// "With it I can", "if you work at it you can": a phrase ending in an object pronoun, then a
-// new subject with its verb.
-const PHRASE_THEN_CLAUSE = `(?:${PREPOSITIONS})${S}(?<obj>${OBJECT})(?<gap>${S})(?<subject>${SUBJECT})${S}(?<verb>[a-z]+(?:['’][a-z]+)?)${E}`;
-// "If I can I will", "If it does it usually is": a short condition, then the main clause.
-const CONDITION = `(?<lead>If|if)${S}(?:${SUBJECT})${S}(?<aux>can|can['’]t|cannot|could|couldn['’]t|does|doesn['’]t|do|don['’]t|did|didn['’]t|is|isn['’]t|was|wasn['’]t|will|won['’]t|would|wouldn['’]t|have|haven['’]t|has|hasn['’]t)(?:${S}not)?(?<gap>${S})(?<subject>${SUBJECT}|we['’]ll|I['’]ll|you['’]ll|they['’]ll|it['’]ll|I['’]m)${E}`;
-// "Hey there this is great", "Great please have a look", "Awesome thanks for the help": a
-// greeting or a one-word reply opens the sentence before its clause.
-const GREETING = new RegExp(
-  `(?<=(?:^|[.!?]["”’)]?[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<w>(?:Hey|Hi|Hello) there|(?:Great|Awesome|Perfect|Cool|Nice|Excellent|Wonderful|Fantastic|Brilliant|Okay|Ok|Sure)(?=[ \\t\\u00a0]+(?:please|thanks|thank you)(?![\\p{L}'’])))(?<gap>[ \\t\\u00a0]+)(?=[\\p{L}])(?!(?:and|or|but)(?![\\p{L}]))`,
-  "gu",
-);
-// "I for one think so": the aside takes commas on both sides.
-const I_FOR_ONE = /(?<![\p{L}'’])I[ \t ]+for[ \t ]+one(?=[ \t ]+[a-z])/gu;
-const NAME_ADDRESS = `(?<w>Thanks|Thank you|Hi|Hello|Hey there|Happy Birthday|Good morning|Good night)(?<gap>${S})(?<name>[A-Za-z]+)${E}`;
 const NOT_NAMES = new Set(
   "again all everyone everybody guys folks so very for to and you".split(" "),
 );
@@ -170,73 +46,8 @@ const FINITE = new Set(
   ),
 );
 
-function introductoryCommas(ctx: DetectContext): Finding[] {
-  const out: Finding[] = [];
-  // The comma goes before the space after the phrase.
-  const add = (start: number, gap: string) =>
-    out.push({
-      ruleId: "styleIntroductoryComma",
-      messageKey: "review_msg_introductory_comma",
-      range: { start, end: start + gap.length },
-      alternatives: [`,${gap}`],
-    });
-  for (const m of owned(ctx, OPENER)) {
-    const { w, next } = m.groups!;
-    if (w === "However" && !SUBJECT_STARTS.has(next.toLowerCase())) continue;
-    // "Also known as", "Finally done": an adverb modifying the next word.
-    if (
-      englishWordInfo(next)?.verbs.some((v) => v.form === "participle") &&
-      !SUBJECT_STARTS.has(next.toLowerCase())
-    )
-      continue;
-    add(m.index + w.length, m.groups!.gap);
-  }
-  for (const m of frameMatches(ctx, PHRASE_THEN_CLAUSE, "gap")) {
-    const verb = m.groups!.verb.toLowerCase();
-    const read = englishWordInfo(verb);
-    if (!FINITE.has(verb) && !/['’]/.test(verb) && !read?.verbs.some((v) => v.form !== "ing"))
-      continue;
-    add(m.indices!.groups!.gap[0], m.groups!.gap);
-  }
-  for (const m of frameMatches(ctx, CONDITION, "gap")) {
-    const before = ctx.text.slice(Math.max(0, m.index - 3), m.index);
-    // "If" opens its sentence or follows a comma.
-    if (
-      m.index > 0 &&
-      !/(?:[.!?,;:]["”’)]?[ \t ]+|\n|^)$/.test(ctx.text.slice(0, m.index).slice(-4)) &&
-      before.trim()
-    )
-      continue;
-    add(m.indices!.groups!.gap[0], m.groups!.gap);
-  }
-  for (const m of owned(ctx, GREETING)) add(m.index + m.groups!.w.length, m.groups!.gap);
-  for (const m of owned(ctx, I_FOR_ONE))
-    out.push({
-      ruleId: "styleIntroductoryComma",
-      messageKey: "review_msg_introductory_comma",
-      range: { start: m.index, end: m.index + m[0].length },
-      alternatives: [`I, for one,`],
-    });
-  for (const m of frameMatches(ctx, NAME_ADDRESS, "gap")) {
-    const name = m.groups!.name;
-    // The frame ignores case; a name is capitalized.
-    if (!/^[A-Z][a-z]+$/.test(name)) continue;
-    // "Thanks Again", "Thank you Very much": a capitalized ordinary word, not a name.
-    const read = englishWordInfo(name.toLowerCase());
-    if (read?.adverb || read?.adjective || NOT_NAMES.has(name.toLowerCase())) continue;
-    add(m.indices!.groups!.gap[0], m.groups!.gap);
-  }
-  return out;
-}
-
 // ---------------------------------------------------------------------------- styleClauseComma
 
-// "I voted early and I plan to vote again" -> "early, and I": two complete clauses joined by a
-// coordinator take a comma. Both sides must read as clauses: the first opens with its subject
-// and has a finite verb; the second opens with a subject and its verb, an inverted question,
-// or "please" + a request.
-const JOINERS =
-  /(?<=[\p{L}\p{N}%)'’])(?<gap>[ \t\u00a0]+)(?<conj>and|but|or|so|yet|although)(?=[ \t\u00a0])/gu;
 const CLAUSE_WORD = /[\p{L}\p{N}$][\p{L}\p{N}'’$.&/-]*/gu;
 // A clause boundary: a sentence mark before a capital, other stops, a comma or protected text.
 const CLAUSE_BREAK = /[.!?]["”’)]*(?=[ \t\u00a0]+["“(]?\p{Lu}|$)|[;:\n\uFFFC]|,(?!\d)/gu;
@@ -417,12 +228,92 @@ function opensClause(text: string, at: number): boolean {
   );
 }
 
-// "The older we get the wiser we are", "The sooner the better": a comma ends the first half.
-const CORRELATIVE = `(?<![\\p{L}'’])[Tt]he${S}(?:more|less|fewer|[a-z]{2,}er)(?:${S}(?:I|we|you|he|she|they|it|one|people)${S}(?<verb>[a-z]+))?(?<gap>${S})the${S}(?:more|less|fewer|[a-z]{2,}er)${E}`;
+const stray = (start: number, end: number, alternatives: string[]): Finding =>
+  finding("englishPunctuation", "review_msg_stray_comma", start, end, alternatives, {
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+  });
+const aside = (start: number, gap: string): Finding =>
+  finding("styleClauseComma", "review_msg_aside_comma", start, start + gap.length, [
+    `,${gap.replace(/^[ \t ]*/, " ")}`,
+  ]);
+// The comma goes before the space after the phrase.
+const introductory = (start: number, gap: string): Finding => ({
+  ruleId: "styleIntroductoryComma",
+  messageKey: "review_msg_introductory_comma",
+  range: { start, end: start + gap.length },
+  alternatives: [`,${gap}`],
+});
+const atGap = (m: RegExpExecArray) => introductory(m.indices!.groups!.gap[0], m.groups!.gap);
 
-function correlativeCommas(ctx: DetectContext): Finding[] {
-  const out: Finding[] = [];
-  for (const m of frameMatches(ctx, CORRELATIVE, "gap")) {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  punctuationCommaMark: (m) => stray(m.index, m.index + 1, [""]),
+  punctuationCommaParen: (m) => stray(m.index, m.index + 2, ["),", ")"]),
+  punctuationPeriodQuotePeriod: (m) =>
+    ABBREVIATION.test(m.groups!.word)
+      ? null
+      : finding("englishPunctuation", "review_msg_duplicate_punctuation", m.index, m.index + 1, [
+          "",
+        ]),
+  punctuationWhQuestion: (m) => {
+    if (NOT_A_QUESTION.test(m[0])) return null;
+    const at = m.index + m[0].length - 1;
+    return finding("englishPunctuation", "review_msg_question_mark", at, at + 1, ["?"]);
+  },
+  punctuationLastMark: (m) => {
+    const start = m.index + m[0].length - 1;
+    return stray(start, start + 1, [""]);
+  },
+  punctuationComma: (m) => {
+    const [start] = m.indices!.groups!.comma;
+    return stray(start, start + 1, [""]);
+  },
+  introductoryOpener: (m) => {
+    const { w, next } = m.groups!;
+    if (w === "However" && !SUBJECT_STARTS.has(next.toLowerCase())) return null;
+    // "Also known as", "Finally done": an adverb modifying the next word.
+    if (
+      englishWordInfo(next)?.verbs.some((v) => v.form === "participle") &&
+      !SUBJECT_STARTS.has(next.toLowerCase())
+    )
+      return null;
+    return introductory(m.index + w.length, m.groups!.gap);
+  },
+  introductoryPhrase: (m) => {
+    const verb = m.groups!.verb.toLowerCase();
+    const read = englishWordInfo(verb);
+    if (!FINITE.has(verb) && !/['’]/.test(verb) && !read?.verbs.some((v) => v.form !== "ing"))
+      return null;
+    return atGap(m);
+  },
+  introductoryCondition: (m, ctx) => {
+    const before = ctx.text.slice(Math.max(0, m.index - 3), m.index);
+    // "If" opens its sentence or follows a comma.
+    if (
+      m.index > 0 &&
+      !/(?:[.!?,;:]["”’)]?[ \t ]+|\n|^)$/.test(ctx.text.slice(0, m.index).slice(-4)) &&
+      before.trim()
+    )
+      return null;
+    return atGap(m);
+  },
+  introductoryGreeting: (m) => introductory(m.index + m.groups!.w.length, m.groups!.gap),
+  introductoryIForOne: (m) => ({
+    ruleId: "styleIntroductoryComma",
+    messageKey: "review_msg_introductory_comma",
+    range: { start: m.index, end: m.index + m[0].length },
+    alternatives: [`I, for one,`],
+  }),
+  introductoryNameAddress: (m) => {
+    const name = m.groups!.name;
+    // The frame ignores case; a name is capitalized.
+    if (!/^[A-Z][a-z]+$/.test(name)) return null;
+    // "Thanks Again", "Thank you Very much": a capitalized ordinary word, not a name.
+    const read = englishWordInfo(name.toLowerCase());
+    if (read?.adverb || read?.adjective || NOT_NAMES.has(name.toLowerCase())) return null;
+    return atGap(m);
+  },
+  clauseCorrelative: (m) => {
     const words = m[0].toLowerCase().split(/[ \t ]+/);
     // Comparatives only: "the other the", "the water the" are no pair.
     const compared = [words[1], words[words.length - 1]].every(
@@ -438,54 +329,64 @@ function correlativeCommas(ctx: DetectContext): Finding[] {
         words[1],
       )
     )
-      continue;
+      return null;
     const [start] = m.indices!.groups!.gap;
-    out.push(
-      finding("styleClauseComma", "review_msg_clause_comma", start, start + m.groups!.gap.length, [
-        `,${m.groups!.gap}`,
-      ]),
+    return finding(
+      "styleClauseComma",
+      "review_msg_clause_comma",
+      start,
+      start + m.groups!.gap.length,
+      [`,${m.groups!.gap}`],
     );
-  }
-  return out;
-}
-
-function clauseCommas(ctx: DetectContext): Finding[] {
-  const out: Finding[] = [...correlativeCommas(ctx), ...asideCommas(ctx)];
-  for (const m of owned(ctx, JOINERS)) {
+  },
+  clauseTag: (m, ctx) => {
+    // The statement before the tag opens its sentence with neither an auxiliary nor a wh-word.
+    const before = ctx.text.slice(Math.max(0, m.index - 200), m.index);
+    const cut = Math.max(...[...".!?\n￼"].map((c) => before.lastIndexOf(c)));
+    const sentence = before.slice(cut + 1).trim();
+    if (!sentence || QUESTION_OPENING.test(sentence) || /,$/.test(sentence)) return null;
+    // "Guess who is it?", "I wonder what is it?": an embedded question, not a tag.
+    if (
+      /\b(?:who|what|which|where|when|why|how|whether|if|than|as|so|that|because)$/i.test(sentence)
+    )
+      return null;
+    if (!/\b(?:I|you|he|she|it|we|they|there|this|that)\b|^\p{Lu}/u.test(sentence)) return null;
+    const negative = /n['’]t\b|\bnot\b|\bnever\b/i.test(sentence);
+    if (m.groups!.neg ? negative : !negative) return null;
+    return aside(m.index, m.groups!.gap);
+  },
+  clauseClosingThanks: (m, ctx) => {
+    const word = /([\p{L}\p{N}']+)$/u.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1];
+    if (!word || !BEFORE_THANKS.has(word.toLowerCase())) return null;
+    // The sentence before has a verb or is a reply ("Sounds good thanks").
+    return aside(m.index, m.groups!.gap);
+  },
+  clauseJoiner: (m, ctx) => {
     const { gap, conj } = m.groups!;
     const after = m.index + gap.length + conj.length;
-    if (!opensClause(ctx.text, after)) continue;
+    if (!opensClause(ctx.text, after)) return null;
     const before = ctx.text.slice(Math.max(0, m.index - 256), m.index);
     let cut = 0;
     for (const b of before.matchAll(CLAUSE_BREAK)) cut = b.index + b[0].length;
-    if (conj === "so" && /^[ \t\u00a0]+that\b/i.test(ctx.text.slice(after, after + 8))) continue;
+    if (conj === "so" && /^[ \t ]+that\b/i.test(ctx.text.slice(after, after + 8))) return null;
     const tail = ctx.text.slice(after, after + 240);
-    const end = tail.search(/[.!?;:,\n\uFFFC]/);
+    const end = tail.search(/[.!?;:,\n￼]/);
     const rest = end < 0 ? tail : tail.slice(0, end);
     const question = /^[^.!\n]*\?/.test(tail);
-    if (!firstClause(before.slice(cut), conj, question)) continue;
-    if (!secondClause(rest, conj, question)) continue;
+    if (!firstClause(before.slice(cut), conj, question)) return null;
+    if (!secondClause(rest, conj, question)) return null;
     // "you and I went": a coordinated subject, not two clauses.
-    if (/\byou$/i.test(before) && !/thank you$/i.test(before) && /^[ \t\u00a0]*I\b/.test(tail))
-      continue;
-    out.push(
-      finding("styleClauseComma", "review_msg_clause_comma", m.index, m.index + gap.length, [
-        `,${gap}`,
-      ]),
-    );
-  }
-  return out;
-}
+    if (/\byou$/i.test(before) && !/thank you$/i.test(before) && /^[ \t ]*I\b/.test(tail))
+      return null;
+    return finding("styleClauseComma", "review_msg_clause_comma", m.index, m.index + gap.length, [
+      `,${gap}`,
+    ]);
+  },
+} satisfies Record<string, MatchFixer>;
 
-/** English only; findings inside a quoted or parenthesized example are dropped. */
-const english =
-  (detect: (ctx: DetectContext) => Finding[]) =>
-  (ctx: DetectContext): Finding[] =>
-    ctx.lang !== "en_US" ? [] : detect(ctx).filter((f) => !quotedMention(ctx, f));
-
-/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
-export const PREDICATES = {
-  punctuation: english(punctuation),
-  introductoryCommas: english(introductoryCommas),
-  clauseCommas: english(clauseCommas),
-} satisfies Record<string, Detector>;
+/** The named findings filters of grammar/rules/en.yaml (`filter:`). */
+export const FILTERS = {
+  /** US English only; findings inside a quoted or parenthesized example are dropped. */
+  usOutsideExamples: (ctx, findings) =>
+    ctx.lang !== "en_US" ? [] : findings.filter((f) => !quotedMention(ctx, f)),
+} satisfies Record<string, FindingsFilter>;

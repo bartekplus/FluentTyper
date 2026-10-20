@@ -1,12 +1,9 @@
 import { englishVerbNouns, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   afterBreak,
   caseLike,
-  english,
   evidence,
   FUNCTION_WORDS,
   nounOnly,
@@ -103,18 +100,12 @@ function derivedNouns(verb: string): string[] {
   return found.slice(0, 2);
 }
 
-// "Yesterday's deploy": a name's or a noun's possessive, not a contraction ("it's", "he's").
-const DETERMINER =
-  "(?:the|a|an|my|your|his|our|their|its|(?!(?:it|he|she|that|there|here|what|who|where|how|let)['’]s)[a-z]+['’]s)";
+const MODAL_THEY =
+  /^(?:would|should|could|cannot|can['’]t|won['’]t|don['’]t|didn['’]t|wouldn['’]t|shouldn['’]t|couldn['’]t|haven['’]t)$/;
 
-/** "The translate to English was correct", "Sorry for the late respond": a verb as a noun. */
-function verbAsNoun(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `${DETERMINER}${SPACE}(?<first>[a-z]+)(?:${SPACE}(?<second>[a-z]+))?${WORD_END}`,
-    "first",
-  )) {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  determinerVerbAsNoun: (m, ctx) => {
     const { first, second } = m.groups!;
     // "the late respond": one adjective may stand between.
     const adjective = englishWordInfo(first);
@@ -124,15 +115,15 @@ function verbAsNoun(ctx: DetectContext): RawFinding[] {
       (first === "only" ||
         (!!adjective?.adjective && !adjective.verbs.length && !FUNCTION_WORDS.has(first)));
     const word = skip ? second : first;
-    if (ctx.dictionary.has(word) || !verbOnly(word)) continue;
+    if (ctx.dictionary.has(word) || !verbOnly(word)) return null;
     const wordEnd = skip ? m.index + m[0].length : m.indices!.groups!.first[1];
     // "this/that" can be a pronoun subject: "that explains it". Only before a closing word.
     const det = m[0].split(/\s+/)[0].toLowerCase();
     // After a possessive ("Kim's", but also "co's" for companies) only an authored noun;
     // idioms3 owns "a/the complain".
-    if (/['’]s$/.test(det) ? !VERB_NOUNS.has(word) : word === "complain") continue;
+    if (/['’]s$/.test(det) ? !VERB_NOUNS.has(word) : word === "complain") return null;
     const next = tokensAfter(ctx, wordEnd, 1)[0];
-    if (/^(?:this|that)$/.test(det)) continue;
+    if (/^(?:this|that)$/.test(det)) return null;
     // A following noun or verb object makes the word a modifier or the determiner a mistake
     // elsewhere ("the install script"); only a phrase end, preposition or verb follows.
     if (
@@ -150,38 +141,29 @@ function verbAsNoun(ctx: DetectContext): RawFinding[] {
       ) &&
       !(MODIFIER_NOUNS.has(word) && (!!nounOnly(next.lower) || !!englishWordInfo(next.lower)?.noun))
     )
-      continue;
-    if (next?.kind === "other") continue;
+      return null;
+    if (next?.kind === "other") return null;
     // "on the lose" is "loose".
     if (
       word === "lose" &&
       /on[ \t]+the[ \t]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index + 4))
     )
-      continue;
+      return null;
     const nouns = derivedNouns(word);
-    if (!nouns.length) continue;
+    if (!nouns.length) return null;
     const [start, end] = skip ? m.indices!.groups!.second : m.indices!.groups!.first;
-    findings.push({
+    return {
       ruleId: "englishConfusedWords",
       messageKey: "review_msg_confused_word",
       range: { start, end },
       alternatives: nouns.map((n) => caseLike(word, n)),
       ...(nouns.length > 1 ? { requiresChoice: true as const } : {}),
       context: evidence(ctx, m.index, end),
-    });
-  }
-  return findings;
-}
-
-const MODAL_THEY =
-  /^(?:would|should|could|cannot|can['’]t|won['’]t|don['’]t|didn['’]t|wouldn['’]t|shouldn['’]t|couldn['’]t|haven['’]t)$/;
-
-/** "The cannot help you", "if the create the concept": "the" where "they" is meant. */
-function theForThey(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, `(?<target>the)${SPACE}(?=[a-z])`)) {
+    };
+  },
+  determinerTheForThey: (m, ctx) => {
     const target = m.groups!.target;
-    if (target !== target.toLowerCase() && !afterBreak(ctx, m.index)) continue;
+    if (target !== target.toLowerCase() && !afterBreak(ctx, m.index)) return null;
     const before = wordBefore(ctx, m.index);
     if (
       !afterBreak(ctx, m.index) &&
@@ -189,9 +171,9 @@ function theForThey(ctx: DetectContext): RawFinding[] {
         before,
       )
     )
-      continue;
+      return null;
     const [first, second, third] = tokensAfter(ctx, m.index + m[0].length, 3);
-    if (first?.kind !== "word" || first.text !== first.lower) continue;
+    if (first?.kind !== "word" || first.text !== first.lower) return null;
     let ok = MODAL_THEY.test(first.lower);
     // "The will make me happy" but "The will states…": a base verb after will/can/may.
     if (!ok && /^(?:will|can|may|might|must)$/.test(first.lower))
@@ -250,19 +232,14 @@ function theForThey(ctx: DetectContext): RawFinding[] {
         /^(?:the|a|an|us|them|me|him|her|it|you|my|your|our|their)$/.test(second.lower) &&
         !(third?.kind === "word" && third.lower === "of");
     }
-    if (!ok) continue;
+    if (!ok) return null;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
+    return {
       ruleId: "englishConfusedWords",
       messageKey: "review_msg_confused_word",
       range: { start, end },
       alternatives: [caseLike(target, "they")],
       context: evidence(ctx, m.index, first.end),
-    });
-  }
-  return findings;
-}
-
-export const PREDICATES = {
-  determinerConfusions: english(verbAsNoun, theForThey),
-} satisfies Record<string, Detector>;
+    };
+  },
+} satisfies Record<string, MatchFixer>;
