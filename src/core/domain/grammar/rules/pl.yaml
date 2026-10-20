@@ -29,6 +29,9 @@ fragments:
   # Prepositions that take only the genitive.
   GENITIVE_ONLY: "dla|do|od|bez|u|według|wg|oprócz|prócz|zamiast|obok|koło|wokół|wśród|spośród|spod|znad|zza|sprzed"
   JAKI: "jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi"
+  # Short words that may stand between a subject pronoun and its verb ("ona już wyszła").
+  BETWEEN: "(?:(?:się|nie|już|też|także|również|wtedy|wczoraj|dziś|zawsze|nigdy|jednak|często|szybko|nagle|wreszcie|tylko)[ \\t\\u00a0]{1,8}){0,2}"
+  ZOSTAC: "został|została|zostało|zostały"
   # Conjunctions, question words and relative pronouns that open a subordinate clause.
   SUBORDINATORS: "że|iż|żeby|ażeby|aby|by|ponieważ|gdyż|jeśli|jeżeli|gdyby|zanim|dopóki|gdy|zamiast|ale|lecz|dlaczego|gdzie|kiedy|który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy|jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi"
 
@@ -1033,9 +1036,73 @@ rules:
       # "cofnął się o krok do tyłu": moving back is already "cofać się".
       - regex: "cof\\p{L}{0,6}{{S}}się(?:{{S}}\\p{L}{1,12}){1,2}(?<target>{{S}}(?:wstecz|do{{S}}tyłu|w{{S}}tył)){{E}}"
         fix: ""
+  # Subject and verb: a past form agrees with "on"/"ona" in gender ("ona poszła", not "ona
+  # poszedł"), and "został"/"została"/"zostało"/"zostały" with the adjective or participle after
+  # it ("zostało zrobione", not "zostało zrobiony").
   - id: pl.subjects
     checks: [polishCaseAgreement]
-    predicate: subjects
+    style: match
+    message: review_msg_pl_subject_verb
+    frames:
+      # "on poszła", "ona przyszedł": the pronoun disagrees with the past form's gender.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>on|ona){{S}}{{BETWEEN}}(?<verb>\\p{L}{2,}ł(?<fem>a)?)(?![\\p{L}\\p{N}_'’@/-]))"
+        scan: polish
+        flags: gdiu
+        fixer: pronounGender
+      # "Przywróciła on pokój": the verb opens the clause, the pronoun follows it.
+      - regex: "(?<target>(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<verb>\\p{L}{3,}ł(?<fem>a)?){{S}}(?<pronoun>on|ona)(?![\\p{L}\\p{N}_'’@/-]))"
+        scan: polish
+        flags: gdu
+        fixer: pronounGender
+      # "zostało zrobiony" -> "zrobione": the nominative after "zostać" takes the verb's gender.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<aux>{{ZOSTAC}}){{S}}(?<word>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-]))"
+        scan: polish
+        flags: gdiu
+        fixer: zostacAgreement
+      # "Zrobiony zostało": the participle opens the clause.
+      - regex: "(?<target>(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<word>\\p{L}{3,}){{S}}(?<aux>{{ZOSTAC}})(?![\\p{L}\\p{N}_'’@/-]))"
+        scan: polish
+        flags: gdu
+        fixer: zostacAgreement
+  # A plural subject and its past form: men take "-li" ("studenci przyszli"), everyone and
+  # everything else "-ły" ("dzieci przyszły", "kobiety były"); "Pływanie nie są zdrowe".
+  - id: pl.subjectNumber
+    checks: [polishCaseAgreement]
+    # predicate: the noun and verb scans move lastIndex back to the noun's end to read overlapping frames.
+    predicate: subjectNumber
+  - id: pl.subjectsFrames
+    checks: [polishCaseAgreement]
+    style: match
+    message: review_msg_pl_subject_verb
+    frames:
+      # "Większość (ludności kraju) było" -> "była": before "być" or "zostać", which take no object,
+      # "większość" is the subject, a feminine singular.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])większość(?<between>(?:{{S}}\\p{L}+){0,3}?){{S}}(?<verb>było|zostało|pozostało)(?![\\p{L}\\p{N}_'’@/-]))"
+        scan: polish
+        flags: gdiu
+        fixer: majority
+      # "będzie zrobić", "będzie zrobił", "zaczął napisać": the compound future's "być" and the phase
+      # verbs take an imperfective infinitive.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<aux>będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|zacz(?:ął|ęła|ęło|ęli|ęły|nę|niesz|nie|niemy|niecie|ną)|zaczyna\\p{L}*|przesta\\p{L}*|przestanie|kończy\\p{L}*|skończy\\p{L}*){{S}}(?:(?:się|nie|to|go|ją|je|mu|mi|jej|im|ci|już|znowu|znów){{S}}){0,2}(?<verb>\\p{L}{4,})(?![\\p{L}\\p{N}_'’@/-]))"
+        scan: polish
+        flags: gdiu
+        fixer: aspect
+      # "Nigdy tego zrobiłam", "Nikt przyszedł": a negative pronoun or adverb without "nie".
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<neg>nigdy|nikt|nikogo|nikomu|niczego|nigdzie|nic){{S}}(?:(?:tego|to|go|ją|je|mu|mi|jej|im|nam|wam|ci|się|już|tam|tu){{S}}){0,2}(?<verb>\\p{L}{2,})(?![\\p{L}\\p{N}_'’@/-]))"
+        scan: polish
+        flags: gdiu
+        fixer: doubleNegation
+      # "Oficerowie byli nieobecne" -> "nieobecni", "Kobiety były zmęczeni" -> "zmęczone": a plural
+      # "być" or "zostać" and the adjective that ends its clause.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<verb>(?:by|zosta)(?:li|ły)(?:śmy|ście)?){{S}}(?:(?:bardzo|już|nadal|wciąż|też|także|również|zawsze|naprawdę|zbyt|całkiem|zupełnie|wtedy|tam|tu){{S}})?(?<adj>\\p{L}{4,})(?=[ \\t\\u00a0]{0,8}(?:[.,;:!?…)]|$|(?:i|oraz|a|ale)[ \\t\\u00a0])))"
+        scan: polish
+        flags: gdiu
+        fixer: predicateAdjectives
+      # "jakiś dziewczyn", "od jakiś kilku lat" -> "jakichś": the genitive or locative plural.
+      - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<target>jakiś){{S}}(?<next>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])"
+        scan: polish
+        flags: gdiu
+        fixer: jakis
   - id: pl.typosFrames
     checks: [englishPhraseCorrections]
     style: polish

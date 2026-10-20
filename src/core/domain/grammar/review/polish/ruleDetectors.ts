@@ -52,6 +52,7 @@ export const FIXERS = mergePredicates<Fixer>(
   forms.FIXERS,
   officialese.FIXERS,
   style.FIXERS,
+  subjects.FIXERS,
   typos.FIXERS,
 );
 

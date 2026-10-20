@@ -1,4 +1,4 @@
-import type { Detector } from "../../engine/reviewRules";
+import type { Detector, MatchFixer, MatchResult } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   adjectiveForm,
@@ -22,7 +22,6 @@ import {
 } from "./lexicon";
 import {
   caseLike,
-  CLAUSE_START,
   findingAt,
   isPl,
   owned,
@@ -43,67 +42,37 @@ const MESSAGE = "review_msg_pl_subject_verb" as const;
 
 /** Short words that may stand between a subject pronoun and its verb ("ona już wyszła"). */
 const BETWEEN = `(?:(?:się|nie|już|też|także|również|wtedy|wczoraj|dziś|zawsze|nigdy|jednak|często|szybko|nagle|wreszcie|tylko)${S}){0,2}`;
-const PRONOUN_VERB = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>on|ona)${S}${BETWEEN}(?<verb>\\p{L}{2,}ł(?<fem>a)?)(?![\\p{L}\\p{N}_'’@/-])`,
-  "giud",
-);
-// "Przywróciła on pokój": the verb opens the clause, the pronoun follows it.
-const VERB_PRONOUN = new RegExp(
-  `${CLAUSE_START}(?<verb>\\p{L}{3,}ł(?<fem>a)?)${S}(?<pronoun>on|ona)(?![\\p{L}\\p{N}_'’@/-])`,
-  "gud",
-);
 
 const pastForm = (word: string) => finiteVerb(word) || pastByShape(word);
 
 /** "on poszła", "ona przyszedł": the pronoun disagrees with the past form's gender. */
-function pronounGender(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const regex of [PRONOUN_VERB, VERB_PRONOUN])
-    for (const m of owned(ctx, regex)) {
-      const { pronoun, verb, fem } = m.groups!;
-      const feminine = pronoun.toLowerCase() === "ona";
-      if (feminine === !!fem || !pastForm(verb.toLowerCase()) || userOrNamed(ctx, verb)) continue;
-      const [start, end] = m.indices!.groups!.pronoun;
-      findings.push({
-        ...findingAt(ctx, start, end, [caseLike(pronoun, feminine ? "on" : "ona")], RULE, MESSAGE),
-        context: { start: m.index, end: m.index + m[0].length },
-      });
-    }
-  return findings;
+function pronounGender(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { pronoun, verb, fem } = m.groups!;
+  const feminine = pronoun.toLowerCase() === "ona";
+  if (feminine === !!fem || !pastForm(verb.toLowerCase()) || userOrNamed(ctx, verb)) return null;
+  const [start, end] = m.indices!.groups!.pronoun;
+  return {
+    ...findingAt(ctx, start, end, [caseLike(pronoun, feminine ? "on" : "ona")], RULE, MESSAGE),
+    context: { start: m.index, end: m.index + m[0].length },
+  };
 }
 
-const ZOSTAC = "został|została|zostało|zostały";
-const AUX_FIRST = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])(?<aux>${ZOSTAC})${S}(?<word>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])`,
-  "giud",
-);
-// "Zrobiony zostało": the participle opens the clause.
-const AUX_AFTER = new RegExp(
-  `${CLAUSE_START}(?<word>\\p{L}{3,})${S}(?<aux>${ZOSTAC})(?![\\p{L}\\p{N}_'’@/-])`,
-  "gud",
-);
-
 /** "zostało zrobiony" -> "zrobione": the nominative after "zostać" takes the verb's gender. */
-function zostacAgreement(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const regex of [AUX_FIRST, AUX_AFTER])
-    for (const m of owned(ctx, regex)) {
-      const { aux, word } = m.groups!;
-      const lower = word.toLowerCase();
-      const adjective = adjectiveOf(lower);
-      if (!adjective || userOrNamed(ctx, word) || onlyNoun(nounTags(lower))) continue;
-      const { lemma } = adjective;
-      const forms = [lemma, adjectiveForm(lemma, "a"), adjectiveForm(lemma, "e")];
-      if (!forms.includes(lower)) continue;
-      const wanted = { został: 0, została: 1, zostało: 2, zostały: 2 }[aux.toLowerCase()]!;
-      if (forms[wanted] === lower) continue;
-      const [start, end] = m.indices!.groups!.word;
-      findings.push({
-        ...findingAt(ctx, start, end, [caseLike(word, forms[wanted])], RULE, MESSAGE),
-        context: { start: m.index, end: m.index + m[0].length },
-      });
-    }
-  return findings;
+function zostacAgreement(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { aux, word } = m.groups!;
+  const lower = word.toLowerCase();
+  const adjective = adjectiveOf(lower);
+  if (!adjective || userOrNamed(ctx, word) || onlyNoun(nounTags(lower))) return null;
+  const { lemma } = adjective;
+  const forms = [lemma, adjectiveForm(lemma, "a"), adjectiveForm(lemma, "e")];
+  if (!forms.includes(lower)) return null;
+  const wanted = { został: 0, została: 1, zostało: 2, zostały: 2 }[aux.toLowerCase()]!;
+  if (forms[wanted] === lower) return null;
+  const [start, end] = m.indices!.groups!.word;
+  return {
+    ...findingAt(ctx, start, end, [caseLike(word, forms[wanted])], RULE, MESSAGE),
+    context: { start: m.index, end: m.index + m[0].length },
+  };
 }
 
 /*
@@ -178,39 +147,26 @@ function singularSubjects(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-/**
- * "Większość (ludności kraju) było" -> "była": before "być" or "zostać", which take no object,
- * "większość" is the subject, a feminine singular.
- */
-const MAJORITY = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])większość(?<between>(?:${S}\\p{L}+){0,3}?)${S}(?<verb>było|zostało|pozostało)(?![\\p{L}\\p{N}_'’@/-])`,
-  "giud",
-);
-
-function majority(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, MAJORITY)) {
-    const { between, verb } = m.groups!;
-    // Only genitives between: "z nich", "ludności", "polskich miast".
-    const genitive = (word: string) =>
-      /^(?:z|ze|nich|nas|was|tych|tego|tej|ich|jego|jej|(?:m|tw|sw)oj(?:ej|ego)|(?:m|tw|sw)oich|(?:nasz|wasz)(?:ej|ego|ych))$/u.test(
-        word,
-      ) ||
-      (nounTags(word) & cases("Gs Gp")) !== 0 ||
-      /^(?:ego|ej|ych)$/u.test(adjectiveOf(word)?.ending ?? "");
-    const words = between.match(/\p{L}+/gu) ?? [];
-    if (!words.every((word) => genitive(word.toLowerCase()))) continue;
-    // "(Przez) większość czasu było zimno": a span of time before an impersonal predicate.
-    if (NOT_SUBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))) continue;
-    const next = /^[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(m.index + m[0].length))?.[1];
-    if (next && /o$/u.test(next) && !onlyNoun(nounTags(next.toLowerCase()))) continue;
-    const [start, end] = m.indices!.groups!.verb;
-    findings.push({
-      ...findingAt(ctx, start, end, [caseLike(verb, `${verb.slice(0, -1)}a`)], RULE, MESSAGE),
-      context: { start: m.index, end },
-    });
-  }
-  return findings;
+function majority(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { between, verb } = m.groups!;
+  // Only genitives between: "z nich", "ludności", "polskich miast".
+  const genitive = (word: string) =>
+    /^(?:z|ze|nich|nas|was|tych|tego|tej|ich|jego|jej|(?:m|tw|sw)oj(?:ej|ego)|(?:m|tw|sw)oich|(?:nasz|wasz)(?:ej|ego|ych))$/u.test(
+      word,
+    ) ||
+    (nounTags(word) & cases("Gs Gp")) !== 0 ||
+    /^(?:ego|ej|ych)$/u.test(adjectiveOf(word)?.ending ?? "");
+  const words = between.match(/\p{L}+/gu) ?? [];
+  if (!words.every((word) => genitive(word.toLowerCase()))) return null;
+  // "(Przez) większość czasu było zimno": a span of time before an impersonal predicate.
+  if (NOT_SUBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))) return null;
+  const next = /^[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(m.index + m[0].length))?.[1];
+  if (next && /o$/u.test(next) && !onlyNoun(nounTags(next.toLowerCase()))) return null;
+  const [start, end] = m.indices!.groups!.verb;
+  return {
+    ...findingAt(ctx, start, end, [caseLike(verb, `${verb.slice(0, -1)}a`)], RULE, MESSAGE),
+    context: { start: m.index, end },
+  };
 }
 
 /** "Dzieci byli tutaj" -> "były", "Studenci przyszły" -> "przyszli". */
@@ -255,12 +211,6 @@ function pluralSubjects(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
-/** A plural "być" or "zostać" and the adjective that ends its clause ("byli zmęczeni."). */
-const PREDICATE = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])(?<verb>(?:by|zosta)(?:li|ły)(?:śmy|ście)?)${S}(?:(?:bardzo|już|nadal|wciąż|też|także|również|zawsze|naprawdę|zbyt|całkiem|zupełnie|wtedy|tam|tu)${S})?(?<adj>\\p{L}{4,})(?=[ \\t\\u00a0]{0,8}(?:[.,;:!?…)]|$|(?:i|oraz|a|ale)[ \\t\\u00a0]))`,
-  "giud",
-);
-
 /** An adjective form read through a "nie-" prefix the lexicon does not list ("nieobecne"). */
 function adjectiveWithNie(word: string): { lemma: string; ending: string } | null {
   const adjective = adjectiveOf(word);
@@ -277,160 +227,129 @@ function virileLemmaWithNie(word: string): string | null {
 }
 
 /** "Oficerowie byli nieobecne" -> "nieobecni", "Kobiety były zmęczeni" -> "zmęczone". */
-function predicateAdjectives(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, PREDICATE)) {
-    const { verb, adj } = m.groups!;
-    if (nounTags(adj) & ALL_CASES || ambiguousAdjective(adj) || userOrNamed(ctx, adj)) continue;
-    const virileVerb = /li/u.test(verb.toLowerCase());
-    // A subject of the other gender before the verb ("Dzieci byli zmęczone"): the verb is
-    // what disagrees (pluralSubjects), not the adjective.
-    const word =
-      /(\p{L}+)[ \t ]+$/u
-        .exec(ctx.text.slice(Math.max(0, m.index - 30), m.index))?.[1]
-        .toLowerCase() ?? "";
-    const subject = nounTags(word);
-    if (onlyNoun(subject) && subject & cases("Np")) {
-      // A thing's plural the lexicon also reads as men's ("praktyki", "powody") is no man's; a
-      // man's noun it does not mark ("kolarze") still has a man's shape.
-      const men = menOnlyPlural(word);
-      const maybeMen = men || (subject & MASCULINE && menPluralShape(word));
-      if (virileVerb ? !maybeMen : men) continue;
-    }
-    let fixes: string[];
-    if (virileVerb) {
-      const adjective = adjectiveWithNie(adj);
-      if (adjective?.ending !== "e") continue;
-      const virile = virileAdjective(adjective.lemma);
-      fixes = virile ? [virile] : [];
-    } else {
-      const lemma = virileLemmaWithNie(adj);
-      if (!lemma || adjectiveOf(adj)) continue;
-      fixes = [adjectiveForm(lemma, "e")];
-    }
-    const [start, end] = m.indices!.groups!.adj;
-    findings.push({
-      ...findingAt(ctx, start, end, fixes, RULE, "review_msg_pl_agreement"),
-      context: { start: m.index, end },
-    });
+function predicateAdjectives(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { verb, adj } = m.groups!;
+  if (nounTags(adj) & ALL_CASES || ambiguousAdjective(adj) || userOrNamed(ctx, adj)) return null;
+  const virileVerb = /li/u.test(verb.toLowerCase());
+  // A subject of the other gender before the verb ("Dzieci byli zmęczone"): the verb is
+  // what disagrees (pluralSubjects), not the adjective.
+  const word =
+    /(\p{L}+)[ \t ]+$/u
+      .exec(ctx.text.slice(Math.max(0, m.index - 30), m.index))?.[1]
+      .toLowerCase() ?? "";
+  const subject = nounTags(word);
+  if (onlyNoun(subject) && subject & cases("Np")) {
+    // A thing's plural the lexicon also reads as men's ("praktyki", "powody") is no man's; a
+    // man's noun it does not mark ("kolarze") still has a man's shape.
+    const men = menOnlyPlural(word);
+    const maybeMen = men || (subject & MASCULINE && menPluralShape(word));
+    if (virileVerb ? !maybeMen : men) return null;
   }
-  return findings;
+  let fixes: string[];
+  if (virileVerb) {
+    const adjective = adjectiveWithNie(adj);
+    if (adjective?.ending !== "e") return null;
+    const virile = virileAdjective(adjective.lemma);
+    fixes = virile ? [virile] : [];
+  } else {
+    const lemma = virileLemmaWithNie(adj);
+    if (!lemma || adjectiveOf(adj)) return null;
+    fixes = [adjectiveForm(lemma, "e")];
+  }
+  const [start, end] = m.indices!.groups!.adj;
+  return {
+    ...findingAt(ctx, start, end, fixes, RULE, "review_msg_pl_agreement"),
+    context: { start: m.index, end },
+  };
 }
 
-/** The compound future's "być" and the phase verbs, which take an imperfective infinitive. */
-const ASPECT = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])(?<aux>będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|zacz(?:ął|ęła|ęło|ęli|ęły|nę|niesz|nie|niemy|niecie|ną)|zaczyna\\p{L}*|przesta\\p{L}*|przestanie|kończy\\p{L}*|skończy\\p{L}*)${S}(?:(?:się|nie|to|go|ją|je|mu|mi|jej|im|ci|już|znowu|znów)${S}){0,2}(?<verb>\\p{L}{4,})(?![\\p{L}\\p{N}_'’@/-])`,
-  "giud",
-);
 /** Words before a future "będzie" + infinitive: its subject, a question word or a time. */
 const FUTURE_SUBJECT =
   /^(?:ja|ty|on|ona|ono|my|wy|oni|one|kto|co|czy|nie|już|też|jutro|wkrótce|zaraz|potem|wtedy|później|dziś|dzisiaj|wieczorem|rano|że|gdy|kiedy|jeśli|i|a|ale)$/iu;
 
 /** "będzie zrobić", "będzie zrobił", "zaczął napisać": a perfective after them. */
-function aspect(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, ASPECT)) {
-    const { aux, verb } = m.groups!;
-    const future = /^będ/iu.test(aux);
-    // The future takes an infinitive or a past form; the phase verbs only an infinitive.
-    if (!future && !/[ćc]$/u.test(verb)) continue;
-    // "będzie dojrzały": a past form that is also an adjective is the predicate.
-    const lower = verb.toLowerCase();
-    if (!/[ćc]$/u.test(lower) && (adjectiveOf(lower) || nounTags(lower))) continue;
-    if (!perfectiveVerb(verb.toLowerCase()) || userOrNamed(ctx, verb)) continue;
-    if (future && /[ćc]$/u.test(lower)) {
-      // "będzie" + infinitive is a future only after its subject or a time word: "Najlepiej
-      // będzie wyznać", "Zmuszona będę uciec", "Trzeba to będzie zrobić" use it as a copula.
-      const before = /(\p{L}+)[ \t ]+$/u.exec(
-        ctx.text.slice(Math.max(0, m.index - 30), m.index),
-      )?.[1];
-      const tags = before ? nounTags(before.toLowerCase()) : 0;
-      if (before && !FUTURE_SUBJECT.test(before) && !onlyNoun(tags)) continue;
-      // "Pierwszym krokiem będzie wyjechać": an instrumental noun makes "będzie" the copula.
-      if (tags & cases("Is Ip") && !(tags & cases("Ns Np"))) continue;
-      // "Będą umrzeć musieli": the modal comes after its infinitive.
-      const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30);
-      if (/^[ \t ]+(?:mus|mog|móg|chci|chcie|mia|mie|potraf|umia|umie)\p{L}*/iu.test(after))
-        continue;
-    }
-    const [start, end] = m.indices!.groups!.verb;
-    findings.push({
-      ...findingAt(ctx, start, end, [], RULE, "review_msg_pl_aspect"),
-      context: { start: m.index, end },
-    });
+function aspect(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { aux, verb } = m.groups!;
+  const future = /^będ/iu.test(aux);
+  // The future takes an infinitive or a past form; the phase verbs only an infinitive.
+  if (!future && !/[ćc]$/u.test(verb)) return null;
+  // "będzie dojrzały": a past form that is also an adjective is the predicate.
+  const lower = verb.toLowerCase();
+  if (!/[ćc]$/u.test(lower) && (adjectiveOf(lower) || nounTags(lower))) return null;
+  if (!perfectiveVerb(verb.toLowerCase()) || userOrNamed(ctx, verb)) return null;
+  if (future && /[ćc]$/u.test(lower)) {
+    // "będzie" + infinitive is a future only after its subject or a time word: "Najlepiej
+    // będzie wyznać", "Zmuszona będę uciec", "Trzeba to będzie zrobić" use it as a copula.
+    const before = /(\p{L}+)[ \t ]+$/u.exec(
+      ctx.text.slice(Math.max(0, m.index - 30), m.index),
+    )?.[1];
+    const tags = before ? nounTags(before.toLowerCase()) : 0;
+    if (before && !FUTURE_SUBJECT.test(before) && !onlyNoun(tags)) return null;
+    // "Pierwszym krokiem będzie wyjechać": an instrumental noun makes "będzie" the copula.
+    if (tags & cases("Is Ip") && !(tags & cases("Ns Np"))) return null;
+    // "Będą umrzeć musieli": the modal comes after its infinitive.
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30);
+    if (/^[ \t ]+(?:mus|mog|móg|chci|chcie|mia|mie|potraf|umia|umie)\p{L}*/iu.test(after))
+      return null;
   }
-  return findings;
+  const [start, end] = m.indices!.groups!.verb;
+  return {
+    ...findingAt(ctx, start, end, [], RULE, "review_msg_pl_aspect"),
+    context: { start: m.index, end },
+  };
 }
 
-/** "Nigdy tego zrobiłam", "Nikt przyszedł": a negative pronoun or adverb without "nie". */
-const NEGATIVE = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])(?<neg>nigdy|nikt|nikogo|nikomu|niczego|nigdzie|nic)${S}(?:(?:tego|to|go|ją|je|mu|mi|jej|im|nam|wam|ci|się|już|tam|tu)${S}){0,2}(?<verb>\\p{L}{2,})(?![\\p{L}\\p{N}_'’@/-])`,
-  "giud",
-);
 /** Before the word: a comparison ("jak nikt"), a preposition ("za nic", "o nic"). */
 const NOT_NEGATING_BEFORE = new RegExp(
   `(?:^|[^\\p{L}])(?:jak|niż|niczym|prawie|${PREPOSITIONS})[ \\t\\u00a0]+$`,
   "iu",
 );
 
-function doubleNegation(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, NEGATIVE)) {
-    const { verb } = m.groups!;
-    if (!finiteVerb(verb) && !pastByShape(verb)) continue;
-    if (NOT_NEGATING_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))) continue;
-    if (userOrNamed(ctx, verb)) continue;
-    const [start, end] = m.indices!.groups!.verb;
-    findings.push({
-      ...findingAt(ctx, start, end, [`nie ${verb}`], RULE, "review_msg_pl_double_negation"),
-      context: { start: m.index, end },
-    });
-  }
-  return findings;
+function doubleNegation(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { verb } = m.groups!;
+  if (!finiteVerb(verb) && !pastByShape(verb)) return null;
+  if (NOT_NEGATING_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))) return null;
+  if (userOrNamed(ctx, verb)) return null;
+  const [start, end] = m.indices!.groups!.verb;
+  return {
+    ...findingAt(ctx, start, end, [`nie ${verb}`], RULE, "review_msg_pl_double_negation"),
+    context: { start: m.index, end },
+  };
 }
 
 /** Numerals in the genitive ("od jakichś kilku lat"). */
 const GENITIVE_COUNT =
   /^(?:kilku|paru|kilkunastu|kilkudziesięciu|kilkuset|dwóch|dwu|trzech|czterech|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|stu|tysięcy|wielu|niewielu)$/u;
-const JAKIS = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/-])(?<target>jakiś)${S}(?<next>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])`,
-  "giud",
-);
 const SINGULAR_DIRECT = cases("Ns As Gs Ds Is Ls Vs Np");
 const PLURAL_OBLIQUE = cases("Gp Lp");
 
 /** "jakiś dziewczyn", "od jakiś kilku lat" -> "jakichś": the genitive or locative plural. */
-function jakis(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, JAKIS)) {
-    const { target, next } = m.groups!;
-    const tags = nounTags(next.toLowerCase());
-    const plural =
-      GENITIVE_COUNT.test(next.toLowerCase()) ||
-      (onlyNoun(tags) && tags & PLURAL_OBLIQUE && !(tags & SINGULAR_DIRECT));
-    if (!plural || userOrNamed(ctx, next)) continue;
-    const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ...findingAt(ctx, start, end, [caseLike(target, "jakichś")], RULE, "review_msg_pl_agreement"),
-      context: { start: m.index, end: m.index + m[0].length },
-    });
-  }
-  return findings;
+function jakis(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { target, next } = m.groups!;
+  const tags = nounTags(next.toLowerCase());
+  const plural =
+    GENITIVE_COUNT.test(next.toLowerCase()) ||
+    (onlyNoun(tags) && tags & PLURAL_OBLIQUE && !(tags & SINGULAR_DIRECT));
+  if (!plural || userOrNamed(ctx, next)) return null;
+  const [start, end] = m.indices!.groups!.target;
+  return {
+    ...findingAt(ctx, start, end, [caseLike(target, "jakichś")], RULE, "review_msg_pl_agreement"),
+    context: { start: m.index, end: m.index + m[0].length },
+  };
 }
 
 export const PREDICATES = {
-  subjects: (ctx: DetectContext) =>
-    isPl(ctx)
-      ? [
-          ...pronounGender(ctx),
-          ...zostacAgreement(ctx),
-          ...pluralSubjects(ctx),
-          ...singularSubjects(ctx),
-          ...majority(ctx),
-          ...aspect(ctx),
-          ...doubleNegation(ctx),
-          ...predicateAdjectives(ctx),
-          ...jakis(ctx),
-        ]
-      : [],
+  subjectNumber: (ctx: DetectContext) =>
+    isPl(ctx) ? [...pluralSubjects(ctx), ...singularSubjects(ctx)] : [],
 } satisfies Record<string, Detector>;
+
+/** The named frame fixes of the subject rules of grammar/rules/pl.yaml (`fixer:`). */
+export const FIXERS = {
+  pronounGender,
+  zostacAgreement,
+  majority,
+  aspect,
+  doubleNegation,
+  predicateAdjectives,
+  jakis,
+} satisfies Record<string, MatchFixer>;
