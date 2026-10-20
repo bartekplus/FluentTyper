@@ -1,6 +1,7 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
+import { SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { graphWords } from "../wordGraph";
 import type * as Data from "./verbs.generated";
 import { reviewData } from "../reviewLanguageData";
@@ -59,8 +60,6 @@ type Cell = { row: string[]; index: number };
 const DETERMINERS = new Map<string, Cell>();
 for (const row of DETERMINER_ROWS)
   row.forEach((word, index) => word !== "-" && DETERMINERS.set(word, { row, index }));
-// "a" is also the preposition ("a pé", "a meu ver"); "à/às" are portugueseConfusions' crase.
-const NOT_LEADING = new Set(["a", "à", "às"]);
 // Determiners that may be an object pronoun before a verb.
 const PRONOUN_LIKE = new Set(["o", "a", "os", "as", "nos"]);
 // Demonstratives and quantifiers also stand alone ("estes são", "por muitos considerada", "de
@@ -96,15 +95,6 @@ const CONTRACTED = new Set(
     .flat()
     .filter((word) => !/^(?:a|à|às|ao|aos)$/.test(word)),
 );
-
-// Two-gender adjectives that come before a noun: "um grande erupção" -> "uma grande".
-const PRENOMINAL =
-  "grandes?|enormes?|fortes?|breves?|leves?|tristes?|simples|principa(?:l|is)|excelentes?|importantes?|recentes?|\\p{L}{3,}(?:vel|veis)";
-// "a" leads only for the adjective after its noun ("a política econômica").
-const LEAD = [...DETERMINERS.keys()]
-  .filter((word) => word === "a" || !NOT_LEADING.has(word))
-  .join("|");
-const PATTERN = `(?<target>${LEAD})(?=${S}(?:(?<modifier>(?:(?:mais|menos|tão)${S})?(?:${PRENOMINAL}))${S})?(?<noun>\\p{L}+)${W}(?!-))`;
 
 // Words after a determiner that are no noun of their own: pronouns, numbers, adverbs.
 const NOT_NOUNS = new Set(
@@ -492,116 +482,108 @@ function predicateAgreement(
   };
 }
 
-export function nounAgreement(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "pt")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, PATTERN)) {
-    const typed = m.groups!.target;
-    const det = typed.toLowerCase();
-    const noun = m.groups!.noun;
-    const modifier = m.groups!.modifier;
-    if (modifier && modifier !== modifier.toLowerCase()) continue;
-    const [start] = m.indices!.groups!.target;
-    const [nounStart, nounEnd] = m.indices!.groups!.noun;
-    // The user's own word on either side ("um Zeca", "uma ota") is theirs to agree.
-    if (noun !== noun.toLowerCase() || ctx.dictionary.has(noun) || ctx.dictionary.has(det))
-      continue;
-    // "uma empres...": a word cut short.
-    if (/^(?:\.\.|…)/.test(ctx.text.slice(nounEnd, nounEnd + 2))) continue;
-    if (typed !== det && !/^\p{Lu}\p{Ll}*$/u.test(typed)) continue;
-    const cell = DETERMINERS.get(det)!;
-    const context = { start, end: nounEnd };
-    const possessive = POSSESSIVES.get(noun);
-    if (possessive && ARTICLES.has(det) && det !== "a" && !m.groups!.modifier) {
-      const found = possessiveAgreement(ctx, m, cell, possessive);
-      if (found) findings.push(found);
-      continue;
-    }
-    // "Todo os erros" -> "Todos os", "toda as soluções" -> "todas as".
-    const todo = TODO.exec(`${typed} ${noun}`);
-    if (todo && !m.groups!.modifier) {
-      const article = DETERMINERS.get(noun)!;
-      const next = nextNoun(ctx, nounEnd);
-      if (article.index === cell.index || !next || next.plural !== article.index > 1) continue;
-      if (next.feminine !== null && next.feminine !== (article.index % 2 === 1)) continue;
-      // "o mundo todo a admira": after a noun, "todo" may close it and "a" be a pronoun.
-      const before = ctx.text.slice(Math.max(0, start - 40), start);
-      if (!next.certain && !SENTENCE_START.test(before) && !PREPOSITION_BEFORE.test(before))
-        continue;
-      findings.push(
-        finding(start, start + typed.length, typed, [cell.row[article.index]], context),
-      );
-      continue;
-    }
-    // "sou todo ouvidos", "de todo verdade": "todo" only agrees with an article after it.
-    if (/^tod[oa]s?$/.test(det)) continue;
-    const info = analyze(noun);
-    if (!info) continue;
-    const before = ctx.text.slice(Math.max(0, start - 40), start);
-    if (notDeterminer(det, before)) continue;
-    // An ending no verb or adjective has, or a determiner that surely is one.
-    const verbProof = info.certain && !finiteLookalike(noun);
-    // "Este gatos estão", "Um canecas são": a plural verb right after shows a plural subject.
-    const pluralSubject =
-      info.plural &&
-      SENTENCE_START.test(before) &&
-      PLURAL_VERB_AFTER.test(ctx.text.slice(nounEnd, nounEnd + 16));
-    if (
-      !verbProof &&
-      !pluralSubject &&
-      !(QUANTIFIERS.has(det) && info.plural) &&
-      (!plainDeterminer(ctx, det, start, typed) || compoundAfter(ctx, nounEnd, info))
-    )
-      continue;
-    // "colegas meus são": a possessive after its noun, before a verb.
-    if (POSSESSIVE_DETERMINERS.has(det) && info.feminine === null) continue;
-    const detFeminine = cell.index % 2 === 1;
-    const detPlural = cell.index > 1;
-    const genderClash = info.feminine !== null && info.feminine !== detFeminine;
-    // "ao termos", "pelo fazermos": a personal infinitive, not the plural of "termo".
-    const numberClash = info.plural !== detPlural && !(info.plural && /[aeio]rmos$/.test(noun));
-    if (!genderClash && !numberClash) {
-      // Determiner and noun agree: an adjective of kind after them must too.
-      if (info.feminine !== null) {
-        const subject = /^(?:[oa]s?|um|uma|uns|umas)$/.test(det) && SENTENCE_START.test(before);
-        const found = adjectiveAgreement(ctx, nounEnd, info.feminine, info.plural, noun, subject);
-        if (found) findings.push(found);
-        const predicate = predicateAgreement(ctx, start, nounEnd, info.feminine, info.plural);
-        if (predicate) findings.push(predicate);
-      }
-      continue;
-    }
-    // "a" is also the preposition: "a pé", "a cavalo".
-    if (det === "a" && !pluralSubject) continue;
-    // "no euromilhões", "uma Libertadores", "no Contas a Pagar": a plural that agrees with a
-    // singular determiner in nothing is mostly a name.
-    // A contracted preposition still shows the phrase: "na termos" -> "nos termos", but not
-    // before a name like "no Contas a Pagar" written in lowercase.
-    if (
-      info.plural &&
-      !detPlural &&
-      !pluralSubject &&
-      ((genderClash &&
-        (!CONTRACTED.has(det) || NAMED_TASK.test(ctx.text.slice(nounEnd, nounEnd + 24)))) ||
-        (!info.certain && info.feminine === null))
-    )
-      continue;
-    const wanted = cell.row[(info.plural ? 2 : 0) + ((info.feminine ?? detFeminine) ? 1 : 0)];
-    if (wanted === "-") continue;
-    // A number clash may also be the noun's: "os carro" -> "o carro" or "os carros".
-    const nounFix = genderClash || pluralSubject ? null : detPlural ? plural(noun) : singular(noun);
-    if (nounFix) {
-      const between = ctx.text.slice(start + typed.length, nounStart);
-      findings.push(
-        finding(
-          start,
-          nounEnd,
-          typed,
-          [`${wanted}${between}${noun}`, `${det}${between}${nounFix}`],
-          context,
-        ),
-      );
-    } else findings.push(finding(start, start + typed.length, typed, [wanted], context));
+/** The agreement of a determiner and the noun after it (and an adjective or a predicate). */
+const nounPhrase: MatchFixer = (m, ctx) => {
+  const typed = m.groups!.target;
+  const det = typed.toLowerCase();
+  const noun = m.groups!.noun;
+  const modifier = m.groups!.modifier;
+  if (modifier && modifier !== modifier.toLowerCase()) return null;
+  const [start] = m.indices!.groups!.target;
+  const [nounStart, nounEnd] = m.indices!.groups!.noun;
+  // The user's own word on either side ("um Zeca", "uma ota") is theirs to agree.
+  if (noun !== noun.toLowerCase() || ctx.dictionary.has(noun) || ctx.dictionary.has(det))
+    return null;
+  // "uma empres...": a word cut short.
+  if (/^(?:\.\.|…)/.test(ctx.text.slice(nounEnd, nounEnd + 2))) return null;
+  if (typed !== det && !/^\p{Lu}\p{Ll}*$/u.test(typed)) return null;
+  const cell = DETERMINERS.get(det)!;
+  const context = { start, end: nounEnd };
+  const possessive = POSSESSIVES.get(noun);
+  if (possessive && ARTICLES.has(det) && det !== "a" && !m.groups!.modifier) {
+    return possessiveAgreement(ctx, m, cell, possessive);
   }
-  return findings;
-}
+  // "Todo os erros" -> "Todos os", "toda as soluções" -> "todas as".
+  const todo = TODO.exec(`${typed} ${noun}`);
+  if (todo && !m.groups!.modifier) {
+    const article = DETERMINERS.get(noun)!;
+    const next = nextNoun(ctx, nounEnd);
+    if (article.index === cell.index || !next || next.plural !== article.index > 1) return null;
+    if (next.feminine !== null && next.feminine !== (article.index % 2 === 1)) return null;
+    // "o mundo todo a admira": after a noun, "todo" may close it and "a" be a pronoun.
+    const before = ctx.text.slice(Math.max(0, start - 40), start);
+    if (!next.certain && !SENTENCE_START.test(before) && !PREPOSITION_BEFORE.test(before))
+      return null;
+    return finding(start, start + typed.length, typed, [cell.row[article.index]], context);
+  }
+  // "sou todo ouvidos", "de todo verdade": "todo" only agrees with an article after it.
+  if (/^tod[oa]s?$/.test(det)) return null;
+  const info = analyze(noun);
+  if (!info) return null;
+  const before = ctx.text.slice(Math.max(0, start - 40), start);
+  if (notDeterminer(det, before)) return null;
+  // An ending no verb or adjective has, or a determiner that surely is one.
+  const verbProof = info.certain && !finiteLookalike(noun);
+  // "Este gatos estão", "Um canecas são": a plural verb right after shows a plural subject.
+  const pluralSubject =
+    info.plural &&
+    SENTENCE_START.test(before) &&
+    PLURAL_VERB_AFTER.test(ctx.text.slice(nounEnd, nounEnd + 16));
+  if (
+    !verbProof &&
+    !pluralSubject &&
+    !(QUANTIFIERS.has(det) && info.plural) &&
+    (!plainDeterminer(ctx, det, start, typed) || compoundAfter(ctx, nounEnd, info))
+  )
+    return null;
+  // "colegas meus são": a possessive after its noun, before a verb.
+  if (POSSESSIVE_DETERMINERS.has(det) && info.feminine === null) return null;
+  const detFeminine = cell.index % 2 === 1;
+  const detPlural = cell.index > 1;
+  const genderClash = info.feminine !== null && info.feminine !== detFeminine;
+  // "ao termos", "pelo fazermos": a personal infinitive, not the plural of "termo".
+  const numberClash = info.plural !== detPlural && !(info.plural && /[aeio]rmos$/.test(noun));
+  if (!genderClash && !numberClash) {
+    // Determiner and noun agree: an adjective of kind after them must too.
+    if (info.feminine !== null) {
+      const subject = /^(?:[oa]s?|um|uma|uns|umas)$/.test(det) && SENTENCE_START.test(before);
+      const found = adjectiveAgreement(ctx, nounEnd, info.feminine, info.plural, noun, subject);
+      const predicate = predicateAgreement(ctx, start, nounEnd, info.feminine, info.plural);
+      return [found, predicate].filter((f): f is RawFinding => f !== null);
+    }
+    return null;
+  }
+  // "a" is also the preposition: "a pé", "a cavalo".
+  if (det === "a" && !pluralSubject) return null;
+  // "no euromilhões", "uma Libertadores", "no Contas a Pagar": a plural that agrees with a
+  // singular determiner in nothing is mostly a name.
+  // A contracted preposition still shows the phrase: "na termos" -> "nos termos", but not
+  // before a name like "no Contas a Pagar" written in lowercase.
+  if (
+    info.plural &&
+    !detPlural &&
+    !pluralSubject &&
+    ((genderClash &&
+      (!CONTRACTED.has(det) || NAMED_TASK.test(ctx.text.slice(nounEnd, nounEnd + 24)))) ||
+      (!info.certain && info.feminine === null))
+  )
+    return null;
+  const wanted = cell.row[(info.plural ? 2 : 0) + ((info.feminine ?? detFeminine) ? 1 : 0)];
+  if (wanted === "-") return null;
+  // A number clash may also be the noun's: "os carro" -> "o carro" or "os carros".
+  const nounFix = genderClash || pluralSubject ? null : detPlural ? plural(noun) : singular(noun);
+  if (nounFix) {
+    const between = ctx.text.slice(start + typed.length, nounStart);
+    return finding(
+      start,
+      nounEnd,
+      typed,
+      [`${wanted}${between}${noun}`, `${det}${between}${nounFix}`],
+      context,
+    );
+  }
+  return finding(start, start + typed.length, typed, [wanted], context);
+};
+
+/** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
+export const FIXERS = { nounPhrase } satisfies Record<string, MatchFixer>;

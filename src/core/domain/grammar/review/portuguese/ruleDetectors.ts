@@ -17,7 +17,7 @@ import { FIXERS as DATE_FIXERS, isoDates } from "./dates";
 import { FIXERS as FORMAL_FIXERS } from "./formal";
 import { FIXERS as INFINITIVE_FIXERS } from "./infinitives";
 import { FIXERS as MARK_FIXERS } from "./marks";
-import { nounAgreement } from "./nounAgreement";
+import { FIXERS as NOUN_AGREEMENT_FIXERS } from "./nounAgreement";
 import { FIXERS as NUMBER_START_FIXERS } from "./numbers";
 import { FILTERS as PARONYM_FILTERS, FIXERS as PARONYM_FIXERS } from "./paronyms";
 import { FIXERS as PERSON_FIXERS } from "./personAgreement";
@@ -35,7 +35,6 @@ import { FIXERS as VERB_AGREEMENT_FIXERS } from "./verbAgreement";
 export const PREDICATES = {
   rangeDash,
   isoDates,
-  nounAgreement,
 } satisfies Record<string, Detector>;
 
 /** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
@@ -62,6 +61,7 @@ export const FIXERS = mergePredicates<AnyFixer>(
   SUBJUNCTIVE_FIXERS,
   AGREEMENT_FIXERS,
   VERB_AGREEMENT_FIXERS,
+  NOUN_AGREEMENT_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/pt_BR.yaml (`filter:`). */

@@ -114,6 +114,8 @@ fragments:
   TIME_SUBJECT: "(?:(?:os|as|o|a){{S}}(?!(?:que|qua[il]s?){{E}})\\p{L}+{{S}}|(?:eles|elas|ele|ela|tu|vós|nós|vocês|você){{S}})?"
   FUTURE_FORM: "\\p{L}{2,}(?:ar|er|ir)(?:ão|ás|á|ei|emos|eis)"
   PAST_FORM: "\\p{L}{2,}(?:aram|eram|iram|aras|eras|iras|ara|era|ira|áreis|êreis|íreis)"
+  DETERMINER_LEAD: "o|a|os|as|um|uma|uns|umas|do|da|dos|das|no|na|nos|nas|pelo|pela|pelos|pelas|ao|aos|num|numa|nuns|numas|dum|duma|duns|dumas|este|esta|estes|estas|esse|essa|esses|essas|aquele|aquela|aqueles|aquelas|deste|desta|destes|destas|desse|dessa|desses|dessas|daquele|daquela|daqueles|daquelas|neste|nesta|nestes|nestas|nesse|nessa|nesses|nessas|naquele|naquela|naqueles|naquelas|meu|minha|meus|minhas|teu|tua|teus|tuas|seu|sua|seus|suas|nosso|nossa|nossos|nossas|vosso|vossa|vossos|vossas|algum|alguma|alguns|algumas|nenhum|nenhuma|nenhuns|nenhumas|outro|outra|outros|outras|todo|toda|todos|todas|muita|muitos|muitas|pouca|poucos|poucas|vários|várias|diversos|diversas|tantos|tantas|certos|certas|cujo|cuja|cujos|cujas"
+  PRENOMINAL: "grandes?|enormes?|fortes?|breves?|leves?|tristes?|simples|principa(?:l|is)|excelentes?|importantes?|recentes?|\\p{L}{3,}(?:vel|veis)"
 
 rules:
   - id: pt_BR.accentParonyms
@@ -1056,7 +1058,16 @@ rules:
         fixer: agreementNeuter
   - id: pt_BR.nounAgreement
     checks: [portugueseAgreement]
-    predicate: nounAgreement
+    style: match
+    message: review_msg_pt_noun_agreement
+    frames:
+      # A determiner and its noun. {{DETERMINER_LEAD}}: every determiner of nounAgreement.ts
+      # but "à" and "às", which are portugueseConfusions' crase. "a" is also the preposition
+      # ("a pé", "a meu ver"): it leads only for the adjective after its noun ("a política
+      # econômica"). {{PRENOMINAL}}: two-gender adjectives that come before a noun: "um grande
+      # erupção" -> "uma grande".
+      - regex: "(?<target>{{DETERMINER_LEAD}})(?={{S}}(?:(?<modifier>(?:(?:mais|menos|tão){{S}})?(?:{{PRENOMINAL}})){{S}})?(?<noun>\\p{L}+){{E}}(?!-))"
+        fixer: nounPhrase
   - id: pt_BR.verbAgreement
     checks: [portugueseAgreement]
     style: match
