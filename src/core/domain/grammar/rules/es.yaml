@@ -72,9 +72,15 @@ rules:
         fixer: paraQueAccent
   - id: es.frameAccents
     checks: [spanishAccents]
-    # predicate: walks the chunk tokens; each token frame reads the words before
-    # and after the word to accent.
-    predicate: frameAccents
+    style: match
+    message: review_msg_spanish_accent
+    frames:
+      # "continua" and "perpetua" as verbs, and the accented demonstratives before a noun.
+      # The fixer reads the words before and after the token (review/spanish/frames.ts).
+      - regex: "(?:continua[sn]?|perpetuan?|ést(?:e|a|os|as)|és(?:e|a|os|as)|aquél(?:la|los|las)?){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: frameAccents
   - id: es.confusions
     checks: [spanishConfusions]
     style: match
@@ -158,9 +164,16 @@ rules:
         fixer: clauseConfusions
   - id: es.frameConfusions
     checks: [spanishConfusions]
-    # predicate: walks the chunk tokens; each token frame reads the words before
-    # and after its word.
-    predicate: frameConfusions
+    style: match
+    message: review_msg_spanish_confusion
+    frames:
+      # "de el", "ala", "de más", "q", a clitic before an imperative and "les" before a
+      # number. The fixer reads the words before and after the token
+      # (review/spanish/frames.ts).
+      - regex: "(?:de|a|alas?|q|me|te|se|les?|los?|las?|nos|os){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: frameConfusions
   - id: es.typography
     checks: [spanishTypography]
     # predicate: walks the chunk tokens; the decision reads the words before and after each
@@ -501,9 +514,15 @@ rules:
         fixer: clauseAgreement
   - id: es.frameAgreement
     checks: [spanishAgreement]
-    # predicate: walks the chunk tokens; each token frame reads the gender and
-    # number of the words around it.
-    predicate: frameAgreement
+    style: match
+    message: review_msg_spanish_agreement
+    frames:
+      # Every word: one frame keys on any noun before two joined adjectives. The fixer reads
+      # the gender and number of the words around the token (review/spanish/frames.ts).
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        fixer: frameAgreement
   - id: es.clauseStyle
     checks: [stylePhrasing]
     style: match
@@ -534,9 +553,15 @@ rules:
         fixer: singleQuotes
   - id: es.repeatedPair
     checks: [englishRepeatedWords]
-    # predicate: walks the chunk tokens; the frame compares each word pair with
-    # the pair after it.
-    predicate: repeatedPair
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      # Every word: the fixer compares the word pair at the token with the pair after it
+      # (review/spanish/frames.ts).
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        fixer: repeatedPair
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

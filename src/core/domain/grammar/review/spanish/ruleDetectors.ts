@@ -21,7 +21,6 @@ export const PREDICATES = mergePredicates(
   porque.PREDICATES,
   typography.PREDICATES,
   commas.PREDICATES,
-  frames.PREDICATES,
 );
 
 /** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
@@ -34,6 +33,7 @@ export const FIXERS = mergePredicates<Fixer>(
   agreement.FIXERS,
   verbAgreement.FIXERS,
   clauses.FIXERS,
+  frames.FIXERS,
   prefixes.FIXERS,
   typography.FIXERS,
   quotes.FIXERS,
