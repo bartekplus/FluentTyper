@@ -203,9 +203,15 @@ export class MessageRouter {
       [CMD_CONTENT_SCRIPT_REVIEW_SPELLING]: (payload) =>
         this.handleContentScriptReviewSpelling(payload),
       // Review detection (scan, proof, typing-time proposals) for this sender's review sessions.
-      [CMD_CONTENT_SCRIPT_REVIEW_ENGINE]: async ({ request, sender, sendResponse }) => {
+      [CMD_CONTENT_SCRIPT_REVIEW_ENGINE]: async ({ request, sender, sendResponse, worker }) => {
         const routing = requireSenderRoutingContext(sender, "review engine request");
-        sendResponse(await this.reviewEngines.handle(request.context, routing));
+        sendResponse(
+          await this.reviewEngines.handle(request.context, routing, (lang, words) =>
+            worker.predictionManager.lookupSpelling(lang, words, {
+              budgetMs: REVIEW_SPELLING_BUDGET_MS,
+            }),
+          ),
+        );
       },
       [CMD_CONTENT_SCRIPT_GET_CONFIG]: (payload) => this.handleContentScriptGetConfig(payload),
       [CMD_CONTENT_SCRIPT_USAGE_EVENT]: async ({ request, sendResponse, worker }) => {

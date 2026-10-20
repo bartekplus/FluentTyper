@@ -32,6 +32,8 @@ export interface SetConfigContext {
   showReviewButton?: boolean;
   /** Offer single-apply Review fixes in the suggestion popup while typing. */
   liveGrammarProposals?: boolean;
+  /** Underline Review findings in the focused field while typing. */
+  reviewWhileTyping?: boolean;
   /** "Local AI corrections in Review" preference (setup/consent is checked separately). */
   localAiReviewEnabled?: boolean;
   enabledGrammarRules: string[];

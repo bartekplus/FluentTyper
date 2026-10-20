@@ -37,6 +37,7 @@ import {
   KEY_SHOW_SUGGESTION_FOOTER,
   KEY_SHOW_REVIEW_BUTTON,
   KEY_LIVE_GRAMMAR_PROPOSALS,
+  KEY_REVIEW_WHILE_TYPING,
   KEY_LOCAL_AI_REVIEW_ENABLED,
   KEY_LOCAL_AI_REVIEW_TIER,
   DEFAULT_LOCAL_AI_REVIEW_ENABLED,
@@ -398,6 +399,17 @@ const manifest: ManifestDefinition = {
         i18n.get("live_grammar_proposals_desc"),
       ),
       default: true,
+    },
+    {
+      tab: "grammar_tab",
+      group: i18n.get("popup_review_text"),
+      name: KEY_REVIEW_WHILE_TYPING,
+      type: "checkbox",
+      label: buildFieldLabel(
+        i18n.get("review_while_typing_label"),
+        i18n.get("review_while_typing_desc"),
+      ),
+      default: false,
     },
     // Rendered in the Grammar workspace's Local AI card (LocalAiSettingsPanel).
     {

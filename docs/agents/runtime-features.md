@@ -66,7 +66,10 @@ Review mode proofreads an existing field on demand (command `CMD_REVIEW_FT_ACTIV
   - The suggestion session offers one unseen finding per pause, as the last row of the popup. The row is never preselected.
   - The session shows the finding only if the text before the caret did not change when the answer arrives.
   - The session applies the finding only after it detects the same key again in that unchanged text. It applies the finding as a `strict` grammar edit.
+  - The background also looks up the last finished word before the caret (`findLiveProposals`, `LocalReviewEngine.liveProposals` with the router's dictionary lookup) and proposes its best candidate.
+  - **Alt+Enter** (`isQuickFixChord`) applies a shown proposal. With no proposal row, in a watched field, it opens the card of the last finding before the caret. Otherwise the key stays the page's.
   - Never apply a proposal automatically. Never let a proposal take the default Tab/Enter accept.
+- Underlines while typing (`reviewWhileTyping`, default off) start an ambient `ReviewSession` from `ReviewController.watch` (the launcher's focused field). It has no panel, no Local AI and no Fix-all plan. Never add a `keydown`-driven recheck: the Review `input`/mutation listeners and the 400 ms debounce drive it, and the engine rechecks only around the edit. `promote()` opens the panel on the same session.
 - Reviewed text is ephemeral: never log, persist or send it anywhere but the extension's own background (detection, dictionary lookups, Local AI), which keeps it only for the open session. "Add to dictionary" goes through the settings path (`CMD_CONTENT_SCRIPT_ADD_TO_DICTIONARY`).
 
 ## Word for the web

@@ -160,6 +160,38 @@ The panel names every state:
 - **Planning:** "Fix all safe (…)" while dependent fixes in a very large,
   error-dense text are still being proven; Fix all waits for the proof
 
+## Underlines while typing
+
+The setting **Underline issues while typing** (`reviewWhileTyping`, off by
+default) starts a review without a panel, an "ambient" review, on the focused
+field that could show the Review button. The site switch and code mode turn it
+off.
+
+- The field must keep focus for 300 ms. Then the first scan reads the whole
+  field. Tabbing through a form starts no scan.
+- The existing `input`, composition and mutation listeners of Review drive it.
+  A keystroke runs no detection: the 400 ms recheck debounce applies, and the
+  engine rechecks only around the edit.
+- Between a keystroke and its recheck, the findings stay. CSS highlights
+  (contenteditable in the page's own root) move with the DOM, and the ranges
+  at the caret are removed. The overlay marks (textareas) that end before the
+  edit stay where they were measured, with no new layout. The other marks wait
+  for the recheck. A scroll in that time hides the marks.
+- While the user types, a finding that touches the caret is not shown: its
+  word may be unfinished. A click in the field or an arrow, Home, End or Page
+  key shows it again.
+- No Local AI, no Fix all planning and no panel rendering. A click on a mark
+  opens the card. Apply and Ignore return focus to the editor. Escape closes
+  the card, and otherwise stays the page's key.
+- **Review all** on the card, the Review button or the shortcut opens the
+  panel on the same session, with no new scan, and adds Local AI.
+- One field is watched at a time. Focus on another eligible field ends the
+  old watch. An open review panel is never replaced.
+- Word for the web, Gutenberg and Google Docs are not watched: each pass would
+  read their whole model.
+- Paragraph languages (`reviewLanguageRegions`) are cached per page, up to
+  512 paragraphs, so a recheck asks only for changed paragraphs.
+
 ## Proposals while typing
 
 Typing rules fix only what is certain, and they fix it on their own. What
@@ -172,17 +204,27 @@ type instead, and is never applied without you:
   row of the suggestion popup: "is → are" and the short explanation (the full
   explanation is its tooltip). With suggestions shown inline, the popup holds
   only that row.
+- The last finished word before the caret is also looked up in the
+  dictionary. If the dictionary does not know it, its best candidate is
+  offered the same way ("quikly → quickly"), when no other finding covers it.
+  A capitalized word inside a sentence (a name) is not offered.
 - The row is never preselected. **Tab**, **Enter** and **Space** keep
   accepting the first suggestion, or stay the page's when only the proposal
-  shows. Move onto it with the arrow keys and press an accept key, or click it.
+  shows. **Alt+Enter** (**Option+Return** on a Mac), shown at the start of
+  the row, applies it at once. Or move onto it with the arrow keys and press
+  an accept key, or click it. Without a proposal row, Alt+Enter stays the
+  page's key.
+- With **Underline issues while typing** on and no proposal row, Alt+Enter
+  opens the card of the last underlined issue before the caret, with focus on
+  its fix: **Enter** applies it, **Escape** returns to the text.
 - Before writing, the span is found again, with the same fix, in the text as
   it is now; a changed or vanished span is never written. The fix is one edit
   that the undo shortcut reverts.
 - Typing on, **Escape**, a click in the field or leaving it dismisses the
   proposal. A dismissed or shown span is not offered again while the page is
   open.
-- Only native checks with a single fix are proposed: never dictionary
-  spelling, Local AI, warnings or choices between several fixes, never what
+- Of the native checks, only those with a single fix are proposed: never Local
+  AI, warnings or choices between several fixes, never what
   "Fix all" could apply (the typing rules cover that), and never a check a
   typing rule already runs while that rule is on. They follow the Review
   switches and the language, as Review does. Sensitive, locked and code fields
@@ -1125,7 +1167,8 @@ SuggestionEntrySession (proposals)  CMD_CONTENT_SCRIPT_REVIEW_ENGINE
   German phrase-table row, detector code, a finding explanation) appears in a
   content script, or is missing from `background.js`.
 
-Nothing is created, observed or scanned until the first review. The review UI,
+Nothing is created, observed or scanned until the first review, or until a
+field is watched for underlines while typing. The review UI,
 session, Local AI checks and UI translations ship in the content script.
 
 Limits: 50,000 characters per review (a larger scope is cut, and the panel
@@ -1133,13 +1176,35 @@ says so), scanned in the background in chunks of about 4,000 characters that
 yield between them.
 Rechecks after edits are debounced by 400 ms and cancel stale work.
 
-Whole-field drafts over 8,000 characters can reuse unchanged fixed-preposition
-and usage-phrase results within the open session. Reuse compares the source and
-surrounding evidence, settings, dictionary and protection; structure changes
-clear it. Other detectors and safe-batch proof still rescan. Partial selections,
-unread/oversized sources and short drafts use the full scan. The cache retains
-at most 64 entries and 500,000 serialized UTF-16 units, lives with the session in
-the background service worker, and is cleared on close.
+**Incremental rechecks.** A whole-field scan of up to 50,000 characters keeps
+its raw findings in the session (`LocalReviewEngine`). The next scan finds the
+one edit between the two texts and scans again only a window around it
+(`incrementalScan` in `reviewDiagnostics.ts`):
+
+- The window starts `INCREMENTAL_BACK` (1,024) characters before the edit,
+  moved back to a line start, as a chunk starts. A finding there can read that
+  far ahead into the edit. It ends `INCREMENTAL_FORWARD` (512) characters after
+  the edit (look-behind), moved on to a line end.
+- An edit that adds or removes a double quotation mark, or makes or removes a
+  blank line, extends the window to the paragraph end: a straight `"` is read
+  as opening or closing by the marks before it in its paragraph.
+- The findings that start outside the window are kept and moved by the edit;
+  a scan owns the findings that start in its range.
+- The text-wide inputs are prepared again for the whole text: protection,
+  code fences, quotations, terminology and style findings. If one of them
+  changed outside the window, or a range crosses the edit, the scan is full.
+  It is also full for other options, a selection, unread text, a window over
+  half the text, a rule error and a new day (date checks).
+- Finalizing (duplicates, the repair pass, coverage) is still text-wide.
+- `tests/grammar/ReviewIncremental.test.ts` makes seeded random edits in five
+  languages and requires the same diagnostics and coverage as a full scan
+  after each edit.
+
+The fixed-preposition and usage-phrase results are also cached by their
+context (`NativeReviewCache`). Reuse compares the source and surrounding
+evidence, settings, dictionary and protection; structure changes clear it. The
+cache retains at most 64 entries and 500,000 serialized UTF-16 units, lives
+with the session in the background service worker, and is cleared on close.
 
 ## Performance
 
@@ -1160,6 +1225,10 @@ headless Chrome via Puppeteer, production build, medians:
   (1 ms of it detection). A scan of the 50k profile document (2,594 findings):
   about 170 ms through messaging, the same as in the worker without messaging.
 - The first request to a sleeping worker wakes it: about 200 ms.
+- A recheck after one typed character in a 49k ordinary draft (Bun, no
+  messaging): about 25 ms, against about 340 ms for a full scan. In an
+  error-dense draft (`broken.txt` repeated) the text-wide repair pass takes
+  most of it: about 240 ms against 550 ms.
 
 On a 4 vCPU Xeon (2.8 GHz) in headless Chrome, the first paint of a 50k textarea
 includes one layout of the mirror (about 150 ms).

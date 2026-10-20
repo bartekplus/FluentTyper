@@ -58,6 +58,8 @@ export interface ReviewUiCallbacks {
   previewAiBatch(): void;
   applyAiBatch(): void;
   cancelAiBatch(): void;
+  /** Underlines while typing: opens the full panel for the watched field. */
+  reviewAll?(): void;
 }
 
 export interface ReviewMark {
@@ -406,6 +408,7 @@ export class ReviewUi {
 
   // List items by finding id, for the findings last listed.
   private readonly items = new Map<string, HTMLElement>();
+  private ambient = false;
   private listedDiagnostics: readonly ReviewDiagnostic[] | null = null;
   // The state the notes were last rendered for.
   private notesState: ReviewViewState | null = null;
@@ -748,6 +751,19 @@ export class ReviewUi {
     this.panel.dataset.corner = best[0];
   }
 
+  /**
+   * Underlines while typing: the panel stays hidden and only highlights and
+   * cards show, until the user asks for the full review.
+   */
+  setAmbient(ambient: boolean): void {
+    this.ambient = ambient;
+    this.panel.hidden = ambient;
+  }
+
+  get isAmbient(): boolean {
+    return this.ambient;
+  }
+
   /** True when the panel sits over `rect`. */
   panelCovers(rect: DOMRect): boolean {
     return !this.panel.hidden && overlapArea(this.panel.getBoundingClientRect(), rect) > 0;
@@ -798,6 +814,11 @@ export class ReviewUi {
     const panelFocus =
       previousFocus && !focusedId && this.panel.contains(previousFocus) ? previousFocus : null;
     this.state = state;
+    // No panel: only an open card follows the state.
+    if (this.ambient) {
+      this.renderOpenCard(state);
+      return;
+    }
     const rewriting = state.mode === "rewrite";
     // Rewrite replaces the findings view; a finding's card has nothing to act on there.
     if (rewriting && this.cardId) this.closeCard();
@@ -888,6 +909,10 @@ export class ReviewUi {
       });
     }
 
+    this.renderOpenCard(state);
+  }
+
+  private renderOpenCard(state: ReviewViewState): void {
     if (this.cardId) {
       const diagnostic = state.diagnostics.find((d) => d.id === this.cardId);
       if (diagnostic && state.status === "ready") {
@@ -1693,6 +1718,16 @@ export class ReviewUi {
     );
     ignore.addEventListener("click", () => this.callbacks.ignore(diagnostic.id));
     actions.append(...lead, ignore);
+    if (this.ambient && this.callbacks.reviewAll) {
+      const all = element(
+        doc,
+        "button",
+        { type: "button", "data-action": "review-all" },
+        this.t("review_card_review_all"),
+      );
+      all.addEventListener("click", () => this.callbacks.reviewAll?.());
+      actions.append(all);
+    }
     const alternative = diagnostic.alternatives[this.cardAlternative];
     if (this.state && !this.state.capabilities.apply && alternative) {
       const copy = element(

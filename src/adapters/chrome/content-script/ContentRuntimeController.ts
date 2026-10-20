@@ -1,4 +1,7 @@
-import { reviewLanguageRegions } from "@core/application/review/ReviewLanguageRegions";
+import {
+  reviewLanguageRegions,
+  type LanguageRegionCache,
+} from "@core/application/review/ReviewLanguageRegions";
 import {
   HOST_EDITOR_ENABLED_ATTR,
   HOST_EDITOR_ENABLED_EVENT,
@@ -138,6 +141,8 @@ export class ContentRuntimeController {
     chrome.runtime.sendMessage(message),
   );
   private reviewLauncher: ReviewLauncher | null = null;
+  /** Detected languages by paragraph, shared by this page's reviews. */
+  private readonly languageRegionCache: LanguageRegionCache = new Map();
   private reviewSuspended: HTMLElement | null = null;
   // A review asked for before the first config arrived; that config decides whether it runs.
   private configured = false;
@@ -228,6 +233,7 @@ export class ContentRuntimeController {
       this.onRestartRequest();
       // A settings change (rules, dictionary, language) rechecks an open review.
       this.review?.handleOptionsChanged();
+      this.watchField(this.reviewLauncher?.focusedField ?? null);
       return;
     }
 
@@ -319,6 +325,7 @@ export class ContentRuntimeController {
         this.suggestionManager?.resumeAfterReview(element);
       },
       suggestionsOpen: (element) => this.suggestionManager?.hasOpenSuggestions(element) ?? false,
+      proposalShown: (element) => this.suggestionManager?.hasGrammarProposal(element) ?? false,
       disableReviewRule: async (ruleId) => {
         const response: unknown = await chrome.runtime.sendMessage({
           command: CMD_CONTENT_SCRIPT_DISABLE_REVIEW_RULE,
@@ -357,7 +364,13 @@ export class ContentRuntimeController {
       aiEnabled: () => this.config.localAiReviewEnabled !== false,
       detectLanguage: detectTextLanguage,
       languageRegions: (text, language, requireEvidence) =>
-        reviewLanguageRegions(text, language, detectTextLanguage, requireEvidence),
+        reviewLanguageRegions(
+          text,
+          language,
+          detectTextLanguage,
+          requireEvidence,
+          this.languageRegionCache,
+        ),
       resolveAutoLanguage: async (text) => {
         const enabled = this.config.enabledLanguages ?? [];
         const fallback = this.config.fallbackLanguage ?? enabled[0] ?? "auto_detect";
@@ -479,7 +492,19 @@ export class ContentRuntimeController {
         this.review ??= this.createReviewController();
         this.review.invoke();
       },
+      onFieldChange: (field) => this.watchField(field),
     });
+  }
+
+  /** "Underline issues while typing": the focused field the Review button could sit on is watched. */
+  private watchField(field: HTMLElement | null): void {
+    if (!this.enabled || this.config.reviewWhileTyping !== true || this.config.codeMode) {
+      this.review?.stopWatching();
+      return;
+    }
+    if (!field || this.suggestionManager?.isAwaitingManualAttach(field)) return;
+    this.review ??= this.createReviewController();
+    this.review.watch(field);
   }
 
   private setHostBridgeEnabled(enabled: boolean): void {

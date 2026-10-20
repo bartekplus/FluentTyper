@@ -8,6 +8,7 @@ import { SUGGESTION_MENU_LAYOUT_ATTR, isSuggestionMenuHostVisible } from "./Sugg
 import { resolveSuggestionStateHost } from "./SuggestionStateHost";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionMenuView } from "./SuggestionMenuView";
+import { quickFixKeyLabel } from "./keyboardShortcuts";
 import { buildSuggestionKeyHints } from "@core/domain/suggestionPopup/keyHints";
 import {
   SUGGESTION_POPUP_LANGUAGE_ID,
@@ -74,7 +75,8 @@ export class SuggestionMenuPresenter {
     if (model.proposal) {
       const li = document.createElement("li");
       li.id = `ft-suggestion-option-${model.menuId}-${proposalIndex}`;
-      li.innerHTML = buildProposalRowHtml(model.proposal);
+      li.innerHTML = buildProposalRowHtml({ ...model.proposal, keyHint: quickFixKeyLabel() });
+      li.setAttribute("aria-keyshortcuts", "Alt+Enter");
       li.title = model.proposal.explanation;
       li.setAttribute("data-proposal", "true");
       li.setAttribute("role", "option");

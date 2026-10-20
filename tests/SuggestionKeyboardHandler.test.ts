@@ -2,9 +2,10 @@ import { describe, expect, jest, test } from "bun:test";
 import { createHandler, createSuggestionEntry } from "./suggestionTestUtils";
 import type { LiveGrammarProposal } from "../src/core/domain/grammar/review/liveProposalSelection";
 
-function createEvent(key: string): KeyboardEvent {
+function createEvent(key: string, modifiers: { altKey?: boolean } = {}): KeyboardEvent {
   const event = new Event("keydown", { bubbles: true, cancelable: true }) as KeyboardEvent;
   Object.defineProperty(event, "key", { value: key });
+  if (modifiers.altKey) Object.defineProperty(event, "altKey", { value: true });
   return event;
 }
 
@@ -198,6 +199,24 @@ describe("SuggestionKeyboardHandler grammar proposals", () => {
       expect(event.defaultPrevented).toBe(false);
     }
     expect(acceptGrammarProposal).not.toHaveBeenCalled();
+    expect(acceptSuggestionAtIndex).not.toHaveBeenCalled();
+  });
+
+  test("Alt+Enter applies a shown proposal without selecting it, and is the page's otherwise", () => {
+    const { handler, entry, acceptGrammarProposal, acceptSuggestionAtIndex } = setup(false, [
+      "one",
+    ]);
+    const applied = createEvent("Enter", { altKey: true });
+    handler.handle(entry, applied);
+    expect(applied.defaultPrevented).toBe(true);
+    expect(acceptGrammarProposal).toHaveBeenCalledWith(entry);
+    expect(acceptSuggestionAtIndex).not.toHaveBeenCalled();
+
+    entry.grammarProposal = null;
+    const free = createEvent("Enter", { altKey: true });
+    handler.handle(entry, free);
+    expect(free.defaultPrevented).toBe(false);
+    expect(acceptGrammarProposal).toHaveBeenCalledTimes(1);
     expect(acceptSuggestionAtIndex).not.toHaveBeenCalled();
   });
 

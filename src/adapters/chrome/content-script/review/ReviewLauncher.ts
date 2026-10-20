@@ -29,6 +29,8 @@ export interface ReviewLauncherDependencies {
   review(field: HTMLElement): void;
   /** UI locale, read on each use so a settings change applies at once. */
   uiLanguage(): string;
+  /** The focused field a launcher may sit on changed (whether or not the button shows). */
+  onFieldChange?(field: HTMLElement | null): void;
 }
 
 /**
@@ -124,6 +126,11 @@ export class ReviewLauncher {
     if (active && active !== doc.body) this.setField(launcherFieldFor(active));
   }
 
+  /** The focused field a launcher may sit on, shown or not. */
+  get focusedField(): HTMLElement | null {
+    return this.field;
+  }
+
   /** Re-evaluates visibility and position (a review opened or closed, settings changed). */
   refresh(): void {
     const field = this.field;
@@ -173,6 +180,7 @@ export class ReviewLauncher {
     this.stopLayoutTracking = null;
     this.field = field;
     this.refresh();
+    this.deps.onFieldChange?.(field);
   }
 
   private shouldShow(field: HTMLElement): boolean {

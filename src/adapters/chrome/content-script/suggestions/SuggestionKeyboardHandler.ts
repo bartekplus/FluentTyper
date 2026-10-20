@@ -1,5 +1,5 @@
 import { isSearchField } from "./NativeAutocompleteConflictDetector";
-import { isNativeUndoChord } from "./keyboardShortcuts";
+import { isNativeUndoChord, isQuickFixChord } from "./keyboardShortcuts";
 import { isSuggestionMenuReversed } from "./SuggestionMenuHost";
 import type { SuggestionEntry } from "./types";
 
@@ -57,6 +57,18 @@ export class SuggestionKeyboardHandler {
       isNativeUndoChord(keyboardEvent) &&
       this.options.tryUndoLastExtensionEdit(entry, keyboardEvent)
     ) {
+      return;
+    }
+
+    // Alt+Enter applies a shown proposal without moving onto it; else the key is the page's.
+    if (isQuickFixChord(keyboardEvent)) {
+      if (
+        entry.grammarProposal &&
+        this.options.isMenuVisible(entry) &&
+        this.options.canAccept?.(entry) !== false &&
+        this.options.acceptGrammarProposal(entry)
+      )
+        this.options.consumeKeyboardEvent(keyboardEvent);
       return;
     }
 

@@ -88,13 +88,17 @@ export function buildSuggestionRowHtml(args: {
   return `${shortcut}<span class="ft-suggestion-label">${label}</span>${detail}`;
 }
 
-/** A grammar proposal row: "original → replacement", then why. */
+/** A grammar proposal row: [key that applies it] "original → replacement", then why. */
 export function buildProposalRowHtml(args: {
   original: string;
   replacement: string;
   explanation: string;
+  keyHint?: string;
 }): string {
-  return `<span class="ft-suggestion-label">${escapeHtml(args.original)} → ${escapeHtml(
+  const key = args.keyHint
+    ? `<span class="ft-suggestion-shortcut ft-suggestion-key" aria-hidden="true">${escapeHtml(args.keyHint)}</span>`
+    : "";
+  return `${key}<span class="ft-suggestion-label">${escapeHtml(args.original)} → ${escapeHtml(
     args.replacement,
   )}</span><span class="ft-suggestion-detail">${escapeHtml(args.explanation)}</span>`;
 }

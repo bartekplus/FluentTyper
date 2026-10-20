@@ -23,6 +23,11 @@ function today(): { day: number; year: number } {
   return { day: Date.UTC(year, now.getMonth(), now.getDate()) / DAY, year };
 }
 
+/** Today as a count of days: findings that depend on the date are stale on another day. */
+export function reviewDay(): number {
+  return today().day;
+}
+
 /**
  * The date at midnight UTC. Month is 1 to 12. Date.UTC changes the years 0 to 99 to 1900 to
  * 1999. Thus setUTCFullYear sets the real year again ("1 janvier 0099" is in the year 99).

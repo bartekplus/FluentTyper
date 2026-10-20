@@ -29,7 +29,7 @@ import type { CatalogRuleId } from "../grammar/ruleCatalog";
 export interface ReviewScanRequest {
   snapshot: ReviewSourceSnapshot;
   options: ReviewOptions;
-  /** Reuse unchanged native results kept for this session (long whole-field drafts). */
+  /** Reuse this session's results: a whole-field recheck scans only around the edit. */
   cache: boolean;
   /** Forget the session's kept results first (structure, settings or availability changed). */
   resetCache?: boolean;

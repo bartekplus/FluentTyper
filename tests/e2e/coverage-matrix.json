@@ -112,7 +112,7 @@
     },
     {
       "id": "live_grammar_proposals",
-      "description": "While typing, a one-at-a-time Review fix ending before the caret word appears after a pause as the popup's last row; it is never preselected (Tab/Enter stay with suggestions or the page), applies only when picked after re-detection, is dismissed for good by typing on or Esc, and is off in sensitive fields, code mode and when the setting is off.",
+      "description": "While typing, a one-at-a-time Review fix ending before the caret word appears after a pause as the popup's last row; it is never preselected (Tab/Enter stay with suggestions or the page), applies only when picked after re-detection, is dismissed for good by typing on or Esc, and is off in sensitive fields, code mode and when the setting is off. The last finished word that the dictionary does not know gets its best candidate as a proposal. Alt+Enter (shown on the row) applies a shown proposal; otherwise it stays the page's key.",
       "coverage": [
         {
           "layer": "unit",
@@ -143,6 +143,16 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Grammar proposals while typing are shown after a pause and applied only when picked"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionKeyboardHandler.test.ts",
+          "test": "Alt+Enter applies a shown proposal without selecting it, and is the page's otherwise"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewEngine.test.ts",
+          "test": "a typing pause offers the best spelling of the last finished word the dictionary lacks"
         }
       ]
     },
@@ -3785,6 +3795,42 @@
           "layer": "unit",
           "file": "tests/ReviewAdapters.test.ts",
           "test": "a page script clicking 'Add to dictionary' changes no settings"
+        }
+      ]
+    },
+    {
+      "id": "review_while_typing",
+      "description": "With the opt-in setting, the focused multi-line field is checked without the Review button: findings are underlined with no panel, Local AI and Fix-all planning. While a recheck is pending, findings the edit cannot have moved stay; a click opens the card, Apply writes, Review all opens the panel on the same findings without a new scan, and turning the setting off stops it. Alt+Enter opens the card of the last finding before the caret with focus on its fix. Paragraph languages are detected once. Rechecks scan only a window around the edit and give the same findings as a full scan.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Underline issues while typing marks findings without the panel and keeps them while typing"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSession.test.ts",
+          "test": "a watched field keeps its findings while a recheck is pending, but cannot write them"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewSessionAi.test.ts",
+          "test": "a watched field runs no Local AI; promote adds it to the same findings without a scan"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewLanguageCoverage.test.ts",
+          "test": "with a cache, a recheck asks only for the changed paragraphs"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/ReviewIncremental.test.ts",
+          "test": "%s (%s): every edit gives the findings of a full scan"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/CoreSettingsRepository.test.ts",
+          "test": "%s with %o resolves to %p"
         }
       ]
     },

@@ -104,6 +104,8 @@ export const KEY_LEGACY_DISPLAY_LANG_HEADER = "displayLangHeader";
 export const KEY_SHOW_REVIEW_BUTTON = "showReviewButton";
 /** Offer single-apply Review fixes in the suggestion popup while typing; never applied unasked. */
 export const KEY_LIVE_GRAMMAR_PROPOSALS = "liveGrammarProposals";
+/** Underline Review findings in the focused field while typing, without the Review panel; off unless turned on. */
+export const KEY_REVIEW_WHILE_TYPING = "reviewWhileTyping";
 /** "Local AI corrections in Review" preference; on for new users, blocked until setup. */
 export const KEY_LOCAL_AI_REVIEW_ENABLED = "localAiReviewEnabled";
 /** Selected model tier: "standard" | "compact". */

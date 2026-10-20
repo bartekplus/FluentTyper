@@ -19,6 +19,20 @@ You can change the shortcut in your browser's extension shortcut settings.
 Review checks the active text field. If you select a passage, supported editors let you check that passage instead.
 The panel shows when it checks only part of your text.
 
+## Underline issues while typing
+
+Review can check the text box you write in without the **Review** button.
+Turn on **Settings → Grammar → Review text → Underline issues while typing**. It is off by default.
+
+- When a multi-line text box has focus, FluentTyper checks it and underlines what it finds. No panel opens.
+- After the first check, only the text you change is checked again, when you pause.
+- While you type a word, its underline waits until you leave the word.
+- Click an underline to see its correction card. **Review all** on the card opens the full Review panel.
+- Press **Alt+Enter** (**Option+Return** on a Mac) to open the card of the last issue before the cursor. Press **Enter** to apply its fix.
+- Local AI does not run until you open the full panel.
+
+Single-line fields, Google Docs and Word for the web do not get underlines. Use **Review text** there.
+
 ## Choose what to change
 
 Select a highlighted word or an issue in the panel. The correction card explains the issue and shows the proposed change.

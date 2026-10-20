@@ -3,6 +3,7 @@ import {
   type ExplanationLoader,
   type ReviewDataLoader,
 } from "@core/application/review/LocalReviewEngine";
+import type { ReviewSpellingLookup } from "@core/application/review/ReviewSession";
 import {
   parseReviewEngineRequest,
   type ReviewEngineResponse,
@@ -57,15 +58,22 @@ export class ReviewEngineHost {
     this.live = new LocalReviewEngine(undefined, loadExplanations, loadData);
   }
 
+  /** `lookupSpelling`: the dictionary, for a typing pause's spelling proposal. */
   async handle(
     message: unknown,
     sender: { tabId: number; frameId: number },
+    lookupSpelling?: ReviewSpellingLookup,
   ): Promise<ReviewEngineResponse> {
     const request = parseReviewEngineRequest(message);
     if (!request) return { ok: false, error: "invalid" };
     if (request.op === "live") {
       return this.answer(() =>
-        this.live.liveProposals(request.beforeCursor, request.options, request.uiLanguage),
+        this.live.liveProposals(
+          request.beforeCursor,
+          request.options,
+          request.uiLanguage,
+          lookupSpelling,
+        ),
       );
     }
     if (request.op === "explain") {
