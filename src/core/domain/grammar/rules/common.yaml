@@ -4427,6 +4427,15 @@ fragments:
   PARTICIPLE_TAIL: "(?<adverbs>(?:{{S}}(?:not|never|already|just|ever|really|still|also|even|only|all|both|since|then|now|always|often|sometimes|seldom|[a-z]+ly)){0,2}){{S}}(?!(?:be|been|being|have|having){{E}})(?<verb>[A-Za-z]+){{E}}"
   PARTICIPLE_WRAP: "(?:{{S}}|[ \\t\\u00a0]{0,8}\\r?\\n[ \\t\\u00a0]{0,8})"
   PARTICIPLE_OBJECT: "(?:it|them|him|her|us|me|this|that)"
+  STRUCTURE_MODALS: "(?:can|could|will|would|shall|should|may|might|must)"
+  STRUCTURE_CLAUSE_START: "(?<=(?:^|[.!?;:\\n\"“(])[ \\t\\u00a0]{0,8})"
+  STRUCTURE_PREPOSITION: "(?:to|with|for|from|about|at|by|of|on|in|into|onto|upon|without|against|among|between|toward|towards|behind|beside|near|around|via)"
+  STRUCTURE_POSSESSIVE: "(?:my|your|our|their|his|its|her)"
+  STRUCTURE_AFTER_PREDICATE: "(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|{{S}}(?:to|for|that|if|in|on|at|with|about|of|by|now|soon|again|here|there|today|tomorrow|then|and|but|or|because|when|anymore|yet|enough){{E}})"
+  STRUCTURE_OPENER: "(?:because|so|and|but|here|now|since|although|though|while|yet|thus|hence|indeed)"
+  # Irregular simple-past forms with one owner ("lay" is lay's lemma and lie's past), from the
+  # verb form table (EnglishVerbForms.ts); with modals and "had/did", any subject agrees.
+  PASTS: "arose|awoke|bore|beat|became|began|bent|bet|bound|bit|bled|blew|broke|bred|brought|built|burst|bought|caught|chose|clung|came|cost|crept|cut|dealt|dug|did|drew|drank|drove|ate|fell|fed|felt|fought|found|fled|flung|flew|forbade|forgot|forgave|froze|got|gave|went|ground|grew|hung|had|heard|hid|hit|held|hurt|kept|knelt|knew|laid|led|left|lent|let|lit|lost|made|meant|met|misled|mistook|misunderstood|overcame|overtook|overwrote|paid|put|quit|read|rebuilt|redid|reran|reset|rewrote|rode|rang|rose|ran|said|saw|sought|sold|sent|set|shook|shone|shot|shrank|shut|sang|sank|sat|slept|slid|spoke|spent|spun|split|spread|sprang|stood|stole|stuck|stung|stank|struck|swore|swept|swam|swung|took|taught|tore|told|thought|threw|underwent|understood|undertook|undid|upset|woke|wore|wept|won|wound|withdrew|worked|wrote"
 
 rules:
   # Typing rules: each live check names its implementation (engine/liveRules.ts).
@@ -4915,9 +4924,58 @@ rules:
   - id: pronounCase
     checks: [englishPronounCase]
     predicate: pronounCase
+  # Bounded sentence-structure slips: closed-class frames, with lexicon evidence for open words.
   - id: sentenceStructure
     checks: [englishSentenceStructure]
-    predicate: sentenceStructure
+    style: match
+    message: review_msg_double_subject
+    frames:
+      # "I he went": two subject pronouns left over from an edit. Both readings agree with the verb.
+      # Reporting verbs leave a comma-less parenthetical possible ("They he said were late").
+      - regex: "{{STRUCTURE_CLAUSE_START}}(?<a>I|we|they|he|she){{S}}(?<b>I|we|they|he|she){{S}}(?!(?:said|told|thought|knew|felt|believed|claimed|heard|guessed|supposed|reckoned){{E}})(?:{{STRUCTURE_MODALS}}|{{PASTS}}|[a-z]{2,}ed){{E}}"
+        owner: none
+        fixer: doubleSubjects
+      # "about my I want": a possessive needs a noun, never a subject pronoun ("Oh my, I…" abstains).
+      - regex: "(?<a>my|your|our|their){{S}}(?<b>I|you|he|she|we|they){{E}}"
+        owner: a
+        fixer: possessiveSubjects
+      # "to you them": a preposition takes one object; "give you them" (two objects) has no preposition.
+      - regex: "{{STRUCTURE_PREPOSITION}}{{S}}(?<a>me|you|him|her|us|them|it){{S}}(?<b>me|him|us|them){{E}}"
+        owner: a
+        fixer: objectPairs
+      # "the my car": an article and a possessive cannot share a noun. "a/an her" abstains (object
+      # "her" after a noun is ordinary: "a gift for a her"), as does a bare "the her".
+      - regex: "(?<article>the|a|an){{S}}(?<possessive>{{STRUCTURE_POSSESSIVE}}){{E}}(?:{{S}}(?<noun>[a-z]+))?"
+        owner: article
+        fixer: determinerClashes
+      # "my the car", "a the car", "my your car": determiners that cannot stack either way round.
+      # "its the"/"your the" opening a clause are it's/you're slips, which those rules own.
+      - regex: "(?<first>my|your|our|their|his|a){{S}}(?<second>the|{{STRUCTURE_POSSESSIVE}}){{E}}"
+        owner: first
+        fixer: stackedDeterminers
+      # Regional double modals; the writer keeps one. A subject pronoun rules out the nouns
+      # "will" and "might"; a base verb after them rules out canning ("We must can tomatoes").
+      - regex: "(?:I|you|we|they|he|she|it){{S}}(?<first>{{STRUCTURE_MODALS}}){{S}}(?<second>{{STRUCTURE_MODALS}}|ought{{S}}to){{S}}(?<next>[a-z]+){{E}}"
+        owner: first
+        fixer: doubleModals
+      # A modal directly before a word the lexicon knows only as an adjective ("It would nice if…").
+      - regex: "(?<subject>[a-z]+){{S}}(?<modal>{{STRUCTURE_MODALS}}|won['’]t|cannot|(?:could|would|should|might|must|can)n['’]t)(?:{{S}}not)?{{S}}(?<adjective>[a-z]+){{E}}{{STRUCTURE_AFTER_PREDICATE}}"
+        owner: adjective
+        fixer: missingBe
+      # "a couple days", "a lot people": a quantity noun takes "of" before a plural. An -s word that is
+      # also a verb needs "ago" after it or a preposition before ("A couple runs the shop").
+      - regex: "(?:a{{S}}(?<head>couple|lot|bunch|handful)|(?<head2>plenty)){{S}}(?<noun>[a-z]+){{E}}(?<ago>{{S}}ago{{E}})?"
+        owner: none
+        fixer: quantities
+      # "many of people": "of" before a bare plural needs a determiner ("many of the people").
+      - regex: "(?<quantifier>a{{S}}few|many|several|most|some|both|all){{S}}(?<of>of){{S}}(?<noun>[a-z]+){{E}}"
+        owner: of
+        fixer: partitives
+      # "Not only it is fast": a fronted "not only" inverts subject and auxiliary, also after a
+      # linking word ("because not only it was…"); other verbs take do-support.
+      - regex: "(?=not{{S}}only{{S}})(?:{{STRUCTURE_CLAUSE_START}}|(?<=(?:^|[^\\p{L}\\p{N}_'’-]){{STRUCTURE_OPENER}},?{{S}}))not{{S}}only{{S}}(?<subject>I|you|he|she|it|we|they)(?:(?<contraction>['’](?:s|re|ve|m|ll))|{{S}}(?<verb>[a-z]+)){{E}}"
+        owner: none
+        fixer: notOnlyInversion
   - id: wordConfusions
     checks:
       [englishThenThan, englishYourYouAre, englishTheirThereTheyAre, englishToToo, englishWereWhere]

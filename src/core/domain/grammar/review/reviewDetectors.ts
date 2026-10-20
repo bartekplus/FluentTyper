@@ -23,7 +23,7 @@ import {
 import { wordConfusions } from "./englishWordConfusions";
 import { FILTERS as AUXILIARY_FILTERS, FIXERS as AUXILIARY_FIXERS } from "./englishAuxiliaryForms";
 import { pronounCase } from "./englishPronounCase";
-import { sentenceStructure } from "./englishSentenceStructure";
+import { FIXERS as STRUCTURE_FIXERS } from "./englishSentenceStructure";
 import type { CatalogRuleId } from "../ruleCatalog";
 import {
   isGreekQuestionMark,
@@ -1590,7 +1590,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
     ctx.lang === "en_US" ? doubledDegree(ctx) : doubledDegreeByLanguage(ctx),
   countability,
   pronounCase,
-  sentenceStructure,
   wordConfusions,
   // The English word lists are the spellingWords frames; other languages have their own tables.
   spelling: (ctx) =>
@@ -1655,6 +1654,7 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   COMPLEMENT_FIXERS,
   AUXILIARY_FIXERS,
   PARTICIPLE_FIXERS,
+  STRUCTURE_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */
