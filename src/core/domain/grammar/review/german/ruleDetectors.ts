@@ -51,7 +51,8 @@ export const FIXERS = mergePredicates<Fixer>(
   questions.FIXERS,
   quotes.FIXERS,
   dates.FIXERS,
+  numbers.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>();
+export const FILTERS = mergePredicates<FindingsFilter>(numbers.FILTERS);
