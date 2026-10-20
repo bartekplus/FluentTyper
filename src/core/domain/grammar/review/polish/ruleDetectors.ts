@@ -25,7 +25,6 @@ import * as typos from "./typos";
 export const PREDICATES = mergePredicates(
   agreement.PREDICATES,
   clauses.PREDICATES,
-  commas.PREDICATES,
   compounds.PREDICATES,
   confusions.PREDICATES,
   conjunctions.PREDICATES,
@@ -47,6 +46,7 @@ export const FIXERS = mergePredicates<Fixer>(
   agreement.FIXERS,
   casing.FIXERS,
   commaFrames.FIXERS,
+  commas.FIXERS,
   compounds.FIXERS,
   confusions.FIXERS,
   forms.FIXERS,
