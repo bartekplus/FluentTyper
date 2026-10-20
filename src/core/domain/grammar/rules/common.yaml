@@ -4491,6 +4491,10 @@ fragments:
   NUMBER_COUNT: "zero|one|two|three|four|five|six|seven|eight|nine|ten|[0-9]{1,4}"
   POSSESSIVE_ADJECTIVE: "(?:(?:new|old|cold|warm|red|blue|main|original|updated|private){{S}})?"
   POSSESSIVE_NOUN: "(?:policy|connection|surface|folder|file|password|screen|keyboard|owner|name|settings|color|cover|door|engine|battery|address)"
+  # The day, a dotted, slashed or dashed month and the year: "7/8/2031", "07.08.2031".
+  DATE_NUMERIC: "(?<day>\\d{1,2})(?<sep>[/.-])(?<month>\\d{1,2})\\k<sep>(?<year>\\d{4})"
+  DATE_NOT_AFTER: "(?![\\p{L}\\p{N}])"
+  DATE_SPACE: "[ \\t\\u00a0]+"
 
 rules:
   # Typing rules: each live check names its implementation (engine/liveRules.ts).
@@ -5624,8 +5628,82 @@ rules:
         scan: owned
         flags: gu
         fixer: currencyPlacement
-  # Date and tense agreement runs after every language's own rules.
-  - id: dateTense
+  # Date and tense agreement runs after every language's own rules (stage 1). One rule for each
+  # language: one frame per date shape, the preposition, the date (`date`), an optional suffix
+  # ("12 marca 2028 r.", "… 2028 roku") and no letter or digit after it. The month names come
+  # from the date modules of each language (german/dates.ts, french/dates.ts, …).
+  - id: dateTense.de
     checks: [dateTenseConsistency]
-    predicate: dateTense
+    lang: de
     stage: 1
+    style: match
+    message: review_msg_future_date_past
+    frames:
+      - regex: "am{{DATE_SPACE}}(?:(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag),?{{DATE_SPACE}}(?:den{{DATE_SPACE}})?)?(?<date>(?<day>\\d{1,2})\\.(?:[ \\t\\u00a0]?(?<month>\\d{1,2})\\.[ \\t\\u00a0]?|[ \\t\\u00a0]*(?<name>januar|jänner|jan|jän|februar|feb|märz|mär|april|apr|mai|juni|jun|juli|jul|august|aug|september|sep|sept|oktober|okt|november|nov|dezember|dez)\\.?{{DATE_SPACE}})(?<year>\\d{4})){{DATE_NOT_AFTER}}"
+        owner: date
+        fixer: dateTense
+  - id: dateTense.fr
+    checks: [dateTenseConsistency]
+    lang: fr
+    stage: 1
+    style: match
+    message: review_msg_future_date_past
+    frames:
+      - regex: "le{{DATE_SPACE}}(?:(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche){{DATE_SPACE}})?(?<date>(?<day>\\d{1,2})(?:er)?{{DATE_SPACE}}(?<name>janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre){{DATE_SPACE}}(?<year>\\d{4})){{DATE_NOT_AFTER}}"
+        owner: date
+        fixer: dateTense
+      - regex: "le{{DATE_SPACE}}(?:(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche){{DATE_SPACE}})?(?<date>{{DATE_NUMERIC}}){{DATE_NOT_AFTER}}"
+        owner: date
+        fixer: dateTense
+  - id: dateTense.es
+    checks: [dateTenseConsistency]
+    lang: es
+    stage: 1
+    style: match
+    message: review_msg_future_date_past
+    frames:
+      - regex: "el{{DATE_SPACE}}(?:día{{DATE_SPACE}})?(?:(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo),?{{DATE_SPACE}})?(?<date>(?<day>\\d{1,2}){{DATE_SPACE}}de{{DATE_SPACE}}(?<name>enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre){{DATE_SPACE}}(?:de|del){{DATE_SPACE}}(?<year>\\d{4})){{DATE_NOT_AFTER}}"
+        owner: date
+        fixer: dateTense
+      - regex: "el{{DATE_SPACE}}(?:día{{DATE_SPACE}})?(?:(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo),?{{DATE_SPACE}})?(?<date>{{DATE_NUMERIC}}){{DATE_NOT_AFTER}}"
+        owner: date
+        fixer: dateTense
+  - id: dateTense.pt
+    checks: [dateTenseConsistency]
+    lang: pt
+    stage: 1
+    style: match
+    message: review_msg_future_date_past
+    frames:
+      - regex: "(?:em|a|no{{DATE_SPACE}}dia|dia){{DATE_SPACE}}(?:(?:(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo),?{{DATE_SPACE}})?(?<date>(?<day>\\d{1,2})[º°]?{{DATE_SPACE}}(?:de{{DATE_SPACE}})?(?<name>janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\\.?(?:{{DATE_SPACE}}de|,)?{{DATE_SPACE}}(?<year>\\d{4})){{DATE_NOT_AFTER}}"
+        owner: date
+        fixer: dateTense
+      - regex: "(?:em|a|no{{DATE_SPACE}}dia|dia){{DATE_SPACE}}(?:(?:(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo),?{{DATE_SPACE}})?(?<date>(?<name>janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\\.?{{DATE_SPACE}}(?<day>\\d{1,2}),?{{DATE_SPACE}}(?<year>\\d{4})){{DATE_NOT_AFTER}}"
+        owner: date
+        fixer: dateTense
+      - regex: "(?:em|a|no{{DATE_SPACE}}dia|dia){{DATE_SPACE}}(?:(?:(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo),?{{DATE_SPACE}})?(?<date>{{DATE_NUMERIC}}){{DATE_NOT_AFTER}}"
+        owner: date
+        fixer: dateTense
+  - id: dateTense.pl
+    checks: [dateTenseConsistency]
+    lang: pl
+    stage: 1
+    style: match
+    message: review_msg_future_date_past
+    frames:
+      - regex: "(?<![\\p{L}\\p{N}.,/-])(?:(?:dnia|w{{DATE_SPACE}}dniu){{DATE_SPACE}})?(?<date>(?<day>\\d{1,2}){{DATE_SPACE}}(?<name>stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia){{DATE_SPACE}}(?<year>\\d{4}))(?:{{DATE_SPACE}}r\\.|{{DATE_SPACE}}roku)?{{DATE_NOT_AFTER}}"
+        owner: date
+        fixer: dateTense
+      - regex: "(?<![\\p{L}\\p{N}.,/-])(?:(?:dnia|w{{DATE_SPACE}}dniu){{DATE_SPACE}})?(?<date>(?<day>\\d{1,2})\\.(?<month>\\d{1,2})\\.(?<year>\\d{4}))(?:{{DATE_SPACE}}r\\.|{{DATE_SPACE}}roku)?{{DATE_NOT_AFTER}}"
+        owner: date
+        fixer: dateTense
+  - id: dateTense.ar
+    checks: [dateTenseConsistency]
+    lang: ar
+    stage: 1
+    style: match
+    message: review_msg_future_date_past
+    frames:
+      - regex: "(?:(?:في|يوم|بتاريخ){{DATE_SPACE}})?(?<date>(?<day>[0-9٠-٩۰-۹]{1,2}){{DATE_SPACE}}(?<name>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب){{DATE_SPACE}}(?<year>[0-9٠-٩۰-۹]{4})){{DATE_NOT_AFTER}}"
+        owner: date
+        fixer: dateTense

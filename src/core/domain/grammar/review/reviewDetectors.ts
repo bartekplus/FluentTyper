@@ -140,7 +140,7 @@ import {
   FIXERS as FRENCH_FIXERS,
   PREDICATES as FRENCH,
 } from "./french/ruleDetectors";
-import { dateTense } from "./dateTense";
+import { FIXERS as DATE_FIXERS } from "./dateTense";
 
 import { detectAll, PSEUDO_CLEFT_BEFORE, isLang } from "./phraseTemplates";
 import { finding } from "./finding";
@@ -1606,7 +1606,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
       (c) => measurementLike(c, "currencySpacing"),
       (c) => germanUnits(c).filter((f) => f.ruleId === "currencySpacing"),
     ]),
-  dateTense,
 };
 
 /** The frame fixes of the shared detectors of this module. */
@@ -1650,6 +1649,7 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   NUMBER_FIXERS,
   POSSESSIVE_FIXERS,
   COUNT_FIXERS,
+  DATE_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */

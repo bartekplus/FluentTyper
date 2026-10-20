@@ -1,13 +1,12 @@
-import { MONTH as AR_MONTH, MONTH_NUMBER as AR_MONTHS } from "./arabic/dates";
-import { DIGIT as AR_DIGIT, digitValue } from "./isoDates";
+import { MONTH_NUMBER as AR_MONTHS } from "./arabic/dates";
+import { digitValue } from "./isoDates";
 import { MONTHS as FR_MONTHS } from "./french/dates";
 import { MONTHS as DE_MONTHS } from "./german/dates";
-import { frameMatches } from "./phraseTemplates";
 import { GENITIVE as PL_MONTHS } from "./polish/dates";
 import { MONTHS as PT_MONTHS } from "./portuguese/dates";
 import { dateSide, dayCount, recentPast } from "./reviewClock";
-import type { DetectContext, RawFinding } from "./reviewDetectors";
-import { MONTH_NAMES as ES_MONTH_NAMES, monthNumber as esMonth } from "./spanish/typography";
+import type { MatchFixer } from "../engine/reviewRules";
+import { monthNumber as esMonth } from "./spanish/typography";
 
 /*
  * A verb tense that the date next to it rules out, in German, French, Spanish, Portuguese,
@@ -34,8 +33,6 @@ interface Clause {
   opener?: string;
 }
 interface Language {
-  /** Date frames: groups `date`, `day`, `year`, and `month` (digits) or `name`. */
-  dates: string[];
   month(name: string): number;
   /** Words that start another clause. */
   boundary: ReadonlySet<string>;
@@ -47,13 +44,6 @@ interface Language {
 
 const words = (list: string): ReadonlySet<string> => new Set(list.split(/\s+/));
 const lower = (list: readonly string[]) => list.map((word) => word.toLowerCase());
-const S = "[ \\t\\u00a0]+";
-const NOT_AFTER = "(?![\\p{L}\\p{N}])";
-/** The day, a dotted, slashed or dashed month and the year: "7/8/2031", "07.08.2031". */
-const NUMERIC = "(?<day>\\d{1,2})(?<sep>[/.-])(?<month>\\d{1,2})\\k<sep>(?<year>\\d{4})";
-/** One frame per date shape: the preposition, the date (`date`), an optional suffix. */
-const frames = (prefix: string, dates: string[], suffix = "") =>
-  dates.map((date) => `${prefix}(?<date>${date})${suffix}${NOT_AFTER}`);
 /** True when a word in `list` comes right before a word in `next` (with up to `gap` between). */
 function pairAt(
   list: readonly string[],
@@ -125,12 +115,6 @@ function germanTense({ before, after, closed }: Clause): Tense {
 }
 
 const GERMAN: Language = {
-  dates: frames(
-    `am${S}(?:(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag),?${S}(?:den${S})?)?`,
-    [
-      `(?<day>\\d{1,2})\\.(?:[ \\t\\u00a0]?(?<month>\\d{1,2})\\.[ \\t\\u00a0]?|[ \\t\\u00a0]*(?<name>${Object.keys(DE_MONTHS).join("|")})\\.?${S})(?<year>\\d{4})`,
-    ],
-  ),
   month: (name) => DE_MONTHS[name.toLowerCase()] ?? 0,
   boundary: words(
     "dass ob wenn falls weil als bevor nachdem sobald bis und aber oder sondern denn damit obwohl während",
@@ -197,10 +181,6 @@ function frenchTense({ before, after }: Clause): Tense {
 }
 
 const FRENCH: Language = {
-  dates: frames(`le${S}(?:(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)${S})?`, [
-    `(?<day>\\d{1,2})(?:er)?${S}(?<name>${FR_MONTHS.flat().join("|")})${S}(?<year>\\d{4})`,
-    NUMERIC,
-  ]),
   month: (name) => FR_MONTHS.findIndex((names) => names.includes(name.toLowerCase())) + 1,
   boundary: words("que qu si quand lorsque lorsqu et mais ou car donc puis dont où qui comme"),
   conditional: words("si"),
@@ -256,13 +236,6 @@ function spanishTense({ before, after }: Clause): Tense {
 }
 
 const SPANISH: Language = {
-  dates: frames(
-    `el${S}(?:día${S})?(?:(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo),?${S})?`,
-    [
-      `(?<day>\\d{1,2})${S}de${S}(?<name>${ES_MONTH_NAMES})${S}(?:de|del)${S}(?<year>\\d{4})`,
-      NUMERIC,
-    ],
-  ),
   month: esMonth,
   boundary: words("que si cuando porque aunque y e pero o u ni mientras donde quien como"),
   conditional: words("si"),
@@ -307,16 +280,7 @@ function portugueseTense({ before, after }: Clause): Tense {
   return null;
 }
 
-const PT_MONTH = `${PT_MONTHS.join("|")}|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez`;
 const PORTUGUESE: Language = {
-  dates: frames(
-    `(?:em|a|no${S}dia|dia)${S}(?:(?:(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo),?${S})?`,
-    [
-      `(?<day>\\d{1,2})[º°]?${S}(?:de${S})?(?<name>${PT_MONTH})\\.?(?:${S}de|,)?${S}(?<year>\\d{4})`,
-      `(?<name>${PT_MONTH})\\.?${S}(?<day>\\d{1,2}),?${S}(?<year>\\d{4})`,
-      NUMERIC,
-    ],
-  ),
   month: (name) => {
     const lowered = name.toLowerCase();
     return PT_MONTHS.findIndex((month) => month.startsWith(lowered)) + 1;
@@ -353,15 +317,6 @@ function polishTense({ before, after }: Clause): Tense {
 }
 
 const POLISH: Language = {
-  dates: frames(
-    `(?<![\\p{L}\\p{N}.,/-])(?:(?:dnia|w${S}dniu)${S})?`,
-    [
-      `(?<day>\\d{1,2})${S}(?<name>${PL_MONTHS.join("|")})${S}(?<year>\\d{4})`,
-      `(?<day>\\d{1,2})\\.(?<month>\\d{1,2})\\.(?<year>\\d{4})`,
-    ],
-    // "12 marca 2028 r.", "… 2028 roku"
-    `(?:${S}r\\.|${S}roku)?`,
-  ),
   month: (name) => PL_MONTHS.indexOf(name.toLowerCase()) + 1,
   boundary: words(
     "że czy jeśli jeżeli gdy gdyby kiedy bo ponieważ aby żeby i ale lub albo oraz a który która które którzy jak",
@@ -383,9 +338,6 @@ function arabicTense({ before, after }: Clause): Tense {
 }
 
 const ARABIC: Language = {
-  dates: frames(`(?:(?:في|يوم|بتاريخ)${S})?`, [
-    `(?<day>${AR_DIGIT}{1,2})${S}(?<name>${AR_MONTH})${S}(?<year>${AR_DIGIT}{4})`,
-  ]),
   month: (name) => AR_MONTHS.get(name) ?? 0,
   boundary: words("أن إن إذا لو عندما حتى لأن الذي التي الذين لكن ثم بينما"),
   conditional: words("إذا لو إن"),
@@ -450,27 +402,26 @@ function side(lang: Language, g: Record<string, string | undefined>): Tense {
   return null;
 }
 
-export function dateTense(ctx: DetectContext): RawFinding[] {
-  const lang = LANGUAGES[ctx.lang.slice(0, 2)];
-  if (!lang) return [];
-  const findings: RawFinding[] = [];
-  for (const pattern of lang.dates)
-    for (const m of frameMatches(ctx, pattern, "date")) {
-      const dateSideNow = side(lang, m.groups!);
-      if (!dateSideNow) continue;
-      const [start, end] = m.indices!.groups!.date;
-      const clause = clauseAround(ctx.text, m.index, m.index + m[0].length, lang.boundary);
-      if (clause.opener && lang.conditional.has(clause.opener)) continue;
-      const tense = lang.tense(clause);
-      if (!tense || tense === dateSideNow) continue;
-      findings.push({
-        ruleId: "dateTenseConsistency",
-        messageKey:
-          dateSideNow === "future" ? "review_msg_future_date_past" : "review_msg_past_date_future",
-        range: { start, end },
-        alternatives: [],
-        warningOnly: true,
-      });
-    }
-  return findings;
-}
+/** The named frame fixes of the dateTense frames of grammar/rules/common.yaml. */
+export const FIXERS = {
+  // A date frame: groups `date`, `day`, `year`, and `month` (digits) or `name`.
+  dateTense: (m, ctx) => {
+    const lang = LANGUAGES[ctx.lang.slice(0, 2)];
+    if (!lang) return null;
+    const dateSideNow = side(lang, m.groups!);
+    if (!dateSideNow) return null;
+    const [start, end] = m.indices!.groups!.date;
+    const clause = clauseAround(ctx.text, m.index, m.index + m[0].length, lang.boundary);
+    if (clause.opener && lang.conditional.has(clause.opener)) return null;
+    const tense = lang.tense(clause);
+    if (!tense || tense === dateSideNow) return null;
+    return {
+      ruleId: "dateTenseConsistency",
+      messageKey:
+        dateSideNow === "future" ? "review_msg_future_date_past" : "review_msg_past_date_future",
+      range: { start, end },
+      alternatives: [],
+      warningOnly: true,
+    };
+  },
+} satisfies Record<string, MatchFixer>;
