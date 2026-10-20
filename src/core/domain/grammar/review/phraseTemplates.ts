@@ -3,6 +3,7 @@ import {
   carryCase,
   detectWordCase,
 } from "../implementations/helpers/GenericRuleShared";
+import { startPrefixes } from "../engine/prefixes";
 import { namedExampleBefore } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
@@ -177,6 +178,29 @@ export const takeFrameFailure = (ctx: DetectContext) => BROKEN_SCANS.delete(ctx)
 const READ_PATTERNS = new WeakMap<RegExp, string | null>();
 // A regex mid-scan in an unfinished generator; a nested scan of it gets its own copy.
 const SCANNING = new WeakSet<RegExp>();
+// The sticky copy of a frame regex: it runs only at the frame's start positions.
+const STICKY = new WeakMap<RegExp, RegExp>();
+// The start prefixes of a frame source (null: a match may start anywhere).
+const PREFIXES = new Map<string, readonly string[] | null>();
+// A prefix holds only characters whose case-insensitive matches String#toLowerCase mirrors:
+// printable ASCII and the LITERAL_LETTER ranges. It ends before any other character.
+const PREFIX_CHAR =
+  /[ -~\u00c0-\u00d6\u00d8-\u00de\u00e0-\u00f6\u00f8-\u012f\u0132-\u017e\u0180-\u024f]/;
+
+function framePrefixes(source: string): readonly string[] | null {
+  let found = PREFIXES.get(source);
+  if (found === undefined) {
+    const raw = startPrefixes(source);
+    const safe = raw?.map((prefix) => {
+      let end = 0;
+      while (end < prefix.length && PREFIX_CHAR.test(prefix[end])) end++;
+      return prefix.slice(0, end);
+    });
+    found = !safe || safe.includes("") ? null : [...new Set(safe)];
+    PREFIXES.set(source, found);
+  }
+  return found;
+}
 
 // An escape after its backslash: \p{L}, \u{…}, \k<name>, \u00a0, \x2d, \cJ or one character.
 const ESCAPE = /^(?:[pPu]\{[^}]*\}|k<[^>]*>|u[\dA-Fa-f]{4}|x[\dA-Fa-f]{2}|c[A-Za-z]|.)/su;
@@ -271,7 +295,13 @@ export const primeFrameLiterals = (source: string, literals: string[]) =>
 // Kelvin sign ~ k, U+212B Angstrom sign, capital sharp s).
 const SCANNED = new WeakMap<
   DetectContext,
-  { lower: string | null; grams: Uint8Array; found: Map<string, boolean> }
+  {
+    lower: string | null;
+    grams: Uint8Array;
+    found: Map<string, boolean>;
+    aligned: boolean;
+    starts: Map<string, number[]>;
+  }
 >();
 // A three-letter run as a hash: no substring is made. Two runs can share a hash, so a hit
 // is only a hint and the text search decides.
@@ -282,10 +312,7 @@ const gram = (text: string, at: number) =>
  * False when a frame cannot match in this chunk's scan: the text from from-256 (where
  * scans start), lowercased, holds none of the literals of which every match consumes one. Such a frame is neither compiled nor run, which spares most frames on most text.
  */
-function mayMatch(ctx: DetectContext, source: string): boolean {
-  let literals = LITERALS.get(source);
-  if (literals === undefined) LITERALS.set(source, (literals = requiredLiterals(source)));
-  if (literals.length === 0) return true;
+function scannedText(ctx: DetectContext) {
   let scanned = SCANNED.get(ctx);
   if (scanned === undefined) {
     const raw = ctx.scanText.slice(Math.max(0, ctx.from - 256));
@@ -293,9 +320,53 @@ function mayMatch(ctx: DetectContext, source: string): boolean {
     // Its three-letter runs: most literals fail there, before a search of the whole text.
     const grams = new Uint8Array(0x4000);
     for (let i = 0; lower !== null && i + 3 <= lower.length; i++) grams[gram(lower, i)] = 1;
-    SCANNED.set(ctx, (scanned = { lower, grams, found: new Map() }));
+    SCANNED.set(
+      ctx,
+      (scanned = {
+        lower,
+        grams,
+        found: new Map(),
+        // Positions line up with the text only when lowercasing kept every length.
+        aligned: lower !== null && lower.length === raw.length,
+        starts: new Map(),
+      }),
+    );
   }
-  const { lower, grams, found } = scanned;
+  return scanned;
+}
+
+/** The positions in [from - 256, to) where `prefix` stands (lowercased). */
+function prefixStarts(ctx: DetectContext, prefix: string): number[] {
+  const scanned = scannedText(ctx);
+  let starts = scanned.starts.get(prefix);
+  if (starts === undefined) {
+    starts = [];
+    const base = Math.max(0, ctx.from - 256);
+    const limit = ctx.to - base;
+    for (let i = scanned.lower!.indexOf(prefix); i !== -1 && i < limit;) {
+      starts.push(base + i);
+      i = scanned.lower!.indexOf(prefix, i + 1);
+    }
+    scanned.starts.set(prefix, starts);
+  }
+  return starts;
+}
+
+/** Where a match of a frame may start in the chunk's scan, ascending; null: anywhere. */
+function frameStarts(ctx: DetectContext, source: string | null): readonly number[] | null {
+  if (source === null) return null;
+  const prefixes = framePrefixes(source);
+  if (prefixes === null || !scannedText(ctx).aligned) return null;
+  if (prefixes.length === 1) return prefixStarts(ctx, prefixes[0]);
+  // No prefix starts another one, so two prefixes never stand at one position.
+  return prefixes.flatMap((prefix) => prefixStarts(ctx, prefix)).sort((a, b) => a - b);
+}
+
+function mayMatch(ctx: DetectContext, source: string): boolean {
+  let literals = LITERALS.get(source);
+  if (literals === undefined) LITERALS.set(source, (literals = requiredLiterals(source)));
+  if (literals.length === 0) return true;
+  const { lower, grams, found } = scannedText(ctx);
   if (lower === null) return true;
   for (const literal of literals) {
     // Most literals fail at the hashes, before the memo or a text search.
@@ -322,7 +393,9 @@ export function* frameMatches(
   owner: string | ((match: RegExpExecArray) => number) | null = "target",
 ): Generator<RegExpExecArray> {
   let regex: RegExp;
+  let source: string | null;
   if (typeof pattern === "string") {
+    source = pattern;
     if (!FRAME_AUDIT.all && !mayMatch(ctx, pattern)) return;
     let compiled = COMPILED.get(pattern);
     if (!compiled) {
@@ -344,6 +417,12 @@ export function* frameMatches(
     }
     if (read !== null && !FRAME_AUDIT.all && !mayMatch(ctx, read)) return;
     regex = pattern;
+    source = read;
+  }
+  const starts = frameStarts(ctx, source);
+  if (starts !== null) {
+    yield* stickyMatches(ctx, regex, starts, owner);
+    return;
   }
   if (SCANNING.has(regex)) regex = new RegExp(regex);
   SCANNING.add(regex);
@@ -368,6 +447,41 @@ export function* frameMatches(
     SCANNING.delete(regex);
   }
 }
+/**
+ * The matches frameMatches gives, read only at `starts`: the sticky copy of `regex` runs at
+ * each start after the last match, in order. A global scan finds the leftmost match after
+ * its last one; when every match starts at one of `starts`, both give the same matches.
+ */
+function* stickyMatches(
+  ctx: DetectContext,
+  regex: RegExp,
+  starts: readonly number[],
+  owner: string | ((match: RegExpExecArray) => number) | null,
+): Generator<RegExpExecArray> {
+  let sticky = STICKY.get(regex);
+  if (!sticky) STICKY.set(regex, (sticky = new RegExp(regex.source, `${regex.flags}y`)));
+  let next = Math.max(0, ctx.from - 256);
+  for (const at of starts) {
+    if (at < next) continue;
+    sticky.lastIndex = at;
+    const m = sticky.exec(ctx.scanText);
+    if (!m) continue;
+    next = m.index + m[0].length;
+    let start: number;
+    if (owner === null) start = ctx.from;
+    else if (typeof owner === "string") {
+      const [ownerStart, ownerEnd] = m.indices!.groups![owner];
+      // As in frameMatches: resume right after the owner.
+      if (ownerEnd < next) next = Math.max(m.index + 1, ownerEnd);
+      start = ownerStart;
+    } else start = owner(m);
+    if (start < ctx.from || start >= ctx.to) continue;
+    if (gluedAfter(ctx.text, m.index + m[0].length)) continue;
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    yield m;
+  }
+}
+
 export type PhraseTemplate = {
   pattern: string;
   replacement: string;
