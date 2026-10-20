@@ -13,6 +13,7 @@ import {
   SPACE,
   TOKEN_END,
   WORD_END,
+  WORD_START,
 } from "../review/phraseTemplates";
 import type {
   CheckSpec,
@@ -107,6 +108,7 @@ const FRAME_KEYS = new Set([
   "lowercase",
   "capitalized",
   "ownCase",
+  "targetOnly",
 ]);
 const BUILTIN_FRAGMENTS: Readonly<Record<string, string>> = {
   S: SPACE,
@@ -483,10 +485,19 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           errors.push(`${at}: a portuguese frame gives its fixes as a list`);
         if (spec.style !== "slot" && entry.cue !== undefined)
           errors.push(`${at}: "cue" needs style "slot"`);
-        if (spec.style !== "slot" && spec.style !== "polish" && entry.check !== undefined)
-          errors.push(`${at}: "check" needs style "slot" or "polish"`);
-        if (spec.style !== "polish" && (entry.verbatim || entry.lowercase))
-          errors.push(`${at}: "verbatim" and "lowercase" need style "polish"`);
+        if (
+          !["slot", "polish", "carry", "cased"].includes(spec.style ?? "") &&
+          entry.check !== undefined
+        )
+          errors.push(`${at}: "check" needs style "slot", "polish", "carry" or "cased"`);
+        if (spec.style === "cased" && entry.fix !== undefined && typeof entry.fix !== "string")
+          errors.push(`${at}: a cased frame has one "fix" string`);
+        if (spec.style !== "polish" && entry.lowercase)
+          errors.push(`${at}: "lowercase" needs style "polish"`);
+        if (spec.style !== "polish" && spec.style !== "carry" && entry.verbatim)
+          errors.push(`${at}: "verbatim" needs style "polish" or "carry"`);
+        if (spec.style !== "carry" && entry.targetOnly)
+          errors.push(`${at}: "targetOnly" needs style "carry"`);
         if (entry.check !== undefined && !spec.checks.includes(entry.check))
           errors.push(`${at}: check "${entry.check}" is not a check of the rule`);
         for (const word of entry.cue ?? [])
@@ -494,6 +505,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
         const pattern = expandFrame(entry.regex, file.fragments ?? {}, at, errors);
         try {
           if (spec.style === "german") new RegExp(pattern, "gdu");
+          else if (spec.style === "cased") new RegExp(`${WORD_START}${pattern}`, "gdu");
           else if (entry.wordStart === false) new RegExp(pattern, "gidu");
           else frame(pattern);
         } catch (error) {
@@ -518,6 +530,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           ...(entry.lowercase ? { lowercase: true as const } : {}),
           ...(entry.capitalized ? { capitalized: true as const } : {}),
           ...(entry.ownCase ? { ownCase: true as const } : {}),
+          ...(entry.targetOnly ? { targetOnly: true as const } : {}),
         });
         return frames.length - 1;
       });

@@ -67,7 +67,6 @@ export const PREDICATES = mergePredicates(
   fixedPhrases.PREDICATES,
   confusions1.PREDICATES,
   confusions2.PREDICATES,
-  idioms3.PREDICATES,
   grammarStyle1.PREDICATES,
   grammarStyle2.PREDICATES,
   dialects.PREDICATES,
@@ -110,6 +109,7 @@ export const PREDICATES = mergePredicates(
 
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
+  idioms3.FIXERS,
   articles.FIXERS,
   idioms5.FIXERS,
   slotConfusions.FIXERS,

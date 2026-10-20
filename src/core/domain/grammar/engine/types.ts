@@ -117,6 +117,8 @@ export interface FrameSpec {
   capitalized?: boolean;
   /** German rules: the fix sets its own case. */
   ownCase?: boolean;
+  /** Carry rules: only the target's words must be plain (not user-dictionary or cased). */
+  targetOnly?: boolean;
 }
 
 /** An executable rule: a token pattern, a list of frames, or a named detector predicate. */
@@ -159,9 +161,11 @@ export interface RuleSpec {
    * "portuguese": Portuguese text, a list of alternatives per frame (or a fixer of the typed
    * target), `clauseStart` and `capitalized`, and the match as context. "german": German text,
    * complete case-sensitive regexes (flags "gdu"), the first named group other than `noun`
-   * replaced, and `ownCase`.
+   * replaced, and `ownCase`. "carry": English text, a check per frame, the typed casing carried
+   * onto the fix unless `verbatim`, `targetOnly`, and context 40/20. "cased": Portuguese text,
+   * case-sensitive frames, a check per frame, one fix each, user-dictionary tokens skipped.
    */
-  style?: "frame" | "template" | "slot" | "polish" | "portuguese" | "german";
+  style?: "frame" | "template" | "slot" | "polish" | "portuguese" | "german" | "carry" | "cased";
   /** A named filter of the rule's findings (a `FILTERS` record of the rule file). */
   filter?: string;
 }
@@ -235,7 +239,7 @@ export interface CompiledRule {
   frames?: readonly number[];
   /** The message of a frame rule. */
   message?: string;
-  style?: "template" | "slot" | "polish" | "portuguese" | "german";
+  style?: "template" | "slot" | "polish" | "portuguese" | "german" | "carry" | "cased";
   /** "<file>:<name>" of a named findings filter. */
   filter?: string;
   cacheable?: true;
@@ -261,4 +265,5 @@ export interface CompiledFrame {
   lowercase?: true;
   capitalized?: true;
   ownCase?: true;
+  targetOnly?: true;
 }

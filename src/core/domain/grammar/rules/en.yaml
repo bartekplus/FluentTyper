@@ -208,7 +208,116 @@ rules:
         fixer: sendEmailTo
   - id: en.idiomFrames3
     checks: [englishPhraseCorrections, englishFixedPrepositions, stylePhrasing]
-    predicate: idiomFrames3
+    style: carry
+    message: review_msg_phrase_correction
+    frames:
+      # "after 2 years later": one of the two time words goes.
+      - regex: "(?<target>after{{S}}(?:(?:about|exactly|almost|nearly|roughly|around|approximately|just|over|only|another){{S}})?(?:an?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|fifty|a{{S}}few|a{{S}}couple{{S}}(?:of{{S}})?|few|several|many|[0-9]{1,4}){{S}}(?:more{{S}})?(?:seconds?|minutes?|hours?|days?|weeks?|months?|years?|decades?|moments?|century|centuries){{S}}later){{E}}"
+        verbatim: true
+        fixer: idioms3After
+      - regex: "(?<target>a{{S}}part{{S}}from){{E}}"
+        fixer: idioms3A
+      - regex: "(?<!(?<![\\p{L}'’])(?:a|an|one|two|three|few|several|[0-9]+){{S}}\\p{L}+{{S}})apart(?:{{S}}|[ \\t\\u00a0]*\\r?\\n[ \\t\\u00a0]*)(?<target>form){{E}}"
+        fix: "from"
+      # "amounts for the total" → "amounts to"; "accounts for" when it explains a share.
+      - regex: "(?:that|which|this|it|they|would|will|should|can|could|may|might|must|does|do|did|not){{S}}(?<target>(?<verb>amount|amounts|amounted|amounting){{S}}for){{E}}(?!{{S}}(?:each|every|all|both|any){{E}})"
+        fixer: idioms3Verb
+      - regex: "(?:arrive|arrives|arriving|arrived(?!{{S}}to{{S}}the{{S}}(?:office|station|airport|hotel){{E}})){{S}}(?<target>to){{E}}"
+        check: englishFixedPrepositions
+        message: review_msg_contextual_grammar
+        fixer: idioms3To
+      # "accused them for lying" → "of"; "the accused for a murder case" is a noun.
+      - regex: "(?<!(?<![\\p{L}'’])the{{S}})(?:accuse|accuses|accused|accusing)(?:{{S}}(?:me|you|him|her|us|them|it|someone|everyone|people))?{{S}}(?<target>for){{E}}"
+        check: englishFixedPrepositions
+        message: review_msg_contextual_grammar
+        fixer: idioms3For
+      # "Aspire" mid-sentence names a product.
+      - regex: "(?<verb>aspire|aspires|aspired|aspiring){{S}}(?<target>for){{E}}"
+        check: englishFixedPrepositions
+        message: review_msg_contextual_grammar
+        fixer: idioms3For2
+      # Progressive "ask/tell to him": no "to" before the person told.
+      - regex: "(?:ask|asks|asking|tell|tells|telling)(?<target>{{S}}to){{S}}(?:me|you|him|her|us|them|it|one){{E}}(?!{{S}}(?:of|side|another){{E}})(?={{S}}[\\p{L}\"“'‘~])"
+        check: englishFixedPrepositions
+        message: review_msg_contextual_grammar
+        fix: ""
+      - regex: "(?=asked|told)(?<!(?<![\\p{L}'’])(?:was|were|is|are|be|been|being|get|got|gets|getting){{S}}(?:\\p{L}+ly{{S}}|often{{S}}|always{{S}}|never{{S}}|not{{S}}|also{{S}}|already{{S}})?)(?:asked|told)(?<target>{{S}}to){{S}}(?:me|you|him|her|us|them|it|one){{E}}(?!{{S}}(?:of|side|another){{E}})(?={{S}}[\\p{L}\"“'‘~])"
+        check: englishFixedPrepositions
+        message: review_msg_contextual_grammar
+        fix: ""
+      - regex: "(?:curious|unsure|uncertain|unclear|clueless|confused){{S}}(?<target>to){{S}}(?:how|what|when|where|whether|which|who|whom|why){{E}}(?!{{S}}(?:degree|extent){{E}})"
+        check: englishFixedPrepositions
+        message: review_msg_contextual_grammar
+        fix: "as to"
+      - regex: "(?<!(?<![\\p{L}'’])(?:such|well|same|seeing|being|just|much|exactly|precisely|similar|not|known|so|is|was|it|that|this|as|far){{S}})(?<target>as{{S}})how{{E}}"
+        check: englishFixedPrepositions
+        message: review_msg_contextual_grammar
+        fix: "as to "
+      - regex: "(?<plural>claims?){{S}}(?<target>for){{S}}fame{{E}}"
+        check: englishFixedPrepositions
+        message: review_msg_contextual_grammar
+        fixer: idioms3For3
+      - regex: "(?:code|codes|coded|coding|write|writes|wrote|written|writing|program|programmed|programming){{S}}(?<target>on){{S}}(?<lang>\\p{L}[\\p{L}+#-]*)(?<language>{{S}}language)?(?![\\p{L}\\p{N}_'’@/\\\\])"
+        check: englishFixedPrepositions
+        message: review_msg_contextual_grammar
+        targetOnly: true
+        fixer: idioms3On
+      - regex: "(?<target>(?:seiz|siez)(?<ending>e|es|ed|ing)){{S}}to{{S}}(?<verb>\\p{L}+){{E}}"
+        fixer: idioms3Seiz
+      - regex: "(?:a|the|my|your|his|our|their|any|another|each|every){{S}}(?<target>complain){{E}}"
+        fixer: idioms3Complain
+      - regex: "(?:the|many|some|several|these|those|my|your|his|her|our|their|no|any|few|multiple){{S}}(?<target>complains){{E}}"
+        fix: "complaints"
+      - regex: "(?:feel|feels|felt|feeling|am|is|are|was|were|be|been|being|sound|sounds|sounded|seem|seems|seemed|look|looks|looked|very|so|too|quite|more|most|less|really|extremely|fully|pretty|remain|remains|remained|stay|stays|stayed|i['’]m|you['’]re|we['’]re|they['’]re|he['’]s|she['’]s){{S}}(?<target>confidant){{E}}(?!{{S}}(?:of|to){{E}})"
+        fix: "confident"
+      - regex: "(?:a|an){{S}}(?<target>confidant){{E}}"
+        fixer: idioms3Confidant
+      - regex: "(?<target>(?<conjunction>and|an|or){{S}}(?:the{{S}}likes|the{{S}}alikes?|alikes)){{E}}(?!{{S}}of{{E}})(?!['’])"
+        fixer: idioms3Conjunction
+      - regex: '(?:and|or){{S}}(?<target>alike)(?:{{COMPLETE}}|(?=["”)]))'
+        fix: "the like"
+      - regex: "of{{S}}all{{S}}(?<target>times){{E}}"
+        fixer: idioms3Times
+      - regex: "(?<target>on){{S}}(?:(?:complete|happy|literal|mere|pure|sheer|total){{S}})?accident{{E}}"
+        fixer: idioms3On2
+      - regex: "back{{S}}in{{S}}the{{S}}(?<target>days){{E}}(?!{{S}}(?:of|when|where|that|before|after|I|we|you|he|she|they){{E}})(?![ \\t]*['’])"
+        fix: "day"
+      - regex: "(?<target>by{{S}}(?<owner>my|your|his|her|its|our|their){{S}}own)(?=[\"”'’]?[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))"
+        fixer: idioms3By
+      - regex: "by{{S}}the{{S}}(?<target>books){{E}}(?!['’])"
+        fixer: idioms3Books
+      # "call it Quit", "call it quit()" name something.
+      - regex: "(?:call|calls|called|calling){{S}}it{{S}}(?<target>quit){{E}}(?![(\\[])"
+        fixer: idioms3Quit
+      - regex: "(?:call|calls|called|calling){{S}}(?:them|it|this|that|her|him|you|me|us|everyone|everybody|these|those)(?<target>{{S}}as){{E}}(?!{{S}}(?:I|you|he|she|it|we|they|it['’]s|is|are|was|were|needed|appropriate|necessary|required|such|well|follows|soon|long|much|many|if|though|usual|usually|expected|before|normal|normally|shown|described|documented|intended|below|above|planned|agreed|promised|scheduled|root|admin|sudo|async|part|a{{S}}(?:function|method|command|script|callback|module|subroutine|program|library|service|user|parameter|constructor|class|decorator|hook|task|job|process|thread|coroutine)|an{{S}}(?:argument|admin|administrator|async|object|instance|action|event|endpoint)|the{{S}}(?:same|first|last|user|root|admin|owner|main|default)){{E}})"
+        fix: ""
+      - regex: "(?:has|have|had|having){{S}}(?<target>ways){{S}}to{{S}}go{{E}}(?!{{S}}(?:about|back|around|through|forward|up|down|out|over|into|beyond|from|ahead|home|there|online|offline){{E}})"
+        fix: ["a long way", "a ways"]
+      # "better off served": "better served", or "better off" before what would be better.
+      - regex: "(?<target>better{{S}}off{{S}}served){{E}}"
+        fixer: idioms3Better
+      # A store that is convenient ("a convenient store for messages") is ordinary English.
+      - regex: "(?<target>convenient){{S}}(?<store>stores?){{E}}(?!{{S}}(?:for|than|that|which|whose){{E}})"
+        fixer: idioms3Convenient
+      # ---- Style advice (off by default). ----
+      - regex: "(?:a|an|is|are|was|were|be|been|being|so|very|highly|extremely|super|quite|really|too|incredibly|insanely|pretty|and|of|most|more|less|least|seriously|surprisingly|strangely|oddly|ridiculously|dangerously|kinda){{S}}(?<target>addicting){{E}}"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        fixer: idioms3Addicting
+      # "too big of a deal" → "too big a deal".
+      - regex: "(?:too|that|as|so|how){{S}}(?<adjective>\\p{L}+){{S}}(?<target>of{{S}})(?=an?{{E}})"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        fixer: idioms3Of
+      # "barely unconscious" says the opposite of the "barely conscious" it means.
+      - regex: "barely{{S}}(?<target>un)(?<stem>\\p{L}{3,}){{E}}"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        fixer: idioms3Un
+      - regex: "(?:am|is|are|was|were|be|been|i['’]m|you['’]re|we['’]re|they['’]re|he['’]s|she['’]s)(?:{{S}}(?:really|still|always|just|so|now|also))?{{S}}craving(?<target>{{S}}for){{E}}"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        fix: ""
   - id: en.idiomPhrases4
     checks: [englishPhraseCorrections]
     message: review_msg_phrase_correction

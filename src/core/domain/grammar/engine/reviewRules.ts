@@ -3,6 +3,11 @@ import { cacheable } from "../review/nativeReviewCache";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../review/reviewDetectors";
 import type { ReviewMessageKey } from "../review/types";
 import { frameDetector as slotFrames, type Frame as SlotFrame } from "../review/english/idioms5";
+import { runCarryFrames as carryFrames, type Frame as CarryFrame } from "../review/english/idioms3";
+import {
+  runCasedFrames as casedFrames,
+  type Frame as CasedFrame,
+} from "../review/portuguese/typography";
 import { runFrames as polishFrames, type Frame as PolishFrame } from "../review/polish/shared";
 import {
   runGermanFrames as germanFrames,
@@ -18,6 +23,7 @@ import {
   detectFrameList,
   detectPhraseTemplates,
   primeFrameLiterals,
+  WORD_START,
   type Frame,
   type PhraseTemplate,
 } from "../review/phraseTemplates";
@@ -161,7 +167,30 @@ export function frameRuleDetector(
     return found;
   };
   let detect: Detector;
-  if (rule.style === "german") {
+  if (rule.style === "cased") {
+    // typography.ts compiles each frame behind WORD_START: its literals are the same.
+    for (const { pattern, literals } of compiled)
+      primeFrameLiterals(`${WORD_START}${pattern}`, [...literals]);
+    const frames: CasedFrame[] = compiled.map((frame) => ({
+      pattern: frame.pattern,
+      replace: fixOf(frame.fix, frame.fixer) as CasedFrame["replace"],
+      ruleId: (frame.check ?? ruleId) as CasedFrame["ruleId"],
+      messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
+    }));
+    detect = (ctx) => casedFrames(ctx, frames);
+  } else if (rule.style === "carry") {
+    const frames: CarryFrame[] = compiled.map((frame) => ({
+      rule: {
+        ruleId: (frame.check ?? ruleId) as CatalogRuleId,
+        messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
+      },
+      pattern: frame.pattern,
+      fix: fixOf(frame.fix, frame.fixer) as CarryFrame["fix"],
+      ...(frame.verbatim ? { verbatim: true as const } : {}),
+      ...(frame.targetOnly ? { targetOnly: true as const } : {}),
+    }));
+    detect = (ctx) => carryFrames(ctx, frames);
+  } else if (rule.style === "german") {
     const frames: GermanFrame[] = compiled.map((frame) => ({
       regex: new RegExp(frame.pattern, "gdu"),
       fix: fixOf(frame.fix, frame.fixer) as GermanFrame["fix"],

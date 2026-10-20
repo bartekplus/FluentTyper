@@ -1,33 +1,21 @@
 import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import {
   caseLike,
-  COMPLETE,
   frameMatches,
   group,
   hasUserOrCasedWord,
   isLang,
   nextWord,
-  SPACE as S,
-  WORD_END as E,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { Fixer } from "../../engine/reviewRules";
 
 // ---- Context detectors: forms that are also ordinary English elsewhere. ----
 
 type Rule = Pick<RawFinding, "ruleId" | "messageKey">;
-const PHRASE: Rule = {
-  ruleId: "englishPhraseCorrections",
-  messageKey: "review_msg_phrase_correction",
-};
-const PREPOSITION: Rule = {
-  ruleId: "englishFixedPrepositions",
-  messageKey: "review_msg_contextual_grammar",
-};
-const STYLED: Rule = { ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing" };
 
 type Fix = string | readonly string[] | null;
-type Frame = {
+export type Frame = {
   rule: Rule;
   pattern: string;
   fix: Fix | ((m: RegExpExecArray, ctx: DetectContext) => Fix);
@@ -81,264 +69,120 @@ const nounLike = (word: string) => {
 const DEGREE =
   /^(?:more|most|less|least|very|so|too|quite|really|pretty|same|and|or|but|also|extremely|super|particularly|especially|fairly|safe)$/i;
 
-const FRAMES: readonly Frame[] = [
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
   // "after 2 years later": one of the two time words goes.
-  {
-    rule: PHRASE,
-    pattern: `(?<target>after${S}(?:(?:about|exactly|almost|nearly|roughly|around|approximately|just|over|only|another)${S})?(?:an?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|fifty|a${S}few|a${S}couple${S}(?:of${S})?|few|several|many|[0-9]{1,4})${S}(?:more${S})?(?:seconds?|minutes?|hours?|days?|weeks?|months?|years?|decades?|moments?|century|centuries)${S}later)${E}`,
-    verbatim: true,
-    fix: (m) => {
-      const typed = m.groups!.target;
-      const withoutLater = typed.replace(/[ \t ]+\S+$/, "");
-      let withoutAfter = typed.replace(/^\S+[ \t ]+/, "");
-      if (/^AFTER/.test(typed)) withoutAfter = withoutAfter.toUpperCase();
-      else if (/^A/.test(typed))
-        withoutAfter = withoutAfter.replace(/^\p{L}/u, (c) => c.toUpperCase());
-      // With a qualifier ("after about a year later") the phrase reads as "about a year later".
-      const qualified =
-        /^\S+[ \t ]+(?:about|exactly|almost|nearly|roughly|around|approximately|just|over|only|another|an?)[ \t ]/iu.test(
-          typed,
-        );
-      return qualified ? [withoutAfter, withoutLater] : [withoutLater, withoutAfter];
-    },
+  idioms3After: (m) => {
+    const typed = m.groups!.target;
+    const withoutLater = typed.replace(/[ \t ]+\S+$/, "");
+    let withoutAfter = typed.replace(/^\S+[ \t ]+/, "");
+    if (/^AFTER/.test(typed)) withoutAfter = withoutAfter.toUpperCase();
+    else if (/^A/.test(typed))
+      withoutAfter = withoutAfter.replace(/^\p{L}/u, (c) => c.toUpperCase());
+    // With a qualifier ("after about a year later") the phrase reads as "about a year later".
+    const qualified =
+      /^\S+[ \t ]+(?:about|exactly|almost|nearly|roughly|around|approximately|just|over|only|another|an?)[ \t ]/iu.test(
+        typed,
+      );
+    return qualified ? [withoutAfter, withoutLater] : [withoutLater, withoutAfter];
   },
-  {
-    rule: PHRASE,
-    pattern: `(?<target>a${S}part${S}from)${E}`,
-    fix: (m, ctx) => {
-      const prev = wordBefore(ctx, m.index);
-      const info = prev ? englishWordInfo(prev) : null;
-      if (ACQUIRE.test(prev) || (info && info.verbs.length && !info.noun && !info.adverb))
-        return null;
-      return ["apart from", "a part of"];
-    },
-  },
-  {
-    rule: PHRASE,
-    // "changes a word apart form one fix": a distance, then the verb "form".
-    pattern: `(?<!(?<![\\p{L}'’])(?:a|an|one|two|three|few|several|[0-9]+)${S}\\p{L}+${S})apart(?:${S}|[ \\t\\u00a0]*\\r?\\n[ \\t\\u00a0]*)(?<target>form)${E}`,
-    fix: "from",
+  idioms3A: (m, ctx) => {
+    const prev = wordBefore(ctx, m.index);
+    const info = prev ? englishWordInfo(prev) : null;
+    if (ACQUIRE.test(prev) || (info && info.verbs.length && !info.noun && !info.adverb))
+      return null;
+    return ["apart from", "a part of"];
   },
   // "amounts for the total" → "amounts to"; "accounts for" when it explains a share.
-  {
-    rule: PHRASE,
-    pattern: `(?:that|which|this|it|they|would|will|should|can|could|may|might|must|does|do|did|not)${S}(?<target>(?<verb>amount|amounts|amounted|amounting)${S}for)${E}(?!${S}(?:each|every|all|both|any)${E})`,
-    fix: (m) => {
-      const verb = m.groups!.verb.toLowerCase();
-      return [`${verb} to`, `${verb.replace("amount", "account")} for`];
-    },
+  idioms3Verb: (m) => {
+    const verb = m.groups!.verb.toLowerCase();
+    return [`${verb} to`, `${verb.replace("amount", "account")} for`];
   },
-  {
-    rule: PREPOSITION,
-    // The fixedPrepositions rule of common.yaml owns "arrived to the office|station|airport|hotel".
-    pattern: `(?:arrive|arrives|arriving|arrived(?!${S}to${S}the${S}(?:office|station|airport|hotel)${E}))${S}(?<target>to)${E}`,
-    fix: (m, ctx) => (verbBase(nextWord(ctx, group(m, "target")[1])) ? null : ["at", "in"]),
-  },
+  idioms3To: (m, ctx) => (verbBase(nextWord(ctx, group(m, "target")[1])) ? null : ["at", "in"]),
   // "accused them for lying" → "of"; "the accused for a murder case" is a noun.
-  {
-    rule: PREPOSITION,
-    pattern: `(?<!(?<![\\p{L}'’])the${S})(?:accuse|accuses|accused|accusing)(?:${S}(?:me|you|him|her|us|them|it|someone|everyone|people))?${S}(?<target>for)${E}`,
-    fix: (m, ctx) => {
-      const next = nextWord(ctx, group(m, "target")[1]);
-      return !next || /ing$|^(?:it|this|that|something|anything|nothing|everything)$/i.test(next)
-        ? "of"
-        : null;
-    },
+  idioms3For: (m, ctx) => {
+    const next = nextWord(ctx, group(m, "target")[1]);
+    return !next || /ing$|^(?:it|this|that|something|anything|nothing|everything)$/i.test(next)
+      ? "of"
+      : null;
   },
   // "Aspire" mid-sentence names a product.
-  {
-    rule: PREPOSITION,
-    pattern: `(?<verb>aspire|aspires|aspired|aspiring)${S}(?<target>for)${E}`,
-    fix: (m, ctx) => (/^[a-z]/.test(m.groups!.verb) || atSentenceStart(ctx, m.index) ? "to" : null),
+  idioms3For2: (m, ctx) =>
+    /^[a-z]/.test(m.groups!.verb) || atSentenceStart(ctx, m.index) ? "to" : null,
+  idioms3For3: (m, ctx) =>
+    /(?<!\p{L})(?:make|makes|made|making)(?:[ \t ]+\S+){0,2}[ \t ]+$/iu.test(
+      ctx.text.slice(Math.max(0, m.index - 48), m.index),
+    )
+      ? null
+      : "to",
+  idioms3On: (m) => {
+    const { lang, language } = m.groups!;
+    return language || LANGUAGES.test(lang) || CASED_LANGUAGES.test(lang) ? "in" : null;
   },
-  // Progressive "ask/tell to him": no "to" before the person told.
-  {
-    rule: PREPOSITION,
-    pattern: `(?:ask|asks|asking|tell|tells|telling)(?<target>${S}to)${S}(?:me|you|him|her|us|them|it|one)${E}(?!${S}(?:of|side|another)${E})(?=${S}[\\p{L}"“'‘~])`,
-    fix: "",
+  idioms3Seiz: (m) => (verbBase(m.groups!.verb) ? `ceas${m.groups!.ending.toLowerCase()}` : null),
+  idioms3Complain: (m, ctx) =>
+    nounLike(nextWord(ctx, group(m, "target")[1])) ? null : "complaint",
+  idioms3Confidant: (m, ctx) => {
+    const next = /^,?[ \t ]{1,8}(\p{L}+)/u.exec(
+      ctx.text.slice(group(m, "target")[1], group(m, "target")[1] + 40),
+    )?.[1];
+    if (!next || ADJECTIVE_STOP.test(next) || /^\p{Lu}/u.test(next)) return null;
+    const info = englishWordInfo(next);
+    return info && (info.adjective || info.noun) ? "confident" : null;
   },
-  {
-    rule: PREPOSITION,
-    pattern: `(?=asked|told)(?<!(?<![\\p{L}'’])(?:was|were|is|are|be|been|being|get|got|gets|getting)${S}(?:\\p{L}+ly${S}|often${S}|always${S}|never${S}|not${S}|also${S}|already${S})?)(?:asked|told)(?<target>${S}to)${S}(?:me|you|him|her|us|them|it|one)${E}(?!${S}(?:of|side|another)${E})(?=${S}[\\p{L}"“'‘~])`,
-    fix: "",
+  idioms3Conjunction: (m) => `${/^or$/i.test(m.groups!.conjunction) ? "or" : "and"} the like`,
+  idioms3Times: (m, ctx) =>
+    SUPERLATIVE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index)) ? "time" : null,
+  idioms3On2: (m, ctx) => (nounLike(nextWord(ctx, m.index + m[0].length)) ? null : "by"),
+  idioms3By: (m) => {
+    const owner = m.groups!.owner.toLowerCase();
+    return [`on ${owner} own`, `by ${REFLEXIVE[owner]}`];
   },
-  {
-    rule: PREPOSITION,
-    pattern: `(?:curious|unsure|uncertain|unclear|clueless|confused)${S}(?<target>to)${S}(?:how|what|when|where|whether|which|who|whom|why)${E}(?!${S}(?:degree|extent)${E})`,
-    fix: "as to",
-  },
-  {
-    rule: PREPOSITION,
-    pattern: `(?<!(?<![\\p{L}'’])(?:such|well|same|seeing|being|just|much|exactly|precisely|similar|not|known|so|is|was|it|that|this|as|far)${S})(?<target>as${S})how${E}`,
-    fix: "as to ",
-  },
-  {
-    rule: PREPOSITION,
-    pattern: `(?<plural>claims?)${S}(?<target>for)${S}fame${E}`,
-    fix: (m, ctx) =>
-      /(?<!\p{L})(?:make|makes|made|making)(?:[ \t ]+\S+){0,2}[ \t ]+$/iu.test(
-        ctx.text.slice(Math.max(0, m.index - 48), m.index),
-      )
-        ? null
-        : "to",
-  },
-  {
-    rule: PREPOSITION,
-    pattern: `(?:code|codes|coded|coding|write|writes|wrote|written|writing|program|programmed|programming)${S}(?<target>on)${S}(?<lang>\\p{L}[\\p{L}+#-]*)(?<language>${S}language)?(?![\\p{L}\\p{N}_'’@/\\\\])`,
-    targetOnly: true,
-    fix: (m) => {
-      const { lang, language } = m.groups!;
-      return language || LANGUAGES.test(lang) || CASED_LANGUAGES.test(lang) ? "in" : null;
-    },
-  },
-  {
-    rule: PHRASE,
-    pattern: `(?<target>(?:seiz|siez)(?<ending>e|es|ed|ing))${S}to${S}(?<verb>\\p{L}+)${E}`,
-    fix: (m) => (verbBase(m.groups!.verb) ? `ceas${m.groups!.ending.toLowerCase()}` : null),
-  },
-  {
-    rule: PHRASE,
-    // "make her complain" keeps the verb: "her" is also an object.
-    pattern: `(?:a|the|my|your|his|our|their|any|another|each|every)${S}(?<target>complain)${E}`,
-    fix: (m, ctx) => (nounLike(nextWord(ctx, group(m, "target")[1])) ? null : "complaint"),
-  },
-  {
-    rule: PHRASE,
-    pattern: `(?:the|many|some|several|these|those|my|your|his|her|our|their|no|any|few|multiple)${S}(?<target>complains)${E}`,
-    fix: "complaints",
-  },
-  {
-    rule: PHRASE,
-    pattern: `(?:feel|feels|felt|feeling|am|is|are|was|were|be|been|being|sound|sounds|sounded|seem|seems|seemed|look|looks|looked|very|so|too|quite|more|most|less|really|extremely|fully|pretty|remain|remains|remained|stay|stays|stayed|i['’]m|you['’]re|we['’]re|they['’]re|he['’]s|she['’]s)${S}(?<target>confidant)${E}(?!${S}(?:of|to)${E})`,
-    fix: "confident",
-  },
-  {
-    rule: PHRASE,
-    pattern: `(?:a|an)${S}(?<target>confidant)${E}`,
-    fix: (m, ctx) => {
-      const next = /^,?[ \t ]{1,8}(\p{L}+)/u.exec(
-        ctx.text.slice(group(m, "target")[1], group(m, "target")[1] + 40),
-      )?.[1];
-      if (!next || ADJECTIVE_STOP.test(next) || /^\p{Lu}/u.test(next)) return null;
-      const info = englishWordInfo(next);
-      return info && (info.adjective || info.noun) ? "confident" : null;
-    },
-  },
-  {
-    rule: PHRASE,
-    pattern: `(?<target>(?<conjunction>and|an|or)${S}(?:the${S}likes|the${S}alikes?|alikes))${E}(?!${S}of${E})(?!['’])`,
-    fix: (m) => `${/^or$/i.test(m.groups!.conjunction) ? "or" : "and"} the like`,
-  },
-  {
-    rule: PHRASE,
-    pattern: `(?:and|or)${S}(?<target>alike)(?:${COMPLETE}|(?=["”)]))`,
-    fix: "the like",
-  },
-  {
-    rule: PHRASE,
-    pattern: `of${S}all${S}(?<target>times)${E}`,
-    fix: (m, ctx) =>
-      SUPERLATIVE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index)) ? "time" : null,
-  },
-  {
-    rule: PHRASE,
-    pattern: `(?<target>on)${S}(?:(?:complete|happy|literal|mere|pure|sheer|total)${S})?accident${E}`,
-    fix: (m, ctx) => (nounLike(nextWord(ctx, m.index + m[0].length)) ? null : "by"),
-  },
-  {
-    rule: PHRASE,
-    pattern: `back${S}in${S}the${S}(?<target>days)${E}(?!${S}(?:of|when|where|that|before|after|I|we|you|he|she|they)${E})(?![ \\t]*['’])`,
-    fix: "day",
-  },
-  {
-    rule: PHRASE,
-    pattern: `(?<target>by${S}(?<owner>my|your|his|her|its|our|their)${S}own)(?=["”'’]?[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))`,
-    fix: (m) => {
-      const owner = m.groups!.owner.toLowerCase();
-      return [`on ${owner} own`, `by ${REFLEXIVE[owner]}`];
-    },
-  },
-  {
-    rule: PHRASE,
-    pattern: `by${S}the${S}(?<target>books)${E}(?!['’])`,
-    fix: (m, ctx) => (MANNER_PREV.test(wordBefore(ctx, m.index)) ? "book" : null),
-  },
+  idioms3Books: (m, ctx) => (MANNER_PREV.test(wordBefore(ctx, m.index)) ? "book" : null),
   // "call it Quit", "call it quit()" name something.
-  {
-    rule: PHRASE,
-    pattern: `(?:call|calls|called|calling)${S}it${S}(?<target>quit)${E}(?![(\\[])`,
-    fix: (m) => (m.groups!.target === "quit" ? "quits" : null),
-  },
-  {
-    rule: PHRASE,
-    pattern: `(?:call|calls|called|calling)${S}(?:them|it|this|that|her|him|you|me|us|everyone|everybody|these|those)(?<target>${S}as)${E}(?!${S}(?:I|you|he|she|it|we|they|it['’]s|is|are|was|were|needed|appropriate|necessary|required|such|well|follows|soon|long|much|many|if|though|usual|usually|expected|before|normal|normally|shown|described|documented|intended|below|above|planned|agreed|promised|scheduled|root|admin|sudo|async|part|a${S}(?:function|method|command|script|callback|module|subroutine|program|library|service|user|parameter|constructor|class|decorator|hook|task|job|process|thread|coroutine)|an${S}(?:argument|admin|administrator|async|object|instance|action|event|endpoint)|the${S}(?:same|first|last|user|root|admin|owner|main|default))${E})`,
-    fix: "",
-  },
-  {
-    rule: PHRASE,
-    pattern: `(?:has|have|had|having)${S}(?<target>ways)${S}to${S}go${E}(?!${S}(?:about|back|around|through|forward|up|down|out|over|into|beyond|from|ahead|home|there|online|offline)${E})`,
-    fix: ["a long way", "a ways"],
-  },
+  idioms3Quit: (m) => (m.groups!.target === "quit" ? "quits" : null),
   // "better off served": "better served", or "better off" before what would be better.
-  {
-    rule: PHRASE,
-    pattern: `(?<target>better${S}off${S}served)${E}`,
-    fix: (m, ctx) => {
-      // "better off served cold": the dish is served cold.
-      const next = nextWord(ctx, group(m, "target")[1]);
-      const info = englishWordInfo(next);
-      return info?.adjective && !info.adverb && !info.verbs.length && !/^(?:just|only)$/i.test(next)
-        ? null
-        : ["better served", "better off"];
-    },
+  idioms3Better: (m, ctx) => {
+    // "better off served cold": the dish is served cold.
+    const next = nextWord(ctx, group(m, "target")[1]);
+    const info = englishWordInfo(next);
+    return info?.adjective && !info.adverb && !info.verbs.length && !/^(?:just|only)$/i.test(next)
+      ? null
+      : ["better served", "better off"];
   },
   // A store that is convenient ("a convenient store for messages") is ordinary English.
-  {
-    rule: PHRASE,
-    pattern: `(?<target>convenient)${S}(?<store>stores?)${E}(?!${S}(?:for|than|that|which|whose)${E})`,
-    fix: (m, ctx) => {
-      if (/^Convenient$/.test(m.groups!.target) && /^Store/.test(m.groups!.store))
-        return "convenience";
-      const next = nextWord(ctx, m.index + m[0].length);
-      return DEGREE.test(wordBefore(ctx, m.index)) || nounLike(next) ? null : "convenience";
-    },
+  idioms3Convenient: (m, ctx) => {
+    if (/^Convenient$/.test(m.groups!.target) && /^Store/.test(m.groups!.store))
+      return "convenience";
+    const next = nextWord(ctx, m.index + m[0].length);
+    return DEGREE.test(wordBefore(ctx, m.index)) || nounLike(next) ? null : "convenience";
   },
   // ---- Style advice (off by default). ----
-  {
-    rule: STYLED,
-    pattern: `(?:a|an|is|are|was|were|be|been|being|so|very|highly|extremely|super|quite|really|too|incredibly|insanely|pretty|and|of|most|more|less|least|seriously|surprisingly|strangely|oddly|ridiculously|dangerously|kinda)${S}(?<target>addicting)${E}`,
-    fix: (m, ctx) => (OBJECT_NEXT.test(nextWord(ctx, group(m, "target")[1])) ? null : "addictive"),
-  },
+  idioms3Addicting: (m, ctx) =>
+    OBJECT_NEXT.test(nextWord(ctx, group(m, "target")[1])) ? null : "addictive",
   // "too big of a deal" → "too big a deal".
-  {
-    rule: STYLED,
-    pattern: `(?:too|that|as|so|how)${S}(?<adjective>\\p{L}+)${S}(?<target>of${S})(?=an?${E})`,
-    fix: (m) => {
-      const word = m.groups!.adjective;
-      return !OF_COMPLEMENT.test(word) && englishWordInfo(word)?.adjective ? "" : null;
-    },
+  idioms3Of: (m) => {
+    const word = m.groups!.adjective;
+    return !OF_COMPLEMENT.test(word) && englishWordInfo(word)?.adjective ? "" : null;
   },
   // "barely unconscious" says the opposite of the "barely conscious" it means.
-  {
-    rule: STYLED,
-    pattern: `barely${S}(?<target>un)(?<stem>\\p{L}{3,})${E}`,
-    fix: (m) => {
-      const stem = englishWordInfo(m.groups!.stem);
-      if (!stem || /^(?:til|der|less|to)$/i.test(m.groups!.stem)) return null;
-      const plain = !stem.noun && !stem.plural && !stem.adverb && !stem.verbs.length;
-      return stem.adjective || plain || stem.verbs.some((v) => v.form === "participle") ? "" : null;
-    },
+  idioms3Un: (m) => {
+    const stem = englishWordInfo(m.groups!.stem);
+    if (!stem || /^(?:til|der|less|to)$/i.test(m.groups!.stem)) return null;
+    const plain = !stem.noun && !stem.plural && !stem.adverb && !stem.verbs.length;
+    return stem.adjective || plain || stem.verbs.some((v) => v.form === "participle") ? "" : null;
   },
-  {
-    rule: STYLED,
-    pattern: `(?:am|is|are|was|were|be|been|i['’]m|you['’]re|we['’]re|they['’]re|he['’]s|she['’]s)(?:${S}(?:really|still|always|just|so|now|also))?${S}craving(?<target>${S}for)${E}`,
-    fix: "",
-  },
-];
+} satisfies Record<string, Fixer>;
 
-function detectFrames(ctx: DetectContext): RawFinding[] {
+/**
+ * The frames of a carry rule of grammar/rules/en.yaml, on English text: the target takes the
+ * casing of the typed words (caseLike) unless verbatim, and a user-dictionary or cased word
+ * in the match (or only in the target, for targetOnly) makes the frame abstain.
+ */
+export function runCarryFrames(ctx: DetectContext, frames: readonly Frame[]): RawFinding[] {
+  if (!isLang(ctx, "en")) return [];
   const findings: RawFinding[] = [];
-  for (const { rule, pattern, fix, verbatim, targetOnly } of FRAMES) {
+  for (const { rule, pattern, fix, verbatim, targetOnly } of frames) {
     if (ctx.rules && !ctx.rules.has(rule.ruleId)) continue;
     for (const m of frameMatches(ctx, pattern)) {
       const [start, end] = m.indices!.groups!.target;
@@ -361,8 +205,3 @@ function detectFrames(ctx: DetectContext): RawFinding[] {
   }
   return findings;
 }
-
-/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
-export const PREDICATES = {
-  idiomFrames3: (ctx) => (isLang(ctx, "en") ? detectFrames(ctx) : []),
-} satisfies Record<string, Detector>;

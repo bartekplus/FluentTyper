@@ -25,14 +25,18 @@ import {
 } from "./predicates";
 import { verbFrames } from "./style";
 import { subjunctives } from "./subjunctive";
-import { numberFormat, rangeDash, typographyStyle } from "./typography";
+import {
+  FIXERS as TYPOGRAPHY_FIXERS,
+  NUMBER_FIXERS,
+  rangeDash,
+  typographyStyle,
+} from "./typography";
 import { verbAgreement } from "./verbAgreement";
 
 export const PREDICATES = {
   accentParonyms,
   confusions,
   contractions,
-  numberFormat,
   typographyStyle,
   rangeDash,
   cliticPlacement,
@@ -59,4 +63,9 @@ export const PREDICATES = {
 } satisfies Record<string, Detector>;
 
 /** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
-export const FIXERS = mergePredicates<AnyFixer>(CONFUSION_FIXERS, WORD_CHOICE_FIXERS);
+export const FIXERS = mergePredicates<AnyFixer>(
+  CONFUSION_FIXERS,
+  WORD_CHOICE_FIXERS,
+  NUMBER_FIXERS,
+  TYPOGRAPHY_FIXERS,
+);

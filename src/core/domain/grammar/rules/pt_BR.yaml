@@ -3,6 +3,16 @@ lang: pt_BR
 
 # Regex fragments of the frame rules: {{NAME}}.
 fragments:
+  UF: "(?:AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)"
+  GAP: "[ \\t\\u00a0]?"
+  HOUR_TYPOS: "hrs?|hs|Hrs?|Hs|HRS?|HS"
+  NUM: "\\d[\\d.,]*"
+  ARTICLE: "(?:[oaOA]s?|d[oa]s?|n[oa]s?|ao|aos|à|às|pel[oa]s?|seus?|suas?|meu|minha|nosso|nossa|est[ea]|ess[ea])"
+  MASCULINE_DET: "(?:[oO]|[dDnN]o|[aA]o|[pP]elo|[uU]m|[sS]eu|[mM]eu|[nN]osso|[eE]ste|[eE]sse|[aA]quele|[dDnN]este|[dDnN]esse|[dDnN]aquele)"
+  FEMININE_DET: "(?:[dDnN]a|[àÀ]|[pP]ela|[uU]ma|[sS]ua|[mM]inha|[nN]ossa|[eE]sta|[eE]ssa|[aA]quela|[dDnN]esta|[dDnN]essa|[dDnN]aquela)"
+  MASCULINE: "(?:[oO]s?|dos?|nos?|aos?|pelos?|seus?|meu|nosso|este|esse|aquele)"
+  MONTHS: "janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro"
+  YEAR: "(?:1[5-9]|20)\\d\\d"
   NOUN_LEAD: "(?:de|em|com|sem|um|uma|uns|umas|d[oa]s?|n[oa]|nas|pel[oa]s?|num|numa|dum|duma|est[ae]s?|ess[ae]s?|sua|suas|seu|seus|minha|minhas|meu|meus|nossa|nossas|nosso|nossos|cada|outra|outras|outro|outros|toda|longa|longas|nova|novas|boa|boas|primeira|última)"
   NOT_ARTICLE_NEXT: "(?!\\p{L}+s(?![\\p{L}]))(?!(?:um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|tod[oa]s?|cada|qualquer|nenhum|nenhuma|cert[oa]s?|vári[oa]s|muit[oa]s?|pouc[oa]s?|dois|duas|três|seus?|suas?|meus?|minhas?|teus?|tuas?|nossos?|nossas?)(?![\\p{L}]))"
   SHOWS: "filmes?|jogos?|programas?|shows?|espetáculos?|aulas?|novelas?|séries?|vídeos?|partidas?|apresentaç(?:ão|ões)|peças?|concertos?|palestras?|missas?|desfiles?|televisão|tv|telejornal|final|finais|corrida|luta|treino|ensaio"
@@ -522,7 +532,119 @@ rules:
     predicate: contractions
   - id: pt_BR.numberFormat
     checks: [portugueseNumberFormat]
-    predicate: numberFormat
+    style: cased
+    message: review_msg_pt_number_format
+    frames:
+      # "1 999 349.56": an English decimal point after a spaced thousands group.
+      - regex: "(?<![\\d.,])\\d{1,3}(?:[ \\u00a0]\\d{3}){1,6}(?<target>\\.)\\d{1,6}(?![\\d.,]{0,12}\\d)"
+        fix: ","
+      # "21,349.56", "4,500.00": English separators; Portuguese swaps them.
+      - regex: "(?<![\\d.,])(?<target>\\d{1,3}(?:,\\d{3}){1,6}\\.\\d{1,6})(?![\\d.,]{0,12}\\d)"
+        fixer: typographyD
+      # "7'5%", "1.250'75": an apostrophe typed for the decimal comma. Not feet and inches (5'10"),
+      # minutes after a degree (8° 15'30") or a minute mark alone (aos 45').
+      - regex: "(?<![\\d.,'’′º°]|[º°][ \\t\\u00a0])\\d{1,3}(?:[. \\u00a0]\\d{3}){0,6}(?<target>['’])\\d{1,3}(?![\\d'’′\"”″])"
+        fix: ","
+      # "896.96 km²", "2.5 kg": a decimal point before a unit (a thousands group has 3 digits).
+      - regex: "(?<![\\d.,])\\d{1,3}(?<target>\\.)\\d{1,2}(?={{GAP}}(?:km²?|m[²³]?|cm|mm|kg|g|mg|ml|l|L|t|ha|GB|MB|TB|kW|W|V|°C|%)(?![\\p{L}\\p{N}]))"
+        fix: ","
+      # "12hrs", "15 hs", "01 hr": the hour symbol is "h".
+      - regex: "(?<!:)\\d{1,2}{{GAP}}(?<target>{{HOUR_TYPOS}}){{E}}"
+        fix: "h"
+      # "às 14:30 hrs", "03:45H": a clock time takes at most a lowercase "h".
+      - regex: "\\d{1,2}:\\d\\d(?<target>{{GAP}}(?:{{HOUR_TYPOS}}|H)){{E}}"
+        fix: ""
+      # "às 12H", "às 06 H".
+      - regex: "(?:[àÀ]s|[aA]s|das|até){{S}}\\d{1,2}{{GAP}}(?<target>H){{E}}"
+        fix: "h"
+      # "Às 15 h. será": a symbol takes no period.
+      - regex: "\\d{1,2}{{GAP}}h(?<target>\\.)(?={{S}}\\p{Ll})"
+        fix: ""
+      # "25ºC", "40º de febre": the ordinal indicator stands in for the degree sign. "o 25.º F"
+      # (a dot before it) is an ordinal: the F there is a grade.
+      - regex: "{{NUM}}(?<!\\.){{GAP}}(?<target>[ºo]){{GAP}}(?=[CF]{{E}})"
+        fix: "°"
+      - regex: "{{NUM}}(?<!\\.)(?<target>º)(?={{S}}de{{S}}(?:febre|temperatura|latitude|longitude){{E}})"
+        fix: "°"
+      # "25º 29' 49\"" -> "25° 29′ 49″": degrees before minutes, and the primes that mark them.
+      - regex: "(?<target>\\d{1,3}{{GAP}}º{{GAP}}\\d{1,2}(?:,\\d+)?{{GAP}}['’′](?:{{GAP}}\\d{1,2}(?:,\\d+)?{{GAP}}(?:[\"”″]|['’′]{1,2}))?)"
+        fixer: typographyD2
+      # "38,8º", "3,5o": an ordinal is a whole number, so a decimal takes the degree sign.
+      - regex: "[−-]?\\d{1,3},\\d{1,3}(?<target>[ºo])(?![\\p{L}\\p{N}])"
+        fix: "°"
+      # "18º norte", "55o N", "39º de calor": a bearing, a latitude or a temperature.
+      - regex: "\\d{1,3}(?<target>[ºo])(?={{GAP}}(?:N|S|E|W|L|NE|NO|NW|SE|SO|SW)(?![\\p{L}\\p{N}-])|{{S}}(?:(?:ao|a){{S}})?(?:norte|sul|leste|oeste|nordeste|noroeste|sudeste|sudoeste|de{{S}}(?:latitude|longitude|calor|frio))(?![\\p{L}\\p{N}-]))"
+        fix: "°"
+      # "um ângulo de 137º.", "ontem fez 25º.": an angle or the weather closes the phrase.
+      - regex: "(?:ângulos?|temperaturas?|fez|faz|fazia|fará|marcou|marca|atingiu|atinge|chegou{{S}}a|chegam{{S}}a|chegar{{S}}a){{S}}(?:de{{S}})?[−-]?\\d{1,3}(?:,\\d{1,3})?(?<target>[ºo])(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?)]|$))"
+        fix: "°"
+      # "o 12o lugar", "a 1a vez": ordinals take º and ª.
+      - regex: "{{ARTICLE}}{{S}}\\d{1,4}\\.?(?<target>os|as|o|a)(?={{E}}(?:{{S}}\\p{Ll}|[ \\t\\u00a0]{0,2}[.,;:!?]))"
+        fixer: typographyOs
+      # "no 1ª lugar" -> "1º", "na 2º posição" -> "2ª": the ordinal agrees with its determiner.
+      - regex: "(?<![\\dºª°][ \\t\\u00a0]{0,8}){{MASCULINE_DET}}{{S}}\\d{1,4}\\.?(?<target>ª)(?={{S}}\\p{L})"
+        fix: "º"
+      - regex: "(?<![\\dºª°][ \\t\\u00a0]{0,8})(?:{{FEMININE_DET}}|(?<=(?:^|[.!?][ \\t\\u00a0]{0,8}|(?:é|será|foi|era|ser|seria|como){{S}}))[aA]){{S}}\\d{1,4}\\.?(?<target>º)(?={{S}}\\p{Ll})(?!{{S}}(?:de|graus?|à|no|na|em|celsius){{E}})"
+        fix: "ª"
+      # "o 8° colocado": the degree sign stands in for the ordinal indicator.
+      - regex: "{{MASCULINE}}{{S}}\\d{1,4}(?<target>°)(?={{S}}\\p{Ll})(?!{{S}}(?:de{{S}}(?:febre|temperatura)|graus?){{E}})"
+        fix: "º"
+      # "30 Km", "120 KW", "por Km": the kilo prefix is a lowercase k.
+      - regex: "(?:\\d+{{GAP}}|por{{S}}|/)(?<target>K)(?=(?:m|M|ms|g|G|W|w|Wh|Hz|m²|m2){{E}})(?!W[/.]h)"
+        fix: "k"
+      # "5 kW/h", "5 KW.h": energy is the kilowatt-hour, kWh; a kilowatt per hour is no unit. "kW.h"
+      # (a product dot) stays.
+      - regex: "\\d+{{GAP}}(?<target>[kK]W/h|KW\\.h){{E}}"
+        fix: "kWh"
+      - regex: "(?:\\d+{{GAP}}|por{{S}}|/)k(?<target>M|G)(?={{E}})"
+        fixer: typographyM
+      # "2 m3", "por km2", "m/s2": exponents are superscript.
+      - regex: "(?:\\d+{{GAP}}|por{{S}}|/)(?:km|cm|mm|dm|m)(?<target>\\^?[23])(?![\\p{L}\\p{N}])"
+        fixer: typographyP
+      - regex: "\\d+{{GAP}}(?:km|cm|mm|m)/s(?<target>\\^?2)(?![\\p{L}\\p{N}])"
+        fix: "²"
+      # "22° C" -> "22 °C": the degree sign stays with its scale letter.
+      - regex: "\\d+(?<target>[ \\u00a0]?°[ \\u00a0]+[CF])(?![\\p{L}\\p{N}])"
+        fixer: typographyU
+      # "30ºK", "30 º K", "30° K": the kelvin takes no degree sign ("30°K" is a shared check).
+      - regex: "\\d+(?<target>[ \\u00a0]?º[ \\u00a0]?K|[ \\u00a0]?°[ \\u00a0]+K)(?![\\p{L}\\p{N}])"
+        message: review_msg_kelvin_degree
+        fix: " K"
+      # "no ano de 1.989", "em maio de 2.014": a year has no thousands dot.
+      - regex: "(?:[aA]nos?{{S}}(?:de{{S}})?|(?:{{MONTHS}}){{S}}de{{S}}|(?:[eE]m|[dD]esde|[aA]té){{S}}(?=[12]\\.\\d{3}[ \\t\\u00a0]*(?:[.,;:!?)]|$)))(?<target>[12]\\.\\d{3})(?![.,]?\\d)"
+        message: review_msg_pt_year
+        fixer: typographyD3
+      # "5,500,300": English commas between digit groups; Portuguese groups them with dots.
+      - regex: "(?<![\\d.,])(?<target>\\d{1,3}(?:,\\d{3}){2,})(?![.,]?\\d)"
+        fixer: typographyD4
+      # A year range with a space on one side of the dash only: "2013– 2021" -> "2013–2021".
+      - regex: "(?<![\\d.,])(?<target>{{YEAR}}(?:[ \\u00a0]+[-–—]|[-–—][ \\u00a0]+){{YEAR}})(?!\\d|[.,]\\d)"
+        message: review_msg_range_dash
+        fixer: typographyD5
+  - id: pt_BR.typographyStyleFrames
+    checks: [portugueseTypographyStyle]
+    style: cased
+    message: review_msg_pt_typography_style
+    frames:
+      # "século 20" -> "século XX": centuries take Roman numerals.
+      - regex: "[sS]éculos?{{S}}(?<target>[1-9]\\d?)(?![\\dºª°\\p{L}]|[.,]\\d)"
+        message: review_msg_pt_century
+        fixer: styleD
+      # "às 10.00", "às 6,05 h", "das 9.30 às 11.00": Brazilian usage writes a clock time
+      # with a colon (European texts also write 17.40 h, so this stays opt-in).
+      - regex: "(?:[àÀ]s|[dD]as?|até{{S}}[àa]s){{S}}(?<target>(?:[01]?\\d|2[0-3])[.,][0-5]\\d(?:[.,][0-5]\\d(?:,\\d+)?)?)(?!\\d)(?={{GAP}}h{{E}}|{{S}}d[ae]{{S}}(?:manhã|tarde|noite|madrugada){{E}}|{{S}}(?:às|e|até){{E}}|[ \\t\\u00a0]{0,2}(?:[;!?]|\\.(?!\\d)|$))"
+        message: review_msg_pt_number_format
+        fixer: styleD2
+      # "6,626 x 10", "5 * 2", "10,5x17,2km": multiplication between numbers (not hex "0x1F").
+      - regex: "(?!0[xX]){{NUM}}(?<target>{{GAP}}[xX*]{{GAP}})(?=\\d)"
+        fixer: styleT
+      # "em Niterói/RJ", "de Niterói - RJ", "para Niterói (RJ)": a city and its state take an
+      # en dash. Only after a place preposition: "Gabeira (RJ)" names a politician's state. A
+      # bare hyphen stays: "Águia de Marabá-PA" names a club.
+      - regex: "(?:em|de|para|até){{S}}\\p{Lu}[\\p{Ll}\\p{M}]+(?:[ \\t\\u00a0-](?:d[aoe]s?|\\p{Lu}[\\p{Ll}\\p{M}]+)){0,6}(?<target>/|[ \\t\\u00a0][-–—][ \\t\\u00a0])(?={{UF}}(?![\\p{L}\\p{N}/-]))"
+        fix: "–"
+      - regex: "(?:em|de|para|até){{S}}\\p{Lu}[\\p{Ll}\\p{M}]+(?:[ \\t\\u00a0-](?:d[aoe]s?|\\p{Lu}[\\p{Ll}\\p{M}]+)){0,6}(?<target>{{GAP}}\\({{UF}}\\))"
+        fixer: styleT2
   - id: pt_BR.typographyStyle
     checks: [portugueseTypographyStyle]
     predicate: typographyStyle
