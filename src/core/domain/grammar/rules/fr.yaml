@@ -1,6 +1,19 @@
 # fr grammar rules. See docs/agents/grammar-rules.md for the format.
 lang: fr
 
+# Regex fragments of the frame rules: {{NAME}}.
+fragments:
+  # No letter, digit, underscore, apostrophe or hyphen before or after a word.
+  WORD_START: "(?<![\\p{L}\\p{M}\\p{N}_'’-])"
+  WORD_END: "(?![\\p{L}\\p{M}\\p{N}_'’-])"
+  # The country names of review/french/countries.ts, longest first.
+  COUNTRY_NAMES: "Nouvelle-Zélande|Arabie saoudite|Côte d['’]Ivoire|Biélorussie|Afghanistan|Ouzbékistan|Azerbaïdjan|Royaume-Uni|Philippines|Angleterre|Mauritanie|Californie|Luxembourg|Bangladesh|Kazakhstan|Mozambique|États-Unis|Seychelles|Madagascar|Allemagne|Slovaquie|Macédoine|Thaïlande|Indonésie|Australie|Argentine|Normandie|Bourgogne|Aquitaine|Sardaigne|Catalogne|Venezuela|Guatemala|Nicaragua|Groenland|Singapour|Belgique|Autriche|Roumanie|Bulgarie|Slovénie|Tchéquie|Moldavie|Lituanie|Lettonie|Finlande|Jordanie|Mongolie|Malaisie|Birmanie|Éthiopie|Tanzanie|Colombie|Jamaïque|Bretagne|Provence|Lorraine|Équateur|Portugal|Danemark|Paraguay|Honduras|Salvador|Cambodge|Pakistan|Cameroun|Zimbabwe|Botswana|Pays-Bas|Maldives|Antilles|Espagne|Pologne|Hongrie|Croatie|Albanie|Ukraine|Estonie|Norvège|Irlande|Islande|Turquie|Géorgie|Arménie|Algérie|Tunisie|Somalie|Namibie|Ouganda|Bolivie|Floride|Bavière|Uruguay|Ontario|Mexique|Vietnam|Sénégal|Nigeria|Burundi|Bahamas|Comores|Bahreïn|Maurice|France|Suisse|Italie|Serbie|Bosnie|Russie|Écosse|Égypte|Zambie|Guinée|Guyane|Alsace|Sicile|Canada|Québec|Brésil|Koweït|Rwanda|Soudan|Chypre|Monaco|Taïwan|Grèce|Suède|Syrie|Chine|Corée|Libye|Corse|Pérou|Chili|Japon|Népal|Tibet|Liban|Qatar|Yémen|Maroc|Niger|Tchad|Gabon|Congo|Kenya|Bénin|Ghana|Malte|Haïti|Inde|Iran|Irak|Laos|Mali|Togo|Cuba"
+  # One word, also with an elision ("qu'on").
+  REPEAT_WORD: "\\p{L}[\\p{L}\\p{M}]*(?:['’]\\p{L}[\\p{L}\\p{M}]*)?"
+
+# Most French frames scan as `inChunk` of review/french/frenchTokens.ts expects: an owned scan
+# from one character before the chunk (`scan: owned`, `lookback: 1`). An owned frame needs a
+# `target` group: the empty `(?<target>)` at the end of the regex marks no text.
 rules:
   - id: fr.verbForms
     checks: [frenchVerbForms]
@@ -46,16 +59,34 @@ rules:
     predicate: determiners
   - id: fr.ordinals
     checks: [frenchOrdinals]
-    predicate: ordinals
+    style: match
+    message: review_msg_fr_ordinal
+    frames:
+      # "2ème", "XIXè", "16me", "2-ièmes", "XIX ième": an Arabic or Roman number and the
+      # suffix, glued, after a hyphen, or after a space when the suffix is no word of its own.
+      - regex: "(?<![\\p{L}\\p{N}_.,/-])(?<number>\\d{1,4}|[IVXLC]{1,7})(?<join>-|[ \\u00a0](?=(?:ièmes?|iemes?|èmes?|emes?)(?![\\p{L}])))?(?<suffix>ièmes?|iemes?|èmes?|emes?|ères?|eres?|ières?|ieres?|ier|nds?|ndes?|è|mes?)(?![\\p{L}\\p{N}_])(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: ordinal
   - id: fr.rangeDashes
     checks: [emdashShortcut]
+    # predicate: runs the shared range-dash detector of review/rangeDash.ts with French cues.
     predicate: rangeDashes
   - id: fr.commas
     checks: [frenchCommas]
     predicate: commas
   - id: fr.countries
     checks: [frenchNounGender]
-    predicate: countries
+    style: match
+    message: review_msg_fr_country_preposition
+    frames:
+      # "Je vais au France" -> "en France", "il vit en Portugal" -> "au Portugal".
+      - regex: "{{WORD_START}}(?<prep>aux|au|en|à[ \\t]+la|à[ \\t]+l['’])(?:[ \\t]+|(?<=['’]))(?<country>{{COUNTRY_NAMES}}){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: countryPreposition
   - id: fr.auxiliary
     checks: [frenchVerbForms]
     predicate: auxiliary
@@ -79,7 +110,16 @@ rules:
     predicate: bareNoun
   - id: fr.repeatedWords
     checks: [frenchRepeatedWords]
-    predicate: repeatedWords
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      # One word or two words, then the same text again ("très très", "de moins de moins"),
+      # also after an elision ("qu'on dit on dit").
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<unit>{{REPEAT_WORD}}(?:[ \\t]{1,4}{{REPEAT_WORD}})?)[ \\t\\u00A0]{1,4}\\k<unit>{{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: repeatedWord
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

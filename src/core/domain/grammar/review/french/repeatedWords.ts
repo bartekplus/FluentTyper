@@ -1,23 +1,14 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { DetectContext } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { finding } from "../finding";
-import { isLang } from "../phraseTemplates";
-import { ownedFrenchWords, tokensAfter, tokensBefore } from "./frenchTokens";
+import { inChunk, tokensAfter, tokensBefore } from "./frenchTokens";
 
 // A word or a pair of words typed two times in a row (opt-in): "très très", "tu as tu as".
 // Spoken French doubles some words for emphasis, so the check is off by default.
 
 const RULE = "frenchRepeatedWords";
 const MESSAGE = "review_msg_repeated_words";
-
-const WORD = String.raw`\p{L}[\p{L}\p{M}]*(?:['’]\p{L}[\p{L}\p{M}]*)?`;
-// One word or two words, then the same text again ("très très", "de moins de moins"), also after
-// an elision ("qu'on dit on dit").
-const REPEAT = new RegExp(
-  String.raw`(?<![\p{L}\p{M}\p{N}_-])(?<unit>${WORD}(?:[ \t]{1,4}${WORD})?)[ \t ]{1,4}\k<unit>(?![\p{L}\p{M}\p{N}_'’-])`,
-  "giu",
-);
 
 // The default-on repeated-word check already reads these (reviewDetectors.ts REPEATABLE_WORDS).
 const DEFAULT_ON = new Set(
@@ -44,28 +35,22 @@ function extraPronoun(ctx: DetectContext, start: number, end: number): boolean {
   return (before !== undefined && PERSONAL.has(before.w)) || ["ne", "n'"].includes(after?.w ?? "");
 }
 
-function repeatedWords(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, REPEAT)) {
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  repeatedWord: inChunk((m, ctx) => {
     const unit = m.groups!.unit;
     const lower = unit.toLowerCase().replaceAll("’", "'");
     const words = lower.split(/[ \t]+/);
     const end = m.index + m[0].length;
     // "p p": spelled-out letters; "Coco Coco": a capital on the second copy starts a name.
     const second = ctx.text.slice(end - unit.length, end);
-    if (words.some((w) => w.length < 2) || second !== second.toLowerCase()) continue;
-    if (words.length === 1 && DEFAULT_ON.has(lower)) continue;
+    if (words.some((w) => w.length < 2) || second !== second.toLowerCase()) return null;
+    if (words.length === 1 && DEFAULT_ON.has(lower)) return null;
     if (words.some((w) => DOUBLED_OK.has(w))) {
       const pronoun = words.length === 1 && (lower === "nous" || lower === "vous");
-      if (!pronoun || !extraPronoun(ctx, m.index, end)) continue;
+      if (!pronoun || !extraPronoun(ctx, m.index, end)) return null;
     }
-    if (namedExampleBefore(ctx.text, m.index)) continue;
-    findings.push(
-      finding(RULE, MESSAGE, m.index, end, [unit], { context: { start: m.index, end } }),
-    );
-  }
-  return findings;
-}
-
-export const PREDICATES = { repeatedWords: repeatedWords } satisfies Record<string, Detector>;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return finding(RULE, MESSAGE, m.index, end, [unit], { context: { start: m.index, end } });
+  }),
+} satisfies Record<string, MatchFixer>;

@@ -5,6 +5,7 @@ import {
 } from "../../implementations/helpers/GenericRuleShared";
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer, MatchResult } from "../../engine/reviewRules";
 import { finding } from "../finding";
 
 /** Text before a sentence start: the text start or sentence punctuation, then spaces. */
@@ -144,6 +145,15 @@ export function* ownedFrenchWords(ctx: DetectContext, pattern: RegExp) {
     SCANNING.delete(regex);
   }
 }
+
+/**
+ * The fixer of an owned frame of grammar/rules/fr.yaml (`scan: owned`, `lookback: 1`). The scan
+ * starts one character before the chunk; a match that starts there is not owned.
+ */
+export const inChunk =
+  (fix: (m: RegExpExecArray, ctx: DetectContext) => MatchResult): MatchFixer =>
+  (m, ctx) =>
+    m.index < ctx.from ? null : fix(m, ctx);
 
 /**
  * A finding on one word unless the user's dictionary holds it, its casing is unusual (a name,

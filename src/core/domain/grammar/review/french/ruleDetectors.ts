@@ -32,7 +32,6 @@ export const PREDICATES = mergePredicates(
   auxiliary.PREDICATES,
   bareNoun.PREDICATES,
   commas.PREDICATES,
-  countries.PREDICATES,
   dates.PREDICATES,
   determiners.PREDICATES,
   elision.PREDICATES,
@@ -46,7 +45,6 @@ export const PREDICATES = mergePredicates(
   nounNumber.PREDICATES,
   ordinals.PREDICATES,
   questions.PREDICATES,
-  repeatedWords.PREDICATES,
   smallWords.PREDICATES,
   style.PREDICATES,
   tout.PREDICATES,
@@ -54,7 +52,11 @@ export const PREDICATES = mergePredicates(
 );
 
 /** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
-export const FIXERS = mergePredicates<Fixer>();
+export const FIXERS = mergePredicates<Fixer>(
+  countries.FIXERS,
+  ordinals.FIXERS,
+  repeatedWords.FIXERS,
+);
 
 /** The named findings filters of grammar/rules/fr.yaml (`filter:`). */
 export const FILTERS = mergePredicates<FindingsFilter>();
