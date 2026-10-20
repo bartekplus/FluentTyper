@@ -112,6 +112,8 @@ const FRAME_KEYS = new Set([
   "flags",
   "scan",
   "lookback",
+  "lookahead",
+  "anyCheck",
   "owner",
   "gate",
   "gateFlags",
@@ -502,7 +504,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
         if (match && entry.raw) errors.push(`${at}: "raw" does not apply to style "match"`);
         if (!["comma", "swap", "match"].includes(spec.style ?? "") && entry.flags !== undefined)
           errors.push(`${at}: "flags" needs style "comma", "swap" or "match"`);
-        for (const key of ["scan", "lookback", "owner"] as const)
+        for (const key of ["scan", "lookback", "lookahead", "anyCheck", "owner"] as const)
           if (!match && entry[key] !== undefined)
             errors.push(`${at}: "${key}" needs style "match"`);
         if (!SCANS.has(scan)) errors.push(`${at}: unknown scan "${scan}"`);
@@ -517,13 +519,14 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           errors.push(`${at}: a frame scan needs "flags" with "g" and "d"`);
         if (scan !== "frame" && (entry.owner !== undefined || entry.wordStart !== undefined))
           errors.push(`${at}: "owner" and "wordStart" need the frame scan`);
-        if (entry.lookback !== undefined && scan !== "owned" && scan !== "text")
-          errors.push(`${at}: "lookback" needs scan "owned" or "text"`);
-        if (
-          entry.lookback !== undefined &&
-          (!Number.isInteger(entry.lookback) || entry.lookback < 0)
-        )
-          errors.push(`${at}: "lookback" is a count of characters`);
+        for (const key of ["lookback", "lookahead"] as const) {
+          const count = entry[key];
+          if (count === undefined) continue;
+          if (scan !== "owned" && scan !== "text")
+            errors.push(`${at}: "${key}" needs scan "owned" or "text"`);
+          if (!Number.isInteger(count) || count < 0)
+            errors.push(`${at}: "${key}" is a count of characters`);
+        }
         if (spec.style === "cased" && entry.fix !== undefined && typeof entry.fix !== "string")
           errors.push(`${at}: a cased frame has one "fix" string`);
         if (spec.style !== "polish" && entry.lowercase)
@@ -588,6 +591,8 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           ...(entry.flags === undefined ? {} : { flags: entry.flags }),
           ...(entry.scan === undefined || entry.scan === "frame" ? {} : { scan: entry.scan }),
           ...(entry.lookback === undefined ? {} : { lookback: entry.lookback }),
+          ...(entry.lookahead === undefined ? {} : { lookahead: entry.lookahead }),
+          ...(entry.anyCheck ? { anyCheck: true as const } : {}),
           ...(entry.owner === undefined ? {} : { owner: entry.owner }),
           ...(entry.gate === undefined ? {} : { gate: entry.gate }),
           ...(entry.gateFlags === undefined ? {} : { gateFlags: entry.gateFlags }),

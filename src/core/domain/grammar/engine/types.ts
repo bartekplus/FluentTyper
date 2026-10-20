@@ -131,6 +131,13 @@ export interface FrameSpec {
   scan?: "frame" | "owned" | "text" | "polish";
   /** Match rules, "owned" and "text" scans: the characters read before the chunk. Default 0. */
   lookback?: number;
+  /** Match rules, "owned" and "text" scans: a match may start this many characters after the chunk. Default 0. */
+  lookahead?: number;
+  /**
+   * Match rules: the frame runs when any check of its rule is on (its fixer gives findings of
+   * several checks). Default: only when the frame's own check is on.
+   */
+  anyCheck?: boolean;
   /**
    * Match rules, frame scans: the group whose start must lie in the chunk. "a|b": the first
    * of these groups that matched. "none": every match of the scan (the fixer decides).
@@ -313,6 +320,8 @@ export interface CompiledFrame {
   flags?: string;
   scan?: "frame" | "owned" | "text" | "polish";
   lookback?: number;
+  lookahead?: number;
+  anyCheck?: true;
   owner?: string;
   gate?: string;
   gateFlags?: string;

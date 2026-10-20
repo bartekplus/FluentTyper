@@ -329,15 +329,20 @@ const STYLES: Record<FrameStyle, Style> = {
 
 const isList = (value: unknown): value is readonly unknown[] => Array.isArray(value);
 
-/** Matches of a regex from `lookback` characters before the chunk until one starts after it. */
+/**
+ * Matches of a regex from `lookback` characters before the chunk until one starts `lookahead`
+ * characters after its end.
+ */
 function* scanFrom(
   ctx: DetectContext,
   regex: RegExp,
   text: string,
   lookback: number,
+  lookahead: number,
 ): Generator<RegExpExecArray> {
   regex.lastIndex = Math.max(0, ctx.from - lookback);
-  for (let m = regex.exec(text); m && m.index < ctx.to; m = regex.exec(text)) yield m;
+  const end = ctx.to + lookahead;
+  for (let m = regex.exec(text); m && m.index < end; m = regex.exec(text)) yield m;
 }
 
 /** The chunk's text, from 256 characters before it to 64 after it, matches `gate`. */
@@ -349,11 +354,12 @@ function mentions(ctx: DetectContext, gate: RegExp): boolean {
 
 /** The matches of one frame in the chunk of `ctx`. */
 function matchesOf(ctx: DetectContext, frame: RunFrame): Iterable<RegExpExecArray> {
+  const { lookback = 0, lookahead = 0 } = frame.frame;
   switch (frame.scan) {
     case "owned":
-      return scanFrom(ctx, frame.pattern as RegExp, ctx.scanText, frame.frame.lookback ?? 0);
+      return scanFrom(ctx, frame.pattern as RegExp, ctx.scanText, lookback, lookahead);
     case "text":
-      return scanFrom(ctx, frame.pattern as RegExp, ctx.text, frame.frame.lookback ?? 0);
+      return scanFrom(ctx, frame.pattern as RegExp, ctx.text, lookback, lookahead);
     case "polish":
       return owned(ctx, frame.pattern as RegExp);
     default:
@@ -405,7 +411,7 @@ export function detectFrames(
   const findings: RawFinding[] = [];
   let words: Set<string> | undefined;
   for (const frame of frames) {
-    if (ctx.rules && !ctx.rules.has(frame.ruleId)) continue;
+    if (ctx.rules && !frame.frame.anyCheck && !ctx.rules.has(frame.ruleId)) continue;
     if (frame.gate && !mentions(ctx, frame.gate)) continue;
     if (frame.cue && !FRAME_AUDIT.all) {
       words ??= wordsNear(ctx);
