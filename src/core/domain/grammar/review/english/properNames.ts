@@ -1,7 +1,6 @@
-import { frameMatches, SPACE as S, WORD_END as E, wordSet as words } from "../phraseTemplates";
+import { wordSet as words } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
-import { quotedMention } from "./grammarStyle1";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { finding } from "../finding";
 import { table } from "./tables";
 
@@ -66,47 +65,8 @@ const PRODUCT_FRAMES: readonly (readonly [typed: string, name: string, nouns: st
 const PRODUCT_NOUNS = new Map(
   PRODUCT_FRAMES.map(([typed, name, nouns]) => [typed, { name, nouns: words(nouns) }]),
 );
-const PRODUCT = `(?<w>${PRODUCT_FRAMES.map(([typed]) => typed).join("|")})${S}(?<n>[a-z0-9]+)${E}`;
 
 const VERBS = words("excel google kindle react");
-
-function productNames(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
-  for (const m of frameMatches(ctx, PRODUCT, "w")) {
-    const { w, n } = m.groups!;
-    const product = PRODUCT_NOUNS.get(w);
-    // Lowercase only: "WORD DOCUMENT" is emphasis, "Word document" is already right.
-    if (
-      !product ||
-      w !== w.toLowerCase() ||
-      !product.nouns.has(n.toLowerCase()) ||
-      ctx.dictionary.has(w)
-    )
-      continue;
-    // "to excel", "to react": the verb.
-    if (
-      VERBS.has(w) &&
-      /(?:^|[^\p{L}])to[ \t ]+$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
-    )
-      continue;
-    // "Microsoft Word", "MS Excel": the whole name is matched by NAMES.
-    if (
-      /(?:microsoft|ms|google|apple)[ \t\u00a0]+$/i.test(
-        ctx.text.slice(Math.max(0, m.index - 12), m.index),
-      )
-    )
-      continue;
-    const start = m.index;
-    findings.push({
-      ruleId: "englishCanonicalCasing",
-      messageKey: "review_msg_canonical_casing",
-      range: { start, end: start + w.length },
-      alternatives: [product.name],
-      context: context(ctx, start, m.index + m[0].length),
-    });
-  }
-  return findings;
-}
 
 // Nationalities, languages and religions are proper adjectives in English.
 const PEOPLES = words(
@@ -134,39 +94,6 @@ const POLISH_VERBS = words(
   "speak speaks speaking spoke learn learns learning learned learnt study studies studying " +
     "translate translated into from am is are was were",
 );
-// One case-sensitive alternation of the lowercase forms, not a scan of every word.
-const PEOPLE = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<w>${[...PEOPLES].join("|")})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])`,
-  "gdu",
-);
-
-function nationalities(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
-  for (const m of frameMatches(ctx, PEOPLE, "w")) {
-    const w = m.groups!.w;
-    if (!PEOPLES.has(w) || ctx.dictionary.has(w)) continue;
-    const end = m.index + w.length;
-    const after = /^[ \t ]+([A-Za-z]+)/.exec(ctx.text.slice(end, end + 24))?.[1].toLowerCase();
-    const before = /([A-Za-z]+)[ \t ]+$/
-      .exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1]
-      .toLowerCase();
-    if (after && LOWERCASE_AFTER[w]?.has(after)) continue;
-    if (before && LOWERCASE_BEFORE[w]?.has(before)) continue;
-    if (w === "polish") {
-      const closes = /^[ \t ]*(?:[.!?,;:)]|$|and\b|or\b)/.test(ctx.text.slice(end, end + 8));
-      if (!(after && POLISH_NOUNS.has(after)) && !(before && POLISH_VERBS.has(before) && closes))
-        continue;
-    }
-    findings.push({
-      ruleId: "englishProperNounCapitalization",
-      messageKey: "review_msg_nationality_capital",
-      range: { start: m.index, end },
-      alternatives: [w[0].toUpperCase() + w.slice(1)],
-      context: context(ctx, m.index, end),
-    });
-  }
-  return findings;
-}
 
 // Places whose names are also ordinary words ("china", "turkey", "long island"): only where a
 // place goes, after "born in", "from", "a trip to"…, and before the clause ends.
@@ -179,74 +106,117 @@ const PLACE_WORDS: Record<string, string> = {
   "long island": "Long Island",
   "long beach": "Long Beach",
 };
-const PLACE_LEAD =
-  "(?:born|live|lives|lived|living|grew[ \\t]+up|raised|based|stationed|stayed|staying|studied|studying|worked|working|vacation|holiday|holidays)[ \\t]+in|from|visit|visits|visiting|visited|(?:moved|move|moving|trip|trips|flight|flights|flew|fly|flying|travel|traveled|travelled|traveling|travelling|back|went|go|going|came|come|returned|return|relocated|emigrated|immigrated)[ \\t]+to";
-const PLACE_FOLLOW = `(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|${S}(?:and|or|but|for|last|next|this|in|on|at|with|because|when|where|since|until|before|after|recently|yesterday|years?|months?|weeks?|ago|as)${E})`;
-const PLACE = `(?:${PLACE_LEAD})${S}(?<w>${Object.keys(PLACE_WORDS)
-  .map((name) => name.replace(" ", S))
-  .join("|")})${PLACE_FOLLOW}`;
-// Named seas after "the": "the black sea" (a black sea is any dark one).
-const SEA = `the${S}(?<w>(?:black|red|dead|north)${S}sea)(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|${S}(?:and|or|in|to|from|is|was|at|by|near|with|for|daily|every|each|today|again|too|coast|region|area|fleet)${E})`;
-// The holiday, not giving thanks: "Happy thanksgiving", "over thanksgiving".
-const THANKSGIVING = `(?:happy|this|last|next|on|over|at|until|since|before|after|during)${S}(?<w>thanksgiving)${E}`;
 
-function placeNames(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
-  const push = (m: RegExpExecArray, name: string, messageKey: Finding["messageKey"]) => {
-    const [start, end] = m.indices!.groups!.w;
-    const typed = m.groups!.w;
-    // Lowercase only; a capitalized first word is already a name or the writer's choice.
-    if (typed !== typed.toLowerCase() || ctx.dictionary.has(typed)) return;
-    findings.push(
-      finding("englishProperNounCapitalization", messageKey, start, end, [name], {
-        context: context(ctx, m.index, end),
-      }),
-    );
-  };
-  for (const m of frameMatches(ctx, PLACE, "w"))
-    push(m, PLACE_WORDS[m.groups!.w.toLowerCase().replace(/\s+/g, " ")], "review_msg_name_casing");
-  for (const m of frameMatches(ctx, SEA, "w"))
-    push(
-      m,
-      m.groups!.w.replace(/\b\w/g, (c) => c.toUpperCase()),
-      "review_msg_name_casing",
-    );
-  for (const m of frameMatches(ctx, THANKSGIVING, "w"))
-    push(m, "Thanksgiving", "review_msg_proper_noun");
-  return findings;
-}
-
-// "Super Bowl 55" is numbered in Roman numerals (Super Bowl LV); the 50th game was "Super Bowl 50".
-const SUPER_BOWL = `super${S}bowl${S}(?<n>[1-9][0-9]?)${E}(?![.,][0-9])`;
 const roman = (n: number) =>
   ["", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC"][Math.floor(n / 10)] +
   ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"][n % 10];
 
-function superBowl(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
-  for (const m of frameMatches(ctx, SUPER_BOWL, "n")) {
-    const n = Number(m.groups!.n);
-    if (n === 50) continue;
-    const [start, end] = m.indices!.groups!.n;
-    findings.push(
-      finding("englishCanonicalCasing", "review_msg_roman_numeral_name", start, end, [roman(n)], {
-        context: context(ctx, m.index, end),
-      }),
-    );
-  }
-  return findings;
+/** The capitalized name for the `w` group; a capitalized first word is already a name. */
+function placeName(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  name: string,
+  messageKey: Finding["messageKey"],
+): Finding | null {
+  const [start, end] = m.indices!.groups!.w;
+  const typed = m.groups!.w;
+  // Lowercase only; a capitalized first word is already a name or the writer's choice.
+  if (typed !== typed.toLowerCase() || ctx.dictionary.has(typed)) return null;
+  return finding("englishProperNounCapitalization", messageKey, start, end, [name], {
+    context: context(ctx, m.index, end),
+  });
 }
 
-/** English only; findings inside a quoted or parenthesized example are dropped. */
-const english =
-  (...detectors: ((ctx: DetectContext) => Finding[])[]) =>
-  (ctx: DetectContext): Finding[] =>
-    ctx.lang !== "en_US"
-      ? []
-      : detectors.flatMap((detect) => detect(ctx)).filter((f) => !quotedMention(ctx, f));
-
-/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
-export const PREDICATES = {
-  productNames: english(productNames, superBowl),
-  properNouns: english(nationalities, placeNames),
-} satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  namesProduct: (m, ctx) => {
+    const { w, n } = m.groups!;
+    const product = PRODUCT_NOUNS.get(w);
+    // Lowercase only: "WORD DOCUMENT" is emphasis, "Word document" is already right.
+    if (
+      !product ||
+      w !== w.toLowerCase() ||
+      !product.nouns.has(n.toLowerCase()) ||
+      ctx.dictionary.has(w)
+    )
+      return null;
+    // "to excel", "to react": the verb.
+    if (
+      VERBS.has(w) &&
+      /(?:^|[^\p{L}])to[ \t ]+$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    )
+      return null;
+    // "Microsoft Word", "MS Excel": the whole name is matched by NAMES.
+    if (
+      /(?:microsoft|ms|google|apple)[ \t\u00a0]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 12), m.index),
+      )
+    )
+      return null;
+    const start = m.index;
+    return {
+      ruleId: "englishCanonicalCasing",
+      messageKey: "review_msg_canonical_casing",
+      range: { start, end: start + w.length },
+      alternatives: [product.name],
+      context: context(ctx, start, m.index + m[0].length),
+    };
+  },
+  namesNationality: (m, ctx) => {
+    const w = m.groups!.w;
+    if (!PEOPLES.has(w) || ctx.dictionary.has(w)) return null;
+    const end = m.index + w.length;
+    const after = /^[ \t ]+([A-Za-z]+)/.exec(ctx.text.slice(end, end + 24))?.[1].toLowerCase();
+    const before = /([A-Za-z]+)[ \t ]+$/
+      .exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1]
+      .toLowerCase();
+    if (after && LOWERCASE_AFTER[w]?.has(after)) return null;
+    if (before && LOWERCASE_BEFORE[w]?.has(before)) return null;
+    if (w === "polish") {
+      const closes = /^[ \t ]*(?:[.!?,;:)]|$|and\b|or\b)/.test(ctx.text.slice(end, end + 8));
+      if (!(after && POLISH_NOUNS.has(after)) && !(before && POLISH_VERBS.has(before) && closes))
+        return null;
+    }
+    return {
+      ruleId: "englishProperNounCapitalization",
+      messageKey: "review_msg_nationality_capital",
+      range: { start: m.index, end },
+      alternatives: [w[0].toUpperCase() + w.slice(1)],
+      context: context(ctx, m.index, end),
+    };
+  },
+  namesPlace: (m, ctx) => {
+    return placeName(
+      ctx,
+      m,
+      PLACE_WORDS[m.groups!.w.toLowerCase().replace(/\s+/g, " ")],
+      "review_msg_name_casing",
+    );
+  },
+  namesSea: (m, ctx) => {
+    return placeName(
+      ctx,
+      m,
+      m.groups!.w.replace(/\b\w/g, (c) => c.toUpperCase()),
+      "review_msg_name_casing",
+    );
+  },
+  namesThanksgiving: (m, ctx) => {
+    return placeName(ctx, m, "Thanksgiving", "review_msg_proper_noun");
+  },
+  namesSuperBowl: (m, ctx) => {
+    const n = Number(m.groups!.n);
+    if (n === 50) return null;
+    const [start, end] = m.indices!.groups!.n;
+    return finding(
+      "englishCanonicalCasing",
+      "review_msg_roman_numeral_name",
+      start,
+      end,
+      [roman(n)],
+      {
+        context: context(ctx, m.index, end),
+      },
+    );
+  },
+} satisfies Record<string, MatchFixer>;

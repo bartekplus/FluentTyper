@@ -23,6 +23,8 @@ fragments:
   NEGATION: "don['’]t|doesn['’]t|didn['’]t|never|not"
   VERB_OBJECT: "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what"
   SUBJECT: "I|you|we|they|he|she|it"
+  PROPERNAMES_PLACE_LEAD: "(?:born|live|lives|lived|living|grew[ \\t]+up|raised|based|stationed|stayed|staying|studied|studying|worked|working|vacation|holiday|holidays)[ \\t]+in|from|visit|visits|visiting|visited|(?:moved|move|moving|trip|trips|flight|flights|flew|fly|flying|travel|traveled|travelled|traveling|travelling|back|went|go|going|came|come|returned|return|relocated|emigrated|immigrated)[ \\t]+to"
+  PROPERNAMES_PLACE_FOLLOW: "(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|{{S}}(?:and|or|but|for|last|next|this|in|on|at|with|because|when|where|since|until|before|after|recently|yesterday|years?|months?|weeks?|ago|as){{E}})"
   PLAINSTYLE_FREQUENCY: "always|never|often|sometimes|usually|rarely|seldom|frequently|normally|generally"
   DEGREESLOTS_LINKING: "(?:is|are|was|were|am|be|been|being|seems?|seemed|looks?|looked|feels?|felt|sounds?|sounded|gets?|got|getting|become|becomes|became|['’]s|['’]re|['’]m|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)"
   DEGREESLOTS_BETWEEN: "(?:not|way|far|just|much|still|also|really|simply|already|probably|a[ \\t\\u00a0]+bit|definitely|getting|being|kind[ \\t\\u00a0]+of)"
@@ -1533,10 +1535,45 @@ rules:
         fixer: apostropheWhose
   - id: en.productNames
     checks: [englishCanonicalCasing]
-    predicate: productNames
+    style: match
+    message: review_msg_canonical_casing
+    filter: usOutsideExamples
+    frames:
+      # Brand names that are also ordinary words ("excel", "word", "chrome"): only before a noun
+      # that only the product has.
+      - regex: "(?<w>excel|word|outlook|chrome|opera|google|twitter|slack|kindle|react|mac|windows|apple){{S}}(?<n>[a-z0-9]+){{E}}"
+        owner: w
+        fixer: namesProduct
+      # "Super Bowl 55" is numbered in Roman numerals (Super Bowl LV); the 50th game was "Super
+      # Bowl 50".
+      - regex: "super{{S}}bowl{{S}}(?<n>[1-9][0-9]?){{E}}(?![.,][0-9])"
+        owner: n
+        fixer: namesSuperBowl
   - id: en.properNouns
     checks: [englishProperNounCapitalization]
-    predicate: properNouns
+    style: match
+    message: review_msg_nationality_capital
+    filter: usOutsideExamples
+    frames:
+      # Nationalities, languages and religions are proper adjectives in English. One
+      # case-sensitive alternation of the lowercase forms, not a scan of every word.
+      - regex: "(?<!{{EDGE}})(?<w>english|french|german|spanish|italian|portuguese|russian|chinese|japanese|korean|arabic|hindi|hebrew|greek|swedish|norwegian|finnish|icelandic|irish|scottish|welsh|british|american|canadian|mexican|brazilian|argentinian|australian|european|african|asian|indian|pakistani|egyptian|israeli|iranian|iraqi|turkish|ukrainian|hungarian|romanian|bulgarian|serbian|croatian|czech|slovak|vietnamese|indonesian|filipino|nigerian|kenyan|belgian|austrian|latin|christian|muslim|jewish|buddhist|hindu|islamic|protestant|dutch|polish){{E}}"
+        flags: dgu
+        owner: w
+        fixer: namesNationality
+      # Places whose names are also ordinary words ("china", "turkey", "long island"): only where
+      # a place goes, after "born in", "from", "a trip to"…, and before the clause ends.
+      - regex: "(?:{{PROPERNAMES_PLACE_LEAD}}){{S}}(?<w>china|japan|turkey|shanghai|queens|long{{S}}island|long{{S}}beach){{PROPERNAMES_PLACE_FOLLOW}}"
+        owner: w
+        fixer: namesPlace
+      # Named seas after "the": "the black sea" (a black sea is any dark one).
+      - regex: "the{{S}}(?<w>(?:black|red|dead|north){{S}}sea)(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|{{S}}(?:and|or|in|to|from|is|was|at|by|near|with|for|daily|every|each|today|again|too|coast|region|area|fleet){{E}})"
+        owner: w
+        fixer: namesSea
+      # The holiday, not giving thanks: "Happy thanksgiving", "over thanksgiving".
+      - regex: "(?:happy|this|last|next|on|over|at|until|since|before|after|during){{S}}(?<w>thanksgiving){{E}}"
+        owner: w
+        fixer: namesThanksgiving
   - id: en.notation
     checks: [englishNotation]
     predicate: notation
