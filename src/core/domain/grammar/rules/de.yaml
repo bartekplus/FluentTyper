@@ -30,12 +30,155 @@ fragments:
   ORDINAL_NOUNS: "Jahrhundert|Jahrhunderts|Jahrtausend|Stock|Stockwerk|Etage|Minute|Platz|Geburtstag|Jahrestag|Lebensjahr|Klasse|Spieltag|Runde|Liga|Etappe|Auflage|Kapitel|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember"
   RANGE_END: "(?:[1-9]\\d{0,3}|0)\\.?|\\p{Lu}"
   NUMBER_WORD: "\\d|(?<![\\p{L}])(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|zwanzig|dreißig|fünfzig|hundert|halbes?|paar)"
+  DAY_TIMES: "Morgen|Vormittag|Mittag|Nachmittag|Abend|Nacht|morgen|vormittag|mittag|nachmittag|abend|nacht"
+  NUMBER_SUFFIXES: "seitig|stellig|prozentig|teilig|jährig|tägig|stündig|minütig|wöchig|monatig|sprachig|farbig|geschossig|zimmerig|türig|spurig|köpfig|sitzig|bändig|zeilig|wertig"
   RIGHT_VERBS: "haben|hat|hatte|hatten|hast|habe|hätte|hätten|geben|gibt|gab|gaben|gegeben|behalten|behielt|bekommen|bekam"
 
 rules:
   - id: de.compounds
     checks: [germanCompounds]
-    predicate: compounds
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # "Ich bin ihm über den weggelaufen", "aus dem weggehen": "über den Weg laufen", "aus dem
+      # Weg gehen" split the noun from the verb.
+      - regex: "{{WG}}(?:(?<=(?:über{{S}}den|aus{{S}}dem){{S}})(?<target>[Ww]eg(?<verb>(?:ge)?(?:laufen|lief|liefen|läuft|gehen|ging|gingen|geht|gegangen|gelaufen)))){{E}}"
+        flags: dgu
+        fixer: wegVerb
+      # "Nach dem er gewonnen hatte": "dem" before a subject pronoun at the start of a sentence
+      # is the conjunction "nachdem" or "seitdem" (after a comma it may open a relative clause:
+      # "der Schlüssel, nach dem ich suche").
+      - regex: "{{WG}}(?:(?:^|[.!?\\n„\"])[ \\t]*(?<target>(?<first>Nach|Seit){{S}}dem)(?={{S}}(?:ich|du|er|sie|es|wir|ihr|man){{E}})){{E}}"
+        flags: dgu
+        fixer: conjunctionDem
+      # "So weit ich weiß", "so bald das Wetter …": "soweit", "sobald", "solange".
+      - regex: "{{WG}}(?:(?:^|[.!?,;:\\n„\"])[ \\t]*(?<target>(?<first>[Ss]o){{S}}(?<second>weit|bald|lange|lang))(?={{S}}(?:ich|du|er|sie|es|wir|ihr|man|der|die|das){{E}})){{E}}"
+        flags: dgu
+        fixer: soConjunction
+      # "ihr zu Liebe.", "den Eltern zu gute kommen", "Berichten zu Folge", "zu Nichte machen":
+      # fixed adverbs written apart, in the frames where "zu" is no preposition ("zu Liebe statt
+      # Hass", "von Folge zu Folge", "zu gute Noten").
+      - regex: "{{WG}}(?:(?<target>zu{{S}}(?:(?<liebe>Liebe)(?=[ \\t]*[.!?]|,{{S}}(?:weil|da|dass|obwohl|denn))|(?<gute>gute)(?:(?<gverb>{{S}}(?:kommen|kommt|kam|kamen|gekommen|halten|hält|hielt|hielten|gehalten)){{E}}|(?=[ \\t]*[.,!?;]))|(?<folge>Folge)(?=[ \\t]*[,.;]|{{S}}\\p{Ll})|(?<nichte>Nichte)(?=[ \\t]*[.!?]|{{S}}(?:mach|gemacht))))){{E}}"
+        flags: dgu
+        fixer: zuAdverb
+      # "Er freute sich, das zuhören.": an infinitive clause after a comma, its zu written onto
+      # the verb ("zu hören"); the clause ends after it or opens a dass-clause.
+      - regex: "{{WG}}(?:(?<=,{{S}}(?:(?:das|es|dies){{S}})?|(?:mich|dich|ihn|uns|euch){{S}})(?<target>zu(?<verb>\\p{Ll}{3,}))(?=[ \\t]*(?:[.!?;]|,{{S}}(?:dass|ob|wie|was|wo|wer|wann|warum|bevor|hinter){{E}}))){{E}}"
+        flags: dgu
+        fixer: zuJoined
+      # "beim Haare schneiden", "zum Auto fahren", "für das Korrektur lesen": a verb phrase made
+      # a noun is one word ("beim Haareschneiden").
+      - regex: "{{WG}}(?:(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Vv]orm|[Ff]ürs|(?:[Ff]ür|[Üü]ber|[Nn]ach|[Vv]or|[Bb]ei|[Mm]it){{S}}d(?:as|em)){{S}})(?<target>(?<noun>\\p{Lu}\\p{Ll}+){{S}}(?<verb>\\p{Ll}+(?:en|ern|eln)))){{E}}"
+        flags: dgu
+        fixer: nominalPhrase
+      # "Ideen zum selber machen", "beim Selbst Kochen": "selber" or "selbst" with an infinitive
+      # after "zum", "beim" or "fürs" is one noun ("zum Selbermachen").
+      - regex: "{{WG}}(?:(?<=(?:[Zz]um|[Bb]eim|[Ff]ürs){{S}})(?<target>(?<self>[Ss]elb(?:er|st)){{S}}(?<verb>\\p{L}+(?:en|ern|eln)))(?=[ \\t]*(?:[.!?;,]|$))){{E}}"
+        flags: dgu
+        fixer: selfInfinitive
+      # "zulange gewartet" → "zu lange"; "wenn ich da zulange" is "zulangen" (help oneself).
+      - regex: "{{WG}}(?:(?<target>[Zz]ulange)){{E}}"
+        flags: dgu
+        fixer: zulange
+      # A separable verb's zu-infinitive written apart: "auf zu bauen" → "aufzubauen".
+      - regex: "{{WG}}(?:(?<prev>\\p{L}+,?){{S}}(?<target>(?<particle>ab|an|auf|aus|bei|ein|fest|fort|her|herab|heran|herauf|heraus|herbei|herein|herüber|herum|herunter|hervor|hin|hinab|hinauf|hinaus|hinein|hinüber|hinunter|hinweg|los|nach|nieder|vor|voran|voraus|vorbei|vorüber|weg|weiter|wieder|zurück|zusammen|zu|bereit|statt|teil|kennen|fertig|frei|zufrieden|wohl|hoch|dar|empor|entgegen|unter|zurecht){{S}}zu{{S}}(?<verb>\\p{Ll}+))){{E}}"
+        flags: dgu
+        fixer: zuInfinitive
+      # "Falls du ab sagst,", "hat den Brief ab geschickt.", "als sie los gingen": a particle
+      # written apart from its verb at the end of a clause, where a main clause would not split
+      # it. "wieder", "weiter", "zusammen" and the like are left out: both spellings exist.
+      - regex: "{{WG}}(?:(?<target>(?<particle>ab|an|auf|aus|bei|ein|los|nach|vor|weg|zu|dar|her|hin|fort|heraus|herein|hinaus|hinein|herum|statt|teil|unter|bereit|stand){{S}}(?<verb>\\p{Ll}{3,}))(?=(?:{{S}}(?<aux>\\p{Ll}+))?[ \\t]*(?:[,.!?;:)]|$))){{E}}"
+        flags: dgu
+        fixer: splitAtEnd
+      # "sich um zu drehen", "damit um zu gehen": "um" as a particle.
+      - regex: "{{WG}}(?:(?<=(?:sich|damit|dich|mich|uns|euch){{S}})(?<target>um{{S}}zu{{S}}(?<verb>\\p{Ll}+))){{E}}"
+        flags: dgu
+        fixer: umZu
+      # "bereit stellen", "kennen lernen", "fertig stellen": a particle before an infinitive.
+      - regex: "{{WG}}(?:(?<target>(?<particle>bereit|kennen|fertig|zufrieden|statt|teil|nieder|weg|los|vorbei|hinzu|preis|zugute){{S}}(?<verb>\\p{Ll}+(?:en|ern|eln)))){{E}}"
+        flags: dgu
+        fixer: splitInfinitive
+      # Times of day: "Dienstag Abend" → "Dienstagabend".
+      - regex: "{{WG}}(?:(?<=(?:am|jeden|diesen|nächsten|letzten|kommenden|vergangenen|bis|ab|seit|vom|zum|Am|Jeden){{S}})(?<target>(?<day>Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonnabend|Sonntag){{S}}(?<time>{{DAY_TIMES}}))){{E}}"
+        flags: dgu
+        fixer: weekdayTime
+      # Numbers with suffixes: "8 seitig" → "8-seitig".
+      - regex: "(?<![\\p{L}\\p{N}.,-])(?<target>(?<n>\\p{N}+)(?:[ \\t]?)(?<suffix>(?:{{NUMBER_SUFFIXES}}|Seitig|Stellig|Prozentig|Teilig|Jährig|Tägig|Stündig|Minütig|Wöchig|Monatig|Sprachig|Farbig|Geschossig|Zimmerig|Türig|Spurig|Köpfig|Sitzig|Bändig|Zeilig|Wertig)(?:e|en|er|es|em)?)){{E}}"
+        flags: dgu
+        fixer: numberSuffix
+      # "acht hundertmal", "hundert tausendmal": a number word before "-mal" is one word.
+      - regex: "{{WG}}(?:(?<target>(?<count>ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|zwanzig|hundert|tausend){{S}}(?<times>hundertmal|tausendmal))){{E}}"
+        flags: dgu
+        fixer: countTimes
+      # "im 5 Minuten Takt", "ein 9 Euro Ticket": a number and its unit before a noun that a
+      # singular determiner goes with are one hyphenated word ("5-Minuten-Takt"). Without such
+      # a determiner the unit may measure the noun ("3 Tage Urlaub"). A longer chain ("eine 14
+      # Tage Geld zurück Garantie") is left alone.
+      - regex: "{{WG}}(?:(?<=(?<!\\p{L})(?:[Ee]in|[Ee]ine|[Ee]inen|[Ee]inem|[Ee]iner|[Ee]ines|[Ii]m|[Aa]m|[Zz]um|[Zz]ur|[Vv]om|[Bb]eim|[Ii]ns|[Dd]as|[Dd]em|[Dd]es){{S}})(?<target>(?<n>\\p{N}+){{S}}(?<unit>Minuten|Stunden|Tage|Wochen|Monate|Jahre|Euro|Dollar|Cent|Prozent|Punkte|Meter|Kilometer|Zimmer|Sterne|Gänge|Liter|Kilo|Gramm|Seiten|Personen|Zoll|Grad|Tonnen){{S}}(?<noun>\\p{Lu}\\p{Ll}{2,}))(?![ \\t]+(?:\\p{Lu}|zurück))){{E}}"
+        flags: dgu
+        fixer: unitNoun
+      # "3. Klässler" → "Drittklässler".
+      - regex: "(?<![\\p{L}\\p{N}.])(?<target>(?<n>1[0-3]|[1-9])\\.[ \\t]?[Kk]lässler(?<end>in|innen|n)?){{E}}"
+        flags: dgu
+        fixer: klassler
+      # Abbreviations before nouns: "US Bürger" → "US-Bürger".
+      - regex: "{{WG}}(?:(?<target>(?<acronym>US|EU|UN|UNO|IT|PC|PR|EDV|Kfz|KFZ|Pkw|PKW|Lkw|LKW|USB|PDF|HTML|CD|DVD|TV|SMS|GPS|WLAN|SPD|CDU|FDP|DFB|NATO|WHO){{S}}(?<noun>\\p{Lu}\\p{Ll}{2,}))){{E}}"
+        flags: dgu
+        fixer: acronymNoun
+      # "in's Kino", "auf's Dach", "vor'm Haus": a preposition fused with its article takes no
+      # apostrophe.
+      - regex: "{{WG}}(?:(?<target>(?<prep>[Ii]n|[Aa]n|[Aa]uf|[Ff]ür|[Dd]urch|[Uu]m|[Hh]inter|[Üü]ber|[Uu]nter|[Vv]or)['’](?<article>s|n|m))){{E}}"
+        flags: dgu
+        fixer: fusedArticle
+      # "eMail", "e-mail", "E-mail", "EMail" are never right; "Email" (enamel) only after a
+      # determiner that cannot go with "das Email".
+      - regex: "{{WG}}(?:(?<target>(?:eMail|e-mail|E-mail|EMail|e-Mail)(?<rest>s|-\\p{L}[\\p{L}-]*)?)){{E}}"
+        flags: dgu
+        fixer: emailAny
+      # "Spam-Email", "HTML-EMail-Adresse": the mail part of a hyphenated compound.
+      - regex: "{{WG}}(?:(?<target>(?<pre>(?:\\p{Lu}[\\p{L}]*|\\p{Lu}{2,})-)(?:Email|EMail|eMail|E-mail|e-mail|E-MAIL)(?<rest>s|-\\p{L}[\\p{L}-]*)?)){{E}}"
+        flags: dgu
+        fixer: emailTail
+      # "E mail", "e Mails": the letter written apart.
+      - regex: "{{WG}}(?:(?<target>[Ee][ \\t]+[Mm](?:ail|AIL|Ail)(?<rest>s?))){{E}}"
+        flags: dgu
+        fixer: emailApart
+      # "E-Mail Adresse", "E-Mail programm": the noun after it joins with a hyphen ("per E-Mail
+      # Adressen schicken" sends addresses).
+      - regex: "{{WG}}(?:(?<!(?:per|via|als|[Üü]ber|mit){{S}})(?<target>E-Mail{{S}}(?<noun>(?:[Aa]dresse|[Pp]rogramm|[Kk]onto|[Pp]ostfach|[Vv]erkehr|[Aa]nhang|[Ss]ignatur|[Ss]erver|[Vv]erteiler|[Bb]enachrichtigung|[Kk]ommunikation|[Mm]arketing)(?:n|en|e|s|es)?))){{E}}"
+        flags: dgu
+        fixer: emailNoun
+      - regex: "{{WG}}(?:(?<=(?:eine|einer|meine|deine|seine|ihre|Ihre|unsere|eure|keine|jede|diese|per|neue|letzte|kurze){{S}})(?<target>Email(?<rest>-\\p{L}[\\p{L}-]*)?)){{E}}"
+        flags: dgu
+        fixer: emailAfter
+      - regex: "{{WG}}(?:(?<target>Emails|E-Mailadresse|E-Mailadressen)){{E}}"
+        flags: dgu
+        fixer: emails
+      # "DinA4" → "DIN A4".
+      - regex: "{{WG}}(?:(?<target>(?:DIN|Din|din)(?:-|{{S}})?[Aa](?<size>[0-8])(?<rest>(?:-|{{S}})?Blatt|-\\p{L}+)?)){{E}}"
+        flags: dgu
+        fixer: din
+      - regex: "{{WG}}(?:(?<target>(?:AddOn|Addon|addon|AddOns|Addons|addons)(?<rest>-\\p{L}+)?)){{E}}"
+        flags: dgu
+        fixer: addOn
+      # A compound noun written as two words ("die Abfahrts Zeiten"), and an adjective with no
+      # ending that opens a compound ("im roh Zustand"): each word whose start the chunk owns
+      # (a word of letters, not glued into a number, path, mention or dotted token).
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
+        scan: owned
+        flags: gu
+        fixer: nounPair
+      # "zu teil", "von statten": a bound first part written as two words, or written apart from
+      # its verb ("zunichte gemacht").
+      - regex: "{{WG}}(?:(?<first>zunichte|inne|zuteil|vonstatten|zugute|preis|zu{{S}}teil|von{{S}}statten|Preis)(?:(?<zu>{{S}}zu)?{{S}}(?<verb>\\p{Ll}+))?{{E}})"
+        flags: dgu
+        owner: first
+        fixer: boundVerb
+      # "zu Pass(e)": "zupass" next to a form of "kommen".
+      - regex: "{{WG}}(?:(?<first>zu{{S}}Passe?|zupasse?)(?:{{S}}(?<verb>\\p{Ll}+))?{{E}})"
+        flags: dgu
+        owner: first
+        fixer: zuPass
   - id: de.dates
     checks: [germanDates]
     style: match
@@ -1067,7 +1210,15 @@ rules:
         fixer: phrasalNoun
   - id: de.joinedVerbs
     checks: [germanJoinedVerbs]
-    predicate: joinedVerbs
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # An adjective or adverb written apart from a verb with which it makes one verb: "fest
+      # genommen" (festgenommen), "schief gehen" (schiefgehen).
+      - regex: "{{WG}}(?:(?<first>wieder{{S}}gut|fest|klar|kalt|krank|hoch|groß|klein|schwarz|rot|schief|glatt|zufrieden|allein|satt|gut|heilig|kürzer|schwer|sicher|kurz|nahe|wieder)(?<zu>{{S}}zu)?{{S}}(?<verb>\\p{Ll}+){{E}})"
+        flags: dgu
+        owner: first
+        fixer: openVerb
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

@@ -27,9 +27,7 @@ export const PREDICATES = mergePredicates(
   adjectiveForms.PREDICATES,
   articleGender.PREDICATES,
   commas.PREDICATES,
-  compounds.PREDICATES,
   dates.PREDICATES,
-  joinedVerbs.PREDICATES,
   nounCasing.PREDICATES,
   numbers.PREDICATES,
   prepositionCase.PREDICATES,
@@ -52,6 +50,8 @@ export const FIXERS = mergePredicates<Fixer>(
   dates.FIXERS,
   numbers.FIXERS,
   colloquial.FIXERS,
+  compounds.FIXERS,
+  joinedVerbs.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */
