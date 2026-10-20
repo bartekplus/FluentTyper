@@ -14,7 +14,7 @@ import { countability } from "./englishCountability";
 import { FIXERS as NUMBER_FIXERS } from "./englishNounNumber";
 import { FIXERS as PARTICIPLE_FIXERS } from "./englishParticiples";
 import { FIXERS as COMPLEMENT_FIXERS } from "./englishComplements";
-import { contextualPossessives } from "./englishPossessives";
+import { FIXERS as POSSESSIVE_FIXERS } from "./englishPossessives";
 import { FILTERS as AGREEMENT_FILTERS, FIXERS as AGREEMENT_FIXERS } from "./englishAgreement";
 import { FIXERS as CONFUSION_FIXERS } from "./englishWordConfusions";
 import { FILTERS as AUXILIARY_FILTERS, FIXERS as AUXILIARY_FIXERS } from "./englishAuxiliaryForms";
@@ -1580,7 +1580,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   phraseTables: (ctx) => detectAll(ctx, [canonicalCasing, phraseCorrections]),
   quotationFindings: (ctx) => ownedFindings(ctx, ctx.quotationFindings),
   typographicQuotes: TYPOGRAPHIC_QUOTES.detect,
-  possessives: contextualPossessives,
   doubledDegree: (ctx) =>
     ctx.lang === "en_US" ? doubledDegree(ctx) : doubledDegreeByLanguage(ctx),
   countability,
@@ -1650,6 +1649,7 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   CONFUSION_FIXERS,
   AGREEMENT_FIXERS,
   NUMBER_FIXERS,
+  POSSESSIVE_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */

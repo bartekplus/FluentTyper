@@ -4489,6 +4489,8 @@ fragments:
   NUMBER_PAST: "(?:failed|arrived|returned)"
   # The count words of EnglishNounNumber.ts (ENGLISH_COUNT_WORDS) and digits.
   NUMBER_COUNT: "zero|one|two|three|four|five|six|seven|eight|nine|ten|[0-9]{1,4}"
+  POSSESSIVE_ADJECTIVE: "(?:(?:new|old|cold|warm|red|blue|main|original|updated|private){{S}})?"
+  POSSESSIVE_NOUN: "(?:policy|connection|surface|folder|file|password|screen|keyboard|owner|name|settings|color|cover|door|engine|battery|address)"
 
 rules:
   # Typing rules: each live check names its implementation (engine/liveRules.ts).
@@ -4641,9 +4643,58 @@ rules:
   - id: typographicQuotes
     checks: [typographicQuotes]
     predicate: typographicQuotes
+  # Full bounded phrases, never a guess about arbitrary names or singular/plural ownership.
   - id: possessives
     checks: [englishItsContext, englishLetsContext, englishElsePossessive]
-    predicate: possessives
+    style: match
+    message: review_msg_its_possessive
+    frames:
+      - regex: "(?<!{{EDGE}})(?:lost|checked|changed|updated|fixed|opened|closed|remembered|forgot|replaced|painted|cleaned){{S}}(?<target>it['’]s){{S}}{{POSSESSIVE_ADJECTIVE}}{{POSSESSIVE_NOUN}}{{COMPLETE}}{{E}}"
+        flags: gidu
+        fixer: itsAfterVerb
+      - regex: "(?<!{{EDGE}})(?<target>it['’]s){{S}}{{POSSESSIVE_ADJECTIVE}}{{POSSESSIVE_NOUN}}{{S}}(?:is|was|looks|seems){{S}}(?:wet|dry|broken|new|old|red|blue|missing|different){{COMPLETE}}{{E}}"
+        flags: gidu
+        fixer: itsNounPredicate
+      - regex: "(?<!{{EDGE}})(?<target>its){{S}}(?:unclear{{S}}whether{{S}}(?:the{{S}}change{{S}}will{{S}}affect{{S}}us|it{{S}}will{{S}}work)|ready{{S}}to{{S}}(?:use|go|open|start)|(?:cold|warm){{S}}outside|working{{S}}(?:now|again|today)|already{{S}}(?:been{{S}})?(?:fixed|updated|removed|replaced)){{COMPLETE}}{{E}}"
+        flags: gidu
+        message: review_msg_its_contraction
+        fixer: itsPhrase
+      # "its" never precedes a verb, an article or a function word.
+      - regex: "(?<!{{EDGE}})(?<target>its){{S}}(?:been|got|had|gotten|a|an|the|my|your|our|his|her|their|not|never|always|so|too|because|like|about|called|named|raining|snowing|someone|something|anyone|anything|everyone|everything|nobody|nothing|somebody|anybody|everybody|somewhere|anywhere|everywhere|going{{S}}to|getting{{S}}(?:late|dark|better|worse|harder|easier|cold|warm|old)|time{{S}}to){{E}}"
+        flags: gidu
+        message: review_msg_its_contraction
+        fixer: itsBeforeFunctionWord
+      - regex: "(?<!{{EDGE}})(?<target>its){{S}}(?:(?:also|just|still|really|very|pretty|quite){{S}})?(?:hard|easy|common|important|critical|crucial|essential|vital|necessary|possible|impossible|likely|unlikely|clear|obvious|true|amazing|nice|great|good|bad|fine|okay|ok|worth|better|best|worse|safe|fun|strange|weird|odd|interesting|useful|helpful|difficult|annoying|frustrating|sad|funny|normal|free|done|over|here|there|now)(?={{S}}(?:to|for|that|if|when|because|how|what|why){{E}}|{{COMPLETE}}){{E}}"
+        flags: gidu
+        message: review_msg_its_contraction
+        fixer: itsBeforeAdjective
+      - regex: "(?<!{{EDGE}})(?=its{{E}})(?<=(?:think|thinks|hope|hopes|guess|assume|doubt|suppose|believe|bet){{S}})(?<target>its){{S}}[a-z]+(?:{{S}}[a-z]+)?{{COMPLETE}}{{E}}"
+        flags: gidu
+        message: review_msg_its_contraction
+        fixer: itsBeforeName
+      # "it's" never follows a preposition or precedes "own".
+      - regex: "(?<!{{EDGE}})(?=it['’]s)(?<!(?:how|what){{S}}about{{S}})(?<=(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among){{S}})(?<target>it['’]s){{S}}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like){{E}})[a-z]+{{E}}"
+        flags: gidu
+        fixer: itsAfterPreposition
+      - regex: "(?<!{{EDGE}})(?<target>it['’]s){{S}}own{{S}}[a-z]+{{E}}"
+        flags: gidu
+        fixer: itsOwn
+      - regex: "(?<!{{EDGE}})(?=it['’]s)(?<=[a-z]{3,30}ed{{S}})(?<target>it['’]s){{S}}[0-9]{1,4}(?:st|nd|rd|th){{E}}"
+        flags: gidu
+        fixer: itsOrdinal
+      - regex: "(?<!{{EDGE}})(?<target>it['’]s){{S}}(?!(?:not|all|both|each|also|still|just|really|never|always|so|too|very|already|probably|certainly|here|there|now|then|what|who|which|whoever|whatever|where|how|why|when|that|this|it|one|someone|something|everything|everyone|anything|nothing|time|because|like|as|kind|sort|type|going|getting){{E}})[a-z]+{{S}}(?:are|were|have){{E}}{{E}}"
+        flags: gidu
+        fixer: itsBeforeVerb
+      - regex: "(?<!{{EDGE}})(?<target>lets){{S}}(?:try{{S}}again|go{{S}}home|start{{S}}now|work{{S}}together|take{{S}}a{{S}}break|check{{S}}the{{S}}file|open{{S}}the{{S}}folder|read{{S}}the{{S}}report|fix{{S}}the{{S}}problem|meet{{S}}tomorrow|wait{{S}}here|begin{{S}}with{{S}}the{{S}}basics){{COMPLETE}}{{E}}"
+        flags: gidu
+        check: englishLetsContext
+        message: review_msg_lets_contraction
+        fixer: letsPhrase
+      - regex: "(?<!{{EDGE}})(?:someone|anyone|everyone|somebody|anybody|nobody|no{{S}}one){{S}}(?<target>elses){{S}}{{POSSESSIVE_ADJECTIVE}}{{POSSESSIVE_NOUN}}{{COMPLETE}}{{E}}"
+        flags: gidu
+        check: englishElsePossessive
+        message: review_msg_else_possessive
+        fixer: elsePossessive
   - id: fixedPrepositions
     checks: [englishFixedPrepositions]
     style: template
