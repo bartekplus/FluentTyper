@@ -455,9 +455,26 @@ rules:
         fixer: agreement
   - id: es.verbAgreement
     checks: [spanishAgreement]
-    # predicate: walks the chunk tokens; the decision reads the subject and the
-    # number of each verb.
-    predicate: verbAgreement
+    style: match
+    message: review_msg_spanish_verb_agreement
+    # The subject's gender beats the copula's number alone: an attribute finding drops the
+    # finding of the first frame at the same start.
+    filter: attributeFirst
+    frames:
+      # Every word from 64 characters before the chunk: the checks key on verbs and subjects,
+      # which are no closed list. The fixer reads the subject and the number of the verb
+      # (review/spanish/verbAgreement.ts).
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        lookback: 64
+        fixer: verbAgreement
+      # The attribute after a copula: "Ellas están cansado" -> "cansadas".
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        lookback: 64
+        fixer: verbAttribute
   - id: es.clauseAgreement
     checks: [spanishAgreement]
     # predicate: walks the chunk tokens; each token frame reads the clause

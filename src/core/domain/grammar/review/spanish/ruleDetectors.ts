@@ -21,7 +21,6 @@ export const PREDICATES = mergePredicates(
   porque.PREDICATES,
   typography.PREDICATES,
   commas.PREDICATES,
-  verbAgreement.PREDICATES,
   clauses.PREDICATES,
   frames.PREDICATES,
 );
@@ -34,10 +33,11 @@ export const FIXERS = mergePredicates<Fixer>(
   confusions.FIXERS,
   verbForms.FIXERS,
   agreement.FIXERS,
+  verbAgreement.FIXERS,
   prefixes.FIXERS,
   typography.FIXERS,
   quotes.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/es.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>(typography.FILTERS);
+export const FILTERS = mergePredicates<FindingsFilter>(typography.FILTERS, verbAgreement.FILTERS);
