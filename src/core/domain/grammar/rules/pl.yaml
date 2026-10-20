@@ -24,6 +24,10 @@ fragments:
   NUMERAL: "\\d+|dwóch|dwu|trzech|czterech|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|\\p{L}{2,9}(?:nastu|dziestu|dziesięciu)|stu|kilku|paru|wielu"
   UI_TARGET: "link|linki|przycisk|ikonę|ikonkę|odnośnik|baner|zdjęcie|obrazek|opcję|strzałkę|zakładkę|napis|krzyżyk|logo|plik|folder"
   CLAUSE_END: "(?=[ \\t\\u00a0]*(?:[.!?,;]|$))"
+  # The word ends here and is not a short abbreviation ("por.", "ul."; none ends in "ą", "ę": "grą.").
+  WORD: "(?![\\p{L}\\p{N}_'’@/-])(?<![ \\t\\u00a0]\\p{L}{0,2}(?![ąęĄĘ])\\p{L}(?=\\.))"
+  # Prepositions that take only the genitive.
+  GENITIVE_ONLY: "dla|do|od|bez|u|według|wg|oprócz|prócz|zamiast|obok|koło|wokół|wśród|spośród|spod|znad|zza|sprzed"
 
 rules:
   - id: pl.compoundsFrames
@@ -533,9 +537,138 @@ rules:
   - id: pl.wordForms
     checks: [englishPhraseCorrections]
     predicate: wordForms
+  # Case and agreement read from the noun lexicon: a preposition governs the case of the noun
+  # right after it, a demonstrative agrees with its noun, a numeral from five up takes the
+  # genitive plural. A word is checked only when every dictionary reading of it is a noun.
   - id: pl.caseAgreement
     checks: [polishCaseAgreement]
-    predicate: caseAgreement
+    style: match
+    message: review_msg_pl_agreement
+    frames:
+      # "przed sklepie" -> "przed sklepem": the noun after a preposition takes a case it governs.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’.@/-])(?<prep>bez|beze|dla|do|od|ode|u|z|ze|spod|znad|zza|sprzed|spomiędzy|spośród|wśród|obok|podczas|według|zamiast|oprócz|prócz|wobec|wokół|dookoła|wzdłuż|dzięki|ku|przeciw|przeciwko|wbrew|w|we|na|o|po|przy|przez|przeze|poprzez|przed|przede|za|nad|nade|pod|pode|między|pomiędzy|poza)[ \\t\\u00a0]+(?<noun>\\p{L}+)(?![\\p{L}\\p{N}_'’@/-]))"
+        scan: polish
+        flags: giu
+        fixer: prepositionCase
+      # "te rzeczywistość": a demonstrative agrees with its noun ("to" is never checked).
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’.@/-])(?<det>ten|ta|tę|tą|te|jedne|jedna|jedną)[ \\t\\u00a0]+(?:(?<adj>\\p{L}{3,})[ \\t\\u00a0]+)?(?<noun>\\p{L}+){{WORD}})"
+        scan: polish
+        flags: giu
+        fixer: demonstratives
+      # "pięć pliki", "trzy godzin": a numeral asks its noun for a case.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|sześćset|siedemset|osiemset|dziewięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset|parę|dwa|dwie|trzy|cztery|oba|obie|dziesiątki|setki|tysiące|miliony|miliardy|dziesiątek|setek|tysięcy|milionów|miliardów|\\d+)[ \\t\\u00a0]+(?<noun>\\p{L}+){{WORD}})"
+        scan: polish
+        flags: giu
+        fixer: numeralNouns
+      # "5 złoty", "2 mln złoty": after a count from five up, or a large unit, it is "złotych".
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|sześćset|siedemset|osiemset|dziewięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset|parę|\\d+)(?:[ \\t\\u00a0]+(?<unit>tys\\.|mln|mld|tysięcy|milionów|miliardów))?[ \\t\\u00a0]+(?<noun>złoty){{WORD}})"
+        scan: polish
+        flags: giu
+        fixer: zloty
+      # "około dwieście psów" -> "około dwustu psów": a count after a genitive-taking word.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<num>dwa|dwie|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|piętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset)(?={{S}}\\p{L}))"
+        scan: polish
+        flags: giu
+        fixer: genitiveNumerals
+      # "Używają je", "szukam ją": the object pronoun of a genitive-taking verb.
+      - regex: "(?<target>(?<![\\p{L}])(?<verb>używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować|wymag(?:am|a|ają|ał\\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować){{S}}(?<pronoun>je|ją)(?![\\p{L}]))"
+        scan: polish
+        flags: giu
+        fixer: genitivePronouns
+      # "Używam młotek", "przestrzega przepisy": an accusative object where the verb wants the genitive.
+      - regex: "(?<target>(?<![\\p{L}])(?<verb>używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować|wymag(?:am|a|ają|ał\\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować){{S}}(?:(?<adj>\\p{L}{3,}){{S}})?(?<noun>\\p{L}{3,}){{WORD}})"
+        scan: polish
+        flags: gdiu
+        fixer: genitiveObjects
+  - id: pl.caseAgreementNegated
+    checks: [polishCaseAgreement]
+    # predicate: the scans move lastIndex back in the loop body to read overlapping frames.
+    predicate: caseAgreementNegated
+  - id: pl.caseAgreementGenders
+    checks: [polishCaseAgreement]
+    style: match
+    message: review_msg_pl_agreement
+    frames:
+      # "ten menu" -> "to menu", "nowy perfum" -> "nowe perfumy", "smaczny pomarańcz" -> "smaczna pomarańcza".
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’.@/-])(?:(?<first>\\p{L}{2,}){{S}})?(?<mod>\\p{L}{2,}){{S}}(?<noun>menu|tiramisu|sushi|salami|kakao|musli|euro|hobby|zoo|graffiti|alibi|kimono|risotto|espresso|bistro|perfum|pomarańcz){{WORD}})"
+        scan: polish
+        flags: gdiu
+        fixer: fixedGenders
+  - id: pl.caseAgreementAdjectives
+    checks: [polishCaseAgreement]
+    # predicate: the pair scan moves lastIndex back to the second word to read overlapping pairs.
+    predicate: caseAgreementAdjectives
+  - id: pl.caseAgreementFrames
+    checks: [polishCaseAgreement]
+    style: match
+    message: review_msg_pl_agreement
+    frames:
+      # "uznany wielkim aktorem" -> "uznany za wielkiego aktora": "uznać" names what one is
+      # taken for with "za" + accusative.
+      - regex: "(?<target>(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły){{S}}(?:go|ją|je|ich|mnie|cię|nas|was|się)){{S}}(?<phrase>(?:(?<adj>\\p{L}{3,}){{S}})?(?<noun>\\p{L}{3,})){{WORD}})"
+        scan: polish
+        flags: giu
+        fixer: consideredAs
+      # "uznany jako wielki aktor": "za", not "jako".
+      - regex: "(?<target>(?<=(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły|łem|łam){{S}}(?:go|ją|je|ich|mnie|cię|nas|was|się)){{S}})jako(?={{S}}\\p{L}))"
+        scan: polish
+        flags: giu
+        fixer: consideredAsJako
+      # "człowiek, która dba": "który" agrees in gender and number with its noun.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<noun>\\p{Ll}{3,}),{{S}}(?:(?:bez|beze|dla|do|od|ode|u|z|ze|spod|znad|zza|sprzed|spomiędzy|spośród|wśród|obok|podczas|według|zamiast|oprócz|prócz|wobec|wokół|dookoła|wzdłuż|dzięki|ku|przeciw|przeciwko|wbrew|w|we|na|o|po|przy|przez|przeze|poprzez|przed|przede|za|nad|nade|pod|pode|między|pomiędzy|poza){{S}})?(?<rel>który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy)(?![\\p{L}\\p{N}_'’-]))"
+        scan: polish
+        flags: gdu
+        fixer: relatives
+      # "prozę Bruno Schulza" -> "Brunona": a Polish surname in an oblique case takes the
+      # first name along.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<name>Bruno|Hugo|Otto|Pablo|Mario|Paulo|Leonardo|Ricardo|Fernando|Antonio|Alfonso|Romano|Guido|Sergio|Claudio){{S}}(?<surname>\\p{Lu}\\p{Ll}{2,}?(?<ending>owi|em|a|y|i))(?![\\p{L}\\p{N}_'’-]))"
+        scan: polish
+        flags: gdu
+        fixer: uninflectedNames
+      # "wg niemu", "dla nią" -> "wg niego", "dla niej": these prepositions take only the
+      # genitive, so "niemu", "nim", "nią", "nimi" cannot follow.
+      - regex: "(?<target>(?<=(?<![\\p{L}])(?:{{GENITIVE_ONLY}}){{S}})(?:niemu|nim|nią|nimi)(?![\\p{L}]))"
+        scan: polish
+        flags: giu
+        fixer: genitiveOnlyPronoun
+      # "w twoi mózgu" -> "w twoim mózgu": the dropped "m" (or "-ej" before a feminine noun).
+      - regex: "(?<target>(?<=(?<![\\p{L}])(?:w|we|po|o|na|przy)[ \\t\\u00A0]{1,8})(?:moi|twoi|swoi)(?=[ \\t\\u00A0]{1,8}(?<noun>\\p{L}+)))"
+        scan: polish
+        flags: giu
+        fixer: possessiveLocative
+      # "po litewskiemu" -> "po litewsku" (not "po swojemu", "po staremu").
+      - regex: "(?<target>(?<=(?<![\\p{L}])po[ \\t\\u00A0]{1,8})\\p{L}+(?:sk|ck|dzk)iemu(?![\\p{L}]))"
+        scan: polish
+        flags: giu
+        fixer: poLanguage
+      # "godzina temu" -> "godzinę temu": "temu" counts back from an accusative. Not "temu"
+      # the dative of "ten" before its noun ("ta chwila temu panu umknęła").
+      - regex: "(?<target>(?<![\\p{L}])(?:godzina|minuta|sekunda|chwila|doba)(?=[ \\t\\u00A0]{1,8}temu(?![\\p{L}])(?![ \\t\\u00A0]+\\p{L}+(?:owi|u|emu)(?![\\p{L}]))))"
+        scan: polish
+        flags: giu
+        fixer: temuAccusative
+      # "półtorej roku" -> "półtora roku", "półtora godziny" -> "półtorej godziny": the noun's
+      # gender picks the form.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<num>półtora|półtorej){{S}}(?<noun>\\p{L}{3,}){{WORD}})"
+        scan: polish
+        flags: gdiu
+        fixer: halfForms
+      # "dwadzieścia trzej mężczyźni": men's "dwaj", "trzej", "czterej" stand alone, not after tens.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?:dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt){{S}}(?:dwaj|trzej|czterej){{S}}(?<noun>\\p{L}{3,}){{WORD}})"
+        scan: polish
+        flags: gdiu
+        fixer: tensMen
+      # "Uczestnikami są wyłącznie uczniów": a genitive plural where the subject goes after "są".
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<verb>są|będą){{S}}(?:(?:wyłącznie|głównie|tylko|także|również|zwykle|najczęściej|zawsze|często){{S}})?(?<noun>\\p{Ll}{3,}){{WORD}})"
+        scan: polish
+        flags: gdu
+        fixer: subjectsAfterPredicate
+      # "tymi człowiekiem", "moimi siostrą". "między innymi handlem": "innymi" is left out,
+      # it is part of "między innymi".
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>tymi|Tymi|tamtymi|Tamtymi|takimi|Takimi|jakimi|Jakimi|jakimiś|Jakimiś|moimi|Moimi|twoimi|Twoimi|swoimi|Swoimi|naszymi|Naszymi|waszymi|Waszymi|owymi|Owymi|żadnymi|Żadnymi){{S}}(?<noun>\\p{Ll}{3,}){{WORD}})"
+        scan: polish
+        flags: gu
+        fixer: pluralPronouns
   - id: pl.quotes
     checks: [polishQuotes]
     predicate: quotes

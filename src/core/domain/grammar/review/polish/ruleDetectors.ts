@@ -44,6 +44,7 @@ export const PREDICATES = mergePredicates(
 
 /** The named frame fixes of grammar/rules/pl.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
+  agreement.FIXERS,
   casing.FIXERS,
   commaFrames.FIXERS,
   compounds.FIXERS,
