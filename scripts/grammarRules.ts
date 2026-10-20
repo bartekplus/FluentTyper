@@ -187,8 +187,12 @@ export const REVIEW_RULES: readonly CompiledRule[] = ${json(set.rules)};
 
 export const REVIEW_PATTERNS: PatternSet = ${json(set.reviewPatterns)};
 
+// Each frame is typed on its own: one array literal of thousands of frame shapes makes a union
+// type too complex for the type checker (TS2590).
+const frame = (value: CompiledFrame): CompiledFrame => value;
+
 /** The frames of the frame rules, with their prefilter literals. */
-export const REVIEW_FRAMES: readonly CompiledFrame[] = ${json(set.frames)};
+export const REVIEW_FRAMES: readonly CompiledFrame[] = [${set.frames.map((value) => `frame(${json(value)})`).join(",\n")}];
 
 /** Phrase tables of the languages without Review data, by two-letter language and kind. */
 export const PHRASES: Readonly<Record<string, Readonly<Record<string, readonly PhraseRow[]>>>> = ${json(
