@@ -21,6 +21,10 @@ import * as confusions from "./confusions";
 import * as dates from "./dates";
 import * as joinedVerbs from "./joinedVerbs";
 import * as nounCasing from "./nounCasing";
+import * as nominalized from "./nominalized";
+import * as capitalized from "./capitalized";
+import * as idioms from "./idioms";
+import * as names from "./names";
 import * as numbers from "./numbers";
 import * as prepositionCase from "./prepositionCase";
 import * as questions from "./questions";
@@ -32,7 +36,6 @@ import * as verbAgreement from "./verbAgreement";
 
 export const PREDICATES = mergePredicates<Detector>(
   dates.PREDICATES,
-  nounCasing.PREDICATES,
   numbers.PREDICATES,
   quotes.PREDICATES,
 );
@@ -61,7 +64,16 @@ export const FIXERS = mergePredicates<Fixer>(
   prepositionCase.FIXERS,
   verbAgreement.FIXERS,
   articleGender.FIXERS,
+  nounCasing.FIXERS,
+  nominalized.FIXERS,
+  capitalized.FIXERS,
+  idioms.FIXERS,
+  names.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>(numbers.FILTERS, commas.FILTERS);
+export const FILTERS = mergePredicates<FindingsFilter>(
+  numbers.FILTERS,
+  commas.FILTERS,
+  nounCasing.FILTERS,
+);

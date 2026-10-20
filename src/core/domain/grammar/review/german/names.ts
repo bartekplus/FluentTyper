@@ -1,7 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { isGerman, WORD_GATE } from "./shared";
+import type { MatchFixer } from "../../engine/reviewRules";
+import type { DetectContext } from "../reviewDetectors";
 
 // Names of several words capitalize their adjective too: "der Erste Weltkrieg", "die
 // Französische Revolution", "im Nahen Osten". Each pair is "adjective stem:noun"; a leading "!"
@@ -32,30 +31,10 @@ const TRIPLES = new Set(
     "national olympisch:komitee international olympisch:komitee"
   ).split(/ (?=\p{Ll}+ )/u),
 );
-const TRIPLE = new RegExp(
-  `${WORD_GATE}(?<first>\\p{L}+?(?:e|en|er|es|em))${SPACE}(?<second>\\p{L}+?(?:e|en|er|es|em))${SPACE}(?<noun>Reich|Fernsehen|Komitee)(?:es|s)?${WORD_END}`,
-  "gdu",
-);
-// "Reich deutscher Nation": the genitive closes the name.
-const NATION = new RegExp(
-  `Reich(?:es|s)?${SPACE}(?<target>deutscher)${SPACE}Nation${WORD_END}`,
-  "gdu",
-);
-// Adjectives of places in -er are capitalized and never inflect: "Wiener Kongress", "Berliner
-// Mauer", "Schweizer Käse" (authored).
-const PLACE_ADJECTIVE = new RegExp(
-  `${WORD_GATE}(?<target>(?:wiener|berliner|münchner|münchener|hamburger|kölner|frankfurter|stuttgarter|dresdner|leipziger|bremer|nürnberger|düsseldorfer|bonner|heidelberger|zürcher|basler|berner|grazer|salzburger|innsbrucker|schweizer|pariser|londoner|römer|prager|mailänder|venezianer)${SPACE}\\p{Lu}\\p{Ll})`,
-  "gdu",
-);
 const ALWAYS = new Set(PAIRS.filter((p) => p.startsWith("!")).map((p) => p.slice(1)));
 const NAMES = new Set(PAIRS.map((p) => p.replace("!", "")));
 const NOUN_SET = new Set(PAIRS.map((p) => p.split(":")[1]));
-const NOUNS = [...NOUN_SET].join("|");
 const DEFINITE = /(?<![\p{L}\p{N}])(?:der|die|das|des|dem|den|im|am|vom|zum|zur|beim|ins)[ \t]+$/iu;
-const NAME = new RegExp(
-  `${WORD_GATE}(?<adj>\\p{Ll}+?(?:e|en|er|es|em))${SPACE}(?<noun>(?:${NOUNS})(?:es|s|n)?)${WORD_END}`,
-  "gdu",
-);
 
 // Adjective and noun pairs that are no names, so the adjective stays lowercase inside a sentence:
 // "grüner Tee", "künstliche Intelligenz", "mit freundlichen Grüßen" (authored).
@@ -71,11 +50,6 @@ const LOWER_PAIRS = new Set(
     "gesund:Menschenverstand"
   ).split(" "),
 );
-const LOWER_NOUNS = [...new Set([...LOWER_PAIRS].map((p) => p.split(":")[1]))].join("|");
-const CAPITALIZED = new RegExp(
-  `${WORD_GATE}(?<adj>\\p{Lu}\\p{Ll}+?(?:e|en|er|es|em))${SPACE}(?<noun>(?:${LOWER_NOUNS})(?:es|s|n)?)${WORD_END}`,
-  "gdu",
-);
 
 const stemOf = (adj: string) => adj.toLowerCase().replace(/(?:e|en|er|es|em)$/, "");
 // The noun without a case or plural ending: "Tees", "Feldes", "Winkeln".
@@ -84,67 +58,65 @@ const lemmas = (noun: string) => [
   ...["s", "es", "n"].map((e) => noun.replace(new RegExp(`${e}$`), "")),
 ];
 
-/** Run by germanNounCasing's detector (nounCasing.ts). */
-export function names(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  const push = (start: number, context: { start: number; end: number }) => {
-    const word = /^\p{L}+/u.exec(ctx.text.slice(start))?.[0] ?? "";
-    if (!/^\p{Ll}/u.test(word) || ctx.dictionary.has(word) || namedExampleBefore(ctx.text, start))
-      return;
-    findings.push({
-      ruleId: "germanNounCasing",
-      messageKey: "review_msg_german_name_case",
-      range: { start, end: start + 1 },
-      alternatives: [word[0].toUpperCase()],
-      context,
-    });
+/** A capital for the lowercase word at `start` of a name. */
+function capital(ctx: DetectContext, start: number, context: { start: number; end: number }) {
+  const word = /^\p{L}+/u.exec(ctx.text.slice(start))?.[0] ?? "";
+  if (!/^\p{Ll}/u.test(word) || ctx.dictionary.has(word) || namedExampleBefore(ctx.text, start))
+    return null;
+  return {
+    ruleId: "germanNounCasing" as const,
+    messageKey: "review_msg_german_name_case" as const,
+    range: { start, end: start + 1 },
+    alternatives: [word[0].toUpperCase()],
+    context,
   };
-  for (const m of frameMatches(ctx, TRIPLE, "first")) {
+}
+
+/** The named frame fixes of the name frames of the de.nounCasing rule (grammar/rules/de.yaml). */
+export const FIXERS = {
+  nameTriple: (m, ctx) => {
     const { first, second, noun } = m.groups!;
-    if (!TRIPLES.has(`${stemOf(first)} ${stemOf(second)}:${noun.toLowerCase()}`)) continue;
+    if (!TRIPLES.has(`${stemOf(first)} ${stemOf(second)}:${noun.toLowerCase()}`)) return null;
     const context = { start: m.index, end: m.index + m[0].length };
-    push(m.indices!.groups!.first[0], context);
-    push(m.indices!.groups!.second[0], context);
-  }
-  for (const m of frameMatches(ctx, CAPITALIZED, "adj")) {
+    return [
+      capital(ctx, m.indices!.groups!.first[0], context),
+      capital(ctx, m.indices!.groups!.second[0], context),
+    ].filter((f) => f !== null);
+  },
+  lowercaseAdjective: (m, ctx) => {
     const { adj, noun } = m.groups!;
     const lemma = lemmas(noun).find((n) => LOWER_PAIRS.has(`${stemOf(adj)}:${n}`));
     const start = m.index + m[0].indexOf(adj);
     // Not at the start of a sentence, line or quotation, where the capital is due anyway.
     const before = ctx.text.slice(Math.max(0, start - 4), start);
-    if (!lemma || start === 0 || /(?:^|[.!?:\n„“"»«])[ \t]*$/.test(before)) continue;
-    if (ctx.dictionary.has(adj.toLowerCase()) || namedExampleBefore(ctx.text, start)) continue;
-    findings.push({
+    if (!lemma || start === 0 || /(?:^|[.!?:\n„“"»«])[ \t]*$/.test(before)) return null;
+    if (ctx.dictionary.has(adj.toLowerCase()) || namedExampleBefore(ctx.text, start)) return null;
+    return {
       ruleId: "germanNounCasing",
       messageKey: "review_msg_german_adjective_lowercase",
       range: { start, end: start + 1 },
       alternatives: [adj[0].toLowerCase()],
       context: { start, end: m.index + m[0].length },
-    });
-  }
-  for (const regex of [NATION, PLACE_ADJECTIVE]) {
-    for (const m of frameMatches(ctx, regex)) {
-      push(m.indices!.groups!.target[0], { start: m.index, end: m.index + m[0].length });
-    }
-  }
-  for (const m of frameMatches(ctx, NAME, "adj")) {
+    };
+  },
+  nameTarget: (m, ctx) =>
+    capital(ctx, m.indices!.groups!.target[0], { start: m.index, end: m.index + m[0].length }),
+  nameAdjective: (m, ctx) => {
     const { adj, noun } = m.groups!;
     const lemma = [noun, noun.replace(/(?:es|s|n)$/, "")].find((n) => NOUN_SET.has(n));
     const stem = adj.replace(/(?:e|en|er|es|em)$/, "");
     const pair = `${stem}:${lemma}`;
-    if (!lemma || !NAMES.has(pair)) continue;
+    if (!lemma || !NAMES.has(pair)) return null;
     const [start] = m.indices!.groups!.adj;
     const before = ctx.text.slice(Math.max(0, start - 12), start);
-    if (!ALWAYS.has(pair) && !DEFINITE.test(before)) continue;
-    if (ctx.dictionary.has(adj) || namedExampleBefore(ctx.text, start)) continue;
-    findings.push({
+    if (!ALWAYS.has(pair) && !DEFINITE.test(before)) return null;
+    if (ctx.dictionary.has(adj) || namedExampleBefore(ctx.text, start)) return null;
+    return {
       ruleId: "germanNounCasing",
       messageKey: "review_msg_german_name_case",
       range: { start, end: start + 1 },
       alternatives: [adj[0].toUpperCase()],
       context: { start: m.index, end: m.indices!.groups!.noun[1] },
-    });
-  }
-  return findings;
-}
+    };
+  },
+} satisfies Record<string, MatchFixer>;

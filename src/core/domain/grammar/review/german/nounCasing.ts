@@ -1,6 +1,6 @@
 import { hasCanonicalCasing } from "../canonicalCasing";
 import { namedExampleBefore } from "../exampleCues";
-import type { Detector } from "../../engine/reviewRules";
+import type { FindingsFilter, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   germanAdjective,
@@ -12,25 +12,16 @@ import {
   germanVerbLike,
   type GermanNounReading,
 } from "./germanLexicon";
-import { capitalizedAdjectives, capitalizedVerbs } from "./capitalized";
-import { idioms } from "./idioms";
-import { names } from "./names";
-import {
-  politeImperativeOld as politeImperative,
-  salutationCaseOld as salutationCase,
-} from "./salutations";
-import { nominalized } from "./nominalized";
+import { IDIOM_FINDINGS } from "./idioms";
 import {
   BOUNDARY,
   englishLine,
   governedBefore,
   PRONOMINAL_ADVERB,
-  isGerman,
   PRONOUNS,
   tokensAfter,
   tokensBefore,
   VERB_GOVERNORS,
-  words,
   wordSet,
 } from "./shared";
 
@@ -767,115 +758,112 @@ function framedNounHolds(before: string[], at: number, after: string[]): boolean
   return closes && !subordinate(before, at);
 }
 
-function nounCasing(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  for (const m of words(ctx)) {
-    const typed = m[0];
-    if (!/^\p{Ll}/u.test(typed) || typed.length < 3 || NUMBERS.has(typed)) continue;
-    // "beim laufen", "zum verzweifeln": an infinitive after these is always a noun.
-    const reading =
-      germanNounReading(typed) ??
-      ((NOMINALIZING.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ||
-        neuterArticleInfinitive(ctx, m.index, typed.length)) &&
-      germanInfinitive(typed) &&
-      !ARTICLES.has(typed) &&
-      !QUANTIFIERS.has(typed)
-        ? "noun"
-        : germanNounOverAdjective(typed)
-          ? "adjective"
-          : germanAdjectiveNoun(typed)
-            ? "either"
-            : verbOnlyForm(typed)
-              ? "framed"
-              : null);
-    if (!reading || ctx.dictionary.has(typed) || hasCanonicalCasing(typed)) continue;
-    const end = m.index + typed.length;
-    // Glued to a hyphen, apostrophe or slash; an abbreviation ("den sog. Strudel").
-    if (/^[-'’/]/.test(ctx.text[end] ?? "") || (typed === "sog" && ctx.text[end] === ".")) {
-      continue;
-    }
-    const before = tokensBefore(ctx.text, m.index, 12);
-    const after = tokensAfter(ctx.text, end, 6);
-    const next = after[0] ?? "";
-    const triggered = trigger(before);
-    // "Öle und fette": a noun-or-adjective form ending a pair of nouns.
-    // "Brot und frisch gekocht": an uninflected adjective before a participle is its adverb.
-    const paired =
-      !triggered &&
-      reading !== "infinitive" &&
-      pairedNoun(before, after) &&
-      !(germanAdjective(typed) && !BOUNDARY.test(next) && !COORDINATORS.has(next));
-    const found =
-      triggered ??
-      ((reading === "noun" && bareNoun(typed, before, after)) ||
-      ((reading === "finite" || reading === "infinitive") && hadObject(typed, before, after)) ||
-      (reading === "finite" && secondFinite(typed, before, after)) ||
-      paired
-        ? { kind: "bare" as const, at: before.length - 1 }
-        : null);
-    if (!found) continue;
-    // "für strafentlassene, obdachlose oder …": one of several adjectives.
-    if ((next === "," || COORDINATORS.has(next)) && attributive(lower(after[1]))) continue;
-    // "von der leben sie", "mit der bürste ich": a verb; "in der marine Lebensformen",
-    // "von 2008 grad 100": an attribute.
-    if (PRONOUNS.has(next.toLowerCase()) || /^\p{N}/u.test(next)) continue;
-    // "eine zwiebeln zu dürfen": a verb before its zu-infinitive.
-    if (next === "zu" && VERB_GOVERNORS.has(lower(after[1]))) continue;
-    // A capitalized word after it ("in der marine Lebensformen"), but not an acronym
-    // ("im dritten schritt POS-Tags").
-    const nextFirst = next.split("-")[0];
-    if (/^\p{Lu}/u.test(next) && nextFirst !== nextFirst.toUpperCase()) continue;
-    if (IDIOMS.test(ctx.text.slice(m.index, m.index + 24))) continue;
-    if (reading === "framed") {
-      if (found.kind !== "article" || !framedNounHolds(before, found.at, after)) continue;
-    } else if (paired && (reading === "either" || reading === "adjective")) {
-      // The pair shows the noun.
-    } else if (reading === "either") {
-      // After a preposition and an adjective ("in heißem fett"), as after an adjective alone.
-      const kind =
-        found.kind === "preposition" && found.at < before.length - 1 ? "adjective" : found.kind;
-      if (!eitherNounHolds(typed, kind, before, found.at, after)) continue;
-    } else if (reading === "adjective") {
-      if (!adjectiveNounHolds(found.kind, before, found.at, after)) continue;
-    } else if (
-      reading !== "noun" &&
-      (attributive(next) || !nounReadingHolds(reading, typed, found.kind, before, found.at, after))
-    ) {
-      continue;
-    }
-    if (namedExampleBefore(ctx.text, m.index) || englishLine(ctx.text, m.index)) continue;
-    findings.push({
-      ruleId: "germanNounCasing",
-      messageKey: "review_msg_german_noun_case",
-      range: { start: m.index, end: m.index + 1 },
-      alternatives: [typed[0].toUpperCase()],
-      context: { start: Math.max(0, m.index - 40), end },
-    });
-  }
-  return findings;
-}
+// The findings of the lowercase noun frame: an idiom finding before one may drop it.
+const NOUN_FINDINGS = new WeakSet<RawFinding>();
 
-export const PREDICATES = {
-  nounCasing: (ctx) => {
-    // "mit meinem gewissen vereinbaren": once an idiom makes the word before a noun, a verb
-    // form after it stays a verb.
-    const fixed = idioms(ctx);
-    const nounEnds = new Set(fixed.map((f) => f.range.end));
-    const own = nounCasing(ctx).filter((f) => {
+const nounCase: MatchFixer = (m, ctx) => {
+  const typed = m[0];
+  if (!/^\p{Ll}/u.test(typed) || typed.length < 3 || NUMBERS.has(typed)) return null;
+  // "beim laufen", "zum verzweifeln": an infinitive after these is always a noun.
+  const reading =
+    germanNounReading(typed) ??
+    ((NOMINALIZING.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ||
+      neuterArticleInfinitive(ctx, m.index, typed.length)) &&
+    germanInfinitive(typed) &&
+    !ARTICLES.has(typed) &&
+    !QUANTIFIERS.has(typed)
+      ? "noun"
+      : germanNounOverAdjective(typed)
+        ? "adjective"
+        : germanAdjectiveNoun(typed)
+          ? "either"
+          : verbOnlyForm(typed)
+            ? "framed"
+            : null);
+  if (!reading || ctx.dictionary.has(typed) || hasCanonicalCasing(typed)) return null;
+  const end = m.index + typed.length;
+  // Glued to a hyphen, apostrophe or slash; an abbreviation ("den sog. Strudel").
+  if (/^[-'’/]/.test(ctx.text[end] ?? "") || (typed === "sog" && ctx.text[end] === ".")) {
+    return null;
+  }
+  const before = tokensBefore(ctx.text, m.index, 12);
+  const after = tokensAfter(ctx.text, end, 6);
+  const next = after[0] ?? "";
+  const triggered = trigger(before);
+  // "Öle und fette": a noun-or-adjective form ending a pair of nouns.
+  // "Brot und frisch gekocht": an uninflected adjective before a participle is its adverb.
+  const paired =
+    !triggered &&
+    reading !== "infinitive" &&
+    pairedNoun(before, after) &&
+    !(germanAdjective(typed) && !BOUNDARY.test(next) && !COORDINATORS.has(next));
+  const found =
+    triggered ??
+    ((reading === "noun" && bareNoun(typed, before, after)) ||
+    ((reading === "finite" || reading === "infinitive") && hadObject(typed, before, after)) ||
+    (reading === "finite" && secondFinite(typed, before, after)) ||
+    paired
+      ? { kind: "bare" as const, at: before.length - 1 }
+      : null);
+  if (!found) return null;
+  // "für strafentlassene, obdachlose oder …": one of several adjectives.
+  if ((next === "," || COORDINATORS.has(next)) && attributive(lower(after[1]))) return null;
+  // "von der leben sie", "mit der bürste ich": a verb; "in der marine Lebensformen",
+  // "von 2008 grad 100": an attribute.
+  if (PRONOUNS.has(next.toLowerCase()) || /^\p{N}/u.test(next)) return null;
+  // "eine zwiebeln zu dürfen": a verb before its zu-infinitive.
+  if (next === "zu" && VERB_GOVERNORS.has(lower(after[1]))) return null;
+  // A capitalized word after it ("in der marine Lebensformen"), but not an acronym
+  // ("im dritten schritt POS-Tags").
+  const nextFirst = next.split("-")[0];
+  if (/^\p{Lu}/u.test(next) && nextFirst !== nextFirst.toUpperCase()) return null;
+  if (IDIOMS.test(ctx.text.slice(m.index, m.index + 24))) return null;
+  if (reading === "framed") {
+    if (found.kind !== "article" || !framedNounHolds(before, found.at, after)) return null;
+  } else if (paired && (reading === "either" || reading === "adjective")) {
+    // The pair shows the noun.
+  } else if (reading === "either") {
+    // After a preposition and an adjective ("in heißem fett"), as after an adjective alone.
+    const kind =
+      found.kind === "preposition" && found.at < before.length - 1 ? "adjective" : found.kind;
+    if (!eitherNounHolds(typed, kind, before, found.at, after)) return null;
+  } else if (reading === "adjective") {
+    if (!adjectiveNounHolds(found.kind, before, found.at, after)) return null;
+  } else if (
+    reading !== "noun" &&
+    (attributive(next) || !nounReadingHolds(reading, typed, found.kind, before, found.at, after))
+  ) {
+    return null;
+  }
+  if (namedExampleBefore(ctx.text, m.index) || englishLine(ctx.text, m.index)) return null;
+  const finding: RawFinding = {
+    ruleId: "germanNounCasing",
+    messageKey: "review_msg_german_noun_case",
+    range: { start: m.index, end: m.index + 1 },
+    alternatives: [typed[0].toUpperCase()],
+    context: { start: Math.max(0, m.index - 40), end },
+  };
+  NOUN_FINDINGS.add(finding);
+  return finding;
+  return null;
+};
+
+/** The named frame fixes of the de.nounCasing rule (grammar/rules/de.yaml). */
+export const FIXERS = {
+  nounCase,
+} satisfies Record<string, MatchFixer>;
+
+/** The named findings filters of the de.nounCasing rule (grammar/rules/de.yaml). */
+export const FILTERS = {
+  // "mit meinem gewissen vereinbaren": once an idiom makes the word before a noun, a verb
+  // form after it stays a verb.
+  afterIdiomNoun: (ctx, findings) => {
+    const nounEnds = new Set(findings.filter((f) => IDIOM_FINDINGS.has(f)).map((f) => f.range.end));
+    return findings.filter((f) => {
+      if (!NOUN_FINDINGS.has(f)) return true;
       let i = f.range.start;
       while (i > 0 && (ctx.text[i - 1] === " " || ctx.text[i - 1] === "\t")) i--;
       return !nounEnds.has(i);
     });
-    return [
-      ...own,
-      ...nominalized(ctx),
-      ...capitalizedAdjectives(ctx),
-      ...capitalizedVerbs(ctx),
-      ...fixed,
-      ...names(ctx),
-      ...salutationCase(ctx),
-      ...politeImperative(ctx),
-    ];
   },
-} satisfies Record<string, Detector>;
+} satisfies Record<string, FindingsFilter>;
