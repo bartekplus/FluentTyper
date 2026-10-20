@@ -1488,15 +1488,13 @@ rules:
     frames:
       # Multi-part abbreviations typed with a part's dot or the space missing ("z.B.", "zB",
       # "u.a", "Dr.med."): one scan for all of them, the longer forms first ("Dr. med. dent."
-      # before "Dr. med."). This frame gives the forms with a dot missing.
+      # before "Dr. med."). A form with a dot missing is a germanAbbreviations finding; a form
+      # with every dot and only the spaces missing ("z.B.") is optional germanAbbreviationSpacing
+      # advice.
       - regex: "{{WG}}(?<target>[DD]r\\.?{{SEP}}med\\.?{{SEP}}dent\\.?|[DD]r\\.?{{SEP}}rer\\.?{{SEP}}nat\\.?|[DD]r\\.?{{SEP}}rer\\.?{{SEP}}pol\\.?|[DD]r\\.?{{SEP}}med\\.?{{SEP}}vet\\.?|[iI]\\.?{{SEP}}d\\.?{{SEP}}R\\.?|[uU]\\.?{{SEP}}v\\.?{{SEP}}a\\.?|[uU]\\.?{{SEP}}v\\.?{{SEP}}m\\.?|[aA]\\.?{{SEP}}a\\.?{{SEP}}O\\.?|[bB]\\.?{{SEP}}a\\.?{{SEP}}W\\.?|[DD]r\\.?{{SEP}}phil\\.?|[PP]rof\\.?{{SEP}}Dr\\.?|[DD]r\\.?{{SEP}}med\\.?|[DD]r\\.?{{SEP}}jur\\.?|[nN]\\.?{{SEP}}Chr\\.?|[vV]\\.?{{SEP}}Chr\\.?|[zZ]\\.?{{SEP}}Hdn\\.?|[zZ]\\.?{{SEP}}Hd\\.?|[zZ]\\.?{{SEP}}B\\.?|[dD]\\.?{{SEP}}h\\.?|[uU]\\.?{{SEP}}a\\.?|[oO]\\.?{{SEP}}Ä\\.?|[uU]\\.?{{SEP}}Ä\\.?|[oO]\\.?{{SEP}}ä\\.?|[uU]\\.?{{SEP}}ä\\.?|[mM]\\.?{{SEP}}E\\.?|[sS]\\.?{{SEP}}o\\.?|[sS]\\.?{{SEP}}u\\.?|[iI]\\.?{{SEP}}A\\.?|[eE]\\.?{{SEP}}V\\.?|[nN]\\.?{{SEP}}V\\.?|[zZ]\\.?{{SEP}}T\\.?|[pP]\\.?{{SEP}}a\\.?|[cC]\\.?{{SEP}}t\\.?|[sS]\\.?{{SEP}}t\\.?)(?![\\p{L}\\p{N}])"
         flags: dgu
-        fixer: abbreviationParts
-      # The same scan: the forms with every dot, only the spaces missing (optional advice).
-      - regex: "{{WG}}(?<target>[DD]r\\.?{{SEP}}med\\.?{{SEP}}dent\\.?|[DD]r\\.?{{SEP}}rer\\.?{{SEP}}nat\\.?|[DD]r\\.?{{SEP}}rer\\.?{{SEP}}pol\\.?|[DD]r\\.?{{SEP}}med\\.?{{SEP}}vet\\.?|[iI]\\.?{{SEP}}d\\.?{{SEP}}R\\.?|[uU]\\.?{{SEP}}v\\.?{{SEP}}a\\.?|[uU]\\.?{{SEP}}v\\.?{{SEP}}m\\.?|[aA]\\.?{{SEP}}a\\.?{{SEP}}O\\.?|[bB]\\.?{{SEP}}a\\.?{{SEP}}W\\.?|[DD]r\\.?{{SEP}}phil\\.?|[PP]rof\\.?{{SEP}}Dr\\.?|[DD]r\\.?{{SEP}}med\\.?|[DD]r\\.?{{SEP}}jur\\.?|[nN]\\.?{{SEP}}Chr\\.?|[vV]\\.?{{SEP}}Chr\\.?|[zZ]\\.?{{SEP}}Hdn\\.?|[zZ]\\.?{{SEP}}Hd\\.?|[zZ]\\.?{{SEP}}B\\.?|[dD]\\.?{{SEP}}h\\.?|[uU]\\.?{{SEP}}a\\.?|[oO]\\.?{{SEP}}Ä\\.?|[uU]\\.?{{SEP}}Ä\\.?|[oO]\\.?{{SEP}}ä\\.?|[uU]\\.?{{SEP}}ä\\.?|[mM]\\.?{{SEP}}E\\.?|[sS]\\.?{{SEP}}o\\.?|[sS]\\.?{{SEP}}u\\.?|[iI]\\.?{{SEP}}A\\.?|[eE]\\.?{{SEP}}V\\.?|[nN]\\.?{{SEP}}V\\.?|[zZ]\\.?{{SEP}}T\\.?|[pP]\\.?{{SEP}}a\\.?|[cC]\\.?{{SEP}}t\\.?|[sS]\\.?{{SEP}}t\\.?)(?![\\p{L}\\p{N}])"
-        flags: dgu
-        check: germanAbbreviationSpacing
-        fixer: abbreviationSpacing
+        anyCheck: true
+        fixer: abbreviation
       # "max 5 Leute", "min 3 Tage": the abbreviation before a number takes its dot.
       - regex: "{{WG}}(?<target>max|min)(?=[ \\t]\\p{N})"
         flags: dgu
@@ -1539,14 +1537,14 @@ rules:
       # comma before the closing mark („Ich gehe,“ sagte er → „Ich gehe“, sagte er), and the
       # comma a question or exclamation needs before the verb of saying („Wirklich?“ fragte
       # sie).
-      - regex: "(?<target>(?<period>\\.)(?=“[ \\t]*[,!?])|(?<=\\.“)(?<after>\\.)|(?<=\\p{L})(?<comma>,“)(?=[ \\t]+\\p{Ll})|(?<=[!?])(?<close>“)(?=[ \\t]+(?:{{SAYING}})(?![\\p{L}])))"
+      - regex: "(?<period>\\.)(?=“[ \\t]*[,!?])|(?<=\\.“)(?<after>\\.)|(?<=\\p{L})(?<comma>,“)(?=[ \\t]+\\p{Ll})|(?<=[!?])(?<close>“)(?=[ \\t]+(?:{{SAYING}})(?![\\p{L}]))"
         scan: owned
         flags: dgu
         fixer: speech
       # No space goes right inside quotation marks or brackets: „ Der Hund …“ → „Der Hund …“,
       # (nur kleine ) → (nur kleine). The mark must have its partner on the same line, so a
       # lone mark, a smiley ":( " and Swiss «…» quotes stay alone.
-      - regex: "(?<target>(?<=[\\u201E\\u00BB(])[ \\t]+(?=\\p{L})|(?<=[\\p{L}.!?\\u2026])[ \\t]+(?=[\\u201C\\u00AB)]))"
+      - regex: "(?<=[\\u201E\\u00BB(])[ \\t]+(?=\\p{L})|(?<=[\\p{L}.!?\\u2026])[ \\t]+(?=[\\u201C\\u00AB)])"
         scan: owned
         flags: gu
         fixer: innerSpacing
@@ -1675,13 +1673,13 @@ rules:
     frames:
       # A full stop or a "!" after a letter that closes a line or comes before a capital: the
       # end of a sentence that may be a question ("Wann kommst du.").
-      - regex: "(?<=\\p{L})(?<target>[.!])(?=[ \\t]*(?:\\n|$)|[ \\t]+\\p{Lu})"
+      - regex: "(?<=\\p{L})[.!](?=[ \\t]*(?:\\n|$)|[ \\t]+\\p{Lu})"
         scan: owned
         flags: gu
         fixer: statementQuestion
       # Quoted speech that a verb of asking reports, closed without a question mark: '"Wohin
       # gehst du", fragte sie.' → '"Wohin gehst du?"'.
-      - regex: "(?<=\\p{L})(?<target>\\.?(?<quote>[\"\\u201C\\u201D\\u00AB\\u00BB]))(?=,?[ \\t]+(?:fragte|fragten|fragt|erkundigte|erkundigten|erkundigt|wollten?(?:[ \\t]+\\p{Ll}+)?[ \\t]+wissen)(?!\\p{L}))"
+      - regex: "(?<=\\p{L})\\.?(?<quote>[\"\\u201C\\u201D\\u00AB\\u00BB])(?=,?[ \\t]+(?:fragte|fragten|fragt|erkundigte|erkundigten|erkundigt|wollten?(?:[ \\t]+\\p{Ll}+)?[ \\t]+wissen)(?!\\p{L}))"
         scan: owned
         flags: gu
         fixer: quotedQuestion
@@ -1750,18 +1748,18 @@ rules:
     frames:
       # Typeset German multiplies with × or ·: "6,6 x 10⁻³⁴", "5*2", "a * b" (opt-in). "0x1F" is
       # hexadecimal; a "*" without spaces between words is a gender star or emphasis.
-      - regex: "(?<target>(?<=(?<![\\p{L}\\p{N}.,])\\d+(?:[.,]\\d+)?[ \\u00A0]?)[x*](?=[ \\u00A0]?\\d)|(?<=[\\p{L}\\p{N}][ \\u00A0])\\*(?=[ \\u00A0][\\p{L}\\p{N}]))"
+      - regex: "(?<=(?<![\\p{L}\\p{N}.,])\\d+(?:[.,]\\d+)?[ \\u00A0]?)[x*](?=[ \\u00A0]?\\d)|(?<=[\\p{L}\\p{N}][ \\u00A0])\\*(?=[ \\u00A0][\\p{L}\\p{N}])"
         scan: owned
         flags: gu
         fixer: timesSign
       # A chemical formula takes subscript counts: "CO2", "H2O", "CO²" → "CO₂", "H₂O" (opt-in).
-      - regex: "(?<target>(?<![\\p{L}\\p{N}_])(?:[A-Z][a-z]?[0-9\\u00B2\\u00B3]*){1,6}(?![\\p{L}\\p{N}_]))"
+      - regex: "(?<![\\p{L}\\p{N}_])(?:[A-Z][a-z]?[0-9\\u00B2\\u00B3]*){1,6}(?![\\p{L}\\p{N}_])"
         scan: owned
         flags: gu
         fixer: chemicalFormula
       # A long number groups its thousands with a point: "250000 Besucher" → "250.000"
       # (opt-in).
-      - regex: "(?<target>(?<![\\p{L}\\p{N}.,:/#+_-])[1-9]\\d{4,}(?![\\p{L}\\p{N}.,:/_-]))"
+      - regex: "(?<![\\p{L}\\p{N}.,:/#+_-])[1-9]\\d{4,}(?![\\p{L}\\p{N}.,:/_-])"
         scan: owned
         flags: gu
         message: review_msg_german_thousands
@@ -1783,13 +1781,13 @@ rules:
     frames:
       # Spoken short forms (authored): an article without "ei-" ("n netter Typ", "ne Frage"),
       # a verb with "es" or "du" joined to it ("ich mags", "gehts", "meinste").
-      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_'’.-])(?:(?<article>n|ne|nen|nem|ner)(?=[ \\t]+(?<adjective>\\p{Ll}+(?:e|en|er|es|em)[ \\t]+)?\\p{Lu}\\p{Ll})|(?<joined>[mM]ags|[lL]iebs|[gG]ebs|[hH]abs|[nN]ehms|[mM]achs|[kK]enns|[wW]ills|[kK]anns|[sS]tehts|[gG]efällts|[gG]ehts|[gG]ibts|[kK]ommts|[sS]iehts|[lL]äufts|[kK]lappts|[pP]assts|[hH]aste|[bB]iste|[kK]annste|[wW]eißte|[sS]iehste|[wW]illste|[mM]einste|[gG]uckste|[mM]achste|[hH]örste|[gG]ehste|[kK]ommste))(?![\\p{L}\\p{M}\\p{N}_'’-]))"
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_'’.-])(?:(?<article>n|ne|nen|nem|ner)(?=[ \\t]+(?<adjective>\\p{Ll}+(?:e|en|er|es|em)[ \\t]+)?\\p{Lu}\\p{Ll})|(?<joined>[mM]ags|[lL]iebs|[gG]ebs|[hH]abs|[nN]ehms|[mM]achs|[kK]enns|[wW]ills|[kK]anns|[sS]tehts|[gG]efällts|[gG]ehts|[gG]ibts|[kK]ommts|[sS]iehts|[lL]äufts|[kK]lappts|[pP]assts|[hH]aste|[bB]iste|[kK]annste|[wW]eißte|[sS]iehste|[wW]illste|[mM]einste|[gG]uckste|[mM]achste|[hH]örste|[gG]ehste|[kK]ommste))(?![\\p{L}\\p{M}\\p{N}_'’-])"
         scan: owned
         flags: gu
         fixer: spokenForm
       # "Du brauchst nicht kommen" → "zu kommen": "brauchen" with a negation or "nur" takes
       # "zu". The scan starts 80 characters before the chunk; the verb must be in the chunk.
-      - regex: "(?<target>(?<![\\p{L}\\p{M}])(?:[Bb]rauch(?:e|st|t|en|te|test|ten|tet))(?<middle>(?:[ \\t]+[\\p{L}\\p{M}]+){1,6}?)[ \\t]+(?<verb>\\p{Ll}{3,}(?:en|ern|eln))(?=[ \\t]*[.!?,;:\"\\u201C\\u201D]|[ \\t]*$))"
+      - regex: "(?<![\\p{L}\\p{M}])(?:[Bb]rauch(?:e|st|t|en|te|test|ten|tet))(?<middle>(?:[ \\t]+[\\p{L}\\p{M}]+){1,6}?)[ \\t]+(?<verb>\\p{Ll}{3,}(?:en|ern|eln))(?=[ \\t]*[.!?,;:\"\\u201C\\u201D]|[ \\t]*$)"
         scan: owned
         lookback: 80
         flags: gu
@@ -1797,7 +1795,7 @@ rules:
       # A preposition with an interrogative "was" is spoken German; writing uses the wo(r)-
       # adverb: "Für was kämpft er?" (Wofür), "um was es geht" (worum). Not the indefinite
       # "was" ("für was Neues", "gegen was neues").
-      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_-])(?<prep>[Aa]us|[Uu]m|[Aa]uf|[Ff]\\u00FCr|[Dd]urch|[Mm]it|[\\u00DC\\u00FC]ber|[Aa]n|[Vv]on|[Nn]ach|[Zz]u|[Ii]n|[Bb]ei|[Gg]egen|[Vv]or)[ \\t]+was(?![\\p{L}\\p{M}\\p{N}_-]))"
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<prep>[Aa]us|[Uu]m|[Aa]uf|[Ff]\\u00FCr|[Dd]urch|[Mm]it|[\\u00DC\\u00FC]ber|[Aa]n|[Vv]on|[Nn]ach|[Zz]u|[Ii]n|[Bb]ei|[Gg]egen|[Vv]or)[ \\t]+was(?![\\p{L}\\p{M}\\p{N}_-])"
         scan: owned
         flags: gu
         fixer: prepositionWhat
@@ -1805,13 +1803,13 @@ rules:
       # holds the adjacent forms; this frame takes the verb a few words before "Sinn" ("Das
       # macht für mich wenig Sinn", "Macht es vielleicht Sinn") and "Sinn zu machen". The scan
       # starts 64 characters before the chunk; the verb must be in the chunk.
-      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_-])(?<verb>[Mm]acht|[Mm]achen|[Mm]achte|[Mm]achten|[Mm]achst|[Mm]ache)(?<gap>(?:[ \\t]+\\p{Ll}+){1,4}?)[ \\t]+(?:einen[ \\t]+|keinen[ \\t]+)?Sinn(?![\\p{L}\\p{M}\\p{N}_-])|Sinn[ \\t]+zu[ \\t]+(?<zu>machen)(?![\\p{L}\\p{M}\\p{N}_-]))"
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<verb>[Mm]acht|[Mm]achen|[Mm]achte|[Mm]achten|[Mm]achst|[Mm]ache)(?<gap>(?:[ \\t]+\\p{Ll}+){1,4}?)[ \\t]+(?:einen[ \\t]+|keinen[ \\t]+)?Sinn(?![\\p{L}\\p{M}\\p{N}_-])|Sinn[ \\t]+zu[ \\t]+(?<zu>machen)(?![\\p{L}\\p{M}\\p{N}_-])"
         scan: owned
         lookback: 64
         flags: gu
         fixer: makesSense
       # Clipped words of speech and their written forms ("Mathe", "Infos", "Kuli").
-      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_@/#.-])(?:Mathe|Info|Infos|Uni|Unis|Abi|Kuli|Kulis|Limo|Deo|Klo|Reli)(?![\\p{L}\\p{M}\\p{N}_@/#-]))"
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#.-])(?:Mathe|Info|Infos|Uni|Unis|Abi|Kuli|Kulis|Limo|Deo|Klo|Reli)(?![\\p{L}\\p{M}\\p{N}_@/#-])"
         scan: owned
         flags: gu
         fixer: clipped
@@ -1819,36 +1817,36 @@ rules:
       # Voltzahl" (elektrische Spannung), "5 Kilo" (Kilogramm), "plus rechnen" (addieren),
       # "schneller als 50 Kilometer" (Kilometer pro Stunde: a speed, not a distance). These
       # scans start 64 characters before the chunk; a match must start in the chunk.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}-])(?<unit>Volt|Ampere|Coulomb|Watt|Kilowatt|Megawatt|PS|Hertz|Joule|Kilogramm|Gramm)-?[Zz]ahl(?<plural>en)?(?![\\p{L}\\p{N}-]))"
+      - regex: "(?<![\\p{L}\\p{N}-])(?<unit>Volt|Ampere|Coulomb|Watt|Kilowatt|Megawatt|PS|Hertz|Joule|Kilogramm|Gramm)-?[Zz]ahl(?<plural>en)?(?![\\p{L}\\p{N}-])"
         scan: owned
         lookback: 64
         flags: gu
         fixer: unitCount
       # The word first, then a bounded look back: cheap on long runs of spaces without the
       # regex JIT.
-      - regex: "(?<target>(?<![\\p{L}\\p{N}-])Kilo(?![\\p{L}\\p{N}-])(?<=(?:{{NUMBER_WORD}})[ \\t]{1,8}Kilo))"
+      - regex: "(?<![\\p{L}\\p{N}-])Kilo(?![\\p{L}\\p{N}-])(?<=(?:{{NUMBER_WORD}})[ \\t]{1,8}Kilo)"
         scan: owned
         lookback: 64
         flags: gu
         fixer: kilo
-      - regex: "(?<target>(?<![\\p{L}\\p{N}-])Kilometer(?![\\p{L}\\p{N}-])(?:(?<=(?:schneller|langsamer)[ \\t]{1,8}als[ \\t]{1,8}(?:\\d+(?:,\\d+)?|\\p{Ll}+)[ \\t]{1,8}Kilometer)(?![ \\t]+(?:pro|je|in)(?![\\p{L}]))|(?<=(?:{{NUMBER_WORD}})[ \\t]{1,8}Kilometer)(?=[ \\t]{1,8}(?:schneller|langsamer)(?![\\p{L}]))))"
+      - regex: "(?<![\\p{L}\\p{N}-])Kilometer(?![\\p{L}\\p{N}-])(?:(?<=(?:schneller|langsamer)[ \\t]{1,8}als[ \\t]{1,8}(?:\\d+(?:,\\d+)?|\\p{Ll}+)[ \\t]{1,8}Kilometer)(?![ \\t]+(?:pro|je|in)(?![\\p{L}]))|(?<=(?:{{NUMBER_WORD}})[ \\t]{1,8}Kilometer)(?=[ \\t]{1,8}(?:schneller|langsamer)(?![\\p{L}])))"
         scan: owned
         lookback: 64
         flags: gu
         fixer: speed
-      - regex: "(?<target>(?<![\\p{L}\\p{N}-])(?<op>plus|minus|geteilt)[ \\t]+(?<verb>rechnen|rechnet|rechnest|rechne|gerechnet)(?![\\p{L}\\p{N}-]))"
+      - regex: "(?<![\\p{L}\\p{N}-])(?<op>plus|minus|geteilt)[ \\t]+(?<verb>rechnen|rechnet|rechnest|rechne|gerechnet)(?![\\p{L}\\p{N}-])"
         scan: owned
         lookback: 64
         flags: gu
         fixer: rechnen
-      - regex: "(?<target>(?<![\\p{L}\\p{N}-])(?<op>Plus|Minus|Geteilt|Mal)-Rechnen(?![\\p{L}\\p{N}-]))"
+      - regex: "(?<![\\p{L}\\p{N}-])(?<op>Plus|Minus|Geteilt|Mal)-Rechnen(?![\\p{L}\\p{N}-])"
         scan: owned
         lookback: 64
         flags: gu
         fixer: rechnenNoun
       # The spoken short forms of her-/hin- particles before a verb ("reingehen", "rumsitzen"),
       # and "rum", "rüber", "runter", "rauf", "raus" on their own.
-      - regex: "(?<target>(?<![\\p{L}\\p{M}\\p{N}_\\-'\\u2019])(?<short>[Rr](?:an|um|aus|ein|auf|unter|\\u00FCber))(?<rest>\\p{Ll}*)(?![\\p{L}\\p{M}\\p{N}_\\-'\\u2019]))"
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_\\-'\\u2019])(?<short>[Rr](?:an|um|aus|ein|auf|unter|\\u00FCber))(?<rest>\\p{Ll}*)(?![\\p{L}\\p{M}\\p{N}_\\-'\\u2019])"
         scan: owned
         flags: gu
         fixer: herParticle

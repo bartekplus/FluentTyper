@@ -78,45 +78,44 @@ function abbreviationFinding(
   };
 }
 
-/** A multi-part abbreviation: the full form, or (`spacing`) only the spaces it misses. */
-const abbreviation =
-  (spacing: boolean): MatchFixer =>
-  (m, ctx) => {
-    const typed = m.groups!.target;
-    const { parts } = FRAMES.find(({ whole }) => whole.test(typed))!;
-    const dots = (typed.match(/\./g) ?? []).length;
-    // A dot right after the first part ("z.B", "Dr.med."), or a known run-together form
-    // ("zB", "idR", "eV."); "so." and "u a" are words.
-    const joined = typed.replace(/[.\s]/g, "");
-    const firstDot = typed.startsWith(`${typed.slice(0, parts[0].length)}.`);
-    // "u a.", "n Chr", "o Ä.": a single letter first, spaced, with a later dot or a later
-    // part no word could be ("Chr", "Hdn", "Ä").
-    const letterFirst =
-      parts[0].length === 1 &&
-      /^\p{L}[ \t]/u.test(typed) &&
-      (dots > 0 || parts.slice(1).some((p) => p.length > 1 || /\p{Lu}/u.test(p)));
-    if (!firstDot && !letterFirst && !/^(?:zB|idR|eV|zT|uU)$/.test(joined)) return null;
-    const canonical = parts.map((p, i) => `${i === 0 ? typed[0] + p.slice(1) : p}.`).join(NBSP);
-    // Every dot and every space already there: the writer's spacing stays.
-    if (dots === parts.length && typed.split(/[ \t ]/).length === parts.length) return null;
-    if (ctx.dictionary.has(typed.toLowerCase())) return null;
-    const [start, end] = m.indices!.groups!.target;
-    // Every dot there, only the spaces missing ("z.B."): a common spelling, so the spaced
-    // form is optional advice.
-    const spacingOnly = dots === parts.length;
-    if (spacingOnly !== spacing) return null;
-    return abbreviationFinding(
-      start,
-      end,
-      canonical,
-      spacingOnly ? "germanAbbreviationSpacing" : undefined,
-    );
-  };
+/**
+ * A multi-part abbreviation: the full form (germanAbbreviations), or only the spaces it misses
+ * (germanAbbreviationSpacing).
+ */
+const abbreviation: MatchFixer = (m, ctx) => {
+  const typed = m.groups!.target;
+  const { parts } = FRAMES.find(({ whole }) => whole.test(typed))!;
+  const dots = (typed.match(/\./g) ?? []).length;
+  // A dot right after the first part ("z.B", "Dr.med."), or a known run-together form
+  // ("zB", "idR", "eV."); "so." and "u a" are words.
+  const joined = typed.replace(/[.\s]/g, "");
+  const firstDot = typed.startsWith(`${typed.slice(0, parts[0].length)}.`);
+  // "u a.", "n Chr", "o Ä.": a single letter first, spaced, with a later dot or a later
+  // part no word could be ("Chr", "Hdn", "Ä").
+  const letterFirst =
+    parts[0].length === 1 &&
+    /^\p{L}[ \t]/u.test(typed) &&
+    (dots > 0 || parts.slice(1).some((p) => p.length > 1 || /\p{Lu}/u.test(p)));
+  if (!firstDot && !letterFirst && !/^(?:zB|idR|eV|zT|uU)$/.test(joined)) return null;
+  const canonical = parts.map((p, i) => `${i === 0 ? typed[0] + p.slice(1) : p}.`).join(NBSP);
+  // Every dot and every space already there: the writer's spacing stays.
+  if (dots === parts.length && typed.split(/[ \t ]/).length === parts.length) return null;
+  if (ctx.dictionary.has(typed.toLowerCase())) return null;
+  const [start, end] = m.indices!.groups!.target;
+  // Every dot there, only the spaces missing ("z.B."): a common spelling, so the spaced
+  // form is optional advice.
+  const spacingOnly = dots === parts.length;
+  return abbreviationFinding(
+    start,
+    end,
+    canonical,
+    spacingOnly ? "germanAbbreviationSpacing" : undefined,
+  );
+};
 
 /** The named frame fixes of the de.abbreviations rule (grammar/rules/de.yaml). */
 export const FIXERS = {
-  abbreviationParts: abbreviation(false),
-  abbreviationSpacing: abbreviation(true),
+  abbreviation,
   abbreviationDot: (m) => {
     const [start, end] = m.indices!.groups!.target;
     return abbreviationFinding(start, end, `${m.groups!.target}.`);

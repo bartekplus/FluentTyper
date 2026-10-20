@@ -63,10 +63,7 @@ import * as agreementFrames from "./agreementFrames";
 import * as neighbourTypos from "./neighbourTypos";
 import * as clashFrames from "./clashFrames";
 
-export const PREDICATES = mergePredicates(
-  remaining.PREDICATES,
-  dates.PREDICATES,
-);
+export const PREDICATES = mergePredicates(remaining.PREDICATES, dates.PREDICATES);
 
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
