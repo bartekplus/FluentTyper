@@ -353,13 +353,20 @@ function prefixStarts(ctx: DetectContext, prefix: string): number[] {
 }
 
 /** Where a match of a frame may start in the chunk's scan, ascending; null: anywhere. */
-function frameStarts(ctx: DetectContext, source: string | null): readonly number[] | null {
+function frameStarts(ctx: DetectContext, source: string | null): ArrayLike<number> | null {
   if (source === null) return null;
   const prefixes = framePrefixes(source);
   if (prefixes === null || !scannedText(ctx).aligned) return null;
   if (prefixes.length === 1) return prefixStarts(ctx, prefixes[0]);
   // No prefix starts another one, so two prefixes never stand at one position.
-  return prefixes.flatMap((prefix) => prefixStarts(ctx, prefix)).sort((a, b) => a - b);
+  const lists = prefixes.map((prefix) => prefixStarts(ctx, prefix));
+  let size = 0;
+  for (const list of lists) size += list.length;
+  const starts = new Int32Array(size);
+  let at = 0;
+  for (const list of lists) for (const start of list) starts[at++] = start;
+  // A typed array sorts numbers without a compare function.
+  return starts.sort();
 }
 
 function mayMatch(ctx: DetectContext, source: string): boolean {
@@ -455,13 +462,14 @@ export function* frameMatches(
 function* stickyMatches(
   ctx: DetectContext,
   regex: RegExp,
-  starts: readonly number[],
+  starts: ArrayLike<number>,
   owner: string | ((match: RegExpExecArray) => number) | null,
 ): Generator<RegExpExecArray> {
   let sticky = STICKY.get(regex);
   if (!sticky) STICKY.set(regex, (sticky = new RegExp(regex.source, `${regex.flags}y`)));
   let next = Math.max(0, ctx.from - 256);
-  for (const at of starts) {
+  for (let i = 0; i < starts.length; i++) {
+    const at = starts[i];
     if (at < next) continue;
     sticky.lastIndex = at;
     const m = sticky.exec(ctx.scanText);
