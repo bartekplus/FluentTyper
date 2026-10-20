@@ -4436,6 +4436,32 @@ fragments:
   # Irregular simple-past forms with one owner ("lay" is lay's lemma and lie's past), from the
   # verb form table (EnglishVerbForms.ts); with modals and "had/did", any subject agrees.
   PASTS: "arose|awoke|bore|beat|became|began|bent|bet|bound|bit|bled|blew|broke|bred|brought|built|burst|bought|caught|chose|clung|came|cost|crept|cut|dealt|dug|did|drew|drank|drove|ate|fell|fed|felt|fought|found|fled|flung|flew|forbade|forgot|forgave|froze|got|gave|went|ground|grew|hung|had|heard|hid|hit|held|hurt|kept|knelt|knew|laid|led|left|lent|let|lit|lost|made|meant|met|misled|mistook|misunderstood|overcame|overtook|overwrote|paid|put|quit|read|rebuilt|redid|reran|reset|rewrote|rode|rang|rose|ran|said|saw|sought|sold|sent|set|shook|shone|shot|shrank|shut|sang|sank|sat|slept|slid|spoke|spent|spun|split|spread|sprang|stood|stole|stuck|stung|stank|struck|swore|swept|swam|swung|took|taught|tore|told|thought|threw|underwent|understood|undertook|undid|upset|woke|wore|wept|won|wound|withdrew|worked|wrote"
+  CASE_AUX: "(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must)"
+  # Finite verb evidence that the words before it are a subject.
+  CASE_FINITE: "(?:{{CASE_AUX}}(?:n['’]t)?|won['’]t|cannot|{{PASTS}}|[a-z]{2,}ed)"
+  CASE_OPENER: "(?:yesterday|today|tonight|then|later|so|but|and|now|last{{S}}(?:night|week|month|year|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday))"
+  # Clause start, optionally after a short time or linking opener ("Yesterday me and Sam went").
+  CASE_CLAUSE_START: "(?<=(?:^|[.!?;:\\n\"“(])[ \\t\\u00a0]{0,8}(?:{{CASE_OPENER}},?{{S}})?)"
+  CASE_FUNCTION_WORD: "(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|{{CASE_AUX}}){{E}}"
+  CASE_WORD: "(?!{{CASE_FUNCTION_WORD}})[a-z]+"
+  CASE_PRONOUN: "(?:me|him|her|them|I|you|he|she|they|we)"
+  # A pronoun, a determiner phrase of one or two words, or one content word (a name).
+  CASE_CONJUNCT: "(?:{{CASE_PRONOUN}}|(?:my|your|his|her|our|their|the|an?){{S}}(?:{{CASE_WORD}}{{S}})?{{CASE_WORD}}|{{CASE_WORD}})"
+  CASE_ADVERB: "(?:both|all|also|always|never|just|still|often|already|then|actually|finally)"
+  # Cheap first: an "and" within the next three words, so the clause lookbehind runs only there.
+  CASE_AND_AHEAD: "(?=[A-Za-z]+(?:{{S}}[A-Za-z]+){0,2}{{S}}and(?![\\p{L}]))"
+  # Also after an opening comma or a subordinator: "However, Tim and me work", "that me and Sam
+  # are"; or after a verb that takes a clause without "that": "She thinks Ana and me are…".
+  CASE_COORDINATION_START: "(?:{{CASE_CLAUSE_START}}|(?<=(?:,|\\b(?:that|when|because|if|since|while|whenever|until|think|thinks|thought|believe|believes|believed|hope|hopes|guess|suppose)){{S}}))"
+  CASE_ONE_WORD: "(?:{{CASE_PRONOUN}}|myself|(?:my|your|his|her|our|their|the){{S}}{{CASE_WORD}}|{{CASE_WORD}})"
+  # Adverbs that can sit between an auxiliary and its verb ("Whom can of course build…").
+  CASE_INSERT: "(?:not|of{{S}}course|also|still|really|just|never|always|already|probably|certainly|definitely|actually|truly|then|now|ever|only)"
+  # Prepositions that never open a clause ("for they are…", "like we do") or an inverted one
+  # ("In they went").
+  CASE_OBJECT_PREPOSITION: "(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)"
+  # After a preposition the pair also ends before a relative or a closed word: "of Tom and I
+  # when we were young", "between Ann and I which".
+  CASE_PAIR_ENDS: "(?:{{COMPLETE_OR_PAREN}}|{{E}}(?={{S}}(?:and|which|who|whom|when|if|that|about|before|after|into|with|on|at|in|to|from|by|for){{E}}))"
 
 rules:
   # Typing rules: each live check names its implementation (engine/liveRules.ts).
@@ -4921,9 +4947,57 @@ rules:
       # "I need to information": "to" before a noun that is never a verb.
       - regex: "(?<head>need|needs|needed|needing|want|wants|wanted|wanting|try|tries|tried|trying){{S}}(?<target>to{{S}}(?<noun>[a-z]+)){{E}}"
         fixer: needToNoun
+  # Pronoun case for subjects and prepositional objects; closed lists plus lexicon evidence.
   - id: pronounCase
     checks: [englishPronounCase]
-    predicate: pronounCase
+    style: match
+    message: review_msg_pronoun_subject_case
+    filter: firstPerStart
+    frames:
+      # "Me and Sam went", "My wife and me are": object pronouns in a clause-initial coordinated
+      # subject.
+      - regex: "{{CASE_AND_AHEAD}}{{CASE_COORDINATION_START}}(?<a>{{CASE_CONJUNCT}}|myself){{S}}and{{S}}(?<b>{{CASE_CONJUNCT}}|myself)(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>{{CASE_FINITE}}){{E}}"
+        owner: none
+        fixer: coordinatedSubjects
+      # A present base verb after a pair of single words: "Tim and me work", "Me and Sam live".
+      - regex: "{{CASE_AND_AHEAD}}{{CASE_COORDINATION_START}}(?<a>{{CASE_ONE_WORD}}){{S}}and{{S}}(?<b>{{CASE_ONE_WORD}})(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>[a-z]+){{E}}"
+        owner: none
+        fixer: coordinatedSubjects
+      # "Both Ana and me helped", "Either Ana or me will call", "Ana or myself can help".
+      - regex: "(?=(?:both|either|neither|[a-z]+)[ \\t\\u00a0]){{CASE_COORDINATION_START}}(?:(?<lead>both|either|neither){{S}})?(?<a>{{CASE_CONJUNCT}}){{S}}(?<conj>and|or|nor){{S}}(?<b>me|myself|him|them)(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>{{CASE_FINITE}}){{E}}"
+        owner: b
+        fixer: correlativeSubjects
+      # "Whom is coming?", "to whomever wrote it": whom before its own finite verb is the subject.
+      - regex: "(?<whom>whom(?:ever|soever)?){{S}}(?:(?<aux>{{CASE_AUX}})(?:{{S}}{{CASE_INSERT}})?{{S}}[\"“']?(?<evidence>[a-z]+)|(?<verb>[a-z]+)){{E}}"
+        owner: whom
+        fixer: whomSubjects
+      # Subject pronouns after a preposition take the object form: "to he and his team", "to we
+      # developers", "with Sam and I.".
+      - regex: "{{CASE_OBJECT_PREPOSITION}}{{S}}(?<pronoun>he|she|they|we){{S}}(?:and|or){{E}}(?!{{S}}I{{E}})"
+        owner: pronoun
+        fixer: pronounObject
+      - regex: "{{CASE_OBJECT_PREPOSITION}}{{S}}(?<pronoun>we){{S}}(?<noun>[a-z]+){{E}}"
+        owner: pronoun
+        fixer: pronounObject
+      - regex: "(?:{{CASE_OBJECT_PREPOSITION}}|for|between){{S}}(?<a>{{CASE_CONJUNCT}}){{S}}and{{S}}(?<i>I){{CASE_PAIR_ENDS}}"
+        owner: a
+        fixer: andIObject
+      # "Talk to Don or myself.": with no "I" before it in the sentence, myself is me.
+      - regex: "(?:{{CASE_OBJECT_PREPOSITION}}|for|between){{S}}(?<a>{{CASE_CONJUNCT}}){{S}}(?:and|or){{S}}(?<i>myself){{COMPLETE_OR_PAREN}}"
+        owner: a
+        fixer: andMyselfObject
+      # "told Mary and I that…", "to Tom and I before you go", "Please include Tony and I.": an
+      # object pair before a closed word or the clause end.
+      - regex: "(?=[a-z]+(?:{{S}}[a-z]+){1,3}{{S}}(?:and|or){{S}}I(?![\\p{L}]))(?<lead>[a-z]+){{S}}(?<a>{{CASE_CONJUNCT}}){{S}}(?:and|or){{S}}(?<i>I)(?:{{E}}(?={{S}}(?<next>[a-z]+){{E}})|{{COMPLETE_OR_PAREN}})"
+        owner: a
+        fixer: andIBefore
+      # "Us developers are tired": "us" before a subject noun is "we".
+      - regex: "(?=us(?![\\p{L}])){{CASE_CLAUSE_START}}(?<pronoun>us){{S}}(?<noun>[a-z]+)(?:{{S}}{{CASE_ADVERB}})?{{S}}{{CASE_FINITE}}{{E}}"
+        owner: pronoun
+        fixer: usSubject
+      # "The coach asked Ana and myself": an object pair takes "me" when no "I" governs it.
+      - regex: "(?<a>{{CASE_CONJUNCT}}){{S}}and{{S}}(?<target>myself){{E}}"
+        fixer: myselfObjects
   # Bounded sentence-structure slips: closed-class frames, with lexicon evidence for open words.
   - id: sentenceStructure
     checks: [englishSentenceStructure]

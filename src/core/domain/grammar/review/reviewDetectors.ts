@@ -22,7 +22,7 @@ import {
 } from "./englishAgreement";
 import { wordConfusions } from "./englishWordConfusions";
 import { FILTERS as AUXILIARY_FILTERS, FIXERS as AUXILIARY_FIXERS } from "./englishAuxiliaryForms";
-import { pronounCase } from "./englishPronounCase";
+import { FILTERS as CASE_FILTERS, FIXERS as CASE_FIXERS } from "./englishPronounCase";
 import { FIXERS as STRUCTURE_FIXERS } from "./englishSentenceStructure";
 import type { CatalogRuleId } from "../ruleCatalog";
 import {
@@ -1589,7 +1589,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   doubledDegree: (ctx) =>
     ctx.lang === "en_US" ? doubledDegree(ctx) : doubledDegreeByLanguage(ctx),
   countability,
-  pronounCase,
   wordConfusions,
   // The English word lists are the spellingWords frames; other languages have their own tables.
   spelling: (ctx) =>
@@ -1655,6 +1654,7 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   AUXILIARY_FIXERS,
   PARTICIPLE_FIXERS,
   STRUCTURE_FIXERS,
+  CASE_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */
@@ -1662,6 +1662,7 @@ const CORE_FILTERS = mergePredicates<FindingsFilter>(
   USAGE_FILTERS,
   COMPOUND_FILTERS,
   AUXILIARY_FILTERS,
+  CASE_FILTERS,
 );
 
 /**
