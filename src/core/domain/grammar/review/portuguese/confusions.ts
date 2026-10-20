@@ -1,13 +1,14 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import type { ReviewMessageKey } from "../types";
 import { analyze } from "./nounAgreement";
 
 /**
  * Portuguese words that sound alike or differ by one accent, told apart by the
  * words around them: crase (à/a/há), por que/porque/por quê/porquê, é/e,
- * está/esta, dá/da, dê/de, houve/ouve, pôr/por. Every frame names its evidence.
+ * está/esta, dá/da, dê/de, houve/ouve, pôr/por. Every frame names its evidence. The frames
+ * are in grammar/rules/pt_BR.yaml.
  */
 
 // Infinitives look like these nouns and adjectives, which can follow a crase ("à mulher").
@@ -69,10 +70,6 @@ function shortParticiple(long: string): string {
 // "a" fused with the article that follows it.
 const WITH_A: Record<string, string> = { o: "ao", a: "à", os: "aos", as: "às" };
 
-// Places one goes to: "vou a escola" -> "à escola". "foi" and "fui" also mean "was".
-const GOES = "vou|vais|vai|vamos|vão|ia|iam|irei|irás|irá|iremos|irão|iria|iríamos|iriam|ir|indo";
-const DESTINATIONS =
-  "escola|praia|festa|igreja|missa|feira|academia|farmácia|padaria|faculdade|universidade|reunião|aula|piscina|fazenda|praça|loja|biblioteca|delegacia|prefeitura|cidade|capital|cozinha|sala|janela|rodoviária|lavanderia|oficina|creche|cerimônia|consulta|sessão|exposição";
 const MODAL_SINGULAR: Record<string, string> = {
   devem: "deve",
   deviam: "devia",
@@ -184,30 +181,6 @@ const FUTURE_ACCENT: Record<string, string> = {
   tera: "terá",
 };
 
-const INFINITIVE_CRASE = `(?<target>à)${S}(?<verb>\\p{L}+(?:ar|er|ir))${W}`;
-
-// Words that govern "a": locutions, nouns, adjectives and verbs. Before a feminine noun the
-// article fuses with it: "devido a falta" -> "à falta", "acesso as armas" -> "às armas". "quanto
-// a" only opening a clause ("tanto quanto a irmã" compares).
-const GOVERNS_A = [
-  `devido|graças|junto|rumo|frente|face|em${S}relação|com${S}relação|em${S}direção|em${S}frente`,
-  "referentes?|relativ[oa]s?|equivalentes?|superior(?:es)?|inferior(?:es)?|semelhantes?",
-  "anterior(?:es)?|posterior(?:es)?|favorá(?:vel|veis)|propens[oa]s?|acesso|referência|alusão",
-  "obediência|resistência|aversão|adesão|homenagem|apoio|aderir|adere|aderem|aderiu|aderiram",
-  "pertencer|pertence|pertencem|pertencia|pertenciam|pertenceu|recorrer|recorre|recorrem",
-  "recorreu|recorreram|equivaler|equivale|equivalem|equivalia|corresponder|corresponde",
-  "correspondem|correspondia",
-  "(?:referir|refere|referem|referiu|dirigir|dirige|dirigiu|dirigiram|candidatar|candidata|candidatou|candidataram)-se",
-  `se${S}(?:referir|refere|referem|referiu|dirigir|dirige|dirigiu|dirigiram|candidatar|candidata|candidatou|candidataram)`,
-].join("|");
-const GOVERNED_ARTICLE = `(?<lead>${GOVERNS_A}|quanto)${S}(?:\\p{L}{3,16}mente${S})?(?<target>as?)${S}(?<noun>\\p{L}{3,})${W}(?!-)`;
-const GOES_TO = `(?:${GOES})${S}(?<target>as?)${S}(?=(?:${DESTINATIONS})s?${W})`;
-// "à Sua Excelência": forms of address take no article.
-const ADDRESS = `(?<target>às?)${S}(?=(?:sua|vossa|suas|vossas)${S}(?:excelência|majestade|santidade|senhoria|alteza|eminência|magnificência|reverendíssima|excelências|majestades|santidades|senhorias|altezas|eminências|beatitudes?)${W})`;
-// "à uma corrida", but "à uma hora", "à uma e meia".
-const A_UMA = `(?<target>à)${S}(?=uma${W}(?!${S}(?:hora|e|da|em${S}ponto)${W}|[ \\t\\u00a0]*h))`;
-// A sum of money has no article: "equivale à R$ 35".
-const MONEY = `(?<target>à)${S}(?=(?:R\\$|US\\$|€|\\$))`;
 export const CLAUSE_BEFORE = /(?:^|[.!?:;][ \t\r\n "”»)]{0,8}|\n[ \t ]{0,8})$/;
 
 /** A finding for the `target` group of `m`, in the typed casing; user-dictionary words stay. */
@@ -232,30 +205,31 @@ export function pushFinding(
   });
 }
 
-export function confusions(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "pt")) return [];
+/** The finding of `pushFinding` as a frame result: none for a user-dictionary word. */
+function crase(ctx: DetectContext, m: RegExpExecArray, alternatives: string[]): RawFinding[] {
   const findings: RawFinding[] = [];
-  const push = (m: RegExpExecArray, alternatives: string[], messageKey: ReviewMessageKey): void =>
-    pushFinding(ctx, findings, m, alternatives, messageKey);
-  for (const m of frameMatches(ctx, GOVERNED_ARTICLE)) {
+  pushFinding(ctx, findings, m, alternatives, "review_msg_pt_crase");
+  return findings;
+}
+
+/** The named frame fixes of the crase frames of grammar/rules/pt_BR.yaml (`fixer:`). */
+export const CRASE_FIXERS = {
+  craseGoverned: (m, ctx) => {
     const { lead, target, noun } = m.groups!;
     if (
       /^quanto$/i.test(lead) &&
       !CLAUSE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))
     )
-      continue;
-    if (noun !== noun.toLowerCase()) continue;
+      return null;
+    if (noun !== noun.toLowerCase()) return null;
     const analysis = analyze(noun);
-    if (!analysis?.feminine || analysis.plural !== (target.length === 2)) continue;
-    push(m, [target.length === 2 ? "às" : "à"], "review_msg_pt_crase");
-  }
-  for (const m of frameMatches(ctx, GOES_TO))
-    push(m, [m.groups!.target.toLowerCase() === "as" ? "às" : "à"], "review_msg_pt_crase");
-  for (const pattern of [ADDRESS, A_UMA, MONEY])
-    for (const m of frameMatches(ctx, pattern)) push(m, ["a"], "review_msg_pt_crase");
-  for (const m of frameMatches(ctx, INFINITIVE_CRASE)) {
-    if (FEMININE_R.has(m.groups!.verb) || ctx.dictionary.has(m.groups!.verb)) continue;
-    push(m, ["a"], "review_msg_pt_crase");
-  }
-  return findings;
-}
+    if (!analysis?.feminine || analysis.plural !== (target.length === 2)) return null;
+    return crase(ctx, m, [target.length === 2 ? "às" : "à"]);
+  },
+  craseGoesTo: (m, ctx) => crase(ctx, m, [m.groups!.target.toLowerCase() === "as" ? "às" : "à"]),
+  craseNone: (m, ctx) => crase(ctx, m, ["a"]),
+  craseInfinitive: (m, ctx) =>
+    FEMININE_R.has(m.groups!.verb) || ctx.dictionary.has(m.groups!.verb)
+      ? null
+      : crase(ctx, m, ["a"]),
+} satisfies Record<string, MatchFixer>;
