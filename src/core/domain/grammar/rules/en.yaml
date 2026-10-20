@@ -23,6 +23,10 @@ fragments:
   NEGATION: "don['’]t|doesn['’]t|didn['’]t|never|not"
   VERB_OBJECT: "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what"
   SUBJECT: "I|you|we|they|he|she|it"
+  PUNCTUATION_LINKING: "However|Nonetheless|Nevertheless|Besides|Alas|Similarly|Also|Furthermore|Moreover|Therefore|Consequently|Meanwhile|Otherwise|Additionally|Finally|Firstly|Secondly|Lastly|Unfortunately|Fortunately|Of course|For example|For instance|In fact|In addition|In conclusion|In summary|On the other hand|As a result|In other words|By default|That said|Indeed|Instead|Likewise"
+  PUNCTUATION_PREPOSITIONS: "with|for|to|at|about|on|in|by|after|around|from|into|without|like"
+  PUNCTUATION_OBJECT: "it|you|me|him|her|them|us"
+  PUNCTUATION_SUBJECT: "I|we|you|they|he|she|it"
   COMPOUNDFORMS_PHRASAL_KEYS: "warm{{S}}up|mock{{S}}up|sit{{S}}up|push{{S}}up|pull{{S}}up|chin{{S}}up|start{{S}}up|break{{S}}up|knock{{S}}out|kick{{S}}off|take{{S}}down|take{{S}}over|take{{S}}off|take{{S}}away|buy{{S}}back|flash{{S}}back|work{{S}}around|work{{S}}out|roll{{S}}out|sign{{S}}up|log{{S}}out|check{{S}}up|lay{{S}}out|lay{{S}}off|print{{S}}out|sell{{S}}out|lock{{S}}down|shut{{S}}down|break{{S}}down|break{{S}}out|set{{S}}back|push{{S}}back|follow{{S}}up|catch{{S}}up|clean{{S}}up|cut{{S}}off|pick{{S}}up|write{{S}}up|write{{S}}down|write{{S}}off|hook{{S}}up|mix{{S}}up|round{{S}}up|tune{{S}}up|wake{{S}}up|stand{{S}}up|get{{S}}together|make{{S}}over|do{{S}}over|blow{{S}}out|come{{S}}back|hang{{S}}over|pay{{S}}off|pay{{S}}out|give{{S}}away|get{{S}}away|carry{{S}}over|cover{{S}}up|close{{S}}up|hold{{S}}up|let{{S}}down|melt{{S}}down|touch{{S}}down|count{{S}}down|slow{{S}}down|trade{{S}}off|add{{S}}on|send{{S}}off|rip{{S}}off|bail{{S}}out|black{{S}}out|burn{{S}}out|lift{{S}}off|lock{{S}}out|shoot{{S}}out|stand{{S}}off|take{{S}}out|turn{{S}}around|drive{{S}}through|back{{S}}up|left{{S}}over|how{{S}}to|opt{{S}}in|opt{{S}}out|catch{{S}}all|toss{{S}}up"
   COMPOUNDFORMS_ARTICLE: "a|an|the|my|your|his|our|their|its|another|every|no|any|first|this|that"
   COMPOUNDFORMS_UNITS: "day|week|month|year|hour|minute|second|mile|page|step|point|word|character|paragraph|digit|letter|bit|byte|room|bedroom|bath|bathroom|door|story|storey|floor|season|figure|cylinder|car|degree|piece|karat|carat|wheel|course|inch|foot|meter|metre|yard|seat|person|man|member|player|lane|line|part|stage|level|track|game|hole|star|speed|gallon|liter|litre|pound|ounce|ton|watt|volt|megapixel|headed|sided|legged|wheeled|engined|factor|family"
@@ -1355,13 +1359,111 @@ rules:
     predicate: passiveVoice
   - id: en.punctuation
     checks: [englishPunctuation]
-    predicate: punctuation
+    style: match
+    message: review_msg_stray_comma
+    filter: usOutsideExamples
+    frames:
+      # A comma right before a sentence mark: ",." ",!".
+      - regex: "(?<=\\p{L}|\\p{N}|[)\"\\u201D\\u2019])(?<target>[,;])(?=[.!?](?!\\.))"
+        scan: polish
+        flags: gu
+        fixer: punctuationCommaMark
+      # A comma inside a closing parenthesis: ",)".
+      - regex: "(?<=[\\p{L}\\p{N}])(?<target>,\\))"
+        scan: polish
+        flags: gu
+        fixer: punctuationCommaParen
+      # "for a “spell checker.”.": a period inside the closing quote and another after it.
+      # Only after a lowercase word: "Acme Corp.".", "Cyc."." (a title) and "etc."." keep theirs.
+      - regex: "(?<=(?<![\\p{L}\\p{N}.])(?<word>\\p{Ll}{3,})\\.[\"\\u201D])(?<target>\\.)(?!\\.)"
+        scan: polish
+        flags: gu
+        fixer: punctuationPeriodQuotePeriod
+      # "Where did she go." A capitalized question word, an auxiliary and a pronoun open a
+      # direct question; no comma or other mark comes before its period.
+      - regex: "(?<=(?:^|[.!?][\"\\u201D\\u2019)]?[ \\t\\u00A0]{1,8}|\\n[ \\t\\u00A0]{0,8}))(?:What|Where|When|Why|How|Who|Which)[ \\t\\u00A0]+(?:do|does|did|is|are|was|were|can|could|will|would|should|shall|have|has)(?:n['\\u2019]t)?[ \\t\\u00A0]+(?:I|you|he|she|we|they|it)(?![\\p{L}'\\u2019])[^.!?,;:\\n\"\\u201C\\u201D()]{0,80}(?<target>\\.)(?![.\\p{L}\\p{N}])"
+        scan: polish
+        flags: gu
+        fixer: punctuationWhQuestion
+      # "neither rich, nor poor": two items take no comma.
+      - regex: "\\bneither\\b(?<items>[^,.;:!?\\n]{1,60})(?<target>,)(?=[ \\u00A0]+nor\\b(?![^.;:!?\\n]*,[ \\u00A0]*nor\\b))"
+        scan: polish
+        flags: giu
+        fixer: punctuationLastMark
+      # An indirect question split from its verb: "Do you know, if".
+      - regex: "(?<lead>let me know|let us know|I wonder|I'm wondering|I am wondering|I was wondering|I don't know|I do not know|do you know|does anyone know|does anybody know|I'm not sure|I am not sure)(?<comma>,){{S}}(?:if|whether|who|what|where|when|why|how){{E}}"
+        owner: comma
+        fixer: punctuationComma
+      - regex: "(?:would be (?:great|nice|good|helpful|wonderful)|would appreciate it|would be grateful|would you mind)(?<comma>,){{S}}if{{S}}(?:you|we|I|someone|anyone|somebody|anybody){{E}}"
+        owner: comma
+        fixer: punctuationComma
   - id: en.introductoryCommas
     checks: [styleIntroductoryComma]
-    predicate: introductoryCommas
+    style: match
+    message: review_msg_introductory_comma
+    filter: usOutsideExamples
+    frames:
+      # The comma after an opening linking word ("However", "In addition"). Bounded gaps: an
+      # unbounded run in the lookbehind is reread at every position of a long run of spaces
+      # (quadratic, and 100+ ms a chunk once JavaScriptCore runs the regex interpreted).
+      - regex: "(?<=(?:^|[.!?][\"”’)]?{{S}}|\\n[ \\t\\u00a0]{0,8}))(?<w>{{PUNCTUATION_LINKING}})(?<target>(?<gap>[ \\t\\u00a0]+))(?<next>[\\p{L}]+)"
+        scan: polish
+        flags: gu
+        fixer: introductoryOpener
+      # "With it I can", "if you work at it you can": a phrase ending in an object pronoun, then
+      # a new subject with its verb.
+      - regex: "(?:{{PUNCTUATION_PREPOSITIONS}}){{S}}(?<obj>{{PUNCTUATION_OBJECT}})(?<gap>{{S}})(?<subject>{{PUNCTUATION_SUBJECT}}){{S}}(?<verb>[a-z]+(?:['’][a-z]+)?){{E}}"
+        owner: gap
+        fixer: introductoryPhrase
+      # "If I can I will", "If it does it usually is": a short condition, then the main clause.
+      - regex: "(?<lead>If|if){{S}}(?:{{PUNCTUATION_SUBJECT}}){{S}}(?<aux>can|can['’]t|cannot|could|couldn['’]t|does|doesn['’]t|do|don['’]t|did|didn['’]t|is|isn['’]t|was|wasn['’]t|will|won['’]t|would|wouldn['’]t|have|haven['’]t|has|hasn['’]t)(?:{{S}}not)?(?<gap>{{S}})(?<subject>{{PUNCTUATION_SUBJECT}}|we['’]ll|I['’]ll|you['’]ll|they['’]ll|it['’]ll|I['’]m){{E}}"
+        owner: gap
+        fixer: introductoryCondition
+      # "Hey there this is great", "Great please have a look", "Awesome thanks for the help": a
+      # greeting or a one-word reply opens the sentence before its clause.
+      - regex: "(?<=(?:^|[.!?][\"”’)]?{{S}}|\\n[ \\t\\u00a0]{0,8}))(?<w>(?:Hey|Hi|Hello) there|(?:Great|Awesome|Perfect|Cool|Nice|Excellent|Wonderful|Fantastic|Brilliant|Okay|Ok|Sure)(?=[ \\t\\u00a0]+(?:please|thanks|thank you)(?![\\p{L}'’])))(?<target>(?<gap>[ \\t\\u00a0]+))(?=[\\p{L}])(?!(?:and|or|but)(?![\\p{L}]))"
+        scan: polish
+        flags: gu
+        fixer: introductoryGreeting
+      # "I for one think so": the aside takes commas on both sides.
+      - regex: "(?<![\\p{L}'\\u2019])(?<target>I[ \\t\\u00A0]+for[ \\t\\u00A0]+one)(?=[ \\t\\u00A0]+[a-z])"
+        scan: polish
+        flags: gu
+        fixer: introductoryIForOne
+      # The comma before a name addressed: "Thanks Tom".
+      - regex: "(?<w>Thanks|Thank you|Hi|Hello|Hey there|Happy Birthday|Good morning|Good night)(?<gap>{{S}})(?<name>[A-Za-z]+){{E}}"
+        owner: gap
+        fixer: introductoryNameAddress
   - id: en.clauseCommas
     checks: [styleClauseComma]
-    predicate: clauseCommas
+    style: match
+    message: review_msg_clause_comma
+    filter: usOutsideExamples
+    frames:
+      # "The older we get the wiser we are", "The sooner the better": a comma ends the first half.
+      - regex: "(?<![\\p{L}'’])[Tt]he{{S}}(?:more|less|fewer|[a-z]{2,}er)(?:{{S}}(?:I|we|you|he|she|they|it|one|people){{S}}(?<verb>[a-z]+))?(?<gap>{{S}})the{{S}}(?:more|less|fewer|[a-z]{2,}er){{E}}"
+        owner: gap
+        fixer: clauseCorrelative
+      # "She isn't coming is she?": a question tag. A tag pairs a negative auxiliary with a
+      # positive statement ("isn't she?") or a positive one with a negative statement ("is
+      # she?"); "do it?" ends in an object, not a tag.
+      - regex: "(?<=[\\p{L}\\p{N}])(?<target>(?<gap>[ \\t\\u00A0]+))(?:(?<neg>isn't|wasn't|aren't|weren't|don't|doesn't|didn't|won't|wouldn't|can't|couldn't|haven't|hasn't|shouldn't)[ \\t\\u00A0]+(?:I|you|he|she|it|we|they|there)|(?<pos>is|was|are|were|do|does|did|will|would|can|could|have|has|should)[ \\t\\u00A0]+(?:I|you|he|she|we|they|there|it(?<=(?:is|was)[ \\t\\u00A0]+it)))[ \\t\\u00A0]*\\?"
+        scan: polish
+        flags: gu
+        fixer: clauseTag
+      # "I found it thanks.", "Sounds good thanks.": a short reply, then its thanks.
+      - regex: "(?<=[\\p{L}\\p{N}])(?<target>(?<gap>[ \\t\\u00a0]+))thanks(?=[ \\t\\u00a0]*[.!])"
+        scan: polish
+        flags: giu
+        fixer: clauseClosingThanks
+      # "I voted early and I plan to vote again" -> "early, and I": two complete clauses joined
+      # by a coordinator take a comma. Both sides must read as clauses: the first opens with its
+      # subject and has a finite verb; the second opens with a subject and its verb, an inverted
+      # question, or "please" + a request.
+      - regex: "(?<=[\\p{L}\\p{N}%)'\\u2019])(?<target>(?<gap>[ \\t\\u00a0]+))(?<conj>and|but|or|so|yet|although)(?=[ \\t\\u00a0])"
+        scan: polish
+        flags: gu
+        fixer: clauseJoiner
   - id: en.geographicThe
     checks: [englishPhraseCorrections]
     predicate: geographicThe

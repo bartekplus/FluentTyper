@@ -99,7 +99,6 @@ export const PREDICATES = mergePredicates(
   typography.PREDICATES,
   plainStyle.PREDICATES,
   passiveVoice.PREDICATES,
-  punctuation.PREDICATES,
   articles.PREDICATES,
   clauseSlots.PREDICATES,
   everydaySlots.PREDICATES,
@@ -131,7 +130,12 @@ export const FIXERS = mergePredicates<Fixer>(
   verbSlots.FIXERS,
   remaining.FIXERS,
   compoundForms.FIXERS,
+  punctuation.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>(articles.FILTERS, grammarStyle1.FILTERS);
+export const FILTERS = mergePredicates<FindingsFilter>(
+  articles.FILTERS,
+  grammarStyle1.FILTERS,
+  punctuation.FILTERS,
+);
