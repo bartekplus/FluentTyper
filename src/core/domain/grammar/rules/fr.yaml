@@ -22,10 +22,89 @@ fragments:
 rules:
   - id: fr.verbForms
     checks: [frenchVerbForms]
-    predicate: verbForms
+    style: match
+    message: review_msg_fr_infinitive
+    frames:
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])\\p{L}+(?:er|é|ez|re|ir|oir)(?![\\p{L}\\p{M}\\p{N}_-])(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: verbCandidate
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:suis|es|est|sommes|êtes|sont|étais|était|étions|étiez|étaient|serai|seras|sera|serons|serez|seront|serais|serait|serions|seriez|seraient|fus|fut|furent|été){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: finiteAfterEtre
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:avoir|ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?![\\p{L}\\p{M}\\p{N}_'’])(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: finiteAfterAvoir
+      - regex: "{{WORD_START}}\\p{Ll}{2,}es?{{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: accentlessParticiple
   - id: fr.homophones
     checks: [frenchHomophones]
-    predicate: homophones
+    style: match
+    message: review_msg_fr_homophone
+    frames:
+      - regex: "{{WORD_START}}(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|mon|ton|sont|son|on|non|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\\p{L}\\p{M}\\p{N}_'’])(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: homophoneCandidate
+      - regex: "{{WORD_START}}[cC]['’](?=\\p{L})\\p{L}+(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: cToS
+      - regex: "{{WORD_START}}(?<det>un|[lL]['’]|cet|les|des|mes|ces|nos|vos|ses|Un|Les|Mes|Ces)[ \\t]{0,8}(?<=['’]|[ \\t])(?<an>ans?)[ \\t]{1,8}(?<adj>\\p{Ll}+){{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: anToAnnee
+      - regex: "{{WORD_START}}[dD]es(?=[ \\t\\u00a0]+[\\d$€£])(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: desToDes
+      - regex: "{{WORD_START}}[aA]veugl[eé]ment{{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: aveuglement
+      - regex: "{{WORD_START}}(?<pret>[pP]rêts?)[ \\t]+de[ \\t]+(?:\\d|(?:deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|quarante|cinquante|soixante|cent|mille){{WORD_END}})(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: pretToPres
+      - regex: "{{WORD_START}}[tT]ach(?:e|es|ez|ons|ent|ais|ait|aient|iez|ions|era|erai|eras|erons|erez|eront){{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: tacherToTacher
+      - regex: "{{WORD_START}}[tT][aâ]ch(?:es?|é|ée|és|ées|er){{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: tacheToTache
+      - regex: "{{WORD_START}}comme[ \\t]+même{{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: commeMeme
+      - regex: "(?<=\\p{L})(?:-|[ \\t])la{{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: hyphenLa
+      - regex: "{{WORD_START}}(?:est|et){{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: estOrEt
   - id: fr.hyphenation
     checks: [frenchHyphenation]
     style: match
@@ -83,7 +162,49 @@ rules:
         fixer: longCompound
   - id: fr.subjectVerbAgreement
     checks: [frenchSubjectVerbAgreement]
-    predicate: subjectVerbAgreement
+    style: match
+    message: review_msg_fr_subject_verb
+    frames:
+      # "qu'il", "lorsqu'on": an elided conjunction before a pronoun that is always a subject.
+      - regex: "(?<=(?<![\\p{L}\\p{M}])(?:qu|lorsqu|puisqu|quoiqu)['’])(?:il|on|ils)(?![\\p{L}\\p{M}\\p{N}_-])|{{WORD_START}}(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|cela|ceci)(?![\\p{L}\\p{M}\\p{N}_-])|personne(?=[ \\t]{1,8}n(?:e\\b|['’]))|ce(?:lui|lle|ux|lles)-(?:ci|là)(?![\\p{L}\\p{M}\\p{N}_-])|j['’](?=\\p{L}))(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: pronounSubject
+      - regex: "{{WORD_START}}(?:l['’](?=\\p{L})|(?:le|la|un|une|ce|cet|cette|mon|ton|son|ma|ta|sa|notre|votre|chaque|les|des|ces|mes|tes|ses|nos|vos|leurs|plusieurs|moi|toi|lui|nous|vous|eux|ceux|celles|celui|celle|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|vingt|trente|quarante|cinquante|soixante|cent|mille|plusieurs|quelques){{WORD_END}}|(?<![\\p{N},.][ \\u00a0]?)\\d+(?=[ \\u00a0]+\\p{L}))(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: nounSubjectOrRelative
+      - regex: "{{WORD_START}}qui(?=[ \\t])(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: nounAfterQui
+      # Quantities whose verb agrees with their plural complement: "beaucoup de gens pensent", "la
+      # plupart des élèves travaillent", "de nombreux élèves pensent".
+      - regex: "{{WORD_START}}(?:(?:beaucoup|peu|trop|tant|assez|énormément|combien|la plupart|bon nombre|de plus en plus|de moins en moins)[ \\t]{1,8}(?:des?{{WORD_END}}|d['’])|de(?=[ \\t]))(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: quantitySubject
+      - regex: "{{WORD_START}}la[ \\t]+plupart{{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: pluralPlupart
+      - regex: "{{WORD_START}}\\p{Lu}\\p{Ll}+(?:-\\p{Lu}\\p{Ll}+)?{{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: nameSubject
+      # Words after which the subject may follow its verb: "là où vivent les loups", "lorsque
+      # s'annonce un orage", "le livre que lisent les enfants".
+      - regex: "{{WORD_START}}(?:(?:où|lorsque|quand|que)(?=[ \\t])|(?:lorsqu|qu)['’](?=\\p{L}))(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: invertedSubject
   - id: fr.elision
     checks: [frenchElision]
     style: match
@@ -179,7 +300,99 @@ rules:
         fixer: gender
   - id: fr.adjectives
     checks: [frenchAdjectiveAgreement]
-    predicate: adjectives
+    style: match
+    message: review_msg_fr_adjective_agreement
+    frames:
+      - regex: "{{WORD_START}}(?<noun>\\p{L}+)[ \\t]+et[ \\t]+(?<half>demi(?:e|s|es)?){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: andAHalf
+      - regex: "{{WORD_START}}(?<half>demie)(?:[ \\t]+|-)(?<noun>\\p{L}+){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: halfBefore
+      - regex: "{{WORD_START}}(?:lequel|laquelle|lesquels|lesquelles|auquel|auxquels|auxquelles|duquel|desquels|desquelles){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: relativeAgreement
+      - regex: "{{WORD_START}}gens{{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: gensAgreement
+      - regex: "{{WORD_START}}tel(?:le)?s?{{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: telAgreement
+      - regex: "{{WORD_START}}(?:bleu|bleue|bleus|bleues|vert|verte|verts|vertes|rouge|rouges|jaune|jaunes|gris|grise|grises|noir|noire|noirs|noires|blanc|blanche|blancs|blanches|rose|roses|violet|violette|violets|violettes|brun|brune|bruns|brunes|beige|beiges|mauve|mauves)[ \\t]{1,8}(?:clair|claire|clairs|claires|foncé|foncée|foncés|foncées|pâle|pâles|vif|vive|vifs|vives|sombre|sombres|canard|canards|océan|océans|améthyste|améthystes|émeraude|émeraudes|turquoise|turquoises|électrique|électriques|fluo|fluos|marine|nuit|ciel|pétrole){{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: colorShade
+      - regex: "{{WORD_START}}\\p{Ll}+(?=[ \\t]{1,8}(?:et|ou)[ \\t]{1,8}\\p{Ll})(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: adjectivePair
+      - regex: "{{WORD_START}}(?:[lj]['’](?=\\p{L})|(?:celui|celle|ceux|celles)(?=-)|(?:le|la|un|une|ce|cet|cette|mon|ton|son|ma|ta|sa|notre|votre|leur|les|ces|mes|tes|ses|nos|vos|leurs|des|je|tu|il|elle|nous|ils|elles|celui|celle|ceux|celles|certains|certaines|beaucoup|plusieurs){{WORD_END}})|(?<=\\p{L}-)(?:je|tu|il|elle|nous|ils|elles){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: adjectiveCandidate
+      # "et" before a form of être whose subject is left out: "elle s'admire et est fière".
+      - regex: "{{WORD_START}}et[ \\t]+(?=(?:est|sont|était|étaient|sera|seront|serait|seraient|fut|furent|soit|soient|semble|semblent|paraît|paraissent|devient|deviennent|reste|restent|demeure|demeurent){{WORD_END}})(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: ellipticSubject
+      - regex: "{{WORD_START}}\\p{Lu}\\p{Ll}+(?:-\\p{Lu}\\p{Ll}+)?{{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: firstNameSubject
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: afterAvoir
+  - id: fr.keptGenders
+    checks: [frenchAdjectiveAgreement]
+    # predicate: a map carries the gender of the first participle of each person to the next matches.
+    predicate: keptGenders
+  - id: fr.adjectivesRest
+    checks: [frenchAdjectiveAgreement]
+    style: match
+    message: review_msg_fr_adjective_agreement
+    frames:
+      - regex: "{{WORD_START}}(?:divers|diverse|diverses|différents|différentes|pareil|pareille|pareils|pareilles)(?=[ \\t]+\\p{L})(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: adjectiveDeterminer
+      - regex: "{{WORD_START}}(?:de{{WORD_END}}|d['’](?=\\p{L}))(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: deBeforeNoun
+      - regex: "{{WORD_START}}qui[ \\t]{1,4}(?<verb>est|sont|était|étaient|sera|seront|fut|furent|semble|semblent|paraît|paraissent|reste|restent){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: quiParticiple
+      - regex: "{{WORD_START}}(?:est|sont|était|étaient|sera|seront|fut|furent){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: invertedParticiple
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?:-t)?-(?:je|tu|il|elle|on|nous|vous|ils|elles){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: invertedAvoir
   - id: fr.tout
     checks: [frenchTout]
     style: match

@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { Detector, MatchFixer } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   genderable,
@@ -26,6 +26,7 @@ import { FRENCH_CLAUSE, listBefore, skipRelative } from "./agreement";
 import { skipComplements } from "../clauseReader";
 import { elidedAuxiliaryAt } from "./homophones";
 import {
+  inChunk,
   ownedFrenchWords,
   SENTENCE_START,
   type Token,
@@ -34,7 +35,6 @@ import {
 } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
-import { isLang } from "../phraseTemplates";
 
 // An adjective or a past participle takes the gender and number of its noun: right after it
 // ("une forêt tropicale", "des dossiers triés") or after être with the noun phrase or a
@@ -828,9 +828,6 @@ function stateEnd(tokens: Token[], i: number, person: number): number {
   return infinitive && STATE_VERBS.has(next.w) ? i + 2 : -1;
 }
 
-const FIRST_NAME =
-  /(?<![\p{L}\p{M}\p{N}_'’-])\p{Lu}\p{Ll}+(?:-\p{Lu}\p{Ll}+)?(?![\p{L}\p{M}\p{N}_'’-])/gu;
-
 /** "Martine est marié", "Antoine n'est pas mariée": a first name of one gender opening its clause,
  * être and an adjective or participle. */
 function afterName(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -887,10 +884,6 @@ function reflexiveFinding(
   return predicateFinding(ctx, word, allowed, from);
 }
 
-const AVOIR =
-  /(?<![\p{L}\p{M}\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?![\p{L}\p{M}\p{N}_'’-])/giu;
-const INVERTED_AVOIR =
-  /(?<![\p{L}\p{M}\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?:-t)?-(?:je|tu|il|elle|on|nous|vous|ils|elles)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const CLITIC_PRONOUNS = new Set(
   "me m' te t' se s' le la les l' lui leur nous vous y en".split(" "),
 );
@@ -1256,18 +1249,6 @@ function queObject(
   return null;
 }
 
-const CANDIDATE = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:[lj]['’](?=\\p{L})|(?:celui|celle|ceux|celles)(?=-)|(?:${[
-    ...Object.keys(DETERMINERS),
-    ...Object.keys(SUBJECTS),
-  ]
-    .filter((w) => !w.endsWith("'"))
-    .join(
-      "|",
-    )})(?![\\p{L}\\p{M}\\p{N}_'’-]))|(?<=\\p{L}-)(?:je|tu|il|elle|nous|ils|elles)(?![\\p{L}\\p{M}\\p{N}_'’-])`,
-  "giu",
-);
-
 // A color qualified by a shade or a thing ("bleu clair", "vert d'eau" aside) is invariable:
 // "des yeux verts clairs" -> "vert clair". Each base and the inflected forms it may be typed in.
 const COLOR_FORMS: Record<string, string> = {};
@@ -1306,10 +1287,6 @@ for (const [base, ...forms] of [
   ["pétrole"],
 ])
   for (const form of [base, ...forms]) SHADE_FORMS[form] = base;
-const COLOR_SHADE = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:${Object.keys(COLOR_FORMS).join("|")})[ \\t]{1,8}(?:${Object.keys(SHADE_FORMS).join("|")})(?![\\p{L}\\p{M}\\p{N}_'’-])`,
-  "gu",
-);
 
 /** "des yeux verts clairs", "une jupe bleue foncée": a compound color after its noun. */
 function colorShade(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -1328,7 +1305,6 @@ function colorShade(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
 const PAIR_STOPS = new Set(
   "quelques plusieurs certains certaines divers diverses différents différentes".split(" "),
 );
-const PAIR = /(?<![\p{L}\p{M}\p{N}_'’-])\p{Ll}+(?=[ \t]{1,8}(?:et|ou)[ \t]{1,8}\p{Ll})/gu;
 
 /** "un effet direct et indirects", "une entrée indépendante et séparé": two adjectives joined by
  * "et" or "ou" after their noun (or after être) share its gender and number. */
@@ -1422,11 +1398,6 @@ function agreeOr(word: string, target: Inflection): string {
   return agreeing(word, target) ?? "";
 }
 
-// "et" before a form of être whose subject is left out: "elle s'admire et est fière".
-const ELLIPTIC = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])et[ \\t]+(?=(?:${[...LINKING].join("|")})(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
-  "giu",
-);
 const THIRD_PERSONS = new Set(["il", "elle", "ils", "elles"]);
 
 /** "Elle s'admire et est impressionné", "La bouteille arriva et fut englouti": the attribute after
@@ -1457,7 +1428,6 @@ function ellipticSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | n
 }
 
 const TEL_FORMS: Record<string, string> = { ms: "tel", fs: "telle", mp: "tels", fp: "telles" };
-const GENS = /(?<![\p{L}\p{M}\p{N}_'’-])gens(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
 /** "des bons gens" -> "bonnes", "des gens cultivées" -> "cultivés": an adjective right before
  * "gens" takes its feminine form when it has one; an adjective after it stays masculine. */
@@ -1487,7 +1457,6 @@ function gensAgreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
     : null;
 }
 
-const TEL = /(?<![\p{L}\p{M}\p{N}_'’-])tel(?:le)?s?(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const TEL_LINKS = new Set("est sont était étaient fut furent sera seront".split(" "));
 const SUBJECT_WORDS = new Set("je j' tu il elle on nous vous ils elles ce c' cela ça".split(" "));
 
@@ -1553,8 +1522,6 @@ const LEQUEL_FAMILY: Record<string, string> = {
   desquels: "de",
   desquelles: "de",
 };
-const RELATIVE_LEQUEL =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:lequel|laquelle|lesquels|lesquelles|auquel|auxquels|auxquelles|duquel|desquels|desquelles)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const RELATIVE_PREPOSITIONS = new Set(
   "avec pour sur dans par sans chez contre entre parmi sous vers selon malgré devant derrière à".split(
     " ",
@@ -1583,11 +1550,6 @@ function relativeAgreement(ctx: DetectContext, m: RegExpExecArray): RawFinding |
     context: { start: determiner.start, end: m.index + typed.length },
   });
 }
-
-const AND_A_HALF =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<noun>\p{L}+)[ \t]+et[ \t]+(?<half>demi(?:e|s|es)?)(?![\p{L}\p{M}\p{N}_'’-])/giu;
-const HALF_BEFORE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<half>demie)(?:[ \t]+|-)(?<noun>\p{L}+)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 /** "trois heures et demi" -> "demie", "deux ans et demie" -> "demi": after its noun, "demi"
  * takes the noun's gender, in the singular; "une demie heure" -> "demi-heure": before it, it
@@ -1792,93 +1754,49 @@ function adjectiveDeterminer(ctx: DetectContext, m: RegExpExecArray): RawFinding
     : null;
 }
 
-const ADJECTIVE_DETERMINER =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:divers|diverse|diverses|différents|différentes|pareil|pareille|pareils|pareilles)(?=[ \t]+\p{L})/giu;
+/** "trois heures et demi" -> "demie": "demi" after its noun. */
+const andAHalf = (ctx: DetectContext, m: RegExpExecArray) => half(ctx, m, true);
+/** "une demie heure" -> "demi-heure": "demi" before its noun. */
+const halfBefore = (ctx: DetectContext, m: RegExpExecArray) => half(ctx, m, false);
 
-const DE_ARTICLE = /(?<![\p{L}\p{M}\p{N}_'’-])(?:de(?![\p{L}\p{M}\p{N}_'’-])|d['’](?=\p{L}))/giu;
-
-const QUI_ETRE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])qui[ \t]{1,4}(?<verb>est|sont|était|étaient|sera|seront|fut|furent|semble|semblent|paraît|paraissent|reste|restent)(?![\p{L}\p{M}\p{N}_'’-])/giu;
-
-const INVERTED_ETRE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:est|sont|était|étaient|sera|seront|fut|furent)(?![\p{L}\p{M}\p{N}_'’-])/giu;
-
-function adjectives(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, AND_A_HALF)) {
-    const f = half(ctx, m, true);
-    if (f) findings.push(f);
-  }
-  for (const m of ownedFrenchWords(ctx, HALF_BEFORE)) {
-    const f = half(ctx, m, false);
-    if (f) findings.push(f);
-  }
-  for (const m of ownedFrenchWords(ctx, RELATIVE_LEQUEL)) {
-    const f = relativeAgreement(ctx, m);
-    if (f) findings.push(f);
-  }
-  for (const m of ownedFrenchWords(ctx, GENS)) {
-    const f = gensAgreement(ctx, m);
-    if (f) findings.push(f);
-  }
-  for (const m of ownedFrenchWords(ctx, TEL)) {
-    const f = telAgreement(ctx, m);
-    if (f) findings.push(f);
-  }
-  for (const m of ownedFrenchWords(ctx, COLOR_SHADE)) {
-    const f = colorShade(ctx, m);
-    if (f) findings.push(f);
-  }
-  for (const m of ownedFrenchWords(ctx, PAIR)) {
-    const f = adjectivePair(ctx, m);
-    if (f) findings.push(f);
-  }
-  for (const m of ownedFrenchWords(ctx, CANDIDATE)) {
-    if (namedExampleBefore(ctx.text, m.index)) continue;
-    const word = m[0].toLowerCase().replaceAll("’", "'");
-    const f =
-      word in SUBJECTS
-        ? afterPronoun(ctx, m, word)
-        : (afterNoun(ctx, m, word) ?? longSubject(ctx, m, word) ?? beforeNoun(ctx, m, word));
-    if (f) findings.push(f);
-  }
-  for (const m of ownedFrenchWords(ctx, ELLIPTIC)) {
-    const f = ellipticSubject(ctx, m);
-    if (f) findings.push(f);
-  }
-  for (const m of ownedFrenchWords(ctx, FIRST_NAME)) {
-    if (namedExampleBefore(ctx.text, m.index)) continue;
-    const f = afterName(ctx, m);
-    if (f) findings.push(f);
-  }
-  for (const m of ownedFrenchWords(ctx, AVOIR)) {
-    const f = afterAvoir(ctx, m);
-    if (f) findings.push(f);
-  }
-  findings.push(...keptGenders(ctx));
-  for (const m of ownedFrenchWords(ctx, ADJECTIVE_DETERMINER)) {
-    const f = adjectiveDeterminer(ctx, m);
-    if (f) findings.push(f);
-  }
-  for (const m of ownedFrenchWords(ctx, DE_ARTICLE)) {
-    if (namedExampleBefore(ctx.text, m.index)) continue;
-    const f = beforeNoun(ctx, m, m[0].toLowerCase().replaceAll("’", "'"));
-    if (f) findings.push(f);
-  }
-  for (const m of ownedFrenchWords(ctx, QUI_ETRE)) {
-    const f = quiParticiple(ctx, m);
-    if (f) findings.push(f);
-  }
-  for (const m of ownedFrenchWords(ctx, INVERTED_ETRE)) {
-    const f = invertedParticiple(ctx, m);
-    if (f) findings.push(f);
-  }
-  for (const m of ownedFrenchWords(ctx, INVERTED_AVOIR)) {
-    const f = invertedAvoir(ctx, m);
-    if (f) findings.push(f);
-  }
-  return findings;
+/** An adjective after its pronoun or noun subject, or before its noun. */
+function adjectiveCandidate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const word = m[0].toLowerCase().replaceAll("’", "'");
+  return word in SUBJECTS
+    ? afterPronoun(ctx, m, word)
+    : (afterNoun(ctx, m, word) ?? longSubject(ctx, m, word) ?? beforeNoun(ctx, m, word));
 }
 
-export const PREDICATES = { adjectives: adjectives } satisfies Record<string, Detector>;
+/** A first name as the subject of an adjective. */
+function firstNameSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  return namedExampleBefore(ctx.text, m.index) ? null : afterName(ctx, m);
+}
+
+/** "de" or "d'" before an adjective and its noun: the adjective agrees with the noun. */
+function deBeforeNoun(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  return beforeNoun(ctx, m, m[0].toLowerCase().replaceAll("’", "'"));
+}
+
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  andAHalf: inChunk(andAHalf),
+  halfBefore: inChunk(halfBefore),
+  relativeAgreement: inChunk(relativeAgreement),
+  gensAgreement: inChunk(gensAgreement),
+  telAgreement: inChunk(telAgreement),
+  colorShade: inChunk(colorShade),
+  adjectivePair: inChunk(adjectivePair),
+  adjectiveCandidate: inChunk(adjectiveCandidate),
+  ellipticSubject: inChunk(ellipticSubject),
+  firstNameSubject: inChunk(firstNameSubject),
+  afterAvoir: inChunk(afterAvoir),
+  adjectiveDeterminer: inChunk(adjectiveDeterminer),
+  deBeforeNoun: inChunk(deBeforeNoun),
+  quiParticiple: inChunk(quiParticiple),
+  invertedParticiple: inChunk(invertedParticiple),
+  invertedAvoir: inChunk(invertedAvoir),
+} satisfies Record<string, MatchFixer>;
+
+export const PREDICATES = { keptGenders } satisfies Record<string, Detector>;

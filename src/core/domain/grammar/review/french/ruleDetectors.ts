@@ -28,15 +28,16 @@ import * as verbForms from "./verbForms";
 
 export const PREDICATES = mergePredicates(
   adjectives.PREDICATES,
-  agreement.PREDICATES,
   dates.PREDICATES,
-  homophones.PREDICATES,
   ordinals.PREDICATES,
-  verbForms.PREDICATES,
 );
 
 /** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
+  adjectives.FIXERS,
+  homophones.FIXERS,
+  verbForms.FIXERS,
+  agreement.FIXERS,
   style.FIXERS,
   hyphenation.FIXERS,
   imperative.FIXERS,

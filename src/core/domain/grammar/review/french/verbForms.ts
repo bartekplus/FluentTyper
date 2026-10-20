@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   conjugate,
@@ -20,7 +20,7 @@ import {
 import {
   capitalizedName,
   CLITICS,
-  ownedFrenchWords,
+  inChunk,
   SENTENCE_START,
   SUBJECT_PRONOUNS,
   tokensAfter,
@@ -28,7 +28,6 @@ import {
   wordFinding,
   type Token,
 } from "./frenchTokens";
-import { isLang } from "../phraseTemplates";
 
 // The -é / -er / -ez endings of first-group verbs sound alike. Their slot decides: a past
 // participle after avoir or être ("il a mangé"), an infinitive after a preposition or a verb that
@@ -593,8 +592,6 @@ function finiteAfterSubjectVous(ctx: DetectContext, m: RegExpExecArray): RawFind
   });
 }
 
-const ETRE =
-  /(?<![\p{L}\p{M}\p{N}_-])(?:suis|es|est|sommes|êtes|sont|étais|était|étions|étiez|étaient|serai|seras|sera|serons|serez|seront|serais|serait|serions|seriez|seraient|fus|fut|furent|été)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const PLURAL_ETRE = new Set(
   "sommes êtes sont étions étiez étaient serons serez seront serions seriez seraient furent".split(
     " ",
@@ -648,8 +645,6 @@ function finiteAfterEtre(ctx: DetectContext, m: RegExpExecArray): RawFinding | n
   });
 }
 
-const AVOIR =
-  /(?<![\p{L}\p{M}\p{N}_-])(?:avoir|ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?![\p{L}\p{M}\p{N}_'’])/giu;
 // Words before the infinitive "avoir" that make it an auxiliary: "après avoir", "pour avoir".
 const AVOIR_INFINITIVE_GOVERNORS = new Set(["après", "pour", "sans", "de", "d'"]);
 
@@ -979,41 +974,27 @@ function accentlessParticiple(ctx: DetectContext, m: RegExpExecArray): RawFindin
   );
   return finding ? { ...finding, context: { start: det.start, end: m.index + word.length } } : null;
 }
-const ACCENTLESS = /(?<![\p{L}\p{M}\p{N}_'’-])\p{Ll}{2,}es?(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
-const CANDIDATE = /(?<![\p{L}\p{M}\p{N}_-])\p{L}+(?:er|é|ez|re|ir|oir)(?![\p{L}\p{M}\p{N}_-])/giu;
-
-function verbForms(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, CANDIDATE)) {
-    if (capitalizedName(ctx.text, m.index, m[0])) continue;
-    const lower = m[0].toLowerCase();
-    const finding = lower.endsWith("é")
-      ? infinitiveAfterGovernor(ctx, m)
-      : lower.endsWith("ez")
-        ? (participleAfterAuxiliary(ctx, m) ?? infinitiveAfterObjectVous(ctx, m))
-        : lower.endsWith("er")
-          ? (participleAfterAuxiliary(ctx, m) ??
-            finiteAfterSubjectVous(ctx, m) ??
-            participleAfterNoun(ctx, m) ??
-            finiteForInfinitive(ctx, m))
-          : finiteAfterSubjectVous(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, ETRE)) {
-    const finding = finiteAfterEtre(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, AVOIR)) {
-    const finding = finiteAfterAvoir(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, ACCENTLESS)) {
-    const finding = accentlessParticiple(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  return findings;
+/** A word that may be a verb form: an infinitive, a participle or a "vous" form. */
+function verbCandidate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (capitalizedName(ctx.text, m.index, m[0])) return null;
+  const lower = m[0].toLowerCase();
+  return lower.endsWith("é")
+    ? infinitiveAfterGovernor(ctx, m)
+    : lower.endsWith("ez")
+      ? (participleAfterAuxiliary(ctx, m) ?? infinitiveAfterObjectVous(ctx, m))
+      : lower.endsWith("er")
+        ? (participleAfterAuxiliary(ctx, m) ??
+          finiteAfterSubjectVous(ctx, m) ??
+          participleAfterNoun(ctx, m) ??
+          finiteForInfinitive(ctx, m))
+        : finiteAfterSubjectVous(ctx, m);
 }
 
-export const PREDICATES = { verbForms: verbForms } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  verbCandidate: inChunk(verbCandidate),
+  finiteAfterEtre: inChunk(finiteAfterEtre),
+  finiteAfterAvoir: inChunk(finiteAfterAvoir),
+  accentlessParticiple: inChunk(accentlessParticiple),
+} satisfies Record<string, MatchFixer>;
