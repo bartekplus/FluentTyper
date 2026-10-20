@@ -59,6 +59,8 @@ import {
   KEY_SHOW_SUGGESTION_FOOTER,
   KEY_INLINE_SUGGESTION,
   KEY_PREFIX_ONLY_MODE,
+  KEY_EMOJI_SUGGESTIONS,
+  KEY_EMOJI_FIRST,
   KEY_EXTENSION_LANGUAGE,
   KEY_SITE_PROFILES,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
@@ -186,9 +188,17 @@ function applyInlineSuggestionLocks(registry: SettingsRegistry, enabled: boolean
   registry[KEY_SHOW_SUGGESTION_FOOTER]?.setDisabled(enabled);
 }
 
+// "Show emoji first" is a sub-option: it has no effect while emoji suggestions are off.
+function applyEmojiFirstLock(registry: SettingsRegistry, emojiEnabled: boolean): void {
+  registry[KEY_EMOJI_FIRST]?.setDisabled(!emojiEnabled);
+}
+
 export function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
   registry[KEY_INLINE_SUGGESTION]?.addEvent("action", () => {
     applyInlineSuggestionLocks(registry, registry[KEY_INLINE_SUGGESTION].get() as boolean);
+  });
+  registry[KEY_EMOJI_SUGGESTIONS]?.addEvent("action", () => {
+    applyEmojiFirstLock(registry, registry[KEY_EMOJI_SUGGESTIONS].get() === true);
   });
 
   registry[KEY_EXTENSION_LANGUAGE]?.addEvent("persisted", () => {
@@ -1599,5 +1609,6 @@ window.addEventListener("DOMContentLoaded", function () {
     wireRuntimeSettingsHandlers(registry);
     const inlineEnabled = Boolean(await store.get(KEY_INLINE_SUGGESTION));
     applyInlineSuggestionLocks(registry, inlineEnabled);
+    applyEmojiFirstLock(registry, (await store.get(KEY_EMOJI_SUGGESTIONS)) === true);
   })();
 });
