@@ -11,14 +11,7 @@ import { canonicalCasing } from "../canonicalCasing";
 import { phraseCorrections } from "../englishPhraseCorrections";
 import { NOUN_LIKE_ING } from "../englishParticiples";
 import { namedExampleBefore } from "../exampleCues";
-import {
-  caseLike,
-  detectAll,
-  found,
-  group,
-  hasUserOrCasedWord,
-  ownedMatches,
-} from "../phraseTemplates";
+import { caseLike, detectAll, found, group, hasUserOrCasedWord } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { Detector, MatchFixer } from "../../engine/reviewRules";
 import { opensClause } from "./grammarStyle2";
@@ -229,31 +222,6 @@ function afterExamples(ctx: DetectContext): RawFinding[] {
         (f) =>
           f.range.start >= end &&
           !quotes.some((q) => f.range.start < q.end && f.range.end > q.start),
-      ),
-    );
-  }
-  return findings;
-}
-
-// One line break inside a sentence, before a lowercase word: a soft wrap.
-const SOFT_WRAP = /(?<=\p{L})[ \t]*\n[ \t]*(?=\p{Ll})/gu;
-
-/** Fixed phrases broken across a soft wrap ("Double\nclick"). */
-function wrappedPhrases(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of ownedMatches(ctx, SOFT_WRAP)) {
-    const newline = m.index + m[0].indexOf("\n");
-    const lineStart = ctx.text.lastIndexOf("\n", newline - 1) + 1;
-    // Phrases are short: start at a word boundary at most ~40 characters back.
-    let from = Math.max(lineStart, newline - 40);
-    if (from > lineStart) {
-      const space = ctx.text.indexOf(" ", from);
-      if (space < 0 || space >= newline) continue;
-      from = space + 1;
-    }
-    findings.push(
-      ...inView(ctx, from, newline, [[newline, " "]], phraseCorrections).filter(
-        (f) => f.range.start < newline && f.range.end > newline,
       ),
     );
   }
@@ -471,6 +439,21 @@ function quotedMentions(ctx: DetectContext): RawFinding[] {
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
 export const FIXERS = {
   ...PHRASE_FIXERS,
+  /** Fixed phrases broken across a soft wrap ("Double\nclick"). */
+  wrappedPhrase: (m, ctx) => {
+    const newline = m.index + m[0].indexOf("\n");
+    const lineStart = ctx.text.lastIndexOf("\n", newline - 1) + 1;
+    // Phrases are short: start at a word boundary at most ~40 characters back.
+    let from = Math.max(lineStart, newline - 40);
+    if (from > lineStart) {
+      const space = ctx.text.indexOf(" ", from);
+      if (space < 0 || space >= newline) return null;
+      from = space + 1;
+    }
+    return inView(ctx, from, newline, [[newline, " "]], phraseCorrections).filter(
+      (f) => f.range.start < newline && f.range.end > newline,
+    );
+  },
   shoutedNames: (m, ctx) => {
     const start = m.index;
     const end = start + m[0].length;
@@ -508,6 +491,7 @@ export const FIXERS = {
   slashedWord: (m, ctx) => {
     const typed = m.groups!.target;
     const word = typed.toLowerCase();
+    if (ctx.rules && !ctx.rules.has(SLASHED[word].ruleId)) return null;
     if (typed !== word && !/^[A-Z][a-z]+$/.test(typed)) return null;
     if (ctx.dictionary.has(word)) return null;
     if (word === "bias" && !BE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index)))
@@ -708,6 +692,6 @@ const chromeExtension = (view: DetectContext) => chromeExtensionRule({ ...view, 
 
 /** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
 export const PREDICATES = {
-  quotedPhrases: english(quotedPhrases, afterExamples, wrappedPhrases),
+  quotedPhrases: english(quotedPhrases, afterExamples),
   quotedMentions: english(quotedMentions),
 } satisfies Record<string, Detector>;

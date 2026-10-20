@@ -67,15 +67,18 @@ export const OPTIONAL_TABLES: readonly {
 
 // ---------------------------------------------------------------------------- frame fixes
 
-/** "be on the cards" (British) and "be in the cards" (American) in the other dialect. */
-const cards =
-  (british: boolean): MatchFixer =>
-  (m, ctx, frame) => {
-    if ((m.groups!.prep.toLowerCase() === "on") !== british) return null;
-    if (hasUserOrCasedWord(ctx, m.groups!.target)) return null;
-    const prep = applyWordCase(british ? "in" : "on", detectWordCase(m.groups!.prep));
-    return found(ctx, m, frame.ruleId, frame.messageKey, [prep], "prep");
-  };
+const AMERICAN = {
+  ruleId: "englishAmericanSpelling",
+  messageKey: "review_msg_american_spelling",
+} as const;
+const BRITISH = {
+  ruleId: "englishBritishSpelling",
+  messageKey: "review_msg_british_spelling",
+} as const;
+const OXFORD = {
+  ruleId: "englishOxfordSpelling",
+  messageKey: "review_msg_oxford_spelling",
+} as const;
 
 // Optional number style: the number words of the single-digit counts.
 const NUMBER_WORDS = ["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
@@ -98,10 +101,17 @@ export const FIXERS = {
     );
     if (englishWordInfo(lower) || !englishWordInfo(ize) || hasUserOrCasedWord(ctx, word))
       return null;
-    return applyWordCase(ize, detectWordCase(word));
+    const fix = applyWordCase(ize, detectWordCase(word));
+    return [AMERICAN, OXFORD].map((rule) => found(ctx, m, rule.ruleId, rule.messageKey, [fix]));
   },
-  britishCards: cards(true),
-  americanCards: cards(false),
+  /** "be on the cards" (British) and "be in the cards" (American) in the other dialect. */
+  cardSpelling: (m, ctx) => {
+    const british = m.groups!.prep.toLowerCase() === "on";
+    const rule = british ? AMERICAN : BRITISH;
+    if (hasUserOrCasedWord(ctx, m.groups!.target)) return null;
+    const prep = applyWordCase(british ? "in" : "on", detectWordCase(m.groups!.prep));
+    return found(ctx, m, rule.ruleId, rule.messageKey, [prep], "prep");
+  },
   spelledNumber: (m, ctx) => {
     if (!englishWordInfo(m.groups!.noun)?.plural) return null;
     const [start, end] = m.indices!.groups!.target;

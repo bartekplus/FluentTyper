@@ -6,9 +6,9 @@ import {
   wordSet,
 } from "../../implementations/helpers/GenericRuleShared";
 import { namedExampleBefore } from "../exampleCues";
-import { gluedAfter, hasUserOrCasedWord, WORD_END, WORD_START, isLang } from "../phraseTemplates";
+import { gluedAfter, hasUserOrCasedWord } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { finding } from "../finding";
 
 // Closed-class word sets; open-class decisions go through the lexicon.
@@ -869,22 +869,10 @@ for (const [alias, target] of [
 ] as const)
   HANDLERS[alias] = HANDLERS[target];
 
-const TRIGGER = new RegExp(
-  `${WORD_START}(?:${Object.keys(HANDLERS)
-    .sort((a, b) => b.length - a.length)
-    .map((word) => word.replaceAll("'", "['’]"))
-    .join("|")})${WORD_END}`,
-  "giu",
-);
-
-/** Typo-like confusions resolved by the words around one trigger word. */
-function contextualConfusions(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "en")) return [];
-  const findings: RawFinding[] = [];
-  const regex = new RegExp(TRIGGER);
-  regex.lastIndex = ctx.from;
-  // "all ready" starts one word before its trigger, so read a little past the chunk.
-  for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to + 16; m = regex.exec(ctx.scanText)) {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  /** Typo-like confusions resolved by the words around one trigger word. */
+  contextualConfusion: (m, ctx) => {
     const word = wordKey(m[0]);
     const start = m.index;
     const end = start + m[0].length;
@@ -903,13 +891,6 @@ function contextualConfusions(ctx: DetectContext): RawFinding[] {
         return (after ??= wordsAfter(ctx.text, end, 5));
       },
     };
-    const finding = HANDLERS[word](hit);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
-
-/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
-export const PREDICATES = {
-  contextualConfusions: contextualConfusions,
-} satisfies Record<string, Detector>;
+    return HANDLERS[word](hit);
+  },
+} satisfies Record<string, MatchFixer>;
