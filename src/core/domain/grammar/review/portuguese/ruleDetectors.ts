@@ -20,7 +20,7 @@ import { FIXERS as MARK_FIXERS } from "./marks";
 import { nounAgreement } from "./nounAgreement";
 import { FIXERS as NUMBER_START_FIXERS } from "./numbers";
 import { FILTERS as PARONYM_FILTERS, FIXERS as PARONYM_FIXERS } from "./paronyms";
-import { personAgreement } from "./personAgreement";
+import { FIXERS as PERSON_FIXERS } from "./personAgreement";
 import {
   fixedAgreements,
   passiveNumber,
@@ -50,7 +50,6 @@ export const PREDICATES = {
   quantifiedAdjectives,
   fixedAgreements,
   passiveNumber,
-  personAgreement,
 } satisfies Record<string, Detector>;
 
 /** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
@@ -72,6 +71,7 @@ export const FIXERS = mergePredicates<AnyFixer>(
   CLITIC_FIXERS,
   PARONYM_FIXERS,
   CRASE_FIXERS,
+  PERSON_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/pt_BR.yaml (`filter:`). */

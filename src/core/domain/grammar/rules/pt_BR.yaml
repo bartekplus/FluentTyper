@@ -74,6 +74,12 @@ fragments:
   VERBS: "tem|tenho|temos|têm|tinha|tinham|teve|tive|há|houve|havia|pede|pedi|pediu|pedem|fez|faz|fiz|fazem|deu|dá|dei|dão|tomou|toma|tomei|tomam|paga|pagou|paguei|vê|vi|viu|traga|traz|trouxe|recebeu|recebi|recebe|recebem|sinto|sente|sentiu|senti|exige|exigiu|merece|mereceu|ganhou|ganhei|perdeu|perdi|causa|causou|causam|gera|gerou|geram|mostra|mostrou|sofreu|sofre|dar|ter|fazer|pedir|receber|tomar|pagar|ver|sentir|causar|gerar|sofrer|ouço|ouvia|ouviu|ouvem|escuto|escutava|escutei|escutou|escutam|ouvir|escutar|restam|resta|restou|restaram|sobram|sobrou|faltam|falta|faltou|faltaram|buscam|buscar|procuram|procurar|requer|requerem|exigem|exigir"
   GOVERNS_A: "devido|graças|junto|rumo|frente|face|em{{S}}relação|com{{S}}relação|em{{S}}direção|em{{S}}frente|referentes?|relativ[oa]s?|equivalentes?|superior(?:es)?|inferior(?:es)?|semelhantes?|anterior(?:es)?|posterior(?:es)?|favorá(?:vel|veis)|propens[oa]s?|acesso|referência|alusão|obediência|resistência|aversão|adesão|homenagem|apoio|aderir|adere|aderem|aderiu|aderiram|pertencer|pertence|pertencem|pertencia|pertenciam|pertenceu|recorrer|recorre|recorrem|recorreu|recorreram|equivaler|equivale|equivalem|equivalia|corresponder|corresponde|correspondem|correspondia|(?:referir|refere|referem|referiu|dirigir|dirige|dirigiu|dirigiram|candidatar|candidata|candidatou|candidataram)-se|se{{S}}(?:referir|refere|referem|referiu|dirigir|dirige|dirigiu|dirigiram|candidatar|candidata|candidatou|candidataram)"
   GOES: "vou|vais|vai|vamos|vão|ia|iam|irei|irás|irá|iremos|irão|iria|iríamos|iriam|ir|indo"
+  PERSON_ADVERBS: "(?:(?:não|já|também|sempre|só|ainda|nunca|quase|realmente){{S}}){0,2}"
+  PERSON_CLITIC: "(?:(?:me|te|se|lhe|lhes|nos|vos){{S}})?"
+  PHRASE: "{{S}}(?:de|do|da|dos|das|no|na|nos|nas|em|com){{S}}(?:(?:o|a|os|as|um|uma|meu|minha|meus|minhas|seu|sua|seus|suas|nosso|nossa){{S}})?(?!(?:qual|quais|que|quem|cujo|cuja|cujos|cujas|onde){{E}})\\p{L}{2,}(?<![aeiô]r)"
+  PLURAL_LEAD: "os|as|uns|umas|estes|estas|esses|essas|aqueles|aquelas|meus|minhas|seus|suas|nossos|nossas|alguns|algumas|muitos|muitas|vários|várias"
+  SINGULAR_LEAD: "o|a|um|uma|este|esta|esse|essa|aquele|aquela|meu|minha|seu|sua|nosso|nossa"
+  WITH_ME: "(?:eu{{S}}e{{S}}(?:ele|ela|você|eles|elas|vocês|tu|\\p{L}{2,}|(?:o|a|os|as|meu|minha|meus|minhas){{S}}\\p{L}+)|(?:tu|ele|ela|você|eles|elas|vocês|\\p{L}{2,}){{S}}e{{S}}eu)"
 
 rules:
   - id: pt_BR.accentParonyms
@@ -990,7 +996,21 @@ rules:
     predicate: passiveNumber
   - id: pt_BR.personAgreement
     checks: [portugueseAgreement]
-    predicate: personAgreement
+    style: match
+    message: review_msg_pt_agreement
+    frames:
+      # A pronoun subject and its verb: "Eu passeiam" -> "passeio", "Tu não falam" -> "falas".
+      - regex: "(?<pronoun>eu|tu|ele|ela|você|nós|eles|elas|vocês){{S}}{{PERSON_ADVERBS}}{{PERSON_CLITIC}}(?<target>\\p{L}{2,}){{E}}(?!-)"
+        fixer: personPronounSubject
+      # A noun-phrase subject opening the sentence, with a prepositional phrase before its verb:
+      # "As crianças da escola brinca" -> "brincam". Without one, verbAgreement.ts's subjects()
+      # decide. In {{PHRASE}}, the phrase's noun is no infinitive ("de prosseguir") nor a
+      # relative ("nas quais").
+      - regex: "(?<lead>{{SINGULAR_LEAD}}|{{PLURAL_LEAD}}){{S}}(?<noun>\\p{L}{3,}){{PHRASE}}{{S}}{{PERSON_ADVERBS}}{{PERSON_CLITIC}}(?<target>\\p{L}{3,}){{E}}(?!-)"
+        fixer: personNounSubject
+      # "Eu e a Rita", "Tu e eu", "Ele e eu": a subject with "eu" in it is "nós".
+      - regex: "(?<we>{{WITH_ME}}){{S}}{{PERSON_ADVERBS}}{{PERSON_CLITIC}}(?<target>\\p{L}{2,}){{E}}(?!-)"
+        fixer: personWeSubject
   - id: pt_BR.auxiliaryInfinitives
     checks: [portugueseAgreement]
     style: match
