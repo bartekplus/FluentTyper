@@ -80,6 +80,10 @@ fragments:
   PLURAL_LEAD: "os|as|uns|umas|estes|estas|esses|essas|aqueles|aquelas|meus|minhas|seus|suas|nossos|nossas|alguns|algumas|muitos|muitas|vários|várias"
   SINGULAR_LEAD: "o|a|um|uma|este|esta|esse|essa|aquele|aquela|meu|minha|seu|sua|nosso|nossa"
   WITH_ME: "(?:eu{{S}}e{{S}}(?:ele|ela|você|eles|elas|vocês|tu|\\p{L}{2,}|(?:o|a|os|as|meu|minha|meus|minhas){{S}}\\p{L}+)|(?:tu|ele|ela|você|eles|elas|vocês|\\p{L}{2,}){{S}}e{{S}}eu)"
+  COPULA_SER: "é|são|era|eram|foi|foram|será|serão|seria|seriam|parece|parecem|parecia|pareciam"
+  COPULA_ESTAR: "está|estão|estava|estavam|esteve|estiveram|estará|estarão|estaria|estariam|fica|ficam|ficou|ficaram|ficava|ficavam|ficará|ficarão|continua|continuam|continuava|permanece|permanecem"
+  PREDICATE_ADVERBS: "(?:(?:muito|bem|tão|bastante|meio|super|mais|menos|sempre|já|ainda|realmente|totalmente|completamente|demasiado|um{{S}}pouco){{S}}){0,2}"
+  PLURAL_FEMININE: "duas|duzentas|trezentas|quatrocentas|quinhentas|seiscentas|setecentas|oitocentas|novecentas|as|das|nas|pelas|estas|essas|aquelas|muitas|várias|algumas|tantas|poucas|outras"
 
 rules:
   - id: pt_BR.accentParonyms
@@ -981,19 +985,67 @@ rules:
     predicate: subjunctives
   - id: pt_BR.subjectPredicates
     checks: [portugueseAgreement]
-    predicate: subjectPredicates
+    style: match
+    message: review_msg_pt_noun_agreement
+    frames:
+      # "A palavra está correto" -> "correta", "Elas são altos" -> "altas": a pronoun of known
+      # gender, or an article and a noun, opens the sentence before the copula.
+      - regex: "(?:(?<pronoun>ele|ela|eles|elas)|(?<article>o|a|os|as){{S}}(?<noun>\\p{L}{3,})){{S}}(?:não{{S}})?(?<copula>{{COPULA_SER}}|{{COPULA_ESTAR}}){{S}}{{PREDICATE_ADVERBS}}(?<target>\\p{L}{3,}[oa]s?){{E}}(?![-\\p{L}])"
+        fixer: subjectPredicate
   - id: pt_BR.relativeAgreement
     checks: [portugueseAgreement]
-    predicate: relativeAgreement
+    style: match
+    message: review_msg_pt_noun_agreement
+    frames:
+      # "a razão pelo qual" -> "pela qual": "o/a qual" agrees with the noun right before it.
+      - regex: "(?<noun>\\p{L}{3,}){{S}}(?<target>(?<prep>pel|n|d|a|à)(?<article>o|a|os|as)?){{S}}(?<qual>qual|quais){{E}}"
+        fixer: relative
+      # "Vende-se casas" -> "Vendem-se casas": with "se" the plural noun after the verb is its
+      # subject. "Precisa-se de", "Trata-se de" have none.
+      - regex: "(?<verb>\\p{L}{3,}[ae])-se{{S}}(?:(?<det>os|as|muitos|muitas|vários|várias|alguns|algumas|novos|novas|diversos|diversas|\\d+){{S}})?(?<noun>\\p{L}{3,}s){{E}}"
+        owner: verb
+        message: review_msg_pt_agreement
+        fixer: passiveSe
   - id: pt_BR.quantifiedAdjectives
     checks: [portugueseAgreement]
-    predicate: quantifiedAdjectives
+    style: match
+    message: review_msg_pt_noun_agreement
+    frames:
+      # "Estamos muitos contentes" -> "muito contentes", "Ela está meia cansada" -> "meio
+      # cansada": before an adjective "muito" and "meio" are adverbs.
+      - regex: "(?:{{COPULA_SER}}|{{COPULA_ESTAR}}|somos|estamos|ficamos|fomos|éramos|estávamos){{S}}(?<target>muit[oa]s|pouc[oa]s|muita|pouca|demasiad[oa]s?|bastantes|meias?){{S}}(?<adjective>\\p{L}{3,}[oa]s?|contentes|felizes|tristes|alegres|doentes|inteligentes|diferentes|ansiosos){{E}}"
+        fixer: quantified
   - id: pt_BR.fixedAgreements
     checks: [portugueseAgreement]
-    predicate: fixedAgreements
+    style: match
+    message: review_msg_pt_noun_agreement
+    frames:
+      # "duas milhões" -> "dois", "as milhares de" -> "os": milhão, bilhão and milhar are
+      # masculine nouns, so the words before them are too ("duas mil" agrees with the noun after
+      # "mil"). "a milhares de quilômetros" keeps the preposition "a". The match start owns the
+      # frame.
+      - regex: "(?<target>{{PLURAL_FEMININE}}){{S}}(?=(?:milhões|bilhões|trilhões|milhares){{E}})|(?<one>uma){{S}}(?=(?:milhão|bilhão|trilhão|milhar){{E}})"
+        owner: none
+        fixer: millions
+      # "muitos poucos" -> "muito poucos": before "pouco" the intensifier is an adverb.
+      - regex: "(?<target>muit[oa]s|muita|bastantes){{S}}(?=pouc[oa]s?{{E}})"
+        fixer: veryFew
+      # "Segue anexo a lista" -> "anexa", "Seguem anexo as fotos" -> "anexas": "anexo" is an
+      # adjective agreeing with what is sent ("em anexo" does not vary). "anexo a este e-mail" is
+      # a preposition.
+      - regex: "(?:segue|seguem|seguiu|seguiram|vai|vão|envio|enviamos|remeto|remetemos|encaminho|encaminhamos|mando|mandamos){{S}}(?<target>anex[oa]s?){{S}}(?<det>o|a|os|as|um|uma|meu|minha|meus|minhas|nosso|nossa|nossos|nossas|seu|sua|seus|suas){{S}}(?!(?:este|esta|esse|essa|aquele|aquela|isto|isso|presente|mensagem|e-mail|email|carta|ofício){{E}})\\p{L}"
+        fixer: annex
   - id: pt_BR.passiveNumber
     checks: [portugueseAgreement]
-    predicate: passiveNumber
+    style: match
+    message: review_msg_pt_passive_number
+    frames:
+      # "Foram corrigido o valor" -> "Foi corrigido", "Foi pagos os juros" -> "Foram pagos": a
+      # participle or adjective after "ser" takes the verb's number. The subject after them
+      # tells which word is wrong, so a determiner must follow: "O destaque foi convidados de
+      # honra" has a noun.
+      - regex: "(?<copula>foi|foram|é|são|era|eram|será|serão|seria|seriam|for|forem|fosse|fossem|seja|sejam){{S}}(?<target>\\p{L}{3,}[oa]s?){{E}}(?![-\\p{L}])"
+        fixer: passive
   - id: pt_BR.personAgreement
     checks: [portugueseAgreement]
     style: match

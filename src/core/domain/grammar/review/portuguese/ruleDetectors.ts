@@ -21,13 +21,7 @@ import { nounAgreement } from "./nounAgreement";
 import { FIXERS as NUMBER_START_FIXERS } from "./numbers";
 import { FILTERS as PARONYM_FILTERS, FIXERS as PARONYM_FIXERS } from "./paronyms";
 import { FIXERS as PERSON_FIXERS } from "./personAgreement";
-import {
-  fixedAgreements,
-  passiveNumber,
-  quantifiedAdjectives,
-  relativeAgreement,
-  subjectPredicates,
-} from "./predicates";
+import { FIXERS as PREDICATE_FIXERS } from "./predicates";
 import { FIXERS as VERB_FRAME_FIXERS } from "./style";
 import { subjunctives } from "./subjunctive";
 import {
@@ -45,11 +39,6 @@ export const PREDICATES = {
   nounAgreement,
   verbAgreement,
   subjunctives,
-  subjectPredicates,
-  relativeAgreement,
-  quantifiedAdjectives,
-  fixedAgreements,
-  passiveNumber,
 } satisfies Record<string, Detector>;
 
 /** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
@@ -72,6 +61,7 @@ export const FIXERS = mergePredicates<AnyFixer>(
   PARONYM_FIXERS,
   CRASE_FIXERS,
   PERSON_FIXERS,
+  PREDICATE_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/pt_BR.yaml (`filter:`). */
