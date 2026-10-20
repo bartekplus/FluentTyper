@@ -50,6 +50,7 @@ export const FIXERS = mergePredicates<Fixer>(
   suspendedHyphen.FIXERS,
   questions.FIXERS,
   quotes.FIXERS,
+  dates.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */

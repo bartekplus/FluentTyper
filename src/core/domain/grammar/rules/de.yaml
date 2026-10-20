@@ -19,6 +19,9 @@ fragments:
   NOUN_ENDING: "(?:e|en|n|s|es|er|ern|nen)?"
   RECHT_NOT_AFTER: "das|kein|ein|sein|ihr|mein|dein|unser|euer|jedes|volles|vollem|gutes|zum|im|vom|nach|mit|von|auf|zu|dem|des|dieses|jedem|allem"
   SAYING: "sagte|sagt|sagten|rief|ruft|riefen|fragte|fragt|fragten|dachte|denkt|meinte|meint|antwortete|antwortet|erwiderte|erwidert|flüsterte|flüstert|schrie|schreit|murmelte|murmelt|erklärte|erklärt|behauptete|behauptet|seufzte|lachte|rief|bat|befahl"
+  # "23.08.2014", "23.8.", "23. August 2014", "23. Aug. 2014", "2015-09-28".
+  DATE: "(?:(?<day>\\d{1,3})\\.(?:(?<month>\\d{1,2})\\.(?<year>[0-9]{4})?|[ \\t\\u00a0]?(?<name>September|November|Dezember|Februar|Oktober|Januar|Jänner|August|April|März|Juni|Juli|Sept|Jan|Jän|Feb|Mär|Apr|Mai|Jun|Jul|Aug|Sep|Okt|Nov|Dez)\\.?(?:[ \\t\\u00a0](?<year2>[0-9]{4}))?)|(?<isoYear>[0-9]{4})-(?<isoMonth>\\d{2})-(?<isoDay>\\d{2}))(?!\\d)"
+  WEEKDAY: "(?<weekday>Sonntag|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonnabend|(?:So|Mo|Di|Mi|Do|Fr|Sa)\\.?)"
   RIGHT_VERBS: "haben|hat|hatte|hatten|hast|habe|hätte|hätten|geben|gibt|gab|gaben|gegeben|behalten|behielt|bekommen|bekam"
 
 rules:
@@ -27,7 +30,35 @@ rules:
     predicate: compounds
   - id: de.dates
     checks: [germanDates]
-    predicate: dates
+    style: match
+    message: review_msg_german_invalid_date
+    frames:
+      # A weekday before its date: "Sonntag, 23.08.2014", "Samstag den 23. August".
+      - regex: "{{WG}}(?<target>{{WEEKDAY}}(?<sep>,?[ \\t\\u00a0]+(?:(?:den|der|dem)[ \\t\\u00a0]+)?)(?<date>{{DATE}}))"
+        flags: dgu
+        fixer: weekdayDate
+      # A date alone: "31. November", "29.2.2014".
+      - regex: "(?<![\\d.])(?<target>{{DATE}})"
+        flags: dgu
+        fixer: loneDate
+      # "am 31. april 2020": a full month name in lowercase (germanNounCasing reports its case).
+      - regex: "(?<![\\d.])(?<target>(?<day>\\d{1,2})\\.[ \\t\\u00a0]?(?<name>januar|jänner|februar|märz|april|mai|juni|juli|august|september|oktober|november|dezember)(?:[ \\t\\u00a0](?<year2>[0-9]{4}))?)(?![\\p{L}\\d])"
+        flags: dgu
+        fixer: lowerDate
+  - id: de.isoDates
+    checks: [germanDates]
+    # predicate: calls invalidIsoDates of review/isoDates.ts, a shared scan outside the German
+    # modules.
+    predicate: isoDates
+  - id: de.dateDots
+    checks: [germanDates]
+    style: match
+    message: review_msg_german_date_punctuation
+    frames:
+      # A day-month date without its closing dot ("am 13.12 um").
+      - regex: "(?<=(?:^|[^\\p{L}])(?:am|vom|zum|bis|dem|den|seit){{S}})(?<target>(?<day>\\d{1,2})\\.(?<month>\\d{1,2}))(?=[ \\t\\u00a0]+[^\\d\\s.]|[ \\t\\u00a0]*[,)]|$)"
+        flags: dgu
+        fixer: dateDot
   - id: de.nounCasing
     checks: [germanNounCasing]
     predicate: nounCasing
