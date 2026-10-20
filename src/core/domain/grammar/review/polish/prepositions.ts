@@ -1,6 +1,6 @@
-import type { Detector } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { caseLike, findingAt, isPl, owned, userOrNamed } from "./shared";
+import type { MatchFixer, MatchResult } from "../../engine/reviewRules";
+import type { DetectContext } from "../reviewDetectors";
+import { caseLike, findingAt, userOrNamed } from "./shared";
 
 /*
  * Prepositions with a vowel-extended form: "we" and "ze" before a hard
@@ -18,9 +18,6 @@ function opensWithCluster(word: string): boolean {
   const rest = word.replace(DIGRAPH, "c");
   return !VOWEL.test(rest) && rest.length > 1 && !VOWEL.test(rest.slice(1));
 }
-
-const PREPOSITION =
-  /(?<![\p{L}\p{N}_'’.-])(?<prep>w|we|z|ze|s|od|ode|bez|beze|przez|przeze|przed|przede|nad|nade|pod|pode|spod|spode)(?<sp>[ \t ]+)(?<quote>["„“«]?)(?<next>\p{L}+)/giu;
 
 /** Short form -> long form, used before "mnie"/"mną" (and clusters for w/z). */
 const LONG: Record<string, string> = {
@@ -78,28 +75,21 @@ function preferredForm(prep: string, next: string, afterWord = false): string | 
   return short;
 }
 
-function prepositionForms(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, PREPOSITION)) {
-    const { prep, next } = m.groups!;
-    // Acronyms and abbreviations ("z ZSRR", "w ww. czasopismach") are read letter by letter.
-    const end = m.index + m[0].length;
-    if (/^\p{Lu}{2,}/u.test(next) || /^\.[ \t\u00a0]*\p{Ll}/u.test(ctx.text.slice(end, end + 4)))
-      continue;
-    const wanted = preferredForm(
-      prep,
-      next,
-      /\p{Ll}[ \t\u00a0]+$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)),
-    );
-    if (!wanted || wanted === prep.toLowerCase()) continue;
-    if (userOrNamed(ctx, prep)) continue;
-    findings.push(
-      findingAt(ctx, m.index, m.index + prep.length, [caseLike(prep, wanted)], RULE, MESSAGE),
-    );
-  }
-  return findings;
+function prepositionForms(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { prep, next } = m.groups!;
+  // Acronyms and abbreviations ("z ZSRR", "w ww. czasopismach") are read letter by letter.
+  const end = m.index + m[0].length;
+  if (/^\p{Lu}{2,}/u.test(next) || /^\.[ \t\u00a0]*\p{Ll}/u.test(ctx.text.slice(end, end + 4)))
+    return null;
+  const wanted = preferredForm(
+    prep,
+    next,
+    /\p{Ll}[ \t\u00a0]+$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)),
+  );
+  if (!wanted || wanted === prep.toLowerCase()) return null;
+  if (userOrNamed(ctx, prep)) return null;
+  return findingAt(ctx, m.index, m.index + prep.length, [caseLike(prep, wanted)], RULE, MESSAGE);
 }
 
-export const PREDICATES = {
-  prepositionForms: (ctx: DetectContext) => (isPl(ctx) ? prepositionForms(ctx) : []),
-} satisfies Record<string, Detector>;
+/** The named frame fixes of the preposition form rule of grammar/rules/pl.yaml (`fixer:`). */
+export const FIXERS = { prepositionForms } satisfies Record<string, MatchFixer>;

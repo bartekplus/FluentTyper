@@ -1,7 +1,7 @@
-import type { Detector } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer, MatchResult } from "../../engine/reviewRules";
+import type { DetectContext } from "../reviewDetectors";
 import { finiteVerb, imperativeVerb, nounTags } from "./lexicon";
-import { caseLike, CLAUSE_START, findingAt, isPl, owned, userOrNamed } from "./shared";
+import { caseLike, findingAt, userOrNamed } from "./shared";
 
 /*
  * "żeby", "aby", "gdyby" carry the person ending themselves: "żebym zrobił", not "żeby
@@ -31,90 +31,51 @@ const ENDINGS: Array<[RegExp, string, string]> = [
   [/łyście$/u, "ły", "ście"],
 ];
 
-const CLAUSE = new RegExp(
-  `(?<![\\p{L}])(?<conj>żeby|ażeby|aby|gdyby)(?<person>m|ś|śmy|ście)?(?<between>(?:[ \\t\\u00a0]{1,8}(?!(?:że|który|która|które|i|a|ale|lub|oraz)[ \\t\\u00a0])\\p{L}{1,15}){0,3}?)[ \\t\\u00a0]{1,8}(?<verb>\\p{L}{2,}(?:łbym|łabym|łbyś|łabyś|libyśmy|łybyśmy|libyście|łybyście|łem|łam|łeś|łaś|liśmy|łyśmy|liście|łyście))(?![\\p{L}])`,
-  "giu",
-);
-
-function conjunctionEndings(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, CLAUSE)) {
-    const { conj, person, between, verb } = m.groups!;
-    // "żeby przed stołem", "aby działem": a noun in -łem is no verb.
-    if (nounTags(verb.toLowerCase()) || userOrNamed(ctx, verb)) continue;
-    const ending = ENDINGS.find(([regex]) => regex.test(verb));
-    if (!ending) continue;
-    const [regex, bare, ownPerson] = ending;
-    const fixedVerb = verb.replace(regex, bare);
-    // "gdybyś zrobiłeś": the conjunction already has it; otherwise it moves there.
-    const fixedConj = person ? `${conj}${person}` : `${conj}${ownPerson}`;
-    if (person && person !== ownPerson) continue;
-    findings.push(
-      findingAt(
-        ctx,
-        m.index,
-        m.index + m[0].length,
-        [`${caseLike(conj, fixedConj)}${between} ${fixedVerb}`],
-        RULE,
-        MESSAGE,
-      ),
-    );
-  }
-  return findings;
+function conjunctionEndings(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { conj, person, between, verb } = m.groups!;
+  // "żeby przed stołem", "aby działem": a noun in -łem is no verb.
+  if (nounTags(verb.toLowerCase()) || userOrNamed(ctx, verb)) return null;
+  const ending = ENDINGS.find(([regex]) => regex.test(verb));
+  if (!ending) return null;
+  const [regex, bare, ownPerson] = ending;
+  const fixedVerb = verb.replace(regex, bare);
+  // "gdybyś zrobiłeś": the conjunction already has it; otherwise it moves there.
+  const fixedConj = person ? `${conj}${person}` : `${conj}${ownPerson}`;
+  if (person && person !== ownPerson) return null;
+  return findingAt(
+    ctx,
+    m.index,
+    m.index + m[0].length,
+    [`${caseLike(conj, fixedConj)}${between} ${fixedVerb}`],
+    RULE,
+    MESSAGE,
+  );
 }
 
-/** "żebyś przeczyta", "by będzie": a present or future form where the past one goes. */
-const PRESENT_AFTER = new RegExp(
-  `(?<![\\p{L}])(?:żeby|ażeby|aby|by)(?:m|ś|śmy|ście)?[ \\t\\u00a0]{1,8}(?:(?:nie|się)[ \\t\\u00a0]{1,8})?(?<verb>\\p{L}{2,})(?![\\p{L}])`,
-  "giu",
-);
 const PAST = /(?:ł|ła|ło|li|ły)$/u;
 
-function presentAfterConjunction(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, PRESENT_AFTER)) {
-    const { verb } = m.groups!;
-    if (PAST.test(verb) || userOrNamed(ctx, verb)) continue;
-    const imperative = imperativeVerb(verb);
-    if (!imperative && !finiteVerb(verb)) continue;
-    const start = m.index + m[0].length - verb.length;
-    findings.push(
-      findingAt(ctx, start, start + verb.length, [], RULE, imperative ? IMPERATIVE : MESSAGE),
-    );
-  }
-  return findings;
+function presentAfterConjunction(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { verb } = m.groups!;
+  if (PAST.test(verb) || userOrNamed(ctx, verb)) return null;
+  const imperative = imperativeVerb(verb);
+  if (!imperative && !finiteVerb(verb)) return null;
+  const start = m.index + m[0].length - verb.length;
+  return findingAt(ctx, start, start + verb.length, [], RULE, imperative ? IMPERATIVE : MESSAGE);
 }
 
 const IMPERATIVE = "review_msg_pl_imperative" as const;
-/** Clitics and short words between the conjunction and its verb ("że mu daj"). */
-const CLITICS =
-  "(?:(?:nie|się|mi|mu|go|ją|je|to|tę|tego|jej|im|nam|wam|ci|cię|mnie|nas|was|już|teraz)[ \\t\\u00a0]{1,8}){0,2}";
-// ", że przeczytaj" (a reported clause after its comma: "tyle że uważaj" is a contrast),
-// "Czy przeczytaj" opening a question ("idź czy zostań" offers a choice).
-const IMPERATIVE_AFTER = new RegExp(
-  `(?:,[ \\t\\u00a0]{0,8}(?:że|iż)|${CLAUSE_START}czy)[ \\t\\u00a0]{1,8}${CLITICS}(?<verb>\\p{L}{2,})(?![\\p{L}])`,
-  "giud",
-);
 
 /** "Wiem, że przeczytaj", "Czy przeczytaj tę książkę?": an imperative in a clause. */
-function imperativeAfterConjunction(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, IMPERATIVE_AFTER)) {
-    const { verb } = m.groups!;
-    if (!imperativeVerb(verb) || userOrNamed(ctx, verb)) continue;
-    const [start, end] = m.indices!.groups!.verb;
-    findings.push(findingAt(ctx, start, end, [], RULE, IMPERATIVE));
-  }
-  return findings;
+function imperativeAfterConjunction(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { verb } = m.groups!;
+  if (!imperativeVerb(verb) || userOrNamed(ctx, verb)) return null;
+  const [start, end] = m.indices!.groups!.verb;
+  return findingAt(ctx, start, end, [], RULE, IMPERATIVE);
 }
 
-export const PREDICATES = {
-  conjunctions: (ctx: DetectContext) =>
-    isPl(ctx)
-      ? [
-          ...conjunctionEndings(ctx),
-          ...presentAfterConjunction(ctx),
-          ...imperativeAfterConjunction(ctx),
-        ]
-      : [],
-} satisfies Record<string, Detector>;
+/** The named frame fixes of the conjunction rule of grammar/rules/pl.yaml (`fixer:`). */
+export const FIXERS = {
+  conjunctionEndings,
+  presentAfterConjunction,
+  imperativeAfterConjunction,
+} satisfies Record<string, MatchFixer>;

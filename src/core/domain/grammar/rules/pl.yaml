@@ -36,6 +36,8 @@ fragments:
   MONTH_WORD: "stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I"
   DECADE_WORDS: "lata|lat|latach|latami|latom"
   NO_LETTER_AFTER: "(?![\\p{L}\\p{N}_'’-])"
+  # Clitics and short words between a conjunction and its verb ("że mu daj").
+  CLITICS: "(?:(?:nie|się|mi|mu|go|ją|je|to|tę|tego|jej|im|nam|wam|ci|cię|mnie|nas|was|już|teraz)[ \\t\\u00a0]{1,8}){0,2}"
   # One space character.
   SP: "[ \\t\\u00a0]"
   # Case endings typed after a digit: ordinal, cardinal, and numeral noun ("piątka") endings.
@@ -664,9 +666,19 @@ rules:
         scan: polish
         flags: gu
         fixer: clauseOpeners
+  # Prepositions with a vowel-extended form: "we" and "ze" before a hard consonant cluster ("we
+  # wtorek", "ze Świecia"), "ode/beze/przeze/przede/nade/pode" before "mnie/mną", and the short
+  # form everywhere else.
   - id: pl.prepositionForms
     checks: [polishPrepositionForms]
-    predicate: prepositionForms
+    style: match
+    message: review_msg_pl_preposition_form
+    frames:
+      # A preposition and the word after it: "w wtorek" -> "we wtorek", "od mnie" -> "ode mnie".
+      - regex: "(?<![\\p{L}\\p{N}_'\\u2019.-])(?<prep>w|we|z|ze|s|od|ode|bez|beze|przez|przeze|przed|przede|nad|nade|pod|pode|spod|spode)(?<sp>[ \\t\\u00A0]+)(?<quote>[\"\\u201E\\u201C\\u00AB]?)(?<next>\\p{L}+)"
+        scan: polish
+        flags: giu
+        fixer: prepositionForms
   - id: pl.wordFormsFrames
     checks: [englishPhraseCorrections]
     style: polish
@@ -1268,9 +1280,31 @@ rules:
       # gdańsku", the Gdańsk way).
       - regex: "(?=\\p{Ll})(?<=(?<![\\p{L}\\p{N}_'’.@/-])(?:[wW]|[wW]e|[dD]o|[zZ]|[zZ]e|[nN]a|[oO]d|[oO]de|[pP]rzez|[pP]od|[nN]ad|[pP]rzy|[kK]oło|[oO]koło|[sS]pod|[zZ]nad|[uU]|[dD]la|[oO]bok|[wW]okół|[nN]iedaleko|[kK]u|[pP]rzed|[zZ]a|[mM]iędzy|[pP]omiędzy){{S}})\\p{Ll}+(?:-\\p{Ll}+)?{{END}}"
         fixer: casingFrame15
+  # "żeby", "aby", "gdyby" carry the person ending themselves: "żebym zrobił", not "żeby
+  # zrobiłem" or "żeby zrobiłbym"; "gdybyś zrobił", not "gdybyś zrobiłeś".
   - id: pl.conjunctions
     checks: [polishCaseAgreement]
-    predicate: conjunctions
+    style: match
+    message: review_msg_pl_conjunction_ending
+    frames:
+      # "żeby zrobiłem" -> "żebym zrobił", "gdybyś zrobiłeś" -> "gdybyś zrobił": the conjunction
+      # carries the person ending.
+      - regex: "(?<![\\p{L}])(?<conj>żeby|ażeby|aby|gdyby)(?<person>m|ś|śmy|ście)?(?<between>(?:{{S}}(?!(?:że|który|która|które|i|a|ale|lub|oraz)[ \\t\\u00a0])\\p{L}{1,15}){0,3}?){{S}}(?<verb>\\p{L}{2,}(?:łbym|łabym|łbyś|łabyś|libyśmy|łybyśmy|libyście|łybyście|łem|łam|łeś|łaś|liśmy|łyśmy|liście|łyście))(?![\\p{L}])"
+        scan: polish
+        flags: giu
+        fixer: conjunctionEndings
+      # "żebyś przeczyta", "by będzie": a present or future form where the past one goes.
+      - regex: "(?<![\\p{L}])(?:żeby|ażeby|aby|by)(?:m|ś|śmy|ście)?{{S}}(?:(?:nie|się){{S}})?(?<verb>\\p{L}{2,})(?![\\p{L}])"
+        scan: polish
+        flags: giu
+        fixer: presentAfterConjunction
+      # "Wiem, że przeczytaj", "Czy przeczytaj tę książkę?": an imperative in a clause. ", że
+      # przeczytaj" (a reported clause after its comma: "tyle że uważaj" is a contrast), "Czy przeczytaj"
+      # opening a question ("idź czy zostań" offers a choice).
+      - regex: "(?:,[ \\t\\u00a0]{0,8}(?:że|iż)|(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))czy){{S}}{{CLITICS}}(?<verb>\\p{L}{2,})(?![\\p{L}])"
+        scan: polish
+        flags: gdiu
+        fixer: imperativeAfterConjunction
   - id: pl.clauses
     checks: [polishMissingComma]
     predicate: clauses
@@ -1679,12 +1713,31 @@ rules:
         scan: polish
         flags: giu
         fixer: atLeast
+  # A sentence that is only an adverbial participle phrase: "Przechodząc obok sklepu." No verb
+  # stands outside its subordinate clauses. Opt-in: notes and headings can be fragments on purpose.
   - id: pl.fragments
     checks: [englishSentenceFragment]
-    predicate: fragments
+    style: match
+    message: review_msg_sentence_fragment
+    frames:
+      # A sentence on one line that starts with a capital and ends with a full stop.
+      - regex: "(?<=^|[.!?\\u2026][ \\t\\u00A0\\n]{1,8})\\p{Lu}[^.!?\\u2026\\n]{0,400}\\.(?=[ \\t\\u00A0\\n]{1,8}[\\p{Lu}\\u201E\"\\u2014\\u2013-]|[ \\t\\u00A0\\n]*$)"
+        scan: polish
+        flags: gu
+        fixer: fragments
+  # A question that ends with a full stop: "Czy pójdziesz jutro do kina." -> "?". Opt-in: "Czy"
+  # opens a question only when no comma follows; a question word opens one only before a
+  # second-person verb, as "Jak widać…" and "Kiedy wrócił…" open statements.
   - id: pl.questions
     checks: [germanQuestionMarks]
-    predicate: questions
+    style: match
+    message: review_msg_question_mark
+    frames:
+      # A sentence on one line that starts with "Czy" or a question word and ends with a full stop.
+      - regex: "(?<=^|\\n|[.!?\\u2026][ \\t\\u00A0\\n]{1,8})(?<first>Czy|Dok\\u0105d|Dlaczego|Gdzie|Kiedy|Sk\\u0105d|Jak|Ile|Czemu|Kto|Co)(?![\\p{L}])[^.!?\\u2026\\n]{1,300}\\.(?=[ \\t\\u00A0\\n]{1,8}\\p{Lu}|[ \\t\\u00A0\\n]*$)"
+        scan: polish
+        flags: gu
+        fixer: questions
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:
