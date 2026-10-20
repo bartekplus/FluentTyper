@@ -791,7 +791,7 @@ rules:
     frames:
       # Chemical subscripts: "H2O" -> "H₂O". The fixer adds the guards that keep names and
       # models out.
-      - regex: "(?<![\\p{L}\\p{N}_./-])(?<target>\\d*(?:(?:H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Ti|Cr|Mn|Fe|Co|Ni|Cu|Zn|Br|Ag|I|Ba|Pt|Au|Hg|Pb|U)\\d*){2,})(?![\\p{L}\\p{N}_-])"
+      - regex: "(?<![\\p{L}\\p{N}_./-])\\d*(?:(?:H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Ti|Cr|Mn|Fe|Co|Ni|Cu|Zn|Br|Ag|I|Ba|Pt|Au|Hg|Pb|U)\\d*){2,}(?![\\p{L}\\p{N}_-])"
         flags: gu
         scan: owned
         fixer: formula
@@ -855,7 +855,7 @@ rules:
     frames:
       # "auto-estima" -> "autoestima": a prefix joins its word except before h or the vowel it
       # ends in.
-      - regex: "(?<![\\p{L}\\p{N}-])(?<target>(?<prefix>anti|auto|contra|extra|infra|intra|ultra|mega|micro|macro|neo|pseudo|proto|semi|mini|multi|arqui|tele|bio|super|hiper|inter|sub|bi|tri|tetra|penta|hexa|euro|pan|circum|co)-(?<word>{{LETTERS}}))(?![\\p{L}\\p{N}-])"
+      - regex: "(?<![\\p{L}\\p{N}-])(?<prefix>anti|auto|contra|extra|infra|intra|ultra|mega|micro|macro|neo|pseudo|proto|semi|mini|multi|arqui|tele|bio|super|hiper|inter|sub|bi|tri|tetra|penta|hexa|euro|pan|circum|co)-(?<word>{{LETTERS}})(?![\\p{L}\\p{N}-])"
         flags: gu
         scan: owned
         fixer: ao90Hyphenated

@@ -14666,7 +14666,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{L}\\p{N}_./-])(?<target>\\d*(?:(?:H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Ti|Cr|Mn|Fe|Co|Ni|Cu|Zn|Br|Ag|I|Ba|Pt|Au|Hg|Pb|U)\\d*){2,})(?![\\p{L}\\p{N}_-])",
+      "(?<![\\p{L}\\p{N}_./-])\\d*(?:(?:H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Ti|Cr|Mn|Fe|Co|Ni|Cu|Zn|Br|Ag|I|Ba|Pt|Au|Hg|Pb|U)\\d*){2,}(?![\\p{L}\\p{N}_-])",
     literals: [],
     fixer: "pt_BR:formula",
     flags: "gu",
@@ -14720,7 +14720,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
-      "(?<![\\p{L}\\p{N}-])(?<target>(?<prefix>anti|auto|contra|extra|infra|intra|ultra|mega|micro|macro|neo|pseudo|proto|semi|mini|multi|arqui|tele|bio|super|hiper|inter|sub|bi|tri|tetra|penta|hexa|euro|pan|circum|co)-(?<word>[a-zçáéíóúâêôãõà]+))(?![\\p{L}\\p{N}-])",
+      "(?<![\\p{L}\\p{N}-])(?<prefix>anti|auto|contra|extra|infra|intra|ultra|mega|micro|macro|neo|pseudo|proto|semi|mini|multi|arqui|tele|bio|super|hiper|inter|sub|bi|tri|tetra|penta|hexa|euro|pan|circum|co)-(?<word>[a-zçáéíóúâêôãõà]+)(?![\\p{L}\\p{N}-])",
     literals: [],
     fixer: "pt_BR:ao90Hyphenated",
     flags: "gu",
