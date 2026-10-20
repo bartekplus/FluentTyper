@@ -72,7 +72,6 @@ export const PREDICATES = mergePredicates(
   dialects.PREDICATES,
   lexical.PREDICATES,
   remaining.PREDICATES,
-  compoundForms.PREDICATES,
   dates.PREDICATES,
   usageTables.PREDICATES,
   contractionSlots.PREDICATES,
@@ -131,6 +130,7 @@ export const FIXERS = mergePredicates<Fixer>(
   typoSlots.FIXERS,
   verbSlots.FIXERS,
   remaining.FIXERS,
+  compoundForms.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */

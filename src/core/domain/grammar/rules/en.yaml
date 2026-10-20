@@ -23,6 +23,17 @@ fragments:
   NEGATION: "don['’]t|doesn['’]t|didn['’]t|never|not"
   VERB_OBJECT: "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what"
   SUBJECT: "I|you|we|they|he|she|it"
+  COMPOUNDFORMS_PHRASAL_KEYS: "warm{{S}}up|mock{{S}}up|sit{{S}}up|push{{S}}up|pull{{S}}up|chin{{S}}up|start{{S}}up|break{{S}}up|knock{{S}}out|kick{{S}}off|take{{S}}down|take{{S}}over|take{{S}}off|take{{S}}away|buy{{S}}back|flash{{S}}back|work{{S}}around|work{{S}}out|roll{{S}}out|sign{{S}}up|log{{S}}out|check{{S}}up|lay{{S}}out|lay{{S}}off|print{{S}}out|sell{{S}}out|lock{{S}}down|shut{{S}}down|break{{S}}down|break{{S}}out|set{{S}}back|push{{S}}back|follow{{S}}up|catch{{S}}up|clean{{S}}up|cut{{S}}off|pick{{S}}up|write{{S}}up|write{{S}}down|write{{S}}off|hook{{S}}up|mix{{S}}up|round{{S}}up|tune{{S}}up|wake{{S}}up|stand{{S}}up|get{{S}}together|make{{S}}over|do{{S}}over|blow{{S}}out|come{{S}}back|hang{{S}}over|pay{{S}}off|pay{{S}}out|give{{S}}away|get{{S}}away|carry{{S}}over|cover{{S}}up|close{{S}}up|hold{{S}}up|let{{S}}down|melt{{S}}down|touch{{S}}down|count{{S}}down|slow{{S}}down|trade{{S}}off|add{{S}}on|send{{S}}off|rip{{S}}off|bail{{S}}out|black{{S}}out|burn{{S}}out|lift{{S}}off|lock{{S}}out|shoot{{S}}out|stand{{S}}off|take{{S}}out|turn{{S}}around|drive{{S}}through|back{{S}}up|left{{S}}over|how{{S}}to|opt{{S}}in|opt{{S}}out|catch{{S}}all|toss{{S}}up"
+  COMPOUNDFORMS_ARTICLE: "a|an|the|my|your|his|our|their|its|another|every|no|any|first|this|that"
+  COMPOUNDFORMS_UNITS: "day|week|month|year|hour|minute|second|mile|page|step|point|word|character|paragraph|digit|letter|bit|byte|room|bedroom|bath|bathroom|door|story|storey|floor|season|figure|cylinder|car|degree|piece|karat|carat|wheel|course|inch|foot|meter|metre|yard|seat|person|man|member|player|lane|line|part|stage|level|track|game|hole|star|speed|gallon|liter|litre|pound|ounce|ton|watt|volt|megapixel|headed|sided|legged|wheeled|engined|factor|family"
+  COMPOUNDFORMS_NUMBER: "(?<n>[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+(?:\\.[0-9]+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|half|single|multi)"
+  COMPOUNDFORMS_NUMBER_WORDS: "one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|half|single|multi"
+  COMPOUNDFORMS_VERB_KEYS: "pressure{{S}}washing|problem{{S}}solving|hand{{S}}delivering|pressure{{S}}washes|pressure{{S}}washed|peer{{S}}reviewing|roller{{S}}skating|guilt{{S}}tripping|daisy{{S}}chaining|green{{S}}lighting|problem{{S}}solves|problem{{S}}solved|hand{{S}}delivered|hand{{S}}stitching|cross{{S}}checking|cherry{{S}}picking|mass{{S}}producing|short{{S}}changing|spell{{S}}checking|brain{{S}}storming|bench{{S}}pressing|peer{{S}}reviewed|roller{{S}}skates|roller{{S}}skated|strong{{S}}arming|guilt{{S}}tripped|daisy{{S}}chained|green{{S}}lighted|problem{{S}}solve|hand{{S}}delivers|hand{{S}}stitches|hand{{S}}stitched|hand{{S}}crafting|cross{{S}}checked|spot{{S}}checking|fact{{S}}checking|kick{{S}}starting|jump{{S}}starting|force{{S}}feeding|spoon{{S}}feeding|drop{{S}}shipping|sleep{{S}}walking|guest{{S}}editing|cherry{{S}}picked|mass{{S}}produces|mass{{S}}produced|short{{S}}changes|short{{S}}changed|sweet{{S}}talking|spell{{S}}checked|brain{{S}}stormed|bench{{S}}presses|bench{{S}}pressed|pressure{{S}}wash|power{{S}}washing|peer{{S}}reviews|role{{S}}playing|roller{{S}}skate|strong{{S}}armed|dead{{S}}lifting|daisy{{S}}chains|green{{S}}lights|fund{{S}}raising|hand{{S}}writing|hand{{S}}deliver|hand{{S}}crafted|hand{{S}}picking|cross{{S}}checks|spot{{S}}checked|fact{{S}}checked|kick{{S}}started|jump{{S}}started|drop{{S}}shipped|sleep{{S}}walked|day{{S}}dreaming|guest{{S}}edited|test{{S}}driving|back{{S}}filling|baby{{S}}sitting|cherry{{S}}picks|mass{{S}}produce|short{{S}}change|sweet{{S}}talked|spell{{S}}checks|brain{{S}}storms|power{{S}}washes|power{{S}}washed|peer{{S}}review|day{{S}}trading|role{{S}}played|strong{{S}}arms|dead{{S}}lifted|guilt{{S}}trips|daisy{{S}}chain|green{{S}}light|fund{{S}}raises|fund{{S}}raised|hand{{S}}writes|hand{{S}}stitch|hand{{S}}crafts|hand{{S}}picked|fine{{S}}tuning|cross{{S}}check|spot{{S}}checks|fact{{S}}checks|kick{{S}}starts|jump{{S}}starts|force{{S}}feeds|spoon{{S}}feeds|sleep{{S}}walks|day{{S}}dreamed|guest{{S}}edits|test{{S}}drives|back{{S}}filled|deep{{S}}frying|stir{{S}}frying|cherry{{S}}pick|sweet{{S}}talks|spell{{S}}check|brain{{S}}storm|bench{{S}}press|day{{S}}trades|day{{S}}traded|role{{S}}plays|strong{{S}}arm|dead{{S}}lifts|guilt{{S}}trip|fund{{S}}raise|hand{{S}}write|hand{{S}}wrote|hand{{S}}craft|hand{{S}}picks|fine{{S}}tunes|fine{{S}}tuned|spot{{S}}check|fact{{S}}check|kick{{S}}start|jump{{S}}start|force{{S}}feed|spoon{{S}}feed|drop{{S}}ships|sleep{{S}}walk|day{{S}}dreams|guest{{S}}edit|test{{S}}drive|test{{S}}drove|back{{S}}fills|sky{{S}}diving|deep{{S}}fries|deep{{S}}fried|stir{{S}}fries|stir{{S}}fried|sweet{{S}}talk|power{{S}}wash|day{{S}}trade|role{{S}}play|dead{{S}}lift|green{{S}}lit|hand{{S}}pick|fine{{S}}tune|force{{S}}fed|spoon{{S}}fed|drop{{S}}ship|day{{S}}dream|back{{S}}fill|baby{{S}}sits|sky{{S}}dives|sky{{S}}dived|baby{{S}}sit|baby{{S}}sat|sky{{S}}dive|deep{{S}}fry|stir{{S}}fry"
+  COMPOUNDFORMS_SLOT: "(?:(?<modal>will|would|can|could|should|must|might|may|shall|cannot|can['’]t|won['’]t|wouldn['’]t|couldn['’]t|shouldn['’]t|don['’]t|didn['’]t|doesn['’]t|do{{S}}not|did{{S}}not|does{{S}}not|let['’]s|please|to)|(?<asked>(?:can|could|would|will|should|shall|do|did|does){{S}}(?:I|you|we|they|he|she))|(?<=(?:^|[.!?;:,(\\n]|\\b(?:and|but|or|so|that|if|when|because|then))[ \\t\\u00a0\"“]{0,8})(?<subject>I|you|we|they|he|she)|(?<have>have|has|had|(?:I|you|we|they)['’](?:ve|d))|(?<be>am|is|are|was|were|be|been|point|(?:I|you|we|they|he|she)['’](?:m|re|s)))"
+  COMPOUNDFORMS_ADVERB: "(?:(?:always|never|often|usually|just|also|really|sometimes|then|still|already|even|not|please|yet){{S}})?"
+  COMPOUNDFORMS_MODIFIER_KEYS: "quarter{{S}}over{{S}}quarter|month{{S}}over{{S}}month|decision{{S}}making|all{{S}}you{{S}}can{{S}}eat|week{{S}}over{{S}}week|year{{S}}over{{S}}year|three{{S}}quarters|make{{S}}or{{S}}break|out{{S}}of{{S}}pocket|note{{S}}taking|one{{S}}quarter|true{{S}}crime|prime{{S}}time|month{{S}}long|hands{{S}}free|high{{S}}speed|two{{S}}thirds|bottom{{S}}up|open{{S}}plan|late{{S}}term|no{{S}}haggle|read{{S}}only|logged{{S}}in|on{{S}}screen|week{{S}}long|year{{S}}long|hour{{S}}long|full{{S}}time|part{{S}}time|one{{S}}third|low{{S}}cost|high{{S}}end|top{{S}}down|same{{S}}sex|no{{S}}fault|day{{S}}long|low{{S}}end|mail{{S}}in|on{{S}}page|on{{S}}off"
+  COMPOUNDFORMS_DETERMINER: "a|an|the|my|your|his|her|our|their|its|this|these|those|some|any|every|each|another|very|more|most|best|(?!(?:let|it|that|there|what|he|she|who|here|where)['’]s)\\p{L}+['’]s"
+  COMPOUNDFORMS_EX_PEOPLE: "president|presidents|wife|wives|husband|husbands|boyfriend|boyfriends|girlfriend|girlfriends|partner|partners|employee|employees|member|members|colleague|colleagues|boss|convict|convicts|smoker|smokers|minister|ministers|soldier|soldiers|spouse|spouses|champion"
   OBJECT_START: "the|a|an|this|that|these|those|it|them|my|your|his|her|our|their|some|any|all|each|every"
   INFINITIVE_LEAD: "need|needs|needed|want|wants|wanted|plan|plans|planned|try|tries|tried|trying|able|unable|how|going|forgot|forget|remember|allowed|asked|ask|tell|told"
   START: "(?<![\\p{L}'’])"
@@ -1126,7 +1137,75 @@ rules:
     predicate: styleRewordings
   - id: en.compoundForms
     checks: [englishClosedCompounds, englishContextualCompounds]
-    predicate: compoundForms
+    style: match
+    message: review_msg_compounds
+    frames:
+      # Phrasal verbs whose noun is joined or hyphenated: "a warm up" is "a warm-up". A word
+      # after the particle that opens a noun phrase makes it a preposition: "the walk through
+      # the park". "(?=\p{L})" opens the long frames: off words (on runs of spaces) their
+      # alternations never run.
+      - regex: "(?=\\p{L})(?<det>{{COMPOUNDFORMS_ARTICLE}}|(?:after|before|during|since|of|from|with|about|for|in|on){{S}}her){{S}}(?:(?<adj>[a-z]+){{S}})?(?<target>{{COMPOUNDFORMS_PHRASAL_KEYS}}){{E}}"
+        check: englishContextualCompounds
+        fixer: compoundPhrasalNoun
+      # Plurals have no verb reading: "two warm ups", "the kick offs".
+      - regex: "(?=\\p{L})(?<target>warm{{S}}ups|mock{{S}}ups|sit{{S}}ups|push{{S}}ups|pull{{S}}ups|chin{{S}}ups|start{{S}}ups|break{{S}}ups|knock{{S}}outs|kick{{S}}offs|take{{S}}downs|take{{S}}overs|take{{S}}offs|take{{S}}aways|buy{{S}}backs|flash{{S}}backs|work{{S}}arounds|work{{S}}outs|roll{{S}}outs|sign{{S}}ups|log{{S}}outs|check{{S}}ups|lay{{S}}outs|lay{{S}}offs|print{{S}}outs|sell{{S}}outs|lock{{S}}downs|shut{{S}}downs|break{{S}}downs|break{{S}}outs|set{{S}}backs|push{{S}}backs|follow{{S}}ups|clean{{S}}ups|cut{{S}}offs|pick{{S}}ups|write{{S}}ups|write{{S}}downs|write{{S}}offs|hook{{S}}ups|mix{{S}}ups|round{{S}}ups|tune{{S}}ups|wake{{S}}ups|stand{{S}}ups|get{{S}}togethers|make{{S}}overs|do{{S}}overs|blow{{S}}outs|come{{S}}backs|hang{{S}}overs|pay{{S}}offs|pay{{S}}outs|give{{S}}aways|get{{S}}aways|carry{{S}}overs|cover{{S}}ups|close{{S}}ups|hold{{S}}ups|let{{S}}downs|melt{{S}}downs|touch{{S}}downs|count{{S}}downs|slow{{S}}downs|trade{{S}}offs|add{{S}}ons|send{{S}}offs|rip{{S}}offs|bail{{S}}outs|black{{S}}outs|burn{{S}}outs|lift{{S}}offs|lock{{S}}outs|shoot{{S}}outs|stand{{S}}offs|take{{S}}outs|turn{{S}}arounds|drive{{S}}throughs|toss{{S}}ups){{E}}"
+        check: englishContextualCompounds
+        fixer: compoundPhrasalPlural
+      # Numbers and units joined before a noun: "a 10 page report", "a two year old car".
+      - regex: "(?<![\\p{N}.,/])(?<target>{{COMPOUNDFORMS_NUMBER}}{{S}}(?<unit>{{COMPOUNDFORMS_UNITS}})(?:{{S}}(?<old>old)(?<olds>s)?|-(?<hold>old)(?<holds>s)?)?)(?={{S}}(?<next>[\\p{L}\\p{N}]+)|[ \\t\\u00a0]*(?<end>[.,;:!?)]|$))"
+        check: englishContextualCompounds
+        fixer: compoundNumberUnit
+      # "a two-year old reindeer": the hyphen stops one word short.
+      - regex: "(?<![\\p{N}.,/])(?<target>(?<n>[0-9]+|{{COMPOUNDFORMS_NUMBER_WORDS}})-(?<unit>year|month|week|day){{S}}(?<old>old)(?<olds>s)?){{E}}"
+        check: englishContextualCompounds
+        fixer: compoundAgeOnly
+      # "May be I am wrong" opens with the adverb "maybe"; "it may be" is the verb.
+      - regex: "(?=may{{S}}be)(?:(?<=(?:^|[.!?(\\n])[ \\t\\u00a0\"“]{0,8})(?<target>may{{S}}be)(?={{S}}(?:I|we|you|he|she|they|there|his|her|my|your|our|their|someone|somebody|something|this|that|it['’]s|not){{E}})|(?<=\\b(?:is|are|was|were|it['’]s|this['’]s|that['’]s){{S}})(?<target2>may{{S}}be)(?={{S}}(?:the|a|an|some|just|because|not|it|this|that|too|very|so|more|less|still|also|only|even|better|worse){{E}})|(?<target3>may{{S}}be)(?={{S}}(?:could|can|should|would|will){{E}}))"
+        check: englishContextualCompounds
+        owner: none
+        fixer: compoundMayBe
+      # "sign into your account" is "sign in to"; "signed into law" is the verb with "into".
+      - regex: "(?<target>(?<verb>sign|signs|signed|signing|log|logs|logged|logging){{S}}into)(?={{S}}(?:your|my|his|her|our|their|the|an?){{S}}(?:[\\p{L}-]+{{S}})?(?:accounts?|profiles?|apps?|sites?|website|portal|system|computer|e-?mail|server|dashboard|meeting|session|network|device){{E}})"
+        check: englishContextualCompounds
+        fixer: compoundSignInto
+      # "an American born scientist", "English speaking people".
+      - regex: "(?<target>(?<place>\\p{L}{3,}){{S}}(?<kind>born|speaking|based)){{E}}"
+        check: englishContextualCompounds
+        fixer: compoundOrigin
+      # "I paid (may be) too much."
+      - regex: "(?<=\\()(?<target>may{{S}}be)(?=\\))"
+        check: englishContextualCompounds
+        fixer: compoundParenMaybe
+      # The frames below open with a lookahead on their words: the clause lookbehinds after it
+      # then run only where the words are, not at every position (JavaScriptCore's regex
+      # interpreter would try them all).
+      # "an on going problem", "on going maintenance" at a sentence start; "keep on going" stays.
+      - regex: "(?=on{{S}}going)(?:(?<=\\b(?:an|the|their|our|his|her|its|my|your|this|that|any|usual|an{{S}}){{S}})|(?<=(?:^|[.!?\\n])[ \\t\\u00a0]{0,8}))(?<target>on{{S}}going){{E}}"
+        check: englishContextualCompounds
+        fixer: compoundOnGoing
+      # "Does any one need help?": the pronoun before a verb, not "any one of them".
+      - regex: "(?=(?:any|some){{S}}one)(?<=(?:^|[.!?;\\n]|\\b(?:does|did|do|can|could|will|would|has|have|is|was|if|when|and|but){{S}})[ \\t\\u00a0]{0,8})(?<target>(?<q>any|some){{S}}one){{S}}(?<verb>[a-z]+){{E}}"
+        check: englishContextualCompounds
+        fixer: compoundAnyOne
+      # Compound verbs written open in a verb slot: "we will peer review it" -> "peer-review".
+      - regex: "(?=\\p{L}){{COMPOUNDFORMS_SLOT}}{{S}}{{COMPOUNDFORMS_ADVERB}}(?<target>{{COMPOUNDFORMS_VERB_KEYS}}){{E}}"
+        check: englishClosedCompounds
+        fixer: compoundVerb
+      # Modifiers hyphenated before a noun; a noun must follow (or a determiner precede).
+      - regex: "(?=\\p{L})(?<target>{{COMPOUNDFORMS_MODIFIER_KEYS}}){{E}}"
+        check: englishClosedCompounds
+        fixer: compoundNounModifier
+      # Modifiers after an article or possessive: "the end to end trip", "your go to person".
+      - regex: "(?<det>{{COMPOUNDFORMS_DETERMINER}}){{S}}(?<target>multi{{S}}million{{S}}dollar|easy{{S}}to{{S}}understand|person{{S}}to{{S}}person|state{{S}}of{{S}}the{{S}}art|long{{S}}established|life{{S}}threatening|all{{S}}encompassing|difficult{{S}}to{{S}}use|well{{S}}established|record{{S}}breaking|easy{{S}}to{{S}}install|above{{S}}mentioned|month{{S}}to{{S}}month|point{{S}}to{{S}}point|not{{S}}for{{S}}profit|time{{S}}consuming|easy{{S}}to{{S}}follow|million{{S}}dollar|billion{{S}}dollar|second{{S}}largest|fourth{{S}}largest|second{{S}}biggest|second{{S}}highest|out{{S}}of{{S}}the{{S}}way|out{{S}}of{{S}}the{{S}}box|coast{{S}}to{{S}}coast|rags{{S}}to{{S}}riches|do{{S}}it{{S}}yourself|long{{S}}standing|life{{S}}changing|award{{S}}winning|all{{S}}inclusive|easy{{S}}to{{S}}learn|simple{{S}}to{{S}}use|third{{S}}largest|fifth{{S}}largest|third{{S}}biggest|off{{S}}the{{S}}shelf|one{{S}}of{{S}}a{{S}}kind|old{{S}}fashioned|user{{S}}friendly|card{{S}}carrying|cut{{S}}and{{S}}paste|long{{S}}distance|drive{{S}}through|year{{S}}to{{S}}year|step{{S}}by{{S}}step|door{{S}}to{{S}}door|face{{S}}to{{S}}face|head{{S}}to{{S}}head|back{{S}}to{{S}}back|peer{{S}}to{{S}}peer|many{{S}}to{{S}}many|long{{S}}awaited|long{{S}}lasting|mind{{S}}blowing|eye{{S}}catching|best{{S}}selling|fast{{S}}growing|never{{S}}ending|all{{S}}powerful|go{{S}}to{{S}}market|easy{{S}}to{{S}}read|hard{{S}}to{{S}}find|ready{{S}}to{{S}}use|out{{S}}of{{S}}place|high{{S}}quality|well{{S}}meaning|wall{{S}}to{{S}}wall|hand{{S}}to{{S}}hand|fly{{S}}by{{S}}night|dual{{S}}purpose|down{{S}}and{{S}}out|hard{{S}}working|good{{S}}looking|right{{S}}handed|far{{S}}reaching|one{{S}}to{{S}}many|straight{{S}}up|much{{S}}needed|short{{S}}lived|life{{S}}saving|all{{S}}knowing|all{{S}}natural|easy{{S}}to{{S}}use|hard{{S}}to{{S}}use|second{{S}}best|last{{S}}minute|open{{S}}source|first{{S}}class|second{{S}}hand|large{{S}}scale|small{{S}}scale|world{{S}}class|tailor{{S}}made|even{{S}}handed|ill{{S}}advised|out{{S}}of{{S}}body|mom{{S}}and{{S}}pop|cooling{{S}}off|middle{{S}}aged|left{{S}}handed|short{{S}}range|under{{S}}cover|know{{S}}it{{S}}all|end{{S}}to{{S}}end|day{{S}}to{{S}}day|one{{S}}to{{S}}one|up{{S}}to{{S}}date|for{{S}}profit|long{{S}}lived|all{{S}}seeing|third{{S}}best|short{{S}}term|well{{S}}known|full{{S}}scale|high{{S}}level|first{{S}}hand|heavy{{S}}duty|cut{{S}}throat|knife{{S}}edge|open{{S}}ended|long{{S}}range|high{{S}}speed|last{{S}}ditch|single{{S}}use|all{{S}}in{{S}}one|about{{S}}face|so{{S}}called|long{{S}}term|real{{S}}time|top{{S}}notch|low{{S}}level|read{{S}}only|brand{{S}}new|duty{{S}}free|do{{S}}or{{S}}die|follow{{S}}on|brick{{S}}red|full{{S}}time|part{{S}}time|high{{S}}risk|life{{S}}long|out{{S}}going|catch{{S}}all|home{{S}}work|drive{{S}}way|check{{S}}box|all{{S}}time|low{{S}}cost|high{{S}}end|tax{{S}}free|bug{{S}}eyed|new{{S}}look|low{{S}}risk|on{{S}}board|zero{{S}}day|hands{{S}}on|over{{S}}use|all{{S}}new|low{{S}}end|one{{S}}off|post{{S}}it|go{{S}}to|no{{S}}go){{E}}"
+        check: englishClosedCompounds
+        fixer: compoundArticleModifier
+      # Prefixes that are hyphenated before their word: "quasi judicial", "mid thirties", "pre 1995".
+      - regex: "(?<target>(?<prefix>quasi|mid|pre|post|anti){{S}}(?<word>[\\p{L}\\p{N}]+)){{E}}"
+        check: englishClosedCompounds
+        fixer: compoundPrefixed
+      - regex: "(?<target>ex{{S}}(?:{{COMPOUNDFORMS_EX_PEOPLE}})){{E}}"
+        check: englishClosedCompounds
+        fixer: compoundExPartner
   - id: en.dates
     checks: [englishDateConsistency]
     predicate: dates
