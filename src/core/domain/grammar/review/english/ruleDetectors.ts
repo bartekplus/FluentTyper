@@ -67,7 +67,6 @@ export const PREDICATES = mergePredicates(
   fixedPhrases.PREDICATES,
   confusions1.PREDICATES,
   confusions2.PREDICATES,
-  grammarStyle2.PREDICATES,
   dialects.PREDICATES,
   lexical.PREDICATES,
   remaining.PREDICATES,
@@ -131,6 +130,7 @@ export const FIXERS = mergePredicates<Fixer>(
   verbSlots.FIXERS,
   remaining.FIXERS,
   grammarStyle1.FIXERS,
+  grammarStyle2.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */

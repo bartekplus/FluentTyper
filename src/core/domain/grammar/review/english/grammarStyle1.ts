@@ -9,7 +9,6 @@ import {
   around,
   caseLike,
   detectAll,
-  frameMatches,
   found,
   hasUserOrCasedWord,
   nextLowerWord,
@@ -24,23 +23,6 @@ import { namedExampleBefore } from "../exampleCues";
 import { objectGapBefore } from "./slotWords";
 
 // ---------------------------------------------------------------------------- helpers
-
-/** The chunk's text names a word at all: rare-word detectors skip chunks without it. */
-// `word` is a global, literal-led regex: the engine scans for it quickly.
-export const mentions = (ctx: DetectContext, word: RegExp) => {
-  word.lastIndex = Math.max(0, ctx.from - 256);
-  const m = word.exec(ctx.scanText);
-  return !!m && m.index < ctx.to + 64;
-};
-/** frameMatches, skipped outright on chunks without the pattern's rare literal. */
-export function* gatedMatches(
-  ctx: DetectContext,
-  gate: RegExp,
-  pattern: string | RegExp,
-  owner?: Parameters<typeof frameMatches>[2],
-): Generator<RegExpExecArray> {
-  if (mentions(ctx, gate)) yield* frameMatches(ctx, pattern, owner);
-}
 
 const atClauseStart = (ctx: DetectContext, index: number) => {
   const before = ctx.text.slice(Math.max(0, index - 96), index);

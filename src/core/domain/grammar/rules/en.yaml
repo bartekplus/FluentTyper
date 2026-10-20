@@ -1212,28 +1212,236 @@ rules:
         fixer: removeOxfordComma
   - id: en.sentenceTemplates
     checks: [englishSentenceStructure]
-    predicate: sentenceTemplates
+    style: template
+    message: review_msg_sentence_structure
+    frames:
+      # "Tell me if there a delay": the clause has lost its verb.
+      - regex: "(?:if|when|whenever|whether|because|unless|since|while|until|once){{S}}(?<target>there{{S}})(?=(?:a|an|another){{E}})"
+        gate: "there\\s+(?:a|an|another)\\b"
+        gateFlags: giu
+        fix: "there is "
+      # "I am not be happy": "be" after a finite be-verb and "not".
+      - regex: "(?:am|is|are|was|were|i['’]m|you['’]re|we['’]re|they['’]re){{S}}(?<target>not{{S}}be){{E}}"
+        gate: "not\\s+be\\b"
+        gateFlags: giu
+        fix: not
+  - id: en.sentenceFrames
+    checks: [englishSentenceStructure]
+    style: match
+    message: review_msg_sentence_structure
+    frames:
+      # "Do I interested in music?": an adjective after "do I" needs "am I".
+      - regex: "(?<target>do){{S}}I{{S}}(?:not{{S}})?(?<adj>\\p{L}+){{E}}(?:{{S}}(?<after>\\p{L}+))?"
+        gate: "\\bdo\\s+i\\b"
+        gateFlags: giu
+        fixer: doIAdjective
+      # "Please provide reproducible example": a request verb, a modifier and a countable
+      # issue-report noun with no article.
+      - regex: "(?=(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce){{S}})(?<=(?<![\\p{L}'’])(?:please|you|we|i|they|to|should|can|could|will|would|must){{S}})(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce){{S}}(?<target>(?:more{{S}})?(?<adj>\\p{L}+){{S}}(?:example|reproduction|repro|test{{S}}case|bug{{S}}report|report|summary|ticket|scenario|explanation|fix|update|screenshot|log|note|comment|feature|solution|answer|response|change|patch|description))(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|{{S}}(?:of|for|about|in|on){{E}})"
+        gate: "(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)\\s"
+        gateFlags: giu
+        fixer: missingArticle
   - id: en.phraseTemplates
+    checks: [englishPhraseCorrections]
+    style: template
+    message: review_msg_phrase_correction
+    frames:
+      # A frame scan costs a pass over the chunk: a keyword gate skips most chunks. A frame
+      # without a gate is gated on its own required literal.
+      - regex: "(?:look|looks|looked|looking){{S}}(?<target>likes){{E}}"
+        fix: like
+      - regex: "(?:i|you|we|they){{S}}(?<target>no)(?={{S}}nothing{{E}})"
+        message: review_msg_typo
+        gate: "no\\s+nothing"
+        gateFlags: giu
+        fix: know
+      - regex: "(?:he|she|it){{S}}(?<target>no)(?={{S}}nothing{{E}})"
+        message: review_msg_typo
+        gate: "no\\s+nothing"
+        gateFlags: giu
+        fix: knows
+  - id: en.compoundTemplates
+    checks: [englishClosedCompounds]
+    style: template
+    message: review_msg_closed_compound
+    frames:
+      # ", where as cats…" contrasts two clauses; "where, as a child, …" is a place.
+      - regex: "(?=where{{S}}as)(?<=,{{S}})(?<target>where{{S}}as){{S}}(?!(?:a|an|the|soon|long|well|much|many|far|if|though|usual|always|before|such|of|to){{E}})"
+        gate: "where\\s+as\\b"
+        gateFlags: giu
+        fix: whereas
+  - id: en.phraseFrames
     checks: [englishPhraseCorrections, englishClosedCompounds, englishCanonicalCasing]
-    predicate: phraseTemplates
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # Names whose spelling or hyphen is fixed, written canonically whatever the typed case.
+      - regex: "(?<target>(?:noble|nobel){{S}}(?:peace|piece){{S}}(?:prize|price|prise)){{E}}"
+        check: englishPhraseCorrections
+        message: review_msg_typo
+        gate: "nob(?:le|el)\\s"
+        gateFlags: giu
+        fixer: nobelPeacePrize
+      - regex: "(?<target>goggle|googol)(?={{S}}(?:analytics|maps|slides|forms|drive|search|workspace|photos|docs|mail|calendar|sheets|chrome|cloud|play|translate|meet|earth|scholar|ads|news|books|assistant|lens|fonts){{E}})"
+        check: englishPhraseCorrections
+        message: review_msg_typo
+        gate: "goggle|googol"
+        gateFlags: giu
+        fixer: googleName
+      - regex: "(?<target>mercedes{{S}}benz){{E}}"
+        check: englishClosedCompounds
+        fixer: mercedesBenz
+      - regex: "(?<target>wordpress\\.com){{E}}"
+        check: englishCanonicalCasing
+        message: review_msg_canonical_casing
+        fixer: wordPressCom
+      # "There after came a second wave": a clause-initial adverb before a verb or auxiliary.
+      - regex: "(?<target>there{{S}}after){{S}}(?<next>\\p{L}+){{E}}"
+        check: englishClosedCompounds
+        gate: "there\\s+after"
+        gateFlags: giu
+        fixer: thereAfter
+      # Compound modifiers and nouns written as two words before a noun: "an easy going person".
+      - regex: "(?<target>easy{{S}}going){{S}}(?<next>\\p{L}+){{E}}"
+        check: englishClosedCompounds
+        gate: "easy\\s+going"
+        gateFlags: giu
+        fixer: easyGoing
+      # "No one handed in…" is a pronoun and a verb.
+      - regex: "(?<target>(?:one|two){{S}}handed){{S}}(?<next>\\p{L}+){{E}}"
+        check: englishClosedCompounds
+        fixer: oneHanded
+      # "The first person reports to…" is an ordinal phrase before its verb.
+      - regex: "(?<target>(?:first|second|third){{S}}person){{S}}(?<next>\\p{L}+){{E}}"
+        check: englishClosedCompounds
+        fixer: firstPerson
+      - regex: "(?<target>(?:rainbow|cream|flesh|straw|honey|rust|copper|bronze|olive|sand){{S}}colou?red){{S}}(?<next>\\p{L}+){{E}}"
+        check: englishClosedCompounds
+        gate: "colou?red"
+        gateFlags: giu
+        fixer: colouredCompound
+      - regex: "(?<target>password{{S}}protected){{S}}(?<next>\\p{L}+){{E}}"
+        check: englishClosedCompounds
+        gate: "password\\s+protected"
+        gateFlags: giu
+        fixer: passwordProtected
+      # "your self - worth" is a spaced hyphen; "your self" alone is the pronoun. The other
+      # forms ("him self", "our selves") are phrase rows.
+      - regex: "(?<target>your{{S}}self){{E}}(?![ \\t\\u00a0]*[-–])"
+        check: englishClosedCompounds
+        gate: "your\\s+self\\b"
+        gateFlags: giu
+        fixer: yourSelf
+      # "a ok" in lowercase or capitals; "Is plan A ok?" names an option.
+      - regex: "(?<target>a{{S}}ok(?:ay)?){{E}}"
+        check: englishClosedCompounds
+        gate: "\\ba\\s+ok"
+        gateFlags: giu
+        fixer: aOk
+      - regex: "(?<target>tomorrows){{S}}(?<next>\\p{L}+){{E}}"
+        check: englishClosedCompounds
+        fixer: tomorrowsNoun
+      # "Prices rose over time" is a phrase; "over time pay" is a noun compound.
+      - regex: "(?<target>over{{S}}time){{S}}(?:pay|wages?|hours|rates?|shifts?|claims?|approvals?|budgets?|details){{E}}"
+        check: englishClosedCompounds
+        gate: "over\\s+time"
+        gateFlags: giu
+        fixer: overTime
+      # "Her make up looked great" is a noun; "help her make up a story" is a verb.
+      - regex: "(?<target>make{{S}}up)(?:{{S}}(?<next>\\p{L}+){{E}})?"
+        check: englishClosedCompounds
+        gate: "make\\s+up"
+        gateFlags: giu
+        fixer: makeUp
+      # "a built in feature"; "It was built in Rust" stays.
+      - regex: "(?<target>built{{S}}in){{S}}(?<next>\\p{L}+){{E}}(?:{{S}}(?<then>\\p{L}+))?"
+        check: englishClosedCompounds
+        gate: "built\\s+in"
+        gateFlags: giu
+        fixer: builtIn
   - id: en.doubleNegativeTemplates
     checks: [englishUsagePhrases]
-    predicate: doubleNegativeTemplates
+    style: template
+    message: review_msg_double_negative
+    frames:
+      # "I haven't done no harm": the perfect is already negative. "haven't said no" refuses,
+      # and "hasn't got no…" is mostly quoted dialect.
+      - regex: "(?:haven['’]t|hasn['’]t|hadn['’]t|(?:have|has|had){{S}}(?:not|n['’]t)){{S}}(?!(?:said|got){{E}})\\p{L}+{{S}}(?<target>no){{S}}(?!(?:one|longer|matter|more|less|doubt|further|sooner|way|thanks|for){{E}})\\p{L}+{{E}}"
+        gate: "\\bno\\b"
+        gateFlags: giu
+        fix: any
+      - regex: "(?:didn['’]t|did{{S}}not|don['’]t|do{{S}}not|doesn['’]t|does{{S}}not|won['’]t|wouldn['’]t){{S}}take{{S}}(?<target>no){{S}}(?!(?:one|longer|matter|more|less|doubt|further|sooner|way|thanks|for){{E}})\\p{L}+{{E}}"
+        gate: "take\\s+no\\b"
+        gateFlags: giu
+        fix: any
   - id: en.itTime
     checks: [englishItsContext]
-    predicate: itTime
+    style: match
+    message: review_msg_its_contraction
+    frames:
+      # "It time to leave": the clause needs "it's". "Give it time to heal" keeps its object.
+      - regex: "(?<target>it){{S}}time{{S}}(?:to|for){{E}}"
+        gate: "\\bit\\s+time\\b"
+        gateFlags: giu
+        fixer: itTime
   - id: en.youArePredicate
     checks: [englishYourYouAre]
-    predicate: youArePredicate
+    style: match
+    message: review_msg_your_you_are
+    frames:
+      # Clause-initial "ur ready?", "ya really dedicated": "you're" before a predicate
+      # adjective.
+      - regex: "(?<target>ur|ya|yr){{S}}(?:(?<adverb>\\p{L}+ly){{S}})?(?<adj>\\p{L}+){{COMPLETE}}"
+        gate: "\\b(?:ur|ya|yr)\\s"
+        gateFlags: giu
+        fixer: youArePredicate
   - id: en.doubledTo
     checks: [englishRepeatedWords]
-    predicate: doubledTo
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      # "a chance to to refer", "applied to to correction": a doubled "to" the core rule
+      # leaves.
+      - regex: "(?<pair>to{{S}}to){{S}}(?<next>\\p{L}+){{E}}"
+        owner: pair
+        gate: "\\bto\\s+to\\b"
+        gateFlags: giu
+        fixer: doubledTo
   - id: en.existentialPlural
     checks: [englishExistentialAgreement]
-    predicate: existentialPlural
+    style: match
+    message: review_msg_existential_agreement
+    frames:
+      # "there is strings…": a plural the lexicon knows after singular existential "there".
+      - regex: "there{{S}}(?<verb>is|was){{S}}(?<noun>\\p{L}+s){{E}}(?!{{S}}(?:of|and){{E}})"
+        owner: verb
+        gate: "there\\s+(?:is|was)\\s"
+        gateFlags: giu
+        fixer: existentialPlural
   - id: en.styleTemplates
     checks: [stylePhrasing]
-    predicate: styleTemplates
+    style: template
+    message: review_msg_style_phrasing
+    frames:
+      # "No thanks" opens with an interjection; "No thanks to you" is a different idiom.
+      - regex: "(?<target>no)(?={{S}}thanks{{E}}(?!{{S}}to{{E}}))"
+        gate: "no\\s+thanks"
+        gateFlags: giu
+        fix: "no,"
+        clauseStart: true
+  - id: en.includingButNotLimited
+    checks: [stylePhrasing]
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # ", including, but not limited to, …": the phrase is set off on both sides. The match
+      # start owns it.
+      - regex: "(?<=\\p{L})(?<lead>,?{{S}})including(?<c1>,?){{S}}but{{S}}not{{S}}limited{{S}}to(?<c2>,?)(?={{S}}\\p{L})"
+        flags: dgiu
+        owner: none
+        gate: "limited\\s+to"
+        gateFlags: giu
+        fixer: includingButNotLimited
   - id: en.iseForms
     checks: [englishAmericanSpelling, englishOxfordSpelling]
     predicate: iseForms
