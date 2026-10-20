@@ -357,14 +357,15 @@ export class PresageHandler {
     if (!this.emojiSuggestions) {
       return [];
     }
+    const token = context.snippetToken;
     const seen = new Set(candidates.map(({ text }) => normalizePrediction(text)));
-    return matchEmoji(context.snippetToken, MAX_EMOJI_SUGGESTIONS)
+    // A finished word ("the") is what the user means: only exact names, no "thermometer".
+    return matchEmoji(token, MAX_EMOJI_SUGGESTIONS, !seen.has(token))
       .filter(({ emoji }) => !seen.has(emoji))
       .map(({ emoji, name }) => ({
         text: emoji,
         snippetShortcut: name,
-        // Emoji first must stay first: exactSnippet stops the exact-word sort in finalizePrediction.
-        ...(this.emojiFirst && { exactSnippet: true }),
+        ...(this.emojiFirst && { pinned: true }),
       }));
   }
 
@@ -438,9 +439,10 @@ export class PresageHandler {
     // eg. if input is "the act", then "act" will be first and "action" will be second
     // A typed snippet shortcut keeps its expansion first, not the same dictionary word (#489).
     if (candidates.length > 1 && snippetToken && !candidates.some((c) => c.exactSnippet)) {
-      const isExact = ({ text }: PredictionCandidate) => text.toLocaleLowerCase() === snippetToken;
-      // Stable sort: exact match first, otherwise keep Presage order.
-      candidates.sort((a, b) => Number(isExact(b)) - Number(isExact(a)));
+      const rank = ({ text, pinned }: PredictionCandidate) =>
+        pinned ? 2 : Number(text.toLocaleLowerCase() === snippetToken);
+      // Stable sort: pinned rows, then the exact match, otherwise keep Presage order.
+      candidates.sort((a, b) => rank(b) - rank(a));
       predictions = candidates.map(({ text }) => text);
     }
     if (this.insertSpaceAfterAutocomplete) {

@@ -1,11 +1,30 @@
 import emojiKeywords from "emojilib";
 
 /** Shortest typed word that also matches emoji names and keywords by prefix. */
-export const MIN_EMOJI_PREFIX_LENGTH = 3;
+const MIN_EMOJI_PREFIX_LENGTH = 3;
+// Shorter keywords are flag country codes and letters: "is" -> 🇮🇸, "to" -> 🇹🇴.
+const MIN_KEYWORD_LENGTH = 3;
+// emojilib keywords that are everyday filler words: "not" -> 🙈, "for" -> ⏹️.
+const FILLER_KEYWORDS = new Set([
+  "can",
+  "for",
+  "have",
+  "here",
+  "its",
+  "not",
+  "off",
+  "out",
+  "over",
+  "then",
+  "this",
+  "what",
+  "when",
+  "you",
+]);
 
 export interface EmojiMatch {
   emoji: string;
-  /** Canonical emojilib name, e.g. "face_with_tears_of_joy". */
+  /** Canonical emojilib name, e.g. "face_with_tears_of_joy" or "man in tuxedo". */
   name: string;
 }
 
@@ -16,12 +35,18 @@ interface EmojiEntry extends EmojiMatch {
 
 // emojilib lists the canonical name first, then the search keywords.
 const EMOJI_ENTRIES: EmojiEntry[] = Object.entries(emojiKeywords).map(
-  ([emoji, [name = "", ...keywords]]) => ({
-    emoji,
-    name,
-    nameWords: name.split("_"),
-    keywords: keywords.map((keyword) => keyword.toLocaleLowerCase()),
-  }),
+  ([emoji, [name = "", ...keywords]]) => {
+    const words = name.split(/[_ ]/u);
+    return {
+      emoji,
+      name,
+      // Only the first and last word: middle words are "with", "of", "the" ("the" -> 🤣).
+      nameWords: [words[0] ?? "", words.at(-1) ?? ""],
+      keywords: keywords
+        .map((keyword) => keyword.toLocaleLowerCase())
+        .filter((keyword) => keyword.length >= MIN_KEYWORD_LENGTH && !FILLER_KEYWORDS.has(keyword)),
+    };
+  },
 );
 
 // Tiers step by 1000 so the position inside a tier only breaks ties.
@@ -42,9 +67,7 @@ function matchScore(entry: EmojiEntry, token: string, allowPrefix: boolean): num
   if (!allowPrefix) {
     return null;
   }
-  const namePrefix = entry.name.startsWith(token)
-    ? 0
-    : entry.nameWords.findIndex((word) => word.startsWith(token));
+  const namePrefix = entry.nameWords.findIndex((word) => word.startsWith(token));
   if (namePrefix !== -1) {
     return 3 * TIER_STEP + namePrefix;
   }
@@ -54,14 +77,16 @@ function matchScore(entry: EmojiEntry, token: string, allowPrefix: boolean): num
 
 /**
  * Emoji whose name or keyword matches the lowercased word being typed, best first:
- * full name, name word, keyword, then name and keyword prefixes.
+ * full name, first or last name word, keyword, then name and keyword prefixes.
+ * Prefixes only with `prefix` set and from MIN_EMOJI_PREFIX_LENGTH letters.
  * shortcut: linear scan per keystroke, build a prefix index if profiling shows cost.
  */
-export function matchEmoji(token: string, limit: number): EmojiMatch[] {
-  if (!token || limit <= 0) {
+export function matchEmoji(token: string, limit: number, prefix = true): EmojiMatch[] {
+  // One letter ("a", "i") is never meant as an emoji.
+  if (token.length < 2) {
     return [];
   }
-  const allowPrefix = token.length >= MIN_EMOJI_PREFIX_LENGTH;
+  const allowPrefix = prefix && token.length >= MIN_EMOJI_PREFIX_LENGTH;
   return EMOJI_ENTRIES.flatMap((entry) => {
     const score = matchScore(entry, token, allowPrefix);
     return score === null ? [] : [{ score, entry }];

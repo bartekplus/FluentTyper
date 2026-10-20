@@ -4,6 +4,8 @@ export interface PredictionCandidate {
   snippetShortcut?: string;
   /** The expansion of the typed shortcut, from Presage; it stays ahead of an exact word. */
   exactSnippet?: boolean;
+  /** Stays ahead of the exact word: emoji when "Show emoji first" is on. */
+  pinned?: boolean;
 }
 
 export interface PredictionResult {

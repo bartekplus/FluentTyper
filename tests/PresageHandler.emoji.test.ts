@@ -42,6 +42,21 @@ describe("PresageHandler emoji suggestions (#504)", () => {
     expect(predictions).toContain("fire");
   });
 
+  test("emoji first keeps the exact word ahead of longer words", async () => {
+    mod.PresageCallback.predictions = ["fireplace", "fire", "firewall"];
+    const { predictions } = await predict("fire", { emojiFirst: true, numSuggestions: 4 });
+    expect(predictions[0]).toBe("🔥");
+    expect(predictions.filter((text) => /\p{L}/u.test(text))).toEqual(["fire", "fireplace"]);
+  });
+
+  test("a finished word gets no prefix matches: the -> no thermometer", async () => {
+    mod.PresageCallback.predictions = ["the", "then", "there"];
+    await expect(predict("the")).resolves.toEqual({ predictions: ["the", "then", "there"] });
+    mod.PresageCallback.predictions = ["pizza"];
+    const { predictions } = await predict("piz");
+    expect(predictions).toContain("🍕");
+  });
+
   test("works in every language, not only English", async () => {
     mod.PresageCallback.predictions = ["fire"];
     const { predictions } = await predict("fire", {}, "pl_PL");
