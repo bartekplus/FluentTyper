@@ -93,7 +93,6 @@ export const PREDICATES = mergePredicates(
   noNotSlots.PREDICATES,
   clauseAgreementSlots.PREDICATES,
   wordClassSlots.PREDICATES,
-  apostrophes.PREDICATES,
   properNames.PREDICATES,
   typography.PREDICATES,
   plainStyle.PREDICATES,
@@ -131,6 +130,7 @@ export const FIXERS = mergePredicates<Fixer>(
   compoundForms.FIXERS,
   punctuation.FIXERS,
   confusionSlots.FIXERS,
+  apostrophes.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */

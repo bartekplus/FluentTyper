@@ -23,6 +23,7 @@ fragments:
   NEGATION: "don['’]t|doesn['’]t|didn['’]t|never|not"
   VERB_OBJECT: "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what"
   SUBJECT: "I|you|we|they|he|she|it"
+  APOSTROPHES_QUANTIFIERS: "two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|hundred|dozens|hundreds|thousands|millions|many|several|few|numerous|various|multiple|these|those|both|all|some|(?:lots?|couple|number|plenty|dozens|all|most|some|many|several|both){{S}}of|[2-9]|[1-9][0-9]+"
   CONFUSIONSLOTS_MODAL: "(?:will|would|can|could|should|shall|may|might|must|cannot|['’]ll|['’]d|(?:won|wouldn|can|couldn|shouldn|don|doesn|didn)['’]t)"
   PUNCTUATION_LINKING: "However|Nonetheless|Nevertheless|Besides|Alas|Similarly|Also|Furthermore|Moreover|Therefore|Consequently|Meanwhile|Otherwise|Additionally|Finally|Firstly|Secondly|Lastly|Unfortunately|Fortunately|Of course|For example|For instance|In fact|In addition|In conclusion|In summary|On the other hand|As a result|In other words|By default|That said|Indeed|Instead|Likewise"
   PUNCTUATION_PREPOSITIONS: "with|for|to|at|about|on|in|by|after|around|from|into|without|like"
@@ -1372,7 +1373,59 @@ rules:
     predicate: itBeforeNoun
   - id: en.apostrophes
     checks: [englishApostrophes]
-    predicate: apostrophes
+    style: match
+    message: review_msg_plural_apostrophe
+    filter: usOutsideExamples
+    frames:
+      # "two CD's", "several girl's that", "many customer's in": after a plural quantifier the
+      # noun is a plural, which takes no apostrophe. Before another noun it may be a plural
+      # possessive ("two weeks' notice"), so the writer chooses.
+      - regex: "(?<q>{{APOSTROPHES_QUANTIFIERS}})(?:{{S}}(?<mod>[a-z]+))?{{S}}(?<w>[A-Za-z][A-Za-z&]*)['’]s{{E}}"
+        owner: w
+        fixer: apostropheQuantifiedPlural
+      # "where user's would", "most user's are": a bare noun before a finite verb is its plural
+      # subject.
+      - regex: "(?<w>[a-z]{3,})['’]s{{S}}(?<verb>would|could|should|are|were|have|don't|didn't|won't|aren't|weren't|haven't){{E}}"
+        owner: w
+        fixer: apostrophePluralSubject
+      # "about the problem's it causes", "the one's I tested", "to user's that don't": a noun
+      # with 's, then a relative clause (a subject and its verb, or that/who and a verb), is a
+      # plural. Only as an object (after a preposition or a verb of being): "The problem's it
+      # fails" could be "the problem is (that) it fails".
+      - regex: "(?:(?<det>the|these|those|all|any|some|many|our|your|their|my){{S}})?(?<w>[a-z]{3,})['’]s{{S}}(?:(?<pron>I|we|you|they|he|she|it){{S}}(?<verb>[a-z]+(?:['’]t)?)|(?<rel>that|who){{S}}(?<verb2>[a-z]+(?:['’]t)?)){{E}}"
+        owner: w
+        fixer: apostropheRelativePlural
+      # "he see's", "it last's", "Michael really want's": a verb's -s ending takes no apostrophe.
+      - regex: "(?<subject>he|she|it|who|[a-z]{2,}|that)(?:{{S}}(?<adverb>really|just|also|always|never|often|still|only|usually|sometimes|actually|probably|rarely|even|simply))?{{S}}(?<v>[a-z]{2,})['’]s{{E}}"
+        owner: v
+        fixer: apostropheVerb
+      # "We''ll", "Tom''s": one apostrophe.
+      - regex: "(?<w>[A-Za-z]+)(?<marks>['’]['’])(?:s|t|ll|re|ve|d|m)(?![\\p{L}\\p{N}'’])"
+        owner: marks
+        gate: "['’]['’]"
+        fixer: apostropheDoubled
+      # "I' m", "they 're", "Julia' s new": a contraction or possessive split by a space.
+      - regex: "(?<w>I|you|we|they|he|she|it|[a-z]{2,})(?<gap>['’]{{S}}|{{S}}['’])(?<s>m|re|ve|ll|d|s){{E}}"
+        owner: gap
+        gate: "['’][ \\t\\u00a0]|[ \\t\\u00a0]['’]"
+        fixer: apostropheSpaced
+      # "from other's photos": with no determiner, the owners are several others.
+      - regex: "(?<w>other)['’]s{{S}}(?<n>[a-z]+){{E}}"
+        owner: w
+        fixer: apostropheOthers
+      # "last weeks meeting", "this years budget": a time noun owning the next noun.
+      - regex: "(?<d>this|last|next){{S}}(?<t>week|weekend|month|year|morning|night|evening|afternoon|season|quarter|semester|summer|winter|autumn)s{{S}}(?<n>[A-Za-z]+){{E}}"
+        owner: t
+        fixer: apostropheTimeOwner
+      # "todays news", "yesterdays meeting": never a plural, always the possessive ("tomorrows"
+      # is a grammarStyle2 row).
+      - regex: "(?<t>today|yesterday|tonight)s{{E}}"
+        owner: t
+        fixer: apostropheDayOwner
+      # "a boy who's birthday is", "by who's standards": "whose" owns the noun after it.
+      - regex: "(?<w>who)['’]s{{S}}(?<n>[a-z]+){{E}}"
+        owner: w
+        fixer: apostropheWhose
   - id: en.productNames
     checks: [englishCanonicalCasing]
     predicate: productNames
