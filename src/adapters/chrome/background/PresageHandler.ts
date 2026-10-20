@@ -22,7 +22,10 @@ import { normalizeNumSuggestions } from "@core/domain/siteProfiles";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { rankPersonalizedCandidates } from "@core/domain/personalization/PersonalizationRanker";
 import type { PersonalizationRankingSnapshot } from "@core/domain/personalization/types";
+import { matchEmoji } from "@core/domain/emojiSuggestions";
 const SUGGESTION_COUNT = 5;
+// Common words match many emoji ("love" -> 39); a short list keeps words visible.
+const MAX_EMOJI_SUGGESTIONS = 2;
 const NBSP_REGEX = /\xA0/g;
 const NO_DICTIONARY_WORDS: ReadonlySet<string> = new Set();
 const logger = createLogger("PresageHandler");
@@ -86,6 +89,8 @@ export interface PresageConfig {
   textExpansions: Array<[string, object]>;
   prefixOnlyMode: boolean;
   personalizationEnabled?: boolean;
+  emojiSuggestions?: boolean;
+  emojiFirst?: boolean;
 
   timeFormat?: string;
   dateFormat?: string;
@@ -138,6 +143,8 @@ export class PresageHandler {
   private textExpansionPairs = new Set<string>();
   private userDictionarySignature = "";
   private personalizationEnabled = false;
+  private emojiSuggestions = false;
+  private emojiFirst = false;
   private readonly getPersonalizationSnapshot: () => PersonalizationRankingSnapshot;
   private readonly now: () => number;
 
@@ -179,6 +186,8 @@ export class PresageHandler {
     this.autoCapitalize = config.autoCapitalize;
     this.prefixOnlyMode = config.prefixOnlyMode;
     this.personalizationEnabled = config.personalizationEnabled ?? false;
+    this.emojiSuggestions = config.emojiSuggestions ?? false;
+    this.emojiFirst = config.emojiFirst ?? false;
     const textExpansions = (config.textExpansions ?? []).flatMap(([shortcut, expansion]) =>
       // Presage drops non-string expansions too (PresageEngine.parsePrediction).
       typeof expansion === "string"
@@ -328,7 +337,40 @@ export class PresageHandler {
     );
     const snippets = await this.predictSnippets(context, ranked, resolver);
     // Keep the top word prediction first so snippets never displace plain autocomplete.
-    return [...words.slice(0, 1), ...snippets, ...words.slice(1)];
+    const candidates = [...words.slice(0, 1), ...snippets, ...words.slice(1)];
+    // Emoji get only the slots left after the top word and the user's snippets, and the
+    // words after them make room, so finalizePrediction's slice does not drop the emoji.
+    const numSuggestions = context.effectiveNumSuggestions;
+    const reserved = Math.min(candidates.length, 1 + snippets.length);
+    const emoji = this.predictEmoji(context, candidates).slice(
+      0,
+      Math.max(0, numSuggestions - reserved),
+    );
+    if (this.emojiFirst) {
+      return [...emoji, ...candidates];
+    }
+    return [...candidates.slice(0, numSuggestions - emoji.length), ...emoji];
+  }
+
+  /** Emoji named like the word being typed (#504), minus any already in the list. */
+  private predictEmoji(
+    context: PresagePredictionContext,
+    candidates: PredictionCandidate[],
+  ): PredictionCandidate[] {
+    // A typed snippet shortcut keeps its expansion first (#489), so Tab expands it.
+    if (!this.emojiSuggestions || candidates.some(({ exactSnippet }) => exactSnippet)) {
+      return [];
+    }
+    const token = context.snippetToken;
+    const seen = new Set(candidates.map(({ text }) => normalizePrediction(text)));
+    // A finished word ("the") is what the user means: only exact names, no "thermometer".
+    return matchEmoji(token, MAX_EMOJI_SUGGESTIONS, !seen.has(token))
+      .filter(({ emoji }) => !seen.has(emoji))
+      .map(({ emoji, name }) => ({
+        text: emoji,
+        snippetShortcut: name,
+        ...(this.emojiFirst && { pinned: true }),
+      }));
   }
 
   /**
@@ -401,9 +443,10 @@ export class PresageHandler {
     // eg. if input is "the act", then "act" will be first and "action" will be second
     // A typed snippet shortcut keeps its expansion first, not the same dictionary word (#489).
     if (candidates.length > 1 && snippetToken && !candidates.some((c) => c.exactSnippet)) {
-      const isExact = ({ text }: PredictionCandidate) => text.toLocaleLowerCase() === snippetToken;
-      // Stable sort: exact match first, otherwise keep Presage order.
-      candidates.sort((a, b) => Number(isExact(b)) - Number(isExact(a)));
+      const rank = ({ text, pinned }: PredictionCandidate) =>
+        pinned ? 2 : Number(text.toLocaleLowerCase() === snippetToken);
+      // Stable sort: pinned rows, then the exact match, otherwise keep Presage order.
+      candidates.sort((a, b) => rank(b) - rank(a));
       predictions = candidates.map(({ text }) => text);
     }
     if (this.insertSpaceAfterAutocomplete) {

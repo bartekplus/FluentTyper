@@ -21,6 +21,8 @@ export interface SettingsSchema {
   inlineSuggestion: boolean;
   prefixOnlyMode: boolean;
   personalizationEnabled: boolean;
+  emojiSuggestions: boolean;
+  emojiFirst: boolean;
   preferNativeAutocomplete: boolean;
   codeMode: boolean;
   numSuggestions: number;

@@ -1,3 +1,4 @@
+import { isGraphemeBoundary } from "../grammar/review/textRanges";
 import type { SuggestionKeyHint } from "./keyHints";
 
 /**
@@ -40,10 +41,31 @@ function highlightMatch(mentionText: string, suggestion: string): string {
   return `${before}<span class="ft-suggestion-match">${match}</span>${after}`;
 }
 
+const EMOJI_REGEX = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
+
+/**
+ * One emoji grapheme, such as 😂, ✌️, 👩‍🦰 or 🇮🇳 (a trailing space is ignored).
+ * isGraphemeBoundary works without Intl.Segmenter (Firefox before 125); a joined emoji
+ * then counts as text and shows with its name.
+ */
+function isSingleEmoji(text: string): boolean {
+  const trimmed = text.trim();
+  if (!EMOJI_REGEX.test(trimmed)) {
+    return false;
+  }
+  for (let index = 1; index < trimmed.length; index += 1) {
+    if (isGraphemeBoundary(trimmed, index)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /**
  * A row's content: [number] label [snippet shortcut]. A snippet shows its
  * expansion, and on the right the shortcut it expands with the typed text
- * highlighted, so fuzzy matches explain themselves.
+ * highlighted, so fuzzy matches explain themselves. A single emoji shows its
+ * name ("face_with_tears_of_joy") only as a tooltip, so the row stays narrow.
  */
 export function buildSuggestionRowHtml(args: {
   mentionText: string;
@@ -54,6 +76,9 @@ export function buildSuggestionRowHtml(args: {
   const shortcut = args.shortcutDigit
     ? `<span class="ft-suggestion-shortcut" aria-hidden="true">${escapeHtml(args.shortcutDigit)}</span>`
     : "";
+  if (args.snippetShortcut && isSingleEmoji(args.suggestion)) {
+    return `${shortcut}<span class="ft-suggestion-label" title="${escapeHtml(args.snippetShortcut)}">${escapeHtml(args.suggestion)}</span>`;
+  }
   const label = args.snippetShortcut
     ? escapeHtml(args.suggestion)
     : highlightMatch(args.mentionText, args.suggestion);

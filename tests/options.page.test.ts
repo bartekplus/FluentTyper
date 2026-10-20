@@ -8,6 +8,8 @@ import {
   KEY_NUM_SUGGESTIONS,
   KEY_OBSERVABILITY_MODULE_OVERRIDES,
   KEY_PREFIX_ONLY_MODE,
+  KEY_EMOJI_SUGGESTIONS,
+  KEY_EMOJI_FIRST,
 } from "../src/core/domain/constants";
 import { wireRuntimeSettingsHandlers } from "../src/ui/options/settings";
 import { installJsdom } from "./support/jsdomGlobals";
@@ -63,6 +65,15 @@ describe("options page scripts", () => {
       expect(repeats).toEqual([]);
     } finally {
       delete globals.__FT_DEV_BUILD__;
+    }
+  });
+
+  test("exposes emoji suggestions and emoji first as opt-in checkboxes", async () => {
+    const { manifest } = await import("../src/ui/options/settingsManifest.js");
+    for (const name of ["emojiSuggestions", "emojiFirst"]) {
+      expect(manifest.settings.find((setting) => setting.name === name)).toEqual(
+        expect.objectContaining({ type: "checkbox", default: false }),
+      );
     }
   });
 
@@ -197,6 +208,19 @@ describe("options page settings handlers", () => {
       expect(writes).toEqual([...expected]);
     },
   );
+
+  test("Show emoji first is disabled while Suggest emoji is off", () => {
+    stubConfigChangeSender();
+    const registry = fakeRegistry({ [KEY_EMOJI_SUGGESTIONS]: false, [KEY_EMOJI_FIRST]: false });
+    wireRuntimeSettingsHandlers(registry);
+
+    registry[KEY_EMOJI_SUGGESTIONS].set(true);
+    expect(registry[KEY_EMOJI_FIRST].disabled).toBe(false);
+    registry[KEY_EMOJI_SUGGESTIONS].set(false);
+    expect(registry[KEY_EMOJI_FIRST].disabled).toBe(true);
+    // The stored value stays: it comes back when emoji suggestions go on again.
+    expect(registry[KEY_EMOJI_FIRST].calls).toEqual([]);
+  });
 
   test("inline mode shows prefix-only mode as on but keeps the stored value", () => {
     stubConfigChangeSender();

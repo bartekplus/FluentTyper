@@ -35,7 +35,11 @@ export class FakeControl {
     return this;
   }
 
-  setDisabled(): void {}
+  disabled = false;
+
+  setDisabled(disabled: boolean): void {
+    this.disabled = disabled;
+  }
 }
 
 /** Makes one control for each key in values or labels. A control reads and writes values[key]. */

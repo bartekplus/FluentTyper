@@ -6193,6 +6193,27 @@
           "test": "Notion-like page: Escape closes the suggestion popup only, so the next keys still type"
         }
       ]
+    },
+    {
+      "id": "emoji_suggestions_by_name",
+      "description": "Opt-in emoji suggestions match the typed word against emoji names and keywords, after words or first",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/emojiSuggestions.test.ts",
+          "test": "a word of the emoji name matches: joy -> face with tears of joy"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PresageHandler.emoji.test.ts",
+          "test": "puts emoji after the words and keeps them inside the suggestion count"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PresageHandler.emoji.test.ts",
+          "test": "puts emoji first when asked, above an exact dictionary word"
+        }
+      ]
     }
   ]
 }
