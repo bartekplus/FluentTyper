@@ -3,6 +3,18 @@ lang: en
 
 # Regex fragments of the frame rules: {{NAME}}.
 fragments:
+  CLOSED: "(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)"
+  BE_FORM: "am|is|are|was|were|be|been|being|(?:I|you|we|they|he|she|it|that|there|who|what|this)['’](?:m|re|s)"
+  IDIOMS5_ORDINAL: "[0-9]+(?:st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth"
+  AUXILIARY: "can|could|will|would|shall|should|may|might|must|do|does|did|am|is|are|was|were|have|has|had"
+  BASE_LEAD: "I|you|we|they|to|will|would|can|could|should|must|might|may|shall|do|did|don['’]t|didn['’]t|won['’]t|never|just|really|also|always|still|please"
+  GOVERNOR_BASE: "want|need|agree|forget|try|refuse|resolve|attempt|decide|hope|promise|manage|fail|plan|intend|expect"
+  GOVERNOR_THIRD: "wants|needs|agrees|forgets|tries|refuses|resolves|attempts|decides|hopes|promises|manages|fails|plans|intends|expects"
+  GOVERNOR_ADJECTIVES: "ready|eager|inclined|able|unable|willing|unwilling|keen|determined"
+  VERB_AFTER: "the|a|an|my|your|his|her|its|our|their|it|them|this|that|these|those|again|with"
+  IDIOMS5_INFINITIVE_LEAD: "want|wants|wanted|need|needs|needed|going|gonna|wanna|seem|seems|seemed|try|tries|tried|trying|how|able|unable|have|has|had|decided|decide|plan|planned|forgot|remember|easy|hard|possible|me|you|him|her|us|them"
+  FREQUENCY: "always|usually|often|sometimes|frequently|rarely|seldom|never|occasionally|generally|normally|typically"
+  MEDICINE: "antibiotics?|medicines?|medications?|pills?|tablets?|paracetamol|ibuprofen|aspirin|painkillers?|capsules?"
   ID_VERB: "rather|probably|like|love|hate|be|have|never|just|prefer|preferred|better|already|definitely|also|really|say|been|gladly|appreciate|want|go|need|imagine|recommend|suggest|bet|do|get|try|still|always|only|certainly|happily|guess"
   SLOTCONFUSIONS_NUMBER_WORD: "one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|hundred|thousand|million"
   SLOTCONFUSIONS_MODAL: "can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t"
@@ -343,7 +355,476 @@ rules:
         englishContextualCompounds,
         stylePhrasing,
       ]
-    predicate: idiomFrames5
+    style: slot
+    message: review_msg_fixed_prepositions
+    frames:
+      # ---- prepositions ----
+      - regex: "(?:{{BE_FORM}}|very|really|so|not|also|more|most|less|still|always|particularly|especially){{S}}interested{{S}}(?<target>[a-z]+ing){{E}}"
+        check: englishFixedPrepositions
+        cue: ["interested"]
+        fixer: idioms5A
+      - regex: "(?<target>from){{S}}the{{S}}naked{{S}}eyes?{{E}}"
+        check: englishFixedPrepositions
+        cue: ["naked"]
+        fixer: idioms5From
+      - regex: "(?:{{BE_FORM}}|im|its|hes|shes|theyre|youre){{S}}no{{S}}match{{S}}(?<target>against|to|of){{E}}"
+        check: englishFixedPrepositions
+        cue: ["match"]
+        fix: "for"
+      - regex: "(?:(?=in|at)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})|(?<![\\p{L}'’])(?:live|lives|lived|living|located|situated|stay|stays|stayed|staying|reside|resides|resided|residing|am|is|are|was|were|be|been|being|[a-z]+['’](?:m|re|s)){{S}})(?<target>in|at){{S}}the{{S}}(?:{{IDIOMS5_ORDINAL}}){{S}}floor{{E}}"
+        check: englishFixedPrepositions
+        cue: ["floor"]
+        fixer: idioms5In
+      - regex: "{{notAfter:most|more|least|less|very|so}}passionate{{S}}(?<target>of){{E}}(?!{{S}}(?:all|them|us|you|those|these|whom){{E}})"
+        check: englishFixedPrepositions
+        cue: ["passionate"]
+        fix: "about"
+      - regex: "(?<target>of){{S}}which{{S}}(?:{{SUBJECT}}){{S}}(?:am|are|is|was|were){{S}}(?:(?:so|very|deeply|truly|most|really){{S}})?passionate{{E}}(?!{{S}}about{{E}})"
+        check: englishFixedPrepositions
+        cue: ["passionate"]
+        fix: "about"
+      - regex: "(?<![.])(?<![\\p{L}\\p{M}\\p{N}_'’@#\\\\-]){{notAfter:for}}(?<target>(?<noun>reasons?){{S}}of){{S}}(?<ing>[a-z]+ing){{E}}"
+        wordStart: false
+        check: englishFixedPrepositions
+        cue: ["reason", "reasons"]
+        fixer: idioms5Noun
+      - regex: "(?:what{{S}}is|what{{S}}was|what['’]s|whats|what){{S}}the{{S}}point{{S}}(?<target>for){{E}}"
+        check: englishFixedPrepositions
+        cue: ["point"]
+        fix: "of"
+      - regex: "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:what|whats|what['’]s|what{{S}}is|what{{S}}was){{S}})the{{S}}point{{S}}(?<target>for){{S}}(?<ing>[a-z]+ing){{E}}"
+        check: englishFixedPrepositions
+        cue: ["point"]
+        fixer: idioms5For
+      - regex: "(?:take|takes|took|taken|taking|have|has|had|having){{S}}a{{S}}(?:(?:quick|closer|close|brief|good|deeper|second|first|careful|short){{S}})?look{{S}}(?<target>to){{E}}"
+        check: englishFixedPrepositions
+        cue: ["look"]
+        fixer: idioms5To
+      - regex: "(?:take|takes|took|taken|taking){{S}}(?:(?:great|much|such|real|a{{S}}lot{{S}}of){{S}})?pride{{S}}(?<target>of){{E}}(?!{{S}}place{{E}})"
+        check: englishFixedPrepositions
+        cue: ["pride"]
+        fix: "in"
+      - regex: "(?<target>since{{S}}(?<quantity>a{{S}}couple(?:{{S}}of)?|few|(?:(?:over|more{{S}}than|almost|nearly|about){{S}})?(?:two|three|four|five|six|seven|eight|nine|ten|twelve|several|many|a{{S}}few|[0-9]{1,3})){{S}}(?<unit>seconds|minutes|hours|days|weeks|months|years|decades)){{E}}(?!{{S}}(?:ago|before|after|earlier|later|prior|old|of|back|since|from|that|when){{E}})"
+        check: englishFixedPrepositions
+        message: review_msg_since_duration
+        cue: ["since"]
+        fixer: idioms5Since
+      # ---- set phrases ----
+      - regex: "(?:most|a{{S}}lot){{S}}of{{S}}the{{S}}(?<target>times){{E}}(?!{{S}}(?:I|we|you|he|she|they|it|that|when|which|where|people|the|this|those|these|my|our|their|his|her|its|in|on|of|listed|shown|given|above|below|between|from|to|for|I['’]ve|we['’]ve|you['’]ve|they['’]ve){{E}})"
+        message: review_msg_contextual_grammar
+        cue: ["times"]
+        fix: "time"
+      - regex: "(?<target>not){{S}}longer{{S}}(?!(?:than|then|or|and|nor|but|by|in|at|on|to|for|with|that|because|if|since|is|are|was|were){{E}})(?=[\\p{L}])"
+        message: review_msg_contextual_grammar
+        cue: ["longer"]
+        fix: "no"
+      - regex: "(?:and|but|so|or){{S}}(?<target>(?<no>no{{S}}longer){{S}}(?<pron>{{SUBJECT}})(?:{{S}}(?<aux>am|is|are|was|were|can|could|will|would|should|must|may|might|do|does|did|have|has|had))?){{S}}(?=[a-z])"
+        check: englishSentenceStructure
+        message: review_msg_sentence_structure
+        cue: ["longer"]
+        fixer: idioms5No
+      - regex: "nor{{S}}(?<target>(?<pron>{{SUBJECT}}){{S}}(?<aux>{{AUXILIARY}})){{E}}"
+        check: englishSentenceStructure
+        message: review_msg_sentence_structure
+        cue: ["nor"]
+        fixer: idioms5Pron
+      - regex: "(?<subject>{{SUBJECT}}){{S}}(?<target>wonts?){{S}}to{{E}}"
+        message: review_msg_typo
+        cue: ["wont", "wonts"]
+        fixer: idioms5Wonts
+      - regex: "(?:(?=of)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})|(?<![\\p{L}'’])(?:yes|yeah|well|and|but|so|oh|ok|okay|sure),?{{S}})(?<target>of{{S}}(?:curse|coarse)|off{{S}}course){{E}}"
+        message: review_msg_phrase_correction
+        cue: ["curse", "coarse", "course"]
+        fix: "of course"
+      - regex: "(?:{{BE_FORM}}|remain|remains|remained|stay|stays|stayed){{S}}(?<target>off{{S}}limit){{E}}"
+        message: review_msg_phrase_correction
+        cue: ["limit"]
+        fix: "off limits"
+      - regex: "oldest(?:{{S}}[a-z]+){1,3}?{{S}}in{{S}}the{{S}}(?<target>books){{E}}"
+        message: review_msg_phrase_correction
+        cue: ["oldest"]
+        fix: "book"
+      - regex: "(?:(?:I|you|he|she|we|they|anyone|someone|everyone|anybody|somebody|everybody|nobody){{S}}(?:am|is|are|was|were)|I['’]m|you['’]re|he['’]s|she['’]s|we['’]re|they['’]re)(?:{{S}}(?:still|also|really|kinda|totally|completely|honestly|currently|kind{{S}}of|sort{{S}}of|a{{S}}bit))?{{S}}on{{S}}(?<target>a){{S}}fence{{E}}"
+        message: review_msg_phrase_correction
+        cue: ["fence"]
+        fix: "the"
+      - regex: "(?:(?=one)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})|(?<![\\p{L}'’])(?:{{BE_FORM}}){{S}})one{{S}}(?<target>in){{S}}the{{S}}same(?:{{S}}as{{E}}|(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)…]|$)))"
+        message: review_msg_phrase_correction
+        cue: ["same"]
+        fix: "and"
+      - regex: "(?={{SUBJECT}})(?<=(?:^|[.!?;:,(][ \\t\\u00a0]{0,8}|(?<![\\p{L}'’])(?:as|then|so|and|but|or|if|that|which|because|since|when|while|though|although|what|how){{S}}))(?:{{SUBJECT}}){{S}}(?<target>out){{S}}to{{S}}be{{E}}"
+        message: review_msg_typo
+        cue: ["out"]
+        fix: "ought"
+      - regex: "(?:take|takes|took|taken|taking){{S}}(?:(?:these|those|this|that|the|my|your|his|her|our|their|its){{S}})?(?<object>[a-z]+){{S}}(?<target>serious){{E}}"
+        message: review_msg_phrase_correction
+        cue: ["serious"]
+        fixer: idioms5Serious
+      - regex: "(?<target>the{{S}})(?<wh>(?:how|why|when|what|where){{S}}(?:it|we|you|they|he|she|I|the|a|an|this|that|these|those)|who{{S}}(?:is|are|was|were|will|can|it|we|you|they|he|she|I|the|a|an|this|that)){{E}}"
+        message: review_msg_contextual_grammar
+        cue: ["how", "why", "when", "what", "where", "who"]
+        fixer: idioms5The
+      - regex: "(?<target>(?<verb>rise|rises|rose|risen|rising|rised|raise|raises|raised|raising)(?<mid>(?:{{S}}up)?(?:{{S}}(?:in|through))?){{S}}(?<the>the{{S}}(?<rank>ranks?))){{E}}(?!{{S}}and{{S}}file{{E}})"
+        message: review_msg_phrase_correction
+        cue: ["rank", "ranks"]
+        fixer: idioms5Verb
+      - regex: "(?<target>through){{S}}away{{E}}"
+        message: review_msg_typo
+        cue: ["through"]
+        fixer: idioms5Through
+      - regex: "(?<target>(?<verb>throw|throws|threw|thrown|throwing|through)){{S}}(?<away>away{{S}}|out{{S}})?(?<baby>the{{S}}baby){{S}}(?<out>out{{S}})?with{{S}}the{{S}}bath(?:(?:{{S}})?water|-water){{E}}"
+        message: review_msg_phrase_correction
+        cue: ["baby"]
+        fixer: idioms5Verb2
+      - regex: "(?:(?:{{BE_FORM}})(?:{{S}}(?:[a-z]+ly|so|very|still|also|always|often|sometimes|mostly|not|now|quite|quiet|much|more|most|less|pretty|kinda)){0,2}|very|highly|extremely|fairly|hugely|incredibly|pretty|quite|quiet|vastly|much|most|more|somewhat|kinda|abit|bit|strongly|greatly|widely|keenly|eagerly|hotly|super|increasingly|less|least|(?<![\\p{L}'’])(?:a|an){{S}}rather){{S}}(?<target>sort){{S}}after{{E}}"
+        message: review_msg_typo
+        cue: ["sort"]
+        fixer: idioms5Sort
+      - regex: "of{{S}}(?<target>sort){{S}}after{{E}}"
+        message: review_msg_typo
+        cue: ["sort"]
+        fixer: idioms5Sort2
+      - regex: "{{notAfter:the|a|an|this|that|these|those|my|your|his|her|its|our|their|some|any|no|every|each}}(?:meant|wanted|needed|agreed|forgot|forgotten|tried|trying|refused|resolved|attempted|decided|hoped|promised|managed|failed|planned|intended|expected){{S}}(?<target>[a-z]+){{E}}"
+        check: englishVerbComplements
+        message: review_msg_missing_to
+        cue:
+          [
+            "meant",
+            "wanted",
+            "needed",
+            "agreed",
+            "forgot",
+            "forgotten",
+            "tried",
+            "trying",
+            "refused",
+            "resolved",
+            "attempted",
+            "decided",
+            "hoped",
+            "promised",
+            "managed",
+            "failed",
+            "planned",
+            "intended",
+            "expected",
+          ]
+        fixer: idioms5A2
+      - regex: "(?<![\\p{L}'’])(?:{{BASE_LEAD}}){{S}}(?:{{GOVERNOR_BASE}}){{S}}(?<target>[a-z]+){{E}}"
+        check: englishVerbComplements
+        message: review_msg_missing_to
+        cue:
+          [
+            "want",
+            "need",
+            "agree",
+            "forget",
+            "try",
+            "refuse",
+            "resolve",
+            "attempt",
+            "decide",
+            "hope",
+            "promise",
+            "manage",
+            "fail",
+            "plan",
+            "intend",
+            "expect",
+          ]
+        fixer: idioms5A2
+      - regex: "(?:he|she|it|who|one|everyone|someone|somebody|everybody|nobody|anyone|anybody){{S}}(?:{{GOVERNOR_THIRD}}){{S}}(?<target>[a-z]+){{E}}"
+        check: englishVerbComplements
+        message: review_msg_missing_to
+        cue:
+          [
+            "wants",
+            "needs",
+            "agrees",
+            "forgets",
+            "tries",
+            "refuses",
+            "resolves",
+            "attempts",
+            "decides",
+            "hopes",
+            "promises",
+            "manages",
+            "fails",
+            "plans",
+            "intends",
+            "expects",
+          ]
+        fixer: idioms5A2
+      - regex: "(?:{{BE_FORM}}|feel|feels|felt|seem|seems|seemed|not|so|very|really|always|more|less|quite|too){{S}}(?:{{GOVERNOR_ADJECTIVES}}){{S}}(?<target>[a-z]+){{E}}"
+        check: englishVerbComplements
+        message: review_msg_missing_to
+        cue:
+          [
+            "ready",
+            "eager",
+            "inclined",
+            "able",
+            "unable",
+            "willing",
+            "unwilling",
+            "keen",
+            "determined",
+          ]
+        fixer: idioms5A2
+      - regex: "(?:(?=you)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})|(?<![\\p{L}'’])(?:and|but|or|so|then|if|when|that|because|where|once|before|after|until|unless|while|now|always|never|also|just|often|usually){{S}})you{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|shutdown|signup|takeover|warmup|workout){{E}}"
+        check: englishContextualCompounds
+        message: review_msg_compounds
+        cue:
+          [
+            "backup",
+            "breakup",
+            "checkout",
+            "cleanup",
+            "comeback",
+            "followup",
+            "lookup",
+            "pickup",
+            "playback",
+            "rollback",
+            "rollout",
+            "setup",
+            "shutdown",
+            "signup",
+            "takeover",
+            "warmup",
+            "workout",
+          ]
+        fixer: idioms5Backup
+      - regex: "(?<![\\p{L}'’])(?:I|we|they|(?<=(?:^|[.!?;:]|\\b(?:hope|that|if|when|who)){{S}})you){{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|shutdown|signup|takeover|warmup|workout){{E}}"
+        check: englishContextualCompounds
+        message: review_msg_compounds
+        cue:
+          [
+            "backup",
+            "breakup",
+            "checkout",
+            "cleanup",
+            "comeback",
+            "followup",
+            "lookup",
+            "pickup",
+            "playback",
+            "rollback",
+            "rollout",
+            "setup",
+            "shutdown",
+            "signup",
+            "takeover",
+            "warmup",
+            "workout",
+          ]
+        fixer: idioms5Backup
+      - regex: "(?<![\\p{L}'’])who{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|setup|shutdown|signup|takeover|warmup|workout){{S}}(?:{{VERB_AFTER}}){{E}}"
+        check: englishContextualCompounds
+        message: review_msg_compounds
+        cue:
+          [
+            "backup",
+            "breakup",
+            "checkout",
+            "cleanup",
+            "comeback",
+            "followup",
+            "lookup",
+            "pickup",
+            "playback",
+            "rollback",
+            "rollout",
+            "setup",
+            "shutdown",
+            "signup",
+            "takeover",
+            "warmup",
+            "workout",
+          ]
+        fixer: idioms5Backup
+      - regex: "(?:(?<!(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?:will|would|can|could|should|must|might|may|shall)|never|(?<=(?:^|[^\\p{L}'’])(?:i|you|we|they|he|she|it|who){{S}})(?:do|does|did|could|would|should|can|wo|must|might)(?:n['’]t|{{S}}not)|please|let['’]s|cannot){{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|shutdown|signup|takeover|warmup|workout){{E}}"
+        check: englishContextualCompounds
+        message: review_msg_compounds
+        cue:
+          [
+            "backup",
+            "breakup",
+            "checkout",
+            "cleanup",
+            "comeback",
+            "followup",
+            "lookup",
+            "pickup",
+            "playback",
+            "rollback",
+            "rollout",
+            "setup",
+            "shutdown",
+            "signup",
+            "takeover",
+            "warmup",
+            "workout",
+          ]
+        fixer: idioms5Backup
+      - regex: "(?:{{IDIOMS5_INFINITIVE_LEAD}}){{S}}to{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|shutdown|signup|takeover|warmup|workout){{E}}"
+        check: englishContextualCompounds
+        message: review_msg_compounds
+        cue:
+          [
+            "backup",
+            "breakup",
+            "checkout",
+            "cleanup",
+            "comeback",
+            "followup",
+            "lookup",
+            "pickup",
+            "playback",
+            "rollback",
+            "rollout",
+            "setup",
+            "shutdown",
+            "signup",
+            "takeover",
+            "warmup",
+            "workout",
+          ]
+        fixer: idioms5Backup2
+      - regex: "to{{S}}[a-z]+ly{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|setup|shutdown|signup|takeover|warmup|workout){{E}}"
+        check: englishContextualCompounds
+        message: review_msg_compounds
+        cue:
+          [
+            "backup",
+            "breakup",
+            "checkout",
+            "cleanup",
+            "comeback",
+            "followup",
+            "lookup",
+            "pickup",
+            "playback",
+            "rollback",
+            "rollout",
+            "setup",
+            "shutdown",
+            "signup",
+            "takeover",
+            "warmup",
+            "workout",
+          ]
+        fixer: idioms5Backup
+      - regex: "to{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|shutdown|signup|takeover|warmup|workout){{S}}(?:{{VERB_AFTER}}){{E}}"
+        check: englishContextualCompounds
+        message: review_msg_compounds
+        cue:
+          [
+            "backup",
+            "breakup",
+            "checkout",
+            "cleanup",
+            "comeback",
+            "followup",
+            "lookup",
+            "pickup",
+            "playback",
+            "rollback",
+            "rollout",
+            "setup",
+            "shutdown",
+            "signup",
+            "takeover",
+            "warmup",
+            "workout",
+          ]
+        fixer: idioms5Backup
+      - regex: "(?<target>show(?:{{S}}case|-case|-cases|-cased|-casing)){{E}}(?!{{S}}(?:[0-9]|(?:stud(?:y|ies)|sensitive|insensitive|sensitivity|numbers?|files?|laws?|histor(?:y|ies)|notes?|reports?|examples?|results?|details?|statements?|summar(?:y|ies)|managers?|workers?|officers?|status){{E}}))"
+        check: englishContextualCompounds
+        message: review_msg_compounds
+        cue: ["show"]
+        fixer: idioms5Show
+      - regex: "(?:(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those){{S}}|(?=soon)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8}))(?<target>soon{{S}}to{{S}}be){{S}}(?=[\\p{L}\\p{N}])"
+        check: englishContextualCompounds
+        message: review_msg_compounds
+        cue: ["soon"]
+        fixer: idioms5Soon
+      - regex: "(?<target>vi[cs]e(?:-a-|{{S}}a{{S}}|-)versa)(?![\\p{L}\\p{N}_'’])"
+        message: review_msg_phrase_correction
+        cue: ["versa"]
+        fix: "vice versa"
+      - regex: "(?:wish|wishes|wished|wishing){{S}}(?:that{{S}})?(?:{{SUBJECT}}|this|that|someone|somebody|everyone|everybody|anyone|anybody){{S}}(?<target>can){{E}}"
+        message: review_msg_contextual_grammar
+        cue: ["wish", "wishes", "wished", "wishing"]
+        fix: "could"
+      - regex: "{{notAfter:have|has|had|having|ought|got|need|needs|want|wants|going|condition|option|setting|mode}}(?<target>(?<first>to){{S}}(?<adverb>[a-z]+){{S}}to){{S}}(?<verb>[a-z]+){{E}}"
+        message: review_msg_contextual_grammar
+        cue: ["to"]
+        fixer: idioms5First
+      - regex: "(?<target>(?<verb>run|runs|ran|running){{S}}into{{S}}problem){{E}}"
+        message: review_msg_phrase_correction
+        cue: ["problem"]
+        fixer: idioms5Verb3
+      - regex: "{{notAfter:good}}(?<target>(?:till|til)(?:{{S}}|-)date){{E}}"
+        message: review_msg_phrase_correction
+        cue: ["till", "til"]
+        fix: "to date"
+      # ---- optional style ----
+      - regex: "(?=that)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})(?<target>that{{S}}that){{S}}(?:is|was|are|were){{E}}"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        cue: ["that"]
+        fix: "that which"
+      - regex: "(?<target>(?<first>{{FREQUENCY}}){{S}}(?<second>{{FREQUENCY}})){{E}}"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        cue:
+          [
+            "always",
+            "usually",
+            "often",
+            "sometimes",
+            "frequently",
+            "rarely",
+            "seldom",
+            "never",
+            "occasionally",
+            "generally",
+            "normally",
+            "typically",
+          ]
+        fixer: idioms5First2
+      - regex: "(?<target>over{{S}}(?<number>[0-9][0-9,.]*(?:{{S}}(?:thousand|million|billion))?)(?:{{S}}(?<plus>plus)|\\+))(?![\\p{L}\\p{N}_-])(?!{{S}}(?:size|sizes|sized){{E}})"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        cue: ["over"]
+        fixer: idioms5Over
+      - regex: "(?<target>(?<verb>eat|eats|ate|eaten|eating)){{S}}(?:(?:the|my|your|his|her|their|our|some|these|those|this|that|prescribed){{S}}){0,2}(?:{{MEDICINE}}){{E}}"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        cue: ["eat", "eats", "ate", "eaten", "eating"]
+        fixer: idioms5Verb4
+      - regex: "(?:in|for|during|over|within|throughout){{S}}the{{S}}(?<target>last{{S}})(?:minutes|hours|days|weeks|months|years|decades){{E}}(?!{{S}}(?:of|before|after|until|till|prior|leading|preceding|following|when){{E}})"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        cue: ["last"]
+        fix: "last few "
+      - regex: "(?:thrive|thrives|thrived|throve|thriving){{S}}(?<target>off){{E}}(?!{{S}}(?:of|the{{S}}land){{E}})"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        cue: ["thrive", "thrives", "thrived", "throve", "thriving"]
+        fix: "on"
+      - regex: "(?<target>(?<verb>rise|rises|rose|risen|rising|rised|raise|raises|raised|raising)(?<mid>(?:{{S}}up)?(?:{{S}}(?:in|through))?){{S}}(?<the>the{{S}}(?<rank>ranks?))){{E}}(?!{{S}}and{{S}}file{{E}})"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        cue: ["rank", "ranks"]
+        fixer: idioms5Verb5
+      - regex: "(?<target>(?<verb>throw|throws|threw|thrown|throwing){{S}}(?<det>(?:(?:the|my|his|her|their|our|your|some|any|this|that|all{{S}}the){{S}})?)(?<noun>trash|garbage|rubbish|litter)){{E}}"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        cue: ["trash", "garbage", "rubbish", "litter"]
+        fixer: idioms5Verb6
   - id: en.moreMostDegree
     checks: [englishDoubledDegree, stylePhrasing]
     predicate: moreMostDegree
@@ -656,7 +1137,24 @@ rules:
     predicate: geographicThe
   - id: en.missingArticle
     checks: [englishMissingArticle]
-    predicate: missingArticle
+    style: slot
+    filter: missingArticle
+    message: review_msg_missing_article
+    frames:
+      # "He is good friend.", "It was extremely difficult problem": be before a bare count noun.
+      - regex: "(?<![\\p{L}'’])(?:is|was|am|are|were|be|been|become|becomes|became){{S}}(?<target>(?:(?:very|really|quite|extremely|truly){{S}})?(?:(?<adj>[a-z]+){{S}})?(?<noun>(?!{{CLOSED}}{{E}})[a-z]+))(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|{{S}}{{CLOSED}}{{E}})"
+        cue: ["is", "was", "am", "are", "were", "be", "been", "become", "became"]
+        fixer: articlesVery
+      # "waiting at airport", "about good friend": a preposition before a bare count noun.
+      - regex: "(?<![\\p{L}'’])(?:at|by|in|for|about|from|into|near|under|behind|inside|beside|without){{S}}(?<target>(?:(?<adj>[a-z]+){{S}})?(?<noun>(?!{{CLOSED}}{{E}})[a-z]+))(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|{{S}}{{CLOSED}}{{E}})"
+        fixer: articlesAdj
+      # "I have experienced problem", "He takes brother with him": an object count noun.
+      - regex: "(?<![\\p{L}'’])(?:(?:have|has|had|['’]ve){{S}}[a-z]+ed|have|has|had|need|needs|needed|want|wants|wanted|take|takes|took|give|gives|gave|find|finds|found|buy|buys|bought|make|makes|made|see|sees|saw|meet|meets|met|get|gets|got){{S}}(?<target>(?:(?<adj>[a-z]+){{S}})?(?<noun>(?!{{CLOSED}}{{E}})[a-z]+))(?:(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|{{S}}{{CLOSED}}{{E}})|(?={{S}}(?:a|an|the|my|his|her|their|our){{E}}))"
+        fixer: articlesAdj2
+      # "such good friend": such takes a.
+      - regex: "(?<target>such){{S}}(?:(?<adj>[a-z]+){{S}})?(?<noun>(?!{{CLOSED}}{{E}})[a-z]+)(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|{{S}}{{CLOSED}}{{E}})"
+        cue: ["such"]
+        fixer: articlesSuch
   - id: en.slotConfusions
     checks:
       [

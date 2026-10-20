@@ -1,6 +1,6 @@
 // The named Review detectors of grammar/rules/en.yaml; the rule file sets their checks,
 // languages and order.
-import { mergePredicates, type Fixer } from "../../engine/reviewRules";
+import { mergePredicates, type FindingsFilter, type Fixer } from "../../engine/reviewRules";
 import * as apostrophes from "./apostrophes";
 import * as compoundForms from "./compoundForms";
 import * as properNames from "./properNames";
@@ -68,7 +68,6 @@ export const PREDICATES = mergePredicates(
   confusions1.PREDICATES,
   confusions2.PREDICATES,
   idioms3.PREDICATES,
-  idioms5.PREDICATES,
   grammarStyle1.PREDICATES,
   grammarStyle2.PREDICATES,
   dialects.PREDICATES,
@@ -111,6 +110,8 @@ export const PREDICATES = mergePredicates(
 
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
+  articles.FIXERS,
+  idioms5.FIXERS,
   slotConfusions.FIXERS,
   clauseGaps.FIXERS,
   slipFrames.FIXERS,
@@ -130,3 +131,6 @@ export const FIXERS = mergePredicates<Fixer>(
   typoSlots.FIXERS,
   verbSlots.FIXERS,
 );
+
+/** The named findings filters of grammar/rules/en.yaml (`filter:`). */
+export const FILTERS = mergePredicates<FindingsFilter>(articles.FILTERS);

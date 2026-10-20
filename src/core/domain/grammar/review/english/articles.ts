@@ -1,11 +1,10 @@
 import { englishInitialSound } from "../../implementations/helpers/EnglishInitialSound";
 import { ENGLISH_MASS_NOUNS } from "../../implementations/helpers/EnglishCountability";
 import { englishCountNoun, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { frameDetector, type Frame } from "./idioms5";
 import { FUNCTION_WORDS } from "./slotWords";
 import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { Detector, Fixer, FindingsFilter } from "../../engine/reviewRules";
 import { quotedMention } from "./grammarStyle1";
 import { finding } from "../finding";
 
@@ -134,45 +133,21 @@ const countNoun = (word: string) => COUNT_NOUNS.has(word);
 const describedCount = (adj: string | undefined, word: string) =>
   !!adj && englishCountNoun(word) && !ENGLISH_MASS_NOUNS.has(word);
 const article = (word: string) => (englishInitialSound(word) === "vowel" ? "an" : "a");
-const MISSING_ARTICLE = {
-  ruleId: "englishMissingArticle",
-  messageKey: "review_msg_missing_article",
-} as const;
-// The phrase ends: punctuation, the text end, or a closed word ("is friend of mine").
-const CLOSED = "(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)";
-const PHRASE_END = `(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|${S}${CLOSED}${E})`;
-const ARTICLE_FRAMES: readonly Frame[] = [
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
   // "He is good friend.", "It was extremely difficult problem": be before a bare count noun.
-  {
-    rule: MISSING_ARTICLE,
-    cue: ["is", "was", "am", "are", "were", "be", "been", "become", "became"],
-    pattern: `(?<![\\p{L}'’])(?:is|was|am|are|were|be|been|become|becomes|became)${S}(?<target>(?:(?:very|really|quite|extremely|truly)${S})?(?:(?<adj>[a-z]+)${S})?(?<noun>(?!${CLOSED}${E})[a-z]+))${PHRASE_END}`,
-    fix: (m) => bareCount(m.groups!.target, m.groups!.adj, m.groups!.noun, false, true),
-  },
+  articlesVery: (m) => bareCount(m.groups!.target, m.groups!.adj, m.groups!.noun, false, true),
   // "waiting at airport", "about good friend": a preposition before a bare count noun.
-  {
-    rule: MISSING_ARTICLE,
-    pattern: `(?<![\\p{L}'’])(?:at|by|in|for|about|from|into|near|under|behind|inside|beside|without)${S}(?<target>(?:(?<adj>[a-z]+)${S})?(?<noun>(?!${CLOSED}${E})[a-z]+))${PHRASE_END}`,
-    fix: (m) => bareCount(m.groups!.target, m.groups!.adj, m.groups!.noun, true),
-  },
+  articlesAdj: (m) => bareCount(m.groups!.target, m.groups!.adj, m.groups!.noun, true),
   // "I have experienced problem", "He takes brother with him": an object count noun.
-  {
-    rule: MISSING_ARTICLE,
-    pattern: `(?<![\\p{L}'’])(?:(?:have|has|had|['’]ve)${S}[a-z]+ed|have|has|had|need|needs|needed|want|wants|wanted|take|takes|took|give|gives|gave|find|finds|found|buy|buys|bought|make|makes|made|see|sees|saw|meet|meets|met|get|gets|got)${S}(?<target>(?:(?<adj>[a-z]+)${S})?(?<noun>(?!${CLOSED}${E})[a-z]+))(?:${PHRASE_END}|(?=${S}(?:a|an|the|my|his|her|their|our)${E}))`,
-    fix: (m) => bareCount(m.groups!.target, m.groups!.adj, m.groups!.noun, false),
-  },
+  articlesAdj2: (m) => bareCount(m.groups!.target, m.groups!.adj, m.groups!.noun, false),
   // "such good friend": such takes a.
-  {
-    rule: MISSING_ARTICLE,
-    cue: ["such"],
-    pattern: `(?<target>such)${S}(?:(?<adj>[a-z]+)${S})?(?<noun>(?!${CLOSED}${E})[a-z]+)${PHRASE_END}`,
-    fix: (m) => {
-      const { adj, noun } = m.groups!;
-      if (!countNoun(noun) || (adj && !adjectiveOnly(adj))) return null;
-      return `such ${article(adj ?? noun)}`;
-    },
+  articlesSuch: (m) => {
+    const { adj, noun } = m.groups!;
+    if (!countNoun(noun) || (adj && !adjectiveOnly(adj))) return null;
+    return `such ${article(adj ?? noun)}`;
   },
-];
+} satisfies Record<string, Fixer>;
 
 /** An adjective or -ed participle modifier ("good", "experienced"), never a closed word. */
 function adjectiveOnly(word: string): boolean {
@@ -207,5 +182,11 @@ const english =
 /** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
 export const PREDICATES = {
   geographicThe: english(geographicThe, superlativeThe),
-  missingArticle: english(frameDetector(ARTICLE_FRAMES)),
 } satisfies Record<string, Detector>;
+
+/** The findings filters of grammar/rules/en.yaml (`filter:`). */
+export const FILTERS = {
+  // A quoted mention ("the word 'unicorn'") is named, not used.
+  missingArticle: (ctx: DetectContext, findings: RawFinding[]) =>
+    findings.filter((f) => !quotedMention(ctx, f)),
+} satisfies Record<string, FindingsFilter>;

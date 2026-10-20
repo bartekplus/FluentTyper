@@ -97,7 +97,11 @@ import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { TYPOGRAPHIC_QUOTES } from "./typographicQuotes";
 import { germanUnits } from "./german/numbers";
-import { FIXERS as ENGLISH_FIXERS, PREDICATES as ENGLISH } from "./english/ruleDetectors";
+import {
+  FILTERS as ENGLISH_FILTERS,
+  FIXERS as ENGLISH_FIXERS,
+  PREDICATES as ENGLISH,
+} from "./english/ruleDetectors";
 import { FILTERS as USAGE_FILTERS } from "./englishUsagePhrases";
 import { FILTERS as COMPOUND_FILTERS } from "./englishCompounds";
 import { PREDICATES as GERMAN } from "./german/ruleDetectors";
@@ -1655,7 +1659,7 @@ export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors(
     fr: FRENCH,
   },
   { en: ENGLISH_FIXERS },
-  { common: { ...USAGE_FILTERS, ...COMPOUND_FILTERS } },
+  { common: { ...USAGE_FILTERS, ...COMPOUND_FILTERS }, en: ENGLISH_FILTERS },
 );
 
 /** Per-language entries: they may add context detectors to shared rules or serve their own. */
