@@ -1,14 +1,13 @@
 // French style advice (opt-in stylePhrasing) that needs more than a fixed phrase. The phrase
 // rows (calques, criticized phrasings, pleonasms) are in grammar/rules/fr.yaml.
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
-import { frameMatches, isLang, SPACE, WORD_END } from "../phraseTemplates";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { finding } from "../finding";
 import { isInflectedNoun, isVerbHomograph, nounGender, verbReadings } from "./frenchLexicon";
 import {
   capitalizedName,
   CLITICS,
-  ownedFrenchWords,
+  inChunk,
   SENTENCE_START,
   SUBJECT_PRONOUNS,
   tokensAfter,
@@ -219,7 +218,6 @@ function verbCalque(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   }
   return null;
 }
-const VERB_WORD = /(?<![\p{L}\p{M}\p{N}_-])\p{L}[\p{L}\p{M}]*(?![\p{L}\p{M}\p{N}_-])/gu;
 
 // "un bon dix minutes": the English word order; French puts "bon" after the number.
 const NUMBER_WORDS = new Set(
@@ -228,46 +226,36 @@ const NUMBER_WORDS = new Set(
   ),
 );
 const FEMININE_UNITS = new Set("minutes heures secondes semaines journées années".split(" "));
-const GOOD_NUMBER = `(?<target>un${SPACE}bon${SPACE}(?<count>\\p{L}+(?:-\\p{L}+)*|\\d+)${SPACE}(?<unit>minutes|heures|secondes|semaines|journées|années|jours|mois|ans))${WORD_END}`;
 
-function goodNumber(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, GOOD_NUMBER)) {
-    const { count, unit } = m.groups!;
-    if (
-      !/^\d+$/.test(count) &&
-      !count
-        .toLowerCase()
-        .split("-")
-        .every((w) => NUMBER_WORDS.has(w))
-    )
-      continue;
-    const [start, end] = m.indices!.groups!.target;
-    const good = FEMININE_UNITS.has(unit.toLowerCase()) ? "bonnes" : "bons";
-    const found = wordFinding(
-      ctx,
-      start,
-      m.groups!.target,
-      [`${count} ${good} ${unit}`],
-      RULE,
-      MESSAGE,
-    );
-    if (found) findings.push({ ...found, range: { start, end } });
-  }
-  return findings;
+function goodNumber(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const { count, unit } = m.groups!;
+  if (
+    !/^\d+$/.test(count) &&
+    !count
+      .toLowerCase()
+      .split("-")
+      .every((w) => NUMBER_WORDS.has(w))
+  )
+    return null;
+  const [start, end] = m.indices!.groups!.target;
+  const good = FEMININE_UNITS.has(unit.toLowerCase()) ? "bonnes" : "bons";
+  const found = wordFinding(
+    ctx,
+    start,
+    m.groups!.target,
+    [`${count} ${good} ${unit}`],
+    RULE,
+    MESSAGE,
+  );
+  return found && { ...found, range: { start, end } };
 }
 
 // "41 MB": French writes bytes as octets.
 const BYTE_UNITS: Record<string, string> = { KB: "ko", kB: "ko", MB: "Mo", GB: "Go", TB: "To" };
-const BYTES = /(?<=\d[  ]?)(?<target>[KkMGT]B)(?![\p{L}\p{N}_])/dgu;
 
-function byteUnits(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, BYTES)) {
-    const unit = BYTE_UNITS[m[0]];
-    if (unit) findings.push(finding(RULE, MESSAGE, m.index, m.index + m[0].length, [unit]));
-  }
-  return findings;
+function byteUnits(m: RegExpExecArray): RawFinding | null {
+  const unit = BYTE_UNITS[m[0]];
+  return unit ? finding(RULE, MESSAGE, m.index, m.index + m[0].length, [unit]) : null;
 }
 
 /** Forms of "aller", for "aller au coiffeur". */
@@ -375,8 +363,6 @@ function spokenYa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   });
   return wordFinding(ctx, start, typed, fixes, RULE, MESSAGE, { start, end: verb.end });
 }
-const SPOKEN_Y =
-  /(?:(?<=(?<!\p{L})[qQ]u['’])|(?<![\p{L}\p{M}\p{N}_'’-]))[yY](?=[ \t]+(?:en[ \t]+)?a(?![\p{L}\p{M}\p{N}_'’-]))/gu;
 
 const STRESSED_OWNERS: Record<string, [string, string, string]> = {
   moi: ["mon", "ma", "mes"],
@@ -415,11 +401,6 @@ function ownerAfterNoun(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
   const owner = article === "les" ? plural : article === "la" ? f1 : m1;
   return wordFinding(ctx, m.index, m[0], [`${owner} ${noun}`], RULE, MESSAGE);
 }
-const OWNER_AFTER =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<det>le|la|les|l['’])[ \t]*(?<noun>\p{L}+)[ \t]+à[ \t]+(?<who>moi|toi|lui|elle|nous|vous|eux|elles)(?![\p{L}\p{M}\p{N}_'’])/giu;
-
-const RAPPELER =
-  /(?<![\p{L}\p{M}\p{N}_-])rappel(?:le|les|lent|ons|ez|ais|ait|aient|é|ée|és|ées|er)(?![\p{L}\p{M}\p{N}_-])/giu;
 
 /** "Merci pour m'avoir aidé" -> "de m'avoir aidé": thanks take "de" before an infinitive. */
 function thanksFor(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -475,24 +456,25 @@ function upHigh(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   });
 }
 
-function frenchStyle(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
+/** A word that may open a style finding: a verb calque or the head word of a phrase. */
+function styleWord(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   load();
-  const findings: RawFinding[] = [...goodNumber(ctx), ...byteUnits(ctx)];
-  const add = (found: RawFinding | null) => found && findings.push(found);
-  for (const m of ownedFrenchWords(ctx, VERB_WORD)) {
-    const word = m[0].toLowerCase();
-    if (typedForms!.has(word)) add(verbCalque(ctx, m));
-    else if (word === "au" || word === "aux" || word === "à") add(goToTrade(ctx, m));
-    else if (word === "auprès") add(addressedTo(ctx, m));
-    else if (word === "pour") add(thanksFor(ctx, m));
-    else if (word === "final") add(inTheEnd(ctx, m));
-    else if (word === "haut") add(upHigh(ctx, m));
-  }
-  for (const m of ownedFrenchWords(ctx, RAPPELER)) add(rememberOf(ctx, m));
-  for (const m of ownedFrenchWords(ctx, SPOKEN_Y)) add(spokenYa(ctx, m));
-  for (const m of ownedFrenchWords(ctx, OWNER_AFTER)) add(ownerAfterNoun(ctx, m));
-  return findings;
+  const word = m[0].toLowerCase();
+  if (typedForms!.has(word)) return verbCalque(ctx, m);
+  if (word === "au" || word === "aux" || word === "à") return goToTrade(ctx, m);
+  if (word === "auprès") return addressedTo(ctx, m);
+  if (word === "pour") return thanksFor(ctx, m);
+  if (word === "final") return inTheEnd(ctx, m);
+  if (word === "haut") return upHigh(ctx, m);
+  return null;
 }
 
-export const PREDICATES = { style: frenchStyle } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  goodNumber,
+  byteUnits,
+  styleWord: inChunk(styleWord),
+  rememberOf: inChunk(rememberOf),
+  spokenYa: inChunk(spokenYa),
+  ownerAfterNoun: inChunk(ownerAfterNoun),
+} satisfies Record<string, MatchFixer>;

@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   IL,
   ILS,
@@ -17,7 +17,7 @@ import {
 } from "./frenchLexicon";
 import {
   CLITICS,
-  ownedFrenchWords,
+  inChunk,
   SUBJECT_PRONOUNS,
   tokensAfter,
   tokensBefore,
@@ -26,7 +26,6 @@ import {
 import { namedExampleBefore } from "../exampleCues";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
-import { isLang } from "../phraseTemplates";
 
 // Hyphens French grammar requires: the inverted subject of a question ("pouvez-vous",
 // "a-t-il", "est-ce") and the adverb "peut-être".
@@ -268,11 +267,6 @@ function prefixCompound(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
     carryCase(typed, fixed),
   ]);
 }
-const PREFIX_COMPOUND = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<prefix>${PREFIXES.split(" ").join("|")}|sur|sous|contre)(?:[ \\t]+|-)(?<word>\\p{L}{3,})(?![\\p{L}\\p{M}\\p{N}_'’-])`,
-  "giu",
-);
-const VERBAL_MAYBE = /(?<![\p{L}\p{M}\p{N}_'’-])peut-être(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 // The pronoun after an imperative joins it: "dis-lui", "regarde-la", "prends-en".
 // Verbs whose object pronoun stays with them before an infinitive ("laisse-moi faire",
@@ -373,23 +367,12 @@ function gluedT(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const fixed = `${y ? `${y[0]} ` : ""}${y ? verb.toLowerCase() : verb}-t-${pronoun}`;
   return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [fixed]);
 }
-const GLUED_T =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<y>y[ \t]?)?(?<verb>a|va)t-(?<pronoun>il|elle|on)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
-const SECOND_PRONOUN =
-  /(?<=\p{L}-)(?<first>le|la|les|moi|toi|lui|nous|vous|leur)[ \t]+(?<second>moi|toi|lui|nous|vous|leur|en|y)(?![\p{L}\p{M}\p{N}_'’-])/giu;
-
-const IMPERATIVE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<verb>\p{L}+)[ \t]+(?<pronoun>moi|toi|lui|nous|vous|leur|le|la|les|en|y|m['’]en|t['’]en)(?![\p{L}\p{M}\p{N}_'’-])/giu;
-
-const INVERSION =
-  /(?<![\p{L}\p{M}\p{N}_-])(?<verb>\p{L}+)(?:[ \t]*-[ \t]+|[ \t]+-[ \t]*|[ \t]+(?<t>t['’]|t[ \t]+|-t-|t-)[ \t]*|[ \t]+)(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles|ce)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const PEU_BEFORE = new Set(
   "à un très trop si assez bien pour de le ce tout aussi ne n' qui ça cela ici sous avant".split(
     " ",
   ),
 );
-const MAYBE = /(?<![\p{L}\p{M}\p{N}_'’-])peut?[ \t]+être(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 // Prefixes that the 1990 spelling welds or keeps with a hyphen, both accepted ("co-auteur").
 const WELDED_PREFIXES = new Set(
@@ -416,56 +399,6 @@ function splitWord(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   return finding(RULE, "review_msg_split_word", m.index, m.index + m[0].length, [joined]);
 }
 
-const SPLIT_WORD =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<first>\p{Ll}[\p{Ll}\p{M}]*)-[ ]?(?<second>\p{Ll}[\p{Ll}\p{M}]*)(?![\p{L}\p{M}\p{N}_'’-])/gu;
-
-function hyphenation(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, INVERSION)) {
-    const finding = inversion(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, MAYBE)) {
-    const finding = maybe(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, IMPERATIVE)) {
-    const finding = imperative(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, GLUED_T)) {
-    const finding = gluedT(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, SECOND_PRONOUN)) {
-    const finding = secondPronoun(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, VERBAL_MAYBE)) {
-    const finding = verbalMaybe(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, PREFIX_COMPOUND)) {
-    const finding = prefixCompound(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, WORD_PAIR)) {
-    const finding = spacedCompound(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, SPLIT_WORD)) {
-    const finding = splitWord(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, LONG_FIRST)) {
-    const finding = longCompound(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
-
-const LONG_FIRST = /(?<![\p{L}\p{M}\p{N}_'’-])\p{L}+(?:['’]\p{L}+)?(?=[ \t]{1,8}\p{L}|-\p{L})/gu;
 const compoundPatterns = new Map<string, RegExp>();
 // Compounds that are no noun, so no determiner comes before them.
 const BARE_COMPOUNDS = new Set(["c'est-à-dire"]);
@@ -556,7 +489,17 @@ const ARTICLE_CONTEXT = new Set(
     "et ou mais que qu' car"
   ).split(" "),
 );
-const WORD_PAIR =
-  /(?<![\p{L}\p{M}\p{N}_-])(?<first>\p{Ll}+)(?=[ \t]{1,3}(?<second>\p{Ll}+)(?![\p{L}\p{M}\p{N}_'’-]))/gu;
 
-export const PREDICATES = { hyphenation: hyphenation } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  inversion: inChunk(inversion),
+  maybe: inChunk(maybe),
+  imperative: inChunk(imperative),
+  gluedT: inChunk(gluedT),
+  secondPronoun: inChunk(secondPronoun),
+  verbalMaybe: inChunk(verbalMaybe),
+  prefixCompound: inChunk(prefixCompound),
+  spacedCompound: inChunk(spacedCompound),
+  splitWord: inChunk(splitWord),
+  longCompound: inChunk(longCompound),
+} satisfies Record<string, MatchFixer>;

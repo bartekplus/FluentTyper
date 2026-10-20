@@ -31,14 +31,14 @@ export const PREDICATES = mergePredicates(
   agreement.PREDICATES,
   dates.PREDICATES,
   homophones.PREDICATES,
-  hyphenation.PREDICATES,
   ordinals.PREDICATES,
-  style.PREDICATES,
   verbForms.PREDICATES,
 );
 
 /** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
+  style.FIXERS,
+  hyphenation.FIXERS,
   imperative.FIXERS,
   tout.FIXERS,
   mood.FIXERS,

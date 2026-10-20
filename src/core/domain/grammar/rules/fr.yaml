@@ -28,7 +28,59 @@ rules:
     predicate: homophones
   - id: fr.hyphenation
     checks: [frenchHyphenation]
-    predicate: hyphenation
+    style: match
+    message: review_msg_fr_hyphen
+    frames:
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<verb>\\p{L}+)(?:[ \\t]*-[ \\t]+|[ \\t]+-[ \\t]*|[ \\t]+(?<t>t['’]|t[ \\t]+|-t-|t-)[ \\t]*|[ \\t]+)(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles|ce){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: inversion
+      - regex: "{{WORD_START}}peut?[ \\t]+être{{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: maybe
+      - regex: "{{WORD_START}}(?<verb>\\p{L}+)[ \\t]+(?<pronoun>moi|toi|lui|nous|vous|leur|le|la|les|en|y|m['’]en|t['’]en){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: imperative
+      - regex: "{{WORD_START}}(?<y>y[ \\t]?)?(?<verb>a|va)t-(?<pronoun>il|elle|on){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: gluedT
+      - regex: "(?<=\\p{L}-)(?<first>le|la|les|moi|toi|lui|nous|vous|leur)[ \\t]+(?<second>moi|toi|lui|nous|vous|leur|en|y){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: secondPronoun
+      - regex: "{{WORD_START}}peut-être{{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: verbalMaybe
+      - regex: "{{WORD_START}}(?<prefix>anti|auto|néo|géo|méga|mini|ultra|hyper|multi|psycho|franco|afro|vice|vidéo|micro|macro|post|co|cyber|extra|inter|intra|semi|pseudo|quasi|poly|télé|bio|éco|rétro|zig|anglo|germano|italo|hispano|gréco|judéo|sino|russo|austro|euro|sur|sous|contre)(?:[ \\t]+|-)(?<word>\\p{L}{3,}){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: prefixCompound
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<first>\\p{Ll}+)(?=[ \\t]{1,3}(?<second>\\p{Ll}+){{WORD_END}})(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: spacedCompound
+      - regex: "{{WORD_START}}(?<first>\\p{Ll}[\\p{Ll}\\p{M}]*)-[ ]?(?<second>\\p{Ll}[\\p{Ll}\\p{M}]*){{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: splitWord
+      - regex: "{{WORD_START}}\\p{L}+(?:['’]\\p{L}+)?(?=[ \\t]{1,8}\\p{L}|-\\p{L})(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: longCompound
   - id: fr.subjectVerbAgreement
     checks: [frenchSubjectVerbAgreement]
     predicate: subjectVerbAgreement
@@ -392,7 +444,38 @@ rules:
         fixer: invariableColour
   - id: fr.style
     checks: [stylePhrasing]
-    predicate: style
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # "un bon dix minutes": the English word order; French puts "bon" after the number.
+      - regex: "(?<target>un{{S}}bon{{S}}(?<count>\\p{L}+(?:-\\p{L}+)*|\\d+){{S}}(?<unit>minutes|heures|secondes|semaines|journées|années|jours|mois|ans)){{E}}"
+        fixer: goodNumber
+      # "41 MB": French writes bytes as octets.
+      - regex: "(?<=\\d[ \\u00A0]?)(?<target>[KkMGT]B)(?![\\p{L}\\p{N}_])"
+        flags: dgu
+        fixer: byteUnits
+      # A word: a verb calque or a word that opens a style phrase ("au", "auprès", "pour",
+      # "final", "haut").
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_-])(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: styleWord
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])rappel(?:le|les|lent|ons|ez|ais|ait|aient|é|ée|és|ées|er)(?![\\p{L}\\p{M}\\p{N}_-])(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: rememberOf
+      - regex: "(?:(?<=(?<!\\p{L})[qQ]u['’])|{{WORD_START}})[yY](?=[ \\t]+(?:en[ \\t]+)?a{{WORD_END}})(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: spokenYa
+      - regex: "{{WORD_START}}(?<det>le|la|les|l['’])[ \\t]*(?<noun>\\p{L}+)[ \\t]+à[ \\t]+(?<who>moi|toi|lui|elle|nous|vous|eux|elles)(?![\\p{L}\\p{M}\\p{N}_'’])(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: ownerAfterNoun
   - id: fr.bareNoun
     checks: [frenchNounGender]
     style: match
