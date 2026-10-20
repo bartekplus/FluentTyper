@@ -23,6 +23,7 @@ fragments:
   NEGATION: "don['’]t|doesn['’]t|didn['’]t|never|not"
   VERB_OBJECT: "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what"
   SUBJECT: "I|you|we|they|he|she|it"
+  RELATIVESLOTS_ADVERB: "(?:always|also|never|still|just|only|usually|often|really|actually|already|now)"
   APOSTROPHES_QUANTIFIERS: "two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|hundred|dozens|hundreds|thousands|millions|many|several|few|numerous|various|multiple|these|those|both|all|some|(?:lots?|couple|number|plenty|dozens|all|most|some|many|several|both){{S}}of|[2-9]|[1-9][0-9]+"
   CONFUSIONSLOTS_MODAL: "(?:will|would|can|could|should|shall|may|might|must|cannot|['’]ll|['’]d|(?:won|wouldn|can|couldn|shouldn|don|doesn|didn)['’]t)"
   PUNCTUATION_LINKING: "However|Nonetheless|Nevertheless|Besides|Alas|Similarly|Also|Furthermore|Moreover|Therefore|Consequently|Meanwhile|Otherwise|Additionally|Finally|Firstly|Secondly|Lastly|Unfortunately|Fortunately|Of course|For example|For instance|In fact|In addition|In conclusion|In summary|On the other hand|As a result|In other words|By default|That said|Indeed|Instead|Likewise"
@@ -1316,10 +1317,51 @@ rules:
     predicate: doubleNegatives
   - id: en.relativeAgreement
     checks: [englishSubjectVerbAgreement, englishPossibleErrors]
-    predicate: relativeAgreement
+    style: match
+    message: review_msg_subject_verb
+    filter: slotFindings
+    frames:
+      # "Here is a screenshot that show …", "processes that runs …": a relative verb's number.
+      # The frame starts at the pronoun (cheap to find); the noun is in its lookbehind.
+      - regex: "(?<=(?<![\\p{L}'’-])(?<noun>[a-z]{1,30}){{S}})(?<pronoun>that|who|which)(?:{{S}}{{RELATIVESLOTS_ADVERB}})?{{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        fixer: relativeVerb
+      # Two names joined by "and" are plural ("Xavier and Aidan is friends" -> are). Brand pairs
+      # ("Johnson and Johnson") and titles ("Tom and Jerry is a cartoon") stay silent. A pair
+      # that is not sure to be two names reports englishPossibleErrors.
+      - regex: "(?<=(?<![\\p{L}'’-])(?<first>[A-Za-z]{2,30}){{S}})and{{S}}(?<second>[A-Za-z]{2,30}){{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        fixer: relativeNamePair
+      # One name with a base verb and his/her after it is singular ("Tim make his life worse"
+      # -> makes).
+      - regex: "(?<=(?<![\\p{L}'’-])(?<name>[A-Za-z]{2,30}){{S}}(?<verb>[a-z]{2,30}){{S}})(?:his|her){{E}}"
+        owner: verb
+        fixer: relativeNameHis
+      # "Marketing are bad for you", "Swimming were fun": a gerund subject opening the sentence
+      # is singular. "Following are the results" (inverted, a determiner after) stays.
+      - regex: "(?<=(?<![\\p{L}'’-])(?<subject>[A-Za-z]{1,30}ing){{S}})(?<verb>are|were){{E}}"
+        owner: verb
+        fixer: relativeGerundSubject
+      # "To err are human", "To see them were a joy": a "to" phrase subject is singular. Only an
+      # object pronoun may come between: "To see the kids are happy" may mean "that the kids are".
+      - regex: "(?<=(?<![\\p{L}'’-])To{{S}}(?<base>[a-z]{2,30}){{S}}(?:(?:it|them|him|her|me|us|you){{S}})?)(?<verb>are|were){{E}}"
+        owner: verb
+        fixer: relativeToSubject
   - id: en.pronounForms
     checks: [englishPronounVerbWhitelistAgreement]
-    predicate: pronounForms
+    style: match
+    message: review_msg_pronoun_verb
+    filter: slotFindings
+    frames:
+      # "I hope you is happy", "I rarely has", "as soon as you hears": a subject pronoun and its
+      # be/have/do or -s verb.
+      - regex: "(?<pronoun>I|you|we|they)(?<adverb>{{S}}(?:rarely|never|always|often|usually|sometimes|really|also|still|just|only|all))?{{S}}(?<verb>[a-z]+s){{E}}"
+        owner: verb
+        fixer: relativePronounVerbS
+      # "Is you crazy?", "What has you done?".
+      - regex: "(?<verb>is|was|has|does){{S}}(?<pronoun>I|you|we|they){{E}}"
+        owner: verb
+        fixer: relativePronounQuestion
   - id: en.questionAuxiliaries
     checks: [englishAuxiliaryBaseVerb]
     predicate: questionAuxiliaries
