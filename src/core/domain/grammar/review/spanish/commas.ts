@@ -1,6 +1,17 @@
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import { readNoun } from "./agreement";
-import { Around, attributeOf, CLITICS, replaceToken, tokenize, words, type Tokens } from "./common";
+import {
+  Around,
+  attributeOf,
+  CLITICS,
+  CONJUNCTIONS,
+  DETERMINERS,
+  isInfinitive,
+  replaceToken,
+  tokenize,
+  words,
+  type Tokens,
+} from "./common";
 import { finiteVerb, genderedForm, isNoun, participle, subjunctiveLike } from "./lexicon";
 import { isLang } from "../phraseTemplates";
 
@@ -162,6 +173,31 @@ function commaBeforePero(tokens: Tokens, i: number): boolean {
   return false;
 }
 
+/**
+ * "Abrimos las ventanas ya que hacía calor" -> "ventanas, ya que": a causal "ya que" or "puesto
+ * que" after a clause. Not right after a verb ("Te he dicho ya que no": "ya" is "already";
+ * "Lo ha puesto que…"), a determiner ("el puesto que ocupa") or a conjunction.
+ */
+function commaBeforeCausal(tokens: Tokens, i: number): boolean {
+  if (!/^(?:ya|puesto)$/u.test(tokens[i].lower) || tokens[i].broken) return false;
+  const at = new Around(tokens, i);
+  if (at.next() !== "que" || !at.next(2)) return false;
+  const before = at.prev();
+  if (!before || CLITICS.has(before) || NEGATIONS.has(before) || CONJUNCTIONS.has(before))
+    return false;
+  if (DETERMINERS.has(before) || clauseVerb(before) || participle(before) || isInfinitive(before))
+    return false;
+  // "un buen puesto que", "al cuarto puesto que": the noun "puesto" with its determiner.
+  const nounDeterminer = (word: string) => DETERMINERS.has(word) || /^(?:al|del)$/u.test(word);
+  if (tokens[i].lower === "puesto" && nounDeterminer(at.prev(2))) return false;
+  for (let back = 2; back <= 10; back++) {
+    const word = at.prev(back);
+    if (!word) return false;
+    if (clauseVerb(word)) return true;
+  }
+  return false;
+}
+
 // ------------------------------------------------------------------ subject and verb
 
 // Determiners of a subject a comma may not cut from its verb; "mi"/"tu" open vocatives ("Mi
@@ -259,7 +295,7 @@ function commas(ctx: DetectContext): RawFinding[] {
   const push = (finding: RawFinding | null) => finding && findings.push(finding);
   for (let i = 0; i < tokens.length; i++) {
     if (!tokens[i].word) continue;
-    if (commaBeforeSino(tokens, i) || commaBeforePero(tokens, i))
+    if (commaBeforeSino(tokens, i) || commaBeforePero(tokens, i) || commaBeforeCausal(tokens, i))
       push(commaAfter(ctx, tokens, i - 1));
     const comma = subjectComma(tokens, i);
     if (comma >= 0)

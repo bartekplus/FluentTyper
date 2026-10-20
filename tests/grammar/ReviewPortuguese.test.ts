@@ -243,6 +243,7 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
       neg: [
         "Está difícil hoje.",
         "O nome dela começa com um á agudo.",
+        "A legenda da foto termina em Á...",
         "O agente vai investigar o caso.",
         "Agente secreto não revela nada.",
         "Ela trabalha como agente.",
@@ -412,9 +413,14 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["O farol fica a 23º 32' 51\" S.", "O farol fica a 23°\u202f32′\u202f51″ S."],
         ["A ilha fica a 8º15’ de latitude.", "A ilha fica a 8°\u202f15′ de latitude."],
         ["Ontem fez 31º, que calor.", "Ontem fez 31°, que calor."],
+        ["A taxa subiu para 7'5% este ano.", "A taxa subiu para 7,5% este ano."],
+        ["O terreno mede 250'75 metros.", "O terreno mede 250,75 metros."],
       ].filter(([typed, fixed]) => typed !== fixed) as Array<[string, string]>,
       neg: [
         "Ganhou a 2ª corrida e o 3º lugar.",
+        "Ele mede 5'10\" de altura.",
+        "O gol saiu aos 45' do segundo tempo.",
+        "A ilha fica a 8° 15'30\" de latitude.",
         "A febre chegou a 39º ontem.",
         "A reunião é às 14:30 h.",
         "Chegamos às 7:00h.",
@@ -1085,6 +1091,85 @@ describe("cujo, esta a + infinitive and bem-/mal- compounds", () => {
     ["englishPhraseCorrections", "Ele é o mais bem-educado da turma."],
   ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, text) => {
     expect(findings(ruleId, text)).toEqual([]);
+  });
+});
+
+describe("a feminine made by rule on a noun whose feminine is another word", () => {
+  test.each([
+    ["As viscondas chegaram de carruagem.", "As viscondessas chegaram de carruagem."],
+    ["A duqua usava um vestido azul.", "A duquesa usava um vestido azul."],
+    ["A nova alcaida fechou os portões.", "A nova alcaidessa fechou os portões."],
+    ["A sulta governou por dez anos.", "A sultana governou por dez anos."],
+    ["Uma frada cuidava do jardim do convento.", "Uma freira cuidava do jardim do convento."],
+    ["Ele foi o heroíno da partida.", "Ele foi o herói da partida."],
+    ["A zangona fica na colmeia.", "A abelha fica na colmeia."],
+  ])("%p -> %p", (text, fixed) => {
+    expect(repaired("englishPhraseCorrections", text)).toBe(fixed);
+  });
+  // "conda" is also a package manager, so it stays out.
+  test.each(["Instale o pacote com o conda.", "A sultana falou com a freira e a duquesa."])(
+    "leaves %p alone",
+    (text) => {
+      expect(findings("englishPhraseCorrections", text)).toEqual([]);
+    },
+  );
+});
+
+describe("nouns that keep their plural in a fixed phrase", () => {
+  test.each([
+    ["O ônibus está preste a sair.", "O ônibus está prestes a sair."],
+    ["Estávamos preste a desistir.", "Estávamos prestes a desistir."],
+    ["A plateia bateu palma no final.", "A plateia bateu palmas no final."],
+    ["Todos batiam palma para o cantor.", "Todos batiam palmas para o cantor."],
+  ])("%p -> %p", (text, fixed) => {
+    expect(repaired("englishPhraseCorrections", text)).toBe(fixed);
+  });
+  test.each(["Espero que ele preste a prova amanhã.", "Ela bateu a palma da mão na mesa."])(
+    "leaves %p alone",
+    (text) => {
+      expect(findings("englishPhraseCorrections", text)).toEqual([]);
+    },
+  );
+});
+
+describe("a verb tense against a past or future time phrase", () => {
+  test.each([
+    [
+      "Na semana passada, os técnicos instalarão o servidor.",
+      "Na semana passada, os técnicos instalaram o servidor.",
+    ],
+    ["No mês passado comprarão uma casa.", "No mês passado compraram uma casa."],
+    [
+      "A semana passada, os vizinhos pintarão o muro.",
+      "A semana passada, os vizinhos pintaram o muro.",
+    ],
+    ["Na passada semana venderemos o barco.", "Na passada semana vendemos o barco."],
+    ["Ontem tu comprarás o pão.", "Ontem tu compraste o pão."],
+    ["Anteontem, vós partireis cedo.", "Anteontem, vós partistes cedo."],
+    [
+      "Na próxima semana, os alunos visitaram o museu.",
+      "Na próxima semana, os alunos visitarão o museu.",
+    ],
+    ["No próximo mês ela mudara de casa.", "No próximo mês ela mudará de casa."],
+    ["Amanhã tu compraras o pão.", "Amanhã tu comprarás o pão."],
+    ["Amanhã, vós chegáreis cedo.", "Amanhã, vós chegareis cedo."],
+    ["Reformarão na semana passada a cozinha.", "Reformaram na semana passada a cozinha."],
+    ["Depois de amanhã, mudaram de casa.", "Depois de amanhã, mudarão de casa."],
+    ["Eu ontem comprarei o bilhete.", "Eu ontem comprei o bilhete."],
+  ])("%p -> %p", (text, fixed) => {
+    expect(repaired("portugueseAgreement", text)).toBe(fixed);
+  });
+  test.each([
+    "Quem chegou ontem enviará o relatório.",
+    "A semana passada marcará a história do clube.",
+    "Lembrarão a semana passada com saudade.",
+    "Na próxima semana, as bandeiras serão trocadas.",
+    "Amanhã, carreiras inteiras mudarão.",
+    "Na semana passada enviaram os livros.",
+    "Na próxima semana enviarão os livros.",
+    "Amanhã, os que ficaram receberão o prêmio.",
+  ])("leaves %p alone", (text) => {
+    expect(findings("portugueseAgreement", text)).toEqual([]);
   });
 });
 

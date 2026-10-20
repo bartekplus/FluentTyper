@@ -70,8 +70,9 @@ function secondVerb(tokens: Tokens, from: number): boolean {
 
 function fixFor(tokens: Tokens, i: number, spelling: Spelling): string[] | null {
   const at = new Around(tokens, i);
-  // "entiendo perfectamente por qué": an adverb in -mente between the verb and the question.
-  const skip = /^\p{L}{3,}mente$/u.test(at.prev()) ? 1 : 0;
+  // "entiendo perfectamente por qué", "¿sabes ya por qué?": an adverb between the verb and the
+  // question.
+  const skip = /^\p{L}{3,}mente$/u.test(at.prev()) || at.prev() === "ya" ? 1 : 0;
   const prev = at.prev(1 + skip);
   // "¿Porque no viniste?", "¿Y porque no?": a question opening with the word asks why.
   const opens = tokens[i - 1]?.text === "¿" || (tokens[i - 2]?.text === "¿" && at.prev() === "y");

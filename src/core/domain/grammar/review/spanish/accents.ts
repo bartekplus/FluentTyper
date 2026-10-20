@@ -328,7 +328,9 @@ function estarReading(at: Around, plural: boolean): boolean {
     !verbLike(next) &&
     // "basada", "pegada": participles the dictionary lists as nouns too.
     (!isNoun(next) || INVARIANT.has(next) || (!!participle(next) && /[ai]da$/u.test(next))) &&
-    closes(at, 1)
+    // "Ya esta terminada la obra": after an adverb, a participle that is no noun is the
+    // attribute even when the clause goes on.
+    (closes(at, 1) || (BEFORE_VERB.has(prev) && !!participle(next) && !isNoun(next)))
   )
     return true;
   if (PLACE_MANNER.has(next)) return !CLITICS.has(at.next(2)) && at.next(2) !== "la";

@@ -717,6 +717,13 @@ bien venida a = bienvenida a
 bien venidos a = bienvenidos a
 bien venidas a = bienvenidas a
 `),
+      // "hacia atrás" and "mediodía" are single words after "hacia"; "hacia así" may also be
+      // "hacía así" (did it so), and "hacia medio día" "hacía medio día" (half a day ago).
+      ...rows(`
+hacia tras = hacia atrás
+hacia así = hacia sí; hacía así
+hacia medio día = hacia mediodía; hacía medio día
+`),
       // "los años treintas", "los noventas": decades are invariable.
       ...[
         "veinte",

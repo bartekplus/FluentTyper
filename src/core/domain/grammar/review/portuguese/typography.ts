@@ -67,6 +67,14 @@ const NUMBER_FORMAT: Frame[] = [
     ruleId: "portugueseNumberFormat",
     messageKey: "review_msg_pt_number_format",
   },
+  // "7'5%", "1.250'75": an apostrophe typed for the decimal comma. Not feet and inches (5'10"),
+  // minutes after a degree (8° 15'30") or a minute mark alone (aos 45').
+  {
+    pattern: `(?<![\\d.,'’′º°]|[º°][ \\t\\u00a0])\\d{1,3}(?:[. \\u00a0]\\d{3}){0,6}(?<target>['’])\\d{1,3}(?![\\d'’′"”″])`,
+    replace: ",",
+    ruleId: "portugueseNumberFormat",
+    messageKey: "review_msg_pt_number_format",
+  },
   // "896.96 km²", "2.5 kg": a decimal point before a unit (a thousands group has 3 digits).
   {
     pattern: `(?<![\\d.,])\\d{1,3}(?<target>\\.)\\d{1,2}(?=${GAP}(?:km²?|m[²³]?|cm|mm|kg|g|mg|ml|l|L|t|ha|GB|MB|TB|kW|W|V|°C|%)(?![\\p{L}\\p{N}]))`,

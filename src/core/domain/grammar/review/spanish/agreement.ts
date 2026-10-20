@@ -147,12 +147,17 @@ const FEMININE_OTHER = words(
   "madre mujer gente calle noche tarde leche muerte suerte fuente mente llave nave " +
     "clase nieve sangre torre carne sucursal cárcel miel señal catedral sal col " +
     "credencial luz voz paz vez nariz raíz nuez interfaz tez hoz red pared sed merced " +
-    "ley imagen razón sien flor",
+    "ley imagen razón sien flor fase frase serie especie superficie sede nube fiebre catástrofe " +
+    "hélice índole pirámide perdiz lombriz codorniz",
 );
 const MASCULINE_OTHER = words(
   "padre hombre coche nombre puente diente aceite bosque cine valle pie baile golpe parque " +
     "postre billete árbol papel hotel nivel animal hospital lápiz pez arroz reloj sol " +
-    "país mes análisis énfasis paréntesis éxtasis apocalipsis",
+    "país mes análisis énfasis paréntesis éxtasis apocalipsis tren pan jardín camión avión " +
+    "ratón balcón corazón lugar hogar collar altar cráter carácter club robot chip pastel " +
+    "cartel túnel perfil autobús interés revés ciprés ajedrez maíz disfraz tapiz césped ataúd " +
+    "cohete paquete juguete tomate chocolate accidente desastre alambre cable menú champú " +
+    "café sofá tsunami taxi esquí rubí safari",
 );
 // Greek nouns in -sis and medical ones in -itis: feminine, the same in both numbers.
 const INVARIANT_FEMININE = /(?:[^l]sis|itis)$/u;
@@ -383,6 +388,8 @@ function determinerNoun(ctx: DetectContext, tokens: Tokens, i: number): RawFindi
   }
   // "un tanto apretados", "un poco cansadas": the adverb "somewhat".
   if (prev === "un" && /^(?:tanto|poco)$/u.test(detToken.lower)) return null;
+  // "altera tanto una nimiedad": an article after the word starts the noun phrase itself.
+  if (/^un(?:a|os|as)?$/u.test(nounToken.lower) && !/^las?$/u.test(detToken.lower)) return null;
   // "treinta y un años", "ciento un días": the numeral "un" counts.
   if (detToken.lower === "un" && (prev === "y" || NUMBER_WORDS.has(prev))) return null;
   // "la ex-ministra", "los e-mails": a compound.
@@ -966,6 +973,39 @@ function determinerAdjectiveNoun(ctx: DetectContext, tokens: Tokens, i: number):
   );
 }
 
+// Paired adjectives that often stand before the noun.
+const PAIRED_BEFORE =
+  /^(buen|mal|otr|poc|much|mism|nuev|viej|únic|últim|primer|tercer|propi|verdader|antigu|pequeñ|querid|hermos|bell|larg)(?:o|a|os|as)$/u;
+// Masculine singulars shortened before the noun: "buen día", "primer paso".
+const SHORTENED = words("buen mal primer tercer");
+
+/**
+ * "un buena guiso" -> "un buen guiso", "la primero vez" -> "la primera": the determiner and the
+ * noun agree, so the paired adjective between them is the odd one out.
+ */
+function adjectiveBetween(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | null {
+  const det = DETERMINER.get(tokens[i].lower);
+  const middle = tokens[i + 1];
+  const nounToken = tokens[i + 2];
+  if (!det || genderless(det) || det.forms[0].includes(" ") || !middle?.word || middle.broken)
+    return null;
+  if (!nounToken?.word || nounToken.broken || /^\p{Lu}/u.test(nounToken.text)) return null;
+  const stem = PAIRED_BEFORE.exec(middle.lower)?.[1];
+  if (!stem || ctx.dictionary.has(nounToken.lower) || ctx.dictionary.has(middle.lower)) return null;
+  const noun = readNoun(nounToken.lower);
+  if (!noun?.gender || noun.invariant || noun.paired || EITHER.has(noun.singular)) return null;
+  const plural = det.slot >= 2;
+  const feminine = det.slot % 2 === 1;
+  if (noun.plural !== plural || (noun.gender === "f") !== feminine) return null;
+  // "el agua", "un hacha": the masculine article before a stressed a- noun.
+  if (BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(nounToken.lower)) return null;
+  const typed = middle.lower;
+  const shortened = !feminine && !plural && SHORTENED.has(stem);
+  const fix = shortened ? stem : `${stem}${feminine ? "a" : "o"}${plural ? "s" : ""}`;
+  if (fix === typed || (!feminine && !plural && typed === `${stem}o`)) return null;
+  return replaceToken(ctx, middle, [fix], RULE, MESSAGE, nounToken);
+}
+
 const DEGREE_WORDS = words("mucho poco demasiado tanto cuanto cuánto");
 // Determiners that never stand alone before a number: "las tres reglas", "estos dos libros".
 const NUMBERED = words("el este ese aquel nuestro vuestro del al");
@@ -1125,6 +1165,7 @@ function agreement(ctx: DetectContext): RawFinding[] {
       determinerNoun(ctx, tokens, i) ??
       determinerAdjectiveNoun(ctx, tokens, i) ??
       determinerAcross(ctx, tokens, i) ??
+      adjectiveBetween(ctx, tokens, i) ??
       neuterBeforePlural(ctx, tokens, i) ??
       bareAdjectiveNoun(ctx, tokens, i) ??
       postponedAdjective(ctx, tokens, i) ??

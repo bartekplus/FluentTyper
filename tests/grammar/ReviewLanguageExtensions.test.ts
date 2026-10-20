@@ -380,6 +380,7 @@ const EXTENSIONS: Array<[CatalogRuleId, Record<string, Fixture>]> = [
           ["En la fiesta hubieron muchos invitados.", "En la fiesta hubo muchos invitados."],
           ["Es difícil preveer el resultado.", "Es difícil prever el resultado."],
           ["Habían varias opciones.", "Había varias opciones."],
+          ["El coche rodó hacia tras sin freno.", "El coche rodó hacia atrás sin freno."],
         ],
         neg: [
           "Ojalá que no haya problemas.",
