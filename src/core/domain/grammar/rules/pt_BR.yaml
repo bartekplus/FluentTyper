@@ -68,11 +68,61 @@ fragments:
   OBJECT: "l[oa]s?|n[oa]s?|[oa]s?"
   FUTURE_ENDINGS: "ei|ás|á|emos|eis|ão|ia|ias|íamos|íeis|iam"
   INFINITIVE_LEAD: "vai|vou|vamos|vão|ia|iam|irá|quero|queria|quer|querem|queremos|pode|posso|podemos|podem|podia|poderia|deve|devo|devemos|devem|deveria|preciso|precisa|precisamos|precisam|consegue|consigo|conseguimos|tento|tenta|tentar|gostaria|gosto|sei|sabe|de|para|pra|a|sem|ao|até|por|após|antes{{S}}de|depois{{S}}de|que"
+  DETERMINERS: "d[ao]s?|n[ao]s?|num|numa|nuns|numas|dum|duma|duns|dumas|pel[ao]s?|algum|alguma|alguns|algumas|nenhum|nenhuma|qualquer|quaisquer|cada|muita|muitas|muitos|pouca|poucas|poucos|tanta|tantas|tantos|toda|certa|tal|várias|vários|diversas|diversos|inúmeras|inúmeros|outras|outros|cuj[ao]s?|minhas?|meus?|tuas?|teus?|suas?|seus?|nossos?|nossas?|vossos?|vossas?|um|uma|uns|umas"
+  PREPOSITIONS: "(?:com|sem|para|por|sobre|entre|contra|após|perante|desde){{S}}(?:[ao]s?)(?![\\p{L}])|de|em|com|sem|para|por|sobre|entre|contra|após|perante|desde"
+  ADJECTIVES: "grandes?|fortes?|principa(?:l|is)|simples|excelentes?|vast[oa]s?|breves?|enormes?|long[oa]s?|eventua(?:l|is)|recentes?|supost[oa]s?|mer[oa]s?|notóri[oa]s?|devid[oa]s?|verdadeir[oa]s?|rápid[oa]s?|profund[oa]s?|graves?|séri[oa]s?|constantes?|intens[oa]s?|bel[oa]s?|ótim[oa]s?|péssim[oa]s?|terríve(?:l|is)|maldit[oa]s?|vil|imens[oa]s?|plen[oa]s?|tamanhas?|maior(?:es)?|menor(?:es)?|própri[oa]s?|únic[oa]s?|determinad[oa]s?|terceir[oa]s?|quart[oa]s?|quint[oa]s?|sext[oa]s?|sétim[oa]s?|oitav[oa]s?|non[oa]s?|décim[oa]s?|últim[oa]s?"
+  VERBS: "tem|tenho|temos|têm|tinha|tinham|teve|tive|há|houve|havia|pede|pedi|pediu|pedem|fez|faz|fiz|fazem|deu|dá|dei|dão|tomou|toma|tomei|tomam|paga|pagou|paguei|vê|vi|viu|traga|traz|trouxe|recebeu|recebi|recebe|recebem|sinto|sente|sentiu|senti|exige|exigiu|merece|mereceu|ganhou|ganhei|perdeu|perdi|causa|causou|causam|gera|gerou|geram|mostra|mostrou|sofreu|sofre|dar|ter|fazer|pedir|receber|tomar|pagar|ver|sentir|causar|gerar|sofrer|ouço|ouvia|ouviu|ouvem|escuto|escutava|escutei|escutou|escutam|ouvir|escutar|restam|resta|restou|restaram|sobram|sobrou|faltam|falta|faltou|faltaram|buscam|buscar|procuram|procurar|requer|requerem|exigem|exigir"
 
 rules:
   - id: pt_BR.accentParonyms
     checks: [portugueseAccentParonyms]
-    predicate: accentParonyms
+    style: match
+    message: review_msg_pt_accent_paronym
+    filter: firstAtStart
+    frames:
+      # "Ele influência quem", "Você cópia os dados": after a singular subject pronoun, with a
+      # verb ending of that person and more words after it, the accented noun twin stands for
+      # its verb form.
+      - regex: "(?<lead>eu|tu|ele|ela|você)(?:{{S}}(?:não|já|também|sempre|nunca|ainda|só|me|te|se|lhe|lhes|nos|vos))?{{S}}(?<target>\\p{L}*[áâéêíóôú]\\p{L}*){{E}}"
+        message: review_msg_pt_accent_verb
+        fixer: paronymSubjectVerb
+      # "Prática-se muito": the same before a hyphenated object pronoun.
+      - regex: "(?<target>\\p{L}*[áâéêíóôúÁÂÉÊÍÓÔÚ]\\p{L}*)(?=-(?:me|te|se|lhe|lhes|nos|vos){{E}})"
+        message: review_msg_pt_accent_verb
+        fixer: paronymHyphenVerb
+      # "O serviço continuo" -> "contínuo", "Aulas praticas" -> "práticas": after a noun or
+      # adjective opening a sentence, a first-person or second-person form is the accented twin.
+      - regex: "(?<det>(?:[oa]s?|um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|meus?|minhas?|seus?|suas?|nossos?|nossas?){{S}})?(?<noun>\\p{L}{3,}){{S}}(?<target>[a-zçãõáéíóúâêô]{3,}(?:o|as|es)){{E}}(?!-)"
+        fixer: paronymAfterNoun
+      # {{DETERMINERS}}: contracted articles, indefinites, quantifiers and possessives, never
+      # before a finite verb. {{PREPOSITIONS}}: prepositions, optionally with an article: "com a
+      # pratica", "para o publico". "nos" is also the pronoun "us" before a verb ("ele nos
+      # critica"); "no" only follows hyphenated.
+      - regex: "(?<lead>(?!nos{{E}})(?:{{DETERMINERS}})|{{PREPOSITIONS}})(?={{S}}(?<target>[a-zçãõáéíóúâêô]+){{E}})"
+        fixer: paronymAfterLead
+      # {{ADJECTIVES}}: adjectives that come before a noun and seldom stand for a person on
+      # their own, so after an article they still announce a noun: "um forte estimulo", "a
+      # principal evidencia", "da terceira vitima". "novo", "velho", "pequeno" or "melhor" stay
+      # out: "o velho critica tudo". The same leads, or an article, before one of those
+      # adjectives; "tão" before an adjective. "por último" is an adverb ("por último publica os
+      # dados").
+      - regex: "(?<lead>(?!por{{S}}últim)(?:(?!nos{{E}})(?:{{DETERMINERS}})|{{PREPOSITIONS}}|[ao]s?){{S}}(?:{{ADJECTIVES}})|t[ãa]o)(?={{S}}(?<target>[a-zçãõáéíóúâêô]+){{E}})"
+        fixer: paronymAfterLead
+      # A transitive verb before its object: "tenho duvidas", "há duvida", "pediu credito". Two
+      # finite verbs never stand side by side.
+      - regex: "(?<lead>{{VERBS}})(?={{S}}(?<target>[a-zçãõáéíóúâêô]+){{E}})"
+        fixer: paronymAfterLead
+      # After "ser" or "tornar" comes a noun or adjective: "foi publica" -> "pública", "tornou
+      # especifica" -> "específica", "ser interprete" -> "intérprete".
+      - regex: "(?<lead>é|era|eram|foi|foram|fui|ser|será|seria|sou|torna|tornou|tornam|tornaram|tornar|dava|davam)(?={{S}}(?<target>[a-zçãõáéíóúâêô]+){{E}})"
+        fixer: paronymAfterLead
+      # One of those adjectives opening a sentence: "Grande distancia" -> "distância".
+      - regex: "(?<lead>{{ADJECTIVES}})(?={{S}}(?<target>[a-zçãõáéíóúâêô]+){{E}})"
+        fixer: paronymOpening
+      # A bare article opening a sentence: a clitic "o/a" never starts written prose ("A arvore
+      # caiu" -> "árvore"), so there it is the article.
+      - regex: "(?<lead>[aoAO]s?)(?={{S}}(?<target>[a-zçãõáéíóúâêô]+){{E}})"
+        fixer: paronymOpening
   - id: pt_BR.confusionFrames
     checks: [portugueseConfusions]
     style: portuguese

@@ -19,7 +19,7 @@ import { FIXERS as INFINITIVE_FIXERS } from "./infinitives";
 import { FIXERS as MARK_FIXERS } from "./marks";
 import { nounAgreement } from "./nounAgreement";
 import { FIXERS as NUMBER_START_FIXERS } from "./numbers";
-import { accentParonyms } from "./paronyms";
+import { FILTERS as PARONYM_FILTERS, FIXERS as PARONYM_FIXERS } from "./paronyms";
 import { personAgreement } from "./personAgreement";
 import {
   fixedAgreements,
@@ -39,7 +39,6 @@ import {
 import { verbAgreement } from "./verbAgreement";
 
 export const PREDICATES = {
-  accentParonyms,
   confusions,
   rangeDash,
   isoDates,
@@ -72,7 +71,8 @@ export const FIXERS = mergePredicates<AnyFixer>(
   FORMAL_FIXERS,
   COMMA_FIXERS,
   CLITIC_FIXERS,
+  PARONYM_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/pt_BR.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>(CLITIC_FILTERS);
+export const FILTERS = mergePredicates<FindingsFilter>(CLITIC_FILTERS, PARONYM_FILTERS);
