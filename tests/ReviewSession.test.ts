@@ -801,6 +801,32 @@ describe("ReviewSession spelling", () => {
     expect(h.last().spelling).toBe("done");
   });
 
+  test("a join at a sentence start keeps the capital", async () => {
+    const fake = fakeLookup({ Shoul: ["Should", "Shoulder"], "dn't": ["don't"] });
+    const h = harness("Shoul dn't we wait?", { lookupSpelling: fake.lookup });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(fake.words()).toContain("Shouldn't");
+    expect(
+      h.last().diagnostics.map((d) => [d.original, d.alternatives.map((a) => a.preview)]),
+    ).toEqual([["Shoul dn't", ["Shouldn't"]]]);
+  });
+
+  test("a join replaces a half already shown by an earlier lookup request", async () => {
+    const fake = fakeLookup({ shoul: ["should"], "dn't": ["don't"] });
+    // 24 known words first: "shoul" ends the first request, "dn't" starts the second.
+    const h = harness(`${distinctWords(24).join(" ")} shoul dn't wait.`, {
+      lookupSpelling: fake.lookup,
+    });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(fake.calls[0].at(-1)?.word).toBe("shoul");
+    expect(fake.calls[1][0].word).toBe("dn't");
+    // "shoul" was shown alone first, then replaced by the join.
+    expect(h.states.some((state) => state.diagnostics.some((d) => d.original === "shoul"))).toBe(
+      true,
+    );
+    expect(h.originals()).toEqual(["shoul dn't"]);
+  });
+
   test("two unknown words stay separate findings when the joined word is unknown too", async () => {
     const fake = fakeLookup({
       infor: ["inform", "info"],

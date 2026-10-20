@@ -277,11 +277,12 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
   ))
     push(match, "englishToToo", "review_msg_to_infinitive", "to");
   // "n't" + one word ("don't need too worry", even with a misspelled verb) has the same
-  // slot; a pronoun there is a subject ("Don't we too need help?").
+  // slot; a pronoun, demonstrative or name there is a subject ("Didn't Sam too notice?").
   for (const match of frameMatches(
     ctx,
-    `(?:want|wants|wanted|need|needs|needed|going|able|trying|try|tried|supposed|used|have|has|had|like|love|hope|plan|decided|n['’]t${SPACE}(?!(?:i|you|we|they|he|she|it)${WORD_END})[a-z]+)${SPACE}(?<target>too)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+    `(?:want|wants|wanted|need|needs|needed|going|able|trying|try|tried|supposed|used|have|has|had|like|love|hope|plan|decided|n['’]t${SPACE}(?!(?:i|you|we|they|he|she|it|this|that|these|those)${WORD_END})(?<middle>[a-z]+))${SPACE}(?<target>too)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
   )) {
+    if (/^\p{Lu}/u.test(match.groups!.middle ?? "")) continue;
     const verb = match.groups!.verb.toLowerCase();
     const forms = englishVerbForms(verb);
     const info = forms ? null : englishWordInfo(verb);
