@@ -147,6 +147,43 @@ export function spellingCandidates(
   return candidates;
 }
 
+/** Two looked-up words with one space between them, and their joined form ("shoul dn't"). */
+export interface SplitWord {
+  first: SpellingCandidate;
+  second: SpellingCandidate;
+  /** The joined form as it is looked up. */
+  lookup: string;
+}
+
+/**
+ * Adjacent candidates, both unknown, with one space between them, that may be one word
+ * typed with a space inside it: a suggestion for the first half starts the joined form
+ * ("shoul dn't": "should"). The dictionary then decides. A known half ("mis take") stays
+ * out: two real words may be meant apart. `answer` gives an unknown word's suggestions.
+ */
+export function splitWordPairs(
+  text: string,
+  candidates: readonly SpellingCandidate[],
+  answer: (candidate: SpellingCandidate) => readonly string[] | undefined,
+): SplitWord[] {
+  const pairs: SplitWord[] = [];
+  for (let i = 1; i < candidates.length; i += 1) {
+    const first = candidates[i - 1];
+    const second = candidates[i];
+    if (first.casing || second.casing) continue;
+    if (text.slice(first.range.end, second.range.start) !== " ") continue;
+    const lookup = first.lookup + second.lookup;
+    if (!isLookupWord(lookup) || !answer(second)) continue;
+    const joined = lookup.toLowerCase();
+    const starts = answer(first)?.some((suggestion) => {
+      const word = lookupForm(suggestion.trim()).toLowerCase();
+      return word.length > first.lookup.length && joined.startsWith(word);
+    });
+    if (starts) pairs.push({ first, second, lookup });
+  }
+  return pairs;
+}
+
 // Measured with the bundled dictionaries (words the candidates filter keeps,
 // so names and capitalized nouns are not counted): paragraphs in another
 // language had 0-38% known words; English with many typos, slang or

@@ -17,6 +17,7 @@ import {
   casingDiagnostic,
   changesWords,
   spellingDiagnostic,
+  splitWordDiagnostic,
   withoutMarksInsideSpelling,
 } from "@core/domain/grammar/review/reviewFindings";
 import { isPageMessageKey } from "@core/domain/grammar/review/reviewMessages";
@@ -79,6 +80,7 @@ import {
   otherLanguageParagraphs,
   rankSpellingSuggestions,
   spellingCandidates,
+  splitWordPairs,
   type SpellingCandidate,
 } from "@core/domain/grammar/review/reviewSpelling";
 
@@ -1662,6 +1664,36 @@ export class ReviewSession {
         }
       });
       next += answered.length;
+      // Two unknown words with one space between them: is the joined word known ("shoul dn't")?
+      const joined = [
+        ...new Set(
+          splitWordPairs(prepared.text, candidates, ({ lookup }) =>
+            cache.candidates.get(lookup.toLowerCase()),
+          )
+            .map(({ lookup }) => lookup)
+            .filter(
+              (word) =>
+                !cache.known.has(word.toLowerCase()) && !cache.candidates.has(word.toLowerCase()),
+            ),
+        ),
+      ].slice(0, SPELLING_REQUEST_WORDS);
+      if (joined.length > 0) {
+        const answers = await withDeadline(
+          lookup(
+            cache.lang,
+            joined.map((word) => ({ word, before: "" })),
+          ),
+          10_000,
+          signal,
+          // A failed join lookup only leaves the halves as separate findings.
+        ).catch(() => null);
+        if (generation !== this.generation || this.isClosed) return;
+        answers?.slice(0, joined.length).forEach((result, position) => {
+          const key = joined[position].toLowerCase();
+          if (result === null) cache.known.add(key);
+          else cache.candidates.set(key, result);
+        });
+      }
       show(answered.map(({ key }) => key));
     }
     this.spelling = next < queue.length ? "partial" : "done";
@@ -1713,12 +1745,34 @@ export class ReviewSession {
       }
     }
     const found: ReviewDiagnostic[] = [];
+    // Split words the dictionary knows joined: one finding for both halves, in place of theirs.
+    const halves = new Set<SpellingCandidate>();
+    const joins: ReviewDiagnostic[] = [];
+    for (const pair of splitWordPairs(prepared.text, candidates, ({ lookup }) =>
+      cache.candidates.get(lookup.toLowerCase()),
+    )) {
+      if (!cache.known.has(pair.lookup.toLowerCase())) continue;
+      if (overlapsSortedRanges(otherLanguage, pair.first.range)) continue;
+      const diagnostic = splitWordDiagnostic(prepared, pair);
+      if (!diagnostic) continue;
+      halves.add(pair.first).add(pair.second);
+      if (!this.diagnostics.some((d) => d.id === diagnostic.id)) joins.push(diagnostic);
+    }
+    if (joins.length > 0) {
+      this.diagnostics = this.diagnostics.filter(
+        (d) =>
+          d.ruleId !== REVIEW_SPELLING_CHECK ||
+          d.messageKey === "review_msg_split_word" ||
+          !joins.some((join) => rangesOverlap(join.range, d.range)),
+      );
+      found.push(...joins);
+    }
     for (const key of keys) {
       const answer = cache.candidates.get(key);
       const known = cache.known.has(key);
       if (!answer && !known) continue;
       for (const candidate of occurrences.get(key) ?? []) {
-        if (overlapsSortedRanges(otherLanguage, candidate.range)) continue;
+        if (overlapsSortedRanges(otherLanguage, candidate.range) || halves.has(candidate)) continue;
         if (candidate.casing) {
           const diagnostic = known ? casingDiagnostic(prepared, candidate) : null;
           if (diagnostic) found.push(diagnostic);
