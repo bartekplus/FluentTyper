@@ -1,5 +1,4 @@
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
   deumlaut,
@@ -10,15 +9,7 @@ import {
   germanPastInfinitives,
   germanVerbLike,
 } from "./germanLexicon";
-import {
-  anyCase,
-  BOUNDARY,
-  isGerman,
-  tokensAfter,
-  tokensBefore,
-  wordSet,
-  WORD_GATE,
-} from "./shared";
+import { BOUNDARY, tokensAfter, tokensBefore, wordSet } from "./shared";
 import { isAuxiliary } from "./verbAgreement";
 
 // The case a preposition governs, read from the article after it: "mit eine Freundin" (dative:
@@ -39,28 +30,6 @@ const CASES = new Map<string, Case>([
 ]);
 // Prepositions that also follow their noun: "meiner Meinung nach", "dem Plan gemäß".
 const POSTPOSITIONS = wordSet("nach gemäß nahe entsprechend");
-const PREPOSITION = `(?<prep>${anyCase(`${DATIVE} ${GENITIVE} ${ACCUSATIVE}`)})`;
-const ADJECTIVE = "\\p{Ll}+(?:e|en|er|es|em)";
-const NOUN = "\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*";
-// The polite "Ihr-" is the one capitalized determiner.
-const PHRASE = new RegExp(
-  `${WORD_GATE}${PREPOSITION}${SPACE}(?<target>(?<det>\\p{Ll}+|Ihr\\p{Ll}*)` +
-    `(?<adjs>(?:${SPACE}${ADJECTIVE}){0,2})${SPACE}(?:(?<ordinal>\\d{1,2}\\.)${SPACE})?` +
-    `(?<noun>${NOUN}))${WORD_END}`,
-  "gdu",
-);
-// Pronouns, "keinen der …", "das, was …" and "ohne allem".
-const DATIVE_ONLY = "(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Zz]u|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer)";
-// A span of time after a number, in the dative: "in 10 Tage" (Tagen), "ab 18 Jahre" (Jahren).
-const COUNTED_TIME = new RegExp(
-  `${WORD_GATE}(?<prep>[Ii]n|[Vv]or|[Aa]b|[Bb]innen)${SPACE}(?:[2-9]|[1-9]\\d{1,3}|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|dreißig|hundert)${SPACE}(?<target>Tage|Jahre|Monate)${WORD_END}`,
-  "gdu",
-);
-// A plural noun with no article: "zu Götter", "nach Erkenntnisse", "bei Bilder".
-const PLAIN_PLURAL = new RegExp(
-  `${WORD_GATE}${DATIVE_ONLY}${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er))${WORD_END}`,
-  "gdu",
-);
 /**
  * Whether the word is the plural of a known noun by its form: an umlaut and -e or -er
  * ("Götter", "Düfte"), -er after a neuter ("Bilder"), or -nisse. A plain -e is left out, as
@@ -78,38 +47,9 @@ function pluralForm(word: string): boolean {
   const neuter = germanGender(singular)?.gender;
   return /er$/.test(low) && (neuter === "n" || neuter === "x") && germanNounReading(low) !== null;
 }
-// An adjective in -en before a singular noun with no article: "mit ernsten Blick" (ernstem),
-// "mit vollen Absicht" (voller). With no article the adjective shows the dative itself.
-const STRONG_SINGULAR = new RegExp(
-  `${WORD_GATE}(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer|[Ss]amt)${SPACE}(?<target>(?<adj>\\p{Ll}{3,}?)en)${SPACE}(?<noun>\\p{Lu}\\p{Ll}+)${WORD_END}`,
-  "gdu",
-);
 const QUANTIFIER_STEMS = wordSet("all and viel wenig einig beid mehrer sämtlich ganz jed");
-// A number or plural quantity, an adjective, and a plural noun in -e, -er or -el.
-const COUNTED_PLURAL = new RegExp(
-  `${WORD_GATE}${DATIVE_ONLY}${SPACE}(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|[2-9]|[1-9]\\d{1,2}|vielen|mehreren|beiden|zahlreichen|wenigen|einigen|\\p{Ll}{3,}en)(?:${SPACE}\\p{Ll}+en)?${SPACE}(?<target>\\p{Lu}\\p{Ll}+(?:e|er|el))${WORD_END}`,
-  "gdu",
-);
-// An adjective in -e with no article after a dative preposition, before a noun whose gender or
-// plural is known: "mit perfekte Make-up" (perfektem), "mit tageslichtabhängige Steuerung"
-// (-er), "mit neue Felder" (neuen Feldern). "-e" is no dative ending.
-const BARE_E = new RegExp(
-  `${WORD_GATE}(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Aa]us|[Aa]ußer|[Ss]amt)${SPACE}(?<target>(?<adj>\\p{Ll}{3,}?)e${SPACE}(?<noun>\\p{Lu}\\p{L}*(?:-\\p{L}+)*))${WORD_END}`,
-  "gdu",
-);
 const DETERMINER_STEMS =
   /^(?:all|viel|wenig|ander|beid|einig|mehrer|solch|welch|manch|mein|dein|sein|ihr|unser|eur|dies|jen|jed|kein|ein|d)$/;
-// An adjective in -e before a noun whose ending only a plural has ("Ausstellungen").
-const BARE_PLURAL = new RegExp(
-  `${WORD_GATE}${DATIVE_ONLY}${SPACE}(?<target>\\p{Ll}{3,}e)${SPACE}\\p{Lu}\\p{Ll}+(?:ungen|heiten|keiten|schaften|ionen|täten|innen)${WORD_END}`,
-  "gdu",
-);
-const PRONOUN = new RegExp(
-  `${WORD_GATE}${PREPOSITION}${SPACE}(?<target>mich|dich|ihn|mir|dir|ihm|niemanden|jemanden|` +
-    `(?:k?einen)(?=${SPACE}de[rs]${WORD_END})|das(?=,${SPACE}(?:was|wo)${WORD_END})|allem(?=[ \\t]*[.!?,]))` +
-    WORD_END,
-  "gdu",
-);
 const PRONOUN_FIX: Readonly<Record<Case, Readonly<Record<string, string>>>> = {
   dative: {
     mich: "mir",
@@ -324,7 +264,7 @@ const accusativeFix: Fixer = (stem, end, adjs, word, gender) => {
   }
   return null;
 };
-const FIXERS: Readonly<Record<Case, Fixer>> = {
+const CASE_FIXES: Readonly<Record<Case, Fixer>> = {
   dative: dativeFix,
   genitive: genitiveFix,
   accusative: accusativeFix,
@@ -383,152 +323,172 @@ function clauseEndsInVerb(ctx: DetectContext, index: number): boolean {
   );
 }
 
-function prepositionCase(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  const push = (m: RegExpExecArray, fix: Fix) => {
-    const [start, end] = m.indices!.groups!.target;
-    findings.push({
-      ruleId: "germanPrepositionCase",
-      messageKey: "review_msg_german_preposition_case",
-      range: { start, end },
-      alternatives: fix.replacements,
-      context: { start: m.index, end },
-      ...(fix.choice ? { requiresChoice: true as const } : {}),
-    });
+/** The finding of a preposition frame: `fix` replaces the `target` group. */
+function caseFinding(m: RegExpExecArray, fix: Fix): RawFinding {
+  const [start, end] = m.indices!.groups!.target;
+  return {
+    ruleId: "germanPrepositionCase",
+    messageKey: "review_msg_german_preposition_case",
+    range: { start, end },
+    alternatives: fix.replacements,
+    context: { start: m.index, end },
+    ...(fix.choice ? { requiresChoice: true as const } : {}),
   };
-  for (const m of frameMatches(ctx, PHRASE)) {
-    const { prep, det, adjs = "", noun: word, ordinal } = m.groups!;
-    const low = prep.toLowerCase();
-    const kind = CASES.get(low)!;
-    const parts = split(det);
-    if (!parts || !guarded(ctx, m, kind)) continue;
-    const [stem, end] = parts;
-    if (low === "mit" && (SUPERLATIVE.test(adjs) || SUPERLATIVE.test(word))) continue;
-    if (/^bei die Fische$/i.test(`${prep} ${det} ${word}`)) continue;
-    // "seit seine Mutter zurück ist", "während die Kinder spielen": also conjunctions, whose
-    // clause ends in its verb ("Seit seine Jugend wohnt er hier" has none there).
-    if (low === "seit" && end !== "en" && clauseEndsInVerb(ctx, m.indices!.groups!.noun[1])) {
-      continue;
-    }
-    if (low === "während" && end === "e") continue;
-    // "gemäß des Beschlusses", "nahe des Hauses": the genitive these take in error; "mit
-    // des Kaisers Hilfe" is an old genitive attribute. "nahe" is otherwise an adjective.
-    const genitiveForm = end === "es" && /s$/.test(word);
-    if (kind === "dative" && (low === "nahe" ? !genitiveForm : low !== "gemäß" && genitiveForm)) {
-      continue;
-    }
-    // "für der Forschung dienende Flächen": the article may belong to an attribute.
-    if (end === "er" && stem === "d" && low !== "wider" && low !== "betreffend") continue;
-    const after = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 2);
-    const next = after[0] ?? "";
-    // "Statt einem Bluetooth Mikrofon" (open compound), "mit den Bau und Elektroarbeiten"
-    // (coordination); a genitive after the noun ("von die Lippen Gottes") is fine.
-    if (/^\p{Lu}/u.test(next) && !/es$/.test(next)) continue;
-    if (/^(?:und|oder|sowie|&|\/)$/.test(next) && /^\p{Lu}/u.test(after[1] ?? "")) continue;
-    // "durch der Natur innewohnende Kräfte".
-    if (/^\p{Ll}+end(?:e|en|er|es|em)?$/u.test(next)) continue;
-    const fix = FIXERS[kind](stem, end, adjs, word, germanGender(word.split("-").at(-1)!));
-    if (!fix) continue;
-    // A date ("seit den 13. Jahrhundert") keeps its ordinal.
-    if (ordinal)
-      fix.replacements = fix.replacements.map((r) => r.replace(/ (\S+)$/, ` ${ordinal} $1`));
-    if (ctx.dictionary.has(word.toLowerCase())) continue;
-    push(m, fix);
-  }
-  // "mit zwei Kinder" → Kindern: a counted plural takes the dative -n.
-  for (const m of frameMatches(ctx, COUNTED_PLURAL)) {
-    const noun = m.groups!.target;
-    if (!guarded(ctx, m, "dative") || ctx.dictionary.has(noun.toLowerCase())) continue;
-    // "bis zu drei Bücher ausleihen": "bis zu" is "up to", the verb sets the case.
-    if (/bis[ \t]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) continue;
-    // "Tierärzten": a compound whose head the dictionary knows in the dative plural.
-    const dative = `${noun}n`.toLowerCase();
-    const known = [...dative].some(
-      (_, i) =>
-        (i === 0 || (i >= 3 && dative.length - i >= 4)) &&
-        germanNounReading(dative.slice(i)) !== null,
-    );
-    if (!known) continue;
-    // "zu ihren Mutter": a feminine singular after an -en word wants "ihrer", not "Muttern".
-    const counted = /(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|\d)/.test(m[0]);
-    const reading = germanGender(noun);
-    if (!counted && reading?.gender === "f" && !reading.plural) continue;
-    // "die zu fällenden Bäume", "viel zu knappen Gelder": "zu" before an adjective is no
-    // preposition.
-    const quantity = /(?:vielen|mehreren|beiden|zahlreichen|wenigen|einigen)(?!\p{L})/u.test(m[0]);
-    if (!counted && !quantity && m.groups!.prep.toLowerCase() === "zu") continue;
-    push(m, { replacements: [`${noun}n`] });
-  }
-  for (const m of frameMatches(ctx, PLAIN_PLURAL)) {
-    const noun = m.groups!.target;
-    const next = tokensAfter(ctx.text, m.indices!.groups!.target[1], 1)[0] ?? "";
-    // "Ärzte ohne Grenzen": a name.
-    if (
-      /^(?:\p{Lu}|ohne$)/u.test(next) ||
-      !pluralForm(noun) ||
-      ctx.dictionary.has(noun.toLowerCase())
-    ) {
-      continue;
-    }
-    if (!guarded(ctx, m, "dative")) continue;
-    push(m, { replacements: [`${noun}n`] });
-  }
-  for (const m of frameMatches(ctx, STRONG_SINGULAR)) {
-    const { adj, noun } = m.groups!;
-    if (QUANTIFIER_STEMS.has(adj) || !(germanAdjective(adj) || germanAdjective(`${adj}e`)))
-      continue;
-    const reading = germanGender(noun);
-    if (!reading || reading.plural) continue;
-    const next = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
-    if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(`${adj}en`)) continue;
-    if (!guarded(ctx, m, "dative")) continue;
-    push(m, { replacements: [`${adj}${reading.gender === "f" ? "er" : "em"}`] });
-  }
-  for (const m of frameMatches(ctx, COUNTED_TIME)) {
-    const next = tokensAfter(ctx.text, m.indices!.groups!.target[1], 1)[0] ?? "";
-    // "vor 3 Jahre alt", "in 2 Jahre aufgeteilt": a measure, not a time.
-    if (/^(?:alt|jung|älter|lang|später|früher)$/.test(next) || /^\p{Lu}/u.test(next)) continue;
-    // "in 12 Monate eingeteilt": "in" with the accusative of a division.
-    if (/^[Ii]n$/.test(m.groups!.prep) && /^\p{Ll}+t$/u.test(next)) continue;
-    push(m, { replacements: [`${m.groups!.target}n`] });
-  }
-  for (const m of frameMatches(ctx, BARE_E)) {
-    const { adj, noun } = m.groups!;
-    // "tageslichtabhängig": a compound adjective whose last part is known.
-    const known = [...adj].some(
-      (_, i) => (i === 0 || (i >= 3 && adj.length - i >= 5)) && germanAdjective(adj.slice(i)),
-    );
-    if (DETERMINER_STEMS.test(adj) || !(known || /^(?:ge|ver|be|er|ent)\p{Ll}+t$/u.test(adj)))
-      continue;
-    if (/(?:ungen|heiten|keiten|schaften|ionen|täten|innen)$/.test(noun)) continue;
-    const next = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
-    if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(`${adj}e`)) continue;
-    const reading = germanGender(noun.split("-").at(-1)!);
-    let fix: string | null = null;
-    // "Sitzreihen", "Feldern": a dative plural already.
-    const dative =
-      /(?:er|el)n$/.test(noun) ||
-      (/en$/.test(noun) && germanGender(noun.slice(0, -1))?.gender === "f");
-    if (reading && !reading.plural) fix = `${adj}${reading.gender === "f" ? "er" : "em"} ${noun}`;
-    else if (dative && headNoun(noun.slice(0, -1).toLowerCase())) fix = `${adj}en ${noun}`;
-    else if (pluralForm(noun)) fix = `${adj}en ${noun}n`;
-    if (!fix || !guarded(ctx, m, "dative")) continue;
-    push(m, { replacements: [fix] });
-  }
-  // "mit spannende Ausstellungen" → spannenden: a plural without an article.
-  for (const m of frameMatches(ctx, BARE_PLURAL)) {
-    if (!guarded(ctx, m, "dative")) continue;
-    push(m, { replacements: [`${m.groups!.target}n`] });
-  }
-  for (const m of frameMatches(ctx, PRONOUN)) {
-    const kind = CASES.get(m.groups!.prep.toLowerCase())!;
-    const replacement = PRONOUN_FIX[kind][m.groups!.target];
-    if (replacement && guarded(ctx, m, kind)) push(m, { replacements: [replacement] });
-  }
-  return findings;
 }
 
-export const PREDICATES = {
-  prepositionCase,
-} satisfies Record<string, Detector>;
+const caseAfterPreposition: MatchFixer = (m, ctx) => {
+  const { prep, det, adjs = "", noun: word, ordinal } = m.groups!;
+  const low = prep.toLowerCase();
+  const kind = CASES.get(low)!;
+  const parts = split(det);
+  if (!parts || !guarded(ctx, m, kind)) return null;
+  const [stem, end] = parts;
+  if (low === "mit" && (SUPERLATIVE.test(adjs) || SUPERLATIVE.test(word))) return null;
+  if (/^bei die Fische$/i.test(`${prep} ${det} ${word}`)) return null;
+  // "seit seine Mutter zurück ist", "während die Kinder spielen": also conjunctions, whose
+  // clause ends in its verb ("Seit seine Jugend wohnt er hier" has none there).
+  if (low === "seit" && end !== "en" && clauseEndsInVerb(ctx, m.indices!.groups!.noun[1])) {
+    return null;
+  }
+  if (low === "während" && end === "e") return null;
+  // "gemäß des Beschlusses", "nahe des Hauses": the genitive these take in error; "mit
+  // des Kaisers Hilfe" is an old genitive attribute. "nahe" is otherwise an adjective.
+  const genitiveForm = end === "es" && /s$/.test(word);
+  if (kind === "dative" && (low === "nahe" ? !genitiveForm : low !== "gemäß" && genitiveForm)) {
+    return null;
+  }
+  // "für der Forschung dienende Flächen": the article may belong to an attribute.
+  if (end === "er" && stem === "d" && low !== "wider" && low !== "betreffend") return null;
+  const after = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 2);
+  const next = after[0] ?? "";
+  // "Statt einem Bluetooth Mikrofon" (open compound), "mit den Bau und Elektroarbeiten"
+  // (coordination); a genitive after the noun ("von die Lippen Gottes") is fine.
+  if (/^\p{Lu}/u.test(next) && !/es$/.test(next)) return null;
+  if (/^(?:und|oder|sowie|&|\/)$/.test(next) && /^\p{Lu}/u.test(after[1] ?? "")) return null;
+  // "durch der Natur innewohnende Kräfte".
+  if (/^\p{Ll}+end(?:e|en|er|es|em)?$/u.test(next)) return null;
+  const fix = CASE_FIXES[kind](stem, end, adjs, word, germanGender(word.split("-").at(-1)!));
+  if (!fix) return null;
+  // A date ("seit den 13. Jahrhundert") keeps its ordinal.
+  if (ordinal)
+    fix.replacements = fix.replacements.map((r) => r.replace(/ (\S+)$/, ` ${ordinal} $1`));
+  if (ctx.dictionary.has(word.toLowerCase())) return null;
+  return caseFinding(m, fix);
+  return null;
+};
+
+// "mit zwei Kinder" → Kindern: a counted plural takes the dative -n.
+const countedPlural: MatchFixer = (m, ctx) => {
+  const noun = m.groups!.target;
+  if (!guarded(ctx, m, "dative") || ctx.dictionary.has(noun.toLowerCase())) return null;
+  // "bis zu drei Bücher ausleihen": "bis zu" is "up to", the verb sets the case.
+  if (/bis[ \t]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) return null;
+  // "Tierärzten": a compound whose head the dictionary knows in the dative plural.
+  const dative = `${noun}n`.toLowerCase();
+  const known = [...dative].some(
+    (_, i) =>
+      (i === 0 || (i >= 3 && dative.length - i >= 4)) &&
+      germanNounReading(dative.slice(i)) !== null,
+  );
+  if (!known) return null;
+  // "zu ihren Mutter": a feminine singular after an -en word wants "ihrer", not "Muttern".
+  const counted = /(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|\d)/.test(m[0]);
+  const reading = germanGender(noun);
+  if (!counted && reading?.gender === "f" && !reading.plural) return null;
+  // "die zu fällenden Bäume", "viel zu knappen Gelder": "zu" before an adjective is no
+  // preposition.
+  const quantity = /(?:vielen|mehreren|beiden|zahlreichen|wenigen|einigen)(?!\p{L})/u.test(m[0]);
+  if (!counted && !quantity && m.groups!.prep.toLowerCase() === "zu") return null;
+  return caseFinding(m, { replacements: [`${noun}n`] });
+  return null;
+};
+
+const plainPlural: MatchFixer = (m, ctx) => {
+  const noun = m.groups!.target;
+  const next = tokensAfter(ctx.text, m.indices!.groups!.target[1], 1)[0] ?? "";
+  // "Ärzte ohne Grenzen": a name.
+  if (
+    /^(?:\p{Lu}|ohne$)/u.test(next) ||
+    !pluralForm(noun) ||
+    ctx.dictionary.has(noun.toLowerCase())
+  ) {
+    return null;
+  }
+  if (!guarded(ctx, m, "dative")) return null;
+  return caseFinding(m, { replacements: [`${noun}n`] });
+  return null;
+};
+
+const strongSingular: MatchFixer = (m, ctx) => {
+  const { adj, noun } = m.groups!;
+  if (QUANTIFIER_STEMS.has(adj) || !(germanAdjective(adj) || germanAdjective(`${adj}e`)))
+    return null;
+  const reading = germanGender(noun);
+  if (!reading || reading.plural) return null;
+  const next = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
+  if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(`${adj}en`)) return null;
+  if (!guarded(ctx, m, "dative")) return null;
+  return caseFinding(m, { replacements: [`${adj}${reading.gender === "f" ? "er" : "em"}`] });
+  return null;
+};
+
+const countedTime: MatchFixer = (m, ctx) => {
+  const next = tokensAfter(ctx.text, m.indices!.groups!.target[1], 1)[0] ?? "";
+  // "vor 3 Jahre alt", "in 2 Jahre aufgeteilt": a measure, not a time.
+  if (/^(?:alt|jung|älter|lang|später|früher)$/.test(next) || /^\p{Lu}/u.test(next)) return null;
+  // "in 12 Monate eingeteilt": "in" with the accusative of a division.
+  if (/^[Ii]n$/.test(m.groups!.prep) && /^\p{Ll}+t$/u.test(next)) return null;
+  return caseFinding(m, { replacements: [`${m.groups!.target}n`] });
+  return null;
+};
+
+const bareE: MatchFixer = (m, ctx) => {
+  const { adj, noun } = m.groups!;
+  // "tageslichtabhängig": a compound adjective whose last part is known.
+  const known = [...adj].some(
+    (_, i) => (i === 0 || (i >= 3 && adj.length - i >= 5)) && germanAdjective(adj.slice(i)),
+  );
+  if (DETERMINER_STEMS.test(adj) || !(known || /^(?:ge|ver|be|er|ent)\p{Ll}+t$/u.test(adj)))
+    return null;
+  if (/(?:ungen|heiten|keiten|schaften|ionen|täten|innen)$/.test(noun)) return null;
+  const next = tokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
+  if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(`${adj}e`)) return null;
+  const reading = germanGender(noun.split("-").at(-1)!);
+  let fix: string | null = null;
+  // "Sitzreihen", "Feldern": a dative plural already.
+  const dative =
+    /(?:er|el)n$/.test(noun) ||
+    (/en$/.test(noun) && germanGender(noun.slice(0, -1))?.gender === "f");
+  if (reading && !reading.plural) fix = `${adj}${reading.gender === "f" ? "er" : "em"} ${noun}`;
+  else if (dative && headNoun(noun.slice(0, -1).toLowerCase())) fix = `${adj}en ${noun}`;
+  else if (pluralForm(noun)) fix = `${adj}en ${noun}n`;
+  if (!fix || !guarded(ctx, m, "dative")) return null;
+  return caseFinding(m, { replacements: [fix] });
+  return null;
+};
+
+// "mit spannende Ausstellungen" → spannenden: a plural without an article.
+const barePlural: MatchFixer = (m, ctx) => {
+  if (!guarded(ctx, m, "dative")) return null;
+  return caseFinding(m, { replacements: [`${m.groups!.target}n`] });
+  return null;
+};
+
+const pronounCase: MatchFixer = (m, ctx) => {
+  const kind = CASES.get(m.groups!.prep.toLowerCase())!;
+  const replacement = PRONOUN_FIX[kind][m.groups!.target];
+  if (replacement && guarded(ctx, m, kind)) return caseFinding(m, { replacements: [replacement] });
+  return null;
+};
+
+/** The named frame fixes of the de.prepositionCase rule (grammar/rules/de.yaml). */
+export const FIXERS = {
+  caseAfterPreposition,
+  countedPlural,
+  plainPlural,
+  strongSingular,
+  countedTime,
+  bareE,
+  barePlural,
+  pronounCase,
+} satisfies Record<string, MatchFixer>;

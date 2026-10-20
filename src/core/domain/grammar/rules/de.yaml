@@ -38,6 +38,9 @@ fragments:
   COPULA_FORMS: "ist|sind|war|waren|bin|bist|seid|wird|werden|wurde|wurden|bleibt|blieb|bleiben"
   GREETING_WORDS: "(?:Hallo|Hi|Hey|Moin|Servus|Guten[ \\t]{1,4}(?:Morgen|Tag|Abend))"
   CLAUSE_CHAR: "[^.!?;:,\\n]"
+  CASE_PREPOSITION: "(?<prep>[mM]it|[vV]on|[bB]ei|[aA]us|[nN]ach|[zZ]u|[sS]eit|[sS]amt|[nN]ebst|[aA]ußer|[gG]emäß|[nN]ahe|[eE]ntsprechend|[wW]egen|[tT]rotz|[wW]ährend|[sS]tatt|[aA]nstatt|[aA]ufgrund|[bB]ezüglich|[aA]ngesichts|[mM]angels|[iI]nfolge|[aA]bzüglich|[zZ]uzüglich|[iI]nklusive|[eE]xklusive|[hH]insichtlich|[aA]nhand|[aA]nlässlich|[sS]eitens|[mM]ithilfe|[fF]ür|[gG]egen|[dD]urch|[wW]ider|[oO]hne|[uU]m|[bB]etreffend)"
+  INFLECTED_ADJ: "\\p{Ll}+(?:e|en|er|es|em)"
+  DATIVE_ONLY: "(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Zz]u|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer)"
   RIGHT_VERBS: "haben|hat|hatte|hatten|hast|habe|hätte|hätten|geben|gibt|gab|gaben|gegeben|behalten|behielt|bekommen|bekam"
 
 rules:
@@ -221,7 +224,51 @@ rules:
     predicate: nounCasing
   - id: de.prepositionCase
     checks: [germanPrepositionCase]
-    predicate: prepositionCase
+    style: match
+    message: review_msg_german_preposition_case
+    frames:
+      # The case a preposition governs, read from the article after it: "mit eine Freundin"
+      # (dative: einer), "wegen dem Regen" (genitive: des Regens), "für deiner Mutter"
+      # (accusative: deine). The polite "Ihr-" is the one capitalized determiner.
+      - regex: "{{WG}}{{CASE_PREPOSITION}}{{S}}(?<target>(?<det>\\p{Ll}+|Ihr\\p{Ll}*)(?<adjs>(?:{{S}}{{INFLECTED_ADJ}}){0,2}){{S}}(?:(?<ordinal>\\d{1,2}\\.){{S}})?(?<noun>{{CAP_NOUN}})){{E}}"
+        flags: dgu
+        fixer: caseAfterPreposition
+      # "mit zwei Kinder" → Kindern: a number or plural quantity, an adjective, and a plural noun
+      # in -e, -er or -el take the dative -n.
+      - regex: "{{WG}}{{DATIVE_ONLY}}{{S}}(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|[2-9]|[1-9]\\d{1,2}|vielen|mehreren|beiden|zahlreichen|wenigen|einigen|\\p{Ll}{3,}en)(?:{{S}}\\p{Ll}+en)?{{S}}(?<target>\\p{Lu}\\p{Ll}+(?:e|er|el)){{E}}"
+        flags: dgu
+        fixer: countedPlural
+      # A plural noun with no article: "zu Götter", "nach Erkenntnisse", "bei Bilder".
+      - regex: "{{WG}}{{DATIVE_ONLY}}{{S}}(?<target>\\p{Lu}\\p{Ll}+(?:e|er)){{E}}"
+        flags: dgu
+        fixer: plainPlural
+      # An adjective in -en before a singular noun with no article: "mit ernsten Blick"
+      # (ernstem), "mit vollen Absicht" (voller). With no article the adjective shows the
+      # dative itself.
+      - regex: "{{WG}}(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer|[Ss]amt){{S}}(?<target>(?<adj>\\p{Ll}{3,}?)en){{S}}(?<noun>\\p{Lu}\\p{Ll}+){{E}}"
+        flags: dgu
+        fixer: strongSingular
+      # A span of time after a number, in the dative: "in 10 Tage" (Tagen), "ab 18 Jahre"
+      # (Jahren).
+      - regex: "{{WG}}(?<prep>[Ii]n|[Vv]or|[Aa]b|[Bb]innen){{S}}(?:[2-9]|[1-9]\\d{1,3}|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|dreißig|hundert){{S}}(?<target>Tage|Jahre|Monate){{E}}"
+        flags: dgu
+        fixer: countedTime
+      # An adjective in -e with no article after a dative preposition, before a noun whose
+      # gender or plural is known: "mit perfekte Make-up" (perfektem), "mit
+      # tageslichtabhängige Steuerung" (-er), "mit neue Felder" (neuen Feldern). "-e" is no
+      # dative ending.
+      - regex: "{{WG}}(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Aa]us|[Aa]ußer|[Ss]amt){{S}}(?<target>(?<adj>\\p{Ll}{3,}?)e{{S}}(?<noun>\\p{Lu}\\p{L}*(?:-\\p{L}+)*)){{E}}"
+        flags: dgu
+        fixer: bareE
+      # "mit spannende Ausstellungen" → spannenden: an adjective in -e before a noun whose
+      # ending only a plural has ("Ausstellungen").
+      - regex: "{{WG}}{{DATIVE_ONLY}}{{S}}(?<target>\\p{Ll}{3,}e){{S}}\\p{Lu}\\p{Ll}+(?:ungen|heiten|keiten|schaften|ionen|täten|innen){{E}}"
+        flags: dgu
+        fixer: barePlural
+      # Pronouns, "keinen der …", "das, was …" and "ohne allem".
+      - regex: "{{WG}}{{CASE_PREPOSITION}}{{S}}(?<target>mich|dich|ihn|mir|dir|ihm|niemanden|jemanden|(?:k?einen)(?={{S}}de[rs]{{E}})|das(?=,{{S}}(?:was|wo){{E}})|allem(?=[ \\t]*[.!?,])){{E}}"
+        flags: dgu
+        fixer: pronounCase
   - id: de.confusions
     checks: [germanConfusedWords]
     style: german

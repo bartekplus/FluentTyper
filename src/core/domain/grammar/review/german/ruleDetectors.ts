@@ -30,7 +30,6 @@ export const PREDICATES = mergePredicates(
   dates.PREDICATES,
   nounCasing.PREDICATES,
   numbers.PREDICATES,
-  prepositionCase.PREDICATES,
   quotes.PREDICATES,
   verbAgreement.PREDICATES,
 );
@@ -56,6 +55,7 @@ export const FIXERS = mergePredicates<Fixer>(
   commas.FIXERS,
   commaFrames.FIXERS,
   salutations.FIXERS,
+  prepositionCase.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */
