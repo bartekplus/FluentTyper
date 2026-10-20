@@ -5113,7 +5113,7 @@ rules:
         owner: b
         fixer: correlativeSubjects
       # "Whom is coming?", "to whomever wrote it": whom before its own finite verb is the subject.
-      - regex: "(?<whom>whom(?:ever|soever)?){{S}}(?:(?<aux>{{CASE_AUX}})(?:{{S}}{{CASE_INSERT}})?{{S}}[\"“']?(?<evidence>[a-z]+)|(?<verb>[a-z]+)){{E}}"
+      - regex: '(?<whom>whom(?:ever|soever)?){{S}}(?:(?<aux>{{CASE_AUX}})(?:{{S}}{{CASE_INSERT}})?{{S}}["“'']?(?<evidence>[a-z]+)|(?<verb>[a-z]+)){{E}}'
         owner: whom
         fixer: whomSubjects
       # Subject pronouns after a preposition take the object form: "to he and his team", "to we
