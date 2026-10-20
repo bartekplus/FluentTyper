@@ -15,6 +15,11 @@ fragments:
   # The German word gate (WORD_GATE of review/german/shared.ts).
   WG: "{{NOT_BLANK}}(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])"
   SEP: "[ \\t\\u00a0]?"
+  REDUNDANT_STEMS: "[rR]und|[wW]eiß|[sS]chwarz|[tT]ot|[aA]lt|[aA]nder|[sS]elten|[fF]alsch|[zZ]eitlich|[sS]emantisch|[vV]iereckig|[jJ]üdisch|[iI]slamisch|[kK]atholisch|[aA]kustisch|[eE]invernehmlich|[wW]ahr|[pP]roblematisch|[kK]ünstlich|[üÜ]blich|[üÜ]berflüssig|[sS]chriftlich|[nN]eu|[gG]roß|[kK]lein|[lL]eer|[lL]etzt|[gG]emeinsam|[eE]hemalig|[wW]eiblich"
+  NOUN_ENDING: "(?:e|en|n|s|es|er|ern|nen)?"
+  RECHT_NOT_AFTER: "das|kein|ein|sein|ihr|mein|dein|unser|euer|jedes|volles|vollem|gutes|zum|im|vom|nach|mit|von|auf|zu|dem|des|dieses|jedem|allem"
+  SAYING: "sagte|sagt|sagten|rief|ruft|riefen|fragte|fragt|fragten|dachte|denkt|meinte|meint|antwortete|antwortet|erwiderte|erwidert|flüsterte|flüstert|schrie|schreit|murmelte|murmelt|erklärte|erklärt|behauptete|behauptet|seufzte|lachte|rief|bat|befahl"
+  RIGHT_VERBS: "haben|hat|hatte|hatten|hast|habe|hätte|hätten|geben|gibt|gab|gaben|gegeben|behalten|behielt|bekommen|bekam"
 
 rules:
   - id: de.compounds
@@ -666,7 +671,18 @@ rules:
     predicate: articleGender
   - id: de.suspendedHyphen
     checks: [germanSuspendedHyphen]
-    predicate: suspendedHyphen
+    style: match
+    message: review_msg_german_suspended_hyphen
+    frames:
+      # Two words joined by "und", "oder", "bzw." or "bis", or by a slash: "Vor und Nachteile".
+      - regex: "{{WG}}(?<target>\\p{L}+)(?<join>{{S}}(?:und|oder|bzw\\.|bis){{S}}|\\/)(?<second>\\p{L}+){{E}}"
+        flags: dgu
+        fixer: suspendedPart
+      # "hin und her gerissen": torn between two choices, the participle of "hin- und
+      # herreißen".
+      - regex: "{{WG}}(?<target>(?<hin>[Hh]in){{S}}und{{S}}her{{S}}gerissen){{E}}"
+        flags: dgu
+        fixer: torn
   - id: de.abbreviations
     checks: [germanAbbreviations, germanAbbreviationSpacing]
     style: match
@@ -711,9 +727,34 @@ rules:
         fixer: largeNumber
   - id: de.quotes
     checks: [germanQuotes]
+    # predicate: counts the open „ from the paragraph start; each mark changes the count for the
+    # next marks, and a skipped English quotation moves the scan. Nested quotes use a stack.
     predicate: quotes
+  - id: de.quoteFrames
+    checks: [germanQuotes]
+    style: match
+    message: review_msg_german_quotes
+    frames:
+      # Inside a „…“ quotation: a period before the closing mark and a comma or another mark
+      # after it („Ich gehe.“, sagte er → „Ich gehe“, sagte er; „Ich gehe.“. → „Ich gehe.“), a
+      # comma before the closing mark („Ich gehe,“ sagte er → „Ich gehe“, sagte er), and the
+      # comma a question or exclamation needs before the verb of saying („Wirklich?“ fragte
+      # sie).
+      - regex: "(?<target>(?<period>\\.)(?=“[ \\t]*[,!?])|(?<=\\.“)(?<after>\\.)|(?<=\\p{L})(?<comma>,“)(?=[ \\t]+\\p{Ll})|(?<=[!?])(?<close>“)(?=[ \\t]+(?:{{SAYING}})(?![\\p{L}])))"
+        scan: owned
+        flags: dgu
+        fixer: speech
+      # No space goes right inside quotation marks or brackets: „ Der Hund …“ → „Der Hund …“,
+      # (nur kleine ) → (nur kleine). The mark must have its partner on the same line, so a
+      # lone mark, a smiley ":( " and Swiss «…» quotes stay alone.
+      - regex: "(?<target>(?<=[\\u201E\\u00BB(])[ \\t]+(?=\\p{L})|(?<=[\\p{L}.!?\\u2026])[ \\t]+(?=[\\u201C\\u00AB)]))"
+        scan: owned
+        flags: gu
+        fixer: innerSpacing
   - id: de.straightQuotes
     checks: [germanStraightQuotes]
+    # predicate: pairs the straight marks of each line by an indexOf walk; an odd count leaves
+    # the line alone.
     predicate: straightQuotes
   - id: de.commas
     checks: [germanCommas]
@@ -723,7 +764,21 @@ rules:
     predicate: verbAgreement
   - id: de.questionMarks
     checks: [germanQuestionMarks]
-    predicate: questionMarks
+    style: match
+    message: review_msg_question_mark
+    frames:
+      # A full stop or a "!" after a letter that closes a line or comes before a capital: the
+      # end of a sentence that may be a question ("Wann kommst du.").
+      - regex: "(?<=\\p{L})(?<target>[.!])(?=[ \\t]*(?:\\n|$)|[ \\t]+\\p{Lu})"
+        scan: owned
+        flags: gu
+        fixer: statementQuestion
+      # Quoted speech that a verb of asking reports, closed without a question mark: '"Wohin
+      # gehst du", fragte sie.' → '"Wohin gehst du?"'.
+      - regex: "(?<=\\p{L})(?<target>\\.?(?<quote>[\"\\u201C\\u201D\\u00AB\\u00BB]))(?=,?[ \\t]+(?:fragte|fragten|fragt|erkundigte|erkundigten|erkundigt|wollten?(?:[ \\t]+\\p{Ll}+)?[ \\t]+wissen)(?!\\p{L}))"
+        scan: owned
+        flags: gu
+        fixer: quotedQuestion
   - id: de.numbers
     checks: [germanNumbers]
     predicate: numbers
@@ -741,10 +796,75 @@ rules:
     predicate: colloquial
   - id: de.recommended
     checks: [germanRecommendedSpelling]
-    predicate: recommended
+    style: match
+    message: review_msg_german_recommended_spelling
+    frames:
+      # "Geographie", "Paragraph", "Photographin", "Mikrophon", "Phantasie", "Delphin": a Greek
+      # ph German now writes f. "Graph" and "Graphen" (graphene) alone, "Phonetik",
+      # "Philosophie" stay.
+      - regex: "{{WG}}(?:(?<target>\\p{L}*?(?:[Gg]eo|[Bb]io|[Pp]ara|[Ff]oto|[Pp]hoto|[Oo]rtho|[Kk]rypto|[Cc]horeo|[Tt]ele|[Kk]alli|[Tt]opo|[Ee]thno|[Dd]emo|[Ss]teno|[Ll]itho|[Hh]olo|[Ss]eismo|[Kk]arto|[Tt]ypo)graph\\p{Ll}*|\\p{L}*?(?:[Mm]ikro|[Ss]axo|[Xx]ylo|[Mm]ega|[Gg]rammo|[Tt]ele)phon(?:e|en|s|es|ist|istin|istinnen|isten)?|\\p{Lu}*?(?:GEO|BIO|PARA|FOTO|PHOTO|ORTHO|KRYPTO|CHOREO|TELE|TOPO|TYPO)GRAPH\\p{Lu}*|(?:[Pp]hantas(?:ie|ien|tisch|tische[nmrs]?|ievoll|ievolle[nmrs]?|ielos|t|ten|tin)|PHANTASIE)|[Gg]raphi(?:k|ken|sch|sche|schen|scher|sches|schem|ker|kerin)|[Dd]elphin(?:e|en|s)?|[Pp]hoto(?:s|apparat|album|kopie)?)){{E}}"
+        flags: dgu
+        fixer: phSpelling
+      # A preposition and a noun the Duden recommends joining, where the phrase is that adverb
+      # ("auf Grund des Wetters", "an Hand der Daten"); stylePhrasing has "infrage",
+      # "zugunsten" and the like.
+      - regex: "{{WG}}(?:(?<target>[aA]uf{{S}}Grund)(?={{S}}(?:des|der|dessen|deren|von|eines|einer|seines|seiner|ihres|ihrer){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:des|der|dessen|deren|von|eines|einer|seines|seiner|ihres|ihrer){{E}})){{E}}"
+        flags: dgu
+        fixer: joinedAdverb
+      - regex: "{{WG}}(?:(?<target>[aA]n{{S}}Hand)(?={{S}}(?:des|der|von|eines|einer|dieser|dieses){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:des|der|von|eines|einer|dieser|dieses){{E}})){{E}}"
+        flags: dgu
+        fixer: joinedAdverb
+      - regex: "{{WG}}(?:(?<target>[zZ]u{{S}}Tage)(?={{S}}(?:treten|tritt|trat|traten|getreten|fördern|fördert|förderte|gefördert|bringen|gebracht){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:treten|tritt|trat|traten|getreten|fördern|fördert|förderte|gefördert|bringen|gebracht){{E}})){{E}}"
+        flags: dgu
+        fixer: joinedAdverb
+      - regex: "{{WG}}(?:(?<target>[zZ]u{{S}}Rande)(?={{S}}(?:kommen|kommt|kam|kamen|gekommen){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:kommen|kommt|kam|kamen|gekommen){{E}})){{E}}"
+        flags: dgu
+        fixer: joinedAdverb
+      - regex: "{{WG}}(?:(?<target>[iI]n{{S}}Stand)(?={{S}}(?:setzen|setzt|setzte|gesetzt|halten|hält|hielt|gehalten|zu{{S}}setzen){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:setzen|setzt|setzte|gesetzt|halten|hält|hielt|gehalten|zu{{S}}setzen){{E}})){{E}}"
+        flags: dgu
+        fixer: joinedAdverb
+      # The Duden spells "To-do", "To-dos" and "To-do-Liste": "ToDo", "Todos", "TODO", "Todo
+      # Liste".
+      - regex: "{{WG}}(?:(?<target>(?:ToDo|Todo|TODO|To-Do|To{{S}}Do)(?<plural>s)?(?:(?<list>-?Liste|{{S}}Liste|-?Lists?|liste)(?<lists>n)?)?)){{E}}"
+        flags: dgu
+        fixer: todo
+      # An adverb and a participle the Duden recommends joining: "ein viel sagender Blick"
+      # (vielsagender), "hoch begabt", "schwer behindert", "allein erziehend".
+      - regex: "{{WG}}(?:(?<target>(?<lead>[Vv]iel|[Hh]och|[Ss]chwer|[Aa]llein|[Ww]ohl){{S}}(?<rest>(?<stem>sagend|begabt|behindert|erziehend|geschätzt|erzogen|temperiert)(?:e|en|er|es|em)?))){{E}}"
+        flags: dgu
+        fixer: together
+      # "recht haben", "recht geben" (the Duden prefers lowercase over "Recht haben"), and "bis
+      # auf Weiteres", "ohne Weiteres" (it prefers the capital). "das Recht haben" is the noun.
+      - regex: "{{WG}}(?:(?<!(?:{{RECHT_NOT_AFTER}}){{S}})(?<=\\p{Ll}{{S}})(?<target>Recht)(?={{S}}(?:{{RIGHT_VERBS}}){{E}})|(?<!(?:{{RECHT_NOT_AFTER}}){{S}})(?<=(?:{{RIGHT_VERBS}})(?:{{S}}\\p{Ll}+){0,3}{{S}})(?<t2>Recht)(?=[ \\t]*[.!?,;])|(?<=(?:bis{{S}}auf|[Oo]hne|[Dd]es){{S}})(?<t3>weiteres|weiteren)(?=[ \\t]*[.!?,;]|{{S}}\\p{Ll})){{E}}"
+        flags: dgu
+        owner: target|t2|t3
+        fixer: rechtWeiteres
+      # An adverb and a participle the Duden recommends writing apart: "tiefbetrübt" (tief
+      # betrübt), "nichtrostend", "freistehend".
+      - regex: "{{WG}}(?:(?<target>(?<lead>[Tt]ief|[Hh]och|[Vv]iel|[Nn]icht|[Ff]rei|[Rr]ot|[Nn]eu)(?<rest>(?:betrübt|hängend|kompliziert|beschäftigt|rostend|stehend|lackiert|bekehrt)(?:e|en|er|es|em)?))){{E}}"
+        flags: dgu
+        fixer: apartPairs
+      # "Wir sind zuhause", "bekanntgegeben", "verlorengegangen": written apart.
+      - regex: "{{WG}}(?:(?<target>zuhause)|(?<t2>(?<lead>bekannt|verloren)(?<verb>gegeben|gab|gaben|geben|gibt|zugeben|gemacht|machte|machten|machen|macht|zumachen|gegangen|ging|gingen|gehen|geht|zugehen))){{E}}"
+        flags: dgu
+        owner: target|t2
+        fixer: apart
   - id: de.redundancy
     checks: [stylePhrasing]
-    predicate: redundancy
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # An adjective that the noun already says ("eine runde Kugel", "die toten Leichen", "eine
+      # weibliche Ärztin": a feminine person noun says it already).
+      - regex: "{{WG}}(?<adj>(?<stem>{{REDUNDANT_STEMS}})(?:e|en|er|es|em)?){{S}}(?<noun>\\p{Lu}\\p{Ll}+){{E}}"
+        flags: dgu
+        owner: adj
+        fixer: redundantAdjective
+      # A compound whose first part the second already says ("Glasvitrine", "Fußpedal").
+      - regex: "{{WG}}(?<prefix>Trommel|Glas|Fuß|Baum|Außen|Eier|Papp|Internet|Alt|Billig|Haar|Gesichts|Vogel|Holz|Zeit|Haupt|Einzel|Lebens|Rück)(?<head>revolver|vitrine|pedal|allee|fassade|omelett|omelette|karton|blog|veteran|discounter|frisur|mimik|voliere|xylophon|xylofon|verzögerung|protagonist|protagonistin|individuum|biografie|biographie|erinnerung)(?<ending>{{NOUN_ENDING}}){{E}}"
+        flags: dgu
+        owner: prefix
+        fixer: redundantCompound
   - id: de.anglicisms
     checks: [germanCompounds]
     style: match

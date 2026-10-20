@@ -1,8 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { Detector } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { germanGender, germanInfinitive } from "./germanLexicon";
-import { englishLine, isGerman, wordSet } from "./shared";
+import { englishLine, wordSet } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 import { finding } from "../finding";
 
@@ -105,87 +104,69 @@ function isQuestion(words: string[]): boolean {
   return !rest.slice(1).some((w) => isAuxiliary(w) && !/en$/.test(w));
 }
 
-function questions(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  const ends = /(?<=\p{L})[.!](?=[ \t]*(?:\n|$)|[ \t]+\p{Lu})/gu;
-  ends.lastIndex = ctx.from;
-  for (let m = ends.exec(ctx.scanText); m && m.index < ctx.to; m = ends.exec(ctx.scanText)) {
-    const at = m.index;
-    const window = Math.max(0, at - 300);
-    let start = window + ctx.text.slice(window, at).search(/[^.!?\n]*$/);
-    // A quotation opened and not closed: '"Wohin ist er gegangen.'
-    const quote = /^[ \t]*["„»]/.exec(ctx.text.slice(start, at));
-    if (quote && !/["“”«]/.test(ctx.text.slice(start + quote[0].length, at))) {
-      start += quote[0].length;
-    }
-    const sentence = ctx.text.slice(start, at);
-    const exclaimed = ctx.text[at] === "!";
-    if (englishLine(ctx.text, at) || namedExampleBefore(ctx.text, start)) continue;
-    // "Hast du Mt. Fuji gesehen?": an abbreviation, the sentence goes on.
-    if (/(?:^|\s)\p{Lu}\p{Ll}?$/u.test(sentence)) continue;
-    // "egal, ob er kommt, oder nicht.": the alternative of an "ob" clause.
-    const tagged = TAG.test(sentence) && !/(?<!\p{L})ob(?!\p{L})/u.test(sentence);
-    if (exclaimed) {
-      // "Ab wann gilt das!": only a w-word that asks, before a verb that is no subjunctive.
-      const words = sentence.match(/\p{L}+/gu) ?? [];
-      const w = W_PREPOSITIONS.has(words[0]?.toLowerCase() ?? "") ? 1 : 0;
-      if (
-        /[,;:"„“”«»()]/.test(sentence) ||
-        !ASKING.has(words[w]?.toLowerCase() ?? "") ||
-        // "Wo kommen die nur immer hin!": a sigh, not a question.
-        words.some((x) => SUBJUNCTIVE.test(x) || /^(?:nur|bloß|immer)$/.test(x)) ||
-        !isQuestion(words)
-      )
-        continue;
-    } else if (ASKS.test(sentence.trimStart())) {
-      // An indirect question inside.
-    } else if (!tagged) {
-      // Clauses joined or quoted: "Wer bremst, verliert.", "Er fragte: Wann …".
-      if (/[,;:"„“”«»()]/.test(sentence)) continue;
-      const words = sentence.match(/\p{L}+/gu) ?? [];
-      // A one-letter abbreviation before the dot: "z. B."
-      if (words.length < 2 || /(?:^|\s)\p{L}$/u.test(sentence)) continue;
-      if (!isQuestion(words)) continue;
-    }
-    findings.push(
-      finding("germanQuestionMarks", "review_msg_question_mark", at, at + 1, ["?"], {
-        context: { start, end: at + 1 },
-      }),
-    );
+/** A sentence end of a question that a full stop or a "!" closes: "Wann kommst du." */
+const statementQuestion: MatchFixer = (m, ctx) => {
+  const at = m.index;
+  const window = Math.max(0, at - 300);
+  let start = window + ctx.text.slice(window, at).search(/[^.!?\n]*$/);
+  // A quotation opened and not closed: '"Wohin ist er gegangen.'
+  const quote = /^[ \t]*["„»]/.exec(ctx.text.slice(start, at));
+  if (quote && !/["“”«]/.test(ctx.text.slice(start + quote[0].length, at))) {
+    start += quote[0].length;
   }
-  return findings;
-}
-
-// Quoted speech that a verb of asking reports, closed without a question mark: '"Wohin gehst
-// du", fragte sie.' → '"Wohin gehst du?"'.
-const ASKED =
-  /(?<=\p{L})\.?(?<quote>["“”«»])(?=,?[ \t]+(?:fragte|fragten|fragt|erkundigte|erkundigten|erkundigt|wollten?(?:[ \t]+\p{Ll}+)?[ \t]+wissen)(?!\p{L}))/gu;
-
-function quotedQuestions(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  ASKED.lastIndex = ctx.from;
-  for (let m = ASKED.exec(ctx.scanText); m && m.index < ctx.to; m = ASKED.exec(ctx.scanText)) {
-    const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index);
-    // The speech opens on the same line.
-    if (!/["„»«“]/.test(line) || englishLine(ctx.text, m.index)) continue;
-    if (namedExampleBefore(ctx.text, m.index)) continue;
-    const { quote } = m.groups!;
-    findings.push(
-      finding(
-        "germanQuestionMarks",
-        "review_msg_question_mark",
-        m.index,
-        m.index + m[0].length,
-        [`?${quote}`],
-        { context: { start: Math.max(0, m.index - 60), end: m.index + m[0].length + 12 } },
-      ),
-    );
+  const sentence = ctx.text.slice(start, at);
+  const exclaimed = ctx.text[at] === "!";
+  if (englishLine(ctx.text, at) || namedExampleBefore(ctx.text, start)) return null;
+  // "Hast du Mt. Fuji gesehen?": an abbreviation, the sentence goes on.
+  if (/(?:^|\s)\p{Lu}\p{Ll}?$/u.test(sentence)) return null;
+  // "egal, ob er kommt, oder nicht.": the alternative of an "ob" clause.
+  const tagged = TAG.test(sentence) && !/(?<!\p{L})ob(?!\p{L})/u.test(sentence);
+  if (exclaimed) {
+    // "Ab wann gilt das!": only a w-word that asks, before a verb that is no subjunctive.
+    const words = sentence.match(/\p{L}+/gu) ?? [];
+    const w = W_PREPOSITIONS.has(words[0]?.toLowerCase() ?? "") ? 1 : 0;
+    if (
+      /[,;:"„“”«»()]/.test(sentence) ||
+      !ASKING.has(words[w]?.toLowerCase() ?? "") ||
+      // "Wo kommen die nur immer hin!": a sigh, not a question.
+      words.some((x) => SUBJUNCTIVE.test(x) || /^(?:nur|bloß|immer)$/.test(x)) ||
+      !isQuestion(words)
+    )
+      return null;
+  } else if (ASKS.test(sentence.trimStart())) {
+    // An indirect question inside.
+  } else if (!tagged) {
+    // Clauses joined or quoted: "Wer bremst, verliert.", "Er fragte: Wann …".
+    if (/[,;:"„“”«»()]/.test(sentence)) return null;
+    const words = sentence.match(/\p{L}+/gu) ?? [];
+    // A one-letter abbreviation before the dot: "z. B."
+    if (words.length < 2 || /(?:^|\s)\p{L}$/u.test(sentence)) return null;
+    if (!isQuestion(words)) return null;
   }
-  return findings;
-}
+  return finding("germanQuestionMarks", "review_msg_question_mark", at, at + 1, ["?"], {
+    context: { start, end: at + 1 },
+  });
+};
 
-export const PREDICATES = {
-  questionMarks: (ctx) => [...questions(ctx), ...quotedQuestions(ctx)],
-} satisfies Record<string, Detector>;
+/** Quoted speech that a verb of asking reports, closed without a question mark. */
+const quotedQuestion: MatchFixer = (m, ctx) => {
+  const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index);
+  // The speech opens on the same line.
+  if (!/["„»«“]/.test(line) || englishLine(ctx.text, m.index)) return null;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const { quote } = m.groups!;
+  return finding(
+    "germanQuestionMarks",
+    "review_msg_question_mark",
+    m.index,
+    m.index + m[0].length,
+    [`?${quote}`],
+    { context: { start: Math.max(0, m.index - 60), end: m.index + m[0].length + 12 } },
+  );
+};
+
+/** The named frame fixes of the de.questionMarks rule (grammar/rules/de.yaml). */
+export const FIXERS = {
+  statementQuestion,
+  quotedQuestion,
+} satisfies Record<string, MatchFixer>;

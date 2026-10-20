@@ -34,11 +34,7 @@ export const PREDICATES = mergePredicates(
   nounCasing.PREDICATES,
   numbers.PREDICATES,
   prepositionCase.PREDICATES,
-  questions.PREDICATES,
   quotes.PREDICATES,
-  recommended.PREDICATES,
-  redundancy.PREDICATES,
-  suspendedHyphen.PREDICATES,
   verbAgreement.PREDICATES,
 );
 
@@ -49,6 +45,11 @@ export const FIXERS = mergePredicates<Fixer>(
   idiomFrames.FIXERS,
   abbreviations.FIXERS,
   anglicisms.FIXERS,
+  recommended.FIXERS,
+  redundancy.FIXERS,
+  suspendedHyphen.FIXERS,
+  questions.FIXERS,
+  quotes.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */
