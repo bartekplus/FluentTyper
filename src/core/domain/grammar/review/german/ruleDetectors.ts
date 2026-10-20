@@ -9,6 +9,8 @@ import * as anglicisms from "./anglicisms";
 import * as articleGender from "./articleGender";
 import * as colloquial from "./colloquial";
 import * as commas from "./commas";
+import * as commaFrames from "./commaFrames";
+import * as salutations from "./salutations";
 import * as compounds from "./compounds";
 import * as confusions from "./confusions";
 import * as dates from "./dates";
@@ -24,9 +26,7 @@ import * as suspendedHyphen from "./suspendedHyphen";
 import * as verbAgreement from "./verbAgreement";
 
 export const PREDICATES = mergePredicates(
-  adjectiveForms.PREDICATES,
   articleGender.PREDICATES,
-  commas.PREDICATES,
   dates.PREDICATES,
   nounCasing.PREDICATES,
   numbers.PREDICATES,
@@ -52,7 +52,11 @@ export const FIXERS = mergePredicates<Fixer>(
   colloquial.FIXERS,
   compounds.FIXERS,
   joinedVerbs.FIXERS,
+  adjectiveForms.FIXERS,
+  commas.FIXERS,
+  commaFrames.FIXERS,
+  salutations.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>(numbers.FILTERS);
+export const FILTERS = mergePredicates<FindingsFilter>(numbers.FILTERS, commas.FILTERS);

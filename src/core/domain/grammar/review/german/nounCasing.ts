@@ -15,7 +15,10 @@ import {
 import { capitalizedAdjectives, capitalizedVerbs } from "./capitalized";
 import { idioms } from "./idioms";
 import { names } from "./names";
-import { politeImperative, salutationCase } from "./salutations";
+import {
+  politeImperativeOld as politeImperative,
+  salutationCaseOld as salutationCase,
+} from "./salutations";
 import { nominalized } from "./nominalized";
 import {
   BOUNDARY,

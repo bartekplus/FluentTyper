@@ -32,6 +32,12 @@ fragments:
   NUMBER_WORD: "\\d|(?<![\\p{L}])(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|zwanzig|dreißig|fünfzig|hundert|halbes?|paar)"
   DAY_TIMES: "Morgen|Vormittag|Mittag|Nachmittag|Abend|Nacht|morgen|vormittag|mittag|nachmittag|abend|nacht"
   NUMBER_SUFFIXES: "seitig|stellig|prozentig|teilig|jährig|tägig|stündig|minütig|wöchig|monatig|sprachig|farbig|geschossig|zimmerig|türig|spurig|köpfig|sitzig|bändig|zeilig|wertig"
+  ADJ_DEGREE: "sehr|ziemlich|recht|ganz|besonders|wirklich|unglaublich|äußerst|echt|so|relativ|extrem"
+  CAP_NOUN: "\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*"
+  DEGREE_ADVERBS: "sehr|so|ganz|zu|echt|wirklich|ziemlich|richtig|total|nicht|doch|auch|schon|immer|eher|recht|extrem|einfach|leider|wohl"
+  COPULA_FORMS: "ist|sind|war|waren|bin|bist|seid|wird|werden|wurde|wurden|bleibt|blieb|bleiben"
+  GREETING_WORDS: "(?:Hallo|Hi|Hey|Moin|Servus|Guten[ \\t]{1,4}(?:Morgen|Tag|Abend))"
+  CLAUSE_CHAR: "[^.!?;:,\\n]"
   RIGHT_VERBS: "haben|hat|hatte|hatten|hast|habe|hätte|hätten|geben|gibt|gab|gaben|gegeben|behalten|behielt|bekommen|bekam"
 
 rules:
@@ -847,7 +853,51 @@ rules:
         fixer: deWar
   - id: de.adjectiveForms
     checks: [germanAdjectiveForms]
-    predicate: adjectiveForms
+    style: match
+    message: review_msg_german_adjective_ending
+    frames:
+      # An adjective before a noun without its ending: "eine lang Reise" (lange), "ein edel
+      # Kraut" (edler/edles); or a compound written apart: "in echt Zeit" (Echtzeit). A degree
+      # word may stand between the article and the adjective ("eine sehr schön Frau").
+      - regex: "{{WG}}(?<det>\\p{L}+)(?:{{S}}(?:{{ADJ_DEGREE}}))?{{S}}(?<target>(?<adj>\\p{Ll}+){{S}}(?<noun>{{CAP_NOUN}})){{E}}"
+        flags: dgu
+        fixer: bareAdjective
+      # "Es werden folgenden Daten gespeichert": with no article, the plural subject after
+      # "werden" takes the strong ending -e ("folgende Daten"). A plural in -n or -s may be a
+      # dative object ("Die Bücher werden armen Kindern geschenkt"), so it counts only when no
+      # subject comes before "werden": the clause opens with a preposition, "es" or an adverb.
+      - regex: "{{WG}}(?:(?<=(?:werden|wurden|würden){{S}})(?<target>(?<adj>\\p{Ll}{3,}en){{S}}(?<noun>\\p{Lu}\\p{Ll}{2,})){{E}})"
+        flags: dgu
+        fixer: werdenPlural
+      # The strong ending after an article that already shows the case: "im mentalem Lexikon"
+      # (mentalen).
+      - regex: "{{WG}}(?<det>[dD]em|[iI]m|[zZ]um|[vV]om|[bB]eim|[aA]m|[eE]inem|[mM]einem|[dD]einem|[sS]einem|[iI]hrem|[uU]nserem|[eE]urem|[dD]iesem|[jJ]edem|[kK]einem|[dD]es|[eE]ines|[mM]eines|[dD]eines|[sS]eines|[iI]hres|[uU]nseres|[eE]ures|[dD]ieses|[jJ]edes|[kK]eines){{S}}(?<target>\\p{Ll}+(?:em|es))(?={{S}}{{CAP_NOUN}}{{E}})"
+        flags: dgu
+        fixer: strongAfterArticle
+      # Letter salutations: "Lieber Herr Müller", "Liebe Frau Weber", "Sehr geehrte Damen und
+      # Herren" take the title's gender ("Liebe Herr" → Lieber). At a line start, or after a
+      # greeting.
+      - regex: "(?<=(?:^|\\n)[ \\t]{0,8}(?:{{GREETING_WORDS}}[ \\t]{1,4}|Sehr[ \\t]{1,4})?)(?<adj>[Ll]ieb(?:e|en|er|es)?|geehrt(?:e|en|er|es)?)(?=[ \\t]+(?<title>Herr|Frau|Damen)(?![\\p{L}\\p{M}]))"
+        scan: owned
+        flags: gu
+        fixer: salutationEnding
+      # A predicative adjective takes no ending: "Er war schnelle." (schnell), "Die sind
+      # schlauen."
+      - regex: "{{WG}}(?:{{COPULA_FORMS}})(?:{{S}}(?:{{DEGREE_ADVERBS}}))*{{S}}(?<target>\\p{Ll}{3,}?(?:e|en))(?=[ \\t]*[.!?])"
+        flags: dgu
+        message: review_msg_german_predicative
+        fixer: predicative
+      # "Er ist schnelle als ich" → schneller: an ending before "als" where the comparative
+      # belongs.
+      - regex: "{{WG}}(?<prior>\\p{L}+){{S}}(?<target>\\p{Ll}{3,}?e)(?={{S}}als{{E}})"
+        flags: dgu
+        message: review_msg_german_predicative
+        fixer: beforeAls
+      # "Beamter" declines like an adjective and has no feminine "die Beamte": "der Beamte",
+      # "ein Beamter", "den Beamten", "die Beamten" (plural). The determiner sets the ending.
+      - regex: "{{WG}}(?<det>[Dd](?:er|ie|en|em|es)|[Dd]ies(?:er|e|en|em|es)|[Jj]ede[rnms]|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser|[Ee]uer)(?:en|em|es|er)?)(?:{{S}}\\p{Ll}+(?:e|en|er|es|em))?{{S}}(?<target>\\p{L}*[Bb]eamte[rn]?){{E}}"
+        flags: dgu
+        fixer: official
   - id: de.articleGender
     checks: [germanArticleGender]
     predicate: articleGender
@@ -940,7 +990,55 @@ rules:
     predicate: straightQuotes
   - id: de.commas
     checks: [germanCommas]
-    predicate: commas
+    style: match
+    message: review_msg_german_comma
+    filter: firstCommaPerEnd
+    frames:
+      # The comma German sets before a clause or an infinitive group: "Er bleibt, weil es
+      # regnet", "Sie ging, um zu lesen", "Ich glaube, das stimmt". Each word whose start the
+      # chunk owns (a word of letters, not glued into a number, path, mention or dotted token).
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
+        scan: owned
+        flags: gu
+        fixer: clauseComma
+  - id: de.commaFrames
+    checks: [germanCommas]
+    style: match
+    message: review_msg_german_comma
+    frames:
+      # A salutation alone on its line: "Sehr geehrte Frau Weber", "Liebe Anna!" take a comma.
+      - regex: "(?<=(?:^|\\n)[ \\t]{0,8})(?:Sehr[ \\t]{1,4}geehrte[r]?|Liebe[r]?)[ \\t]{1,4}(?:Herr|Frau|Damen[ \\t]{1,4}und[ \\t]{1,4}Herren|Kolleginnen[ \\t]{1,4}und[ \\t]{1,4}Kollegen|\\p{Lu}\\p{Ll}+)(?:[ \\t]{1,4}(?:Dr\\.|Prof\\.|\\p{Lu}[\\p{Ll}-]+)){0,3}!?(?=[ \\t]*(?:\\n|$))"
+        scan: owned
+        flags: gu
+        fixer: salutationComma
+      # Paired words ("teils lustig, teils traurig", "halb …, halb …", "einerseits …,
+      # andererseits", "je …, desto", "So weit, so gut"): the word that takes the comma after
+      # it. The gate first checks the paired word after it, so the long lookbehinds run only
+      # there.
+      - regex: "{{WG}}(?:(?=\\p{L}+{{S}}(?:teils|halb|andererseits|desto|umso|so){{E}})(?:(?<=(?:[Tt]eils){{S}}(?:{{CLAUSE_CHAR}}{0,60}?{{S}})?)(?<word>\\p{L}+)(?={{S}}teils{{E}})|(?<=[Hh]alb{{S}})(?<w2>\\p{L}+)(?={{S}}halb{{S}}\\p{L})|(?<=(?:^|[.!?;:\\n]{{S}}?)[Ee]inerseits{{S}}{{CLAUSE_CHAR}}{0,80}?)(?<w3>\\p{L}+)(?={{S}}andererseits{{E}})|(?<=(?:^|[.!?\\n,]{{S}}?)[Jj]e{{S}}{{CLAUSE_CHAR}}{0,80}?)(?<w4>\\p{L}+)(?={{S}}(?:desto|umso){{E}})|(?<=[Ss]o{{S}})(?<w5>weit)(?={{S}}so{{S}}gut{{E}})))"
+        flags: dgu
+        owner: word|w2|w3|w4|w5
+        fixer: pairedWords
+      # "Wo denkst du ist es?": a w-question's verb follows an inserted "denkst du".
+      - regex: "{{WG}}(?:(?<=(?:^|[.!?\\n][ \\t]*)(?:Wo|Was|Wie|Wann|Warum|Wieso|Weshalb|Wer|Wen|Wem|Wohin|Woher|Welche\\p{Ll}*){{S}}(?:denkst|glaubst|meinst|denkt|glaubt|meint|dachtest|dachtet|dachten|glaubtest|glaubten|meintest|meinten|denken|glauben|meinen){{S}})(?<word>du|ihr|Sie)(?={{S}}(?:ist|sind|war|waren|soll|sollte|sollen|kann|könnte|wird|würde|hat|hätte|muss|müsste|sei|wäre|kommt|geht|passiert|liegt|steht|gibt){{E}}))"
+        flags: dgu
+        owner: word
+        fixer: commaAfterWord
+      # "Hallo wie geht es euch?": a greeting before a sentence takes a comma ("Hallo du" and
+      # "Hallo ihr beiden" address someone).
+      - regex: "{{WG}}(?:(?<=(?:^|\\n|[„\"]))(?<word>Hallo|Hi|Hey|Servus|Moin)(?={{S}}(?:wie|was|wo|wann|warum|ich|wir|da|habt|hast|kannst|könnt|seid|bist){{E}}))"
+        flags: dgu
+        owner: word
+        fixer: commaAfterWord
+      # "Du kommst morgen oder?", "Das stimmt nicht wahr?": the tag question after a statement.
+      - regex: "{{WG}}(?:(?<word>\\p{L}+)(?={{S}}(?:oder(?:{{S}}etwa{{S}}nicht)?|nicht{{S}}wahr|gell|stimmt's|stimmts)[ \\t]*\\?))"
+        flags: dgu
+        owner: word
+        fixer: tagQuestion
+      # "Das ist glaube ich egal": an inserted "glaube ich" after the finite verb.
+      - regex: "{{WG}}(?:(?<=(?:ist|sind|war|waren|hat|haben|hatte|hatten|wird|werden|kann|können|muss|müssen|soll|sollte|wäre|würde)(?:{{S}}(?:aber|doch|ja|auch))?{{S}})(?<target>(?:glaube|denke|finde|meine|schätze|vermute){{S}}ich)(?={{S}}\\p{L}))"
+        flags: dgu
+        fixer: insertedOpinion
   - id: de.verbAgreement
     checks: [germanVerbAgreement]
     predicate: verbAgreement
