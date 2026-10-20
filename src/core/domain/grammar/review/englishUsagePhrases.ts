@@ -1,129 +1,15 @@
-import {
-  COMPLETE,
-  detectPhraseTemplates,
-  EDGE,
-  SPACE,
-  type PhraseTemplate,
-} from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
-const SUBJECT = `(?:(?:this|that|the)${SPACE}(?:(?:new|old|latest)${SPACE})?(?:feature|idea|story|proposal|question|book|article|design|project|topic)|it)`;
-const KNEW_ADVERB =
-  "(?:always|never|often|already|just|really|still|also|sometimes|usually|probably|certainly|clearly|somehow|instantly|immediately|suddenly|finally|then)";
-// Words that open the known clause: "I new it was…".
-const KNEW_CLAUSE = "(?:it|that|this|there|what|who|how|why|when|where|I|you|he|she|we|they)";
-const templates: readonly PhraseTemplate[] = [
-  {
-    pattern: `(?:we|I|they)${SPACE}(?:finally${SPACE})?(?<target>finded)${SPACE}the${SPACE}(?:problem|bug|issue)${COMPLETE}`,
-    replacement: "found",
-    messageKey: "review_msg_contextual_grammar",
-  },
-
-  // "I new it was true": a clause-initial pronoun + new before a clause opener means "knew".
-  // "we/you" also take an appositive noun ("We new hires…"), "it" a complement ("make it new").
-  {
-    pattern: `(?:I|you|he|she|it|we|they)${SPACE}(?:${KNEW_ADVERB}${SPACE})?(?<target>new)${SPACE}(?:that|it|what|how|where|who|why|when|the${SPACE}answer|about|him|her|them|this|everything|nothing|exactly|better|I|you|he|she|we|they)(?!${EDGE})`,
-    replacement: "knew",
-    messageKey: "review_msg_contextual_grammar",
-    clauseStart: true,
-  },
-  // Anywhere, "I/he/she/they" + new + a word is the verb ("She new danger lurked"): the
-  // adjective needs a copula, here inverted ("Is she new to…") or gapped ("…and she new").
-  // "they new hires are" is a slip for "the new hires", not for "knew".
-  {
-    pattern: `(?=(?:I|he|she|they)${SPACE})(?<!(?:am|is|are|was|were|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|and|but|or|while|whereas|than|as)${SPACE})(?:I|he|she|they)${SPACE}(?:${KNEW_ADVERB}${SPACE})?(?<target>new)${SPACE}(?!(?:here|there|to|and|or|but)(?!${EDGE}))(?!(?!${KNEW_CLAUSE}(?!${EDGE}))[a-z]+${SPACE}(?:is|are|was|were|has|have|had|will|would|can|could|should|must|may|might)(?!${EDGE}))[a-z]+(?!${EDGE})`,
-    replacement: "knew",
-    messageKey: "review_msg_contextual_grammar",
-  },
-  ...(
-    [
-      [
-        `(?:do${SPACE}you${SPACE}know|can${SPACE}you${SPACE}tell${SPACE}me|I${SPACE}wonder)${SPACE}where${SPACE}(?<target>is${SPACE}the${SPACE}configuration${SPACE}file)${COMPLETE}`,
-        "the configuration file is",
-      ],
-      [
-        `(?:do${SPACE}you${SPACE}know|can${SPACE}you${SPACE}tell${SPACE}me|I${SPACE}wonder)${SPACE}why${SPACE}(?<target>did${SPACE}the${SPACE}process${SPACE}crash)${COMPLETE}`,
-        "the process crashed",
-      ],
-      [
-        `(?:do${SPACE}you${SPACE}know|can${SPACE}you${SPACE}tell${SPACE}me|I${SPACE}wonder)${SPACE}what${SPACE}(?<target>does${SPACE}this${SPACE}option${SPACE}do)${COMPLETE}`,
-        "this option does",
-      ],
-      [
-        `(?:nobody|no${SPACE}one)${SPACE}knows${SPACE}when${SPACE}(?<target>will${SPACE}the${SPACE}new${SPACE}version${SPACE}be${SPACE}released)${COMPLETE}`,
-        "the new version will be released",
-      ],
-      [`between${SPACE}(?<target>you${SPACE}and${SPACE}I)(?=,)`, "you and me"],
-      [
-        `(?:a|the)${SPACE}(?:(?:big|large|small|positive|negative)${SPACE})?(?<target>affect)${SPACE}on${SPACE}(?:performance|stability|the${SPACE}(?:results|system))${COMPLETE}`,
-        "effect",
-      ],
-      [
-        `(?:know|knows|wonder|wondered)${SPACE}(?<target>weather)${SPACE}(?:they|we|you)${SPACE}will${SPACE}(?:finish|complete)${SPACE}it(?:${SPACE}today)?${COMPLETE}`,
-        "whether",
-      ],
-      [
-        `(?:developer|user|person)${SPACE}(?<target>who['’]s)${SPACE}(?:laptop|computer|phone)${SPACE}(?:crashed|broke)${SPACE}(?:said|reported)(?!${EDGE})`,
-        "whose",
-      ],
-      [
-        `(?:by|with)${SPACE}a${SPACE}(?<target>lose)${SPACE}(?:cable|connection)${COMPLETE}`,
-        "loose",
-      ],
-      [
-        `(?:intuitive|simple|clear),?${SPACE}(?<target>accept)${SPACE}for${SPACE}the${SPACE}(?:(?:advanced|new)${SPACE})?(?:settings|options)${SPACE}page${COMPLETE}`,
-        "except",
-      ],
-    ] as const
-  ).map(([pattern, replacement]) => ({
-    pattern,
-    replacement,
-    messageKey: "review_msg_contextual_grammar" as const,
-  })),
-  // A negated verb already carries the negation: "didn't have no idea" -> "any".
-  {
-    pattern: `(?:didn['’]t|did${SPACE}not|don['’]t|do${SPACE}not|doesn['’]t|does${SPACE}not|can['’]t|cannot|couldn['’]t|won['’]t|wouldn['’]t|never)${SPACE}(?:have|had|want|make|get|need|see|know|do|give|find|hear|feel|mean|show)${SPACE}(?<target>no)${SPACE}(?!(?:one|longer|matter|more|less|doubt|further|sooner|way|thanks)(?!${EDGE}))[a-z]+(?!${EDGE})`,
-    replacement: "any",
-    messageKey: "review_msg_double_negative",
-  },
-  // "few days ago" without "a" reads as "hardly any"; the time phrase means "a few".
-  {
-    pattern: `(?<!(?:a|very|quite|only|the|so|too|these|those|last|first|past|next|fewer|precious|relatively)${SPACE})(?<target>few)${SPACE}(?:seconds?|minutes?|hours?|days?|weeks?|weekends?|months?|years?|decades?|ms)${SPACE}ago(?!${EDGE})`,
-    replacement: "a few",
-    messageKey: "review_msg_a_few",
-  },
-  {
-    pattern: `for${SPACE}all${SPACE}(?<target>intensive)${SPACE}purposes,${SPACE}(?:the|this|that)${SPACE}(?:test|project|work|task|report|plan|design|review|process|document|proposal|update)${SPACE}(?:is|was)${SPACE}(?:complete|finished|ready|done|final|successful)${COMPLETE}`,
-    replacement: "intents and",
-    messageKey: "review_msg_intents_purposes",
-  },
-  {
-    pattern: `(?:they|we|these|those|(?:the|these|those)${SPACE}two${SPACE}(?:things|people|files|documents|reports|plans|ideas|options))${SPACE}(?:are|were)${SPACE}one${SPACE}(?<target>in)${SPACE}the${SPACE}same${COMPLETE}`,
-    replacement: "and",
-    messageKey: "review_msg_one_same",
-  },
-  ...(
-    [
-      ["peaked", "piqued"],
-      ["peaks", "piques"],
-      ["peak", "pique"],
-      ["peaking", "piquing"],
-    ] as const
-  ).map(([form, replacement]) => ({
-    pattern: `${SUBJECT}${SPACE}${form === "peak" ? `(?:can|will|could|should|may|might)${SPACE}` : form === "peaking" ? `(?:is|was)${SPACE}` : ""}(?<target>${form})${SPACE}(?:my|your|his|her|our|their)${SPACE}interest${COMPLETE}`,
-    replacement,
-    messageKey: "review_msg_pique_interest" as const,
-  })),
-];
-
 /** Conventional meanings only; unknown metaphors and literal peak constructions abstain. */
-export function usagePhrases(ctx: DetectContext): RawFinding[] {
-  return detectPhraseTemplates(ctx, templates, "englishUsagePhrases").filter(
-    (finding) =>
-      // A capitalized "New" after a pronoun starts a name ("they New Yorkers").
-      finding.alternatives[0] !== "Knew" &&
-      !/\b(?:metaphor|poetic|creative|deliberate|deliberately|dialect|invented)\b/i.test(
-        ctx.scanText.slice(finding.context!.start, finding.context!.end),
-      ),
-  );
-}
+/** The findings filters of common.yaml (`filter:`). */
+export const FILTERS = {
+  usagePhrases: (ctx: DetectContext, findings: RawFinding[]) =>
+    findings.filter(
+      (finding) =>
+        // A capitalized "New" after a pronoun starts a name ("they New Yorkers").
+        finding.alternatives[0] !== "Knew" &&
+        !/\b(?:metaphor|poetic|creative|deliberate|deliberately|dialect|invented)\b/i.test(
+          ctx.scanText.slice(finding.context!.start, finding.context!.end),
+        ),
+    ),
+};

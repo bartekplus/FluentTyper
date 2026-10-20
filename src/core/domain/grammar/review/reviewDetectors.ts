@@ -1,7 +1,6 @@
 import { CUE_AND_QUOTE } from "./exampleCues";
 import { canonicalCasing } from "./canonicalCasing";
 import { phraseCorrections } from "./englishPhraseCorrections";
-import { usagePhrases } from "./englishUsagePhrases";
 import { doubledDegree } from "./englishDegree";
 import {
   doubledDegreeByLanguage,
@@ -12,11 +11,9 @@ import {
   splitWords,
 } from "./multilingualLexicon";
 import { countability } from "./englishCountability";
-import { contextualCompounds } from "./englishCompounds";
 import { nounNumberConstructions } from "./englishNounNumber";
 import { perfectParticiples } from "./englishParticiples";
 import { verbComplements } from "./englishComplements";
-import { fixedPrepositions } from "./englishPrepositions";
 import { contextualPossessives } from "./englishPossessives";
 import {
   additionalPronounAgreement,
@@ -101,6 +98,8 @@ import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { TYPOGRAPHIC_QUOTES } from "./typographicQuotes";
 import { germanUnits } from "./german/numbers";
 import { FIXERS as ENGLISH_FIXERS, PREDICATES as ENGLISH } from "./english/ruleDetectors";
+import { FILTERS as USAGE_FILTERS } from "./englishUsagePhrases";
+import { FILTERS as COMPOUND_FILTERS } from "./englishCompounds";
 import { PREDICATES as GERMAN } from "./german/ruleDetectors";
 import { PREDICATES as GREEK } from "./greek/ruleDetectors";
 import { PREDICATES as SWEDISH } from "./swedish/ruleDetectors";
@@ -1587,15 +1586,12 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   quotationFindings: (ctx) => ownedFindings(ctx, ctx.quotationFindings),
   typographicQuotes: TYPOGRAPHIC_QUOTES.detect,
   possessives: contextualPossessives,
-  fixedPrepositions,
   verbComplements,
   perfectParticiples,
   nounNumber: nounNumberConstructions,
-  usagePhrases,
   doubledDegree: (ctx) =>
     ctx.lang === "en_US" ? doubledDegree(ctx) : doubledDegreeByLanguage(ctx),
   countability,
-  contextualCompounds,
   repeatedWords,
   auxiliaryForms,
   pronounCase,
@@ -1659,6 +1655,7 @@ export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors(
     fr: FRENCH,
   },
   { en: ENGLISH_FIXERS },
+  { common: { ...USAGE_FILTERS, ...COMPOUND_FILTERS } },
 );
 
 /** Per-language entries: they may add context detectors to shared rules or serve their own. */

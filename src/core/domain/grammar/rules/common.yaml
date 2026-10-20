@@ -4395,6 +4395,13 @@ exclusive:
   - [styleOxfordComma, styleNoOxfordComma]
   - [englishAmericanSpelling, englishBritishSpelling]
 
+# Regex fragments of the frame rules: {{NAME}}.
+fragments:
+  SUBJECT: "(?:I|you|we|they|he|she|it)"
+  KNEW_ADVERB: "(?:always|never|often|already|just|really|still|also|sometimes|usually|probably|certainly|clearly|somehow|instantly|immediately|suddenly|finally|then)"
+  KNEW_CLAUSE: "(?:it|that|this|there|what|who|how|why|when|where|I|you|he|she|we|they)"
+  ENGLISHCOMPOUNDS_SUBJECT: "(?:I|you|we|they|he|she)"
+
 rules:
   # Typing rules: each live check names its implementation (engine/liveRules.ts).
   - id: capitalizeSentenceStart.live
@@ -4551,7 +4558,28 @@ rules:
     predicate: possessives
   - id: fixedPrepositions
     checks: [englishFixedPrepositions]
-    predicate: fixedPrepositions
+    style: template
+    message: review_msg_contextual_grammar
+    frames:
+      - regex: "{{SUBJECT}}{{S}}(?:is|are|am|was|were){{S}}responsible{{S}}(?<target>of){{S}}(?:testing|checking|building){{S}}the{{S}}(?:(?:Windows|Linux){{S}})?(?:version|build|application){{COMPLETE}}"
+        fix: "for"
+      - regex: "{{SUBJECT}}{{S}}(?:have|has){{S}}(?:been{{S}}(?:working|living)|worked|lived){{S}}here{{S}}(?<target>from){{S}}(?:19|20)[0-9]{2}{{COMPLETE}}"
+        fix: "since"
+      - regex: "{{SUBJECT}}{{S}}arrived{{S}}(?<target>to){{S}}the{{S}}(?:office|station|airport|hotel)(?:{{S}}at{{S}}[0-9]{1,2}:[0-9]{2})?{{COMPLETE}}"
+        fix: "at"
+      - regex: "(?:{{SUBJECT}}{{S}}|and{{S}})waited{{S}}(?<target>the){{S}}(?:manager|developer|teacher)(?:{{S}}for{{S}}(?:nearly{{S}})?[0-9]{1,3}{{S}}minutes)?{{COMPLETE}}"
+        fix: "for the"
+      - regex: "(?:to|will|should){{S}}investigate{{S}}(?<target>on{{S}})(?:it|the{{S}}(?:issue|problem))(?:{{S}}later)?{{COMPLETE}}"
+        fix: ""
+      - regex: "despite{{S}}(?<target>of{{S}})(?:the|this|that){{S}}(?:(?:long|heavy|loud|bad|high|unexpected){{S}})?(?:delay|rain|noise|weather|problem|warning|risk|cost|pressure|heat|cold|traffic){{COMPLETE}}"
+        fix: ""
+        message: review_msg_despite_of
+      - regex: "(?:{{SUBJECT}}{{S}}(?:discuss|discussed|discusses|(?:am|is|are|was|were){{S}}discussing)|please{{S}}discuss){{S}}(?<target>about{{S}})(?:the|this|that|our|your|their){{S}}(?:(?:new|old|current|latest|proposed){{S}})?(?:release|plan|report|problem|proposal|results|schedule|budget|design|issue|changes|project)(?:{{S}}during{{S}}(?:the|our|their){{S}}(?:meeting|test|review))?(?:{{COMPLETE}}|{{S}}(?:and|but)(?={{S}}))"
+        fix: ""
+        message: review_msg_discuss_about
+      - regex: "{{SUBJECT}}{{S}}(?:am|is|are|was|were){{S}}interested{{S}}(?<target>on){{S}}(?:learning{{S}}(?:Rust|English|French|German|Spanish|Python|TypeScript)|writing{{S}}code|reading{{S}}books|playing{{S}}chess|building{{S}}apps|testing{{S}}software|checking{{S}}(?:the|our){{S}}(?:(?:Linux|Windows){{S}})?(?:build|version)|(?:the|this|that|our|your|their){{S}}(?:(?:new|old|current|latest|proposed){{S}})?(?:release|plan|report|problem|proposal|results|schedule|budget|design|issue|changes|project)){{COMPLETE}}"
+        fix: "in"
+        message: review_msg_interested_on
     cacheable: true
   - id: verbComplements
     checks: [englishVerbComplements]
@@ -4564,7 +4592,61 @@ rules:
     predicate: nounNumber
   - id: usagePhrases
     checks: [englishUsagePhrases]
-    predicate: usagePhrases
+    style: template
+    filter: usagePhrases
+    message: review_msg_contextual_grammar
+    frames:
+      - regex: "(?:we|I|they){{S}}(?:finally{{S}})?(?<target>finded){{S}}the{{S}}(?:problem|bug|issue){{COMPLETE}}"
+        fix: "found"
+      - regex: "(?:I|you|he|she|it|we|they){{S}}(?:{{KNEW_ADVERB}}{{S}})?(?<target>new){{S}}(?:that|it|what|how|where|who|why|when|the{{S}}answer|about|him|her|them|this|everything|nothing|exactly|better|I|you|he|she|we|they){{E}}"
+        fix: "knew"
+        clauseStart: true
+      - regex: "(?=(?:I|he|she|they){{S}})(?<!(?:am|is|are|was|were|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|and|but|or|while|whereas|than|as){{S}})(?:I|he|she|they){{S}}(?:{{KNEW_ADVERB}}{{S}})?(?<target>new){{S}}(?!(?:here|there|to|and|or|but){{E}})(?!(?!{{KNEW_CLAUSE}}{{E}})[a-z]+{{S}}(?:is|are|was|were|has|have|had|will|would|can|could|should|must|may|might){{E}})[a-z]+{{E}}"
+        fix: "knew"
+      - regex: "(?:do{{S}}you{{S}}know|can{{S}}you{{S}}tell{{S}}me|I{{S}}wonder){{S}}where{{S}}(?<target>is{{S}}the{{S}}configuration{{S}}file){{COMPLETE}}"
+        fix: "the configuration file is"
+      - regex: "(?:do{{S}}you{{S}}know|can{{S}}you{{S}}tell{{S}}me|I{{S}}wonder){{S}}why{{S}}(?<target>did{{S}}the{{S}}process{{S}}crash){{COMPLETE}}"
+        fix: "the process crashed"
+      - regex: "(?:do{{S}}you{{S}}know|can{{S}}you{{S}}tell{{S}}me|I{{S}}wonder){{S}}what{{S}}(?<target>does{{S}}this{{S}}option{{S}}do){{COMPLETE}}"
+        fix: "this option does"
+      - regex: "(?:nobody|no{{S}}one){{S}}knows{{S}}when{{S}}(?<target>will{{S}}the{{S}}new{{S}}version{{S}}be{{S}}released){{COMPLETE}}"
+        fix: "the new version will be released"
+      - regex: "between{{S}}(?<target>you{{S}}and{{S}}I)(?=,)"
+        fix: "you and me"
+      - regex: "(?:a|the){{S}}(?:(?:big|large|small|positive|negative){{S}})?(?<target>affect){{S}}on{{S}}(?:performance|stability|the{{S}}(?:results|system)){{COMPLETE}}"
+        fix: "effect"
+      - regex: "(?:know|knows|wonder|wondered){{S}}(?<target>weather){{S}}(?:they|we|you){{S}}will{{S}}(?:finish|complete){{S}}it(?:{{S}}today)?{{COMPLETE}}"
+        fix: "whether"
+      - regex: "(?:developer|user|person){{S}}(?<target>who['’]s){{S}}(?:laptop|computer|phone){{S}}(?:crashed|broke){{S}}(?:said|reported){{E}}"
+        fix: "whose"
+      - regex: "(?:by|with){{S}}a{{S}}(?<target>lose){{S}}(?:cable|connection){{COMPLETE}}"
+        fix: "loose"
+      - regex: "(?:intuitive|simple|clear),?{{S}}(?<target>accept){{S}}for{{S}}the{{S}}(?:(?:advanced|new){{S}})?(?:settings|options){{S}}page{{COMPLETE}}"
+        fix: "except"
+      - regex: "(?:didn['’]t|did{{S}}not|don['’]t|do{{S}}not|doesn['’]t|does{{S}}not|can['’]t|cannot|couldn['’]t|won['’]t|wouldn['’]t|never){{S}}(?:have|had|want|make|get|need|see|know|do|give|find|hear|feel|mean|show){{S}}(?<target>no){{S}}(?!(?:one|longer|matter|more|less|doubt|further|sooner|way|thanks){{E}})[a-z]+{{E}}"
+        fix: "any"
+        message: review_msg_double_negative
+      - regex: "(?<!(?:a|very|quite|only|the|so|too|these|those|last|first|past|next|fewer|precious|relatively){{S}})(?<target>few){{S}}(?:seconds?|minutes?|hours?|days?|weeks?|weekends?|months?|years?|decades?|ms){{S}}ago{{E}}"
+        fix: "a few"
+        message: review_msg_a_few
+      - regex: "for{{S}}all{{S}}(?<target>intensive){{S}}purposes,{{S}}(?:the|this|that){{S}}(?:test|project|work|task|report|plan|design|review|process|document|proposal|update){{S}}(?:is|was){{S}}(?:complete|finished|ready|done|final|successful){{COMPLETE}}"
+        fix: "intents and"
+        message: review_msg_intents_purposes
+      - regex: "(?:they|we|these|those|(?:the|these|those){{S}}two{{S}}(?:things|people|files|documents|reports|plans|ideas|options)){{S}}(?:are|were){{S}}one{{S}}(?<target>in){{S}}the{{S}}same{{COMPLETE}}"
+        fix: "and"
+        message: review_msg_one_same
+      - regex: "(?:(?:this|that|the){{S}}(?:(?:new|old|latest){{S}})?(?:feature|idea|story|proposal|question|book|article|design|project|topic)|it){{S}}(?<target>peaked){{S}}(?:my|your|his|her|our|their){{S}}interest{{COMPLETE}}"
+        fix: "piqued"
+        message: review_msg_pique_interest
+      - regex: "(?:(?:this|that|the){{S}}(?:(?:new|old|latest){{S}})?(?:feature|idea|story|proposal|question|book|article|design|project|topic)|it){{S}}(?<target>peaks){{S}}(?:my|your|his|her|our|their){{S}}interest{{COMPLETE}}"
+        fix: "piques"
+        message: review_msg_pique_interest
+      - regex: "(?:(?:this|that|the){{S}}(?:(?:new|old|latest){{S}})?(?:feature|idea|story|proposal|question|book|article|design|project|topic)|it){{S}}(?:can|will|could|should|may|might){{S}}(?<target>peak){{S}}(?:my|your|his|her|our|their){{S}}interest{{COMPLETE}}"
+        fix: "pique"
+        message: review_msg_pique_interest
+      - regex: "(?:(?:this|that|the){{S}}(?:(?:new|old|latest){{S}})?(?:feature|idea|story|proposal|question|book|article|design|project|topic)|it){{S}}(?:is|was){{S}}(?<target>peaking){{S}}(?:my|your|his|her|our|their){{S}}interest{{COMPLETE}}"
+        fix: "piquing"
+        message: review_msg_pique_interest
     cacheable: true
   - id: doubledDegree
     checks: [englishDoubledDegree]
@@ -4574,7 +4656,22 @@ rules:
     predicate: countability
   - id: contextualCompounds
     checks: [englishContextualCompounds]
-    predicate: contextualCompounds
+    style: template
+    filter: contextualCompounds
+    message: review_msg_every_day
+    frames:
+      - regex: "(?:tested|checked|reviewed){{S}}(?<target>aswell){{COMPLETE}}"
+        fix: "as well"
+        message: review_msg_contextual_grammar
+      - regex: "{{ENGLISHCOMPOUNDS_SUBJECT}}{{S}}(?:(?:use|uses|used){{S}}this{{S}}tool|(?:check|checks|checked){{S}}the{{S}}report|(?:read|reads){{S}}the{{S}}file|(?:open|opens|opened){{S}}the{{S}}app|(?:visit|visits|visited){{S}}the{{S}}office|(?:review|reviews|reviewed){{S}}the{{S}}plan|(?:test|tests|tested){{S}}the{{S}}device|(?:work|works|worked){{S}}(?:here|remotely)|(?:walk|walks|walked){{S}}home|(?:run|runs|ran){{S}}the{{S}}tests|(?:write|writes|wrote){{S}}code|(?:send|sends|sent){{S}}the{{S}}report){{S}}(?<target>everyday){{COMPLETE}}"
+        fix: "every day"
+      - regex: "(?<!\\b(?:the|an?|word|is|are|was|were|be|so|very|quite|more|most|less|such|of|called|named|my|your|our|their|his|her|its){{S}})(?<=[a-z]{{S}})(?<target>everyday)(?=[ \t ]{0,8}(?:[.!?,;:)]|$)|{{S}}(?:without|and|but|so|at|in|for|until|while|since|now|anyway){{E}})"
+        fix: "every day"
+      - regex: "each{{S}}and{{S}}(?<target>everyday){{E}}"
+        fix: "every day"
+      - regex: "(?:a|an|the|my|our|your|their|his|her|its|of|in|for|beyond|these|those|such|and){{S}}(?<target>every{{S}}day){{S}}(?:life|thing|things|problem|routine|routines|use|items|objects|language|tasks|activities|situations|problems|clothes|people|essentials|conversation|conversations|basis|tools|work){{E}}"
+        fix: "everyday"
+        message: review_msg_everyday_adjective
   - id: repeatedWords
     checks: [englishRepeatedWords]
     predicate: repeatedWords

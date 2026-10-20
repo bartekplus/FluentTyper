@@ -176,6 +176,11 @@ rules:
 | `fixer` | A named fix function in the `FIXERS` record of the language (`review/<lang>/ruleDetectors.ts`). It can return null to drop the match.                                    |
 | `raw`   | The fix already has the typed casing.                                                                                                                                    |
 
+A rule can also give:
+
+- `style: template`: the frames run in every language of the check, each frame has one `fix` string (an empty string deletes the target), and a finding keeps 96 characters of context before the match and 9 after it.
+- `filter: <name>`: a named function of the `FILTERS` record of the rule file that gets all findings of the rule and returns the ones to keep.
+
 ### Named Predicates
 
 Use a predicate only for logic that a pattern cannot state: a phonetic test, a lexicon, an agreement check, or a clause reader.

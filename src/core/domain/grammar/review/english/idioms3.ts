@@ -130,7 +130,7 @@ const FRAMES: readonly Frame[] = [
   },
   {
     rule: PREPOSITION,
-    // englishPrepositions.ts owns "arrived to the office|station|airport|hotel".
+    // The fixedPrepositions rule of common.yaml owns "arrived to the office|station|airport|hotel".
     pattern: `(?:arrive|arrives|arriving|arrived(?!${S}to${S}the${S}(?:office|station|airport|hotel)${E}))${S}(?<target>to)${E}`,
     fix: (m, ctx) => (verbBase(nextWord(ctx, group(m, "target")[1])) ? null : ["at", "in"]),
   },

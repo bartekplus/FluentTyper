@@ -4,7 +4,13 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../review/r
 import type { ReviewMessageKey } from "../review/types";
 import { findMatches, type PatternSet } from "./matcher";
 import { REVIEW_FRAMES, REVIEW_PATTERNS, REVIEW_RULES } from "./review.generated";
-import { detectFrameList, primeFrameLiterals, type Frame } from "../review/phraseTemplates";
+import {
+  detectFrameList,
+  detectPhraseTemplates,
+  primeFrameLiterals,
+  type Frame,
+  type PhraseTemplate,
+} from "../review/phraseTemplates";
 import { chunkTokens } from "./reviewTokens";
 
 /** A named Review detector: a predicate a rule file names with `predicate:`. */
@@ -18,6 +24,12 @@ export type Fixer = Exclude<Frame["fix"], string | readonly string[]>;
 
 /** Named frame fixes by rule file, then by name. */
 export type ReviewFixers = Readonly<Record<string, Readonly<Record<string, Fixer>>>>;
+
+/** A named filter of a frame rule's findings: it sees them all, in order. */
+export type FindingsFilter = (ctx: DetectContext, findings: RawFinding[]) => RawFinding[];
+
+/** Named findings filters by rule file, then by name. */
+export type ReviewFilters = Readonly<Record<string, Readonly<Record<string, FindingsFilter>>>>;
 
 /** The detectors (or fixers) of several modules as one record; a name defined twice is an error. */
 export function mergePredicates<T = Detector>(
@@ -92,20 +104,39 @@ const named = <T>(table: Readonly<Record<string, Readonly<Record<string, T>>>>, 
  * The detector of the frame rule `id` of the rule files: its frames, tried in order, with the
  * literals the compiler found and the named fixers of `fixers`.
  */
-export function frameRuleDetector(id: string, fixers: ReviewFixers): Detector {
+export function frameRuleDetector(
+  id: string,
+  fixers: ReviewFixers,
+  filters: ReviewFilters = {},
+): Detector {
   const rule = REVIEW_RULES.find((entry) => entry.id === id);
   if (!rule?.frames) throw new Error(`Grammar rule ${id} is not a frame rule`);
-  const frames: Frame[] = rule.frames.map((index) => {
-    const { pattern, literals, fix, fixer, raw } = REVIEW_FRAMES[index];
-    primeFrameLiterals(pattern, [...literals]);
-    const fixFunction = fixer === undefined ? undefined : named(fixers, fixer);
-    if (fixer !== undefined && !fixFunction)
-      throw new Error(`Grammar rule ${id}: no fixer "${fixer}"`);
-    return { pattern, fix: fixFunction ?? fix!, ...(raw ? { raw } : {}) };
-  });
   const ruleId = rule.checks[0] as CatalogRuleId;
   const messageKey = rule.message as ReviewMessageKey;
-  return (ctx) => detectFrameList(ctx, ruleId, messageKey, frames);
+  const compiled = rule.frames.map((index) => REVIEW_FRAMES[index]);
+  for (const { pattern, literals } of compiled) primeFrameLiterals(pattern, [...literals]);
+  const filter = rule.filter === undefined ? undefined : named(filters, rule.filter);
+  if (rule.filter !== undefined && !filter)
+    throw new Error(`Grammar rule ${id}: no filter "${rule.filter}"`);
+  let detect: Detector;
+  if (rule.style === "template") {
+    const templates: PhraseTemplate[] = compiled.map((frame) => ({
+      pattern: frame.pattern,
+      replacement: frame.fix as string,
+      messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
+      ...(frame.clauseStart ? { clauseStart: true as const } : {}),
+    }));
+    detect = (ctx) => detectPhraseTemplates(ctx, templates, ruleId);
+  } else {
+    const frames: Frame[] = compiled.map(({ pattern, fix, fixer, raw }) => {
+      const fixFunction = fixer === undefined ? undefined : named(fixers, fixer);
+      if (fixer !== undefined && !fixFunction)
+        throw new Error(`Grammar rule ${id}: no fixer "${fixer}"`);
+      return { pattern, fix: fixFunction ?? fix!, ...(raw ? { raw } : {}) };
+    });
+    detect = (ctx) => detectFrameList(ctx, ruleId, messageKey, frames);
+  }
+  return filter ? (ctx) => filter(ctx, detect(ctx)) : detect;
 }
 
 /**
@@ -116,11 +147,12 @@ export function frameRuleDetector(id: string, fixers: ReviewFixers): Detector {
 export function buildReviewDetectors(
   predicates: ReviewPredicates,
   fixers: ReviewFixers = {},
+  filters: ReviewFilters = {},
 ): ReviewDetectorEntry[] {
   return REVIEW_RULES.map((rule) => {
     let detect: Detector;
     if (rule.pattern !== undefined) detect = patternDetector(rule.pattern);
-    else if (rule.frames !== undefined) detect = frameRuleDetector(rule.id, fixers);
+    else if (rule.frames !== undefined) detect = frameRuleDetector(rule.id, fixers, filters);
     else {
       const found = named(predicates, rule.predicate!);
       if (!found) throw new Error(`Grammar rule ${rule.id}: no detector "${rule.predicate}"`);

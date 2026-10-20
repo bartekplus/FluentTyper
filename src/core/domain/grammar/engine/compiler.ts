@@ -6,6 +6,7 @@ import {
   CLAUSE,
   COMPLETE,
   COMPLETE_OR_PAREN,
+  EDGE,
   frame,
   notAfter,
   requiredLiterals,
@@ -89,8 +90,10 @@ const RULE_KEYS = new Set<keyof RuleSpec>([
   "crossLines",
   "bulkBlock",
   "frames",
+  "style",
+  "filter",
 ]);
-const FRAME_KEYS = new Set(["regex", "fix", "fixer", "raw"]);
+const FRAME_KEYS = new Set(["regex", "fix", "fixer", "raw", "message", "clauseStart"]);
 const BUILTIN_FRAGMENTS: Readonly<Record<string, string>> = {
   S: SPACE,
   E: WORD_END,
@@ -98,6 +101,7 @@ const BUILTIN_FRAGMENTS: Readonly<Record<string, string>> = {
   COMPLETE_OR_PAREN,
   CLAUSE,
   TOKEN_END,
+  EDGE,
 };
 
 /**
@@ -453,6 +457,10 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           if (!FRAME_KEYS.has(key)) errors.push(`${at}: unknown frame field "${key}"`);
         if ((entry.fix === undefined) === (entry.fixer === undefined))
           errors.push(`${at}: give exactly one of "fix" and "fixer"`);
+        if (spec.style === "template" && (typeof entry.fix !== "string" || entry.raw))
+          errors.push(`${at}: a template has one "fix" string and no "raw"`);
+        if (spec.style !== "template" && entry.clauseStart)
+          errors.push(`${at}: "clauseStart" needs style "template"`);
         const pattern = expandFrame(entry.regex, file.fragments ?? {}, at, errors);
         try {
           frame(pattern);
@@ -468,6 +476,8 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
             ? {}
             : { fixer: entry.fixer.includes(":") ? entry.fixer : `${name}:${entry.fixer}` }),
           ...(entry.raw ? { raw: true as const } : {}),
+          ...(entry.message === undefined ? {} : { message: entry.message }),
+          ...(entry.clauseStart ? { clauseStart: true as const } : {}),
         });
         return frames.length - 1;
       });
@@ -477,6 +487,11 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
         ...(lang ? { lang } : {}),
         frames: indexes,
         message: spec.message!,
+        ...(spec.style === "template" ? { style: "template" as const } : {}),
+        ...(spec.filter === undefined
+          ? {}
+          : { filter: spec.filter.includes(":") ? spec.filter : `${name}:${spec.filter}` }),
+        ...(spec.cacheable ? { cacheable: true as const } : {}),
         source: name,
       });
       continue;

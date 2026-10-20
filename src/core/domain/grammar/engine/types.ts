@@ -99,6 +99,10 @@ export interface FrameSpec {
   fixer?: string;
   /** The fix already carries the typed casing. */
   raw?: boolean;
+  /** The message of this frame, when it differs from the rule's. */
+  message?: string;
+  /** Template rules: the match must open a sentence or clause. */
+  clauseStart?: boolean;
 }
 
 /** An executable rule: a token pattern, a list of frames, or a named detector predicate. */
@@ -130,8 +134,16 @@ export interface RuleSpec {
   crossLines?: boolean;
   /** Fix all must not batch it. */
   bulkBlock?: "context-dependent" | "ambiguous";
-  /** Frames, tried in order (English text). */
+  /** Frames, tried in order. */
   frames?: readonly FrameSpec[];
+  /**
+   * "frame" (default): English text, a fix per frame, context 40/20 characters around the
+   * match. "template": every language the check runs in, one replacement per frame, context
+   * 96/9 characters, and `clauseStart`.
+   */
+  style?: "frame" | "template";
+  /** A named filter of the rule's findings (a `FILTERS` record of the rule file). */
+  filter?: string;
 }
 
 /** A phrase table: "typed = fix" rows; "a | b = fix" for typed variants, "fix1; fix2" for choices. */
@@ -203,6 +215,9 @@ export interface CompiledRule {
   frames?: readonly number[];
   /** The message of a frame rule. */
   message?: string;
+  style?: "template";
+  /** "<file>:<name>" of a named findings filter. */
+  filter?: string;
   cacheable?: true;
   /** The rule file it came from ("common", "en", "de", ...). */
   source: string;
@@ -217,4 +232,6 @@ export interface CompiledFrame {
   /** "<file>:<name>" of a named fix function. */
   fixer?: string;
   raw?: true;
+  message?: string;
+  clauseStart?: true;
 }

@@ -55,7 +55,9 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
   {
     id: "fixedPrepositions",
     checks: ["englishFixedPrepositions"],
-    predicate: "common:fixedPrepositions",
+    frames: [0, 1, 2, 3, 4, 5, 6, 7],
+    message: "review_msg_contextual_grammar",
+    style: "template",
     cacheable: true,
     source: "common",
   },
@@ -80,7 +82,10 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
   {
     id: "usagePhrases",
     checks: ["englishUsagePhrases"],
-    predicate: "common:usagePhrases",
+    frames: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28],
+    message: "review_msg_contextual_grammar",
+    style: "template",
+    filter: "common:usagePhrases",
     cacheable: true,
     source: "common",
   },
@@ -99,7 +104,10 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
   {
     id: "contextualCompounds",
     checks: ["englishContextualCompounds"],
-    predicate: "common:contextualCompounds",
+    frames: [29, 30, 31, 32, 33],
+    message: "review_msg_every_day",
+    style: "template",
+    filter: "common:contextualCompounds",
     source: "common",
   },
   {
@@ -297,7 +305,8 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     checks: ["englishPhraseCorrections"],
     lang: "en",
     frames: [
-      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+      34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+      57, 58,
     ],
     message: "review_msg_phrase_correction",
     source: "en",
@@ -306,7 +315,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.idiomCompounds1",
     checks: ["englishClosedCompounds"],
     lang: "en",
-    frames: [25],
+    frames: [59],
     message: "review_msg_closed_compound",
     source: "en",
   },
@@ -314,7 +323,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.idiomStyle1",
     checks: ["stylePhrasing"],
     lang: "en",
-    frames: [26, 27],
+    frames: [60, 61],
     message: "review_msg_style_phrasing",
     source: "en",
   },
@@ -322,7 +331,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.idiomPhrases2",
     checks: ["englishPhraseCorrections"],
     lang: "en",
-    frames: [28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45],
+    frames: [62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79],
     message: "review_msg_phrase_correction",
     source: "en",
   },
@@ -330,7 +339,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.idiomCompounds2",
     checks: ["englishClosedCompounds"],
     lang: "en",
-    frames: [46, 47, 48],
+    frames: [80, 81, 82],
     message: "review_msg_closed_compound",
     source: "en",
   },
@@ -338,7 +347,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.idiomStyle2",
     checks: ["stylePhrasing"],
     lang: "en",
-    frames: [49, 50, 51],
+    frames: [83, 84, 85],
     message: "review_msg_style_phrasing",
     source: "en",
   },
@@ -354,8 +363,8 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     checks: ["englishPhraseCorrections"],
     lang: "en",
     frames: [
-      52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74,
-      75, 76, 77, 78, 79, 80,
+      86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106,
+      107, 108, 109, 110, 111, 112, 113, 114,
     ],
     message: "review_msg_phrase_correction",
     source: "en",
@@ -364,7 +373,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.idiomCountability",
     checks: ["englishCountability"],
     lang: "en",
-    frames: [81, 82],
+    frames: [115, 116],
     message: "review_msg_mass_noun",
     source: "en",
   },
@@ -372,7 +381,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.idiomAgreement",
     checks: ["englishSubjectVerbAgreement"],
     lang: "en",
-    frames: [83],
+    frames: [117],
     message: "review_msg_pronoun_verb",
     source: "en",
   },
@@ -380,7 +389,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.idiomAuxiliaries",
     checks: ["englishAuxiliaryBaseVerb"],
     lang: "en",
-    frames: [84],
+    frames: [118],
     message: "review_msg_auxiliary_base",
     source: "en",
   },
@@ -388,7 +397,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.idiomComplements",
     checks: ["englishVerbComplements"],
     lang: "en",
-    frames: [85],
+    frames: [119],
     message: "review_msg_missing_to",
     source: "en",
   },
@@ -396,7 +405,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.idiomItsContext",
     checks: ["englishItsContext"],
     lang: "en",
-    frames: [86],
+    frames: [120],
     message: "review_msg_its_contraction",
     source: "en",
   },
@@ -404,7 +413,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.idiomCompounds4",
     checks: ["englishClosedCompounds"],
     lang: "en",
-    frames: [87, 88, 89],
+    frames: [121, 122, 123],
     message: "review_msg_closed_compound",
     source: "en",
   },
@@ -412,7 +421,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.idiomContextualCompounds",
     checks: ["englishContextualCompounds"],
     lang: "en",
-    frames: [90, 91],
+    frames: [124, 125],
     message: "review_msg_closed_compound",
     source: "en",
   },
@@ -420,7 +429,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.idiomStyle4",
     checks: ["stylePhrasing"],
     lang: "en",
-    frames: [92, 93],
+    frames: [126, 127],
     message: "review_msg_style_phrasing",
     source: "en",
   },
@@ -428,7 +437,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.idiomRedundancy",
     checks: ["styleRedundancy"],
     lang: "en",
-    frames: [94, 95, 96],
+    frames: [128, 129, 130],
     message: "review_msg_style_redundancy",
     source: "en",
   },
@@ -2402,6 +2411,236 @@ export const REVIEW_PATTERNS: PatternSet = {
 
 /** The frames of the frame rules, with their prefilter literals. */
 export const REVIEW_FRAMES: readonly CompiledFrame[] = [
+  {
+    pattern:
+      "(?:I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?:is|are|am|was|were)[ \\t\\u00a0]{1,8}responsible[ \\t\\u00a0]{1,8}(?<target>of)[ \\t\\u00a0]{1,8}(?:testing|checking|building)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:(?:Windows|Linux)[ \\t\\u00a0]{1,8})?(?:version|build|application)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["responsible"],
+    fix: "for",
+  },
+  {
+    pattern:
+      "(?:I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?:have|has)[ \\t\\u00a0]{1,8}(?:been[ \\t\\u00a0]{1,8}(?:working|living)|worked|lived)[ \\t\\u00a0]{1,8}here[ \\t\\u00a0]{1,8}(?<target>from)[ \\t\\u00a0]{1,8}(?:19|20)[0-9]{2}(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["working", "living", "worked", "lived"],
+    fix: "since",
+  },
+  {
+    pattern:
+      "(?:I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}arrived[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:office|station|airport|hotel)(?:[ \\t\\u00a0]{1,8}at[ \\t\\u00a0]{1,8}[0-9]{1,2}:[0-9]{2})?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["arrived"],
+    fix: "at",
+  },
+  {
+    pattern:
+      "(?:(?:I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}|and[ \\t\\u00a0]{1,8})waited[ \\t\\u00a0]{1,8}(?<target>the)[ \\t\\u00a0]{1,8}(?:manager|developer|teacher)(?:[ \\t\\u00a0]{1,8}for[ \\t\\u00a0]{1,8}(?:nearly[ \\t\\u00a0]{1,8})?[0-9]{1,3}[ \\t\\u00a0]{1,8}minutes)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["manager", "developer", "teacher"],
+    fix: "for the",
+  },
+  {
+    pattern:
+      "(?:to|will|should)[ \\t\\u00a0]{1,8}investigate[ \\t\\u00a0]{1,8}(?<target>on[ \\t\\u00a0]{1,8})(?:it|the[ \\t\\u00a0]{1,8}(?:issue|problem))(?:[ \\t\\u00a0]{1,8}later)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["investigate"],
+    fix: "",
+  },
+  {
+    pattern:
+      "despite[ \\t\\u00a0]{1,8}(?<target>of[ \\t\\u00a0]{1,8})(?:the|this|that)[ \\t\\u00a0]{1,8}(?:(?:long|heavy|loud|bad|high|unexpected)[ \\t\\u00a0]{1,8})?(?:delay|rain|noise|weather|problem|warning|risk|cost|pressure|heat|cold|traffic)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["despite"],
+    fix: "",
+    message: "review_msg_despite_of",
+  },
+  {
+    pattern:
+      "(?:(?:I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?:discuss|discussed|discusses|(?:am|is|are|was|were)[ \\t\\u00a0]{1,8}discussing)|please[ \\t\\u00a0]{1,8}discuss)[ \\t\\u00a0]{1,8}(?<target>about[ \\t\\u00a0]{1,8})(?:the|this|that|our|your|their)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|latest|proposed)[ \\t\\u00a0]{1,8})?(?:release|plan|report|problem|proposal|results|schedule|budget|design|issue|changes|project)(?:[ \\t\\u00a0]{1,8}during[ \\t\\u00a0]{1,8}(?:the|our|their)[ \\t\\u00a0]{1,8}(?:meeting|test|review))?(?:(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))|[ \\t\\u00a0]{1,8}(?:and|but)(?=[ \\t\\u00a0]{1,8}))",
+    literals: ["discuss", "discussed", "discusses", "discussing", "discuss"],
+    fix: "",
+    message: "review_msg_discuss_about",
+  },
+  {
+    pattern:
+      "(?:I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?:am|is|are|was|were)[ \\t\\u00a0]{1,8}interested[ \\t\\u00a0]{1,8}(?<target>on)[ \\t\\u00a0]{1,8}(?:learning[ \\t\\u00a0]{1,8}(?:Rust|English|French|German|Spanish|Python|TypeScript)|writing[ \\t\\u00a0]{1,8}code|reading[ \\t\\u00a0]{1,8}books|playing[ \\t\\u00a0]{1,8}chess|building[ \\t\\u00a0]{1,8}apps|testing[ \\t\\u00a0]{1,8}software|checking[ \\t\\u00a0]{1,8}(?:the|our)[ \\t\\u00a0]{1,8}(?:(?:Linux|Windows)[ \\t\\u00a0]{1,8})?(?:build|version)|(?:the|this|that|our|your|their)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|latest|proposed)[ \\t\\u00a0]{1,8})?(?:release|plan|report|problem|proposal|results|schedule|budget|design|issue|changes|project))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["interested"],
+    fix: "in",
+    message: "review_msg_interested_on",
+  },
+  {
+    pattern:
+      "(?:we|I|they)[ \\t\\u00a0]{1,8}(?:finally[ \\t\\u00a0]{1,8})?(?<target>finded)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:problem|bug|issue)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["finded"],
+    fix: "found",
+  },
+  {
+    pattern:
+      "(?:I|you|he|she|it|we|they)[ \\t\\u00a0]{1,8}(?:(?:always|never|often|already|just|really|still|also|sometimes|usually|probably|certainly|clearly|somehow|instantly|immediately|suddenly|finally|then)[ \\t\\u00a0]{1,8})?(?<target>new)[ \\t\\u00a0]{1,8}(?:that|it|what|how|where|who|why|when|the[ \\t\\u00a0]{1,8}answer|about|him|her|them|this|everything|nothing|exactly|better|I|you|he|she|we|they)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["new"],
+    fix: "knew",
+    clauseStart: true,
+  },
+  {
+    pattern:
+      "(?=(?:I|he|she|they)[ \\t\\u00a0]{1,8})(?<!(?:am|is|are|was|were|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|and|but|or|while|whereas|than|as)[ \\t\\u00a0]{1,8})(?:I|he|she|they)[ \\t\\u00a0]{1,8}(?:(?:always|never|often|already|just|really|still|also|sometimes|usually|probably|certainly|clearly|somehow|instantly|immediately|suddenly|finally|then)[ \\t\\u00a0]{1,8})?(?<target>new)[ \\t\\u00a0]{1,8}(?!(?:here|there|to|and|or|but)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?!(?!(?:it|that|this|there|what|who|how|why|when|where|I|you|he|she|we|they)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+[ \\t\\u00a0]{1,8}(?:is|are|was|were|has|have|had|will|would|can|could|should|must|may|might)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["new"],
+    fix: "knew",
+  },
+  {
+    pattern:
+      "(?:do[ \\t\\u00a0]{1,8}you[ \\t\\u00a0]{1,8}know|can[ \\t\\u00a0]{1,8}you[ \\t\\u00a0]{1,8}tell[ \\t\\u00a0]{1,8}me|I[ \\t\\u00a0]{1,8}wonder)[ \\t\\u00a0]{1,8}where[ \\t\\u00a0]{1,8}(?<target>is[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}configuration[ \\t\\u00a0]{1,8}file)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["configuration"],
+    fix: "the configuration file is",
+  },
+  {
+    pattern:
+      "(?:do[ \\t\\u00a0]{1,8}you[ \\t\\u00a0]{1,8}know|can[ \\t\\u00a0]{1,8}you[ \\t\\u00a0]{1,8}tell[ \\t\\u00a0]{1,8}me|I[ \\t\\u00a0]{1,8}wonder)[ \\t\\u00a0]{1,8}why[ \\t\\u00a0]{1,8}(?<target>did[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}process[ \\t\\u00a0]{1,8}crash)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["process"],
+    fix: "the process crashed",
+  },
+  {
+    pattern:
+      "(?:do[ \\t\\u00a0]{1,8}you[ \\t\\u00a0]{1,8}know|can[ \\t\\u00a0]{1,8}you[ \\t\\u00a0]{1,8}tell[ \\t\\u00a0]{1,8}me|I[ \\t\\u00a0]{1,8}wonder)[ \\t\\u00a0]{1,8}what[ \\t\\u00a0]{1,8}(?<target>does[ \\t\\u00a0]{1,8}this[ \\t\\u00a0]{1,8}option[ \\t\\u00a0]{1,8}do)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["option"],
+    fix: "this option does",
+  },
+  {
+    pattern:
+      "(?:nobody|no[ \\t\\u00a0]{1,8}one)[ \\t\\u00a0]{1,8}knows[ \\t\\u00a0]{1,8}when[ \\t\\u00a0]{1,8}(?<target>will[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}new[ \\t\\u00a0]{1,8}version[ \\t\\u00a0]{1,8}be[ \\t\\u00a0]{1,8}released)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["released"],
+    fix: "the new version will be released",
+  },
+  {
+    pattern: "between[ \\t\\u00a0]{1,8}(?<target>you[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}I)(?=,)",
+    literals: ["between"],
+    fix: "you and me",
+  },
+  {
+    pattern:
+      "(?:a|the)[ \\t\\u00a0]{1,8}(?:(?:big|large|small|positive|negative)[ \\t\\u00a0]{1,8})?(?<target>affect)[ \\t\\u00a0]{1,8}on[ \\t\\u00a0]{1,8}(?:performance|stability|the[ \\t\\u00a0]{1,8}(?:results|system))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["affect"],
+    fix: "effect",
+  },
+  {
+    pattern:
+      "(?:know|knows|wonder|wondered)[ \\t\\u00a0]{1,8}(?<target>weather)[ \\t\\u00a0]{1,8}(?:they|we|you)[ \\t\\u00a0]{1,8}will[ \\t\\u00a0]{1,8}(?:finish|complete)[ \\t\\u00a0]{1,8}it(?:[ \\t\\u00a0]{1,8}today)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["weather"],
+    fix: "whether",
+  },
+  {
+    pattern:
+      "(?:developer|user|person)[ \\t\\u00a0]{1,8}(?<target>who['’]s)[ \\t\\u00a0]{1,8}(?:laptop|computer|phone)[ \\t\\u00a0]{1,8}(?:crashed|broke)[ \\t\\u00a0]{1,8}(?:said|reported)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["laptop", "computer", "phone"],
+    fix: "whose",
+  },
+  {
+    pattern:
+      "(?:by|with)[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}(?<target>lose)[ \\t\\u00a0]{1,8}(?:cable|connection)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["cable", "connection"],
+    fix: "loose",
+  },
+  {
+    pattern:
+      "(?:intuitive|simple|clear),?[ \\t\\u00a0]{1,8}(?<target>accept)[ \\t\\u00a0]{1,8}for[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:(?:advanced|new)[ \\t\\u00a0]{1,8})?(?:settings|options)[ \\t\\u00a0]{1,8}page(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["settings", "options"],
+    fix: "except",
+  },
+  {
+    pattern:
+      "(?:didn['’]t|did[ \\t\\u00a0]{1,8}not|don['’]t|do[ \\t\\u00a0]{1,8}not|doesn['’]t|does[ \\t\\u00a0]{1,8}not|can['’]t|cannot|couldn['’]t|won['’]t|wouldn['’]t|never)[ \\t\\u00a0]{1,8}(?:have|had|want|make|get|need|see|know|do|give|find|hear|feel|mean|show)[ \\t\\u00a0]{1,8}(?<target>no)[ \\t\\u00a0]{1,8}(?!(?:one|longer|matter|more|less|doubt|further|sooner|way|thanks)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "didn",
+      "did",
+      "don",
+      "not",
+      "doesn",
+      "does",
+      "can",
+      "cannot",
+      "couldn",
+      "won",
+      "wouldn",
+      "never",
+    ],
+    fix: "any",
+    message: "review_msg_double_negative",
+  },
+  {
+    pattern:
+      "(?<!(?:a|very|quite|only|the|so|too|these|those|last|first|past|next|fewer|precious|relatively)[ \\t\\u00a0]{1,8})(?<target>few)[ \\t\\u00a0]{1,8}(?:seconds?|minutes?|hours?|days?|weeks?|weekends?|months?|years?|decades?|ms)[ \\t\\u00a0]{1,8}ago(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["few"],
+    fix: "a few",
+    message: "review_msg_a_few",
+  },
+  {
+    pattern:
+      "for[ \\t\\u00a0]{1,8}all[ \\t\\u00a0]{1,8}(?<target>intensive)[ \\t\\u00a0]{1,8}purposes,[ \\t\\u00a0]{1,8}(?:the|this|that)[ \\t\\u00a0]{1,8}(?:test|project|work|task|report|plan|design|review|process|document|proposal|update)[ \\t\\u00a0]{1,8}(?:is|was)[ \\t\\u00a0]{1,8}(?:complete|finished|ready|done|final|successful)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["intensive"],
+    fix: "intents and",
+    message: "review_msg_intents_purposes",
+  },
+  {
+    pattern:
+      "(?:they|we|these|those|(?:the|these|those)[ \\t\\u00a0]{1,8}two[ \\t\\u00a0]{1,8}(?:things|people|files|documents|reports|plans|ideas|options))[ \\t\\u00a0]{1,8}(?:are|were)[ \\t\\u00a0]{1,8}one[ \\t\\u00a0]{1,8}(?<target>in)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}same(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["same"],
+    fix: "and",
+    message: "review_msg_one_same",
+  },
+  {
+    pattern:
+      "(?:(?:this|that|the)[ \\t\\u00a0]{1,8}(?:(?:new|old|latest)[ \\t\\u00a0]{1,8})?(?:feature|idea|story|proposal|question|book|article|design|project|topic)|it)[ \\t\\u00a0]{1,8}(?<target>peaked)[ \\t\\u00a0]{1,8}(?:my|your|his|her|our|their)[ \\t\\u00a0]{1,8}interest(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["interest"],
+    fix: "piqued",
+    message: "review_msg_pique_interest",
+  },
+  {
+    pattern:
+      "(?:(?:this|that|the)[ \\t\\u00a0]{1,8}(?:(?:new|old|latest)[ \\t\\u00a0]{1,8})?(?:feature|idea|story|proposal|question|book|article|design|project|topic)|it)[ \\t\\u00a0]{1,8}(?<target>peaks)[ \\t\\u00a0]{1,8}(?:my|your|his|her|our|their)[ \\t\\u00a0]{1,8}interest(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["interest"],
+    fix: "piques",
+    message: "review_msg_pique_interest",
+  },
+  {
+    pattern:
+      "(?:(?:this|that|the)[ \\t\\u00a0]{1,8}(?:(?:new|old|latest)[ \\t\\u00a0]{1,8})?(?:feature|idea|story|proposal|question|book|article|design|project|topic)|it)[ \\t\\u00a0]{1,8}(?:can|will|could|should|may|might)[ \\t\\u00a0]{1,8}(?<target>peak)[ \\t\\u00a0]{1,8}(?:my|your|his|her|our|their)[ \\t\\u00a0]{1,8}interest(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["interest"],
+    fix: "pique",
+    message: "review_msg_pique_interest",
+  },
+  {
+    pattern:
+      "(?:(?:this|that|the)[ \\t\\u00a0]{1,8}(?:(?:new|old|latest)[ \\t\\u00a0]{1,8})?(?:feature|idea|story|proposal|question|book|article|design|project|topic)|it)[ \\t\\u00a0]{1,8}(?:is|was)[ \\t\\u00a0]{1,8}(?<target>peaking)[ \\t\\u00a0]{1,8}(?:my|your|his|her|our|their)[ \\t\\u00a0]{1,8}interest(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["interest"],
+    fix: "piquing",
+    message: "review_msg_pique_interest",
+  },
+  {
+    pattern:
+      "(?:tested|checked|reviewed)[ \\t\\u00a0]{1,8}(?<target>aswell)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["tested", "checked", "reviewed"],
+    fix: "as well",
+    message: "review_msg_contextual_grammar",
+  },
+  {
+    pattern:
+      "(?:I|you|we|they|he|she)[ \\t\\u00a0]{1,8}(?:(?:use|uses|used)[ \\t\\u00a0]{1,8}this[ \\t\\u00a0]{1,8}tool|(?:check|checks|checked)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}report|(?:read|reads)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}file|(?:open|opens|opened)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}app|(?:visit|visits|visited)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}office|(?:review|reviews|reviewed)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}plan|(?:test|tests|tested)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}device|(?:work|works|worked)[ \\t\\u00a0]{1,8}(?:here|remotely)|(?:walk|walks|walked)[ \\t\\u00a0]{1,8}home|(?:run|runs|ran)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}tests|(?:write|writes|wrote)[ \\t\\u00a0]{1,8}code|(?:send|sends|sent)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}report)[ \\t\\u00a0]{1,8}(?<target>everyday)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+    literals: ["everyday"],
+    fix: "every day",
+  },
+  {
+    pattern:
+      "(?<!\\b(?:the|an?|word|is|are|was|were|be|so|very|quite|more|most|less|such|of|called|named|my|your|our|their|his|her|its)[ \\t\\u00a0]{1,8})(?<=[a-z][ \\t\\u00a0]{1,8})(?<target>everyday)(?=[ \t ]{0,8}(?:[.!?,;:)]|$)|[ \\t\\u00a0]{1,8}(?:without|and|but|so|at|in|for|until|while|since|now|anyway)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["everyday"],
+    fix: "every day",
+  },
+  {
+    pattern:
+      "each[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}(?<target>everyday)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["everyday"],
+    fix: "every day",
+  },
+  {
+    pattern:
+      "(?:a|an|the|my|our|your|their|his|her|its|of|in|for|beyond|these|those|such|and)[ \\t\\u00a0]{1,8}(?<target>every[ \\t\\u00a0]{1,8}day)[ \\t\\u00a0]{1,8}(?:life|thing|things|problem|routine|routines|use|items|objects|language|tasks|activities|situations|problems|clothes|people|essentials|conversation|conversations|basis|tools|work)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["every"],
+    fix: "everyday",
+    message: "review_msg_everyday_adjective",
+  },
   {
     pattern:
       "(?<target>a[ \\t\\u00a0]{1,8}little[ \\t\\u00a0]{1,8}of)[ \\t\\u00a0]{1,8}(?!(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|it|them|him|me|us|you|what|which|whatever|each|every|both|all|any|some|either|neither|one|much|many|more|most|other|others|another|everything|anything|something|nothing|everyone|anyone|someone|everybody|anybody|somebody|[a-z]+self|[a-z]+selves)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!['’])",
