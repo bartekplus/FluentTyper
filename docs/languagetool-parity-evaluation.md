@@ -25,44 +25,47 @@ Baseline: FluentTyper `bda1ebe2` (Harper parity, #432) against LanguageTool `68d
     - Polish: all 48 genuine.
   - The column therefore overstates false positives. A rise in it is a prompt to look, not a regression in itself.
 
-## Snapshot: `lt-parity` at `9e108a60`
+## Snapshot: `lt-parity-2026-10` at `a2b93ffc`
 
-One full run of all nine languages, spelling included, with the clock fixed at `--now=2014-06-15`. Refresh this section with the harness when the rules change. _Detected_ counts opt-in rules too. The second table gives the default-on part, which is the number most users see.
+One full run of all nine languages, spelling included, with the clock fixed at `--now=2014-06-15`, against LanguageTool `8ed25c5`. The left side of each arrow is master `6a535941`, measured with the same harness and corpus. Refresh this section with the harness when the rules change. _Detected_ counts opt-in rules too.
 
-| Language | Incorrect | Detected (baseline → now) | Exact (baseline → now) | Correct | Default-on fp | Default-on non-spelling fp |
-| -------- | --------: | ------------------------: | ---------------------: | ------: | ------------: | -------------------------: |
-| en       |    10,095 |     2,244 → 7,329 (72.6%) |          1,502 → 6,324 |  14,776 | 1,785 → 1,619 |                  752 → 753 |
-| fr       |     9,171 |       741 → 4,651 (50.7%) |            207 → 3,538 |  10,044 | 1,832 → 2,121 |              1,286 → 1,714 |
-| de       |     7,622 |       515 → 4,801 (63.0%) |            140 → 4,202 |   4,821 |     383 → 436 |                   65 → 137 |
-| pt       |     6,030 |       738 → 3,339 (55.4%) |            323 → 2,711 |   7,812 |   1,028 → 962 |                  331 → 433 |
-| es       |     3,060 |       313 → 2,300 (75.2%) |             91 → 2,031 |   4,182 |     711 → 749 |                  389 → 439 |
-| pl       |     2,143 |       163 → 1,667 (77.8%) |             47 → 1,423 |   3,112 |     183 → 130 |                    50 → 50 |
-| ar       |       639 |          23 → 516 (80.8%) |                5 → 418 |     400 |       29 → 25 |                    20 → 16 |
-| el       |        60 |             3 → 60 (100%) |                 3 → 60 |      58 |         4 → 3 |                      0 → 0 |
-| sv       |        32 |            5 → 31 (96.9%) |                 2 → 29 |      13 |         1 → 1 |                      1 → 1 |
-| All      |    38,852 |    4,745 → 24,694 (63.6%) |         2,320 → 20,736 |  45,218 | 5,956 → 6,046 |              2,894 → 3,543 |
+| Language | Incorrect | Detected (master → now) | Detected default-on | Exact (master → now) | Correct | Default-on fp | Default-on non-spelling fp |
+| -------- | --------: | ----------------------: | ------------------: | -------------------: | ------: | ------------: | -------------------------: |
+| en       |    10,095 |   7,342 → 7,366 (73.0%) |       6,171 → 6,196 |        6,314 → 6,328 |  14,776 | 1,615 → 1,566 |                  757 → 704 |
+| fr       |     9,169 |   4,650 → 4,767 (52.0%) |       3,627 → 3,731 |        3,550 → 3,667 |  10,044 | 2,124 → 2,131 |              1,717 → 1,724 |
+| de       |     7,622 |   4,836 → 4,924 (64.6%) |       4,383 → 4,424 |        4,161 → 4,247 |   4,821 |     464 → 456 |                  148 → 139 |
+| pt       |     6,056 |   3,339 → 3,367 (55.6%) |       2,739 → 2,767 |        2,719 → 2,731 |   7,846 |     956 → 955 |                  434 → 433 |
+| es       |     3,053 |   2,301 → 2,318 (75.9%) |       2,228 → 2,245 |        2,031 → 2,049 |   4,182 |     752 → 750 |                  442 → 440 |
+| pl       |     2,143 |   1,665 → 1,683 (78.5%) |       1,412 → 1,425 |        1,425 → 1,434 |   3,112 |     129 → 127 |                    53 → 50 |
+| ar       |       639 |       506 → 506 (79.2%) |           186 → 186 |            403 → 403 |     400 |       25 → 25 |                    16 → 16 |
+| el       |        60 |          60 → 60 (100%) |             37 → 37 |              60 → 60 |      58 |         3 → 3 |                      0 → 0 |
+| sv       |        32 |         31 → 31 (96.9%) |             23 → 23 |              29 → 29 |      13 |         1 → 1 |                      1 → 1 |
+| All      |    38,869 | 24,730 → 25,022 (64.4%) |     20,806 → 21,034 |      20,692 → 20,948 |  45,252 | 6,069 → 6,014 |              3,568 → 3,507 |
 
-How much of this comes from rules that are on by default:
+- The first parity effort raised detection from 4,745 (`bda1ebe2`) to about 24,700. The 2026-10 pass added 292 more.
+- The incorrect counts differ a little from the older snapshot because LT changed between `68deb137` and `8ed25c5`.
+- The harness now reads LT's external entity files. Before, 66 Portuguese examples kept literal entities such as `&deg;` and could not score.
+- 19 default-on non-spelling findings are new against master (15 French, 4 English). Each one marks a real error in the LT "correct" sentence, for example a subjunctive where the indicative belongs ("Je ne la voie pas") or a wrong noun number ("These measure are"). 92 old ones are gone, mostly English and German false positives that the pass fixed.
 
-| Language | Detected by default-on rules (baseline → now) | Largest opt-in contributors                                                                                |
-| -------- | --------------------------------------------: | ---------------------------------------------------------------------------------------------------------- |
-| en       |                                 1,797 → 6,167 | contractions style, wording advice, passive voice note, clause and introductory commas, sentence fragments |
-| fr       |                                   715 → 3,627 | calque and criticized-phrasing advice, pleonasms, missing `ne`                                             |
-| de       |                                   506 → 4,347 | recommended spellings, pleonasm and wording advice, colloquial forms, straight quotes                      |
-| pt       |                                   711 → 2,739 | concision, pleonasm and cliché advice, AO90 spellings, typographic style                                   |
-| es       |                                   303 → 2,227 | redundancy advice, Spanish quotation marks, typographic style                                              |
-| pl       |                                   152 → 1,414 | pleonasm, officialese and calque advice, „…” quotes                                                        |
-| ar       |                                      23 → 186 | prescriptive usage advice (about 300 of the 503 detections)                                                |
-| el       |                                        2 → 37 | strict final-ν, connector commas                                                                           |
-| sv       |                                        5 → 23 | wording advice                                                                                             |
+### The 2026-10 pass
 
-The first commit of the effort fixed spelling bugs and abbreviation handling, and every number dropped. English detection fell from 2,244 to 2,129 because ordinary dictionary words ("id", "re", "true") were no longer reported as misspelled, which had counted as detecting LT examples by accident. Default-on fps fell in every language except Greek and Swedish for the same reason. The gains in the table were made on top of that lower line.
+Each language group first classified every default-on non-spelling finding on correct examples, then fixed the real false positives with a regression test each: English 68, German 11, French 5, Polish 4, Spanish 2, Portuguese 1. Then it added the largest missed groups that the [decisions](languagetool-parity-decisions.md) allow: new LT groups, the small open rules (item 7), the `do` rows and leftovers of working rules. New rules are on by default only when they are precise.
+
+- **English:** article + adjective + "of" with no noun (a warning), "the/an" + "be", a missing "is" before "also/still" + adjective, "allow/permit/require" with no object before "to", these/those with a singular noun, and person questions with was/were.
+- **French:** agreement with a far subject, past the determiner and past the noun, in questions, after "qui est" and after an inverted subject; the indicative and subjunctive in more clauses; more forms of "tout"; words cut by a hyphen. New opt-in rule `frenchRepeatedWords`.
+- **German:** bound first parts written apart (zunichte, inne, zuteil and similar), "zu" + participle after haben, a verb capitalized after its pronoun, forms after werden, "eine Millionen" and English digit groups. New opt-in rule `germanJoinedVerbs`; a no-break space before "%" in opt-in `germanAbbreviationSpacing`.
+- **Portuguese:** regular feminine forms, past and future tense against time phrases, "prestes a", "bater palmas", and an apostrophe for the decimal comma.
+- **Spanish:** gender of nouns in -e and in a consonant, a pronoun subject with an adverb before the verb, a comma before "ya que" and "puesto que", spaces inside straight quotes, "hacia" phrases, ordinal gender, "porque", and "esta" before a participle.
+- **Polish:** BC year ranges, decades written as "lata 1900.", a comma after a preposition, "Ad.", a dash with a space on one side, and subject case after an instrumental predicate. Opt-in: fragments and a "Czy" question that ends with a full stop.
+- **Swedish:** "släppa los" and related particle forms. Arabic and Greek did not change: their remaining misses are contested advice or LT drafts.
+
+The clean-room script of the harness checked every added string literal and every commit message against the LT corpus. Test sentences that were close to LT examples were rewritten.
 
 **Croatian** is a FluentTyper language with a bundled dictionary, but LanguageTool has no Croatian module, so there is nothing to score. Its Review checks are unchanged by this effort apart from the shared infrastructure fixes below.
 
 ### Where the remaining non-spelling fps come from
 
-Sentence-start capitalization on lowercase fragments dominates. LT's correct examples are often clause fragments. This accounts for about 1,160 of French's 1,714, 380 of Spanish's 439, 255 of Portuguese's 433, 150 of English's 753 and 30 of German's 137. It is the same finding a user gets when starting a sentence in lowercase, and it is not tuned to the corpus.
+Sentence-start capitalization on lowercase fragments dominates. LT's correct examples are often clause fragments. This accounts for about 1,190 of French's 1,724, 380 of Spanish's 440, 260 of Portuguese's 433, 155 of English's 704 and 32 of German's 139. It is the same finding a user gets when starting a sentence in lowercase, and it is not tuned to the corpus.
 
 What is left, by language:
 
@@ -237,7 +240,7 @@ Misses are a long tail: no single LT rule accounts for more than about 150 of an
 
 [LanguageTool parity: decisions for the maintainer](languagetool-parity-decisions.md) lists every rule family that was skipped or only partly done. Each row gives the pros, the cons and a suggested option, and leaves the decision to the maintainer.
 
-- **Spelling and names.** LT's typo and name rules expect one specific correction for a misspelled proper noun, brand or rare word. Review's dictionary often flags the word but offers other suggestions, or knows the name in another spelling. Polish is the clearest case: about 340 of its 745 misses are typo and spelling rules, and the bundled pl_PL dictionary accepts some word fragments as words. Names alone account for about 140 French and 75 Portuguese misses.
+- **Spelling and names.** LT's typo and name rules expect one specific correction for a misspelled proper noun, brand or rare word. Review's dictionary often flags the word but offers other suggestions, or knows the name in another spelling. Polish is the clearest case: many of its misses are typo and spelling rules, and the bundled pl_PL dictionary accepts some word fragments as words. Names alone account for about 140 French and 75 Portuguese misses.
 - **Style and opinion.** Many LT style families are register choices: formal versus colloquial wording, shortening, clarity, academic tone, pleonasms, regionalisms, anglicisms and profanity. Where FluentTyper took them on, they are opt-in. Many were left out because they would flag acceptable prose.
 - **Cases where LT contradicts itself or is wrong.**
   - Some families have rules in both directions (-ize/-ise, Oxford comma, pre- and post-reform spellings), so no single setting can pass all of them.
@@ -256,22 +259,22 @@ Misses are a long tail: no single LT rule accounts for more than about 150 of an
 
 By language:
 
-- **English** (3,565 missed; 63% grammar or confusions):
+- **English** (2,729 missed):
   - preposition-verb and adjective-adverb slots, missing articles (off by default in LT too), a/an before plurals, agreement at the sentence start, your/you, have and been with the wrong form, collocations (93);
   - sentence fragments and frequency-adverb placement, where the opt-in checks are deliberately narrow.
-- **French** (6,247 missed):
+- **French** (4,402 missed):
   - grammar (1,750) and homophones and paronyms (1,314) remain the largest families;
   - about a third is style: critical turns of phrase, calques, repetition, anglicisms, regionalisms and pleonasms;
   - gender agreement past the determiner is partial.
-- **German** (3,892 missed):
+- **German** (2,698 missed):
   - casing (847) and compounding (556) cases need nouns the dictionary does not list;
   - confused words (437) and grammar (434), colloquialisms (152), and the clock-dependent date rules (66).
-- **Portuguese** (3,043 missed):
+- **Portuguese** (2,689 missed):
   - most misses are style and register, much of it written for European Portuguese: formal register, shortening, clarity, academic tone and colloquialisms;
   - confused words (200), typography (194) and grammar (163).
-- **Spanish** (958 missed): accents that need sentence-level context (266), confusions (149), misspellings (113) and noun-phrase agreement (94).
-- **Polish** (745 missed): typos and spelling (336), style (106), syntax (75) and punctuation (69).
-- **Arabic** (160 missed): mostly the examples skipped as wrong, ambiguous or accepted usage, and LT's own test and review categories.
+- **Spanish** (735 missed): accents that need sentence-level context (266), confusions (149), misspellings (113) and noun-phrase agreement (94).
+- **Polish** (460 missed): typos and spelling (336), style (106), syntax (75) and punctuation (69).
+- **Arabic** (133 missed): mostly the examples skipped as wrong, ambiguous or accepted usage, and LT's own test and review categories.
 - **Greek:** none missed.
 - **Swedish:** one missed.
 
