@@ -993,10 +993,21 @@ export const FIXERS = {
     if (hasUserOrCasedWord(ctx, target)) return null;
     return expandContraction(word, ending, have)?.map((f) => caseLike(target, f)) ?? null;
   },
-  /** Optional serial comma: "A, B and C" gets the comma before "and". */
-  addOxfordComma: (m, ctx) => {
-    if (m.groups!.oxford || !listTail(m, ctx)) return null;
+  /** Optional serial comma: "A, B and C" or "A, B, and C", by the writer's chosen style. */
+  serialComma: (m, ctx) => {
+    const add = !ctx.rules || ctx.rules.has("styleOxfordComma");
+    const remove = !ctx.rules || ctx.rules.has("styleNoOxfordComma");
+    if (!listTail(m, ctx)) return null;
+    const { oxford, after } = m.groups!;
     const [conjStart] = m.indices!.groups!.conj;
+    if (oxford) {
+      if (!remove || SUBJECT_PRONOUN.test(after)) return null;
+      const [at] = m.indices!.groups!.oxford;
+      return finding("styleNoOxfordComma", "review_msg_no_oxford_comma", at, conjStart, [" "], {
+        context: { start: m.index, end: m.index + m[0].length },
+      });
+    }
+    if (!add) return null;
     const [, itemEnd] = m.indices!.groups!.item;
     return {
       ruleId: "styleOxfordComma",
@@ -1005,15 +1016,5 @@ export const FIXERS = {
       alternatives: [`,${ctx.text.slice(itemEnd, conjStart)}`],
       context: { start: m.index, end: m.index + m[0].length },
     };
-  },
-  /** Optional serial comma: "A, B, and C" loses the comma before "and". */
-  removeOxfordComma: (m, ctx) => {
-    if (!m.groups!.oxford || !listTail(m, ctx) || SUBJECT_PRONOUN.test(m.groups!.after))
-      return null;
-    const [conjStart] = m.indices!.groups!.conj;
-    const [at] = m.indices!.groups!.oxford;
-    return finding("styleNoOxfordComma", "review_msg_no_oxford_comma", at, conjStart, [" "], {
-      context: { start: m.index, end: m.index + m[0].length },
-    });
   },
 } satisfies Record<string, MatchFixer>;

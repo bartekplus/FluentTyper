@@ -10,8 +10,7 @@ import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbFor
 import { lastNonBlankBefore } from "../../implementations/helpers/EnglishRuleShared";
 import { caseLike, hasUserOrCasedWord } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector, MatchFixer } from "../../engine/reviewRules";
-import { english } from "./grammarStyle1";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { finding } from "../finding";
 
 // Checks that lean on the dictionary-derived lexicon (EnglishLexicon) rather than phrase rows:
@@ -22,10 +21,6 @@ const context = (ctx: DetectContext, start: number, end: number) => ({
   start: Math.max(0, start - 96),
   end: Math.min(ctx.text.length, end + 40),
 });
-
-// One word: letters only, not part of a technical token, a number or an abbreviation ("e.g").
-const WORD =
-  /(?<![\p{L}\p{M}\p{N}_'’@/#\\.-])[A-Za-z]+(?![\p{L}\p{M}\p{N}_'’@/#\\-]|\.[\p{L}\p{N}])/gu;
 
 // Function words the lexicon has no part of speech for.
 const FUNCTION_WORDS = new Set(
@@ -198,82 +193,78 @@ const LATIN_PAIRS = new Set([
 
 const ruleOn = (ctx: DetectContext, rule: string) => !ctx.rules || ctx.rules.has(rule);
 
-/** One pass over the words for the irregular-form and space checks. */
-function wordChecks(ctx: DetectContext): RawFinding[] {
+// Characters that make a letter run part of a token: no WORD match starts after them.
+const NOT_WORD_BEFORE = /[\p{L}\p{M}\p{N}_'’@/#\\.-]/u;
+
+/**
+ * The word that ends one space before `index`, as a WORD match: the only neighbour a word
+ * check reads. Null when a space and a word do not come right before `index`.
+ */
+function wordBeforeSpace(text: string, index: number) {
+  if (text[index - 1] !== " ") return null;
+  let start = index - 1;
+  while (start > 0 && /[A-Za-z]/.test(text[start - 1])) start--;
+  if (start === index - 1 || NOT_WORD_BEFORE.test(text[start - 1] ?? "")) return null;
+  const word = text.slice(start, index - 1);
+  return { index: start, word, unknown: !known(word.toLowerCase()) };
+}
+
+/** The irregular-form and space checks of one word. */
+function wordCheck(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
   const irregular = ruleOn(ctx, "englishIrregularForms");
   const spaces = ruleOn(ctx, "englishAlotCorrection");
-  const findings: RawFinding[] = [];
-  const words = new RegExp(WORD);
-  words.lastIndex = Math.max(0, ctx.from - 40);
-  let last: { index: number; word: string; unknown: boolean } | null = null;
-  // Reads one word past the chunk: a word-boundary fix belongs to its first word.
-  for (
-    let m = words.exec(ctx.scanText);
-    m && (!last || last.index < ctx.to);
-    m = words.exec(ctx.scanText)
-  ) {
-    const { index } = m;
-    const word = m[0];
-    const w = word.toLowerCase();
-    const unknown = !known(w);
-    const prev = last;
-    last = { index, word, unknown };
-    const owned = index >= ctx.from && index < ctx.to;
-    // Most words are known, and so is their neighbour: nothing to check.
-    const regular =
-      irregular &&
-      owned &&
-      (w.endsWith("ed") ? REGULAR_PASTS.has(w) : w.length > 3 && w.endsWith("s") && !info(w));
-    if (!unknown && !regular && !prev?.unknown) continue;
-    if (!plainAt(ctx, word, index) || ctx.dictionary.has(w)) continue;
-    const end = index + word.length;
-    const forms = regular && irregularFor(word, ctx.text.slice(Math.max(0, index - 40), index));
-    if (forms) {
-      findings.push({
-        ruleId: "englishIrregularForms",
-        messageKey: "review_msg_irregular_form",
-        range: { start: index, end },
-        alternatives: forms.map((form) => caseLike(word, form)),
-        ...(forms.length > 1 ? { requiresChoice: true as const } : {}),
-        context: context(ctx, index, end),
-      });
-      continue;
-    }
-    if (!spaces) continue;
-    // Only a glued function word: an unknown content compound ("rainforest", "zebrafish")
-    // is usually a real word the lexicon lacks, and stays with dictionary spelling.
-    // "~isability" in a pattern or a regex is no prose word.
-    const split =
-      unknown && owned && !/[~*^$=\\/]/.test(ctx.text[index - 1] ?? "") && splitGlued(word);
-    if (split) {
-      findings.push(
-        finding("englishAlotCorrection", "review_msg_split_words", index, end, [split], {
-          bulkBlock: "context-dependent",
-          context: context(ctx, index, end),
-        }),
-      );
-      continue;
-    }
-    if (!spaces) continue;
-    // A single space between two words of two letters or more, one of them unknown.
-    if (!prev || prev.index < ctx.from || prev.index >= ctx.to) continue;
-    if (prev.index + prev.word.length !== index - 1) continue;
-    if (ctx.text[index - 1] !== " " || prev.word.length < 2 || word.length < 2) continue;
-    if (!plainAt(ctx, prev.word, prev.index) || /^[A-Z]/.test(word)) continue;
-    if (ctx.dictionary.has(lower(prev.word))) continue;
-    // Latin set phrases keep their space: "pro forma", "ad hoc".
-    if (LATIN_PAIRS.has(`${lower(prev.word)} ${w}`)) continue;
-    const fixes = boundaryFix(prev.word, word);
-    if (!fixes.length) continue;
-    findings.push(
-      finding("englishAlotCorrection", "review_msg_word_boundary", prev.index, end, fixes, {
-        ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
-        bulkBlock: "context-dependent",
-        context: context(ctx, prev.index, end),
-      }),
-    );
-  }
-  return findings;
+  const { index } = m;
+  const word = m[0];
+  const w = word.toLowerCase();
+  const unknown = !known(w);
+  // Read only when needed: most words and their neighbours are known.
+  let neighbour: ReturnType<typeof wordBeforeSpace> | undefined;
+  const before = () => (neighbour ??= wordBeforeSpace(ctx.scanText, index));
+  const owned = index >= ctx.from && index < ctx.to;
+  // Most words are known, and so is their neighbour: nothing to check.
+  const regular =
+    irregular &&
+    owned &&
+    (w.endsWith("ed") ? REGULAR_PASTS.has(w) : w.length > 3 && w.endsWith("s") && !info(w));
+  if (!unknown && !regular && !before()?.unknown) return null;
+  if (!plainAt(ctx, word, index) || ctx.dictionary.has(w)) return null;
+  const end = index + word.length;
+  const forms = regular && irregularFor(word, ctx.text.slice(Math.max(0, index - 40), index));
+  if (forms)
+    return {
+      ruleId: "englishIrregularForms",
+      messageKey: "review_msg_irregular_form",
+      range: { start: index, end },
+      alternatives: forms.map((form) => caseLike(word, form)),
+      ...(forms.length > 1 ? { requiresChoice: true as const } : {}),
+      context: context(ctx, index, end),
+    };
+  if (!spaces) return null;
+  // Only a glued function word: an unknown content compound ("rainforest", "zebrafish")
+  // is usually a real word the lexicon lacks, and stays with dictionary spelling.
+  // "~isability" in a pattern or a regex is no prose word.
+  const split =
+    unknown && owned && !/[~*^$=\\/]/.test(ctx.text[index - 1] ?? "") && splitGlued(word);
+  if (split)
+    return finding("englishAlotCorrection", "review_msg_split_words", index, end, [split], {
+      bulkBlock: "context-dependent",
+      context: context(ctx, index, end),
+    });
+  // A single space between two words of two letters or more, one of them unknown.
+  const prev = before();
+  if (!prev || prev.index < ctx.from || prev.index >= ctx.to) return null;
+  if (prev.word.length < 2 || word.length < 2) return null;
+  if (!plainAt(ctx, prev.word, prev.index) || /^[A-Z]/.test(word)) return null;
+  if (ctx.dictionary.has(lower(prev.word))) return null;
+  // Latin set phrases keep their space: "pro forma", "ad hoc".
+  if (LATIN_PAIRS.has(`${lower(prev.word)} ${w}`)) return null;
+  const fixes = boundaryFix(prev.word, word);
+  if (!fixes.length) return null;
+  return finding("englishAlotCorrection", "review_msg_word_boundary", prev.index, end, fixes, {
+    ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+    bulkBlock: "context-dependent",
+    context: context(ctx, prev.index, end),
+  });
 }
 
 // ---------------------------------------------------------------------------- possessive nouns
@@ -363,6 +354,7 @@ function wordBefore(ctx: DetectContext, index: number): string {
 
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
 export const FIXERS = {
+  wordCheck,
   /**
    * "the cats tail is long", "a teachers lounge": a plural owner right before the noun it owns,
    * where the frame leaves no other reading. The owner's head noun is followed by its verb, or
@@ -426,8 +418,3 @@ export const FIXERS = {
     };
   },
 } satisfies Record<string, MatchFixer>;
-
-/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
-export const PREDICATES = {
-  irregularWordForms: english(wordChecks),
-} satisfies Record<string, Detector>;

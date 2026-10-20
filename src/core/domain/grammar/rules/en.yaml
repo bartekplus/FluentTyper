@@ -239,10 +239,18 @@ rules:
         englishWereWhere,
         englishToToo,
       ]
-    # predicate: its scan reads 16 characters past the chunk ("all ready" starts one word
-    # before its trigger); no frame scan stops there. One match also gives findings of six
-    # checks, and a frame runs only when its own check is on.
-    predicate: contextualConfusions
+    style: match
+    message: review_msg_confused_word
+    frames:
+      # Typo-like confusions resolved by the words around one trigger word. "all ready" starts
+      # one word before its trigger, so the scan reads 16 characters past the chunk. One match
+      # gives findings of the six checks.
+      - regex: "(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t){{E}}))(?:principle|shutdown|boarders|boarder|they['’]re|thieve|threat|though|exited|prices|prises|theyre|rally|pleas|heart|ready|waist|relay|price|loose|there|their|where|match|prise|cold|mach|tuff|lose|they|herd|dos|wok|way|off|yea|yeh|do|to){{E}}"
+        scan: owned
+        lookahead: 16
+        flags: giu
+        anyCheck: true
+        fixer: contextualConfusion
   - id: en.idiomPhrases1
     checks: [englishPhraseCorrections]
     message: review_msg_phrase_correction
@@ -1364,17 +1372,13 @@ rules:
     message: review_msg_oxford_comma
     filter: outsideExamples
     frames:
-      # Optional serial comma: "A, B and C" or "A, B, and C", by the writer's chosen style. One
-      # frame for each style: a frame runs only when its check is on. The match start owns it.
+      # Optional serial comma: "A, B and C" or "A, B, and C", by the writer's chosen style.
+      # The fixer reads which style is on. The match start owns it.
       - regex: "(?<=[\\p{L}\\p{N})])(?<comma>,){{S}}(?<item>{{GRAMMARSTYLE1_ITEM}})(?<oxford>,)?{{S}}(?<conj>and|or|nor){{S}}(?<after>[\\p{L}\\p{N}]+)"
         flags: dgu
         owner: none
-        fixer: addOxfordComma
-      - regex: "(?<=[\\p{L}\\p{N})])(?<comma>,){{S}}(?<item>{{GRAMMARSTYLE1_ITEM}})(?<oxford>,)?{{S}}(?<conj>and|or|nor){{S}}(?<after>[\\p{L}\\p{N}]+)"
-        check: styleNoOxfordComma
-        flags: dgu
-        owner: none
-        fixer: removeOxfordComma
+        anyCheck: true
+        fixer: serialComma
   - id: en.sentenceTemplates
     checks: [englishSentenceStructure]
     style: template
@@ -1614,15 +1618,11 @@ rules:
     filter: outsideExamples
     frames:
       # "energise", "magnetisable": -ise forms the table lacks whose -ize form the lexicon
-      # knows. An -ise word, also after a hyphenated prefix ("de-energise"). One frame for each
-      # check: a frame runs only when its check is on.
+      # knows. An -ise word, also after a hyphenated prefix ("de-energise"). One match gives
+      # the American and the Oxford finding.
       - regex: "(?<![\\p{L}\\p{N}'’])(?<target>\\p{L}+is(?:e|es|ed|ing|ation|ations|ational|ationally|er|ers|able|ability))(?![\\p{L}\\p{N}'’])"
         flags: dgiu
-        fixer: iseForm
-      - regex: "(?<![\\p{L}\\p{N}'’])(?<target>\\p{L}+is(?:e|es|ed|ing|ation|ations|ational|ationally|er|ers|able|ability))(?![\\p{L}\\p{N}'’])"
-        check: englishOxfordSpelling
-        message: review_msg_oxford_spelling
-        flags: dgiu
+        anyCheck: true
         fixer: iseForm
   - id: en.cardSpellings
     checks: [englishAmericanSpelling, englishBritishSpelling]
@@ -1632,13 +1632,10 @@ rules:
       # "be on the cards" (British) and "be in the cards" (American): only after a form of
       # "be" ("is that just not in the cards?"), so cards on a table ("write it on the cards")
       # stay. The idiom ends its clause or is followed by a function word: "in the cards box"
-      # stays. One frame for each check: a frame runs only when its check is on.
+      # stays. The preposition picks the check.
       - regex: "{{DIALECTS_BE}}(?:{{S}}(?:that|this|it|they|he|she|we|you))?(?:{{S}}{{DIALECTS_CARD_ADVERBS}}){0,3}{{S}}(?<target>(?<prep>on|in){{S}}the{{S}}cards){{E}}(?=[ \\t\\u00a0]{0,8}(?:[^\\p{L} \\t\\u00a0]|$)|{{S}}{{DIALECTS_CARD_FOLLOWERS}}{{E}})"
-        fixer: britishCards
-      - regex: "{{DIALECTS_BE}}(?:{{S}}(?:that|this|it|they|he|she|we|you))?(?:{{S}}{{DIALECTS_CARD_ADVERBS}}){0,3}{{S}}(?<target>(?<prep>on|in){{S}}the{{S}}cards){{E}}(?=[ \\t\\u00a0]{0,8}(?:[^\\p{L} \\t\\u00a0]|$)|{{S}}{{DIALECTS_CARD_FOLLOWERS}}{{E}})"
-        check: englishBritishSpelling
-        message: review_msg_british_spelling
-        fixer: americanCards
+        anyCheck: true
+        fixer: cardSpelling
   - id: en.spelledNumbers
     checks: [styleSpelledNumbers]
     style: match
@@ -1651,9 +1648,20 @@ rules:
         fixer: spelledNumber
   - id: en.irregularWordForms
     checks: [englishIrregularForms, englishAlotCorrection]
-    # predicate: one pass over the words keeps the word before each word; a word-boundary
-    # fix reads one word past the chunk, and no frame scan stops there.
-    predicate: irregularWordForms
+    style: match
+    message: review_msg_irregular_form
+    filter: outsideExamples
+    frames:
+      # One word: letters only, not part of a technical token, a number or an abbreviation
+      # ("e.g"). One check pass over each word for the irregular-form and space checks. A
+      # word-boundary fix belongs to its first word, so the scan also reads the word after the
+      # chunk. Words past the first one there give no finding.
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])"
+        scan: owned
+        lookahead: 128
+        flags: gu
+        anyCheck: true
+        fixer: wordCheck
   - id: en.possessiveNouns
     checks: [englishPossessiveNouns]
     style: match
@@ -1738,9 +1746,32 @@ rules:
         styleWordChoice,
         englishCanonicalCasing,
       ]
-    # predicate: reads the quotation and example ranges. Its soft-wrap scan feeds the phrase
-    # tables, whose findings have eight checks; a frame runs only when its own check is on.
+    # predicate: walks the quotation and example ranges of the chunk, not a regex scan; each
+    # range is checked in a view.
     predicate: quotedPhrases
+  - id: en.wrappedPhrases
+    checks:
+      [
+        englishPhraseCorrections,
+        englishClosedCompounds,
+        stylePhrasing,
+        englishAmericanSpelling,
+        englishBritishSpelling,
+        englishOxfordSpelling,
+        styleWordChoice,
+        englishCanonicalCasing,
+      ]
+    style: match
+    message: review_msg_phrase_correction
+    frames:
+      # Fixed phrases broken across a soft wrap ("Double\nclick"): one line break inside a
+      # sentence, before a lowercase word. The phrase tables read the view; their findings
+      # have the eight checks.
+      - regex: "(?<=\\p{L})[ \\t]*\\n[ \\t]*(?=\\p{Ll})"
+        scan: owned
+        flags: gu
+        anyCheck: true
+        fixer: wrappedPhrase
   - id: en.shoutedNames
     checks: [stylePhrasing]
     style: match
@@ -1781,26 +1812,13 @@ rules:
     style: match
     message: review_msg_closed_compound
     frames:
-      # Words wrong on the left of a slash; the slash token is otherwise read as a path. One
-      # frame for each check: a frame runs only when its check is on.
-      - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?<target>infront)(?=\\/\\p{L}+(?![\\p{L}\\p{N}_'’@/#\\\\.-]|\\.\\p{L}))"
+      # Words wrong on the left of a slash; the slash token is otherwise read as a path.
+      # "bias" needs a form of "be" before it ("I am bias/prefer…"). Each word has its own
+      # check; the fixer reads it.
+      - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?<target>infront|bias|deref|derefs|dirs)(?=\\/\\p{L}+(?![\\p{L}\\p{N}_'’@/#\\\\.-]|\\.\\p{L}))"
         scan: owned
         flags: dgiu
-        gate: "\\/\\p{L}"
-        gateFlags: gu
-        fixer: slashedWord
-      # "bias" needs a form of "be" before it ("I am bias/prefer…").
-      - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?<target>bias)(?=\\/\\p{L}+(?![\\p{L}\\p{N}_'’@/#\\\\.-]|\\.\\p{L}))"
-        check: englishConfusedWords
-        scan: owned
-        flags: dgiu
-        gate: "\\/\\p{L}"
-        gateFlags: gu
-        fixer: slashedWord
-      - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?<target>deref|derefs|dirs)(?=\\/\\p{L}+(?![\\p{L}\\p{N}_'’@/#\\\\.-]|\\.\\p{L}))"
-        check: styleWordChoice
-        scan: owned
-        flags: dgiu
+        anyCheck: true
         gate: "\\/\\p{L}"
         gateFlags: gu
         fixer: slashedWord

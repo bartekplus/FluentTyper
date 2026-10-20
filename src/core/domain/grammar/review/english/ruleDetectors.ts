@@ -64,8 +64,6 @@ import * as neighbourTypos from "./neighbourTypos";
 import * as clashFrames from "./clashFrames";
 
 export const PREDICATES = mergePredicates(
-  confusions2.PREDICATES,
-  lexical.PREDICATES,
   remaining.PREDICATES,
   compoundForms.PREDICATES,
   dates.PREDICATES,
@@ -128,6 +126,7 @@ export const FIXERS = mergePredicates<Fixer>(
   grammarStyle2.FIXERS,
   fixedPhrases.FIXERS,
   confusions1.FIXERS,
+  confusions2.FIXERS,
   lexical.FIXERS,
   dialects.FIXERS,
   usageTables.FIXERS,
