@@ -105,6 +105,7 @@ const FRAME_KEYS = new Set([
   "wordStart",
   "verbatim",
   "lowercase",
+  "capitalized",
 ]);
 const BUILTIN_FRAGMENTS: Readonly<Record<string, string>> = {
   S: SPACE,
@@ -471,8 +472,12 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           errors.push(`${at}: give exactly one of "fix" and "fixer"`);
         if (spec.style === "template" && (typeof entry.fix !== "string" || entry.raw))
           errors.push(`${at}: a template has one "fix" string and no "raw"`);
-        if (spec.style !== "template" && entry.clauseStart)
-          errors.push(`${at}: "clauseStart" needs style "template"`);
+        if (spec.style !== "template" && spec.style !== "portuguese" && entry.clauseStart)
+          errors.push(`${at}: "clauseStart" needs style "template" or "portuguese"`);
+        if (spec.style !== "portuguese" && entry.capitalized)
+          errors.push(`${at}: "capitalized" needs style "portuguese"`);
+        if (spec.style === "portuguese" && entry.fix !== undefined && !Array.isArray(entry.fix))
+          errors.push(`${at}: a portuguese frame gives its fixes as a list`);
         if (spec.style !== "slot" && entry.cue !== undefined)
           errors.push(`${at}: "cue" needs style "slot"`);
         if (spec.style !== "slot" && spec.style !== "polish" && entry.check !== undefined)
@@ -506,6 +511,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           ...(entry.wordStart === false ? { wordStart: false as const } : {}),
           ...(entry.verbatim ? { verbatim: true as const } : {}),
           ...(entry.lowercase ? { lowercase: true as const } : {}),
+          ...(entry.capitalized ? { capitalized: true as const } : {}),
         });
         return frames.length - 1;
       });

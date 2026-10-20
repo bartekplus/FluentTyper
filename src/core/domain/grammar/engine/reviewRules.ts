@@ -4,6 +4,10 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../review/r
 import type { ReviewMessageKey } from "../review/types";
 import { frameDetector as slotFrames, type Frame as SlotFrame } from "../review/english/idioms5";
 import { runFrames as polishFrames, type Frame as PolishFrame } from "../review/polish/shared";
+import {
+  runConfusionFrames as portugueseFrames,
+  type Frame as PortugueseFrame,
+} from "../review/portuguese/confusions";
 import { findMatches, type PatternSet } from "./matcher";
 import { REVIEW_FRAMES, REVIEW_PATTERNS, REVIEW_RULES } from "./review.generated";
 import {
@@ -28,8 +32,11 @@ export type ReviewPredicates = Readonly<Record<string, Readonly<Record<string, D
  */
 export type Fixer = (m: RegExpExecArray, ctx: DetectContext) => unknown;
 
+/** Any named fix: each frame style passes its own arguments (portuguese: the typed target). */
+export type AnyFixer = (...args: never[]) => unknown;
+
 /** Named frame fixes by rule file, then by name. */
-export type ReviewFixers = Readonly<Record<string, Readonly<Record<string, Fixer>>>>;
+export type ReviewFixers = Readonly<Record<string, Readonly<Record<string, AnyFixer>>>>;
 
 /** A named filter of a frame rule's findings: it sees them all, in order. */
 export type FindingsFilter = (ctx: DetectContext, findings: RawFinding[]) => RawFinding[];
@@ -131,7 +138,16 @@ export function frameRuleDetector(
     return found;
   };
   let detect: Detector;
-  if (rule.style === "polish") {
+  if (rule.style === "portuguese") {
+    const frames: PortugueseFrame[] = compiled.map((frame) => ({
+      pattern: frame.pattern,
+      alternatives: fixOf(frame.fix, frame.fixer) as PortugueseFrame["alternatives"],
+      messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
+      ...(frame.clauseStart ? { clauseStart: true as const } : {}),
+      ...(frame.capitalized ? { capitalized: true as const } : {}),
+    }));
+    detect = (ctx) => portugueseFrames(ctx, frames);
+  } else if (rule.style === "polish") {
     const frames: PolishFrame[] = compiled.map((frame) => ({
       pattern: frame.pattern,
       fix: fixOf(frame.fix, frame.fixer) as PolishFrame["fix"],

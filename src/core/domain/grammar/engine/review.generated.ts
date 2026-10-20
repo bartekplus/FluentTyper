@@ -2298,6 +2298,26 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     source: "pt_BR",
   },
   {
+    id: "pt_BR.confusionFrames",
+    checks: ["portugueseConfusions"],
+    lang: "pt",
+    frames: [
+      976, 977, 978, 979, 980, 981, 982, 983, 984, 985, 986, 987, 988, 989, 990, 991, 992, 993, 994,
+      995, 996, 997, 998, 999, 1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010,
+      1011, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1019, 1020, 1021, 1022, 1023, 1024, 1025,
+      1026, 1027, 1028, 1029, 1030, 1031, 1032, 1033, 1034, 1035, 1036, 1037, 1038, 1039, 1040,
+      1041, 1042, 1043, 1044, 1045, 1046, 1047, 1048, 1049, 1050, 1051, 1052, 1053, 1054, 1055,
+      1056, 1057, 1058, 1059, 1060, 1061, 1062, 1063, 1064, 1065, 1066, 1067, 1068, 1069, 1070,
+      1071, 1072, 1073, 1074, 1075, 1076, 1077, 1078, 1079, 1080, 1081, 1082, 1083, 1084, 1085,
+      1086, 1087, 1088, 1089, 1090, 1091, 1092, 1093, 1094, 1095, 1096, 1097, 1098, 1099, 1100,
+      1101, 1102, 1103, 1104, 1105, 1106, 1107, 1108, 1109, 1110, 1111, 1112, 1113, 1114, 1115,
+      1116, 1117, 1118, 1119, 1120, 1121,
+    ],
+    message: "review_msg_pt_homophone",
+    style: "portuguese",
+    source: "pt_BR",
+  },
+  {
     id: "pt_BR.confusions",
     checks: ["portugueseConfusions"],
     lang: "pt",
@@ -10730,6 +10750,1169 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "(?<!(?:^|[^\\p{L}])(?:nikt|nic|ktoś|coś|kto|co|któż|cóż|nikogo|niczego|nikomu|niczym|nikim)[ \\t\\u00a0]{1,8})(?<target>inn(?:y|a|e|i|ego|ej|emu|ą|ym|ych|ymi)[ \\t\\u00a0]{1,8}jak)(?=[ \\t\\u00a0]{1,8}(?!nie(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))\\p{L})",
     literals: ["inn"],
     fixer: "pl:typosInn",
+  },
+  {
+    pattern:
+      "(?:de|em|com|sem|um|uma|uns|umas|d[oa]s?|n[oa]|nas|pel[oa]s?|num|numa|dum|duma|est[ae]s?|ess[ae]s?|sua|suas|seu|seus|minha|minhas|meu|meus|nossa|nossas|nosso|nossos|cada|outra|outras|outro|outros|toda|longa|longas|nova|novas|boa|boas|primeira|última)[ \\t\\u00a0]{1,8}(?<target>viajem|viajens|extirpe|extirpes|profetiza|profetizas|poetiza|poetizas|sinto|sintos|sinta|sintas|asso|assos|cerra|cerras)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!-)",
+    literals: [
+      "viajem",
+      "viajens",
+      "extirpe",
+      "extirpes",
+      "profetiza",
+      "profetizas",
+      "poetiza",
+      "poetizas",
+      "sinto",
+      "sintos",
+      "sinta",
+      "sintas",
+      "asso",
+      "assos",
+      "cerra",
+      "cerras",
+    ],
+    fixer: "pt_BR:ptViajem",
+  },
+  {
+    pattern:
+      "(?<![\\p{L}][ \\t\\u00a0]{0,8})[oa]s?[ \\t\\u00a0]{1,8}(?<target>viajem|viajens|extirpe|extirpes|profetiza|profetizas|poetiza|poetizas|sinto|sintos|sinta|sintas|asso|assos|cerra|cerras)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!-)",
+    literals: [
+      "viajem",
+      "viajens",
+      "extirpe",
+      "extirpes",
+      "profetiza",
+      "profetizas",
+      "poetiza",
+      "poetizas",
+      "sinto",
+      "sintos",
+      "sinta",
+      "sintas",
+      "asso",
+      "assos",
+      "cerra",
+      "cerras",
+    ],
+    fixer: "pt_BR:ptViajem2",
+    clauseStart: true,
+  },
+  {
+    pattern:
+      "(?:(?:que|embora|caso)[ \\t\\u00a0]{1,8}(?:eles|elas|vocês)|(?<!uma[ \\t\\u00a0]{1,8})não)[ \\t\\u00a0]{1,8}(?<target>viagem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:é|foi|era|será)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["viagem"],
+    fix: ["viajem"],
+  },
+  {
+    pattern:
+      "assist(?:o|e|es|imos|em|i|iu|iram|ia|iam|ir|indo|irei|irá|iremos|irão|iria|iriam|a|am)[ \\t\\u00a0]{1,8}(?<target>os?|as?(?=[ \\t\\u00a0]{1,8}(?!\\p{L}+s(?![\\p{L}]))(?!(?:um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|tod[oa]s?|cada|qualquer|nenhum|nenhuma|cert[oa]s?|vári[oa]s|muit[oa]s?|pouc[oa]s?|dois|duas|três|seus?|suas?|meus?|minhas?|teus?|tuas?|nossos?|nossas?)(?![\\p{L}]))))[ \\t\\u00a0]{1,8}(?=(?:\\p{L}+[ \\t\\u00a0]{1,8})?(?:filmes?|jogos?|programas?|shows?|espetáculos?|aulas?|novelas?|séries?|vídeos?|partidas?|apresentaç(?:ão|ões)|peças?|concertos?|palestras?|missas?|desfiles?|televisão|tv|telejornal|final|finais|corrida|luta|treino|ensaio)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["assist"],
+    fixer: "pt_BR:ptOs",
+    message: "review_msg_pt_regency",
+  },
+  {
+    pattern:
+      "(?:(?:des)?obedec(?:e|em|emos|i|eu|eram|ia|iam|er|endo|erei|erá|eremos|erão|eria|eriam)|(?:des)?obedeço|(?:des)?obedeça|(?:des)?obedeçam)[ \\t\\u00a0]{1,8}(?<target>os?|as?(?=[ \\t\\u00a0]{1,8}(?!\\p{L}+s(?![\\p{L}]))(?!(?:um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|tod[oa]s?|cada|qualquer|nenhum|nenhuma|cert[oa]s?|vári[oa]s|muit[oa]s?|pouc[oa]s?|dois|duas|três|seus?|suas?|meus?|minhas?|teus?|tuas?|nossos?|nossas?)(?![\\p{L}]))))[ \\t\\u00a0]{1,8}(?=\\p{L}{2,})",
+    literals: ["obedec", "obedeço", "obedeça", "obedeçam"],
+    fixer: "pt_BR:ptOs2",
+    message: "review_msg_pt_regency",
+  },
+  {
+    pattern:
+      "(?:prefiro|prefere|preferes|preferimos|preferem|preferia|preferiam|preferiria|preferiríamos|preferi|preferiu|preferiram|preferir|preferível)[ \\t\\u00a0]{1,8}(?:[^\\s.,;:!?]+[ \\t\\u00a0]{1,8}){1,5}(?<!(?:mais|menos|melhor|pior|maior|menor|antes|tanto)[ \\t\\u00a0]{1,8})(?<target>do[ \\t\\u00a0]{1,8}que(?:[ \\t\\u00a0]{1,8}(?:o|a|os|as)(?=[ \\t\\u00a0]{1,8}))?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "prefiro",
+      "prefere",
+      "preferes",
+      "preferimos",
+      "preferem",
+      "preferia",
+      "preferiam",
+      "preferiria",
+      "preferiríamos",
+      "preferi",
+      "preferiu",
+      "preferiram",
+      "preferir",
+      "preferível",
+    ],
+    fixer: "pt_BR:ptDo",
+    message: "review_msg_pt_regency",
+  },
+  {
+    pattern:
+      "(?<!(?:de|para|com|sem|entre|a|por|sobre|contra|até|em|perante)[ \\t\\u00a0]{1,8})(?:eles|elas|vocês|uns|ambos|ambas|todos|todas|muitos|muitas|alguns|algumas|poucos|poucas)[ \\t\\u00a0]{1,8}(?:(?:não|já|também|ainda|nunca|sempre|só|apenas|realmente)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[ \\t\\u00a0]{1,8}){0,2}(?<target>(?:con|de|man|ob|re|abs|sus|en|entre)?t[eé]m|(?:con|pro|inter|ad|sobre|pro)?v[eé]m)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "eles",
+      "elas",
+      "vocês",
+      "uns",
+      "ambos",
+      "ambas",
+      "todos",
+      "todas",
+      "muitos",
+      "muitas",
+      "alguns",
+      "algumas",
+      "poucos",
+      "poucas",
+    ],
+    fixer: "pt_BR:ptCon",
+  },
+  {
+    pattern:
+      "(?<target>fazem|faziam|fizeram|farão|fariam)[ \\t\\u00a0]{1,8}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca[ \\t\\u00a0]{1,8}de|mais[ \\t\\u00a0]{1,8}de|menos[ \\t\\u00a0]{1,8}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[ \\t\\u00a0]{1,8})?(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante[ \\t\\u00a0]{1,8}tempo|muito[ \\t\\u00a0]{1,8}tempo)[ \\t\\u00a0]{1,8}(?:que|desde)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["fazem", "faziam", "fizeram", "farão", "fariam"],
+    fixer: "pt_BR:ptFazem",
+  },
+  {
+    pattern:
+      "(?<target>vão|iam|irão|podem|deviam|devem|costumam)[ \\t\\u00a0]{1,8}fazer[ \\t\\u00a0]{1,8}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca[ \\t\\u00a0]{1,8}de|mais[ \\t\\u00a0]{1,8}de|menos[ \\t\\u00a0]{1,8}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[ \\t\\u00a0]{1,8})?(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante[ \\t\\u00a0]{1,8}tempo|muito[ \\t\\u00a0]{1,8}tempo)[ \\t\\u00a0]{1,8}(?:que|desde)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["fazer"],
+    fixer: "pt_BR:ptVão",
+  },
+  {
+    pattern:
+      "(?<!(?:já|ainda|lá|aqui|fora)[ \\t\\u00a0]{1,8})(?<target>está)[ \\t\\u00a0]{1,8}(?=(?:noite|semana|manhã|tarde|madrugada)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["está"],
+    fix: ["esta"],
+  },
+  {
+    pattern:
+      "(?<target>esta)[ \\t\\u00a0]{1,8}(?=(?:\\p{L}{2,}(?:ado|ido)|coberto|aberto|feito|morto|escrito|pronto|cheio|vazio|certo|bom|ótimo|lindo|frio|quente|limpo|sujo|seco|novo|velho)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["esta"],
+    fix: ["está"],
+  },
+  {
+    pattern:
+      "(?<target>esta)[ \\t\\u00a0]{1,8}(?=a[ \\t\\u00a0]{1,8}\\p{L}{2,}(?:ar|er|ir|or)(?:-\\p{L}+)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["esta"],
+    fix: ["está"],
+  },
+  {
+    pattern:
+      "(?<!(?:o|um|do|no|ao|pelo|esse|este|aquele|seu|meu|nosso|teu|cada|algum|nenhum|qualquer|grande|pequeno|fundo|velho)[ \\t\\u00a0]{1,8})(?<target>poço)[ \\t\\u00a0]{1,8}(?=(?:me|te|lhe|lhes|nos|vos|se|\\p{L}+[aeiô]r)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["poço"],
+    fix: ["posso"],
+  },
+  {
+    pattern:
+      "(?<!tu[ \\t\\u00a0]{1,8}(?:não[ \\t\\u00a0]{1,8})?)(?<target>varias)[ \\t\\u00a0]{1,8}(?=(?!(?:os|as|nos|vos|mais|menos|vezes[ \\t\\u00a0]{1,8}de)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))\\p{L}{2,}s(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["varias"],
+    fix: ["várias"],
+  },
+  {
+    pattern:
+      "(?<!(?:que|se|quando|embora|talvez|caso)[ \\t\\u00a0]{1,8}(?:\\p{L}{1,24}[ \\t\\u00a0]{1,8})?)(?<target>ate)[ \\t\\u00a0]{1,8}(?=(?:o|a|os|as|ao|aos|à|às|aqui|ali|lá|onde|quando|minha|meu|sua|seu|nossa|nosso|\\d)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["ate"],
+    fix: ["até"],
+  },
+  {
+    pattern:
+      "(?:para|sem|contra|perante|a)[ \\t\\u00a0]{1,8}(?<target>eu|tu)(?=[ \\t\\u00a0]{0,2}[.,;:!?)]|$)",
+    literals: [],
+    fixer: "pt_BR:ptEu",
+    message: "review_msg_pt_pronoun_case",
+  },
+  {
+    pattern:
+      "entre[ \\t\\u00a0]{1,8}(?<target>eu|tu)[ \\t\\u00a0]{1,8}(?=e(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["entre"],
+    fixer: "pt_BR:ptEu2",
+    message: "review_msg_pt_pronoun_case",
+  },
+  {
+    pattern:
+      "(?:é|era|foi|será|seria|são|eram)[ \\t\\u00a0]{1,8}para[ \\t\\u00a0]{1,8}(?<target>mim|ti)[ \\t\\u00a0]{1,8}(?=\\p{L}*[aeiô]r(?:em|mos|es)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["para"],
+    fixer: "pt_BR:ptMim",
+    message: "review_msg_pt_pronoun_case",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[.!?;:][ \\t\\u00a0]{0,8}|\\n[ \\t\\u00a0]{0,8}))(?:para|pra)[ \\t\\u00a0]{1,8}(?<target>mim|ti)[ \\t\\u00a0]{1,8}(?=\\p{L}*[aeiô]r(?:em|mos|es)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["para", "pra"],
+    fixer: "pt_BR:ptMim2",
+    message: "review_msg_pt_pronoun_case",
+  },
+  {
+    pattern:
+      "(?<!daqui[ \\t\\u00a0]{1,8})(?<target>à)[ \\t\\u00a0]{1,8}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca[ \\t\\u00a0]{1,8}de|mais[ \\t\\u00a0]{1,8}de|menos[ \\t\\u00a0]{1,8}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[ \\t\\u00a0]{1,8}){0,2}(?:anos|meses|semanas|dias|séculos|décadas|minutos|segundos)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["anos", "meses", "semanas", "dias", "séculos", "décadas", "minutos", "segundos"],
+    fix: ["há"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?<target>à)[ \\t\\u00a0]{1,8}(?:muito|pouco|bastante|algum|tanto)[ \\t\\u00a0]{1,8}tempo(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["muito", "pouco", "bastante", "algum", "tanto"],
+    fix: ["há"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?<target>à)[ \\t\\u00a0]{1,8}(?:muito|pouco|bastante)(?=[ \\t\\u00a0]{1,8}(?:para|que|a[ \\t\\u00a0]{1,8}fazer)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{0,2}[.,;!?])",
+    literals: ["muito", "pouco", "bastante"],
+    fix: ["há"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?<!(?:daqui|dali|daí|até|de|em)[ \\t\\u00a0]{1,8})(?<target>a)[ \\t\\u00a0]{1,8}(?:muito|bastante)[ \\t\\u00a0]{1,8}tempo(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["muito", "bastante"],
+    fix: ["há"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?<!(?:me|te|lhe|nos|lhes|tu|que|não)[ \\t\\u00a0]{1,8})(?<target>dês)[ \\t\\u00a0]{1,8}(?=que(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["dês"],
+    fix: ["desde"],
+  },
+  {
+    pattern:
+      "(?<!(?:me|te|lhe|nos|lhes|tu|que|não)[ \\t\\u00a0]{1,8})(?<target>dês[ \\t\\u00a0]{1,8}d(?<article>[oa]s?|e))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["dês"],
+    fixer: "pt_BR:ptDês",
+  },
+  {
+    pattern:
+      "(?<target>por)[ \\t\\u00a0]{1,8}(?=termo[ \\t\\u00a0]{1,8}(?:a|ao|à|aos|às)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["por"],
+    fix: ["pôr"],
+  },
+  {
+    pattern:
+      "(?:pode|posso|podemos|podem|podia|quero|queremos|quer|queria|deve|devemos|devem|deveria|preciso|precisamos|precisa|precisam|para|sem|(?:tenho|temos|tem|têm|tens|tinha|tinham)[ \\t\\u00a0]{1,8}(?:que|de)|(?:há|hei)[ \\t\\u00a0]{1,8}de)[ \\t\\u00a0]{1,8}(?<target>por)[ \\t\\u00a0]{1,8}(?=em[ \\t\\u00a0]{1,8}(?:prática|dúvida|risco|ordem|causa|cena|votação|funcionamento)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["por"],
+    fix: ["pôr"],
+  },
+  {
+    pattern:
+      "de[ \\t\\u00a0]{1,8}(?:(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo|janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|\\d+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[ \\t\\u00a0]{1,8}(?<target>à)[ \\t\\u00a0]{1,8}(?=(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo|janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|\\d)",
+    literals: [],
+    fix: ["a"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?<!(?:entre|e|de|desde|após|até|para|por|todas|sobre|com|que)[ \\t\\u00a0]{1,8})(?<target>as)[ \\t\\u00a0]{1,8}(?=\\d{1,2}(?:h\\d{0,2}|:\\d\\d)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fix: ["às"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?<!(?:entre|e|de|desde|após|até|para|por|todas|sobre|com|que)[ \\t\\u00a0]{1,8})(?<target>as)[ \\t\\u00a0]{1,8}(?=(?:duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte(?:[ \\t\\u00a0]{1,8}e[ \\t\\u00a0]{1,8}(?:uma|duas|três))?)[ \\t\\u00a0]{1,8}horas(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fix: ["às"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?<!(?:todas|algumas|muitas|poucas|várias|tantas|quantas|das|nas|pelas|com|por|de|em|contei|conto|contar|lembro|lembrar)[ \\t\\u00a0]{1,8})(?<target>as)[ \\t\\u00a0]{1,8}vezes(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:em[ \\t\\u00a0]{1,8}que|que|de|do|da|dos|das|anteriores|seguintes|passadas|necessárias|certas)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["vezes"],
+    fix: ["às"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?:vou|vai|vamos|vão|foi|fui|fomos|foram|ir|ia|iam|irei|iremos|irá)[ \\t\\u00a0]{1,8}(?<target>as)[ \\t\\u00a0]{1,8}compras(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["compras"],
+    fix: ["às"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?:vire|virar|vira|virou|dobre|dobrar|dobra|dobrou|siga|seguir|segue|fica|ficam|ficava|ficavam|fique|está|estão|estava|sentou|sentado|sentada|sente)[ \\t\\u00a0]{1,8}(?<target>a)[ \\t\\u00a0]{1,8}(?:direita|esquerda)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["direita", "esquerda"],
+    fix: ["à"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?<target>à)[ \\t\\u00a0]{1,8}(?!(?:mais|menos|demais|vezes|trois)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))\\p{L}{2,}(?:as|os|es|ns|is|ões|ães)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fix: ["a"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?<!(?<![\\p{L}])(?:o|um|nenhum|seu|qualquer)[ \\t\\u00a0]{1,8})(?<target>por[ \\t\\u00a0]{1,8}quê)[ \\t\\u00a0]{1,8}(?=\\p{L})",
+    literals: ["por"],
+    fix: ["por que", "porque"],
+    message: "review_msg_pt_por_que",
+  },
+  {
+    pattern:
+      "(?<!(?<![\\p{L}])(?:o|um|nenhum|seu|qualquer)[ \\t\\u00a0]{1,8})(?<target>porque|por[ \\t\\u00a0]{1,8}que)(?=[ \\t\\u00a0]{0,2}\\?)",
+    literals: ["porque", "por"],
+    fix: ["por quê"],
+    message: "review_msg_pt_por_que",
+  },
+  {
+    pattern:
+      "(?:o|um|nenhum|seu|qualquer)[ \\t\\u00a0]{1,8}(?<target>porque|por[ \\t\\u00a0]{1,8}que|por[ \\t\\u00a0]{1,8}quê)(?=[ \\t\\u00a0]{0,2}[.,;:!?]|[ \\t\\u00a0]{1,8}(?:de|da|do|das|dos|daquel\\p{L}*|dess\\p{L}*|dest\\p{L}*|disso|disto|daquilo)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["porque", "por", "por"],
+    fix: ["porquê"],
+    message: "review_msg_pt_por_que",
+  },
+  {
+    pattern: "(?<target>Porque)[ \\t\\u00a0]{1,8}(?=[^.!?\\n]{1,120}\\?)",
+    literals: ["porque"],
+    fix: ["Por que"],
+    message: "review_msg_pt_por_que",
+    clauseStart: true,
+  },
+  {
+    pattern:
+      "(?:ele|ela|você|eles|elas|vocês|isso|isto|tudo|não|nunca|já|ainda|quem|onde|como|ninguém|alguém|também|sempre|assim)[ \\t\\u00a0]{1,8}(?<target>e)[ \\t\\u00a0]{1,8}(?:melhor|pior|possível|impossível|verdade|necessário|necessária|preciso|fácil|difícil|bom|boa|certo|errado|claro|importante|normal|obrigatório)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "melhor",
+      "pior",
+      "possível",
+      "impossível",
+      "verdade",
+      "necessário",
+      "necessária",
+      "preciso",
+      "fácil",
+      "difícil",
+      "bom",
+      "boa",
+      "certo",
+      "errado",
+      "claro",
+      "importante",
+      "normal",
+      "obrigatório",
+    ],
+    fix: ["é"],
+  },
+  {
+    pattern:
+      "que[ \\t\\u00a0]{1,8}(?<target>e)[ \\t\\u00a0]{1,8}(?:melhor|pior|possível|impossível|verdade|necessário|necessária|preciso|fácil|difícil|bom|boa|certo|errado|claro|importante|normal|obrigatório)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[^.!?\\n]{0,80}\\?)",
+    literals: ["que"],
+    fix: ["é"],
+  },
+  {
+    pattern:
+      "(?:onde|qual|quando|quanto|como|quem|o[ \\t\\u00a0]{1,8}que|por[ \\t\\u00a0]{1,8}que)[ \\t\\u00a0]{1,8}(?<target>e)[ \\t\\u00a0]{1,8}(?:o|a|os|as|um|uma)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[ \\t\\u00a0]{1,8}(?!que(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?=[^.!?\\n]{0,80}\\?)",
+    literals: ["onde", "qual", "quando", "quanto", "como", "quem", "que", "por"],
+    fix: ["é"],
+    clauseStart: true,
+  },
+  {
+    pattern:
+      "(?<target>esta)[ \\t\\u00a0]{1,8}(?!segundo(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?=\\p{L}+[aei]ndo(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["esta"],
+    fix: ["está"],
+  },
+  {
+    pattern:
+      "(?:ele|ela|você|eles|elas|vocês|isso|isto|tudo|não|nunca|já|ainda|quem|onde|como|ninguém|alguém|também|sempre|assim)[ \\t\\u00a0]{1,8}(?<target>esta)[ \\t\\u00a0]{1,8}(?:bem|mal|certo|certa|errado|errada|pronto|pronta|ótimo|ótima|cheio|cheia|cansado|cansada|feliz|triste|doente|ocupado|ocupada|com|sem|em|no|na|nos|nas|muito|tão|sendo|quase|perto|longe|frio|quente|melhor|pior|confus[oa]s?|\\p{L}{3,}(?:ad|id)[oa]s?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["esta"],
+    fix: ["está"],
+  },
+  {
+    pattern:
+      "(?:onde|quem|aqui|ali|lá|cá|já)[ \\t\\u00a0]{1,8}(?<target>esta)(?=[ \\t\\u00a0]{0,2}[?!.])",
+    literals: ["esta"],
+    fix: ["está"],
+  },
+  {
+    pattern: "como[ \\t\\u00a0]{1,8}(?<target>esta)(?=[ \\t\\u00a0]{0,2}\\?)",
+    literals: ["como"],
+    fix: ["está"],
+  },
+  {
+    pattern: "tu[ \\t\\u00a0]{1,8}(?<target>estas)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["estas"],
+    fix: ["estás"],
+  },
+  {
+    pattern: "(?:me|te|lhe|lhes)[ \\t\\u00a0]{1,8}(?<target>da)[ \\t\\u00a0]{1,8}(?=\\p{L})",
+    literals: [],
+    fix: ["dá"],
+  },
+  {
+    pattern:
+      "(?:ele|ela|você|eles|elas|vocês|isso|isto|tudo|não|nunca|já|ainda|quem|onde|como|ninguém|alguém|também|sempre|assim)[ \\t\\u00a0]{1,8}(?<target>da)[ \\t\\u00a0]{1,8}(?:certo|errado|pra|para|tempo|conta|medo|raiva|vontade|sono|fome|sede|trabalho|aula|aulas|bola|resultado|jeito|resposta|chance|impressão|voltas|ouvidos|valor|importância|atenção)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "certo",
+      "errado",
+      "pra",
+      "para",
+      "tempo",
+      "conta",
+      "medo",
+      "raiva",
+      "vontade",
+      "sono",
+      "fome",
+      "sede",
+      "trabalho",
+      "aula",
+      "aulas",
+      "bola",
+      "resultado",
+      "jeito",
+      "resposta",
+      "chance",
+      "impressão",
+      "voltas",
+      "ouvidos",
+      "valor",
+      "importância",
+      "atenção",
+    ],
+    fix: ["dá"],
+  },
+  {
+    pattern:
+      "(?:ele|ela|você|eles|elas|vocês|isso|isto|tudo|não|nunca|já|ainda|quem|onde|como|ninguém|alguém|também|sempre|assim)[ \\t\\u00a0]{1,8}se[ \\t\\u00a0]{1,8}(?<target>da)[ \\t\\u00a0]{1,8}conta(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["conta"],
+    fix: ["dá"],
+  },
+  {
+    pattern: "não[ \\t\\u00a0]{1,8}(?<target>da)(?=[ \\t\\u00a0]{0,2}[!.])",
+    literals: ["não"],
+    fix: ["dá"],
+  },
+  {
+    pattern:
+      "(?:me|te|lhe|lhes)[ \\t\\u00a0]{1,8}(?<target>de)[ \\t\\u00a0]{1,8}(?:um|uma|o|a|os|as|mais|licença|atenção|razão|tempo|notícias|crédito|valor|importância|chance|trabalho|espaço|confiança)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fix: ["dê"],
+  },
+  {
+    pattern:
+      "que[ \\t\\u00a0]{1,8}(?:você|ele|ela|eles|elas|vocês|o[ \\t\\u00a0]{1,8}\\p{L}+|a[ \\t\\u00a0]{1,8}\\p{L}+)[ \\t\\u00a0]{1,8}(?<target>de)[ \\t\\u00a0]{1,8}(?:mais[ \\t\\u00a0]{1,8}|uma[ \\t\\u00a0]{1,8}(?=(?:chance|dica|olhada|mão|força|ajuda|resposta|oportunidade)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))?(?:crédito|atenção|valor|importância|licença|chance|razão|confiança|ouvidos|sorte|dica|olhada|mão|força|ajuda|resposta|oportunidade)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["que"],
+    fix: ["dê"],
+  },
+  {
+    pattern:
+      "(?<target>ouve)(?:[ \\t\\u00a0]{1,8}(?:algum|alguma|alguns|algumas|nenhum|nenhuma|muitos|muitas|vários|várias|um|uma|novos|novas|outros|outras|sérios|sérias|graves|pequenos|pequenas|grandes|poucos|poucas|tantos|tantas|\\d+|dois|duas|três|trinta)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])){0,2}[ \\t\\u00a0]{1,8}(?:problemas?|erros?|necessidade|mudanças?|complicaç(?:ão|ões)|aumento|alteraç(?:ão|ões)|falhas?|acidentes?|tempo|motivos?|casos?|vítimas|mortos|feridos|reclamaç(?:ão|ões)|atrasos?|dificuldades?|confusão|chance)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["ouve"],
+    fix: ["houve"],
+  },
+  {
+    pattern:
+      "(?<target>encima)[ \\t\\u00a0]{1,8}(?:de|da|do|das|dos|dele|dela|deles|delas|disso|disto|daquel\\p{L}*)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["encima"],
+    fix: ["em cima"],
+  },
+  {
+    pattern:
+      "(?:aqui|ali|lá|cá|aí|está|estava|ficou|pôs|caiu|subiu)[ \\t\\u00a0]{1,8}(?<target>encima)(?=[ \\t\\u00a0]{0,2}[.,;!?])",
+    literals: ["encima"],
+    fix: ["em cima"],
+  },
+  {
+    pattern:
+      "(?<!(?<![\\p{L}])(?:o|um|nenhum|seu|teu|meu|nosso|vosso|qualquer|cada|esse|este|aquele|sem|do|no|ao|pelo|dum|num|grande|verdadeiro|próprio)[ \\t\\u00a0]{1,8})(?<target>porquê)[ \\t\\u00a0]{1,8}(?=\\p{L}{2,}(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?!(?:de|da|do|das|dos)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["porquê"],
+    fix: ["porque", "por que"],
+    message: "review_msg_pt_por_que",
+  },
+  {
+    pattern:
+      "(?<target>afim)[ \\t\\u00a0]{1,8}(?=de[ \\t\\u00a0]{1,8}(?:que(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|\\p{L}+[aeiô]r(?:em|mos)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["afim"],
+    fix: ["a fim"],
+  },
+  {
+    pattern:
+      "(?<target>acerca)[ \\t\\u00a0]{1,8}(?=de[ \\t\\u00a0]{1,8}(?:\\d+|uns|umas|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|quarenta|cinquenta|sessenta|cem|duzentos|duzentas|trezentos|quinhentos|mil|meia|mei[oa][ \\t\\u00a0]{1,8}hora)[ \\t\\u00a0]{1,8}(?:anos|meses|dias|horas|minutos|semanas|segundos|décadas|séculos|ano|mês|dia|hora|minuto|semana)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["acerca"],
+    fix: ["há cerca", "a cerca"],
+  },
+  {
+    pattern:
+      "(?<target>acerca)[ \\t\\u00a0]{1,8}(?=de[ \\t\\u00a0]{1,8}(?:\\d+|uns|umas|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|quarenta|cinquenta|sessenta|cem|duzentos|duzentas|trezentos|quinhentos|mil|meia|mei[oa][ \\t\\u00a0]{1,8}hora)[ \\t\\u00a0]{1,8}(?:km|quilômetros?|metros?|milhas?|léguas?|quadras?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["acerca"],
+    fix: ["a cerca"],
+  },
+  {
+    pattern:
+      "(?<target>acerca)[ \\t\\u00a0]{1,8}(?=de[ \\t\\u00a0]{1,8}(?:\\d+|uns|umas|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|quarenta|cinquenta|sessenta|cem|duzentos|duzentas|trezentos|quinhentos|mil|meia|mei[oa][ \\t\\u00a0]{1,8}hora)[ \\t\\u00a0]{1,8}(?:pessoas|alunos|reais|dólares|euros|quilos|kg|toneladas|litros|casos|mortos|vítimas|participantes|habitantes|exemplares)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["acerca"],
+    fix: ["cerca"],
+  },
+  {
+    pattern:
+      "(?<target>aonde)[ \\t\\u00a0]{1,8}(?=(?:(?:você|vocês|ele|ela|eles|elas|eu|nós|tu|a[ \\t\\u00a0]{1,8}gente)[ \\t\\u00a0]{1,8})?(?:(?:não|já|ainda)[ \\t\\u00a0]{1,8})?(?:mora|moras|moram|moro|moramos|morava|moravam|fica|ficam|ficava|ficavam|está|estão|estava|estavam|estou|estás|trabalha|trabalham|trabalho|trabalhava|vive|vivem|vivo|vivia|estuda|estudam|estudo|nasceu|nasceram|nasci|reside|residem|se[ \\t\\u00a0]{1,8}encontra|se[ \\t\\u00a0]{1,8}encontram|fica)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["aonde"],
+    fix: ["onde"],
+  },
+  {
+    pattern:
+      "(?<target>senão)[ \\t\\u00a0]{1,8}(?=(?:(?:me|te|se|lhe|nos|o|a)[ \\t\\u00a0]{1,8})?(?:fosse|fossem|for|forem|fores|tivesse|tivessem|tiver|tiverem|houvesse|houver|puder|puderem|pudesse|quiser|quiserem|quisesse|estiver|estiverem|estivesse|fizer|fizerem|fizesse|der|derem|desse|vier|vierem|viesse|souber|soubesse|disser|dissesse|\\p{L}{2,}(?:asse|esse|isse)m?|\\p{L}{2,}[aei]rem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["senão"],
+    fix: ["se não"],
+  },
+  {
+    pattern:
+      "não[ \\t\\u00a0]{1,8}(?:só|somente|apenas)[ \\t\\u00a0]{1,8}[^.!?;\\n]{1,80}?(?<target>mais)(?=,?[ \\t\\u00a0]{1,8}também(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["mais"],
+    fix: ["mas"],
+  },
+  {
+    pattern:
+      "(?:dá|dava|deu|dar|daria|dará|é|era|foi|será|seria)[ \\t\\u00a0]{1,8}(?:para|pra)[ \\t\\u00a0]{1,8}(?<target>mim)[ \\t\\u00a0]{1,8}(?=\\p{L}*[aeiô]r(?:em|mos|es)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["para", "pra"],
+    fix: ["eu"],
+    message: "review_msg_pt_pronoun_case",
+  },
+  {
+    pattern:
+      "já[ \\t\\u00a0]{1,8}(?<target>fazem|faziam|fizeram|farão|fariam)[ \\t\\u00a0]{1,8}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca[ \\t\\u00a0]{1,8}de|mais[ \\t\\u00a0]{1,8}de|menos[ \\t\\u00a0]{1,8}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[ \\t\\u00a0]{1,8})(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante[ \\t\\u00a0]{1,8}tempo|muito[ \\t\\u00a0]{1,8}tempo)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["fazem", "faziam", "fizeram", "farão", "fariam"],
+    fixer: "pt_BR:ptFazem2",
+  },
+  {
+    pattern:
+      "(?<target>fazem|faziam|fizeram|farão|fariam)[ \\t\\u00a0]{1,8}já[ \\t\\u00a0]{1,8}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca[ \\t\\u00a0]{1,8}de|mais[ \\t\\u00a0]{1,8}de|menos[ \\t\\u00a0]{1,8}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[ \\t\\u00a0]{1,8})(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante[ \\t\\u00a0]{1,8}tempo|muito[ \\t\\u00a0]{1,8}tempo)[ \\t\\u00a0]{1,8}(?:que|desde)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["fazem", "faziam", "fizeram", "farão", "fariam"],
+    fixer: "pt_BR:ptFazem3",
+  },
+  {
+    pattern:
+      "(?<target>haviam|haverão|haveriam|houvessem|houverem|hajam|haverem)[ \\t\\u00a0]{1,8}(?=(?!(?:todos|todas|ambos|ambas|mesmos|mesmas|próprios|próprias|nos|vos|os|as|los|las|já|sido|estado|ele|elas|eles)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))\\p{L}{3,}s(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["haviam", "haverão", "haveriam", "houvessem", "houverem", "hajam", "haverem"],
+    fixer: "pt_BR:ptHaviam",
+  },
+  {
+    pattern:
+      "(?<target>case)[ \\t\\u00a0]{1,8}(?=(?:eles|elas|ele|ela|você|vocês|eu|nós|alguém|algo|ninguém|nada|tudo|não|os|as|boas|bons|muitos|muitas|haja|seja|tenha|queira|precise|precisem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["case"],
+    fix: ["caso"],
+    clauseStart: true,
+  },
+  {
+    pattern:
+      "(?:é|são|foi|foram|era|eram|será|serão|seria|seriam|seja|sejam|fosse|fossem|sido|ser|está|estão|estava|estavam|estar|esteja|estejam|ficou|ficaram|fica|ficam)[ \\t\\u00a0]{1,8}(?:(?:já|não|todo|toda|todos|todas|bem)[ \\t\\u00a0]{1,8})?(?<target>(?:gast|pag|ganh|aceit|eleg|prend|acend|suspend|expuls|imprim|limp|salv|solt|morr|benz|enxug|extingu)[ai]d[oa]s?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "gast",
+      "pag",
+      "ganh",
+      "aceit",
+      "eleg",
+      "prend",
+      "acend",
+      "suspend",
+      "expuls",
+      "imprim",
+      "limp",
+      "salv",
+      "solt",
+      "morr",
+      "benz",
+      "enxug",
+      "extingu",
+    ],
+    fixer: "pt_BR:ptGast",
+    message: "review_msg_pt_participle",
+  },
+  {
+    pattern:
+      "(?<target>ás)[ \\t\\u00a0]{1,8}(?=(?:\\d{1,2}(?:h|:\\d\\d|[ \\t\\u00a0]{1,8}horas)|(?:duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte(?:[ \\t\\u00a0]{1,8}e[ \\t\\u00a0]{1,8}(?:uma|duas|três))?)[ \\t\\u00a0]{1,8}horas|meia-noite|uma[ \\t\\u00a0]{1,8}hora)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fix: ["às"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?<target>de)[ \\t\\u00a0]{1,8}(?=(?:uma[ \\t\\u00a0]{1,8}(?:olhada|chance|mão|força|ajuda|passada|lida|conferida|espiada)|atenção|importância|ouvidos|licença|um[ \\t\\u00a0]{1,8}jeito|um[ \\t\\u00a0]{1,8}tempo|notícias)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fix: ["dê"],
+    clauseStart: true,
+  },
+  {
+    pattern:
+      "não[ \\t\\u00a0]{1,8}(?<target>de)[ \\t\\u00a0]{1,8}(?=(?:confiança|atenção|importância|ouvidos|bola|trela|moleza|bobeira|chance|mole)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["não"],
+    fix: ["dê"],
+  },
+  {
+    pattern:
+      "(?<target>esta)[ \\t\\u00a0]{1,8}(?=de[ \\t\\u00a0]{1,8}(?:saída|folga|férias|plantão|parabéns|luto|acordo|volta|passagem|brincadeira|castigo|dieta|cama|pé|olho|prontidão|mudança|licença|serviço|bem|mal)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["esta"],
+    fix: ["está"],
+  },
+  {
+    pattern:
+      "(?:vou|vais|vai|vamos|vão|ia|iam|irei|irás|irá|iremos|irão|iria|iríamos|iriam|ir)[ \\t\\u00a0]{1,8}(?<target>na|nas)[ \\t\\u00a0]{1,8}(?=(?:escola|praia|festa|igreja|missa|feira|academia|farmácia|padaria|faculdade|universidade|reunião|aula|piscina|fazenda|praça|loja|biblioteca|delegacia|prefeitura|cidade|capital|cozinha|sala|janela|rodoviária|lavanderia|oficina|creche|cerimônia|consulta|sessão|exposição)s?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fixer: "pt_BR:ptNa",
+    message: "review_msg_pt_regency",
+  },
+  {
+    pattern:
+      "(?:vou|vais|vai|vamos|vão|ia|iam|irei|irás|irá|iremos|irão|iria|iríamos|iriam|ir)[ \\t\\u00a0]{1,8}(?<target>no|nos)[ \\t\\u00a0]{1,8}(?=(?:cinema|teatro|shopping|mercado|supermercado|médico|dentista|banco|hospital|parque|clube|estádio|restaurante|escritório|museu|zoológico|show|jogo|aeroporto|centro|correio|cartório)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fixer: "pt_BR:ptNo",
+    message: "review_msg_pt_regency",
+  },
+  {
+    pattern:
+      "(?<target>devem|deviam|deveriam|deverão|podem|podiam|poderiam|poderão|vão|iam|irão|costumam|começam|continuam)[ \\t\\u00a0]{1,8}haver[ \\t\\u00a0]{1,8}(?!\\p{L}+[ai]d[oa](?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?=\\p{L})",
+    literals: ["haver"],
+    fixer: "pt_BR:ptDevem",
+  },
+  {
+    pattern:
+      "(?:evito|evita|evitam|evitamos|evitar|evitou|evitei|evitava|evitem|evite)[ \\t\\u00a0]{1,8}(?<target>de[ \\t\\u00a0]{1,8})(?=\\p{L}*[aeiô]r(?:em|mos|es)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [
+      "evito",
+      "evita",
+      "evitam",
+      "evitamos",
+      "evitar",
+      "evitou",
+      "evitei",
+      "evitava",
+      "evitem",
+      "evite",
+    ],
+    fix: [""],
+    message: "review_msg_pt_regency",
+  },
+  {
+    pattern:
+      "(?:penso|pensei|pensamos|acho|achei|achamos|creio|acredito|acreditamos|afirmo|afirmou|afirmaram|garanto|garantiu|espero|esperamos|sei|sabemos|parece|parecia|disse|disseram|imagino|suponho)[ \\t\\u00a0]{1,8}(?<target>de[ \\t\\u00a0]{1,8})(?=que(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [
+      "penso",
+      "pensei",
+      "pensamos",
+      "acho",
+      "achei",
+      "achamos",
+      "creio",
+      "acredito",
+      "acreditamos",
+      "afirmo",
+      "afirmou",
+      "afirmaram",
+      "garanto",
+      "garantiu",
+      "espero",
+      "esperamos",
+      "sei",
+      "sabemos",
+      "parece",
+      "parecia",
+      "disse",
+      "disseram",
+      "imagino",
+      "suponho",
+    ],
+    fix: [""],
+    message: "review_msg_pt_regency",
+  },
+  {
+    pattern:
+      "(?:o[ \\t\\u00a0]{1,8}que|algo|alguma[ \\t\\u00a0]{1,8}coisa)[ \\t\\u00a0]{1,8}(?<target>ouve)(?=[ \\t\\u00a0]{1,8}com(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{0,2}\\?)",
+    literals: ["ouve"],
+    fix: ["houve"],
+  },
+  {
+    pattern:
+      "(?<target>ouve)[ \\t\\u00a0]{1,8}(?=(?:algo|alguma[ \\t\\u00a0]{1,8}coisa|algum[ \\t\\u00a0]{1,8}problema)[ \\t\\u00a0]{1,8}(?:errado[ \\t\\u00a0]{1,8}|estranho[ \\t\\u00a0]{1,8})?com(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["ouve"],
+    fix: ["houve"],
+  },
+  {
+    pattern:
+      "eu[ \\t\\u00a0]{1,8}(?:(?:não|já|também|nunca|quase)[ \\t\\u00a0]{1,8})?(?<target>sai|cai|trai|atrai|distrai|contribui|possui|destrui|inclui|conclui|constrói|construi|influi|substitui|distribui|atribui|diminui)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!-)",
+    literals: [
+      "sai",
+      "cai",
+      "trai",
+      "atrai",
+      "distrai",
+      "contribui",
+      "possui",
+      "destrui",
+      "inclui",
+      "conclui",
+      "constrói",
+      "construi",
+      "influi",
+      "substitui",
+      "distribui",
+      "atribui",
+      "diminui",
+    ],
+    fixer: "pt_BR:ptSai",
+    message: "review_msg_pt_agreement",
+  },
+  {
+    pattern:
+      "(?<!(?:o|do|no|ao)[ \\t\\u00a0]{1,8})(?<target>tao)[ \\t\\u00a0]{1,8}(?=\\p{L}{3,}(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["tao"],
+    fix: ["tão"],
+  },
+  {
+    pattern:
+      "(?:pode|posso|podemos|podem|podia|quero|queremos|quer|queria|deve|devemos|devem|deveria|preciso|precisamos|precisa|precisam|para|sem|(?:tenho|temos|tem|têm|tens|tinha|tinham)[ \\t\\u00a0]{1,8}(?:que|de)|(?:há|hei)[ \\t\\u00a0]{1,8}de)[ \\t\\u00a0]{1,8}(?<target>por)[ \\t\\u00a0]{1,8}(?:o|a|os|as|em|termo|ordem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["por"],
+    fix: ["pôr"],
+  },
+  {
+    pattern:
+      "(?<!(?<![\\p{L}])(?:daqui|dali|daí|até|de|em|para|entre|e|ou|inferior|superior|igual|iguais|equivalente|acima|abaixo|perto|próximo|cerca|\\d+|um|uma|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|anos?|meses|mês|dias?|horas?|(?:reduz|limit|aument|pass|diminu|ampli|estend|prolong|encurt|fix|restring|condena|sentencia|equival|correspond|cheg|fic|est|situ|localiz|distan|volt|mor[aeo]|ir|vou|vai|vão)\\p{L}{0,10})[ \\t\\u00a0]{1,8})(?<target>a)[ \\t\\u00a0]{1,8}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca[ \\t\\u00a0]{1,8}de|mais[ \\t\\u00a0]{1,8}de|menos[ \\t\\u00a0]{1,8}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[ \\t\\u00a0]{1,8}){1,2}(?:anos|meses|semanas|dias|horas|séculos|décadas|minutos)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,2}(?:[.;!?]|$)|[ \\t\\u00a0]{1,8}(?:atrás|que)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["anos", "meses", "semanas", "dias", "horas", "séculos", "décadas", "minutos"],
+    fix: ["há"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?<target>da)[ \\t\\u00a0]{1,8}(?=de[ \\t\\u00a0]{1,8}(?:mamar|comer|beber|ombros|presente|cara[ \\t\\u00a0]{1,8}com|frente[ \\t\\u00a0]{1,8}com|graça)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fix: ["dá"],
+  },
+  {
+    pattern:
+      "(?:ele|ela|você|eles|elas|vocês|isso|isto|tudo|não|nunca|já|ainda|quem|onde|como|ninguém|alguém|também|sempre|assim)[ \\t\\u00a0]{1,8}nos[ \\t\\u00a0]{1,8}(?<target>da)[ \\t\\u00a0]{1,8}(?=\\p{L})",
+    literals: ["nos"],
+    fix: ["dá"],
+  },
+  {
+    pattern:
+      "(?:ele|ela|você|ninguém|alguém|quem)[ \\t\\u00a0]{1,8}(?:(?:não|já|sempre|também|nunca|ainda)[ \\t\\u00a0]{1,8})?(?<target>da)[ \\t\\u00a0]{1,8}(?=(?:bons|boas|muitos|muitas|vários|várias|\\p{L}{3,}(?:as|os|ões|es))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["ele", "ela", "você", "ninguém", "alguém", "quem"],
+    fix: ["dá"],
+  },
+  {
+    pattern:
+      "(?:prefiro|prefere|preferia|escolho|escolhi|escolheu|achei|pego|peguei|pegou|levo|levei|levou|compro|comprei|comprou|uso|usei|usou|é|era|foi|será|seria)[ \\t\\u00a0]{1,8}(?<target>está)(?=[ \\t\\u00a0]{0,2}(?:[.!?,;]|$))",
+    literals: ["está"],
+    fix: ["esta"],
+  },
+  {
+    pattern:
+      "(?<!que[ \\t\\u00a0]{1,8}(?:\\p{L}+[ \\t\\u00a0]{1,8})?)(?:quero|queria|queremos|quer)[ \\t\\u00a0]{1,8}(?<target>está)(?=[ \\t\\u00a0]{0,2}(?:[.!?]|$))",
+    literals: ["quero", "queria", "queremos", "quer"],
+    fix: ["esta"],
+  },
+  {
+    pattern:
+      "(?:a|para|de|por|sobre|em|entre|contra|perante)[ \\t\\u00a0]{1,8}(?<target>se)[ \\t\\u00a0]{1,8}(?=mesm[oa]s?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}assim(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: [],
+    fix: ["si"],
+  },
+  {
+    pattern:
+      "(?:traduzir|traduz|traduzo|traduzi|traduziu|traduzimos|traduzem|traduziram|traduza|traduzam|traduzia|traduziam)[ \\t\\u00a0]{1,8}(?:(?:o|a|os|as|isso|isto|tudo|ele|ela|eles|elas|\\p{L}+)[ \\t\\u00a0]{1,8}){0,3}?(?<target>em)[ \\t\\u00a0]{1,8}(?=(?:inglês|português|espanhol|francês|alemão|italiano|japonês|chinês|russo|árabe|holandês|grego|polonês|sueco|coreano|latim|libras|esperanto)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [
+      "traduzir",
+      "traduz",
+      "traduzo",
+      "traduzi",
+      "traduziu",
+      "traduzimos",
+      "traduzem",
+      "traduziram",
+      "traduza",
+      "traduzam",
+      "traduzia",
+      "traduziam",
+    ],
+    fix: ["para"],
+    message: "review_msg_pt_regency",
+  },
+  {
+    pattern:
+      "(?:ele|ela|você|quem|que|sempre|também|não|nunca|já)[ \\t\\u00a0]{1,8}(?<target>trás)[ \\t\\u00a0]{1,8}(?=(?:o|a|os|as|um|uma|uns|umas|consigo|de[ \\t\\u00a0]{1,8}volta|sempre|muita|muito|muitos|muitas|boas|bons|novidades|notícias)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["trás"],
+    fix: ["traz"],
+  },
+  {
+    pattern:
+      "(?:uma|da|na|nessa|nesta|naquela|dessa|desta|daquela|essa|esta|aquela|minha|sua|nossa|tua|cada|toda|qualquer|boa|última|primeira|mesma|pela|às|das|nas|duas|três|quatro|cinco|seis|oito|dez|doze|24|algumas|muitas|poucas)[ \\t\\u00a0]{1,8}(?<target>ora|oras)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!-)",
+    literals: ["ora", "oras"],
+    fixer: "pt_BR:ptOra",
+  },
+  {
+    pattern:
+      "(?:ser|é|era|foi|sou|está|estar|estava|ficar|ficou|fica|parece|parecia|andar|andares|anda|andava)[ \\t\\u00a0]{1,8}(?<target>tanto|tanta)[ \\t\\u00a0]{1,8}(?=\\p{L}{3,}(?:ad|id)[oa][ \\t\\u00a0]{1,8}(?:como|quanto)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?:ric[oa]|pobre|alt[oa]|baix[oa]|bonit[oa]|fei[oa]|forte|frac[oa]|inteligente|rápid[oa]|lent[oa]|grande|pequen[oa]|bom|boa|feliz|triste|car[oa]|barat[oa]|fácil|difícil|velh[oa]|nov[oa]|gord[oa]|magr[oa]|brav[oa]|calm[oa]|famos[oa]|bel[oa]|doente)[ \\t\\u00a0]{1,8}(?:como|quanto)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["tanto", "tanta"],
+    fix: ["tão"],
+  },
+  {
+    pattern:
+      "(?<target>esta)[ \\t\\u00a0]{1,8}(?=(?:podre|doente|triste|feliz|livre|disponível|ausente|contente|alegre|quente|fria|pronta|cansada|errada|certa|cheia|vazia|limpa|suja|seca|molhada|aberta|fechada|ocupada|quebrada|grávida|viva|morta|calma|tranquila|nervosa|preocupada|atrasada)[ \\t\\u00a0]{0,2}[.!?])",
+    literals: ["esta"],
+    fix: ["está"],
+  },
+  {
+    pattern:
+      "(?<target>mais[ \\t\\u00a0]{1,8}(?:bom|boa|bons|boas|mau|má|maus|más|grande|grandes))(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?]|$)|[ \\t\\u00a0]{1,8}(?:d[oa]s?|de[ \\t\\u00a0]{1,8}tod[oa]s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?:[ \\t\\u00a0]{1,8}do)?[ \\t\\u00a0]{1,8}que[ \\t\\u00a0]{1,8}(?:(?:o|a|os|as|um|uma|eu|ele|ela|eles|elas|você|vocês|nós|isso|isto|aquilo|est[ea]s?|ess[ea]s?|aquel[ea]s?|seu|sua|seus|suas|meu|minha|nosso|nossa|antes|ontem|hoje|nunca|sempre|qualquer|todos?|todas?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["mais"],
+    fixer: "pt_BR:ptMais",
+    message: "review_msg_pt_comparative",
+  },
+  {
+    pattern:
+      "(?<!(?:certeza|ideia|fato|facto|medo|receio|notícia|esperança|prova|sinal|dúvida|convicção|impressão|garantia|consciência|aviso|indício|suposição|hipótese|tese|alegação|afirmação|crença|argumento|opinião)[ \\t\\u00a0]{1,8})(?<target>de[ \\t\\u00a0]{1,8}que)[ \\t\\u00a0]{1,8}(?=(?:\\p{L}+[ \\t\\u00a0]{1,8}){0,3}(?:tem|têm|tinha|tinham|teve|tiveram|terá|terão|teria|teriam|tenho|temos|tens|tenha|tenham)[ \\t\\u00a0]{1,8}direito(?![ \\t\\u00a0]{1,8}(?:a|à|ao|às|aos|de|\\p{L}+(?:al|ais|iv[oa]s?|ic[oa]s?|ári[oa]s?))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["que"],
+    fix: ["a que"],
+    message: "review_msg_pt_regency",
+  },
+  {
+    pattern:
+      "entre[ \\t\\u00a0]{1,8}(?:(?:o|a)[ \\t\\u00a0]{1,8})?\\p{L}+[ \\t\\u00a0]{1,8}e[ \\t\\u00a0]{1,8}(?<target>eu|tu)(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?)]|$))",
+    literals: ["entre"],
+    fixer: "pt_BR:ptEu3",
+    message: "review_msg_pt_pronoun_case",
+  },
+  {
+    pattern:
+      "de[ \\t\\u00a0]{1,8}(?<target>eu)[ \\t\\u00a0]{1,8}(?=para[ \\t\\u00a0]{1,8}(?:o|a|ti|você|ele|ela|vocês|eles|elas)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fix: ["mim"],
+    message: "review_msg_pt_pronoun_case",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>Por[ \\t\\u00a0]{1,8}que)[ \\t\\u00a0]{1,8}(?!(?:razão|motivo|causa|raios)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?=[^.!?,\\n]{1,120}(?:[.!](?![.])|$))",
+    literals: ["por"],
+    fix: ["Porque"],
+    message: "review_msg_pt_por_que",
+    capitalized: true,
+  },
+  {
+    pattern:
+      "(?:é|foi|era)[ \\t\\u00a0]{1,8}(?<target>por[ \\t\\u00a0]{1,8}que)[ \\t\\u00a0]{1,8}(?=(?:o|a|os|as|ele|ela|eles|elas|eu|você|vocês|nós|não|isso|isto)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?![^.!?\\n]{0,120}\\?)",
+    literals: ["por"],
+    fix: ["porque"],
+    message: "review_msg_pt_por_que",
+  },
+  {
+    pattern:
+      "(?:eu|não|me|te|se|também|já|ainda|ele|ela|você)[ \\t\\u00a0]{1,8}(?<target>cinto|cinta|cintas|cintam)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!-)",
+    literals: ["cinto", "cinta", "cintas", "cintam"],
+    fixer: "pt_BR:ptCinto",
+  },
+  {
+    pattern: "(?<target>Cinto)[ \\t\\u00a0]{1,8}(?=muito(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["cinto"],
+    fix: ["Sinto"],
+    clauseStart: true,
+  },
+  {
+    pattern:
+      "(?<target>à)[ \\t\\u00a0]{1,8}(?=(?:norte|sul|leste|oeste|nordeste|noroeste|sudeste|sudoeste)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fix: ["ao", "a"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?<target>Está|Estás)[ \\t\\u00a0]{1,8}(?!(?:tudo|nada|bem|mal|certo|claro|ótimo|bom|tranquilo|difícil|fácil|aqui|ali|lá|longe|perto|tarde|cedo|frio|quente|escuro|calor|chato|feito|visto|provado|dito)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?=\\p{L}{3,}(?<!ndo|[ai]do)[ \\t\\u00a0]{1,8}(?:é|são|foi|foram|era|eram|será|serão|tem|têm|ficou|ficaram|parece|parecem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["está", "estás"],
+    fixer: "pt_BR:ptEstá",
+    clauseStart: true,
+    capitalized: true,
+  },
+  {
+    pattern:
+      "(?<=,)[ \\t\\u00a0]{1,8}(?<target>mais)[ \\t\\u00a0]{1,8}(?=não(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["mais"],
+    fix: ["mas"],
+  },
+  {
+    pattern:
+      "e[ \\t\\u00a0]{1,8}(?<target>mas)[ \\t\\u00a0]{1,8}(?=(?:tarde|cedo)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["mas"],
+    fix: ["mais"],
+  },
+  {
+    pattern:
+      "(?:tu|nunca|não|assim|o[ \\t\\u00a0]{1,8}que)[ \\t\\u00a0]{1,8}(?<target>vez)(?=[ \\t\\u00a0]{1,8}(?:o|a|os|as|isso|isto|aquilo|ninguém|nada|tudo|algo|alguém)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{0,2}[.?!])",
+    literals: ["vez"],
+    fix: ["vês"],
+  },
+  {
+    pattern:
+      "(?:é|são|era|eram|temos|tem|têm|tenho|tinha|havia|há|faltam|restam|resta|falta)[ \\t\\u00a0]{1,8}(?<target>sou)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["sou"],
+    fix: ["só"],
+  },
+  {
+    pattern:
+      "(?:como|onde|quando|quanto)[ \\t\\u00a0]{1,8}(?<target>foi|é|era|está|estava)[ \\t\\u00a0]{1,8}(?=(?:as|os|suas|seus|minhas|meus|tuas|teus|nossas|nossos)[ \\t\\u00a0]{1,8}\\p{L}{3,}s[ \\t\\u00a0]{0,2}\\?)",
+    literals: ["como", "onde", "quando", "quanto"],
+    fixer: "pt_BR:ptFoi",
+  },
+  {
+    pattern:
+      "(?:é|era|foi|será|seria|parece)[ \\t\\u00a0]{1,8}(?:fácil|difícil|possível|impossível|provável|improvável|importante|necessário|preciso|claro|óbvio|evidente|natural|normal|justo|bom|melhor)[ \\t\\u00a0]{1,8}(?<target>de[ \\t\\u00a0]{1,8})(?=que(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [
+      "fácil",
+      "difícil",
+      "possível",
+      "impossível",
+      "provável",
+      "improvável",
+      "importante",
+      "necessário",
+      "preciso",
+      "claro",
+      "óbvio",
+      "evidente",
+      "natural",
+      "normal",
+      "justo",
+      "bom",
+      "melhor",
+    ],
+    fix: [""],
+    message: "review_msg_pt_regency",
+  },
+  {
+    pattern:
+      "(?:alegra|agrada|convém|importa|basta|interessa|preocupa)-(?:me|te|lhe|nos|vos|lhes)[ \\t\\u00a0]{1,8}(?<target>de[ \\t\\u00a0]{1,8})(?=que(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["alegra", "agrada", "convém", "importa", "basta", "interessa", "preocupa"],
+    fix: [""],
+    message: "review_msg_pt_regency",
+  },
+  {
+    pattern:
+      "insist(?:o|e|es|imos|em|i|iu|iram|ia|iam|ir|a|as|am)[ \\t\\u00a0]{1,8}(?<target>de)[ \\t\\u00a0]{1,8}(?=que(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["insist"],
+    fix: ["em"],
+    message: "review_msg_pt_regency",
+  },
+  {
+    pattern:
+      "(?<!(?<![\\p{L}])(?:o|um|no|do|ao|pelo|num|dum|letra)[ \\t\\u00a0]{1,8})(?<target>á)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!-|\\.\\.|…)",
+    literals: [],
+    fix: ["à", "a"],
+    message: "review_msg_pt_crase",
+  },
+  {
+    pattern:
+      "(?:ele|ela|eles|elas|você|vocês|já|não|nunca|também|sempre|ainda)[ \\t\\u00a0]{1,8}(?<target>si)[ \\t\\u00a0]{1,8}(?!(?:mesm[oa]s?|própri[oa]s?|bemol|maior|menor|sustenido)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?=\\p{L}{3,}(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fix: ["se"],
+  },
+  {
+    pattern:
+      "(?:um|uma|algum|alguma|nenhum|nenhuma|qual|quais|cada[ \\t\\u00a0]{1,8}um|cada[ \\t\\u00a0]{1,8}uma|alguns|algumas|muitos|muitas|todos|todas|ambos)[ \\t\\u00a0]{1,8}de[ \\t\\u00a0]{1,8}(?<target>voz)(?=[ \\t\\u00a0]{0,2}[.,;:!?)]|[ \\t\\u00a0]{1,8}(?:que|se|o|a|me|lhe|nos|pode|poderá|poderia|deve|vai|irá|há|é|será|tem|sabe)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["voz"],
+    fix: ["vós"],
+  },
+  {
+    pattern:
+      "(?<target>tive|teve|tivemos|tiveram|tinha|tínhamos|tinham)[ \\t\\u00a0]{1,8}(?=de[ \\t\\u00a0]{1,8}(?:férias|folga|licença)(?:[ \\t\\u00a0]{0,2}(?:[.,;!?]|$)|[ \\t\\u00a0]{1,8}(?:em|no|na|até|desde|durante|com|por|e)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["tive", "teve", "tivemos", "tiveram", "tinha", "tínhamos", "tinham"],
+    fixer: "pt_BR:ptTive",
+    message: "review_msg_contextual_grammar",
+  },
+  {
+    pattern:
+      "(?<target>apôs)[ \\t\\u00a0]{1,8}(?=\\d{4}(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|\\d{1,3}[ \\t\\u00a0]{1,8}(?:anos|meses|semanas|dias|séculos|décadas|minutos|segundos)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["apôs"],
+    fix: ["após"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}][ \\t\\u00a0]{0,8})(?<target>agente)[ \\t\\u00a0]{1,8}(?=(?:vai|vamos|foi|fomos|pode|podia|tem|tinha|está|estava|fica|ficou|sabe|sabia|quer|queria|precisa|gosta|faz|fez|vê|viu|se|nunca|sempre|não|já|ainda|só)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["agente"],
+    fix: ["a gente"],
+    clauseStart: true,
+  },
+  {
+    pattern:
+      "(?:que|e|mas|porque|quando|se|então|aí)[ \\t\\u00a0]{1,8}(?<target>agente)[ \\t\\u00a0]{1,8}(?=(?:vai|vamos|foi|fomos|pode|podia|tem|tinha|está|estava|fica|ficou|sabe|sabia|quer|queria|precisa|gosta|faz|fez|vê|viu|se|nunca|sempre|não|já|ainda|só)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["agente"],
+    fix: ["a gente"],
+  },
+  {
+    pattern:
+      "(?:com|para|pra|sem|entre)[ \\t\\u00a0]{1,8}(?<target>agente)(?=[ \\t\\u00a0]{0,2}[.,;:!?])",
+    literals: ["agente"],
+    fix: ["a gente"],
+  },
+  {
+    pattern: "(?<target>pos|recem|alem|aquem)-(?=\\p{L})",
+    literals: ["pos", "recem", "alem", "aquem"],
+    fixer: "pt_BR:ptPos",
+  },
+  {
+    pattern:
+      "(?:(?:ele|ela|você|eles|elas|vocês|isso|isto|tudo|não|nunca|já|ainda|quem|onde|como|ninguém|alguém|também|sempre|assim)|qual|quando|o[ \\t\\u00a0]{1,8}que)[ \\t\\u00a0]{1,8}(?<target>sera|tera)[ \\t\\u00a0]{1,8}(?=\\p{L})",
+    literals: ["sera", "tera"],
+    fixer: "pt_BR:ptSera",
+  },
+  {
+    pattern:
+      "(?<target>sera)[ \\t\\u00a0]{1,8}(?=\\p{L}{2,}(?:ad|id)[oa]s?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["sera"],
+    fixer: "pt_BR:ptSera2",
+  },
+  {
+    pattern:
+      "(?<target>afe(?:ar|ia|iam|ei|ou|aram|ando|ado|ados|ada|adas))[ \\t\\u00a0]{1,8}(?:(?:[oa]s?|um|uma|uns|umas|meus?|minhas?|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?)[ \\t\\u00a0]{1,8}){0,2}(?:facas?|facões|facão|lâminas?|tesouras?|machados?|navalhas?|serrotes?|foices?|enxadas?|serras?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "faca",
+      "facões",
+      "facão",
+      "lâmina",
+      "tesoura",
+      "machado",
+      "navalha",
+      "serrote",
+      "foice",
+      "enxada",
+      "serra",
+    ],
+    fixer: "pt_BR:ptAfe",
+  },
+  {
+    pattern:
+      "(?<target>arre(?:ar|ia|iam|ei|ou|aram|ando|ado|ados|ada|adas))[ \\t\\u00a0]{1,8}(?:(?:[oa]s?|um|uma|uns|umas|meus?|minhas?|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?)[ \\t\\u00a0]{1,8}){0,2}(?:velas?|bandeiras?|âncoras?|calças)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["arre"],
+    fixer: "pt_BR:ptArre",
+  },
+  {
+    pattern:
+      "(?<target>comer|como|come|comemos|comem|comi|comeu|comeram|comia|comiam|comendo|comido)[ \\t\\u00a0]{1,8}(?:(?:[oa]s?|um|uma|uns|umas|meus?|minhas?|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?)[ \\t\\u00a0]{1,8}){0,2}(?:remédios?|medicamentos?|comprimidos?|pílulas?|antibióticos?|cápsulas?|analgésicos?|calmantes?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "remédio",
+      "medicamento",
+      "comprimido",
+      "pílula",
+      "antibiótico",
+      "cápsula",
+      "analgésico",
+      "calmante",
+    ],
+    fixer: "pt_BR:ptComer",
+    message: "review_msg_pt_word_choice",
+  },
+  {
+    pattern:
+      "(?<!(?:d[eoa]s?|n[oa]s?|aos?|às?|pel[oa]s?|para|com|sem)[ \\t\\u00a0]{1,8})(?:eventos?|reuni(?:ão|ões)|encontros?|cerimônias?|festas?|conferências?|congressos?|jogos?|partidas?|shows?|concertos?|casamentos?|julgamentos?|eleiç(?:ão|ões)|votaç(?:ão|ões)|debates?|exposiç(?:ão|ões)|feiras?|competiç(?:ão|ões)|torneios?|batalhas?|ataques?|acidentes?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:[ \\t\\u00a0]{1,8}(?!(?:d[eoa]s?|com|para|por|que|e)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[\\p{L}-]+){0,3}?[ \\t\\u00a0]{1,8}(?<target>toma|tomam|tomou|tomaram|tomará|tomarão|tomaria|tomariam|tomava|tomavam|tomasse|tomassem)[ \\t\\u00a0]{1,8}lugar[ \\t\\u00a0]{1,8}(?=(?:em|no|na|nos|nas|entre|durante|amanhã|hoje|ontem|às|neste|nesta|nesse|nessa|naquele|naquela)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["lugar"],
+    fixer: "pt_BR:ptToma",
+    message: "review_msg_pt_word_choice",
+  },
+  {
+    pattern:
+      "(?:pedir|peço|pede|pedem|pediu|pedi|pediram|dar|dou|dá|dão|deu|dei|deram|seguir|sigo|segue|seguem|seguiu|segui|ouvir|ouço|ouve|ouviu|ouvi|aceitar|aceito|aceita|aceitou|aceitei)[ \\t\\u00a0]{1,8}(?:(?:[oa]s?|um|uma|uns|umas|meus?|minhas?|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?)[ \\t\\u00a0]{1,8}){0,2}(?:(?:bons?|bom|algum|alguns|outro|outros)[ \\t\\u00a0]{1,8})?(?<target>concelhos?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["concelho"],
+    fixer: "pt_BR:ptConcelhos",
+  },
+  {
+    pattern:
+      "(?:assistir|assisto|assiste|assistimos|assistem|assisti|assistiu|assistiram|assistia|assistiam[ \\t\\u00a0]{1,8}(?:(?:a|ao|aos)[ \\t\\u00a0]{1,8})?(?:(?:um|uns|o|os|esse|este|aquele)[ \\t\\u00a0]{1,8})?|(?:vou|vai|vamos|vão|fui|foi|fomos|foram|ir|ia|iam)[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}(?:um|uns)[ \\t\\u00a0]{1,8})(?<target>consertos?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:d[eoa]s?|no|na)[ \\t\\u00a0]{1,8}(?!(?:rock|jazz|música|orquestra|banda|samba|forró|pagode)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["conserto"],
+    fixer: "pt_BR:ptConsertos",
+  },
+  {
+    pattern:
+      "(?<target>consertos?)[ \\t\\u00a0]{1,8}(?=(?:de[ \\t\\u00a0]{1,8}(?:rock|jazz|música|samba|forró|pagode)|da[ \\t\\u00a0]{1,8}(?:orquestra|banda)|sinfônicos?|ao[ \\t\\u00a0]{1,8}vivo)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["conserto"],
+    fixer: "pt_BR:ptConsertos2",
+  },
+  {
+    pattern:
+      "(?<target>amostras?)[ \\t\\u00a0]{1,8}(?=(?:de|d[eoa]s?)[ \\t\\u00a0]{1,8}(?:arte|artes|cinema|filmes|fotografia|fotografias|teatro|dança|design|pintura|escultura)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["amostra"],
+    fixer: "pt_BR:ptAmostras",
+    message: "review_msg_pt_word_choice",
+  },
+  {
+    pattern: "(?<target>contanto)[ \\t\\u00a0]{1,8}(?=com(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["contanto"],
+    fix: ["contando"],
+  },
+  {
+    pattern:
+      "(?<target>estive|esteve|estivemos|estiveram)[ \\t\\u00a0]{1,8}de[ \\t\\u00a0]{1,8}(?!(?:azar|mar|lugar|par|bar|amor|calor|favor|humor|cor|dor|pior|melhor|maior|menor)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?=\\p{L}{2,}[aeiô]r(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["estive", "esteve", "estivemos", "estiveram"],
+    fixer: "pt_BR:ptEstive",
+    message: "review_msg_pt_word_choice",
+  },
+  {
+    pattern:
+      "(?:muito|grande|enorme|profundo|especial|imenso|sincero|meu|nosso|seu|todo[ \\t\\u00a0]{1,8}o)[ \\t\\u00a0]{1,8}(?<target>a[ \\t\\u00a0]{1,8}preço)[ \\t\\u00a0]{1,8}(?=(?:por|pel[oa]s?|a|ao|à)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["preço"],
+    fix: ["apreço"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}])o[ \\t\\u00a0]{1,8}(?<target>mas)[ \\t\\u00a0]{1,8}(?=\\p{L}+[ \\t\\u00a0]{1,8}possíve(?:l|is)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["mas"],
+    fix: ["mais"],
+  },
+  {
+    pattern:
+      "(?<target>percas?)[ \\t\\u00a0]{1,8}(?=(?:de|d[eoa]s?)[ \\t\\u00a0]{1,8}(?:\\d|tempo|dinheiro|energia|peso|sangue|memória|vidas?|receitas?|produção|calor|carga|água|dados|qualidade|valor|empregos?|clientes)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["perca"],
+    fixer: "pt_BR:ptPercas",
+  },
+  {
+    pattern:
+      "(?:grandes|pequenas|muitas|enormes|várias|evitar|reduzir|sofreu|sofrer|sofreram|houve|haverá)[ \\t\\u00a0]{1,8}(?:as[ \\t\\u00a0]{1,8})?(?<target>percas)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["percas"],
+    fix: ["perdas"],
+  },
+  {
+    pattern:
+      "(?<!(?:para|pra|de|por|lá|cá|em|daí|dali|aí|ali|e|é|marcha|ré|frente|atrás)[ \\t\\u00a0]{1,8})(?<target>trás)[ \\t\\u00a0]{1,8}(?=(?:o|a|os|as|um|uma|uns|umas|seu|sua|seus|suas|meu|minha|consigo|muitos|muitas|isso|isto|tudo|sempre|novidades)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["trás"],
+    fix: ["traz"],
+  },
+  {
+    pattern:
+      "(?:último|próximo|penúltimo|novo|primeiro)[ \\t\\u00a0]{1,8}(?<target>sensos?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:de|comum|crítico|estético|moral|prático|ético|artístico)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["senso"],
+    fixer: "pt_BR:ptSensos",
+  },
+  {
+    pattern:
+      "(?:te|lhe|lhes|vos)[ \\t\\u00a0]{1,8}(?<target>peco)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["peco"],
+    fix: ["peço"],
+  },
+  {
+    pattern:
+      "(?<target>abordo)[ \\t\\u00a0]{1,8}(?=(?:d[oa]s?)[ \\t\\u00a0]{1,8}(?:\\p{L}+[ \\t\\u00a0]{1,8})?(?:navios?|aviões|avião|fragatas?|barcos?|naves?|aeronaves?|embarcaç(?:ão|ões)|trens?|cruzeiros?|iates?|submarinos?|helicópteros?|ônibus|veleiros?|lanchas?|caravelas?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["abordo"],
+    fix: ["a bordo"],
+  },
+  {
+    pattern:
+      "(?<target>se[ \\t\\u00a0]{1,8}caso)[ \\t\\u00a0]{1,8}(?=(?:ele|ela|eles|elas|você|vocês|nós|não|haja|seja|sejam|tenha|tenham|queira|queiram|precise|precisem|ocorra|aconteça)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["caso"],
+    fix: ["caso"],
+    message: "review_msg_contextual_grammar",
+  },
+  {
+    pattern:
+      "\\p{L}+(?<target>,?[ \\t\\u00a0]{1,8}e[ \\t\\u00a0]{1,8}etc)(?=\\.|…|(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["etc"],
+    fix: [", etc"],
+    message: "review_msg_contextual_grammar",
+  },
+  {
+    pattern: "(?<target>e\\.(?:[ \\t\\u00a0]{1,8})?t\\.(?:[ \\t\\u00a0]{1,8})?c\\.)",
+    literals: [],
+    fix: ["etc."],
+    message: "review_msg_contextual_grammar",
+  },
+  {
+    pattern:
+      "(?<![\\p{L}])(?:o|para|pra|de|com|sem|em)[ \\t\\u00a0]{1,8}(?<target>que)(?=[ \\t\\u00a0]{0,2}[?])",
+    literals: ["que"],
+    fix: ["quê"],
   },
 ];
 

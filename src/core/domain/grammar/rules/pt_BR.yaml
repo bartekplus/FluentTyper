@@ -1,10 +1,519 @@
 # pt_BR grammar rules. See docs/agents/grammar-rules.md for the format.
 lang: pt_BR
 
+# Regex fragments of the frame rules: {{NAME}}.
+fragments:
+  NOUN_LEAD: "(?:de|em|com|sem|um|uma|uns|umas|d[oa]s?|n[oa]|nas|pel[oa]s?|num|numa|dum|duma|est[ae]s?|ess[ae]s?|sua|suas|seu|seus|minha|minhas|meu|meus|nossa|nossas|nosso|nossos|cada|outra|outras|outro|outros|toda|longa|longas|nova|novas|boa|boas|primeira|última)"
+  NOT_ARTICLE_NEXT: "(?!\\p{L}+s(?![\\p{L}]))(?!(?:um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|tod[oa]s?|cada|qualquer|nenhum|nenhuma|cert[oa]s?|vári[oa]s|muit[oa]s?|pouc[oa]s?|dois|duas|três|seus?|suas?|meus?|minhas?|teus?|tuas?|nossos?|nossas?)(?![\\p{L}]))"
+  SHOWS: "filmes?|jogos?|programas?|shows?|espetáculos?|aulas?|novelas?|séries?|vídeos?|partidas?|apresentaç(?:ão|ões)|peças?|concertos?|palestras?|missas?|desfiles?|televisão|tv|telejornal|final|finais|corrida|luta|treino|ensaio"
+  ASSISTIR: "assist(?:o|e|es|imos|em|i|iu|iram|ia|iam|ir|indo|irei|irá|iremos|irão|iria|iriam|a|am)"
+  OBEDECER: "(?:des)?obedec(?:e|em|emos|i|eu|eram|ia|iam|er|endo|erei|erá|eremos|erão|eria|eriam)|(?:des)?obedeço|(?:des)?obedeça|(?:des)?obedeçam"
+  PREFERIR: "prefiro|prefere|preferes|preferimos|preferem|preferia|preferiam|preferiria|preferiríamos|preferi|preferiu|preferiram|preferir|preferível"
+  PLURAL_SUBJECT: "(?<!(?:de|para|com|sem|entre|a|por|sobre|contra|até|em|perante)[ \\t\\u00a0]{1,8})(?:eles|elas|vocês|uns|ambos|ambas|todos|todas|muitos|muitas|alguns|algumas|poucos|poucas)"
+  TER_VIR: "(?:con|de|man|ob|re|abs|sus|en|entre)?t[eé]m|(?:con|pro|inter|ad|sobre|pro)?v[eé]m"
+  MONTH: "janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro"
+  WEEKDAY: "(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo"
+  IS_ADJECTIVE: "(?:melhor|pior|possível|impossível|verdade|necessário|necessária|preciso|fácil|difícil|bom|boa|certo|errado|claro|importante|normal|obrigatório)"
+  SUBJECT: "(?:ele|ela|você|eles|elas|vocês|isso|isto|tudo|não|nunca|já|ainda|quem|onde|como|ninguém|alguém|também|sempre|assim)"
+  STATE: "(?:bem|mal|certo|certa|errado|errada|pronto|pronta|ótimo|ótima|cheio|cheia|cansado|cansada|feliz|triste|doente|ocupado|ocupada|com|sem|em|no|na|nos|nas|muito|tão|sendo|quase|perto|longe|frio|quente|melhor|pior|confus[oa]s?|\\p{L}{3,}(?:ad|id)[oa]s?)"
+  CLITIC: "(?:me|te|lhe|lhes)"
+  OCCURRENCE: "(?:problemas?|erros?|necessidade|mudanças?|complicaç(?:ão|ões)|aumento|alteraç(?:ão|ões)|falhas?|acidentes?|tempo|motivos?|casos?|vítimas|mortos|feridos|reclamaç(?:ão|ões)|atrasos?|dificuldades?|confusão|chance)"
+  OCCURRENCE_MODIFIER: "(?:algum|alguma|alguns|algumas|nenhum|nenhuma|muitos|muitas|vários|várias|um|uma|novos|novas|outros|outras|sérios|sérias|graves|pequenos|pequenas|grandes|poucos|poucas|tantos|tantas|\\d+|dois|duas|três|trinta)"
+  DESTINATIONS: "escola|praia|festa|igreja|missa|feira|academia|farmácia|padaria|faculdade|universidade|reunião|aula|piscina|fazenda|praça|loja|biblioteca|delegacia|prefeitura|cidade|capital|cozinha|sala|janela|rodoviária|lavanderia|oficina|creche|cerimônia|consulta|sessão|exposição"
+  MALE_DESTINATIONS: "cinema|teatro|shopping|mercado|supermercado|médico|dentista|banco|hospital|parque|clube|estádio|restaurante|escritório|museu|zoológico|show|jogo|aeroporto|centro|correio|cartório"
+  EVENT: "eventos?|reuni(?:ão|ões)|encontros?|cerimônias?|festas?|conferências?|congressos?|jogos?|partidas?|shows?|concertos?|casamentos?|julgamentos?|eleiç(?:ão|ões)|votaç(?:ão|ões)|debates?|exposiç(?:ão|ões)|feiras?|competiç(?:ão|ões)|torneios?|batalhas?|ataques?|acidentes?"
+  PLACE_NEXT: "em|no|na|nos|nas|entre|durante|amanhã|hoje|ontem|às|neste|nesta|nesse|nessa|naquele|naquela"
+  GIVE_ADVICE: "pedir|peço|pede|pedem|pediu|pedi|pediram|dar|dou|dá|dão|deu|dei|deram|seguir|sigo|segue|seguem|seguiu|segui|ouvir|ouço|ouve|ouviu|ouvi|aceitar|aceito|aceita|aceitou|aceitei"
+  ASSIST: "assistir|assisto|assiste|assistimos|assistem|assisti|assistiu|assistiram|assistia|assistiam"
+  GO: "vou|vai|vamos|vão|fui|foi|fomos|foram|ir|ia|iam"
+  SHOW: "arte|artes|cinema|filmes|fotografia|fotografias|teatro|dança|design|pintura|escultura"
+  NOT_INFINITIVE: "azar|mar|lugar|par|bar|amor|calor|favor|humor|cor|dor|pior|melhor|maior|menor"
+  LOSS: "\\d|tempo|dinheiro|energia|peso|sangue|memória|vidas?|receitas?|produção|calor|carga|água|dados|qualidade|valor|empregos?|clientes"
+
 rules:
   - id: pt_BR.accentParonyms
     checks: [portugueseAccentParonyms]
     predicate: accentParonyms
+  - id: pt_BR.confusionFrames
+    checks: [portugueseConfusions]
+    style: portuguese
+    message: review_msg_pt_homophone
+    frames:
+      # "uma viajem longa" -> "viagem", "do asso" -> "aço".
+      - regex: "{{NOUN_LEAD}}{{S}}(?<target>viajem|viajens|extirpe|extirpes|profetiza|profetizas|poetiza|poetizas|sinto|sintos|sinta|sintas|asso|assos|cerra|cerras){{E}}(?!-)"
+        fixer: ptViajem
+      - regex: "(?<![\\p{L}][ \\t\\u00a0]{0,8})[oa]s?{{S}}(?<target>viajem|viajens|extirpe|extirpes|profetiza|profetizas|poetiza|poetizas|sinto|sintos|sinta|sintas|asso|assos|cerra|cerras){{E}}(?!-)"
+        fixer: ptViajem2
+        clauseStart: true
+      # "que eles viagem" -> "viajem", "Não viagem sem seguro": the subjunctive is spelled with j.
+      - regex: "(?:(?:que|embora|caso){{S}}(?:eles|elas|vocês)|(?<!uma{{S}})não){{S}}(?<target>viagem){{E}}(?!{{S}}(?:é|foi|era|será){{E}})"
+        fix: ["viajem"]
+      # "assistir ao filme" (to watch); "assistir o paciente" (to help) keeps its object.
+      - regex: "{{ASSISTIR}}{{S}}(?<target>os?|as?(?={{S}}{{NOT_ARTICLE_NEXT}})){{S}}(?=(?:\\p{L}+{{S}})?(?:{{SHOWS}}){{E}})"
+        fixer: ptOs
+        message: review_msg_pt_regency
+      # "obedecer aos pais", "desobedecer à lei".
+      - regex: "(?:{{OBEDECER}}){{S}}(?<target>os?|as?(?={{S}}{{NOT_ARTICLE_NEXT}})){{S}}(?=\\p{L}{2,})"
+        fixer: ptOs2
+        message: review_msg_pt_regency
+      # "prefiro chá a café", not "do que café".
+      - regex: "(?:{{PREFERIR}}){{S}}(?:[^\\s.,;:!?]+{{S}}){1,5}(?<!(?:mais|menos|melhor|pior|maior|menor|antes|tanto){{S}})(?<target>do{{S}}que(?:{{S}}(?:o|a|os|as)(?={{S}}))?){{E}}"
+        fixer: ptDo
+        message: review_msg_pt_regency
+      # "eles tem" -> "eles têm", "elas contém" -> "elas contêm".
+      - regex: "{{PLURAL_SUBJECT}}{{S}}(?:(?:não|já|também|ainda|nunca|sempre|só|apenas|realmente){{E}}{{S}}){0,2}(?<target>{{TER_VIR}}){{E}}"
+        fixer: ptCon
+      # "Faz dez anos que", "fazia meses que": "fazer" for elapsed time has no subject.
+      - regex: "(?<target>fazem|faziam|fizeram|farão|fariam){{S}}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca{{S}}de|mais{{S}}de|menos{{S}}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem){{E}}{{S}})?(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante{{S}}tempo|muito{{S}}tempo){{S}}(?:que|desde){{E}}"
+        fixer: ptFazem
+      - regex: "(?<target>vão|iam|irão|podem|deviam|devem|costumam){{S}}fazer{{S}}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca{{S}}de|mais{{S}}de|menos{{S}}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem){{E}}{{S}})?(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante{{S}}tempo|muito{{S}}tempo){{S}}(?:que|desde){{E}}"
+        fixer: ptVão
+      # "está noite" -> "esta noite": the demonstrative before a part of the day.
+      - regex: "(?<!(?:já|ainda|lá|aqui|fora){{S}})(?<target>está){{S}}(?=(?:noite|semana|manhã|tarde|madrugada){{E}})"
+        fix: ["esta"]
+      # "esta" before a masculine participle or adjective is the verb: "o chão esta coberto".
+      - regex: "(?<target>esta){{S}}(?=(?:\\p{L}{2,}(?:ado|ido)|coberto|aberto|feito|morto|escrito|pronto|cheio|vazio|certo|bom|ótimo|lindo|frio|quente|limpo|sujo|seco|novo|velho){{E}})"
+        fix: ["está"]
+      # "esta a fazer" is the European progressive "está a fazer": a demonstrative never stands
+      # before "a" and an infinitive.
+      - regex: "(?<target>esta){{S}}(?=a{{S}}\\p{L}{2,}(?:ar|er|ir|or)(?:-\\p{L}+)?{{E}})"
+        fix: ["está"]
+      # "poço" (well) before an infinitive or an object pronoun is "posso" (I can).
+      - regex: "(?<!(?:o|um|do|no|ao|pelo|esse|este|aquele|seu|meu|nosso|teu|cada|algum|nenhum|qualquer|grande|pequeno|fundo|velho){{S}})(?<target>poço){{S}}(?=(?:me|te|lhe|lhes|nos|vos|se|\\p{L}+[aeiô]r){{E}})"
+        fix: ["posso"]
+      # "várias" (several) before a plural noun; "varias" is "you vary".
+      - regex: "(?<!tu{{S}}(?:não{{S}})?)(?<target>varias){{S}}(?=(?!(?:os|as|nos|vos|mais|menos|vezes{{S}}de){{E}})\\p{L}{2,}s{{E}})"
+        fix: ["várias"]
+      # "até" (until, even) before an article, a place or a time word; "ate" is a form of "atar".
+      - regex: "(?<!(?:que|se|quando|embora|talvez|caso){{S}}(?:\\p{L}{1,24}{{S}})?)(?<target>ate){{S}}(?=(?:o|a|os|as|ao|aos|à|às|aqui|ali|lá|onde|quando|minha|meu|sua|seu|nossa|nosso|\\d){{E}})"
+        fix: ["até"]
+      # A preposition takes "mim" and "ti" when no infinitive follows: "para mim", "entre mim e ti".
+      - regex: "(?:para|sem|contra|perante|a){{S}}(?<target>eu|tu)(?=[ \\t\\u00a0]{0,2}[.,;:!?)]|$)"
+        fixer: ptEu
+        message: review_msg_pt_pronoun_case
+      - regex: "entre{{S}}(?<target>eu|tu){{S}}(?=e{{E}})"
+        fixer: ptEu2
+        message: review_msg_pt_pronoun_case
+      # "Esse livro é para mim ler": the subject of the infinitive is "eu". Opening a clause,
+      # "Para mim estudar é difícil" may also mean "for me, studying is hard".
+      - regex: "(?:é|era|foi|será|seria|são|eram){{S}}para{{S}}(?<target>mim|ti){{S}}(?=\\p{L}*[aeiô]r(?:em|mos|es)?{{E}})"
+        fixer: ptMim
+        message: review_msg_pt_pronoun_case
+      - regex: "(?<=(?:^|[.!?;:][ \\t\\u00a0]{0,8}|\\n[ \\t\\u00a0]{0,8}))(?:para|pra){{S}}(?<target>mim|ti){{S}}(?=\\p{L}*[aeiô]r(?:em|mos|es)?{{E}})"
+        fixer: ptMim2
+        message: review_msg_pt_pronoun_case
+      # Crase: "à" before a span of time is "há" (it existed), after "daqui" plain "a".
+      - regex: "(?<!daqui{{S}})(?<target>à){{S}}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca{{S}}de|mais{{S}}de|menos{{S}}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem){{E}}{{S}}){0,2}(?:anos|meses|semanas|dias|séculos|décadas|minutos|segundos){{E}}"
+        fix: ["há"]
+        message: review_msg_pt_crase
+      - regex: "(?<target>à){{S}}(?:muito|pouco|bastante|algum|tanto){{S}}tempo{{E}}"
+        fix: ["há"]
+        message: review_msg_pt_crase
+      # "Ainda à muito para fazer": "há" (there is) before an amount.
+      - regex: "(?<target>à){{S}}(?:muito|pouco|bastante)(?={{S}}(?:para|que|a{{S}}fazer){{E}}|[ \\t\\u00a0]{0,2}[.,;!?])"
+        fix: ["há"]
+        message: review_msg_pt_crase
+      # "Não o vejo a muito tempo": time elapsed is "há"; "daqui a pouco tempo" is ahead.
+      - regex: "(?<!(?:daqui|dali|daí|até|de|em){{S}})(?<target>a){{S}}(?:muito|bastante){{S}}tempo{{E}}"
+        fix: ["há"]
+        message: review_msg_pt_crase
+      # "dês que", "dês do mês passado": "desde". "que tu dês do teu" is "dar".
+      - regex: "(?<!(?:me|te|lhe|nos|lhes|tu|que|não){{S}})(?<target>dês){{S}}(?=que{{E}})"
+        fix: ["desde"]
+      - regex: "(?<!(?:me|te|lhe|nos|lhes|tu|que|não){{S}})(?<target>dês{{S}}d(?<article>[oa]s?|e)){{E}}"
+        fixer: ptDês
+      # "pôr termo a", "vou pôr em prática": the verb "pôr" keeps its accent.
+      - regex: "(?<target>por){{S}}(?=termo{{S}}(?:a|ao|à|aos|às){{E}})"
+        fix: ["pôr"]
+      - regex: "(?:pode|posso|podemos|podem|podia|quero|queremos|quer|queria|deve|devemos|devem|deveria|preciso|precisamos|precisa|precisam|para|sem|(?:tenho|temos|tem|têm|tens|tinha|tinham){{S}}(?:que|de)|(?:há|hei){{S}}de){{S}}(?<target>por){{S}}(?=em{{S}}(?:prática|dúvida|risco|ordem|causa|cena|votação|funcionamento){{E}})"
+        fix: ["pôr"]
+      # A range "de X a Y" has no article, so no crase.
+      - regex: "de{{S}}(?:{{WEEKDAY}}|{{MONTH}}|\\d+){{E}}{{S}}(?<target>à){{S}}(?={{WEEKDAY}}|{{MONTH}}|\\d)"
+        fix: ["a"]
+        message: review_msg_pt_crase
+      # Clock times take the crase: "às 19h30".
+      - regex: "(?<!(?:entre|e|de|desde|após|até|para|por|todas|sobre|com|que){{S}})(?<target>as){{S}}(?=\\d{1,2}(?:h\\d{0,2}|:\\d\\d){{E}})"
+        fix: ["às"]
+        message: review_msg_pt_crase
+      - regex: "(?<!(?:entre|e|de|desde|após|até|para|por|todas|sobre|com|que){{S}})(?<target>as){{S}}(?=(?:duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte(?:{{S}}e{{S}}(?:uma|duas|três))?){{S}}horas{{E}})"
+        fix: ["às"]
+        message: review_msg_pt_crase
+      # "às vezes" (sometimes); "as vezes" is the noun: "todas as vezes", "as vezes em que".
+      - regex: "(?<!(?:todas|algumas|muitas|poucas|várias|tantas|quantas|das|nas|pelas|com|por|de|em|contei|conto|contar|lembro|lembrar){{S}})(?<target>as){{S}}vezes{{E}}(?!{{S}}(?:em{{S}}que|que|de|do|da|dos|das|anteriores|seguintes|passadas|necessárias|certas){{E}})"
+        fix: ["às"]
+        message: review_msg_pt_crase
+      # "ir às compras", "virar à direita".
+      - regex: "(?:vou|vai|vamos|vão|foi|fui|fomos|foram|ir|ia|iam|irei|iremos|irá){{S}}(?<target>as){{S}}compras{{E}}"
+        fix: ["às"]
+        message: review_msg_pt_crase
+      - regex: "(?:vire|virar|vira|virou|dobre|dobrar|dobra|dobrou|siga|seguir|segue|fica|ficam|ficava|ficavam|fique|está|estão|estava|sentou|sentado|sentada|sente){{S}}(?<target>a){{S}}(?:direita|esquerda){{E}}"
+        fix: ["à"]
+        message: review_msg_pt_crase
+      # A bare plural takes no article, so no crase: "à conclusões" -> "a conclusões".
+      - regex: "(?<target>à){{S}}(?!(?:mais|menos|demais|vezes|trois){{E}})\\p{L}{2,}(?:as|os|es|ns|is|ões|ães){{E}}"
+        fix: ["a"]
+        message: review_msg_pt_crase
+      # "por quê" closes a question; before more words it is "por que" (or "porque").
+      - regex: "(?<!(?<![\\p{L}])(?:o|um|nenhum|seu|qualquer){{S}})(?<target>por{{S}}quê){{S}}(?=\\p{L})"
+        fix: ["por que", "porque"]
+        message: review_msg_pt_por_que
+      # "porque?" and "por que?" at the end of a question are "por quê?".
+      - regex: "(?<!(?<![\\p{L}])(?:o|um|nenhum|seu|qualquer){{S}})(?<target>porque|por{{S}}que)(?=[ \\t\\u00a0]{0,2}\\?)"
+        fix: ["por quê"]
+        message: review_msg_pt_por_que
+      # The noun is "porquê": "o porquê de tudo", "nenhum porquê".
+      - regex: "(?:o|um|nenhum|seu|qualquer){{S}}(?<target>porque|por{{S}}que|por{{S}}quê)(?=[ \\t\\u00a0]{0,2}[.,;:!?]|{{S}}(?:de|da|do|das|dos|daquel\\p{L}*|dess\\p{L}*|dest\\p{L}*|disso|disto|daquilo){{E}})"
+        fix: ["porquê"]
+        message: review_msg_pt_por_que
+      # A question opened by "Porque" asks "Por que".
+      - regex: "(?<target>Porque){{S}}(?=[^.!?\\n]{1,120}\\?)"
+        fix: ["Por que"]
+        message: review_msg_pt_por_que
+        clauseStart: true
+      # "é" (is) after a subject or question word, before what is said of it.
+      - regex: "{{SUBJECT}}{{S}}(?<target>e){{S}}{{IS_ADJECTIVE}}{{E}}"
+        fix: ["é"]
+      - regex: "que{{S}}(?<target>e){{S}}{{IS_ADJECTIVE}}{{E}}(?=[^.!?\\n]{0,80}\\?)"
+        fix: ["é"]
+      - regex: "(?:onde|qual|quando|quanto|como|quem|o{{S}}que|por{{S}}que){{S}}(?<target>e){{S}}(?:o|a|os|as|um|uma){{E}}{{S}}(?!que{{E}})(?=[^.!?\\n]{0,80}\\?)"
+        fix: ["é"]
+        clauseStart: true
+      # "está": before a gerund, a state or a place, or closing "onde/como ... ?".
+      - regex: "(?<target>esta){{S}}(?!segundo{{E}})(?=\\p{L}+[aei]ndo{{E}})"
+        fix: ["está"]
+      - regex: "{{SUBJECT}}{{S}}(?<target>esta){{S}}{{STATE}}{{E}}"
+        fix: ["está"]
+      - regex: "(?:onde|quem|aqui|ali|lá|cá|já){{S}}(?<target>esta)(?=[ \\t\\u00a0]{0,2}[?!.])"
+        fix: ["está"]
+      # "como esta." compares ("uma situação como esta"); only the question is "como está?".
+      - regex: "como{{S}}(?<target>esta)(?=[ \\t\\u00a0]{0,2}\\?)"
+        fix: ["está"]
+      - regex: "tu{{S}}(?<target>estas){{E}}"
+        fix: ["estás"]
+      # "dá" and "dê" after an object pronoun, or "não da" closing an exclamation.
+      - regex: "{{CLITIC}}{{S}}(?<target>da){{S}}(?=\\p{L})"
+        fix: ["dá"]
+      - regex: "{{SUBJECT}}{{S}}(?<target>da){{S}}(?:certo|errado|pra|para|tempo|conta|medo|raiva|vontade|sono|fome|sede|trabalho|aula|aulas|bola|resultado|jeito|resposta|chance|impressão|voltas|ouvidos|valor|importância|atenção){{E}}"
+        fix: ["dá"]
+      - regex: "{{SUBJECT}}{{S}}se{{S}}(?<target>da){{S}}conta{{E}}"
+        fix: ["dá"]
+      - regex: "não{{S}}(?<target>da)(?=[ \\t\\u00a0]{0,2}[!.])"
+        fix: ["dá"]
+      - regex: "{{CLITIC}}{{S}}(?<target>de){{S}}(?:um|uma|o|a|os|as|mais|licença|atenção|razão|tempo|notícias|crédito|valor|importância|chance|trabalho|espaço|confiança){{E}}"
+        fix: ["dê"]
+      - regex: "que{{S}}(?:você|ele|ela|eles|elas|vocês|o{{S}}\\p{L}+|a{{S}}\\p{L}+){{S}}(?<target>de){{S}}(?:mais{{S}}|uma{{S}}(?=(?:chance|dica|olhada|mão|força|ajuda|resposta|oportunidade){{E}}))?(?:crédito|atenção|valor|importância|licença|chance|razão|confiança|ouvidos|sorte|dica|olhada|mão|força|ajuda|resposta|oportunidade){{E}}"
+        fix: ["dê"]
+      # "houve" (there was) before something that happened: "ouve problemas" -> "houve problemas".
+      - regex: "(?<target>ouve)(?:{{S}}{{OCCURRENCE_MODIFIER}}{{E}}){0,2}{{S}}{{OCCURRENCE}}{{E}}"
+        fix: ["houve"]
+      # "em cima" (on top) is two words; the verb "encimar" takes no "de" and ends no clause.
+      - regex: "(?<target>encima){{S}}(?:de|da|do|das|dos|dele|dela|deles|delas|disso|disto|daquel\\p{L}*){{E}}"
+        fix: ["em cima"]
+      - regex: "(?:aqui|ali|lá|cá|aí|está|estava|ficou|pôs|caiu|subiu){{S}}(?<target>encima)(?=[ \\t\\u00a0]{0,2}[.,;!?])"
+        fix: ["em cima"]
+      # "porquê" is the noun; before a clause it is "porque" (because) or "por que" (why).
+      - regex: "(?<!(?<![\\p{L}])(?:o|um|nenhum|seu|teu|meu|nosso|vosso|qualquer|cada|esse|este|aquele|sem|do|no|ao|pelo|dum|num|grande|verdadeiro|próprio){{S}})(?<target>porquê){{S}}(?=\\p{L}{2,}{{E}})(?!(?:de|da|do|das|dos){{E}})"
+        fix: ["porque", "por que"]
+        message: review_msg_pt_por_que
+      # "a fim de" (in order to); "afim" is the adjective "related".
+      - regex: "(?<target>afim){{S}}(?=de{{S}}(?:que{{E}}|\\p{L}+[aeiô]r(?:em|mos)?{{E}}))"
+        fix: ["a fim"]
+      # "acerca de" means "about a subject"; before an amount of time it is "há cerca de" (ago) or
+      # "a cerca de" (ahead), before a distance "a cerca de", before a count "cerca de".
+      - regex: "(?<target>acerca){{S}}(?=de{{S}}(?:\\d+|uns|umas|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|quarenta|cinquenta|sessenta|cem|duzentos|duzentas|trezentos|quinhentos|mil|meia|mei[oa]{{S}}hora){{S}}(?:anos|meses|dias|horas|minutos|semanas|segundos|décadas|séculos|ano|mês|dia|hora|minuto|semana){{E}})"
+        fix: ["há cerca", "a cerca"]
+      - regex: "(?<target>acerca){{S}}(?=de{{S}}(?:\\d+|uns|umas|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|quarenta|cinquenta|sessenta|cem|duzentos|duzentas|trezentos|quinhentos|mil|meia|mei[oa]{{S}}hora){{S}}(?:km|quilômetros?|metros?|milhas?|léguas?|quadras?){{E}})"
+        fix: ["a cerca"]
+      - regex: "(?<target>acerca){{S}}(?=de{{S}}(?:\\d+|uns|umas|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|quarenta|cinquenta|sessenta|cem|duzentos|duzentas|trezentos|quinhentos|mil|meia|mei[oa]{{S}}hora){{S}}(?:pessoas|alunos|reais|dólares|euros|quilos|kg|toneladas|litros|casos|mortos|vítimas|participantes|habitantes|exemplares){{E}})"
+        fix: ["cerca"]
+      # "aonde" asks where to; with a verb of being somewhere it is "onde".
+      - regex: "(?<target>aonde){{S}}(?=(?:(?:você|vocês|ele|ela|eles|elas|eu|nós|tu|a{{S}}gente){{S}})?(?:(?:não|já|ainda){{S}})?(?:mora|moras|moram|moro|moramos|morava|moravam|fica|ficam|ficava|ficavam|está|estão|estava|estavam|estou|estás|trabalha|trabalham|trabalho|trabalhava|vive|vivem|vivo|vivia|estuda|estudam|estudo|nasceu|nasceram|nasci|reside|residem|se{{S}}encontra|se{{S}}encontram|fica){{E}})"
+        fix: ["onde"]
+      # "se não" (if not) before a subjunctive: "senão fosse por ele" -> "se não fosse".
+      - regex: "(?<target>senão){{S}}(?=(?:(?:me|te|se|lhe|nos|o|a){{S}})?(?:fosse|fossem|for|forem|fores|tivesse|tivessem|tiver|tiverem|houvesse|houver|puder|puderem|pudesse|quiser|quiserem|quisesse|estiver|estiverem|estivesse|fizer|fizerem|fizesse|der|derem|desse|vier|vierem|viesse|souber|soubesse|disser|dissesse|\\p{L}{2,}(?:asse|esse|isse)m?|\\p{L}{2,}[aei]rem){{E}})"
+        fix: ["se não"]
+      # "não só ... mas também": the second half is "mas" (but).
+      - regex: "não{{S}}(?:só|somente|apenas){{S}}[^.!?;\\n]{1,80}?(?<target>mais)(?=,?{{S}}também{{E}})"
+        fix: ["mas"]
+      # "Dá pra mim fazer", "é pra mim ir": the subject of the infinitive is "eu".
+      - regex: "(?:dá|dava|deu|dar|daria|dará|é|era|foi|será|seria){{S}}(?:para|pra){{S}}(?<target>mim){{S}}(?=\\p{L}*[aeiô]r(?:em|mos|es)?{{E}})"
+        fix: ["eu"]
+        message: review_msg_pt_pronoun_case
+      # "Já fazem dois anos": elapsed-time "fazer" has no subject.
+      - regex: "já{{S}}(?<target>fazem|faziam|fizeram|farão|fariam){{S}}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca{{S}}de|mais{{S}}de|menos{{S}}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem){{E}}{{S}})(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante{{S}}tempo|muito{{S}}tempo){{E}}"
+        fixer: ptFazem2
+      - regex: "(?<target>fazem|faziam|fizeram|farão|fariam){{S}}já{{S}}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca{{S}}de|mais{{S}}de|menos{{S}}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem){{E}}{{S}})(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante{{S}}tempo|muito{{S}}tempo){{S}}(?:que|desde){{E}}"
+        fixer: ptFazem3
+      # Existential "haver" stays singular before a bare plural: "Enquanto houverem erros".
+      - regex: "(?<target>haviam|haverão|haveriam|houvessem|houverem|hajam|haverem){{S}}(?=(?!(?:todos|todas|ambos|ambas|mesmos|mesmas|próprios|próprias|nos|vos|os|as|los|las|já|sido|estado|ele|elas|eles){{E}})\\p{L}{3,}s{{E}})"
+        fixer: ptHaviam
+      # "Caso" (in case) opening a conditional; "Case" is a form of "casar".
+      - regex: "(?<target>case){{S}}(?=(?:eles|elas|ele|ela|você|vocês|eu|nós|alguém|algo|ninguém|nada|tudo|não|os|as|boas|bons|muitos|muitas|haja|seja|tenha|queira|precise|precisem){{E}})"
+        fix: ["caso"]
+        clauseStart: true
+      # Verbs whose short participle goes with "ser" and "estar": "foi gastado" -> "foi gasto".
+      - regex: "(?:é|são|foi|foram|era|eram|será|serão|seria|seriam|seja|sejam|fosse|fossem|sido|ser|está|estão|estava|estavam|estar|esteja|estejam|ficou|ficaram|fica|ficam){{S}}(?:(?:já|não|todo|toda|todos|todas|bem){{S}})?(?<target>(?:gast|pag|ganh|aceit|eleg|prend|acend|suspend|expuls|imprim|limp|salv|solt|morr|benz|enxug|extingu)[ai]d[oa]s?){{E}}"
+        fixer: ptGast
+        message: review_msg_pt_participle
+      # "às" before a clock time; "ás" is the card.
+      - regex: "(?<target>ás){{S}}(?=(?:\\d{1,2}(?:h|:\\d\\d|{{S}}horas)|(?:duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte(?:{{S}}e{{S}}(?:uma|duas|três))?){{S}}horas|meia-noite|uma{{S}}hora){{E}})"
+        fix: ["às"]
+        message: review_msg_pt_crase
+      # "Dê uma olhada", "Não dê ouvidos": the imperative of "dar".
+      - regex: "(?<target>de){{S}}(?=(?:uma{{S}}(?:olhada|chance|mão|força|ajuda|passada|lida|conferida|espiada)|atenção|importância|ouvidos|licença|um{{S}}jeito|um{{S}}tempo|notícias){{E}})"
+        fix: ["dê"]
+        clauseStart: true
+      - regex: "não{{S}}(?<target>de){{S}}(?=(?:confiança|atenção|importância|ouvidos|bola|trela|moleza|bobeira|chance|mole){{E}})"
+        fix: ["dê"]
+      # "está de saída", "está de acordo": "esta" is the demonstrative.
+      - regex: "(?<target>esta){{S}}(?=de{{S}}(?:saída|folga|férias|plantão|parabéns|luto|acordo|volta|passagem|brincadeira|castigo|dieta|cama|pé|olho|prontidão|mudança|licença|serviço|bem|mal){{E}})"
+        fix: ["está"]
+      # "ir à praia", "ir ao cinema": going somewhere takes "a", not "em".
+      - regex: "(?:vou|vais|vai|vamos|vão|ia|iam|irei|irás|irá|iremos|irão|iria|iríamos|iriam|ir){{S}}(?<target>na|nas){{S}}(?=(?:{{DESTINATIONS}})s?{{E}})"
+        fixer: ptNa
+        message: review_msg_pt_regency
+      - regex: "(?:vou|vais|vai|vamos|vão|ia|iam|irei|irás|irá|iremos|irão|iria|iríamos|iriam|ir){{S}}(?<target>no|nos){{S}}(?=(?:{{MALE_DESTINATIONS}}){{E}})"
+        fixer: ptNo
+        message: review_msg_pt_regency
+      # Existential "haver" after a modal keeps the modal singular: "Devem haver baratas".
+      - regex: "(?<target>devem|deviam|deveriam|deverão|podem|podiam|poderiam|poderão|vão|iam|irão|costumam|começam|continuam){{S}}haver{{S}}(?!\\p{L}+[ai]d[oa]{{E}})(?=\\p{L})"
+        fixer: ptDevem
+      # "evitar comer", not "evitar de comer".
+      - regex: "(?:evito|evita|evitam|evitamos|evitar|evitou|evitei|evitava|evitem|evite){{S}}(?<target>de{{S}})(?=\\p{L}*[aeiô]r(?:em|mos|es)?{{E}})"
+        fix: [""]
+        message: review_msg_pt_regency
+      # "Penso de que": a verb of thinking or saying takes "que" directly.
+      - regex: "(?:penso|pensei|pensamos|acho|achei|achamos|creio|acredito|acreditamos|afirmo|afirmou|afirmaram|garanto|garantiu|espero|esperamos|sei|sabemos|parece|parecia|disse|disseram|imagino|suponho){{S}}(?<target>de{{S}})(?=que{{E}})"
+        fix: [""]
+        message: review_msg_pt_regency
+      # "O que houve com ela?": "ouve" (hears) asked about something that happened.
+      - regex: "(?:o{{S}}que|algo|alguma{{S}}coisa){{S}}(?<target>ouve)(?={{S}}com{{E}}|[ \\t\\u00a0]{0,2}\\?)"
+        fix: ["houve"]
+      - regex: "(?<target>ouve){{S}}(?=(?:algo|alguma{{S}}coisa|algum{{S}}problema){{S}}(?:errado{{S}}|estranho{{S}})?com{{E}})"
+        fix: ["houve"]
+      # "Eu saí" (past) or "eu saio" (present): "sai" is "he leaves".
+      - regex: "eu{{S}}(?:(?:não|já|também|nunca|quase){{S}})?(?<target>sai|cai|trai|atrai|distrai|contribui|possui|destrui|inclui|conclui|constrói|construi|influi|substitui|distribui|atribui|diminui){{E}}(?!-)"
+        fixer: ptSai
+        message: review_msg_pt_agreement
+      # "tão" (so) before an adjective or adverb; "tao" is no Portuguese word outside "o Tao".
+      - regex: "(?<!(?:o|do|no|ao){{S}})(?<target>tao){{S}}(?=\\p{L}{3,}{{E}})"
+        fix: ["tão"]
+      # "pôr" (to put) after a modal: "por" + article would contract to "pelo".
+      - regex: "(?:pode|posso|podemos|podem|podia|quero|queremos|quer|queria|deve|devemos|devem|deveria|preciso|precisamos|precisa|precisam|para|sem|(?:tenho|temos|tem|têm|tens|tinha|tinham){{S}}(?:que|de)|(?:há|hei){{S}}de){{S}}(?<target>por){{S}}(?:o|a|os|as|em|termo|ordem){{E}}"
+        fix: ["pôr"]
+      # "Saiu a dois dias." -> "há dois dias": time gone by closing the clause. A range ("de dois a
+      # três anos"), a distance ("fica a duas horas") or a measure ("condenado a dez anos") keeps "a".
+      - regex: "(?<!(?<![\\p{L}])(?:daqui|dali|daí|até|de|em|para|entre|e|ou|inferior|superior|igual|iguais|equivalente|acima|abaixo|perto|próximo|cerca|\\d+|um|uma|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|anos?|meses|mês|dias?|horas?|(?:reduz|limit|aument|pass|diminu|ampli|estend|prolong|encurt|fix|restring|condena|sentencia|equival|correspond|cheg|fic|est|situ|localiz|distan|volt|mor[aeo]|ir|vou|vai|vão)\\p{L}{0,10}){{S}})(?<target>a){{S}}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca{{S}}de|mais{{S}}de|menos{{S}}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem){{E}}{{S}}){1,2}(?:anos|meses|semanas|dias|horas|séculos|décadas|minutos){{E}}(?=[ \\t\\u00a0]{0,2}(?:[.;!?]|$)|{{S}}(?:atrás|que){{E}})"
+        fix: ["há"]
+        message: review_msg_pt_crase
+      # "dá de mamar", "dá de ombros"; "nos da" after a subject; "Ele da aulas" before a plural.
+      - regex: "(?<target>da){{S}}(?=de{{S}}(?:mamar|comer|beber|ombros|presente|cara{{S}}com|frente{{S}}com|graça){{E}})"
+        fix: ["dá"]
+      - regex: "{{SUBJECT}}{{S}}nos{{S}}(?<target>da){{S}}(?=\\p{L})"
+        fix: ["dá"]
+      - regex: "(?:ele|ela|você|ninguém|alguém|quem){{S}}(?:(?:não|já|sempre|também|nunca|ainda){{S}})?(?<target>da){{S}}(?=(?:bons|boas|muitos|muitas|vários|várias|\\p{L}{3,}(?:as|os|ões|es)){{E}})"
+        fix: ["dá"]
+      # "Quero esta.", "A melhor é esta.": the demonstrative standing for a noun after a verb.
+      - regex: "(?:prefiro|prefere|preferia|escolho|escolhi|escolheu|achei|pego|peguei|pegou|levo|levei|levou|compro|comprei|comprou|uso|usei|usou|é|era|foi|será|seria){{S}}(?<target>está)(?=[ \\t\\u00a0]{0,2}(?:[.!?,;]|$))"
+        fix: ["esta"]
+      # "Quero está." -> "esta": a sentence ending in "quero está" wants this one. "O que ele quer
+      # está, no fundo, certo" makes "quer" a relative clause's verb, so a "que" before it stays.
+      - regex: "(?<!que{{S}}(?:\\p{L}+{{S}})?)(?:quero|queria|queremos|quer){{S}}(?<target>está)(?=[ \\t\\u00a0]{0,2}(?:[.!?]|$))"
+        fix: ["esta"]
+      # "salvar a se mesmo" -> "a si mesmo": after a preposition the reflexive is "si" ("se mesmo
+      # assim" is "even if").
+      - regex: "(?:a|para|de|por|sobre|em|entre|contra|perante){{S}}(?<target>se){{S}}(?=mesm[oa]s?{{E}}(?!{{S}}assim{{E}}))"
+        fix: ["si"]
+      # "Temos de traduzir em inglês" -> "para": one translates into a language.
+      - regex: "(?:traduzir|traduz|traduzo|traduzi|traduziu|traduzimos|traduzem|traduziram|traduza|traduzam|traduzia|traduziam){{S}}(?:(?:o|a|os|as|isso|isto|tudo|ele|ela|eles|elas|\\p{L}+){{S}}){0,3}?(?<target>em){{S}}(?=(?:inglês|português|espanhol|francês|alemão|italiano|japonês|chinês|russo|árabe|holandês|grego|polonês|sueco|coreano|latim|libras|esperanto){{E}})"
+        fix: ["para"]
+        message: review_msg_pt_regency
+      # "O Rui trás o material" -> "traz": after a subject and before an object, the verb "trazer".
+      - regex: "(?:ele|ela|você|quem|que|sempre|também|não|nunca|já){{S}}(?<target>trás){{S}}(?=(?:o|a|os|as|um|uma|uns|umas|consigo|de{{S}}volta|sempre|muita|muito|muitos|muitas|boas|bons|novidades|notícias){{E}})"
+        fix: ["traz"]
+      # "na minha ora de almoço" -> "hora": after a determiner "ora" is the noun ("de ora em diante",
+      # "por ora" stay).
+      - regex: "(?:uma|da|na|nessa|nesta|naquela|dessa|desta|daquela|essa|esta|aquela|minha|sua|nossa|tua|cada|toda|qualquer|boa|última|primeira|mesma|pela|às|das|nas|duas|três|quatro|cinco|seis|oito|dez|doze|24|algumas|muitas|poucas){{S}}(?<target>ora|oras){{E}}(?!-)"
+        fixer: ptOra
+      # "Quero ser tanto rico como ela" -> "tão": before an adjective and "como/quanto", after a
+      # copula, the intensifier is "tão" ("tanto dinheiro quanto" counts a noun).
+      - regex: "(?:ser|é|era|foi|sou|está|estar|estava|ficar|ficou|fica|parece|parecia|andar|andares|anda|andava){{S}}(?<target>tanto|tanta){{S}}(?=\\p{L}{3,}(?:ad|id)[oa]{{S}}(?:como|quanto){{E}}|(?:ric[oa]|pobre|alt[oa]|baix[oa]|bonit[oa]|fei[oa]|forte|frac[oa]|inteligente|rápid[oa]|lent[oa]|grande|pequen[oa]|bom|boa|feliz|triste|car[oa]|barat[oa]|fácil|difícil|velh[oa]|nov[oa]|gord[oa]|magr[oa]|brav[oa]|calm[oa]|famos[oa]|bel[oa]|doente){{S}}(?:como|quanto){{E}})"
+        fix: ["tão"]
+      # "A fruta esta podre." -> "está": a state closing the sentence.
+      - regex: "(?<target>esta){{S}}(?=(?:podre|doente|triste|feliz|livre|disponível|ausente|contente|alegre|quente|fria|pronta|cansada|errada|certa|cheia|vazia|limpa|suja|seca|molhada|aberta|fechada|ocupada|quebrada|grávida|viva|morta|calma|tranquila|nervosa|preocupada|atrasada)[ \\t\\u00a0]{0,2}[.!?])"
+        fix: ["está"]
+      # "mais bom" -> "melhor", "mais grande" -> "maior"; "mais bom do que mau" compares qualities.
+      - regex: "(?<target>mais{{S}}(?:bom|boa|bons|boas|mau|má|maus|más|grande|grandes))(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?]|$)|{{S}}(?:d[oa]s?|de{{S}}tod[oa]s){{E}}|(?:{{S}}do)?{{S}}que{{S}}(?:(?:o|a|os|as|um|uma|eu|ele|ela|eles|elas|você|vocês|nós|isso|isto|aquilo|est[ea]s?|ess[ea]s?|aquel[ea]s?|seu|sua|seus|suas|meu|minha|nosso|nossa|antes|ontem|hoje|nunca|sempre|qualquer|todos?|todas?){{E}}))"
+        fixer: ptMais
+        message: review_msg_pt_comparative
+      # "o apoio de que tem direito" -> "a que": "ter direito a" keeps its "a" before "que".
+      - regex: "(?<!(?:certeza|ideia|fato|facto|medo|receio|notícia|esperança|prova|sinal|dúvida|convicção|impressão|garantia|consciência|aviso|indício|suposição|hipótese|tese|alegação|afirmação|crença|argumento|opinião){{S}})(?<target>de{{S}}que){{S}}(?=(?:\\p{L}+{{S}}){0,3}(?:tem|têm|tinha|tinham|teve|tiveram|terá|terão|teria|teriam|tenho|temos|tens|tenha|tenham){{S}}direito(?!{{S}}(?:a|à|ao|às|aos|de|\\p{L}+(?:al|ais|iv[oa]s?|ic[oa]s?|ári[oa]s?)){{E}}))"
+        fix: ["a que"]
+        message: review_msg_pt_regency
+      # "entre você e eu" -> "e mim": both pronouns after "entre" take the prepositional form.
+      - regex: "entre{{S}}(?:(?:o|a){{S}})?\\p{L}+{{S}}e{{S}}(?<target>eu|tu)(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?)]|$))"
+        fixer: ptEu3
+        message: review_msg_pt_pronoun_case
+      - regex: "de{{S}}(?<target>eu){{S}}(?=para{{S}}(?:o|a|ti|você|ele|ela|vocês|eles|elas){{E}})"
+        fix: ["mim"]
+        message: review_msg_pt_pronoun_case
+      # A statement opened by "Por que" is the cause "Porque": "Por que choveu." answers.
+      - regex: "(?<=(?:^|[.!?]{{S}}|\\n[ \\t\\u00a0]{0,8}))(?<target>Por{{S}}que){{S}}(?!(?:razão|motivo|causa|raios){{E}})(?=[^.!?,\\n]{1,120}(?:[.!](?![.])|$))"
+        fix: ["Porque"]
+        message: review_msg_pt_por_que
+        capitalized: true
+      - regex: "(?:é|foi|era){{S}}(?<target>por{{S}}que){{S}}(?=(?:o|a|os|as|ele|ela|eles|elas|eu|você|vocês|nós|não|isso|isto){{E}})(?![^.!?\\n]{0,120}\\?)"
+        fix: ["porque"]
+        message: review_msg_pt_por_que
+      # "Eu cinto muito" -> "sinto": "sentir" after its subject or a pronoun.
+      - regex: "(?:eu|não|me|te|se|também|já|ainda|ele|ela|você){{S}}(?<target>cinto|cinta|cintas|cintam){{E}}(?!-)"
+        fixer: ptCinto
+      - regex: "(?<target>Cinto){{S}}(?=muito{{E}})"
+        fix: ["Sinto"]
+        clauseStart: true
+      # "Fica ao norte": cardinal points are masculine.
+      - regex: "(?<target>à){{S}}(?=(?:norte|sul|leste|oeste|nordeste|noroeste|sudeste|sudoeste){{E}})"
+        fix: ["ao", "a"]
+        message: review_msg_pt_crase
+      # "Está casa é linda" -> "Esta": the demonstrative opening a subject before its verb.
+      - regex: "(?<target>Está|Estás){{S}}(?!(?:tudo|nada|bem|mal|certo|claro|ótimo|bom|tranquilo|difícil|fácil|aqui|ali|lá|longe|perto|tarde|cedo|frio|quente|escuro|calor|chato|feito|visto|provado|dito){{E}})(?=\\p{L}{3,}(?<!ndo|[ai]do){{S}}(?:é|são|foi|foram|era|eram|será|serão|tem|têm|ficou|ficaram|parece|parecem){{E}})"
+        fixer: ptEstá
+        clauseStart: true
+        capitalized: true
+      # ", mais não o bastante" -> "mas": after a comma, before a negation, "but".
+      - regex: "(?<=,){{S}}(?<target>mais){{S}}(?=não{{E}})"
+        fix: ["mas"]
+      - regex: "e{{S}}(?<target>mas){{S}}(?=(?:tarde|cedo){{E}})"
+        fix: ["mais"]
+      # "Nunca vez o Rui?" -> "vês": the verb "ver" after its subject or a negation.
+      - regex: "(?:tu|nunca|não|assim|o{{S}}que){{S}}(?<target>vez)(?={{S}}(?:o|a|os|as|isso|isto|aquilo|ninguém|nada|tudo|algo|alguém){{E}}|[ \\t\\u00a0]{0,2}[.?!])"
+        fix: ["vês"]
+      # "Temos sou duas fotos" -> "só": "sou" never follows another verb.
+      - regex: "(?:é|são|era|eram|temos|tem|têm|tenho|tinha|havia|há|faltam|restam|resta|falta){{S}}(?<target>sou){{E}}"
+        fix: ["só"]
+      # "Como foi suas férias?" -> "foram": a plural subject after the verb of the question.
+      - regex: "(?:como|onde|quando|quanto){{S}}(?<target>foi|é|era|está|estava){{S}}(?=(?:as|os|suas|seus|minhas|meus|tuas|teus|nossas|nossos){{S}}\\p{L}{3,}s[ \\t\\u00a0]{0,2}\\?)"
+        fixer: ptFoi
+      # "É fácil de que", "Alegra-me de que": an adjective of "ser" or a verb with a dative pronoun
+      # takes the clause directly; "insistir" governs "em".
+      - regex: "(?:é|era|foi|será|seria|parece){{S}}(?:fácil|difícil|possível|impossível|provável|improvável|importante|necessário|preciso|claro|óbvio|evidente|natural|normal|justo|bom|melhor){{S}}(?<target>de{{S}})(?=que{{E}})"
+        fix: [""]
+        message: review_msg_pt_regency
+      - regex: "(?:alegra|agrada|convém|importa|basta|interessa|preocupa)-(?:me|te|lhe|nos|vos|lhes){{S}}(?<target>de{{S}})(?=que{{E}})"
+        fix: [""]
+        message: review_msg_pt_regency
+      - regex: "insist(?:o|e|es|imos|em|i|iu|iram|ia|iam|ir|a|as|am){{S}}(?<target>de){{S}}(?=que{{E}})"
+        fix: ["em"]
+        message: review_msg_pt_regency
+      # "Fui á praia" -> "à" or "a": a lone "a" takes the grave accent or none. "o á" is the letter,
+      # and "Á..." is a cut-off word.
+      - regex: "(?<!(?<![\\p{L}])(?:o|um|no|do|ao|pelo|num|dum|letra){{S}})(?<target>á){{E}}(?!-|\\.\\.|…)"
+        fix: ["à", "a"]
+        message: review_msg_pt_crase
+      # "ele já si cansou" -> "se": "si" only comes after a preposition ("para si", "em si").
+      - regex: "(?:ele|ela|eles|elas|você|vocês|já|não|nunca|também|sempre|ainda){{S}}(?<target>si){{S}}(?!(?:mesm[oa]s?|própri[oa]s?|bemol|maior|menor|sustenido){{E}})(?=\\p{L}{3,}{{E}})"
+        fix: ["se"]
+      # "algum de voz sabe" -> "de vós": "one of you" takes the pronoun.
+      - regex: "(?:um|uma|algum|alguma|nenhum|nenhuma|qual|quais|cada{{S}}um|cada{{S}}uma|alguns|algumas|muitos|muitas|todos|todas|ambos){{S}}de{{S}}(?<target>voz)(?=[ \\t\\u00a0]{0,2}[.,;:!?)]|{{S}}(?:que|se|o|a|me|lhe|nos|pode|poderá|poderia|deve|vai|irá|há|é|será|tem|sabe){{E}})"
+        fix: ["vós"]
+      # "Em maio tive de férias" -> "estive": one is ("estar") on holiday, not has to.
+      - regex: "(?<target>tive|teve|tivemos|tiveram|tinha|tínhamos|tinham){{S}}(?=de{{S}}(?:férias|folga|licença)(?:[ \\t\\u00a0]{0,2}(?:[.,;!?]|$)|{{S}}(?:em|no|na|até|desde|durante|com|por|e){{E}}))"
+        fixer: ptTive
+        message: review_msg_contextual_grammar
+      # "Apôs 1990" -> "Após": "apôs" is the verb "apor"; a year or a span follows the preposition.
+      - regex: "(?<target>apôs){{S}}(?=\\d{4}{{E}}|\\d{1,3}{{S}}(?:anos|meses|semanas|dias|séculos|décadas|minutos|segundos){{E}})"
+        fix: ["após"]
+      # "agente vai" -> "a gente vai": "we" is two words; "agente" is an agent. Only where no
+      # determiner can stand before the noun.
+      - regex: "(?<![\\p{L}][ \\t\\u00a0]{0,8})(?<target>agente){{S}}(?=(?:vai|vamos|foi|fomos|pode|podia|tem|tinha|está|estava|fica|ficou|sabe|sabia|quer|queria|precisa|gosta|faz|fez|vê|viu|se|nunca|sempre|não|já|ainda|só){{E}})"
+        fix: ["a gente"]
+        clauseStart: true
+      - regex: "(?:que|e|mas|porque|quando|se|então|aí){{S}}(?<target>agente){{S}}(?=(?:vai|vamos|foi|fomos|pode|podia|tem|tinha|está|estava|fica|ficou|sabe|sabia|quer|queria|precisa|gosta|faz|fez|vê|viu|se|nunca|sempre|não|já|ainda|só){{E}})"
+        fix: ["a gente"]
+      - regex: "(?:com|para|pra|sem|entre){{S}}(?<target>agente)(?=[ \\t\\u00a0]{0,2}[.,;:!?])"
+        fix: ["a gente"]
+      # "pos-graduação" -> "pós-": these prefixes are stressed and take their accent.
+      - regex: "(?<target>pos|recem|alem|aquem)-(?=\\p{L})"
+        fixer: ptPos
+      # "ela sera chamada", "você tera tempo" -> "será", "terá": the future of ser and ter has an
+      # accent; "sera" and "tera" are other words.
+      - regex: "(?:{{SUBJECT}}|qual|quando|o{{S}}que){{S}}(?<target>sera|tera){{S}}(?=\\p{L})"
+        fixer: ptSera
+      - regex: "(?<target>sera){{S}}(?=\\p{L}{2,}(?:ad|id)[oa]s?{{E}})"
+        fixer: ptSera2
+      # "afear a faca" (make ugly) -> "afiar" (sharpen).
+      - regex: "(?<target>afe(?:ar|ia|iam|ei|ou|aram|ando|ado|ados|ada|adas)){{S}}(?:(?:[oa]s?|um|uma|uns|umas|meus?|minhas?|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?){{S}}){0,2}(?:facas?|facões|facão|lâminas?|tesouras?|machados?|navalhas?|serrotes?|foices?|enxadas?|serras?){{E}}"
+        fixer: ptAfe
+      # "arrear a bandeira" (harness) -> "arriar" (lower).
+      - regex: "(?<target>arre(?:ar|ia|iam|ei|ou|aram|ando|ado|ados|ada|adas)){{S}}(?:(?:[oa]s?|um|uma|uns|umas|meus?|minhas?|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?){{S}}){0,2}(?:velas?|bandeiras?|âncoras?|calças){{E}}"
+        fixer: ptArre
+      # "comer os remédios" -> "tomar": medicine is taken.
+      - regex: "(?<target>comer|como|come|comemos|comem|comi|comeu|comeram|comia|comiam|comendo|comido){{S}}(?:(?:[oa]s?|um|uma|uns|umas|meus?|minhas?|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?){{S}}){0,2}(?:remédios?|medicamentos?|comprimidos?|pílulas?|antibióticos?|cápsulas?|analgésicos?|calmantes?){{E}}"
+        fixer: ptComer
+        message: review_msg_pt_word_choice
+      # "O evento tomará lugar em" -> "terá lugar": an event takes place with "ter lugar"; a
+      # person "toma lugar" (takes a seat).
+      - regex: "(?<!(?:d[eoa]s?|n[oa]s?|aos?|às?|pel[oa]s?|para|com|sem){{S}})(?:{{EVENT}}){{E}}(?:{{S}}(?!(?:d[eoa]s?|com|para|por|que|e){{E}})[\\p{L}-]+){0,3}?{{S}}(?<target>toma|tomam|tomou|tomaram|tomará|tomarão|tomaria|tomariam|tomava|tomavam|tomasse|tomassem){{S}}lugar{{S}}(?=(?:{{PLACE_NEXT}}){{E}})"
+        fixer: ptToma
+        message: review_msg_pt_word_choice
+      # "pedir um concelho" -> "conselho": a "concelho" is a council area.
+      - regex: "(?:{{GIVE_ADVICE}}){{S}}(?:(?:[oa]s?|um|uma|uns|umas|meus?|minhas?|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?){{S}}){0,2}(?:(?:bons?|bom|algum|alguns|outro|outros){{S}})?(?<target>concelhos?){{E}}"
+        fixer: ptConcelhos
+      # "assistir a um conserto", "vou a um conserto" -> "concerto": a "conserto" is a repair
+      # ("levou o carro ao conserto").
+      - regex: "(?:{{ASSIST}}{{S}}(?:(?:a|ao|aos){{S}})?(?:(?:um|uns|o|os|esse|este|aquele){{S}})?|(?:{{GO}}){{S}}a{{S}}(?:um|uns){{S}})(?<target>consertos?){{E}}(?!{{S}}(?:d[eoa]s?|no|na){{S}}(?!(?:rock|jazz|música|orquestra|banda|samba|forró|pagode){{E}}))"
+        fixer: ptConsertos
+      - regex: "(?<target>consertos?){{S}}(?=(?:de{{S}}(?:rock|jazz|música|samba|forró|pagode)|da{{S}}(?:orquestra|banda)|sinfônicos?|ao{{S}}vivo){{E}})"
+        fixer: ptConsertos2
+      # "a amostra de arte" -> "mostra": an exhibition is a "mostra"; an "amostra" is a sample.
+      - regex: "(?<target>amostras?){{S}}(?=(?:de|d[eoa]s?){{S}}(?:{{SHOW}}){{E}})"
+        fixer: ptAmostras
+        message: review_msg_pt_word_choice
+      # "contanto com" -> "contando com": "contanto" only opens "contanto que".
+      - regex: "(?<target>contanto){{S}}(?=com{{E}})"
+        fix: ["contando"]
+      # "estivemos de sair" -> "tivemos de sair": obligation is "ter de".
+      - regex: "(?<target>estive|esteve|estivemos|estiveram){{S}}de{{S}}(?!(?:{{NOT_INFINITIVE}}){{E}})(?=\\p{L}{2,}[aeiô]r{{E}})"
+        fixer: ptEstive
+        message: review_msg_pt_word_choice
+      # "tenho muito a preço por ele" -> "apreço" (esteem).
+      - regex: "(?:muito|grande|enorme|profundo|especial|imenso|sincero|meu|nosso|seu|todo{{S}}o){{S}}(?<target>a{{S}}preço){{S}}(?=(?:por|pel[oa]s?|a|ao|à){{E}})"
+        fix: ["apreço"]
+      # "o mas rapidamente possível" -> "o mais".
+      - regex: "(?<![\\p{L}])o{{S}}(?<target>mas){{S}}(?=\\p{L}+{{S}}possíve(?:l|is){{E}})"
+        fix: ["mais"]
+      # "teve percas de 5%" -> "perdas": "perca" is the fish or a form of "perder".
+      - regex: "(?<target>percas?){{S}}(?=(?:de|d[eoa]s?){{S}}(?:{{LOSS}}){{E}})"
+        fixer: ptPercas
+      - regex: "(?:grandes|pequenas|muitas|enormes|várias|evitar|reduzir|sofreu|sofrer|sofreram|houve|haverá){{S}}(?:as{{S}})?(?<target>percas){{E}}"
+        fix: ["perdas"]
+      # "O Rui trás o material" -> "traz": "trás" (behind) follows "para", "de", "por" or "lá".
+      - regex: "(?<!(?:para|pra|de|por|lá|cá|em|daí|dali|aí|ali|e|é|marcha|ré|frente|atrás){{S}})(?<target>trás){{S}}(?=(?:o|a|os|as|um|uma|uns|umas|seu|sua|seus|suas|meu|minha|consigo|muitos|muitas|isso|isto|tudo|sempre|novidades){{E}})"
+        fix: ["traz"]
+      # "o último senso" -> "censo": a count, not a sense of something.
+      - regex: "(?:último|próximo|penúltimo|novo|primeiro){{S}}(?<target>sensos?){{E}}(?!{{S}}(?:de|comum|crítico|estético|moral|prático|ético|artístico){{E}})"
+        fixer: ptSensos
+      # "não te peco nada" -> "peço": "pecar" (to sin) takes no object pronoun.
+      - regex: "(?:te|lhe|lhes|vos){{S}}(?<target>peco){{E}}"
+        fix: ["peço"]
+      # "vai a bordo" written as the verb "abordo": on board a ship or a plane.
+      - regex: "(?<target>abordo){{S}}(?=(?:d[oa]s?){{S}}(?:\\p{L}+{{S}})?(?:navios?|aviões|avião|fragatas?|barcos?|naves?|aeronaves?|embarcaç(?:ão|ões)|trens?|cruzeiros?|iates?|submarinos?|helicópteros?|ônibus|veleiros?|lanchas?|caravelas?){{E}})"
+        fix: ["a bordo"]
+      # "Se caso eles vierem" -> "Caso": "se" and "caso" both open the condition.
+      - regex: "(?<target>se{{S}}caso){{S}}(?=(?:ele|ela|eles|elas|você|vocês|nós|não|haja|seja|sejam|tenha|tenham|queira|queiram|precise|precisem|ocorra|aconteça){{E}})"
+        fix: ["caso"]
+        message: review_msg_contextual_grammar
+      # "pão, leite e etc." -> "pão, leite, etc.": "etc." already says "and the rest".
+      - regex: "\\p{L}+(?<target>,?{{S}}e{{S}}etc)(?=\\.|…|{{E}})"
+        fix: [", etc"]
+        message: review_msg_contextual_grammar
+      # "e.t.c." -> "etc.".
+      - regex: "(?<target>e\\.(?:{{S}})?t\\.(?:{{S}})?c\\.)"
+        fix: ["etc."]
+        message: review_msg_contextual_grammar
+      # "Mas o que?", "Para que?": "que" at the end of a question is stressed: "quê".
+      - regex: "(?<![\\p{L}])(?:o|para|pra|de|com|sem|em){{S}}(?<target>que)(?=[ \\t\\u00a0]{0,2}[?])"
+        fix: ["quê"]
   - id: pt_BR.confusions
     checks: [portugueseConfusions]
     predicate: confusions

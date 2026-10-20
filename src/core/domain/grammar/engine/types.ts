@@ -113,6 +113,8 @@ export interface FrameSpec {
   verbatim?: boolean;
   /** Polish rules: a capital inside a sentence makes the target a name, so the frame abstains. */
   lowercase?: boolean;
+  /** Portuguese rules: the target must start with a capital. */
+  capitalized?: boolean;
 }
 
 /** An executable rule: a token pattern, a list of frames, or a named detector predicate. */
@@ -152,8 +154,10 @@ export interface RuleSpec {
    * 96/9 characters, and `clauseStart`. "slot": English text, a check and cue words per frame,
    * quoted examples skipped, and fixers that may also give the range to replace. "polish":
    * Polish text, a check per frame, user-dictionary words and names skipped, context 96/32.
+   * "portuguese": Portuguese text, a list of alternatives per frame (or a fixer of the typed
+   * target), `clauseStart` and `capitalized`, and the match as context.
    */
-  style?: "frame" | "template" | "slot" | "polish";
+  style?: "frame" | "template" | "slot" | "polish" | "portuguese";
   /** A named filter of the rule's findings (a `FILTERS` record of the rule file). */
   filter?: string;
 }
@@ -227,7 +231,7 @@ export interface CompiledRule {
   frames?: readonly number[];
   /** The message of a frame rule. */
   message?: string;
-  style?: "template" | "slot" | "polish";
+  style?: "template" | "slot" | "polish" | "portuguese";
   /** "<file>:<name>" of a named findings filter. */
   filter?: string;
   cacheable?: true;
@@ -251,4 +255,5 @@ export interface CompiledFrame {
   wordStart?: false;
   verbatim?: true;
   lowercase?: true;
+  capitalized?: true;
 }

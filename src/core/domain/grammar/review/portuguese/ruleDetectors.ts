@@ -1,12 +1,13 @@
 // The named Review detectors of grammar/rules/pt_BR.yaml; the rule file sets their checks,
 // languages and order.
-import type { Detector } from "../../engine/reviewRules";
+import { mergePredicates, type AnyFixer, type Detector } from "../../engine/reviewRules";
 import { agreement } from "./agreement";
 import { ao90 } from "./ao90";
 import { cliticPlacement } from "./clitics";
 import { commas, introductoryCommas } from "./commas";
-import { confusions } from "./confusions";
+import { confusions, FIXERS as CONFUSION_FIXERS } from "./confusions";
 import { contractions } from "./contractions";
+import { FIXERS as WORD_CHOICE_FIXERS } from "./wordChoice";
 import { invalidDates } from "./dates";
 import { formalVerbs } from "./formal";
 import { auxiliaryInfinitives } from "./infinitives";
@@ -56,3 +57,6 @@ export const PREDICATES = {
   markSpacing,
   unitSpacing,
 } satisfies Record<string, Detector>;
+
+/** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
+export const FIXERS = mergePredicates<AnyFixer>(CONFUSION_FIXERS, WORD_CHOICE_FIXERS);
