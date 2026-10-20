@@ -1,6 +1,7 @@
-import type { Detector } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
+import type { RawFinding } from "../reviewDetectors";
 import {
+  atToken,
   Around,
   attributeOf,
   BOUNDARY,
@@ -18,13 +19,11 @@ import {
   PRENOMINAL,
   replaceToken,
   SER,
-  tokenize,
   type Token,
   verbLike,
   words,
 } from "./common";
 import { attribute, finiteVerb, genderedForm, isGerund, isNoun, participle } from "./lexicon";
-import { isLang } from "../phraseTemplates";
 
 // Written accents that tell two real words apart: "esta" (this) / "está" (is). Each check
 // reads the closed-class words around the target; the lexicon only says whether a neighbour
@@ -451,40 +450,37 @@ function demonstrativeReading(at: Around): boolean {
   return form === "estás" && /as$/u.test(next);
 }
 
-function estarAccents(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const tokens = tokenize(ctx);
+/** "esta"/"estas"/"este" read as "estar", "está"/"estás"/"esté" read as a demonstrative. */
+const estarAccents = atToken((ctx, tokens, i) => {
+  const token = tokens[i];
+  if (!token.word || token.start < ctx.from || token.start >= ctx.to) return null;
   const findings: RawFinding[] = [];
   const add = (finding: RawFinding | null) => finding && findings.push(finding);
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
-    const at = new Around(tokens, i);
-    const lower = token.lower;
-    const verb =
-      lower === "esta"
-        ? estarReading(at, false) && "está"
-        : lower === "estas"
-          ? estarReading(at, true) && "estás"
-          : lower === "este"
-            ? subjunctiveReading(at) && "esté"
-            : false;
-    if (verb)
-      add(replaceToken(ctx, token, [verb], RULE, "review_msg_spanish_accent", tokens[i + 1]));
-    const demonstrative = DEMONSTRATIVE[lower];
-    if (demonstrative && demonstrativeReading(at))
-      add(
-        replaceToken(
-          ctx,
-          token,
-          [demonstrative],
-          RULE,
-          "review_msg_spanish_accent_extra",
-          tokens[i + 1],
-        ),
-      );
-  }
+  const at = new Around(tokens, i);
+  const lower = token.lower;
+  const verb =
+    lower === "esta"
+      ? estarReading(at, false) && "está"
+      : lower === "estas"
+        ? estarReading(at, true) && "estás"
+        : lower === "este"
+          ? subjunctiveReading(at) && "esté"
+          : false;
+  if (verb) add(replaceToken(ctx, token, [verb], RULE, "review_msg_spanish_accent", tokens[i + 1]));
+  const demonstrative = DEMONSTRATIVE[lower];
+  if (demonstrative && demonstrativeReading(at))
+    add(
+      replaceToken(
+        ctx,
+        token,
+        [demonstrative],
+        RULE,
+        "review_msg_spanish_accent_extra",
+        tokens[i + 1],
+      ),
+    );
   return findings;
-}
+});
 
-export const PREDICATES = { estarAccents } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
+export const FIXERS = { estarAccents } satisfies Record<string, MatchFixer>;

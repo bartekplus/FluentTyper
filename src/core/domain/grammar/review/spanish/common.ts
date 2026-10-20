@@ -1,6 +1,7 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { FrameRef, MatchFixer, MatchResult } from "../../engine/reviewRules";
 import { attribute, isNoun, isVerb, nounForm } from "./lexicon";
 import { finding } from "../finding";
 
@@ -70,6 +71,34 @@ function readTokens(ctx: DetectContext): Token[] {
   }
   return tokens;
 }
+
+/** The index of the token that starts at `start`, or -1 (a binary search). */
+export function tokenAt(tokens: Tokens, start: number): number {
+  let lo = 0;
+  let hi = tokens.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const at = tokens[mid].start;
+    if (at === start) return mid;
+    if (at < start) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return -1;
+}
+
+/**
+ * A match fixer that runs `body` on the token at the match start. The frame of the rule file
+ * selects the tokens; a match that starts inside a token finds no token.
+ */
+export const atToken =
+  (
+    body: (ctx: DetectContext, tokens: Tokens, i: number, frame: FrameRef) => MatchResult,
+  ): MatchFixer =>
+  (m, ctx, frame) => {
+    const tokens = tokenize(ctx);
+    const i = tokenAt(tokens, m.index);
+    return i < 0 ? null : body(ctx, tokens, i, frame);
+  };
 
 /** The typed word's casing on a replacement: "Esta" -> "Está", "ESTA" -> "ESTÁ". */
 export function carryCase(typed: string, replacement: string): string {

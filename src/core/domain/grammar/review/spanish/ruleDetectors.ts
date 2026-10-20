@@ -17,9 +17,6 @@ import * as verbAgreement from "./verbAgreement";
 import * as verbForms from "./verbForms";
 
 export const PREDICATES = mergePredicates(
-  accents.PREDICATES,
-  diacritics.PREDICATES,
-  verbAccents.PREDICATES,
   confusions.PREDICATES,
   verbForms.PREDICATES,
   prefixes.PREDICATES,
@@ -33,7 +30,14 @@ export const PREDICATES = mergePredicates(
 );
 
 /** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
-export const FIXERS = mergePredicates<Fixer>(prefixes.FIXERS, typography.FIXERS, quotes.FIXERS);
+export const FIXERS = mergePredicates<Fixer>(
+  accents.FIXERS,
+  diacritics.FIXERS,
+  verbAccents.FIXERS,
+  prefixes.FIXERS,
+  typography.FIXERS,
+  quotes.FIXERS,
+);
 
 /** The named findings filters of grammar/rules/es.yaml (`filter:`). */
 export const FILTERS = mergePredicates<FindingsFilter>(typography.FILTERS);

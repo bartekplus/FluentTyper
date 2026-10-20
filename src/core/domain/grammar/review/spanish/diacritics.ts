@@ -1,7 +1,7 @@
-import type { Detector } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { readNoun } from "./agreement";
 import {
+  atToken,
   Around,
   attributeOf,
   CLITICS,
@@ -14,7 +14,6 @@ import {
   PREPOSITIONS,
   PRENOMINAL,
   replaceToken,
-  tokenize,
   verbLike,
   words,
   type Token,
@@ -29,7 +28,6 @@ import {
   secondPersonVerb,
   subjunctiveLike,
 } from "./lexicon";
-import { isLang } from "../phraseTemplates";
 
 /** Any noun or adjective the lexicon knows: "mente", "retrato", "asistencia". */
 const known = (word: string) => isNoun(word) || !!attributeOf(word) || isGenderedEntry(word);
@@ -40,6 +38,8 @@ const known = (word: string) => isNoun(word) || !!attributeOf(word) || isGendere
 
 const RULE = "spanishAccents" as const;
 
+// The es.diacritics frame of rules/es.yaml lists the words of INTERROGATIVE, PLAIN_RELATIVE
+// and the cases of monosyllable().
 const INTERROGATIVE: Record<string, string> = {
   que: "qué",
   como: "cómo",
@@ -1046,26 +1046,21 @@ function monosyllable(at: Around): string | null {
   }
 }
 
-function diacritics(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const tokens = tokenize(ctx);
-  const findings: RawFinding[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const token: Token = tokens[i];
-    if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
-    const at = new Around(tokens, i);
-    const question = interrogative(at);
-    const fix = question ?? relative(at) ?? monosyllable(at);
-    if (!fix) continue;
-    const key = question
-      ? "review_msg_spanish_interrogative"
-      : /[áéíóú]/u.test(fix)
-        ? "review_msg_spanish_accent"
-        : "review_msg_spanish_accent_extra";
-    const finding = replaceToken(ctx, token, [fix], RULE, key, tokens[i + 1]);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
+/** A question word, a relative or a stressed monosyllable at the token. */
+const diacritics = atToken((ctx, tokens, i) => {
+  const token: Token = tokens[i];
+  if (!token.word || token.start < ctx.from || token.start >= ctx.to) return null;
+  const at = new Around(tokens, i);
+  const question = interrogative(at);
+  const fix = question ?? relative(at) ?? monosyllable(at);
+  if (!fix) return null;
+  const key = question
+    ? "review_msg_spanish_interrogative"
+    : /[áéíóú]/u.test(fix)
+      ? "review_msg_spanish_accent"
+      : "review_msg_spanish_accent_extra";
+  return replaceToken(ctx, token, [fix], RULE, key, tokens[i + 1]);
+});
 
-export const PREDICATES = { diacritics } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
+export const FIXERS = { diacritics } satisfies Record<string, MatchFixer>;

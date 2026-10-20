@@ -18,24 +18,46 @@ fragments:
   UNIT_AFTER: "[ \\t\\u00a0]?(?:%|‰|€|\\$|kg|g|mg|km|m|cm|mm|ml|l|t|°|°C|ºC|m²|m³|km²|ha|kWh|kW|W|V|GB|MB|TB|Hz|kHz|MHz|GHz|kilos?|metros?|litros?|euros?|dólares|grados|millones)(?![\\p{L}\\p{N}])"
   # Words that open a Spanish sentence; STARTERS in review/spanish/typography.ts holds the
   # same list.
+  # A whole token of review/spanish/common.ts: a letter run.
+  TOKEN_WORD: "\\p{L}[\\p{L}\\p{M}]*"
+  # The end of a token's letter run.
+  WORD_TAIL: "(?![\\p{L}\\p{M}])"
   STARTERS: "El|La|Los|Las|Lo|Un|Una|Unos|Unas|Y|Pero|Es|Son|Era|Fue|Está|Hay|No|Sí|Yo|Tú|Él|Ella|Ellos|Ellas|Nosotros|Usted|Este|Esta|Estos|Estas|Eso|Esto|Ese|Esa|Se|Me|Te|Le|Les|Nos|Mi|Su|Sus|Tu|En|Del|Al|Con|Por|Para|Sin|Como|Cuando|Si|Que|Qué|Cómo|Dónde|Cuándo|Pues|Así|Luego|Después|Entonces|Ahora|Hoy|Ayer|También|Además|Ya|Todo|Siempre|Nunca|Aquí|Allí|Hola|Gracias|Bueno|Claro|Aunque|Porque|Mientras|Desde|Hasta|Según"
 
 rules:
   - id: es.estarAccents
     checks: [spanishAccents]
-    # predicate: walks the chunk tokens; the decision reads the words before and
-    # after each "esta" and "está" form.
-    predicate: estarAccents
+    style: match
+    message: review_msg_spanish_accent
+    frames:
+      # The "esta" and "está" forms. The fixer reads the words before and after the token
+      # (review/spanish/accents.ts).
+      - regex: "est(?:[aá]s?|[eé]){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: estarAccents
   - id: es.diacritics
     checks: [spanishAccents]
-    # predicate: walks the chunk tokens; the decision reads the words around each
-    # monosyllable and interrogative.
-    predicate: diacritics
+    style: match
+    message: review_msg_spanish_accent
+    frames:
+      # The question words, the relatives and the stressed monosyllables. The fixer reads the
+      # words around the token (review/spanish/diacritics.ts).
+      - regex: "(?:qu[eé]|qui[eé]n(?:es)?|c[oó]mo|a?d[oó]nde|cu[aá]ndo|cu[aá]l(?:es)?|cuan(?:t[oa]s?)?|m[ií]|t[uú]|[eé]l|se|de|t[eé]|si|a[uú]n|mas){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: diacritics
   - id: es.verbAccents
     checks: [spanishAccents]
-    # predicate: walks the chunk tokens; the decision reads the subject and the
-    # tense cues around each verb form.
-    predicate: verbAccents
+    style: match
+    message: review_msg_spanish_accent
+    frames:
+      # Every word: a verb form ("termino", "hablo") is no closed list. The fixer reads the
+      # subject and the tense cues around the token (review/spanish/verbAccents.ts).
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        fixer: verbAccents
   - id: es.paraQueAccent
     checks: [spanishAccents]
     # predicate: walks the chunk tokens; each token frame reads the words around
