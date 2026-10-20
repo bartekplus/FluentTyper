@@ -1,15 +1,13 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { opensSubjectClause } from "../englishWordConfusions";
 import { NOUN_LIKE_ING } from "../englishParticiples";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   adverb,
   afterBreak,
   caseLike,
   DETERMINERS,
-  english,
   evidence,
   FUNCTION_WORDS,
   info,
@@ -315,64 +313,6 @@ function predicateAfter(
   return -1;
 }
 
-function contraction(
-  ctx: DetectContext,
-  pattern: string,
-  ruleId: RawFinding["ruleId"],
-  messageKey: RawFinding["messageKey"],
-  replacement: string,
-): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, pattern)) {
-    const target = m.groups!.target;
-    const [start, end] = m.indices!.groups!.target;
-    // "ITS", "ITs": an acronym or an identifier.
-    if (!/^[a-z]+$|^[A-Z][a-z]+$/.test(target) || ctx.dictionary.has(target.toLowerCase()))
-      continue;
-    if (target !== target.toLowerCase() && !afterBreak(ctx, start)) continue;
-    if (!subjectSlot(ctx, start)) continue;
-    const cue = cueBefore(ctx, start);
-    const nameCue = afterBreak(ctx, start) || NAME_CUE.has(cue);
-    const until = predicateAfter(ctx, end, cue, nameCue, replacement === "you're");
-    // A list after a comma ("your tired, your poor, …") is no clause.
-    if (until >= 0 && !cue && !afterBreak(ctx, start)) {
-      const clause = /[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, start - 160), start))![0];
-      if (
-        /^[ \t\u00a0]*,/.test(ctx.text.slice(until, until + 8)) ||
-        new RegExp(`\\b${target}\\b`, "i").test(clause)
-      )
-        continue;
-    }
-    if (until < 0) continue;
-    findings.push(
-      finding(ruleId, messageKey, start, end, [caseLike(target, replacement)], {
-        context: evidence(ctx, start, until),
-      }),
-    );
-  }
-  return findings;
-}
-
-/** "Its working now", "If your interested", "Hey, its Katie": its/your before a predicate. */
-function possessiveBeforePredicate(ctx: DetectContext): RawFinding[] {
-  return [
-    ...contraction(
-      ctx,
-      `(?<target>its)${WORD_END}`,
-      "englishItsContext",
-      "review_msg_its_contraction",
-      "it's",
-    ),
-    ...contraction(
-      ctx,
-      `(?<target>your)${WORD_END}`,
-      "englishYourYouAre",
-      "review_msg_your_you_are",
-      "you're",
-    ),
-  ];
-}
-
 // Words that can follow "you" or "it" as an apposition or adverb, not as an owned noun.
 const NOT_OWNED = new Set(
   (
@@ -439,13 +379,49 @@ function ownedNoun(tokens: Token[], allowPlural: boolean): number {
   return number === "singular" || (allowPlural && number === "plural") ? k : -1;
 }
 
-/** "You friend will call", "thanks for you help", "It face was red", "on it movement". */
-function pronounForPossessive(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, `(?<target>you|it)${SPACE}(?=[a-z])`)) {
+/** "Its working now", "If your interested", "Hey, its Katie": its/your before a predicate. */
+function contraction(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+  replacement: string,
+): RawFinding | null {
+  const target = m.groups!.target;
+  const [start, end] = m.indices!.groups!.target;
+  // "ITS", "ITs": an acronym or an identifier.
+  if (!/^[a-z]+$|^[A-Z][a-z]+$/.test(target) || ctx.dictionary.has(target.toLowerCase()))
+    return null;
+  if (target !== target.toLowerCase() && !afterBreak(ctx, start)) return null;
+  if (!subjectSlot(ctx, start)) return null;
+  const cue = cueBefore(ctx, start);
+  const nameCue = afterBreak(ctx, start) || NAME_CUE.has(cue);
+  const until = predicateAfter(ctx, end, cue, nameCue, replacement === "you're");
+  // A list after a comma ("your tired, your poor, …") is no clause.
+  if (until >= 0 && !cue && !afterBreak(ctx, start)) {
+    const clause = /[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, start - 160), start))![0];
+    if (
+      /^[ \t\u00a0]*,/.test(ctx.text.slice(until, until + 8)) ||
+      new RegExp(`\\b${target}\\b`, "i").test(clause)
+    )
+      return null;
+  }
+  if (until < 0) return null;
+  return finding(ruleId, messageKey, start, end, [caseLike(target, replacement)], {
+    context: evidence(ctx, start, until),
+  });
+}
+
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  contractionIts: (m, ctx) =>
+    contraction(m, ctx, "englishItsContext", "review_msg_its_contraction", "it's"),
+  contractionYour: (m, ctx) =>
+    contraction(m, ctx, "englishYourYouAre", "review_msg_your_you_are", "you're"),
+  contractionPronounOwner: (m, ctx) => {
     const target = m.groups!.target;
     // "IT priorities": information technology.
-    if (!/^(?:you|it|You|It)$/.test(target)) continue;
+    if (!/^(?:you|it|You|It)$/.test(target)) return null;
     const it = target.toLowerCase() === "it";
     const [start, end] = m.indices!.groups!.target;
     const before = wordBefore(ctx, start);
@@ -462,7 +438,7 @@ function pronounForPossessive(ctx: DetectContext): RawFinding[] {
       // Subject position: the noun must be followed by a finite verb that agrees with it.
       k = ownedNoun(tokens, it);
       // "You might has well…": a modal mistyped before "as well", not the noun might.
-      if (k < 0 || /^(?:might|may|can|must)$/.test(tokens[k].lower)) continue;
+      if (k < 0 || /^(?:might|may|can|must)$/.test(tokens[k].lower)) return null;
       const verb = tokens[k + 1]?.kind === "word" ? tokens[k + 1].lower : "";
       const plural = nounReading(tokens[k].lower) === "plural";
       const read = info(verb);
@@ -477,19 +453,19 @@ function pronounForPossessive(ctx: DetectContext): RawFinding[] {
             (!!read && !read.noun && read.verbs.some((v) => v.form === "base"))
           : FINITE_AFTER_NOUN.has(verb) ||
             (!!read && read.verbs.some((v) => v.form === "third") && !!subjectNoun);
-      if (!agrees) continue;
+      if (!agrees) return null;
     } else if (OWNER_PREPOSITIONS.has(before) || (it && /^(?:times|twice)$/.test(before))) {
       // Object of a preposition: "for you help", "of it quadrants".
       k = ownedNoun(tokens, it);
-      if (k < 0 || VOCATIVES.has(tokens[k].lower)) continue;
-      if (it && IT_IDIOM_VERBS.has(wordBefore(ctx, start - before.length - 1))) continue;
+      if (k < 0 || VOCATIVES.has(tokens[k].lower)) return null;
+      if (it && IT_IDIOM_VERBS.has(wordBefore(ctx, start - before.length - 1))) return null;
       const after = tokens[k + 1];
       if (!(
         after?.kind === "end" ||
         after?.kind === "comma" ||
         (after?.kind === "word" && (OWNER_PREPOSITIONS.has(after.lower) || after.lower === "with"))
       ))
-        continue;
+        return null;
     } else if (
       !it &&
       (before === "not" ||
@@ -503,14 +479,14 @@ function pronounForPossessive(ctx: DetectContext): RawFinding[] {
       // you camera with you". A plain noun only ("see you soon", "love you mom" stay).
       k = ownedNoun(tokens, true);
       if (k < 0 && tokens[0]?.kind === "word" && IRREGULAR_PLURAL.test(tokens[0].text)) k = 0;
-      if (k < 0 || ADDRESSED.test(tokens[k].lower) || VOCATIVES.has(tokens[k].lower)) continue;
+      if (k < 0 || ADDRESSED.test(tokens[k].lower) || VOCATIVES.has(tokens[k].lower)) return null;
       // After an adjective any noun reading will do ("you previous team").
       if (
         !nounOnly(tokens[k].lower) &&
         !(k === 1 && info(tokens[k].lower)?.noun) &&
         !IRREGULAR_PLURAL.test(tokens[k].lower)
       )
-        continue;
+        return null;
       const after = tokens[k + 1];
       if (!(
         after?.kind === "end" ||
@@ -519,33 +495,24 @@ function pronounForPossessive(ctx: DetectContext): RawFinding[] {
           (OWNER_PREPOSITIONS.has(after.lower) ||
             /^(?:with|yet|yesterday|today|now|again|first|and|or)$/.test(after.lower)))
       ))
-        continue;
-    } else continue;
-    if (tokens.slice(0, k + 1).some((t) => ctx.dictionary.has(t.lower))) continue;
-    findings.push({
+        return null;
+    } else return null;
+    if (tokens.slice(0, k + 1).some((t) => ctx.dictionary.has(t.lower))) return null;
+    return {
       ruleId: it ? "englishItsContext" : "englishYourYouAre",
       messageKey: it ? "review_msg_its_possessive" : "review_msg_your_possessive",
       range: { start, end },
       alternatives: [caseLike(target, it ? "its" : "your")],
       context: evidence(ctx, start, tokens[k].end),
-    });
-  }
-  return findings;
-}
-
-/** "It has it limits": has + it + a plural noun the clause's subject owns. */
-function hasItPlural(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?:has|(?<=(?:has|have)${SPACE})had)${SPACE}(?<target>it)${SPACE}(?<noun>[a-z]+)${WORD_END}`,
-  )) {
+    };
+  },
+  contractionHasIt: (m, ctx) => {
     // The owned noun ends its phrase: "has it flaws.", "has it ups and downs", "has it origins in".
     const after = tokensAfter(ctx, m.index + m[0].length, 1)[0];
     if (!(after.kind === "end" || after.kind === "comma" || /^(?:and|in|of)$/.test(after.lower)))
-      continue;
+      return null;
     // A question ("Has it rained?") or a modal before has: not this frame.
-    if (afterBreak(ctx, m.index)) continue;
+    if (afterBreak(ctx, m.index)) return null;
     const before = wordBefore(ctx, m.index);
     if (
       !before ||
@@ -553,23 +520,16 @@ function hasItPlural(ctx: DetectContext): RawFinding[] {
         before,
       )
     )
-      continue;
+      return null;
     const noun = m.groups!.noun;
     const read = info(noun);
     const plural = read
       ? read.plural && !read.adjective && !read.adverb
       : nounOnly(noun) === "plural";
-    if (NOT_OWNED.has(noun) || !plural || ctx.dictionary.has(noun)) continue;
+    if (NOT_OWNED.has(noun) || !plural || ctx.dictionary.has(noun)) return null;
     const [start, end] = m.indices!.groups!.target;
-    findings.push(
-      finding("englishItsContext", "review_msg_its_possessive", start, end, ["its"], {
-        context: evidence(ctx, m.index, m.index + m[0].length),
-      }),
-    );
-  }
-  return findings;
-}
-
-export const PREDICATES = {
-  possessiveContractions: english(possessiveBeforePredicate, pronounForPossessive, hasItPlural),
-} satisfies Record<string, Detector>;
+    return finding("englishItsContext", "review_msg_its_possessive", start, end, ["its"], {
+      context: evidence(ctx, m.index, m.index + m[0].length),
+    });
+  },
+} satisfies Record<string, MatchFixer>;

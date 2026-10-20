@@ -1233,7 +1233,24 @@ rules:
     predicate: contractionCase
   - id: en.possessiveContractions
     checks: [englishItsContext, englishYourYouAre]
-    predicate: possessiveContractions
+    style: match
+    message: review_msg_its_contraction
+    filter: slotFindings
+    frames:
+      # "Its working now", "Hey, its Katie": its before a predicate.
+      - regex: "(?<target>its){{E}}"
+        fixer: contractionIts
+      # "If your interested": your before a predicate.
+      - regex: "(?<target>your){{E}}"
+        check: englishYourYouAre
+        fixer: contractionYour
+      # "You friend will call", "thanks for you help", "It face was red", "on it movement". The
+      # frame reports both checks; it runs under englishItsContext.
+      - regex: "(?<target>you|it){{S}}(?=[a-z])"
+        fixer: contractionPronounOwner
+      # "It has it limits": has + it + a plural noun the clause's subject owns.
+      - regex: "(?:has|(?<=(?:has|have){{S}})had){{S}}(?<target>it){{S}}(?<noun>[a-z]+){{E}}"
+        fixer: contractionHasIt
   - id: en.toForToo
     checks: [englishToToo]
     style: match
