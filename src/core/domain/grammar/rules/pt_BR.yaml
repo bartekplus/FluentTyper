@@ -49,6 +49,12 @@ fragments:
   ALWAYS_HYPHEN: "vice|pós|pré|pró|recém"
   AO90_MONTH: "Janeiro|Fevereiro|Março|Abril|Maio|Junho|Julho|Agosto|Setembro|Outubro|Novembro|Dezembro"
   AO90_WEEKDAY: "(?:Segunda|Terça|Quarta|Quinta|Sexta)-[Ff]eiras?|Sábados?|Domingo"
+  NOT_AFTER: "(?<!(?:^|[^\\p{L}])(?:[oa]s?|d[oa]s?|n[oa]s?|uma?|uns|umas|seus?|suas?|ess[ea]s?|est[ea]s?|meus?|minhas?)[ \\t\\u00a0]{1,8})"
+  DET: "(?:(?:[oa]s?|um|uma|uns|umas|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?|meus?|minhas?)[ \\t\\u00a0]{1,8})?"
+  SOME: "(?:(?:grandes|várias|vários|muitas|muitos|sérias|sérios|algumas|alguns|enormes|tantas|poucas)[ \\t\\u00a0]{1,8})?"
+  PREPOSITION: "(?<of>de|d[oa]s?|n[oa]s?|em|sobre[ \\t\\u00a0]{1,8}[oa]s?|sobre)"
+  POINT: "questão|questões|argumento|argumentos|pergunta|perguntas|observação|observações"
+  SECOND: "a|as|o|os|aquele|aquela|aqueles|aquelas|aquilo|este|esta|estes|estas|esse|essa|esses|essas|ele|ela|eles|elas|isto|isso|aqui|ali|aí"
 
 rules:
   - id: pt_BR.accentParonyms
@@ -539,7 +545,16 @@ rules:
     predicate: confusions
   - id: pt_BR.contractions
     checks: [portugueseContractions]
-    predicate: contractions
+    style: match
+    message: review_msg_pt_contraction
+    frames:
+      # An article must start more text: a bare letter ("termina em o.") is a mention.
+      - regex: "(?<target>(?<first>a|de|em|por){{S}}(?<second>{{SECOND}})){{E}}(?:(?<=\\p{L}{3})|(?={{S}}[\\p{L}\\d\"“«'‘]))"
+        fixer: contraction
+      # "em China" -> "na China": countries whose name always takes the article.
+      - regex: "(?<target>(?<first>em|de|a|para|por){{S}}(?<country>Costa{{S}}do{{S}}Marfim|Estados{{S}}Unidos|Nova{{S}}Zelândia|África{{S}}do{{S}}Sul|Afeganistão|Reino{{S}}Unido|Nova{{S}}Guiné|Costa{{S}}Rica|Paquistão|Argentina|Venezuela|Austrália|Finlândia|Tailândia|Indonésia|Paraguai|Vietname|Vaticano|Colômbia|Uruguai|Equador|Bolívia|Noruega|Holanda|Bélgica|Turquia|Nigéria|Brasil|Canadá|México|Egipto|Iraque|Vietnã|Rússia|Suécia|Coreia|Japão|Chile|Egito|China|Índia|Suíça|Peru|Irão|Irã|EUA))(?![\\p{L}\\p{N}-])"
+        message: review_msg_pt_country_article
+        fixer: countryArticle
   - id: pt_BR.numberFormat
     checks: [portugueseNumberFormat]
     style: cased
@@ -812,7 +827,64 @@ rules:
         fixer: verbFrameTornar
   - id: pt_BR.formalVerbs
     checks: [stylePhrasing]
-    predicate: formalVerbs
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # A verb form after a determiner is a noun ({{NOT_AFTER}}): "a bota", "a fala", "o passo".
+      # Each swap names the complement that selects its sense in a lookahead.
+      # "Acho que" gives an opinion; formal prose considers or judges.
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>achamos|acharam|achavam|acharia|achasse|achando|achava|achará|achado|achar|acham|achei|achou|acho|acha|ache))(?={{S}}que{{E}})"
+        fixer: formalAchar
+      # "baixar o preço" -> "reduzir", but "baixar o arquivo" stays.
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>baixamos|baixaram|baixavam|baixaria|baixasse|baixando|baixava|baixará|baixado|baixar|baixam|baixei|baixou|baixo|baixa|baixe))(?={{S}}{{DET}}{{SOME}}(?:preços?|custos?|doses?|dosagens?|dosagem|nível|níveis|taxas?|juros|impostos?|gastos|despesas|consumo|velocidade|temperatura|tarifas?|salários?){{E}})"
+        fixer: formalBaixar
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>passamos|passaram|passavam|passaria|passasse|passando|passava|passará|passado|passar|passam|passei|passou|passo|passa|passe))(?={{S}}{{DET}}{{SOME}}(?:dificuldades|necessidades|privações|apuros|apertos?){{E}})"
+        fixer: formalPassar
+      # "pegar os dados" -> "obter".
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>pegamos|pegaram|pegavam|pegaria|pegasse|pegando|peguei|pegava|pegará|pegado|pegar|pegam|pegou|pegue|pego|pega))(?={{S}}{{DET}}{{SOME}}(?:dados|informaç(?:ão|ões)|resultados|documentos|certidão|certidões|autorizaç(?:ão|ões)){{E}})"
+        fixer: formalPegarDados
+      # "pegar uma gripe" -> "contrair".
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>pegamos|pegaram|pegavam|pegaria|pegasse|pegando|peguei|pegava|pegará|pegado|pegar|pegam|pegou|pegue|pego|pega))(?={{S}}{{DET}}{{SOME}}(?:gripes?|doenças?|vírus|infecç(?:ão|ões)|resfriados?|covid|dengue|sarampo){{E}})"
+        fixer: formalPegarDoenca
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>pegamos|pegaram|pegavam|pegaria|pegasse|pegando|peguei|pegava|pegará|pegado|pegar|pegam|pegou|pegue|pego|pega))(?={{S}}{{DET}}{{SOME}}(?:ônibus|metrô|trem|trens|aviões|avião|táxis?|voos?|barcos?){{E}})"
+        fixer: formalPegarTransporte
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>arrumamos|arrumaram|arrumavam|arrumaria|arrumasse|arrumando|arrumava|arrumará|arrumado|arrumar|arrumam|arrumei|arrumou|arrumo|arruma|arrume))(?={{S}}{{DET}}{{SOME}}(?:empregos?|trabalhos?|vagas?|estágios?){{E}})"
+        fixer: formalArrumar
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>fazemos|fizeram|fizesse|fazendo|faziam|fazer|fazem|fazia|faria|fizer|feito|faço|fará|faça|faz|fiz|fez))(?={{S}}{{DET}}{{SOME}}(?:planos?|relatórios?|orçamentos?|projetos?|cronogramas?|pareceres|parecer){{E}})"
+        fixer: formalFazer
+      # "não deixe que ele saia": letting is permitting.
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>deixamos|deixaram|deixavam|deixaria|deixasse|deixando|deixava|deixará|deixado|deixar|deixam|deixei|deixou|deixo|deixa|deixe))(?={{S}}que{{E}})"
+        fixer: formalDeixar
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>pedimos|pediram|pediria|pedisse|pedindo|pediam|pedirá|pedido|pedir|pedem|pediu|pedia|peço|pede|pedi|peça))(?={{S}}{{DET}}{{SOME}}(?:informaç(?:ão|ões)|documentos?|autorizaç(?:ão|ões)|permissão|esclarecimentos?|orçamentos?|reembolsos?|licença|apoio){{E}})"
+        fixer: formalPedir
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>chateamos|chatearam|chateavam|chatearia|chateasse|chateando|chateiam|chateava|chateará|chateado|chatear|chateio|chateia|chateei|chateou|chateie))(?=(?:{{S}}(?:(?:mais|tanto){{S}})?(?:[oa]s?|me|te|nos|lhe|lhes|ninguém|você|vocês|seus?|suas?){{E}}|-(?:me|te|nos|lhe|lhes|o|a|os|as){{E}}))"
+        fixer: formalChatear
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>aturamos|aturaram|aturavam|aturaria|aturasse|aturando|aturava|aturará|aturado|aturar|aturam|aturei|aturou|aturo|atura|ature))(?=(?:{{S}}\\p{L}|-(?:me|te|nos|o|a|os|as){{E}}))"
+        fixer: formalAturar
+      # "jogar fora" -> "descartar".
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>jogamos|jogaram|jogavam|jogaria|jogasse|jogando|joguei|jogava|jogará|jogado|jogar|jogam|jogou|jogue|jogo|joga){{S}}fora)(?={{E}})"
+        fixer: formalJogar
+      # "fala das questões" -> "aborda as questões".
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>falamos|falaram|falavam|falaria|falasse|falando|falava|falará|falado|falar|falam|falei|falou|falo|fala|fale){{S}}{{PREPOSITION}})(?={{S}}(?:{{SOME}}|(?:outr[oa]s?|vári[oa]s|tod[oa]s|ess[ea]s?|est[ea]s?){{S}})?(?:temas?|assuntos?|questão|questões|problemas?|tópicos?){{E}})"
+        fixer: formalFalar
+      - regex: "(?<target>{{NOT_AFTER}}(?<head>mexemos|mexeram|mexeria|mexesse|mexendo|mexiam|mexerá|mexido|mexer|mexem|mexeu|mexia|mexo|mexe|mexi|mexa){{S}}{{PREPOSITION}})(?={{S}}(?:códigos?|arquivos?|configuraç(?:ão|ões)|sistemas?|documentos?|textos?|contratos?|planilhas?){{E}})"
+        fixer: formalMexer
+      # "sob o ponto de vista" mixes "sob o prisma" and "do ponto de vista".
+      - regex: "(?<target>sob{{S}}o){{S}}(?=ponto{{S}}de{{S}}vista{{E}})"
+        fixer: formalDo
+      # "é suposto que" copies "it is supposed that".
+      - regex: "(?<target>é{{S}}suposto){{S}}(?=que{{E}})"
+        fixer: formalSupoe
+      # "segundo combinado" -> "conforme combinado": "segundo" takes a noun phrase.
+      - regex: "{{NOT_AFTER}}(?<target>segundo){{S}}(?=(?:combinad|acordad|previst|solicitad|informad|estabelecid|planejad|programad|anunciad)[oa]s?{{E}})"
+        fixer: formalConforme
+      - regex: "(?<target>(?:à|em){{S}}volta){{S}}(?=d[eoa]s?{{E}})"
+        fixer: formalEmTorno
+      # "uma boa questão" -> "uma questão pertinente"; "a questão é boa" -> "pertinente".
+      - regex: "(?<=(?:um|uma|uns|umas|que|muito|muita|muitos|muitas|tão){{S}})(?<target>(?<good>boa|bom|boas|bons){{S}}(?<noun>{{POINT}})){{E}}"
+        fixer: formalGoodBefore
+      - regex: "(?:{{POINT}}){{S}}(?:(?:é|são|foi|foram|era|eram|me{{S}}parece|parece|parecem){{S}})?(?:(?:muito|bem|bastante|realmente){{S}})?(?<target>boa|bom|boas|bons)(?=[ \\t\\u00a0]*[.,;!?]|$)"
+        fixer: formalGoodAfter
   - id: pt_BR.sentenceStartNumbers
     checks: [styleSpelledNumbers]
     style: match

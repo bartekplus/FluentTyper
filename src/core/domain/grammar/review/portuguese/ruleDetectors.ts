@@ -11,10 +11,10 @@ import { FIXERS as AO90_FIXERS } from "./ao90";
 import { cliticPlacement } from "./clitics";
 import { commas, introductoryCommas } from "./commas";
 import { confusions, FIXERS as CONFUSION_FIXERS } from "./confusions";
-import { contractions } from "./contractions";
+import { FIXERS as CONTRACTION_FIXERS } from "./contractions";
 import { FIXERS as WORD_CHOICE_FIXERS } from "./wordChoice";
 import { FIXERS as DATE_FIXERS, isoDates } from "./dates";
-import { formalVerbs } from "./formal";
+import { FIXERS as FORMAL_FIXERS } from "./formal";
 import { FIXERS as INFINITIVE_FIXERS } from "./infinitives";
 import { FIXERS as MARK_FIXERS } from "./marks";
 import { nounAgreement } from "./nounAgreement";
@@ -41,7 +41,6 @@ import { verbAgreement } from "./verbAgreement";
 export const PREDICATES = {
   accentParonyms,
   confusions,
-  contractions,
   rangeDash,
   cliticPlacement,
   isoDates,
@@ -57,7 +56,6 @@ export const PREDICATES = {
   fixedAgreements,
   passiveNumber,
   personAgreement,
-  formalVerbs,
 } satisfies Record<string, Detector>;
 
 /** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
@@ -73,6 +71,8 @@ export const FIXERS = mergePredicates<AnyFixer>(
   VERB_FRAME_FIXERS,
   AO90_FIXERS,
   DATE_FIXERS,
+  CONTRACTION_FIXERS,
+  FORMAL_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/pt_BR.yaml (`filter:`). */
