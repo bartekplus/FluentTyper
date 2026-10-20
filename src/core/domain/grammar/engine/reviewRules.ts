@@ -2,6 +2,7 @@ import type { CatalogRuleId } from "../ruleCatalog";
 import { cacheable } from "../review/nativeReviewCache";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../review/reviewDetectors";
 import type { ReviewMessageKey } from "../review/types";
+import { frameDetector as slotFrames, type Frame as SlotFrame } from "../review/english/idioms5";
 import { findMatches, type PatternSet } from "./matcher";
 import { REVIEW_FRAMES, REVIEW_PATTERNS, REVIEW_RULES } from "./review.generated";
 import {
@@ -12,6 +13,7 @@ import {
   type PhraseTemplate,
 } from "../review/phraseTemplates";
 import { chunkTokens } from "./reviewTokens";
+import type { CompiledFrame } from "./types";
 
 /** A named Review detector: a predicate a rule file names with `predicate:`. */
 export type Detector = ReviewDetectorEntry["detect"];
@@ -19,8 +21,11 @@ export type Detector = ReviewDetectorEntry["detect"];
 /** Named Review detectors by rule file ("common", "en", "de", ...), then by name. */
 export type ReviewPredicates = Readonly<Record<string, Readonly<Record<string, Detector>>>>;
 
-/** A named frame fix: the fix of one match, or null to veto it. */
-export type Fixer = Exclude<Frame["fix"], string | readonly string[]>;
+/**
+ * A named frame fix: the fix of one match, or null to veto it. Slot rules also pass the chunk
+ * context, and their fixers may give the range to replace.
+ */
+export type Fixer = (m: RegExpExecArray, ctx: DetectContext) => unknown;
 
 /** Named frame fixes by rule file, then by name. */
 export type ReviewFixers = Readonly<Record<string, Readonly<Record<string, Fixer>>>>;
@@ -118,8 +123,25 @@ export function frameRuleDetector(
   const filter = rule.filter === undefined ? undefined : named(filters, rule.filter);
   if (rule.filter !== undefined && !filter)
     throw new Error(`Grammar rule ${id}: no filter "${rule.filter}"`);
+  const fixOf = (fix: CompiledFrame["fix"], fixer: string | undefined) => {
+    if (fixer === undefined) return fix!;
+    const found = named(fixers, fixer);
+    if (!found) throw new Error(`Grammar rule ${id}: no fixer "${fixer}"`);
+    return found;
+  };
   let detect: Detector;
-  if (rule.style === "template") {
+  if (rule.style === "slot") {
+    const frames: SlotFrame[] = compiled.map((frame) => ({
+      rule: {
+        ruleId: (frame.check ?? ruleId) as CatalogRuleId,
+        messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
+      },
+      ...(frame.cue ? { cue: frame.cue } : {}),
+      pattern: frame.wordStart === false ? new RegExp(frame.pattern, "gidu") : frame.pattern,
+      fix: fixOf(frame.fix, frame.fixer) as SlotFrame["fix"],
+    }));
+    detect = slotFrames(frames);
+  } else if (rule.style === "template") {
     const templates: PhraseTemplate[] = compiled.map((frame) => ({
       pattern: frame.pattern,
       replacement: frame.fix as string,
@@ -128,12 +150,11 @@ export function frameRuleDetector(
     }));
     detect = (ctx) => detectPhraseTemplates(ctx, templates, ruleId);
   } else {
-    const frames: Frame[] = compiled.map(({ pattern, fix, fixer, raw }) => {
-      const fixFunction = fixer === undefined ? undefined : named(fixers, fixer);
-      if (fixer !== undefined && !fixFunction)
-        throw new Error(`Grammar rule ${id}: no fixer "${fixer}"`);
-      return { pattern, fix: fixFunction ?? fix!, ...(raw ? { raw } : {}) };
-    });
+    const frames: Frame[] = compiled.map(({ pattern, fix, fixer, raw }) => ({
+      pattern,
+      fix: fixOf(fix, fixer) as Frame["fix"],
+      ...(raw ? { raw } : {}),
+    }));
     detect = (ctx) => detectFrameList(ctx, ruleId, messageKey, frames);
   }
   return filter ? (ctx) => filter(ctx, detect(ctx)) : detect;

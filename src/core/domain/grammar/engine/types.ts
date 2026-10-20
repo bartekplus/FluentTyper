@@ -103,6 +103,12 @@ export interface FrameSpec {
   message?: string;
   /** Template rules: the match must open a sentence or clause. */
   clauseStart?: boolean;
+  /** Slot rules: the check of this frame (one of the rule's checks). */
+  check?: string;
+  /** Slot rules: the frame runs only when one of these words occurs near the chunk. */
+  cue?: readonly string[];
+  /** False: the regex is complete and gets no word-start guard (it carries its own). */
+  wordStart?: boolean;
 }
 
 /** An executable rule: a token pattern, a list of frames, or a named detector predicate. */
@@ -139,9 +145,10 @@ export interface RuleSpec {
   /**
    * "frame" (default): English text, a fix per frame, context 40/20 characters around the
    * match. "template": every language the check runs in, one replacement per frame, context
-   * 96/9 characters, and `clauseStart`.
+   * 96/9 characters, and `clauseStart`. "slot": English text, a check and cue words per frame,
+   * quoted examples skipped, and fixers that may also give the range to replace.
    */
-  style?: "frame" | "template";
+  style?: "frame" | "template" | "slot";
   /** A named filter of the rule's findings (a `FILTERS` record of the rule file). */
   filter?: string;
 }
@@ -215,7 +222,7 @@ export interface CompiledRule {
   frames?: readonly number[];
   /** The message of a frame rule. */
   message?: string;
-  style?: "template";
+  style?: "template" | "slot";
   /** "<file>:<name>" of a named findings filter. */
   filter?: string;
   cacheable?: true;
@@ -234,4 +241,7 @@ export interface CompiledFrame {
   raw?: true;
   message?: string;
   clauseStart?: true;
+  check?: string;
+  cue?: readonly string[];
+  wordStart?: false;
 }

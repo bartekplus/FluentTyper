@@ -93,7 +93,17 @@ const RULE_KEYS = new Set<keyof RuleSpec>([
   "style",
   "filter",
 ]);
-const FRAME_KEYS = new Set(["regex", "fix", "fixer", "raw", "message", "clauseStart"]);
+const FRAME_KEYS = new Set([
+  "regex",
+  "fix",
+  "fixer",
+  "raw",
+  "message",
+  "clauseStart",
+  "check",
+  "cue",
+  "wordStart",
+]);
 const BUILTIN_FRAGMENTS: Readonly<Record<string, string>> = {
   S: SPACE,
   E: WORD_END,
@@ -461,9 +471,16 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           errors.push(`${at}: a template has one "fix" string and no "raw"`);
         if (spec.style !== "template" && entry.clauseStart)
           errors.push(`${at}: "clauseStart" needs style "template"`);
+        if (spec.style !== "slot" && (entry.check !== undefined || entry.cue !== undefined))
+          errors.push(`${at}: "check" and "cue" need style "slot"`);
+        if (entry.check !== undefined && !spec.checks.includes(entry.check))
+          errors.push(`${at}: check "${entry.check}" is not a check of the rule`);
+        for (const word of entry.cue ?? [])
+          if (!/^\p{Ll}+$/u.test(word)) errors.push(`${at}: cue "${word}" is not a lowercase word`);
         const pattern = expandFrame(entry.regex, file.fragments ?? {}, at, errors);
         try {
-          frame(pattern);
+          if (entry.wordStart === false) new RegExp(pattern, "gidu");
+          else frame(pattern);
         } catch (error) {
           errors.push(`${at}: regex does not compile: ${String(error)}`);
         }
@@ -478,6 +495,9 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           ...(entry.raw ? { raw: true as const } : {}),
           ...(entry.message === undefined ? {} : { message: entry.message }),
           ...(entry.clauseStart ? { clauseStart: true as const } : {}),
+          ...(entry.check === undefined ? {} : { check: entry.check }),
+          ...(entry.cue === undefined ? {} : { cue: [...entry.cue] }),
+          ...(entry.wordStart === false ? { wordStart: false as const } : {}),
         });
         return frames.length - 1;
       });
@@ -487,7 +507,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
         ...(lang ? { lang } : {}),
         frames: indexes,
         message: spec.message!,
-        ...(spec.style === "template" ? { style: "template" as const } : {}),
+        ...(spec.style === "template" || spec.style === "slot" ? { style: spec.style } : {}),
         ...(spec.filter === undefined
           ? {}
           : { filter: spec.filter.includes(":") ? spec.filter : `${name}:${spec.filter}` }),
