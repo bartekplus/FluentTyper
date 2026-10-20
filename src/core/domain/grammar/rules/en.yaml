@@ -23,6 +23,8 @@ fragments:
   NEGATION: "don['’]t|doesn['’]t|didn['’]t|never|not"
   VERB_OBJECT: "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what"
   SUBJECT: "I|you|we|they|he|she|it"
+  PASSIVEVOICE_ADVERB: "not|never|also|already|still|yet|often|always|usually|generally|commonly|widely|long|previously|now|just|recently|partly|largely|mostly|entirely|being|[a-z]{3,}ly"
+  ARTICLES_THE_NAMES: "Netherlands|Philippines|Bahamas|Maldives|Seychelles|Comoros|United States|United Kingdom|United Arab Emirates|Czech Republic|Dominican Republic|Central African Republic|Middle East|Far East|Near East|North Pole|South Pole|Himalayas|Alps|Andes|Pyrenees|Balkans|Rockies|Isle of Man|Ivory Coast|Sahara|Gobi|Kalahari|Tropic of Cancer|Tropic of Capricorn|Gulf of [a-z]{2,}|Bay of [a-z]{2,}|Strait of [a-z]{2,}|(?:[a-z]{2,} ){1,3}(?:Islands|Mountains|Sea|Ocean|River|Canal|Desert|desert|Peninsula)"
   DETERMINERSLOTS_DETERMINER: "(?:the|a|an|my|your|his|our|their|its|(?!(?:it|he|she|that|there|here|what|who|where|how|let)['’]s)[a-z]+['’]s)"
   NEGATIONSLOTS_NEGATED: "(?<aux>(?:do|does|did|can|could|will|would|shall|should|must|may|might|is|are|was|were|am|have|has|had)n['’]t|can['’]t|cannot|won['’]t|shan['’]t|(?:do|does|did|can|could|will|would|shall|should|must|may|might|is|are|was|were|am|have|has|had){{S}}not|never)"
   COUNTSLOTS_MASS_WORDS: "advice|information|info|equipment|furniture|luggage|baggage|feedback|homework|housework|paperwork|software|hardware|firmware|malware|spyware|ransomware|freeware|shareware|middleware|machinery|merchandise|clothing|footwear|underwear|sportswear|swimwear|eyewear|knitwear|outerwear|headwear|tableware|kitchenware|silverware|glassware|cutlery|crockery|stationery|jewelry|jewellery|garbage|rubbish|trash|litter|junk|stuff|mail|spam|scenery|vocabulary|graffiti|accommodation|infrastructure|footage|bedding|scaffolding|money|cash|traffic|transport|transportation|parking|shopping|sightseeing|housing|wildlife|livestock|poultry|foliage|vegetation|plankton|pollen|wine|bread|butter|flour|rice|pasta|spaghetti|oatmeal|porridge|cereal|honey|jam|ketchup|mayonnaise|mustard|vinegar|cinnamon|garlic|ginger|yeast|dough|milk|yogurt|yoghurt|broccoli|spinach|celery|asparagus|lettuce|seafood|beef|pork|veal|venison|bacon|mutton|toast|food|aluminium|aluminum|asphalt|cement|clay|coal|copper|cotton|denim|gasoline|petrol|gravel|leather|linen|mercury|mud|nylon|oxygen|hydrogen|nitrogen|helium|carbon|calcium|sodium|potassium|chlorine|ammonia|plutonium|uranium|polyester|silk|soil|steel|sulfur|sulphur|velvet|wool|wheat|zinc|timber|sand|dust|dirt|rust|smoke|steam|sweat|shampoo|toothpaste|soap|electricity|gas|weather|sunshine|sunlight|moonlight|lightning|thunder|hail|snow|humidity|pollution|smog|gravity|physics|mathematics|maths|economics|linguistics|biology|chemistry|geology|botany|zoology|astronomy|anthropology|archaeology|sociology|psychology|arithmetic|algebra|calculus|geometry|grammar|punctuation|spelling|literature|poetry|photography|journalism|tourism|commerce|marketing|advertising|management|engineering|research|yoga|tennis|chess|golf|soccer|hockey|rugby|gymnastics|athletics|aerobics|music|knowledge|wisdom|evidence|progress|anger|applause|assistance|attention|awareness|bravery|chaos|cleanliness|compassion|conduct|courage|cowardice|dignity|diligence|dishonesty|enjoyment|enthusiasm|envy|fame|fatigue|flexibility|generosity|gratitude|greed|guidance|guilt|happiness|harassment|hatred|health|heritage|honesty|hospitality|humility|hunger|hygiene|ignorance|immigration|impatience|inflation|ingenuity|innocence|insomnia|integrity|jealousy|justice|laughter|laziness|legislation|leisure|literacy|litigation|loneliness|loyalty|luck|malnutrition|mischief|misinformation|momentum|motivation|nonsense|nostalgia|nourishment|nutrition|obedience|obesity|optimism|patience|permission|persistence|pessimism|plagiarism|pneumonia|poverty|pride|privacy|procrastination|prosperity|publicity|racism|recreation|recycling|relaxation|reliability|resilience|respect|revenge|safety|sanitation|sarcasm|slang|stamina|supervision|tolerance|turbulence|unemployment|vandalism|violence|warfare|wealth|welfare|wrath|news"
@@ -1847,7 +1849,15 @@ rules:
         fixer: plainReturnBack
   - id: en.passiveVoice
     checks: [stylePassiveVoice]
-    predicate: passiveVoice
+    style: match
+    message: review_msg_passive_voice
+    filter: usOutsideExamples
+    frames:
+      # A form of "be" with a past participle ("was caused by", "is said to", "have been
+      # finalized"). A note, not a fix: turning it active needs the doer.
+      - regex: "(?<be>am|is|are|was|were|be|been|being|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)(?:{{S}}(?:{{PASSIVEVOICE_ADVERB}})){0,3}{{S}}(?<p>[a-z]{3,})(?:{{S}}(?:up|out|down|off|over|away|back))?{{E}}(?<after>{{S}}(?:by|to|that){{E}})?"
+        owner: be
+        fixer: stylePassive
   - id: en.punctuation
     checks: [englishPunctuation]
     style: match
@@ -1957,7 +1967,19 @@ rules:
         fixer: clauseJoiner
   - id: en.geographicThe
     checks: [englishPhraseCorrections]
-    predicate: geographicThe
+    style: match
+    message: review_msg_geographic_the
+    filter: usOutsideExamples
+    frames:
+      # Names that take "the": plural countries, republics and unions, regions, and bodies of
+      # water, ranges, islands, deserts and canals named by their kind.
+      - regex: "(?<prep>in|on|to|from|across|near|into|through|over|off|around|visit|visited|visiting|cross|crossed|crossing){{S}}(?<name>{{ARTICLES_THE_NAMES}}){{E}}"
+        owner: name
+        fixer: articlesGeographic
+      # "is hottest city", "are best workers": a superlative before its noun takes "the".
+      - regex: "(?<be>is|are|was|were|be)(?<gap>{{S}})(?<adj>[a-z]+est|best|worst|least){{S}}(?<noun>[a-z]+){{E}}"
+        owner: adj
+        fixer: articlesSuperlative
   - id: en.missingArticle
     checks: [englishMissingArticle]
     style: slot
