@@ -104,18 +104,18 @@ export const PREDICATES = mergePredicates(
   passiveVoice.PREDICATES,
   punctuation.PREDICATES,
   articles.PREDICATES,
-  slotConfusions.PREDICATES,
   clauseSlots.PREDICATES,
   everydaySlots.PREDICATES,
   wordFormSlots.PREDICATES,
-  slipFrames.PREDICATES,
-  clauseGaps.PREDICATES,
-  neighbourTypos.PREDICATES,
-  clashFrames.PREDICATES,
 );
 
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
+  slotConfusions.FIXERS,
+  clauseGaps.FIXERS,
+  slipFrames.FIXERS,
+  neighbourTypos.FIXERS,
+  clashFrames.FIXERS,
   idioms1.FIXERS,
   idioms2.FIXERS,
   idioms4.FIXERS,

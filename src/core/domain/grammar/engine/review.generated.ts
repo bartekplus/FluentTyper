@@ -1165,14 +1165,25 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
       "englishYourYouAre",
     ],
     lang: "en",
-    predicate: "en:slotConfusions",
+    frames: [
+      131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149,
+      150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168,
+      169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187,
+      188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206,
+      207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225,
+      226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244,
+      245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263,
+      264, 265, 266, 267, 268,
+    ],
+    message: "review_msg_typo",
+    style: "slot",
     source: "en",
   },
   {
     id: "en.britishUsage",
     checks: ["englishBritishSpelling"],
     lang: "en",
-    frames: [131, 132, 133],
+    frames: [269, 270, 271],
     message: "review_msg_british_spelling",
     style: "slot",
     source: "en",
@@ -1335,8 +1346,8 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     ],
     lang: "en",
     frames: [
-      134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152,
-      153, 154, 155, 156, 157, 158, 159, 160,
+      272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290,
+      291, 292, 293, 294, 295, 296, 297, 298,
     ],
     message: "review_msg_typo",
     style: "slot",
@@ -1347,10 +1358,10 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     checks: ["englishPhraseCorrections", "englishConfusedWords"],
     lang: "en",
     frames: [
-      161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179,
-      180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198,
-      199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217,
-      218, 219, 220, 221, 222, 223, 224, 225,
+      299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317,
+      318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336,
+      337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355,
+      356, 357, 358, 359, 360, 361, 362, 363,
     ],
     message: "review_msg_typo",
     style: "slot",
@@ -1361,9 +1372,9 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     checks: ["englishFixedPrepositions", "englishContextualCompounds"],
     lang: "en",
     frames: [
-      226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244,
-      245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263,
-      264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278,
+      364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382,
+      383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401,
+      402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416,
     ],
     message: "review_msg_fixed_prepositions",
     style: "slot",
@@ -1388,8 +1399,8 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     ],
     lang: "en",
     frames: [
-      279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297,
-      298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309,
+      417, 418, 419, 420, 421, 422, 423, 424, 425, 426, 427, 428, 429, 430, 431, 432, 433, 434, 435,
+      436, 437, 438, 439, 440, 441, 442, 443, 444, 445, 446, 447,
     ],
     message: "review_msg_contextual_grammar",
     style: "slot",
@@ -1408,7 +1419,11 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
       "englishThenThan",
     ],
     lang: "en",
-    predicate: "en:slipFrames",
+    frames: [
+      448, 449, 450, 451, 452, 453, 454, 455, 456, 457, 458, 459, 460, 461, 462, 463, 464, 465, 466,
+    ],
+    message: "review_msg_confused_word",
+    style: "slot",
     source: "en",
   },
   {
@@ -1420,7 +1435,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
       "englishVerbComplements",
     ],
     lang: "en",
-    frames: [310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320],
+    frames: [467, 468, 469, 470, 471, 472, 473, 474, 475, 476, 477],
     message: "review_msg_confused_word",
     style: "slot",
     source: "en",
@@ -1429,7 +1444,9 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "en.clauseGaps",
     checks: ["englishSentenceStructure", "englishConfusedWords", "englishThenThan"],
     lang: "en",
-    predicate: "en:clauseGaps",
+    frames: [478, 479, 480, 481, 482],
+    message: "review_msg_confused_word",
+    style: "slot",
     source: "en",
   },
   {
@@ -1442,8 +1459,8 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     ],
     lang: "en",
     frames: [
-      321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339,
-      340, 341, 342, 343, 344, 345, 346, 347, 348, 349,
+      483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 498, 499, 500, 501,
+      502, 503, 504, 505, 506, 507, 508, 509, 510, 511,
     ],
     message: "review_msg_typo",
     style: "slot",
@@ -1461,7 +1478,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     ],
     lang: "en",
     frames: [
-      350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367,
+      512, 513, 514, 515, 516, 517, 518, 519, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529,
     ],
     message: "review_msg_auxiliary_base",
     style: "slot",
@@ -1485,8 +1502,8 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     ],
     lang: "en",
     frames: [
-      368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386,
-      387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398,
+      530, 531, 532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 546, 547, 548,
+      549, 550, 551, 552, 553, 554, 555, 556, 557, 558, 559, 560,
     ],
     message: "review_msg_confused_word",
     style: "slot",
@@ -1502,7 +1519,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
       "englishConfusedWords",
     ],
     lang: "en",
-    frames: [399, 400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410],
+    frames: [561, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572],
     message: "review_msg_noun_count",
     style: "slot",
     source: "en",
@@ -1516,7 +1533,15 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
       "englishYourYouAre",
     ],
     lang: "en",
-    predicate: "en:neighbourTypos",
+    frames: [
+      573, 574, 575, 576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591,
+      592, 593, 594, 595, 596, 597, 598, 599, 600, 601, 602, 603, 604, 605, 606, 607, 608, 609, 610,
+      611, 612, 613, 614, 615, 616, 617, 618, 619, 620, 621, 622, 623, 624, 625, 626, 627, 628, 629,
+      630, 631, 632, 633, 634, 635, 636, 637, 638, 639, 640, 641, 642, 643, 644, 645, 646, 647, 648,
+      649, 650, 651, 652, 653, 654, 655, 656, 657, 658, 659, 660, 661, 662, 663, 664, 665, 666,
+    ],
+    message: "review_msg_confused_word",
+    style: "slot",
     source: "en",
   },
   {
@@ -1531,7 +1556,9 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
       "englishPhraseCorrections",
     ],
     lang: "en",
-    predicate: "en:clashFrames",
+    frames: [667, 668, 669, 670, 671, 672, 673, 674, 675, 676, 677, 678, 679],
+    message: "review_msg_sentence_structure",
+    style: "slot",
     source: "en",
   },
   {
@@ -3272,6 +3299,1214 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
+      "(?:found|find|see|saw|seen|add|have|has|had|need|want|got|get|buy|try|take|use|make|give|is|was|there['’]s|here['’]s|meant|mean|emailing|send|sending|write|wrote|and|or|just|also|still|for|with|from|to|at|into)[ \\t\\u00a0]{1,8}(?<target>anther)(?=[ \\t]*[.!?,;:]|[ \\t\\u00a0]{1,8}[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["anther"],
+    fixer: "en:slotConfusionsAnther",
+    cue: ["anther"],
+  },
+  {
+    pattern:
+      "(?:(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target>tanks)[ \\t\\u00a0]{1,8}(?:so[ \\t\\u00a0]{1,8}much|a[ \\t\\u00a0]{1,8}lot|for[ \\t\\u00a0]{1,8}(?:your|the|all|nothing|everything|helping|coming|this|that|it)|again)|many[ \\t\\u00a0]{1,8}(?<target2>tanks)[ \\t\\u00a0]{1,8}for)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["tanks", "tanks"],
+    fixer: "en:slotConfusionsTanks",
+    cue: ["tank", "tanks"],
+  },
+  {
+    pattern:
+      "(?<=(?:^|[.!?,][\"”’)]?[ \\t]{1,8}|\\n))(?<target>tank)[ \\t\\u00a0]{1,8}you(?=[ \\t]*[.!?,]|[ \\t\\u00a0]{1,8}(?:very|so|for|all)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["tank"],
+    fix: "thank",
+    cue: ["tank"],
+  },
+  {
+    pattern:
+      "(?:(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target>thank)(?=[ \\t]*[,!]|[ \\t\\u00a0]{1,8}to(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|many[ \\t\\u00a0]{1,8}(?<target2>thank)[ \\t\\u00a0]{1,8}for)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["thank", "thank"],
+    fixer: "en:slotConfusionsThank",
+    cue: ["thank"],
+  },
+  {
+    pattern:
+      "(?:(?:is|was|are|were|it['’]s|isn['’]t|wasn['’]t|aren['’]t|feel|feels|felt|stay|stays|stayed|be|been|am)(?:[ \\t\\u00a0]{1,8}not)?(?:[ \\t\\u00a0]{1,8}(?:very|so|too|completely|totally|perfectly|quite|really))?|(?:is|are|am)[ \\t\\u00a0]{1,8}(?:it|that|this|we|I|you|they|he|she))[ \\t\\u00a0]{1,8}(?<target>save)(?=[ \\t]*[.!?]|[ \\t\\u00a0]{1,8}(?:to|for|in|here|there|from|enough|now)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["save"],
+    fix: "safe",
+    cue: ["save"],
+  },
+  {
+    pattern:
+      "(?<target>safes)[ \\t\\u00a0]{1,8}(?:my|your|his|her|our|their|the|lives|time|money)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["safes"],
+    fix: "saves",
+    cue: ["safes"],
+  },
+  {
+    pattern:
+      "(?:(?<=(?:^|[.!?,;:][\"”’)]?[ \\t]{1,8}|\\n))|(?:now|so|ok|okay|but|and|then|please)[ \\t\\u00a0]{1,8})(?<target>lets)[ \\t\\u00a0]{1,8}(?:all|just|go|do|get|try|see|make|take|start|stay|leave|have|be|not|keep|finally|hope|say|talk|meet|move|wait|eat|play|celebrate|focus|begin|find|check|look|put)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["lets"],
+    fixer: "en:slotConfusionsLets",
+    cue: ["lets"],
+  },
+  {
+    pattern:
+      "(?:going|have|has|had|need|needs|needed|want|wants|wanted|required|able|how|try|trying|tried|easy|hard|free|ready|decided)[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}(?<target>us)[ \\t\\u00a0]{1,8}(?:a|an|the|this|that|it|them|my|your|our|their|his|her|some|any)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "going",
+      "have",
+      "has",
+      "had",
+      "need",
+      "needs",
+      "needed",
+      "want",
+      "wants",
+      "wanted",
+      "required",
+      "able",
+      "how",
+      "try",
+      "trying",
+      "tried",
+      "easy",
+      "hard",
+      "free",
+      "ready",
+      "decided",
+    ],
+    fix: "use",
+    cue: ["us"],
+  },
+  {
+    pattern:
+      "number[ \\t\\u00a0]{1,8}(?<target>or)[ \\t\\u00a0]{1,8}(?<n>[a-z]{3,}s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t]*[.,:;]|[ \\t\\u00a0]{1,8}(?:who|that|which|by|per|in|on|for|at|is|are|was|were|has|have)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["number"],
+    fixer: "en:slotConfusionsOr",
+    cue: ["or"],
+  },
+  {
+    pattern:
+      "(?:one[ \\t\\u00a0]{1,8}(?<target>if)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:most|best|worst|biggest|largest|few|first|last|main|top|greatest|only|many)|(?:couple|lots?|bunch|(?:this|that|what|some|any|the|a)[ \\t\\u00a0]{1,8}(?:kind|sort))[ \\t\\u00a0]{1,8}(?<target2>if)[ \\t\\u00a0]{1,8}(?!(?:you|I|we|they|he|she|it)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z])",
+    literals: ["one", "couple", "lot", "bunch", "kind", "sort"],
+    fixer: "en:slotConfusionsIf",
+    cue: ["if"],
+  },
+  {
+    pattern: "(?<target>if)[ \\t\\u00a0]{1,8}course(?=[ \\t]*[.!?,])",
+    literals: ["course"],
+    fix: "of",
+    cue: ["if"],
+  },
+  {
+    pattern:
+      "(?<![.,;:!?][ \\t]{0,8})(?<target>an)[ \\t\\u00a0]{1,8}(?<w>[b-df-hj-np-tv-z][a-z]+)[ \\t\\u00a0]{1,8}(?:what|where|how|the|a|an|another|other|it|them|some|my|your|his|her|our|their|this|that|if|whether)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fixer: "en:slotConfusionsAn",
+    cue: ["an"],
+  },
+  {
+    pattern:
+      "(?:fill[ \\t\\u00a0]{1,8}(?:in|out)|submit|complete|sign|in)[ \\t\\u00a0]{1,8}(?:this|that|the|our|your|a)[ \\t\\u00a0]{1,8}(?<target>from)(?=[ \\t]*[.!?]|[ \\t\\u00a0]{1,8}(?:on|below|above)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["from"],
+    fix: "form",
+    cue: ["from"],
+  },
+  {
+    pattern:
+      "(?:letter|email|message|gift|income|money|news|greetings|hello)[ \\t\\u00a0]{1,8}(?<target>form)[ \\t\\u00a0]{1,8}(?:my|your|his|her|our|their|the|this|him|them|us)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "letter",
+      "email",
+      "message",
+      "gift",
+      "income",
+      "money",
+      "news",
+      "greetings",
+      "hello",
+    ],
+    fix: "from",
+    cue: ["form"],
+  },
+  {
+    pattern:
+      "(?:so|very|am|are|is|was|were|be|been|really|just|too|quite|pretty|extremely|['’]m|['’]re)[ \\t\\u00a0]{1,8}(?<target>curios)(?=[ \\t]*[.!?,]|[ \\t\\u00a0]{1,8}(?:if|what|about|to|whether|why|how|person|people|cat|child|kid|mind|one)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["curios"],
+    fix: "curious",
+    cue: ["curios"],
+  },
+  {
+    pattern:
+      "(?:I|you|we|they|he|she|can|could|will|would|should|have|has|had|didn['’]t|don['’]t|to|never|already|just)[ \\t\\u00a0]{1,8}(?<target>red)[ \\t\\u00a0]{1,8}(?:a|an|the|this|that|it|my|your|his|their|our|about|some|books?|articles?|emails?|messages?|reviews?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["red"],
+    fix: "read",
+    cue: ["red"],
+  },
+  {
+    pattern:
+      "(?:will|can|could|would|should|to|then|just|and|I|you|we|they|users|please)[ \\t\\u00a0]{1,8}(?<target>past)[ \\t\\u00a0]{1,8}(?:(?:it|this|that|them|text|code|the[ \\t\\u00a0]{1,8}[a-z]+|your[ \\t\\u00a0]{1,8}[a-z]+|my[ \\t\\u00a0]{1,8}[a-z]+)[ \\t\\u00a0]{1,8})?(?:into|in[ \\t\\u00a0]{1,8}(?:the|a|your|my)|here)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["past"],
+    fix: "paste",
+    cue: ["past"],
+  },
+  {
+    pattern:
+      "(?:(?:it['’]s|is|was|isn['’]t|wasn['’]t|get|be|not)[ \\t\\u00a0]{1,8}(?<target>event)[ \\t\\u00a0]{1,8}(?:possible|impossible|more|less|better|worse|usually|harder|easier|bigger|though|if|when|after)|(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n|(?:but|and)[ \\t]{1,8}))(?<target2>[Ee]vent)[ \\t\\u00a0]{1,8}(?:I|we|you|they|he|she|if|though|so|now))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["event", "event"],
+    fixer: "en:slotConfusionsEvent",
+    cue: ["event"],
+  },
+  {
+    pattern:
+      "(?:close|closed|closing|is|was|are|were|delayed|cancelled|canceled|postponed|there|mainly|partly|largely|probably|possibly)[ \\t\\u00a0]{1,8}(?<target>do[ \\t\\u00a0]{1,8}to)[ \\t\\u00a0]{1,8}(?:the|a|an|covid|bad|heavy|high|low|his|her|their|our|my|its|this|that|lack|[a-z]{2,})",
+    literals: [],
+    fix: "due to",
+    cue: ["do"],
+  },
+  {
+    pattern:
+      "(?:(?:on|in|so|too|how|and|very|for|of|with)[ \\t\\u00a0]{1,8}(?<target>may)[ \\t\\u00a0]{1,8}(?:different|more|other|people|times|ways|years|things|reasons|of[ \\t\\u00a0]{1,8}(?:them|us|you|the))|(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target2>May)[ \\t\\u00a0]{1,8}thanks)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["may", "thanks"],
+    fixer: "en:slotConfusionsMay",
+    cue: ["may"],
+  },
+  {
+    pattern:
+      "(?:cancel|on|in|to|from|with|for|of|at|into)[ \\t\\u00a0]{1,8}(?<target>may)[ \\t\\u00a0]{1,8}(?:subscription|account|list|head|mind|life|house|car|phone|computer|wife|husband|mother|father|order|name|email|friend|friends|family|job|own)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["may"],
+    fixer: "en:slotConfusionsMay2",
+    cue: ["may"],
+  },
+  {
+    pattern:
+      "(?:(?:I|you|we|they|should|could|would|will|must|might|to)[ \\t\\u00a0]{1,8}(?<target>ave)[ \\t\\u00a0]{1,8}(?:been|no|a|an|the|to|many|any|some|it|this|that|done|seen|had|got|known|gone|made|taken|told|said|thought)|(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target2>Ave)[ \\t\\u00a0]{1,8}(?:you|we|they)[ \\t\\u00a0]{1,8}(?:been|got|seen|had|done|ever))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["ave", "ave"],
+    fixer: "en:slotConfusionsAve",
+    cue: ["ave"],
+  },
+  {
+    pattern:
+      "(?:to|with|for|from|believes|believe|told|gave|give|send|sent|join|help)[ \\t\\u00a0]{1,8}(?<target>is)(?=[ \\t]*[.!?])",
+    literals: [],
+    fix: "us",
+    cue: ["is"],
+  },
+  {
+    pattern:
+      "(?:he|she|that|this|there|what)[ \\t\\u00a0]{1,8}(?<target>us)[ \\t\\u00a0]{1,8}(?:going|so|right|wrong|not|very|good|great|true|fine|ok|okay|done|coming)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fix: "is",
+    cue: ["us"],
+  },
+  {
+    pattern: "take[ \\t\\u00a0]{1,8}(?<target>car)(?=[ \\t]*[.!?,]|[ \\t]*$)",
+    literals: ["take"],
+    fix: "care",
+    cue: ["car"],
+  },
+  {
+    pattern:
+      "(?:the|these|those|first|last|next|only|other)[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}(?:new|old|main|other|different|big|small|problems|issues|options|people|ones|developers|things|days|weeks|years|times|charts|files)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["the", "these", "those", "first", "last", "next", "only", "other"],
+    fix: "two",
+    cue: ["to"],
+  },
+  {
+    pattern:
+      "(?:he|she|it|they|we|I|you)[ \\t\\u00a0]{1,8}(?<target>cam)[ \\t\\u00a0]{1,8}(?:to|here|home|back|in|over|out|up|down|across)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["cam"],
+    fix: "came",
+    cue: ["cam"],
+  },
+  {
+    pattern:
+      "(?:can|could|will|would|to|please|has|have|had|you)[ \\t\\u00a0]{1,8}(?<target>com)[ \\t\\u00a0]{1,8}(?:and|to|here|home|back|in|over|with|along|up)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["com"],
+    fix: "come",
+    cue: ["com"],
+  },
+  {
+    pattern:
+      "(?:really|very|so|too|it|be|is|was|a|pretty|quite)[ \\t\\u00a0]{1,8}(?<target>hart)(?=[ \\t]*[.!?,]|[ \\t\\u00a0]{1,8}(?:to|time|times|work|day|days|thing|one|part)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["hart"],
+    fix: "hard",
+    cue: ["hart"],
+  },
+  {
+    pattern:
+      "the[ \\t\\u00a0]{1,8}(?<target>wurst)[ \\t\\u00a0]{1,8}(?:case|scenario|thing|part|day|time|player|game|movie|idea|ever|of[ \\t\\u00a0]{1,8}(?:all|the|it|them)|I[ \\t\\u00a0]{1,8}(?:have|had|ever)|is[ \\t\\u00a0]{1,8}yet)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["wurst"],
+    fix: "worst",
+    cue: ["wurst"],
+  },
+  {
+    pattern:
+      "(?:(?<=(?:^|[.!?,][\"”’)]?[ \\t]{1,8}|\\n))|(?:say|but|and|just|oh|ok|okay)[ \\t\\u00a0]{1,8})(?<target>than)[ \\t\\u00a0]{1,8}you(?=[ \\t]*[.!?,]|[ \\t\\u00a0]{1,8}(?:so|very|for|all)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["than"],
+    fix: "thank",
+    cue: ["than"],
+  },
+  {
+    pattern:
+      "(?:I|you|we|they|would|wouldn['’]t|could|can|will|should|usually|always|please|just|also)[ \\t\\u00a0]{1,8}(?<target>ad)[ \\t\\u00a0]{1,8}(?:a|an|the|some|more|it|them|this|that|ketchup|salt|sugar|value|to)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fix: "add",
+    cue: ["ad"],
+  },
+  {
+    pattern:
+      "(?:he|she|it|this|which|who)[ \\t\\u00a0]{1,8}(?:(?:also|really|usually|always)[ \\t\\u00a0]{1,8})?(?<target>ads)[ \\t\\u00a0]{1,8}(?:a|an|the|some|more|value|to|up)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["ads"],
+    fix: "adds",
+    cue: ["ads"],
+  },
+  {
+    pattern:
+      "(?:can|could|will|would|should|must|to|didn['’]t|don['’]t)[ \\t\\u00a0]{1,8}(?<target>due)(?=[ \\t]*[.!?]|[ \\t\\u00a0]{1,8}(?:is|his|her|my|your|their|our|it|this|that|the[ \\t\\u00a0]{1,8}(?:dishes|work|job|homework|same)|what|something|anything|nothing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["due"],
+    fix: "do",
+    cue: ["due"],
+  },
+  {
+    pattern:
+      "(?:be[ \\t\\u00a0]{1,8}(?<target>quite)(?=[ \\t]*[.!])|a[ \\t\\u00a0]{1,8}(?<target2>quite)[ \\t\\u00a0]{1,8}(?:word|place|night|evening|room|moment|life|spot|street|corner|neighborhood|neighbourhood|town|village|weekend|voice)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["quite", "quite"],
+    fixer: "en:slotConfusionsQuite",
+    cue: ["quite"],
+  },
+  {
+    pattern:
+      "(?:am|is|are|was|were|['’]s|['’]m|['’]re)[ \\t\\u00a0]{1,8}(?<target>quiet)[ \\t\\u00a0]{1,8}(?:sure|new|different|right|simple|easy|difficult|interesting|good|nice|certain)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["quiet"],
+    fix: "quite",
+    cue: ["quiet"],
+  },
+  {
+    pattern:
+      "(?<lead>I|you|we|they|he|she|could|would|will|can|might|to|not|never|didn['’]t|don['’]t)[ \\t\\u00a0]{1,8}(?<target>loss)[ \\t\\u00a0]{1,8}(?:a|an|the|my|your|his|her|their|our|it|them|weight|money|time|control|track|interest|sight|hope|games?|friends?|football)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["loss"],
+    fixer: "en:slotConfusionsLoss",
+    cue: ["loss"],
+  },
+  {
+    pattern:
+      "(?:he|she|it|always|never|usually|often)[ \\t\\u00a0]{1,8}(?<target>losses)[ \\t\\u00a0]{1,8}(?:his|her|its|their|the|a|my)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["losses"],
+    fix: "loses",
+    cue: ["losses"],
+  },
+  {
+    pattern:
+      "(?:a|the)[ \\t\\u00a0]{1,8}(?<target>lose)[ \\t\\u00a0]{1,8}(?:tooth|thread|end|ends|screw|connection|wire|cable|cannon|fit|leaf|grip)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["lose"],
+    fix: "loose",
+    cue: ["lose"],
+  },
+  {
+    pattern:
+      "(?:to|don['’]t|do[ \\t\\u00a0]{1,8}not|won['’]t|didn['’]t|will|would|can|could|never)[ \\t\\u00a0]{1,8}(?<target>here)[ \\t\\u00a0]{1,8}from[ \\t\\u00a0]{1,8}(?:you|me|him|her|them|us)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["here"],
+    fix: "hear",
+    cue: ["here"],
+  },
+  {
+    pattern:
+      "(?:received|got|read|sent|forwarded|deleted|answered|reply[ \\t\\u00a0]{1,8}to|answer[ \\t\\u00a0]{1,8}to)[ \\t\\u00a0]{1,8}(?:(?:your|my|his|her|our|their|the|different|several|many|some|two|three)[ \\t\\u00a0]{1,8})?(?:(?:last|previous|earlier|recent|text|voice)[ \\t\\u00a0]{1,8})?(?<target>massages?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["massage"],
+    fixer: "en:slotConfusionsMassages",
+    cue: ["massage", "massages"],
+  },
+  {
+    pattern:
+      "(?:(?:against|to|with)[ \\t\\u00a0]{1,8}(?:my|his|her|your|our|their)[ \\t\\u00a0]{1,8}(?<target>principals)|(?<target2>principals)[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:constitution|law|physics|design|democracy|game|faith))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["principals", "principals"],
+    fixer: "en:slotConfusionsPrincipals",
+    cue: ["principals"],
+  },
+  {
+    pattern:
+      "(?<target>peaked|peeked|peaks|peeks|peaking|peeking)[ \\t\\u00a0]{1,8}(?:(?:my|your|his|her|their|our|the|public|everyone['’]s|[a-z]+['’]s?)[ \\t\\u00a0]{1,8})?(?:(?:intense|lasting|and|immediate|keen|own|constitutional|judges['’]?)[ \\t\\u00a0]{1,8})*(?:interest|curiosity|attention|suspicions?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["interest", "curiosity", "attention", "suspicion"],
+    fixer: "en:slotConfusionsPeaked",
+    cue: ["peaked", "peeked", "peaks", "peeks", "peaking", "peeking"],
+  },
+  {
+    pattern:
+      "(?:(?:not|didn['’]t|don['’]t|doesn['’]t|never)[ \\t\\u00a0]{1,8}(?<target>man)[ \\t\\u00a0]{1,8}to|what[ \\t\\u00a0]{1,8}(?:we|you|they|I|he|she)[ \\t\\u00a0]{1,8}(?<target2>man)(?=[ \\t]*[?.]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["not", "didn", "don", "doesn", "never", "what"],
+    fixer: "en:slotConfusionsMan",
+    cue: ["man"],
+  },
+  {
+    pattern:
+      "(?:(?:greatest|best|worst|biggest|first|only|most|least)[ \\t\\u00a0]{1,8}(?:[a-z]+[ \\t\\u00a0]{1,8})?(?<target>every)[ \\t\\u00a0]{1,8}(?:told|made|seen|written|lived|played|recorded|built|created|sold|produced|known)|(?:would|could|will|can|might|should|if|hardly|nor)[ \\t\\u00a0]{1,8}(?<target2>every)[ \\t\\u00a0]{1,8}(?:be|been|get|see|happen|make|want|need|seen|go|come|find|know|use))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["every", "every"],
+    fixer: "en:slotConfusionsEvery",
+    cue: ["every"],
+  },
+  {
+    pattern:
+      "(?:all[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?<target>bet)(?=[ \\t]*[.!,]|[ \\t]*$)|wish[ \\t\\u00a0]{1,8}(?:you|him|her|them|us)[ \\t\\u00a0]{1,8}(?:all[ \\t\\u00a0]{1,8})?the[ \\t\\u00a0]{1,8}(?<target2>bet))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["all", "wish"],
+    fixer: "en:slotConfusionsBet",
+    cue: ["bet"],
+  },
+  {
+    pattern:
+      "(?:as[ \\t\\u00a0]{1,8}(?<target>off)[ \\t\\u00a0]{1,8}(?:yesterday|today|now|tomorrow|this|last|next|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|june|july|august|september|october|november|december|[0-9])|aware[ \\t\\u00a0]{1,8}(?<target2>off)(?=[ \\t]*[.!?]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["off", "aware"],
+    fixer: "en:slotConfusionsOff",
+    cue: ["off"],
+  },
+  {
+    pattern:
+      "(?:pulled|pull|pulls|pulling)[ \\t\\u00a0]{1,8}(?<target>of)[ \\t\\u00a0]{1,8}(?:an?|the)[ \\t\\u00a0]{1,8}(?:upset|win|victory|trick|stunt|heist|miracle|comeback)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["pulled", "pull", "pulls", "pulling"],
+    fix: "off",
+    cue: ["of"],
+  },
+  {
+    pattern:
+      "(?<lead>(?<=(?:^|[.!?,;:][\"”’)]?[ \\t]{1,8}|\\n))|(?:if|when|because|and|but|then|now|otherwise|so|until|unless|since|whether|while|that)[ \\t\\u00a0]{1,8})(?<target>you)[ \\t\\u00a0]{1,8}(?<w1>[a-z]+)[ \\t\\u00a0]{1,8}(?<w2>[a-z]+(?:['’]t)?)(?:[ \\t\\u00a0]{1,8}(?<w3>[a-z]+(?:['’]t)?))?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["you"],
+    fixer: "en:slotConfusionsYou",
+    message: "review_msg_your_possessive",
+    check: "englishYourYouAre",
+    cue: ["you"],
+  },
+  {
+    pattern:
+      "(?<aux>did|does|do|didn['’]t|doesn['’]t|don['’]t|will|would|could|can|should|has|have)[ \\t\\u00a0]{1,8}(?<target>you)[ \\t\\u00a0]{1,8}(?<w1>[a-z]+)[ \\t\\u00a0]{1,8}(?<w2>[a-z]+)(?:[ \\t\\u00a0]{1,8}(?<w3>[a-z]+))?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["you"],
+    fixer: "en:slotConfusionsYou2",
+    message: "review_msg_your_possessive",
+    check: "englishYourYouAre",
+    cue: ["you"],
+  },
+  {
+    pattern:
+      "(?:for|at|about|on|with|from|not|done|did|finished|lost|found|forgot|hug|hugged|wash|washed|clean|cleaned|update|updated|(?:you|I|we|they)[ \\t\\u00a0]{1,8}have)[ \\t\\u00a0]{1,8}(?<target>you)[ \\t\\u00a0]{1,8}(?<w1>[a-z]+)(?:[ \\t\\u00a0]{1,8}(?!(?:yet|with|already|today|now|first|and|or|of)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?<w2>[a-z]+))?(?<end>[ \\t\\u00a0]*[.!?,;:]|[ \\t\\u00a0]{1,8}(?:yet|with|already|today|now|first|and|or|of)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["you"],
+    fixer: "en:slotConfusionsYou3",
+    message: "review_msg_your_possessive",
+    check: "englishYourYouAre",
+    cue: ["you"],
+  },
+  {
+    pattern:
+      "(?<=(?:n['’]t|(?:is|was|are|were|am|do|does|did|will|would|can|could|have|has|had|be|['’]m|['’]re|['’]s)[ \\t\\u00a0]{1,8}not|[ \\t\\u00a0]{1,8}never)[ \\t\\u00a0]{1,8}(?:[\\p{L}'’]+[ \\t\\u00a0]{1,8}){0,4})(?<target>too)(?=[ \\t\\u00a0]*[.!])",
+    literals: ["too"],
+    fixer: "en:slotConfusionsToo",
+    message: "review_msg_contextual_grammar",
+    cue: ["too"],
+  },
+  {
+    pattern:
+      "(?:have|has|had|having|able|want|wants|wanted|wanting|need|needs|needed|supposed|ought|not)[ \\t\\u00a0]{1,8}(?<target>too)(?=[ \\t\\u00a0]*[.!?])",
+    literals: [
+      "have",
+      "has",
+      "had",
+      "having",
+      "able",
+      "want",
+      "wants",
+      "wanted",
+      "wanting",
+      "need",
+      "needs",
+      "needed",
+      "supposed",
+      "ought",
+      "not",
+    ],
+    fix: "to",
+    cue: ["too"],
+  },
+  {
+    pattern:
+      "(?:(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n|,[ \\t]{1,8}))|(?:think|thought|guess|hope|wish|know|said|says|so|but|and|because|if|then|maybe|honestly|yes|well)[ \\t\\u00a0]{1,8})(?<target>id)[ \\t\\u00a0]{1,8}(?:rather|probably|like|love|hate|be|have|never|just|prefer|preferred|better|already|definitely|also|really|say|been|gladly|appreciate|want|go|need|imagine|recommend|suggest|bet|do|get|try|still|always|only|certainly|happily|guess)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fixer: "en:slotConfusionsId",
+    cue: ["id"],
+  },
+  {
+    pattern:
+      "(?:my|your|his|her|their|our|photo|student|valid|government|employee|staff)[ \\t\\u00a0]{1,8}(?<target>id)(?=[ \\t\\u00a0]{1,8}(?:card|cards|number|badge|proves|shows|expired|is|was|to|at|for|and|or|with)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;:])",
+    literals: [],
+    fixer: "en:slotConfusionsId2",
+    message: "review_msg_name_casing",
+    check: "englishCanonicalCasing",
+    cue: ["id"],
+  },
+  {
+    pattern:
+      "(?<=(?:^|[.!?,;][\"”’)]?[ \\t]{0,8}|\\n))(?<target>thanks)(?=[ \\t\\u00a0]{1,8}you(?:[ \\t\\u00a0]{1,8}(?:for|so|very|again|all)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!,]|[ \\t]*$))",
+    literals: ["thanks"],
+    fix: "thank",
+    message: "review_msg_phrase_correction",
+    cue: ["thanks"],
+  },
+  {
+    pattern:
+      "(?:(?:I|you|we|they|he|she|who|parents|father|mother)[ \\t\\u00a0]{1,8}(?<target>cold)[ \\t\\u00a0]{1,8}(?:not|n['’]t|never|do|be|have|see|hear|help|go|get|make|say|tell|find|imagine|feel|ask|try|use)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}))(?<target2>Cold)[ \\t\\u00a0]{1,8}(?:you|we|they|he|she|I|it|someone|anyone)[ \\t\\u00a0]{1,8}(?:please[ \\t\\u00a0]{1,8})?(?:help|tell|see|hear|send|check|give|explain|do|be|have|make)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["cold", "cold"],
+    fixer: "en:slotConfusionsCold",
+    cue: ["cold"],
+  },
+  {
+    pattern:
+      "(?:to|will|would|can|could|may|might|it|he|she|they|fog|smoke|darkness|silence)[ \\t\\u00a0]{1,8}(?<target>envelope|envelopes)[ \\t\\u00a0]{1,8}(?:me|you|him|her|us|them|it|the|everything|everyone)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["envelope", "envelopes"],
+    fixer: "en:slotConfusionsEnvelope",
+    cue: ["envelope", "envelopes", "enveloped", "enveloping"],
+  },
+  {
+    pattern:
+      "(?:from[ \\t\\u00a0]{1,8}[0-9A-Za-z.,%]+[ \\t\\u00a0]{1,8}|expand(?:s|ed|ing)?[ \\t\\u00a0]{1,8}|increase[sd]?[ \\t\\u00a0]{1,8}|grew[ \\t\\u00a0]{1,8}|grow(?:s|ing)?[ \\t\\u00a0]{1,8}|up[ \\t\\u00a0]{1,8}|rise[sn]?[ \\t\\u00a0]{1,8}|rose[ \\t\\u00a0]{1,8}|fell[ \\t\\u00a0]{1,8}|dropped[ \\t\\u00a0]{1,8})(?<target>too)[ \\t\\u00a0]{1,8}(?:[0-9]+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|hundred|thousand|million)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["too"],
+    fix: "to",
+    cue: ["too"],
+  },
+  {
+    pattern:
+      "(?:let|tell|told|send|give|gave|show|ask|asked|help|thank|call|email|to)[ \\t\\u00a0]{1,8}(?<target>em)[ \\t\\u00a0]{1,8}(?:know|what|that|the|a|an|it|about|how|why|when|where|if|more)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fix: ["me", "them"],
+    cue: ["em"],
+  },
+  {
+    pattern:
+      "(?:can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t|to|don['’]t|doesn['’]t|didn['’]t|never|not|you|I|we|they|do|did|does)[ \\t\\u00a0]{1,8}(?<target>git)[ \\t\\u00a0]{1,8}(?:a|an|the|more|some|it|them|me|you|my|your|this|that|better|ready|started|back|out|home|rid|lost|used|over)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["git"],
+    fix: "get",
+    cue: ["git"],
+  },
+  {
+    pattern:
+      "(?:I|we|you|they)[ \\t\\u00a0]{1,8}(?<target>cab|cam)[ \\t\\u00a0]{1,8}(?:confirm|help|see|do|advise|try|check|be|not|say|tell|get|make|go|come|send|assure|guarantee)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["cab", "cam"],
+    fix: "can",
+    cue: ["cab", "cam"],
+  },
+  {
+    pattern:
+      "(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target>whet)(?=[ \\t\\u00a0]{1,8}(?:is|are|was|were|do|does|did|happened|happens|about|if|else|time)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|['’]s|[ \\t]*\\?)",
+    literals: ["whet"],
+    fix: "what",
+    cue: ["whet"],
+  },
+  {
+    pattern:
+      "(?:(?<!(?<![\\p{L}'’])(?:a|the)[ \\t\\u00a0]{1,8})good[ \\t\\u00a0]{1,8}(?<target>lick)|wish(?:ing)?[ \\t\\u00a0]{1,8}(?:you|him|her|them|us|everyone)[ \\t\\u00a0]{1,8}good[ \\t\\u00a0]{1,8}(?<target2>lock))(?=[ \\t\\u00a0]{1,8}(?:with|on|to|in|for|today|tomorrow|everyone|everybody|next)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.,!]|[ \\t]*$)",
+    literals: ["good", "wish"],
+    fixer: "en:slotConfusionsLick",
+    cue: ["lick", "lock"],
+  },
+  {
+    pattern:
+      "(?:(?:have|has|had)[ \\t\\u00a0]{1,8}(?<target>note)[ \\t\\u00a0]{1,8}(?<part>[a-z]+)|(?:I['’]m|am|is|are|was|were)[ \\t\\u00a0]{1,8}(?<target2>note)[ \\t\\u00a0]{1,8}(?<ing>[a-z]+ing))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["note", "note"],
+    fixer: "en:slotConfusionsNote",
+    cue: ["note"],
+  },
+  {
+    pattern:
+      "(?:sounds|looks|seems|feels|as|so|too|very|really)[ \\t\\u00a0]{1,8}(?<target>goo)(?=[ \\t\\u00a0]{1,8}(?:enough|as|to|for|at|idea|job|news)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.,!?])",
+    literals: ["goo"],
+    fix: "good",
+    cue: ["goo"],
+  },
+  {
+    pattern:
+      "(?:very|too|really|feel|feels|felt|seemed|looked|I['’]m|am)[ \\t\\u00a0]{1,8}(?<target>said)(?=[ \\t]*[.,!?]|[ \\t\\u00a0]{1,8}(?:and|but|about|when|because|today)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["said"],
+    fix: "sad",
+    cue: ["said"],
+  },
+  {
+    pattern:
+      "(?:(?:I|he|she|they|we|you|who)[ \\t\\u00a0]{1,8}(?<target>sad)[ \\t\\u00a0]{1,8}(?:that|it|so|this|something|nothing|yes|no|hello|goodbye)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?:have|has|had)[ \\t\\u00a0]{1,8}(?<target2>sad)(?=[ \\t]*[.,!?]|[ \\t\\u00a0]{1,8}(?:that|it|so|yesterday|before|earlier)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["sad", "have", "has", "had"],
+    fixer: "en:slotConfusionsSad",
+    cue: ["sad"],
+  },
+  {
+    pattern:
+      "(?<=\\p{L}[ \\t]{1,8})(?<target>look|looks|looked|looking)[ \\t\\u00a0]{1,8}(?:the|your|my|his|her|our|their|this|that)[ \\t\\u00a0]{1,8}(?:(?:front|back|main|car|garage|bedroom|office)[ \\t\\u00a0]{1,8})?(?:door|doors|gate|gates)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["look", "looks", "looked", "looking"],
+    fixer: "en:slotConfusionsLook",
+    cue: ["look", "looks", "looked", "looking"],
+  },
+  {
+    pattern:
+      "(?<target>non[ \\t\\u00a0]{1,8}(?<word>[A-Za-z]+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["non"],
+    fixer: "en:slotConfusionsNon",
+    message: "review_msg_compounds",
+    check: "englishContextualCompounds",
+    cue: ["non"],
+  },
+  {
+    pattern:
+      "(?:can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t|to|don['’]t|doesn['’]t|didn['’]t|never|not|I|we|you|they|let['’]s|please)[ \\t\\u00a0]{1,8}(?:(?:just|also|always|never|really|often|still)[ \\t\\u00a0]{1,8})?(?<target>tel|tech|choice|ware|multiple)[ \\t\\u00a0]{1,8}(?:it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["tel", "tech", "choice", "ware", "multiple"],
+    fixer: "en:slotConfusionsTel",
+    cue: ["tel", "tech", "choice", "ware", "multiple"],
+  },
+  {
+    pattern:
+      "(?:he|she|it|who|which|that)[ \\t\\u00a0]{1,8}(?:(?:just|also|always|never|really|often|still)[ \\t\\u00a0]{1,8})?(?<target>tels|teches|choices|wares|multiples)[ \\t\\u00a0]{1,8}(?:it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["tels", "teches", "choices", "wares", "multiples"],
+    fixer: "en:slotConfusionsTels",
+    cue: ["tels", "teches", "choices", "wares", "multiples"],
+  },
+  {
+    pattern: "(?<target>mus)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["mus"],
+    fixer: "en:slotConfusionsMus",
+    cue: ["mus"],
+  },
+  {
+    pattern:
+      "(?:I|you|we|they|he|she|it|would|could|will|should|can|must|might|may|and|but|are|is|was|were|am)[ \\t\\u00a0]{1,8}(?<target>sill)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["sill"],
+    fixer: "en:slotConfusionsSill",
+    cue: ["sill"],
+  },
+  {
+    pattern:
+      "(?:(?<=(?:^|[.!?\\n][\"”’)]?[ \\t]{0,8}))|(?:you|kindly|and)[ \\t\\u00a0]{1,8})(?<target>pleas)(?=[ \\t\\u00a0]{1,8}(?:have|check|let|send|help|see|do|be|note|find|look|tell|try|share|add|call|reply|confirm|review|fix|wait|contact|give|make|keep|consider)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*,)",
+    literals: ["pleas"],
+    fix: "please",
+    cue: ["pleas"],
+  },
+  {
+    pattern:
+      "(?:I['’]m|am|is|are|was|were|be|do|does|did|could|would|will|should|can)[ \\t\\u00a0]{1,8}(?<target>nut)[ \\t\\u00a0]{1,8}(?:sure|going|ready|able|allowed|happy|true|a|an|the|that|so|too|very|really|yet|working|done|here|there|know)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["nut"],
+    fix: "not",
+    cue: ["nut"],
+  },
+  {
+    pattern:
+      "(?:go|goes|went|gone|going|walk|walks|walked|walking|run|runs|ran|running|pass|passed|passes|passing|come|comes|came|coming|get|gets|got|getting|look|looks|looked|looking|read|went|drive|drove|driving|it|way|all|halfway|straight|right)[ \\t\\u00a0]{1,8}(?<target>trough)[ \\t\\u00a0]{1,8}(?:the|a|an|this|that|it|them|my|your|his|her|our|their|without|with)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["trough"],
+    fix: "through",
+    cue: ["trough"],
+  },
+  {
+    pattern:
+      "(?:am|is|are|was|were|be|been|(?:I|you|we|they|he|she|it|that)['’](?:m|re|s)|feel|feels|felt|look|looks|looked|seem|seems|seemed)[ \\t\\u00a0]{1,8}(?<target>vary)[ \\t\\u00a0]{1,8}(?<adj>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["vary"],
+    fixer: "en:slotConfusionsVary",
+    cue: ["vary"],
+  },
+  {
+    pattern:
+      "(?<subject>I|you|we|they|he|she|it)(?<neg>['’]m[ \\t\\u00a0]{1,8}not|[ \\t\\u00a0]{1,8}(?:am|is|are|was|were)[ \\t\\u00a0]{1,8}not|[ \\t\\u00a0]{1,8}(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t)|['’](?:s|re)[ \\t\\u00a0]{1,8}not|[ \\t\\u00a0]{1,8}(?:don['’]t|doesn['’]t|didn['’]t|do[ \\t\\u00a0]{1,8}not|does[ \\t\\u00a0]{1,8}not|did[ \\t\\u00a0]{1,8}not))[ \\t\\u00a0]{1,8}[^.!?,;:\n]{1,60},[ \\t\\u00a0]{1,8}(?<target>(?<aux>am|is|are|was|were|do|does|did)[ \\t\\u00a0]{1,8}(?<pron>I|you|we|they|he|she|it))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \t]*\\?)",
+    literals: [
+      "not",
+      "not",
+      "isn",
+      "aren",
+      "wasn",
+      "weren",
+      "not",
+      "don",
+      "doesn",
+      "didn",
+      "not",
+      "does",
+      "did",
+    ],
+    fixer: "en:slotConfusionsAux",
+    message: "review_msg_tag_question",
+    check: "englishSentenceStructure",
+    cue: ["not", "t"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<subject>I|you|we|they|he|she|it)(?<verb>['’](?:m|re|s)|[ \\t\\u00a0]{1,8}(?:(?:always|usually|often|really|just|also|still|never)[ \\t\\u00a0]{1,8})?[a-z]+)(?=[^.!?,;:\\n]{0,60},[ \\t\\u00a0]{1,8}(?:aren|isn|wasn|weren|don|doesn|didn)['’]t)[^.!?,;:\\n]{0,60},[ \\t\\u00a0]{1,8}(?<target>(?<aux>aren['’]t|isn['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)[ \\t\\u00a0]{1,8}(?<pron>I|you|we|they|he|she|it))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t]*\\?)",
+    literals: ["aren", "isn", "wasn", "weren", "don", "doesn", "didn"],
+    fixer: "en:slotConfusionsAux2",
+    message: "review_msg_tag_question",
+    check: "englishSentenceStructure",
+    cue: ["t"],
+  },
+  {
+    pattern:
+      "(?:[0-9]+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|few|several|many|next|last|past|coming|following|couple[ \\t\\u00a0]{1,8}of)[ \\t\\u00a0]{1,8}(?<target>moths)(?=[ \\t\\u00a0]{1,8}(?:ago|later|earlier|before|after|old|long|from[ \\t\\u00a0]{1,8}now)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["moths"],
+    fix: "months",
+    cue: ["moths", "moth"],
+  },
+  {
+    pattern:
+      "(?:in|for|within|after|over|during)[ \\t\\u00a0]{1,8}(?:the[ \\t\\u00a0]{1,8}|a[ \\t\\u00a0]{1,8})?(?:[0-9]+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|few|several|many|next|last|past|coming|following|couple[ \\t\\u00a0]{1,8}of)[ \\t\\u00a0]{1,8}(?<target>moths)(?=[ \\t]*[.,;!?])",
+    literals: ["moths"],
+    fix: "months",
+    cue: ["moths"],
+  },
+  {
+    pattern:
+      "(?:a|one|per|each|every|this|next|last)[ \\t\\u00a0]{1,8}(?<target>moth)(?=[ \\t\\u00a0]{1,8}(?:ago|later|earlier|before|after|old|long|from[ \\t\\u00a0]{1,8}now)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["moth"],
+    fix: "month",
+    cue: ["moth"],
+  },
+  {
+    pattern:
+      "(?:I|you|we|they|he|she|it|can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t|am|is|are|was|were|had|has|have|did|could|['’](?:m|re|s|d|ve))[ \\t\\u00a0]{1,8}(?<target>barley)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["barley"],
+    fixer: "en:slotConfusionsBarley",
+    cue: ["barley"],
+  },
+  {
+    pattern:
+      "(?:found|find|need|needs|needed|had|have|has|is|was|['’]s|try|tried|yet|one|and|or|for|of|with|to|on|in|at|from|by|about|another|any)[ \\t\\u00a0]{1,8}(?<target>anther)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["anther"],
+    fixer: "en:slotConfusionsAnther2",
+    cue: ["anther"],
+  },
+  {
+    pattern:
+      "(?<target>wold)(?=[ \\t\\u00a0]{1,8}(?:wide[ \\t\\u00a0]{1,8}web|war|record|cup|peace|leader|leaders|economy|politics|history|map|population)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["wold"],
+    fix: "world",
+    cue: ["wold"],
+  },
+  {
+    pattern:
+      "(?:it|this|that|which|what[ \\t\\u00a0]{1,8}(?:he|she|it|this|that))[ \\t\\u00a0]{1,8}(?<target>mans)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["mans"],
+    fixer: "en:slotConfusionsMans",
+    cue: ["mans"],
+  },
+  {
+    pattern:
+      "(?:can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t|to|don['’]t|doesn['’]t|didn['’]t|never|not|let['’]s|I|we|you|they)[ \\t\\u00a0]{1,8}(?<target>due)[ \\t\\u00a0]{1,8}(?:it|this|that|so|anything|something|nothing|everything|my[ \\t\\u00a0]{1,8}best|your[ \\t\\u00a0]{1,8}best|the[ \\t\\u00a0]{1,8}(?:dishes|job|work|same))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["due"],
+    fix: "do",
+    cue: ["due"],
+  },
+  {
+    pattern:
+      "(?=Due)(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target>Due)[ \\t\\u00a0]{1,8}(?:you|we|they|I)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["due"],
+    fixer: "en:slotConfusionsDue",
+    cue: ["due"],
+  },
+  {
+    pattern:
+      "(?:can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t|please|let['’]s|lets)[ \\t\\u00a0]{1,8}(?<target>us)[ \\t\\u00a0]{1,8}(?:the|a|an|his|her|their|my|your|our|its|this|these|those)[ \\t\\u00a0]{1,8}(?!(?:most|more|best|least|same|whole|rest)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+",
+    literals: [
+      "can",
+      "could",
+      "will",
+      "would",
+      "shall",
+      "should",
+      "may",
+      "might",
+      "must",
+      "cannot",
+      "can",
+      "won",
+      "please",
+      "let",
+      "lets",
+    ],
+    fixer: "en:slotConfusionsUs",
+    cue: ["us"],
+  },
+  {
+    pattern:
+      "(?:it|can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t|to|not|n['’]t)[ \\t\\u00a0]{1,8}(?<target>event)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["event"],
+    fixer: "en:slotConfusionsEvent2",
+    cue: ["event"],
+  },
+  {
+    pattern:
+      "(?:(?:can|could|cannot|can['’]t|couldn['’]t|almost|barely|hardly|to)[ \\t\\u00a0]{1,8})(?<target>here)[ \\t\\u00a0]{1,8}(?:you|me|him|her|them|us|it|that|this|what|about|from|of|anything|something|nothing|someone|somebody|footsteps|voices|music|noise)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["here"],
+    fixer: "en:slotConfusionsHere",
+    cue: ["here"],
+  },
+  {
+    pattern:
+      "(?<target>bare|bares)[ \\t\\u00a0]{1,8}(?:repeating|repetition|mentioning|noting|fruit|witness|the[ \\t\\u00a0]{1,8}brunt|responsibility)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "repeating",
+      "repetition",
+      "mentioning",
+      "noting",
+      "fruit",
+      "witness",
+      "brunt",
+      "responsibility",
+    ],
+    fixer: "en:slotConfusionsBare",
+    cue: ["bare", "bares", "bared"],
+  },
+  {
+    pattern:
+      "(?:I|you|we|they|he|she|it|it)[ \\t\\u00a0]{1,8}(?<target>ones?)[ \\t\\u00a0]{1,8}(?<verb>had|was|were|told|said|lived|worked|owned|knew|met|saw|went|made|wrote|played|thought|believed|loved)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["one"],
+    fix: "once",
+    cue: ["one", "ones"],
+  },
+  {
+    pattern:
+      "(?:at|for|in|of|on|from|by|be|until|till)[ \\t\\u00a0]{1,8}(?<target>he)[ \\t\\u00a0]{1,8}(?:first|last|best|only|same|beginning|start|end|front|back|middle|whole|rest|top|bottom|next|latest|biggest|main)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "first",
+      "last",
+      "best",
+      "only",
+      "same",
+      "beginning",
+      "start",
+      "end",
+      "front",
+      "back",
+      "middle",
+      "whole",
+      "rest",
+      "top",
+      "bottom",
+      "next",
+      "latest",
+      "biggest",
+      "main",
+    ],
+    fixer: "en:slotConfusionsHe",
+    cue: ["he"],
+  },
+  {
+    pattern:
+      "(?:I|we|you|they|to|can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t|don['’]t|doesn['’]t|didn['’]t|never|not|let['’]s|please)[ \\t\\u00a0]{1,8}(?<target>discus)[ \\t\\u00a0]{1,8}(?:the|a|an|this|that|these|those|it|them|my|your|his|her|our|their|some|any|all|each|every|with|about|how|what|whether)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["discus"],
+    fix: "discuss",
+    cue: ["discus", "discuses"],
+  },
+  {
+    pattern:
+      "(?:he|she|it|who|which|that|this)[ \\t\\u00a0]{1,8}(?<target>discuses)[ \\t\\u00a0]{1,8}(?:the|a|an|this|that|these|those|it|them|my|your|his|her|our|their|some|any|all|each|every|with|about|how|what|whether)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["discuses"],
+    fix: "discusses",
+    cue: ["discuses"],
+  },
+  {
+    pattern:
+      "(?:I|you|we|they|he|she|it|can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t|to|don['’]t|doesn['’]t|didn['’]t|never|not|always|often|sometimes|usually|keep|might|if[ \\t\\u00a0]{1,8}(?:I|you|we|they))[ \\t\\u00a0]{1,8}(?<target>loose)[ \\t\\u00a0]{1,8}(?:my|your|his|her|our|their|this|the[ \\t\\u00a0]{1,8}(?:password|key|keys|game|match|job|bet|war|battle|race)|track|sight|control|money|interest|faith|hope|touch)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["loose"],
+    fix: "lose",
+    cue: ["loose", "loosing"],
+  },
+  {
+    pattern:
+      "(?<target>loosing)[ \\t\\u00a0]{1,8}(?:my|your|his|her|our|their|track|sight|control|money|interest|faith|hope|touch|the[ \\t\\u00a0]{1,8}(?:game|match|war|battle|race|job))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["loosing"],
+    fix: "losing",
+    cue: ["loosing"],
+  },
+  {
+    pattern:
+      "(?:at[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}(?<target>lose)[ \\t\\u00a0]{1,8}(?:for|and|about|as|[.,;!?])|(?:the|a|great|big|huge|heavy|total|sudden)[ \\t\\u00a0]{1,8}(?<target2>lose)[ \\t\\u00a0]{1,8}of(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["lose", "lose"],
+    fixer: "en:slotConfusionsLose",
+    cue: ["lose"],
+  },
+  {
+    pattern:
+      "(?:are|were|of|no|any|many|several|few|some|these|those|biggest|main|common|only|frequent|formal|written|our|their|your|his|her|my)[ \\t\\u00a0]{1,8}(?<target>complains)(?=[ \\t\\u00a0]{1,8}(?:from|about|of|regarding|were|are|have|had)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.,;!?])",
+    literals: ["complains"],
+    fix: "complaints",
+    cue: ["complains", "complain"],
+  },
+  {
+    pattern:
+      "(?:biggest|main|common|only|frequent|formal|written|major|usual|first|last)[ \\t\\u00a0]{1,8}(?<target>complain)(?=[ \\t\\u00a0]{1,8}(?:from|about|of|regarding|was|is|has|had|among)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.,;!?])",
+    literals: ["complain"],
+    fix: "complaint",
+    cue: ["complain"],
+  },
+  {
+    pattern:
+      "(?<!(?<![\\p{L}'’])(?:not|n['’]t|is|was|are|were|am|be|been|feel|felt|feels|still)[ \\t\\u00a0]{1,8})(?<target>yet[ \\t\\u00a0]{1,8}alone)[ \\t\\u00a0]{1,8}(?=[a-z])",
+    literals: ["alone"],
+    fixer: "en:slotConfusionsYet",
+    message: "review_msg_phrase_correction",
+    cue: ["yet"],
+  },
+  {
+    pattern:
+      "(?<target>(?<the>the)[ \\t\\u00a0]{1,8}later)(?=[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.,;])",
+    literals: ["later"],
+    fixer: "en:slotConfusionsThe",
+    cue: ["later"],
+  },
+  {
+    pattern:
+      "(?<lead>[A-Za-z]+(?:['’][a-z]+)?)[ \\t\\u00a0]{1,8}(?<target>all[ \\t\\u00a0]{1,8}ready)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["ready"],
+    fixer: "en:slotConfusionsAll",
+    cue: ["ready"],
+  },
+  {
+    pattern:
+      "(?:I|you|we|they|he|she|it|can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t|to|please|don['’]t|doesn['’]t|didn['’]t|never|not|really|also|just)[ \\t\\u00a0]{1,8}(?<target>attache)[ \\t\\u00a0]{1,8}(?:a|an|the|my|your|our|their|his|her|it|them|this|that|these|those|some|files?|photos?|images?|pictures?|documents?|screenshots?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["attache"],
+    fixer: "en:slotConfusionsAttache",
+    cue: ["attache"],
+  },
+  {
+    pattern: "find[ \\t\\u00a0]{1,8}(?<target>attache)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["attache"],
+    fix: "attached",
+    cue: ["attache"],
+  },
+  {
+    pattern:
+      "(?:think|thinks|thought|know|knows|knew|say|says|said|believe|believes|hope|guess|because|is|was|that|told[ \\t\\u00a0]{1,8}(?:me|him|her|us|them|you)|teach[ \\t\\u00a0]{1,8}us|teaches[ \\t\\u00a0]{1,8}us)[ \\t\\u00a0]{1,8}(?<target>tat)[ \\t\\u00a0]{1,8}(?:is|was|must|can|will|would|should|could|it|the|a|I|you|we|they|he|she|this|there|one|[a-z]+s[ \\t\\u00a0]{1,8}are)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["tat"],
+    fix: "that",
+    cue: ["tat"],
+  },
+  {
+    pattern:
+      "(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target>Tat)[ \\t\\u00a0]{1,8}(?:is|was|must|can|will|would|should|could|seems|sounds|looks)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["tat"],
+    fix: "That",
+    cue: ["tat"],
+  },
+  {
+    pattern:
+      "(?:(?:this|that|here|it)[ \\t\\u00a0]{1,8}is|(?:sure|know|knew|wonder|wondering|asked|ask|idea|tell|told|show|remember|forgot|guess)|(?:the|a|one[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}the)[ \\t\\u00a0]{1,8}(?:place|places|page|pages|point|area|areas|city|town|room|house|country|site|website|spot|age|land|office|section|folder|location|stage|part|world|street|village|region|one))[ \\t\\u00a0]{1,8}(?<target>were)[ \\t\\u00a0]{1,8}(?:I|we|you|they|he|she|to|the[ \\t\\u00a0]{1,8}[a-z]+[ \\t\\u00a0]{1,8}(?:is|are|was|were|can|will|has|have|had|look|looks|live|lives|work|works)|my|our|your|their|his|her)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["were"],
+    fixer: "en:slotConfusionsWere",
+    cue: ["were"],
+  },
+  {
+    pattern:
+      "(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target>Were)[ \\t\\u00a0]{1,8}(?:did|does|do|else|is|are|can|could|should|would|will|have|has)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["were"],
+    fix: "Where",
+    cue: ["were"],
+  },
+  {
+    pattern:
+      "(?:(?:which|what)[ \\t\\u00a0]{1,8}[a-z]+|they|we|you|people|users|[a-z]+s)[ \\t\\u00a0]{1,8}(?<target>where)[ \\t\\u00a0]{1,8}(?:(?:you|they|we)[ \\t\\u00a0]{1,8})?(?<ing>[a-z]{2,}ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:is|was|are|were|has|can|will|should|would)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["where"],
+    fixer: "en:slotConfusionsWhere",
+    cue: ["where"],
+  },
+  {
+    pattern:
+      "(?:there['’]s|there[ \\t\\u00a0]{1,8}(?:is|was)|here['’]s|here[ \\t\\u00a0]{1,8}is|is[ \\t\\u00a0]{1,8}there|was[ \\t\\u00a0]{1,8}there|such|quite|what)[ \\t\\u00a0]{1,8}(?<target>and)[ \\t\\u00a0]{1,8}(?<noun>[aeiou][a-z]+)(?=[ \\t]*[.!?,:;]|[ \\t\\u00a0]{1,8}(?:of|for|that|to|on|in|with|from|about|here|there|we|you|I)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["there", "there", "here", "here", "there", "there", "such", "quite", "what"],
+    fixer: "en:slotConfusionsAnd",
+    cue: ["and"],
+  },
+  {
+    pattern:
+      "(?<target>an)[ \\t\\u00a0]{1,8}(?:(?:also|already|eventually)[ \\t\\u00a0]{1,8}(?:go|be|do|have|get|make|take|went|did|got|made|took)|thus|therefore|still|finally|later|regarding|the|my|your|his|her|our|their|these|those|for[ \\t\\u00a0]{1,8}all|a[ \\t\\u00a0]{1,8}half)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fixer: "en:slotConfusionsAn2",
+    cue: ["an"],
+  },
+  {
+    pattern:
+      "(?:(?:don['’]t|doesn['’]t|didn['’]t|let[ \\t\\u00a0]{1,8}(?:me|us|him|her|them))[ \\t\\u00a0]{1,8}(?<target>now)[ \\t\\u00a0]{1,8}(?:if|whether|what|how|why|when|where|who|your|the|about|anything|it|him|her|them)|let[ \\t\\u00a0]{1,8}(?:me|us)[ \\t\\u00a0]{1,8}(?<target2>now)(?=[ \\t]*[.!?]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["don", "doesn", "didn", "let", "let"],
+    fixer: "en:slotConfusionsNow",
+    cue: ["now"],
+  },
+  {
+    pattern:
+      "(?:right|until)[ \\t\\u00a0]{1,8}(?<target>know)(?=[ \\t]*[.!?,]|[ \\t\\u00a0]{1,8}(?:and|or|but|because|I|we|you|he|she|they|it|is|are)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["right", "until"],
+    fix: "now",
+    cue: ["know"],
+  },
+  {
+    pattern:
+      "(?:from[ \\t\\u00a0]{1,8}(?<target>know)[ \\t\\u00a0]{1,8}on|every[ \\t\\u00a0]{1,8}(?<target2>know)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}then)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["from", "every"],
+    fixer: "en:slotConfusionsKnow",
+    cue: ["know"],
+  },
+  {
+    pattern:
+      "there[ \\t\\u00a0]{1,8}(?:is|was|['’]s)[ \\t\\u00a0]{1,8}(?<target>know)[ \\t\\u00a0]{1,8}(?:place|way|one|time|need|point|reason|doubt|chance|problem|longer|more)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["there"],
+    fix: "no",
+    cue: ["know"],
+  },
+  {
+    pattern:
+      "(?<!the[ \\t\\u00a0]{1,8})(?:more|less|fewer)[ \\t\\u00a0]{1,8}(?<target>that)[ \\t\\u00a0]{1,8}(?:\\$?[0-9]|a[ \\t\\u00a0]{1,8}few|a[ \\t\\u00a0]{1,8}couple|two|three|four|five|ten|twenty|hundred|half|twice)",
+    literals: ["more", "less", "fewer"],
+    fix: "than",
+    cue: ["that"],
+  },
+  {
+    pattern:
+      "(?:more|less)[ \\t\\u00a0]{1,8}(?<adj>[a-z]+)[ \\t\\u00a0]{1,8}(?<target>that)[ \\t\\u00a0]{1,8}(?:others|anyone|anything|everyone|everything|ever|usual|expected|necessary|needed|planned|before)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t]*(?:[.!?,;:)]|$)|[ \\t\\u00a0]{1,8}(?:do|did|does|in|on|at|for|of)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["more", "less"],
+    fixer: "en:slotConfusionsThat",
+    cue: ["that"],
+  },
+  {
+    pattern:
+      "(?:better|worse|bigger|smaller|faster|slower|cheaper|stronger|weaker|safer|easier|harder|(?:more|less)[ \\t\\u00a0]{1,8}[a-z]+)[ \\t\\u00a0]{1,8}(?:[a-z]+[ \\t\\u00a0]{1,8})?(?<target>that)[ \\t\\u00a0]{1,8}\\p{L}[\\p{L}]*(?=[ \\t]*(?:[.!?,;:]|$| -))",
+    literals: [
+      "better",
+      "worse",
+      "bigger",
+      "smaller",
+      "faster",
+      "slower",
+      "cheaper",
+      "stronger",
+      "weaker",
+      "safer",
+      "easier",
+      "harder",
+      "more",
+      "less",
+    ],
+    fixer: "en:slotConfusionsThat2",
+    cue: ["that"],
+  },
+  {
+    pattern:
+      "(?:(?:is|was|are|were|be|been|being|as|became|become|remains)[ \\t\\u00a0]{1,8}(?<target>once)[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:the|my|your|our|his|her|their|these|those|them|us)|(?<target2>once)[ \\t\\u00a0]{1,8}(?:more[ \\t\\u00a0]{1,8}time(?=[ \\t]*[.!?,]|[ \\t\\u00a0]{1,8}(?:to|and|please|before)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["once", "once"],
+    fixer: "en:slotConfusionsOnce",
+    cue: ["once"],
+  },
+  {
+    pattern:
+      "(?:(?<!(?<![\\p{L}'’])(?:the|this|that|a|any|each|every|which|no)[ \\t\\u00a0]{1,8})(?<target>one)[ \\t\\u00a0]{1,8}(?:upon[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}time|and[ \\t\\u00a0]{1,8}for[ \\t\\u00a0]{1,8}all)|every[ \\t\\u00a0]{1,8}(?<target2>one)[ \\t\\u00a0]{1,8}in[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}while)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["one", "every"],
+    fixer: "en:slotConfusionsOne",
+    cue: ["one"],
+  },
+  {
+    pattern:
+      "(?:(?:sure|wonder|wondering|see|check|checking|(?:ask|asked|asking)(?:[ \\t\\u00a0]{1,8}(?:me|him|her|them|us))?)[ \\t\\u00a0]{1,8}(?<target>it)[ \\t\\u00a0]{1,8}(?:there[ \\t\\u00a0]{1,8}(?:is|are|was|were)|anyone|anybody|someone|somebody)|me[ \\t\\u00a0]{1,8}(?<target2>it)[ \\t\\u00a0]{1,8}you[ \\t\\u00a0]{1,8}can(?=[ \\t]*[.!?]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["there", "anyone", "anybody", "someone", "somebody", "you"],
+    fixer: "en:slotConfusionsIt",
+    cue: ["it"],
+  },
+  {
+    pattern:
+      "(?:(?:make|makes|made|making)[ \\t\\u00a0]{1,8}(?<target>if)[ \\t\\u00a0]{1,8}(?:clear|possible|easier|easy|harder|hard|difficult|sure|known|work)|for[ \\t\\u00a0]{1,8}(?<target2>if)(?=[ \\t]*[!.]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["make", "makes", "made", "making", "for"],
+    fixer: "en:slotConfusionsIf2",
+    cue: ["if"],
+  },
+  {
+    pattern:
+      "(?<target>all[ \\t\\u00a0]{1,8}ready)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["ready"],
+    fixer: "en:slotConfusionsAll2",
+    cue: ["ready"],
+  },
+  {
+    pattern:
+      "(?:I|we|they|you)[ \\t\\u00a0]{1,8}(?<target>all[ \\t\\u00a0]{1,8}so)[ \\t\\u00a0]{1,8}(?:think|thought|want|need|have|like|love|know|agree|believe)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "think",
+      "thought",
+      "want",
+      "need",
+      "have",
+      "like",
+      "love",
+      "know",
+      "agree",
+      "believe",
+    ],
+    fix: "also",
+    cue: ["all"],
+  },
+  {
+    pattern:
+      "(?:(?:recently|also|just|always|often|then)[ \\t\\u00a0]{1,8}(?<target>complaint)|(?:a|one|another|every|each)[ \\t\\u00a0]{1,8}[a-z]+[ \\t\\u00a0]{1,8}(?<target2>complaints))[ \\t\\u00a0]{1,8}(?:that|about)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["complaint", "complaints"],
+    fixer: "en:slotConfusionsComplaint",
+    cue: ["complaint", "complaints"],
+  },
+  {
+    pattern:
+      "(?:(?:per|next|last|calendar|(?:beginning|end|middle|start)[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}the)[ \\t\\u00a0]{1,8}(?<target>moth)(?=[ \\t]*[.!?,;:]|[ \\t\\u00a0]{1,8}(?:ago|later|before|after|and|or)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?:for|some|few|several|many|two|three|four|five|six|seven|eight|nine|ten|twelve|[0-9]+)[ \\t\\u00a0]{1,8}(?<target2>moths)(?=[ \\t]*[.!?,;:]|[ \\t\\u00a0]{1,8}(?:ago|now|later|before|after)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["moth", "moths"],
+    fixer: "en:slotConfusionsMoth",
+    cue: ["moth", "moths"],
+  },
+  {
+    pattern:
+      "(?:(?:I|you|we|they|he|she|it|has|have|had|does|do|did|can|could|would|should|will|let['’]s|couldn['’]t|can['’]t|don['’]t|is|was|are|were)|\\p{L}+['’](?:s|re|m|ve|ll|d))[ \\t\\u00a0]{1,8}(?<target>jut)[ \\t\\u00a0]{1,8}(?!(?:out|outs|into|over|from|above|beyond|forth|up|across)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]",
+    literals: ["jut"],
+    fix: "just",
+    cue: ["jut"],
+  },
+  {
+    pattern:
+      "(?:(?:it|he|she|this|that|which|who)[ \\t\\u00a0]{1,8}(?<target>doe)[ \\t\\u00a0]{1,8}not|(?:what|how|why|where|when)[ \\t\\u00a0]{1,8}(?<target2>doe)[ \\t\\u00a0]{1,8}(?:he|she|it))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["doe", "what", "how", "why", "where", "when"],
+    fixer: "en:slotConfusionsDoe",
+    cue: ["doe"],
+  },
+  {
+    pattern:
+      "(?:(?<target>bares|bared|baring)[ \\t\\u00a0]{1,8}(?:(?:a|an|little|no|some|striking|uncanny|close|almost|an[ \\t\\u00a0]{1,8}almost)[ \\t\\u00a0]{1,8})*(?:resemblance|witness|the[ \\t\\u00a0]{1,8}brunt|repeating|mentioning)|(?:can['’]t|cannot|couldn['’]t|could[ \\t\\u00a0]{1,8}not)[ \\t\\u00a0]{1,8}(?<target2>bare)[ \\t\\u00a0]{1,8}(?:the[ \\t\\u00a0]{1,8}[a-z]+|it|to|this|that|him|her|them|seeing|being|watching|hearing))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["bares", "bared", "baring", "bare"],
+    fixer: "en:slotConfusionsBares",
+    cue: ["bare", "bares", "bared", "baring"],
+  },
+  {
+    pattern:
+      "(?:has|have|['’]ve)[ \\t\\u00a0]{1,8}(?:(?:just|already|never|not|finally|also)[ \\t\\u00a0]{1,8})?(?<target>setup|shutdown|backup|cleanup|signup|pickup|lookup|checkout|rollout)[ \\t\\u00a0]{1,8}(?:the|a|an|this|that|these|those|it|them|my|your|his|her|our|their|some|any|all|each|every|again|with|for|my|your)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "setup",
+      "shutdown",
+      "backup",
+      "cleanup",
+      "signup",
+      "pickup",
+      "lookup",
+      "checkout",
+      "rollout",
+    ],
+    fixer: "en:slotConfusionsSetup",
+    message: "review_msg_compounds",
+    check: "englishContextualCompounds",
+    cue: [
+      "setup",
+      "shutdown",
+      "backup",
+      "cleanup",
+      "signup",
+      "pickup",
+      "lookup",
+      "checkout",
+      "rollout",
+    ],
+  },
+  {
+    pattern:
+      "(?:I|we|they|you)[ \\t\\u00a0]{1,8}(?:just|already|never|also|then|finally|first|quickly|always|usually)[ \\t\\u00a0]{1,8}(?<target>setup|shutdown|backup|cleanup|signup|pickup|lookup|checkout|rollout)[ \\t\\u00a0]{1,8}(?:the|a|an|this|that|these|those|it|them|my|your|his|her|our|their|some|any|all|each|every|again|with|for|to|before|after|using|here|now)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "setup",
+      "shutdown",
+      "backup",
+      "cleanup",
+      "signup",
+      "pickup",
+      "lookup",
+      "checkout",
+      "rollout",
+    ],
+    fixer: "en:slotConfusionsSetup2",
+    message: "review_msg_compounds",
+    check: "englishContextualCompounds",
+    cue: [
+      "setup",
+      "shutdown",
+      "backup",
+      "cleanup",
+      "signup",
+      "pickup",
+      "lookup",
+      "checkout",
+      "rollout",
+    ],
+  },
+  {
+    pattern:
+      "(?:(?<!(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?:can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t)|please|don['’]t|doesn['’]t|didn['’]t|never|not|who|let[ \\t\\u00a0]{1,8}(?:me|us|them|him|her)|(?:I|we|they|you)|(?:can|could|will|would|should|do|does|did|can['’]t|won['’]t|don['’]t|doesn['’]t|didn['’]t|wouldn['’]t|couldn['’]t)[ \\t\\u00a0]{1,8}(?:I|you|we|they|he|she|it)|(?:need|needs|needed|want|wants|wanted|plan|plans|planned|try|tries|tried|trying|able|unable|how|going|forgot|forget|remember|allowed|asked|ask|tell|told)[ \\t\\u00a0]{1,8}to|(?:need|needs|needed|want|wants|wanted|plan|plans|planned|try|tries|tried|trying|able|unable|how|going|forgot|forget|remember|allowed|asked|ask|tell|told)[ \\t\\u00a0]{1,8}(?:[\\p{L}'’]+[ \\t\\u00a0]{1,8}){1,2}to)[ \\t\\u00a0]{1,8}(?<target>login)(?=[ \\t\\u00a0]{1,8}(?:the|a|an|this|that|these|those|it|them|my|your|his|her|our|their|some|any|all|each|every|again|with|to|before|after|using|here|there|now|first|via|through|every|daily|into|from|by|on|at|in|without|automatically|successfully|early|late|today|tomorrow|once|twice|files?|data)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;:])",
+    literals: ["login"],
+    fixer: "en:slotConfusionsLogin",
+    message: "review_msg_log_in",
+    check: "englishContextualCompounds",
+    cue: ["login"],
+  },
+  {
+    pattern:
+      "(?:(?<!(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?:can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t)|please|don['’]t|doesn['’]t|didn['’]t|never|not|who|let[ \\t\\u00a0]{1,8}(?:me|us|them|him|her)|(?:I|we|they|you)|(?:can|could|will|would|should|do|does|did|can['’]t|won['’]t|don['’]t|doesn['’]t|didn['’]t|wouldn['’]t|couldn['’]t)[ \\t\\u00a0]{1,8}(?:I|you|we|they|he|she|it)|(?:need|needs|needed|want|wants|wanted|plan|plans|planned|try|tries|tried|trying|able|unable|how|going|forgot|forget|remember|allowed|asked|ask|tell|told)[ \\t\\u00a0]{1,8}to|(?:need|needs|needed|want|wants|wanted|plan|plans|planned|try|tries|tried|trying|able|unable|how|going|forgot|forget|remember|allowed|asked|ask|tell|told)[ \\t\\u00a0]{1,8}(?:[\\p{L}'’]+[ \\t\\u00a0]{1,8}){1,2}to)[ \\t\\u00a0]{1,8}(?<target>setup)(?=[ \\t\\u00a0]{1,8}(?:the|a|an|this|that|these|those|it|them|my|your|his|her|our|their|some|any|all|each|every|again|with|to|before|after|using|here|there|now|first|via|through|every|daily|into|from|by|on|at|in|without|automatically|successfully|early|late|today|tomorrow|once|twice|files?|data)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;:])",
+    literals: ["setup"],
+    fixer: "en:slotConfusionsLogin",
+    message: "review_msg_set_up",
+    check: "englishContextualCompounds",
+    cue: ["setup"],
+  },
+  {
+    pattern:
+      "(?:(?<!(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?:can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t)|please|don['’]t|doesn['’]t|didn['’]t|never|not|who|let[ \\t\\u00a0]{1,8}(?:me|us|them|him|her)|(?:I|we|they|you)|(?:can|could|will|would|should|do|does|did|can['’]t|won['’]t|don['’]t|doesn['’]t|didn['’]t|wouldn['’]t|couldn['’]t)[ \\t\\u00a0]{1,8}(?:I|you|we|they|he|she|it)|(?:need|needs|needed|want|wants|wanted|plan|plans|planned|try|tries|tried|trying|able|unable|how|going|forgot|forget|remember|allowed|asked|ask|tell|told)[ \\t\\u00a0]{1,8}to|(?:need|needs|needed|want|wants|wanted|plan|plans|planned|try|tries|tried|trying|able|unable|how|going|forgot|forget|remember|allowed|asked|ask|tell|told)[ \\t\\u00a0]{1,8}(?:[\\p{L}'’]+[ \\t\\u00a0]{1,8}){1,2}to)[ \\t\\u00a0]{1,8}(?<target>shutdown|backup|cleanup|signup|pickup|lookup|checkout|rollout|logout)(?=[ \\t\\u00a0]{1,8}(?:the|a|an|this|that|these|those|it|them|my|your|his|her|our|their|some|any|all|each|every|again|with|to|before|after|using|here|there|now|first|via|through|every|daily|into|from|by|on|at|in|without|automatically|successfully|early|late|today|tomorrow|once|twice|files?|data)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;:])",
+    literals: [
+      "shutdown",
+      "backup",
+      "cleanup",
+      "signup",
+      "pickup",
+      "lookup",
+      "checkout",
+      "rollout",
+      "logout",
+    ],
+    fixer: "en:slotConfusionsLogin",
+    message: "review_msg_compounds",
+    check: "englishContextualCompounds",
+    cue: [
+      "shutdown",
+      "backup",
+      "cleanup",
+      "signup",
+      "pickup",
+      "lookup",
+      "checkout",
+      "rollout",
+      "logout",
+    ],
+  },
+  {
+    pattern:
+      "(?:he|she|it|who)[ \\t\\u00a0]{1,8}(?:(?:also|just|always|usually|never|often|rarely)[ \\t\\u00a0]{1,8})?(?<target>setups|shutdowns|backups|cleanups|signups|pickups|lookups|checkouts|rollouts|logins|logouts)(?=[ \\t\\u00a0]{1,8}(?:the|a|an|this|that|these|those|it|them|my|your|his|her|our|their|some|any|all|each|every|again|with|to|before|after|using|here|there|now|first|via|through|every|daily|into|from|by|on|at|in|without|automatically|successfully|early|late|today|tomorrow|once|twice|files?|data)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;:])",
+    literals: [
+      "setups",
+      "shutdowns",
+      "backups",
+      "cleanups",
+      "signups",
+      "pickups",
+      "lookups",
+      "checkouts",
+      "rollouts",
+      "logins",
+      "logouts",
+    ],
+    fixer: "en:slotConfusionsSetups",
+    message: "review_msg_compounds",
+    check: "englishContextualCompounds",
+    cue: [
+      "setups",
+      "shutdowns",
+      "backups",
+      "cleanups",
+      "signups",
+      "pickups",
+      "lookups",
+      "checkouts",
+      "rollouts",
+      "logins",
+      "logouts",
+    ],
+  },
+  {
+    pattern:
       "(?<![\\p{L}\\p{N}.,])[0-9]+(?:[.,][0-9]+)?(?:-|[ \\t\\u00a0]{1,8})(?<target>(?:kilo|centi|milli|micro|nano|deci)?(?:meters?|liters?))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["meter", "liter"],
     fixer: "en:britishUsageKilo",
@@ -4785,6 +6020,216 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   },
   {
     pattern:
+      "(?<lead>drove|drive|drives|driving|ran|run|runs|went|go|goes|came|come|comes|spoke|speak|talk|talks|talked|much|far|way|be|is|are|was|were|it['’]s|that['’]s|['’]re|['’]m|got|get|gets)[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}(?<adj>fast|soon|late|early|slowly|quickly|much|many|long|far|big|small|hard|easy|busy|tired|young|old|expensive|cheap|close|high|low|loud|hot|cold|[a-z]+)(?=[ \\t\\u00a0]*[.,!?]|[ \\t\\u00a0]{1,8}(?:to|because|for|and|but|so)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fixer: "en:slipFramesTo",
+    cue: ["to"],
+  },
+  {
+    pattern:
+      "there[ \\t\\u00a0]{1,8}(?:is|was|are|were|['’]s)[ \\t\\u00a0]{1,8}(?<target>not)[ \\t\\u00a0]{1,8}(?<adj>[a-z]+)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["there"],
+    fixer: "en:slipFramesNot",
+    cue: ["not"],
+  },
+  {
+    pattern:
+      "(?:has|have|['’]ve)[ \\t\\u00a0]{1,8}(?<target>not)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)[ \\t\\u00a0]{1,8}(?:of|to|for|listed|left|available)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["not"],
+    fixer: "en:slipFramesNot2",
+    cue: ["not"],
+  },
+  {
+    pattern:
+      "(?<target>an?[ \\t\\u00a0]{1,8}(?<num>(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:-[a-z]+)?|[2-9]|[1-9][0-9]+))[ \\t\\u00a0]{1,8}(?<noun>[a-z]+s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fixer: "en:slipFramesAn",
+    message: "review_msg_noun_count",
+    check: "englishNounNumber",
+    cue: ["a", "an"],
+  },
+  {
+    pattern:
+      "(?:someone|somebody|anyone|anybody|everyone|everybody|nobody)[ \\t\\u00a0]{1,8}else(?:[ \\t\\u00a0]{1,8}(?:always|usually|often|never|sometimes|also|just|really))?[ \\t\\u00a0]{1,8}(?<target>[a-z]+)[ \\t\\u00a0]{1,8}(?:to|the|a|an|my|his|her|our|their|it|them|me|us|that|this)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["someone", "somebody", "anyone", "anybody", "everyone", "everybody", "nobody"],
+    fixer: "en:slipFramesA",
+    message: "review_msg_subject_verb",
+    check: "englishSubjectVerbAgreement",
+    cue: ["else"],
+  },
+  {
+    pattern:
+      "(?<target>(?<pron>he|she)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+ing))[ \\t\\u00a0]{1,8}(?:crazy|home|away|nuts|mad|insane)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["ing"],
+    fixer: "en:slipFramesPron",
+    message: "review_msg_missing_be",
+    check: "englishSentenceStructure",
+    cue: ["he", "she"],
+  },
+  {
+    pattern:
+      "(?<target>its)[ \\t\\u00a0]{1,8}(?:(?<adj>[a-z]+)(?=[ \\t\\u00a0]*[,.!?]|[ \\t\\u00a0]{1,8}then(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<ing>[a-z]+ing)[ \\t\\u00a0]{1,8}(?:that|it|it['’]s|in|on|to|so|now|fine|well|again|right)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[0-9]{1,2}(?:[ \\t\\u00a0]*(?:a\\.?m|p\\.?m|o['’]clock)|:[0-9]{2}))",
+    literals: ["its"],
+    fixer: "en:slipFramesIts",
+    message: "review_msg_its_contraction",
+    check: "englishItsContext",
+    cue: ["its"],
+  },
+  {
+    pattern:
+      "(?<target>the)[ \\t\\u00a0]{1,8}(?:(?:really|probably|always|usually|never|also|just|quietly|still|already|often|sometimes)[ \\t\\u00a0]{1,8}(?:would|will|should|could|can|won['’]t|wouldn['’]t|don['’]t|didn['’]t|do|did|have|are|were|finish|need|want|like|might)|(?:would|should|could|won['’]t|wouldn['’]t|shouldn['’]t|couldn['’]t|can['’]t|don['’]t|didn['’]t)|will[ \\t\\u00a0]{1,8}(?<verb>[a-z]+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["the"],
+    fixer: "en:slipFramesThe",
+    cue: ["the"],
+  },
+  {
+    pattern:
+      "(?:will|would|should|could|can|may|might|must|don['’]t|didn['’]t)(?:[ \\t\\u00a0]{1,8}(?:definitely|really|probably|soon|also|just|never|always|actually))?[ \\t\\u00a0]{1,8}(?<target>by)[ \\t\\u00a0]{1,8}(?<next>up[ \\t\\u00a0]{1,8}to|via|[0-9(]|[a-z]{2,}|[a-z]+)",
+    literals: ["will", "would", "should", "could", "can", "may", "might", "must", "don", "didn"],
+    fixer: "en:slipFramesBy",
+    cue: ["by"],
+  },
+  {
+    pattern:
+      "(?<target>(?<pron>it|she|he)[ \\t\\u00a0]{1,8}(?<adj>safe|unable|able|worse|better|possible|impossible|likely|unlikely|necessary|important|true|clear|okay|fine|ready))(?=[ \\t\\u00a0]{1,8}(?:to|or|than|that|for)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]*[.!?])",
+    literals: [
+      "safe",
+      "unable",
+      "able",
+      "worse",
+      "better",
+      "possible",
+      "impossible",
+      "likely",
+      "unlikely",
+      "necessary",
+      "important",
+      "true",
+      "clear",
+      "okay",
+      "fine",
+      "ready",
+    ],
+    fixer: "en:slipFramesPron2",
+    message: "review_msg_missing_be",
+    check: "englishSentenceStructure",
+    cue: ["safe", "unable", "worse", "better", "able", "possible", "impossible", "likely"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:I|you|we|they|he|she|it|this|that|there)(?:[ \\t\\u00a0]{1,8}(?<modal>will|would|should|could|can|may|might|must)(?:n['’]t)?|[ \\t\\u00a0]{1,8}won['’]t|['’]ll)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?<after>[ \\t\\u00a0]{1,8}(?:if|to|that|for)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]*[.,!?]|[ \\t\\u00a0]{1,8}[a-z]+)",
+    literals: [],
+    fixer: "en:slipFramesA2",
+    message: "review_msg_modal_be",
+    check: "englishAuxiliaryBaseVerb",
+    cue: [
+      "will",
+      "would",
+      "should",
+      "could",
+      "can",
+      "may",
+      "might",
+      "must",
+      "ll",
+      "won",
+      "wouldn",
+      "shouldn",
+      "couldn",
+      "mustn",
+    ],
+  },
+  {
+    pattern:
+      "(?<target>this)[ \\t\\u00a0]{1,8}(?:two|three|four|five|both)[ \\t\\u00a0]{1,8}(?:are|were|have)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["this"],
+    fix: "these",
+    message: "review_msg_demonstrative_number",
+    check: "englishNounNumber",
+    cue: ["this"],
+  },
+  {
+    pattern:
+      "(?<target>(?<dem>these|those)[ \\t\\u00a0]{1,8}(?<kind>kind|type|sort))[ \\t\\u00a0]{1,8}of(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["these", "those"],
+    fixer: "en:slipFramesDem",
+    message: "review_msg_demonstrative_number",
+    check: "englishNounNumber",
+    cue: ["kind", "type", "sort"],
+  },
+  {
+    pattern:
+      "(?:in|of)[ \\t\\u00a0]{1,8}(?:many|several|various|different|few)[ \\t\\u00a0]{1,8}(?<target>way)(?=[ \\t\\u00a0]*[.,!?;])",
+    literals: ["many", "several", "various", "different", "few"],
+    fix: "ways",
+    message: "review_msg_noun_count",
+    check: "englishNounNumber",
+    cue: ["way"],
+  },
+  {
+    pattern:
+      "(?<target>(?:is|are|was|were)[ \\t\\u00a0]{1,8}(?<adverb>(?:always|also|just|really|still|often|never)[ \\t\\u00a0]{1,8})?(?<verb>[a-z]+s))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fixer: "en:slipFramesIs",
+    message: "review_msg_subject_verb",
+    check: "englishSubjectVerbAgreement",
+    cue: ["is", "are", "was", "were"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:can|could|will|would|should|must|might|may|have|has|had|is|was|I|we|you|they|he|she)[ \\t\\u00a0]{1,8}(?<target>than)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["than"],
+    fixer: "en:slipFramesThan",
+    message: "review_msg_then_than_temporal",
+    check: "englishThenThan",
+    cue: ["than"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:to|at|from|for|into|about)[ \\t\\u00a0]{1,8}(?<target>out)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["out"],
+    fixer: "en:slipFramesOut",
+    cue: ["out"],
+  },
+  {
+    pattern: "(?<target>it['’]s)[ \\t\\u00a0]{1,8}(?=[a-z])",
+    literals: [],
+    fixer: "en:slipFramesIt",
+    message: "review_msg_its_possessive",
+    check: "englishItsContext",
+    cue: ["it"],
+  },
+  {
+    pattern:
+      "(?:big|small|large|little|green|grocery|shopping|paper|plastic|tea|sleeping|school|travel|gym|garbage|trash|carrier|heavy|empty)[ \\t\\u00a0]{1,8}(?<target>begs?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [
+      "big",
+      "small",
+      "large",
+      "little",
+      "green",
+      "grocery",
+      "shopping",
+      "paper",
+      "plastic",
+      "tea",
+      "sleeping",
+      "school",
+      "travel",
+      "gym",
+      "garbage",
+      "trash",
+      "carrier",
+      "heavy",
+      "empty",
+    ],
+    fixer: "en:slipFramesBegs",
+    message: "review_msg_typo",
+    check: "englishPhraseCorrections",
+    cue: ["beg", "begs"],
+  },
+  {
+    pattern:
       "(?<![\\p{L}'’])(?<subject>I|we|they|he|she)(?:[ \\t\\u00a0]{1,8}(?:formally|recently|really|just|also|never|always|often|usually|already|still|only|sometimes|actually|then))?[ \\t\\u00a0]{1,8}(?<target>[a-z]{4,})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
     fixer: "en:realWordFramesA",
@@ -4870,6 +6315,47 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     message: "review_msg_contextual_grammar",
     check: "englishPhraseCorrections",
     cue: ["art"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:if|since|because|unless|although|whether)[ \\t\\u00a0]{1,8}(?<target>is|was|has|does|did|will|would|should|can|could|must|might|isn['’]t|wasn['’]t|hasn['’]t|doesn['’]t|didn['’]t|won['’]t|wouldn['’]t|shouldn['’]t|can['’]t|couldn['’]t|need)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fixer: "en:clauseGapsIs",
+    message: "review_msg_sentence_structure",
+    cue: ["if", "since", "because", "unless", "although", "whether"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])either[ \\t\\u00a0]{1,8}(?:[^.!?;:\\n,]{1,60}?)[ \\t\\u00a0]{1,8}(?<target>nor)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["either"],
+    fixer: "en:clauseGapsNor",
+    check: "englishConfusedWords",
+    cue: ["either"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’-])(?<target>[a-z]{2,})(?=[ \\t\\u00a0]{1,8}(?<two>[a-z]{2,})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fixer: "en:clauseGapsA",
+    message: "review_msg_repeated_words",
+    check: "englishConfusedWords",
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<cmp>[a-z]+er|more[ \\t\\u00a0]{1,8}[a-z]+|less[ \\t\\u00a0]{1,8}[a-z]+|more|less|fewer)[ \\t\\u00a0]{1,8}(?<target>that)[ \\t\\u00a0]{1,8}(?=\\d|(?:ever|usual|expected|before|anticipated|planned|needed|necessary|required)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["that"],
+    fixer: "en:clauseGapsThat",
+    message: "review_msg_then_than",
+    check: "englishThenThan",
+    cue: ["that"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<target>there[ \\t\\u00a0]{1,8}after)(?=[ \\t\\u00a0]*[.!?;]|[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["there"],
+    fixer: "en:clauseGapsThere",
+    check: "englishConfusedWords",
+    cue: ["after"],
   },
   {
     pattern:
@@ -5761,6 +7247,931 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     fixer: "en:agreementFramesA10",
     check: "englishNounNumber",
     cue: ["this"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:don['’]t|doesn['’]t|didn['’]t|do[ \\t\\u00a0]{1,8}not|does[ \\t\\u00a0]{1,8}not|did[ \\t\\u00a0]{1,8}not)[ \\t\\u00a0]{1,8}(?<target>now)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:if|whether|what|how|why|who|where|that|and|anything|it|the)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["don", "doesn", "didn", "not", "does", "did"],
+    fix: "know",
+    message: "review_msg_typo",
+    cue: ["now"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:let[ \\t\\u00a0]{1,8}(?:me|us|him|her|them)(?:[ \\t\\u00a0]{1,8}please)?)[ \\t\\u00a0]{1,8}(?<target>now)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:if|whether|what|how|when|where|who|about)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["let"],
+    fix: "know",
+    message: "review_msg_typo",
+    cue: ["now"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:can|could|will|would|should|must|might)[ \\t\\u00a0]{1,8}(?<target>know)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:say|tell|go|see|begin|start|confirm)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["know"],
+    fix: "now",
+    check: "englishConfusedWords",
+    cue: ["know"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:i|you|we|they|didn['’]t|don['’]t|not)[ \\t\\u00a0]{1,8}(?<target>no)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:the[ \\t\\u00a0]{1,8}(?:answer|way|movie|book|truth|reason)|how|what|why|whether|anything|about)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fix: "know",
+    message: "review_msg_typo",
+    cue: ["no"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<verb>[a-z]+)[ \\t\\u00a0]{1,8}(?<target>they)(?=[ \\t\\u00a0]*[.!?])",
+    literals: ["they"],
+    fixer: "en:neighbourTyposThey",
+    check: "englishConfusedWords",
+    cue: ["they"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<lead>[a-z]+)[ \\t\\u00a0]{1,8}(?<target>the)[ \\t\\u00a0]{1,8}(?:be(?![ \\t\\u00a0]{1,8}all)|have[ \\t\\u00a0]{1,8}(?:you|it|them|been|told|imported|done|seen|made))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["the"],
+    fixer: "en:neighbourTyposThe",
+    check: "englishConfusedWords",
+    cue: ["the"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:with|by|to|for|from|help|helps|helped|told|tell|ask|asked|and)[ \\t\\u00a0]{1,8}(?<target>other)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:about|in|via|also|run|have|do|think|say)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["other"],
+    fix: "others",
+    check: "englishConfusedWords",
+    cue: ["other"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:with|by|to|for|from|help|helps|helped|told|tell|ask|asked)[ \\t\\u00a0]{1,8}(?<target>other)(?=[ \\t\\u00a0]*[.!?,])",
+    literals: ["other"],
+    fixer: "en:neighbourTyposOther",
+    check: "englishConfusedWords",
+    cue: ["other"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<target>an)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:all[ \\t\\u00a0]{1,8}(?:of|the|things)|also|already)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fixer: "en:neighbourTyposAn",
+    check: "englishConfusedWords",
+    cue: ["an"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<target>I)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:my|this|that|our|your|his|her|their)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fixer: "en:neighbourTyposI",
+    check: "englishConfusedWords",
+    cue: ["i"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:in|for|of|at|on|with|from)[ \\t\\u00a0]{1,8}(?<target>thus)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:group|case|way|point|reason|purpose|time|team|project)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["thus"],
+    fix: "this",
+    message: "review_msg_typo",
+    cue: ["thus"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<target>His)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:a|an|so|very|not|always|never|really|going|been|my|the[ \\t\\u00a0]{1,8}best)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["his"],
+    fixer: "en:neighbourTyposHis",
+    check: "englishConfusedWords",
+    cue: ["his"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:\\d+)[ \\t\\u00a0]{1,8}(?<target>hears)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:old|ago)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["hears"],
+    fix: "years",
+    message: "review_msg_typo",
+    cue: ["hears"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:for|in|about|over|past|last|the|first|next|only|after)[ \\t\\u00a0]{1,8}(?<target>tree)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:years|days|weeks|months|times|hours|minutes|people|children|kids)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["tree"],
+    fix: "three",
+    message: "review_msg_typo",
+    cue: ["tree"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:it|this|that|he|she|which)[ \\t\\u00a0]{1,8}(?<target>sees)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:to[ \\t\\u00a0]{1,8}(?:be|happen|have|work|go|get|me))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["sees"],
+    fix: "seems",
+    check: "englishConfusedWords",
+    cue: ["sees"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:is|are|was|were|not|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)[ \\t\\u00a0]{1,8}(?<target>mean)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:to[ \\t\\u00a0]{1,8}(?:be|have))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["mean"],
+    fix: "meant",
+    check: "englishConfusedWords",
+    cue: ["mean"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:otherwise|better|commonly|formerly|widely)[ \\t\\u00a0]{1,8}(?<target>know)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:as)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["otherwise", "better", "commonly", "formerly", "widely"],
+    fix: "known",
+    check: "englishConfusedWords",
+    cue: ["know"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:have|has|had|not|never|['’]ve|haven['’]t|hasn['’]t)[ \\t\\u00a0]{1,8}(?<target>bean)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:there|here|to|in|happy|able|so|very|really|busy|sick|working|waiting|trying|told|done)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["bean"],
+    fix: "been",
+    message: "review_msg_typo",
+    cue: ["bean"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:really|very|so|pretty|quite)[ \\t\\u00a0]{1,8}(?<target>god)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:tv|show|movie|book|idea|job|game|one|place)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["god"],
+    fix: "good",
+    message: "review_msg_typo",
+    cue: ["god"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:oh|please|so)[ \\t\\u00a0]{1,8}(?<target>pleas)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:help|let|send|call|tell|do|check|find|give|make|note|contact)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["pleas"],
+    fixer: "en:neighbourTyposPleas",
+    message: "review_msg_typo",
+    cue: ["pleas"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:i|we|you|they|he|she|have|has|had|never)[ \\t\\u00a0]{1,8}(?<target>herd)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:of|about|that|from|nothing|something|anything|so)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["herd"],
+    fix: "heard",
+    check: "englishConfusedWords",
+    cue: ["herd"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:is|was|be|been|are|were|(?:that|it|what|he|she)['’]s)[ \\t\\u00a0]{1,8}(?<target>quiet)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:a(?![ \\t\\u00a0]{1,8}lot)|an|good|nice|different|easy|hard|right|simple|interesting|sure|big|large|small|long|few|well|often|similar)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["quiet"],
+    fix: "quite",
+    check: "englishConfusedWords",
+    cue: ["quiet"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:football|soccer|basketball|hockey|baseball|my|our|your|the|a|whole|support|sales|dev)[ \\t\\u00a0]{1,8}(?<target>teem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["teem"],
+    fix: "team",
+    message: "review_msg_typo",
+    cue: ["teem"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:looking|tried|died|searched|search|searching|hoped|waited|labored|laboured|struggled)[ \\t\\u00a0]{1,8}(?<target>in[ \\t\\u00a0]{1,8}vein)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:for|to|since|as|but|\\d)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [
+      "looking",
+      "tried",
+      "died",
+      "searched",
+      "search",
+      "searching",
+      "hoped",
+      "waited",
+      "labored",
+      "laboured",
+      "struggled",
+    ],
+    fix: "in vain",
+    message: "review_msg_typo",
+  },
+  {
+    pattern:
+      "(?:looking|tried|died|searched|searching|hoped|waited|struggled)[ \\t\\u00a0]{1,8}(?<target>in[ \\t\\u00a0]{1,8}vein)(?=[ \\t\\u00a0]*[.!?,])",
+    literals: ["looking", "tried", "died", "searched", "searching", "hoped", "waited", "struggled"],
+    fix: "in vain",
+    check: "englishConfusedWords",
+    cue: ["vein"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:homes|houses|cars|items|land|house|car|home|property|properties|apartments?|condos?|lots?|is|are|up)[ \\t\\u00a0]{1,8}for[ \\t\\u00a0]{1,8}(?<target>sell)(?![ \\t\\u00a0]*(?:side|off|out|order|price|signal|-))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["sell"],
+    fix: "sale",
+    check: "englishConfusedWords",
+    cue: ["sell"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])all[ \\t\\u00a0]{1,8}for[ \\t\\u00a0]{1,8}(?<target>not)(?=[ \\t\\u00a0]*[.!?,…]|$)",
+    literals: ["all"],
+    fix: "naught",
+    check: "englishConfusedWords",
+    cue: ["not"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:to|can|could|will|must|cannot|can['’]t|couldn['’]t|me|us|him|her|them|i|we|you|they)[ \\t\\u00a0]{1,8}(?<target>breath)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:in|out|fresh|deeply|easy|easier|again|normally|air|through)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["breath"],
+    fix: "breathe",
+    check: "englishConfusedWords",
+    cue: ["breath"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:to)[ \\t\\u00a0]{1,8}(?<target>aide)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:you|him|her|them|us|me|in)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["aide"],
+    fix: "aid",
+    check: "englishConfusedWords",
+    cue: ["aide"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:deadly|rare|chronic|infectious|contagious|genetic|heart|lung|skin|kidney|liver|autoimmune|terminal|incurable|serious|fatal|a)[ \\t\\u00a0]{1,8}(?<target>decease)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["decease"],
+    fix: "disease",
+    check: "englishConfusedWords",
+    cue: ["decease"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:to|will|would|can|could|might|may|significantly|not)[ \\t\\u00a0]{1,8}(?<target>altar)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|it|them|him|me|us|you|some|any)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["altar"],
+    fix: "alter",
+    check: "englishConfusedWords",
+    cue: ["altar"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:am|is|are|was|were|be|not|i|you|we|they|he|she|['’]m|['’]re)[ \\t\\u00a0]{1,8}(?<target>adverse)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:to[ \\t\\u00a0]{1,8}[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["adverse"],
+    fix: "averse",
+    check: "englishConfusedWords",
+    cue: ["adverse"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:a|the|more|very|really)[ \\t\\u00a0]{1,8}(?<target>through)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:review|analysis|investigation|examination|inspection|discussion|explanation|understanding|check|search|evaluation|assessment|cleaning|overview|description|job|test|testing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["through"],
+    fix: "thorough",
+    check: "englishConfusedWords",
+    cue: ["through"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:am|is|are|was|were|be|been|['’]m|['’]re|['’]s)[ \\t\\u00a0]{1,8}(?<target>wandering)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:if|whether|why|how|what)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["wandering"],
+    fix: "wondering",
+    check: "englishConfusedWords",
+    cue: ["wandering"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:i|we|they|you)[ \\t\\u00a0]{1,8}(?<target>wander)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:if|whether|why|how|what)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["wander"],
+    fix: "wonder",
+    check: "englishConfusedWords",
+    cue: ["wander"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:is|was|are|were|very|so|brand|completely|totally|relatively|fairly|quite|something|anything)[ \\t\\u00a0]{1,8}(?<target>knew)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:to|for|and)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["knew"],
+    fix: "new",
+    check: "englishConfusedWords",
+    cue: ["knew"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:is|was|very|so|brand|completely|totally|relatively|fairly|quite)[ \\t\\u00a0]{1,8}(?<target>knew)(?=[ \\t\\u00a0]*[.!?,])",
+    literals: ["knew"],
+    fix: "new",
+    check: "englishConfusedWords",
+    cue: ["knew"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:this|it|that|he|she|which|what)[ \\t\\u00a0]{1,8}(?<target>seams)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:to|like|wrong|fine|good|ok|okay|strange|odd|weird|right|great|easy|hard|correct|broken)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["seams"],
+    fix: "seems",
+    check: "englishConfusedWords",
+    cue: ["seams"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:looks|seems|is|was|pretty|very|so|too|quite|fairly)[ \\t\\u00a0]{1,8}(?<target>ease)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:to|for|enough)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["ease"],
+    fix: "easy",
+    check: "englishConfusedWords",
+    cue: ["ease"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:not)[ \\t\\u00a0]{1,8}(?<target>jet)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:decided|done|ready|finished|available|known|sure|clear|implemented|released|been|seen|started|fixed)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["not"],
+    fix: "yet",
+    message: "review_msg_typo",
+    cue: ["jet"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:a|very|so|really|have[ \\t\\u00a0]{1,8}a|wish[ \\t\\u00a0]{1,8}you[ \\t\\u00a0]{1,8}a)[ \\t\\u00a0]{1,8}(?<target>niece)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:holiday|day|weekend|time|evening|trip|job|one|place|vacation)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["niece"],
+    fix: "nice",
+    message: "review_msg_typo",
+    cue: ["niece"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:would|['’]d)[ \\t\\u00a0]{1,8}(?<target>rater)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:go|be|not|have|stay|do|see|wait|die|keep|leave|use)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["rater"],
+    fix: "rather",
+    message: "review_msg_typo",
+    cue: ["rater"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:that|it|this)[ \\t\\u00a0]{1,8}(?<target>whit)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|it|them|him|me|us|you|some|any)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["whit"],
+    fixer: "en:neighbourTyposWhit",
+    message: "review_msg_typo",
+    cue: ["whit"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:let['’]s|to|will|can|should|must|we|i|please|could)[ \\t\\u00a0]{1,8}(?<target>asses)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:the|a|your|our|their|his|her|my|it|this|these|whether|how|what)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["asses"],
+    fix: "assess",
+    check: "englishConfusedWords",
+    cue: ["asses"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:he|she|i|we|they|you)[ \\t\\u00a0]{1,8}(?<target>road)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:on|a|the|his|her|my|their|our|to|home|in|into|off|away|through|across)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["road"],
+    fix: "rode",
+    check: "englishConfusedWords",
+    cue: ["road"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:he|she|it|who)[ \\t\\u00a0]{1,8}(?<target>caries)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["caries"],
+    fix: "carries",
+    message: "review_msg_typo",
+    cue: ["caries"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:he|she|it|who)[ \\t\\u00a0]{1,8}(?<target>writs)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:a|an|the|his|her|my|letters|books|code|songs|poems)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["writs"],
+    fix: "writes",
+    message: "review_msg_typo",
+    cue: ["writs"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:(?<lead>[a-z]+))[ \\t\\u00a0]{1,8}(?<target>(?:will|can|could|should|would|must)[ \\t\\u00a0]{1,8}he)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:(?<after>[a-z]+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["will", "can", "could", "should", "would", "must"],
+    fixer: "en:neighbourTyposWill",
+    check: "englishConfusedWords",
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:i|we|you|they)[ \\t\\u00a0]{1,8}(?<target>dun)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:know|care|think|want|like|have|get|understand|see|need|mind)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["dun"],
+    fix: "don't",
+    message: "review_msg_typo",
+    cue: ["dun"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:unable|able|want|wanted|need|needed|going|trying|try|tried|have|has|had)[ \\t\\u00a0]{1,8}(?<target>tor)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [
+      "unable",
+      "able",
+      "want",
+      "wanted",
+      "need",
+      "needed",
+      "going",
+      "trying",
+      "try",
+      "tried",
+      "have",
+      "has",
+      "had",
+    ],
+    fix: "to",
+    message: "review_msg_typo",
+    cue: ["tor"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:looking|waiting|searching|asking|thanks|thank[ \\t\\u00a0]{1,8}you|ready)[ \\t\\u00a0]{1,8}(?<target>tor)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|it|them|him|me|us|you|some|any|work|help|more|it)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["looking", "waiting", "searching", "asking", "thanks", "thank", "ready"],
+    fix: "for",
+    message: "review_msg_typo",
+    cue: ["tor"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:wanted|want|need|needed|going|try|tried|like|love|have|has|had)[ \\t\\u00a0]{1,8}(?<target>o)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:start|go|be|do|get|make|see|try|help|have|know|say|find|use|ask|come|leave|stop|buy)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [
+      "wanted",
+      "want",
+      "need",
+      "needed",
+      "going",
+      "try",
+      "tried",
+      "like",
+      "love",
+      "have",
+      "has",
+      "had",
+    ],
+    fix: "to",
+    message: "review_msg_typo",
+    cue: ["o"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:to|not|n['’]t|can|could|will|please|unable[ \\t\\u00a0]{1,8}to)[ \\t\\u00a0]{1,8}(?<target>active)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:your|the|my|it|this|his|her|their|our|them)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["active"],
+    fix: "activate",
+    check: "englishConfusedWords",
+    cue: ["active"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:can['’]t|cannot|can[ \\t\\u00a0]{1,8}not|could[ \\t\\u00a0]{1,8}not|couldn['’]t|to|can|could)[ \\t\\u00a0]{1,8}(?<target>effort)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:a|an|the|it|to|this|that|any|one|another)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["effort"],
+    fix: "afford",
+    check: "englishConfusedWords",
+    cue: ["effort"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:['’]ll|will|can|to|i|we|could|should)[ \\t\\u00a0]{1,8}(?<target>mange)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:it|the|to|this|that|them|a|my|your)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["mange"],
+    fix: "manage",
+    message: "review_msg_typo",
+    cue: ["mange"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:spelling|it|that|this|which|you|we|i|they)[ \\t\\u00a0]{1,8}(?<target>cab)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:be)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["cab"],
+    fix: "can",
+    message: "review_msg_typo",
+    cue: ["cab"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:it|this|that|he|she|there|what)[ \\t\\u00a0]{1,8}(?<target>si)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fix: "is",
+    message: "review_msg_typo",
+    cue: ["si"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:not|very|so|is|['’]s|isn['’]t|wasn['’]t)[ \\t\\u00a0]{1,8}(?<target>fare)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:to|how|that|enough)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["fare"],
+    fix: "fair",
+    check: "englishConfusedWords",
+    cue: ["fare"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:not|so|very)[ \\t\\u00a0]{1,8}(?<target>fare)(?=[ \\t\\u00a0]*[.!?])",
+    literals: ["fare"],
+    fix: "fair",
+    check: "englishConfusedWords",
+    cue: ["fare"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:to|n['’]t|not|will|can|please|i|we)[ \\t\\u00a0]{1,8}(?<target>sen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|it|them|him|me|us|you|some|any)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["sen"],
+    fix: "send",
+    message: "review_msg_typo",
+    cue: ["sen"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:to|n['’]t|not|will|can|i|we|they)[ \\t\\u00a0]{1,8}(?<target>posses)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:a|an|the|any|no|some|it|this|that)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["posses"],
+    fix: "possess",
+    message: "review_msg_typo",
+    cue: ["posses"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:not|n['’]t|doesn['’]t|don['’]t|didn['’]t|won['’]t|no)[ \\t\\u00a0]{1,8}(?<target>mater)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["mater"],
+    fix: "matter",
+    check: "englishConfusedWords",
+    cue: ["mater"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:can|could|will|would|should|to|might)[ \\t\\u00a0]{1,8}(?<target>writ)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|it|them|him|me|us|you|some|any)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["writ"],
+    fix: "write",
+    message: "review_msg_typo",
+    cue: ["writ"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:i|we|you|they|don['’]t|didn['’]t|really|just)[ \\t\\u00a0]{1,8}(?<target>wan)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:to|this|that|it|a|an|the|some|more)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["wan"],
+    fix: "want",
+    message: "review_msg_typo",
+    cue: ["wan"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:i|we|you|they|don['’]t|doesn['’]t|didn['’]t|won['’]t|not|will|would|really|just|also|might|may)[ \\t\\u00a0]{1,8}(?<target>ned)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:to|too|a|an|the|some|more|help|it|this|that|your|my|our|their|them|you|me|us)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["ned"],
+    fixer: "en:neighbourTyposNed",
+    message: "review_msg_typo",
+    cue: ["ned"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:wouldn['’]t|won['’]t|to|will|can|could|should|must|might|['’]ll|don['’]t)[ \\t\\u00a0]{1,8}(?<target>git)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:a|an|the|some|my|your|this|that|them|me|him|her|us|rid|back|out|up|it)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["git"],
+    fix: "get",
+    check: "englishConfusedWords",
+    cue: ["git"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:let['’]s|to|will|can|could|should|we|i|you)[ \\t\\u00a0]{1,8}(?<target>meed)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:tomorrow|today|you|me|him|her|them|us|at|in|the|up|again|soon|on)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["meed"],
+    fix: "meet",
+    message: "review_msg_typo",
+    cue: ["meed"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:you|i|we|they)[ \\t\\u00a0]{1,8}(?<target>seen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:to[ \\t\\u00a0]{1,8}(?:be|have|ask|know|get|like|want|think|need|make))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["seen"],
+    fix: "seem",
+    check: "englishConfusedWords",
+    cue: ["seen"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:had|has|have|had[ \\t\\u00a0]{1,8}already|has[ \\t\\u00a0]{1,8}already|have[ \\t\\u00a0]{1,8}already)[ \\t\\u00a0]{1,8}(?<target>begone)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["begone"],
+    fix: "begun",
+    check: "englishConfusedWords",
+    cue: ["begone"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<target>Than)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:you)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["than"],
+    fixer: "en:neighbourTyposThan",
+    check: "englishConfusedWords",
+    cue: ["than"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:i|he|she|it)[ \\t\\u00a0]{1,8}(?<target>as)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:looking|going|trying|thinking|wondering|working|waiting)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fix: "was",
+    check: "englishConfusedWords",
+    cue: ["as"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:would|do|does|did|not|n['’]t|really|just)[ \\t\\u00a0]{1,8}(?<target>wont)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:to)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["wont"],
+    fix: "want",
+    check: "englishConfusedWords",
+    cue: ["wont"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:set|sets|setting|establish|established|establishes|create|created|creates)[ \\t\\u00a0]{1,8}(?<target>a(?:[ \\t\\u00a0]{1,8}(?:new|dangerous|bad|good|legal))?[ \\t\\u00a0]{1,8}precedence)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["precedence"],
+    fixer: "en:neighbourTyposA",
+    check: "englishConfusedWords",
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:been|was|is|fell|slipped|put|remain|remained|remains|in|into)[ \\t\\u00a0]{1,8}(?<target>a[ \\t\\u00a0]{1,8}comma)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["comma"],
+    fixer: "en:neighbourTyposA2",
+    check: "englishConfusedWords",
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:have|has|had|got|get|gets|with|caught|catch|getting|having)[ \\t\\u00a0]{1,8}(?<target>the[ \\t\\u00a0]{1,8}flew)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["flew"],
+    fixer: "en:neighbourTyposThe2",
+    check: "englishConfusedWords",
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:take|takes|took|taken|taking)(?:[ \\t\\u00a0]{1,8}[a-z]+){0,2}[ \\t\\u00a0]{1,8}for[ \\t\\u00a0]{1,8}(?<target>granite)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["granite"],
+    fix: "granted",
+    check: "englishConfusedWords",
+    cue: ["granite"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])if[ \\t\\u00a0]{1,8}[^.!?;:\\n,]{1,60},[ \\t\\u00a0]{1,8}(?<target>than)[ \\t\\u00a0]{1,8}(?:we|I|you|they|he|she|it|the)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["than"],
+    fix: "then",
+    message: "review_msg_then_than_temporal",
+    check: "englishThenThan",
+    cue: ["than"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:can|could|cannot|can['’]t|couldn['’]t|hardly)[ \\t\\u00a0]{1,8}(?<target>await)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:until|till|for|to)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["await"],
+    fix: "wait",
+    check: "englishConfusedWords",
+    cue: ["await"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:should|would|could|must|might|will|can|did|does|do)[ \\t\\u00a0]{1,8}(?<target>knot)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:have|be|do|go|get|work|need|happen|mind|matter)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["knot"],
+    fix: "not",
+    message: "review_msg_typo",
+    cue: ["knot"],
+  },
+  {
+    pattern: "(?<target>That[ \\t\\u00a0]{1,8}being[ \\t\\u00a0]{1,8}sad)(?=[ \\t\\u00a0]*[,.…])",
+    literals: ["being"],
+    fixer: "en:neighbourTyposThat",
+    check: "englishConfusedWords",
+    cue: ["sad"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])in[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?<target>passed)(?=[ \\t\\u00a0]*[.!?,]|[ \\t\\u00a0]{1,8}(?:few|two|three|years?|weeks?|months?|days?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["passed"],
+    fix: "past",
+    check: "englishConfusedWords",
+    cue: ["passed"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])on[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?<target>lose)(?=[ \\t\\u00a0]*[.!?,]|$)",
+    literals: ["lose"],
+    fix: "loose",
+    check: "englishConfusedWords",
+    cue: ["lose"],
+  },
+  {
+    pattern: "(?<![\\p{L}'’])(?<target>here[ \\t\\u00a0]{1,8}here)(?=[ \\t\\u00a0]*[,!])",
+    literals: ["here"],
+    fix: "hear hear",
+    check: "englishConfusedWords",
+    cue: ["here"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])in[ \\t\\u00a0]{1,8}(?:a|an)[ \\t\\u00a0]{1,8}(?<target>[a-z]+ly)[ \\t\\u00a0]{1,8}(?:manner|way|fashion)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["manner", "way", "fashion"],
+    fixer: "en:neighbourTyposA3",
+    message: "review_msg_adverb_form",
+    check: "englishConfusedWords",
+    cue: ["manner", "way", "fashion"],
+  },
+  {
+    pattern:
+      "(?<target>Sometime)[ \\t\\u00a0]{1,8}(?:I|we|you|they|he|she|it)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["sometime"],
+    fixer: "en:neighbourTyposSometime",
+    message: "review_msg_typo",
+    cue: ["sometime"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:in[ \\t\\u00a0]{1,8}the|around[ \\t\\u00a0]{1,8}the|the[ \\t\\u00a0]{1,8}whole|the[ \\t\\u00a0]{1,8}entire|our|this|troubled|modern|real|whole|entire)[ \\t\\u00a0]{1,8}(?<target>wold)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["wold"],
+    fix: "world",
+    message: "review_msg_typo",
+    cue: ["wold"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:is|are|was|were|be|['’]s)[ \\t\\u00a0]{1,8}(?<one>[a-z]+)[ \\t\\u00a0]{1,8}(?<target>nut)[ \\t\\u00a0]{1,8}(?<two>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["nut"],
+    fixer: "en:neighbourTyposNut",
+    message: "review_msg_typo",
+    cue: ["nut"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<target>an)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?=[ \\t\\u00a0]{1,8}(?<after>what|how|if|it|you|me|them|him|her|us|the|and|or|with|from)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]*[,.])",
+    literals: [],
+    fixer: "en:neighbourTyposAn2",
+    message: "review_msg_typo",
+    cue: ["an"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<target>he)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)[ \\t\\u00a0]{1,8}(?:is|was|has|had|will|would|can|could|does|did|said|says)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fixer: "en:neighbourTyposHe",
+    message: "review_msg_typo",
+    cue: ["he"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:will|to|can|would|that|which|it|they|blankets|duvet)[ \\t\\u00a0]{1,8}(?<target>envelope)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:you|your|him|her|them|me|us|the|it)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["envelope"],
+    fix: "envelop",
+    check: "englishConfusedWords",
+    cue: ["envelope"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:duvet|blanket|it|fog|darkness|silence)[ \\t\\u00a0]{1,8}(?<target>envelopes)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:you|your|him|her|them|me|us|the|it)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["envelopes"],
+    fix: "envelops",
+    check: "englishConfusedWords",
+    cue: ["envelopes"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:(?<lead>at|in|from|with|for|about|into|evaluated|reviewed|updated|improved)[ \\t\\u00a0]{1,8})?(?<target>out)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["out"],
+    fixer: "en:neighbourTyposOut",
+    check: "englishConfusedWords",
+    cue: ["out"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<target>you)(?<mods>(?:[ \\t\\u00a0]{1,8}[a-z]+){0,2})[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)[ \\t\\u00a0]{1,8}(?:is|was|has|had|will|would|can|could|should|must|does|did|may|might)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["you"],
+    fixer: "en:neighbourTyposYou",
+    message: "review_msg_your_possessive",
+    check: "englishYourYouAre",
+    cue: ["you"],
+  },
+  {
+    pattern:
+      "you[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}(?<target>you)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?=[ \\t\\u00a0]*(?:[.!?,;]|$))",
+    literals: ["you"],
+    fixer: "en:neighbourTyposYou2",
+    message: "review_msg_your_possessive",
+    check: "englishYourYouAre",
+    cue: ["you"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:I|you|we|they|he|she|it)(?<target>['’](?:m|re|s))(?:[ \\t\\u00a0]{1,8}(?:just|really|still|also|obviously|actually|simply|certainly|definitely|probably|clearly|usually|honestly|sometimes|finally|ever|even|already))?[ \\t\\u00a0]{1,8}(?:has|have|had|does|do|did|is|are|was|were|wo|ca|could|would|should)n['’]t(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fix: "",
+    cue: [
+      "hasn",
+      "haven",
+      "hadn",
+      "doesn",
+      "don",
+      "didn",
+      "isn",
+      "aren",
+      "wasn",
+      "weren",
+      "couldn",
+      "wouldn",
+      "shouldn",
+    ],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?:I|you|we|they|he|she|it)(?<target>[ \\t\\u00a0]{1,8}(?:am|is|are|was|were)(?:n['’]t)?)(?:[ \\t\\u00a0]{1,8}(?:just|really|still|also|obviously|actually|simply|certainly|definitely|probably|clearly|usually|honestly|sometimes|finally|ever|even|already))?[ \\t\\u00a0]{1,8}(?:has|have|had|does|do|did|is|are|was|were|wo|ca|could|would|should)n['’]t(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fixer: "en:clashFramesT",
+    cue: [
+      "hasn",
+      "haven",
+      "hadn",
+      "doesn",
+      "don",
+      "didn",
+      "isn",
+      "aren",
+      "wasn",
+      "weren",
+      "couldn",
+      "wouldn",
+      "shouldn",
+    ],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<target>(?<word>that|what)['’]s)[ \\t\\u00a0]{1,8}(?:(?:I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?:am|are|is|was|were)|I['’]m|(?:he|she|it)['’]s|we['’]re|(?:you|they)['’]re(?=[ \\t\\u00a0]{1,8}(?:[a-z]+ing|not)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["that", "what"],
+    fixer: "en:clashFramesWord",
+    cue: ["that", "what"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<subject>I|we|they|he|she)(?:[ \\t\\u00a0]{1,8}(?:just|really|still|also|obviously|actually|simply|certainly|definitely|probably|clearly|usually|honestly|sometimes|finally|ever|even|already))?[ \\t\\u00a0]{1,8}(?<target>(?<be>is|are|was|were)n['’]t)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fixer: "en:clashFramesBe",
+    message: "review_msg_pronoun_verb",
+    check: "englishPronounVerbWhitelistAgreement",
+    cue: ["isn", "aren", "wasn", "weren"],
+  },
+  {
+    pattern:
+      "(?:(?<![\\p{L}'’])(?:is|was|turned|turns|turn|turning|be|am|are|were|being)|['’](?:s|m|re))[ \\t\\u00a0]{1,8}(?<count>\\d+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)[ \\t\\u00a0]{1,8}(?<target>year|month|week|day)[ \\t\\u00a0]{1,8}old(?=[ \\t\\u00a0]*(?:[.,;:!?)]|$)|[ \\t\\u00a0]{1,8}(?:and|but|now|today|this|last|when|in)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["year", "month", "week", "day"],
+    fixer: "en:clashFramesYear",
+    message: "review_msg_noun_count",
+    check: "englishNounNumber",
+    cue: ["old"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<subject>[a-z]+)[ \\t\\u00a0]{1,8}(?<target>(?<need>needs|need|needed)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+ed))(?=[ \\t\\u00a0]*(?:[.!?,;]|$)|[ \\t\\u00a0]{1,8}(?:before|soon|again|now|badly|if|when|or|and)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["needs", "need", "needed"],
+    fixer: "en:clashFramesNeed",
+    message: "review_msg_verb_complements",
+    check: "englishVerbComplements",
+    cue: ["need", "needs", "needed"],
+  },
+  {
+    pattern:
+      "(?<target>(?<be>(?<![\\p{L}'’])(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|am|is|are|was|were)|['’](?:m|re|s))(?<adverb>[ \\t\\u00a0]{1,8}(?:ever|never|always|still|just|not))[ \\t\\u00a0]{1,8}be)(?=[ \\t\\u00a0]{1,8}(?:able|unable|possible|allowed)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["ever", "never", "always", "still", "just", "not"],
+    fixer: "en:clashFramesBe2",
+    cue: ["able", "unable", "possible", "allowed"],
+  },
+  {
+    pattern:
+      "(?:(?<lead>(?<![\\p{L}'’])[a-z]+|['’](?:m|re|s))[ \\t\\u00a0]{1,8})?(?<target>(?<little>little[ \\t\\u00a0]{1,8})?bit)(?=[ \\t\\u00a0]{1,8}(?:of[ \\t\\u00a0]{1,8}an?|too|more|less|late|early|better|worse|different|differently|longer|slow|slower|faster|tired|lazy|busy|confused|stupid|strange|weird|odd|nervous|worried|bored|cold|hot|warm)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["bit"],
+    fixer: "en:clashFramesLittle",
+    message: "review_msg_contextual_grammar",
+    check: "englishPhraseCorrections",
+    cue: ["bit"],
+  },
+  {
+    pattern:
+      "(?<target>(?<be>(?<![\\p{L}'’])(?:are|is|am|was|were))(?<rest>[ \\t\\u00a0]{1,8}(?<subject>I|you|we|they|he|she|it)(?:[ \\t\\u00a0]{1,8}(?:just|really|still|also|obviously|actually|simply|certainly|definitely|probably|clearly|usually|honestly|sometimes|finally|ever|even|already))?[ \\t\\u00a0]{1,8})(?<verb>[a-z]+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: [],
+    fixer: "en:clashFramesBe3",
+    message: "review_msg_question_do",
+    check: "englishAuxiliaryBaseVerb",
+    cue: ["are", "is", "am", "was", "were"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<target>more[ \\t\\u00a0]{1,8}(?<adjective>[a-z]{3,8}))(?=[ \\t\\u00a0]{1,8}(?:to|for|if|when|with)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{1,8}than[ \\t\\u00a0]{1,8}(?<other>[a-z]+)|[ \\t\\u00a0]*(?:[.,;:!?)]|$))",
+    literals: ["more"],
+    fixer: "en:clashFramesMore",
+    message: "review_msg_style_phrasing",
+    check: "stylePhrasing",
+    cue: ["more"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])reason(?:[ \\t\\u00a0]{1,8}[a-z'’]+){0,8}?[ \\t\\u00a0]{1,8}(?:is|was)[ \\t\\u00a0]{1,8}(?<target>because)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}of(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["because"],
+    fix: "that",
+    message: "review_msg_style_phrasing",
+    check: "stylePhrasing",
+    cue: ["reason"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])please(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[^.!?\\n]{1,100}?(?<target>,?[ \\t\\u00a0]{1,8}please)(?=[ \\t\\u00a0]*[.!?])",
+    literals: ["please"],
+    fixer: "en:clashFramesT2",
+    message: "review_msg_style_phrasing",
+    check: "stylePhrasing",
+    cue: ["please"],
+  },
+  {
+    pattern:
+      "(?<![\\p{L}'’])(?<target>(?<word>very|so|far|long|really)[ \\t\\u00a0]{1,8}\\k<word>)[ \\t\\u00a0]{1,8}(?=[a-z])",
+    literals: [],
+    fixer: "en:clashFramesWord2",
+    message: "review_msg_style_phrasing",
+    check: "stylePhrasing",
+    cue: ["very", "so", "far", "long", "really"],
   },
 ];
 
