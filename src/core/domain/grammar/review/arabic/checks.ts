@@ -1,12 +1,11 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { Detector, FindingsFilter, FrameRef, MatchFixer } from "../../engine/reviewRules";
+import type { FindingsFilter, FrameRef, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { graphWords } from "../wordGraph";
 import type * as Lexicon from "./lexicon.generated";
 import { reviewData } from "../reviewLanguageData";
-import { styleFrames, tagsOf } from "./styleFrames";
+import { STYLE_STEPS, tagsOf } from "./styleFrames";
 import { gappedUsage } from "./usage";
-import { isLang } from "../phraseTemplates";
 
 type Finding = Omit<RawFinding, "ruleId">;
 type Token = { word: string; start: number; end: number; gap: string };
@@ -1067,6 +1066,12 @@ export const FIXERS = {
   indefiniteAdjective: walker(indefiniteAdjective),
   demonstrativePredicate: walker(demonstrativePredicate),
   indefiniteSubject: walker(indefiniteSubject),
+  ...Object.fromEntries(
+    Object.entries({ ...STYLE_STEPS, gappedUsage }).map(([name, step]) => [
+      name,
+      walker((ctx, list, i) => step(ctx.text, list, i, (start) => owns(ctx, start))),
+    ]),
+  ),
 } satisfies Record<string, MatchFixer>;
 
 const NUMBER_KEYS = new Set<string>([
@@ -1089,18 +1094,3 @@ export const FILTERS = {
       return kept;
     }, []),
 } satisfies Record<string, FindingsFilter>;
-
-const as =
-  (ruleId: RawFinding["ruleId"], detect: (ctx: DetectContext, list: Token[]) => Finding[]) =>
-  (ctx: DetectContext): RawFinding[] =>
-    !isLang(ctx, "ar") || (ctx.rules && !ctx.rules.has(ruleId))
-      ? []
-      : detect(ctx, tokens(ctx)).map((f) => ({ ruleId, ...f }));
-
-/** The Arabic Review detectors, by the names grammar/rules/ar_SA.yaml uses. */
-export const PREDICATES = {
-  styleFrames: as("stylePhrasing", (ctx, list) => [
-    ...styleFrames(ctx.text, list, (start) => owns(ctx, start)),
-    ...gappedUsage(list, (start) => owns(ctx, start)),
-  ]),
-} satisfies Record<string, Detector>;

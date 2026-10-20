@@ -61,29 +61,30 @@ const SPACES = /^[ \t\u00a0]+$/u;
  * spaces between: the verb gets the replacement. Adjacent pairs are table rows.
  */
 export function gappedUsage(
+  text: string,
   list: readonly StyleToken[],
+  i: number,
   at: (start: number) => boolean,
 ): Array<Omit<RawFinding, "ruleId">> {
   const findings: Array<Omit<RawFinding, "ruleId">> = [];
-  for (let i = 0; i + 2 < list.length; i++) {
-    const word = list[i].word;
-    for (const [verbs, target] of GAPPED) {
-      // "فتحت" is a verb of its own; "وفتحت" carries و.
-      const pre = verbs.has(word) || !/^[وف]/u.test(word) ? "" : word[0];
-      const fixed = verbs.get(word.slice(pre.length));
-      if (!fixed) continue;
-      for (let k = i + 2; k <= i + 3 && k < list.length; k++) {
-        if (!SPACES.test(list[k].gap) || !SPACES.test(list[k - 1].gap)) break;
-        if (GAP_PREPOSITION.test(list[k - 1].word)) break;
-        if (!target.test(list[k].word)) continue;
-        if (at(list[i].start))
-          findings.push({
-            messageKey: "review_msg_style_phrasing",
-            range: { start: list[i].start, end: list[i].end },
-            alternatives: [pre + fixed],
-          });
-        break;
-      }
+  if (i + 2 >= list.length) return findings;
+  const word = list[i].word;
+  for (const [verbs, target] of GAPPED) {
+    // "فتحت" is a verb of its own; "وفتحت" carries و.
+    const pre = verbs.has(word) || !/^[وف]/u.test(word) ? "" : word[0];
+    const fixed = verbs.get(word.slice(pre.length));
+    if (!fixed) continue;
+    for (let k = i + 2; k <= i + 3 && k < list.length; k++) {
+      if (!SPACES.test(list[k].gap) || !SPACES.test(list[k - 1].gap)) break;
+      if (GAP_PREPOSITION.test(list[k - 1].word)) break;
+      if (!target.test(list[k].word)) continue;
+      if (at(list[i].start))
+        findings.push({
+          messageKey: "review_msg_style_phrasing",
+          range: { start: list[i].start, end: list[i].end },
+          alternatives: [pre + fixed],
+        });
+      break;
     }
   }
   return findings;
