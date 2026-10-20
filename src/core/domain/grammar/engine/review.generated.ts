@@ -2598,7 +2598,10 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     id: "ar_SA.dates",
     checks: ["arabicDates"],
     lang: "ar",
-    predicate: "ar_SA:dates",
+    frames: [1457, 1458, 1459, 1460, 1461, 1462],
+    message: "review_msg_arabic_impossible_date",
+    style: "match",
+    filter: "ar_SA:isoDatesAndOrder",
     source: "ar_SA",
   },
   {
@@ -2606,6 +2609,24 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     checks: ["arabicSyntax"],
     lang: "ar",
     predicate: "ar_SA:syntax",
+    source: "ar_SA",
+  },
+  {
+    id: "ar_SA.kullama",
+    checks: ["arabicSyntax"],
+    lang: "ar",
+    frames: [1463],
+    message: "review_msg_arabic_kullama",
+    style: "match",
+    source: "ar_SA",
+  },
+  {
+    id: "ar_SA.redundantWords",
+    checks: ["stylePhrasing"],
+    lang: "ar",
+    frames: [1464, 1465],
+    message: "review_msg_style_phrasing",
+    style: "match",
     source: "ar_SA",
   },
   {
@@ -14537,6 +14558,90 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "(?:em|de|para|até)[ \\t\\u00a0]{1,8}\\p{Lu}[\\p{Ll}\\p{M}]+(?:[ \\t\\u00a0-](?:d[aoe]s?|\\p{Lu}[\\p{Ll}\\p{M}]+)){0,6}(?<target>[ \\t\\u00a0]?\\((?:AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)\\))",
     literals: [],
     fixer: "pt_BR:styleT2",
+  },
+  {
+    pattern:
+      "(?<target>(?<![\\p{L}\\p{M}\\p{N}])(?:(?<weekday>الثلاثاء|الأربعاء|الإثنين|الاثنين|الخميس|الجمعة|الأحد|السبت)[ \\t\\u00a0]+(?:،[ \\t\\u00a0]*)?)?(?<day>[0-9٠-٩۰-۹]{1,2})(?:(?:[ \\t\\u00a0]+|[ \\t\\u00a0]*[/.-][ \\t\\u00a0]*)(?<monthName>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)|[ \\t\\u00a0]*[/.-][ \\t\\u00a0]*(?<monthDigits>[0-9٠-٩۰-۹]{1,2})(?=[ \\t\\u00a0]*[/.-][ \\t\\u00a0]*[0-9٠-٩۰-۹]))(?:(?:[ \\t\\u00a0]+|[ \\t\\u00a0]*[/.-][ \\t\\u00a0]*)(?<year>[0-9٠-٩۰-۹]{2,4}))?(?![\\p{L}\\p{M}\\p{N}]))",
+    literals: [],
+    fixer: "ar_SA:date",
+    flags: "gu",
+    scan: "owned",
+    lookback: 64,
+  },
+  {
+    pattern:
+      "(?<![\\p{L}\\p{M}\\p{N}])(?:ل?(?:ال)?(?:عام|سنة)|صيف|شتاء|ربيع|خريف)[ \\t\\u00a0]+(?<target>[0-9٠-٩۰-۹]{5,})(?![\\p{L}\\p{M}\\p{N}])",
+    literals: [],
+    fixer: "ar_SA:longYear",
+    flags: "gu",
+    scan: "owned",
+    lookback: 64,
+  },
+  {
+    pattern:
+      "(?<target>(?<![\\p{L}\\p{M}\\p{N}])(?<y>[0-9٠-٩۰-۹]{4})[ \\t\\u00a0]+(?<m>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)[ \\t\\u00a0]+(?<d>[0-9٠-٩۰-۹]{1,2})(?![\\p{L}\\p{M}\\p{N}]))",
+    literals: [],
+    fixer: "ar_SA:dayMonthYear",
+    message: "review_msg_arabic_date_order",
+    flags: "gu",
+    scan: "owned",
+    lookback: 64,
+  },
+  {
+    pattern:
+      "(?<target>(?<![\\p{L}\\p{M}\\p{N}])(?<m>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)[ \\t\\u00a0]+(?<d>[0-9٠-٩۰-۹]{1,2})[ \\t\\u00a0]+(?<w>الثلاثاء|الأربعاء|الإثنين|الاثنين|الخميس|الجمعة|الأحد|السبت)(?![\\p{L}\\p{M}\\p{N}]))",
+    literals: [],
+    fixer: "ar_SA:weekdayDayMonth",
+    message: "review_msg_arabic_date_order",
+    flags: "gu",
+    scan: "owned",
+    lookback: 64,
+  },
+  {
+    pattern:
+      "(?<target>(?<![\\p{L}\\p{M}\\p{N}])(?<m>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)[ \\t\\u00a0]+(?<d>[0-9٠-٩۰-۹]{1,2})[ \\t\\u00a0]+(?<y>[0-9٠-٩۰-۹]{4})(?![\\p{L}\\p{M}\\p{N}]))",
+    literals: [],
+    fixer: "ar_SA:dayMonthYear",
+    message: "review_msg_arabic_date_order",
+    flags: "gu",
+    scan: "owned",
+    lookback: 64,
+  },
+  {
+    pattern:
+      "(?<target>(?<![\\p{L}\\p{M}\\p{N}])(?<y>[0-9٠-٩۰-۹]{4})[ \\t\\u00a0]+(?<m>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)(?![\\p{L}\\p{M}\\p{N}]|[ \\t\\u00a0]+[0-9٠-٩۰-۹]))",
+    literals: [],
+    fixer: "ar_SA:monthYear",
+    message: "review_msg_arabic_date_order",
+    flags: "gu",
+    scan: "owned",
+    lookback: 64,
+  },
+  {
+    pattern: "(?<![\\p{L}\\p{M}])كلما[^.!؟?\\n،]{1,80}،[ \\t\\u00a0]*(?<target>كلما[ \\t\\u00a0]+)",
+    literals: [],
+    fixer: "ar_SA:kullama",
+    flags: "dgu",
+    scan: "owned",
+    lookback: 160,
+  },
+  {
+    pattern:
+      "(?<![\\p{L}\\p{M}])إلا(?:[ \\t\\u00a0]+[\\p{L}\\p{M}]+){1,5}(?<target>[ \\t\\u00a0]+فقط)(?![\\p{L}\\p{M}])",
+    literals: [],
+    fixer: "ar_SA:illaFaqat",
+    flags: "dgu",
+    scan: "owned",
+    lookback: 160,
+  },
+  {
+    pattern:
+      "(?<![\\p{L}\\p{M}])بين[ \\t\\u00a0]+(?<first>[\\p{L}]+)[ \\t\\u00a0]+(?<target>وبين[ \\t\\u00a0]+)(?=\\p{L})",
+    literals: [],
+    fixer: "ar_SA:bayna",
+    flags: "dgu",
+    scan: "owned",
+    lookback: 160,
   },
 ];
 
