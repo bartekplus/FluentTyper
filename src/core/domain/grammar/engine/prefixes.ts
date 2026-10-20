@@ -106,8 +106,8 @@ function parse(source: string): Node {
 
 /** A prefix and whether the regex text after it may extend it. */
 type Prefix = { text: string; open: boolean };
-// Above this count the prefixes are cut to one character: a shorter prefix is still a correct
-// (wider) start set.
+// Above this count the prefixes are cut to two characters, then to one: a shorter prefix is
+// still a correct (wider) start set.
 const MAX_PREFIXES = 256;
 
 function prefixes(node: Node, max: number): Prefix[] {
@@ -138,14 +138,16 @@ function prefixes(node: Node, max: number): Prefix[] {
               joined.push({ text: (p.text + q.text).slice(0, max), open: q.open });
         }
         current = dedupe(joined);
-        if (current.length > MAX_PREFIXES) current = dedupe(current.map(cut));
+        if (current.length > MAX_PREFIXES) current = dedupe(current.map((p) => cut(p, 2)));
+        if (current.length > MAX_PREFIXES) current = dedupe(current.map((p) => cut(p, 1)));
       }
       return current;
     }
   }
 }
 
-const cut = (p: Prefix): Prefix => ({ text: p.text.slice(0, 1), open: false });
+const cut = (p: Prefix, length: number): Prefix =>
+  p.text.length > length ? { text: p.text.slice(0, length), open: false } : p;
 
 function dedupe(list: Prefix[]): Prefix[] {
   const seen = new Map<string, Prefix>();
@@ -168,7 +170,10 @@ export function startPrefixes(source: string, max = 3): string[] | null {
   } catch {
     return null;
   }
-  const texts = [...new Set(prefixes(node, max).map((p) => p.text))];
+  let found = prefixes(node, max);
+  if (found.length > MAX_PREFIXES) found = dedupe(found.map((p) => cut(p, 2)));
+  if (found.length > MAX_PREFIXES) found = dedupe(found.map((p) => cut(p, 1)));
+  const texts = [...new Set(found.map((p) => p.text))];
   if (texts.length === 0 || texts.includes("")) return null;
   texts.sort((a, b) => a.length - b.length);
   const kept: string[] = [];
