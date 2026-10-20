@@ -15,11 +15,7 @@ import { nounNumberConstructions } from "./englishNounNumber";
 import { FIXERS as PARTICIPLE_FIXERS } from "./englishParticiples";
 import { FIXERS as COMPLEMENT_FIXERS } from "./englishComplements";
 import { contextualPossessives } from "./englishPossessives";
-import {
-  additionalPronounAgreement,
-  existentialAgreement,
-  subjectAgreement,
-} from "./englishAgreement";
+import { FILTERS as AGREEMENT_FILTERS, FIXERS as AGREEMENT_FIXERS } from "./englishAgreement";
 import { FIXERS as CONFUSION_FIXERS } from "./englishWordConfusions";
 import { FILTERS as AUXILIARY_FILTERS, FIXERS as AUXILIARY_FIXERS } from "./englishAuxiliaryForms";
 import { FILTERS as CASE_FILTERS, FIXERS as CASE_FIXERS } from "./englishPronounCase";
@@ -822,7 +818,7 @@ const YOU_SUBJECT_BEFORE = new Set([
 ]);
 
 const pronounVerb: Detector = (ctx) => {
-  const findings = additionalPronounAgreement(ctx);
+  const findings: RawFinding[] = [];
   for (const { match, end } of phraseMatches(ctx, AGREEMENT_REGEX, 3)) {
     const phrase = match[1];
     const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "));
@@ -1599,8 +1595,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   yourWelcome,
   theirThere,
   pronounVerb,
-  subjectAgreement,
-  existentialAgreement,
   articleAn,
   properNouns: (ctx) => (ctx.lang === "en_US" ? properNoun(ctx) : germanNounCapitals(ctx)),
   measurement: (ctx) =>
@@ -1655,6 +1649,7 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   STRUCTURE_FIXERS,
   CASE_FIXERS,
   CONFUSION_FIXERS,
+  AGREEMENT_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */
@@ -1663,6 +1658,7 @@ const CORE_FILTERS = mergePredicates<FindingsFilter>(
   COMPOUND_FILTERS,
   AUXILIARY_FILTERS,
   CASE_FILTERS,
+  AGREEMENT_FILTERS,
 );
 
 /**

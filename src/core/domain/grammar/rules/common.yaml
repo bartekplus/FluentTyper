@@ -4479,6 +4479,11 @@ fragments:
   CONFUSION_COMPARED: "(?:me|him|us|them|hers|his|ours|theirs|yours|mine|anyone|anything|anybody|nothing|nobody|ever|before|usual|expected|necessary|needed|last|[0-9]+)"
   CONFUSION_DEGREE_ADJECTIVE: "(?:big|small|large|short|hot|cold|late|early|hard|easy|good|bad|high|loud|heavy|tired|hungry|busy|far|soon|much|many|expensive|difficult|complicated|ambitious|young|old|strict|risky|dangerous|tight|full|sweet|weak|strong|lazy)"
   CONFUSION_LINKING: "(?:is|are|was|were|am|be|been|being|seems?|seemed|looks?|looked|feels?|felt|sounds?|sounded|gets?|got|became|becomes|['’]s|['’]re|['’]m)"
+  AGREE_ADVERBS: "(?:{{S}}(?:sometimes|also|often|still|actually|completely)){0,2}{{S}}"
+  AGREE_DETERMINER: "(?:the|this|that|our|your){{S}}(?:(?:new|old|current|original){{S}})?"
+  AGREE_SINGULAR: "(?:{{AGREE_DETERMINER}}(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no{{S}}one|every{{S}}developer|verb{{S}}tense{{S}}detection|each{{S}}of{{S}}(?:them|the{{S}}tests))"
+  AGREE_PLURAL: "(?:(?:the|these|those|our|your){{S}}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional{{S}}sentences|numbers{{S}}and{{S}}dates|the{{S}}last{{S}}few{{S}}weeks|some{{S}}of{{S}}them)"
+  AGREE_ADJECTIVE: "(?:(?:new|old|updated|missing|small|large|additional|possible){{S}})?"
 
 rules:
   # Typing rules: each live check names its implementation (engine/liveRules.ts).
@@ -5239,15 +5244,113 @@ rules:
   - id: theirThere
     checks: [englishTheirThereBeVerb]
     predicate: theirThere
+  # Additional finished-text coverage under the existing agreement identity.
+  - id: pronounVerbFrames
+    checks: [englishPronounVerbWhitelistAgreement]
+    lang: en
+    style: match
+    message: review_msg_pronoun_verb
+    frames:
+      # A clause end may follow ("It don't."); a lexical verb must come from the authored table.
+      # "I" is only ever a subject, so it needs no clause start (pronounAgreement).
+      - regex: "(?<subject>I|we|they|you|he|she|it)(?<gap>{{S}}(?:(?:really|still|also|always|never|usually|often|just|only|even|sometimes|rarely|seldom|actually|truly|mostly|generally|normally|typically){{S}})?)(?<verb>[A-Za-z]+(?:n['’]t)?)(?:{{S}}(?:not{{S}})?(?<next>[A-Za-z]+){{E}}|(?=[ \t\u00a0]{0,8}(?:[.!?,;:]|$)))"
+        owner: verb
+        fixer: pronounAgreement
   - id: pronounVerb
     checks: [englishPronounVerbWhitelistAgreement]
+    # predicate: runs the typing rule's end-anchored pattern on the tokens before each word end.
     predicate: pronounVerb
+  # Audited noun heads and predicates; no suffix or collective-number inference.
   - id: subjectAgreement
     checks: [englishSubjectVerbAgreement]
-    predicate: subjectAgreement
+    style: match
+    message: review_msg_pronoun_verb
+    filter: subjectAgreement
+    frames:
+      # Templates at a clause start: a singular subject with the base form or a plural subject
+      # with the third person form.
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>look){{S}}(?:(?:quite{{S}})?promising|good){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>looks){{S}}(?:(?:quite{{S}})?promising|good){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>accept){{S}}(?:words){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>accepts){{S}}(?:words){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>struggle){{S}}(?:with{{S}}constructions){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>struggles){{S}}(?:with{{S}}constructions){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>make){{S}}(?:many{{S}}mistakes){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>makes){{S}}(?:many{{S}}mistakes){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>work){{S}}(?:(?:correctly|well|reliably)){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>works){{S}}(?:(?:correctly|well|reliably)){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>suggest){{S}}(?:(?:a|an|the){{S}}(?:change|solution|correction)){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>suggests){{S}}(?:(?:a|an|the){{S}}(?:change|solution|correction)){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>forget){{S}}(?:an{{S}}article){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>forgets){{S}}(?:an{{S}}article){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>have){{S}}(?:other{{S}}tasks|checked|finished|completed|passed|been){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>has){{S}}(?:other{{S}}tasks|checked|finished|completed|passed|been){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>need){{S}}(?:improvements){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>needs){{S}}(?:improvements){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>cause){{S}}(?:subtle{{S}}issues|trouble){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>causes){{S}}(?:subtle{{S}}issues|trouble){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>create){{S}}(?:additional{{S}}edge{{S}}cases){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>creates){{S}}(?:additional{{S}}edge{{S}}cases){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>were){{S}}(?:(?:consuming|running|working)){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>was){{S}}(?:(?:consuming|running|working)){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>aren't){{S}}(?:detected){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>isn't){{S}}(?:detected){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>solve){{S}}(?:the{{S}}(?:original{{S}})?issue){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>solves){{S}}(?:the{{S}}(?:original{{S}})?issue){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>seem){{S}}(?:to{{S}}work){{E}}"
+        fixer: agreementTemplate
+      - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>seems){{S}}(?:to{{S}}work){{E}}"
+        fixer: agreementTemplate
+      - regex: "some{{S}}sentences{{S}}are{{S}}grammatical{{S}}but{{S}}still{{S}}(?<target>sounds){{S}}unnatural{{E}}"
+        fixer: agreementTemplate
+      # "The build work correctly.", "These tests runs slowly.": a determiner, one counted noun, a
+      # verb and an -ly adverb (or a linking verb and an adjective) that close the clause. The
+      # closing word makes the verb a verb: "the build work" alone may be a compound noun.
+      - regex: "(?<det>the|this|that|these|those|our|your|my|its|their|his|her|every|each){{S}}(?<noun>[a-z]+){{S}}(?<verb>[a-z]+){{S}}(?<tail>[a-z]+){{E}}(?=[ \\t\\u00a0]{0,8}(?:[.!,;:]|$))"
+        owner: verb
+        fixer: determinerSubject
   - id: existentialAgreement
     checks: [englishExistentialAgreement]
-    predicate: existentialAgreement
+    style: match
+    message: review_msg_existential_agreement
+    frames:
+      # Simple counted noun phrases only: changing the verb must preserve the stated number.
+      - regex: "There{{S}}(?<verb>is|are|was|were){{S}}(?:(?:not|still|also){{S}})?(?<quantity>a|an|one|two|three|four|five|six|seven|eight|nine|ten|zero|many|several|a{{S}}lot{{S}}of|[0-9]{1,4}){{S}}{{AGREE_ADJECTIVE}}(?<noun>[A-Za-z]+){{E}}(?:{{S}}(?:in|on|under|near|inside|outside){{S}}(?:the|this|that|my|your|our|their){{S}}{{AGREE_ADJECTIVE}}(?:report|folder|file|document|room|box|table|account|list|screen|desk))?[ \\t\\u00a0]{0,8}(?=[.!?,;]|$|(?:that|which|with){{S}})"
+        owner: verb
+        fixer: countedExistential
+      # "there is things", "are there solution…": a bare known noun right after existential there.
+      # Ownership waits for the repair: the verb, or the whole phrase for a singular noun.
+      - regex: "(?:(?<there>there)(?:{{S}}(?<verb>is|was|are|were)|(?<contracted>['’]s))|(?<qverb>is|was|are|were){{S}}there){{S}}(?<noun>[A-Za-z]+){{E}}(?<tail>[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|{{S}}(?:in|on|at|with|for|about|regarding|that|which|when|where|from|of|to|running|missing|left){{E}})?"
+        owner: none
+        fixer: bareExistential
   - id: articleAn
     checks: [englishArticleAnCorrection]
     predicate: articleAn
