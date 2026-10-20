@@ -2,14 +2,12 @@ import { englishInflect, englishLemma } from "../../implementations/helpers/Engl
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import { NOUN_LIKE_ING } from "../englishParticiples";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { nounNumber } from "./nounNumberSlots";
 import {
   caseLike,
   clauseAfter,
-  english,
   evidence,
   frontedObjectBefore,
   FUNCTION_WORDS,
@@ -82,31 +80,35 @@ function verbEvidence(ctx: DetectContext, end: number, determiner: boolean): boo
   );
 }
 
-function push(
+// Adjectives and participles that take a to-infinitive.
+const INFINITIVE_ADJECTIVES =
+  /^(?:easy|easier|hard|harder|difficult|possible|impossible|happy|glad|ready|able|unable|willing|eager|necessary|important|better|best|cool|nice|safe|forced|allowed|supposed|expected|required|pleased|proud|expensive|cheap|fun|tough|simple|recommendable|advisable|reluctant|keen|free|determined|obliged|meant)$/;
+
+const complement = (
   ctx: DetectContext,
-  findings: RawFinding[],
   messageKey: RawFinding["messageKey"],
   start: number,
   end: number,
   alternatives: string[],
   from: number,
-): void {
-  if (findings.some((f) => f.range.start === start)) return;
-  findings.push(
-    finding("englishVerbComplements", messageKey, start, end, alternatives, {
-      context: evidence(ctx, from, end),
-    }),
-  );
-}
+): RawFinding =>
+  finding("englishVerbComplements", messageKey, start, end, alternatives, {
+    context: evidence(ctx, from, end),
+  });
 
-/** "I want go", "try get", "would like see", "needs be there": an infinitive without "to". */
-function missingTo(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?<head>want|wants|wanted|need|needs|needed|like|likes|love|loves|hope|hopes|hoped|try|tries|tried|decide|decided|decides)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
-    "verb",
-  )) {
+// The object form of a subject pronoun: "He wants that I send…" -> "wants me to".
+const WANT_OBJECTS: Record<string, string> = {
+  i: "me",
+  you: "you",
+  he: "him",
+  she: "her",
+  we: "us",
+  they: "them",
+};
+
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  complementMissingTo: (m, ctx) => {
     const head = m.groups!.head.toLowerCase();
     const verb = m.groups!.verb;
     // "need further details", "want better tools": comparatives the dictionary lists as verbs.
@@ -115,7 +117,7 @@ function missingTo(ctx: DetectContext): RawFinding[] {
       ctx.dictionary.has(verb) ||
       /^(?:further|farther|better|worse|lower|less|please)$/.test(verb)
     )
-      continue;
+      return null;
     const before = wordBefore(ctx, m.index);
     if (
       (NOT_VERB_BEFORE.test(before) && !(before === "just" && !/^like/.test(head))) ||
@@ -123,19 +125,19 @@ function missingTo(ctx: DetectContext): RawFinding[] {
         /^need|^hope|^love/.test(head) &&
         before !== "would")
     )
-      continue;
-    if (!plainSubject(ctx, m.index)) continue;
+      return null;
+    if (!plainSubject(ctx, m.index)) return null;
     // "the documents that the managers need include…": a relative clause with a noun subject.
     if (
       /\b(?:that|which|whom)[ \t\u00a0]+(?:(?:the|a|an|my|our|your|their|his|her)[ \t\u00a0]+)?[a-z]+[ \t\u00a0]+$/i.test(
         ctx.text.slice(Math.max(0, m.index - 40), m.index),
       )
     )
-      continue;
+      return null;
     // "the contracts we need include…", "anything you need let me know": an object gap.
-    if (objectGapBefore(ctx.text.slice(Math.max(0, m.index - 48), m.index))) continue;
+    if (objectGapBefore(ctx.text.slice(Math.max(0, m.index - 48), m.index))) return null;
     // "if you need help you should ask": a noun object, then a new clause.
-    if (clauseAfter(ctx, m.index + m[0].length)) continue;
+    if (clauseAfter(ctx, m.index + m[0].length)) return null;
     // "What needs do you have?", "needs do not": do as an auxiliary.
     if (
       verb === "do" &&
@@ -143,7 +145,7 @@ function missingTo(ctx: DetectContext): RawFinding[] {
         tokensAfter(ctx, m.index + m[0].length, 1)[0]?.lower ?? "",
       )
     )
-      continue;
+      return null;
     // An -s head needs a singular subject: "Our needs become…", "Men's wants…" are nouns.
     // An adverb may stand between: "She really needs…".
     const adverbial = /^(?:really|just|also|still|always|never|only|often|usually|probably)$/.test(
@@ -163,13 +165,13 @@ function missingTo(ctx: DetectContext): RawFinding[] {
         )
       )
     )
-      continue;
+      return null;
     // "Why would love make us happy", "Don't let hope become": a noun love/hope.
     if (
       /^(?:love|hope|loves|hopes)$/.test(head) &&
       !/^(?:i|you|we|they|he|she|really|also|would|['’]d)$|['’]d$/.test(before)
     )
-      continue;
+      return null;
     // "like" is a verb after a subject, would/'d/do or to; elsewhere a preposition.
     if (
       /^(?:like|likes|love|loves)$/.test(head) &&
@@ -178,9 +180,9 @@ function missingTo(ctx: DetectContext): RawFinding[] {
         before,
       )
     )
-      continue;
+      return null;
     const b = base(verb);
-    if (!b) continue;
+    if (!b) return null;
     const end = m.index + m[0].length;
     // "need talk to them", "love listen to music": verbs whose noun reading never follows
     // need/want bare, before a preposition or the end.
@@ -196,7 +198,7 @@ function missingTo(ctx: DetectContext): RawFinding[] {
       );
     // "I want work in Paris": a mass noun before a preposition.
     if (massNoun && /^(?:in|on|at|for|with)$/.test(tokensAfter(ctx, end, 1)[0]?.lower ?? ""))
-      continue;
+      return null;
     // Verbs whose noun reading never stands bare after want/need/try ("try use", "want say"),
     // or a manner adverb or quantifier after the verb ("want try badly", "like test all").
     const tail = tokensAfter(ctx, end, 1)[0];
@@ -226,31 +228,21 @@ function missingTo(ctx: DetectContext): RawFinding[] {
               )),
         ))
     )
-      continue;
+      return null;
     // "need write access", "want read rights": the verb names a kind of permission.
-    if (PERMISSION_AFTER.test(ctx.text.slice(end, end + 32))) continue;
+    if (PERMISSION_AFTER.test(ctx.text.slice(end, end + 32))) return null;
     // "need not", "Need I say more": a modal need.
-    if (/^need/.test(head) && /^(?:not|i|we|you|they|he|she)$/.test(verb)) continue;
+    if (/^need/.test(head) && /^(?:not|i|we|you|they|he|she)$/.test(verb)) return null;
     const [start, verbEnd] = m.indices!.groups!.verb;
-    push(ctx, findings, "review_msg_missing_to", start, verbEnd, [`to ${verb}`], m.index);
-  }
-  return findings;
-}
-
-/** "can't afford buying", "you want creating": an -ing form where an infinitive belongs. */
-function gerundForInfinitive(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?<head>afford|want|wants|wanted|struggling|refuse|refused|refuses|manage|managed|manages|decide|decided|decides|promise|promised|promises|(?:advise|advised|advises|remind|reminds|reminded|encourage|encouraged|encourages|help|helps|helped|tell|told|ask|asked|allow|allowed)${SPACE}(?:me|you|him|her|us|them))(?:${SPACE}(?<not>not))?${SPACE}(?<verb>[a-z]+ing)${WORD_END}`,
-    "verb",
-  )) {
+    return complement(ctx, "review_msg_missing_to", start, verbEnd, [`to ${verb}`], m.index);
+  },
+  complementGerundForInfinitive: (m, ctx) => {
     const verb = m.groups!.verb;
-    if (ctx.dictionary.has(verb) || NOUN_LIKE_ING.test(verb)) continue;
+    if (ctx.dictionary.has(verb) || NOUN_LIKE_ING.test(verb)) return null;
     // Prepositions in -ing: "the changes you want including…", "…you wanted using our agent".
     if (/^(?:using|including|following|regarding|concerning|according|considering)$/.test(verb))
-      continue;
-    if (!plainSubject(ctx, m.index)) continue;
+      return null;
+    if (!plainSubject(ctx, m.index)) return null;
     const head = m.groups!.head.toLowerCase();
     const tail = tokensAfter(ctx, m.index + m[0].length, 6);
     // "The belt wants replacing.": want + -ing means "needs" before a clause end.
@@ -258,33 +250,23 @@ function gerundForInfinitive(ctx: DetectContext): RawFinding[] {
       /^want/.test(head) &&
       (tail[0]?.kind !== "word" || /ly$|^(?:also|too|now|soon)$/.test(tail[0].lower))
     )
-      continue;
+      return null;
     // "He reminded them staying calm was…": the -ing clause is a subject.
     if (
       tail.some(
         (t) => t.kind === "word" && /^(?:is|was|are|were|would|will|helps?|helped)$/.test(t.lower),
       )
     )
-      continue;
+      return null;
     const read = englishWordInfo(verb);
-    if (!read || read.noun || read.adjective) continue;
+    if (!read || read.noun || read.adjective) return null;
     const lemma = englishLemma(verb, "ing");
-    if (!lemma) continue;
-    if (NOT_VERB_BEFORE.test(wordBefore(ctx, m.index))) continue;
+    if (!lemma) return null;
+    if (NOT_VERB_BEFORE.test(wordBefore(ctx, m.index))) return null;
     const [start, end] = m.indices!.groups!.verb;
-    push(ctx, findings, "review_msg_verb_complements", start, end, [`to ${lemma}`], m.index);
-  }
-  return findings;
-}
-
-/** "I enjoy to swim", "We avoided to go": verbs that take a gerund. */
-function infinitiveForGerund(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?<head>enjoy|enjoys|enjoyed|avoid|avoids|avoided|consider|considers|considered|suggest|suggests|suggested|finish|finishes|finished|admit|admits|admitted|recommend|recommends|recommended|quit|quits|keep|keeps|kept|risk|risks|risked|postpone|postponed|imagine|imagined|deny|denied)${SPACE}(?<target>to${SPACE}(?<verb>[a-z]+))${WORD_END}`,
-    "target",
-  )) {
+    return complement(ctx, "review_msg_verb_complements", start, end, [`to ${lemma}`], m.index);
+  },
+  complementInfinitiveForGerund: (m, ctx) => {
     const verb = m.groups!.verb;
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
     // "is considered to be", "is recommended to use": a passive takes the infinitive.
@@ -293,114 +275,60 @@ function infinitiveForGerund(ctx: DetectContext): RawFinding[] {
         before,
       )
     )
-      continue;
-    if (NOT_VERB_BEFORE.test(wordBefore(ctx, m.index))) continue;
+      return null;
+    if (NOT_VERB_BEFORE.test(wordBefore(ctx, m.index))) return null;
     // "the app you recommended to track sleep": the object comes first, so "to" opens a
     // purpose clause.
-    if (frontedObjectBefore(ctx.text.slice(Math.max(0, m.index - 64), m.index))) continue;
+    if (frontedObjectBefore(ctx.text.slice(Math.max(0, m.index - 64), m.index))) return null;
     const b = base(verb);
-    if (!b?.verbOnly || verb === "be") continue;
+    if (!b?.verbOnly || verb === "be") return null;
     const ing = englishInflect(verb, "ing");
-    if (!ing) continue;
+    if (!ing) return null;
     const [start, end] = m.indices!.groups!.target;
-    push(ctx, findings, "review_msg_gerund_complement", start, end, [ing], m.index);
-  }
-  return findings;
-}
-
-/** "I'm used to run", "We are accustomed to work late": "to" there is a preposition. */
-function usedToGerund(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    // Not "they": "they are used to define the genre" is a passive of things.
-    `(?:I|you|we|he|she)(?:${SPACE}(?:am|are|is|was|were|get|got|became)|['’](?:m|re|s))(?:${SPACE}(?:so|very|really|quite|not|already|well))?${SPACE}(?:used|accustomed)${SPACE}to${SPACE}(?<verb>[a-z]+)${WORD_END}`,
-    "verb",
-  )) {
+    return complement(ctx, "review_msg_gerund_complement", start, end, [ing], m.index);
+  },
+  complementUsedTo: (m, ctx) => {
     const verb = m.groups!.verb;
     const b = base(verb);
     const next = tokensAfter(ctx, m.index + m[0].length, 1)[0];
     // "I am used to work as…" may mean "I am used (employed) to work as…".
-    if (!b?.verbOnly || verb === "be" || next?.lower === "as") continue;
+    if (!b?.verbOnly || verb === "be" || next?.lower === "as") return null;
     const ing = englishInflect(verb, "ing");
-    if (!ing) continue;
+    if (!ing) return null;
     const [start, end] = m.indices!.groups!.verb;
-    push(ctx, findings, "review_msg_gerund_complement", start, end, [ing], m.index);
-  }
-  return findings;
-}
-
-// Adjectives and participles that take a to-infinitive.
-const INFINITIVE_ADJECTIVES =
-  /^(?:easy|easier|hard|harder|difficult|possible|impossible|happy|glad|ready|able|unable|willing|eager|necessary|important|better|best|cool|nice|safe|forced|allowed|supposed|expected|required|pleased|proud|expensive|cheap|fun|tough|simple|recommendable|advisable|reluctant|keen|free|determined|obliged|meant)$/;
-
-/** "It's easy get feedback", "I'd be happy help": an adjective or participle before a bare verb. */
-function adjectiveBeforeBareVerb(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?:is|are|was|were|be|been|[a-z]+['’](?:s|re|m)|am)(?:${SPACE}(?:very|really|so|too|quite|perfectly|not|more|most|always|also|still|extremely))?${SPACE}(?<adjective>[a-z]+)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
-    "verb",
-  )) {
+    return complement(ctx, "review_msg_gerund_complement", start, end, [ing], m.index);
+  },
+  complementAdjectiveBareVerb: (m, ctx) => {
     const { adjective, verb } = m.groups!;
-    if (FUNCTION_WORDS.has(adjective) || ctx.dictionary.has(verb)) continue;
-    if (!INFINITIVE_ADJECTIVES.test(adjective)) continue;
+    if (FUNCTION_WORDS.has(adjective) || ctx.dictionary.has(verb)) return null;
+    if (!INFINITIVE_ADJECTIVES.test(adjective)) return null;
     const b = base(verb);
-    if (!b || /^(?:please|thank|except)$/.test(verb)) continue;
+    if (!b || /^(?:please|thank|except)$/.test(verb)) return null;
     const end = m.index + m[0].length;
-    if (!b.verbOnly && !verbEvidence(ctx, end, false)) continue;
+    if (!b.verbOnly && !verbEvidence(ctx, end, false)) return null;
     const [start, verbEnd] = m.indices!.groups!.verb;
-    push(ctx, findings, "review_msg_missing_to", start, verbEnd, [`to ${verb}`], m.index);
-  }
-  return findings;
-}
-
-/** "He wants that I send…": want takes an object and an infinitive. */
-function wantThat(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  const objects: Record<string, string> = {
-    i: "me",
-    you: "you",
-    he: "him",
-    she: "her",
-    we: "us",
-    they: "them",
-  };
-  for (const m of frameMatches(
-    ctx,
-    `(?<target>(?<head>want|wants|wanted)${SPACE}that${SPACE}(?<subject>I|you|he|she|we|they))${SPACE}[a-z]+${WORD_END}`,
-  )) {
+    return complement(ctx, "review_msg_missing_to", start, verbEnd, [`to ${verb}`], m.index);
+  },
+  complementWantThat: (m, ctx) => {
     const { head, subject } = m.groups!;
     const [start, end] = m.indices!.groups!.target;
-    push(
+    return complement(
       ctx,
-      findings,
       "review_msg_verb_complements",
       start,
       end,
-      [`${head} ${objects[subject.toLowerCase()]} to`],
+      [`${head} ${WANT_OBJECTS[subject.toLowerCase()]} to`],
       m.index,
     );
-  }
-  return findings;
-}
-
-/** "I look forward hearing from you", "looking forward too": look forward takes "to". */
-function lookForward(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?:look|looks|looked|looking)${SPACE}forward(?<gap>${SPACE})(?<next>too|(?:from|of)(?=${SPACE}(?:you|him|her|them|hearing|seeing)${WORD_END})|[a-z]+ing)${WORD_END}`,
-    "next",
-  )) {
+  },
+  complementLookForward: (m, ctx) => {
     const next = m.groups!.next.toLowerCase();
     const [start, end] = m.indices!.groups!.next;
     if (next.endsWith("ing")) {
       const read = englishWordInfo(next);
-      if (!read?.verbs.some((v) => v.form === "ing")) continue;
-      push(
+      if (!read?.verbs.some((v) => v.form === "ing")) return null;
+      return complement(
         ctx,
-        findings,
         "review_msg_forward_gerund",
         start,
         end,
@@ -408,19 +336,13 @@ function lookForward(ctx: DetectContext): RawFinding[] {
         m.index,
       );
     } else
-      push(ctx, findings, "review_msg_forward_gerund", start, end, [caseLike(next, "to")], m.index);
-  }
-  return findings;
-}
-
-export const PREDICATES = {
-  verbComplementSlots: english(
-    missingTo,
-    gerundForInfinitive,
-    infinitiveForGerund,
-    usedToGerund,
-    adjectiveBeforeBareVerb,
-    wantThat,
-    lookForward,
-  ),
-} satisfies Record<string, Detector>;
+      return complement(
+        ctx,
+        "review_msg_forward_gerund",
+        start,
+        end,
+        [caseLike(next, "to")],
+        m.index,
+      );
+  },
+} satisfies Record<string, MatchFixer>;

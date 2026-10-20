@@ -1282,7 +1282,38 @@ rules:
     predicate: verbGroups
   - id: en.verbComplementSlots
     checks: [englishVerbComplements]
-    predicate: verbComplementSlots
+    style: match
+    message: review_msg_verb_complements
+    filter: slotFindingsOncePerStart
+    frames:
+      # "I want go", "try get", "would like see", "needs be there": an infinitive without "to".
+      - regex: "(?<head>want|wants|wanted|need|needs|needed|like|likes|love|loves|hope|hopes|hoped|try|tries|tried|decide|decided|decides){{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        fixer: complementMissingTo
+      # "can't afford buying", "you want creating": an -ing form where an infinitive belongs.
+      - regex: "(?<head>afford|want|wants|wanted|struggling|refuse|refused|refuses|manage|managed|manages|decide|decided|decides|promise|promised|promises|(?:advise|advised|advises|remind|reminds|reminded|encourage|encouraged|encourages|help|helps|helped|tell|told|ask|asked|allow|allowed){{S}}(?:me|you|him|her|us|them))(?:{{S}}(?<not>not))?{{S}}(?<verb>[a-z]+ing){{E}}"
+        owner: verb
+        fixer: complementGerundForInfinitive
+      # "I enjoy to swim", "We avoided to go": verbs that take a gerund.
+      - regex: "(?<head>enjoy|enjoys|enjoyed|avoid|avoids|avoided|consider|considers|considered|suggest|suggests|suggested|finish|finishes|finished|admit|admits|admitted|recommend|recommends|recommended|quit|quits|keep|keeps|kept|risk|risks|risked|postpone|postponed|imagine|imagined|deny|denied){{S}}(?<target>to{{S}}(?<verb>[a-z]+)){{E}}"
+        fixer: complementInfinitiveForGerund
+      # "I'm used to run", "We are accustomed to work late": "to" there is a preposition. Not
+      # "they": "they are used to define the genre" is a passive of things.
+      - regex: "(?:I|you|we|he|she)(?:{{S}}(?:am|are|is|was|were|get|got|became)|['’](?:m|re|s))(?:{{S}}(?:so|very|really|quite|not|already|well))?{{S}}(?:used|accustomed){{S}}to{{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        fixer: complementUsedTo
+      # "It's easy get feedback", "I'd be happy help": an adjective or participle before a bare
+      # verb.
+      - regex: "(?:is|are|was|were|be|been|[a-z]+['’](?:s|re|m)|am)(?:{{S}}(?:very|really|so|too|quite|perfectly|not|more|most|always|also|still|extremely))?{{S}}(?<adjective>[a-z]+){{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        fixer: complementAdjectiveBareVerb
+      # "He wants that I send…": want takes an object and an infinitive.
+      - regex: "(?<target>(?<head>want|wants|wanted){{S}}that{{S}}(?<subject>I|you|he|she|we|they)){{S}}[a-z]+{{E}}"
+        fixer: complementWantThat
+      # "I look forward hearing from you", "looking forward too": look forward takes "to".
+      - regex: "(?:look|looks|looked|looking){{S}}forward(?<gap>{{S}})(?<next>too|(?:from|of)(?={{S}}(?:you|him|her|them|hearing|seeing){{E}})|[a-z]+ing){{E}}"
+        owner: next
+        fixer: complementLookForward
   - id: en.missingVerbs
     checks: [englishSentenceStructure, englishConfusedWords]
     style: match
