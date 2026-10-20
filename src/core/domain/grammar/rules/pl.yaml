@@ -36,6 +36,12 @@ fragments:
   MONTH_WORD: "stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I"
   DECADE_WORDS: "lata|lat|latach|latami|latom"
   NO_LETTER_AFTER: "(?![\\p{L}\\p{N}_'’-])"
+  # Case endings typed after a digit: ordinal, cardinal, and numeral noun ("piątka") endings.
+  ORDINAL_END: "w?sz[yaeąę]|w?sz(?:ego|ej|emu|ym|ych|ymi)|wsi|g[iaeą]|gie|gi(?:ego|ej|emu|m|ch|mi)|c[iaeą]|cie|ci(?:ego|ej|emu|m|ch|mi)|[dt]?m[yaeą]|[dt]?m(?:ego|ej|emu|ym|ych|ymi)|s?t[yaeą]|s?t(?:ego|ej|emu|ym|ych|ymi)|go|ego|mu|emu|ej|ym|ych|ymi|y|i|a|e"
+  CARDINAL_END: "u|ch|óch|ech|ciu|miu|ściu|tu|stu|ięć|ro|cio|mio|dmio|ścio|oro|oma|ma"
+  NUMERAL_NOUN_END: "[jrt]?(?:ka|ki|kę|ką|kom|kami|kach|ce)|t?ek|jek|rek"
+  # The second part of a digit compound ("5-minutowy", "3-krotny", "25-latek").
+  COMPOUND_PART: "krotn\\p{L}*|krotnie|letni|latek|latka|latki|latków|latkiem|latkowi|latku|lecie|lecia|leciu|leciem|(?:minutow|sekundow|godzinn|dniow|tygodniow|miesięczn|osobow|pokojow|piętrow|procentow|kilometrow|metrow|centymetrow|litrow|bitow|stopniow|tonow|kilogramow|gramow|punktow|pasmow|drzwiow|biegow|cylindrow|calow|częściow|elementow|tysięczn|milionow|letni|roczn|dzienn)(?:y|a|ego|ej|emu|ą|i)"
   # Words that may stand between a verb and its noun: a pronoun, an adverb, adjectives.
   FILLER: "(?:[ \\t\\u00a0]{1,8}(?:on|ona|ono|oni|one|nadal|wciąż|też|także|również|zawsze|często|naprawdę|bardzo|niezwykle|wyjątkowo|szczególnie|dość|coraz|swoją|swój|swoje|jakąś|żadnej|(?:w|we|na|dla|przy|wśród|u)[ \\t\\u00a0]{1,8}\\p{L}+|\\p{L}+(?:ną|ową|ską|cką|ką|ą|ej|e|y|ie))){0,3}"
   GARMENTS: "płaszcz|kurtkę|sweter|golf|koszulę|bluzkę|sukienkę|spodnie|dżinsy|buty|kozaki|czapkę|kapelusz|rękawiczki|szalik|garnitur|marynarkę|spódnicę|skarpetki|piżamę|kamizelkę|koszulkę|płaszczyk|kurtkę|kalosze"
@@ -490,9 +496,48 @@ rules:
   - id: pl.confusions
     checks: [englishPhraseCorrections]
     predicate: confusions
+  # Numbers in Polish prose: a digit takes no case ending ("5-ty" is "5." or "piąty", "6-ciu" is
+  # "6" or "sześciu"), a digit compound takes a hyphen ("5-minutowy", "3-krotny"), and a numeral
+  # governs its noun's form ("dwoje dzieci", "5 złotych", "100 gramów").
   - id: pl.numerals
     checks: [polishNumerals]
-    predicate: numerals
+    style: match
+    message: review_msg_pl_numeral_suffix
+    frames:
+      # A digit (or Roman numeral), a dash or nothing, then a closed set of endings; not a unit ("5kg"):
+      # "5-ty" is "5." or "piąty", "6-ciu" is "6" or "sześciu".
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4}|[IVXLC]{1,7})(?<dash>[ \\t]?[-—–][ \\t]?|’|')?(?<end>{{ORDINAL_END}}|{{CARDINAL_END}}|{{NUMERAL_NOUN_END}})(?![\\p{L}\\p{N}_-])(?<rest>[ \\t\\u00a0]+(?<next>\\p{L}+))?)"
+        scan: polish
+        flags: gu
+        fixer: numeralSuffixes
+      # "dwu krotnie", "ilu krotny": a numeral stem typed apart from "-krotny".
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_-])(?<num>dwu|trzy|cztero|pi\\u0119cio|sze\\u015Bcio|siedmio|o\\u015Bmio|dziewi\\u0119cio|dziesi\\u0119cio|kilku|kilkunasto|kilkudziesi\\u0119cio|wielo|ilu|paru|stu)[ \\t\\u00a0]{1,3}(?<part>krotn\\p{L}*)(?![\\p{L}\\p{N}_-]))"
+        scan: polish
+        flags: giu
+        fixer: wordKrotny
+      # A digit compound typed apart: "5 minutowy" (a five-minute ...), "3 krotny", "25 latek".
+      # Only singular adjective forms: after a plural numeral a plural adjective can agree on its own
+      # ("2 roczne raporty" are two annual reports).
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4})(?<gap>[ \\t\\u00a0]*['’][ \\t\\u00a0]*|[ \\t\\u00a0]+[-–—][ \\t\\u00a0]+|[ \\t\\u00a0]+[-–—]|[-–—][ \\t\\u00a0]+|[–—]|\\.[ \\t\\u00a0]{1,3}(?=krotn)|[ \\t\\u00a0]{1,3})(?<part>{{COMPOUND_PART}})(?![\\p{L}\\p{N}_-]))"
+        scan: polish
+        flags: giu
+        fixer: compoundNumerals
+      # "dwa dzieci" -> "dwoje dzieci": nouns counted with collective numerals.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}])(?<num>dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt)(?<sp>[ \\t\\u00a0]+)(?<noun>dzieci|drzwi|oczy|uszy|sanie|kurczęta|kocięta|szczenięta|źrebięta|cielęta|prosięta|pisklęta|niemowlęta)(?![\\p{L}]))"
+        scan: polish
+        flags: giu
+        fixer: collectives
+      # 1 złoty; 2–4 złote (not 12–14); else złotych; a fraction takes "złotego". A noun after
+      # "złote" makes it the adjective "golden": "2 złote medale".
+      - regex: "(?<target>(?<![\\p{L}\\p{N}.,])(?<amount>\\d{1,3}(?:[ \\u00a0]\\d{3})*(?:[.,]\\d+)?)(?<sp>[ \\t\\u00a0]+)(?<unit>złoty|złote|złotych|grosz|grosze|groszy)(?![\\p{L}])(?=[ \\t\\u00a0]*(?:[.!?,;:)…]|$|[ \\t\\u00a0](?:i|a|na|za|do|od|w|z|ze|to|netto|brutto|miesięcznie|rocznie|dziennie)(?![\\p{L}]))))"
+        scan: polish
+        flags: gu
+        fixer: currencyForms
+      # Unit names that take the plural after a number: "100 gramów", "2 kilogramy".
+      - regex: "(?<target>(?<![\\p{L}\\p{N}.,])(?<num>\\d{1,6}|dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sto|dwieście|trzysta|pięćset|tysiąc|kilka|kilkanaście|kilkadziesiąt|kilkaset)(?<sp>[ \\t\\u00a0]+)(?<unit>gram|kilogram|dekagram|miligram|wolt|amper|wat|kilowat)(?![\\p{L}])(?![ \\t\\u00a0]+(?:w|na|z|ze|o)(?![\\p{L}])))"
+        scan: polish
+        flags: giu
+        fixer: unitForms
   # Dates: a day the month does not have ("31 września", "29 lutego 2023"), a weekday that does
   # not fall on the date, a range that runs backwards, and the month's form after a day number
   # ("1 stycznia", not "1 styczeń", "1. stycznia" or the English-style "1 Sty").
