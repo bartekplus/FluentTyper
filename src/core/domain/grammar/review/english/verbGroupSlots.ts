@@ -372,6 +372,8 @@ function passiveWithBase(ctx: DetectContext): RawFinding[] {
     const agent = /^(?:by|via)$/.test(word) && agentNoun?.kind === "word";
     const adjective = englishWordInfo(verb)?.adjective;
     if (!base.verbOnly && !(verbal && !adjective) && (!agent || adjective)) continue;
+    // "The best art is stuff by local kids": a mass noun before "by" names the work.
+    if (agent && !verbal && MASS.has(verb)) continue;
     // "You are not dismiss me", "I was believe that": a verb-only word before its object.
     // A pronoun subject only: "His job is protect them" is a bare infinitive predicate.
     const object =
@@ -1025,14 +1027,18 @@ function perfectWithIng(ctx: DetectContext): RawFinding[] {
 const NOUN_LIKE =
   /^(?:meeting|training|building|clothing|feeling|thing|nothing|something|anything|everything|morning|evening|wedding|ceiling|spring|string|king|ring|wing)$/;
 
-/** "When was it send?", "Were they build last year?": an inverted passive with a bare verb. */
+/**
+ * "When was it send?", "Were they build last year?": an inverted passive with a bare verb.
+ * "Were you use the old login?": a person and a verb before its object.
+ */
 function invertedPassiveBase(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of frameMatches(
     ctx,
-    `(?<be>was|were|is|are|wasn['’]t|weren['’]t|isn['’]t|aren['’]t)${SPACE}(?<subject>it|they|these|those|this|that)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
+    `(?<be>was|were|is|are|wasn['’]t|weren['’]t|isn['’]t|aren['’]t)${SPACE}(?<subject>it|they|these|those|this|that|you|we|he|she|i)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
     "verb",
   )) {
+    const person = /^(?:you|we|he|she|i)$/i.test(m.groups!.subject);
     const verb = m.groups!.verb;
     if (!plainWord(ctx, verb)) continue;
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
@@ -1044,11 +1050,20 @@ function invertedPassiveBase(ctx: DetectContext): RawFinding[] {
     const base = bareBase(verb);
     if (!base || englishWordInfo(verb)?.adjective) continue;
     const next = nextToken(ctx, m.index + m[0].length);
-    // "Is it work?" asks about a noun: a noun-or-verb needs a time or agent word after it.
+    // "Is it work?" asks about a noun: a noun-or-verb needs a time or agent word after it. A
+    // person in a question takes no noun there, so an object or particle shows the verb.
     const tail = /^(?:by|via|last|yesterday|already|yet)$/.test(next?.lower ?? "");
+    const personObject =
+      person &&
+      /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|it|them|me|us|him|out|up|off|down)$/.test(
+        next?.lower ?? "",
+      ) &&
+      /^[^.!?\n]{0,80}\?/.test(ctx.text.slice(m.index + m[0].length));
     if (!(
       tail ||
-      (base.verbOnly &&
+      personObject ||
+      (!person &&
+        base.verbOnly &&
         (next?.kind === "end" || /^(?:to|on|in|at|with|from)$/.test(next?.lower ?? "")))
     ))
       continue;

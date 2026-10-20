@@ -326,6 +326,9 @@ export function closesAbbreviation(
   if (token.endsWith(".")) {
     return true;
   }
+  // One short word alone in parentheses is a label: "(ed.)", "(mus.)".
+  if (text[start - 1] === "(" && text[index + 1] === ")" && /^\p{L}{1,5}$/u.test(token))
+    return true;
   if (!/\p{L}/u.test(token)) {
     // "2026." and "12." end sentences in English; elsewhere they are ordinals.
     return token.length > 0 && ORDINAL_PERIOD_LOCALES.has(lang ?? "");

@@ -878,6 +878,12 @@ const HANDLERS: Record<string, Handler> = {
   "they're"(hit) {
     const text = hit.ctx.text;
     const [p0, p1, p2] = hit.P;
+    // "while they're away", "act like they're friends": a conjunction opens a clause.
+    if (
+      p0?.w === "while" ||
+      (p0?.w === "like" && !!p1 && !SUBJECTS.has(p1.w) && !!englishWordInfo(p1.w)?.verbs.length)
+    )
+      return null;
     const phrase = nounPhrase(hit.N, 0) >= 0;
     const ok =
       (phrase && !!p0 && /^(?:are|were|is|was)$/.test(p0.w) && WH.has(p1?.w ?? "")) ||

@@ -17,6 +17,7 @@ import {
   WORD_END,
 } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
+import { frontedObjectBefore } from "./english/slotWords";
 
 const SUBJECT = "(?:I|you|we|they|he|she|it)";
 const NEGATIVE = `(?:(?:(?:do|does|did)${SPACE}not|(?:don't|doesn't|didn't|don’t|doesn’t|didn’t))${SPACE})?`;
@@ -387,6 +388,44 @@ const FRAMES: readonly Frame[] = [
     },
   },
   {
+    // "She advised to wait", "The method requires to sort the list": with no object, these
+    // verbs take the -ing form. A passive ("are advised to") has its subject as the object.
+    pattern: `(?<!(?:am|is|are|was|were|be|been|being|get|gets|got|getting|isn['’]t|wasn['’]t|aren['’]t|weren['’]t)${SPACE})(?:(?:(?<subject>${SUBJECT})|(?<plural>[a-z]{3,}s))${SPACE}(?:${MODALS}${SPACE}(?:not${SPACE})?|${NEGATIVE})(?:advise|advised|encourage|encouraged|permit|permitted)|to${SPACE}(?:advise|encourage|permit)|(?<head>advises|encourages|requires))${SPACE}(?<target>to${SPACE}${WORD})`,
+    repair(word, tail, m, ctx) {
+      // "the hours that a backup requires to finish", "what the form requires to submit":
+      // the object comes first, and "to" means "in order to".
+      const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+      if (
+        m.groups!.head &&
+        (/\b(?:what|whatever|that|which)\b[^.!?;:,\n]{0,40}$/i.test(before) ||
+          /\b[a-z]+[ \t\u00a0]+(?:it|he|she|they|we|you|I)[ \t\u00a0]*$/.test(before))
+      )
+        return null;
+      const plural = m.groups!.plural;
+      if (plural && (!englishWordInfo(plural)?.plural || FUNCTION_WORDS.has(plural))) return null;
+      if (/ly$/i.test(word) && !objectNext(tail) && !END_NEXT.test(tail)) return null;
+      const verb = baseVerb(word);
+      if (!verb || verb.lemma === "be") return null;
+      const ing = englishInflect(verb.lemma, "ing");
+      return ing ? { messageKey: "review_msg_gerund_complement", alternatives: [ing] } : null;
+    },
+  },
+  {
+    // "We may require to sign": a person after a modal is required to do something.
+    pattern: `(?<subject>(?!(?:it|this|that|there|what|which|who)${WORD_END})[A-Za-z]+)${SPACE}${MODALS}(?:${SPACE}not)?${SPACE}(?<target>require)${SPACE}to${SPACE}${WORD}`,
+    repair(word, _tail, m, ctx) {
+      // A name is capitalized ("GAIL will"); "the capacity that you may require to meet" is a
+      // relative clause with a purpose to.
+      const subject = m.groups!.subject;
+      if (!/^(?:i|we|you|they|he|she)$/i.test(subject) && !/^\p{Lu}/u.test(subject)) return null;
+      const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
+      if (/\b(?:that|which|what|whatever)[ \t\u00a0]+$/i.test(before)) return null;
+      return baseVerb(word)
+        ? { messageKey: "review_msg_modal_be", alternatives: ["be required"] }
+        : null;
+    },
+  },
+  {
     // "We went ahead and fix it": the second verb shares the tense of went, gone or goes; "go
     // ahead and fixed it" shares the base form. A noun can start a new clause ("went ahead and
     // rain fell"), so an ambiguous word must not be followed by a verb.
@@ -478,6 +517,13 @@ const FRAMES: readonly Frame[] = [
       const verb = baseVerb(word);
       if (!verb || (lemma === "consider" && verb.lemma === "be")) return null;
       if (/^(?:suggest|recommend)$/.test(lemma) && verb.ambiguous && !objectNext(tail)) return null;
+      // "Which book would you recommend to learn it?": the object comes first; "to" means
+      // "in order to".
+      if (
+        /^(?:suggest|recommend)$/.test(lemma) &&
+        frontedObjectBefore(ctx.text.slice(Math.max(0, m.index - 64), m.index))
+      )
+        return null;
       const words = wordsBefore(ctx.text, m.index);
       if (!words) return null;
       const i = skipAuxiliaries(words);

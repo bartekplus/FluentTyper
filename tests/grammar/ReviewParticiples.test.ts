@@ -491,3 +491,28 @@ test.each([
   "I am go.",
   "They are play outside.",
 ])("be frames preserve %s", (text) => expect(scan(text)).toEqual([]));
+test.each([
+  ["Was it build by hand?", "Was it built by hand?", "Was it building by hand?"],
+  ["Were you sign the form?", "Were you signed the form?", "Were you signing the form?"],
+  ["Were we paint the fence?", "Were we painted the fence?", "Were we painting the fence?"],
+])("a question with was or were before a base verb: %s", (source, participle, ing) => {
+  const [d] = scan(source);
+  expect(d.messageKey).toBe("review_msg_be_participle");
+  expect(d.requiresChoice).toBe(true);
+  expect(d.alternatives.map((a) => applyEdits(source, a.edits))).toEqual([participle, ing]);
+});
+test.each([
+  "Was it time for lunch?",
+  "Was it rain on the roof?",
+  "Were you sick on Monday?",
+  "Was it work that kept you?",
+  "Was it fun?",
+  "It was fine, were you there?",
+  "Was it worth the price?",
+  "I was it, and you were it too.",
+  "Were you love struck?",
+  "Were you head of the team?",
+  "Were you there the whole time?",
+])("a question with was or were keeps nouns and adjectives: %s", (text) => {
+  expect(scan(text)).toEqual([]);
+});

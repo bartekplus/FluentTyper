@@ -462,8 +462,15 @@ function demonstrativeSingular(ctx: DetectContext): RawFinding[] {
     if (k < 0) continue;
     const noun = tokens[k];
     if (!phraseEnds(ctx, tokens, k, true) || tokens[k + 1]?.lower === "of") continue;
-    // "one of these elephant" belongs to the one-of check; a quote after makes a compound.
-    if (previous === "of" || /^[ \t\u00a0]*["“'‘]/.test(ctx.text.slice(noun.end, noun.end + 3)))
+    // "one of these elephant" belongs to the one-of check ("much of these advice" does not); a
+    // quote after makes a compound.
+    if (
+      (previous === "of" &&
+        !/\b(?:much|most|all|some|none|any|half)[ \t\u00a0]+of[ \t\u00a0]+$/i.test(
+          ctx.text.slice(Math.max(0, m.index - 16), m.index),
+        )) ||
+      /^[ \t\u00a0]*["“'‘]/.test(ctx.text.slice(noun.end, noun.end + 3))
+    )
       continue;
     if (NOT_COUNTED.has(noun.lower)) continue;
     const single = caseLike(dem, dem.toLowerCase() === "these" ? "this" : "that");
@@ -495,6 +502,62 @@ function demonstrativeSingular(ctx: DetectContext): RawFinding[] {
       alternatives,
       ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
       context: evidence(ctx, m.index, noun.end),
+    });
+  }
+  return findings;
+}
+
+const SUBJECT_VERBS = /^(?:is|was|has|are|were|have|would|will|can|could|should|must|might|may)$/;
+
+/** "These chair would break", "Those table was small": these/those + a singular subject. */
+function demonstrativeSubject(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of frameMatches(ctx, `(?<dem>these|those)${SPACE}(?=[a-z])`, "dem")) {
+    if (!afterBreak(ctx, m.index)) continue;
+    const dem = m.groups!.dem;
+    const tokens = tokensAfter(ctx, m.index + m[0].length, 6);
+    const k = nounAfterModifiers(ctx, tokens, false);
+    if (k < 0) continue;
+    const noun = tokens[k];
+    const verb = tokens[k + 1];
+    if (verb?.kind !== "word" || !SUBJECT_VERBS.test(verb.lower)) continue;
+    // The clause goes on in known words ("Those file have unknownword." abstains), and the
+    // user's own words stay as typed.
+    const after = tokens[k + 2];
+    if (after?.kind !== "end" && !(after?.kind === "word" && englishWordInfo(after.lower)))
+      continue;
+    // "Those file are missing" belongs to the status template in englishNounNumber.ts.
+    if (
+      /^(?:is|was|are|were)$/.test(verb.lower) &&
+      /^(?:missing|broken|ready|new|old|available|useful)$/.test(after?.lower ?? "")
+    )
+      continue;
+    if (ctx.dictionary.has(noun.lower) || noun.text !== noun.lower) continue;
+    // A noun before be or a modal: "These chair would…" ("These cost more" has no verb next).
+    // "Those standing were men", "those affected": a participle names people.
+    if (/(?:ing|ed)$/.test(noun.lower)) continue;
+    const read = englishWordInfo(noun.lower);
+    if (!read?.noun || read.adjective || read.plural || MASS.has(noun.lower)) continue;
+    const forms = nounNumber(noun.lower);
+    if (forms?.number !== "singular" || forms.singular === forms.plural) continue;
+    const single = caseLike(dem, dem.toLowerCase() === "these" ? "this" : "that");
+    const [start] = m.indices!.groups!.dem;
+    if (start < ctx.from || start >= ctx.to) continue;
+    const middle = ctx.source.slice(start + dem.length, noun.start);
+    const plural = `${dem}${middle}${caseLike(noun.text, forms.plural)}`;
+    const singular = `${single}${middle}${noun.text}`;
+    const alternatives = /^(?:is|was|has)$/.test(verb.lower)
+      ? [singular]
+      : /^(?:are|were|have)$/.test(verb.lower)
+        ? [plural]
+        : [plural, singular];
+    findings.push({
+      ruleId: "englishNounNumber",
+      messageKey: "review_msg_demonstrative_number",
+      range: { start, end: noun.end },
+      alternatives,
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+      context: evidence(ctx, m.index, verb.end),
     });
   }
   return findings;
@@ -680,9 +743,9 @@ function partitiveSingular(ctx: DetectContext): RawFinding[] {
     `(?<count>two|three|four|five|six|seven|eight|nine|ten|several|many|few|both|[2-9]|[1-9][0-9])${SPACE}of${SPACE}(?:my|your|our|his|her|their|the|these|those)${SPACE}(?=[a-z])`,
   )) {
     const previous = wordBefore(ctx, m.index);
-    // "step 4 of my script": a numbered label.
+    // "step 4 of my script", "part 3 of the guide": a numbered label.
     const read = previous && info(previous);
-    if (read && read.noun && !read.verbs.length) continue;
+    if (read && read.noun && (!read.verbs.length || COUNT_LABELS.test(previous))) continue;
     const tokens = tokensAfter(ctx, m.index + m[0].length, 5);
     const k = nounAfterModifiers(ctx, tokens, false);
     if (k < 0) continue;
@@ -895,6 +958,7 @@ export const DETECTORS: readonly ReviewDetectorEntry[] = [
       countWithSingular,
       thisWithPlural,
       demonstrativeSingular,
+      demonstrativeSubject,
       eachWithPlural,
       articleBeforeCount,
       muchWithPlural,

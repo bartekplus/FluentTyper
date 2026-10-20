@@ -67,6 +67,11 @@ export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
   for (const match of clauseMatches(ctx, pattern, subjectI)) {
     const { subject, verb, gap, next } = match.groups!;
     const pronoun = subject.toLowerCase();
+    const before = ctx.text.slice(Math.max(0, match.index - 24), match.index);
+    // "am I nuts", "such as I finds": an inverted or compared pronoun; "phase I", "the set I":
+    // a letter that names a thing.
+    if (/\b(?:as|than|am|is|are|was|were)[ \t\u00a0]+$/i.test(before)) continue;
+    if (subject === "I" && LETTER_NAME_BEFORE.test(before)) continue;
     if (applyWordCase(subject, detectWordCase(subject)) !== subject && subject !== "i") continue;
     if (ctx.dictionary.has(pronoun)) continue;
     // Let the old detector retain its precise guards and bulk behavior for its six pairs.
@@ -75,6 +80,8 @@ export function additionalPronounAgreement(ctx: DetectContext): RawFinding[] {
     const plural = /^(?:i|we|they|you)$/.test(pronoun);
     const negative = /n['’]t$/i.exec(verb)?.[0] ?? "";
     const word = (negative ? verb.slice(0, -negative.length) : verb).toLowerCase();
+    // "We nurses sometimes feel", "We bears would call": a plural noun names the pronoun.
+    if (/^(?:we|you)$/.test(pronoun) && !negative && namesPronoun(word, next)) continue;
     const forms = englishVerbForms(word);
     let corrected: string | undefined;
     if (/^(?:is|are|am|was|were)$/.test(word) && !negative)
@@ -142,6 +149,26 @@ const MODAL = /^(?:will|would|can|could|shall|should|may|might|must|ought|need|d
 // "He not only…", "It up front…", "It time to…".
 const NOT_A_VERB_HERE = /^(?:not|up|down|out|off|better|best|time|only|also|so|too)$/;
 
+// A part or set named by a capital letter: "phase I lasts", "the set I is", "an I is".
+const LETTER_NAME_BEFORE =
+  /\b(?:a|an|the|part|chapter|section|volume|book|act|phase|step|stage|level|type|class|article|item|figure|table|option|case|grade|war|page|set|ideal|matrix|interval)[ \t\u00a0]+$/i;
+// Adverbs the lexicon reads as nouns only.
+const FREQUENCY_AFTER =
+  /^(?:sometimes|often|always|usually|never|rarely|seldom|also|all|both|still)$/i;
+
+/** "You kids get", "We nurses sometimes": a plural noun before a verb names the pronoun. */
+function namesPronoun(word: string, next: string | undefined): boolean {
+  if (!next || !englishWordInfo(word)?.plural) return false;
+  const nextInfo = englishWordInfo(next);
+  return (
+    VERB_AFTER.test(next) ||
+    MODAL.test(next) ||
+    FREQUENCY_AFTER.test(next) ||
+    !!nextInfo?.verbs.some((v) => v.form === "base") ||
+    !!nextInfo?.adverb
+  );
+}
+
 /** The agreeing form of a regular verb, or undefined when the word may be a noun or a past. */
 function lexicalAgreement(
   word: string,
@@ -156,16 +183,7 @@ function lexicalAgreement(
   if (plural) {
     if (!has("third") || has("base") || has("past")) return undefined;
     // "You kids get…", "You fools!": a plural noun after the pronoun.
-    if (
-      info.plural &&
-      (next
-        ? VERB_AFTER.test(next) ||
-          MODAL.test(next) ||
-          !!nextInfo?.verbs.some((v) => v.form === "base") ||
-          !!nextInfo?.adverb
-        : pronoun === "you")
-    )
-      return undefined;
+    if (namesPronoun(word, next) || (info.plural && !next && pronoun === "you")) return undefined;
     return englishLemma(word, "third") ?? undefined;
   }
   if (!has("base") || has("past") || has("participle") || has("third") || info.adjective)

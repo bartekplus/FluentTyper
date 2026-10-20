@@ -294,6 +294,13 @@ const IRREGULAR_OWNERS = new Set(["children", "women", "men"]);
 const OWNER_DETERMINERS = "the|a|an|my|your|his|her|our|their|every|each|another";
 const POSSESSIVE_FRAME = `(?<det>${OWNER_DETERMINERS})${SPACE}(?<owner>[a-z]{3,}s|children|women|men)${SPACE}(?<head>[a-z]{3,})(?:[ \\t\\u00a0]*(?:[.!?,;:]|$)|${SPACE}(?<next>[A-Za-z]+)(?![\\p{L}\\p{N}_'’@/#\\\\-]))`;
 const SINGLE_DETERMINERS = new Set(["a", "an", "every", "each", "another"]);
+// Plural nouns that name a class before its members: "the metals tin and zinc".
+const CLASS_OWNERS = new Set(
+  (
+    "metals minerals elements gases colors colours letters words numbers names cities " +
+    "countries languages species planets months genres terms values variables commands"
+  ).split(" "),
+);
 const PREPOSITIONS = new Set(
   (
     "in on at of with from to into onto for by about under over through near behind inside " +
@@ -369,6 +376,7 @@ function possessiveNouns(ctx: DetectContext): RawFinding[] {
     if (!/^[a-z]+$/.test(owner + head) || hasUserOrCasedWord(ctx, m[0])) continue;
     const singular = IRREGULAR_OWNERS.has(owner) ? null : ownerSingular(owner);
     if ((!singular && !IRREGULAR_OWNERS.has(owner)) || NOT_HEADS.has(head)) continue;
+    if (CLASS_OWNERS.has(owner)) continue;
     const headNoun = nounInfo(head);
     if (!headNoun) continue;
     const verbal = !!headNoun.info?.verbs.length;

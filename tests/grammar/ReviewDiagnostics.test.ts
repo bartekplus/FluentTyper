@@ -315,6 +315,37 @@ describe("review detectors: capitalization and typography", () => {
     expect(finding.context).toEqual({ start: 0, end: 16 });
   });
 
+  test('"i" in a formula, after a preposition or as a letter is not the pronoun', () => {
+    const rule = "englishPronounICapitalization";
+    for (const text of [
+      "The sum runs from 1 to i.",
+      "Take the square of i, then add one.",
+      "Divide the total by i first.",
+      "The current equals i times the resistance.",
+      "Write one over i squared.",
+      "Let i be the row number.",
+      "The address is base + i in bytes.",
+      "The grid has i and j cells.",
+      "It holds for all i.",
+      "Kids say the short i sound wrong.",
+      "The strings are e, a, and i here.",
+      "Check these: i pulse, ii pressure.",
+    ]) {
+      expect({ text, found: only(text, rule) }).toEqual({ text, found: [] });
+    }
+    // The pronoun stays: "and i", "all i", "i sound", "over i".
+    expect(
+      only("Tom and i left. All i want is rest. Now i sound tired. Game over i guess.", rule).map(
+        (row) => row[2],
+      ),
+    ).toEqual([
+      [8, 9],
+      [20, 21],
+      [40, 41],
+      [65, 66],
+    ]);
+  });
+
   test("englishProperNounCapitalization", () => {
     expect(
       only("See you on monday and on christmas eve, then july", "englishProperNounCapitalization"),

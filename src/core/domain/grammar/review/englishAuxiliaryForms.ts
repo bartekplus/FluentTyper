@@ -408,10 +408,11 @@ function invertedNounQuestion(ctx: DetectContext): RawFinding[] {
       if (!plainToken(ctx, token) || FUNCTION_WORD.test(word)) break;
       const end = wordsStart + words[k].index + token.length;
       const next = nextLowerWord(ctx, end);
-      // "Did a man called Daffodil come?": a participle modifying the subject.
+      // "Did a man called Daffodil come?", "a song called 'Blue Hour'": a participle
+      // modifying the subject.
       if (
         /(?:ed|ing)$/.test(word) &&
-        (contentWord(next) || /^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(end, end + 4)))
+        (contentWord(next) || /^[ \t\u00a0]+["'‘“]?\p{Lu}/u.test(ctx.text.slice(end, end + 5)))
       )
         break;
       if (!info || info.noun || info.plural) {
@@ -458,8 +459,10 @@ function afterInfinitiveTo(ctx: DetectContext): RawFinding[] {
     const info = englishWordInfo(word);
     let ok: boolean;
     if (word.endsWith("s") && (info?.plural ?? true)) {
-      // "need to funds released", "going to meetings this week": a plural noun reading.
-      ok = strong && (OBJECT_PRONOUN.test(next) || (!going && (!next || object)));
+      // "need to funds released", "going to meetings this week": a plural noun reading. A
+      // comma after it starts a list of nouns: "access they have to games, films and songs".
+      const listed = ctx.text[end] === ",";
+      ok = strong && (OBJECT_PRONOUN.test(next) || (!going && !listed && (!next || object)));
     } else if (word.endsWith("s") || pastOnly) {
       // "is expected to exists"; "the page it links to exists" strands a preposition.
       const headInfo = englishWordInfo(head);

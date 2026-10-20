@@ -397,8 +397,15 @@ const FRAMES: readonly Frame[] = [
       if (/^(?:been|sure)$/.test(word)) return "not";
       const r = read(word);
       if (!r?.verbs.some((v) => v.form === "participle") || r.noun || r.plural) return null;
-      // "has no signed contract": a participle adjective before its noun.
+      // "has no signed contract": a participle adjective before its noun. "had no built in
+      // support": a participle and its particle before a noun.
       const next = nextToken(ctx, m.index + m[0].length);
+      if (next?.kind === "word" && /^(?:in|up|out|on)$/.test(next.lower)) {
+        const noun = nextToken(ctx, next.end);
+        const nounRead =
+          noun?.kind === "word" && !FUNCTION_WORDS.has(noun.lower) && read(noun.lower);
+        if (nounRead && (nounRead.noun || nounRead.plural)) return null;
+      }
       return next?.kind === "word" &&
         !/^(?:by|the|a|an|my|your|his|her|our|their|it|them|up|out|in|on|yet|for|with|to)$/.test(
           next.lower,

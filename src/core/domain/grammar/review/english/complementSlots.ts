@@ -11,9 +11,11 @@ import {
   clauseAfter,
   english,
   evidence,
+  frontedObjectBefore,
   FUNCTION_WORDS,
   nounOnly,
   objectGapBefore,
+  PERMISSION_AFTER,
   tokensAfter,
   wordBefore,
 } from "./slotWords";
@@ -77,7 +79,7 @@ function verbEvidence(ctx: DetectContext, end: number, determiner: boolean): boo
     ) &&
     !(
       after?.kind === "word" &&
-      /^(?:day|week|morning|night|time|weekend|month|year|next|following|same|rest|most|best|least|lot|bit|little|more|whole|great|good)$/.test(
+      /^(?:day|week|morning|night|time|weekend|month|year|hour|minute|moment|second|while|few|next|following|same|rest|most|best|least|lot|bit|little|more|whole|great|good)$/.test(
         after.lower,
       )
     )
@@ -229,6 +231,8 @@ function missingTo(ctx: DetectContext): RawFinding[] {
         ))
     )
       continue;
+    // "need write access", "want read rights": the verb names a kind of permission.
+    if (PERMISSION_AFTER.test(ctx.text.slice(end, end + 32))) continue;
     // "need not", "Need I say more": a modal need.
     if (/^need/.test(head) && /^(?:not|i|we|you|they|he|she)$/.test(verb)) continue;
     const [start, verbEnd] = m.indices!.groups!.verb;
@@ -295,6 +299,9 @@ function infinitiveForGerund(ctx: DetectContext): RawFinding[] {
     )
       continue;
     if (NOT_VERB_BEFORE.test(wordBefore(ctx, m.index))) continue;
+    // "the app you recommended to track sleep": the object comes first, so "to" opens a
+    // purpose clause.
+    if (frontedObjectBefore(ctx.text.slice(Math.max(0, m.index - 64), m.index))) continue;
     const b = base(verb);
     if (!b?.verbOnly || verb === "be") continue;
     const ing = englishInflect(verb, "ing");

@@ -3,7 +3,14 @@ import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import { atClauseStart } from "./englishParticiples";
-import { COMPLETE_OR_PAREN, frameMatches, group, SPACE, WORD_END } from "./phraseTemplates";
+import {
+  COMPLETE_OR_PAREN,
+  frameMatches,
+  group,
+  nextLowerWord,
+  SPACE,
+  WORD_END,
+} from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import type { ReviewMessageKey } from "./types";
 
@@ -136,6 +143,9 @@ const PLACE_END =
  */
 function opensPredicate(ctx: DetectContext, match: RegExpExecArray): boolean {
   if (!opensSubjectClause(ctx, match.index)) return false;
+  // "Your A grade", "Their A team": a capital letter after the possessive is a name or grade.
+  if (/(?:^|[^\p{L}])An?$/u.test(match[0]) && !/^(?:YOUR|THEIR)$/.test(match.groups!.target))
+    return false;
   const { pred, follow } = match.groups!;
   if (pred === "right" && follow === "to") return false;
   const end = match.index + match[0].length;
@@ -286,6 +296,14 @@ function comparisonAndDegree(ctx: DetectContext, findings: RawFinding[]): RawFin
     const verb = match.groups!.verb.toLowerCase();
     const forms = englishVerbForms(verb);
     const info = forms ? null : englishWordInfo(verb);
+    // "has too darn many ads": a degree word follows, so "too" is the adverb.
+    if (
+      !forms &&
+      /^(?:many|much|few|more|less|little)$/i.test(
+        nextLowerWord(ctx, match.index + match[0].length),
+      )
+    )
+      continue;
     // A regular verb only when no adjective or adverb reading fits "too" ("too slow", "too long").
     if (
       verb === "be" ||

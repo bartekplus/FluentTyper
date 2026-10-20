@@ -73,14 +73,89 @@ const QUIET: string[] = [
   "Every march ends at the square.",
   // An adverb after a plural noun is not a possessed noun.
   "The checks the auditors usually do took a week.",
+  // Precision pass of 2026-10 (LT parity). Did and have closing a relative clause.
+  "The survey we did showed a clear trend.",
+  "Whatever cash she had went to the vet.",
+  "Send me the notes you have regarding the move.",
+  "Do you have boxes cluttering the hall?",
+  // A quoted name after a participle; "to" + a list of nouns; the base verb "found".
+  "Did the cat named 'Moss' come home?",
+  "The links we have to blogs, shops, and forums are old.",
+  "The monks did not found a school in the town.",
+  // A pronoun with a noun in apposition, a fronted phrase, an object pronoun and a letter.
+  "We nurses often work nights.",
+  "Behind it are two old towers.",
+  "The day I called you was a Monday.",
+  "Suppose the set I is empty.",
+  "Tell me, am I nuts here?",
+  "Even a slow reader such as I finds it easy.",
+  // A label with its number before a noun.
+  "He is a grade 9 student.",
+  "She sent me a Word 97 file.",
+  "Read part 3 of the guide first.",
+  // "in hand" after "one of these".
+  "We keep one of those in stock.",
+  // Purpose to-clauses, a have question, nouns after want and need.
+  "What tool do you recommend to edit photos?",
+  "How have these changes helped the team?",
+  "She wanted tea this morning.",
+  "Guests need read access to the wiki.",
+  "Once they needed help the town gave it.",
+  // Names of things: IS, the or operator, a noun after is, a noun compound.
+  "Was IS losing ground?",
+  "Use the or operator here.",
+  "The best art in town is stuff by local kids.",
+  "Tell me what color effects the lamp has.",
+  "It is a feedback and review form.",
+  // They're before an adverb or a noun phrase; a past "cost"; "too darn many".
+  "Water the plants while they're abroad.",
+  "They hug like they're old pals.",
+  "He said it cost us a lot.",
+  "They had too darn many rules.",
+  // A letter grade, a class before its members and a list numbered with roman letters.
+  "Your A grade surprised us.",
+  "It is found in the metals tin, zinc and lead.",
+  "Steps: i breath, ii rest.",
+  // An abbreviation alone in parentheses before a lowercase word.
+  "The score (arr.) and the lyrics (trans.) were new.",
 ];
 
 test.each(QUIET)("default checks stay quiet: %p", (text) => {
   expect(review(text, DEFAULTS).filter((f) => !f.startsWith("englishPossibleErrors"))).toEqual([]);
 });
 
+test('"no" before a participle and its particle stays: only the hyphen is missing', () => {
+  expect(review("This app has no built in timer.", DEFAULTS)).toEqual([
+    "englishClosedCompounds: built in -> built-in",
+  ]);
+});
+
 test("glued unknown nouns stay with the dictionary check", () => {
   expect(review("We drank applejuice.", REVIEW_SUPPORTED_RULE_IDS)).toEqual([]);
+});
+
+test.each([
+  ["I did showed them the plan.", "englishAuxiliaryBaseVerb"],
+  ["Did the server crashed?", "englishAuxiliaryBaseVerb"],
+  ["You need to goes now.", "englishAuxiliaryBaseVerb"],
+  ["We was late again.", "englishPronounVerbWhitelistAgreement"],
+  ["It are ready now.", "englishPronounVerbWhitelistAgreement"],
+  ["I finds it hard.", "englishPronounVerbWhitelistAgreement"],
+  ["We sold 120 car.", "englishNounNumber: car -> cars"],
+  ["Many child were sad.", "englishNounNumber"],
+  ["I wanted give you a call.", "englishVerbComplements"],
+  ["I need advise about this.", "advise -> advice"],
+  ["They're car is red.", "englishTheirThereTheyAre"],
+  ["She has went home.", "englishPerfectParticiples"],
+  ["Your going to love it.", "englishYourYouAre"],
+  ["It's to hot.", "englishToToo"],
+  ["The dogs collar was too tight.", "englishPossessiveNouns"],
+  ["Yesterday i went home.", "englishPronounICapitalization"],
+  ["If you want to i can drive.", "englishPronounICapitalization"],
+  ["We wanted too have fun.", "englishToToo"],
+  ["You need write access codes for each user.", "englishVerbComplements"],
+])("the guarded checks still fire: %p", (text, expected) => {
+  expect(review(text, DEFAULTS).join("\n")).toContain(expected);
 });
 
 test("the guarded checks still fire on real errors", () => {

@@ -358,6 +358,8 @@ function nounForVerb(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null
   if (c.kind === "to" && (t.w === "response" || !infinitiveTo(b, c, a[0]))) return null;
   // "intent on": the adjective ("they were intent on winning").
   if (t.w === "intent" && a[0]?.w === "on") return null;
+  // "Check two signs: i breath, ii pulse": a list numbered with roman letters.
+  if (b[c.at]?.text === "i" && a[0]?.w === "," && a[1]?.w === "ii") return null;
   return hit(t, NOUN_FOR_VERB[t.w]);
 }
 
@@ -426,6 +428,8 @@ function effect(ctx: DetectContext, t: Tok, b: Tok[], a: Tok[]): Hit | null {
     );
   };
   while (j < i + 3 && isWord(b[j]) && modifier(b[j].w)) j++;
+  // "see what status effects the spell gives": a wh-word leads the noun phrase.
+  if (isWord(b[j]) && /^(?:what|which|whose)$/.test(b[j].w)) return null;
   if (
     !opens(b[j]) &&
     !(
