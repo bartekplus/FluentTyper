@@ -1,8 +1,7 @@
-import { frameMatches, group, isLang, SPACE as S } from "../phraseTemplates";
+import { group } from "../phraseTemplates";
 import { DIGIT, invalidIsoDates } from "../isoDates";
-import { NO_WORD_BEFORE } from "../markdownEmphasis";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { Detector, MatchFixer } from "../../engine/reviewRules";
 import {
   contextYear,
   daysInMonth,
@@ -10,7 +9,6 @@ import {
   weekdayOf as clockWeekday,
   weekdaysFor,
   yearsFor,
-  YEAR_DIGITS,
 } from "../reviewClock";
 import { finding } from "../finding";
 
@@ -39,38 +37,9 @@ const MONTHS = [
   "november",
   "december",
 ];
-const MONTH =
-  "(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)(?:\\.(?=[ \\t\\u00a0,]))?)";
-// A full name takes no stop ("We met on Monday. 7 October was…" is two sentences).
-const WEEKDAY = `(?<weekday>${WEEKDAYS.join("|")}|(?:${WEEKDAY_FORMS.slice(7)
-  .map(([form]) => form)
-  .join("|")})\\.?|(?:Mo|Tu|We|Th|Fr|Sa|Su)(?=,))`;
-const DAY = (name: string) => `(?<${name}>[0-9]{1,2})(?:st|nd|rd|th)?`;
-const SEP = `(?:,?${S}|,)`;
-// "Monday, 7th of October 2014", "Monday, October 7, 2014", "Monday, 31/10/2014",
-// "Monday, 2014-10-31".
-const WEEKDAY_DATE = new RegExp(
-  `(?<![\\p{L}\\p{N}])${WEEKDAY}${SEP}(?:` +
-    `${DAY("day1")}(?:${S}of)?${S}(?<month1>${MONTH})(?:,?${S}(?<year1>${YEAR_DIGITS}))?` +
-    `|(?<month2>${MONTH})${S}${DAY("day2")}(?:,?${S}(?<year2>${YEAR_DIGITS}))?` +
-    `|(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year3>${YEAR_DIGITS})` +
-    // "Monday, 31/10": no year, a slash only ("Monday, 3.5" is a number).
-    `|(?<na>[0-9]{1,2})/(?<nb>[0-9]{1,2})(?![/.,]?[0-9])` +
-    `|(?<iso>(?<isoYear>${YEAR_DIGITS})-(?<isoMonth>[0-9]{2})-(?<isoDay>[0-9]{2})))(?![\\p{L}\\p{N}])`,
-  "gdu",
-);
-// Days a month cannot have: "June 31", "the 31st of June", "Feb 30th, 2023".
-const MONTH_DAY = `(?<target>(?<month1>${MONTH})${S}${DAY("day1")}|(?<![\\p{N}:.,/])${DAY("day2")}(?:${S}of)?${S}(?<month2>${MONTH}))(?:,?${S}(?<year>${YEAR_DIGITS}))?(?![\\p{L}\\p{N}]|[.,:][0-9])`;
 // A preposition that a date takes: "on April 0", "by the 0th of April".
 const DATE_CUE =
   /(?:^|[^\p{L}])(?:on|by|until|till|from|since|before|after|dated|due)[ \t\u00a0]{1,8}(?:the[ \t\u00a0]{1,8})?$/iu;
-// Any four-digit year: an impossible day or month needs no calendar ("31/04/1500").
-// Markdown emphasis before the date is not a word: "**31/04/2020**", "_31/04/2020_". Thus the
-// frame has its own start, not WORD_START (an underscore continues a word there).
-const NUMERIC = new RegExp(
-  `(?<![.\\p{M}'’@#\\\\])${NO_WORD_BEFORE}(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>${YEAR_DIGITS})(?![\\p{N}]|[.,][0-9])`,
-  "gdu",
-);
 /**
  * A date is prose, not a path or a dotted name, in any language: "2/30/2025",
  * "31.11.2025", "31/9/69", "31/سبتمبر/1969", Arabic-Indic digits.
@@ -102,81 +71,78 @@ function nearestOn(year: number, month: number, day: number, weekday: number): n
   return null;
 }
 
-function weekdayMismatch(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, WEEKDAY_DATE, "weekday")) {
-    const g = m.groups!;
-    const typedWeekday = g.weekday.replace(".", "");
-    const named = WEEKDAY_FORMS.find(([form]) => form === typedWeekday)?.[1] ?? two(typedWeekday);
-    let year: number;
-    let month: number;
-    let day: number;
-    // The day and year fields a fix rewrites.
-    let dayAt: string;
-    let yearAt: string;
-    if (g.iso) {
-      [year, month, day, dayAt, yearAt] = [
-        +g.isoYear,
-        +g.isoMonth - 1,
-        +g.isoDay,
-        "isoDay",
-        "isoYear",
-      ];
-    } else if (g.a || g.na) {
-      const [a, b] = g.a ? [+g.a, +g.b] : [+g.na, +g.nb];
-      const [aAt, bAt] = g.a ? ["a", "b"] : ["na", "nb"];
-      [year, yearAt] = [+(g.year3 ?? NaN), "year3"];
-      // Only a field above 12 says which one is the day; "03/04/2014" stays ambiguous.
-      if (a > 12 && b <= 12) [month, day, dayAt] = [b - 1, a, aAt];
-      else if (b > 12 && a <= 12) [month, day, dayAt] = [a - 1, b, bAt];
-      else continue;
-    } else {
-      [year, yearAt] = [+(g.year1 ?? g.year2 ?? NaN), g.year1 ? "year1" : "year2"];
-      month = monthIndex(g.month1 ?? g.month2);
-      day = +(g.day1 ?? g.day2);
-      dayAt = g.day1 ? "day1" : "day2";
-    }
-    if (named < 0) continue;
-    // No year: the weekday is checked against the years the date can mean (reviewClock).
-    if (Number.isNaN(year)) {
-      const found = weekdayNoYear(ctx, m, named, month + 1, day, dayAt);
-      if (found) findings.push(found);
-      continue;
-    }
-    if (!valid(month, day, year)) continue;
-    const actual = weekdayOf(year, month, day);
-    if (actual === named) continue;
-    const [start, weekdayEnd] = group(m, "weekday");
-    const [dayStart, dayEnd] = group(m, dayAt);
-    const suffix = /^(?:st|nd|rd|th)/.exec(ctx.text.slice(dayEnd, dayEnd + 2))?.[0] ?? "";
-    const [yearStart, yearEnd] = group(m, yearAt);
-    const end = Math.max(dayEnd + suffix.length, yearEnd);
-    /** The date with one field replaced. */
-    const edit = (from: number, to: number, value: string) =>
-      ctx.text.slice(start, from) + value + ctx.text.slice(to, end);
-    // The weekday, the nearest day on the typed weekday, or the nearest year it fell on.
-    const alternatives = [edit(start, weekdayEnd, WEEKDAYS[actual])];
-    const near = nearestOn(year, month, day, named);
-    if (near !== null)
-      alternatives.push(
-        edit(
-          dayStart,
-          dayEnd + suffix.length,
-          String(near).padStart(dayEnd - dayStart, "0") + (suffix ? ordinal(near) : ""),
-        ),
-      );
-    const other = [1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6]
-      .map((step) => year + step)
-      .find((y) => valid(month, day, y) && weekdayOf(y, month, day) === named);
-    if (other !== undefined) alternatives.push(edit(yearStart, yearEnd, String(other)));
-    findings.push(
-      finding("englishDateConsistency", "review_msg_weekday_mismatch", start, end, alternatives, {
-        requiresChoice: true,
-        context: { start, end: m.index + m[0].length },
-      }),
-    );
+function weekdayMismatch(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const g = m.groups!;
+  const typedWeekday = g.weekday.replace(".", "");
+  const named = WEEKDAY_FORMS.find(([form]) => form === typedWeekday)?.[1] ?? two(typedWeekday);
+  let year: number;
+  let month: number;
+  let day: number;
+  // The day and year fields a fix rewrites.
+  let dayAt: string;
+  let yearAt: string;
+  if (g.iso) {
+    [year, month, day, dayAt, yearAt] = [
+      +g.isoYear,
+      +g.isoMonth - 1,
+      +g.isoDay,
+      "isoDay",
+      "isoYear",
+    ];
+  } else if (g.a || g.na) {
+    const [a, b] = g.a ? [+g.a, +g.b] : [+g.na, +g.nb];
+    const [aAt, bAt] = g.a ? ["a", "b"] : ["na", "nb"];
+    [year, yearAt] = [+(g.year3 ?? NaN), "year3"];
+    // Only a field above 12 says which one is the day; "03/04/2014" stays ambiguous.
+    if (a > 12 && b <= 12) [month, day, dayAt] = [b - 1, a, aAt];
+    else if (b > 12 && a <= 12) [month, day, dayAt] = [a - 1, b, bAt];
+    else return null;
+  } else {
+    [year, yearAt] = [+(g.year1 ?? g.year2 ?? NaN), g.year1 ? "year1" : "year2"];
+    month = monthIndex(g.month1 ?? g.month2);
+    day = +(g.day1 ?? g.day2);
+    dayAt = g.day1 ? "day1" : "day2";
   }
-  return findings;
+  if (named < 0) return null;
+  // No year: the weekday is checked against the years the date can mean (reviewClock).
+  if (Number.isNaN(year)) return weekdayNoYear(ctx, m, named, month + 1, day, dayAt);
+  if (!valid(month, day, year)) return null;
+  const actual = weekdayOf(year, month, day);
+  if (actual === named) return null;
+  const [start, weekdayEnd] = group(m, "weekday");
+  const [dayStart, dayEnd] = group(m, dayAt);
+  const suffix = /^(?:st|nd|rd|th)/.exec(ctx.text.slice(dayEnd, dayEnd + 2))?.[0] ?? "";
+  const [yearStart, yearEnd] = group(m, yearAt);
+  const end = Math.max(dayEnd + suffix.length, yearEnd);
+  /** The date with one field replaced. */
+  const edit = (from: number, to: number, value: string) =>
+    ctx.text.slice(start, from) + value + ctx.text.slice(to, end);
+  // The weekday, the nearest day on the typed weekday, or the nearest year it fell on.
+  const alternatives = [edit(start, weekdayEnd, WEEKDAYS[actual])];
+  const near = nearestOn(year, month, day, named);
+  if (near !== null)
+    alternatives.push(
+      edit(
+        dayStart,
+        dayEnd + suffix.length,
+        String(near).padStart(dayEnd - dayStart, "0") + (suffix ? ordinal(near) : ""),
+      ),
+    );
+  const other = [1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6]
+    .map((step) => year + step)
+    .find((y) => valid(month, day, y) && weekdayOf(y, month, day) === named);
+  if (other !== undefined) alternatives.push(edit(yearStart, yearEnd, String(other)));
+  return finding(
+    "englishDateConsistency",
+    "review_msg_weekday_mismatch",
+    start,
+    end,
+    alternatives,
+    {
+      requiresChoice: true,
+      context: { start, end: m.index + m[0].length },
+    },
+  );
 }
 
 /**
@@ -217,53 +183,51 @@ function weekdayNoYear(
   });
 }
 
-function impossibleDates(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  const flag = (start: number, end: number) =>
-    findings.push(
-      finding("englishDateConsistency", "review_msg_impossible_date", start, end, [], {
-        warningOnly: true,
-      }),
-    );
-  for (const m of frameMatches(ctx, MONTH_DAY)) {
+/** A date that cannot exist: a warning, with no fix. */
+const impossible = (start: number, end: number) =>
+  finding("englishDateConsistency", "review_msg_impossible_date", start, end, [], {
+    warningOnly: true,
+  });
+
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  weekdayMismatch,
+  impossibleMonthDay: (m, ctx) => {
     const g = m.groups!;
     const monthName = g.month1 ?? g.month2;
     const cued = DATE_CUE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index));
     // A lowercase name is a word ("march 40 miles"), but a four-digit year or a date cue makes
     // it a date ("march 32, 2020", "on april 31"): the casing rule reports the name. "May 32"
     // may still be the verb. With a four-digit year, "May 32, 2020" is a date.
-    if (!/^\p{Lu}/u.test(monthName) && !g.year && !cued) continue;
-    if (g.month1 && /^may$/i.test(monthName) && !g.year) continue;
+    if (!/^\p{Lu}/u.test(monthName) && !g.year && !cued) return null;
+    if (g.month1 && /^may$/i.test(monthName) && !g.year) return null;
     const day = +(g.day1 ?? g.day2);
     const end = m.index + m[0].length;
     // "In March 37," and "38 Jan" (a size in a listing) are a year and a count, not a day;
     // "September 31 BC" counts years too. A four-digit year makes it a full date: "June 32, 2020".
-    if (day > 31 && !g.year && !/[0-9](?:st|nd|rd|th)/.test(m[0])) continue;
-    if (/^[ \t\u00a0]*(?:AD|BC|BCE|CE|A\.D\.|B\.C\.)/.test(ctx.text.slice(end, end + 8))) continue;
+    if (day > 31 && !g.year && !/[0-9](?:st|nd|rd|th)/.test(m[0])) return null;
+    if (/^[ \t\u00a0]*(?:AD|BC|BCE|CE|A\.D\.|B\.C\.)/.test(ctx.text.slice(end, end + 8)))
+      return null;
     // Day 0 is a wrong day in a full date ("June 0, 2020", "0 June 2020") or after a date
     // cue ("on April 0", "by 0 April").
     if (
       (day < 1 && !g.year && !cued) ||
       valid(monthIndex(monthName), day, g.year ? +g.year : undefined)
     )
-      continue;
-    flag(m.index, end);
-  }
-  for (const m of frameMatches(ctx, NUMERIC, (match) => match.index)) {
+      return null;
+    return impossible(m.index, end);
+  },
+  impossibleNumericDate: (m, ctx) => {
+    // The match start owns it.
+    if (m.index < ctx.from || m.index >= ctx.to) return null;
     const [a, b, year] = [+m.groups!.a, +m.groups!.b, +m.groups!.year];
-    if (valid(a - 1, b, year) || valid(b - 1, a, year)) continue;
-    flag(m.index, m.index + m[0].length);
-  }
-  // "2025-02-30", also after a weekday ("Friday, 2025-02-30"): the weekday check skips it.
-  for (const { start, end } of invalidIsoDates(ctx)) flag(start, end);
-  return findings;
-}
-function detect(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "en")) return [];
-  return [...weekdayMismatch(ctx), ...impossibleDates(ctx)];
-}
+    if (valid(a - 1, b, year) || valid(b - 1, a, year)) return null;
+    return impossible(m.index, m.index + m[0].length);
+  },
+} satisfies Record<string, MatchFixer>;
 
 /** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
 export const PREDICATES = {
-  dates: detect,
+  // "2025-02-30", also after a weekday ("Friday, 2025-02-30"): the weekday check skips it.
+  isoDates: (ctx) => invalidIsoDates(ctx).map(({ start, end }) => impossible(start, end)),
 } satisfies Record<string, Detector>;

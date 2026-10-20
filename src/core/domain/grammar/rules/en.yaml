@@ -65,6 +65,24 @@ fragments:
   ORDINAL: "(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|(?:thir|four|fif|six|seven|eigh|nine)teenth|twentieth|thirtieth|hundredth|thousandth|millionth|billionth|umpteenth|nth|last|[0-9]+(?:st|nd|rd|th))"
   CLOSES: "(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)\"”]|$))"
   SENTENCE: "(?<=(?:^|[.!?\\n][\"”’)]{0,3})[ \\t\\u00a0]{0,8}[\"“'‘(]?)"
+  GRAMMARSTYLE1_BE: "(?:is|are|was|were|am|be)"
+  GRAMMARSTYLE1_MASS: "advice|information|info|furniture|luggage|baggage|equipment|evidence|feedback|software|firmware|hardware|malware|ransomware|clothing|punctuation"
+  GRAMMARSTYLE1_COUNT: "two|three|four|five|six|seven|eight|nine|ten|twelve|twenty|hundred"
+  GRAMMARSTYLE1_STARTERS: "The|A|An|It|Its|I|So|But|And|This|That|These|Those|He|She|We|They|You|There|Then|What|When|Where|Why|How|If|My|Our|Your|His|Her|Their|Some|Many|One|No|Yes|Now|Also|However|After|Before|As|Each|Every|All"
+  GRAMMARSTYLE1_ITEM: "[\\p{L}\\p{N}][\\p{L}\\p{N}'’-]*(?:{{S}}[\\p{L}\\p{N}][\\p{L}\\p{N}'’-]*){0,2}"
+  FIXEDPHRASES_GETS: "get|gets|got|gotten|getting|become|becomes|became|becoming|grow|grows|grew|grown|growing"
+  DIALECTS_BE: "(?:am|is|are|was|were|be|been|being|isn['’]?t|aren['’]?t|wasn['’]?t|weren['’]?t|its|\\p{L}+['’](?:s|re))"
+  DIALECTS_CARD_ADVERBS: "(?:not|just|really|probably|definitely|certainly|still|also|already|never|ever|likely|possibly|clearly|simply|even|again|all|quite|maybe|perhaps|hardly)"
+  DIALECTS_CARD_FOLLOWERS: "(?:for|at|but|and|or|any|anytime|again|anymore|now|right|yet|either|though|since|so|then|previously|back|soon|until|unless|if|because|as|with|too|just|after|before|when|while|ever|in|this|that|these|those)"
+  TYPOGRAPHY_MONTH: "January|February|March|April|May|June|July|August|September|October|November|December"
+  TYPOGRAPHY_TIMES: "(?<![\\p{L}\\p{N}.,])(?<a>\\d+(?:[.,]\\d+)?)(?<op>[ \\u00A0]?[xX*][ \\u00A0]?)(?=\\d)"
+  TYPOGRAPHY_ARROW: "(?<=^|[ \\t\\u00A0(])(?<a>-->|->|<-|<->|<=>|=>)(?=[ \\t\\u00A0)]|$)"
+  TYPOGRAPHY_SIGNS: "(?<pre>Copyright[ \\u00A0]+)?(?<s>\\((?:c|C|R|TM|tm)\\))"
+  TYPOGRAPHY_PLUS_MINUS: "(?<=\\d[ \\u00A0]?)(?:\\+-|-\\+|\\+\\/-)(?=[ \\u00A0]?\\d)"
+  TYPOGRAPHY_NUMBER_RANGE: "(?<![\\p{L}\\p{N}.,/-])(?:\\d{1,4}(?:[ \\u00a0]?(?:BC|AD|BCE|CE|am|pm|AM|PM))?(?<spaced>[ \\u00a0]+-[ \\u00a0]+)(?:(?:AD|BC)[ \\u00a0])?\\d(?!\\d*[./:]\\d)|(?<y1>1[5-9]\\d\\d|20\\d\\d)(?<joined>-)(?<y2>1[5-9]\\d\\d|20\\d\\d)(?![\\p{N}-]))"
+  DATES_MONTH: "(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)(?:\\.(?=[ \\t\\u00a0,]))?)"
+  # A full weekday name takes no stop ("We met on Monday. 7 October was…" is two sentences).
+  DATES_WEEKDAY: "(?<weekday>Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|(?:Sun|Mon|Tues|Tue|Wed|Thurs|Thur|Thu|Fri|Sat)\\.?|(?:Mo|Tu|We|Th|Fr|Sa|Su)(?=,))"
 
 rules:
   - id: en.fixedPhrases
@@ -76,10 +94,141 @@ rules:
         englishVerbComplements,
         stylePhrasing,
       ]
-    predicate: fixedPhrases
+    style: match
+    message: review_msg_phrase_correction
+    filter: firstWorseFrame
+    frames:
+      # "dose" for "does": after a subject pronoun, in a clause-opening wh-question, or opening
+      # a yes/no question. "What dose of…", "what dose it takes" and "to dose it" stay nouns or
+      # verbs.
+      - regex: "(?:he|she|it|someone|somebody|everyone|everybody|anyone|anybody|nobody){{S}}(?<target>dose){{E}}"
+        message: review_msg_typo
+        fixer: doseSubject
+      - regex: "(?:what|how|when|where|why|who|which){{S}}(?<target>dose){{S}}(?<next>\\p{L}[\\p{L}'’]*)(?:{{S}}(?<then>\\p{L}+))?"
+        message: review_msg_typo
+        fixer: doseWh
+      - regex: "(?<target>dose){{S}}(?:it|he|she|this|that|anyone|someone|anybody|everyone|everything|anything){{S}}(?<verb>[a-z]+){{E}}"
+        message: review_msg_typo
+        fixer: doseQuestion
+      # worse/worst: a comparative slot (much, far, get, make it …) or "at worst". The first
+      # frame that matches a word decides it (filter firstWorseFrame).
+      - regex: "(?<target>worst){{S}}than{{E}}"
+        message: review_msg_contextual_grammar
+        fixer: worstToWorse
+      - regex: "{{notAfter:by}}(?:much|far|a{{S}}lot|lots|even|way|slightly|somewhat|considerably|significantly){{S}}(?<target>worst){{E}}"
+        message: review_msg_contextual_grammar
+        fixer: worstToWorse
+      - regex: "(?:{{FIXEDPHRASES_GETS}}){{S}}worse{{S}}and{{S}}(?<target>worst){{E}}"
+        message: review_msg_contextual_grammar
+        fixer: worstToWorse
+      - regex: "(?:(?:{{FIXEDPHRASES_GETS}})|(?:make|makes|made|making){{S}}(?:it|them|things|this|that|everything|matters)){{S}}(?<target>worst){{E}}"
+        message: review_msg_contextual_grammar
+        fixer: worstGet
+      - regex: "at{{S}}(?<target>worse){{COMPLETE}}"
+        message: review_msg_contextual_grammar
+        fixer: worseToWorst
+      # "the worse ever": a superlative slot; "got worse ever since" stays.
+      - regex: "(?<target>worse){{S}}ever{{E}}(?!{{S}}since{{E}})"
+        message: review_msg_contextual_grammar
+        fixer: worseToWorst
+      # "how it looks like": either "what it looks like" or "how it looks".
+      - regex: "(?<target>(?<how>how){{S}}(?<subject>it|he|she|they|we|you|I|this|that|these|those|everything){{S}}(?<verb>looks|look['’]s|look|looked){{S}}like){{E}}"
+        message: review_msg_contextual_grammar
+        fixer: howLooksLike
+      - regex: "(?<target>how){{S}}(?:does|do|did|would|will|should|could|might){{S}}(?:it|he|she|they|we|you|I|this|that|these|those){{S}}look{{S}}like{{E}}"
+        message: review_msg_contextual_grammar
+        fixer: howDoesLike
+      # "made it seems like": a causative make takes the base form. A relative clause before
+      # it can make "seems" the main verb ("the one who made it seems tired").
+      - regex: "(?<make>make|makes|made|making){{S}}(?:it|them|him|her|me|us|you|this|that|everything|things){{S}}(?<target>seems|seemed){{E}}"
+        check: englishVerbComplements
+        message: review_msg_causative_base
+        fixer: makeSeem
+      # A person who is a "nerve wreck" is a "nervous wreck".
+      - regex: "(?<target>nerve(?:{{S}}|-)wrecks?){{E}}"
+        fixer: nerveWreck
+      # "bullocks" (young bulls) for "bollocks" (nonsense): after a predicate or an
+      # intensifier, or as an exclamation. "a herd of bullocks" stays.
+      - regex: "(?<target>bullocks){{E}}"
+        fixer: bullocks
+      # "conform that" is "confirm that"; "conforming that is supported" stays a relative
+      # clause.
+      - regex: "(?<target>conform|conforms|conformed|conforming){{S}}that{{E}}(?!{{S}}(?:is|are|was|were|has|have|had|will|would|can|could|should|may|might|must|way|much|far|well){{E}})"
+        fixer: conformThat
+      # "constitutes as a" takes no "as"; "constituting as much as" and the passive stay.
+      - regex: "{{notAfter:be|been|being|is|are|was|were}}(?<target>(?:constitute|constitutes|constituting){{S}}as){{S}}(?!(?:much|many|well|long|far|soon|little|few|such|follows?|part|is|are|was|were|it|they|we|he|she|i|you|in|of){{E}})"
+        fixer: constitutesAs
+      # "time has past" is "passed"; "has past experience" keeps the adjective.
+      - regex: "(?:has|have|had|having|['’]ve){{S}}(?<target>past){{E}}"
+        message: review_msg_contextual_grammar
+        fixer: hasPast
+      # "payed" is nautical: a rope payed out or away, a deck or seam payed with tar or pitch.
+      - regex: "(?<target>(?:over|under|pre|re)?payed){{E}}(?!{{S}}(?:out|away|(?:(?:the|a|her|his|its|their){{S}})?(?:decks?|seams?|hulls?|planking)){{E}})(?![^.!?\\n]{0,40}\\bwith{{S}}(?:[a-z]+{{S}})?(?:tar|pitch|oakum|resin){{E}})"
+        message: review_msg_typo
+        fixer: payedPaid
+      # "grind to halt" needs its article.
+      - regex: "(?:grind|grinds|grinding|ground|grinded|come|comes|came|coming|bring|brings|brought|bringing|screech|screeches|screeched|screeching){{S}}to{{S}}(?<target>halt){{E}}"
+        fixer: toAHalt
+      # "rise/arise the question" is "raise"; "there arose the question" is an inversion.
+      - regex: "{{notAfter:there|then|thus|hence|here|now|which|whence|so}}(?<target>rise|rises|rising|rose|risen|rised|arise|arises|arising|arose|arisen|arised){{S}}(?:the|a|this|that){{S}}question{{E}}"
+        fixer: raiseQuestion
+      # "explained in (more) details" is "detail"; "interested in more details" is a noun
+      # phrase.
+      - regex: "{{notAfter:interested|interest|differ|differs|differed|differing|vary|varies|varied|varying|lies|lie|lay|lying|lost|buried|mired|bogged|drowning|drowned|is|are|was|were|only}}in{{S}}(?:(?:more|greater|further|great|full|much{{S}}more){{S}})?(?<target>details){{E}}(?!{{S}}(?:of|about|on|regarding|that|which|like|such|from|in|for|to|and){{E}})"
+        fixer: inDetail
+      # "Now a day a calendar…" opening a clause; "We are now a day late" stays.
+      - regex: "(?<target>now{{S}}a{{S}}day)(?:{{S}}(?=(?:a|an|the|we|i|you|he|she|it|they|people|many|most|everyone|everybody|lots|there|this|these|those|kids|children){{E}})|(?=,))"
+        check: englishClosedCompounds
+        message: review_msg_closed_compound
+        fixer: nowadays
+      # "have my cake and eat it to" is the adverb "too".
+      - regex: "eat{{S}}it{{S}}(?<target>to){{COMPLETE}}"
+        check: englishToToo
+        message: review_msg_to_too
+        fixer: eatItToo
+      # "too big too fail": the second "too" opens the infinitive.
+      - regex: "too{{S}}(?:big|good|small|late|early|hard|easy|much|many|long|short|old|young|slow|fast|hot|cold|important|complex|complicated|busy|tired|scared|afraid){{S}}(?<target>too){{S}}(?:be|fail|do|go|see|use|get|make|take|handle|ignore|read|understand|change|fix|run|work|say|tell|care|keep){{E}}"
+        check: englishToToo
+        message: review_msg_to_infinitive
+        fixer: tooToInfinitive
+      # "went to far compared to…": "too far" before a word that cannot start a place noun
+      # phrase. The core to/too frame owns clause ends and its own follower list.
+      - regex: "(?:go|goes|going|gone|went|take|takes|took|taken|taking|push|pushes|pushed|pushing|carry|carried|carrying){{S}}(?<target>to){{S}}far{{E}}"
+        check: englishToToo
+        message: review_msg_to_too
+        fixer: toFar
+      # "the form to big for small screens": degree "too" before an adjective and "for".
+      - regex: "(?<target>to){{S}}(?:big|small|large|long|short|complex|complicated|expensive|heavy|slow|hard|difficult){{S}}for{{E}}"
+        check: englishToToo
+        message: review_msg_to_too
+        fixer: toBigFor
+      # "wrote learning" after a determiner, preposition or another verb has no subject for
+      # "wrote".
+      - regex: "(?:a|the|of|for|at|in|on|with|from|through|via|than|encouraged|encourage|encourages|did|do|does|use|uses|using|pure|mere|simple|much){{S}}(?<target>wrote){{S}}(?:learning|memori[sz]ation|memori[sz]ing|memory|repetition){{E}}"
+        fixer: wroteRote
+      # "govt." is "government"; its period stays when it ends the sentence.
+      - regex: "(?<target>govt)(?<dot>\\.(?={{S}}\\p{L}))?{{E}}"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        fixer: govt
+      # Subjunctive "were" after "wish" or "if only" before a predicate; the elliptical "I only
+      # wish it was." stays.
+      - regex: "(?:if{{S}}only|wish){{S}}(?:I|he|she|it|there|this|that){{S}}(?<target>was){{S}}(?=\\p{L})"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        fixer: wishWere
   - id: en.confusedWords
     checks: [englishConfusedWords]
-    predicate: confusedWords
+    style: match
+    message: review_msg_confused_word
+    frames:
+      # Lookalike words decided by their syntactic slot: "I thing" is a verb slot, "good
+      # advise" a noun slot. One alternative for each handler word of confusions1.ts; the word
+      # owns the match.
+      - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?:brandishing|brandishes|brandished|prejudice|you['’]re|emphasis|response|brandish|whatever|whenever|wherever|everyday|let['’]s|believe|breathe|concern|denying|opening|effects|affects|summery|whoever|it['’]s|advice|belief|breath|intent|advise|intend|denies|denied|opened|effect|affect|weight|hoping|roller|theses|thing|worry|shock|opens|bough|quiet|hopes|hoped|rogue|bias|deny|open|safe|fell|find|hops|hope|cant|that|then|lets|were|hop|its|let|dissembl[a-z]*)(?![\\p{L}\\p{N}_'’@#\\\\])"
+        flags: dgiu
+        owner: none
+        fixer: confusedWord
   - id: en.contextualConfusions
     checks:
       [
@@ -90,6 +239,9 @@ rules:
         englishWereWhere,
         englishToToo,
       ]
+    # predicate: its scan reads 16 characters past the chunk ("all ready" starts one word
+    # before its trigger); no frame scan stops there. One match also gives findings of six
+    # checks, and a frame runs only when its own check is on.
     predicate: contextualConfusions
   - id: en.idiomPhrases1
     checks: [englishPhraseCorrections]
@@ -956,10 +1108,42 @@ rules:
         fixer: idioms5Verb6
   - id: en.moreMostDegree
     checks: [englishDoubledDegree, stylePhrasing]
-    predicate: moreMostDegree
+    style: match
+    message: review_msg_doubled_degree
+    filter: outsideExamples
+    frames:
+      # "more faster", "most best": a comparative or superlative needs no "more" or "most".
+      - regex: "(?<target>(?<marker>more|most){{S}}(?<adj>[A-Za-z]+)){{E}}"
+        gate: "mo(?:re|st)\\b"
+        fixer: doubledMoreMost
+      # "more fast than": a short adjective has its own comparative.
+      - regex: "(?<target>more{{S}}(?<adj>[A-Za-z]+))(?={{S}}than{{E}}|[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        gate: "mo(?:re|st)\\b"
+        fixer: moreBase
   - id: en.didModalOf
     checks: [englishAuxiliaryBaseVerb, englishModalOfCorrection]
-    predicate: didModalOf
+    style: match
+    message: review_msg_auxiliary_base
+    filter: outsideExamples
+    frames:
+      # "did went", "didn't saw": do-support takes a base verb. "did" owns the match.
+      - regex: "did(?<negated>n['’]?t|{{S}}not)?(?:{{S}}(?:I|you|he|she|it|we|they))?(?:{{S}}(?:really|just|ever|even|actually|also))?{{S}}(?<target>[A-Za-z]+){{E}}"
+        owner: none
+        gate: "did|helped"
+        fixer: didBase
+      # "who helped made this possible"; "helped given that", "who helped got" stay.
+      - regex: "helped{{S}}(?<target>[A-Za-z]+){{S}}(?:this|that|it|them|us|me|him|her|the|a|an|my|our|your|their|his|its){{E}}"
+        owner: none
+        gate: "did|helped"
+        fixer: helpedBase
+      # "may of" before a participle; the core rule covers could/would/should/must/might.
+      - regex: "may{{S}}(?<target>of){{S}}(?<verb>[a-z]+){{E}}"
+        check: englishModalOfCorrection
+        message: review_msg_modal_of
+        gate: "may[ \\t\\u00a0]+of\\b"
+        fixer: mayOf
   - id: en.splitWordsThingsIs
     checks:
       [
@@ -968,73 +1152,528 @@ rules:
         englishContractionNormalization,
         englishContextualCompounds,
       ]
-    predicate: splitWordsThingsIs
+    style: match
+    message: review_msg_phrase_correction
+    filter: outsideExamples
+    frames:
+      # Chat spellings and words split by a stray space: "you r".
+      - regex: "(?<target>(?<pronoun>you|we|they){{S}}r){{E}}(?![.'’])"
+        check: englishPhraseCorrections
+        gate: "[ \\t\\u00a0]r\\b"
+        fixer: youR
+      # The university and hospital are named after Johns Hopkins; another John Hopkins is a
+      # person.
+      - regex: "(?<target>john)(?=[ \\t\\u00a0\\n]{1,8}hopkins(?<institution>-|{{S}}(?:university|hospital|medicine|medical|school){{E}})?(?![\\p{L}]))"
+        check: englishPhraseCorrections
+        gate: john
+        fixer: johnsHopkins
+      # "that s": the apostrophe of the contraction is lost.
+      - regex: "(?<target>(?<word>that|it|there|what|here|who|he|she|where|let){{S}}s){{E}}(?![.'’])"
+        check: englishContractionNormalization
+        message: review_msg_contraction
+        gate: "[ \\t\\u00a0]s\\b"
+        fixer: thatS
+      # A stray single letter ("weirdl y"), found first; the word before it is read afterwards.
+      # The letter owns the match.
+      - regex: "[ \\t\\u00a0][b-hj-z](?![\\p{L}\\p{N}_'\\u2019@/#\\\\-])"
+        flags: dgu
+        owner: none
+        fixer: splitLetter
+      # "no body knew": "nobody" before a verb.
+      - regex: "(?<target>no{{S}}body){{S}}(?<verb>[a-z]+){{E}}"
+        check: englishContextualCompounds
+        message: review_msg_compounds
+        gate: "no[ \\t\\u00a0]+body"
+        fixer: noBody
+      # "Somethings going well": the contraction of "something is" lost its apostrophe.
+      - regex: "(?<target>(?<head>some|any|every|no)(?<things>things))(?={{S}}(?:(?:really|just|still|always|not){{S}})?[A-Za-z]+ing{{E}})"
+        check: englishContractionNormalization
+        message: review_msg_contraction
+        gate: things
+        fixer: thingsIs
   - id: en.doubledBeDeterminers
     checks: [englishSentenceStructure]
-    predicate: doubledBeDeterminers
+    style: match
+    message: review_msg_sentence_structure
+    filter: outsideExamples
+    frames:
+      # "This is are", "I'm am": two forms of be left from an edit; the second goes. A
+      # contracted be ("We're are") follows its word, so the frame starts at the apostrophe.
+      - regex: "(?:(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t){{E}})){{GRAMMARSTYLE1_BE}}|(?<=\\p{L})['’](?:s|re|m))(?:{{S}}(?<adverb>never|always|also|still|really|probably|definitely|certainly|already)(?={{S}}be{{E}}))?(?<target>{{S}}(?<second>{{GRAMMARSTYLE1_BE}})){{E}}"
+        flags: dgiu
+        gate: "\\b(?:is|are|was|were|am|be|['’](?:s|re|m))(?:[ \\t\\u00a0]+(?:never|always|also|still|really|probably|definitely|certainly|already))?[ \\t\\u00a0]+(?:is|are|was|were|am|be)\\b"
+        fixer: doubleBe
+      # "the some candidates" is "some candidates"; "the some approach" was "the same approach".
+      - regex: "(?<target>the{{S}}some){{E}}"
+        gate: "the[ \\t\\u00a0]+some\\b"
+        fixer: theSome
+      # "The and other options": a determiner with no noun after it. The match start owns it.
+      - regex: "(?<target>the{{S}}(?:and|or|but|because|nor)){{E}}|(?=an?{{S}})(?<=(?:^|[.!?]{{S}}))(?<article>An?{{S}}(?:because|although|unless)){{E}}"
+        owner: none
+        gate: "\\b(?:the|an?)[ \\t\\u00a0]+(?:and|or|but|because|nor|although|unless)\\b"
+        fixer: danglingDeterminer
+      # "The widespread of", "an unusual of": an article and an adjective with no noun before
+      # "of". "I think the is better": an article before a form of be.
+      - regex: "(?<target>(?<det>the|an?){{S}}(?:(?<word>[a-z]+)(?={{S}}of{{E}})|(?<be>is|was|were|be|has){{E}}(?![–—])))"
+        owner: none
+        gate: "\\b(?:the|an?)[ \\t\\u00a0]+(?:[a-z]+[ \\t\\u00a0]+of|is|was|were|be|been|am|has)\\b"
+        fixer: nounlessDeterminer
   - id: en.greekAndMassNouns
     checks: [englishCountability]
-    predicate: greekAndMassNouns
+    style: match
+    message: review_msg_mass_noun
+    filter: outsideExamples
+    frames:
+      # Greek plurals: "three criterion" and "one criteria" swap number. Noun first, then the
+      # count before it. An ellipsis may open the phrase ("...one criteria").
+      - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\-])(?:criterion|phenomenon|criteria|phenomena){{E}}"
+        flags: dgiu
+        owner: none
+        gate: "criteri|phenomen"
+        fixer: greekPlural
+      # "an advice", "many information": uncountable nouns used as counts. Noun first, then its
+      # count word: the nouns are rare, so most text is skipped quickly.
+      - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?:{{GRAMMARSTYLE1_MASS}})(?![\\p{L}\\p{N}_'’@/#\\\\-])"
+        flags: dgiu
+        owner: none
+        gate: "advice|information|info|furniture|luggage|baggage|equipment|evidence|feedback|software|firmware|hardware|malware|ransomware|clothing|punctuation|horsepower"
+        fixer: massNoun
+      # Plurals no context makes countable.
+      - regex: "(?<target>(?<noun>softwares|furnitures|luggages|clothings|firmwares|hardwares|horsepowers)){{E}}"
+        gate: "advice|information|info|furniture|luggage|baggage|equipment|evidence|feedback|software|firmware|hardware|malware|ransomware|clothing|punctuation|horsepower"
+        fixer: massPlural
+      # "advices", "informations" and "equipments" have legal and trade senses and quantified
+      # uses the core rule decides; here only after "kind of" or a judging adjective with no
+      # count before it ("You gave me bad advices").
+      - regex: "(?<target>(?<noun>advices|informations|equipments)){{E}}"
+        gate: "advice|information|info|furniture|luggage|baggage|equipment|evidence|feedback|software|firmware|hardware|malware|ransomware|clothing|punctuation|horsepower"
+        fixer: judgedPlural
   - id: en.numberNounForms
     checks: [englishNounNumber, englishContextualCompounds]
-    predicate: numberNounForms
+    style: match
+    message: review_msg_noun_count
+    filter: outsideExamples
+    frames:
+      # "one of the test" names one member of a plural set. The match start owns it.
+      - regex: "one{{S}}of{{S}}(?:the|my|your|his|her|our|their|these|those)(?<words>(?:{{S}}(?!(?:of|and|or|that|which|who){{E}})[A-Za-z][A-Za-z-]*){1,7}){{E}}"
+        owner: none
+        gate: "one[ \\t\\u00a0]+of\\b"
+        fixer: oneOfPlural
+      # "in my 30's", "late 1970's", "an 80's style": decades and ages take a plain s. The
+      # digits own the match.
+      - regex: "(?<![\\p{L}\\p{N}_'’@#.\\\\-])(?:(?<age>(?:my|his|her|their|our|your){{S}}(?:(?:early|mid|late)[ \\t\\u00a0-]{1,8})?)(?<two>[1-9]0)|(?<when>(?:early|mid|late)[ \\t\\u00a0-]{1,8})(?<span>1[0-9]{2}0|20[0-9]0|[1-9]0)|(?<decade>1[0-9]{2}0|20[0-9]0|[1-9]0)(?=['’]s(?:{{S}}|-)(?:style|styled|era|music|fashion|vibes?|aesthetic|rock|pop|kids|look|design|tech|technology|cartoons|movies|films|songs|hits|culture|nostalgia|retro|sound)(?![\\p{L}])))(?<mark>['’])s(?![\\p{L}\\p{N}_'’@#\\\\])"
+        flags: dgiu
+        owner: none
+        gate: "[0-9]['’]s"
+        gateFlags: g
+        fixer: decade
+      # "each 2 hours" is "every 2 hours".
+      - regex: "(?<target>each){{S}}(?:[2-9]|[1-9][0-9]+|{{GRAMMARSTYLE1_COUNT}}){{S}}[a-z]+s{{E}}"
+        gate: "each|several|many|numerous"
+        fixer: eachCount
+      # "several two hosts" states two counts.
+      - regex: "(?<target>(?<vague>several|many|numerous){{S}}(?<count>{{GRAMMARSTYLE1_COUNT}}|[2-9]|[1-9][0-9]+)){{S}}[a-z]+s{{E}}"
+        gate: "each|several|many|numerous"
+        fixer: vagueCount
+      # "a 3 day course": a number and unit before a noun are hyphenated.
+      - regex: "(?<![\\p{N}.,])(?<target>(?<n>[0-9]+){{S}}(?<unit>day|week|month|year|hour|minute|mile|page|step|point))(?=-[a-z]|{{S}}(?<next>[a-z]+){{E}})"
+        check: englishContextualCompounds
+        message: review_msg_compounds
+        gate: "[0-9][ \\t\\u00a0]+(?:day|week|month|year|hour|minute|mile|page|step|point)\\b"
+        fixer: numberUnit
   - id: en.missingSentenceSpace
     checks: [commaPeriodSpacing]
-    predicate: missingSentenceSpace
+    style: match
+    message: review_msg_space_after_mark
+    filter: outsideExamples
+    frames:
+      # "table.The room": a sentence mark glued to the next sentence. The mark owns the match.
+      - regex: "(?<=(?:^|[\\s(“\"])\\p{L}*\\p{Ll}\\p{L})(?:(?<period>\\.)(?=(?:{{GRAMMARSTYLE1_STARTERS}})[ \\t\\u00a0,])|(?<mark>[?!])(?=\\p{Lu}\\p{Ll}*[ \\t\\u00a0,])|(?<semi>;)(?=\\p{Ll}{2,}[ \\t\\u00a0,]))"
+        flags: dgu
+        owner: none
+        gate: "\\p{Ll}[.?!;]\\p{L}"
+        gateFlags: gu
+        fixer: missingSpace
   - id: en.numberRangeDashes
     checks: [emdashShortcut]
-    predicate: numberRangeDashes
+    style: match
+    message: review_msg_typed_dash
+    frames:
+      # Optional typography: a number range takes an en dash ("pages 12–14").
+      - regex: "(?<![\\p{L}\\p{N}.,:/#+–—-])(?<a>[0-9]+(?:\\.[0-9]+)?)(?<dash>[-—])(?<b>[0-9]+(?:\\.[0-9]+)?)(?![\\p{L}\\p{N}_]|[-–—/:][0-9]|[.,][0-9])"
+        flags: dgu
+        owner: none
+        gate: "[0-9][-—][0-9]"
+        gateFlags: g
+        fixer: numberRange
   - id: en.optionalStyle
     checks: [stylePhrasing]
-    predicate: optionalStyle
+    style: match
+    message: review_msg_style_phrasing
+    filter: outsideExamples
+    frames:
+      # Optional style advice the phrase tables cannot express: chat words and swearing.
+      - regex: "(?<target>fav|favs|fave|faves|ppl|omg|rly|eli5|iykyk|iiuc|shit|fuck|fucking|fucked|fucker|fuckers){{E}}"
+        gate: "fav|favs|fave|faves|ppl|omg|rly|eli5|iykyk|iiuc|shit|fuck|fucking|fucked|fucker|fuckers"
+        fixer: styleWord
+      # Fillers and hedges that leave the sentence intact once removed.
+      - regex: "(?<![0-9][ \\t\\u00a0]{0,8})(?<target>(?:uh|um|umm|uhm|uhh|erm|I{{S}}would{{S}}argue{{S}}that){{S}})(?=[A-Za-z])"
+        gate: "\\b(?:uh|um|umm|uhm|uhh|erm|argue)\\b"
+        fix: ""
+      # "increasingly more prevalent" is "more and more prevalent".
+      - regex: "(?<target>increasingly{{S}}(?<degree>more|less)){{S}}(?<adj>[A-Za-z]+){{E}}"
+        gate: increasingly
+        fixer: increasingly
+      # "discovered for the first time": a discovery is always the first time.
+      - regex: "discover(?:ed|s|ing)?(?:{{S}}[A-Za-z]+){0,3}(?<target>{{S}}for{{S}}the{{S}}first{{S}}time){{E}}"
+        gate: "first[ \\t\\u00a0]+time"
+        fix: ""
+      # A discourse marker opening a clause takes a comma: "However, …".
+      - regex: "(?<target>however|therefore|meanwhile|furthermore|nevertheless|consequently|thus|instead|moreover|alternatively|frankly|nowadays|now{{S}}a{{S}}days|for{{S}}example|for{{S}}instance|on{{S}}the{{S}}other{{S}}hand|additionally|hence)(?={{S}}(?<next>[A-Za-z]+))"
+        gate: "however|therefore|meanwhile|furthermore|nevertheless|consequently|thus|instead|moreover|alternatively|frankly|nowadays|now[ \\t\\u00a0]+a[ \\t\\u00a0]+days|for[ \\t\\u00a0]+example|for[ \\t\\u00a0]+instance|on[ \\t\\u00a0]+the[ \\t\\u00a0]+other[ \\t\\u00a0]+hand|additionally|hence"
+        fixer: discourseMarker
+      # "5 PM in the evening": the time of day is said twice.
+      - regex: "(?<target>(?<number>[0-9]{1,2}(?::[0-5][0-9])?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)(?<meridiem>[ \\t\\u00a0]?(?:[ap]\\.m\\.|[AP]\\.M\\.|[ap]m|[AP]M))(?<tail>{{S}}(?:in{{S}}the{{S}}(?:morning|afternoon|evening)|at{{S}}night))){{E}}"
+        gate: "morning|afternoon|evening|night"
+        fixer: timeOfDay
+      # "5GB", "3 hrs": units written as words. The number owns the match.
+      - regex: "(?<![\\p{L}\\p{N}.,_+-])(?<n>[0-9]+(?:\\.[0-9]+)?)(?:(?<sep>[ \\u00a0]|-)B|(?<sep2>[ \\u00a0]?|-)(?<unit>kB|MB|GB|TB|PB|EB|ZB|YB|RB|QB|KiB|MiB|GiB|TiB|PiB|EiB|ZiB|YiB|RiB|QiB|hr|hrs|min|mins|sec|secs|ms|msec|msecs))(?![\\p{L}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])"
+        flags: dgu
+        owner: none
+        gate: "[0-9]"
+        gateFlags: g
+        fixer: unitWord
+      # "self harm myself": the reflexive already says "self".
+      - regex: "(?<target>(?<self>self)[- \\t\\u00a0]?)(?<verb>[A-Za-z]+)(?:{{S}}(?:it|one|them|this|that|to|on)){0,1}{{S}}(?:myself|yourself|himself|herself|itself|ourselves|yourselves|themselves|oneself){{E}}"
+        gate: self
+        fixer: selfVerb
   - id: en.contractionStyle
     checks: [styleContractions]
-    predicate: contractionStyle
+    style: match
+    message: review_msg_avoid_contractions
+    filter: outsideExamples
+    frames:
+      # Optional formal register: contractions written out.
+      - regex: "(?<target>(?<word>[A-Za-z]+)['’](?<ending>t|m|re|ve|ll|d|s)(?:['’](?<have>ve))?){{E}}"
+        gate: "['’]"
+        gateFlags: g
+        fixer: contraction
   - id: en.serialCommas
     checks: [styleOxfordComma, styleNoOxfordComma]
-    predicate: serialCommas
+    style: match
+    message: review_msg_oxford_comma
+    filter: outsideExamples
+    frames:
+      # Optional serial comma: "A, B and C" or "A, B, and C", by the writer's chosen style. One
+      # frame for each style: a frame runs only when its check is on. The match start owns it.
+      - regex: "(?<=[\\p{L}\\p{N})])(?<comma>,){{S}}(?<item>{{GRAMMARSTYLE1_ITEM}})(?<oxford>,)?{{S}}(?<conj>and|or|nor){{S}}(?<after>[\\p{L}\\p{N}]+)"
+        flags: dgu
+        owner: none
+        fixer: addOxfordComma
+      - regex: "(?<=[\\p{L}\\p{N})])(?<comma>,){{S}}(?<item>{{GRAMMARSTYLE1_ITEM}})(?<oxford>,)?{{S}}(?<conj>and|or|nor){{S}}(?<after>[\\p{L}\\p{N}]+)"
+        check: styleNoOxfordComma
+        flags: dgu
+        owner: none
+        fixer: removeOxfordComma
   - id: en.sentenceTemplates
     checks: [englishSentenceStructure]
-    predicate: sentenceTemplates
+    style: template
+    message: review_msg_sentence_structure
+    frames:
+      # "Tell me if there a delay": the clause has lost its verb.
+      - regex: "(?:if|when|whenever|whether|because|unless|since|while|until|once){{S}}(?<target>there{{S}})(?=(?:a|an|another){{E}})"
+        gate: "there\\s+(?:a|an|another)\\b"
+        gateFlags: giu
+        fix: "there is "
+      # "I am not be happy": "be" after a finite be-verb and "not".
+      - regex: "(?:am|is|are|was|were|i['’]m|you['’]re|we['’]re|they['’]re){{S}}(?<target>not{{S}}be){{E}}"
+        gate: "not\\s+be\\b"
+        gateFlags: giu
+        fix: not
+  - id: en.sentenceFrames
+    checks: [englishSentenceStructure]
+    style: match
+    message: review_msg_sentence_structure
+    frames:
+      # "Do I interested in music?": an adjective after "do I" needs "am I".
+      - regex: "(?<target>do){{S}}I{{S}}(?:not{{S}})?(?<adj>\\p{L}+){{E}}(?:{{S}}(?<after>\\p{L}+))?"
+        gate: "\\bdo\\s+i\\b"
+        gateFlags: giu
+        fixer: doIAdjective
+      # "Please provide reproducible example": a request verb, a modifier and a countable
+      # issue-report noun with no article.
+      - regex: "(?=(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce){{S}})(?<=(?<![\\p{L}'’])(?:please|you|we|i|they|to|should|can|could|will|would|must){{S}})(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce){{S}}(?<target>(?:more{{S}})?(?<adj>\\p{L}+){{S}}(?:example|reproduction|repro|test{{S}}case|bug{{S}}report|report|summary|ticket|scenario|explanation|fix|update|screenshot|log|note|comment|feature|solution|answer|response|change|patch|description))(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|{{S}}(?:of|for|about|in|on){{E}})"
+        gate: "(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)\\s"
+        gateFlags: giu
+        fixer: missingArticle
   - id: en.phraseTemplates
+    checks: [englishPhraseCorrections]
+    style: template
+    message: review_msg_phrase_correction
+    frames:
+      # A frame scan costs a pass over the chunk: a keyword gate skips most chunks. A frame
+      # without a gate is gated on its own required literal.
+      - regex: "(?:look|looks|looked|looking){{S}}(?<target>likes){{E}}"
+        fix: like
+      - regex: "(?:i|you|we|they){{S}}(?<target>no)(?={{S}}nothing{{E}})"
+        message: review_msg_typo
+        gate: "no\\s+nothing"
+        gateFlags: giu
+        fix: know
+      - regex: "(?:he|she|it){{S}}(?<target>no)(?={{S}}nothing{{E}})"
+        message: review_msg_typo
+        gate: "no\\s+nothing"
+        gateFlags: giu
+        fix: knows
+  - id: en.compoundTemplates
+    checks: [englishClosedCompounds]
+    style: template
+    message: review_msg_closed_compound
+    frames:
+      # ", where as cats…" contrasts two clauses; "where, as a child, …" is a place.
+      - regex: "(?=where{{S}}as)(?<=,{{S}})(?<target>where{{S}}as){{S}}(?!(?:a|an|the|soon|long|well|much|many|far|if|though|usual|always|before|such|of|to){{E}})"
+        gate: "where\\s+as\\b"
+        gateFlags: giu
+        fix: whereas
+  - id: en.phraseFrames
     checks: [englishPhraseCorrections, englishClosedCompounds, englishCanonicalCasing]
-    predicate: phraseTemplates
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # Names whose spelling or hyphen is fixed, written canonically whatever the typed case.
+      - regex: "(?<target>(?:noble|nobel){{S}}(?:peace|piece){{S}}(?:prize|price|prise)){{E}}"
+        check: englishPhraseCorrections
+        message: review_msg_typo
+        gate: "nob(?:le|el)\\s"
+        gateFlags: giu
+        fixer: nobelPeacePrize
+      - regex: "(?<target>goggle|googol)(?={{S}}(?:analytics|maps|slides|forms|drive|search|workspace|photos|docs|mail|calendar|sheets|chrome|cloud|play|translate|meet|earth|scholar|ads|news|books|assistant|lens|fonts){{E}})"
+        check: englishPhraseCorrections
+        message: review_msg_typo
+        gate: "goggle|googol"
+        gateFlags: giu
+        fixer: googleName
+      - regex: "(?<target>mercedes{{S}}benz){{E}}"
+        check: englishClosedCompounds
+        fixer: mercedesBenz
+      - regex: "(?<target>wordpress\\.com){{E}}"
+        check: englishCanonicalCasing
+        message: review_msg_canonical_casing
+        fixer: wordPressCom
+      # "There after came a second wave": a clause-initial adverb before a verb or auxiliary.
+      - regex: "(?<target>there{{S}}after){{S}}(?<next>\\p{L}+){{E}}"
+        check: englishClosedCompounds
+        gate: "there\\s+after"
+        gateFlags: giu
+        fixer: thereAfter
+      # Compound modifiers and nouns written as two words before a noun: "an easy going person".
+      - regex: "(?<target>easy{{S}}going){{S}}(?<next>\\p{L}+){{E}}"
+        check: englishClosedCompounds
+        gate: "easy\\s+going"
+        gateFlags: giu
+        fixer: easyGoing
+      # "No one handed in…" is a pronoun and a verb.
+      - regex: "(?<target>(?:one|two){{S}}handed){{S}}(?<next>\\p{L}+){{E}}"
+        check: englishClosedCompounds
+        fixer: oneHanded
+      # "The first person reports to…" is an ordinal phrase before its verb.
+      - regex: "(?<target>(?:first|second|third){{S}}person){{S}}(?<next>\\p{L}+){{E}}"
+        check: englishClosedCompounds
+        fixer: firstPerson
+      - regex: "(?<target>(?:rainbow|cream|flesh|straw|honey|rust|copper|bronze|olive|sand){{S}}colou?red){{S}}(?<next>\\p{L}+){{E}}"
+        check: englishClosedCompounds
+        gate: "colou?red"
+        gateFlags: giu
+        fixer: colouredCompound
+      - regex: "(?<target>password{{S}}protected){{S}}(?<next>\\p{L}+){{E}}"
+        check: englishClosedCompounds
+        gate: "password\\s+protected"
+        gateFlags: giu
+        fixer: passwordProtected
+      # "your self - worth" is a spaced hyphen; "your self" alone is the pronoun. The other
+      # forms ("him self", "our selves") are phrase rows.
+      - regex: "(?<target>your{{S}}self){{E}}(?![ \\t\\u00a0]*[-–])"
+        check: englishClosedCompounds
+        gate: "your\\s+self\\b"
+        gateFlags: giu
+        fixer: yourSelf
+      # "a ok" in lowercase or capitals; "Is plan A ok?" names an option.
+      - regex: "(?<target>a{{S}}ok(?:ay)?){{E}}"
+        check: englishClosedCompounds
+        gate: "\\ba\\s+ok"
+        gateFlags: giu
+        fixer: aOk
+      - regex: "(?<target>tomorrows){{S}}(?<next>\\p{L}+){{E}}"
+        check: englishClosedCompounds
+        fixer: tomorrowsNoun
+      # "Prices rose over time" is a phrase; "over time pay" is a noun compound.
+      - regex: "(?<target>over{{S}}time){{S}}(?:pay|wages?|hours|rates?|shifts?|claims?|approvals?|budgets?|details){{E}}"
+        check: englishClosedCompounds
+        gate: "over\\s+time"
+        gateFlags: giu
+        fixer: overTime
+      # "Her make up looked great" is a noun; "help her make up a story" is a verb.
+      - regex: "(?<target>make{{S}}up)(?:{{S}}(?<next>\\p{L}+){{E}})?"
+        check: englishClosedCompounds
+        gate: "make\\s+up"
+        gateFlags: giu
+        fixer: makeUp
+      # "a built in feature"; "It was built in Rust" stays.
+      - regex: "(?<target>built{{S}}in){{S}}(?<next>\\p{L}+){{E}}(?:{{S}}(?<then>\\p{L}+))?"
+        check: englishClosedCompounds
+        gate: "built\\s+in"
+        gateFlags: giu
+        fixer: builtIn
   - id: en.doubleNegativeTemplates
     checks: [englishUsagePhrases]
-    predicate: doubleNegativeTemplates
+    style: template
+    message: review_msg_double_negative
+    frames:
+      # "I haven't done no harm": the perfect is already negative. "haven't said no" refuses,
+      # and "hasn't got no…" is mostly quoted dialect.
+      - regex: "(?:haven['’]t|hasn['’]t|hadn['’]t|(?:have|has|had){{S}}(?:not|n['’]t)){{S}}(?!(?:said|got){{E}})\\p{L}+{{S}}(?<target>no){{S}}(?!(?:one|longer|matter|more|less|doubt|further|sooner|way|thanks|for){{E}})\\p{L}+{{E}}"
+        gate: "\\bno\\b"
+        gateFlags: giu
+        fix: any
+      - regex: "(?:didn['’]t|did{{S}}not|don['’]t|do{{S}}not|doesn['’]t|does{{S}}not|won['’]t|wouldn['’]t){{S}}take{{S}}(?<target>no){{S}}(?!(?:one|longer|matter|more|less|doubt|further|sooner|way|thanks|for){{E}})\\p{L}+{{E}}"
+        gate: "take\\s+no\\b"
+        gateFlags: giu
+        fix: any
   - id: en.itTime
     checks: [englishItsContext]
-    predicate: itTime
+    style: match
+    message: review_msg_its_contraction
+    frames:
+      # "It time to leave": the clause needs "it's". "Give it time to heal" keeps its object.
+      - regex: "(?<target>it){{S}}time{{S}}(?:to|for){{E}}"
+        gate: "\\bit\\s+time\\b"
+        gateFlags: giu
+        fixer: itTime
   - id: en.youArePredicate
     checks: [englishYourYouAre]
-    predicate: youArePredicate
+    style: match
+    message: review_msg_your_you_are
+    frames:
+      # Clause-initial "ur ready?", "ya really dedicated": "you're" before a predicate
+      # adjective.
+      - regex: "(?<target>ur|ya|yr){{S}}(?:(?<adverb>\\p{L}+ly){{S}})?(?<adj>\\p{L}+){{COMPLETE}}"
+        gate: "\\b(?:ur|ya|yr)\\s"
+        gateFlags: giu
+        fixer: youArePredicate
   - id: en.doubledTo
     checks: [englishRepeatedWords]
-    predicate: doubledTo
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      # "a chance to to refer", "applied to to correction": a doubled "to" the core rule
+      # leaves.
+      - regex: "(?<pair>to{{S}}to){{S}}(?<next>\\p{L}+){{E}}"
+        owner: pair
+        gate: "\\bto\\s+to\\b"
+        gateFlags: giu
+        fixer: doubledTo
   - id: en.existentialPlural
     checks: [englishExistentialAgreement]
-    predicate: existentialPlural
+    style: match
+    message: review_msg_existential_agreement
+    frames:
+      # "there is strings…": a plural the lexicon knows after singular existential "there".
+      - regex: "there{{S}}(?<verb>is|was){{S}}(?<noun>\\p{L}+s){{E}}(?!{{S}}(?:of|and){{E}})"
+        owner: verb
+        gate: "there\\s+(?:is|was)\\s"
+        gateFlags: giu
+        fixer: existentialPlural
   - id: en.styleTemplates
     checks: [stylePhrasing]
-    predicate: styleTemplates
+    style: template
+    message: review_msg_style_phrasing
+    frames:
+      # "No thanks" opens with an interjection; "No thanks to you" is a different idiom.
+      - regex: "(?<target>no)(?={{S}}thanks{{E}}(?!{{S}}to{{E}}))"
+        gate: "no\\s+thanks"
+        gateFlags: giu
+        fix: "no,"
+        clauseStart: true
+  - id: en.includingButNotLimited
+    checks: [stylePhrasing]
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # ", including, but not limited to, …": the phrase is set off on both sides. The match
+      # start owns it.
+      - regex: "(?<=\\p{L})(?<lead>,?{{S}})including(?<c1>,?){{S}}but{{S}}not{{S}}limited{{S}}to(?<c2>,?)(?={{S}}\\p{L})"
+        flags: dgiu
+        owner: none
+        gate: "limited\\s+to"
+        gateFlags: giu
+        fixer: includingButNotLimited
   - id: en.iseForms
     checks: [englishAmericanSpelling, englishOxfordSpelling]
-    predicate: iseForms
+    style: match
+    message: review_msg_american_spelling
+    filter: outsideExamples
+    frames:
+      # "energise", "magnetisable": -ise forms the table lacks whose -ize form the lexicon
+      # knows. An -ise word, also after a hyphenated prefix ("de-energise"). One frame for each
+      # check: a frame runs only when its check is on.
+      - regex: "(?<![\\p{L}\\p{N}'’])(?<target>\\p{L}+is(?:e|es|ed|ing|ation|ations|ational|ationally|er|ers|able|ability))(?![\\p{L}\\p{N}'’])"
+        flags: dgiu
+        fixer: iseForm
+      - regex: "(?<![\\p{L}\\p{N}'’])(?<target>\\p{L}+is(?:e|es|ed|ing|ation|ations|ational|ationally|er|ers|able|ability))(?![\\p{L}\\p{N}'’])"
+        check: englishOxfordSpelling
+        message: review_msg_oxford_spelling
+        flags: dgiu
+        fixer: iseForm
   - id: en.cardSpellings
     checks: [englishAmericanSpelling, englishBritishSpelling]
-    predicate: cardSpellings
+    style: match
+    message: review_msg_american_spelling
+    frames:
+      # "be on the cards" (British) and "be in the cards" (American): only after a form of
+      # "be" ("is that just not in the cards?"), so cards on a table ("write it on the cards")
+      # stay. The idiom ends its clause or is followed by a function word: "in the cards box"
+      # stays. One frame for each check: a frame runs only when its check is on.
+      - regex: "{{DIALECTS_BE}}(?:{{S}}(?:that|this|it|they|he|she|we|you))?(?:{{S}}{{DIALECTS_CARD_ADVERBS}}){0,3}{{S}}(?<target>(?<prep>on|in){{S}}the{{S}}cards){{E}}(?=[ \\t\\u00a0]{0,8}(?:[^\\p{L} \\t\\u00a0]|$)|{{S}}{{DIALECTS_CARD_FOLLOWERS}}{{E}})"
+        fixer: britishCards
+      - regex: "{{DIALECTS_BE}}(?:{{S}}(?:that|this|it|they|he|she|we|you))?(?:{{S}}{{DIALECTS_CARD_ADVERBS}}){0,3}{{S}}(?<target>(?<prep>on|in){{S}}the{{S}}cards){{E}}(?=[ \\t\\u00a0]{0,8}(?:[^\\p{L} \\t\\u00a0]|$)|{{S}}{{DIALECTS_CARD_FOLLOWERS}}{{E}})"
+        check: englishBritishSpelling
+        message: review_msg_british_spelling
+        fixer: americanCards
   - id: en.spelledNumbers
     checks: [styleSpelledNumbers]
-    predicate: spelledNumbers
+    style: match
+    message: review_msg_spelled_numbers
+    frames:
+      # Optional number style: a single-digit count before a plural noun is spelled out ("9
+      # pigs"). Only after a function word, so labels ("Python 3 users", "step 2 results")
+      # stay, and only when the sentence has no other figure to keep consistent with.
+      - regex: "(?=[2-9]{{S}})(?<=(?:^|[^\\p{L}])(?:the|these|those|my|your|his|her|its|our|their|are|were|is|was|be|been|have|has|had|with|for|of|in|on|at|by|from|to|into|about|around|over|under|nearly|almost|only|just|all|and|or|than|after|within|there|here|another|last|first|next){{S}})(?<target>[2-9]){{S}}(?<noun>\\p{L}{3,}){{E}}"
+        fixer: spelledNumber
   - id: en.irregularWordForms
     checks: [englishIrregularForms, englishAlotCorrection]
+    # predicate: one pass over the words keeps the word before each word; a word-boundary
+    # fix reads one word past the chunk, and no frame scan stops there.
     predicate: irregularWordForms
   - id: en.possessiveNouns
     checks: [englishPossessiveNouns]
-    predicate: possessiveNouns
+    style: match
+    message: review_msg_noun_possessive
+    filter: outsideExamples
+    frames:
+      # "the cats tail is long", "a teachers lounge": a plural owner right before the noun it
+      # owns.
+      - regex: "(?<det>the|a|an|my|your|his|her|our|their|every|each|another){{S}}(?<owner>[a-z]{3,}s|children|women|men){{S}}(?<head>[a-z]{3,})(?:[ \\t\\u00a0]*(?:[.!?,;:]|$)|{{S}}(?<next>[A-Za-z]+)(?![\\p{L}\\p{N}_'’@/#\\\\-]))"
+        owner: owner
+        fixer: possessiveNoun
   - id: en.youNounOf
     checks: [englishYourYouAre]
-    predicate: youNounOf
+    style: match
+    message: review_msg_your_possessive
+    filter: outsideExamples
+    frames:
+      # "You combination of artist and teacher.": "Your" or "You're a" before a lone noun.
+      - regex: "(?<target>You){{S}}(?<noun>[a-z]{4,}){{S}}of(?![\\p{L}\\p{N}_'’@/#\\\\-])"
+        fixer: youNounOf
   - id: en.modalOfAtEnd
     checks: [englishModalOfCorrection]
     style: match
@@ -1099,61 +1738,339 @@ rules:
         styleWordChoice,
         englishCanonicalCasing,
       ]
+    # predicate: reads the quotation and example ranges. Its soft-wrap scan feeds the phrase
+    # tables, whose findings have eight checks; a frame runs only when its own check is on.
     predicate: quotedPhrases
   - id: en.shoutedNames
     checks: [stylePhrasing]
-    predicate: shoutedNames
+    style: match
+    message: review_msg_name_casing
+    frames:
+      # A run of capitalized words: a heading, a sign, or shouting. Optional: names written in
+      # capitals ("SOUTH AMERICA") in their usual casing.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'\\u2019@/#\\\\.-])[A-Z]{2,}(?:[ \\t\\u00A0]+[A-Z]{2,})*(?![\\p{L}\\p{N}_'\\u2019@/#\\\\-]))"
+        scan: owned
+        flags: gu
+        fixer: shoutedNames
+  - id: en.chromeExtension
+    checks: [englishCanonicalCasing]
+    style: match
+    message: review_msg_canonical_casing
+    frames:
+      # Lowercase "chrome extension" is the browser's add-on; "Chrome Extension" is offered too.
+      - regex: "(?<target>(?<chrome>chrome){{S}}(?<ext>extensions?)){{E}}"
+        gate: "chrome[ \\t\\u00a0]+extension"
+        fixer: chromeExtension
   - id: en.productCasing
     checks: [englishCanonicalCasing]
-    predicate: productCasing
+    style: match
+    message: review_msg_canonical_casing
+    frames:
+      # "Day One" is the journaling app; "day one" is the first day.
+      - regex: "(?<target>day{{S}}one){{E}}"
+        gate: "day[ \\t\\u00a0]+one"
+        fixer: dayOne
+      # Apple writes "macOS" even at the start of a sentence.
+      - regex: "(?<![\\p{L}\\p{N}_'\\u2019@/#\\\\.-])(?<target>MacO[Ss])(?![\\p{L}\\p{N}_'\\u2019@/#\\\\-])"
+        flags: dgu
+        gate: "MacO[Ss]"
+        gateFlags: g
+        fix: macOS
   - id: en.slashedWords
     checks: [englishClosedCompounds, englishConfusedWords, styleWordChoice]
-    predicate: slashedWords
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # Words wrong on the left of a slash; the slash token is otherwise read as a path. One
+      # frame for each check: a frame runs only when its check is on.
+      - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?<target>infront)(?=\\/\\p{L}+(?![\\p{L}\\p{N}_'’@/#\\\\.-]|\\.\\p{L}))"
+        scan: owned
+        flags: dgiu
+        gate: "\\/\\p{L}"
+        gateFlags: gu
+        fixer: slashedWord
+      # "bias" needs a form of "be" before it ("I am bias/prefer…").
+      - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?<target>bias)(?=\\/\\p{L}+(?![\\p{L}\\p{N}_'’@/#\\\\.-]|\\.\\p{L}))"
+        check: englishConfusedWords
+        scan: owned
+        flags: dgiu
+        gate: "\\/\\p{L}"
+        gateFlags: gu
+        fixer: slashedWord
+      - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?<target>deref|derefs|dirs)(?=\\/\\p{L}+(?![\\p{L}\\p{N}_'’@/#\\\\.-]|\\.\\p{L}))"
+        check: styleWordChoice
+        scan: owned
+        flags: dgiu
+        gate: "\\/\\p{L}"
+        gateFlags: gu
+        fixer: slashedWord
   - id: en.thatThereTheir
     checks: [englishTheirThereTheyAre]
-    predicate: thatThereTheir
+    style: match
+    message: review_msg_their_possessive
+    frames:
+      # "Is that there dog?": the dialect demonstrative or a slip for the possessive.
+      # The lookahead first: the clause lookbehind runs only where "is/was that" stands.
+      - regex: "(?=(?:is|was){{S}}that{{S}})(?<=(?:^|[.!?][\"”’)]{0,3}{{S}}|\\n[ \\t]{0,8}))(?:is|was){{S}}that{{S}}(?<target>there){{S}}(?<noun>\\p{L}+)(?=[ \\t\\u00a0]*\\?)"
+        gate: "that[ \\t\\u00a0]+there"
+        fixer: thatThere
+      # "I saw their running through the park": a seen action, not a possession.
+      - regex: "(?:saw|see|sees|seen|seeing|watched|noticed|spotted){{S}}(?<target>their){{S}}(?<ing>\\p{L}+ing){{S}}(?:through|across|along|around|down|up|into|past|toward|towards|over|away|off){{E}}"
+        message: review_msg_confused_word
+        gate: "their[ \\t\\u00a0]+\\p{L}+ing"
+        gateFlags: giu
+        fixer: sawTheir
   - id: en.anNpm
     checks: [englishArticleAnCorrection]
-    predicate: anNpm
+    style: match
+    message: review_msg_article
+    frames:
+      # "npm" is spelled out letter by letter: "an npm package".
+      - regex: "(?<target>a){{S}}npm{{E}}"
+        gate: "\\ba[ \\t\\u00a0]+npm"
+        fixer: anNpm
   - id: en.brokeInVersion
     checks: [englishIrregularForms]
-    predicate: brokeInVersion
+    style: match
+    message: review_msg_irregular_form
+    frames:
+      # "all are broke under 3.5.1": software is broken in a version; people are broke.
+      - regex: "(?:is|are|was|were|be|been|being|got|gets|get){{S}}(?<target>broke){{S}}(?:again{{S}})?(?:under|on|in|since|after|with|from|for){{S}}v?\\p{Nd}+(?:\\.\\p{Nd}+)+{{E}}"
+        gate: "broke[ \\t\\u00a0]"
+        fixer: brokeInVersion
   - id: en.effectsObject
     checks: [englishConfusedWords]
-    predicate: effectsObject
+    style: match
+    message: review_msg_confused_word
+    frames:
+      # "This policy effects employee morale": a singular subject acting on a bare object.
+      - regex: "(?:this|that|the|our|their|his|her|its|my|your|each|every|any){{S}}(?<subject>\\p{L}{3,}){{S}}(?<target>effects){{S}}(?<object>\\p{L}+(?:{{S}}\\p{L}+){0,2})(?=[ \\t\\u00a0]*(?:[.!?;]|$))"
+        gate: "effects[ \\t\\u00a0]"
+        fixer: effectsObject
   - id: en.agreedVerb
     checks: [englishVerbComplements]
-    predicate: agreedVerb
+    style: match
+    message: review_msg_missing_to
+    frames:
+      # "They agreed meet at dawn": "agree" and "decide" take an infinitive, never a bare verb.
+      # The verb is no adjective or adverb ("agreed long ago") and a preposition, adverb or
+      # object follows it, so "decided work was…" (a clause) stays.
+      - regex: "(?:agree|agrees|agreed|decide|decides|decided){{S}}(?<target>\\p{L}+){{S}}(?<next>at|on|in|with|by|for|from|before|after|early|later|soon|today|tonight|tomorrow|together|again|now|the|a|an|this|that|it|them|him|her|us|me|you|our|their|his|its|my|your){{E}}"
+        gate: "(?:agree|decide)[sd]?[ \\t\\u00a0]"
+        fixer: agreedVerb
   - id: en.webScrape
     checks: [englishPhraseCorrections]
-    predicate: webScrape
+    style: match
+    message: review_msg_phrase_correction
+    frames:
+      # "WebScrappers", "WebScrapping": a web scraper scrapes; "scrap" discards.
+      - regex: "(?<![\\p{L}\\p{N}])[Ww]eb(?<target>Scrap(?:p(?:ers?|ing|ed))|Scraps(?=[ \\t\\u00A0]+(?:the|a|an|data|pages|sites|websites)\\b))(?![\\p{L}\\p{N}])"
+        flags: dgu
+        gate: "[Ww]ebScrap"
+        gateFlags: g
+        fixer: webScrape
   - id: en.pluralMark
     checks: [englishClosedCompounds]
-    predicate: pluralMark
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # "each person (s)", "person(ss)": the optional plural is "(s)", attached.
+      - regex: "(?<=\\p{L})(?<target>[ \\t\\u00A0]+\\(s\\)|\\(ss\\))(?![\\p{L}\\p{N}])"
+        flags: dgu
+        gate: "\\((?:s|ss)\\)"
+        gateFlags: g
+        fixer: pluralMark
   - id: en.slashPrefixed
     checks: [englishPhraseCorrections]
-    predicate: slashPrefixed
+    style: match
+    message: review_msg_phrase_correction
+    frames:
+      # "the most insulting /backhand compliment": one slash typed before a dictionary word in
+      # a sentence is a typo, not a path ("/usr", "/tmp") or a command at a line start ("/help").
+      - regex: "(?<=\\p{Ll}[,]?[ \\t])(?<target>\\/)(?=\\p{Ll}{3,}[ \\t]+\\p{Ll})"
+        scan: owned
+        flags: gu
+        gate: "\\s\\/\\p{Ll}"
+        gateFlags: gu
+        fixer: slashPrefixed
   - id: en.possibleErrors
     checks: [englishPossibleErrors]
-    predicate: possibleErrors
+    style: match
+    message: review_msg_possible_error
+    frames:
+      # "the 2st", "1012rd": "st" (stone) and "rd" (rod) are units too, so the default rule
+      # leaves them; here the ordinal is offered unless a pound count follows ("11st 4lb").
+      - regex: "(?<=^|[\\s([])(?<target>(?<digits>\\p{Nd}{1,9})(?<suffix>st|rd))(?![\\p{L}\\p{N}_/@#\\\\-])"
+        scan: owned
+        flags: gu
+        gate: "\\p{Nd}(?:st|rd)"
+        gateFlags: gu
+        fixer: oddOrdinal
+      # "Their two options left.": "There are …" when what is left is counted.
+      - regex: "(?<target>their){{S}}(?:two|three|four|five|six|seven|eight|nine|ten|no|several|many|\\p{Nd}+|a{{S}}few){{S}}(?<noun>\\p{L}+){{S}}left(?=[ \\t\\u00a0]*(?:[.!?]|$))"
+        gate: "their[ \\t\\u00a0]"
+        fixer: theirLeft
+      # "The cause it is unclear.": a pronoun repeating the subject before an adjective that
+      # ends the sentence. "cause" may also have been "because".
+      - regex: "(?<target>(?<det>the|this|that|our|my|your|their|his|her){{S}}(?<noun>\\p{L}+){{S}}it{{S}}(?<be>is|was)){{S}}(?<adj>\\p{L}+)(?=[ \\t\\u00a0]*(?:[.!?]|$))"
+        gate: "\\bit[ \\t\\u00a0]+(?:is|was)\\b"
+        fixer: subjectIt
+      # "Stress can cause it is not obvious.": a clause missing "That", or a clause after "it".
+      - regex: "(?<target>(?<subject>\\p{L}+){{S}}(?<modal>can|could|may|might|will|would|should|must|does|did){{S}}cause{{S}}it{{S}}(?<be>is|was)){{E}}"
+        gate: "cause[ \\t\\u00a0]+it"
+        fixer: causeItIsPossible
+      # "The artist painted portrait in studio.": a lone countable noun after a past verb, with
+      # a lone noun after its preposition or an adverb closing the sentence.
+      - regex: "(?:the|a|an|this|that|my|our|their|his|her){{S}}\\p{L}+{{S}}(?<verb>\\p{L}+){{S}}(?<obj>\\p{L}+){{S}}(?:(?:in|on|at|under|near|into|onto|behind|beside){{S}}(?<place>\\p{L}+)|(?<adverb>\\p{L}+ly|outside|inside|nearby|indoors|outdoors))(?=[ \\t\\u00a0]*[.!?])"
+        owner: obj
+        fixer: bareObjects
+      # "They have writing today.": the progressive takes "be"; "have been writing" keeps
+      # "have". The default rule leaves -ing words that are also nouns ("We have training
+      # today") and a clause ending on the verb; this opt-in check offers both readings there.
+      - regex: "(?<target>(?<subject>I|you|we|they|he|she|it){{S}}(?<have>have|has){{S}}(?<ing>\\p{L}+ing))(?={{S}}(?:today|now|tonight|tomorrow|again){{E}}|(?<end>[ \\t\\u00a0]*(?:[.!?]|$)))"
+        gate: "\\bha(?:ve|s)[ \\t\\u00a0]+\\p{L}+ing\\b"
+        gateFlags: giu
+        fixer: haveIng
+      # "It doesn't quiet.": "quite" closing a negated clause (the default rule needs a next
+      # word).
+      - regex: "\\p{L}+n['’]t{{S}}(?<target>quiet){{COMPLETE}}"
+        fixer: notQuiet
+      # "you have more good" -> "better", unless more good is weighed against harm.
+      - regex: "(?<target>more{{S}}good){{COMPLETE}}"
+        fixer: moreGood
+      # "they often sort after the total": a habit is "sought after" or "sort by"; "sort after
+      # the join" (then) has no frequency adverb before it.
+      - regex: "(?:often|usually|always|generally|typically|commonly|normally|sometimes|mostly){{S}}(?<target>sort{{S}}after){{S}}(?:the|a|an|their|its|his|her|our|my|your){{E}}"
+        fixer: sortAfter
+      # "scrap page", "scrapped pages": scraping extracts a page; scrapping discards it.
+      - regex: "(?<target>scrap(?:s|ped|ping)?){{S}}(?:web{{S}})?(?:pages?|webpages?|websites?|sites?){{E}}"
+        fixer: scrapPages
+      # "I adore markdown": the formatting language is "Markdown"; a price cut keeps lowercase.
+      - regex: "(?<!(?:a|an|the|this|that|any|no|big|huge|steep|deep|small|price|\\p{Nd}+%?){{S}})(?<target>markdown){{E}}(?!{{S}}(?:of|on|in|to|from|price|prices){{E}})"
+        fixer: markdownName
+      # "She wants finish early": "want" and "need" take "to" before a verb.
+      - regex: "(?:want|wants|wanted|need|needs|needed){{S}}(?<target>\\p{L}+){{S}}(?:early|later|soon|now|today|tonight|tomorrow|first|quickly|again|together|immediately){{E}}"
+        fixer: wantsVerb
+      # "because affect is hidden": the noun is usually "effect" ("affect" is a mood in
+      # psychology).
+      - regex: "(?:because|since|although|though|while|if|when|and|but|so){{S}}(?<target>affect){{S}}(?:is|was|has|will|can|may|might|seems){{E}}"
+        fixer: affectNoun
+      # "helps you weight small things": "weigh" measures; "weight" assigns a weight.
+      - regex: "(?:help|helps|helped|helping|let|lets|make|makes){{S}}(?:you|me|us|them|him|her|people|users){{S}}(?<target>weight){{E}}"
+        fixer: weightVerb
+      # "You boxes": "Your boxes", or "You box".
+      - regex: "(?<target>you{{S}}(?<word>\\p{L}+s))(?=[ \\t\\u00a0]*(?:[.!?]|$)|{{S}}(?:are|were|look|seem){{E}})"
+        fixer: youPlural
+      # "The Putin's war": a name's possessive takes no article. Names that take "the" stay.
+      - regex: "(?<target>the{{S}})(?<name>\\p{L}+)['’]s{{S}}\\p{L}"
+        fixer: theName
+      # "I HoP we can…", "cHrOmE eXtEnSiOn": words typed with random capitals hide the default
+      # checks, which abstain on cased words (names like "iPhone"). Read lowercased, they apply.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'\\u2019@/#\\\\.-])\\p{L}*\\p{Ll}\\p{Lu}\\p{L}*(?![\\p{L}\\p{N}_'\\u2019@/#\\\\-]))"
+        scan: owned
+        flags: gu
+        gate: "\\p{Ll}\\p{Lu}"
+        gateFlags: gu
+        fixer: mixedCase
+  - id: en.quotedMentions
+    checks: [englishPossibleErrors]
+    # predicate: reads the quotation ranges, not a regex; each quotation is checked in a view.
+    predicate: quotedMentions
   - id: en.chromeTitle
     checks: [styleAlternativePhrasing]
-    predicate: chromeTitle
+    style: match
+    message: review_msg_alternative_phrasing
+    frames:
+      # "Chrome extension": the store's own title case, "Chrome Extension", is offered on
+      # request.
+      - regex: "(?<target>(?<chrome>chrome){{S}}(?<ext>extensions?)){{E}}"
+        gate: "chrome[ \\t\\u00a0]+extension"
+        fixer: chromeTitle
   - id: en.styleRewordings
     checks: [stylePhrasing]
-    predicate: styleRewordings
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # "find out the answer": "find" names what was looked for; "find out" stays before a
+      # clause, "about", a pronoun or a time ("find out the next day").
+      - regex: "(?<target>(?<verb>find|finds|finding){{S}}out){{S}}(?<next>\\p{L}+)(?:{{S}}(?<second>\\p{L}+))?"
+        gate: "find(?:s|ing)?[ \\t\\u00a0]+out"
+        fixer: findOut
+      # "After thinking a while, …": as an adverb right after its verb it is one word,
+      # "awhile". "took a while", "spent a while", "be a while" keep the noun phrase.
+      - regex: "(?<verb>\\p{L}{3,}){{S}}(?<target>a{{S}}while)(?=[ \\t\\u00a0]*(?:[.,;!?]|$))"
+        gate: "\\ba[ \\t\\u00a0]+while"
+        fixer: awhile
+      # The filler "I would argue that" (grammarStyle1) over a soft wrap.
+      - regex: "(?<target>I{{S}}would{{S}}argue[ \\t]*\\n[ \\t]*that{{S}})(?=[A-Za-z])"
+        gate: "argue[ \\t]*\\n"
+        fix: ""
+      # The clipped "cybersec" (grammarStyle2) shouted: its capitals are kept.
+      - regex: "(?<![\\p{L}\\p{N}_'\\u2019@/#\\\\.-])(?<target>CYBERSEC)(?![\\p{L}\\p{N}_'\\u2019@/#\\\\-])"
+        flags: dgu
+        gate: CYBERSEC
+        gateFlags: g
+        fix: CYBERSECURITY
   - id: en.compoundForms
     checks: [englishClosedCompounds, englishContextualCompounds]
     predicate: compoundForms
   - id: en.dates
     checks: [englishDateConsistency]
-    predicate: dates
+    style: match
+    message: review_msg_impossible_date
+    # Calendar checks: a weekday that does not fall on the date written next to it, and a day
+    # the month does not have ("June 31", "2/30/2024"). A date with no year uses the Review
+    # clock.
+    frames:
+      # "Monday, 7th of October 2014", "Monday, October 7, 2014", "Monday, 31/10/2014",
+      # "Monday, 2014-10-31". "Monday, 31/10": no year, a slash only ("Monday, 3.5" is a
+      # number). The weekday owns the match.
+      - regex: "(?<![\\p{L}\\p{N}]){{DATES_WEEKDAY}}(?:,?{{S}}|,)(?:(?<day1>[0-9]{1,2})(?:st|nd|rd|th)?(?:{{S}}of)?{{S}}(?<month1>{{DATES_MONTH}})(?:,?{{S}}(?<year1>[0-9]{4}))?|(?<month2>{{DATES_MONTH}}){{S}}(?<day2>[0-9]{1,2})(?:st|nd|rd|th)?(?:,?{{S}}(?<year2>[0-9]{4}))?|(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year3>[0-9]{4})|(?<na>[0-9]{1,2})\\/(?<nb>[0-9]{1,2})(?![/.,]?[0-9])|(?<iso>(?<isoYear>[0-9]{4})-(?<isoMonth>[0-9]{2})-(?<isoDay>[0-9]{2})))(?![\\p{L}\\p{N}])"
+        flags: dgu
+        owner: weekday
+        fixer: weekdayMismatch
+      # Days a month cannot have: "June 31", "the 31st of June", "Feb 30th, 2023".
+      - regex: "(?<target>(?<month1>{{DATES_MONTH}}){{S}}(?<day1>[0-9]{1,2})(?:st|nd|rd|th)?|(?<![\\p{N}:.,/])(?<day2>[0-9]{1,2})(?:st|nd|rd|th)?(?:{{S}}of)?{{S}}(?<month2>{{DATES_MONTH}}))(?:,?{{S}}(?<year>[0-9]{4}))?(?![\\p{L}\\p{N}]|[.,:][0-9])"
+        fixer: impossibleMonthDay
+      # Any four-digit year: an impossible day or month needs no calendar ("31/04/1500").
+      # Markdown emphasis before the date is not a word: "**31/04/2020**", "_31/04/2020_".
+      # Thus the frame has its own start, not WORD_START (an underscore continues a word
+      # there). The match start owns it.
+      - regex: "(?<![.\\p{M}'’@#\\\\])(?<![\\p{L}\\p{N}][*_~]{0,3})(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>[0-9]{4})(?![\\p{N}]|[.,][0-9])"
+        flags: dgu
+        owner: none
+        fixer: impossibleNumericDate
+  - id: en.isoDates
+    checks: [englishDateConsistency]
+    # predicate: calls the shared invalidIsoDates helper (isoDates.ts) that the German,
+    # Portuguese, Polish and Spanish date checks also use.
+    predicate: isoDates
   - id: en.usageFrames
     checks: [stylePhrasing]
-    predicate: usageFrames
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # "in a hasty manner" -> "hastily"; "in a way that…" and "in a manner of speaking" stay.
+      - regex: "(?<target>in{{S}}an?{{S}}(?<adjective>[a-z]+){{S}}(?:manner|way|fashion)){{E}}(?![ \\t\\u00a0]+(?:that|which|to|as|of|than|for|in|you|we|I|it){{E}})"
+        fixer: mannerAdverb
+      # "sent me an email" -> "emailed me".
+      - regex: "(?<target>(?<verb>send|sends|sent|sending){{S}}(?<object>me|you|him|her|us|them){{S}}an{{S}}(?<mail>email|e-mail)){{E}}"
+        fixer: sendEmail
+      # "is not complete" -> "is incomplete": the adjective's negative prefix form, when listed.
+      - regex: "(?:is|are|was|were|be|been|being|seems?|seemed|looks?|looked){{S}}(?<target>not{{S}}(?<adjective>[a-z]{4,})){{E}}(?![ \\t\\u00a0]+(?:enough|only|just|as|so|but){{E}})"
+        fixer: notAdjective
   - id: en.contractionCase
     checks: [englishContractionNormalization]
-    predicate: contractionCase
+    style: match
+    message: review_msg_contraction
+    frames:
+      # "We'Re", "don'T", "I'Ve": a capital after the apostrophe of a contraction. All capitals
+      # ("DON'T", "I'M") are emphasis, and "O'Neil" is no contraction ending. The match start
+      # owns it.
+      - regex: "(?<![\\p{L}\\p{N}_'’])(?<head>\\p{L}+)(?<mark>['’])(?<tail>s|t|re|ve|ll|d|m)(?![\\p{L}\\p{N}_])"
+        flags: dgiu
+        owner: none
+        fixer: contractionCase
   - id: en.possessiveContractions
     checks: [englishItsContext, englishYourYouAre]
     predicate: possessiveContractions
@@ -1697,22 +2614,318 @@ rules:
     predicate: properNouns
   - id: en.notation
     checks: [englishNotation]
-    predicate: notation
+    style: match
+    message: review_msg_english_decimal
+    filter: outsideExamples
+    # englishNotation (on by default): decimal commas and European digit groups in English
+    # numbers, a split ordinal ("8 th"), full-width marks, an initialism missing its last period
+    # ("U.S.A"), and academic degrees ("PH.D", "B. Sc."). Each scan starts 64 characters before
+    # the chunk. A gate that every match holds near its start skips the scan when the text
+    # lacks it: most prose has no notation, and these regexes open with lookbehinds the engine
+    # tries at every position.
+    frames:
+      # "12,5%", "$12,50", "2,5 million": a decimal comma before a unit or after a currency sign.
+      - regex: "(?<![\\p{N}.,])(?:(?<sign>[$£€])(?<a>\\d{1,3}),(?<b>\\d{1,2})|(?<c>\\d{1,3}),(?<d>\\d{1,2})(?=[ \\u00a0]?(?:%|‰|percent|per cent|million|billion|trillion|thousand|[KMGT]B|kg|g|mg|km|m|cm|mm|ml|l|°)(?![\\p{L}\\p{N}])))(?![\\p{N},]|\\.\\p{N})"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d,\\d"
+        gateFlags: g
+        fixer: decimalComma
+      # "32.500.000", "32.000,23": dots between digit groups and a comma before the decimals.
+      - regex: "(?<![\\p{N}.,])\\d{1,3}(?:\\.\\d{3}){2,3}(?:,\\d{1,2})?(?![\\p{N}]|[.,]\\p{N})"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d\\.\\d"
+        gateFlags: g
+        fixer: dotGroups
+      - regex: "(?<![\\p{N}.,])\\d{1,3}\\.\\d{3},\\d{1,2}(?![\\p{N}]|[.,]\\p{N})"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d\\.\\d"
+        gateFlags: g
+        fixer: dotDecimal
+      # "32.000 users": a whole thousand before a counted noun.
+      - regex: "(?<![\\p{N}.,])(\\d{1,3})\\.000(?=[ \\u00A0]+([a-z]+)(?![\\p{L}]))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d\\.000"
+        gateFlags: g
+        fixer: dotThousand
+      # "8 th": a split ordinal.
+      - regex: "(?<![\\p{N}.,])(\\d{1,4})[ \\u00A0](st|nd|rd|th)(?![\\p{L}\\p{N}])"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d[ \\u00a0](?:st|nd|rd|th)"
+        gateFlags: g
+        fixer: ordinalSplit
+      # Full-width marks after Latin letters. The full-width comma is commaPeriodSpacing's.
+      - regex: "(?<=[A-Za-z])[\\uFF1F\\uFF01]"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "[？！]"
+        gateFlags: g
+        fixer: fullWidthMark
+      # "U.S.A", "e.g": an initialism that lost its last period.
+      - regex: "(?<![\\p{L}\\p{N}.'’@/\\\\_-])(?:[A-Z]\\.){1,4}[A-Z](?![\\p{L}\\p{N}.'’@/\\\\_-])|(?<![\\p{L}\\p{N}.'’@/\\\\_-])(?:e\\.g|i\\.e|a\\.k\\.a)(?![\\p{L}\\p{N}.'’@/\\\\_-])"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "[A-Za-z]\\.[A-Za-z]"
+        gateFlags: g
+        fixer: initialism
+      # Academic degrees: "PH.D", "Phd", "B. Sc", "BSc." before a lowercase word.
+      - regex: "(?<![\\p{L}.])(?<core>P[Hh](?:\\. ?| )D|PHD|Phd|PhD)\\.?(?![\\p{L}])"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "P[Hh]"
+        gateFlags: g
+        fixer: phd
+      - regex: "(?<![\\p{L}.])(?<l>[BM])\\. ?(?<d>Sc|Eng|Ed|Phil|Arch|Com|Tech)\\.?(?![\\p{L}])"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "[BM]\\."
+        gateFlags: g
+        fixer: degree
+      - regex: "(?<![\\p{L}.])(?<d>BSc|MSc|BEng|MEng|MPhil|DPhil|MBA)\\.(?=[ \\u00A0]+\\p{Ll})"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "(?:Sc|Eng|Phil|MBA)\\."
+        gateFlags: g
+        fixer: dottedDegree
+      # "e. g.", "i. e.", "o' clock": abbreviations without their inner spaces.
+      - regex: "(?<![\\p{L}.])(?:e\\.[ \\u00A0]g\\.|i\\.[ \\u00A0]e\\.|o['’][ \\u00A0]clock)(?![\\p{L}])"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "(?:e\\.|i\\.|o['’])[ \\u00a0]"
+        gateFlags: g
+        fixer: spacedAbbreviation
+      # "June 16,1963", "October, 1958", "October 18 1983", "Friday July 15".
+      - regex: "(?<![\\p{L}])(?:(?:{{TYPOGRAPHY_MONTH}})(?<monthComma>,)(?=[ \\u00a0](?:1[5-9]|20)\\d\\d(?![\\p{N},]|[.:]\\p{N}))|(?:{{TYPOGRAPHY_MONTH}})[ \\u00a0]\\d{1,2}(?<glued>,)(?=(?:1[5-9]|20)\\d\\d(?!\\p{N}))|(?:{{TYPOGRAPHY_MONTH}})[ \\u00a0]\\d{1,2}(?<dayGap>)(?=[ \\u00a0](?:1[5-9]|20)\\d\\d(?![\\p{N}:]|[.,]\\p{N}))|(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?<weekGap>)(?=[ \\u00a0](?:{{TYPOGRAPHY_MONTH}})[ \\u00a0]\\d))"
+        scan: owned
+        lookback: 64
+        flags: dgu
+        gate: "\\d"
+        gateFlags: g
+        fixer: dateComma
+      # "7:00 o'clock": a clock time or "o'clock", not both.
+      - regex: "(?<![\\p{N}:])(?<h>\\d{1,2}):(?<mm>[0-5]\\d)[ \\u00A0]o['’][ \\u00A0]?clock(?![\\p{L}])"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: clock
+        gateFlags: g
+        fixer: clockOclock
   - id: en.typography
     checks: [englishTypography]
-    predicate: typography
+    style: match
+    message: review_msg_typographic_symbol
+    # englishTypography (optional): the typographer's symbols for what a keyboard
+    # approximates: × for x, → for ->, © for (c), ± for +-, H₀, curly double quotes and dashes
+    # in ranges. Quoted examples keep their findings.
+    frames:
+      # "6.626 x 10⁻³⁴", "1920x1080", "5 * 2": numbers multiplied. A long number holds a run of
+      # 30 digits near its start.
+      - regex: "{{TYPOGRAPHY_TIMES}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
+        gateFlags: g
+        fixer: timesSign
+      - regex: "{{TYPOGRAPHY_ARROW}}"
+        scan: owned
+        lookback: 64
+        flags: gmu
+        gate: "[<>]"
+        gateFlags: g
+        fixer: arrowSign
+      # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
+      - regex: "{{TYPOGRAPHY_SIGNS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "Copyright|\\([cCRTt]"
+        gateFlags: g
+        fixer: legalSign
+      - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\+"
+        gateFlags: g
+        fixer: plusMinus
+      # "H0: …": a hypothesis takes a subscript.
+      - regex: "(?<=^|\\n|[.!?][ \\t]{1,8})H(?<n>[0-9])(?=:[ \\t])"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "H\\d:"
+        gateFlags: g
+        fixer: hypothesis
+      # „…“ is German; English opens with “ and closes with ”.
+      - regex: "[\\u201E\\u201C]"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: lowQuote
+      # "1901 - 1978", "8am - 5pm", "30 BC - AD 284", "1990-1995": a range takes an en dash. The
+      # gate is the digit that opens the match: the spaces before the hyphen have no limit.
+      - regex: "{{TYPOGRAPHY_NUMBER_RANGE}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d"
+        gateFlags: g
+        fixer: numberRangeDash
+      # "Monday - Friday", "May-June": a range of names takes an en dash.
+      - regex: "(?<=\\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|{{TYPOGRAPHY_MONTH}}))(?:[ \\u00a0]+-[ \\u00a0]+|-)(?=(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|{{TYPOGRAPHY_MONTH}})\\b)"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "-"
+        gateFlags: g
+        fixer: nameRangeDash
+      # "different - like": a spaced hyphen between words is a dash.
+      - regex: "(?<=\\p{Ll}) - (?=\\p{Ll})"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: " - "
+        gateFlags: g
+        fixer: spacedHyphen
   - id: en.typographyFrench
     checks: [englishTypography]
-    predicate: typographyFrench
     lang: fr
+    style: match
+    message: review_msg_typographic_symbol
+    # French: the shared symbols only; its quotes and dashes follow other rules.
+    frames:
+      # "6.626 x 10⁻³⁴", "1920x1080", "5 * 2": numbers multiplied. A long number holds a run of
+      # 30 digits near its start.
+      - regex: "{{TYPOGRAPHY_TIMES}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
+        gateFlags: g
+        fixer: timesSign
+      - regex: "{{TYPOGRAPHY_ARROW}}"
+        scan: owned
+        lookback: 64
+        flags: gmu
+        gate: "[<>]"
+        gateFlags: g
+        fixer: arrowSign
+      # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
+      - regex: "{{TYPOGRAPHY_SIGNS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "Copyright|\\([cCRTt]"
+        gateFlags: g
+        fixer: legalSign
+      - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\+"
+        gateFlags: g
+        fixer: plusMinus
   - id: en.typographySpanish
     checks: [englishTypography]
-    predicate: typographySpanish
     lang: es
+    style: match
+    message: review_msg_typographic_symbol
+    # Spanish: the shared symbols only; its quotes and dashes follow other rules.
+    frames:
+      # "6.626 x 10⁻³⁴", "1920x1080", "5 * 2": numbers multiplied. A long number holds a run of
+      # 30 digits near its start.
+      - regex: "{{TYPOGRAPHY_TIMES}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
+        gateFlags: g
+        fixer: timesSign
+      - regex: "{{TYPOGRAPHY_ARROW}}"
+        scan: owned
+        lookback: 64
+        flags: gmu
+        gate: "[<>]"
+        gateFlags: g
+        fixer: arrowSign
+      # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
+      - regex: "{{TYPOGRAPHY_SIGNS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "Copyright|\\([cCRTt]"
+        gateFlags: g
+        fixer: legalSign
+      - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\+"
+        gateFlags: g
+        fixer: plusMinus
   - id: en.typographyPortuguese
     checks: [englishTypography]
-    predicate: typographyPortuguese
     lang: pt
+    style: match
+    message: review_msg_typographic_symbol
+    # Portuguese: the shared symbols and number ranges.
+    frames:
+      # "6.626 x 10⁻³⁴", "1920x1080", "5 * 2": numbers multiplied. A long number holds a run of
+      # 30 digits near its start.
+      - regex: "{{TYPOGRAPHY_TIMES}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
+        gateFlags: g
+        fixer: timesSign
+      - regex: "{{TYPOGRAPHY_ARROW}}"
+        scan: owned
+        lookback: 64
+        flags: gmu
+        gate: "[<>]"
+        gateFlags: g
+        fixer: arrowSign
+      # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
+      - regex: "{{TYPOGRAPHY_SIGNS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "Copyright|\\([cCRTt]"
+        gateFlags: g
+        fixer: legalSign
+      - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\+"
+        gateFlags: g
+        fixer: plusMinus
+      # "1901 - 1978", "8am - 5pm", "30 BC - AD 284", "1990-1995": a range takes an en dash. The
+      # gate is the digit that opens the match: the spaces before the hyphen have no limit.
+      - regex: "{{TYPOGRAPHY_NUMBER_RANGE}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        gate: "\\d"
+        gateFlags: g
+        fixer: numberRangeDash
   - id: en.plainStyle
     checks: [stylePhrasing]
     predicate: plainStyle

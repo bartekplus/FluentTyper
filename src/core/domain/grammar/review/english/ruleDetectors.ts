@@ -64,17 +64,11 @@ import * as neighbourTypos from "./neighbourTypos";
 import * as clashFrames from "./clashFrames";
 
 export const PREDICATES = mergePredicates(
-  fixedPhrases.PREDICATES,
-  confusions1.PREDICATES,
   confusions2.PREDICATES,
-  grammarStyle1.PREDICATES,
-  grammarStyle2.PREDICATES,
-  dialects.PREDICATES,
   lexical.PREDICATES,
   remaining.PREDICATES,
   compoundForms.PREDICATES,
   dates.PREDICATES,
-  usageTables.PREDICATES,
   contractionSlots.PREDICATES,
   degreeSlots.PREDICATES,
   nounNumberSlots.PREDICATES,
@@ -89,7 +83,6 @@ export const PREDICATES = mergePredicates(
   noNotSlots.PREDICATES,
   apostrophes.PREDICATES,
   properNames.PREDICATES,
-  typography.PREDICATES,
   plainStyle.PREDICATES,
   passiveVoice.PREDICATES,
   punctuation.PREDICATES,
@@ -131,6 +124,15 @@ export const FIXERS = mergePredicates<Fixer>(
   adverbSlots.FIXERS,
   comparisonSlots.FIXERS,
   tenseSlots.FIXERS,
+  grammarStyle1.FIXERS,
+  grammarStyle2.FIXERS,
+  fixedPhrases.FIXERS,
+  confusions1.FIXERS,
+  lexical.FIXERS,
+  dialects.FIXERS,
+  usageTables.FIXERS,
+  typography.FIXERS,
+  dates.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */
@@ -138,4 +140,5 @@ export const FILTERS = mergePredicates<FindingsFilter>(
   articles.FILTERS,
   grammarStyle1.FILTERS,
   everydaySlots.FILTERS,
+  fixedPhrases.FILTERS,
 );
