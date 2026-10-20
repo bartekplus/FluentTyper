@@ -561,7 +561,9 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
         if (
           spec.style !== "german" &&
           spec.style !== "swap" &&
-          (!match || entry.fix !== undefined || (entry.owner ?? "target") === "target") &&
+          (!match ||
+            entry.fix !== undefined ||
+            (scan === "frame" && (entry.owner ?? "target") === "target")) &&
           !pattern.includes("(?<target>")
         )
           errors.push(`${at}: a frame needs a "target" group`);
