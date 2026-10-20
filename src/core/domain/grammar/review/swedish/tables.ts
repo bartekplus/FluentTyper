@@ -35,6 +35,19 @@ const PHRASES: readonly PhraseRow[] = [
   ["i möjligaste motto", "i möjligaste måtto"],
   ["i viss motto", "i viss måtto"],
   ["planer om att", "planer på att"],
+  // The particle "loss" (free) has a double s: "släppa loss", "slita sig loss", "bryta loss".
+  ...["släppa", "släpper", "släppte", "släppt", "släpp"].map((verb): PhraseRow => [
+    `${verb} los`,
+    `${verb} loss`,
+  ]),
+  ...["slita", "sliter", "slet", "slitit"].map((verb): PhraseRow => [
+    `${verb} sig los`,
+    `${verb} sig loss`,
+  ]),
+  ...["bryta", "bryter", "bröt", "brutit"].map((verb): PhraseRow => [
+    `${verb} los`,
+    `${verb} loss`,
+  ]),
 ];
 
 // Titles of a person: "förre" is the traditional form before them.

@@ -12,9 +12,11 @@ import * as confusions from "./confusions";
 import * as dates from "./dates";
 import * as degree from "./degree";
 import * as forms from "./forms";
+import * as fragments from "./fragments";
 import * as numbers from "./numbers";
 import * as officialese from "./officialese";
 import * as prepositions from "./prepositions";
+import * as questions from "./questions";
 import * as style from "./style";
 import * as subjects from "./subjects";
 import * as typography from "./typography";
@@ -46,4 +48,6 @@ export const POLISH_DETECTORS: readonly ReviewDetectorEntry[] = [
   ...officialese.DETECTORS,
   ...subjects.DETECTORS,
   ...typos.DETECTORS,
+  ...fragments.DETECTORS,
+  ...questions.DETECTORS,
 ];

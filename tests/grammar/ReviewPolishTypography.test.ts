@@ -40,6 +40,10 @@ const CASES: Record<string, { pos: Array<[string, string]>; neg: string[] }> = {
         "Mamy związki dwu–, trzy- i czterowartościowe.",
         "Mamy związki dwu-, trzy- i czterowartościowe.",
       ],
+      ["Ad. 2. Zarząd przyjął plan.", "Ad 2. Zarząd przyjął plan."],
+      ["Uwagi ad. (3) są w protokole.", "Uwagi ad (3) są w protokole."],
+      ["Ten dom– jak mówią – jest stary.", "Ten dom – jak mówią – jest stary."],
+      ["Ten dom –jak mówią – jest stary.", "Ten dom – jak mówią – jest stary."],
     ],
     neg: [
       "Lata 1914–1918 to czas wojny – mówił – a potem pokój.",
@@ -53,6 +57,10 @@ const CASES: Record<string, { pos: Array<[string, string]>; neg: string[] }> = {
       "Senator Kay Hagan (R) zabrała głos.",
       "Nowy telefon obsługuje 5G bez problemu.",
       "Ćwiczenia 1, 2, 3 proc. ocen dają ekstra punkty.",
+      "Ad. Nowak podpisał pismo.",
+      "Maria Skłodowska–Curie odkryła rad.",
+      "Odpowiedział:\n–Tak, jutro.",
+      "Mamy pokoje jedno– i dwuosobowe.",
     ],
   },
   polishQuotes: {

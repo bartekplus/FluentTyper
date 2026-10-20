@@ -182,21 +182,21 @@ function backwardRanges(ctx: DetectContext): RawFinding[] {
   }
   for (const m of owned(ctx, YEAR_RANGE)) {
     const { a, b } = m.groups!;
-    // "1962 – 272 000" is a count; years before Christ run backwards ("1814-1781 p.n.e.").
-    if (b.length !== a.length && b.length > 2) continue;
     const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 24);
-    if (
-      /^[ \t\u00a0]*(?:\d|p\.?[ \t\u00a0]*n\.?[ \t\u00a0]*e|przed[ \t\u00a0]+(?:naszą|Chrystusem)|BC)/iu.test(
+    if (/^[ \t\u00a0]*\d/u.test(after)) continue;
+    // Years before Christ run backwards: "1814–1781 p.n.e." is right, "715–1840 p.n.e." is not.
+    const beforeChrist =
+      /^[ \t\u00a0]*(?:p\.?[ \t\u00a0]*n\.?[ \t\u00a0]*e|przed[ \t\u00a0]+(?:naszą|Chrystusem)|BC)/iu.test(
         after,
-      )
-    )
-      continue;
+      );
+    // "1962 – 272" is a year and a count; a longer end year is a year only before Christ.
+    if (b.length !== a.length && b.length > 2 && !(beforeChrist && b.length > a.length)) continue;
     // Only in a year context: "w latach", "w okresie", "lata".
     const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
     if (!/(?:latach|lata|okresie|sezonie|rok\p{L}*|w|od)[ \t ]+$/iu.test(before)) continue;
     const start = Number(a);
     const endYear = b.length < a.length ? Number(a.slice(0, a.length - b.length) + b) : Number(b);
-    if (endYear > start) continue;
+    if (beforeChrist ? endYear < start : endYear > start) continue;
     findings.push(
       findingAt(ctx, m.index, m.index + m[0].length, [], RULE, "review_msg_pl_impossible_date"),
     );
@@ -277,7 +277,7 @@ function abbreviatedMonths(ctx: DetectContext): RawFinding[] {
  */
 const DECADE_WORDS = "lata|lat|latach|latami|latom";
 const FULL_DECADE = new RegExp(
-  `(?<=(?:^|[^\\p{L}])(?:${DECADE_WORDS})[ \\t\\u00a0]{1,8})(?<year>1\\d[1-9]0|20[1-9]0)\\.`,
+  `(?<=(?:^|[^\\p{L}])(?:${DECADE_WORDS})[ \\t\\u00a0]{1,8})(?<year>1\\d[0-9]0|20[0-9]0)\\.`,
   "giu",
 );
 const ROMAN_CENTURY = [
@@ -314,12 +314,13 @@ function decades(ctx: DetectContext): RawFinding[] {
   for (const m of owned(ctx, FULL_DECADE)) {
     const year = Number(m.groups!.year);
     const century = ROMAN_CENTURY[Math.floor(year / 100) + 1];
+    // "lata 1900." has no "lata 00.": the fix names the years ("lata 1900–1909").
     findings.push(
       findingAt(
         ctx,
         m.index,
         m.index + m[0].length,
-        [`${String(year % 100).padStart(2, "0")}. ${century} w.`],
+        [year % 100 ? `${year % 100}. ${century} w.` : `${year}–${year + 9}`],
         RULE,
         "review_msg_pl_decade",
       ),

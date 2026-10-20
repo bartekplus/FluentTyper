@@ -69,6 +69,8 @@ const ABBREVIATIONS_BY_LANGUAGE: Record<string, readonly string[]> = {
     ...["tłum", "oprac", "red", "dot", "dn", "ob", "ang", "niem", "łac", "przyp", "jw."],
     ...["wsp.", "bp", "br.", "proc.", "ew", "ww", "ub", "dz", "nast", "wym", "mkw", "art"],
     ...["tab", "pt", "prez", "doc", "zw", "wł", "płn", "płd", "wsch", "zach", "zał", "ryc"],
+    // "op. cit." and company names ("Spółdz. Mlecz."); "mlecz" is also a plant, so it can end one.
+    ...["op", "spółdz", "mlecz."],
   ],
   es: [
     ...["sr", "sra", "srta", "ej", "aprox", "pág", "núm", "ud", "uds", "dra", "avda"],

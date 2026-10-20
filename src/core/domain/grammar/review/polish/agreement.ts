@@ -1226,6 +1226,106 @@ function smallFrames(ctx: DetectContext): RawFinding[] {
   return findings;
 }
 
+/* ------------------------------------- the subject after an instrumental */
+
+/** "Uczestnikami są wyłącznie uczniów": a genitive plural where the subject goes after "są". */
+const AFTER_PREDICATE = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’@/-])(?<verb>są|będą)[ \\t\\u00a0]{1,8}(?:(?:wyłącznie|głównie|tylko|także|również|zwykle|najczęściej|zawsze|często)[ \\t\\u00a0]{1,8})?(?<noun>\\p{Ll}{3,})${WORD}`,
+  "gud",
+);
+
+function subjectsAfterPredicate(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, AFTER_PREDICATE)) {
+    const { noun } = m.groups!;
+    const tags = nounTags(noun);
+    // A genitive plural with no nominative reading ("uczniów", "organizacji").
+    if (!onlyNoun(tags) || !(tags & cases("Gp")) || tags & cases("Ns Np")) continue;
+    if (userOrNamed(ctx, noun)) continue;
+    // The clause opens with an instrumental noun, the predicate: "Klientami są", "Dla firmy
+    // autorami będą".
+    const clause =
+      (
+        ctx.text
+          .slice(Math.max(0, m.index - 60), m.index)
+          .split(/[.!?;:,—–()]/u)
+          .at(-1) ?? ""
+      ).match(/\p{L}+/gu) ?? [];
+    const predicate = clause.slice(-3).some((word) => {
+      const own = nounTags(word.toLowerCase());
+      return onlyNoun(own) && !(own & ALL_CASES & ~INSTRUMENTALS);
+    });
+    if (!predicate) continue;
+    let forms = inflect(noun, cases("Np"), cases("Gp"));
+    // "uczniów": the men's plural "uczniowie", not the plural of things "ucznie".
+    const men = forms.filter(menOnlyPlural);
+    if (forms.length > 1 && men.length) forms = men;
+    if (forms.length === 0 || forms.length > 2) continue;
+    const [start, end] = m.indices!.groups!.noun;
+    findings.push(
+      findingAt(
+        ctx,
+        start,
+        end,
+        forms.map((form) => caseLike(noun, form)),
+        RULE,
+        "review_msg_pl_agreement",
+      ),
+    );
+  }
+  return findings;
+}
+
+/* ---------------------------------------- "tymi człowiekiem", "moimi siostrą" */
+
+/** Plural instrumental pronouns and their singular forms: masculine or neuter, feminine. */
+const PLURAL_PRONOUNS: Record<string, [string, string]> = {
+  tymi: ["tym", "tą"],
+  tamtymi: ["tamtym", "tamtą"],
+  takimi: ["takim", "taką"],
+  jakimi: ["jakim", "jaką"],
+  jakimiś: ["jakimś", "jakąś"],
+  moimi: ["moim", "moją"],
+  twoimi: ["twoim", "twoją"],
+  swoimi: ["swoim", "swoją"],
+  naszymi: ["naszym", "naszą"],
+  waszymi: ["waszym", "waszą"],
+  owymi: ["owym", "ową"],
+  żadnymi: ["żadnym", "żadną"],
+};
+// "między innymi handlem": "innymi" is left out, it is part of "między innymi".
+const PLURAL_PRONOUN = new RegExp(
+  `(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>${Object.keys(PLURAL_PRONOUNS)
+    .flatMap((p) => [p, p[0].toUpperCase() + p.slice(1)])
+    .join("|")})[ \\t\\u00a0]{1,8}(?<noun>\\p{Ll}{3,})${WORD}`,
+  "gu",
+);
+
+function pluralPronouns(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const m of owned(ctx, PLURAL_PRONOUN)) {
+    const { pronoun, noun } = m.groups!;
+    // The noun is only a singular instrumental, of one gender.
+    const tags = nounTags(noun);
+    if (!onlyNoun(tags) || tags & ALL_CASES & ~cases("Is") || userOrNamed(ctx, noun)) continue;
+    const feminine = (tags & FEMININE) !== 0;
+    if (feminine === ((tags & (MASCULINE | NEUTER)) !== 0)) continue;
+    const fix = PLURAL_PRONOUNS[pronoun.toLowerCase()][feminine ? 1 : 0];
+    findings.push({
+      ...findingAt(
+        ctx,
+        m.index,
+        m.index + pronoun.length,
+        [caseLike(pronoun, fix)],
+        RULE,
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    });
+  }
+  return findings;
+}
+
 /* ------------------------------------------- "półtora", "dwadzieścia trzej" */
 
 const HALF = new RegExp(
@@ -1485,6 +1585,8 @@ export const DETECTORS = [
             ...uninflectedNames(ctx),
             ...smallFrames(ctx),
             ...numeralForms(ctx),
+            ...subjectsAfterPredicate(ctx),
+            ...pluralPronouns(ctx),
           ]
         : [],
   },

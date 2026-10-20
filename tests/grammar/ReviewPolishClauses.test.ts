@@ -134,3 +134,41 @@ describe("Polish clause boundaries", () => {
     expect(impersonalVerb("zielono")).toBe(false);
   });
 });
+
+describe("Polish sentence fragments (opt-in englishSentenceFragment)", () => {
+  const fragments = (text: string) =>
+    scan(text, { enabledRules: ["englishSentenceFragment"] as never, lang: "pl_PL" });
+
+  test.each([
+    // An adverbial participle phrase with no main verb.
+    ["Przechodząc obok sklepu.", "Przechodząc"],
+    ["Zamawiając dwa obiady, deser za darmo.", "Zamawiając"],
+    // The only finite verb is in the relative clause.
+    ["Patrząc na dom, który stał przy drodze.", "Patrząc"],
+    ["Sąsiad, który mieszkał obok, będąc chorym.", "będąc"],
+  ])("flags %p", (text, original) => {
+    const [d, ...rest] = fragments(text);
+    expect(rest).toEqual([]);
+    expect(d?.original).toBe(original);
+    expect(d.warningOnly).toBe(true);
+  });
+
+  test.each([
+    "Przechodząc obok sklepu, kupiłem chleb.",
+    "Patrząc na dom, który stał przy drodze, myślałem o dzieciństwie.",
+    "Krótko mówiąc, za drogo.",
+    "Nie licząc kosztów, to dobry plan.",
+    "Wracając do domu",
+    "Tak, oddając wszystko!",
+    "Idąc tam, trzeba uważać.",
+    "Ten miesiąc był ciepły.",
+    "Szedł powoli, rozglądając się na boki.",
+    "Wiedząc to, śpi spokojnie.",
+  ])("leaves %p", (text) => {
+    expect(fragments(text)).toEqual([]);
+  });
+
+  test("is off by default", () => {
+    expect(scan("Przechodząc obok sklepu.", { lang: "pl_PL" })).toEqual([]);
+  });
+});

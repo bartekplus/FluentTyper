@@ -431,6 +431,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     category: "grammar",
     kind: "usage",
     bulk: "individual",
+    languages: ["en_US", "pl_PL"],
   },
   // English tables and typography (review/english/, en-tables2).
   englishApostrophes: {
@@ -775,7 +776,7 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
   germanCommas: only(["de_DE"], "punctuation", "marks"),
   germanVerbAgreement: only(["de_DE"], "grammar", "agreement"),
   germanArticleGender: only(["de_DE"], "grammar", "agreement"),
-  germanQuestionMarks: only(["de_DE"], "punctuation", "marks", { off: true }),
+  germanQuestionMarks: only(["de_DE", "pl_PL"], "punctuation", "marks", { off: true }),
   germanNumbers: only(["de_DE"], "grammar", "numbers"),
   germanStraightQuotes: only(["de_DE"], "typography", "marks", { off: true }),
   germanColloquial: only(["de_DE"], "style", "usage", { off: true }),
