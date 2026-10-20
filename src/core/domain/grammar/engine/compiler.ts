@@ -433,6 +433,10 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
     for (const spec of file.rules ?? []) ordered.push({ name, file, spec, order: ordered.length });
   ordered.sort((a, b) => (a.spec.stage ?? 0) - (b.spec.stage ?? 0) || a.order - b.order);
 
+  // A language file reads the fragments of common.yaml too; its own fragments win.
+  const shared = files.find(([name]) => name === "common")?.[1].fragments ?? {};
+  const fragmentsOf = (file: RuleFile) => ({ ...shared, ...file.fragments });
+
   const ruleIds = new Set<string>();
   const rules: CompiledRule[] = [];
   const reviewPatterns: PatternSetOut = { patterns: [], anchors: {}, structural: [] };
@@ -548,7 +552,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           } catch (error) {
             errors.push(`${at}: gate does not compile: ${String(error)}`);
           }
-        const pattern = expandFrame(entry.regex, file.fragments ?? {}, at, errors);
+        const pattern = expandFrame(entry.regex, fragmentsOf(file), at, errors);
         try {
           if (spec.style === "german") new RegExp(pattern, "gdu");
           else if (spec.style === "cased") new RegExp(`${WORD_START}${pattern}`, "gdu");

@@ -294,3 +294,28 @@ test("frames: fragments, guards, literals and fixes", () => {
   ])
     expect(message).toContain(fragment);
 });
+
+test("match frames: language files read common fragments; their own fragments win", () => {
+  const set = compile(
+    { lang: "*", checks: [check()], fragments: { YEAR: "[0-9]{4}", WORD: "\\p{L}+" } },
+    {
+      lang: "en",
+      fragments: { WORD: "[a-z]+" },
+      rules: [
+        {
+          id: "en.match",
+          checks: ["demoCheck"],
+          message: "review_msg_phrase_correction",
+          style: "match",
+          frames: [
+            { regex: "(?<target>{{YEAR}}) {{WORD}}", fixer: "year" },
+            { regex: "{{WORD}}", scan: "owned", flags: "gu", lookahead: 8, fixer: "word" },
+          ],
+        },
+      ],
+    },
+  );
+  expect(set.frames[0].pattern).toBe("(?<target>[0-9]{4}) [a-z]+");
+  // An owned scan needs no target group.
+  expect(set.frames[1]).toMatchObject({ pattern: "[a-z]+", scan: "owned", lookahead: 8 });
+});

@@ -4397,6 +4397,11 @@ exclusive:
 
 # Regex fragments of the frame rules: {{NAME}}.
 fragments:
+  # The ISO date (yyyy-mm-dd) frame of the language files (fixer common:invalidIsoDate).
+  DIGIT: "[0-9٠-٩۰-۹]"
+  ISO_DATE: "(?<![\\p{L}\\p{N}][*_~]{0,3})(?<![\\p{L}\\p{N}][-./])(?<year>{{DIGIT}}{4})-(?<month>{{DIGIT}}{2})-(?<day>{{DIGIT}}{2})(?![*_~]{0,3}[\\p{L}\\p{N}])(?![-./][\\p{L}\\p{N}])"
+  # The number range frame of the language files (their rangeDash fixers).
+  RANGE_DASH: "(?<![\\p{L}\\p{N}.,:/#+\\u2013\\u2014-])(\\d{1,4})([-\\u2014])(\\d{1,4})(?![\\p{L}\\p{N}_]|[-\\u2013\\u2014/:.,]\\p{N})"
   SUBJECT: "(?:I|you|we|they|he|she|it)"
   KNEW_ADVERB: "(?:always|never|often|already|just|really|still|also|sometimes|usually|probably|certainly|clearly|somehow|instantly|immediately|suddenly|finally|then)"
   KNEW_CLAUSE: "(?:it|that|this|there|what|who|how|why|when|where|I|you|he|she|we|they)"
