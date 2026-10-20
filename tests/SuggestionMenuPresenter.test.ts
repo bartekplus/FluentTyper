@@ -73,6 +73,9 @@ describe("SuggestionMenuPresenter", () => {
     const row = list.querySelector<HTMLElement>("li[data-proposal]");
     expect(row?.querySelector(".ft-suggestion-label")?.textContent).toBe("is → are");
     expect(row?.querySelector(".ft-suggestion-detail")?.textContent).toBe("Use <are> here.");
+    // Its own key, shown before it and named for assistive technology.
+    expect(row?.querySelector(".ft-suggestion-key")?.textContent).toMatch(/^(Alt\+|⌥)⏎$/);
+    expect(row?.getAttribute("aria-keyshortcuts")).toBe("Alt+Enter");
     expect(row?.hasAttribute("data-index")).toBe(false);
     expect(row?.classList.contains("highlight")).toBe(false);
     expect(target.getAttribute("data-ft-suggestion-visible")).toBe("false");

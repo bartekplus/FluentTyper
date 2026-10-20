@@ -44,7 +44,6 @@ import type {
 import {
   MAX_REVIEW_CHARS,
   REVIEW_CATEGORIES,
-  REVIEW_CHUNK_CHARS,
   REVIEW_LOCAL_AI_CHECK,
   REVIEW_SPELLING_CHECK,
 } from "@core/domain/grammar/review/types";
@@ -254,6 +253,12 @@ export interface ReviewSessionDependencies {
   /** Optional on-device model; without it Review works exactly as without Local AI. */
   ai?: ReviewAiProvider;
   /**
+   * Underlines while typing: no panel and no Local AI. While a recheck is
+   * pending, the last findings stay in the state (the caller shows only those
+   * the edit cannot have moved) instead of none. promote() ends it.
+   */
+  ambient?: boolean;
+  /**
    * Local language identification of the reviewed text, used for Local AI when the
    * language setting is "auto_detect"; null when it cannot tell.
    */
@@ -412,6 +417,7 @@ export class ReviewSession {
   private selectedId: string | null = null;
   private notice: ReviewNotice | null = null;
   private recheckTimer: unknown = null;
+  private ambient: boolean;
   private options: ReviewOptions;
   private readonly setTimer: (callback: () => void, delayMs: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
@@ -468,6 +474,7 @@ export class ReviewSession {
   } | null = null;
 
   constructor(private readonly deps: ReviewSessionDependencies) {
+    this.ambient = deps.ambient === true;
     this.options = deps.options;
     this.scope = deps.initialScope ? { ...deps.initialScope } : null;
     this.scopeKind = deps.initialScope ? "selection" : "field";
@@ -493,6 +500,22 @@ export class ReviewSession {
       this.fetchAiStatus(ai);
     }
     await this.refresh();
+  }
+
+  /**
+   * The user asked for the full review of a watched field: the same findings,
+   * now with the panel and, when given, Local AI. Nothing is scanned again.
+   */
+  promote(ai?: ReviewAiProvider): void {
+    if (this.isClosed || !this.ambient) return;
+    this.ambient = false;
+    if (ai && !this.deps.ai) {
+      this.deps.ai = ai;
+      this.aiUnsubscribe = ai.onStatus((status) => this.onAiStatus(status));
+      this.fetchAiStatus(ai);
+      this.startAi();
+    }
+    this.emit();
   }
 
   close(): void {
@@ -783,7 +806,9 @@ export class ReviewSession {
   }
 
   getState(): ReviewViewState {
-    const plan = this.status === "ready" && this.capabilities.bulk ? this.planBulk() : null;
+    // Fix all is the panel's: a watched field plans nothing.
+    const plan =
+      this.status === "ready" && this.capabilities.bulk && !this.ambient ? this.planBulk() : null;
     return {
       status: this.status,
       language: this.languageChoice(),
@@ -791,7 +816,10 @@ export class ReviewSession {
       unavailable: this.unavailable,
       scopeKind: this.scopeKind,
       capabilities: this.capabilities,
-      diagnostics: this.status === "ready" ? this.visibleDiagnostics() : NO_DIAGNOSTICS,
+      diagnostics:
+        this.status === "ready" || (this.ambient && this.status === "updating")
+          ? this.visibleDiagnostics()
+          : NO_DIAGNOSTICS,
       explanations: this.explanations,
       ignoredCount: this.ignoredDiagnostics().filter((d) => d.category !== "style").length,
       ignoredAdviceCount: this.ignoredDiagnostics().filter((d) => d.category === "style").length,
@@ -1474,12 +1502,8 @@ export class ReviewSession {
       {
         snapshot,
         options,
-        // Short drafts showed no benefit. Partial/oversized sources keep the full scan.
-        cache:
-          this.scopeKind === "field" &&
-          !this.unread &&
-          this.text.length > REVIEW_CHUNK_CHARS * 2 &&
-          this.text.length <= MAX_REVIEW_CHARS,
+        // The engine rechecks only around the edit. Partial/oversized sources keep the full scan.
+        cache: this.scopeKind === "field" && !this.unread && this.text.length <= MAX_REVIEW_CHARS,
         resetCache,
         gaps: {
           ...(this.truncated > 0 && { "size-limit": this.truncated }),

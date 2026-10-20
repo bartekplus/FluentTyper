@@ -802,6 +802,8 @@ export interface ReviewPanelSnapshot {
   marks: Array<{ category: string; left: number; top: number; width: number; height: number }>;
   highlights: string[];
   focus: string | null;
+  /** True for underlines while typing: highlights and cards, no panel. */
+  panelHidden: boolean;
 }
 
 /**
@@ -877,6 +879,7 @@ export async function readReviewPanel(page: Page | Frame): Promise<ReviewPanelSn
       focus: focused
         ? `${focused.tagName.toLowerCase()}${focused.dataset.action ? `[${focused.dataset.action}]` : ""}${focused.classList.contains("item") ? ".item" : ""}`
         : null,
+      panelHidden: root?.querySelector<HTMLElement>(".panel")?.hidden === true,
     };
   }, REVIEW_HOST_SELECTOR);
 }

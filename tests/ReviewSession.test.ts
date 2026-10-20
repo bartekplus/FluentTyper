@@ -35,7 +35,9 @@ function harness(
     lang = "en_US",
     resolveAutoLanguage,
     languageRegions,
+    ambient,
   }: {
+    ambient?: boolean;
     lang?: string;
     resolveAutoLanguage?: import("../src/core/application/review/ReviewSession").ReviewSessionDependencies["resolveAutoLanguage"];
     languageRegions?: import("../src/core/application/review/ReviewSession").ReviewSessionDependencies["languageRegions"];
@@ -66,6 +68,7 @@ function harness(
     },
     resolveAutoLanguage,
     languageRegions,
+    ambient,
     initialScope: scope,
     isActive,
     uiLanguage,
@@ -179,6 +182,33 @@ describe("ReviewSession", () => {
     await h.settle();
     expect(h.last().notice).toBeNull();
     expect(h.originals()).toEqual(["teh"]);
+  });
+
+  test("a watched field keeps its findings while a recheck is pending, but cannot write them", async () => {
+    const h = harness("teh cat and teh dog", { ambient: true });
+    await Promise.all([h.session.start(), h.settle()]);
+    expect(h.originals()).toEqual(["teh", "teh"]);
+    const id = h.last().diagnostics[0].id;
+    h.editor.text = "teh cat and teh dogs";
+    h.session.notifySourceChanged();
+    expect(h.last().status).toBe("updating");
+    expect(h.originals()).toEqual(["teh", "teh"]);
+    expect(await h.session.apply(id)).toBeNull();
+    expect(h.editor.applyCalls).toHaveLength(0);
+    // No panel: Fix all is never planned.
+    await h.settle();
+    expect(h.last().status).toBe("ready");
+    expect(h.originals()).toEqual(["teh", "teh"]);
+    expect(h.last().bulk).toEqual({ count: 0, deferred: 0, pending: false });
+  });
+
+  test("an open review shows no findings while a recheck is pending", async () => {
+    const h = harness("teh cat and teh dog");
+    await Promise.all([h.session.start(), h.settle()]);
+    h.editor.text = "teh cat and teh dogs";
+    h.session.notifySourceChanged();
+    expect(h.last().status).toBe("updating");
+    expect(h.last().diagnostics).toEqual([]);
   });
 
   test("a failing read or scan shows the error state instead of loading forever", async () => {

@@ -4,6 +4,7 @@ import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import {
   KEY_SHOW_REVIEW_BUTTON,
   KEY_LIVE_GRAMMAR_PROPOSALS,
+  KEY_REVIEW_WHILE_TYPING,
   KEY_REVIEW_LONG_SENTENCE_WORDS,
 } from "@core/domain/constants";
 import { createInputElement } from "@ui/settings-engine/controls/FieldControl.js";
@@ -25,6 +26,7 @@ export function renderGrammarWorkspacePanel(root: HTMLElement, registry: Setting
   const review = createWorkspaceCard(i18n.get("popup_review_text"));
   moveControlToBody(registry, KEY_SHOW_REVIEW_BUTTON, review.body);
   moveControlToBody(registry, KEY_LIVE_GRAMMAR_PROPOSALS, review.body);
+  moveControlToBody(registry, KEY_REVIEW_WHILE_TYPING, review.body);
   const threshold = registry[KEY_REVIEW_LONG_SENTENCE_WORDS];
   if (threshold) {
     const input = createInputElement("number", "input");

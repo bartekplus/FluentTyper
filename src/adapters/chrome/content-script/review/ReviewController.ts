@@ -17,11 +17,13 @@ import type {
   ReviewOptions,
 } from "@core/domain/grammar/review/types";
 import { REVIEW_CATEGORIES } from "@core/domain/grammar/review/types";
+import { diffTexts } from "@core/domain/grammar/review/textRanges";
 import { GoogleDocsReviewTarget, type GoogleDocsReviewSurface } from "./GoogleDocsReviewTarget";
 import { WordReviewTarget } from "./WordReviewTarget";
 import { GutenbergReviewTarget } from "./GutenbergReviewTarget";
 import { isWordInputProxy } from "../suggestions/CodeContextResolver";
 import { isComposingIn } from "../suggestions/HostEditorControllerUtils";
+import { isQuickFixChord } from "../suggestions/keyboardShortcuts";
 import { notionRootOf } from "../suggestions/NotionEnvironment";
 import {
   ContentEditableReviewTarget,
@@ -44,6 +46,8 @@ export interface ReviewControllerDependencies {
   resume(element: HTMLElement): void;
   /** A suggestion popup is showing for this editor: its Escape closes that first. */
   suggestionsOpen?(element: HTMLElement): boolean;
+  /** The popup shows a typing-time proposal for this editor: Alt+Enter applies that first. */
+  proposalShown?(element: HTMLElement): boolean;
   addToDictionary(word: string): Promise<boolean>;
   disableReviewRule?: (ruleId: CatalogRuleId) => Promise<boolean>;
   /** Local dictionary lookups for unknown words (the extension's own Presage engine). */
@@ -127,6 +131,16 @@ interface ActiveReview {
   paintedDiagnostics: readonly ReviewDiagnostic[] | null;
   /** Suggestions are paused while the review writes a fix. */
   writing: boolean;
+  /** Underlines while typing: no panel until the user asks for the full review. */
+  ambient: boolean;
+  /** The overlay marks last measured, and the field scroll they were measured at. */
+  marks: ReviewMark[];
+  markBox: DOMRect | null;
+  markScroll: string;
+  /** The field's text when the overlay marks were measured. */
+  markText: string;
+  /** Ambient: the user is typing at the caret; findings that touch it wait. */
+  typing: boolean;
 }
 
 /**
@@ -148,9 +162,68 @@ export class ReviewController {
 
   constructor(private readonly deps: ReviewControllerDependencies) {}
 
-  /** The editor an open review is showing. */
+  /** The editor an open review panel is showing (a watched field still gets its button). */
   get reviewedElement(): HTMLElement | null {
-    return this.active?.target.element ?? null;
+    return this.active && !this.active.ambient ? this.active.target.element : null;
+  }
+
+  private watchTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Underlines while typing in `field`: once it has had focus for a moment, a
+   * review without a panel starts on the whole field. An open review panel is
+   * never replaced; a watch of another field ends.
+   */
+  watch(field: HTMLElement): void {
+    if (this.watchTimer !== null) clearTimeout(this.watchTimer);
+    this.watchTimer = null;
+    const active = this.active;
+    if (active && (!active.ambient || active.target.element === field)) return;
+    // Tabbing through a form starts nothing.
+    this.watchTimer = setTimeout(() => {
+      this.watchTimer = null;
+      if (this.active && (!this.active.ambient || this.active.target.element === field)) return;
+      const resolution = resolveReviewTarget(document, undefined);
+      if (!resolution.ok) return;
+      const { target } = resolution;
+      // Word and Gutenberg read their whole model on each pass: they have Review only.
+      if (
+        target.element !== field ||
+        target instanceof WordReviewTarget ||
+        target instanceof GutenbergReviewTarget
+      ) {
+        target.dispose();
+        return;
+      }
+      if (this.active) this.close();
+      this.start(target, null, undefined, true);
+    }, WATCH_DELAY_MS);
+  }
+
+  /** Ends underlines while typing (the setting was turned off); an open panel stays. */
+  stopWatching(): void {
+    if (this.watchTimer !== null) clearTimeout(this.watchTimer);
+    this.watchTimer = null;
+    if (this.active?.ambient) this.close();
+  }
+
+  /** The watched field's full review: the same findings, now with the panel and Local AI. */
+  private promote(): void {
+    const active = this.active;
+    if (!active?.ambient) return;
+    active.ambient = false;
+    active.typing = false;
+    active.ui.closeCard();
+    // The panel first: the state the session emits next renders into it.
+    active.ui.setAmbient(false);
+    const ai = this.deps.createAiProvider?.() ?? undefined;
+    if (ai) active.cleanup.push(() => ai.dispose());
+    active.session.promote(ai);
+    if (this.deps.aiEnabled) active.session.setAiEnabled(this.deps.aiEnabled());
+    active.ui.placeAwayFrom(active.target.element.getBoundingClientRect());
+    this.paint(active);
+    this.deps.onActiveChange?.();
+    active.ui.focusPanel();
   }
 
   private get lang(): string {
@@ -163,7 +236,8 @@ export class ReviewController {
     const docs = this.deps.getDocsSurface();
     // Pressed again from the panel itself: that is "take me to the review".
     if (this.active?.ui.hasFocus()) {
-      this.active.ui.focusPanel();
+      if (this.active.ambient) this.promote();
+      else this.active.ui.focusPanel();
       return;
     }
     // A Docs review is already starting (its first read is asynchronous).
@@ -182,6 +256,11 @@ export class ReviewController {
     const resolution = docs ? null : resolveReviewTarget(document, this.active?.target);
     if (this.active) {
       const same = resolution?.ok && resolution.target.element === this.active.target.element;
+      if (same && this.active.ambient) {
+        if (resolution.target !== this.active.target) resolution.target.dispose();
+        this.promote();
+        return;
+      }
       if (same || (docs && this.active.target instanceof GoogleDocsReviewTarget)) {
         this.active.ui.focusPanel();
         return;
@@ -235,9 +314,11 @@ export class ReviewController {
     target: ReviewTargetHandle,
     scope: { start: number; end: number } | null,
     onClose?: () => void,
+    ambient = false,
   ): void {
     const doc = target.element.ownerDocument;
     const ui = this.createUi(target);
+    ui.setAmbient(ambient);
     target.setMeasurementRoot?.(ui.root);
     ui.placeAwayFrom(target.element.getBoundingClientRect());
 
@@ -248,8 +329,10 @@ export class ReviewController {
         ? highlightApi()
         : null;
 
-    const ai = this.deps.createAiProvider?.() ?? undefined;
+    // Local AI is for the full review only; promote() adds it.
+    const ai = ambient ? undefined : (this.deps.createAiProvider?.() ?? undefined);
     const session = new ReviewSession({
+      ambient,
       target,
       isActive: () => target.element.ownerDocument.visibilityState !== "hidden",
       engine: this.deps.createEngine(),
@@ -278,6 +361,12 @@ export class ReviewController {
       frame: null,
       paintedDiagnostics: null,
       writing: false,
+      ambient,
+      marks: [],
+      markBox: null,
+      markScroll: "",
+      markText: "",
+      typing: false,
     };
     this.active = active;
     this.deps.onActiveChange?.();
@@ -293,7 +382,7 @@ export class ReviewController {
     });
     // Docs only answers while its own input frame is focused; the panel is one
     // Tab/shortcut away. Elsewhere keyboard users land in the panel.
-    if (!(target instanceof GoogleDocsReviewTarget)) ui.focusPanel();
+    if (!ambient && !(target instanceof GoogleDocsReviewTarget)) ui.focusPanel();
   }
 
   private listen(active: ActiveReview): void {
@@ -315,7 +404,10 @@ export class ReviewController {
     if (!(target instanceof GoogleDocsReviewTarget)) {
       // A composition can run already when the review opens.
       target.composing = isComposingIn(element);
-      on(element, "input", () => session.notifySourceChanged());
+      on(element, "input", () => {
+        session.notifySourceChanged();
+        if (active.ambient) this.onAmbientInput(active);
+      });
       // A Notion leaf takes no focus: its composition events fire on the page root.
       const composition = notionRootOf(element) ?? element;
       on(composition, "compositionstart", () => {
@@ -435,9 +527,14 @@ export class ReviewController {
       "pointerdown",
       (event) => {
         this.pressAt = { x: event.clientX, y: event.clientY };
+        if (active.ambient) this.stopTyping(active);
       },
       true,
     );
+    // Leaving the field ends the typing there: findings at the caret show again.
+    on(element, "focusout", () => {
+      if (active.ambient) this.stopTyping(active);
+    });
     // The page's context menu is about the page: the card steps aside.
     on<MouseEvent>(
       doc,
@@ -495,6 +592,7 @@ export class ReviewController {
     const cardAlternative = previous.cardAlternativeIndex();
     const cardHadFocus = previous.cardHasFocus();
     const ui = this.createUi(active.target);
+    ui.setAmbient(active.ambient);
     active.target.setMeasurementRoot?.(ui.root);
     ui.placeAwayFrom(active.target.element.getBoundingClientRect());
     active.ui = ui;
@@ -537,10 +635,17 @@ export class ReviewController {
           ? (id) => {
               this.active?.ui.closeCard();
               void this.active?.session.disableReviewRule(id);
-              this.active?.ui.focusPanel();
+              this.focusHome();
             }
           : undefined,
-        addToDictionary: (id) => void this.active?.session.addToDictionary(id),
+        addToDictionary: (id) => {
+          void this.active?.session.addToDictionary(id);
+          // A watched field has no panel to show the outcome: back to the text.
+          if (this.active?.ambient) {
+            this.active.ui.closeCard();
+            this.focusHome();
+          }
+        },
         fixAll: (viaKeyboard) => void this.fixAll(viaKeyboard),
         toggleCategory: (category: ReviewCategory, shown) =>
           this.active?.session.setCategory(category, shown),
@@ -561,15 +666,24 @@ export class ReviewController {
         previewAiBatch: () => this.active?.session.previewAiBatch(),
         applyAiBatch: () => void this.active?.session.applyAiBatch(),
         cancelAiBatch: () => this.active?.session.cancelAiBatch(),
+        reviewAll: () => this.promote(),
       },
       capabilityKeys(target),
       reviewMountFor(target.element),
     );
   }
 
+  /** Where the keyboard goes after a card action: the panel, or the text of a watched field. */
+  private focusHome(): void {
+    if (this.active?.ambient) this.active.target.focusEditor();
+    else this.active?.ui.focusPanel();
+  }
+
   close(): void {
     // Also cancels a Docs review that is still starting.
     this.startToken += 1;
+    if (this.watchTimer !== null) clearTimeout(this.watchTimer);
+    this.watchTimer = null;
     const active = this.active;
     if (!active) return;
     this.active = null;
@@ -617,6 +731,13 @@ export class ReviewController {
   private select(id: string | null, options: { openCard: boolean; focusList: boolean }): void {
     const active = this.active;
     if (!active) return;
+    // A watched field has no list: closing its card goes back to the editor.
+    if (active.ambient && !options.openCard) {
+      active.session.select(null);
+      active.ui.closeCard();
+      active.target.focusEditor();
+      return;
+    }
     active.session.select(id);
     if (!id) {
       active.ui.closeCard();
@@ -653,7 +774,8 @@ export class ReviewController {
     const index = this.indexOf(active, id);
     active.ui.closeCard();
     const result = await active.session.apply(id, alternative);
-    if (this.active !== active) return;
+    // A watched field goes on with the user's own writing, not with the next finding.
+    if (this.active !== active || active.ambient) return;
     // One fix leads to the next: its card opens where this one was.
     if (result?.status === "applied" && this.openNext(active, index, viaKeyboard)) return;
     if (viaKeyboard) this.focusAfterWrite(active);
@@ -666,6 +788,10 @@ export class ReviewController {
     active.ui.closeCard();
     if (matching) active.session.ignoreMatching(id);
     else active.session.ignore(id);
+    if (active.ambient) {
+      active.target.focusEditor();
+      return;
+    }
     // On to the issue that took this one's place; focus stays in the card.
     if (!this.openNext(active, index, true)) active.ui.focusPanel();
   }
@@ -715,7 +841,12 @@ export class ReviewController {
 
   private paint(active: ActiveReview): void {
     const state = active.state;
-    const diagnostics = state?.status === "ready" ? state.diagnostics : [];
+    if (active.ambient && state?.status === "updating") {
+      this.paintPending(active);
+      return;
+    }
+    const diagnostics =
+      state?.status === "ready" ? this.besideCaret(active, state.diagnostics) : [];
     // The keys can change after Review opened: Docs renders its text runs
     // later, and a model editor can get its writer later.
     active.ui.setCapabilityKeys(capabilityKeys(active.target));
@@ -736,8 +867,129 @@ export class ReviewController {
         .rangeRects(diagnostic.range)
         .filter((rect) => !blockers.some((box) => intersects(rect, box))),
     }));
-    const box = active.target.element.getBoundingClientRect();
+    const element = active.target.element;
+    const box = element.getBoundingClientRect();
+    active.marks = marks;
+    active.markBox = box;
+    active.markScroll = scrollKey(element);
+    active.markText = isTextControl(element) ? element.value : "";
     active.ui.paintMarks(marks, diagnostics.length ? box : null);
+  }
+
+  /**
+   * Underlines while typing, between a keystroke and its recheck: no detection
+   * and no layout. CSS highlights move with the DOM by themselves; only those
+   * at the caret go. Of the overlay marks, those before the edit cannot have
+   * moved and stay as measured; the others wait for the recheck.
+   */
+  private paintPending(active: ActiveReview): void {
+    const element = active.target.element;
+    if (active.cssHighlights) {
+      this.dropCaretHighlights(active);
+      return;
+    }
+    let kept: ReviewMark[] = [];
+    if (isTextControl(element) && active.markScroll === scrollKey(element)) {
+      const diff = diffTexts(active.markText, element.value);
+      const before = new Set(
+        (active.state?.diagnostics ?? [])
+          .filter((d) => !diff || d.range.end < diff.slackStart)
+          .map((d) => d.id),
+      );
+      kept = active.marks.filter((mark) => before.has(mark.id));
+    }
+    active.ui.paintMarks(kept, kept.length ? active.markBox : null);
+  }
+
+  private dropCaretHighlights(active: ActiveReview): void {
+    const registry = active.cssHighlights!.registry;
+    const selection = active.target.element.ownerDocument.getSelection();
+    const node = selection?.focusNode;
+    if (!node) return;
+    const offset = selection.focusOffset;
+    for (const category of REVIEW_CATEGORIES) {
+      const highlight = registry.get(REVIEW_HIGHLIGHT_NAMES[category]) as Set<Range> | undefined;
+      for (const range of highlight ?? []) {
+        try {
+          if (range.comparePoint(node, offset) === 0) highlight!.delete(range);
+        } catch {
+          // The caret is in another root: this range is not at it.
+        }
+      }
+    }
+  }
+
+  /** Underlines while typing: a finding at the caret waits while the user types (its word may be unfinished). */
+  private besideCaret(active: ActiveReview, diagnostics: ReviewDiagnostic[]): ReviewDiagnostic[] {
+    if (!active.ambient || !active.typing) return diagnostics;
+    const element = active.target.element;
+    let kept: ReviewDiagnostic[];
+    if (isTextControl(element)) {
+      if (element.selectionStart !== element.selectionEnd || element.selectionEnd === null)
+        return diagnostics;
+      const caret = element.selectionEnd;
+      kept = diagnostics.filter((d) => caret < d.range.start || caret > d.range.end);
+    } else {
+      const selection = element.ownerDocument.getSelection();
+      const node = selection?.isCollapsed ? selection.focusNode : null;
+      if (!node) return diagnostics;
+      const offset = selection!.focusOffset;
+      kept = diagnostics.filter((d) => {
+        try {
+          return active.target.domRange(d.range)?.comparePoint(node, offset) !== 0;
+        } catch {
+          return true;
+        }
+      });
+    }
+    // The same list keeps the CSS highlights as they are.
+    return kept.length === diagnostics.length ? diagnostics : kept;
+  }
+
+  /**
+   * Alt+Enter in a watched field: the card of the last finding that starts
+   * before the caret, with focus on its fix (Enter applies it, Escape returns).
+   */
+  private openCardBeforeCaret(active: ActiveReview): boolean {
+    if (active.state?.status !== "ready") return false;
+    const element = active.target.element;
+    let last: ReviewDiagnostic | undefined;
+    if (isTextControl(element)) {
+      const caret = element.selectionEnd ?? 0;
+      last = active.state.diagnostics.filter((d) => d.range.start < caret).at(-1);
+    } else {
+      const selection = element.ownerDocument.getSelection();
+      const node = selection?.focusNode;
+      if (!node) return false;
+      const offset = selection.focusOffset;
+      last = active.state.diagnostics
+        .filter((d) => {
+          try {
+            return (active.target.domRange(d.range)?.comparePoint(node, offset) ?? -1) >= 0;
+          } catch {
+            return false;
+          }
+        })
+        .at(-1);
+    }
+    if (!last) return false;
+    this.stopTyping(active);
+    this.select(last.id, { openCard: true, focusList: false });
+    active.ui.focusCard();
+    return true;
+  }
+
+  /** The caret moved without typing: findings at it show again. */
+  private stopTyping(active: ActiveReview): void {
+    if (!active.typing) return;
+    active.typing = false;
+    if (active.state?.status === "ready") this.paint(active);
+  }
+
+  private onAmbientInput(active: ActiveReview): void {
+    active.typing = true;
+    active.ui.closeCard();
+    this.paintPending(active);
   }
 
   private paintCss(
@@ -863,9 +1115,21 @@ export class ReviewController {
 
   private onEditorKeyDown(event: KeyboardEvent): void {
     const active = this.active;
+    if (active?.ambient && CARET_KEYS.has(event.key)) this.stopTyping(active);
+    if (active?.ambient && isQuickFixChord(event)) {
+      const element = active.target.element;
+      if (!event.composedPath().includes(element) || this.deps.proposalShown?.(element)) return;
+      if (this.openCardBeforeCaret(active)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      return;
+    }
     if (!active || event.key !== "Escape" || event.isComposing || active.ui.owns(event)) return;
     const element = active.target.element;
     if (!event.composedPath().includes(element) || this.deps.suggestionsOpen?.(element)) return;
+    // A watched field: Escape closes its card; otherwise the key stays the page's.
+    if (active.ambient && !active.ui.isCardOpen()) return;
     // Escape closes an AI batch preview or the card first, then the review.
     event.preventDefault();
     event.stopPropagation();
@@ -940,6 +1204,8 @@ export class ReviewController {
   dispose(): void {
     this.close();
     this.dismissNotice();
+    // close() may have handed the focused field back to a watch.
+    this.stopWatching();
   }
 }
 
@@ -971,6 +1237,25 @@ const NOTICE_CALLBACKS: ReviewUiCallbacks = {
 
 /** How often an open review checks for changes that fire no event. */
 const SOURCE_POLL_MS = 1000;
+
+/** Focus time before a watched field's first check: tabbing through a form starts nothing. */
+const WATCH_DELAY_MS = 300;
+
+/** Keys that move the caret without typing. */
+const CARET_KEYS = new Set([
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "ArrowDown",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+]);
+
+function scrollKey(element: HTMLElement): string {
+  return `${element.scrollTop},${element.scrollLeft}`;
+}
 
 function capabilityKeys(target: ReviewTargetHandle): ReviewTextKey[] {
   // Docs shows text runs only for an allowed extension and only for rendered

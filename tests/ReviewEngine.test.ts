@@ -12,6 +12,9 @@ import type {
   ReviewScanRequest,
 } from "../src/core/domain/contracts/reviewEngine";
 import { findLiveGrammarProposals } from "../src/core/domain/grammar/review/liveProposals";
+import type { LiveGrammarProposal } from "../src/core/domain/grammar/review/liveProposalSelection";
+import { reviewText } from "../src/core/domain/grammar/review/reviewMessages";
+import { REVIEW_SPELLING_CHECK } from "../src/core/domain/grammar/review/types";
 import {
   explanationTable,
   reviewExplanation,
@@ -170,6 +173,49 @@ describe("review engine over messaging", () => {
     const [live] = sent as Array<Extract<ReviewEngineRequest, { op: "live" }>>;
     expect(live.beforeCursor.length).toBe(501);
     expect(live.uiLanguage).toBe("de");
+  });
+
+  test("a typing pause offers the best spelling of the last finished word the dictionary lacks", async () => {
+    const host = new ReviewEngineHost(packaged);
+    const looked: string[] = [];
+    const lookup = async (_lang: string, words: ReadonlyArray<{ word: string }>) => {
+      looked.push(...words.map(({ word }) => word));
+      return words.map(({ word }) => (word === "recieve" ? ["receive", "relieve"] : null));
+    };
+    const live = async (beforeCursor: string) => {
+      const answer = await host.handle(
+        {
+          op: "live",
+          beforeCursor,
+          options: {
+            ...OPTIONS,
+            enabledRules: ["englishPronounVerbWhitelistAgreement"],
+            liveRules: [],
+          },
+          uiLanguage: "pl",
+        },
+        { tabId: 1, frameId: 0 },
+        lookup,
+      );
+      return answer.ok ? (answer.value as LiveGrammarProposal[]) : null;
+    };
+    expect(await live("We recieve it")).toEqual([
+      {
+        ruleId: REVIEW_SPELLING_CHECK,
+        messageKey: "review_msg_unknown_word",
+        start: 3,
+        end: 10,
+        original: "recieve",
+        replacement: "receive",
+        explanation: reviewText("review_msg_unknown_word", "pl"),
+      },
+    ]);
+    // A known word gives nothing; so does a word still being typed ("We" is looked up instead).
+    expect(await live("We receive it")).toEqual([]);
+    expect(await live("We recieve")).toEqual([]);
+    // A capitalized word inside a sentence is a name: the check passes it by.
+    expect(await live("We met Jhon at")).toEqual([]);
+    expect(looked).toEqual(["recieve", "receive", "We"]);
   });
 
   test("explanations in another UI language: known background keys only, once each", async () => {
@@ -374,7 +420,7 @@ describe("ReviewEngineHost", () => {
     const released: string[] = [];
     const sessions = (host as unknown as { sessions: Map<string, { engine: LocalReviewEngine }> })
       .sessions;
-    for (let tab = 1; tab <= 10; tab += 1) {
+    for (let tab = 1; tab <= 18; tab += 1) {
       await host.handle(
         { op: "scan", session: "s", id: 1, request: scanRequest("x(1) teh") },
         { tabId: tab, frameId: 0 },
@@ -386,12 +432,12 @@ describe("ReviewEngineHost", () => {
         release();
       };
     }
-    expect(sessions.size).toBe(8);
+    expect(sessions.size).toBe(16);
     expect([...sessions.keys()][0]).toBe("3:0:s");
     expect(released).toEqual(["1", "2"]);
     await host.handle(
       { op: "scan", session: "s", id: 1, request: scanRequest("x(1) teh") },
-      { tabId: 11, frameId: 0 },
+      { tabId: 19, frameId: 0 },
     );
     expect(released).toEqual(["1", "2", "3"]);
   });

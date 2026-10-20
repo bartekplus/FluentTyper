@@ -29,7 +29,7 @@ import { notationToken } from "./english/typography";
 import { PROSE_SLASH_TOKEN, slashedProseWord } from "./english/remaining";
 import { PLACE_STATE_TOKEN, PORTUGUESE_PROSE_TOKEN } from "./portuguese/typography";
 import { POLISH_PROSE_TOKEN } from "./polish/shared";
-import { applyEdits, positionMapper } from "./textRanges";
+import { applyEdits, diffTexts, positionMapper } from "./textRanges";
 import {
   MASK_CHAR,
   MAX_REVIEW_CHARS,
@@ -50,6 +50,11 @@ const PROOF_WINDOWS_PER_CHUNK = 8;
 const SCAN_LOOKAHEAD = 1_024;
 // Context read around the scope; enough for every rule's look-behind.
 const CONTEXT_MARGIN = 512;
+// An incremental scan rescans from this far before an edit (a finding there may read
+// SCAN_LOOKAHEAD into it) to this far after it (look-behind).
+const INCREMENTAL_BACK = SCAN_LOOKAHEAD;
+const INCREMENTAL_FORWARD = CONTEXT_MARGIN;
+const DOUBLE_QUOTES = /["“”„«»]/;
 
 export interface PreparedReview {
   snapshot: ReviewSourceSnapshot;
@@ -301,9 +306,12 @@ function technicalRanges(source: string, from: number, to: number, lang: string)
   return ranges;
 }
 
-/** Scope split into chunks of about REVIEW_CHUNK_CHARS that end at a line end, else a space. */
-export function reviewChunks(prepared: PreparedReview): TextRange[] {
-  const { start, end } = prepared.snapshot.scope;
+/** Scope (or `range`) split into chunks of about REVIEW_CHUNK_CHARS that end at a line end, else a space. */
+export function reviewChunks(
+  prepared: PreparedReview,
+  range: TextRange = prepared.snapshot.scope,
+): TextRange[] {
+  const { start, end } = range;
   const chunks: TextRange[] = [];
   let cursor = start;
   while (cursor < end) {
@@ -329,6 +337,132 @@ export function reviewChunks(prepared: PreparedReview): TextRange[] {
 export interface ChunkScan {
   findings: RawFinding[];
   failedRules: CatalogRuleId[];
+}
+
+/**
+ * The plan to rescan `next` after `last` (a scan of the same whole field, every
+ * finding raw and none failed): `last`'s findings outside the window around the
+ * one edit between the two texts, moved to the new text, and the window to
+ * scan. Null when a full scan is needed: other options or scope, a window over
+ * half the text, or an edit that changed text-wide input outside the window
+ * (protection, code fences, quotations, terminology, style findings).
+ */
+export function incrementalScan(
+  last: { prepared: PreparedReview; findings: readonly RawFinding[] },
+  next: PreparedReview,
+): { reused: RawFinding[]; window: TextRange | null } | null {
+  const before = last.prepared.snapshot;
+  const after = next.snapshot;
+  const whole = (snapshot: ReviewSourceSnapshot) =>
+    !snapshot.selection &&
+    !snapshot.incomplete &&
+    snapshot.scope.start === 0 &&
+    snapshot.scope.end === snapshot.text.length &&
+    snapshot.text.length <= MAX_REVIEW_CHARS;
+  if (
+    !whole(before) ||
+    !whole(after) ||
+    JSON.stringify(last.prepared.options) !== JSON.stringify(next.options)
+  )
+    return null;
+  const diff = diffTexts(before.text, after.text);
+  const editStart = diff?.slackStart ?? 0;
+  const oldEnd = diff?.oldEnd ?? 0;
+  const delta = diff ? diff.newEnd - diff.oldEnd : 0;
+  // Same text (protection may have changed): nothing to rescan if the inputs below agree.
+  let window: TextRange | null = null;
+  if (diff) {
+    const text = after.text;
+    const from = Math.max(0, editStart - INCREMENTAL_BACK);
+    // From a line start, as a chunk starts: a match can open well before its finding.
+    const lineStart = text.lastIndexOf("\n", from - 1) + 1;
+    let end = Math.min(text.length, diff.newEnd + INCREMENTAL_FORWARD);
+    // A straight double quote is read as opening or closing by the marks before
+    // it in its paragraph: a changed mark or paragraph break (blank line) can
+    // change every one after it there.
+    const edited = before.text.slice(editStart, oldEnd) + text.slice(editStart, diff.newEnd);
+    // With a character on each side: a blank line the edit made or removed.
+    const around = (source: string, end: number) =>
+      source.slice(Math.max(0, editStart - 1), end + 1).includes("\n\n");
+    if (DOUBLE_QUOTES.test(edited) || around(before.text, oldEnd) || around(text, diff.newEnd)) {
+      const paragraphEnd = text.indexOf("\n\n", diff.newEnd);
+      end = Math.max(end, paragraphEnd < 0 ? text.length : paragraphEnd);
+    }
+    const lineEnd = text.indexOf("\n", end);
+    window = {
+      start: from - lineStart <= REVIEW_CHUNK_CHARS ? lineStart : from,
+      end: lineEnd >= 0 && lineEnd - end <= REVIEW_CHUNK_CHARS ? lineEnd + 1 : end,
+    };
+  }
+  if (window && 2 * (window.end - window.start) > after.text.length) return null;
+  // A range of the old text in the new one; null when the edit touched it.
+  const move = (range: TextRange): TextRange | null =>
+    range.end <= editStart
+      ? range
+      : range.start >= oldEnd
+        ? { start: range.start + delta, end: range.end + delta }
+        : null;
+  const inWindow = (range: TextRange) =>
+    window !== null && range.start >= window.start && range.end <= window.end;
+  // Where a range the edit touched can be in the new text, at most.
+  const cover = (range: TextRange): TextRange => ({
+    start: Math.min(range.start, editStart),
+    end: range.end > oldEnd ? range.end + delta : diff!.newEnd,
+  });
+  // Text-wide inputs must agree outside the window; a range across the edit cannot.
+  const outside = <T extends { range: TextRange; context?: TextRange }>(
+    items: readonly T[],
+    moved: boolean,
+  ): string | null => {
+    const kept: unknown[] = [];
+    for (const item of items) {
+      const range = moved ? move(item.range) : item.range;
+      const context = item.context && (moved ? move(item.context) : item.context);
+      if (!range || (item.context && !context)) {
+        if (inWindow(cover(item.range))) continue;
+        return null;
+      }
+      if (inWindow(range)) continue;
+      kept.push({ ...item, range, ...(context && { context }) });
+    }
+    return JSON.stringify(kept);
+  };
+  const wrap = (ranges: readonly TextRange[]) => ranges.map((range) => ({ range }));
+  const reasons = (ranges: readonly ProtectedRange[]) =>
+    ranges.map(({ start, end, reason }) => ({ range: { start, end }, reason }));
+  const pairs: Array<[readonly { range: TextRange }[], readonly { range: TextRange }[]]> = [
+    [reasons(last.prepared.protectedRanges), reasons(next.protectedRanges)],
+    [wrap(last.prepared.quotations.ranges), wrap(next.quotations.ranges)],
+    [wrap(last.prepared.quotations.examples), wrap(next.quotations.examples)],
+    [last.prepared.quotationFindings, next.quotationFindings],
+    [last.prepared.styleFindings, next.styleFindings],
+    [last.prepared.terminology.findings, next.terminology.findings],
+    [wrap(last.prepared.terminology.ranges), wrap(next.terminology.ranges)],
+  ];
+  for (const [old, now] of pairs) {
+    const a = outside(old, true);
+    if (a === null || a !== outside(now, false)) return null;
+  }
+  if (
+    last.prepared.terminology.limitedChars !== next.terminology.limitedChars ||
+    last.prepared.styleFailedRules.length > 0 ||
+    next.styleFailedRules.length > 0
+  )
+    return null;
+  // A scan owns the findings that start in it: those outside the window are kept.
+  const reused: RawFinding[] = [];
+  for (const finding of last.findings) {
+    const range = move(finding.range);
+    const context = finding.context && move(finding.context);
+    if (range && (!finding.context || context)) {
+      if (window && range.start >= window.start && range.start < window.end) continue;
+      reused.push({ ...finding, range, ...(context && { context }) });
+    } else if (!window || finding.range.start < window.start) {
+      // The edit changed its text, but no window scan owns it (a finding longer than the margin).
+      return null;
+    }
+  }
+  return { reused, window };
 }
 
 /** Runs every enabled detector over one chunk. A throwing detector is reported, not fatal. */

@@ -283,6 +283,13 @@ ${DARK_PALETTE}
   color: var(--ft-panel-highlight-accent);
 }
 
+/* The proposal's key ("Alt+⏎") in the number badge's style, as wide as its text. */
+.ft-suggestion-key {
+  width: auto;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
 .ft-suggestion-list li.highlight .ft-suggestion-detail {
   color: color-mix(in srgb, var(--ft-panel-highlight-fg) 72%, var(--ft-panel-highlight-bg));
 }

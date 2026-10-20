@@ -100,6 +100,24 @@ describe("Review language coverage", () => {
     expect(await reviewLanguageRegions(long, "en_US", async () => "en", false)).toEqual([]);
   });
 
+  test("with a cache, a recheck asks only for the changed paragraphs", async () => {
+    const cache = new Map<string, Promise<string | null>>();
+    const asked: string[] = [];
+    const detect = async (sample: string) => {
+      asked.push(sample);
+      return "en";
+    };
+    const long = Array.from({ length: 40 }, (_, i) => `${i} This is a long paragraph.`);
+    await reviewLanguageRegions(long.join("\n"), "en_US", detect, true, cache);
+    expect(asked).toHaveLength(32);
+    asked.length = 0;
+    long[0] = "0 This paragraph changed now.";
+    // Cached paragraphs take no request slot: the changed one and the 8 past the cap are asked.
+    const regions = await reviewLanguageRegions(long.join("\n"), "en_US", detect, true, cache);
+    expect(asked).toEqual([long[0], ...long.slice(32)]);
+    expect(regions).toEqual([]);
+  });
+
   test("mixed script and code cannot become native or spelling findings", async () => {
     const text = "teh cat\nこれは日本語です teh\n`teh` https://example.com user_name";
     const snapshot = {

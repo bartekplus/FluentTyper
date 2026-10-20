@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { LocalReviewEngine } from "../src/core/application/review/LocalReviewEngine";
 import {
   ReviewSession,
@@ -114,7 +114,7 @@ function harness(
     deps = {} as Partial<
       Pick<
         ReviewSessionDependencies,
-        "addToDictionary" | "lookupSpelling" | "detectLanguage" | "resolveAutoLanguage"
+        "addToDictionary" | "lookupSpelling" | "detectLanguage" | "resolveAutoLanguage" | "ambient"
       >
     >,
     rules = ["englishTypoWhitelistCorrection"],
@@ -161,6 +161,25 @@ function harness(
 const TEXT = "We saw teh cat. She go home now.";
 
 describe("ReviewSession with Local AI: Correct", () => {
+  test("a watched field runs no Local AI; promote adds it to the same findings without a scan", async () => {
+    const scan = spyOn(LocalReviewEngine.prototype, "scan");
+    try {
+      const h = harness(TEXT, { ai: null, deps: { ambient: true } });
+      await h.start();
+      expect(h.last().diagnostics.map((d) => d.original)).toEqual(["teh"]);
+      const scans = scan.mock.calls.length;
+      const ai = new FakeAi();
+      h.session.promote(ai);
+      await h.settle();
+      expect(scan.mock.calls.length).toBe(scans);
+      expect(ai.requests.length).toBeGreaterThan(0);
+      expect(h.aiFindings().map((d) => d.original)).toEqual(["go"]);
+      expect(h.last().bulk.count).toBe(1);
+    } finally {
+      scan.mockRestore();
+    }
+  });
+
   test("regular Review offers a dense AI correction for manual acceptance", async () => {
     const h = harness("I makes a much of mistake!");
     h.ai.fix = () => "I make many mistakes!";

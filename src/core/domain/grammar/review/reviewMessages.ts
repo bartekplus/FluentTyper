@@ -857,6 +857,17 @@ const UI = {
     "Próximo problema",
   ],
   review_card_more: ["More", "Plus", "Više", "Más", "Περισσότερα", "Mer", "Mehr", "Więcej", "Mais"],
+  review_card_review_all: [
+    "Review all",
+    "Tout relire",
+    "Pregledaj sve",
+    "Revisar todo",
+    "Έλεγχος όλων",
+    "Granska allt",
+    "Alles prüfen",
+    "Sprawdź wszystko",
+    "Revisar tudo",
+  ],
   review_close: [
     "Close review",
     "Fermer la relecture",

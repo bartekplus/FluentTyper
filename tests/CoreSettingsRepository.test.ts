@@ -32,6 +32,8 @@ describe("CoreSettingsRepository", () => {
     ["getShowReviewButton", { showReviewButton: false }, false],
     ["getLiveGrammarProposals", {}, true],
     ["getLiveGrammarProposals", { liveGrammarProposals: false }, false],
+    ["getReviewWhileTyping", {}, false],
+    ["getReviewWhileTyping", { reviewWhileTyping: true }, true],
     ["getCodeMode", {}, false],
     ["getAutocompleteOnEnter", {}, true],
     ["getAutocompleteOnTab", {}, true],

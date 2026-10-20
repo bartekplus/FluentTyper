@@ -159,6 +159,11 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getBooleanField("liveGrammarProposals", true);
   }
 
+  /** Review underlines in the focused field while typing; off unless turned on. */
+  async getReviewWhileTyping(): Promise<boolean> {
+    return this.getBooleanField("reviewWhileTyping", false);
+  }
+
   async getInsertSpaceAfterAutocomplete(): Promise<boolean> {
     return this.getBooleanField("insertSpaceAfterAutocomplete", true);
   }

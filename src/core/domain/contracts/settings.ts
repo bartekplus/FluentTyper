@@ -35,6 +35,7 @@ export interface SettingsSchema {
   showSuggestionFooter: boolean;
   showReviewButton: boolean;
   liveGrammarProposals: boolean;
+  reviewWhileTyping: boolean;
   localAiReviewEnabled: boolean;
   localAiReviewTier: LocalAiModelTier;
   /** Written only by the explicit Install action; never inferred or migrated. */

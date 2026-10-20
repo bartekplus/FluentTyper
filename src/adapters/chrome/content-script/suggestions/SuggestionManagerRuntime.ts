@@ -338,6 +338,19 @@ export class SuggestionManagerRuntime {
     if (isInDocument(elem)) this.queryAndAttachHelper(elem);
   }
 
+  /** A typing-time proposal row is showing for this editor: Alt+Enter is its key. */
+  public hasGrammarProposal(elem: HTMLElement): boolean {
+    for (const [, entry] of this.entries) {
+      if (entry.elem !== elem && !elem.contains(entry.elem) && !entry.elem.contains(elem)) continue;
+      if (
+        entry.grammarProposal &&
+        this.menuPresenter.isVisible(entry.menu, this.menuRowCount(entry))
+      )
+        return true;
+    }
+    return false;
+  }
+
   /** A suggestion menu or inline preview is showing in (or around) this editor. */
   public hasOpenSuggestions(elem: HTMLElement): boolean {
     for (const [, entry] of this.entries) {

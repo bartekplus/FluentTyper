@@ -10331,6 +10331,128 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Underline issues while typing marks findings without the panel and keeps them while typing",
+    async () => {
+      await prepareReviewPage();
+      await setSetting(worker, "reviewWhileTyping", true);
+      await notifyConfigChange(browser, worker);
+      try {
+        await setTextarea("I saw teh cat.", [14, 14]);
+        let panel = await waitForReview(
+          page,
+          "underlined without a click",
+          (p) => p.open && p.panelHidden && p.marks.length === 1,
+        );
+        const first = panel.marks[0];
+        // Text added after it (pasted: typing would autocorrect "teh"): the mark
+        // before the edit stays while the recheck runs.
+        await page.evaluate(() => {
+          const field = document.querySelector<HTMLTextAreaElement>("#test-textarea")!;
+          field.setRangeText(" And teh dog.", 14, 14, "end");
+          field.dispatchEvent(
+            new InputEvent("input", { bubbles: true, inputType: "insertFromPaste" }),
+          );
+        });
+        expect((await readReviewPanel(page)).marks).toContainEqual(first);
+        panel = await waitForReview(
+          page,
+          "the new finding is underlined too",
+          (p) => p.panelHidden && p.marks.length === 2,
+        );
+        expect(await page.evaluate(() => document.activeElement?.id)).toBe("test-textarea");
+
+        // Alt+Enter: the card of the last issue before the caret, focus on its fix; Enter applies it.
+        await page.keyboard.down("Alt");
+        await page.keyboard.press("Enter");
+        await page.keyboard.up("Alt");
+        await waitForReview(
+          page,
+          "card of the last issue",
+          (p) => p.card.open && p.panelHidden && p.focus === "button[apply]",
+        );
+        await page.keyboard.press("Enter");
+        await waitUntil(
+          "fix applied",
+          async () => (await textareaValue()) === "I saw teh cat. And the dog.",
+        );
+        await waitForReview(
+          page,
+          "one finding left",
+          (p) => p.panelHidden && !p.card.open && p.marks.length === 1,
+        );
+
+        // A click on an underline opens its card, still without the panel; Review all
+        // opens the panel on the same findings.
+        await page.mouse.click(first.left + first.width / 2, first.top + first.height / 2);
+        await waitForReview(page, "card without panel", (p) => p.card.open && p.panelHidden);
+        await clickReviewControl(page, ".card [data-action=review-all]");
+        await waitForReview(
+          page,
+          "full review",
+          // The fix from the card counts as this review's: "Fixed: 1. Issues: 1".
+          (p) => !p.panelHidden && p.items.length === 1 && /Issues: 1$/.test(p.status),
+        );
+        // Back in the text, Escape closes the review. The field keeps focus (no focus
+        // event): its underlines come back without the panel.
+        await page.focus("#test-textarea");
+        await page.keyboard.press("Escape");
+        await waitForReview(
+          page,
+          "underlines again after the panel closed",
+          (p) => p.open && p.panelHidden && p.marks.length === 1,
+        );
+
+        // A word being typed is not underlined while the caret is at it; leaving the field shows it.
+        await page.evaluate(() => {
+          const field = document.querySelector<HTMLTextAreaElement>("#test-textarea")!;
+          field.focus();
+          field.setSelectionRange(field.value.length, field.value.length);
+        });
+        await page.keyboard.type(" We go quikly");
+        // A mark that must not show gives no event: wait past the recheck (400 ms) and a lookup.
+        await sleep(1200);
+        expect((await readReviewPanel(page)).marks).toHaveLength(1);
+        await page.evaluate(() => (document.activeElement as HTMLElement).blur());
+        await waitForReview(
+          page,
+          "the typed word underlined after leaving",
+          (p) => p.marks.length === 2,
+        );
+
+        // A contenteditable field: CSS highlights, which move with the DOM by themselves.
+        const spellingRanges = () =>
+          page.evaluate(() => CSS.highlights.get("fluenttyper-review-spelling")?.size ?? 0);
+        await page.evaluate(() => {
+          const field = document.querySelector<HTMLElement>("#test-contenteditable")!;
+          field.textContent = "I saw teh cat.";
+          field.focus();
+          getSelection()!.collapse(field.firstChild, 14);
+        });
+        await waitUntil("contenteditable underlined", async () => (await spellingRanges()) === 1);
+        expect((await readReviewPanel(page)).panelHidden).toBe(true);
+        await page.evaluate(() => {
+          const text = document.querySelector("#test-contenteditable")!.firstChild as Text;
+          text.appendData(" And teh dog.");
+          text.parentElement!.dispatchEvent(
+            new InputEvent("input", { bubbles: true, inputType: "insertFromPaste" }),
+          );
+        });
+        expect(await spellingRanges()).toBe(1);
+        await waitUntil("both underlined", async () => (await spellingRanges()) === 2);
+      } finally {
+        await setSetting(worker, "reviewWhileTyping", false);
+        await notifyConfigChange(browser, worker);
+      }
+      // Turned off: a focused field gets no underlines. Nothing fires for a check
+      // that must not start; wait past the watch delay (300 ms) and one scan.
+      await setTextarea("I saw teh cat.", [14, 14]);
+      await sleep(800);
+      expect((await readReviewPanel(page)).open).toBe(false);
+    },
+    suiteTimeout(30000, 45000),
+  );
+
+  test(
     "Grammar proposals while typing are shown after a pause and applied only when picked",
     async () => {
       await prepareReviewPage();
@@ -10384,6 +10506,45 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await sleep(600);
       expect(await proposal()).toBeNull();
       expect(await textareaValue()).toBe("We are ready. They has left. So");
+
+      // Alt+Enter applies a shown proposal without moving onto it.
+      const altEnter = async () => {
+        await page.keyboard.down("Alt");
+        await page.keyboard.press("Enter");
+        await page.keyboard.up("Alt");
+      };
+      await setTextarea("");
+      await page.keyboard.type("They has gone. ");
+      await waitUntil(
+        "proposal for Alt+Enter",
+        async () => (await proposal())?.text === "has → have",
+        {
+          timeoutMs: SUGGESTION_TIMEOUT_MS,
+        },
+      );
+      await altEnter();
+      await waitUntil(
+        "applied with Alt+Enter",
+        async () => (await textareaValue()) === "They have gone. ",
+        {
+          timeoutMs: SUGGESTION_TIMEOUT_MS,
+        },
+      );
+      // The last finished word, when the dictionary does not know it: its best spelling.
+      await page.keyboard.type("We go quikly ");
+      await waitUntil(
+        "spelling proposal",
+        async () => (await proposal())?.text === "quikly → quickly",
+        {
+          timeoutMs: SUGGESTION_TIMEOUT_MS,
+        },
+      );
+      await altEnter();
+      await waitUntil(
+        "spelling applied",
+        async () => (await textareaValue()) === "They have gone. We go quickly ",
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      );
 
       // Turned off in settings: nothing is proposed.
       await setSetting(worker, "liveGrammarProposals", false);

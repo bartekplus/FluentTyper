@@ -4,7 +4,11 @@ import type {
   ReviewScanRequest,
   ReviewScanResponse,
 } from "@core/domain/contracts/reviewEngine";
-import { findLiveGrammarProposals } from "@core/domain/grammar/review/liveProposals";
+import { findLiveProposals } from "@core/domain/grammar/review/liveProposals";
+import { reviewText } from "@core/domain/grammar/review/reviewMessages";
+import { rankSpellingSuggestions } from "@core/domain/grammar/review/reviewSpelling";
+import { REVIEW_SPELLING_CHECK } from "@core/domain/grammar/review/types";
+import type { ReviewSpellingLookup } from "./ReviewSession";
 import type {
   LiveGrammarProposal,
   LiveProposalOptions,
@@ -17,8 +21,11 @@ import {
   setReviewData,
   type ReviewLanguageData,
 } from "@core/domain/grammar/review/reviewLanguageData";
+import { reviewDay } from "@core/domain/grammar/review/reviewClock";
+import type { RawFinding } from "@core/domain/grammar/review/reviewDetectors";
 import {
   finalizeReviewAsync,
+  incrementalScan,
   prepareReview,
   reviewChunks,
   scanReviewChunk,
@@ -53,6 +60,8 @@ export class LocalReviewEngine implements ReviewEngine {
   private readonly cache = new NativeReviewCache();
   // The last scanned snapshot, prepared: proofs for it start from it.
   private last: PreparedReview | null = null;
+  // The last scan's raw findings, when the next whole-field scan may reuse them.
+  private memory: { prepared: PreparedReview; findings: RawFinding[]; day: number } | null = null;
 
   constructor(
     private readonly pause: () => Promise<void> = yieldTask,
@@ -73,10 +82,21 @@ export class LocalReviewEngine implements ReviewEngine {
     await this.loadLanguage(request.options.lang);
     signal?.throwIfAborted();
     if (request.resetCache || !request.cache) this.cache.clear();
+    if (request.resetCache) this.memory = null;
     const prepared = prepareReview(request.snapshot, request.options);
-    const scans: ChunkScan[] = [];
-    for (const chunk of reviewChunks(prepared)) {
-      scans.push(scanReviewChunk(prepared, chunk, request.cache ? this.cache : undefined));
+    const cache = request.cache ? this.cache : undefined;
+    const day = reviewDay();
+    // After an edit, only the text around it is scanned again.
+    const plan =
+      request.cache && this.memory?.day === day ? incrementalScan(this.memory, prepared) : null;
+    const scans: ChunkScan[] = plan ? [{ findings: plan.reused, failedRules: [] }] : [];
+    const ranges = plan
+      ? plan.window
+        ? reviewChunks(prepared, plan.window)
+        : []
+      : reviewChunks(prepared);
+    for (const chunk of ranges) {
+      scans.push(scanReviewChunk(prepared, chunk, cache));
       await this.pause();
       signal?.throwIfAborted();
     }
@@ -85,6 +105,10 @@ export class LocalReviewEngine implements ReviewEngine {
       signal?.throwIfAborted();
     });
     this.last = prepared;
+    const findings = scans.flatMap((scan) => scan.findings);
+    this.memory = scans.every((scan) => scan.failedRules.length === 0)
+      ? { prepared, findings, day }
+      : null;
     const { snapshot, options: _options, rules, dictionary, text, ...data } = prepared;
     return {
       result,
@@ -120,13 +144,41 @@ export class LocalReviewEngine implements ReviewEngine {
     });
   }
 
+  /** `lookupSpelling` (the background's dictionary) adds the last finished word's best spelling. */
   async liveProposals(
     beforeCursor: string,
     options: LiveProposalOptions,
     uiLanguage: string,
+    lookupSpelling?: ReviewSpellingLookup,
   ): Promise<LiveGrammarProposal[]> {
     await this.loadLanguage(options.lang);
-    return findLiveGrammarProposals(beforeCursor, options, await this.explainer(uiLanguage));
+    const { proposals, spelling } = findLiveProposals(
+      beforeCursor,
+      options,
+      await this.explainer(uiLanguage),
+    );
+    if (!spelling || !lookupSpelling) return proposals;
+    // The last finished word, when the dictionary does not know it: its best candidate.
+    const answer = await lookupSpelling(options.lang, [
+      { word: spelling.lookup, before: spelling.before },
+    ]).catch(() => null);
+    const candidates = answer?.[0];
+    const replacement = candidates
+      ? rankSpellingSuggestions(spelling.word, candidates, options.lang)[0]
+      : undefined;
+    if (!replacement) return proposals;
+    return [
+      ...proposals,
+      {
+        ruleId: REVIEW_SPELLING_CHECK,
+        messageKey: "review_msg_unknown_word" as const,
+        start: spelling.range.start,
+        end: spelling.range.end,
+        original: spelling.word,
+        replacement,
+        explanation: reviewText("review_msg_unknown_word", uiLanguage),
+      },
+    ].sort((a, b) => a.start - b.start);
   }
 
   explanations(keys: readonly string[], uiLanguage: string): Promise<ReviewExplanations> {
@@ -156,5 +208,6 @@ export class LocalReviewEngine implements ReviewEngine {
   release(): void {
     this.cache.clear();
     this.last = null;
+    this.memory = null;
   }
 }
