@@ -63,6 +63,11 @@ fragments:
   CLOSINGS: "atenciosamente|cordialmente|respeitosamente|cumprimentos|melhores{{S}}cumprimentos|com{{S}}os{{S}}melhores{{S}}cumprimentos|saudações|abraços|um{{S}}abraço|um{{S}}grande{{S}}abraço|beijos|grato{{S}}pela{{S}}atenção|grata{{S}}pela{{S}}atenção|obrigad[oa]{{S}}pela{{S}}atenção"
   LINE_END: "(?=[ \\t\\u00a0]{0,8}(?:\\n|$))"
   OPENING_PHRASES: "por{{S}}favor|além{{S}}disso|no{{S}}entanto|na{{S}}verdade|por{{S}}outro{{S}}lado|ou{{S}}seja|em{{S}}suma|em{{S}}resumo|por{{S}}fim|enfim|aliás|contudo|todavia|portanto|porém|infelizmente|felizmente|sinceramente|obviamente|evidentemente|certamente|finalmente"
+  ATTRACTORS: "não|nunca|jamais|ninguém|nada|nenhum|nenhuma|algum|alguma|quem|tampouco|tudo|todos|todas|alguém|algo|já|só|talvez|apenas|quase|ainda|também|sempre|que|quando|porque|embora|enquanto|onde|conforme"
+  SIMPLE: "me|te|se|lhe|lhes|nos|vos"
+  OBJECT: "l[oa]s?|n[oa]s?|[oa]s?"
+  FUTURE_ENDINGS: "ei|ás|á|emos|eis|ão|ia|ias|íamos|íeis|iam"
+  INFINITIVE_LEAD: "vai|vou|vamos|vão|ia|iam|irá|quero|queria|quer|querem|queremos|pode|posso|podemos|podem|podia|poderia|deve|devo|devemos|devem|deveria|preciso|precisa|precisamos|precisam|consegue|consigo|conseguimos|tento|tenta|tentar|gostaria|gosto|sei|sabe|de|para|pra|a|sem|ao|até|por|após|antes{{S}}de|depois{{S}}de|que"
 
 rules:
   - id: pt_BR.accentParonyms
@@ -696,7 +701,52 @@ rules:
     predicate: rangeDash
   - id: pt_BR.cliticPlacement
     checks: [portugueseCliticPlacement]
-    predicate: cliticPlacement
+    style: match
+    message: review_msg_pt_proclisis
+    filter: cliticFutureAfterOthers
+    frames:
+      # "tira-mos as conclusões" -> "tiramos": "-mos" is the verb ending, not a pronoun. Before
+      # an object "mos" (me + os) would repeat it.
+      - regex: "(?<target>(?<verb>\\p{L}+[aeiê])-mos){{S}}(?=(?:o|a|os|as|um|uma|uns|umas){{E}})"
+        message: review_msg_typo
+        fixer: cliticSplitMos
+      # {{ATTRACTORS}}: negations, indefinite pronouns, adverbs and subordinating words ("que
+      # deve-lhe" -> "que lhe deve", "quando perguntei-lhe" -> "quando lhe perguntei"); Portugal
+      # is, if anything, stricter about these than Brazil. A comma after the attractor breaks
+      # the pull, and the frame needs the verb right after it. {{OBJECT}}: "bebemo-lo",
+      # "dão-no", "conhecia-a": the forms "o/a" take after -r/-s/-z, a nasal or a vowel.
+      - regex: "(?<attractor>{{ATTRACTORS}}){{S}}(?:(?:eu|tu|ele|ela|eles|elas|nós|vós|você|vocês){{S}})?(?<target>(?<verb>\\p{L}+)-(?<pronoun>{{SIMPLE}}|{{OBJECT}})){{E}}"
+        fixer: cliticProclisis
+      # "Se comprá-las" -> "Se as comprar", "Quando fizé-lo" -> "Quando o fizer": after a
+      # conditional "se" or "quando" the verb is the future subjunctive, not an infinitive, and
+      # the pronoun goes before it. "se" counts only at the start of a clause, where it is no
+      # pronoun.
+      - regex: "(?:(?<=^|[.!?;:,\\n][ \\t\\u00a0]{0,8}|(?<![\\p{L}])(?:e|mas|ou){{S}})se|quando){{S}}(?<target>(?<stem>\\p{L}{2,}[áéêí])-(?<pronoun>l[oa]s?)){{E}}"
+        fixer: cliticSubjunctive
+      # "dir-lhe-ei", "amá-la-ei", "far-nos-iam".
+      - regex: "(?:{{ATTRACTORS}}){{S}}(?<target>(?<stem>\\p{L}+)-(?<pronoun>{{SIMPLE}}|l[oa]s?)-(?<ending>{{FUTURE_ENDINGS}})){{E}}"
+        fixer: cliticMesoclitic
+      # An infinitive before "-lo/-la" drops its r and accents the vowel left: "escrevê-lo",
+      # "puxá-las", "pô-lo", "distraí-los" (only after a vowel: "parti-lo"). The verb is an
+      # infinitive after a modal, a preposition or "a" ("tu vende-lo" is the second person, so
+      # they must lead).
+      - regex: "(?:{{INFINITIVE_LEAD}}){{S}}(?:(?:não|já|também|sempre){{S}})?(?<target>(?<stem>\\p{L}*(?:[aeo]|[aeiou]i))-(?<pronoun>l[oa]s?)){{E}}"
+        message: review_msg_pt_enclitic_accent
+        fixer: cliticInfinitive
+      # "o/a" after a verb ending in r, s or z becomes "lo/la" and the consonant falls
+      # ("comer-o" -> "comê-lo", "fez-o" -> "fê-lo", "fizemos-o" -> "fizemo-lo"); after a nasal
+      # it becomes "no/na" ("tinham-o" -> "tinham-no", "põe-as" -> "põe-nas"). "lo/la" after a
+      # kept r, s or z also drops it: "fazer-lo" -> "fazê-lo", "fiz-lo" -> "fi-lo".
+      - regex: "(?<target>(?<verb>\\p{L}{2,}(?:[rsz]|m)|\\p{L}+(?:ão|õe))-(?<l>l)?(?<pronoun>[oa]s?)){{E}}(?!-)"
+        message: review_msg_pt_object_form
+        fixer: cliticPlainObject
+      # "poderia-se", "encontraremos-nos", "traria-o", "teriam-na". The first person singular
+      # "-rei" only counts for the irregular "farei", "direi" and "trarei": "tirei-lhe" and
+      # "preparei-te" are past tenses. "-á-lo" is an infinitive ("ignorá-lo"). The filter drops
+      # a finding here when an earlier frame flagged the same verb.
+      - regex: "(?<target>(?<stem>\\p{L}{0,24}[aeiouáéíóúâêô]r)(?<ending>ia|ias|íamos|íamo|íeis|iam|ás|á|emos|emo|eis|ão|ei)-(?<pronoun>{{SIMPLE}}|n[oa]s?|[oa]s?)){{E}}"
+        message: review_msg_pt_mesoclisis
+        fixer: cliticFuture
   - id: pt_BR.ao90
     checks: [portugueseAO90]
     style: match

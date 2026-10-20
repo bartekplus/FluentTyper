@@ -8,7 +8,7 @@ import {
 } from "../../engine/reviewRules";
 import { agreement } from "./agreement";
 import { FIXERS as AO90_FIXERS } from "./ao90";
-import { cliticPlacement } from "./clitics";
+import { FILTERS as CLITIC_FILTERS, FIXERS as CLITIC_FIXERS } from "./clitics";
 import { FIXERS as COMMA_FIXERS } from "./commas";
 import { confusions, FIXERS as CONFUSION_FIXERS } from "./confusions";
 import { FIXERS as CONTRACTION_FIXERS } from "./contractions";
@@ -42,7 +42,6 @@ export const PREDICATES = {
   accentParonyms,
   confusions,
   rangeDash,
-  cliticPlacement,
   isoDates,
   agreement,
   nounAgreement,
@@ -72,7 +71,8 @@ export const FIXERS = mergePredicates<AnyFixer>(
   CONTRACTION_FIXERS,
   FORMAL_FIXERS,
   COMMA_FIXERS,
+  CLITIC_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/pt_BR.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>();
+export const FILTERS = mergePredicates<FindingsFilter>(CLITIC_FILTERS);
