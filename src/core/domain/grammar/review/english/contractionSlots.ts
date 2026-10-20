@@ -20,6 +20,7 @@ import {
 } from "./slotWords";
 import { ADDRESSED, YOU_CLAUSE_VERBS } from "./slotConfusions";
 import { finding } from "../finding";
+import { alone } from "./confusionSlots";
 
 // its/it's, your/you're and it/its, you/your decided by the word class of what follows, read
 // from the generated lexicon: a possessive needs a noun phrase, a contraction a predicate.
@@ -412,8 +413,7 @@ function contraction(
   });
 }
 
-/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
-export const FIXERS = {
+const MATCH = {
   contractionIts: (m, ctx) =>
     contraction(m, ctx, "englishItsContext", "review_msg_its_contraction", "it's"),
   contractionYour: (m, ctx) =>
@@ -532,4 +532,10 @@ export const FIXERS = {
       context: evidence(ctx, m.index, m.index + m[0].length),
     });
   },
+} satisfies Record<string, MatchFixer>;
+
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  ...MATCH,
+  contractionPronounOwnerAlone: alone("englishItsContext", MATCH.contractionPronounOwner),
 } satisfies Record<string, MatchFixer>;
