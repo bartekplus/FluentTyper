@@ -1,5 +1,5 @@
+import { detectPhraseTemplates } from "../engine/frameStyles";
 import {
-  detectPhraseTemplates,
   frameMatches,
   group,
   hasUserOrCasedWord,

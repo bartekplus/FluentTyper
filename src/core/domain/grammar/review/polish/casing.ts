@@ -1,16 +1,13 @@
 import type { Fixer } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { DetectContext } from "../reviewDetectors";
 import { placeForm } from "./lexicon";
-import { findingAt, isPl, owned, sentenceStartAt, userOrNamed } from "./shared";
+import { sentenceStartAt } from "./shared";
 
 /*
  * Polish capitals: weekdays, months and language or regional adjectives take a small letter
  * ("w piątek", "po angielsku", "język polski", "województwo mazowieckie"); holidays and the
  * names of seas and oceans capitalize every word ("Wielki Piątek", "Morze Bałtyckie").
  */
-
-const RULE = "polishCapitalization" as const;
-const MESSAGE = "review_msg_pl_capitals" as const;
 
 const lower = (word: string) => word.toLowerCase();
 const capital = (word: string) =>
@@ -137,28 +134,3 @@ export const FIXERS = {
   // gdańsku", the Gdańsk way).
   casingFrame15: (m) => (placeForm(m[0]) ? capital(m[0]) : null),
 } satisfies Record<string, Fixer>;
-
-// Each lookbehind above sits after a one-letter lookahead: most positions fail on that letter
-// and never read back.
-/**
- * The swaps of a swap rule of grammar/rules/pl.yaml, on Polish text: the whole match is
- * replaced by its fixer's value; names and user-dictionary words stay.
- */
-export function runSwaps(
-  ctx: DetectContext,
-  swaps: readonly Swap[],
-  ruleId: RawFinding["ruleId"] = RULE,
-  messageKey: RawFinding["messageKey"] = MESSAGE,
-): RawFinding[] {
-  if (!isPl(ctx)) return [];
-  const findings: RawFinding[] = [];
-  for (const { regex, fix } of swaps)
-    for (const m of owned(ctx, regex)) {
-      const typed = m[0];
-      if (userOrNamed(ctx, typed)) continue;
-      const fixed = fix(m, ctx);
-      if (fixed === null || fixed === typed) continue;
-      findings.push(findingAt(ctx, m.index, m.index + typed.length, [fixed], ruleId, messageKey));
-    }
-  return findings;
-}

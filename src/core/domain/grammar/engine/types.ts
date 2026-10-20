@@ -169,17 +169,7 @@ export interface RuleSpec {
    * "comma": Polish text, complete regexes with `flags`, a check per frame, a fixer each.
    * "swap": Polish text, complete regexes with `flags`, the whole match replaced by a fixer.
    */
-  style?:
-    | "frame"
-    | "template"
-    | "slot"
-    | "polish"
-    | "portuguese"
-    | "german"
-    | "carry"
-    | "cased"
-    | "comma"
-    | "swap";
+  style?: FrameStyle;
   /** A named filter of the rule's findings (a `FILTERS` record of the rule file). */
   filter?: string;
 }
@@ -253,14 +243,26 @@ export interface CompiledRule {
   frames?: readonly number[];
   /** The message of a frame rule. */
   message?: string;
-  style?:
-    "template" | "slot" | "polish" | "portuguese" | "german" | "carry" | "cased" | "comma" | "swap";
+  style?: Exclude<FrameStyle, "frame">;
   /** "<file>:<name>" of a named findings filter. */
   filter?: string;
   cacheable?: true;
   /** The rule file it came from ("common", "en", "de", ...). */
   source: string;
 }
+
+/** How the frames of a rule read their matches (engine/frameStyles.ts). */
+export type FrameStyle =
+  | "frame"
+  | "template"
+  | "slot"
+  | "polish"
+  | "portuguese"
+  | "german"
+  | "carry"
+  | "cased"
+  | "comma"
+  | "swap";
 
 /** A compiled frame: the expanded regex, its prefilter literals and its fix. */
 export interface CompiledFrame {

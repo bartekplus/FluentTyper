@@ -1,3 +1,4 @@
+import { detectPhraseTemplates } from "../engine/frameStyles";
 import { englishInflect, englishLemma } from "../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
@@ -8,7 +9,6 @@ import {
 } from "../implementations/helpers/GenericRuleShared";
 import {
   COMPLETE,
-  detectPhraseTemplates,
   EDGE,
   frameMatches,
   group,

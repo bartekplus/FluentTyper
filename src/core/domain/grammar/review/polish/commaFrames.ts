@@ -10,7 +10,7 @@ import {
   nounTags,
   onlyNoun,
 } from "./lexicon";
-import { findingAt, isPl, owned, PREPOSITIONS, userOrNamed } from "./shared";
+import { PREPOSITIONS } from "./shared";
 
 /*
  * Commas set by fixed words rather than by a clause parse: an indirect question after
@@ -201,25 +201,3 @@ export const FIXERS = {
   // "bez względu na to gdzie" -> "na to, gdzie": an indirect question after "to".
   commaFramesTo: () => "to,",
 } satisfies Record<string, Fixer>;
-
-/**
- * The frames of a comma rule of grammar/rules/pl.yaml, on Polish text: complete regexes over
- * the chunk; names and user-dictionary words skipped.
- */
-export function runCommaFrames(ctx: DetectContext, frames: readonly CommaFrame[]): RawFinding[] {
-  if (!isPl(ctx)) return [];
-  const findings: RawFinding[] = [];
-  for (const { ruleId, messageKey, regex, fix } of frames) {
-    if (ctx.rules && !ctx.rules.has(ruleId)) continue;
-    for (const m of owned(ctx, regex)) {
-      const [start, end] = m.indices!.groups!.target;
-      if (start < ctx.from || start >= ctx.to) continue;
-      const typed = ctx.source.slice(start, end);
-      if (/\p{L}/u.test(typed) && userOrNamed(ctx, typed)) continue;
-      const fixed = fix(m, ctx);
-      if (fixed === null || fixed === typed) continue;
-      findings.push(findingAt(ctx, start, end, [fixed], ruleId, messageKey));
-    }
-  }
-  return findings;
-}

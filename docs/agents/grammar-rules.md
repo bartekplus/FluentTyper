@@ -180,6 +180,9 @@ A rule can also give:
 
 - `style: template`: the frames run in every language of the check, each frame has one `fix` string (an empty string deletes the target), and a finding keeps 96 characters of context before the match and 9 after it.
 - `filter: <name>`: a named function of the `FILTERS` record of the rule file that gets all findings of the rule and returns the ones to keep.
+- `style: <name>`: the other styles (`slot`, `carry`, `german`, `portuguese`, `cased`, `polish`, `comma`, `swap`) set the language, the casing of the fix and the guards of a language. The comment on `style` in `engine/types.ts` gives each one.
+
+All frame styles run in one loop: `detectFrames` in `engine/frameStyles.ts`. A style is a row of the `STYLES` table there, not a loop of its own. To change how a style reads a match, change its row.
 
 ### Named Predicates
 

@@ -2,33 +2,10 @@ import type { CatalogRuleId } from "../ruleCatalog";
 import { cacheable } from "../review/nativeReviewCache";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../review/reviewDetectors";
 import type { ReviewMessageKey } from "../review/types";
-import { frameDetector as slotFrames, type Frame as SlotFrame } from "../review/english/idioms5";
-import { runCarryFrames as carryFrames, type Frame as CarryFrame } from "../review/english/idioms3";
-import { runCommaFrames as commaFrames, type CommaFrame } from "../review/polish/commaFrames";
-import { runSwaps, type Swap } from "../review/polish/casing";
-import {
-  runCasedFrames as casedFrames,
-  type Frame as CasedFrame,
-} from "../review/portuguese/typography";
-import { runFrames as polishFrames, type Frame as PolishFrame } from "../review/polish/shared";
-import {
-  runGermanFrames as germanFrames,
-  type Frame as GermanFrame,
-} from "../review/german/confusions";
-import {
-  runConfusionFrames as portugueseFrames,
-  type Frame as PortugueseFrame,
-} from "../review/portuguese/confusions";
+import { detectFrames, prepareFrames } from "./frameStyles";
 import { findMatches, type PatternSet } from "./matcher";
 import { REVIEW_FRAMES, REVIEW_PATTERNS, REVIEW_RULES } from "./review.generated";
-import {
-  detectFrameList,
-  detectPhraseTemplates,
-  primeFrameLiterals,
-  WORD_START,
-  type Frame,
-  type PhraseTemplate,
-} from "../review/phraseTemplates";
+import { primeFrameLiterals, WORD_START } from "../review/phraseTemplates";
 import { chunkTokens } from "./reviewTokens";
 import { tokenKey } from "./tokenizer";
 import type { CompiledFrame } from "./types";
@@ -168,97 +145,15 @@ export function frameRuleDetector(
     if (!found) throw new Error(`Grammar rule ${id}: no fixer "${fixer}"`);
     return found;
   };
-  let detect: Detector;
-  if (rule.style === "swap") {
-    const swaps: Swap[] = compiled.map((frame) => ({
-      regex: new RegExp(frame.pattern, frame.flags ?? "gu"),
-      fix: fixOf(frame.fix, frame.fixer) as Swap["fix"],
-    }));
-    detect = (ctx) => runSwaps(ctx, swaps, ruleId, messageKey);
-  } else if (rule.style === "comma") {
-    const frames: CommaFrame[] = compiled.map((frame) => ({
-      ruleId: (frame.check ?? ruleId) as CommaFrame["ruleId"],
-      messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
-      regex: new RegExp(frame.pattern, frame.flags ?? "dgu"),
-      fix: fixOf(frame.fix, frame.fixer) as CommaFrame["fix"],
-    }));
-    detect = (ctx) => commaFrames(ctx, frames);
-  } else if (rule.style === "cased") {
-    // typography.ts compiles each frame behind WORD_START: its literals are the same.
+  const style = rule.style ?? "frame";
+  // A cased frame runs behind WORD_START: its literals are the same.
+  if (style === "cased")
     for (const { pattern, literals } of compiled)
       primeFrameLiterals(`${WORD_START}${pattern}`, [...literals]);
-    const frames: CasedFrame[] = compiled.map((frame) => ({
-      pattern: frame.pattern,
-      replace: fixOf(frame.fix, frame.fixer) as CasedFrame["replace"],
-      ruleId: (frame.check ?? ruleId) as CasedFrame["ruleId"],
-      messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
-    }));
-    detect = (ctx) => casedFrames(ctx, frames);
-  } else if (rule.style === "carry") {
-    const frames: CarryFrame[] = compiled.map((frame) => ({
-      rule: {
-        ruleId: (frame.check ?? ruleId) as CatalogRuleId,
-        messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
-      },
-      pattern: frame.pattern,
-      fix: fixOf(frame.fix, frame.fixer) as CarryFrame["fix"],
-      ...(frame.verbatim ? { verbatim: true as const } : {}),
-      ...(frame.targetOnly ? { targetOnly: true as const } : {}),
-    }));
-    detect = (ctx) => carryFrames(ctx, frames);
-  } else if (rule.style === "german") {
-    const frames: GermanFrame[] = compiled.map((frame) => ({
-      regex: new RegExp(frame.pattern, "gdu"),
-      fix: fixOf(frame.fix, frame.fixer) as GermanFrame["fix"],
-      ...(frame.ownCase ? { ownCase: true as const } : {}),
-    }));
-    detect = (ctx) => germanFrames(ctx, frames, ruleId, messageKey);
-  } else if (rule.style === "portuguese") {
-    const frames: PortugueseFrame[] = compiled.map((frame) => ({
-      pattern: frame.pattern,
-      alternatives: fixOf(frame.fix, frame.fixer) as PortugueseFrame["alternatives"],
-      messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
-      ...(frame.clauseStart ? { clauseStart: true as const } : {}),
-      ...(frame.capitalized ? { capitalized: true as const } : {}),
-    }));
-    detect = (ctx) => portugueseFrames(ctx, frames, ruleId);
-  } else if (rule.style === "polish") {
-    const frames: PolishFrame[] = compiled.map((frame) => ({
-      pattern: frame.pattern,
-      fix: fixOf(frame.fix, frame.fixer) as PolishFrame["fix"],
-      ruleId: (frame.check ?? ruleId) as CatalogRuleId,
-      messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
-      ...(frame.verbatim ? { verbatim: true as const } : {}),
-      ...(frame.lowercase ? { lowercase: true as const } : {}),
-    }));
-    detect = (ctx) => polishFrames(ctx, frames);
-  } else if (rule.style === "slot") {
-    const frames: SlotFrame[] = compiled.map((frame) => ({
-      rule: {
-        ruleId: (frame.check ?? ruleId) as CatalogRuleId,
-        messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
-      },
-      ...(frame.cue ? { cue: frame.cue } : {}),
-      pattern: frame.wordStart === false ? new RegExp(frame.pattern, "gidu") : frame.pattern,
-      fix: fixOf(frame.fix, frame.fixer) as SlotFrame["fix"],
-    }));
-    detect = slotFrames(frames);
-  } else if (rule.style === "template") {
-    const templates: PhraseTemplate[] = compiled.map((frame) => ({
-      pattern: frame.pattern,
-      replacement: frame.fix as string,
-      messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
-      ...(frame.clauseStart ? { clauseStart: true as const } : {}),
-    }));
-    detect = (ctx) => detectPhraseTemplates(ctx, templates, ruleId);
-  } else {
-    const frames: Frame[] = compiled.map(({ pattern, fix, fixer, raw }) => ({
-      pattern,
-      fix: fixOf(fix, fixer) as Frame["fix"],
-      ...(raw ? { raw } : {}),
-    }));
-    detect = (ctx) => detectFrameList(ctx, ruleId, messageKey, frames);
-  }
+  const frames = prepareFrames(style, compiled, ruleId, messageKey, (frame) =>
+    fixOf(frame.fix, frame.fixer),
+  );
+  const detect: Detector = (ctx) => detectFrames(ctx, style, frames);
   return filter ? (ctx) => filter(ctx, detect(ctx)) : detect;
 }
 

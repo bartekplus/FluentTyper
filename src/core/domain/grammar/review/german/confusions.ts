@@ -1,6 +1,5 @@
 import type { Fixer } from "../../engine/reviewRules";
-import { frameMatches, SPACE as S, WORD_END as E } from "../phraseTemplates";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { SPACE as S, WORD_END as E } from "../phraseTemplates";
 import {
   deumlaut,
   germanAdjective,
@@ -10,7 +9,7 @@ import {
   germanVerbLike,
 } from "./germanLexicon";
 import { determinerFits } from "./articleGender";
-import { isGerman, likeTyped, VERB_GOVERNORS } from "./shared";
+import { VERB_GOVERNORS } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 
 // ci and any take either case of the first letter only: "\p{Lu}" in a frame keeps meaning a capital.
@@ -36,13 +35,6 @@ const SHIP_BEFORE = new RegExp(
 // Machines and vehicles one starts (authored).
 const STARTED_THINGS =
   /(?<!\p{L})(?:Motor|Motoren|Auto|Autos|Wagen|Maschine|Maschinen|Rechner|Computer|PC|Laptop|Server|Generator|Fahrzeug|Fahrzeuge|Motorrad|Roller|Traktor|Rasenmäher|Triebwerk|Triebwerke|Turbine|Anlage|Aggregat|Kettensäge|Programm|Gerät|Geräte|Boot|Lkw|Bus)(?!\p{L})/u;
-
-export type Frame = {
-  regex: RegExp;
-  fix: string | ((m: RegExpExecArray) => string | string[] | null);
-  /** The fix sets its own case ("Berg ab" → "bergab"); else it takes the typed capital. */
-  ownCase?: true;
-};
 
 // Countries and regions named with their article: "die Türkei", "der Vatikan", "die USA".
 const COUNTRIES: Readonly<Record<string, "f" | "m" | "p" | "i">> = {
@@ -517,45 +509,3 @@ export const FIXERS = {
     return words.some((w) => VERB_GOVERNORS.has(w.toLowerCase())) ? "überlassen" : null;
   },
 } satisfies Record<string, Fixer>;
-
-/**
- * The frames of a german rule of grammar/rules/de.yaml, on German text: the first named group
- * other than `noun` is replaced, in the typed capital unless the fix sets its own case.
- */
-export function runGermanFrames(
-  ctx: DetectContext,
-  frames: readonly Frame[],
-  ruleId: RawFinding["ruleId"] = "germanConfusedWords",
-  messageKey: RawFinding["messageKey"] = "review_msg_contextual_grammar",
-): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  for (const { regex, fix, ownCase } of frames) {
-    const owner = (m: RegExpExecArray) => {
-      const groups = m.indices!.groups!;
-      const name = Object.keys(groups).find((k) => k !== "noun" && groups[k]);
-      return name ? groups[name][0] : -1;
-    };
-    for (const m of frameMatches(ctx, regex, owner)) {
-      const name = Object.keys(m.groups!).find((k) => k !== "noun" && m.groups![k]);
-      if (!name) continue;
-      const [start, end] = m.indices!.groups![name];
-      const typed = m.groups![name];
-      if (ctx.dictionary.has(typed.toLowerCase())) continue;
-      const fixed = typeof fix === "string" ? fix : fix(m);
-      const replacements = fixed === null ? [] : [fixed].flat().filter((r) => r !== typed);
-      if (replacements.length === 0) continue;
-      findings.push({
-        ruleId,
-        messageKey,
-        range: { start, end },
-        alternatives: replacements.map((replacement) =>
-          ownCase ? replacement : likeTyped(typed, replacement),
-        ),
-        ...(replacements.length > 1 ? { requiresChoice: true as const } : {}),
-        context: { start: Math.max(0, start - 60), end: Math.min(ctx.text.length, end + 40) },
-      });
-    }
-  }
-  return findings;
-}

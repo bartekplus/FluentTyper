@@ -1,6 +1,5 @@
-import { frameMatches, isLang, WORD_START } from "../phraseTemplates";
+import { isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { ReviewMessageKey } from "../types";
 import { rangeDashes } from "../rangeDash";
 
 /**
@@ -11,15 +10,6 @@ import { rangeDashes } from "../rangeDash";
  * portugueseTypographyStyle (opt-in): the × sign, chemical subscripts (H2O -> H₂O) and the
  * en dash between a Brazilian city and its state code (Niterói/RJ -> Niterói–RJ).
  */
-
-export type Frame = {
-  /** Compiled with WORD_START; case-sensitive (unit symbols and hour letters are cased). */
-  pattern: string;
-  /** The replacement, or a function of the match. */
-  replace: string | ((m: RegExpExecArray) => string);
-  ruleId: "portugueseNumberFormat" | "portugueseTypographyStyle";
-  messageKey: ReviewMessageKey;
-};
 
 const SUPER: Record<string, string> = { "2": "²", "3": "³" };
 const SUB = "₀₁₂₃₄₅₆₇₈₉";
@@ -97,51 +87,14 @@ const FORMULA = new RegExp(
   "gu",
 );
 
-const COMPILED = new Map<Frame, RegExp>();
-const compiled = (frame: Frame) => {
-  let regex = COMPILED.get(frame);
-  if (!regex) {
-    regex = new RegExp(`${WORD_START}${frame.pattern}`, "gdu");
-    COMPILED.set(frame, regex);
-  }
-  return regex;
-};
-
 /** The flagged text, or the token around it, is in the user's dictionary. */
-function userWord(ctx: DetectContext, start: number, end: number): boolean {
+export function userWord(ctx: DetectContext, start: number, end: number): boolean {
   const before = /\S*$/.exec(ctx.text.slice(Math.max(0, start - 24), start))![0];
   const after = /^\S*/.exec(ctx.text.slice(end, end + 24))![0];
   const token = `${before}${ctx.text.slice(start, end)}${after}`.replace(/[.,;:!?]+$/, "");
   return [ctx.text.slice(start, end), token].some((word) =>
     ctx.dictionary.has(word.trim().toLowerCase()),
   );
-}
-
-/**
- * The frames of a cased rule of grammar/rules/pt_BR.yaml: case-sensitive, one replacement each,
- * and abstaining when the target or its token is a user-dictionary word.
- */
-export function runCasedFrames(ctx: DetectContext, frames: readonly Frame[]): RawFinding[] {
-  if (!isLang(ctx, "pt")) return [];
-  return frameFindings(ctx, frames);
-}
-
-function frameFindings(ctx: DetectContext, frames: readonly Frame[]): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const frame of frames) {
-    for (const m of frameMatches(ctx, compiled(frame))) {
-      const [start, end] = m.indices!.groups!.target;
-      if (userWord(ctx, start, end)) continue;
-      findings.push({
-        ruleId: frame.ruleId,
-        messageKey: frame.messageKey,
-        range: { start, end },
-        alternatives: [typeof frame.replace === "string" ? frame.replace : frame.replace(m)],
-        context: { start: m.index, end: Math.max(end, m.index + m[0].length) },
-      });
-    }
-  }
-  return findings;
 }
 
 function formulas(ctx: DetectContext): RawFinding[] {

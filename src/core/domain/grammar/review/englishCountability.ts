@@ -1,6 +1,6 @@
+import { detectPhraseTemplates } from "../engine/frameStyles";
 import {
   COMPLETE,
-  detectPhraseTemplates,
   EDGE,
   frameMatches,
   group,

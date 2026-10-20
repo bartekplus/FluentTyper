@@ -1,13 +1,5 @@
 import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
-import { quotedSpan } from "../exampleCues";
-import {
-  before,
-  FRAME_AUDIT,
-  frameMatches,
-  group,
-  hasUserOrCasedWord,
-  isLang,
-} from "../phraseTemplates";
+import { before, group } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { Fixer } from "../../engine/reviewRules";
 import { clauseAfter, objectGapBefore, PERMISSION_AFTER } from "./slotWords";
@@ -30,7 +22,11 @@ export const COMPOUND: Rule = {
 };
 
 /** Replacements for the `target` group (or `range`); `raw` keeps their casing as given. */
-type Fix = { alternatives: readonly string[]; range?: readonly [number, number]; raw?: true };
+export type Fix = {
+  alternatives: readonly string[];
+  range?: readonly [number, number];
+  raw?: true;
+};
 export type FixResult = string | readonly string[] | Fix | null;
 export type Frame = {
   rule: Rule;
@@ -55,7 +51,7 @@ const nextWord = (ctx: DetectContext, end: number) =>
 const matchEnd = (m: RegExpExecArray) => m.index + m[0].length;
 
 /** The typed casing carried onto a replacement: all capitals, or an initial capital. */
-function recase(typed: string, alternative: string, whole: string): string {
+export function recase(typed: string, alternative: string, whole: string): string {
   const letters = typed.replace(/\P{L}/gu, "");
   const all = whole.replace(/\P{L}/gu, "");
   if (
@@ -327,72 +323,4 @@ export const FIXERS = {
   },
 } satisfies Record<string, Fixer>;
 
-/** The lowercase words from 256 characters before the chunk to 256 after it. */
-// Read once per chunk: every frame detector built on this engine shares it.
-const WORDS_NEAR = new WeakMap<DetectContext, Set<string>>();
-function wordsNear(ctx: DetectContext): Set<string> {
-  let words = WORDS_NEAR.get(ctx);
-  if (!words) {
-    words = new Set(
-      ctx.scanText
-        .slice(Math.max(0, ctx.from - 256), ctx.to + 256)
-        .toLowerCase()
-        .match(/\p{L}+/gu),
-    );
-    WORDS_NEAR.set(ctx, words);
-  }
-  return words;
-}
-
-/** Runs every frame whose rule is enabled; the `target` group (or a fix's range) is replaced. */
-/** Every frame list this engine runs: the tests compile each frame and check its cue words. */
-export const FRAME_SETS: (readonly Frame[])[] = [];
-export const frameDetector = (frames: readonly Frame[]) => {
-  FRAME_SETS.push(frames);
-  return (ctx: DetectContext): RawFinding[] => detectFrames(ctx, frames);
-};
-
-function detectFrames(ctx: DetectContext, frames: readonly Frame[]): RawFinding[] {
-  if (!isLang(ctx, "en")) return [];
-  const findings: RawFinding[] = [];
-  const words = wordsNear(ctx);
-  for (const { rule, cue, pattern, fix } of frames) {
-    if (ctx.rules && !ctx.rules.has(rule.ruleId)) continue;
-    if (cue && !FRAME_AUDIT.all && !cue.some((word) => words.has(word))) continue;
-    // A frame with two alternatives names its second owner "target2".
-    const owner = /\(\?<target2>/.test(typeof pattern === "string" ? pattern : pattern.source)
-      ? (m: RegExpExecArray) => (m.indices!.groups!.target ?? m.indices!.groups!.target2)[0]
-      : "target";
-    for (const m of frameMatches(ctx, pattern, owner)) {
-      if (hasUserOrCasedWord(ctx, m[0])) continue;
-      // A quoted example ("need to backup") is mentioned, not used.
-      if (quotedSpan(ctx.text, m.index, matchEnd(m))) continue;
-      const result = typeof fix === "function" ? fix(m, ctx) : fix;
-      if (result === null) continue;
-      const {
-        alternatives,
-        range = group(m, "target") ?? group(m, "target2"),
-        raw,
-      }: Fix = typeof result === "string"
-        ? { alternatives: [result] }
-        : "alternatives" in result
-          ? result
-          : { alternatives: result };
-      const [start, end] = range;
-      const typed = ctx.text.slice(start, end);
-      const cased = alternatives.map((alt) => (raw ? alt : recase(typed, alt, m[0])));
-      if (cased.includes(typed)) continue;
-      findings.push({
-        ...rule,
-        range: { start, end },
-        alternatives: cased,
-        ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
-        context: {
-          start: Math.max(0, Math.min(start, m.index) - 40),
-          end: Math.min(ctx.text.length, Math.max(end, matchEnd(m)) + 20),
-        },
-      });
-    }
-  }
-  return findings;
-}
+export { FRAME_SETS } from "../../engine/frameStyles";

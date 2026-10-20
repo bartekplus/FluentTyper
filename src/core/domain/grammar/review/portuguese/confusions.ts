@@ -10,18 +10,6 @@ import { analyze } from "./nounAgreement";
  * está/esta, dá/da, dê/de, houve/ouve, pôr/por. Every frame names its evidence.
  */
 
-export type Frame = {
-  /** Compiled by frameMatches (WORD_START, `gidu`); `target` is replaced. */
-  pattern: string;
-  /** Replacements, or a function of the typed target. */
-  alternatives: string[] | ((typed: string) => string[]);
-  messageKey: ReviewMessageKey;
-  /** Starts a sentence (or follows a line break). */
-  clauseStart?: true;
-  /** The target is typed with a capital: frames match ignoring case. */
-  capitalized?: true;
-};
-
 // Infinitives look like these nouns and adjectives, which can follow a crase ("à mulher").
 const FEMININE_R = new Set(
   "mulher colher militar titular auxiliar familiar circular similar celular escolar popular particular exemplar singular regular preliminar complementar lunar solar polar nuclear secular vulgar peculiar hospitalar curricular disciplinar".split(
@@ -220,10 +208,10 @@ const ADDRESS = `(?<target>às?)${S}(?=(?:sua|vossa|suas|vossas)${S}(?:excelênc
 const A_UMA = `(?<target>à)${S}(?=uma${W}(?!${S}(?:hora|e|da|em${S}ponto)${W}|[ \\t\\u00a0]*h))`;
 // A sum of money has no article: "equivale à R$ 35".
 const MONEY = `(?<target>à)${S}(?=(?:R\\$|US\\$|€|\\$))`;
-const CLAUSE_BEFORE = /(?:^|[.!?:;][ \t\r\n "”»)]{0,8}|\n[ \t ]{0,8})$/;
+export const CLAUSE_BEFORE = /(?:^|[.!?:;][ \t\r\n "”»)]{0,8}|\n[ \t ]{0,8})$/;
 
 /** A finding for the `target` group of `m`, in the typed casing; user-dictionary words stay. */
-function pushFinding(
+export function pushFinding(
   ctx: DetectContext,
   findings: RawFinding[],
   m: RegExpExecArray,
@@ -242,34 +230,6 @@ function pushFinding(
     context: { start: m.index, end: Math.max(end, m.index + m[0].length) },
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
   });
-}
-
-/** The frames of a portuguese rule of grammar/rules/pt_BR.yaml, on Portuguese text. */
-export function runConfusionFrames(
-  ctx: DetectContext,
-  frames: readonly Frame[],
-  ruleId: RawFinding["ruleId"] = "portugueseConfusions",
-): RawFinding[] {
-  if (!isLang(ctx, "pt")) return [];
-  const findings: RawFinding[] = [];
-  for (const frame of frames) {
-    for (const m of frameMatches(ctx, frame.pattern)) {
-      if (
-        frame.clauseStart &&
-        !CLAUSE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))
-      )
-        continue;
-      // Frames are matched ignoring case; a capitalized name inside one is not prose.
-      if (/\s\p{Lu}/u.test(m[0])) continue;
-      if (frame.capitalized && !/^\p{Lu}/u.test(m.groups!.target)) continue;
-      const alternatives =
-        typeof frame.alternatives === "function"
-          ? frame.alternatives(m.groups!.target)
-          : frame.alternatives;
-      pushFinding(ctx, findings, m, alternatives, frame.messageKey, ruleId);
-    }
-  }
-  return findings;
 }
 
 export function confusions(ctx: DetectContext): RawFinding[] {

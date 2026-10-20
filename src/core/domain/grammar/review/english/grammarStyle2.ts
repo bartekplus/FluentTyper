@@ -1,3 +1,4 @@
+import { detectPhraseTemplates } from "../../engine/frameStyles";
 import { englishInitialSound } from "../../implementations/helpers/EnglishInitialSound";
 import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import { englishNounForms } from "../../implementations/helpers/EnglishNounNumber";
@@ -9,7 +10,6 @@ import {
 import {
   before,
   COMPLETE,
-  detectPhraseTemplates,
   frameMatches,
   group,
   hasUserOrCasedWord,

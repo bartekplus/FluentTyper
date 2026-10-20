@@ -1,29 +1,9 @@
 import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
-import {
-  caseLike,
-  frameMatches,
-  group,
-  hasUserOrCasedWord,
-  isLang,
-  nextWord,
-} from "../phraseTemplates";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { group, nextWord } from "../phraseTemplates";
+import type { DetectContext } from "../reviewDetectors";
 import type { Fixer } from "../../engine/reviewRules";
 
 // ---- Context detectors: forms that are also ordinary English elsewhere. ----
-
-type Rule = Pick<RawFinding, "ruleId" | "messageKey">;
-
-type Fix = string | readonly string[] | null;
-export type Frame = {
-  rule: Rule;
-  pattern: string;
-  fix: Fix | ((m: RegExpExecArray, ctx: DetectContext) => Fix);
-  /** Alternatives are written as they should appear; otherwise they take the typed case. */
-  verbatim?: true;
-  /** Only the target's words must be plain; the rest may name things ("written on JavaScript"). */
-  targetOnly?: true;
-};
 
 const verbBase = (word: string) => /^be$/i.test(word) || hasVerbForm(word, "base");
 /** The word right before `index`, or "" when punctuation comes first. */
@@ -173,35 +153,3 @@ export const FIXERS = {
     return stem.adjective || plain || stem.verbs.some((v) => v.form === "participle") ? "" : null;
   },
 } satisfies Record<string, Fixer>;
-
-/**
- * The frames of a carry rule of grammar/rules/en.yaml, on English text: the target takes the
- * casing of the typed words (caseLike) unless verbatim, and a user-dictionary or cased word
- * in the match (or only in the target, for targetOnly) makes the frame abstain.
- */
-export function runCarryFrames(ctx: DetectContext, frames: readonly Frame[]): RawFinding[] {
-  if (!isLang(ctx, "en")) return [];
-  const findings: RawFinding[] = [];
-  for (const { rule, pattern, fix, verbatim, targetOnly } of frames) {
-    if (ctx.rules && !ctx.rules.has(rule.ruleId)) continue;
-    for (const m of frameMatches(ctx, pattern)) {
-      const [start, end] = m.indices!.groups!.target;
-      const typed = ctx.text.slice(start, end);
-      if (hasUserOrCasedWord(ctx, targetOnly ? typed : m[0])) continue;
-      const value = typeof fix === "function" ? fix(m, ctx) : fix;
-      if (value === null) continue;
-      const alternatives = [value].flat().map((alt) => (verbatim ? alt : caseLike(typed, alt)));
-      findings.push({
-        ...rule,
-        range: { start, end },
-        alternatives,
-        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-        context: {
-          start: Math.max(0, m.index - 40),
-          end: Math.min(ctx.text.length, m.index + m[0].length + 20),
-        },
-      });
-    }
-  }
-  return findings;
-}

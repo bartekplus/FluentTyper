@@ -1,5 +1,5 @@
 import { namedExampleBefore, OPENING_QUOTES } from "../exampleCues";
-import { frameMatches, isLang } from "../phraseTemplates";
+import { isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
@@ -78,30 +78,6 @@ export function findingAt(
       end: Math.min(ctx.text.length, end + 32),
     },
   });
-}
-
-/** Runs guarded frames; a match yields the fix of its `target` group. */
-export function runFrames(ctx: DetectContext, frames: readonly Frame[]): RawFinding[] {
-  if (!isPl(ctx)) return [];
-  const findings: RawFinding[] = [];
-  for (const { pattern, fix, ruleId, messageKey, verbatim, lowercase } of frames) {
-    if (ctx.rules && !ctx.rules.has(ruleId)) continue;
-    for (const m of frameMatches(ctx, pattern)) {
-      const [start, end] = m.indices!.groups!.target;
-      const typed = ctx.source.slice(start, end);
-      if (userOrNamed(ctx, typed)) continue;
-      if (lowercase && /^\p{Lu}/u.test(typed) && !sentenceStartAt(ctx.text, start)) continue;
-      const fixed = typeof fix === "function" ? fix(m) : fix;
-      if (fixed === null) continue;
-      const alternatives = [fixed]
-        .flat()
-        .map((alt) => (verbatim ? alt : caseLike(typed, alt)))
-        .filter((alt) => alt !== typed);
-      if (alternatives.length === 0) continue;
-      findings.push(findingAt(ctx, start, end, alternatives, ruleId, messageKey));
-    }
-  }
-  return findings;
 }
 
 const QUOTE_MARK = new RegExp(`[${OPENING_QUOTES}]`, "gu");
