@@ -17,7 +17,6 @@ import * as verbAgreement from "./verbAgreement";
 import * as verbForms from "./verbForms";
 
 export const PREDICATES = mergePredicates(
-  confusions.PREDICATES,
   verbForms.PREDICATES,
   prefixes.PREDICATES,
   porque.PREDICATES,
@@ -34,6 +33,7 @@ export const FIXERS = mergePredicates<Fixer>(
   accents.FIXERS,
   diacritics.FIXERS,
   verbAccents.FIXERS,
+  confusions.FIXERS,
   prefixes.FIXERS,
   typography.FIXERS,
   quotes.FIXERS,

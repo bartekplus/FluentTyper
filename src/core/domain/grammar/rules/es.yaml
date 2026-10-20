@@ -70,9 +70,30 @@ rules:
     predicate: frameAccents
   - id: es.confusions
     checks: [spanishConfusions]
-    # predicate: walks the chunk tokens; the decision reads the lexicon forms of
-    # the words around each confusable word.
-    predicate: confusions
+    style: match
+    message: review_msg_spanish_confusion
+    frames:
+      # "aun que", "han habido", "el menos", "a ver" and the words of CHECKS. The fixer reads
+      # the words around the token (review/spanish/confusions.ts).
+      - regex: "(?:a|ah|anos?|apunto|ara|a[uú]n|ay|ayan?|bastantes|caso|cuidad|desech[ao]s?|e|echo|eh|el|entorno|haber|hab[ií]an|habr[aá]n|habr[ií]an|hallas?|hallan|han|hay|hayan?|haz|hech(?:os?|as?|an|amos)|hola|hubieran|hubiesen|[ií]ba|[ií]bais|[ií]ban|[ií]bas|[ií]bamos|lamas?|lamamos|lamo|mama|ola|ora|papa|pod(?:o|es|en)|se|sobretodo|tal|trav[eé]s|va|vais|vallas?|vallamos|vallan|vamos|van|vas|ven|voy){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: confusions
+      # "rebeló que" / "revelarse contra": reveal versus rebel, by the word after.
+      - regex: "re[bv]el[\\p{L}\\p{M}]*"
+        flags: giu
+        scan: owned
+        fixer: rebelReveal
+      # "y les medidas", "os interesados": "les" and "os" before a plural noun.
+      - regex: "(?:[lL]es|[oO]s){{WORD_TAIL}}"
+        flags: gu
+        scan: owned
+        fixer: cliticArticle
+      # "d esta prueba", "n este caso", "l mesa": a lone consonant that lost its vowel.
+      - regex: "[dln]{{WORD_TAIL}}"
+        flags: gu
+        scan: owned
+        fixer: lostVowel
   - id: es.verbForms
     checks: [spanishConfusions]
     # predicate: walks the chunk tokens; the decision reads the auxiliary, the
