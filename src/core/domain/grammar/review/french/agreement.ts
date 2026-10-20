@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   conjugate,
@@ -23,14 +23,13 @@ import { PRENOMINAL } from "./verbForms";
 import {
   capitalizedName,
   CLITICS,
-  ownedFrenchWords,
+  inChunk,
   type Token,
   tokensAfter,
   tokensBefore,
 } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
-import { isLang } from "../phraseTemplates";
 import {
   type ClauseProfile,
   skipComplements,
@@ -597,10 +596,6 @@ function nonVerbAlternatives(
   }
   return [...forms].slice(0, 3);
 }
-
-// "qu'il", "lorsqu'on": an elided conjunction before a pronoun that is always a subject.
-const PRONOUN =
-  /(?<=(?<![\p{L}\p{M}])(?:qu|lorsqu|puisqu|quoiqu)['’])(?:il|on|ils)(?![\p{L}\p{M}\p{N}_-])|(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|cela|ceci)(?![\p{L}\p{M}\p{N}_-])|personne(?=[ \t]{1,8}n(?:e\b|['’]))|ce(?:lui|lle|ux|lles)-(?:ci|là)(?![\p{L}\p{M}\p{N}_-])|j['’](?=\p{L}))/giu;
 
 const ETRE_FORMS = new Set(
   "est sont était étaient sera seront serait seraient fut furent soit soient".split(" "),
@@ -1232,8 +1227,6 @@ function commaAside(
   return verbFinding(ctx, tokensAfter(ctx.text, verbAt, 8), 0, person, from);
 }
 
-const QUI = /(?<![\p{L}\p{M}\p{N}_'’-])qui(?=[ \t])/giu;
-
 /** "cet homme qui travail", "l'ordinateur qui crash": a noun where the relative's verb goes. */
 function nounAfterQui(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index, 2);
@@ -1261,15 +1254,6 @@ function nounAfterQui(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
     ...(found.length > 1 ? { requiresChoice: true as const } : {}),
   });
 }
-
-// Quantities whose verb agrees with their plural complement: "beaucoup de gens pensent", "la
-// plupart des élèves travaillent", "de nombreux élèves pensent".
-const QUANTITY = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:(?:beaucoup|peu|trop|tant|assez|énormément|combien|la plupart|bon nombre|de plus en plus|de moins en moins)[ \\t]{1,8}(?:des?(?![\\p{L}\\p{M}\\p{N}_'’-])|d['’])|de(?=[ \\t]))`,
-  "giu",
-);
-
-const PLUPART = /(?<![\p{L}\p{M}\p{N}_'’-])la[ \t]+plupart(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 /** "La plupart pense" -> "pensent": "la plupart" alone stands for a plural subject. */
 function pluralPlupart(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -1499,10 +1483,6 @@ export function subjectEndsAt(text: string, index: number): boolean {
   return false;
 }
 
-// Words after which the subject may follow its verb: "là où vivent les loups", "lorsque
-// s'annonce un orage", "le livre que lisent les enfants".
-const INVERSION =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:où|lorsque|quand|que)(?=[ \t])|(?:lorsqu|qu)['’](?=\p{L}))/giu;
 // Pronouns between the opener and the verb; "le", "la", "les" may open the subject instead.
 const INVERTED_CLITICS = new Set("ne n' se s' y en me m' te t' lui leur".split(" "));
 
@@ -1568,56 +1548,23 @@ function invertedSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | n
   });
 }
 
-const NOUN_SUBJECT = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:l['’](?=\\p{L})|(?:${[
-    ...SINGULAR_DETERMINERS,
-    ...PLURAL_DETERMINERS,
-    ...Object.keys(STRESSED),
-    ...NUMBERS,
-  ]
-    .filter((w) => w !== "l'")
-    .join("|")})(?![\\p{L}\\p{M}\\p{N}_'’-])|(?<![\\p{N},.][ \\u00a0]?)\\d+(?=[ \\u00a0]+\\p{L}))`,
-  "giu",
-);
-
-const NAME =
-  /(?<![\p{L}\p{M}\p{N}_'’-])\p{Lu}\p{Ll}+(?:-\p{Lu}\p{Ll}+)?(?![\p{L}\p{M}\p{N}_'’-])/gu;
-
-function subjectVerbAgreement(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, PRONOUN)) {
-    const finding = missingAvoir(ctx, m) ?? agreement(ctx, m) ?? participleAgreement(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, NOUN_SUBJECT)) {
-    const finding = nounSubject(ctx, m) ?? objectRelative(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, QUI)) {
-    const finding = nounAfterQui(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, QUANTITY)) {
-    const finding = quantitySubject(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, PLUPART)) {
-    const finding = pluralPlupart(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, NAME)) {
-    const finding = nameSubject(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, INVERSION)) {
-    const finding = invertedSubject(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  return findings;
+/** A subject pronoun: a missing avoir, its verb's agreement or its participle's agreement. */
+function pronounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  return missingAvoir(ctx, m) ?? agreement(ctx, m) ?? participleAgreement(ctx, m);
 }
 
-export const PREDICATES = { subjectVerbAgreement: subjectVerbAgreement } satisfies Record<
-  string,
-  Detector
->;
+/** A subject noun: its verb's agreement, or the verb of an object relative clause. */
+function nounSubjectOrRelative(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  return nounSubject(ctx, m) ?? objectRelative(ctx, m);
+}
+
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  pronounSubject: inChunk(pronounSubject),
+  nounSubjectOrRelative: inChunk(nounSubjectOrRelative),
+  nounAfterQui: inChunk(nounAfterQui),
+  quantitySubject: inChunk(quantitySubject),
+  pluralPlupart: inChunk(pluralPlupart),
+  nameSubject: inChunk(nameSubject),
+  invertedSubject: inChunk(invertedSubject),
+} satisfies Record<string, MatchFixer>;

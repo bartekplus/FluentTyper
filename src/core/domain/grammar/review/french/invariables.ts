@@ -1,14 +1,7 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { adjectiveReadings, isInflectedNoun, isVerbHomograph, verbReadings } from "./frenchLexicon";
-import {
-  ownedFrenchWords,
-  SUBJECT_PRONOUNS,
-  tokensAfter,
-  tokensBefore,
-  wordFinding,
-} from "./frenchTokens";
-import { isLang } from "../phraseTemplates";
+import { inChunk, SUBJECT_PRONOUNS, tokensAfter, tokensBefore, wordFinding } from "./frenchTokens";
 
 // Words that do not agree. An adjective used as an adverb after its verb: "coûter cher", "sentir
 // bon", "voler bas". A colour named by a noun ("des yeux marron") and a compound colour ("des
@@ -69,10 +62,6 @@ function adverbialAdjective(ctx: DetectContext, m: RegExpExecArray): RawFinding 
   const found = wordFinding(ctx, m.index, typed, [base], RULE, "review_msg_fr_adverbial_adjective");
   return found && { ...found, context: { start: verb.start, end: m.index + typed.length } };
 }
-const ADVERBIAL_FORM = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:${Object.keys(AGREED).join("|")})(?![\\p{L}\\p{M}\\p{N}_'’-])`,
-  "giu",
-);
 
 // Colours named by a noun: they stay invariable ("rose", "mauve", "fauve" agree and are left out).
 const NOUN_COLOURS = new Set(
@@ -117,23 +106,9 @@ function invariableColour(ctx: DetectContext, m: RegExpExecArray): RawFinding | 
   return found && { ...found, context: { start: previous.start, end } };
 }
 const MESSAGE = "review_msg_fr_invariable_colour";
-const COLOUR = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:${[...NOUN_COLOURS, ...BASE_COLOURS].join("|")})\\p{Ll}{0,3}(?![\\p{L}\\p{M}\\p{N}_'’-])`,
-  "gu",
-);
 
-function invariables(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, ADVERBIAL_FORM)) {
-    const found = adverbialAdjective(ctx, m);
-    if (found) findings.push(found);
-  }
-  for (const m of ownedFrenchWords(ctx, COLOUR)) {
-    const found = invariableColour(ctx, m);
-    if (found) findings.push(found);
-  }
-  return findings;
-}
-
-export const PREDICATES = { invariables: invariables } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  adverbialAdjective: inChunk(adverbialAdjective),
+  invariableColour: inChunk(invariableColour),
+} satisfies Record<string, MatchFixer>;

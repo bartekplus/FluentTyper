@@ -28,33 +28,37 @@ import * as verbForms from "./verbForms";
 
 export const PREDICATES = mergePredicates(
   adjectives.PREDICATES,
-  agreement.PREDICATES,
-  auxiliary.PREDICATES,
-  bareNoun.PREDICATES,
-  commas.PREDICATES,
-  countries.PREDICATES,
   dates.PREDICATES,
-  determiners.PREDICATES,
-  elision.PREDICATES,
-  gender.PREDICATES,
-  homophones.PREDICATES,
-  hyphenation.PREDICATES,
-  imperative.PREDICATES,
-  invariables.PREDICATES,
-  mood.PREDICATES,
-  negation.PREDICATES,
-  nounNumber.PREDICATES,
   ordinals.PREDICATES,
-  questions.PREDICATES,
-  repeatedWords.PREDICATES,
-  smallWords.PREDICATES,
-  style.PREDICATES,
-  tout.PREDICATES,
-  verbForms.PREDICATES,
 );
 
 /** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
-export const FIXERS = mergePredicates<Fixer>();
+export const FIXERS = mergePredicates<Fixer>(
+  adjectives.FIXERS,
+  homophones.FIXERS,
+  verbForms.FIXERS,
+  agreement.FIXERS,
+  style.FIXERS,
+  hyphenation.FIXERS,
+  imperative.FIXERS,
+  tout.FIXERS,
+  mood.FIXERS,
+  smallWords.FIXERS,
+  nounNumber.FIXERS,
+  questions.FIXERS,
+  negation.FIXERS,
+  invariables.FIXERS,
+  gender.FIXERS,
+  elision.FIXERS,
+  determiners.FIXERS,
+  auxiliary.FIXERS,
+  bareNoun.FIXERS,
+  commas.FIXERS,
+  dates.FIXERS,
+  countries.FIXERS,
+  ordinals.FIXERS,
+  repeatedWords.FIXERS,
+);
 
 /** The named findings filters of grammar/rules/fr.yaml (`filter:`). */
 export const FILTERS = mergePredicates<FindingsFilter>();

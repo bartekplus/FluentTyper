@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   IL,
@@ -15,10 +15,9 @@ import {
   verbReadings,
   VOUS,
 } from "./frenchLexicon";
-import { ownedFrenchWords, tokensBefore, type Token } from "./frenchTokens";
+import { inChunk, tokensBefore, type Token } from "./frenchTokens";
 import { namedExampleBefore } from "../exampleCues";
 import { finding } from "../finding";
-import { isLang } from "../phraseTemplates";
 
 // A verb's object noun takes a determiner: "il ferme porte." -> "il ferme la porte", "j'ai
 // baissé store." -> "un store". Read only at the end of a clause, right after a pronoun
@@ -180,18 +179,5 @@ function bareNoun(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   });
 }
 
-// A lowercase word that closes its clause.
-const CLAUSE_END_WORD =
-  /(?<![\p{L}\p{M}\p{N}_'’-])\p{Ll}[\p{Ll}\p{M}]{2,}(?=[ \t ]*(?:[.!?…;,]|$))/gu;
-
-function bareNouns(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, CLAUSE_END_WORD)) {
-    const found = bareNoun(ctx, m);
-    if (found) findings.push(found);
-  }
-  return findings;
-}
-
-export const PREDICATES = { bareNoun: bareNouns } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = { bareNoun: inChunk(bareNoun) } satisfies Record<string, MatchFixer>;

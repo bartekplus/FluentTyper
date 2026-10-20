@@ -1,7 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
-import { ownedFrenchWords } from "./frenchTokens";
+import type { DetectContext } from "../reviewDetectors";
+import type { Detector, MatchFixer } from "../../engine/reviewRules";
+import { inChunk } from "./frenchTokens";
 import { finding } from "../finding";
 import { rangeDashes } from "../rangeDash";
 import { isLang } from "../phraseTemplates";
@@ -11,14 +11,6 @@ import { isLang } from "../phraseTemplates";
 
 const RULE = "frenchOrdinals";
 const MESSAGE = "review_msg_fr_ordinal";
-
-// "2ème", "XIXè", "16me", "2-ièmes", "XIX ième": an Arabic or Roman number and the suffix, glued,
-// after a hyphen, or after a space when the suffix is no word of its own.
-const SUFFIX = "ièmes?|iemes?|èmes?|emes?|ères?|eres?|ières?|ieres?|ier|nds?|ndes?|è|mes?";
-const ORDINAL = new RegExp(
-  `(?<![\\p{L}\\p{N}_.,/-])(?<number>\\d{1,4}|[IVXLC]{1,7})(?<join>-|[ \\u00a0](?=(?:ièmes?|iemes?|èmes?|emes?)(?![\\p{L}])))?(?<suffix>${SUFFIX})(?![\\p{L}\\p{N}_])`,
-  "gu",
-);
 
 function suffixFor(number: string, typed: string): string | null {
   const plural = /s$/i.test(typed) ? "s" : "";
@@ -31,30 +23,26 @@ function suffixFor(number: string, typed: string): string | null {
   return number === "1" || number === "I" ? null : `e${plural}`;
 }
 
-function ordinals(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, ORDINAL)) {
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  ordinal: inChunk((ctx, m) => {
     const { number, join = "", suffix } = m.groups!;
     // "Il a 16 ans, 2 me suffisent": a lowercase "me" may be the pronoun; "DIX", "MIXER" words.
-    if (/^mes?$/.test(suffix) && join) continue;
+    if (/^mes?$/.test(suffix) && join) return null;
     if (
       /^[IVXLC]/.test(number) &&
       (/^(?:nd|ier|ère|ere|ière|iere)/.test(suffix) || !/\p{Ll}/u.test(suffix))
     )
-      continue;
+      return null;
     const fixed = suffixFor(number, suffix);
-    if (!fixed || namedExampleBefore(ctx.text, m.index)) continue;
+    if (!fixed || namedExampleBefore(ctx.text, m.index)) return null;
     const start = m.index + number.length;
     const end = start + join.length + suffix.length;
-    findings.push(
-      finding(RULE, MESSAGE, start, end, [fixed], {
-        context: { start: m.index, end },
-      }),
-    );
-  }
-  return findings;
-}
+    return finding(RULE, MESSAGE, start, end, [fixed], {
+      context: { start: m.index, end },
+    });
+  }),
+} satisfies Record<string, MatchFixer>;
 
 // "pages 10-15" -> "10–15" (emdashShortcut, opt-in). Not after a label of a code or a law
 // ("tél. 12-34", "art. 3-5", "n° 12-14").
@@ -65,7 +53,6 @@ const RANGE_SCORE =
   /(?:^|[^\p{L}])(?:gagn|perd|battu|victoire|défaite|score|match|nul|mène|menait|emport|impos|set|mi-temps|résultat)\p{L}*(?:[ \t '’]+\p{L}+){0,3}[ \t ]+$/iu;
 
 export const PREDICATES = {
-  ordinals,
   rangeDashes: (ctx: DetectContext) =>
     isLang(ctx, "fr") ? rangeDashes(ctx, { code: RANGE_CODE, score: RANGE_SCORE }) : [],
 } satisfies Record<string, Detector>;

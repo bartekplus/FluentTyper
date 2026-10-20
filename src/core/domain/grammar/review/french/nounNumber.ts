@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   finitePersons,
@@ -12,10 +12,9 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { sontForSon } from "./homophones";
-import { ownedFrenchWords, PREPOSITIONS, SUBJECT_PRONOUNS, tokensBefore } from "./frenchTokens";
+import { inChunk, PREPOSITIONS, SUBJECT_PRONOUNS, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
-import { isLang } from "../phraseTemplates";
 
 // A determiner and the noun or adjective right after it share their number: "mes livres",
 // "la route". Which words are nouns comes from the dictionary (a Bloom filter of its inflected
@@ -236,11 +235,6 @@ const RANKS = new Set(
   "numéro page chapitre article tome acte scène étage rang n° volume livre partie leçon".split(" "),
 );
 
-const DETERMINER_NOUN = new RegExp(
-  `(?:(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>${[...PLURAL, ...SINGULAR, ...NUMBER_DETERMINERS].join("|")}|(?<![\\d.,:/°#№]|n°[ \\t]?)\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+|(?<![\\d.,:/°#№]|n°[ \\t]?)\\d+))(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
-  "dgiu",
-);
-
 // Adjectives that stand before their noun; the masculine forms in s or x ("gros", "vieux")
 // show no number and are left out.
 const PRENOMINAL_BASES = (
@@ -306,11 +300,6 @@ function adjectiveNounNumber(ctx: DetectContext, m: RegExpExecArray): RawFinding
   });
 }
 
-const ADJECTIVE_NOUN = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_-])(?<adj>${[...SINGULAR_ADJECTIVES, ...PLURAL_ADJECTIVES].join("|")}|\\p{L}+es)(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
-  "dgiu",
-);
-
 // Determiners whose number a superlative may contradict, with their forms for ms, fs and plural.
 const DEGREE_DETERMINERS: Record<string, [string, string, string]> = {
   le: ["le", "la", "les"],
@@ -327,10 +316,6 @@ const DEGREE_DETERMINERS: Record<string, [string, string, string]> = {
 // Words in the adjective slot that are determiners: "au moins certaines règles".
 const NOT_SUPERLATIVES = new Set(
   "certain certaine certains certaines autre autres même mêmes".split(" "),
-);
-const SUPERLATIVE = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>${Object.keys(DEGREE_DETERMINERS).join("|")})(?=[ \\t]+(?<degree>plus|moins|très)[ \\t]+(?<adj>\\p{L}+)[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))`,
-  "dgiu",
 );
 
 /** "Les plus beau garçon" -> "Le", "la plus beaux parcs" -> "les": before a degree word, an
@@ -365,22 +350,9 @@ function superlativeDeterminer(ctx: DetectContext, m: RegExpExecArray): RawFindi
   });
 }
 
-function nounNumbers(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, DETERMINER_NOUN)) {
-    const finding = nounNumber(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, ADJECTIVE_NOUN)) {
-    const finding = adjectiveNounNumber(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, SUPERLATIVE)) {
-    const finding = superlativeDeterminer(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
-
-export const PREDICATES = { nounNumber: nounNumbers } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  nounNumber: inChunk(nounNumber),
+  adjectiveNounNumber: inChunk(adjectiveNounNumber),
+  superlativeDeterminer: inChunk(superlativeDeterminer),
+} satisfies Record<string, MatchFixer>;

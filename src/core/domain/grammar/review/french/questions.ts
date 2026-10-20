@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   conjugate,
   finitePersons,
@@ -17,7 +17,7 @@ import {
 import { inQuestion, QUESTION_WORDS } from "./hyphenation";
 import {
   CLITICS,
-  ownedFrenchWords,
+  inChunk,
   SENTENCE_START,
   tokensAfter,
   tokensBefore,
@@ -25,7 +25,6 @@ import {
 } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
-import { isLang } from "../phraseTemplates";
 
 // A subject pronoun joined after its verb agrees with it as before it: "sont-ils", "manges-tu",
 // "pouvais-je", "partirons-nous". The euphonic t stands only before a singular: "viendra-t-il".
@@ -53,9 +52,6 @@ const SWAP: Record<string, string> = {
   nous: "vous",
   vous: "nous",
 };
-
-const PAIR =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<verb>\p{L}+)-(?<t>t-)?(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 /** The verb and pronoun joined, with the euphonic t a third singular after a vowel needs. */
 function joined(verb: string, pronoun: string): string {
@@ -118,10 +114,6 @@ function inversionFinding(
   });
 }
 
-// "Peux il partir ?": a verb and a subject pronoun with no hyphen, at a question's start.
-const SPACED_PAIR =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<verb>\p{L}+)[ \t]{1,4}(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles)(?![\p{L}\p{M}\p{N}_'’-])/giu;
-
 /** "Peux il partir ?" -> "Peut-il", "Sont il prêts ?" -> "Sont-ils": a question that opens with an
  * inverted verb and pronoun that do not agree (the hyphenation check joins those that agree). */
 function spacedInversion(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -157,8 +149,6 @@ const STRESSED: Record<string, number> = {
   eux: ILS,
   elles: ILS,
 };
-const PRONOUN_QUI =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?<pronoun>moi|toi|lui|elle|nous|vous|eux|elles)(?:[ \t]+seule?s?)?[ \t]+qui|(?<demonstrative>ceux|celles))(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 /** "C'est toi qui a" -> "as", "Et moi qui pensait" -> "pensais". */
 function pronounAntecedent(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -192,22 +182,9 @@ function pronounAntecedent(ctx: DetectContext, m: RegExpExecArray): RawFinding |
   return found && { ...found, context: { start: m.index, end: verb.end } };
 }
 
-function questions(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, PAIR)) {
-    const found = invertedAgreement(ctx, m);
-    if (found) findings.push(found);
-  }
-  for (const m of ownedFrenchWords(ctx, SPACED_PAIR)) {
-    const found = spacedInversion(ctx, m);
-    if (found) findings.push(found);
-  }
-  for (const m of ownedFrenchWords(ctx, PRONOUN_QUI)) {
-    const found = pronounAntecedent(ctx, m);
-    if (found) findings.push(found);
-  }
-  return findings;
-}
-
-export const PREDICATES = { questions: questions } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  invertedAgreement: inChunk(invertedAgreement),
+  spacedInversion: inChunk(spacedInversion),
+  pronounAntecedent: inChunk(pronounAntecedent),
+} satisfies Record<string, MatchFixer>;

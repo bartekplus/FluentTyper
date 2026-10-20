@@ -1,8 +1,7 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { verbReadings } from "./frenchLexicon";
-import { ownedFrenchWords, tokensBefore, wordFinding } from "./frenchTokens";
-import { isLang } from "../phraseTemplates";
+import { inChunk, tokensBefore, wordFinding } from "./frenchTokens";
 
 // "Je vais au France" -> "en France", "il vit en Portugal" -> "au Portugal": a country takes
 // "en" when feminine or vowel-initial, "au" when masculine, "aux" when plural, and "à" when it
@@ -49,15 +48,6 @@ const PLACE_VERBS = new Set(
   ).split(" "),
 );
 
-const NAMES = [...COUNTRIES.keys()]
-  .sort((a, b) => b.length - a.length)
-  .map((name) => name.replace(/['’]/g, "['’]"))
-  .join("|");
-const PATTERN = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<prep>aux|au|en|à[ \\t]+la|à[ \\t]+l['’])(?:[ \\t]+|(?<=['’]))(?<country>${NAMES})(?![\\p{L}\\p{M}\\p{N}_'’-])`,
-  "giu",
-);
-
 function countryPreposition(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const typed = m.groups!.prep;
   const prep = typed.toLowerCase().replace(/\s+/g, " ").replaceAll("’", "'");
@@ -78,14 +68,7 @@ function countryPreposition(ctx: DetectContext, m: RegExpExecArray): RawFinding 
   });
 }
 
-function countries(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, PATTERN)) {
-    const finding = countryPreposition(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
-
-export const PREDICATES = { countries: countries } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  countryPreposition: inChunk(countryPreposition),
+} satisfies Record<string, MatchFixer>;

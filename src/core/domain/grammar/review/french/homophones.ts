@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   finitePersons,
@@ -21,7 +21,7 @@ import {
 } from "./frenchLexicon";
 import {
   CLITICS,
-  ownedFrenchWords,
+  inChunk,
   SUBJECT_PRONOUNS,
   tokensAfter,
   tokensBefore,
@@ -30,7 +30,6 @@ import {
 } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
-import { isLang } from "../phraseTemplates";
 import { firstNameGender } from "./firstNames";
 import { subjectEndsAt } from "./agreement";
 
@@ -957,7 +956,6 @@ function cToS(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     },
   );
 }
-const C_ELIDED = /(?<![\p{L}\p{M}\p{N}_'’-])[cC]['’](?=\p{L})\p{L}+/gu;
 
 const ETRE_THIRD = new Set(["sont", "sera", "serait", "seront", "seraient", "fut", "furent"]);
 
@@ -1502,7 +1500,6 @@ function hyphenLa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     context: { start: head.start, end: start + 2 },
   });
 }
-const HYPHEN_LA = /(?<=\p{L})(?:-|[ \t])la(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
 /**
  * The possessive for the word after it: "son" before a masculine noun or a vowel, "sa" before
@@ -1676,8 +1673,6 @@ function anToAnnee(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     `${typedDet}${space}${noun} ${feminine}`,
   ]);
 }
-const AN_ADJECTIVE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<det>un|[lL]['’]|cet|les|des|mes|ces|nos|vos|ses|Un|Les|Mes|Ces)[ \t]{0,8}(?<=['’]|[ \t])(?<an>ans?)[ \t]{1,8}(?<adj>\p{Ll}+)(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
 /** "des 1980", "des 11 h", "livraison offerte des 20 €": "dès" (from) before a date, a time, an
  * age or a threshold. */
@@ -1697,7 +1692,6 @@ function desToDes(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (!offer && previous && !/^(?:et|ou|mais|puis|rendez-vous)$/.test(previous.w)) return null;
   return wordFinding(ctx, m.index, m[0], [m[0][0] === "D" ? "Dès" : "dès"], RULE, MESSAGE);
 }
-const DES_NUMBER = /(?<![\p{L}\p{M}\p{N}_'’-])[dD]es(?=[ \t\u00a0]+[\d$€£])/gu;
 
 /** "il croit aveuglement" (the adverb aveuglément), "son aveuglément" (the noun aveuglement). */
 function aveuglement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -1711,7 +1705,6 @@ function aveuglement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
     return wordFinding(ctx, m.index, m[0], [`${m[0].slice(0, 6)}ément`], RULE, MESSAGE);
   return null;
 }
-const AVEUGLEMENT = /(?<![\p{L}\p{M}\p{N}_'’-])[aA]veugl[eé]ment(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
 /** "il dure prêt de deux heures": "près de" (nearly) before a number, right after a verb. "Un
  * prêt de 2 000 euros" (a loan) has its determiner. */
@@ -1725,8 +1718,6 @@ function pretToPres(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     end: m.index + m[0].length,
   });
 }
-const PRET_NUMBER =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<pret>[pP]rêts?)[ \t]+de[ \t]+(?:\d|(?:deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|quarante|cinquante|soixante|cent|mille)(?![\p{L}\p{M}\p{N}_'’-]))/gu;
 
 /** "Tache de partir tôt", "il tache que tout aille bien": tâcher (to try), not tacher (to stain). */
 function tacherToTacher(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -1758,8 +1749,6 @@ function tacherToTacher(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
     end: next.end,
   });
 }
-const TACHER =
-  /(?<![\p{L}\p{M}\p{N}_'’-])[tT]ach(?:e|es|ez|ons|ent|ais|ait|aient|iez|ions|era|erai|eras|erons|erez|eront)(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
 // What leaves a stain ("une tache de café"), what a stain is ("tenace") and what it is on.
 const STAINS = new Set(
@@ -1831,8 +1820,6 @@ function tacheToTache(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
   }
   return fits ? wordFinding(ctx, m.index, typed, [swap], RULE, MESSAGE) : null;
 }
-const TACHE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])[tT][aâ]ch(?:es?|é|ée|és|ées|er)(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
 /** "il est venu comme même": "quand même"; "comme même ses amis" (like even) stays. */
 function commeMeme(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -1847,7 +1834,6 @@ function commeMeme(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     end: m.index + m[0].length,
   });
 }
-const COMME_MEME = /(?<![\p{L}\p{M}\p{N}_'’-])comme[ \t]+même(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
 /** A plural adjective, as far as the lists tell: no verb form, no noun with a gender. */
 const describesPlural = (word: string) =>
@@ -1909,86 +1895,56 @@ function etToEst(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   if (!/^[\s ]*(?:[.!?;]|$)/u.test(ctx.text.slice(word.end, word.end + 3))) return null;
   return fix(word.end);
 }
-const EST_ET = /(?<![\p{L}\p{M}\p{N}_'’-])(?:est|et)(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
-const CANDIDATE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|mon|ton|sont|son|on|non|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\p{L}\p{M}\p{N}_'’])/gu;
-
-function homophones(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, CANDIDATE)) {
-    const word = m[0];
-    const lower = word.toLowerCase().replaceAll("’", "'");
-    let finding: RawFinding | null = null;
-    if (lower === "à") finding = graveToA(ctx, m);
-    else if (lower === "a") finding = aToGrave(ctx, m);
-    else if (lower === "ou") finding = ouToOu(ctx, m);
-    else if (lower === "où") finding = ouGraveToOu(ctx, m);
-    else if (lower.startsWith("sû")) finding = surGraveToSur(ctx, m);
-    else if (lower.startsWith("sur") || lower === "sure" || lower === "sures")
-      finding = surToSur(ctx, m);
-    else if (lower === "ce") finding = ceToSe(ctx, m);
-    else if (lower === "se") finding = seToCe(ctx, m);
-    else if (lower.startsWith("s'")) finding = sEstToCEst(ctx, m);
-    else if (lower === "sa") finding = elidedAuxiliary(ctx, m) ?? saToCa(ctx, m);
-    else if (lower === "ma" || lower === "ta" || lower === "la")
-      finding = elidedAuxiliary(ctx, m) ?? (lower === "la" ? laToLa(ctx, m) : null);
-    else if (lower === "mon" || lower === "ton") finding = elidedAuxiliary(ctx, m);
-    else if (lower === "sont") finding = sontToSon(ctx, m);
-    else if (lower === "son") finding = sonToSont(ctx, m);
-    else if (lower === "on") finding = onToOnt(ctx, m);
-    else if (lower === "non") finding = nonToNont(ctx, m);
-    else if (lower === "peut" || lower === "peux") finding = peutToPeu(ctx, m);
-    else if (lower === "quant") finding = quantToQuand(ctx, m);
-    else if (lower === "quand") finding = quandToQuant(ctx, m);
-    else if (lower === "du") finding = duToDu(ctx, m);
-    else if (lower === "prés") finding = presToPres(ctx, m);
-    else if (lower === "guerre" || lower === "guerres") finding = guerreToGuere(ctx, m);
-    else if (lower === "ont") finding = ontToOn(ctx, m) ?? ontPeut(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, C_ELIDED)) {
-    const finding = cToS(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, AN_ADJECTIVE)) {
-    const finding = anToAnnee(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, DES_NUMBER)) {
-    const finding = desToDes(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, AVEUGLEMENT)) {
-    const finding = aveuglement(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, PRET_NUMBER)) {
-    const finding = pretToPres(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, TACHER)) {
-    const finding = tacherToTacher(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, TACHE)) {
-    const finding = tacheToTache(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, COMME_MEME)) {
-    const finding = commeMeme(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, HYPHEN_LA)) {
-    const finding = hyphenLa(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, EST_ET)) {
-    const finding = m[0] === "est" ? estToEt(ctx, m) : etToEst(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  return findings;
+/** A word that has a homophone: each word checks its own confusion. */
+function homophoneCandidate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const word = m[0];
+  const lower = word.toLowerCase().replaceAll("’", "'");
+  let finding: RawFinding | null = null;
+  if (lower === "à") finding = graveToA(ctx, m);
+  else if (lower === "a") finding = aToGrave(ctx, m);
+  else if (lower === "ou") finding = ouToOu(ctx, m);
+  else if (lower === "où") finding = ouGraveToOu(ctx, m);
+  else if (lower.startsWith("sû")) finding = surGraveToSur(ctx, m);
+  else if (lower.startsWith("sur") || lower === "sure" || lower === "sures")
+    finding = surToSur(ctx, m);
+  else if (lower === "ce") finding = ceToSe(ctx, m);
+  else if (lower === "se") finding = seToCe(ctx, m);
+  else if (lower.startsWith("s'")) finding = sEstToCEst(ctx, m);
+  else if (lower === "sa") finding = elidedAuxiliary(ctx, m) ?? saToCa(ctx, m);
+  else if (lower === "ma" || lower === "ta" || lower === "la")
+    finding = elidedAuxiliary(ctx, m) ?? (lower === "la" ? laToLa(ctx, m) : null);
+  else if (lower === "mon" || lower === "ton") finding = elidedAuxiliary(ctx, m);
+  else if (lower === "sont") finding = sontToSon(ctx, m);
+  else if (lower === "son") finding = sonToSont(ctx, m);
+  else if (lower === "on") finding = onToOnt(ctx, m);
+  else if (lower === "non") finding = nonToNont(ctx, m);
+  else if (lower === "peut" || lower === "peux") finding = peutToPeu(ctx, m);
+  else if (lower === "quant") finding = quantToQuand(ctx, m);
+  else if (lower === "quand") finding = quandToQuant(ctx, m);
+  else if (lower === "du") finding = duToDu(ctx, m);
+  else if (lower === "prés") finding = presToPres(ctx, m);
+  else if (lower === "guerre" || lower === "guerres") finding = guerreToGuere(ctx, m);
+  else if (lower === "ont") finding = ontToOn(ctx, m) ?? ontPeut(ctx, m);
+  return finding;
 }
 
-export const PREDICATES = { homophones: homophones } satisfies Record<string, Detector>;
+/** "est" for "et", or "et" for "est". */
+function estOrEt(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  return m[0] === "est" ? estToEt(ctx, m) : etToEst(ctx, m);
+}
+
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  homophoneCandidate: inChunk(homophoneCandidate),
+  cToS: inChunk(cToS),
+  anToAnnee: inChunk(anToAnnee),
+  desToDes: inChunk(desToDes),
+  aveuglement: inChunk(aveuglement),
+  pretToPres: inChunk(pretToPres),
+  tacherToTacher: inChunk(tacherToTacher),
+  tacheToTache: inChunk(tacheToTache),
+  commeMeme: inChunk(commeMeme),
+  hyphenLa: inChunk(hyphenLa),
+  estOrEt: inChunk(estOrEt),
+} satisfies Record<string, MatchFixer>;

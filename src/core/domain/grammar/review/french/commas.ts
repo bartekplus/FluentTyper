@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   finitePersons,
@@ -13,15 +13,8 @@ import {
   verbReadings,
   VOUS,
 } from "./frenchLexicon";
-import {
-  ownedFrenchWords,
-  SUBJECT_PRONOUNS,
-  type Token,
-  tokensAfter,
-  tokensBefore,
-} from "./frenchTokens";
+import { inChunk, SUBJECT_PRONOUNS, type Token, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
-import { isLang } from "../phraseTemplates";
 
 // A comma never parts words that hold together: a subject pronoun and its verb ("Il, arrive"), a
 // determiner and its noun ("les, jolies filles"), "ne" and the verb, an object pronoun and its
@@ -143,35 +136,23 @@ function stray(left: Token[], right: Token[]): boolean {
   return false;
 }
 
-const COMMA = /(?<=\p{L})[ \t]?,[ \t]{1,4}(?=\p{Ll})/gu;
-
-function strayCommas(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, COMMA)) {
-    const comma = m.index + m[0].indexOf(",");
-    // A second comma before the clause ends closes an insertion: "il a, bien sûr, réussi".
-    const rest = ctx.text.slice(comma + 1, comma + 300);
-    const end = rest.search(/[,.;:!?…\n()«»"“”—]/u);
-    if (end < 0 || rest[end] === ",") continue;
-    const left = tokensBefore(ctx.text, m.index, 6);
-    const right = tokensAfter(ctx.text, m.index + m[0].length, 4);
-    if (!left[0] || ctx.text[left[0].start - 1] === "-" || left.some((t) => t.hyphen)) continue;
-    // Names, acronyms and words in capitals keep their punctuation.
-    if (/\p{Lu}/u.test(ctx.text.slice(left[0].start + 1, left[0].end))) continue;
-    if (namedExampleBefore(ctx.text, left[0].start) || !stray(left, right)) continue;
-    findings.push(
-      finding(RULE, MESSAGE, m.index, m.index + m[0].length, [" "], {
-        context: { start: left[0].start, end: right[0].end },
-      }),
-    );
-  }
-  return findings;
+function strayComma(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const comma = m.index + m[0].indexOf(",");
+  // A second comma before the clause ends closes an insertion: "il a, bien sûr, réussi".
+  const rest = ctx.text.slice(comma + 1, comma + 300);
+  const end = rest.search(/[,.;:!?…\n()«»"“”—]/u);
+  if (end < 0 || rest[end] === ",") return null;
+  const left = tokensBefore(ctx.text, m.index, 6);
+  const right = tokensAfter(ctx.text, m.index + m[0].length, 4);
+  if (!left[0] || ctx.text[left[0].start - 1] === "-" || left.some((t) => t.hyphen)) return null;
+  // Names, acronyms and words in capitals keep their punctuation.
+  if (/\p{Lu}/u.test(ctx.text.slice(left[0].start + 1, left[0].end))) return null;
+  if (namedExampleBefore(ctx.text, left[0].start) || !stray(left, right)) return null;
+  return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [" "], {
+    context: { start: left[0].start, end: right[0].end },
+  });
 }
 
-// A reporting verb inverted with its subject is set off by commas: "Il viendra, dit-elle, demain".
-const REPORTING =
-  /[ \t]{1,4}(?:(?:me|te|lui|leur|nous|vous)[ \t]{1,4})?(?:dit|disait|répondit|répond|ajouta|ajoute|demanda|demande|répliqua|réplique|expliqua|explique|poursuivit|poursuit|reprit|murmura|murmure|cria|lança|lance|affirma|affirme|déclara|déclare|souffla|souffle|soupira|soupire|précisa|précise|insista|insiste|conclut|répéta|répète)-(?:t-)?(?:il|elle|on|ils|elles)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 // Words after which an inversion asks or follows an adverb: "que dit-il ?", "ainsi dit-il".
 const NOT_INCISE = new Set(
   (
@@ -248,21 +229,9 @@ function frontedComma(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
   });
 }
 
-const FRONT_GAP =
-  /(?<=\p{L})[ \t]{1,4}(?=c['’]|(?:ce|cela|ça|je|tu|il|elle|on|nous|vous|ils|elles)(?![\p{L}\p{M}\p{N}_-]))/gu;
-
-function commas(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings = strayCommas(ctx);
-  for (const m of ownedFrenchWords(ctx, REPORTING)) {
-    const finding = reportingComma(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, FRONT_GAP)) {
-    const finding = frontedComma(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
-
-export const PREDICATES = { commas: commas } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  strayComma: inChunk(strayComma),
+  reportingComma: inChunk(reportingComma),
+  frontedComma: inChunk(frontedComma),
+} satisfies Record<string, MatchFixer>;

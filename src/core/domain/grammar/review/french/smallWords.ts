@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   isInflectedNoun,
@@ -10,13 +10,12 @@ import {
 } from "./frenchLexicon";
 import {
   CLITICS,
-  ownedFrenchWords,
+  inChunk,
   tokensAfter,
   tokensBefore,
   wordFinding,
   type Token,
 } from "./frenchTokens";
-import { isLang } from "../phraseTemplates";
 import { namedExampleBefore } from "../exampleCues";
 import { finding } from "../finding";
 
@@ -693,27 +692,6 @@ function hundreds(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   });
 }
 
-const SMALL =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes|et|est|nous|vous|soi|soit|sois|soie|çà)(?![\p{L}\p{M}\p{N}_'’-])/giu;
-const DAVANTAGE = /(?<![\p{L}\p{M}\p{N}_-])d['’]avantage(?![\p{L}\p{M}\p{N}_'’-])/giu;
-const QUEL_QUE_SOIT =
-  /(?<![\p{L}\p{M}\p{N}_'’-])quel(?:le)?s?[ \t]+que[ \t]+soi(?:en)?t(?![\p{L}\p{M}\p{N}_'’-])/giu;
-
-const AGE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|vingt|trente|quarante|cinquante|soixante|cent)[ \t]+(?<years>années)(?![\p{L}\p{M}\p{N}_'’-])/giu;
-
-const HUNDREDS =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<times>\p{L}+)[ \t-]+(?<unit>cents?|vingts?)(?![\p{L}\p{M}\p{N}_'’])/giu;
-
-const CROITRE = /(?<![\p{L}\p{M}\p{N}_'’-])cr(?:oî[st]|û[st]?)(?![\p{L}\p{M}\p{N}_'’])/giu;
-
-const QUA = /(?<![\p{L}\p{M}\p{N}_'’-])qu(?:['’]a|a)(?![\p{L}\p{M}\p{N}_'’-])/giu;
-const SUBJUNCTIVE_AVOIR =
-  /(?<![\p{L}\p{M}\p{N}_-])(?:aie|aies|ait|aient)(?![\p{L}\p{M}\p{N}_'’-])/giu;
-
-const QUELLE = /(?<![\p{L}\p{M}\p{N}_'’-])quel(?:le)?s?(?![\p{L}\p{M}\p{N}_'’-])/giu;
-const PLU = /(?<![\p{L}\p{M}\p{N}_'’-])plu(?![\p{L}\p{M}\p{N}_'’-])/giu;
-
 /** "plu grand", "plu tard" -> "plus": "plu" is the participle of plaire and pleuvoir, and stands
  * only after avoir ("ça m'a beaucoup plu", "a-t-il plu ?"). */
 function pluForPlus(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
@@ -726,27 +704,16 @@ function pluForPlus(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   return wordFinding(ctx, m.index, m[0], ["plus"], RULE, MESSAGE);
 }
 
-function smallWords(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const [pattern, check] of [
-    [SMALL, smallWord],
-    [DAVANTAGE, davantage],
-    [QUEL_QUE_SOIT, quelQueSoit],
-    [AGE, ageInYears],
-    [HUNDREDS, hundreds],
-    [CROITRE, growToBelieve],
-    [QUA, quToQuA],
-    [SUBJUNCTIVE_AVOIR, mainClauseAvoir],
-    [QUELLE, quelleForQuElle],
-    [PLU, pluForPlus],
-  ] as const) {
-    for (const m of ownedFrenchWords(ctx, pattern)) {
-      const finding = check(ctx, m);
-      if (finding) findings.push(finding);
-    }
-  }
-  return findings;
-}
-
-export const PREDICATES = { smallWords: smallWords } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  smallWord: inChunk(smallWord),
+  davantage: inChunk(davantage),
+  quelQueSoit: inChunk(quelQueSoit),
+  ageInYears: inChunk(ageInYears),
+  hundreds: inChunk(hundreds),
+  growToBelieve: inChunk(growToBelieve),
+  quToQuA: inChunk(quToQuA),
+  mainClauseAvoir: inChunk(mainClauseAvoir),
+  quelleForQuElle: inChunk(quelleForQuElle),
+  pluForPlus: inChunk(pluForPlus),
+} satisfies Record<string, MatchFixer>;

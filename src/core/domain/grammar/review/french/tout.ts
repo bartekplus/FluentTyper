@@ -1,5 +1,5 @@
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   type Gender,
@@ -13,14 +13,13 @@ import {
 } from "./frenchLexicon";
 import {
   CLITICS,
-  ownedFrenchWords,
+  inChunk,
   SUBJECT_PRONOUNS,
   tokensAfter,
   tokensBefore,
   wordFinding,
   type Token,
 } from "./frenchTokens";
-import { isLang } from "../phraseTemplates";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // "tout" agrees with the noun phrase it opens: "tout le monde", "toute la journée", "tous les
@@ -443,17 +442,6 @@ function auxiliaryBefore(before: Token[]): boolean {
   );
 }
 
-// FORMS lists the four forms; the pattern is built from them.
-const TOUT = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:${Object.values(FORMS).join("|")})(?![\\p{L}\\p{M}\\p{N}_'’])`,
-  "giu",
-);
-
-// "Bonjour à tous", "merci à vous toutes", "le meilleur d'entre tous": "tout" alone at the end
-// of a greeting or after "d'entre" is the plural pronoun.
-const PRONOUN_TOUT =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:bonjour|bonsoir|salut|merci|bienvenue|bravo)[ \t]+à[ \t]+(?:vous[ \t]+)?|d['’]entre[ \t]+(?:nous[ \t]+|vous[ \t]+)?)(?<tout>tout|toute)(?=[ \t]*(?:[.!?,;…]|$))/giu;
-
 function pronounTout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const typed = m.groups!.tout;
   const start = m.index + m[0].length - typed.length;
@@ -463,18 +451,8 @@ function pronounTout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   return wordFinding(ctx, start, typed, alternatives, RULE, MESSAGE);
 }
 
-function touts(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, TOUT)) {
-    const finding = tout(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, PRONOUN_TOUT)) {
-    const finding = pronounTout(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
-
-export const PREDICATES = { tout: touts } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  tout: inChunk(tout),
+  pronounTout: inChunk(pronounTout),
+} satisfies Record<string, MatchFixer>;

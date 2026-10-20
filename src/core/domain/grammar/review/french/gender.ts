@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { accentedNoun } from "./determiners";
 import {
   adjectiveReadings,
@@ -13,15 +13,8 @@ import {
 } from "./frenchLexicon";
 import { hAspire } from "./elision";
 import { LA_ADVERB_FOLLOWERS, sontForSon } from "./homophones";
-import {
-  ownedFrenchWords,
-  PREPOSITIONS,
-  SUBJECT_PRONOUNS,
-  tokensAfter,
-  tokensBefore,
-} from "./frenchTokens";
+import { inChunk, PREPOSITIONS, SUBJECT_PRONOUNS, tokensAfter, tokensBefore } from "./frenchTokens";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
-import { isLang } from "../phraseTemplates";
 
 // A singular determiner takes its noun's gender: "une maison", "un arbre", "cette idée". Genders
 // come from the bundled n-gram counts and the endings that fix one ("-tion", "-ment").
@@ -166,19 +159,7 @@ function gender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   };
 }
 
-const DETERMINER_NOUN = new RegExp(
-  `(?:(?<![\\p{L}\\p{M}\\p{N}_'’-])|(?<=(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:[dD]|[qQ]u)['’]))(?<det>${Object.keys(SWAP).join("|")})(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_]))`,
-  "dgiu",
-);
-
-function genders(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, DETERMINER_NOUN)) {
-    const finding = gender(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
-
-export const PREDICATES = { gender: genders } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  gender: inChunk(gender),
+} satisfies Record<string, MatchFixer>;
