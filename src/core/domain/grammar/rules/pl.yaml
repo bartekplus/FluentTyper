@@ -3,6 +3,7 @@ lang: pl
 
 # Regex fragments of the frame rules: {{NAME}}.
 fragments:
+  WEEKDAY_OR_MONTH: "(?:Poniedział\\p{Ll}*|Wtor\\p{Ll}*|Środ\\p{Ll}*|Czwart\\p{Ll}*|Piąt\\p{Ll}*|Sobot\\p{Ll}*|Niedziel\\p{Ll}*|Styczni\\p{Ll}*|Styczeń|Lut\\p{Ll}+|Marz\\p{Ll}*|Marc\\p{Ll}*|Kwie\\p{Ll}+|Czerw\\p{Ll}+|Lip\\p{Ll}+|Sierp\\p{Ll}+|Wrze\\p{Ll}+|Październik\\p{Ll}*|Listopad\\p{Ll}*|Grud\\p{Ll}+)"
   QUESTION_WORD: "czy|co|jak|gdzie|kiedy|dlaczego|skąd|dokąd|ile|kto|którędy|czemu"
   END: "(?![\\p{L}\\p{N}])"
   PRONOUN_HEAD: "ktoś|coś|ten|ta|ci|tego|tym|temu|wszystko|wszystkiego|wszystkim|wszystkiemu|każdy|nic|niczego"
@@ -701,7 +702,67 @@ rules:
         fixer: commaFramesTo
   - id: pl.capitals
     checks: [polishCapitalization]
-    predicate: capitals
+    style: swap
+    message: review_msg_pl_capitals
+    frames:
+      # "co Piątek", "w Maju" -> lowercase, not at a sentence start or in a holiday name.
+      - regex: "(?<![\\p{L}])(?<target>{{WEEKDAY_OR_MONTH}}){{END}}"
+        fixer: casingPoniedział
+      # "wielki piątek", "środę popielcową" -> every word capitalized.
+      - regex: "(?<![\\p{L}])(?:wielk\\p{L}+{{S}}(?:piąt\\p{L}+|sobot\\p{L}+|czwart\\p{L}+)|tłust\\p{L}+{{S}}czwart\\p{L}+|niedziel\\p{L}+{{S}}(?:palmow|wielkanocn)\\p{L}+|poniedział\\p{L}+{{S}}wielkanocn\\p{L}+|środ\\p{L}+{{S}}popielcow\\p{L}+){{END}}"
+        flags: giu
+        fixer: casingFrame
+      # "Morza bałtyckiego", "oceanu Atlantyckiego" -> "Morza Bałtyckiego", "Oceanu Atlantyckiego".
+      - regex: "(?<![\\p{L}])(?<noun>morz(?:e|a|u|em)|ocean(?:|u|owi|em|ie)){{S}}(?<adj>(?:bałtyck|czarn|śródziemn|kaspijsk|adriatyck|egejsk|martw|północn|atlantyck|spokojn|indyjsk|arktyczn)\\p{L}+){{END}}"
+        flags: giu
+        fixer: casingFrame2
+      # "Ameryka łacińska", "republika Czeska", "Ruda śląska", "Sri lanka" -> every word
+      # capitalized; a lowercase "ruda" (ore) or "republika" before a plain adjective stays.
+      - regex: "(?<![\\p{L}])(?:Amery(?:ka|ki|kę|ką|ko|ce){{S}}(?:łacińsk|północn|południow|środkow)\\p{Ll}+|[Rr]epubli(?:ka|ki|kę|ką|ce|ko){{S}}(?:[Cc]zesk|[Ss]łowack|[Dd]ominikańsk|[Pp]ołudniowoafrykańsk)\\p{Ll}+|Rud(?:a|y|zie|ę|ą){{S}}śląsk\\p{Ll}+|Sri{{S}}(?:lank(?:a|i|ę|ą)|lance)|[Nn]ow(?:a|ej|ą){{S}}[Zz]elandi(?:a|i|ę|ą)|Wielk(?:a|iej|ą){{S}}[Bb]rytani(?:a|i|ę|ą)){{END}}"
+        fixer: casingFrame3
+      # "Bielsko-biała", "Rabka-zdrój", "Kędzierzyn-koźle": a hyphenated town name capitalizes
+      # both parts.
+      - regex: "(?<![\\p{L}-])\\p{Lu}\\p{Ll}+-(?:biał(?:a|ej|ą)|zdr(?:ój|oju|ojem|oje)|koźl(?:e|a|u|em)){{END}}"
+        fixer: casingFrame4
+      # "Europa zachodnia" -> "Europa Zachodnia": the region's name capitalizes both words.
+      - regex: "(?=[zwśp])(?<=(?<![\\p{L}])Europ(?:a|y|ie|ę|ą){{S}})(?:zachodni|wschodni|środkow|północn|południow)(?:a|ej|ą){{END}}"
+        fixer: casingFrame5
+      # "po Angielsku" -> "po angielsku".
+      - regex: "(?=\\p{Lu})(?<=(?<![\\p{L}])po{{S}})\\p{Lu}\\p{Ll}+sku{{END}}"
+        fixer: casingFrame6
+      # "w języku Katalońskim", "województwo Mazowieckie" -> lowercase adjective.
+      - regex: "(?=\\p{Lu})(?<=(?<![\\p{L}])(?<noun>język\\p{Ll}*|województw\\p{Ll}*|powiat\\p{Ll}*|powiecie){{S}})\\p{Lu}\\p{Ll}+(?:sk|ck)\\p{Ll}+(?:-\\p{Lu}\\p{Ll}+(?:sk|ck)\\p{Ll}+)?{{END}}"
+        fixer: casingFrame7
+      # "kilkuset Hertzów", "100 Ohmów" -> "herców", "omów".
+      - regex: "(?=[HOWV])(?<=(?:\\p{N}|kilku\\p{L}*|stu|tysięcy|wielu){{S}})(?:Hertz|Herc|Ohm|Watt|Volt)(?:ów|y|a|e)?{{END}}"
+        flags: giu
+        fixer: casingFrame8
+      # "na Ty", "per „Ty”" -> "na ty".
+      - regex: "(?<![\\p{L}])(?:na|per){{S}}[„\"]?Ty[”\"]?{{END}}"
+        fixer: casingFrame9
+      # "Sztuką zajmują się Ci, którzy" -> "ci".
+      - regex: "(?=C)(?<=\\p{Ll}{{S}})Ci(?=,?{{S}}(?:którzy|co){{END}})"
+        fixer: casingFrame10
+      # "Zostań z Nami!", "z Naszymi doradcami" -> "nami", "naszymi": the writers' own "nas" and
+      # "nasz" take no capital inside a sentence (only the reader's "Ty", "Wy" may, in a letter).
+      # A capital word before or after makes it a name ("Ojcze Nasz", "Nasz Dziennik").
+      - regex: "(?=N)(?<=(?<![\\p{L}])\\p{Ll}{1,20}{{S}})Na(?:szymi|szego|szemu|szych|szej|szym|sza|sze|szą|sz|mi|m|s)(?={{S}}\\p{Ll}|[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))"
+        fixer: casingFrame11
+      # "Warszawie, Ul. Długa", "mieszka przy Ulicy Polnej" -> "ul.", "ulicy": the generic word of a
+      # street name is lowercase inside the sentence.
+      - regex: "(?=U)(?<=\\p{L},?{{S}})(?:Ul\\.|Ulic(?:a|y|ę|ą|e))(?={{S}}\\p{Lu}\\p{Ll})"
+        fixer: casingFrame12
+      # "al. Ujazdowskie", "w alejach Jerozolimskich" -> "Al.", "Alejach": "Aleje" is part of a
+      # plural avenue name.
+      - regex: "(?<![\\p{L}])(?:al\\.|alej(?:e|ach|ami|om)|alei)(?={{S}}\\p{Lu}\\p{Ll}+(?:skie|ckie|dzkie|skich|ckich|dzkich|skim|ckim|skimi|ckimi){{END}})"
+        fixer: casingFrame13
+      # "Frankfurt Nad Menem", "Kazimierz Nad Wisłą" -> "nad".
+      - regex: "(?=[NP])(?<=\\p{Lu}\\p{Ll}+{{S}})(?:Nad|Pod)(?={{S}}\\p{Lu}\\p{Ll}+)"
+        fixer: casingFrame14
+      # "w gdańsku", "do niemiec", "na mazurach" -> a place name takes a capital (not "po
+      # gdańsku", the Gdańsk way).
+      - regex: "(?=\\p{Ll})(?<=(?<![\\p{L}\\p{N}_'’.@/-])(?:[wW]|[wW]e|[dD]o|[zZ]|[zZ]e|[nN]a|[oO]d|[oO]de|[pP]rzez|[pP]od|[nN]ad|[pP]rzy|[kK]oło|[oO]koło|[sS]pod|[zZ]nad|[uU]|[dD]la|[oO]bok|[wW]okół|[nN]iedaleko|[kK]u|[pP]rzed|[zZ]a|[mM]iędzy|[pP]omiędzy){{S}})\\p{Ll}+(?:-\\p{Ll}+)?{{END}}"
+        fixer: casingFrame15
   - id: pl.conjunctions
     checks: [polishCaseAgreement]
     predicate: conjunctions

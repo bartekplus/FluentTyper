@@ -5,6 +5,7 @@ import type { ReviewMessageKey } from "../review/types";
 import { frameDetector as slotFrames, type Frame as SlotFrame } from "../review/english/idioms5";
 import { runCarryFrames as carryFrames, type Frame as CarryFrame } from "../review/english/idioms3";
 import { runCommaFrames as commaFrames, type CommaFrame } from "../review/polish/commaFrames";
+import { runSwaps, type Swap } from "../review/polish/casing";
 import {
   runCasedFrames as casedFrames,
   type Frame as CasedFrame,
@@ -168,7 +169,13 @@ export function frameRuleDetector(
     return found;
   };
   let detect: Detector;
-  if (rule.style === "comma") {
+  if (rule.style === "swap") {
+    const swaps: Swap[] = compiled.map((frame) => ({
+      regex: new RegExp(frame.pattern, frame.flags ?? "gu"),
+      fix: fixOf(frame.fix, frame.fixer) as Swap["fix"],
+    }));
+    detect = (ctx) => runSwaps(ctx, swaps, ruleId, messageKey);
+  } else if (rule.style === "comma") {
     const frames: CommaFrame[] = compiled.map((frame) => ({
       ruleId: (frame.check ?? ruleId) as CommaFrame["ruleId"],
       messageKey: (frame.message ?? messageKey) as ReviewMessageKey,

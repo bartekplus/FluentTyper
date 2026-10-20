@@ -24,7 +24,6 @@ import * as typos from "./typos";
 
 export const PREDICATES = mergePredicates(
   agreement.PREDICATES,
-  casing.PREDICATES,
   clauses.PREDICATES,
   commas.PREDICATES,
   compounds.PREDICATES,
@@ -45,6 +44,7 @@ export const PREDICATES = mergePredicates(
 
 /** The named frame fixes of grammar/rules/pl.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
+  casing.FIXERS,
   commaFrames.FIXERS,
   compounds.FIXERS,
   confusions.FIXERS,

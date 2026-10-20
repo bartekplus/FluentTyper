@@ -491,8 +491,8 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           entry.check !== undefined
         )
           errors.push(`${at}: "check" needs a style with a check per frame`);
-        if (spec.style !== "comma" && entry.flags !== undefined)
-          errors.push(`${at}: "flags" needs style "comma"`);
+        if (spec.style !== "comma" && spec.style !== "swap" && entry.flags !== undefined)
+          errors.push(`${at}: "flags" needs style "comma" or "swap"`);
         if (spec.style === "cased" && entry.fix !== undefined && typeof entry.fix !== "string")
           errors.push(`${at}: a cased frame has one "fix" string`);
         if (spec.style !== "polish" && entry.lowercase)
@@ -510,12 +510,13 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           if (spec.style === "german") new RegExp(pattern, "gdu");
           else if (spec.style === "cased") new RegExp(`${WORD_START}${pattern}`, "gdu");
           else if (spec.style === "comma") new RegExp(pattern, entry.flags ?? "dgu");
+          else if (spec.style === "swap") new RegExp(pattern, entry.flags ?? "gu");
           else if (entry.wordStart === false) new RegExp(pattern, "gidu");
           else frame(pattern);
         } catch (error) {
           errors.push(`${at}: regex does not compile: ${String(error)}`);
         }
-        if (spec.style !== "german" && !pattern.includes("(?<target>"))
+        if (spec.style !== "german" && spec.style !== "swap" && !pattern.includes("(?<target>"))
           errors.push(`${at}: a frame needs a "target" group`);
         frames.push({
           pattern,

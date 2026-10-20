@@ -167,6 +167,7 @@ export interface RuleSpec {
    * onto the fix unless `verbatim`, `targetOnly`, and context 40/20. "cased": Portuguese text,
    * case-sensitive frames, a check per frame, one fix each, user-dictionary tokens skipped.
    * "comma": Polish text, complete regexes with `flags`, a check per frame, a fixer each.
+   * "swap": Polish text, complete regexes with `flags`, the whole match replaced by a fixer.
    */
   style?:
     | "frame"
@@ -177,7 +178,8 @@ export interface RuleSpec {
     | "german"
     | "carry"
     | "cased"
-    | "comma";
+    | "comma"
+    | "swap";
   /** A named filter of the rule's findings (a `FILTERS` record of the rule file). */
   filter?: string;
 }
@@ -251,7 +253,8 @@ export interface CompiledRule {
   frames?: readonly number[];
   /** The message of a frame rule. */
   message?: string;
-  style?: "template" | "slot" | "polish" | "portuguese" | "german" | "carry" | "cased" | "comma";
+  style?:
+    "template" | "slot" | "polish" | "portuguese" | "german" | "carry" | "cased" | "comma" | "swap";
   /** "<file>:<name>" of a named findings filter. */
   filter?: string;
   cacheable?: true;
