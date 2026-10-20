@@ -130,7 +130,8 @@ export const FIXERS = mergePredicates<Fixer>(
   realWordFrames.FIXERS,
   typoSlots.FIXERS,
   verbSlots.FIXERS,
+  remaining.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>(articles.FILTERS);
+export const FILTERS = mergePredicates<FindingsFilter>(articles.FILTERS, grammarStyle1.FILTERS);

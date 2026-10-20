@@ -16,11 +16,27 @@ export type Detector = ReviewDetectorEntry["detect"];
 /** Named Review detectors by rule file ("common", "en", "de", ...), then by name. */
 export type ReviewPredicates = Readonly<Record<string, Readonly<Record<string, Detector>>>>;
 
+/** The check and message a frame reports. */
+export interface FrameRef {
+  readonly ruleId: CatalogRuleId;
+  readonly messageKey: ReviewMessageKey;
+}
+
 /**
  * A named frame fix: the fix of one match, or null to veto it. Slot rules also pass the chunk
- * context, and their fixers may give the range to replace.
+ * context, and their fixers may give the range to replace. Match rules also pass the frame.
  */
-export type Fixer = (m: RegExpExecArray, ctx: DetectContext) => unknown;
+export type Fixer = (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef) => unknown;
+
+/**
+ * What the fixer of a match rule gives for one match: a fix or the fixes to choose from (a
+ * finding on the `target` group), its own findings, or nothing (null, undefined or []).
+ */
+export type MatchResult =
+  string | readonly string[] | RawFinding | readonly RawFinding[] | null | undefined;
+
+/** The fixer of a match rule frame. */
+export type MatchFixer = (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef) => MatchResult;
 
 /** Any named fix: each frame style passes its own arguments (portuguese: the typed target). */
 export type AnyFixer = (...args: never[]) => unknown;

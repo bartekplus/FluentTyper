@@ -110,7 +110,13 @@ const FRAME_KEYS = new Set([
   "ownCase",
   "targetOnly",
   "flags",
+  "scan",
+  "lookback",
+  "owner",
+  "gate",
+  "gateFlags",
 ]);
+const SCANS = new Set(["frame", "owned", "text", "polish"]);
 const BUILTIN_FRAGMENTS: Readonly<Record<string, string>> = {
   S: SPACE,
   E: WORD_END,
@@ -474,6 +480,8 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           if (!FRAME_KEYS.has(key)) errors.push(`${at}: unknown frame field "${key}"`);
         if ((entry.fix === undefined) === (entry.fixer === undefined))
           errors.push(`${at}: give exactly one of "fix" and "fixer"`);
+        const match = spec.style === "match";
+        const scan = entry.scan ?? "frame";
         if (spec.style === "template" && (typeof entry.fix !== "string" || entry.raw))
           errors.push(`${at}: a template has one "fix" string and no "raw"`);
         if (spec.style !== "template" && spec.style !== "portuguese" && entry.clauseStart)
@@ -487,12 +495,35 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
         if (spec.style !== "slot" && entry.cue !== undefined)
           errors.push(`${at}: "cue" needs style "slot"`);
         if (
-          !["slot", "polish", "carry", "cased", "comma"].includes(spec.style ?? "") &&
+          !["slot", "polish", "carry", "cased", "comma", "match"].includes(spec.style ?? "") &&
           entry.check !== undefined
         )
           errors.push(`${at}: "check" needs a style with a check per frame`);
-        if (spec.style !== "comma" && spec.style !== "swap" && entry.flags !== undefined)
-          errors.push(`${at}: "flags" needs style "comma" or "swap"`);
+        if (match && entry.raw) errors.push(`${at}: "raw" does not apply to style "match"`);
+        if (!["comma", "swap", "match"].includes(spec.style ?? "") && entry.flags !== undefined)
+          errors.push(`${at}: "flags" needs style "comma", "swap" or "match"`);
+        for (const key of ["scan", "lookback", "owner"] as const)
+          if (!match && entry[key] !== undefined)
+            errors.push(`${at}: "${key}" needs style "match"`);
+        if (!SCANS.has(scan)) errors.push(`${at}: unknown scan "${scan}"`);
+        if (match && scan !== "frame" && (entry.flags === undefined || !entry.flags.includes("g")))
+          errors.push(`${at}: a "${scan}" scan needs "flags" with "g"`);
+        if (
+          match &&
+          scan === "frame" &&
+          entry.flags !== undefined &&
+          !/^(?=.*g)(?=.*d)/.test(entry.flags)
+        )
+          errors.push(`${at}: a frame scan needs "flags" with "g" and "d"`);
+        if (scan !== "frame" && (entry.owner !== undefined || entry.wordStart !== undefined))
+          errors.push(`${at}: "owner" and "wordStart" need the frame scan`);
+        if (entry.lookback !== undefined && scan !== "owned" && scan !== "text")
+          errors.push(`${at}: "lookback" needs scan "owned" or "text"`);
+        if (
+          entry.lookback !== undefined &&
+          (!Number.isInteger(entry.lookback) || entry.lookback < 0)
+        )
+          errors.push(`${at}: "lookback" is a count of characters`);
         if (spec.style === "cased" && entry.fix !== undefined && typeof entry.fix !== "string")
           errors.push(`${at}: a cased frame has one "fix" string`);
         if (spec.style !== "polish" && entry.lowercase)
@@ -505,18 +536,34 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           errors.push(`${at}: check "${entry.check}" is not a check of the rule`);
         for (const word of entry.cue ?? [])
           if (!/^\p{Ll}+$/u.test(word)) errors.push(`${at}: cue "${word}" is not a lowercase word`);
+        if (entry.gateFlags !== undefined && entry.gate === undefined)
+          errors.push(`${at}: "gateFlags" needs "gate"`);
+        if (entry.gate !== undefined)
+          try {
+            if (!new RegExp(entry.gate, entry.gateFlags ?? "gi").global)
+              errors.push(`${at}: "gateFlags" needs "g"`);
+          } catch (error) {
+            errors.push(`${at}: gate does not compile: ${String(error)}`);
+          }
         const pattern = expandFrame(entry.regex, file.fragments ?? {}, at, errors);
         try {
           if (spec.style === "german") new RegExp(pattern, "gdu");
           else if (spec.style === "cased") new RegExp(`${WORD_START}${pattern}`, "gdu");
           else if (spec.style === "comma") new RegExp(pattern, entry.flags ?? "dgu");
           else if (spec.style === "swap") new RegExp(pattern, entry.flags ?? "gu");
+          else if (match && (scan !== "frame" || entry.flags !== undefined))
+            new RegExp(pattern, entry.flags ?? "gidu");
           else if (entry.wordStart === false) new RegExp(pattern, "gidu");
           else frame(pattern);
         } catch (error) {
           errors.push(`${at}: regex does not compile: ${String(error)}`);
         }
-        if (spec.style !== "german" && spec.style !== "swap" && !pattern.includes("(?<target>"))
+        if (
+          spec.style !== "german" &&
+          spec.style !== "swap" &&
+          (!match || entry.fix !== undefined || (entry.owner ?? "target") === "target") &&
+          !pattern.includes("(?<target>")
+        )
           errors.push(`${at}: a frame needs a "target" group`);
         frames.push({
           pattern,
@@ -537,6 +584,11 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           ...(entry.ownCase ? { ownCase: true as const } : {}),
           ...(entry.targetOnly ? { targetOnly: true as const } : {}),
           ...(entry.flags === undefined ? {} : { flags: entry.flags }),
+          ...(entry.scan === undefined || entry.scan === "frame" ? {} : { scan: entry.scan }),
+          ...(entry.lookback === undefined ? {} : { lookback: entry.lookback }),
+          ...(entry.owner === undefined ? {} : { owner: entry.owner }),
+          ...(entry.gate === undefined ? {} : { gate: entry.gate }),
+          ...(entry.gateFlags === undefined ? {} : { gateFlags: entry.gateFlags }),
         });
         return frames.length - 1;
       });

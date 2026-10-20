@@ -1,6 +1,11 @@
 // The named Review detectors of grammar/rules/pt_BR.yaml; the rule file sets their checks,
 // languages and order.
-import { mergePredicates, type AnyFixer, type Detector } from "../../engine/reviewRules";
+import {
+  mergePredicates,
+  type AnyFixer,
+  type Detector,
+  type FindingsFilter,
+} from "../../engine/reviewRules";
 import { agreement } from "./agreement";
 import { ao90 } from "./ao90";
 import { cliticPlacement } from "./clitics";
@@ -69,3 +74,6 @@ export const FIXERS = mergePredicates<AnyFixer>(
   NUMBER_FIXERS,
   TYPOGRAPHY_FIXERS,
 );
+
+/** The named findings filters of grammar/rules/pt_BR.yaml (`filter:`). */
+export const FILTERS = mergePredicates<FindingsFilter>();

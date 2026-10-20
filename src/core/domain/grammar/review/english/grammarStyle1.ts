@@ -21,7 +21,7 @@ import {
   WORD_START,
 } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { Detector, FindingsFilter } from "../../engine/reviewRules";
 import { finding } from "../finding";
 import { namedExampleBefore } from "../exampleCues";
 import { objectGapBefore } from "./slotWords";
@@ -1292,6 +1292,12 @@ function serialCommas(ctx: DetectContext): RawFinding[] {
 export function quotedMention(ctx: DetectContext, finding: RawFinding): boolean {
   return namedExampleBefore(ctx.text, finding.range.start);
 }
+/** The named findings filters of grammar/rules/en.yaml (`filter:`). */
+export const FILTERS = {
+  /** Findings inside a named example are dropped: the example is mentioned, not used. */
+  outsideExamples: (ctx, findings) => findings.filter((f) => !quotedMention(ctx, f)),
+} satisfies Record<string, FindingsFilter>;
+
 /** English only; findings inside a named example are dropped. */
 export const english =
   (...detectors: ((ctx: DetectContext) => RawFinding[])[]) =>

@@ -19,6 +19,7 @@ import {
   WORD_START,
 } from "../review/phraseTemplates";
 import type { DetectContext, RawFinding } from "../review/reviewDetectors";
+import type { MatchResult } from "./reviewRules";
 import type { ReviewMessageKey } from "../review/types";
 import type { CompiledFrame, FrameStyle } from "./types";
 
@@ -30,7 +31,9 @@ export interface RunFrame {
   readonly ruleId: CatalogRuleId;
   readonly messageKey: ReviewMessageKey;
   readonly cue?: readonly string[];
-  readonly owner: string | ((m: RegExpExecArray) => number);
+  readonly owner: string | ((m: RegExpExecArray) => number) | null;
+  readonly scan: NonNullable<CompiledFrame["scan"]>;
+  readonly gate?: RegExp;
   readonly frame: CompiledFrame;
 }
 
@@ -45,9 +48,9 @@ interface Style {
   /** The scan of a frame: a complete regex, or none for a frame pattern (WORD_START, `gidu`). */
   regex?: (frame: CompiledFrame) => RegExp | undefined;
   /** The group whose start owns a match (default: `target`). */
-  owner?: (pattern: string) => RunFrame["owner"];
-  /** Hand-written scans: regex matches from 64 characters before the chunk, not frame scans. */
-  owned?: true;
+  owner?: (frame: CompiledFrame) => RunFrame["owner"];
+  /** The scan of every frame of the style (default: the frame's own `scan`, or "frame"). */
+  scan?: NonNullable<CompiledFrame["scan"]>;
   /** Adds the findings of one match. */
   find: (ctx: DetectContext, m: RegExpExecArray, frame: RunFrame, findings: RawFinding[]) => void;
 }
@@ -125,7 +128,7 @@ const STYLES: Record<FrameStyle, Style> = {
   slot: {
     runs: (ctx) => isLang(ctx, "en"),
     regex: (frame) => (frame.wordStart === false ? new RegExp(frame.pattern, "gidu") : undefined),
-    owner: (pattern) =>
+    owner: ({ pattern }) =>
       /\(\?<target2>/.test(pattern)
         ? (m) => (m.indices!.groups!.target ?? m.indices!.groups!.target2)[0]
         : "target",
@@ -267,7 +270,7 @@ const STYLES: Record<FrameStyle, Style> = {
   comma: {
     runs: (ctx) => isPl(ctx),
     regex: (frame) => new RegExp(frame.pattern, frame.flags ?? "dgu"),
-    owned: true,
+    scan: "polish",
     find(ctx, m, frame, findings) {
       const [start, end] = target(m);
       if (start < ctx.from || start >= ctx.to) return;
@@ -282,7 +285,7 @@ const STYLES: Record<FrameStyle, Style> = {
   swap: {
     runs: (ctx) => isPl(ctx),
     regex: (frame) => new RegExp(frame.pattern, frame.flags ?? "gu"),
-    owned: true,
+    scan: "polish",
     find(ctx, m, frame, findings) {
       const typed = m[0];
       if (userOrNamed(ctx, typed)) return;
@@ -293,7 +296,70 @@ const STYLES: Record<FrameStyle, Style> = {
       );
     },
   },
+  // Any language: the fixer reads the match and gives fixes for `target`, findings or nothing.
+  match: {
+    runs: () => true,
+    regex: (frame) =>
+      (frame.scan ?? "frame") !== "frame" || frame.flags !== undefined || frame.wordStart === false
+        ? new RegExp(frame.pattern, frame.flags ?? "gidu")
+        : undefined,
+    owner: ({ owner = "target" }) => {
+      if (owner === "none") return null;
+      if (!owner.includes("|")) return owner;
+      const names = owner.split("|");
+      return (m) => {
+        const groups = m.indices!.groups!;
+        const name = names.find((n) => groups[n]);
+        return name ? groups[name][0] : -1;
+      };
+    },
+    find(ctx, m, frame, findings) {
+      const result = fixOf(frame, m, ctx, frame) as MatchResult;
+      if (result === null || result === undefined) return;
+      if (typeof result === "string")
+        findings.push(found(ctx, m, frame.ruleId, frame.messageKey, [result]));
+      else if (!isList(result)) findings.push(result);
+      else if (result.length === 0) return;
+      else if (typeof result[0] === "string")
+        findings.push(found(ctx, m, frame.ruleId, frame.messageKey, [...(result as string[])]));
+      else findings.push(...(result as readonly RawFinding[]));
+    },
+  },
 };
+
+const isList = (value: unknown): value is readonly unknown[] => Array.isArray(value);
+
+/** Matches of a regex from `lookback` characters before the chunk until one starts after it. */
+function* scanFrom(
+  ctx: DetectContext,
+  regex: RegExp,
+  text: string,
+  lookback: number,
+): Generator<RegExpExecArray> {
+  regex.lastIndex = Math.max(0, ctx.from - lookback);
+  for (let m = regex.exec(text); m && m.index < ctx.to; m = regex.exec(text)) yield m;
+}
+
+/** The chunk's text, from 256 characters before it to 64 after it, matches `gate`. */
+function mentions(ctx: DetectContext, gate: RegExp): boolean {
+  gate.lastIndex = Math.max(0, ctx.from - 256);
+  const m = gate.exec(ctx.scanText);
+  return !!m && m.index < ctx.to + 64;
+}
+
+/** The matches of one frame in the chunk of `ctx`. */
+function matchesOf(ctx: DetectContext, frame: RunFrame): Iterable<RegExpExecArray> {
+  switch (frame.scan) {
+    case "owned":
+      return scanFrom(ctx, frame.pattern as RegExp, ctx.scanText, frame.frame.lookback ?? 0);
+    case "text":
+      return scanFrom(ctx, frame.pattern as RegExp, ctx.text, frame.frame.lookback ?? 0);
+    case "polish":
+      return owned(ctx, frame.pattern as RegExp);
+    default:
+      return frameMatches(ctx, frame.pattern, frame.owner);
+  }
+}
 
 /** Every slot frame the engine runs: the frame health test compiles each and checks its cues. */
 export const FRAME_SETS: (readonly RunFrame[])[] = [];
@@ -316,7 +382,9 @@ export function prepareFrames(
     ruleId: (frame.check ?? ruleId) as CatalogRuleId,
     messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
     ...(frame.cue ? { cue: frame.cue } : {}),
-    owner: owner?.(frame.pattern) ?? "target",
+    owner: owner ? owner(frame) : "target",
+    scan: style === "match" ? (frame.scan ?? "frame") : (STYLES[style].scan ?? "frame"),
+    ...(frame.gate === undefined ? {} : { gate: new RegExp(frame.gate, frame.gateFlags ?? "gi") }),
     frame,
   }));
   if (style === "slot") FRAME_SETS.push(frames);
@@ -332,20 +400,18 @@ export function detectFrames(
   style: FrameStyle,
   frames: readonly RunFrame[],
 ): RawFinding[] {
-  const { runs, owned: ownedScan, find } = STYLES[style];
+  const { runs, find } = STYLES[style];
   if (!runs(ctx)) return [];
   const findings: RawFinding[] = [];
   let words: Set<string> | undefined;
   for (const frame of frames) {
     if (ctx.rules && !ctx.rules.has(frame.ruleId)) continue;
+    if (frame.gate && !mentions(ctx, frame.gate)) continue;
     if (frame.cue && !FRAME_AUDIT.all) {
       words ??= wordsNear(ctx);
       if (!frame.cue.some((word) => words!.has(word))) continue;
     }
-    const matches = ownedScan
-      ? owned(ctx, frame.pattern as RegExp)
-      : frameMatches(ctx, frame.pattern, frame.owner);
-    for (const m of matches) find(ctx, m, frame, findings);
+    for (const m of matchesOf(ctx, frame)) find(ctx, m, frame, findings);
   }
   return findings;
 }
@@ -365,6 +431,7 @@ export function detectPhraseTemplates(
     ruleId,
     messageKey: template.messageKey,
     owner: "target",
+    scan: "frame",
     frame: {
       pattern: template.pattern,
       literals: [],

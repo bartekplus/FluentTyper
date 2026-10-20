@@ -1,6 +1,6 @@
 // The named Review detectors of grammar/rules/pl.yaml; the rule file sets their checks,
 // languages and order.
-import { mergePredicates, type Fixer } from "../../engine/reviewRules";
+import { mergePredicates, type Fixer, type FindingsFilter } from "../../engine/reviewRules";
 import * as agreement from "./agreement";
 import * as casing from "./casing";
 import * as clauses from "./clauses";
@@ -53,3 +53,6 @@ export const FIXERS = mergePredicates<Fixer>(
   style.FIXERS,
   typos.FIXERS,
 );
+
+/** The named findings filters of grammar/rules/pl.yaml (`filter:`). */
+export const FILTERS = mergePredicates<FindingsFilter>();

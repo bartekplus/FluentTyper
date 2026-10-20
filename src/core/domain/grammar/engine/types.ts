@@ -119,8 +119,31 @@ export interface FrameSpec {
   ownCase?: boolean;
   /** Carry rules: only the target's words must be plain (not user-dictionary or cased). */
   targetOnly?: boolean;
-  /** Comma rules: the regex flags. Default "dgu". */
+  /** The regex flags of a complete regex (comma, swap and match rules). */
   flags?: string;
+  /**
+   * Match rules: how the frame scans the chunk. "frame" (default): a frame scan
+   * (frameMatches; a regex with `wordStart: false` or `flags` is used as it is). "owned": the
+   * regex from `lookback` characters before the chunk over the scan text, while a match starts
+   * before the chunk end. "text": the same over the text. "polish": the Polish owned scan (64
+   * characters back, named examples skipped).
+   */
+  scan?: "frame" | "owned" | "text" | "polish";
+  /** Match rules, "owned" and "text" scans: the characters read before the chunk. Default 0. */
+  lookback?: number;
+  /**
+   * Match rules, frame scans: the group whose start must lie in the chunk. "a|b": the first
+   * of these groups that matched. "none": every match of the scan (the fixer decides).
+   * Default "target".
+   */
+  owner?: string;
+  /**
+   * The frame runs only on a chunk whose text, from 256 characters before it to 64 after
+   * it, matches this regex (a rare word of the frame).
+   */
+  gate?: string;
+  /** The flags of `gate`. Default "gi". */
+  gateFlags?: string;
 }
 
 /** An executable rule: a token pattern, a list of frames, or a named detector predicate. */
@@ -168,6 +191,9 @@ export interface RuleSpec {
    * case-sensitive frames, a check per frame, one fix each, user-dictionary tokens skipped.
    * "comma": Polish text, complete regexes with `flags`, a check per frame, a fixer each.
    * "swap": Polish text, complete regexes with `flags`, the whole match replaced by a fixer.
+   * "match": every language the rule runs in; a fixer reads each match and gives its fixes
+   * (a finding on the `target` group, context 96/9), its own findings, or null. `scan`,
+   * `lookback` and `owner` set how the frame reads the chunk.
    */
   style?: FrameStyle;
   /** A named filter of the rule's findings (a `FILTERS` record of the rule file). */
@@ -262,7 +288,8 @@ export type FrameStyle =
   | "carry"
   | "cased"
   | "comma"
-  | "swap";
+  | "swap"
+  | "match";
 
 /** A compiled frame: the expanded regex, its prefilter literals and its fix. */
 export interface CompiledFrame {
@@ -284,4 +311,9 @@ export interface CompiledFrame {
   ownCase?: true;
   targetOnly?: true;
   flags?: string;
+  scan?: "frame" | "owned" | "text" | "polish";
+  lookback?: number;
+  owner?: string;
+  gate?: string;
+  gateFlags?: string;
 }

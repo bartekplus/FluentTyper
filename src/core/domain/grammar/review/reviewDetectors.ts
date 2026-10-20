@@ -104,19 +104,56 @@ import {
 } from "./english/ruleDetectors";
 import { FILTERS as USAGE_FILTERS } from "./englishUsagePhrases";
 import { FILTERS as COMPOUND_FILTERS } from "./englishCompounds";
-import { FIXERS as GERMAN_FIXERS, PREDICATES as GERMAN } from "./german/ruleDetectors";
-import { PREDICATES as GREEK } from "./greek/ruleDetectors";
-import { PREDICATES as SWEDISH } from "./swedish/ruleDetectors";
-import { PREDICATES as ARABIC } from "./arabic/ruleDetectors";
-import { FIXERS as PORTUGUESE_FIXERS, PREDICATES as PORTUGUESE } from "./portuguese/ruleDetectors";
-import { FIXERS as POLISH_FIXERS, PREDICATES as POLISH } from "./polish/ruleDetectors";
-import { PREDICATES as SPANISH } from "./spanish/ruleDetectors";
-import { PREDICATES as FRENCH } from "./french/ruleDetectors";
+import {
+  FILTERS as GERMAN_FILTERS,
+  FIXERS as GERMAN_FIXERS,
+  PREDICATES as GERMAN,
+} from "./german/ruleDetectors";
+import {
+  FILTERS as GREEK_FILTERS,
+  FIXERS as GREEK_FIXERS,
+  PREDICATES as GREEK,
+} from "./greek/ruleDetectors";
+import {
+  FILTERS as SWEDISH_FILTERS,
+  FIXERS as SWEDISH_FIXERS,
+  PREDICATES as SWEDISH,
+} from "./swedish/ruleDetectors";
+import {
+  FILTERS as ARABIC_FILTERS,
+  FIXERS as ARABIC_FIXERS,
+  PREDICATES as ARABIC,
+} from "./arabic/ruleDetectors";
+import {
+  FILTERS as PORTUGUESE_FILTERS,
+  FIXERS as PORTUGUESE_FIXERS,
+  PREDICATES as PORTUGUESE,
+} from "./portuguese/ruleDetectors";
+import {
+  FILTERS as POLISH_FILTERS,
+  FIXERS as POLISH_FIXERS,
+  PREDICATES as POLISH,
+} from "./polish/ruleDetectors";
+import {
+  FILTERS as SPANISH_FILTERS,
+  FIXERS as SPANISH_FIXERS,
+  PREDICATES as SPANISH,
+} from "./spanish/ruleDetectors";
+import {
+  FILTERS as FRENCH_FILTERS,
+  FIXERS as FRENCH_FIXERS,
+  PREDICATES as FRENCH,
+} from "./french/ruleDetectors";
 import { dateTense } from "./dateTense";
 
 import { detectAll, PSEUDO_CLEFT_BEFORE, isLang } from "./phraseTemplates";
 import { finding } from "./finding";
-import { buildReviewDetectors } from "../engine/reviewRules";
+import {
+  buildReviewDetectors,
+  mergePredicates,
+  type FindingsFilter,
+  type Fixer,
+} from "../engine/reviewRules";
 
 /**
  * Review detectors read ONE immutable snapshot and never mutate it.
@@ -1641,6 +1678,12 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   dateTense,
 };
 
+/** The named frame fixes of grammar/rules/common.yaml (`fixer:`). */
+const CORE_FIXERS = mergePredicates<Fixer>();
+
+/** The named findings filters of grammar/rules/common.yaml (`filter:`). */
+const CORE_FILTERS = mergePredicates<FindingsFilter>(USAGE_FILTERS, COMPOUND_FILTERS);
+
 /**
  * Review detectors in evaluation order, built from the Review rules of grammar/rules/*.yaml.
  * Rules absent here are excluded from review (see reviewCatalog).
@@ -1658,8 +1701,30 @@ export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors(
     es: SPANISH,
     fr: FRENCH,
   },
-  { en: ENGLISH_FIXERS, pl: POLISH_FIXERS, pt_BR: PORTUGUESE_FIXERS, de: GERMAN_FIXERS },
-  { common: { ...USAGE_FILTERS, ...COMPOUND_FILTERS }, en: ENGLISH_FILTERS },
+  {
+    common: CORE_FIXERS,
+    en: ENGLISH_FIXERS,
+    de: GERMAN_FIXERS,
+    el: GREEK_FIXERS,
+    sv: SWEDISH_FIXERS,
+    ar_SA: ARABIC_FIXERS,
+    pt_BR: PORTUGUESE_FIXERS,
+    pl: POLISH_FIXERS,
+    es: SPANISH_FIXERS,
+    fr: FRENCH_FIXERS,
+  },
+  {
+    common: CORE_FILTERS,
+    en: ENGLISH_FILTERS,
+    de: GERMAN_FILTERS,
+    el: GREEK_FILTERS,
+    sv: SWEDISH_FILTERS,
+    ar_SA: ARABIC_FILTERS,
+    pt_BR: PORTUGUESE_FILTERS,
+    pl: POLISH_FILTERS,
+    es: SPANISH_FILTERS,
+    fr: FRENCH_FILTERS,
+  },
 );
 
 /** Per-language entries: they may add context detectors to shared rules or serve their own. */

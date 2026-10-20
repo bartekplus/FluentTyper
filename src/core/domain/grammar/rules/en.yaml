@@ -3,6 +3,8 @@ lang: en
 
 # Regex fragments of the frame rules: {{NAME}}.
 fragments:
+  MOVERS: "move|moves|moved|moving|arrive|arrives|arrived|arriving|leave|leaves|left|leaving|flee|flees|fled|fleeing|resign|resigns|resigned|resigning|quit|quits|quitting|migrate|migrates|migrated|migrating|desert|deserted|gather|gathered|protest|protested|walked{{S}}out"
+  AFTER_MASS: "yesterday|today|tonight|again|now|then|last|this|that|from|to|into|across|after|before|when|and|but|as|over|toward|towards"
   CLOSED: "(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)"
   BE_FORM: "am|is|are|was|were|be|been|being|(?:I|you|we|they|he|she|it|that|there|who|what|this)['’](?:m|re|s)"
   IDIOMS5_ORDINAL: "[0-9]+(?:st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth"
@@ -1017,16 +1019,56 @@ rules:
     predicate: youNounOf
   - id: en.modalOfAtEnd
     checks: [englishModalOfCorrection]
-    predicate: modalOfAtEnd
+    style: match
+    message: review_msg_modal_of
+    filter: outsideExamples
+    frames:
+      # "could of" closing its clause; the core rule waits for the word after "of".
+      - regex: "(?<target>(?<modal>could|would|should|must|might)(?:n['’]t)?{{S}}(?<of>of)){{COMPLETE}}"
+        gate: "(?:ld|st|ht)(?:n['’]t)?[ \\t\\u00a0]+of\\b"
+        fixer: modalOfAtEnd
   - id: en.bewareOf
     checks: [englishFixedPrepositions]
-    predicate: bewareOf
+    style: match
+    message: review_msg_fixed_prepositions
+    filter: outsideExamples
+    frames:
+      # "Beware on the step": the thing to beware of takes "of".
+      - regex: "beware{{S}}(?<target>in|on|at){{S}}(?:the|that|this|these|those){{E}}"
+        gate: beware
+        fixer: bewareOf
   - id: en.rarePhraseFixes
     checks: [englishPhraseCorrections]
-    predicate: rarePhraseFixes
+    style: match
+    message: review_msg_phrase_correction
+    filter: outsideExamples
+    frames:
+      # "They left in mass": all together is "en masse" after a verb of moving or quitting.
+      - regex: "(?:{{MOVERS}}){{S}}(?<target>[io]n{{S}}mass)(?:{{COMPLETE}}|(?={{S}}(?:{{AFTER_MASS}}){{E}}))"
+        gate: "\\b[io]n[ \\t\\u00a0]+mass\\b"
+        fixer: enMasse
+      # "link lists" are lists of links unless the text is about nodes and pointers.
+      - regex: "(?<target>link){{S}}lists{{E}}"
+        gate: "link[ \\t\\u00a0]+lists"
+        fixer: linkedLists
+      # "parts of speeches" are sections of speeches unless the text is about grammar.
+      - regex: "(?<target>parts?{{S}}of{{S}}speeches){{E}}"
+        gate: "of[ \\t\\u00a0]+speeches"
+        fixer: partsOfSpeech
+      # "scrap" discards; "scrape" extracts.
+      - regex: "(?<target>scrap(?:s|ped|ping)?){{S}}(?:(?:the|a|an|all|some|its|their|our|my|your|this|these|different|multiple|various|several|many|other){{S}})?(?<site>(?:website|site|page|webpage)['’]s{{S}})?(?<object>[a-z]+){{E}}(?<from>{{S}}from{{E}})?"
+        gate: scrap
+        fixer: scrapeWeb
   - id: en.imitateOf
     checks: [stylePhrasing]
-    predicate: imitateOf
+    style: match
+    message: review_msg_style_phrasing
+    filter: outsideExamples
+    frames:
+      # "imitate the rhythm from their mentor": whose rhythm it is takes "of" (opt-in).
+      - regex: "imitat(?:e|es|ed|ing){{S}}(?:the|every|that|this|their|his|her|its|our|your|my)(?:{{S}}[a-z]+){1,3}{{S}}(?<target>from){{S}}(?:the|their|his|her|its|our|your|my|\\p{L}{2,}['’]s){{E}}"
+        gate: imitat
+        fixer: imitateOf
   - id: en.quotedPhrases
     checks:
       [
