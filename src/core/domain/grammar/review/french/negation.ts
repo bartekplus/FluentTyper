@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   finitePersons,
@@ -9,15 +9,8 @@ import {
   TU,
   verbReadings,
 } from "./frenchLexicon";
-import {
-  capitalizedName,
-  CLITICS,
-  ownedFrenchWords,
-  tokensAfter,
-  tokensBefore,
-} from "./frenchTokens";
+import { capitalizedName, CLITICS, inChunk, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
-import { isLang } from "../phraseTemplates";
 
 // Written French keeps the "ne" of a negation that spoken French drops: "j'ai pas compris" ->
 // "je n'ai pas compris", "on sait jamais" -> "on ne sait jamais". Opt-in: the dropped "ne" is
@@ -194,10 +187,6 @@ function subjectNegation(
   };
 }
 
-const ANCHOR =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:pas|jamais|plus|rien|personne|guère|aucune?)(?![\p{L}\p{M}\p{N}_'’-])/giu;
-
-const POUR_PAS_QUE = /(?<![\p{L}\p{M}\p{N}_'’-])pour[ \t]+pas[ \t]+qu(?:e[ \t]+|['’])/giu;
 const FULL_SUBJECT: Record<string, string> = { "j'": "je", "c'": "ce" };
 const NEGATED_CLITICS = new Set(
   "me m' te t' se s' y en le la les l' lui leur nous vous".split(" "),
@@ -230,18 +219,8 @@ function pourPasQue(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   };
 }
 
-function negations(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, ANCHOR)) {
-    const finding = missingNe(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, POUR_PAS_QUE)) {
-    const finding = pourPasQue(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
-
-export const PREDICATES = { negation: negations } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  missingNe: inChunk(missingNe),
+  pourPasQue: inChunk(pourPasQue),
+} satisfies Record<string, MatchFixer>;

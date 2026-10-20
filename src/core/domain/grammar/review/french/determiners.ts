@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   genderable,
@@ -13,10 +13,9 @@ import {
   verbReadings,
 } from "./frenchLexicon";
 import { sontForSon } from "./homophones";
-import { ownedFrenchWords, PREPOSITIONS, tokensAfter, tokensBefore } from "./frenchTokens";
+import { inChunk, PREPOSITIONS, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
-import { isLang } from "../phraseTemplates";
 
 // What follows a determiner is a noun phrase. Two determiners in a row keep one ("nos cette
 // langue", "des sa naissance" for "dès"); a verb form or participle after one is a noun spelled
@@ -331,23 +330,9 @@ function nounAfter(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
   return nounFinding([plural ? `${noun}s` : noun]);
 }
 
-const NAMES = Object.keys(DETERMINERS)
-  .filter((w) => !w.endsWith("'"))
-  .join("|");
-const PAIR = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<first>${NAMES})[ \\t]{1,8}(?<second>(?:${NAMES})(?![\\p{L}\\p{M}\\p{N}_-])|l['’](?=\\p{L}))`,
-  "giu",
-);
-const NOUN_AFTER = new RegExp(
-  `(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>(?:${NAMES})(?=[ \\t])|l['’])[ \\t]{0,8}(?<noun>\\p{L}[\\p{L}\\p{M}]*)(?![\\p{L}\\p{M}\\p{N}_])`,
-  "dgiu",
-);
-
 // Quantifiers and prepositions that never follow these words: "des plusieurs pays", "les
 // certaines règles", "de des enfants", "à aux enfants", "des toutes les catégories".
 const QUANTIFIERS = new Set(["plusieurs", "certains", "certaines"]);
-const QUANTIFIER_PAIR =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<first>des|les|ces|mes|tes|ses|nos|vos|de|du|à)[ \t]{1,8}(?<second>plusieurs|certains|certaines|toutes|tous|des|de|aux|entre)(?![\p{L}\p{M}\p{N}_'’-])/giu;
 const PLURAL_DETERMINERS = new Set(["les", "ces", "mes", "tes", "ses", "nos", "vos"]);
 
 /** "des plusieurs" -> "de plusieurs", "de des" -> "de" or "des", "à aux" -> "aux" or "à". */
@@ -382,30 +367,25 @@ function quantifierPair(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
   });
 }
 
-function determiners(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, PAIR)) {
-    const first = m.groups!.first.toLowerCase();
-    const second = m.groups!.second.toLowerCase().replaceAll("’", "'");
-    const finding = doubleDeterminer(ctx, m, first, second);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, QUANTIFIER_PAIR)) {
-    const finding = quantifierPair(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, NOUN_AFTER)) {
-    const det = m.groups!.det.toLowerCase().replaceAll("’", "'");
-    if (vowel(m.groups!.noun.toLowerCase()) && (det === "le" || det === "la")) continue;
-    // "ce sont", "ce fut": the pronoun before être.
-    if (det === "ce") continue;
-    // "les filles son arrivé": "sont" misspelt.
-    if (det === "son" && sontForSon(ctx.text, m.index)) continue;
-    const finding = nounAfter(ctx, m, det);
-    if (finding) findings.push(finding);
-  }
-  return findings;
+function determinerPair(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const first = m.groups!.first.toLowerCase();
+  const second = m.groups!.second.toLowerCase().replaceAll("’", "'");
+  return doubleDeterminer(ctx, m, first, second);
 }
 
-export const PREDICATES = { determiners: determiners } satisfies Record<string, Detector>;
+function determinerBeforeNoun(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const det = m.groups!.det.toLowerCase().replaceAll("’", "'");
+  if (vowel(m.groups!.noun.toLowerCase()) && (det === "le" || det === "la")) return null;
+  // "ce sont", "ce fut": the pronoun before être.
+  if (det === "ce") return null;
+  // "les filles son arrivé": "sont" misspelt.
+  if (det === "son" && sontForSon(ctx.text, m.index)) return null;
+  return nounAfter(ctx, m, det);
+}
+
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  determinerPair: inChunk(determinerPair),
+  quantifierPair: inChunk(quantifierPair),
+  determinerBeforeNoun: inChunk(determinerBeforeNoun),
+} satisfies Record<string, MatchFixer>;

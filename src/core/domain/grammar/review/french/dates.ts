@@ -3,13 +3,7 @@ import { invalidIsoDates } from "../isoDates";
 import { EMPHASIS_MARKS } from "../markdownEmphasis";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { Detector, MatchFixer } from "../../engine/reviewRules";
-import {
-  contextYear,
-  daysInMonth,
-  nearestDayOn,
-  weekdayOf,
-  yearsFor,
-} from "../reviewClock";
+import { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
 import { inChunk } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";

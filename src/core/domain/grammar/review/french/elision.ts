@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   finitePersons,
@@ -14,10 +14,9 @@ import {
   nounGender,
   verbReadings,
 } from "./frenchLexicon";
-import { ownedFrenchWords, tokensAfter, tokensBefore, SENTENCE_START } from "./frenchTokens";
+import { inChunk, tokensAfter, tokensBefore, SENTENCE_START } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
-import { isLang } from "../phraseTemplates";
 
 // Elision: "le", "de", "que", "je", "ne", "me", "te", "se", "la" drop their vowel before a word
 // that starts with a vowel ("l'arbre", "qu'il"), written with an apostrophe and no space.
@@ -161,11 +160,6 @@ function spacedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
   return finding(RULE, MESSAGE, m.index, m.index + m[0].length, [letter + apostrophe + next]);
 }
 
-const FULL =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<word>je|me|te|se|le|la|ne|de|que|lorsque|puisque|quoique)(?=(?<space>[ \t]+)(?<next>\p{L}[\p{L}\p{M}]*)(?![\p{L}\p{M}\p{N}_'’-]))/giu;
-const SPACED =
-  /(?<![\p{L}\p{M}\p{N}_'’.-])(?<letter>[cdjlmnst]|qu)(?:(?<mark>[ \t]*['’][ \t]+|[ \t]+['’][ \t]*)|[ \t]+)(?<next>\p{L}[\p{L}\p{M}]*)(?![\p{L}\p{M}\p{N}_'’-])/giu;
-
 // What may follow each elided word: s' only "il(s)", "en", "y", "est"; n', m', t', j' a verb
 // form or "en"/"y"; l', d' and qu' a noun, a verb or a pronoun.
 const PRONOUN_AFTER = new Set(["en", "y"]);
@@ -252,8 +246,6 @@ function gluedElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
     typed.slice(0, letter.length) + apostropheNear(ctx, m.index) + typed.slice(letter.length),
   ]);
 }
-const GLUED =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:[cCjJsSnNmMtTdDlL]|[qQ]u)\p{Ll}+(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
 // Words in h that refuse elision (h aspiré), by lemma: "le hibou", "je hurle", "la hausse".
 const H_ASPIRE = new Set(
@@ -312,8 +304,6 @@ function wrongElision(ctx: DetectContext, m: RegExpExecArray): RawFinding | null
     `${carryCase(letter, full)} ${next}`,
   ]);
 }
-const ELIDED_BEFORE =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<letter>[jJdDlLmMtTsSnN]|[qQ]u)['’](?<next>\p{L}[\p{L}\p{M}]*)(?![\p{L}\p{M}\p{N}_'’-])/gu;
 
 // Masculine singular forms with a second form before a vowel: "cet arbre", "un vieil homme",
 // "un bel été", "un nouvel ami".
@@ -326,8 +316,6 @@ const LIAISON_FORMS: Record<string, string> = {
   mou: "mol",
 };
 const SINGULAR_MASCULINE = new Set("un le ce cet mon ton son notre votre leur du au".split(" "));
-const LIAISON =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?<word>ce|vieux|beau|nouveau|fou|mou)[ \t\u00a0]+(?<next>\p{L}[\p{L}\p{M}]*)(?![\p{L}\p{M}\p{N}_'’])/giu;
 
 /** "ce arbre" -> "cet", "un vieux ami" -> "vieil": a masculine singular noun or adjective that
  * starts with a vowel or a mute h. */
@@ -354,30 +342,11 @@ function liaisonForm(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   ]);
 }
 
-function elision(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedFrenchWords(ctx, GLUED)) {
-    const finding = gluedElision(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, FULL)) {
-    const finding = missingElision(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, SPACED)) {
-    const finding = spacedElision(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, LIAISON)) {
-    const finding = liaisonForm(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  for (const m of ownedFrenchWords(ctx, ELIDED_BEFORE)) {
-    const finding = wrongElision(ctx, m);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
-
-export const PREDICATES = { elision: elision } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
+export const FIXERS = {
+  gluedElision: inChunk(gluedElision),
+  missingElision: inChunk(missingElision),
+  spacedElision: inChunk(spacedElision),
+  liaisonForm: inChunk(liaisonForm),
+  wrongElision: inChunk(wrongElision),
+} satisfies Record<string, MatchFixer>;

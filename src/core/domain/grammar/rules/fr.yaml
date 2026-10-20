@@ -34,7 +34,34 @@ rules:
     predicate: subjectVerbAgreement
   - id: fr.elision
     checks: [frenchElision]
-    predicate: elision
+    style: match
+    message: review_msg_fr_elision
+    frames:
+      - regex: "{{WORD_START}}(?:[cCjJsSnNmMtTdDlL]|[qQ]u)\\p{Ll}+{{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: gluedElision
+      - regex: "{{WORD_START}}(?<word>je|me|te|se|le|la|ne|de|que|lorsque|puisque|quoique)(?=(?<space>[ \\t]+)(?<next>\\p{L}[\\p{L}\\p{M}]*){{WORD_END}})(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: missingElision
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_'’.-])(?<letter>[cdjlmnst]|qu)(?:(?<mark>[ \\t]*['’][ \\t]+|[ \\t]+['’][ \\t]*)|[ \\t]+)(?<next>\\p{L}[\\p{L}\\p{M}]*){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: spacedElision
+      - regex: "{{WORD_START}}(?<word>ce|vieux|beau|nouveau|fou|mou)[ \\t\\u00a0]+(?<next>\\p{L}[\\p{L}\\p{M}]*)(?![\\p{L}\\p{M}\\p{N}_'’])(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: liaisonForm
+      - regex: "{{WORD_START}}(?<letter>[jJdDlLmMtTsSnN]|[qQ]u)['’](?<next>\\p{L}[\\p{L}\\p{M}]*){{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: wrongElision
   - id: fr.dates
     checks: [frenchDates]
     style: match
@@ -70,10 +97,34 @@ rules:
     predicate: isoDates
   - id: fr.nounNumber
     checks: [frenchNounNumber]
-    predicate: nounNumber
+    style: match
+    message: review_msg_fr_noun_number
+    frames:
+      - regex: "(?:{{WORD_START}}(?<det>les|des|mes|tes|ses|nos|vos|leurs|ces|aux|plusieurs|quelques|le|la|un|une|mon|ma|ton|ta|son|sa|ce|cet|cette|au|du|chaque|notre|votre|deux|trois|quatre|cinq|six|sept|huit|dix|onze|douze|treize|quatorze|quinze|seize|vingt|trente|quarante|cinquante|soixante|cent|mille|(?<![\\d.,:/°#№]|n°[ \\t]?)\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+|(?<![\\d.,:/°#№]|n°[ \\t]?)\\d+))(?=[ \\t]+(?<noun>\\p{L}+){{WORD_END}})(?<target>)"
+        flags: dgiu
+        scan: owned
+        lookback: 1
+        fixer: nounNumber
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<adj>grand|grande|petit|petite|grosse|beau|belle|bon|bonne|mauvaise|jeune|vieille|nouveau|nouvelle|joli|jolie|long|longue|haut|haute|vrai|vraie|fausse|propre|premier|première|dernier|dernière|prochain|prochaine|seul|seule|même|autre|meilleur|meilleure|pire|gentil|gentille|excellent|excellente|grands|grandes|petits|petites|grosses|beaux|belles|bons|bonnes|mauvaises|jeunes|vieilles|nouveaux|nouvelles|jolis|jolies|longs|longues|hauts|hautes|vrais|vraies|fausses|propres|premiers|premières|derniers|dernières|prochains|prochaines|seuls|seules|mêmes|autres|meilleurs|meilleures|pires|gentils|gentilles|excellents|excellentes|\\p{L}+es)(?=[ \\t]+(?<noun>\\p{L}+){{WORD_END}})(?<target>)"
+        flags: dgiu
+        scan: owned
+        lookback: 1
+        fixer: adjectiveNounNumber
+      - regex: "{{WORD_START}}(?<det>le|la|les|au|aux|ce|cette|ces|leur|leurs)(?=[ \\t]+(?<degree>plus|moins|très)[ \\t]+(?<adj>\\p{L}+)[ \\t]+(?<noun>\\p{L}+){{WORD_END}})(?<target>)"
+        flags: dgiu
+        scan: owned
+        lookback: 1
+        fixer: superlativeDeterminer
   - id: fr.gender
     checks: [frenchNounGender]
-    predicate: gender
+    style: match
+    message: review_msg_fr_noun_gender
+    frames:
+      - regex: "(?:{{WORD_START}}|(?<={{WORD_START}}(?:[dD]|[qQ]u)['’]))(?<det>un|une|le|la|ce|cet|cette|du|au|mon|ton|son|ma|ta|sa|aucun|aucune)(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_]))(?<target>)"
+        flags: dgiu
+        scan: owned
+        lookback: 1
+        fixer: gender
   - id: fr.adjectives
     checks: [frenchAdjectiveAgreement]
     predicate: adjectives
@@ -85,13 +136,42 @@ rules:
     predicate: mood
   - id: fr.negation
     checks: [frenchMissingNe]
-    predicate: negation
+    style: match
+    message: review_msg_fr_missing_ne
+    frames:
+      - regex: "{{WORD_START}}(?:pas|jamais|plus|rien|personne|guère|aucune?){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: missingNe
+      - regex: "{{WORD_START}}pour[ \\t]+pas[ \\t]+qu(?:e[ \\t]+|['’])(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: pourPasQue
   - id: fr.smallWords
     checks: [frenchHomophones]
     predicate: smallWords
   - id: fr.determiners
     checks: [frenchNounGender]
-    predicate: determiners
+    style: match
+    message: review_msg_fr_double_determiner
+    frames:
+      - regex: "{{WORD_START}}(?<first>le|la|les|un|une|des|du|au|aux|ce|cet|cette|ces|mon|ton|son|ma|ta|sa|mes|tes|ses|notre|votre|nos|vos|leur|leurs)[ \\t]{1,8}(?<second>(?:le|la|les|un|une|des|du|au|aux|ce|cet|cette|ces|mon|ton|son|ma|ta|sa|mes|tes|ses|notre|votre|nos|vos|leur|leurs)(?![\\p{L}\\p{M}\\p{N}_-])|l['’](?=\\p{L}))(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: determinerPair
+      - regex: "{{WORD_START}}(?<first>des|les|ces|mes|tes|ses|nos|vos|de|du|à)[ \\t]{1,8}(?<second>plusieurs|certains|certaines|toutes|tous|des|de|aux|entre){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: quantifierPair
+      - regex: "{{WORD_START}}(?<det>(?:le|la|les|un|une|des|du|au|aux|ce|cet|cette|ces|mon|ton|son|ma|ta|sa|mes|tes|ses|notre|votre|nos|vos|leur|leurs)(?=[ \\t])|l['’])[ \\t]{0,8}(?<noun>\\p{L}[\\p{L}\\p{M}]*)(?![\\p{L}\\p{M}\\p{N}_])(?<target>)"
+        flags: dgiu
+        scan: owned
+        lookback: 1
+        fixer: determinerBeforeNoun
   - id: fr.ordinals
     checks: [frenchOrdinals]
     style: match
@@ -156,7 +236,25 @@ rules:
         fixer: auxiliary
   - id: fr.questions
     checks: [frenchSubjectVerbAgreement]
-    predicate: questions
+    style: match
+    message: review_msg_fr_subject_verb
+    frames:
+      - regex: "{{WORD_START}}(?<verb>\\p{L}+)-(?<t>t-)?(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: invertedAgreement
+      # "Peux il partir ?": a verb and a subject pronoun with no hyphen, at a question's start.
+      - regex: "{{WORD_START}}(?<verb>\\p{L}+)[ \\t]{1,4}(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: spacedInversion
+      - regex: "{{WORD_START}}(?:(?<pronoun>moi|toi|lui|elle|nous|vous|eux|elles)(?:[ \\t]+seule?s?)?[ \\t]+qui|(?<demonstrative>ceux|celles)){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: pronounAntecedent
   - id: fr.imperative
     checks: [frenchVerbForms]
     predicate: imperative
@@ -165,7 +263,19 @@ rules:
     predicate: veillez
   - id: fr.invariables
     checks: [frenchAdjectiveAgreement]
-    predicate: invariables
+    style: match
+    message: review_msg_fr_invariable_colour
+    frames:
+      - regex: "{{WORD_START}}(?:chère|chères|chers|basse|basses|haute|hautes|hauts|bonne|bonnes|bons|mauvaise|mauvaises|justes|fausse|fausses|claire|claires|clairs|droite|droites|droits|franche|franches|francs|forte|fortes|forts|courte|courtes|courts|dure|dures|durs|lourde|lourdes|lourds){{WORD_END}}(?<target>)"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: adverbialAdjective
+      - regex: "{{WORD_START}}(?:marron|kaki|crème|turquoise|émeraude|ocre|saumon|olive|ivoire|bordeaux|prune|cerise|chocolat|caramel|moutarde|corail|azur|sable|citron|framboise|lavande|abricot|bronze|argent|cuivre|acajou|anthracite|indigo|bleu|vert|rouge|jaune|gris|brun|noir|blanc|violet|orange|beige)\\p{Ll}{0,3}{{WORD_END}}(?<target>)"
+        flags: gu
+        scan: owned
+        lookback: 1
+        fixer: invariableColour
   - id: fr.style
     checks: [stylePhrasing]
     predicate: style
