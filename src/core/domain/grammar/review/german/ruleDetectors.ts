@@ -24,9 +24,7 @@ import * as suspendedHyphen from "./suspendedHyphen";
 import * as verbAgreement from "./verbAgreement";
 
 export const PREDICATES = mergePredicates(
-  abbreviations.PREDICATES,
   adjectiveForms.PREDICATES,
-  anglicisms.PREDICATES,
   articleGender.PREDICATES,
   colloquial.PREDICATES,
   commas.PREDICATES,
@@ -49,6 +47,8 @@ export const FIXERS = mergePredicates<Fixer>(
   confusions.FIXERS,
   lookalikes.FIXERS,
   idiomFrames.FIXERS,
+  abbreviations.FIXERS,
+  anglicisms.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */

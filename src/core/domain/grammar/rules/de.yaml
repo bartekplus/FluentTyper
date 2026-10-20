@@ -12,6 +12,9 @@ fragments:
   DATIVES: "mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen"
   SEIN: "ist|sind|war|waren|bin|bist|seid|wäre|wären|sei|sein|gewesen"
   B: "(?<![\\p{L}\\p{M}])"
+  # The German word gate (WORD_GATE of review/german/shared.ts).
+  WG: "{{NOT_BLANK}}(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])"
+  SEP: "[ \\t\\u00a0]?"
 
 rules:
   - id: de.compounds
@@ -666,7 +669,46 @@ rules:
     predicate: suspendedHyphen
   - id: de.abbreviations
     checks: [germanAbbreviations, germanAbbreviationSpacing]
-    predicate: abbreviations
+    style: match
+    message: review_msg_german_abbreviation
+    frames:
+      # Multi-part abbreviations typed with a part's dot or the space missing ("z.B.", "zB",
+      # "u.a", "Dr.med."): one scan for all of them, the longer forms first ("Dr. med. dent."
+      # before "Dr. med."). This frame gives the forms with a dot missing.
+      - regex: "{{WG}}(?<target>[DD]r\\.?{{SEP}}med\\.?{{SEP}}dent\\.?|[DD]r\\.?{{SEP}}rer\\.?{{SEP}}nat\\.?|[DD]r\\.?{{SEP}}rer\\.?{{SEP}}pol\\.?|[DD]r\\.?{{SEP}}med\\.?{{SEP}}vet\\.?|[iI]\\.?{{SEP}}d\\.?{{SEP}}R\\.?|[uU]\\.?{{SEP}}v\\.?{{SEP}}a\\.?|[uU]\\.?{{SEP}}v\\.?{{SEP}}m\\.?|[aA]\\.?{{SEP}}a\\.?{{SEP}}O\\.?|[bB]\\.?{{SEP}}a\\.?{{SEP}}W\\.?|[DD]r\\.?{{SEP}}phil\\.?|[PP]rof\\.?{{SEP}}Dr\\.?|[DD]r\\.?{{SEP}}med\\.?|[DD]r\\.?{{SEP}}jur\\.?|[nN]\\.?{{SEP}}Chr\\.?|[vV]\\.?{{SEP}}Chr\\.?|[zZ]\\.?{{SEP}}Hdn\\.?|[zZ]\\.?{{SEP}}Hd\\.?|[zZ]\\.?{{SEP}}B\\.?|[dD]\\.?{{SEP}}h\\.?|[uU]\\.?{{SEP}}a\\.?|[oO]\\.?{{SEP}}Ä\\.?|[uU]\\.?{{SEP}}Ä\\.?|[oO]\\.?{{SEP}}ä\\.?|[uU]\\.?{{SEP}}ä\\.?|[mM]\\.?{{SEP}}E\\.?|[sS]\\.?{{SEP}}o\\.?|[sS]\\.?{{SEP}}u\\.?|[iI]\\.?{{SEP}}A\\.?|[eE]\\.?{{SEP}}V\\.?|[nN]\\.?{{SEP}}V\\.?|[zZ]\\.?{{SEP}}T\\.?|[pP]\\.?{{SEP}}a\\.?|[cC]\\.?{{SEP}}t\\.?|[sS]\\.?{{SEP}}t\\.?)(?![\\p{L}\\p{N}])"
+        flags: dgu
+        fixer: abbreviationParts
+      # The same scan: the forms with every dot, only the spaces missing (optional advice).
+      - regex: "{{WG}}(?<target>[DD]r\\.?{{SEP}}med\\.?{{SEP}}dent\\.?|[DD]r\\.?{{SEP}}rer\\.?{{SEP}}nat\\.?|[DD]r\\.?{{SEP}}rer\\.?{{SEP}}pol\\.?|[DD]r\\.?{{SEP}}med\\.?{{SEP}}vet\\.?|[iI]\\.?{{SEP}}d\\.?{{SEP}}R\\.?|[uU]\\.?{{SEP}}v\\.?{{SEP}}a\\.?|[uU]\\.?{{SEP}}v\\.?{{SEP}}m\\.?|[aA]\\.?{{SEP}}a\\.?{{SEP}}O\\.?|[bB]\\.?{{SEP}}a\\.?{{SEP}}W\\.?|[DD]r\\.?{{SEP}}phil\\.?|[PP]rof\\.?{{SEP}}Dr\\.?|[DD]r\\.?{{SEP}}med\\.?|[DD]r\\.?{{SEP}}jur\\.?|[nN]\\.?{{SEP}}Chr\\.?|[vV]\\.?{{SEP}}Chr\\.?|[zZ]\\.?{{SEP}}Hdn\\.?|[zZ]\\.?{{SEP}}Hd\\.?|[zZ]\\.?{{SEP}}B\\.?|[dD]\\.?{{SEP}}h\\.?|[uU]\\.?{{SEP}}a\\.?|[oO]\\.?{{SEP}}Ä\\.?|[uU]\\.?{{SEP}}Ä\\.?|[oO]\\.?{{SEP}}ä\\.?|[uU]\\.?{{SEP}}ä\\.?|[mM]\\.?{{SEP}}E\\.?|[sS]\\.?{{SEP}}o\\.?|[sS]\\.?{{SEP}}u\\.?|[iI]\\.?{{SEP}}A\\.?|[eE]\\.?{{SEP}}V\\.?|[nN]\\.?{{SEP}}V\\.?|[zZ]\\.?{{SEP}}T\\.?|[pP]\\.?{{SEP}}a\\.?|[cC]\\.?{{SEP}}t\\.?|[sS]\\.?{{SEP}}t\\.?)(?![\\p{L}\\p{N}])"
+        flags: dgu
+        check: germanAbbreviationSpacing
+        fixer: abbreviationSpacing
+      # "max 5 Leute", "min 3 Tage": the abbreviation before a number takes its dot.
+      - regex: "{{WG}}(?<target>max|min)(?=[ \\t]\\p{N})"
+        flags: dgu
+        fixer: abbreviationDot
+      # "Müller et al (2021)", "ad lib": the Latin abbreviation takes its dot.
+      - regex: "{{WG}}(?<target>et[ \\t]al|ad[ \\t]lib)(?![\\p{L}\\p{N}.])"
+        flags: dgu
+        fixer: abbreviationDot
+      # "Dipl.-Ing.", "Dipl.-Kfm.": a dot, a hyphen and a dot.
+      - regex: "{{WG}}(?<target>Dipl(?:\\.?-|\\.[ \\t]|[ \\t]?-[ \\t]?)(?<subject>\\p{Lu}\\p{Ll}{1,10})\\.?){{E}}"
+        flags: dgu
+        fixer: diploma
+      # "Dr. Frau Hayali", "Professor Herr Meier": the form of address comes first ("Frau Dr.").
+      - regex: "{{WG}}(?<target>(?<title>Dr\\.|Prof\\.|Doktor|Doktorin|Professor|Professorin)[ \\t]+(?<address>Frau|Herr|Herrn|Fr\\.|Hr\\.))(?=[ \\t]+\\p{Lu})"
+        flags: dgu
+        fixer: titleOrder
+      # "3%" → "3 %": German sets the percent sign off with a no-break space (optional advice);
+      # "20%-Gutschein" and "5%ige" are compounds.
+      - regex: "(?<![\\p{L}\\p{N}.,_])(?<target>(?<n>\\d+(?:[.,]\\d+)*)%)(?![\\p{L}\\p{N}_-])"
+        flags: dgu
+        check: germanAbbreviationSpacing
+        fixer: percentSpacing
+      # "2 mio", "3 Mrd": the abbreviated numbers take a capital and a dot.
+      - regex: "(?<=\\p{N}[ \\t\\u00a0])(?<target>[mM](?:io|rd)|Mill|Bill)(?![\\p{L}\\p{N}.])"
+        flags: dgu
+        fixer: largeNumber
   - id: de.quotes
     checks: [germanQuotes]
     predicate: quotes
@@ -705,7 +747,13 @@ rules:
     predicate: redundancy
   - id: de.anglicisms
     checks: [germanCompounds]
-    predicate: anglicisms
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # A capital first part (a German noun), then the particle: apart, with a hyphen, or joined.
+      - regex: "{{WG}}(?<target>(?<verb>[C]heck|[M]ake|[S]tand|[B]urn|[P]op|[A]dd|[P]lug|[L]og|[D]rive|[B]uy|[K]ick|[F]ollow|[P]ush|[C]oming|[R]oll|[S]et|[S]it|[W]arm|[C]ool|[S]tart|[T]ake|[P]ick|[W]alk|[K]nock|[T]each|[B]reak|[M]ust)(?<sep>[ \\t]+|-)?(?<particle>[iI]n|[oO]ut|[uU]p|[oO]n|[oO]ff|[dD]own|[eE]ven|[hH]ave)(?<plural>s)?)(?![\\p{L}\\p{N}-])(?![ \\t]+\\p{Lu})"
+        flags: dgu
+        fixer: phrasalNoun
   - id: de.joinedVerbs
     checks: [germanJoinedVerbs]
     predicate: joinedVerbs
