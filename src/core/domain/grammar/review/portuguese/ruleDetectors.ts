@@ -6,7 +6,7 @@ import {
   type Detector,
   type FindingsFilter,
 } from "../../engine/reviewRules";
-import { agreement } from "./agreement";
+import { FIXERS as AGREEMENT_FIXERS } from "./agreement";
 import { FIXERS as AO90_FIXERS } from "./ao90";
 import { FILTERS as CLITIC_FILTERS, FIXERS as CLITIC_FIXERS } from "./clitics";
 import { FIXERS as COMMA_FIXERS } from "./commas";
@@ -35,7 +35,6 @@ import { verbAgreement } from "./verbAgreement";
 export const PREDICATES = {
   rangeDash,
   isoDates,
-  agreement,
   nounAgreement,
   verbAgreement,
 } satisfies Record<string, Detector>;
@@ -62,6 +61,7 @@ export const FIXERS = mergePredicates<AnyFixer>(
   PERSON_FIXERS,
   PREDICATE_FIXERS,
   SUBJUNCTIVE_FIXERS,
+  AGREEMENT_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/pt_BR.yaml (`filter:`). */

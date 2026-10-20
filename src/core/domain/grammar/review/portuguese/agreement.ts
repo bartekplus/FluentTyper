@@ -1,6 +1,7 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
+import { SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { analyze } from "./nounAgreement";
 import { infinitive } from "./infinitives";
 
@@ -13,6 +14,7 @@ import { infinitive } from "./infinitives";
  *   engraçada" -> "engraçado".
  * - After "quando", "se", "enquanto"... an irregular verb takes its future subjunctive, not
  *   its infinitive: "Quando eu ver" -> "vir", "se nós fazermos" -> "fizermos".
+ * The frames are in grammar/rules/pt_BR.yaml.
  */
 
 // Third person singular -> plural of the verbs whose subject usually follows them.
@@ -53,7 +55,6 @@ const AUXILIARY: Record<string, string> = {
   continua: "continuam",
   começa: "começam",
 };
-const INFINITIVES = "existir|acontecer|ocorrer|surgir|restar|bastar|sobrar|faltar|chegar";
 // "Tem existido muitos", "Está chegando os dias": a perfect or progressive of the same verbs.
 const PERFECT: Record<string, string> = {
   tem: "têm",
@@ -71,23 +72,11 @@ const PERFECT: Record<string, string> = {
   haja: "hajam",
   houvesse: "houvessem",
 };
-const PARTICIPLES =
-  "existido|acontecido|ocorrido|surgido|restado|bastado|sobrado|faltado|chegado|existindo|acontecendo|ocorrendo|surgindo|restando|sobrando|faltando|chegando";
-const BETWEEN = `(?:(?:ainda|já|também|sempre|nunca${S}mais|nunca|talvez)${S})?`;
 const PLURAL_DETERMINER =
   "mais|muitos|muitas|vários|várias|alguns|algumas|poucos|poucas|diversos|diversas|inúmeros|inúmeras|tantos|tantas|uns|umas|os|as|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|cem|[2-9]|\\d{2,}";
 // "Acontece muitas vezes", "ocorre dois dias depois": a span of time is no subject.
 export const TIME =
   "vezes|anos|meses|semanas|dias|horas|minutos|segundos|tempos|décadas|séculos|instantes|momentos";
-const ADVERB = `(?:(?:ainda|também|já|só|apenas|hoje|aqui|ali|lá|agora|sempre|realmente|então)${W}${S})?`;
-const SUBJECT_AFTER = `${ADVERB}(?:${PLURAL_DETERMINER})${W}${S}(?!(?:${TIME}|mais|menos|de|do|da)${W})\\p{L}{3,}s${W}`;
-const POSTPOSED = `(?<target>${Object.keys(PLURAL).join("|")})${S}(?=${SUBJECT_AFTER})`;
-const PERIPHRASIS = `(?<target>${Object.keys(AUXILIARY).join("|")})${S}(?=${BETWEEN}(?:${INFINITIVES})${W}${S}${SUBJECT_AFTER})`;
-const PERFECT_FRAME = `(?<target>${Object.keys(PERFECT).join("|")})${S}(?=${BETWEEN}(?:${PARTICIPLES})${W}${S}${SUBJECT_AFTER})`;
-// A bare plural after the verb: "Já aconteceu erros" -> "aconteceram", "tenha surgido dúvidas"
-// -> "tenham". Checked in code.
-const BARE = `(?<target>${Object.keys(PLURAL).join("|")})${S}${ADVERB}(?<noun>\\p{L}{3,}s)${W}`;
-const BARE_PERFECT = `(?<target>${Object.keys(PERFECT).join("|")})${S}${BETWEEN}(?:${PARTICIPLES})${S}${ADVERB}(?<noun>\\p{L}{3,}s)${W}`;
 // A subject before the verb ("Ele resta...", "quem existe") makes it agree with that one.
 const SUBJECT_BEFORE =
   /(?<![\p{L}])(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|que|quem|o|a|isso|isto|tudo|nada|algo|ninguém)[ \t ]+$/iu;
@@ -103,17 +92,12 @@ function subjectless(ctx: DetectContext, m: RegExpExecArray): boolean {
   return SUBJECTLESS.test(ctx.text.slice(Math.max(0, m.index - 16), m.index));
 }
 
-const PROPRIO = `(?<pronoun>n?ele|n?ela|n?eles|n?elas|dele|dela|deles|delas)${S}(?<target>própri[oa]s?)${W}`;
 const PROPRIO_ENDING: Record<string, string> = {
   ele: "o",
   ela: "a",
   eles: "os",
   elas: "as",
 };
-
-const FEMININE_ADJECTIVES =
-  "boa|linda|bonita|engraçada|perfeita|errada|certa|chata|estranha|esquisita|complicada|ótima|péssima|maravilhosa|necessária|obrigatória|verdadeira|falsa|ridícula|absurda|perigosa|gostosa|divertida|cansativa|curiosa|justa|injusta|correta|incorreta|clara|óbvia|rara|barata|fantástica|horrorosa|nojenta";
-const NEUTER = `(?:isso|isto|aquilo|tudo)${S}(?:não${S})?(?:é|era|foi|seja|fosse|será|seria|parece|parecia|fica|ficou|está|estava|continua)${S}(?:(?:muito|tão|bem|super|bastante|meio|mais|menos|realmente|totalmente|completamente)${S})?(?<target>${FEMININE_ADJECTIVES})(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?]|$)|${S}(?:demais|mesmo|também|para|de)${W})`;
 
 // Infinitive -> future subjunctive stem of the irregular verbs (the regular ones coincide).
 // "por" without its accent stays out: "quando ele por fim chegou".
@@ -146,14 +130,6 @@ const FUTURE_SUBJUNCTIVE: Record<string, string> = {
   caber: "coube",
 };
 const PERSON_ENDING: Record<string, string> = { "": "r", es: "res", mos: "rmos", em: "rem" };
-const CONJUNCTION = `(?:quando|se|enquanto|assim${S}que|logo${S}que|sempre${S}que|depois${S}que|caso|conforme)`;
-const SUBJECT = `(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|a${S}gente|(?:o|a|os|as)${S}\\p{L}+)`;
-const INFINITIVE = `(?<target>(?<verb>${Object.keys(FUTURE_SUBJUNCTIVE).join("|")})(?<person>es|mos|em)?)`;
-const FUTURE = `${CONJUNCTION}${S}${SUBJECT}${S}(?:não${S})?${INFINITIVE}${W}`;
-// No subject: "Irei quando puder", "sempre que quiser". "quando" also opens an indirect
-// question with an infinitive ("não sei quando parar", "Quando usar a vírgula?"), so it needs
-// a word before it that asks for no question, and no question mark after.
-const FUTURE_BARE = `(?<lead>\\p{L}+)[ \\t\\u00a0,]{1,8}(?<conj>quando|(?:assim|logo|sempre|depois)${S}que)${S}(?:não${S})?${INFINITIVE}${W}`;
 const QUESTION_LEAD =
   /^(?:sei|sabe|sabem|sabemos|saber|sabia|soube|decidir|decide|decidiu|decidimos|escolher|escolhe|escolheu|perguntar|pergunta|perguntou|ensinar|ensina|ensinou|aprender|aprende|aprendeu|entender|entende|explicar|explica|explicou|dizer|diz|disse|mostrar|mostra|mostrou|indicar|indica|definir|define|planejar|ideia|dúvida|noção|até|desde|de|para|sobre|é|era)$/iu;
 
@@ -219,10 +195,6 @@ export const NOT_VERBS = new Set(
   sozinha juntas juntos fora embora talvez agorinha aqui ali logo ontem ou meu teu seu céu
   réu véu chapéu troféu museu europeu`.split(/\s+/),
 );
-const REGULAR_PLURAL_SUBJECT = `(?<pronoun>nós|eles|elas|vocês)${S}(?:(?:não|já|também|sempre|só|ainda|nunca)${S}){0,2}(?<target>\\p{L}{3,}[ae]|\\p{L}{1,}(?:ou|eu|iu))${W}`;
-// The reverse: a regular verb in the third person plural after "eu", "ele", "ela" or "você"
-// ("ele não passeiam" -> "passeia", "eu gostaram" -> "gostei").
-const SINGULAR_SUBJECT = `(?<pronoun>eu|ele|ela|você)${S}(?:(?:não|já|também|sempre|só|ainda|nunca)${S}){0,2}(?<target>\\p{L}{2,}[ae]m)${W}`;
 export const NOT_PLURAL_VERBS = new Set(
   `também porém além aquém alguém ninguém quem nem sem bem cem ontem homem jovem nuvem ordem
   item trem refém harém armazém vintém desdém virgem`.split(/\s+/),
@@ -250,7 +222,6 @@ export function singularOf(plural: string, firstPerson: boolean): string | undef
   if (/uem$/.test(plural)) return `${plural.slice(0, -3)}ui`;
   return plural.slice(0, -1);
 }
-const PRONOUN_SUBJECT = `(?<pronoun>eu|ele|ela|você|a${S}gente|nós|eles|elas|vocês)${S}(?:(?:não|já|também|sempre|só|ainda|nunca)${S}){0,2}(?<target>${[...FORM_ROWS.keys()].join("|")})${W}`;
 const ELAPSED = new RegExp(`^${S}(?:\\p{L}+${S})?(?:${TIME}|tempo)${W}`, "iu");
 // A preposition makes the pronoun no subject ("para eles foi difícil", "a todos eles"); "e",
 // "ou" or a comma can join it to another subject ("eu e ela vamos"); after a copula it is the
@@ -259,85 +230,82 @@ export const NOT_SUBJECT =
   /(?<![\p{L}])(?:(?:para|com|de|dentre|sem|entre|a|por|contra|até|sobre|perante|desde|após)(?:[ \t ]+(?:todos|todas|ambos|ambas))?|e|ou|nem|como|quanto|ser|sou|é|era|foi|o|a|os|as|um|uma|uns|umas|dos|das|nos|nas|aos|pelos|pelas|meu|seu|teu|nosso|verdadeiro|próprio)[ \t ]+$|,[ \t ]*$/iu;
 
 function push(
-  findings: RawFinding[],
   ctx: DetectContext,
   m: RegExpExecArray,
   replacement: string,
   messageKey:
     "review_msg_pt_agreement" | "review_msg_pt_future_subjunctive" = "review_msg_pt_agreement",
-): void {
+): RawFinding | null {
   const typed = m.groups!.target;
-  if (ctx.dictionary.has(typed.toLowerCase())) return;
+  if (ctx.dictionary.has(typed.toLowerCase())) return null;
   const [start, end] = m.indices!.groups!.target;
-  findings.push({
+  return {
     ruleId: "portugueseAgreement",
     messageKey,
     range: { start, end },
     alternatives: [applyWordCase(replacement, detectWordCase(typed))],
     context: { start: m.index, end: Math.max(end, m.index + m[0].length) },
-  });
+  };
 }
 
-export function agreement(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "pt")) return [];
-  const findings: RawFinding[] = [];
-  for (const [pattern, table] of [
-    [POSTPOSED, PLURAL],
-    [PERIPHRASIS, AUXILIARY],
-    [PERFECT_FRAME, PERFECT],
-  ] as const) {
-    for (const m of frameMatches(ctx, pattern)) {
-      const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
-      if (SUBJECT_BEFORE.test(before)) continue;
-      if (!subjectless(ctx, m)) continue;
-      push(findings, ctx, m, table[m.groups!.target.toLowerCase()]);
-    }
-  }
-  for (const [pattern, table] of [
-    [BARE, PLURAL],
-    [BARE_PERFECT, PERFECT],
-  ] as const)
-    for (const m of frameMatches(ctx, pattern)) {
-      const noun = m.groups!.noun;
-      if (
-        noun !== noun.toLowerCase() ||
-        /mos$/.test(noun) ||
-        new RegExp(`^(?:${TIME})$`).test(noun)
-      )
-        continue;
-      if (new RegExp(`^(?:${PLURAL_DETERMINER})$`).test(noun)) continue;
-      const info = analyze(noun);
-      if (!info?.plural || info.feminine === null) continue;
-      if (SUBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))) continue;
-      if (!subjectless(ctx, m)) continue;
-      push(findings, ctx, m, table[m.groups!.target.toLowerCase()]);
-    }
-  for (const m of frameMatches(ctx, PROPRIO)) {
+/** A verb before its plural subject takes its plural form from `table`. */
+const postposed =
+  (table: Record<string, string>): MatchFixer =>
+  (m, ctx) => {
+    const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
+    if (SUBJECT_BEFORE.test(before)) return null;
+    if (!subjectless(ctx, m)) return null;
+    return push(ctx, m, table[m.groups!.target.toLowerCase()]);
+  };
+
+/** The same before a bare plural noun, whose spelling must tell its number and gender. */
+const bare =
+  (table: Record<string, string>): MatchFixer =>
+  (m, ctx) => {
+    const noun = m.groups!.noun;
+    if (noun !== noun.toLowerCase() || /mos$/.test(noun) || new RegExp(`^(?:${TIME})$`).test(noun))
+      return null;
+    if (new RegExp(`^(?:${PLURAL_DETERMINER})$`).test(noun)) return null;
+    const info = analyze(noun);
+    if (!info?.plural || info.feminine === null) return null;
+    if (SUBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))) return null;
+    if (!subjectless(ctx, m)) return null;
+    return push(ctx, m, table[m.groups!.target.toLowerCase()]);
+  };
+
+/** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
+export const FIXERS = {
+  agreementPostposed: postposed(PLURAL),
+  agreementPeriphrasis: postposed(AUXILIARY),
+  agreementPerfect: postposed(PERFECT),
+  agreementBare: bare(PLURAL),
+  agreementBarePerfect: bare(PERFECT),
+  agreementProprio: (m, ctx) => {
     const pronoun = m.groups!.pronoun.toLowerCase().replace(/^[nd]/, "");
     const typed = m.groups!.target.toLowerCase();
     const wanted = typed.replace(/[oa]s?$/, PROPRIO_ENDING[pronoun]);
-    if (wanted !== typed) push(findings, ctx, m, wanted);
-  }
-  for (const m of frameMatches(ctx, PRONOUN_SUBJECT)) {
+    return wanted !== typed ? push(ctx, m, wanted) : null;
+  },
+  agreementIrregular: (m, ctx) => {
     const person = PRONOUN_PERSON[m.groups!.pronoun.toLowerCase().replace(/\s+/g, " ")];
     const typed = m.groups!.target.toLowerCase();
     const rows = FORM_ROWS.get(typed)!;
     const index = PERSONS.indexOf(person);
-    if (rows.some((row) => row[index] === typed)) continue;
-    if (person === "eles" && (typed === "tem" || typed === "vem")) continue;
+    if (rows.some((row) => row[index] === typed)) return null;
+    if (person === "eles" && (typed === "tem" || typed === "vem")) return null;
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
-    if (NOT_SUBJECT.test(before)) continue;
+    if (NOT_SUBJECT.test(before)) return null;
     // A capitalized "Eu" inside a sentence is a noun ("o verdadeiro Eu").
-    if (/^\p{Lu}/u.test(m.groups!.pronoun) && !/(?:^|[.!?:;"“«]\s*)$/u.test(before)) continue;
+    if (/^\p{Lu}/u.test(m.groups!.pronoun) && !/(?:^|[.!?:;"“«]\s*)$/u.test(before)) return null;
     // "Nós é que sabemos": the cleft "é que" does not agree.
     // "Vi eles faz um ano": elapsed-time "fazer" has no subject.
     const after = ctx.text.slice(m.indices!.groups!.target[1], m.indices!.groups!.target[1] + 40);
-    if (/^[ \t ]+que(?![\p{L}])/u.test(after)) continue;
-    if (/^f[ia]z/.test(typed) && ELAPSED.test(after)) continue;
+    if (/^[ \t\u00a0]+que(?![\p{L}])/u.test(after)) return null;
+    if (/^f[ia]z/.test(typed) && ELAPSED.test(after)) return null;
     const wanted = new Set(rows.map((row) => row[index]));
-    if (wanted.size === 1) push(findings, ctx, m, [...wanted][0]);
-  }
-  for (const m of frameMatches(ctx, REGULAR_PLURAL_SUBJECT)) {
+    return wanted.size === 1 ? push(ctx, m, [...wanted][0]) : null;
+  },
+  agreementRegularPlural: (m, ctx) => {
     const typed = m.groups!.target;
     const pronoun = m.groups!.pronoun.toLowerCase();
     if (
@@ -346,9 +314,9 @@ export function agreement(ctx: DetectContext): RawFinding[] {
       FORM_ROWS.has(typed) ||
       typed.endsWith("mente")
     )
-      continue;
+      return null;
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
-    if (NOT_SUBJECT.test(before)) continue;
+    if (NOT_SUBJECT.test(before)) return null;
     let wanted: string | undefined;
     // The preterite: "eles gostou" -> "gostaram", "nós comeu" -> "comemos".
     const preterite = /([oei])u$/.exec(typed);
@@ -362,45 +330,42 @@ export function agreement(ctx: DetectContext): RawFinding[] {
     // (comia) or a present (passeia, anuncia), so it stays.
     else if (/ava$/.test(typed)) wanted = `${typed.slice(0, -3)}ávamos`;
     else if (/[^i]a$/.test(typed)) wanted = `${typed}mos`;
-    if (wanted) push(findings, ctx, m, wanted);
-  }
-  for (const m of frameMatches(ctx, SINGULAR_SUBJECT)) {
+    return wanted ? push(ctx, m, wanted) : null;
+  },
+  agreementSingular: (m, ctx) => {
     const typed = m.groups!.target;
     if (typed !== typed.toLowerCase() || NOT_PLURAL_VERBS.has(typed) || FORM_ROWS.has(typed))
-      continue;
+      return null;
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
-    if (NOT_SUBJECT.test(before)) continue;
+    if (NOT_SUBJECT.test(before)) return null;
     const wanted = singularOf(typed, m.groups!.pronoun.toLowerCase() === "eu");
-    if (wanted) push(findings, ctx, m, wanted);
-  }
-  for (const m of frameMatches(ctx, FUTURE)) {
+    return wanted ? push(ctx, m, wanted) : null;
+  },
+  agreementFuture: (m, ctx) => {
     const { verb, person = "" } = m.groups!;
-    push(
-      findings,
+    return push(
       ctx,
       m,
       FUTURE_SUBJUNCTIVE[verb.toLowerCase()] + PERSON_ENDING[person],
       "review_msg_pt_future_subjunctive",
     );
-  }
-  for (const m of frameMatches(ctx, FUTURE_BARE)) {
+  },
+  agreementFutureBare: (m, ctx) => {
     const { lead, conj, verb, person = "" } = m.groups!;
     if (/^quando$/i.test(conj)) {
-      if (QUESTION_LEAD.test(lead)) continue;
+      if (QUESTION_LEAD.test(lead)) return null;
       const end = m.index + m[0].length;
-      if (/^[^.!?\n]*\?/.test(ctx.text.slice(end, end + 160))) continue;
+      if (/^[^.!?\n]*\?/.test(ctx.text.slice(end, end + 160))) return null;
     }
-    push(
-      findings,
+    return push(
       ctx,
       m,
       FUTURE_SUBJUNCTIVE[verb.toLowerCase()] + PERSON_ENDING[person],
       "review_msg_pt_future_subjunctive",
     );
-  }
-  for (const m of frameMatches(ctx, NEUTER)) {
+  },
+  agreementNeuter: (m, ctx) => {
     const typed = m.groups!.target.toLowerCase();
-    push(findings, ctx, m, typed === "boa" ? "bom" : typed.replace(/a$/, "o"));
-  }
-  return findings;
-}
+    return push(ctx, m, typed === "boa" ? "bom" : typed.replace(/a$/, "o"));
+  },
+} satisfies Record<string, MatchFixer>;

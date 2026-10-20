@@ -87,6 +87,20 @@ fragments:
   PRESENT_GOVERNORS: "espero|esperamos|esperam|espera-se|desejo|desejamos|desejam|deseja|deseja-se|quero|queremos|querem|quer|peço|pedimos|pedem|pede|pede-se|exijo|exigimos|exigem|exige|proíbo|proibimos|proíbem|proíbe|duvido|duvidamos|duvidam|prefiro|preferimos|preferem|sugiro|sugerimos|sugerem|sugere|recomendo|recomendamos|recomendam|recomenda|proponho|propomos|propõem|propõe|temo|tememos|temem|evito|evitamos|evitam|evita|evitaremos|nego|negamos|negam|nega|negas|tomara|oxalá|permito|permite|permitem|impede|impedem|impeço|não{{S}}(?:acho|creio|penso|suponho|acredito)|é{{S}}(?:preciso|necessário|importante|possível|provável|fundamental|essencial|imprescindível|bom|natural|normal|urgente)"
   PAST_GOVERNORS: "esperava|esperavam|esperávamos|esperei|esperou|esperaram|desejava|desejavam|desejei|desejou|queria|queriam|queríamos|quis|quisemos|quiseram|quisera|pedia|pediam|pedi|pediu|pediram|exigia|exigiam|exigi|exigiu|exigiram|proibia|proibi|proibiu|proibiram|proibiria|duvidava|duvidei|duvidou|preferia|preferiam|preferi|preferiu|sugeria|sugeri|sugeriu|sugeriram|recomendava|recomendei|recomendou|propunha|propus|propôs|propuseram|temia|temiam|temi|temeu|evitava|evitei|evitou|evitaria|evitaríamos|negava|negou|neguei|desejaria|gostaria|gostaríamos|gostariam|preferiria|permitia|permitiu|impedia|impediu|mandou|mandava|(?:era|foi|seria){{S}}(?:preciso|necessário|importante|possível|provável|fundamental|essencial|imprescindível|bom|natural|melhor)"
   CONJUNCTIONS: "embora|conquanto|caso|talvez|nem{{S}}que|a{{S}}não{{S}}ser{{S}}que|a{{S}}menos{{S}}que|sem{{S}}que|antes{{S}}que|contanto{{S}}que|desde{{S}}que(?={{S}}(?:não{{S}})?(?:haja|tenha|seja|esteja|ele|ela|você|eu|nós|eles|elas|vocês))|ainda{{S}}que|mesmo{{S}}que"
+  EXIST_VERBS: "existe|existia|existiu|existirá|existiria|acontece|acontecia|aconteceu|acontecerá|aconteceria|ocorre|ocorria|ocorreu|ocorrerá|ocorreria|surge|surgia|surgiu|surgirá|surgiria|resta|restava|restou|restará|restaria|basta|bastava|bastou|bastará|bastaria|sobra|sobrava|sobrou|sobrará|sobraria|falta|faltava|faltou|faltará|faltaria|chega|chegava|chegou|chegará|chegaria"
+  PERFECT_AUXILIARIES: "tem|tinha|tenha|teria|terá|tivesse|está|estava|esteve|esteja|havia|haveria|haja|houvesse"
+  AGREE_ADVERB: "(?:(?:ainda|também|já|só|apenas|hoje|aqui|ali|lá|agora|sempre|realmente|então){{E}}{{S}})?"
+  PLURAL_DETERMINER: "mais|muitos|muitas|vários|várias|alguns|algumas|poucos|poucas|diversos|diversas|inúmeros|inúmeras|tantos|tantas|uns|umas|os|as|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|cem|[2-9]|\\d{2,}"
+  TIME: "vezes|anos|meses|semanas|dias|horas|minutos|segundos|tempos|décadas|séculos|instantes|momentos"
+  SUBJECT_AFTER: "{{AGREE_ADVERB}}(?:{{PLURAL_DETERMINER}}){{E}}{{S}}(?!(?:{{TIME}}|mais|menos|de|do|da){{E}})\\p{L}{3,}s{{E}}"
+  BETWEEN: "(?:(?:ainda|já|também|sempre|nunca{{S}}mais|nunca|talvez){{S}})?"
+  INFINITIVES: "existir|acontecer|ocorrer|surgir|restar|bastar|sobrar|faltar|chegar"
+  PARTICIPLES: "existido|acontecido|ocorrido|surgido|restado|bastado|sobrado|faltado|chegado|existindo|acontecendo|ocorrendo|surgindo|restando|sobrando|faltando|chegando"
+  IRREGULAR_FORMS: "sou|é|somos|são|fui|foi|fomos|foram|era|éramos|eram|serei|será|seremos|serão|estou|está|estamos|estão|estive|esteve|estivemos|estiveram|estava|estávamos|estavam|vou|vai|vamos|vão|ia|íamos|iam|tenho|tem|temos|têm|tive|teve|tivemos|tiveram|tinha|tínhamos|tinham|faço|faz|fazemos|fazem|fiz|fez|fizemos|fizeram|fazia|fazíamos|faziam|posso|pode|podemos|podem|pude|pôde|pudemos|puderam|podia|podíamos|podiam|quero|quer|queremos|querem|quis|quisemos|quiseram|queria|queríamos|queriam|sei|sabe|sabemos|sabem|soube|soubemos|souberam|sabia|sabíamos|sabiam|dou|dá|damos|dão|dei|deu|demos|deram|dava|dávamos|davam|digo|diz|dizemos|dizem|disse|dissemos|disseram|dizia|dizíamos|diziam"
+  FUTURE_INFINITIVE: "(?<target>(?<verb>dizer|fazer|refazer|desfazer|ver|rever|prever|ter|manter|conter|obter|deter|reter|pôr|propor|compor|supor|ser|ir|dar|estar|poder|saber|querer|trazer|caber)(?<person>es|mos|em)?)"
+  FUTURE_CONJUNCTION: "(?:quando|se|enquanto|assim{{S}}que|logo{{S}}que|sempre{{S}}que|depois{{S}}que|caso|conforme)"
+  FUTURE_SUBJECT: "(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|a{{S}}gente|(?:o|a|os|as){{S}}\\p{L}+)"
+  FEMININE_ADJECTIVES: "boa|linda|bonita|engraçada|perfeita|errada|certa|chata|estranha|esquisita|complicada|ótima|péssima|maravilhosa|necessária|obrigatória|verdadeira|falsa|ridícula|absurda|perigosa|gostosa|divertida|cansativa|curiosa|justa|injusta|correta|incorreta|clara|óbvia|rara|barata|fantástica|horrorosa|nojenta"
 
 rules:
   - id: pt_BR.accentParonyms
@@ -976,7 +990,57 @@ rules:
         fixer: introductoryComma
   - id: pt_BR.agreement
     checks: [portugueseAgreement]
-    predicate: agreement
+    style: match
+    message: review_msg_pt_agreement
+    frames:
+      # Verbs of existing and happening agree with a plural subject placed after them: "Existe
+      # muitos problemas" -> "Existem". {{SUBJECT_AFTER}}: a plural determiner and a plural
+      # noun; "Acontece muitas vezes", "ocorre dois dias depois": a span of time ({{TIME}}) is
+      # no subject.
+      - regex: "(?<target>{{EXIST_VERBS}}){{S}}(?={{SUBJECT_AFTER}})"
+        fixer: agreementPostposed
+      # "Vai acontecer várias mudanças" -> "Vão".
+      - regex: "(?<target>vai|ia|irá|iria|pode|podia|poderá|poderia|deve|devia|deverá|deveria|costuma|costumava|continua|começa){{S}}(?={{BETWEEN}}(?:{{INFINITIVES}}){{E}}{{S}}{{SUBJECT_AFTER}})"
+        fixer: agreementPeriphrasis
+      # "Tem existido muitos", "Está chegando os dias": a perfect or progressive of the same
+      # verbs.
+      - regex: "(?<target>{{PERFECT_AUXILIARIES}}){{S}}(?={{BETWEEN}}(?:{{PARTICIPLES}}){{E}}{{S}}{{SUBJECT_AFTER}})"
+        fixer: agreementPerfect
+      # A bare plural after the verb: "Já aconteceu erros" -> "aconteceram", "tenha surgido
+      # dúvidas" -> "tenham". Checked in code.
+      - regex: "(?<target>{{EXIST_VERBS}}){{S}}{{AGREE_ADVERB}}(?<noun>\\p{L}{3,}s){{E}}"
+        fixer: agreementBare
+      - regex: "(?<target>{{PERFECT_AUXILIARIES}}){{S}}{{BETWEEN}}(?:{{PARTICIPLES}}){{S}}{{AGREE_ADVERB}}(?<noun>\\p{L}{3,}s){{E}}"
+        fixer: agreementBarePerfect
+      # "próprio" agrees with the pronoun it reinforces: "ela próprio" -> "ela própria".
+      - regex: "(?<pronoun>n?ele|n?ela|n?eles|n?elas|dele|dela|deles|delas){{S}}(?<target>própri[oa]s?){{E}}"
+        fixer: agreementProprio
+      # A frequent irregular verb ({{IRREGULAR_FORMS}}) in the person of its pronoun subject.
+      - regex: "(?<pronoun>eu|ele|ela|você|a{{S}}gente|nós|eles|elas|vocês){{S}}(?:(?:não|já|também|sempre|só|ainda|nunca){{S}}){0,2}(?<target>{{IRREGULAR_FORMS}}){{E}}"
+        fixer: agreementIrregular
+      # A regular verb in the third person singular after a plural pronoun: "eles gosta" ->
+      # "gostam", "nós gostava" -> "gostávamos".
+      - regex: "(?<pronoun>nós|eles|elas|vocês){{S}}(?:(?:não|já|também|sempre|só|ainda|nunca){{S}}){0,2}(?<target>\\p{L}{3,}[ae]|\\p{L}{1,}(?:ou|eu|iu)){{E}}"
+        fixer: agreementRegularPlural
+      # The reverse: a regular verb in the third person plural after "eu", "ele", "ela" or
+      # "você" ("ele não passeiam" -> "passeia", "eu gostaram" -> "gostei").
+      - regex: "(?<pronoun>eu|ele|ela|você){{S}}(?:(?:não|já|também|sempre|só|ainda|nunca){{S}}){0,2}(?<target>\\p{L}{2,}[ae]m){{E}}"
+        fixer: agreementSingular
+      # After "quando", "se", "enquanto"... an irregular verb takes its future subjunctive, not
+      # its infinitive: "Quando eu ver" -> "vir", "se nós fazermos" -> "fizermos".
+      - regex: "{{FUTURE_CONJUNCTION}}{{S}}{{FUTURE_SUBJECT}}{{S}}(?:não{{S}})?{{FUTURE_INFINITIVE}}{{E}}"
+        message: review_msg_pt_future_subjunctive
+        fixer: agreementFuture
+      # No subject: "Irei quando puder", "sempre que quiser". "quando" also opens an indirect
+      # question with an infinitive ("não sei quando parar", "Quando usar a vírgula?"), so it
+      # needs a word before it that asks for no question, and no question mark after.
+      - regex: "(?<lead>\\p{L}+)[ \\t\\u00a0,]{1,8}(?<conj>quando|(?:assim|logo|sempre|depois){{S}}que){{S}}(?:não{{S}})?{{FUTURE_INFINITIVE}}{{E}}"
+        message: review_msg_pt_future_subjunctive
+        fixer: agreementFutureBare
+      # A neuter pronoun (isso, isto, aquilo, tudo) takes a masculine adjective: "Isso é muito
+      # engraçada" -> "engraçado".
+      - regex: "(?:isso|isto|aquilo|tudo){{S}}(?:não{{S}})?(?:é|era|foi|seja|fosse|será|seria|parece|parecia|fica|ficou|está|estava|continua){{S}}(?:(?:muito|tão|bem|super|bastante|meio|mais|menos|realmente|totalmente|completamente){{S}})?(?<target>{{FEMININE_ADJECTIVES}})(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?]|$)|{{S}}(?:demais|mesmo|também|para|de){{E}})"
+        fixer: agreementNeuter
   - id: pt_BR.nounAgreement
     checks: [portugueseAgreement]
     predicate: nounAgreement
