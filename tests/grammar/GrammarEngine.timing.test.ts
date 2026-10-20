@@ -112,7 +112,8 @@ test.each(Object.entries(DRAFTS))(
   "a full-draft pattern pass over %s stays under 5 ms",
   (lang, text) => {
     const pass = () => findMatches(REVIEW, tokenize(text), text, lang, () => true);
-    for (let warm = 0; warm < 3; warm += 1) pass();
+    // The first language also warms the matcher itself: CI runners need more rounds.
+    for (let warm = 0; warm < 10; warm += 1) pass();
     expect(median(21, pass)).toBeLessThan(5);
   },
 );
