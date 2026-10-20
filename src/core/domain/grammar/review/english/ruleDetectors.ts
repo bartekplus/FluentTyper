@@ -103,7 +103,6 @@ export const PREDICATES = mergePredicates(
   punctuation.PREDICATES,
   articles.PREDICATES,
   clauseSlots.PREDICATES,
-  wordFormSlots.PREDICATES,
 );
 
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
@@ -131,6 +130,7 @@ export const FIXERS = mergePredicates<Fixer>(
   verbSlots.FIXERS,
   remaining.FIXERS,
   everydaySlots.FIXERS,
+  wordFormSlots.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */

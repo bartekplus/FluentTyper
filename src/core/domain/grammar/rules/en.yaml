@@ -2058,25 +2058,95 @@ rules:
         fixer: everydayDoTag
   - id: en.haveName
     checks: [englishSubjectVerbAgreement]
-    predicate: haveName
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlots
+    frames:
+      # "Have Mary bought a ticket?": a name takes has; "Have Tom report to me" is causative.
+      - regex: "(?<target>have|haven['’]t){{S}}(?<name>[a-z]{2,}){{S}}(?<part>[a-z]+){{E}}"
+        fixer: wordFormHaveName
   - id: en.youAre
     checks: [englishYourYouAre]
-    predicate: youAre
+    style: match
+    message: review_msg_your_you_are
+    filter: usSlots
+    frames:
+      # "the file your looking for", "what your selling": your before a bare -ing after a noun
+      # or a wh-word is "you're".
+      - regex: "(?<before>[a-z]+){{S}}(?<target>your){{S}}(?<ing>[a-z]+ing){{E}}"
+        fixer: wordFormYourIng
+      # "I think your all set".
+      - regex: "(?<target>your){{S}}all{{S}}(?:set|done|good|ready|invited|welcome|right|wrong|fine|wrong|alone|over|here|there){{E}}"
+        fixer: wordFormYourAll
   - id: en.pluralSlots
     checks: [englishNounNumber]
-    predicate: pluralSlots
+    style: match
+    message: review_msg_noun_count
+    filter: usSlots
+    frames:
+      # "There're problem in it": a plural existential before a singular count noun.
+      - regex: "there(?:['’]re|{{S}}are|{{S}}were){{S}}(?<target>[a-z]+){{E}}"
+        fixer: wordFormThereAre
+      # "A number of book", "dozens of reason": a count that needs a plural.
+      - regex: "(?:a{{S}}(?:number|couple|pair|multitude|series|majority)|dozens|hundreds|thousands){{S}}of{{S}}(?<target>[a-z]+){{E}}"
+        fixer: wordFormCountOf
   - id: en.confusedSlots
     checks: [englishConfusedWords]
-    predicate: confusedSlots
+    style: match
+    message: review_msg_confused_word
+    filter: usSlots
+    frames:
+      # "The files are know being checked": now before an -ing form.
+      - regex: "(?:is|are|was|were|am|['’]re|['’]m){{S}}(?<target>know){{S}}(?<next>[a-z]+ing){{E}}"
+        fixer: wordFormKnow
+      # "Tom and several other came": a pronoun "others" before a verb or the end.
+      - regex: "(?:several|many|some|few|both){{S}}(?<target>other)(?=[ \\t\\u00a0]*(?:[.!?,;:]|$)|{{S}}(?<next>[a-z]+){{E}})"
+        fixer: wordFormOther
+      # "The are many people here": there at the clause start.
+      - regex: "(?<target>the){{S}}(?:are|were){{S}}(?:many|several|some|no|plenty|lots|a{{S}}lot|a{{S}}few|two|three|four|five|ten){{E}}"
+        fixer: wordFormTheAre
+      # "I might not make sense to ask": the dummy subject it.
+      - regex: "(?<target>I)(?:{{S}}(?:might|may|would|will|could|does|doesn['’]t|did|didn['’]t|wouldn['’]t|won['’]t)(?:{{S}}not)?)?{{S}}(?:make|makes|made){{S}}sense{{S}}to{{S}}[a-z]+{{E}}"
+        fixer: wordFormISense
+      # "It maybe helpful": the modal "may be" before a predicate.
+      - regex: "(?:I|you|he|she|it|we|they|this|that|there){{S}}(?<target>maybe){{S}}(?<next>[a-z]+){{E}}"
+        fixer: wordFormMaybe
+      # "I'll drop by an see you": "an" before a bare verb.
+      - regex: "(?<target>an){{S}}(?<verb>[a-z]+){{E}}"
+        fixer: wordFormAnVerb
   - id: en.compoundSlots
     checks: [englishContextualCompounds]
-    predicate: compoundSlots
+    style: match
+    message: review_msg_compounds
+    filter: usSlots
+    frames:
+      # "a must see place": the compound modifier is hyphenated.
+      - regex: "(?:a|an|the|another){{S}}(?<target>must{{S}}(?<verb>see|read|have|do|visit|watch|try|buy|attend|hear|eat|own)){{S}}(?<noun>[a-z]+){{E}}"
+        fixer: wordFormMust
+      # "He was 58 years-old.": predicative ages are open.
+      - regex: "(?<=[0-9]{{S}}|(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety){{S}})(?<target>(?:years|months|weeks|days)-old)(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|{{S}}(?:and|but|when|at|in|by|now|today){{E}})"
+        fixer: wordFormYearsOld
   - id: en.possessiveSlots
     checks: [englishApostrophes]
-    predicate: possessiveSlots
+    style: match
+    message: review_msg_noun_possessive
+    filter: usSlots
+    frames:
+      # "the worlds best player": the world's.
+      - regex: "the{{S}}(?<target>worlds){{S}}(?:best|largest|biggest|greatest|most|first|oldest|fastest|richest|highest|tallest|leading|top|smallest|longest|deepest|strongest|happiest|favorite|favourite|population|economy|attention){{E}}"
+        fixer: wordFormWorlds
+      # "One should wash ones hands": one's before a noun.
+      - regex: "(?:wash|brush|clean|change|mind|lose|lost|keep|know|follow|raise|use|express|share|do|cross|count|in|of|on|for|to|with|about|into|from){{S}}(?<target>ones){{S}}(?<noun>[a-z]+){{E}}"
+        fixer: wordFormOnes
   - id: en.tooAll
     checks: [englishToToo]
-    predicate: tooAll
+    style: match
+    message: review_msg_to_too
+    filter: usSlots
+    frames:
+      # "We expanded too all the sites": the preposition.
+      - regex: "(?<target>too){{S}}all{{S}}(?:the|of|my|our|your|their|his|her|these|those){{E}}"
+        fixer: wordFormTooAll
   - id: en.typoSlots
     checks:
       [englishPhraseCorrections, englishConfusedWords, englishToToo, englishContextualCompounds]
