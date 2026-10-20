@@ -23,6 +23,8 @@ fragments:
   NEGATION: "don['’]t|doesn['’]t|didn['’]t|never|not"
   VERB_OBJECT: "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what"
   SUBJECT: "I|you|we|they|he|she|it"
+  NEGATIONSLOTS_NEGATED: "(?<aux>(?:do|does|did|can|could|will|would|shall|should|must|may|might|is|are|was|were|am|have|has|had)n['’]t|can['’]t|cannot|won['’]t|shan['’]t|(?:do|does|did|can|could|will|would|shall|should|must|may|might|is|are|was|were|am|have|has|had){{S}}not|never)"
+  COUNTSLOTS_MASS_WORDS: "advice|information|info|equipment|furniture|luggage|baggage|feedback|homework|housework|paperwork|software|hardware|firmware|malware|spyware|ransomware|freeware|shareware|middleware|machinery|merchandise|clothing|footwear|underwear|sportswear|swimwear|eyewear|knitwear|outerwear|headwear|tableware|kitchenware|silverware|glassware|cutlery|crockery|stationery|jewelry|jewellery|garbage|rubbish|trash|litter|junk|stuff|mail|spam|scenery|vocabulary|graffiti|accommodation|infrastructure|footage|bedding|scaffolding|money|cash|traffic|transport|transportation|parking|shopping|sightseeing|housing|wildlife|livestock|poultry|foliage|vegetation|plankton|pollen|wine|bread|butter|flour|rice|pasta|spaghetti|oatmeal|porridge|cereal|honey|jam|ketchup|mayonnaise|mustard|vinegar|cinnamon|garlic|ginger|yeast|dough|milk|yogurt|yoghurt|broccoli|spinach|celery|asparagus|lettuce|seafood|beef|pork|veal|venison|bacon|mutton|toast|food|aluminium|aluminum|asphalt|cement|clay|coal|copper|cotton|denim|gasoline|petrol|gravel|leather|linen|mercury|mud|nylon|oxygen|hydrogen|nitrogen|helium|carbon|calcium|sodium|potassium|chlorine|ammonia|plutonium|uranium|polyester|silk|soil|steel|sulfur|sulphur|velvet|wool|wheat|zinc|timber|sand|dust|dirt|rust|smoke|steam|sweat|shampoo|toothpaste|soap|electricity|gas|weather|sunshine|sunlight|moonlight|lightning|thunder|hail|snow|humidity|pollution|smog|gravity|physics|mathematics|maths|economics|linguistics|biology|chemistry|geology|botany|zoology|astronomy|anthropology|archaeology|sociology|psychology|arithmetic|algebra|calculus|geometry|grammar|punctuation|spelling|literature|poetry|photography|journalism|tourism|commerce|marketing|advertising|management|engineering|research|yoga|tennis|chess|golf|soccer|hockey|rugby|gymnastics|athletics|aerobics|music|knowledge|wisdom|evidence|progress|anger|applause|assistance|attention|awareness|bravery|chaos|cleanliness|compassion|conduct|courage|cowardice|dignity|diligence|dishonesty|enjoyment|enthusiasm|envy|fame|fatigue|flexibility|generosity|gratitude|greed|guidance|guilt|happiness|harassment|hatred|health|heritage|honesty|hospitality|humility|hunger|hygiene|ignorance|immigration|impatience|inflation|ingenuity|innocence|insomnia|integrity|jealousy|justice|laughter|laziness|legislation|leisure|literacy|litigation|loneliness|loyalty|luck|malnutrition|mischief|misinformation|momentum|motivation|nonsense|nostalgia|nourishment|nutrition|obedience|obesity|optimism|patience|permission|persistence|pessimism|plagiarism|pneumonia|poverty|pride|privacy|procrastination|prosperity|publicity|racism|recreation|recycling|relaxation|reliability|resilience|respect|revenge|safety|sanitation|sarcasm|slang|stamina|supervision|tolerance|turbulence|unemployment|vandalism|violence|warfare|wealth|welfare|wrath|news"
   NOUNNUMBERSLOTS_EXISTENTIAL_COUNT: "(?:many|several|few|some|no|any(?:[ \\t\\u00a0]+other)?|a[ \\t\\u00a0]+few|a[ \\t\\u00a0]+couple[ \\t\\u00a0]+of|two|three|four|five|six|seven|eight|nine|ten|[2-9]|[1-9][0-9]+)"
   QUESTIONSLOTS_ADVERB: "(?:{{S}}(?:ever|really|actually|typically|usually|normally|still|even|just|always|also|never|already|generally|actually))?"
   QUESTIONSLOTS_PRONOUN: "(?:i|you|we|they|he|she|it)"
@@ -1492,10 +1494,34 @@ rules:
         fixer: confusionWhereYou
   - id: en.countNouns
     checks: [englishCountability]
-    predicate: countNouns
+    style: match
+    message: review_msg_countability
+    filter: slotFindings
+    frames:
+      # "less people" -> fewer; "too much meetings" -> many.
+      - regex: "(?<target>less|much){{S}}(?<noun>[a-z]+){{E}}"
+        fixer: countAmountPlural
+      # "many money", "a few homework": a count word before an uncountable noun (MASS of
+      # nounNumberSlots).
+      - regex: "(?<target>many|few|several|fewer){{S}}(?<noun>{{COUNTSLOTS_MASS_WORDS}}){{E}}"
+        fixer: countBeforeMass
+      # "A knowledge is power", "an incorrect advice": a/an before an uncountable noun.
+      - regex: "(?<=(?<![\\p{L}'’-])(?<article>an?)(?<adjectives>(?:{{S}}[a-z]{1,30}){0,3}?){{S}})(?<noun>{{COUNTSLOTS_MASS_WORDS}}){{E}}"
+        owner: article
+        fixer: countArticleMass
   - id: en.doubleNegatives
     checks: [englishUsagePhrases]
-    predicate: doubleNegatives
+    style: match
+    message: review_msg_double_negative
+    filter: slotFindings
+    frames:
+      # "I didn't see nothing", "Don't give me no excuses", "There wasn't nobody home".
+      - regex: "{{NEGATIONSLOTS_NEGATED}}(?<between>(?:{{S}}[a-z]+){0,3}?){{S}}(?<target>nothing|nobody|nowhere|neither|no){{E}}"
+        fixer: negationDouble
+      # "She could not hardly hear", "I can't barely see": hardly is negative already. A
+      # do-support negation ("didn't hardly sleep") needs the verb inflected and is left alone.
+      - regex: "(?<target>(?<aux>can|could|will|would|should)(?:n['’]t|{{S}}not)|(?<can>can['’]t|cannot)|(?<will>won['’]t))(?={{S}}(?:hardly|scarcely|barely){{E}})"
+        fixer: negationHardly
   - id: en.relativeAgreement
     checks: [englishSubjectVerbAgreement, englishPossibleErrors]
     style: match
