@@ -226,8 +226,7 @@ rules:
         fixer: lowerDate
   - id: de.isoDates
     checks: [germanDates]
-    # predicate: calls invalidIsoDates of review/isoDates.ts, a shared scan outside the German
-    # modules.
+    # predicate: calls invalidIsoDates of review/isoDates.ts, a shared scan outside the German modules.
     predicate: isoDates
   - id: de.dateDots
     checks: [germanDates]
@@ -1526,8 +1525,9 @@ rules:
         fixer: largeNumber
   - id: de.quotes
     checks: [germanQuotes]
-    # predicate: counts the open „ from the paragraph start; each mark changes the count for the
-    # next marks, and a skipped English quotation moves the scan. Nested quotes use a stack.
+    # Each mark changes the count of open „ for the next marks, and a skipped English quotation
+    # moves the scan; nested quotes use a stack of the marks of each line.
+    # predicate: a stateful scan; the count of open quotes from the paragraph start decides each mark.
     predicate: quotes
   - id: de.quoteFrames
     checks: [germanQuotes]
@@ -1552,8 +1552,8 @@ rules:
         fixer: innerSpacing
   - id: de.straightQuotes
     checks: [germanStraightQuotes]
-    # predicate: pairs the straight marks of each line by an indexOf walk; an odd count leaves
-    # the line alone.
+    # An odd count of straight marks leaves the line alone.
+    # predicate: pairs the straight marks of each line by an indexOf walk, not by a regex scan.
     predicate: straightQuotes
   - id: de.commas
     checks: [germanCommas]
@@ -1740,8 +1740,8 @@ rules:
         fixer: numberRange
   - id: de.rangeDashes
     checks: [emdashShortcut]
-    # predicate: calls rangeDashes of review/rangeDash.ts, a shared scan outside the German
-    # modules; German gives only its guards.
+    # German gives only the guards of the shared scan.
+    # predicate: calls rangeDashes of review/rangeDash.ts, a shared scan outside the German modules.
     predicate: rangeDashes
   - id: de.typography
     checks: [germanTypography]
