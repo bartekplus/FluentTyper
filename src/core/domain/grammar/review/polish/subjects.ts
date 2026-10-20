@@ -1,5 +1,5 @@
-import type { Detector, MatchFixer, MatchResult } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { FrameRef, MatchFixer, MatchResult } from "../../engine/reviewRules";
+import type { DetectContext } from "../reviewDetectors";
 import {
   adjectiveForm,
   ALL_CASES,
@@ -20,16 +20,7 @@ import {
   VERB,
   VIRILE,
 } from "./lexicon";
-import {
-  caseLike,
-  findingAt,
-  isPl,
-  owned,
-  PREPOSITIONS,
-  S,
-  sentenceStartAt,
-  userOrNamed,
-} from "./shared";
+import { caseLike, findingAt, PREPOSITIONS, sentenceStartAt, userOrNamed } from "./shared";
 
 /*
  * Subject and verb: a past form agrees with "on"/"ona" in gender ("ona poszła", not "ona
@@ -39,9 +30,6 @@ import {
 
 const RULE = "polishCaseAgreement" as const;
 const MESSAGE = "review_msg_pl_subject_verb" as const;
-
-/** Short words that may stand between a subject pronoun and its verb ("ona już wyszła"). */
-const BETWEEN = `(?:(?:się|nie|już|też|także|również|wtedy|wczoraj|dziś|zawsze|nigdy|jednak|często|szybko|nagle|wreszcie|tylko)${S}){0,2}`;
 
 const pastForm = (word: string) => finiteVerb(word) || pastByShape(word);
 
@@ -83,10 +71,6 @@ function zostacAgreement(m: RegExpExecArray, ctx: DetectContext): MatchResult {
 /** Plural past forms of verbs that take no direct object, so a plural noun before them is their subject. */
 const INTRANSITIVE =
   "by|bywa|zosta|zostawa|(?:po|przy|wy|w|we|od|ode|do|ze|z|nad|nade|pod|pode)?sz|(?:przy|wy|po|od|do|za)?jecha|przyby|uciek|zniknę|umar|zmar|zginę|spa|siedzie|leże|mieszka|ży|płaka|krzycze|biega|chodzi|przychodzi|wychodzi|wraca|wróci|przyjeżdża|przyleci|odleci|pływa|(?:wy)?roś|zasnę|usnę";
-const PLURAL_SUBJECT = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/.-])(?<noun>\\p{L}{3,})${S}${BETWEEN}(?<verb>\\p{Ll}{2,}(?:li|ły))(?![\\p{L}\\p{N}_'’@/-])(?<reflexive>${S}się)?`,
-  "gud",
-);
 const INTRANSITIVE_PAST = new RegExp(`^(?:${INTRANSITIVE})(?:li|ły)$`, "u");
 /** Clause openers before a subject; a determiner may stand between ("że te dzieci"). */
 const OPENS_CLAUSE =
@@ -118,33 +102,24 @@ function otherPlural(verb: string): string[] {
 const pluralPast = (word: string) =>
   word === "były" || word === "byli" || pastForm(word) || (nounTags(word) & VERB) !== 0;
 
-/** A singular noun opening its clause before "są" ("Dociekanie nie są kluczowe"). */
-const SINGULAR_SUBJECT = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/.-])(?<noun>\\p{L}{3,})${S}(?:nie${S})?(?<verb>są)(?![\\p{L}\\p{N}_'’@/-])`,
-  "giud",
-);
-
 /**
  * "Pływanie nie są zdrowe": "są" after a singular subject (or the noun lost its plural ending,
  * so the finding only warns). "Państwo są" (a couple) takes the plural.
  */
-function singularSubjects(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, SINGULAR_SUBJECT)) {
-    const { noun } = m.groups!;
-    SINGULAR_SUBJECT.lastIndex = m.index + noun.length;
-    const lower = noun.toLowerCase();
-    const tags = nounTags(lower);
-    if (!onlyNoun(tags) || !(tags & cases("Ns")) || tags & PLURAL || /stwo$/u.test(lower)) continue;
-    if (!OPENS_CLAUSE.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))) continue;
-    if (userOrNamed(ctx, noun)) continue;
-    const [start, end] = m.indices!.groups!.verb;
-    findings.push({
-      ...findingAt(ctx, start, end, [], RULE, MESSAGE),
-      context: { start: m.index, end },
-    });
-  }
-  return findings;
+function singularSubjects(m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult {
+  const { noun } = m.groups!;
+  frame.resume!(m.index + noun.length);
+  const lower = noun.toLowerCase();
+  const tags = nounTags(lower);
+  if (!onlyNoun(tags) || !(tags & cases("Ns")) || tags & PLURAL || /stwo$/u.test(lower))
+    return null;
+  if (!OPENS_CLAUSE.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))) return null;
+  if (userOrNamed(ctx, noun)) return null;
+  const [start, end] = m.indices!.groups!.verb;
+  return {
+    ...findingAt(ctx, start, end, [], RULE, MESSAGE),
+    context: { start: m.index, end },
+  };
 }
 
 function majority(m: RegExpExecArray, ctx: DetectContext): MatchResult {
@@ -170,45 +145,41 @@ function majority(m: RegExpExecArray, ctx: DetectContext): MatchResult {
 }
 
 /** "Dzieci byli tutaj" -> "były", "Studenci przyszły" -> "przyszli". */
-function pluralSubjects(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, PLURAL_SUBJECT)) {
-    const { noun, verb, reflexive } = m.groups!;
-    PLURAL_SUBJECT.lastIndex = m.index + noun.length;
-    const lower = noun.toLowerCase();
-    const tags = nounTags(lower);
-    if (!onlyNoun(tags) || !(tags & cases("Np")) || userOrNamed(ctx, `${noun} ${verb}`)) continue;
-    if (/\p{Lu}/u.test(noun[0]) && !sentenceStartAt(ctx.text, m.index)) continue;
-    const before = ctx.text.slice(Math.max(0, m.index - 40), m.index);
-    if (NOT_SUBJECT_BEFORE.test(before)) continue;
-    const virileVerb = verb.endsWith("li");
-    if (virileVerb) {
-      // Feminine and neuter nouns (and "dzieci") only: a man's noun the lexicon does not mark
-      // ("kolarze") must not read as a thing's.
-      if (tags & (MASCULINE | VIRILE) || DURATION.test(lower)) continue;
-      // An intransitive verb, or a reflexive one after a noun that is no genitive object.
-      if (!INTRANSITIVE_PAST.test(verb) && !(reflexive && !(tags & cases("Gp")) && pastForm(verb)))
-        continue;
-      // The noun opens its clause, after a plural determiner at most.
-      const det = /(\p{L}+)[ \t ]+$/u.exec(before);
-      const opens = OPENS_CLAUSE.test(before);
-      const determined =
-        det &&
-        (PLURAL_DETERMINER.test(det[1]) || adjectiveOf(det[1].toLowerCase())?.ending === "e") &&
-        OPENS_CLAUSE.test(before.slice(0, det.index));
-      if (!opens && !determined) continue;
-    } else {
-      // A man's plural that is no accusative or singular form ("studenci", "ludzie"; not "metry").
-      if (!menOnlyPlural(lower) || tags & cases("Ns Gs As Ap")) continue;
-      if (!pluralPast(verb)) continue;
-    }
-    const [start, end] = m.indices!.groups!.verb;
-    findings.push({
-      ...findingAt(ctx, start, end, otherPlural(verb.toLowerCase()), RULE, MESSAGE),
-      context: { start: m.index, end },
-    });
+function pluralSubjects(m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult {
+  const { noun, verb, reflexive } = m.groups!;
+  frame.resume!(m.index + noun.length);
+  const lower = noun.toLowerCase();
+  const tags = nounTags(lower);
+  if (!onlyNoun(tags) || !(tags & cases("Np")) || userOrNamed(ctx, `${noun} ${verb}`)) return null;
+  if (/\p{Lu}/u.test(noun[0]) && !sentenceStartAt(ctx.text, m.index)) return null;
+  const before = ctx.text.slice(Math.max(0, m.index - 40), m.index);
+  if (NOT_SUBJECT_BEFORE.test(before)) return null;
+  const virileVerb = verb.endsWith("li");
+  if (virileVerb) {
+    // Feminine and neuter nouns (and "dzieci") only: a man's noun the lexicon does not mark
+    // ("kolarze") must not read as a thing's.
+    if (tags & (MASCULINE | VIRILE) || DURATION.test(lower)) return null;
+    // An intransitive verb, or a reflexive one after a noun that is no genitive object.
+    if (!INTRANSITIVE_PAST.test(verb) && !(reflexive && !(tags & cases("Gp")) && pastForm(verb)))
+      return null;
+    // The noun opens its clause, after a plural determiner at most.
+    const det = /(\p{L}+)[ \t ]+$/u.exec(before);
+    const opens = OPENS_CLAUSE.test(before);
+    const determined =
+      det &&
+      (PLURAL_DETERMINER.test(det[1]) || adjectiveOf(det[1].toLowerCase())?.ending === "e") &&
+      OPENS_CLAUSE.test(before.slice(0, det.index));
+    if (!opens && !determined) return null;
+  } else {
+    // A man's plural that is no accusative or singular form ("studenci", "ludzie"; not "metry").
+    if (!menOnlyPlural(lower) || tags & cases("Ns Gs As Ap")) return null;
+    if (!pluralPast(verb)) return null;
   }
-  return findings;
+  const [start, end] = m.indices!.groups!.verb;
+  return {
+    ...findingAt(ctx, start, end, otherPlural(verb.toLowerCase()), RULE, MESSAGE),
+    context: { start: m.index, end },
+  };
 }
 
 /** An adjective form read through a "nie-" prefix the lexicon does not list ("nieobecne"). */
@@ -338,15 +309,12 @@ function jakis(m: RegExpExecArray, ctx: DetectContext): MatchResult {
   };
 }
 
-export const PREDICATES = {
-  subjectNumber: (ctx: DetectContext) =>
-    isPl(ctx) ? [...pluralSubjects(ctx), ...singularSubjects(ctx)] : [],
-} satisfies Record<string, Detector>;
-
 /** The named frame fixes of the subject rules of grammar/rules/pl.yaml (`fixer:`). */
 export const FIXERS = {
   pronounGender,
   zostacAgreement,
+  pluralSubjects,
+  singularSubjects,
   majority,
   aspect,
   doubleNegation,

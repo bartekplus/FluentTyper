@@ -1,7 +1,7 @@
-import type { Detector, MatchFixer, MatchResult } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer, MatchResult } from "../../engine/reviewRules";
+import type { DetectContext } from "../reviewDetectors";
 import { adjectiveForm, adjectiveOf, finiteVerb, hasAdjective } from "./lexicon";
-import { caseLike, findingAt, isPl, owned, userOrNamed } from "./shared";
+import { caseLike, findingAt, userOrNamed } from "./shared";
 
 /*
  * Degrees of comparison. "bardziej" with a form that is already comparative ("bardziej
@@ -89,67 +89,74 @@ function alreadyGraded(word: string): boolean {
   return !!adj && /szy$/.test(adj.lemma) && adj.lemma !== "pierwszy";
 }
 
-const MARKED =
-  /(?<![\p{L}])(?<marker>(?:naj)?bardziej|coraz[ \t ]+naj(?:bardziej|mniej))[ \t ]+(?<word>\p{L}{3,})(?![\p{L}])/giu;
-
-function degrees(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, MARKED)) {
-    const { marker, word } = m.groups!;
-    if (userOrNamed(ctx, word)) continue;
-    const before = ctx.text.slice(Math.max(0, m.index - 8), m.index);
-    // "tym bardziej lepiej" is "all the more"; "im bardziej" sets up a comparison.
-    if (/(?:^|[^\p{L}])(?:tym|im)[ \t ]+$/iu.test(before)) continue;
-    const lower = marker.toLowerCase();
-    const start = m.index;
-    const end = start + m[0].length;
-    if (lower.startsWith("coraz")) {
-      // "coraz najbardziej popularna" -> "coraz bardziej", "coraz najmniej" -> "coraz mniej".
-      const fixed = marker.replace(/naj(?=bardziej|mniej)/iu, "");
-      findings.push(
-        findingAt(ctx, start, start + marker.length, [fixed], DOUBLED, "review_msg_doubled_degree"),
-      );
-      continue;
-    }
-    if (ctx.rules?.has(DOUBLED) !== false && (alreadyGraded(word) || UNGRADED.test(word))) {
-      if (/^(?:lepsz|gorsz|lepiej|gorzej|lepsi|gorsi)/u.test(word) && lower === "bardziej")
-        continue;
-      findings.push(
-        findingAt(ctx, start, end, [caseLike(marker, word)], DOUBLED, "review_msg_doubled_degree"),
-      );
-      continue;
-    }
-    if (ctx.rules && !ctx.rules.has(STYLE)) continue;
-    // "coraz bardziej popularna" and "mniej i bardziej poważnych" keep the analytic form.
-    const longer = ctx.text.slice(Math.max(0, m.index - 24), m.index);
-    if (
-      /(?:^|[^\p{L}])(?:coraz|(?:naj)?mniej[ \t\u00a0]+(?:i|lub|albo|czy))[ \t\u00a0]+$/iu.test(
-        longer,
-      )
-    )
-      continue;
-    const naj = lower === "najbardziej" ? "naj" : "";
-    const adverb = ADVERBS[word] ?? (word.endsWith("nie") ? word : null);
-    let fixed: string | null = null;
-    if (adverb && ADVERBS[word]) fixed = naj + ADVERBS[word];
-    else if (adverb) {
-      // "dokładnie" -> "dokładniej", from the comparative "dokładniejszy".
-      const comparative = hasAdjective(`${word.slice(0, -2)}y`)
-        ? comparativeOf(`${word.slice(0, -2)}y`)
-        : null;
-      if (comparative?.endsWith("iejszy")) fixed = naj + comparative.slice(0, -3);
-    }
-    if (!fixed) {
-      const adj = adjectiveOf(word);
-      const comparative = adj && comparativeOf(adj.lemma);
-      if (adj && comparative) fixed = naj + adjectiveForm(comparative, adj.ending);
-    }
-    if (fixed)
-      findings.push(
-        findingAt(ctx, start, end, [caseLike(marker, fixed)], STYLE, "review_msg_style_phrasing"),
-      );
+function degrees(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { marker, word } = m.groups!;
+  if (userOrNamed(ctx, word)) return null;
+  const before = ctx.text.slice(Math.max(0, m.index - 8), m.index);
+  // "tym bardziej lepiej" is "all the more"; "im bardziej" sets up a comparison.
+  if (/(?:^|[^\p{L}])(?:tym|im)[ \t ]+$/iu.test(before)) return null;
+  const lower = marker.toLowerCase();
+  const start = m.index;
+  const end = start + m[0].length;
+  if (lower.startsWith("coraz")) {
+    // "coraz najbardziej popularna" -> "coraz bardziej", "coraz najmniej" -> "coraz mniej".
+    const fixed = marker.replace(/naj(?=bardziej|mniej)/iu, "");
+    return findingAt(
+      ctx,
+      start,
+      start + marker.length,
+      [fixed],
+      DOUBLED,
+      "review_msg_doubled_degree",
+    );
   }
-  return findings;
+  if (ctx.rules?.has(DOUBLED) !== false && (alreadyGraded(word) || UNGRADED.test(word))) {
+    if (/^(?:lepsz|gorsz|lepiej|gorzej|lepsi|gorsi)/u.test(word) && lower === "bardziej")
+      return null;
+    return findingAt(
+      ctx,
+      start,
+      end,
+      [caseLike(marker, word)],
+      DOUBLED,
+      "review_msg_doubled_degree",
+    );
+  }
+  if (ctx.rules && !ctx.rules.has(STYLE)) return null;
+  // "coraz bardziej popularna" and "mniej i bardziej poważnych" keep the analytic form.
+  const longer = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+  if (
+    /(?:^|[^\p{L}])(?:coraz|(?:naj)?mniej[ \t\u00a0]+(?:i|lub|albo|czy))[ \t\u00a0]+$/iu.test(
+      longer,
+    )
+  )
+    return null;
+  const naj = lower === "najbardziej" ? "naj" : "";
+  const adverb = ADVERBS[word] ?? (word.endsWith("nie") ? word : null);
+  let fixed: string | null = null;
+  if (adverb && ADVERBS[word]) fixed = naj + ADVERBS[word];
+  else if (adverb) {
+    // "dokładnie" -> "dokładniej", from the comparative "dokładniejszy".
+    const comparative = hasAdjective(`${word.slice(0, -2)}y`)
+      ? comparativeOf(`${word.slice(0, -2)}y`)
+      : null;
+    if (comparative?.endsWith("iejszy")) fixed = naj + comparative.slice(0, -3);
+  }
+  if (!fixed) {
+    const adj = adjectiveOf(word);
+    const comparative = adj && comparativeOf(adj.lemma);
+    if (adj && comparative) fixed = naj + adjectiveForm(comparative, adj.ending);
+  }
+  if (fixed)
+    return findingAt(
+      ctx,
+      start,
+      end,
+      [caseLike(marker, fixed)],
+      STYLE,
+      "review_msg_style_phrasing",
+    );
+  return null;
 }
 
 /** Words after "jak" that make it "if" or "as" ("lepiej jak przyjdziesz", "jak najszybciej"). */
@@ -186,9 +193,5 @@ function comparedWithJak(m: RegExpExecArray, ctx: DetectContext): MatchResult {
   };
 }
 
-export const PREDICATES = {
-  degrees: (ctx: DetectContext) => (isPl(ctx) ? degrees(ctx) : []),
-} satisfies Record<string, Detector>;
-
 /** The named frame fixes of the degree rules of grammar/rules/pl.yaml (`fixer:`). */
-export const FIXERS = { comparedWithJak } satisfies Record<string, MatchFixer>;
+export const FIXERS = { comparedWithJak, degrees } satisfies Record<string, MatchFixer>;
