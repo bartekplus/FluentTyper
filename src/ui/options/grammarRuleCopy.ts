@@ -454,6 +454,10 @@ export const GRAMMAR_RULE_EXAMPLES: Record<CatalogRuleId, RuleExample> = {
     text: ["Der Raum ist 5 x 6 Meter groß.", "Der Raum ist 5 × 6 Meter groß."],
     lang: "de_DE",
   },
+  germanJoinedVerbs: {
+    text: ["Man hat zwei Einbrecher fest genommen.", "Man hat zwei Einbrecher festgenommen."],
+    lang: "de_DE",
+  },
 };
 
 /** Settings title and description of each Review-only rule; typing rules have theirs in fluenttyperI18n. */
@@ -3251,6 +3255,28 @@ export const REVIEW_RULE_TEXT = {
     de: "Ersetzt x oder * zwischen Zahlen durch ×, schreibt chemische Formeln mit tiefgestellten Ziffern (CO₂) und gliedert lange Zahlen mit Punkten. Optional: Einfacher Text nutzt oft x, * und CO2.",
     pl: "Zamienia x lub * między liczbami na ×, zapisuje wzory chemiczne z indeksami dolnymi (CO₂) i dzieli długie liczby kropkami. Opcjonalne: zwykły tekst często używa x, * i CO2.",
     pr: "Troca x ou * entre números por ×, escreve fórmulas químicas com subscritos (CO₂) e agrupa números longos com pontos. Opcional: o texto simples costuma usar x, * e CO2.",
+  },
+  grammar_rule_germanJoinedVerbs: {
+    en: "Verbs written as one word",
+    fr: "Verbes écrits en un seul mot",
+    hr: "Glagoli koji se pišu kao jedna riječ",
+    es: "Verbos que se escriben en una palabra",
+    el: "Ρήματα που γράφονται ως μία λέξη",
+    sv: "Verb som skrivs som ett ord",
+    de: "Zusammengeschriebene Verben",
+    pl: "Czasowniki pisane łącznie",
+    pr: "Verbos escritos numa só palavra",
+  },
+  grammar_rule_germanJoinedVerbs_desc: {
+    en: "Joins an adjective or adverb to its verb where the pair has one meaning: fest genommen → festgenommen, krank schreiben → krankschreiben. Optional: some pairs also have a literal sense written apart.",
+    fr: "Soude un adjectif ou un adverbe à son verbe quand la paire n’a qu’un sens : fest genommen → festgenommen, krank schreiben → krankschreiben. Facultatif : certaines paires ont aussi un sens propre en deux mots.",
+    hr: "Spaja pridjev ili prilog s glagolom kad par ima samo jedno značenje: fest genommen → festgenommen, krank schreiben → krankschreiben. Neobavezno: neki parovi imaju i doslovno značenje kad se pišu odvojeno.",
+    es: "Une un adjetivo o un adverbio a su verbo cuando el par tiene un solo sentido: fest genommen → festgenommen, krank schreiben → krankschreiben. Opcional: algunos pares también tienen un sentido literal escritos por separado.",
+    el: "Ενώνει ένα επίθετο ή επίρρημα με το ρήμα του όταν το ζεύγος έχει μία σημασία: fest genommen → festgenommen, krank schreiben → krankschreiben. Προαιρετικό: μερικά ζεύγη έχουν και κυριολεκτική σημασία όταν γράφονται χωριστά.",
+    sv: "Skriver ihop ett adjektiv eller adverb med verbet när paret har en betydelse: fest genommen → festgenommen, krank schreiben → krankschreiben. Valfritt: vissa par har också en bokstavlig betydelse isär.",
+    de: "Schreibt ein Adjektiv oder Adverb mit seinem Verb zusammen, wenn das Paar nur eine Bedeutung hat: fest genommen → festgenommen, krank schreiben → krankschreiben. Optional: Manche Paare haben getrennt geschrieben auch eine wörtliche Bedeutung.",
+    pl: "Łączy przymiotnik lub przysłówek z czasownikiem, gdy para ma jedno znaczenie: fest genommen → festgenommen, krank schreiben → krankschreiben. Opcjonalne: niektóre pary mają też dosłowne znaczenie pisane osobno.",
+    pr: "Junta um adjetivo ou advérbio ao verbo quando o par tem um só sentido: fest genommen → festgenommen, krank schreiben → krankschreiben. Opcional: alguns pares também têm um sentido literal escritos separados.",
   },
 };
 

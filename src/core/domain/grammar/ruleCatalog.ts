@@ -399,6 +399,7 @@ const CATALOG = [
   reviewOnly("germanColloquial", 60),
   reviewOnly("germanRecommendedSpelling", 55),
   reviewOnly("germanTypography", 40),
+  reviewOnly("germanJoinedVerbs", 50),
 ] as const satisfies readonly GrammarRuleCatalogEntry[];
 
 /** Every catalog rule id: the typing rules (GrammarRuleId) and the Review-only checks. */

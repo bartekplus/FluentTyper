@@ -254,11 +254,14 @@ const TWO_GENDERS = new Set(
     "pony silvester gelee biotop radio butter tram gulasch messer fuß morgen"
   ).split(" "),
 );
+/** Whether a noun has two genders by meaning or region ("das/der Band"). */
+export const germanTwoGenders = (word: string) => TWO_GENDERS.has(word.toLowerCase());
 // Compound heads whose compounds differ in gender ("der Mut", "die Armut"; "das Ende",
 // "die Legende"; "der Aufwand", "die Leinwand"; "der Rat", "die Heirat").
 const MIXED_HEADS = new Set("mut ende wand rat gift wort macht mal art".split(" "));
-// A compass point heads no compound by its last letters ("Lohnk|osten").
-const NOT_HEADS = new Set("osten westen norden süden".split(" "));
+// A compass point heads no compound by its last letters ("Lohnk|osten"); "-schaft" is the
+// feminine suffix ("die Nachbarschaft"), not "der Schaft".
+const NOT_HEADS = new Set("osten westen norden süden schaft".split(" "));
 // Particles and prepositions that start verb-made nouns of their own gender ("der Einwand").
 const PARTICLES = new Set(
   (

@@ -67,10 +67,16 @@ const SINGULAR = re(
     `(?<=(?:${QUANTITY}|[2-9]|\\d{2,12}(?:,\\d{1,6})?)${S})(?<t2>Million|Milliarde|Billion)(?!\\p{L})`,
 );
 
-// "eine halbe Millionen", "eine Viertelmilliarden": a half or a quarter is one.
+// "eine halbe Millionen", "eine Viertelmilliarden", "1 Millionen": a half, a quarter or one is
+// one ("2,1 Millionen" is a decimal).
 const HALF = re(
-  `(?<=(?:[Hh]albe|[Hh]alben|[Hh]alber)${S})(?<target>Millionen|Milliarden|Billionen|Billiarden)|` +
+  `(?<=(?:[Hh]albe|[Hh]alben|[Hh]alber|(?<!\\p{L})[Ee]iner?|(?<![\\p{N},.])1)${S})(?<target>Millionen|Milliarden|Billionen|Billiarden)|` +
     `(?<=(?:[Ee]ine|[Ee]iner|[Dd]ie|[Dd]er)${S})(?<t2>Viertel(?:millionen|milliarden))`,
+);
+// "12,450,300", "4,250.75": English digit groups. German groups thousands with a point and
+// writes a decimal comma ("1,250" alone is a decimal).
+const ENGLISH_DIGITS = re(
+  `(?<![\\p{N},.])(?<target>[1-9]\\d{0,2}(?:(?:,\\d{3}){2,}(?:\\.\\d{1,2})?|,\\d{3}\\.\\d{1,2}))(?![\\p{N},.]\\d|\\p{L})`,
 );
 // "von 9–10 Uhr", "Seiten von A-Z", "vom 7.-10. März", "zwischen 2019 – 2021": after "von" or
 // "zwischen" the dash stands for "bis" or "und", which German writes out.
@@ -180,6 +186,10 @@ function numbers(ctx: DetectContext): RawFinding[] {
       return likeTyped(plural, one);
     });
     push(m, name, [fixed]);
+  }
+  for (const m of frameMatches(ctx, ENGLISH_DIGITS)) {
+    const [whole, decimals] = m.groups!.target.split(".");
+    push(m, "target", [whole.replaceAll(",", ".") + (decimals ? `,${decimals}` : "")]);
   }
   for (const m of frameMatches(ctx, ORDINAL)) {
     const [start, end] = m.indices!.groups!.target;

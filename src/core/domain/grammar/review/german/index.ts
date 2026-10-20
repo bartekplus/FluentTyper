@@ -4,6 +4,7 @@ import * as adjectiveForms from "./adjectiveForms";
 import * as anglicisms from "./anglicisms";
 import * as articleGender from "./articleGender";
 import * as confusions from "./confusions";
+import * as joinedVerbs from "./joinedVerbs";
 import * as nounCasing from "./nounCasing";
 import * as prepositionCase from "./prepositionCase";
 import * as quotes from "./quotes";
@@ -39,6 +40,7 @@ const MODULES = [
   recommended,
   redundancy,
   anglicisms,
+  joinedVerbs,
 ];
 export const GERMAN_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);
 export { germanUnits } from "./numbers";

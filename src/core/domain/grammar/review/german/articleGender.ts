@@ -4,6 +4,7 @@ import {
   germanAdjective,
   germanGender,
   germanNounReading,
+  germanTwoGenders,
   germanInfinitive,
   germanVerbLike,
   germanVerbObjectCase,
@@ -568,7 +569,13 @@ function nominalizedAdjective(
   };
 }
 
-const GENDER_SIGN = /^[*:_/][Ii]n(?:nen)?(?!\p{L})/u;
+const TIME_SPANS = new Set(
+  "Tag Jahr Woche Monat Sommer Winter Herbst Frühling Abend Morgen Nacht Wochenende Leben".split(
+    " ",
+  ),
+);
+// "Lehrer:innen", and inside a compound "Student:innenvertretung".
+const GENDER_SIGN = /^[*:_/](?:[Ii]n(?:nen)?(?!\p{L})|innen\p{Ll})/u;
 
 function articleGender(ctx: DetectContext): RawFinding[] {
   if (!isGerman(ctx)) return [];
@@ -596,6 +603,16 @@ function articleGender(ctx: DetectContext): RawFinding[] {
     }
     // "Die Bild": the newspaper.
     if (!reading || /^die bild$/i.test(`${typed} ${noun}`)) continue;
+    // "am Bande", "im Walde": the old dative -e of a masculine or neuter noun ("das Band").
+    // A stem of two genders ("Band") counts too.
+    const stem = /\p{Ll}{2}e$/u.test(head) ? head.slice(0, -1) : "";
+    const stemGender = stem ? germanGender(stem) : null;
+    const oldDative = stemGender
+      ? stemGender.gender !== "f"
+      : stem !== "" && germanTwoGenders(stem);
+    if (oldDative && readings(det).some(([g, c]) => c === "dat" && (g === "m" || g === "n"))) {
+      continue;
+    }
     // "zum Zeitung lesen": a verb phrase made a noun, which the compound check joins.
     const verb = /^[ \t]+(\p{Ll}+)/u.exec(
       ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 40),
@@ -657,6 +674,8 @@ function articleGender(ctx: DetectContext): RawFinding[] {
       det.ending === "" &&
       reading.gender === "m" &&
       !(det.stem === "kein" && prior === "ohne") &&
+      // "den ganzen Winter über ein Einzelgänger": "über" after a time is a postposition.
+      !(prior === "über" && TIME_SPANS.has(before.at(-2) ?? "")) &&
       // "Halte durch, mein Schatz!": a particle, then someone addressed.
       !(det.stem === "mein" && /^[ \t]*[!,]/.test(ctx.text.slice(nounEnd, nounEnd + 4))) &&
       /^(?:für|um|gegen|ohne|durch|über|auf|in|an|unter|vor|hinter|neben|zwischen|mit|von|zu|bei|aus)$/.test(
@@ -725,6 +744,8 @@ function articleGender(ctx: DetectContext): RawFinding[] {
     const next = after[0] ?? "";
     // "die Hotel Lobby", "das Auto-" written apart, a name after the noun.
     if (/^\p{Lu}/u.test(next) && !BOUNDARY.test(next)) continue;
+    // "eine Office 2021 Lizenz": an open compound with a number in it.
+    if (/^\p{N}+$/u.test(next) && /^\p{Lu}/u.test(after[1] ?? "")) continue;
     // "die Rad fahren": a pronoun and a bare object.
     if (det.kind !== "ein" && !det.prep && germanInfinitive(next)) continue;
     // "die Gewinn und Verlustrechnung": a compound part missing its hyphen, whose article

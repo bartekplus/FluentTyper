@@ -789,6 +789,10 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     off: true,
     note: "Optional typography: x and * between numbers are common in plain text.",
   }),
+  germanJoinedVerbs: only(["de_DE"], "grammar", "boundary", {
+    off: true,
+    note: "Optional: some of these pairs also have a literal sense written apart.",
+  }),
 };
 
 /** Review's dictionary check: individual only, and the user always picks the word. */

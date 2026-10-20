@@ -83,6 +83,10 @@ function splitAdjective(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
   }
   // "sein eigen Fleisch und Blut": an old fixed phrase.
   if (first === "eigen" && low === "fleisch") return null;
+  // "zum wichtig Thema": a derived adjective opens a compound only where the lexicon has it
+  // ("Fertighaus"); otherwise it lacks its ending (germanAdjectiveForms).
+  if (/(?:ig|lich|isch|sam|bar|haft|los)$/.test(first) && germanNounReading(first + low) === null)
+    return null;
   const before = tokensBefore(ctx.text, m.index, 2);
   const prior = before.at(-1) ?? "";
   const opening = before.length < 2 || /^[.!?:\n„“"»«]$/.test(before[0]);
@@ -93,7 +97,8 @@ function splitAdjective(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
   // A longer name after it ("die frei Wählbare Liste"), or an extended attribute whose object
   // the noun is ("die schnell Hilfe leistenden Helfer").
   const next = tokensAfter(ctx.text, stop, 1)[0] ?? "";
-  if (/^\p{Lu}/u.test(next) || attribute(next)) return null;
+  // "ein unter Druck zu lagerndes Gas": the noun is the object of a zu-infinitive.
+  if (/^\p{Lu}/u.test(next) || next === "zu" || attribute(next)) return null;
   if (ctx.dictionary.has(first) || ctx.dictionary.has(low)) return null;
   if (namedExampleBefore(ctx.text, m.index)) return null;
   return {

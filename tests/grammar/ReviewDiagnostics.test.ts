@@ -150,6 +150,7 @@ describe("review rule coverage map", () => {
             "germanColloquial",
             "germanRecommendedSpelling",
             "germanTypography",
+            "germanJoinedVerbs",
             "polishQuotes",
             "spanishQuotes",
             "typographicQuotes",

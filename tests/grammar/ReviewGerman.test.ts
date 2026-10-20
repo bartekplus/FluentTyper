@@ -663,9 +663,29 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Sie trägt eine rund Brille.", "Sie trägt eine runde Brille."],
         ["Mein klein Haus ist gemütlich.", "Mein kleines Haus ist gemütlich."],
         ["Wir flogen in ein parallel Universum.", "Wir flogen in ein paralleles Universum."],
+        ["Die Tage dienen für verschieden Aufgaben.", "Die Tage dienen für verschiedene Aufgaben."],
+        // After "werden" with no article, a plural subject takes the strong ending -e.
+        [
+          "Bei der Anmeldung werden folgenden Daten gespeichert.",
+          "Bei der Anmeldung werden folgende Daten gespeichert.",
+        ],
+        ["Im Park werden neuen Bäume gepflanzt.", "Im Park werden neue Bäume gepflanzt."],
+        ["Es werden kleinen Gruppen gebildet.", "Es werden kleine Gruppen gebildet."],
+        // A participle that ends the clause is no extended attribute.
+        [
+          "Hunde sind in städtisch Gebäuden nicht erlaubt.",
+          "Hunde sind in städtischen Gebäuden nicht erlaubt.",
+        ],
       ],
       neg: [
         "Am Ende hat das sicher Vorteile.",
+        "Ich halte es für richtig Kinder zu loben.",
+        "Die Bücher werden armen Kindern geschenkt.",
+        "Wir werden armen Familien helfen.",
+        "Die Spenden werden kranken Menschen gegeben.",
+        "Danach werden alten Leuten Plätze angeboten.",
+        "Es gab drei Bücher, von denen eines offensichtlich Kinder ansprach.",
+        "Sie hielt es für normal Fehler zu machen.",
         "Damit hat der wirklich Glück gehabt.",
         "Er ist müde.",
         "Das Essen war spitze.",
@@ -779,8 +799,12 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Das heißt, d.h. wir warten.", "Das heißt, d.\u00a0h. wir warten."],
         ["Er kommt i.d.R. pünktlich.", "Er kommt i.\u00a0d.\u00a0R. pünktlich."],
         ["Die Zinsen sind 2 % p.a. hoch.", "Die Zinsen sind 2 % p.\u00a0a. hoch."],
+        // A space, no-break, between a number and its percent sign.
+        ["Der Zins liegt bei 3%.", "Der Zins liegt bei 3\u00a0%."],
       ],
       neg: [
+        "Es gibt einen 20%-Gutschein.",
+        "Eine 5%ige Lösung hilft.",
         "Das gilt z. B. für alle.",
         "Die Seite web.de lädt.",
         "Er ging so. Dann kam er.",
@@ -928,8 +952,20 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         ["Lies bitte von Seite 3–5.", "Lies bitte von Seite 3 bis 5."],
         ["Ein Lexikon von A–Z.", "Ein Lexikon von A bis Z."],
         ["Er wohnte zwischen 1990 - 1995 dort.", "Er wohnte zwischen 1990 und 1995 dort."],
+        // One is singular: "1 Million", "eine Milliarde".
+        ["Der Preis liegt bei 1 Millionen Euro.", "Der Preis liegt bei 1 Million Euro."],
+        ["Das Werk kostete eine Milliarden Dollar.", "Das Werk kostete eine Milliarde Dollar."],
+        // English digit groups: German groups with points and writes a decimal comma.
+        ["Der Ort hat 12,450,300 Einwohner.", "Der Ort hat 12.450.300 Einwohner."],
+        ["Das Konto zeigt 4,250.75 Euro.", "Das Konto zeigt 4.250,75 Euro."],
       ],
       neg: [
+        "Das Land zählt rund 3,1 Millionen Schafe.",
+        "Es kamen 0,1 Millionen Besucher.",
+        "Keine Millionen der Welt helfen da.",
+        "Meine Millionen liegen auf der Bank.",
+        "Der Wert liegt bei 1,250 Metern.",
+        "Wir zählten 1, 2, 3 und los.",
         "Die 20 Minuten vergingen schnell.",
         "Er wohnt im Haus 12.",
         "Zwei halbe Millionen ergeben eine ganze.",
@@ -1059,6 +1095,9 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Als wir ankamen, war es dunkel.",
         "Weil wir das Haus gekauft haben, sind wir froh.",
         "Das Haus wird gebaut.",
+        // A participle with an inseparable prefix and no "ge-" (passive).
+        "Viele Vereine werden von der Stadt unterstützt.",
+        "Der Antrag wird noch einmal überprüft.",
         "Das wird leicht.",
         "Ich will das Buch, das du hast.",
         "Weil sie die Arbeit planen kann als auch den Bericht vorlegt, bleibt sie.",
@@ -1168,6 +1207,19 @@ const RULES: Array<[CatalogRuleId, Fixture]> = [
         "Schönes Wetter heute!",
         "Gute Nacht und bis morgen.",
         "Sie schlief beim Zeitung lesen ein.",
+        // An old dative -e of a neuter noun ("Band"), not the feminine "Bande".
+        "Die Medaille hing am Bande über der Tür.",
+        // "Zweifel" is also its own plural.
+        "Wir hatten danach keine Zweifel mehr.",
+        // "den Winter über": a postposition, then a predicate noun.
+        "Er war den ganzen Winter über ein Einzelgänger.",
+        // An open compound with a number: the article agrees with "Lizenz".
+        "Sie kaufte eine neue Windows 11 Lizenz.",
+        // "-schaft" makes a feminine noun; "Schaft" is no compound head here.
+        "Wir danken unserer Nachbarschaft für die Hilfe.",
+        "Die Stadt gewann eine große Bürgerschaft.",
+        // A gender sign inside a compound: the article agrees with the last part.
+        "Die Student:innenvertretung tagt heute.",
       ],
     },
   ],
@@ -1907,6 +1959,13 @@ describe("German wave 10 frames", () => {
     ["germanConfusedWords", "Mein YouTube-Chanel ist neu.", "Mein YouTube-Channel ist neu."],
     ["germanConfusedWords", "Hallo, Heer Meier!", "Hallo, Herr Meier!"],
     ["germanCompounds", "Wir versuchten ab zu lenken.", "Wir versuchten abzulenken."],
+    // "zu" and a participle after a form of "haben": the participle of a zu-verb.
+    ["germanCompounds", "Er hat die Tür leise zu gemacht.", "Er hat die Tür leise zugemacht."],
+    [
+      "germanCompounds",
+      "Wir haben dem Redner lange zu gehört.",
+      "Wir haben dem Redner lange zugehört.",
+    ],
     ["germanCompounds", "Sie bekam Angst, an zu rufen.", "Sie bekam Angst, anzurufen."],
     ["germanCompounds", "Das ist ihm kaum zu zu trauen.", "Das ist ihm kaum zuzutrauen."],
     ["germanCompounds", "Sie versprach, dort hin zu fahren.", "Sie versprach, dort hinzufahren."],
@@ -1970,6 +2029,9 @@ describe("German wave 10 frames", () => {
     ["germanConfusedWords", "Ich lehre Mathematik."],
     ["germanConfusedWords", "In dieser Urzeit lebten Saurier."],
     ["germanCompounds", "Er hat zu gute Noten."],
+    ["germanCompounds", "Sie ist heute zu gelassen."],
+    ["germanCompounds", "Er wirkte zu gelassen."],
+    ["germanCompounds", "Der Chef hat da leider nichts zu gesagt."],
     ["germanConfusedWords", "Ich bin da für dich."],
     ["germanConfusedWords", "Da mit viel Mühe alles klappte, feierten wir."],
     ["germanConfusedWords", "Wahr ist, dass er kam."],
@@ -2523,6 +2585,9 @@ describe("German wave 13 casing and compounds", () => {
     ["germanCompounds", "Sie trug ein lila Kleid."],
     ["germanCompounds", "Das ist eine super Idee."],
     ["germanCompounds", "Er ist sein eigen Fleisch und Blut."],
+    // A derived adjective opens no compound that the lexicon lacks ("Wichtigthema").
+    ["germanCompounds", "Wir kommen zum wichtig Thema."],
+    ["germanCompounds", "Sie haben einen gemeinsam Freund."],
     ["germanCompounds", "Der Plan, der allgemein Zustimmung fand, gilt."],
     ["germanCompounds", "Das ist das politisch Machbare."],
     ["germanCompounds", "Die schnell Hilfe leistenden Helfer kamen."],
@@ -2534,6 +2599,12 @@ describe("German wave 13 casing and compounds", () => {
     ["germanCompounds", "Er las Adelungs Wörterbuch."],
     ["germanCompounds", "Er liest des Nachts Bücher."],
     ["germanCompounds", "Nach Hephaistions Tod trauerte er."],
+    // A preposition and its noun before a zu-infinitive: "unter Druck", not "Unterdruck".
+    ["germanCompounds", "Sie fanden ein unter Druck zu lagerndes Gas."],
+    // "fest" is an adverb before an inflected participle.
+    ["germanNounCasing", "Das Bild hängt an einem fest montierten Haken."],
+    // "dicht an dicht": a fixed phrase, no adjective of the noun.
+    ["germanAdjectiveForms", "Sie nähte ein Tuch, auf dem dicht an dicht Perlen saßen."],
     ["germanNounCasing", "Das Tor schoss Frank."],
     ["germanNounCasing", "Lernst du Französisch?"],
     ["germanNounCasing", "Der Laden heißt Fröhlich."],
@@ -2714,5 +2785,272 @@ describe("German wave 14 frames", () => {
     ["germanConfusedWords", "Ich nahm das Geld, das da war."],
   ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
     expect(findings(ruleId, input)).toEqual([]);
+  });
+});
+
+describe("German verbs written apart from their first part", () => {
+  test.each([
+    // A first part that never stands alone (germanCompounds, on by default).
+    [
+      "germanCompounds",
+      "Ein einziger Regentag hat die Ernte zunichte gemacht.",
+      "Ein einziger Regentag hat die Ernte zunichtegemacht.",
+    ],
+    [
+      "germanCompounds",
+      "Wir sprachen über den Frost, der die Blüten zunichte machte.",
+      "Wir sprachen über den Frost, der die Blüten zunichtemachte.",
+    ],
+    [
+      "germanCompounds",
+      "Seit Mai darf sie den Lehrstuhl inne haben.",
+      "Seit Mai darf sie den Lehrstuhl innehaben.",
+    ],
+    [
+      "germanCompounds",
+      "Er weiß, welchen Posten sie inne hat.",
+      "Er weiß, welchen Posten sie innehat.",
+    ],
+    [
+      "germanCompounds",
+      "Ihr ist eine seltene Auszeichnung zu teil geworden.",
+      "Ihr ist eine seltene Auszeichnung zuteilgeworden.",
+    ],
+    [
+      "germanCompounds",
+      "Dem Team ist großes Glück zuteil geworden.",
+      "Dem Team ist großes Glück zuteilgeworden.",
+    ],
+    [
+      "germanCompounds",
+      "Den Siegern wurde viel Applaus zu teil.",
+      "Den Siegern wurde viel Applaus zuteil.",
+    ],
+    [
+      "germanCompounds",
+      "Die Wahl soll im Herbst von statten gehen.",
+      "Die Wahl soll im Herbst vonstattengehen.",
+    ],
+    [
+      "germanCompounds",
+      "Wann wird die Übergabe vonstatten gehen?",
+      "Wann wird die Übergabe vonstattengehen?",
+    ],
+    [
+      "germanCompounds",
+      "Das milde Wetter kam den Bauern zu Pass.",
+      "Das milde Wetter kam den Bauern zupass.",
+    ],
+    [
+      "germanCompounds",
+      "Der Zeuge hat nichts Preis gegeben.",
+      "Der Zeuge hat nichts preisgegeben.",
+    ],
+    [
+      "germanCompounds",
+      "Die Bank wird es nicht Preis geben.",
+      "Die Bank wird es nicht preisgeben.",
+    ],
+    [
+      "germanCompounds",
+      "Der Spion gab seine Quelle nie Preis.",
+      "Der Spion gab seine Quelle nie preis.",
+    ],
+    [
+      "germanCompounds",
+      "Beim Umzug kam uns zu gute, dass wir ein Auto hatten.",
+      "Beim Umzug kam uns zugute, dass wir ein Auto hatten.",
+    ],
+    [
+      "germanCompounds",
+      "Das Gericht hat dem Fahrer seine Reue zugute gehalten.",
+      "Das Gericht hat dem Fahrer seine Reue zugutegehalten.",
+    ],
+    // An adjective or adverb that makes one verb with the verb (germanJoinedVerbs, opt-in).
+    [
+      "germanJoinedVerbs",
+      "Gestern hat man zwei Einbrecher fest genommen.",
+      "Gestern hat man zwei Einbrecher festgenommen.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Die Gebühr folgt fest gelegten Regeln.",
+      "Die Gebühr folgt festgelegten Regeln.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Der Trainer hat seine Erwartungen klar gemacht.",
+      "Der Trainer hat seine Erwartungen klargemacht.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Die Absage hat den Bewerber kalt gelassen.",
+      "Die Absage hat den Bewerber kaltgelassen.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Nach dem Sturz wurde die Kellnerin krank geschrieben.",
+      "Nach dem Sturz wurde die Kellnerin krankgeschrieben.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Wer Fieber hat, sollte sich krank melden.",
+      "Wer Fieber hat, sollte sich krankmelden.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Im Labor ist ein Kessel hoch gegangen.",
+      "Im Labor ist ein Kessel hochgegangen.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "In Briefen wird die Anrede groß geschrieben.",
+      "In Briefen wird die Anrede großgeschrieben.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Er hat die Lage nur klein geredet.",
+      "Er hat die Lage nur kleingeredet.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Wer schwarz fährt, zahlt eine Strafe.",
+      "Wer schwarzfährt, zahlt eine Strafe.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Er rät uns, für die Ernte nicht schwarz zu sehen.",
+      "Er rät uns, für die Ernte nicht schwarzzusehen.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Nach dem Pfiff hat der Trainer rot gesehen.",
+      "Nach dem Pfiff hat der Trainer rotgesehen.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Hoffentlich wird bei der Prüfung nichts schief gehen.",
+      "Hoffentlich wird bei der Prüfung nichts schiefgehen.",
+    ],
+    ["germanJoinedVerbs", "Der Umzug ist glatt gegangen.", "Der Umzug ist glattgegangen."],
+    [
+      "germanJoinedVerbs",
+      "Wir sollten den alten Hund zufrieden lassen.",
+      "Wir sollten den alten Hund zufriedenlassen.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Sie hat sich mit dem Angebot zufrieden gegeben.",
+      "Sie hat sich mit dem Angebot zufriedengegeben.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Die Mieter wurden mit dem Schaden allein gelassen.",
+      "Die Mieter wurden mit dem Schaden alleingelassen.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Man merkt, dass die Nachbarin den Baulärm satt hat.",
+      "Man merkt, dass die Nachbarin den Baulärm satthat.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Der Urlaub am Meer hat uns gut getan.",
+      "Der Urlaub am Meer hat uns gutgetan.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Niemand kann diese Entscheidung gut heißen.",
+      "Niemand kann diese Entscheidung gutheißen.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Die Entscheidung ist uns allen schwer gefallen.",
+      "Die Entscheidung ist uns allen schwergefallen.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Nach dem Jobverlust muss die Familie kürzer treten.",
+      "Nach dem Jobverlust muss die Familie kürzertreten.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Die Kirche will die Nonne heilig sprechen.",
+      "Die Kirche will die Nonne heiligsprechen.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Der Zoll hat drei Kisten Zigaretten sicher gestellt.",
+      "Der Zoll hat drei Kisten Zigaretten sichergestellt.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Bitte versuche, dich kurz zu fassen.",
+      "Bitte versuche, dich kurzzufassen.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Seine Worte sind ihr sehr nahe gegangen.",
+      "Seine Worte sind ihr sehr nahegegangen.",
+    ],
+    [
+      "germanJoinedVerbs",
+      "Die Firma will den Fehler wieder gut machen.",
+      "Die Firma will den Fehler wiedergutmachen.",
+    ],
+  ] as Array<[CatalogRuleId, string, string]>)("%s repairs %p", (ruleId, input, output) => {
+    expect(findings(ruleId, input)).toHaveLength(1);
+    expect(fixed(ruleId, input)).toBe(output);
+    expect(findings(ruleId, output)).toEqual([]);
+  });
+  test.each([
+    ["germanCompounds", "Gibt es dafür einen Preis?"],
+    ["germanCompounds", "Wir gaben ihr den Preis."],
+    ["germanCompounds", "Den Pokal bekam sie als Preis."],
+    ["germanCompounds", "Die Reise zu Teil drei beginnt morgen."],
+    ["germanCompounds", "Der Kontakt zu Nichte und Onkel riss ab."],
+    ["germanJoinedVerbs", "Er kann sehr gut schreiben."],
+    ["germanJoinedVerbs", "Du hast das gut gemacht."],
+    ["germanJoinedVerbs", "Das kann sie genauso gut tun."],
+    ["germanJoinedVerbs", "Ich will dir nicht zu nahe treten."],
+    ["germanJoinedVerbs", "Wir sind uns sehr nahe gekommen."],
+    ["germanJoinedVerbs", "Zufrieden lassen wir den Abend ausklingen."],
+    ["germanJoinedVerbs", "Danach lassen wir zufrieden den Abend ausklingen."],
+    ["germanJoinedVerbs", "Rot sehe ich nur selten, schwarz sehe ich nie."],
+    ["germanJoinedVerbs", "Wir haben den Brief zusammen geschrieben."],
+    ["germanJoinedVerbs", "Er hält das Seil fest."],
+    ["germanJoinedVerbs", "Sie hat den Sekt kalt gestellt."],
+    ["germanJoinedVerbs", "Der Ballon soll morgen sehr hoch fliegen."],
+    ["germanJoinedVerbs", "Was sie wohl tut?"],
+  ] as Array<[CatalogRuleId, string]>)("%s leaves %p alone", (ruleId, input) => {
+    expect(findings(ruleId, input)).toEqual([]);
+  });
+});
+
+describe("German verbs capitalized after their subject pronoun", () => {
+  test.each([
+    ["Ich Koche heute Abend Nudeln.", "Ich koche heute Abend Nudeln."],
+    ["Wir Fahren morgen nach Hamburg.", "Wir fahren morgen nach Hamburg."],
+    ["Er Arbeitet seit Jahren hier.", "Er arbeitet seit Jahren hier."],
+    ["Du Spielst sehr gut Gitarre.", "Du spielst sehr gut Gitarre."],
+    ["Sie Wohnen in einer kleinen Stadt.", "Sie wohnen in einer kleinen Stadt."],
+    ["Es Regnet schon den ganzen Tag.", "Es regnet schon den ganzen Tag."],
+    ["Er Kam erst spät nach Hause.", "Er kam erst spät nach Hause."],
+    ["Weil ich Arbeite, bleibe ich hier.", "Weil ich arbeite, bleibe ich hier."],
+  ])("repairs %p", (input, output) => {
+    expect(findings("germanNounCasing", input)).toHaveLength(1);
+    expect(fixed("germanNounCasing", input)).toBe(output);
+  });
+  test.each([
+    "Ich Idiot habe den Schlüssel vergessen.",
+    "Wir Frauen wissen das.",
+    "Wir Kranken müssen lange warten.",
+    "Für die Reise brauche ich Geduld.",
+    "Weil ich Liebe brauche, rufe ich an.",
+    "Danach hatte ich Ruhe.",
+    "Er Fuchs hat es wieder geschafft.",
+    "Wir Alten bleiben zu Hause.",
+  ])("leaves %p alone", (input) => {
+    expect(findings("germanNounCasing", input)).toEqual([]);
   });
 });

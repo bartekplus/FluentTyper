@@ -15,6 +15,7 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "germanColloquial",
   "germanRecommendedSpelling",
   "germanTypography",
+  "germanJoinedVerbs",
   "polishQuotes",
   "spanishQuotes",
   "typographicQuotes",

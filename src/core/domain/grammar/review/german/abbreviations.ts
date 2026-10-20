@@ -86,6 +86,8 @@ const TITLE_FIRST = new RegExp(
   "gdu",
 );
 
+const PERCENT = /(?<![\p{L}\p{N}.,_])(?<target>(?<n>\d+(?:[.,]\d+)*)%)(?![\p{L}\p{N}_-])/dgu;
+
 function abbreviationFinding(
   start: number,
   end: number,
@@ -156,6 +158,15 @@ function abbreviations(ctx: DetectContext): RawFinding[] {
     findings.push({
       ...abbreviationFinding(start, end, `${m.groups!.address} ${m.groups!.title}`),
       messageKey: "review_msg_german_title_order",
+    });
+  }
+  // "3%" → "3 %": German sets the percent sign off with a no-break space (optional advice);
+  // "20%-Gutschein" and "5%ige" are compounds.
+  for (const m of frameMatches(ctx, PERCENT)) {
+    const [start, end] = m.indices!.groups!.target;
+    findings.push({
+      ...abbreviationFinding(start, end, `${m.groups!.n}${NBSP}%`, "germanAbbreviationSpacing"),
+      messageKey: "review_msg_measurement_spacing",
     });
   }
   for (const m of frameMatches(ctx, LARGE_NUMBER)) {
