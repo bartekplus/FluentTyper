@@ -22,13 +22,7 @@ import * as subjects from "./subjects";
 import * as typography from "./typography";
 import * as typos from "./typos";
 
-export const PREDICATES = mergePredicates(
-  agreement.PREDICATES,
-  dates.PREDICATES,
-  degree.PREDICATES,
-  subjects.PREDICATES,
-  typography.PREDICATES,
-);
+export const PREDICATES = mergePredicates(dates.PREDICATES, typography.PREDICATES);
 
 /** The named frame fixes of grammar/rules/pl.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(

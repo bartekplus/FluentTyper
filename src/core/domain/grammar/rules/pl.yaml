@@ -820,20 +820,30 @@ rules:
         scan: polish
         flags: gdiu
         fixer: genitiveObjects
+      # "nie mam czas", "nie lubię ją": an accusative object after a negated verb. The fixer resumes
+      # the scan after "nie": the noun's own "nie" may open the next frame.
+      - regex: "(?<![\\p{L}\\p{N}_'’-])nie{{S}}(?<verb>\\p{L}{2,}){{S}}(?:(?<adj>\\p{L}{3,}){{S}})?(?<noun>\\p{L}{2,}){{WORD}}"
+        scan: polish
+        flags: gdiu
+        fixer: negatedObjects
+      # "Widzę czyste talerzy", "szukam czyste talerzy": an adjective that does not agree with a
+      # genitive-only noun right after a verb. The fixer resumes the scan at the word after the verb.
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?:(?<nie>[Nn]ie){{S}})?(?<verb>\\p{L}{2,}){{S}}(?<adj>\\p{Ll}{3,}){{S}}(?<noun>\\p{Ll}{3,}){{WORD}}"
+        scan: polish
+        flags: gdu
+        fixer: genitiveObjectAdjectives
       # "ten menu" -> "to menu", "nowy perfum" -> "nowe perfumy", "smaczny pomarańcz" -> "smaczna pomarańcza".
       - regex: "(?<![\\p{L}\\p{N}_'’.@/-])(?:(?<first>\\p{L}{2,}){{S}})?(?<mod>\\p{L}{2,}){{S}}(?<noun>menu|tiramisu|sushi|salami|kakao|musli|euro|hobby|zoo|graffiti|alibi|kimono|risotto|espresso|bistro|perfum|pomarańcz){{WORD}}"
         scan: polish
         flags: gdiu
         fixer: fixedGenders
-  - id: pl.caseAgreementOverlaps
-    checks: [polishCaseAgreement]
-    # predicate: the scans move lastIndex back in the loop body to read overlapping matches.
-    predicate: caseAgreementOverlaps
-  - id: pl.caseAgreementFrames
-    checks: [polishCaseAgreement]
-    style: match
-    message: review_msg_pl_agreement
-    frames:
+      # "ważną sprawa", "odpowiednia infrastrukturę", "duży dziecko": an adjective and its noun share no
+      # case, number and gender. The fixer resumes the scan at the second word, which may open the
+      # next pair.
+      - regex: "(?<![\\p{L}\\p{N}_'’.@/-])(?<first>\\p{L}{3,})[ \\t\\u00a0]+(?<second>\\p{Ll}{3,}){{WORD}}"
+        scan: polish
+        flags: gu
+        fixer: adjectives
       # "uznany wielkim aktorem" -> "uznany za wielkiego aktora": "uznać" names what one is
       # taken for with "za" + accusative.
       - regex: "(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły){{S}}(?:go|ją|je|ich|mnie|cię|nas|was|się)){{S}}(?<phrase>(?:(?<adj>\\p{L}{3,}){{S}})?(?<noun>\\p{L}{3,})){{WORD}}"
@@ -1115,8 +1125,16 @@ rules:
         fixer: comparedWithJak
   - id: pl.degrees
     checks: [englishDoubledDegree, stylePhrasing]
-    # predicate: one match gives a finding of either check, and a frame reports one check only.
-    predicate: degrees
+    style: match
+    message: review_msg_doubled_degree
+    frames:
+      # "bardziej lepszy", "coraz najbardziej": a degree marked twice (englishDoubledDegree); opt-in,
+      # "bardziej ważny" -> "ważniejszy" (stylePhrasing). The frame runs when either check is on.
+      - regex: "(?<![\\p{L}])(?<marker>(?:naj)?bardziej|coraz[ \\t\\u00A0]+naj(?:bardziej|mniej))[ \\t\\u00A0]+(?<word>\\p{L}{3,})(?![\\p{L}])"
+        scan: polish
+        flags: giu
+        anyCheck: true
+        fixer: degrees
   - id: pl.commaFrames
     checks: [polishMissingComma, polishMisplacedComma]
     style: comma
@@ -1501,17 +1519,19 @@ rules:
         scan: polish
         flags: gdu
         fixer: zostacAgreement
-  # A plural subject and its past form: men take "-li" ("studenci przyszli"), everyone and
-  # everything else "-ły" ("dzieci przyszły", "kobiety były"); "Pływanie nie są zdrowe".
-  - id: pl.subjectNumber
-    checks: [polishCaseAgreement]
-    # predicate: the noun and verb scans move lastIndex back to the noun's end to read overlapping frames.
-    predicate: subjectNumber
-  - id: pl.subjectsFrames
-    checks: [polishCaseAgreement]
-    style: match
-    message: review_msg_pl_subject_verb
-    frames:
+      # A plural subject and its past form: men take "-li" ("studenci przyszli"), everyone and
+      # everything else "-ły" ("dzieci przyszły"): "Dzieci byli tutaj" -> "były". The fixer resumes the
+      # scan at the noun's end.
+      - regex: "(?<![\\p{L}\\p{N}_'’@/.-])(?<noun>\\p{L}{3,}){{S}}{{BETWEEN}}(?<verb>\\p{Ll}{2,}(?:li|ły))(?![\\p{L}\\p{N}_'’@/-])(?<reflexive>{{S}}się)?"
+        scan: polish
+        flags: gdu
+        fixer: pluralSubjects
+      # "Pływanie nie są zdrowe": "są" after a singular subject opening its clause. The fixer
+      # resumes the scan at the noun's end.
+      - regex: "(?<![\\p{L}\\p{N}_'’@/.-])(?<noun>\\p{L}{3,}){{S}}(?:nie{{S}})?(?<verb>są)(?![\\p{L}\\p{N}_'’@/-])"
+        scan: polish
+        flags: gdiu
+        fixer: singularSubjects
       # "Większość (ludności kraju) było" -> "była": before "być" or "zostać", which take no object,
       # "większość" is the subject, a feminine singular.
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])większość(?<between>(?:{{S}}\\p{L}+){0,3}?){{S}}(?<verb>było|zostało|pozostało)(?![\\p{L}\\p{N}_'’@/-])"
