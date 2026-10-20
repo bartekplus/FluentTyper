@@ -379,4 +379,15 @@ export const FILTERS = {
       return kept(ctx, f);
     });
   },
+  /** The same, and a finding that overlaps an earlier one is dropped. */
+  slotFindingsNoOverlap: (ctx, findings) => {
+    if (ctx.lang !== "en_US") return [];
+    const taken: RawFinding[] = [];
+    return findings.filter((f) => {
+      const { start, end } = f.range;
+      if (taken.some((t) => t.range.start < end && start < t.range.end)) return false;
+      taken.push(f);
+      return kept(ctx, f);
+    });
+  },
 } satisfies Record<string, FindingsFilter>;

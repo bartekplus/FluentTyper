@@ -23,6 +23,10 @@ fragments:
   NEGATION: "don['’]t|doesn['’]t|didn['’]t|never|not"
   VERB_OBJECT: "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what"
   SUBJECT: "I|you|we|they|he|she|it"
+  QUESTIONSLOTS_ADVERB: "(?:{{S}}(?:ever|really|actually|typically|usually|normally|still|even|just|always|also|never|already|generally|actually))?"
+  QUESTIONSLOTS_PRONOUN: "(?:i|you|we|they|he|she|it)"
+  QUESTIONSLOTS_SUBJECT: "(?:(?:i|you|we|they|he|she|it)|anyone|someone|anybody|somebody|everyone|everybody|(?:the|your|my|our|their|his|her|this|that)(?:{{S}}[a-z]+){1,2})"
+  QUESTIONSLOTS_MODAL: "(?:can|could|would|will|should|may|might|must)"
   PROPERNAMES_PLACE_LEAD: "(?:born|live|lives|lived|living|grew[ \\t]+up|raised|based|stationed|stayed|staying|studied|studying|worked|working|vacation|holiday|holidays)[ \\t]+in|from|visit|visits|visiting|visited|(?:moved|move|moving|trip|trips|flight|flights|flew|fly|flying|travel|traveled|travelled|traveling|travelling|back|went|go|going|came|come|returned|return|relocated|emigrated|immigrated)[ \\t]+to"
   PROPERNAMES_PLACE_FOLLOW: "(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|{{S}}(?:and|or|but|for|last|next|this|in|on|at|with|because|when|where|since|until|before|after|recently|yesterday|years?|months?|weeks?|ago|as){{E}})"
   PLAINSTYLE_FREQUENCY: "always|never|often|sometimes|usually|rarely|seldom|frequently|normally|generally"
@@ -1427,12 +1431,61 @@ rules:
       - regex: "(?<verb>is|was|has|does){{S}}(?<pronoun>I|you|we|they){{E}}"
         owner: verb
         fixer: relativePronounQuestion
+  # The four question rules were one detector with four finding lists: each part drops a
+  # finding that overlaps an earlier one of its own part only.
   - id: en.questionAuxiliaries
     checks: [englishAuxiliaryBaseVerb]
-    predicate: questionAuxiliaries
+    style: match
+    message: review_msg_auxiliary_base
+    filter: slotFindingsNoOverlap
+    frames:
+      # "Tell me how did he smiled", "what does it means", "How do I typically writing…".
+      - regex: "(?:(?:what|how|why|where|when)(?:{{S}}[a-z]+)?{{S}}(?:do|does|did){{S}}{{QUESTIONSLOTS_PRONOUN}}|(?:who|which){{S}}(?:do|does|did){{S}}(?:i|we|they|he|she)){{QUESTIONSLOTS_ADVERB}}{{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        fixer: questionDoBase
+  - id: en.questionAuxiliaries.doModal
+    checks: [englishAuxiliaryBaseVerb]
+    style: match
+    message: review_msg_question_auxiliary
+    filter: slotFindingsNoOverlap
+    frames:
+      # "Does anyone can help?", "How does the client would like…": the modal leads the question.
+      - regex: "(?<target>(?<aux>do|does|did)(?<subject>{{S}}{{QUESTIONSLOTS_SUBJECT}}){{S}}(?<modal>{{QUESTIONSLOTS_MODAL}})){{S}}(?<verb>[a-z]+){{E}}"
+        fixer: questionDoModal
+  - id: en.questionAuxiliaries.didPerfect
+    checks: [englishAuxiliaryBaseVerb]
+    style: match
+    message: review_msg_question_auxiliary
+    filter: slotFindingsNoOverlap
+    frames:
+      # "Did you have entered your PIN?", "Did the dog has been fed?": a perfect question.
+      - regex: "(?<target>(?<aux>did)(?<subject>{{S}}{{QUESTIONSLOTS_SUBJECT}}){{S}}(?:has|have)){{S}}(?<verb>[a-z]+){{E}}"
+        fixer: questionDidPerfect
+  - id: en.questionAuxiliaries.repeated
+    checks: [englishAuxiliaryBaseVerb]
+    style: match
+    message: review_msg_repeated_auxiliary
+    filter: slotFindingsNoOverlap
+    frames:
+      # "Can I can count on you?": the auxiliary written twice.
+      - regex: "(?<first>{{QUESTIONSLOTS_MODAL}})(?<subject>{{S}}{{QUESTIONSLOTS_PRONOUN}}){{S}}(?<second>{{QUESTIONSLOTS_MODAL}}){{E}}"
+        owner: second
+        fixer: questionRepeatedModal
+      # "I have already have one". "have already had" is fine; only the same form twice.
+      - regex: "(?<first>have|has){{S}}(?<adverb>already|ever|really|eventually|never|also|just|still|always|actually|definitely|probably|recently|finally){{S}}(?<second>have|has){{E}}"
+        owner: second
+        fixer: questionRepeatedHave
   - id: en.causativeThird
     checks: [englishVerbComplements]
-    predicate: causativeThird
+    style: match
+    message: review_msg_causative_base
+    filter: slotFindings
+    frames:
+      # "make it works", "let me knows": a causative's verb stays bare. Not help ("the help it
+      # needs", "help them includes"), whose object may end a clause.
+      - regex: "(?<head>make|makes|made|making|let|lets|letting|have|had){{S}}(?<object>me|him|her|it|us|them|you){{S}}(?<verb>[a-z]+s){{E}}"
+        owner: verb
+        fixer: questionCausative
   - id: en.superlativeArticle
     checks: [englishPhraseCorrections]
     predicate: superlativeArticle
