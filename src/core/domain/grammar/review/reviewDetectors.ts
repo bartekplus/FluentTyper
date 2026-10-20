@@ -363,10 +363,19 @@ function lowercaseStart(ctx: DetectContext, match: RegExpExecArray) {
   return { wordStart, range, upper, wordEnd: wordStart + bare.length };
 }
 
-/** A lowercase word that starts a sentence. */
-const capitalizeSentenceStart: MatchFixer = (match, ctx) => {
+type LowercaseStart = NonNullable<ReturnType<typeof lowercaseStart>>;
+
+/** A lowercase word that starts a sentence, or one that starts a line after a closed sentence. */
+const capitalizeStart: MatchFixer = (match, ctx) => {
   const word = lowercaseStart(ctx, match);
-  if (!word || !startsSentence(ctx.text, word.wordStart, ctx.lang)) return null;
+  if (!word) return null;
+  return startsSentence(ctx.text, word.wordStart, ctx.lang)
+    ? capitalizeSentenceStart(ctx, word)
+    : capitalizeAfterLineBreak(ctx, word);
+};
+
+/** A lowercase word that starts a sentence. */
+function capitalizeSentenceStart(ctx: DetectContext, word: LowercaseStart): RawFinding | null {
   const { wordStart, range, upper, wordEnd } = word;
   const end = sentenceEndBefore(ctx.text, wordStart);
   const mark = ctx.text[end.mark];
@@ -399,12 +408,10 @@ const capitalizeSentenceStart: MatchFixer = (match, ctx) => {
     // 'He said "stop." she left': the quotation may end inside the sentence.
     bulkBlock: end.closed ? "context-dependent" : undefined,
   };
-};
+}
 
 /** A lowercase word that starts a line after a closed sentence or paragraph. */
-const capitalizeAfterLineBreak: MatchFixer = (match, ctx) => {
-  const word = lowercaseStart(ctx, match);
-  if (!word || startsSentence(ctx.text, word.wordStart, ctx.lang)) return null;
+function capitalizeAfterLineBreak(ctx: DetectContext, word: LowercaseStart): RawFinding | null {
   const lineBreak = lineBreakBefore(ctx.text, word.wordStart);
   if (lineBreak === null || !previousLineEndsParagraphOrSentence(ctx.text, lineBreak, ctx.lang))
     return null;
@@ -415,7 +422,7 @@ const capitalizeAfterLineBreak: MatchFixer = (match, ctx) => {
     alternatives: [word.upper],
     context: { start: lineBreak, end: word.wordEnd },
   };
-};
+}
 
 /**
  * The sentence mark `startsSentence` read before `wordStart` (its index), and
@@ -670,11 +677,6 @@ function spellingFindings(match: RegExpExecArray, ctx: DetectContext): RawFindin
 }
 
 /** The spelling frames: one per check, so each check can run alone. */
-const spellingOf =
-  (ruleId: CatalogRuleId): MatchFixer =>
-  (match, ctx) =>
-    spellingFindings(match, ctx).filter((f) => f.ruleId === ruleId);
-
 // --------------------------------------------------------------------- grammar
 
 interface PhraseMatch {
@@ -1576,12 +1578,9 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
 
 /** The frame fixes of the shared detectors of this module. */
 const DETECTOR_FIXERS = {
-  capitalizeSentenceStart,
-  capitalizeAfterLineBreak,
+  capitalizeStart,
   pronounI,
-  spellingTypo: spellingOf("englishTypoWhitelistCorrection"),
-  spellingContraction: spellingOf("englishContractionNormalization"),
-  spellingAlot: spellingOf("englishAlotCorrection"),
+  spellingWord: (match, ctx) => spellingFindings(match, ctx),
   ordinal,
   properNoun,
   spaceBeforeComma,

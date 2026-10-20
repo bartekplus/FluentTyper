@@ -5411,16 +5411,12 @@ rules:
     style: match
     message: review_msg_sentence_start
     frames:
-      # Each token of the chunk. One frame for each check, so that each check can run alone.
+      # Each token of the chunk; one scan gives the findings of both checks.
       - regex: "(?<target>[^\\s\\uFFFC]+)"
         scan: owned
         flags: gu
-        fixer: capitalizeSentenceStart
-      - regex: "(?<target>[^\\s\\uFFFC]+)"
-        scan: owned
-        flags: gu
-        check: capitalizeAfterLineBreak
-        fixer: capitalizeAfterLineBreak
+        anyCheck: true
+        fixer: capitalizeStart
   - id: pronounI
     checks: [englishPronounICapitalization]
     style: match
@@ -5439,20 +5435,12 @@ rules:
     style: match
     message: review_msg_typo
     frames:
+      # Each word; one scan gives the findings of all three checks.
       - regex: "(?<target>[A-Za-z]+)"
         scan: owned
         flags: g
-        fixer: spellingTypo
-      - regex: "(?<target>[A-Za-z]+)"
-        scan: owned
-        flags: g
-        check: englishContractionNormalization
-        fixer: spellingContraction
-      - regex: "(?<target>[A-Za-z]+)"
-        scan: owned
-        flags: g
-        check: englishAlotCorrection
-        fixer: spellingAlot
+        anyCheck: true
+        fixer: spellingWord
   - id: spelling
     checks: [englishTypoWhitelistCorrection, englishContractionNormalization, englishAlotCorrection]
     # predicate: the word tables of multilingualLexicon.ts read each token themselves.
