@@ -6,6 +6,8 @@ fragments:
   MOVERS: "move|moves|moved|moving|arrive|arrives|arrived|arriving|leave|leaves|left|leaving|flee|flees|fled|fleeing|resign|resigns|resigned|resigning|quit|quits|quitting|migrate|migrates|migrated|migrating|desert|deserted|gather|gathered|protest|protested|walked{{S}}out"
   AFTER_MASS: "yesterday|today|tonight|again|now|then|last|this|that|from|to|into|across|after|before|when|and|but|as|over|toward|towards"
   CLOSED: "(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)"
+  # A number in a range: "between three to five".
+  COLLOCATION_NUMBER: "(?:[0-9]+(?:[.,][0-9]+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)"
   # Up to two adverbs in a verb group; a question also takes "please": "can you please send…".
   VERBGROUP_ADVERB_RUN: "(?<adverbs>(?:{{S}}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly)){0,2})"
   VERBGROUP_QUESTION_RUN: "(?<adverbs>(?:{{S}}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly|please)){0,2})"
@@ -1409,7 +1411,68 @@ rules:
     predicate: comparisonThen
   - id: en.collocations
     checks: [englishFixedPrepositions]
-    predicate: collocations
+    style: match
+    message: review_msg_fixed_prepositions
+    filter: usSlots
+    frames:
+      # A word that governs a fixed preposition, typed with another one: "afraid from the dark"
+      # (of), "participated to the event" (in). Every word from 40 characters before the chunk
+      # is looked up in the head table of collocationSlots.
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])"
+        scan: text
+        lookback: 40
+        flags: gu
+        fixer: collocationHead
+      # "see you in Monday", "closed at Sunday": days take "on". "be in Monday", "weighed in
+      # Wednesday", "slept in Tuesday": particles stay. Only after an event or a meeting, and
+      # not before a possessive ("in Friday night's briefing").
+      - regex: "(?<target>in|at){{S}}(?:mon|tues|wednes|thurs|fri|satur|sun)days?{{E}}"
+        fixer: collocationDayOn
+      # "born on 1990", "founded at 2015": a bare year takes "in".
+      - regex: "(?:born|died|married|founded|built|established|launched|released|published|started|began|opened|retired|graduated|moved|formed|created){{S}}(?<target>on|at){{S}}(?:1[5-9]|20)[0-9]{2}{{E}}(?![/.:-][0-9])"
+        fixer: collocationYearIn
+      # "starts in 5 pm": a clock time takes "at".
+      - regex: "(?<target>in|on){{S}}(?:[0-9]|1[0-2])(?::[0-5][0-9])?[ \\t\\u00a0]{0,8}(?:am|pm|a\\.m\\.|p\\.m\\.|o['’]clock)(?![\\p{L}\\p{N}])"
+        fixer: collocationClockAt
+      # "at the morning" → "in"; "on the evening" without "of" → "in".
+      - regex: "(?<target>at|on){{S}}the{{S}}(?:morning|afternoon|evening){{E}}"
+        fixer: collocationPartOfDayIn
+      # "A lot people came": "a lot of"; not "liked it a lot people say".
+      - regex: "(?<![\\p{L}'’])a{{S}}(?<target>lot){{S}}(?<noun>[a-z]+){{E}}"
+        fixer: collocationLotOf
+      # "between three to five": "between ... and".
+      - regex: "between{{S}}{{COLLOCATION_NUMBER}}(?:[ \\t\\u00a0]{0,8}(?:%|am|pm|percent|years|hours|days|weeks|months|minutes))?{{S}}(?<target>to){{S}}{{COLLOCATION_NUMBER}}{{E}}"
+        fixer: collocationBetweenAnd
+      # "went to home": "home" is the direction itself.
+      - regex: "(?:go|goes|going|gone|went|come|comes|coming|came|get|gets|getting|got|return|returns|returned|returning|head|heads|headed|heading|walk|walks|walked|walking|drive|drives|drove|driving|run|runs|ran|running|hurry|hurried|rush|rushed|take|takes|took|taking|bring|brings|brought|send|sends|sent)(?:{{S}}(?:back|straight|directly|me|him|her|us|them|you))?(?<target>{{S}}to){{S}}home{{E}}"
+        fixer: collocationHome
+      - regex: "(?:return|returns|returned|returning)(?<target>{{S}}at){{S}}home{{E}}"
+        fixer: collocationHome
+      # "stopped him of leaving": hindering verbs take "from".
+      - regex: "(?:stop|stops|stopped|stopping|prevent|prevents|prevented|preventing|prohibit|prohibits|prohibited|prohibiting|discourage|discourages|discouraged|discouraging|dissuade|dissuaded|ban|bans|banned|banning){{S}}(?:me|you|him|her|us|them|it|people|others|users|(?:the|my|your|his|her|our|their){{S}}[a-z]+){{S}}(?<target>of){{S}}(?<ing>[a-z]+ing){{E}}"
+        fixer: collocationFrom
+      # "insisted to pay" → "insisted on paying"; "succeeded to open", "capable to finish".
+      - regex: "(?<head>insist|insists|insisted|insisting|succeed|succeeds|succeeded|succeeding|capable|incapable){{S}}(?<target>to{{S}}(?<verb>[a-z]+)){{E}}"
+        fixer: collocationGerund
+      # "listen music", "listened the song": "listen to".
+      - regex: "(?<target>listen|listens|listened|listening){{S}}(?:the|a|an|my|your|his|our|their|him|them|us|music|songs?|podcasts?|radio|audiobooks?){{E}}"
+        fixer: collocationListenTo
+      # "travel with a bus": "by bus".
+      - regex: "(?:travel|travels|traveled|travelled|traveling|travelling|commute|commutes|commuted|commuting){{S}}(?<target>with{{S}}(?:a|the){{S}}(?<vehicle>bus|train|plane|taxi|boat|ship|ferry|subway|metro|tram|coach)){{E}}"
+        fixer: collocationByVehicle
+      - regex: "(?:take|takes|took|taken|taking){{S}}into{{S}}(?:consideration|account)(?<target>{{S}}of){{E}}"
+        fixer: collocationDrop
+      - regex: "in{{S}}front{{S}}(?<target>to){{S}}(?=(?:the|a|an|my|your|his|her|our|their|this|that|these|those|me|him|us|them|everyone){{E}})"
+        fixer: collocationInFrontOf
+      # "in my birthday" → "on"; "in page 21" → "on"; "in the left hand side" → "on".
+      - regex: "(?<target>in){{S}}(?:my|your|his|her|our|their|the){{S}}birthday{{E}}"
+        fixer: collocationBirthdayOn
+      - regex: "(?<target>in){{S}}page{{S}}[0-9]+{{E}}"
+        fixer: collocationOn
+      - regex: "(?<target>in){{S}}the{{S}}(?:left|right)(?:(?:{{S}}|-)hand)?{{S}}side{{E}}"
+        fixer: collocationOn
+      - regex: "in{{S}}exchange{{S}}(?<target>of){{E}}"
+        fixer: collocationFor
   - id: en.tenseTimeWords
     checks: [englishTenseConsistency]
     predicate: tenseTimeWords
