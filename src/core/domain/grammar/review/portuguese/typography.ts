@@ -1,5 +1,6 @@
 import { isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { rangeDashes } from "../rangeDash";
 
 /**
@@ -20,9 +21,6 @@ const UF = "(?:AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO
 export const PLACE_STATE_TOKEN = new RegExp(`^\\p{Lu}[\\p{Ll}\\p{M}]+/${UF}$`, "u");
 /** Prose that looks technical: a dotted ordinal ("12.º", "3.ª", "12.o"), "e.t.c", "kW/h". */
 export const PORTUGUESE_PROSE_TOKEN = /^(?:\d{1,4}\.[ºªoa]s?|e\.t\.c|[kK]W[/.]h)$/u;
-// Element symbols; formulas() adds the guards that keep names and models out.
-const ELEMENT =
-  "(?:H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Ti|Cr|Mn|Fe|Co|Ni|Cu|Zn|Br|Ag|I|Ba|Pt|Au|Hg|Pb|U)";
 
 /** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
 export const NUMBER_FIXERS = {
@@ -82,11 +80,6 @@ export const FIXERS = {
   styleT2: (m) => `–${m.groups!.target.trim().slice(1, 3)}`,
 } satisfies Record<string, (m: RegExpExecArray) => string>;
 
-const FORMULA = new RegExp(
-  `(?<![\\p{L}\\p{N}_./-])\\d*(?:${ELEMENT}\\d*){2,}(?![\\p{L}\\p{N}_-])`,
-  "gu",
-);
-
 /** The flagged text, or the token around it, is in the user's dictionary. */
 export function userWord(ctx: DetectContext, start: number, end: number): boolean {
   const before = /\S*$/.exec(ctx.text.slice(Math.max(0, start - 24), start))![0];
@@ -97,12 +90,11 @@ export function userWord(ctx: DetectContext, start: number, end: number): boolea
   );
 }
 
-function formulas(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  FORMULA.lastIndex = ctx.from;
-  for (let m = FORMULA.exec(ctx.scanText); m && m.index < ctx.to; m = FORMULA.exec(ctx.scanText)) {
+/** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
+export const FORMULA_FIXERS = {
+  formula: (m, ctx) => {
     const token = m[0];
-    if (userWord(ctx, m.index, m.index + token.length)) continue;
+    if (userWord(ctx, m.index, m.index + token.length)) return null;
     const lead = /^\d*/.exec(token)![0];
     const body = token.slice(lead.length);
     // A count of 1 or 0 is never written (H1N1 is a virus), two-digit counts follow only C
@@ -112,21 +104,15 @@ function formulas(ctx: DetectContext): RawFinding[] {
       /\d{3}|[A-Za-z][10](?!\d)|[A-GI-Za-z]\d\d/.test(body) ||
       !/[CHO]/.test(body)
     )
-      continue;
-    findings.push({
+      return null;
+    return {
       ruleId: "portugueseTypographyStyle",
       messageKey: "review_msg_pt_typography_style",
       range: { start: m.index, end: m.index + token.length },
       alternatives: [lead + body.replace(/\d/g, (digit) => SUB[Number(digit)])],
-    });
-  }
-  return findings;
-}
-
-export function typographyStyle(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "pt")) return [];
-  return formulas(ctx);
-}
+    };
+  },
+} satisfies Record<string, MatchFixer>;
 
 // "páginas 10-15" -> "10–15" (emdashShortcut, opt-in). Not after a label of a code or a law
 // ("tel. 12-34", "art. 3-5", "CEP 12-14").

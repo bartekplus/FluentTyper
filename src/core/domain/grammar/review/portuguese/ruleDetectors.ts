@@ -28,13 +28,13 @@ import {
   relativeAgreement,
   subjectPredicates,
 } from "./predicates";
-import { verbFrames } from "./style";
+import { FIXERS as VERB_FRAME_FIXERS } from "./style";
 import { subjunctives } from "./subjunctive";
 import {
   FIXERS as TYPOGRAPHY_FIXERS,
+  FORMULA_FIXERS,
   NUMBER_FIXERS,
   rangeDash,
-  typographyStyle,
 } from "./typography";
 import { verbAgreement } from "./verbAgreement";
 
@@ -42,7 +42,6 @@ export const PREDICATES = {
   accentParonyms,
   confusions,
   contractions,
-  typographyStyle,
   rangeDash,
   cliticPlacement,
   ao90,
@@ -59,7 +58,6 @@ export const PREDICATES = {
   fixedAgreements,
   passiveNumber,
   personAgreement,
-  verbFrames,
   formalVerbs,
 } satisfies Record<string, Detector>;
 
@@ -72,6 +70,8 @@ export const FIXERS = mergePredicates<AnyFixer>(
   INFINITIVE_FIXERS,
   MARK_FIXERS,
   NUMBER_START_FIXERS,
+  FORMULA_FIXERS,
+  VERB_FRAME_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/pt_BR.yaml (`filter:`). */

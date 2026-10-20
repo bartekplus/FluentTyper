@@ -1,6 +1,5 @@
 import { finding } from "../finding";
-import { alternation, frameMatches, isLang, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { ACTION_NOUNS, TORNAR } from "./styleMore";
 
 /**
@@ -151,56 +150,39 @@ export function conjugate(verb: string): string[] {
   ];
 }
 
-/** A head verb in any slot, a complement that maps to a plain verb, and the text around them. */
-function verbFrame(
-  heads: string[],
-  complements: Map<string, string>,
-  before: string,
-  after: string,
-) {
+/** The slot of each form of the head verbs, and the plain verb of each complement. */
+function verbFrame(heads: string[], complements: Map<string, string>): MatchFixer {
   const slots = new Map<string, number>();
   for (const verb of heads)
     conjugate(verb).forEach((form, slot) => slots.has(form) || slots.set(form, slot));
-  const pattern = `${before}(?<target>(?<head>${alternation(slots.keys())})${SPACE}(?<complement>${alternation(complements.keys())})${after})${WORD_END}`;
-  return { slots, complements, pattern };
-}
-const VERB_FRAMES = [
-  // "fez a análise do texto" -> "analisou o texto".
-  verbFrame(["fazer", "realizar", "efetuar"], ACTION_NOUNS, "", `${SPACE}(?<of>de|d[oa]s?)`),
-  // "torna possível o acesso" -> "possibilita o acesso"; "se torna possível" says "becomes".
-  verbFrame(
-    ["tornar"],
-    TORNAR,
-    `(?<!(?:^|[^\\p{L}])se${SPACE}|-se${SPACE})`,
-    `(?=${SPACE}(?:que|[oa]s?|um|uma|essa?|este|esta|isso|isto|tudo|\\p{L}+[çs]ão)${WORD_END})`,
-  ),
-];
-
-/** A verb with a noun or an adjective that one plain verb says, in the same tense (opt-in). */
-export function verbFrames(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "pt")) return [];
-  const findings: RawFinding[] = [];
-  for (const { slots, complements, pattern } of VERB_FRAMES) {
-    for (const m of frameMatches(ctx, pattern)) {
-      const { head, complement, of } = m.groups!;
-      const words = m.groups!.target.split(/[ \t\u00a0]+/);
-      // A capital after the first word is a name; a user word stays as typed.
-      if (
-        words.some(
-          (word, i) =>
-            (i > 0 && word !== word.toLowerCase()) || ctx.dictionary.has(word.toLowerCase()),
-        )
+  return (m, ctx) => {
+    const { head, complement, of } = m.groups!;
+    const words = m.groups!.target.split(/[ \t\u00a0]+/);
+    // A capital after the first word is a name; a user word stays as typed.
+    if (
+      words.some(
+        (word, i) =>
+          (i > 0 && word !== word.toLowerCase()) || ctx.dictionary.has(word.toLowerCase()),
       )
-        continue;
-      const slot = slots.get(head.toLowerCase());
-      const verb = complements.get(complement.toLowerCase().replace(/[ \t\u00a0]+/, " "));
-      if (slot === undefined || !verb) continue;
-      const article = !of || of.toLowerCase() === "de" ? "" : ` ${of.slice(1).toLowerCase()}`;
-      let plain = `${conjugate(verb)[slot]}${article}`;
-      if (/^\p{Lu}/u.test(head)) plain = plain[0].toUpperCase() + plain.slice(1);
-      const [start, end] = m.indices!.groups!.target;
-      findings.push(finding("stylePhrasing", "review_msg_style_phrasing", start, end, [plain]));
-    }
-  }
-  return findings;
+    )
+      return null;
+    const slot = slots.get(head.toLowerCase());
+    const verb = complements.get(complement.toLowerCase().replace(/[ \t\u00a0]+/, " "));
+    if (slot === undefined || !verb) return null;
+    const article = !of || of.toLowerCase() === "de" ? "" : ` ${of.slice(1).toLowerCase()}`;
+    let plain = `${conjugate(verb)[slot]}${article}`;
+    if (/^\p{Lu}/u.test(head)) plain = plain[0].toUpperCase() + plain.slice(1);
+    const [start, end] = m.indices!.groups!.target;
+    return finding("stylePhrasing", "review_msg_style_phrasing", start, end, [plain]);
+  };
 }
+
+/**
+ * The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`): a verb with a noun or an
+ * adjective that one plain verb says, in the same tense (opt-in). The frame of each fixer
+ * names the forms of its head verbs and its complements.
+ */
+export const FIXERS = {
+  verbFrameAction: verbFrame(["fazer", "realizar", "efetuar"], ACTION_NOUNS),
+  verbFrameTornar: verbFrame(["tornar"], TORNAR),
+} satisfies Record<string, MatchFixer>;

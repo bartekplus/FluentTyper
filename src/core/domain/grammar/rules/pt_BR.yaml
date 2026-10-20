@@ -650,9 +650,19 @@ rules:
         fixer: styleT2
   - id: pt_BR.typographyStyle
     checks: [portugueseTypographyStyle]
-    predicate: typographyStyle
+    style: match
+    message: review_msg_pt_typography_style
+    frames:
+      # Chemical subscripts: "H2O" -> "H₂O". The fixer adds the guards that keep names and
+      # models out.
+      - regex: "(?<![\\p{L}\\p{N}_./-])(?<target>\\d*(?:(?:H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Ti|Cr|Mn|Fe|Co|Ni|Cu|Zn|Br|Ag|I|Ba|Pt|Au|Hg|Pb|U)\\d*){2,})(?![\\p{L}\\p{N}_-])"
+        flags: gu
+        scan: owned
+        fixer: formula
   - id: pt_BR.rangeDash
     checks: [emdashShortcut]
+    # predicate: the scan is the shared rangeDashes helper of review/rangeDash.ts; this rule
+    # gives only the Portuguese guards.
     predicate: rangeDash
   - id: pt_BR.cliticPlacement
     checks: [portugueseCliticPlacement]
@@ -727,7 +737,16 @@ rules:
         fixer: infinitiveFinite
   - id: pt_BR.verbFrames
     checks: [stylePhrasing]
-    predicate: verbFrames
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # "fez a análise do texto" -> "analisou o texto": a form of "fazer", "realizar" or
+      # "efetuar" and a noun that names the action of a regular verb.
+      - regex: "(?<target>(?<head>realizamos|realizaram|realizavam|realizaria|realizasse|realizando|realizava|realizará|realizado|efetuamos|efetuaram|efetuavam|efetuaria|efetuasse|efetuando|realizar|realizam|realizei|realizou|efetuava|efetuará|efetuado|fazemos|fizeram|fizesse|fazendo|realizo|realiza|realize|efetuar|efetuam|efetuei|efetuou|faziam|efetuo|efetua|efetue|fazer|fazem|fazia|faria|fizer|feito|faço|fará|faça|faz|fiz|fez){{S}}(?<complement>o{{S}}desenvolvimento|o{{S}}acompanhamento|a{{S}}identificação|a{{S}}classificação|a{{S}}implementação|o{{S}}preenchimento|o{{S}}armazenamento|o{{S}}processamento|o{{S}}monitoramento|a{{S}}distribuição|a{{S}}configuração|a{{S}}reformulação|o{{S}}planejamento|o{{S}}encerramento|o{{S}}fornecimento|a{{S}}modificação|a{{S}}programação|a{{S}}solicitação|a{{S}}verificação|a{{S}}organização|a{{S}}contratação|a{{S}}atualização|o{{S}}agendamento|o{{S}}recebimento|o{{S}}treinamento|a{{S}}preparação|a{{S}}elaboração|a{{S}}negociação|a{{S}}utilização|a{{S}}publicação|a{{S}}instalação|a{{S}}divulgação|o{{S}}tratamento|o{{S}}mapeamento|o{{S}}lançamento|a{{S}}aplicação|a{{S}}alteração|a{{S}}validação|a{{S}}aprovação|a{{S}}digitação|a{{S}}conversão|a{{S}}avaliação|a{{S}}descrição|o{{S}}orçamento|o{{S}}pagamento|a{{S}}inclusão|a{{S}}exclusão|a{{S}}execução|a{{S}}marcação|a{{S}}gravação|a{{S}}apuração|a{{S}}correção|o{{S}}conserto|o{{S}}cadastro|o{{S}}registro|a{{S}}seleção|a{{S}}remoção|a{{S}}emissão|a{{S}}análise|a{{S}}limpeza|a{{S}}entrega|a{{S}}criação|a{{S}}revisão|a{{S}}leitura|o{{S}}cálculo|a{{S}}coleta|a{{S}}edição|o{{S}}ajuste|o{{S}}envio){{S}}(?<of>de|d[oa]s?)){{E}}"
+        fixer: verbFrameAction
+      # "torna possível o acesso" -> "possibilita o acesso"; "se torna possível" says "becomes".
+      - regex: "(?<!(?:^|[^\\p{L}])se{{S}}|-se{{S}})(?<target>(?<head>tornamos|tornaram|tornavam|tornaria|tornasse|tornando|tornava|tornará|tornado|tornar|tornam|tornei|tornou|torno|torna|torne){{S}}(?<complement>mais{{S}}difícil|mais{{S}}rápido|impossível|mais{{S}}fácil|mais{{S}}forte|mais{{S}}fraco|mais{{S}}claro|possível)(?={{S}}(?:que|[oa]s?|um|uma|essa?|este|esta|isso|isto|tudo|\\p{L}+[çs]ão){{E}})){{E}}"
+        fixer: verbFrameTornar
   - id: pt_BR.formalVerbs
     checks: [stylePhrasing]
     predicate: formalVerbs
