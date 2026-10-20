@@ -53,6 +53,9 @@ fragments:
   GRAMMARSTYLE1_STARTERS: "The|A|An|It|Its|I|So|But|And|This|That|These|Those|He|She|We|They|You|There|Then|What|When|Where|Why|How|If|My|Our|Your|His|Her|Their|Some|Many|One|No|Yes|Now|Also|However|After|Before|As|Each|Every|All"
   GRAMMARSTYLE1_ITEM: "[\\p{L}\\p{N}][\\p{L}\\p{N}'’-]*(?:{{S}}[\\p{L}\\p{N}][\\p{L}\\p{N}'’-]*){0,2}"
   FIXEDPHRASES_GETS: "get|gets|got|gotten|getting|become|becomes|became|becoming|grow|grows|grew|grown|growing"
+  DIALECTS_BE: "(?:am|is|are|was|were|be|been|being|isn['’]?t|aren['’]?t|wasn['’]?t|weren['’]?t|its|\\p{L}+['’](?:s|re))"
+  DIALECTS_CARD_ADVERBS: "(?:not|just|really|probably|definitely|certainly|still|also|already|never|ever|likely|possibly|clearly|simply|even|again|all|quite|maybe|perhaps|hardly)"
+  DIALECTS_CARD_FOLLOWERS: "(?:for|at|but|and|or|any|anytime|again|anymore|now|right|yet|either|though|since|so|then|previously|back|soon|until|unless|if|because|as|with|too|just|after|before|when|while|ever|in|this|that|these|those)"
 
 rules:
   - id: en.fixedPhrases
@@ -1579,22 +1582,71 @@ rules:
         fixer: includingButNotLimited
   - id: en.iseForms
     checks: [englishAmericanSpelling, englishOxfordSpelling]
-    predicate: iseForms
+    style: match
+    message: review_msg_american_spelling
+    filter: outsideExamples
+    frames:
+      # "energise", "magnetisable": -ise forms the table lacks whose -ize form the lexicon
+      # knows. An -ise word, also after a hyphenated prefix ("de-energise"). One frame for each
+      # check: a frame runs only when its check is on.
+      - regex: "(?<![\\p{L}\\p{N}'’])(?<target>\\p{L}+is(?:e|es|ed|ing|ation|ations|ational|ationally|er|ers|able|ability))(?![\\p{L}\\p{N}'’])"
+        flags: dgiu
+        fixer: iseForm
+      - regex: "(?<![\\p{L}\\p{N}'’])(?<target>\\p{L}+is(?:e|es|ed|ing|ation|ations|ational|ationally|er|ers|able|ability))(?![\\p{L}\\p{N}'’])"
+        check: englishOxfordSpelling
+        message: review_msg_oxford_spelling
+        flags: dgiu
+        fixer: iseForm
   - id: en.cardSpellings
     checks: [englishAmericanSpelling, englishBritishSpelling]
-    predicate: cardSpellings
+    style: match
+    message: review_msg_american_spelling
+    frames:
+      # "be on the cards" (British) and "be in the cards" (American): only after a form of
+      # "be" ("is that just not in the cards?"), so cards on a table ("write it on the cards")
+      # stay. The idiom ends its clause or is followed by a function word: "in the cards box"
+      # stays. One frame for each check: a frame runs only when its check is on.
+      - regex: "{{DIALECTS_BE}}(?:{{S}}(?:that|this|it|they|he|she|we|you))?(?:{{S}}{{DIALECTS_CARD_ADVERBS}}){0,3}{{S}}(?<target>(?<prep>on|in){{S}}the{{S}}cards){{E}}(?=[ \\t\\u00a0]{0,8}(?:[^\\p{L} \\t\\u00a0]|$)|{{S}}{{DIALECTS_CARD_FOLLOWERS}}{{E}})"
+        fixer: britishCards
+      - regex: "{{DIALECTS_BE}}(?:{{S}}(?:that|this|it|they|he|she|we|you))?(?:{{S}}{{DIALECTS_CARD_ADVERBS}}){0,3}{{S}}(?<target>(?<prep>on|in){{S}}the{{S}}cards){{E}}(?=[ \\t\\u00a0]{0,8}(?:[^\\p{L} \\t\\u00a0]|$)|{{S}}{{DIALECTS_CARD_FOLLOWERS}}{{E}})"
+        check: englishBritishSpelling
+        message: review_msg_british_spelling
+        fixer: americanCards
   - id: en.spelledNumbers
     checks: [styleSpelledNumbers]
-    predicate: spelledNumbers
+    style: match
+    message: review_msg_spelled_numbers
+    frames:
+      # Optional number style: a single-digit count before a plural noun is spelled out ("9
+      # pigs"). Only after a function word, so labels ("Python 3 users", "step 2 results")
+      # stay, and only when the sentence has no other figure to keep consistent with.
+      - regex: "(?=[2-9]{{S}})(?<=(?:^|[^\\p{L}])(?:the|these|those|my|your|his|her|its|our|their|are|were|is|was|be|been|have|has|had|with|for|of|in|on|at|by|from|to|into|about|around|over|under|nearly|almost|only|just|all|and|or|than|after|within|there|here|another|last|first|next){{S}})(?<target>[2-9]){{S}}(?<noun>\\p{L}{3,}){{E}}"
+        fixer: spelledNumber
   - id: en.irregularWordForms
     checks: [englishIrregularForms, englishAlotCorrection]
+    # predicate: one pass over the words keeps the word before each word; a word-boundary
+    # fix reads one word past the chunk, and no frame scan stops there.
     predicate: irregularWordForms
   - id: en.possessiveNouns
     checks: [englishPossessiveNouns]
-    predicate: possessiveNouns
+    style: match
+    message: review_msg_noun_possessive
+    filter: outsideExamples
+    frames:
+      # "the cats tail is long", "a teachers lounge": a plural owner right before the noun it
+      # owns.
+      - regex: "(?<det>the|a|an|my|your|his|her|our|their|every|each|another){{S}}(?<owner>[a-z]{3,}s|children|women|men){{S}}(?<head>[a-z]{3,})(?:[ \\t\\u00a0]*(?:[.!?,;:]|$)|{{S}}(?<next>[A-Za-z]+)(?![\\p{L}\\p{N}_'’@/#\\\\-]))"
+        owner: owner
+        fixer: possessiveNoun
   - id: en.youNounOf
     checks: [englishYourYouAre]
-    predicate: youNounOf
+    style: match
+    message: review_msg_your_possessive
+    filter: outsideExamples
+    frames:
+      # "You combination of artist and teacher.": "Your" or "You're a" before a lone noun.
+      - regex: "(?<target>You){{S}}(?<noun>[a-z]{4,}){{S}}of(?![\\p{L}\\p{N}_'’@/#\\\\-])"
+        fixer: youNounOf
   - id: en.modalOfAtEnd
     checks: [englishModalOfCorrection]
     style: match
@@ -1940,10 +1992,30 @@ rules:
     predicate: dates
   - id: en.usageFrames
     checks: [stylePhrasing]
-    predicate: usageFrames
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # "in a hasty manner" -> "hastily"; "in a way that…" and "in a manner of speaking" stay.
+      - regex: "(?<target>in{{S}}an?{{S}}(?<adjective>[a-z]+){{S}}(?:manner|way|fashion)){{E}}(?![ \\t\\u00a0]+(?:that|which|to|as|of|than|for|in|you|we|I|it){{E}})"
+        fixer: mannerAdverb
+      # "sent me an email" -> "emailed me".
+      - regex: "(?<target>(?<verb>send|sends|sent|sending){{S}}(?<object>me|you|him|her|us|them){{S}}an{{S}}(?<mail>email|e-mail)){{E}}"
+        fixer: sendEmail
+      # "is not complete" -> "is incomplete": the adjective's negative prefix form, when listed.
+      - regex: "(?:is|are|was|were|be|been|being|seems?|seemed|looks?|looked){{S}}(?<target>not{{S}}(?<adjective>[a-z]{4,})){{E}}(?![ \\t\\u00a0]+(?:enough|only|just|as|so|but){{E}})"
+        fixer: notAdjective
   - id: en.contractionCase
     checks: [englishContractionNormalization]
-    predicate: contractionCase
+    style: match
+    message: review_msg_contraction
+    frames:
+      # "We'Re", "don'T", "I'Ve": a capital after the apostrophe of a contraction. All capitals
+      # ("DON'T", "I'M") are emphasis, and "O'Neil" is no contraction ending. The match start
+      # owns it.
+      - regex: "(?<![\\p{L}\\p{N}_'’])(?<head>\\p{L}+)(?<mark>['’])(?<tail>s|t|re|ve|ll|d|m)(?![\\p{L}\\p{N}_])"
+        flags: dgiu
+        owner: none
+        fixer: contractionCase
   - id: en.possessiveContractions
     checks: [englishItsContext, englishYourYouAre]
     predicate: possessiveContractions

@@ -65,12 +65,10 @@ import * as clashFrames from "./clashFrames";
 
 export const PREDICATES = mergePredicates(
   confusions2.PREDICATES,
-  dialects.PREDICATES,
   lexical.PREDICATES,
   remaining.PREDICATES,
   compoundForms.PREDICATES,
   dates.PREDICATES,
-  usageTables.PREDICATES,
   contractionSlots.PREDICATES,
   degreeSlots.PREDICATES,
   nounNumberSlots.PREDICATES,
@@ -131,6 +129,9 @@ export const FIXERS = mergePredicates<Fixer>(
   grammarStyle2.FIXERS,
   fixedPhrases.FIXERS,
   confusions1.FIXERS,
+  lexical.FIXERS,
+  dialects.FIXERS,
+  usageTables.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */

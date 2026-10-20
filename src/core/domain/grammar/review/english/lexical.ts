@@ -8,9 +8,9 @@ import { englishNounForms } from "../../implementations/helpers/EnglishNounNumbe
 import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
 import { lastNonBlankBefore } from "../../implementations/helpers/EnglishRuleShared";
-import { caseLike, frameMatches, hasUserOrCasedWord, SPACE } from "../phraseTemplates";
+import { caseLike, hasUserOrCasedWord } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { Detector, MatchFixer } from "../../engine/reviewRules";
 import { english } from "./grammarStyle1";
 import { finding } from "../finding";
 
@@ -292,8 +292,6 @@ const ATTRIBUTIVE_PLURALS = new Set(
   ).split(" "),
 );
 const IRREGULAR_OWNERS = new Set(["children", "women", "men"]);
-const OWNER_DETERMINERS = "the|a|an|my|your|his|her|our|their|every|each|another";
-const POSSESSIVE_FRAME = `(?<det>${OWNER_DETERMINERS})${SPACE}(?<owner>[a-z]{3,}s|children|women|men)${SPACE}(?<head>[a-z]{3,})(?:[ \\t\\u00a0]*(?:[.!?,;:]|$)|${SPACE}(?<next>[A-Za-z]+)(?![\\p{L}\\p{N}_'’@/#\\\\-]))`;
 const SINGLE_DETERMINERS = new Set(["a", "an", "every", "each", "another"]);
 // Plural nouns that name a class before its members: "the metals tin and zinc".
 const CLASS_OWNERS = new Set(
@@ -363,23 +361,23 @@ function wordBefore(ctx: DetectContext, index: number): string {
   return (/([A-Za-z]+)[ \t\u00a0]+$/.exec(before)?.[1] ?? "?").toLowerCase();
 }
 
-/**
- * "the cats tail is long", "a teachers lounge": a plural owner right before the noun it owns,
- * where the frame leaves no other reading. The owner's head noun is followed by its verb, or
- * the phrase ends after a preposition or a perception verb, or a singular determiner rules
- * the plural out.
- */
-function possessiveNouns(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, POSSESSIVE_FRAME, "owner")) {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  /**
+   * "the cats tail is long", "a teachers lounge": a plural owner right before the noun it owns,
+   * where the frame leaves no other reading. The owner's head noun is followed by its verb, or
+   * the phrase ends after a preposition or a perception verb, or a singular determiner rules
+   * the plural out.
+   */
+  possessiveNoun: (m, ctx) => {
     const { det, owner, head, next } = m.groups!;
     // The frame is case-insensitive: capitals name something ("the Beatles song").
-    if (!/^[a-z]+$/.test(owner + head) || hasUserOrCasedWord(ctx, m[0])) continue;
+    if (!/^[a-z]+$/.test(owner + head) || hasUserOrCasedWord(ctx, m[0])) return null;
     const singular = IRREGULAR_OWNERS.has(owner) ? null : ownerSingular(owner);
-    if ((!singular && !IRREGULAR_OWNERS.has(owner)) || NOT_HEADS.has(head)) continue;
-    if (CLASS_OWNERS.has(owner)) continue;
+    if ((!singular && !IRREGULAR_OWNERS.has(owner)) || NOT_HEADS.has(head)) return null;
+    if (CLASS_OWNERS.has(owner)) return null;
     const headNoun = nounInfo(head);
-    if (!headNoun) continue;
+    if (!headNoun) return null;
     const verbal = !!headNoun.info?.verbs.length;
     const before = wordBefore(ctx, m.index);
     const n = next ? next.toLowerCase() : "";
@@ -394,49 +392,42 @@ function possessiveNouns(ctx: DetectContext): RawFinding[] {
       (finite && (!verbal || before === "" || PREPOSITIONS.has(before))) ||
       (ends && PREPOSITIONS.has(before)) ||
       (ends && !verbal && PERCEPTION.has(before));
-    if (!ok) continue;
+    if (!ok) return null;
     const [start, end] = m.indices!.groups!.owner;
     const alternatives = singular ? [`${singular}'s`, `${owner}'`] : [`${owner}'s`];
-    findings.push(
-      finding("englishPossessiveNouns", "review_msg_noun_possessive", start, end, alternatives, {
+    return finding(
+      "englishPossessiveNouns",
+      "review_msg_noun_possessive",
+      start,
+      end,
+      alternatives,
+      {
         ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
         context: context(ctx, m.index, m.index + m[0].length),
-      }),
+      },
     );
-  }
-  return findings;
-}
-
-// ---------------------------------------------------------------------------- you + noun
-
-const YOU_OF = `(?<target>You)${SPACE}(?<noun>[a-z]{4,})${SPACE}of(?![\\p{L}\\p{N}_'’@/#\\\\-])`;
-
-/** "You combination of artist and teacher.": "Your" or "You're a" before a lone noun. */
-function youNounOf(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, YOU_OF)) {
-    if (wordBefore(ctx, m.index) !== "" || hasUserOrCasedWord(ctx, m.groups!.noun)) continue;
+  },
+  /** "You combination of artist and teacher.": "Your" or "You're a" before a lone noun. */
+  youNounOf: (m, ctx) => {
+    if (wordBefore(ctx, m.index) !== "" || hasUserOrCasedWord(ctx, m.groups!.noun)) return null;
     const read = info(m.groups!.noun);
     const noun = read
       ? read.noun && !read.plural && !read.verbs.length && !read.adjective
       : englishListedNoun(m.groups!.noun) === "singular";
-    if (!noun) continue;
+    if (!noun) return null;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
+    return {
       ruleId: "englishYourYouAre",
       messageKey: "review_msg_your_possessive",
       range: { start, end },
       alternatives: [caseLike(m.groups!.target, "your"), caseLike(m.groups!.target, "you're a")],
       requiresChoice: true,
       context: context(ctx, m.index, m.index + m[0].length),
-    });
-  }
-  return findings;
-}
+    };
+  },
+} satisfies Record<string, MatchFixer>;
 
 /** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
 export const PREDICATES = {
   irregularWordForms: english(wordChecks),
-  possessiveNouns: english(possessiveNouns),
-  youNounOf: english(youNounOf),
 } satisfies Record<string, Detector>;
