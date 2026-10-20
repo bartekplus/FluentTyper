@@ -212,7 +212,7 @@ export function frameRuleDetector(
       fix: fixOf(frame.fix, frame.fixer) as GermanFrame["fix"],
       ...(frame.ownCase ? { ownCase: true as const } : {}),
     }));
-    detect = (ctx) => germanFrames(ctx, frames);
+    detect = (ctx) => germanFrames(ctx, frames, ruleId, messageKey);
   } else if (rule.style === "portuguese") {
     const frames: PortugueseFrame[] = compiled.map((frame) => ({
       pattern: frame.pattern,
@@ -221,7 +221,7 @@ export function frameRuleDetector(
       ...(frame.clauseStart ? { clauseStart: true as const } : {}),
       ...(frame.capitalized ? { capitalized: true as const } : {}),
     }));
-    detect = (ctx) => portugueseFrames(ctx, frames);
+    detect = (ctx) => portugueseFrames(ctx, frames, ruleId);
   } else if (rule.style === "polish") {
     const frames: PolishFrame[] = compiled.map((frame) => ({
       pattern: frame.pattern,

@@ -522,7 +522,12 @@ export const FIXERS = {
  * The frames of a german rule of grammar/rules/de.yaml, on German text: the first named group
  * other than `noun` is replaced, in the typed capital unless the fix sets its own case.
  */
-export function runGermanFrames(ctx: DetectContext, frames: readonly Frame[]): RawFinding[] {
+export function runGermanFrames(
+  ctx: DetectContext,
+  frames: readonly Frame[],
+  ruleId: RawFinding["ruleId"] = "germanConfusedWords",
+  messageKey: RawFinding["messageKey"] = "review_msg_contextual_grammar",
+): RawFinding[] {
   if (!isGerman(ctx)) return [];
   const findings: RawFinding[] = [];
   for (const { regex, fix, ownCase } of frames) {
@@ -541,8 +546,8 @@ export function runGermanFrames(ctx: DetectContext, frames: readonly Frame[]): R
       const replacements = fixed === null ? [] : [fixed].flat().filter((r) => r !== typed);
       if (replacements.length === 0) continue;
       findings.push({
-        ruleId: "germanConfusedWords",
-        messageKey: "review_msg_contextual_grammar",
+        ruleId,
+        messageKey,
         range: { start, end },
         alternatives: replacements.map((replacement) =>
           ownCase ? replacement : likeTyped(typed, replacement),

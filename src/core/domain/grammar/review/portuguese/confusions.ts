@@ -229,12 +229,13 @@ function pushFinding(
   m: RegExpExecArray,
   alternatives: string[],
   messageKey: ReviewMessageKey,
+  ruleId: RawFinding["ruleId"] = "portugueseConfusions",
 ): void {
   const [start, end] = m.indices!.groups!.target;
   const typed = ctx.text.slice(start, end);
   if (ctx.dictionary.has(typed.toLowerCase())) return;
   findings.push({
-    ruleId: "portugueseConfusions",
+    ruleId,
     messageKey,
     range: { start, end },
     alternatives: alternatives.map((alt) => applyWordCase(alt, detectWordCase(typed))),
@@ -244,7 +245,11 @@ function pushFinding(
 }
 
 /** The frames of a portuguese rule of grammar/rules/pt_BR.yaml, on Portuguese text. */
-export function runConfusionFrames(ctx: DetectContext, frames: readonly Frame[]): RawFinding[] {
+export function runConfusionFrames(
+  ctx: DetectContext,
+  frames: readonly Frame[],
+  ruleId: RawFinding["ruleId"] = "portugueseConfusions",
+): RawFinding[] {
   if (!isLang(ctx, "pt")) return [];
   const findings: RawFinding[] = [];
   for (const frame of frames) {
@@ -261,7 +266,7 @@ export function runConfusionFrames(ctx: DetectContext, frames: readonly Frame[])
         typeof frame.alternatives === "function"
           ? frame.alternatives(m.groups!.target)
           : frame.alternatives;
-      pushFinding(ctx, findings, m, alternatives, frame.messageKey);
+      pushFinding(ctx, findings, m, alternatives, frame.messageKey, ruleId);
     }
   }
   return findings;
