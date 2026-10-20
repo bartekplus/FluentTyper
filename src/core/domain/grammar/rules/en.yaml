@@ -23,6 +23,7 @@ fragments:
   NEGATION: "don['’]t|doesn['’]t|didn['’]t|never|not"
   VERB_OBJECT: "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what"
   SUBJECT: "I|you|we|they|he|she|it"
+  NOUNNUMBERSLOTS_EXISTENTIAL_COUNT: "(?:many|several|few|some|no|any(?:[ \\t\\u00a0]+other)?|a[ \\t\\u00a0]+few|a[ \\t\\u00a0]+couple[ \\t\\u00a0]+of|two|three|four|five|six|seven|eight|nine|ten|[2-9]|[1-9][0-9]+)"
   QUESTIONSLOTS_ADVERB: "(?:{{S}}(?:ever|really|actually|typically|usually|normally|still|even|just|always|also|never|already|generally|actually))?"
   QUESTIONSLOTS_PRONOUN: "(?:i|you|we|they|he|she|it)"
   QUESTIONSLOTS_SUBJECT: "(?:(?:i|you|we|they|he|she|it)|anyone|someone|anybody|somebody|everyone|everybody|(?:the|your|my|our|their|his|her|this|that)(?:{{S}}[a-z]+){1,2})"
@@ -1290,10 +1291,73 @@ rules:
         fixer: degreeOpening
   - id: en.existentialCount
     checks: [englishExistentialAgreement, englishNounNumber]
-    predicate: existentialCount
+    style: match
+    message: review_msg_existential_agreement
+    filter: slotFindings
+    frames:
+      # "There is many problems", "Here is some great alternatives": a plural count after a
+      # singular existential verb; "There are many problem", "There are no book here": a
+      # singular noun after a plural one. The frame reports both checks; it runs under
+      # englishExistentialAgreement. Findings start at the noun: the filter keeps the chunk's.
+      - regex: "(?<there>there|here)(?:{{S}}(?<verb>is|was|are|were)|(?<contracted>['’]s)){{S}}(?:(?:only|still|also|just|really){{S}})?(?<count>{{NOUNNUMBERSLOTS_EXISTENTIAL_COUNT}}){{S}}(?=[a-z])"
+        owner: none
+        fixer: numberExistential
   - id: en.nounNumberSlots
     checks: [englishNounNumber, englishPossibleErrors]
-    predicate: nounNumberSlots
+    style: match
+    message: review_msg_noun_count
+    filter: slotFindings
+    frames:
+      # Every frame here reads the frames near the chunk (owner none): findings start at the
+      # noun, so the filter keeps the chunk's own.
+      # "a new issues", "an examples of": a/an before a plural that ends its phrase.
+      - regex: "(?<target>an?){{S}}(?=[a-z])"
+        owner: none
+        fixer: numberArticlePlural
+      # "five book.", "many child are", "these error are": a plural count before a singular.
+      - regex: "(?<target>[0-9]{1,3}(?:,[0-9]{3})*|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|many|several|various|numerous|multiple|few|these|those){{S}}(?=[a-z])"
+        owner: none
+        fixer: numberCountSingular
+      # "this errors are", "Can it find this errors?": this before a plural noun.
+      - regex: "(?<target>this){{S}}(?<noun>[a-z]+){{E}}"
+        owner: none
+        fixer: numberThisPlural
+      # "resolve these issue", "extend those rule", "for these information": an object after
+      # these/those whose noun is singular. Count nouns get both repairs; mass nouns take
+      # this/that.
+      - regex: "(?<dem>these|those){{S}}(?=[a-z])"
+        owner: dem
+        fixer: numberDemonstrativeObject
+      # "These chair would break", "Those table was small": these/those + a singular subject.
+      - regex: "(?<dem>these|those){{S}}(?=[a-z])"
+        owner: dem
+        fixer: numberDemonstrativeSubject
+      # "each children are", "every things went": each/every take a singular noun.
+      - regex: "(?<target>each|every){{S}}(?=[a-z])"
+        owner: none
+        fixer: numberEachPlural
+      # "a two questions", "a 150 likes ago": "a" before a count above one.
+      - regex: "(?<target>an?{{S}})(?<count>[0-9]{1,3}(?:,?[0-9]{3})*|two|three|four|five|six|seven|eight|nine|ten|twelve|twenty|thirty|forty|fifty){{S}}(?<noun>[a-z]+){{E}}"
+        owner: none
+        fixer: numberArticleCount
+      # "too much cars", "as much foreign languages as": much before a countable plural.
+      - regex: "(?:too|so|as|are|were|how|this|that|not|even){{S}}(?<target>much){{S}}(?=[a-z])"
+        owner: none
+        fixer: numberMuchPlural
+      # "Two of my friend have", "one of our client decided": a partitive takes a plural noun.
+      - regex: "(?<count>two|three|four|five|six|seven|eight|nine|ten|several|many|few|both|[2-9]|[1-9][0-9]){{S}}of{{S}}(?:my|your|our|his|her|their|the|these|those){{S}}(?=[a-z])"
+        owner: none
+        fixer: numberPartitive
+      # "a lot of car", "a number of issue": a quantity takes a plural count noun. Only the
+      # authored count nouns, which have little mass use ("a lot of work" is right). A noun that
+      # is not authored reports englishPossibleErrors.
+      - regex: "(?:(?:a{{S}}(?:lot|bunch|couple|(?:great|large|small|huge|certain){{S}}number|number)|lots|plenty|dozens|hundreds|thousands|millions){{S}}of){{S}}(?=[a-z])"
+        owner: none
+        fixer: numberQuantityOf
+      # "Other might benefit", "what other think": the pronoun is "others".
+      - regex: "(?<target>other){{S}}(?<next>[a-z]+){{E}}"
+        owner: none
+        fixer: numberOtherPronoun
   - id: en.verbGroups
     checks: [englishPerfectParticiples, englishAuxiliaryBaseVerb, englishSentenceStructure]
     predicate: verbGroups
