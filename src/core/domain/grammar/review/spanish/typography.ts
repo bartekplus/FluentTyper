@@ -2,22 +2,13 @@ import { namedExampleBefore } from "../exampleCues";
 import { EMPHASIS_MARKS } from "../markdownEmphasis";
 import type { Detector, FindingsFilter, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import {
-  Around,
-  attributeOf,
-  carryCase,
-  replaceToken,
-  tokenize,
-  words,
-  type Token,
-} from "./common";
+import { atToken, Around, attributeOf, carryCase, replaceToken, words, type Token } from "./common";
 import { isGenderedEntry, isNoun } from "./lexicon";
 import { readNoun } from "./agreement";
 import { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
 import { PREPOSITIONS, verbLike } from "./common";
 import { finding } from "../finding";
 import { rangeDashFixer } from "../rangeDash";
-import { isLang } from "../phraseTemplates";
 
 const known = (word: string) =>
   isNoun(word) || !!attributeOf(word) || isGenderedEntry(word) || verbLike(word);
@@ -284,62 +275,46 @@ const numericDate: MatchFixer = (m, ctx) => {
   return dayFinding(ctx, m.index, m[1], month, year);
 };
 
-function typography(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const tokens = tokenize(ctx);
-  const findings: RawFinding[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    if (token.start < ctx.from || token.start >= ctx.to) continue;
-    const at = new Around(tokens, i);
-    let fix: string | null = null;
-    let key: RawFinding["messageKey"] = "review_msg_spanish_conjunction";
-    if (token.word && /^[yeou]$/iu.test(token.text)) fix = conjunction(at, token);
-    else if (/^\p{N}/u.test(token.text)) {
-      fix = yearDot(at, token);
-      key = "review_msg_spanish_year";
-    } else if (/^tics$/iu.test(token.text) && /^(?:las|estas|sus|nuevas)$/u.test(at.prev())) {
-      // "las tics": the feminine article names the technologies ("los tics" are twitches); the
-      // acronym takes no plural ending. Lowercase "las tic" is accepted.
-      fix = "TIC";
-      key = "review_msg_spanish_acronym";
-    } else if (token.lower === "asín" && (token.text === "asín" || at.starts)) {
-      // "Hazlo asín": the rustic form of "así"; "Fernando Asín" is a surname.
-      fix = "así";
-      key = "review_msg_typo";
-    } else if (token.word) {
-      fix = capitalName(at, token);
-      key = "review_msg_spanish_lowercase_name";
-    }
-    if (!fix && /^\p{Lu}{2,}(?:s|S)?$/u.test(token.text)) {
-      // The tokenizer splits "ONG's" at the apostrophe: read the raw text after it.
-      const raw = /^\p{Lu}{2,}(?:['’]s|s|S)(?!\p{L})/u.exec(ctx.text.slice(token.start));
-      if (raw) {
-        const acronym = acronymPlural({ ...token, text: raw[0] });
-        if (acronym) {
-          const span = { ...token, end: token.start + raw[0].length, text: raw[0] };
-          const finding = replaceToken(
-            ctx,
-            span,
-            [acronym],
-            RULE,
-            "review_msg_spanish_acronym",
-            span,
-            true,
-          );
-          if (finding) findings.push(finding);
-        }
-      }
-      continue;
-    }
-    if (!fix) continue;
-    const exact =
-      key === "review_msg_spanish_lowercase_name" || key === "review_msg_spanish_acronym";
-    const finding = replaceToken(ctx, token, [fix], RULE, key, tokens[i + 1] ?? token, exact);
-    if (finding) findings.push(finding);
+/** The conjunction, year, acronym and name checks of the token. */
+const typography = atToken((ctx, tokens, i) => {
+  const token = tokens[i];
+  if (token.start < ctx.from || token.start >= ctx.to) return null;
+  const at = new Around(tokens, i);
+  let fix: string | null = null;
+  let key: RawFinding["messageKey"] = "review_msg_spanish_conjunction";
+  if (token.word && /^[yeou]$/iu.test(token.text)) fix = conjunction(at, token);
+  else if (/^\p{N}/u.test(token.text)) {
+    fix = yearDot(at, token);
+    key = "review_msg_spanish_year";
+  } else if (/^tics$/iu.test(token.text) && /^(?:las|estas|sus|nuevas)$/u.test(at.prev())) {
+    // "las tics": the feminine article names the technologies ("los tics" are twitches); the
+    // acronym takes no plural ending. Lowercase "las tic" is accepted.
+    fix = "TIC";
+    key = "review_msg_spanish_acronym";
+  } else if (token.lower === "asín" && (token.text === "asín" || at.starts)) {
+    // "Hazlo asín": the rustic form of "así"; "Fernando Asín" is a surname.
+    fix = "así";
+    key = "review_msg_typo";
+  } else if (token.word) {
+    fix = capitalName(at, token);
+    key = "review_msg_spanish_lowercase_name";
   }
-  return findings;
-}
+  if (!fix && /^\p{Lu}{2,}(?:s|S)?$/u.test(token.text)) {
+    // The tokenizer splits "ONG's" at the apostrophe: read the raw text after it.
+    const raw = /^\p{Lu}{2,}(?:['’]s|s|S)(?!\p{L})/u.exec(ctx.text.slice(token.start));
+    if (raw) {
+      const acronym = acronymPlural({ ...token, text: raw[0] });
+      if (acronym) {
+        const span = { ...token, end: token.start + raw[0].length, text: raw[0] };
+        return replaceToken(ctx, span, [acronym], RULE, "review_msg_spanish_acronym", span, true);
+      }
+    }
+    return null;
+  }
+  if (!fix) return null;
+  const exact = key === "review_msg_spanish_lowercase_name" || key === "review_msg_spanish_acronym";
+  return replaceToken(ctx, token, [fix], RULE, key, tokens[i + 1] ?? token, exact);
+});
 
 /**
  * A fixer that replaces the whole match with `fix(m)`. No finding before the chunk, in a named
@@ -625,13 +600,11 @@ const decade: MatchFixer = (m, ctx) => {
   );
 };
 
-export const PREDICATES = {
-  typography,
-  quoteSpaces,
-} satisfies Record<string, Detector>;
+export const PREDICATES = { quoteSpaces } satisfies Record<string, Detector>;
 
 /** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
 export const FIXERS = {
+  typography,
   rangeDash: rangeDashFixer({ code: CODE_BEFORE, score: SCORE_BEFORE }),
   namedDate,
   noSuchDay,

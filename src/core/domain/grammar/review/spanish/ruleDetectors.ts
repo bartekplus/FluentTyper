@@ -16,12 +16,7 @@ import * as verbAccents from "./verbAccents";
 import * as verbAgreement from "./verbAgreement";
 import * as verbForms from "./verbForms";
 
-export const PREDICATES = mergePredicates(
-  prefixes.PREDICATES,
-  porque.PREDICATES,
-  typography.PREDICATES,
-  commas.PREDICATES,
-);
+export const PREDICATES = typography.PREDICATES;
 
 /** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
@@ -34,6 +29,8 @@ export const FIXERS = mergePredicates<Fixer>(
   verbAgreement.FIXERS,
   clauses.FIXERS,
   frames.FIXERS,
+  porque.FIXERS,
+  commas.FIXERS,
   prefixes.FIXERS,
   typography.FIXERS,
   quotes.FIXERS,

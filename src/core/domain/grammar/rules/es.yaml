@@ -132,9 +132,17 @@ rules:
         fixer: prefixed
   - id: es.splitCompounds
     checks: [spanishConfusions]
-    # predicate: walks the chunk tokens; the decision reads the determiner before and the verb
-    # and noun forms of both halves.
-    predicate: splitCompounds
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # A lowercase word that ends in "a" or "e" (a verb of a compound: "un lanza misiles",
+      # "sobre protegen"), and "mal". The fixer reads the determiner before and the verb and
+      # noun forms of both halves (review/spanish/prefixes.ts). After a finding, the scan
+      # goes on after the second half.
+      - regex: "(?:mal|\\p{Ll}*[ae]){{WORD_TAIL}}"
+        flags: gu
+        scan: owned
+        fixer: splitCompounds
   - id: es.doubledCompounds
     checks: [spanishConfusions]
     style: match
@@ -148,9 +156,16 @@ rules:
         fixer: doubled
   - id: es.porque
     checks: [spanishConfusions]
-    # predicate: walks the chunk tokens; the decision reads the clause around each
-    # "porque", "por qué", "sino" and "si no".
-    predicate: porque
+    style: match
+    message: review_msg_spanish_confusion
+    frames:
+      # "porque", "porqué", "por que", "por qué", "sino" and "si no". The fixer reads the
+      # clause around the token (review/spanish/porque.ts). After a finding, the scan goes
+      # on after the phrase.
+      - regex: "(?:sino|si|porqu[eé]s?|por){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: porque
   - id: es.clauseConfusions
     checks: [spanishConfusions]
     style: match
@@ -176,9 +191,16 @@ rules:
         fixer: frameConfusions
   - id: es.typography
     checks: [spanishTypography]
-    # predicate: walks the chunk tokens; the decision reads the words before and after each
-    # conjunction, number, month, weekday and acronym.
-    predicate: typography
+    style: match
+    message: review_msg_spanish_conjunction
+    frames:
+      # Every word and number: the fixer checks the conjunctions, the years, the acronyms
+      # and the names, and reads the words before and after the token
+      # (review/spanish/typography.ts).
+      - regex: "{{TOKEN_WORD}}|\\p{N}+(?:[.,:]\\p{N}+)*"
+        flags: gu
+        scan: owned
+        fixer: typography
   - id: es.impossibleDates
     checks: [spanishTypography]
     style: match
@@ -385,9 +407,20 @@ rules:
         message: review_msg_spanish_decade
   - id: es.commas
     checks: [spanishTypography]
-    # predicate: walks the chunk tokens; the decision reads the clause structure
-    # around each comma place.
-    predicate: commas
+    style: match
+    message: review_msg_spanish_comma
+    frames:
+      # "sino", "pero", "ya que", "puesto que", the determiner of a subject, and the first
+      # words of the connectors and greetings of review/spanish/commas.ts. Every token of
+      # the read window counts: the comma may go before the chunk. The fixer reads the
+      # clause structure around the token. After a connector or a greeting, the scan goes
+      # on after the phrase and the person addressed.
+      - regex: "(?:sino|pero|ya|puesto|el|las?|los|es(?:t(?:e|a|os|as)|e|a|os|as)?|aquel(?:las?|los)?|nuestr[oa]s?|sus?|sin|por|en|al|adem[aá]s|asimismo|as[ií]|o|de|aun|a|un|(?:afortunada|desafortunada|desgraciada|lamentable|evidente|obvia|efectiva|sincera|franca|honesta|curiosa|sorprendente|indudable)mente|hola|adi[oó]s|buen(?:[oa]s)?|felicidades|enhorabuena|hasta|felices|much[oa]s|muy|besos|abrazos|gracias|saludos|bienvenid[oa]s?|feliz|c[oó]mo){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        lookback: 160
+        lookahead: 160
+        fixer: commas
   - id: es.missingSpace
     checks: [commaPeriodSpacing]
     style: match

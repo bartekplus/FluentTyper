@@ -1,15 +1,14 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { Detector, MatchFixer } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { DETERMINER, readNoun } from "./agreement";
 import {
+  atToken,
   Around,
   attributeOf,
   carryCase,
   CLITICS,
   keepsTyped,
   PRENOMINAL,
-  tokenize,
   words,
 } from "./common";
 import {
@@ -133,71 +132,65 @@ const MAL_VERBS = /^(?:interpret|gast|trat|cri|vend|her|entend|entiend|acostumbr
  * misiles" -> "lanzamisiles") and "sobre"/"mal" before a verb ("sobre protegen",
  * "mal interprete").
  */
-function splitCompounds(ctx: DetectContext): RawFinding[] {
-  const tokens = tokenize(ctx);
-  const findings: RawFinding[] = [];
-  for (let i = 1; i + 1 < tokens.length; i++) {
-    const first = tokens[i];
-    // "un lanza-misiles": a hyphen between the two halves.
-    const hyphen =
-      tokens[i + 1].text === "-" && first.end === tokens[i + 1].start && !!tokens[i + 2];
-    const second = hyphen ? tokens[i + 2] : tokens[i + 1];
-    // The tokenizer marks a word after a hyphen as glued; its letters still count here.
-    if (!first.word || (!second.word && !hyphen) || second.broken || first.start < ctx.from)
-      continue;
-    if (first.start >= ctx.to) break;
-    if (hyphen && (ctx.text[second.end] === "-" || ctx.text[first.start - 1] === "-")) continue;
-    const gap = ctx.text.slice(first.end, second.start);
-    if (gap !== " " && !(hyphen && gap === "-")) continue;
-    if (!/^\p{Ll}+$/u.test(second.text) || !/^\p{Ll}+$/u.test(first.text)) continue;
-    const at = new Around(tokens, i);
-    const head = first.lower;
-    const tail = second.lower;
-    // "un «apaga fuegos»": the determiner before an opening quote.
-    const quoted = /^[«“"]$/u.test(tokens[i - 1].text) && !tokens[i].broken;
-    const det = quoted ? new Around(tokens, i - 1).prev() : at.prev();
-    let joined: string | null = null;
-    if (MASCULINE.has(det) && /[^aeiou][ae]$/u.test(head) && finiteVerb(head)) {
-      // The noun after is the object: plural, or a mass noun the compound keeps singular.
-      const noun = readNoun(tail);
-      const nounHead = readNoun(head);
-      if (
-        noun &&
-        !noun.paired &&
-        // "al guarda", "el lanza": only a feminine noun reading, which "el" cannot take.
-        (!nounHead || nounHead.gender === "f") &&
-        (noun.plural || isNoun(join(head, tail)))
-      )
-        joined = join(head, tail);
-    } else if (
-      !hyphen &&
-      (head === "sobre" || (head === "mal" && MAL_VERBS.test(tail))) &&
+const splitCompounds = atToken((ctx, tokens, i, frame) => {
+  if (i < 1 || i + 1 >= tokens.length) return null;
+  const first = tokens[i];
+  // "un lanza-misiles": a hyphen between the two halves.
+  const hyphen = tokens[i + 1].text === "-" && first.end === tokens[i + 1].start && !!tokens[i + 2];
+  const second = hyphen ? tokens[i + 2] : tokens[i + 1];
+  // The tokenizer marks a word after a hyphen as glued; its letters still count here.
+  if (!first.word || (!second.word && !hyphen) || second.broken || first.start < ctx.from)
+    return null;
+  if (first.start >= ctx.to) return null;
+  if (hyphen && (ctx.text[second.end] === "-" || ctx.text[first.start - 1] === "-")) return null;
+  const gap = ctx.text.slice(first.end, second.start);
+  if (gap !== " " && !(hyphen && gap === "-")) return null;
+  if (!/^\p{Ll}+$/u.test(second.text) || !/^\p{Ll}+$/u.test(first.text)) return null;
+  const at = new Around(tokens, i);
+  const head = first.lower;
+  const tail = second.lower;
+  // "un «apaga fuegos»": the determiner before an opening quote.
+  const quoted = /^[«“"]$/u.test(tokens[i - 1].text) && !tokens[i].broken;
+  const det = quoted ? new Around(tokens, i - 1).prev() : at.prev();
+  let joined: string | null = null;
+  if (MASCULINE.has(det) && /[^aeiou][ae]$/u.test(head) && finiteVerb(head)) {
+    // The noun after is the object: plural, or a mass noun the compound keeps singular.
+    const noun = readNoun(tail);
+    const nounHead = readNoun(head);
+    if (
+      noun &&
+      !noun.paired &&
+      // "al guarda", "el lanza": only a feminine noun reading, which "el" cannot take.
+      (!nounHead || nounHead.gender === "f") &&
+      (noun.plural || isNoun(join(head, tail)))
+    )
+      joined = join(head, tail);
+  } else if (
+    !hyphen &&
+    (head === "sobre" || (head === "mal" && MAL_VERBS.test(tail))) &&
+    !isNoun(tail) &&
+    !attribute(tail)
+  ) {
+    const compound = join(head, tail);
+    if (finiteVerb(tail) && finiteVerb(compound) && !CLITICS.has(tail)) joined = compound;
+    // "la sobre protegen": a clitic before "sobre" makes the whole a verb.
+    else if (
+      head === "sobre" &&
+      CLITICS.has(at.prev()) &&
+      finiteVerb(tail) &&
       !isNoun(tail) &&
-      !attribute(tail)
-    ) {
-      const compound = join(head, tail);
-      if (finiteVerb(tail) && finiteVerb(compound) && !CLITICS.has(tail)) joined = compound;
-      // "la sobre protegen": a clitic before "sobre" makes the whole a verb.
-      else if (
-        head === "sobre" &&
-        CLITICS.has(at.prev()) &&
-        finiteVerb(tail) &&
-        !isNoun(tail) &&
-        !CLITICS.has(tail)
-      )
-        joined = compound;
-    }
-    if (!joined || keepsTyped(ctx, head) || ctx.dictionary.has(tail)) continue;
-    if (namedExampleBefore(ctx.text, first.start)) continue;
-    findings.push(
-      finding(RULE, "review_msg_closed_compound", first.start, second.end, [joined], {
-        bulkBlock: "context-dependent",
-      }),
-    );
-    i += hyphen ? 2 : 1;
+      !CLITICS.has(tail)
+    )
+      joined = compound;
   }
-  return findings;
-}
+  if (!joined || keepsTyped(ctx, head) || ctx.dictionary.has(tail)) return null;
+  if (namedExampleBefore(ctx.text, first.start)) return null;
+  // The next match starts after the second half.
+  frame.resume?.(second.end);
+  return finding(RULE, "review_msg_closed_compound", first.start, second.end, [joined], {
+    bulkBlock: "context-dependent",
+  });
+});
 
 /** "pilla-pilla", "taca-taca": a doubled word is one compound (DOUBLED frame). */
 const doubled: MatchFixer = (m, ctx) => {
@@ -212,7 +205,5 @@ const doubled: MatchFixer = (m, ctx) => {
   };
 };
 
-export const PREDICATES = { splitCompounds } satisfies Record<string, Detector>;
-
 /** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
-export const FIXERS = { prefixed, doubled } satisfies Record<string, MatchFixer>;
+export const FIXERS = { prefixed, doubled, splitCompounds } satisfies Record<string, MatchFixer>;
