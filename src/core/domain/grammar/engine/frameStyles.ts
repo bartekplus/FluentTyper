@@ -34,6 +34,7 @@ export interface RunFrame {
   readonly owner: string | ((m: RegExpExecArray) => number) | null;
   readonly scan: NonNullable<CompiledFrame["scan"]>;
   readonly gate?: RegExp;
+  readonly resume?: (index: number) => void;
   readonly frame: CompiledFrame;
 }
 
@@ -382,17 +383,27 @@ export function prepareFrames(
   fix: (frame: CompiledFrame) => unknown,
 ): RunFrame[] {
   const { regex, owner } = STYLES[style];
-  const frames = compiled.map((frame): RunFrame => ({
-    pattern: regex?.(frame) ?? frame.pattern,
-    fix: fix(frame),
-    ruleId: (frame.check ?? ruleId) as CatalogRuleId,
-    messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
-    ...(frame.cue ? { cue: frame.cue } : {}),
-    owner: owner ? owner(frame) : "target",
-    scan: style === "match" ? (frame.scan ?? "frame") : (STYLES[style].scan ?? "frame"),
-    ...(frame.gate === undefined ? {} : { gate: new RegExp(frame.gate, frame.gateFlags ?? "gi") }),
-    frame,
-  }));
+  const frames = compiled.map((frame): RunFrame => {
+    const pattern = regex?.(frame) ?? frame.pattern;
+    const scan = style === "match" ? (frame.scan ?? "frame") : (STYLES[style].scan ?? "frame");
+    return {
+      pattern,
+      fix: fix(frame),
+      ruleId: (frame.check ?? ruleId) as CatalogRuleId,
+      messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
+      ...(frame.cue ? { cue: frame.cue } : {}),
+      owner: owner ? owner(frame) : "target",
+      scan,
+      ...(frame.gate === undefined
+        ? {}
+        : { gate: new RegExp(frame.gate, frame.gateFlags ?? "gi") }),
+      // A frame scan may run a copy of its regex: only the other scans can resume.
+      ...(scan !== "frame" && pattern instanceof RegExp
+        ? { resume: (index: number) => void (pattern.lastIndex = index) }
+        : {}),
+      frame,
+    };
+  });
   if (style === "slot") FRAME_SETS.push(frames);
   return frames;
 }

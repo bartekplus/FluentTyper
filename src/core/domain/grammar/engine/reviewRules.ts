@@ -20,6 +20,11 @@ export type ReviewPredicates = Readonly<Record<string, Readonly<Record<string, D
 export interface FrameRef {
   readonly ruleId: CatalogRuleId;
   readonly messageKey: ReviewMessageKey;
+  /**
+   * Owned, text and polish scans: the scan reads its next match from `index` (for frames whose
+   * matches overlap). Call it before the fixer returns.
+   */
+  readonly resume?: (index: number) => void;
 }
 
 /**
