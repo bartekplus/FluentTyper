@@ -100,7 +100,7 @@ import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
 import { TYPOGRAPHIC_QUOTES } from "./typographicQuotes";
 import { germanUnits } from "./german/numbers";
-import { PREDICATES as ENGLISH } from "./english/ruleDetectors";
+import { FIXERS as ENGLISH_FIXERS, PREDICATES as ENGLISH } from "./english/ruleDetectors";
 import { PREDICATES as GERMAN } from "./german/ruleDetectors";
 import { PREDICATES as GREEK } from "./greek/ruleDetectors";
 import { PREDICATES as SWEDISH } from "./swedish/ruleDetectors";
@@ -1645,18 +1645,21 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
  * Review detectors in evaluation order, built from the Review rules of grammar/rules/*.yaml.
  * Rules absent here are excluded from review (see reviewCatalog).
  */
-export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors({
-  common: CORE_PREDICATES,
-  en: ENGLISH,
-  de: GERMAN,
-  el: GREEK,
-  sv: SWEDISH,
-  ar_SA: ARABIC,
-  pt_BR: PORTUGUESE,
-  pl: POLISH,
-  es: SPANISH,
-  fr: FRENCH,
-});
+export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors(
+  {
+    common: CORE_PREDICATES,
+    en: ENGLISH,
+    de: GERMAN,
+    el: GREEK,
+    sv: SWEDISH,
+    ar_SA: ARABIC,
+    pt_BR: PORTUGUESE,
+    pl: POLISH,
+    es: SPANISH,
+    fr: FRENCH,
+  },
+  { en: ENGLISH_FIXERS },
+);
 
 /** Per-language entries: they may add context detectors to shared rules or serve their own. */
 export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = REVIEW_DETECTORS.filter(

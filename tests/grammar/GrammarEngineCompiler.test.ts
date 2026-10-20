@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
+import { notAfter, SPACE, WORD_END } from "../../src/core/domain/grammar/review/phraseTemplates";
 import {
   compileRuleFiles,
+  expandFrame,
   parseRows,
   type ReviewMetadataOut,
 } from "../../src/core/domain/grammar/engine/compiler";
@@ -197,7 +199,7 @@ test("invalid rules are reported together", () => {
     'unknown pattern field "bogus"',
     "a live pattern needs a check with safeToFix",
     "duplicate rule id",
-    'give exactly one of "predicate" and "pattern"',
+    'give exactly one of "predicate", "pattern" and "frames"',
   ])
     expect(message).toContain(fragment);
   expect(
@@ -228,4 +230,67 @@ test("a check carries its settings copy and example", () => {
     "check partial: grammar_rule_partial has no text in fr, hr, es, el, sv, de, pl, pr",
   );
   expect(message).toContain('check noExample: "example" needs lang, before and after');
+});
+
+test("frames: fragments, guards, literals and fixes", () => {
+  const set = compile(
+    { lang: "*", checks: [check()] },
+    {
+      lang: "en",
+      fragments: { OWNER: "my|your", SLOT: "(?:{{OWNER}}){{S}}" },
+      rules: [
+        {
+          id: "en.frames",
+          checks: ["demoCheck"],
+          message: "review_msg_phrase_correction",
+          frames: [
+            { regex: "{{notAfter:{{OWNER}}}}(?<target>curse){{S}}through{{E}}", fix: "course" },
+            { regex: "{{SLOT}}(?<target>wich){{E}}", fixer: "which", raw: true },
+          ],
+        },
+      ],
+    },
+  );
+  expect(set.rules).toEqual([
+    {
+      id: "en.frames",
+      checks: ["demoCheck"],
+      lang: "en",
+      frames: [0, 1],
+      message: "review_msg_phrase_correction",
+      source: "en",
+    },
+  ]);
+  expect(set.frames[0]).toEqual({
+    pattern: `${notAfter("my|your")}(?<target>curse)${SPACE}through${WORD_END}`,
+    literals: set.frames[0].literals,
+    fix: "course",
+  });
+  expect(set.frames[0].literals.length).toBeGreaterThan(0);
+  expect(set.frames[1]).toMatchObject({ fixer: "en:which", raw: true });
+  const errors: string[] = [];
+  expect(expandFrame("{{NOPE}}x", {}, "t", errors)).toBe("x");
+  expect(errors).toEqual(['t: unknown fragment "NOPE"']);
+  const message = errorsOf(() =>
+    compile(
+      { lang: "*", checks: [check()] },
+      {
+        lang: "en",
+        rules: [
+          {
+            id: "en.bad",
+            checks: ["demoCheck"],
+            frames: [{ regex: "(wich", fix: "which", fixer: "x" }],
+          },
+        ],
+      },
+    ),
+  );
+  for (const fragment of [
+    'a frame rule needs "message"',
+    'give exactly one of "fix" and "fixer"',
+    "regex does not compile",
+    'a frame needs a "target" group',
+  ])
+    expect(message).toContain(fragment);
 });

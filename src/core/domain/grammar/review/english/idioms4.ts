@@ -1,18 +1,6 @@
 import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
-import {
-  type Frame,
-  frameDetectors,
-  type FrameRule,
-  notAfter,
-  SPACE as S,
-  WORD_END as E,
-} from "../phraseTemplates";
-import type { Detector } from "../../engine/reviewRules";
+import type { Fixer } from "../../engine/reviewRules";
 
-// ---- Context frames: forms that are also ordinary English elsewhere. ----
-
-/** Only spaces, then closing punctuation or the end of the text. */
-const CLOSES = `(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)"”]|$))`;
 /**
  * The start of a sentence or line, an opening quote allowed. Frames check their word first
  * (`(?=word)`): tried at every position of a long run of spaces, this lookbehind rereads the
@@ -60,316 +48,89 @@ const NOT_HOW_TO = new Set(
     " ",
   ),
 );
-const ORDINAL =
-  "(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|(?:thir|four|fif|six|seven|eigh|nine)teenth|twentieth|thirtieth|hundredth|thousandth|millionth|billionth|umpteenth|nth|last|[0-9]+(?:st|nd|rd|th))";
-const LENGTH = `(?:[0-9][0-9,.]*|one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty|thirty|forty|fifty|a${S}hundred|hundreds${S}of|several|a${S}few)`;
 
-const FRAMES: Record<FrameRule, readonly Frame[]> = {
-  englishPhraseCorrections: [
-    {
-      pattern: `(?:cure|cures|cured|curing)${S}(?<target>against)${E}`,
-      fix: "for",
-    },
-    {
-      // "despite it is": "despite" takes a noun; a clause needs "although".
-      pattern: `(?<target>despite)${S}(?:I|you|we|they|he|she|it|there)${S}(?:am|is|are|was|were|has|have|had|do|does|did|can|could|will|would|should|may|might|must)${E}`,
-      fix: ["although", "despite the fact that"],
-    },
-    {
-      // "did the mistake" is "made"; "Did that mistake…" and "where did the mistake…" ask.
-      // The core table owns "do/did/doing a mistake".
-      pattern: `(?=do|did)(?<!(?:^|[.!?\\n]["”’)]{0,3})[ \\t\\u00a0]{0,8}["“'‘(]?)${notAfter("where|when|why|how|what|which|whose")}(?!(?:do|did|doing)${S}a${S}mistake${E})(?<target>do|does|did|doing|done)${S}(?:(?:${DETERMINER}|several|many|no|few|more|fewer|such|same|lots${S}of|so${S}many|too${S}many)${S})(?:\\p{L}+${S})?mistakes?${E}`,
-      fix: (m) => MAKE[m.groups!.target.toLowerCase()],
-    },
-    {
-      pattern: `(?:the|an?)${S}(?:\\p{L}+${S})?(?<target>except)${S}of${E}`,
-      fix: "exception",
-    },
-    {
-      pattern: `(?<!(?<![\\p{L}'’])(?:the|an?)${S}(?:\\p{L}+${S})?)except${S}(?<target>of)${E}(?!${S}course${E})`,
-      fix: "for",
-    },
-    // "to and fro" keeps its "fro".
-    {
-      pattern: `${notAfter("to|and")}(?<target>fro)${E}`,
-      fix: "for",
-    },
-    {
-      pattern: `(?<target>for${S})${ORDINAL}${S}time${E}(?:${CLOSES}|(?=${S}(?:and|but|or|so|now|today|in|on|at|since|with|without|because|when|after|before|then|ever|yet|already|again|this|to|of|from|by|i|we|you|he|she|they|it)${E}))`,
-      fix: "for the ",
-    },
-    {
-      // "The trial is fee for members": a predicate "free"; "there is a fee" stays.
-      pattern: `(?=fee)(?<=(?:(?<!there${S})(?<![\\p{L}'’])(?:is|was|are|were|be|been)|(?<!there)['’]s)${S}(?:(?:totally|completely|entirely|absolutely|really|always|now|still|also|actually|just|basically|usually|currently)${S})?)(?<target>fee)${E}(?:${CLOSES}|(?=${S}(?:for|to|and|or|but|forever|now|again|today)${E}))`,
-      fix: "free",
-    },
-    {
-      pattern: `(?:friends?|enem(?:y|ies)|colleagues?|cousins?|neighbou?rs?)${S}of${S}(?<target>me|you|us|him|them)${E}(?!${S}(?:all|both|two|three|guys|folks|and|or)${E})`,
-      fix: (m) => OURS[m.groups!.target.toLowerCase()],
-    },
-    {
-      // "full to the brim of the cup" names the brim.
-      pattern: `(?:full|filled|fill|fills|filling|packed)${S}to${S}the${S}brim${S}(?<target>of)${E}(?!${S}(?:the|a|an|its|each|every)${E})`,
-      fix: "with",
-    },
-    {
-      pattern: `(?:get|gets|got|gotten|getting|go|goes|went|gone|going)${S}(?<target>pass)${S}(?=(?:${DETERMINER})${E})(?!the${S}(?:time|ball|salt|word|test|exam|buck|torch|hat)${E})`,
-      fix: "past",
-    },
-    {
-      pattern: `(?:go|goes|went|going|gone)${S}(?<target>at|in|on)${S}war${E}(?:(?=${S}(?:with|against)${E})|${CLOSES})`,
-      fix: "to",
-    },
-    {
-      pattern: `(?:go|goes|went|going|gone)${S}(?<target>into)${S}sleep${E}(?!${S}(?:mode|modes|state|states|cycle|timer|setting|settings)${E})`,
-      fix: "to",
-    },
-    {
-      pattern: `(?:go|goes|went|gone|going)${S}so${S}far${S}(?<target>to)${S}(?<next>\\p{L}+)${E}`,
-      fix: (m) => {
-        const next = m.groups!.next;
-        return /^(?:even|actually|really|just|literally|also)$/i.test(next) ||
-          englishWordInfo(next)?.adverb ||
-          (hasVerbForm(next, "base") && !OBJECT.has(next.toLowerCase()))
-          ? "as to"
-          : null;
-      },
-    },
-    {
-      // "not good in python": a skill is "good at"; "good in practice" and "in the long run" stay.
-      pattern: `(?<![\\p{L}'’])(?:am|is|are|was|were|be|been|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|im|i['’]m|you['’]re|we['’]re|they['’]re|he['’]s|she['’]s|its|it['’]s|not)${S}(?:(?:always|all|so|very|really|pretty|quite|too|particularly|especially|super|extremely|that|not)${S}){0,2}good${S}(?<target>in)${S}(?!(?:${DETERMINER}|practice|theory|general|terms|real|parts|places|moderation|comparison|person|shape|condition|health|spirit|faith|time|production|most${S}(?:cases|situations|respects|ways|places)|many|certain|one|both|red|blue|black|white|green|dark|light)${E})(?=\\p{L})`,
-      fix: "at",
-    },
-    {
-      // "a handful of more advanced recipes" is "of" plus a comparative.
-      pattern: `a${S}handful${S}(?<target>of${S})more${S}(?=(?<next>\\p{L}+)${E})`,
-      fix: (m) => {
-        const next = englishWordInfo(m.groups!.next);
-        return next && !next.noun && !next.plural ? null : "";
-      },
-    },
-    {
-      pattern: `(?:have|has|had|having)${S}(?<target>(?:(?<adverb>real|really|very|extremely|super|incredibly|particularly|pretty)${S})?hard)${S}time${E}(?!${S}(?:limits?|constraints?|budgets?|deadlines?|requirements?|bounds?|windows?|slots?|frames?)${E})`,
-      fix: (m) => {
-        const typed = m.groups!.target;
-        const an = /^[aeiou]/i.test(typed) ? "an" : "a";
-        return `${typed === typed.toUpperCase() ? an.toUpperCase() : an} ${typed}`;
-      },
-      raw: true,
-    },
-    {
-      pattern: `(?=halo)${SENTENCE}(?<target>halo)(?=[ \\t\\u00a0]*[,!?]|${S}(?:there|world|everyone|everybody|all|guys|folks|friends?|team)${E}|${S}(?<name>\\p{L}+)[ \\t\\u00a0]*[,!.?])`,
-      fix: (m) => (m.groups!.name && !capitalized(m.groups!.name) ? null : "hello"),
-    },
-    {
-      pattern: `in${S}(?<target>(?<word>favou?r)${S})(?<ing>\\p{L}+ing)${E}`,
-      fix: (m) => (hasVerbForm(m.groups!.ing, "ing") ? `${m.groups!.word} of ` : null),
-      raw: true,
-    },
-    {
-      pattern: `(?=on${S}stock)(?<=(?<![\\p{L}'’])(?:am|is|are|was|were|be|been|being|back|have|has|had|having|keep|keeps|kept|it|them|inventory|not|still|currently|already)${S})(?<target>on)${S}stock${E}(?:${CLOSES}|(?=${S}(?:at|but|or|for|and|in|again|now|yet|anymore|soon|today|until|right|though)${E}))`,
-      fix: "in",
-    },
-    {
-      // "interested at first", "at the time": an adverbial, not the complement.
-      pattern: `interested${S}(?<target>about|at|into|of|on|with)${E}(?!${S}(?:all|first|once|least|times|the${S}(?:time|start|moment|outset|beginning)|that${S}(?:time|point))${E})`,
-      fix: "in",
-    },
-    {
-      pattern: `(?:it|this)${S}(?:looks|looked|seems|seemed)${S}like${S}(?<target>that${S})(?<next>\\p{L}+)${E}`,
-      fix: (m) => {
-        const next = m.groups!.next;
-        return SUBJECT_START.has(next.toLowerCase()) ||
-          capitalized(next) ||
-          (hasVerbForm(next, "ing") && !englishWordInfo(next)?.noun)
-          ? ""
-          : null;
-      },
-    },
-    {
-      // "I would be a shame": the impersonal subject is "it".
-      pattern: `(?<target>I)${S}(?:would|might|will|could|may|should)(?:${S}not)?${S}be${S}(?:a${S}(?:(?:real|great|huge|big|total|terrible|crying)${S})?(?:shame|pity|bummer)|an?${S}(?:good|bad|great|better|nice|terrible|smart|wise|cool|neat)${S}idea)${E}`,
-      fix: (m) => {
-        if (m[0] === m[0].toUpperCase()) return "IT";
-        const sentenceStart = new RegExp(SENTENCE, "uy");
-        sentenceStart.lastIndex = m.index;
-        return sentenceStart.test(m.input) ? "It" : "it";
-      },
-      raw: true,
-    },
-    {
-      // "jealous from within", "jealous from 2010 on": "from" starts a place or a time.
-      pattern: `jealous${S}(?<target>from)${E}(?!${S}(?:within|without|then|now|day|birth|childhood|the${S}(?:start|beginning|outset)|[0-9]))`,
-      fix: "of",
-    },
-    {
-      pattern: `${notAfter("a|very|so|too|how|the|this|that|really|pretty|quite|such|fairly|extremely|super|rather|not")}(?<target>long)${S}time${S}ago${E}`,
-      fix: "a long",
-    },
-    {
-      pattern: `(?<target>(?<verb>look|looks|looked|looking)${S}(?<owner>my|your|his|her|its|our|their|one['’]s)${S}(?<nose>noses?)${S}down)${E}`,
-      fix: (m) => `${m.groups!.verb} down ${m.groups!.owner} ${m.groups!.nose}`,
-      raw: true,
-    },
-    {
-      // "if I would've known": the past conditional takes "had". After "know" or "wonder",
-      // "if" means "whether": "I don't know if he would have done it".
-      pattern: `(?=if${S})(?<!(?:know|knows|knew|wonder|wondered|wondering|ask|asked|asking|sure|doubt|see|check|tell|decide)${S})if${S}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their)${S}\\p{L}+)${S}(?<target>(?<not>would${S}not${S}have|wouldn['’]t${S}have)|would['’]ve|would${S}have|would${S}of|had['’]ve|hadve|had${S}of|had${S}have)${S}(?<done>\\p{L}+)${E}`,
-      fix: (m) => {
-        const done = m.groups!.done.toLowerCase();
-        if (done !== "been" && !hasVerbForm(done, "participle")) return null;
-        // "would not have known" -> "had not known"; "wouldn't have" -> "hadn't".
-        const not = m.groups!.not;
-        return not ? (/n['’]t/i.test(not) ? `hadn${not.match(/['’]/)![0]}t` : "had not") : "had";
-      },
-    },
-    {
-      pattern: `(?<target>for${S}free${S}of${S}charge)${E}(?:${CLOSES}|(?=${S}(?:for|to|and|or|but|are|is|was|were|in|on|at|with|by|if|as|so|from|via|until|since|because|anything)${E}))`,
-      fix: ["free of charge", "for free"],
-    },
-    {
-      // "in despite of" is an old fixed form. englishFixedPrepositions keeps its narrow evidence.
-      pattern: `${notAfter("in")}despite${S}(?<target>of${S})(?=\\p{L})`,
-      fix: "",
-    },
-  ],
-  englishCountability: [
-    {
-      pattern: `(?:against|detect|detects|detected|detecting|select|selects|selected|selecting|vehicle|car|road)${S}(?<target>damages)${E}`,
-      fix: "damage",
-    },
-    {
-      pattern: `(?:types?|kinds?|sorts?)${S}of${S}(?<target>damages)${S}(?:on|of)${E}`,
-      fix: "damage",
-    },
-  ],
-  englishSubjectVerbAgreement: [
-    {
-      pattern: `(?=has)${SENTENCE}(?<target>has)${S}(?:I|we|you|they)${E}(?![/.-])`,
-      fix: "have",
-    },
-  ],
-  englishAuxiliaryBaseVerb: [
-    {
-      pattern: `how${S}(?:does|do|did)${S}(?:it|that|this|he|she|one)${S}(?<target>compared|compares)${S}(?:to|with)${E}`,
-      fix: "compare",
-    },
-  ],
-  englishVerbComplements: [
-    {
-      // "how install Rust": "how" before a bare verb and its object needs "to".
-      pattern: `how${S}(?<target>\\p{L}+)${S}(?<next>\\p{L}+)${E}`,
-      fix: (m) => {
-        const { target, next } = m.groups!;
-        const verb = englishWordInfo(target);
-        if (
-          capitalized(target) ||
-          NOT_HOW_TO.has(target.toLowerCase()) ||
-          !verb?.verbs.some((v) => v.form === "base") ||
-          verb.adjective ||
-          verb.adverb
-        )
-          return null;
-        const object = englishWordInfo(next);
-        return OBJECT.has(next.toLowerCase()) ||
-          capitalized(next) ||
-          hasVerbForm(next, "ing") ||
-          // "how form submissions are…": a noun before a noun is a compound subject.
-          (!verb.noun && (object ? object.noun && !object.verbs.length : next.length > 5))
-          ? `to ${target}`
-          : null;
-      },
-      raw: true,
-    },
-  ],
-  englishItsContext: [
-    {
-      // "Need help, its critical": "it's" before a lone predicate adjective.
-      pattern: `(?=its${S})(?<=,${S}|(?<![\\p{L}'’])(?:because|since|so|but|and|if|when|think|hope|guess|know|sure)${S})(?<target>its)${S}(?<adjective>\\p{L}+)(?:(?=${S}(?:for|to|that|because|and|but|if|when|now|again|too|enough|here|there|anyway|though|since|as)${E})|${CLOSES})`,
-      fix: (m) => {
-        const word = englishWordInfo(m.groups!.adjective);
-        // "its largest to date", "its lowest since 1994": a superlative names its own thing.
-        const superlative = /(?:est|^most|^least|^only)$/i.test(m.groups!.adjective);
-        return word?.adjective && !word.noun && !word.verbs.length && !superlative ? "it's" : null;
-      },
-    },
-  ],
-  englishClosedCompounds: [
-    {
-      pattern: `(?=hand)${SENTENCE}(?<target>hand${S}full)${S}of${E}`,
-      fix: "handful",
-    },
-    {
-      pattern: `(?<target>like${S}wise)(?=[ \\t\\u00a0]{0,8}[,;.!?])`,
-      fix: "likewise",
-    },
-    {
-      pattern: `(?<target>fully(?<joint>-|${S})fleshed)${E}(?!${S}out${E})`,
-      fix: (m) => [`fully${m.groups!.joint}fledged`, `fully${m.groups!.joint}fleshed out`],
-    },
-  ],
-  englishContextualCompounds: [
-    {
-      pattern: `(?:more|most|very|quite|pretty|really|fairly|less|so|too|an|a)${S}(?<target>in${S}depth)${E}`,
-      fix: "in-depth",
-    },
-    {
-      // "an in depth review", "most in demand skills": a modifier before its noun.
-      pattern: `(?:of|for|with|and|the|some|more|most|very|highly|less|so)${S}(?<target>in${S}(?<noun>depth|demand))${S}(?<next>\\p{L}+)${E}`,
-      fix: (m) => {
-        const word = m.groups!.next;
-        const next = englishWordInfo(word);
-        if (
-          NOT_MODIFIED.test(word) ||
-          (next ? next.adverb || !(next.noun || next.adjective) : word.length < 6)
-        )
-          return null;
-        return `in-${m.groups!.noun.toLowerCase()}`;
-      },
-    },
-  ],
-  stylePhrasing: [
-    {
-      // "has become missing" stays; "become missing children" names a group.
-      pattern: `${notAfter("have|has|had|having")}(?<!['’](?:ve|d)${S})(?<target>become|becomes|became|becoming)${S}missing${E}(?:${CLOSES}|(?=${S}(?:and|but|or|from|in|on|at|after|when|because|again|too|for|during|without|since|while|if|then|so|\\p{L}+ly)${E}))`,
-      fix: (m) => GO[m.groups!.target.toLowerCase()],
-    },
-    {
-      // "implement it into the app": a feature is implemented "in" something.
-      pattern: `(?:implement|implements|implemented|implementing)(?:${S}[\\p{L}\\p{N}]+){0,3}?${S}(?<target>into)${E}`,
-      // "implements Into" names a Rust trait.
-      fix: (m) => (capitalized(m.groups!.target) ? null : "in"),
-    },
-  ],
-  styleRedundancy: [
-    {
-      pattern: `(?<target>fellow${S})(?=co(?:-|${S})?(?:workers?|hosts?|authors?|founders?|maintainers?|contributors?|creators?|developers?|organi[sz]ers?|pilots?|owners?|presenters?|stars?)${E})`,
-      fix: "",
-    },
-    {
-      pattern: `(?:fall|falls|fell|falling|fallen)${S}${LENGTH}${S}(?:feet|foot|ft|meters?|metres?|m|yards?|miles?|stories|storeys|floors)(?<target>${S}below)${E}(?:${CLOSES}|(?=${S}(?:and|but|then)${E}))`,
-      fix: "",
-    },
-    {
-      pattern: `(?<target>in${S})(?:[0-9]+|an?|one|two|three|four|five|six|seven|eight|nine|ten|twelve|few|a${S}few|several|a${S}couple${S}of)${S}(?:seconds?|minutes?|hours?|days?|weeks?|months?|years?|decades?)${S}from${S}now${E}`,
-      fix: "",
-    },
-  ],
-};
-
-// The frame detector of one rule of FRAMES.
-const frames = (rule: FrameRule): Detector => frameDetectors({ [rule]: FRAMES[rule] })[0].detect;
-
-/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
-export const PREDICATES = {
-  idiomPhrases4: frames("englishPhraseCorrections"),
-  idiomCountability: frames("englishCountability"),
-  idiomAgreement: frames("englishSubjectVerbAgreement"),
-  idiomAuxiliaries: frames("englishAuxiliaryBaseVerb"),
-  idiomComplements: frames("englishVerbComplements"),
-  idiomItsContext: frames("englishItsContext"),
-  idiomCompounds4: frames("englishClosedCompounds"),
-  idiomContextualCompounds: frames("englishContextualCompounds"),
-  idiomStyle4: frames("stylePhrasing"),
-  idiomRedundancy: frames("styleRedundancy"),
-} satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  makeMistake: (m) => MAKE[m.groups!.target.toLowerCase()],
+  friendOfMine: (m) => OURS[m.groups!.target.toLowerCase()],
+  goSoFarAs: (m) => {
+    const next = m.groups!.next;
+    return /^(?:even|actually|really|just|literally|also)$/i.test(next) ||
+      englishWordInfo(next)?.adverb ||
+      (hasVerbForm(next, "base") && !OBJECT.has(next.toLowerCase()))
+      ? "as to"
+      : null;
+  },
+  handfulMore: (m) => {
+    const next = englishWordInfo(m.groups!.next);
+    return next && !next.noun && !next.plural ? null : "";
+  },
+  hardTime: (m) => {
+    const typed = m.groups!.target;
+    const an = /^[aeiou]/i.test(typed) ? "an" : "a";
+    return `${typed === typed.toUpperCase() ? an.toUpperCase() : an} ${typed}`;
+  },
+  haloHello: (m) => (m.groups!.name && !capitalized(m.groups!.name) ? null : "hello"),
+  inFavorOf: (m) => (hasVerbForm(m.groups!.ing, "ing") ? `${m.groups!.word} of ` : null),
+  looksLikeThat: (m) => {
+    const next = m.groups!.next;
+    return SUBJECT_START.has(next.toLowerCase()) ||
+      capitalized(next) ||
+      (hasVerbForm(next, "ing") && !englishWordInfo(next)?.noun)
+      ? ""
+      : null;
+  },
+  itWouldBe: (m) => {
+    if (m[0] === m[0].toUpperCase()) return "IT";
+    const sentenceStart = new RegExp(SENTENCE, "uy");
+    sentenceStart.lastIndex = m.index;
+    return sentenceStart.test(m.input) ? "It" : "it";
+  },
+  lookDownNose: (m) => `${m.groups!.verb} down ${m.groups!.owner} ${m.groups!.nose}`,
+  ifHadHave: (m) => {
+    const done = m.groups!.done.toLowerCase();
+    if (done !== "been" && !hasVerbForm(done, "participle")) return null;
+    // "would not have known" -> "had not known"; "wouldn't have" -> "hadn't".
+    const not = m.groups!.not;
+    return not ? (/n['’]t/i.test(not) ? `hadn${not.match(/['’]/)![0]}t` : "had not") : "had";
+  },
+  howToVerb: (m) => {
+    const { target, next } = m.groups!;
+    const verb = englishWordInfo(target);
+    if (
+      capitalized(target) ||
+      NOT_HOW_TO.has(target.toLowerCase()) ||
+      !verb?.verbs.some((v) => v.form === "base") ||
+      verb.adjective ||
+      verb.adverb
+    )
+      return null;
+    const object = englishWordInfo(next);
+    return OBJECT.has(next.toLowerCase()) ||
+      capitalized(next) ||
+      hasVerbForm(next, "ing") ||
+      // "how form submissions are…": a noun before a noun is a compound subject.
+      (!verb.noun && (object ? object.noun && !object.verbs.length : next.length > 5))
+      ? `to ${target}`
+      : null;
+  },
+  itsAdjective: (m) => {
+    const word = englishWordInfo(m.groups!.adjective);
+    // "its largest to date", "its lowest since 1994": a superlative names its own thing.
+    const superlative = /(?:est|^most|^least|^only)$/i.test(m.groups!.adjective);
+    return word?.adjective && !word.noun && !word.verbs.length && !superlative ? "it's" : null;
+  },
+  fullyFleshedOut: (m) => [`fully${m.groups!.joint}fledged`, `fully${m.groups!.joint}fleshed out`],
+  inDepthNoun: (m) => {
+    const word = m.groups!.next;
+    const next = englishWordInfo(word);
+    if (
+      NOT_MODIFIED.test(word) ||
+      (next ? next.adverb || !(next.noun || next.adjective) : word.length < 6)
+    )
+      return null;
+    return `in-${m.groups!.noun.toLowerCase()}`;
+  },
+  becomeMissing: (m) => GO[m.groups!.target.toLowerCase()],
+  implementInto: (m) => (capitalized(m.groups!.target) ? null : "in"),
+} satisfies Record<string, Fixer>;

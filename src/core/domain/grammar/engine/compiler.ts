@@ -2,8 +2,20 @@ import { SUPPORTED_PREDICTION_LANGUAGE_KEYS, TEXT_EXPANDER_LANG } from "../../la
 import { isTokenPredicate } from "./predicates";
 import { parseRows, type PhraseRow } from "./rows";
 import { tokenKey } from "./tokenizer";
+import {
+  CLAUSE,
+  COMPLETE,
+  COMPLETE_OR_PAREN,
+  frame,
+  notAfter,
+  requiredLiterals,
+  SPACE,
+  TOKEN_END,
+  WORD_END,
+} from "../review/phraseTemplates";
 import type {
   CheckSpec,
+  CompiledFrame,
   CompiledMatcher,
   CompiledPattern,
   CompiledRule,
@@ -76,7 +88,44 @@ const RULE_KEYS = new Set<keyof RuleSpec>([
   "message",
   "crossLines",
   "bulkBlock",
+  "frames",
 ]);
+const FRAME_KEYS = new Set(["regex", "fix", "fixer", "raw"]);
+const BUILTIN_FRAGMENTS: Readonly<Record<string, string>> = {
+  S: SPACE,
+  E: WORD_END,
+  COMPLETE,
+  COMPLETE_OR_PAREN,
+  CLAUSE,
+  TOKEN_END,
+};
+
+/**
+ * `regex` with its `{{NAME}}` fragments and `{{notAfter:words}}` guards expanded. Fragments may
+ * hold fragments, also inside the words of a guard: the innermost ones expand first.
+ */
+export function expandFrame(
+  regex: string,
+  fragments: Readonly<Record<string, string>>,
+  where: string,
+  errors: string[],
+): string {
+  let text = regex;
+  for (let round = 0; text.includes("{{"); round += 1) {
+    if (round > 16) {
+      errors.push(`${where}: fragments nest too deep`);
+      break;
+    }
+    text = text.replace(/\{\{(\w+)(?::([^{}]*))?\}\}/g, (_, name: string, words?: string) => {
+      if (name === "notAfter" && words !== undefined) return notAfter(words);
+      const value = fragments[name] ?? BUILTIN_FRAGMENTS[name];
+      if (value !== undefined) return value;
+      errors.push(`${where}: unknown fragment "${name}"`);
+      return "";
+    });
+  }
+  return text;
+}
 const CHECK_KEYS = new Set<keyof CheckSpec>([
   "id",
   "modes",
@@ -148,6 +197,7 @@ export interface CompiledRuleSet {
   live: LiveRuleOut[];
   reviewPatterns: PatternSetOut;
   livePatterns: PatternSetOut;
+  frames: CompiledFrame[];
   /** Two-letter language -> phrase table kind -> rows. */
   phrases: Record<string, Partial<Record<(typeof PHRASE_KINDS)[number], PhraseRow[]>>>;
   /** Named tables: "<file>.<name>" -> rows. */
@@ -358,6 +408,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
   const rules: CompiledRule[] = [];
   const reviewPatterns: PatternSetOut = { patterns: [], anchors: {}, structural: [] };
   const livePatterns: PatternSetOut = { patterns: [], anchors: {}, structural: [] };
+  const frames: CompiledFrame[] = [];
   const livePredicates = new Map<string, string>();
   const liveByCheck = new Map<string, number[]>();
 
@@ -370,8 +421,8 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
     if (!spec.checks?.length) errors.push(`${where}: "checks" names no check`);
     for (const id of spec.checks ?? [])
       if (!checks.has(id)) errors.push(`${where}: unknown check "${id}"`);
-    if ((spec.predicate === undefined) === (spec.pattern === undefined))
-      errors.push(`${where}: give exactly one of "predicate" and "pattern"`);
+    if ([spec.predicate, spec.pattern, spec.frames].filter((k) => k !== undefined).length !== 1)
+      errors.push(`${where}: give exactly one of "predicate", "pattern" and "frames"`);
     const check = checks.get(spec.checks?.[0]);
     const modes = spec.modes ?? ["review"];
     const lang = code(spec.lang ?? file.lang);
@@ -390,6 +441,42 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
         ...(lang ? { lang } : {}),
         predicate: spec.predicate.includes(":") ? spec.predicate : `${name}:${spec.predicate}`,
         ...(spec.cacheable ? { cacheable: true as const } : {}),
+        source: name,
+      });
+      continue;
+    }
+    if (spec.frames !== undefined) {
+      if (spec.message === undefined) errors.push(`${where}: a frame rule needs "message"`);
+      const indexes = spec.frames.map((entry, j) => {
+        const at = `${where} frame ${j + 1}`;
+        for (const key of Object.keys(entry))
+          if (!FRAME_KEYS.has(key)) errors.push(`${at}: unknown frame field "${key}"`);
+        if ((entry.fix === undefined) === (entry.fixer === undefined))
+          errors.push(`${at}: give exactly one of "fix" and "fixer"`);
+        const pattern = expandFrame(entry.regex, file.fragments ?? {}, at, errors);
+        try {
+          frame(pattern);
+        } catch (error) {
+          errors.push(`${at}: regex does not compile: ${String(error)}`);
+        }
+        if (!pattern.includes("(?<target>")) errors.push(`${at}: a frame needs a "target" group`);
+        frames.push({
+          pattern,
+          literals: requiredLiterals(pattern),
+          ...(entry.fix === undefined ? {} : { fix: entry.fix }),
+          ...(entry.fixer === undefined
+            ? {}
+            : { fixer: entry.fixer.includes(":") ? entry.fixer : `${name}:${entry.fixer}` }),
+          ...(entry.raw ? { raw: true as const } : {}),
+        });
+        return frames.length - 1;
+      });
+      rules.push({
+        id: spec.id,
+        checks: [...spec.checks],
+        ...(lang ? { lang } : {}),
+        frames: indexes,
+        message: spec.message!,
         source: name,
       });
       continue;
@@ -484,6 +571,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
     live,
     reviewPatterns,
     livePatterns,
+    frames,
     phrases,
     tables,
   };

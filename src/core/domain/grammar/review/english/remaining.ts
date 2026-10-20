@@ -29,7 +29,8 @@ import { english as outsideQuotes, gated as whenMentioned } from "./grammarStyle
 import { opensClause } from "./grammarStyle2";
 import { PREDICATES as CONFUSED_WORDS } from "./confusions1";
 import { PREDICATES as FIXED_PHRASES } from "./fixedPhrases";
-import { PREDICATES as IDIOM_FRAMES_1 } from "./idioms1";
+import { FIXERS as IDIOM_FIXERS_1 } from "./idioms1";
+import { frameRuleDetector } from "../../engine/reviewRules";
 
 /** A detector for English text that only runs on chunks naming its literal. */
 const gated = (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>
@@ -297,9 +298,10 @@ function quotedPhrases(ctx: DetectContext): RawFinding[] {
 }
 
 // The fixed-preposition frames ("inspired from") that a named example before them also hides.
+const idiomPhrases1 = frameRuleDetector("en.idiomPhrases1", { en: IDIOM_FIXERS_1 });
 const phrasesAndFrames = (view: DetectContext) => [
   ...phraseCorrections(view),
-  ...IDIOM_FRAMES_1.idiomPhrases1(view),
+  ...idiomPhrases1(view),
 ];
 
 /**

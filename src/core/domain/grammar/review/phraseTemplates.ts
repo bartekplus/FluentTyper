@@ -264,6 +264,9 @@ export function requiredLiterals(source: string): string[] {
   return shortest(top) >= 3 ? top : [];
 }
 const LITERALS = new Map<string, string[]>();
+/** Gives the literals of a frame compiled ahead of time (grammar/rules/*.yaml). */
+export const primeFrameLiterals = (source: string, literals: string[]) =>
+  LITERALS.set(source, literals);
 // The text a frame scan can match in, lowercased; null when the text holds a character whose
 // case-insensitive match is another letter than its lowercase (U+017F long s ~ s, U+212A
 // Kelvin sign ~ k, U+212B Angstrom sign, capital sharp s).
@@ -448,6 +451,20 @@ export type Frame = {
 
 /** Context frames on English text: forms that are also ordinary English elsewhere. */
 function detectFrames(ctx: DetectContext, rule: FrameRule, frames: readonly Frame[]): RawFinding[] {
+  return detectFrameList(ctx, rule, FRAME_MESSAGES[rule], frames);
+}
+
+/**
+ * The findings of `frames` (English text only): each frame's `target` group is replaced by
+ * its fix, in the casing of the typed words unless the fix is `raw`. A rule file's frame rule
+ * runs here with its own rule and message.
+ */
+export function detectFrameList(
+  ctx: DetectContext,
+  rule: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+  frames: readonly Frame[],
+): RawFinding[] {
   if (!ctx.lang.startsWith("en")) return [];
   const findings: RawFinding[] = [];
   for (const { pattern, fix, raw } of frames) {
@@ -461,7 +478,7 @@ function detectFrames(ctx: DetectContext, rule: FrameRule, frames: readonly Fram
       const alternatives = [value].flat().map((alt) => (raw ? alt : applyWordCase(alt, style)));
       findings.push({
         ruleId: rule,
-        messageKey: FRAME_MESSAGES[rule],
+        messageKey,
         range: { start, end },
         alternatives,
         ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),

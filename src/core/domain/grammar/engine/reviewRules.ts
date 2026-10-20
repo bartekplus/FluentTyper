@@ -3,7 +3,8 @@ import { cacheable } from "../review/nativeReviewCache";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../review/reviewDetectors";
 import type { ReviewMessageKey } from "../review/types";
 import { findMatches, type PatternSet } from "./matcher";
-import { REVIEW_PATTERNS, REVIEW_RULES } from "./review.generated";
+import { REVIEW_FRAMES, REVIEW_PATTERNS, REVIEW_RULES } from "./review.generated";
+import { detectFrameList, primeFrameLiterals, type Frame } from "../review/phraseTemplates";
 import { chunkTokens } from "./reviewTokens";
 
 /** A named Review detector: a predicate a rule file names with `predicate:`. */
@@ -12,15 +13,21 @@ export type Detector = ReviewDetectorEntry["detect"];
 /** Named Review detectors by rule file ("common", "en", "de", ...), then by name. */
 export type ReviewPredicates = Readonly<Record<string, Readonly<Record<string, Detector>>>>;
 
-/** The detectors of several modules as one record; a name defined twice is an error. */
-export function mergePredicates(
-  ...records: readonly Readonly<Record<string, Detector>>[]
-): Readonly<Record<string, Detector>> {
-  const merged: Record<string, Detector> = {};
+/** A named frame fix: the fix of one match, or null to veto it. */
+export type Fixer = Exclude<Frame["fix"], string | readonly string[]>;
+
+/** Named frame fixes by rule file, then by name. */
+export type ReviewFixers = Readonly<Record<string, Readonly<Record<string, Fixer>>>>;
+
+/** The detectors (or fixers) of several modules as one record; a name defined twice is an error. */
+export function mergePredicates<T = Detector>(
+  ...records: readonly Readonly<Record<string, T>>[]
+): Readonly<Record<string, T>> {
+  const merged: Record<string, T> = {};
   for (const record of records)
-    for (const [name, detect] of Object.entries(record)) {
-      if (Object.hasOwn(merged, name)) throw new Error(`Detector "${name}" is defined twice`);
-      merged[name] = detect;
+    for (const [name, value] of Object.entries(record)) {
+      if (Object.hasOwn(merged, name)) throw new Error(`"${name}" is defined twice`);
+      merged[name] = value;
     }
   return merged;
 }
@@ -76,18 +83,46 @@ export function patternDetector(index: number, set: PatternSet = REVIEW_PATTERNS
   };
 }
 
+const named = <T>(table: Readonly<Record<string, Readonly<Record<string, T>>>>, ref: string) => {
+  const [namespace, name] = ref.split(":");
+  return table[namespace]?.[name];
+};
+
+/**
+ * The detector of the frame rule `id` of the rule files: its frames, tried in order, with the
+ * literals the compiler found and the named fixers of `fixers`.
+ */
+export function frameRuleDetector(id: string, fixers: ReviewFixers): Detector {
+  const rule = REVIEW_RULES.find((entry) => entry.id === id);
+  if (!rule?.frames) throw new Error(`Grammar rule ${id} is not a frame rule`);
+  const frames: Frame[] = rule.frames.map((index) => {
+    const { pattern, literals, fix, fixer, raw } = REVIEW_FRAMES[index];
+    primeFrameLiterals(pattern, [...literals]);
+    const fixFunction = fixer === undefined ? undefined : named(fixers, fixer);
+    if (fixer !== undefined && !fixFunction)
+      throw new Error(`Grammar rule ${id}: no fixer "${fixer}"`);
+    return { pattern, fix: fixFunction ?? fix!, ...(raw ? { raw } : {}) };
+  });
+  const ruleId = rule.checks[0] as CatalogRuleId;
+  const messageKey = rule.message as ReviewMessageKey;
+  return (ctx) => detectFrameList(ctx, ruleId, messageKey, frames);
+}
+
 /**
  * The Review detector entries of the rule files, in evaluation order. A rule names a
  * detector of `predicates` ("<file>:<name>") or is a compiled pattern. A name that no
  * module defines is an error at load, not a silent gap.
  */
-export function buildReviewDetectors(predicates: ReviewPredicates): ReviewDetectorEntry[] {
+export function buildReviewDetectors(
+  predicates: ReviewPredicates,
+  fixers: ReviewFixers = {},
+): ReviewDetectorEntry[] {
   return REVIEW_RULES.map((rule) => {
     let detect: Detector;
     if (rule.pattern !== undefined) detect = patternDetector(rule.pattern);
+    else if (rule.frames !== undefined) detect = frameRuleDetector(rule.id, fixers);
     else {
-      const [namespace, name] = rule.predicate!.split(":");
-      const found = predicates[namespace]?.[name];
+      const found = named(predicates, rule.predicate!);
       if (!found) throw new Error(`Grammar rule ${rule.id}: no detector "${rule.predicate}"`);
       detect = found;
     }

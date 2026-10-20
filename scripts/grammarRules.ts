@@ -178,7 +178,7 @@ function phraseDataModule(tables: CompiledRuleSet["phrases"][string]): string {
 }
 
 function reviewModule(set: CompiledRuleSet): string {
-  return `${HEADER}import type { CompiledRule } from "./types";
+  return `${HEADER}import type { CompiledFrame, CompiledRule } from "./types";
 import type { PatternSet } from "./matcher";
 import type { PhraseRow } from "./compiler";
 
@@ -186,6 +186,9 @@ import type { PhraseRow } from "./compiler";
 export const REVIEW_RULES: readonly CompiledRule[] = ${json(set.rules)};
 
 export const REVIEW_PATTERNS: PatternSet = ${json(set.reviewPatterns)};
+
+/** The frames of the frame rules, with their prefilter literals. */
+export const REVIEW_FRAMES: readonly CompiledFrame[] = ${json(set.frames)};
 
 /** Phrase tables of the languages without Review data, by two-letter language and kind. */
 export const PHRASES: Readonly<Record<string, Readonly<Record<string, readonly PhraseRow[]>>>> = ${json(

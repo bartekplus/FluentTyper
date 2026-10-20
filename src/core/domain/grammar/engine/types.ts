@@ -86,7 +86,22 @@ export interface CheckSpec {
   example: { lang: string; before: string; after: string | null };
 }
 
-/** An executable rule: a token pattern or a named detector predicate. */
+/**
+ * A frame: a regex over the text with a `target` group that the fix replaces. `{{NAME}}`
+ * inserts a fragment (the file's `fragments`, or S, E, COMPLETE, COMPLETE_OR_PAREN, CLAUSE,
+ * TOKEN_END), and `{{notAfter:a|b}}` a "not right after these words" guard.
+ */
+export interface FrameSpec {
+  regex: string;
+  /** The fix, or the fixes to choose from. */
+  fix?: string | readonly string[];
+  /** A named fix function (a `FIXERS` record of the language); it may veto with null. */
+  fixer?: string;
+  /** The fix already carries the typed casing. */
+  raw?: boolean;
+}
+
+/** An executable rule: a token pattern, a list of frames, or a named detector predicate. */
 export interface RuleSpec {
   id: string;
   /** The checks whose findings this rule reports; the first one by default. */
@@ -115,6 +130,8 @@ export interface RuleSpec {
   crossLines?: boolean;
   /** Fix all must not batch it. */
   bulkBlock?: "context-dependent" | "ambiguous";
+  /** Frames, tried in order (English text). */
+  frames?: readonly FrameSpec[];
 }
 
 /** A phrase table: "typed = fix" rows; "a | b = fix" for typed variants, "fix1; fix2" for choices. */
@@ -129,6 +146,8 @@ export interface RuleFile {
   phrases?: PhraseTables;
   /** Named phrase tables (English modules and option tables): name -> rows. */
   tables?: Readonly<Record<string, string>>;
+  /** Regex fragments for the frames of the file: `{{NAME}}`. */
+  fragments?: Readonly<Record<string, string>>;
 }
 
 // ------------------------------------------------------------------ compiled form
@@ -178,10 +197,24 @@ export interface CompiledRule {
   checks: readonly string[];
   /** Two-letter language, or undefined for every language. */
   lang?: string;
-  /** Named detector; or the compiled pattern index. */
+  /** Named detector; or the compiled pattern index; or the compiled frame indexes. */
   predicate?: string;
   pattern?: number;
+  frames?: readonly number[];
+  /** The message of a frame rule. */
+  message?: string;
   cacheable?: true;
   /** The rule file it came from ("common", "en", "de", ...). */
   source: string;
+}
+
+/** A compiled frame: the expanded regex, its prefilter literals and its fix. */
+export interface CompiledFrame {
+  pattern: string;
+  /** Lowercase literals of which every match consumes one (requiredLiterals). */
+  literals: readonly string[];
+  fix?: string | readonly string[];
+  /** "<file>:<name>" of a named fix function. */
+  fixer?: string;
+  raw?: true;
 }

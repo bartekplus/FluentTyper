@@ -148,6 +148,34 @@ The key of a token is its lowercase text without Arabic harakat and tatweel.
 | `${2:lower}` | Element 2 in lowercase (also `upper`, `title`)  |
 | `${1}n $2`   | A mix: "A hour" gives "An hour"                 |
 
+### Frames
+
+A frame rule lists regex frames for English text. Each frame has a `target` group, which its fix replaces. The engine runs a frame only on chunks that contain one of its literals; the compiler finds these literals at build time.
+
+```yaml
+fragments:
+  POSSESSOR: "the|a|an|this|that|its|their|his|her|our|my|your|no"
+rules:
+  - id: en.idiomPhrases1
+    checks: [englishPhraseCorrections]
+    message: review_msg_phrase_correction
+    frames:
+      - regex: "(?:cure|cures|cured|curing){{S}}(?<target>against){{E}}"
+        fix: for
+      - regex: "{{notAfter:{{POSSESSOR}}}}(?<target>cause){{S}}it{{S}}is{{E}}"
+        fix: [because]
+      - regex: "on{{S}}(?<target>[a-z]+){{S}}basis{{E}}"
+        fixer: basisArticle
+        raw: true
+```
+
+| Field   | Meaning                                                                                                                                                                  |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `regex` | The frame. `{{NAME}}` inserts a fragment: the file's `fragments`, or `S` (spaces), `E` (word end), `COMPLETE`, `COMPLETE_OR_PAREN`, `CLAUSE`, `TOKEN_END`. `{{notAfter:a | b}}` means "not right after these words". |
+| `fix`   | The fix, or a list of fixes to choose from. The fix takes the casing of the typed words.                                                                                 |
+| `fixer` | A named fix function in the `FIXERS` record of the language (`review/<lang>/ruleDetectors.ts`). It can return null to drop the match.                                    |
+| `raw`   | The fix already has the typed casing.                                                                                                                                    |
+
 ### Named Predicates
 
 Use a predicate only for logic that a pattern cannot state: a phonetic test, a lexicon, an agreement check, or a clause reader.
