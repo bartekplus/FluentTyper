@@ -820,24 +820,15 @@ rules:
         scan: polish
         flags: gdiu
         fixer: genitiveObjects
-  - id: pl.caseAgreementNegated
-    checks: [polishCaseAgreement]
-    # predicate: the scans move lastIndex back in the loop body to read overlapping frames.
-    predicate: caseAgreementNegated
-  - id: pl.caseAgreementGenders
-    checks: [polishCaseAgreement]
-    style: match
-    message: review_msg_pl_agreement
-    frames:
       # "ten menu" -> "to menu", "nowy perfum" -> "nowe perfumy", "smaczny pomarańcz" -> "smaczna pomarańcza".
       - regex: "(?<![\\p{L}\\p{N}_'’.@/-])(?:(?<first>\\p{L}{2,}){{S}})?(?<mod>\\p{L}{2,}){{S}}(?<noun>menu|tiramisu|sushi|salami|kakao|musli|euro|hobby|zoo|graffiti|alibi|kimono|risotto|espresso|bistro|perfum|pomarańcz){{WORD}}"
         scan: polish
         flags: gdiu
         fixer: fixedGenders
-  - id: pl.caseAgreementAdjectives
+  - id: pl.caseAgreementOverlaps
     checks: [polishCaseAgreement]
-    # predicate: the pair scan moves lastIndex back to the second word to read overlapping pairs.
-    predicate: caseAgreementAdjectives
+    # predicate: the scans move lastIndex back in the loop body to read overlapping matches.
+    predicate: caseAgreementOverlaps
   - id: pl.caseAgreementFrames
     checks: [polishCaseAgreement]
     style: match

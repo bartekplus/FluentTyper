@@ -1410,9 +1410,8 @@ function relatives(m: RegExpExecArray, ctx: DetectContext): MatchResult {
 }
 
 export const PREDICATES = {
-  caseAgreementNegated: (ctx: DetectContext) =>
-    isPl(ctx) ? [...negatedObjects(ctx), ...genitiveObjectAdjectives(ctx)] : [],
-  caseAgreementAdjectives: (ctx: DetectContext) => (isPl(ctx) ? adjectives(ctx) : []),
+  caseAgreementOverlaps: (ctx: DetectContext) =>
+    isPl(ctx) ? [...negatedObjects(ctx), ...genitiveObjectAdjectives(ctx), ...adjectives(ctx)] : [],
 } satisfies Record<string, Detector>;
 
 /** The named frame fixes of the case agreement rules of grammar/rules/pl.yaml (`fixer:`). */
