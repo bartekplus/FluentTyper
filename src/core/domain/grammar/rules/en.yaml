@@ -52,6 +52,7 @@ fragments:
   GRAMMARSTYLE1_COUNT: "two|three|four|five|six|seven|eight|nine|ten|twelve|twenty|hundred"
   GRAMMARSTYLE1_STARTERS: "The|A|An|It|Its|I|So|But|And|This|That|These|Those|He|She|We|They|You|There|Then|What|When|Where|Why|How|If|My|Our|Your|His|Her|Their|Some|Many|One|No|Yes|Now|Also|However|After|Before|As|Each|Every|All"
   GRAMMARSTYLE1_ITEM: "[\\p{L}\\p{N}][\\p{L}\\p{N}'’-]*(?:{{S}}[\\p{L}\\p{N}][\\p{L}\\p{N}'’-]*){0,2}"
+  FIXEDPHRASES_GETS: "get|gets|got|gotten|getting|become|becomes|became|becoming|grow|grows|grew|grown|growing"
 
 rules:
   - id: en.fixedPhrases
@@ -63,7 +64,129 @@ rules:
         englishVerbComplements,
         stylePhrasing,
       ]
-    predicate: fixedPhrases
+    style: match
+    message: review_msg_phrase_correction
+    filter: firstWorseFrame
+    frames:
+      # "dose" for "does": after a subject pronoun, in a clause-opening wh-question, or opening
+      # a yes/no question. "What dose of…", "what dose it takes" and "to dose it" stay nouns or
+      # verbs.
+      - regex: "(?:he|she|it|someone|somebody|everyone|everybody|anyone|anybody|nobody){{S}}(?<target>dose){{E}}"
+        message: review_msg_typo
+        fixer: doseSubject
+      - regex: "(?:what|how|when|where|why|who|which){{S}}(?<target>dose){{S}}(?<next>\\p{L}[\\p{L}'’]*)(?:{{S}}(?<then>\\p{L}+))?"
+        message: review_msg_typo
+        fixer: doseWh
+      - regex: "(?<target>dose){{S}}(?:it|he|she|this|that|anyone|someone|anybody|everyone|everything|anything){{S}}(?<verb>[a-z]+){{E}}"
+        message: review_msg_typo
+        fixer: doseQuestion
+      # worse/worst: a comparative slot (much, far, get, make it …) or "at worst". The first
+      # frame that matches a word decides it (filter firstWorseFrame).
+      - regex: "(?<target>worst){{S}}than{{E}}"
+        message: review_msg_contextual_grammar
+        fixer: worstToWorse
+      - regex: "{{notAfter:by}}(?:much|far|a{{S}}lot|lots|even|way|slightly|somewhat|considerably|significantly){{S}}(?<target>worst){{E}}"
+        message: review_msg_contextual_grammar
+        fixer: worstToWorse
+      - regex: "(?:{{FIXEDPHRASES_GETS}}){{S}}worse{{S}}and{{S}}(?<target>worst){{E}}"
+        message: review_msg_contextual_grammar
+        fixer: worstToWorse
+      - regex: "(?:(?:{{FIXEDPHRASES_GETS}})|(?:make|makes|made|making){{S}}(?:it|them|things|this|that|everything|matters)){{S}}(?<target>worst){{E}}"
+        message: review_msg_contextual_grammar
+        fixer: worstGet
+      - regex: "at{{S}}(?<target>worse){{COMPLETE}}"
+        message: review_msg_contextual_grammar
+        fixer: worseToWorst
+      # "the worse ever": a superlative slot; "got worse ever since" stays.
+      - regex: "(?<target>worse){{S}}ever{{E}}(?!{{S}}since{{E}})"
+        message: review_msg_contextual_grammar
+        fixer: worseToWorst
+      # "how it looks like": either "what it looks like" or "how it looks".
+      - regex: "(?<target>(?<how>how){{S}}(?<subject>it|he|she|they|we|you|I|this|that|these|those|everything){{S}}(?<verb>looks|look['’]s|look|looked){{S}}like){{E}}"
+        message: review_msg_contextual_grammar
+        fixer: howLooksLike
+      - regex: "(?<target>how){{S}}(?:does|do|did|would|will|should|could|might){{S}}(?:it|he|she|they|we|you|I|this|that|these|those){{S}}look{{S}}like{{E}}"
+        message: review_msg_contextual_grammar
+        fixer: howDoesLike
+      # "made it seems like": a causative make takes the base form. A relative clause before
+      # it can make "seems" the main verb ("the one who made it seems tired").
+      - regex: "(?<make>make|makes|made|making){{S}}(?:it|them|him|her|me|us|you|this|that|everything|things){{S}}(?<target>seems|seemed){{E}}"
+        check: englishVerbComplements
+        message: review_msg_causative_base
+        fixer: makeSeem
+      # A person who is a "nerve wreck" is a "nervous wreck".
+      - regex: "(?<target>nerve(?:{{S}}|-)wrecks?){{E}}"
+        fixer: nerveWreck
+      # "bullocks" (young bulls) for "bollocks" (nonsense): after a predicate or an
+      # intensifier, or as an exclamation. "a herd of bullocks" stays.
+      - regex: "(?<target>bullocks){{E}}"
+        fixer: bullocks
+      # "conform that" is "confirm that"; "conforming that is supported" stays a relative
+      # clause.
+      - regex: "(?<target>conform|conforms|conformed|conforming){{S}}that{{E}}(?!{{S}}(?:is|are|was|were|has|have|had|will|would|can|could|should|may|might|must|way|much|far|well){{E}})"
+        fixer: conformThat
+      # "constitutes as a" takes no "as"; "constituting as much as" and the passive stay.
+      - regex: "{{notAfter:be|been|being|is|are|was|were}}(?<target>(?:constitute|constitutes|constituting){{S}}as){{S}}(?!(?:much|many|well|long|far|soon|little|few|such|follows?|part|is|are|was|were|it|they|we|he|she|i|you|in|of){{E}})"
+        fixer: constitutesAs
+      # "time has past" is "passed"; "has past experience" keeps the adjective.
+      - regex: "(?:has|have|had|having|['’]ve){{S}}(?<target>past){{E}}"
+        message: review_msg_contextual_grammar
+        fixer: hasPast
+      # "payed" is nautical: a rope payed out or away, a deck or seam payed with tar or pitch.
+      - regex: "(?<target>(?:over|under|pre|re)?payed){{E}}(?!{{S}}(?:out|away|(?:(?:the|a|her|his|its|their){{S}})?(?:decks?|seams?|hulls?|planking)){{E}})(?![^.!?\\n]{0,40}\\bwith{{S}}(?:[a-z]+{{S}})?(?:tar|pitch|oakum|resin){{E}})"
+        message: review_msg_typo
+        fixer: payedPaid
+      # "grind to halt" needs its article.
+      - regex: "(?:grind|grinds|grinding|ground|grinded|come|comes|came|coming|bring|brings|brought|bringing|screech|screeches|screeched|screeching){{S}}to{{S}}(?<target>halt){{E}}"
+        fixer: toAHalt
+      # "rise/arise the question" is "raise"; "there arose the question" is an inversion.
+      - regex: "{{notAfter:there|then|thus|hence|here|now|which|whence|so}}(?<target>rise|rises|rising|rose|risen|rised|arise|arises|arising|arose|arisen|arised){{S}}(?:the|a|this|that){{S}}question{{E}}"
+        fixer: raiseQuestion
+      # "explained in (more) details" is "detail"; "interested in more details" is a noun
+      # phrase.
+      - regex: "{{notAfter:interested|interest|differ|differs|differed|differing|vary|varies|varied|varying|lies|lie|lay|lying|lost|buried|mired|bogged|drowning|drowned|is|are|was|were|only}}in{{S}}(?:(?:more|greater|further|great|full|much{{S}}more){{S}})?(?<target>details){{E}}(?!{{S}}(?:of|about|on|regarding|that|which|like|such|from|in|for|to|and){{E}})"
+        fixer: inDetail
+      # "Now a day a calendar…" opening a clause; "We are now a day late" stays.
+      - regex: "(?<target>now{{S}}a{{S}}day)(?:{{S}}(?=(?:a|an|the|we|i|you|he|she|it|they|people|many|most|everyone|everybody|lots|there|this|these|those|kids|children){{E}})|(?=,))"
+        check: englishClosedCompounds
+        message: review_msg_closed_compound
+        fixer: nowadays
+      # "have my cake and eat it to" is the adverb "too".
+      - regex: "eat{{S}}it{{S}}(?<target>to){{COMPLETE}}"
+        check: englishToToo
+        message: review_msg_to_too
+        fixer: eatItToo
+      # "too big too fail": the second "too" opens the infinitive.
+      - regex: "too{{S}}(?:big|good|small|late|early|hard|easy|much|many|long|short|old|young|slow|fast|hot|cold|important|complex|complicated|busy|tired|scared|afraid){{S}}(?<target>too){{S}}(?:be|fail|do|go|see|use|get|make|take|handle|ignore|read|understand|change|fix|run|work|say|tell|care|keep){{E}}"
+        check: englishToToo
+        message: review_msg_to_infinitive
+        fixer: tooToInfinitive
+      # "went to far compared to…": "too far" before a word that cannot start a place noun
+      # phrase. The core to/too frame owns clause ends and its own follower list.
+      - regex: "(?:go|goes|going|gone|went|take|takes|took|taken|taking|push|pushes|pushed|pushing|carry|carried|carrying){{S}}(?<target>to){{S}}far{{E}}"
+        check: englishToToo
+        message: review_msg_to_too
+        fixer: toFar
+      # "the form to big for small screens": degree "too" before an adjective and "for".
+      - regex: "(?<target>to){{S}}(?:big|small|large|long|short|complex|complicated|expensive|heavy|slow|hard|difficult){{S}}for{{E}}"
+        check: englishToToo
+        message: review_msg_to_too
+        fixer: toBigFor
+      # "wrote learning" after a determiner, preposition or another verb has no subject for
+      # "wrote".
+      - regex: "(?:a|the|of|for|at|in|on|with|from|through|via|than|encouraged|encourage|encourages|did|do|does|use|uses|using|pure|mere|simple|much){{S}}(?<target>wrote){{S}}(?:learning|memori[sz]ation|memori[sz]ing|memory|repetition){{E}}"
+        fixer: wroteRote
+      # "govt." is "government"; its period stays when it ends the sentence.
+      - regex: "(?<target>govt)(?<dot>\\.(?={{S}}\\p{L}))?{{E}}"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        fixer: govt
+      # Subjunctive "were" after "wish" or "if only" before a predicate; the elliptical "I only
+      # wish it was." stays.
+      - regex: "(?:if{{S}}only|wish){{S}}(?:I|he|she|it|there|this|that){{S}}(?<target>was){{S}}(?=\\p{L})"
+        check: stylePhrasing
+        message: review_msg_style_phrasing
+        fixer: wishWere
   - id: en.confusedWords
     checks: [englishConfusedWords]
     predicate: confusedWords

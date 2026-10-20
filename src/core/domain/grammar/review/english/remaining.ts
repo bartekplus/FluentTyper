@@ -23,7 +23,7 @@ import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { Detector, MatchFixer } from "../../engine/reviewRules";
 import { opensClause } from "./grammarStyle2";
 import { PREDICATES as CONFUSED_WORDS } from "./confusions1";
-import { PREDICATES as FIXED_PHRASES } from "./fixedPhrases";
+import { fixedPhrases } from "./fixedPhrases";
 import { FIXERS as IDIOM_FIXERS_1 } from "./idioms1";
 import { frameRuleDetector } from "../../engine/reviewRules";
 
@@ -423,10 +423,7 @@ const QUOTED_RULES: ReadonlySet<string> = new Set([
   "englishClosedCompounds",
   "englishPossibleErrors",
 ]);
-const quotedChecks = (view: DetectContext) => [
-  ...phrasesAndFrames(view),
-  ...FIXED_PHRASES.fixedPhrases(view),
-];
+const quotedChecks = (view: DetectContext) => [...phrasesAndFrames(view), ...fixedPhrases(view)];
 
 // Still necessary: the default checks skip a named example; only this opt-in check reads it.
 function quotedMentions(ctx: DetectContext): RawFinding[] {

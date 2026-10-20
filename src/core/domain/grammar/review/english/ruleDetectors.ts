@@ -64,7 +64,6 @@ import * as neighbourTypos from "./neighbourTypos";
 import * as clashFrames from "./clashFrames";
 
 export const PREDICATES = mergePredicates(
-  fixedPhrases.PREDICATES,
   confusions1.PREDICATES,
   confusions2.PREDICATES,
   dialects.PREDICATES,
@@ -131,7 +130,12 @@ export const FIXERS = mergePredicates<Fixer>(
   remaining.FIXERS,
   grammarStyle1.FIXERS,
   grammarStyle2.FIXERS,
+  fixedPhrases.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>(articles.FILTERS, grammarStyle1.FILTERS);
+export const FILTERS = mergePredicates<FindingsFilter>(
+  articles.FILTERS,
+  grammarStyle1.FILTERS,
+  fixedPhrases.FILTERS,
+);

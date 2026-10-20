@@ -1,22 +1,13 @@
 import { englishWordInfo, hasVerbForm } from "../../implementations/helpers/EnglishLexicon";
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import {
-  before,
-  caseLike,
-  COMPLETE,
-  EDGE,
-  frame,
-  frameMatches,
-  group,
-  hasUserOrCasedWord,
-  nextWord,
-  notAfter,
-  SPACE,
-  WORD_END,
-  isLang,
-} from "../phraseTemplates";
+import { before, caseLike, group, hasUserOrCasedWord, nextWord } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import {
+  frameRuleDetector,
+  type FindingsFilter,
+  type FrameRef,
+  type MatchFixer,
+} from "../../engine/reviewRules";
 import { table } from "./tables";
 
 /** Misheard idioms, wrong words in set phrases and their inflections. */
@@ -28,24 +19,15 @@ export const COMPOUNDS = table("fixedPhrases.compounds");
 /** Optional advice: informal abbreviations, contested idiom variants, redundancy. */
 export const STYLE = table("fixedPhrases.style");
 
-// ---- Context detectors: forms that are also ordinary English elsewhere. ----
+// ---- Context frames: forms that are also ordinary English elsewhere. ----
 
-type Rule = Pick<RawFinding, "ruleId" | "messageKey">;
-const PHRASE: Rule = {
-  ruleId: "englishPhraseCorrections",
-  messageKey: "review_msg_phrase_correction",
-};
-const CONTEXT: Rule = {
-  ruleId: "englishPhraseCorrections",
-  messageKey: "review_msg_contextual_grammar",
-};
-const TYPO: Rule = { ruleId: "englishPhraseCorrections", messageKey: "review_msg_typo" };
-const TOO: Rule = { ruleId: "englishToToo", messageKey: "review_msg_to_too" };
-
-/** A finding for `range`; each alternative takes the typed text's initial or all capitals. */
+/**
+ * A finding for `range` with the check and message of the frame; each alternative takes the
+ * typed text's initial or all capitals.
+ */
 function found(
   ctx: DetectContext,
-  rule: Rule,
+  rule: FrameRef,
   m: RegExpExecArray,
   [start, end]: readonly [number, number],
   alternatives: readonly string[],
@@ -55,7 +37,8 @@ function found(
   const typed = ctx.text.slice(start, end);
   const cased = alternatives.map((alt) => (recase ? caseLike(typed, alt) : alt));
   return {
-    ...rule,
+    ruleId: rule.ruleId,
+    messageKey: rule.messageKey,
     range: { start, end },
     alternatives: cased,
     ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
@@ -67,7 +50,7 @@ function found(
 }
 /** Only spaces and opening marks between `index` and a stop, a line break or the text start. */
 const atClauseStart = (ctx: DetectContext, index: number) =>
-  /(?:^|[.!?;:\n])[ \t\u00a0"“'‘(]*$/.test(before(ctx, index, 96));
+  /(?:^|[.!?;:\n])[ \t "“'‘(]*$/.test(before(ctx, index, 96));
 // Function words the lexicon also lists as nouns ("ifs and buts", "the ins and outs").
 const CLOSED_CLASS =
   /^(?:if|in|on|at|to|for|with|by|of|off|out|up|down|over|than|and|or|but|so|as|when|because|since|after|before|until|now|then|again|lately|here|there|yet|still|too|very|it|this|that)$/i;
@@ -77,226 +60,138 @@ const nounLike = (word: string, unknownLong = true) => {
   const info = englishWordInfo(word.toLowerCase());
   return info ? info.noun || info.plural : word.length > 6 && (unknownLong || /s$/i.test(word));
 };
-const kept = (findings: (RawFinding | null)[]) => findings.filter((f): f is RawFinding => !!f);
 
-// "dose" for "does": after a subject pronoun, in a clause-opening wh-question, or opening a
-// yes/no question. "What dose of…", "what dose it takes" and "to dose it" stay nouns or verbs.
-const DOSE_SUBJECT = frame(
-  `(?:he|she|it|someone|somebody|everyone|everybody|anyone|anybody|nobody)${SPACE}(?<target>dose)${WORD_END}`,
-);
-const DOSE_WH = frame(
-  `(?:what|how|when|where|why|who|which)${SPACE}(?<target>dose)${SPACE}(?<next>\\p{L}[\\p{L}'’]*)(?:${SPACE}(?<then>\\p{L}+))?`,
-);
-const DOSE_QUESTION = frame(
-  `(?<target>dose)${SPACE}(?:it|he|she|this|that|anyone|someone|anybody|everyone|everything|anything)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
-);
+// "What dose of…", "what dose it takes" and "to dose it" stay nouns or verbs.
 const NOUN_DOSE_NEXT =
   /^(?:of|is|was|are|were|has|had|have|should|would|will|can|could|may|might|must|per|for|and|or|to|in|on|at|level|levels|amount|size|range|form)$/i;
 const PRONOUN_NEXT = /^(?:it|he|she|this|that|they|we|you|i)$/i;
-function dose(ctx: DetectContext): RawFinding[] {
-  const out: (RawFinding | null)[] = [];
-  for (const m of frameMatches(ctx, DOSE_SUBJECT))
-    out.push(found(ctx, TYPO, m, group(m, "target"), ["does"]));
-  for (const m of frameMatches(ctx, DOSE_WH)) {
-    const { next, then = "" } = m.groups!;
-    if (!atClauseStart(ctx, m.index) || NOUN_DOSE_NEXT.test(next)) continue;
-    const pronoun = PRONOUN_NEXT.test(next);
-    if (!pronoun && englishWordInfo(next.toLowerCase())?.plural) continue;
-    // "what dose it takes": a third-person verb after the pronoun keeps "dose" a noun.
-    if (pronoun && hasVerbForm(then.toLowerCase(), "third")) continue;
-    out.push(found(ctx, TYPO, m, group(m, "target"), ["does"]));
-  }
-  for (const m of frameMatches(ctx, DOSE_QUESTION)) {
-    const verb = m.groups!.verb;
-    if (!atClauseStart(ctx, m.index) || /^(?:back|up|off|out|down|too|twice|once)$/i.test(verb))
-      continue;
-    if (hasVerbForm(verb, "base")) out.push(found(ctx, TYPO, m, group(m, "target"), ["does"]));
-  }
-  return kept(out);
-}
 
-// worse/worst: a comparative slot (much, far, get, make it …) or "at worst".
-const GETS =
-  "(?:get|gets|got|gotten|getting|become|becomes|became|becoming|grow|grows|grew|grown|growing)";
-const WORST_DEGREE = frame(
-  `${notAfter("by")}(?:much|far|a${SPACE}lot|lots|even|way|slightly|somewhat|considerably|significantly)${SPACE}(?<target>worst)${WORD_END}`,
-);
-const WORST_GET = frame(
-  `(?:${GETS}|(?:make|makes|made|making)${SPACE}(?:it|them|things|this|that|everything|matters))${SPACE}(?<target>worst)${WORD_END}`,
-);
-const WORST_THAN = frame(`(?<target>worst)${SPACE}than${WORD_END}`);
-const WORSE_AND_WORST = frame(`${GETS}${SPACE}worse${SPACE}and${SPACE}(?<target>worst)${WORD_END}`);
-const AT_WORSE = frame(`at${SPACE}(?<target>worse)${COMPLETE}`);
-// "the worse ever": a superlative slot; "got worse ever since" stays.
-const WORSE_EVER = frame(`(?<target>worse)${SPACE}ever${WORD_END}(?!${SPACE}since${WORD_END})`);
-function worse(ctx: DetectContext): RawFinding[] {
-  const out = new Map<number, RawFinding | null>();
-  const add = (m: RegExpExecArray, word: string) => {
+// worse/worst: the first frame that matches a word decides it, also when it keeps the typed
+// word (a user word or a cased word in its match). HELD marks such a kept word.
+const WORSE = new WeakSet<RawFinding>();
+const HELD = new WeakSet<RawFinding>();
+const worseForm =
+  (word: string, test?: (m: RegExpExecArray, ctx: DetectContext) => boolean): MatchFixer =>
+  (m, ctx, frame) => {
+    if (test && !test(m, ctx)) return null;
     const range = group(m, "target");
-    if (!out.has(range[0])) out.set(range[0], found(ctx, CONTEXT, m, range, [word]));
+    let result = found(ctx, frame, m, range, [word]);
+    if (!result) {
+      result = {
+        ruleId: frame.ruleId,
+        messageKey: frame.messageKey,
+        range: { start: range[0], end: range[1] },
+        alternatives: [],
+      };
+      HELD.add(result);
+    }
+    WORSE.add(result);
+    return result;
   };
-  for (const m of frameMatches(ctx, WORST_THAN)) add(m, "worse");
-  for (const m of frameMatches(ctx, WORST_DEGREE)) add(m, "worse");
-  for (const m of frameMatches(ctx, WORSE_AND_WORST)) add(m, "worse");
-  // "getting worst accuracy", "makes them worst case": a noun after it makes it a superlative.
-  for (const m of frameMatches(ctx, WORST_GET))
-    if (!nounLike(nextWord(ctx, group(m, "target")[1]))) add(m, "worse");
-  for (const m of frameMatches(ctx, AT_WORSE)) add(m, "worst");
-  for (const m of frameMatches(ctx, WORSE_EVER)) add(m, "worst");
-  return kept([...out.values()]);
-}
-
-// "how it looks like": either "what it looks like" or "how it looks".
-const HOW_LIKE = frame(
-  `(?<target>(?<how>how)${SPACE}(?<subject>it|he|she|they|we|you|I|this|that|these|those|everything)${SPACE}(?<verb>looks|look['’]s|look|looked)${SPACE}like)${WORD_END}`,
-);
-const HOW_DOES_LIKE = frame(
-  `(?<target>how)${SPACE}(?:does|do|did|would|will|should|could|might)${SPACE}(?:it|he|she|they|we|you|I|this|that|these|those)${SPACE}look${SPACE}like${WORD_END}`,
-);
-function howLooksLike(ctx: DetectContext): RawFinding[] {
-  const out: (RawFinding | null)[] = [];
-  for (const m of frameMatches(ctx, HOW_LIKE)) {
-    const { subject, verb } = m.groups!;
-    const single = /^(?:it|he|she|this|that|everything)$/i.test(subject);
-    const agreed = /ed$/i.test(verb) ? "looked" : single ? "looks" : "look";
-    out.push(
-      found(ctx, CONTEXT, m, group(m, "target"), [
-        `what ${subject} ${agreed} like`,
-        `how ${subject} ${agreed}`,
-      ]),
-    );
-  }
-  for (const m of frameMatches(ctx, HOW_DOES_LIKE))
-    out.push(found(ctx, CONTEXT, m, group(m, "target"), ["what"]));
-  return kept(out);
-}
-
-// "made it seems like": a causative make takes the base form. A relative clause before
-// it can make "seems" the main verb ("the one who made it seems tired").
-const MAKE_SEEM = frame(
-  `(?<make>make|makes|made|making)${SPACE}(?:it|them|him|her|me|us|you|this|that|everything|things)${SPACE}(?<target>seems|seemed)${WORD_END}`,
-);
-function makeSeem(ctx: DetectContext): RawFinding[] {
-  const out: (RawFinding | null)[] = [];
-  for (const m of frameMatches(ctx, MAKE_SEEM)) {
-    const prior = before(ctx, m.index, 48);
-    if (/\b(?:who|whoever|whatever|what)[ \t\u00a0]+$/i.test(prior)) continue;
-    if (
-      /^making$/i.test(m.groups!.make) &&
-      !/\b(?:of|by|for|from|without|avoid|stop|keep|keeps|kept|is|are|was|were|be|been)[ \t\u00a0]+$/i.test(
-        prior,
-      )
-    )
-      continue;
-    out.push(
-      found(
-        ctx,
-        { ruleId: "englishVerbComplements", messageKey: "review_msg_causative_base" },
-        m,
-        group(m, "target"),
-        ["seem"],
-      ),
-    );
-  }
-  return kept(out);
-}
 
 // A person who is a "nerve wreck" is a "nervous wreck"; a situation ("It was a nerve-wreck",
 // "so much nerve wreck") is left alone.
-const NERVE_WRECK = frame(`(?<target>nerve(?:${SPACE}|-)wrecks?)${WORD_END}`);
 const SITUATION =
-  /(?:\bmuch|\b(?:it|this|that|which)(?:['’]s|[ \t\u00a0]+(?:is|was|were|be|been|will[ \t\u00a0]+be))[ \t\u00a0]+(?:(?:a|such[ \t\u00a0]+a|quite[ \t\u00a0]+a|a[ \t\u00a0]+real|a[ \t\u00a0]+total|a[ \t\u00a0]+complete)[ \t\u00a0]+)?)[ \t\u00a0]*$/i;
-function nerveWreck(ctx: DetectContext): RawFinding[] {
-  const out: (RawFinding | null)[] = [];
-  for (const m of frameMatches(ctx, NERVE_WRECK)) {
-    if (SITUATION.test(before(ctx, m.index, 48))) continue;
-    const [nerve, wreck] = m.groups!.target.split(/[ \t\u00a0-]+/);
-    const nervous = applyWordCase("nervous", detectWordCase(nerve));
-    out.push(found(ctx, PHRASE, m, group(m, "target"), [`${nervous} ${wreck}`]));
-  }
-  return kept(out);
-}
-
-// "bullocks" (young bulls) for "bollocks" (nonsense): after a predicate or an intensifier,
-// or as an exclamation. "a herd of bullocks" stays.
-const BULLOCKS = frame(`(?<target>bullocks)${WORD_END}`);
+  /(?:\bmuch|\b(?:it|this|that|which)(?:['’]s|[ \t ]+(?:is|was|were|be|been|will[ \t ]+be))[ \t ]+(?:(?:a|such[ \t ]+a|quite[ \t ]+a|a[ \t ]+real|a[ \t ]+total|a[ \t ]+complete)[ \t ]+)?)[ \t ]*$/i;
 const NONSENSE_CUE =
-  /(?:\b(?:complete|total|utter|absolute|pure|such|dogs|is|was|its|thats|what|bloody|just)|['’]s)[ \t\u00a0]+$/i;
-function bullocks(ctx: DetectContext): RawFinding[] {
-  const out: (RawFinding | null)[] = [];
-  for (const m of frameMatches(ctx, BULLOCKS)) {
+  /(?:\b(?:complete|total|utter|absolute|pure|such|dogs|is|was|its|thats|what|bloody|just)|['’]s)[ \t ]+$/i;
+
+/** A frame whose `target` takes one replacement; null keeps the typed text. */
+const swap =
+  (replace: (typed: string) => string | null, raw = false): MatchFixer =>
+  (m, ctx, frame) => {
+    const range = group(m, "target");
+    const typed = ctx.text.slice(...range);
+    // A noun after "has past" keeps "past" an adjective: "has past experience", "had past due".
+    if (/^past$/i.test(typed)) {
+      const next = nextWord(ctx, range[1]);
+      if (next && (nounLike(next) || /^due$/i.test(next))) return null;
+    }
+    const replacement = replace(typed);
+    return replacement ? found(ctx, frame, m, range, [replacement], !raw) : null;
+  };
+const FORMS = (pairs: Record<string, string>) => (typed: string) =>
+  pairs[typed.toLowerCase()] ?? null;
+
+const CORE_TO_FAR_NEXT = /^(?:with|for|on|in|this|and|but|when|because|like|away|off|out|flung)$/i;
+// "set the font to big for headings" names a value; "from small to big" a range.
+const SETTING_VERB =
+  /\b(?:set|sets|setting|change|changes|changed|changing|switch|switched|resize|resized|scale|scaled|convert|converted|from|increase|increased|reduce|reduced|default|defaults|move|moved|grow|grows|grew|shrink|shrank)\b[^.!?;:\n]*$/i;
+
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  doseSubject: (m, ctx, frame) => found(ctx, frame, m, group(m, "target"), ["does"]),
+  doseWh: (m, ctx, frame) => {
+    const { next, then = "" } = m.groups!;
+    if (!atClauseStart(ctx, m.index) || NOUN_DOSE_NEXT.test(next)) return null;
+    const pronoun = PRONOUN_NEXT.test(next);
+    if (!pronoun && englishWordInfo(next.toLowerCase())?.plural) return null;
+    // "what dose it takes": a third-person verb after the pronoun keeps "dose" a noun.
+    if (pronoun && hasVerbForm(then.toLowerCase(), "third")) return null;
+    return found(ctx, frame, m, group(m, "target"), ["does"]);
+  },
+  doseQuestion: (m, ctx, frame) => {
+    const verb = m.groups!.verb;
+    if (!atClauseStart(ctx, m.index) || /^(?:back|up|off|out|down|too|twice|once)$/i.test(verb))
+      return null;
+    return hasVerbForm(verb, "base") ? found(ctx, frame, m, group(m, "target"), ["does"]) : null;
+  },
+  worstToWorse: worseForm("worse"),
+  // "getting worst accuracy", "makes them worst case": a noun after it makes it a superlative.
+  worstGet: worseForm("worse", (m, ctx) => !nounLike(nextWord(ctx, group(m, "target")[1]))),
+  worseToWorst: worseForm("worst"),
+  howLooksLike: (m, ctx, frame) => {
+    const { subject, verb } = m.groups!;
+    const single = /^(?:it|he|she|this|that|everything)$/i.test(subject);
+    const agreed = /ed$/i.test(verb) ? "looked" : single ? "looks" : "look";
+    return found(ctx, frame, m, group(m, "target"), [
+      `what ${subject} ${agreed} like`,
+      `how ${subject} ${agreed}`,
+    ]);
+  },
+  howDoesLike: (m, ctx, frame) => found(ctx, frame, m, group(m, "target"), ["what"]),
+  makeSeem: (m, ctx, frame) => {
+    const prior = before(ctx, m.index, 48);
+    if (/\b(?:who|whoever|whatever|what)[ \t ]+$/i.test(prior)) return null;
+    if (
+      /^making$/i.test(m.groups!.make) &&
+      !/\b(?:of|by|for|from|without|avoid|stop|keep|keeps|kept|is|are|was|were|be|been)[ \t ]+$/i.test(
+        prior,
+      )
+    )
+      return null;
+    return found(ctx, frame, m, group(m, "target"), ["seem"]);
+  },
+  nerveWreck: (m, ctx, frame) => {
+    if (SITUATION.test(before(ctx, m.index, 48))) return null;
+    const [nerve, wreck] = m.groups!.target.split(/[ \t -]+/);
+    const nervous = applyWordCase("nervous", detectWordCase(nerve));
+    return found(ctx, frame, m, group(m, "target"), [`${nervous} ${wreck}`]);
+  },
+  bullocks: (m, ctx, frame) => {
     const [, end] = group(m, "target");
     const exclamation =
       (atClauseStart(ctx, m.index) || /["“'‘]$/.test(before(ctx, m.index, 1))) &&
-      /^[ \t\u00a0]*!/.test(ctx.text.slice(end));
-    if (exclamation || NONSENSE_CUE.test(before(ctx, m.index, 48)))
-      out.push(found(ctx, PHRASE, m, group(m, "target"), ["bollocks"]));
-  }
-  return kept(out);
-}
-
-/** A frame whose `target` takes one replacement; null keeps the typed text. */
-type Swap = {
-  pattern: RegExp;
-  rule: Rule;
-  replace: (typed: string) => string | null;
-  /** The replacement already carries the typed casing. */
-  raw?: true;
-};
-const FORMS = (pairs: Record<string, string>) => (typed: string) =>
-  pairs[typed.toLowerCase()] ?? null;
-const SWAPS: readonly Swap[] = [
-  // "conform that" is "confirm that"; "conforming that is supported" stays a relative clause.
-  {
-    pattern: frame(
-      `(?<target>conform|conforms|conformed|conforming)${SPACE}that${WORD_END}(?!${SPACE}(?:is|are|was|were|has|have|had|will|would|can|could|should|may|might|must|way|much|far|well)${WORD_END})`,
-    ),
-    rule: PHRASE,
-    replace: FORMS({
+      /^[ \t ]*!/.test(ctx.text.slice(end));
+    return exclamation || NONSENSE_CUE.test(before(ctx, m.index, 48))
+      ? found(ctx, frame, m, group(m, "target"), ["bollocks"])
+      : null;
+  },
+  conformThat: swap(
+    FORMS({
       conform: "confirm",
       conforms: "confirms",
       conformed: "confirmed",
       conforming: "confirming",
     }),
-  },
-  // "constitutes as a" takes no "as"; "constituting as much as" and the passive stay.
-  {
-    pattern: frame(
-      `${notAfter("be|been|being|is|are|was|were")}(?<target>(?:constitute|constitutes|constituting)${SPACE}as)${SPACE}(?!(?:much|many|well|long|far|soon|little|few|such|follows?|part|is|are|was|were|it|they|we|he|she|i|you|in|of)${WORD_END})`,
-    ),
-    rule: PHRASE,
-    replace: (typed) => typed.split(/[ \t\u00a0]+/)[0],
-  },
-  // "time has past" is "passed"; "has past experience" keeps the adjective (checked below).
-  {
-    pattern: frame(`(?:has|have|had|having|['’]ve)${SPACE}(?<target>past)${WORD_END}`),
-    rule: CONTEXT,
-    replace: () => "passed",
-  },
-  // "payed" is nautical: a rope payed out or away, a deck or seam payed with tar or pitch.
-  {
-    pattern: frame(
-      `(?<target>(?:over|under|pre|re)?payed)(?!${EDGE})(?!${SPACE}(?:out|away|(?:(?:the|a|her|his|its|their)${SPACE})?(?:decks?|seams?|hulls?|planking))${WORD_END})(?![^.!?\\n]{0,40}\\bwith${SPACE}(?:[a-z]+${SPACE})?(?:tar|pitch|oakum|resin)${WORD_END})`,
-    ),
-    rule: TYPO,
-    replace: (typed) => typed.slice(0, -5) + "paid",
-  },
-  // "grind to halt" needs its article.
-  {
-    pattern: frame(
-      `(?:grind|grinds|grinding|ground|grinded|come|comes|came|coming|bring|brings|brought|bringing|screech|screeches|screeched|screeching)${SPACE}to${SPACE}(?<target>halt)${WORD_END}`,
-    ),
-    rule: PHRASE,
-    replace: (typed) => (typed === typed.toUpperCase() ? "A " : "a ") + typed,
-    raw: true,
-  },
-  // "rise/arise the question" is "raise"; "there arose the question" is an inversion.
-  {
-    pattern: frame(
-      `${notAfter("there|then|thus|hence|here|now|which|whence|so")}(?<target>rise|rises|rising|rose|risen|rised|arise|arises|arising|arose|arisen|arised)${SPACE}(?:the|a|this|that)${SPACE}question${WORD_END}`,
-    ),
-    rule: PHRASE,
-    replace: (typed) =>
+  ),
+  constitutesAs: swap((typed) => typed.split(/[ \t ]+/)[0]),
+  hasPast: swap(() => "passed"),
+  payedPaid: swap((typed) => typed.slice(0, -5) + "paid"),
+  // The replacement already carries the typed casing.
+  toAHalt: swap((typed) => (typed === typed.toUpperCase() ? "A " : "a ") + typed, true),
+  raiseQuestion: swap(
+    (typed) =>
       ({
         rise: "raise",
         rises: "raises",
@@ -305,138 +200,43 @@ const SWAPS: readonly Swap[] = [
         arises: "raises",
         arising: "raising",
       })[typed.toLowerCase()] ?? "raised",
-  },
-  // "explained in (more) details" is "detail"; "interested in more details" is a noun phrase.
-  {
-    pattern: frame(
-      `${notAfter("interested|interest|differ|differs|differed|differing|vary|varies|varied|varying|lies|lie|lay|lying|lost|buried|mired|bogged|drowning|drowned|is|are|was|were|only")}in${SPACE}(?:(?:more|greater|further|great|full|much${SPACE}more)${SPACE})?(?<target>details)${WORD_END}(?!${SPACE}(?:of|about|on|regarding|that|which|like|such|from|in|for|to|and)${WORD_END})`,
-    ),
-    rule: PHRASE,
-    replace: () => "detail",
-  },
-  // "Now a day a calendar…" opening a clause; "We are now a day late" stays.
-  {
-    pattern: frame(
-      `(?<target>now${SPACE}a${SPACE}day)(?:${SPACE}(?=(?:a|an|the|we|i|you|he|she|it|they|people|many|most|everyone|everybody|lots|there|this|these|those|kids|children)${WORD_END})|(?=,))`,
-    ),
-    rule: { ruleId: "englishClosedCompounds", messageKey: "review_msg_closed_compound" },
-    replace: () => "nowadays",
-  },
-  // "have my cake and eat it to" is the adverb "too".
-  {
-    pattern: frame(`eat${SPACE}it${SPACE}(?<target>to)${COMPLETE}`),
-    rule: TOO,
-    replace: () => "too",
-  },
-  // "too big too fail": the second "too" opens the infinitive.
-  {
-    pattern: frame(
-      `too${SPACE}(?:big|good|small|late|early|hard|easy|much|many|long|short|old|young|slow|fast|hot|cold|important|complex|complicated|busy|tired|scared|afraid)${SPACE}(?<target>too)${SPACE}(?:be|fail|do|go|see|use|get|make|take|handle|ignore|read|understand|change|fix|run|work|say|tell|care|keep)${WORD_END}`,
-    ),
-    rule: { ruleId: "englishToToo", messageKey: "review_msg_to_infinitive" },
-    replace: () => "to",
-  },
-];
-function swaps(ctx: DetectContext): RawFinding[] {
-  const out: (RawFinding | null)[] = [];
-  for (const { pattern, rule, replace, raw } of SWAPS)
-    for (const m of frameMatches(ctx, pattern)) {
-      const range = group(m, "target");
-      const typed = ctx.text.slice(...range);
-      // A noun after "has past" keeps "past" an adjective: "has past experience", "had past due".
-      if (/^past$/i.test(typed)) {
-        const next = nextWord(ctx, range[1]);
-        if (next && (nounLike(next) || /^due$/i.test(next))) continue;
-      }
-      const replacement = replace(typed);
-      if (replacement) out.push(found(ctx, rule, m, range, [replacement], !raw));
-    }
-  return kept(out);
-}
-
-// "went to far compared to…": "too far" before a word that cannot start a place noun phrase.
-// The core to/too frame owns clause ends and its own follower list.
-const TO_FAR = frame(
-  `(?:go|goes|going|gone|went|take|takes|took|taken|taking|push|pushes|pushed|pushing|carry|carried|carrying)${SPACE}(?<target>to)${SPACE}far${WORD_END}`,
-);
-const CORE_TO_FAR_NEXT = /^(?:with|for|on|in|this|and|but|when|because|like|away|off|out|flung)$/i;
-// "the form to big for small screens": degree "too" before an adjective and "for".
-const TO_BIG_FOR = frame(
-  `(?<target>to)${SPACE}(?:big|small|large|long|short|complex|complicated|expensive|heavy|slow|hard|difficult)${SPACE}for${WORD_END}`,
-);
-// "set the font to big for headings" names a value; "from small to big" a range.
-const SETTING_VERB =
-  /\b(?:set|sets|setting|change|changes|changed|changing|switch|switched|resize|resized|scale|scaled|convert|converted|from|increase|increased|reduce|reduced|default|defaults|move|moved|grow|grows|grew|shrink|shrank)\b[^.!?;:\n]*$/i;
-function tooFar(ctx: DetectContext): RawFinding[] {
-  const out: (RawFinding | null)[] = [];
-  for (const m of frameMatches(ctx, TO_FAR)) {
+  ),
+  inDetail: swap(() => "detail"),
+  nowadays: swap(() => "nowadays"),
+  eatItToo: swap(() => "too"),
+  tooToInfinitive: swap(() => "to"),
+  toFar: (m, ctx, frame) => {
     const next = nextWord(ctx, m.index + m[0].length);
-    if (!next || CORE_TO_FAR_NEXT.test(next) || nounLike(next, false)) continue;
-    out.push(found(ctx, TOO, m, group(m, "target"), ["too"]));
-  }
-  for (const m of frameMatches(ctx, TO_BIG_FOR))
-    if (!SETTING_VERB.test(before(ctx, m.index, 48)))
-      out.push(found(ctx, TOO, m, group(m, "target"), ["too"]));
-  return kept(out);
-}
-
-// "wrote learning" after a determiner, preposition or another verb has no subject for "wrote".
-const WROTE = frame(
-  `(?:a|the|of|for|at|in|on|with|from|through|via|than|encouraged|encourage|encourages|did|do|does|use|uses|using|pure|mere|simple|much)${SPACE}(?<target>wrote)${SPACE}(?:learning|memori[sz]ation|memori[sz]ing|memory|repetition)${WORD_END}`,
-);
-function wroteRote(ctx: DetectContext): RawFinding[] {
-  return kept(
-    [...frameMatches(ctx, WROTE)].map((m) => found(ctx, PHRASE, m, group(m, "target"), ["rote"])),
-  );
-}
-
-// Subjunctive "were" after "wish" or "if only" before a predicate; the elliptical
-// "I only wish it was." stays.
-const WISH_WAS = frame(
-  `(?:if${SPACE}only|wish)${SPACE}(?:I|he|she|it|there|this|that)${SPACE}(?<target>was)${SPACE}(?=\\p{L})`,
-);
-
-// "govt." is "government"; its period stays when it ends the sentence.
-const GOVT = frame(`(?<target>govt)(?<dot>\\.(?=[ \\t\\u00a0]{1,8}\\p{L}))?${WORD_END}`);
-function styleFrames(ctx: DetectContext): RawFinding[] {
-  const out: (RawFinding | null)[] = [];
-  for (const m of frameMatches(ctx, GOVT)) {
+    if (!next || CORE_TO_FAR_NEXT.test(next) || nounLike(next, false)) return null;
+    return found(ctx, frame, m, group(m, "target"), ["too"]);
+  },
+  toBigFor: (m, ctx, frame) =>
+    SETTING_VERB.test(before(ctx, m.index, 48))
+      ? null
+      : found(ctx, frame, m, group(m, "target"), ["too"]),
+  wroteRote: (m, ctx, frame) => found(ctx, frame, m, group(m, "target"), ["rote"]),
+  govt: (m, ctx, frame) => {
     const [start, end] = group(m, "target");
-    const range: [number, number] = [start, m.groups!.dot ? end + 1 : end];
-    out.push(
-      found(ctx, { ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing" }, m, range, [
-        "government",
-      ]),
-    );
-  }
-  for (const m of frameMatches(ctx, WISH_WAS))
-    out.push(
-      found(
-        ctx,
-        { ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing" },
-        m,
-        group(m, "target"),
-        ["were"],
-      ),
-    );
-  return kept(out);
-}
+    return found(ctx, frame, m, [start, m.groups!.dot ? end + 1 : end], ["government"]);
+  },
+  wishWere: (m, ctx, frame) => found(ctx, frame, m, group(m, "target"), ["were"]),
+} satisfies Record<string, MatchFixer>;
 
-/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
-export const PREDICATES = {
-  fixedPhrases: (ctx) =>
-    isLang(ctx, "en")
-      ? [
-          ...dose(ctx),
-          ...worse(ctx),
-          ...howLooksLike(ctx),
-          ...makeSeem(ctx),
-          ...nerveWreck(ctx),
-          ...bullocks(ctx),
-          ...swaps(ctx),
-          ...tooFar(ctx),
-          ...wroteRote(ctx),
-          ...styleFrames(ctx),
-        ]
-      : [],
-} satisfies Record<string, Detector>;
+/** The named findings filters of grammar/rules/en.yaml (`filter:`). */
+export const FILTERS = {
+  /** A worse/worst word keeps the finding of the first frame that matched it. */
+  firstWorseFrame: (_ctx, findings) => {
+    const seen = new Set<number>();
+    return findings.filter((f) => {
+      if (!WORSE.has(f)) return true;
+      if (seen.has(f.range.start)) return false;
+      seen.add(f.range.start);
+      return !HELD.has(f);
+    });
+  },
+} satisfies Record<string, FindingsFilter>;
+
+const fixedPhrasesRule = frameRuleDetector("en.fixedPhrases", { en: FIXERS }, { en: FILTERS });
+/** The fixed-phrase frames, whatever checks are on: other checks read them in a view. */
+export const fixedPhrases = (view: DetectContext) =>
+  fixedPhrasesRule({ ...view, rules: undefined });
