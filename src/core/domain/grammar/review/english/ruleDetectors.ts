@@ -132,6 +132,7 @@ export const FIXERS = mergePredicates<Fixer>(
   dialects.FIXERS,
   usageTables.FIXERS,
   typography.FIXERS,
+  dates.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */
