@@ -35,6 +35,7 @@ fragments:
   # Month names after a day: the genitive, the nominative and the Roman numerals.
   MONTH_WORD: "stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I"
   DECADE_WORDS: "lata|lat|latach|latami|latom"
+  NO_LETTER_AFTER: "(?![\\p{L}\\p{N}_'’-])"
   # Words that may stand between a verb and its noun: a pronoun, an adverb, adjectives.
   FILLER: "(?:[ \\t\\u00a0]{1,8}(?:on|ona|ono|oni|one|nadal|wciąż|też|także|również|zawsze|często|naprawdę|bardzo|niezwykle|wyjątkowo|szczególnie|dość|coraz|swoją|swój|swoje|jakąś|żadnej|(?:w|we|na|dla|przy|wśród|u)[ \\t\\u00a0]{1,8}\\p{L}+|\\p{L}+(?:ną|ową|ską|cką|ką|ą|ej|e|y|ie))){0,3}"
   GARMENTS: "płaszcz|kurtkę|sweter|golf|koszulę|bluzkę|sukienkę|spodnie|dżinsy|buty|kozaki|czapkę|kapelusz|rękawiczki|szalik|garnitur|marynarkę|spódnicę|skarpetki|piżamę|kamizelkę|koszulkę|płaszczyk|kurtkę|kalosze"
@@ -1401,9 +1402,42 @@ rules:
       # "inny niż": "jak" compares like things ("nikt inny jak" keeps it).
       - regex: "(?<!(?:^|[^\\p{L}])(?:nikt|nic|ktoś|coś|kto|co|któż|cóż|nikogo|niczego|nikomu|niczym|nikim){{S}})(?<target>inn(?:y|a|e|i|ego|ej|emu|ą|ym|ych|ymi){{S}}jak)(?={{S}}(?!nie{{E}})\\p{L})"
         fixer: typosInn
+  # Real-word slips: a lost or doubled small word, or a word that only its look-alike fits here.
   - id: pl.typos
     checks: [englishPhraseCorrections]
-    predicate: typos
+    style: match
+    message: review_msg_contextual_grammar
+    frames:
+      # A preposition straight before an infinitive or an adverbial participle.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<prep>na|do|od|dla|bez|przez|przy|u|z|ze|w|we|o){{S}}(?<verb>\\p{Ll}{3,}(?:ać|eć|ić|yć|ąć|uć|ąc)){{NO_LETTER_AFTER}})"
+        scan: polish
+        flags: gu
+        fixer: prepositionVerb
+      # "cale życie": "cale" (inches) before a neuter noun is "całe".
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<target>cale){{S}}(?<noun>\\p{L}{3,20}){{NO_LETTER_AFTER}}"
+        scan: polish
+        flags: giu
+        fixer: inchesCale
+      # "bać" is always reflexive: a form with no "się" in its clause.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])(?<verb>bał|bała|bało|bały|bałem|bałam|bałeś|bałaś|baliśmy|bałyśmy|boi|boję|boisz|boimy|boicie|bać){{NO_LETTER_AFTER}})"
+        scan: polish
+        flags: giu
+        fixer: afraidSie
+      # "się bał się": one "się" serves the verb.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’-])się{{S}}(?<verb>\\p{L}{2,20})(?<gap>{{S}})się{{NO_LETTER_AFTER}})"
+        scan: polish
+        flags: giu
+        fixer: twoSie
+      # Two prepositions in a row ("mieszkam w z Warszawie"): one of them is a slip.
+      - regex: "(?<target>(?<![\\p{L}\\p{N}_'’/.-])(?<first>[wW]|[dD]o|[zZ]|[nN]a|[oO]d){{S}}(?<second>na|z|od|do|w){{S}}(?<next>\\p{L}+){{NO_LETTER_AFTER}})"
+        scan: polish
+        flags: gu
+        fixer: twoPrepositions
+      # "bynajmniej" strengthens a denial; with none in its sentence "przynajmniej" was meant.
+      - regex: "(?<target>(?<![\\p{L}])bynajmniej(?={{S}}\\p{L}))"
+        scan: polish
+        flags: giu
+        fixer: atLeast
   - id: pl.fragments
     checks: [englishSentenceFragment]
     predicate: fragments

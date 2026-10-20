@@ -37,7 +37,6 @@ export const PREDICATES = mergePredicates(
   questions.PREDICATES,
   subjects.PREDICATES,
   typography.PREDICATES,
-  typos.PREDICATES,
 );
 
 /** The named frame fixes of grammar/rules/pl.yaml (`fixer:`). */
