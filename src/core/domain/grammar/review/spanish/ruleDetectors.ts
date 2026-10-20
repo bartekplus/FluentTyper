@@ -29,12 +29,11 @@ export const PREDICATES = mergePredicates(
   commas.PREDICATES,
   verbAgreement.PREDICATES,
   clauses.PREDICATES,
-  quotes.PREDICATES,
   frames.PREDICATES,
 );
 
 /** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
-export const FIXERS = mergePredicates<Fixer>();
+export const FIXERS = mergePredicates<Fixer>(prefixes.FIXERS, typography.FIXERS, quotes.FIXERS);
 
 /** The named findings filters of grammar/rules/es.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>();
+export const FILTERS = mergePredicates<FindingsFilter>(typography.FILTERS);
