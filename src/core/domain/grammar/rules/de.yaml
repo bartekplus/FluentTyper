@@ -41,6 +41,12 @@ fragments:
   CASE_PREPOSITION: "(?<prep>[mM]it|[vV]on|[bB]ei|[aA]us|[nN]ach|[zZ]u|[sS]eit|[sS]amt|[nN]ebst|[aA]ußer|[gG]emäß|[nN]ahe|[eE]ntsprechend|[wW]egen|[tT]rotz|[wW]ährend|[sS]tatt|[aA]nstatt|[aA]ufgrund|[bB]ezüglich|[aA]ngesichts|[mM]angels|[iI]nfolge|[aA]bzüglich|[zZ]uzüglich|[iI]nklusive|[eE]xklusive|[hH]insichtlich|[aA]nhand|[aA]nlässlich|[sS]eitens|[mM]ithilfe|[fF]ür|[gG]egen|[dD]urch|[wW]ider|[oO]hne|[uU]m|[bB]etreffend)"
   INFLECTED_ADJ: "\\p{Ll}+(?:e|en|er|es|em)"
   DATIVE_ONLY: "(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Zz]u|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer)"
+  ARTICLE_DETERMINER: "[dD]er|[dD]ie|[dD]as|[dD]em|[dD]en|[dD]es|[eE]in|[eE]ine|[eE]inen|[eE]inem|[eE]iner|[eE]ines|[kK]ein|[kK]eine|[kK]einen|[kK]einem|[kK]einer|[kK]eines|[mM]ein|[mM]eine|[mM]einen|[mM]einem|[mM]einer|[mM]eines|[dD]ein|[dD]eine|[dD]einen|[dD]einem|[dD]einer|[dD]eines|[sS]ein|[sS]eine|[sS]einen|[sS]einem|[sS]einer|[sS]eines|[iI]hre|[iI]hren|[iI]hrem|[iI]hrer|[iI]hres|[uU]nser|[uU]nsere|[uU]nseren|[uU]nserem|[uU]nserer|[uU]nseres|[eE]uer|[eE]ure|[eE]uren|[eE]urem|[eE]urer|[eE]ures|[dD]ieser|[dD]iese|[dD]ieses|[dD]iesem|[dD]iesen|[jJ]eder|[jJ]ede|[jJ]edes|[jJ]edem|[jJ]eden|[zZ]um|[zZ]ur|[iI]m|[aA]m|[vV]om|[bB]eim|[iI]ns"
+  ARTICLE_DEGREE: "sehr|ganz|so|recht|ziemlich|besonders|wirklich|echt|total|äußerst|relativ|eher|zu"
+  GENITIVE_REFLEXIVES: "enthielt|enthielten|enthalte|enthältst|enthält|enthaltet|rühmen|rühmt|rühmte|rühmten|rühme|entledigte|entledigten|entledigt|entledigen|entledige|bemächtigte|bemächtigten|bemächtigt|bemächtigen|vergewisserte|vergewissert|vergewissern|erbarmte|erbarmt|erbarmen"
+  DATIVE_DET: "dem|einem|keinem|meinem|deinem|seinem|ihrem|unserem|eurem|diesem|jenem|jedem|den|meinen|deinen|seinen|ihren|unseren|euren|diesen|jenen"
+  GENITIVE_VERBS: "bedarf|bedürfen|bedurfte|bedurften|bedürfte|gedenke|gedenkt|gedenken|gedachte|gedachten"
+  GENITIVE_PARTICIPLES: "enthalten|gerühmt|entledigt|bemächtigt|vergewissert|erbarmt"
   RIGHT_VERBS: "haben|hat|hatte|hatten|hast|habe|hätte|hätten|geben|gibt|gab|gaben|gegeben|behalten|behielt|bekommen|bekam"
 
 rules:
@@ -947,7 +953,50 @@ rules:
         fixer: official
   - id: de.articleGender
     checks: [germanArticleGender]
-    predicate: articleGender
+    style: match
+    message: review_msg_german_article_gender
+    frames:
+      # An article or ein-word no gender of its noun takes: "der Auto" (das), "mit dem Frau"
+      # (der), "eine schönes Haus" (ein). Degree words may stand between the article and its
+      # adjective ("eine sehr schönes Haus").
+      - regex: "{{WG}}(?<det>{{ARTICLE_DETERMINER}})(?<mods>(?:{{S}}(?:{{ARTICLE_DEGREE}}|\\p{Ll}+(?:e|en|er|es|em))){0,3}){{S}}(?<noun>\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*){{E}}"
+        flags: dgu
+        owner: det
+        fixer: articlePhrase
+      # An adjective with no article before its noun takes the strong ending that shows the
+      # case: "schönes Wetter", "mit großer Freude", "herzlichen Dank".
+      - regex: "{{WG}}(?<adj>\\p{L}+(?:e|en|er|es|em)){{S}}(?<noun>\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*){{E}}"
+        flags: dgu
+        owner: adj
+        message: review_msg_german_adjective_ending
+        fixer: articleBareAdjective
+      # "das Haus als solches", "dem Menschen als solchem": "als solch-" after a noun takes the
+      # strong ending of the noun's case, gender and number, which its determiner shows.
+      - regex: "{{WG}}(?<det>[Dd](?:er|ie|as|en|em)|[Dd]ies(?:er|e|es|en|em)|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser)(?:e|en|em|er)?)(?:{{S}}\\p{Ll}{2,30}(?:e|en|er|es|em))?{{S}}(?<noun>\\p{Lu}\\p{Ll}{2,}){{S}}als{{S}}(?<target>solch(?:e|er|es|em|en)){{E}}"
+        flags: dgu
+        message: review_msg_german_als_solch
+        fixer: alsSolch
+      # Verbs whose object is a genitive: "es bedarf eines Beweises", "wir gedenken der Opfer",
+      # and reflexive ones: "sich der Stimme enthalten", "sich eines Erfolgs rühmen".
+      - regex: "{{WG}}(?:(?:{{GENITIVE_VERBS}})(?:{{S}}es)?|(?:{{GENITIVE_REFLEXIVES}}){{S}}(?:sich|mich|dich|uns|euch)){{S}}(?<target>{{DATIVE_DET}}){{S}}(?<rest>(?:\\p{Ll}+{{S}}){0,2}\\p{Lu}\\p{Ll}+){{E}}|{{WG}}(?:sich|mich|dich|uns|euch){{S}}(?<t2>{{DATIVE_DET}}){{S}}(?<rest2>(?:\\p{Ll}+{{S}}){0,2}\\p{Lu}\\p{Ll}+)(?={{S}}(?:{{GENITIVE_PARTICIPLES}}){{E}})"
+        flags: dgu
+        owner: target|t2
+        message: review_msg_german_genitive_verb
+        fixer: genitiveObject
+      # "Wir machen uns auf dem Weg": setting out takes the accusative ("auf den Weg"); not "Ich
+      # habe mich auf dem Weg verlaufen" or "Wir machten uns auf dem Heimweg Gedanken", where
+      # the way is where it happens.
+      - regex: "{{WG}}(?:mich|dich|sich|uns|euch)(?:{{S}}\\p{Ll}+){0,2}{{S}}auf{{S}}(?<target>dem){{S}}(?:\\p{Lu}\\p{Ll}*w|W)eg(?<after>{{S}}(?:gemacht|machen){{E}})?(?=[ \\t]*[.!?;,)\\n]|[ \\t]*$|{{S}}(?:nach|zur|zum|ins|in){{E}})"
+        flags: dgu
+        message: review_msg_german_preposition_case
+        fixer: onTheWay
+      # "das Auto, der da steht" → das: a relative pronoun right after its noun and a comma, as
+      # the subject or object of its clause, takes the noun's gender. Only a pronoun that no
+      # case of the noun's gender spells is flagged ("die Frau, der ich half" is a dative).
+      - regex: "{{WG}}(?<noun>\\p{Lu}\\p{Ll}+),{{S}}(?<target>der|die|das)(?={{S}}(?<next>\\p{Ll}+){{E}})"
+        flags: dgu
+        message: review_msg_german_relative_pronoun
+        fixer: relativePronoun
   - id: de.suspendedHyphen
     checks: [germanSuspendedHyphen]
     style: match

@@ -1,6 +1,11 @@
 // The named Review detectors of grammar/rules/de.yaml; the rule file sets their checks,
 // languages and order.
-import { mergePredicates, type Fixer, type FindingsFilter } from "../../engine/reviewRules";
+import {
+  mergePredicates,
+  type Detector,
+  type Fixer,
+  type FindingsFilter,
+} from "../../engine/reviewRules";
 import * as idiomFrames from "./idiomFrames";
 import * as lookalikes from "./lookalikes";
 import * as abbreviations from "./abbreviations";
@@ -25,8 +30,7 @@ import * as redundancy from "./redundancy";
 import * as suspendedHyphen from "./suspendedHyphen";
 import * as verbAgreement from "./verbAgreement";
 
-export const PREDICATES = mergePredicates(
-  articleGender.PREDICATES,
+export const PREDICATES = mergePredicates<Detector>(
   dates.PREDICATES,
   nounCasing.PREDICATES,
   numbers.PREDICATES,
@@ -56,6 +60,7 @@ export const FIXERS = mergePredicates<Fixer>(
   salutations.FIXERS,
   prepositionCase.FIXERS,
   verbAgreement.FIXERS,
+  articleGender.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */
