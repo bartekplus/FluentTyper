@@ -9,7 +9,7 @@ import {
 import { agreement } from "./agreement";
 import { FIXERS as AO90_FIXERS } from "./ao90";
 import { cliticPlacement } from "./clitics";
-import { commas, introductoryCommas } from "./commas";
+import { FIXERS as COMMA_FIXERS } from "./commas";
 import { confusions, FIXERS as CONFUSION_FIXERS } from "./confusions";
 import { FIXERS as CONTRACTION_FIXERS } from "./contractions";
 import { FIXERS as WORD_CHOICE_FIXERS } from "./wordChoice";
@@ -44,8 +44,6 @@ export const PREDICATES = {
   rangeDash,
   cliticPlacement,
   isoDates,
-  commas,
-  introductoryCommas,
   agreement,
   nounAgreement,
   verbAgreement,
@@ -73,6 +71,7 @@ export const FIXERS = mergePredicates<AnyFixer>(
   DATE_FIXERS,
   CONTRACTION_FIXERS,
   FORMAL_FIXERS,
+  COMMA_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/pt_BR.yaml (`filter:`). */

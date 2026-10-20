@@ -55,6 +55,14 @@ fragments:
   PREPOSITION: "(?<of>de|d[oa]s?|n[oa]s?|em|sobre[ \\t\\u00a0]{1,8}[oa]s?|sobre)"
   POINT: "questão|questões|argumento|argumentos|pergunta|perguntas|observação|observações"
   SECOND: "a|as|o|os|aquele|aquela|aqueles|aquelas|aquilo|este|esta|estes|estas|esse|essa|esses|essas|ele|ela|eles|elas|isto|isso|aqui|ali|aí"
+  PARENTHETICAL: "no{{S}}entanto|na{{S}}verdade|além{{S}}disso|por{{S}}outro{{S}}lado|por{{S}}assim{{S}}dizer|ou{{S}}seja|a{{S}}meu{{S}}ver|aliás|em{{S}}contrapartida|por{{S}}conseguinte|em{{S}}suma"
+  ADVERBS: "portanto|contudo|todavia|entretanto|outrossim|por{{S}}exemplo|não{{S}}obstante|com{{S}}efeito|em{{S}}resumo"
+  AFTER_CONJUNCTION: "{{PARENTHETICAL}}|{{ADVERBS}}|no{{S}}fundo|em{{S}}geral|ao{{S}}mesmo{{S}}tempo"
+  GREETINGS: "bom{{S}}dia|boa{{S}}tarde|boa{{S}}noite|olá|oi|obrigad[oa]|tchau|parabéns|feliz{{S}}aniversário|feliz{{S}}natal|feliz{{S}}ano{{S}}novo|feliz{{S}}páscoa|bem-vind[oa]s?|até{{S}}logo|até{{S}}amanhã|com{{S}}licença"
+  MODALS: "devo|deve|devemos|devem|deveria|deveríamos|deveriam|posso|pode|podemos|podem|poderia|poderíamos|poderiam|quero|quer|queremos|querem|vou|vai|vamos|vão|preciso|precisa|precisamos|precisam"
+  CLOSINGS: "atenciosamente|cordialmente|respeitosamente|cumprimentos|melhores{{S}}cumprimentos|com{{S}}os{{S}}melhores{{S}}cumprimentos|saudações|abraços|um{{S}}abraço|um{{S}}grande{{S}}abraço|beijos|grato{{S}}pela{{S}}atenção|grata{{S}}pela{{S}}atenção|obrigad[oa]{{S}}pela{{S}}atenção"
+  LINE_END: "(?=[ \\t\\u00a0]{0,8}(?:\\n|$))"
+  OPENING_PHRASES: "por{{S}}favor|além{{S}}disso|no{{S}}entanto|na{{S}}verdade|por{{S}}outro{{S}}lado|ou{{S}}seja|em{{S}}suma|em{{S}}resumo|por{{S}}fim|enfim|aliás|contudo|todavia|portanto|porém|infelizmente|felizmente|sinceramente|obviamente|evidentemente|certamente|finalmente"
 
 rules:
   - id: pt_BR.accentParonyms
@@ -753,10 +761,82 @@ rules:
     predicate: isoDates
   - id: pt_BR.commas
     checks: [portugueseCommas]
-    predicate: commas
+    style: match
+    message: review_msg_pt_comma
+    frames:
+      # {{PARENTHETICAL}}: expressions that only ever stand apart from the clause. Left out
+      # because they also read as ordinary words: "em geral" ("os carros, em geral caros,"), "no
+      # fundo" ("no fundo do mar"), "isto é" ("isto é o que quero"), "de fato" ("um casal de
+      # fato"). {{ADVERBS}}: expressions that are asides only when a comma closes them:
+      # "portanto" inside a clause, "com efeito retroativo", "por exemplo o Brasil".
+      # {{AFTER_CONJUNCTION}}: asides only right after a conjunction: "e no fundo, ficou" but
+      # "caiu no fundo, e".
+      #
+      # ", no entanto está bem" -> ", no entanto, está bem": a word follows without a comma.
+      - regex: "(?<=,){{S}}(?<target>(?:{{PARENTHETICAL}})|por{{S}}exemplo(?={{S}}que{{E}}))(?={{S}}[\\p{L}\\d])"
+        fixer: commaAfter
+      # "e além disso, está" -> "e, além disso, está": the aside a comma closes opens after the
+      # conjunction too. Not at a sentence start: "Mas na verdade, ninguém sabe" opens with the
+      # aside.
+      - regex: "(?<=[\\p{L}\\d,]{{S}})(?:e|mas|ou|nem)(?<target>{{S}})(?:{{AFTER_CONJUNCTION}}){{E}}(?=,)"
+        fixer: commaBefore
+      # "e, no fundo ficou" -> "e, no fundo, ficou": a comma after the conjunction opens an aside.
+      - regex: "(?<=(?<![\\p{L}])(?:e|mas|ou|nem),){{S}}(?<target>{{AFTER_CONJUNCTION}})(?={{S}}[\\p{L}\\d])"
+        fixer: commaAfter
+      # "Disse no entanto, que" -> "Disse, no entanto, que". "além disso" also means "beyond
+      # that" ("não via nada além disso,"). A conjunction or the start of a clause before the
+      # expression needs no comma.
+      - regex: "(?<lead>\\p{L}+)(?<target>{{S}})(?!além{{E}})(?:{{PARENTHETICAL}}|{{ADVERBS}}){{E}}(?=,)"
+        fixer: commaUnopened
+      # A greeting or thanks before the name it addresses ("Bom dia Ana" -> "Bom dia, Ana").
+      - regex: "(?<=^|[.!?;:\\n][ \\t\\u00a0]{0,8})(?:{{GREETINGS}})(?<target>{{S}})(?=\\p{L}{2,}(?:[ \\t\\u00a0]{0,8}[.!?,]|$))"
+        fixer: commaGreeting
+      # A repeated "não" or "sim" answering a question ("Não não quero" -> "Não, não quero").
+      - regex: "(?<=^|[.!?;:\\n][ \\t\\u00a0]{0,8})(?<first>não|sim)(?<target>{{S}})(?=\\k<first>{{E}})"
+        fixer: commaBefore
+      # "Por exemplo" opening a sentence ("Por exemplo hoje choveu").
+      - regex: "(?<=^|[.!?;:\\n][ \\t\\u00a0]{0,8})por{{S}}exemplo(?<target>{{S}})(?=\\p{L}{2,}{{E}})(?!(?:de|do|da|que){{E}})"
+        fixer: commaBefore
+      # "sim senhor!", "não senhora.": the addressee after the answer.
+      - regex: "(?:sim|não)(?<target>{{S}})(?=senhor(?:a|es|as)?[ \\t\\u00a0]{0,8}[.!?,;])"
+        fixer: commaBefore
+      # "Adoro doce mas engorda" -> "doce, mas": "mas" opening a clause after a word. Words like
+      # "não só ... mas" and "nem ... mas" need no comma before "mas".
+      - regex: "(?<lead>\\p{L}+)(?<target>{{S}})mas(?={{S}}(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|não|nunca|já|ainda|faz|fez|tem|tinha|há|havia|acho|parece){{E}})"
+        fixer: commaMasClause
+      # "É caro mas é bom": a copula after "mas" opens a clause too, once a clause stands before
+      # it ("Simples mas é bom" coordinates a bare adjective). "Vai mas é trabalhar", an emphatic
+      # "mas é" before an infinitive, stays.
+      - regex: "(?<=\\p{L}{{S}})(?<lead>\\p{L}+)(?<target>{{S}})mas(?={{S}}(?:é|era|foi|são|eram|foram|está|estava|estão|será|seria){{E}}(?!{{S}}\\p{L}+[aei]r{{E}}))"
+        fixer: commaMasClause
+      # "as melhores intenções mas, porque..." -> ", mas,": an aside after "mas" means "mas"
+      # opens a clause, which takes a comma before it.
+      - regex: "(?<lead>\\p{L}+|\\d+|\\))(?<target>{{S}})mas(?=,)"
+        fixer: commaMasAside
+      # "Devemos sim lutar" -> "Devemos, sim, lutar": an emphatic "sim" between a modal and its
+      # infinitive stands between commas.
+      - regex: "(?:{{MODALS}})(?<before>,?){{S}}sim(?<after>,?)(?={{S}}\\p{L}+(?:ar|er|ir|or){{E}})"
+        owner: none
+        fixer: commaEmphaticSim
+      # A whole line that signs off a letter ("Atenciosamente").
+      - regex: "(?<=^|\\n)[ \\t\\u00a0]{0,8}(?=(?:{{CLOSINGS}})[.;]?{{LINE_END}})(?:\\p{L}{1,30}{{S}}){0,6}(?<target>\\p{L}{1,30}[.;]?){{LINE_END}}"
+        fixer: commaClosing
+      # A whole line that greets a letter's reader ("Prezado Senhor").
+      - regex: "(?<=^|\\n)[ \\t\\u00a0]{0,8}(?:prezad[oa]s?|car[oa]s?|estimad[oa]s?|querid[oa]s?)(?:{{S}}(?:senhor(?:a|es|as)?|sr\\.?|sra\\.?|dr\\.?|dra\\.?|doutor(?:a)?|professor(?:a)?|\\p{L}[\\p{L}.]*|e|senhores|senhoras|colegas|amigos|amigas|clientes)){0,4}{{S}}(?<target>[\\p{L}.]{1,30}!?){{LINE_END}}"
+        fixer: commaGreetingLine
+      # A question opened by a question word and "é que" ends with "?" ("O que é que houve.").
+      - regex: "(?<=^|[.!?;\\n][ \\t\\u00a0]{0,8})(?:quem|o{{S}}que|que|como|onde|de{{S}}onde|aonde|quando|por{{S}}que|qual|quanto|quantos|quantas){{S}}(?:foi|é|era){{S}}que{{E}}[^.!?\\n]{1,160}?(?<target>\\.)(?=[ \\t\\u00a0]*(?:\\n|$|\\p{L}))"
+        message: review_msg_pt_question_mark
+        fixer: commaAsks
   - id: pt_BR.introductoryCommas
     checks: [styleIntroductoryComma]
-    predicate: introductoryCommas
+    style: match
+    message: review_msg_introductory_comma
+    frames:
+      # styleIntroductoryComma (opt-in): an opening phrase that the comma usually sets off ("Por
+      # favor faça" -> "Por favor, faça"; "Infelizmente não deu"). Writers often leave it out.
+      - regex: "(?<=^|[.!?;\\n][ \\t\\u00a0]{0,8})(?:{{OPENING_PHRASES}})(?<target>{{S}})(?=\\p{L}+{{E}})(?!(?:de|do|da|dos|das|que|tudo){{E}})"
+        fixer: introductoryComma
   - id: pt_BR.agreement
     checks: [portugueseAgreement]
     predicate: agreement
