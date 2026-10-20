@@ -1,8 +1,7 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { Detector } from "../../engine/reviewRules";
+import type { Detector, FrameRef, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { graphWords } from "../wordGraph";
-import { arabicDates } from "./dates";
 import type * as Lexicon from "./lexicon.generated";
 import { reviewData } from "../reviewLanguageData";
 import { styleFrames, tagsOf } from "./styleFrames";
@@ -1006,7 +1005,6 @@ function moodFix(word: string, jussive: boolean): string | undefined {
 
 // ------------------------------------------------------- particles and clauses
 
-const KULLAMA = /(?<![\p{L}\p{M}])كلما[^.!؟?\n،]{1,80}،[ \t ]*(?<second>كلما[ \t ]+)/dgu;
 const JOINED = new Map([
   ["عن ما", "عما"],
   ["من ما", "مما"],
@@ -1016,9 +1014,8 @@ const JOINED = new Map([
 const STILL = /^(?:زال|يزال|تزال|زالت|زالوا|دام|برح|يبرح|انفك|ينفك|فتئ|يفتأ)$/u;
 
 /**
- * عن and من join ما and مَن ("عما", "مما", "عمن"), and كلما is not repeated in its
- * answer clause. A word must follow on the same line; و + an imperfect after ما is
- * left alone (ما may be quoted as a word).
+ * عن and من join ما and مَن ("عما", "مما", "عمن"). A word must follow on the same line;
+ * و + an imperfect after ما is left alone (ما may be quoted as a word).
  */
 function arabicSyntax(ctx: DetectContext, list: Token[]): Finding[] {
   const findings: Finding[] = [];
@@ -1035,64 +1032,38 @@ function arabicSyntax(ctx: DetectContext, list: Token[]): Finding[] {
       context: { start: first.start, end: next.end },
     });
   }
-  KULLAMA.lastIndex = Math.max(0, ctx.from - 160);
-  for (let m = KULLAMA.exec(ctx.scanText); m && m.index < ctx.to; m = KULLAMA.exec(ctx.scanText)) {
-    const [start, end] = m.indices!.groups!.second;
-    if (owns(ctx, start))
-      findings.push({
-        messageKey: "review_msg_arabic_kullama",
-        range: { start, end },
-        alternatives: [""],
-        context: { start: m.index, end: m.index + m[0].length },
-      });
-  }
   return findings;
 }
 
 // ------------------------------------------------------- optional style
 
-const ILLA_FAQAT =
-  /(?<![\p{L}\p{M}])إلا(?:[ \t\u00a0]+[\p{L}\p{M}]+){1,5}(?<faqat>[ \t\u00a0]+فقط)(?![\p{L}\p{M}])/dgu;
-const BAYNA =
-  /(?<![\p{L}\p{M}])بين[ \t\u00a0]+(?<first>[\p{L}]+)[ \t\u00a0]+(?<second>وبين[ \t\u00a0]+)(?=\p{L})/dgu;
 // A pronoun suffix on the first term: "بيني وبينه" repeats بين as it must.
 const PRONOUN_SUFFIX = /(?:ي|ه|ها|هما|هم|هن|ك|كما|كم|كن|نا)$/u;
 
-/**
- * Optional style: "فقط" after إلا and بين repeated before a
- * second noun ("بين محمد وعلي").
- */
-function arabicStyle(ctx: DetectContext): Finding[] {
-  const findings: Finding[] = [];
-  const scan = (regex: RegExp, each: (m: RegExpExecArray) => Finding | undefined) => {
-    regex.lastIndex = Math.max(0, ctx.from - 160);
-    for (let m = regex.exec(ctx.scanText); m && m.index < ctx.to; m = regex.exec(ctx.scanText)) {
-      const finding = each(m);
-      if (finding && owns(ctx, finding.range.start)) findings.push(finding);
-    }
+/** The finding of `frame` when the chunk owns its start, else null. */
+const owned = (ctx: DetectContext, frame: FrameRef, f: Finding): RawFinding | null =>
+  owns(ctx, f.range.start) ? { ruleId: frame.ruleId, ...f } : null;
+
+/** A finding that removes or replaces the `target` group of `m`. */
+const replace = (m: RegExpExecArray, messageKey: Finding["messageKey"], alternative: string) => {
+  const [start, end] = m.indices!.groups!.target;
+  return {
+    messageKey,
+    range: { start, end },
+    alternatives: [alternative],
+    context: { start: m.index, end: m.index + m[0].length },
   };
-  const remove = (key: Finding["messageKey"], group: string) => (m: RegExpExecArray) => {
-    const [start, end] = m.indices!.groups![group];
-    return {
-      messageKey: key,
-      range: { start, end },
-      alternatives: [""],
-      context: { start: m.index, end: m.index + m[0].length },
-    };
-  };
-  scan(ILLA_FAQAT, remove("review_msg_style_phrasing", "faqat"));
-  scan(BAYNA, (m) => {
-    if (PRONOUN_SUFFIX.test(m.groups!.first) && !m.groups!.first.startsWith("ال")) return;
-    const [start, end] = m.indices!.groups!.second;
-    return {
-      messageKey: "review_msg_style_phrasing",
-      range: { start, end },
-      alternatives: ["و"],
-      context: { start: m.index, end: m.index + m[0].length },
-    };
-  });
-  return findings;
-}
+};
+
+/** The named frame fixes of grammar/rules/ar_SA.yaml (`fixer:`). */
+export const FIXERS = {
+  kullama: (m, ctx, frame) => owned(ctx, frame, replace(m, "review_msg_arabic_kullama", "")),
+  illaFaqat: (m, ctx, frame) => owned(ctx, frame, replace(m, "review_msg_style_phrasing", "")),
+  bayna: (m, ctx, frame) =>
+    PRONOUN_SUFFIX.test(m.groups!.first) && !m.groups!.first.startsWith("ال")
+      ? null
+      : owned(ctx, frame, replace(m, "review_msg_style_phrasing", "و")),
+} satisfies Record<string, MatchFixer>;
 
 const as =
   (ruleId: RawFinding["ruleId"], detect: (ctx: DetectContext, list: Token[]) => Finding[]) =>
@@ -1110,10 +1081,8 @@ export const PREDICATES = {
     ...numbers(ctx, list),
   ]),
   caseEndings: as("arabicCaseEndings", caseEndings),
-  dates: as("arabicDates", (ctx) => arabicDates(ctx)),
   syntax: as("arabicSyntax", arabicSyntax),
   style: as("stylePhrasing", (ctx, list) => [
-    ...arabicStyle(ctx),
     ...dualPossessor(ctx, list),
     ...indefiniteAdjectives(ctx, list),
     ...demonstrativePredicates(ctx, list),

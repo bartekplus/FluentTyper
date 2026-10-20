@@ -1,12 +1,13 @@
 // The named Review detectors of grammar/rules/ar_SA.yaml; the rule file sets their checks,
 // languages and order.
 import { mergePredicates, type Fixer, type FindingsFilter } from "../../engine/reviewRules";
-import { PREDICATES as CHECKS } from "./checks";
+import { FIXERS as CHECK_FIXERS, PREDICATES as CHECKS } from "./checks";
+import { FILTERS as DATE_FILTERS, FIXERS as DATE_FIXERS } from "./dates";
 
 export const PREDICATES = mergePredicates(CHECKS);
 
 /** The named frame fixes of grammar/rules/ar_SA.yaml (`fixer:`). */
-export const FIXERS = mergePredicates<Fixer>();
+export const FIXERS = mergePredicates<Fixer>(CHECK_FIXERS, DATE_FIXERS);
 
 /** The named findings filters of grammar/rules/ar_SA.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>();
+export const FILTERS = mergePredicates<FindingsFilter>(DATE_FILTERS);

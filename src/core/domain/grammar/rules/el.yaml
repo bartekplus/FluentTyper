@@ -1,25 +1,106 @@
 # el grammar rules. See docs/agents/grammar-rules.md for the format.
 lang: el
 
+# Regex fragments of the frame rules: {{NAME}}.
+fragments:
+  GAP: "[ \\t\\u00a0]+"
+  BEFORE: "(?<![\\p{L}\\p{M}\\p{N}_'’@#/\\\\-])"
+  NEXT: "(?<gap>{{GAP}})(?<next>\\p{L}[\\p{L}\\p{M}]*)"
+
 rules:
   - id: el.finalNu
     checks: [greekFinalNu]
-    predicate: finalNu
+    style: match
+    message: review_msg_greek_final_nu
+    frames:
+      # "τη αστυνομία", "δε ξέρει", "να μη έρθει": the final ν stays before a vowel or a
+      # plosive. Adversative "δε" ("ο δε", "μεν … δε") and the frozen "εν τη" keep their form.
+      - regex: "{{BEFORE}}(?<target>τη|στη|δε|μη){{NEXT}}"
+        scan: owned
+        flags: giu
+        fixer: missingNu
+      # "κι" stands only before a vowel.
+      - regex: "{{BEFORE}}(?<target>κι){{NEXT}}"
+        scan: owned
+        flags: giu
+        fixer: kiConsonant
   - id: el.strictFinalNu
     checks: [greekStrictFinalNu]
-    predicate: strictFinalNu
+    style: match
+    message: review_msg_greek_strict_final_nu
+    frames:
+      # The strict school rule: the feminine article drops its ν before the continuants
+      # ("την λειτουργία" -> "τη"). "δεν" and "μην" follow the same school rule ("δε θέλει",
+      # "να μη φύγεις"), though current usage often keeps their ν everywhere: this rule is
+      # opt-in for that reason.
+      - regex: "{{BEFORE}}(?<target>την|στην|αυτήν|δεν|μην){{NEXT}}"
+        scan: owned
+        flags: giu
+        fixer: extraNu
+      # The masculine "τον" keeps its ν everywhere ("το ανταγωνισμό" -> "τον", common in
+      # speech-like writing). Other masculine determiners keep their ν too: "έναν λόγο",
+      # "για ποιον λόγο".
+      - regex: "{{BEFORE}}(?<target>το|στο|ένα|κάποιο|κανένα|ποιο|τέτοιο|ολόκληρο){{NEXT}}"
+        scan: owned
+        flags: giu
+        fixer: masculineTon
+      # "αυτή" after a preposition follows the article ("γι' αυτήν ξενιτεύτηκα").
+      - regex: "{{BEFORE}}(?<target>αυτή){{NEXT}}"
+        scan: owned
+        flags: giu
+        fixer: aytinAfterPreposition
   - id: el.perfectForm
     checks: [englishPhraseCorrections]
-    predicate: perfectForm
+    style: match
+    message: review_msg_greek_perfect_form
+    frames:
+      # "Είχα πάω", "έχει φάω": the perfect takes the -ει form, not the subjunctive.
+      - regex: "{{BEFORE}}(?:έχω|έχεις|έχει|έχουμε|έχομε|έχετε|έχουν|έχουνε|είχα|είχες|είχε|είχαμε|είχατε|είχαν|είχανε){{GAP}}(?<target>\\p{L}+(?:ω|ώ))(?![\\p{L}\\p{M}])"
+        scan: owned
+        lookback: 16
+        flags: giu
+        fixer: perfectForm
   - id: el.questionAccent
     checks: [greekQuestionAccent]
-    predicate: questionAccent
+    style: match
+    message: review_msg_greek_question_accent
+    frames:
+      # "Που πας;", "Πως είσαι;": a question opened by where/how accents the word.
+      - regex: "(?<![\\p{L}\\p{M}])(?<target>\\u03C0\\u03BF\\u03C5|\\u03C0\\u03C9\\u03C2)(?![\\p{L}\\p{M}'\\u2019])"
+        scan: owned
+        flags: giu
+        fixer: questionAccent
   - id: el.formalKai
     checks: [stylePhrasing]
-    predicate: formalKai
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # "κι ενός" -> "και ενός": formal writing spells "και" out before a vowel too.
+      - regex: "{{BEFORE}}(?<target>κι){{NEXT}}"
+        scan: owned
+        flags: giu
+        fixer: formalKai
   - id: el.punctuation
     checks: [greekPunctuation]
-    predicate: punctuation
+    style: match
+    message: review_msg_greek_intro_comma
+    frames:
+      # "Συνεπώς ο κανονισμός…": a comma follows a sentence-opening connector.
+      - regex: "{{BEFORE}}(?<target>συνεπώς|επομένως|αντιθέτως|αντίθετα|ωστόσο|εντούτοις|παρόλα αυτά|παρ['’] όλα αυτά|για παράδειγμα|επιπλέον|επιπροσθέτως|εξάλλου|κατά συνέπεια|εν κατακλείδι|συμπερασματικά|αφενός|αφετέρου|κι όμως|και όμως|πρώτον|δεύτερον|τρίτον|τέλος|ναι|όχι){{NEXT}}"
+        scan: owned
+        flags: giu
+        fixer: introComma
+      # "!!" and "…." in Greek prose: one mark.
+      - regex: "(?<target>(?<!!)!{2,}(?![!?]))"
+        scan: owned
+        flags: gu
+        message: review_msg_greek_repeated_marks
+        fixer: oneMark
+      - regex: "(?<target>\\u2026\\.(?!\\.))"
+        scan: owned
+        flags: gu
+        message: review_msg_greek_repeated_marks
+        fixer: oneMark
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

@@ -1,19 +1,93 @@
 # sv grammar rules. See docs/agents/grammar-rules.md for the format.
 lang: sv
 
+# Regex fragments of the frame rules: {{NAME}}.
+fragments:
+  GAP: "[ \\t\\u00a0]+"
+  EDGE: "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]"
+  END: "(?:\\d{1,4}(?:[.:]\\d{2})?|en|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio|elva|tolv|måndag|tisdag|onsdag|torsdag|fredag|lördag|söndag|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december|\\p{Lu}\\p{Ll}+)"
+  FINITE: "är|var|har|hade|blir|blev|kan|kunde|ska|skall|skulle|vill|ville|måste|får|fick|kommer|kom|gör|gjorde|går|gick|säger|sa|sade|tycker|tyckte|vet|visste|brukar|bor|bodde|verkar|borde"
+
 rules:
   - id: sv.typography
     checks: [swedishTypography]
-    predicate: typography
+    style: match
+    message: review_msg_swedish_ordinal_colon
+    frames:
+      # "på 2a plats", "den 5e maj": an ordinal written in digits takes a colon (2:a, 5:e).
+      - regex: "(?<![\\p{L}\\p{N}.,:/-])(?<target>\\d{1,4})([ae])(?![\\p{L}\\p{N}:])"
+        scan: owned
+        flags: gu
+        fixer: ordinal
+      # "APIs fördelar": an acronym's genitive -s follows a colon (API:s).
+      - regex: "(?<![\\p{L}\\p{N}])(?<target>\\p{Lu}{2,6})s(?![\\p{L}\\p{N}:'\\u2019])"
+        scan: owned
+        flags: gu
+        message: review_msg_swedish_acronym_genitive
+        fixer: acronymGenitive
+      # "idag är det Måndag": Swedish weekdays and months are common nouns.
+      - regex: "(?<!{{EDGE}})(?<target>(?:Måndag|Tisdag|Onsdag|Torsdag|Fredag|Lördag|Söndag|Januari|Februari|Mars|April|Maj|Juni|Juli|Augusti|September|Oktober|November|December)(?:en|ens|s|ar|arna|ens)?)(?!{{EDGE}})"
+        scan: owned
+        flags: gu
+        message: review_msg_swedish_lowercase_names
+        fixer: lowercaseName
   - id: sv.agreement
     checks: [swedishAgreement]
-    predicate: agreement
+    style: match
+    message: review_msg_swedish_agreement
+    frames:
+      # "ett mörk kväll", "en urholkat sten": of the article, the adjective's -t form and the
+      # noun's gender, the odd one out is fixed when the other two agree. When article and
+      # adjective agree against the noun, nothing is said: the noun may have both genders or a
+      # gender the dictionary does not know.
+      # Overlapping phrases: the noun of one may open the next. The match is the article and a
+      # lookahead holds the phrase, so the next match can start after the article.
+      - regex: "(?<!{{EDGE}})(?<target>[Ee]tt|[Ee]n|ETT|EN)(?=(?<gap1>{{GAP}})(?<adjective>\\p{Ll}+)(?<gap2>{{GAP}})(?<noun>\\p{Ll}+)(?!{{EDGE}}|\\.\\p{L}))"
+        scan: owned
+        flags: gu
+        fixer: agreement
   - id: sv.mellanTillDeDem
     checks: [englishPhraseCorrections]
-    predicate: mellanTillDeDem
+    style: match
+    message: review_msg_swedish_mellan_till
+    frames:
+      # "mellan två till fyra": a range is "mellan … och …" or "från … till …".
+      - regex: "(?<!{{EDGE}})(?<target>[Mm]ellan)(?<middle>{{GAP}}(?:(?:klockan|kl\\.|år|åren){{GAP}})?{{END}}){{GAP}}(?<till>till)(?<rest>{{GAP}}{{END}})(?!{{EDGE}})"
+        scan: owned
+        flags: dgu
+        fixer: mellanTill
+      # "dem är här" -> "de är här": the subject form is "de". Only where the role is plain:
+      # "dem" opening a clause before its verb.
+      - regex: "(?<!{{EDGE}})(?<target>[Dd]em|DEM){{GAP}}(?:{{FINITE}})(?!{{EDGE}})"
+        scan: owned
+        flags: gu
+        message: review_msg_swedish_de_dem
+        fixer: demSubject
+      # "med de." -> "med dem.": after a preposition the object form is "dem". Only "de" ending
+      # a clause after a preposition ("med de andra" is the article).
+      - regex: "(?<!{{EDGE}})(?:med|till|för|av|hos|åt|om|från|på|mot|utan|efter|bredvid|framför|bakom|över|genom|mellan|kring){{GAP}}(?<target>de|DE)(?=[ \\t\\u00a0]*(?:[.,!?;:)]|$))"
+        scan: owned
+        flags: giu
+        message: review_msg_swedish_de_dem
+        fixer: deObject
   - id: sv.enTillSpeechComma
     checks: [stylePhrasing]
-    predicate: enTillSpeechComma
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # "en till klubba" -> "en klubba till": "another" puts till after the noun.
+      - regex: "(?<!{{EDGE}})(?<target>[Ee]n|[Ee]tt)(?<gap1>{{GAP}})(?<till>till)(?<gap2>{{GAP}})(?<noun>\\p{Ll}{3,})(?=[ \\t\\u00a0]*(?:[.,!?;:]|$))"
+        scan: owned
+        flags: gu
+        fixer: enTill
+      # "Det var finfint sade Johan." -> "finfint, sade Johan": quoted speech is set off from
+      # the speech verb that follows it. Only when the words before already hold a finite verb,
+      # so they cannot be a fronted object ("Det sa Johan").
+      - regex: "(?<=\\p{L})(?<target>{{GAP}})(?<verb>sa|sade|svarade|frågade|ropade|skrek|viskade|utbrast|förklarade|menade|tänkte){{GAP}}(?:han|hon|hen|jag|vi|de|du|ni|\\p{Lu}\\p{Ll}+)(?=[.!?])"
+        scan: owned
+        flags: gu
+        message: review_msg_swedish_speech_comma
+        fixer: speechComma
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

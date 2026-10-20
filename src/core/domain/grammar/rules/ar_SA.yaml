@@ -1,21 +1,113 @@
 # ar_SA grammar rules. See docs/agents/grammar-rules.md for the format.
 lang: ar_SA
 
+# Regex fragments of the frame rules: {{NAME}}.
+fragments:
+  START: "(?<![\\p{L}\\p{M}\\p{N}])"
+  NOT_WORD: "(?![\\p{L}\\p{M}\\p{N}])"
+  GAP: "[ \\t\\u00a0]+"
+  SEP: "[ \\t\\u00a0]*[/.-][ \\t\\u00a0]*"
+  DIGIT: "[0-9٠-٩۰-۹]"
+  # The month and weekday names of MONTHS and WEEKDAYS in review/arabic/dates.ts, longest
+  # first. Keep them in step with these tables.
+  MONTH: "كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب"
+  WEEKDAY: "الثلاثاء|الأربعاء|الإثنين|الاثنين|الخميس|الجمعة|الأحد|السبت"
+
 rules:
   - id: ar_SA.agreement
     checks: [arabicAgreement]
+    # predicate: walks the word tokens; each decision reads the words around a demonstrative,
+    # a relative pronoun, an adjective or a number.
     predicate: agreement
   - id: ar_SA.caseEndings
     checks: [arabicCaseEndings]
+    # predicate: walks the word tokens; each decision reads the word that governs the next
+    # noun or verb.
     predicate: caseEndings
   - id: ar_SA.dates
     checks: [arabicDates]
-    predicate: dates
+    style: match
+    message: review_msg_arabic_impossible_date
+    # The filter adds the ISO date findings after the date and year frames. It drops a
+    # date-order finding that starts in an earlier finding.
+    filter: isoDatesAndOrder
+    frames:
+      # Dates that cannot exist (31 September, 29 February 2001) and a weekday that does not
+      # fall on its date. A day, then a month name (any separator) or a month number (/ - .
+      # and a year).
+      - regex: "(?<target>{{START}}(?:(?<weekday>{{WEEKDAY}}){{GAP}}(?:،[ \\t\\u00a0]*)?)?(?<day>{{DIGIT}}{1,2})(?:(?:{{GAP}}|{{SEP}})(?<monthName>{{MONTH}})|{{SEP}}(?<monthDigits>{{DIGIT}}{1,2})(?={{SEP}}{{DIGIT}}))(?:(?:{{GAP}}|{{SEP}})(?<year>{{DIGIT}}{2,4}))?{{NOT_WORD}})"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: date
+      # A five-digit year.
+      - regex: "{{START}}(?:ل?(?:ال)?(?:عام|سنة)|صيف|شتاء|ربيع|خريف){{GAP}}(?<target>{{DIGIT}}{5,}){{NOT_WORD}}"
+        scan: owned
+        lookback: 64
+        flags: gu
+        fixer: longYear
+      # Year first or month first: Arabic dates run day, month, year.
+      - regex: "(?<target>{{START}}(?<y>{{DIGIT}}{4}){{GAP}}(?<m>{{MONTH}}){{GAP}}(?<d>{{DIGIT}}{1,2}){{NOT_WORD}})"
+        scan: owned
+        lookback: 64
+        flags: gu
+        message: review_msg_arabic_date_order
+        fixer: dayMonthYear
+      - regex: "(?<target>{{START}}(?<m>{{MONTH}}){{GAP}}(?<d>{{DIGIT}}{1,2}){{GAP}}(?<w>{{WEEKDAY}}){{NOT_WORD}})"
+        scan: owned
+        lookback: 64
+        flags: gu
+        message: review_msg_arabic_date_order
+        fixer: weekdayDayMonth
+      - regex: "(?<target>{{START}}(?<m>{{MONTH}}){{GAP}}(?<d>{{DIGIT}}{1,2}){{GAP}}(?<y>{{DIGIT}}{4}){{NOT_WORD}})"
+        scan: owned
+        lookback: 64
+        flags: gu
+        message: review_msg_arabic_date_order
+        fixer: dayMonthYear
+      - regex: "(?<target>{{START}}(?<y>{{DIGIT}}{4}){{GAP}}(?<m>{{MONTH}})(?![\\p{L}\\p{M}\\p{N}]|{{GAP}}{{DIGIT}}))"
+        scan: owned
+        lookback: 64
+        flags: gu
+        message: review_msg_arabic_date_order
+        fixer: monthYear
   - id: ar_SA.syntax
     checks: [arabicSyntax]
+    # predicate: walks the word tokens; each decision reads the particle pair and the word
+    # after it.
     predicate: syntax
+  - id: ar_SA.kullama
+    checks: [arabicSyntax]
+    style: match
+    message: review_msg_arabic_kullama
+    frames:
+      # كلما is not repeated in its answer clause.
+      - regex: "(?<![\\p{L}\\p{M}])كلما[^.!؟?\\n،]{1,80}،[ \\t\\u00a0]*(?<target>كلما[ \\t\\u00a0]+)"
+        scan: owned
+        lookback: 160
+        flags: dgu
+        fixer: kullama
+  - id: ar_SA.redundantWords
+    checks: [stylePhrasing]
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # Optional style: "فقط" after إلا.
+      - regex: "(?<![\\p{L}\\p{M}])إلا(?:[ \\t\\u00a0]+[\\p{L}\\p{M}]+){1,5}(?<target>[ \\t\\u00a0]+فقط)(?![\\p{L}\\p{M}])"
+        scan: owned
+        lookback: 160
+        flags: dgu
+        fixer: illaFaqat
+      # Optional style: بين repeated before a second noun ("بين محمد وعلي").
+      - regex: "(?<![\\p{L}\\p{M}])بين[ \\t\\u00a0]+(?<first>[\\p{L}]+)[ \\t\\u00a0]+(?<target>وبين[ \\t\\u00a0]+)(?=\\p{L})"
+        scan: owned
+        lookback: 160
+        flags: dgu
+        fixer: bayna
   - id: ar_SA.style
     checks: [stylePhrasing]
+    # predicate: walks the word tokens; each decision reads a word and its neighbours (dual
+    # possessors, indefinite adjectives and subjects, light verbs and the other style frames).
     predicate: style
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
