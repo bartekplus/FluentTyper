@@ -18,12 +18,19 @@ import {
   pluralSingulars,
   TU,
   verbReadings,
+  isFrenchWord,
 } from "./frenchLexicon";
 import { firstNameGender } from "./firstNames";
 import { FRENCH_CLAUSE, listBefore, skipRelative } from "./agreement";
 import { skipComplements } from "../clauseReader";
 import { elidedAuxiliaryAt } from "./homophones";
-import { ownedFrenchWords, type Token, tokensAfter, tokensBefore } from "./frenchTokens";
+import {
+  ownedFrenchWords,
+  SENTENCE_START,
+  type Token,
+  tokensAfter,
+  tokensBefore,
+} from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 import { isLang } from "../phraseTemplates";
@@ -284,6 +291,14 @@ function fitsSubject(ctx: DetectContext, verbStart: number, word: string): boole
   return tokensBefore(ctx.text, verbStart, 1).length > 0;
 }
 
+// Adverbs of three words: "petit à petit", "peu à peu", "tout à fait".
+const ADVERB_TRIPLES = new Set([
+  "petit à petit",
+  "peu à peu",
+  "pas à pas",
+  "tout à fait",
+  "tout de suite",
+]);
 const ADVERB_PAIRS = new Set([
   "par conséquent",
   "bien entendu",
@@ -294,11 +309,12 @@ const ADVERB_PAIRS = new Set([
 ]);
 
 /** Skips adverbs ("très", "un peu", "un petit peu") from index i. */
-function skipAdverbs(tokens: Token[], i: number): number {
+function skipAdverbs(tokens: Token[], i: number, triples = true): number {
   for (;;) {
     const w = tokens[i]?.w;
     // "peut-être", "par conséquent", "bien entendu", "pour autant".
-    if (w && ADVERB_PAIRS.has(`${w} ${tokens[i + 1]?.w}`)) i += 2;
+    if (triples && w && ADVERB_TRIPLES.has(`${w} ${tokens[i + 1]?.w} ${tokens[i + 2]?.w}`)) i += 3;
+    else if (w && ADVERB_PAIRS.has(`${w} ${tokens[i + 1]?.w}`)) i += 2;
     else if (w && (ADVERBS.has(w) || (/..ment$/.test(w) && !isInflectedNoun(w)))) i++;
     else if (w === "peut" && tokens[i].hyphen && tokens[i + 1]?.w === "être") i += 2;
     else if (tokens[i]?.w === "un" && tokens[i + 1]?.w === "peu") i += 2;
@@ -381,7 +397,10 @@ function afterNoun(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
   // "de la porte du garage, ouverte": the adjective may go with another noun. Before a verb that
   // agrees with the noun phrase alone, a comma only ends an opening phrase.
   if (linkAt < 0 && /[,;]\s*$/.test(ctx.text.slice(Math.max(0, anchor - 3), anchor))) return null;
-  if (["et", "ou", "ni"].includes(before?.w ?? "")) return null;
+  // "des remarques et des avis négatives": after a masculine noun an adjective shared
+  // with the noun before "et" is masculine too, so only a feminine form is wrong there.
+  const coordinated = ["et", "ou", "ni"].includes(before?.w ?? "");
+  if (coordinated && (linkAt > 0 || !target.startsWith("m"))) return null;
   if (linkAt > 0) {
     // The noun phrase opens its clause and is the subject of être.
     if (before && !OPENERS.has(before.w)) return null;
@@ -390,8 +409,9 @@ function afterNoun(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
   }
   // "des" may be "de" + "les" ("le bruit des moteurs puissant"): only at a clause start or after
   // a preposition other than "de" is it the plural article.
-  if (det === "des" && before && !PREPOSITIONS.has(before.w)) return null;
-  const i = skipAdverbs(tokens, 2);
+  if (det === "des" && before && !PREPOSITIONS.has(before.w) && !coordinated) return null;
+  // "sur le moment tout à fait sérieuses": right after a noun, a long adverb may go with a verb.
+  const i = skipAdverbs(tokens, 2, false);
   const next = tokens[i];
   if (!next) return null;
   if (!LINKING.has(next.w)) {
@@ -400,7 +420,14 @@ function afterNoun(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
     if (before && PREPOSITIONS.has(before.w) && verbReadings(next.w).some((r) => r.slot === "Q"))
       return null;
     // "Thomas passe ses journées enfermé": after a verb, the adjective may describe its subject.
-    if (before && verbReadings(before.w).length && fitsSubject(ctx, before.start, next.w))
+    // "croisé une guide anglais": a noun of either gender has its determiner's gender,
+    // which the adjective right after it takes.
+    if (
+      before &&
+      verbReadings(before.w).length &&
+      genderable(noun.w) &&
+      fitsSubject(ctx, before.start, next.w)
+    )
       return null;
     // "La loi contraint", "une main tenant un flambeau": a verb, not an adjective. An adjective
     // that is also a present participle ends its clause: "la réunion suivant."
@@ -415,6 +442,12 @@ function afterNoun(ctx: DetectContext, m: RegExpExecArray, det: string): RawFind
     const avoir = clause.some((t) => verbReadings(t.w).some((r) => r.lemma === "avoir"));
     if (avoir && !adjectiveReadings(next.w).length) return null;
     if (/^[\s\u00a0]{0,8}\//u.test(ctx.text.slice(next.end, next.end + 9))) return null;
+    if (coordinated) {
+      const slots = slotsOf(next.w);
+      if (!slots.length || !slots.every((slot) => slot[0] === "f")) return null;
+      const plural = target.endsWith("p") || slots.every((slot) => slot.endsWith("p"));
+      return adjectiveFinding(ctx, next, plural ? "mp" : "ms", m.index);
+    }
     return adjectiveFinding(ctx, next, target, m.index);
   }
   return null;
@@ -435,9 +468,18 @@ const LIAISON: Record<string, string> = {
 /** "une petit maison" -> "petite", "les charmant squares" -> "charmants": an adjective between
  * a determiner and its noun takes the gender and number that both of them show. */
 function beforeNoun(ctx: DetectContext, m: RegExpExecArray, det: string): RawFinding | null {
-  if (!(det in DETERMINERS)) return null;
   const tokens = tokensAfter(ctx.text, m.index, 4);
   if (tokens[0]?.w !== det) return null;
+  // "de belle plages": "de" before an adjective and a plural noun is the plural article "des".
+  const article = /^d['e]$/.test(det);
+  if (article) {
+    const [, adj, noun, after] = tokens;
+    if (!adj || !noun || !/[sx]$/.test(noun.w) || adj.w === "nouveau") return null;
+    // "de bon sens": a noun in s that is its own singular; "de chers cousines et cousins": an
+    // adjective shared by two nouns.
+    if (isNounLemma(noun.w) || ["et", "ou"].includes(after?.w ?? "")) return null;
+    det = "des";
+  } else if (!(det in DETERMINERS)) return null;
   // "le plus courtes possible": the superlative may be an adverb; other checks read it.
   if (tokens[1]?.w === "plus" || tokens[1]?.w === "moins") return null;
   const i = DEGREE_BEFORE.has(tokens[1]?.w ?? "") ? 2 : 1;
@@ -524,16 +566,34 @@ function linkingEnd(tokens: Token[], i: number, person: number): number {
 
 /** An adjective or participle after être that fits none of the subject's inflections: the
  * nearest one that fits (the typed gender kept when it can be). */
+const CAUSATIVES = new Set(["laisser", "faire", "voir", "entendre", "sentir", "regarder"]);
+
 function predicateFinding(
   ctx: DetectContext,
   word: Token,
   allowed: Inflection[],
   from: number,
+  second = false,
 ): RawFinding | null {
   if (word.hyphen) return null;
+  const after = tokensAfter(ctx.text, word.end, 1)[0];
+  // "nous sommes rentrées trempé": a participle that agrees, then a second word that must too.
+  const own = slotsOf(word.w, "être").filter((slot) => allowed.includes(slot));
+  // "laissées surpris" (for "surprendre"): a causative verb before it, or a noun after it, is left
+  // alone.
+  const causative = verbReadings(word.w).some((r) => CAUSATIVES.has(r.lemma));
+  if (
+    !second &&
+    after &&
+    own.length &&
+    !causative &&
+    !isInflectedNoun(after.w) &&
+    verbReadings(word.w).some((r) => r.slot === "Q") &&
+    (adjectiveReadings(after.w).length || participleBase(after.w))
+  )
+    return predicateFinding(ctx, after, own, from, true);
   // "fin prêts", "grand ouverts": an adjective used as an adverb before another one.
   // "été pendant des années": a preposition.
-  const after = tokensAfter(ctx.text, word.end, 1)[0];
   if (
     after &&
     !PREPOSITIONS.has(after.w) &&
@@ -621,13 +681,18 @@ function conjunctGender(det: string, noun: string): Gender | null {
 
 /** "la durée de traitement des données est annoncé", "des tempêtes et des ouragans sont
  * annoncée": a subject past its complements, or two joined by "et", then être. */
+const SUBJECT_PREDETERMINERS = new Set("seul seule seuls seules tous toutes".split(" "));
+
 function longSubject(ctx: DetectContext, m: RegExpExecArray, det: string): RawFinding | null {
   const tokens = tokensAfter(ctx.text, m.index, 16);
   const noun = tokens[1];
   if (tokens[0]?.w !== det || !nounToken(ctx, noun)) return null;
   if (QUANTITIES.has(noun.w) || QUANTITIES.has(noun.w.replace(/s$/, ""))) return null;
   if (ctx.text.slice(noun.start, noun.end) !== noun.w) return null;
-  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  // "Seules la soupe et la salade sont": the predeterminer opens the subject.
+  const previous = tokensBefore(ctx.text, m.index, 2);
+  const lead = SUBJECT_PREDETERMINERS.has(previous[0]?.w ?? "");
+  const before = lead ? previous[1] : previous[0];
   if (before && !OPENERS.has(before.w)) return null;
   // ", des bois et des prés": a list may go on after a comma.
   if (
@@ -913,6 +978,39 @@ function withObject(ctx: DetectContext, before: Token[], word: Token): RawFindin
 
 /** "As-tu eus peur ?", "Aviez-vous mangés ?": after an inverted avoir with no object before
  * it, the participle stays masculine singular. */
+const ASKED: Record<string, Inflection> = {
+  quel: "ms",
+  quelle: "fs",
+  quels: "mp",
+  quelles: "fp",
+  lequel: "ms",
+  laquelle: "fs",
+  lesquels: "mp",
+  lesquelles: "fp",
+};
+
+/** The inflection of an asked object that opens the clause right before an inverted avoir:
+ * "Quelle robe as-tu", "Laquelle as-tu", "Combien de photos as-tu". */
+function askedObject(ctx: DetectContext, before: Token[]): Inflection | null {
+  const opens = (t: Token) =>
+    SENTENCE_START.test(ctx.text.slice(Math.max(0, t.start - 4), t.start));
+  const [b0, b1, b2] = before;
+  if (!b0) return null;
+  // "Laquelle as-tu", "Quelle robe as-tu", "Quels beaux livres as-tu".
+  if (b0.w.startsWith("le") || b0.w.startsWith("la"))
+    return opens(b0) ? (ASKED[b0.w] ?? null) : null;
+  for (const [k, t] of [b1, b2].entries()) {
+    if (!t || !(t.w in ASKED) || t.w.startsWith("l") || !opens(t)) continue;
+    const words = before.slice(0, k + 1);
+    if (!nounToken(ctx, b0) || words.some((w) => w.w in DETERMINERS || w.w in ASKED)) return null;
+    return ASKED[t.w];
+  }
+  // "Combien de photos as-tu".
+  if (b1 && /^d['e]$/.test(b1.w) && b2?.w === "combien" && opens(b2) && nounToken(ctx, b0))
+    return phraseInflection("des", b0.w);
+  return null;
+}
+
 function invertedAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const before = tokensBefore(ctx.text, m.index, 8);
   // "Les as-tu lu ?" -> "lus", "L'as-tu lus ?" -> "lu": a direct object pronoun right before.
@@ -921,15 +1019,26 @@ function invertedAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
       ? DIRECT_CLITICS[before[0].w]
       : undefined;
   const rest = clitic ? before.slice(1) : before;
-  if (rest.some((t) => FRONTED.has(t.w) || OBJECT_CLITICS.has(t.w))) return null;
+  const asked = clitic ? null : askedObject(ctx, rest);
+  if (!asked && rest.some((t) => FRONTED.has(t.w) || OBJECT_CLITICS.has(t.w))) return null;
   const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
-  const word = after[skipAdverbs(after, 0)];
+  const at = skipAdverbs(after, 0);
+  const word = after[at];
   if (!word || word.hyphen) return null;
+  // "Quel livre as-tu voulu lire ?", "Combien de semaines as-tu décidé de partir ?": before an
+  // infinitive or its "de" the object is the infinitive's.
+  const next = after[at + 1];
+  if (
+    asked &&
+    next &&
+    (/^(?:de|d'|à)$/.test(next.w) || verbReadings(next.w).some((r) => r.slot === "I"))
+  )
+    return null;
   const forms = participleForms(word.w);
   if (!forms) return null;
   const slots = (Object.keys(forms) as Inflection[]).filter((slot) => forms[slot] === word.w);
   if (!slots.length) return null;
-  let target: Inflection = "ms";
+  let target: Inflection = asked ?? "ms";
   if (clitic) {
     // "me" and "te" tell the number only, and a feminine typed form may be right.
     if (clitic === "s" && slots.some((slot) => slot.endsWith("s"))) return null;
@@ -1238,9 +1347,22 @@ function adjectivePair(ctx: DetectContext, m: RegExpExecArray): RawFinding | nul
   // "colorants non toxiques": a noun with its own adjective. "et dure jusqu'en mars": a verb.
   // "et pris de panique", "et adaptés aux projets": a participle with its complement may
   // describe another noun.
+  // "grand et pratiques": a "tu" form with no "tu" before it is the adjective.
   const readings2 = verbReadings(second.w);
-  if (readings2.some((r) => typeof r.slot === "number") || PAIR_STOPS.has(second.w)) return null;
-  if (after && (after.w === "non" || pairSlots(after.w).length)) return null;
+  if (readings2.some((r) => typeof r.slot === "number" && r.slot & ~TU)) return null;
+  if (PAIR_STOPS.has(second.w)) return null;
+  // "rouge et blancs paintés": an unknown word after the pair may be its noun, misspelled.
+  if (
+    after &&
+    after.w.length > 3 &&
+    !isFrenchWord(after.w) &&
+    !FRENCH_CLAUSE.prepositions.has(after.w) &&
+    !pairSlots(after.w).length
+  )
+    return null;
+  // "fixe et variables sur": "sur" is the preposition.
+  if (after && (after.w === "non" || (pairSlots(after.w).length && !NOT_ADJECTIVES.has(after.w))))
+    return null;
   // "l'effervescence romaine et ruiné, il retourne": a participle after a plain adjective may
   // describe the clause's subject.
   const participle = (w: string) => verbReadings(w).some((r) => r.slot === "Q");
@@ -1283,7 +1405,7 @@ function pairSlots(word: string): Inflection[] {
   const slots = slotsOf(word);
   if (
     slots.length ||
-    verbReadings(word).some((r) => typeof r.slot === "number" && !/e$/.test(word))
+    verbReadings(word).some((r) => typeof r.slot === "number" && r.slot & ~TU && !/e$/.test(word))
   )
     return slots;
   if (/[^e]e$/.test(word) && isInflectedNoun(word)) return ["ms", "fs"];
@@ -1494,6 +1616,192 @@ function half(ctx: DetectContext, m: RegExpExecArray, after: boolean): RawFindin
 const NUMBER_WORD =
   /^(?:deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|cent)$/;
 
+const INVERTING = new Set("comment où quand".split(" "));
+// "De chaque côté", "Au fond du jardin": a preposition that opens the clause. "de" counts only
+// before a determiner ("De nombreux enfants" is an article).
+const OPENING_PREPOSITIONS = new Set(
+  "de d' à au aux dans sur sous devant derrière entre parmi chez près en".split(" "),
+);
+const OPENING_AFTER_DE = new Set([...Object.keys(DETERMINERS), "chaque", "l'"]);
+// "sont venus le soir": a time after the participle is no subject.
+const TIME_NOUNS = new Set(
+  "jour soir matin nuit mois an année semaine lendemain veille week-end heure moment fois".split(
+    " ",
+  ),
+);
+
+/** "Au fond du jardin sont planté les rosiers" -> "plantés", "Comment est venu le facteur ?":
+ * after être with no subject before it, the participle agrees with the subject after it. */
+function invertedParticiple(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 8);
+  // The clause start: a question word right before, or an opening prepositional phrase.
+  const sentenceStart = (t: Token) =>
+    SENTENCE_START.test(ctx.text.slice(Math.max(0, t.start - 4), t.start));
+  if (!before[0] || !INVERTING.has(before[0].w)) {
+    const opener = before.findIndex((t) => sentenceStart(t));
+    if (opener < 1 || !OPENING_PREPOSITIONS.has(before[opener].w)) return null;
+    if (/^d['e]$/.test(before[opener].w) && !OPENING_AFTER_DE.has(before[opener - 1].w))
+      return null;
+    const words = before.slice(0, opener);
+    if (
+      words.some(
+        (t) =>
+          t.w in SUBJECTS ||
+          (!isVerbHomograph(t.w) && verbReadings(t.w).some((r) => typeof r.slot === "number")),
+      )
+    )
+      return null;
+  }
+  const [participle, det, noun] = tokensAfter(ctx.text, m.index + m[0].length, 3);
+  if (!participle || !det || !noun || participle.hyphen || noun.hyphen) return null;
+  if (!verbReadings(participle.w).some((r) => r.slot === "Q")) return null;
+  if (!(det.w in DETERMINERS) || !nounToken(ctx, noun)) return null;
+  if (ctx.text.slice(noun.start, noun.end) !== noun.w) return null;
+  if (TIME_NOUNS.has(noun.w)) return null;
+  const target = phraseInflection(det.w, noun.w);
+  // The verb agrees with the subject after it: "sont passés la veille" has another one.
+  const plural = ["sont", "étaient", "seront", "furent"].includes(m[0].toLowerCase());
+  if (!target || target.endsWith("p") !== plural) return null;
+  // Before its subject the word is the participle, also where a noun spells it ("venue").
+  if (!target || slotsOf(participle.w, "avoir").includes(target)) return null;
+  return adjectiveFinding(ctx, participle, target, m.index, "avoir");
+}
+
+/** "une lettre qui est arrivé" -> "arrivée": after "qui" and être, the participle agrees with
+ * the noun before "qui", the nearest one whose number the verb shows ("la fille du voisin qui
+ * est venu": the neighbour). */
+function quiParticiple(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const plural = /^(?:sont|étaient|seront|furent|semblent|paraissent|restent)$/i.test(
+    m.groups!.verb,
+  );
+  const before = tokensBefore(ctx.text, m.index, 6);
+  let target: Inflection | null = null;
+  for (let i = 0; i < 4 && !target;) {
+    const [noun, det] = [before[i], before[i + 1]];
+    if (!noun || !det || !(det.w in DETERMINERS) || !nounToken(ctx, noun)) return null;
+    if (ctx.text.slice(noun.start, noun.end) !== noun.w) return null;
+    const slot = phraseInflection(det.w, noun.w);
+    if (!slot) return null;
+    if (slot.endsWith("p") === plural) target = slot;
+    // "les amis de mon frère qui sont": past "de" to the noun it completes.
+    else if (/^d['e]$/.test(before[i + 2]?.w ?? "")) i += 3;
+    else return null;
+  }
+  if (!target) return null;
+  const tokens = tokensAfter(ctx.text, m.index + m[0].length, 4);
+  const word = tokens[skipAdverbs(tokens, 0)];
+  if (!word || !verbReadings(word.w).some((r) => r.slot === "Q")) return null;
+  return predicateFinding(ctx, word, [target], m.index);
+}
+
+const KEPT_PERSONS: Record<string, string> = {
+  je: "je",
+  "j'": "je",
+  tu: "tu",
+  nous: "nous",
+  suis: "je",
+  es: "tu",
+  sommes: "nous",
+  étais: "je",
+  étions: "nous",
+};
+// "je suis partie ... je suis rentré": a person, its form of être and a participle.
+const KEPT =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:je|j['’]|tu|nous)[ \t]{1,4}(?:(?:ne|n['’])[ \t]{0,4})?(?:(?:me|m['’]|te|t['’]|nous)[ \t]{0,4})?|(?<=(?<![\p{L}\p{M}\p{N}_'’-])et[ \t]{1,4}))(?:suis|es|sommes|étais|étions)[ \t]{1,4}(?:pas[ \t]{1,4})?(?<part>\p{L}+)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+/** "Je suis partie tôt et je suis rentré" -> "rentrée": in one sentence and outside quotes, "je",
+ * "tu" and "nous" keep the gender their first participle of être shows. */
+function keptGenders(ctx: DetectContext): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const seen = new Map<string, { gender: string; end: number }>();
+  for (const m of ownedFrenchWords(ctx, KEPT)) {
+    // The pronoun, or after "et" the form of être alone ("et sommes revenues"); "j'" and
+    // "t'" are glued to the next word.
+    const lead = /^(?:je|j['’]|tu|nous)(?![\p{L}])/iu
+      .exec(m[0])?.[0]
+      .toLowerCase()
+      .replace("’", "'");
+    const aux = /(?:suis|es|sommes|étais|étions)(?=[ \t])/iu.exec(
+      m[0].slice(lead?.length ?? 0),
+    )?.[0];
+    const person = lead
+      ? KEPT_PERSONS[lead]
+      : aux && aux !== "étais"
+        ? KEPT_PERSONS[aux]
+        : undefined;
+    if (!person || !aux || (KEPT_PERSONS[aux] !== person && aux !== "étais")) continue;
+    const typed = m.groups!.part;
+    const word = typed.toLowerCase();
+    if (typed !== word || !verbReadings(word).some((r) => r.slot === "Q")) continue;
+    // After its pronoun and être the word is the participle, also where a noun spells it.
+    const slots = slotsOf(word, "avoir");
+    const genders = new Set(slots.map((slot) => slot[0]));
+    if (genders.size !== 1) continue;
+    const [gender] = genders;
+    const start = m.index + m[0].length - typed.length;
+    const first = seen.get(person);
+    // Another sentence, or a quote between the two, starts again.
+    const between = first ? ctx.text.slice(first.end, m.index) : "";
+    if (!first || /[.!?…\n«»"“”]/u.test(between)) {
+      seen.set(person, { gender, end: start + typed.length });
+      continue;
+    }
+    if (first.gender === gender) continue;
+    const target = `${first.gender}${slots[0][1]}` as Inflection;
+    const f = adjectiveFinding(
+      ctx,
+      { w: word, start, end: start + typed.length, hyphen: false },
+      target,
+      m.index,
+      "avoir",
+    );
+    if (f) findings.push(f);
+  }
+  return findings;
+}
+
+/** "divers épices" -> "diverses", "pareil tempêtes" -> "pareilles": an adjective that serves as
+ * the determiner of a plural noun takes its gender and number. */
+function adjectiveDeterminer(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const [adj, noun] = tokensAfter(ctx.text, m.index, 2);
+  if (!adj || !noun || adj.hyphen || noun.hyphen || !/[sx]$/.test(noun.w)) return null;
+  if (ctx.text.slice(noun.start, noun.end) !== noun.w || isNounLemma(noun.w)) return null;
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  if (before && (before.w in DETERMINERS || /^d['e]$/.test(before.w))) return null;
+  if (verbReadings(noun.w).some((r) => typeof r.slot === "number" && !isVerbHomograph(noun.w)))
+    return null;
+  const gender = pluralSingulars(noun.w)
+    .map((w) => nounGender(w))
+    .find(Boolean);
+  if (!gender) return null;
+  const target = `${gender}p` as Inflection;
+  if (slotsOf(adj.w).includes(target) || namedExampleBefore(ctx.text, m.index)) return null;
+  const form = agreeing(adj.w, target);
+  return form
+    ? finding(
+        RULE,
+        MESSAGE,
+        adj.start,
+        adj.end,
+        [carryCase(ctx.text.slice(adj.start, adj.end), form)],
+        {
+          context: { start: adj.start, end: noun.end },
+        },
+      )
+    : null;
+}
+
+const ADJECTIVE_DETERMINER =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:divers|diverse|diverses|différents|différentes|pareil|pareille|pareils|pareilles)(?=[ \t]+\p{L})/giu;
+
+const DE_ARTICLE = /(?<![\p{L}\p{M}\p{N}_'’-])(?:de(?![\p{L}\p{M}\p{N}_'’-])|d['’](?=\p{L}))/giu;
+
+const QUI_ETRE =
+  /(?<![\p{L}\p{M}\p{N}_'’-])qui[ \t]{1,4}(?<verb>est|sont|était|étaient|sera|seront|fut|furent|semble|semblent|paraît|paraissent|reste|restent)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+const INVERTED_ETRE =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?:est|sont|était|étaient|sera|seront|fut|furent)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
 function adjectives(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
@@ -1545,6 +1853,24 @@ function adjectives(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, AVOIR)) {
     const f = afterAvoir(ctx, m);
+    if (f) findings.push(f);
+  }
+  findings.push(...keptGenders(ctx));
+  for (const m of ownedFrenchWords(ctx, ADJECTIVE_DETERMINER)) {
+    const f = adjectiveDeterminer(ctx, m);
+    if (f) findings.push(f);
+  }
+  for (const m of ownedFrenchWords(ctx, DE_ARTICLE)) {
+    if (namedExampleBefore(ctx.text, m.index)) continue;
+    const f = beforeNoun(ctx, m, m[0].toLowerCase().replaceAll("’", "'"));
+    if (f) findings.push(f);
+  }
+  for (const m of ownedFrenchWords(ctx, QUI_ETRE)) {
+    const f = quiParticiple(ctx, m);
+    if (f) findings.push(f);
+  }
+  for (const m of ownedFrenchWords(ctx, INVERTED_ETRE)) {
+    const f = invertedParticiple(ctx, m);
     if (f) findings.push(f);
   }
   for (const m of ownedFrenchWords(ctx, INVERTED_AVOIR)) {

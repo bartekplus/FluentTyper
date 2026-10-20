@@ -2,6 +2,9 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDe
 import {
   adjectiveReadings,
   type Gender,
+  ILS,
+  NOUS,
+  VOUS,
   isInflectedNoun,
   isNounLemma,
   nounGender,
@@ -17,6 +20,7 @@ import {
   type Token,
 } from "./frenchTokens";
 import { isLang } from "../phraseTemplates";
+import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 // "tout" agrees with the noun phrase it opens: "tout le monde", "toute la journée", "tous les
 // jours", "toutes ces idées", "tous ceux", "tout cela". The determiner gives the number and,
@@ -103,9 +107,26 @@ function tout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const plural = lower.endsWith("s");
   const after = tokensAfter(ctx.text, m.index + typed.length, 5);
   const next = after[0];
+  const before = tokensBefore(ctx.text, m.index, 2);
+  // "c'est tous.", "Malgré tous,": the pronoun "tout".
+  const closing = /^[ \t\u00a0]{0,2}(?:[.!?;,…]|$)/u.test(ctx.text.slice(m.index + typed.length));
+  if (
+    lower === "tous" &&
+    closing &&
+    ((before[0]?.w === "est" && before[1]?.w === "c'") || before[0]?.w === "malgré")
+  )
+    return wordFinding(ctx, m.index, typed, [carryCase(typed, "tout")], RULE, MESSAGE);
+  // "mieux que toute.", "il les a appelées toute,": "toute" alone is the pronoun "toutes".
+  if (
+    lower === "toute" &&
+    before[0] &&
+    !ARTICLE_OR_ETRE.has(before[0].w) &&
+    !(before[0].w === "à" && !before[1]) &&
+    /^[ \t\u00a0]{0,2}(?:[.!?;,…]|$)/u.test(ctx.text.slice(m.index + typed.length))
+  )
+    return wordFinding(ctx, m.index, typed, [carryCase(typed, "toutes")], RULE, MESSAGE);
   if (!next || next.start > m.index + typed.length + 3) return null;
   if (ctx.text[m.index + typed.length] === "-") return null;
-  const before = tokensBefore(ctx.text, m.index, 2);
   // "le tout", "un tout": the noun.
   if (before[0] && ["le", "un", "du", "au"].includes(before[0].w)) return null;
   const fix = (alternatives: string[]) =>
@@ -114,6 +135,8 @@ function tout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
       end: after[Math.min(after.length - 1, 1)].end,
     });
   const w = next.w;
+  const floated = floatingPlural(lower, tokensBefore(ctx.text, m.index, 5), after);
+  if (floated) return fix(floated);
 
   // "tous ça" -> "tout ça".
   if (w === "ça" || w === "cela" || w === "ceci") {
@@ -196,7 +219,9 @@ function tout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   // "elle est tout belle", "une veste tout neuve": the adverb takes the gender and number of a
   // feminine adjective starting with a consonant; before a vowel it stays "tout" ("toute
   // étonnée" -> "tout étonnée"). "tous" may be the pronoun ("ils sont tous contents"): left alone.
-  if (lower !== "tous" && adverbialTout(before)) {
+  // "tout seule" -> "toute seule": "tout seul" is the adverb after any word.
+  const seul = adjectiveReadings(w).some((r) => r.lemma === "seul");
+  if (lower !== "tous" && (adverbialTout(before) || seul)) {
     const slots = new Set(adjectiveReadings(w).map((r) => r.slot));
     // "étonnée", "émues": a feminine participle.
     const participle = /é(?:e|es)$/.test(w) && verbReadings(w).every((r) => r.slot === "Q");
@@ -250,6 +275,27 @@ function tout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
     // "elle nous a toute sauvées": a plural participle shows the pronoun "toutes".
     return fix([w.endsWith("es") ? "toutes" : w.endsWith("s") ? "tous" : "tout"]);
   if (lower === "tous" && singularTous(ctx, m, before, after)) return fix(["tout"]);
+  // "Tout hommes" -> "Tous", "Toutes personne" -> "Toute": a bare noun of the other number.
+  // "toutes deux", "tous ensemble": a number or an adverb, no noun. A plural "tous" before a
+  // singular word may be the pronoun ("on a tous envie"): only at a clause start.
+  const nounPlural = /[sx]$/.test(w) && !isNounLemma(w);
+  if (
+    plural !== nounPlural &&
+    (!plural || !before[0]) &&
+    w.length > 2 &&
+    isInflectedNoun(w) &&
+    !NUMERALS.has(w) &&
+    w !== "ensemble" &&
+    !/^\p{Lu}/u.test(ctx.text.slice(next.start, next.end)) &&
+    !adjectiveReadings(w).length &&
+    !verbReadings(w).length
+  ) {
+    const gender = singularGender(w);
+    if (gender) {
+      const right = FORMS[`${gender}${nounPlural ? "p" : "s"}`];
+      return lower === right ? null : fix([carryCase(typed, right)]);
+    }
+  }
   // "tout personne" -> "toute personne", "toute sujet" -> "tout sujet".
   if (plural || TOUT_IDIOMS.has(w) || /^\p{Lu}/u.test(ctx.text.slice(next.start, next.end)))
     return null;
@@ -260,9 +306,20 @@ function tout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const nounSlot =
     !!before[0] &&
     (PREPOSITIONS.has(before[0].w) ||
-      (verbReadings(before[0].w).some((r) => typeof r.slot === "number") &&
-        (!after[1] || ["de", "d'", "du", "des"].includes(after[1].w))));
-  if (adjectiveReadings(w).length) return null;
+      (verbReadings(before[0].w).some((r) => typeof r.slot === "number" || r.slot === "Q") &&
+        (!after[1] || NOUN_COMPLEMENTS.has(after[1].w))));
+  // "pour tout nouvelle adhésion": before an adjective that starts with a consonant and its
+  // noun, "tout" agrees with the noun whether it is the determiner or the adverb.
+  const adjectives = adjectiveReadings(w);
+  if (adjectives.length) {
+    const noun = after[1];
+    const gender = noun ? nounGender(noun.w) : null;
+    if (!gender || /^[aeiouyâàéèêëîïôûœh]/.test(w)) return null;
+    if (!adjectives.some((r) => r.slot === `${gender}s`)) return null;
+    if (!before[0] || !PREPOSITIONS.has(before[0].w)) return null;
+    const right = gender === "m" ? "tout" : "toute";
+    return lower === right ? null : fix([right]);
+  }
   if (isFiniteOrParticiple(w) && !(nounSlot && isInflectedNoun(w) && finiteNext)) return null;
   const gender = w === "personne" ? "f" : nounGender(w);
   if (!gender) return null;
@@ -271,6 +328,60 @@ function tout(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
   const right = gender === "m" ? "tout" : "toute";
   return lower === right ? null : fix([right]);
 }
+
+// Words after a noun that make it the noun ("tout trace de", "tout confiance en lui").
+const NOUN_COMPLEMENTS = new Set("de d' du des en à au aux pour dans sur avec envers".split(" "));
+const PLURAL_SUBJECTS: Record<string, string[]> = {
+  ils: ["tous"],
+  elles: ["toutes"],
+  nous: ["tous", "toutes"],
+  vous: ["tous", "toutes"],
+};
+const NEGATIONS = new Set(["ne", "n'", "pas", "plus", "jamais"]);
+const MASCULINE_SINGULAR = new Set("un le mon ton son ce cet du au".split(" "));
+// "Ils ont tout fait une fois": a time after the object "tout".
+const TIMES = new Set("fois heure minute jour semaine mois année an nuit matin soir".split(" "));
+
+/**
+ * "Ils ont tout obtenu un diplôme", "Elles n'avaient pas toute un ticket", "Elles savaient toute que":
+ * after a plural subject and its verb, "tout" that is no object and no determiner of the next
+ * noun is the subject's floating "tous" or "toutes".
+ */
+function floatingPlural(lower: string, before: Token[], after: Token[]): string[] | null {
+  if (lower !== "tout" && lower !== "toute") return null;
+  let k = 0;
+  while (before[k] && NEGATIONS.has(before[k].w)) k++;
+  const verb = before[k];
+  if (!verb) return null;
+  const readings = verbReadings(verb.w).filter((r) => typeof r.slot === "number");
+  if (!readings.some((r) => (r.slot as number) & (ILS | NOUS | VOUS))) return null;
+  let j = k + 1;
+  while (before[j] && (CLITICS.has(before[j].w) || NEGATIONS.has(before[j].w))) j++;
+  const subject = before[j] && PLURAL_SUBJECTS[before[j].w];
+  if (!subject) return null;
+  const [next, object, third] = after;
+  if (!next) return null;
+  const avoir = readings.some((r) => r.lemma === "avoir");
+  const participle =
+    verbReadings(next.w).length > 0 && verbReadings(next.w).every((r) => r.slot === "Q");
+  const objectAfter =
+    object &&
+    (ARTICLES.has(object.w) ||
+      PLURAL_DETERMINERS.has(object.w) ||
+      object.w in SINGULAR_DETERMINERS) &&
+    !TIMES.has(third?.w ?? "");
+  if (avoir && participle && objectAfter) return subject;
+  if (lower === "toute" && MASCULINE_SINGULAR.has(next.w)) return subject;
+  if (next.w === "que" || next.w === "qu'") return subject;
+  return null;
+}
+const ARTICLES = new Set(["un", "une", "des", "du"]);
+
+// "une toute", "elle est toute": an article or être before "toute".
+// "en avant toute": the fixed phrase.
+const ARTICLE_OR_ETRE = new Set(
+  "une la cette sa ma ta est était sera fut soit reste semble paraît avant".split(" "),
+);
 
 const SINGULAR_SUBJECTS = new Set(["je", "j'", "tu", "il", "elle"]);
 const PLURAL_CLITICS = new Set(["les", "nous", "vous", "leur", "en"]);

@@ -2,6 +2,7 @@ import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
 import {
   conjugate,
+  finitePersons,
   IL,
   ILS,
   isVerbHomograph,
@@ -10,9 +11,17 @@ import {
   TU,
   verbReadings,
   VOUS,
+  type VerbReading,
 } from "./frenchLexicon";
-import { QUESTION_WORDS } from "./hyphenation";
-import { CLITICS, ownedFrenchWords, tokensAfter, tokensBefore, wordFinding } from "./frenchTokens";
+import { inQuestion, QUESTION_WORDS } from "./hyphenation";
+import {
+  CLITICS,
+  ownedFrenchWords,
+  SENTENCE_START,
+  tokensAfter,
+  tokensBefore,
+  wordFinding,
+} from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 import { isLang } from "../phraseTemplates";
@@ -77,11 +86,28 @@ function invertedAgreement(ctx: DetectContext, m: RegExpExecArray): RawFinding |
   const alternatives: string[] = [];
   // "aiment-t-ils": the verb agrees, the euphonic t goes.
   if (persons & person) alternatives.push(`${typedVerb}-${typedPronoun}`);
+  return inversionFinding(m, typedVerb, typedPronoun, readings, persons, alternatives);
+}
+
+/** The inverted pairs that agree: the pronoun of the other number, or the verb for the
+ * pronoun ("peut-tu" -> "peux-tu", "peut-je" -> "puis-je"). */
+function inversionFinding(
+  m: RegExpExecArray,
+  typedVerb: string,
+  typedPronoun: string,
+  readings: VerbReading[],
+  persons: number,
+  alternatives: string[] = [],
+): RawFinding | null {
+  const verb = typedVerb.toLowerCase();
+  const pronoun = typedPronoun.toLowerCase();
+  const person = PERSON[pronoun];
   const swapped = SWAP[pronoun];
   if (swapped && persons & PERSON[swapped])
     alternatives.push(joined(typedVerb, carryCase(typedPronoun, swapped)));
   for (const r of readings) {
-    const form = conjugate(r, person)[0];
+    let form = conjugate(r, person)[0];
+    if (form === "peux" && person === JE) form = "puis";
     if (form && form !== verb) alternatives.push(joined(carryCase(typedVerb, form), typedPronoun));
   }
   const unique = [...new Set(alternatives)];
@@ -89,6 +115,33 @@ function invertedAgreement(ctx: DetectContext, m: RegExpExecArray): RawFinding |
   return finding(RULE, MESSAGE, m.index, m.index + m[0].length, unique, {
     ...(unique.length > 1 ? { requiresChoice: true as const } : {}),
   });
+}
+
+// "Peux il partir ?": a verb and a subject pronoun with no hyphen, at a question's start.
+const SPACED_PAIR =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<verb>\p{L}+)[ \t]{1,4}(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+/** "Peux il partir ?" -> "Peut-il", "Sont il prêts ?" -> "Sont-ils": a question that opens with an
+ * inverted verb and pronoun that do not agree (the hyphenation check joins those that agree). */
+function spacedInversion(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const { verb: typedVerb, pronoun: typedPronoun } = m.groups!;
+  const verb = typedVerb.toLowerCase();
+  const end = m.index + m[0].length;
+  if (/\p{Lu}/u.test(typedVerb.slice(1)) || ctx.dictionary.has(verb)) return null;
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  const opening = before
+    ? QUESTION_WORDS.has(before.w)
+    : SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 4), m.index));
+  if (!opening || !inQuestion(ctx.text, end) || isVerbHomograph(verb)) return null;
+  const readings = verbReadings(verb);
+  if (!readings.length || !readings.every((r) => typeof r.slot === "number")) return null;
+  const persons = readings.reduce((mask, r) => mask | (r.slot as number), 0);
+  const person = PERSON[typedPronoun.toLowerCase()];
+  if (persons & person || namedExampleBefore(ctx.text, m.index)) return null;
+  // "Mange il viendra ?": the pronoun is the subject of the verb after it.
+  const next = tokensAfter(ctx.text, end, 1)[0];
+  if (next && !isVerbHomograph(next.w) && finitePersons(next.w) & person) return null;
+  return inversionFinding(m, typedVerb, typedPronoun, readings, persons);
 }
 
 // A stressed pronoun is the antecedent of "qui", whose verb takes its person: "toi qui as",
@@ -143,6 +196,10 @@ function questions(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const m of ownedFrenchWords(ctx, PAIR)) {
     const found = invertedAgreement(ctx, m);
+    if (found) findings.push(found);
+  }
+  for (const m of ownedFrenchWords(ctx, SPACED_PAIR)) {
+    const found = spacedInversion(ctx, m);
     if (found) findings.push(found);
   }
   for (const m of ownedFrenchWords(ctx, PRONOUN_QUI)) {

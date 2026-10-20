@@ -428,7 +428,7 @@ const EITHER_GENDER = new Set(
     "blogger rapper speaker biker loser"
   ).split(" "),
 );
-const EITHER_ENDINGS = /(?:iste|logue|graphe|naute|aire|crate|phile|phobe|cide)$/;
+const EITHER_ENDINGS = /(?:iste|yste|iatre|logue|graphe|naute|aire|crate|phile|phobe|cide)$/;
 // Adverbs, prepositions and numbers that are also nouns ("le devant", "le plus", "un cent"):
 // mostly not nouns, so they take no gender.
 const NO_GENDER = new Set(
@@ -527,7 +527,7 @@ const AUTHORED_MASCULINE =
   "surnom bug farniente proxy sacerdoce polymère remords polycarbonate amiante brunch raccord " +
   "recto verso boom rosaire monologue prologue épilogue repère change rire envol chrome yeux " +
   "palace mécène méfait plasma vertige antidote sponsor calibre dolmen menhir ion éloge gendarme " +
-  "rhume cor tic val marshmallow";
+  "rhume cor tic val marshmallow kyste";
 const AUTHORED_FEMININE =
   "rumeur onde ballade amande compagne aile corvée cape cerise averse psychose autoroute arête " +
   "dune datte molécule grange contrepartie olive artère madeleine hélice secousse dynastie " +

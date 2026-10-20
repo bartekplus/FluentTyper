@@ -46,6 +46,7 @@ const OPTIONAL_REVIEW_IDS: readonly string[] = [
   "portugueseAO90",
   "frenchMissingNe",
   "frenchOrdinals",
+  "frenchRepeatedWords",
 ];
 const DEFAULT_REVIEW_IDS = REVIEW_SUPPORTED_RULE_IDS.filter(
   (id) => !OPTIONAL_REVIEW_IDS.includes(id),

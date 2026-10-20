@@ -928,7 +928,15 @@ function verbFinding(
   // "les enfants fait du bruit": a form in -it before its object is the verb, not the participle.
   const object = !!tokens[j + 1] && OBJECT_DETERMINERS.has(tokens[j + 1].w);
   const bareObject = object && person === ILS && /it$/.test(verb.w) && j === i;
-  if (isVerbHomograph(verb.w) && !marked && !AUXILIARY_HOMOGRAPHS.has(verb.w) && !bareObject) {
+  // "que nos invités soit à l'heure": "soit" before no determiner is the verb, not "either".
+  const soit = verb.w === "soit" && !!tokens[j + 1] && !ALL_DETERMINERS.has(tokens[j + 1].w);
+  if (
+    isVerbHomograph(verb.w) &&
+    !marked &&
+    !AUXILIARY_HOMOGRAPHS.has(verb.w) &&
+    !bareObject &&
+    !soit
+  ) {
     const [previous, second] = [tokens[j - 1], tokens[j - 2]];
     const next = tokens[j + 1];
     const bare =
@@ -1148,12 +1156,27 @@ function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null 
   if (!tokens[i])
     return (
       (i === head ? commaRelative(ctx, tokens[i - 1], person, anchor) : null) ??
-      commaAside(ctx, tokens[i - 1], person, anchor)
+      commaAside(ctx, tokens[i - 1], person, anchor) ??
+      parenAside(ctx, tokens[i - 1], person, anchor)
     );
   // "l'autre vous condamner" after "et" may leave out a modal: an object pronoun before the verb
   // is read only for a noun phrase that opens its own clause right before it.
   const own = before?.w !== "et";
   return clauseVerbFinding(ctx, tokens, i, person, anchor, coordinated, i === head, own);
+}
+
+/** "Les vieux murs (pierre et chaux) retient": the verb after a parenthesis. */
+function parenAside(
+  ctx: DetectContext,
+  last: Token,
+  person: number,
+  from: number,
+): RawFinding | null {
+  const paren = /^[ \t\u00a0]*\([^()\n]{1,80}\)[ \t\u00a0]*/u.exec(
+    ctx.text.slice(last.end, last.end + 100),
+  );
+  if (!paren) return null;
+  return verbFinding(ctx, tokensAfter(ctx.text, last.end + paren[0].length, 8), 0, person, from);
 }
 
 /** The verb of ", qui ..." right after a subject, which agrees with it. */

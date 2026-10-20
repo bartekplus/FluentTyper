@@ -761,6 +761,10 @@ export const REVIEW_RULE_METADATA: Record<CatalogRuleId, ReviewRuleMetadata> = {
     off: true,
     note: "Optional: 2ème and 1ère are common; typographic usage writes 2e and 1re.",
   }),
+  frenchRepeatedWords: only(["fr_FR"], "style", "repetition", {
+    off: true,
+    note: "Optional: spoken French doubles words for emphasis (très très).",
+  }),
   frenchCommas: only(["fr_FR"], "punctuation", "marks"),
   // German-only Review checks (review/german/).
   germanNounCasing: only(["de_DE"], "typography", "capitalization"),

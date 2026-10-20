@@ -239,7 +239,7 @@ describe("options workspace panels", () => {
       ),
     );
     const rows = [...root.querySelectorAll<HTMLElement>(".rule-matrix-row[data-rule]")];
-    expect(rows.length).toBe(156);
+    expect(rows.length).toBe(157);
     for (const row of rows) {
       expect(row.querySelector(".rule-matrix-title")!.textContent).not.toMatch(/^grammar_rule_/);
       expect(row.querySelector(".rule-matrix-description")!.textContent).not.toMatch(

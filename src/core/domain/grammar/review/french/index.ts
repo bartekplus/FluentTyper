@@ -22,6 +22,7 @@ import * as imperative from "./imperative";
 import * as invariables from "./invariables";
 import * as style from "./style";
 import * as bareNoun from "./bareNoun";
+import * as repeatedWords from "./repeatedWords";
 
 const MODULES = [
   verbForms,
@@ -47,5 +48,6 @@ const MODULES = [
   invariables,
   style,
   bareNoun,
+  repeatedWords,
 ];
 export const FRENCH_DETECTORS = MODULES.flatMap((m) => m.DETECTORS);

@@ -25,6 +25,13 @@ test("no French chunk stalls on adversarial input", () => {
     "j'ai pas on sait jamais il y a rien c'est pas ".repeat(200),
     "il ni si sans mes dans leurs mêmes d'avantage quel que soit anti sur sous néo-x ".repeat(150),
     "une petit maison le belle saison les charmant villages un très jolie jardin ".repeat(150),
+    "très très tu as tu as de moins de moins vous vous qu'il a il ".repeat(150),
+    "Au fond du jardin sont planté les rosiers. Construit en une nuit, le chalet a tenu. ".repeat(
+      80,
+    ),
+    "Peut tu venir ? Comment est venue le facteur ? Ont il fini ? ".repeat(120),
+    "tu ne la croies pas il est certain qu'il parte il comprenne ".repeat(150),
+    "je suis partie et je suis rentré et sommes allés et sommes revenues ".repeat(150),
   ];
   // Warm-up: the first scan of a frame compiles it. That one-time cost is not a stall. The
   // start of each input holds all its words. Two chunks: the regex JIT compiles one time for the

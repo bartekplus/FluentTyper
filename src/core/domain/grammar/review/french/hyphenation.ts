@@ -71,7 +71,7 @@ function persons(word: string): number {
 }
 
 /** The sentence from `index` on ends with a question mark. */
-function inQuestion(text: string, index: number): boolean {
+export function inQuestion(text: string, index: number): boolean {
   const end = text.slice(index, index + 300).search(/[.!?…\n]/);
   return end >= 0 && text[index + end] === "?";
 }
@@ -390,6 +390,34 @@ const PEU_BEFORE = new Set(
 );
 const MAYBE = /(?<![\p{L}\p{M}\p{N}_'’-])peut?[ \t]+être(?![\p{L}\p{M}\p{N}_'’-])/giu;
 
+// Prefixes that the 1990 spelling welds or keeps with a hyphen, both accepted ("co-auteur").
+const WELDED_PREFIXES = new Set(
+  (
+    "co re ré pré anti auto néo post mini maxi multi ultra super hyper semi demi mi sous sur " +
+    "contre extra inter intra micro macro méga mono poly pro pseudo quasi télé vice ex non bi tri " +
+    "dé dés in im para éco bio géo euro cyber agro socio psycho électro thermo hydro aéro " +
+    "audio vidéo photo radio cardio neuro techno info crypto"
+  ).split(" "),
+);
+const known = (word: string) => isFrenchWord(word) || adjectiveReadings(word).length > 0;
+
+/** "vio-loniste" -> "violoniste", "jour-nal" -> "journal": a word cut by a hyphen, where a part is no
+ * word of its own and the joined form is one. */
+function splitWord(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const { first, second } = m.groups!;
+  if (first.length < 2 || second.length < 2 || WELDED_PREFIXES.has(first)) return null;
+  const joined = first + second;
+  if (known(first) && known(second)) return null;
+  // "start-ups": the plural of a dictionary compound.
+  const compound = (word: string) => isDictionaryCompound(`${first}-${word}`);
+  if (!known(joined) || compound(second) || compound(second.replace(/[sx]$/, ""))) return null;
+  if (ctx.dictionary.has(joined) || namedExampleBefore(ctx.text, m.index)) return null;
+  return finding(RULE, "review_msg_split_word", m.index, m.index + m[0].length, [joined]);
+}
+
+const SPLIT_WORD =
+  /(?<![\p{L}\p{M}\p{N}_'’-])(?<first>\p{Ll}[\p{Ll}\p{M}]*)-[ ]?(?<second>\p{Ll}[\p{Ll}\p{M}]*)(?![\p{L}\p{M}\p{N}_'’-])/gu;
+
 function hyphenation(ctx: DetectContext): RawFinding[] {
   if (!isLang(ctx, "fr")) return [];
   const findings: RawFinding[] = [];
@@ -423,6 +451,10 @@ function hyphenation(ctx: DetectContext): RawFinding[] {
   }
   for (const m of ownedFrenchWords(ctx, WORD_PAIR)) {
     const finding = spacedCompound(ctx, m);
+    if (finding) findings.push(finding);
+  }
+  for (const m of ownedFrenchWords(ctx, SPLIT_WORD)) {
+    const finding = splitWord(ctx, m);
     if (finding) findings.push(finding);
   }
   for (const m of ownedFrenchWords(ctx, LONG_FIRST)) {

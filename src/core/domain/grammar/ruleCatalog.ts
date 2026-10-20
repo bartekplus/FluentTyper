@@ -60,6 +60,7 @@ const CATALOG = [
   reviewOnly("frenchMissingNe", 150),
   reviewOnly("frenchCommas", 150),
   reviewOnly("frenchOrdinals", 150),
+  reviewOnly("frenchRepeatedWords", 150),
   reviewOnly("arabicAgreement", 179),
   reviewOnly("frenchNounGender", 178),
   reviewOnly("arabicCaseEndings", 180),

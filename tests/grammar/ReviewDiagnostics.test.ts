@@ -161,6 +161,7 @@ describe("review rule coverage map", () => {
             "portugueseAO90",
             "frenchMissingNe",
             "frenchOrdinals",
+            "frenchRepeatedWords",
           ].includes(id),
       ),
     );
