@@ -119,6 +119,8 @@ export interface FrameSpec {
   ownCase?: boolean;
   /** Carry rules: only the target's words must be plain (not user-dictionary or cased). */
   targetOnly?: boolean;
+  /** Comma rules: the regex flags. Default "dgu". */
+  flags?: string;
 }
 
 /** An executable rule: a token pattern, a list of frames, or a named detector predicate. */
@@ -164,8 +166,18 @@ export interface RuleSpec {
    * replaced, and `ownCase`. "carry": English text, a check per frame, the typed casing carried
    * onto the fix unless `verbatim`, `targetOnly`, and context 40/20. "cased": Portuguese text,
    * case-sensitive frames, a check per frame, one fix each, user-dictionary tokens skipped.
+   * "comma": Polish text, complete regexes with `flags`, a check per frame, a fixer each.
    */
-  style?: "frame" | "template" | "slot" | "polish" | "portuguese" | "german" | "carry" | "cased";
+  style?:
+    | "frame"
+    | "template"
+    | "slot"
+    | "polish"
+    | "portuguese"
+    | "german"
+    | "carry"
+    | "cased"
+    | "comma";
   /** A named filter of the rule's findings (a `FILTERS` record of the rule file). */
   filter?: string;
 }
@@ -239,7 +251,7 @@ export interface CompiledRule {
   frames?: readonly number[];
   /** The message of a frame rule. */
   message?: string;
-  style?: "template" | "slot" | "polish" | "portuguese" | "german" | "carry" | "cased";
+  style?: "template" | "slot" | "polish" | "portuguese" | "german" | "carry" | "cased" | "comma";
   /** "<file>:<name>" of a named findings filter. */
   filter?: string;
   cacheable?: true;
@@ -266,4 +278,5 @@ export interface CompiledFrame {
   capitalized?: true;
   ownCase?: true;
   targetOnly?: true;
+  flags?: string;
 }

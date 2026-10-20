@@ -3,6 +3,14 @@ lang: pl
 
 # Regex fragments of the frame rules: {{NAME}}.
 fragments:
+  QUESTION_WORD: "czy|co|jak|gdzie|kiedy|dlaczego|skąd|dokąd|ile|kto|którędy|czemu"
+  END: "(?![\\p{L}\\p{N}])"
+  PRONOUN_HEAD: "ktoś|coś|ten|ta|ci|tego|tym|temu|wszystko|wszystkiego|wszystkim|wszystkiemu|każdy|nic|niczego"
+  PRONOUN_RELATIVE: "kto|kogo|komu|kim|czego|czym|czemu|co|czyj\\p{L}*"
+  CLAUSE_START: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))"
+  SET_OFF: "(?:Co więcej|Innymi słowy|Jednym słowem|Krótko mówiąc|Szczerze mówiąc|Nawiasem mówiąc|Ogólnie mówiąc|Prawdę mówiąc|Po pierwsze|Po drugie|Po trzecie|Tak czy siak|Tak czy owak)"
+  LINKING: "(?:Jednak|Jednakże|Poza tym|Ponadto|Natomiast|Dlatego|Dlatego też|Zatem|Toteż|Wobec tego|Otóż|Dodatkowo)"
+  RELATIVE: "który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy"
   NOT_LETTER: "(?![\\p{L}])"
   POSSESSIVE: "moja|moją|mojej|twoja|twoją|twojej|jego|jej|ich|nasza|naszą|naszej|wasza|waszą|swoja|swoją|swojej|była|byłą|byłej|przyszła|przyszłą|przyszłej"
   PRONOUN_OBJECT: "mi|ci|mu|jej|nam|wam|im|go|ją|je|ich|nas|was|mnie|cię|ciebie"
@@ -544,7 +552,153 @@ rules:
     predicate: degrees
   - id: pl.commaFrames
     checks: [polishMissingComma, polishMisplacedComma]
-    predicate: commaFrames
+    style: comma
+    message: review_msg_pl_missing_comma
+    frames:
+      # "Nie wiem co robić" -> "Nie wiem, co robić" (not "jak najszybciej", "co nieco").
+      - regex: "(?<![\\p{L}])(?<target>(?:wiem|wiesz|wie|wiemy|wiecie|wiedzą|wiedział\\p{L}*|wiedzieć|wiadomo|sprawdź|sprawdźmy|sprawdzić|sprawdzam|sprawdza|sprawdzę|sprawdził\\p{L}*|spytać|spytam|spytaj|spytał\\p{L}*|zapytać|zapytam|zapytaj|zapytał\\p{L}*|pytam|pyta|pytał\\p{L}*|zobacz|zobaczmy|zobaczyć|zobaczę|zobaczymy|zastanawiam{{S}}się|zastanawia{{S}}się|zastanawiał\\p{L}*{{S}}się|wahał\\p{L}*{{S}}się|waham{{S}}się|ustalić|zdecydować|pamiętam|pamiętasz|rozumiem|wyobraź{{S}}sobie|powiedz|pokaż|wyobrazić{{S}}sobie|wyobrażam{{S}}sobie|wyobraża{{S}}sobie|stwierdzić|ocenić|przewidzieć|określić|zrozumieć|wyjaśnić|wytłumaczyć|opisać|powiedzieć|pokazać))(?={{S}}(?:{{QUESTION_WORD}}){{S}}\\p{L})(?!{{S}}(?:jak{{S}}naj|co{{S}}nieco|co{{S}}do{{END}}|jak{{S}}i{{END}}))(?!(?<=nie{{S}}wiadomo){{S}}(?:kiedy|skąd|jak){{S}}(?:się{{S}})?(?:zrobił|minął|minęł|upłynął|upłynęł|zleciał|przeleciał|przemknął|przemknęł|wyrósł|wyrosł|pojawił|zjawił|znalazł|zniknął|zniknęł|nastał|nadszedł|nadeszł|zapadł|przeminął|przeminęł|ściemnił|wyskoczył|wyrwał)\\p{L}*{{END}})"
+        flags: dgiu
+        fixer: commaFramesWiem
+      # "ktoś kto", "coś czego", "wszystko co" -> "ktoś, kto"; not a question ("Ten co?").
+      - regex: "(?<![\\p{L}])(?<target>{{PRONOUN_HEAD}})(?={{S}}(?:{{PRONOUN_RELATIVE}}){{S}}[^.!?\\n]*[.!…]?)(?!{{S}}(?:{{PRONOUN_RELATIVE}}){{S}}[^.!?\\n]*\\?)(?!{{S}}co{{S}}(?:do|nieco|niemiara|najmniej|najwyżej|prawda|innego|chwila|dzień|roku|rusz|raz){{END}})(?!{{S}}\\p{L}+{{S}}\\p{L}+ć{{END}})"
+        flags: dgiu
+        fixer: commaFramesKtoś
+      # "zależy od tego czy", "pytanie co", "kwestia gdzie" -> "tego, czy": an indirect question
+      # after a pronoun or a noun asking it; not "to czy tamto", "tego czy owego", "kiedy indziej".
+      - regex: "(?<![\\p{L}])(?<target>tego|(?<=(?:na|o|przez|za|w|pod|nad|przed){{S}})to|tym|temu|pytanie|pytania|pytaniu|kwestia|kwestii|kwestię)(?={{S}}(?:czy|gdzie|kiedy|dlaczego|skąd|dokąd|ile|co){{S}}\\p{L})(?!{{S}}\\p{L}+{{S}}(?:tamto|tamtego|tamtym|owo|owego|owym|inne|innego|innym|nie|indziej){{END}})(?!{{S}}co{{S}}(?:do|nieco|niemiara|najmniej|najwyżej|prawda|innego|chwila|rusz|raz){{END}})"
+        flags: dgiu
+        fixer: commaFramesTego
+      # "zarówno Lecha jak i Jarosława" -> "Lecha, jak i": the pair's second half is set off.
+      - regex: "(?<=(?<![\\p{L}])zarówno(?:{{S}}[^,.!?;:\\s]+){1,4})(?<target>{{S}}jak)(?={{S}}(?:i|też|również|także){{END}})"
+        flags: dgiu
+        fixer: commaFramesT
+      # "Tam gdzie nie ma dróg" -> "Tam, gdzie".
+      - regex: "{{CLAUSE_START}}(?<target>Tam|Tu|Tutaj)(?={{S}}(?:gdzie|dokąd|skąd){{END}})"
+        fixer: commaFramesTam
+      # "Im większa tym lepiej" -> "Im większa, tym lepiej" (not "o tym" inside the first clause).
+      - regex: "{{CLAUSE_START}}Im{{S}}(?:[^,.!?;\\n ]+{{S}}){0,4}?(?!(?:o|w|we|po|przy|na|nad|pod|przed|za|z|ze){{S}}tym)[^,.!?;\\n ]+(?<target>{{S}}tym){{END}}"
+        fixer: commaFramesT2
+      # "Tak jak wczoraj tak i dziś" -> "Tak jak wczoraj, tak i dziś".
+      - regex: "{{CLAUSE_START}}Tak{{S}}jak{{S}}(?:[^,.!?;\\n ]+{{S}}){0,4}?[^,.!?;\\n ]+(?<target>{{S}}tak)(?={{S}}(?:i|też|samo){{END}})"
+        fixer: commaFramesT3
+      # "Była to tak czy inaczej porażka" -> "Była to, tak czy inaczej, porażka": the aside is set off
+      # inside the sentence too (not "czy tak czy owak", the repeated question).
+      - regex: "(?<=(?<![\\p{L}])(?!czy{{END}})\\p{Ll}+)(?<target>{{S}}tak{{S}}czy{{S}}(?:inaczej|siak|owak){{S}})(?=\\p{L})"
+        message: review_msg_pl_comma_aside
+        fixer: commaFramesT4
+      # "nie jest twoja tylko moja" -> "twoja, tylko moja": "tylko" contrasting with a denial.
+      - regex: "(?<![\\p{L}])nie{{S}}(?:(?:jest|są|był|była|było|były|byli|jako|dla|do|na|w|z|o){{S}})?(?<target>\\p{L}+)(?={{S}}tylko{{S}}\\p{L})"
+        flags: dgiu
+        fixer: commaFramesP
+      # "kawę a nie herbatę" -> "kawę, a nie herbatę"; "ciekawy a to dzięki" -> "ciekawy, a to dzięki".
+      - regex: "(?<![\\p{L}])(?<target>\\p{Ll}{2,})(?={{S}}a{{S}}(?:nie{{S}}\\p{L}|to{{S}}(?:z{{S}}powodu|dzięki|dlatego|ze{{S}}względu|przez|z{{S}}uwagi){{END}}))"
+        fixer: commaFramesP2
+      # "Po zakończeniu prac, biuro zamknięto" -> no comma after an opening prepositional phrase;
+      # not after a set aside ("Na szczęście,", "Z drugiej strony,") or before a clause ("Po
+      # chwili, gdy…"), and only when nothing else in the sentence could pair with the comma.
+      - regex: "{{CLAUSE_START}}(?<phrase>(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed){{S}}(?:\\p{L}+{{S}})?(?<noun>\\p{L}+))(?<target>,)(?={{S}}(?<rest>\\p{L}[^,;:()\"„”—–\\n]*)[.!?])"
+        check: polishMisplacedComma
+        message: review_msg_pl_extra_comma
+        flags: dgiu
+        fixer: commaFramesT5
+      # "między Pawłem, a Gawłem" -> "między Pawłem a Gawłem".
+      - regex: "(?<![\\p{L}])(?:po)?między{{S}}(?:\\p{L}+{{S}}){0,2}\\p{L}+(?<target>,){{S}}a{{S}}\\p{L}"
+        check: polishMisplacedComma
+        message: review_msg_pl_extra_comma
+        flags: dgiu
+        fixer: commaFramesT6
+      # "Ani prośby ani groźby" -> "Ani prośby, ani groźby".
+      - regex: "(?<![\\p{L}])(?<first>ani|albo|bądź){{S}}(?!(?:co|jak){{S}}bądź)(?:[^,.!?;\\n ]+{{S}}){0,1}?[^,.!?;\\n ]+(?<target>{{S}}\\k<first>){{END}}"
+        message: review_msg_pl_comma_aside
+        flags: dgiu
+        fixer: commaFramesT7
+      # "Co więcej nie ma sensu" -> "Co więcej, nie ma sensu".
+      - regex: "{{CLAUSE_START}}(?<target>{{SET_OFF}})(?={{S}}\\p{L})"
+        message: review_msg_pl_comma_aside
+        fixer: commaFramesCo
+      # "Jak widać nikt nie przyszedł" -> "Jak widać, nikt": the aside ends before the clause; not
+      # "Jak widać na wykresie, …" or "Jak wiadomo z historii".
+      - regex: "{{CLAUSE_START}}(?<target>Jak{{S}}(?:widać|wiadomo|się{{S}}okazało))(?={{S}}\\p{L}[^,;:\\n.!?]*[.!?])(?!{{S}}(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed|że|iż|później|potem|wcześniej|dotąd|dziś|dzisiaj|wczoraj){{END}})"
+        message: review_msg_pl_comma_aside
+        fixer: commaFramesJak
+      # "Jednak, miałem rację" -> "Jednak miałem rację"; not before a phrase set off as an aside
+      # ("Poza tym, ze względu na koszty …").
+      - regex: "{{CLAUSE_START}}{{LINKING}}(?<target>,)(?!{{S}}(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed){{END}})(?={{S}}\\p{Ll}[^,;:\\n]*[.!?])"
+        check: polishMisplacedComma
+        message: review_msg_pl_extra_comma
+        fixer: commaFramesT8
+      # "Jest to więc, problem" -> no comma after a mid-sentence "więc"/"jednak"/"zatem".
+      - regex: "(?<=\\p{Ll}{{S}})(?:więc|jednak|zatem)(?<target>,)(?={{S}}\\p{Ll}+(?:{{S}}\\p{Ll}+){0,2}[.!?])"
+        check: polishMisplacedComma
+        message: review_msg_pl_extra_comma
+        fixer: commaFramesT9
+      # "w którym, przygotowujemy" -> no comma right after the relative pronoun.
+      - regex: "(?<=(?<![\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed){{S}}(?:{{RELATIVE}}))(?<target>,)(?={{S}}\\p{Ll}[^,;:\\n]*[.!?])"
+        check: polishMisplacedComma
+        message: review_msg_pl_extra_comma
+        fixer: commaFramesT10
+      # "Gazeta, jest źródłem", "Każdy uczeń, wie": no comma between a subject and its verb. Only
+      # a noun that cannot be a vocative ("Mamo, jest obiad"), or one after "każdy", is the subject.
+      - regex: "{{CLAUSE_START}}(?:(?<det>każdy|każda|każde|Każdy|Każda|Każde|ten|ta|Ten|Ta){{S}})?(?<noun>\\p{L}\\p{Ll}+)(?<target>,){{S}}(?<verb>\\p{Ll}+){{END}}(?<aside>,)?"
+        check: polishMisplacedComma
+        message: review_msg_pl_extra_comma
+        fixer: commaFramesT11
+      # "gruszek, ani jabłek", "gruszek, i jabłek": no comma before a single joining conjunction
+      # between two nouns, nor between two verbs of one sentence ("Kupiłem chleb, oraz zjadłem").
+      - regex: "(?<![\\p{L}])(?<left>\\p{Ll}{3,})(?<target>,){{S}}(?<conj>ani|ni|lub|albo|bądź|oraz|i){{S}}(?<right>\\p{Ll}{3,}){{END}}"
+        check: polishMisplacedComma
+        message: review_msg_pl_extra_comma
+        fixer: commaFramesT12
+      # "Oto do czego to prowadzi" -> "Oto, do czego": an indirect question after "oto" ("Oto jak…"
+      # reads as one phrase).
+      - regex: "{{CLAUSE_START}}(?<target>Oto)(?={{S}}(?:(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed){{S}})?(?:co|czego|czemu|czym|kto|kogo|komu|kim|gdzie|dlaczego|dokąd|skąd){{S}}\\p{L})"
+        fixer: commaFramesOto
+      # "tym bardziej, że" -> "tym bardziej że": the comma goes before the whole conjunction.
+      - regex: "(?<=(?<![\\p{L}])tym{{S}}bardziej)(?<target>,)(?={{S}}(?:że|iż){{END}})(?!{{S}}(?:że|iż){{S}}(?:jeżeli|jeśli|gdy|kiedy|gdyby|choć|chociaż){{END}})"
+        check: polishMisplacedComma
+        message: review_msg_pl_extra_comma
+        fixer: commaFramesT13
+      # "wątpliwości, co do raportu": "co do" is a preposition here ("co do których" opens a clause).
+      - regex: "(?<=(?<![\\p{L}])(?:wątpliwości|wątpliwość|zastrzeżenia|zastrzeżeń|uwagi|uwag|pewności|pewność|zdania|pytania|pytań|obawy|obaw|sugestie|sugestii|ustalenia|ustaleń|jasności|zgody))(?<target>,)(?={{S}}co{{S}}do{{S}}(?!któr)\\p{L})"
+        check: polishMisplacedComma
+        message: review_msg_pl_extra_comma
+        fixer: commaFramesT14
+      # "Oto, jak to działa" -> "Oto jak": the pair reads as one phrase.
+      - regex: "{{CLAUSE_START}}Oto(?<target>,)(?={{S}}jak{{END}})"
+        check: polishMisplacedComma
+        message: review_msg_pl_extra_comma
+        fixer: commaFramesT15
+      # "Nie wiem, dlaczego." -> no comma before a question word that stands alone at the end.
+      - regex: "(?<=\\p{Ll})(?<target>,)(?={{S}}(?:dlaczego|czemu|po{{S}}co|skąd|dokąd|gdzie)[ \\t\\u00a0]{0,8}[.!?…])"
+        check: polishMisplacedComma
+        message: review_msg_pl_extra_comma
+        fixer: commaFramesT16
+      # "w trakcie, którego" -> "w trakcie którego": the preposition and its relative are one phrase.
+      - regex: "(?<=(?<![\\p{L}])(?:w{{S}}trakcie|w{{S}}czasie|w{{S}}wyniku|w{{S}}ramach|na{{S}}skutek|z{{S}}powodu|na{{S}}podstawie|za{{S}}pomocą|przy{{S}}pomocy|w{{S}}celu|w{{S}}zakresie|podczas|dzięki|wobec|wskutek|według|spośród|pośród))(?<target>,)(?={{S}}(?:{{RELATIVE}}){{END}})"
+        check: polishMisplacedComma
+        message: review_msg_pl_extra_comma
+        fixer: commaFramesT17
+      # "odzywał, się sygnał": "się" never opens a clause.
+      - regex: "(?<=\\p{Ll}(?:ł|ła|ło|li|ły))(?<target>,)(?={{S}}się{{S}}\\p{Ll})"
+        check: polishMisplacedComma
+        message: review_msg_pl_extra_comma
+        fixer: commaFramesT18
+      # "coś do powiedzenia a mianowicie" -> ", a mianowicie"; "Dorota w miarę jak rosła" -> ", w miarę jak".
+      - regex: "(?<=\\p{Ll})(?<!(?:^|[^\\p{L}])(?:choć|chociaż|i|a|ale|że|bo|lecz|oraz|gdy|kiedy|lub|albo))(?<target>{{S}}(?:a{{S}}(?:mianowicie|zwłaszcza|szczególnie)|w{{S}}miarę{{S}}jak)){{END}}(?!{{S}}naj)"
+        fixer: commaFramesT19
+      # "O ile …, o tyle …": the second half is set off.
+      - regex: "(?<target>{{S}}o{{S}}tyle){{END}}(?<=(?:^|[.!?…]{{S}}|\\n)O{{S}}ile[^.!?;\\n]{3,300}\\p{L}{{S}}o{{S}}tyle)"
+        fixer: commaFramesT20
+      # "Nie ma to innymi słowy sensu" -> ", innymi słowy,": an aside inside the sentence.
+      - regex: "(?<=\\p{Ll})(?<target>{{S}}innymi{{S}}słowy)(?<after>{{S}}(?=\\p{Ll})|,)"
+        message: review_msg_pl_comma_aside
+        fixer: commaFramesT21
+      # "Musi tak być i koniec!" -> ", i koniec": after a verb, the phrase closes the matter.
+      - regex: "(?<![\\p{L}])(?<verb>\\p{Ll}{2,20})(?<target>{{S}}i{{S}}(?:koniec|kropka))(?=[ \\t\\u00a0]{0,8}[.!])"
+        fixer: commaFramesT22
+      # "bez względu na to gdzie" -> "na to, gdzie": an indirect question after "to".
+      - regex: "(?<=(?<![\\p{L}])(?:na|o|od|z|do|przez|za|po){{S}})(?<target>to)(?={{S}}(?:gdzie|kiedy|czy|ile|dlaczego|kto|którędy|skąd|dokąd){{END}})"
+        fixer: commaFramesTo
   - id: pl.capitals
     checks: [polishCapitalization]
     predicate: capitals

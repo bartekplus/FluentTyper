@@ -109,6 +109,7 @@ const FRAME_KEYS = new Set([
   "capitalized",
   "ownCase",
   "targetOnly",
+  "flags",
 ]);
 const BUILTIN_FRAGMENTS: Readonly<Record<string, string>> = {
   S: SPACE,
@@ -486,10 +487,12 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
         if (spec.style !== "slot" && entry.cue !== undefined)
           errors.push(`${at}: "cue" needs style "slot"`);
         if (
-          !["slot", "polish", "carry", "cased"].includes(spec.style ?? "") &&
+          !["slot", "polish", "carry", "cased", "comma"].includes(spec.style ?? "") &&
           entry.check !== undefined
         )
-          errors.push(`${at}: "check" needs style "slot", "polish", "carry" or "cased"`);
+          errors.push(`${at}: "check" needs a style with a check per frame`);
+        if (spec.style !== "comma" && entry.flags !== undefined)
+          errors.push(`${at}: "flags" needs style "comma"`);
         if (spec.style === "cased" && entry.fix !== undefined && typeof entry.fix !== "string")
           errors.push(`${at}: a cased frame has one "fix" string`);
         if (spec.style !== "polish" && entry.lowercase)
@@ -506,6 +509,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
         try {
           if (spec.style === "german") new RegExp(pattern, "gdu");
           else if (spec.style === "cased") new RegExp(`${WORD_START}${pattern}`, "gdu");
+          else if (spec.style === "comma") new RegExp(pattern, entry.flags ?? "dgu");
           else if (entry.wordStart === false) new RegExp(pattern, "gidu");
           else frame(pattern);
         } catch (error) {
@@ -531,6 +535,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           ...(entry.capitalized ? { capitalized: true as const } : {}),
           ...(entry.ownCase ? { ownCase: true as const } : {}),
           ...(entry.targetOnly ? { targetOnly: true as const } : {}),
+          ...(entry.flags === undefined ? {} : { flags: entry.flags }),
         });
         return frames.length - 1;
       });

@@ -4,6 +4,7 @@ import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../review/r
 import type { ReviewMessageKey } from "../review/types";
 import { frameDetector as slotFrames, type Frame as SlotFrame } from "../review/english/idioms5";
 import { runCarryFrames as carryFrames, type Frame as CarryFrame } from "../review/english/idioms3";
+import { runCommaFrames as commaFrames, type CommaFrame } from "../review/polish/commaFrames";
 import {
   runCasedFrames as casedFrames,
   type Frame as CasedFrame,
@@ -167,7 +168,15 @@ export function frameRuleDetector(
     return found;
   };
   let detect: Detector;
-  if (rule.style === "cased") {
+  if (rule.style === "comma") {
+    const frames: CommaFrame[] = compiled.map((frame) => ({
+      ruleId: (frame.check ?? ruleId) as CommaFrame["ruleId"],
+      messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
+      regex: new RegExp(frame.pattern, frame.flags ?? "dgu"),
+      fix: fixOf(frame.fix, frame.fixer) as CommaFrame["fix"],
+    }));
+    detect = (ctx) => commaFrames(ctx, frames);
+  } else if (rule.style === "cased") {
     // typography.ts compiles each frame behind WORD_START: its literals are the same.
     for (const { pattern, literals } of compiled)
       primeFrameLiterals(`${WORD_START}${pattern}`, [...literals]);
