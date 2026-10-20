@@ -36,6 +36,8 @@ fragments:
   MONTH_WORD: "stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I"
   DECADE_WORDS: "lata|lat|latach|latami|latom"
   NO_LETTER_AFTER: "(?![\\p{L}\\p{N}_'’-])"
+  # One space character.
+  SP: "[ \\t\\u00a0]"
   # Case endings typed after a digit: ordinal, cardinal, and numeral noun ("piątka") endings.
   ORDINAL_END: "w?sz[yaeąę]|w?sz(?:ego|ej|emu|ym|ych|ymi)|wsi|g[iaeą]|gie|gi(?:ego|ej|emu|m|ch|mi)|c[iaeą]|cie|ci(?:ego|ej|emu|m|ch|mi)|[dt]?m[yaeą]|[dt]?m(?:ego|ej|emu|ym|ych|ymi)|s?t[yaeą]|s?t(?:ego|ej|emu|ym|ych|ymi)|go|ego|mu|emu|ej|ym|ych|ymi|y|i|a|e"
   CARDINAL_END: "u|ch|óch|ech|ciu|miu|ściu|tu|stu|ięć|ro|cio|mio|dmio|ścio|oro|oma|ma"
@@ -845,14 +847,208 @@ rules:
         scan: polish
         flags: gu
         fixer: pluralPronouns
+  # Polish typesetting: „…” quotes (opt-in), one dash style per inserted phrase, spaces around
+  # "=" and "×", no space before "%", the decimal comma before a unit, symbols typed as letters
+  # ("(C)"), spacing inside abbreviations, and a space after ";" or ")".
   - id: pl.quotes
     checks: [polishQuotes]
-    predicate: quotes
+    style: match
+    message: review_msg_pl_typography
+    frames:
+      # A straight or English quote pair around a phrase on one line: „phrase”.
+      - regex: "(?<![\\p{L}\\p{N}\"])\"(?=[\\p{L}\\p{N}])([^\"\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])\"(?![\\p{L}\\p{N}])"
+        scan: polish
+        flags: gu
+        fixer: straightQuotes
+      - regex: "\\u201C(?=[\\p{L}\\p{N}])([^\\u201C\\u201D\"\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])\\u201D"
+        scan: polish
+        flags: gu
+        fixer: englishQuotes
+      # „phrase“: the German closing quote after a Polish opening one.
+      - regex: "\\u201E(?=[\\p{L}\\p{N}])([^\\u201E\\u201C\\u201D\"\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])\\u201C"
+        scan: polish
+        flags: gu
+        fixer: germanClose
+      - regex: "\\u201A(?=[\\p{L}\\p{N}])([^\\u201A\\u2018\\u2019\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])\\u2019"
+        scan: polish
+        flags: gu
+        fixer: singleLowQuotes
+      - regex: "(?<!<)>>(?=[\\p{L}\\p{N}])([^<>\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])<<(?!<)"
+        scan: polish
+        flags: gu
+        fixer: angleQuotes
   - id: pl.typography
     checks: [polishTypography]
-    predicate: typography
+    style: match
+    message: review_msg_pl_typography
+    frames:
+      # "— powiedział –": an inserted phrase opened with one dash and closed with the other.
+      - regex: "(?<={{SP}})(?<open>[—–]){{SP}}(?<inner>[^—–.!?\\n]{1,80}?){{SP}}(?<close>[—–])(?={{SP}})"
+        scan: polish
+        flags: gu
+        fixer: dashPair
+      # "19=20", "19 =20" -> "19 = 20" between numbers.
+      - regex: "(?<=\\p{N})[ \\t]*=[ \\t]*(?=\\p{N})"
+        scan: polish
+        flags: gu
+        fixer: equalsSpaced
+      # "800x600", "800 x 600" -> "800 × 600" (not hex "0x1F"). A spaced capital X is a Roman month
+      # ("12 X 1945").
+      - regex: "(?<![\\p{L}\\p{N}.,])(?!0x)(\\p{N}{1,5})(?:[ \\t]?x[ \\t]?|X)(\\p{N}{1,5})(?![\\p{L}\\p{N}])"
+        scan: polish
+        flags: gu
+        fixer: timesSign
+      # "10 %" -> "10%": Polish sets the percent sign close to the number.
+      - regex: "(?<=\\p{N})[ \\u00a0]%"
+        scan: polish
+        flags: gu
+        fixer: percentClose
+      # "312.12 zł", "0.5%" -> the decimal comma before a unit or currency.
+      - regex: "(?<![\\p{L}\\p{N}.,])(\\p{N}{1,6})\\.(\\p{N}{1,2})(?=[ \\u00a0]?(?:z\\u0142|z\\u0142otych|gr|%|proc\\.|kg|km|cm|mm|ml)(?![\\p{L}]))"
+        scan: polish
+        flags: gu
+        fixer: decimalComma
+      # "(C) 2012", "Linux(R)", "Choice(TM)" -> the symbol ("Hagan (R)" may name a party).
+      - regex: "\\(C\\)(?=[ \\u00a0]+(?:\\p{N}|\\p{Lu}))"
+        scan: polish
+        flags: gu
+        fixer: copyrightSign
+      - regex: "(?<=\\p{L})\\(R\\)"
+        scan: polish
+        flags: gu
+        fixer: registeredSign
+      - regex: "(?<=\\p{L}[ \\u00a0]?)\\(TM\\)"
+        scan: polish
+        flags: gu
+        fixer: trademarkSign
+      # "00–950 Warszawa": a postal code takes a hyphen.
+      - regex: "(?<![\\p{N}\\u2013\\u2014-])\\p{N}{2}[\\u2013\\u2014]\\p{N}{3}(?=[ \\u00a0]+\\p{Lu}\\p{Ll})"
+        scan: polish
+        flags: gu
+        fixer: postalHyphen
+      # "11.XI.1918", "11-XI-1918" -> "11 XI 1918".
+      - regex: "(?<![\\p{L}\\p{N}.])(\\p{N}{1,2})[.-]([IVX]{1,4})[.-](\\p{N}{4})(?![\\p{N}])"
+        scan: polish
+        flags: gu
+        fixer: romanDate
+      # "od 12 – 17 lutego" -> "od 12 do 17".
+      - regex: "(?<![\\p{L}])([Oo]d[ \\u00a0]+\\p{N}+(?:,\\p{N}+)?)[ \\u00a0]*[\\u2013\\u2014-][ \\u00a0]*(\\p{N}+)(?![\\p{N}])"
+        scan: polish
+        flags: gu
+        fixer: odDoRange
+      # "błąd;wiem", "(od dawna)odpowiednim" -> a space after ";" and a closing bracket.
+      - regex: "(?<=\\p{Ll}{2})[;](?=\\p{Ll}{2})"
+        scan: polish
+        flags: gu
+        fixer: spaceAfterSemicolon
+      - regex: "(?<=\\([^()\\n]{2,80}\\p{Ll})\\)(?=\\p{Ll}{3})"
+        scan: polish
+        flags: gu
+        fixer: spaceAfterBracket
+      # "zdanie ;" -> "zdanie;".
+      - regex: "(?<=\\p{L})[ \\t]+;(?=[ \\t])"
+        scan: polish
+        flags: gu
+        fixer: spaceBeforeSemicolon
+      # "Zrobił to.„Naprawdę" -> a space between the sentence and the quote.
+      - regex: "(?<=\\p{L}[.!?])\\u201E(?=\\p{L})"
+        scan: polish
+        flags: gu
+        fixer: spaceBeforeQuote
+      # "problem…." -> one ellipsis.
+      - regex: "\\u2026\\.(?!\\.)"
+        scan: polish
+        flags: gu
+        fixer: doubleEllipsis
+      # "30g cukru", "w 2000r." -> a space between a number and "g" or the year's "r.".
+      - regex: "(?<![\\p{L}\\p{N}.,])(\\p{N}{1,4})g(?=[ \\u00a0]+\\p{Ll}{3,})"
+        scan: polish
+        flags: gu
+        fixer: gramSpace
+      - regex: "(?<![\\p{L}\\p{N}.,])(\\p{N}{3,4})r\\.(?![\\p{L}])"
+        scan: polish
+        flags: gu
+        fixer: yearSpace
+      # "o 1, 9 proc." -> "1,9": no space after a decimal comma before a percentage.
+      - regex: "(?<![\\p{N}][ \\u00a0]?,[ \\u00a0]?|[\\p{N}.,])(\\p{N}{1,3}), (\\p{N}{1,2})(?=[ \\u00a0]?(?:%|proc\\.|procent))"
+        scan: polish
+        flags: gu
+        fixer: decimalCommaSpace
+      # "pierwszo–, drugo- i trzeciorzędowy": a hanging prefix in a list takes a hyphen, not a dash.
+      - regex: "(?<=(?<![\\p{L}])\\p{Ll}{2,}[ouy])[\\u2013\\u2014](?=,)"
+        scan: polish
+        flags: gu
+        fixer: hangingPrefix
+      # "Ad. 1" -> "Ad 1": the Latin "ad" is a word, not an abbreviation.
+      - regex: "(?<![\\p{L}.])([Aa]d)\\.(?=[ \\u00a0]+\\(?\\p{N})"
+        scan: polish
+        flags: gu
+        fixer: adWord
+      # "dom– jak", "dom –jak" -> "dom – jak": a dash between words has a space on both sides
+      # ("jedno– i dwukonne" is a hanging prefix before a conjunction).
+      - regex: "(?<=\\p{L}{2})[\\u2013\\u2014](?=[ \\u00a0](?!(?:i|oraz|lub|albo|czy|a)[ \\u00a0])\\p{L})"
+        scan: polish
+        flags: gu
+        fixer: dashSpaceBefore
+      - regex: "(?<=\\p{L}[ \\u00a0])[\\u2013\\u2014](?=\\p{L}{2})"
+        scan: polish
+        flags: gu
+        fixer: dashSpaceAfter
+      # "przykład.," -> "przykład,": a full word takes no dot before a comma.
+      - regex: "(?<=(?<![\\p{L}.])\\p{Ll}{5,})\\.(?=,)"
+        scan: polish
+        flags: gu
+        fixer: dotBeforeComma
+      # Abbreviations written with a space inside, or without the space between their parts.
+      - regex: "(?<![\\p{L}])m\\.{{SP}}+in\\."
+        scan: polish
+        flags: gu
+        fixer: abbrMIn
+      - regex: "(?<![\\p{L}])z{{SP}}+o\\.{{SP}}+o\\."
+        scan: polish
+        flags: gu
+        fixer: abbrZoo
+      - regex: "(?<![\\p{L}])p\\.{{SP}}*n\\.{{SP}}+e\\.?(?![\\p{L}])"
+        scan: polish
+        flags: gu
+        fixer: abbrPne
+      - regex: "(?<![\\p{L}])p\\.{{SP}}+n\\.{{SP}}*e\\.?(?![\\p{L}])"
+        scan: polish
+        flags: gu
+        fixer: abbrPne
+      - regex: "(?<![\\p{L}.]{{SP}}?)n\\.{{SP}}+e\\.?(?![\\p{L}])"
+        scan: polish
+        flags: gu
+        fixer: abbrNe
+      - regex: "(?<![\\p{L}])dz\\.cyt\\."
+        scan: polish
+        flags: gu
+        fixer: abbrDzCyt
+      - regex: "(?<![\\p{L}])op\\.cit\\."
+        scan: polish
+        flags: gu
+        fixer: abbrOpCit
+      # A wrong letter or a lost dot: "m.im." and "M.in" are "m.in.", "d.s" is "ds.", "44 p.n.e?"
+      # needs its dot before the question mark.
+      - regex: "(?<![\\p{L}])m\\.im\\.?(?![\\p{L}])"
+        scan: polish
+        flags: giu
+        fixer: abbrMIn
+      - regex: "(?<![\\p{L}])m\\.in(?![\\p{L}.])"
+        scan: polish
+        flags: giu
+        fixer: abbrMIn
+      - regex: "(?<![\\p{L}.])d\\.s\\.?(?![\\p{L}.])"
+        scan: polish
+        flags: gu
+        fixer: abbrDs
+      - regex: "(?<![\\p{L}])p\\.n\\.e(?![\\p{L}.])"
+        scan: polish
+        flags: gu
+        fixer: abbrPne
   - id: pl.rangeDashes
     checks: [emdashShortcut]
+    # predicate: runs the shared range dash check of rangeDash.ts with the Polish guards.
     predicate: rangeDashes
   - id: pl.comparedWithJak
     checks: [englishPhraseCorrections]
