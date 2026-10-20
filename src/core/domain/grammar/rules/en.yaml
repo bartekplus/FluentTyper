@@ -6,6 +6,9 @@ fragments:
   MOVERS: "move|moves|moved|moving|arrive|arrives|arrived|arriving|leave|leaves|left|leaving|flee|flees|fled|fleeing|resign|resigns|resigned|resigning|quit|quits|quitting|migrate|migrates|migrated|migrating|desert|deserted|gather|gathered|protest|protested|walked{{S}}out"
   AFTER_MASS: "yesterday|today|tonight|again|now|then|last|this|that|from|to|into|across|after|before|when|and|but|as|over|toward|towards"
   CLOSED: "(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)"
+  # Up to two adverbs in a verb group; a question also takes "please": "can you please send…".
+  VERBGROUP_ADVERB_RUN: "(?<adverbs>(?:{{S}}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly)){0,2})"
+  VERBGROUP_QUESTION_RUN: "(?<adverbs>(?:{{S}}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly|please)){0,2})"
   BE_FORM: "am|is|are|was|were|be|been|being|(?:I|you|we|they|he|she|it|that|there|who|what|this)['’](?:m|re|s)"
   IDIOMS5_ORDINAL: "[0-9]+(?:st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth"
   AUXILIARY: "can|could|will|would|shall|should|may|might|must|do|does|did|am|is|are|was|were|have|has|had"
@@ -1148,9 +1151,95 @@ rules:
   - id: en.nounNumberSlots
     checks: [englishNounNumber, englishPossibleErrors]
     predicate: nounNumberSlots
+  # Verb groups whose second verb has the wrong form, read from the lexicon. Each part of
+  # verbGroups is a rule of its own when it keeps one finding per range.
   - id: en.verbGroups
     checks: [englishPerfectParticiples, englishAuxiliaryBaseVerb, englishSentenceStructure]
-    predicate: verbGroups
+    style: match
+    message: review_msg_perfect_participle
+    filter: usSlots
+    frames:
+      # "I have was there", "Where have you were?": a past of be after have is "been".
+      - regex: "(?:(?<subject>i|you|we|they|he|she|it)(?:{{S}}(?:have|has|had)|['’]ve)|(?:have|has|had){{S}}(?:i|you|we|they|he|she|it|there)){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>was|were|are){{E}}"
+        owner: verb
+        fixer: verbGroupPerfectWithPastBe
+      # "He has uses the laptop": an -s verb with its object after have.
+      - regex: "(?:(?<pronoun>i|you|we|they|he|she|it)(?:{{S}}(?:have|has|had)|['’]ve)|[a-z]+{{S}}(?:has|have)){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+s){{E}}"
+        owner: verb
+        fixer: verbGroupPerfectWithThird
+      # "We've also cooking a cake", "will have compiling the data": have + an -ing form.
+      - regex: "(?:(?:i|you|we|they|he|she|it|who)(?:{{S}}(?:have|has|had)|['’]ve)|(?:will|would|could|should|must|might|may){{S}}have){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+ing){{E}}"
+        owner: verb
+        fixer: verbGroupPerfectWithIng
+      # "When was it send?", "Were they build last year?": an inverted passive with a bare verb.
+      # "Were you use the old login?": a person and a verb before its object.
+      - regex: "(?<be>was|were|is|are|wasn['’]t|weren['’]t|isn['’]t|aren['’]t){{S}}(?<subject>it|they|these|those|this|that|you|we|he|she|i){{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        message: review_msg_be_participle
+        fixer: verbGroupInvertedPassiveBase
+  - id: en.verbGroupsPerfectBase
+    checks: [englishPerfectParticiples, englishAuxiliaryBaseVerb, englishSentenceStructure]
+    style: match
+    message: review_msg_perfect_participle
+    filter: usSlotsOnePerRange
+    frames:
+      # "I have finish", "could have change", "Have you use…": a perfect with a bare verb.
+      - regex: "(?:(?:i|you|we|they|he|she|it|who){{S}}(?:have|has|had)(?:n['’]t)?|(?:i|you|we|they|who)['’]ve|(?:could|would|should|must|might|may|will)(?:{{S}}(?:not|never))?{{S}}have|(?:could|would|should|must|might)['’]ve|[a-z]+{{S}}(?:has|have|had)){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        fixer: verbGroupPerfectWithBase
+      - regex: "(?:have|has)(?:n['’]t)?{{S}}(?:i|you|we|they|he|she|it|anyone|anybody|someone|somebody|everyone|[a-z]{2,}){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        fixer: verbGroupPerfectWithBase
+  - id: en.verbGroupsBareVerbs
+    checks: [englishPerfectParticiples, englishAuxiliaryBaseVerb, englishSentenceStructure]
+    style: match
+    message: review_msg_be_participle
+    filter: usSlots
+    frames:
+      # "The software was introduce", "It can be use by everyone": be + a bare verb as a passive.
+      - regex: "(?<be>be|been|being|is|are|was|were|am|isn['’]t|aren['’]t|wasn['’]t|weren['’]t){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        fixer: verbGroupPassiveWithBase
+      # "It can't be check because…", "won't be fix until May": modal + be + a bare verb.
+      - regex: "(?:can|could|will|would|should|must|might|may|can['’]t|cannot|couldn['’]t|won['’]t|wouldn['’]t|shouldn['’]t|mustn['’]t){{S}}be{{S}}(?<verb>[a-z]+)(?=[ \\t\\u00a0]*[.,!?;:]|[ \\t\\u00a0]*$|{{S}}(?:because|until|unless|yet|anymore|properly|correctly|automatically|manually|now|soon|today|by|in time){{E}})"
+        owner: verb
+        fixer: verbGroupModalBeBase
+      # "I'm so use to it", "not use to working": be + "use to" is "used to".
+      - regex: "(?:am|is|are|was|were|be|been|being|['’]m|['’]re|['’]s)(?:{{S}}(?:so|not|very|really|quite|already|still|never|totally|completely|pretty|just|more)){0,2}{{S}}(?<verb>use){{S}}to{{S}}(?=[a-z]+ing{{E}}|(?:it|this|that|them|him|her|me|us|the|a|an|my|your|our|their|his|its|being){{E}})"
+        owner: verb
+        fixer: verbGroupUsedTo
+      # "It got receive by everyone", "is getting spend": get + a bare verb as a passive.
+      - regex: "(?:get|gets|got|getting|gotten){{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        fixer: verbGroupGetWithBase
+      # "That does makes sense", "he does not has", "Peter did went": do-support + a non-base
+      # verb.
+      - regex: "(?<subject>[a-z]+){{S}}(?<aux>does|do|did)(?:{{S}}not)?{{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        check: englishAuxiliaryBaseVerb
+        message: review_msg_auxiliary_base
+        fixer: verbGroupDoSupport
+      # "Which car would you bought?", "can you please attached": an inverted modal question.
+      - regex: "(?:can|could|would|will|should|shall|may|might|must){{S}}(?<subject>i|you|we|they|he|she|anyone|someone|anybody|everyone|somebody){{VERBGROUP_QUESTION_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        check: englishAuxiliaryBaseVerb
+        message: review_msg_auxiliary_base
+        fixer: verbGroupInvertedModal
+      # "Your order is requires approval", "She is always goes": be before an -s verb.
+      - regex: "(?<subject>[a-z]+){{S}}(?<be>is|am|are)(?<adverbs>(?:{{S}}(?:also|only|always|often|usually|never|sometimes|really|just|still))?){{S}}(?<verb>[a-z]+s){{E}}"
+        owner: be
+        check: englishSentenceStructure
+        message: review_msg_sentence_structure
+        fixer: verbGroupBeBeforeThird
+      # "I seen it", "He done it", "You could been there": a participle with no have.
+      - regex: "(?<subject>I|he|she|it|we|they)(?<adverbs>(?:{{S}}(?:never|already|just|not|also))?){{S}}(?<verb>[a-z]+){{E}}"
+        owner: verb
+        message: review_msg_perfect_participle
+        fixer: verbGroupBareParticiple1
+      # "could been", "can been", "used to been".
+      - regex: "(?<modal>could|would|should|might|must|may|can|will|to){{S}}(?<target>been){{E}}"
+        message: review_msg_perfect_participle
+        fixer: verbGroupBareParticiple2
   - id: en.verbComplementSlots
     checks: [englishVerbComplements]
     predicate: verbComplementSlots
