@@ -11,18 +11,75 @@ fragments:
   # first. Keep them in step with these tables.
   MONTH: "كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب"
   WEEKDAY: "الثلاثاء|الأربعاء|الإثنين|الاثنين|الخميس|الجمعة|الأحد|السبت"
+  # The end of a word token of review/arabic/checks.ts: a tanwin fath may follow the word.
+  END: "(?=\\u064B?{{NOT_WORD}})"
+  # Any word token of review/arabic/checks.ts.
+  WORD: "{{START}}\\p{L}+{{END}}"
+  # The number words of NUMBER_WORDS and of the 11-12 units in review/arabic/checks.ts. Keep
+  # them in step with these tables.
+  NUMBER: "ثلاثة|ثلاث|أربعة|أربع|خمسة|خمس|ستة|ست|سبعة|سبع|ثمانية|ثماني|ثمان|تسعة|تسع|واحد|واحدة|اثنان|اثنين|اثنتان|اثنتين|اثنا|اثنتا|اثني|اثنتي|أحد|إحدى|عشر|عشرة|مئة|مائة|مئتان|مئتين|مائتان|مائتين|ألف|ألفا|ألفان|ألفين|آلاف|مليون|مليونا|مليونان|مليونين|ملايين|مليار|ملياران|مليارين|\\p{L}+(?:مئة|مائة)|(?:عشر|ثلاث|أربع|خمس|ست|سبع|ثمان|تسع)(?:ون|ين)"
+  # PREPOSITIONS of review/arabic/checks.ts.
+  PREPOSITION: "في|إلى|على|عن|مع|بين|حول|نحو|عند|لدى|بعد|قبل|خلال|دون|منذ|ضد|عبر"
 
 rules:
+  # The token frames: each frame matches the words that a token walker of
+  # review/arabic/checks.ts tests first. Its fixer reads the token list of the chunk (the words
+  # from 96 characters before the chunk to 160 after it) around that word. The word that owns a
+  # finding is at or after its frame match, so a match after the chunk gives no finding.
   - id: ar_SA.agreement
     checks: [arabicAgreement]
-    # predicate: walks the word tokens; each decision reads the words around a demonstrative,
-    # a relative pronoun, an adjective or a number.
-    predicate: agreement
+    style: match
+    message: review_msg_arabic_demonstrative_gender
+    # The filter drops a number finding that overlaps an earlier number finding.
+    filter: numberOverlaps
+    frames:
+      # "هذا السلامة", "هذان البطاقتان", "هذين الكتابان": a demonstrative agrees with its noun.
+      - regex: "{{START}}[وف]?[بلك]?(?:هذا|هذه|ذلك|تلك|هذان|هاتان|هذين|هاتين){{END}}"
+        scan: text
+        lookback: 96
+        flags: gu
+        fixer: demonstrative
+      # "الوشاية الذي سمعتها", "الطعام التي جلبناه": a relative pronoun agrees with its
+      # antecedent.
+      - regex: "{{START}}(?:الذي|التي){{END}}"
+        scan: text
+        lookback: 96
+        flags: gu
+        fixer: relativePronoun
+      # "القميص الجديدة", "في الغرفة الكبير": a definite adjective agrees with the definite
+      # noun before it. The frame matches the noun.
+      - regex: "{{START}}[وف]?(?:[بك]?ال|لل)\\p{L}{2,}{{END}}"
+        scan: text
+        lookback: 96
+        flags: gu
+        fixer: definiteAdjective
+      # 11-19 and 21-99 agree with the counted noun; after a preposition they are oblique. The
+      # frame matches a preposition or a number word.
+      - regex: "{{START}}(?:{{PREPOSITION}}|من|[وبلك]{0,2}(?:{{NUMBER}})){{END}}"
+        scan: text
+        lookback: 96
+        flags: gu
+        fixer: numbers
   - id: ar_SA.caseEndings
     checks: [arabicCaseEndings]
-    # predicate: walks the word tokens; each decision reads the word that governs the next
-    # noun or verb.
-    predicate: caseEndings
+    style: match
+    message: review_msg_arabic_case_ending
+    frames:
+      # "في المسافرون", "إن الكتابان", "لم يستطيعون", "لن يذهبون", "لا يخافوا": the word after
+      # a preposition, إنّ and its sisters, لا, لم, لن, أن, كي or لكي.
+      - regex: "{{START}}(?:في|إلى|على|عن|مع|بين|حول|نحو|عند|لدى|بعد|قبل|خلال|دون|ضد|عبر|إن|كأن|ليت|لعل|[وف]?(?:لا|لم|لن|أن|كي|لكي)){{END}}"
+        scan: text
+        lookback: 96
+        flags: gu
+        fixer: caseEnding
+      # "لمّا يأتون" (not yet): لمّا takes the jussive too. Only with its shadda written: bare
+      # لما is also "for what" before an indicative verb. The frame matches لمّا and the spaces
+      # after it; the fixer reads the 12 characters before the next word.
+      - regex: "ل\\u064E?م(?:\\u0651\\u064E?|\\u064E\\u0651)ا[ \\t\\u00a0]+"
+        scan: text
+        lookback: 108
+        flags: gu
+        fixer: lammaJussive
   - id: ar_SA.dates
     checks: [arabicDates]
     style: match
@@ -80,9 +137,15 @@ rules:
         fixer: monthYear
   - id: ar_SA.syntax
     checks: [arabicSyntax]
-    # predicate: walks the word tokens; each decision reads the particle pair and the word
-    # after it.
-    predicate: syntax
+    style: match
+    message: review_msg_arabic_joined_particle
+    frames:
+      # عن and من join ما and مَن ("عما", "مما", "عمن").
+      - regex: "{{START}}[وف]?(?:عن|من){{END}}"
+        scan: text
+        lookback: 96
+        flags: gu
+        fixer: joinedParticle
   - id: ar_SA.kullama
     checks: [arabicSyntax]
     style: match
@@ -113,9 +176,40 @@ rules:
         fixer: bayna
   - id: ar_SA.style
     checks: [stylePhrasing]
-    # predicate: walks the word tokens; each decision reads a word and its neighbours (dual
-    # possessors, indefinite adjectives and subjects, light verbs and the other style frames).
-    predicate: style
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # Optional: "المرأتان ذاتا مكانة" -> "ذواتا".
+      - regex: "{{START}}ذاتا{{END}}"
+        scan: text
+        lookback: 96
+        flags: gu
+        fixer: dualPossessor
+      # Optional: "هذا قميص قديمة.": an indefinite adjective after an indefinite noun. Every word
+      # can be the noun.
+      - regex: "{{WORD}}"
+        scan: text
+        lookback: 96
+        flags: gu
+        fixer: indefiniteAdjective
+      # Optional: "هذا سلامة", "تلك سلام": a demonstrative before an indefinite noun.
+      - regex: "{{START}}[وف]?(?:هذا|هذه|ذلك|تلك){{END}}"
+        scan: text
+        lookback: 96
+        flags: gu
+        fixer: demonstrativePredicate
+      # Optional: "كتاب في البيت." -> "في البيت كتاب.". Every word that opens a sentence can be
+      # the subject.
+      - regex: "{{WORD}}"
+        scan: text
+        lookback: 96
+        flags: gu
+        fixer: indefiniteSubject
+  - id: ar_SA.styleFrames
+    checks: [stylePhrasing]
+    # predicate: walks the word tokens; each decision reads a word and its neighbours (light
+    # verbs and the other style frames of review/arabic/styleFrames.ts and usage.ts).
+    predicate: styleFrames
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

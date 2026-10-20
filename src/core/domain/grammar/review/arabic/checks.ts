@@ -1,5 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
-import type { Detector, FrameRef, MatchFixer } from "../../engine/reviewRules";
+import type { Detector, FindingsFilter, FrameRef, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { graphWords } from "../wordGraph";
 import type * as Lexicon from "./lexicon.generated";
@@ -15,8 +15,17 @@ type Token = { word: string; start: number; end: number; gap: string };
 // fath ("رجلا\u064B") is kept apart so the word itself still reads.
 const TOKEN = /(?<![\p{L}\p{M}\p{N}])\p{L}+(?=\u064B?(?![\p{L}\p{M}\p{N}]))/gu;
 
+const TOKENS = new WeakMap<DetectContext, Token[]>();
 /** The words from shortly before the chunk to shortly after it, with the text between them. */
 function tokens(ctx: DetectContext): Token[] {
+  let list = TOKENS.get(ctx);
+  if (!list) {
+    list = readTokens(ctx);
+    TOKENS.set(ctx, list);
+  }
+  return list;
+}
+function readTokens(ctx: DetectContext): Token[] {
   const list: Token[] = [];
   TOKEN.lastIndex = Math.max(0, ctx.from - 96);
   const limit = Math.min(ctx.text.length, ctx.to + 160);
@@ -30,6 +39,18 @@ function tokens(ctx: DetectContext): Token[] {
     });
   }
   return list;
+}
+/** The index of the token that starts at `start` (a binary search), or -1. */
+export function tokenAt(list: readonly { start: number }[], start: number): number {
+  let low = 0;
+  let high = list.length - 1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (list[mid].start === start) return mid;
+    if (list[mid].start < start) low = mid + 1;
+    else high = mid - 1;
+  }
+  return -1;
 }
 /** Two words in a row: only spaces (and a tanwin) between them. */
 const adjacent = (token: Token) => /^\u064B?[ \t\u00a0]+$/u.test(token.gap);
@@ -187,107 +208,98 @@ const PREPOSITIONS = new Set(
 const PRONOUN_AFTER = new Set([...PREPOSITIONS, "رغم", "مثل", "غير", "من"]);
 
 /** "هذا السلامة", "هذان البطاقتان", "هذين الكتابان": a demonstrative agrees with its noun. */
-function demonstratives(ctx: DetectContext, list: Token[]): Finding[] {
-  const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    const m = DEMONSTRATIVE.exec(list[i].word);
-    const noun = list[i + 1];
-    if (!m || !adjacent(noun) || !owns(ctx, list[i].start)) continue;
-    const { pre, dem } = m.groups!;
-    const before =
-      i > 0 && adjacent(list[i]) ? list[i - 1].word.replace(/^[وف](?=\p{L}{2})/u, "") : "";
-    const far = dem === "ذلك" || dem === "تلك";
-    if (far && (/[بلك]$/u.test(pre) || PRONOUN_AFTER.has(before))) continue;
-    const at = list[i].start + pre.length;
-    const context = { start: list[i].start, end: noun.end };
-    if (dem === "هذا" || dem === "ذلك") {
-      if (!definiteFeminine(noun.word) && !possessedFeminine(noun.word)) continue;
-      findings.push({
+function demonstrative(ctx: DetectContext, list: Token[], i: number): Finding | undefined {
+  const m = DEMONSTRATIVE.exec(list[i].word);
+  const noun = list[i + 1];
+  if (!m || !noun || !adjacent(noun) || !owns(ctx, list[i].start)) return;
+  const { pre, dem } = m.groups!;
+  const before =
+    i > 0 && adjacent(list[i]) ? list[i - 1].word.replace(/^[وف](?=\p{L}{2})/u, "") : "";
+  const far = dem === "ذلك" || dem === "تلك";
+  if (far && (/[بلك]$/u.test(pre) || PRONOUN_AFTER.has(before))) return;
+  const at = list[i].start + pre.length;
+  const context = { start: list[i].start, end: noun.end };
+  if (dem === "هذا" || dem === "ذلك") {
+    if (!definiteFeminine(noun.word) && !possessedFeminine(noun.word)) return;
+    return {
+      messageKey: "review_msg_arabic_demonstrative_gender",
+      range: { start: at, end: list[i].end },
+      alternatives: [dem === "هذا" ? "هذه" : "تلك"],
+      context,
+    };
+  }
+  if (dem === "هذه" || dem === "تلك") {
+    const stem = bare(noun.word);
+    if (noun.word.startsWith("ال") && (MASCULINE.has(stem) || masculineSingular(stem)))
+      return {
         messageKey: "review_msg_arabic_demonstrative_gender",
         range: { start: at, end: list[i].end },
-        alternatives: [dem === "هذا" ? "هذه" : "تلك"],
+        alternatives: [dem === "هذه" ? "هذا" : "ذلك"],
         context,
-      });
-      continue;
-    }
-    if (dem === "هذه" || dem === "تلك") {
-      const stem = bare(noun.word);
-      if (noun.word.startsWith("ال") && (MASCULINE.has(stem) || masculineSingular(stem)))
-        findings.push({
-          messageKey: "review_msg_arabic_demonstrative_gender",
-          range: { start: at, end: list[i].end },
-          alternatives: [dem === "هذه" ? "هذا" : "ذلك"],
-          context,
-        });
-      continue;
-    }
-    const d = dual(noun.word);
-    if (!d) {
-      // "هذان بطاقتاه": only the gender is read off a dual with a pronoun.
-      if (dem === "هذان" || dem === "هذين")
-        if (feminineDualConstruct(noun.word))
-          findings.push({
-            messageKey: "review_msg_arabic_demonstrative_gender",
-            range: { start: at, end: list[i].end },
-            alternatives: [dem === "هذان" ? "هاتان" : "هاتين"],
-            context,
-          });
-      continue;
-    }
-    const prepositional = pre.length > 0 && /[بلك]$/u.test(pre);
-    const afterPreposition = prepositional || PREPOSITIONS.has(before);
-    const demOblique = dem === "هذين" || dem === "هاتين";
-    const demGender = dem.startsWith("ها") ? "f" : "m";
-    const genderFix = demGender !== d.gender;
-    // After a preposition both are oblique; otherwise either side may be the slip.
-    const options: Array<[boolean, boolean]> = afterPreposition
-      ? [[true, true]]
-      : demOblique === d.oblique
-        ? [[demOblique, d.oblique]]
-        : [
-            [d.oblique, d.oblique],
-            [demOblique, demOblique],
-          ];
-    const alternatives = options
-      .map(([demCase, nounCase]) => {
-        const fixedDem = DUAL_FORMS[d.gender][demCase ? 1 : 0];
-        const fixedNoun = d.stem + (nounCase ? "ين" : "ان");
-        return { fixedDem, fixedNoun };
-      })
-      .filter(({ fixedDem, fixedNoun }) => fixedDem !== dem || fixedNoun !== noun.word);
-    if (!alternatives.length) continue;
-    const nounChanges = alternatives.some(({ fixedNoun }) => fixedNoun !== noun.word);
-    findings.push({
-      messageKey: genderFix
-        ? "review_msg_arabic_demonstrative_gender"
-        : "review_msg_arabic_dual_case",
-      range: { start: at, end: nounChanges ? noun.end : list[i].end },
-      alternatives: alternatives.map(({ fixedDem, fixedNoun }) =>
-        nounChanges ? fixedDem + noun.gap + fixedNoun : fixedDem,
-      ),
-      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-      context,
-    });
+      };
+    return;
   }
-  return findings;
+  const d = dual(noun.word);
+  if (!d) {
+    // "هذان بطاقتاه": only the gender is read off a dual with a pronoun.
+    if ((dem === "هذان" || dem === "هذين") && feminineDualConstruct(noun.word))
+      return {
+        messageKey: "review_msg_arabic_demonstrative_gender",
+        range: { start: at, end: list[i].end },
+        alternatives: [dem === "هذان" ? "هاتان" : "هاتين"],
+        context,
+      };
+    return;
+  }
+  const prepositional = pre.length > 0 && /[بلك]$/u.test(pre);
+  const afterPreposition = prepositional || PREPOSITIONS.has(before);
+  const demOblique = dem === "هذين" || dem === "هاتين";
+  const demGender = dem.startsWith("ها") ? "f" : "m";
+  const genderFix = demGender !== d.gender;
+  // After a preposition both are oblique; otherwise either side may be the slip.
+  const options: Array<[boolean, boolean]> = afterPreposition
+    ? [[true, true]]
+    : demOblique === d.oblique
+      ? [[demOblique, d.oblique]]
+      : [
+          [d.oblique, d.oblique],
+          [demOblique, demOblique],
+        ];
+  const alternatives = options
+    .map(([demCase, nounCase]) => {
+      const fixedDem = DUAL_FORMS[d.gender][demCase ? 1 : 0];
+      const fixedNoun = d.stem + (nounCase ? "ين" : "ان");
+      return { fixedDem, fixedNoun };
+    })
+    .filter(({ fixedDem, fixedNoun }) => fixedDem !== dem || fixedNoun !== noun.word);
+  if (!alternatives.length) return;
+  const nounChanges = alternatives.some(({ fixedNoun }) => fixedNoun !== noun.word);
+  return {
+    messageKey: genderFix
+      ? "review_msg_arabic_demonstrative_gender"
+      : "review_msg_arabic_dual_case",
+    range: { start: at, end: nounChanges ? noun.end : list[i].end },
+    alternatives: alternatives.map(({ fixedDem, fixedNoun }) =>
+      nounChanges ? fixedDem + noun.gap + fixedNoun : fixedDem,
+    ),
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    context,
+  };
 }
 
 /** Optional: "المرأتان ذاتا مكانة" -> "ذواتا", the classical feminine dual of ذو. */
-function dualPossessor(ctx: DetectContext, list: Token[]): Finding[] {
-  const findings: Finding[] = [];
-  for (let i = 1; i + 1 < list.length; i++) {
-    if (list[i].word !== "ذاتا" || !adjacent(list[i]) || !adjacent(list[i + 1])) continue;
-    const before = list[i - 1].word;
-    const feminine = before === "هاتان" || before === "اثنتان" || dual(before)?.gender === "f";
-    if (!feminine || !before.endsWith("ان") || !owns(ctx, list[i].start)) continue;
-    findings.push({
-      messageKey: "review_msg_style_phrasing",
-      range: { start: list[i].start, end: list[i].end },
-      alternatives: ["ذواتا"],
-      context: { start: list[i - 1].start, end: list[i + 1].end },
-    });
-  }
-  return findings;
+function dualPossessor(ctx: DetectContext, list: Token[], i: number): Finding | undefined {
+  if (i < 1 || i + 1 >= list.length) return;
+  if (list[i].word !== "ذاتا" || !adjacent(list[i]) || !adjacent(list[i + 1])) return;
+  const before = list[i - 1].word;
+  const feminine = before === "هاتان" || before === "اثنتان" || dual(before)?.gender === "f";
+  if (!feminine || !before.endsWith("ان") || !owns(ctx, list[i].start)) return;
+  return {
+    messageKey: "review_msg_style_phrasing",
+    range: { start: list[i].start, end: list[i].end },
+    alternatives: ["ذواتا"],
+    context: { start: list[i - 1].start, end: list[i + 1].end },
+  };
 }
 
 // ---------------------------------------------------- relative pronouns
@@ -318,58 +330,50 @@ function masculineAntecedent(ctx: DetectContext, list: Token[], i: number): bool
  * "الوشاية الذي سمعتها", "الطعام التي جلبناه": a relative pronoun agrees with
  * its antecedent, and the pronoun that takes it up in the clause shows its gender.
  */
-function relatives(ctx: DetectContext, list: Token[]): Finding[] {
-  const findings: Finding[] = [];
-  for (let i = 1; i + 1 < list.length; i++) {
-    const relative = list[i].word;
-    if (relative !== "الذي" && relative !== "التي") continue;
-    const antecedent = list[i - 1].word.replace(/^[وف]?(?:[بلك](?=ال))?/u, "");
-    const verb = list[i + 1];
-    const after = list[i + 2];
-    if (!adjacent(list[i]) || !adjacent(verb) || !owns(ctx, list[i].start)) continue;
-    if (!antecedent.startsWith("ال") && !antecedent.startsWith("لل")) continue;
-    const resumed = RESUMED.exec(verb.word)?.groups;
-    if (!resumed || TWO_OBJECTS.test(verb.word)) continue;
-    if (after && adjacent(after) && LATER_PRONOUN.test(after.word)) continue;
-    const noun = antecedent.startsWith("لل") ? "ال" + antecedent.slice(2) : antecedent;
-    const context = { start: list[i - 1].start, end: verb.end };
-    if (relative === "الذي" && resumed.object === "ها" && definiteFeminine(noun)) {
-      findings.push({
-        messageKey: "review_msg_arabic_relative_gender",
-        range: { start: list[i].start, end: list[i].end },
-        alternatives: ["التي"],
-        context,
-      });
-    } else if (
-      relative === "التي" &&
-      resumed.object === "ه" &&
-      masculineAntecedent(ctx, list, i - 1)
-    ) {
-      // "القول التي سمعته": the antecedent is a masculine singular noun of its own phrase.
-      findings.push({
-        messageKey: "review_msg_arabic_relative_gender",
-        range: { start: list[i].start, end: list[i].end },
-        alternatives: ["الذي"],
-        context,
-      });
-    } else if (
-      relative === "التي" &&
-      resumed.object === "ه" &&
-      resumed.subject !== "ت" &&
-      !definiteFeminine(noun) &&
-      !noun.endsWith("ات")
-    ) {
-      // A broken plural ("الكتب") takes التي: then the slip is in the pronoun.
-      findings.push({
-        messageKey: "review_msg_arabic_relative_gender",
-        range: { start: list[i].start, end: verb.end },
-        alternatives: [`الذي${verb.gap}${verb.word}`, `التي${verb.gap}${verb.word}ا`],
-        requiresChoice: true,
-        context,
-      });
-    }
-  }
-  return findings;
+function relativePronoun(ctx: DetectContext, list: Token[], i: number): Finding | undefined {
+  if (i < 1 || i + 1 >= list.length) return;
+  const relative = list[i].word;
+  if (relative !== "الذي" && relative !== "التي") return;
+  const antecedent = list[i - 1].word.replace(/^[وف]?(?:[بلك](?=ال))?/u, "");
+  const verb = list[i + 1];
+  const after = list[i + 2];
+  if (!adjacent(list[i]) || !adjacent(verb) || !owns(ctx, list[i].start)) return;
+  if (!antecedent.startsWith("ال") && !antecedent.startsWith("لل")) return;
+  const resumed = RESUMED.exec(verb.word)?.groups;
+  if (!resumed || TWO_OBJECTS.test(verb.word)) return;
+  if (after && adjacent(after) && LATER_PRONOUN.test(after.word)) return;
+  const noun = antecedent.startsWith("لل") ? "ال" + antecedent.slice(2) : antecedent;
+  const context = { start: list[i - 1].start, end: verb.end };
+  if (relative === "الذي" && resumed.object === "ها" && definiteFeminine(noun))
+    return {
+      messageKey: "review_msg_arabic_relative_gender",
+      range: { start: list[i].start, end: list[i].end },
+      alternatives: ["التي"],
+      context,
+    };
+  // "القول التي سمعته": the antecedent is a masculine singular noun of its own phrase.
+  if (relative === "التي" && resumed.object === "ه" && masculineAntecedent(ctx, list, i - 1))
+    return {
+      messageKey: "review_msg_arabic_relative_gender",
+      range: { start: list[i].start, end: list[i].end },
+      alternatives: ["الذي"],
+      context,
+    };
+  // A broken plural ("الكتب") takes التي: then the slip is in the pronoun.
+  if (
+    relative === "التي" &&
+    resumed.object === "ه" &&
+    resumed.subject !== "ت" &&
+    !definiteFeminine(noun) &&
+    !noun.endsWith("ات")
+  )
+    return {
+      messageKey: "review_msg_arabic_relative_gender",
+      range: { start: list[i].start, end: verb.end },
+      alternatives: [`الذي${verb.gap}${verb.word}`, `التي${verb.gap}${verb.word}ا`],
+      requiresChoice: true,
+      context,
+    };
 }
 
 // ----------------------------------------------------------- adjectives
@@ -433,26 +437,21 @@ function opensPhrase(ctx: DetectContext, list: Token[], i: number): boolean {
  * construct ("باب الغرفة الكبير") the adjective may describe the first noun, and after a
  * verb the second word may be its object.
  */
-function adjectives(ctx: DetectContext, list: Token[]): Finding[] {
-  const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    const noun = DEFINITE.exec(list[i].word)?.groups;
-    const after = list[i + 1];
-    if (!noun || !after.word.startsWith("ال") || !adjacent(after) || !owns(ctx, after.start))
-      continue;
-    const attached = /(?:[بك]ال|لل)$/u.test(noun.pre);
-    if (!(attached || opensPhrase(ctx, list, i)) || ADVERBIAL.has(noun.stem)) continue;
-    const gender = singularGender(noun.stem);
-    const adj = gender && adjective(after.word.slice(2));
-    if (!adj || adj.gender === gender) continue;
-    findings.push({
-      messageKey: "review_msg_arabic_adjective_gender",
-      range: { start: after.start, end: after.end },
-      alternatives: [`ال${agreeing(adj)}`],
-      context: { start: list[i].start, end: after.end },
-    });
-  }
-  return findings;
+function definiteAdjective(ctx: DetectContext, list: Token[], i: number): Finding | undefined {
+  const noun = DEFINITE.exec(list[i].word)?.groups;
+  const after = list[i + 1];
+  if (!noun || !after?.word.startsWith("ال") || !adjacent(after) || !owns(ctx, after.start)) return;
+  const attached = /(?:[بك]ال|لل)$/u.test(noun.pre);
+  if (!(attached || opensPhrase(ctx, list, i)) || ADVERBIAL.has(noun.stem)) return;
+  const gender = singularGender(noun.stem);
+  const adj = gender && adjective(after.word.slice(2));
+  if (!adj || adj.gender === gender) return;
+  return {
+    messageKey: "review_msg_arabic_adjective_gender",
+    range: { start: after.start, end: after.end },
+    alternatives: [`ال${agreeing(adj)}`],
+    context: { start: list[i].start, end: after.end },
+  };
 }
 
 // "ابن تيمية", "أبي حنيفة": a name, not a noun and its adjective.
@@ -478,27 +477,23 @@ function plainNounGender(word: string): "m" | "f" | undefined {
  * demonstrative) and ends. Two indefinite nouns elsewhere are mostly a construct
  * ("موافقة ولي الأمر"), so it is advice.
  */
-function indefiniteAdjectives(ctx: DetectContext, list: Token[]): Finding[] {
-  const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    const word = list[i].word.replace(/^[وف](?=\p{L}{3})/u, "");
-    const after = list[i + 1];
-    if (word.startsWith("ال") || !adjacent(after) || !owns(ctx, after.start)) continue;
-    if (NAME_HEAD.test(word)) continue;
-    const opens = opensSentence(ctx, list[i]) || (i > 0 && DEMONSTRATIVE.test(list[i - 1].word));
-    if (!opens || (i + 2 < list.length && adjacent(list[i + 2]))) continue;
-    if (after.word.startsWith("ال") || ctx.text[after.end] === "\u064B") continue;
-    const gender = plainNounGender(word);
-    const adj = gender && adjective(after.word, true);
-    if (!adj || adj.gender === gender) continue;
-    findings.push({
-      messageKey: "review_msg_arabic_adjective_gender",
-      range: { start: after.start, end: after.end },
-      alternatives: [agreeing(adj)],
-      context: { start: list[i].start, end: after.end },
-    });
-  }
-  return findings;
+function indefiniteAdjective(ctx: DetectContext, list: Token[], i: number): Finding | undefined {
+  const word = list[i].word.replace(/^[وف](?=\p{L}{3})/u, "");
+  const after = list[i + 1];
+  if (!after || word.startsWith("ال") || !adjacent(after) || !owns(ctx, after.start)) return;
+  if (NAME_HEAD.test(word)) return;
+  const opens = opensSentence(ctx, list[i]) || (i > 0 && DEMONSTRATIVE.test(list[i - 1].word));
+  if (!opens || (i + 2 < list.length && adjacent(list[i + 2]))) return;
+  if (after.word.startsWith("ال") || ctx.text[after.end] === "\u064B") return;
+  const gender = plainNounGender(word);
+  const adj = gender && adjective(after.word, true);
+  if (!adj || adj.gender === gender) return;
+  return {
+    messageKey: "review_msg_arabic_adjective_gender",
+    range: { start: after.start, end: after.end },
+    alternatives: [agreeing(adj)],
+    context: { start: list[i].start, end: after.end },
+  };
 }
 
 // "وهذه بعض الأمثلة": a quantity word takes the gender of the noun after it.
@@ -508,39 +503,35 @@ const QUANTIFIERS = /^(?:بعض|كل|جميع|عدد|معظم|أغلب|غير|م
  * possessed noun takes the noun's gender. Writers differ when the demonstrative stands for
  * an earlier matter ("وهذا نتيجة طبيعية"), so it is advice.
  */
-function demonstrativePredicates(ctx: DetectContext, list: Token[]): Finding[] {
-  const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    const m = /^(?<pre>[وف]?)(?<dem>هذا|هذه|ذلك|تلك)$/u.exec(list[i].word)?.groups;
-    const noun = list[i + 1];
-    if (!m || !adjacent(noun) || !owns(ctx, list[i].start)) continue;
-    if (noun.word.startsWith("ال") || NAME_HEAD.test(noun.word) || possessedFeminine(noun.word))
-      continue;
-    if (QUANTIFIERS.test(noun.word)) continue;
-    // Only a demonstrative that opens its sentence: after a verb ("كان ذلك وسيلة") it is a
-    // pronoun for an earlier matter.
-    if (!opensSentence(ctx, list[i])) continue;
-    const gender = plainNounGender(noun.word);
-    const near = m.dem.startsWith("ه");
-    const fixed =
-      gender === "f" && (m.dem === "هذا" || m.dem === "ذلك")
+function demonstrativePredicate(ctx: DetectContext, list: Token[], i: number): Finding | undefined {
+  const m = /^(?<pre>[وف]?)(?<dem>هذا|هذه|ذلك|تلك)$/u.exec(list[i].word)?.groups;
+  const noun = list[i + 1];
+  if (!m || !noun || !adjacent(noun) || !owns(ctx, list[i].start)) return;
+  if (noun.word.startsWith("ال") || NAME_HEAD.test(noun.word) || possessedFeminine(noun.word))
+    return;
+  if (QUANTIFIERS.test(noun.word)) return;
+  // Only a demonstrative that opens its sentence: after a verb ("كان ذلك وسيلة") it is a
+  // pronoun for an earlier matter.
+  if (!opensSentence(ctx, list[i])) return;
+  const gender = plainNounGender(noun.word);
+  const near = m.dem.startsWith("ه");
+  const fixed =
+    gender === "f" && (m.dem === "هذا" || m.dem === "ذلك")
+      ? near
+        ? "هذه"
+        : "تلك"
+      : gender === "m" && (m.dem === "هذه" || m.dem === "تلك")
         ? near
-          ? "هذه"
-          : "تلك"
-        : gender === "m" && (m.dem === "هذه" || m.dem === "تلك")
-          ? near
-            ? "هذا"
-            : "ذلك"
-          : undefined;
-    if (!fixed) continue;
-    findings.push({
-      messageKey: "review_msg_arabic_demonstrative_gender",
-      range: { start: list[i].start + m.pre.length, end: list[i].end },
-      alternatives: [fixed],
-      context: { start: list[i].start, end: noun.end },
-    });
-  }
-  return findings;
+          ? "هذا"
+          : "ذلك"
+        : undefined;
+  if (!fixed) return;
+  return {
+    messageKey: "review_msg_arabic_demonstrative_gender",
+    range: { start: list[i].start + m.pre.length, end: list[i].end },
+    alternatives: [fixed],
+    context: { start: list[i].start, end: noun.end },
+  };
 }
 
 // --------------------------------------------------------- word order
@@ -564,54 +555,53 @@ function attachedPreposition(word: string): boolean {
  * sentence goes after its prepositional predicate. A headline keeps this order, so it is
  * advice.
  */
-function indefiniteSubject(ctx: DetectContext, list: Token[]): Finding[] {
+function indefiniteSubject(ctx: DetectContext, list: Token[], i: number): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    const subject = list[i];
-    if (!opensSentence(ctx, subject) || !owns(ctx, subject.start)) continue;
-    if (FRONTED_OK.has(subject.word)) continue;
-    const dualStem = /^(?<stem>\p{L}{2,})ان$/u.exec(subject.word)?.groups!.stem;
-    const nounLike = (s: string | undefined) =>
-      !!s &&
-      ((/[mfa]/u.test(tagsOf(s)) && !tagsOf(s).includes("v")) || MASCULINE.has(s)) &&
-      !s.startsWith("ال") &&
-      !/[اى]$/u.test(s);
-    if (!nounLike(subject.word) && !(dualStem && !tagsOf(subject.word) && nounLike(dualStem)))
-      continue;
-    // The predicate: عندك, or a preposition (separate or attached) and its noun phrase.
-    const head = list[i + 1];
-    if (!adjacent(head)) continue;
-    let last = i + 1;
-    if (!PRONOUN_PLACE.test(head.word)) {
-      if (PREDICATE_HEAD.has(head.word)) last++;
-      else if (!attachedPreposition(head.word)) continue;
-      // A construct goes on while its last word is a bare noun ("في بيت الولد").
-      while (
-        last + 1 < list.length &&
-        last - i < 4 &&
-        adjacent(list[last + 1]) &&
-        !/^[وفبلك]{0,2}ال/u.test(list[last].word) &&
-        !POSSESSIVE.test(list[last].word)
-      )
-        last++;
-    }
-    if (last >= list.length || !adjacent(list[last])) continue;
-    if (list.slice(i + 1, last + 1).some((token) => LINKING_OBJECT.test(token.word))) continue;
-    // "خطوة بخطوة"; an adjective only before a likeness ("شجاع كالأسد").
-    if (head.word.slice(1) === subject.word) continue;
-    const tags = tagsOf(subject.word);
-    if (tags.includes("a") && !tags.includes("m") && !head.word.startsWith("ك")) continue;
-    const end = list[last].end;
-    // The sentence ends right after the predicate.
-    if (!/^(?:[.!\n]|$)/u.test(ctx.text.slice(end, end + 1))) continue;
-    const predicate = ctx.text.slice(head.start, end);
-    findings.push({
-      messageKey: "review_msg_arabic_indefinite_subject",
-      range: { start: subject.start, end },
-      alternatives: [`${predicate}${head.gap}${subject.word}`],
-      context: { start: subject.start, end },
-    });
+  if (i + 1 >= list.length) return findings;
+  const subject = list[i];
+  if (!opensSentence(ctx, subject) || !owns(ctx, subject.start)) return findings;
+  if (FRONTED_OK.has(subject.word)) return findings;
+  const dualStem = /^(?<stem>\p{L}{2,})ان$/u.exec(subject.word)?.groups!.stem;
+  const nounLike = (s: string | undefined) =>
+    !!s &&
+    ((/[mfa]/u.test(tagsOf(s)) && !tagsOf(s).includes("v")) || MASCULINE.has(s)) &&
+    !s.startsWith("ال") &&
+    !/[اى]$/u.test(s);
+  if (!nounLike(subject.word) && !(dualStem && !tagsOf(subject.word) && nounLike(dualStem)))
+    return findings;
+  // The predicate: عندك, or a preposition (separate or attached) and its noun phrase.
+  const head = list[i + 1];
+  if (!adjacent(head)) return findings;
+  let last = i + 1;
+  if (!PRONOUN_PLACE.test(head.word)) {
+    if (PREDICATE_HEAD.has(head.word)) last++;
+    else if (!attachedPreposition(head.word)) return findings;
+    // A construct goes on while its last word is a bare noun ("في بيت الولد").
+    while (
+      last + 1 < list.length &&
+      last - i < 4 &&
+      adjacent(list[last + 1]) &&
+      !/^[وفبلك]{0,2}ال/u.test(list[last].word) &&
+      !POSSESSIVE.test(list[last].word)
+    )
+      last++;
   }
+  if (last >= list.length || !adjacent(list[last])) return findings;
+  if (list.slice(i + 1, last + 1).some((token) => LINKING_OBJECT.test(token.word))) return findings;
+  // "خطوة بخطوة"; an adjective only before a likeness ("شجاع كالأسد").
+  if (head.word.slice(1) === subject.word) return findings;
+  const tags = tagsOf(subject.word);
+  if (tags.includes("a") && !tags.includes("m") && !head.word.startsWith("ك")) return findings;
+  const end = list[last].end;
+  // The sentence ends right after the predicate.
+  if (!/^(?:[.!\n]|$)/u.test(ctx.text.slice(end, end + 1))) return findings;
+  const predicate = ctx.text.slice(head.start, end);
+  findings.push({
+    messageKey: "review_msg_arabic_indefinite_subject",
+    range: { start: subject.start, end },
+    alternatives: [`${predicate}${head.gap}${subject.word}`],
+    context: { start: subject.start, end },
+  });
   return findings;
 }
 
@@ -681,11 +671,11 @@ function masculinePluralAt(word: string): string | undefined {
 }
 
 /** 11-19 and 21-99 agree with the counted noun; after a preposition they are oblique. */
-function numbers(ctx: DetectContext, list: Token[]): Finding[] {
+function numbers(ctx: DetectContext, list: Token[], i: number): Finding[] {
   const findings: Finding[] = [];
+  // The filter `numberOverlaps` drops a finding of `push` that overlaps an earlier number finding.
   const push = (start: number, end: number, alternative: string, key: Finding["messageKey"]) => {
-    if (!owns(ctx, start) || findings.some((f) => f.range.start < end && start < f.range.end))
-      return;
+    if (!owns(ctx, start)) return;
     if (ctx.source.slice(start, end) === alternative) return;
     findings.push({
       messageKey: key,
@@ -694,192 +684,185 @@ function numbers(ctx: DetectContext, list: Token[]): Finding[] {
       context: { start, end: Math.min(ctx.text.length, end + 24) },
     });
   };
-  for (let i = 0; i < list.length; i++) {
-    const word = list[i].word;
-    const next = list[i + 1];
-    const afterNext = list[i + 2];
+  const word = list[i].word;
+  const next = list[i + 1];
+  const afterNext = list[i + 2];
 
-    // A number phrase after a preposition: every nominative part becomes oblique.
-    const attached = /^[بلك](?=\p{L})/u.test(word) && NUMBER_WORDS.test(word);
-    if (PREPOSITIONS.has(word) || word === "من" || attached) {
-      for (let j = attached ? i : i + 1; j < list.length && (j === i || adjacent(list[j])); j++) {
-        const part = list[j].word;
-        if (!NUMBER_WORDS.test(part)) break;
-        const tens = TENS.exec(part);
-        const [, pre = "", rest = part] = /^([وبلك]{0,2})(.*)$/u.exec(part) ?? [];
-        const oblique = tens
-          ? tens.groups!.ending === "ون"
-            ? pre + tens.groups!.stem + "ين"
-            : undefined
-          : NOMINATIVE_NUMBERS.has(rest)
-            ? pre + NOMINATIVE_NUMBERS.get(rest)
-            : undefined;
-        if (oblique) push(list[j].start, list[j].end, oblique, "review_msg_arabic_number_case");
-      }
+  // A number phrase after a preposition: every nominative part becomes oblique.
+  const attached = /^[بلك](?=\p{L})/u.test(word) && NUMBER_WORDS.test(word);
+  if (PREPOSITIONS.has(word) || word === "من" || attached) {
+    for (let j = attached ? i : i + 1; j < list.length && (j === i || adjacent(list[j])); j++) {
+      const part = list[j].word;
+      if (!NUMBER_WORDS.test(part)) break;
+      const tens = TENS.exec(part);
+      const [, pre = "", rest = part] = /^([وبلك]{0,2})(.*)$/u.exec(part) ?? [];
+      const oblique = tens
+        ? tens.groups!.ending === "ون"
+          ? pre + tens.groups!.stem + "ين"
+          : undefined
+        : NOMINATIVE_NUMBERS.has(rest)
+          ? pre + NOMINATIVE_NUMBERS.get(rest)
+          : undefined;
+      if (oblique) push(list[j].start, list[j].end, oblique, "review_msg_arabic_number_case");
     }
-
-    // "خمس وعشرون طالبات": after 11-99 the counted noun is singular.
-    const teen =
-      /^(?:عشر|عشرة)$/u.test(word) &&
-      i > 0 &&
-      adjacent(list[i]) &&
-      /^[وبلك]{0,2}(?:أحد|إحدى|اثنا|اثنتا|اثني|اثنتي|ثلاث|ثلاثة|أربع|أربعة|خمس|خمسة|ست|ستة|سبع|سبعة|ثمان|ثماني|ثمانية|تسع|تسعة)$/u.test(
-        list[i - 1].word,
-      );
-    if (
-      (teen || TENS.test(word)) &&
-      next &&
-      adjacent(next) &&
-      feminineSoundPlural(next.word) &&
-      !next.word.startsWith("ال") &&
-      !next.word.endsWith("يات")
-    )
-      push(
-        next.start,
-        next.end,
-        next.word.slice(0, -2) + "ة",
-        "review_msg_arabic_counted_singular",
-      );
-    // "خمسة عشر اجتماعات" -> "اجتماعا": a masculine noun after 11-99 is singular, with tanwin alif.
-    const masculine =
-      next && adjacent(next) && !next.word.startsWith("ال")
-        ? masculinePluralAt(next.word)
-        : undefined;
-    if ((teen || TENS.test(word)) && masculine)
-      push(
-        next.start,
-        next.end,
-        next.word.slice(0, -2) + (masculine.endsWith("اء") ? "" : "ا"),
-        "review_msg_arabic_counted_singular",
-      );
-    // "عشرون طالبات": the -ات plural of a word that takes ة (طالب/طالبة). The
-    // dictionary gives masculine nouns the same plural (منتج/منتجات), so the writer
-    // picks the feminine or the masculine singular.
-    const stem = next?.word.endsWith("ات") ? next.word.slice(0, -2) : "";
-    if (
-      (teen || TENS.test(word)) &&
-      stem.length > 1 &&
-      adjacent(next) &&
-      !stem.startsWith("ال") &&
-      !/[اىةء]$/u.test(stem) &&
-      !feminineSoundPlural(next.word) &&
-      !masculine &&
-      tagsOf(stem).includes("a") &&
-      owns(ctx, next.start)
-    )
-      findings.push({
-        messageKey: "review_msg_arabic_counted_singular",
-        range: { start: next.start, end: next.end },
-        alternatives: [`${stem}ة`, `${stem}ا`],
-        requiresChoice: true,
-        context: { start: list[i].start, end: next.end },
-      });
-
-    // 11 and 12: the parts agree with each other and with the noun.
-    if (next && adjacent(next) && /^(?:عشر|عشرة)$/u.test(next.word)) {
-      const gender = countedGender(afterNext, ctx.text);
-      const units =
-        /^(?<pre>[وبلك]{0,2})(?<n>أحد|إحدى|اثنا|اثنتا|اثني|اثنتي|ثلاث|ثلاثة|أربع|أربعة|خمس|خمسة|ست|ستة|سبع|سبعة|ثمان|ثماني|ثمانية|تسع|تسعة)$/u.exec(
-          word,
-        );
-      if (units && gender) {
-        const { pre, n } = units.groups!;
-        const f = gender === "f";
-        const oblique = n === "اثني" || n === "اثنتي";
-        const unit =
-          n === "أحد" || n === "إحدى"
-            ? f
-              ? "إحدى"
-              : "أحد"
-            : /^اثن/u.test(n)
-              ? (f ? "اثنت" : "اثن") + (oblique ? "ي" : "ا")
-              : UNIT_FORMS.get(n)![f ? 1 : 0];
-        const ten = f ? "عشرة" : "عشر";
-        if (pre + unit !== word || ten !== next.word)
-          push(
-            list[i].start,
-            next.end,
-            pre + unit + next.gap + ten,
-            "review_msg_arabic_number_gender",
-          );
-        continue;
-      }
-    }
-
-    // 21-99: the unit before "و" + tens takes the opposite gender of the noun (1 and 2 the same).
-    if (next && adjacent(next) && TENS.exec(next.word)?.groups!.pre === "و") {
-      const unitMatch = /^(?<pre>[بلك]?)(?<n>\p{L}+)$/u.exec(word)!;
-      const { pre, n } = unitMatch.groups!;
-      const gender = countedGender(afterNext, ctx.text);
-      if (!gender) continue;
-      const f = gender === "f";
-      const forms = UNIT_FORMS.get(n);
-      const fixed = forms
-        ? forms[f ? 1 : 0]
-        : n === "واحد" || n === "واحدة"
-          ? f
-            ? "واحدة"
-            : "واحد"
-          : /^(?:اثنان|اثنتان|اثنين|اثنتين)$/u.test(n)
-            ? (f ? "اثنت" : "اثن") + n.slice(n.startsWith("اثنت") ? 4 : 3)
-            : undefined;
-      if (fixed && fixed !== n)
-        push(list[i].start, list[i].end, pre + fixed, "review_msg_arabic_number_gender");
-      continue;
-    }
-
-    // 3-10 before a sound masculine plural: the masculine count takes ة.
-    const counted = next && adjacent(next) ? soundPlural(next.word) : undefined;
-    // "التاسع عشر والعشرين": an ordinal, not a count.
-    const ordinal =
-      i > 0 && /^(?:ال)?(?:حادي|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع)$/u.test(list[i - 1].word);
-    if (counted && !next.word.startsWith("ال") && !ordinal) {
-      const m = /^(?<pre>[وبلك]{0,2})(?<n>\p{L}+)$/u.exec(word)!;
-      const { pre, n } = m.groups!;
-      const forms = n === "عشر" ? (["عشرة", "عشر"] as const) : UNIT_FORMS.get(n);
-      if (forms && n !== forms[0])
-        push(list[i].start, list[i].end, pre + forms[0], "review_msg_arabic_number_gender");
-    }
-    // 3-10 before a feminine -ات plural: the count drops its ة ("ثلاث ساعات").
-    if (next && adjacent(next) && feminineSoundPlural(next.word) && !next.word.startsWith("ال")) {
-      const m = /^(?<pre>[وبلك]{0,2})(?<n>\p{L}+)$/u.exec(word)!;
-      const { pre, n } = m.groups!;
-      const forms = n === "عشرة" && !teen ? (["عشرة", "عشر"] as const) : UNIT_FORMS.get(n);
-      if (forms && n !== forms[1])
-        push(list[i].start, list[i].end, pre + forms[1], "review_msg_arabic_number_gender");
-    }
-    // 3-10 before a masculine noun's -ات plural: the count takes ة ("ثلاثة اجتماعات").
-    if (masculine) {
-      const { pre, n } = /^(?<pre>[وبلك]{0,2})(?<n>\p{L}+)$/u.exec(word)!.groups!;
-      const forms = n === "عشر" && !teen ? (["عشرة", "عشر"] as const) : UNIT_FORMS.get(n);
-      if (forms && n !== forms[0])
-        push(list[i].start, list[i].end, pre + forms[0], "review_msg_arabic_number_gender");
-    }
-    // "أحد" before a definite feminine plural is "إحدى" ("إحدى الشركات").
-    if (
-      /^[وبلك]{0,2}أحد$/u.test(word) &&
-      next &&
-      adjacent(next) &&
-      next.word.startsWith("ال") &&
-      feminineSoundPlural(next.word)
-    )
-      push(
-        list[i].start,
-        list[i].end,
-        word.replace("أحد", "إحدى"),
-        "review_msg_arabic_number_gender",
-      );
-    // "إحدى" before a masculine plural is "أحد".
-    const masculinePlural =
-      next && adjacent(next) && (soundPlural(next.word) || masculinePluralAt(next.word));
-    if (/^[وبلك]{0,2}إحدى$/u.test(word) && masculinePlural)
-      push(
-        list[i].start,
-        list[i].end,
-        word.replace("إحدى", "أحد"),
-        "review_msg_arabic_number_gender",
-      );
   }
+
+  // "خمس وعشرون طالبات": after 11-99 the counted noun is singular.
+  const teen =
+    /^(?:عشر|عشرة)$/u.test(word) &&
+    i > 0 &&
+    adjacent(list[i]) &&
+    /^[وبلك]{0,2}(?:أحد|إحدى|اثنا|اثنتا|اثني|اثنتي|ثلاث|ثلاثة|أربع|أربعة|خمس|خمسة|ست|ستة|سبع|سبعة|ثمان|ثماني|ثمانية|تسع|تسعة)$/u.test(
+      list[i - 1].word,
+    );
+  if (
+    (teen || TENS.test(word)) &&
+    next &&
+    adjacent(next) &&
+    feminineSoundPlural(next.word) &&
+    !next.word.startsWith("ال") &&
+    !next.word.endsWith("يات")
+  )
+    push(next.start, next.end, next.word.slice(0, -2) + "ة", "review_msg_arabic_counted_singular");
+  // "خمسة عشر اجتماعات" -> "اجتماعا": a masculine noun after 11-99 is singular, with tanwin alif.
+  const masculine =
+    next && adjacent(next) && !next.word.startsWith("ال")
+      ? masculinePluralAt(next.word)
+      : undefined;
+  if ((teen || TENS.test(word)) && masculine)
+    push(
+      next.start,
+      next.end,
+      next.word.slice(0, -2) + (masculine.endsWith("اء") ? "" : "ا"),
+      "review_msg_arabic_counted_singular",
+    );
+  // "عشرون طالبات": the -ات plural of a word that takes ة (طالب/طالبة). The
+  // dictionary gives masculine nouns the same plural (منتج/منتجات), so the writer
+  // picks the feminine or the masculine singular.
+  const stem = next?.word.endsWith("ات") ? next.word.slice(0, -2) : "";
+  if (
+    (teen || TENS.test(word)) &&
+    stem.length > 1 &&
+    adjacent(next) &&
+    !stem.startsWith("ال") &&
+    !/[اىةء]$/u.test(stem) &&
+    !feminineSoundPlural(next.word) &&
+    !masculine &&
+    tagsOf(stem).includes("a") &&
+    owns(ctx, next.start)
+  )
+    findings.push({
+      messageKey: "review_msg_arabic_counted_singular",
+      range: { start: next.start, end: next.end },
+      alternatives: [`${stem}ة`, `${stem}ا`],
+      requiresChoice: true,
+      context: { start: list[i].start, end: next.end },
+    });
+
+  // 11 and 12: the parts agree with each other and with the noun.
+  if (next && adjacent(next) && /^(?:عشر|عشرة)$/u.test(next.word)) {
+    const gender = countedGender(afterNext, ctx.text);
+    const units =
+      /^(?<pre>[وبلك]{0,2})(?<n>أحد|إحدى|اثنا|اثنتا|اثني|اثنتي|ثلاث|ثلاثة|أربع|أربعة|خمس|خمسة|ست|ستة|سبع|سبعة|ثمان|ثماني|ثمانية|تسع|تسعة)$/u.exec(
+        word,
+      );
+    if (units && gender) {
+      const { pre, n } = units.groups!;
+      const f = gender === "f";
+      const oblique = n === "اثني" || n === "اثنتي";
+      const unit =
+        n === "أحد" || n === "إحدى"
+          ? f
+            ? "إحدى"
+            : "أحد"
+          : /^اثن/u.test(n)
+            ? (f ? "اثنت" : "اثن") + (oblique ? "ي" : "ا")
+            : UNIT_FORMS.get(n)![f ? 1 : 0];
+      const ten = f ? "عشرة" : "عشر";
+      if (pre + unit !== word || ten !== next.word)
+        push(
+          list[i].start,
+          next.end,
+          pre + unit + next.gap + ten,
+          "review_msg_arabic_number_gender",
+        );
+      return findings;
+    }
+  }
+
+  // 21-99: the unit before "و" + tens takes the opposite gender of the noun (1 and 2 the same).
+  if (next && adjacent(next) && TENS.exec(next.word)?.groups!.pre === "و") {
+    const unitMatch = /^(?<pre>[بلك]?)(?<n>\p{L}+)$/u.exec(word)!;
+    const { pre, n } = unitMatch.groups!;
+    const gender = countedGender(afterNext, ctx.text);
+    if (!gender) return findings;
+    const f = gender === "f";
+    const forms = UNIT_FORMS.get(n);
+    const fixed = forms
+      ? forms[f ? 1 : 0]
+      : n === "واحد" || n === "واحدة"
+        ? f
+          ? "واحدة"
+          : "واحد"
+        : /^(?:اثنان|اثنتان|اثنين|اثنتين)$/u.test(n)
+          ? (f ? "اثنت" : "اثن") + n.slice(n.startsWith("اثنت") ? 4 : 3)
+          : undefined;
+    if (fixed && fixed !== n)
+      push(list[i].start, list[i].end, pre + fixed, "review_msg_arabic_number_gender");
+    return findings;
+  }
+
+  // 3-10 before a sound masculine plural: the masculine count takes ة.
+  const counted = next && adjacent(next) ? soundPlural(next.word) : undefined;
+  // "التاسع عشر والعشرين": an ordinal, not a count.
+  const ordinal =
+    i > 0 && /^(?:ال)?(?:حادي|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع)$/u.test(list[i - 1].word);
+  if (counted && !next.word.startsWith("ال") && !ordinal) {
+    const m = /^(?<pre>[وبلك]{0,2})(?<n>\p{L}+)$/u.exec(word)!;
+    const { pre, n } = m.groups!;
+    const forms = n === "عشر" ? (["عشرة", "عشر"] as const) : UNIT_FORMS.get(n);
+    if (forms && n !== forms[0])
+      push(list[i].start, list[i].end, pre + forms[0], "review_msg_arabic_number_gender");
+  }
+  // 3-10 before a feminine -ات plural: the count drops its ة ("ثلاث ساعات").
+  if (next && adjacent(next) && feminineSoundPlural(next.word) && !next.word.startsWith("ال")) {
+    const m = /^(?<pre>[وبلك]{0,2})(?<n>\p{L}+)$/u.exec(word)!;
+    const { pre, n } = m.groups!;
+    const forms = n === "عشرة" && !teen ? (["عشرة", "عشر"] as const) : UNIT_FORMS.get(n);
+    if (forms && n !== forms[1])
+      push(list[i].start, list[i].end, pre + forms[1], "review_msg_arabic_number_gender");
+  }
+  // 3-10 before a masculine noun's -ات plural: the count takes ة ("ثلاثة اجتماعات").
+  if (masculine) {
+    const { pre, n } = /^(?<pre>[وبلك]{0,2})(?<n>\p{L}+)$/u.exec(word)!.groups!;
+    const forms = n === "عشر" && !teen ? (["عشرة", "عشر"] as const) : UNIT_FORMS.get(n);
+    if (forms && n !== forms[0])
+      push(list[i].start, list[i].end, pre + forms[0], "review_msg_arabic_number_gender");
+  }
+  // "أحد" before a definite feminine plural is "إحدى" ("إحدى الشركات").
+  if (
+    /^[وبلك]{0,2}أحد$/u.test(word) &&
+    next &&
+    adjacent(next) &&
+    next.word.startsWith("ال") &&
+    feminineSoundPlural(next.word)
+  )
+    push(
+      list[i].start,
+      list[i].end,
+      word.replace("أحد", "إحدى"),
+      "review_msg_arabic_number_gender",
+    );
+  // "إحدى" before a masculine plural is "أحد".
+  const masculinePlural =
+    next && adjacent(next) && (soundPlural(next.word) || masculinePluralAt(next.word));
+  if (/^[وبلك]{0,2}إحدى$/u.test(word) && masculinePlural)
+    push(
+      list[i].start,
+      list[i].end,
+      word.replace("إحدى", "أحد"),
+      "review_msg_arabic_number_gender",
+    );
   return findings;
 }
 
@@ -896,74 +879,70 @@ const SUBJUNCTIVE = /^[وف]?(?:لن|أن|كي|لكي)$/u;
  * preposition or إنّ; "لم يستطيعون", "لن يذهبون": the five verbs drop their ن,
  * and "لم يجري" shortens its last vowel.
  */
-function caseEndings(ctx: DetectContext, list: Token[]): Finding[] {
-  const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    const head = list[i].word;
-    const next = list[i + 1];
-    if (!adjacent(next) || !owns(ctx, next.start)) continue;
-    const word = next.word;
-    const governs = CASE_PREPOSITIONS.has(head) || ACCUSATIVE_GOVERNORS.has(head);
-    if (governs) {
-      const plural = soundPlural(word);
-      const d = plural ? undefined : dual(word);
-      const fixed =
-        plural && !plural.oblique
-          ? plural.stem + "ين"
-          : d &&
-              !d.oblique &&
-              (d.gender === "f" ||
-                /^(?:ال)?(?:م\p{L}{3,}|\p{L}ا\p{L}{2}|\p{L}{2}[اوي]\p{L})$/u.test(d.stem))
-            ? d.stem + "ين"
-            : undefined;
-      if (fixed && !/^(?:ال)?مهرج$/u.test(fixed.slice(0, -2)))
-        findings.push({
-          messageKey: "review_msg_arabic_case_ending",
-          range: { start: next.start, end: next.end },
-          alternatives: [fixed],
-          context: { start: list[i].start, end: next.end },
-        });
-      continue;
-    }
-    if (NEGATING_LA.test(head)) {
-      const fixed = indicative(list, i);
-      if (fixed)
-        findings.push({
-          messageKey: "review_msg_arabic_indicative",
-          range: { start: next.start, end: next.end },
-          alternatives: [fixed],
-          context: { start: list[i].start, end: next.end },
-        });
-      continue;
-    }
-    const jussive = JUSSIVE.test(head);
-    if (!jussive && !SUBJUNCTIVE.test(head)) continue;
-    // "لِمَ" (why) also opens a question with an indicative verb.
-    const sentenceEnd = /[.!؟?\n]/u.exec(ctx.text.slice(next.end, next.end + 200));
-    if (sentenceEnd && /[؟?]/u.test(sentenceEnd[0])) continue;
-    const fixed = moodFix(word, jussive);
-    if (fixed)
-      findings.push({
-        messageKey: jussive ? "review_msg_arabic_jussive" : "review_msg_arabic_subjunctive",
+function caseEnding(ctx: DetectContext, list: Token[], i: number): Finding | undefined {
+  const head = list[i].word;
+  const next = list[i + 1];
+  if (!next || !adjacent(next) || !owns(ctx, next.start)) return;
+  const word = next.word;
+  const governs = CASE_PREPOSITIONS.has(head) || ACCUSATIVE_GOVERNORS.has(head);
+  if (governs) {
+    const plural = soundPlural(word);
+    const d = plural ? undefined : dual(word);
+    const fixed =
+      plural && !plural.oblique
+        ? plural.stem + "ين"
+        : d &&
+            !d.oblique &&
+            (d.gender === "f" ||
+              /^(?:ال)?(?:م\p{L}{3,}|\p{L}ا\p{L}{2}|\p{L}{2}[اوي]\p{L})$/u.test(d.stem))
+          ? d.stem + "ين"
+          : undefined;
+    if (fixed && !/^(?:ال)?مهرج$/u.test(fixed.slice(0, -2)))
+      return {
+        messageKey: "review_msg_arabic_case_ending",
         range: { start: next.start, end: next.end },
         alternatives: [fixed],
         context: { start: list[i].start, end: next.end },
-      });
+      };
+    return;
   }
-  // "لمّا يأتون" (not yet): لمّا takes the jussive too. Only with its shadda written:
-  // bare لما is also "for what" before an indicative verb.
-  for (const token of list) {
-    const lamma = LAMMA.exec(ctx.text.slice(Math.max(0, token.start - 12), token.start));
-    const fixed = lamma && owns(ctx, token.start) ? moodFix(token.word, true) : undefined;
+  if (NEGATING_LA.test(head)) {
+    const fixed = indicative(list, i);
     if (fixed)
-      findings.push({
-        messageKey: "review_msg_arabic_jussive",
-        range: { start: token.start, end: token.end },
+      return {
+        messageKey: "review_msg_arabic_indicative",
+        range: { start: next.start, end: next.end },
         alternatives: [fixed],
-        context: { start: token.start - lamma![0].length, end: token.end },
-      });
+        context: { start: list[i].start, end: next.end },
+      };
+    return;
   }
-  return findings;
+  const jussive = JUSSIVE.test(head);
+  if (!jussive && !SUBJUNCTIVE.test(head)) return;
+  // "لِمَ" (why) also opens a question with an indicative verb.
+  const sentenceEnd = /[.!؟?\n]/u.exec(ctx.text.slice(next.end, next.end + 200));
+  if (sentenceEnd && /[؟?]/u.test(sentenceEnd[0])) return;
+  const fixed = moodFix(word, jussive);
+  if (fixed)
+    return {
+      messageKey: jussive ? "review_msg_arabic_jussive" : "review_msg_arabic_subjunctive",
+      range: { start: next.start, end: next.end },
+      alternatives: [fixed],
+      context: { start: list[i].start, end: next.end },
+    };
+}
+
+/** "لمّا يأتون": the jussive after لمّا (the frame matches لمّا; the token comes after it). */
+function lammaJussive(ctx: DetectContext, token: Token): Finding | undefined {
+  const lamma = LAMMA.exec(ctx.text.slice(Math.max(0, token.start - 12), token.start));
+  const fixed = lamma && owns(ctx, token.start) ? moodFix(token.word, true) : undefined;
+  if (fixed)
+    return {
+      messageKey: "review_msg_arabic_jussive",
+      range: { start: token.start, end: token.end },
+      alternatives: [fixed],
+      context: { start: token.start - lamma![0].length, end: token.end },
+    };
 }
 
 const NEGATING_LA = /^[وف]?لا$/u;
@@ -1017,22 +996,19 @@ const STILL = /^(?:زال|يزال|تزال|زالت|زالوا|دام|برح|ي
  * عن and من join ما and مَن ("عما", "مما", "عمن"). A word must follow on the same line;
  * و + an imperfect after ما is left alone (ما may be quoted as a word).
  */
-function arabicSyntax(ctx: DetectContext, list: Token[]): Finding[] {
-  const findings: Finding[] = [];
-  for (let i = 0; i + 2 < list.length; i++) {
-    const [first, second, next] = [list[i], list[i + 1], list[i + 2]];
-    const pre = /^[وف](?:عن|من)$/u.test(first.word) ? first.word[0] : "";
-    const joined = JOINED.get(`${first.word.slice(pre.length)} ${second.word}`);
-    if (!joined || !adjacent(second) || !adjacent(next) || !owns(ctx, first.start)) continue;
-    if (STILL.test(next.word) || /^و[يتنأ]\p{L}{2}/u.test(next.word)) continue;
-    findings.push({
-      messageKey: "review_msg_arabic_joined_particle",
-      range: { start: first.start, end: second.end },
-      alternatives: [pre + joined],
-      context: { start: first.start, end: next.end },
-    });
-  }
-  return findings;
+function joinedParticle(ctx: DetectContext, list: Token[], i: number): Finding | undefined {
+  if (i + 2 >= list.length) return;
+  const [first, second, next] = [list[i], list[i + 1], list[i + 2]];
+  const pre = /^[وف](?:عن|من)$/u.test(first.word) ? first.word[0] : "";
+  const joined = JOINED.get(`${first.word.slice(pre.length)} ${second.word}`);
+  if (!joined || !adjacent(second) || !adjacent(next) || !owns(ctx, first.start)) return;
+  if (STILL.test(next.word) || /^و[يتنأ]\p{L}{2}/u.test(next.word)) return;
+  return {
+    messageKey: "review_msg_arabic_joined_particle",
+    range: { start: first.start, end: second.end },
+    alternatives: [pre + joined],
+    context: { start: first.start, end: next.end },
+  };
 }
 
 // ------------------------------------------------------- optional style
@@ -1055,6 +1031,17 @@ const replace = (m: RegExpExecArray, messageKey: Finding["messageKey"], alternat
   };
 };
 
+type Step = (ctx: DetectContext, list: Token[], i: number) => Finding | Finding[] | undefined;
+/** A fixer that runs `walk` on the token that starts at the match. */
+const walker =
+  (walk: Step): MatchFixer =>
+  (m, ctx, frame) => {
+    const list = tokens(ctx);
+    const i = tokenAt(list, m.index);
+    if (i < 0) return null;
+    return [walk(ctx, list, i) ?? []].flat().map((f) => ({ ruleId: frame.ruleId, ...f }));
+  };
+
 /** The named frame fixes of grammar/rules/ar_SA.yaml (`fixer:`). */
 export const FIXERS = {
   kullama: (m, ctx, frame) => owned(ctx, frame, replace(m, "review_msg_arabic_kullama", "")),
@@ -1063,7 +1050,45 @@ export const FIXERS = {
     PRONOUN_SUFFIX.test(m.groups!.first) && !m.groups!.first.startsWith("ال")
       ? null
       : owned(ctx, frame, replace(m, "review_msg_style_phrasing", "و")),
+  demonstrative: walker(demonstrative),
+  relativePronoun: walker(relativePronoun),
+  definiteAdjective: walker(definiteAdjective),
+  numbers: walker(numbers),
+  caseEnding: walker(caseEnding),
+  // The frame matches لمّا and the spaces after it: the token comes after the match.
+  lammaJussive: (m, ctx, frame) => {
+    const list = tokens(ctx);
+    const token = list[tokenAt(list, m.index + m[0].length)];
+    const f = token && lammaJussive(ctx, token);
+    return f ? { ruleId: frame.ruleId, ...f } : null;
+  },
+  joinedParticle: walker(joinedParticle),
+  dualPossessor: walker(dualPossessor),
+  indefiniteAdjective: walker(indefiniteAdjective),
+  demonstrativePredicate: walker(demonstrativePredicate),
+  indefiniteSubject: walker(indefiniteSubject),
 } satisfies Record<string, MatchFixer>;
+
+const NUMBER_KEYS = new Set<string>([
+  "review_msg_arabic_number_case",
+  "review_msg_arabic_counted_singular",
+  "review_msg_arabic_number_gender",
+]);
+const isNumber = (f: RawFinding) => NUMBER_KEYS.has(f.messageKey);
+const overlap = (a: RawFinding, b: RawFinding) =>
+  a.range.start < b.range.end && b.range.start < a.range.end;
+
+/** The named findings filters of grammar/rules/ar_SA.yaml (`filter:`). */
+export const FILTERS = {
+  // A number finding with one fix gives way to an earlier number finding that it overlaps. The
+  // finding with a choice ("عشرون طالبات") never gives way.
+  numberOverlaps: (_ctx, findings) =>
+    findings.reduce<RawFinding[]>((kept, f) => {
+      if (!isNumber(f) || f.requiresChoice || !kept.some((k) => isNumber(k) && overlap(k, f)))
+        kept.push(f);
+      return kept;
+    }, []),
+} satisfies Record<string, FindingsFilter>;
 
 const as =
   (ruleId: RawFinding["ruleId"], detect: (ctx: DetectContext, list: Token[]) => Finding[]) =>
@@ -1074,19 +1099,7 @@ const as =
 
 /** The Arabic Review detectors, by the names grammar/rules/ar_SA.yaml uses. */
 export const PREDICATES = {
-  agreement: as("arabicAgreement", (ctx, list) => [
-    ...demonstratives(ctx, list),
-    ...relatives(ctx, list),
-    ...adjectives(ctx, list),
-    ...numbers(ctx, list),
-  ]),
-  caseEndings: as("arabicCaseEndings", caseEndings),
-  syntax: as("arabicSyntax", arabicSyntax),
-  style: as("stylePhrasing", (ctx, list) => [
-    ...dualPossessor(ctx, list),
-    ...indefiniteAdjectives(ctx, list),
-    ...demonstrativePredicates(ctx, list),
-    ...indefiniteSubject(ctx, list),
+  styleFrames: as("stylePhrasing", (ctx, list) => [
     ...styleFrames(ctx.text, list, (start) => owns(ctx, start)),
     ...gappedUsage(list, (start) => owns(ctx, start)),
   ]),
