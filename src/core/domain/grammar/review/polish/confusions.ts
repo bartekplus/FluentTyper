@@ -1,7 +1,7 @@
-import type { Detector, Fixer } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { Fixer, MatchResult } from "../../engine/reviewRules";
+import type { DetectContext } from "../reviewDetectors";
 import { cases, finiteVerb, inflect, nounTags, onlyNoun } from "./lexicon";
-import { caseLike, findingAt, isPl, owned, userOrNamed } from "./shared";
+import { caseLike, findingAt, userOrNamed } from "./shared";
 
 /*
  * Real words typed for their look-alike: a missing diacritic ("boje" for "boję"),
@@ -76,6 +76,7 @@ const BOUND: Record<string, string> = {
 
 /** The named frame fixes of grammar/rules/pl.yaml (`fixer:`). */
 export const FIXERS = {
+  zeForZe,
   // A clitic pronoun cannot open a sentence: "Mi się wydaje" -> "Mnie", "Go kocham" -> "Jego".
   confusionsMi: (m) =>
     ({ Mi: "Mnie", Mu: "Jemu", Go: "Jego", Cię: "Ciebie" })[m.groups!.target] ?? null,
@@ -184,7 +185,6 @@ export const FIXERS = {
  * two consonants ("ze snu", "ze względu"), or loosely before a number ("ze dwa lata").
  * Before a vowel or a single consonant and a vowel it can only be the conjunction.
  */
-const ZE = /(?<![\p{L}\p{N}_'’-])(?<ze>ze)(?<sp>[ \t ]{1,8})(?<next>\p{L}+)/gu;
 const DIGRAPH = /^(?:ch|cz|dz|dź|dż|rz|sz)/iu;
 const VOWEL = /^[aąeęioóuy]/iu;
 const ZE_NOT_CONJUNCTION = new Set(
@@ -196,47 +196,36 @@ const ZE_NOT_CONJUNCTION = new Set(
 const NEVER_AFTER_PREPOSITION =
   /^(?:z|ze|w|we|na|do|od|za|po|pod|nad|przed|przez|przy|dla|bez|nie|się|to|trzeba|chc(?:ę|e|esz|emy|ecie|ą|iał\p{L}*|ieli\p{L}*|ieć)|tak|już|jest|są|był|była|było|byli|będzie|źle|dobrze|zawsze|wtedy|teraz|tu|tam|ktoś|coś|ja|ty|on|ona|ono|oni|one|my|wy|mu|mi|go|jej|ich|nic|nikt|wszyscy|wszystko|jeśli|gdy|kiedy|chociaż|jednak)$/iu;
 
-function zeForZe(ctx: DetectContext): RawFinding[] {
-  if (!isPl(ctx) || (ctx.rules && !ctx.rules.has(CONFUSION.ruleId))) return [];
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, ZE)) {
-    const next = m.groups!.next;
-    // Names and acronyms ("ze Lwowa", "ze ZUS-u") take the preposition loosely.
-    if (/^\p{Lu}/u.test(next) || ZE_NOT_CONJUNCTION.has(next.toLowerCase())) continue;
-    // No preposition takes these: "ze z tą", "ze źle", "ze to", nor a noun in a case "ze"
-    // does not govern ("ze grupa").
-    const tags = nounTags(next.toLowerCase());
-    const clash = onlyNoun(tags) && !(tags & cases("Gs Is As Gp Ip Ap"));
-    if (!NEVER_AFTER_PREPOSITION.test(next) && !clash) {
-      // Sibilant onsets take a nonstandard "ze" preposition more often than a typo.
-      if (/^(?:[sśzźż]|rz)/iu.test(next)) continue;
-      const rest = next.replace(DIGRAPH, "c");
-      if (!VOWEL.test(rest) && !VOWEL.test(rest.slice(1))) continue;
-    }
-    // "wraz ze", "zgodnie ze": the word before already asks for the preposition.
-    const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
-    if (
-      /(?:^|[^\p{L}])(?:wraz|raz|razem|wspólnie|zgodnie|porównaniu|wspólnego)[ \t\u00a0]+$/iu.test(
-        before,
-      )
-    )
-      continue;
-    const typed = m.groups!.ze;
-    if (userOrNamed(ctx, typed)) continue;
-    findings.push(
-      findingAt(
-        ctx,
-        m.index,
-        m.index + 2,
-        [caseLike(typed, "że")],
-        CONFUSION.ruleId,
-        CONFUSION.messageKey,
-      ),
-    );
+function zeForZe(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const next = m.groups!.next;
+  // Names and acronyms ("ze Lwowa", "ze ZUS-u") take the preposition loosely.
+  if (/^\p{Lu}/u.test(next) || ZE_NOT_CONJUNCTION.has(next.toLowerCase())) return null;
+  // No preposition takes these: "ze z tą", "ze źle", "ze to", nor a noun in a case "ze"
+  // does not govern ("ze grupa").
+  const tags = nounTags(next.toLowerCase());
+  const clash = onlyNoun(tags) && !(tags & cases("Gs Is As Gp Ip Ap"));
+  if (!NEVER_AFTER_PREPOSITION.test(next) && !clash) {
+    // Sibilant onsets take a nonstandard "ze" preposition more often than a typo.
+    if (/^(?:[sśzźż]|rz)/iu.test(next)) return null;
+    const rest = next.replace(DIGRAPH, "c");
+    if (!VOWEL.test(rest) && !VOWEL.test(rest.slice(1))) return null;
   }
-  return findings;
+  // "wraz ze", "zgodnie ze": the word before already asks for the preposition.
+  const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
+  if (
+    /(?:^|[^\p{L}])(?:wraz|raz|razem|wspólnie|zgodnie|porównaniu|wspólnego)[ \t\u00a0]+$/iu.test(
+      before,
+    )
+  )
+    return null;
+  const typed = m.groups!.ze;
+  if (userOrNamed(ctx, typed)) return null;
+  return findingAt(
+    ctx,
+    m.index,
+    m.index + 2,
+    [caseLike(typed, "że")],
+    CONFUSION.ruleId,
+    CONFUSION.messageKey,
+  );
 }
-
-export const PREDICATES = {
-  confusions: (ctx: DetectContext) => zeForZe(ctx),
-} satisfies Record<string, Detector>;

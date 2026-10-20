@@ -527,7 +527,16 @@ rules:
         fix: "a nie"
   - id: pl.confusions
     checks: [englishPhraseCorrections]
-    predicate: confusions
+    style: match
+    message: review_msg_contextual_grammar
+    frames:
+      # "ze" for "że": the preposition "ze" only stands before "mną" and words opening with two
+      # consonants ("ze snu", "ze względu"), or loosely before a number ("ze dwa lata"). Before a vowel
+      # or a single consonant and a vowel it can only be the conjunction.
+      - regex: "(?<![\\p{L}\\p{N}_'\\u2019-])(?<ze>ze)(?<sp>[ \\t\\u00A0]{1,8})(?<next>\\p{L}+)"
+        scan: polish
+        flags: gu
+        fixer: zeForZe
   # Numbers in Polish prose: a digit takes no case ending ("5-ty" is "5." or "piąty", "6-ciu" is
   # "6" or "sześciu"), a digit compound takes a hyphen ("5-minutowy", "3-krotny"), and a numeral
   # governs its noun's form ("dwoje dzieci", "5 złotych", "100 gramów").
@@ -754,7 +763,20 @@ rules:
         fix: "ok."
   - id: pl.wordForms
     checks: [englishPhraseCorrections]
-    predicate: wordForms
+    style: match
+    message: review_msg_pl_inflected_name
+    frames:
+      # Inflected foreign names: the ending joins a name whose last letter is pronounced ("Johnie",
+      # "Bentleyu", "Andym"). Names ending in a silent "-e" keep the apostrophe.
+      - regex: "(?<![\\p{L}\\p{N}'\\u2019-])(?<name>\\p{Lu}\\p{Ll}+)(?<mark>['\\u2019])(?<end>a|u|owi|em|iem|ie|om|\\u00F3w|ach|ami|y|i|ego|emu|go|mu|m|im|ym)(?![\\p{L}\\p{N}])"
+        scan: polish
+        flags: gu
+        fixer: inflectedNames
+      # An acronym takes a hyphen before its ending ("SMS-ów", "PKP-u").
+      - regex: "(?<![\\p{L}\\p{N}'\\u2019-])(?<name>\\p{Lu}{2,}|\\p{Lu}\\p{Ll}?\\p{Lu}+)(?<mark>['\\u2019])?(?<end>a|u|owi|em|ie|om|\\u00F3w|ach|ami|y|ach)(?![\\p{L}\\p{N}])"
+        scan: polish
+        flags: gu
+        fixer: acronymEndings
   # Case and agreement read from the noun lexicon: a preposition governs the case of the noun
   # right after it, a demonstrative agrees with its noun, a numeral from five up takes the
   # genitive plural. A word is checked only when every dictionary reading of it is a noun.
@@ -1092,9 +1114,17 @@ rules:
     predicate: rangeDashes
   - id: pl.comparedWithJak
     checks: [englishPhraseCorrections]
-    predicate: comparedWithJak
+    style: match
+    message: review_msg_contextual_grammar
+    frames:
+      # "większy jak stary", "lepiej jak w domu" -> "niż": a comparison after a comparative.
+      - regex: "(?<![\\p{L}])(?<word>\\p{L}{4,}){{S}}(?<target>jak){{S}}(?<next>\\p{L}+)(?![\\p{L}])"
+        scan: polish
+        flags: gdiu
+        fixer: comparedWithJak
   - id: pl.degrees
     checks: [englishDoubledDegree, stylePhrasing]
+    # predicate: one match gives a finding of either check, and a frame reports one check only.
     predicate: degrees
   - id: pl.commaFrames
     checks: [polishMissingComma, polishMisplacedComma]
