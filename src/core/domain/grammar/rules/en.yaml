@@ -23,6 +23,7 @@ fragments:
   NEGATION: "don['’]t|doesn['’]t|didn['’]t|never|not"
   VERB_OBJECT: "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what"
   SUBJECT: "I|you|we|they|he|she|it"
+  PLAINSTYLE_FREQUENCY: "always|never|often|sometimes|usually|rarely|seldom|frequently|normally|generally"
   DEGREESLOTS_LINKING: "(?:is|are|was|were|am|be|been|being|seems?|seemed|looks?|looked|feels?|felt|sounds?|sounded|gets?|got|getting|become|becomes|became|['’]s|['’]re|['’]m|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)"
   DEGREESLOTS_BETWEEN: "(?:not|way|far|just|much|still|also|really|simply|already|probably|a[ \\t\\u00a0]+bit|definitely|getting|being|kind[ \\t\\u00a0]+of)"
   RELATIVESLOTS_ADVERB: "(?:always|also|never|still|just|only|usually|often|really|actually|already|now)"
@@ -1556,7 +1557,40 @@ rules:
     lang: pt
   - id: en.plainStyle
     checks: [stylePhrasing]
-    predicate: plainStyle
+    style: match
+    message: review_msg_style_phrasing
+    filter: usOutsideExamples
+    frames:
+      # "Why do not you", "Are not you": a negative question puts "not" after the subject or
+      # contracts it. Not "had"/"were": "Had not they..." may be a conditional, which never
+      # contracts.
+      - regex: "(?<aux>are|is|am|was|do|does|did|have|has|can|could|will|would|should|must){{S}}not{{S}}(?<subject>I|you|he|she|it|we|they|this|that|there|anyone|someone|everyone|anybody){{E}}"
+        owner: none
+        fixer: plainNegativeQuestion
+      # "with who you shared", "many of who were": "whom" as the object of a preposition.
+      - regex: "(?<prep>with|to|from|for|of|in|on|by|about|without|against){{S}}(?<who>who|whoever){{E}}(?<rest>{{S}}(?:I|you|he|she|it|we|they|were|are|was|is){{E}})?"
+        owner: who
+        fixer: plainWhom
+      # "I always will love you" -> "will always love"; "it often is" -> "is often": a frequency
+      # adverb goes after a modal or "be".
+      - regex: "(?<subject>I|you|he|she|it|we|they|[a-z]+s){{S}}(?<adv>{{PLAINSTYLE_FREQUENCY}}){{S}}(?<aux>will|would|can|could|should|must|might|am|is|are|was|were){{E}}"
+        owner: adv
+        fixer: plainAdverbAfterAux
+      # "we go often to bed" -> "often go": a frequency adverb goes before a main verb.
+      - regex: "(?<subject>I|you|he|she|it|we|they){{S}}(?<verb>[a-z]+){{S}}(?<adv>often|sometimes|always|usually|rarely|seldom|hardly){{S}}(?<next>to|about|in|at|on|as|into|during|here|there){{E}}"
+        owner: verb
+        fixer: plainAdverbBeforeVerb
+      # "big in size", "few in number", "bitter in taste": the adjective already names the
+      # dimension.
+      - regex: "(?<adj>[a-z]+)(?<target>{{S}}in{{S}}(?<dim>size|shape|colou?r|number|duration|taste|height|weight))(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|{{S}}(?:and|but|or|than|as){{E}})"
+        fixer: plainInDimension
+      # "$55 dollars", "more than 100+ customers": the amount says it twice.
+      - regex: "(?:\\$[0-9][0-9,.]*(?<dollars>{{S}}dollars?)|more{{S}}than{{S}}[0-9][0-9,]*(?<plus>\\+)){{E}}"
+        owner: dollars|plus
+        fixer: plainDoubledAmount
+      # "return the book back to her": "return" already goes back.
+      - regex: "(?:return|returns|returned|returning){{S}}(?:it|them|me|you|him|her|us|(?:the|my|your|his|her|our|their|this|that|these|those)(?:{{S}}[a-z]+){1,2})(?<target>{{S}}back){{S}}to{{E}}"
+        fixer: plainReturnBack
   - id: en.passiveVoice
     checks: [stylePassiveVoice]
     predicate: passiveVoice
