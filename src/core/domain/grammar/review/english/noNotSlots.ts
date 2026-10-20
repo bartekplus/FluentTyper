@@ -1,11 +1,9 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   afterBreak,
   caseLike,
-  english,
   evidence,
   FUNCTION_WORDS,
   nounOnly,
@@ -46,24 +44,28 @@ function bareNoun(word: string, afterHave: boolean): boolean {
   );
 }
 
-function push(ctx: DetectContext, findings: RawFinding[], m: RegExpExecArray, fix: string): void {
+const NO_MODAL: Record<string, string> = {
+  can: "cannot",
+  will: "will not",
+  could: "could not",
+  would: "would not",
+  should: "should not",
+};
+
+function noNot(ctx: DetectContext, m: RegExpExecArray, fix: string): RawFinding {
   const [start, end] = m.indices!.groups!.target;
-  findings.push({
+  return {
     ruleId: "englishConfusedWords",
     messageKey: "review_msg_confused_word",
     range: { start, end },
     alternatives: [caseLike(m.groups!.target, fix)],
     context: evidence(ctx, m.index, end),
-  });
+  };
 }
 
-function noForNot(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  // "There is not time", "there are not jaguars", "I have not issues".
-  for (const m of frameMatches(
-    ctx,
-    `(?:(?<there>there)${SPACE}(?:is|are|was|were)|there['’]s|(?<have>i|you|we|they|he|she|it)${SPACE}(?:have|has|had)|(?<have2>i|you|we|they)['’]ve)${SPACE}(?<target>not)${SPACE}(?<word>[a-z]+)${WORD_END}`,
-  )) {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  noNotNoForNot: (m, ctx) => {
     const word = m.groups!.word;
     const [next, after] = tokensAfter(ctx, m.index + m[0].length, 2);
     const have = !!(m.groups!.have ?? m.groups!.have2);
@@ -74,7 +76,7 @@ function noForNot(ctx: DetectContext): RawFinding[] {
       !FUNCTION_WORDS.has(before) &&
       !/^(?:say|said|think|believe|assume|assuming)$/.test(before)
     )
-      continue;
+      return null;
     // "There is not easy way": an adjective before a singular noun that ends its phrase.
     const read = englishWordInfo(word);
     const adjectiveNoun =
@@ -89,24 +91,20 @@ function noForNot(ctx: DetectContext): RawFinding[] {
       !englishWordInfo(next.lower)?.adjective &&
       (!after || after.kind !== "word" || FUNCTION_WORDS.has(after.lower));
     // "there is not time to", "not one", "not much": the noun must head its phrase.
-    if (!adjectiveNoun && !bareNoun(word, have)) continue;
-    if (!adjectiveNoun && next?.kind === "word" && nounOnly(next.lower) && !have) continue;
-    push(ctx, findings, m, "no");
-  }
-  // "I would no do this", "I'm no going", "I have no begun".
-  for (const m of frameMatches(
-    ctx,
-    `(?:(?<modal>would|will|could|should|can|must|might|may|do|does|did)|(?<be>am|is|are|was|were|['’]m|['’]re)|(?<perfect>have|has|had))${SPACE}(?<target>no)${SPACE}(?<word>[a-z]+)${WORD_END}`,
-  )) {
+    if (!adjectiveNoun && !bareNoun(word, have)) return null;
+    if (!adjectiveNoun && next?.kind === "word" && nounOnly(next.lower) && !have) return null;
+    return noNot(ctx, m, "no");
+  },
+  noNotNotForNo: (m, ctx) => {
     const { word, modal, be } = m.groups!;
     const read = englishWordInfo(word);
-    if (!read || read.adjective) continue;
+    if (!read || read.adjective) return null;
     // "would no doubt agree": a noun reading keeps "no".
     if (
       (modal && !/^(?:do|go|be|get)$/.test(word) && (read.noun || FUNCTION_WORDS.has(word))) ||
       (!modal && FUNCTION_WORDS.has(word))
     )
-      continue;
+      return null;
     const [next] = tokensAfter(ctx, m.index + m[0].length, 1);
     let ok: boolean;
     if (modal) ok = read.verbs.some((v) => v.form === "base" && v.lemma === word);
@@ -122,37 +120,17 @@ function noForNot(ctx: DetectContext): RawFinding[] {
         !read.noun &&
         read.verbs.some((v) => v.form === "participle") &&
         !read.verbs.some((v) => v.form === "past" || v.form === "base");
-    if (ok) push(ctx, findings, m, "not");
-  }
-  return findings;
-}
-
-const NO_MODAL: Record<string, string> = {
-  can: "cannot",
-  will: "will not",
-  could: "could not",
-  would: "would not",
-  should: "should not",
-};
-
-/**
- * "I no like eggs", "She no like it", "Why you no speak English?", "I no can find it": "no"
- * standing for a missing do-support or "not".
- */
-function subjectNoVerb(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?<subject>I|you|we|they|he|she)${SPACE}(?<no>no)${SPACE}(?<verb>[a-z]+)${WORD_END}`,
-    "no",
-  )) {
+    if (ok) return noNot(ctx, m, "not");
+    return null;
+  },
+  noNotSubjectNo: (m, ctx) => {
     const { subject, verb } = m.groups!;
     const lower = subject.toLowerCase();
-    if (subject !== lower && subject !== "I" && !afterBreak(ctx, m.index)) continue;
+    if (subject !== lower && subject !== "I" && !afterBreak(ctx, m.index)) return null;
     const before = wordBefore(ctx, m.index);
     const why = before === "why";
     if (!afterBreak(ctx, m.index) && !/^(?:but|and|so|why|because|if|when|that)$/.test(before))
-      continue;
+      return null;
     const [noStart] = m.indices!.groups!.no;
     const verbEnd = m.indices!.groups!.verb[1];
     const subjectStart = m.indices!.groups!.subject[0];
@@ -169,11 +147,11 @@ function subjectNoVerb(ctx: DetectContext): RawFinding[] {
       const base =
         verb === "like" || read?.verbs.some((v) => v.form === "base" && v.lemma === verb);
       if ((FUNCTION_WORDS.has(verb) && verb !== "like") || NOT_WORDS.has(verb) || (!base && !third))
-        continue;
+        return null;
       // "you no doubt know", "we no sooner…": a noun or comparative reading keeps "no".
       if (/^(?:doubt|matter|sooner|longer|more|less|way|problem|worries|thanks)$/.test(verb))
-        continue;
-      if (read?.adjective) continue;
+        return null;
+      if (read?.adjective) return null;
       if (
         read?.noun &&
         !(
@@ -185,9 +163,9 @@ function subjectNoVerb(ctx: DetectContext): RawFinding[] {
             ))
         )
       )
-        continue;
+        return null;
       const singular = /^(?:he|she)$/.test(lower);
-      if (third && !singular) continue;
+      if (third && !singular) return null;
       const lemma = third ? third.lemma : verb;
       const aux = singular ? "doesn't" : "don't";
       if (why) {
@@ -198,16 +176,15 @@ function subjectNoVerb(ctx: DetectContext): RawFinding[] {
         fix = `${aux} ${lemma}`;
       }
     }
-    if (findings.some((f) => f.range.start === range.start)) continue;
-    findings.push(
-      finding("englishConfusedWords", "review_msg_confused_word", range.start, range.end, [fix], {
+    return finding(
+      "englishConfusedWords",
+      "review_msg_confused_word",
+      range.start,
+      range.end,
+      [fix],
+      {
         context: evidence(ctx, m.index, verbEnd),
-      }),
+      },
     );
-  }
-  return findings;
-}
-
-export const PREDICATES = {
-  noForNot: english(noForNot, subjectNoVerb),
-} satisfies Record<string, Detector>;
+  },
+} satisfies Record<string, MatchFixer>;

@@ -23,6 +23,7 @@ fragments:
   NEGATION: "don['’]t|doesn['’]t|didn['’]t|never|not"
   VERB_OBJECT: "it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what"
   SUBJECT: "I|you|we|they|he|she|it"
+  DETERMINERSLOTS_DETERMINER: "(?:the|a|an|my|your|his|our|their|its|(?!(?:it|he|she|that|there|here|what|who|where|how|let)['’]s)[a-z]+['’]s)"
   NEGATIONSLOTS_NEGATED: "(?<aux>(?:do|does|did|can|could|will|would|shall|should|must|may|might|is|are|was|were|am|have|has|had)n['’]t|can['’]t|cannot|won['’]t|shan['’]t|(?:do|does|did|can|could|will|would|shall|should|must|may|might|is|are|was|were|am|have|has|had){{S}}not|never)"
   COUNTSLOTS_MASS_WORDS: "advice|information|info|equipment|furniture|luggage|baggage|feedback|homework|housework|paperwork|software|hardware|firmware|malware|spyware|ransomware|freeware|shareware|middleware|machinery|merchandise|clothing|footwear|underwear|sportswear|swimwear|eyewear|knitwear|outerwear|headwear|tableware|kitchenware|silverware|glassware|cutlery|crockery|stationery|jewelry|jewellery|garbage|rubbish|trash|litter|junk|stuff|mail|spam|scenery|vocabulary|graffiti|accommodation|infrastructure|footage|bedding|scaffolding|money|cash|traffic|transport|transportation|parking|shopping|sightseeing|housing|wildlife|livestock|poultry|foliage|vegetation|plankton|pollen|wine|bread|butter|flour|rice|pasta|spaghetti|oatmeal|porridge|cereal|honey|jam|ketchup|mayonnaise|mustard|vinegar|cinnamon|garlic|ginger|yeast|dough|milk|yogurt|yoghurt|broccoli|spinach|celery|asparagus|lettuce|seafood|beef|pork|veal|venison|bacon|mutton|toast|food|aluminium|aluminum|asphalt|cement|clay|coal|copper|cotton|denim|gasoline|petrol|gravel|leather|linen|mercury|mud|nylon|oxygen|hydrogen|nitrogen|helium|carbon|calcium|sodium|potassium|chlorine|ammonia|plutonium|uranium|polyester|silk|soil|steel|sulfur|sulphur|velvet|wool|wheat|zinc|timber|sand|dust|dirt|rust|smoke|steam|sweat|shampoo|toothpaste|soap|electricity|gas|weather|sunshine|sunlight|moonlight|lightning|thunder|hail|snow|humidity|pollution|smog|gravity|physics|mathematics|maths|economics|linguistics|biology|chemistry|geology|botany|zoology|astronomy|anthropology|archaeology|sociology|psychology|arithmetic|algebra|calculus|geometry|grammar|punctuation|spelling|literature|poetry|photography|journalism|tourism|commerce|marketing|advertising|management|engineering|research|yoga|tennis|chess|golf|soccer|hockey|rugby|gymnastics|athletics|aerobics|music|knowledge|wisdom|evidence|progress|anger|applause|assistance|attention|awareness|bravery|chaos|cleanliness|compassion|conduct|courage|cowardice|dignity|diligence|dishonesty|enjoyment|enthusiasm|envy|fame|fatigue|flexibility|generosity|gratitude|greed|guidance|guilt|happiness|harassment|hatred|health|heritage|honesty|hospitality|humility|hunger|hygiene|ignorance|immigration|impatience|inflation|ingenuity|innocence|insomnia|integrity|jealousy|justice|laughter|laziness|legislation|leisure|literacy|litigation|loneliness|loyalty|luck|malnutrition|mischief|misinformation|momentum|motivation|nonsense|nostalgia|nourishment|nutrition|obedience|obesity|optimism|patience|permission|persistence|pessimism|plagiarism|pneumonia|poverty|pride|privacy|procrastination|prosperity|publicity|racism|recreation|recycling|relaxation|reliability|resilience|respect|revenge|safety|sanitation|sarcasm|slang|stamina|supervision|tolerance|turbulence|unemployment|vandalism|violence|warfare|wealth|welfare|wrath|news"
   NOUNNUMBERSLOTS_EXISTENTIAL_COUNT: "(?:many|several|few|some|no|any(?:[ \\t\\u00a0]+other)?|a[ \\t\\u00a0]+few|a[ \\t\\u00a0]+couple[ \\t\\u00a0]+of|two|three|four|five|six|seven|eight|nine|ten|[2-9]|[1-9][0-9]+)"
@@ -1428,7 +1429,18 @@ rules:
         fixer: missingAdverbVerb
   - id: en.determinerConfusions
     checks: [englishConfusedWords]
-    predicate: determinerConfusions
+    style: match
+    message: review_msg_confused_word
+    filter: slotFindings
+    frames:
+      # "The translate to English was correct", "Sorry for the late respond": a verb as a noun.
+      # "Yesterday's deploy": a name's or a noun's possessive, not a contraction ("it's").
+      - regex: "{{DETERMINERSLOTS_DETERMINER}}{{S}}(?<first>[a-z]+)(?:{{S}}(?<second>[a-z]+))?{{E}}"
+        owner: first
+        fixer: determinerVerbAsNoun
+      # "The cannot help you", "if the create the concept": "the" where "they" is meant.
+      - regex: "(?<target>the){{S}}(?=[a-z])"
+        fixer: determinerTheForThey
   - id: en.thirdPersonBase
     checks: [englishPronounVerbWhitelistAgreement]
     predicate: thirdPersonBase
@@ -1641,7 +1653,21 @@ rules:
     predicate: tenseTimeWords
   - id: en.noForNot
     checks: [englishConfusedWords]
-    predicate: noForNot
+    style: match
+    message: review_msg_confused_word
+    filter: slotFindingsOncePerStart
+    frames:
+      # "There is not time", "there are not jaguars", "I have not issues".
+      - regex: "(?:(?<there>there){{S}}(?:is|are|was|were)|there['’]s|(?<have>i|you|we|they|he|she|it){{S}}(?:have|has|had)|(?<have2>i|you|we|they)['’]ve){{S}}(?<target>not){{S}}(?<word>[a-z]+){{E}}"
+        fixer: noNotNoForNot
+      # "I would no do this", "I'm no going", "I have no begun".
+      - regex: "(?:(?<modal>would|will|could|should|can|must|might|may|do|does|did)|(?<be>am|is|are|was|were|['’]m|['’]re)|(?<perfect>have|has|had)){{S}}(?<target>no){{S}}(?<word>[a-z]+){{E}}"
+        fixer: noNotNotForNo
+      # "I no like eggs", "She no like it", "Why you no speak English?", "I no can find it":
+      # "no" standing for a missing do-support or "not".
+      - regex: "(?<subject>I|you|we|they|he|she){{S}}(?<no>no){{S}}(?<verb>[a-z]+){{E}}"
+        owner: "no"
+        fixer: noNotSubjectNo
   - id: en.clauseAgreement
     checks: [englishSubjectVerbAgreement]
     predicate: clauseAgreement
