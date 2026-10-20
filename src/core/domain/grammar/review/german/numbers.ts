@@ -3,7 +3,7 @@ import type { FindingsFilter, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { ReviewMessageKey } from "../types";
 import { germanNounReading } from "./germanLexicon";
-import { isGerman, likeTyped } from "./shared";
+import { likeTyped } from "./shared";
 import { finding } from "../finding";
 import { rangeDashFixer } from "../rangeDash";
 
@@ -183,54 +183,51 @@ export const FILTERS = {
   },
 } satisfies Record<string, FindingsFilter>;
 
-// German puts a space between a number and its currency or byte unit: "75.000$" → "75.000 $",
-// "5kB" → "5 kB". The shared check does units and "€" (also "2.000kWh"), but not "$" and "£"
-// after the number, and "B" alone may be a bel. An angle takes no space before its degree
-// sign, and a temperature names its scale: "25 °" → "25°" or "25 °C" ("20 ° Celsius" stays).
-const GLUED =
-  /(?<![\p{L}\p{N}.,_/\\-])(?<n>\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?)(?<unit>\p{L}{1,4}|[$£€])(?![\p{L}\p{N}_-])/gu;
+// The glued and spaced units are the measurement.de and currency.de frames of
+// grammar/rules/common.yaml.
 const BYTES = /^(?:[kKMGT]B|[KMGT]iB)$/;
-const DEGREE =
-  /(?<![\p{L}\p{N}.,])(?<n>[-−]?\d+(?:,\d+)?)[ \u00a0]°(?![CFK\p{L}\p{N}]|[ \t\u00a0]+(?:Celsius|Fahrenheit|Kelvin))/gu;
 
-/** Run by the shared measurement and currency detectors (reviewDetectors.ts). */
-export function germanUnits(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  const add = (m: RegExpExecArray, alternatives: string[], key: ReviewMessageKey) => {
-    if (m.index < ctx.from || m.index >= ctx.to || namedExampleBefore(ctx.text, m.index)) return;
-    const end = m.index + m[0].length;
-    findings.push({
-      ruleId:
-        key === "review_msg_currency_spacing" ? "currencySpacing" : "measurementUnitFormatting",
-      messageKey: key,
-      range: { start: m.index, end },
-      alternatives,
-      requiresChoice: alternatives.length > 1 || undefined,
-      context: { start: Math.max(0, m.index - 30), end: end + 30 },
-    });
+/** A finding of a German unit frame: the match, outside a named example. */
+function unitFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  alternatives: string[],
+  key: ReviewMessageKey,
+): RawFinding | null {
+  if (m.index < ctx.from || m.index >= ctx.to || namedExampleBefore(ctx.text, m.index)) return null;
+  const end = m.index + m[0].length;
+  return {
+    ruleId: key === "review_msg_currency_spacing" ? "currencySpacing" : "measurementUnitFormatting",
+    messageKey: key,
+    range: { start: m.index, end },
+    alternatives,
+    requiresChoice: alternatives.length > 1 || undefined,
+    context: { start: Math.max(0, m.index - 30), end: end + 30 },
   };
-  GLUED.lastIndex = Math.max(0, ctx.from - 16);
-  for (let m = GLUED.exec(ctx.scanText); m && m.index < ctx.to; m = GLUED.exec(ctx.scanText)) {
-    const { n, unit } = m.groups!;
-    const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index + 200);
-    // "$x = 5$": math or a shell line.
-    if (unit === "$" && line.split("$").length > 2) continue;
-    const currency = unit === "$" || unit === "£";
-    if (!currency && !BYTES.test(unit)) continue;
-    add(
-      m,
-      [`${n} ${unit}`],
-      currency ? "review_msg_currency_spacing" : "review_msg_measurement_spacing",
-    );
-  }
-  DEGREE.lastIndex = Math.max(0, ctx.from - 16);
-  for (let m = DEGREE.exec(ctx.scanText); m && m.index < ctx.to; m = DEGREE.exec(ctx.scanText)) {
-    const { n } = m.groups!;
-    add(m, [`${n}°`, `${n} °C`], "review_msg_measurement_spacing");
-  }
-  return findings;
 }
+
+// "75.000$" → "75.000 $", "5kB" → "5 kB". The frame's check picks the currency or the bytes.
+const gluedUnit: MatchFixer = (m, ctx, frame) => {
+  const { n, unit } = m.groups!;
+  const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index + 200);
+  // "$x = 5$": math or a shell line.
+  if (unit === "$" && line.split("$").length > 2) return null;
+  const currency = unit === "$" || unit === "£";
+  if (!currency && !BYTES.test(unit)) return null;
+  if ((currency ? "currencySpacing" : "measurementUnitFormatting") !== frame.ruleId) return null;
+  return unitFinding(
+    ctx,
+    m,
+    [`${n}\u00a0${unit}`],
+    currency ? "review_msg_currency_spacing" : "review_msg_measurement_spacing",
+  );
+};
+
+// "25 °" → "25°" (an angle) or "25 °C" (a temperature).
+const spacedDegree: MatchFixer = (m, ctx) => {
+  const { n } = m.groups!;
+  return unitFinding(ctx, m, [`${n}°`, `${n} °C`], "review_msg_measurement_spacing");
+};
 
 // Typeset German multiplies with × or ·: "6,6 x 10⁻³⁴", "5*2", "a * b" (opt-in). "0x1F" is
 // hexadecimal; a "*" without spaces between words is a gender star or emphasis.
@@ -324,9 +321,14 @@ const RANGE_CODE =
 const RANGE_SCORE =
   /(?:^|[^\p{L}])(?:spiel|sieg|gewann|gewinn|verlor|verlier|unterl[ai]g|endstand|halbzeit|ergebnis|treffer|satz|sätze|partie|unentschieden|steht[ \t ]+es|stand[ \t ]+es)\p{L}*(?:[ \t ]+\p{L}+){0,3}[ \t ]+$/iu;
 
-/** The named frame fixes of the de.numbers, de.typography and de.decadeCentury rules. */
+/**
+ * The named frame fixes of the de.numbers, de.typography and de.decadeCentury rules, and of
+ * the measurement.de and currency.de rules of grammar/rules/common.yaml.
+ */
 export const FIXERS = {
   ...NUMBER_FIXERS,
+  gluedUnit,
+  spacedDegree,
   timesSign,
   chemicalFormula,
   thousands,

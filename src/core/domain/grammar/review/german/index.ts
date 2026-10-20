@@ -3,4 +3,3 @@
 import { REVIEW_DETECTORS } from "../reviewDetectors";
 
 export const GERMAN_DETECTORS = REVIEW_DETECTORS.filter((entry) => entry.source === "de");
-export { germanUnits } from "./numbers";

@@ -1,6 +1,7 @@
 import { namedExampleBefore } from "./exampleCues";
 import { SPLIT_WORDS as POLISH_SPLIT_WORDS } from "./polish/compounds";
-import { caseLike, isLang, ownedMatches, SPACE, TOKEN_END, WORD_START } from "./phraseTemplates";
+import type { MatchFixer } from "../engine/reviewRules";
+import { caseLike, isLang, ownedMatches, TOKEN_END, WORD_START } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { withTextApostrophes } from "./textRanges";
 
@@ -21,90 +22,58 @@ function wordTable(entries: Record<string, string>): { regex: RegExp; map: Map<s
 
 // ------------------------------------------------------------ doubled degree
 
+// The marker and the comparatives of each language are the doubledDegree frames of
+// grammar/rules/common.yaml.
 interface DegreeTable {
-  marker: string;
-  words: string;
   /** A negation in the clause before: "ne … plus meilleur" is "no longer better". */
   negation?: RegExp;
-  regex?: RegExp;
   /** Words right before the marker that make it another phrase ("de plus", "en plus"). */
   blockedBefore?: RegExp;
 }
 
 const DEGREE: Record<string, DegreeTable> = {
   fr: {
-    marker: "plus",
-    words: "meilleure?s?|pires?",
     negation: /(?<![\p{L}])(?:ne(?![\p{L}])|n['’])[^.!?;:\n]{0,40}$/iu,
     blockedBefore: /(?<![\p{L}])(?:de|en)[ \t ]+$/iu,
   },
   // "cuanto más mejor", "quanto mais melhor": "the more the better".
   es: {
-    marker: "más",
-    words: "mejor(?:es)?|peor(?:es)?",
     blockedBefore: /(?<![\p{L}])cu[aá]nto[ \t\u00a0]+$/iu,
   },
   pt: {
-    marker: "mais",
-    words: "melhor(?:es)?|pior(?:es)?",
     negation: /(?<![\p{L}])(?:não|nunca|jamais)(?![\p{L}])[^.!?;:\n]{0,40}$/iu,
     blockedBefore: /(?<![\p{L}])quanto[ \t\u00a0]+$/iu,
   },
   pl: {
-    marker: "bardziej",
     // "tym bardziej" is "all the more": "tym bardziej lepiej" doubles nothing.
     blockedBefore: /(?<![\p{L}])tym[ \t\u00a0]+$/iu,
-    words:
-      "lepsz(?:y|a|e|ego|ej|ym|ych|ymi|ą)|lepsi|lepiej|gorsz(?:y|a|e|ego|ej|ym|ych|ymi|ą)|gorsi|gorzej",
   },
   hr: {
-    marker: "više",
-    // "gori" (burns), "gora" (mountain) and "gore" (up) are other words.
-    words: "bolj(?:i|a|eg|em|oj|ih|im|u)",
     negation:
       /(?<![\p{L}])(?:ne|ni|nije|nisu|nisam|nisi|nismo|niste|nikad)(?![\p{L}])[^.!?;:\n]{0,40}$/iu,
   },
-  sv: { marker: "mera?", words: "bättre|sämre" },
-  // Any synthetic comparative (-τερος, accent before the suffix: "ισχυρότερα",
-  // "ανώτερη"); ordinals and "neutral", "later" only look like one.
-  el: {
-    marker: "πιο",
-    words:
-      "(?!ουδέτερ|δεύτερ|ύστερ|πρότερ|έτερ|αμφότερ)\\p{L}*[άέήίόύώ]\\p{L}*τερ(?:ος|η|ο|οι|ες|α|ου|ης|ων|ους)",
-  },
 };
-for (const table of Object.values(DEGREE)) {
-  table.regex = new RegExp(
-    `${WORD_START}(?<target>(?<marker>${table.marker})${SPACE}(?<word>${table.words}))${TOKEN_END}`,
-    "giu",
-  );
-}
 
 /** "plus meilleur", "más mejor", "bardziej lepszy", "πιο καλύτερος": the word is already comparative. */
-export function doubledDegreeByLanguage(ctx: DetectContext): RawFinding[] {
+const comparativeMarker: MatchFixer = (m, ctx) => {
   const table = DEGREE[ctx.lang.slice(0, 2)];
-  if (!table) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedMatches(ctx, table.regex!)) {
-    const start = m.index;
-    const end = start + m[0].length;
-    const { marker, word } = m.groups!;
-    const before = ctx.text.slice(Math.max(0, start - 64), start);
-    if (table.negation?.test(before) || table.blockedBefore?.test(before)) continue;
-    if (namedExampleBefore(ctx.text, start)) continue;
-    if (ctx.dictionary.has(marker.toLowerCase()) || ctx.dictionary.has(word.toLowerCase()))
-      continue;
-    findings.push({
-      ruleId: "englishDoubledDegree",
-      messageKey: "review_msg_doubled_degree",
-      range: { start, end },
-      alternatives: [caseLike(marker, word)],
-      context: { start: Math.max(0, start - 64), end },
-      bulkBlock: "context-dependent",
-    });
-  }
-  return findings;
-}
+  const start = m.index;
+  const end = start + m[0].length;
+  const { marker, word } = m.groups!;
+  const before = ctx.text.slice(Math.max(0, start - 64), start);
+  if (table?.negation?.test(before) || table?.blockedBefore?.test(before)) return null;
+  if (namedExampleBefore(ctx.text, start)) return null;
+  if (ctx.dictionary.has(marker.toLowerCase()) || ctx.dictionary.has(word.toLowerCase()))
+    return null;
+  return {
+    ruleId: "englishDoubledDegree",
+    messageKey: "review_msg_doubled_degree",
+    range: { start, end },
+    alternatives: [caseLike(marker, word)],
+    context: { start: Math.max(0, start - 64), end },
+    bulkBlock: "context-dependent",
+  };
+};
 
 // --------------------------------------------------------------- split words
 
@@ -364,32 +333,26 @@ export function markedApostrophes(ctx: DetectContext): RawFinding[] {
 
 // ------------------------------------------------- German days and months
 
-// Nouns, so always capitalized; the adverbs ("montags") and compounds stay as
-// typed. "august" is also an adjective: only after a date word.
-const GERMAN_NOUNS = new RegExp(
-  `${WORD_START}(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag|januar|jänner|februar|märz|april|mai|juni|juli|september|oktober|november|dezember|weihnachten|ostern|pfingsten|august)${TOKEN_END}`,
-  "gu",
-);
+// The day, month and holiday names are the properNouns.de frame of grammar/rules/common.yaml.
+// "august" is also an adjective: only after a date word.
 const AUGUST_CONTEXT =
   /(?:(?<![\p{L}])(?:im|anfang|ende|mitte|seit|bis|ab|vom|zum|nächsten|letzten|diesen|kommenden)|\d{1,2}\.)[ \t ]+$/iu;
 
 /** "am montag", "im märz": German days, months and holidays are nouns. */
-export function germanNounCapitals(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "de")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedMatches(ctx, GERMAN_NOUNS)) {
-    const typed = m[0];
-    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
-    if (typed === "august" && !AUGUST_CONTEXT.test(before)) continue;
-    if (ctx.dictionary.has(typed) || namedExampleBefore(ctx.text, m.index)) continue;
-    findings.push({
-      ruleId: "englishProperNounCapitalization",
-      messageKey: "review_msg_german_noun_capital",
-      range: { start: m.index, end: m.index + 1 },
-      alternatives: [typed[0].toUpperCase()],
-      context: { start: Math.max(0, m.index - 24), end: m.index + typed.length },
-      bulkBlock: "context-dependent",
-    });
-  }
-  return findings;
-}
+const germanNounCapital: MatchFixer = (m, ctx) => {
+  const typed = m[0];
+  const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+  if (typed === "august" && !AUGUST_CONTEXT.test(before)) return null;
+  if (ctx.dictionary.has(typed) || namedExampleBefore(ctx.text, m.index)) return null;
+  return {
+    ruleId: "englishProperNounCapitalization",
+    messageKey: "review_msg_german_noun_capital",
+    range: { start: m.index, end: m.index + 1 },
+    alternatives: [typed[0].toUpperCase()],
+    context: { start: Math.max(0, m.index - 24), end: m.index + typed.length },
+    bulkBlock: "context-dependent",
+  };
+};
+
+/** The named frame fixes of the doubledDegree and properNouns rules (grammar/rules/common.yaml). */
+export const FIXERS = { comparativeMarker, germanNounCapital } satisfies Record<string, MatchFixer>;
