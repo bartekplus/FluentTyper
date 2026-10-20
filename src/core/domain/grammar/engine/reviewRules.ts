@@ -3,6 +3,7 @@ import { cacheable } from "../review/nativeReviewCache";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../review/reviewDetectors";
 import type { ReviewMessageKey } from "../review/types";
 import { frameDetector as slotFrames, type Frame as SlotFrame } from "../review/english/idioms5";
+import { runFrames as polishFrames, type Frame as PolishFrame } from "../review/polish/shared";
 import { findMatches, type PatternSet } from "./matcher";
 import { REVIEW_FRAMES, REVIEW_PATTERNS, REVIEW_RULES } from "./review.generated";
 import {
@@ -130,7 +131,17 @@ export function frameRuleDetector(
     return found;
   };
   let detect: Detector;
-  if (rule.style === "slot") {
+  if (rule.style === "polish") {
+    const frames: PolishFrame[] = compiled.map((frame) => ({
+      pattern: frame.pattern,
+      fix: fixOf(frame.fix, frame.fixer) as PolishFrame["fix"],
+      ruleId: (frame.check ?? ruleId) as CatalogRuleId,
+      messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
+      ...(frame.verbatim ? { verbatim: true as const } : {}),
+      ...(frame.lowercase ? { lowercase: true as const } : {}),
+    }));
+    detect = (ctx) => polishFrames(ctx, frames);
+  } else if (rule.style === "slot") {
     const frames: SlotFrame[] = compiled.map((frame) => ({
       rule: {
         ruleId: (frame.check ?? ruleId) as CatalogRuleId,

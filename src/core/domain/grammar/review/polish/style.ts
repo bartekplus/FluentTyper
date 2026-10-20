@@ -1,17 +1,7 @@
-import type { Detector } from "../../engine/reviewRules";
+import type { Detector, Fixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { adjectiveForm, adjectiveOf, cases, inflect, nounTags, onlyNoun, VIRILE } from "./lexicon";
-import {
-  caseLike,
-  END,
-  findingAt,
-  type Frame,
-  isPl,
-  owned,
-  runFrames,
-  S,
-  userOrNamed,
-} from "./shared";
+import { caseLike, findingAt, isPl, owned, S, userOrNamed } from "./shared";
 
 /*
  * Pleonasms and wordy officialese (optional `stylePhrasing`) that need a guard. The plain
@@ -116,78 +106,27 @@ function orMore(ctx: DetectContext): RawFinding[] {
 export const PREDICATES = {
   style: (ctx: DetectContext) =>
     isPl(ctx) && (!ctx.rules || ctx.rules.has("stylePhrasing"))
-      ? [...orMore(ctx), ...verbChoices(ctx), ...runFrames(ctx, STYLE_FRAMES)]
+      ? [...orMore(ctx), ...verbChoices(ctx)]
       : [],
 } satisfies Record<string, Detector>;
 
-const STYLE_RULE = { ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing" } as const;
-const NUMERAL =
-  "\\d+|dwóch|dwu|trzech|czterech|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|\\p{L}{2,9}(?:nastu|dziestu|dziesięciu)|stu|kilku|paru|wielu";
-const TIME_UNIT =
-  "lat|roku|miesięcy|miesiąca|tygodni|tygodnia|dni|dnia|dób|doby|godzin|godziny|minut|minuty|sekund|wieków|wieku|stuleci|dekad|kwartałów|sezonów";
-const UI_TARGET =
-  "link|linki|przycisk|ikonę|ikonkę|odnośnik|baner|zdjęcie|obrazek|opcję|strzałkę|zakładkę|napis|krzyżyk|logo|plik|folder";
-
-const STYLE_FRAMES: readonly Frame[] = [
-  // "w przeciągu dwóch lat", "na przestrzeni 5 lat": a time span is "w ciągu".
-  {
-    pattern: `(?<target>w${S}przeciągu|na${S}przestrzeni|przez${S}przeciąg)(?=${S}(?:${NUMERAL})${S}(?:${TIME_UNIT})${END})`,
-    fix: "w ciągu",
-    ...STYLE_RULE,
-  },
-  // "odnośnie tego" -> "odnośnie do tego".
-  {
-    pattern: `(?<target>odnośnie)(?=${S}(?!do${END})\\p{L})`,
-    fix: "odnośnie do",
-    ...STYLE_RULE,
-  },
-  // "tak długo, dopóki" blends "tak długo, jak" and "dopóty, dopóki".
-  {
-    pattern: `(?<target>tak${S}długo)(?=(?:${S}[^\\s,.!?;:]{1,20}){0,4},?${S}dopóki${END})`,
-    fix: "dopóty",
-    ...STYLE_RULE,
-  },
-  // "tam pisało, że" is colloquial: "tam było napisane" ("tam się pisało" is impersonal).
-  {
-    pattern: `(?<=(?<!się)(?:^|[^\\p{L}])(?:tam|(?:w|na)${S}\\p{L}{2,20})${S})(?<target>pisało)(?=,?${S}że${END})`,
-    fix: "było napisane",
-    ...STYLE_RULE,
-  },
-  // "nie tyle …, ile": "ale" does not close the pair ("nie tyle co" is "not so much").
-  {
-    pattern: `(?<target>ale)(?<=(?:^|[^\\p{L}])nie${S}tyle(?!${S}co${END})(?:${S}[^\\s,.!?;:]{1,20}){1,6},${S}ale)(?=${S}\\p{L})`,
-    fix: "ile",
-    ...STYLE_RULE,
-  },
-  // "zarówno …, jak i": "jak również" does not close the pair.
-  {
-    pattern: `(?<target>jak${S}również)(?<=zarówno(?:${S}[^\\s.!?;:]{1,20}){1,6}${S}jak${S}również)${END}`,
-    fix: "jak i",
-    ...STYLE_RULE,
-  },
+/** The named frame fixes of grammar/rules/pl.yaml (`fixer:`). */
+export const FIXERS = {
   // "rozumieć pod tym" is a calque: "rozumieć przez to".
-  {
-    pattern: `(?<target>pod${S}tym(?:${S}(?:pojęciem|terminem|słowem|określeniem|hasłem))?)(?<=rozumi\\p{L}{0,6}(?:${S}\\p{L}{2,12}){0,2}${S}pod${S}tym(?:${S}\\p{L}{5,11})?)${END}`,
-    fix: (m) => {
-      const noun = /\p{L}+$/u.exec(m.groups!.target)![0].toLowerCase();
-      const object: Record<string, string> = {
-        pojęciem: "pojęcie",
-        terminem: "termin",
-        słowem: "słowo",
-        określeniem: "określenie",
-        hasłem: "hasło",
-      };
-      return noun === "tym" ? "przez to" : `przez to ${object[noun]}`;
-    },
-    ...STYLE_RULE,
+  stylePod: (m) => {
+    const noun = /\p{L}+$/u.exec(m.groups!.target)![0].toLowerCase();
+    const object: Record<string, string> = {
+      pojęciem: "pojęcie",
+      terminem: "termin",
+      słowem: "słowo",
+      określeniem: "określenie",
+      hasłem: "hasło",
+    };
+    return noun === "tym" ? "przez to" : `przez to ${object[noun]}`;
   },
   // One clicks a link, not "on" it: "kliknij link".
-  {
-    pattern: `(?<target>(?:kliknij|kliknijcie|kliknąć|kliknął|kliknęła|kliknęli|kliknę|kliknie|klikamy|klikać|klika|klikasz|klikam|klikając)${S}na)(?=${S}(?:${UI_TARGET})${END})`,
-    fix: (m) => m.groups!.target.replace(/[ \t ]+na$/iu, ""),
-    ...STYLE_RULE,
-  },
-];
+  styleKliknij: (m) => m.groups!.target.replace(/[ \t ]+na$/iu, ""),
+} satisfies Record<string, Fixer>;
 
 /* ------------------------------------------------- "pełnić rolę", "posiadać brodę" */
 

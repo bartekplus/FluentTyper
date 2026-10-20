@@ -1936,10 +1936,38 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     source: "sv",
   },
   {
+    id: "pl.compoundsFrames",
+    checks: ["englishClosedCompounds", "englishAlotCorrection"],
+    lang: "pl",
+    frames: [
+      740, 741, 742, 743, 744, 745, 746, 747, 748, 749, 750, 751, 752, 753, 754, 755, 756, 757, 758,
+      759, 760, 761, 762, 763, 764, 765, 766, 767, 768, 769, 770, 771, 772, 773, 774,
+    ],
+    message: "review_msg_closed_compound",
+    style: "polish",
+    source: "pl",
+  },
+  {
     id: "pl.compounds",
     checks: ["englishClosedCompounds", "englishAlotCorrection"],
     lang: "pl",
     predicate: "pl:compounds",
+    source: "pl",
+  },
+  {
+    id: "pl.confusionsFrames",
+    checks: ["englishPhraseCorrections"],
+    lang: "pl",
+    frames: [
+      775, 776, 777, 778, 779, 780, 781, 782, 783, 784, 785, 786, 787, 788, 789, 790, 791, 792, 793,
+      794, 795, 796, 797, 798, 799, 800, 801, 802, 803, 804, 805, 806, 807, 808, 809, 810, 811, 812,
+      813, 814, 815, 816, 817, 818, 819, 820, 821, 822, 823, 824, 825, 826, 827, 828, 829, 830, 831,
+      832, 833, 834, 835, 836, 837, 838, 839, 840, 841, 842, 843, 844, 845, 846, 847, 848, 849, 850,
+      851, 852, 853, 854, 855, 856, 857, 858, 859, 860, 861, 862, 863, 864, 865, 866, 867, 868, 869,
+      870, 871, 872, 873, 874, 875, 876, 877, 878, 879, 880, 881, 882,
+    ],
+    message: "review_msg_contextual_grammar",
+    style: "polish",
     source: "pl",
   },
   {
@@ -1976,6 +2004,15 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     checks: ["polishPrepositionForms"],
     lang: "pl",
     predicate: "pl:prepositionForms",
+    source: "pl",
+  },
+  {
+    id: "pl.wordFormsFrames",
+    checks: ["englishPhraseCorrections"],
+    lang: "pl",
+    frames: [883, 884, 885, 886, 887, 888, 889, 890, 891, 892],
+    message: "review_msg_pl_abbreviation_dot",
+    style: "polish",
     source: "pl",
   },
   {
@@ -2051,10 +2088,21 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
   },
   { id: "pl.style", checks: ["stylePhrasing"], lang: "pl", predicate: "pl:style", source: "pl" },
   {
+    id: "pl.styleFrames",
+    checks: ["stylePhrasing"],
+    lang: "pl",
+    frames: [893, 894, 895, 896, 897, 898, 899, 900],
+    message: "review_msg_style_phrasing",
+    style: "polish",
+    source: "pl",
+  },
+  {
     id: "pl.officialese",
     checks: ["stylePhrasing"],
     lang: "pl",
-    predicate: "pl:officialese",
+    frames: [901, 902, 903, 904, 905, 906, 907, 908, 909, 910],
+    message: "review_msg_style_phrasing",
+    style: "polish",
     source: "pl",
   },
   {
@@ -2062,6 +2110,20 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     checks: ["polishCaseAgreement"],
     lang: "pl",
     predicate: "pl:subjects",
+    source: "pl",
+  },
+  {
+    id: "pl.typosFrames",
+    checks: ["englishPhraseCorrections"],
+    lang: "pl",
+    frames: [
+      911, 912, 913, 914, 915, 916, 917, 918, 919, 920, 921, 922, 923, 924, 925, 926, 927, 928, 929,
+      930, 931, 932, 933, 934, 935, 936, 937, 938, 939, 940, 941, 942, 943, 944, 945, 946, 947, 948,
+      949, 950, 951, 952, 953, 954, 955, 956, 957, 958, 959, 960, 961, 962, 963, 964, 965, 966, 967,
+      968, 969, 970, 971, 972, 973, 974, 975,
+    ],
+    message: "review_msg_contextual_grammar",
+    style: "polish",
     source: "pl",
   },
   {
@@ -9113,6 +9175,1561 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
     cue: ["very", "so", "far", "long", "really"],
+  },
+  {
+    pattern:
+      "(?<target>naj[ \\t\\u00a0]{1,8}(?<word>\\p{L}{2,}(?:sz[aeyąi]\\p{L}{0,3}|ej)))(?![\\p{L}])",
+    literals: ["naj"],
+    fixer: "pl:compoundsNaj",
+  },
+  {
+    pattern:
+      "(?<target>niema)(?=[ \\t\\u00a0]{1,8}(?:pojęcia|czasu|sensu|go|jej|ich|nic|nikogo|niczego|już|tu|tam|potrzeby|mowy|problemu|racji|prawa|wątpliwości|szans|znaczenia|co|kto|gdzie|jak|czego|kogo|nas|was|mnie|ciebie|tego|takiej|takiego|żadnego|żadnej|żadnych|sprawy|szansy|dokąd|kiedy)(?![\\p{L}]))",
+    literals: ["niema"],
+    fix: "nie ma",
+    message: "review_msg_split_words",
+    check: "englishAlotCorrection",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:ich|go|jej|nas|was|tu|tam|już|nic|nikogo|mnie|ciebie|kogo|czego|nigdzie|teraz)[ \\t\\u00a0]{1,8})(?<target>niema)(?=[ \\t\\u00a0]*[.!?,;…])",
+    literals: ["niema"],
+    fix: "nie ma",
+    message: "review_msg_split_words",
+    check: "englishAlotCorrection",
+  },
+  {
+    pattern:
+      '(?<!(?:dowód|dowody|dowodu|dowodem|czas|miejsce|liczyć|liczy|liczę|czekać|czeka|czekam|zasługuje|zasługiwać|szansę|szansa|ochotę|wpływ|prawo|gotowość|otwarty|otwarta|otwarci)[ \\t\\u00a0]{1,8})(?<target>na[ \\t\\u00a0]{1,8}prawdę)(?![ \\t\\u00a0]{1,8}(?:o|i|historyczną|naukową|absolutną|obiektywną|objawioną|ostateczną|jedyną|tego|jego|jej|ich|\\p{L}+ego|\\p{L}+ych)(?![\\p{L}]))(?![ \\t\\u00a0]*[.!?;:…)"”»])',
+    literals: ["prawdę"],
+    fix: "naprawdę",
+  },
+  {
+    pattern:
+      '(?<target>na[ \\t\\u00a0]{1,8}przód)(?=[ \\t\\u00a0]*(?:[.!?,;:…)"”»]|$)|[ \\t\\u00a0]{1,8}(?:ku|i|a)(?![\\p{L}]))',
+    literals: ["przód"],
+    fix: "naprzód",
+  },
+  {
+    pattern: "(?<!raz[ \\t\\u00a0]{1,8})(?<target>za[ \\t\\u00a0]{1,8}razem)(?![\\p{L}])",
+    literals: ["razem"],
+    fix: "zarazem",
+  },
+  {
+    pattern:
+      "(?<!(?:uzna\\p{L}*|uważa\\p{L}*|uważ\\p{L}*|się|mie\\p{L}*|ma|mam|masz|mamy|macie|mają|wzi\\p{L}*|bra\\p{L}*|bior\\p{L}*|przyj\\p{L}*|poczyt\\p{L}*|uchodz\\p{L}*)(?:[ \\t\\u00a0]{1,8}\\p{L}+)?[ \\t\\u00a0]{1,8})(?<target>za[ \\t\\u00a0]{1,8}pewne)(?=[ \\t\\u00a0]*[.!?,;:…]|[ \\t\\u00a0]{1,8}(?:nie|już|to|jest|był|była|było|są|będzie|będą|się|kilka|kilku|wiele|wielu|tak|tylko|też|także|ktoś|coś|jutro|dziś|dzisiaj|wkrótce|niedługo|później|wtedy|teraz|znowu|jeszcze|wszyscy|wszystko|on|ona|oni|ono|ty|wy|my|ja||\\p{L}+(?:ł|ła|ło|li|ły|je|ją|ie|isz|esz|my|cie))(?![\\p{L}]))",
+    literals: ["pewne"],
+    fix: "zapewne",
+  },
+  {
+    pattern:
+      "(?<target>po[ \\t\\u00a0]{1,8}środku)(?![ \\t\\u00a0]{1,8}\\p{L}*(?:ym|im)(?![\\p{L}]))(?![\\p{L}])",
+    literals: ["środku"],
+    fix: "pośrodku",
+  },
+  {
+    pattern:
+      "(?<target>po[ \\t\\u00a0]{1,8}woli)(?=[ \\t\\u00a0]*(?:[.!?,;:…)]|$)|[ \\t\\u00a0]{1,8}(?:się|nie|ale|i|a|\\p{L}+(?:ł|ła|ło|li|ły|je|ją|ie|isz|esz|my|cie|ąc))(?![\\p{L}]))",
+    literals: ["woli"],
+    fixer: "pl:compoundsPo",
+  },
+  {
+    pattern:
+      "(?<target>ponad[ \\t\\u00a0]{1,8}to)(?![\\p{L}])(?![ \\t\\u00a0]*,?[ \\t\\u00a0]*(?:co|czego|czym)(?![\\p{L}]))",
+    literals: ["ponad"],
+    fix: "ponadto",
+  },
+  {
+    pattern:
+      "(?<target>z[ \\t\\u00a0]{1,8}resztą)(?=[ \\t\\u00a0]*,|[ \\t\\u00a0]{1,8}(?:nikogo|nic|niczego|nie|to|tego|jest|był|była|było|są|ja|ty|on|ona|ono|my|wy|oni|one|już|zawsze|też|chyba|wiadomo|sam|sama|samo|sami|jak|co|kto|każdy|wszyscy|wszystko|mnie|ciebie|go|jej|ich|się|bardzo|dobrze|i)(?![\\p{L}]))",
+    literals: ["resztą"],
+    fix: "zresztą",
+  },
+  {
+    pattern:
+      "(?<target>co[ \\t\\u00a0]{1,8}raz)(?=[ \\t\\u00a0]{1,8}(?:\\p{L}+(?:iej|ej|szy|sza|sze|szego|szej|szym|szych|szą|si)|więcej|mniej|bardziej|lepiej|gorzej|częściej|rzadziej|bliżej|dalej|wyżej|niżej|dłużej|krócej|głośniej|ciszej|szybciej|wolniej|mocniej|trudniej|łatwiej|później|wcześniej|wyraźniej)(?![\\p{L}]))",
+    literals: ["raz"],
+    fix: "coraz",
+  },
+  {
+    pattern:
+      "(?<target>dla[ \\t\\u00a0]{1,8}tego)(?=[ \\t\\u00a0]*(?:,[ \\t\\u00a0]*)?(?:że|iż|żeby|by|aby|też|właśnie|ponieważ|bo)(?![\\p{L}]))",
+    literals: ["tego"],
+    fix: "dlatego",
+  },
+  {
+    pattern:
+      "(?<target>dla[ \\t\\u00a0]{1,8}czego)(?=[ \\t\\u00a0]{1,8}(?:nie|się|\\p{L}+(?:esz|isz|ysz|asz|cie|ją|łeś|łaś|liście|łyście|łem|łam))(?![\\p{L}]))",
+    literals: ["czego"],
+    fix: "dlaczego",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[.!?]\\s{1,8}|(?:^|[^\\p{L}])a[ \\t\\u00a0]{1,8}))(?<target>tym[ \\t\\u00a0]{1,8}czasem)(?![ \\t\\u00a0]{1,8}(?:się|nie|przejm\\p{L}*|zajm\\p{L}*|martw\\p{L}*)(?![\\p{L}]))(?![\\p{L}])",
+    literals: ["czasem"],
+    fix: "tymczasem",
+  },
+  {
+    pattern:
+      "(?<target>w[ \\t\\u00a0]{1,8}prawdzie)(?=[^.!?;\\n]{1,120}?,[ \\t\\u00a0]*(?:ale|lecz|jednak|to|a)(?![\\p{L}]))",
+    literals: ["prawdzie"],
+    fix: "wprawdzie",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]{1,8})(?<target>tam[ \\t\\u00a0]{1,8}(?<pron>ten|ta|to|te|ci|tego|tej|temu|tą|tę|tym|tych|tymi))(?![\\p{L}])",
+    literals: ["tam"],
+    fixer: "pl:compoundsTam",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:od|z|na|dla|według|czyjegoś|czyjeś|czyjś|jego|jej|ich|swojego|swoje|swoim|własnego|własne)[ \\t\\u00a0]{1,8})(?<target>widzi[ \\t\\u00a0]{1,8}mi[ \\t\\u00a0]{1,8}się)(?![\\p{L}])",
+    literals: ["widzi"],
+    fix: "widzimisię",
+  },
+  {
+    pattern: "(?<target>o[ \\t\\u00a0]{1,8}jej)(?=[ \\t\\u00a0]*!)",
+    literals: ["jej"],
+    fix: "ojej",
+  },
+  {
+    pattern:
+      "(?<=(?:jecha\\p{L}*|jeżdż\\p{L}*|jeździ\\p{L}*|wyjecha\\p{L}*|wyjeżdża\\p{L}*|wyjedzie\\p{L}*|lecie\\p{L}*|wylecia\\p{L}*|wyemigrowa\\p{L}*|wysła\\p{L}*|wysyła\\p{L}*|pojecha\\p{L}*|pojedzie\\p{L}*|uciek\\p{L}*|uciec)[ \\t\\u00a0]{1,8})(?<target>zagranicę)(?![\\p{L}])",
+    literals: ["zagranicę"],
+    fix: "za granicę",
+  },
+  {
+    pattern:
+      "(?<=(?:by\\p{L}*|mieszka\\p{L}*|pracowa\\p{L}*|pracuj\\p{L}*|studiowa\\p{L}*|studiuj\\p{L}*|przebywa\\p{L}*|żyj\\p{L}*|żył\\p{L}*|odbywa\\p{L}*|zosta\\p{L}*|leczy\\p{L}*)[ \\t\\u00a0]{1,8})(?<target>zagranicą)(?![\\p{L}])",
+    literals: ["zagranicą"],
+    fix: "za granicą",
+  },
+  {
+    pattern:
+      "(?<=(?:jest|są|był|była|było|byli|były|będzie|będą|jestem|jesteś|jesteśmy|jesteście|byłem|byłam|byłeś|byłaś|nie)[ \\t\\u00a0]{1,8})(?<target>wstanie)(?=[ \\t\\u00a0]{1,8}\\p{L}+(?:ć|c)(?![\\p{L}]))",
+    literals: ["wstanie"],
+    fix: "w stanie",
+  },
+  {
+    pattern:
+      '(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed|\\p{L}*ym|\\p{L}*im|tego|tamtego|to|tamto|jakimś)[ \\t\\u00a0]{1,8})(?<!["„“”«])(?<target>popołudniu)(?![\\p{L}])',
+    literals: ["popołudniu"],
+    fixer: "pl:compoundsPopołudniu",
+  },
+  {
+    pattern:
+      "(?<target>(?<prep>na|w)[ \\t\\u00a0]{1,8}około)(?![ \\t\\u00a0]{1,8}(?:\\d|pół|półtora|jeden|jedna|jedno|dwa|dwie|dwóch|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|\\p{L}+naście|\\p{L}+dzieści|\\p{L}+dziesiąt|sto|\\p{L}+set|\\p{L}+sta|tysiąc|tysiące|tysięcy|milion\\p{L}*|miliard\\p{L}*|kilka|kilkanaście|kilkadziesiąt|kilkuset|kilku|kilkunastu|setki|tysiące|połowy|połowie|połowę|stu|dwustu|trzystu|czterystu|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|dwudziestu|trzydziestu|czterdziestu|pięćdziesięciu|stu)(?![\\p{L}])|[ \\t\\u00a0]*\\d)(?![\\p{L}])",
+    literals: ["około"],
+    fixer: "pl:compoundsPrep",
+  },
+  {
+    pattern:
+      "(?<!\\p{L}(?:ej|szej)[ \\t\\u00a0]{1,8})(?<target>kary[ \\t\\u00a0]{1,8}godn(?<end>y|a|e|ego|ej|emu|ą|ym|ych|ymi|i))(?![\\p{L}])",
+    literals: ["kary"],
+    fixer: "pl:compoundsKary",
+  },
+  {
+    pattern:
+      "(?<target>nie[ \\t\\u00a0]{1,8}mniej)(?=[ \\t\\u00a0]{1,8}jednak(?![\\p{L}]))(?![ \\t\\u00a0]{1,8}jednak[ \\t\\u00a0]{1,8}niż)",
+    literals: ["mniej"],
+    fix: "niemniej",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])w[ \\t\\u00a0]{1,8})(?<target>tym[ \\t\\u00a0]{1,8}nie[ \\t\\u00a0]{1,8}mniej)(?![\\p{L}])(?![ \\t\\u00a0]{1,8}(?:niż|od)(?![\\p{L}]))",
+    literals: ["mniej"],
+    fix: ["tym niemniej", "niemniej"],
+  },
+  {
+    pattern:
+      "(?<target>by[ \\t\\u00a0]{1,8}najmniej)(?![\\p{L}])(?![ \\t\\u00a0]{1,8}\\p{L}+ć(?![\\p{L}]))",
+    literals: ["najmniej"],
+    fix: "bynajmniej",
+  },
+  {
+    pattern:
+      "(?<!(?:uważ|uzna|przyj|uchodz|poczyt|wzię|bierz|bior|bra)\\p{L}*[^.!?;\\n]{0,40})(?<target>za[ \\t\\u00a0]{1,8}zwyczaj)(?![\\p{L}])",
+    literals: ["zwyczaj"],
+    fix: "zazwyczaj",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:za|po|na|o|przez|w)[ \\t\\u00a0]{1,8})(?<target>co[ \\t\\u00a0]{1,8}(?<word>tygodniow|miesięczn|roczn|dzienn|godzinn)(?<end>ie|o|y|a|e|ego|ej|emu|ą|ym|ych|ymi|i))(?![\\p{L}])",
+    literals: ["tygodniow", "miesięczn", "roczn", "dzienn", "godzinn"],
+    fixer: "pl:compoundsCo",
+  },
+  {
+    pattern:
+      "(?<![\\p{L}])(?<target>(?<prefix>do|od|za|po|przy|roz|prze|pod|nad)[ \\t\\u00a0]{1,8}(?<verb>\\p{L}{3,}))(?![\\p{L}])",
+    literals: [],
+    fixer: "pl:compoundsPrefix",
+  },
+  {
+    pattern:
+      "(?<![\\p{L}])(?<target>(?<prefix>eks|mini|maksi|maxi|super|ultra|mega|anty|pseudo|quasi|neo|post|wice)-(?<word>\\p{L}{3,}))(?![\\p{L}-])",
+    literals: [
+      "eks",
+      "mini",
+      "maksi",
+      "maxi",
+      "super",
+      "ultra",
+      "mega",
+      "anty",
+      "pseudo",
+      "quasi",
+      "neo",
+      "post",
+      "wice",
+    ],
+    fixer: "pl:compoundsPrefix2",
+  },
+  {
+    pattern: "(?<![\\p{L}])(?<target>v-ce[ \\t\\u00a0]{1,8}(?<word>\\p{L}{3,}))(?![\\p{L}])",
+    literals: [],
+    fixer: "pl:compoundsV",
+  },
+  {
+    pattern:
+      "(?<target>wciągu)(?=[ \\t\\u00a0]{1,8}(?:\\d|ostatni\\p{L}*|następn\\p{L}*|najbliższ\\p{L}*|kilk\\p{L}*|roku|lat|dnia|dni|tygodnia|tygodni|miesiąca|miesięcy|godziny|godzin|minuty|minut|sekund\\p{L}*|jednego|jednej|dwóch|trzech|całego|całej|pierwsz\\p{L}*|ubiegł\\p{L}*|tego|tej|życia|doby)(?![\\p{L}]))",
+    literals: ["wciągu"],
+    fix: "w ciągu",
+  },
+  {
+    pattern:
+      '(?:(?<=(?:^|[^\\p{L}])(?:to|jest|był|była|było|są|byłoby|totalnie|zupełnie|kompletnie|całkiem|trochę)[ \\t\\u00a0]{1,8})|(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8})))(?<target>bezsensu)(?![\\p{L}])(?![ \\t\\u00a0]{1,8}(?:istnienia|życia|tego|wojny|świata)(?![\\p{L}]))',
+    literals: ["bezsensu"],
+    fix: "bez sensu",
+  },
+  {
+    pattern:
+      '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>Mi|Mu|Go|Cię)(?=[ \\t\\u00a0]{1,8}\\p{L})',
+    literals: [],
+    fixer: "pl:confusionsMi",
+    verbatim: true,
+  },
+  {
+    pattern:
+      '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>Ci)(?=[ \\t\\u00a0]{1,8}się(?![\\p{L}]))',
+    literals: [],
+    fix: "Tobie",
+    verbatim: true,
+  },
+  {
+    pattern:
+      "(?<=(?<!(?:^|[^\\p{L}])(?:za|na|o|po|w|z|przez)[ \\t\\u00a0]{1,8})(?<![\\p{L}])nic[ \\t\\u00a0]{1,8})(?<target>mogę|może|możesz|mogą|możemy|umiem|umie|wiem|wie|chcę|chce|chcą|mam|ma|mają|znalazł|znalazła|zgodzą|zgodzi|zrobię|zrobi|widzę|widzi|rozumiem|rozumie)(?![\\p{L}])",
+    literals: [],
+    fixer: "pl:confusionsMogę",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:[Ss]zkoł\\p{L}*|[Ll]iceum|[Gg]imnazjum|[Tt]echnikum|[Zz]espół|[Uu]niwersytet|[Aa]kademi\\p{L}*|[Ii]nstytut|[Ss]zpital|[Pp]rzedszkol\\p{L}*)(?:[ \\t\\u00a0]{1,8}\\p{L}+){0,2}[ \\t\\u00a0]{1,8})(?<target>imieniem)(?=[ \\t\\u00a0]{1,8}\\p{L})",
+    literals: ["imieniem"],
+    fix: "imienia",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])\\p{L}+(?:ych|ich)[ \\t\\u00a0]{1,8})(?<target>for)(?![\\p{L}])|(?<target>for)(?=[ \\t\\u00a0]{1,8}(?:internetowych|dyskusyjnych)(?![\\p{L}]))",
+    literals: ["for", "for"],
+    fix: "forów",
+  },
+  {
+    pattern:
+      '(?<=(?:^|[^\\p{L}])(?:z|ze|na|do)[ \\t\\u00a0]{1,8})(?<target>łam)(?=[ \\t\\u00a0]{1,8}|[ \\t\\u00a0]*[„"])|(?<target>łam)(?=[ \\t\\u00a0]{1,8}(?:gazet|gazety|czasopism|czasopisma|prasy|tygodnika|dziennika)(?![\\p{L}]))',
+    literals: ["łam", "łam"],
+    fix: "łamów",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])się(?:[ \\t\\u00a0]{1,8}(?:tego|tej|ich|go|jej|was|nas|ciebie|ich|właśnie|nie|bardzo|trochę|już|wcale|naprawdę|zawsze|też|proszę|pana|pani|państwa)|,)+[ \\t\\u00a0]{1,8})(?<target>boje|boja)(?=[ \\t\\u00a0]*[.!?…])",
+    literals: ["boje", "boja"],
+    fixer: "pl:confusionsBoje",
+  },
+  {
+    pattern: "(?<=(?:^|[^\\p{L}])tak[ \\t\\u00a0]{1,8})(?<target>naprawę)(?![\\p{L}])",
+    literals: ["naprawę"],
+    fix: "naprawdę",
+  },
+  {
+    pattern:
+      "(?<target>rzec)(?=[ \\t\\u00a0]{1,8}jasna(?![\\p{L}]))|(?<=(?:^|[^\\p{L}])na[ \\t\\u00a0]{1,8})(?<target>rzec)(?=[ \\t\\u00a0]{1,8}\\p{L})",
+    literals: ["rzec", "rzec"],
+    fix: "rzecz",
+  },
+  {
+    pattern:
+      "(?<target>stad)(?=[ \\t\\u00a0]{1,8}(?:też|więc|wniosek|wynika)(?![\\p{L}]))|(?<=(?:^|[^\\p{L}])ni[ \\t\\u00a0]{1,8})(?<target>stad)(?![\\p{L}])",
+    literals: ["stad", "stad"],
+    fix: "stąd",
+  },
+  {
+    pattern: "(?<=stąd,?[ \\t\\u00a0]{1,8})(?<target>nie|n)(?=[ \\t\\u00a0]{1,8}zowąd(?![\\p{L}]))",
+    literals: [],
+    fix: "ni",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|tę|ta|tej)[ \\t\\u00a0]{1,8})(?<target>dal)(?=[ \\t\\u00a0]{1,8}(?:się|mi|mu|jej|nam|wam|im|ci|go|ją|je|jednak|za[ \\t\\u00a0]{1,8}wygraną)(?![\\p{L}]))|(?<=(?:^|[^\\p{L}])(?:nie|on|który|kto|ten|ojciec|brat)[ \\t\\u00a0]{1,8})(?<target>dal)(?![\\p{L}])",
+    literals: ["dal", "dal"],
+    fix: "dał",
+    lowercase: true,
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:moja|moją|mojej|twoja|twoją|twojej|jego|jej|ich|nasza|naszą|naszej|wasza|waszą|swoja|swoją|swojej|była|byłą|byłej|przyszła|przyszłą|przyszłej)[ \\t\\u00a0]{1,8})(?<target>zon(?:a|y|ie|ę|ą|o))(?![\\p{L}])",
+    literals: ["zon"],
+    fixer: "pl:confusionsZon",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:w|we|o|po|przy|tej|swojej|mojej|naszej|twojej|jego|jej|ich)[ \\t\\u00a0]{1,8})(?<target>wierze)(?=[ \\t\\u00a0]{1,8}(?:w|we|że|ci|mu|jej|wam|panu|pani|tobie)(?![\\p{L}])|[ \\t\\u00a0]*[.!?])|(?<=(?:^|[^\\p{L}])(?:nie|ja|już|nadal|wciąż)[ \\t\\u00a0]{1,8})(?<target>wierze)(?![\\p{L}])",
+    literals: ["wierze", "wierze"],
+    fix: "wierzę",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed|i|oraz|lub|albo|czy|a|ani|bądź|ze|od|aż|co)[ \\t\\u00a0]{1,8})(?<!,[ \\t\\u00a0]{1,8}|,)(?<target>(?:bezcen|bezdurno|trymiga|czambuł|dwójnasób|trójnasób|czwórnasób|kilkanasób|dyrdy|zanadrzu|szczętu|imentu|zabój|kretesem|pantałyku|manowce|oścież|wznak|odczepnego|przekór|czczo|wyrywki|chybcika|auspicjami|omacku|ciemku|macoszemu|cichutku|kryjomu|prostu|trosze|cichu|rozpuku|cna|poprzek|pojedynkę|międzyczasie|ustanku|liku|pardonu|ledwością|nienacka|wyprzódki|poczekaniu|wyrost|przestrzał|bakier|opak|łapu-capu|niemiara|polsku|angielsku|niemiecku|francusku|rosyjsku|hiszpańsku|włosku|czesku|słowacku|ukraińsku|chińsku|japońsku|szwedzku|grecku|arabsku|portugalsku|holendersku|węgiersku|fińsku|duńsku|norwesku|chamsku|swojsku|góralsku))(?![\\p{L}])",
+    literals: [
+      "bezcen",
+      "bezdurno",
+      "trymiga",
+      "czambuł",
+      "dwójnasób",
+      "trójnasób",
+      "czwórnasób",
+      "kilkanasób",
+      "dyrdy",
+      "zanadrzu",
+      "szczętu",
+      "imentu",
+      "zabój",
+      "kretesem",
+      "pantałyku",
+      "manowce",
+      "oścież",
+      "wznak",
+      "odczepnego",
+      "przekór",
+      "czczo",
+      "wyrywki",
+      "chybcika",
+      "auspicjami",
+      "omacku",
+      "ciemku",
+      "macoszemu",
+      "cichutku",
+      "kryjomu",
+      "prostu",
+      "trosze",
+      "cichu",
+      "rozpuku",
+      "cna",
+      "poprzek",
+      "pojedynkę",
+      "międzyczasie",
+      "ustanku",
+      "liku",
+      "pardonu",
+      "ledwością",
+      "nienacka",
+      "wyprzódki",
+      "poczekaniu",
+      "wyrost",
+      "przestrzał",
+      "bakier",
+      "opak",
+      "łapu",
+      "niemiara",
+      "polsku",
+      "angielsku",
+      "niemiecku",
+      "francusku",
+      "rosyjsku",
+      "hiszpańsku",
+      "włosku",
+      "czesku",
+      "słowacku",
+      "ukraińsku",
+      "chińsku",
+      "japońsku",
+      "szwedzku",
+      "grecku",
+      "arabsku",
+      "portugalsku",
+      "holendersku",
+      "węgiersku",
+      "fińsku",
+      "duńsku",
+      "norwesku",
+      "chamsku",
+      "swojsku",
+      "góralsku",
+    ],
+    fixer: "pl:confusionsBezcen",
+    lowercase: true,
+  },
+  {
+    pattern: "(?<!Burkina[ \\t\\u00a0]{1,8})(?<![\\p{L}])(?<target>faso)(?![\\p{L}])",
+    literals: ["faso"],
+    fix: "Burkina Faso",
+    verbatim: true,
+  },
+  {
+    pattern: "(?<![\\p{L}])(?<target>burkina)(?![ \\t\\u00a0]{1,8}faso(?![\\p{L}]))(?![\\p{L}])",
+    literals: ["burkina"],
+    fix: "Burkina Faso",
+    verbatim: true,
+  },
+  {
+    pattern: "(?<!fiksum[ \\t\\u00a0]{1,8})(?<![\\p{L}])(?<target>dyrdum)(?![\\p{L}])",
+    literals: ["dyrdum"],
+    fix: "fiksum dyrdum",
+    verbatim: true,
+  },
+  {
+    pattern: "(?<![\\p{L}])(?<target>fiksum)(?![ \\t\\u00a0]{1,8}dyrdum(?![\\p{L}]))(?![\\p{L}])",
+    literals: ["fiksum"],
+    fix: "fiksum dyrdum",
+    verbatim: true,
+  },
+  {
+    pattern: "(?<!Kyrie[ \\t\\u00a0]{1,8})(?<![\\p{L}])(?<target>eleison)(?![\\p{L}])",
+    literals: ["eleison"],
+    fix: "Kyrie eleison",
+    verbatim: true,
+  },
+  {
+    pattern:
+      "(?<!Rio[ \\t\\u00a0]{1,8}de[ \\t\\u00a0]{1,8})(?<![\\p{L}])(?<target>janeiro)(?![\\p{L}])",
+    literals: ["janeiro"],
+    fix: "Rio de Janeiro",
+    verbatim: true,
+  },
+  {
+    pattern: "(?<!fiu[ \\t\\u00a0]{1,8})(?<![\\p{L}])(?<target>bździu)(?![\\p{L}])",
+    literals: ["bździu"],
+    fix: "fiu bździu",
+    verbatim: true,
+  },
+  {
+    pattern: "(?<!(?:^|[^\\p{L}])(?:ze|z)[ \\t\\u00a0]{1,8})(?<target>szczętem)(?![\\p{L}])",
+    literals: ["szczętem"],
+    fix: "ze szczętem",
+  },
+  {
+    pattern: "(?<!(?:^|[^\\p{L}])(?:za|od|z)[ \\t\\u00a0]{1,8})(?<target>młodu)(?![\\p{L}])",
+    literals: ["młodu"],
+    fix: "za młodu",
+  },
+  {
+    pattern:
+      '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>boje)(?=[ \\t\\u00a0]{1,8}się(?![\\p{L}])(?![ \\t\\u00a0]{1,8}(?:toczy\\p{L}*|toczą|rozpoczęły|zaczęły|skończyły|trwały|odbywały)))',
+    literals: ["boje"],
+    fix: "boję",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:dzisiaj|dziś|bardzo|trochę|strasznie|naprawdę|zawsze|wciąż|nadal|czasem|już|też|tak|i|a|ale|że|bo)[ \\t\\u00a0]{1,8})(?<target>boje)(?=[ \\t\\u00a0]{1,8}się(?![\\p{L}]))",
+    literals: ["boje"],
+    fix: "boję",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:ja|nie|bardzo|trochę|już|tego|ciebie|go|jej|ich|was|nas)[ \\t\\u00a0]{1,8}się[ \\t\\u00a0]{1,8})(?<target>boje)(?=[ \\t\\u00a0]*[.!?,;:…]|[ \\t\\u00a0]{1,8}(?:o|że|tego|ciebie|go|jej|ich|was|nas|się)(?![\\p{L}]))",
+    literals: ["boje"],
+    fix: "boję",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:oni|one|ludzie|wszyscy|dzieci|nie)[ \\t\\u00a0]{1,8}(?:się[ \\t\\u00a0]{1,8})?)(?<target>boja)(?=[ \\t\\u00a0]{1,8}się(?![\\p{L}])|[ \\t\\u00a0]*[.!?,;:…])",
+    literals: ["boja"],
+    fix: "boją",
+  },
+  {
+    pattern:
+      "(?<=,[ \\t\\u00a0]{1,8}|(?:^|[^\\p{L}])(?:no|tak|i|jest|było)[ \\t\\u00a0]{1,8})(?<target>wiec)(?![ \\t\\u00a0]{1,8}(?:poparcia|wyborczy|protestacyjny|protestu|przeciwko|się[ \\t\\u00a0]{1,8}odbył|odbył)(?![\\p{L}]))(?![\\p{L}])",
+    literals: ["wiec"],
+    fix: "więc",
+    lowercase: true,
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:ty|on|ona|ono|my|wy|oni|one|ciebie|jego|ją|nas|was|ich|to|tu|tam|teraz|dziś|dzisiaj|był|była|było|miał|miała|jest|są|i|ale|lecz|ponadto)[ \\t\\u00a0]{1,8})(?<target>tez)(?![\\p{L}])(?![ \\t\\u00a0]{1,8}(?:programow\\p{L}*|\\p{L}+ych)(?![\\p{L}]))",
+    literals: ["tez"],
+    fix: "też",
+  },
+  {
+    pattern:
+      "(?<=(?:\\d%?|procent|proc\\.|trochę|dużo|znacznie|nieco|jeszcze|coraz|o wiele|nie)[ \\t\\u00a0]{1,8})(?<target>mnie)(?=[ \\t\\u00a0]{1,8}(?:niż|więcej|o|od)(?![\\p{L}]))",
+    literals: ["mnie"],
+    fix: "mniej",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:u|dla|do|od|przy|beze|ode|przeze|przede|o|ze|na)[ \\t\\u00a0]{1,8})(?<target>mniej)(?=[ \\t\\u00a0]*[.!?]|[ \\t\\u00a0]{1,8}(?:w|na|do|z|ze|się|nie|jest|są|był|była|było|to|żadna|żaden|żadne|nic|tylko|też)(?![\\p{L}]))",
+    literals: ["mniej"],
+    fix: "mnie",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:pierwsz|drug|trzeci|czwart|piąt|kolejn|następn|dalsz|większ|mniejsz|spor|duż|znaczn|niewielk|integraln|główn|zasadnicz|dolni|górn|przedni|tyln|środkow|północn|południow|wschodni|zachodni|każd|tę|ta)(?:a|ą)?[ \\t\\u00a0]{1,8})(?<target>cześć)(?![\\p{L}])",
+    literals: ["cześć"],
+    fix: "część",
+  },
+  {
+    pattern:
+      "(?<target>cześć)(?=[ \\t\\u00a0]{1,8}z[ \\t\\u00a0]{1,8}(?:nich|nas|was|tych|nami|wami|nimi)(?![\\p{L}]))",
+    literals: ["cześć"],
+    fix: "część",
+  },
+  {
+    pattern: "(?<target>część)(?=[ \\t\\u00a0]{1,8}i[ \\t\\u00a0]{1,8}chwała(?![\\p{L}]))",
+    literals: ["część"],
+    fix: "cześć",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:boż|bożą|bożej|Boż)a?[ \\t\\u00a0]{1,8})(?<target>lask(?<end>a|ę|i))(?![\\p{L}])",
+    literals: ["lask"],
+    fixer: "pl:confusionsLask",
+  },
+  {
+    pattern: "(?<target>łask(?<end>a|i|ę|ą))(?=[ \\t\\u00a0]{1,8}marszałkowsk\\p{L}*(?![\\p{L}]))",
+    literals: ["łask"],
+    fixer: "pl:confusionsŁask",
+  },
+  {
+    pattern:
+      "(?<=(?:stronie|tu|tam|gdzie|którym|której|których|obok|poniżej|powyżej|niżej|wyżej|dole|górze)[ \\t\\u00a0]{1,8}(?:się[ \\t\\u00a0]{1,8})?)(?<target>znajduję)(?=[ \\t\\u00a0]{1,8}(?:się[ \\t\\u00a0]{1,8})?(?!(?:w|we|na|z|ze|pod|nad|przed|za|u|przy|obok|tu|tam|teraz|już|nadal|wciąż|daleko|blisko|po|w|między|sam|sama)(?![\\p{L}]))\\p{L}+(?:[ \\t\\u00a0]+\\p{L}+)?[ \\t\\u00a0]*[^\\p{L}\\s])",
+    literals: ["znajduję"],
+    fix: "znajduje",
+  },
+  {
+    pattern:
+      "(?<target>musze)(?=[ \\t\\u00a0]{1,8}(?:(?:się|już|jeszcze|zaraz|teraz|chyba|to|też|go|ją|je|coś)[ \\t\\u00a0]{1,8}){0,2}\\p{L}+ć(?![\\p{L}]))",
+    literals: ["musze"],
+    fix: "muszę",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:ja|nie|już|też|chyba|naprawdę|jeszcze|zaraz|teraz)[ \\t\\u00a0]{1,8})(?<target>musze)(?![\\p{L}])",
+    literals: ["musze"],
+    fix: "muszę",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}\\d])(?:oni|one|ludzie|wszyscy|nie|którzy|które|dzieci|członkowie|\\p{L}+owie|\\p{L}+(?:cy|dzy))[ \\t\\u00a0]{1,8})(?<target>maja)(?=[ \\t\\u00a0]{1,8}(?!(?:roku|r|br|bieżącego|tego|przyszłego|ubiegłego|i|oraz|lub|do|włącznie)(?![\\p{L}]))\\p{L})",
+    literals: ["maja"],
+    fix: "mają",
+    lowercase: true,
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:w|we|do|z|ze|pod)[ \\t\\u00a0]{1,8})(?<target>głownie)(?=[ \\t\\u00a0]{1,8}\\p{L})",
+    literals: ["głownie"],
+    fix: "głównie",
+    lowercase: true,
+  },
+  {
+    pattern:
+      "(?<target>miedzy)(?=[ \\t\\u00a0]{1,8}(?:nami|wami|nimi|sobą|innymi|\\p{L}+(?:ami|em|ą|ym|ymi|im|imi|iem))(?![\\p{L}]))",
+    literals: ["miedzy"],
+    fix: "między",
+  },
+  {
+    pattern:
+      "(?<target>nadaj)(?=[ \\t\\u00a0]{1,8}(?:nie|jest|są|był|była|było|się[ \\t\\u00a0]{1,8}nie|trwa|trwają|występuje|występują|działa|mieszka|pracuje|\\p{L}+uje)(?![\\p{L}]))",
+    literals: ["nadaj"],
+    fix: "nadal",
+  },
+  {
+    pattern:
+      "(?<!\\p{L}(?:ym|im)[ \\t\\u00a0]{1,8})(?<target>wieku)(?=[ \\t\\u00a0]{1,8}z[ \\t\\u00a0]{1,8}(?:nich|nas|was|tych|nami)(?![\\p{L}]))",
+    literals: ["wieku"],
+    fix: "wielu",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:od|przez|po|dla|bardzo|z|u)[ \\t\\u00a0]{1,8})(?<target>wieku)(?![ \\t\\u00a0]{1,8}lat[ \\t\\u00a0]{1,8}(?:\\d|\\p{L}+(?:u|ciu|miu|ech|óch)(?![\\p{L}])))(?=[ \\t\\u00a0]{1,8}(?:lat|osób|ludzi|miesięcy|dni|tygodni|godzin|krajów|miejsc|przypadków|powodów|innych|\\p{L}+ych)(?![\\p{L}]))",
+    literals: ["wieku"],
+    fix: "wielu",
+  },
+  {
+    pattern:
+      "(?<target>klika|kliku|kila|kilu)(?=[ \\t\\u00a0]{1,8}(?:–[ \\t\\u00a0]{1,8}\\p{L}+|osób|ludzi|dni|lat|razy|godzin|minut|sekund|tygodni|miesięcy|problemów|miejsc|miejscach|latach|dniach|dolców|złotych|kategoriach|stron|pytań|sztuk|tysięcy|milionów|kilometrów|metrów|centymetrów|kilogramów|procent|miejscach|osobach|godzinach|tygodniach|miesiącach)(?![\\p{L}]))",
+    literals: ["klika", "kliku", "kila", "kilu"],
+    fixer: "pl:confusionsKlika",
+  },
+  {
+    pattern:
+      "(?<target>rządn(?<end>y|a|e|i|ego|ej|ym|ych))(?=[ \\t\\u00a0]{1,8}(?:władzy|krwi|zemsty|przygód|wiedzy|sławy|pieniędzy|zysku|zysków|wrażeń|zwycięstwa|odwetu|zaszczytów|chwały)(?![\\p{L}]))",
+    literals: ["rządn"],
+    fixer: "pl:confusionsRządn",
+  },
+  {
+    pattern:
+      "(?<=(?:lubię|lubi|lubisz|lubimy|lubią|przestań|przestał|przestała|zaczął|zaczęła|wolno|można|trzeba|nie)[ \\t\\u00a0]{1,8})(?<target>rzuć)(?=[ \\t\\u00a0]{1,8}gum\\p{L}*(?![\\p{L}]))",
+    literals: ["rzuć"],
+    fix: "żuć",
+  },
+  {
+    pattern:
+      "(?<target>tęp(?<end>o|a|em|ie))(?=[ \\t\\u00a0]{1,8}(?:pracy|marszu|życia|wzrostu|rozwoju|gry|akcji|zmian|jazdy|wzrostu|nauki|reform)(?![\\p{L}]))",
+    literals: ["tęp"],
+    fixer: "pl:confusionsTęp",
+  },
+  {
+    pattern:
+      "(?<=(?:zwiększyć|zwiększył|zwiększyła|zwiększyli|zwiększcie|zwolnić|zwolnił|zwolniła|narzucić|narzucił|narzuciła|przyspieszyć|przyspieszył|utrzymać|utrzymał|utrzymywać|wolne|wolnego|szybkie|szybkiego|zawrotne|zawrotnym|spokojne|równe|mordercze|ślimacze|jego|jej|ich|zbyt)[ \\t\\u00a0]{1,8})(?<target>tęp(?<end>o|a|em))(?=[ \\t\\u00a0]*[.!?,;:…]|[ \\t\\u00a0]{1,8}(?:i|oraz|pracy|marszu|gry|jazdy)(?![\\p{L}]))",
+    literals: ["tęp"],
+    fixer: "pl:confusionsTęp2",
+  },
+  {
+    pattern:
+      "(?<=(?:patrzy\\p{L}*|spogląda\\p{L}*|spojrza\\p{L}*|wpatrywa\\p{L}*|wpatruje\\p{L}*|gapi\\p{L}*|gapić)[ \\t\\u00a0]{1,8})(?<target>tempo)(?![\\p{L}])",
+    literals: ["tempo"],
+    fix: "tępo",
+  },
+  {
+    pattern:
+      "(?<target>kar(?<end>ze|zesz|zę|zemy|zecie|żą))(?=[ \\t\\u00a0]{1,8}(?:(?:mi|ci|mu|jej|nam|wam|im|go|ją|je|ich|nas|was|mnie|cię|ciebie|to|tego|się)[ \\t\\u00a0]{1,8}){0,2}\\p{L}+ć(?![\\p{L}]))",
+    literals: ["kar"],
+    fixer: "pl:confusionsKar",
+  },
+  {
+    pattern:
+      "(?<target>pokarz(?<end>|ę|e|esz|cie|my))(?=[ \\t\\u00a0]{1,8}(?:mi|ci|mu|nam|wam|im|tobie|jemu|sobie)(?![\\p{L}])|[ \\t\\u00a0]*,?[ \\t\\u00a0]{1,8}(?:że|jak|gdzie|co)(?![\\p{L}]))",
+    literals: ["pokarz"],
+    fixer: "pl:confusionsPokarz",
+  },
+  {
+    pattern:
+      "(?<target>pomorze)(?=[ \\t\\u00a0]{1,8}(?:mi|ci|mu|jej|nam|wam|im|go|ją|je|ich|nas|was|mnie|cię|ciebie)(?![\\p{L}]))",
+    literals: ["pomorze"],
+    fix: "pomoże",
+    lowercase: true,
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:nie|ja|już|naprawdę|mocno|święcie|też)[ \\t\\u00a0]{1,8})(?<target>(?:wierze|wieżę))(?=[ \\t\\u00a0]{1,8}w(?![\\p{L}])|[ \\t\\u00a0]*[.!?,;:…]|[ \\t\\u00a0]{1,8}(?:ci|tobie|wam|mu|jej|im|że)(?![\\p{L}]))",
+    literals: ["wierze", "wieżę"],
+    fix: "wierzę",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:oni|one|nie|ludzie|wszyscy)[ \\t\\u00a0]{1,8})(?<target>wieżą)(?=[ \\t\\u00a0]{1,8}w(?![\\p{L}]))",
+    literals: ["wieżą"],
+    fix: "wierzą",
+  },
+  {
+    pattern:
+      "(?<target>tuz)(?=[ \\t\\u00a0]{1,8}(?:przed|po|obok|za|nad|pod|przy|koło|obok|zaraz|około)(?![\\p{L}]))",
+    literals: ["tuz"],
+    fix: "tuż",
+  },
+  {
+    pattern:
+      '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>chodź)(?=[ \\t\\u00a0]{1,8}(?:to|był|była|było|byli|były|jest|są)(?![\\p{L}]))',
+    literals: ["chodź"],
+    fix: "choć",
+  },
+  {
+    pattern:
+      "(?<target>oto)(?=[ \\t\\u00a0]{1,8}(?:chodzi|chodziło|chodzić|chodzi[ \\t\\u00a0]{1,8}mi|pytam|pytał|pytała|pytasz|prosi|proszę|prosił|prosiła|dbam|walczę|martwię)(?![\\p{L}]))",
+    literals: ["oto"],
+    fix: "o to",
+    lowercase: true,
+  },
+  {
+    pattern:
+      "(?<=(?:chodzi|chodziło|pytam|prosiłem|prosiłam|proszę|dbam)[ \\t\\u00a0]{1,8}(?:właśnie[ \\t\\u00a0]{1,8})?)(?<target>oto)(?=[ \\t\\u00a0]*[.!?])",
+    literals: ["oto"],
+    fix: "o to",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:moim|twoim|naszym|waszym|jego|jej|ich)[ \\t\\u00a0]{1,8})(?<target>zadaniem)(?=[ \\t\\u00a0]*,)",
+    literals: ["zadaniem"],
+    fix: "zdaniem",
+  },
+  {
+    pattern:
+      "(?=\\p{L})(?<=(?:^|[^\\p{L}])(?<head>w[ \\t\\u00a0]{1,8}porównaniu|wraz|zgodnie)[ \\t\\u00a0]{1,8})(?<target>(?<word>mną|nim|nią|nimi|\\p{L}+(?:ą|em|ami|iem)))(?![\\p{L}])",
+    literals: [],
+    fixer: "pl:confusionsWord",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:mimo|pomimo|bez|tych|wielu|kilku|istotnych|dużych|pewnych|żadnych|licznych)[ \\t\\u00a0]{1,8})(?<target>różnić)(?![\\p{L}])",
+    literals: ["różnić"],
+    fix: "różnic",
+  },
+  {
+    pattern:
+      "(?=\\p{L})(?<=(?:^|[^\\p{L}])(?:podczas|bez|wśród|spośród|w[ \\t\\u00a0]{1,8}trakcie|w[ \\t\\u00a0]{1,8}czasie|w[ \\t\\u00a0]{1,8}ramach)[ \\t\\u00a0]{1,8}(?:\\p{L}+(?:ych|ich)[ \\t\\u00a0]{1,8}){0,2})(?<target>(?<stem>\\p{L}{3,}(?:ow|yw|iw)?)ać)(?![\\p{L}])",
+    literals: [],
+    fixer: "pl:confusionsStem",
+  },
+  {
+    pattern:
+      "(?<target>skłon(?<end>y|a|e|i))(?=[ \\t\\u00a0]{1,8}(?:do[ \\t\\u00a0]{1,8}(?!(?:przodu|tyłu|boku)(?![\\p{L}]))\\p{L}+|był|była|było|byli|jest|są)(?![\\p{L}]))",
+    literals: ["skłon"],
+    fixer: "pl:confusionsSkłon",
+  },
+  {
+    pattern:
+      "(?<target>gówn(?<end>a|ej|ą|y|ego|ym|ych|e))(?=[ \\t\\u00a0]{1,8}(?:księgow\\p{L}*|nagrod\\p{L}*|wygran\\p{L}*|rol\\p{L}*|siedzib\\p{L}*|przyczyn\\p{L}*|ulic\\p{L}*|bohater\\p{L}*|siedzib\\p{L}*|kwatera|kwatery|kwaterze)(?![\\p{L}]))",
+    literals: ["gówn"],
+    fixer: "pl:confusionsGówn",
+  },
+  {
+    pattern:
+      "(?<target>sadow(?<end>y|a|e|ego|ej|ym|ych|ymi))(?=[ \\t\\u00a0]{1,8}(?:wyrok\\p{L}*|proces\\p{L}*|koszt\\p{L}*|postępowani\\p{L}*|spraw\\p{L}*|kurator\\p{L}*|komornik\\p{L}*|biegł\\p{L}*|orzeczeni\\p{L}*|nakaz\\p{L}*|spor\\p{L}*|spór)(?![\\p{L}]))",
+    literals: ["sadow"],
+    fixer: "pl:confusionsSadow",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:koszty|kosztów|kosztami)[ \\t\\u00a0]{1,8})(?<target>sadow(?<end>e|ych|ymi))(?![\\p{L}])",
+    literals: ["sadow"],
+    fixer: "pl:confusionsSadow2",
+  },
+  {
+    pattern:
+      "(?<=\\d{1,2}\\.?[ \\t\\u00a0]{1,8})(?<target>lit(?<end>ego|y))(?=[ \\t\\u00a0]{1,8}\\d|[ \\t\\u00a0]*[.,;]|$)",
+    literals: ["lit"],
+    fixer: "pl:confusionsLit",
+  },
+  {
+    pattern:
+      "(?<=(?:dopiero|już|właśnie|jeszcze|rozpoczęło[ \\t\\u00a0]{1,8}się|zaczęło[ \\t\\u00a0]{1,8}się)[ \\t\\u00a0]{1,8})(?<target>w[ \\t\\u00a0]{1,8}lata)(?=[ \\t\\u00a0]{1,8}(?:\\d0\\.|\\p{L}+dziest\\p{L}+))",
+    literals: ["lata"],
+    fix: "w latach",
+  },
+  {
+    pattern:
+      "(?<target>takt(?<end>uje|ują|ujesz|ował|owała|owali|ować))(?=[ \\t\\u00a0]{1,8}(?:się[ \\t\\u00a0]{1,8})?(?:mi|ci|mu|jej|nam|wam|im|go|ją|je|ich|nas|was|mnie|cię|ciebie)[ \\t\\u00a0]{1,8}jako(?![\\p{L}]))",
+    literals: ["takt"],
+    fixer: "pl:confusionsTakt",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed|ode|beze|przeze|dla|daj|dajcie|dał|dała|dali|dać)[ \\t\\u00a0]{1,8})(?<target>mnie)(?=[ \\t\\u00a0]{1,8}więcej[ \\t\\u00a0]{1,8}(?:\\d|pół|co|tyle|tak|jak|w|o|od|do|na|przez|tydzień|godzinę|rok|miesiąc|dwa|dwie|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|sto|tysiąc|połowa|połowę|połowie|tak)(?![\\p{L}]))",
+    literals: ["mnie"],
+    fix: "mniej",
+  },
+  {
+    pattern:
+      "(?<=coraz[ \\t\\u00a0]{1,8})(?<target>mnie)(?![ \\t\\u00a0]{1,8}(?:mniej|więcej)(?![\\p{L}]))(?=[ \\t\\u00a0]{1,8}\\p{L})",
+    literals: ["mnie"],
+    fix: "mniej",
+  },
+  {
+    pattern:
+      "(?<target>rzecz)(?=[ \\t\\u00a0]{1,8}można(?:[ \\t\\u00a0]{1,8}by)?[ \\t\\u00a0]*(?:,|[ \\t\\u00a0]{1,8}że(?![\\p{L}])))",
+    literals: ["rzecz"],
+    fix: "rzec",
+  },
+  {
+    pattern:
+      "(?<=(?:można|trzeba|by[ \\t\\u00a0]{1,8}tak|tak)[ \\t\\u00a0]{1,8}(?:by[ \\t\\u00a0]{1,8})?)(?<target>rzecz)(?=[ \\t\\u00a0]*(?:[,–—-]|$)|[ \\t\\u00a0]{1,8}że(?![\\p{L}]))",
+    literals: ["rzecz"],
+    fix: "rzec",
+  },
+  {
+    pattern:
+      '(?:(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))|(?<=,[ \\t\\u00a0]{1,8}))(?<target>w[ \\t\\u00a0]{1,8}zależność)(?=[ \\t\\u00a0]{1,8}od(?![\\p{L}]))',
+    literals: ["zależność"],
+    fix: "w zależności",
+  },
+  {
+    pattern:
+      "(?<=(?<![\\p{L}])zarówno[ \\t\\u00a0]{1,8}[^,.;:!?\\n]{1,80},[ \\t\\u00a0]{1,8})(?<target>jak)(?=[ \\t\\u00a0]{1,8}(?!(?:i|też|również|także|wiadomo|widać|sądzę|myślę|się|już|mówiono|wspomniano|wiesz|wiecie)(?![\\p{L}]))\\p{L})",
+    literals: ["jak"],
+    fix: "jak i",
+  },
+  {
+    pattern:
+      "(?<=(?<![\\p{L}])(?:do|dla|od|u|bez|koło|obok|wokół|według|zamiast|oprócz|prócz|na|przez|o|za)[ \\t\\u00a0]{1,8})(?<target>cię|go|mi)(?![\\p{L}])",
+    literals: [],
+    fixer: "pl:confusionsCię",
+  },
+  {
+    pattern:
+      "(?<=(?<![\\p{L}])(?:ku|przeciw|przeciwko|wbrew)[ \\t\\u00a0]{1,8})(?<target>mi|ci|mu)(?![\\p{L}])",
+    literals: [],
+    fixer: "pl:confusionsMi2",
+  },
+  {
+    pattern:
+      "(?=\\p{L})(?<=(?<![\\p{L}])zarówno(?:[ \\t\\u00a0]{1,8}\\p{L}+){0,2}[ \\t\\u00a0]{1,8})(?!jak[ \\t\\u00a0]{1,8})(?<target>(?<word>\\p{L}+)[ \\t\\u00a0]{1,8}i)(?=[ \\t\\u00a0]{1,8}\\p{L})(?![^.!?;\\n]*(?<![\\p{L}])jak(?![\\p{L}]))",
+    literals: [],
+    fixer: "pl:confusionsWord2",
+    verbatim: true,
+  },
+  {
+    pattern:
+      "(?<![\\p{L}])(?<target>czym)(?=[ \\t\\u00a0]{1,8}(?:\\p{L}+(?:szy|sza|sze|si|szego|szej|szych|iej)|więcej|mniej|bardziej|lepiej|gorzej|dłużej|krócej|szybciej|wyżej|niżej|dalej|bliżej)(?![\\p{L}])[^.!?;\\n]{0,80},[ \\t\\u00a0]{1,8}tym(?![\\p{L}]))",
+    literals: ["czym"],
+    fix: "im",
+  },
+  {
+    pattern:
+      "(?<=(?<![\\p{L}])im[ \\t\\u00a0]{1,8}(?:\\p{L}+(?:szy|sza|sze|si|szego|szej|szych|iej)|więcej|mniej|bardziej|lepiej|gorzej|dłużej|krócej|szybciej|wyżej|niżej|dalej|bliżej)(?![\\p{L}])[^.!?;\\n]{0,80},[ \\t\\u00a0]{1,8})(?<target>o[ \\t\\u00a0]{1,8}tyle)(?![\\p{L}])",
+    literals: ["tyle"],
+    fix: "tym",
+  },
+  {
+    pattern:
+      "(?<target>opatrz(?:yć|ył\\p{L}{0,4}|yli|yły|ę|y|ymy|ycie|ą|ony|ona|one|eni|ono|ywać|ywał\\p{L}{0,4}|uje|ują))(?=[ \\t\\u00a0]{1,8}w[ \\t\\u00a0]{1,8}(?:\\p{L}+[ \\t\\u00a0]{1,8})?(?<noun>\\p{L}{3,})(?![\\p{L}]))",
+    literals: ["opatrz"],
+    fixer: "pl:confusionsOpatrz",
+  },
+  {
+    pattern:
+      "(?<=(?:wiele|kilka|kilku|kilkanaście|kilkunastu|kilkadziesiąt|dużo|mało|sporo|parę|pięć|sześć|siedem|osiem|dziewięć|dziesięć|liczba|liczby|liczbę|seria|serii|serię|setki|tysiące|wszystkich|ostatnich|kolejnych|rozegranych|wygranych|przegranych|domowych|wyjazdowych)[ \\t\\u00a0]{1,8})(?<target>meczy)(?![\\p{L}])",
+    literals: ["meczy"],
+    fix: "meczów",
+  },
+  {
+    pattern: "(?<=(?:w|we|o|po|przy)[ \\t\\u00a0]{1,8})(?<target>Zakopanym)(?![\\p{L}])",
+    literals: ["zakopanym"],
+    fix: "Zakopanem",
+    verbatim: true,
+  },
+  {
+    pattern:
+      "(?<=(?<![\\p{L}])proszę[ \\t\\u00a0]{1,8})(?<target>panią)(?=[ \\t\\u00a0]*(?:[,.!?…—–]|$))",
+    literals: ["panią"],
+    fix: "pani",
+  },
+  {
+    pattern:
+      "(?<=(?<![\\p{L}])ani[ \\t\\u00a0]{1,8})(?<target>raz)(?=[ \\t\\u00a0]{1,8}nie(?![\\p{L}]))",
+    literals: ["raz"],
+    fix: "razu",
+  },
+  {
+    pattern:
+      "(?<=(?<![\\p{L}])w[ \\t\\u00a0]{1,8}szeregu[ \\t\\u00a0]{1,8})(?<target>\\p{L}+ach)(?![\\p{L}])",
+    literals: ["ach"],
+    fixer: "pl:confusionsP",
+  },
+  {
+    pattern:
+      "(?<target>dwutysięczn(?:y|ego|ym|emu|a|ej|ą|e)[ \\t\\u00a0]{1,8}(?<last>(?:pierwsz|drug|trzec|czwart|piąt|szóst|siódm|ósm|dziewiąt|dziesiąt)\\p{L}*))(?![\\p{L}])",
+    literals: ["dwutysięczn"],
+    fixer: "pl:confusionsDwutysięczn",
+  },
+  {
+    pattern:
+      '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>(?<stem>Możliw|Prawdopodobn|Konieczn|Wskazan|Niezbędn|Oczywist|Wiadom|Zrozumiał|Pewn|Jasn)ym)(?=[ \\t\\u00a0]{1,8}(?:jest|było|będzie)(?![\\p{L}]))',
+    literals: [
+      "możliw",
+      "prawdopodobn",
+      "konieczn",
+      "wskazan",
+      "niezbędn",
+      "oczywist",
+      "wiadom",
+      "zrozumiał",
+      "pewn",
+      "jasn",
+    ],
+    fixer: "pl:confusionsStem2",
+  },
+  {
+    pattern:
+      "(?<=(?<![\\p{L}])(?:na[ \\t\\u00a0]{1,8}początku|w[ \\t\\u00a0]{1,8}połowie|pod[ \\t\\u00a0]{1,8}koniec|u[ \\t\\u00a0]{1,8}schyłku|u[ \\t\\u00a0]{1,8}zarania|w[ \\t\\u00a0]{1,8}pierwszej[ \\t\\u00a0]{1,8}połowie|w[ \\t\\u00a0]{1,8}drugiej[ \\t\\u00a0]{1,8}połowie)[ \\t\\u00a0]{1,8})(?<target>[IVX]{1,5})(?![\\p{L}\\p{N}])(?![ \\t\\u00a0]*(?:[–—-]|w\\.|wiek|stuleci|tysiącleci|i[ \\t\\u00a0]{1,8}[IVX]|lub|albo|,[ \\t\\u00a0]{1,8}[IVX]))",
+    literals: [],
+    fixer: "pl:confusionsIvx",
+    verbatim: true,
+  },
+  {
+    pattern:
+      "(?<=(?<![\\p{L}])(?:dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|\\p{L}+naście|\\p{L}+dzieścia?|\\p{L}+dziesiąt|sto|kilka|kilkanaście|kilkadziesiąt|pół)[ \\t\\u00a0]{1,8})(?<target>%)",
+    literals: [],
+    fix: "procent",
+  },
+  {
+    pattern: "(?<![\\p{L}])(?<target>hyper(?<rest>\\p{L}{4,}))(?![\\p{L}])",
+    literals: ["hyper"],
+    fixer: "pl:confusionsHyper",
+  },
+  {
+    pattern: "(?<=\\p{N}[ \\t\\u00a0]{1,8})(?<target>tyś\\.?)(?![\\p{L}])",
+    literals: ["tyś"],
+    fix: "tys.",
+    verbatim: true,
+  },
+  {
+    pattern: "(?<![\\p{L}\\p{N}/.])(?<target>(?<word>d/s|w/w|w/g)\\.?)(?![\\p{L}\\p{N}/])",
+    literals: [],
+    fixer: "pl:confusionsWord3",
+  },
+  {
+    pattern:
+      "(?<=(?<![\\p{L}])ile(?:[ \\t\\u00a0]{1,8}\\p{L}+){0,2}[ \\t\\u00a0]{1,8})(?<target>warzy|warzą)(?![\\p{L}])",
+    literals: ["warzy", "warzą"],
+    fixer: "pl:confusionsWarzy",
+  },
+  {
+    pattern:
+      "(?<target>warzy|warzą)(?=[ \\t\\u00a0]{1,8}(?:\\d|około|ok\\.|ponad|prawie|niecałe|niemal|tylko|zaledwie|aż)(?![\\p{L}]))",
+    literals: ["warzy", "warzą"],
+    fixer: "pl:confusionsWarzy2",
+  },
+  {
+    pattern: "(?<=(?<![\\p{L}])(?<verb>\\p{L}+)[ \\t\\u00a0]{1,8})(?<target>zagranicą)(?![\\p{L}])",
+    literals: ["zagranicą"],
+    fixer: "pl:confusionsZagranicą",
+  },
+  {
+    pattern:
+      "(?<=(?<![\\p{L}])(?:zmianie|zmianom|ochronie|karze|opodatkowaniu|kontroli|regulacji|przepisom|ustawie)[ \\t\\u00a0]{1,8})(?<target>podleją)(?![\\p{L}])",
+    literals: ["podleją"],
+    fix: "podlegają",
+  },
+  {
+    pattern:
+      "(?<target>podleją)(?=[ \\t\\u00a0]{1,8}(?:zmianie|zmianom|ochronie|karze|opodatkowaniu|kontroli|regulacji|przepisom|ustawie)(?![\\p{L}]))",
+    literals: ["podleją"],
+    fix: "podlegają",
+  },
+  {
+    pattern:
+      "(?<target>leża)(?=[ \\t\\u00a0]{1,8}(?:w|we|na|nad|pod|przy|obok|blisko|niedaleko)(?![\\p{L}]))",
+    literals: ["leża"],
+    fix: "leżą",
+  },
+  {
+    pattern: "(?<target>od[ \\t\\u00a0]{1,8}tak)(?=[ \\t\\u00a0]*(?:[.,!?…;]|$))",
+    literals: ["tak"],
+    fix: "ot tak",
+  },
+  {
+    pattern:
+      "(?<target>naważ\\p{L}*)(?=(?:[ \\t\\u00a0]{1,8}\\p{L}+){0,4}[ \\t\\u00a0]{1,8}piw\\p{L}*(?![\\p{L}]))",
+    literals: ["naważ"],
+    fixer: "pl:confusionsNaważ",
+  },
+  {
+    pattern:
+      "(?<=piw\\p{L}*(?:,?[ \\t\\u00a0]{1,8}\\p{L}+){0,3}[ \\t\\u00a0]{1,8})(?<target>naważ\\p{L}*)",
+    literals: ["naważ"],
+    fixer: "pl:confusionsNaważ2",
+  },
+  {
+    pattern:
+      "(?<target>cześć)(?=[ \\t\\u00a0]{1,8}(?:pierwsz|drug|trzeci|czwart|piąt|szóst|końcow)\\p{L}{0,3}(?![\\p{L}])|[ \\t\\u00a0]{1,8}(?<numeral>[IVX]{1,4})(?![\\p{L}]))",
+    literals: ["cześć"],
+    fixer: "pl:confusionsCześć",
+  },
+  {
+    pattern: "(?<target>jednaj)(?=[ \\t\\u00a0]{1,8}(?:z|ze|\\p{L}+(?:i|y|ej))(?![\\p{L}]))",
+    literals: ["jednaj"],
+    fix: "jednej",
+  },
+  {
+    pattern: "(?<target>anie)(?=[ \\t\\u00a0]{1,8}\\p{L})",
+    literals: ["anie"],
+    fix: "a nie",
+    lowercase: true,
+  },
+  {
+    pattern:
+      "(?<=(?:jecha\\p{L}*|jadę|jedzie\\p{L}*|jadą|lecie\\p{L}*|leci\\p{L}*|lecę|wyjecha\\p{L}*|wyjeżdża\\p{L}*|wyjedzie\\p{L}*|przyjecha\\p{L}*|pojecha\\p{L}*|pojedzie\\p{L}*|polecia\\p{L}*|poleci\\p{L}*|wylecia\\p{L}*|wybra\\p{L}*[ \\t\\u00a0]{1,8}się|wybiera\\p{L}*[ \\t\\u00a0]{1,8}się|podróż\\p{L}*|wycieczk\\p{L}*|wyjazd\\p{L}*|emigrowa\\p{L}*|wyemigrowa\\p{L}*|uciek\\p{L}*|uciec|wróci\\p{L}*|wraca\\p{L}*)[ \\t\\u00a0]{1,8})(?<target>do[ \\t\\u00a0]{1,8}(?<place>węgier|białorusi|syberii|moraw|antarktydy|kubę|kuby|malty|islandii|sycylii|sardynii|korsyki|krymu|kaszub|mazur|podhala|śląska|wołoszczyzny|filipin|madagaskaru|hawaje|hawajów))(?![\\p{L}])",
+    literals: [
+      "węgier",
+      "białorusi",
+      "syberii",
+      "moraw",
+      "antarktydy",
+      "kubę",
+      "kuby",
+      "malty",
+      "islandii",
+      "sycylii",
+      "sardynii",
+      "korsyki",
+      "krymu",
+      "kaszub",
+      "mazur",
+      "podhala",
+      "śląska",
+      "wołoszczyzny",
+      "filipin",
+      "madagaskaru",
+      "hawaje",
+      "hawajów",
+    ],
+    fixer: "pl:formsDo",
+    message: "review_msg_contextual_grammar",
+  },
+  {
+    pattern:
+      "(?=\\p{L})(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed|tym|każdym|jednym|nim|kim|czym)[ \\t\\u00a0]{1,8})(?<target>(?<stem>\\p{L}{3,}?)(?<end>ym|im))(?=(?:[ \\t\\u00a0]{1,8}(?:również|także|też|zawsze|zatem|więc))?[ \\t\\u00a0]{1,8}(?:jest|było|byłoby|będzie)(?:[ \\t\\u00a0]{1,8}to)?[ \\t\\u00a0]*,?[ \\t\\u00a0]*(?:że|aby|żeby|by|iż|gdy|jeśli)(?![\\p{L}]))",
+    literals: [],
+    fixer: "pl:formsStem",
+    message: "review_msg_contextual_grammar",
+  },
+  {
+    pattern:
+      "(?=\\p{L})(?<=(?:jest|było|byłoby|będzie)[ \\t\\u00a0]{1,8})(?<target>(?<stem>\\p{L}{3,}?)(?<end>ym|im))(?=[ \\t\\u00a0]*,[ \\t\\u00a0]*(?:aby|żeby|by|że|iż)(?![\\p{L}]))",
+    literals: [],
+    fixer: "pl:formsStem2",
+    message: "review_msg_contextual_grammar",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]{1,8})(?<target>(?<abbr>nr|mln|mld|ha|kg|km|cm|mm)\\.)(?=[ \\t\\u00a0]+(?:\\p{L}|\\d))",
+    literals: [],
+    fixer: "pl:formsAbbr",
+    verbatim: true,
+  },
+  {
+    pattern:
+      "(?<=\\p{N}[ \\t\\u00a0]{1,8})(?<target>(?<abbr>m|g|mg|ml|dag)\\.)(?=[ \\t\\u00a0]+\\p{L})",
+    literals: [],
+    fixer: "pl:formsAbbr2",
+    verbatim: true,
+  },
+  {
+    pattern:
+      "(?<target>(?<abbr>dr|mgr|dyr)\\.)(?=[ \\t\\u00a0]{1,8}(?:hab\\.[ \\t\\u00a0]{1,8})?(?:\\p{L}{2,}[ \\t\\u00a0]{1,8})?\\p{L}+(?:ski|cki|dzki|ska|cka|dzka)(?![\\p{L}]))",
+    literals: [],
+    fixer: "pl:formsAbbr3",
+    verbatim: true,
+  },
+  {
+    pattern:
+      "(?<target>dr|mgr|dyr)(?=[ \\t\\u00a0]{1,8}(?:\\p{L}{2,}[ \\t\\u00a0]{1,8})?\\p{L}+(?:skiego|ckiego|dzkiego|skiemu|ckiemu|dzkiemu|skim|ckim|dzkim|owi)(?![\\p{L}]))",
+    literals: [],
+    fixer: "pl:formsDr",
+    verbatim: true,
+  },
+  {
+    pattern:
+      "(?<![\\p{L}])(?<target>ok)(?=[ \\t\\u00a0]{1,8}(?:\\d|dw|trz|czter|pięć|pięci|sześ|siedem|siedmi|osiem|ośmi|dziewię|dziesię|kilk|pół|stu|sto|tysi))",
+    literals: [],
+    fix: "ok.",
+    verbatim: true,
+  },
+  {
+    pattern:
+      "(?<target>np|tzw|itd|itp|m\\.in|p\\.n\\.e|n\\.e|proc|godz)(?![\\p{L}\\p{N}.])(?=[ \\t\\u00a0,;:)?!]|$)",
+    literals: [],
+    fixer: "pl:formsNp",
+    verbatim: true,
+  },
+  { pattern: "(?<target>ok)(?=[ \\t\\u00a0]+\\d)", literals: [], fix: "ok.", lowercase: true },
+  {
+    pattern:
+      "(?<target>w[ \\t\\u00a0]{1,8}przeciągu|na[ \\t\\u00a0]{1,8}przestrzeni|przez[ \\t\\u00a0]{1,8}przeciąg)(?=[ \\t\\u00a0]{1,8}(?:\\d+|dwóch|dwu|trzech|czterech|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|\\p{L}{2,9}(?:nastu|dziestu|dziesięciu)|stu|kilku|paru|wielu)[ \\t\\u00a0]{1,8}(?:lat|roku|miesięcy|miesiąca|tygodni|tygodnia|dni|dnia|dób|doby|godzin|godziny|minut|minuty|sekund|wieków|wieku|stuleci|dekad|kwartałów|sezonów)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["przeciągu", "przestrzeni", "przeciąg"],
+    fix: "w ciągu",
+  },
+  {
+    pattern:
+      "(?<target>odnośnie)(?=[ \\t\\u00a0]{1,8}(?!do(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))\\p{L})",
+    literals: ["odnośnie"],
+    fix: "odnośnie do",
+  },
+  {
+    pattern:
+      "(?<target>tak[ \\t\\u00a0]{1,8}długo)(?=(?:[ \\t\\u00a0]{1,8}[^\\s,.!?;:]{1,20}){0,4},?[ \\t\\u00a0]{1,8}dopóki(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["długo"],
+    fix: "dopóty",
+  },
+  {
+    pattern:
+      "(?<=(?<!się)(?:^|[^\\p{L}])(?:tam|(?:w|na)[ \\t\\u00a0]{1,8}\\p{L}{2,20})[ \\t\\u00a0]{1,8})(?<target>pisało)(?=,?[ \\t\\u00a0]{1,8}że(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["pisało"],
+    fix: "było napisane",
+  },
+  {
+    pattern:
+      "(?<target>ale)(?<=(?:^|[^\\p{L}])nie[ \\t\\u00a0]{1,8}tyle(?![ \\t\\u00a0]{1,8}co(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?:[ \\t\\u00a0]{1,8}[^\\s,.!?;:]{1,20}){1,6},[ \\t\\u00a0]{1,8}ale)(?=[ \\t\\u00a0]{1,8}\\p{L})",
+    literals: ["ale"],
+    fix: "ile",
+  },
+  {
+    pattern:
+      "(?<target>jak[ \\t\\u00a0]{1,8}również)(?<=zarówno(?:[ \\t\\u00a0]{1,8}[^\\s.!?;:]{1,20}){1,6}[ \\t\\u00a0]{1,8}jak[ \\t\\u00a0]{1,8}również)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["również"],
+    fix: "jak i",
+  },
+  {
+    pattern:
+      "(?<target>pod[ \\t\\u00a0]{1,8}tym(?:[ \\t\\u00a0]{1,8}(?:pojęciem|terminem|słowem|określeniem|hasłem))?)(?<=rozumi\\p{L}{0,6}(?:[ \\t\\u00a0]{1,8}\\p{L}{2,12}){0,2}[ \\t\\u00a0]{1,8}pod[ \\t\\u00a0]{1,8}tym(?:[ \\t\\u00a0]{1,8}\\p{L}{5,11})?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["pod"],
+    fixer: "pl:stylePod",
+  },
+  {
+    pattern:
+      "(?<target>(?:kliknij|kliknijcie|kliknąć|kliknął|kliknęła|kliknęli|kliknę|kliknie|klikamy|klikać|klika|klikasz|klikam|klikając)[ \\t\\u00a0]{1,8}na)(?=[ \\t\\u00a0]{1,8}(?:link|linki|przycisk|ikonę|ikonkę|odnośnik|baner|zdjęcie|obrazek|opcję|strzałkę|zakładkę|napis|krzyżyk|logo|plik|folder)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [
+      "kliknij",
+      "kliknijcie",
+      "kliknąć",
+      "kliknął",
+      "kliknęła",
+      "kliknęli",
+      "kliknę",
+      "kliknie",
+      "klikamy",
+      "klikać",
+      "klika",
+      "klikasz",
+      "klikam",
+      "klikając",
+    ],
+    fixer: "pl:styleKliknij",
+  },
+  {
+    pattern:
+      "(?<target>wiodąc(?<end>y|a|e|ego|ej|emu|ą|ym|ych|ymi))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!(?:[ \\t\\u00a0]{1,8}\\p{L}+)?[ \\t\\u00a0]{1,8}(?:do|ku|przez|poprzez|na|w|we|z|ze|od|wzdłuż|pod|nad|między|pomiędzy|obok|koło|prym|żywot\\p{L}*|życie|rej|tędy|dokąd|donikąd)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["wiodąc"],
+    fixer: "pl:officialeseWiodąc",
+  },
+  {
+    pattern:
+      "(?=destynacj)(?<!(?:^|[^\\p{L}])(?:\\p{L}{1,20}(?:a|ą|ej)|ta|tę|tą|tej)[ \\t\\u00a0]{1,8})(?<target>destynacj(?<end>a|ę|ą|i|e|om|ami|ach))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["destynacj"],
+    fixer: "pl:officialeseDestynacj",
+  },
+  {
+    pattern:
+      "(?=w[ \\t\\u00a0]{1,8}terminach)(?<=(?:^|[^\\p{L}])(?:interpret|opis|ujm|ujmow|ujęt|ujął|ujęł|wyraż|wyraz|myśl|mów|rozumi|tłumacz|wyjaśni|analiz|definiow|zdefini|postrzeg|ocen|rozważ)\\p{L}{0,8}(?:[ \\t\\u00a0]{1,8}\\p{L}{1,20}){0,3}[ \\t\\u00a0]{1,8})(?<target>w[ \\t\\u00a0]{1,8}terminach)(?=[ \\t\\u00a0]{1,8}\\p{L})",
+    literals: ["terminach"],
+    fix: "w kategoriach",
+  },
+  {
+    pattern:
+      "(?<target>(?<noun>genez(?:a|y|ie|ę|ą))[ \\t\\u00a0]{1,8}(?<tail>powstania))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["powstania"],
+    fixer: "pl:officialeseNoun",
+  },
+  {
+    pattern:
+      "(?<target>na[ \\t\\u00a0]{1,8}odcinku)(?=[ \\t\\u00a0]{1,8}(?:kultury|gospodarki|oświaty|edukacji|szkolnictwa|nauki|rolnictwa|przemysłu|handlu|usług|zdrowia|opieki|wychowania|rozwoju|współpracy|polityki|propagandy|produkcji|budownictwa|transportu|sportu|turystyki|bezpieczeństwa|zatrudnienia|pracy)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["odcinku"],
+    fix: ["w dziedzinie", "w zakresie"],
+  },
+  {
+    pattern: "(?<target>na[ \\t\\u00a0]{1,8}okoliczność)(?=[ \\t\\u00a0]{1,8}\\p{L})",
+    literals: ["okoliczność"],
+    fix: ["w sprawie", "z okazji"],
+  },
+  {
+    pattern:
+      "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>generalnie)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["generalnie"],
+    fix: ["ogólnie", "zasadniczo"],
+  },
+  {
+    pattern:
+      '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>dokładnie(?<so>[ \\t\\u00a0]{1,8}tak)?)(?=[ \\t\\u00a0]{0,8}[!.](?![.]))',
+    literals: ["dokładnie"],
+    fixer: "pl:officialeseDokładnie",
+  },
+  { pattern: "(?<target>i/lub|lub/i)(?![\\p{L}\\p{N}_/.-])", literals: ["lub", "lub"], fix: "lub" },
+  {
+    pattern:
+      "cof\\p{L}{0,6}[ \\t\\u00a0]{1,8}się(?:[ \\t\\u00a0]{1,8}\\p{L}{1,12}){1,2}(?<target>[ \\t\\u00a0]{1,8}(?:wstecz|do[ \\t\\u00a0]{1,8}tyłu|w[ \\t\\u00a0]{1,8}tył))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["cof"],
+    fix: "",
+  },
+  {
+    pattern:
+      "(?<target>prze[ \\t\\u00a0]{1,8}(?<word>\\p{L}{3,}))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["prze"],
+    fixer: "pl:typosPrze",
+  },
+  {
+    pattern:
+      "(?<target>prze[ \\t\\u00a0]{1,8}ze)(?=[ \\t\\u00a0]{1,8}mnie(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["prze"],
+    fix: "przeze",
+  },
+  {
+    pattern:
+      "(?=drużk)(?<=(?:^|[^\\p{L}])(?:wzdłuż|poln|leśn|wąsk|błotnist|kamienist|kręt|piaszczyst|wydeptan|górsk)\\p{L}{0,3}[ \\t\\u00a0]{1,8})(?<target>drużk(?<end>a|i|ę|ą|ce|ami|om|ach))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["drużk"],
+    fixer: "pl:typosDrużk",
+  },
+  {
+    pattern:
+      "(?=wierz)(?<=(?:^|[^\\p{L}])(?:dwóch|dwu|trzech|czterech|pięciu|sześciu|kilku|kilkunastu|kilkudziesięciu|wielu|paru|oprócz|spośród|wśród)[ \\t\\u00a0]{1,8})(?<target>wierz)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["wierz"],
+    fix: "wież",
+  },
+  {
+    pattern:
+      "(?=podług)(?<=(?:^|[^\\p{L}])(?:do|dla|kilku|wielu|dwóch|trzech|czterech|pięciu)[ \\t\\u00a0]{1,8})(?<target>podług)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["podług"],
+    fix: "podłóg",
+  },
+  {
+    pattern:
+      "(?=nisz)(?<=(?:^|[^\\p{L}])(?:\\p{L}{2,16}ej|\\p{L}{1,14}sz[yae])[ \\t\\u00a0]{1,8})(?<target>nisz)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["nisz"],
+    fix: "niż",
+  },
+  {
+    pattern:
+      "(?<target>skłamy?)(?=(?:[ \\t\\u00a0]{1,8}\\p{L}{3,20}(?:e|ie)){1,2}[ \\t\\u00a0]{1,8}życzenia(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["skłam"],
+    fixer: "pl:typosSkłamy",
+  },
+  {
+    pattern:
+      "(?<target>potworem)(?<=(?:^|[^\\p{L}])(?:tam|tu|do[ \\t\\u00a0]{1,8}\\p{L}{2,20}(?:[ \\t\\u00a0]{1,8}\\p{L}{2,20})?)[ \\t\\u00a0]{1,8}i[ \\t\\u00a0]{1,8}z[ \\t\\u00a0]{1,8}potworem)(?=[ \\t\\u00a0]*(?:[.!?,;]|$))",
+    literals: ["potworem"],
+    fix: "powrotem",
+  },
+  {
+    pattern:
+      "(?<target>podleją|podleje)(?=[ \\t\\u00a0]{1,8}(?:ocenie|kontroli|opodatkowaniu|zmianie|zmianom|karze|regulacji|ochronie|przepisom|ustawie|weryfikacji|likwidacji|wymianie)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:^|[^\\p{L}])(?:temu|czemu)[ \\t\\u00a0]{1,8})(?<target>podleją|podleje)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["podleją", "podleje", "podleją", "podleje"],
+    fixer: "pl:typosPodleją",
+  },
+  {
+    pattern:
+      "(?<target>noc)(?=[ \\t\\u00a0]{1,8}wspólnego(?:[ \\t\\u00a0]{1,8}z(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]*[.!?,;]))",
+    literals: ["noc"],
+    fix: "nic",
+  },
+  {
+    pattern:
+      "(?<target>szklani)(?=[ \\t\\u00a0]{1,8}(?:wody|wrzątku|mleka|soku|herbaty|cukru|mąki|wina|piwa|kawy|kefiru|śmietany|oleju|ryżu|kaszy)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["szklani"],
+    fix: "szklanki",
+  },
+  {
+    pattern:
+      "(?<target>bardzie)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[^\\p{L}])(?:im|a|coraz|jeszcze|dużo|znacznie|nieco|trochę|wiele|zdecydowanie)[ \\t\\u00a0]{1,8}bardzie)|(?=[ \\t\\u00a0]{1,8}(?:\\p{L}{3,20}(?:nie|wo|ko)|niż)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["bardzie"],
+    fix: "bardziej",
+  },
+  {
+    pattern:
+      "(?<target>stup)(?=[ \\t\\u00a0]{1,8}(?:góry|gór|wzgórza|zapory|schodów|łóżka|ołtarza|tronu|pomnika|zamku)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["stup"],
+    fix: "stóp",
+  },
+  {
+    pattern:
+      "(?<target>lepie|wyże|niże|gorze|bliże|częście|szybcie|dłuże)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<=(?:^|[^\\p{L}])(?:coraz|jeszcze|znacznie|dużo|nieco|trochę|zdecydowanie|wiele|daleko)[ \\t\\u00a0]{1,8}\\p{L}{4,7})",
+    literals: ["lepie", "wyże", "niże", "gorze", "bliże", "częście", "szybcie", "dłuże"],
+    fixer: "pl:typosLepie",
+  },
+  {
+    pattern:
+      "(?<target>\\p{L}{2,20}nej)(?=[ \\t\\u00a0]*(?:[.!?,;]|$))(?<=(?:^|[^\\p{L}])coraz[ \\t\\u00a0]{1,8}\\p{L}{5,23})",
+    literals: ["nej"],
+    fixer: "pl:typosP",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:w|jej|jego|ich|tego|tym|swoim|owym)[ \\t\\u00a0]{1,8})(?<target>przededniu)(?=[ \\t\\u00a0]{1,8}(?:\\p{L}{1,20}(?:ów|ych|ich|ego|ej|y|i|a|u)|świąt)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["przededniu"],
+    fix: "w przededniu",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:na|o|w|przy|po|ku|się|tej|jej|tylko|samej|solidnej|mocnej)[ \\t\\u00a0]{1,8})(?<target>podstawie)(?=[ \\t\\u00a0]{1,8}(?:danych|informacji|umowy|ustawy|art|artykułu|przepisów|wyników|badań|analizy|decyzji|dokumentów|faktury|wniosku|opinii|zaświadczenia|orzeczenia|uchwały|porozumienia)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["podstawie"],
+    fix: "na podstawie",
+  },
+  {
+    pattern:
+      "(?<target>niebyt)(?=[ \\t\\u00a0]{1,8}(?:dobrze|dobry|dobra|dobre|dużo|duży|duża|duże|wiele|często|długo|chętnie|mądrze|mądry|ładnie|jasno|jasne|pewnie|pewny|daleko|blisko|szybko|wysoko|wysoki|zadowolony|zadowolona|zadowoleni|zdrowy|zdrowo|udany|udana|udane|miło|miły|wygodnie|wygodny|łatwo|łatwy|łatwe|trudny|trudno|ciekawy|ciekawe|ciekawie)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["niebyt"],
+    fix: "niezbyt",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:Nagroda|Nagrodę|Nagrody|Nagrodą|Komenda|Komendy|Komendzie|Komendę|Biblioteka|Biblioteki|Bibliotece|Księgowa|Księgowej|Kwatera|Kwatery|Rada|Rady|Radzie|Poczta|Poczty|Poczcie|Dworzec|Dworca|Dworcu|Urząd|Urzędu|Urzędzie|Inspektorat|Inspektoratu|Sztab|Sztabu|Rynek|Rynku)[ \\t\\u00a0]{1,8})(?<target>Gówn(?:a|ej|ą|ę|y|ego|ym|emu))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["gówn"],
+    fixer: "pl:typosGówn",
+    verbatim: true,
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:w|we)[ \\t\\u00a0]{1,8})(?<target>ogóle)(?=[ \\t\\u00a0]{1,8}(?:informacje|zasady|warunki|przepisy|uwagi|wiadomości|pojęcia|wytyczne|założenia|dane|kryteria|cechy|wymagania|postanowienia)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["ogóle"],
+    fix: "ogólne",
+  },
+  {
+    pattern:
+      "(?<target>jena)(?=[ \\t\\u00a0]{1,8}(?:rzecz|osoba|sprawa|strona|część|kobieta|noc|chwila|godzina|minuta|książka|odpowiedź|myśl|droga|szansa|z)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["jena"],
+    fixer: "pl:typosJena",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:o|tej|każdej|dowolnej|późnej|wczesnej|nocnej|samej|innej|jakiej)[ \\t\\u00a0]{1,8})(?<target>potrze)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["potrze"],
+    fix: "porze",
+  },
+  {
+    pattern:
+      "(?<target>litrówk\\p{L}{0,3})(?<=(?:^|[^\\p{L}])popełni\\p{L}{0,6}[ \\t\\u00a0]{1,8}(?:\\p{L}{2,12}[ \\t\\u00a0]{1,8})?litrówk\\p{L}{0,3})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["litrówk"],
+    fixer: "pl:typosLitrówk",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:nie|się)[ \\t\\u00a0]{1,8})(?<target>boja)(?=[ \\t\\u00a0]{1,8}się(?:[ \\t\\u00a0]{1,8}(?:o|że|tego|go|jej|ich|mnie|ciebie|was|nas|ją|ludzi)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|,[ \\t\\u00a0]{1,8}że(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
+    literals: ["boja"],
+    fix: ["boję", "boją"],
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:nie|oni|one|ludzie|wszyscy|dzieci|którzy|które)[ \\t\\u00a0]{1,8})(?<target>lubą)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["lubą"],
+    fix: "lubią",
+  },
+  {
+    pattern:
+      "(?<target>żłóbk(?:a|u|iem|i|ach|ów))(?=[ \\t\\u00a0]{1,8}(?:przyzakładow|miejsk|publiczn|prywatn|gminn|integracyjn|państwow)\\p{L}{1,4}(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["żłóbk"],
+    fixer: "pl:typosŻłóbk",
+  },
+  {
+    pattern:
+      "(?<target>żłobk(?:a|u|iem|ach))(?=[ \\t\\u00a0]{1,8}betlejemsk\\p{L}{1,4}(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["żłobk"],
+    fixer: "pl:typosŻłobk",
+  },
+  {
+    pattern:
+      "(?<target>wzorku)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<=(?:^|[^\\p{L}])(?:zmysł\\p{L}{0,3}|narząd\\p{L}{0,3}|ostrość|ostrości|utrat\\p{L}{1,2}|zaburzeni\\p{L}{1,3}|badani\\p{L}{1,3}|kontakt\\p{L}{0,3})[ \\t\\u00a0]{1,8}wzorku)",
+    literals: ["wzorku"],
+    fix: "wzroku",
+  },
+  {
+    pattern:
+      "(?<target>przestawi(?:ono|ł|ła|li|ć|a|ają|any|ane|one))(?=(?:[ \\t\\u00a0]{1,8}\\p{L}{2,15}){0,2}[ \\t\\u00a0]{1,8}zarzut\\p{L}{0,3}(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<target>przestawi(?:ono|ł|ła|li))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<=(?:^|[^\\p{L}])zarzut\\p{L}{0,3}(?:[ \\t\\u00a0]{1,8}\\p{L}{2,15})?[ \\t\\u00a0]{1,8}przestawi\\p{L}{1,3})",
+    literals: ["przestawi", "przestawi"],
+    fixer: "pl:typosPrzestawi",
+  },
+  {
+    pattern:
+      "(?<target>si)(?=[ \\t\\u00a0]{1,8}(?!(?:bemol|dur|moll|krzyżyk)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))\\p{L}|[ \\t\\u00a0]*[.,!?;])(?<=(?:^|[^\\p{L}])\\p{L}{2,20}(?:ł|ła|ło|li|ły|ać|ić|yć|eć|ąć)[ \\t\\u00a0]{1,8}si)",
+    literals: [],
+    fix: "się",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:mamy|jest|są|to|był|była|było|byli|ale|bo|czy)[ \\t\\u00a0]{1,8})(?<target>naprawę)(?=[ \\t\\u00a0]{1,8}(?:wiele|dużo|bardzo|mało|super|świetn\\p{L}{1,3}|fajn\\p{L}{1,3}|dobr\\p{L}{1,3}|ciekaw\\p{L}{1,3}|trudn\\p{L}{1,3}|ważn\\p{L}{1,3}|nie)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["naprawę"],
+    fix: "naprawdę",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])w[ \\t\\u00a0]{1,8})(?<target>dal)(?=[ \\t\\u00a0]{1,8}(?:niego|niej|nich|ciebie|siebie|nas|was|mnie|mamy|taty|dzieci)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["dal"],
+    fixer: "pl:typosDal",
+  },
+  {
+    pattern:
+      "(?<target>ścisł(?:e|y|a|ą|ym|ego|ej|i))(?=[ \\t\\u00a0]{1,8}(?:określon|związan|ustalon|zdefiniowan|wyznaczon|ograniczon|przestrzegan|regulowan|kontrolowan|tajn)\\p{L}{1,3}(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["ścisł"],
+    fix: "ściśle",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:rzut\\p{L}{0,3}|róg|rogu|kąt\\p{L}{0,3}|chorągiew\\p{L}{0,3}|chorągiewk\\p{L}{0,3})[ \\t\\u00a0]{1,8})(?<target>rożn(?:ych|ymi|ego|ej|ym))(?=[ \\t\\u00a0]{1,8}(?!rzut)\\p{L})",
+    literals: ["rożn"],
+    fixer: "pl:typosRożn",
+  },
+  {
+    pattern:
+      "(?<target>(?:stał|okazał|wydawał|zdawał)ą)(?=[ \\t\\u00a0]{1,8}się[ \\t\\u00a0]{1,8}\\p{L}{2,20}(?:ą|em|ym|im|ami)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["stał", "okazał", "wydawał", "zdawał"],
+    fixer: "pl:typosStał",
+  },
+  {
+    pattern:
+      "(?<target>alei)(?<=nie[ \\t\\u00a0]{1,8}tylko[^.!?]{1,80},[ \\t\\u00a0]{1,8}alei)(?=[ \\t\\u00a0]{1,8}\\p{L})",
+    literals: ["alei"],
+    fix: "ale i",
+  },
+  {
+    pattern:
+      "(?<target>zwiera(?:ją|ł|ła|ło|ły)?)(?=(?:[ \\t\\u00a0]{1,8}\\p{L}{2,15})?[ \\t\\u00a0]{1,8}(?:informacj\\p{L}{1,3}|dane|danych|treść|treści|tekst|opis|opisy|listę|wykaz|zbiór|instrukcj\\p{L}{1,3}|przepisy|zapisy)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["zwiera"],
+    fixer: "pl:typosZwiera",
+  },
+  {
+    pattern:
+      "(?<target>miął)(?=[ \\t\\u00a0]{1,8}(?:zamiar|ochotę|nadzieję|rację|okazję|czas|problem|pecha|szczęście|być)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["miął"],
+    fix: "miał",
+  },
+  {
+    pattern:
+      "(?<target>nastawi\\p{L}{0,5})(?=(?:[ \\t\\u00a0]{1,8}\\p{L}{2,12}){0,3}[ \\t\\u00a0]{1,8}(?:karku|głowy|ucha|uszu)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["nastawi"],
+    fixer: "pl:typosNastawi",
+  },
+  {
+    pattern:
+      "(?<target>range)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<=\\p{L}{2,20}ą[ \\t\\u00a0]{1,8}range)",
+    literals: ["range"],
+    fixer: "pl:typosRange",
+  },
+  {
+    pattern:
+      "(?<target>znaczą)(?=[ \\t\\u00a0]{1,8}(?:część|ilość|większość|liczbę|kwotę|sumę|poprawę|przewagę)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["znaczą"],
+    fix: "znaczną",
+  },
+  {
+    pattern:
+      "(?<target>oznacz)(?=[ \\t\\u00a0]{1,8}to(?:[ \\t\\u00a0]{1,8}(?:jednak|wcale|jeszcze))?,?[ \\t\\u00a0]{1,8}że(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["oznacz"],
+    fix: "oznacza",
+  },
+  {
+    pattern:
+      "(?<target>zdrowa)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<=(?:^|[^\\p{L}])(?:ministerstw\\p{L}{0,3}|ministr\\p{L}{0,3}|ochron\\p{L}{0,2}|służb\\p{L}{0,2}|poradni\\p{L}{0,2}|ośrod\\p{L}{0,4}|centrum|fundusz\\p{L}{0,2})[ \\t\\u00a0]{1,8}zdrowa)",
+    literals: ["zdrowa"],
+    fix: "zdrowia",
+  },
+  {
+    pattern:
+      "(?<target>postanie)(?=[ \\t\\u00a0]{1,8}(?:warszawski|styczniow|listopadow|wielkopolski|śląski|kościuszkowski)\\p{L}{1,3}(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["postanie"],
+    fix: "powstanie",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])(?:do|od|z|u|dla|bez|przez|na|o|po|za|przy|wśród|między|przed|nad|pod)[ \\t\\u00a0]{1,8})(?<target>niech)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["niech"],
+    fix: "nich",
+  },
+  {
+    pattern:
+      "(?<target>pozawal\\p{L}{1,5})(?=[ \\t\\u00a0]{1,8}(?:sobie|mu|jej|im|nam|wam|mi|ci|na|to[ \\t\\u00a0]{1,8}na)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["pozawal"],
+    fixer: "pl:typosPozawal",
+  },
+  {
+    pattern:
+      "(?<target>stratow\\p{L}{1,5})(?=[ \\t\\u00a0]{1,8}w[ \\t\\u00a0]{1,8}(?:wyborach|igrzyskach|zawodach|konkursie|maratonie|wyścigu|turnieju|mistrzostwach|olimpiadzie|plebiscycie)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["stratow"],
+    fixer: "pl:typosStratow",
+  },
+  {
+    pattern:
+      "(?<target>starty)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<=(?:^|[^\\p{L}])(?:poni\\p{L}{1,5}|ponosi\\p{L}{0,3}|odrabia\\p{L}{0,3}|odrobi\\p{L}{0,3}|wyrówna\\p{L}{0,3})(?:[ \\t\\u00a0]{1,8}\\p{L}{2,15})?[ \\t\\u00a0]{1,8}starty)",
+    literals: ["starty"],
+    fix: "straty",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:z|na|zna)[ \\t\\u00a0]{1,8})(?<target>naprzeciwka|przeciwka)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["naprzeciwka", "przeciwka"],
+    fixer: "pl:typosNaprzeciwka",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:na|w)(?:[ \\t\\u00a0]{1,8}\\p{L}{1,15}){0,2}[ \\t\\u00a0]{1,8})(?<target>czele)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["czele"],
+    fix: "na czele",
+  },
+  {
+    pattern:
+      "(?<target>wespół)(?=[ \\t\\u00a0]{1,8}(?!(?:z|ze|w)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))\\p{L}{0,20}(?:ą|em|iem|ami|mi|ymi|imi|kimś|nim|nią)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["wespół"],
+    fix: "wespół z",
+  },
+  {
+    pattern:
+      "(?<target>wespół[ \\t\\u00a0]{1,8}w)(?=[ \\t\\u00a0]{1,8}\\p{L}{2,20}(?:ami|mi|ymi|imi)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["wespół"],
+    fix: "wespół z",
+  },
+  {
+    pattern: "(?<target>wespół[ \\t\\u00a0]{1,8}zespół)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["wespół"],
+    fix: "wespół w zespół",
+  },
+  {
+    pattern:
+      "(?<=(?:(?:^|[^\\p{L}])(?:a|i|ale|lecz|więc|oraz)|[,;])[ \\t\\u00a0]{1,8})(?<target>związku)(?=[ \\t\\u00a0]{1,8}z[ \\t\\u00a0]{1,8}(?:tym|powyższym|czym)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["związku"],
+    fix: "w związku",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])z[ \\t\\u00a0]{1,8})(?<target>dala)(?=[ \\t\\u00a0]{1,8}(?:mi|ci|mu|jej|nam|wam|im|go|ją|to|sobie)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["dala"],
+    fix: "dała",
+  },
+  {
+    pattern:
+      "(?<target>ogrywa\\p{L}{0,4})(?=(?:[ \\t\\u00a0]{1,8}\\p{L}{2,12}){0,2}[ \\t\\u00a0]{1,8}rol(?:ę|i)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["ogrywa"],
+    fixer: "pl:typosOgrywa",
+  },
+  {
+    pattern:
+      "(?<target>sow(?:im|ich|imi|ej|ą|ego))(?=[ \\t\\u00a0]{1,8}(?:dorobku|książkach|książce|życiu|domu|pokoju|mieszkaniu|pracy|kraju|imieniu|zdaniu|rodzinie|dzieciach|rodzicach)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["sow"],
+    fixer: "pl:typosSow",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])do[ \\t\\u00a0]{1,8})(?<target>\\p{L}{3,20}(?:eni|ani|ęci))(?=[ \\t\\u00a0]*(?:[.!?,;]|$))",
+    literals: ["eni", "ani", "ęci"],
+    fixer: "pl:typosP2",
+  },
+  {
+    pattern:
+      "(?<target>lit(?:y|ego|ym))(?=[ \\t\\u00a0]{1,8}\\d{4}(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: ["lit"],
+    fixer: "pl:typosLit",
+  },
+  {
+    pattern:
+      "(?<target>statystk(?:i|ach|ami|om)?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<=(?:(?:policyjn|oficjaln|najnowsz|rządow|szpitaln|medyczn|demograficzn|krajow|światow|unijn)\\p{L}{1,3}|według)[ \\t\\u00a0]{1,8}statystk\\p{L}{0,3})",
+    literals: ["statystk"],
+    fixer: "pl:typosStatystk",
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])o[ \\t\\u00a0]{1,8})(?<target>ty)(?=,[ \\t\\u00a0]{1,8}(?:że|żeby|aby|by)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+    literals: [],
+    fix: ["to", "tym"],
+  },
+  {
+    pattern:
+      "(?<=(?:^|[^\\p{L}])o[ \\t\\u00a0]{1,8})(?<target>wym)(?![\\p{L}\\p{N}]|\\.[ \\t\\u00a0]*\\p{L})",
+    literals: ["wym"],
+    fix: "owym",
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:w|na)[ \\t\\u00a0]{1,8})(?<target>przedzie)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    literals: ["przedzie"],
+    fix: ["na przodzie", "w przodzie"],
+  },
+  {
+    pattern:
+      '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>W[ \\t\\u00a0]{1,8}lato)(?=[ \\t\\u00a0]{1,8}\\p{L})',
+    literals: ["lato"],
+    fix: ["Latem", "W lecie"],
+    verbatim: true,
+  },
+  {
+    pattern:
+      "(?<!(?:^|[^\\p{L}])(?:nikt|nic|ktoś|coś|kto|co|któż|cóż|nikogo|niczego|nikomu|niczym|nikim)[ \\t\\u00a0]{1,8})(?<target>inn(?:y|a|e|i|ego|ej|emu|ą|ym|ych|ymi)[ \\t\\u00a0]{1,8}jak)(?=[ \\t\\u00a0]{1,8}(?!nie(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))\\p{L})",
+    literals: ["inn"],
+    fixer: "pl:typosInn",
   },
 ];
 

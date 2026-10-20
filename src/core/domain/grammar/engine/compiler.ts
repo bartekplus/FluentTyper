@@ -103,6 +103,8 @@ const FRAME_KEYS = new Set([
   "check",
   "cue",
   "wordStart",
+  "verbatim",
+  "lowercase",
 ]);
 const BUILTIN_FRAGMENTS: Readonly<Record<string, string>> = {
   S: SPACE,
@@ -471,8 +473,12 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           errors.push(`${at}: a template has one "fix" string and no "raw"`);
         if (spec.style !== "template" && entry.clauseStart)
           errors.push(`${at}: "clauseStart" needs style "template"`);
-        if (spec.style !== "slot" && (entry.check !== undefined || entry.cue !== undefined))
-          errors.push(`${at}: "check" and "cue" need style "slot"`);
+        if (spec.style !== "slot" && entry.cue !== undefined)
+          errors.push(`${at}: "cue" needs style "slot"`);
+        if (spec.style !== "slot" && spec.style !== "polish" && entry.check !== undefined)
+          errors.push(`${at}: "check" needs style "slot" or "polish"`);
+        if (spec.style !== "polish" && (entry.verbatim || entry.lowercase))
+          errors.push(`${at}: "verbatim" and "lowercase" need style "polish"`);
         if (entry.check !== undefined && !spec.checks.includes(entry.check))
           errors.push(`${at}: check "${entry.check}" is not a check of the rule`);
         for (const word of entry.cue ?? [])
@@ -498,6 +504,8 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           ...(entry.check === undefined ? {} : { check: entry.check }),
           ...(entry.cue === undefined ? {} : { cue: [...entry.cue] }),
           ...(entry.wordStart === false ? { wordStart: false as const } : {}),
+          ...(entry.verbatim ? { verbatim: true as const } : {}),
+          ...(entry.lowercase ? { lowercase: true as const } : {}),
         });
         return frames.length - 1;
       });
@@ -507,7 +515,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
         ...(lang ? { lang } : {}),
         frames: indexes,
         message: spec.message!,
-        ...(spec.style === "template" || spec.style === "slot" ? { style: spec.style } : {}),
+        ...(spec.style && spec.style !== "frame" ? { style: spec.style } : {}),
         ...(spec.filter === undefined
           ? {}
           : { filter: spec.filter.includes(":") ? spec.filter : `${name}:${spec.filter}` }),

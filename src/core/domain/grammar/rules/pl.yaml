@@ -1,10 +1,463 @@
 # pl grammar rules. See docs/agents/grammar-rules.md for the format.
 lang: pl
 
+# Regex fragments of the frame rules: {{NAME}}.
+fragments:
+  NOT_LETTER: "(?![\\p{L}])"
+  POSSESSIVE: "moja|moją|mojej|twoja|twoją|twojej|jego|jej|ich|nasza|naszą|naszej|wasza|waszą|swoja|swoją|swojej|była|byłą|byłej|przyszła|przyszłą|przyszłej"
+  PRONOUN_OBJECT: "mi|ci|mu|jej|nam|wam|im|go|ją|je|ich|nas|was|mnie|cię|ciebie"
+  COMPARATIVE: "(?:\\p{L}+(?:szy|sza|sze|si|szego|szej|szych|iej)|więcej|mniej|bardziej|lepiej|gorzej|dłużej|krócej|szybciej|wyżej|niżej|dalej|bliżej)"
+  ROUTE: "do|ku|przez|poprzez|na|w|we|z|ze|od|wzdłuż|pod|nad|między|pomiędzy|obok|koło|prym|żywot\\p{L}*|życie|rej|tędy|dokąd|donikąd"
+  DESCRIBE: "interpret|opis|ujm|ujmow|ujęt|ujął|ujęł|wyraż|wyraz|myśl|mów|rozumi|tłumacz|wyjaśni|analiz|definiow|zdefini|postrzeg|ocen|rozważ"
+  FIELDS: "kultury|gospodarki|oświaty|edukacji|szkolnictwa|nauki|rolnictwa|przemysłu|handlu|usług|zdrowia|opieki|wychowania|rozwoju|współpracy|polityki|propagandy|produkcji|budownictwa|transportu|sportu|turystyki|bezpieczeństwa|zatrudnienia|pracy"
+  NUMERALS: "pół|półtora|jeden|jedna|jedno|dwa|dwie|dwóch|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|\\p{L}+naście|\\p{L}+dzieści|\\p{L}+dziesiąt|sto|\\p{L}+set|\\p{L}+sta|tysiąc|tysiące|tysięcy|milion\\p{L}*|miliard\\p{L}*|kilka|kilkanaście|kilkadziesiąt|kilkuset|kilku|kilkunastu|setki|tysiące|połowy|połowie|połowę|stu|dwustu|trzystu|czterystu|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|dwudziestu|trzydziestu|czterdziestu|pięćdziesięciu|stu"
+  TIME_UNIT: "lat|roku|miesięcy|miesiąca|tygodni|tygodnia|dni|dnia|dób|doby|godzin|godziny|minut|minuty|sekund|wieków|wieku|stuleci|dekad|kwartałów|sezonów"
+  NUMERAL: "\\d+|dwóch|dwu|trzech|czterech|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|\\p{L}{2,9}(?:nastu|dziestu|dziesięciu)|stu|kilku|paru|wielu"
+  UI_TARGET: "link|linki|przycisk|ikonę|ikonkę|odnośnik|baner|zdjęcie|obrazek|opcję|strzałkę|zakładkę|napis|krzyżyk|logo|plik|folder"
+  CLAUSE_END: "(?=[ \\t\\u00a0]*(?:[.!?,;]|$))"
+
 rules:
+  - id: pl.compoundsFrames
+    checks: [englishClosedCompounds, englishAlotCorrection]
+    style: polish
+    message: review_msg_closed_compound
+    frames:
+      # "naj" is no word of its own: "naj lepszy", "naj częściej" -> the superlative.
+      - regex: "(?<target>naj{{S}}(?<word>\\p{L}{2,}(?:sz[aeyąi]\\p{L}{0,3}|ej)))(?![\\p{L}])"
+        fixer: compoundsNaj
+      # "niema" (mute, feminine) before a genitive object, or after one at the clause end, is "nie ma".
+      - regex: "(?<target>niema)(?={{S}}(?:pojęcia|czasu|sensu|go|jej|ich|nic|nikogo|niczego|już|tu|tam|potrzeby|mowy|problemu|racji|prawa|wątpliwości|szans|znaczenia|co|kto|gdzie|jak|czego|kogo|nas|was|mnie|ciebie|tego|takiej|takiego|żadnego|żadnej|żadnych|sprawy|szansy|dokąd|kiedy)(?![\\p{L}]))"
+        check: englishAlotCorrection
+        message: review_msg_split_words
+        fix: "nie ma"
+      - regex: "(?<=(?:^|[^\\p{L}])(?:ich|go|jej|nas|was|tu|tam|już|nic|nikogo|mnie|ciebie|kogo|czego|nigdzie|teraz){{S}})(?<target>niema)(?=[ \\t\\u00a0]*[.!?,;…])"
+        check: englishAlotCorrection
+        message: review_msg_split_words
+        fix: "nie ma"
+      # "Czas na prawdę" (time for the truth) is a noun; a verb, an adverb or the end follows the adverb.
+      - regex: "(?<!(?:dowód|dowody|dowodu|dowodem|czas|miejsce|liczyć|liczy|liczę|czekać|czeka|czekam|zasługuje|zasługiwać|szansę|szansa|ochotę|wpływ|prawo|gotowość|otwarty|otwarta|otwarci){{S}})(?<target>na{{S}}prawdę)(?!{{S}}(?:o|i|historyczną|naukową|absolutną|obiektywną|objawioną|ostateczną|jedyną|tego|jego|jej|ich|\\p{L}+ego|\\p{L}+ych)(?![\\p{L}]))(?![ \\t\\u00a0]*[.!?;:…)\"”»])"
+        fix: "naprawdę"
+      # "przód" is the front: "na przód statku"; the adverb ends its phrase or goes "ku" something.
+      - regex: "(?<target>na{{S}}przód)(?=[ \\t\\u00a0]*(?:[.!?,;:…)\"”»]|$)|{{S}}(?:ku|i|a)(?![\\p{L}]))"
+        fix: "naprzód"
+      # "raz za razem" is a phrase of its own.
+      - regex: "(?<!raz{{S}})(?<target>za{{S}}razem)(?![\\p{L}])"
+        fix: "zarazem"
+      # "uznać za pewne" (take for granted) and "za pewne kwoty" keep the adjective;
+      # the adverb goes before a verb, a numeral or the end of the clause.
+      - regex: "(?<!(?:uzna\\p{L}*|uważa\\p{L}*|uważ\\p{L}*|się|mie\\p{L}*|ma|mam|masz|mamy|macie|mają|wzi\\p{L}*|bra\\p{L}*|bior\\p{L}*|przyj\\p{L}*|poczyt\\p{L}*|uchodz\\p{L}*)(?:{{S}}\\p{L}+)?{{S}})(?<target>za{{S}}pewne)(?=[ \\t\\u00a0]*[.!?,;:…]|{{S}}(?:nie|już|to|jest|był|była|było|są|będzie|będą|się|kilka|kilku|wiele|wielu|tak|tylko|też|także|ktoś|coś|jutro|dziś|dzisiaj|wkrótce|niedługo|później|wtedy|teraz|znowu|jeszcze|wszyscy|wszystko|on|ona|oni|ono|ty|wy|my|ja||\\p{L}+(?:ł|ła|ło|li|ły|je|ją|ie|isz|esz|my|cie))(?![\\p{L}]))"
+        fix: "zapewne"
+      # "po środku" is also "after a remedy" (po środku nasennym).
+      - regex: "(?<target>po{{S}}środku)(?!{{S}}\\p{L}*(?:ym|im)(?![\\p{L}]))(?![\\p{L}])"
+        fix: "pośrodku"
+      # "po woli dotarcia" (by the will to) and the Warsaw district "Wola" keep the noun.
+      - regex: "(?<target>po{{S}}woli)(?=[ \\t\\u00a0]*(?:[.!?,;:…)]|$)|{{S}}(?:się|nie|ale|i|a|\\p{L}+(?:ł|ła|ło|li|ły|je|ją|ie|isz|esz|my|cie|ąc))(?![\\p{L}]))"
+        fixer: compoundsPo
+      # "ponad to, co" (beyond what) is two words.
+      - regex: "(?<target>ponad{{S}}to)(?![\\p{L}])(?![ \\t\\u00a0]*,?[ \\t\\u00a0]*(?:co|czego|czym)(?![\\p{L}]))"
+        fix: "ponadto"
+      # "z resztą" (with the rest) takes a genitive; the adverb is followed by a clause.
+      - regex: "(?<target>z{{S}}resztą)(?=[ \\t\\u00a0]*,|{{S}}(?:nikogo|nic|niczego|nie|to|tego|jest|był|była|było|są|ja|ty|on|ona|ono|my|wy|oni|one|już|zawsze|też|chyba|wiadomo|sam|sama|samo|sami|jak|co|kto|każdy|wszyscy|wszystko|mnie|ciebie|go|jej|ich|się|bardzo|dobrze|i)(?![\\p{L}]))"
+        fix: "zresztą"
+      # "co raz" (every so often) is rare; before a comparative it is "coraz".
+      - regex: "(?<target>co{{S}}raz)(?={{S}}(?:\\p{L}+(?:iej|ej|szy|sza|sze|szego|szej|szym|szych|szą|si)|więcej|mniej|bardziej|lepiej|gorzej|częściej|rzadziej|bliżej|dalej|wyżej|niżej|dłużej|krócej|głośniej|ciszej|szybciej|wolniej|mocniej|trudniej|łatwiej|później|wcześniej|wyraźniej)(?![\\p{L}]))"
+        fix: "coraz"
+      # "dla tego" is fine before a noun ("dla tego człowieka"); a conjunction makes it "dlatego".
+      - regex: "(?<target>dla{{S}}tego)(?=[ \\t\\u00a0]*(?:,[ \\t\\u00a0]*)?(?:że|iż|żeby|by|aby|też|właśnie|ponieważ|bo)(?![\\p{L}]))"
+        fix: "dlatego"
+      # "dla czego" stays in "dla czego innego"; before a finite verb it asks why.
+      - regex: "(?<target>dla{{S}}czego)(?={{S}}(?:nie|się|\\p{L}+(?:esz|isz|ysz|asz|cie|ją|łeś|łaś|liście|łyście|łem|łam))(?![\\p{L}]))"
+        fix: "dlaczego"
+      # "a tym czasem" opens a contrast; "tym czasem się nie przejmuj" is the instrumental.
+      - regex: "(?<=(?:^|[.!?]\\s{1,8}|(?:^|[^\\p{L}])a{{S}}))(?<target>tym{{S}}czasem)(?!{{S}}(?:się|nie|przejm\\p{L}*|zajm\\p{L}*|martw\\p{L}*)(?![\\p{L}]))(?![\\p{L}])"
+        fix: "tymczasem"
+      # "w prawdzie" (in truth) is a noun; the concession pairs with "ale"/"lecz" later.
+      - regex: "(?<target>w{{S}}prawdzie)(?=[^.!?;\\n]{1,120}?,[ \\t\\u00a0]*(?:ale|lecz|jednak|to|a)(?![\\p{L}]))"
+        fix: "wprawdzie"
+      # A preposition takes no "tam": "na tam to dziecko" is the demonstrative "tamto".
+      - regex: "(?<=(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed){{S}})(?<target>tam{{S}}(?<pron>ten|ta|to|te|ci|tego|tej|temu|tą|tę|tym|tych|tymi))(?![\\p{L}])"
+        fixer: compoundsTam
+      # The noun "widzimisię" after a preposition or a possessive.
+      - regex: "(?<=(?:^|[^\\p{L}])(?:od|z|na|dla|według|czyjegoś|czyjeś|czyjś|jego|jej|ich|swojego|swoje|swoim|własnego|własne){{S}})(?<target>widzi{{S}}mi{{S}}się)(?![\\p{L}])"
+        fix: "widzimisię"
+      # "o jej" before an exclamation mark is the interjection.
+      - regex: "(?<target>o{{S}}jej)(?=[ \\t\\u00a0]*!)"
+        fix: "ojej"
+      # "wyjechać zagranicę" is the noun used for the adverbial "za granicę".
+      - regex: "(?<=(?:jecha\\p{L}*|jeżdż\\p{L}*|jeździ\\p{L}*|wyjecha\\p{L}*|wyjeżdża\\p{L}*|wyjedzie\\p{L}*|lecie\\p{L}*|wylecia\\p{L}*|wyemigrowa\\p{L}*|wysła\\p{L}*|wysyła\\p{L}*|pojecha\\p{L}*|pojedzie\\p{L}*|uciek\\p{L}*|uciec){{S}})(?<target>zagranicę)(?![\\p{L}])"
+        fix: "za granicę"
+      - regex: "(?<=(?:by\\p{L}*|mieszka\\p{L}*|pracowa\\p{L}*|pracuj\\p{L}*|studiowa\\p{L}*|studiuj\\p{L}*|przebywa\\p{L}*|żyj\\p{L}*|żył\\p{L}*|odbywa\\p{L}*|zosta\\p{L}*|leczy\\p{L}*){{S}})(?<target>zagranicą)(?![\\p{L}])"
+        fix: "za granicą"
+      # "w stanie" (able) is two words after "być".
+      - regex: "(?<=(?:jest|są|był|była|było|byli|były|będzie|będą|jestem|jesteś|jesteśmy|jesteście|byłem|byłam|byłeś|byłaś|nie){{S}})(?<target>wstanie)(?={{S}}\\p{L}+(?:ć|c)(?![\\p{L}]))"
+        fix: "w stanie"
+      # "w ogóle" written as one is handled by SPLIT_WORDS; "popołudniu" after no preposition is "po południu".
+      - regex: "(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed|\\p{L}*ym|\\p{L}*im|tego|tamtego|to|tamto|jakimś){{S}})(?<![\"„“”«])(?<target>popołudniu)(?![\\p{L}])"
+        fixer: compoundsPopołudniu
+      # "na około 300 zł", "w około połowie": "około" is the approximation, not the adverb.
+      - regex: "(?<target>(?<prep>na|w){{S}}około)(?!{{S}}(?:\\d|{{NUMERALS}})(?![\\p{L}])|[ \\t\\u00a0]*\\d)(?![\\p{L}])"
+        fixer: compoundsPrep
+      # "kary godny" (worthy of a penalty) after an adjective keeps the genitive: "najwyższej kary godne".
+      - regex: "(?<!\\p{L}(?:ej|szej){{S}})(?<target>kary{{S}}godn(?<end>y|a|e|ego|ej|emu|ą|ym|ych|ymi|i))(?![\\p{L}])"
+        fixer: compoundsKary
+      # "nie mniej niż" (not less than) stays apart; "w tym nie mniej" is "including at least".
+      - regex: "(?<target>nie{{S}}mniej)(?={{S}}jednak(?![\\p{L}]))(?!{{S}}jednak{{S}}niż)"
+        fix: "niemniej"
+      - regex: "(?<!(?:^|[^\\p{L}])w{{S}})(?<target>tym{{S}}nie{{S}}mniej)(?![\\p{L}])(?!{{S}}(?:niż|od)(?![\\p{L}]))"
+        fix: ["tym niemniej", "niemniej"]
+      # "by najmniej zaszkodzić" is the conjunction and the superlative.
+      - regex: "(?<target>by{{S}}najmniej)(?![\\p{L}])(?!{{S}}\\p{L}+ć(?![\\p{L}]))"
+        fix: "bynajmniej"
+      # "uważać coś za zwyczaj" takes the noun.
+      - regex: "(?<!(?:uważ|uzna|przyj|uchodz|poczyt|wzię|bierz|bior|bra)\\p{L}*[^.!?;\\n]{0,40})(?<target>za{{S}}zwyczaj)(?![\\p{L}])"
+        fix: "zazwyczaj"
+      # "za co miesięcznie płacą" is the pronoun "co"; otherwise the adverbs and adjectives are one word.
+      - regex: "(?<!(?:^|[^\\p{L}])(?:za|po|na|o|przez|w){{S}})(?<target>co{{S}}(?<word>tygodniow|miesięczn|roczn|dzienn|godzinn)(?<end>ie|o|y|a|e|ego|ej|emu|ą|ym|ych|ymi|i))(?![\\p{L}])"
+        fixer: compoundsCo
+      # "się do czekać", "od stresować": a verb prefix typed apart (a preposition never takes a
+      # verb). Not a noun or a numeral in -ć ("do miłość", "od pięć"), nor "wy" (you).
+      - regex: "(?<![\\p{L}])(?<target>(?<prefix>do|od|za|po|przy|roz|prze|pod|nad){{S}}(?<verb>\\p{L}{3,}))(?![\\p{L}])"
+        fixer: compoundsPrefix
+      # "eks-mąż", "mini-spódniczka", "quasi-nauka": a prefix joins the word it opens.
+      - regex: "(?<![\\p{L}])(?<target>(?<prefix>eks|mini|maksi|maxi|super|ultra|mega|anty|pseudo|quasi|neo|post|wice)-(?<word>\\p{L}{3,}))(?![\\p{L}-])"
+        fixer: compoundsPrefix2
+      # "v-ce prezes" -> "wiceprezes".
+      - regex: "(?<![\\p{L}])(?<target>v-ce{{S}}(?<word>\\p{L}{3,}))(?![\\p{L}])"
+        fixer: compoundsV
+      # "wciągu" is also the hoist ("wciąg"); before a span of time it is "w ciągu".
+      - regex: "(?<target>wciągu)(?={{S}}(?:\\d|ostatni\\p{L}*|następn\\p{L}*|najbliższ\\p{L}*|kilk\\p{L}*|roku|lat|dnia|dni|tygodnia|tygodni|miesiąca|miesięcy|godziny|godzin|minuty|minut|sekund\\p{L}*|jednego|jednej|dwóch|trzech|całego|całej|pierwsz\\p{L}*|ubiegł\\p{L}*|tego|tej|życia|doby)(?![\\p{L}]))"
+        fix: "w ciągu"
+      # The noun "bezsens" has a genitive "bezsensu"; after "to"/"jest" or alone it is "bez sensu".
+      - regex: "(?:(?<=(?:^|[^\\p{L}])(?:to|jest|był|była|było|są|byłoby|totalnie|zupełnie|kompletnie|całkiem|trochę){{S}})|(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8})))(?<target>bezsensu)(?![\\p{L}])(?!{{S}}(?:istnienia|życia|tego|wojny|świata)(?![\\p{L}]))"
+        fix: "bez sensu"
   - id: pl.compounds
     checks: [englishClosedCompounds, englishAlotCorrection]
     predicate: compounds
+  - id: pl.confusionsFrames
+    checks: [englishPhraseCorrections]
+    style: polish
+    message: review_msg_contextual_grammar
+    frames:
+      # A clitic pronoun cannot open a sentence: "Mi się wydaje" -> "Mnie", "Go kocham" -> "Jego".
+      - regex: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>Mi|Mu|Go|Cię)(?={{S}}\\p{L})"
+        verbatim: true
+        fixer: confusionsMi
+      - regex: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>Ci)(?={{S}}się{{NOT_LETTER}})"
+        verbatim: true
+        fix: "Tobie"
+      # "nic mogę" drops the "nie" every verb after "nic" needs: "nic nie mogę".
+      - regex: "(?<=(?<!(?:^|[^\\p{L}])(?:za|na|o|po|w|z|przez){{S}})(?<![\\p{L}])nic{{S}})(?<target>mogę|może|możesz|mogą|możemy|umiem|umie|wiem|wie|chcę|chce|chcą|mam|ma|mają|znalazł|znalazła|zgodzą|zgodzi|zrobię|zrobi|widzę|widzi|rozumiem|rozumie){{NOT_LETTER}}"
+        fixer: confusionsMogę
+      # "Szkoła imieniem Marii Konopnickiej" -> "imienia".
+      - regex: "(?<=(?:^|[^\\p{L}])(?:[Ss]zkoł\\p{L}*|[Ll]iceum|[Gg]imnazjum|[Tt]echnikum|[Zz]espół|[Uu]niwersytet|[Aa]kademi\\p{L}*|[Ii]nstytut|[Ss]zpital|[Pp]rzedszkol\\p{L}*)(?:{{S}}\\p{L}+){0,2}{{S}})(?<target>imieniem)(?={{S}}\\p{L})"
+        fix: "imienia"
+      # "for internetowych", "głupich for": the plural genitive of "forum" is "forów".
+      - regex: "(?<=(?:^|[^\\p{L}])\\p{L}+(?:ych|ich){{S}})(?<target>for){{NOT_LETTER}}|(?<target>for)(?={{S}}(?:internetowych|dyskusyjnych){{NOT_LETTER}})"
+        fix: "forów"
+      # "z łam gazety", "łam czasopism": the columns are "łamy", genitive "łamów".
+      - regex: "(?<=(?:^|[^\\p{L}])(?:z|ze|na|do){{S}})(?<target>łam)(?={{S}}|[ \\t\\u00a0]*[„\"])|(?<target>łam)(?={{S}}(?:gazet|gazety|czasopism|czasopisma|prasy|tygodnika|dziennika){{NOT_LETTER}})"
+        fix: "łamów"
+      # "Ja się tego właśnie boje", "się, proszę pana, nie boje" -> "boję", "boją".
+      - regex: "(?<=(?:^|[^\\p{L}])się(?:{{S}}(?:tego|tej|ich|go|jej|was|nas|ciebie|ich|właśnie|nie|bardzo|trochę|już|wcale|naprawdę|zawsze|też|proszę|pana|pani|państwa)|,)+{{S}})(?<target>boje|boja)(?=[ \\t\\u00a0]*[.!?…])"
+        fixer: confusionsBoje
+      # "tak naprawę" (a repair) -> "tak naprawdę".
+      - regex: "(?<=(?:^|[^\\p{L}])tak{{S}})(?<target>naprawę){{NOT_LETTER}}"
+        fix: "naprawdę"
+      # "rzec jasna", "na rzec fundacji" -> "rzecz".
+      - regex: "(?<target>rzec)(?={{S}}jasna{{NOT_LETTER}})|(?<=(?:^|[^\\p{L}])na{{S}})(?<target>rzec)(?={{S}}\\p{L})"
+        fix: "rzecz"
+      # "stad też", "ni stad, ni zowąd" -> "stąd" (herds are "stada").
+      - regex: "(?<target>stad)(?={{S}}(?:też|więc|wniosek|wynika){{NOT_LETTER}})|(?<=(?:^|[^\\p{L}])ni{{S}})(?<target>stad){{NOT_LETTER}}"
+        fix: "stąd"
+      # "ni stąd, nie zowąd" -> "ni zowąd".
+      - regex: "(?<=stąd,?{{S}})(?<target>nie|n)(?={{S}}zowąd{{NOT_LETTER}})"
+        fix: "ni"
+      # "nie dal", "dal się", "dal mi" -> "dał" (not "w dal", "z dala").
+      - regex: "(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|tę|ta|tej){{S}})(?<target>dal)(?={{S}}(?:się|mi|mu|jej|nam|wam|im|ci|go|ją|je|jednak|za{{S}}wygraną){{NOT_LETTER}})|(?<=(?:^|[^\\p{L}])(?:nie|on|który|kto|ten|ojciec|brat){{S}})(?<target>dal){{NOT_LETTER}}"
+        lowercase: true
+        fix: "dał"
+      # "moja zona" (a zone) -> "moja żona".
+      - regex: "(?<=(?:^|[^\\p{L}])(?:{{POSSESSIVE}}){{S}})(?<target>zon(?:a|y|ie|ę|ą|o)){{NOT_LETTER}}"
+        fixer: confusionsZon
+      # "wierze w cuda", "nie wierze" -> "wierzę" (not "w wierze", "o wierze").
+      - regex: "(?<!(?:^|[^\\p{L}])(?:w|we|o|po|przy|tej|swojej|mojej|naszej|twojej|jego|jej|ich){{S}})(?<target>wierze)(?={{S}}(?:w|we|że|ci|mu|jej|wam|panu|pani|tobie){{NOT_LETTER}}|[ \\t\\u00a0]*[.!?])|(?<=(?:^|[^\\p{L}])(?:nie|ja|już|nadal|wciąż){{S}})(?<target>wierze){{NOT_LETTER}}"
+        fix: "wierzę"
+      # Bound words: the preposition is missing; "i angielsku" coordinates with an earlier "po".
+      - regex: "(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed|i|oraz|lub|albo|czy|a|ani|bądź|ze|od|aż|co){{S}})(?<!,{{S}}|,)(?<target>(?:bezcen|bezdurno|trymiga|czambuł|dwójnasób|trójnasób|czwórnasób|kilkanasób|dyrdy|zanadrzu|szczętu|imentu|zabój|kretesem|pantałyku|manowce|oścież|wznak|odczepnego|przekór|czczo|wyrywki|chybcika|auspicjami|omacku|ciemku|macoszemu|cichutku|kryjomu|prostu|trosze|cichu|rozpuku|cna|poprzek|pojedynkę|międzyczasie|ustanku|liku|pardonu|ledwością|nienacka|wyprzódki|poczekaniu|wyrost|przestrzał|bakier|opak|łapu-capu|niemiara|polsku|angielsku|niemiecku|francusku|rosyjsku|hiszpańsku|włosku|czesku|słowacku|ukraińsku|chińsku|japońsku|szwedzku|grecku|arabsku|portugalsku|holendersku|węgiersku|fińsku|duńsku|norwesku|chamsku|swojsku|góralsku)){{NOT_LETTER}}"
+        lowercase: true
+        fixer: confusionsBezcen
+      - regex: "(?<!Burkina{{S}})(?<![\\p{L}])(?<target>faso){{NOT_LETTER}}"
+        verbatim: true
+        fix: "Burkina Faso"
+      - regex: "(?<![\\p{L}])(?<target>burkina)(?!{{S}}faso{{NOT_LETTER}}){{NOT_LETTER}}"
+        verbatim: true
+        fix: "Burkina Faso"
+      - regex: "(?<!fiksum{{S}})(?<![\\p{L}])(?<target>dyrdum){{NOT_LETTER}}"
+        verbatim: true
+        fix: "fiksum dyrdum"
+      - regex: "(?<![\\p{L}])(?<target>fiksum)(?!{{S}}dyrdum{{NOT_LETTER}}){{NOT_LETTER}}"
+        verbatim: true
+        fix: "fiksum dyrdum"
+      - regex: "(?<!Kyrie{{S}})(?<![\\p{L}])(?<target>eleison){{NOT_LETTER}}"
+        verbatim: true
+        fix: "Kyrie eleison"
+      - regex: "(?<!Rio{{S}}de{{S}})(?<![\\p{L}])(?<target>janeiro){{NOT_LETTER}}"
+        verbatim: true
+        fix: "Rio de Janeiro"
+      - regex: "(?<!fiu{{S}})(?<![\\p{L}])(?<target>bździu){{NOT_LETTER}}"
+        verbatim: true
+        fix: "fiu bździu"
+      # "Zgłupiałeś ze szczętem" is the other bound phrase with "szczętem".
+      - regex: "(?<!(?:^|[^\\p{L}])(?:ze|z){{S}})(?<target>szczętem){{NOT_LETTER}}"
+        fix: "ze szczętem"
+      # "za młodu" / "od młodu".
+      - regex: "(?<!(?:^|[^\\p{L}])(?:za|od|z){{S}})(?<target>młodu){{NOT_LETTER}}"
+        fix: "za młodu"
+      # "boje" (battles) before "się" after a pronoun or "nie" is "boję".
+      - regex: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>boje)(?={{S}}się{{NOT_LETTER}}(?!{{S}}(?:toczy\\p{L}*|toczą|rozpoczęły|zaczęły|skończyły|trwały|odbywały)))"
+        fix: "boję"
+      - regex: "(?<=(?:^|[^\\p{L}])(?:dzisiaj|dziś|bardzo|trochę|strasznie|naprawdę|zawsze|wciąż|nadal|czasem|już|też|tak|i|a|ale|że|bo){{S}})(?<target>boje)(?={{S}}się{{NOT_LETTER}})"
+        fix: "boję"
+      - regex: "(?<=(?:^|[^\\p{L}])(?:ja|nie|bardzo|trochę|już|tego|ciebie|go|jej|ich|was|nas){{S}}się{{S}})(?<target>boje)(?=[ \\t\\u00a0]*[.!?,;:…]|{{S}}(?:o|że|tego|ciebie|go|jej|ich|was|nas|się){{NOT_LETTER}})"
+        fix: "boję"
+      - regex: "(?<=(?:^|[^\\p{L}])(?:oni|one|ludzie|wszyscy|dzieci|nie){{S}}(?:się{{S}})?)(?<target>boja)(?={{S}}się{{NOT_LETTER}}|[ \\t\\u00a0]*[.!?,;:…])"
+        fix: "boją"
+      # "wiec" (a rally) after a comma or "a" opening a clause is "więc".
+      - regex: "(?<=,{{S}}|(?:^|[^\\p{L}])(?:no|tak|i|jest|było){{S}})(?<target>wiec)(?!{{S}}(?:poparcia|wyborczy|protestacyjny|protestu|przeciwko|się{{S}}odbył|odbył){{NOT_LETTER}}){{NOT_LETTER}}"
+        lowercase: true
+        fix: "więc"
+      # "tez" (theses) after a pronoun, "czy" or "jak" is "też".
+      - regex: "(?<=(?:^|[^\\p{L}])(?:ty|on|ona|ono|my|wy|oni|one|ciebie|jego|ją|nas|was|ich|to|tu|tam|teraz|dziś|dzisiaj|był|była|było|miał|miała|jest|są|i|ale|lecz|ponadto){{S}})(?<target>tez){{NOT_LETTER}}(?!{{S}}(?:programow\\p{L}*|\\p{L}+ych){{NOT_LETTER}})"
+        fix: "też"
+      # "mnie" for "mniej" before a comparison: "40% mnie niż", "trochę mnie".
+      - regex: "(?<=(?:\\d%?|procent|proc\\.|trochę|dużo|znacznie|nieco|jeszcze|coraz|o wiele|nie){{S}})(?<target>mnie)(?={{S}}(?:niż|więcej|o|od){{NOT_LETTER}})"
+        fix: "mniej"
+      # "mniej" for "mnie" after a preposition, before what no comparative can modify.
+      - regex: "(?<=(?:^|[^\\p{L}])(?:u|dla|do|od|przy|beze|ode|przeze|przede|o|ze|na){{S}})(?<target>mniej)(?=[ \\t\\u00a0]*[.!?]|{{S}}(?:w|na|do|z|ze|się|nie|jest|są|był|była|było|to|żadna|żaden|żadne|nic|tylko|też){{NOT_LETTER}})"
+        fix: "mnie"
+      # "część" (part) and "cześć" (honour, hello).
+      - regex: "(?<=(?:^|[^\\p{L}])(?:pierwsz|drug|trzeci|czwart|piąt|kolejn|następn|dalsz|większ|mniejsz|spor|duż|znaczn|niewielk|integraln|główn|zasadnicz|dolni|górn|przedni|tyln|środkow|północn|południow|wschodni|zachodni|każd|tę|ta)(?:a|ą)?{{S}})(?<target>cześć){{NOT_LETTER}}"
+        fix: "część"
+      - regex: "(?<target>cześć)(?={{S}}z{{S}}(?:nich|nas|was|tych|nami|wami|nimi){{NOT_LETTER}})"
+        fix: "część"
+      - regex: "(?<target>część)(?={{S}}i{{S}}chwała{{NOT_LETTER}})"
+        fix: "cześć"
+      - regex: "(?<=(?:^|[^\\p{L}])(?:boż|bożą|bożej|Boż)a?{{S}})(?<target>lask(?<end>a|ę|i)){{NOT_LETTER}}"
+        fixer: confusionsLask
+      - regex: "(?<target>łask(?<end>a|i|ę|ą))(?={{S}}marszałkowsk\\p{L}*{{NOT_LETTER}})"
+        fixer: confusionsŁask
+      # "znajduję się" (I am) with a subject after it is the third person.
+      - regex: "(?<=(?:stronie|tu|tam|gdzie|którym|której|których|obok|poniżej|powyżej|niżej|wyżej|dole|górze){{S}}(?:się{{S}})?)(?<target>znajduję)(?={{S}}(?:się{{S}})?(?!(?:w|we|na|z|ze|pod|nad|przed|za|u|przy|obok|tu|tam|teraz|już|nadal|wciąż|daleko|blisko|po|w|między|sam|sama){{NOT_LETTER}})\\p{L}+(?:[ \\t\\u00a0]+\\p{L}+)?[ \\t\\u00a0]*[^\\p{L}\\s])"
+        fix: "znajduje"
+      # "musze" (to a fly) before an infinitive or after "nie"/"ja" is "muszę".
+      - regex: "(?<target>musze)(?={{S}}(?:(?:się|już|jeszcze|zaraz|teraz|chyba|to|też|go|ją|je|coś){{S}}){0,2}\\p{L}+ć{{NOT_LETTER}})"
+        fix: "muszę"
+      - regex: "(?<=(?:^|[^\\p{L}])(?:ja|nie|już|też|chyba|naprawdę|jeszcze|zaraz|teraz){{S}})(?<target>musze){{NOT_LETTER}}"
+        fix: "muszę"
+      # "maja" (of May) is a date: a day number, a month phrase or a preposition comes before it.
+      - regex: "(?<=(?:^|[^\\p{L}\\d])(?:oni|one|ludzie|wszyscy|nie|którzy|które|dzieci|członkowie|\\p{L}+owie|\\p{L}+(?:cy|dzy)){{S}})(?<target>maja)(?={{S}}(?!(?:roku|r|br|bieżącego|tego|przyszłego|ubiegłego|i|oraz|lub|do|włącznie){{NOT_LETTER}})\\p{L})"
+        lowercase: true
+        fix: "mają"
+      # "głownie" is "Głowno" or the plural of "głownia"; lowercase before a word it is "głównie".
+      - regex: "(?<!(?:^|[^\\p{L}])(?:w|we|do|z|ze|pod){{S}})(?<target>głownie)(?={{S}}\\p{L})"
+        lowercase: true
+        fix: "głównie"
+      # "miedzy" (balk, genitive) before an instrumental is "między".
+      - regex: "(?<target>miedzy)(?={{S}}(?:nami|wami|nimi|sobą|innymi|\\p{L}+(?:ami|em|ą|ym|ymi|im|imi|iem)){{NOT_LETTER}})"
+        fix: "między"
+      # "nadaj" (imperative "give") before a verb or "nie" is "nadal".
+      - regex: "(?<target>nadaj)(?={{S}}(?:nie|jest|są|był|była|było|się{{S}}nie|trwa|trwają|występuje|występują|działa|mieszka|pracuje|\\p{L}+uje){{NOT_LETTER}})"
+        fix: "nadal"
+      # "wieku z nich" (of the age of them) is "wielu".
+      - regex: "(?<!\\p{L}(?:ym|im){{S}})(?<target>wieku)(?={{S}}z{{S}}(?:nich|nas|was|tych|nami){{NOT_LETTER}})"
+        fix: "wielu"
+      - regex: "(?<=(?:^|[^\\p{L}])(?:od|przez|po|dla|bardzo|z|u){{S}})(?<target>wieku)(?!{{S}}lat{{S}}(?:\\d|\\p{L}+(?:u|ciu|miu|ech|óch){{NOT_LETTER}}))(?={{S}}(?:lat|osób|ludzi|miesięcy|dni|tygodni|godzin|krajów|miejsc|przypadków|powodów|innych|\\p{L}+ych){{NOT_LETTER}})"
+        fix: "wielu"
+      # "klika" (a clique), "kila" (syphilis): before a counted genitive they are "kilka".
+      - regex: "(?<target>klika|kliku|kila|kilu)(?={{S}}(?:–{{S}}\\p{L}+|osób|ludzi|dni|lat|razy|godzin|minut|sekund|tygodni|miesięcy|problemów|miejsc|miejscach|latach|dniach|dolców|złotych|kategoriach|stron|pytań|sztuk|tysięcy|milionów|kilometrów|metrów|centymetrów|kilogramów|procent|miejscach|osobach|godzinach|tygodniach|miesiącach){{NOT_LETTER}})"
+        fixer: confusionsKlika
+      # "Rządny" (governing) before a desired thing is "żądny".
+      - regex: "(?<target>rządn(?<end>y|a|e|i|ego|ej|ym|ych))(?={{S}}(?:władzy|krwi|zemsty|przygód|wiedzy|sławy|pieniędzy|zysku|zysków|wrażeń|zwycięstwa|odwetu|zaszczytów|chwały){{NOT_LETTER}})"
+        fixer: confusionsRządn
+      # "rzuć gumę": "żuć" after a verb that takes an infinitive.
+      - regex: "(?<=(?:lubię|lubi|lubisz|lubimy|lubią|przestań|przestał|przestała|zaczął|zaczęła|wolno|można|trzeba|nie){{S}})(?<target>rzuć)(?={{S}}gum\\p{L}*{{NOT_LETTER}})"
+        fix: "żuć"
+      # "tępo" (bluntly) and "tempo" (pace).
+      - regex: "(?<target>tęp(?<end>o|a|em|ie))(?={{S}}(?:pracy|marszu|życia|wzrostu|rozwoju|gry|akcji|zmian|jazdy|wzrostu|nauki|reform){{NOT_LETTER}})"
+        fixer: confusionsTęp
+      - regex: "(?<=(?:zwiększyć|zwiększył|zwiększyła|zwiększyli|zwiększcie|zwolnić|zwolnił|zwolniła|narzucić|narzucił|narzuciła|przyspieszyć|przyspieszył|utrzymać|utrzymał|utrzymywać|wolne|wolnego|szybkie|szybkiego|zawrotne|zawrotnym|spokojne|równe|mordercze|ślimacze|jego|jej|ich|zbyt){{S}})(?<target>tęp(?<end>o|a|em))(?=[ \\t\\u00a0]*[.!?,;:…]|{{S}}(?:i|oraz|pracy|marszu|gry|jazdy){{NOT_LETTER}})"
+        fixer: confusionsTęp2
+      - regex: "(?<=(?:patrzy\\p{L}*|spogląda\\p{L}*|spojrza\\p{L}*|wpatrywa\\p{L}*|wpatruje\\p{L}*|gapi\\p{L}*|gapić){{S}})(?<target>tempo){{NOT_LETTER}}"
+        fix: "tępo"
+      # "karze" (punishes) before an infinitive is "każe" (orders).
+      - regex: "(?<target>kar(?<end>ze|zesz|zę|zemy|zecie|żą))(?={{S}}(?:(?:{{PRONOUN_OBJECT}}|to|tego|się){{S}}){0,2}\\p{L}+ć{{NOT_LETTER}})"
+        fixer: confusionsKar
+      # "pokarz" (punish) before a person to show something to (a dative: "pokarzę ci") or a
+      # clause ("pokarzę, że") is "pokaż"; "pokarzę cię" (I will punish you) takes an accusative.
+      - regex: "(?<target>pokarz(?<end>|ę|e|esz|cie|my))(?={{S}}(?:mi|ci|mu|nam|wam|im|tobie|jemu|sobie){{NOT_LETTER}}|[ \\t\\u00a0]*,?{{S}}(?:że|jak|gdzie|co){{NOT_LETTER}})"
+        fixer: confusionsPokarz
+      - regex: "(?<target>pomorze)(?={{S}}(?:{{PRONOUN_OBJECT}}){{NOT_LETTER}})"
+        lowercase: true
+        fix: "pomoże"
+      - regex: "(?<=(?:^|[^\\p{L}])(?:nie|ja|już|naprawdę|mocno|święcie|też){{S}})(?<target>(?:wierze|wieżę))(?={{S}}w{{NOT_LETTER}}|[ \\t\\u00a0]*[.!?,;:…]|{{S}}(?:ci|tobie|wam|mu|jej|im|że){{NOT_LETTER}})"
+        fix: "wierzę"
+      - regex: "(?<=(?:^|[^\\p{L}])(?:oni|one|nie|ludzie|wszyscy){{S}})(?<target>wieżą)(?={{S}}w{{NOT_LETTER}})"
+        fix: "wierzą"
+      # "tuz" (an ace) before a preposition of place or time is "tuż".
+      - regex: "(?<target>tuz)(?={{S}}(?:przed|po|obok|za|nad|pod|przy|koło|obok|zaraz|około){{NOT_LETTER}})"
+        fix: "tuż"
+      # "Chodź to może zbyt prosty przykład": the concessive "choć".
+      - regex: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>chodź)(?={{S}}(?:to|był|była|było|byli|były|jest|są){{NOT_LETTER}})"
+        fix: "choć"
+      # "oto" (here is) for "o to" with verbs taking "o".
+      - regex: "(?<target>oto)(?={{S}}(?:chodzi|chodziło|chodzić|chodzi{{S}}mi|pytam|pytał|pytała|pytasz|prosi|proszę|prosił|prosiła|dbam|walczę|martwię){{NOT_LETTER}})"
+        lowercase: true
+        fix: "o to"
+      - regex: "(?<=(?:chodzi|chodziło|pytam|prosiłem|prosiłam|proszę|dbam){{S}}(?:właśnie{{S}})?)(?<target>oto)(?=[ \\t\\u00a0]*[.!?])"
+        fix: "o to"
+      # "moim zadaniem, to bzdura": the opinion "zdaniem" is set off by commas.
+      - regex: "(?<=(?:^|[^\\p{L}])(?:moim|twoim|naszym|waszym|jego|jej|ich){{S}})(?<target>zadaniem)(?=[ \\t\\u00a0]*,)"
+        fix: "zdaniem"
+      # A noun after "w porównaniu", "wraz" and "zgodnie" needs "z".
+      - regex: "(?=\\p{L})(?<=(?:^|[^\\p{L}])(?<head>w{{S}}porównaniu|wraz|zgodnie){{S}})(?<target>(?<word>mną|nim|nią|nimi|\\p{L}+(?:ą|em|ami|iem))){{NOT_LETTER}}"
+        fixer: confusionsWord
+      # A genitive noun after "mimo", "bez", "podczas": "mimo różnić" is "różnic".
+      - regex: "(?<=(?:^|[^\\p{L}])(?:mimo|pomimo|bez|tych|wielu|kilku|istotnych|dużych|pewnych|żadnych|licznych){{S}})(?<target>różnić){{NOT_LETTER}}"
+        fix: "różnic"
+      - regex: "(?=\\p{L})(?<=(?:^|[^\\p{L}])(?:podczas|bez|wśród|spośród|w{{S}}trakcie|w{{S}}czasie|w{{S}}ramach){{S}}(?:\\p{L}+(?:ych|ich){{S}}){0,2})(?<target>(?<stem>\\p{L}{3,}(?:ow|yw|iw)?)ać){{NOT_LETTER}}"
+        fixer: confusionsStem
+      # "skłony" (bends) before "do" + a noun of willingness is "skłonny".
+      - regex: "(?<target>skłon(?<end>y|a|e|i))(?={{S}}(?:do{{S}}(?!(?:przodu|tyłu|boku){{NOT_LETTER}})\\p{L}+|był|była|było|byli|jest|są){{NOT_LETTER}})"
+        fixer: confusionsSkłon
+      # "Gówna" for "Główna" before an office, prize or role.
+      - regex: "(?<target>gówn(?<end>a|ej|ą|y|ego|ym|ych|e))(?={{S}}(?:księgow\\p{L}*|nagrod\\p{L}*|wygran\\p{L}*|rol\\p{L}*|siedzib\\p{L}*|przyczyn\\p{L}*|ulic\\p{L}*|bohater\\p{L}*|siedzib\\p{L}*|kwatera|kwatery|kwaterze){{NOT_LETTER}})"
+        fixer: confusionsGówn
+      # "sadowy" (of an orchard) for "sądowy" in legal phrases.
+      - regex: "(?<target>sadow(?<end>y|a|e|ego|ej|ym|ych|ymi))(?={{S}}(?:wyrok\\p{L}*|proces\\p{L}*|koszt\\p{L}*|postępowani\\p{L}*|spraw\\p{L}*|kurator\\p{L}*|komornik\\p{L}*|biegł\\p{L}*|orzeczeni\\p{L}*|nakaz\\p{L}*|spor\\p{L}*|spór){{NOT_LETTER}})"
+        fixer: confusionsSadow
+      - regex: "(?<=(?:^|[^\\p{L}])(?:koszty|kosztów|kosztami){{S}})(?<target>sadow(?<end>e|ych|ymi)){{NOT_LETTER}}"
+        fixer: confusionsSadow2
+      # "lutego" misspelt as "litego" next to a day number.
+      - regex: "(?<=\\d{1,2}\\.?{{S}})(?<target>lit(?<end>ego|y))(?={{S}}\\d|[ \\t\\u00a0]*[.,;]|$)"
+        fixer: confusionsLit
+      # "w lata 70." (into the 70s) for "w latach" (in the 70s) after "dopiero/już/właśnie".
+      - regex: "(?<=(?:dopiero|już|właśnie|jeszcze|rozpoczęło{{S}}się|zaczęło{{S}}się){{S}})(?<target>w{{S}}lata)(?={{S}}(?:\\d0\\.|\\p{L}+dziest\\p{L}+))"
+        fix: "w latach"
+      # "taktować" for "traktować ... jako".
+      - regex: "(?<target>takt(?<end>uje|ują|ujesz|ował|owała|owali|ować))(?={{S}}(?:się{{S}})?(?:{{PRONOUN_OBJECT}}){{S}}jako{{NOT_LETTER}})"
+        fixer: confusionsTakt
+      # "Ogromna mnie więcej ilość" — no; "ode mnie więcej" is a pronoun. The approximation precedes a quantity.
+      - regex: "(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed|ode|beze|przeze|dla|daj|dajcie|dał|dała|dali|dać){{S}})(?<target>mnie)(?={{S}}więcej{{S}}(?:\\d|pół|co|tyle|tak|jak|w|o|od|do|na|przez|tydzień|godzinę|rok|miesiąc|dwa|dwie|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|sto|tysiąc|połowa|połowę|połowie|tak){{NOT_LETTER}})"
+        fix: "mniej"
+      - regex: "(?<=coraz{{S}})(?<target>mnie)(?!{{S}}(?:mniej|więcej){{NOT_LETTER}})(?={{S}}\\p{L})"
+        fix: "mniej"
+      # "rzec można" (one might say) is set off by commas or opens "że".
+      - regex: "(?<target>rzecz)(?={{S}}można(?:{{S}}by)?[ \\t\\u00a0]*(?:,|{{S}}że{{NOT_LETTER}}))"
+        fix: "rzec"
+      - regex: "(?<=(?:można|trzeba|by{{S}}tak|tak){{S}}(?:by{{S}})?)(?<target>rzecz)(?=[ \\t\\u00a0]*(?:[,–—-]|$)|{{S}}że{{NOT_LETTER}})"
+        fix: "rzec"
+      # "W zależność od potrzeb" opening a clause; "popadł w zależność od" is the noun.
+      - regex: "(?:(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))|(?<=,{{S}}))(?<target>w{{S}}zależność)(?={{S}}od{{NOT_LETTER}})"
+        fix: "w zależności"
+      # "Zarówno X, jak Y" -> "jak i Y": the pair is "zarówno …, jak i …" (not an aside "jak wiadomo").
+      - regex: "(?<=(?<![\\p{L}])zarówno{{S}}[^,.;:!?\\n]{1,80},{{S}})(?<target>jak)(?={{S}}(?!(?:i|też|również|także|wiadomo|widać|sądzę|myślę|się|już|mówiono|wspomniano|wiesz|wiecie){{NOT_LETTER}})\\p{L})"
+        fix: "jak i"
+      # A preposition takes the long pronoun: "do cię" -> "do ciebie", "dla mi" -> "dla mnie",
+      # "przeciw mu" -> "przeciwko niemu" ("do mi" is also a pair of notes; "dzięki ci" thanks).
+      - regex: "(?<=(?<![\\p{L}])(?:do|dla|od|u|bez|koło|obok|wokół|według|zamiast|oprócz|prócz|na|przez|o|za){{S}})(?<target>cię|go|mi){{NOT_LETTER}}"
+        fixer: confusionsCię
+      - regex: "(?<=(?<![\\p{L}])(?:ku|przeciw|przeciwko|wbrew){{S}})(?<target>mi|ci|mu){{NOT_LETTER}}"
+        fixer: confusionsMi2
+      # "zarówno zyski i straty" -> ", jak i" when no "jak" follows in the sentence.
+      - regex: "(?=\\p{L})(?<=(?<![\\p{L}])zarówno(?:{{S}}\\p{L}+){0,2}{{S}})(?!jak{{S}})(?<target>(?<word>\\p{L}+){{S}}i)(?={{S}}\\p{L})(?![^.!?;\\n]*(?<![\\p{L}])jak{{NOT_LETTER}})"
+        verbatim: true
+        fixer: confusionsWord2
+      # "Czym więcej, tym lepiej" -> "Im"; "im dłużej…, o tyle" -> "tym": the correlative pair is
+      # "im …, tym …".
+      - regex: "(?<![\\p{L}])(?<target>czym)(?={{S}}{{COMPARATIVE}}{{NOT_LETTER}}[^.!?;\\n]{0,80},{{S}}tym{{NOT_LETTER}})"
+        fix: "im"
+      - regex: "(?<=(?<![\\p{L}])im{{S}}{{COMPARATIVE}}{{NOT_LETTER}}[^.!?;\\n]{0,80},{{S}})(?<target>o{{S}}tyle){{NOT_LETTER}}"
+        fix: "tym"
+      # "opatrzył w podpis" -> "zaopatrzył w" (supply with); "opatrzyć" takes the instrumental
+      # ("opatrzył podpisem"). Not "opatrzono w szpitalu", a place.
+      - regex: "(?<target>opatrz(?:yć|ył\\p{L}{0,4}|yli|yły|ę|y|ymy|ycie|ą|ony|ona|one|eni|ono|ywać|ywał\\p{L}{0,4}|uje|ują))(?={{S}}w{{S}}(?:\\p{L}+{{S}})?(?<noun>\\p{L}{3,}){{NOT_LETTER}})"
+        fixer: confusionsOpatrz
+      # "kilka meczy" -> "meczów" ("koza meczy" bleats).
+      - regex: "(?<=(?:wiele|kilka|kilku|kilkanaście|kilkunastu|kilkadziesiąt|dużo|mało|sporo|parę|pięć|sześć|siedem|osiem|dziewięć|dziesięć|liczba|liczby|liczbę|seria|serii|serię|setki|tysiące|wszystkich|ostatnich|kolejnych|rozegranych|wygranych|przegranych|domowych|wyjazdowych){{S}})(?<target>meczy){{NOT_LETTER}}"
+        fix: "meczów"
+      # "w Zakopanym" -> "w Zakopanem": the town keeps its old locative.
+      - regex: "(?<=(?:w|we|o|po|przy){{S}})(?<target>Zakopanym){{NOT_LETTER}}"
+        verbatim: true
+        fix: "Zakopanem"
+      # "Tak, proszę panią," -> "proszę pani": the address takes the genitive ("proszę panią o
+      # pomoc" asks her for help).
+      - regex: "(?<=(?<![\\p{L}])proszę{{S}})(?<target>panią)(?=[ \\t\\u00a0]*(?:[,.!?…—–]|$))"
+        fix: "pani"
+      # "ani raz nie" -> "ani razu nie": the negation takes the genitive.
+      - regex: "(?<=(?<![\\p{L}])ani{{S}})(?<target>raz)(?={{S}}nie{{NOT_LETTER}})"
+        fix: "razu"
+      # "w szeregu przypadkach" -> "w szeregu przypadków": "szereg" (a number of) takes the genitive.
+      - regex: "(?<=(?<![\\p{L}])w{{S}}szeregu{{S}})(?<target>\\p{L}+ach){{NOT_LETTER}}"
+        fixer: confusionsP
+      # "roku dwutysięcznego drugiego" -> "dwa tysiące drugiego": only the last word is ordinal.
+      - regex: "(?<target>dwutysięczn(?:y|ego|ym|emu|a|ej|ą|e){{S}}(?<last>(?:pierwsz|drug|trzec|czwart|piąt|szóst|siódm|ósm|dziewiąt|dziesiąt)\\p{L}*)){{NOT_LETTER}}"
+        fixer: confusionsDwutysięczn
+      # "Możliwym jest" -> "Możliwe jest": the predicate adjective takes the neuter nominative.
+      - regex: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>(?<stem>Możliw|Prawdopodobn|Konieczn|Wskazan|Niezbędn|Oczywist|Wiadom|Zrozumiał|Pewn|Jasn)ym)(?={{S}}(?:jest|było|będzie){{NOT_LETTER}})"
+        fixer: confusionsStem2
+      # "na początku XX" -> "na początku XX wieku": a century in Roman numerals needs its noun.
+      - regex: "(?<=(?<![\\p{L}])(?:na{{S}}początku|w{{S}}połowie|pod{{S}}koniec|u{{S}}schyłku|u{{S}}zarania|w{{S}}pierwszej{{S}}połowie|w{{S}}drugiej{{S}}połowie){{S}})(?<target>[IVX]{1,5})(?![\\p{L}\\p{N}])(?![ \\t\\u00a0]*(?:[–—-]|w\\.|wiek|stuleci|tysiącleci|i{{S}}[IVX]|lub|albo|,{{S}}[IVX]))"
+        verbatim: true
+        fixer: confusionsIvx
+      # "dwadzieścia %" -> "dwadzieścia procent": the sign goes with digits only.
+      - regex: "(?<=(?<![\\p{L}])(?:dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|\\p{L}+naście|\\p{L}+dzieścia?|\\p{L}+dziesiąt|sto|kilka|kilkanaście|kilkadziesiąt|pół){{S}})(?<target>%)"
+        fix: "procent"
+      # "hyperłącze" -> "hiperłącze": Polish spells the Greek prefix with "i".
+      - regex: "(?<![\\p{L}])(?<target>hyper(?<rest>\\p{L}{4,})){{NOT_LETTER}}"
+        fixer: confusionsHyper
+      # "100 tyś. żołnierzy" -> "tys.": the abbreviation of "tysięcy" has no "ś".
+      - regex: "(?<=\\p{N}{{S}})(?<target>tyś\\.?){{NOT_LETTER}}"
+        verbatim: true
+        fix: "tys."
+      # Abbreviations written with a slash: "d/s" (do spraw) -> "ds.", "w/w" (wyżej wymieniony)
+      # -> "ww.", "w/g" (według) -> "wg".
+      - regex: "(?<![\\p{L}\\p{N}/.])(?<target>(?<word>d/s|w/w|w/g)\\.?)(?![\\p{L}\\p{N}/])"
+        fixer: confusionsWord3
+      # "Ile warzy ten monitor?", "warzy 2 kilo" -> "waży" ("warzyć" is to brew).
+      - regex: "(?<=(?<![\\p{L}])ile(?:{{S}}\\p{L}+){0,2}{{S}})(?<target>warzy|warzą){{NOT_LETTER}}"
+        fixer: confusionsWarzy
+      - regex: "(?<target>warzy|warzą)(?={{S}}(?:\\d|około|ok\\.|ponad|prawie|niecałe|niemal|tylko|zaledwie|aż){{NOT_LETTER}})"
+        fixer: confusionsWarzy2
+      # "odbywają się zagranicą" -> "za granicą" after a verb; "z zagranicą", "bliską zagranicą"
+      # are the noun.
+      - regex: "(?<=(?<![\\p{L}])(?<verb>\\p{L}+){{S}})(?<target>zagranicą){{NOT_LETTER}}"
+        fixer: confusionsZagranicą
+      # "Zmianie podleją" -> "podlegają" ("podleją" is "they will water").
+      - regex: "(?<=(?<![\\p{L}])(?:zmianie|zmianom|ochronie|karze|opodatkowaniu|kontroli|regulacji|przepisom|ustawie){{S}})(?<target>podleją){{NOT_LETTER}}"
+        fix: "podlegają"
+      - regex: "(?<target>podleją)(?={{S}}(?:zmianie|zmianom|ochronie|karze|opodatkowaniu|kontroli|regulacji|przepisom|ustawie){{NOT_LETTER}})"
+        fix: "podlegają"
+      # "Gliwice leża w województwie" -> "leżą" ("leża" is a lair's genitive).
+      - regex: "(?<target>leża)(?={{S}}(?:w|we|na|nad|pod|przy|obok|blisko|niedaleko){{NOT_LETTER}})"
+        fix: "leżą"
+      # "Zrobiłem to od tak." -> "ot tak" ("od tak dawna" is the preposition).
+      - regex: "(?<target>od{{S}}tak)(?=[ \\t\\u00a0]*(?:[.,!?…;]|$))"
+        fix: "ot tak"
+      # "naważyli sobie piwa" -> "nawarzyli": one brews ("warzy") the beer of the idiom.
+      - regex: "(?<target>naważ\\p{L}*)(?=(?:{{S}}\\p{L}+){0,4}{{S}}piw\\p{L}*{{NOT_LETTER}})"
+        fixer: confusionsNaważ
+      - regex: "(?<=piw\\p{L}*(?:,?{{S}}\\p{L}+){0,3}{{S}})(?<target>naważ\\p{L}*)"
+        fixer: confusionsNaważ2
+      # "cześć druga", "Cześć IV" -> "część": an ordinal after the noun counts parts too.
+      - regex: "(?<target>cześć)(?={{S}}(?:pierwsz|drug|trzeci|czwart|piąt|szóst|końcow)\\p{L}{0,3}{{NOT_LETTER}}|{{S}}(?<numeral>[IVX]{1,4}){{NOT_LETTER}})"
+        fixer: confusionsCześć
+      # "na jednaj z ławek" -> "jednej" ("jednaj" is "win over!").
+      - regex: "(?<target>jednaj)(?={{S}}(?:z|ze|\\p{L}+(?:i|y|ej)){{NOT_LETTER}})"
+        fix: "jednej"
+      # "anie" (no word) for "a nie".
+      - regex: "(?<target>anie)(?={{S}}\\p{L})"
+        lowercase: true
+        fix: "a nie"
   - id: pl.confusions
     checks: [englishPhraseCorrections]
     predicate: confusions
@@ -23,6 +476,51 @@ rules:
   - id: pl.prepositionForms
     checks: [polishPrepositionForms]
     predicate: prepositionForms
+  - id: pl.wordFormsFrames
+    checks: [englishPhraseCorrections]
+    style: polish
+    message: review_msg_pl_abbreviation_dot
+    frames:
+      # Travel verbs only: "należał do Węgier" (belonged to Hungary) is right.
+      - regex: "(?<=(?:jecha\\p{L}*|jadę|jedzie\\p{L}*|jadą|lecie\\p{L}*|leci\\p{L}*|lecę|wyjecha\\p{L}*|wyjeżdża\\p{L}*|wyjedzie\\p{L}*|przyjecha\\p{L}*|pojecha\\p{L}*|pojedzie\\p{L}*|polecia\\p{L}*|poleci\\p{L}*|wylecia\\p{L}*|wybra\\p{L}*{{S}}się|wybiera\\p{L}*{{S}}się|podróż\\p{L}*|wycieczk\\p{L}*|wyjazd\\p{L}*|emigrowa\\p{L}*|wyemigrowa\\p{L}*|uciek\\p{L}*|uciec|wróci\\p{L}*|wraca\\p{L}*){{S}})(?<target>do{{S}}(?<place>węgier|białorusi|syberii|moraw|antarktydy|kubę|kuby|malty|islandii|sycylii|sardynii|korsyki|krymu|kaszub|mazur|podhala|śląska|wołoszczyzny|filipin|madagaskaru|hawaje|hawajów)){{NOT_LETTER}}"
+        message: review_msg_contextual_grammar
+        fixer: formsDo
+      # "Ważnym jest, aby": the predicative adjective before a clause is neuter "-e".
+      - regex: "(?=\\p{L})(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed|tym|każdym|jednym|nim|kim|czym){{S}})(?<target>(?<stem>\\p{L}{3,}?)(?<end>ym|im))(?=(?:{{S}}(?:również|także|też|zawsze|zatem|więc))?{{S}}(?:jest|było|byłoby|będzie)(?:{{S}}to)?[ \\t\\u00a0]*,?[ \\t\\u00a0]*(?:że|aby|żeby|by|iż|gdy|jeśli){{NOT_LETTER}})"
+        message: review_msg_contextual_grammar
+        fixer: formsStem
+      - regex: "(?=\\p{L})(?<=(?:jest|było|byłoby|będzie){{S}})(?<target>(?<stem>\\p{L}{3,}?)(?<end>ym|im))(?=[ \\t\\u00a0]*,[ \\t\\u00a0]*(?:aby|żeby|by|że|iż){{NOT_LETTER}})"
+        message: review_msg_contextual_grammar
+        fixer: formsStem2
+      # Abbreviations that keep the word's last letter take no dot: "nr 2", "3 mln złotych".
+      - regex: "(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed){{S}})(?<target>(?<abbr>nr|mln|mld|ha|kg|km|cm|mm)\\.)(?=[ \\t\\u00a0]+(?:\\p{L}|\\d))"
+        verbatim: true
+        fixer: formsAbbr
+      # "3 m. tkaniny", "200 g. mąki": a unit after a number takes no dot inside the sentence.
+      - regex: "(?<=\\p{N}{{S}})(?<target>(?<abbr>m|g|mg|ml|dag)\\.)(?=[ \\t\\u00a0]+\\p{L})"
+        verbatim: true
+        fixer: formsAbbr2
+      # "Dr. Kowalski", "mgr. Anna Nowak", "Dr. hab. Nowak" -> no dot before a name in the
+      # nominative (the dot marks "doktora", "magistra").
+      - regex: "(?<target>(?<abbr>dr|mgr|dyr)\\.)(?={{S}}(?:hab\\.{{S}})?(?:\\p{L}{2,}{{S}})?\\p{L}+(?:ski|cki|dzki|ska|cka|dzka){{NOT_LETTER}})"
+        verbatim: true
+        fixer: formsAbbr3
+      # "dr", "mgr" keep the last letter of "doktor" only: a man's name in an oblique case takes
+      # "dr." ("dzięki dr. Kowalskiemu"); a woman's title does not inflect ("z dr Kowalską").
+      - regex: "(?<target>dr|mgr|dyr)(?={{S}}(?:\\p{L}{2,}{{S}})?\\p{L}+(?:skiego|ckiego|dzkiego|skiemu|ckiemu|dzkiemu|skim|ckim|dzkim|owi){{NOT_LETTER}})"
+        verbatim: true
+        fixer: formsDr
+      # "ok dwustu psów", "ok 5 km" -> "ok.": "około" shortened takes its dot before a count.
+      - regex: "(?<![\\p{L}])(?<target>ok)(?={{S}}(?:\\d|dw|trz|czter|pięć|pięci|sześ|siedem|siedmi|osiem|ośmi|dziewię|dziesię|kilk|pół|stu|sto|tysi))"
+        verbatim: true
+        fix: "ok."
+      # Truncations take one:"np.", "tzw.", "itd.", "m.in.", "p.n.e.", "proc.", "ok." before a number.
+      - regex: "(?<target>np|tzw|itd|itp|m\\.in|p\\.n\\.e|n\\.e|proc|godz)(?![\\p{L}\\p{N}.])(?=[ \\t\\u00a0,;:)?!]|$)"
+        verbatim: true
+        fixer: formsNp
+      - regex: "(?<target>ok)(?=[ \\t\\u00a0]+\\d)"
+        lowercase: true
+        fix: "ok."
   - id: pl.wordForms
     checks: [englishPhraseCorrections]
     predicate: wordForms
@@ -59,12 +557,274 @@ rules:
   - id: pl.style
     checks: [stylePhrasing]
     predicate: style
+  - id: pl.styleFrames
+    checks: [stylePhrasing]
+    style: polish
+    message: review_msg_style_phrasing
+    frames:
+      # "w przeciągu dwóch lat", "na przestrzeni 5 lat": a time span is "w ciągu".
+      - regex: "(?<target>w{{S}}przeciągu|na{{S}}przestrzeni|przez{{S}}przeciąg)(?={{S}}(?:{{NUMERAL}}){{S}}(?:{{TIME_UNIT}}){{E}})"
+        fix: "w ciągu"
+      # "odnośnie tego" -> "odnośnie do tego".
+      - regex: "(?<target>odnośnie)(?={{S}}(?!do{{E}})\\p{L})"
+        fix: "odnośnie do"
+      # "tak długo, dopóki" blends "tak długo, jak" and "dopóty, dopóki".
+      - regex: "(?<target>tak{{S}}długo)(?=(?:{{S}}[^\\s,.!?;:]{1,20}){0,4},?{{S}}dopóki{{E}})"
+        fix: "dopóty"
+      # "tam pisało, że" is colloquial: "tam było napisane" ("tam się pisało" is impersonal).
+      - regex: "(?<=(?<!się)(?:^|[^\\p{L}])(?:tam|(?:w|na){{S}}\\p{L}{2,20}){{S}})(?<target>pisało)(?=,?{{S}}że{{E}})"
+        fix: "było napisane"
+      # "nie tyle …, ile": "ale" does not close the pair ("nie tyle co" is "not so much").
+      - regex: "(?<target>ale)(?<=(?:^|[^\\p{L}])nie{{S}}tyle(?!{{S}}co{{E}})(?:{{S}}[^\\s,.!?;:]{1,20}){1,6},{{S}}ale)(?={{S}}\\p{L})"
+        fix: "ile"
+      # "zarówno …, jak i": "jak również" does not close the pair.
+      - regex: "(?<target>jak{{S}}również)(?<=zarówno(?:{{S}}[^\\s.!?;:]{1,20}){1,6}{{S}}jak{{S}}również){{E}}"
+        fix: "jak i"
+      # "rozumieć pod tym" is a calque: "rozumieć przez to".
+      - regex: "(?<target>pod{{S}}tym(?:{{S}}(?:pojęciem|terminem|słowem|określeniem|hasłem))?)(?<=rozumi\\p{L}{0,6}(?:{{S}}\\p{L}{2,12}){0,2}{{S}}pod{{S}}tym(?:{{S}}\\p{L}{5,11})?){{E}}"
+        fixer: stylePod
+      # One clicks a link, not "on" it: "kliknij link".
+      - regex: "(?<target>(?:kliknij|kliknijcie|kliknąć|kliknął|kliknęła|kliknęli|kliknę|kliknie|klikamy|klikać|klika|klikasz|klikam|klikając){{S}}na)(?={{S}}(?:{{UI_TARGET}}){{E}})"
+        fixer: styleKliknij
   - id: pl.officialese
     checks: [stylePhrasing]
-    predicate: officialese
+    style: polish
+    message: review_msg_style_phrasing
+    frames:
+      # "wiodący" (leading) copies English: "czołowy", "główny". Not "wiodąca do lasu", "wiódł prym".
+      - regex: "(?<target>wiodąc(?<end>y|a|e|ego|ej|emu|ą|ym|ych|ymi)){{E}}(?!(?:{{S}}\\p{L}+)?{{S}}(?:{{ROUTE}}){{E}})"
+        fixer: officialeseWiodąc
+      # "destynacja" copies English: "cel podróży". A singular after an adjective or "ta" keeps
+      # its gender, so it is left alone ("ta modna destynacja").
+      - regex: "(?=destynacj)(?<!(?:^|[^\\p{L}])(?:\\p{L}{1,20}(?:a|ą|ej)|ta|tę|tą|tej){{S}})(?<target>destynacj(?<end>a|ę|ą|i|e|om|ami|ach)){{E}}"
+        fixer: officialeseDestynacj
+      # "w terminach temperamentu" copies "in terms of": "w kategoriach".
+      - regex: "(?=w{{S}}terminach)(?<=(?:^|[^\\p{L}])(?:{{DESCRIBE}})\\p{L}{0,8}(?:{{S}}\\p{L}{1,20}){0,3}{{S}})(?<target>w{{S}}terminach)(?={{S}}\\p{L})"
+        fix: "w kategoriach"
+      # A genesis is already how something came to be: "geneza powstania rękopisu" -> "geneza
+      # rękopisu". Not the uprisings ("geneza powstania warszawskiego", "Powstania Styczniowego").
+      - regex: "(?<target>(?<noun>genez(?:a|y|ie|ę|ą)){{S}}(?<tail>powstania)){{E}}"
+        fixer: officialeseNoun
+      # Officialese: "na odcinku kultury" -> "w dziedzinie kultury".
+      - regex: "(?<target>na{{S}}odcinku)(?={{S}}(?:{{FIELDS}}){{E}})"
+        fix: ["w dziedzinie", "w zakresie"]
+      # Officialese: "na okoliczność urodzin" -> "z okazji", "w sprawie".
+      - regex: "(?<target>na{{S}}okoliczność)(?={{S}}\\p{L})"
+        fix: ["w sprawie", "z okazji"]
+      # "Generalnie, …" opening a sentence copies "generally": "ogólnie", "zasadniczo".
+      - regex: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>generalnie){{E}}"
+        fix: ["ogólnie", "zasadniczo"]
+      # "Dokładnie!" as a reply copies "Exactly!": "Właśnie", "Owszem".
+      - regex: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>dokładnie(?<so>{{S}}tak)?)(?=[ \\t\\u00a0]{0,8}[!.](?![.]))"
+        fixer: officialeseDokładnie
+      # "i/lub" copies "and/or": "lub" already allows both. Not a path ("i/lub.json").
+      - regex: "(?<target>i/lub|lub/i)(?![\\p{L}\\p{N}_/.-])"
+        fix: "lub"
+      # "cofnął się o krok do tyłu": moving back is already "cofać się".
+      - regex: "cof\\p{L}{0,6}{{S}}się(?:{{S}}\\p{L}{1,12}){1,2}(?<target>{{S}}(?:wstecz|do{{S}}tyłu|w{{S}}tył)){{E}}"
+        fix: ""
   - id: pl.subjects
     checks: [polishCaseAgreement]
     predicate: subjects
+  - id: pl.typosFrames
+    checks: [englishPhraseCorrections]
+    style: polish
+    message: review_msg_contextual_grammar
+    frames:
+      # "prze" alone is only the verb "przeć" (push on), which takes no adjective and no "siebie":
+      # "prze piękny" -> "przepiękny", "prze siebie" -> "przed siebie", "prze ze mnie" -> "przeze".
+      - regex: "(?<target>prze{{S}}(?<word>\\p{L}{3,})){{E}}"
+        fixer: typosPrze
+      - regex: "(?<target>prze{{S}}ze)(?={{S}}mnie{{E}})"
+        fix: "przeze"
+      # "wzdłuż polnej drużki" -> "dróżki": a path ("dróżka"), not a bridesmaid ("drużka").
+      - regex: "(?=drużk)(?<=(?:^|[^\\p{L}])(?:wzdłuż|poln|leśn|wąsk|błotnist|kamienist|kręt|piaszczyst|wydeptan|górsk)\\p{L}{0,3}{{S}})(?<target>drużk(?<end>a|i|ę|ą|ce|ami|om|ach)){{E}}"
+        fixer: typosDrużk
+      # "dwóch wierz", "oprócz wierz" -> "wież": the genitive plural of "wieża", not "wierz" (believe).
+      - regex: "(?=wierz)(?<=(?:^|[^\\p{L}])(?:dwóch|dwu|trzech|czterech|pięciu|sześciu|kilku|kilkunastu|kilkudziesięciu|wielu|paru|oprócz|spośród|wśród){{S}})(?<target>wierz){{E}}"
+        fix: "wież"
+      # "kity do podług" -> "podłóg" (floors): no preposition stands after "do".
+      - regex: "(?=podług)(?<=(?:^|[^\\p{L}])(?:do|dla|kilku|wielu|dwóch|trzech|czterech|pięciu){{S}})(?<target>podług){{E}}"
+        fix: "podłóg"
+      # "ciszej nisz przednie" -> "niż": a comparison ("-ej", "-szy"), not niches.
+      - regex: "(?=nisz)(?<=(?:^|[^\\p{L}])(?:\\p{L}{2,16}ej|\\p{L}{1,14}sz[yae]){{S}})(?<target>nisz){{E}}"
+        fix: "niż"
+      # "Skłam serdeczne życzenia" -> "Składam".
+      - regex: "(?<target>skłamy?)(?=(?:{{S}}\\p{L}{3,20}(?:e|ie)){1,2}{{S}}życzenia{{E}})"
+        fixer: typosSkłamy
+      # "tam i z potworem" -> "tam i z powrotem".
+      - regex: "(?<target>potworem)(?<=(?:^|[^\\p{L}])(?:tam|tu|do{{S}}\\p{L}{2,20}(?:{{S}}\\p{L}{2,20})?){{S}}i{{S}}z{{S}}potworem){{CLAUSE_END}}"
+        fix: "powrotem"
+      # "podlegać ocenie" (dative); "podlać" waters something.
+      - regex: "(?<target>podleją|podleje)(?={{S}}(?:ocenie|kontroli|opodatkowaniu|zmianie|zmianom|karze|regulacji|ochronie|przepisom|ustawie|weryfikacji|likwidacji|wymianie){{E}})|(?<=(?:^|[^\\p{L}])(?:temu|czemu){{S}})(?<target>podleją|podleje){{E}}"
+        fixer: typosPodleją
+      # "nie mieć nic wspólnego": "noc" (night) is a slip.
+      - regex: "(?<target>noc)(?={{S}}wspólnego(?:{{S}}z{{E}}|[ \\t\\u00a0]*[.!?,;]))"
+        fix: "nic"
+      # "pół szklanki wody": "szklani" are glass men.
+      - regex: "(?<target>szklani)(?={{S}}(?:wody|wrzątku|mleka|soku|herbaty|cukru|mąki|wina|piwa|kawy|kefiru|śmietany|oleju|ryżu|kaszy){{E}})"
+        fix: "szklanki"
+      # "bardziej" cut short after a degree word or before an adverb; "o bardzie" is a bard.
+      - regex: "(?<target>bardzie){{E}}(?:(?<=(?:^|[^\\p{L}])(?:im|a|coraz|jeszcze|dużo|znacznie|nieco|trochę|wiele|zdecydowanie){{S}}bardzie)|(?={{S}}(?:\\p{L}{3,20}(?:nie|wo|ko)|niż){{E}}))"
+        fix: "bardziej"
+      # "u stóp góry": "stup" is the plural genitive of "stupa".
+      - regex: "(?<target>stup)(?={{S}}(?:góry|gór|wzgórza|zapory|schodów|łóżka|ołtarza|tronu|pomnika|zamku){{E}})"
+        fix: "stóp"
+      # "coraz lepie", "jeszcze wyże": a comparative adverb that lost its "-j".
+      - regex: "(?<target>lepie|wyże|niże|gorze|bliże|częście|szybcie|dłuże){{E}}(?<=(?:^|[^\\p{L}])(?:coraz|jeszcze|znacznie|dużo|nieco|trochę|zdecydowanie|wiele|daleko){{S}}\\p{L}{4,7})"
+        fixer: typosLepie
+      # "coraz skutecznej." -> "skuteczniej": after "coraz", a clause-final word is an adverb.
+      - regex: "(?<target>\\p{L}{2,20}nej){{CLAUSE_END}}(?<=(?:^|[^\\p{L}])coraz{{S}}\\p{L}{5,23})"
+        fixer: typosP
+      # "w przededniu wyborów" is the only use of "przededniu" (with a genitive after it).
+      - regex: "(?<!(?:^|[^\\p{L}])(?:w|jej|jego|ich|tego|tym|swoim|owym){{S}})(?<target>przededniu)(?={{S}}(?:\\p{L}{1,20}(?:ów|ych|ich|ego|ej|y|i|a|u)|świąt){{E}})"
+        fix: "w przededniu"
+      # "na podstawie danych": the preposition is part of the phrase.
+      - regex: "(?<!(?:^|[^\\p{L}])(?:na|o|w|przy|po|ku|się|tej|jej|tylko|samej|solidnej|mocnej){{S}})(?<target>podstawie)(?={{S}}(?:danych|informacji|umowy|ustawy|art|artykułu|przepisów|wyników|badań|analizy|decyzji|dokumentów|faktury|wniosku|opinii|zaświadczenia|orzeczenia|uchwały|porozumienia){{E}})"
+        fix: "na podstawie"
+      # "niezbyt dobrze": "niebyt" is nonexistence.
+      - regex: "(?<target>niebyt)(?={{S}}(?:dobrze|dobry|dobra|dobre|dużo|duży|duża|duże|wiele|często|długo|chętnie|mądrze|mądry|ładnie|jasno|jasne|pewnie|pewny|daleko|blisko|szybko|wysoko|wysoki|zadowolony|zadowolona|zadowoleni|zdrowy|zdrowo|udany|udana|udane|miło|miły|wygodnie|wygodny|łatwo|łatwy|łatwe|trudny|trudno|ciekawy|ciekawe|ciekawie){{E}})"
+        fix: "niezbyt"
+      # "Nagroda Główna", "Dworzec Główny": the capital names the institution.
+      - regex: "(?<=(?:^|[^\\p{L}])(?:Nagroda|Nagrodę|Nagrody|Nagrodą|Komenda|Komendy|Komendzie|Komendę|Biblioteka|Biblioteki|Bibliotece|Księgowa|Księgowej|Kwatera|Kwatery|Rada|Rady|Radzie|Poczta|Poczty|Poczcie|Dworzec|Dworca|Dworcu|Urząd|Urzędu|Urzędzie|Inspektorat|Inspektoratu|Sztab|Sztabu|Rynek|Rynku){{S}})(?<target>Gówn(?:a|ej|ą|ę|y|ego|ym|emu)){{E}}"
+        verbatim: true
+        fixer: typosGówn
+      # "ogólne informacje": "w ogóle" keeps "ogóle".
+      - regex: "(?<!(?:^|[^\\p{L}])(?:w|we){{S}})(?<target>ogóle)(?={{S}}(?:informacje|zasady|warunki|przepisy|uwagi|wiadomości|pojęcia|wytyczne|założenia|dane|kryteria|cechy|wymagania|postanowienia){{E}})"
+        fix: "ogólne"
+      # "jedna rzecz": lowercase "jena" is no word ("Jena" is a town).
+      - regex: "(?<target>jena)(?={{S}}(?:rzecz|osoba|sprawa|strona|część|kobieta|noc|chwila|godzina|minuta|książka|odpowiedź|myśl|droga|szansa|z){{E}})"
+        fixer: typosJena
+      # "o tej porze": "potrze" is a verb ("rub").
+      - regex: "(?<=(?:^|[^\\p{L}])(?:o|tej|każdej|dowolnej|późnej|wczesnej|nocnej|samej|innej|jakiej){{S}})(?<target>potrze){{E}}"
+        fix: "porze"
+      # "popełnić literówkę": "litrówka" is a litre bottle.
+      - regex: "(?<target>litrówk\\p{L}{0,3})(?<=(?:^|[^\\p{L}])popełni\\p{L}{0,6}{{S}}(?:\\p{L}{2,12}{{S}})?litrówk\\p{L}{0,3}){{E}}"
+        fixer: typosLitrówk
+      # "boja się o" (a buoy) -> "boję się", "boją się".
+      - regex: "(?<!(?:^|[^\\p{L}])(?:nie|się){{S}})(?<target>boja)(?={{S}}się(?:{{S}}(?:o|że|tego|go|jej|ich|mnie|ciebie|was|nas|ją|ludzi){{E}}|,{{S}}że{{E}}))"
+        fix: ["boję", "boją"]
+      # "ludzie lubią": "lubą" is the instrumental of "luba" (sweetheart).
+      - regex: "(?<=(?:^|[^\\p{L}])(?:nie|oni|one|ludzie|wszyscy|dzieci|którzy|które){{S}})(?<target>lubą){{E}}"
+        fix: "lubią"
+      # A nursery is "żłobek" ("żłobka"); the crib in Bethlehem is "żłóbek".
+      - regex: "(?<target>żłóbk(?:a|u|iem|i|ach|ów))(?={{S}}(?:przyzakładow|miejsk|publiczn|prywatn|gminn|integracyjn|państwow)\\p{L}{1,4}{{E}})"
+        fixer: typosŻłóbk
+      - regex: "(?<target>żłobk(?:a|u|iem|ach))(?={{S}}betlejemsk\\p{L}{1,4}{{E}})"
+        fixer: typosŻłobk
+      # "zmysł wzroku": "wzorek" is a pattern.
+      - regex: "(?<target>wzorku){{E}}(?<=(?:^|[^\\p{L}])(?:zmysł\\p{L}{0,3}|narząd\\p{L}{0,3}|ostrość|ostrości|utrat\\p{L}{1,2}|zaburzeni\\p{L}{1,3}|badani\\p{L}{1,3}|kontakt\\p{L}{0,3}){{S}}wzorku)"
+        fix: "wzroku"
+      # "przedstawić zarzuty": "przestawić" moves something.
+      - regex: "(?<target>przestawi(?:ono|ł|ła|li|ć|a|ają|any|ane|one))(?=(?:{{S}}\\p{L}{2,15}){0,2}{{S}}zarzut\\p{L}{0,3}{{E}})|(?<target>przestawi(?:ono|ł|ła|li)){{E}}(?<=(?:^|[^\\p{L}])zarzut\\p{L}{0,3}(?:{{S}}\\p{L}{2,15})?{{S}}przestawi\\p{L}{1,3})"
+        fixer: typosPrzestawi
+      # "podrapał si po głowie" -> "się" after a past form or an infinitive.
+      - regex: "(?<target>si)(?={{S}}(?!(?:bemol|dur|moll|krzyżyk){{E}})\\p{L}|[ \\t\\u00a0]*[.,!?;])(?<=(?:^|[^\\p{L}])\\p{L}{2,20}(?:ł|ła|ło|li|ły|ać|ić|yć|eć|ąć){{S}}si)"
+        fix: "się"
+      # "mamy naprawdę wiele": "naprawę" (a repair) before an intensified word.
+      - regex: "(?<=(?:^|[^\\p{L}])(?:mamy|jest|są|to|był|była|było|byli|ale|bo|czy){{S}})(?<target>naprawę)(?={{S}}(?:wiele|dużo|bardzo|mało|super|świetn\\p{L}{1,3}|fajn\\p{L}{1,3}|dobr\\p{L}{1,3}|ciekaw\\p{L}{1,3}|trudn\\p{L}{1,3}|ważn\\p{L}{1,3}|nie){{E}})"
+        fix: "naprawdę"
+      # "To mój prezent dal niego" -> "dla"; "w dal" is "into the distance".
+      - regex: "(?<!(?:^|[^\\p{L}])w{{S}})(?<target>dal)(?={{S}}(?:niego|niej|nich|ciebie|siebie|nas|was|mnie|mamy|taty|dzieci){{E}})"
+        fixer: typosDal
+      # "ściśle określone": the adverb, not the adjective "ścisły".
+      - regex: "(?<target>ścisł(?:e|y|a|ą|ym|ego|ej|i))(?={{S}}(?:określon|związan|ustalon|zdefiniowan|wyznaczon|ograniczon|przestrzegan|regulowan|kontrolowan|tajn)\\p{L}{1,3}{{E}})"
+        fix: "ściśle"
+      # "różnych": "rożny" is the corner of a pitch ("rzut rożny").
+      - regex: "(?<!(?:^|[^\\p{L}])(?:rzut\\p{L}{0,3}|róg|rogu|kąt\\p{L}{0,3}|chorągiew\\p{L}{0,3}|chorągiewk\\p{L}{0,3}){{S}})(?<target>rożn(?:ych|ymi|ego|ej|ym))(?={{S}}(?!rzut)\\p{L})"
+        fixer: typosRożn
+      # "stała się gwiazdą": "stałą" is an adjective form, not the past verb.
+      - regex: "(?<target>(?:stał|okazał|wydawał|zdawał)ą)(?={{S}}się{{S}}\\p{L}{2,20}(?:ą|em|ym|im|ami){{E}})"
+        fixer: typosStał
+      # "Wiśniewski, alei" after "nie tylko": "ale i".
+      - regex: "(?<target>alei)(?<=nie{{S}}tylko[^.!?]{1,80},{{S}}alei)(?={{S}}\\p{L})"
+        fix: "ale i"
+      # "Ta strona zawiera informacje": "zwierać" clenches.
+      - regex: "(?<target>zwiera(?:ją|ł|ła|ło|ły)?)(?=(?:{{S}}\\p{L}{2,15})?{{S}}(?:informacj\\p{L}{1,3}|dane|danych|treść|treści|tekst|opis|opisy|listę|wykaz|zbiór|instrukcj\\p{L}{1,3}|przepisy|zapisy){{E}})"
+        fixer: typosZwiera
+      # "miał zamiar": "miął" crumples.
+      - regex: "(?<target>miął)(?={{S}}(?:zamiar|ochotę|nadzieję|rację|okazję|czas|problem|pecha|szczęście|być){{E}})"
+        fix: "miał"
+      # "nadstawiać karku": "nastawiać" sets something.
+      - regex: "(?<target>nastawi\\p{L}{0,5})(?=(?:{{S}}\\p{L}{2,12}){0,3}{{S}}(?:karku|głowy|ucha|uszu){{E}})"
+        fixer: typosNastawi
+      # "wysoką rangę": the English "range" after a Polish adjective.
+      - regex: "(?<target>range){{E}}(?<=\\p{L}{2,20}ą{{S}}range)"
+        fixer: typosRange
+      # "znaczną część": "znaczą" is a verb ("they mean").
+      - regex: "(?<target>znaczą)(?={{S}}(?:część|ilość|większość|liczbę|kwotę|sumę|poprawę|przewagę){{E}})"
+        fix: "znaczną"
+      # "Nie oznacza to, że": "oznacz" is the imperative.
+      - regex: "(?<target>oznacz)(?={{S}}to(?:{{S}}(?:jednak|wcale|jeszcze))?,?{{S}}że{{E}})"
+        fix: "oznacza"
+      # "Ministerstwo Zdrowia": "zdrowa" is the adjective.
+      - regex: "(?<target>zdrowa){{E}}(?<=(?:^|[^\\p{L}])(?:ministerstw\\p{L}{0,3}|ministr\\p{L}{0,3}|ochron\\p{L}{0,2}|służb\\p{L}{0,2}|poradni\\p{L}{0,2}|ośrod\\p{L}{0,4}|centrum|fundusz\\p{L}{0,2}){{S}}zdrowa)"
+        fix: "zdrowia"
+      # "Powstanie Warszawskie": "postanie" means "will stand".
+      - regex: "(?<target>postanie)(?={{S}}(?:warszawski|styczniow|listopadow|wielkopolski|śląski|kościuszkowski)\\p{L}{1,3}{{E}})"
+        fix: "powstanie"
+      # "do nich": the particle "niech" never follows a preposition.
+      - regex: "(?<=(?:^|[^\\p{L}])(?:do|od|z|u|dla|bez|przez|na|o|po|za|przy|wśród|między|przed|nad|pod){{S}})(?<target>niech){{E}}"
+        fix: "nich"
+      # "pozwala sobie": "pozawalać" knocks things down.
+      - regex: "(?<target>pozawal\\p{L}{1,5})(?={{S}}(?:sobie|mu|jej|im|nam|wam|mi|ci|na|to{{S}}na){{E}})"
+        fixer: typosPozawal
+      # "startować w wyborach": "stratować" tramples.
+      - regex: "(?<target>stratow\\p{L}{1,5})(?={{S}}w{{S}}(?:wyborach|igrzyskach|zawodach|konkursie|maratonie|wyścigu|turnieju|mistrzostwach|olimpiadzie|plebiscycie){{E}})"
+        fixer: typosStratow
+      # "ponieść straty": "starty" are starts.
+      - regex: "(?<target>starty){{E}}(?<=(?:^|[^\\p{L}])(?:poni\\p{L}{1,5}|ponosi\\p{L}{0,3}|odrabia\\p{L}{0,3}|odrobi\\p{L}{0,3}|wyrówna\\p{L}{0,3})(?:{{S}}\\p{L}{2,15})?{{S}}starty)"
+        fix: "straty"
+      # "z naprzeciwka", "z przeciwka": the words exist only after "z".
+      - regex: "(?<!(?:^|[^\\p{L}])(?:z|na|zna){{S}})(?<target>naprzeciwka|przeciwka){{E}}"
+        fixer: typosNaprzeciwka
+      # "na czele": "czele" lives only in the phrase.
+      - regex: "(?<!(?:^|[^\\p{L}])(?:na|w)(?:{{S}}\\p{L}{1,15}){0,2}{{S}})(?<target>czele){{E}}"
+        fix: "na czele"
+      # "wespół z kimś", "wespół w zespół".
+      - regex: "(?<target>wespół)(?={{S}}(?!(?:z|ze|w){{E}})\\p{L}{0,20}(?:ą|em|iem|ami|mi|ymi|imi|kimś|nim|nią){{E}})"
+        fix: "wespół z"
+      - regex: "(?<target>wespół{{S}}w)(?={{S}}\\p{L}{2,20}(?:ami|mi|ymi|imi){{E}})"
+        fix: "wespół z"
+      - regex: "(?<target>wespół{{S}}zespół){{E}}"
+        fix: "wespół w zespół"
+      # "a w związku z tym": the phrase needs its "w".
+      - regex: "(?<=(?:(?:^|[^\\p{L}])(?:a|i|ale|lecz|więc|oraz)|[,;]){{S}})(?<target>związku)(?={{S}}z{{S}}(?:tym|powyższym|czym){{E}})"
+        fix: "w związku"
+      # "Ona dała mi": "z dala" (far off) is the only "dala".
+      - regex: "(?<!(?:^|[^\\p{L}])z{{S}})(?<target>dala)(?={{S}}(?:mi|ci|mu|jej|nam|wam|im|go|ją|to|sobie){{E}})"
+        fix: "dała"
+      # "odgrywać rolę": "ogrywać" beats someone at a game.
+      - regex: "(?<target>ogrywa\\p{L}{0,4})(?=(?:{{S}}\\p{L}{2,12}){0,2}{{S}}rol(?:ę|i){{E}})"
+        fixer: typosOgrywa
+      # "w swoim dorobku": "sowim" is an owl's.
+      - regex: "(?<target>sow(?:im|ich|imi|ej|ą|ego))(?={{S}}(?:dorobku|książkach|książce|życiu|domu|pokoju|mieszkaniu|pracy|kraju|imieniu|zdaniu|rodzinie|dzieciach|rodzicach){{E}})"
+        fixer: typosSow
+      # "do zrobienia": a verbal noun after "do", not the virile participle.
+      - regex: "(?<=(?:^|[^\\p{L}])do{{S}})(?<target>\\p{L}{3,20}(?:eni|ani|ęci)){{CLAUSE_END}}"
+        fixer: typosP2
+      # "w lutym 2015": "lity" means solid.
+      - regex: "(?<target>lit(?:y|ego|ym))(?={{S}}\\d{4}{{E}})"
+        fixer: typosLit
+      # "policyjne statystyki": "statystki" are film extras.
+      - regex: "(?<target>statystk(?:i|ach|ami|om)?){{E}}(?<=(?:(?:policyjn|oficjaln|najnowsz|rządow|szpitaln|medyczn|demograficzn|krajow|światow|unijn)\\p{L}{1,3}|według){{S}}statystk\\p{L}{0,3})"
+        fixer: typosStatystk
+      # "Chodzi o to, że": "ty" after "o" before a clause.
+      - regex: "(?<=(?:^|[^\\p{L}])o{{S}})(?<target>ty)(?=,{{S}}(?:że|żeby|aby|by){{E}})"
+        fix: ["to", "tym"]
+      # "o tym i o owym": "wym" is no word ("wym." abbreviates).
+      - regex: "(?<=(?:^|[^\\p{L}])o{{S}})(?<target>wym)(?![\\p{L}\\p{N}]|\\.[ \\t\\u00a0]*\\p{L})"
+        fix: "owym"
+      # "stał na przodzie": "przedzie" needs its preposition.
+      - regex: "(?<!(?:^|[^\\p{L}])(?:w|na){{S}})(?<target>przedzie){{E}}"
+        fix: ["na przodzie", "w przodzie"]
+      # "W lato" -> "Latem", "W lecie".
+      - regex: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>W{{S}}lato)(?={{S}}\\p{L})"
+        verbatim: true
+        fix: ["Latem", "W lecie"]
+      # "inny niż": "jak" compares like things ("nikt inny jak" keeps it).
+      - regex: "(?<!(?:^|[^\\p{L}])(?:nikt|nic|ktoś|coś|kto|co|któż|cóż|nikogo|niczego|nikomu|niczym|nikim){{S}})(?<target>inn(?:y|a|e|i|ego|ej|emu|ą|ym|ych|ymi){{S}}jak)(?={{S}}(?!nie{{E}})\\p{L})"
+        fixer: typosInn
   - id: pl.typos
     checks: [englishPhraseCorrections]
     predicate: typos

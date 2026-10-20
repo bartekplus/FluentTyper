@@ -1,17 +1,6 @@
-import type { Detector } from "../../engine/reviewRules";
+import type { Detector, Fixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import {
-  CLAUSE_START,
-  caseLike,
-  findingAt,
-  type Frame,
-  isPl,
-  owned,
-  PREPOSITIONS,
-  runFrames,
-  S,
-  userOrNamed,
-} from "./shared";
+import { caseLike, findingAt, isPl, owned, PREPOSITIONS, userOrNamed } from "./shared";
 import { adjectiveOf, finiteVerb, nounTags } from "./lexicon";
 
 /*
@@ -98,244 +87,55 @@ export const SPLIT_WORDS: Readonly<Record<string, string>> = {
   niemusi: "nie musi",
 };
 
-/** Cardinal numerals, for "na około pięć" (about five). */
-const NUMERALS =
-  "pół|półtora|jeden|jedna|jedno|dwa|dwie|dwóch|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|\\p{L}+naście|\\p{L}+dzieści|\\p{L}+dziesiąt|sto|\\p{L}+set|\\p{L}+sta|tysiąc|tysiące|tysięcy|milion\\p{L}*|miliard\\p{L}*|kilka|kilkanaście|kilkadziesiąt|kilkuset|kilku|kilkunastu|setki|tysiące|połowy|połowie|połowę|stu|dwustu|trzystu|czterystu|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|dwudziestu|trzydziestu|czterdziestu|pięćdziesięciu|stu";
-
 const COMPOUND = {
   ruleId: "englishClosedCompounds",
   messageKey: "review_msg_closed_compound",
 } as const;
 
-export const FRAMES: readonly Frame[] = [
+/** The named frame fixes of grammar/rules/pl.yaml (`fixer:`). */
+export const FIXERS = {
   // "naj" is no word of its own: "naj lepszy", "naj częściej" -> the superlative.
-  {
-    pattern: `(?<target>naj${S}(?<word>\\p{L}{2,}(?:sz[aeyąi]\\p{L}{0,3}|ej)))(?![\\p{L}])`,
-    fix: (m) => `naj${m.groups!.word}`,
-    ...COMPOUND,
-  },
-  // "niema" (mute, feminine) before a genitive object, or after one at the clause end, is "nie ma".
-  {
-    pattern: `(?<target>niema)(?=${S}(?:pojęcia|czasu|sensu|go|jej|ich|nic|nikogo|niczego|już|tu|tam|potrzeby|mowy|problemu|racji|prawa|wątpliwości|szans|znaczenia|co|kto|gdzie|jak|czego|kogo|nas|was|mnie|ciebie|tego|takiej|takiego|żadnego|żadnej|żadnych|sprawy|szansy|dokąd|kiedy)(?![\\p{L}]))`,
-    fix: "nie ma",
-    ruleId: "englishAlotCorrection",
-    messageKey: "review_msg_split_words",
-  },
-  {
-    pattern: `(?<=(?:^|[^\\p{L}])(?:ich|go|jej|nas|was|tu|tam|już|nic|nikogo|mnie|ciebie|kogo|czego|nigdzie|teraz)${S})(?<target>niema)(?=[ \\t\\u00a0]*[.!?,;…])`,
-    fix: "nie ma",
-    ruleId: "englishAlotCorrection",
-    messageKey: "review_msg_split_words",
-  },
-  // "Czas na prawdę" (time for the truth) is a noun; a verb, an adverb or the end follows the adverb.
-  {
-    pattern: `(?<!(?:dowód|dowody|dowodu|dowodem|czas|miejsce|liczyć|liczy|liczę|czekać|czeka|czekam|zasługuje|zasługiwać|szansę|szansa|ochotę|wpływ|prawo|gotowość|otwarty|otwarta|otwarci)${S})(?<target>na${S}prawdę)(?!${S}(?:o|i|historyczną|naukową|absolutną|obiektywną|objawioną|ostateczną|jedyną|tego|jego|jej|ich|\\p{L}+ego|\\p{L}+ych)(?![\\p{L}]))(?![ \\t\\u00a0]*[.!?;:…)"”»])`,
-    fix: "naprawdę",
-    ...COMPOUND,
-  },
-  // "przód" is the front: "na przód statku"; the adverb ends its phrase or goes "ku" something.
-  {
-    pattern: `(?<target>na${S}przód)(?=[ \\t\\u00a0]*(?:[.!?,;:…)"”»]|$)|${S}(?:ku|i|a)(?![\\p{L}]))`,
-    fix: "naprzód",
-    ...COMPOUND,
-  },
-  // "raz za razem" is a phrase of its own.
-  {
-    pattern: `(?<!raz${S})(?<target>za${S}razem)(?![\\p{L}])`,
-    fix: "zarazem",
-    ...COMPOUND,
-  },
-  // "uznać za pewne" (take for granted) and "za pewne kwoty" keep the adjective;
-  // the adverb goes before a verb, a numeral or the end of the clause.
-  {
-    pattern: `(?<!(?:uzna\\p{L}*|uważa\\p{L}*|uważ\\p{L}*|się|mie\\p{L}*|ma|mam|masz|mamy|macie|mają|wzi\\p{L}*|bra\\p{L}*|bior\\p{L}*|przyj\\p{L}*|poczyt\\p{L}*|uchodz\\p{L}*)(?:${S}\\p{L}+)?${S})(?<target>za${S}pewne)(?=[ \\t\\u00a0]*[.!?,;:…]|${S}(?:nie|już|to|jest|był|była|było|są|będzie|będą|się|kilka|kilku|wiele|wielu|tak|tylko|też|także|ktoś|coś|jutro|dziś|dzisiaj|wkrótce|niedługo|później|wtedy|teraz|znowu|jeszcze|wszyscy|wszystko|on|ona|oni|ono|ty|wy|my|ja||\\p{L}+(?:ł|ła|ło|li|ły|je|ją|ie|isz|esz|my|cie))(?![\\p{L}]))`,
-    fix: "zapewne",
-    ...COMPOUND,
-  },
-  // "po środku" is also "after a remedy" (po środku nasennym).
-  {
-    pattern: `(?<target>po${S}środku)(?!${S}\\p{L}*(?:ym|im)(?![\\p{L}]))(?![\\p{L}])`,
-    fix: "pośrodku",
-    ...COMPOUND,
-  },
+  compoundsNaj: (m) => `naj${m.groups!.word}`,
   // "po woli dotarcia" (by the will to) and the Warsaw district "Wola" keep the noun.
-  {
-    pattern: `(?<target>po${S}woli)(?=[ \\t\\u00a0]*(?:[.!?,;:…)]|$)|${S}(?:się|nie|ale|i|a|\\p{L}+(?:ł|ła|ło|li|ły|je|ją|ie|isz|esz|my|cie|ąc))(?![\\p{L}]))`,
-    fix: (m) => (/^po\s+Woli$/u.test(m.groups!.target) ? null : "powoli"),
-    ...COMPOUND,
-  },
-  // "ponad to, co" (beyond what) is two words.
-  {
-    pattern: `(?<target>ponad${S}to)(?![\\p{L}])(?![ \\t\\u00a0]*,?[ \\t\\u00a0]*(?:co|czego|czym)(?![\\p{L}]))`,
-    fix: "ponadto",
-    ...COMPOUND,
-  },
-  // "z resztą" (with the rest) takes a genitive; the adverb is followed by a clause.
-  {
-    pattern: `(?<target>z${S}resztą)(?=[ \\t\\u00a0]*,|${S}(?:nikogo|nic|niczego|nie|to|tego|jest|był|była|było|są|ja|ty|on|ona|ono|my|wy|oni|one|już|zawsze|też|chyba|wiadomo|sam|sama|samo|sami|jak|co|kto|każdy|wszyscy|wszystko|mnie|ciebie|go|jej|ich|się|bardzo|dobrze|i)(?![\\p{L}]))`,
-    fix: "zresztą",
-    ...COMPOUND,
-  },
-  // "co raz" (every so often) is rare; before a comparative it is "coraz".
-  {
-    pattern: `(?<target>co${S}raz)(?=${S}(?:\\p{L}+(?:iej|ej|szy|sza|sze|szego|szej|szym|szych|szą|si)|więcej|mniej|bardziej|lepiej|gorzej|częściej|rzadziej|bliżej|dalej|wyżej|niżej|dłużej|krócej|głośniej|ciszej|szybciej|wolniej|mocniej|trudniej|łatwiej|później|wcześniej|wyraźniej)(?![\\p{L}]))`,
-    fix: "coraz",
-    ...COMPOUND,
-  },
-  // "dla tego" is fine before a noun ("dla tego człowieka"); a conjunction makes it "dlatego".
-  {
-    pattern: `(?<target>dla${S}tego)(?=[ \\t\\u00a0]*(?:,[ \\t\\u00a0]*)?(?:że|iż|żeby|by|aby|też|właśnie|ponieważ|bo)(?![\\p{L}]))`,
-    fix: "dlatego",
-    ...COMPOUND,
-  },
-  // "dla czego" stays in "dla czego innego"; before a finite verb it asks why.
-  {
-    pattern: `(?<target>dla${S}czego)(?=${S}(?:nie|się|\\p{L}+(?:esz|isz|ysz|asz|cie|ją|łeś|łaś|liście|łyście|łem|łam))(?![\\p{L}]))`,
-    fix: "dlaczego",
-    ...COMPOUND,
-  },
-  // "a tym czasem" opens a contrast; "tym czasem się nie przejmuj" is the instrumental.
-  {
-    pattern: `(?<=(?:^|[.!?]\\s{1,8}|(?:^|[^\\p{L}])a${S}))(?<target>tym${S}czasem)(?!${S}(?:się|nie|przejm\\p{L}*|zajm\\p{L}*|martw\\p{L}*)(?![\\p{L}]))(?![\\p{L}])`,
-    fix: "tymczasem",
-    ...COMPOUND,
-  },
-  // "w prawdzie" (in truth) is a noun; the concession pairs with "ale"/"lecz" later.
-  {
-    pattern: `(?<target>w${S}prawdzie)(?=[^.!?;\\n]{1,120}?,[ \\t\\u00a0]*(?:ale|lecz|jednak|to|a)(?![\\p{L}]))`,
-    fix: "wprawdzie",
-    ...COMPOUND,
-  },
+  compoundsPo: (m) => (/^po\s+Woli$/u.test(m.groups!.target) ? null : "powoli"),
   // A preposition takes no "tam": "na tam to dziecko" is the demonstrative "tamto".
-  {
-    pattern: `(?<=(?:^|[^\\p{L}])(?:${PREPOSITIONS})${S})(?<target>tam${S}(?<pron>ten|ta|to|te|ci|tego|tej|temu|tą|tę|tym|tych|tymi))(?![\\p{L}])`,
-    fix: (m) => `tam${m.groups!.pron.toLowerCase()}`,
-    ...COMPOUND,
-  },
-  // The noun "widzimisię" after a preposition or a possessive.
-  {
-    pattern: `(?<=(?:^|[^\\p{L}])(?:od|z|na|dla|według|czyjegoś|czyjeś|czyjś|jego|jej|ich|swojego|swoje|swoim|własnego|własne)${S})(?<target>widzi${S}mi${S}się)(?![\\p{L}])`,
-    fix: "widzimisię",
-    ...COMPOUND,
-  },
-  // "o jej" before an exclamation mark is the interjection.
-  { pattern: `(?<target>o${S}jej)(?=[ \\t\\u00a0]*!)`, fix: "ojej", ...COMPOUND },
-  // "wyjechać zagranicę" is the noun used for the adverbial "za granicę".
-  {
-    pattern: `(?<=(?:jecha\\p{L}*|jeżdż\\p{L}*|jeździ\\p{L}*|wyjecha\\p{L}*|wyjeżdża\\p{L}*|wyjedzie\\p{L}*|lecie\\p{L}*|wylecia\\p{L}*|wyemigrowa\\p{L}*|wysła\\p{L}*|wysyła\\p{L}*|pojecha\\p{L}*|pojedzie\\p{L}*|uciek\\p{L}*|uciec)${S})(?<target>zagranicę)(?![\\p{L}])`,
-    fix: "za granicę",
-    ...COMPOUND,
-  },
-  {
-    pattern: `(?<=(?:by\\p{L}*|mieszka\\p{L}*|pracowa\\p{L}*|pracuj\\p{L}*|studiowa\\p{L}*|studiuj\\p{L}*|przebywa\\p{L}*|żyj\\p{L}*|żył\\p{L}*|odbywa\\p{L}*|zosta\\p{L}*|leczy\\p{L}*)${S})(?<target>zagranicą)(?![\\p{L}])`,
-    fix: "za granicą",
-    ...COMPOUND,
-  },
-  // "w stanie" (able) is two words after "być".
-  {
-    pattern: `(?<=(?:jest|są|był|była|było|byli|były|będzie|będą|jestem|jesteś|jesteśmy|jesteście|byłem|byłam|byłeś|byłaś|nie)${S})(?<target>wstanie)(?=${S}\\p{L}+(?:ć|c)(?![\\p{L}]))`,
-    fix: "w stanie",
-    ...COMPOUND,
-  },
+  compoundsTam: (m) => `tam${m.groups!.pron.toLowerCase()}`,
   // "w ogóle" written as one is handled by SPLIT_WORDS; "popołudniu" after no preposition is "po południu".
-  {
-    pattern: `(?<!(?:^|[^\\p{L}])(?:${PREPOSITIONS}|\\p{L}*ym|\\p{L}*im|tego|tamtego|to|tamto|jakimś)${S})(?<!["„“”«])(?<target>popołudniu)(?![\\p{L}])`,
-    fix: (m) => (m.groups!.target.startsWith("P") ? null : "po południu"),
-    ...COMPOUND,
-  },
+  compoundsPopołudniu: (m) => (m.groups!.target.startsWith("P") ? null : "po południu"),
   // "na około 300 zł", "w około połowie": "około" is the approximation, not the adverb.
-  {
-    pattern: `(?<target>(?<prep>na|w)${S}około)(?!${S}(?:\\d|${NUMERALS})(?![\\p{L}])|[ \\t\\u00a0]*\\d)(?![\\p{L}])`,
-    fix: (m) => `${m.groups!.prep.toLowerCase()}około`,
-    ...COMPOUND,
-  },
+  compoundsPrep: (m) => `${m.groups!.prep.toLowerCase()}około`,
   // "kary godny" (worthy of a penalty) after an adjective keeps the genitive: "najwyższej kary godne".
-  {
-    pattern: `(?<!\\p{L}(?:ej|szej)${S})(?<target>kary${S}godn(?<end>y|a|e|ego|ej|emu|ą|ym|ych|ymi|i))(?![\\p{L}])`,
-    fix: (m) => `karygodn${m.groups!.end.toLowerCase()}`,
-    ...COMPOUND,
-  },
-  // "nie mniej niż" (not less than) stays apart; "w tym nie mniej" is "including at least".
-  {
-    pattern: `(?<target>nie${S}mniej)(?=${S}jednak(?![\\p{L}]))(?!${S}jednak${S}niż)`,
-    fix: "niemniej",
-    ...COMPOUND,
-  },
-  {
-    pattern: `(?<!(?:^|[^\\p{L}])w${S})(?<target>tym${S}nie${S}mniej)(?![\\p{L}])(?!${S}(?:niż|od)(?![\\p{L}]))`,
-    fix: ["tym niemniej", "niemniej"],
-    ...COMPOUND,
-  },
-  // "by najmniej zaszkodzić" is the conjunction and the superlative.
-  {
-    pattern: `(?<target>by${S}najmniej)(?![\\p{L}])(?!${S}\\p{L}+ć(?![\\p{L}]))`,
-    fix: "bynajmniej",
-    ...COMPOUND,
-  },
-  // "uważać coś za zwyczaj" takes the noun.
-  {
-    pattern: `(?<!(?:uważ|uzna|przyj|uchodz|poczyt|wzię|bierz|bior|bra)\\p{L}*[^.!?;\\n]{0,40})(?<target>za${S}zwyczaj)(?![\\p{L}])`,
-    fix: "zazwyczaj",
-    ...COMPOUND,
-  },
+  compoundsKary: (m) => `karygodn${m.groups!.end.toLowerCase()}`,
   // "za co miesięcznie płacą" is the pronoun "co"; otherwise the adverbs and adjectives are one word.
-  {
-    pattern: `(?<!(?:^|[^\\p{L}])(?:za|po|na|o|przez|w)${S})(?<target>co${S}(?<word>tygodniow|miesięczn|roczn|dzienn|godzinn)(?<end>ie|o|y|a|e|ego|ej|emu|ą|ym|ych|ymi|i))(?![\\p{L}])`,
-    fix: (m) => {
-      const end = m.groups!.end.toLowerCase();
-      const word = m.groups!.word.toLowerCase();
-      // "codziennie" and "cotygodniowo": the adverb ending follows the adjective stem.
-      if ((end === "o") !== /ow$/.test(word) && (end === "o" || end === "ie")) return null;
-      return `co${word}${end}`;
-    },
-    ...COMPOUND,
+  compoundsCo: (m) => {
+    const end = m.groups!.end.toLowerCase();
+    const word = m.groups!.word.toLowerCase();
+    // "codziennie" and "cotygodniowo": the adverb ending follows the adjective stem.
+    if ((end === "o") !== /ow$/.test(word) && (end === "o" || end === "ie")) return null;
+    return `co${word}${end}`;
   },
   // "się do czekać", "od stresować": a verb prefix typed apart (a preposition never takes a
   // verb). Not a noun or a numeral in -ć ("do miłość", "od pięć"), nor "wy" (you).
-  {
-    pattern: `(?<![\\p{L}])(?<target>(?<prefix>do|od|za|po|przy|roz|prze|pod|nad)${S}(?<verb>\\p{L}{3,}))(?![\\p{L}])`,
-    fix: (m) => {
-      const { prefix, verb } = m.groups!;
-      if (
-        nounTags(verb) ||
-        adjectiveOf(verb) ||
-        /(?:ść|ęć)$|^(?:pięć|sześć|siedem|osiem|mać|chęć|płeć|nić|sieć)$/u.test(verb)
-      )
-        return null;
-      const infinitive = /(?:ać|eć|ić|yć|uć|ąć)$/u.test(verb);
-      if (!infinitive && !finiteVerb(verb)) return null;
-      // "za był", "do jest": a verb that takes no prefix stays apart (and stays wrong).
-      if (/^(?:był\p{L}*|jest|są|będ\p{L}*|ma|mam|mieć|może)$/u.test(verb)) return null;
-      return `${prefix.toLowerCase()}${verb}`;
-    },
-    ...COMPOUND,
+  compoundsPrefix: (m) => {
+    const { prefix, verb } = m.groups!;
+    if (
+      nounTags(verb) ||
+      adjectiveOf(verb) ||
+      /(?:ść|ęć)$|^(?:pięć|sześć|siedem|osiem|mać|chęć|płeć|nić|sieć)$/u.test(verb)
+    )
+      return null;
+    const infinitive = /(?:ać|eć|ić|yć|uć|ąć)$/u.test(verb);
+    if (!infinitive && !finiteVerb(verb)) return null;
+    // "za był", "do jest": a verb that takes no prefix stays apart (and stays wrong).
+    if (/^(?:był\p{L}*|jest|są|będ\p{L}*|ma|mam|mieć|może)$/u.test(verb)) return null;
+    return `${prefix.toLowerCase()}${verb}`;
   },
   // "eks-mąż", "mini-spódniczka", "quasi-nauka": a prefix joins the word it opens.
-  {
-    pattern: `(?<![\\p{L}])(?<target>(?<prefix>eks|mini|maksi|maxi|super|ultra|mega|anty|pseudo|quasi|neo|post|wice)-(?<word>\\p{L}{3,}))(?![\\p{L}-])`,
-    // Frames ignore case: "anty-Polak" keeps its hyphen before a capital.
-    fix: (m) => (/^\p{Ll}/u.test(m.groups!.word) ? `${m.groups!.prefix}${m.groups!.word}` : null),
-    ...COMPOUND,
-  },
+  compoundsPrefix2: (m) =>
+    /^\p{Ll}/u.test(m.groups!.word) ? `${m.groups!.prefix}${m.groups!.word}` : null,
   // "v-ce prezes" -> "wiceprezes".
-  {
-    pattern: `(?<![\\p{L}])(?<target>v-ce${S}(?<word>\\p{L}{3,}))(?![\\p{L}])`,
-    fix: (m) => `wice${m.groups!.word}`,
-    ...COMPOUND,
-  },
-  // "wciągu" is also the hoist ("wciąg"); before a span of time it is "w ciągu".
-  {
-    pattern: `(?<target>wciągu)(?=${S}(?:\\d|ostatni\\p{L}*|następn\\p{L}*|najbliższ\\p{L}*|kilk\\p{L}*|roku|lat|dnia|dni|tygodnia|tygodni|miesiąca|miesięcy|godziny|godzin|minuty|minut|sekund\\p{L}*|jednego|jednej|dwóch|trzech|całego|całej|pierwsz\\p{L}*|ubiegł\\p{L}*|tego|tej|życia|doby)(?![\\p{L}]))`,
-    fix: "w ciągu",
-    ...COMPOUND,
-  },
-  // The noun "bezsens" has a genitive "bezsensu"; after "to"/"jest" or alone it is "bez sensu".
-  {
-    pattern: `(?:(?<=(?:^|[^\\p{L}])(?:to|jest|był|była|było|są|byłoby|totalnie|zupełnie|kompletnie|całkiem|trochę)${S})|${CLAUSE_START})(?<target>bezsensu)(?![\\p{L}])(?!${S}(?:istnienia|życia|tego|wojny|świata)(?![\\p{L}]))`,
-    fix: "bez sensu",
-    ...COMPOUND,
-  },
-];
+  compoundsV: (m) => `wice${m.groups!.word}`,
+} satisfies Record<string, Fixer>;
 
 /*
  * The conditional "by" and the personal endings attach to a past-tense verb:
@@ -509,7 +309,6 @@ function nieJoined(ctx: DetectContext): RawFinding[] {
 
 export const PREDICATES = {
   compounds: (ctx: DetectContext) => [
-    ...runFrames(ctx, FRAMES),
     ...conditionalBy(ctx),
     ...personEndings(ctx),
     ...nieJoined(ctx),

@@ -1,15 +1,6 @@
-import type { Detector } from "../../engine/reviewRules";
+import type { Detector, Fixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import {
-  findingAt,
-  type Frame,
-  isPl,
-  owned,
-  PREPOSITIONS,
-  runFrames,
-  S,
-  userOrNamed,
-} from "./shared";
+import { findingAt, isPl, owned, userOrNamed } from "./shared";
 
 /*
  * Word forms set by convention rather than by a neighbour's meaning:
@@ -18,7 +9,6 @@ import {
  */
 
 const RULE = "englishPhraseCorrections" as const;
-const NOT_LETTER = "(?![\\p{L}])";
 
 /** Destinations taken with "na": "jechać na Węgry", not "do Węgier". */
 const NA_PLACES: Record<string, string> = {
@@ -46,86 +36,26 @@ const NA_PLACES: Record<string, string> = {
   hawajów: "na Hawaje",
 };
 
-export const FRAMES: readonly Frame[] = [
+/** The named frame fixes of grammar/rules/pl.yaml (`fixer:`). */
+export const FIXERS = {
   // Travel verbs only: "należał do Węgier" (belonged to Hungary) is right.
-  {
-    pattern: `(?<=(?:jecha\\p{L}*|jadę|jedzie\\p{L}*|jadą|lecie\\p{L}*|leci\\p{L}*|lecę|wyjecha\\p{L}*|wyjeżdża\\p{L}*|wyjedzie\\p{L}*|przyjecha\\p{L}*|pojecha\\p{L}*|pojedzie\\p{L}*|polecia\\p{L}*|poleci\\p{L}*|wylecia\\p{L}*|wybra\\p{L}*${S}się|wybiera\\p{L}*${S}się|podróż\\p{L}*|wycieczk\\p{L}*|wyjazd\\p{L}*|emigrowa\\p{L}*|wyemigrowa\\p{L}*|uciek\\p{L}*|uciec|wróci\\p{L}*|wraca\\p{L}*)${S})(?<target>do${S}(?<place>${Object.keys(NA_PLACES).join("|")}))${NOT_LETTER}`,
-    fix: (m) => NA_PLACES[m.groups!.place.toLowerCase()],
-    ruleId: RULE,
-    messageKey: "review_msg_contextual_grammar",
-  },
+  formsDo: (m) => NA_PLACES[m.groups!.place.toLowerCase()],
   // "Ważnym jest, aby": the predicative adjective before a clause is neuter "-e".
-  {
-    pattern: `(?=\\p{L})(?<!(?:^|[^\\p{L}])(?:${PREPOSITIONS}|tym|każdym|jednym|nim|kim|czym)${S})(?<target>(?<stem>\\p{L}{3,}?)(?<end>ym|im))(?=(?:${S}(?:również|także|też|zawsze|zatem|więc))?${S}(?:jest|było|byłoby|będzie)(?:${S}to)?[ \\t\\u00a0]*,?[ \\t\\u00a0]*(?:że|aby|żeby|by|iż|gdy|jeśli)${NOT_LETTER})`,
-    fix: (m) => `${m.groups!.stem}${m.groups!.end.toLowerCase() === "im" ? "ie" : "e"}`,
-    ruleId: RULE,
-    messageKey: "review_msg_contextual_grammar",
-  },
-  {
-    pattern: `(?=\\p{L})(?<=(?:jest|było|byłoby|będzie)${S})(?<target>(?<stem>\\p{L}{3,}?)(?<end>ym|im))(?=[ \\t\\u00a0]*,[ \\t\\u00a0]*(?:aby|żeby|by|że|iż)${NOT_LETTER})`,
-    fix: (m) => `${m.groups!.stem}${m.groups!.end.toLowerCase() === "im" ? "ie" : "e"}`,
-    ruleId: RULE,
-    messageKey: "review_msg_contextual_grammar",
-  },
+  formsStem: (m) => `${m.groups!.stem}${m.groups!.end.toLowerCase() === "im" ? "ie" : "e"}`,
+  formsStem2: (m) => `${m.groups!.stem}${m.groups!.end.toLowerCase() === "im" ? "ie" : "e"}`,
   // Abbreviations that keep the word's last letter take no dot: "nr 2", "3 mln złotych".
-  {
-    // "pod nr. 2" (numerem) is an oblique case, which keeps the dot.
-    pattern: `(?<!(?:^|[^\\p{L}])(?:${PREPOSITIONS})${S})(?<target>(?<abbr>nr|mln|mld|ha|kg|km|cm|mm)\\.)(?=[ \\t\\u00a0]+(?:\\p{L}|\\d))`,
-    fix: (m) => m.groups!.abbr,
-    ruleId: RULE,
-    messageKey: "review_msg_pl_abbreviation_dot",
-    verbatim: true,
-  },
+  formsAbbr: (m) => m.groups!.abbr,
   // "3 m. tkaniny", "200 g. mąki": a unit after a number takes no dot inside the sentence.
-  {
-    pattern: `(?<=\\p{N}${S})(?<target>(?<abbr>m|g|mg|ml|dag)\\.)(?=[ \\t\\u00a0]+\\p{L})`,
-    fix: (m) => m.groups!.abbr,
-    ruleId: RULE,
-    messageKey: "review_msg_pl_abbreviation_dot",
-    verbatim: true,
-  },
+  formsAbbr2: (m) => m.groups!.abbr,
   // "Dr. Kowalski", "mgr. Anna Nowak", "Dr. hab. Nowak" -> no dot before a name in the
   // nominative (the dot marks "doktora", "magistra").
-  {
-    pattern: `(?<target>(?<abbr>dr|mgr|dyr)\\.)(?=${S}(?:hab\\.${S})?(?:\\p{L}{2,}${S})?\\p{L}+(?:ski|cki|dzki|ska|cka|dzka)${NOT_LETTER})`,
-    fix: (m) => m.groups!.abbr,
-    ruleId: RULE,
-    messageKey: "review_msg_pl_abbreviation_dot",
-    verbatim: true,
-  },
+  formsAbbr3: (m) => m.groups!.abbr,
   // "dr", "mgr" keep the last letter of "doktor" only: a man's name in an oblique case takes
   // "dr." ("dzięki dr. Kowalskiemu"); a woman's title does not inflect ("z dr Kowalską").
-  {
-    pattern: `(?<target>dr|mgr|dyr)(?=${S}(?:\\p{L}{2,}${S})?\\p{L}+(?:skiego|ckiego|dzkiego|skiemu|ckiemu|dzkiemu|skim|ckim|dzkim|owi)${NOT_LETTER})`,
-    fix: (m) => `${m.groups!.target}.`,
-    ruleId: RULE,
-    messageKey: "review_msg_pl_abbreviation_dot",
-    verbatim: true,
-  },
-  // "ok dwustu psów", "ok 5 km" -> "ok.": "około" shortened takes its dot before a count.
-  {
-    pattern: `(?<![\\p{L}])(?<target>ok)(?=${S}(?:\\d|dw|trz|czter|pięć|pięci|sześ|siedem|siedmi|osiem|ośmi|dziewię|dziesię|kilk|pół|stu|sto|tysi))`,
-    fix: "ok.",
-    ruleId: RULE,
-    messageKey: "review_msg_pl_abbreviation_dot",
-    verbatim: true,
-  },
+  formsDr: (m) => `${m.groups!.target}.`,
   // Truncations take one:"np.", "tzw.", "itd.", "m.in.", "p.n.e.", "proc.", "ok." before a number.
-  {
-    pattern: `(?<target>np|tzw|itd|itp|m\\.in|p\\.n\\.e|n\\.e|proc|godz)(?![\\p{L}\\p{N}.])(?=[ \\t\\u00a0,;:)?!]|$)`,
-    fix: (m) => `${m.groups!.target}.`,
-    ruleId: RULE,
-    messageKey: "review_msg_pl_abbreviation_dot",
-    verbatim: true,
-  },
-  {
-    pattern: `(?<target>ok)(?=[ \\t\\u00a0]+\\d)`,
-    fix: "ok.",
-    ruleId: RULE,
-    messageKey: "review_msg_pl_abbreviation_dot",
-    lowercase: true,
-  },
-];
+  formsNp: (m) => `${m.groups!.target}.`,
+} satisfies Record<string, Fixer>;
 
 /*
  * Inflected foreign names: the ending joins a name whose last letter is
@@ -222,6 +152,5 @@ function inflectedNames(ctx: DetectContext): RawFinding[] {
 }
 
 export const PREDICATES = {
-  wordForms: (ctx: DetectContext) =>
-    isPl(ctx) ? [...runFrames(ctx, FRAMES), ...inflectedNames(ctx)] : [],
+  wordForms: (ctx: DetectContext) => (isPl(ctx) ? inflectedNames(ctx) : []),
 } satisfies Record<string, Detector>;
