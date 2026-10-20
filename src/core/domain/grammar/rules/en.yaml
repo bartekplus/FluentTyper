@@ -1947,28 +1947,115 @@ rules:
     predicate: noAdjective
   - id: en.verbFrames
     checks: [englishVerbComplements]
-    predicate: verbFrames
+    style: match
+    message: review_msg_gerund_complement
+    filter: usSlots
+    frames:
+      # "I keep see errors": keep takes the -ing form.
+      - regex: "(?:keep|keeps|kept|keeping){{S}}(?<target>[a-z]+){{E}}"
+        fixer: everydayKeep
+      # "It's going be hard": going takes "to".
+      - regex: "(?:am|is|are|was|were|['’]m|['’]re|(?:it|that|he|she|there|what|who|this)['’]s){{S}}going{{S}}(?<target>[a-z]+){{E}}"
+        message: review_msg_missing_to
+        fixer: everydayGoing
+      # "That makes me thinking": make/let + an object + the base verb.
+      - regex: "(?:make|makes|made|making|let|lets|letting){{S}}(?:me|you|him|her|us|them|someone|everyone|people){{S}}(?<target>[a-z]+ing){{E}}"
+        message: review_msg_causative_base
+        fixer: everydayCausative
   - id: en.wasThereMany
     checks: [englishExistentialAgreement]
-    predicate: wasThereMany
+    style: match
+    message: review_msg_existential_agreement
+    filter: usSlots
+    frames:
+      # "Was there too many people?", "Is there several options?": the plural takes were/are.
+      - regex: "(?<target>was|is){{S}}there{{S}}(?:(?:too|so){{S}})?(?<quantity>many|several|a{{S}}few|a{{S}}lot{{S}}of|lots{{S}}of|plenty{{S}}of|dozens{{S}}of){{S}}(?<noun>[a-z]+){{E}}"
+        fixer: everydayWasThere
   - id: en.everydayConfusions
     checks: [englishConfusedWords]
-    predicate: everydayConfusions
+    style: match
+    message: review_msg_confused_word
+    filter: usSlots
+    frames:
+      # "reading though the contract": a verb of passage takes "through" before its noun phrase.
+      - regex: "(?:go|goes|going|went|gone|read|reads|reading|look|looks|looking|looked|walk|walks|walked|walking|pass|passed|passing|get|got|getting|gets|flip|flipped|browse|browsed|scroll|scrolled|sift|search|searched|searching|dig|came|come|coming|run|ran|running|lived|living|break|broke|sailed|been){{S}}(?<target>though){{S}}(?:the|a|an|this|that|these|those|my|your|his|her|our|their|it|all|some|each|every){{E}}"
+        fixer: everydayThough
+      # "give me advise on it": the noun is advice.
+      - regex: "(?:give|gives|gave|giving|given|need|needs|needed|some|any|your|my|his|our|their|good|bad|great|expert|legal|medical|financial|professional|helpful|useful|no|for|the){{S}}(?:me{{S}}|us{{S}}|him{{S}}|them{{S}}|you{{S}})?(?<target>advise)(?={{S}}(?:on|about|for|from|regarding|please){{E}}|[ \\t\\u00a0]*(?:[.,!?;:]|$))"
+        fixer: everydayAdvise
+      # "That would we very helpful": a modal, then "we" where "be" belongs.
+      - regex: "(?<modal>would|will|could|should|might|may|must)(?:{{S}}(?:probably|definitely|certainly|also|really|surely))?{{S}}(?<target>we){{S}}(?<next>very|so|really|quite|too|great|good|fine|helpful|useful|nice|possible|able|happy|glad|better|best|ready|available|appreciated|interesting|important|necessary){{E}}"
+        fixer: everydayWeBe
+      # "Please do not us this door": a verb slot before a determiner object.
+      - regex: "(?:do{{S}}not|don['’]t|please|can|will|should|must|would|could|cannot|can['’]t|won['’]t|shouldn['’]t|didn['’]t){{S}}(?<target>us){{S}}(?:the|this|that|these|those|a|an|my|your|our|their|it|them|any|some){{E}}"
+        fixer: everydayUsUse
+      # "Doe he like me?": does/do.
+      - regex: "(?<target>doe){{S}}(?<subject>he|she|it|you|they|we|i){{S}}[a-z]+{{E}}"
+        fixer: everydayDoe
+      # "Everything went good", "the clutch worked good": the verb takes the adverb "well".
+      - regex: "(?:went|goes|go|going|gone|worked|works|work|working|ran|runs|run|running|performed|played|slept|shifted){{S}}(?<target>good)(?=[ \\t\\u00a0]*(?:[.,!?;:]|$)|{{S}}(?:until|and|but|so|today|yesterday|overall|too|though|enough|at){{E}})"
+        message: review_msg_adverb_form
+        fixer: everydayWentGood
+      # "the later of the two" is the latter.
+      - regex: "the{{S}}(?<target>later){{S}}of{{S}}(?:the|these|those|two|both){{E}}"
+        fixer: everydayLatter
   - id: en.gotItDone
     checks: [englishIrregularForms]
-    predicate: gotItDone
+    style: match
+    message: review_msg_irregular_form
+    filter: usSlots
+    frames:
+      # "I got it did yesterday": get + an object + the participle "done".
+      - regex: "(?:got|get|gets|getting){{S}}(?:it|them|this|that|everything|all{{S}}of{{S}}it|most{{S}}of{{S}}it|(?:my|her|his|our|their|the|your){{S}}[a-z]+){{S}}(?<target>did)(?=[ \\t\\u00a0]*(?:[.,!?;:]|$)|{{S}}(?:yesterday|today|already|early|before|by|in|on|last|quickly|fast){{E}})"
+        fixer: everydayGotDid
   - id: en.everydayPhrases
     checks: [englishPhraseCorrections]
-    predicate: everydayPhrases
+    style: match
+    message: review_msg_phrase_correction
+    filter: usSlots
+    frames:
+      # "Kind regard," closes a letter: regards.
+      - regex: "(?:kind|best|warm|warmest|warmer){{S}}(?<target>regard)(?=[ \\t\\u00a0]*(?:[,!.]|$|\\n))"
+        fixer: everydayRegard
+      # "everyone of you": every one.
+      - regex: "(?<target>everyone|everybody){{S}}of{{S}}(?:you|us|them|the|these|those|my|our|your|their|his|her){{E}}"
+        fixer: everydayEveryOne
   - id: en.splitCompounds
     checks: [englishContextualCompounds]
-    predicate: splitCompounds
+    style: match
+    message: review_msg_compounds
+    filter: usSlots
+    frames:
+      # "Is there anyway to fix it?", "We need sometime to think", "need anymore information":
+      # the two-word forms.
+      - regex: "(?:there(?:{{S}}(?:is|was)|['’]s)|is{{S}}there|was{{S}}there|find|found|no|know{{S}}of|have|has){{S}}(?<target>anyway){{S}}to{{E}}"
+        fixer: everydayAnyWay
+      # After "for", only a duration ("for sometime now"): "schedule it for sometime" names a time.
+      - regex: "(?:(?:take|takes|took|taking|taken|need|needs|needed|have|has|had|having|spend|spent|spending|give|gave|given|giving|allow|allowed){{S}}(?<target>sometime)(?={{S}}(?:to|for|off|with|now|ago|alone|together|out|away|apart){{E}}|[ \\t\\u00a0]*(?:[.,!?;:]|$))|for{{S}}(?<target2>sometime)(?={{S}}(?:now|already|ago){{E}}))"
+        owner: none
+        fixer: everydaySomeTime
+      - regex: "(?<target>anymore){{S}}(?<noun>[a-z]+){{E}}"
+        fixer: everydayAnyMore
   - id: en.moreSingular
     checks: [englishNounNumber]
-    predicate: moreSingular
+    style: match
+    message: review_msg_noun_count
+    filter: usSlots
+    frames:
+      # "More person are coming": more + a singular count noun + a plural verb.
+      - regex: "(?:more|fewer){{S}}(?<target>[a-z]+){{S}}(?:are|were|have|do){{E}}"
+        fixer: everydayMoreSingular
   - id: en.doSingular
     checks: [englishSubjectVerbAgreement]
-    predicate: doSingular
+    style: match
+    message: review_msg_subject_verb
+    filter: usSlots
+    frames:
+      # "Do anyone know…?", "Do that mean…?", "…, do he?": does after a singular subject.
+      - regex: "(?<target>do|don['’]t){{S}}(?:anyone|anybody|someone|somebody|everyone|everybody|nobody|anything|something|everything|that|this|it|he|she){{S}}(?<verb>[a-z]+){{E}}"
+        fixer: everydayDoSingular
+      - regex: "(?<=,{{S}})(?<target>do|don['’]t){{S}}(?:he|she|it)(?=[ \\t\\u00a0]*\\?)"
+        fixer: everydayDoTag
   - id: en.haveName
     checks: [englishSubjectVerbAgreement]
     predicate: haveName
