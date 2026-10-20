@@ -1,6 +1,6 @@
-import type { Detector } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
+  atToken,
   Around,
   CLITICS,
   CONJUNCTIONS,
@@ -11,7 +11,6 @@ import {
   PRENOMINAL,
   SER,
   replaceToken,
-  tokenize,
   words,
 } from "./common";
 import { readNoun } from "./agreement";
@@ -28,7 +27,6 @@ import {
   participle,
   subjunctiveLike,
 } from "./lexicon";
-import { isLang } from "../phraseTemplates";
 
 // Accents that tell a verb form from its twin: "el termino" (término, the noun), "se creo"
 // (creó, the preterite), "no sabia" (sabía, the imperfect).
@@ -686,34 +684,22 @@ function inItself(at: Around): string | null {
   return at.endsAfter() || (finiteVerb(next) && !isNoun(next)) || SER.has(next) ? "sí" : null;
 }
 
-function verbAccents(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const tokens = tokenize(ctx);
-  const findings: RawFinding[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
-    const at = new Around(tokens, i);
-    const fix =
-      nominal(at) ??
-      verbAccent(at) ??
-      hacia(at) ??
-      seria(at) ??
-      plainTwin(at) ??
-      hiatusNoun(at) ??
-      inItself(at);
-    if (!fix) continue;
-    const finding = replaceToken(
-      ctx,
-      token,
-      [fix],
-      RULE,
-      "review_msg_spanish_accent",
-      tokens[i - 1] ?? token,
-    );
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
+/** A verb, noun or adverb form that needs its written accent at the token. */
+const verbAccents = atToken((ctx, tokens, i) => {
+  const token = tokens[i];
+  if (!token.word || token.start < ctx.from || token.start >= ctx.to) return null;
+  const at = new Around(tokens, i);
+  const fix =
+    nominal(at) ??
+    verbAccent(at) ??
+    hacia(at) ??
+    seria(at) ??
+    plainTwin(at) ??
+    hiatusNoun(at) ??
+    inItself(at);
+  if (!fix) return null;
+  return replaceToken(ctx, token, [fix], RULE, "review_msg_spanish_accent", tokens[i - 1] ?? token);
+});
 
-export const PREDICATES = { verbAccents } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
+export const FIXERS = { verbAccents } satisfies Record<string, MatchFixer>;

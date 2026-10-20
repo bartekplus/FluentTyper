@@ -1,7 +1,8 @@
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import {
+  atToken,
   Around,
   CLITICS,
   CONJUNCTIONS,
@@ -9,7 +10,6 @@ import {
   PREPOSITIONS,
   replaceToken,
   SER,
-  tokenize,
   verbLike,
   words,
   type Token,
@@ -30,7 +30,6 @@ import {
   secondPersonVerb,
   subjunctiveLike,
 } from "./lexicon";
-import { isLang } from "../phraseTemplates";
 
 // Noun-phrase agreement: a determiner and the noun right after it ("la sillas", "el
 // bicicleta", "unos coche"), "uno de las", "la primer vez" and "dos perro". Number comes from
@@ -1152,35 +1151,31 @@ function bareAdjectiveNoun(ctx: DetectContext, tokens: Tokens, i: number): RawFi
   return replaceToken(ctx, adjToken, [fix], RULE, MESSAGE, nounToken);
 }
 
-function agreement(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const tokens = tokenize(ctx);
-  const findings: RawFinding[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
-    const finding =
-      timeAdjective(ctx, tokens, i) ??
-      neuterDegree(ctx, tokens, i) ??
-      superlativeAdjective(ctx, tokens, i) ??
-      determinerNoun(ctx, tokens, i) ??
-      determinerAdjectiveNoun(ctx, tokens, i) ??
-      determinerAcross(ctx, tokens, i) ??
-      adjectiveBetween(ctx, tokens, i) ??
-      neuterBeforePlural(ctx, tokens, i) ??
-      bareAdjectiveNoun(ctx, tokens, i) ??
-      postponedAdjective(ctx, tokens, i) ??
-      adjectiveAfterOf(ctx, tokens, i) ??
-      articleSuperlative(ctx, tokens, i) ??
-      darPorParticiple(ctx, tokens, i) ??
-      neuterDemonstrative(ctx, tokens, i) ??
-      pickerGroup(ctx, tokens, i) ??
-      ordinal(ctx, tokens, i) ??
-      cardinalNoun(ctx, tokens, i) ??
-      countedDeterminer(ctx, tokens, i);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
+/** The gender and number checks of the noun phrase at the token. */
+const agreement = atToken((ctx, tokens, i) => {
+  const token = tokens[i];
+  if (!token.word || token.start < ctx.from || token.start >= ctx.to) return null;
+  return (
+    timeAdjective(ctx, tokens, i) ??
+    neuterDegree(ctx, tokens, i) ??
+    superlativeAdjective(ctx, tokens, i) ??
+    determinerNoun(ctx, tokens, i) ??
+    determinerAdjectiveNoun(ctx, tokens, i) ??
+    determinerAcross(ctx, tokens, i) ??
+    adjectiveBetween(ctx, tokens, i) ??
+    neuterBeforePlural(ctx, tokens, i) ??
+    bareAdjectiveNoun(ctx, tokens, i) ??
+    postponedAdjective(ctx, tokens, i) ??
+    adjectiveAfterOf(ctx, tokens, i) ??
+    articleSuperlative(ctx, tokens, i) ??
+    darPorParticiple(ctx, tokens, i) ??
+    neuterDemonstrative(ctx, tokens, i) ??
+    pickerGroup(ctx, tokens, i) ??
+    ordinal(ctx, tokens, i) ??
+    cardinalNoun(ctx, tokens, i) ??
+    countedDeterminer(ctx, tokens, i)
+  );
+});
 
-export const PREDICATES = { agreement } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
+export const FIXERS = { agreement } satisfies Record<string, MatchFixer>;

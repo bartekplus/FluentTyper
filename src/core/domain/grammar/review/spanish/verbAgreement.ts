@@ -1,7 +1,8 @@
-import type { Detector } from "../../engine/reviewRules";
+import type { FindingsFilter, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { DETERMINER, pluralOf, readNoun } from "./agreement";
 import {
+  atToken,
   Around,
   CONJUNCTIONS,
   GIVEN_NAMES,
@@ -9,7 +10,6 @@ import {
   PREPOSITIONS,
   PRENOMINAL,
   replaceToken,
-  tokenize,
   words,
   type Token,
   type Tokens,
@@ -23,7 +23,6 @@ import {
   participle,
   secondPersonVerb,
 } from "./lexicon";
-import { isLang } from "../phraseTemplates";
 import {
   type ClauseProfile,
   type ClauseToken,
@@ -677,28 +676,40 @@ function askedSubject(ctx: DetectContext, tokens: Tokens, i: number): RawFinding
   return replaceToken(ctx, verbToken, [fix], RULE, MESSAGE, nounToken);
 }
 
-function verbAgreement(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const tokens = tokenize(ctx);
-  const findings: RawFinding[] = [];
-  const attributes: RawFinding[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    if (!tokens[i].word || tokens[i].start < ctx.from - 64 || tokens[i].start >= ctx.to) continue;
-    const finding =
-      subjectVerb(ctx, tokens, i) ??
+// The findings of the attribute frame, for the attributeFirst filter.
+const ATTRIBUTES = new WeakSet<RawFinding>();
+
+const inReach = (ctx: DetectContext, tokens: Tokens, i: number) =>
+  tokens[i].word && tokens[i].start >= ctx.from - 64 && tokens[i].start < ctx.to;
+
+/** The subject and verb checks of the token. */
+const verbAgreement = atToken((ctx, tokens, i) =>
+  inReach(ctx, tokens, i)
+    ? (subjectVerb(ctx, tokens, i) ??
       pronounPerson(ctx, tokens, i) ??
       liking(ctx, tokens, i) ??
       copulaParticiple(ctx, tokens, i) ??
       pluralAttribute(ctx, tokens, i) ??
       singularAttribute(ctx, tokens, i) ??
-      askedSubject(ctx, tokens, i);
-    if (finding) findings.push(finding);
-    const adjective = attribute(ctx, tokens, i);
-    if (adjective) attributes.push(adjective);
-  }
-  // The subject's gender beats the copula's number alone: "Ellas están cansado" -> cansadas.
-  const taken = new Set(attributes.map((f) => f.range.start));
-  return [...findings.filter((f) => !taken.has(f.range.start)), ...attributes];
-}
+      askedSubject(ctx, tokens, i))
+    : null,
+);
 
-export const PREDICATES = { verbAgreement } satisfies Record<string, Detector>;
+/** The attribute after a copula: "Ellas están cansado" -> "cansadas". */
+const verbAttribute = atToken((ctx, tokens, i) => {
+  const adjective = inReach(ctx, tokens, i) ? attribute(ctx, tokens, i) : null;
+  if (adjective) ATTRIBUTES.add(adjective);
+  return adjective;
+});
+
+/** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
+export const FIXERS = { verbAgreement, verbAttribute } satisfies Record<string, MatchFixer>;
+
+/** The named findings filters of grammar/rules/es.yaml (`filter:`). */
+export const FILTERS = {
+  // The subject's gender beats the copula's number alone: "Ellas están cansado" -> cansadas.
+  attributeFirst: (_ctx, found) => {
+    const taken = new Set(found.filter((f) => ATTRIBUTES.has(f)).map((f) => f.range.start));
+    return found.filter((f) => ATTRIBUTES.has(f) || !taken.has(f.range.start));
+  },
+} satisfies Record<string, FindingsFilter>;

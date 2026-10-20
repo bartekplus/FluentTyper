@@ -1,6 +1,6 @@
-import type { Detector } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
+  atToken,
   Around,
   CLITICS,
   CONJUNCTIONS,
@@ -9,7 +9,6 @@ import {
   PREPOSITIONS,
   replaceToken,
   SER,
-  tokenize,
   verbLike,
   words,
   type Token,
@@ -27,7 +26,6 @@ import {
   secondPersonVerb,
   subjunctiveLike,
 } from "./lexicon";
-import { isLang } from "../phraseTemplates";
 
 // Spanish homophones decided by a closed-class frame around them: "cada ves" (vez), "el ano
 // pasado" (año), "ha echo" (hecho), "a ver estudiado" (haber). The typed word is a real word,
@@ -169,7 +167,10 @@ const SER_ESTAR = words(
     "soy eres somos parece parecía resulta resultó",
 );
 
-/** Checks by the typed (lowercase) word. Each returns the replacement(s) or null. */
+/**
+ * Checks by the typed (lowercase) word. Each returns the replacement(s) or null. The first
+ * es.confusions frame of rules/es.yaml lists these words and the words of PLURAL_HABER.
+ */
 const CHECKS: Record<string, Check> = {
   ano: (at) => (yearReading(at) ? ["año"] : null),
   e: (at) => perfectHe(at) ?? strayE(at),
@@ -525,169 +526,112 @@ function aVer(tokens: Tokens, i: number): { end: number; fix: string } | null {
   return { end: ver.end, fix: `hab${m[1] === "vér" ? "é" : "e"}r${m[2]}` };
 }
 
-function confusions(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const tokens = tokenize(ctx);
-  const findings: RawFinding[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
-    const at = new Around(tokens, i);
-    // "aún que" / "aun que" are "aunque" (but "más aún que" compares).
-    if (
-      (token.lower === "aún" || token.lower === "aun") &&
-      at.next() === "que" &&
-      (at.starts || tokens[i - 1]?.text === "," || (token.lower === "aun" && !comparative(at)))
-    ) {
-      const span = {
-        ...token,
-        end: tokens[i + 1].end,
-        text: ctx.text.slice(token.start, tokens[i + 1].end),
-      };
-      const finding = replaceToken(ctx, span, ["aunque"], RULE, "review_msg_spanish_confusion");
-      if (finding) findings.push(finding);
-      continue;
-    }
-    // Existential "haber" has no plural: "han habido quejas" is "ha habido"; "han habido de
-    // irse" (haber de + infinitive, had to) agrees with its subject.
-    const singular = PLURAL_HABER[token.lower];
-    if (singular && at.next() === "habido" && at.next(2) !== "de") {
-      const span = {
-        ...token,
-        end: tokens[i + 1].end,
-        text: ctx.text.slice(token.start, tokens[i + 1].end),
-      };
-      const finding = replaceToken(
-        ctx,
-        span,
-        [`${singular} habido`],
-        RULE,
-        "review_msg_spanish_confusion",
-      );
-      if (finding) findings.push(finding);
-      continue;
-    }
-    // "el menos tres": "al menos".
-    if (
-      token.lower === "el" &&
-      !/^(?:en|a|de|del|hasta|desde|entre|está|es)$/u.test(at.prev()) &&
-      at.next() === "menos" &&
-      isNumber(tokens[i + 2]) &&
-      !tokens[i + 2].broken
-    ) {
-      const finding = replaceToken(
-        ctx,
-        token,
-        ["al"],
-        RULE,
-        "review_msg_spanish_confusion",
-        tokens[i + 1],
-      );
-      if (finding) findings.push(finding);
-      continue;
-    }
-    const haber = aVer(tokens, i);
-    if (haber) {
-      const span = { ...token, end: haber.end, text: ctx.text.slice(token.start, haber.end) };
-      const finding = replaceToken(
-        ctx,
-        span,
-        [haber.fix],
-        RULE,
-        "review_msg_spanish_confusion",
-        tokens[i + 2],
-      );
-      if (finding) findings.push(finding);
-      continue;
-    }
-    const check = CHECKS[token.lower];
-    const fixes = check?.(at);
-    if (!fixes) continue;
-    const finding = replaceToken(
+/** The homophone checks of the token: "aun que", "han habido", "el menos", "a ver", CHECKS. */
+const confusions = atToken((ctx, tokens, i) => {
+  const token = tokens[i];
+  if (!token.word || token.start < ctx.from || token.start >= ctx.to) return null;
+  const at = new Around(tokens, i);
+  // "aún que" / "aun que" are "aunque" (but "más aún que" compares).
+  if (
+    (token.lower === "aún" || token.lower === "aun") &&
+    at.next() === "que" &&
+    (at.starts || tokens[i - 1]?.text === "," || (token.lower === "aun" && !comparative(at)))
+  ) {
+    const span = {
+      ...token,
+      end: tokens[i + 1].end,
+      text: ctx.text.slice(token.start, tokens[i + 1].end),
+    };
+    return replaceToken(ctx, span, ["aunque"], RULE, "review_msg_spanish_confusion");
+  }
+  // Existential "haber" has no plural: "han habido quejas" is "ha habido"; "han habido de
+  // irse" (haber de + infinitive, had to) agrees with its subject.
+  // An own key only: "constructor" is no form of "haber".
+  const singular = Object.hasOwn(PLURAL_HABER, token.lower) ? PLURAL_HABER[token.lower] : null;
+  if (singular && at.next() === "habido" && at.next(2) !== "de") {
+    const span = {
+      ...token,
+      end: tokens[i + 1].end,
+      text: ctx.text.slice(token.start, tokens[i + 1].end),
+    };
+    return replaceToken(ctx, span, [`${singular} habido`], RULE, "review_msg_spanish_confusion");
+  }
+  // "el menos tres": "al menos".
+  if (
+    token.lower === "el" &&
+    !/^(?:en|a|de|del|hasta|desde|entre|está|es)$/u.test(at.prev()) &&
+    at.next() === "menos" &&
+    isNumber(tokens[i + 2]) &&
+    !tokens[i + 2].broken
+  )
+    return replaceToken(ctx, token, ["al"], RULE, "review_msg_spanish_confusion", tokens[i + 1]);
+  const haber = aVer(tokens, i);
+  if (haber) {
+    const span = { ...token, end: haber.end, text: ctx.text.slice(token.start, haber.end) };
+    return replaceToken(
       ctx,
-      token,
-      fixes,
+      span,
+      [haber.fix],
       RULE,
       "review_msg_spanish_confusion",
-      tokens[i + 1],
+      tokens[i + 2],
     );
-    if (finding) findings.push(finding);
   }
-  return findings;
-}
+  const check = Object.hasOwn(CHECKS, token.lower) ? CHECKS[token.lower] : undefined;
+  const fixes = check?.(at);
+  if (!fixes) return null;
+  return replaceToken(ctx, token, fixes, RULE, "review_msg_spanish_confusion", tokens[i + 1]);
+});
 
 // "rebeló que" / "revelarse contra": reveal versus rebel, by the word after.
-function rebelReveal(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const tokens = tokenize(ctx);
-  const findings: RawFinding[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
-    const at = new Around(tokens, i);
-    const m = /^(re)(b|v)(el\p{L}*)$/u.exec(token.lower);
-    if (
-      !m ||
-      !/^el(?:o|a|as|amos|an|é|ó|aron|ar|arse|ado|ada|ados|adas|ando|aba|aban)$/u.test(m[3])
-    )
-      continue;
-    const next = at.next();
-    // "el misterio rebelado por el detective": "rebelarse" has no passive; "revelar" does.
-    const passive = m[2] === "b" && /^el(?:ado|ada|ados|adas)$/u.test(m[3]) && next === "por";
-    const fix = passive
-      ? `rev${m[3]}`
-      : m[2] === "v" && next === "contra"
-        ? `reb${m[3]}`
-        : m[2] === "b" &&
-            (next === "que" ||
-              (DETERMINERS.has(next) && !CLITICS.has(at.prev()) && !m[3].endsWith("se")))
-          ? `rev${m[3]}`
-          : null;
-    if (!fix) continue;
-    const finding = replaceToken(
-      ctx,
-      token,
-      [fix],
-      RULE,
-      "review_msg_spanish_confusion",
-      tokens[i + 1],
-    );
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
+const rebelReveal = atToken((ctx, tokens, i) => {
+  const token = tokens[i];
+  if (!token.word || token.start < ctx.from || token.start >= ctx.to) return null;
+  const at = new Around(tokens, i);
+  const m = /^(re)(b|v)(el\p{L}*)$/u.exec(token.lower);
+  if (!m || !/^el(?:o|a|as|amos|an|é|ó|aron|ar|arse|ado|ada|ados|adas|ando|aba|aban)$/u.test(m[3]))
+    return null;
+  const next = at.next();
+  // "el misterio rebelado por el detective": "rebelarse" has no passive; "revelar" does.
+  const passive = m[2] === "b" && /^el(?:ado|ada|ados|adas)$/u.test(m[3]) && next === "por";
+  const fix = passive
+    ? `rev${m[3]}`
+    : m[2] === "v" && next === "contra"
+      ? `reb${m[3]}`
+      : m[2] === "b" &&
+          (next === "que" ||
+            (DETERMINERS.has(next) && !CLITICS.has(at.prev()) && !m[3].endsWith("se")))
+        ? `rev${m[3]}`
+        : null;
+  if (!fix) return null;
+  return replaceToken(ctx, token, [fix], RULE, "review_msg_spanish_confusion", tokens[i + 1]);
+});
 
 /**
  * "y les medidas", "os interesados" -> "las", "los": "les" and "os" are only clitics, and no
  * clitic goes before a plural noun or participle that is no verb form.
  */
-function cliticArticle(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const tokens = tokenize(ctx);
-  const findings: RawFinding[] = [];
-  for (let i = 0; i < tokens.length - 1; i++) {
-    const token = tokens[i];
-    if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
-    if (!/^(?:les|os|Les|Os)$/u.test(token.text) || tokens[i + 1].broken) continue;
-    const next = tokens[i + 1].lower;
-    if (!/^\p{Ll}+$/u.test(tokens[i + 1].text) || ctx.dictionary.has(next)) continue;
-    const noun = readNoun(next);
-    if (!noun?.plural || finiteVerb(next) || secondPersonVerb(next) || isGerund(next)) continue;
-    const forms = noun.gender ? [noun.gender === "f" ? "las" : "los"] : ["los", "las"];
-    const finding = replaceToken(
-      ctx,
-      token,
-      forms.map((form) =>
-        /^\p{Lu}/u.test(token.text) ? `${form[0].toUpperCase()}${form.slice(1)}` : form,
-      ),
-      RULE,
-      "review_msg_spanish_confusion",
-      tokens[i + 1],
-    );
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
+const cliticArticle = atToken((ctx, tokens, i) => {
+  const token = tokens[i];
+  if (i >= tokens.length - 1) return null;
+  if (!token.word || token.start < ctx.from || token.start >= ctx.to) return null;
+  if (!/^(?:les|os|Les|Os)$/u.test(token.text) || tokens[i + 1].broken) return null;
+  const next = tokens[i + 1].lower;
+  if (!/^\p{Ll}+$/u.test(tokens[i + 1].text) || ctx.dictionary.has(next)) return null;
+  const noun = readNoun(next);
+  if (!noun?.plural || finiteVerb(next) || secondPersonVerb(next) || isGerund(next)) return null;
+  const forms = noun.gender ? [noun.gender === "f" ? "las" : "los"] : ["los", "las"];
+  return replaceToken(
+    ctx,
+    token,
+    forms.map((form) =>
+      /^\p{Lu}/u.test(token.text) ? `${form[0].toUpperCase()}${form.slice(1)}` : form,
+    ),
+    RULE,
+    "review_msg_spanish_confusion",
+    tokens[i + 1],
+  );
+});
 
 // Words a lone "d", "n" or "l" may stand before when it lost a letter: "d esta", "n este".
 const LEAD_DETERMINERS = words(
@@ -699,52 +643,38 @@ const LEAD_DETERMINERS = words(
  * lone consonant between words, before a determiner or a singular noun, lost its vowel. A
  * letter named or counted ("la n", "los n primeros", "5 l de agua") is left alone.
  */
-function lostVowel(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const tokens = tokenize(ctx);
-  const findings: RawFinding[] = [];
-  for (let i = 1; i < tokens.length - 1; i++) {
-    const token = tokens[i];
-    if (!/^[dln]$/u.test(token.text) || token.start < ctx.from || token.start >= ctx.to) continue;
-    const at = new Around(tokens, i);
-    const prev = at.prev();
-    const next = at.next();
-    if (!prev || !next || !/^\p{Ll}/u.test(tokens[i + 1].text)) continue;
-    // "para todo n natural", "si n vale 3": a variable.
-    if (
-      DETERMINERS.has(prev) ||
-      PREPOSITIONS.has(prev) ||
-      /^(?:letra|letras|todo|cada|cualquier|si|sea)$/u.test(prev)
-    )
-      continue;
-    const noun = readNoun(next);
-    const singularNoun = !!noun && !noun.plural;
-    let fixes: string[] = [];
-    if (token.text === "d" && (LEAD_DETERMINERS.has(next) || singularNoun)) fixes = ["de"];
-    else if (token.text === "n" && LEAD_DETERMINERS.has(next)) fixes = ["en"];
-    else if (token.text === "n" && singularNoun && noun.gender !== "f")
-      fixes = noun.gender === "m" ? ["un", "en"] : ["un", "una", "en"];
-    else if (token.text === "l" && singularNoun)
-      fixes = noun.gender ? [noun.gender === "f" ? "la" : "el"] : ["el", "la"];
-    if (!fixes.length) continue;
-    const finding = replaceToken(
-      ctx,
-      token,
-      fixes,
-      RULE,
-      "review_msg_spanish_confusion",
-      tokens[i + 1],
-    );
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
+const lostVowel = atToken((ctx, tokens, i) => {
+  if (i < 1 || i >= tokens.length - 1) return null;
+  const token = tokens[i];
+  if (!/^[dln]$/u.test(token.text) || token.start < ctx.from || token.start >= ctx.to) return null;
+  const at = new Around(tokens, i);
+  const prev = at.prev();
+  const next = at.next();
+  if (!prev || !next || !/^\p{Ll}/u.test(tokens[i + 1].text)) return null;
+  // "para todo n natural", "si n vale 3": a variable.
+  if (
+    DETERMINERS.has(prev) ||
+    PREPOSITIONS.has(prev) ||
+    /^(?:letra|letras|todo|cada|cualquier|si|sea)$/u.test(prev)
+  )
+    return null;
+  const noun = readNoun(next);
+  const singularNoun = !!noun && !noun.plural;
+  let fixes: string[] = [];
+  if (token.text === "d" && (LEAD_DETERMINERS.has(next) || singularNoun)) fixes = ["de"];
+  else if (token.text === "n" && LEAD_DETERMINERS.has(next)) fixes = ["en"];
+  else if (token.text === "n" && singularNoun && noun.gender !== "f")
+    fixes = noun.gender === "m" ? ["un", "en"] : ["un", "una", "en"];
+  else if (token.text === "l" && singularNoun)
+    fixes = noun.gender ? [noun.gender === "f" ? "la" : "el"] : ["el", "la"];
+  if (!fixes.length) return null;
+  return replaceToken(ctx, token, fixes, RULE, "review_msg_spanish_confusion", tokens[i + 1]);
+});
 
-export const PREDICATES = {
-  confusions: (ctx) => [
-    ...confusions(ctx),
-    ...rebelReveal(ctx),
-    ...cliticArticle(ctx),
-    ...lostVowel(ctx),
-  ],
-} satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
+export const FIXERS = {
+  confusions,
+  rebelReveal,
+  cliticArticle,
+  lostVowel,
+} satisfies Record<string, MatchFixer>;

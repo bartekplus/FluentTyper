@@ -18,44 +18,106 @@ fragments:
   UNIT_AFTER: "[ \\t\\u00a0]?(?:%|‰|€|\\$|kg|g|mg|km|m|cm|mm|ml|l|t|°|°C|ºC|m²|m³|km²|ha|kWh|kW|W|V|GB|MB|TB|Hz|kHz|MHz|GHz|kilos?|metros?|litros?|euros?|dólares|grados|millones)(?![\\p{L}\\p{N}])"
   # Words that open a Spanish sentence; STARTERS in review/spanish/typography.ts holds the
   # same list.
+  # A whole token of review/spanish/common.ts: a letter run.
+  TOKEN_WORD: "\\p{L}[\\p{L}\\p{M}]*"
+  # The end of a token's letter run.
+  WORD_TAIL: "(?![\\p{L}\\p{M}])"
   STARTERS: "El|La|Los|Las|Lo|Un|Una|Unos|Unas|Y|Pero|Es|Son|Era|Fue|Está|Hay|No|Sí|Yo|Tú|Él|Ella|Ellos|Ellas|Nosotros|Usted|Este|Esta|Estos|Estas|Eso|Esto|Ese|Esa|Se|Me|Te|Le|Les|Nos|Mi|Su|Sus|Tu|En|Del|Al|Con|Por|Para|Sin|Como|Cuando|Si|Que|Qué|Cómo|Dónde|Cuándo|Pues|Así|Luego|Después|Entonces|Ahora|Hoy|Ayer|También|Además|Ya|Todo|Siempre|Nunca|Aquí|Allí|Hola|Gracias|Bueno|Claro|Aunque|Porque|Mientras|Desde|Hasta|Según"
 
 rules:
   - id: es.estarAccents
     checks: [spanishAccents]
-    # predicate: walks the chunk tokens; the decision reads the words before and
-    # after each "esta" and "está" form.
-    predicate: estarAccents
+    style: match
+    message: review_msg_spanish_accent
+    frames:
+      # The "esta" and "está" forms. The fixer reads the words before and after the token
+      # (review/spanish/accents.ts).
+      - regex: "est(?:[aá]s?|[eé]){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: estarAccents
   - id: es.diacritics
     checks: [spanishAccents]
-    # predicate: walks the chunk tokens; the decision reads the words around each
-    # monosyllable and interrogative.
-    predicate: diacritics
+    style: match
+    message: review_msg_spanish_accent
+    frames:
+      # The question words, the relatives and the stressed monosyllables. The fixer reads the
+      # words around the token (review/spanish/diacritics.ts).
+      - regex: "(?:qu[eé]|qui[eé]n(?:es)?|c[oó]mo|a?d[oó]nde|cu[aá]ndo|cu[aá]l(?:es)?|cuan(?:t[oa]s?)?|m[ií]|t[uú]|[eé]l|se|de|t[eé]|si|a[uú]n|mas){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: diacritics
   - id: es.verbAccents
     checks: [spanishAccents]
-    # predicate: walks the chunk tokens; the decision reads the subject and the
-    # tense cues around each verb form.
-    predicate: verbAccents
+    style: match
+    message: review_msg_spanish_accent
+    frames:
+      # Every word: a verb form ("termino", "hablo") is no closed list. The fixer reads the
+      # subject and the tense cues around the token (review/spanish/verbAccents.ts).
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        fixer: verbAccents
   - id: es.paraQueAccent
     checks: [spanishAccents]
-    # predicate: walks the chunk tokens; each token frame reads the words around
-    # "para que" and the accented forms.
-    predicate: paraQueAccent
+    style: match
+    message: review_msg_spanish_interrogative
+    frames:
+      # "para que" before an indicative, and "ingles", "Paris" and "seria" after the
+      # words that ask for the accent. The fixer reads the words around the token
+      # (review/spanish/clauses.ts).
+      - regex: "(?:que|ingles|paris|seria){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: paraQueAccent
   - id: es.frameAccents
     checks: [spanishAccents]
-    # predicate: walks the chunk tokens; each token frame reads the words before
-    # and after the word to accent.
-    predicate: frameAccents
+    style: match
+    message: review_msg_spanish_accent
+    frames:
+      # "continua" and "perpetua" as verbs, and the accented demonstratives before a noun.
+      # The fixer reads the words before and after the token (review/spanish/frames.ts).
+      - regex: "(?:continua[sn]?|perpetuan?|ést(?:e|a|os|as)|és(?:e|a|os|as)|aquél(?:la|los|las)?){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: frameAccents
   - id: es.confusions
     checks: [spanishConfusions]
-    # predicate: walks the chunk tokens; the decision reads the lexicon forms of
-    # the words around each confusable word.
-    predicate: confusions
+    style: match
+    message: review_msg_spanish_confusion
+    frames:
+      # "aun que", "han habido", "el menos", "a ver" and the words of CHECKS. The fixer reads
+      # the words around the token (review/spanish/confusions.ts).
+      - regex: "(?:a|ah|anos?|apunto|ara|a[uú]n|ay|ayan?|bastantes|caso|cuidad|desech[ao]s?|e|echo|eh|el|entorno|haber|hab[ií]an|habr[aá]n|habr[ií]an|hallas?|hallan|han|hay|hayan?|haz|hech(?:os?|as?|an|amos)|hola|hubieran|hubiesen|[ií]ba|[ií]bais|[ií]ban|[ií]bas|[ií]bamos|lamas?|lamamos|lamo|mama|ola|ora|papa|pod(?:o|es|en)|se|sobretodo|tal|trav[eé]s|va|vais|vallas?|vallamos|vallan|vamos|van|vas|ven|voy){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: confusions
+      # "rebeló que" / "revelarse contra": reveal versus rebel, by the word after.
+      - regex: "re[bv]el[\\p{L}\\p{M}]*"
+        flags: giu
+        scan: owned
+        fixer: rebelReveal
+      # "y les medidas", "os interesados": "les" and "os" before a plural noun.
+      - regex: "(?:[lL]es|[oO]s){{WORD_TAIL}}"
+        flags: gu
+        scan: owned
+        fixer: cliticArticle
+      # "d esta prueba", "n este caso", "l mesa": a lone consonant that lost its vowel.
+      - regex: "[dln]{{WORD_TAIL}}"
+        flags: gu
+        scan: owned
+        fixer: lostVowel
   - id: es.verbForms
     checks: [spanishConfusions]
-    # predicate: walks the chunk tokens; the decision reads the auxiliary, the
-    # clitics and the verb forms around each verb.
-    predicate: verbForms
+    style: match
+    message: review_msg_spanish_verb_form
+    frames:
+      # Every word: the checks key on verb forms, which are no closed list. The fixer reads the
+      # auxiliary, the clitics and the verb forms around the token (review/spanish/verbForms.ts).
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        fixer: verbForms
   - id: es.prefixes
     checks: [spanishConfusions]
     style: match
@@ -70,9 +132,17 @@ rules:
         fixer: prefixed
   - id: es.splitCompounds
     checks: [spanishConfusions]
-    # predicate: walks the chunk tokens; the decision reads the determiner before and the verb
-    # and noun forms of both halves.
-    predicate: splitCompounds
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # A lowercase word that ends in "a" or "e" (a verb of a compound: "un lanza misiles",
+      # "sobre protegen"), and "mal". The fixer reads the determiner before and the verb and
+      # noun forms of both halves (review/spanish/prefixes.ts). After a finding, the scan
+      # goes on after the second half.
+      - regex: "(?:mal|\\p{Ll}*[ae]){{WORD_TAIL}}"
+        flags: gu
+        scan: owned
+        fixer: splitCompounds
   - id: es.doubledCompounds
     checks: [spanishConfusions]
     style: match
@@ -86,24 +156,51 @@ rules:
         fixer: doubled
   - id: es.porque
     checks: [spanishConfusions]
-    # predicate: walks the chunk tokens; the decision reads the clause around each
-    # "porque", "por qué", "sino" and "si no".
-    predicate: porque
+    style: match
+    message: review_msg_spanish_confusion
+    frames:
+      # "porque", "porqué", "por que", "por qué", "sino" and "si no". The fixer reads the
+      # clause around the token (review/spanish/porque.ts). After a finding, the scan goes
+      # on after the phrase.
+      - regex: "(?:sino|si|porqu[eé]s?|por){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: porque
   - id: es.clauseConfusions
     checks: [spanishConfusions]
-    # predicate: walks the chunk tokens; each token frame reads the clause
-    # around its word.
-    predicate: clauseConfusions
+    style: match
+    message: review_msg_spanish_confusion
+    frames:
+      # Every word: the frames key on gerunds, infinitives and present forms, which are no
+      # closed list. The fixer reads the clause around the token (review/spanish/clauses.ts).
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        fixer: clauseConfusions
   - id: es.frameConfusions
     checks: [spanishConfusions]
-    # predicate: walks the chunk tokens; each token frame reads the words before
-    # and after its word.
-    predicate: frameConfusions
+    style: match
+    message: review_msg_spanish_confusion
+    frames:
+      # "de el", "ala", "de más", "q", a clitic before an imperative and "les" before a
+      # number. The fixer reads the words before and after the token
+      # (review/spanish/frames.ts).
+      - regex: "(?:de|a|alas?|q|me|te|se|les?|los?|las?|nos|os){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: frameConfusions
   - id: es.typography
     checks: [spanishTypography]
-    # predicate: walks the chunk tokens; the decision reads the words before and after each
-    # conjunction, number, month, weekday and acronym.
-    predicate: typography
+    style: match
+    message: review_msg_spanish_conjunction
+    frames:
+      # Every word and number: the fixer checks the conjunctions, the years, the acronyms
+      # and the names, and reads the words before and after the token
+      # (review/spanish/typography.ts).
+      - regex: "{{TOKEN_WORD}}|\\p{N}+(?:[.,:]\\p{N}+)*"
+        flags: gu
+        scan: owned
+        fixer: typography
   - id: es.impossibleDates
     checks: [spanishTypography]
     style: match
@@ -310,9 +407,20 @@ rules:
         message: review_msg_spanish_decade
   - id: es.commas
     checks: [spanishTypography]
-    # predicate: walks the chunk tokens; the decision reads the clause structure
-    # around each comma place.
-    predicate: commas
+    style: match
+    message: review_msg_spanish_comma
+    frames:
+      # "sino", "pero", "ya que", "puesto que", the determiner of a subject, and the first
+      # words of the connectors and greetings of review/spanish/commas.ts. Every token of
+      # the read window counts: the comma may go before the chunk. The fixer reads the
+      # clause structure around the token. After a connector or a greeting, the scan goes
+      # on after the phrase and the person addressed.
+      - regex: "(?:sino|pero|ya|puesto|el|las?|los|es(?:t(?:e|a|os|as)|e|a|os|as)?|aquel(?:las?|los)?|nuestr[oa]s?|sus?|sin|por|en|al|adem[aá]s|asimismo|as[ií]|o|de|aun|a|un|(?:afortunada|desafortunada|desgraciada|lamentable|evidente|obvia|efectiva|sincera|franca|honesta|curiosa|sorprendente|indudable)mente|hola|adi[oó]s|buen(?:[oa]s)?|felicidades|enhorabuena|hasta|felices|much[oa]s|muy|besos|abrazos|gracias|saludos|bienvenid[oa]s?|feliz|c[oó]mo){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        lookback: 160
+        lookahead: 160
+        fixer: commas
   - id: es.missingSpace
     checks: [commaPeriodSpacing]
     style: match
@@ -395,29 +503,70 @@ rules:
         message: review_msg_typographic_symbol
   - id: es.agreement
     checks: [spanishAgreement]
-    # predicate: walks the chunk tokens; the decision reads the gender and number
-    # of each noun phrase.
-    predicate: agreement
+    style: match
+    message: review_msg_spanish_agreement
+    frames:
+      # Every word: the checks key on nouns, adjectives and determiners. The fixer reads the
+      # gender and number of the noun phrase at the token (review/spanish/agreement.ts).
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        fixer: agreement
   - id: es.verbAgreement
     checks: [spanishAgreement]
-    # predicate: walks the chunk tokens; the decision reads the subject and the
-    # number of each verb.
-    predicate: verbAgreement
+    style: match
+    message: review_msg_spanish_verb_agreement
+    # The subject's gender beats the copula's number alone: an attribute finding drops the
+    # finding of the first frame at the same start.
+    filter: attributeFirst
+    frames:
+      # Every word from 64 characters before the chunk: the checks key on verbs and subjects,
+      # which are no closed list. The fixer reads the subject and the number of the verb
+      # (review/spanish/verbAgreement.ts).
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        lookback: 64
+        fixer: verbAgreement
+      # The attribute after a copula: "Ellas están cansado" -> "cansadas".
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        lookback: 64
+        fixer: verbAttribute
   - id: es.clauseAgreement
     checks: [spanishAgreement]
-    # predicate: walks the chunk tokens; each token frame reads the clause
-    # around its word.
-    predicate: clauseAgreement
+    style: match
+    message: review_msg_spanish_impersonal_haber
+    frames:
+      # A plural modal before the impersonal "haber", and "a" before a doubled pronoun. The
+      # fixer reads the clause around the token (review/spanish/clauses.ts).
+      - regex: "(?:a|pueden|pod[ií]an|podr[ií]an|pudieron|deben|deb[ií]an|deber[ií]an|suelen|sol[ií]an|van|iban|tienen|ten[ií]an|tendr[aá]n|tendr[ií]an){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: clauseAgreement
   - id: es.frameAgreement
     checks: [spanishAgreement]
-    # predicate: walks the chunk tokens; each token frame reads the gender and
-    # number of the words around it.
-    predicate: frameAgreement
+    style: match
+    message: review_msg_spanish_agreement
+    frames:
+      # Every word: one frame keys on any noun before two joined adjectives. The fixer reads
+      # the gender and number of the words around the token (review/spanish/frames.ts).
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        fixer: frameAgreement
   - id: es.clauseStyle
     checks: [stylePhrasing]
-    # predicate: walks the chunk tokens; each token frame reads the clause around
-    # its word.
-    predicate: clauseStyle
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # "hace ... atrás", and an adverb that the clause repeats. The fixer reads the clause
+      # around the token (review/spanish/clauses.ts).
+      - regex: "(?:hace|tambi[eé]n|tampoco|ya|s[oó]lo|a[uú]n|todav[ií]a|siempre|nunca){{WORD_TAIL}}"
+        flags: giu
+        scan: owned
+        fixer: clauseStyle
   - id: es.quotes
     checks: [spanishQuotes]
     style: match
@@ -437,9 +586,15 @@ rules:
         fixer: singleQuotes
   - id: es.repeatedPair
     checks: [englishRepeatedWords]
-    # predicate: walks the chunk tokens; the frame compares each word pair with
-    # the pair after it.
-    predicate: repeatedPair
+    style: match
+    message: review_msg_repeated_words
+    frames:
+      # Every word: the fixer compares the word pair at the token with the pair after it
+      # (review/spanish/frames.ts).
+      - regex: "{{TOKEN_WORD}}"
+        flags: gu
+        scan: owned
+        fixer: repeatedPair
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

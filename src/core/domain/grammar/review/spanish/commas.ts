@@ -1,7 +1,8 @@
-import type { Detector } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { readNoun } from "./agreement";
 import {
+  atToken,
   Around,
   attributeOf,
   CLITICS,
@@ -9,12 +10,10 @@ import {
   DETERMINERS,
   isInfinitive,
   replaceToken,
-  tokenize,
   words,
   type Tokens,
 } from "./common";
 import { finiteVerb, genderedForm, isNoun, participle, subjunctiveLike } from "./lexicon";
-import { isLang } from "../phraseTemplates";
 
 // The comma after a sentence connector that opens its clause ("Sin embargo, no ganó") and
 // between a greeting and the person greeted ("Hola, Marta").
@@ -22,6 +21,7 @@ import { isLang } from "../phraseTemplates";
 const RULE = "spanishTypography" as const;
 const MESSAGE = "review_msg_spanish_comma" as const;
 
+// The es.commas frame of rules/es.yaml lists the first words of CONNECTORS and GREETINGS.
 const CONNECTORS = [
   "sin embargo",
   "por lo tanto",
@@ -201,6 +201,7 @@ function commaBeforeCausal(tokens: Tokens, i: number): boolean {
 
 // ------------------------------------------------------------------ subject and verb
 
+// The es.commas frame of rules/es.yaml lists these words.
 // Determiners of a subject a comma may not cut from its verb; "mi"/"tu" open vocatives ("Mi
 // amor, está lista la cena").
 const SUBJECT_DETERMINERS = words(
@@ -289,59 +290,55 @@ function commaAfter(ctx: DetectContext, tokens: Tokens, i: number): RawFinding |
   return replaceToken(ctx, token, [`${token.lower},`], RULE, MESSAGE, tokens[i + 1]);
 }
 
-function commas(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const tokens = tokenize(ctx);
+/** The commas of the clause at the token: connectors, greetings, "sino", "pero", subjects. */
+const commas = atToken((ctx, tokens, i, frame) => {
+  if (!tokens[i].word) return null;
   const findings: RawFinding[] = [];
   const push = (finding: RawFinding | null) => finding && findings.push(finding);
-  for (let i = 0; i < tokens.length; i++) {
-    if (!tokens[i].word) continue;
-    if (commaBeforeSino(tokens, i) || commaBeforePero(tokens, i) || commaBeforeCausal(tokens, i))
-      push(commaAfter(ctx, tokens, i - 1));
-    const comma = subjectComma(tokens, i);
-    if (comma >= 0)
-      push(replaceToken(ctx, tokens[comma], [""], RULE, MESSAGE, tokens[comma + 1], true));
-    const starts = new Around(tokens, i).starts;
-    let last = -1;
-    for (const phrase of starts ? CONNECTORS : []) {
+  if (commaBeforeSino(tokens, i) || commaBeforePero(tokens, i) || commaBeforeCausal(tokens, i))
+    push(commaAfter(ctx, tokens, i - 1));
+  const comma = subjectComma(tokens, i);
+  if (comma >= 0)
+    push(replaceToken(ctx, tokens[comma], [""], RULE, MESSAGE, tokens[comma + 1], true));
+  const starts = new Around(tokens, i).starts;
+  let last = -1;
+  for (const phrase of starts ? CONNECTORS : []) {
+    last = phraseAt(tokens, i, phrase);
+    if (last < 0) continue;
+    const after = tokens[last + 1];
+    const next = after?.lower ?? "";
+    // Only before a word of the clause it opens; "Por tanto esfuerzo" is "for so much".
+    if (!after?.word || after.broken || NOT_CONNECTOR_AFTER.has(next)) last = -1;
+    else if (phrase.join(" ") === "por tanto" && isNoun(next)) last = -1;
+    // "Francamente bueno", "Sinceramente tuyo": an adverb of the word after it.
+    else if (/mente$/u.test(phrase[0]) && (attributeOf(next) || /^(?:tuy|suy|vuestr)/u.test(next)))
+      last = -1;
+    break;
+  }
+  let addressed = -1;
+  if (last < 0) {
+    for (const phrase of GREETINGS) {
       last = phraseAt(tokens, i, phrase);
       if (last < 0) continue;
-      const after = tokens[last + 1];
-      const next = after?.lower ?? "";
-      // Only before a word of the clause it opens; "Por tanto esfuerzo" is "for so much".
-      if (!after?.word || after.broken || NOT_CONNECTOR_AFTER.has(next)) last = -1;
-      else if (phrase.join(" ") === "por tanto" && isNoun(next)) last = -1;
-      // "Francamente bueno", "Sinceramente tuyo": an adverb of the word after it.
-      else if (
-        /mente$/u.test(phrase[0]) &&
-        (attributeOf(next) || /^(?:tuy|suy|vuestr)/u.test(next))
-      )
-        last = -1;
+      // "Hola Marta", "Adiós amigos"; "¡Hola a todos!" greets no one by name.
+      addressed = addressee(tokens, last + 1);
+      // Inside a sentence only a closing greeting before the end: "Te deseo buenos días amigo."
+      const closes = addressed >= 0 && new Around(tokens, addressed).endsAfter();
+      if (addressed < 0 || (!starts && !(CLOSING_GREETINGS.has(tokens[last].lower) && closes)))
+        last = addressed = -1;
       break;
     }
-    let addressed = -1;
-    if (last < 0) {
-      for (const phrase of GREETINGS) {
-        last = phraseAt(tokens, i, phrase);
-        if (last < 0) continue;
-        // "Hola Marta", "Adiós amigos"; "¡Hola a todos!" greets no one by name.
-        addressed = addressee(tokens, last + 1);
-        // Inside a sentence only a closing greeting before the end: "Te deseo buenos días amigo."
-        const closes = addressed >= 0 && new Around(tokens, addressed).endsAfter();
-        if (addressed < 0 || (!starts && !(CLOSING_GREETINGS.has(tokens[last].lower) && closes)))
-          last = addressed = -1;
-        break;
-      }
-    }
-    if (last < 0) continue;
-    push(commaAfter(ctx, tokens, last));
-    // "Hola amigo, cómo estás": the clause after the person addressed opens with a comma too.
-    const next = tokens[addressed + 1];
-    if (addressed >= 0 && next?.word && !next.broken && CLAUSE_OPENERS.has(next.lower))
-      push(commaAfter(ctx, tokens, addressed));
-    i = Math.max(last, addressed);
   }
+  if (last < 0) return findings;
+  push(commaAfter(ctx, tokens, last));
+  // "Hola amigo, cómo estás": the clause after the person addressed opens with a comma too.
+  const next = tokens[addressed + 1];
+  if (addressed >= 0 && next?.word && !next.broken && CLAUSE_OPENERS.has(next.lower))
+    push(commaAfter(ctx, tokens, addressed));
+  // The next match starts after the phrase and the person addressed.
+  frame.resume?.(tokens[Math.max(last, addressed)].end);
   return findings;
-}
+});
 
-export const PREDICATES = { commas } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
+export const FIXERS = { commas } satisfies Record<string, MatchFixer>;

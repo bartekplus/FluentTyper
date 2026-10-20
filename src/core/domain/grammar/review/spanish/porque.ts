@@ -1,19 +1,17 @@
-import type { Detector } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
+  atToken,
   Around,
   CLITICS,
   isInfinitive,
   PREPOSITIONS,
   replaceToken,
-  tokenize,
   words,
   type Token,
   type Tokens,
 } from "./common";
 import { DETERMINER, readNoun } from "./agreement";
 import { finiteVerb, subjunctiveLike } from "./lexicon";
-import { isLang } from "../phraseTemplates";
 
 // porque / porqué / por qué / por que: the conjunction (because), the noun (the reason), the
 // question word (why) and preposition + relative. The frame around each picks the spelling:
@@ -196,32 +194,26 @@ function negatedBefore(tokens: Tokens, i: number): boolean {
   return false;
 }
 
-function porque(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const tokens = tokenize(ctx);
-  const findings: RawFinding[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    if (!tokens[i].word || tokens[i].start < ctx.from || tokens[i].start >= ctx.to) continue;
-    const contrast = sino(tokens, i);
-    if (contrast) {
-      const last = tokens[contrast.end];
-      const span = { ...tokens[i], end: last.end, text: ctx.text.slice(tokens[i].start, last.end) };
-      const finding = replaceToken(ctx, span, contrast.fix, RULE, "review_msg_spanish_confusion");
-      if (finding) findings.push(finding);
-      i = contrast.end;
-      continue;
-    }
-    const spelling = spellingAt(tokens, i);
-    if (!spelling || tokens[spelling.end].broken) continue;
-    const fixes = fixFor(tokens, i, spelling);
-    if (!fixes) continue;
-    const last = tokens[spelling.end];
+/** The porque spellings and "sino" / "si no" at the token. */
+const porque = atToken((ctx, tokens, i, frame) => {
+  if (!tokens[i].word || tokens[i].start < ctx.from || tokens[i].start >= ctx.to) return null;
+  const contrast = sino(tokens, i);
+  if (contrast) {
+    const last = tokens[contrast.end];
     const span = { ...tokens[i], end: last.end, text: ctx.text.slice(tokens[i].start, last.end) };
-    const finding = replaceToken(ctx, span, fixes, RULE, "review_msg_spanish_confusion");
-    if (finding) findings.push(finding);
-    i = spelling.end;
+    // The next match starts after the phrase.
+    frame.resume?.(last.end);
+    return replaceToken(ctx, span, contrast.fix, RULE, "review_msg_spanish_confusion");
   }
-  return findings;
-}
+  const spelling = spellingAt(tokens, i);
+  if (!spelling || tokens[spelling.end].broken) return null;
+  const fixes = fixFor(tokens, i, spelling);
+  if (!fixes) return null;
+  const last = tokens[spelling.end];
+  const span = { ...tokens[i], end: last.end, text: ctx.text.slice(tokens[i].start, last.end) };
+  frame.resume?.(last.end);
+  return replaceToken(ctx, span, fixes, RULE, "review_msg_spanish_confusion");
+});
 
-export const PREDICATES = { porque } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
+export const FIXERS = { porque } satisfies Record<string, MatchFixer>;

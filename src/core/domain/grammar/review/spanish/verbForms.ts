@@ -1,6 +1,7 @@
-import type { Detector } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
+import type { RawFinding } from "../reviewDetectors";
 import {
+  atToken,
   Around,
   CLITICS,
   DETERMINERS,
@@ -8,7 +9,6 @@ import {
   PREPOSITIONS,
   replaceToken,
   subjectAt,
-  tokenize,
   words,
   type Tokens,
 } from "./common";
@@ -26,7 +26,6 @@ import {
   presentInfinitive,
   subjunctiveLike,
 } from "./lexicon";
-import { isLang } from "../phraseTemplates";
 
 // Verb forms after an auxiliary ("han realizando" -> realizado, "ha ido aumentado" ->
 // aumentando), the auxiliary "ha"/"he" written as the preposition "a" or the conjunction "e",
@@ -524,80 +523,50 @@ function strayFinite(at: Around): boolean {
   );
 }
 
-function verbForms(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const tokens = tokenize(ctx);
-  const findings: RawFinding[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
-    const slot = cliticSlot(tokens, i);
-    if (slot) {
-      const [from, to] = slot.span;
-      const span = {
-        ...tokens[from],
-        end: tokens[to].end,
-        text: ctx.text.slice(tokens[from].start, tokens[to].end),
-      };
-      const finding = replaceToken(ctx, span, slot.fixes, RULE, slot.key, tokens[i]);
-      if (finding) findings.push(finding);
-      continue;
-    }
-    const infinitive =
-      prepositionVerb(new Around(tokens, i)) ?? governedVerb(new Around(tokens, i));
-    if (infinitive) {
-      const finding = replaceToken(ctx, token, [infinitive], RULE, VERB, tokens[i - 1]);
-      if (finding) findings.push(finding);
-      continue;
-    }
-    if (strayFinite(new Around(tokens, i))) {
-      const prep =
-        CLITICS.has(tokens[i - 1].lower) && tokens[i - 2]?.word ? tokens[i - 2] : tokens[i - 1];
-      const span = { ...prep, end: token.end, text: ctx.text.slice(prep.start, token.end) };
-      const desde = prep.lower === "desde";
-      const finding = replaceToken(
-        ctx,
-        desde ? prep : span,
-        desde ? ["desde que"] : [],
-        RULE,
-        desde ? VERB : "review_msg_spanish_preposition_verb",
-        token,
-      );
-      if (finding) findings.push(desde ? finding : { ...finding, warningOnly: true });
-      continue;
-    }
-    const fixes = check(new Around(tokens, i));
-    if (fixes) {
-      const finding = replaceToken(
-        ctx,
-        token,
-        fixes,
-        RULE,
-        "review_msg_spanish_verb_form",
-        tokens[i + 1],
-      );
-      if (finding) findings.push(finding);
-      continue;
-    }
-    const de = deQue(tokens, i);
-    if (!de) continue;
-    const [from, to] = de.span;
+/** The verb form checks of the token: clitic slots, infinitives, stray finite verbs, "de que". */
+const verbForms = atToken((ctx, tokens, i) => {
+  const token = tokens[i];
+  if (!token.word || token.start < ctx.from || token.start >= ctx.to) return null;
+  const slot = cliticSlot(tokens, i);
+  if (slot) {
+    const [from, to] = slot.span;
     const span = {
-      ...token,
+      ...tokens[from],
       end: tokens[to].end,
       text: ctx.text.slice(tokens[from].start, tokens[to].end),
     };
+    return replaceToken(ctx, span, slot.fixes, RULE, slot.key, tokens[i]);
+  }
+  const infinitive = prepositionVerb(new Around(tokens, i)) ?? governedVerb(new Around(tokens, i));
+  if (infinitive) return replaceToken(ctx, token, [infinitive], RULE, VERB, tokens[i - 1]);
+  if (strayFinite(new Around(tokens, i))) {
+    const prep =
+      CLITICS.has(tokens[i - 1].lower) && tokens[i - 2]?.word ? tokens[i - 2] : tokens[i - 1];
+    const span = { ...prep, end: token.end, text: ctx.text.slice(prep.start, token.end) };
+    const desde = prep.lower === "desde";
     const finding = replaceToken(
       ctx,
-      span,
-      [de.fix],
+      desde ? prep : span,
+      desde ? ["desde que"] : [],
       RULE,
-      "review_msg_spanish_verb_form",
-      tokens[to + 1],
+      desde ? VERB : "review_msg_spanish_preposition_verb",
+      token,
     );
-    if (finding) findings.push(finding);
+    return finding && (desde ? finding : { ...finding, warningOnly: true });
   }
-  return findings;
-}
+  const fixes = check(new Around(tokens, i));
+  if (fixes)
+    return replaceToken(ctx, token, fixes, RULE, "review_msg_spanish_verb_form", tokens[i + 1]);
+  const de = deQue(tokens, i);
+  if (!de) return null;
+  const [from, to] = de.span;
+  const span = {
+    ...token,
+    end: tokens[to].end,
+    text: ctx.text.slice(tokens[from].start, tokens[to].end),
+  };
+  return replaceToken(ctx, span, [de.fix], RULE, "review_msg_spanish_verb_form", tokens[to + 1]);
+});
 
-export const PREDICATES = { verbForms } satisfies Record<string, Detector>;
+/** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
+export const FIXERS = { verbForms } satisfies Record<string, MatchFixer>;
