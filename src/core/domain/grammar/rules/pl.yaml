@@ -38,6 +38,13 @@ fragments:
   NO_LETTER_AFTER: "(?![\\p{L}\\p{N}_'’-])"
   # Clitics and short words between a conjunction and its verb ("że mu daj").
   CLITICS: "(?:(?:nie|się|mi|mu|go|ją|je|to|tę|tego|jej|im|nam|wam|ci|cię|mnie|nas|was|już|teraz)[ \\t\\u00a0]{1,8}){0,2}"
+  # A past verb form before a split "by".
+  PAST_VERB: "\\p{L}{1,20}?(?:ał|ała|ało|ali|ały|ił|iła|iło|ili|iły|ył|yła|yło|yli|yły|ął|ęła|ęło|ęli|ęły|ógł|ogła|ogło|ogli|ogły|eł|szedł|szła|szło|szli|szły)"
+  # Words written together with "nie": active and passive participles, comparatives and
+  # superlatives (a closed list: "-szy" is also a verb ending, "cieszy"), adjectives in -owy,
+  # -ny, -ski and a few common bare ones, adverbs from adjectives, nouns in -ość and verbal nouns.
+  # Adjective endings leave out "-ą", which a third-person plural verb shares ("giną").
+  NIE_FORMS: "\\p{L}{2,}(?:ąc|on|an|ęt)(?:y|a|e|ego|ej|emu|ym|ych|ymi)|(?:naj)?(?:lepsz|gorsz|większ|wyższ|niższ|starsz|młodsz|dłuższ|krótsz|bliższ|dalsz|tańsz|droższ|szybsz|łatwiejsz|trudniejsz|ważniejsz|ciekawsz|lżejsz|cięższ|ładniejsz|prostsz|mądrzejsz|silniejsz|słabsz|bogatsz|nowsz|zdrowsz|piękniejsz|gorętsz|zimniejsz)(?:y|a|e|ego|ej|emu|ym|ych|ymi)|(?:naj)?(?:lepiej|gorzej)|\\p{L}{2,}(?:ow|n|sk|ck)(?:y|a|e|ego|ej|emu|ym|ych|ymi)|(?:dobr|zł|duż|wielk|mał|łatw|ciekaw|zdrow|chor|pewn|zdoln|grzeczn|uprzejm|wesoł|gotow|świadom|szczęśliw)(?:y|a|e|ego|ej|emu|ym|ych|ymi|zy|i)|(?:trudno|łatwo|dobrze|źle|daleko|wysoko|nisko|drogo|tanio|długo|dużo|mało|często|rzadko|chętnie|grzecznie|uprzejmie|ważne)|\\p{L}{2,}ość|\\p{L}{2,}(?:anie|enie|eniu|aniu)"
   # One space character.
   SP: "[ \\t\\u00a0]"
   # Case endings typed after a digit: ordinal, cardinal, and numeral noun ("piątka") endings.
@@ -171,7 +178,28 @@ rules:
         fix: "bez sensu"
   - id: pl.compounds
     checks: [englishClosedCompounds, englishAlotCorrection]
-    predicate: compounds
+    style: match
+    message: review_msg_closed_compound
+    frames:
+      # "zrobił by", "chciał bym": the conditional "by" with its person ending joins the past form;
+      # the conjunction "by" before an infinitive stays apart.
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<verb>{{PAST_VERB}})(?<space>{{S}})(?<by>by|bym|byś|byśmy|byście)(?![\\p{L}\\p{N}_'’-])"
+        scan: polish
+        flags: giu
+        fixer: conditionalBy
+      # "zrobili śmy": the personal ending "-śmy"/"-ście" is never a word of its own.
+      - regex: "(?<![\\p{L}\\p{N}_'\\u2019-])(?<word>\\p{L}{2,30})(?<space>[ \\t\\u00A0]{1,8})(?<ending>\\u015Bmy|\\u015Bcie)(?![\\p{L}\\p{N}_'\\u2019-])"
+        scan: polish
+        flags: giu
+        fixer: personEndings
+      # "nie" is written together with adjectives, adjectival participles, comparatives,
+      # adjective-based adverbs and nouns in -ość/-anie (the 2026 rules: "niedobry", "niepalący",
+      # "nielepszy", "nietrudno", "niepalenie"). It stays apart in a contrast ("nie dobry, lecz zły"),
+      # in a question and after "to" ("To nie zły pomysł").
+      - regex: "(?<![\\p{L}\\p{N}_'’-])(?<nie>nie)(?<sp>[ \\t\\u00a0]+)(?<word>{{NIE_FORMS}})(?![\\p{L}\\p{N}_-])"
+        scan: polish
+        flags: giu
+        fixer: nieJoined
   - id: pl.confusionsFrames
     checks: [englishPhraseCorrections]
     style: polish

@@ -24,7 +24,6 @@ import * as typos from "./typos";
 
 export const PREDICATES = mergePredicates(
   agreement.PREDICATES,
-  compounds.PREDICATES,
   confusions.PREDICATES,
   dates.PREDICATES,
   degree.PREDICATES,
