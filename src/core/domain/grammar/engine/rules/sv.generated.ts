@@ -3,7 +3,7 @@
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
 import type { DetectContext, FrameRef, MatchResult } from "../../library";
-import { adjectiveForm, namedExampleBefore, nounGender } from "../../library";
+import { namedExampleBefore, svAdjectiveForm, svNounGender } from "../../library";
 
 export const SV_ORDINAL_BEFORE: ReadonlySet<string> = new Set([
   "den",
@@ -260,14 +260,14 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const adjective = m.groups!.adjective;
     const gap2 = m.groups!.gap2;
     const noun = m.groups!.noun;
-    const form = adjectiveForm(adjective);
-    if (!(form && form.form !== "both" && !adjectiveForm(noun))) return null;
-    const gender = nounGender(noun);
+    const form = svAdjectiveForm(adjective);
+    if (!(form && form.form !== "both" && !svAdjectiveForm(noun))) return null;
+    const gender = svNounGender(noun);
     if (!gender) return null;
     const end =
       m.index + target.length + gap1.length + adjective.length + gap2.length + noun.length;
     const next = /^[ \t\u00a0]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 40))?.[1];
-    if (next && (adjectiveForm(next) || (next.length > 3 && nounGender(next)))) return null;
+    if (next && (svAdjectiveForm(next) || (next.length > 3 && svNounGender(next)))) return null;
     if ([adjective, noun].some((word) => ctx.dictionary.has(word))) return null;
     if (namedExampleBefore(ctx.text, m.index)) return null;
     const articleGender = target.toLowerCase() as "en" | "ett";
@@ -372,8 +372,8 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const gap1 = m.groups!.gap1;
     const noun = m.groups!.noun;
     if (namedExampleBefore(ctx.text, m.index)) return null;
-    if (SV_PERSONS.has(noun) || adjectiveForm(noun)) return null;
-    const gender = nounGender(noun);
+    if (SV_PERSONS.has(noun) || svAdjectiveForm(noun)) return null;
+    const gender = svNounGender(noun);
     if (gender ? gender !== target.toLowerCase() : !/a$/u.test(noun) || target !== "en")
       return null;
     if (ctx.dictionary.has(noun)) return null;

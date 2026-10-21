@@ -268,8 +268,8 @@ rules:
         scan: owned
         flags: gu
         let:
-          form: adjectiveForm(adjective)
-          gender: nounGender(noun)
+          form: svAdjectiveForm(adjective)
+          gender: svNounGender(noun)
           # The match is the article only: the phrase ends after the noun.
           end: m.index + target.length + gap1.length + adjective.length + gap2.length + noun.length
           # The noun is itself a modifier when a noun or adjective follows it.
@@ -278,9 +278,9 @@ rules:
           adjectiveGender: 'form.form === "common" ? "en" : "ett"'
           fixed: 'gender === "ett" ? "ett" : "en"'
         when:
-          - form && form.form !== "both" && !adjectiveForm(noun)
+          - form && form.form !== "both" && !svAdjectiveForm(noun)
           - gender
-          - "!(next && (adjectiveForm(next) || (next.length > 3 && nounGender(next))))"
+          - "!(next && (svAdjectiveForm(next) || (next.length > 3 && svNounGender(next))))"
           - "![adjective, noun].some((word) => ctx.dictionary.has(word))"
           - "!namedExampleBefore(ctx.text, m.index)"
           - articleGender !== adjectiveGender
@@ -382,10 +382,10 @@ rules:
         flags: gu
         let:
           # A noun of the other gender cannot be "another"; one the dictionary lacks may be.
-          gender: nounGender(noun)
+          gender: svNounGender(noun)
         when:
           - "!namedExampleBefore(ctx.text, m.index)"
-          - "!(SV_PERSONS.has(noun) || adjectiveForm(noun))"
+          - "!(SV_PERSONS.has(noun) || svAdjectiveForm(noun))"
           - '!(gender ? gender !== target.toLowerCase() : !/a$/u.test(noun) || target !== "en")'
           - "!ctx.dictionary.has(noun)"
         return: >-
