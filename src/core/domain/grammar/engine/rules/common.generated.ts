@@ -15,9 +15,11 @@ import {
   WORD_START,
   applyWordCase,
   around,
+  atClauseStart,
   caseLike,
   detectWordCase,
   englishNounForms,
+  englishVerbForms,
   englishWordInfo,
   finding,
   found,
@@ -28,6 +30,7 @@ import {
   isLang,
   matchTrailingEnglishPhrase,
   namedExampleBefore,
+  nextLowerWord,
   normalizeWordSet,
   ownedMatches,
   phraseRows,
@@ -318,6 +321,25 @@ export const FRENCH_ELISIONS: Readonly<Record<string, string>> = {
 export function firstPerStart(findings: RawFinding[]) {
   const starts = new Set<number>();
   return findings.filter((f) => !starts.has(f.range.start) && !!starts.add(f.range.start));
+}
+
+// common.yaml def opensMainClause
+export function opensMainClause(ctx: DetectContext, index: number) {
+  return /(?:^|[.!?;:\n"“(][ \t ]*|,[ \t ]*(?:and|but|so)[ \t ]+)$/i.test(
+    ctx.text.slice(Math.max(0, index - 96), index),
+  );
+}
+
+// common.yaml def CLAUSE_CUE_BEFORE
+export const CLAUSE_CUE_BEFORE =
+  /\b(?:think|thought|guess|hope|know|knew|heard|suspect|promise|realized|realised|said|says|sure|maybe|perhaps|because|since|if|when|as|before|after|that|(?:looks|seems|sounds|feels)[ \t ]+like|(?:tell|told|remind|reminded)[ \t ]+them)[ \t ]+$/i;
+
+// common.yaml def opensSubjectClause
+export function opensSubjectClause(ctx: DetectContext, index: number) {
+  return (
+    opensMainClause(ctx, index) ||
+    CLAUSE_CUE_BEFORE.test(ctx.text.slice(Math.max(0, index - 96), index))
+  );
 }
 
 // common.yaml def isoDateWarning
@@ -638,6 +660,71 @@ export function massNoun(m: RegExpExecArray, ctx: DetectContext): RawFinding | n
   };
 }
 
+// common.yaml rule wordConfusions def confusionFix
+export function confusionFix(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+  replacement: string,
+): RawFinding | null {
+  const typed = m.groups!.target;
+  if (ctx.dictionary.has(typed.toLowerCase())) return null;
+  if (!(applyWordCase(typed, detectWordCase(typed)) === typed)) return null;
+  const span = group(m, "target");
+  return {
+    ruleId,
+    messageKey,
+    range: { start: span[0], end: span[1] },
+    alternatives: [applyWordCase(replacement, detectWordCase(typed))],
+    context: {
+      start: Math.max(0, m.index - 96),
+      end: Math.min(ctx.text.length, m.index + m[0].length + 10),
+    },
+  };
+}
+
+// common.yaml rule wordConfusions def degreeFix
+export function degreeFix(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+  replacement: string,
+): RawFinding | null {
+  if ((m[0].match(/\p{L}+/gu) ?? []).some((w) => /\p{Ll}\p{Lu}/u.test(w))) return null;
+  return confusionFix(ctx, m, ruleId, messageKey, replacement);
+}
+
+// common.yaml rule wordConfusions def PLAIN_CLAUSE
+export const PLAIN_CLAUSE = /^(?:[ \t ]{1,8}[A-Za-z'’]+)+(?=[ \t ]*(?:[.!?,;:)]|$))/;
+
+// common.yaml rule wordConfusions def LATER_PREDICATE
+export const LATER_PREDICATE =
+  /^[^.!?;:,\n]*?\b(?:is|was|are|were|has|had|surprised|upset|made|caused|seemed|became|annoyed|worried|shocked|pleased|helped|meant|took|cost|lasted|went|felt|looked)\b/i;
+
+// common.yaml rule wordConfusions def opensPredicate
+export function opensPredicate(ctx: DetectContext, m: RegExpExecArray) {
+  if (!opensSubjectClause(ctx, m.index)) return false;
+  if (!(!/(?:^|[^\p{L}])An?$/u.test(m[0]) || /^(?:YOUR|THEIR)$/.test(m.groups!.target)))
+    return false;
+  const pred = m.groups!.pred;
+  if (pred === "right" && m.groups!.follow === "to") return false;
+  const end = m.index + m[0].length;
+  const going = /^(?:going|gonna)$/i.test(pred ?? "");
+  if ((going || /^\w+\s+not\b/i.test(m[0])) && LATER_PREDICATE.test(ctx.text.slice(end, end + 96)))
+    return false;
+  return !going || PLAIN_CLAUSE.test(ctx.text.slice(end, end + 200));
+}
+
+// common.yaml rule wordConfusions def PLACE_END
+export const PLACE_END =
+  /^(?:been|go|goes|went|gone|going|stay|stayed|staying|stand|standing|sit|sitting|live|lived|wait|waited|waiting|sat|stood|park|paused|stop|stopped|safer|over|right|up|down|out)$/i;
+
+// common.yaml rule wordConfusions def OWN_OBJECT_BEFORE
+export const OWN_OBJECT_BEFORE =
+  /(?:\b(?:of|for|about|with|from|into|onto|at|by|against|between|among|without|toward|towards|under|through|during|despite|to|on|in)|ing|\bto[ \t ]+[a-z]+|\b(?:create|creates|created|make|makes|made|have|has|had|get|gets|got|build|builds|built|find|found|choose|chose|bring|brought|use|uses|used|pay|paid|run|runs|ran|do|does|did|manage|managed|keep|keeps|kept|set|sets|write|wrote|host|hosted|provide|provides|provided|become|became|define|defined|pick|picks|picked|want|wants|wanted|need|needs|needed|take|takes|took|brings|like|likes|prefer|prefers|love|loves)|\b(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|lost))[ \t ]+$/i;
+
 // common.yaml rule spelling def spellingFrameRegexes
 export function spellingFrameRegexes() {
   return [SPLIT_DE, SPLIT_FR, SPLIT_ES, SPLIT_PT, SPLIT_PL, SPLIT_SV, SPLIT_HR, FRENCH_ELISIONS]
@@ -913,6 +1000,165 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // common.yaml rule countability frame 11
   "@countability/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     return massNoun(m, ctx);
+  },
+  // common.yaml rule wordConfusions frame 1
+  "@wordConfusions/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_then_than", "than");
+  },
+  // common.yaml rule wordConfusions frame 2
+  "@wordConfusions/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_then_than", "than");
+  },
+  // common.yaml rule wordConfusions frame 3
+  "@wordConfusions/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_then_than", "than");
+  },
+  // common.yaml rule wordConfusions frame 4
+  "@wordConfusions/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_then_than", "than");
+  },
+  // common.yaml rule wordConfusions frame 5
+  "@wordConfusions/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    if (!atClauseStart(ctx.text, m.index)) return null;
+    if (!(target.toLowerCase() === "your")) return null;
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_your_you_are", "you're");
+  },
+  // common.yaml rule wordConfusions frame 6
+  "@wordConfusions/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    if (!atClauseStart(ctx.text, m.index)) return null;
+    if (!(target.toLowerCase() !== "your")) return null;
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_they_are", "they're");
+  },
+  // common.yaml rule wordConfusions frame 7
+  "@wordConfusions/7": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_your_possessive", "your");
+  },
+  // common.yaml rule wordConfusions frame 8
+  "@wordConfusions/8": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_to_too", "too");
+  },
+  // common.yaml rule wordConfusions frame 9
+  "@wordConfusions/9": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!opensSubjectClause(ctx, m.index)) return null;
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_their_there", "there");
+  },
+  // common.yaml rule wordConfusions frame 10
+  "@wordConfusions/10": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_their_there", "there's");
+  },
+  // common.yaml rule wordConfusions frame 11
+  "@wordConfusions/11": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const verb = m.groups!.verb;
+    const end = m.groups!.end;
+    if (!(end === undefined || PLACE_END.test(verb))) return null;
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_their_there", "there");
+  },
+  // common.yaml rule wordConfusions frame 12
+  "@wordConfusions/12": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!opensPredicate(ctx, m)) return null;
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_they_are", "they're");
+  },
+  // common.yaml rule wordConfusions frame 13
+  "@wordConfusions/13": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (opensMainClause(ctx, m.index)) return null;
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_their_there", "there");
+  },
+  // common.yaml rule wordConfusions frame 14
+  "@wordConfusions/14": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_their_possessive", "their");
+  },
+  // common.yaml rule wordConfusions frame 15
+  "@wordConfusions/15": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_their_possessive", "their");
+  },
+  // common.yaml rule wordConfusions frame 16
+  "@wordConfusions/16": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    if (!(
+      !/^there$/i.test(target) ||
+      opensMainClause(ctx, m.index) ||
+      OWN_OBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 96), m.index))
+    ))
+      return null;
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_their_possessive", "their");
+  },
+  // common.yaml rule wordConfusions frame 17
+  "@wordConfusions/17": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (
+      /\b(?:if|when|once|unless|after|before|until)\b[^.!?;:\n]*$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 96), m.index),
+      )
+    )
+      return null;
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_then_than", "than");
+  },
+  // common.yaml rule wordConfusions frame 18
+  "@wordConfusions/18": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_then_than_temporal", "then");
+  },
+  // common.yaml rule wordConfusions frame 19
+  "@wordConfusions/19": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!opensPredicate(ctx, m)) return null;
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_your_you_are", "you're");
+  },
+  // common.yaml rule wordConfusions frame 20
+  "@wordConfusions/20": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!opensPredicate(ctx, m)) return null;
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_your_you_are", "you're");
+  },
+  // common.yaml rule wordConfusions frame 21
+  "@wordConfusions/21": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!opensPredicate(ctx, m)) return null;
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_your_you_are", "you're");
+  },
+  // common.yaml rule wordConfusions frame 22
+  "@wordConfusions/22": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_to_too", "too");
+  },
+  // common.yaml rule wordConfusions frame 23
+  "@wordConfusions/23": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_to_too", "too");
+  },
+  // common.yaml rule wordConfusions frame 24
+  "@wordConfusions/24": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_to_infinitive", "to");
+  },
+  // common.yaml rule wordConfusions frame 25
+  "@wordConfusions/25": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const middle = m.groups!.middle;
+    const verb = m.groups!.verb;
+    if (/^\p{Lu}/u.test(middle ?? "")) return null;
+    const lower = verb.toLowerCase();
+    const forms = englishVerbForms(lower);
+    if (!(
+      !!forms ||
+      !/^(?:many|much|few|more|less|little)$/i.test(nextLowerWord(ctx, m.index + m[0].length))
+    ))
+      return null;
+    const info = forms ? null : englishWordInfo(lower);
+    if (!(
+      lower === "be" ||
+      (forms?.lemma === lower && !forms.ambiguous.includes(lower)) ||
+      (info?.verbs.some((v) => v.form === "base") && !info.adjective && !info.adverb)
+    ))
+      return null;
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_to_infinitive", "to");
+  },
+  // common.yaml rule wordConfusions frame 26
+  "@wordConfusions/26": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (
+      /\b(?:show|showed|shown|tell|told|ask|asked|know|knew|see|saw|remind|reminded|guide|guided|take|took)[ \t ]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 96), m.index),
+      )
+    )
+      return null;
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_were_where", "were");
+  },
+  // common.yaml rule wordConfusions frame 27
+  "@wordConfusions/27": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_were_where", "where");
   },
   // common.yaml rule spelling frame 1
   "@spelling/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {

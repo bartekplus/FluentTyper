@@ -5153,7 +5153,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "cheaper",
       "safer",
     ],
-    fixer: "common:thenThan",
+    fixer: "common:@wordConfusions/1",
     gate: "then[ \\t\\u00a0]{1,8}(?:the|my|your|our|their|me|him|her|us|them)",
     gateFlags: "giu",
   }),
@@ -5203,7 +5203,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "hotter",
       "nicer",
     ],
-    fixer: "common:thenThan",
+    fixer: "common:@wordConfusions/2",
     gate: "then[ \\t\\u00a0]{1,8}(?:me|him|us|them|mine|yours|hers|ours|theirs|ever|usual|expected)",
     gateFlags: "giu",
   }),
@@ -5211,26 +5211,26 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<!(?:would|had|should|['’]d)[ \\t\\u00a0]{1,8})rather[ \\t\\u00a0]{1,8}(?<target>then)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["rather"],
-    fixer: "common:thenThan",
+    fixer: "common:@wordConfusions/3",
   }),
   frame({
     pattern:
       "easier[ \\t\\u00a0]{1,8}said[ \\t\\u00a0]{1,8}(?<target>then)[ \\t\\u00a0]{1,8}done(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["easier"],
-    fixer: "common:thenThan",
+    fixer: "common:@wordConfusions/4",
   }),
   frame({
     pattern:
       "(?<target>your|their|there)[ \\t\\u00a0]{1,8}going[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}(?:like|enjoy|need|want|understand|remember)[ \\t\\u00a0]{1,8}(?:this|that|it|them|us|me)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))",
     literals: ["going"],
-    fixer: "common:goingToYour",
+    fixer: "common:@wordConfusions/5",
     check: "englishYourYouAre",
   }),
   frame({
     pattern:
       "(?<target>your|their|there)[ \\t\\u00a0]{1,8}going[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}(?:like|enjoy|need|want|understand|remember)[ \\t\\u00a0]{1,8}(?:this|that|it|them|us|me)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))",
     literals: ["going"],
-    fixer: "common:goingToTheir",
+    fixer: "common:@wordConfusions/6",
     check: "englishTheirThereTheyAre",
   }),
   frame({
@@ -5254,7 +5254,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "found",
       "lost",
     ],
-    fixer: "common:youreOwn",
+    fixer: "common:@wordConfusions/7",
     check: "englishYourYouAre",
     gate: "you['’]re[ \\t\\u00a0]{1,8}own",
     gateFlags: "giu",
@@ -5275,7 +5275,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "hard",
       "tired",
     ],
-    fixer: "common:toTooAdjective",
+    fixer: "common:@wordConfusions/8",
     check: "englishToToo",
     gate: "to[ \\t\\u00a0]{1,8}(?:heavy|large|small|hot|cold|late|early|expensive|difficult|hard|tired)[ \\t\\u00a0]{1,8}to",
     gateFlags: "giu",
@@ -5284,56 +5284,56 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>their)[ \\t\\u00a0]{1,8}(?:(?:will|won['’]t|can|could|should|would|may|might|must)(?:n['’]t)?[ \\t\\u00a0]{1,8}(?:not[ \\t\\u00a0]{1,8})?be|(?:has|have)(?:n['’]t)?[ \\t\\u00a0]{1,8}been|(?:isn|aren|wasn|weren)['’]t|used[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}be)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["their"],
-    fixer: "common:thereBe",
+    fixer: "common:@wordConfusions/9",
     check: "englishTheirThereTheyAre",
   }),
   frame({
     pattern:
       "(?<target>their['’]s)[ \\t\\u00a0]{1,8}(?:a|an|the|no|another|enough|nothing|something|always|still|also|just|plenty|some|more|lots|one|only)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["their"],
-    fixer: "common:theresA",
+    fixer: "common:@wordConfusions/10",
     check: "englishTheirThereTheyAre",
   }),
   frame({
     pattern:
       "(?<verb>(?:been|go|goes|went|gone|going|stay|stayed|staying|stand|standing|sit|sitting|put|left|leave|meet|park|wait|waited|waiting|sat|stood|stop|stopped|paused|live|lived|get|got|over|right|safer|back|up|down|out))[ \\t\\u00a0]{1,8}(?<target>their)(?:[ \\t\\u00a0]{1,8}(?:on|in|at|by|near|beside|until|after|before|among|inside|outside|under|behind|during|without|within|to|and|again|yet|anymore|once|already|now|today|tonight|tomorrow|mid)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<end>(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))))",
     literals: ["their"],
-    fixer: "common:thereLocation",
+    fixer: "common:@wordConfusions/11",
     check: "englishTheirThereTheyAre",
   }),
   frame({
     pattern:
       "(?<target>their)[ \\t\\u00a0]{1,8}(?:(?:not|already|still|probably|always|just|also|really|all|both|never|definitely|actually|so)[ \\t\\u00a0]{1,8})?(?:(?<pred>going|gonna|coming|leaving|trying|planning|running|moving|waiting|looking|getting|doing|making|taking|kidding|joking|working|staying|sitting|standing|playing|talking|arriving|ready|sure|here|late|early|busy|done|able|allowed|available|invited|supposed|happy|right|wrong|fine|okay|away|finished|tired|aware|afraid|excited|interested|responsible|safe|cool|sorry|healthy|strong|serious|proud|loyal|offline|online)[ \\t\\u00a0]{1,8}(?<follow>to|for|at|in|on|with|about|until|by|from|over|into|behind|right|now|today|tonight|tomorrow|again|yet|anymore|here|there|home|back|out|up|away|off|a|an|the|this|that|it|them|us|me|him|her|you|my|your|our|his|their|some|any|next|last|where|what|how|why)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<pred2>ready|sure|here|there|late|early|busy|done|right|wrong|fine|okay|home|back|away|gone|finished|tired|kidding|joking|coming|leaving|waiting|working|offline|online|safe|cool|sorry|healthy|serious|proud|loyal|happy|excited|even)(?:(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|[—–]|$))|--(?!-))|(?:in|on|at|off)[ \\t\\u00a0]{1,8}(?:the|a|an|my|your|our|his|her|their|this|that|work|home|school|lunch|risk)|to[ \\t\\u00a0]{1,8}(?:blame|meet|be|see|go)|far[ \\t\\u00a0]{1,8}(?:too|more|less|better|worse)|(?<pred3>(?:not|probably|definitely|obviously|currently|actually|still|just|always|already|really|also|never)[ \\t\\u00a0]{1,8}[a-z]{3,}ing)[ \\t\\u00a0]{1,8}(?:to|for|at|in|on|with|about|over|into|a|an|the|any|some|this|that|it|them|us|me|him|her|you|my|your|our|his|their|where|what|how|why)|the|a|an)(?:(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=--))",
     literals: ["their"],
-    fixer: "common:theyAre",
+    fixer: "common:@wordConfusions/12",
     check: "englishTheirThereTheyAre",
   }),
   frame({
     pattern:
       "(?<target>their)[ \\t\\u00a0]{1,8}(?:on|in|at|by|near|beside|behind|inside|outside|under|until|among)[ \\t\\u00a0]{1,8}(?:the|a|an|my|your|our|his|her|this|that)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["their"],
-    fixer: "common:thereBeforePlace",
+    fixer: "common:@wordConfusions/13",
     check: "englishTheirThereTheyAre",
   }),
   frame({
     pattern:
       "(?:of|for|about|with|from|into|onto|at|by|against|between|among|without|toward|towards|under|through|during|despite|to|on|in)[ \\t\\u00a0]{1,8}(?<target>they['’]?re)[ \\t\\u00a0]{1,8}[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["they"],
-    fixer: "common:theirPossessive",
+    fixer: "common:@wordConfusions/14",
     check: "englishTheirThereTheyAre",
   }),
   frame({
     pattern:
       "(?<target>they['’]?re)[ \\t\\u00a0]{1,8}(?!(?:not|all|both|each|also|still|just|really|never|always|so|too|very|already|probably|certainly|here|there|now|then|what|who|which|whoever|whatever|where|how|why|when|that|this|it|one|someone|something|everything|everyone|anything|nothing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+[ \\t\\u00a0]{1,8}(?:is|are|was|were|has|have|had)(?:n['’]t)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["they"],
-    fixer: "common:theirPossessive",
+    fixer: "common:@wordConfusions/15",
     check: "englishTheirThereTheyAre",
   }),
   frame({
     pattern:
       "(?<target>there|they['’]?re)[ \\t\\u00a0]{1,8}own[ \\t\\u00a0]{1,8}[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["there", "they"],
-    fixer: "common:theirOwn",
+    fixer: "common:@wordConfusions/16",
     check: "englishTheirThereTheyAre",
     gate: "(?:there|they['’]?re)[ \\t\\u00a0]{1,8}own",
     gateFlags: "giu",
@@ -5396,7 +5396,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "less",
       "other",
     ],
-    fixer: "common:thenComparison",
+    fixer: "common:@wordConfusions/17",
     gate: "then[ \\t\\u00a0]{1,8}(?:me|him|us|them|hers|his|ours|theirs|yours|mine|any|nothing|nobody|ever|before|usual|expected|necessary|needed|last|[0-9]|the|a|my|your|our|their|its|this|that|those|these|you|her)",
     gateFlags: "giu",
   }),
@@ -5404,27 +5404,27 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:now[ \\t\\u00a0]{1,8}and|until|till|since|by|back)[ \\t\\u00a0]{1,8}(?<target>than)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:…)]|$))",
     literals: ["than"],
-    fixer: "common:thanTemporal",
+    fixer: "common:@wordConfusions/18",
   }),
   frame({
     pattern:
       "(?<target>your)[ \\t\\u00a0]{1,8}(?:(?:not|already|still|probably|always|just|also|really|all|both|never|definitely|actually|so)[ \\t\\u00a0]{1,8})?(?:(?<pred>going|gonna|coming|leaving|trying|planning|running|moving|waiting|looking|getting|doing|making|taking|kidding|joking|working|staying|sitting|standing|playing|talking|arriving|ready|sure|here|late|early|busy|done|able|allowed|available|invited|supposed|happy|right|wrong|fine|okay|away|finished|tired|aware|afraid|excited|interested|responsible|safe|cool|sorry|healthy|strong|serious|proud|loyal|offline|online)[ \\t\\u00a0]{1,8}(?<follow>to|for|at|in|on|with|about|until|by|from|over|into|behind|right|now|today|tonight|tomorrow|again|yet|anymore|here|there|home|back|out|up|away|off|a|an|the|this|that|it|them|us|me|him|her|you|my|your|our|his|their|some|any|next|last|where|what|how|why)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<pred2>ready|sure|here|there|late|early|busy|done|right|wrong|fine|okay|home|back|away|gone|finished|tired|kidding|joking|coming|leaving|waiting|working|offline|online|safe|cool|sorry|healthy|serious|proud|loyal|happy|excited|even)(?:(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|[—–]|$))|--(?!-))|(?:in|on|at|off)[ \\t\\u00a0]{1,8}(?:the|a|an|my|your|our|his|her|their|this|that|work|home|school|lunch|risk)|to[ \\t\\u00a0]{1,8}(?:blame|meet|be|see|go)|far[ \\t\\u00a0]{1,8}(?:too|more|less|better|worse)|(?<pred3>(?:not|probably|definitely|obviously|currently|actually|still|just|always|already|really|also|never)[ \\t\\u00a0]{1,8}[a-z]{3,}ing)[ \\t\\u00a0]{1,8}(?:to|for|at|in|on|with|about|over|into|a|an|the|any|some|this|that|it|them|us|me|him|her|you|my|your|our|his|their|where|what|how|why)|the|a|an)(?:(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=--))",
     literals: ["your"],
-    fixer: "common:youAre",
+    fixer: "common:@wordConfusions/19",
     check: "englishYourYouAre",
   }),
   frame({
     pattern:
       "(?<target>your)[ \\t\\u00a0]{1,8}(?:(?:completely|totally|still|already)[ \\t\\u00a0]{1,8})?out[ \\t\\u00a0]{1,8}(?:of|at|on|in|with|under|for)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["your"],
-    fixer: "common:youAre",
+    fixer: "common:@wordConfusions/20",
     check: "englishYourYouAre",
   }),
   frame({
     pattern:
       "(?<target>your)(?:[ \\t\\u00a0]{1,8}(?:so|very|really|too|totally|completely|absolutely|pretty|quite|extremely|barely|surprisingly)){1,3}[ \\t\\u00a0]{1,8}(?!own(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))",
     literals: ["your"],
-    fixer: "common:youAre",
+    fixer: "common:@wordConfusions/21",
     check: "englishYourYouAre",
   }),
   frame({
@@ -5469,7 +5469,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "strong",
       "lazy",
     ],
-    fixer: "common:toTooDegree",
+    fixer: "common:@wordConfusions/22",
     check: "englishToToo",
     gate: "to[ \\t\\u00a0]{1,8}(?:big|small|large|short|hot|cold|late|early|hard|easy|good|bad|high|loud|heavy|tired|hungry|busy|far|soon|much|many|expensive|difficult|complicated|ambitious|young|old|strict|risky|dangerous|tight|full|sweet|weak|strong|lazy)",
     gateFlags: "giu",
@@ -5478,7 +5478,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:go|goes|going|gone|went|take|takes|took|taken|push|pushed|carry|carried|speak|spoke|spoken|speaking|talk|talked|celebrate|celebrated|act|acted|judge|judged)[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}(?:far|soon)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|[ \\t\\u00a0]{1,8}(?:with|for|on|in|this|and|but|when|because|like)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<![Tt]he[ \\t\\u00a0]{1,8}|[Aa][ \\t\\u00a0]{1,8}|[Tt]his[ \\t\\u00a0]{1,8}|[Tt]hat[ \\t\\u00a0]{1,8}|[Oo]ne[ \\t\\u00a0]{1,8}|[Nn]o[ \\t\\u00a0]{1,8}|[Bb]est[ \\t\\u00a0]{1,8}|[Ww]hich[ \\t\\u00a0]{1,8})way[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}(?:much|many|long|big|small|far|late|early|hard|easy|fast|slow|good|bad|high|low|expensive|complicated|little|often))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["far", "soon", "way"],
-    fixer: "common:toTooDegree",
+    fixer: "common:@wordConfusions/23",
     check: "englishToToo",
     gate: "to[ \\t\\u00a0]{1,8}(?:far|soon|much|many|long|big|small|late|early|hard|easy|fast|slow|good|bad|high|low|expensive|complicated|little|often)",
     gateFlags: "giu",
@@ -5487,14 +5487,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>too)[ \\t\\u00a0]{1,8}(?:the|a|an|him|them|me|us|my|your|his|our|their)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["too"],
-    fixer: "common:tooBeforeDeterminer",
+    fixer: "common:@wordConfusions/24",
     check: "englishToToo",
   }),
   frame({
     pattern:
       "(?:want|wants|wanted|need|needs|needed|going|able|trying|try|tried|supposed|used|have|has|had|like|love|hope|plan|decided|n['’]t[ \\t\\u00a0]{1,8}(?!(?:i|you|we|they|he|she|it|this|that|these|those)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?<middle>[a-z]+))[ \\t\\u00a0]{1,8}(?<target>too)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["too"],
-    fixer: "common:tooBeforeVerb",
+    fixer: "common:@wordConfusions/25",
     check: "englishToToo",
     gate: "too[ \\t\\u00a0]{1,8}[a-z]",
     gateFlags: "giu",
@@ -5503,14 +5503,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:we|they|you)[ \\t\\u00a0]{1,8}(?<target>where)[ \\t\\u00a0]{1,8}(?:(?:not|all|still|just|already|also|never|always|almost)[ \\t\\u00a0]{1,8})?(?:right|wrong|happy|able|told|asked|supposed|going|done|ready|sure|late|busy|here|there|the[ \\t\\u00a0]{1,8}only|allowed|given|shown|sent|invited|expected|lucky|about|trying|waiting|working|looking|talking|finished|gone)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["where"],
-    fixer: "common:wereSubject",
+    fixer: "common:@wordConfusions/26",
     check: "englishWereWhere",
   }),
   frame({
     pattern:
       "(?:go|goes|went|look|looked|know|knows|knew|forgot|forget|remember|remembers|found|find|check|asked|ask|wonder|wondered|show|showed|tell|told|see|saw|sure|idea)[ \\t\\u00a0]{1,8}(?:(?:me|us|him|her|them)[ \\t\\u00a0]{1,8})?(?<target>were)[ \\t\\u00a0]{1,8}(?:I|he|she|it|we|they|you|the[ \\t\\u00a0]{1,8}[a-z]+[ \\t\\u00a0]{1,8}(?:is|was|are|were|[a-z]+ed))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["were"],
-    fixer: "common:whereClause",
+    fixer: "common:@wordConfusions/27",
     check: "englishWereWhere",
     gate: "were[ \\t\\u00a0]{1,8}(?:I|he|she|it|we|they|you|the[ \\t\\u00a0])",
     gateFlags: "giu",

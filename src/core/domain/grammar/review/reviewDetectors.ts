@@ -5,7 +5,6 @@ import { usePhraseRows } from "../library/common/engine";
 import { FIXERS as PARTICIPLE_FIXERS } from "./englishParticiples";
 import { FIXERS as COMPLEMENT_FIXERS } from "./englishComplements";
 import { FIXERS as AGREEMENT_FIXERS } from "./englishAgreement";
-import { FIXERS as CONFUSION_FIXERS } from "./englishWordConfusions";
 import { FIXERS as AUXILIARY_FIXERS } from "./englishAuxiliaryForms";
 import { FIXERS as CASE_FIXERS } from "./englishPronounCase";
 import { FIXERS as STRUCTURE_FIXERS } from "./englishSentenceStructure";
@@ -1682,7 +1681,6 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   PARTICIPLE_FIXERS,
   STRUCTURE_FIXERS,
   CASE_FIXERS,
-  CONFUSION_FIXERS,
   AGREEMENT_FIXERS,
   DATE_FIXERS,
   // The other rule files still name the ISO date frame fixer "common:invalidIsoDate".
