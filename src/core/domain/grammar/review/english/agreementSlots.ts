@@ -61,7 +61,11 @@ export const COLLECTIVE = new Set(
 const GROUP_ADJECTIVES =
   /^(?:public|rich|poor|elderly|young|old|wealthy|unemployed|homeless|sick|dead|living|blind|deaf|faithful|wise|british|french|english|irish|dutch|welsh|chinese|japanese|swiss)$/;
 
-const normal = (word: string) => word.toLowerCase().replaceAll("’", "'");
+const normal = (word: string) => {
+  const lower = word.toLowerCase();
+  // Most words hold no curly apostrophe: then no new string is made.
+  return lower.includes("’") ? lower.replaceAll("’", "'") : lower;
+};
 
 /** The plural form of a singular verb token, or null. */
 function pluralOf(token: Token, nextToken?: Token, afterNext?: Token): string | null {
