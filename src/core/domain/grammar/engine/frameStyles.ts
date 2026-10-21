@@ -384,25 +384,32 @@ export function prepareFrames(
 ): RunFrame[] {
   const { regex, owner } = STYLES[style];
   const frames = compiled.map((frame): RunFrame => {
-    const pattern = regex?.(frame) ?? frame.pattern;
     const scan = style === "match" ? (frame.scan ?? "frame") : (STYLES[style].scan ?? "frame");
-    return {
-      pattern,
+    // The regexes are built on first use, not when the service worker starts.
+    let pattern: string | RegExp | undefined;
+    let gate: RegExp | undefined;
+    const run: RunFrame = {
+      get pattern() {
+        return (pattern ??= regex?.(frame) ?? frame.pattern);
+      },
       fix: fix(frame),
       ruleId: (frame.check ?? ruleId) as CatalogRuleId,
       messageKey: (frame.message ?? messageKey) as ReviewMessageKey,
       ...(frame.cue ? { cue: frame.cue } : {}),
       owner: owner ? owner(frame) : "target",
       scan,
-      ...(frame.gate === undefined
+      get gate() {
+        return frame.gate === undefined
+          ? undefined
+          : (gate ??= new RegExp(frame.gate, frame.gateFlags ?? "gi"));
+      },
+      // A frame scan may run a copy of its regex: only the other scans (always a regex) resume.
+      ...(scan === "frame"
         ? {}
-        : { gate: new RegExp(frame.gate, frame.gateFlags ?? "gi") }),
-      // A frame scan may run a copy of its regex: only the other scans can resume.
-      ...(scan !== "frame" && pattern instanceof RegExp
-        ? { resume: (index: number) => void (pattern.lastIndex = index) }
-        : {}),
+        : { resume: (index: number) => void ((run.pattern as RegExp).lastIndex = index) }),
       frame,
     };
+    return run;
   });
   if (style === "slot") FRAME_SETS.push(frames);
   return frames;

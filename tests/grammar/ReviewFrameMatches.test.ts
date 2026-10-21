@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { prepareFrames } from "../../src/core/domain/grammar/engine/frameStyles";
 import { scanStarts } from "../../src/core/domain/grammar/engine/prefixes";
 import { frameScan, requiredLiterals } from "../../src/core/domain/grammar/review/phraseTemplates";
 import type { DetectContext } from "../../src/core/domain/grammar/review/reviewDetectors";
@@ -143,4 +144,25 @@ test("a frame may open on a contraction clitic glued to its host word", () => {
   expect(scan("aujourd'hui", "['’](?<target>hui)", "fr_FR")).toEqual([]);
   expect(scan("Rio d'Janeiro", "['’](?<target>Janeiro)", "pt_BR")).toEqual([]);
   expect(scan("Ich hab's.", "['’](?<target>s)", "de_DE")).toEqual([]);
+});
+
+test("a frame builds its regex and gate once, on first use, and resumes that regex", () => {
+  const [owned, framed] = prepareFrames(
+    "match",
+    [
+      { pattern: "a(?<target>b)", literals: [], scan: "owned", flags: "dgu", gate: "ab" },
+      { pattern: "(?<target>ab)", literals: [] },
+    ],
+    "styleWordChoice",
+    "review_msg_canonical_casing",
+    () => null,
+  );
+  const regex = owned.pattern as RegExp;
+  expect(owned.pattern).toBe(regex);
+  expect(owned.gate).toBe(owned.gate!);
+  owned.resume!(5);
+  expect(regex.lastIndex).toBe(5);
+  expect(framed.pattern).toBe("(?<target>ab)");
+  expect(framed.gate).toBeUndefined();
+  expect(framed.resume).toBeUndefined();
 });
