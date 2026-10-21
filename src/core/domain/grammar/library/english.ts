@@ -57,3 +57,5 @@ export { recase as enRecase } from "./english/words";
 // Group idioms5 (idioms2-5, slot confusions, contraction, neighbour and typo slots, misheard
 // words): the text before an index and the word after it (review/phraseTemplates).
 export { before as enBefore, nextWord as enNextWord } from "../review/phraseTemplates";
+// A long word the lexicon lists as a plain noun only ("information").
+export { englishListedNoun as enListedNoun } from "../implementations/helpers/EnglishLexicon";

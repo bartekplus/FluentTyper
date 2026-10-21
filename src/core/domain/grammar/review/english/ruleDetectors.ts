@@ -8,7 +8,6 @@ import * as plainStyle from "./plainStyle";
 import * as passiveVoice from "./passiveVoice";
 import * as punctuation from "./punctuation";
 import * as articles from "./articles";
-import * as slotConfusions from "./slotConfusions";
 import * as britishUsage from "./britishUsage";
 import * as typography from "./typography";
 import * as confusions1 from "./confusions1";
@@ -59,7 +58,6 @@ export const PREDICATES = mergePredicates();
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
   articles.FIXERS,
-  slotConfusions.FIXERS,
   clauseGaps.FIXERS,
   slipFrames.FIXERS,
   clashFrames.FIXERS,

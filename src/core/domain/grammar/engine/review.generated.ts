@@ -12381,14 +12381,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:found|find|see|saw|seen|add|have|has|had|need|want|got|get|buy|try|take|use|make|give|is|was|there['’]s|here['’]s|meant|mean|emailing|send|sending|write|wrote|and|or|just|also|still|for|with|from|to|at|into)[ \\t\\u00a0]{1,8}(?<target>anther)(?=[ \\t]*[.!?,;:]|[ \\t\\u00a0]{1,8}[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["anther"],
-    fixer: "en:slotConfusionsAnther",
+    fixer: "en:@en.slotConfusions/1",
     cue: ["anther"],
   }),
   frame({
     pattern:
       "(?:(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target>tanks)[ \\t\\u00a0]{1,8}(?:so[ \\t\\u00a0]{1,8}much|a[ \\t\\u00a0]{1,8}lot|for[ \\t\\u00a0]{1,8}(?:your|the|all|nothing|everything|helping|coming|this|that|it)|again)|many[ \\t\\u00a0]{1,8}(?<target2>tanks)[ \\t\\u00a0]{1,8}for)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["tanks", "tanks"],
-    fixer: "en:slotConfusionsTanks",
+    fixer: "en:@en.slotConfusions/2",
     cue: ["tank", "tanks"],
   }),
   frame({
@@ -12402,7 +12402,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target>thank)(?=[ \\t]*[,!]|[ \\t\\u00a0]{1,8}to(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|many[ \\t\\u00a0]{1,8}(?<target2>thank)[ \\t\\u00a0]{1,8}for)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["thank", "thank"],
-    fixer: "en:slotConfusionsThank",
+    fixer: "en:@en.slotConfusions/4",
     cue: ["thank"],
   }),
   frame({
@@ -12423,7 +12423,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<=(?:^|[.!?,;:][\"”’)]?[ \\t]{1,8}|\\n))|(?:now|so|ok|okay|but|and|then|please)[ \\t\\u00a0]{1,8})(?<target>lets)[ \\t\\u00a0]{1,8}(?:all|just|go|do|get|try|see|make|take|start|stay|leave|have|be|not|keep|finally|hope|say|talk|meet|move|wait|eat|play|celebrate|focus|begin|find|check|look|put)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["lets"],
-    fixer: "en:slotConfusionsLets",
+    fixer: "en:@en.slotConfusions/7",
     cue: ["lets"],
   }),
   frame({
@@ -12459,14 +12459,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "number[ \\t\\u00a0]{1,8}(?<target>or)[ \\t\\u00a0]{1,8}(?<n>[a-z]{3,}s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t]*[.,:;]|[ \\t\\u00a0]{1,8}(?:who|that|which|by|per|in|on|for|at|is|are|was|were|has|have)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["number"],
-    fixer: "en:slotConfusionsOr",
+    fixer: "en:@en.slotConfusions/9",
     cue: ["or"],
   }),
   frame({
     pattern:
       "(?:one[ \\t\\u00a0]{1,8}(?<target>if)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:most|best|worst|biggest|largest|few|first|last|main|top|greatest|only|many)|(?:couple|lots?|bunch|(?:this|that|what|some|any|the|a)[ \\t\\u00a0]{1,8}(?:kind|sort))[ \\t\\u00a0]{1,8}(?<target2>if)[ \\t\\u00a0]{1,8}(?!(?:you|I|we|they|he|she|it)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z])",
     literals: ["one", "couple", "lot", "bunch", "kind", "sort"],
-    fixer: "en:slotConfusionsIf",
+    fixer: "en:@en.slotConfusions/10",
     cue: ["if"],
   }),
   frame({
@@ -12479,7 +12479,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![.,;:!?][ \\t]{0,8})(?<target>an)[ \\t\\u00a0]{1,8}(?<w>[b-df-hj-np-tv-z][a-z]+)[ \\t\\u00a0]{1,8}(?:what|where|how|the|a|an|another|other|it|them|some|my|your|his|her|our|their|this|that|if|whether)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:slotConfusionsAn",
+    fixer: "en:@en.slotConfusions/12",
     cue: ["an"],
   }),
   frame({
@@ -12531,7 +12531,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:it['’]s|is|was|isn['’]t|wasn['’]t|get|be|not)[ \\t\\u00a0]{1,8}(?<target>event)[ \\t\\u00a0]{1,8}(?:possible|impossible|more|less|better|worse|usually|harder|easier|bigger|though|if|when|after)|(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n|(?:but|and)[ \\t]{1,8}))(?<target2>[Ee]vent)[ \\t\\u00a0]{1,8}(?:I|we|you|they|he|she|if|though|so|now))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["event", "event"],
-    fixer: "en:slotConfusionsEvent",
+    fixer: "en:@en.slotConfusions/18",
     cue: ["event"],
   }),
   frame({
@@ -12545,21 +12545,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:on|in|so|too|how|and|very|for|of|with)[ \\t\\u00a0]{1,8}(?<target>may)[ \\t\\u00a0]{1,8}(?:different|more|other|people|times|ways|years|things|reasons|of[ \\t\\u00a0]{1,8}(?:them|us|you|the))|(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target2>May)[ \\t\\u00a0]{1,8}thanks)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["may", "thanks"],
-    fixer: "en:slotConfusionsMay",
+    fixer: "en:@en.slotConfusions/20",
     cue: ["may"],
   }),
   frame({
     pattern:
       "(?:cancel|on|in|to|from|with|for|of|at|into)[ \\t\\u00a0]{1,8}(?<target>may)[ \\t\\u00a0]{1,8}(?:subscription|account|list|head|mind|life|house|car|phone|computer|wife|husband|mother|father|order|name|email|friend|friends|family|job|own)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["may"],
-    fixer: "en:slotConfusionsMay2",
+    fixer: "en:@en.slotConfusions/21",
     cue: ["may"],
   }),
   frame({
     pattern:
       "(?:(?:I|you|we|they|should|could|would|will|must|might|to)[ \\t\\u00a0]{1,8}(?<target>ave)[ \\t\\u00a0]{1,8}(?:been|no|a|an|the|to|many|any|some|it|this|that|done|seen|had|got|known|gone|made|taken|told|said|thought)|(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target2>Ave)[ \\t\\u00a0]{1,8}(?:you|we|they)[ \\t\\u00a0]{1,8}(?:been|got|seen|had|done|ever))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ave", "ave"],
-    fixer: "en:slotConfusionsAve",
+    fixer: "en:@en.slotConfusions/22",
     cue: ["ave"],
   }),
   frame({
@@ -12649,7 +12649,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:be[ \\t\\u00a0]{1,8}(?<target>quite)(?=[ \\t]*[.!])|a[ \\t\\u00a0]{1,8}(?<target2>quite)[ \\t\\u00a0]{1,8}(?:word|place|night|evening|room|moment|life|spot|street|corner|neighborhood|neighbourhood|town|village|weekend|voice)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["quite", "quite"],
-    fixer: "en:slotConfusionsQuite",
+    fixer: "en:@en.slotConfusions/35",
     cue: ["quite"],
   }),
   frame({
@@ -12663,7 +12663,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<lead>I|you|we|they|he|she|could|would|will|can|might|to|not|never|didn['’]t|don['’]t)[ \\t\\u00a0]{1,8}(?<target>loss)[ \\t\\u00a0]{1,8}(?:a|an|the|my|your|his|her|their|our|it|them|weight|money|time|control|track|interest|sight|hope|games?|friends?|football)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["loss"],
-    fixer: "en:slotConfusionsLoss",
+    fixer: "en:@en.slotConfusions/37",
     cue: ["loss"],
   }),
   frame({
@@ -12691,49 +12691,49 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:received|got|read|sent|forwarded|deleted|answered|reply[ \\t\\u00a0]{1,8}to|answer[ \\t\\u00a0]{1,8}to)[ \\t\\u00a0]{1,8}(?:(?:your|my|his|her|our|their|the|different|several|many|some|two|three)[ \\t\\u00a0]{1,8})?(?:(?:last|previous|earlier|recent|text|voice)[ \\t\\u00a0]{1,8})?(?<target>massages?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["massage"],
-    fixer: "en:slotConfusionsMassages",
+    fixer: "en:@en.slotConfusions/41",
     cue: ["massage", "massages"],
   }),
   frame({
     pattern:
       "(?:(?:against|to|with)[ \\t\\u00a0]{1,8}(?:my|his|her|your|our|their)[ \\t\\u00a0]{1,8}(?<target>principals)|(?<target2>principals)[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:constitution|law|physics|design|democracy|game|faith))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["principals", "principals"],
-    fixer: "en:slotConfusionsPrincipals",
+    fixer: "en:@en.slotConfusions/42",
     cue: ["principals"],
   }),
   frame({
     pattern:
       "(?<target>peaked|peeked|peaks|peeks|peaking|peeking)[ \\t\\u00a0]{1,8}(?:(?:my|your|his|her|their|our|the|public|everyone['’]s|[a-z]+['’]s?)[ \\t\\u00a0]{1,8})?(?:(?:intense|lasting|and|immediate|keen|own|constitutional|judges['’]?)[ \\t\\u00a0]{1,8})*(?:interest|curiosity|attention|suspicions?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["interest", "curiosity", "attention", "suspicion"],
-    fixer: "en:slotConfusionsPeaked",
+    fixer: "en:@en.slotConfusions/43",
     cue: ["peaked", "peeked", "peaks", "peeks", "peaking", "peeking"],
   }),
   frame({
     pattern:
       "(?:(?:not|didn['’]t|don['’]t|doesn['’]t|never)[ \\t\\u00a0]{1,8}(?<target>man)[ \\t\\u00a0]{1,8}to|what[ \\t\\u00a0]{1,8}(?:we|you|they|I|he|she)[ \\t\\u00a0]{1,8}(?<target2>man)(?=[ \\t]*[?.]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["not", "didn", "don", "doesn", "never", "what"],
-    fixer: "en:slotConfusionsMan",
+    fixer: "en:@en.slotConfusions/44",
     cue: ["man"],
   }),
   frame({
     pattern:
       "(?:(?:greatest|best|worst|biggest|first|only|most|least)[ \\t\\u00a0]{1,8}(?:[a-z]+[ \\t\\u00a0]{1,8})?(?<target>every)[ \\t\\u00a0]{1,8}(?:told|made|seen|written|lived|played|recorded|built|created|sold|produced|known)|(?:would|could|will|can|might|should|if|hardly|nor)[ \\t\\u00a0]{1,8}(?<target2>every)[ \\t\\u00a0]{1,8}(?:be|been|get|see|happen|make|want|need|seen|go|come|find|know|use))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["every", "every"],
-    fixer: "en:slotConfusionsEvery",
+    fixer: "en:@en.slotConfusions/45",
     cue: ["every"],
   }),
   frame({
     pattern:
       "(?:all[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?<target>bet)(?=[ \\t]*[.!,]|[ \\t]*$)|wish[ \\t\\u00a0]{1,8}(?:you|him|her|them|us)[ \\t\\u00a0]{1,8}(?:all[ \\t\\u00a0]{1,8})?the[ \\t\\u00a0]{1,8}(?<target2>bet))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["all", "wish"],
-    fixer: "en:slotConfusionsBet",
+    fixer: "en:@en.slotConfusions/46",
     cue: ["bet"],
   }),
   frame({
     pattern:
       "(?:as[ \\t\\u00a0]{1,8}(?<target>off)[ \\t\\u00a0]{1,8}(?:yesterday|today|now|tomorrow|this|last|next|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|june|july|august|september|october|november|december|[0-9])|aware[ \\t\\u00a0]{1,8}(?<target2>off)(?=[ \\t]*[.!?]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["off", "aware"],
-    fixer: "en:slotConfusionsOff",
+    fixer: "en:@en.slotConfusions/47",
     cue: ["off"],
   }),
   frame({
@@ -12747,7 +12747,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<lead>(?<=(?:^|[.!?,;:][\"”’)]?[ \\t]{1,8}|\\n))|(?:if|when|because|and|but|then|now|otherwise|so|until|unless|since|whether|while|that)[ \\t\\u00a0]{1,8})(?<target>you)[ \\t\\u00a0]{1,8}(?<w1>[a-z]+)[ \\t\\u00a0]{1,8}(?<w2>[a-z]+(?:['’]t)?)(?:[ \\t\\u00a0]{1,8}(?<w3>[a-z]+(?:['’]t)?))?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["you"],
-    fixer: "en:slotConfusionsYou",
+    fixer: "en:@en.slotConfusions/49",
     message: "review_msg_your_possessive",
     check: "englishYourYouAre",
     cue: ["you"],
@@ -12756,7 +12756,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<aux>did|does|do|didn['’]t|doesn['’]t|don['’]t|will|would|could|can|should|has|have)[ \\t\\u00a0]{1,8}(?<target>you)[ \\t\\u00a0]{1,8}(?<w1>[a-z]+)[ \\t\\u00a0]{1,8}(?<w2>[a-z]+)(?:[ \\t\\u00a0]{1,8}(?<w3>[a-z]+))?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["you"],
-    fixer: "en:slotConfusionsYou2",
+    fixer: "en:@en.slotConfusions/50",
     message: "review_msg_your_possessive",
     check: "englishYourYouAre",
     cue: ["you"],
@@ -12765,7 +12765,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:for|at|about|on|with|from|not|done|did|finished|lost|found|forgot|hug|hugged|wash|washed|clean|cleaned|update|updated|(?:you|I|we|they)[ \\t\\u00a0]{1,8}have)[ \\t\\u00a0]{1,8}(?<target>you)[ \\t\\u00a0]{1,8}(?<w1>[a-z]+)(?:[ \\t\\u00a0]{1,8}(?!(?:yet|with|already|today|now|first|and|or|of)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?<w2>[a-z]+))?(?<end>[ \\t\\u00a0]*[.!?,;:]|[ \\t\\u00a0]{1,8}(?:yet|with|already|today|now|first|and|or|of)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["you"],
-    fixer: "en:slotConfusionsYou3",
+    fixer: "en:@en.slotConfusions/51",
     message: "review_msg_your_possessive",
     check: "englishYourYouAre",
     cue: ["you"],
@@ -12774,7 +12774,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:n['’]t|(?:is|was|are|were|am|do|does|did|will|would|can|could|have|has|had|be|['’]m|['’]re|['’]s)[ \\t\\u00a0]{1,8}not|[ \\t\\u00a0]{1,8}never)[ \\t\\u00a0]{1,8}(?:[\\p{L}'’]+[ \\t\\u00a0]{1,8}){0,4})(?<target>too)(?=[ \\t\\u00a0]*[.!])",
     literals: ["too"],
-    fixer: "en:slotConfusionsToo",
+    fixer: "en:@en.slotConfusions/52",
     message: "review_msg_contextual_grammar",
     cue: ["too"],
   }),
@@ -12805,14 +12805,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n|,[ \\t]{1,8}))|(?:think|thought|guess|hope|wish|know|said|says|so|but|and|because|if|then|maybe|honestly|yes|well)[ \\t\\u00a0]{1,8})(?<target>id)[ \\t\\u00a0]{1,8}(?:rather|probably|like|love|hate|be|have|never|just|prefer|preferred|better|already|definitely|also|really|say|been|gladly|appreciate|want|go|need|imagine|recommend|suggest|bet|do|get|try|still|always|only|certainly|happily|guess)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:slotConfusionsId",
+    fixer: "en:@en.slotConfusions/54",
     cue: ["id"],
   }),
   frame({
     pattern:
       "(?:my|your|his|her|their|our|photo|student|valid|government|employee|staff)[ \\t\\u00a0]{1,8}(?<target>id)(?=[ \\t\\u00a0]{1,8}(?:card|cards|number|badge|proves|shows|expired|is|was|to|at|for|and|or|with)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;:])",
     literals: [],
-    fixer: "en:slotConfusionsId2",
+    fixer: "en:@en.slotConfusions/55",
     message: "review_msg_name_casing",
     check: "englishCanonicalCasing",
     cue: ["id"],
@@ -12829,14 +12829,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:I|you|we|they|he|she|who|parents|father|mother)[ \\t\\u00a0]{1,8}(?<target>cold)[ \\t\\u00a0]{1,8}(?:not|n['’]t|never|do|be|have|see|hear|help|go|get|make|say|tell|find|imagine|feel|ask|try|use)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}))(?<target2>Cold)[ \\t\\u00a0]{1,8}(?:you|we|they|he|she|I|it|someone|anyone)[ \\t\\u00a0]{1,8}(?:please[ \\t\\u00a0]{1,8})?(?:help|tell|see|hear|send|check|give|explain|do|be|have|make)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["cold", "cold"],
-    fixer: "en:slotConfusionsCold",
+    fixer: "en:@en.slotConfusions/57",
     cue: ["cold"],
   }),
   frame({
     pattern:
       "(?:to|will|would|can|could|may|might|it|he|she|they|fog|smoke|darkness|silence)[ \\t\\u00a0]{1,8}(?<target>envelope|envelopes)[ \\t\\u00a0]{1,8}(?:me|you|him|her|us|them|it|the|everything|everyone)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["envelope", "envelopes"],
-    fixer: "en:slotConfusionsEnvelope",
+    fixer: "en:@en.slotConfusions/58",
     cue: ["envelope", "envelopes", "enveloped", "enveloping"],
   }),
   frame({
@@ -12878,14 +12878,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<!(?<![\\p{L}'’])(?:a|the)[ \\t\\u00a0]{1,8})good[ \\t\\u00a0]{1,8}(?<target>lick)|wish(?:ing)?[ \\t\\u00a0]{1,8}(?:you|him|her|them|us|everyone)[ \\t\\u00a0]{1,8}good[ \\t\\u00a0]{1,8}(?<target2>lock))(?=[ \\t\\u00a0]{1,8}(?:with|on|to|in|for|today|tomorrow|everyone|everybody|next)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.,!]|[ \\t]*$)",
     literals: ["good", "wish"],
-    fixer: "en:slotConfusionsLick",
+    fixer: "en:@en.slotConfusions/64",
     cue: ["lick", "lock"],
   }),
   frame({
     pattern:
       "(?:(?:have|has|had)[ \\t\\u00a0]{1,8}(?<target>note)[ \\t\\u00a0]{1,8}(?<part>[a-z]+)|(?:I['’]m|am|is|are|was|were)[ \\t\\u00a0]{1,8}(?<target2>note)[ \\t\\u00a0]{1,8}(?<ing>[a-z]+ing))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["note", "note"],
-    fixer: "en:slotConfusionsNote",
+    fixer: "en:@en.slotConfusions/65",
     cue: ["note"],
   }),
   frame({
@@ -12906,21 +12906,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:I|he|she|they|we|you|who)[ \\t\\u00a0]{1,8}(?<target>sad)[ \\t\\u00a0]{1,8}(?:that|it|so|this|something|nothing|yes|no|hello|goodbye)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?:have|has|had)[ \\t\\u00a0]{1,8}(?<target2>sad)(?=[ \\t]*[.,!?]|[ \\t\\u00a0]{1,8}(?:that|it|so|yesterday|before|earlier)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["sad", "have", "has", "had"],
-    fixer: "en:slotConfusionsSad",
+    fixer: "en:@en.slotConfusions/68",
     cue: ["sad"],
   }),
   frame({
     pattern:
       "(?<=\\p{L}[ \\t]{1,8})(?<target>look|looks|looked|looking)[ \\t\\u00a0]{1,8}(?:the|your|my|his|her|our|their|this|that)[ \\t\\u00a0]{1,8}(?:(?:front|back|main|car|garage|bedroom|office)[ \\t\\u00a0]{1,8})?(?:door|doors|gate|gates)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["look", "looks", "looked", "looking"],
-    fixer: "en:slotConfusionsLook",
+    fixer: "en:@en.slotConfusions/69",
     cue: ["look", "looks", "looked", "looking"],
   }),
   frame({
     pattern:
       "(?<target>non[ \\t\\u00a0]{1,8}(?<word>[A-Za-z]+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["non"],
-    fixer: "en:slotConfusionsNon",
+    fixer: "en:@en.slotConfusions/70",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: ["non"],
@@ -12929,27 +12929,27 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t|to|don['’]t|doesn['’]t|didn['’]t|never|not|I|we|you|they|let['’]s|please)[ \\t\\u00a0]{1,8}(?:(?:just|also|always|never|really|often|still)[ \\t\\u00a0]{1,8})?(?<target>tel|tech|choice|ware|multiple)[ \\t\\u00a0]{1,8}(?:it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["tel", "tech", "choice", "ware", "multiple"],
-    fixer: "en:slotConfusionsTel",
+    fixer: "en:@en.slotConfusions/71",
     cue: ["tel", "tech", "choice", "ware", "multiple"],
   }),
   frame({
     pattern:
       "(?:he|she|it|who|which|that)[ \\t\\u00a0]{1,8}(?:(?:just|also|always|never|really|often|still)[ \\t\\u00a0]{1,8})?(?<target>tels|teches|choices|wares|multiples)[ \\t\\u00a0]{1,8}(?:it|them|him|her|me|us|you|this|that|these|those|the|a|an|my|your|his|our|their|people|students|everyone|something|anything|whether|if|how|what)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["tels", "teches", "choices", "wares", "multiples"],
-    fixer: "en:slotConfusionsTels",
+    fixer: "en:@en.slotConfusions/72",
     cue: ["tels", "teches", "choices", "wares", "multiples"],
   }),
   frame({
     pattern: "(?<target>mus)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["mus"],
-    fixer: "en:slotConfusionsMus",
+    fixer: "en:@en.slotConfusions/73",
     cue: ["mus"],
   }),
   frame({
     pattern:
       "(?:I|you|we|they|he|she|it|would|could|will|should|can|must|might|may|and|but|are|is|was|were|am)[ \\t\\u00a0]{1,8}(?<target>sill)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["sill"],
-    fixer: "en:slotConfusionsSill",
+    fixer: "en:@en.slotConfusions/74",
     cue: ["sill"],
   }),
   frame({
@@ -12977,7 +12977,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:am|is|are|was|were|be|been|(?:I|you|we|they|he|she|it|that)['’](?:m|re|s)|feel|feels|felt|look|looks|looked|seem|seems|seemed)[ \\t\\u00a0]{1,8}(?<target>vary)[ \\t\\u00a0]{1,8}(?<adj>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["vary"],
-    fixer: "en:slotConfusionsVary",
+    fixer: "en:@en.slotConfusions/78",
     cue: ["vary"],
   }),
   frame({
@@ -12998,7 +12998,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "does",
       "did",
     ],
-    fixer: "en:slotConfusionsAux",
+    fixer: "en:@en.slotConfusions/79",
     message: "review_msg_tag_question",
     check: "englishSentenceStructure",
     cue: ["not", "t"],
@@ -13007,7 +13007,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<subject>I|you|we|they|he|she|it)(?<verb>['’](?:m|re|s)|[ \\t\\u00a0]{1,8}(?:(?:always|usually|often|really|just|also|still|never)[ \\t\\u00a0]{1,8})?[a-z]+)(?=[^.!?,;:\\n]{0,60},[ \\t\\u00a0]{1,8}(?:aren|isn|wasn|weren|don|doesn|didn)['’]t)[^.!?,;:\\n]{0,60},[ \\t\\u00a0]{1,8}(?<target>(?<aux>aren['’]t|isn['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)[ \\t\\u00a0]{1,8}(?<pron>I|you|we|they|he|she|it))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t]*\\?)",
     literals: ["aren", "isn", "wasn", "weren", "don", "doesn", "didn"],
-    fixer: "en:slotConfusionsAux2",
+    fixer: "en:@en.slotConfusions/80",
     message: "review_msg_tag_question",
     check: "englishSentenceStructure",
     cue: ["t"],
@@ -13037,14 +13037,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:I|you|we|they|he|she|it|can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t|am|is|are|was|were|had|has|have|did|could|['’](?:m|re|s|d|ve))[ \\t\\u00a0]{1,8}(?<target>barley)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["barley"],
-    fixer: "en:slotConfusionsBarley",
+    fixer: "en:@en.slotConfusions/84",
     cue: ["barley"],
   }),
   frame({
     pattern:
       "(?:found|find|need|needs|needed|had|have|has|is|was|['’]s|try|tried|yet|one|and|or|for|of|with|to|on|in|at|from|by|about|another|any)[ \\t\\u00a0]{1,8}(?<target>anther)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["anther"],
-    fixer: "en:slotConfusionsAnther2",
+    fixer: "en:@en.slotConfusions/85",
     cue: ["anther"],
   }),
   frame({
@@ -13058,7 +13058,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:it|this|that|which|what[ \\t\\u00a0]{1,8}(?:he|she|it|this|that))[ \\t\\u00a0]{1,8}(?<target>mans)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["mans"],
-    fixer: "en:slotConfusionsMans",
+    fixer: "en:@en.slotConfusions/87",
     cue: ["mans"],
   }),
   frame({
@@ -13072,7 +13072,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=Due)(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target>Due)[ \\t\\u00a0]{1,8}(?:you|we|they|I)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["due"],
-    fixer: "en:slotConfusionsDue",
+    fixer: "en:@en.slotConfusions/89",
     cue: ["due"],
   }),
   frame({
@@ -13095,21 +13095,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "let",
       "lets",
     ],
-    fixer: "en:slotConfusionsUs",
+    fixer: "en:@en.slotConfusions/90",
     cue: ["us"],
   }),
   frame({
     pattern:
       "(?:it|can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t|to|not|n['’]t)[ \\t\\u00a0]{1,8}(?<target>event)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["event"],
-    fixer: "en:slotConfusionsEvent2",
+    fixer: "en:@en.slotConfusions/91",
     cue: ["event"],
   }),
   frame({
     pattern:
       "(?:(?:can|could|cannot|can['’]t|couldn['’]t|almost|barely|hardly|to)[ \\t\\u00a0]{1,8})(?<target>here)[ \\t\\u00a0]{1,8}(?:you|me|him|her|them|us|it|that|this|what|about|from|of|anything|something|nothing|someone|somebody|footsteps|voices|music|noise)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["here"],
-    fixer: "en:slotConfusionsHere",
+    fixer: "en:@en.slotConfusions/92",
     cue: ["here"],
   }),
   frame({
@@ -13125,7 +13125,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "brunt",
       "responsibility",
     ],
-    fixer: "en:slotConfusionsBare",
+    fixer: "en:@en.slotConfusions/93",
     cue: ["bare", "bares", "bared"],
   }),
   frame({
@@ -13159,7 +13159,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "biggest",
       "main",
     ],
-    fixer: "en:slotConfusionsHe",
+    fixer: "en:@en.slotConfusions/95",
     cue: ["he"],
   }),
   frame({
@@ -13194,7 +13194,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:at[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}(?<target>lose)[ \\t\\u00a0]{1,8}(?:for|and|about|as|[.,;!?])|(?:the|a|great|big|huge|heavy|total|sudden)[ \\t\\u00a0]{1,8}(?<target2>lose)[ \\t\\u00a0]{1,8}of(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["lose", "lose"],
-    fixer: "en:slotConfusionsLose",
+    fixer: "en:@en.slotConfusions/100",
     cue: ["lose"],
   }),
   frame({
@@ -13215,7 +13215,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<!(?<![\\p{L}'’])(?:not|n['’]t|is|was|are|were|am|be|been|feel|felt|feels|still)[ \\t\\u00a0]{1,8})(?<target>yet[ \\t\\u00a0]{1,8}alone)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["alone"],
-    fixer: "en:slotConfusionsYet",
+    fixer: "en:@en.slotConfusions/103",
     message: "review_msg_phrase_correction",
     cue: ["yet"],
   }),
@@ -13223,21 +13223,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<the>the)[ \\t\\u00a0]{1,8}later)(?=[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.,;])",
     literals: ["later"],
-    fixer: "en:slotConfusionsThe",
+    fixer: "en:@en.slotConfusions/104",
     cue: ["later"],
   }),
   frame({
     pattern:
       "(?<lead>[A-Za-z]+(?:['’][a-z]+)?)[ \\t\\u00a0]{1,8}(?<target>all[ \\t\\u00a0]{1,8}ready)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ready"],
-    fixer: "en:slotConfusionsAll",
+    fixer: "en:@en.slotConfusions/105",
     cue: ["ready"],
   }),
   frame({
     pattern:
       "(?:I|you|we|they|he|she|it|can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t|to|please|don['’]t|doesn['’]t|didn['’]t|never|not|really|also|just)[ \\t\\u00a0]{1,8}(?<target>attache)[ \\t\\u00a0]{1,8}(?:a|an|the|my|your|our|their|his|her|it|them|this|that|these|those|some|files?|photos?|images?|pictures?|documents?|screenshots?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["attache"],
-    fixer: "en:slotConfusionsAttache",
+    fixer: "en:@en.slotConfusions/106",
     cue: ["attache"],
   }),
   frame({
@@ -13264,7 +13264,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:this|that|here|it)[ \\t\\u00a0]{1,8}is|(?:sure|know|knew|wonder|wondering|asked|ask|idea|tell|told|show|remember|forgot|guess)|(?:the|a|one[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}the)[ \\t\\u00a0]{1,8}(?:place|places|page|pages|point|area|areas|city|town|room|house|country|site|website|spot|age|land|office|section|folder|location|stage|part|world|street|village|region|one))[ \\t\\u00a0]{1,8}(?<target>were)[ \\t\\u00a0]{1,8}(?:I|we|you|they|he|she|to|the[ \\t\\u00a0]{1,8}[a-z]+[ \\t\\u00a0]{1,8}(?:is|are|was|were|can|will|has|have|had|look|looks|live|lives|work|works)|my|our|your|their|his|her)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["were"],
-    fixer: "en:slotConfusionsWere",
+    fixer: "en:@en.slotConfusions/110",
     cue: ["were"],
   }),
   frame({
@@ -13278,28 +13278,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:which|what)[ \\t\\u00a0]{1,8}[a-z]+|they|we|you|people|users|[a-z]+s)[ \\t\\u00a0]{1,8}(?<target>where)[ \\t\\u00a0]{1,8}(?:(?:you|they|we)[ \\t\\u00a0]{1,8})?(?<ing>[a-z]{2,}ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:is|was|are|were|has|can|will|should|would)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["where"],
-    fixer: "en:slotConfusionsWhere",
+    fixer: "en:@en.slotConfusions/112",
     cue: ["where"],
   }),
   frame({
     pattern:
       "(?:there['’]s|there[ \\t\\u00a0]{1,8}(?:is|was)|here['’]s|here[ \\t\\u00a0]{1,8}is|is[ \\t\\u00a0]{1,8}there|was[ \\t\\u00a0]{1,8}there|such|quite|what)[ \\t\\u00a0]{1,8}(?<target>and)[ \\t\\u00a0]{1,8}(?<noun>[aeiou][a-z]+)(?=[ \\t]*[.!?,:;]|[ \\t\\u00a0]{1,8}(?:of|for|that|to|on|in|with|from|about|here|there|we|you|I)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["there", "there", "here", "here", "there", "there", "such", "quite", "what"],
-    fixer: "en:slotConfusionsAnd",
+    fixer: "en:@en.slotConfusions/113",
     cue: ["and"],
   }),
   frame({
     pattern:
       "(?<target>an)[ \\t\\u00a0]{1,8}(?:(?:also|already|eventually)[ \\t\\u00a0]{1,8}(?:go|be|do|have|get|make|take|went|did|got|made|took)|thus|therefore|still|finally|later|regarding|the|my|your|his|her|our|their|these|those|for[ \\t\\u00a0]{1,8}all|a[ \\t\\u00a0]{1,8}half)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:slotConfusionsAn2",
+    fixer: "en:@en.slotConfusions/114",
     cue: ["an"],
   }),
   frame({
     pattern:
       "(?:(?:don['’]t|doesn['’]t|didn['’]t|let[ \\t\\u00a0]{1,8}(?:me|us|him|her|them))[ \\t\\u00a0]{1,8}(?<target>now)[ \\t\\u00a0]{1,8}(?:if|whether|what|how|why|when|where|who|your|the|about|anything|it|him|her|them)|let[ \\t\\u00a0]{1,8}(?:me|us)[ \\t\\u00a0]{1,8}(?<target2>now)(?=[ \\t]*[.!?]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["don", "doesn", "didn", "let", "let"],
-    fixer: "en:slotConfusionsNow",
+    fixer: "en:@en.slotConfusions/115",
     cue: ["now"],
   }),
   frame({
@@ -13313,7 +13313,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:from[ \\t\\u00a0]{1,8}(?<target>know)[ \\t\\u00a0]{1,8}on|every[ \\t\\u00a0]{1,8}(?<target2>know)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}then)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["from", "every"],
-    fixer: "en:slotConfusionsKnow",
+    fixer: "en:@en.slotConfusions/117",
     cue: ["know"],
   }),
   frame({
@@ -13334,7 +13334,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:more|less)[ \\t\\u00a0]{1,8}(?<adj>[a-z]+)[ \\t\\u00a0]{1,8}(?<target>that)[ \\t\\u00a0]{1,8}(?:others|anyone|anything|everyone|everything|ever|usual|expected|necessary|needed|planned|before)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t]*(?:[.!?,;:)]|$)|[ \\t\\u00a0]{1,8}(?:do|did|does|in|on|at|for|of)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["more", "less"],
-    fixer: "en:slotConfusionsThat",
+    fixer: "en:@en.slotConfusions/120",
     cue: ["that"],
   }),
   frame({
@@ -13356,42 +13356,42 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "more",
       "less",
     ],
-    fixer: "en:slotConfusionsThat2",
+    fixer: "en:@en.slotConfusions/121",
     cue: ["that"],
   }),
   frame({
     pattern:
       "(?:(?:is|was|are|were|be|been|being|as|became|become|remains)[ \\t\\u00a0]{1,8}(?<target>once)[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:the|my|your|our|his|her|their|these|those|them|us)|(?<target2>once)[ \\t\\u00a0]{1,8}(?:more[ \\t\\u00a0]{1,8}time(?=[ \\t]*[.!?,]|[ \\t\\u00a0]{1,8}(?:to|and|please|before)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["once", "once"],
-    fixer: "en:slotConfusionsOnce",
+    fixer: "en:@en.slotConfusions/122",
     cue: ["once"],
   }),
   frame({
     pattern:
       "(?:(?<!(?<![\\p{L}'’])(?:the|this|that|a|any|each|every|which|no)[ \\t\\u00a0]{1,8})(?<target>one)[ \\t\\u00a0]{1,8}(?:upon[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}time|and[ \\t\\u00a0]{1,8}for[ \\t\\u00a0]{1,8}all)|every[ \\t\\u00a0]{1,8}(?<target2>one)[ \\t\\u00a0]{1,8}in[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}while)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["one", "every"],
-    fixer: "en:slotConfusionsOne",
+    fixer: "en:@en.slotConfusions/123",
     cue: ["one"],
   }),
   frame({
     pattern:
       "(?:(?:sure|wonder|wondering|see|check|checking|(?:ask|asked|asking)(?:[ \\t\\u00a0]{1,8}(?:me|him|her|them|us))?)[ \\t\\u00a0]{1,8}(?<target>it)[ \\t\\u00a0]{1,8}(?:there[ \\t\\u00a0]{1,8}(?:is|are|was|were)|anyone|anybody|someone|somebody)|me[ \\t\\u00a0]{1,8}(?<target2>it)[ \\t\\u00a0]{1,8}you[ \\t\\u00a0]{1,8}can(?=[ \\t]*[.!?]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["there", "anyone", "anybody", "someone", "somebody", "you"],
-    fixer: "en:slotConfusionsIt",
+    fixer: "en:@en.slotConfusions/124",
     cue: ["it"],
   }),
   frame({
     pattern:
       "(?:(?:make|makes|made|making)[ \\t\\u00a0]{1,8}(?<target>if)[ \\t\\u00a0]{1,8}(?:clear|possible|easier|easy|harder|hard|difficult|sure|known|work)|for[ \\t\\u00a0]{1,8}(?<target2>if)(?=[ \\t]*[!.]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["make", "makes", "made", "making", "for"],
-    fixer: "en:slotConfusionsIf2",
+    fixer: "en:@en.slotConfusions/125",
     cue: ["if"],
   }),
   frame({
     pattern:
       "(?<target>all[ \\t\\u00a0]{1,8}ready)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ready"],
-    fixer: "en:slotConfusionsAll2",
+    fixer: "en:@en.slotConfusions/126",
     cue: ["ready"],
   }),
   frame({
@@ -13416,14 +13416,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:recently|also|just|always|often|then)[ \\t\\u00a0]{1,8}(?<target>complaint)|(?:a|one|another|every|each)[ \\t\\u00a0]{1,8}[a-z]+[ \\t\\u00a0]{1,8}(?<target2>complaints))[ \\t\\u00a0]{1,8}(?:that|about)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["complaint", "complaints"],
-    fixer: "en:slotConfusionsComplaint",
+    fixer: "en:@en.slotConfusions/128",
     cue: ["complaint", "complaints"],
   }),
   frame({
     pattern:
       "(?:(?:per|next|last|calendar|(?:beginning|end|middle|start)[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}the)[ \\t\\u00a0]{1,8}(?<target>moth)(?=[ \\t]*[.!?,;:]|[ \\t\\u00a0]{1,8}(?:ago|later|before|after|and|or)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?:for|some|few|several|many|two|three|four|five|six|seven|eight|nine|ten|twelve|[0-9]+)[ \\t\\u00a0]{1,8}(?<target2>moths)(?=[ \\t]*[.!?,;:]|[ \\t\\u00a0]{1,8}(?:ago|now|later|before|after)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["moth", "moths"],
-    fixer: "en:slotConfusionsMoth",
+    fixer: "en:@en.slotConfusions/129",
     cue: ["moth", "moths"],
   }),
   frame({
@@ -13437,14 +13437,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:it|he|she|this|that|which|who)[ \\t\\u00a0]{1,8}(?<target>doe)[ \\t\\u00a0]{1,8}not|(?:what|how|why|where|when)[ \\t\\u00a0]{1,8}(?<target2>doe)[ \\t\\u00a0]{1,8}(?:he|she|it))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["doe", "what", "how", "why", "where", "when"],
-    fixer: "en:slotConfusionsDoe",
+    fixer: "en:@en.slotConfusions/131",
     cue: ["doe"],
   }),
   frame({
     pattern:
       "(?:(?<target>bares|bared|baring)[ \\t\\u00a0]{1,8}(?:(?:a|an|little|no|some|striking|uncanny|close|almost|an[ \\t\\u00a0]{1,8}almost)[ \\t\\u00a0]{1,8})*(?:resemblance|witness|the[ \\t\\u00a0]{1,8}brunt|repeating|mentioning)|(?:can['’]t|cannot|couldn['’]t|could[ \\t\\u00a0]{1,8}not)[ \\t\\u00a0]{1,8}(?<target2>bare)[ \\t\\u00a0]{1,8}(?:the[ \\t\\u00a0]{1,8}[a-z]+|it|to|this|that|him|her|them|seeing|being|watching|hearing))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["bares", "bared", "baring", "bare"],
-    fixer: "en:slotConfusionsBares",
+    fixer: "en:@en.slotConfusions/132",
     cue: ["bare", "bares", "bared", "baring"],
   }),
   frame({
@@ -13461,7 +13461,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "checkout",
       "rollout",
     ],
-    fixer: "en:slotConfusionsSetup",
+    fixer: "en:@en.slotConfusions/133",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: [
@@ -13490,7 +13490,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "checkout",
       "rollout",
     ],
-    fixer: "en:slotConfusionsSetup2",
+    fixer: "en:@en.slotConfusions/134",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: [
@@ -13509,7 +13509,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<!(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?:can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t)|please|don['’]t|doesn['’]t|didn['’]t|never|not|who|let[ \\t\\u00a0]{1,8}(?:me|us|them|him|her)|(?:I|we|they|you)|(?:can|could|will|would|should|do|does|did|can['’]t|won['’]t|don['’]t|doesn['’]t|didn['’]t|wouldn['’]t|couldn['’]t)[ \\t\\u00a0]{1,8}(?:I|you|we|they|he|she|it)|(?:need|needs|needed|want|wants|wanted|plan|plans|planned|try|tries|tried|trying|able|unable|how|going|forgot|forget|remember|allowed|asked|ask|tell|told)[ \\t\\u00a0]{1,8}to|(?:need|needs|needed|want|wants|wanted|plan|plans|planned|try|tries|tried|trying|able|unable|how|going|forgot|forget|remember|allowed|asked|ask|tell|told)[ \\t\\u00a0]{1,8}(?:[\\p{L}'’]+[ \\t\\u00a0]{1,8}){1,2}to)[ \\t\\u00a0]{1,8}(?<target>login)(?=[ \\t\\u00a0]{1,8}(?:the|a|an|this|that|these|those|it|them|my|your|his|her|our|their|some|any|all|each|every|again|with|to|before|after|using|here|there|now|first|via|through|every|daily|into|from|by|on|at|in|without|automatically|successfully|early|late|today|tomorrow|once|twice|files?|data)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;:])",
     literals: ["login"],
-    fixer: "en:slotConfusionsLogin",
+    fixer: "en:@en.slotConfusions/135",
     message: "review_msg_log_in",
     check: "englishContextualCompounds",
     cue: ["login"],
@@ -13518,7 +13518,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<!(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?:can|could|will|would|shall|should|may|might|must|cannot|can['’]t|won['’]t)|please|don['’]t|doesn['’]t|didn['’]t|never|not|who|let[ \\t\\u00a0]{1,8}(?:me|us|them|him|her)|(?:I|we|they|you)|(?:can|could|will|would|should|do|does|did|can['’]t|won['’]t|don['’]t|doesn['’]t|didn['’]t|wouldn['’]t|couldn['’]t)[ \\t\\u00a0]{1,8}(?:I|you|we|they|he|she|it)|(?:need|needs|needed|want|wants|wanted|plan|plans|planned|try|tries|tried|trying|able|unable|how|going|forgot|forget|remember|allowed|asked|ask|tell|told)[ \\t\\u00a0]{1,8}to|(?:need|needs|needed|want|wants|wanted|plan|plans|planned|try|tries|tried|trying|able|unable|how|going|forgot|forget|remember|allowed|asked|ask|tell|told)[ \\t\\u00a0]{1,8}(?:[\\p{L}'’]+[ \\t\\u00a0]{1,8}){1,2}to)[ \\t\\u00a0]{1,8}(?<target>setup)(?=[ \\t\\u00a0]{1,8}(?:the|a|an|this|that|these|those|it|them|my|your|his|her|our|their|some|any|all|each|every|again|with|to|before|after|using|here|there|now|first|via|through|every|daily|into|from|by|on|at|in|without|automatically|successfully|early|late|today|tomorrow|once|twice|files?|data)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;:])",
     literals: ["setup"],
-    fixer: "en:slotConfusionsLogin",
+    fixer: "en:@en.slotConfusions/136",
     message: "review_msg_set_up",
     check: "englishContextualCompounds",
     cue: ["setup"],
@@ -13537,7 +13537,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "rollout",
       "logout",
     ],
-    fixer: "en:slotConfusionsLogin",
+    fixer: "en:@en.slotConfusions/137",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: [
@@ -13568,7 +13568,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "logins",
       "logouts",
     ],
-    fixer: "en:slotConfusionsSetups",
+    fixer: "en:@en.slotConfusions/138",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: [

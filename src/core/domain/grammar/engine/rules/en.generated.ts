@@ -23,6 +23,7 @@ import {
   enClauseAfter,
   enEvidence,
   enInfo,
+  enListedNoun,
   enNextWord,
   enNounOnly,
   enObjectGapBefore,
@@ -775,6 +776,53 @@ export const TAKE_FOR_EAT: Readonly<Record<string, string>> = {
   eating: "taking",
 };
 
+export const SETUP_PARTICIPLE: Readonly<Record<string, string>> = {
+  setup: "set up",
+  shutdown: "shut down",
+  backup: "backed up",
+  cleanup: "cleaned up",
+  signup: "signed up",
+  pickup: "picked up",
+  lookup: "looked up",
+  checkout: "checked out",
+  rollout: "rolled out",
+};
+
+export const SETUP_BASE: Readonly<Record<string, string>> = {
+  setup: "set up",
+  shutdown: "shut down",
+  backup: "back up",
+  cleanup: "clean up",
+  signup: "sign up",
+  pickup: "pick up",
+  lookup: "look up",
+  checkout: "check out",
+  rollout: "roll out",
+};
+
+export const VERB_FOR_SHORT: Readonly<Record<string, string>> = {
+  tel: "tell",
+  tech: "teach",
+  choice: "choose",
+  ware: "wear",
+  multiple: "multiply",
+};
+
+export const THIRD_FOR_SHORT: Readonly<Record<string, string>> = {
+  tels: "tells",
+  teches: "teaches",
+  choices: "chooses",
+  wares: "wears",
+  multiples: "multiplies",
+};
+
+export const LOCK_FOR_LOOK: Readonly<Record<string, string>> = {
+  look: "lock",
+  looks: "locks",
+  looked: "locked",
+  looking: "locking",
+};
+
 export const MISHEARD_VERB: Readonly<Record<string, string>> = {
   pic: "pick",
   wright: "write",
@@ -1349,6 +1397,152 @@ export const YOU_CLAUSE_VERBS =
 // en.yaml rule en.slotConfusions def ADDRESSED
 export const ADDRESSED =
   /^(?:guy|guys|idiot|fool|dummy|moron|genius|darling|honey|baby|sir|madam|man|dude|bro|mate|sis|buddy|pal|lot|kid|boy|girl|people|folks|all|both|two|three|alone|yourself|there|here|too|also|something|anything|nothing|everything|everyone|anyone|someone|one|ones|each|most|now|then|again|later|soon|today|tonight|first|last|instead|anyway|maybe|perhaps|men|women|children|ladies|gentlemen)$/;
+
+// en.yaml rule en.slotConfusions def SLOT_BASE
+export const SLOT_BASE = { ...SETUP_BASE, login: "log in", logout: "log out" } as Readonly<
+  Record<string, string>
+>;
+
+// en.yaml rule en.slotConfusions def SLOT_THIRD
+export const SLOT_THIRD = Object.fromEntries(
+  Object.entries(SLOT_BASE).map(([noun, verb]) => [`${noun}s`, verb.replace(" ", "s ")]),
+) as Readonly<Record<string, string>>;
+
+// en.yaml rule en.slotConfusions def PLAIN_REST
+export const PLAIN_REST =
+  /^(?:[ \t\u00a0]+[A-Za-z0-9]+(?:['’][A-Za-z]+)?)*[ \t\u00a0]*[.!?,;:](?![\p{L}\p{N}_])/u;
+
+// en.yaml rule en.slotConfusions def LATTER_VERB
+export const LATTER_VERB =
+  /^(?:is|was|are|were|has|have|had|can|could|will|would|should|may|might|must|does|did|seems|seemed|causes|caused|tends|remains|becomes|offers|requires|means|makes|gives)$/;
+
+// en.yaml rule en.slotConfusions def LATTER_ADVERB
+export const LATTER_ADVERB =
+  /^(?:very|actually|also|often|always|never|usually|only|still|clearly)$/;
+
+// en.yaml rule en.slotConfusions def READY_LEAD
+export const READY_LEAD =
+  /^(?:i|you|we|they|he|she|it|can|could|will|would|should|may|might|must|have|has|had|am|is|are|was|were|i['’](?:ve|m|d)|(?:you|we|they)['’](?:ve|re|d)|(?:he|she|it)['’]s)$/i;
+
+// en.yaml rule en.slotConfusions def YOU_FINITE
+export const YOU_FINITE =
+  /^(?:will|would|can|could|may|might|must|should|shall|is|was|has|does|did|isn['’]t|wasn['’]t|hasn['’]t|doesn['’]t|didn['’]t|won['’]t|can['’]t|got|seems|looks|needs|works|stopped|broke|died)$/;
+
+// en.yaml rule en.slotConfusions def YOU_MENTAL_VERB
+export const YOU_MENTAL_VERB =
+  /^(?:recall|remember|know|think|believe|see|say|mean|guess|ask|want|like|need|do|get|feel|hear|expect|suppose|said|knew|thought)$/;
+
+// en.yaml rule en.slotConfusions def YOU_COLLECTIVE
+export const YOU_COLLECTIVE =
+  /^(?:team|family|staff|crew|class|group|company|band|club|department)$/;
+
+// en.yaml rule en.slotConfusions def asciiWordAfter
+export function asciiWordAfter(ctx: DetectContext, end: number) {
+  return /^[ \t]{1,8}([A-Za-z]+(?:['’][a-z]+)?)/.exec(ctx.text.slice(end, end + 40))?.[1] ?? "";
+}
+
+// en.yaml rule en.slotConfusions def notAfterClauseVerb
+export function notAfterClauseVerb(ctx: DetectContext, at: number) {
+  const before = /([A-Za-z]+)[ \t\u00a0]+$/.exec(ctx.text.slice(Math.max(0, at - 24), at))?.[1];
+  return !before || !YOU_CLAUSE_VERBS.test(before.toLowerCase());
+}
+
+// en.yaml rule en.slotConfusions def yourNoun
+export function yourNoun(
+  ctx: DetectContext,
+  at: number,
+  adj: string | undefined,
+  noun: string,
+  strict: boolean,
+  listed: boolean,
+) {
+  if (!(noun === noun.toLowerCase() && !ADDRESSED.test(noun) && !ctx.dictionary.has(noun)))
+    return false;
+  if (!adj && /^(?:might|may|can|must)$/.test(noun)) return false;
+  const adjective = typoInfo(adj);
+  if (!(
+    !adj || !(!adjective?.adjective || adjective.verbs.length || /^(?:own|only|alone)$/i.test(adj))
+  ))
+    return false;
+  const read = typoInfo(noun);
+  return (!read && (listed || !strict) && enListedNoun(noun) === "singular") ||
+    !(
+      !read?.noun ||
+      read.plural ||
+      read.adjective ||
+      read.adverb ||
+      (strict && read.verbs.some((v) => v.form === "base"))
+    )
+    ? notAfterClauseVerb(ctx, at)
+    : false;
+}
+
+// en.yaml rule en.slotConfusions def youReadings
+export function youReadings(
+  m: RegExpExecArray,
+): [string | undefined, string, string | undefined][] {
+  return [
+    [undefined, m.groups!.w1, m.groups!.w2],
+    [m.groups!.w1, m.groups!.w2, m.groups!.w3],
+  ];
+}
+
+// en.yaml rule en.slotConfusions def youVerbBase
+export function youVerbBase(word: string | undefined) {
+  return (
+    word === "be" ||
+    (!!word && !!typoInfo(word)?.verbs.some((v) => v.form === "base") && !typoInfo(word)!.plural)
+  );
+}
+
+// en.yaml rule en.slotConfusions def participleAfterS
+export function participleAfterS(m: RegExpExecArray) {
+  const next = /^[ \t\u00a0]+([a-z]+)/.exec(
+    m[0].slice(m.groups!.subject.length + m.groups!.verb.length),
+  )?.[1];
+  const read = next ? englishWordInfo(next) : null;
+  return !!read?.verbs.some((v) => v.form === "participle") && !read.adjective;
+}
+
+// en.yaml rule en.slotConfusions def lexiconTag
+export function lexiconTag(word: string, single: boolean): string | null {
+  const read = englishWordInfo(word);
+  if (!(!!read?.verbs.length && !EN_FUNCTION_WORDS.has(word))) return null;
+  const forms = new Set(read.verbs.map((v) => v.form));
+  return forms.has("past") && !forms.has("base")
+    ? "didn't"
+    : (single ? forms.has("third") : forms.has("base") && !forms.has("third"))
+      ? single
+        ? "doesn't"
+        : "don't"
+      : null;
+}
+
+// en.yaml rule en.slotConfusions def questionTag
+export function questionTag(m: RegExpExecArray, word: string, single: boolean): string | null {
+  return word === "'m" || word === "am" || word === "'re" || word === "are"
+    ? "aren't"
+    : word === "'s" || word === "is"
+      ? word === "'s" && participleAfterS(m)
+        ? null
+        : "isn't"
+      : word === "was"
+        ? "wasn't"
+        : word === "were"
+          ? "weren't"
+          : lexiconTag(word, single);
+}
+
+// en.yaml rule en.slotConfusions def bearForm
+export function bearForm(ctx: DetectContext, typed: string, at: number) {
+  const perfect = /\b(?:has|have|had)[ \t]+$/i.test(ctx.text.slice(Math.max(0, at - 8), at));
+  return (
+    { bares: "bears", baring: "bearing", bared: perfect ? "borne" : "bore" } as Record<
+      string,
+      string
+    >
+  )[typed];
+}
 
 // en.yaml rule en.neighbourSlots def typoInfo
 export function typoInfo(word: string | undefined) {
@@ -2225,6 +2419,593 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
         context: enEvidence(ctx, m.index, m.index + m[0].length),
       },
     );
+  },
+  // en.yaml rule en.slotConfusions frame 1
+  "@en.slotConfusions/1": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target === "anther" ? "another" : null;
+  },
+  // en.yaml rule en.slotConfusions frame 2
+  "@en.slotConfusions/2": (): FixResult => {
+    return "thanks";
+  },
+  // en.yaml rule en.slotConfusions frame 4
+  "@en.slotConfusions/4": (): FixResult => {
+    return "thanks";
+  },
+  // en.yaml rule en.slotConfusions frame 7
+  "@en.slotConfusions/7": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target === "Lets" ? "Let's" : target === "lets" ? "let's" : null;
+  },
+  // en.yaml rule en.slotConfusions frame 9
+  "@en.slotConfusions/9": (m: RegExpExecArray): FixResult => {
+    const n = m.groups!.n;
+    return typoInfo(n)?.plural || typoInfo(n.slice(0, -1))?.noun ? "of" : null;
+  },
+  // en.yaml rule en.slotConfusions frame 10
+  "@en.slotConfusions/10": (): FixResult => {
+    return "of";
+  },
+  // en.yaml rule en.slotConfusions frame 12
+  "@en.slotConfusions/12": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const w = m.groups!.w;
+    if (!(target === "an")) return null;
+    const read = typoInfo(w);
+    if (!(read !== null)) return null;
+    return /^(?:see|do|go|get|make|take|join|try|play|eat|run|say|tell|ask|stay|leave|come|look|watch|keep|give|send|bring|call)$/.test(
+      w,
+    ) ||
+      (!read.noun && !read.adjective && !read.adverb && read.verbs.some((v) => v.form === "base"))
+      ? "and"
+      : null;
+  },
+  // en.yaml rule en.slotConfusions frame 18
+  "@en.slotConfusions/18": (): FixResult => {
+    return "even";
+  },
+  // en.yaml rule en.slotConfusions frame 20
+  "@en.slotConfusions/20": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    if (target && target !== "may") return null;
+    return "many";
+  },
+  // en.yaml rule en.slotConfusions frame 21
+  "@en.slotConfusions/21": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target === "may" ? "my" : null;
+  },
+  // en.yaml rule en.slotConfusions frame 22
+  "@en.slotConfusions/22": (): FixResult => {
+    return "have";
+  },
+  // en.yaml rule en.slotConfusions frame 35
+  "@en.slotConfusions/35": (): FixResult => {
+    return "quiet";
+  },
+  // en.yaml rule en.slotConfusions frame 37
+  "@en.slotConfusions/37": (m: RegExpExecArray): FixResult => {
+    const lead = m.groups!.lead;
+    const typed = lead.toLowerCase();
+    return /^(?:he|she)$/.test(typed)
+      ? "lost"
+      : /^(?:i|you|we|they)$/.test(typed)
+        ? ["lost", "lose"]
+        : "lose";
+  },
+  // en.yaml rule en.slotConfusions frame 41
+  "@en.slotConfusions/41": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return /s$/.test(target) ? "messages" : "message";
+  },
+  // en.yaml rule en.slotConfusions frame 42
+  "@en.slotConfusions/42": (): FixResult => {
+    return "principles";
+  },
+  // en.yaml rule en.slotConfusions frame 43
+  "@en.slotConfusions/43": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    if (/^peak\w*\s+(?:my|your|his|her|our|their)\s+interest$/i.test(m[0])) return null;
+    const typed = target.toLowerCase();
+    return /ed$/.test(typed) ? "piqued" : /s$/.test(typed) ? "piques" : "piquing";
+  },
+  // en.yaml rule en.slotConfusions frame 44
+  "@en.slotConfusions/44": (): FixResult => {
+    return "mean";
+  },
+  // en.yaml rule en.slotConfusions frame 45
+  "@en.slotConfusions/45": (): FixResult => {
+    return "ever";
+  },
+  // en.yaml rule en.slotConfusions frame 46
+  "@en.slotConfusions/46": (): FixResult => {
+    return "best";
+  },
+  // en.yaml rule en.slotConfusions frame 47
+  "@en.slotConfusions/47": (): FixResult => {
+    return "of";
+  },
+  // en.yaml rule en.slotConfusions frame 49
+  "@en.slotConfusions/49": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const lead = m.groups!.lead;
+    const strict = !!lead;
+    const at = group(m, "target")[0];
+    return youReadings(m).some(
+      ([adj, noun, verb]) =>
+        !!verb &&
+        YOU_FINITE.test(verb.toLowerCase()) &&
+        yourNoun(
+          ctx,
+          at,
+          adj,
+          noun,
+          strict &&
+            !(
+              !adj &&
+              /^(?:is|was|has)$/i.test(verb) &&
+              !YOU_MENTAL_VERB.test(noun) &&
+              /^(?:if|because|since|so|and|but)\b/i.test(lead ?? "")
+            ),
+          true,
+        ),
+    )
+      ? "your"
+      : null;
+  },
+  // en.yaml rule en.slotConfusions frame 50
+  "@en.slotConfusions/50": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const aux = m.groups!.aux;
+    const at = group(m, "target")[0];
+    const strict = !/^(?:does|doesn['’]t|has)$/i.test(aux);
+    return youReadings(m).some(
+      ([adj, noun, verb]) =>
+        youVerbBase(verb) &&
+        (!/^(?:do|don['’]t)$/i.test(aux) || YOU_COLLECTIVE.test(noun)) &&
+        yourNoun(ctx, at, adj, noun, strict && verb !== "be", false),
+    )
+      ? "your"
+      : null;
+  },
+  // en.yaml rule en.slotConfusions frame 51
+  "@en.slotConfusions/51": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const w1 = m.groups!.w1;
+    const w2 = m.groups!.w2;
+    const end = m.groups!.end;
+    if (
+      /[.!?,;:]/.test(end) &&
+      /^(?:mom|mum|dad|mommy|mummy|daddy|mother|father|sister|brother|son|daughter|grandma|grandpa|granny|love|dear|sweetie|friend|friends|boss|team|coach|doc)$/.test(
+        w2 ?? w1,
+      )
+    )
+      return null;
+    return (
+      w2
+        ? yourNoun(ctx, group(m, "target")[0], w1, w2, true, true)
+        : yourNoun(ctx, group(m, "target")[0], undefined, w1, true, true)
+    )
+      ? "your"
+      : null;
+  },
+  // en.yaml rule en.slotConfusions frame 52
+  "@en.slotConfusions/52": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const before = ctx.text.slice(Math.max(0, m.index - 60), m.index);
+    const clause = before.slice(Math.max(before.lastIndexOf(","), before.lastIndexOf(";")) + 1);
+    if (/\b(?:but|and|or|because|so)\b/i.test(clause)) return null;
+    return /\b(?:have|has|had|having|able|want|wants|wanted|wanting|need|needs|needed|supposed|ought|not)[ \t\u00a0]+$/i.test(
+      before,
+    )
+      ? null
+      : "either";
+  },
+  // en.yaml rule en.slotConfusions frame 54
+  "@en.slotConfusions/54": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return /^[Ii]d$/.test(target) ? { alternatives: ["I'd"], raw: true } : null;
+  },
+  // en.yaml rule en.slotConfusions frame 55
+  "@en.slotConfusions/55": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target === "id" ? { alternatives: ["ID"], raw: true } : null;
+  },
+  // en.yaml rule en.slotConfusions frame 57
+  "@en.slotConfusions/57": (): FixResult => {
+    return "could";
+  },
+  // en.yaml rule en.slotConfusions frame 58
+  "@en.slotConfusions/58": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target.toLowerCase() === "envelopes" ? "envelops" : "envelop";
+  },
+  // en.yaml rule en.slotConfusions frame 64
+  "@en.slotConfusions/64": (): FixResult => {
+    return "luck";
+  },
+  // en.yaml rule en.slotConfusions frame 65
+  "@en.slotConfusions/65": (m: RegExpExecArray): FixResult => {
+    const part = m.groups!.part;
+    const ing = m.groups!.ing;
+    if (
+      part &&
+      !(hasVerbForm(part, "participle") && !hasVerbForm(part, "base") && !typoInfo(part)?.noun)
+    )
+      return null;
+    if (ing && !hasVerbForm(ing, "ing")) return null;
+    return "not";
+  },
+  // en.yaml rule en.slotConfusions frame 68
+  "@en.slotConfusions/68": (): FixResult => {
+    return "said";
+  },
+  // en.yaml rule en.slotConfusions frame 69
+  "@en.slotConfusions/69": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return LOCK_FOR_LOOK[target.toLowerCase()];
+  },
+  // en.yaml rule en.slotConfusions frame 70
+  "@en.slotConfusions/70": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const word = m.groups!.word;
+    if (/^(?:sequitur|grata|compos|est|plus|ultra|stop|nobis)$/i.test(word)) return null;
+    if (!(!target.startsWith("N") && word.length >= 5)) return null;
+    const read = typoInfo(word);
+    if (!(/^[A-Z][a-z]+$/.test(word) || read?.adjective)) return null;
+    return `non-${word}`;
+  },
+  // en.yaml rule en.slotConfusions frame 71
+  "@en.slotConfusions/71": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return VERB_FOR_SHORT[target.toLowerCase()];
+  },
+  // en.yaml rule en.slotConfusions frame 72
+  "@en.slotConfusions/72": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return THIRD_FOR_SHORT[target.toLowerCase()];
+  },
+  // en.yaml rule en.slotConfusions frame 73
+  "@en.slotConfusions/73": (m: RegExpExecArray): FixResult => {
+    const verb = m.groups!.verb;
+    return /^(?:be|have|not|already|also|still|always|never)$/.test(verb) ||
+      (hasVerbForm(verb, "base") && !typoInfo(verb)?.noun)
+      ? "must"
+      : null;
+  },
+  // en.yaml rule en.slotConfusions frame 74
+  "@en.slotConfusions/74": (m: RegExpExecArray): FixResult => {
+    const verb = m.groups!.verb;
+    return /^(?:always|never|not|here|there|working|waiting|going|alive|open|valid|the|a|an|in|on|at|my|your)$/.test(
+      verb,
+    ) || hasVerbForm(verb, "base", "past", "third", "ing")
+      ? "still"
+      : null;
+  },
+  // en.yaml rule en.slotConfusions frame 78
+  "@en.slotConfusions/78": (m: RegExpExecArray): FixResult => {
+    const adj = m.groups!.adj;
+    const read = typoInfo(adj);
+    return read?.adjective || read?.adverb ? "very" : null;
+  },
+  // en.yaml rule en.slotConfusions frame 79
+  "@en.slotConfusions/79": (m: RegExpExecArray): FixResult => {
+    const subject = m.groups!.subject;
+    const neg = m.groups!.neg;
+    const aux = m.groups!.aux;
+    const pron = m.groups!.pron;
+    if (!(subject.toLowerCase() === pron.toLowerCase())) return null;
+    const clauseBe = !/do|did/i.test(neg);
+    if (!(clauseBe !== /^(?:am|is|are|was|were)$/i.test(aux))) return null;
+    const past = /was|were|did/i.test(neg);
+    const typed = pron.toLowerCase();
+    const single = /^(?:he|she|it)$/.test(typed);
+    return `${
+      clauseBe
+        ? past
+          ? typed === "i" || single
+            ? "was"
+            : "were"
+          : typed === "i"
+            ? "am"
+            : single
+              ? "is"
+              : "are"
+        : past
+          ? "did"
+          : single
+            ? "does"
+            : "do"
+    } ${pron}`;
+  },
+  // en.yaml rule en.slotConfusions frame 80
+  "@en.slotConfusions/80": (m: RegExpExecArray): FixResult => {
+    const subject = m.groups!.subject;
+    const verb = m.groups!.verb;
+    const target = m.groups!.target;
+    const aux = m.groups!.aux;
+    const pron = m.groups!.pron;
+    const typed = pron.toLowerCase();
+    if (!(subject.toLowerCase() === typed)) return null;
+    if (/n['’]t|\b(?:not|never|no)\b/i.test(m[0].slice(0, m[0].length - target.length)))
+      return null;
+    const single = /^(?:he|she|it)$/.test(typed);
+    const word = verb
+      .trim()
+      .toLowerCase()
+      .split(/[ \t\u00a0]+/)
+      .pop()!
+      .replaceAll("’", "'");
+    const tag = questionTag(m, word, single);
+    const typedTag = aux.toLowerCase().replaceAll("’", "'");
+    if (!(tag !== null && typedTag !== tag)) return null;
+    return `${aux.includes("’") ? tag.replaceAll("'", "’") : tag} ${pron}`;
+  },
+  // en.yaml rule en.slotConfusions frame 84
+  "@en.slotConfusions/84": (m: RegExpExecArray): FixResult => {
+    const next = m.groups!.next;
+    const read = typoInfo(next);
+    return /^(?:even|any|enough|able|there|ever|making|getting|know|knew)$/.test(next) ||
+      (read && (read.verbs.length || read.adjective) && !read.plural)
+      ? "barely"
+      : null;
+  },
+  // en.yaml rule en.slotConfusions frame 85
+  "@en.slotConfusions/85": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const next = asciiWordAfter(ctx, m.index + m[0].length);
+    const near = ctx.text.slice(Math.max(0, m.index - 120), m.index + 160);
+    if (/pollen|stamen|filament|petal|flower|stigma/i.test(near)) return null;
+    return next === "" || typoInfo(next)?.noun || /^(?:one|time|way|day)$/.test(next)
+      ? "another"
+      : null;
+  },
+  // en.yaml rule en.slotConfusions frame 87
+  "@en.slotConfusions/87": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return /^(?:a|an|the|that|to|nothing|something|everything|anything|so|much|more|less|you|me|him|her|us|them|it|business|well)$/i.test(
+      asciiWordAfter(ctx, m.index + m[0].length),
+    ) || /^[ \t]*[.!?,;]/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 4))
+      ? "means"
+      : null;
+  },
+  // en.yaml rule en.slotConfusions frame 89
+  "@en.slotConfusions/89": (m: RegExpExecArray): FixResult => {
+    const verb = m.groups!.verb;
+    return hasVerbForm(verb, "base") ? "Do" : null;
+  },
+  // en.yaml rule en.slotConfusions frame 90
+  "@en.slotConfusions/90": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return /\b(?:give|gave|show|tell|told|send|sent)\s+$/i.test(
+      ctx.text.slice(Math.max(0, m.index - 12), m.index),
+    )
+      ? null
+      : "use";
+  },
+  // en.yaml rule en.slotConfusions frame 91
+  "@en.slotConfusions/91": (m: RegExpExecArray): FixResult => {
+    const next = m.groups!.next;
+    if (
+      /^(?:based|driven|related|specific|free|triggered|handling|handler|planning|planner|organizer|management|loop|log|data|type|horizon|listener|queue|bus|stream|source|day|night)$/.test(
+        next,
+      )
+    )
+      return null;
+    const read = typoInfo(next);
+    return read && (read.verbs.some((v) => v.form !== "ing") || read.adjective || read.adverb)
+      ? "even"
+      : null;
+  },
+  // en.yaml rule en.slotConfusions frame 92
+  "@en.slotConfusions/92": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const lead = /([A-Za-z']+)[ \t]+here/i.exec(m[0])?.[1].toLowerCase();
+    if (
+      lead === "to" &&
+      !/\b(?:glad|nice|happy|sad|sorry|good|great|want|wants|wanted|like|love|hate|able|wait|surprised|pleased)[ \t]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 24), m.index),
+      )
+    )
+      return null;
+    return "hear";
+  },
+  // en.yaml rule en.slotConfusions frame 93
+  "@en.slotConfusions/93": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target.toLowerCase() === "bares" ? "bears" : "bear";
+  },
+  // en.yaml rule en.slotConfusions frame 95
+  "@en.slotConfusions/95": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return /^(?:had|was|is|did|has|would|will|could)$/.test(
+      asciiWordAfter(ctx, m.index + m[0].length).toLowerCase(),
+    )
+      ? null
+      : "the";
+  },
+  // en.yaml rule en.slotConfusions frame 100
+  "@en.slotConfusions/100": (): FixResult => {
+    return "loss";
+  },
+  // en.yaml rule en.slotConfusions frame 103
+  "@en.slotConfusions/103": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return /,[ \t]*$|\.{2,}[ \t]*$|\b(?:never|not|n['’]t|no|nobody|nothing|hardly|barely|can['’]?t|cannot|idea)\b[^.!?]*$/i.test(
+      ctx.text.slice(Math.max(0, m.index - 80), m.index),
+    )
+      ? "let alone"
+      : null;
+  },
+  // en.yaml rule en.slotConfusions frame 104
+  "@en.slotConfusions/104": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const the = m.groups!.the;
+    const next = m.groups!.next;
+    const word = next ?? "";
+    const stop = m.index + m[0].length;
+    const former = /\bformer\b/i.test(ctx.text.slice(Math.max(0, m.index - 300), stop + 120));
+    const verb = LATTER_VERB.test(word);
+    const adverb = LATTER_ADVERB.test(word);
+    const first = adverb ? asciiWordAfter(ctx, stop + 1 + word.length) : "";
+    const after = LATTER_ADVERB.test(first)
+      ? asciiWordAfter(ctx, ctx.text.indexOf(first, stop) + first.length)
+      : first;
+    return verb ||
+      (adverb && (LATTER_VERB.test(after) || hasVerbForm(after, "third", "ing"))) ||
+      /^(?:because|based)$/.test(word) ||
+      (former && (word === "" || /^(?:in|on|for|as|because|since|to|and)$/.test(word)))
+      ? { alternatives: [`${the} latter`], range: group(m, "target") }
+      : null;
+  },
+  // en.yaml rule en.slotConfusions frame 105
+  "@en.slotConfusions/105": (m: RegExpExecArray): FixResult => {
+    const lead = m.groups!.lead;
+    const next = m.groups!.next;
+    const name = /^[A-Z][a-z]+$/.test(lead) && /^(?:has|had|did|was)$/.test(next);
+    if (!(READY_LEAD.test(lead) || name)) return null;
+    if (/^(?:to|for|and|or|now|set|here|there|by|when|at|in|on|with|so)$/.test(next)) return null;
+    return /^(?:has|have|had|been|done|gone|seen|bought|made|taken|started|finished|left)$/.test(
+      next,
+    ) ||
+      (hasVerbForm(next, "participle", "ing", "base", "third", "past") && !typoInfo(next)?.noun)
+      ? "already"
+      : null;
+  },
+  // en.yaml rule en.slotConfusions frame 106
+  "@en.slotConfusions/106": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return /\bfind[ \t]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index + 1))
+      ? null
+      : "attach";
+  },
+  // en.yaml rule en.slotConfusions frame 110
+  "@en.slotConfusions/110": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return /^were$/i.test(target) ? "where" : null;
+  },
+  // en.yaml rule en.slotConfusions frame 112
+  "@en.slotConfusions/112": (m: RegExpExecArray): FixResult => {
+    const ing = m.groups!.ing;
+    return hasVerbForm(ing, "ing") ? "were" : null;
+  },
+  // en.yaml rule en.slotConfusions frame 113
+  "@en.slotConfusions/113": (m: RegExpExecArray): FixResult => {
+    const noun = m.groups!.noun;
+    const read = typoInfo(noun);
+    return read?.noun && !read.plural ? "an" : null;
+  },
+  // en.yaml rule en.slotConfusions frame 114
+  "@en.slotConfusions/114": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target === "an" || target === "An" ? "and" : null;
+  },
+  // en.yaml rule en.slotConfusions frame 115
+  "@en.slotConfusions/115": (): FixResult => {
+    return "know";
+  },
+  // en.yaml rule en.slotConfusions frame 117
+  "@en.slotConfusions/117": (): FixResult => {
+    return "now";
+  },
+  // en.yaml rule en.slotConfusions frame 120
+  "@en.slotConfusions/120": (m: RegExpExecArray): FixResult => {
+    const adj = m.groups!.adj;
+    return /^(?:important|likely|clear|obvious|necessary|possible|probable|true|surprising|essential|crucial|vital|urgent|interesting|apparent|evident|certain|plausible|unlikely|concerning|worrying)$/.test(
+      adj,
+    )
+      ? null
+      : "than";
+  },
+  // en.yaml rule en.slotConfusions frame 121
+  "@en.slotConfusions/121": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const stop = group(m, "target")[1];
+    return target === "that" && /^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(stop, stop + 9))
+      ? "than"
+      : null;
+  },
+  // en.yaml rule en.slotConfusions frame 122
+  "@en.slotConfusions/122": (): FixResult => {
+    return "one";
+  },
+  // en.yaml rule en.slotConfusions frame 123
+  "@en.slotConfusions/123": (): FixResult => {
+    return "once";
+  },
+  // en.yaml rule en.slotConfusions frame 124
+  "@en.slotConfusions/124": (): FixResult => {
+    return "if";
+  },
+  // en.yaml rule en.slotConfusions frame 125
+  "@en.slotConfusions/125": (): FixResult => {
+    return "it";
+  },
+  // en.yaml rule en.slotConfusions frame 126
+  "@en.slotConfusions/126": (m: RegExpExecArray): FixResult => {
+    const next = m.groups!.next;
+    const read = typoInfo(next);
+    const verb =
+      /^(?:be|are|is|was|were|has|had|have|did|done|seen|see|get|go|do|start|leave|use|make|take|know|say|find|tell|feel|hear|buy|pay|send|book)$/.test(
+        next,
+      );
+    return verb || (read && !read.noun && !read.adjective && read.verbs.length) ? "already" : null;
+  },
+  // en.yaml rule en.slotConfusions frame 128
+  "@en.slotConfusions/128": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target
+      ? { alternatives: ["complained"], range: group(m, "target") }
+      : { alternatives: ["complains"], range: group(m, "target2") };
+  },
+  // en.yaml rule en.slotConfusions frame 129
+  "@en.slotConfusions/129": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target
+      ? { alternatives: ["month"], range: group(m, "target") }
+      : { alternatives: ["months"], range: group(m, "target2") };
+  },
+  // en.yaml rule en.slotConfusions frame 131
+  "@en.slotConfusions/131": (): FixResult => {
+    return "does";
+  },
+  // en.yaml rule en.slotConfusions frame 132
+  "@en.slotConfusions/132": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const target2 = m.groups!.target2;
+    return target2
+      ? { alternatives: ["bear"], range: group(m, "target2") }
+      : {
+          alternatives: [bearForm(ctx, target.toLowerCase(), group(m, "target")[0])],
+          range: group(m, "target"),
+        };
+  },
+  // en.yaml rule en.slotConfusions frame 133
+  "@en.slotConfusions/133": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return SETUP_PARTICIPLE[target.toLowerCase()];
+  },
+  // en.yaml rule en.slotConfusions frame 134
+  "@en.slotConfusions/134": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return SETUP_BASE[target.toLowerCase()];
+  },
+  // en.yaml rule en.slotConfusions frame 135
+  "@en.slotConfusions/135": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    if (!(target === target.toLowerCase())) return null;
+    const stop = group(m, "target")[1];
+    return PLAIN_REST.test(ctx.text.slice(stop, stop + 160)) ? SLOT_BASE[target] : null;
+  },
+  // en.yaml rule en.slotConfusions frame 136
+  "@en.slotConfusions/136": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    if (!(target === target.toLowerCase())) return null;
+    const stop = group(m, "target")[1];
+    return PLAIN_REST.test(ctx.text.slice(stop, stop + 160)) ? SLOT_BASE[target] : null;
+  },
+  // en.yaml rule en.slotConfusions frame 137
+  "@en.slotConfusions/137": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    if (!(target === target.toLowerCase())) return null;
+    const stop = group(m, "target")[1];
+    return PLAIN_REST.test(ctx.text.slice(stop, stop + 160)) ? SLOT_BASE[target] : null;
+  },
+  // en.yaml rule en.slotConfusions frame 138
+  "@en.slotConfusions/138": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    if (!(target === target.toLowerCase())) return null;
+    const stop = group(m, "target")[1];
+    return PLAIN_REST.test(ctx.text.slice(stop, stop + 160)) ? SLOT_THIRD[target] : null;
   },
   // en.yaml rule en.typoSlots frame 4
   "@en.typoSlots/4": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
