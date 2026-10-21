@@ -11931,52 +11931,6 @@ rules:
         seems: seem
         sound: sounds
         sounds: sound
-    sets:
-      AGREEMENT_COLLECTIVE:
-        [
-          team,
-          staff,
-          family,
-          police,
-          government,
-          committee,
-          crew,
-          band,
-          audience,
-          public,
-          class,
-          group,
-          majority,
-          folk,
-          blues,
-          rest,
-          number,
-          couple,
-          pair,
-          lot,
-          jury,
-          army,
-          navy,
-          board,
-          council,
-          club,
-          company,
-          firm,
-          management,
-          media,
-          data,
-          total,
-          variety,
-          range,
-          series,
-          species,
-          means,
-          news,
-          remainder,
-          masters,
-          woods,
-          belt,
-        ]
     defs:
       LINKING: /^(?:look|seem|sound|feel|appear)s?$/
       AGREE_AUXILIARY: >-
@@ -12165,7 +12119,7 @@ rules:
           # The noun number leaves out invariant nouns ("series", "news").
           - >-
             !!number &&
-            ![AGREEMENT_COLLECTIVE, ENGLISH_MASS_NOUNS, MASS_WITH_COUNT_SENSE].some((s) => s.has(forms.singular))
+            ![EN_COLLECTIVE, ENGLISH_MASS_NOUNS, MASS_WITH_COUNT_SENSE].some((s) => s.has(forms.singular))
           # "the general", "the final": an adjective may modify a noun in the verb slot.
           - "!englishWordInfo(noun)?.adjective"
           - 'number === "singular" ? !/^(?:these|those)$/.test(d) : !/^(?:this|that|its|every|each)$/.test(d)'

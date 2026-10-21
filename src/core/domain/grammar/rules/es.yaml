@@ -2261,7 +2261,6 @@ rules:
           hora,
           minuto,
         ]
-      ES_OBJECT_CLITICS: [lo, la, los, las, le, les, me, te, se, nos, os]
       ES_DEGREE_BEFORE: [muy, tan, poco, más, menos, bastante, demasiado, ya]
       ES_LINKS: [es, era, fue, está, estaba, estuvo, parece, parecía, puso, quedó, quedaba, sea]
       ES_VA_LEADING: [otra, otro, otras, otros, misma, mismo, tercera, segunda, primera, cierta]
@@ -2781,7 +2780,7 @@ rules:
                 ? "hacía"
                 : ES_DIRECTIONS.has(next) || numeral
                   ? null
-                  : ES_OBJECT_CLITICS.has(prev)
+                  : ES_CLITICS.has(prev)
                     ? "hacía"
                     : ES_DETERMINERS.has(next)
                       ? null
