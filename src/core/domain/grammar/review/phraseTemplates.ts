@@ -158,6 +158,10 @@ export const takeFrameFailure = (ctx: DetectContext) => BROKEN_SCANS.delete(ctx)
 const SCANNING = new WeakSet<RegExp>();
 // The sticky copy of a frame regex: it runs only at the frame's start positions.
 const STICKY = new WeakMap<RegExp, RegExp>();
+// The sticky regex of a string frame, without WORD_START: WORD_START_AT tests the start.
+const STICKY_FRAMES = new Map<string, RegExp>();
+// WORD_START at one position, for every string frame: a lookbehind compiled once, not per frame.
+const WORD_START_AT = new RegExp(WORD_START, "iuy");
 const isSpaceCode = (code: number) =>
   code === 32 || (code >= 9 && code <= 13) || (code > 127 && /\s/.test(String.fromCharCode(code)));
 
@@ -561,25 +565,41 @@ export function frameScan(
   info: ScanInfo,
 ): Iterable<RegExpExecArray> {
   if (!FRAME_AUDIT.all && !mayMatch(ctx, info.literals)) return NO_MATCHES;
-  let regex: RegExp;
-  if (typeof pattern === "string") {
-    let compiled = COMPILED.get(pattern);
-    if (!compiled) {
-      // A broken frame skips only itself: the other frames of its detector still run.
-      try {
-        compiled = frame(pattern);
-      } catch {
-        BROKEN_SCANS.add(ctx);
-        return NO_MATCHES;
-      }
-      COMPILED.set(pattern, compiled);
+  const framed = typeof pattern === "string";
+  const starts = frameStarts(ctx, info, framed);
+  if (starts === null) {
+    const regex = framed ? cachedFrame(ctx, COMPILED, pattern, frame) : pattern;
+    return regex ? globalMatches(ctx, regex, owner) : NO_MATCHES;
+  }
+  let sticky: RegExp | undefined;
+  // A string frame's sticky regex has no WORD_START: stickyMatches tests it once per start.
+  if (framed) sticky = cachedFrame(ctx, STICKY_FRAMES, pattern, (p) => new RegExp(p, "dgiuy"));
+  else if (!(sticky = STICKY.get(pattern)))
+    STICKY.set(pattern, (sticky = new RegExp(pattern.source, `${pattern.flags}y`)));
+  return sticky
+    ? stickyMatches(ctx, sticky, laterFiltered(ctx, info.later, starts), owner, framed)
+    : NO_MATCHES;
+}
+
+/** The regex of a string frame, built once; undefined when it does not compile. */
+function cachedFrame(
+  ctx: DetectContext,
+  cache: Map<string, RegExp>,
+  pattern: string,
+  build: (pattern: string) => RegExp,
+): RegExp | undefined {
+  let regex = cache.get(pattern);
+  if (!regex) {
+    // A broken frame skips only itself: the other frames of its detector still run.
+    try {
+      regex = build(pattern);
+    } catch {
+      BROKEN_SCANS.add(ctx);
+      return undefined;
     }
-    regex = compiled;
-  } else regex = pattern;
-  const starts = frameStarts(ctx, info, typeof pattern === "string");
-  return starts === null
-    ? globalMatches(ctx, regex, owner)
-    : stickyMatches(ctx, regex, laterFiltered(ctx, info.later, starts), owner);
+    cache.set(pattern, regex);
+  }
+  return regex;
 }
 
 /** The global scan of frameScan, from 256 characters before the chunk. */
@@ -612,23 +632,27 @@ function* globalMatches(
   }
 }
 /**
- * The matches of the global scan, read only at `starts`: the sticky copy of `regex` runs at
- * each start after the last match, in order. A global scan finds the leftmost match after
- * its last one; when every match starts at one of `starts`, both give the same matches.
+ * The matches of the global scan, read only at `starts`: the `sticky` regex runs at each start
+ * after the last match, in order. A global scan finds the leftmost match after its last one;
+ * when every match starts at one of `starts`, both give the same matches. With `framed`, a
+ * start must also be a word start (WORD_START).
  */
 function stickyMatches(
   ctx: DetectContext,
-  regex: RegExp,
+  sticky: RegExp,
   starts: ArrayLike<number>,
   owner: string | ((match: RegExpExecArray) => number) | null,
+  framed: boolean,
 ): RegExpExecArray[] {
   const matches: RegExpExecArray[] = [];
-  let sticky = STICKY.get(regex);
-  if (!sticky) STICKY.set(regex, (sticky = new RegExp(regex.source, `${regex.flags}y`)));
   let next = Math.max(0, ctx.from - 256);
   for (let i = 0; i < starts.length; i++) {
     const at = starts[i];
     if (at < next) continue;
+    if (framed) {
+      WORD_START_AT.lastIndex = at;
+      if (!WORD_START_AT.test(ctx.scanText)) continue;
+    }
     sticky.lastIndex = at;
     const m = sticky.exec(ctx.scanText);
     if (!m) continue;
