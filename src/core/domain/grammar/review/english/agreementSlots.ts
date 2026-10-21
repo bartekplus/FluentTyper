@@ -472,36 +472,36 @@ function nounSubject(m: RegExpExecArray, ctx: DetectContext, bare: boolean): Raw
   // A gerund ("Making mistakes is human") or a closed word opens no bare plural. The bare
   // target is the first token: test it before the costly tests.
   if (bare) {
-    const first = m.groups!.target.toLowerCase();
+    const typed = m.groups!.target;
+    const first = typed.toLowerCase();
     if (/ing$/.test(first) || FUNCTION_WORDS.has(first)) return null;
+    // "bell hooks doesn't…": a sentence opening in lowercase starts with a name or a fragment.
+    if (
+      typed === first &&
+      /(?:^|[.!?\n])[ \t\u00a0"“‘']*$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+    )
+      return null;
   }
   // A clause opens at a break, a cue word, a list bullet ("- The message…") or a comma after
   // an opening phrase ("As such, each page…"); not after a list item ("The oceans, our wealth").
-  const before = wordBefore(ctx, m.index);
-  const comma = commaBefore(ctx.text, m.index);
+  let before: string | undefined;
   const opens =
     afterBreak(ctx, m.index) ||
-    CLAUSE_CUE.test(before) ||
+    CLAUSE_CUE.test((before = wordBefore(ctx, m.index))) ||
     /(?:^|\n)[ \t]*[-*•][ \t\u00a0]+$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ||
-    (comma && OPENING_PHRASE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index)));
+    (commaBefore(ctx.text, m.index) &&
+      OPENING_PHRASE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index)));
   // "Subject to change, the systems seems…", "although the features has…": a weaker opening
   // (a list may go on: "The oceans, our military power have…") that only a plural head uses.
   const later =
     !bare &&
     (/,[ \t\u00a0]+$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)) ||
-      LATER_CUE.test(before));
+      LATER_CUE.test(before ?? wordBefore(ctx, m.index)));
   if (!opens && !later) return null;
   const pluralOnly = bare || !opens;
   const det = bare ? "" : m.groups!.target.toLowerCase();
   const tokens = tokensAfter(ctx, bare ? m.index : m.index + m[0].length, 9);
   if (tokens.some((t) => t.kind === "other")) return null;
-  // "bell hooks doesn't…": a sentence opening in lowercase starts with a name or a fragment.
-  if (
-    bare &&
-    /(?:^|[.!?\n])[ \t\u00a0"“‘']*$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) &&
-    tokens[0].text === tokens[0].lower
-  )
-    return null;
   // Modifiers and the head noun, then an optional of/in phrase, then the verb.
   let i = 0;
   let head: string | null = null;
