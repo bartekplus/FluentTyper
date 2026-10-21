@@ -2830,22 +2830,853 @@ rules:
     style: match
     message: review_msg_its_contraction
     filter: slotFindings
+    # its/it's, your/you're and it/its, you/your decided by the word class of what follows, read
+    # from the generated lexicon: a possessive needs a noun phrase, a contraction a predicate.
+    sets:
+      # Words after which a clause, and so a subject, can start.
+      CONTRACTION_CUE:
+        [
+          and,
+          or,
+          but,
+          so,
+          plus,
+          yes,
+          yeah,
+          yep,
+          well,
+          oh,
+          wow,
+          hey,
+          yay,
+          ah,
+          glad,
+          hope,
+          hoping,
+          trust,
+          imagine,
+          believe,
+          dunno,
+          once,
+          while,
+          whether,
+          where,
+          now,
+          here,
+          see,
+          hear,
+          sorry,
+          until,
+          unless,
+          though,
+          god,
+          although,
+          bet,
+          figure,
+          feel,
+          say,
+          think,
+          thought,
+          guess,
+          know,
+          knew,
+          sure,
+          maybe,
+          perhaps,
+          because,
+          since,
+          if,
+          when,
+          that,
+          what,
+          how,
+          why,
+          mean,
+          means,
+          confirm,
+        ]
+      # Stricter cue for a following name or time: "Hey, its Katie" but not "Paris and its Louvre".
+      NAME_CUE:
+        [
+          think,
+          hope,
+          guess,
+          bet,
+          hey,
+          yay,
+          yes,
+          yeah,
+          yep,
+          oh,
+          wow,
+          ok,
+          okay,
+          well,
+          sure,
+          maybe,
+          god,
+          thought,
+          here,
+        ]
+      # Words that end an exclamation after a predicate: "It's cool man!", "It's crazy, yeah!"
+      PREDICATE_TAGS: [man, dude, bro, mate, guys, yeah, ugh, lol, haha, right]
+      # Prenominal words: "its only purpose", "its very existence", "your best".
+      NOT_HEAD:
+        [
+          own,
+          only,
+          first,
+          last,
+          next,
+          other,
+          same,
+          whole,
+          entire,
+          main,
+          usual,
+          former,
+          latter,
+          very,
+          kind,
+          sort,
+          favorite,
+          best,
+          worst,
+          most,
+          least,
+          every,
+          each,
+          both,
+        ]
+      # Adverbs that end a predicate on their own ("it's already there.", "you're all set").
+      ENDING_ADVERBS: [all, there, here, not, already, so, still, too, now, again, away]
+      # Prepositions that never open a noun phrase after a possessive ("its in there", "your at it").
+      PREDICATE_PREPOSITIONS:
+        [
+          in,
+          at,
+          by,
+          from,
+          with,
+          without,
+          into,
+          onto,
+          between,
+          among,
+          through,
+          during,
+          until,
+          against,
+          within,
+          toward,
+          towards,
+          upon,
+          despite,
+          throughout,
+          under,
+        ]
+      # After these the possessive can still own a compound ("its on switch", "your about page").
+      PARTICLE_FOLLOW:
+        [
+          there,
+          here,
+          top,
+          of,
+          for,
+          to,
+          in,
+          on,
+          at,
+          with,
+          from,
+          again,
+          now,
+          already,
+          the,
+          a,
+          an,
+          my,
+          your,
+          our,
+          his,
+          her,
+          their,
+          this,
+          that,
+          me,
+          him,
+          us,
+          them,
+          you,
+          it,
+        ]
+      # What may follow a predicate adjective or participle, never a noun it modifies.
+      AFTER_PREDICATE:
+        [
+          to,
+          than,
+          for,
+          enough,
+          as,
+          if,
+          when,
+          because,
+          now,
+          then,
+          today,
+          tonight,
+          again,
+          outside,
+          inside,
+          here,
+          there,
+          though,
+          too,
+          with,
+          about,
+          at,
+          of,
+          in,
+          on,
+          by,
+          from,
+          that,
+          so,
+          already,
+          yet,
+          anymore,
+          right,
+          out,
+          away,
+          back,
+          off,
+          up,
+          down,
+          around,
+          over,
+          lately,
+          anyway,
+          please,
+          like,
+          let,
+          without,
+        ]
+      # Predicate words the lexicon gives no adjective reading.
+      PREDICATIVE:
+        [welcome, okay, ok, alone, afraid, awake, asleep, hurt, done, gone, better, worse]
+      # What an -ing predicate takes besides a closed word: "you're feeling better".
+      AFTER_ING: [better, worse, well, fine, good, great, bad, okay]
+      # After these a later verb belongs to another clause.
+      PREDICATE_CLAUSE_STOP:
+        [
+          that,
+          which,
+          who,
+          whom,
+          because,
+          if,
+          when,
+          and,
+          but,
+          so,
+          as,
+          than,
+          while,
+          since,
+          until,
+          where,
+        ]
+      PREDICATE_FINITE:
+        [
+          is,
+          are,
+          was,
+          were,
+          has,
+          had,
+          does,
+          did,
+          am,
+          will,
+          would,
+          can,
+          could,
+          shall,
+          should,
+          may,
+          might,
+          must,
+        ]
+      # Conjunctions after which "your thinking of…" opens a clause rather than naming a noun phrase.
+      CLAUSE_SUBORDINATORS:
+        [if, when, while, because, once, unless, whether, hope, though, although, so, mean, means]
+      # Before a possessive + gerund these are prepositions or coordinate noun phrases: "since its
+      # founding in 1859", "and its teaching that…".
+      GERUND_PREPOSITIONS: [since, until, till, after, before, as]
+      GERUND_CUES: [and, or, but, how, where, why]
+      # Nouns the lexicon also reads as adjectives that take "to": "its potential to grow".
+      NOUN_BEFORE_TO: [potential, intent, right, due, key, fit]
+      # Particles that end a predicate only before a closing word: "it's cold outside" but not "its
+      # powerful outside counsel".
+      PREDICATE_PARTICLES: [outside, inside, out, up, down, off, over, around, back, away]
+      PREDICATE_DEGREE:
+        [
+          so,
+          very,
+          really,
+          pretty,
+          too,
+          quite,
+          extremely,
+          totally,
+          completely,
+          absolutely,
+          way,
+          much,
+          far,
+        ]
+      # Words that can follow "you" or "it" as an apposition or adverb, not as an owned noun.
+      NOT_OWNED:
+        [
+          today,
+          tonight,
+          tomorrow,
+          yesterday,
+          now,
+          then,
+          again,
+          too,
+          also,
+          first,
+          last,
+          next,
+          instead,
+          anyway,
+          either,
+          though,
+          once,
+          twice,
+          soon,
+          later,
+          early,
+          right,
+          back,
+          home,
+          there,
+          here,
+          all,
+          both,
+          two,
+          three,
+          guys,
+          people,
+          folks,
+          kids,
+          lot,
+          sir,
+          madam,
+          dear,
+          man,
+          dude,
+          buddy,
+          mate,
+          pal,
+          bro,
+          ladies,
+          gentlemen,
+          kindly,
+          personally,
+          directly,
+          alone,
+          yourself,
+          itself,
+          myself,
+          everyday,
+          sometime,
+          someday,
+          upstairs,
+          downstairs,
+          outdoors,
+          indoors,
+          backwards,
+          forwards,
+          afterwards,
+          overseas,
+          abroad,
+          day,
+          night,
+          week,
+          something,
+          anything,
+          nothing,
+          everything,
+          someone,
+          anyone,
+          everyone,
+          nobody,
+          nowhere,
+          somewhere,
+          anywhere,
+          everywhere,
+          auto,
+        ]
+      # Vocatives after a preposition: "This is for you mom!"
+      VOCATIVES:
+        [
+          mom,
+          dad,
+          mum,
+          mommy,
+          daddy,
+          honey,
+          baby,
+          babe,
+          darling,
+          sweetie,
+          sweetheart,
+          love,
+          son,
+          sis,
+          kid,
+          boss,
+          grandma,
+          grandpa,
+          granny,
+        ]
+      OWNER_PREPOSITIONS:
+        [for, on, of, from, in, about, at, by, into, under, without, toward, towards, over]
+      # "go for it attitude": an idiom ending in "it" used as a modifier.
+      IT_IDIOM_VERBS: [go, goes, going, went]
+      FINITE_AFTER_NOUN:
+        [
+          is,
+          was,
+          will,
+          would,
+          can,
+          could,
+          should,
+          may,
+          might,
+          must,
+          has,
+          had,
+          does,
+          did,
+          "isn't",
+          "wasn't",
+          "won't",
+          "wouldn't",
+          "can't",
+          "couldn't",
+        ]
+    defs:
+      # Cues after which a noun-like predicate adjective still reads as a clause: "since it's cold out".
+      ADJECTIVE_CUES: 'new Set([...CLAUSE_SUBORDINATORS, "since", "until", ""])'
+      NAME_DAYS: /^(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december|christmas|easter)$/
+      # Verbs that take a second object after "you": "sold you garbage", "wishing you relief".
+      SECOND_OBJECT: /^(?:sell|sells|sold|selling|lend|lends|lent|hand|hands|handed|pass|passed|leave|left|write|wrote|written|read|serve|served|feed|fed|deny|denied|grant|granted|award|awarded|bake|baked|cook|cooked|fetch|fetched|find|found|order|ordered|pour|poured|promise|promised|reserve|reserved|spare|spared|teach|taught|wish|wishes|wishing|bring|brings|bringing|throw|threw|toss|tossed|offer|offers|offering|allow|allowed|assign|assigned|forgive|forgave|refuse|refused|call|calls|calling|name|named|consider|considered|make|makes|making|get|gets|getting|give|gives|giving|send|sends|sending|show|shows|showing|tell|tells|telling|buy|buys|buying|pay|pays|paying|charge|charges|owe|owes|cost|costs|save|saves|saving|keep|keeps|kept)$/
+      # Plurals the lexicon does not number; not "you men", "you people" (addressed).
+      UNNUMBERED_PLURAL: /^(?:children|feet|teeth)$/
+      # The word before index, or an interjection before a comma there ("Hey, its…").
+      contractionCue:
+        args: "ctx: DetectContext, index: number"
+        let:
+          comma: '/(?<![\p{L}\p{N}_''’-])([A-Za-z]+),[ \t ]*$/u.exec(ctx.text.slice(Math.max(0, index - 16), index))'
+        return: "comma && NAME_CUE.has(comma[1].toLowerCase()) ? comma[1].toLowerCase() : enWordBefore(ctx, index)"
+      # A clause around index could start with the subject at index. Also after an introductory
+      # phrase: "In that case, its fine."
+      contractionSubjectSlot:
+        args: "ctx: DetectContext, index: number"
+        return: >-
+          enAfterBreak(ctx, index) ||
+          opensSubjectClause(ctx, index) ||
+          CONTRACTION_CUE.has(contractionCue(ctx, index)) ||
+          /,[ \t ]*$/.test(ctx.text.slice(Math.max(0, index - 4), index))
+      # A finite verb form: closed finite words and "n't" first, then the lexicon.
+      finiteToken:
+        args: "word: string, strict: boolean"
+        let:
+          read: enInfo(word)
+        when: "!PREDICATE_FINITE.has(word) && !/n['’]t$/.test(word)"
+        return: >-
+          !!read &&
+          read.verbs.some((v) => v.form === "third" || (v.form === "past" && (strict || (!read.noun && !read.adjective))))
+        else: "true"
+      # A finite verb later in the same clause: the word before it headed a noun-phrase subject.
+      laterFiniteVerb:
+        args: "tokens: EnToken[], from: number, strict: boolean"
+        let:
+          hit: 'tokens.slice(from).find((t) => t.kind !== "word" || PREDICATE_CLAUSE_STOP.has(t.lower) || finiteToken(t.lower, strict))'
+        return: '!!hit && hit.kind === "word" && !PREDICATE_CLAUSE_STOP.has(hit.lower)'
+      predicateAdjective:
+        args: "word: string"
+        let:
+          read: enInfo(word)
+        when: "!PREDICATIVE.has(word)"
+        return: >-
+          !!read &&
+          read.adjective &&
+          !read.plural &&
+          !NOT_HEAD.has(word) &&
+          !(/est$/.test(word) && !/(?:honest|modest|earnest|interest)$/.test(word))
+        else: "true"
+      predicateParticiple:
+        args: "word: string"
+        let:
+          read: enInfo(word)
+        return: >-
+          !!read &&
+          !read.noun &&
+          !read.plural &&
+          read.verbs.some((v) => v.form === "participle") &&
+          !read.verbs.some((v) => v.form === "base" || v.form === "third")
+      # A word after a comma that goes on a noun phrase: "its large, ornate dome".
+      commaGoesOn:
+        args: "word: string"
+        let:
+          read: enInfo(word)
+        return: '!!(read?.adjective || read?.verbs.some((v) => v.form === "participle") || enNounOnly(word))'
+      # The token closes the predicate: punctuation, or a comma before a new clause or the end.
+      predicateCloses:
+        args: "tokens: EnToken[], k: number"
+        type: boolean
+        let:
+          t: tokens[k]
+          after: tokens[k + 1]
+        return: >-
+          !t || t.kind === "end"
+            ? true
+            : t.kind === "word" && PREDICATE_TAGS.has(t.lower)
+              ? predicateCloses(tokens, k + 1)
+              : t.kind !== "comma"
+                ? false
+                : !after || after.kind === "end" || (after.kind === "word" && PREDICATE_TAGS.has(after.lower))
+                  ? true
+                  : after.kind !== "word" || after.text !== after.lower
+                    ? after.kind === "number"
+                    : !commaGoesOn(after.lower)
+      # The adverbs (up to three) that open the predicate at `k`.
+      leadingAdverbs:
+        args: "tokens: EnToken[], k: number"
+        type: number
+        return: 'k < 3 && tokens[k]?.kind === "word" && enAdverb(tokens[k].lower) ? leadingAdverbs(tokens, k + 1) : k'
+      # A closed word after an -ing predicate.
+      ingClosed:
+        args: "next: EnToken | undefined, nextWord: string"
+        return: >-
+          next?.kind === "word" &&
+          (EN_DETERMINERS.has(nextWord) || /^(?:to|me|him|us|them|it|you)$/.test(nextWord) || enAdverb(nextWord) || AFTER_ING.has(nextWord))
+      # The predicate of an open-class word: an -ing form, a participle or an adjective.
+      openPredicate:
+        args: "tokens: EnToken[], k: number, cue: string, nameCue: boolean, your: boolean"
+        type: number
+        let:
+          head: tokens[k]
+          next: tokens[k + 1]
+          word: head.lower
+          nextWord: 'next?.kind === "word" ? next.lower : ""'
+          particleEnds: >-
+            PREDICATE_PARTICLES.has(nextWord) &&
+            (predicateCloses(tokens, k + 2) || /^(?:of|to|in|on|at|for|there|here|now|today)$/.test(tokens[k + 2]?.lower ?? ""))
+          fitsPredicate: >-
+            predicateCloses(tokens, k + 1) ||
+            (AFTER_PREDICATE.has(nextWord) && (!PREDICATE_PARTICLES.has(nextWord) || particleEnds)) ||
+            (next?.kind === "word" && (EN_DETERMINERS.has(nextWord) || /^(?:me|him|us|them)$/.test(nextWord)))
+          degree: tokens.slice(0, k).some((t) => PREDICATE_DEGREE.has(t.lower) || ENDING_ADVERBS.has(t.lower))
+          # A word that is also a noun ("see its meaning.", "know your name at…") needs more evidence.
+          nounToo: "!PREDICATIVE.has(word) && (!!enInfo(word)?.noun || NOUN_LIKE_ING.test(word))"
+        when:
+          # "Your welcome" belongs to englishYourWelcomeCorrection.
+          - '!(your && word === "welcome" && k === 0)'
+          # "going to" needs its verb on the same line: "Your going to\nlike this" may be a heading.
+          - '!(word === "going" && nextWord === "to" && tokens[k + 2]?.kind !== "word")'
+        # "its working as expected" but "its working parts", "your meeting with Tom went well".
+        return: >-
+          hasVerbForm(word, "ing")
+            ? GERUND_PREPOSITIONS.has(cue) || (nounToo && GERUND_CUES.has(cue))
+              ? -1
+              : (nounToo
+                    ? degree ||
+                      ingClosed(next, nextWord) ||
+                      ((nameCue || CLAUSE_SUBORDINATORS.has(cue) || cue === "what") && predicateCloses(tokens, k + 1)) ||
+                      (CLAUSE_SUBORDINATORS.has(cue) && EN_PREPOSITIONS.has(nextWord))
+                    : fitsPredicate || ingClosed(next, nextWord) || EN_PREPOSITIONS.has(nextWord)) &&
+                  !laterFiniteVerb(tokens, k + 1, word === "going")
+                ? head.end
+                : -1
+            : (predicateParticiple(word) || predicateAdjective(word)) && !NOUN_BEFORE_TO.has(word)
+              ? (nounToo
+                    ? (degree && fitsPredicate) ||
+                      (/^(?:to|than|enough)$/.test(nextWord) && !NOUN_BEFORE_TO.has(word)) ||
+                      (nameCue && predicateCloses(tokens, k + 1)) ||
+                      (ADJECTIVE_CUES.has(cue) && fitsPredicate)
+                    : fitsPredicate ||
+                      (nextWord === "or" && tokens[k + 2]?.lower === "not") ||
+                      (predicateParticiple(word) &&
+                        (hasVerbForm(nextWord, "ing") || PREDICATE_PREPOSITIONS.has(nextWord) || /^(?:of|on|as)$/.test(nextWord)))) &&
+                  !laterFiniteVerb(tokens, k + 1, false)
+                ? head.end
+                : -1
+              : -1
+        else: "-1"
+      # The predicate of a word: a name, a closed word or an open-class word.
+      wordPredicate:
+        args: "tokens: EnToken[], k: number, cue: string, nameCue: boolean, your: boolean"
+        type: number
+        let:
+          head: tokens[k]
+          next: tokens[k + 1]
+          word: head.lower
+          nextWord: 'next?.kind === "word" ? next.lower : ""'
+        # A name: "Hey, its Katie.", "Its Google's fault", "Yay its Monday!"; "Your Honor", "Your
+        # Grave": a title, never "you're". "its more than enough", "it's as simple as that". "its
+        # best to ask", "its better to wait": the superlative or comparative predicate.
+        return: >-
+          /^[A-Z][a-z]/.test(head.text)
+            ? !nameCue || your
+              ? -1
+              : /['’]s$/.test(word) || predicateCloses(tokens, k + 1) || /^(?:not|from|but|the)$/.test(nextWord)
+                ? head.end
+                : NAME_DAYS.test(word) && /^(?:and|again|already|tomorrow|today)$/.test(nextWord)
+                  ? head.end
+                  : -1
+            : head.text !== word
+              ? -1
+              : (EN_DETERMINERS.has(word) && !NOT_HEAD.has(word)) || /^(?:me|him|us|them|you)$/.test(word)
+                ? head.end
+                : EN_WH_WORDS.has(word) || word === "gonna" || word === "than" || (!your && word === "been")
+                  ? head.end
+                  : word === "one" && nextWord === "of"
+                    ? next.end
+                    : /^(?:more|less)$/.test(word) && nextWord === "than" && tokens[k + 2]?.kind !== "number"
+                      ? next.end
+                      : word === "as" && predicateAdjective(nextWord) && tokens[k + 2]?.lower === "as"
+                        ? next.end
+                        : word === "kind" && tokens[k - 1]?.lower === "very" && nextWord === "of"
+                          ? next.end
+                          : word === "time" &&
+                              (predicateCloses(tokens, k + 1) || /^(?:for|to|you|we|i|they|he|she|now|again)$/.test(nextWord))
+                            ? head.end
+                            : /^(?:best|better|worse|easier|harder)$/.test(word) && nextWord === "to"
+                              ? next.end
+                              : word === "worth" &&
+                                  (/^(?:it|more|less|a|an|the|every|much|nothing|twice|to)$/.test(nextWord) ||
+                                    (next?.kind === "word" && hasVerbForm(nextWord, "ing")) ||
+                                    next?.kind === "number")
+                                ? next.end
+                                : PREDICATE_PREPOSITIONS.has(word)
+                                  ? next?.kind === "word" || next?.kind === "number"
+                                    ? head.end
+                                    : -1
+                                  : EN_PREPOSITIONS.has(word)
+                                    ? predicateCloses(tokens, k + 1) || PARTICLE_FOLLOW.has(nextWord) || next?.kind === "number"
+                                      ? head.end
+                                      : -1
+                                    : EN_FUNCTION_WORDS.has(word)
+                                      ? -1
+                                      : openPredicate(tokens, k, cue, nameCue, your)
+      # Where a predicate (not a noun phrase) follows `index`: the end of its evidence, else -1.
+      # `nameCue` (after a sentence break or "hey", "think"…) also lets a name or clock time count.
+      predicateAfter:
+        args: "ctx: DetectContext, index: number, cue: string, nameCue: boolean, your: boolean"
+        type: number
+        let:
+          tokens: enTokensAfter(ctx, index, 14)
+          k: leadingAdverbs(tokens, 0)
+          head: tokens[k]
+        # A glued technical token ("use.tools", "this_file") in the clause: abstain. "its already
+        # there.", "your all set": a closed adverb run that cannot modify a noun.
+        when: '!!head && !tokens.some((t) => t.kind === "other")'
+        return: >-
+          head.kind === "end" || head.kind === "comma"
+            ? k > 0 && tokens.slice(0, k).every((t) => ENDING_ADVERBS.has(t.lower)) && predicateCloses(tokens, k)
+              ? head.start
+              : -1
+            : head.kind === "number"
+              ? nameCue &&
+                (head.text.includes(":") ||
+                  /^[ \t ]*(?:[ap]\.?m\b|o['’]clock|(?:years?|months?|weeks?|days?|hours?|minutes?)[ \t ]+(?:old|ago|late|early|away)\b)/i.test(
+                    ctx.text.slice(head.end, head.end + 24),
+                  ))
+                ? head.end
+                : -1
+              : head.kind !== "word"
+                ? -1
+                : wordPredicate(tokens, k, cue, nameCue, your)
+        else: "-1"
+      # A list after a comma ("your tired, your poor, …") is no clause.
+      listBefore:
+        args: "ctx: DetectContext, start: number, until: number, target: string"
+        let:
+          clause: '/[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, start - 160), start))![0]'
+        return: '/^[ \t ]*,/.test(ctx.text.slice(until, until + 8)) || new RegExp(`\\b${target}\\b`, "i").test(clause)'
+      # "Its working now", "If your interested", "Hey, its Katie": its/your before a predicate.
+      contractionFinding:
+        args: 'm: RegExpExecArray, ctx: DetectContext, ruleId: RawFinding["ruleId"], messageKey: RawFinding["messageKey"], replacement: string'
+        let:
+          target: m.groups!.target
+          span: m.indices!.groups!.target
+          cue: contractionCue(ctx, span[0])
+          nameCue: enAfterBreak(ctx, span[0]) || NAME_CUE.has(cue)
+          until: 'predicateAfter(ctx, span[1], cue, nameCue, replacement === "you''re")'
+        when:
+          # "ITS", "ITs": an acronym or an identifier.
+          - "/^[a-z]+$|^[A-Z][a-z]+$/.test(target) && !ctx.dictionary.has(target.toLowerCase())"
+          - "target === target.toLowerCase() || enAfterBreak(ctx, span[0])"
+          - contractionSubjectSlot(ctx, span[0])
+          - "until >= 0"
+          - "!(!cue && !enAfterBreak(ctx, span[0]) && listBefore(ctx, span[0], until, target))"
+        return: "finding(ruleId, messageKey, span[0], span[1], [caseLike(target, replacement)], { context: enEvidence(ctx, span[0], until) })"
+      # A noun, also when it is a base verb ("help", "name"): never an -s, past or -ing form.
+      ownerNounReading:
+        args: "word: string"
+        return: enNounOnly(word) || lexiconNounNumber(word)
+      # The number of a noun of the lexicon that is no adjective, adverb or inflected verb.
+      lexiconNounNumber:
+        args: "word: string"
+        type: '"singular" | "plural" | null'
+        let:
+          read: enInfo(word)
+        return: '!read?.noun || read.adjective || read.adverb || read.verbs.some((v) => v.form !== "base") ? null : read.plural ? "plural" : "singular"'
+      # The noun phrase after "you"/"it": optional adjective + a noun; its last token index. An
+      # adjective that is also a noun ("kind", "quick") only before a plain noun: "for you kind reply".
+      ownedNoun:
+        args: "tokens: EnToken[], allowPlural: boolean"
+        let:
+          first: tokens[0]
+          read: enInfo(first.lower)
+          k: 'read && read.adjective && !read.verbs.length && tokens[1]?.kind === "word" && (!read.noun || ownerNounReading(tokens[1].lower) !== null) ? 1 : 0'
+          noun: tokens[k]
+          number: ownerNounReading(noun.lower)
+        when:
+          - 'first?.kind === "word" && first.text === first.lower && !NOT_OWNED.has(first.lower)'
+          - 'noun?.kind === "word" && noun.text === noun.lower && !NOT_OWNED.has(noun.lower)'
+        return: 'number === "singular" || (allowPlural && number === "plural") ? k : -1'
+        else: "-1"
+      # Subject position: the noun must be followed by a finite verb that agrees with it. "You might
+      # has well…": a modal mistyped before "as well", not the noun might. A base noun that is also a
+      # base verb ("volume", "face") cannot follow "it" as a verb.
+      ownerSubject:
+        args: "tokens: EnToken[], it: boolean"
+        let:
+          k: ownedNoun(tokens, it)
+          verb: 'tokens[k + 1]?.kind === "word" ? tokens[k + 1].lower : ""'
+          plural: ownerNounReading(tokens[k].lower) === "plural"
+          read: enInfo(verb)
+          subjectNoun: 'enNounOnly(tokens[k].lower) || (it && k === 0 && !plural && ownerNounReading(tokens[k].lower) === "singular")'
+          agrees: >-
+            !subjectNoun
+              ? false
+              : plural
+                ? /^(?:are|were|have|do|will|would|can|could|should|may|might|must)$/.test(verb) ||
+                  (!!read && !read.noun && read.verbs.some((v) => v.form === "base"))
+                : FINITE_AFTER_NOUN.has(verb) || (!!read && read.verbs.some((v) => v.form === "third") && !!subjectNoun)
+        when:
+          - "k >= 0 && !/^(?:might|may|can|must)$/.test(tokens[k].lower)"
+          - agrees
+        return: k
+        else: "-1"
+      # Object of a preposition: "for you help", "of it quadrants".
+      ownerObject:
+        args: "ctx: DetectContext, tokens: EnToken[], it: boolean, start: number, before: string"
+        let:
+          k: ownedNoun(tokens, it)
+          after: tokens[k + 1]
+        when:
+          - "k >= 0 && !VOCATIVES.has(tokens[k].lower)"
+          - "!(it && IT_IDIOM_VERBS.has(enWordBefore(ctx, start - before.length - 1)))"
+          - 'after?.kind === "end" || after?.kind === "comma" || (after?.kind === "word" && (OWNER_PREPOSITIONS.has(after.lower) || after.lower === "with"))'
+        return: k
+        else: "-1"
+      # An object after a verb that takes no second object: "Did you hug you kids?", "have you camera
+      # with you". A plain noun only ("see you soon", "love you mom" stay). After an adjective any
+      # noun reading will do ("you previous team").
+      ownerVerbObject:
+        args: "tokens: EnToken[]"
+        let:
+          owned: ownedNoun(tokens, true)
+          k: 'owned < 0 && tokens[0]?.kind === "word" && UNNUMBERED_PLURAL.test(tokens[0].text) ? 0 : owned'
+          after: tokens[k + 1]
+        when:
+          - "k >= 0 && !ADDRESSED.test(tokens[k].lower) && !VOCATIVES.has(tokens[k].lower)"
+          - "!(!enNounOnly(tokens[k].lower) && !(k === 1 && enInfo(tokens[k].lower)?.noun) && !UNNUMBERED_PLURAL.test(tokens[k].lower))"
+          - >-
+            after?.kind === "end" ||
+            after?.kind === "comma" ||
+            (after?.kind === "word" &&
+              (OWNER_PREPOSITIONS.has(after.lower) || /^(?:with|yet|yesterday|today|now|again|first|and|or)$/.test(after.lower)))
+        return: k
+        else: "-1"
     frames:
       # "Its working now", "Hey, its Katie": its before a predicate.
       - regex: "(?<target>its){{E}}"
-        fixer: contractionIts
+        return: >-
+          contractionFinding(m, ctx, "englishItsContext", "review_msg_its_contraction", "it's")
       # "If your interested": your before a predicate.
       - regex: "(?<target>your){{E}}"
         check: englishYourYouAre
-        fixer: contractionYour
+        return: >-
+          contractionFinding(m, ctx, "englishYourYouAre", "review_msg_your_you_are", "you're")
       # "You friend will call", "thanks for you help", "It face was red", "on it movement". The
       # frame reports both checks.
       - regex: "(?<target>you|it){{S}}(?=[a-z])"
         anyCheck: true
-        fixer: contractionPronounOwner
+        let:
+          it: target.toLowerCase() === "it"
+          span: group(m, "target")
+          before: enWordBefore(ctx, span[0])
+          tokens: enTokensAfter(ctx, span[1], 4)
+          # After a fronted clause's comma ("When it heats, it color fades") "it" opens a clause too.
+          afterComma: 'it && /,[ \t ]{1,8}$/.test(ctx.text.slice(Math.max(0, span[0] - 4), span[0]))'
+          k: >-
+            (enAfterBreak(ctx, span[0]) && target !== target.toLowerCase()) ||
+            /^(?:and|so|but|if|when|then|now|otherwise)$/.test(before) ||
+            afterComma
+              ? ownerSubject(tokens, it)
+              : OWNER_PREPOSITIONS.has(before) || (it && /^(?:times|twice)$/.test(before))
+                ? ownerObject(ctx, tokens, it, span[0], before)
+                : !it &&
+                    (before === "not" ||
+                      (!!before &&
+                        !EN_FUNCTION_WORDS.has(before) &&
+                        !!enInfo(before)?.verbs.length &&
+                        !YOU_CLAUSE_VERBS.test(before) &&
+                        !SECOND_OBJECT.test(before)))
+                  ? ownerVerbObject(tokens)
+                  : -1
+        when:
+          # "IT priorities": information technology.
+          - "/^(?:you|it|You|It)$/.test(target)"
+          - "k >= 0"
+          - "!tokens.slice(0, k + 1).some((t) => ctx.dictionary.has(t.lower))"
+        return: >-
+          finding(
+            it ? "englishItsContext" : "englishYourYouAre",
+            it ? "review_msg_its_possessive" : "review_msg_your_possessive",
+            span[0],
+            span[1],
+            [caseLike(target, it ? "its" : "your")],
+            { context: enEvidence(ctx, span[0], tokens[k].end) },
+          )
       # "It has it limits": has + it + a plural noun the clause's subject owns.
       - regex: "(?:has|(?<=(?:has|have){{S}})had){{S}}(?<target>it){{S}}(?<noun>[a-z]+){{E}}"
-        fixer: contractionHasIt
+        let:
+          # The owned noun ends its phrase: "has it flaws.", "has it ups and downs", "has it origins in".
+          after: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          before: enWordBefore(ctx, m.index)
+          read: enInfo(noun)
+          plural: 'read ? read.plural && !read.adjective && !read.adverb : enNounOnly(noun) === "plural"'
+        when:
+          - 'after.kind === "end" || after.kind === "comma" || /^(?:and|in|of)$/.test(after.lower)'
+          # A question ("Has it rained?") or a modal before has: not this frame.
+          - "!enAfterBreak(ctx, m.index)"
+          - "!(!before || /^(?:what|why|how|where|when|who|which|will|would|could|should|might|must|may|can|to|nor|rumour|rumor|that)$/.test(before))"
+          - "!(NOT_OWNED.has(noun) || !plural || ctx.dictionary.has(noun))"
+        return: >-
+          finding("englishItsContext", "review_msg_its_possessive", group(m, "target")[0], group(m, "target")[1], ["its"], {
+            context: enEvidence(ctx, m.index, m.index + m[0].length),
+          })
   - id: en.toForToo
     checks: [englishToToo]
     style: match
@@ -4345,6 +5176,12 @@ rules:
       ]
     style: slot
     message: review_msg_typo
+    defs:
+      # "you" before a singular noun that its verb follows: "you car was stolen" -> "your car". Not
+      # after verbs that take "you" and a clause ("I told you dad is home"), not "what you need is",
+      # and never a person addressed ("you guys", "you idiot").
+      YOU_CLAUSE_VERBS: /^(?:tell|tells|told|telling|show|shows|showed|remind|reminds|reminded|assure|assured|promise|promised|warn|warned|inform|informed|bet|guarantee|guaranteed|ask|asked|teach|taught|convince|convinced|notify|notified|let|lets|thank|thanks|give|gave|given|send|sent|bring|brought|owe|owed|offer|offered|wish|wished|call|called|make|made|get|got|buy|bought|pay|paid|cost|save|saved|charge|charged|see|saw|seen|hear|heard|mean|meant|know|knew|think|thought|believe|suppose)$/
+      ADDRESSED: /^(?:guy|guys|idiot|fool|dummy|moron|genius|darling|honey|baby|sir|madam|man|dude|bro|mate|sis|buddy|pal|lot|kid|boy|girl|people|folks|all|both|two|three|alone|yourself|there|here|too|also|something|anything|nothing|everything|everyone|anyone|someone|one|ones|each|most|now|then|again|later|soon|today|tonight|first|last|instead|anyway|maybe|perhaps|men|women|children|ladies|gentlemen)$/
     frames:
       # "I found anther problem": "another" after a verb or preposition (the flower's anther
       # follows "the", an adjective or a list comma).

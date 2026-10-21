@@ -13,7 +13,6 @@ import * as britishUsage from "./britishUsage";
 import * as typography from "./typography";
 import * as confusions1 from "./confusions1";
 import * as dates from "./dates";
-import * as contractionSlots from "./contractionSlots";
 import * as degreeSlots from "./degreeSlots";
 import * as nounNumberSlots from "./nounNumberSlots";
 import * as verbGroupSlots from "./verbGroupSlots";
@@ -105,7 +104,6 @@ export const FIXERS = mergePredicates<Fixer>(
   properNames.FIXERS,
   questionSlots.FIXERS,
   complementSlots.FIXERS,
-  contractionSlots.FIXERS,
   nounNumberSlots.FIXERS,
   countSlots.FIXERS,
   negationSlots.FIXERS,

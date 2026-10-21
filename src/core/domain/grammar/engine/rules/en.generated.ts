@@ -2,26 +2,41 @@
 // The code of grammar/rules/en.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, FixResult, FrameRef, MatchResult } from "../../library";
+import type {
+  DetectContext,
+  EnToken,
+  FixResult,
+  FrameRef,
+  MatchResult,
+  RawFinding,
+} from "../../library";
 import {
   EN_DETERMINERS,
   EN_FUNCTION_WORDS,
   EN_PERMISSION_AFTER,
+  EN_PREPOSITIONS,
+  EN_WH_WORDS,
+  caseLike,
+  enAdverb,
   enAfterBreak,
   enBefore,
   enClauseAfter,
+  enEvidence,
+  enInfo,
   enNextWord,
   enNounOnly,
   enObjectGapBefore,
   enRecase,
+  enTokensAfter,
   enWordBefore,
   englishInflect,
   englishInitialSound,
   englishWordInfo,
+  finding,
   group,
   hasVerbForm,
 } from "../../library";
-import { isoDateWarning } from "./common.generated";
+import { NOUN_LIKE_ING, isoDateWarning, opensSubjectClause } from "./common.generated";
 
 export const NOT_BASIS_ADJECTIVE: ReadonlySet<string> = new Set([
   "a",
@@ -152,6 +167,537 @@ export const NOT_HOW_TO: ReadonlySet<string> = new Set([
   "have",
   "has",
   "had",
+]);
+
+export const CONTRACTION_CUE: ReadonlySet<string> = new Set([
+  "and",
+  "or",
+  "but",
+  "so",
+  "plus",
+  "yes",
+  "yeah",
+  "yep",
+  "well",
+  "oh",
+  "wow",
+  "hey",
+  "yay",
+  "ah",
+  "glad",
+  "hope",
+  "hoping",
+  "trust",
+  "imagine",
+  "believe",
+  "dunno",
+  "once",
+  "while",
+  "whether",
+  "where",
+  "now",
+  "here",
+  "see",
+  "hear",
+  "sorry",
+  "until",
+  "unless",
+  "though",
+  "god",
+  "although",
+  "bet",
+  "figure",
+  "feel",
+  "say",
+  "think",
+  "thought",
+  "guess",
+  "know",
+  "knew",
+  "sure",
+  "maybe",
+  "perhaps",
+  "because",
+  "since",
+  "if",
+  "when",
+  "that",
+  "what",
+  "how",
+  "why",
+  "mean",
+  "means",
+  "confirm",
+]);
+
+export const NAME_CUE: ReadonlySet<string> = new Set([
+  "think",
+  "hope",
+  "guess",
+  "bet",
+  "hey",
+  "yay",
+  "yes",
+  "yeah",
+  "yep",
+  "oh",
+  "wow",
+  "ok",
+  "okay",
+  "well",
+  "sure",
+  "maybe",
+  "god",
+  "thought",
+  "here",
+]);
+
+export const PREDICATE_TAGS: ReadonlySet<string> = new Set([
+  "man",
+  "dude",
+  "bro",
+  "mate",
+  "guys",
+  "yeah",
+  "ugh",
+  "lol",
+  "haha",
+  "right",
+]);
+
+export const NOT_HEAD: ReadonlySet<string> = new Set([
+  "own",
+  "only",
+  "first",
+  "last",
+  "next",
+  "other",
+  "same",
+  "whole",
+  "entire",
+  "main",
+  "usual",
+  "former",
+  "latter",
+  "very",
+  "kind",
+  "sort",
+  "favorite",
+  "best",
+  "worst",
+  "most",
+  "least",
+  "every",
+  "each",
+  "both",
+]);
+
+export const ENDING_ADVERBS: ReadonlySet<string> = new Set([
+  "all",
+  "there",
+  "here",
+  "not",
+  "already",
+  "so",
+  "still",
+  "too",
+  "now",
+  "again",
+  "away",
+]);
+
+export const PREDICATE_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "in",
+  "at",
+  "by",
+  "from",
+  "with",
+  "without",
+  "into",
+  "onto",
+  "between",
+  "among",
+  "through",
+  "during",
+  "until",
+  "against",
+  "within",
+  "toward",
+  "towards",
+  "upon",
+  "despite",
+  "throughout",
+  "under",
+]);
+
+export const PARTICLE_FOLLOW: ReadonlySet<string> = new Set([
+  "there",
+  "here",
+  "top",
+  "of",
+  "for",
+  "to",
+  "in",
+  "on",
+  "at",
+  "with",
+  "from",
+  "again",
+  "now",
+  "already",
+  "the",
+  "a",
+  "an",
+  "my",
+  "your",
+  "our",
+  "his",
+  "her",
+  "their",
+  "this",
+  "that",
+  "me",
+  "him",
+  "us",
+  "them",
+  "you",
+  "it",
+]);
+
+export const AFTER_PREDICATE: ReadonlySet<string> = new Set([
+  "to",
+  "than",
+  "for",
+  "enough",
+  "as",
+  "if",
+  "when",
+  "because",
+  "now",
+  "then",
+  "today",
+  "tonight",
+  "again",
+  "outside",
+  "inside",
+  "here",
+  "there",
+  "though",
+  "too",
+  "with",
+  "about",
+  "at",
+  "of",
+  "in",
+  "on",
+  "by",
+  "from",
+  "that",
+  "so",
+  "already",
+  "yet",
+  "anymore",
+  "right",
+  "out",
+  "away",
+  "back",
+  "off",
+  "up",
+  "down",
+  "around",
+  "over",
+  "lately",
+  "anyway",
+  "please",
+  "like",
+  "let",
+  "without",
+]);
+
+export const PREDICATIVE: ReadonlySet<string> = new Set([
+  "welcome",
+  "okay",
+  "ok",
+  "alone",
+  "afraid",
+  "awake",
+  "asleep",
+  "hurt",
+  "done",
+  "gone",
+  "better",
+  "worse",
+]);
+
+export const AFTER_ING: ReadonlySet<string> = new Set([
+  "better",
+  "worse",
+  "well",
+  "fine",
+  "good",
+  "great",
+  "bad",
+  "okay",
+]);
+
+export const PREDICATE_CLAUSE_STOP: ReadonlySet<string> = new Set([
+  "that",
+  "which",
+  "who",
+  "whom",
+  "because",
+  "if",
+  "when",
+  "and",
+  "but",
+  "so",
+  "as",
+  "than",
+  "while",
+  "since",
+  "until",
+  "where",
+]);
+
+export const PREDICATE_FINITE: ReadonlySet<string> = new Set([
+  "is",
+  "are",
+  "was",
+  "were",
+  "has",
+  "had",
+  "does",
+  "did",
+  "am",
+  "will",
+  "would",
+  "can",
+  "could",
+  "shall",
+  "should",
+  "may",
+  "might",
+  "must",
+]);
+
+export const CLAUSE_SUBORDINATORS: ReadonlySet<string> = new Set([
+  "if",
+  "when",
+  "while",
+  "because",
+  "once",
+  "unless",
+  "whether",
+  "hope",
+  "though",
+  "although",
+  "so",
+  "mean",
+  "means",
+]);
+
+export const GERUND_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "since",
+  "until",
+  "till",
+  "after",
+  "before",
+  "as",
+]);
+
+export const GERUND_CUES: ReadonlySet<string> = new Set([
+  "and",
+  "or",
+  "but",
+  "how",
+  "where",
+  "why",
+]);
+
+export const NOUN_BEFORE_TO: ReadonlySet<string> = new Set([
+  "potential",
+  "intent",
+  "right",
+  "due",
+  "key",
+  "fit",
+]);
+
+export const PREDICATE_PARTICLES: ReadonlySet<string> = new Set([
+  "outside",
+  "inside",
+  "out",
+  "up",
+  "down",
+  "off",
+  "over",
+  "around",
+  "back",
+  "away",
+]);
+
+export const PREDICATE_DEGREE: ReadonlySet<string> = new Set([
+  "so",
+  "very",
+  "really",
+  "pretty",
+  "too",
+  "quite",
+  "extremely",
+  "totally",
+  "completely",
+  "absolutely",
+  "way",
+  "much",
+  "far",
+]);
+
+export const NOT_OWNED: ReadonlySet<string> = new Set([
+  "today",
+  "tonight",
+  "tomorrow",
+  "yesterday",
+  "now",
+  "then",
+  "again",
+  "too",
+  "also",
+  "first",
+  "last",
+  "next",
+  "instead",
+  "anyway",
+  "either",
+  "though",
+  "once",
+  "twice",
+  "soon",
+  "later",
+  "early",
+  "right",
+  "back",
+  "home",
+  "there",
+  "here",
+  "all",
+  "both",
+  "two",
+  "three",
+  "guys",
+  "people",
+  "folks",
+  "kids",
+  "lot",
+  "sir",
+  "madam",
+  "dear",
+  "man",
+  "dude",
+  "buddy",
+  "mate",
+  "pal",
+  "bro",
+  "ladies",
+  "gentlemen",
+  "kindly",
+  "personally",
+  "directly",
+  "alone",
+  "yourself",
+  "itself",
+  "myself",
+  "everyday",
+  "sometime",
+  "someday",
+  "upstairs",
+  "downstairs",
+  "outdoors",
+  "indoors",
+  "backwards",
+  "forwards",
+  "afterwards",
+  "overseas",
+  "abroad",
+  "day",
+  "night",
+  "week",
+  "something",
+  "anything",
+  "nothing",
+  "everything",
+  "someone",
+  "anyone",
+  "everyone",
+  "nobody",
+  "nowhere",
+  "somewhere",
+  "anywhere",
+  "everywhere",
+  "auto",
+]);
+
+export const VOCATIVES: ReadonlySet<string> = new Set([
+  "mom",
+  "dad",
+  "mum",
+  "mommy",
+  "daddy",
+  "honey",
+  "baby",
+  "babe",
+  "darling",
+  "sweetie",
+  "sweetheart",
+  "love",
+  "son",
+  "sis",
+  "kid",
+  "boss",
+  "grandma",
+  "grandpa",
+  "granny",
+]);
+
+export const OWNER_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "for",
+  "on",
+  "of",
+  "from",
+  "in",
+  "about",
+  "at",
+  "by",
+  "into",
+  "under",
+  "without",
+  "toward",
+  "towards",
+  "over",
+]);
+
+export const IT_IDIOM_VERBS: ReadonlySet<string> = new Set(["go", "goes", "going", "went"]);
+
+export const FINITE_AFTER_NOUN: ReadonlySet<string> = new Set([
+  "is",
+  "was",
+  "will",
+  "would",
+  "can",
+  "could",
+  "should",
+  "may",
+  "might",
+  "must",
+  "has",
+  "had",
+  "does",
+  "did",
+  "isn't",
+  "wasn't",
+  "won't",
+  "wouldn't",
+  "can't",
+  "couldn't",
 ]);
 
 export const EMAIL_VERB: Readonly<Record<string, string>> = {
@@ -377,6 +923,432 @@ export function ranksMiddle(mid: string) {
     .trim()
     .replace(/[ \t ]+/g, " ");
 }
+
+// en.yaml rule en.possessiveContractions def ADJECTIVE_CUES
+export const ADJECTIVE_CUES = new Set([...CLAUSE_SUBORDINATORS, "since", "until", ""]);
+
+// en.yaml rule en.possessiveContractions def NAME_DAYS
+export const NAME_DAYS =
+  /^(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december|christmas|easter)$/;
+
+// en.yaml rule en.possessiveContractions def SECOND_OBJECT
+export const SECOND_OBJECT =
+  /^(?:sell|sells|sold|selling|lend|lends|lent|hand|hands|handed|pass|passed|leave|left|write|wrote|written|read|serve|served|feed|fed|deny|denied|grant|granted|award|awarded|bake|baked|cook|cooked|fetch|fetched|find|found|order|ordered|pour|poured|promise|promised|reserve|reserved|spare|spared|teach|taught|wish|wishes|wishing|bring|brings|bringing|throw|threw|toss|tossed|offer|offers|offering|allow|allowed|assign|assigned|forgive|forgave|refuse|refused|call|calls|calling|name|named|consider|considered|make|makes|making|get|gets|getting|give|gives|giving|send|sends|sending|show|shows|showing|tell|tells|telling|buy|buys|buying|pay|pays|paying|charge|charges|owe|owes|cost|costs|save|saves|saving|keep|keeps|kept)$/;
+
+// en.yaml rule en.possessiveContractions def UNNUMBERED_PLURAL
+export const UNNUMBERED_PLURAL = /^(?:children|feet|teeth)$/;
+
+// en.yaml rule en.possessiveContractions def contractionCue
+export function contractionCue(ctx: DetectContext, index: number) {
+  const comma = /(?<![\p{L}\p{N}_'’-])([A-Za-z]+),[ \t ]*$/u.exec(
+    ctx.text.slice(Math.max(0, index - 16), index),
+  );
+  return comma && NAME_CUE.has(comma[1].toLowerCase())
+    ? comma[1].toLowerCase()
+    : enWordBefore(ctx, index);
+}
+
+// en.yaml rule en.possessiveContractions def contractionSubjectSlot
+export function contractionSubjectSlot(ctx: DetectContext, index: number) {
+  return (
+    enAfterBreak(ctx, index) ||
+    opensSubjectClause(ctx, index) ||
+    CONTRACTION_CUE.has(contractionCue(ctx, index)) ||
+    /,[ \t ]*$/.test(ctx.text.slice(Math.max(0, index - 4), index))
+  );
+}
+
+// en.yaml rule en.possessiveContractions def finiteToken
+export function finiteToken(word: string, strict: boolean) {
+  if (!(!PREDICATE_FINITE.has(word) && !/n['’]t$/.test(word))) return true;
+  const read = enInfo(word);
+  return (
+    !!read &&
+    read.verbs.some(
+      (v) =>
+        v.form === "third" || (v.form === "past" && (strict || (!read.noun && !read.adjective))),
+    )
+  );
+}
+
+// en.yaml rule en.possessiveContractions def laterFiniteVerb
+export function laterFiniteVerb(tokens: EnToken[], from: number, strict: boolean) {
+  const hit = tokens
+    .slice(from)
+    .find(
+      (t) =>
+        t.kind !== "word" || PREDICATE_CLAUSE_STOP.has(t.lower) || finiteToken(t.lower, strict),
+    );
+  return !!hit && hit.kind === "word" && !PREDICATE_CLAUSE_STOP.has(hit.lower);
+}
+
+// en.yaml rule en.possessiveContractions def predicateAdjective
+export function predicateAdjective(word: string) {
+  if (PREDICATIVE.has(word)) return true;
+  const read = enInfo(word);
+  return (
+    !!read &&
+    read.adjective &&
+    !read.plural &&
+    !NOT_HEAD.has(word) &&
+    !(/est$/.test(word) && !/(?:honest|modest|earnest|interest)$/.test(word))
+  );
+}
+
+// en.yaml rule en.possessiveContractions def predicateParticiple
+export function predicateParticiple(word: string) {
+  const read = enInfo(word);
+  return (
+    !!read &&
+    !read.noun &&
+    !read.plural &&
+    read.verbs.some((v) => v.form === "participle") &&
+    !read.verbs.some((v) => v.form === "base" || v.form === "third")
+  );
+}
+
+// en.yaml rule en.possessiveContractions def commaGoesOn
+export function commaGoesOn(word: string) {
+  const read = enInfo(word);
+  return !!(
+    read?.adjective ||
+    read?.verbs.some((v) => v.form === "participle") ||
+    enNounOnly(word)
+  );
+}
+
+// en.yaml rule en.possessiveContractions def predicateCloses
+export function predicateCloses(tokens: EnToken[], k: number): boolean {
+  const t = tokens[k];
+  const after = tokens[k + 1];
+  return !t || t.kind === "end"
+    ? true
+    : t.kind === "word" && PREDICATE_TAGS.has(t.lower)
+      ? predicateCloses(tokens, k + 1)
+      : t.kind !== "comma"
+        ? false
+        : !after ||
+            after.kind === "end" ||
+            (after.kind === "word" && PREDICATE_TAGS.has(after.lower))
+          ? true
+          : after.kind !== "word" || after.text !== after.lower
+            ? after.kind === "number"
+            : !commaGoesOn(after.lower);
+}
+
+// en.yaml rule en.possessiveContractions def leadingAdverbs
+export function leadingAdverbs(tokens: EnToken[], k: number): number {
+  return k < 3 && tokens[k]?.kind === "word" && enAdverb(tokens[k].lower)
+    ? leadingAdverbs(tokens, k + 1)
+    : k;
+}
+
+// en.yaml rule en.possessiveContractions def ingClosed
+export function ingClosed(next: EnToken | undefined, nextWord: string) {
+  return (
+    next?.kind === "word" &&
+    (EN_DETERMINERS.has(nextWord) ||
+      /^(?:to|me|him|us|them|it|you)$/.test(nextWord) ||
+      enAdverb(nextWord) ||
+      AFTER_ING.has(nextWord))
+  );
+}
+
+// en.yaml rule en.possessiveContractions def openPredicate
+export function openPredicate(
+  tokens: EnToken[],
+  k: number,
+  cue: string,
+  nameCue: boolean,
+  your: boolean,
+): number {
+  const head = tokens[k];
+  const next = tokens[k + 1];
+  const word = head.lower;
+  if (your && word === "welcome" && k === 0) return -1;
+  const nextWord = next?.kind === "word" ? next.lower : "";
+  if (word === "going" && nextWord === "to" && tokens[k + 2]?.kind !== "word") return -1;
+  const particleEnds =
+    PREDICATE_PARTICLES.has(nextWord) &&
+    (predicateCloses(tokens, k + 2) ||
+      /^(?:of|to|in|on|at|for|there|here|now|today)$/.test(tokens[k + 2]?.lower ?? ""));
+  const fitsPredicate =
+    predicateCloses(tokens, k + 1) ||
+    (AFTER_PREDICATE.has(nextWord) && (!PREDICATE_PARTICLES.has(nextWord) || particleEnds)) ||
+    (next?.kind === "word" &&
+      (EN_DETERMINERS.has(nextWord) || /^(?:me|him|us|them)$/.test(nextWord)));
+  const degree = tokens
+    .slice(0, k)
+    .some((t) => PREDICATE_DEGREE.has(t.lower) || ENDING_ADVERBS.has(t.lower));
+  const nounToo = !PREDICATIVE.has(word) && (!!enInfo(word)?.noun || NOUN_LIKE_ING.test(word));
+  return hasVerbForm(word, "ing")
+    ? GERUND_PREPOSITIONS.has(cue) || (nounToo && GERUND_CUES.has(cue))
+      ? -1
+      : (nounToo
+            ? degree ||
+              ingClosed(next, nextWord) ||
+              ((nameCue || CLAUSE_SUBORDINATORS.has(cue) || cue === "what") &&
+                predicateCloses(tokens, k + 1)) ||
+              (CLAUSE_SUBORDINATORS.has(cue) && EN_PREPOSITIONS.has(nextWord))
+            : fitsPredicate || ingClosed(next, nextWord) || EN_PREPOSITIONS.has(nextWord)) &&
+          !laterFiniteVerb(tokens, k + 1, word === "going")
+        ? head.end
+        : -1
+    : (predicateParticiple(word) || predicateAdjective(word)) && !NOUN_BEFORE_TO.has(word)
+      ? (nounToo
+          ? (degree && fitsPredicate) ||
+            (/^(?:to|than|enough)$/.test(nextWord) && !NOUN_BEFORE_TO.has(word)) ||
+            (nameCue && predicateCloses(tokens, k + 1)) ||
+            (ADJECTIVE_CUES.has(cue) && fitsPredicate)
+          : fitsPredicate ||
+            (nextWord === "or" && tokens[k + 2]?.lower === "not") ||
+            (predicateParticiple(word) &&
+              (hasVerbForm(nextWord, "ing") ||
+                PREDICATE_PREPOSITIONS.has(nextWord) ||
+                /^(?:of|on|as)$/.test(nextWord)))) && !laterFiniteVerb(tokens, k + 1, false)
+        ? head.end
+        : -1
+      : -1;
+}
+
+// en.yaml rule en.possessiveContractions def wordPredicate
+export function wordPredicate(
+  tokens: EnToken[],
+  k: number,
+  cue: string,
+  nameCue: boolean,
+  your: boolean,
+): number {
+  const head = tokens[k];
+  const next = tokens[k + 1];
+  const word = head.lower;
+  const nextWord = next?.kind === "word" ? next.lower : "";
+  return /^[A-Z][a-z]/.test(head.text)
+    ? !nameCue || your
+      ? -1
+      : /['’]s$/.test(word) ||
+          predicateCloses(tokens, k + 1) ||
+          /^(?:not|from|but|the)$/.test(nextWord)
+        ? head.end
+        : NAME_DAYS.test(word) && /^(?:and|again|already|tomorrow|today)$/.test(nextWord)
+          ? head.end
+          : -1
+    : head.text !== word
+      ? -1
+      : (EN_DETERMINERS.has(word) && !NOT_HEAD.has(word)) || /^(?:me|him|us|them|you)$/.test(word)
+        ? head.end
+        : EN_WH_WORDS.has(word) || word === "gonna" || word === "than" || (!your && word === "been")
+          ? head.end
+          : word === "one" && nextWord === "of"
+            ? next.end
+            : /^(?:more|less)$/.test(word) &&
+                nextWord === "than" &&
+                tokens[k + 2]?.kind !== "number"
+              ? next.end
+              : word === "as" && predicateAdjective(nextWord) && tokens[k + 2]?.lower === "as"
+                ? next.end
+                : word === "kind" && tokens[k - 1]?.lower === "very" && nextWord === "of"
+                  ? next.end
+                  : word === "time" &&
+                      (predicateCloses(tokens, k + 1) ||
+                        /^(?:for|to|you|we|i|they|he|she|now|again)$/.test(nextWord))
+                    ? head.end
+                    : /^(?:best|better|worse|easier|harder)$/.test(word) && nextWord === "to"
+                      ? next.end
+                      : word === "worth" &&
+                          (/^(?:it|more|less|a|an|the|every|much|nothing|twice|to)$/.test(
+                            nextWord,
+                          ) ||
+                            (next?.kind === "word" && hasVerbForm(nextWord, "ing")) ||
+                            next?.kind === "number")
+                        ? next.end
+                        : PREDICATE_PREPOSITIONS.has(word)
+                          ? next?.kind === "word" || next?.kind === "number"
+                            ? head.end
+                            : -1
+                          : EN_PREPOSITIONS.has(word)
+                            ? predicateCloses(tokens, k + 1) ||
+                              PARTICLE_FOLLOW.has(nextWord) ||
+                              next?.kind === "number"
+                              ? head.end
+                              : -1
+                            : EN_FUNCTION_WORDS.has(word)
+                              ? -1
+                              : openPredicate(tokens, k, cue, nameCue, your);
+}
+
+// en.yaml rule en.possessiveContractions def predicateAfter
+export function predicateAfter(
+  ctx: DetectContext,
+  index: number,
+  cue: string,
+  nameCue: boolean,
+  your: boolean,
+): number {
+  const tokens = enTokensAfter(ctx, index, 14);
+  const k = leadingAdverbs(tokens, 0);
+  const head = tokens[k];
+  if (!(!!head && !tokens.some((t) => t.kind === "other"))) return -1;
+  return head.kind === "end" || head.kind === "comma"
+    ? k > 0 &&
+      tokens.slice(0, k).every((t) => ENDING_ADVERBS.has(t.lower)) &&
+      predicateCloses(tokens, k)
+      ? head.start
+      : -1
+    : head.kind === "number"
+      ? nameCue &&
+        (head.text.includes(":") ||
+          /^[ \t ]*(?:[ap]\.?m\b|o['’]clock|(?:years?|months?|weeks?|days?|hours?|minutes?)[ \t ]+(?:old|ago|late|early|away)\b)/i.test(
+            ctx.text.slice(head.end, head.end + 24),
+          ))
+        ? head.end
+        : -1
+      : head.kind !== "word"
+        ? -1
+        : wordPredicate(tokens, k, cue, nameCue, your);
+}
+
+// en.yaml rule en.possessiveContractions def listBefore
+export function listBefore(ctx: DetectContext, start: number, until: number, target: string) {
+  const clause = /[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, start - 160), start))![0];
+  return (
+    /^[ \t ]*,/.test(ctx.text.slice(until, until + 8)) ||
+    new RegExp(`\\b${target}\\b`, "i").test(clause)
+  );
+}
+
+// en.yaml rule en.possessiveContractions def contractionFinding
+export function contractionFinding(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+  replacement: string,
+) {
+  const target = m.groups!.target;
+  if (!(/^[a-z]+$|^[A-Z][a-z]+$/.test(target) && !ctx.dictionary.has(target.toLowerCase())))
+    return null;
+  const span = m.indices!.groups!.target;
+  if (!(target === target.toLowerCase() || enAfterBreak(ctx, span[0]))) return null;
+  if (!contractionSubjectSlot(ctx, span[0])) return null;
+  const cue = contractionCue(ctx, span[0]);
+  const nameCue = enAfterBreak(ctx, span[0]) || NAME_CUE.has(cue);
+  const until = predicateAfter(ctx, span[1], cue, nameCue, replacement === "you're");
+  if (!(until >= 0)) return null;
+  if (!cue && !enAfterBreak(ctx, span[0]) && listBefore(ctx, span[0], until, target)) return null;
+  return finding(ruleId, messageKey, span[0], span[1], [caseLike(target, replacement)], {
+    context: enEvidence(ctx, span[0], until),
+  });
+}
+
+// en.yaml rule en.possessiveContractions def ownerNounReading
+export function ownerNounReading(word: string) {
+  return enNounOnly(word) || lexiconNounNumber(word);
+}
+
+// en.yaml rule en.possessiveContractions def lexiconNounNumber
+export function lexiconNounNumber(word: string): "singular" | "plural" | null {
+  const read = enInfo(word);
+  return !read?.noun || read.adjective || read.adverb || read.verbs.some((v) => v.form !== "base")
+    ? null
+    : read.plural
+      ? "plural"
+      : "singular";
+}
+
+// en.yaml rule en.possessiveContractions def ownedNoun
+export function ownedNoun(tokens: EnToken[], allowPlural: boolean) {
+  const first = tokens[0];
+  if (!(first?.kind === "word" && first.text === first.lower && !NOT_OWNED.has(first.lower)))
+    return -1;
+  const read = enInfo(first.lower);
+  const k =
+    read &&
+    read.adjective &&
+    !read.verbs.length &&
+    tokens[1]?.kind === "word" &&
+    (!read.noun || ownerNounReading(tokens[1].lower) !== null)
+      ? 1
+      : 0;
+  const noun = tokens[k];
+  if (!(noun?.kind === "word" && noun.text === noun.lower && !NOT_OWNED.has(noun.lower))) return -1;
+  const number = ownerNounReading(noun.lower);
+  return number === "singular" || (allowPlural && number === "plural") ? k : -1;
+}
+
+// en.yaml rule en.possessiveContractions def ownerSubject
+export function ownerSubject(tokens: EnToken[], it: boolean) {
+  const k = ownedNoun(tokens, it);
+  if (!(k >= 0 && !/^(?:might|may|can|must)$/.test(tokens[k].lower))) return -1;
+  const verb = tokens[k + 1]?.kind === "word" ? tokens[k + 1].lower : "";
+  const plural = ownerNounReading(tokens[k].lower) === "plural";
+  const read = enInfo(verb);
+  const subjectNoun =
+    enNounOnly(tokens[k].lower) ||
+    (it && k === 0 && !plural && ownerNounReading(tokens[k].lower) === "singular");
+  const agrees = !subjectNoun
+    ? false
+    : plural
+      ? /^(?:are|were|have|do|will|would|can|could|should|may|might|must)$/.test(verb) ||
+        (!!read && !read.noun && read.verbs.some((v) => v.form === "base"))
+      : FINITE_AFTER_NOUN.has(verb) ||
+        (!!read && read.verbs.some((v) => v.form === "third") && !!subjectNoun);
+  if (!agrees) return -1;
+  return k;
+}
+
+// en.yaml rule en.possessiveContractions def ownerObject
+export function ownerObject(
+  ctx: DetectContext,
+  tokens: EnToken[],
+  it: boolean,
+  start: number,
+  before: string,
+) {
+  const k = ownedNoun(tokens, it);
+  if (!(k >= 0 && !VOCATIVES.has(tokens[k].lower))) return -1;
+  if (it && IT_IDIOM_VERBS.has(enWordBefore(ctx, start - before.length - 1))) return -1;
+  const after = tokens[k + 1];
+  if (!(
+    after?.kind === "end" ||
+    after?.kind === "comma" ||
+    (after?.kind === "word" && (OWNER_PREPOSITIONS.has(after.lower) || after.lower === "with"))
+  ))
+    return -1;
+  return k;
+}
+
+// en.yaml rule en.possessiveContractions def ownerVerbObject
+export function ownerVerbObject(tokens: EnToken[]) {
+  const owned = ownedNoun(tokens, true);
+  const k =
+    owned < 0 && tokens[0]?.kind === "word" && UNNUMBERED_PLURAL.test(tokens[0].text) ? 0 : owned;
+  if (!(k >= 0 && !ADDRESSED.test(tokens[k].lower) && !VOCATIVES.has(tokens[k].lower))) return -1;
+  if (
+    !enNounOnly(tokens[k].lower) &&
+    !(k === 1 && enInfo(tokens[k].lower)?.noun) &&
+    !UNNUMBERED_PLURAL.test(tokens[k].lower)
+  )
+    return -1;
+  const after = tokens[k + 1];
+  if (!(
+    after?.kind === "end" ||
+    after?.kind === "comma" ||
+    (after?.kind === "word" &&
+      (OWNER_PREPOSITIONS.has(after.lower) ||
+        /^(?:with|yet|yesterday|today|now|again|first|and|or)$/.test(after.lower)))
+  ))
+    return -1;
+  return k;
+}
+
+// en.yaml rule en.slotConfusions def YOU_CLAUSE_VERBS
+export const YOU_CLAUSE_VERBS =
+  /^(?:tell|tells|told|telling|show|shows|showed|remind|reminds|reminded|assure|assured|promise|promised|warn|warned|inform|informed|bet|guarantee|guaranteed|ask|asked|teach|taught|convince|convinced|notify|notified|let|lets|thank|thanks|give|gave|given|send|sent|bring|brought|owe|owed|offer|offered|wish|wished|call|called|make|made|get|got|buy|bought|pay|paid|cost|save|saved|charge|charged|see|saw|seen|hear|heard|mean|meant|know|knew|think|thought|believe|suppose)$/;
+
+// en.yaml rule en.slotConfusions def ADDRESSED
+export const ADDRESSED =
+  /^(?:guy|guys|idiot|fool|dummy|moron|genius|darling|honey|baby|sir|madam|man|dude|bro|mate|sis|buddy|pal|lot|kid|boy|girl|people|folks|all|both|two|three|alone|yourself|there|here|too|also|something|anything|nothing|everything|everyone|anyone|someone|one|ones|each|most|now|then|again|later|soon|today|tonight|first|last|instead|anyway|maybe|perhaps|men|women|children|ladies|gentlemen)$/;
 
 // en.yaml rule en.neighbourSlots def typoInfo
 export function typoInfo(word: string | undefined) {
@@ -1177,6 +2149,82 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
+  },
+  // en.yaml rule en.possessiveContractions frame 1
+  "@en.possessiveContractions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return contractionFinding(m, ctx, "englishItsContext", "review_msg_its_contraction", "it's");
+  },
+  // en.yaml rule en.possessiveContractions frame 2
+  "@en.possessiveContractions/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return contractionFinding(m, ctx, "englishYourYouAre", "review_msg_your_you_are", "you're");
+  },
+  // en.yaml rule en.possessiveContractions frame 3
+  "@en.possessiveContractions/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!/^(?:you|it|You|It)$/.test(target)) return null;
+    const it = target.toLowerCase() === "it";
+    const span = group(m, "target");
+    const before = enWordBefore(ctx, span[0]);
+    const tokens = enTokensAfter(ctx, span[1], 4);
+    const afterComma =
+      it && /,[ \t ]{1,8}$/.test(ctx.text.slice(Math.max(0, span[0] - 4), span[0]));
+    const k =
+      (enAfterBreak(ctx, span[0]) && target !== target.toLowerCase()) ||
+      /^(?:and|so|but|if|when|then|now|otherwise)$/.test(before) ||
+      afterComma
+        ? ownerSubject(tokens, it)
+        : OWNER_PREPOSITIONS.has(before) || (it && /^(?:times|twice)$/.test(before))
+          ? ownerObject(ctx, tokens, it, span[0], before)
+          : !it &&
+              (before === "not" ||
+                (!!before &&
+                  !EN_FUNCTION_WORDS.has(before) &&
+                  !!enInfo(before)?.verbs.length &&
+                  !YOU_CLAUSE_VERBS.test(before) &&
+                  !SECOND_OBJECT.test(before)))
+            ? ownerVerbObject(tokens)
+            : -1;
+    if (!(k >= 0)) return null;
+    if (tokens.slice(0, k + 1).some((t) => ctx.dictionary.has(t.lower))) return null;
+    return finding(
+      it ? "englishItsContext" : "englishYourYouAre",
+      it ? "review_msg_its_possessive" : "review_msg_your_possessive",
+      span[0],
+      span[1],
+      [caseLike(target, it ? "its" : "your")],
+      { context: enEvidence(ctx, span[0], tokens[k].end) },
+    );
+  },
+  // en.yaml rule en.possessiveContractions frame 4
+  "@en.possessiveContractions/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const after = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (!(after.kind === "end" || after.kind === "comma" || /^(?:and|in|of)$/.test(after.lower)))
+      return null;
+    if (enAfterBreak(ctx, m.index)) return null;
+    const before = enWordBefore(ctx, m.index);
+    if (
+      !before ||
+      /^(?:what|why|how|where|when|who|which|will|would|could|should|might|must|may|can|to|nor|rumour|rumor|that)$/.test(
+        before,
+      )
+    )
+      return null;
+    const read = enInfo(noun);
+    const plural = read
+      ? read.plural && !read.adjective && !read.adverb
+      : enNounOnly(noun) === "plural";
+    if (NOT_OWNED.has(noun) || !plural || ctx.dictionary.has(noun)) return null;
+    return finding(
+      "englishItsContext",
+      "review_msg_its_possessive",
+      group(m, "target")[0],
+      group(m, "target")[1],
+      ["its"],
+      {
+        context: enEvidence(ctx, m.index, m.index + m[0].length),
+      },
+    );
   },
   // en.yaml rule en.typoSlots frame 4
   "@en.typoSlots/4": (m: RegExpExecArray, ctx: DetectContext): FixResult => {

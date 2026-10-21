@@ -9898,25 +9898,25 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<target>its)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["its"],
-    fixer: "en:contractionIts",
+    fixer: "en:@en.possessiveContractions/1",
   }),
   frame({
     pattern: "(?<target>your)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["your"],
-    fixer: "en:contractionYour",
+    fixer: "en:@en.possessiveContractions/2",
     check: "englishYourYouAre",
   }),
   frame({
     pattern: "(?<target>you|it)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: [],
-    fixer: "en:contractionPronounOwner",
+    fixer: "en:@en.possessiveContractions/3",
     anyCheck: true,
   }),
   frame({
     pattern:
       "(?:has|(?<=(?:has|have)[ \\t\\u00a0]{1,8})had)[ \\t\\u00a0]{1,8}(?<target>it)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["has", "had"],
-    fixer: "en:contractionHasIt",
+    fixer: "en:@en.possessiveContractions/4",
   }),
   frame({
     pattern:
