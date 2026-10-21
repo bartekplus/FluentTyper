@@ -10004,13 +10004,18 @@ rules:
     maps:
       INVERSION_CONTRACTED: { re: are, ve: have, m: am, ll: will }
     defs:
+      # The regex of wordEndsBefore for each `words`, built once: the callers pass a few fixed
+      # alternations.
+      WORD_END_REGEXES: new Map<string, RegExp>()
       # A word that ends right before `index` (spaces between) and is one of `words` (a regex
       # alternation).
       wordEndsBefore:
         args: "ctx: DetectContext, index: number, words: string"
-        return: >-
-          new RegExp(`(?:^|[^\\p{L}\\p{N}_'’-])${words}[ \\t\\u00a0]{1,8}$`, "iu").test(
-            ctx.text.slice(Math.max(0, index - 40), index))
+        let:
+          regex: >-
+            WORD_END_REGEXES.get(words) ??
+              WORD_END_REGEXES.set(words, new RegExp(`(?:^|[^\\p{L}\\p{N}_'’-])${words}[ \\t\\u00a0]{1,8}$`, "iu")).get(words)!
+        return: regex.test(ctx.text.slice(Math.max(0, index - 40), index))
       STRUCTURE_PREPOSITIONS: '"{{STRUCTURE_PREPOSITION}}"'
       # Words that name a word: "the my keyword" names a word, not an owner.
       META_NOUN: /^(?:keyword|pronoun|word|determiner|possessive|variable|declaration|operator)$/i
