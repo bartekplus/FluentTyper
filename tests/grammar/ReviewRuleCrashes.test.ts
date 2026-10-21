@@ -12,6 +12,11 @@ test("Spanish: a decade in capitals does not crash the typography check", () => 
   expect(previews("es_ES", "CRECIÓ EN LOS AÑOS 1970S.")).toEqual(["spanishTypography: 1970"]);
 });
 
+test("Spanish: the short month names give their own month number", () => {
+  expect(previews("es_ES", "La reunión fue el 15/nov/2020 y el 30/dic/2020.")).toEqual([]);
+  expect(previews("es_ES", "Nació el 31/nov/2020")).toEqual(["spanishTypography: 30"]);
+});
+
 test("German: a no-break space before the match does not crash the checks", () => {
   expect(previews("de_DE", "Nach dem ewigen hin und her waren alle müde.")).toEqual([
     "germanNounCasing: Hin und Her",

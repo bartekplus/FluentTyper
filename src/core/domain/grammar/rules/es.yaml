@@ -5336,7 +5336,7 @@ rules:
         args: "month: string"
         return: >-
           ({ sept: 9, set: 9 } as Readonly<Record<string, number>>)[month.toLowerCase()] ??
-          "ene|feb|mar|abr|may|jun|jul|ago|sep|sept|set|oct|nov|dic".split("|").indexOf(month.toLowerCase()) + 1
+          "ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic".split("|").indexOf(month.toLowerCase()) + 1
       # A day the month does not have: "31 de abril", "29 de febrero de 2023".
       esDayFinding:
         args: "ctx: DetectContext, start: number, day: string, month: number, year: number | undefined"
