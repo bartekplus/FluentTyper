@@ -287,7 +287,7 @@ rules:
           - '!/^\p{L}*(?:ł|ła|ło|li|ły)$/u.test(next[0] ?? "")'
           - "!plUserOrNamed(ctx, m[0])"
         return: >-
-          plFindingAt(ctx, m.index, m.index + m[0].length, [plCaseLike(m[0], verb + by.toLowerCase())],
+          plFindingAt(ctx, m.index, m.index + m[0].length, [caseLike(m[0], verb + by.toLowerCase())],
           "englishClosedCompounds", "review_msg_closed_compound")
       # "zrobili śmy": the personal ending "-śmy"/"-ście" is never a word of its own.
       - regex: "(?<![\\p{L}\\p{N}_'\\u2019-])(?<word>\\p{L}{2,30})(?<space>[ \\t\\u00A0]{1,8})(?<ending>\\u015Bmy|\\u015Bcie)(?![\\p{L}\\p{N}_'\\u2019-])"
@@ -297,7 +297,7 @@ rules:
           - "/(?:li|ły|by|ło|ła)$/iu.test(word)"
           - "!plUserOrNamed(ctx, m[0])"
         return: >-
-          plFindingAt(ctx, m.index, m.index + m[0].length, [plCaseLike(m[0], word + ending.toLowerCase())],
+          plFindingAt(ctx, m.index, m.index + m[0].length, [caseLike(m[0], word + ending.toLowerCase())],
           "englishClosedCompounds", "review_msg_closed_compound")
       # "nie" is written together with adjectives, adjectival participles, comparatives,
       # adjective-based adverbs and nouns in -ość/-anie (the 2026 rules: "niedobry", "niepalący",
@@ -321,7 +321,7 @@ rules:
           - '!/^[^;:]{0,60}?(?:,[ \t ]*(?:ale|lecz|tylko|a|jednak)|[ \t ]lecz)(?!\p{L})/iu.test(sentenceAfter)'
           - "!plUserOrNamed(ctx, m[0])"
         return: >-
-          plFindingAt(ctx, m.index, after, [plCaseLike(nie, "nie") + word.toLowerCase()],
+          plFindingAt(ctx, m.index, after, [caseLike(nie, "nie") + word.toLowerCase()],
           "englishClosedCompounds", "review_msg_closed_compound")
   - id: pl.confusionsFrames
     checks: [englishPhraseCorrections]
@@ -806,7 +806,7 @@ rules:
           - '!/(?:^|[^\p{L}])(?:wraz|raz|razem|wspólnie|zgodnie|porównaniu|wspólnego)[ \t ]+$/iu.test(before)'
           - "!plUserOrNamed(ctx, ze)"
         return: >-
-          plFindingAt(ctx, m.index, m.index + 2, [plCaseLike(ze, "że")], "englishPhraseCorrections",
+          plFindingAt(ctx, m.index, m.index + 2, [caseLike(ze, "że")], "englishPhraseCorrections",
           "review_msg_contextual_grammar")
   # Numbers in Polish prose: a digit takes no case ending ("5-ty" is "5." or "piąty", "6-ciu" is
   # "6" or "sześciu"), a digit compound takes a hyphen ("5-minutowy", "3-krotny"), and a numeral
@@ -985,7 +985,7 @@ rules:
           - '!/(?:^|[^\p{L}])w[ \t ]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))'
         return: >-
           plFindingAt(ctx, m.index, m.index + m[0].length,
-          [plCaseLike(m[0], `${NUMERAL_COLLECTIVE[num.toLowerCase()]}${sp}${NUMERAL_COLLECTIVE_NOUNS[noun.toLowerCase()]}`)],
+          [caseLike(m[0], `${NUMERAL_COLLECTIVE[num.toLowerCase()]}${sp}${NUMERAL_COLLECTIVE_NOUNS[noun.toLowerCase()]}`)],
           "polishNumerals", "review_msg_pl_numeral_noun")
       # 1 złoty; 2–4 złote (not 12–14); else złotych; a fraction takes "złotego". A noun after
       # "złote" makes it the adjective "golden": "2 złote medale".
@@ -1056,8 +1056,8 @@ rules:
       dateWeekday:
         args: "ctx: DetectContext, month: number, y: number | undefined, d: number, start: number, end: number"
         let:
-          years: "y === undefined ? plYearsFor(month, d, plContextYear(ctx.text, start, ctx.lang)) : [y]"
-          weekdays: "[...new Set(years.map((year) => plWeekdayOf(year, month, d)))]"
+          years: "y === undefined ? yearsFor(month, d, contextYear(ctx.text, start, ctx.lang)) : [y]"
+          weekdays: "[...new Set(years.map((year) => weekdayOf(year, month, d)))]"
           before: DATE_WEEKDAY_BEFORE.exec(ctx.text.slice(Math.max(0, start - 24), start))
           after: DATE_WEEKDAY_AFTER.exec(ctx.text.slice(end, end + 24))
           named: before ?? after
@@ -1075,7 +1075,7 @@ rules:
         return: >-
           !afterPreposition && NOMINATIVE_WEEKDAYS.includes(typed.toLowerCase())
           ? { ...plFindingAt(ctx, wordStart, wordStart + typed.length,
-          weekdays.map((w) => plCaseLike(typed, NOMINATIVE_WEEKDAYS[w])), "polishDates", key),
+          weekdays.map((w) => caseLike(typed, NOMINATIVE_WEEKDAYS[w])), "polishDates", key),
           requiresChoice: true as const }
           : plFindingAt(ctx, Math.max(0, before ? start - before[0].length : end),
           before ? end : end + after![0].length, [], "polishDates", key)
@@ -1096,7 +1096,7 @@ rules:
           - "!(mword && /^[IVX]+$/.test(mword) && !yearText)"
           - "!(mword && /^[ivx]+$/.test(mword))"
         return: >-
-          month < 1 || month > 12 || d < 1 || d > plDaysInMonth(month, y)
+          month < 1 || month > 12 || d < 1 || d > daysInMonth(month, y)
           ? plFindingAt(ctx, m.index, m.index + m[0].length, [], "polishDates", "review_msg_pl_impossible_date")
           : dateWeekday(ctx, month, y, d, m.index, m.index + m[0].length)
   - id: pl.isoDates
@@ -1113,7 +1113,7 @@ rules:
         flags: gdu
         owner: none
         let:
-          range: plInvalidIsoDate(m, ctx)
+          range: invalidIsoDate(m, ctx)
         return: 'range && plFindingAt(ctx, range.start, range.end, [], "polishDates", "review_msg_pl_impossible_date")'
   - id: pl.datesFrames
     checks: [polishDates]
@@ -1167,7 +1167,7 @@ rules:
         return: >-
           dot ? plFindingAt(ctx, m.index, m.index + m[0].length, [day + sp + genitive], "polishDates",
           "review_msg_pl_month_form")
-          : plFindingAt(ctx, start, start + month.length, [plCaseLike(month, genitive)], "polishDates",
+          : plFindingAt(ctx, start, start + month.length, [caseLike(month, genitive)], "polishDates",
           "review_msg_pl_month_form")
       # "21 Sty 2012": an English-style month abbreviation between day and year.
       - regex: "(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2})(?<sp1>[ \\t\\u00a0]+)(?<month>sty|lut|mar|kwi|maj|cze|lip|sie|wrz|paź|lis|gru)\\.?(?<sp2>[ \\t\\u00a0]+)(?<year>\\d{4})(?![\\p{L}\\p{N}])"
@@ -1609,7 +1609,7 @@ rules:
           - wanted !== null && wanted !== prep.toLowerCase()
           - "!plUserOrNamed(ctx, prep)"
         return: >-
-          plFindingAt(ctx, m.index, m.index + prep.length, [plCaseLike(prep, wanted)],
+          plFindingAt(ctx, m.index, m.index + prep.length, [caseLike(prep, wanted)],
           "polishPrepositionForms", "review_msg_pl_preposition_form")
   - id: pl.wordFormsFrames
     checks: [englishPhraseCorrections]
@@ -2049,7 +2049,7 @@ rules:
         let:
           tags: plNounTags(noun)
           forms: "plInflect(noun, tagsAnd(wanted, tagsAnd(tags, PL_SINGULAR) ? PL_SINGULAR : PL_PLURAL))"
-        return: "forms.length <= 2 ? forms.map((form) => plCaseLike(noun, form)) : []"
+        return: "forms.length <= 2 ? forms.map((form) => caseLike(noun, form)) : []"
       # A demonstrative's forms by what they agree with: gender (or plural), cases.
       AGREEMENT_DEMONSTRATIVES: >-
         wordTable<readonly (readonly [number, number])[]>({ ten: [[PL_MASCULINE, plCases("Ns As")]], ta: [[PL_FEMININE, plCases("Ns")]], tę: [[PL_FEMININE, plCases("As")]],
@@ -2224,7 +2224,7 @@ rules:
           start: m.indices!.groups!.adj[0]
         return: >-
           ({ ...plFindingAt(ctx, start, end, endings.length === 1
-          ? [plCaseLike(modifier, plAdjectiveForm(reading.lemma, endings[0])) + " " + fixes[0]] : [],
+          ? [caseLike(modifier, plAdjectiveForm(reading.lemma, endings[0])) + " " + fixes[0]] : [],
           "polishCaseAgreement", "review_msg_pl_negated_genitive"), context: { start: m.index, end } })
       # Masculine singular determiners and what they become in the neuter, the plural and the
       # feminine.
@@ -2249,9 +2249,9 @@ rules:
           det: AGREEMENT_MASCULINE_DETERMINERS[lower]?.[index]
           adj: plAdjectiveOf(lower)
         return: >-
-          det ? plCaseLike(word, det)
+          det ? caseLike(word, det)
           : !adj || adj.ending !== "y" || plAmbiguousAdjective(lower) || tagsAnd(plNounTags(lower), PL_ALL_CASES) ? null
-          : plCaseLike(word, plAdjectiveForm(adj.lemma, AGREEMENT_ADJECTIVE_ENDINGS[index]))
+          : caseLike(word, plAdjectiveForm(adj.lemma, AGREEMENT_ADJECTIVE_ENDINGS[index]))
       # Passive participles by their masculine form ("ogarnięty", "pokryty", "zmęczony", "pisany").
       AGREEMENT_PARTICIPLE: /(?:[aeo]n|[ęyiu]t|art)y$/u
       agreementBitCount:
@@ -2371,7 +2371,7 @@ rules:
         return: '[adjective + " " + twin, plAdjectiveForm(adj.lemma, "ą") + " " + noun]'
       agreementReport:
         args: "ctx: DetectContext, start: number, end: number, typed: string, fixes: string[]"
-        return: plFindingAt(ctx, start, end, fixes.map((fix) => plCaseLike(typed, fix)), "polishCaseAgreement", "review_msg_pl_agreement")
+        return: plFindingAt(ctx, start, end, fixes.map((fix) => caseLike(typed, fix)), "polishCaseAgreement", "review_msg_pl_agreement")
       # "jest męska grą": after a copula, a feminine adjective in the nominative before an
       # instrumental noun; one of the two lost or gained its "ą". Participles govern the
       # instrumental themselves ("była zajęta pracą", "zmęczona drogą") and are left alone.
@@ -2401,7 +2401,7 @@ rules:
       agreementSmallFrame:
         args: "ctx: DetectContext, m: RegExpExecArray, fixed: string | null"
         when: fixed !== null && fixed !== "" && !plUserOrNamed(ctx, m[0])
-        return: plFindingAt(ctx, m.index, m.index + m[0].length, [plCaseLike(m[0], fixed)], "polishCaseAgreement", "review_msg_pl_preposition_case")
+        return: plFindingAt(ctx, m.index, m.index + m[0].length, [caseLike(m[0], fixed)], "polishCaseAgreement", "review_msg_pl_preposition_case")
       # Plural instrumental pronouns and their singular forms: masculine or neuter, feminine.
       AGREEMENT_PLURAL_PRONOUNS: >-
         wordTable<readonly [string, string]>({ tymi: ["tym", "tą"], tamtymi: ["tamtym", "tamtą"], takimi: ["takim", "taką"], jakimi: ["jakim", "jaką"],
@@ -2504,7 +2504,7 @@ rules:
           - '/^\p{Ll}+$/u.test(word) && !plUserOrNamed(ctx, word)'
           - fixes.length > 0
         return: >-
-          ({ ...plFindingAt(ctx, m.index, m.index + det.length, fixes.map((fix) => plCaseLike(det, fix)),
+          ({ ...plFindingAt(ctx, m.index, m.index + det.length, fixes.map((fix) => caseLike(det, fix)),
           "polishCaseAgreement", "review_msg_pl_agreement"), context: { start: m.index, end: m.index + m[0].length } })
       # "pięć pliki", "trzy godzin": a numeral asks its noun for a case.
       - regex: "(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|sześćset|siedemset|osiemset|dziewięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset|parę|dwa|dwie|trzy|cztery|oba|obie|dziesiątki|setki|tysiące|miliony|miliardy|dziesiątek|setek|tysięcy|milionów|miliardów|\\d+)[ \\t\\u00a0]+(?<noun>\\p{L}+){{WORD}}"
@@ -2529,7 +2529,7 @@ rules:
           - agreementNumeralClash(lower, tags)
           - '!(loose && (needs === "Np" || tagsAnd(tags, plCases("Gs"))) && !agreementFreeCount(ctx.text, m.index))'
         return: >-
-          ({ ...plFindingAt(ctx, start, start + noun.length, forms.length === 1 ? forms.map((form) => plCaseLike(noun, form)) : [],
+          ({ ...plFindingAt(ctx, start, start + noun.length, forms.length === 1 ? forms.map((form) => caseLike(noun, form)) : [],
           "polishCaseAgreement", "review_msg_pl_agreement"), context: { start: m.index, end: start + noun.length } })
       # "5 złoty", "2 mln złoty": after a count from five up, or a large unit, it is "złotych".
       - regex: "(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|sześćset|siedemset|osiemset|dziewięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset|parę|\\d+)(?:[ \\t\\u00a0]+(?<unit>tys\\.|mln|mld|tysięcy|milionów|miliardów))?[ \\t\\u00a0]+(?<noun>złoty){{WORD}}"
@@ -2542,7 +2542,7 @@ rules:
           - '!(/[\d,.:/§–—-][ \t ]*$/u.test(before) || plUserOrNamed(ctx, noun))'
           - '!(!unit && agreementNumeralNeeds(num.toLowerCase()) !== "Gp")'
         return: >-
-          ({ ...plFindingAt(ctx, start, start + noun.length, [plCaseLike(noun, "złotych")], "polishCaseAgreement",
+          ({ ...plFindingAt(ctx, start, start + noun.length, [caseLike(noun, "złotych")], "polishCaseAgreement",
           "review_msg_pl_agreement"), context: { start: m.index, end: start + noun.length } })
       # "około dwieście psów" -> "około dwustu psów": a count after a genitive-taking word.
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<num>dwa|dwie|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|piętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset)(?={{S}}\\p{L})"
@@ -2558,7 +2558,7 @@ rules:
           - '!/^[ \t ]+(?:do|razy|na|i|lub|albo)(?![\p{L}])/iu.test(after)'
         return: >-
           ({ ...plFindingAt(ctx, m.index, m.index + num.length,
-          AGREEMENT_GENITIVE_NUMERALS[num.toLowerCase()].map((form) => plCaseLike(num, form)), "polishCaseAgreement",
+          AGREEMENT_GENITIVE_NUMERALS[num.toLowerCase()].map((form) => caseLike(num, form)), "polishCaseAgreement",
           "review_msg_pl_preposition_case"), context: { start: Math.max(0, m.index - 12), end: m.index + num.length } })
       # "Używają je", "szukam ją": the object pronoun of a genitive-taking verb.
       - regex: "(?<![\\p{L}])(?<verb>używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować|wymag(?:am|a|ają|ał\\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować){{S}}(?<pronoun>je|ją)(?![\\p{L}])"
@@ -2568,7 +2568,7 @@ rules:
           start: m.index + m[0].length - pronoun.length
         return: >-
           ({ ...plFindingAt(ctx, start, start + pronoun.length,
-          (pronoun.toLowerCase() === "ją" ? ["jej"] : ["ich", "go"]).map((fix) => plCaseLike(pronoun, fix)),
+          (pronoun.toLowerCase() === "ją" ? ["jej"] : ["ich", "go"]).map((fix) => caseLike(pronoun, fix)),
           "polishCaseAgreement", "review_msg_pl_preposition_case"), context: { start: m.index, end: start + pronoun.length } })
       # "Używam młotek", "przestrzega przepisy": an accusative object where the verb wants the genitive.
       - regex: "(?<![\\p{L}])(?<verb>używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować|wymag(?:am|a|ają|ał\\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować){{S}}(?:(?<adj>\\p{L}{3,}){{S}})?(?<noun>\\p{L}{3,}){{WORD}}"
@@ -2597,7 +2597,7 @@ rules:
         # "stare żelazko" -> "starego żelazka": the adjective follows the noun into the genitive.
         return: >-
           ({ ...plFindingAt(ctx, start, end, forms.length === 1 && modifier
-          ? [plCaseLike(ctx.source.slice(start, end), plAdjectiveForm(adjective!.lemma, tagsAnd(tags, PL_SINGULAR) ? (tagsAnd(tags, PL_FEMININE) ? "ej" : "ego") : "ych") + " " + forms[0])]
+          ? [caseLike(ctx.source.slice(start, end), plAdjectiveForm(adjective!.lemma, tagsAnd(tags, PL_SINGULAR) ? (tagsAnd(tags, PL_FEMININE) ? "ej" : "ego") : "ych") + " " + forms[0])]
           : forms.length === 1 ? forms : [], "polishCaseAgreement", "review_msg_pl_preposition_case"),
           context: { start: m.index, end } })
       # "nie mam czas", "nie lubię ją": an accusative object after a negated verb. The fixer resumes
@@ -2616,7 +2616,7 @@ rules:
           pronoun: "modifier ? undefined : AGREEMENT_OBJECT_PRONOUNS[object.toLowerCase()]"
         when: personal !== undefined
         return: >-
-          pronoun ? ({ ...plFindingAt(ctx, end - object.length, end, [plCaseLike(object, pronoun)], "polishCaseAgreement",
+          pronoun ? ({ ...plFindingAt(ctx, end - object.length, end, [caseLike(object, pronoun)], "polishCaseAgreement",
           "review_msg_pl_negated_genitive"), context: { start: m.index, end } })
           : agreementNegatedObject(ctx, m, object, modifier, end, personal)
       # "Widzę czyste talerzy", "szukam czyste talerzy": an adjective that does not agree with a
@@ -2669,7 +2669,7 @@ rules:
           end: groups.noun[1]
           fixed: >-
             (fixedFirst ? fixedFirst + ctx.source.slice(groups.first[1], groups.mod[0]) : "") + fixedMod +
-            ctx.source.slice(groups.mod[1], groups.noun[0]) + plCaseLike(noun, gendered[1])
+            ctx.source.slice(groups.mod[1], groups.noun[0]) + caseLike(noun, gendered[1])
         when:
           - fixedMod !== null && !plUserOrNamed(ctx, mod + " " + noun)
           - fixed !== ctx.source.slice(start, end)
@@ -2732,7 +2732,7 @@ rules:
         scan: polish
         flags: giu
         return: >-
-          plFindingAt(ctx, m.index, m.index + m[0].length, [plCaseLike(m[0], "za")], "polishCaseAgreement",
+          plFindingAt(ctx, m.index, m.index + m[0].length, [caseLike(m[0], "za")], "polishCaseAgreement",
           "review_msg_pl_preposition_case")
       # "człowiek, która dba": "który" agrees in gender and number with its noun.
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<noun>\\p{Ll}{3,}),{{S}}(?:(?:bez|beze|dla|do|od|ode|u|z|ze|spod|znad|zza|sprzed|spomiędzy|spośród|wśród|obok|podczas|według|zamiast|oprócz|prócz|wobec|wokół|dookoła|wzdłuż|dzięki|ku|przeciw|przeciwko|wbrew|w|we|na|o|po|przy|przez|przeze|poprzez|przed|przede|za|nad|nade|pod|pode|między|pomiędzy|poza){{S}})?(?<rel>który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy)(?![\\p{L}\\p{N}_'’-])"
@@ -2757,7 +2757,7 @@ rules:
           # Back from the noun to the clause's verb or start: a noun before the verb is its subject.
           - "!agreementRelativeQuiet(words, words.length - 1, Math.max(0, words.length - 8), readings)"
         return: >-
-          ({ ...plFindingAt(ctx, start, start + rel.length, fix ? [plCaseLike(rel, fix)] : [], "polishCaseAgreement",
+          ({ ...plFindingAt(ctx, start, start + rel.length, fix ? [caseLike(rel, fix)] : [], "polishCaseAgreement",
           "review_msg_pl_agreement"), context: { start: m.index, end: start + rel.length } })
       # "prozę Bruno Schulza" -> "Brunona": a Polish surname in an oblique case takes the
       # first name along.
@@ -2810,7 +2810,7 @@ rules:
           - '!(!plOnlyNoun(tags) || !tagsAnd(tags, plCases("Gs")) || plUserOrNamed(ctx, noun))'
           - "!(!wanted || wanted === num.toLowerCase())"
         return: >-
-          ({ ...plFindingAt(ctx, m.index, m.index + num.length, [plCaseLike(num, wanted)], "polishCaseAgreement",
+          ({ ...plFindingAt(ctx, m.index, m.index + num.length, [caseLike(num, wanted)], "polishCaseAgreement",
           "review_msg_pl_numeral_noun"), context: { start: m.index, end: m.index + m[0].length } })
       # "dwadzieścia trzej mężczyźni": men's "dwaj", "trzej", "czterej" stand alone, not after tens.
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?:dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt){{S}}(?:dwaj|trzej|czterej){{S}}(?<noun>\\p{L}{3,}){{WORD}}"
@@ -2823,7 +2823,7 @@ rules:
         when: "!(!plOnlyNoun(tags) || !tagsAnd(tags, PL_VIRILE) || plUserOrNamed(ctx, noun))"
         return: >-
           plFindingAt(ctx, m.index, m.index + m[0].length, forms.length === 1
-          ? [plCaseLike(m[0], AGREEMENT_TENS[words[0]] + " " + AGREEMENT_MEN_UNITS[words[1]] + " " + forms[0])] : [],
+          ? [caseLike(m[0], AGREEMENT_TENS[words[0]] + " " + AGREEMENT_MEN_UNITS[words[1]] + " " + forms[0])] : [],
           "polishCaseAgreement", "review_msg_pl_numeral_noun")
       # "Uczestnikami są wyłącznie uczniów": a genitive plural where the subject goes after "są".
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<verb>są|będą){{S}}(?:(?:wyłącznie|głównie|tylko|także|również|zwykle|najczęściej|zawsze|często){{S}})?(?<noun>\\p{Ll}{3,}){{WORD}}"
@@ -2845,7 +2845,7 @@ rules:
           - "clause.slice(-3).some((word) => [plNounTags(word.toLowerCase())].some((own) => plOnlyNoun(own) && !tagsAnd(own, tagsWithout(PL_ALL_CASES, AGREEMENT_INSTRUMENTALS))))"
           - forms.length > 0 && forms.length <= 2
         return: >-
-          plFindingAt(ctx, m.indices!.groups!.noun[0], m.indices!.groups!.noun[1], forms.map((form) => plCaseLike(noun, form)),
+          plFindingAt(ctx, m.indices!.groups!.noun[0], m.indices!.groups!.noun[1], forms.map((form) => caseLike(noun, form)),
           "polishCaseAgreement", "review_msg_pl_agreement")
       # "tymi człowiekiem", "moimi siostrą". "między innymi handlem": "innymi" is left out,
       # it is part of "między innymi".
@@ -2861,7 +2861,7 @@ rules:
           - feminine !== (tagsAnd(tags, tagsOr(PL_MASCULINE, PL_NEUTER)) !== 0)
         return: >-
           ({ ...plFindingAt(ctx, m.index, m.index + pronoun.length,
-          [plCaseLike(pronoun, AGREEMENT_PLURAL_PRONOUNS[pronoun.toLowerCase()][feminine ? 1 : 0])], "polishCaseAgreement",
+          [caseLike(pronoun, AGREEMENT_PLURAL_PRONOUNS[pronoun.toLowerCase()][feminine ? 1 : 0])], "polishCaseAgreement",
           "review_msg_pl_agreement"), context: { start: m.index, end: m.index + m[0].length } })
   # Polish typesetting: „…” quotes (opt-in), one dash style per inserted phrase, spaces around
   # "=" and "×", no space before "%", the decimal comma before a unit, symbols typed as letters
@@ -3041,49 +3041,49 @@ rules:
       - regex: "(?<![\\p{L}])m\\.{{SP}}+in\\."
         scan: polish
         flags: gu
-        return: 'typographySwap(m, ctx, plCaseLike(m[0], "m.in."))'
+        return: 'typographySwap(m, ctx, caseLike(m[0], "m.in."))'
       - regex: "(?<![\\p{L}])z{{SP}}+o\\.{{SP}}+o\\."
         scan: polish
         flags: gu
-        return: 'typographySwap(m, ctx, plCaseLike(m[0], "z o.o."))'
+        return: 'typographySwap(m, ctx, caseLike(m[0], "z o.o."))'
       - regex: "(?<![\\p{L}])p\\.{{SP}}*n\\.{{SP}}+e\\.?(?![\\p{L}])"
         scan: polish
         flags: gu
-        return: 'typographySwap(m, ctx, plCaseLike(m[0], "p.n.e."))'
+        return: 'typographySwap(m, ctx, caseLike(m[0], "p.n.e."))'
       - regex: "(?<![\\p{L}])p\\.{{SP}}+n\\.{{SP}}*e\\.?(?![\\p{L}])"
         scan: polish
         flags: gu
-        return: 'typographySwap(m, ctx, plCaseLike(m[0], "p.n.e."))'
+        return: 'typographySwap(m, ctx, caseLike(m[0], "p.n.e."))'
       - regex: "(?<![\\p{L}.]{{SP}}?)n\\.{{SP}}+e\\.?(?![\\p{L}])"
         scan: polish
         flags: gu
-        return: 'typographySwap(m, ctx, plCaseLike(m[0], "n.e."))'
+        return: 'typographySwap(m, ctx, caseLike(m[0], "n.e."))'
       - regex: "(?<![\\p{L}])dz\\.cyt\\."
         scan: polish
         flags: gu
-        return: 'typographySwap(m, ctx, plCaseLike(m[0], "dz. cyt."))'
+        return: 'typographySwap(m, ctx, caseLike(m[0], "dz. cyt."))'
       - regex: "(?<![\\p{L}])op\\.cit\\."
         scan: polish
         flags: gu
-        return: 'typographySwap(m, ctx, plCaseLike(m[0], "op. cit."))'
+        return: 'typographySwap(m, ctx, caseLike(m[0], "op. cit."))'
       # A wrong letter or a lost dot: "m.im." and "M.in" are "m.in.", "d.s" is "ds.", "44 p.n.e?"
       # needs its dot before the question mark.
       - regex: "(?<![\\p{L}])m\\.im\\.?(?![\\p{L}])"
         scan: polish
         flags: giu
-        return: 'typographySwap(m, ctx, plCaseLike(m[0], "m.in."))'
+        return: 'typographySwap(m, ctx, caseLike(m[0], "m.in."))'
       - regex: "(?<![\\p{L}])m\\.in(?![\\p{L}.])"
         scan: polish
         flags: giu
-        return: 'typographySwap(m, ctx, plCaseLike(m[0], "m.in."))'
+        return: 'typographySwap(m, ctx, caseLike(m[0], "m.in."))'
       - regex: "(?<![\\p{L}.])d\\.s\\.?(?![\\p{L}.])"
         scan: polish
         flags: gu
-        return: 'typographySwap(m, ctx, plCaseLike(m[0], "ds."))'
+        return: 'typographySwap(m, ctx, caseLike(m[0], "ds."))'
       - regex: "(?<![\\p{L}])p\\.n\\.e(?![\\p{L}.])"
         scan: polish
         flags: gu
-        return: 'typographySwap(m, ctx, plCaseLike(m[0], "p.n.e."))'
+        return: 'typographySwap(m, ctx, caseLike(m[0], "p.n.e."))'
   - id: pl.rangeDashes
     checks: [emdashShortcut]
     style: match
@@ -3142,7 +3142,7 @@ rules:
           - "!(DEGREE_CLAUSE_AFTER.test(after) || plFiniteVerb(after))"
         return: >-
           ({ ...plFindingAt(ctx, m.indices!.groups!.target[0], m.indices!.groups!.target[1],
-          [plCaseLike(target, "niż")], "englishPhraseCorrections", "review_msg_contextual_grammar"),
+          [caseLike(target, "niż")], "englishPhraseCorrections", "review_msg_contextual_grammar"),
           context: { start: m.index, end: m.index + m[0].length } })
   - id: pl.degrees
     checks: [englishDoubledDegree, stylePhrasing]
@@ -3207,7 +3207,7 @@ rules:
         when:
           - '!/(?:^|[^\p{L}])(?:coraz|(?:naj)?mniej[ \t ]+(?:i|lub|albo|czy))[ \t ]+$/iu.test(longer)'
           - fixed !== null
-        return: plFindingAt(ctx, m.index, end, [plCaseLike(marker, fixed)], "stylePhrasing", "review_msg_style_phrasing")
+        return: plFindingAt(ctx, m.index, end, [caseLike(marker, fixed)], "stylePhrasing", "review_msg_style_phrasing")
       plDegreeFix:
         args: "word: string, naj: string"
         let:
@@ -3252,7 +3252,7 @@ rules:
           "englishDoubledDegree", "review_msg_doubled_degree")
           : ctx.rules?.has("englishDoubledDegree") !== false && (alreadyGraded(word) || DEGREE_UNGRADED.test(word))
           ? (/^(?:lepsz|gorsz|lepiej|gorzej|lepsi|gorsi)/u.test(word) && lower === "bardziej" ? null
-          : plFindingAt(ctx, start, end, [plCaseLike(marker, word)], "englishDoubledDegree",
+          : plFindingAt(ctx, start, end, [caseLike(marker, word)], "englishDoubledDegree",
           "review_msg_doubled_degree"))
           : ctx.rules && !ctx.rules.has("stylePhrasing") ? null
           : degreeStyle(ctx, m, marker, word, lower, end)
@@ -3597,7 +3597,7 @@ rules:
           - "!person || person === ending[2]"
         return: >-
           plFindingAt(ctx, m.index, m.index + m[0].length,
-          [`${plCaseLike(conj, conj + (person || ending[2]))}${between} ${verb.replace(ending[0], ending[1])}`],
+          [`${caseLike(conj, conj + (person || ending[2]))}${between} ${verb.replace(ending[0], ending[1])}`],
           "polishCaseAgreement", "review_msg_pl_conjunction_ending")
       # "żebyś przeczyta", "by będzie": a present or future form where the past one goes.
       - regex: "(?<![\\p{L}])(?:żeby|ażeby|aby|by)(?:m|ś|śmy|ście)?{{S}}(?:(?:nie|się){{S}})?(?<verb>\\p{L}{2,})(?![\\p{L}])"
@@ -4151,7 +4151,7 @@ rules:
         let:
           typed: ctx.source.slice(start, end)
         when: "!plUserOrNamed(ctx, typed)"
-        return: plFindingAt(ctx, start, end, fixes.map((fix) => plCaseLike(typed, fix)), "stylePhrasing", "review_msg_style_phrasing")
+        return: plFindingAt(ctx, start, end, fixes.map((fix) => caseLike(typed, fix)), "stylePhrasing", "review_msg_style_phrasing")
     frames:
       # "dwie lub więcej godzin" mixes two governments: "co najmniej dwie godziny". The noun (and its
       # adjectives) follow the numeral's case; when they cannot be read, only the numeral is fixed.
@@ -4178,7 +4178,7 @@ rules:
           typed: ctx.source.slice(m.index, end)
         when: "!plUserOrNamed(ctx, typed)"
         return: >-
-          plFindingAt(ctx, m.index, end, [plCaseLike(typed, fix ? fix.fixed : head)], "stylePhrasing",
+          plFindingAt(ctx, m.index, end, [caseLike(typed, fix ? fix.fixed : head)], "stylePhrasing",
           "review_msg_style_phrasing")
       # Opt-in: "pełni istotną rolę" -> "pełni istotną funkcję" or "odgrywa istotną rolę".
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?:(?<verb>pełni|pełnią|pełnił|pełniła|pełniło|pełnili|pełniły|pełnić|pełniący|pełniąca|pełniące|pełniąc|spełnia|spełniają|spełniał|spełniała|spełniać|spełniając)(?<mid>{{FILLER}}){{S}}(?<noun>rolę|roli)|(?<before>rolę|roli){{S}}(?<after>pełni|pełnią|pełnił|pełniła|pełniło|pełnili|pełniły|pełnić|pełniący|pełniąca|pełniące|pełniąc|spełnia|spełniają|spełniał|spełniała|spełniać|spełniając))(?![\\p{L}\\p{N}_'’-])"
@@ -4423,7 +4423,7 @@ rules:
         when: "!(feminine === !!fem || !subjectPastForm(verb.toLowerCase()) || plUserOrNamed(ctx, verb))"
         return: >-
           ({ ...plFindingAt(ctx, m.indices!.groups!.pronoun[0], m.indices!.groups!.pronoun[1],
-          [plCaseLike(pronoun, feminine ? "on" : "ona")], "polishCaseAgreement", "review_msg_pl_subject_verb"),
+          [caseLike(pronoun, feminine ? "on" : "ona")], "polishCaseAgreement", "review_msg_pl_subject_verb"),
           context: { start: m.index, end: m.index + m[0].length } })
       # "Przywróciła on pokój": the verb opens the clause, the pronoun follows it.
       - regex: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<verb>\\p{L}{3,}ł(?<fem>a)?){{S}}(?<pronoun>on|ona)(?![\\p{L}\\p{N}_'’@/-])"
@@ -4434,7 +4434,7 @@ rules:
         when: "!(feminine === !!fem || !subjectPastForm(verb.toLowerCase()) || plUserOrNamed(ctx, verb))"
         return: >-
           ({ ...plFindingAt(ctx, m.indices!.groups!.pronoun[0], m.indices!.groups!.pronoun[1],
-          [plCaseLike(pronoun, feminine ? "on" : "ona")], "polishCaseAgreement", "review_msg_pl_subject_verb"),
+          [caseLike(pronoun, feminine ? "on" : "ona")], "polishCaseAgreement", "review_msg_pl_subject_verb"),
           context: { start: m.index, end: m.index + m[0].length } })
       # "zostało zrobiony" -> "zrobione": the nominative after "zostać" takes the verb's gender.
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<aux>{{ZOSTAC}}){{S}}(?<word>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])"
@@ -4451,7 +4451,7 @@ rules:
           - forms[wanted] !== lower
         return: >-
           ({ ...plFindingAt(ctx, m.indices!.groups!.word[0], m.indices!.groups!.word[1],
-          [plCaseLike(word, forms[wanted])], "polishCaseAgreement", "review_msg_pl_subject_verb"),
+          [caseLike(word, forms[wanted])], "polishCaseAgreement", "review_msg_pl_subject_verb"),
           context: { start: m.index, end: m.index + m[0].length } })
       # "Zrobiony zostało": the participle opens the clause.
       - regex: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<word>\\p{L}{3,}){{S}}(?<aux>{{ZOSTAC}})(?![\\p{L}\\p{N}_'’@/-])"
@@ -4468,7 +4468,7 @@ rules:
           - forms[wanted] !== lower
         return: >-
           ({ ...plFindingAt(ctx, m.indices!.groups!.word[0], m.indices!.groups!.word[1],
-          [plCaseLike(word, forms[wanted])], "polishCaseAgreement", "review_msg_pl_subject_verb"),
+          [caseLike(word, forms[wanted])], "polishCaseAgreement", "review_msg_pl_subject_verb"),
           context: { start: m.index, end: m.index + m[0].length } })
       # A plural subject and its past form: men take "-li" ("studenci przyszli"), everyone and
       # everything else "-ły" ("dzieci przyszły"): "Dzieci byli tutaj" -> "były". The fixer resumes the
@@ -4526,7 +4526,7 @@ rules:
           - "!(next && /o$/u.test(next) && !plOnlyNoun(plNounTags(next.toLowerCase())))"
         return: >-
           ({ ...plFindingAt(ctx, m.indices!.groups!.verb[0], m.indices!.groups!.verb[1],
-          [plCaseLike(verb, verb.slice(0, -1) + "a")], "polishCaseAgreement", "review_msg_pl_subject_verb"),
+          [caseLike(verb, verb.slice(0, -1) + "a")], "polishCaseAgreement", "review_msg_pl_subject_verb"),
           context: { start: m.index, end: m.indices!.groups!.verb[1] } })
       # "będzie zrobić", "będzie zrobił", "zaczął napisać": the compound future's "być" and the phase
       # verbs take an imperfective infinitive.
@@ -4597,7 +4597,7 @@ rules:
           - "!plUserOrNamed(ctx, next)"
         return: >-
           ({ ...plFindingAt(ctx, m.indices!.groups!.target[0], m.indices!.groups!.target[1],
-          [plCaseLike(target, "jakichś")], "polishCaseAgreement", "review_msg_pl_agreement"),
+          [caseLike(target, "jakichś")], "polishCaseAgreement", "review_msg_pl_agreement"),
           context: { start: m.index, end: m.index + m[0].length } })
   - id: pl.typosFrames
     checks: [englishPhraseCorrections]
@@ -4905,7 +4905,7 @@ rules:
         let:
           typed: ctx.source.slice(start, end)
         when: "!plUserOrNamed(ctx, typed)"
-        return: plFindingAt(ctx, start, end, [plCaseLike(typed, fix)], "englishPhraseCorrections", "review_msg_contextual_grammar")
+        return: plFindingAt(ctx, start, end, [caseLike(typed, fix)], "englishPhraseCorrections", "review_msg_contextual_grammar")
     frames:
       # A preposition straight before an infinitive or an adverbial participle.
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<prep>na|do|od|dla|bez|przez|przy|u|z|ze|w|we|o){{S}}(?<verb>\\p{Ll}{3,}(?:ać|eć|ić|yć|ąć|uć|ąc)){{NO_LETTER_AFTER}}"
@@ -4965,7 +4965,7 @@ rules:
           - (plOnlyNoun(plNounTags(noun)) || plPlaceForm(noun)) && !plAdjectiveOf(after.toLowerCase())
           - "!plUserOrNamed(ctx, typed)"
         return: >-
-          plFindingAt(ctx, m.index, m.index + typed.length, [first, plCaseLike(first, second)],
+          plFindingAt(ctx, m.index, m.index + typed.length, [first, caseLike(first, second)],
           "englishPhraseCorrections", "review_msg_contextual_grammar")
       # "bynajmniej" strengthens a denial; with none in its sentence "przynajmniej" was meant.
       - regex: "(?<![\\p{L}])bynajmniej(?={{S}}\\p{L})"

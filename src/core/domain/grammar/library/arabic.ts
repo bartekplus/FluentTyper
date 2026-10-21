@@ -43,19 +43,6 @@ export function arabicTokens(ctx: DetectContext): readonly ArabicToken[] {
   return list;
 }
 
-/** The index of the token that starts at `start` (a binary search), or -1. */
-export function arabicTokenAt(list: readonly { start: number }[], start: number): number {
-  let low = 0;
-  let high = list.length - 1;
-  while (low <= high) {
-    const mid = (low + high) >> 1;
-    if (list[mid].start === start) return mid;
-    if (list[mid].start < start) low = mid + 1;
-    else high = mid - 1;
-  }
-  return -1;
-}
-
 let classes: WordGraph | undefined;
 /** The lexicon tags of a bare word ("قميص" -> "m"; see scripts/generate-arabic-lexicon.ts). */
 export const arabicTags = (word: string) =>

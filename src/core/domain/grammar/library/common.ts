@@ -8,6 +8,7 @@ export {
   caseLike,
   COMPLETE,
   found,
+  gluedAfter,
   group,
   hasUserOrCasedWord,
   isLang,
@@ -54,6 +55,7 @@ export {
   skipForwardWhile,
   tokenEndAfter,
   tokenEndBefore,
+  tokenAt,
   tokenStartBefore,
 } from "./common/tokens";
 export {

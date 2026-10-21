@@ -38,4 +38,3 @@ export { PT_CLAUSE, ptClauseVerb } from "./portuguese/clauses";
 export { userWord } from "./portuguese/text";
 
 // Generic helpers that the Portuguese rules read.
-export { gluedAfter } from "../review/phraseTemplates";

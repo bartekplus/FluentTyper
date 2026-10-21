@@ -200,3 +200,16 @@ export function groupRange(match: RegExpExecArray, group: number): TextRange {
   const [start, end] = match.indices![group]!;
   return { start, end };
 }
+
+/** The index of the token of the sorted `list` that starts at `start` (a binary search), or -1. */
+export function tokenAt(list: readonly { start: number }[], start: number): number {
+  let low = 0;
+  let high = list.length - 1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (list[mid].start === start) return mid;
+    if (list[mid].start < start) low = mid + 1;
+    else high = mid - 1;
+  }
+  return -1;
+}

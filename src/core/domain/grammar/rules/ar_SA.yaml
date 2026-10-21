@@ -86,7 +86,7 @@ defs:
     args: "m: RegExpExecArray, ctx: DetectContext, frame: FrameRef, step: ArabicStep"
     let:
       list: arabicTokens(ctx)
-      i: arabicTokenAt(list, m.index)
+      i: tokenAt(list, m.index)
     when: i >= 0
     return: "[step(ctx, list, i) ?? []].flat().map((f) => ({ ruleId: frame.ruleId, ...f }))"
   # The chunk owns the word at `at`, and no named example comes before it.
@@ -849,7 +849,7 @@ rules:
         flags: gu
         let:
           list: arabicTokens(ctx)
-          token: list[arabicTokenAt(list, m.index + m[0].length)]
+          token: list[tokenAt(list, m.index + m[0].length)]
           lamma: LAMMA.exec(ctx.text.slice(Math.max(0, token.start - 12), token.start))
           fixed: "lamma && ownsAt(ctx, token.start) ? moodFix(token.word, true) : undefined"
         when:

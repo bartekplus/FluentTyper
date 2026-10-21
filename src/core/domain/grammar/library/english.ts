@@ -62,23 +62,12 @@ export { readWord as enReadWord } from "./english/readings";
 // words): the text before an index and the word after it (review/phraseTemplates).
 export { before as enBefore, nextWord as enNextWord } from "../review/phraseTemplates";
 // A long word the lexicon lists as a plain noun only ("information").
-export { englishListedNoun as enListedNoun } from "../implementations/helpers/EnglishLexicon";
+
 // Group 6 (collocation, noun, clause, tense and date slots): lexicon data and inflection.
 export { ENGLISH_VERB_FORMS as EN_VERB_FORMS } from "../implementations/helpers/EnglishVerbForms";
-export {
-  englishCountNoun as enCountNoun,
-  englishLexiconInflect as enLexiconInflect,
-  englishNounPair as enNounPair,
-} from "../implementations/helpers/EnglishLexicon";
+
 // Group 6: the calendar of the date checks, and the named phrase tables of en.yaml.
-export {
-  contextYear as enContextYear,
-  daysInMonth as enDaysInMonth,
-  nearestDayOn as enNearestDayOn,
-  weekdayOf as enWeekdayOf,
-  weekdaysFor as enWeekdaysFor,
-  yearsFor as enYearsFor,
-} from "../review/reviewClock";
+export { weekdaysFor as enWeekdaysFor } from "../review/reviewClock";
 export { enTable } from "./english/tables";
 // Group 5 (remaining, fixedPhrases, grammarStyle2, idioms1, confusions1, confusions2,
 // compoundForms, lexical): the listed nouns of the lexicon and the irregular verb table.
@@ -107,7 +96,7 @@ export type {
   ClauseWord as EnClauseWord,
   WordsAround as EnWordsAround,
 } from "./english/clauseWords";
-export { gluedAfter as enGluedAfter } from "../review/phraseTemplates";
+
 // Group 5: views, and the findings of a frame rule by its id (library/english/views.ts).
 export { inView as enInView, ruleFindings as enRuleFindings } from "./english/views";
 

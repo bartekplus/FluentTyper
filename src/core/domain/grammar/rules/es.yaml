@@ -669,7 +669,7 @@ rules:
         # "esta"/"estas"/"este" read as "estar", "está"/"estás"/"esté" read as a demonstrative.
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           token: tokens[i]
           at: esAround(tokens, i)
           lower: token.lower
@@ -1999,7 +1999,7 @@ rules:
         # A question word, a relative or a stressed monosyllable at the token.
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           token: tokens[i]
           at: esAround(tokens, i)
           question: esInterrogative(at)
@@ -2858,7 +2858,7 @@ rules:
         # A verb, noun or adverb form that needs its written accent at the token.
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           token: tokens[i]
           at: esAround(tokens, i)
           fix: >-
@@ -2965,7 +2965,7 @@ rules:
         scan: owned
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
         when:
           - i >= 0
           - tokens[i].word && tokens[i].start >= ctx.from && tokens[i].start < ctx.to
@@ -3037,7 +3037,7 @@ rules:
         scan: owned
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           token: tokens[i]
           at: esAround(tokens, i)
         when:
@@ -3636,7 +3636,7 @@ rules:
         # infinitive, had to) agrees with its subject. "el menos tres": "al menos".
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           token: tokens[i]
           at: esAround(tokens, i)
           singular: ES_PLURAL_HABER[token.lower]
@@ -3667,7 +3667,7 @@ rules:
         # rebelado por el detective": "rebelarse" has no passive; "revelar" does.
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           token: tokens[i]
           at: esAround(tokens, i)
           parts: /^(re)(b|v)(el\p{L}*)$/u.exec(token.lower)
@@ -3695,7 +3695,7 @@ rules:
         # clitic goes before a plural noun or participle that is no verb form.
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           token: tokens[i]
           next: tokens[i + 1].lower
           noun: esReadNoun(next)
@@ -3720,7 +3720,7 @@ rules:
         # n natural", "si n vale 3": a variable.
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           token: tokens[i]
           at: esAround(tokens, i)
           prev: at.prev()
@@ -4287,7 +4287,7 @@ rules:
         # The verb form checks of the token: clitic slots, infinitives, stray finite verbs, "de que".
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           token: tokens[i]
           slot: esCliticSlot(tokens, i)
           infinitive: esPrepositionVerb(esAround(tokens, i)) ?? esGovernedVerb(esAround(tokens, i))
@@ -4431,7 +4431,7 @@ rules:
         # interprete").
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           first: tokens[i]
           # "un lanza-misiles": a hyphen between the two halves.
           hyphen: tokens[i + 1].text === "-" && first.end === tokens[i + 1].start && !!tokens[i + 2]
@@ -4698,7 +4698,7 @@ rules:
         scan: owned
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           phrase: esSino(tokens, i) ?? esPorquePhrase(tokens, i)
         when:
           - i >= 0
@@ -4965,7 +4965,7 @@ rules:
         scan: owned
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
         when:
           - i >= 0
           - tokens[i].word && tokens[i].start >= ctx.from && tokens[i].start < ctx.to
@@ -5106,7 +5106,7 @@ rules:
         scan: owned
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           token: tokens[i]
           at: esAround(tokens, i)
         when:
@@ -5230,7 +5230,7 @@ rules:
         # surname.
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           token: tokens[i]
           at: esAround(tokens, i)
           pick: >-
@@ -5288,7 +5288,7 @@ rules:
       esDayFinding:
         args: "ctx: DetectContext, start: number, day: string, month: number, year: number | undefined"
         let:
-          max: esDaysInMonth(month, year)
+          max: daysInMonth(month, year)
           alternatives: 'month === 2 && year === undefined ? ["28", "29"] : [String(max)]'
         when:
           - "!(Number(day) <= max || Number(day) > 31 || month < 1)"
@@ -5305,10 +5305,10 @@ rules:
         let:
           weekday: m[1]
           day: m[3]
-          years: esYearsFor(monthIndex, Number(day), esContextYear(ctx.text, m.index, ctx.lang))
-          weekdays: "[...new Set(years.map((y) => esWeekdayOf(y, monthIndex, Number(day))))]"
+          years: yearsFor(monthIndex, Number(day), contextYear(ctx.text, m.index, ctx.lang))
+          weekdays: "[...new Set(years.map((y) => weekdayOf(y, monthIndex, Number(day))))]"
           typed: ES_WEEKDAY_LIST.indexOf(weekday.toLowerCase())
-          near: esNearestDayOn(years[0], monthIndex, Number(day), typed)
+          near: nearestDayOn(years[0], monthIndex, Number(day), typed)
         when: years.length && !weekdays.includes(typed)
         return: >-
           ({
@@ -5351,19 +5351,19 @@ rules:
             (fullDate || (weekday && dayNumber === 0)) && !namedExampleBefore(ctx.text, m.index)
               ? esFinding("spanishTypography", "review_msg_spanish_date", dayStart, m.index + m[0].length, [], { warningOnly: true })
               : null,
-            weekday && yearNumber && dayNumber >= 1 && dayNumber <= esDaysInMonth(monthIndex, yearNumber) &&
-            ES_WEEKDAY_LIST[esWeekdayOf(yearNumber, monthIndex, Number(day))] !== weekday.toLowerCase() &&
+            weekday && yearNumber && dayNumber >= 1 && dayNumber <= daysInMonth(monthIndex, yearNumber) &&
+            ES_WEEKDAY_LIST[weekdayOf(yearNumber, monthIndex, Number(day))] !== weekday.toLowerCase() &&
             !namedExampleBefore(ctx.text, m.index)
               ? {
                   ruleId: "spanishTypography" as const,
                   messageKey: "review_msg_spanish_date" as const,
                   range: { start: m.index, end: m.index + weekday.length },
-                  alternatives: [esCarryCase(weekday, ES_WEEKDAY_LIST[esWeekdayOf(yearNumber, monthIndex, Number(day))])],
+                  alternatives: [esCarryCase(weekday, ES_WEEKDAY_LIST[weekdayOf(yearNumber, monthIndex, Number(day))])],
                   context: { start: m.index, end: m.index + m[0].length },
                   bulkBlock: "ambiguous" as const,
                 }
               : null,
-            weekday && !year && dayNumber >= 1 && dayNumber <= esDaysInMonth(monthIndex) && !namedExampleBefore(ctx.text, m.index)
+            weekday && !year && dayNumber >= 1 && dayNumber <= daysInMonth(monthIndex) && !namedExampleBefore(ctx.text, m.index)
               ? esWeekdayNoYear(ctx, m, dayStart, monthIndex)
               : null,
           ].filter((finding) => finding !== null)
@@ -5431,7 +5431,7 @@ rules:
         flags: gdu
         owner: none
         let:
-          range: esInvalidIsoDate(m, ctx)
+          range: invalidIsoDate(m, ctx)
         when: range
         return: "({ ruleId: frame.ruleId, messageKey: frame.messageKey, range, alternatives: [], warningOnly: true })"
   - id: es.typographyMarks
@@ -6086,7 +6086,7 @@ rules:
         # The commas of the clause at the token: connectors, greetings, "sino", "pero", subjects.
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           before: >-
             esCommaBeforeSino(tokens, i) || esCommaBeforePero(tokens, i) || esCommaBeforeCausal(tokens, i)
               ? esCommaAfter(ctx, tokens, i - 1)
@@ -7355,7 +7355,7 @@ rules:
         # The gender and number checks of the noun phrase at the token.
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           token: tokens[i]
         when:
           - i >= 0
@@ -8003,7 +8003,7 @@ rules:
       # The clause reader's Spanish words and lexicon. "la casa": after a determiner, a form that is
       # also a verb ("casa") is the noun.
       esClauseNoun:
-        args: "text: string, t: SpanishClauseToken"
+        args: "text: string, t: ClauseToken"
         return: 'text.slice(t.start, t.end) === t.w ? !!esReadNoun(t.w) : /^\p{Lu}\p{Ll}+$/u.test(text.slice(t.start, t.end))'
       # "los precios altos", "las cartas enviadas": an adjective or a participle that is no verb. "de
       # tapa dura": a form with an adjective reading is the adjective there.
@@ -8019,20 +8019,20 @@ rules:
           pronouns: new Set(["mí", "ti", "él", "ella", "ellos", "ellas", "nosotros", "nosotras", "vosotros", "vosotras", "usted", "ustedes"]),
           relatives: new Set(["que"]),
           clitics: ES_BETWEEN,
-          isAdverb: (t: SpanishClauseToken) => ES_SPANISH_ADVERBS.has(t.w) || (/mente$/u.test(t.w) && t.w.length > 6),
+          isAdverb: (t: ClauseToken) => ES_SPANISH_ADVERBS.has(t.w) || (/mente$/u.test(t.w) && t.w.length > 6),
           isNoun: esClauseNoun,
           nominal: () => false,
-          postnominal: (t: SpanishClauseToken | undefined) =>
+          postnominal: (t: ClauseToken | undefined) =>
             !!t && !ES_VG_CLOSED_WORDS.has(t.w) &&
             (ES_INVARIANT.has(t.w) || !!esParticiple(t.w) || (!!esGenderedForm(t.w) && esReadNoun(t.w)?.paired !== false)),
-          prenominal: (text: string, tokens: readonly SpanishClauseToken[], i: number) =>
+          prenominal: (text: string, tokens: readonly ClauseToken[], i: number) =>
             ES_PRENOMINAL.has(tokens[i]?.w ?? "") && tokens[i + 1] && esClauseNoun(text, tokens[i + 1]) ? i + 1 : i,
-          isFiniteVerb: (t: SpanishClauseToken) => esFiniteVerb(t.w) && !ES_VG_NOT_VERBS.has(t.w),
-        }) as SpanishClauseProfile
+          isFiniteVerb: (t: ClauseToken) => esFiniteVerb(t.w) && !ES_VG_NOT_VERBS.has(t.w),
+        }) as ClauseProfile
       # The words of the clause from tokens[k], up to a sign or a line break.
       esClauseTokens:
         args: "tokens: SpanishTokens, i: number, k: number"
-        type: SpanishClauseToken[]
+        type: ClauseToken[]
         return: >-
           k < i + 20 && tokens[k]?.word && (k === i || !tokens[k].broken)
             ? [{ w: tokens[k].lower, start: tokens[k].start, end: tokens[k].end, hyphen: false }, ...esClauseTokens(tokens, i, k + 1)]
@@ -8061,10 +8061,10 @@ rules:
           nounToken: tokens[i + 1]
           noun: esReadNoun(nounToken.lower)
           clause: esClauseTokens(tokens, i, i)
-          head: esSkipPostnominal(ES_CLAUSE, clause, 2)
-          joined: esSkipCoordinated(ES_CLAUSE, ctx.text, clause, head)
-          end: esSkipComplements(ES_CLAUSE, ctx.text, clause, joined)
-          relative: esVerbAfterRelative(ES_CLAUSE, ctx.text, clause, end, (t) => !esReadNoun(t.w))
+          head: skipPostnominal(ES_CLAUSE, clause, 2)
+          joined: skipCoordinated(ES_CLAUSE, ctx.text, clause, head)
+          end: skipComplements(ES_CLAUSE, ctx.text, clause, joined)
+          relative: verbAfterRelative(ES_CLAUSE, ctx.text, clause, end, (t) => !esReadNoun(t.w))
           read: "relative >= 0 ? relative : end > joined || joined > head ? end : -1"
           inside: read >= 0 && read < clause.length
           next: clause[read + 1]
@@ -8296,7 +8296,7 @@ rules:
         # The subject and verb checks of the token.
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
         when:
           - i >= 0
           - esInReach(ctx, tokens, i)
@@ -8312,7 +8312,7 @@ rules:
         # The attribute after a copula: "Ellas están cansado" -> "cansadas".
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           adjective: esAttributeAgreement(ctx, tokens, i)
         when:
           - i >= 0
@@ -8442,7 +8442,7 @@ rules:
         scan: owned
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
         when:
           - i >= 0
           - tokens[i].word && tokens[i].start >= ctx.from && tokens[i].start < ctx.to
@@ -8739,7 +8739,7 @@ rules:
         scan: owned
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           token: tokens[i]
           at: esAround(tokens, i)
         when:
@@ -8810,7 +8810,7 @@ rules:
         scan: owned
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
         when:
           - i >= 0
           - tokens[i].word && tokens[i].start >= ctx.from && tokens[i].start < ctx.to
@@ -8887,7 +8887,7 @@ rules:
         scan: owned
         let:
           tokens: esTokens(ctx)
-          i: esTokenAt(tokens, m.index)
+          i: tokenAt(tokens, m.index)
           token: tokens[i]
           at: esAround(tokens, i)
         when:

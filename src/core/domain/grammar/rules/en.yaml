@@ -2878,7 +2878,7 @@ rules:
         when:
           - start >= ctx.from && start < ctx.to
           - "!hasUserOrCasedWord(ctx, ctx.text.slice(from, to))"
-          - "!enGluedAfter(ctx.text, end) && !namedExampleBefore(ctx.text, from)"
+          - "!gluedAfter(ctx.text, end) && !namedExampleBefore(ctx.text, from)"
           - '!(casing === "title" && previous && /^[a-z]/.test(previous.raw) && !enClauseOpensAt(ctx.text, start))'
         return: >-
           finding(ruleId, messageKey, start, end, alternatives, {
@@ -6713,7 +6713,7 @@ rules:
       lexKnownOf: "memoize((w: string) => lexKnownRead(w), 20000)"
       lexKnownRead:
         args: "w: string"
-        return: LEXICAL_FUNCTION_WORDS.has(w) || !!lexInfoOf(w) || enListedNoun(w) !== null
+        return: LEXICAL_FUNCTION_WORDS.has(w) || !!lexInfoOf(w) || englishListedNoun(w) !== null
       lexInfo:
         args: "word: string"
         return: lexInfoOf(word.toLowerCase())
@@ -6790,7 +6790,7 @@ rules:
       # listed without one.
       lexListed:
         args: "w: string, singular: string"
-        return: 'enListedNoun(w) === "singular" || (enListedNoun(w) === "plural" && !enListedWithoutPlural(singular))'
+        return: 'englishListedNoun(w) === "singular" || (englishListedNoun(w) === "plural" && !enListedWithoutPlural(singular))'
       lexTablePlural:
         args: "w: string, cut: number"
         let:
@@ -7240,13 +7240,13 @@ rules:
             : owner.endsWith("es") ? [owner.slice(0, -1), owner.slice(0, -2)] : [owner.slice(0, -1)]
         when:
           - '!(POSSESSIVE_ATTRIBUTIVE.has(owner) || (/(?:ics|ings|ss|us|is)$/.test(owner) && owner !== "musics"))'
-          - (read?.plural && read.noun) || enListedNoun(owner) === "plural"
-        return: 'stems.find((stem) => lexInfo(stem)?.noun || enListedNoun(stem) === "singular") ?? null'
+          - (read?.plural && read.noun) || englishListedNoun(owner) === "plural"
+        return: 'stems.find((stem) => lexInfo(stem)?.noun || englishListedNoun(stem) === "singular") ?? null'
       lexNounInfo:
         args: "word: string"
         let:
           read: lexInfo(word)
-          listed: "read ? null : enListedNoun(word)"
+          listed: "read ? null : englishListedNoun(word)"
         return: >-
           read ? (read.noun && !read.adverb ? { info: read, plural: read.plural } : null)
           : listed ? { info: null, plural: listed === "plural" } : null
@@ -7298,7 +7298,7 @@ rules:
       - regex: "(?<target>You){{S}}(?<noun>[a-z]{4,}){{S}}of(?![\\p{L}\\p{N}_'’@/#\\\\-])"
         let:
           read: lexInfo(noun)
-          lone: 'read ? read.noun && !read.plural && !read.verbs.length && !read.adjective : enListedNoun(noun) === "singular"'
+          lone: 'read ? read.noun && !read.plural && !read.verbs.length && !read.adjective : englishListedNoun(noun) === "singular"'
         when:
           - lexWordBefore(ctx, m.index) === "" && !hasUserOrCasedWord(ctx, noun)
           - lone
@@ -7550,7 +7550,7 @@ rules:
         args: "w: string, last: boolean"
         let:
           info: englishWordInfo(w)
-        return: "info ? (last ? info.noun : info.noun || info.adjective) : enListedNoun(w) !== null"
+        return: "info ? (last ? info.noun : info.noun || info.adjective) : englishListedNoun(w) !== null"
       # Forms that are usually mistakes but can be correct English: each is offered only when
       # the writer opts in to englishPossibleErrors, with the likely intended forms as choices.
       remPossible:
@@ -7577,7 +7577,7 @@ rules:
           info: englishWordInfo(word)
         when: word === word.toLowerCase() && !REM_NOT_OBJECTS.has(word)
         return: >-
-          !info ? enListedNoun(word) === "singular" && !enListedWithoutPlural(word)
+          !info ? englishListedNoun(word) === "singular" && !enListedWithoutPlural(word)
           : info.noun && !info.plural && !info.adjective && !info.adverb && !info.verbs.some((v) => v.form !== "base")
             && [`${word}s`, `${word}es`].some((form) => englishWordInfo(form)?.plural)
         else: "false"
@@ -7892,7 +7892,7 @@ rules:
         gate: "effects[ \\t\\u00a0]"
         let:
           info: englishWordInfo(subject)
-          listed: enListedNoun(subject)
+          listed: englishListedNoun(subject)
           words: object.split(/[ \t ]+/)
         when:
           - 'info ? info.noun && !info.plural && !info.adjective : listed === "singular"'
@@ -8085,7 +8085,7 @@ rules:
           after: ctx.text.slice(m.index + m[0].length - 1, m.index + m[0].length)
         when:
           - '/^\p{Lu}\p{Ll}+$/u.test(name) && !/s$/.test(name) && !REM_THE_NAMES.has(name.toLowerCase())'
-          - "!englishWordInfo(name) && !enListedNoun(name)"
+          - "!englishWordInfo(name) && !englishListedNoun(name)"
         return: 'remPossibleTarget(ctx, m, after === after.toLowerCase() ? [""] : null)'
       # "I HoP we can…", "cHrOmE eXtEnSiOn": words typed with random capitals hide the default
       # checks, which abstain on cased words (names like "iPhone"). Read lowercased, they apply.
@@ -8855,11 +8855,11 @@ rules:
         return: 'DATES_MONTHS.findIndex((month) => month.startsWith(name.replace(".", "").toLowerCase().slice(0, 3)))'
       datesValid:
         args: "month: number, day: number, year?: number"
-        return: month >= 0 && month < 12 && day >= 1 && day <= enDaysInMonth(month + 1, year)
+        return: month >= 0 && month < 12 && day >= 1 && day <= daysInMonth(month + 1, year)
       # The weekday of a date, Sunday = 0. Month is 0 to 11.
       datesWeekdayOf:
         args: "year: number, month: number, day: number"
-        return: enWeekdayOf(year, month + 1, day)
+        return: weekdayOf(year, month + 1, day)
       # "Mo" -> 1: a two-letter weekday.
       datesTwo:
         args: "form: string"
@@ -8938,14 +8938,14 @@ rules:
         let:
           start: group(m, "weekday")[0]
           weekdayEnd: group(m, "weekday")[1]
-          yearContext: enContextYear(ctx.text, start, ctx.lang)
-          years: enYearsFor(month, day, yearContext)
+          yearContext: contextYear(ctx.text, start, ctx.lang)
+          years: yearsFor(month, day, yearContext)
           weekdays: enWeekdaysFor(month, day, yearContext)
           dayStart: group(m, dayAt)[0]
           dayEnd: group(m, dayAt)[1]
           suffix: '/^(?:st|nd|rd|th)/.exec(ctx.text.slice(dayEnd, dayEnd + 2))?.[0] ?? ""'
           end: dayEnd + suffix.length
-          near: enNearestDayOn(years[0], month, day, named)
+          near: nearestDayOn(years[0], month, day, named)
         when: years.length && !weekdays.includes(named)
         return: >-
           finding("englishDateConsistency", "review_msg_weekday_no_year", start, end, [
@@ -14593,7 +14593,7 @@ rules:
         args: "token: EnToken | undefined"
         return: >-
           token?.kind === "word" && (EN_FUNCTION_WORDS.has(token.lower) ||
-          !!englishWordInfo(token.lower) || !!enListedNoun(token.lower))
+          !!englishWordInfo(token.lower) || !!englishListedNoun(token.lower))
       # "believe to be": a base verb makes it an infinitive.
       collocationNoInfinitive:
         args: "word: string"
@@ -14810,8 +14810,8 @@ rules:
         let:
           irregular: EN_VERB_FORMS.find((row) => row.lemma === lemma)
         return: >-
-          [lemma, irregular?.participle, enLexiconInflect(lemma, "third") ?? undefined,
-          enLexiconInflect(lemma, "past") ?? undefined, enLexiconInflect(lemma, "ing") ?? undefined]
+          [lemma, irregular?.participle, englishLexiconInflect(lemma, "third") ?? undefined,
+          englishLexiconInflect(lemma, "past") ?? undefined, englishLexiconInflect(lemma, "ing") ?? undefined]
           .filter(Boolean) as string[]
       # The head table: each form of a head word and its rows.
       collocationBuild:
@@ -14884,7 +14884,7 @@ rules:
         let:
           lower: verb.toLowerCase()
         when: englishWordInfo(lower)?.verbs.some((v) => v.form === "base" && v.lemma === lower)
-        return: enLexiconInflect(lower, "ing") ?? null
+        return: englishLexiconInflect(lower, "ing") ?? null
       collocationDayFix:
         args: "m: RegExpExecArray, ctx: DetectContext"
         type: string | null
@@ -15071,7 +15071,7 @@ rules:
         when:
           - read?.verbs.some((v) => v.form === "base" && v.lemma === lemma)
           - "!/^(?:be|have|do)$/.test(lemma)"
-        return: 'EN_VERB_FORMS.find((row) => row.lemma === lemma)?.past ?? enLexiconInflect(lemma, "past") ?? null'
+        return: 'EN_VERB_FORMS.find((row) => row.lemma === lemma)?.past ?? englishLexiconInflect(lemma, "past") ?? null'
       # The text of the sentence before `index`.
       tenseSentenceBefore:
         args: "ctx: DetectContext, index: number"
@@ -19277,7 +19277,7 @@ rules:
           - "!(!adj && /^(?:might|may|can|must)$/.test(noun))"
           - "!adj || !(!adjective?.adjective || adjective.verbs.length || /^(?:own|only|alone)$/i.test(adj))"
         return: >-
-          (!read && (listed || !strict) && enListedNoun(noun) === "singular") ||
+          (!read && (listed || !strict) && englishListedNoun(noun) === "singular") ||
           !(!read?.noun || read.plural || read.adjective || read.adverb || (strict && read.verbs.some((v) => v.form === "base")))
             ? notAfterClauseVerb(ctx, at)
             : false
@@ -20438,7 +20438,7 @@ rules:
       - regex: "(?<lead>all){{S}}(?<target>[a-z]+){{S}}(?:are|were|have|do|seem|look|need){{E}}"
         let:
           read: englishWordInfo(target)
-          plural: enNounPair(target)?.plural
+          plural: englishNounPair(target)?.plural
         when:
           - "!EN_FUNCTION_WORDS.has(target) && !ctx.dictionary.has(target)"
           # "All three were wounded": a number stands for its noun.
@@ -23307,7 +23307,7 @@ rules:
         when:
           - "!(word !== nounLower(word) || NOUN_ONE_THING.test(word) || /(?:ss|ics|us)$/.test(word))"
           - "!(!r?.plural || r.verbs.length || r.adjective || r.adverb || EN_FUNCTION_WORDS.has(word))"
-        return: enNounPair(word)?.singular ?? null
+        return: englishNounPair(word)?.singular ?? null
       # A lowercase plural noun that may also be an -s verb ("chances", "parents").
       nounPluralWord:
         args: "word: string"
@@ -23323,7 +23323,7 @@ rules:
         when:
           - "!(word !== nounLower(word) || EN_FUNCTION_WORDS.has(word))"
           - "!(!r?.noun || r.plural || r.verbs.length || r.adjective || r.adverb)"
-        return: enNounPair(word)?.plural ?? word
+        return: englishNounPair(word)?.plural ?? word
       nounNextToken:
         args: "ctx: DetectContext, end: number"
         return: enTokensAfter(ctx, end, 1)[0]
@@ -23626,7 +23626,7 @@ rules:
           next: nounNextToken(ctx, m.index + m[0].length)
         when:
           - "!(!r?.adjective || r.noun || r.verbs.length)"
-          - "!(!enReadWord(noun)?.noun || enReadWord(noun)?.plural || !enCountNoun(noun) || ENGLISH_MASS_NOUNS.has(noun))"
+          - "!(!enReadWord(noun)?.noun || enReadWord(noun)?.plural || !englishCountNoun(noun) || ENGLISH_MASS_NOUNS.has(noun))"
           - '!(next?.kind === "word" && enReadWord(next.lower)?.noun && !EN_FUNCTION_WORDS.has(next.lower))'
         return: '"the most"'
   - id: en.agreementFrames

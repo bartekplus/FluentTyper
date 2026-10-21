@@ -21,14 +21,8 @@ export {
   tokensAfter as deTokensAfter,
   tokensBefore as deTokensBefore,
 } from "../review/german/shared";
-export { invalidIsoDate as deInvalidIsoDate } from "../review/isoDates";
-export {
-  contextYear as deContextYear,
-  daysInMonth as deDaysInMonth,
-  utcDate as deUtcDate,
-  weekdayOf as deWeekdayOf,
-  yearsFor as deYearsFor,
-} from "../review/reviewClock";
+
+export { utcDate as deUtcDate } from "../review/reviewClock";
 export type { GermanGenderReading } from "../review/german/germanLexicon";
 export {
   germanAuxiliary,

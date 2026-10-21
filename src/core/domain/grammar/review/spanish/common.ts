@@ -73,20 +73,6 @@ function readTokens(ctx: DetectContext): Token[] {
   return tokens;
 }
 
-/** The index of the token that starts at `start`, or -1 (a binary search). */
-export function tokenAt(tokens: Tokens, start: number): number {
-  let lo = 0;
-  let hi = tokens.length - 1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    const at = tokens[mid].start;
-    if (at === start) return mid;
-    if (at < start) lo = mid + 1;
-    else hi = mid - 1;
-  }
-  return -1;
-}
-
 /** The typed word's casing on a replacement: "Esta" -> "Está", "ESTA" -> "ESTÁ". */
 export function carryCase(typed: string, replacement: string): string {
   const kind = detectWordCase(typed);

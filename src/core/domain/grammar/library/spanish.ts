@@ -26,7 +26,6 @@ export {
   replaceToken as esReplaceToken,
   SER as ES_SER,
   subjectAt as esSubjectAt,
-  tokenAt as esTokenAt,
   tokenize as esTokens,
   verbLike as esVerbLike,
 } from "../review/spanish/common";
@@ -62,22 +61,5 @@ export {
 } from "../review/spanish/nouns";
 export { monthNumber as esMonthNumber } from "../review/spanish/typography";
 // Dates: the calendar, and the ISO date frame of every language.
-export {
-  contextYear as esContextYear,
-  daysInMonth as esDaysInMonth,
-  nearestDayOn as esNearestDayOn,
-  weekdayOf as esWeekdayOf,
-  yearsFor as esYearsFor,
-} from "../review/reviewClock";
-export { invalidIsoDate as esInvalidIsoDate } from "../review/isoDates";
+
 // The clause reader that the agreement checks of several languages share.
-export type {
-  ClauseProfile as SpanishClauseProfile,
-  ClauseToken as SpanishClauseToken,
-} from "../review/clauseReader";
-export {
-  skipComplements as esSkipComplements,
-  skipCoordinated as esSkipCoordinated,
-  skipPostnominal as esSkipPostnominal,
-  verbAfterRelative as esVerbAfterRelative,
-} from "../review/clauseReader";

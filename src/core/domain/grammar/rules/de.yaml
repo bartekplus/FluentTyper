@@ -1136,7 +1136,7 @@ rules:
       # A date that the calendar has.
       dateValid:
         args: "date: { day: number; month: number; year?: number }"
-        return: "date.month >= 1 && date.month <= 12 && date.day >= 1 && date.day <= deDaysInMonth(date.month, date.year)"
+        return: "date.month >= 1 && date.month <= 12 && date.day >= 1 && date.day <= daysInMonth(date.month, date.year)"
       dateFinding:
         args: 'start: number, end: number, alternatives: string[], key: RawFinding["messageKey"]'
         type: RawFinding
@@ -1177,9 +1177,9 @@ rules:
             (parts.year !== undefined && parts.year < 1583) ||
             /^[ \t ]*v\./.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 4))
           years: >-
-            early ? [] : parts.year === undefined ? deYearsFor(parts.month, parts.day, deContextYear(ctx.text, start, ctx.lang))
+            early ? [] : parts.year === undefined ? yearsFor(parts.month, parts.day, contextYear(ctx.text, start, ctx.lang))
             : [parts.year]
-          weekdays: "[...new Set(years.map((y) => deWeekdayOf(y, parts.month, parts.day)))]"
+          weekdays: "[...new Set(years.map((y) => weekdayOf(y, parts.month, parts.day)))]"
           typedDay: weekday.replace(/\.$/, "")
           index: >-
             typedDay === "Sonnabend" ? 6 : Math.max(WEEKDAYS.indexOf(typedDay), WEEKDAY_SHORT.indexOf(typedDay))
@@ -1224,7 +1224,7 @@ rules:
         owner: none
         # A warning with the rule and message of the frame.
         let:
-          range: deInvalidIsoDate(m, ctx)
+          range: invalidIsoDate(m, ctx)
         when: "!!range"
         return: >-
           ({ ruleId: frame.ruleId, messageKey: frame.messageKey, range, alternatives: [], warningOnly: true })

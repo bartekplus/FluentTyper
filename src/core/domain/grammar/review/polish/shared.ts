@@ -2,7 +2,6 @@ import { namedExampleBefore, OPENING_QUOTES } from "../exampleCues";
 import { isLang } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { finding } from "../finding";
-import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
 /**
  * A word starts a clause or the text here: the text start, or sentence punctuation and spaces.
@@ -20,9 +19,6 @@ export const isPl = (ctx: DetectContext) => isLang(ctx, "pl");
  */
 export const POLISH_PROSE_TOKEN =
   /^(?:d\/s|w\/w|w\/g|i\/lub|lub\/i|m\.i[nm]|d\.s|p\.n\.e|dz\.cyt|op\.cit)$/iu;
-
-/** `replacement` in the case of the letters of `typed`. */
-export const caseLike = (typed: string, replacement: string) => carryCase(typed, replacement, true);
 
 /** A word the user added, or mixed casing that names something ("McDonald"). */
 export function userOrNamed(ctx: DetectContext, typed: string): boolean {

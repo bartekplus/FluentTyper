@@ -1,7 +1,6 @@
 // The rule library (library.ts): the Polish lexicon and Polish word helpers. The names have a
 // "pl" prefix: other languages have their own lexicon helpers.
 export {
-  caseLike as plCaseLike,
   findingAt as plFindingAt,
   sentenceStartAt as plSentenceStart,
   userOrNamed as plUserOrNamed,
@@ -40,13 +39,7 @@ export {
   virileLemma as plVirileLemma,
 } from "../review/polish/lexicon";
 export { GENITIVE as PL_MONTHS_GENITIVE } from "../review/polish/dates";
-export {
-  contextYear as plContextYear,
-  daysInMonth as plDaysInMonth,
-  weekdayOf as plWeekdayOf,
-  yearsFor as plYearsFor,
-} from "../review/reviewClock";
-export { invalidIsoDate as plInvalidIsoDate } from "../review/isoDates";
+
 export { tagsAnd, tagsCases, tagsOr, tagsWithout } from "./polish/tags";
 export type { PlReadWord, PlWord } from "./polish/words";
 export { plWords } from "./polish/words";
