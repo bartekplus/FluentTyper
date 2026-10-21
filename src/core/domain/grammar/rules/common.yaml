@@ -12701,12 +12701,20 @@ rules:
   # "..." typed for an ellipsis.
   - id: ellipsis
     checks: [ellipsisShortcut]
-    pattern:
-      - { surface: ".", predicate: isProseEllipsis }
-      - { surface: ".", spaceBefore: false }
-      - { surface: ".", spaceBefore: false }
-    replacements: ["…"]
+    style: match
     message: review_msg_ellipsis_character
+    frames:
+      # No period or digit right before the run, no period, digit or slash right after it
+      # ("....", "1...2", ".../"), not a spread ("(...args)"), and not in a path of two or more
+      # "/name" parts ("/usr/bin/...", "~/a/b...", "/a...b/c").
+      # The dots come first, so the scan looks only at periods.
+      - regex: "(?<target>\\.{3})(?![.\\p{N}/\\\\])(?<!(?:[.\\p{N}]|\\/[\\w.-]+\\/[\\w.-]*)\\.{3})(?!(?<=[[({]\\.{3})[\\p{L}_$])(?!(?<=\\/[\\w.-]*\\.{3})[\\w.-]*\\/[\\w.-])"
+        scan: owned
+        flags: gu
+        return: >-
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + 3, ["…"], {
+            context: { start: m.index, end: m.index + 3 },
+          })
   - id: quoteSpacing
     checks: [quoteSpacing]
     style: match

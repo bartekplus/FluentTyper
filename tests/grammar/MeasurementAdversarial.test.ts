@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { liveRule } from "../../src/core/domain/grammar/engine/liveRules";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
-import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
+import { createLiveRules } from "../../src/core/domain/grammar/engine/liveRules";
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import type { GrammarEdit } from "../../src/core/domain/grammar/types";
 import { MEASUREMENT_LOCALES } from "../../src/core/domain/grammar/measurement/registry-data.generated";
@@ -189,7 +189,7 @@ describe("measurement formatting adversarial verification", () => {
 
   test("all-default pipeline reaches a stable result without rewriting operators or exponents", () => {
     const engine = new GrammarRuleEngine();
-    for (const item of createGrammarRuleCatalogRuntime({
+    for (const item of createLiveRules({
       insertSpaceAfterAutocomplete: true,
     }))
       engine.registerRule(item);

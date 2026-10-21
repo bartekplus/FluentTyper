@@ -395,22 +395,15 @@ class Parser {
           continue;
         }
         if (optional && this.is("[")) {
-          this.advance();
-          this.expression();
-          this.eat("]");
+          this.index();
           continue;
         }
         if (this.tok.kind !== "id") this.fail("expected a property name");
         if (DENIED_PROPERTIES.has(this.tok.value))
           this.fail(`property "${this.tok.value}" is denied`);
         this.advance();
-      } else if (this.is("[")) {
-        this.advance();
-        if (this.tok.kind === "str" && DENIED_PROPERTIES.has(this.tok.value.slice(1, -1)))
-          this.fail(`property ${this.tok.value} is denied`);
-        this.expression();
-        this.eat("]");
-      } else if (this.is("(")) this.args();
+      } else if (this.is("[")) this.index();
+      else if (this.is("(")) this.args();
       else if (this.is("<") && this.callTypeArguments()) this.args();
       else if (this.is("!") && !this.lex.src.startsWith("!=", this.tok.at)) {
         // The TypeScript non-null assertion: `m.groups!.target`.
@@ -418,6 +411,19 @@ class Parser {
       } else if (this.is("++") || this.is("--")) this.fail(`"${this.tok.value}" changes a value`);
       else break;
     }
+  }
+
+  /** `[key]` or `?.[key]`: a string key, or a template key without `${…}`, is a property name. */
+  private index() {
+    this.eat("[");
+    const { kind, value, parts } = this.tok;
+    if (
+      (kind === "str" || (kind === "tpl" && parts!.length === 0)) &&
+      DENIED_PROPERTIES.has(value.slice(1, -1))
+    )
+      this.fail(`property ${value} is denied`);
+    this.expression();
+    this.eat("]");
   }
 
   private args() {

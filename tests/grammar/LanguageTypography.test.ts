@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { liveRule } from "../../src/core/domain/grammar/engine/liveRules";
 import { closesAbbreviation } from "../../src/core/domain/grammar/library/typing/sentences";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
-import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
+import { createLiveRules } from "../../src/core/domain/grammar/engine/liveRules";
 import {
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
@@ -301,7 +301,7 @@ describe("rule interactions", () => {
     // Cursor inside an existing pair: no auto-close involved.
     const rules = ["closingBracketSpacing"];
     const engine = new GrammarRuleEngine();
-    for (const rule of createGrammarRuleCatalogRuntime({
+    for (const rule of createLiveRules({
       insertSpaceAfterAutocomplete: true,
     }))
       engine.registerRule(rule);

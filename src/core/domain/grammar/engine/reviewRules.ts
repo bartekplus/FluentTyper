@@ -4,12 +4,9 @@ import { cacheable } from "../review/nativeReviewCache";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../review/reviewDetectors";
 import type { ReviewMessageKey } from "../review/types";
 import { detectFrames, prepareFrames } from "./frameStyles";
-import { findMatches, type PatternSet } from "./matcher";
-import { REVIEW_FRAMES, REVIEW_PATTERNS, REVIEW_RULES } from "./review.generated";
+import { REVIEW_FRAMES, REVIEW_RULES } from "./review.generated";
 import { RULE_DETECTORS, RULE_FILTERS, RULE_FIXERS } from "../review/rules/index.generated";
 import { primeFrameLiterals, WORD_START } from "../review/phraseTemplates";
-import { chunkTokens } from "./reviewTokens";
-import { tokenKey } from "./tokenizer";
 import type { CompiledFrame } from "./types";
 
 /** A Review detector: the code of a rule (`let`, `when`, `return`) and of its frames. */
@@ -38,75 +35,6 @@ export type AnyFixer = (...args: never[]) => unknown;
 
 /** A named filter of a frame rule's findings: it sees them all, in order. */
 export type FindingsFilter = (ctx: DetectContext, findings: RawFinding[]) => RawFinding[];
-
-// One match walk per chunk serves every pattern rule.
-const SCANS = new WeakMap<DetectContext, Map<number, RawFinding[]>>();
-
-// The anchor literals of a small anchored pattern set, for a test before tokenizing.
-const LITERALS = new WeakMap<PatternSet, string[] | null>();
-const literalsOf = (set: PatternSet) => {
-  let literals = LITERALS.get(set);
-  if (literals === undefined) {
-    const keys = Object.keys(set.anchors);
-    literals = set.structural.length === 0 && keys.length <= 64 ? keys : null;
-    LITERALS.set(set, literals);
-  }
-  return literals;
-};
-
-/** The findings of every pattern rule in the chunk of `ctx`, by pattern index. */
-function scan(ctx: DetectContext, set: PatternSet): Map<number, RawFinding[]> {
-  const byPattern = new Map<number, RawFinding[]>();
-  // No anchor literal in the chunk and its margins: no pattern can match, so no tokens.
-  const literals = literalsOf(set);
-  if (literals) {
-    const lower = tokenKey(ctx.scanText.slice(Math.max(0, ctx.from - 32), ctx.to + 96));
-    if (!literals.some((literal) => lower.includes(literal))) return byPattern;
-  }
-  const tokens = chunkTokens(ctx);
-  const matches = findMatches(
-    set,
-    tokens,
-    ctx.text,
-    ctx.lang,
-    (pattern) => !ctx.rules || ctx.rules.has(pattern.check),
-  );
-  for (const match of matches) {
-    if (match.targetStart < ctx.from || match.targetStart >= ctx.to) continue;
-    // A user-dictionary word in the replaced text is the writer's choice.
-    if (
-      tokens.some(
-        (token) =>
-          token.start >= match.targetStart &&
-          token.end <= match.targetEnd &&
-          ctx.dictionary.has(token.key),
-      )
-    )
-      continue;
-    const { pattern, alternatives } = match;
-    const list = byPattern.get(pattern.index) ?? [];
-    list.push({
-      ruleId: pattern.check as CatalogRuleId,
-      messageKey: pattern.message as ReviewMessageKey,
-      range: { start: match.targetStart, end: match.targetEnd },
-      alternatives,
-      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-      context: { start: match.start, end: match.end },
-      ...(pattern.bulkBlock ? { bulkBlock: pattern.bulkBlock } : {}),
-    });
-    byPattern.set(pattern.index, list);
-  }
-  return byPattern;
-}
-
-/** The detector of compiled pattern `index`: it reads the shared scan of the chunk. */
-export function patternDetector(index: number, set: PatternSet = REVIEW_PATTERNS): Detector {
-  return (ctx) => {
-    let byPattern = SCANS.get(ctx);
-    if (!byPattern) SCANS.set(ctx, (byPattern = scan(ctx, set)));
-    return byPattern.get(index) ?? [];
-  };
-}
 
 /** The code a compiled rule names ("<file>:<name>"), in the generated module of its file. */
 const named = <T>(table: Readonly<Record<string, Readonly<Record<string, T>>>>, ref: string) => {
@@ -147,8 +75,8 @@ function frameRuleDetector(id: string): Detector {
 }
 
 /**
- * The Review detector entries of the rule files, in evaluation order: a compiled pattern, the
- * frames and the code of a rule, or the findings of an earlier pass. Code that the generated
+ * The Review detector entries of the rule files, in evaluation order: the frames and the code of
+ * a rule, or the findings of an earlier pass. Code that the generated
  * modules do not hold is an error at load, not a silent gap.
  */
 export function buildReviewDetectors(): ReviewDetectorEntry[] {
@@ -172,7 +100,7 @@ export function ruleDetector(id: string): Detector {
   return detectorOf(rule);
 }
 
-/** A rule's detector: a compiled pattern, its frames and then its own code, or earlier findings. */
+/** A rule's detector: its frames and then its own code, or earlier findings. */
 function detectorOf(rule: (typeof REVIEW_RULES)[number]): Detector {
   if (rule.findings !== undefined) {
     const field = FINDINGS_FIELDS[rule.findings];
@@ -180,7 +108,6 @@ function detectorOf(rule: (typeof REVIEW_RULES)[number]): Detector {
     return (ctx) =>
       (ctx[field] ?? []).filter((f) => f.range.start >= ctx.from && f.range.start < ctx.to);
   }
-  if (rule.pattern !== undefined) return patternDetector(rule.pattern);
   if (rule.frames !== undefined) {
     const frames = frameRuleDetector(rule.id);
     if (rule.predicate === undefined) return frames;

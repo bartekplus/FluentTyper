@@ -1,7 +1,7 @@
 import { expect } from "bun:test";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
-import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
+import { createLiveRules } from "../../src/core/domain/grammar/engine/liveRules";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
   detectReviewDiagnostics,
@@ -201,7 +201,7 @@ export interface TypingOptions {
 /** Types `input` one character at a time through the typing rule runtime and returns the last context. */
 export function typeText(input: string, options: TypingOptions = {}): GrammarContext {
   const engine = new GrammarRuleEngine();
-  for (const rule of createGrammarRuleCatalogRuntime({
+  for (const rule of createLiveRules({
     insertSpaceAfterAutocomplete: options.insertSpaceAfterAutocomplete ?? true,
   }))
     engine.registerRule(rule);

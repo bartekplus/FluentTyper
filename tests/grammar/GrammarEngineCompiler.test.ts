@@ -1,40 +1,21 @@
 import { expect, test } from "bun:test";
 import { notAfter, SPACE, WORD_END } from "../../src/core/domain/grammar/review/phraseTemplates";
+import { readFileSync } from "node:fs";
 import {
   compileRuleFiles,
   expandFrame,
+  RULE_FILES,
   type ReviewMetadataOut,
 } from "../../src/core/domain/grammar/engine/compiler";
 import { parseRows } from "../../src/core/domain/grammar/engine/rows";
-import type { CheckSpec, RuleFile, RuleSpec } from "../../src/core/domain/grammar/engine/types";
+import type { RuleFile, RuleSpec } from "../../src/core/domain/grammar/engine/types";
+import { demoCheck as check, errorsOf } from "./grammarRuleFixtures";
 
-// Settings copy that every check carries.
-const COPY = {
-  text: {
-    title: Object.fromEntries(
-      ["en", "fr", "hr", "es", "el", "sv", "de", "pl", "pr"].map((l) => [l, "Demo"]),
-    ),
-    description: Object.fromEntries(
-      ["en", "fr", "hr", "es", "el", "sv", "de", "pl", "pr"].map((l) => [l, "Demo."]),
-    ),
-  },
-  example: { lang: "en_US", before: "a", after: "b" },
-};
-const check = (overrides: Partial<CheckSpec> = {}): CheckSpec => ({
-  ...COPY,
-  id: "demoCheck",
-  modes: ["review"],
-  priority: 5,
-  category: "grammar",
-  kind: "usage",
-  ...overrides,
-});
 const rule = (overrides: Partial<RuleSpec> = {}): RuleSpec => ({
   id: "en.demo",
   checks: ["demoCheck"],
-  pattern: [{ lower: "could" }, { lower: "of" }],
-  replacements: ["could have"],
   message: "review_msg_typo",
+  frames: [{ regex: "could{{S}}(?<target>of){{E}}", fix: "have" }],
   ...overrides,
 });
 const compile = (common: RuleFile, en: RuleFile = { lang: "en" }) =>
@@ -44,58 +25,18 @@ const compile = (common: RuleFile, en: RuleFile = { lang: "en" }) =>
   ]);
 const languagesOf = (metadata: ReviewMetadataOut) =>
   metadata.review === "supported" ? metadata.languages : undefined;
-const errorsOf = (run: () => unknown) => {
-  try {
-    run();
-  } catch (error) {
-    return String(error);
-  }
-  return "";
-};
-
-test("a pattern rule compiles with its anchor, language and check", () => {
-  const set = compile({ lang: "*", checks: [check()] }, { lang: "en", rules: [rule()] });
-  expect(set.reviewPatterns.patterns).toHaveLength(1);
-  const [pattern] = set.reviewPatterns.patterns;
-  // "could" is longer than "of": the more selective literal anchors the rule.
-  expect(pattern).toMatchObject({ anchor: 0, langs: ["en"], check: "demoCheck", target: [1, 2] });
-  expect(set.reviewPatterns.anchors).toEqual({ could: [0] });
-  expect(set.rules).toEqual([
-    { id: "en.demo", checks: ["demoCheck"], lang: "en", pattern: 0, source: "en" },
-  ]);
-});
-
-test("a rule without a literal is structural; every literal of the anchor indexes it", () => {
-  const set = compile(
-    { lang: "*", checks: [check()] },
-    {
-      lang: "en",
-      rules: [
-        rule({
-          id: "en.repeat",
-          pattern: [{ type: "word" }, { matchRef: 1 }],
-          replacements: ["$1"],
-        }),
-        rule({ id: "en.either", pattern: [{ lower: ["Alot", "alott"] }] }),
-      ],
-    },
-  );
-  expect(set.reviewPatterns.structural).toEqual([0]);
-  expect(set.reviewPatterns.anchors).toEqual({ alot: [1], alott: [1] });
-});
-
 test("stage orders rules before file order", () => {
   const set = compile(
     {
       lang: "*",
       checks: [check()],
-      rules: [{ id: "late", checks: ["demoCheck"], predicate: "late", stage: 1 }],
+      rules: [{ id: "late", checks: ["demoCheck"], return: "[]", stage: 1 }],
     },
-    { lang: "en", rules: [{ id: "en.early", checks: ["demoCheck"], predicate: "early" }] },
+    { lang: "en", rules: [{ id: "en.early", checks: ["demoCheck"], return: "[]" }] },
   );
   expect(set.rules.map((r) => [r.id, r.predicate])).toEqual([
-    ["en.early", "en:early"],
-    ["late", "common:late"],
+    ["en.early", "en:@en.early"],
+    ["late", "common:@late"],
   ]);
 });
 
@@ -113,8 +54,20 @@ test("the catalog keeps file order, defaults and Review metadata", () => {
       check({ id: "optional", enabled: false, languages: "named", note: "Optional." }),
     ],
     rules: [
-      { id: "typed.live", checks: ["typed"], modes: ["live"], predicate: "TypedRule" },
-      { id: "both.live", checks: ["both"], modes: ["live"], predicate: "BothRule" },
+      {
+        id: "typed.live",
+        checks: ["typed"],
+        modes: ["live"],
+        triggers: ["insertChar"],
+        return: "null",
+      },
+      {
+        id: "both.live",
+        checks: ["both"],
+        modes: ["live"],
+        triggers: ["insertChar"],
+        return: "null",
+      },
     ],
   });
   expect(set.catalog.map((entry) => entry.id)).toEqual(["typed", "both", "optional"]);
@@ -136,8 +89,8 @@ test("the catalog keeps file order, defaults and Review metadata", () => {
   expect(set.reviewMetadata.optional).toMatchObject({ defaultEnabled: false, note: "Optional." });
   expect(languagesOf(set.reviewMetadata.optional)).toContain("ar_SA");
   expect(set.live.map((r) => [r.check, r.predicate])).toEqual([
-    ["typed", "TypedRule"],
-    ["both", "BothRule"],
+    ["typed", "common:@typed.live"],
+    ["both", "common:@both.live"],
   ]);
 });
 
@@ -180,26 +133,24 @@ test("invalid rules are reported together", () => {
         lang: "en",
         rules: [
           rule({ checks: ["missing"] }),
-          rule({ id: "en.demo2", replacements: [], message: undefined }),
-          rule({ id: "en.demo3", pattern: [{ regex: "(" }, { matchRef: 2 }] }),
-          rule({ id: "en.demo4", pattern: [{ predicate: "noSuchPredicate", bogus: 1 } as never] }),
-          rule({ id: "en.demo5", checks: ["liveCheck"], modes: ["live"] }),
-          rule({ id: "en.demo5", predicate: "x" }),
+          rule({ id: "en.demo2", message: undefined }),
+          rule({ id: "en.demo3", frames: [{ regex: "(?<target>(", fix: "x" }] }),
+          // Token patterns are gone: `pattern` is no rule field.
+          rule({ id: "en.demo4", pattern: [{ lower: "alot" }] } as never),
+          rule({ id: "en.demo5", checks: ["liveCheck"], modes: ["live"], frames: undefined }),
+          rule({ id: "en.demo5", frames: undefined, return: "null", modes: ["live"] }),
         ],
       },
     ),
   );
   for (const fragment of [
     'unknown check "missing"',
-    'a pattern needs "replacements"',
-    'a Review pattern needs "message"',
+    'a frame rule needs "message"',
     "regex does not compile",
-    "matchRef must name an earlier element",
-    'unknown token predicate "noSuchPredicate"',
-    'unknown pattern field "bogus"',
-    "a live pattern needs a check with safeToFix",
+    'unknown field "pattern"',
     "duplicate rule id",
-    'give exactly one of "predicate", "pattern", "frames" and "findings"',
+    'give exactly one of "frames", "findings" and a "return" expression',
+    'a typing rule with code needs "triggers"',
   ])
     expect(message).toContain(fragment);
   expect(
@@ -219,7 +170,7 @@ test("a check carries its settings copy and example", () => {
         check({ text: undefined }),
         check({
           id: "partial",
-          text: { title: { en: "Only English" }, description: COPY.text.description },
+          text: { title: { en: "Only English" }, description: check().text!.description },
         }),
         { ...check({ id: "noExample" }), example: undefined as never },
       ],
@@ -245,7 +196,7 @@ test("frames: fragments, guards, literals and fixes", () => {
           message: "review_msg_phrase_correction",
           frames: [
             { regex: "{{notAfter:{{OWNER}}}}(?<target>curse){{S}}through{{E}}", fix: "course" },
-            { regex: "{{SLOT}}(?<target>wich){{E}}", fixer: "which", raw: true },
+            { regex: "{{SLOT}}(?<target>wich){{E}}", return: '"which"', raw: true },
           ],
         },
       ],
@@ -267,7 +218,7 @@ test("frames: fragments, guards, literals and fixes", () => {
     fix: "course",
   });
   expect(set.frames[0].literals.length).toBeGreaterThan(0);
-  expect(set.frames[1]).toMatchObject({ fixer: "en:which", raw: true });
+  expect(set.frames[1]).toMatchObject({ fixer: "en:@en.frames/2", raw: true });
   const errors: string[] = [];
   expect(expandFrame("{{NOPE}}x", {}, "t", errors)).toBe("x");
   expect(errors).toEqual(['t: unknown fragment "NOPE"']);
@@ -280,7 +231,7 @@ test("frames: fragments, guards, literals and fixes", () => {
           {
             id: "en.bad",
             checks: ["demoCheck"],
-            frames: [{ regex: "(wich", fix: "which", fixer: "x" }],
+            frames: [{ regex: "(wich", fix: "which", return: '"x"' }],
           },
         ],
       },
@@ -288,7 +239,7 @@ test("frames: fragments, guards, literals and fixes", () => {
   );
   for (const fragment of [
     'a frame rule needs "message"',
-    'give exactly one of "fix" and "fixer"',
+    'give exactly one of "fix" and a "return" expression',
     "regex does not compile",
     'a frame needs a "target" group',
   ])
@@ -308,8 +259,8 @@ test("match frames: language files read common fragments; their own fragments wi
           message: "review_msg_phrase_correction",
           style: "match",
           frames: [
-            { regex: "(?<target>{{YEAR}}) {{WORD}}", fixer: "year" },
-            { regex: "{{WORD}}", scan: "owned", flags: "gu", lookahead: 8, fixer: "word" },
+            { regex: "(?<target>{{YEAR}}) {{WORD}}", return: "null" },
+            { regex: "{{WORD}}", scan: "owned", flags: "gu", lookahead: 8, return: "null" },
           ],
         },
       ],
@@ -333,14 +284,14 @@ test("rule kinds: findings, groups, frame languages and frames with a predicate"
           group: "g",
           style: "match",
           message: "review_msg_phrase_correction",
-          predicate: "after",
-          frames: [{ regex: "[a-z]+", scan: "owned", flags: "gu", lang: "de", fixer: "f" }],
+          return: "[]",
+          frames: [{ regex: "[a-z]+", scan: "owned", flags: "gu", lang: "de", return: "null" }],
         },
       ],
     },
   );
   expect(set.rules[0]).toMatchObject({ id: "en.found", findings: "style", group: "g" });
-  expect(set.rules[1]).toMatchObject({ predicate: "en:after", group: "g", frames: [0] });
+  expect(set.rules[1]).toMatchObject({ predicate: "en:@en.both", group: "g", frames: [0] });
   expect(set.frames[0]).toMatchObject({ lang: "de", scan: "owned" });
   const message = errorsOf(() =>
     compile(
@@ -352,4 +303,26 @@ test("rule kinds: findings, groups, frame languages and frames with a predicate"
     ),
   );
   expect(message).toContain('unknown findings "other"');
+});
+
+test("a new rule needs only YAML: the docs example appended to en.yaml compiles", () => {
+  const dir = new URL("../../src/core/domain/grammar/rules/", import.meta.url);
+  const yaml = `
+  - id: en.couldOf
+    checks: [englishModalOfCorrection]
+    message: review_msg_contextual_grammar
+    frames:
+      - regex: "(?:could|should|would){{S}}(?<target>of){{E}}"
+        fix: have
+`;
+  const files = RULE_FILES.map((name) => {
+    let text = readFileSync(new URL(`${name}.yaml`, dir), "utf8");
+    if (name === "en") text = text.replace(/^rules:\n/m, `rules:${yaml}`);
+    return [name, Bun.YAML.parse(text) as RuleFile] as const;
+  });
+  const set = compileRuleFiles(files);
+  const added = set.rules.find((entry) => entry.id === "en.couldOf")!;
+  const { pattern, fix } = set.frames[added.frames![0]];
+  expect(fix).toBe("have");
+  expect(new RegExp(pattern, "iu").exec("You could of told me.")?.groups?.target).toBe("of");
 });
