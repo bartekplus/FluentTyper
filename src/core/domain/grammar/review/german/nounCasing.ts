@@ -767,11 +767,12 @@ const nounCase: MatchFixer = (m, ctx) => {
   // "beim laufen", "zum verzweifeln": an infinitive after these is always a noun.
   const reading =
     germanNounReading(typed) ??
-    ((NOMINALIZING.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ||
-      neuterArticleInfinitive(ctx, m.index, typed.length)) &&
-    germanInfinitive(typed) &&
+    // The word tests first: they reject most words before the reads around it.
+    (germanInfinitive(typed) &&
     !ARTICLES.has(typed) &&
-    !QUANTIFIERS.has(typed)
+    !QUANTIFIERS.has(typed) &&
+    (NOMINALIZING.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ||
+      neuterArticleInfinitive(ctx, m.index, typed.length))
       ? "noun"
       : germanNounOverAdjective(typed)
         ? "adjective"
