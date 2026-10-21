@@ -1351,8 +1351,6 @@ rules:
     checks: [portugueseTypographyStyle]
     style: match
     message: review_msg_pt_typography_style
-    defs:
-      SUBSCRIPTS: '"₀₁₂₃₄₅₆₇₈₉"'
     frames:
       # Chemical subscripts: "H2O" -> "H₂O". The code adds the guards that keep names and
       # models out.
@@ -1366,7 +1364,7 @@ rules:
         when:
           - "!userWord(ctx, m.index, m.index + token.length)"
           - '/[A-Za-z]\d/.test(body) && !/\d{3}|[A-Za-z][10](?!\d)|[A-GI-Za-z]\d\d/.test(body) && /[CHO]/.test(body)'
-        return: '({ ruleId: "portugueseTypographyStyle", messageKey: "review_msg_pt_typography_style", range: { start: m.index, end: m.index + token.length }, alternatives: [lead + body.replace(/\d/g, (digit) => SUBSCRIPTS[Number(digit)])] })'
+        return: '({ ruleId: "portugueseTypographyStyle", messageKey: "review_msg_pt_typography_style", range: { start: m.index, end: m.index + token.length }, alternatives: [lead + body.replace(/\d/g, (digit) => SUBSCRIPT_DIGITS[Number(digit)])] })'
   - id: pt_BR.rangeDash
     checks: [emdashShortcut]
     style: match

@@ -4507,6 +4507,8 @@ fragments:
 
 # The code of the rules' expressions (`let`, `when`, `return`) that rules of several modules use.
 defs:
+  # The subscript digits: SUBSCRIPT_DIGITS[2] is "₂".
+  SUBSCRIPT_DIGITS: '"₀₁₂₃₄₅₆₇₈₉"'
   # Two frames may find the same words: the first finding at a start wins.
   firstPerStart:
     args: "findings: RawFinding[]"
@@ -6954,7 +6956,6 @@ rules:
           maybe,
           probably,
         ]
-      COMPLEMENT_SUBJECTS: [i, we, you, they, he, she, it]
       COMPLEMENT_RELATIVES: [who, which, that, whom]
       FREE_RELATIVES: [what, whatever, whoever, whichever]
       COMPLEMENT_CONJUNCTIONS: [and, or, but, then]
@@ -7246,7 +7247,7 @@ rules:
               ? !words.slice(i + 1).some((w) => COMPLEMENT_RELATIVES.has(w) || FREE_RELATIVES.has(w))
               : COMPLEMENT_RELATIVES.has(w1)
                 ? objectAntecedent(words, i + 1)
-                : COMPLEMENT_SUBJECTS.has(w1)
+                : EN_SUBJECT_PRONOUNS.has(w1)
                   ? helpSubjectClause(words, i)
                   : helpNounClause(words, i)
         else: "false"
@@ -7593,11 +7594,11 @@ rules:
           words: wordsBefore(ctx.text, m.index)
           i: skipAuxiliaries(words, 0)
           rest: words.slice(i + 1)
-          shared: rest.findIndex((w) => COMPLEMENT_SUBJECTS.has(w))
+          shared: rest.findIndex((w) => EN_SUBJECT_PRONOUNS.has(w))
           # "We tested it and suggested to add tests": a shared pronoun subject with no relative
           # clause or be in between ("It is unsafe and not recommended to").
           subject: >-
-            COMPLEMENT_SUBJECTS.has(words[i]) ||
+            EN_SUBJECT_PRONOUNS.has(words[i]) ||
             (COMPLEMENT_CONJUNCTIONS.has(words[i]) &&
               shared >= 0 &&
               !rest
@@ -9118,15 +9119,15 @@ rules:
         /^(?:the|a|an|my|your|our|his|her|their|its|whose|thy|own|no|any|every|each|some|first|second|third|last|next|of|in|on|at|by|for|from|to|into|onto|upon|with|without|within|against|about|after|before|through|over|under|as|than|nor|neither|so|only|never|rarely|seldom|hardly|little|when|where|why|how|whether|if|is|are|was|were|be|been|being|am|not)$/
       # Bare auxiliaries that are also nouns or names.
       NOUN_MODAL: /^(?:will|can|may|must|might)$/i
-      # What can follow a verb but never a noun or adjective: an object pronoun, or (after a
-      # participle) a determiner. "did tests on it" and "did advanced training" stay lexical.
-      AUX_OBJECT_PRONOUN: /^(?:me|him|her|us|them|it|you)$/
+      # What can follow a verb but never a noun or adjective: an object pronoun
+      # (EN_OBJECT_PRONOUNS), or (after a participle) a determiner. "did tests on it" and "did
+      # advanced training" stay lexical.
       AUX_DETERMINER_WORD: /^(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those)$/
       AUX_BE: /^(?:am|is|are|was|were|be|been|being|.+['’](?:s|re|m))$/
       # "When will he arrived?", "Can you please attached it?": a modal question with a person
       # subject.
       PERSON_QUESTION: >-
-        /^(?:(?:what|when|where|why|how|who)[ \t ]{1,8})?(?:can|could|will|would|shall|should|may|might|must)[ \t ]{1,8}(?:i|you|we|they|he|she)(?:[ \t ]{1,8}please)?[ \t ]{1,8}$/i
+        /^(?:(?:what|when|where|why|how|who)[ \t ]{1,8})?{{STRUCTURE_MODALS}}[ \t ]{1,8}(?:i|you|we|they|he|she)(?:[ \t ]{1,8}please)?[ \t ]{1,8}$/i
       # "than they would sitting", "as I could making sure": the comparison leaves a verb out.
       ELLIPSIS_LEAD: /^(?:than|as)$/i
       # Heads that always take a bare infinitive after "to". "used to", "looking forward to",
@@ -9148,7 +9149,7 @@ rules:
         args: "word: string"
         let:
           info: englishWordInfo(word)
-        when: "!!word && !AUX_FUNCTION_WORD.test(word) && !AUX_OBJECT_PRONOUN.test(word)"
+        when: "!!word && !AUX_FUNCTION_WORD.test(word) && !EN_OBJECT_PRONOUNS.has(word)"
         return: "!info || info.noun || info.plural || info.adjective"
         else: "false"
       # The base behind an -s or -ed form (regular or irregular); null when spelling cannot tell
@@ -9187,7 +9188,7 @@ rules:
         return: >-
           word === "seen" && (next === "to" || !!englishWordInfo(next)?.adjective)
             ? { forms: ["seem"] }
-            : (/^(?:found|ground|wound)$/.test(word) && !AUX_OBJECT_PRONOUN.test(next)) ||
+            : (/^(?:found|ground|wound)$/.test(word) && !EN_OBJECT_PRONOUNS.has(next)) ||
                 (plural && AUX_PREPOSITION_NEXT.test(next)) ||
                 (plural && baseVerbNotAdjective(next))
               ? null
@@ -9195,7 +9196,7 @@ rules:
                 ? entryRepair(word, entry, isDo, lexicalDo, auxiliary)
                 : entry
                   ? !isDo ||
-                    (lexicalDo && !AUX_OBJECT_PRONOUN.test(next) && !AUX_DETERMINER_WORD.test(next))
+                    (lexicalDo && !EN_OBJECT_PRONOUNS.has(next) && !AUX_DETERMINER_WORD.test(next))
                     ? null
                     : { forms: [entry.lemma], choice: true }
                   : word.endsWith("ing")
@@ -9260,7 +9261,7 @@ rules:
         let:
           lemma: inflectedLemma(word)
           past: '!word.endsWith("s")'
-          verbEvidence: AUX_OBJECT_PRONOUN.test(next) || (past && AUX_DETERMINER_WORD.test(next))
+          verbEvidence: EN_OBJECT_PRONOUNS.has(next) || (past && AUX_DETERMINER_WORD.test(next))
         when:
           - "!!lemma"
           - '!(next === "to" && (word === "supposed" || (word === "used" && !isDo)))'
@@ -9492,7 +9493,7 @@ rules:
           head: headWord[0].toLowerCase()
           beforeHead: 'head ? previousWord(ctx.text, headWord[1])[0].toLowerCase() : ""'
           next: nextLowerWord(ctx, end)
-          object: AUX_OBJECT_PRONOUN.test(next) || AUX_DETERMINER_WORD.test(next)
+          object: EN_OBJECT_PRONOUNS.has(next) || AUX_DETERMINER_WORD.test(next)
           going: head === "going"
           # "going to meetings" is a place unless be makes it a future; "would like to".
           strong: >-
@@ -9509,7 +9510,7 @@ rules:
           ok: >-
             word.endsWith("s") && (info?.plural ?? true)
               ? strong &&
-                (AUX_OBJECT_PRONOUN.test(next) || (!going && ctx.text[end] !== "," && (!next || object)))
+                (EN_OBJECT_PRONOUNS.has(next) || (!going && ctx.text[end] !== "," && (!next || object)))
               : word.endsWith("s") || pastOnly
                 ? strong || (AUX_BE.test(beforeHead) && adjectiveOrParticiple(head)) || object
                 : object || (strong && !(going && contentWord(next)))
@@ -9558,7 +9559,7 @@ rules:
           # "want to proxy websockets": a noun right after reads as the object of a verb. After a
           # derived noun these show a verb was meant, which only the writer knows: a warning.
           objectAfter: >-
-            AUX_OBJECT_PRONOUN.test(next) ||
+            EN_OBJECT_PRONOUNS.has(next) ||
             AUX_DETERMINER_WORD.test(next) ||
             (!!nextInfo?.verbs.some((v) => v.form === "base") && !nextInfo.adjective) ||
             (contentWord(next) && (!nextInfo || nextInfo.noun || nextInfo.plural))
@@ -9713,8 +9714,7 @@ rules:
         /^(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together|if|when|which|who|whom)$/
       # Prepositions that never open a clause ("for they are…", "like we do") or an inverted one
       # ("In they went"): the CASE_OBJECT_PREPOSITION fragment.
-      CASE_OBJECT_PREPOSITION_WORD: >-
-        /^(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)$/
+      CASE_OBJECT_PREPOSITION_WORD: /^{{CASE_OBJECT_PREPOSITION}}$/
     frames:
       # "Me and Sam went", "My wife and me are": object pronouns in a clause-initial coordinated
       # subject.
@@ -10012,8 +10012,7 @@ rules:
         return: >-
           new RegExp(`(?:^|[^\\p{L}\\p{N}_'’-])${words}[ \\t\\u00a0]{1,8}$`, "iu").test(
             ctx.text.slice(Math.max(0, index - 40), index))
-      STRUCTURE_PREPOSITIONS: >-
-        "(?:to|with|for|from|about|at|by|of|on|in|into|onto|upon|without|against|among|between|toward|towards|behind|beside|near|around|via)"
+      STRUCTURE_PREPOSITIONS: '"{{STRUCTURE_PREPOSITION}}"'
       # Words that name a word: "the my keyword" names a word, not an owner.
       META_NOUN: /^(?:keyword|pronoun|word|determiner|possessive|variable|declaration|operator)$/i
       # Adverbs the lexicon lists as adjectives ("will likely", "can just") are no predicates.
@@ -10022,8 +10021,7 @@ rules:
         /^(?:the|a|an|my|your|his|her|our|their|its|good|ill|free|own|last|when|where|what|why|how|who|which|whose|whom)$/i
       INVERSION_SUBJECTS: >-
         /^(?:i|you|he|she|it|we|they|everyone|everybody|others|nobody|someone|somebody|all|many|most)$/
-      INVERSION_AUX: >-
-        /^(?:am|is|are|was|were|has|have|had|can|could|will|would|should|must|may|might|shall|do|does|did)$/i
+      INVERSION_AUX: /^{{CASE_AUX}}$/i
       INVERSION_SUBJECT_OF: >-
         wordTable<RegExp>({ s: /^(?:he|she|it)$/i, re: /^(?:you|we|they)$/i, ve: /^(?:I|you|we|they)$/i, m: /^I$/, ll: /./ })
       # "does it work", "did they go": do-support for a fronted lexical verb, or null when
@@ -10429,7 +10427,7 @@ rules:
       # A preposition, an "-ing" form, "to" + a verb, or a verb that takes an object before
       # "there own": the possessive.
       OWN_OBJECT_BEFORE: >-
-        /(?:\b(?:of|for|about|with|from|into|onto|at|by|against|between|among|without|toward|towards|under|through|during|despite|to|on|in)|ing|\bto[ \t ]+[a-z]+|\b(?:create|creates|created|make|makes|made|have|has|had|get|gets|got|build|builds|built|find|found|choose|chose|bring|brought|use|uses|used|pay|paid|run|runs|ran|do|does|did|manage|managed|keep|keeps|kept|set|sets|write|wrote|host|hosted|provide|provides|provided|become|became|define|defined|pick|picks|picked|want|wants|wanted|need|needs|needed|take|takes|took|brings|like|likes|prefer|prefers|love|loves)|\b(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|lost))[ \t ]+$/i
+        /(?:\b{{CONFUSION_PREPOSITION}}|ing|\bto[ \t ]+[a-z]+|\b(?:create|creates|created|make|makes|made|have|has|had|get|gets|got|build|builds|built|find|found|choose|chose|bring|brought|use|uses|used|pay|paid|run|runs|ran|do|does|did|manage|managed|keep|keeps|kept|set|sets|write|wrote|host|hosted|provide|provides|provided|become|became|define|defined|pick|picks|picked|want|wants|wanted|need|needs|needed|take|takes|took|brings|like|likes|prefer|prefers|love|loves)|\b(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|lost))[ \t ]+$/i
     frames:
       # Copular comparison + complete comparison argument; temporal sentence tails abstain.
       - regex: "(?:is|are|was|were){{S}}(?:(?:much|even|far|slightly){{S}})?{{CONFUSION_COMPARATIVE}}{{S}}(?<target>then){{S}}{{CONFUSION_ARGUMENT}}{{COMPLETE_OR_PAREN}}"
@@ -13095,10 +13093,9 @@ rules:
       DE_CONDITIONAL: [wenn, falls, ob]
       FR_BOUNDARY:
         [que, qu, si, quand, lorsque, lorsqu, et, mais, ou, car, donc, puis, dont, où, qui, comme]
-      FR_CONDITIONAL: [si]
+      FR_ES_CONDITIONAL: [si]
       ES_DATE_BOUNDARY:
         [que, si, cuando, porque, aunque, "y", e, pero, o, u, ni, mientras, donde, quien, como]
-      ES_CONDITIONAL: [si]
       PT_BOUNDARY: [que, se, quando, porque, embora, e, mas, ou, enquanto, onde, quem, como]
       PT_CONDITIONAL: [se]
       PL_BOUNDARY:
@@ -13947,14 +13944,14 @@ rules:
           g: m.groups!
           side: >-
             dateSideOf(Number(g.year), g.name ? (FR_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, FR_CONDITIONAL, FR_BOUNDARY, "fr")
+        return: dateTenseFinding(m, ctx, side, FR_ES_CONDITIONAL, FR_BOUNDARY, "fr")
       - regex: "le{{DATE_SPACE}}(?:(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche){{DATE_SPACE}})?(?<date>{{DATE_NUMERIC}}){{DATE_NOT_AFTER}}"
         owner: date
         let:
           g: m.groups!
           side: >-
             dateSideOf(Number(g.year), g.name ? (FR_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, FR_CONDITIONAL, FR_BOUNDARY, "fr")
+        return: dateTenseFinding(m, ctx, side, FR_ES_CONDITIONAL, FR_BOUNDARY, "fr")
   - id: dateTense.es
     checks: [dateTenseConsistency]
     lang: es
@@ -13968,14 +13965,14 @@ rules:
           g: m.groups!
           side: >-
             dateSideOf(Number(g.year), g.name ? (ES_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, ES_CONDITIONAL, ES_DATE_BOUNDARY, "es")
+        return: dateTenseFinding(m, ctx, side, FR_ES_CONDITIONAL, ES_DATE_BOUNDARY, "es")
       - regex: "el{{DATE_SPACE}}(?:día{{DATE_SPACE}})?(?:(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo),?{{DATE_SPACE}})?(?<date>{{DATE_NUMERIC}}){{DATE_NOT_AFTER}}"
         owner: date
         let:
           g: m.groups!
           side: >-
             dateSideOf(Number(g.year), g.name ? (ES_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, ES_CONDITIONAL, ES_DATE_BOUNDARY, "es")
+        return: dateTenseFinding(m, ctx, side, FR_ES_CONDITIONAL, ES_DATE_BOUNDARY, "es")
   - id: dateTense.pt
     checks: [dateTenseConsistency]
     lang: pt
