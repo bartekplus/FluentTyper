@@ -27,13 +27,7 @@ export { MASK_CHAR } from "../review/types";
 export { digitValue, invalidIsoDate } from "../review/isoDates";
 export { phraseRows } from "./common/engine";
 export { atClauseStart, lastBefore, matchesFrom, previousWord } from "./common/text";
-export {
-  englishNounNumber,
-  isEnglishFunctionWord,
-  isUniquePast,
-  pluralNoun,
-  simplePastOnly,
-} from "./common/english";
+export { isUniquePast, pluralNoun, simplePastOnly } from "./common/english";
 export {
   englishNounForms,
   hasCountPrefix,
@@ -57,7 +51,6 @@ export {
   phraseMatch,
   previousTokensStart,
   resumeScan,
-  skipBackWhile,
   skipForwardWhile,
   tokenEndAfter,
   tokenEndBefore,

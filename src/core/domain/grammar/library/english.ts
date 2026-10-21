@@ -27,11 +27,7 @@ export {
 export type { Token as EnToken } from "../review/english/slotWords";
 
 // Noun number and mass nouns (library/english/nouns.ts).
-export {
-  MASS as EN_MASS,
-  nounNumber as enNounNumber,
-  wordsAfter as enWordsAfter,
-} from "./english/nouns";
+export { nounNumber as enNounNumber, wordsAfter as enWordsAfter } from "./english/nouns";
 
 // Collective nouns and clause openings (library/english/words.ts).
 export { COLLECTIVE as EN_COLLECTIVE, opensClause as enOpensClause } from "./english/words";
@@ -61,7 +57,7 @@ export {
   IRREGULAR_PLURALS as EN_IRREGULAR_PLURALS,
 } from "./english/nouns";
 export type { EnglishWordInfo as EnWordInfo } from "../implementations/helpers/EnglishLexicon";
-export { participleOf as enParticipleOf, readWord as enReadWord } from "./english/readings";
+export { readWord as enReadWord } from "./english/readings";
 // Group idioms5 (idioms2-5, slot confusions, contraction, neighbour and typo slots, misheard
 // words): the text before an index and the word after it (review/phraseTemplates).
 export { before as enBefore, nextWord as enNextWord } from "../review/phraseTemplates";
@@ -116,9 +112,7 @@ export { gluedAfter as enGluedAfter } from "../review/phraseTemplates";
 export { inView as enInView, ruleFindings as enRuleFindings } from "./english/views";
 
 // Group 5: a read through a cache that a rule file keeps (library/english/cache.ts).
-export { readThrough as enReadThrough } from "./english/cache";
 // Group 3 (grammarStyle1, articles, confusionSlots, everydaySlots, wordFormSlots, punctuation,
 // typography, apostrophes, plainStyle).
 
 // The findings of another frame rule (library/english/rules.ts).
-export { enFrameRuleFindings } from "./english/rules";

@@ -6,12 +6,8 @@ import {
   englishNounPair,
   englishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
-import { ENGLISH_MASS_NOUNS } from "../../implementations/helpers/EnglishCountability";
 import type { DetectContext } from "../../review/reviewDetectors";
 import { FUNCTION_WORDS, type Token } from "../../review/english/slotWords";
-
-// Nouns used uncountably that a/an and many never take: "an advice", "many money".
-export const MASS = ENGLISH_MASS_NOUNS;
 
 // Irregular plurals the dictionary does not link to their singular.
 export const IRREGULAR = new Map(

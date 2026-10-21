@@ -11,7 +11,7 @@ export function typingEdit(
 }
 
 /**
- * `regex` (with the g flag) run from index `from` of `text`. Its lookbehinds still read the text
+ * `regex` (with the g or y flag) run from index `from` of `text`. Its lookbehinds still read the text
  * before `from`.
  */
 export function execFrom(regex: RegExp, text: string, from: number): RegExpExecArray | null {

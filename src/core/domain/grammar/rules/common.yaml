@@ -8062,7 +8062,7 @@ rules:
         when: "!!head"
         return: >-
           /^(?:anything|everything|something|nothing|all|what|whatever|whichever)$/.test(head) ||
-          (!!read && (read.noun || read.plural) && !isEnglishFunctionWord(head))
+          (!!read && (read.noun || read.plural) && !EN_FUNCTION_WORDS.has(head))
         else: "false"
       # The next word after `after`, lowercased.
       participleNextWord:
@@ -10752,7 +10752,7 @@ rules:
         let:
           before: lastNonBlankBefore(text, index)
           after: skipForwardWhile(text, index + 1, /^[ \t\u00a0]$/u)
-          wordStart: skipBackWhile(text, before + 1, /\p{L}/u)
+          wordStart: runStart(text, before + 1, /\p{L}/u)
         return: >-
           (MARK_QUOTES.test(text[before] ?? "") && MARK_QUOTES.test(text[after] ?? "")) ||
           (before !== index - 1 &&
@@ -12129,7 +12129,7 @@ rules:
       - regex: "(?<det>the|this|that|these|those|our|your|my|its|their|his|her|every|each){{S}}(?<noun>[a-z]+){{S}}(?<verb>[a-z]+){{S}}(?<tail>[a-z]+){{E}}(?=[ \\t\\u00a0]{0,8}(?:[.!,;:]|$))"
         owner: verb
         let:
-          forms: englishNounNumber(noun)
+          forms: enNounNumber(noun)
           number: forms?.number
           d: det.toLowerCase()
           verbForms: englishVerbForms(verb)
@@ -12867,7 +12867,7 @@ rules:
         args: "m: RegExpExecArray, ctx: DetectContext, frame: FrameRef"
         type: RawFinding | null
         let:
-          cut: "m.index < ctx.from ? skipBackWhile(ctx.text, ctx.from, /[^\\s\\uFFFC]/u) : 0"
+          cut: "m.index < ctx.from ? runStart(ctx.text, ctx.from, /[^\\s\\uFFFC]/u) : 0"
           ruleId: frame.ruleId
           units: ruleId === "measurementUnitFormatting"
           locale: resolveMeasurementLocale(ctx.lang)

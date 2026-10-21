@@ -47,7 +47,7 @@ export function inView(
 }
 
 // The detector of a frame rule by its id: Review sets the builder when it builds its detectors
-// (review/english/ruleDetectors.ts). An import of the engine here would make an import cycle.
+// (review/reviewDetectors.ts). An import of the engine here would make an import cycle.
 let build: ((id: string) => Detector) | undefined;
 const BUILT = new Map<string, Detector>();
 

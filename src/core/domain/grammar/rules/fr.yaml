@@ -3726,7 +3726,7 @@ rules:
       compoundHit:
         args: "text: string, compound: string, index: number"
         let:
-          hit: execAt(compoundPattern(compound), text, index)
+          hit: execFrom(compoundPattern(compound), text, index)
         return: "hit && /[ \\t]/.test(hit[0]) ? hit : null"
       spacedArticle:
         args: "ctx: DetectContext, previous: FrenchToken, first: string"

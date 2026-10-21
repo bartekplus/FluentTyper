@@ -65,12 +65,6 @@ export function skipWhile(
   return i;
 }
 
-/** The match of a sticky (`y`) regex at `index` of `text`, or null. */
-export function execAt(pattern: RegExp, text: string, index: number): RegExpExecArray | null {
-  pattern.lastIndex = index;
-  return pattern.exec(text);
-}
-
 /** Whether a verb slot is a finite form of one of the persons (a mask of JE ... ILS). */
 export const hasPerson = (slot: VerbSlot, persons: number): boolean =>
   typeof slot === "number" && (slot & persons) > 0;

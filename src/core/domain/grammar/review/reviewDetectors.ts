@@ -8,7 +8,6 @@ import {
 } from "./rules/common.generated";
 import { phraseCorrections } from "./englishPhraseCorrections";
 import { usePhraseRows } from "../library/common/engine";
-import { useEnFrameRules } from "../library/english/rules";
 import { useRuleDetectors } from "../library/english/views";
 import type { ReviewMessageKey, TextRange } from "./types";
 import { buildReviewDetectors, frameRuleDetector } from "../engine/reviewRules";
@@ -93,9 +92,7 @@ export const PHRASE_LAST_WORD = {
 // Library helpers that run engine parts: the library cannot load the engine (an import cycle).
 // The phrase rows that the phraseTables rule of common.yaml reads (library phraseRows).
 usePhraseRows(phraseCorrections);
-// The findings of another frame rule, in the chunk or in a view (library enFrameRuleFindings,
-// enRuleFindings).
-useEnFrameRules((id) => frameRuleDetector(id));
+// The findings of another frame rule, in the chunk or in a view (library enRuleFindings).
 useRuleDetectors((id) => frameRuleDetector(id));
 
 /**

@@ -126,13 +126,6 @@ export function tokenEndAfter(text: string, start: number): number {
   return i;
 }
 
-/** The index before the run of characters that match `char` (one character) and end at `index`. */
-export function skipBackWhile(text: string, index: number, char: RegExp): number {
-  let i = index;
-  while (i > 0 && char.test(text[i - 1])) i -= 1;
-  return i;
-}
-
 /** The index after the run of characters that match `char` (one character) from `index`. */
 export function skipForwardWhile(text: string, index: number, char: RegExp): number {
   let i = index;
