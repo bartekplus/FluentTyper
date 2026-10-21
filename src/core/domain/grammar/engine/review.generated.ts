@@ -24370,49 +24370,49 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<prep>[mM]it|[vV]on|[bB]ei|[aA]us|[nN]ach|[zZ]u|[sS]eit|[sS]amt|[nN]ebst|[aA]ußer|[gG]emäß|[nN]ahe|[eE]ntsprechend|[wW]egen|[tT]rotz|[wW]ährend|[sS]tatt|[aA]nstatt|[aA]ufgrund|[bB]ezüglich|[aA]ngesichts|[mM]angels|[iI]nfolge|[aA]bzüglich|[zZ]uzüglich|[iI]nklusive|[eE]xklusive|[hH]insichtlich|[aA]nhand|[aA]nlässlich|[sS]eitens|[mM]ithilfe|[fF]ür|[gG]egen|[dD]urch|[wW]ider|[oO]hne|[uU]m|[bB]etreffend)[ \\t\\u00a0]{1,8}(?<target>(?<det>\\p{Ll}+|Ihr\\p{Ll}*)(?<adjs>(?:[ \\t\\u00a0]{1,8}\\p{Ll}+(?:e|en|er|es|em)){0,2})[ \\t\\u00a0]{1,8}(?:(?<ordinal>\\d{1,2}\\.)[ \\t\\u00a0]{1,8})?(?<noun>\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:caseAfterPreposition",
+    fixer: "de:@de.prepositionCase/1",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Zz]u|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer)[ \\t\\u00a0]{1,8}(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|[2-9]|[1-9]\\d{1,2}|vielen|mehreren|beiden|zahlreichen|wenigen|einigen|\\p{Ll}{3,}en)(?:[ \\t\\u00a0]{1,8}\\p{Ll}+en)?[ \\t\\u00a0]{1,8}(?<target>\\p{Lu}\\p{Ll}+(?:e|er|el))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:countedPlural",
+    fixer: "de:@de.prepositionCase/2",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Zz]u|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer)[ \\t\\u00a0]{1,8}(?<target>\\p{Lu}\\p{Ll}+(?:e|er))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:plainPlural",
+    fixer: "de:@de.prepositionCase/3",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer|[Ss]amt)[ \\t\\u00a0]{1,8}(?<target>(?<adj>\\p{Ll}{3,}?)en)[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:strongSingular",
+    fixer: "de:@de.prepositionCase/4",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<prep>[Ii]n|[Vv]or|[Aa]b|[Bb]innen)[ \\t\\u00a0]{1,8}(?:[2-9]|[1-9]\\d{1,3}|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|dreißig|hundert)[ \\t\\u00a0]{1,8}(?<target>Tage|Jahre|Monate)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["tage", "jahre", "monate"],
-    fixer: "de:countedTime",
+    fixer: "de:@de.prepositionCase/5",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Aa]us|[Aa]ußer|[Ss]amt)[ \\t\\u00a0]{1,8}(?<target>(?<adj>\\p{Ll}{3,}?)e[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{L}*(?:-\\p{L}+)*))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:bareE",
+    fixer: "de:@de.prepositionCase/6",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<prep>[Mm]it|[Vv]on|[Bb]ei|[Zz]u|[Aa]us|[Nn]ach|[Ss]eit|[Aa]ußer)[ \\t\\u00a0]{1,8}(?<target>\\p{Ll}{3,}e)[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+(?:ungen|heiten|keiten|schaften|ionen|täten|innen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ungen", "heiten", "keiten", "schaften", "ionen", "täten", "innen"],
-    fixer: "de:barePlural",
+    fixer: "de:@de.prepositionCase/7",
     flags: "dgu",
   }),
   frame({
@@ -24431,7 +24431,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "das",
       "allem",
     ],
-    fixer: "de:pronounCase",
+    fixer: "de:@de.prepositionCase/8",
     flags: "dgu",
   }),
   frame({

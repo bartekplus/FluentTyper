@@ -2,7 +2,13 @@
 // The code of grammar/rules/de.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, FrameRef, MatchResult, RawFinding } from "../../library";
+import type {
+  DetectContext,
+  FrameRef,
+  GermanGenderReading,
+  MatchResult,
+  RawFinding,
+} from "../../library";
 import {
   capitalize,
   deCanonicalCasing,
@@ -1190,6 +1196,55 @@ export const LOWER_PAIRS: ReadonlySet<string> = new Set([
   "gesund:Menschenverstand",
 ]);
 
+export const PREP_POSTPOSITIONS: ReadonlySet<string> = new Set([
+  "nach",
+  "gemäß",
+  "nahe",
+  "entsprechend",
+]);
+
+export const PREP_QUANTIFIER_STEMS: ReadonlySet<string> = new Set([
+  "all",
+  "and",
+  "viel",
+  "wenig",
+  "einig",
+  "beid",
+  "mehrer",
+  "sämtlich",
+  "ganz",
+  "jed",
+]);
+
+export const PREP_EIN_WORDS: ReadonlySet<string> = new Set([
+  "ein",
+  "kein",
+  "mein",
+  "dein",
+  "sein",
+  "ihr",
+  "unser",
+  "euer",
+]);
+
+export const PREP_STEMS: ReadonlySet<string> = new Set([
+  "ein",
+  "kein",
+  "mein",
+  "dein",
+  "sein",
+  "ihr",
+  "unser",
+  "eur",
+  "euer",
+  "dies",
+  "jen",
+  "jed",
+  "welch",
+  "solch",
+  "all",
+]);
+
 export const THAT_ADJECTIVES: ReadonlySet<string> = new Set([
   "gut",
   "schön",
@@ -1527,6 +1582,83 @@ export const NOMINAL_IRREGULAR: Readonly<Record<string, string>> = {
   besser: "gut",
   höch: "hoch",
   näch: "nah",
+};
+
+export const PREP_CASES: Readonly<Record<string, string>> = {
+  mit: "dative",
+  von: "dative",
+  bei: "dative",
+  aus: "dative",
+  nach: "dative",
+  zu: "dative",
+  seit: "dative",
+  samt: "dative",
+  nebst: "dative",
+  außer: "dative",
+  gemäß: "dative",
+  nahe: "dative",
+  entsprechend: "dative",
+  wegen: "genitive",
+  trotz: "genitive",
+  während: "genitive",
+  statt: "genitive",
+  anstatt: "genitive",
+  aufgrund: "genitive",
+  bezüglich: "genitive",
+  angesichts: "genitive",
+  mangels: "genitive",
+  infolge: "genitive",
+  abzüglich: "genitive",
+  zuzüglich: "genitive",
+  inklusive: "genitive",
+  exklusive: "genitive",
+  hinsichtlich: "genitive",
+  anhand: "genitive",
+  anlässlich: "genitive",
+  seitens: "genitive",
+  mithilfe: "genitive",
+  für: "accusative",
+  gegen: "accusative",
+  durch: "accusative",
+  wider: "accusative",
+  ohne: "accusative",
+  um: "accusative",
+  betreffend: "accusative",
+};
+
+export const PRONOUN_CASE_FIX: Readonly<
+  Record<string, Readonly<Record<string, string>> | Readonly<Record<string, never>>>
+> = {
+  dative: {
+    mich: "mir",
+    dich: "dir",
+    ihn: "ihm",
+    niemanden: "niemandem",
+    jemanden: "jemandem",
+    einen: "einem",
+    keinen: "keinem",
+    das: "dem",
+  },
+  genitive: {},
+  accusative: { mir: "mich", dir: "dich", ihm: "ihn", allem: "alles" },
+};
+
+export const DEFINITE_ENDINGS: Readonly<Record<string, string>> = {
+  die: "e",
+  das: "s",
+  den: "en",
+  dem: "em",
+  der: "er",
+  des: "es",
+};
+
+export const DEFINITE_FORMS: Readonly<Record<string, string>> = {
+  e: "die",
+  s: "das",
+  en: "den",
+  em: "dem",
+  er: "der",
+  es: "des",
 };
 
 export const SEIN_FOR: Readonly<Record<string, string>> = {
@@ -3292,6 +3424,331 @@ export function ncFramedNounHolds(before: string[], at: number, after: string[])
         BOUNDARY.test(after[1] ?? ""))) &&
     !ncSubordinate(before, at)
   );
+}
+
+// de.yaml rule de.prepositionCase def PREP_DETERMINER_STEMS
+export const PREP_DETERMINER_STEMS =
+  /^(?:all|viel|wenig|ander|beid|einig|mehrer|solch|welch|manch|mein|dein|sein|ihr|unser|eur|dies|jen|jed|kein|ein|d)$/;
+
+// de.yaml rule de.prepositionCase def PREP_SUPERLATIVE
+export const PREP_SUPERLATIVE = /(?:s|ß)t(?:e|en|er|es)$|^ *Lieblings/;
+
+// de.yaml rule de.prepositionCase def prepPluralForm
+export function prepPluralForm(word: string) {
+  if (!(germanGender(word)?.plural !== false)) return false;
+  const low = word.toLowerCase();
+  const stem = low.replace(/e?r?$/, "");
+  const singular = deumlaut(stem);
+  const neuter = germanGender(singular)?.gender;
+  return /nisse$/.test(low)
+    ? germanNounReading(low.slice(0, -2)) !== null
+    : singular.length < 3
+      ? false
+      : singular !== stem
+        ? germanNounReading(singular) !== null && !germanNounReading(stem)
+        : /er$/.test(low) && (neuter === "n" || neuter === "x") && germanNounReading(low) !== null;
+}
+
+// de.yaml rule de.prepositionCase def prepSplit
+export function prepSplit(typed: string): [string, string] | null {
+  const det = typed.toLowerCase();
+  const ending = ["en", "em", "er", "es", "e", ""].find(
+    (e) => det.endsWith(e) && PREP_STEMS.has(det.slice(0, det.length - e.length)),
+  );
+  return Object.hasOwn(DEFINITE_ENDINGS, det)
+    ? ["d", DEFINITE_ENDINGS[det]]
+    : ending === undefined
+      ? null
+      : ending === "" && (!PREP_EIN_WORDS.has(det) || det === "ihr")
+        ? null
+        : [typed.slice(0, det.length - ending.length), ending];
+}
+
+// de.yaml rule de.prepositionCase def prepJoin
+export function prepJoin(stem: string, ending: string) {
+  return stem === "d"
+    ? DEFINITE_FORMS[ending]
+    : (stem.toLowerCase() === "euer" ? stem.slice(0, 1) + "ur" : stem) + ending;
+}
+
+// de.yaml rule de.prepositionCase def prepNeuter
+export function prepNeuter(stem: string) {
+  return stem === "d"
+    ? "das"
+    : PREP_EIN_WORDS.has(stem.toLowerCase())
+      ? stem
+      : stem === "eur"
+        ? "euer"
+        : `${stem}es`;
+}
+
+// de.yaml rule de.prepositionCase def prepNoun
+export function prepNoun(word: string) {
+  return germanNounReading(word.toLowerCase()) !== null;
+}
+
+// de.yaml rule de.prepositionCase def prepHeadNoun
+export function prepHeadNoun(word: string) {
+  return [...word].some(
+    (_, i) => (i === 0 || (i >= 3 && word.length - i >= 4)) && prepNoun(word.slice(i)),
+  );
+}
+
+// de.yaml rule de.prepositionCase def prepDativePlural
+export function prepDativePlural(word: string) {
+  const stem = word.slice(0, -1);
+  return word.endsWith("s")
+    ? !(
+        /[^aeiouys]$/.test(stem) &&
+        /^[mnx]$/.test(germanGender(stem)?.gender ?? "") &&
+        (prepNoun(`${stem}e`) || prepNoun(`${stem}en`))
+      ) &&
+        (!/(?:us|is|ss|rs|ls)$/.test(word) || prepNoun(stem))
+    : /(?:el|er)n$/.test(word)
+      ? true
+      : /in$/.test(word)
+        ? false
+        : /n$/.test(word) && (prepHeadNoun(word.slice(0, -1)) || prepHeadNoun(word.slice(0, -2)));
+}
+
+// de.yaml rule de.prepositionCase def prepWithoutDativeN
+export function prepWithoutDativeN(word: string): string | null {
+  const stem = word.slice(0, -1);
+  return /(?:el|er)n$/.test(word)
+    ? stem
+    : /en$/.test(word) && prepNoun(stem) && germanGender(stem)?.gender !== "f"
+      ? stem
+      : null;
+}
+
+// de.yaml rule de.prepositionCase def prepPluralOnly
+export function prepPluralOnly(word: string) {
+  const low = word.toLowerCase();
+  const plain = deumlaut(low);
+  return prepPluralForm(word) || (/(?:er|el)$/.test(low) && plain !== low && prepNoun(plain));
+}
+
+// de.yaml rule de.prepositionCase def prepWeak
+export function prepWeak(adjs: string) {
+  return adjs.replace(/\p{Ll}+/gu, (a) => a.replace(/(?:e|en|er|es|em)$/, "en"));
+}
+
+// de.yaml rule de.prepositionCase def prepEnding
+export function prepEnding(adjs: string, to: string) {
+  return adjs.replace(/\p{Ll}+/gu, (a) => a.replace(/(?:e|en|er|es|em)$/, to));
+}
+
+// de.yaml rule de.prepositionCase def prepGenitiveNoun
+export function prepGenitiveNoun(word: string) {
+  const low = word.toLowerCase();
+  return /[^aeiouys]s$/.test(word) && !prepDativePlural(word)
+    ? word
+    : /(?:s|ß|x|z)$/.test(word)
+      ? `${word}es`
+      : low === "herrn"
+        ? word
+        : /en$/.test(low) && (prepNoun(low.slice(0, -2)) || prepNoun(low.slice(0, -1)))
+          ? word
+          : `${word}s`;
+}
+
+// de.yaml rule de.prepositionCase def prepWithoutGenitive
+export function prepWithoutGenitive(word: string) {
+  return /(?:ss|ß|z|x|ch|t|d|g)es$/.test(word) ? word.slice(0, -2) : word.replace(/s$/, "");
+}
+
+// de.yaml rule de.prepositionCase def prepDativeFix
+export function prepDativeFix(
+  stem: string,
+  end: string,
+  adjs: string,
+  word: string,
+  gender: GermanGenderReading | null,
+): { replacements: string[]; choice?: true } | null {
+  const singular = `${prepJoin(stem, "em")}${prepWeak(adjs)} ${word}`;
+  const feminine = `${prepJoin(stem, "er")}${prepWeak(adjs)} ${word}`;
+  const plural = `${prepJoin(stem, "en")}${prepWeak(adjs)} ${/[^ns]$/.test(word) ? word + "n" : word}`;
+  const hasPlural = stem !== "ein";
+  const pluralEnding = hasPlural && /(?:e|er|el|en|chen|lein)$/.test(word);
+  return end === "es" && /s$/.test(word)
+    ? { replacements: [`${prepJoin(stem, "em")}${prepWeak(adjs)} ${prepWithoutGenitive(word)}`] }
+    : end === "" || end === "s" || (end === "es" && stem !== "d")
+      ? end === "es" && /n$/.test(word)
+        ? prepDativePlural(word)
+          ? { replacements: [plural] }
+          : null
+        : { replacements: [singular] }
+      : end === "en"
+        ? prepDativePlural(word) || /(?:er|el|en|e)$/.test(word)
+          ? null
+          : { replacements: [singular] }
+        : end !== "e"
+          ? null
+          : prepDativePlural(word) || stem === "all"
+            ? { replacements: [plural] }
+            : gender?.gender === "f"
+              ? { replacements: [feminine] }
+              : !gender && prepPluralOnly(word)
+                ? hasPlural
+                  ? { replacements: [plural] }
+                  : null
+                : gender
+                  ? gender.plural && pluralEnding
+                    ? { replacements: [singular, plural], choice: true }
+                    : { replacements: [singular] }
+                  : {
+                      replacements: pluralEnding
+                        ? [singular, feminine, plural]
+                        : [singular, feminine],
+                      choice: true,
+                    };
+}
+
+// de.yaml rule de.prepositionCase def prepGenitivePlural
+export function prepGenitivePlural(
+  stem: string,
+  adjs: string,
+  word: string,
+): { replacements: string[]; choice?: true } {
+  const plain = prepWithoutDativeN(word);
+  const plurals = plain ? (/(?:el|er)n$/.test(word) ? [plain] : [plain, word]) : [word];
+  return {
+    replacements: plurals.map((n) => `${prepJoin(stem, "er")}${adjs} ${n}`),
+    ...(plurals.length > 1 ? { choice: true as const } : {}),
+  };
+}
+
+// de.yaml rule de.prepositionCase def prepGenitiveFix
+export function prepGenitiveFix(
+  stem: string,
+  end: string,
+  adjs: string,
+  word: string,
+  gender: GermanGenderReading | null,
+): { replacements: string[]; choice?: true } | null {
+  const singular = `${prepJoin(stem, "es")}${prepWeak(adjs)} ${prepGenitiveNoun(word)}`;
+  const feminineOrPlural = { replacements: [`${prepJoin(stem, "er")}${prepWeak(adjs)} ${word}`] };
+  return end === "em"
+    ? { replacements: [singular] }
+    : end === "en"
+      ? prepDativePlural(word)
+        ? prepGenitivePlural(stem, adjs, word)
+        : /(?:er|el|en|e)$/.test(word) || stem === "all"
+          ? null
+          : { replacements: [singular] }
+      : end !== "e" || stem === "all"
+        ? null
+        : gender?.gender === "f"
+          ? feminineOrPlural
+          : gender
+            ? gender.plural && stem !== "ein"
+              ? feminineOrPlural
+              : { replacements: [singular] }
+            : prepDativePlural(word) || prepPluralOnly(word)
+              ? feminineOrPlural
+              : { replacements: [singular, feminineOrPlural.replacements[0]], choice: true };
+}
+
+// de.yaml rule de.prepositionCase def prepAccusativeFix
+export function prepAccusativeFix(
+  stem: string,
+  end: string,
+  adjs: string,
+  word: string,
+  gender: GermanGenderReading | null,
+): { replacements: string[]; choice?: true } | null {
+  const plain = end === "en" && stem === "d" ? prepWithoutDativeN(word) : null;
+  const masculine = `${prepJoin(stem, "en")}${prepEnding(adjs, "en")} ${word}`;
+  const neuterForm = `${prepNeuter(stem)}${prepEnding(adjs, stem === "d" ? "e" : "es")} ${word}`;
+  return end === "er" && !/(?:er|el|en|n|s)$/.test(word)
+    ? { replacements: [`${prepJoin(stem, "e")}${prepEnding(adjs, "e")} ${word}`] }
+    : end === "em"
+      ? gender?.gender === "m"
+        ? { replacements: [masculine] }
+        : gender?.gender === "n"
+          ? { replacements: [neuterForm] }
+          : { replacements: [masculine, neuterForm], choice: true }
+      : end === "en" && stem === "d"
+        ? plain?.endsWith("e")
+          ? germanGender(plain)?.gender === "f"
+            ? { replacements: [`die${adjs} ${word}`] }
+            : null
+          : plain
+            ? { replacements: [`die${adjs} ${plain}`] }
+            : null
+        : null;
+}
+
+// de.yaml rule de.prepositionCase def prepCaseFix
+export function prepCaseFix(
+  kind: string,
+  stem: string,
+  end: string,
+  adjs: string,
+  word: string,
+  gender: GermanGenderReading | null,
+): { replacements: string[]; choice?: true } | null {
+  return kind === "dative"
+    ? prepDativeFix(stem, end, adjs, word, gender)
+    : kind === "genitive"
+      ? prepGenitiveFix(stem, end, adjs, word, gender)
+      : prepAccusativeFix(stem, end, adjs, word, gender);
+}
+
+// de.yaml rule de.prepositionCase def zuInfinitiveAfter
+export function zuInfinitiveAfter(ctx: DetectContext, end: number, separate: boolean) {
+  const rest = ctx.text.slice(end, end + 120).split(/[.!?;:,\n]/)[0];
+  return (
+    /\p{L}zu\p{Ll}+n(?!\p{L})/u.test(rest) || (separate && /(?<!\p{L})zu[ \t]+\p{Ll}/u.test(rest))
+  );
+}
+
+// de.yaml rule de.prepositionCase def prepGuarded
+export function prepGuarded(ctx: DetectContext, m: RegExpExecArray, kind: string) {
+  const prep = m.groups!.prep;
+  const low = prep.toLowerCase();
+  const prior = deTokensBefore(ctx.text, m.index, 3).at(-1) ?? "";
+  if (/^\p{Lu}/u.test(prep) && !BOUNDARY.test(prior)) return false;
+  const nounBefore = /^\p{Lu}/u.test(prior) && !BOUNDARY.test(prior);
+  const genitivePronoun = /^(?:meiner|deiner|seiner|ihrer|unserer|eurer)$/.test(prior);
+  if ((kind === "genitive" || PREP_POSTPOSITIONS.has(low)) && (nounBefore || genitivePronoun))
+    return false;
+  if (low === "zu" && /^(?:hier|da|wo)$/i.test(prior)) return false;
+  if (prior === "und" && (low === "zu" || low === "nach")) return false;
+  if (/^(?:was|sowas)$/i.test(prior) && (low === "für" || low === "von")) return false;
+  if (prior === "," && /^(?:dem|der|den|denen)$/.test(m.groups!.target.split(/[ \t]/)[0]))
+    return false;
+  return !zuInfinitiveAfter(ctx, m.index + m[0].length, /^(?:ohne|um|statt|anstatt|zu)$/.test(low));
+}
+
+// de.yaml rule de.prepositionCase def clauseEndsInVerb
+export function clauseEndsInVerb(ctx: DetectContext, index: number) {
+  const rest = /^[^.,;:!?\n]*[.,;:!?\n]?/.exec(ctx.text.slice(index, index + 200))![0];
+  const last = rest.match(/\p{L}+/gu)?.at(-1);
+  return (
+    rest.endsWith(",") ||
+    (!!last &&
+      (germanVerbLike(last) ||
+        germanAuxiliary(last) ||
+        germanPastInfinitives(last).length > 0 ||
+        /^\p{Ll}+(?:t|en)$/u.test(last)))
+  );
+}
+
+// de.yaml rule de.prepositionCase def caseFinding
+export function caseFinding(
+  m: RegExpExecArray,
+  fix: { replacements: string[]; choice?: true },
+): RawFinding {
+  const span = m.indices!.groups!.target;
+  return {
+    ruleId: "germanPrepositionCase",
+    messageKey: "review_msg_german_preposition_case",
+    range: { start: span[0], end: span[1] },
+    alternatives: fix.replacements,
+    context: { start: m.index, end: span[1] },
+    ...(fix.choice ? { requiresChoice: true as const } : {}),
+  };
 }
 
 // de.yaml rule de.confusions def DATIVE_ADJECTIVES
@@ -5352,6 +5809,142 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       alternatives: ["S"],
       context: { start: m.index, end: start + 3 },
     };
+  },
+  // de.yaml rule de.prepositionCase frame 1
+  "@de.prepositionCase/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prep = m.groups!.prep;
+    const det = m.groups!.det;
+    const adjs = m.groups!.adjs;
+    const ordinal = m.groups!.ordinal;
+    const noun = m.groups!.noun;
+    const low = prep.toLowerCase();
+    const kind = PREP_CASES[low];
+    const parts = prepSplit(det);
+    if (!(!!parts && prepGuarded(ctx, m, kind))) return null;
+    const stem = parts[0];
+    const end = parts[1];
+    const mods = adjs ?? "";
+    if (low === "mit" && (PREP_SUPERLATIVE.test(mods) || PREP_SUPERLATIVE.test(noun))) return null;
+    if (/^bei die Fische$/i.test(`${prep} ${det} ${noun}`)) return null;
+    if (low === "seit" && end !== "en" && clauseEndsInVerb(ctx, m.indices!.groups!.noun[1]))
+      return null;
+    if (low === "während" && end === "e") return null;
+    const genitiveForm = end === "es" && /s$/.test(noun);
+    if (kind === "dative" && (low === "nahe" ? !genitiveForm : low !== "gemäß" && genitiveForm))
+      return null;
+    if (end === "er" && stem === "d" && low !== "wider" && low !== "betreffend") return null;
+    const after = deTokensAfter(ctx.text, m.indices!.groups!.noun[1], 2);
+    const next = after[0] ?? "";
+    if (/^\p{Lu}/u.test(next) && !/es$/.test(next)) return null;
+    if (/^(?:und|oder|sowie|&|\/)$/.test(next) && /^\p{Lu}/u.test(after[1] ?? "")) return null;
+    if (/^\p{Ll}+end(?:e|en|er|es|em)?$/u.test(next)) return null;
+    const fix = prepCaseFix(kind, stem, end, mods, noun, germanGender(noun.split("-").at(-1)!));
+    if (!fix) return null;
+    if (ctx.dictionary.has(noun.toLowerCase())) return null;
+    return caseFinding(
+      m,
+      ordinal
+        ? {
+            ...fix,
+            replacements: fix.replacements.map((r) => r.replace(/ (\S+)$/, ` ${ordinal} $1`)),
+          }
+        : fix,
+    );
+  },
+  // de.yaml rule de.prepositionCase frame 2
+  "@de.prepositionCase/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(prepGuarded(ctx, m, "dative") && !ctx.dictionary.has(target.toLowerCase()))) return null;
+    if (/bis[ \t]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) return null;
+    const dative = `${target}n`.toLowerCase();
+    const known = [...dative].some(
+      (_, i) =>
+        (i === 0 || (i >= 3 && dative.length - i >= 4)) &&
+        germanNounReading(dative.slice(i)) !== null,
+    );
+    if (!known) return null;
+    const counted = /(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|\d)/.test(m[0]);
+    const reading = germanGender(target);
+    if (!counted && reading?.gender === "f" && !reading.plural) return null;
+    const quantity = /(?:vielen|mehreren|beiden|zahlreichen|wenigen|einigen)(?!\p{L})/u.test(m[0]);
+    if (!counted && !quantity && m.groups!.prep.toLowerCase() === "zu") return null;
+    return caseFinding(m, { replacements: [`${target}n`] });
+  },
+  // de.yaml rule de.prepositionCase frame 3
+  "@de.prepositionCase/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const next = deTokensAfter(ctx.text, m.indices!.groups!.target[1], 1)[0] ?? "";
+    if (
+      /^(?:\p{Lu}|ohne$)/u.test(next) ||
+      !prepPluralForm(target) ||
+      ctx.dictionary.has(target.toLowerCase())
+    )
+      return null;
+    if (!prepGuarded(ctx, m, "dative")) return null;
+    return caseFinding(m, { replacements: [`${target}n`] });
+  },
+  // de.yaml rule de.prepositionCase frame 4
+  "@de.prepositionCase/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    if (PREP_QUANTIFIER_STEMS.has(adj) || !(germanAdjective(adj) || germanAdjective(`${adj}e`)))
+      return null;
+    const reading = germanGender(noun);
+    if (!(!!reading && !reading.plural)) return null;
+    const next = deTokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
+    if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(`${adj}en`)) return null;
+    if (!prepGuarded(ctx, m, "dative")) return null;
+    return caseFinding(m, { replacements: [`${adj}${reading.gender === "f" ? "er" : "em"}`] });
+  },
+  // de.yaml rule de.prepositionCase frame 5
+  "@de.prepositionCase/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prep = m.groups!.prep;
+    const target = m.groups!.target;
+    const next = deTokensAfter(ctx.text, m.indices!.groups!.target[1], 1)[0] ?? "";
+    if (/^(?:alt|jung|älter|lang|später|früher)$/.test(next) || /^\p{Lu}/u.test(next)) return null;
+    if (/^[Ii]n$/.test(prep) && /^\p{Ll}+t$/u.test(next)) return null;
+    return caseFinding(m, { replacements: [`${target}n`] });
+  },
+  // de.yaml rule de.prepositionCase frame 6
+  "@de.prepositionCase/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const known = [...adj].some(
+      (_, i) => (i === 0 || (i >= 3 && adj.length - i >= 5)) && germanAdjective(adj.slice(i)),
+    );
+    if (PREP_DETERMINER_STEMS.test(adj) || !(known || /^(?:ge|ver|be|er|ent)\p{Ll}+t$/u.test(adj)))
+      return null;
+    if (/(?:ungen|heiten|keiten|schaften|ionen|täten|innen)$/.test(noun)) return null;
+    const next = deTokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
+    if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(`${adj}e`)) return null;
+    const reading = germanGender(noun.split("-").at(-1)!);
+    const dative =
+      /(?:er|el)n$/.test(noun) ||
+      (/en$/.test(noun) && germanGender(noun.slice(0, -1))?.gender === "f");
+    const fix =
+      reading && !reading.plural
+        ? `${adj}${reading.gender === "f" ? "er" : "em"} ${noun}`
+        : dative && prepHeadNoun(noun.slice(0, -1).toLowerCase())
+          ? `${adj}en ${noun}`
+          : prepPluralForm(noun)
+            ? `${adj}en ${noun}n`
+            : null;
+    if (!(!!fix && prepGuarded(ctx, m, "dative"))) return null;
+    return caseFinding(m, { replacements: [fix] });
+  },
+  // de.yaml rule de.prepositionCase frame 7
+  "@de.prepositionCase/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!prepGuarded(ctx, m, "dative")) return null;
+    return caseFinding(m, { replacements: [`${target}n`] });
+  },
+  // de.yaml rule de.prepositionCase frame 8
+  "@de.prepositionCase/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const kind = PREP_CASES[m.groups!.prep.toLowerCase()];
+    const replacement = PRONOUN_CASE_FIX[kind][target];
+    if (!(!!replacement && prepGuarded(ctx, m, kind))) return null;
+    return caseFinding(m, { replacements: [replacement] });
   },
   // de.yaml rule de.confusions frame 5
   "@de.confusions/5": (m: RegExpExecArray): string | readonly string[] | null => {

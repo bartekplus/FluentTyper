@@ -10,7 +10,6 @@ import * as adjectiveForms from "./adjectiveForms";
 import * as articleGender from "./articleGender";
 import * as commas from "./commas";
 import * as numbers from "./numbers";
-import * as prepositionCase from "./prepositionCase";
 import * as verbAgreement from "./verbAgreement";
 
 export const PREDICATES = mergePredicates<Detector>();
@@ -20,7 +19,6 @@ export const FIXERS = mergePredicates<Fixer>(
   numbers.FIXERS,
   adjectiveForms.FIXERS,
   commas.FIXERS,
-  prepositionCase.FIXERS,
   verbAgreement.FIXERS,
   articleGender.FIXERS,
 );
