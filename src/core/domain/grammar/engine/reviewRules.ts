@@ -118,7 +118,7 @@ const named = <T>(table: Readonly<Record<string, Readonly<Record<string, T>>>>, 
  * The detector of the frame rule `id` of the rule files: its frames, tried in order, with the
  * literals the compiler found and the code of its rule file.
  */
-export function frameRuleDetector(id: string): Detector {
+function frameRuleDetector(id: string): Detector {
   const rule = REVIEW_RULES.find((entry) => entry.id === id);
   if (!rule?.frames) throw new Error(`Grammar rule ${id} is not a frame rule`);
   const ruleId = rule.checks[0] as CatalogRuleId;
@@ -153,38 +153,46 @@ export function frameRuleDetector(id: string): Detector {
  */
 export function buildReviewDetectors(): ReviewDetectorEntry[] {
   const entries = REVIEW_RULES.map((rule) => {
-    let detect: Detector;
-    if (rule.findings !== undefined) {
-      const field = FINDINGS_FIELDS[rule.findings];
-      // The findings whose range starts in the chunk.
-      detect = (ctx) =>
-        (ctx[field] ?? []).filter((f) => f.range.start >= ctx.from && f.range.start < ctx.to);
-    } else if (rule.pattern !== undefined) detect = patternDetector(rule.pattern);
-    else if (rule.frames !== undefined) {
-      detect = frameRuleDetector(rule.id);
-      if (rule.predicate !== undefined) {
-        // The frames, then the rule's own code: one composite whose parts keep their findings
-        // when the other throws.
-        const after = named(RULE_DETECTORS, rule.predicate);
-        if (!after) throw new Error(`Grammar rule ${rule.id}: no detector "${rule.predicate}"`);
-        const frames = detect;
-        detect = (ctx) => detectAll(ctx, [frames, after]);
-      }
-    } else {
-      const found = named(RULE_DETECTORS, rule.predicate!);
-      if (!found) throw new Error(`Grammar rule ${rule.id}: no detector "${rule.predicate}"`);
-      detect = found;
-    }
     // One shape for every entry: the scan reads them all for each chunk.
     const entry: ReviewDetectorEntry = {
       rules: rule.checks as CatalogRuleId[],
-      detect,
+      detect: detectorOf(rule),
       lang: rule.lang,
       source: rule.source,
     };
     return rule.cacheable ? cacheable(entry) : entry;
   });
   return grouped(entries);
+}
+
+/** The detector of the Review rule `id`, as the Review scan runs it (rule code: enRuleFindings). */
+export function ruleDetector(id: string): Detector {
+  const rule = REVIEW_RULES.find((entry) => entry.id === id);
+  if (!rule) throw new Error(`No Review rule ${id}`);
+  return detectorOf(rule);
+}
+
+/** A rule's detector: a compiled pattern, its frames and then its own code, or earlier findings. */
+function detectorOf(rule: (typeof REVIEW_RULES)[number]): Detector {
+  if (rule.findings !== undefined) {
+    const field = FINDINGS_FIELDS[rule.findings];
+    // The findings whose range starts in the chunk.
+    return (ctx) =>
+      (ctx[field] ?? []).filter((f) => f.range.start >= ctx.from && f.range.start < ctx.to);
+  }
+  if (rule.pattern !== undefined) return patternDetector(rule.pattern);
+  if (rule.frames !== undefined) {
+    const frames = frameRuleDetector(rule.id);
+    if (rule.predicate === undefined) return frames;
+    // The frames, then the rule's own code: one composite whose parts keep their findings
+    // when the other throws.
+    const after = named(RULE_DETECTORS, rule.predicate);
+    if (!after) throw new Error(`Grammar rule ${rule.id}: no detector "${rule.predicate}"`);
+    return (ctx) => detectAll(ctx, [frames, after]);
+  }
+  const found = named(RULE_DETECTORS, rule.predicate!);
+  if (!found) throw new Error(`Grammar rule ${rule.id}: no detector "${rule.predicate}"`);
+  return found;
 }
 
 // The context field of each findings rule.

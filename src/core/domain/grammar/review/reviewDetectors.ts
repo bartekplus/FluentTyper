@@ -10,7 +10,7 @@ import { phraseCorrections } from "./englishPhraseCorrections";
 import { usePhraseRows } from "../library/common/engine";
 import { useRuleDetectors } from "../library/english/views";
 import type { ReviewMessageKey, TextRange } from "./types";
-import { buildReviewDetectors, frameRuleDetector } from "../engine/reviewRules";
+import { buildReviewDetectors, ruleDetector } from "../engine/reviewRules";
 
 /**
  * Review detectors read ONE immutable snapshot and never mutate it.
@@ -92,8 +92,8 @@ export const PHRASE_LAST_WORD = {
 // Library helpers that run engine parts: the library cannot load the engine (an import cycle).
 // The phrase rows that the phraseTables rule of common.yaml reads (library phraseRows).
 usePhraseRows(phraseCorrections);
-// The findings of another frame rule, in the chunk or in a view (library enRuleFindings).
-useRuleDetectors((id) => frameRuleDetector(id));
+// The findings of another Review rule, in the chunk or in a view (library enRuleFindings).
+useRuleDetectors((id) => ruleDetector(id));
 
 /**
  * Review detectors in evaluation order, built from the Review rules of grammar/rules/*.yaml:

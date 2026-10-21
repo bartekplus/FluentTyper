@@ -46,7 +46,7 @@ export function inView(
   }));
 }
 
-// The detector of a frame rule by its id: Review sets the builder when it builds its detectors
+// The detector of a Review rule by its id: Review sets the builder when it builds its detectors
 // (review/reviewDetectors.ts). An import of the engine here would make an import cycle.
 let build: ((id: string) => Detector) | undefined;
 const BUILT = new Map<string, Detector>();
@@ -56,7 +56,7 @@ export function useRuleDetectors(builder: (id: string) => Detector): void {
   build = builder;
 }
 
-/** The findings of the frame rule `id` (a rule of the rule files) in the chunk `ctx`. */
+/** The findings of the Review rule `id` (a rule of the rule files) in the chunk `ctx`. */
 export function ruleFindings(id: string, ctx: DetectContext): RawFinding[] {
   let detect = BUILT.get(id);
   if (!detect) {
