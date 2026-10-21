@@ -10382,13 +10382,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:the|a|an|my|your|his|our|their|its|(?!(?:it|he|she|that|there|here|what|who|where|how|let)['’]s)[a-z]+['’]s)[ \\t\\u00a0]{1,8}(?<first>[a-z]+)(?:[ \\t\\u00a0]{1,8}(?<second>[a-z]+))?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:determinerVerbAsNoun",
+    fixer: "en:@en.determinerConfusions/1",
     owner: "first",
   }),
   frame({
     pattern: "(?<target>the)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["the"],
-    fixer: "en:determinerTheForThey",
+    fixer: "en:@en.determinerConfusions/2",
   }),
   frame({
     pattern: "(?<target>he|she|it)[ \\t\\u00a0]{1,8}(?=[a-z])",

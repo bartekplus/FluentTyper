@@ -2543,15 +2543,191 @@ rules:
     style: match
     message: review_msg_confused_word
     filter: slotFindings
+    sets:
+      # A verb that stands before another noun as its modifier: "the depart time" (departure
+      # time).
+      DET_MODIFIER_NOUNS: [depart, arrive, expire, assemble]
+    defs:
+      # Nouns that no suffix rule gets from their verb.
+      DET_VERB_NOUNS: >-
+        new Map<string, string[]>(("respond:response prove:proof grow:growth succeed:success fail:failure choose:choice " +
+        "lose:loss believe:belief advise:advice receive:receipt withdraw:withdrawal arrive:arrival " +
+        "renew:renewal approve:approval deny:denial propose:proposal survive:survival " +
+        "remind:reminder resign:resignation invent:invention acknowledge:acknowledgment " +
+        "extend:extent|extension expire:expiry assemble:assembly publish:publication depart:departure " +
+        "injure:injury deploy:deployment understand:understanding begin:beginning " +
+        "complain:complaint pursue:pursuit maintain:maintenance perform:performance " +
+        "appear:appearance exist:existence rely:reliance insist:insistence explain:explanation " +
+        "describe:description decide:decision admit:admission submit:submission " +
+        "compare:comparison conclude:conclusion solve:solution pronounce:pronunciation " +
+        "occur:occurrence refer:reference prefer:preference behave:behavior relieve:relief " +
+        "emphasize:emphasis immigrate:immigration replace:replacement administer:administrator " +
+        "misspell:misspelling awaken:awakening shelve:shelf").split(" ").map((pair) => pair.split(":"))
+        .map((pair) => [pair[0], pair[1].split("|")]))
+      DET_MODAL_THEY: /^(?:would|should|could|cannot|can['’]t|won['’]t|don['’]t|didn['’]t|wouldn['’]t|shouldn['’]t|couldn['’]t|haven['’]t)$/
+      # A word that the lexicon reads only as a base verb, with no noun, adjective or other form.
+      # "in the know"; "the except of" belongs to a phrase row. "a little further": a
+      # comparative adverb that the dictionary lists only as a verb. "the restore", "a rewrite",
+      # "the reload": re- on a noun makes jargon nouns that the dictionary does not list.
+      detVerbOnly:
+        args: "word: string"
+        let:
+          forms: englishVerbForms(word)
+          read: englishWordInfo(word)
+        when:
+          - "!EN_FUNCTION_WORDS.has(word) && !/^(?:know|be|do|have|go|get|say|let|except|further|farther)$/.test(word)"
+          - "!(forms && forms.lemma !== word)"
+          - "!(/^re[a-z]{3}/.test(word) && englishWordInfo(word.slice(2))?.noun && !DET_VERB_NOUNS.has(word))"
+        return: >-
+          !!read && read.verbs.length > 0 && read.verbs.every((v) => v.form === "base" && v.lemma === word) &&
+          !read.noun && !read.adjective && !read.adverb && !read.plural
+        else: "false"
+      # Nouns made from a verb: the listed ones, the dictionary's own -ion/-ment, then common
+      # suffixes that it lists.
+      detDerivedNouns:
+        args: "verb: string"
+        return: DET_VERB_NOUNS.get(verb) ?? detFlaggedNouns(verb)
+      detFlaggedNouns:
+        args: "verb: string"
+        let:
+          flagged: englishVerbNouns(verb)
+        return: "flagged.length ? flagged : detSuffixNouns(verb)"
+      # explode -> explosion, depart -> departure, injure -> injury, analyze -> analysis,
+      # diagnose -> diagnosis. "degradation" over a false "degradion" of the Bloom filter.
+      detSuffixNouns:
+        args: "verb: string"
+        let:
+          stem: verb.replace(/e$/, "")
+          candidates: >-
+            [`${verb}ion`, `${stem}ion`, `${stem}ation`, `${verb}ation`, `${stem}sion`, `${verb}ment`, `${stem}al`,
+            `${verb}al`, `${stem}ance`, `${verb.replace(/de$/, "")}sion`, `${verb}ure`, `${stem}y`,
+            verb.replace(/y[sz]e$/, "ysis"), verb.replace(/ose$/, "osis")]
+        return: >-
+          [...new Set(candidates)].filter((c) => c !== verb && !!englishWordInfo(c)?.noun &&
+          !(c === `${stem}ion` && !!englishWordInfo(`${stem}ation`)?.noun)).slice(0, 2)
+      # True when the "the" for "they" frame surely finds nothing: the word after "the" is no
+      # lowercase word, or none of the tests of the frame can accept it (a modal, have/be, an
+      # adverb or a verb that is no noun or adjective). Most words after "the" are nouns.
+      detNoVerbAfterThe:
+        args: "ctx: DetectContext, end: number"
+        let:
+          first: enWordsAfter(ctx, end, 1)[0]
+        return: "!first || first.text !== first.lower || detNoVerbWord(first.lower)"
+      detNoVerbWord:
+        args: "word: string"
+        let:
+          read: englishWordInfo(word)
+        when: >-
+          !(DET_MODAL_THEY.test(word) ||
+          /^(?:will|can|may|might|must|have|had|are|were|also|always|really|probably|never|just|correctly|quietly)$/.test(word) ||
+          /ly$/.test(word))
+        return: '!(read && !read.noun && !read.adjective && read.verbs.some((v) => v.form === "past" || v.form === "base"))'
+        else: "false"
+      # Whether "the" stands for "they" before these words. "The will make me happy" but "The
+      # will states…": a base verb after will/can/may; "the must have toy": a compound noun.
+      # "The also use camouflage", "The unsuccessfully attacked the ship"; "The rally drew a
+      # crowd": an -ly noun is no adverb. "The have booked a room", "the were leaving": an
+      # auxiliary and its participle. "if the allowed us to", "when the pulled the curtain": a
+      # verb before its object.
+      detTheVerb:
+        args: "first: EnToken, second: EnToken, third: EnToken, target: string"
+        return: >-
+          DET_MODAL_THEY.test(first.lower) ||
+          (/^(?:will|can|may|might|must)$/.test(first.lower) && second?.kind === "word" && second.lower !== "have" &&
+          !!englishWordInfo(second.lower)?.verbs.some((v) => v.form === "base" && v.lemma === second.lower) &&
+          !enNounOnly(second.lower)) ||
+          ((/^(?:also|always|really|probably|never|just|correctly|quietly)$/.test(first.lower) ||
+          (/ly$/.test(first.lower) && !!englishWordInfo(first.lower)?.adverb && !englishWordInfo(first.lower)?.noun)) &&
+          detTheAdverbVerb(first, second, third)) ||
+          (/^(?:have|had|are|were)$/.test(first.lower) && second?.kind === "word" && detTheAuxiliary(first, second, target)) ||
+          detThePastObject(first, second, third)
+      # "The seriously injured man": a participle adjective; a past needs its object.
+      detTheAdverbVerb:
+        args: "first: EnToken, second: EnToken, third: EnToken"
+        let:
+          read: 'second?.kind === "word" ? englishWordInfo(second.lower) : null'
+          object: >-
+            third?.kind === "word" && third.text === third.lower &&
+            /^(?:the|a|an|us|them|me|him|her|it|you|my|your|our|their)$/.test(third.lower)
+        return: >-
+          !!read && (!read.noun || !/ly$/.test(first.lower)) && !read.adjective &&
+          (read.verbs.some((v) => v.form === "base" && v.lemma === second.lower) || (object && read.verbs.some((v) => v.form === "past"))) &&
+          !(englishWordInfo(first.lower)?.adjective && !/ly$/.test(first.lower))
+      # "The are used to be a unit": "the are" (100 m²) is a noun at the start of a sentence.
+      detTheAuxiliary:
+        args: "first: EnToken, second: EnToken, target: string"
+        let:
+          read: englishWordInfo(second.lower)
+          be: /^(?:are|were)$/.test(first.lower)
+        return: >-
+          !(be && target !== target.toLowerCase()) && ((!be && second.lower === "been") ||
+          (!!read && !read.noun && read.verbs.some((v) => v.form === "participle" || (be && v.form === "ing"))))
+      detThePastObject:
+        args: "first: EnToken, second: EnToken, third: EnToken"
+        let:
+          read: englishWordInfo(first.lower)
+        return: >-
+          !!read && !read.noun && !read.adjective && read.verbs.some((v) => v.form === "past" || v.form === "base") &&
+          second?.kind === "word" && /^(?:the|a|an|us|them|me|him|her|it|you|my|your|our|their)$/.test(second.lower) &&
+          !(third?.kind === "word" && third.lower === "of")
     frames:
       # "The translate to English was correct", "Sorry for the late respond": a verb as a noun.
       # "Yesterday's deploy": a name's or a noun's possessive, not a contraction ("it's").
+      # "the late respond": one adjective may stand between. "this/that" can be a pronoun
+      # subject: "that explains it". After a possessive ("Kim's", but also "co's" for
+      # companies) only a listed noun; idioms3 owns "a/the complain". A following noun or verb
+      # object makes the word a modifier or the determiner a mistake elsewhere ("the install
+      # script"); only a phrase end, preposition or verb follows. "The withdraw succeeded": a
+      # past verb after a listed one ("an oxygenate used in" is a reduced relative); "the
+      # depart time": a listed modifier. "on the lose" is "loose".
       - regex: "{{DETERMINERSLOTS_DETERMINER}}{{S}}(?<first>[a-z]+)(?:{{S}}(?<second>[a-z]+))?{{E}}"
         owner: first
-        fixer: determinerVerbAsNoun
-      # "The cannot help you", "if the create the concept": "the" where "they" is meant.
+        let:
+          adjective: englishWordInfo(first)
+          skip: >-
+            !detVerbOnly(first) && !!second && (first === "only" ||
+            (!!adjective?.adjective && !adjective.verbs.length && !EN_FUNCTION_WORDS.has(first)))
+          word: "skip ? second : first"
+          wordEnd: "skip ? m.index + m[0].length : m.indices!.groups!.first[1]"
+          det: m[0].split(/\s+/)[0].toLowerCase()
+          next: enTokensAfter(ctx, wordEnd, 1)[0]
+          nouns: detDerivedNouns(word)
+          span: "skip ? m.indices!.groups!.second : m.indices!.groups!.first"
+        when:
+          - "!ctx.dictionary.has(word) && detVerbOnly(word)"
+          - "!(/['’]s$/.test(det) ? !DET_VERB_NOUNS.has(word) : word === \"complain\")"
+          - "!/^(?:this|that)$/.test(det)"
+          - >-
+            !(next?.kind === "word" &&
+            !/^(?:of|for|to|in|into|on|at|by|as|with|from|about|was|is|were|are|has|had|will|would|can|could|should|didn['’]t|did|does|and|but|or|while|after|before|when|because|yesterday|today|wasn['’]t|isn['’]t|doesn['’]t|hasn['’]t)$/.test(next.lower) &&
+            !(DET_VERB_NOUNS.has(word) && englishWordInfo(next.lower)?.verbs.some((v) => v.form === "past") &&
+            !englishWordInfo(next.lower)?.noun && !englishWordInfo(next.lower)?.verbs.some((v) => v.form === "base")) &&
+            !(DET_MODIFIER_NOUNS.has(word) && (!!enNounOnly(next.lower) || !!englishWordInfo(next.lower)?.noun)))
+          - 'next?.kind !== "other"'
+          - '!(word === "lose" && /on[ \t]+the[ \t]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index + 4)))'
+          - nouns.length
+        return: >-
+          ({ ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word", range: { start: span[0], end: span[1] },
+          alternatives: nouns.map((n) => caseLike(word, n)), ...(nouns.length > 1 ? { requiresChoice: true as const } : {}),
+          context: enEvidence(ctx, m.index, span[1]) })
+      # "The cannot help you", "if the create the concept": "the" where "they" is meant. A
+      # word right before the match means that no break stands there (see opensClause).
       - regex: "(?<target>the){{S}}(?=[a-z])"
-        fixer: determinerTheForThey
+        let:
+          before: enWordBefore(ctx, m.index)
+          opens: "!before && enAfterBreak(ctx, m.index)"
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 3)
+          first: tokens[0]
+          span: m.indices!.groups!.target
+        when:
+          - "!detNoVerbAfterThe(ctx, m.index + m[0].length)"
+          - "!(target !== target.toLowerCase() && !opens)"
+          - "opens || /^(?:if|when|and|but|so|because|what|that|since|as|until|while|how|why|where|indicates|ensures)$/.test(before)"
+          - 'first?.kind === "word" && first.text === first.lower'
+          - detTheVerb(first, tokens[1], tokens[2], target)
+        return: >-
+          ({ ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word", range: { start: span[0], end: span[1] },
+          alternatives: [caseLike(target, "they")], context: enEvidence(ctx, m.index, first.end) })
   - id: en.thirdPersonBase
     checks: [englishPronounVerbWhitelistAgreement]
     style: match

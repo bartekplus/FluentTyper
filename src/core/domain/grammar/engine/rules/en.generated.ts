@@ -14,11 +14,21 @@ import {
   enNounOnly,
   enTokensAfter,
   enWordBefore,
+  enWordsAfter,
+  englishVerbForms,
+  englishVerbNouns,
   englishWordInfo,
   finding,
   hasUserOrCasedWord,
 } from "../../library";
 import { isoDateWarning } from "./common.generated";
+
+export const DET_MODIFIER_NOUNS: ReadonlySet<string> = new Set([
+  "depart",
+  "arrive",
+  "expire",
+  "assemble",
+]);
 
 export const COUNT_COUNTED_ELSEWHERE: ReadonlySet<string> = new Set([
   "advice",
@@ -90,6 +100,187 @@ export const NO_NOT_MODAL: Readonly<Record<string, string>> = {
   would: "would not",
   should: "should not",
 };
+
+// en.yaml rule en.determinerConfusions def DET_VERB_NOUNS
+export const DET_VERB_NOUNS = new Map<string, string[]>(
+  (
+    "respond:response prove:proof grow:growth succeed:success fail:failure choose:choice " +
+    "lose:loss believe:belief advise:advice receive:receipt withdraw:withdrawal arrive:arrival " +
+    "renew:renewal approve:approval deny:denial propose:proposal survive:survival " +
+    "remind:reminder resign:resignation invent:invention acknowledge:acknowledgment " +
+    "extend:extent|extension expire:expiry assemble:assembly publish:publication depart:departure " +
+    "injure:injury deploy:deployment understand:understanding begin:beginning " +
+    "complain:complaint pursue:pursuit maintain:maintenance perform:performance " +
+    "appear:appearance exist:existence rely:reliance insist:insistence explain:explanation " +
+    "describe:description decide:decision admit:admission submit:submission " +
+    "compare:comparison conclude:conclusion solve:solution pronounce:pronunciation " +
+    "occur:occurrence refer:reference prefer:preference behave:behavior relieve:relief " +
+    "emphasize:emphasis immigrate:immigration replace:replacement administer:administrator " +
+    "misspell:misspelling awaken:awakening shelve:shelf"
+  )
+    .split(" ")
+    .map((pair) => pair.split(":"))
+    .map((pair) => [pair[0], pair[1].split("|")]),
+);
+
+// en.yaml rule en.determinerConfusions def DET_MODAL_THEY
+export const DET_MODAL_THEY =
+  /^(?:would|should|could|cannot|can['’]t|won['’]t|don['’]t|didn['’]t|wouldn['’]t|shouldn['’]t|couldn['’]t|haven['’]t)$/;
+
+// en.yaml rule en.determinerConfusions def detVerbOnly
+export function detVerbOnly(word: string) {
+  if (!(
+    !EN_FUNCTION_WORDS.has(word) &&
+    !/^(?:know|be|do|have|go|get|say|let|except|further|farther)$/.test(word)
+  ))
+    return false;
+  const forms = englishVerbForms(word);
+  if (forms && forms.lemma !== word) return false;
+  if (/^re[a-z]{3}/.test(word) && englishWordInfo(word.slice(2))?.noun && !DET_VERB_NOUNS.has(word))
+    return false;
+  const read = englishWordInfo(word);
+  return (
+    !!read &&
+    read.verbs.length > 0 &&
+    read.verbs.every((v) => v.form === "base" && v.lemma === word) &&
+    !read.noun &&
+    !read.adjective &&
+    !read.adverb &&
+    !read.plural
+  );
+}
+
+// en.yaml rule en.determinerConfusions def detDerivedNouns
+export function detDerivedNouns(verb: string) {
+  return DET_VERB_NOUNS.get(verb) ?? detFlaggedNouns(verb);
+}
+
+// en.yaml rule en.determinerConfusions def detFlaggedNouns
+export function detFlaggedNouns(verb: string) {
+  const flagged = englishVerbNouns(verb);
+  return flagged.length ? flagged : detSuffixNouns(verb);
+}
+
+// en.yaml rule en.determinerConfusions def detSuffixNouns
+export function detSuffixNouns(verb: string) {
+  const stem = verb.replace(/e$/, "");
+  const candidates = [
+    `${verb}ion`,
+    `${stem}ion`,
+    `${stem}ation`,
+    `${verb}ation`,
+    `${stem}sion`,
+    `${verb}ment`,
+    `${stem}al`,
+    `${verb}al`,
+    `${stem}ance`,
+    `${verb.replace(/de$/, "")}sion`,
+    `${verb}ure`,
+    `${stem}y`,
+    verb.replace(/y[sz]e$/, "ysis"),
+    verb.replace(/ose$/, "osis"),
+  ];
+  return [...new Set(candidates)]
+    .filter(
+      (c) =>
+        c !== verb &&
+        !!englishWordInfo(c)?.noun &&
+        !(c === `${stem}ion` && !!englishWordInfo(`${stem}ation`)?.noun),
+    )
+    .slice(0, 2);
+}
+
+// en.yaml rule en.determinerConfusions def detNoVerbAfterThe
+export function detNoVerbAfterThe(ctx: DetectContext, end: number) {
+  const first = enWordsAfter(ctx, end, 1)[0];
+  return !first || first.text !== first.lower || detNoVerbWord(first.lower);
+}
+
+// en.yaml rule en.determinerConfusions def detNoVerbWord
+export function detNoVerbWord(word: string) {
+  if (
+    DET_MODAL_THEY.test(word) ||
+    /^(?:will|can|may|might|must|have|had|are|were|also|always|really|probably|never|just|correctly|quietly)$/.test(
+      word,
+    ) ||
+    /ly$/.test(word)
+  )
+    return false;
+  const read = englishWordInfo(word);
+  return !(
+    read &&
+    !read.noun &&
+    !read.adjective &&
+    read.verbs.some((v) => v.form === "past" || v.form === "base")
+  );
+}
+
+// en.yaml rule en.determinerConfusions def detTheVerb
+export function detTheVerb(first: EnToken, second: EnToken, third: EnToken, target: string) {
+  return (
+    DET_MODAL_THEY.test(first.lower) ||
+    (/^(?:will|can|may|might|must)$/.test(first.lower) &&
+      second?.kind === "word" &&
+      second.lower !== "have" &&
+      !!englishWordInfo(second.lower)?.verbs.some(
+        (v) => v.form === "base" && v.lemma === second.lower,
+      ) &&
+      !enNounOnly(second.lower)) ||
+    ((/^(?:also|always|really|probably|never|just|correctly|quietly)$/.test(first.lower) ||
+      (/ly$/.test(first.lower) &&
+        !!englishWordInfo(first.lower)?.adverb &&
+        !englishWordInfo(first.lower)?.noun)) &&
+      detTheAdverbVerb(first, second, third)) ||
+    (/^(?:have|had|are|were)$/.test(first.lower) &&
+      second?.kind === "word" &&
+      detTheAuxiliary(first, second, target)) ||
+    detThePastObject(first, second, third)
+  );
+}
+
+// en.yaml rule en.determinerConfusions def detTheAdverbVerb
+export function detTheAdverbVerb(first: EnToken, second: EnToken, third: EnToken) {
+  const read = second?.kind === "word" ? englishWordInfo(second.lower) : null;
+  const object =
+    third?.kind === "word" &&
+    third.text === third.lower &&
+    /^(?:the|a|an|us|them|me|him|her|it|you|my|your|our|their)$/.test(third.lower);
+  return (
+    !!read &&
+    (!read.noun || !/ly$/.test(first.lower)) &&
+    !read.adjective &&
+    (read.verbs.some((v) => v.form === "base" && v.lemma === second.lower) ||
+      (object && read.verbs.some((v) => v.form === "past"))) &&
+    !(englishWordInfo(first.lower)?.adjective && !/ly$/.test(first.lower))
+  );
+}
+
+// en.yaml rule en.determinerConfusions def detTheAuxiliary
+export function detTheAuxiliary(first: EnToken, second: EnToken, target: string) {
+  const read = englishWordInfo(second.lower);
+  const be = /^(?:are|were)$/.test(first.lower);
+  return (
+    !(be && target !== target.toLowerCase()) &&
+    ((!be && second.lower === "been") ||
+      (!!read &&
+        !read.noun &&
+        read.verbs.some((v) => v.form === "participle" || (be && v.form === "ing"))))
+  );
+}
+
+// en.yaml rule en.determinerConfusions def detThePastObject
+export function detThePastObject(first: EnToken, second: EnToken, third: EnToken) {
+  const read = englishWordInfo(first.lower);
+  return (
+    !!read &&
+    !read.noun &&
+    !read.adjective &&
+    read.verbs.some((v) => v.form === "past" || v.form === "base") &&
+    second?.kind === "word" &&
+    /^(?:the|a|an|us|them|me|him|her|it|you|my|your|our|their)$/.test(second.lower) &&
+    !(third?.kind === "word" && third.lower === "of")
+  );
+}
 
 // en.yaml rule en.countNouns def COUNT_AMOUNT_UNITS
 export const COUNT_AMOUNT_UNITS =
@@ -268,6 +459,85 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
+  },
+  // en.yaml rule en.determinerConfusions frame 1
+  "@en.determinerConfusions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    const adjective = englishWordInfo(first);
+    const skip =
+      !detVerbOnly(first) &&
+      !!second &&
+      (first === "only" ||
+        (!!adjective?.adjective && !adjective.verbs.length && !EN_FUNCTION_WORDS.has(first)));
+    const word = skip ? second : first;
+    if (!(!ctx.dictionary.has(word) && detVerbOnly(word))) return null;
+    const wordEnd = skip ? m.index + m[0].length : m.indices!.groups!.first[1];
+    const det = m[0].split(/\s+/)[0].toLowerCase();
+    if (/['’]s$/.test(det) ? !DET_VERB_NOUNS.has(word) : word === "complain") return null;
+    if (/^(?:this|that)$/.test(det)) return null;
+    const next = enTokensAfter(ctx, wordEnd, 1)[0];
+    if (
+      next?.kind === "word" &&
+      !/^(?:of|for|to|in|into|on|at|by|as|with|from|about|was|is|were|are|has|had|will|would|can|could|should|didn['’]t|did|does|and|but|or|while|after|before|when|because|yesterday|today|wasn['’]t|isn['’]t|doesn['’]t|hasn['’]t)$/.test(
+        next.lower,
+      ) &&
+      !(
+        DET_VERB_NOUNS.has(word) &&
+        englishWordInfo(next.lower)?.verbs.some((v) => v.form === "past") &&
+        !englishWordInfo(next.lower)?.noun &&
+        !englishWordInfo(next.lower)?.verbs.some((v) => v.form === "base")
+      ) &&
+      !(
+        DET_MODIFIER_NOUNS.has(word) &&
+        (!!enNounOnly(next.lower) || !!englishWordInfo(next.lower)?.noun)
+      )
+    )
+      return null;
+    if (!(next?.kind !== "other")) return null;
+    if (
+      word === "lose" &&
+      /on[ \t]+the[ \t]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index + 4))
+    )
+      return null;
+    const nouns = detDerivedNouns(word);
+    if (!nouns.length) return null;
+    const span = skip ? m.indices!.groups!.second : m.indices!.groups!.first;
+    return {
+      ruleId: "englishConfusedWords",
+      messageKey: "review_msg_confused_word",
+      range: { start: span[0], end: span[1] },
+      alternatives: nouns.map((n) => caseLike(word, n)),
+      ...(nouns.length > 1 ? { requiresChoice: true as const } : {}),
+      context: enEvidence(ctx, m.index, span[1]),
+    };
+  },
+  // en.yaml rule en.determinerConfusions frame 2
+  "@en.determinerConfusions/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (detNoVerbAfterThe(ctx, m.index + m[0].length)) return null;
+    const before = enWordBefore(ctx, m.index);
+    const opens = !before && enAfterBreak(ctx, m.index);
+    if (target !== target.toLowerCase() && !opens) return null;
+    if (!(
+      opens ||
+      /^(?:if|when|and|but|so|because|what|that|since|as|until|while|how|why|where|indicates|ensures)$/.test(
+        before,
+      )
+    ))
+      return null;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 3);
+    const first = tokens[0];
+    if (!(first?.kind === "word" && first.text === first.lower)) return null;
+    if (!detTheVerb(first, tokens[1], tokens[2], target)) return null;
+    const span = m.indices!.groups!.target;
+    return {
+      ruleId: "englishConfusedWords",
+      messageKey: "review_msg_confused_word",
+      range: { start: span[0], end: span[1] },
+      alternatives: [caseLike(target, "they")],
+      context: enEvidence(ctx, m.index, first.end),
+    };
   },
   // en.yaml rule en.countNouns frame 1
   "@en.countNouns/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

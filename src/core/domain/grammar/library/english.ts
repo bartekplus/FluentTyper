@@ -53,3 +53,7 @@ export {
 
 // The casing of a fix like the typed words (library/english/words.ts).
 export { recase as enRecase } from "./english/words";
+
+// Group nounNumber/count/determiner/noNot/clause/complement/slip/verbGroup/wordClass slots:
+// the lexicon names that their rules read.
+export { englishVerbNouns } from "../implementations/helpers/EnglishLexicon";
