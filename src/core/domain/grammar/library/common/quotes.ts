@@ -1,15 +1,12 @@
-import { resolveTypographyProfile } from "../typographyProfiles";
-import { ELIDED_QUOTE_START } from "./quotationWarnings";
-import type { MatchFixer } from "../engine/reviewRules";
-import type { DetectContext, RawFinding } from "./reviewDetectors";
-import { finding } from "./finding";
+// The rule library (library.ts): the typographic quote marks of a line. Straight quotes and
+// apostrophes become the typographic marks of the text language, from the same profiles as the
+// typing rule: "so" → “so” (en), „so“ (de), « so » (fr); 'so' and a quote inside a quote take
+// the nested pair; it's → it’s. Each line must pair cleanly: an unbalanced or ambiguous mark
+// leaves the line's quotes as they are.
+import { resolveTypographyProfile } from "../../typographyProfiles";
+import { ELIDED_QUOTE_START } from "../../review/quotationWarnings";
+import type { DetectContext } from "../../review/reviewDetectors";
 
-// Straight quotes and apostrophes become the typographic marks of the text language, from the
-// same profiles as the typing rule (smartQuoteNormalization): "so" → “so” (en), „so“ (de),
-// « so » (fr); 'so' and a quote inside a quote take the nested pair; it's → it’s. Each line
-// must pair cleanly: an unbalanced or ambiguous mark leaves the line's quotes as they are.
-
-const RULE = "typographicQuotes" as const;
 const APOSTROPHE = "’";
 const MASK = "￼";
 const LETTER = /\p{L}/u;
@@ -21,11 +18,8 @@ const CLOSE_BEFORE = /[\s.,;:!?…)\]}>\-–—/"'“”„«»‹›‘’]/u;
 
 type Open = { at: number; kind: "double" | "single" | "typographic"; nested: boolean };
 
-function quoteFinding(at: number, replacement: string, context: [number, number]): RawFinding {
-  return finding(RULE, "review_msg_typographic_quotes", at, at + 1, [replacement], {
-    context: { start: context[0], end: context[1] + 1 },
-  });
-}
+/** One mark to change: where it is, its new text, and the pair it is in ([at, at] for none). */
+export type QuoteEdit = [at: number, replacement: string, context: [number, number]];
 
 // A line longer than SEGMENT splits at whitespace near each multiple of SEGMENT, so a scan reads
 // a bounded context, and every chunk and proof window sees the same segments. A cut applies only
@@ -81,8 +75,15 @@ function* segments(ctx: DetectContext, m: RegExpExecArray): Generator<[number, n
   }
 }
 
-/** The quote fixes of the segments of one line (the line frame of common.yaml). */
-const quoteLine: MatchFixer = (m, ctx) => {
+/**
+ * The quote mark edits of the segments of one line (a line frame match), in text order.
+ * `pairs`: false fixes apostrophes only.
+ */
+export function quoteMarkEdits(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  pairs: boolean,
+): QuoteEdit[] {
   const lang = ctx.lang.slice(0, 2);
   const profile = resolveTypographyProfile(ctx.lang);
   const [open, close] = profile.double;
@@ -90,17 +91,12 @@ const quoteLine: MatchFixer = (m, ctx) => {
   const pad = profile.quoteSpace;
   // Swedish ”…” opens and closes with one mark: it pairs by position, like a straight one.
   const symmetric = open === close;
-  // Spanish «…» is spanishQuotes' advice; this rule then fixes apostrophes only.
-  const pairs = !(lang === "es" && (ctx.rules?.has("spanishQuotes") ?? true));
   const text = ctx.text;
-  const findings: RawFinding[] = [];
-  const keep = (at: number, replacement: string, context: [number, number]) => {
-    if (at >= ctx.from && at < ctx.to) findings.push(quoteFinding(at, replacement, context));
-  };
+  const kept: QuoteEdit[] = [];
 
   for (const [start, end] of segments(ctx, m)) {
     const stack: Open[] = [];
-    const edits: Array<[number, string, [number, number]]> = [];
+    const edits: QuoteEdit[] = [];
     let clean = pairs;
     const depth = () => stack.filter((o) => o.kind !== "single").length;
     const pair = (from: Open, to: number, openMark: string, closeMark: string) => {
@@ -188,10 +184,7 @@ const quoteLine: MatchFixer = (m, ctx) => {
     for (const [at, replacement, context] of edits)
       // An apostrophe inside or before a word does not depend on the pairs.
       if (clean || (context[0] === context[1] && LETTER.test(text[at + 1] ?? "")))
-        keep(at, replacement, context);
+        kept.push([at, replacement, context]);
   }
-  return findings;
-};
-
-/** The named frame fixes of the typographicQuotes rule of grammar/rules/common.yaml. */
-export const FIXERS = { quoteLine } satisfies Record<string, MatchFixer>;
+  return kept;
+}

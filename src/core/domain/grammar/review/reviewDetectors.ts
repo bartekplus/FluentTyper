@@ -10,7 +10,6 @@ import {
 import { phraseCorrections } from "./englishPhraseCorrections";
 import { usePhraseRows } from "../library/common/engine";
 import type { ReviewMessageKey, TextRange } from "./types";
-import { FIXERS as QUOTE_FIXERS } from "./typographicQuotes";
 import {
   FILTERS as ENGLISH_FILTERS,
   FIXERS as ENGLISH_FIXERS,
@@ -120,7 +119,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {};
 const CORE_FIXERS = mergePredicates<Fixer>(
   // The other rule files still name the ISO date frame fixer "common:invalidIsoDate".
   { invalidIsoDate: isoDateWarning },
-  QUOTE_FIXERS,
 );
 
 // The phrase rows that the phraseTables rule of common.yaml reads (library phraseRows).

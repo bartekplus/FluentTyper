@@ -73,3 +73,4 @@ export {
   tokenStartBefore,
 } from "./common/tokens";
 export { dateSide, dayCount, recentPast } from "../review/reviewClock";
+export { quoteMarkEdits, type QuoteEdit } from "./common/quotes";

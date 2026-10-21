@@ -4138,7 +4138,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "[^\\n]+\\n?|\\n",
     literals: [],
-    fixer: "common:quoteLine",
+    fixer: "common:@typographicQuotes/1",
     flags: "g",
     scan: "text",
   }),
