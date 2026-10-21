@@ -17,7 +17,7 @@ import { atClauseStart } from "./englishParticiples";
 import { COLLECTIVE } from "./english/agreementSlots";
 import { nounNumber } from "./english/nounNumberSlots";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
-import type { FindingsFilter, MatchFixer } from "../engine/reviewRules";
+import type { MatchFixer } from "../engine/reviewRules";
 
 /** Only a clause opening establishes the subject; do not reinterpret object pronouns. */
 function clauseVerb(
@@ -397,23 +397,3 @@ export const FIXERS = {
   },
   determinerSubject,
 } satisfies Record<string, MatchFixer>;
-
-/** The named findings filters of grammar/rules/common.yaml (`filter:`). */
-export const FILTERS = {
-  // Audited noun heads and predicates; no suffix or collective-number inference. A template
-  // finding wins over a determiner frame finding at the same start. A capitalized verb, or a
-  // subjunctive or a condition before the verb, abstains.
-  subjectAgreement: (ctx, findings) => {
-    const starts = new Set<number>();
-    return findings
-      .filter((d) => !starts.has(d.range.start) && !!starts.add(d.range.start))
-      .filter(
-        (d) =>
-          ctx.source.slice(d.range.start, d.range.end) ===
-            ctx.source.slice(d.range.start, d.range.end).toLowerCase() &&
-          !/\b(?:suggest|suggested|insist|insisted|demand|demanded|essential|important|wish|if|unless)\b/i.test(
-            ctx.text.slice(d.context!.start, d.range.start),
-          ),
-      );
-  },
-} satisfies Record<string, FindingsFilter>;

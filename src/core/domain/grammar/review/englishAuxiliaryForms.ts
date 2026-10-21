@@ -5,7 +5,7 @@ import { applyWordCase, detectWordCase } from "../implementations/helpers/Generi
 import { atClauseStart, NOUN_LIKE_ING } from "./englishParticiples";
 import { group, hasUserOrCasedWord, nextLowerWord, plainToken, SPACE } from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
-import type { FindingsFilter, MatchFixer } from "../engine/reviewRules";
+import type { MatchFixer } from "../engine/reviewRules";
 
 const WH = "(?:what|when|where|why|how|who)";
 const AUXILIARY =
@@ -575,12 +575,3 @@ export const FIXERS = {
   afterInfinitiveTo,
   needToNoun,
 } satisfies Record<string, MatchFixer>;
-
-/** The named findings filters of grammar/rules/common.yaml (`filter:`). */
-export const FILTERS = {
-  // Paths overlap ("They can works" is pronoun-led and subject-word-led): first one wins.
-  firstPerEnd: (_ctx, findings) => {
-    const ends = new Set<number>();
-    return findings.filter((f) => !ends.has(f.range.end) && !!ends.add(f.range.end));
-  },
-} satisfies Record<string, FindingsFilter>;

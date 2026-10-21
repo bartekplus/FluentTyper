@@ -32,7 +32,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
       "englishPossibleErrors",
     ],
     frames: [0],
-    predicate: "common:phraseRows",
+    predicate: "common:@phraseTables",
     message: "review_msg_canonical_casing",
     style: "match",
     source: "common",
@@ -90,7 +90,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [38, 39, 40, 41, 42],
     message: "review_msg_noun_count",
     style: "match",
-    filter: "common:firstPerStart",
+    filter: "common:@nounNumber/filter",
     source: "common",
   },
   {
@@ -99,7 +99,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63],
     message: "review_msg_contextual_grammar",
     style: "template",
-    filter: "common:usagePhrases",
+    filter: "common:@usagePhrases/filter",
     cacheable: true,
     source: "common",
   },
@@ -189,7 +189,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [84, 85, 86, 87, 88],
     message: "review_msg_every_day",
     style: "template",
-    filter: "common:contextualCompounds",
+    filter: "common:@contextualCompounds/filter",
     source: "common",
   },
   {
@@ -288,7 +288,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [99, 100, 101, 102, 103],
     message: "review_msg_auxiliary_base",
     style: "match",
-    filter: "common:firstPerEnd",
+    filter: "common:@auxiliaryForms/filter",
     source: "common",
   },
   {
@@ -297,7 +297,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114],
     message: "review_msg_pronoun_subject_case",
     style: "match",
-    filter: "common:firstPerStart",
+    filter: "common:@pronounCase/filter",
     source: "common",
   },
   {
@@ -323,7 +323,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     ],
     message: "review_msg_then_than",
     style: "match",
-    filter: "common:firstPerStart",
+    filter: "common:@wordConfusions/filter",
     source: "common",
   },
   {
@@ -417,7 +417,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     ],
     message: "review_msg_pronoun_verb",
     style: "match",
-    filter: "common:subjectAgreement",
+    filter: "common:@subjectAgreement/filter",
     source: "common",
   },
   {
@@ -451,7 +451,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [208],
     message: "review_msg_proper_noun",
     style: "match",
-    filter: "common:longestName",
+    filter: "common:@properNouns/filter",
     source: "common",
   },
   {

@@ -1,6 +1,5 @@
 import { CUE_AND_QUOTE } from "./exampleCues";
 import { FIXERS as CASING_FIXERS } from "./canonicalCasing";
-import { phraseCorrections } from "./englishPhraseCorrections";
 import { FIXERS as DEGREE_FIXERS } from "./englishDegree";
 import { FIXERS as LEXICON_FIXERS, quotedContraction } from "./multilingualLexicon";
 import { FIXERS as COUNT_FIXERS } from "./englishCountability";
@@ -8,9 +7,9 @@ import { FIXERS as NUMBER_FIXERS } from "./englishNounNumber";
 import { FIXERS as PARTICIPLE_FIXERS } from "./englishParticiples";
 import { FIXERS as COMPLEMENT_FIXERS } from "./englishComplements";
 import { FIXERS as POSSESSIVE_FIXERS } from "./englishPossessives";
-import { FILTERS as AGREEMENT_FILTERS, FIXERS as AGREEMENT_FIXERS } from "./englishAgreement";
+import { FIXERS as AGREEMENT_FIXERS } from "./englishAgreement";
 import { FIXERS as CONFUSION_FIXERS } from "./englishWordConfusions";
-import { FILTERS as AUXILIARY_FILTERS, FIXERS as AUXILIARY_FIXERS } from "./englishAuxiliaryForms";
+import { FIXERS as AUXILIARY_FIXERS } from "./englishAuxiliaryForms";
 import { FIXERS as CASE_FIXERS } from "./englishPronounCase";
 import { FIXERS as STRUCTURE_FIXERS } from "./englishSentenceStructure";
 import type { CatalogRuleId } from "../ruleCatalog";
@@ -90,8 +89,6 @@ import {
   FIXERS as ENGLISH_FIXERS,
   PREDICATES as ENGLISH,
 } from "./english/ruleDetectors";
-import { FILTERS as USAGE_FILTERS } from "./englishUsagePhrases";
-import { FILTERS as COMPOUND_FILTERS } from "./englishCompounds";
 import {
   FILTERS as GERMAN_FILTERS,
   FIXERS as GERMAN_FIXERS,
@@ -140,7 +137,6 @@ import { finding } from "./finding";
 import {
   buildReviewDetectors,
   mergePredicates,
-  type FindingsFilter,
   type Fixer,
   type MatchFixer,
 } from "../engine/reviewRules";
@@ -1647,10 +1643,7 @@ const repeatedWord: MatchFixer = (match, ctx) => {
  * The named shared detectors: common.yaml names them in its Review rules, which set their
  * checks, languages and order.
  */
-export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
-  // The phrase rows of the rule files (engine/phraseRows.ts), after the casing frame.
-  phraseRows: phraseCorrections,
-};
+export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {};
 
 /** The frame fixes of the shared detectors of this module. */
 const DETECTOR_FIXERS = {
@@ -1685,28 +1678,6 @@ const DETECTOR_FIXERS = {
   repeatedWord,
 } satisfies Record<string, MatchFixer>;
 
-/** The findings filters of the shared rules of this module. */
-const DETECTOR_FILTERS = {
-  // Two frames may find the same words: the first finding at a start wins, as when a detector
-  // skipped a match at the start of an earlier finding.
-  firstPerStart: (_ctx, findings) => {
-    const starts = new Set<number>();
-    return findings.filter((f) => !starts.has(f.range.start) && !!starts.add(f.range.start));
-  },
-  // "christmas" is found at its own end and again inside "christmas eve": keep the longer name.
-  longestName: (_ctx, findings) =>
-    findings.filter(
-      (finding) =>
-        !findings.some(
-          (other) =>
-            other !== finding &&
-            other.range.start <= finding.range.start &&
-            other.range.end >= finding.range.end &&
-            other.range.end - other.range.start > finding.range.end - finding.range.start,
-        ),
-    ),
-} satisfies Record<string, FindingsFilter>;
-
 /** The named frame fixes of grammar/rules/common.yaml (`fixer:`). */
 const CORE_FIXERS = mergePredicates<Fixer>(
   DETECTOR_FIXERS,
@@ -1726,15 +1697,6 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   LEXICON_FIXERS,
   CASING_FIXERS,
   QUOTE_FIXERS,
-);
-
-/** The named findings filters of grammar/rules/common.yaml (`filter:`). */
-const CORE_FILTERS = mergePredicates<FindingsFilter>(
-  USAGE_FILTERS,
-  COMPOUND_FILTERS,
-  AUXILIARY_FILTERS,
-  DETECTOR_FILTERS,
-  AGREEMENT_FILTERS,
 );
 
 /**
@@ -1767,7 +1729,6 @@ export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors(
     fr: FRENCH_FIXERS,
   },
   {
-    common: CORE_FILTERS,
     en: ENGLISH_FILTERS,
     de: GERMAN_FILTERS,
     el: GREEK_FILTERS,

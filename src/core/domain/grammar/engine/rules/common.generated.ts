@@ -2,13 +2,20 @@
 // The code of grammar/rules/common.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { GrammarContext, GrammarEdit } from "../../library";
+import type { DetectContext, GrammarContext, GrammarEdit, RawFinding } from "../../library";
 import {
   detectWordCase,
   matchTrailingEnglishPhrase,
   normalizeWordSet,
+  phraseRows,
   replaceFrom,
 } from "../../library";
+
+// common.yaml def firstPerStart
+export function firstPerStart(findings: RawFinding[]) {
+  const starts = new Set<number>();
+  return findings.filter((f) => !starts.has(f.range.start) && !!starts.add(f.range.start));
+}
 
 // common.yaml rule englishAlotCorrection.live def ALOT_REGEX
 export const ALOT_REGEX = /\balot$/i;
@@ -23,10 +30,77 @@ export function correctAlot(phrase: string) {
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {};
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
-export const FILTERS: Readonly<Record<string, FindingsFilter>> = {};
+export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
+  // common.yaml rule nounNumber filter
+  "@nounNumber/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return firstPerStart(findings);
+  },
+  // common.yaml rule usagePhrases filter
+  "@usagePhrases/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return findings.filter(
+      (f) =>
+        f.alternatives[0] !== "Knew" &&
+        !/\b(?:metaphor|poetic|creative|deliberate|deliberately|dialect|invented)\b/i.test(
+          ctx.scanText.slice(f.context!.start, f.context!.end),
+        ),
+    );
+  },
+  // common.yaml rule contextualCompounds filter
+  "@contextualCompounds/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    const starts = new Set<number>();
+    return findings.filter(
+      ({ range: { start, end } }) =>
+        ctx.text.slice(start, end) === ctx.text.slice(start, end).toLowerCase() &&
+        !starts.has(start) &&
+        !!starts.add(start),
+    );
+  },
+  // common.yaml rule auxiliaryForms filter
+  "@auxiliaryForms/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    const ends = new Set<number>();
+    return findings.filter((f) => !ends.has(f.range.end) && !!ends.add(f.range.end));
+  },
+  // common.yaml rule pronounCase filter
+  "@pronounCase/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return firstPerStart(findings);
+  },
+  // common.yaml rule wordConfusions filter
+  "@wordConfusions/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return firstPerStart(findings);
+  },
+  // common.yaml rule subjectAgreement filter
+  "@subjectAgreement/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return firstPerStart(findings).filter(
+      (d) =>
+        ctx.source.slice(d.range.start, d.range.end) ===
+          ctx.source.slice(d.range.start, d.range.end).toLowerCase() &&
+        !/\b(?:suggest|suggested|insist|insisted|demand|demanded|essential|important|wish|if|unless)\b/i.test(
+          ctx.text.slice(d.context!.start, d.range.start),
+        ),
+    );
+  },
+  // common.yaml rule properNouns filter
+  "@properNouns/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return findings.filter(
+      (f) =>
+        !findings.some(
+          (other) =>
+            other !== f &&
+            other.range.start <= f.range.start &&
+            other.range.end >= f.range.end &&
+            other.range.end - other.range.start > f.range.end - f.range.start,
+        ),
+    );
+  },
+};
 
 /** The Review detectors of rules with code, by rule ("@<rule id>"). */
-export const DETECTORS: Readonly<Record<string, Detector>> = {};
+export const DETECTORS: Readonly<Record<string, Detector>> = {
+  // common.yaml rule phraseTables
+  "@phraseTables": (ctx: DetectContext): RawFinding[] => {
+    return phraseRows(ctx);
+  },
+};
 
 /** The typing rules with code, by rule ("@<rule id>"). */
 export const LIVE: Readonly<Record<string, LiveCode>> = {

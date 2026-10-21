@@ -4510,6 +4510,15 @@ fragments:
   # A German currency or byte unit glued to its number: "75.000$", "5kB".
   DE_GLUED_UNIT: "(?<![\\p{L}\\p{N}.,_/\\\\-])(?<n>\\d{1,3}(?:\\.\\d{3})+(?:,\\d+)?|\\d+(?:,\\d+)?)(?<unit>\\p{L}{1,4}|[$£€])(?![\\p{L}\\p{N}_-])"
 
+# The code of the rules' expressions (`let`, `when`, `return`) that rules of several modules use.
+defs:
+  # Two frames may find the same words: the first finding at a start wins.
+  firstPerStart:
+    args: "findings: RawFinding[]"
+    let:
+      starts: new Set<number>()
+    return: "findings.filter((f) => !starts.has(f.range.start) && !!starts.add(f.range.start))"
+
 rules:
   # Typing rules: each live check names its implementation (engine/liveRules.ts).
   - id: capitalizeSentenceStart.live
@@ -4679,9 +4688,9 @@ rules:
         scan: owned
         flags: gu
         fixer: canonicalCasing
-    # predicate: after the frame, the phrase rows of the rule files (engine/phraseRows.ts) read
-    # each word of the engine's word walk; their data is the `phrases:` tables of the rule files.
-    predicate: phraseRows
+    # After the frame, the phrase rows of the rule files (engine/phraseRows.ts) read each word
+    # of the engine's word walk; their data is the `phrases:` tables of the rule files.
+    return: phraseRows(ctx)
   - id: quotationFindings
     checks: [unclosedQuotation]
     # The quotation findings Review made before the rule scan, in the chunk.
@@ -4887,7 +4896,8 @@ rules:
     checks: [englishNounNumber]
     style: match
     message: review_msg_noun_count
-    filter: firstPerStart
+    filter:
+      return: firstPerStart(findings)
     frames:
       - regex: "(?<one>one{{S}}of{{S}}the){{S}}{{NUMBER_ADJECTIVE}}(?<noun>[A-Za-z]+)(?<tail>{{S}}(?:{{NUMBER_PAST}}|(?:is|was){{S}}{{NUMBER_STATUS}}|has{{S}}failed)){{COMPLETE}}{{E}}"
         owner: none
@@ -4911,7 +4921,14 @@ rules:
   - id: usagePhrases
     checks: [englishUsagePhrases]
     style: template
-    filter: usagePhrases
+    # A capitalized "New" after a pronoun starts a name ("they New Yorkers"). A finding near a
+    # word that names a figure of speech stays out.
+    filter:
+      return: >-
+        findings.filter((f) =>
+          f.alternatives[0] !== "Knew" &&
+          !/\b(?:metaphor|poetic|creative|deliberate|deliberately|dialect|invented)\b/i.test(
+            ctx.scanText.slice(f.context!.start, f.context!.end)))
     message: review_msg_contextual_grammar
     frames:
       - regex: "(?:we|I|they){{S}}(?:finally{{S}})?(?<target>finded){{S}}the{{S}}(?:problem|bug|issue){{COMPLETE}}"
@@ -5093,7 +5110,14 @@ rules:
   - id: contextualCompounds
     checks: [englishContextualCompounds]
     style: template
-    filter: contextualCompounds
+    # Only lowercase typed text, and the first finding at a start.
+    filter:
+      let:
+        starts: new Set<number>()
+      return: >-
+        findings.filter(({ range: { start, end } }) =>
+          ctx.text.slice(start, end) === ctx.text.slice(start, end).toLowerCase() &&
+          !starts.has(start) && !!starts.add(start))
     message: review_msg_every_day
     frames:
       - regex: "(?:tested|checked|reviewed){{S}}(?<target>aswell){{COMPLETE}}"
@@ -5224,7 +5248,11 @@ rules:
     checks: [englishAuxiliaryBaseVerb]
     style: match
     message: review_msg_auxiliary_base
-    filter: firstPerEnd
+    # Paths overlap ("They can works" is pronoun-led and subject-word-led): the first one wins.
+    filter:
+      let:
+        ends: new Set<number>()
+      return: "findings.filter((f) => !ends.has(f.range.end) && !!ends.add(f.range.end))"
     frames:
       # Pronoun or determiner + one noun at a clause start, and inverted pronoun questions.
       - regex: "{{AUX_PREFIX}}(?:{{S}}{{AUX_ADVERB}}){0,2}{{S}}(?<verb>[A-Za-z]+){{E}}"
@@ -5251,7 +5279,8 @@ rules:
     checks: [englishPronounCase]
     style: match
     message: review_msg_pronoun_subject_case
-    filter: firstPerStart
+    filter:
+      return: firstPerStart(findings)
     frames:
       # "Me and Sam went", "My wife and me are": object pronouns in a clause-initial coordinated
       # subject.
@@ -5375,7 +5404,8 @@ rules:
       [englishThenThan, englishYourYouAre, englishTheirThereTheyAre, englishToToo, englishWereWhere]
     style: match
     message: review_msg_then_than
-    filter: firstPerStart
+    filter:
+      return: firstPerStart(findings)
     frames:
       # Copular comparison + complete comparison argument; temporal sentence tails abstain.
       - regex: "(?:is|are|was|were){{S}}(?:(?:much|even|far|slightly){{S}})?{{CONFUSION_COMPARATIVE}}{{S}}(?<target>then){{S}}{{CONFUSION_ARGUMENT}}{{COMPLETE_OR_PAREN}}"
@@ -5697,7 +5727,15 @@ rules:
     checks: [englishSubjectVerbAgreement]
     style: match
     message: review_msg_pronoun_verb
-    filter: subjectAgreement
+    # A template finding wins over a determiner frame finding at the same start. A capitalized
+    # verb, or a subjunctive or a condition before the verb, abstains.
+    filter:
+      return: >-
+        firstPerStart(findings).filter((d) =>
+          ctx.source.slice(d.range.start, d.range.end) ===
+            ctx.source.slice(d.range.start, d.range.end).toLowerCase() &&
+          !/\b(?:suggest|suggested|insist|insisted|demand|demanded|essential|important|wish|if|unless)\b/i.test(
+            ctx.text.slice(d.context!.start, d.range.start)))
     frames:
       # Templates at a clause start: a singular subject with the base form or a plural subject
       # with the third person form.
@@ -5848,7 +5886,15 @@ rules:
     lang: en
     style: match
     message: review_msg_proper_noun
-    filter: longestName
+    # "christmas" is found at its own end and again inside "christmas eve": keep the longer name.
+    filter:
+      return: >-
+        findings.filter((f) =>
+          !findings.some((other) =>
+            other !== f &&
+            other.range.start <= f.range.start &&
+            other.range.end >= f.range.end &&
+            other.range.end - other.range.start > f.range.end - f.range.start))
     frames:
       # Word ends, digits included: "may 15" is decided at the end of "15". A name may
       # start up to 32 characters before the chunk and end 32 characters after it.
