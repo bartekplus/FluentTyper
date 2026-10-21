@@ -4,11 +4,16 @@ import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
 import type {
   DetectContext,
+  EndFix,
   FrameRef,
   FrenchGender,
   FrenchToken,
   MatchResult,
+  PlainFix,
   RawFinding,
+  ReadingTest,
+  TextRange,
+  TokenFix,
   VerbReading,
 } from "../../library";
 import {
@@ -30,20 +35,25 @@ import {
   daysInMonth,
   finding,
   finitePersons,
+  finiteReading,
+  firstNameGender,
   hAspire,
   hasPerson,
+  inflect,
   invalidIsoDate,
   isDictionaryCompound,
   isFrenchWord,
   isInflectedNoun,
   isNounLemma,
   isVerbHomograph,
+  isVerbLemma,
   namedExampleBefore,
   nearestDayOn,
   nounGender,
   pluralSingulars,
+  skipWhile,
   skipWords,
-  sontForSon,
+  subjectEndsAt,
   tokensAfter,
   tokensBefore,
   verbReadings,
@@ -51,6 +61,735 @@ import {
   wordFinding,
   yearsFor,
 } from "../../library";
+
+export const HOMO_ADVERBS: ReadonlySet<string> = new Set([
+  "pas",
+  "plus",
+  "jamais",
+  "bien",
+  "déjà",
+  "encore",
+  "toujours",
+  "souvent",
+  "beaucoup",
+  "vraiment",
+  "aussi",
+  "même",
+  "enfin",
+  "tout",
+]);
+
+export const HOMO_CONJUNCTIONS: ReadonlySet<string> = new Set([
+  "et",
+  "mais",
+  "ou",
+  "donc",
+  "or",
+  "car",
+  "que",
+  "qu'",
+  "quand",
+  "si",
+  "puis",
+  "alors",
+  "comme",
+  "lorsque",
+  "lorsqu'",
+  "puisque",
+  "puisqu'",
+  "où",
+  "ainsi",
+]);
+
+export const HOMO_DETERMINERS: ReadonlySet<string> = new Set([
+  "le",
+  "la",
+  "les",
+  "l'",
+  "un",
+  "une",
+  "des",
+  "du",
+  "au",
+  "aux",
+  "ce",
+  "cet",
+  "cette",
+  "ces",
+  "mon",
+  "ma",
+  "mes",
+  "ton",
+  "ta",
+  "tes",
+  "son",
+  "sa",
+  "ses",
+  "notre",
+  "nos",
+  "votre",
+  "vos",
+  "leur",
+  "leurs",
+]);
+
+export const CLAUSE_SUBJECTS: ReadonlySet<string> = new Set([
+  "que",
+  "qu'",
+  "qui",
+  "dont",
+  "où",
+  "ce",
+  "quoi",
+]);
+
+export const RELATIVE_LEQUEL: ReadonlySet<string> = new Set([
+  "laquelle",
+  "lequel",
+  "lesquels",
+  "lesquelles",
+]);
+
+export const LATIN_A: ReadonlySet<string> = new Set([
+  "priori",
+  "posteriori",
+  "minima",
+  "maxima",
+  "cappella",
+  "capella",
+  "contrario",
+  "fortiori",
+  "giorno",
+]);
+
+export const HOMO_STRESSED: ReadonlySet<string> = new Set([
+  "moi",
+  "toi",
+  "lui",
+  "elle",
+  "eux",
+  "elles",
+  "nous",
+  "vous",
+  "soi",
+  "quoi",
+  "qui",
+  "ça",
+  "cela",
+  "ceci",
+  "tout",
+  "tous",
+  "toutes",
+  "chaque",
+  "chacun",
+  "plusieurs",
+]);
+
+export const AVOIR_BARE_NOUNS: ReadonlySet<string> = new Set([
+  "faim",
+  "soif",
+  "peur",
+  "froid",
+  "chaud",
+  "sommeil",
+  "raison",
+  "tort",
+  "besoin",
+  "envie",
+  "honte",
+  "mal",
+  "lieu",
+  "cours",
+  "droit",
+  "horreur",
+  "confiance",
+  "hâte",
+  "beau",
+  "affaire",
+  "recours",
+  "trait",
+  "part",
+  "coutume",
+  "tendance",
+  "congé",
+  "charge",
+  "qualité",
+  "vocation",
+  "obligation",
+  "interdiction",
+  "ordre",
+  "accès",
+  "priorité",
+  "pitié",
+  "conscience",
+  "connaissance",
+  "intérêt",
+  "foi",
+  "soin",
+  "marre",
+  "cœur",
+  "coeur",
+  "idée",
+  "avantage",
+  "mission",
+  "autorité",
+  "carte",
+  "peine",
+  "force",
+  "valeur",
+  "gain",
+  "rendez-vous",
+  "pied",
+  "main",
+  "pignon",
+  "madame",
+  "monsieur",
+  "mademoiselle",
+]);
+
+export const HOMO_QUANTIFIERS: ReadonlySet<string> = new Set([
+  "rien",
+  "beaucoup",
+  "peu",
+  "trop",
+  "tant",
+  "assez",
+  "chose",
+]);
+
+export const AFTER_PREPOSITION: ReadonlySet<string> = new Set([
+  "côté",
+  "coté",
+  "travers",
+  "droite",
+  "gauche",
+  "cheval",
+  "vélo",
+  "présent",
+  "propos",
+  "condition",
+]);
+
+export const ELIDED_AFTER: ReadonlySet<string> = new Set([
+  "exception",
+  "accoutumée",
+  "instar",
+  "abri",
+  "égard",
+  "envers",
+]);
+
+export const FAREWELLS: ReadonlySet<string> = new Set([
+  "bientôt",
+  "demain",
+  "lundi",
+  "mardi",
+  "mercredi",
+  "jeudi",
+  "vendredi",
+  "samedi",
+  "dimanche",
+  "tantôt",
+]);
+
+export const BEFORE_PREPOSITION: ReadonlySet<string> = new Set([
+  "jusqu'",
+  "quant",
+  "comparé",
+  "comparativement",
+  "contrairement",
+  "conformément",
+  "relativement",
+  "proportionnellement",
+]);
+
+export const PLACE_TIME_NOUNS: ReadonlySet<string> = new Set([
+  "jour",
+  "jours",
+  "fois",
+  "moment",
+  "moments",
+  "instant",
+  "endroit",
+  "endroits",
+  "lieu",
+  "lieux",
+  "pays",
+  "ville",
+  "villes",
+  "époque",
+  "année",
+  "années",
+  "mois",
+  "semaine",
+  "soir",
+  "matin",
+  "période",
+  "cas",
+  "heure",
+  "maison",
+  "région",
+  "monde",
+  "situation",
+  "hypothèse",
+  "point",
+  "état",
+  "temps",
+  "nuit",
+  "soirée",
+  "journée",
+  "an",
+  "siècle",
+  "âge",
+  "quartier",
+  "village",
+  "pièce",
+  "chambre",
+  "site",
+  "page",
+  "ferme",
+]);
+
+export const ASKING_VERBS: ReadonlySet<string> = new Set([
+  "savoir",
+  "demander",
+  "indiquer",
+  "montrer",
+  "ignorer",
+  "expliquer",
+]);
+
+export const OU_PLACES: ReadonlySet<string> = new Set([
+  "endroit",
+  "lieu",
+  "pays",
+  "ville",
+  "villes",
+  "maison",
+  "région",
+  "quartier",
+  "village",
+  "ferme",
+  "pièce",
+  "chambre",
+]);
+
+export const WHERE_VERBS: ReadonlySet<string> = new Set(["être", "aller", "habiter"]);
+
+export const WHERE_ETRE: ReadonlySet<string> = new Set(["est", "sont", "était", "étaient", "se"]);
+
+export const OU_DEFINITE: ReadonlySet<string> = new Set([
+  "le",
+  "la",
+  "l'",
+  "les",
+  "ce",
+  "cet",
+  "cette",
+  "ces",
+]);
+
+export const LINKING_VERBS: ReadonlySet<string> = new Set([
+  "être",
+  "sentir",
+  "sembler",
+  "paraître",
+  "devenir",
+  "rester",
+  "demeurer",
+]);
+
+export const HOMO_DEGREE_ADVERBS: ReadonlySet<string> = new Set([
+  "peu",
+  "si",
+  "très",
+  "trop",
+  "assez",
+  "absolument",
+  "tout",
+  "fait",
+  "complètement",
+  "totalement",
+  "parfaitement",
+  "plutôt",
+]);
+
+export const OBJECT_PRONOUNS_BEFORE_VERB: ReadonlySet<string> = new Set([
+  "le",
+  "la",
+  "les",
+  "l'",
+  "me",
+  "m'",
+  "te",
+  "t'",
+  "se",
+  "s'",
+  "en",
+  "y",
+  "lui",
+  "leur",
+  "nous",
+  "vous",
+]);
+
+export const INFINITIVE_GOVERNORS: ReadonlySet<string> = new Set([
+  "de",
+  "d'",
+  "pour",
+  "sans",
+  "à",
+  "par",
+]);
+
+export const ETRE_THIRD: ReadonlySet<string> = new Set([
+  "sont",
+  "sera",
+  "serait",
+  "seront",
+  "seraient",
+  "fut",
+  "furent",
+]);
+
+export const SE_ADVERBS: ReadonlySet<string> = new Set([
+  "bien",
+  "mal",
+  "mieux",
+  "plus",
+  "moins",
+  "trop",
+  "tant",
+  "tout",
+]);
+
+export const NOT_AFTER_POSSESSIVE: ReadonlySet<string> = new Set([
+  "pour",
+  "que",
+  "qu'",
+  "à",
+  "avec",
+  "comme",
+  "et",
+  "ou",
+  "mais",
+  "alors",
+  "donc",
+  "quand",
+  "si",
+  "là",
+  "ici",
+  "aussi",
+  "encore",
+  "non",
+  "oui",
+  "pas",
+  "avant",
+  "après",
+  "depuis",
+  "pendant",
+  "sans",
+  "sur",
+  "sous",
+  "dans",
+  "par",
+  "chez",
+  "en",
+  "vers",
+  "contre",
+  "entre",
+  "parce",
+  "car",
+]);
+
+export const JUDGING_VERBS: ReadonlySet<string> = new Set([
+  "trouver",
+  "rendre",
+  "juger",
+  "considérer",
+  "croire",
+]);
+
+export const HOMO_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "de",
+  "à",
+  "avec",
+  "pour",
+  "dans",
+  "par",
+  "sur",
+  "sous",
+  "chez",
+  "sans",
+  "selon",
+  "depuis",
+  "pendant",
+  "malgré",
+]);
+
+export const HOMO_PLURAL_DETERMINERS: ReadonlySet<string> = new Set([
+  "les",
+  "des",
+  "ces",
+  "mes",
+  "tes",
+  "ses",
+  "nos",
+  "vos",
+  "leurs",
+]);
+
+export const CE_SONT_NEXT: ReadonlySet<string> = new Set([
+  "les",
+  "mes",
+  "tes",
+  "ses",
+  "nos",
+  "vos",
+  "leurs",
+  "eux",
+  "elles",
+]);
+
+export const PLURAL_SUBJECTS: ReadonlySet<string> = new Set([
+  "ils",
+  "elles",
+  "certains",
+  "certaines",
+  "plusieurs",
+  "toutes",
+]);
+
+export const QUANTITY_WORDS: ReadonlySet<string> = new Set([
+  "beaucoup",
+  "peu",
+  "trop",
+  "tant",
+  "assez",
+  "plupart",
+]);
+
+export const PEU_DEGREE: ReadonlySet<string> = new Set([
+  "un",
+  "très",
+  "trop",
+  "si",
+  "assez",
+  "petit",
+  "bien",
+]);
+
+export const INVERTED_SUBJECTS: ReadonlySet<string> = new Set([
+  "tu",
+  "vous",
+  "il",
+  "elle",
+  "on",
+  "ils",
+  "elles",
+  "nous",
+]);
+
+export const NOUN_INFINITIVES: ReadonlySet<string> = new Set([
+  "pouvoir",
+  "savoir",
+  "devoir",
+  "vouloir",
+  "dîner",
+  "déjeuner",
+  "goûter",
+  "souper",
+  "rire",
+  "sourire",
+  "plaisir",
+]);
+
+export const INFINITIVE_CLITICS: ReadonlySet<string> = new Set([
+  "le",
+  "la",
+  "les",
+  "l'",
+  "lui",
+  "leur",
+  "y",
+  "en",
+  "me",
+  "m'",
+  "te",
+  "t'",
+  "se",
+  "s'",
+  "nous",
+  "vous",
+]);
+
+export const AN_KEEPS: ReadonlySet<string> = new Set([
+  "dernier",
+  "prochain",
+  "passé",
+  "passés",
+  "neuf",
+  "entier",
+  "plein",
+  "révolu",
+  "révolus",
+  "accompli",
+  "accomplis",
+  "complet",
+  "complets",
+  "environ",
+  "plus",
+  "après",
+  "avant",
+  "auparavant",
+  "tout",
+  "tous",
+  "seulement",
+  "exactement",
+  "juste",
+  "pile",
+  "durant",
+  "pendant",
+  "chaque",
+  "ou",
+  "et",
+  "mais",
+]);
+
+export const STAINS: ReadonlySet<string> = new Set([
+  "café",
+  "vin",
+  "sang",
+  "graisse",
+  "gras",
+  "encre",
+  "huile",
+  "ketchup",
+  "sauce",
+  "chocolat",
+  "moutarde",
+  "peinture",
+  "boue",
+  "rouille",
+  "confiture",
+  "jus",
+  "thé",
+  "lait",
+  "sueur",
+  "herbe",
+  "cambouis",
+  "goudron",
+  "moisissure",
+  "humidité",
+  "mayonnaise",
+  "beurre",
+]);
+
+export const STAIN_ADJECTIVES: ReadonlySet<string> = new Set([
+  "indélébile",
+  "indélébiles",
+  "tenace",
+  "tenaces",
+]);
+
+export const STAINED_THINGS: ReadonlySet<string> = new Set([
+  "chemise",
+  "chemisier",
+  "pantalon",
+  "jean",
+  "robe",
+  "jupe",
+  "veste",
+  "manteau",
+  "pull",
+  "cravate",
+  "nappe",
+  "tapis",
+  "moquette",
+  "drap",
+  "draps",
+  "oreiller",
+  "canapé",
+  "tissu",
+  "vêtement",
+  "vêtements",
+  "linge",
+  "lit",
+  "mur",
+  "plafond",
+]);
+
+export const TASK_ADJECTIVES: ReadonlySet<string> = new Set([
+  "complexe",
+  "complexes",
+  "ménagère",
+  "ménagères",
+  "quotidienne",
+  "quotidiennes",
+  "principale",
+  "principales",
+  "administrative",
+  "administratives",
+  "répétitive",
+  "répétitives",
+  "fastidieuse",
+  "fastidieuses",
+  "ardue",
+  "ardues",
+  "ingrate",
+  "ingrates",
+  "délicate",
+  "délicates",
+  "prioritaire",
+  "prioritaires",
+]);
+
+export const TASK_VERBS: ReadonlySet<string> = new Set([
+  "accomplir",
+  "effectuer",
+  "exécuter",
+  "réaliser",
+  "remplir",
+  "terminer",
+  "achever",
+  "finir",
+  "simplifier",
+  "faciliter",
+  "compliquer",
+  "confier",
+  "assigner",
+  "déléguer",
+  "répartir",
+]);
+
+export const OBJECT_DETERMINERS: ReadonlySet<string> = new Set([
+  "le",
+  "l'",
+  "un",
+  "ce",
+  "cet",
+  "mon",
+  "ton",
+  "son",
+  "la",
+  "une",
+  "cette",
+  "sa",
+  "ma",
+  "ta",
+  "notre",
+  "votre",
+  "leur",
+  "les",
+  "des",
+  "ces",
+  "ses",
+  "mes",
+  "tes",
+  "nos",
+  "vos",
+  "leurs",
+]);
 
 export const NO_ELISION: ReadonlySet<string> = new Set([
   "oui",
@@ -1264,6 +2003,31 @@ export const PERSONAL_SUBJECTS: ReadonlySet<string> = new Set([
   "elles",
 ]);
 
+export const DETERMINER_GENDER: Readonly<Record<string, boolean>> = {
+  la: true,
+  sa: true,
+  ma: true,
+  ta: true,
+  une: true,
+  cette: true,
+  leur: true,
+  votre: true,
+  notre: true,
+};
+
+export const AN_DETERMINERS: Readonly<Record<string, string>> = {
+  un: "une",
+  "l'": "l'",
+  cet: "cette",
+  les: "les",
+  des: "des",
+  mes: "mes",
+  ces: "ces",
+  nos: "nos",
+  vos: "vos",
+  ses: "ses",
+};
+
 export const ELIDED: Readonly<Record<string, string>> = {
   je: "j",
   me: "m",
@@ -1632,6 +2396,1589 @@ export const BARE_POSSESSIVE: Readonly<Record<string, readonly string[]>> = {
   "16": ["votre", "votre", "vos"],
   "32": ["leur", "leur", "leurs"],
 };
+
+// fr.yaml rule fr.homophones def HOMO_NUMBERS
+export const HOMO_NUMBERS =
+  /^(?:\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|cent|mille)$/;
+
+// fr.yaml rule fr.homophones def A_RANGE_END
+export const A_RANGE_END =
+  /^[ \t ]{1,8}\d+(?:[.,]\d+)?[ \t ]*(?:[.,;:!?)]|$|(?:h|heures?|ans?|mois|jours?|semaines?|minutes?|secondes?|euros?|€|%|km|kg|m|cm|mètres?|kilomètres?|degrés?|°)(?![\p{L}\p{N}]))/u;
+
+// fr.yaml rule fr.homophones def EPICENE_ADJECTIVE
+export const EPICENE_ADJECTIVE = /(?:ible|able|ile|aire|ique|ème)s?$/;
+
+// fr.yaml rule fr.homophones def PRES_BEFORE
+export const PRES_BEFORE = new Set([
+  ...HOMO_DETERMINERS,
+  "deux",
+  "trois",
+  "quatre",
+  "plusieurs",
+  "quelques",
+  "nombreux",
+  "grands",
+  "petits",
+  "beaux",
+  "verts",
+]);
+
+// fr.yaml rule fr.homophones def AFTER_EVEN
+export const AFTER_EVEN = new Set([
+  ...HOMO_DETERMINERS,
+  ...HOMO_STRESSED,
+  ...SUBJECT_PRONOUNS,
+  ...HOMO_PREPOSITIONS,
+]);
+
+// fr.yaml rule fr.homophones def homoFix
+export function homoFix(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  alternatives: string[],
+  context?: TextRange,
+) {
+  return wordFinding(
+    ctx,
+    m.index,
+    m[0],
+    alternatives,
+    "frenchHomophones",
+    "review_msg_fr_homophone",
+    context,
+  );
+}
+
+// fr.yaml rule fr.homophones def homoAuxiliary
+export function homoAuxiliary(word: string) {
+  return verbReadings(word).some(
+    (r) => finiteReading(r) && (r.lemma === "avoir" || r.lemma === "être"),
+  );
+}
+
+// fr.yaml rule fr.homophones def onlyVerb
+export function onlyVerb(word: string, test: ReadingTest) {
+  return !isVerbHomograph(word) && verbReadings(word).some(test);
+}
+
+// fr.yaml rule fr.homophones def plainParticiple
+export function plainParticiple(word: string) {
+  return onlyVerb(word, (r) => r.slot === "Q");
+}
+
+// fr.yaml rule fr.homophones def plainInfinitive
+export function plainInfinitive(word: string) {
+  return onlyVerb(word, (r) => r.slot === "I");
+}
+
+// fr.yaml rule fr.homophones def participleOnly
+export function participleOnly(word: string) {
+  return verbReadings(word).length > 0 && verbReadings(word).every((r) => r.slot === "Q");
+}
+
+// fr.yaml rule fr.homophones def opensClauseAt
+export function opensClauseAt(tokens: FrenchToken[], i: number) {
+  return !tokens[i] || HOMO_CONJUNCTIONS.has(tokens[i].w);
+}
+
+// fr.yaml rule fr.homophones def sentenceStartsAt
+export function sentenceStartsAt(text: string, index: number) {
+  return /(?:^|[.!?…]|\n|[«"“(—–-])[\s  ]*$/u.test(text.slice(Math.max(0, index - 6), index));
+}
+
+// fr.yaml rule fr.homophones def pluralToken
+export function pluralToken(t: FrenchToken | undefined) {
+  return !!t && /[sx]$/.test(t.w);
+}
+
+// fr.yaml rule fr.homophones def sontForSon
+export function sontForSon(text: string, index: number): { start: number; end: number } | null {
+  const before = tokensBefore(text, index, 4);
+  const next = tokensAfter(text, index + 3, 1)[0];
+  return before[0]?.w === "ce" && !before[1] && next && CE_SONT_NEXT.has(next.w)
+    ? { start: before[0].start, end: next.end }
+    : (sonBeforeParticiple(text, index, before, next) ?? sonAfterPlural(text, before, next));
+}
+
+// fr.yaml rule fr.homophones def sonBeforeParticiple
+export function sonBeforeParticiple(
+  text: string,
+  index: number,
+  before: FrenchToken[],
+  next: FrenchToken | undefined,
+): { start: number; end: number } | null {
+  const nounSon =
+    !!before[0] && (HOMO_DETERMINERS.has(before[0].w) || ["au", "du"].includes(before[0].w));
+  if (!(!!next && !next.hyphen && !nounSon && /[sx]$/.test(next.w) && participleOnly(next.w)))
+    return null;
+  const after = tokensAfter(text, next.end, 1)[0];
+  if (!(
+    text.slice(next.start, next.end) === next.w &&
+    (!after ||
+      HOMO_DETERMINERS.has(after.w) ||
+      HOMO_PREPOSITIONS.has(after.w) ||
+      HOMO_ADVERBS.has(after.w) ||
+      ["par", "et", "ou", "en"].includes(after.w))
+  ))
+    return null;
+  return { start: before[0]?.start ?? index, end: next.end };
+}
+
+// fr.yaml rule fr.homophones def sonAfterPlural
+export function sonAfterPlural(
+  text: string,
+  before: FrenchToken[],
+  next: FrenchToken | undefined,
+): { start: number; end: number } | null {
+  const relative =
+    before[0]?.w === "qui" &&
+    pluralToken(before[1]) &&
+    !!before[2] &&
+    HOMO_PLURAL_DETERMINERS.has(before[2].w);
+  const h = pluralToken(before[0]) && pluralToken(before[1]) && participleOnly(before[0].w) ? 1 : 0;
+  const det = relative ? before[2] : before[h + 1];
+  const pronoun =
+    h === 0 && PLURAL_SUBJECTS.has(before[0]?.w ?? "") && (!det || HOMO_CONJUNCTIONS.has(det.w));
+  if (!(
+    pronoun ||
+    relative ||
+    (!!det &&
+      (HOMO_PLURAL_DETERMINERS.has(det.w) || HOMO_NUMBERS.test(det.w)) &&
+      pluralToken(before[h]) &&
+      !(before[h + 2] && !HOMO_CONJUNCTIONS.has(before[h + 2].w)))
+  ))
+    return null;
+  if (!next || next.hyphen || /^\p{Lu}/u.test(text[next.start])) return null;
+  const predicate =
+    adjectiveReadings(next.w).length ||
+    verbReadings(next.w).some((r) => r.slot === "Q") ||
+    HOMO_ADVERBS.has(next.w) ||
+    next.w === "là" ||
+    next.w === "ici" ||
+    next.w === "en";
+  const nounLike = nounGender(next.w) || (!predicate && nounGender(next.w.replace(/[sx]$/, "")));
+  if (nounLike || (!predicate && !/[sx]$/.test(next.w))) return null;
+  return { start: (det ?? before[0]).start, end: next.end };
+}
+
+// fr.yaml rule fr.homophones def elidedAuxiliaryAt
+export function elidedAuxiliaryAt(
+  text: string,
+  index: number,
+): { fixed: string; start: number; end: number } | null {
+  const word = tokensAfter(text, index, 1)[0]?.w ?? "";
+  if (!["ma", "ta", "la", "sa", "mon", "ton"].includes(word)) return null;
+  const before = tokensBefore(text, index, 1);
+  const after = tokensAfter(text, index + word.length, 4);
+  const j = Math.max(
+    0,
+    after.findIndex((t, k) => !(after[k + 1] && HOMO_ADVERBS.has(t.w))),
+  );
+  const next = after[j];
+  const subject = before[0];
+  if (!subject || !next || text[subject.start - 1] === "-") return null;
+  const person =
+    subject.w === "je"
+      ? JE
+      : subject.w === "tu"
+        ? TU
+        : ["il", "elle", "on", "qui", "ça", "cela"].includes(subject.w)
+          ? IL
+          : ["ils", "elles"].includes(subject.w)
+            ? ILS
+            : 0;
+  const readings = verbReadings(next.w);
+  const evidence = { start: subject.start, end: next.end };
+  return word === "mon" || word === "ton"
+    ? person === ILS &&
+      readings.some((r) => r.slot === "Q") &&
+      !readings.some((r) => finiteReading(r) && hasPerson(r.slot, ILS))
+      ? { fixed: `${word[0]}'ont`, ...evidence }
+      : null
+    : !person || person === ILS
+      ? null
+      : (word === "ma" || word === "ta") &&
+          j === 0 &&
+          !isVerbHomograph(next.w) &&
+          readings.length > 0 &&
+          readings.every((r) => finiteReading(r)) &&
+          readings.some((r) => hasPerson(r.slot, person))
+        ? { fixed: `${word[0]}e`, ...evidence }
+        : !readings.some((r) => r.slot === "Q")
+          ? null
+          : (word === "la" || word === "sa") &&
+              j === 0 &&
+              readings.some((r) => finiteReading(r) && hasPerson(r.slot, person))
+            ? null
+            : word === "ma" && person === JE
+              ? null
+              : word === "sa"
+                ? person === IL && !nounGender(next.w)
+                  ? { fixed: "s'est", ...evidence }
+                  : null
+                : {
+                    fixed: `${word[0]}'${person === JE ? "ai" : person === TU ? "as" : "a"}`,
+                    ...evidence,
+                  };
+}
+
+// fr.yaml rule fr.homophones def subjectOpens
+export function subjectOpens(text: string, before: FrenchToken[], i: number) {
+  const words = before.slice(i);
+  const first = words.at(-1);
+  return !first || !sentenceStartsAt(text, first.start)
+    ? words.length === 1 &&
+        /^\p{Lu}/u.test(text[words[0].start]) &&
+        !verbReadings(words[0].w).length
+    : words.length === 1 && firstNameGender(text.slice(first.start, first.end))
+      ? true
+      : words.length === 1
+        ? /^\p{Lu}/u.test(text[first.start]) &&
+          !isFrenchWord(first.w) &&
+          !HOMO_ADVERBS.has(first.w) &&
+          !HOMO_CONJUNCTIONS.has(first.w) &&
+          !HOMO_STRESSED.has(first.w)
+        : words.length === 2 &&
+          HOMO_DETERMINERS.has(words[1].w) &&
+          isInflectedNoun(words[0].w) &&
+          (!verbReadings(words[0].w).length || isVerbHomograph(words[0].w));
+}
+
+// fr.yaml rule fr.homophones def avoirObject
+export function avoirObject(
+  ctx: DetectContext,
+  before: FrenchToken[],
+  after: FrenchToken[],
+  j: number,
+  subject: FrenchToken,
+) {
+  const next = after[j];
+  const name = before.length === 1 && /^\p{Lu}/u.test(ctx.text[subject.start]);
+  const adverbs = j > 0;
+  const bare = AVOIR_BARE_NOUNS.has(next.w) && !["de", "d'"].includes(after[j + 1]?.w ?? "");
+  const article =
+    (next.w === "le" || next.w === "les") &&
+    !!after[j + 1] &&
+    isInflectedNoun(after[j + 1].w) &&
+    !verbReadings(after[j + 1].w).length;
+  const determiner =
+    HOMO_DETERMINERS.has(next.w) && (adverbs || (name && (next.w === "un" || next.w === "une")));
+  return (
+    !["tort", "froid", "chaud", "part", "main", "pied", "cheval"].includes(next.w) &&
+    (bare || article || determiner || (adverbs && plainParticiple(next.w)))
+  );
+}
+
+// fr.yaml rule fr.homophones def graveToA
+export function graveToA(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index);
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 4);
+  const i = before.findIndex((t) => !CLITICS.has(t.w) || t.w === "nous" || t.w === "vous");
+  const subject = before[i];
+  const clitics = before.slice(0, Math.max(i, 0));
+  const j = skipWords(after, 0, HOMO_ADVERBS);
+  const next = after[j];
+  const context = {
+    start: subject?.start ?? m.index,
+    end: (next ?? after[0])?.end ?? m.index + m[0].length,
+  };
+  const inverted =
+    !!subject &&
+    (ctx.text[subject.start - 1] === "-" || ["t", "t'"].includes(before[i + 1]?.w ?? ""));
+  return after[0]?.w === "été"
+    ? homoFix(ctx, m, ["a"], context)
+    : !subject
+      ? null
+      : !inverted && (subject.w === "il" || subject.w === "on")
+        ? homoFix(ctx, m, ["a"], context)
+        : !inverted && subject.w === "tu" && opensClauseAt(before, i + 1)
+          ? homoFix(ctx, m, ["as"], context)
+          : !inverted &&
+              ["elle", "ça", "cela"].includes(subject.w) &&
+              opensClauseAt(before, i + 1) &&
+              next &&
+              (HOMO_DETERMINERS.has(next.w) || plainParticiple(next.w))
+            ? homoFix(ctx, m, ["a"], context)
+            : !clitics.length &&
+                next &&
+                subjectOpens(ctx.text, before, i) &&
+                avoirObject(ctx, before, after, j, subject)
+              ? homoFix(ctx, m, ["a"], context)
+              : !after[0] || !plainParticiple(after[0].w) || clitics.length
+                ? null
+                : (/^\p{Lu}/u.test(ctx.text.slice(subject.start, subject.end)) &&
+                      (!sentenceStartsAt(ctx.text, subject.start) ||
+                        (before.length === 1 && subjectOpens(ctx.text, before, i)))) ||
+                    subject.w === "qui"
+                  ? homoFix(ctx, m, ["a"], context)
+                  : null;
+}
+
+// fr.yaml rule fr.homophones def startsNounPhrase
+export function startsNounPhrase(text: string, token: FrenchToken) {
+  return (
+    HOMO_DETERMINERS.has(token.w) ||
+    HOMO_STRESSED.has(token.w) ||
+    HOMO_NUMBERS.test(token.w) ||
+    /^[\p{Lu}\d]/u.test(text.slice(token.start, token.end)) ||
+    verbReadings(token.w).some((r) => r.slot === "I" && r.lemma === token.w)
+  );
+}
+
+// fr.yaml rule fr.homophones def bareNounAfterNoun
+export function bareNounAfterNoun(
+  text: string,
+  previous: FrenchToken,
+  next: FrenchToken,
+  second: FrenchToken | undefined,
+) {
+  if (!(text.slice(previous.start, previous.end) === previous.w)) return false;
+  if (text.slice(next.start, next.end) !== next.w || AVOIR_BARE_NOUNS.has(next.w)) return false;
+  const w = next.w;
+  if (
+    HOMO_DETERMINERS.has(w) ||
+    HOMO_STRESSED.has(w) ||
+    HOMO_QUANTIFIERS.has(w) ||
+    HOMO_ADVERBS.has(w)
+  )
+    return false;
+  if (w.endsWith("ment") || w === "rien" || w === "personne" || HOMO_NUMBERS.test(w)) return false;
+  const stem = /^(.+?)(?:ée?s?)$/.exec(w)?.[1];
+  if (stem && isVerbLemma(`${stem}er`)) return false;
+  if (!nounGender(previous.w) && !isInflectedNoun(previous.w)) return false;
+  if (verbReadings(previous.w).some(finiteReading) && !isVerbHomograph(previous.w)) return false;
+  if (verbReadings(next.w).some((r) => !finiteReading(r)) || adjectiveReadings(next.w).length)
+    return false;
+  const singular = w.replace(/[sx]$/, "");
+  const plural = singular !== w && isInflectedNoun(singular);
+  if (!nounGender(w) && !nounGender(singular) && !plural) return false;
+  return !second
+    ? true
+    : ["de", "d'", "du", "des"].includes(second.w) || HOMO_DETERMINERS.has(second.w)
+      ? false
+      : !verbReadings(second.w).some((r) => r.slot === "Q");
+}
+
+// fr.yaml rule fr.homophones def prepositionLocution
+export function prepositionLocution(
+  ctx: DetectContext,
+  before: FrenchToken[],
+  after: FrenchToken[],
+  end: number,
+) {
+  const next = after[0];
+  const second = after[1];
+  const b0 = before[0];
+  const b1 = before[1];
+  return AFTER_PREPOSITION.has(next.w)
+    ? true
+    : next.w === "l'" && second && ELIDED_AFTER.has(second.w)
+      ? true
+      : next.w === "moins" && (second?.w === "que" || second?.w === "qu'")
+        ? true
+        : next.w === "cause" && (second?.w === "de" || second?.w === "d'" || second?.w === "du")
+          ? true
+          : next.w === "peu" && second?.w === "près"
+            ? true
+            : FAREWELLS.has(next.w) &&
+                /^\s{0,8}(?:[.!?…,;]|$)/u.test(ctx.text.slice(next.end, next.end + 10))
+              ? /^\p{Ll}/u.test(ctx.text.slice(next.start, next.end)) && end <= next.start
+              : !b0
+                ? false
+                : /^\p{Lu}/u.test(ctx.text.slice(b0.start, b0.end)) &&
+                    !sentenceStartsAt(ctx.text, b0.start)
+                  ? false
+                  : BEFORE_PREPOSITION.has(b0.w)
+                    ? true
+                    : (b0.w === "grâce" || b0.w === "grace") &&
+                        (!b1 || !(b1.w in DETERMINER_GENDER))
+                      ? true
+                      : b0.w === "rapport" && b1?.w === "par"
+                        ? true
+                        : b0.w === "ici" && b1?.w === "d'";
+}
+
+// fr.yaml rule fr.homophones def attributeBefore
+export function attributeBefore(before: FrenchToken[]) {
+  const adjective = before[0];
+  const verb = before[1];
+  return (
+    !!verb &&
+    (verb.w === "étant" ||
+      verbReadings(verb.w).some((r) => finiteReading(r) && r.lemma === "être")) &&
+    !nounGender(adjective.w) &&
+    (adjectiveReadings(adjective.w).length > 0 ||
+      /[ai]ble$/.test(adjective.w) ||
+      verbReadings(adjective.w).some((r) => r.slot === "Q")) &&
+    !verbReadings(adjective.w).some(finiteReading)
+  );
+}
+
+// fr.yaml rule fr.homophones def adjectiveOnly
+export function adjectiveOnly(t: FrenchToken | undefined) {
+  return (
+    !!t &&
+    adjectiveReadings(t.w).length > 0 &&
+    !nounGender(t.w) &&
+    !verbReadings(t.w).some(finiteReading)
+  );
+}
+
+// fr.yaml rule fr.homophones def openingVerb
+export function openingVerb(ctx: DetectContext, t: FrenchToken) {
+  return sentenceStartsAt(ctx.text, t.start) && verbReadings(t.w).length > 0;
+}
+
+// fr.yaml rule fr.homophones def aToGrave
+export function aToGrave(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (ctx.text[m.index + 1] === "-" || ctx.text[m.index - 1] === "-") return null;
+  const before = tokensBefore(ctx.text, m.index);
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  const next = after[0];
+  return m[0] === "a" &&
+    /(?<![\p{L}\p{N}])de[ \t ]+\d+[ \t ]*\p{L}*[ \t ]{1,8}$/u.test(
+      ctx.text.slice(Math.max(0, m.index - 24), m.index),
+    ) &&
+    A_RANGE_END.test(ctx.text.slice(m.index + 1, m.index + 24))
+    ? homoFix(ctx, m, ["à"])
+    : /^[ \t ]{1,8}\d/.test(ctx.text.slice(m.index + 1, m.index + 10)) && attributeBefore(before)
+      ? homoFix(ctx, m, ["à"])
+      : !next || next.hyphen
+        ? null
+        : aToGraveNext(ctx, m, before, after);
+}
+
+// fr.yaml rule fr.homophones def aToGraveNext
+export function aToGraveNext(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  before: FrenchToken[],
+  after: FrenchToken[],
+): RawFinding | null {
+  const next = after[0];
+  const previous = before[0];
+  const fix = (context: FrenchToken | undefined) =>
+    homoFix(ctx, m, ["à"], { start: context?.start ?? m.index, end: next.end });
+  const lead = ctx.text.slice(Math.max(0, m.index - 16), m.index);
+  return m[0] === "a" && CLITICS.has(next.w) && after[1] && plainInfinitive(after[1].w)
+    ? fix(before[0])
+    : m[0] === "A" || LATIN_A.has(next.w) || next.w === "t" || next.w === "t'"
+      ? null
+      : RELATIVE_LEQUEL.has(next.w)
+        ? fix(undefined)
+        : next.w === "l'" && after[1]?.w === "air"
+          ? null
+          : previous &&
+              ctx.text[previous.start - 1] === "-" &&
+              INVERTED_SUBJECTS.has(previous.w) &&
+              startsNounPhrase(ctx.text, next)
+            ? fix(previous)
+            : !previous &&
+                m[0] === "a" &&
+                /^\p{Ll}/u.test(ctx.text.slice(next.start, next.end)) &&
+                startsNounPhrase(ctx.text, next) &&
+                !plainParticiple(next.w) &&
+                (/[.!?…][ \t ]*$/u.test(lead) ||
+                  /(?:^|[.!?…\n])[ \t ]*(?:alors|non|oui|bon|ok|bien|eh|ah|oh|ben|bref|enfin),[ \t ]*$/iu.test(
+                    lead,
+                  ))
+              ? fix(undefined)
+              : adjectiveOnly(previous) &&
+                  adjectiveOnly(next) &&
+                  /^[ \t ]*(?:[.!?;,)]|$)/u.test(ctx.text.slice(next.end, next.end + 9))
+                ? fix(previous)
+                : plainInfinitive(next.w) &&
+                    next.w.length > 3 &&
+                    ((previous &&
+                      (HOMO_QUANTIFIERS.has(previous.w) ||
+                        verbReadings(previous.w).some(
+                          (r) =>
+                            r.slot === "I" ||
+                            (finiteReading(r) &&
+                              r.lemma !== "avoir" &&
+                              !isVerbHomograph(previous.w)),
+                        ))) ||
+                      !next.w.endsWith("er"))
+                  ? fix(previous)
+                  : prepositionLocution(ctx, before, after, m.index + m[0].length)
+                    ? fix(previous)
+                    : !previous
+                      ? null
+                      : HOMO_QUANTIFIERS.has(previous.w) && plainInfinitive(next.w)
+                        ? fix(previous)
+                        : aToGraveClause(ctx, m, before, after, fix);
+}
+
+// fr.yaml rule fr.homophones def aToGraveClause
+export function aToGraveClause(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  before: FrenchToken[],
+  after: FrenchToken[],
+  fix: TokenFix,
+): RawFinding | null {
+  const previous = before[0];
+  const next = after[0];
+  const window = tokensBefore(ctx.text, m.index, 30);
+  if (
+    window.some(
+      (t, k) =>
+        CLAUSE_SUBJECTS.has(t.w) &&
+        !(
+          (window[k].w === "que" || window[k].w === "qu'") &&
+          !!window[k + 1] &&
+          onlyVerb(window[k + 1].w, finiteReading)
+        ) &&
+        !(
+          window[k].w === "ce" &&
+          !!window[k - 1] &&
+          !CLAUSE_SUBJECTS.has(window[k - 1].w) &&
+          !verbReadings(window[k - 1].w).some(finiteReading)
+        ),
+    )
+  )
+    return null;
+  if (SUBJECT_PRONOUNS.has(previous.w) || CLITICS.has(previous.w)) return null;
+  return attributeBefore(before) && startsNounPhrase(ctx.text, next)
+    ? fix(previous)
+    : bareNounAfterNoun(ctx.text, previous, next, after[1])
+      ? fix(previous)
+      : /^\p{Lu}/u.test(ctx.text.slice(previous.start, previous.end)) && !openingVerb(ctx, previous)
+        ? null
+        : !startsNounPhrase(ctx.text, next)
+          ? null
+          : aToGraveVerb(ctx, m, before, after, fix);
+}
+
+// fr.yaml rule fr.homophones def pronounSubjectAt
+export function pronounSubjectAt(own: FrenchToken[], i: number) {
+  const k = skipWhile(own, i + 1, (t) => CLITICS.has(t.w) || t.w === "ne" || t.w === "n'");
+  const subject = own[k];
+  return !!subject &&
+    SUBJECT_PRONOUNS.has(subject.w) &&
+    subject.w !== "nous" &&
+    subject.w !== "vous"
+    ? k === i + 1 || own.slice(i + 1, k).every((t) => t.w !== subject.w)
+    : false;
+}
+
+// fr.yaml rule fr.homophones def clauseVerbAt
+export function clauseVerbAt(ctx: DetectContext, own: FrenchToken[], t: FrenchToken, i: number) {
+  const capital = /^\p{Lu}/u.test(ctx.text.slice(t.start, t.end));
+  return homoAuxiliary(t.w) && /^\p{Ll}/u.test(ctx.text[t.start]) && pronounSubjectAt(own, i)
+    ? i > 0 || verbReadings(t.w).some((r) => r.lemma === "être")
+    : i === 0
+      ? false
+      : capital && !openingVerb(ctx, t)
+        ? false
+        : onlyVerb(t.w, (r) => finiteReading(r) && r.lemma !== "avoir")
+          ? true
+          : !verbReadings(t.w).some(
+                (r) => finiteReading(r) && r.lemma !== "avoir" && r.lemma !== "être",
+              )
+            ? false
+            : own[i + 1] &&
+                SUBJECT_PRONOUNS.has(own[i + 1].w) &&
+                own[i + 1].w !== "nous" &&
+                own[i + 1].w !== "vous"
+              ? true
+              : i === own.length - 1 &&
+                capital &&
+                sentenceStartsAt(ctx.text, t.start) &&
+                (HOMO_DETERMINERS.has(own[i - 1].w) ||
+                  ["ceci", "cela", "ça", "moi", "lui"].includes(own[i - 1].w));
+}
+
+// fr.yaml rule fr.homophones def aToGraveVerb
+export function aToGraveVerb(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  before: FrenchToken[],
+  after: FrenchToken[],
+  fix: TokenFix,
+): RawFinding | null {
+  const previous = before[0];
+  const next = after[0];
+  const clause = tokensBefore(ctx.text, m.index, 12);
+  const joined = clause.findIndex((t) => HOMO_CONJUNCTIONS.has(t.w));
+  const own = joined < 0 ? clause : clause.slice(0, joined);
+  const verb = own.find((t, i) => clauseVerbAt(ctx, own, t, i));
+  const asked = own.some((t) => /^quel(?:le)?s?$/.test(t.w));
+  const ilYA = !!verb && verb.w === "a" && own[own.indexOf(verb) + 1]?.w === "y";
+  const auxiliary = before[skipWhile(before, 1, (t) => HOMO_ADVERBS.has(t.w) || t.w === "été")];
+  const head = before[skipWhile(before, 1, (t) => CLITICS.has(t.w) || HOMO_ADVERBS.has(t.w))];
+  return verb && !asked && (ilYA || !own.some((t) => t.w === "y"))
+    ? fix(verb)
+    : onlyVerb(previous.w, (r) => finiteReading(r) && r.lemma !== "avoir" && r.lemma !== "être") &&
+        !plainParticiple(next.w)
+      ? fix(previous)
+      : verbReadings(previous.w).some((r) => r.slot === "Q") &&
+          auxiliary &&
+          /^\p{Ll}/u.test(ctx.text[auxiliary.start]) &&
+          homoAuxiliary(auxiliary.w)
+        ? fix(previous)
+        : verbReadings(previous.w).some((r) => r.slot === "I" && r.lemma === previous.w) &&
+            head &&
+            onlyVerb(head.w, finiteReading)
+          ? fix(previous)
+          : null;
+}
+
+// fr.yaml rule fr.homophones def startsClauseOu
+export function startsClauseOu(t: FrenchToken | undefined, after: FrenchToken[]) {
+  return (
+    !!t && (SUBJECT_PRONOUNS.has(t.w) || t.w === "c'" || (t.w === "l'" && after[1]?.w === "on"))
+  );
+}
+
+// fr.yaml rule fr.homophones def ouToOu
+export function ouToOu(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index);
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 3);
+  const rest = ctx.text.slice(m.index + m[0].length);
+  const fix = () =>
+    homoFix(ctx, m, ["où"], {
+      start: before[0]?.start ?? m.index,
+      end: after[0]?.end ?? m.index + m[0].length,
+    });
+  const opener = before.every((t) => ["et", "mais", "alors"].includes(t.w));
+  const afterComma = /(?:^|[.!?…]\s{0,8})(?:Et|Mais|Alors)\s{0,8},\s{0,8}$/u.test(
+    ctx.text.slice(Math.max(0, m.index - 16), m.index),
+  );
+  const startOfQuestion =
+    m[0] === "Ou"
+      ? sentenceStartsAt(ctx.text, m.index)
+      : (before.length > 0 && opener) || afterComma;
+  return m[0] === "Ou" || startOfQuestion
+    ? ouQuestion(after, rest, startOfQuestion, fix)
+    : ouWhere(ctx, before, after, rest, fix);
+}
+
+// fr.yaml rule fr.homophones def ouQuestion
+export function ouQuestion(
+  after: FrenchToken[],
+  rest: string,
+  startOfQuestion: boolean,
+  fix: PlainFix,
+): RawFinding | null {
+  const next = after[0];
+  if (!(startOfQuestion && rest.split(/[.!…\n]/)[0].includes("?") && !!next)) return null;
+  const infinitive = after[2] && verbReadings(after[2].w).some((r) => r.slot === "I");
+  return next.hyphen
+    ? infinitive
+      ? fix()
+      : null
+    : next.w === "se" || next.w === "s'"
+      ? fix()
+      : onlyVerb(next.w, finiteReading) || next.w === "est"
+        ? fix()
+        : null;
+}
+
+// fr.yaml rule fr.homophones def ouWhere
+export function ouWhere(
+  ctx: DetectContext,
+  before: FrenchToken[],
+  after: FrenchToken[],
+  rest: string,
+  fix: PlainFix,
+): RawFinding | null {
+  const previous = before[0];
+  if (!previous) return null;
+  const next = after[0];
+  const question = /^[^.!?…\n]{0,30}\?/u.test(rest);
+  const where =
+    verbReadings(previous.w).some((r) => finiteReading(r) && WHERE_VERBS.has(r.lemma)) ||
+    previous.w === "par";
+  const or =
+    next &&
+    (["pas", "non", "bien", "alors", "quoi", "plutôt", "si"].includes(next.w) ||
+      startsClauseOu(next, after) ||
+      verbReadings(next.w).some(finiteReading));
+  const opensClause =
+    startsClauseOu(next, after) ||
+    (!!next &&
+      ((/^\p{Lu}\p{Ll}/u.test(ctx.text.slice(next.start, next.end)) &&
+        !!after[1] &&
+        verbReadings(after[1].w).some(finiteReading)) ||
+        (OU_DEFINITE.has(next.w) && !!after[2] && verbReadings(after[2].w).some(finiteReading))));
+  return question && where && !or
+    ? fix()
+    : PLACE_TIME_NOUNS.has(previous.w) && opensClause && ouPlaceOrTime(before, rest)
+      ? fix()
+      : ouAsked(ctx, before, after, opensClause)
+        ? fix()
+        : /^[\s  ]*\?/u.test(rest) && verbReadings(previous.w).some(finiteReading)
+          ? fix()
+          : null;
+}
+
+// fr.yaml rule fr.homophones def ouPlaceOrTime
+export function ouPlaceOrTime(before: FrenchToken[], rest: string) {
+  const d =
+    before[1] &&
+    !(HOMO_DETERMINERS.has(before[1].w) || before[1].w === "un" || before[1].w === "une") &&
+    adjectiveReadings(before[1].w).length
+      ? 2
+      : 1;
+  return (
+    (!!before[d] && (OU_DEFINITE.has(before[d].w) || before[d].w === "des")) ||
+    (OU_PLACES.has(before[0].w) &&
+      !/^[^.!…\n]*\?/u.test(rest) &&
+      (!before[d] || ["un", "une"].includes(before[d].w)))
+  );
+}
+
+// fr.yaml rule fr.homophones def ouAsked
+export function ouAsked(
+  ctx: DetectContext,
+  before: FrenchToken[],
+  after: FrenchToken[],
+  opensClause: boolean,
+) {
+  const previous = before[0];
+  const next = after[0];
+  const lemmas =
+    next && SUBJECT_PRONOUNS.has(next.w) && after[1] && !after[1].hyphen
+      ? verbReadings(after[1].w)
+          .filter(finiteReading)
+          .map((r) => r.lemma)
+      : [];
+  const k = skipWhile(before, 0, (t) => ["pas", "jamais", "ne", "n'"].includes(t.w));
+  const imperative = before[k]?.w === "moi" && ctx.text[before[k].start - 1] === "-";
+  const asking = imperative ? before[k + 1] : before[k];
+  return (
+    (lemmas.length > 0 &&
+      /^\s{0,8}(?:[.!?…;,]|$)/u.test(ctx.text.slice(after[1].end, after[1].end + 10)) &&
+      (lemmas.includes("vouloir") || lemmas.includes("être"))) ||
+    (!!asking &&
+      verbReadings(asking.w).some(
+        (r) => ASKING_VERBS.has(r.lemma) || (imperative && r.lemma === "dire"),
+      ) &&
+      !!next &&
+      (startsClauseOu(next, after) ||
+        verbReadings(next.w).some((r) => r.slot === "I") ||
+        next.w === "se" ||
+        next.w === "s'" ||
+        (WHERE_ETRE.has(next.w) && !next.hyphen))) ||
+    (asking?.w === "dire" &&
+      !!before[k + 1] &&
+      (["me", "m'", "te", "t'", "lui", "nous", "vous", "leur"].includes(before[k + 1].w) ||
+        verbReadings(before[k + 1].w).some(
+          (r) => finiteReading(r) && ["pouvoir", "savoir", "vouloir"].includes(r.lemma),
+        )) &&
+      !!next &&
+      (startsClauseOu(next, after) || next.w === "se" || next.w === "s'" || opensClause)) ||
+    ((previous.w === "partout" || (previous.w === "part" && before[1]?.w === "quelque")) &&
+      opensClause) ||
+    (!!asking &&
+      verbReadings(asking.w).some((r) => r.lemma === "voir") &&
+      !!next &&
+      verbReadings(next.w).some((r) => r.slot === "I" && r.lemma === next.w))
+  );
+}
+
+// fr.yaml rule fr.homophones def ouGraveToOu
+export function ouGraveToOu(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 2);
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  const previousNumber =
+    HOMO_NUMBERS.test(before[0]?.w ?? "") ||
+    /\d[ \t ]{0,8}$/.test(ctx.text.slice(Math.max(0, m.index - 9), m.index));
+  const nextNumber =
+    HOMO_NUMBERS.test(after[0]?.w ?? "") ||
+    /^[ \t ]{0,8}\d/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 9));
+  const negation =
+    (after[0]?.w === "pas" || after[0]?.w === "non") &&
+    /^[\s  ]*[?!.]/u.test(ctx.text.slice(after[0].end));
+  if (!((previousNumber && nextNumber) || negation)) return null;
+  return homoFix(ctx, m, ["ou"]);
+}
+
+// fr.yaml rule fr.homophones def surGraveToSur
+export function surGraveToSur(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const previous = tokensBefore(ctx.text, m.index, 2)[0];
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  if (!next || !HOMO_DETERMINERS.has(next.w) || next.w === "du" || next.w === "des") return null;
+  if (
+    !previous ||
+    ["coup", "bien", "pas", "si", "très", "trop", "assez", "aussi", "plus", "tout"].includes(
+      previous.w,
+    )
+  )
+    return null;
+  if (
+    homoAuxiliary(previous.w) ||
+    verbReadings(previous.w).some((r) =>
+      ["sembler", "paraître", "rester", "devenir", "sentir"].includes(r.lemma),
+    )
+  )
+    return null;
+  if (!onlyVerb(previous.w, () => true)) return null;
+  return homoFix(ctx, m, ["sur"], { start: previous.start, end: next.end });
+}
+
+// fr.yaml rule fr.homophones def clauseAfterSur
+export function clauseAfterSur(after: FrenchToken[]) {
+  const pronoun = after[0];
+  if (!(!!pronoun && SUBJECT_PRONOUNS.has(pronoun.w))) return false;
+  const verb = after[1];
+  return (
+    ["je", "tu", "il", "on", "ils"].includes(pronoun.w) ||
+    (!!verb && onlyVerb(verb.w, finiteReading))
+  );
+}
+
+// fr.yaml rule fr.homophones def surPrefixed
+export function surPrefixed(word: string) {
+  return (
+    isInflectedNoun(`sur${word}`) ||
+    verbReadings(`sur${word}`).length > 0 ||
+    isDictionaryCompound(`sur-${word}`)
+  );
+}
+
+// fr.yaml rule fr.homophones def surToSur
+export function surToSur(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 2);
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  const rest = ctx.text.slice(m.index + m[0].length);
+  const fix = () => homoFix(ctx, m, [m[0].replace("u", "û")]);
+  const next = after[0];
+  const words = tokensBefore(ctx.text, m.index, 5);
+  const k = words.findIndex((t) => !HOMO_ADVERBS.has(t.w) && !HOMO_DEGREE_ADVERBS.has(t.w));
+  const head = words[k];
+  const inverted =
+    !!head && SUBJECT_PRONOUNS.has(head.w) && ctx.text[head.start - 1] === "-" && !!words[k + 1];
+  const ends = /^[ \t]{0,4}(?:[.!?…:;,]|$|(?:car|mais|et certaine?s?)(?![\p{L}\p{M}]))/u.test(
+    rest.slice(0, 8),
+  );
+  const verb = after[1];
+  const det = before[0] && ["plus", "moins"].includes(before[0].w) ? before[1] : before[0];
+  return before[0]?.w === "bien" && /^\s{0,8}(?:[.!?…]|$)/u.test(rest.slice(0, 10))
+    ? fix()
+    : before[0]?.w === "bien" &&
+        m[0].length === 3 &&
+        next &&
+        ["très", "pas", "que", "qu'", "il", "je", "on", "ils"].includes(next.w)
+      ? fix()
+      : /^(?:surs|sures)$/i.test(m[0])
+        ? !head
+          ? null
+          : verbReadings(head.w).some((r) => LINKING_VERBS.has(r.lemma)) ||
+              (inverted && verbReadings(words[k + 1].w).some((r) => LINKING_VERBS.has(r.lemma)))
+            ? fix()
+            : !nounGender(head.w) &&
+                !nounGender(head.w.replace(/[sx]$/, "")) &&
+                !isInflectedNoun(head.w.replace(/[sx]$/, ""))
+              ? fix()
+              : null
+        : ends &&
+            head &&
+            m[0].length === 3 &&
+            verbReadings((inverted ? words[k + 1] : head).w).some(
+              (r) => LINKING_VERBS.has(r.lemma) && typeof r.slot === "number",
+            )
+          ? fix()
+          : before[0]?.w === "est" &&
+              before[1]?.w === "c'" &&
+              (!next || clauseAfterSur(after) || next.w === "que" || next.w === "qu'" || ends)
+            ? fix()
+            : before[0]?.w === "bien" &&
+                next &&
+                verbReadings(next.w).some((r) => r.slot === "I" && r.lemma === next.w)
+              ? fix()
+              : m[0].length === 3 && next && ["que", "qu'", "où"].includes(next.w)
+                ? fix()
+                : before[0]?.w === "bien" &&
+                    next &&
+                    OBJECT_PRONOUNS_BEFORE_VERB.has(next.w) &&
+                    verb &&
+                    !isVerbHomograph(verb.w) &&
+                    verbReadings(verb.w).some((r) => finiteReading(r) || r.slot === "I")
+                  ? fix()
+                  : det &&
+                      ["un", "une", "le", "la", "les", "des", "ce", "cet", "cette", "ces"].includes(
+                        det.w,
+                      ) &&
+                      next &&
+                      (nounGender(next.w) || isInflectedNoun(next.w.replace(/[sx]$/, ""))) &&
+                      !next.hyphen &&
+                      !verbReadings(next.w).some((r) => r.slot === "I" && r.lemma === next.w) &&
+                      !surPrefixed(next.w)
+                    ? fix()
+                    : before[0] &&
+                        homoAuxiliary(before[0].w) &&
+                        verbReadings(before[0].w).some((r) => r.lemma === "être") &&
+                        (after[0]?.w === "de" || after[0]?.w === "d'") &&
+                        after[1] &&
+                        plainInfinitive(after[1].w)
+                      ? fix()
+                      : null;
+}
+
+// fr.yaml rule fr.homophones def ceToSe
+export function ceToSe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 3);
+  const following = tokensAfter(ctx.text, m.index + m[0].length, 3);
+  const next = following[0];
+  if (!next) return null;
+  const after = following[1];
+  const fix = (from: FrenchToken | undefined) =>
+    homoFix(ctx, m, ["se"], { start: from?.start ?? m.index, end: next.end });
+  const participle =
+    next.hyphen && after && ["ils", "elles"].includes(after.w) ? following[2] : after;
+  const b0 = before[0];
+  const b1 = before[1];
+  const b2 = before[2];
+  const subject = before[before[0]?.w === "ne" || before[0]?.w === "n'" ? 1 : 0];
+  const previous = before[0];
+  const infinitive =
+    verbReadings(next.w).some((r) => r.slot === "I" && r.lemma === next.w) &&
+    !NOUN_INFINITIVES.has(next.w) &&
+    !["lever", "coucher", "toucher", "parler", "devenir", "souvenir"].includes(next.w);
+  return next.w === "sont" && (!before.length || HOMO_CONJUNCTIONS.has(before[0].w))
+    ? participle && participleOnly(participle.w) && !isVerbHomograph(participle.w)
+      ? fix(undefined)
+      : null
+    : next.hyphen
+      ? null
+      : !before.length &&
+          sentenceStartsAt(ctx.text, m.index) &&
+          verbReadings(next.w).some((r) => r.slot === "I" && r.lemma === next.w) &&
+          !NOUN_INFINITIVES.has(next.w) &&
+          next.w !== "faire" &&
+          after &&
+          !HOMO_DETERMINERS.has(after.w)
+        ? fix(undefined)
+        : b0 &&
+            b1 &&
+            HOMO_DETERMINERS.has(b1.w) &&
+            (!b2 || HOMO_CONJUNCTIONS.has(b2.w)) &&
+            (nounGender(b0.w) || isInflectedNoun(b0.w)) &&
+            !verbReadings(b0.w).some(finiteReading) &&
+            (onlyVerb(next.w, (r) => finiteReading(r) && r.lemma !== "être") ||
+              (verbReadings(next.w).some((r) => finiteReading(r) && r.lemma === "être") &&
+                !!after &&
+                participleOnly(after.w) &&
+                !isVerbHomograph(after.w)))
+          ? fix(b0)
+          : subject && ["il", "elle", "on", "ils", "elles"].includes(subject.w)
+            ? ctx.text[subject.start - 1] === "-"
+              ? null
+              : onlyVerb(next.w, finiteReading)
+                ? fix(subject)
+                : null
+            : infinitive && previous
+              ? (INFINITIVE_GOVERNORS.has(previous.w) ||
+                  (onlyVerb(previous.w, finiteReading) && !homoAuxiliary(previous.w))) &&
+                !(
+                  next.w === "faire" &&
+                  previous.w === "pour" &&
+                  !(
+                    !!after &&
+                    !HOMO_DETERMINERS.has(after.w) &&
+                    (verbReadings(after.w).some((r) => r.slot === "I" || r.slot === "Q") ||
+                      adjectiveReadings(after.w).length > 0)
+                  )
+                )
+                ? fix(previous)
+                : null
+              : previous?.w === "en" && verbReadings(next.w).some((r) => r.slot === "G")
+                ? fix(previous)
+                : previous &&
+                    ["qui", "cela", "ça"].includes(previous.w) &&
+                    verbReadings(next.w).some((r) => finiteReading(r) && hasPerson(r.slot, IL)) &&
+                    !(
+                      isVerbHomograph(next.w) &&
+                      (!after ||
+                        verbReadings(after.w).some(finiteReading) ||
+                        /^[\s ]*[?!.…]/u.test(ctx.text.slice(next.end, next.end + 3)))
+                    ) &&
+                    !HOMO_DETERMINERS.has(after?.w ?? "")
+                  ? fix(previous)
+                  : null;
+}
+
+// fr.yaml rule fr.homophones def cesBeforeNoun
+export function cesBeforeNoun(ctx: DetectContext, pair: FrenchToken[]) {
+  const noun = pair[0];
+  const verb = pair[1];
+  return (
+    !!noun &&
+    !!verb &&
+    /[sx]$/.test(noun.w) &&
+    ctx.text.slice(noun.start, noun.end) === noun.w &&
+    !adjectiveReadings(noun.w).length &&
+    !verbReadings(noun.w).length &&
+    !!(nounGender(noun.w.slice(0, -1)) || isInflectedNoun(noun.w.slice(0, -1))) &&
+    onlyVerb(verb.w, (r) => finiteReading(r) && hasPerson(r.slot, ILS))
+  );
+}
+
+// fr.yaml rule fr.homophones def seNounAlternatives
+export function seNounAlternatives(word: string) {
+  const vowel = /^[aeiouyàâäéèêëîïôöûùüœæh]/.test(word);
+  return nounGender(word) === "f" ? [vowel ? "son" : "sa", "cette"] : [vowel ? "cet" : "ce", "son"];
+}
+
+// fr.yaml rule fr.homophones def seBeforeNoun
+export function seBeforeNoun(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  previous: FrenchToken | undefined,
+  next: FrenchToken,
+) {
+  if (ctx.text.slice(next.start, next.end) !== next.w || CLITICS.has(next.w)) return false;
+  if (!nounGender(next.w) || HOMO_ADVERBS.has(next.w) || SE_ADVERBS.has(next.w)) return false;
+  const readings = verbReadings(next.w);
+  if (readings.some((r) => r.slot === "I" || r.slot === "G")) return false;
+  const prior = previous ? verbReadings(previous.w) : [];
+  return !previous
+    ? /^\p{Lu}/u.test(m[0]) && sentenceStartsAt(ctx.text, m.index) && !readings.length
+    : HOMO_PREPOSITIONS.has(previous.w) || previous.w === "à"
+      ? true
+      : prior.some((r) => r.slot === "Q") && !isVerbHomograph(previous.w)
+        ? true
+        : !readings.length &&
+          prior.some((r) => finiteReading(r) && r.lemma !== "être" && r.lemma !== "avoir") &&
+          !isVerbHomograph(previous.w);
+}
+
+// fr.yaml rule fr.homophones def seEtre
+export function seEtre(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  before: FrenchToken[],
+  next: FrenchToken | undefined,
+  complement: FrenchToken | undefined,
+): RawFinding | null {
+  if (!next || !ETRE_THIRD.has(next.w) || next.hyphen) return null;
+  const lead = /[^.!?…\n]*$/u.exec(ctx.text.slice(Math.max(0, m.index - 120), m.index))![0];
+  const opened =
+    !before.length && /^[ \t ]*(?:\p{L}+|(?:si|s'|s’|quand|lorsqu)[^,]*),[ \t ]*$/iu.test(lead);
+  if (before.length ? before[0].w !== "car" : !sentenceStartsAt(ctx.text, m.index) && !opened)
+    return null;
+  const attribute =
+    !!complement &&
+    adjectiveReadings(complement.w).length > 0 &&
+    !verbReadings(complement.w).length &&
+    /^[ \t ]*(?:[.!?…;,]|$)/u.test(ctx.text.slice(complement.end, complement.end + 9));
+  if (!complement || (!HOMO_DETERMINERS.has(complement.w) && !attribute)) return null;
+  const rest = tokensAfter(ctx.text, complement.end, 3);
+  if (rest.some((t) => verbReadings(t.w).some((r) => r.slot === "Q") && !isVerbHomograph(t.w)))
+    return null;
+  return homoFix(ctx, m, ["ce"], { start: m.index, end: next.end });
+}
+
+// fr.yaml rule fr.homophones def seToCe
+export function seToCe(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 2);
+  const following = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  const next = following[0];
+  return before[0]?.w === "pour" &&
+    next?.w === "faire" &&
+    /^[\s ]*,/u.test(ctx.text.slice(next.end, next.end + 4))
+    ? homoFix(ctx, m, ["ce"], { start: before[0].start, end: next.end })
+    : next && !next.hyphen && seBeforeNoun(ctx, m, before[0], next)
+      ? homoFix(ctx, m, seNounAlternatives(next.w), {
+          start: before[0]?.start ?? m.index,
+          end: next.end,
+        })
+      : seEtre(ctx, m, before, next, following[1]);
+}
+
+// fr.yaml rule fr.homophones def sEstToCEst
+export function sEstToCEst(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 2);
+  const comma = /,[\s ]{0,8}$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index));
+  if (before.length || !(sentenceStartsAt(ctx.text, m.index) || comma)) return null;
+  if (/^[-–]/.test(ctx.text.slice(m.index + m[0].length))) return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 4);
+  const relative = after.findIndex((t) => ["qui", "que", "qu'"].includes(t.w));
+  if (
+    after
+      .slice(0, relative < 0 ? undefined : relative)
+      .some(
+        (t) =>
+          verbReadings(t.w).some((r) => r.slot === "Q") &&
+          (!isVerbHomograph(t.w) || /é(?:e|s|es)?$/.test(t.w)),
+      )
+  )
+    return null;
+  const next = after[0];
+  if (next && verbReadings(next.w).some((r) => r.slot === "Q")) return null;
+  const elided = m[0].slice(0, 2);
+  return wordFinding(
+    ctx,
+    m.index,
+    elided,
+    [`c${elided[1]}`],
+    "frenchHomophones",
+    "review_msg_fr_homophone",
+    { start: m.index, end: m.index + m[0].length },
+  );
+}
+
+// fr.yaml rule fr.homophones def saJudging
+export function saJudging(ctx: DetectContext, m: RegExpExecArray, next: FrenchToken | undefined) {
+  const adjective = next ? adjectiveReadings(next.w) : [];
+  const judging = verbReadings(tokensBefore(ctx.text, m.index, 1)[0]?.w ?? "").some((r) =>
+    JUDGING_VERBS.has(r.lemma),
+  );
+  return (
+    judging &&
+    !!next &&
+    adjective.length > 0 &&
+    adjective.every((r) => r.slot[0] === "m") &&
+    !nounGender(next.w) &&
+    /^[ \t ]*(?:[.!?…,;:)]|$)/u.test(ctx.text.slice(next.end, next.end + 9))
+  );
+}
+
+// fr.yaml rule fr.homophones def saFinal
+export function saFinal(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  rest: string,
+  next: FrenchToken | undefined,
+): RawFinding | null {
+  const final = /^[\s  ]*(?:[.!?…,;:)]|$)/u.test(rest);
+  if (!(final || (!!next && !next.hyphen && NOT_AFTER_POSSESSIVE.has(next.w)))) return null;
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  if (!before && !final) return null;
+  if (!before && /^[\s ]*:/u.test(rest)) return null;
+  return homoFix(ctx, m, ["ça"]);
+}
+
+// fr.yaml rule fr.homophones def saToCa
+export function saToCa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const rest = ctx.text.slice(m.index + m[0].length);
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  return next &&
+    !next.hyphen &&
+    plainInfinitive(next.w) &&
+    next.w !== "devoir" &&
+    !nounGender(next.w)
+    ? homoFix(ctx, m, ["se"])
+    : next &&
+        !next.hyphen &&
+        ctx.text.slice(next.start, next.end) === next.w &&
+        verbReadings(next.w).some((r) => finiteReading(r) && hasPerson(r.slot, IL)) &&
+        (!isVerbHomograph(next.w) || nounGender(next.w) === "m") &&
+        !adjectiveReadings(next.w).length
+      ? homoFix(ctx, m, ["ça"], { start: m.index, end: next.end })
+      : saJudging(ctx, m, next)
+        ? homoFix(ctx, m, ["ça"], { start: m.index, end: next.end })
+        : saFinal(ctx, m, rest, next);
+}
+
+// fr.yaml rule fr.homophones def elidedAuxiliary
+export function elidedAuxiliary(ctx: DetectContext, m: RegExpExecArray) {
+  const found = elidedAuxiliaryAt(ctx.text, m.index);
+  return found && homoFix(ctx, m, [found.fixed], found);
+}
+
+// fr.yaml rule fr.homophones def laVerbIndex
+export function laVerbIndex(words: FrenchToken[], i: number): number {
+  return words[i] && HOMO_ADVERBS.has(words[i].w)
+    ? laVerbIndex(words, i + 1)
+    : words[i]?.w === "temps" && words[i + 1]?.w === "le" && words[i + 2]?.w === "tout"
+      ? laVerbIndex(words, i + 3)
+      : i;
+}
+
+// fr.yaml rule fr.homophones def laAdverb
+export function laAdverb(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  rest: string,
+  next: FrenchToken | undefined,
+): RawFinding | null {
+  const final = /^\s{0,8}(?:[.!?…:)]|$)/u.test(rest.slice(0, 10));
+  const adverbial = !final && LA_ADVERB_FOLLOWERS.has(next?.w ?? "");
+  if (!(final || adverbial)) return null;
+  const words = tokensBefore(ctx.text, m.index, 8);
+  const i = laVerbIndex(words, 0);
+  const verb = words[i];
+  if (!verb) return null;
+  const subject = words[i + 1];
+  return verbReadings(verb.w).some((r) => finiteReading(r) && r.lemma === "être") ||
+    (!adverbial && i === 0 && ["tous", "toutes", "deux", "trois"].includes(verb.w))
+    ? homoFix(ctx, m, ["là"])
+    : adverbial
+      ? null
+      : i === 0 &&
+          ((INVERTED_SUBJECTS.has(verb.w) && Boolean(subject?.hyphen)) ||
+            (subject !== undefined &&
+              SUBJECT_PRONOUNS.has(subject.w) &&
+              verbReadings(verb.w).some(finiteReading)))
+        ? homoFix(ctx, m, ["là"])
+        : null;
+}
+
+// fr.yaml rule fr.homophones def laToLa
+export function laToLa(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const rest = ctx.text.slice(m.index + m[0].length);
+  const before = tokensBefore(ctx.text, m.index, 2);
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  return before[0]?.w === "est" && before[1]?.w === "c'" && (next?.w === "que" || next?.w === "qu'")
+    ? homoFix(ctx, m, ["là"])
+    : /^-(?:bas|haut|dessus|dessous|dedans)(?![\p{L}\p{M}])/u.test(rest.slice(0, 10))
+      ? homoFix(ctx, m, ["là"])
+      : next?.w === "où" && next.start === m.index + m[0].length + 1 && before[0]
+        ? homoFix(ctx, m, ["là"])
+        : laAdverb(ctx, m, rest, next);
+}
+
+// fr.yaml rule fr.homophones def sonToSont
+export function sonToSont(ctx: DetectContext, m: RegExpExecArray) {
+  const context = sontForSon(ctx.text, m.index);
+  return context && homoFix(ctx, m, ["sont"], context);
+}
+
+// fr.yaml rule fr.homophones def capitalizedToken
+export function capitalizedToken(text: string, t: FrenchToken) {
+  return /^\p{Lu}\p{Ll}/u.test(text.slice(t.start, t.end));
+}
+
+// fr.yaml rule fr.homophones def pluralHead
+export function pluralHead(before: FrenchToken[], k: number) {
+  const head = before[k];
+  const det = before[k + 1];
+  if (!head || !/[sx]$/.test(head.w) || !det) return false;
+  return HOMO_PLURAL_DETERMINERS.has(det.w)
+    ? opensClauseAt(before, k + 2)
+    : (det.w === "de" || det.w === "d'" || det.w === "des") && before[k + 2]
+      ? QUANTITY_WORDS.has(before[k + 2].w) && opensClauseAt(before, k + 3)
+      : false;
+}
+
+// fr.yaml rule fr.homophones def pluralSubjectEnds
+export function pluralSubjectEnds(text: string, before: FrenchToken[]) {
+  const b0 = before[0];
+  if (!b0) return false;
+  const b1 = before[1];
+  const b2 = before[2];
+  return /^ce(?:ux|lles)-(?:ci|là)$/.test(b0.w) ||
+    ((b0.w === "ci" || b0.w === "là") && /^ce(?:ux|lles)$/.test(b1?.w ?? ""))
+    ? true
+    : b1?.w === "et" && b2 && capitalizedToken(text, b0) && capitalizedToken(text, b2)
+      ? opensClauseAt(before, 3)
+      : !/[sx]$/.test(b0.w) && !(b1?.w === "de" && capitalizedToken(text, b0))
+        ? false
+        : pluralHead(
+            before,
+            b1?.w === "de" && capitalizedToken(text, b0) && b2 && /[sx]$/.test(b2.w) ? 2 : 0,
+          );
+}
+
+// fr.yaml rule fr.homophones def onToOnt
+export function onToOnt(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 6);
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 3);
+  const word = after[after[0] && HOMO_ADVERBS.has(after[0].w) ? 1 : 0];
+  const number = /^[ \t]{1,4}\d/.test(ctx.text.slice(m.index + 2, m.index + 8));
+  if (!word && !number) return null;
+  const participle =
+    !!word &&
+    ((participleOnly(word.w) && !isVerbHomograph(word.w)) ||
+      word.w === "été" ||
+      (verbReadings(word.w).some((r) => r.slot === "Q") && !hasPerson(finitePersons(word.w), IL)));
+  const next = after[1]?.w ?? "";
+  const object =
+    number ||
+    (word === after[0] &&
+      (["du", "des", "un", "une", "de", "d'", "leurs", "ses"].includes(word.w) ||
+        (["les", "le", "la", "l'"].includes(word.w) &&
+          (["plus", "moins", "mêmes"].includes(next) || !verbReadings(next).some(finiteReading)))));
+  const previous = before[0];
+  if (!previous || previous.hyphen) return null;
+  const relative =
+    previous.w === "qui" &&
+    !(before[1] && (HOMO_PREPOSITIONS.has(before[1].w) || before[1].w === "à"));
+  const antecedent =
+    relative &&
+    !!before[1] &&
+    /[sx]$/.test(before[1].w) &&
+    !verbReadings(before[1].w).some(finiteReading) &&
+    !!word;
+  const loose =
+    antecedent &&
+    (verbReadings(word.w).some((r) => r.slot === "Q") ||
+      ["du", "des", "de", "d'", "un", "une"].includes(word.w));
+  if (!(participle || object || loose)) return null;
+  if (!(relative || pluralSubjectEnds(ctx.text, before))) return null;
+  return homoFix(ctx, m, ["ont"], { start: previous.start, end: word?.end ?? m.index + 2 });
+}
+
+// fr.yaml rule fr.homophones def nonToNont
+export function nonToNont(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 6);
+  const pair = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  const negation = pair[0];
+  const next = pair[1];
+  if (!negation || !["pas", "plus", "jamais", "rien", "guère"].includes(negation.w) || !next)
+    return null;
+  const follows =
+    next.w === "de" ||
+    next.w === "d'" ||
+    (participleOnly(next.w) && !isVerbHomograph(next.w)) ||
+    next.w === "été" ||
+    next.w === "pu" ||
+    next.w === "eu";
+  if (!follows) return null;
+  const pronoun = ["ils", "elles"].includes(before[0]?.w ?? "") && !before[0].hyphen;
+  if (!(pronoun || pluralSubjectEnds(ctx.text, before))) return null;
+  return homoFix(ctx, m, ["n'ont"], { start: before[0].start, end: next.end });
+}
+
+// fr.yaml rule fr.homophones def peutToPeu
+export function peutToPeu(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 3);
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  const rest = ctx.text.slice(m.index + m[0].length);
+  if (/^-/.test(rest) || next?.w === "être") return null;
+  const final = /^[\s ]*(?:[.!?…,;:)]|$)/u.test(rest);
+  const pronounUn =
+    before[0]?.w === "un" &&
+    (/['’"]/.test(ctx.text[before[0].start - 1] ?? "") || /^quelqu/.test(before[1]?.w ?? ""));
+  const degree =
+    before[0] &&
+    PEU_DEGREE.has(before[0].w) &&
+    !pronounUn &&
+    !SUBJECT_PRONOUNS.has(before[1]?.w ?? "");
+  const ilYA = before[0]?.w === "a" && before[1]?.w === "y" && final;
+  const opening =
+    !before.length && sentenceStartsAt(ctx.text, m.index) && (next?.w === "de" || next?.w === "d'");
+  if (!(degree || ilYA || opening)) return null;
+  return homoFix(ctx, m, ["peu"]);
+}
+
+// fr.yaml rule fr.homophones def ontPeut
+export function ontPeut(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  if (!["peut", "peux"].includes(next[0]?.w ?? "") || next[0].hyphen || next[1]?.w === "être")
+    return null;
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  if (previous && SUBJECT_PRONOUNS.has(previous.w)) return null;
+  return homoFix(ctx, m, ["on"], { start: m.index, end: next[0].end });
+}
+
+// fr.yaml rule fr.homophones def quantToQuand
+export function quantToQuand(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  const question = /^[\s ]*\?/u.test(ctx.text.slice(m.index + m[0].length));
+  const inverted = next?.hyphen && verbReadings(next.w).some(finiteReading);
+  if (!(question || inverted)) return null;
+  return homoFix(ctx, m, ["quand"]);
+}
+
+// fr.yaml rule fr.homophones def quandToQuant
+export function quandToQuant(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (
+    !/^[ \t]+(?:moi|toi|lui|elle|nous|vous|eux|elles)[ \t]*,/u.test(
+      ctx.text.slice(m.index + m[0].length),
+    )
+  )
+    return null;
+  if (!sentenceStartsAt(ctx.text, m.index)) return null;
+  return wordFinding(
+    ctx,
+    m.index,
+    ctx.text.slice(m.index, m.index + m[0].length),
+    ["quant à"],
+    "frenchHomophones",
+    "review_msg_fr_homophone",
+  );
+}
+
+// fr.yaml rule fr.homophones def possessiveFor
+export function possessiveFor(word: string) {
+  return /[sx]$/.test(word) && !isNounLemma(word) && isInflectedNoun(word)
+    ? ["ses"]
+    : /^[aeiouyàâéèêëîïôûœæ]/.test(word)
+      ? ["son"]
+      : nounGender(word)
+        ? [nounGender(word) === "f" ? "sa" : "son"]
+        : /[sx]$/.test(word)
+          ? ["son", "sa", "ses"]
+          : ["son", "sa"];
+}
+
+// fr.yaml rule fr.homophones def sontToSon
+export function sontToSon(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  if (
+    !previous ||
+    !HOMO_PREPOSITIONS.has(previous.w) ||
+    !next ||
+    ctx.text[m.index + m[0].length] === "-" ||
+    HOMO_ADVERBS.has(next.w)
+  )
+    return null;
+  return homoFix(ctx, m, possessiveFor(next.w), { start: previous.start, end: next.end });
+}
+
+// fr.yaml rule fr.homophones def adverbWord
+export function adverbWord(word: string) {
+  return HOMO_ADVERBS.has(word) || /..ment$/.test(word);
+}
+
+// fr.yaml rule fr.homophones def duAdverbs
+export function duAdverbs(before: FrenchToken[], i: number): number {
+  return before[i] && adverbWord(before[i].w)
+    ? duAdverbs(before, i + 1)
+    : before[i]?.w === "doute" && before[i + 1]?.w === "sans"
+      ? duAdverbs(before, i + 2)
+      : i;
+}
+
+// fr.yaml rule fr.homophones def duToDu
+export function duToDu(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 4);
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 4);
+  const adverbs = duAdverbs(before, 0);
+  const i =
+    before[adverbs] && SUBJECT_PRONOUNS.has(before[adverbs].w) && before[adverbs + 1]?.hyphen
+      ? adverbs + 1
+      : adverbs;
+  const avoir = before[i];
+  if (!(!!avoir && verbReadings(avoir.w).some((r) => finiteReading(r) && r.lemma === "avoir")))
+    return null;
+  const k = skipWhile(after, 0, (t) => adverbWord(t.w) || INFINITIVE_CLITICS.has(t.w));
+  const next = after[k];
+  return !after.length
+    ? before.slice(0, i).some((t) => ["pas", "jamais", "plus"].includes(t.w)) &&
+      /^[\s ]*[.!?…]/u.test(ctx.text.slice(m.index + m[0].length))
+      ? homoFix(ctx, m, ["dû"], { start: avoir.start, end: m.index + m[0].length })
+      : null
+    : !next || (k === 0 && NOUN_INFINITIVES.has(next.w))
+      ? null
+      : !verbReadings(next.w).some((r) => r.slot === "I" && r.lemma === next.w)
+        ? null
+        : homoFix(ctx, m, ["dû"], { start: avoir.start, end: next.end });
+}
+
+// fr.yaml rule fr.homophones def presToPres
+export function presToPres(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const pair = tokensBefore(ctx.text, m.index, 2);
+  const previous = pair[0];
+  const second = pair[1];
+  if (previous?.w === "de" && !(second && onlyVerb(second.w, () => true))) return null;
+  if (previous && (PRES_BEFORE.has(previous.w) || previous.w === "et" || previous.w === "ou"))
+    return null;
+  if (
+    previous &&
+    /[sx]$/.test(previous.w) &&
+    (adjectiveReadings(previous.w).length || isInflectedNoun(previous.w.replace(/[sx]$/, "")))
+  )
+    return null;
+  return homoFix(ctx, m, ["près"]);
+}
+
+// fr.yaml rule fr.homophones def guerreToGuere
+export function guerreToGuere(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 6);
+  const previous = before[0];
+  if (!previous || HOMO_DETERMINERS.has(previous.w) || HOMO_PREPOSITIONS.has(previous.w))
+    return null;
+  if (["en", "après", "avant", "contre", "de", "d'"].includes(previous.w)) return null;
+  const verb = previous.w === "plus" ? before[1] : previous;
+  if (!verb || !verbReadings(verb.w).some(finiteReading)) return null;
+  if (!before.some((t) => t.w === "ne" || t.w === "n'")) return null;
+  return homoFix(ctx, m, ["guère"]);
+}
+
+// fr.yaml rule fr.homophones def ontToOn
+export function ontToOn(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (!sentenceStartsAt(ctx.text, m.index) || ctx.text[m.index + m[0].length] === "-") return null;
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  if (!next) return null;
+  if (!(
+    verbReadings(next.w).some((r) => finiteReading(r) && hasPerson(r.slot, IL)) ||
+    ["ne", "n'", "se", "s'", "y", "en"].includes(next.w)
+  ))
+    return null;
+  return homoFix(ctx, m, ["on"]);
+}
+
+// fr.yaml rule fr.homophones def describesPlural
+export function describesPlural(word: string) {
+  return (
+    /[sx]$/.test(word) &&
+    !["autres", "mêmes", "certains", "certaines", "plusieurs"].includes(word) &&
+    !nounGender(word.slice(0, -1)) &&
+    !nounGender(word) &&
+    (adjectiveReadings(word).some((r) => r.slot === "mp" || r.slot === "fp") ||
+      (isInflectedNoun(word) && !isNounLemma(word) && !verbReadings(word).some(finiteReading)))
+  );
+}
+
+// fr.yaml rule fr.homophones def describesWord
+export function describesWord(word: string) {
+  return (
+    !nounGender(word) &&
+    (verbReadings(word).some((r) => r.slot === "Q") ||
+      (adjectiveReadings(word).length > 0 &&
+        !verbReadings(word).some(finiteReading) &&
+        !/(?:eur|ier|ien)$/.test(word)))
+  );
+}
+
+// fr.yaml rule fr.homophones def estToEt
+export function estToEt(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  const pair = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  const next = pair[0];
+  if (!before || !next || before.w === "l'" || before.w === "du" || before.hyphen) return null;
+  if (SUBJECT_PRONOUNS.has(before.w) || before.w === "c'" || before.w === "ce") return null;
+  const after = pair[1];
+  const verb =
+    ["se", "s'", "ne", "n'"].includes(next.w) &&
+    !!after &&
+    after.w !== "importe" &&
+    onlyVerb(after.w, finiteReading);
+  const plural =
+    describesPlural(before.w) && describesPlural(next.w) && !subjectEndsAt(ctx.text, m.index);
+  if (!(verb || plural)) return null;
+  return homoFix(ctx, m, ["et"], { start: before.start, end: (verb ? after : next).end });
+}
+
+// fr.yaml rule fr.homophones def etSubject
+export function etSubject(
+  ctx: DetectContext,
+  before: FrenchToken[],
+  next: FrenchToken,
+  after: FrenchToken | undefined,
+  fix: EndFix,
+): RawFinding | null {
+  const noun = before[0];
+  const det = before[1];
+  if (!det || !["le", "la", "l'", "un", "une", "ce", "cet", "cette"].includes(det.w)) return null;
+  if (!isInflectedNoun(noun.w) || (verbReadings(noun.w).length && !isVerbHomograph(noun.w)))
+    return null;
+  if (before.length > 2 && !CLAUSE_SUBJECTS.has(before[2].w) && !HOMO_CONJUNCTIONS.has(before[2].w))
+    return null;
+  const word = HOMO_ADVERBS.has(next.w) || /..ment$/.test(next.w) ? after : next;
+  if (!word || /s$/.test(word.w) || !describesWord(word.w) || word.w.startsWith("demi"))
+    return null;
+  if (!/^[\s ]*(?:[.!?;]|$)/u.test(ctx.text.slice(word.end, word.end + 3))) return null;
+  return fix(word.end);
+}
+
+// fr.yaml rule fr.homophones def etToEst
+export function etToEst(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const before = tokensBefore(ctx.text, m.index, 8);
+  const pair = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  const next = pair[0];
+  if (!before[0] || !next) return null;
+  const fix = (end: number) => homoFix(ctx, m, ["est"], { start: before[0].start, end });
+  return /^quel(?:le)?s?$/.test(before[0].w) && before.length === 1 && HOMO_DETERMINERS.has(next.w)
+    ? fix(next.end)
+    : etSubject(ctx, before, next, pair[1], fix);
+}
 
 // fr.yaml rule fr.elision def ELISION_VOWEL
 export const ELISION_VOWEL = /^[aeiouâàäéèêëîïôöûùüœæ]/i;
@@ -2171,6 +4518,273 @@ export function extraPronoun(ctx: DetectContext, start: number, end: number) {
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // fr.yaml rule fr.homophones frame 1
+  "@fr.homophones/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const lower = m[0].toLowerCase().replaceAll("’", "'");
+    return lower === "à"
+      ? graveToA(ctx, m)
+      : lower === "a"
+        ? aToGrave(ctx, m)
+        : lower === "ou"
+          ? ouToOu(ctx, m)
+          : lower === "où"
+            ? ouGraveToOu(ctx, m)
+            : lower.startsWith("sû")
+              ? surGraveToSur(ctx, m)
+              : lower.startsWith("sur") || lower === "sure" || lower === "sures"
+                ? surToSur(ctx, m)
+                : lower === "ce"
+                  ? ceToSe(ctx, m)
+                  : lower === "se"
+                    ? seToCe(ctx, m)
+                    : lower.startsWith("s'")
+                      ? sEstToCEst(ctx, m)
+                      : lower === "sa"
+                        ? (elidedAuxiliary(ctx, m) ?? saToCa(ctx, m))
+                        : lower === "ma" || lower === "ta" || lower === "la"
+                          ? (elidedAuxiliary(ctx, m) ?? (lower === "la" ? laToLa(ctx, m) : null))
+                          : lower === "mon" || lower === "ton"
+                            ? elidedAuxiliary(ctx, m)
+                            : lower === "sont"
+                              ? sontToSon(ctx, m)
+                              : lower === "son"
+                                ? sonToSont(ctx, m)
+                                : lower === "on"
+                                  ? onToOnt(ctx, m)
+                                  : lower === "non"
+                                    ? nonToNont(ctx, m)
+                                    : lower === "peut" || lower === "peux"
+                                      ? peutToPeu(ctx, m)
+                                      : lower === "quant"
+                                        ? quantToQuand(ctx, m)
+                                        : lower === "quand"
+                                          ? quandToQuant(ctx, m)
+                                          : lower === "du"
+                                            ? duToDu(ctx, m)
+                                            : lower === "prés"
+                                              ? presToPres(ctx, m)
+                                              : lower === "guerre" || lower === "guerres"
+                                                ? guerreToGuere(ctx, m)
+                                                : lower === "ont"
+                                                  ? (ontToOn(ctx, m) ?? ontPeut(ctx, m))
+                                                  : null;
+  },
+  // fr.yaml rule fr.homophones frame 2
+  "@fr.homophones/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const subject = tokensBefore(ctx.text, m.index, 1)[0];
+    const elided = m[0].slice(0, 2);
+    const word = m[0].slice(2).toLowerCase();
+    const reflexive = `${elided[0] === "C" ? "S" : "s"}${elided[1]}`;
+    const pair = word === "est" ? tokensAfter(ctx.text, m.index + m[0].length, 2) : [];
+    return word === "être"
+      ? wordFinding(ctx, m.index, elided, [reflexive], frame.ruleId, frame.messageKey, {
+          start: m.index,
+          end: m.index + m[0].length,
+        })
+      : word === "est" && cesBeforeNoun(ctx, pair)
+        ? wordFinding(
+            ctx,
+            m.index,
+            m[0],
+            [carryCase(m[0], "ces")],
+            frame.ruleId,
+            frame.messageKey,
+            { start: m.index, end: pair[1].end },
+          )
+        : !subject || ctx.text[subject.start - 1] === "-"
+          ? null
+          : !["il", "elle", "on", "ils", "elles", "ne", "n'"].includes(subject.w)
+            ? null
+            : wordFinding(ctx, m.index, elided, [reflexive], frame.ruleId, frame.messageKey, {
+                start: subject.start,
+                end: m.index + m[0].length,
+              });
+  },
+  // fr.yaml rule fr.homophones frame 3
+  "@fr.homophones/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const det = m.groups!.det;
+    const an = m.groups!.an;
+    const adj = m.groups!.adj;
+    if (!(m.index >= ctx.from)) return null;
+    const lowerDet = det.toLowerCase().replaceAll("’", "'");
+    const plural = an.toLowerCase() === "ans";
+    if (!(plural === ["les", "des", "mes", "ces", "nos", "vos", "ses"].includes(lowerDet)))
+      return null;
+    if (an !== an.toLowerCase() || adj !== adj.toLowerCase() || AN_KEEPS.has(adj)) return null;
+    if (verbReadings(adj).some((r) => finiteReading(r) || r.slot === "Q" || r.slot === "G"))
+      return null;
+    const masculine = adjectiveReadings(adj).find((r) => r.slot === (plural ? "mp" : "ms"));
+    const feminine = masculine
+      ? inflect(masculine, plural ? "fp" : "fs")[0]
+      : EPICENE_ADJECTIVE.test(adj) && /s$/.test(adj) === plural
+        ? adj
+        : undefined;
+    if (!feminine) return null;
+    return finding(frame.ruleId, "review_msg_contextual_grammar", m.index, m.index + m[0].length, [
+      `${carryCase(det, AN_DETERMINERS[lowerDet])}${lowerDet === "l'" ? "" : " "}${plural ? "années" : "année"} ${feminine}`,
+    ]);
+  },
+  // fr.yaml rule fr.homophones frame 4
+  "@fr.homophones/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const rest = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 40);
+    const previous = tokensBefore(ctx.text, m.index, 1)[0];
+    const year = /^[ \t ]+(?:1\d{3}|20\d{2})(?![\d\p{L}])(?![ \t ]+(?:\p{Ll}|et\b))/u.test(rest);
+    const time = /^[ \t ]+\d{1,2}[ \t ]*(?:h|heures?|ans)(?![\p{L}])/u.test(rest);
+    const offer =
+      !!previous &&
+      /^(?:offerte?s?|gratuite?s?)$/.test(previous.w) &&
+      /^[ \t ]+(?:\d|[$€£])/u.test(rest);
+    if (!(year || time || offer)) return null;
+    if (!offer && previous && !/^(?:et|ou|mais|puis|rendez-vous)$/.test(previous.w)) return null;
+    return homoFix(ctx, m, [m[0][0] === "D" ? "Dès" : "dès"]);
+  },
+  // fr.yaml rule fr.homophones frame 5
+  "@fr.homophones/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const previous = tokensBefore(ctx.text, m.index, 1)[0];
+    if (!previous) return null;
+    const noun = HOMO_DETERMINERS.has(previous.w) || ["sans", "cet", "l'"].includes(previous.w);
+    const adverb = m[0].toLowerCase() === "aveuglément";
+    return adverb && noun
+      ? homoFix(ctx, m, [`${m[0].slice(0, 6)}ement`])
+      : !adverb && !noun && verbReadings(previous.w).length && !isVerbHomograph(previous.w)
+        ? homoFix(ctx, m, [`${m[0].slice(0, 6)}ément`])
+        : null;
+  },
+  // fr.yaml rule fr.homophones frame 6
+  "@fr.homophones/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const pret = m.groups!.pret;
+    if (!(m.index >= ctx.from)) return null;
+    const previous = tokensBefore(ctx.text, m.index, 1)[0];
+    if (
+      !previous ||
+      HOMO_DETERMINERS.has(previous.w) ||
+      !verbReadings(previous.w).some(finiteReading)
+    )
+      return null;
+    return wordFinding(ctx, m.index, pret, ["près"], frame.ruleId, frame.messageKey, {
+      start: m.index,
+      end: m.index + m[0].length,
+    });
+  },
+  // fr.yaml rule fr.homophones frame 7
+  "@fr.homophones/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const word = m[0].toLowerCase();
+    if (!verbReadings(word).some((r) => finiteReading(r) && r.lemma === "tacher")) return null;
+    const previous = tokensBefore(ctx.text, m.index, 1)[0];
+    if (previous && HOMO_DETERMINERS.has(previous.w)) return null;
+    const after = tokensAfter(ctx.text, m.index + m[0].length, 7);
+    const k = skipWords(
+      after,
+      after[0]?.w === "quand" && after[1]?.w === "même" ? 2 : 0,
+      HOMO_ADVERBS,
+    );
+    const next = after[k];
+    if (!next) return null;
+    const j = skipWhile(
+      after,
+      k + 1,
+      (t) =>
+        ["ne", "n'", "pas", "rien", "jamais", "plus", "point"].includes(t.w) ||
+        INFINITIVE_CLITICS.has(t.w),
+    );
+    const infinitive =
+      after[j] && verbReadings(after[j].w).some((r) => r.slot === "I" && r.lemma === after[j].w);
+    if (!(
+      next.w === "que" ||
+      next.w === "qu'" ||
+      ((next.w === "de" || next.w === "d'") && infinitive)
+    ))
+      return null;
+    return homoFix(ctx, m, [`${m[0][0]}â${m[0].slice(2)}`], { start: m.index, end: next.end });
+  },
+  // fr.yaml rule fr.homophones frame 8
+  "@fr.homophones/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const typed = m[0];
+    const word = typed.toLowerCase();
+    const accented = word[1] === "â";
+    const before = tokensBefore(ctx.text, m.index, 3);
+    const after = tokensAfter(ctx.text, m.index + typed.length, 3);
+    const noun =
+      /^t[aâ]ches?$/.test(word) && before[0] !== undefined && HOMO_DETERMINERS.has(before[0].w);
+    const fits =
+      accented && noun
+        ? (["de", "d'"].includes(after[0]?.w ?? "") && STAINS.has(after[1]?.w ?? "")) ||
+          STAIN_ADJECTIVES.has(after[0]?.w ?? "") ||
+          (after[0]?.w === "sur" &&
+            HOMO_DETERMINERS.has(after[1]?.w ?? "") &&
+            STAINED_THINGS.has(after[2]?.w ?? ""))
+        : accented
+          ? (/^tâch(?:é|ée|és|ées|er)$/.test(word) &&
+              after[0] !== undefined &&
+              OBJECT_DETERMINERS.has(after[0].w)) ||
+            (["se", "s'", "me", "m'", "te", "t'"].includes(before[0]?.w ?? "") &&
+              !/^(?:de|d'|que|qu')$/.test(after[0]?.w ?? ""))
+          : noun
+            ? TASK_ADJECTIVES.has(after[0]?.w ?? "") ||
+              (OBJECT_DETERMINERS.has(before[0].w) &&
+                before[1] !== undefined &&
+                verbReadings(before[1].w).some((r) => TASK_VERBS.has(r.lemma)))
+            : false;
+    if (!fits) return null;
+    return homoFix(ctx, m, [`${typed[0]}${accented ? "a" : "â"}${typed.slice(2)}`]);
+  },
+  // fr.yaml rule fr.homophones frame 9
+  "@fr.homophones/9": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+    const rest = ctx.text.slice(m.index + m[0].length);
+    if (
+      !(next && /^[\s ]*\p{L}/u.test(rest)
+        ? !(
+            AFTER_EVEN.has(next.w) ||
+            /^\p{Lu}/u.test(ctx.text.slice(next.start, next.end)) ||
+            next.w === "si"
+          )
+        : !/^[\s ]*\d/u.test(rest))
+    )
+      return null;
+    return wordFinding(ctx, m.index, m[0].slice(0, 5), ["quand"], frame.ruleId, frame.messageKey, {
+      start: m.index,
+      end: m.index + m[0].length,
+    });
+  },
+  // fr.yaml rule fr.homophones frame 10
+  "@fr.homophones/10": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const start = m.index + m[0].length - 2;
+    const words = tokensBefore(ctx.text, m.index, 4);
+    const head = words[0];
+    if (!head || head.end !== m.index) return null;
+    const demonstrative = ["celui", "celle", "ceux", "celles"].includes(head.w);
+    if (
+      !(m[0][0] !== "-"
+        ? demonstrative && /^\s{0,8}(?:[.!?…,;:)]|$)/u.test(ctx.text.slice(start + 2, start + 12))
+        : demonstrative || words.slice(1).some((t) => ["ce", "cet", "cette", "ces"].includes(t.w)))
+    )
+      return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return finding(
+      frame.ruleId,
+      frame.messageKey,
+      m.index,
+      start + 2,
+      [`-${carryCase(ctx.text.slice(m.index, start + 2).slice(-2), "là")}`],
+      {
+        context: { start: head.start, end: start + 2 },
+      },
+    );
+  },
+  // fr.yaml rule fr.homophones frame 11
+  "@fr.homophones/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    return m[0] === "est" ? estToEt(ctx, m) : etToEst(ctx, m);
+  },
   // fr.yaml rule fr.elision frame 1
   "@fr.elision/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     if (!(m.index >= ctx.from)) return null;

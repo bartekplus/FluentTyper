@@ -1,13 +1,14 @@
 // The rule library (library.ts): the French lexicon and French word helpers.
-import type { VerbSlot } from "../review/french/frenchLexicon";
+import type { VerbReading, VerbSlot } from "../review/french/frenchLexicon";
 import type { Token as FrenchToken } from "../review/french/frenchTokens";
+import type { RawFinding } from "../review/reviewDetectors";
 
 export { finding } from "../review/finding";
 export { invalidIsoDate } from "../review/isoDates";
 export { accentedNoun, hAspire } from "./french/words";
 export { firstNameGender } from "../review/french/firstNames";
 // TRANSITIONAL: these move to fr.yaml when their modules are ported.
-export { sontForSon } from "../review/french/homophones";
+export { subjectEndsAt } from "../review/french/agreement";
 export { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../review/reviewClock";
 export {
   applyWordCase,
@@ -65,9 +66,33 @@ export function skipWords(
   return i;
 }
 
+/** The index of the first token from `from` on that fails `test`; the length of `tokens` when
+ * there is none. */
+export function skipWhile(
+  tokens: readonly FrenchToken[],
+  from: number,
+  test: (token: FrenchToken) => boolean,
+): number {
+  let i = from;
+  while (tokens[i] && test(tokens[i])) i++;
+  return i;
+}
+
 /** Whether a verb slot is a finite form of one of the persons (a mask of JE ... ILS). */
 export const hasPerson = (slot: VerbSlot, persons: number): boolean =>
   typeof slot === "number" && (slot & persons) > 0;
+
+/** A test of a verb reading. */
+export type ReadingTest = (reading: VerbReading) => boolean;
+/** A finding whose evidence starts at a token (or at the match when there is none). */
+export type TokenFix = (context: FrenchToken | undefined) => RawFinding | null;
+/** A finding whose evidence ends at an index. */
+export type EndFix = (end: number) => RawFinding | null;
+/** A finding with fixed evidence. */
+export type PlainFix = () => RawFinding | null;
+
+/** Whether a verb reading is a finite form (not an infinitive or a participle). */
+export const finiteReading = (reading: VerbReading): boolean => typeof reading.slot === "number";
 
 export type {
   AdjectiveReading,

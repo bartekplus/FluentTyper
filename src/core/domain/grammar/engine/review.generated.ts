@@ -18143,7 +18143,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:à|a|A|ou|Ou|où|sûre?s?|sure?s?|[cC]e|[sS]e|[sS]['’](?:est|était)|[sS]a|ma|ta|la|mon|ton|sont|son|on|non|[pP]eut|[pP]eux|[qQ]uant|[qQ]uand|du|[oO]nt|[pP]rés|guerres?)(?![\\p{L}\\p{M}\\p{N}_'’])",
     literals: [],
-    fixer: "fr:homophoneCandidate",
+    fixer: "fr:@fr.homophones/1",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18151,7 +18151,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])[cC]['’](?=\\p{L})\\p{L}+",
     literals: [],
-    fixer: "fr:cToS",
+    fixer: "fr:@fr.homophones/2",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18160,7 +18160,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>un|[lL]['’]|cet|les|des|mes|ces|nos|vos|ses|Un|Les|Mes|Ces)[ \\t]{0,8}(?<=['’]|[ \\t])(?<an>ans?)[ \\t]{1,8}(?<adj>\\p{Ll}+)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:anToAnnee",
+    fixer: "fr:@fr.homophones/3",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18168,7 +18168,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])[dD]es(?=[ \\t\\u00a0]+[\\d$€£])",
     literals: ["des"],
-    fixer: "fr:desToDes",
+    fixer: "fr:@fr.homophones/4",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18176,7 +18176,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])[aA]veugl[eé]ment(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["aveugl"],
-    fixer: "fr:aveuglement",
+    fixer: "fr:@fr.homophones/5",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18185,7 +18185,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<pret>[pP]rêts?)[ \\t]+de[ \\t]+(?:\\d|(?:deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|quarante|cinquante|soixante|cent|mille)(?![\\p{L}\\p{M}\\p{N}_'’-]))",
     literals: ["prêt"],
-    fixer: "fr:pretToPres",
+    fixer: "fr:@fr.homophones/6",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18194,7 +18194,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])[tT]ach(?:e|es|ez|ons|ent|ais|ait|aient|iez|ions|era|erai|eras|erons|erez|eront)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["tach"],
-    fixer: "fr:tacherToTacher",
+    fixer: "fr:@fr.homophones/7",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18203,7 +18203,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])[tT][aâ]ch(?:es?|é|ée|és|ées|er)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:tacheToTache",
+    fixer: "fr:@fr.homophones/8",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18211,7 +18211,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])comme[ \\t]+même(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["comme"],
-    fixer: "fr:commeMeme",
+    fixer: "fr:@fr.homophones/9",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18219,7 +18219,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\p{L})(?:-|[ \\t])la(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:hyphenLa",
+    fixer: "fr:@fr.homophones/10",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18227,7 +18227,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:est|et)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:estOrEt",
+    fixer: "fr:@fr.homophones/11",
     flags: "gu",
     scan: "owned",
     lookback: 1,
