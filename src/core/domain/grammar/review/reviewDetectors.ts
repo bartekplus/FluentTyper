@@ -1,5 +1,7 @@
 import { CUE_AND_QUOTE } from "./exampleCues";
 import { isoDateWarning, quotedContraction } from "../engine/rules/common.generated";
+import { phraseCorrections } from "./englishPhraseCorrections";
+import { usePhraseRows } from "../library/common/engine";
 import { FIXERS as PARTICIPLE_FIXERS } from "./englishParticiples";
 import { FIXERS as COMPLEMENT_FIXERS } from "./englishComplements";
 import { FIXERS as AGREEMENT_FIXERS } from "./englishAgreement";
@@ -1687,6 +1689,9 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   { invalidIsoDate: isoDateWarning },
   QUOTE_FIXERS,
 );
+
+// The phrase rows that the phraseTables rule of common.yaml reads (library phraseRows).
+usePhraseRows(phraseCorrections);
 
 /**
  * Review detectors in evaluation order, built from the Review rules of grammar/rules/*.yaml.

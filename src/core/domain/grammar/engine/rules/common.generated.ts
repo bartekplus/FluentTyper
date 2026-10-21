@@ -36,52 +36,6 @@ import {
   withTextApostrophes,
 } from "../../library";
 
-export const CANONICAL_NAMES: ReadonlySet<string> = new Set([
-  "GitHub",
-  "JavaScript",
-  "TypeScript",
-  "WebRTC",
-  "FluentTyper",
-  "iPhone",
-  "macOS",
-  "eBay",
-  "LinkedIn",
-  "WordPress",
-  "iPad",
-  "iPod",
-  "iMac",
-  "iTunes",
-  "YouTube",
-  "YouTuber",
-  "PayPal",
-  "WeChat",
-  "WhatsApp",
-  "TikTok",
-  "FaceTime",
-  "Skype",
-  "FedEx",
-  "PowerPoint",
-  "ChatGPT",
-  "Netflix",
-  "Spotify",
-  "Wikipedia",
-  "Reddit",
-  "Linux",
-  "Ubuntu",
-  "Instagram",
-  "Facebook",
-  "Snapchat",
-  "Airbnb",
-  "Chromebook",
-  "SharePoint",
-  "OneDrive",
-  "PowerShell",
-  "PlayStation",
-  "Xbox",
-  "Walmart",
-  "Starbucks",
-]);
-
 export const ACRONYMS: ReadonlySet<string> = new Set([
   "NASA",
   "NATO",
@@ -140,6 +94,52 @@ export const BRAND_PRONOUNS: ReadonlySet<string> = new Set([
   "them",
   "one",
 ]);
+
+export const CANONICAL: Readonly<Record<string, string>> = {
+  github: "GitHub",
+  javascript: "JavaScript",
+  typescript: "TypeScript",
+  webrtc: "WebRTC",
+  fluenttyper: "FluentTyper",
+  iphone: "iPhone",
+  macos: "macOS",
+  ebay: "eBay",
+  linkedin: "LinkedIn",
+  wordpress: "WordPress",
+  ipad: "iPad",
+  ipod: "iPod",
+  imac: "iMac",
+  itunes: "iTunes",
+  youtube: "YouTube",
+  youtuber: "YouTuber",
+  paypal: "PayPal",
+  wechat: "WeChat",
+  whatsapp: "WhatsApp",
+  tiktok: "TikTok",
+  facetime: "FaceTime",
+  skype: "Skype",
+  fedex: "FedEx",
+  powerpoint: "PowerPoint",
+  chatgpt: "ChatGPT",
+  netflix: "Netflix",
+  spotify: "Spotify",
+  wikipedia: "Wikipedia",
+  reddit: "Reddit",
+  linux: "Linux",
+  ubuntu: "Ubuntu",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  snapchat: "Snapchat",
+  airbnb: "Airbnb",
+  chromebook: "Chromebook",
+  sharepoint: "SharePoint",
+  onedrive: "OneDrive",
+  powershell: "PowerShell",
+  playstation: "PlayStation",
+  xbox: "Xbox",
+  walmart: "Walmart",
+  starbucks: "Starbucks",
+};
 
 export const MASS_SINGULAR: Readonly<Record<string, string>> = {
   informations: "information",
@@ -346,21 +346,15 @@ export function correctAlot(phrase: string) {
   return style === "upper" ? "A LOT" : style === "title" ? "A lot" : "a lot";
 }
 
-// common.yaml rule phraseTables def CANONICAL
-export const CANONICAL = new Map([...CANONICAL_NAMES].map((term) => [term.toLowerCase(), term]));
+// common.yaml rule phraseTables def canonicalName
+export function canonicalName(word: string) {
+  const key = word.toLowerCase();
+  return Object.hasOwn(CANONICAL, key) ? CANONICAL[key] : undefined;
+}
 
 // common.yaml rule phraseTables def BRAND_NOUN_CUE
-export const BRAND_NOUN_CUE = new RegExp(
-  "(?<![\\p{L}'’])(?:a|an|the|my|your|his|her|our|their|its|this|that|on|via|over|through|with" +
-    "|by|in|into|from|of|for|about|" +
-    "(?:re|un)?install(?:s|ed|ing)?|open(?:s|ed|ing)?|clos(?:e|es|ed|ing)|download(?:s|ed|ing)?" +
-    "|launch(?:es|ed|ing)?|updat(?:e|es|ed|ing)|upgrad(?:e|es|ed|ing)|us(?:e|es|ed|ing)" +
-    "|tr(?:y|ies|ied|ying)|(?:re)?start(?:s|ed|ing)?|run(?:s|ning)?|ran|delet(?:e|es|ed|ing)" +
-    "|remov(?:e|es|ed|ing)|prefer(?:s|red|ring)?" +
-    "|(?:switch(?:es|ed|ing)?|move|moved|moving|migrate|migrated|migrating|went|back|welcome" +
-    "|access|log|logged|sign|signed|in|on|up)[ \\t]{1,8}to)[ \\t]{1,8}$",
-  "iu",
-);
+export const BRAND_NOUN_CUE =
+  /(?<![\p{L}'’])(?:a|an|the|my|your|his|her|our|their|its|this|that|on|via|over|through|with|by|in|into|from|of|for|about|(?:re|un)?install(?:s|ed|ing)?|open(?:s|ed|ing)?|clos(?:e|es|ed|ing)|download(?:s|ed|ing)?|launch(?:es|ed|ing)?|updat(?:e|es|ed|ing)|upgrad(?:e|es|ed|ing)|us(?:e|es|ed|ing)|tr(?:y|ies|ied|ying)|(?:re)?start(?:s|ed|ing)?|run(?:s|ning)?|ran|delet(?:e|es|ed|ing)|remov(?:e|es|ed|ing)|prefer(?:s|red|ring)?|(?:switch(?:es|ed|ing)?|move|moved|moving|migrate|migrated|migrating|went|back|welcome|access|log|logged|sign|signed|in|on|up)[ \t]{1,8}to)[ \t]{1,8}$/iu;
 
 // common.yaml rule phraseTables def BRAND_WORD_BEFORE
 export const BRAND_WORD_BEFORE = /(?<![\p{L}\p{M}\p{N}_'’-])([A-Za-z]{1,24})[ \t]{1,8}$/u;
@@ -393,7 +387,7 @@ export function brandNounCue(before: string, skipped: number): boolean {
 
 // common.yaml rule phraseTables def hasCanonicalCasing
 export function hasCanonicalCasing(word: string) {
-  return CANONICAL.has(word.toLowerCase()) || ACRONYMS.has(word.toUpperCase());
+  return canonicalName(word) !== undefined || ACRONYMS.has(word.toUpperCase());
 }
 
 // common.yaml rule phraseTables def CASING_WORDS
@@ -405,7 +399,7 @@ export function canonicalCasingAt(match: RegExpExecArray, ctx: DetectContext): R
   const typed = match[0];
   const acronym = typed.length < 5 && isLang(ctx, "en") ? typed.toUpperCase() : "";
   const canonical =
-    CANONICAL.get(typed.toLowerCase()) ??
+    canonicalName(typed) ??
     (ACRONYMS.has(acronym) &&
     /^[A-Z][a-z]+$/.test(typed) &&
     !/^[ \t ]+[A-Z]/.test(ctx.text.slice(match.index + typed.length))
@@ -644,24 +638,19 @@ export function massNoun(m: RegExpExecArray, ctx: DetectContext): RawFinding | n
   };
 }
 
-// common.yaml rule spelling def SPELLING_FRAME_REGEXES
-export const SPELLING_FRAME_REGEXES = [
-  SPLIT_DE,
-  SPLIT_FR,
-  SPLIT_ES,
-  SPLIT_PT,
-  SPLIT_PL,
-  SPLIT_SV,
-  SPLIT_HR,
-  FRENCH_ELISIONS,
-]
-  .map((table) => new RegExp(`${WORD_START}(?:${Object.keys(table).join("|")})${TOKEN_END}`, "giu"))
-  .concat([
-    /(?<![\p{L}\p{M}\p{N}_])(?<base>\p{L}+)([\u00B4`;"])(?<end>t|s|m|d|ll|re|ve)(?![\p{L}\p{M}\p{N}_])/giu,
-    /(?<![\p{L}\p{M}\p{N}_])(?:c|d|j|l|m|n|s|t|qu|jusqu|lorsqu|puisqu|quoiqu|presqu)([\u00B4`])(?=[aeiouyh\u00E0\u00E2\u00E6\u00E9\u00E8\u00EA\u00EB\u00EE\u00EF\u00F4\u0153\u00F9\u00FB\u00FC])/giu,
-    /(?<=\p{L})([\u00B4`])s(?![\p{L}\p{M}\p{N}_])/gu,
-    /(?<![\p{L}\p{M}\p{N}_])d([\u00B4`])(?=[aeiou\u00E1\u00E2\u00E3\u00E0\u00E9\u00EA\u00ED\u00F3\u00F4\u00F5\u00FA])/giu,
-  ]);
+// common.yaml rule spelling def spellingFrameRegexes
+export function spellingFrameRegexes() {
+  return [SPLIT_DE, SPLIT_FR, SPLIT_ES, SPLIT_PT, SPLIT_PL, SPLIT_SV, SPLIT_HR, FRENCH_ELISIONS]
+    .map(
+      (table) => new RegExp(`${WORD_START}(?:${Object.keys(table).join("|")})${TOKEN_END}`, "giu"),
+    )
+    .concat([
+      /(?<![\p{L}\p{M}\p{N}_])(?<base>\p{L}+)([\u00B4`;"])(?<end>t|s|m|d|ll|re|ve)(?![\p{L}\p{M}\p{N}_])/giu,
+      /(?<![\p{L}\p{M}\p{N}_])(?:c|d|j|l|m|n|s|t|qu|jusqu|lorsqu|puisqu|quoiqu|presqu)([\u00B4`])(?=[aeiouyh\u00E0\u00E2\u00E6\u00E9\u00E8\u00EA\u00EB\u00EE\u00EF\u00F4\u0153\u00F9\u00FB\u00FC])/giu,
+      /(?<=\p{L})([\u00B4`])s(?![\p{L}\p{M}\p{N}_])/gu,
+      /(?<![\p{L}\p{M}\p{N}_])d([\u00B4`])(?=[aeiou\u00E1\u00E2\u00E3\u00E0\u00E9\u00EA\u00ED\u00F3\u00F4\u00F5\u00FA])/giu,
+    ]);
+}
 
 // common.yaml rule spelling def splitWord
 export function splitWord(
