@@ -1,15 +1,13 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { generateGrammarRuleModules } from "../../scripts/grammarRules";
-import { LIVE_RULES } from "../../src/core/domain/grammar/engine/live.generated";
-import { LIVE_PREDICATES } from "../../src/core/domain/grammar/engine/liveRules";
 import { REVIEW_RULES } from "../../src/core/domain/grammar/engine/review.generated";
 import { REVIEW_DETECTORS } from "../../src/core/domain/grammar/review/reviewDetectors";
 import { REVIEW_RULE_METADATA } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { TYPING_RULE_CATALOG } from "../../src/core/domain/grammar/ruleCatalog";
-import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
+import { createLiveRules } from "../../src/core/domain/grammar/engine/liveRules";
 import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { review } from "./grammarTestUtils";
+import { context, review } from "./grammarTestUtils";
 
 test("the generated modules are current with grammar/rules/*.yaml", async () => {
   for (const [file, content] of Object.entries(await generateGrammarRuleModules()))
@@ -20,15 +18,21 @@ test("the generated modules are current with grammar/rules/*.yaml", async () => 
 });
 
 test("each typing check has one live rule, in priority order", () => {
-  const rules = createGrammarRuleCatalogRuntime({ insertSpaceAfterAutocomplete: true });
+  const rules = createLiveRules({ insertSpaceAfterAutocomplete: true });
   expect(rules.map((rule) => rule.id)).toEqual(
     TYPING_RULE_CATALOG.slice()
       .sort((a, b) => a.priority - b.priority)
       .map((entry) => entry.id),
   );
-  // Every named live implementation is in use.
-  const named = new Set(LIVE_RULES.flatMap((rule) => rule.predicate ?? []));
-  expect(Object.keys(LIVE_PREDICATES).filter((name) => !named.has(name))).toEqual([]);
+});
+
+test("the typing rules get the insertSpaceAfterAutocomplete option", () => {
+  const comma = (insertSpaceAfterAutocomplete: boolean) =>
+    createLiveRules({ insertSpaceAfterAutocomplete })
+      .find((rule) => rule.id === "commaPeriodSpacing")!
+      .apply(context("Hello,"));
+  expect(comma(true)).toMatchObject({ replacement: ", " });
+  expect(comma(false)).toBeNull();
 });
 
 test("the Review detectors are the compiled rules, in order", () => {

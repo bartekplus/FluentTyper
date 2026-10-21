@@ -1,5 +1,5 @@
 import { GrammarRuleEngine } from "@core/domain/grammar/GrammarRuleEngine";
-import { createGrammarRuleCatalogRuntime } from "@core/domain/grammar/ruleFactory";
+import { createLiveRules } from "@core/domain/grammar/engine/liveRules";
 import type {
   GrammarContext,
   GrammarEdit,
@@ -20,7 +20,7 @@ export class SuggestionGrammarCoordinator {
     },
   ) {
     this.grammarEngine = new GrammarRuleEngine();
-    const rules = createGrammarRuleCatalogRuntime({
+    const rules = createLiveRules({
       insertSpaceAfterAutocomplete: options.insertSpaceAfterAutocomplete,
     });
     for (const rule of rules) {

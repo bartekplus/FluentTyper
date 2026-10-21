@@ -3,7 +3,7 @@ import { REVIEW_RULES } from "../../src/core/domain/grammar/engine/review.genera
 import { ruleDetector } from "../../src/core/domain/grammar/engine/reviewRules";
 
 // enRuleFindings reads another rule by its id: each Review rule has a detector, also a rule of
-// frames and its own code, a pattern rule and a findings rule.
+// frames and its own code, and a findings rule.
 test("each Review rule id gives its detector", () => {
   const missing = REVIEW_RULES.filter((rule) => typeof ruleDetector(rule.id) !== "function");
   expect(missing.map((rule) => rule.id)).toEqual([]);

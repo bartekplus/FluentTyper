@@ -1,21 +1,10 @@
 import { expect, test } from "bun:test";
 import { checkExpression, defSignature } from "../../src/core/domain/grammar/engine/expressions";
 import { compileRuleFiles } from "../../src/core/domain/grammar/engine/compiler";
-import type { CheckSpec, RuleFile } from "../../src/core/domain/grammar/engine/types";
+import type { RuleFile } from "../../src/core/domain/grammar/engine/types";
+import { demoCheck, errorsOf } from "./grammarRuleFixtures";
 
-const LANGS = ["en", "fr", "hr", "es", "el", "sv", "de", "pl", "pr"];
-const check: CheckSpec = {
-  text: {
-    title: Object.fromEntries(LANGS.map((l) => [l, "Demo"])),
-    description: Object.fromEntries(LANGS.map((l) => [l, "Demo."])),
-  },
-  example: { lang: "en_US", before: "a", after: "b" },
-  id: "demoCheck",
-  modes: ["review"],
-  priority: 5,
-  category: "grammar",
-  kind: "usage",
-};
+const check = demoCheck();
 const compile = (en: RuleFile, library = new Set(["capitalize", "germanAdjective"])) =>
   compileRuleFiles(
     [
@@ -24,14 +13,6 @@ const compile = (en: RuleFile, library = new Set(["capitalize", "germanAdjective
     ],
     { library },
   );
-const errorsOf = (run: () => unknown) => {
-  try {
-    run();
-  } catch (error) {
-    return String(error);
-  }
-  return "";
-};
 
 test("an expression reads its free names; arrow parameters bind theirs", () => {
   const { refs, errors } = checkExpression(
@@ -158,13 +139,13 @@ test("the compiler names unknown and reused names", () => {
     'let target: "target" is taken',
     'when 1: unknown name "missing"',
     'return: unknown name "fetch"',
-    'give exactly one of "fix" and "fixer", or a "return" expression',
+    'give exactly one of "fix" and a "return" expression',
   ])
     expect(message).toContain(fragment);
 });
 
 test("a rule's own code: a detector, a filter, a typing rule and helpers beside the rule", () => {
-  const live: CheckSpec = { ...check, id: "liveCheck", modes: ["live", "review"], safeToFix: true };
+  const live = demoCheck({ id: "liveCheck", modes: ["live", "review"], safeToFix: true });
   const set = compileRuleFiles(
     [
       ["common", { lang: "*", checks: [check, live] }],

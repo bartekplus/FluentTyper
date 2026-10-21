@@ -2,26 +2,27 @@
 
 [FluentTyper](../../README.md) / [Contributing](../../CONTRIBUTING.md) / Grammar rules
 
-Grammar, punctuation, spacing, typography, typing and Review rules are declared in YAML files: their patterns, their logic and their fixes. A build step compiles the files into TypeScript modules. The runtime never reads YAML. A rule names no TypeScript function: logic that a pattern cannot state is code in the rule file (see [Code in Rule Files](#code-in-rule-files)), which calls only the generic rule library.
+Grammar, punctuation, spacing, typography, typing and Review rules are declared in YAML files: their frames, their logic and their fixes. A build step compiles the files into TypeScript modules. The runtime never reads YAML. A rule names no TypeScript function: logic that a frame cannot state is code in the rule file (see [Code in Rule Files](#code-in-rule-files)), which calls only the generic rule library.
 
-## Add a Rule in Five Lines
+## Add a Rule in Six Lines
 
 To add a rule, add an entry to the `rules` list of the rule file for the language. This entry replaces "could of" with "could have":
 
 ```yaml
 - id: en.couldOf
   checks: [englishModalOfCorrection]
-  pattern: [{ lower: [could, should, would] }, { lower: of }]
-  target: [2, 2]
-  replacements: [have]
   message: review_msg_contextual_grammar
+  frames:
+    - regex: "(?:could|should|would){{S}}(?<target>of){{E}}"
+      fix: have
 ```
 
 Then run `bun run compile:grammar` (`bun install`, `check`, `lint`, `typecheck`, `test` and `build` run it first). No engine or dispatcher code changes.
 
 - `checks` names the settings switch that controls the rule. Use an existing check, or add a check (see [Checks](#checks)).
 - `message` is a key of the Review explanation table (`review/reviewExplanations.ts`).
-- Put a rule for all languages in `common.yaml` and give it `lang: "*"`. To limit it, use `includeLangs` or `excludeLangs`.
+- The fix replaces the `target` group of the frame. It takes the casing of the typed words.
+- Put a rule for all languages in `common.yaml` and give it `lang: "*"`. To limit a frame to one language, give it `lang`.
 
 ## Files
 
@@ -35,11 +36,8 @@ Then run `bun run compile:grammar` (`bun install`, `check`, `lint`, `typecheck`,
 | `src/core/domain/grammar/engine/expressions.ts`       | Checks the expressions of the rule files                                                         |
 | `src/core/domain/grammar/engine/ruleCode.ts`          | The code of a rule file: names, bindings, conditions, kinds of function                          |
 | `src/core/domain/grammar/library.ts`, `library/*.ts`  | The rule library: the only TypeScript that rule code calls                                       |
-| `src/core/domain/grammar/engine/tokenizer.ts`         | The single-pass tokenizer                                                                        |
-| `src/core/domain/grammar/engine/matcher.ts`           | Pattern matching with the literal anchor index                                                   |
-| `src/core/domain/grammar/engine/predicates.ts`        | Named token predicates                                                                           |
+| `src/core/domain/grammar/engine/tokenizer.ts`         | The word walk of the phrase tables (`forEachWord`)                                               |
 | `src/core/domain/grammar/engine/phraseRows.ts`        | The phrase-table kind: row index and row matcher on the engine tokens                            |
-| `src/core/domain/grammar/engine/reviewTokens.ts`      | The tokens of a Review chunk: one pass for all rule kinds                                        |
 | `src/core/domain/grammar/engine/reviewRules.ts`       | Builds the Review detectors from the compiled rules                                              |
 | `src/core/domain/grammar/engine/liveRules.ts`         | Builds the typing rules from the compiled rules                                                  |
 
@@ -85,7 +83,7 @@ checks:
 | `codeSafe`  | The rule can run in code mode.                                                                                                               |
 | `category`  | `spelling`, `grammar`, `punctuation`, `typography` or `style`.                                                                               |
 | `kind`      | The kind of problem (`ReviewKind` in `review/types.ts`).                                                                                     |
-| `safeToFix` | "Fix all safe" can apply the fix, and a live pattern rule fixes it while the user types.                                                     |
+| `safeToFix` | "Fix all safe" can apply the fix.                                                                                                            |
 | `enabled`   | Review: on by default. Default `true`.                                                                                                       |
 | `languages` | Review languages: a list, `named` (all), or `{ phraseTables: [words, phrases] }`.                                                            |
 | `note`      | Why the check is optional or individual.                                                                                                     |
@@ -99,58 +97,21 @@ Use `exclusive` for checks that undo each other. Only the first enabled check of
 
 ## Rules
 
-A rule reports findings for the checks in `checks`. A rule is a token pattern, a list of frames, a findings rule, or code (`let`, `when`, `return`).
+A rule reports findings for the checks in `checks`. A rule is a list of frames, a findings rule, or code (`let`, `when`, `return`).
 
-| Field          | Meaning                                                                              |
-| -------------- | ------------------------------------------------------------------------------------ |
-| `id`           | Unique: `<file>.<name>`.                                                             |
-| `checks`       | The checks of the findings; a pattern reports for the first one.                     |
-| `lang`         | `*`, or a language. Default: the language of the file.                               |
-| `modes`        | Default `[review]`. A live pattern needs a check with `safeToFix` and mode `live`.   |
-| `stage`        | Evaluation stage. Default 0. Lower stages run first; file order inside a stage.      |
-| `pattern`      | A list of token matchers (see below).                                                |
-| `replacements` | One or more templates. Two or more make the user choose.                             |
-| `target`       | The elements `[from, to]` that the fix replaces (1-based). Default: the whole match. |
-| `preserveCase` | A literal replacement takes the casing of the text it replaces. Default `true`.      |
-| `message`      | The Review message key.                                                              |
-| `crossLines`   | The elements can be on different lines. Default `false`.                             |
-| `bulkBlock`    | `context-dependent` or `ambiguous`: Fix all never applies it.                        |
-| `return`       | Code in place of `pattern` (see [Code in Rule Files](#code-in-rule-files)).          |
-| `cacheable`    | The Review cache can keep the results of the rule's code.                            |
+| Field       | Meaning                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------ |
+| `id`        | Unique: `<file>.<name>`.                                                                   |
+| `checks`    | The checks of the findings; a frame reports for the first one unless it names its `check`. |
+| `lang`      | `*`, or a language. Default: the language of the file.                                     |
+| `modes`     | Default `[review]`. A typing rule (`live`) is code with `triggers`.                        |
+| `stage`     | Evaluation stage. Default 0. Lower stages run first; file order inside a stage.            |
+| `message`   | The Review message key.                                                                    |
+| `frames`    | A list of frames (see [Frames](#frames)).                                                  |
+| `return`    | Code in place of frames, or after them (see [Code in Rule Files](#code-in-rule-files)).    |
+| `cacheable` | The Review cache can keep the results of the rule's code.                                  |
 
 The evaluation order is the file order, then the order in the file. The order decides which of two equal findings Review keeps.
-
-### Token Matchers
-
-The tokenizer reads the text one time. A token is a `word`, `number`, `punct`, `symbol` or `protected` token. Whitespace is not a token: each token keeps the whitespace before it. URLs, e-mail addresses, paths, inline code, emoji shortcodes and masked text are `protected` tokens. A matcher never accepts a protected token unless it names the type.
-
-| Field                   | The token must ...                                             |
-| ----------------------- | -------------------------------------------------------------- |
-| `lower`                 | have a lowercase key that is one of these values               |
-| `surface`               | have exactly this text (one value or a list)                   |
-| `type`                  | be of this type (one value or a list)                          |
-| `regex`, `negateRegex`  | match, or not match, this Unicode regex (the whole token)      |
-| `casing`                | have this casing: `lower`, `upper`, `title`, `mixed` or `none` |
-| `spaceBefore`           | have whitespace before it (`true`) or none (`false`)           |
-| `spaceAfter`            | have whitespace (or the text end) after it, or none            |
-| `exactWhitespaceBefore` | have exactly this whitespace before it                         |
-| `matchRef`              | have the same key as element N (1-based), for repeated words   |
-| `isSentenceStart`       | start a sentence, or not                                       |
-| `isSentenceEnd`         | come before sentence-final punctuation or the text end, or not |
-| `prevTokenNotLower`     | not come after one of these words                              |
-| `nextTokenNotLower`     | not come before one of these words                             |
-| `predicate`             | pass the named token predicate of `engine/predicates.ts`       |
-
-The key of a token is its lowercase text without Arabic harakat and tatweel.
-
-### Replacement Templates
-
-| Template     | Result                                          |
-| ------------ | ----------------------------------------------- |
-| `have`       | The literal, in the casing of the replaced text |
-| `$2`         | The text of element 2                           |
-| `${2:lower}` | Element 2 in lowercase (also `upper`, `title`)  |
-| `${1}n $2`   | A mix: "A hour" gives "An hour"                 |
 
 ### Frames
 
@@ -229,7 +190,7 @@ More rule and frame fields:
 - `lang: <code>` on a frame: the frame runs only on text of that language. One rule can hold the frames of several languages.
 - A frame rule may also have code of its own (`let`, `when`, `return` on the rule). It runs after the frames, for logic that is no scan (for example the phrase rows of the rule files).
 - `group: <name>`: consecutive rules of one group run as one detector. A rule that throws stops its group and drops the group's findings, as one composite check did before.
-- `findings: style | terminology | quotation` (instead of frames or a pattern): the rule reports the findings that Review made before the rule scan (style advice, the user's preferred terms, unclosed quotations) whose range starts in the chunk.
+- `findings: style | terminology | quotation` (instead of frames): the rule reports the findings that Review made before the rule scan (style advice, the user's preferred terms, unclosed quotations) whose range starts in the chunk.
 
 ## Code in Rule Files
 
@@ -290,10 +251,6 @@ In YAML, quote a value that starts with `!`, `[`, `{`, `*`, `&`, `|`, `>`, `'`, 
 
 A TypeScript module that tests import keeps its path as a facade: it re-exports names of a generated module or the library, and a typing rule class delegates to `liveRule(id)` of `engine/liveRules.ts`.
 
-### Token Predicates
-
-A token matcher of a pattern can name a token predicate of `engine/predicates.ts` (`enStartsWithVowelSound`, `isMeasurementUnit`, `isNotAbbreviation`). They are generic tests of one token and must stay small: content scripts load them.
-
 A name that no module defines is an error of the compiler or of the type checker.
 
 ## Phrase Tables
@@ -316,9 +273,8 @@ phrases:
 
 ## Performance
 
-- The tokenizer reads the text one time. Each token finds its rules with one read of the anchor index: a rule is indexed by the literal of its pattern that is most selective. Rules without a literal run in the same pass.
-- The time of a pass follows the number of tokens, not the number of rules. `tests/grammar/GrammarEngine.timing.test.ts` checks a full draft of each language against more than 30,000 rules (under 5 ms), and a single-sentence live check (under 0.5 ms).
-- Review gets the pattern results of a chunk from one shared pass. A frame regex runs only where a match can start: at its fixed start letters (found with `indexOf` and kept per chunk), or in the windows before a fixed word that every match holds. Gates skip a frame whose required word is not in the chunk.
+- The typing rules run at each keystroke. `tests/grammar/GrammarEngine.timing.test.ts` checks that one keystroke through all typing rules takes less than 1 ms.
+- A frame regex runs only where a match can start: at its fixed start letters (found with `indexOf` and kept per chunk), or in the windows before a fixed word that every match holds. Gates skip a frame whose required word is not in the chunk.
 - `bun run bench:review` times a full Review of a 3,000-character draft in each Review language (median of 60 runs). Every language must stay under 5 ms; `bun run bench:review --check` fails when one does not. Run it on a machine with no other load: CI runners are slower, so this is not a unit test.
 
 ---

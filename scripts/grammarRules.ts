@@ -222,16 +222,8 @@ export const CHECK_EXAMPLES: Readonly<Record<string, CheckExampleOut>> = ${json(
 }
 
 function liveModule(set: CompiledRuleSet): string {
-  return `${HEADER}import type { PatternSet } from "./matcher";
-
-/** Typing checks in priority order: a named implementation or live patterns. */
-export const LIVE_RULES: readonly {
-  check: string;
-  predicate?: string;
-  patterns: readonly number[];
-}[] = ${json(set.live)};
-
-export const LIVE_PATTERNS: PatternSet = ${json(set.livePatterns)};
+  return `${HEADER}/** Typing checks in priority order: "<file>:@<rule id>", the code of the rule. */
+export const LIVE_RULES: readonly { check: string; predicate: string }[] = ${json(set.live)};
 `;
 }
 
@@ -250,13 +242,10 @@ function phraseDataModule(tables: CompiledRuleSet["phrases"][string]): string {
 
 function reviewModule(set: CompiledRuleSet): string {
   return `${HEADER}import type { CompiledFrame, CompiledRule } from "./types";
-import type { PatternSet } from "./matcher";
 import type { PhraseRow } from "./compiler";
 
 /** Review rules in evaluation order. */
 export const REVIEW_RULES: readonly CompiledRule[] = ${json(set.rules)};
-
-export const REVIEW_PATTERNS: PatternSet = ${json(set.reviewPatterns)};
 
 // Each frame is typed on its own: one array literal of thousands of frame shapes makes a union
 // type too complex for the type checker (TS2590).
