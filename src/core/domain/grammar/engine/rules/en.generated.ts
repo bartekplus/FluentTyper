@@ -11,6 +11,7 @@ import type {
   RawFinding,
 } from "../../library";
 import {
+  ENGLISH_MASS_NOUNS,
   EN_DETERMINERS,
   EN_FUNCTION_WORDS,
   EN_OBJECT_PRONOUNS,
@@ -19,6 +20,7 @@ import {
   dateSide,
   dayCount,
   enAfterBreak,
+  enCountNoun,
   enEvidence,
   enInfo,
   enLexiconInflect,
@@ -243,6 +245,24 @@ export const CLAUSE_BE: Readonly<Record<string, string>> = {
   he: "is",
   she: "is",
   it: "is",
+};
+
+export const NOUN_ORDINALS: Readonly<Record<string, string>> = { "1": "st", "2": "nd", "3": "rd" };
+
+export const NOUN_OBJECT_CASE: Readonly<Record<string, string>> = {
+  he: "him",
+  she: "her",
+  i: "me",
+  we: "us",
+  they: "them",
+};
+
+export const NOUN_PLURAL_VERB: Readonly<Record<string, string>> = {
+  is: "are",
+  was: "were",
+  has: "have",
+  needs: "need",
+  seems: "seem",
 };
 
 export const CLASH_BE_I: Readonly<Record<string, string>> = {
@@ -734,6 +754,90 @@ export function clauseGapsBaseVerb(word: string) {
   return (
     !!clauseGapsRead(word)?.verbs.some((v) => v.form === "base") && !EN_FUNCTION_WORDS.has(word)
   );
+}
+
+// en.yaml rule en.nounSlots def nounRead
+export function nounRead(word: string | undefined) {
+  return word ? englishWordInfo(word.toLowerCase()) : null;
+}
+
+// en.yaml rule en.nounSlots def nounLower
+export function nounLower(word: string | undefined) {
+  return (word ?? "").toLowerCase();
+}
+
+// en.yaml rule en.nounSlots def NOUN_ONE_THING
+export const NOUN_ONE_THING =
+  /^(?:news|means|series|species|headquarters|thanks|pants|scissors|glasses|jeans|trousers|shorts|clothes|goods|data|media|criteria|physics|mathematics|economics|politics|ethics|athletics|gymnastics|electronics|graphics|analytics|statistics|logistics|diabetes|measles|lens|bus|gas|plus|minus|status|campus|virus|bonus|focus|chaos|canvas|alias|atlas|apparatus|corps|crossroads|barracks|whereabouts)$/;
+
+// en.yaml rule en.nounSlots def nounPlural
+export function nounPlural(word: string): string | null {
+  if (word !== nounLower(word) || NOUN_ONE_THING.test(word) || /(?:ss|ics|us)$/.test(word))
+    return null;
+  const r = nounRead(word);
+  if (!r?.plural || r.verbs.length || r.adjective || r.adverb || EN_FUNCTION_WORDS.has(word))
+    return null;
+  return enNounPair(word)?.singular ?? null;
+}
+
+// en.yaml rule en.nounSlots def nounPluralWord
+export function nounPluralWord(word: string) {
+  return (
+    word === nounLower(word) &&
+    !NOUN_ONE_THING.test(word) &&
+    !!nounRead(word)?.plural &&
+    !nounRead(word)?.adjective
+  );
+}
+
+// en.yaml rule en.nounSlots def nounSingular
+export function nounSingular(word: string): string | null {
+  if (word !== nounLower(word) || EN_FUNCTION_WORDS.has(word)) return null;
+  const r = nounRead(word);
+  if (!r?.noun || r.plural || r.verbs.length || r.adjective || r.adverb) return null;
+  return enNounPair(word)?.plural ?? word;
+}
+
+// en.yaml rule en.nounSlots def nounNextToken
+export function nounNextToken(ctx: DetectContext, end: number) {
+  return enTokensAfter(ctx, end, 1)[0];
+}
+
+// en.yaml rule en.nounSlots def nounOrdinal
+export function nounOrdinal(n: number) {
+  return n % 100 >= 11 && n % 100 <= 13 ? "th" : (NOUN_ORDINALS[n % 10] ?? "th");
+}
+
+// en.yaml rule en.nounSlots def nounClauseVerb
+export function nounClauseVerb(w: string) {
+  const r = nounRead(w);
+  return (
+    /^(?:is|are|was|were|has|have|had|can|could|will|would|should|must|may|might|won['’]t|isn['’]t)$/i.test(
+      w,
+    ) ||
+    (!!r?.verbs.some((v) => v.form === "third" || v.form === "past" || v.form === "base") &&
+      !r.noun &&
+      !r.plural &&
+      !r.adjective)
+  );
+}
+
+// en.yaml rule en.nounSlots def nounNoFix
+export function nounNoFix(ctx: DetectContext, m: RegExpExecArray, word: string): string | null {
+  const r = nounRead(word);
+  if (!r?.verbs.some((v) => v.form === "participle") || r.noun || r.plural) return null;
+  const next = nounNextToken(ctx, m.index + m[0].length);
+  const particle = next?.kind === "word" && /^(?:in|up|out|on)$/.test(next.lower);
+  const noun = particle ? nounNextToken(ctx, next.end) : undefined;
+  const nounWord =
+    noun?.kind === "word" && !EN_FUNCTION_WORDS.has(noun.lower) && nounRead(noun.lower);
+  if (nounWord && (nounWord.noun || nounWord.plural)) return null;
+  return next?.kind === "word" &&
+    !/^(?:by|the|a|an|my|your|his|her|our|their|it|them|up|out|in|on|yet|for|with|to)$/.test(
+      next.lower,
+    )
+    ? null
+    : "not";
 }
 
 // en.yaml rule en.clashFrames def CLASH_BIT_LEAD
@@ -1635,6 +1739,287 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
           )
         ? "thereafter"
         : null;
+  },
+  // en.yaml rule en.nounSlots frame 1
+  "@en.nounSlots/1": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const one = m.groups!.one;
+    const target = m.groups!.target;
+    const before = enWordBefore(ctx, m.index);
+    if (
+      !before ||
+      EN_DETERMINERS.has(before) ||
+      /^(?:no|every|any|some|each|which|this|that|the|other|another|last|first|next|only|and|season|chapter|part|level|phase|room|page|step|day|week|year|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)$/.test(
+        before,
+      ) ||
+      !/^[a-z]/.test(ctx.text.slice(m.index - before.length - 1, m.index).trim()) ||
+      one === "One" ||
+      target === "innings"
+    )
+      return null;
+    return nounPlural(target);
+  },
+  // en.yaml rule en.nounSlots frame 2
+  "@en.nounSlots/2": (m: RegExpExecArray): FixResult => {
+    const noun = m.groups!.noun;
+    const mass =
+      ENGLISH_MASS_NOUNS.has(noun) && !nounRead(noun)?.verbs.length && !nounRead(noun)?.adjective;
+    return nounPlural(noun) || mass ? "a lot of" : null;
+  },
+  // en.yaml rule en.nounSlots frame 4
+  "@en.nounSlots/4": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    if (/^A/.test(m[0]) && !enAfterBreak(ctx, m.index)) return null;
+    const r = nounRead(target);
+    if (!r?.adverb || r.adjective || r.noun || r.verbs.length) return null;
+    if (!nounSingular(noun)) return null;
+    const next = nounNextToken(ctx, m.index + m[0].length);
+    if (
+      next?.kind === "word" &&
+      !EN_FUNCTION_WORDS.has(next.lower) &&
+      (nounRead(next.lower)?.noun || nounRead(next.lower)?.plural)
+    )
+      return null;
+    const stem = target.slice(0, -2);
+    return (
+      [
+        target.replace(/ically$/, "ical"),
+        target.replace(/ily$/, "y"),
+        target.replace(/bly$/, "ble"),
+        target.replace(/ply$/, "ple"),
+        target.replace(/lly$/, "l"),
+        stem,
+      ].find(
+        (c) =>
+          c !== target && c.length > 2 && !!nounRead(c)?.adjective && !EN_FUNCTION_WORDS.has(c),
+      ) ?? null
+    );
+  },
+  // en.yaml rule en.nounSlots frame 6
+  "@en.nounSlots/6": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    return nounPluralWord(noun) ? (nounLower(target) === "is" ? "are" : "were") : null;
+  },
+  // en.yaml rule en.nounSlots frame 7
+  "@en.nounSlots/7": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    const next = m.groups!.next;
+    const r = nounRead(noun);
+    if (!r?.plural || r.adjective || NOUN_ONE_THING.test(noun) || /(?:ss|us)$/.test(noun))
+      return null;
+    if (
+      !/^(?:daily|every|each|weekly|monthly|yearly|to|for|in|on|at|from|with|about|since|that|which|all|available|here|there|left|\d)$/.test(
+        nounLower(next),
+      )
+    )
+      return null;
+    return nounLower(target) === "is" ? "are" : "were";
+  },
+  // en.yaml rule en.nounSlots frame 8
+  "@en.nounSlots/8": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const words = m.groups!.words;
+    if (!(target === "Here" && enAfterBreak(ctx, m.index))) return null;
+    const end = m.index + m[0].length;
+    const clause = /^[^.!?;:\n]*/.exec(ctx.text.slice(end, end + 200))![0];
+    if ((clause.match(/[A-Za-z]+(?:['’][a-z]+)?/g) ?? []).some((w) => nounClauseVerb(w)))
+      return null;
+    const parts = words.split(/[ \t ]+/);
+    if (
+      parts.some((w) =>
+        /^(?:is|are|was|were|has|have|had|can|will|would|could|should|must|may|might)$/i.test(w),
+      )
+    )
+      return null;
+    if (
+      parts.some(
+        (w) =>
+          (parts.length > 1 &&
+            !!nounRead(w)?.verbs.some((v) => v.form === "third" || v.form === "past")) ||
+          (!!nounRead(w)?.verbs.some((v) => v.form === "third" || v.form === "past") &&
+            !nounRead(w)?.noun),
+      )
+    )
+      return null;
+    const head = parts.at(-1)!;
+    const r = nounRead(head);
+    if (!(r?.noun || r?.plural)) return null;
+    return r.plural && !NOUN_ONE_THING.test(head) ? "Here are" : "Here is";
+  },
+  // en.yaml rule en.nounSlots frame 9
+  "@en.nounSlots/9": (m: RegExpExecArray): FixResult => {
+    const verb = m.groups!.verb;
+    return `must-${nounLower(verb)}`;
+  },
+  // en.yaml rule en.nounSlots frame 10
+  "@en.nounSlots/10": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    if (!enAfterBreak(ctx, m.index)) return null;
+    return target.replace(/[ \t ]+/, "-");
+  },
+  // en.yaml rule en.nounSlots frame 11
+  "@en.nounSlots/11": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const r = nounRead(target);
+    if (!r?.adjective || r.noun || r.verbs.length) return null;
+    const noun = target.replace(/t$/, "ce");
+    return nounRead(noun)?.noun ? noun : null;
+  },
+  // en.yaml rule en.nounSlots frame 12
+  "@en.nounSlots/12": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return `${target}${nounOrdinal(Number(target))}`;
+  },
+  // en.yaml rule en.nounSlots frame 13
+  "@en.nounSlots/13": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return NOUN_OBJECT_CASE[nounLower(target)];
+  },
+  // en.yaml rule en.nounSlots frame 14
+  "@en.nounSlots/14": (m: RegExpExecArray): FixResult => {
+    const noun = m.groups!.noun;
+    return nounPluralWord(noun) ? "us" : null;
+  },
+  // en.yaml rule en.nounSlots frame 16
+  "@en.nounSlots/16": (m: RegExpExecArray): FixResult => {
+    const noun = m.groups!.noun;
+    return nounPlural(noun) ? "their" : null;
+  },
+  // en.yaml rule en.nounSlots frame 17
+  "@en.nounSlots/17": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const head = m.groups!.head;
+    const rest = m.groups!.rest;
+    const target = m.groups!.target;
+    if (
+      !nounPlural(head) ||
+      /^(?:bytes|kilobytes|megabytes|gigabytes|terabytes|grams|kilograms|ounces|dollars|euros|pounds|cents|years|months|weeks|days|hours|minutes|seconds|miles|kilometers|kilometres|meters|metres|feet|pounds|tons|tonnes|gallons|liters|litres|percent|points|kinds|types|sorts|lots|tons|dozens|hundreds|thousands|millions|billions|pairs|pieces|bits|parts|units)$/.test(
+        head,
+      )
+    )
+      return null;
+    const restWords = nounLower(rest)
+      .trim()
+      .split(/[ \t ]+/);
+    if (
+      restWords.some(
+        (w) =>
+          /^(?:who|which|that|and|or|but|if|when|where|is|are|was|were)$/.test(w) ||
+          (!!nounRead(w)?.verbs.length && !nounRead(w)?.noun && !nounRead(w)?.plural),
+      )
+    )
+      return null;
+    const leadText = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (!(enAfterBreak(ctx, m.index) || /,[ \t ]*$/.test(leadText))) return null;
+    if (
+      /\b(?:one|each|every|none|any|either|neither)[ \t ]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 16), m.index),
+      )
+    )
+      return null;
+    return NOUN_PLURAL_VERB[nounLower(target)];
+  },
+  // en.yaml rule en.nounSlots frame 18
+  "@en.nounSlots/18": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const adjectives = m.groups!.adjectives;
+    const noun = m.groups!.noun;
+    const be = nounLower(target);
+    const adjectiveList = adjectives
+      .trim()
+      .split(/[ \t ]+/)
+      .filter(Boolean);
+    if (adjectiveList.some((w) => !nounRead(w)?.adjective)) return null;
+    return nounPlural(noun)
+      ? be === "is"
+        ? "are"
+        : be === "was"
+          ? "were"
+          : null
+      : nounSingular(noun) && !ENGLISH_MASS_NOUNS.has(noun)
+        ? be === "are"
+          ? "is"
+          : be === "were"
+            ? "was"
+            : null
+        : null;
+  },
+  // en.yaml rule en.nounSlots frame 19
+  "@en.nounSlots/19": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const verb = m.groups!.verb;
+    if (!(enAfterBreak(ctx, m.index) && /^Some/.test(m[0]))) return null;
+    return nounRead(verb)?.verbs.some((v) => v.form === "base" || v.form === "third")
+      ? "Sometimes"
+      : null;
+  },
+  // en.yaml rule en.nounSlots frame 21
+  "@en.nounSlots/21": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const word = m.groups!.word;
+    const w = nounLower(word);
+    return /^(?:been|sure)$/.test(w) ? "not" : nounNoFix(ctx, m, w);
+  },
+  // en.yaml rule en.nounSlots frame 23
+  "@en.nounSlots/23": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const before = enWordBefore(ctx, m.index);
+    return (target === "harry" || (!before && enAfterBreak(ctx, m.index))) &&
+      (!before || /^(?:please|so|push|just|must|to|can|should|you|we)$/.test(before))
+      ? "hurry"
+      : null;
+  },
+  // en.yaml rule en.nounSlots frame 26
+  "@en.nounSlots/26": (m: RegExpExecArray): FixResult => {
+    const prep = m.groups!.prep;
+    return prep
+      ? {
+          alternatives: ["forward to"],
+          range: [m.indices!.groups!.target[0], m.indices!.groups!.prep[1]],
+        }
+      : "forward to";
+  },
+  // en.yaml rule en.nounSlots frame 27
+  "@en.nounSlots/27": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const adjective = m.groups!.adjective;
+    if (!enAfterBreak(ctx, m.index)) return null;
+    const r = nounRead(adjective);
+    return r?.adjective && !r.verbs.length ? `${target} be` : null;
+  },
+  // en.yaml rule en.nounSlots frame 28
+  "@en.nounSlots/28": (m: RegExpExecArray): FixResult => {
+    const next = m.groups!.next;
+    const nextWord = nounLower(next);
+    const r = nounRead(nextWord);
+    const predicate =
+      /^(?:not|so|very|really|all|also|always|still|again|going|coming)$/.test(nextWord) ||
+      (!!r?.adjective && !r.noun && !r.verbs.length) ||
+      (!!r?.verbs.some((v) => v.form === "ing") && !r.noun);
+    return /ARE/.test(m[0]) || !predicate ? null : ["they are", "there are"];
+  },
+  // en.yaml rule en.nounSlots frame 30
+  "@en.nounSlots/30": (m: RegExpExecArray): FixResult => {
+    const adjective = m.groups!.adjective;
+    const target = m.groups!.target;
+    return nounRead(adjective)?.adjective ? nounPlural(target) : null;
+  },
+  // en.yaml rule en.nounSlots frame 31
+  "@en.nounSlots/31": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const adjective = m.groups!.adjective;
+    const noun = m.groups!.noun;
+    const r = nounRead(adjective);
+    if (!r?.adjective || r.noun || r.verbs.length) return null;
+    if (
+      !nounRead(noun)?.noun ||
+      nounRead(noun)?.plural ||
+      !enCountNoun(noun) ||
+      ENGLISH_MASS_NOUNS.has(noun)
+    )
+      return null;
+    const next = nounNextToken(ctx, m.index + m[0].length);
+    if (next?.kind === "word" && nounRead(next.lower)?.noun && !EN_FUNCTION_WORDS.has(next.lower))
+      return null;
+    return "the most";
   },
   // en.yaml rule en.clashFrames frame 2
   "@en.clashFrames/2": (m: RegExpExecArray, ctx: DetectContext): FixResult => {

@@ -7000,17 +7000,100 @@ rules:
       ]
     style: slot
     message: review_msg_confused_word
+    maps:
+      NOUN_ORDINALS: { 1: st, 2: nd, 3: rd }
+      NOUN_OBJECT_CASE: { he: him, she: her, i: me, we: us, they: them }
+      NOUN_PLURAL_VERB: { is: are, was: were, has: have, needs: need, seems: seem }
+    defs:
+      nounRead:
+        args: "word: string | undefined"
+        return: "word ? englishWordInfo(word.toLowerCase()) : null"
+      nounLower:
+        args: "word: string | undefined"
+        return: (word ?? "").toLowerCase()
+      # Plural-looking nouns that name one thing or one amount.
+      NOUN_ONE_THING: /^(?:news|means|series|species|headquarters|thanks|pants|scissors|glasses|jeans|trousers|shorts|clothes|goods|data|media|criteria|physics|mathematics|economics|politics|ethics|athletics|gymnastics|electronics|graphics|analytics|statistics|logistics|diabetes|measles|lens|bus|gas|plus|minus|status|campus|virus|bonus|focus|chaos|canvas|alias|atlas|apparatus|corps|crossroads|barracks|whereabouts)$/
+      # A lowercase plural noun with no verb, adjective or one-thing reading: its singular.
+      nounPlural:
+        args: "word: string"
+        type: string | null
+        let:
+          r: nounRead(word)
+        when:
+          - "!(word !== nounLower(word) || NOUN_ONE_THING.test(word) || /(?:ss|ics|us)$/.test(word))"
+          - "!(!r?.plural || r.verbs.length || r.adjective || r.adverb || EN_FUNCTION_WORDS.has(word))"
+        return: enNounPair(word)?.singular ?? null
+      # A lowercase plural noun that may also be an -s verb ("chances", "parents").
+      nounPluralWord:
+        args: "word: string"
+        return: >-
+          word === nounLower(word) && !NOUN_ONE_THING.test(word) && !!nounRead(word)?.plural &&
+          !nounRead(word)?.adjective
+      # A lowercase singular noun with no verb or adjective reading: its plural.
+      nounSingular:
+        args: "word: string"
+        type: string | null
+        let:
+          r: nounRead(word)
+        when:
+          - "!(word !== nounLower(word) || EN_FUNCTION_WORDS.has(word))"
+          - "!(!r?.noun || r.plural || r.verbs.length || r.adjective || r.adverb)"
+        return: enNounPair(word)?.plural ?? word
+      nounNextToken:
+        args: "ctx: DetectContext, end: number"
+        return: enTokensAfter(ctx, end, 1)[0]
+      nounOrdinal:
+        args: "n: number"
+        return: 'n % 100 >= 11 && n % 100 <= 13 ? "th" : (NOUN_ORDINALS[n % 10] ?? "th")'
+      # A word of the clause after "Here …" that is a verb.
+      nounClauseVerb:
+        args: "w: string"
+        let:
+          r: nounRead(w)
+        return: >-
+          /^(?:is|are|was|were|has|have|had|can|could|will|would|should|must|may|might|won['’]t|isn['’]t)$/i.test(w) ||
+          (!!r?.verbs.some((v) => v.form === "third" || v.form === "past" || v.form === "base") &&
+          !r.noun && !r.plural && !r.adjective)
+      # "has no signed contract": a participle adjective before its noun. "had no built in
+      # support": a participle and its particle before a noun.
+      nounNoFix:
+        args: "ctx: DetectContext, m: RegExpExecArray, word: string"
+        type: string | null
+        let:
+          r: nounRead(word)
+          next: nounNextToken(ctx, m.index + m[0].length)
+          particle: 'next?.kind === "word" && /^(?:in|up|out|on)$/.test(next.lower)'
+          noun: "particle ? nounNextToken(ctx, next.end) : undefined"
+          nounWord: 'noun?.kind === "word" && !EN_FUNCTION_WORDS.has(noun.lower) && nounRead(noun.lower)'
+        when:
+          - '!(!r?.verbs.some((v) => v.form === "participle") || r.noun || r.plural)'
+          - "!(nounWord && (nounWord.noun || nounWord.plural))"
+        return: >-
+          next?.kind === "word" &&
+          !/^(?:by|the|a|an|my|your|his|her|our|their|it|them|up|out|in|on|yet|for|with|to)$/.test(next.lower)
+          ? null : "not"
     frames:
       # "I have 1 days left", "I drew one hexagons": one takes the singular.
       - regex: "(?<![\\p{L}\\p{N}.,'’])(?<one>one|1){{S}}(?<target>[a-z]+)(?=[ \\t\\u00a0]*[.!?,;]|{{S}}(?:left|later|on|in|at|for|from|to|with){{E}})"
         message: review_msg_noun_count
-        fixer: nounSlotsA
+        let:
+          before: enWordBefore(ctx, m.index)
+        # "No one cares", "twenty one years", "season one specials": a pronoun, a compound
+        # number or a label. Only a lowercase verb or preposition before the count.
+        when: >-
+          !(!before || EN_DETERMINERS.has(before) ||
+          /^(?:no|every|any|some|each|which|this|that|the|other|another|last|first|next|only|and|season|chapter|part|level|phase|room|page|step|day|week|year|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)$/.test(before) ||
+          !/^[a-z]/.test(ctx.text.slice(m.index - before.length - 1, m.index).trim()) ||
+          one === "One" || target === "innings")
+        return: nounPlural(target)
       # "We added a lot functionality", "a lot spikes": a lot of.
       - regex: "(?<![\\p{L}'’])(?<target>a{{S}}lot){{S}}(?<noun>[a-z]+){{E}}"
         check: englishPhraseCorrections
         message: review_msg_contextual_grammar
         cue: ["lot"]
-        fixer: nounSlotsA2
+        let:
+          mass: ENGLISH_MASS_NOUNS.has(noun) && !nounRead(noun)?.verbs.length && !nounRead(noun)?.adjective
+        return: 'nounPlural(noun) || mass ? "a lot of" : null'
       # "the worlds best car", "the world biggest city": the world's.
       - regex: "(?<![\\p{L}'’])the{{S}}(?<target>worlds?){{S}}(?:best|worst|largest|biggest|smallest|first|most|leading|fastest|tallest|oldest|richest|greatest|highest|longest|top|only|favorite|favourite){{E}}"
         check: englishPossessiveNouns
@@ -7021,7 +7104,23 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:a|an){{S}}(?<target>[a-z]+ly){{S}}(?<noun>[a-z]+){{E}}"
         check: englishConfusedWords
         cue: ["a", "an"]
-        fixer: nounSlotsA3
+        let:
+          r: nounRead(target)
+          next: nounNextToken(ctx, m.index + m[0].length)
+          stem: target.slice(0, -2)
+        when:
+          # "holding down A shortly after": a capital A mid-sentence names a key or a grade.
+          - "!(/^A/.test(m[0]) && !enAfterBreak(ctx, m.index))"
+          - "!(!r?.adverb || r.adjective || r.noun || r.verbs.length)"
+          - nounSingular(noun)
+          # "a hugely dominant market position": the noun phrase goes on.
+          - >-
+            !(next?.kind === "word" && !EN_FUNCTION_WORDS.has(next.lower) &&
+            (nounRead(next.lower)?.noun || nounRead(next.lower)?.plural))
+        return: >-
+          [target.replace(/ically$/, "ical"), target.replace(/ily$/, "y"), target.replace(/bly$/, "ble"),
+          target.replace(/ply$/, "ple"), target.replace(/lly$/, "l"), stem].find((c) => c !== target &&
+          c.length > 2 && !!nounRead(c)?.adjective && !EN_FUNCTION_WORDS.has(c)) ?? null
       # "Google's headquarter", "the corporate headquarter": headquarters.
       - regex: "(?:the|its|their|our|his|her|my|your|corporate|new|global|company|['’]s){{S}}(?<target>headquarter){{E}}"
         message: review_msg_noun_count
@@ -7032,52 +7131,79 @@ rules:
         check: englishExistentialAgreement
         message: review_msg_existential_agreement
         cue: ["there"]
-        fixer: nounSlotsIs
+        return: 'nounPluralWord(noun) ? (nounLower(target) === "is" ? "are" : "were") : null'
       - regex: "(?<![\\p{L}'’])(?<!(?:over|out|in|up|down|back|from){{S}})there{{S}}(?<target>was|is){{S}}(?:no{{S}})?(?<noun>[a-z]+){{S}}(?<next>[a-z]+|\\d)"
         check: englishExistentialAgreement
         message: review_msg_existential_agreement
         cue: ["there"]
-        fixer: nounSlotsWas
+        let:
+          r: nounRead(noun)
+        when:
+          # "updates" is a verb too; a time word or adverb after it shows the noun.
+          - "!(!r?.plural || r.adjective || NOUN_ONE_THING.test(noun) || /(?:ss|us)$/.test(noun))"
+          - '/^(?:daily|every|each|weekly|monthly|yearly|to|for|in|on|at|from|with|about|since|that|which|all|available|here|there|left|\d)$/.test(nounLower(next))'
+        return: 'nounLower(target) === "is" ? "are" : "were"'
       # "Here the specs of the device.", "Here some files from our plugin": Here is/are.
       - regex: "(?<target>Here){{S}}(?:the|a|an|some|my|our|your|two|three|several|few){{S}}(?<words>[a-z]+(?:{{S}}[a-z]+){0,2}?)(?=[ \\t\\u00a0]*(?:[.:!]|$)|{{S}}(?:of|from|for|that|which|I|we|you){{E}})"
         check: englishSentenceStructure
         message: review_msg_sentence_structure
         cue: ["here"]
-        fixer: nounSlotsHere
+        let:
+          end: m.index + m[0].length
+          clause: '/^[^.!?;:\n]*/.exec(ctx.text.slice(end, end + 200))![0]'
+          parts: 'words.split(/[ \t ]+/)'
+          head: parts.at(-1)!
+          r: nounRead(head)
+        when:
+          - target === "Here" && enAfterBreak(ctx, m.index)
+          # "Here the group of children is studied": a verb later in the sentence.
+          - "!(clause.match(/[A-Za-z]+(?:['’][a-z]+)?/g) ?? []).some((w) => nounClauseVerb(w))"
+          - "!parts.some((w) => /^(?:is|are|was|were|has|have|had|can|will|would|could|should|must|may|might)$/i.test(w))"
+          # "Here the water is deep", "Here the road ends": a verb in the phrase ends the check.
+          - >-
+            !parts.some((w) => (parts.length > 1 && !!nounRead(w)?.verbs.some((v) => v.form === "third" || v.form === "past")) ||
+            (!!nounRead(w)?.verbs.some((v) => v.form === "third" || v.form === "past") && !nounRead(w)?.noun))
+          - r?.noun || r?.plural
+        return: 'r.plural && !NOUN_ONE_THING.test(head) ? "Here are" : "Here is"'
       # "a must read book", "It is an absolute must have": the compound noun or adjective.
       - regex: "(?<![\\p{L}'’])(?<lead>a|an|the|absolute|real|our|my|your|their|\\d+){{S}}(?<target>must{{S}}(?<verb>read|have|see|watch|try|buy|visit|do|love|reads|haves|sees)){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
         cue: ["must"]
-        fixer: nounSlotsMust
+        return: "`must-${nounLower(verb)}`"
       - regex: "(?<target>Must{{S}}(?:haves|reads|sees)){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
         cue: ["must"]
-        fixer: nounSlotsMust2
+        when: enAfterBreak(ctx, m.index)
+        return: 'target.replace(/[ \t ]+/, "-")'
       # "He emphasized the important of this task": the -ance/-ence noun.
       - regex: "(?<![\\p{L}'’])the{{S}}(?<target>[a-z]+(?:ant|ent)){{S}}of{{E}}"
         check: englishConfusedWords
         cue: ["of"]
-        fixer: nounSlotsA4
+        let:
+          r: nounRead(target)
+          noun: target.replace(/t$/, "ce")
+        when: "!(!r?.adjective || r.noun || r.verbs.length)"
+        return: "nounRead(noun)?.noun ? noun : null"
       # "in the 19 century": an ordinal.
       - regex: "(?<![\\p{L}'’])(?:the|in|of|early|late|mid){{S}}(?<target>\\d{1,2}){{S}}(?:century|centuries){{E}}"
         check: englishOrdinalSuffix
         message: review_msg_ordinal
         cue: ["century", "centuries"]
-        fixer: nounSlotsD
+        return: "`${target}${nounOrdinal(Number(target))}`"
       # "tension between he and his roommate": the object case after a preposition.
       - regex: "(?<![\\p{L}'’])between{{S}}(?<target>he|she|I|we|they){{S}}and{{E}}"
         check: englishPronounCase
         message: review_msg_pronoun_object_case
         cue: ["between"]
-        fixer: nounSlotsHe
+        return: NOUN_OBJECT_CASE[nounLower(target)]
       # "not even for we relics", "not we lawyers": us before a plural noun after a preposition.
       - regex: "(?<![\\p{L}'’])(?:for|to|with|from|by|of|about|against|among){{S}}(?<target>we){{S}}(?<noun>[a-z]+){{E}}"
         check: englishPronounCase
         message: review_msg_pronoun_object_case
         cue: ["we"]
-        fixer: nounSlotsWe
+        return: 'nounPluralWord(noun) ? "us" : null'
       # "if there any more ideas", "if there anyone": the verb after there.
       - regex: "(?<![\\p{L}'’])if{{S}}(?<target>there){{S}}(?<next>anyone|anything|anybody|someone|something|somebody|nobody|nothing){{E}}"
         check: englishSentenceStructure
@@ -7089,24 +7215,48 @@ rules:
         check: englishTheirThereTheyAre
         message: review_msg_their_there
         cue: ["there"]
-        fixer: nounSlotsThere
+        return: 'nounPlural(noun) ? "their" : null'
       # "Customer reports of strange behavior is valuable": the plural head agrees.
       - regex: "(?<![\\p{L}'’])(?<lead>the|these|those|my|our|their|his|her|your|many|some|\\d+){{S}}(?<head>[a-z]+){{S}}of{{S}}(?<rest>(?:[a-z]+{{S}}){1,3}?)(?<target>is|was|has|needs|seems){{E}}"
         check: englishSubjectVerbAgreement
         message: review_msg_subject_verb
         cue: ["of"]
-        fixer: nounSlotsIs2
+        let:
+          restWords: 'nounLower(rest).trim().split(/[ \t ]+/)'
+          leadText: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+        when:
+          # "Billions of dollars is…", "the number of…": an amount or a count noun as the head.
+          - >-
+            !(!nounPlural(head) ||
+            /^(?:bytes|kilobytes|megabytes|gigabytes|terabytes|grams|kilograms|ounces|dollars|euros|pounds|cents|years|months|weeks|days|hours|minutes|seconds|miles|kilometers|kilometres|meters|metres|feet|pounds|tons|tonnes|gallons|liters|litres|percent|points|kinds|types|sorts|lots|tons|dozens|hundreds|thousands|millions|billions|pairs|pieces|bits|parts|units)$/.test(head))
+          # The phrase after "of" is nouns and adjectives only: no verb, no clause.
+          - >-
+            !restWords.some((w) => /^(?:who|which|that|and|or|but|if|when|where|is|are|was|were)$/.test(w) ||
+            (!!nounRead(w)?.verbs.length && !nounRead(w)?.noun && !nounRead(w)?.plural))
+          # The head opens its clause: "the areas of Pakistan is found" may sit in a phrase.
+          - 'enAfterBreak(ctx, m.index) || /,[ \t ]*$/.test(leadText)'
+          # "one of the…", "each of": the head is not the first noun.
+          - '!/\b(?:one|each|every|none|any|either|neither)[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))'
+        return: NOUN_PLURAL_VERB[nounLower(target)]
       # "How is your new friends?", "How are your new school?": the be agrees with the noun.
       - regex: "(?<![\\p{L}'’])how{{S}}(?<target>is|are|was|were){{S}}(?:your|the|my|his|her|our|their)(?<adjectives>(?:{{S}}[a-z]+){0,2}?){{S}}(?<noun>[a-z]+)[ \\t\\u00a0]*\\?"
         check: englishSubjectVerbAgreement
         message: review_msg_subject_verb
         cue: ["how"]
-        fixer: nounSlotsIs3
+        let:
+          be: nounLower(target)
+          adjectiveList: 'adjectives.trim().split(/[ \t ]+/).filter(Boolean)'
+        when: "!adjectiveList.some((w) => !nounRead(w)?.adjective)"
+        return: >-
+          nounPlural(noun) ? (be === "is" ? "are" : be === "was" ? "were" : null)
+          : nounSingular(noun) && !ENGLISH_MASS_NOUNS.has(noun) ? (be === "are" ? "is" : be === "were" ? "was" : null)
+          : null
       # "Some time I like to read": sometimes.
       - regex: "(?<target>Some{{S}}time){{S}}(?:I|we|you|they|he|she|it){{S}}(?<verb>[a-z]+){{E}}"
         check: englishConfusedWords
         cue: ["some"]
-        fixer: nounSlotsSome
+        when: enAfterBreak(ctx, m.index) && /^Some/.test(m[0])
+        return: 'nounRead(verb)?.verbs.some((v) => v.form === "base" || v.form === "third") ? "Sometimes" : null'
       # "there isn't anyway to do that", "heard of anyway to": any way.
       - regex: "(?<![\\p{L}'’])(?:there{{S}}(?:is|isn['’]t|was|wasn['’]t)|is{{S}}there|of|no|find|found){{S}}(?<target>anyway){{S}}to{{S}}[a-z]+{{E}}"
         check: englishConfusedWords
@@ -7116,7 +7266,9 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:have|has|had|is|am|are|was|were|['’]m){{S}}(?<target>no){{S}}(?<word>[a-z]+){{E}}"
         check: englishConfusedWords
         cue: ["no"]
-        fixer: nounSlotsNo
+        let:
+          w: nounLower(word)
+        return: '/^(?:been|sure)$/.test(w) ? "not" : nounNoFix(ctx, m, w)'
       # "Do you one to win?": want.
       - regex: "(?<![\\p{L}'’])(?:do|did|don['’]t|didn['’]t|does|doesn['’]t){{S}}(?:you|I|we|they|he|she)(?:{{S}}(?:ever|really|not))?{{S}}(?<target>one){{S}}to{{S}}[a-z]+{{E}}"
         check: englishConfusedWords
@@ -7126,7 +7278,11 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<target>harry){{S}}up(?=[ \\t\\u00a0]*[.!,]|{{S}}(?:and|please){{E}})"
         check: englishConfusedWords
         cue: ["harry"]
-        fixer: nounSlotsHarry
+        let:
+          before: enWordBefore(ctx, m.index)
+        return: >-
+          (target === "harry" || (!before && enAfterBreak(ctx, m.index))) &&
+          (!before || /^(?:please|so|push|just|must|to|can|should|you|we)$/.test(before)) ? "hurry" : null
       # "Please open the attach file": attached.
       - regex: "(?<![\\p{L}'’])(?:the|an|this|these|my|your){{S}}(?<target>attach){{S}}(?:file|files|document|documents|form|invoice|report|image|photo|picture|spreadsheet|pdf|list|letter){{E}}"
         check: englishConfusedWords
@@ -7143,18 +7299,30 @@ rules:
         check: englishVerbComplements
         message: review_msg_forward_gerund
         cue: ["forward"]
-        fixer: nounSlotsForward
+        return: >-
+          prep ? { alternatives: ["forward to"], range: [m.indices!.groups!.target[0], m.indices!.groups!.prep[1]] }
+          : "forward to"
       # "Would it possible to track it?", "Would it great?": be after the subject.
       - regex: "(?<target>(?:would|will|could|should|might){{S}}it){{S}}(?<adjective>[a-z]+)(?=[ \\t\\u00a0]*\\?|{{S}}(?:for|to|that|if){{E}})"
         check: englishSentenceStructure
         message: review_msg_missing_be
         cue: ["it"]
-        fixer: nounSlotsWould
+        let:
+          r: nounRead(adjective)
+        when: enAfterBreak(ctx, m.index)
+        return: "r?.adjective && !r.verbs.length ? `${target} be` : null"
       # "And the are beautiful!": they are or there are.
       - regex: "(?<![\\p{L}'’])(?<target>the{{S}}are){{S}}(?<next>[a-z]+){{E}}"
         check: englishConfusedWords
         cue: ["the"]
-        fixer: nounSlotsThe
+        let:
+          # "the ARE" names something; "the are has fallen out of use" is the unit of area.
+          nextWord: nounLower(next)
+          r: nounRead(nextWord)
+          predicate: >-
+            /^(?:not|so|very|really|all|also|always|still|again|going|coming)$/.test(nextWord) ||
+            (!!r?.adjective && !r.noun && !r.verbs.length) || (!!r?.verbs.some((v) => v.form === "ing") && !r.noun)
+        return: '/ARE/.test(m[0]) || !predicate ? null : ["they are", "there are"]'
       # "That guy is one of the kind.": one of a kind.
       - regex: "(?<![\\p{L}'’])(?:one|two|three|four|five){{S}}of{{S}}(?<target>the){{S}}kind(?=[ \\t\\u00a0]*[.!?,]|$)"
         check: englishPhraseCorrections
@@ -7165,13 +7333,20 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:this|that|it){{S}}(?:is|was)(?:{{S}}just)?{{S}}the{{S}}(?:most|least){{S}}(?<adjective>[a-z]+){{S}}(?<target>[a-z]+)(?=[ \\t\\u00a0]*[.!?]|{{S}}(?:on|in|of|for|with|I|we|you){{E}})"
         message: review_msg_noun_count
         cue: ["most", "least"]
-        fixer: nounSlotsA5
+        return: "nounRead(adjective)?.adjective ? nounPlural(target) : null"
       # "This is most popular game", "Be best writer you can be": the superlative takes the.
       - regex: "(?<![\\p{L}'’])(?:is|was|are|were|be)(?:{{S}}(?:by{{S}}far|clearly|probably))?{{S}}(?<target>most){{S}}(?<adjective>[a-z]+){{S}}(?<noun>[a-z]+){{E}}"
         check: englishSentenceStructure
         message: review_msg_superlative_the
         cue: ["most"]
-        fixer: nounSlotsMost
+        let:
+          r: nounRead(adjective)
+          next: nounNextToken(ctx, m.index + m[0].length)
+        when:
+          - "!(!r?.adjective || r.noun || r.verbs.length)"
+          - "!(!nounRead(noun)?.noun || nounRead(noun)?.plural || !enCountNoun(noun) || ENGLISH_MASS_NOUNS.has(noun))"
+          - '!(next?.kind === "word" && nounRead(next.lower)?.noun && !EN_FUNCTION_WORDS.has(next.lower))'
+        return: '"the most"'
   - id: en.agreementFrames
     checks:
       [

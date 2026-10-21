@@ -57,6 +57,7 @@ export { recase as enRecase } from "./english/words";
 // Group 6 (collocation, noun, clause, tense and date slots): lexicon data and inflection.
 export { ENGLISH_VERB_FORMS as EN_VERB_FORMS } from "../implementations/helpers/EnglishVerbForms";
 export {
+  englishCountNoun as enCountNoun,
   englishLexiconInflect as enLexiconInflect,
   englishNounPair as enNounPair,
 } from "../implementations/helpers/EnglishLexicon";

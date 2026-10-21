@@ -16227,14 +16227,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,'’])(?<one>one|1)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?=[ \\t\\u00a0]*[.!?,;]|[ \\t\\u00a0]{1,8}(?:left|later|on|in|at|for|from|to|with)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "en:nounSlotsA",
+    fixer: "en:@en.nounSlots/1",
     message: "review_msg_noun_count",
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?<target>a[ \\t\\u00a0]{1,8}lot)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["lot"],
-    fixer: "en:nounSlotsA2",
+    fixer: "en:@en.nounSlots/2",
     message: "review_msg_contextual_grammar",
     check: "englishPhraseCorrections",
     cue: ["lot"],
@@ -16252,7 +16252,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:a|an)[ \\t\\u00a0]{1,8}(?<target>[a-z]+ly)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:nounSlotsA3",
+    fixer: "en:@en.nounSlots/4",
     check: "englishConfusedWords",
     cue: ["a", "an"],
   }),
@@ -16268,7 +16268,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<target>is|was)[ \\t\\u00a0]{1,8}there[ \\t\\u00a0]{1,8}(?:any|some|many|several)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["there"],
-    fixer: "en:nounSlotsIs",
+    fixer: "en:@en.nounSlots/6",
     message: "review_msg_existential_agreement",
     check: "englishExistentialAgreement",
     cue: ["there"],
@@ -16277,7 +16277,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<!(?:over|out|in|up|down|back|from)[ \\t\\u00a0]{1,8})there[ \\t\\u00a0]{1,8}(?<target>was|is)[ \\t\\u00a0]{1,8}(?:no[ \\t\\u00a0]{1,8})?(?<noun>[a-z]+)[ \\t\\u00a0]{1,8}(?<next>[a-z]+|\\d)",
     literals: ["there"],
-    fixer: "en:nounSlotsWas",
+    fixer: "en:@en.nounSlots/7",
     message: "review_msg_existential_agreement",
     check: "englishExistentialAgreement",
     cue: ["there"],
@@ -16286,7 +16286,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>Here)[ \\t\\u00a0]{1,8}(?:the|a|an|some|my|our|your|two|three|several|few)[ \\t\\u00a0]{1,8}(?<words>[a-z]+(?:[ \\t\\u00a0]{1,8}[a-z]+){0,2}?)(?=[ \\t\\u00a0]*(?:[.:!]|$)|[ \\t\\u00a0]{1,8}(?:of|from|for|that|which|I|we|you)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["here"],
-    fixer: "en:nounSlotsHere",
+    fixer: "en:@en.nounSlots/8",
     message: "review_msg_sentence_structure",
     check: "englishSentenceStructure",
     cue: ["here"],
@@ -16295,7 +16295,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<lead>a|an|the|absolute|real|our|my|your|their|\\d+)[ \\t\\u00a0]{1,8}(?<target>must[ \\t\\u00a0]{1,8}(?<verb>read|have|see|watch|try|buy|visit|do|love|reads|haves|sees))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["must"],
-    fixer: "en:nounSlotsMust",
+    fixer: "en:@en.nounSlots/9",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: ["must"],
@@ -16304,7 +16304,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>Must[ \\t\\u00a0]{1,8}(?:haves|reads|sees))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["must"],
-    fixer: "en:nounSlotsMust2",
+    fixer: "en:@en.nounSlots/10",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: ["must"],
@@ -16313,7 +16313,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])the[ \\t\\u00a0]{1,8}(?<target>[a-z]+(?:ant|ent))[ \\t\\u00a0]{1,8}of(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["the"],
-    fixer: "en:nounSlotsA4",
+    fixer: "en:@en.nounSlots/11",
     check: "englishConfusedWords",
     cue: ["of"],
   }),
@@ -16321,7 +16321,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:the|in|of|early|late|mid)[ \\t\\u00a0]{1,8}(?<target>\\d{1,2})[ \\t\\u00a0]{1,8}(?:century|centuries)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["century", "centuries"],
-    fixer: "en:nounSlotsD",
+    fixer: "en:@en.nounSlots/12",
     message: "review_msg_ordinal",
     check: "englishOrdinalSuffix",
     cue: ["century", "centuries"],
@@ -16330,7 +16330,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])between[ \\t\\u00a0]{1,8}(?<target>he|she|I|we|they)[ \\t\\u00a0]{1,8}and(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["between"],
-    fixer: "en:nounSlotsHe",
+    fixer: "en:@en.nounSlots/13",
     message: "review_msg_pronoun_object_case",
     check: "englishPronounCase",
     cue: ["between"],
@@ -16339,7 +16339,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:for|to|with|from|by|of|about|against|among)[ \\t\\u00a0]{1,8}(?<target>we)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:nounSlotsWe",
+    fixer: "en:@en.nounSlots/14",
     message: "review_msg_pronoun_object_case",
     check: "englishPronounCase",
     cue: ["we"],
@@ -16366,7 +16366,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:if|when|because|since|unless|that)[ \\t\\u00a0]{1,8}(?<target>there)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)[ \\t\\u00a0]{1,8}(?:are|were|have|had|will|would|can|could)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["there"],
-    fixer: "en:nounSlotsThere",
+    fixer: "en:@en.nounSlots/16",
     message: "review_msg_their_there",
     check: "englishTheirThereTheyAre",
     cue: ["there"],
@@ -16375,7 +16375,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<lead>the|these|those|my|our|their|his|her|your|many|some|\\d+)[ \\t\\u00a0]{1,8}(?<head>[a-z]+)[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?<rest>(?:[a-z]+[ \\t\\u00a0]{1,8}){1,3}?)(?<target>is|was|has|needs|seems)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:nounSlotsIs2",
+    fixer: "en:@en.nounSlots/17",
     message: "review_msg_subject_verb",
     check: "englishSubjectVerbAgreement",
     cue: ["of"],
@@ -16384,7 +16384,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])how[ \\t\\u00a0]{1,8}(?<target>is|are|was|were)[ \\t\\u00a0]{1,8}(?:your|the|my|his|her|our|their)(?<adjectives>(?:[ \\t\\u00a0]{1,8}[a-z]+){0,2}?)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)[ \\t\\u00a0]*\\?",
     literals: ["how"],
-    fixer: "en:nounSlotsIs3",
+    fixer: "en:@en.nounSlots/18",
     message: "review_msg_subject_verb",
     check: "englishSubjectVerbAgreement",
     cue: ["how"],
@@ -16393,7 +16393,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>Some[ \\t\\u00a0]{1,8}time)[ \\t\\u00a0]{1,8}(?:I|we|you|they|he|she|it)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["some"],
-    fixer: "en:nounSlotsSome",
+    fixer: "en:@en.nounSlots/19",
     check: "englishConfusedWords",
     cue: ["some"],
   }),
@@ -16409,7 +16409,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:have|has|had|is|am|are|was|were|['’]m)[ \\t\\u00a0]{1,8}(?<target>no)[ \\t\\u00a0]{1,8}(?<word>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:nounSlotsNo",
+    fixer: "en:@en.nounSlots/21",
     check: "englishConfusedWords",
     cue: ["no"],
   }),
@@ -16425,7 +16425,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<target>harry)[ \\t\\u00a0]{1,8}up(?=[ \\t\\u00a0]*[.!,]|[ \\t\\u00a0]{1,8}(?:and|please)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["harry"],
-    fixer: "en:nounSlotsHarry",
+    fixer: "en:@en.nounSlots/23",
     check: "englishConfusedWords",
     cue: ["harry"],
   }),
@@ -16450,7 +16450,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:look|looks|looked|looking)[ \\t\\u00a0]{1,8}(?<target>forward)(?:[ \\t\\u00a0]{1,8}(?<prep>of|for))?[ \\t\\u00a0]{1,8}(?<next>the|this|a|an)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["forward"],
-    fixer: "en:nounSlotsForward",
+    fixer: "en:@en.nounSlots/26",
     message: "review_msg_forward_gerund",
     check: "englishVerbComplements",
     cue: ["forward"],
@@ -16459,7 +16459,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?:would|will|could|should|might)[ \\t\\u00a0]{1,8}it)[ \\t\\u00a0]{1,8}(?<adjective>[a-z]+)(?=[ \\t\\u00a0]*\\?|[ \\t\\u00a0]{1,8}(?:for|to|that|if)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["would", "will", "could", "should", "might"],
-    fixer: "en:nounSlotsWould",
+    fixer: "en:@en.nounSlots/27",
     message: "review_msg_missing_be",
     check: "englishSentenceStructure",
     cue: ["it"],
@@ -16468,7 +16468,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<target>the[ \\t\\u00a0]{1,8}are)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["the"],
-    fixer: "en:nounSlotsThe",
+    fixer: "en:@en.nounSlots/28",
     check: "englishConfusedWords",
     cue: ["the"],
   }),
@@ -16485,7 +16485,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:this|that|it)[ \\t\\u00a0]{1,8}(?:is|was)(?:[ \\t\\u00a0]{1,8}just)?[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:most|least)[ \\t\\u00a0]{1,8}(?<adjective>[a-z]+)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?=[ \\t\\u00a0]*[.!?]|[ \\t\\u00a0]{1,8}(?:on|in|of|for|with|I|we|you)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["most", "least"],
-    fixer: "en:nounSlotsA5",
+    fixer: "en:@en.nounSlots/30",
     message: "review_msg_noun_count",
     cue: ["most", "least"],
   }),
@@ -16493,7 +16493,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:is|was|are|were|be)(?:[ \\t\\u00a0]{1,8}(?:by[ \\t\\u00a0]{1,8}far|clearly|probably))?[ \\t\\u00a0]{1,8}(?<target>most)[ \\t\\u00a0]{1,8}(?<adjective>[a-z]+)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["most"],
-    fixer: "en:nounSlotsMost",
+    fixer: "en:@en.nounSlots/31",
     message: "review_msg_superlative_the",
     check: "englishSentenceStructure",
     cue: ["most"],
