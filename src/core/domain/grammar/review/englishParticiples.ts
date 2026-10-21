@@ -82,8 +82,9 @@ function pastOnly(word: string): Past | null {
       ? { ...forms, ambiguous: forms.ambiguous.includes(word) }
       : null;
   for (const prefix of PREFIXES) {
+    if (!word.startsWith(prefix)) continue;
     const stem = englishVerbForms(word.slice(prefix.length));
-    if (!word.startsWith(prefix) || !stem || stem.past !== word.slice(prefix.length)) continue;
+    if (!stem || stem.past !== word.slice(prefix.length)) continue;
     if (stem.past === stem.participle || stem.past === stem.lemma) continue;
     const info = englishWordInfo(word);
     if (!info || info.verbs.length || info.noun || info.adjective) continue;
