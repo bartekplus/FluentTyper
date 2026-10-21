@@ -2,9 +2,402 @@
 // The code of grammar/rules/fr.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
+import type { DetectContext, FrameRef, MatchResult } from "../../library";
+import {
+  finding,
+  namedExampleBefore,
+  tokensAfter,
+  tokensBefore,
+  verbReadings,
+  wordFinding,
+} from "../../library";
+
+export const PLACE_VERBS: ReadonlySet<string> = new Set([
+  "aller",
+  "venir",
+  "vivre",
+  "habiter",
+  "voyager",
+  "partir",
+  "arriver",
+  "rester",
+  "retourner",
+  "séjourner",
+  "travailler",
+  "étudier",
+  "déménager",
+  "émigrer",
+  "immigrer",
+  "naître",
+  "rentrer",
+]);
+
+export const REPEAT_DEFAULT_ON: ReadonlySet<string> = new Set([
+  "le",
+  "les",
+  "une",
+  "des",
+  "du",
+  "au",
+  "aux",
+  "dans",
+  "pour",
+  "avec",
+  "sur",
+  "et",
+  "mais",
+  "est",
+  "sont",
+  "par",
+  "ce",
+  "cette",
+  "ces",
+  "sans",
+  "je",
+  "tu",
+  "il",
+  "ils",
+  "on",
+  "à",
+  "mon",
+  "ma",
+  "mes",
+  "ton",
+  "ta",
+  "tes",
+  "son",
+  "sa",
+  "ses",
+]);
+
+export const DOUBLED_OK: ReadonlySet<string> = new Set([
+  "ah",
+  "ha",
+  "hé",
+  "eh",
+  "oh",
+  "ho",
+  "hi",
+  "hein",
+  "là",
+  "si",
+  "non",
+  "oui",
+  "bon",
+  "bla",
+  "toc",
+  "pan",
+  "chut",
+  "hop",
+  "ouh",
+  "ouf",
+  "bye",
+  "da",
+  "tic",
+  "tac",
+  "cha",
+  "tam",
+  "lui",
+  "en",
+  "nous",
+  "vous",
+  "elle",
+  "elles",
+]);
+
+export const PERSONAL_SUBJECTS: ReadonlySet<string> = new Set([
+  "je",
+  "j'",
+  "tu",
+  "il",
+  "elle",
+  "on",
+  "ils",
+  "elles",
+]);
+
+export const COUNTRY_PREPOSITIONS: Readonly<Record<string, string>> = {
+  France: "en",
+  Belgique: "en",
+  Suisse: "en",
+  Allemagne: "en",
+  Autriche: "en",
+  Espagne: "en",
+  Italie: "en",
+  Grèce: "en",
+  Pologne: "en",
+  Hongrie: "en",
+  Roumanie: "en",
+  Bulgarie: "en",
+  Croatie: "en",
+  Serbie: "en",
+  Slovénie: "en",
+  Slovaquie: "en",
+  Tchéquie: "en",
+  Albanie: "en",
+  Bosnie: "en",
+  Macédoine: "en",
+  Moldavie: "en",
+  Ukraine: "en",
+  Russie: "en",
+  Biélorussie: "en",
+  Lituanie: "en",
+  Lettonie: "en",
+  Estonie: "en",
+  Finlande: "en",
+  Suède: "en",
+  Norvège: "en",
+  Irlande: "en",
+  Écosse: "en",
+  Angleterre: "en",
+  Islande: "en",
+  Turquie: "en",
+  Géorgie: "en",
+  Arménie: "en",
+  Syrie: "en",
+  Jordanie: "en",
+  "Arabie saoudite": "en",
+  Chine: "en",
+  Inde: "en",
+  Corée: "en",
+  Mongolie: "en",
+  Thaïlande: "en",
+  Malaisie: "en",
+  Indonésie: "en",
+  Birmanie: "en",
+  Australie: "en",
+  "Nouvelle-Zélande": "en",
+  Algérie: "en",
+  Tunisie: "en",
+  Libye: "en",
+  Égypte: "en",
+  Mauritanie: "en",
+  Éthiopie: "en",
+  Somalie: "en",
+  Tanzanie: "en",
+  Zambie: "en",
+  Namibie: "en",
+  Ouganda: "en",
+  Guinée: "en",
+  "Côte d'Ivoire": "en",
+  Argentine: "en",
+  Bolivie: "en",
+  Colombie: "en",
+  Guyane: "en",
+  Jamaïque: "en",
+  Californie: "en",
+  Floride: "en",
+  Bretagne: "en",
+  Normandie: "en",
+  Provence: "en",
+  Alsace: "en",
+  Lorraine: "en",
+  Bourgogne: "en",
+  Aquitaine: "en",
+  Corse: "en",
+  Sardaigne: "en",
+  Sicile: "en",
+  Catalogne: "en",
+  Bavière: "en",
+  Iran: "en",
+  Irak: "en",
+  Afghanistan: "en",
+  Ouzbékistan: "en",
+  Équateur: "en",
+  Uruguay: "en",
+  Azerbaïdjan: "en",
+  Ontario: "en",
+  Portugal: "au",
+  Danemark: "au",
+  Luxembourg: "au",
+  "Royaume-Uni": "au",
+  Canada: "au",
+  Québec: "au",
+  Mexique: "au",
+  Brésil: "au",
+  Pérou: "au",
+  Chili: "au",
+  Venezuela: "au",
+  Paraguay: "au",
+  Guatemala: "au",
+  Honduras: "au",
+  Nicaragua: "au",
+  Salvador: "au",
+  Japon: "au",
+  Vietnam: "au",
+  Cambodge: "au",
+  Laos: "au",
+  Népal: "au",
+  Pakistan: "au",
+  Bangladesh: "au",
+  Tibet: "au",
+  Kazakhstan: "au",
+  Liban: "au",
+  Qatar: "au",
+  Koweït: "au",
+  Yémen: "au",
+  Maroc: "au",
+  Sénégal: "au",
+  Mali: "au",
+  Niger: "au",
+  Nigeria: "au",
+  Tchad: "au",
+  Cameroun: "au",
+  Gabon: "au",
+  Congo: "au",
+  Kenya: "au",
+  Rwanda: "au",
+  Burundi: "au",
+  Togo: "au",
+  Bénin: "au",
+  Ghana: "au",
+  Soudan: "au",
+  Mozambique: "au",
+  Zimbabwe: "au",
+  Botswana: "au",
+  Groenland: "au",
+  "États-Unis": "aux",
+  "Pays-Bas": "aux",
+  Philippines: "aux",
+  Bahamas: "aux",
+  Maldives: "aux",
+  Comores: "aux",
+  Seychelles: "aux",
+  Antilles: "aux",
+  Chypre: "à",
+  Cuba: "à",
+  Madagascar: "à",
+  Malte: "à",
+  Singapour: "à",
+  Haïti: "à",
+  Monaco: "à",
+  Taïwan: "à",
+  Bahreïn: "à",
+  Maurice: "à",
+};
+
+// fr.yaml rule fr.ordinals def ordinalSuffix
+export function ordinalSuffix(number: string, typed: string) {
+  const plural = /s$/i.test(typed) ? "s" : "";
+  const suffix = typed.toLowerCase().replace(/s$/, "");
+  return /^(?:ère|ere|ière|iere)$/.test(suffix)
+    ? number === "1"
+      ? `re${plural}`
+      : null
+    : suffix === "ier"
+      ? number === "1"
+        ? "er"
+        : null
+      : suffix === "nd" || suffix === "nde"
+        ? number === "2"
+          ? `${suffix.slice(1)}${plural}`
+          : null
+        : number === "1" || number === "I"
+          ? null
+          : `e${plural}`;
+}
+
+// fr.yaml rule fr.rangeDashes def FRENCH_RANGE_CODE
+export const FRENCH_RANGE_CODE =
+  /(?:^|[^\p{L}])(?:tél|tel|téléphone|portable|mobile|fax|n°|no|numéro|réf|référence|code|cp|dossier|facture|commande|compte|iban|art|article|loi|décret|alinéa|al|version|vol|ligne|quai|chambre|salle|modèle|type|isbn)\.?[ \t ]*:?[ \t ]*$|§[ \t ]*$/iu;
+
+// fr.yaml rule fr.rangeDashes def FRENCH_RANGE_SCORE
+export const FRENCH_RANGE_SCORE =
+  /(?:^|[^\p{L}])(?:gagn|perd|battu|victoire|défaite|score|match|nul|mène|menait|emport|impos|set|mi-temps|résultat)\p{L}*(?:[ \t '’]+\p{L}+){0,3}[ \t ]+$/iu;
+
+// fr.yaml rule fr.repeatedWords def extraPronoun
+export function extraPronoun(ctx: DetectContext, start: number, end: number) {
+  const before = tokensBefore(ctx.text, start, 1)[0];
+  const after = tokensAfter(ctx.text, end, 1)[0];
+  return (
+    (before !== undefined && PERSONAL_SUBJECTS.has(before.w)) ||
+    ["ne", "n'"].includes(after?.w ?? "")
+  );
+}
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
-export const FIXERS: Readonly<Record<string, AnyFixer>> = {};
+export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // fr.yaml rule fr.ordinals frame 1
+  "@fr.ordinals/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const number = m.groups!.number;
+    const join = m.groups!.join;
+    const suffix = m.groups!.suffix;
+    if (!(m.index >= ctx.from)) return null;
+    const joined = join ?? "";
+    if (/^mes?$/.test(suffix) && joined) return null;
+    if (
+      /^[IVXLC]/.test(number) &&
+      (/^(?:nd|ier|ère|ere|ière|iere)/.test(suffix) || !/\p{Ll}/u.test(suffix))
+    )
+      return null;
+    const fixed = ordinalSuffix(number, suffix);
+    if (!(!!fixed && !namedExampleBefore(ctx.text, m.index))) return null;
+    const start = m.index + number.length;
+    const end = start + joined.length + suffix.length;
+    return finding(frame.ruleId, frame.messageKey, start, end, [fixed], {
+      context: { start: m.index, end },
+    });
+  },
+  // fr.yaml rule fr.rangeDashes frame 1
+  "@fr.rangeDashes/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index))) return null;
+    const a = m[1];
+    const dash = m[2];
+    const b = m[3];
+    if (a[0] === "0" || b[0] === "0" || (a.length === 3 && b.length === 4)) return null;
+    const last = a.length === 4 && b.length === 2 ? Number(a.slice(0, 2) + b) : Number(b);
+    if (!(last > Number(a))) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
+    if (FRENCH_RANGE_CODE.test(before) || FRENCH_RANGE_SCORE.test(before)) return null;
+    const at = m.index + a.length;
+    return finding(frame.ruleId, frame.messageKey, at, at + dash.length, ["–"], {
+      context: { start: m.index, end: m.index + m[0].length },
+    });
+  },
+  // fr.yaml rule fr.countries frame 1
+  "@fr.countries/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const prep = m.groups!.prep;
+    const country = m.groups!.country;
+    if (!(m.index >= ctx.from)) return null;
+    const said = prep.toLowerCase().replace(/\s+/g, " ").replaceAll("’", "'");
+    const right =
+      COUNTRY_PREPOSITIONS[country] ?? COUNTRY_PREPOSITIONS[country.replaceAll("’", "'")];
+    if (!(!!right && said !== right)) return null;
+    const verb = tokensBefore(ctx.text, m.index, 1)[0];
+    if (!(
+      !(said === "à la" || said === "à l'") ||
+      (right === "en" && !!verb && verbReadings(verb.w).some((r) => PLACE_VERBS.has(r.lemma)))
+    ))
+      return null;
+    if (said === "en" && right === "à") return null;
+    return wordFinding(ctx, m.index, prep, [right], frame.ruleId, frame.messageKey, {
+      start: m.index,
+      end: m.index + m[0].length,
+    });
+  },
+  // fr.yaml rule fr.repeatedWords frame 1
+  "@fr.repeatedWords/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const unit = m.groups!.unit;
+    if (!(m.index >= ctx.from)) return null;
+    const lower = unit.toLowerCase().replaceAll("’", "'");
+    const words = lower.split(/[ \t]+/);
+    const end = m.index + m[0].length;
+    const second = ctx.text.slice(end - unit.length, end);
+    if (words.some((w) => w.length < 2) || second !== second.toLowerCase()) return null;
+    if (words.length === 1 && REPEAT_DEFAULT_ON.has(lower)) return null;
+    if (!(
+      !words.some((w) => DOUBLED_OK.has(w)) ||
+      (words.length === 1 &&
+        (lower === "nous" || lower === "vous") &&
+        extraPronoun(ctx, m.index, end))
+    ))
+      return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return finding(frame.ruleId, frame.messageKey, m.index, end, [unit], {
+      context: { start: m.index, end },
+    });
+  },
+};
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
 export const FILTERS: Readonly<Record<string, FindingsFilter>> = {};

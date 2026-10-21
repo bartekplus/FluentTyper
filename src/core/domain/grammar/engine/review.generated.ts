@@ -18921,7 +18921,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_.,/-])(?<number>\\d{1,4}|[IVXLC]{1,7})(?<join>-|[ \\u00a0](?=(?:ièmes?|iemes?|èmes?|emes?)(?![\\p{L}])))?(?<suffix>ièmes?|iemes?|èmes?|emes?|ères?|eres?|ières?|ieres?|ier|nds?|ndes?|è|mes?)(?![\\p{L}\\p{N}_])",
     literals: [],
-    fixer: "fr:ordinal",
+    fixer: "fr:@fr.ordinals/1",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18930,7 +18930,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,:/#+\\u2013\\u2014-])(\\d{1,4})([-\\u2014])(\\d{1,4})(?![\\p{L}\\p{N}_]|[-\\u2013\\u2014/:.,]\\p{N})",
     literals: [],
-    fixer: "fr:rangeDash",
+    fixer: "fr:@fr.rangeDashes/1",
     flags: "gu",
     scan: "owned",
     lookback: 8,
@@ -19159,7 +19159,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "togo",
       "cuba",
     ],
-    fixer: "fr:countryPreposition",
+    fixer: "fr:@fr.countries/1",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -19381,7 +19381,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_-])(?<unit>\\p{L}[\\p{L}\\p{M}]*(?:['’]\\p{L}[\\p{L}\\p{M}]*)?(?:[ \\t]{1,4}\\p{L}[\\p{L}\\p{M}]*(?:['’]\\p{L}[\\p{L}\\p{M}]*)?)?)[ \\t\\u00A0]{1,4}\\k<unit>(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:repeatedWord",
+    fixer: "fr:@fr.repeatedWords/1",
     flags: "giu",
     scan: "owned",
     lookback: 1,

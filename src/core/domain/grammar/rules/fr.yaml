@@ -661,6 +661,24 @@ rules:
     checks: [frenchOrdinals]
     style: match
     message: review_msg_fr_ordinal
+    defs:
+      # The typographic suffix of an ordinal ("2ème" -> "e", "1ère" -> "re", "2nde" -> "de"), or
+      # null. "1ème" is neither 1er nor 1re: it gets no suffix.
+      ordinalSuffix:
+        args: "number: string, typed: string"
+        let:
+          plural: '/s$/i.test(typed) ? "s" : ""'
+          suffix: 'typed.toLowerCase().replace(/s$/, "")'
+        return: >-
+          /^(?:ère|ere|ière|iere)$/.test(suffix)
+            ? (number === "1" ? `re${plural}` : null)
+            : suffix === "ier"
+              ? (number === "1" ? "er" : null)
+              : suffix === "nd" || suffix === "nde"
+                ? (number === "2" ? `${suffix.slice(1)}${plural}` : null)
+                : number === "1" || number === "I"
+                  ? null
+                  : `e${plural}`
     frames:
       # "2ème", "XIXè", "16me", "2-ièmes", "XIX ième": an Arabic or Roman number and the
       # suffix, glued, after a hyphen, or after a space when the suffix is no word of its own.
@@ -668,11 +686,29 @@ rules:
         flags: gu
         scan: owned
         lookback: 1
-        fixer: ordinal
+        let:
+          joined: 'join ?? ""'
+          fixed: ordinalSuffix(number, suffix)
+          start: m.index + number.length
+          end: start + joined.length + suffix.length
+        when:
+          - m.index >= ctx.from
+          # "Il a 16 ans, 2 me suffisent": a lowercase "me" may be the pronoun.
+          - "!(/^mes?$/.test(suffix) && joined)"
+          # "DIX", "MIXER": words.
+          - '!(/^[IVXLC]/.test(number) && (/^(?:nd|ier|ère|ere|ière|iere)/.test(suffix) || !/\p{Ll}/u.test(suffix)))'
+          - "!!fixed && !namedExampleBefore(ctx.text, m.index)"
+        return: "finding(frame.ruleId, frame.messageKey, start, end, [fixed], { context: { start: m.index, end } })"
   - id: fr.rangeDashes
     checks: [emdashShortcut]
     style: match
     message: review_msg_range_dash
+    defs:
+      # "pages 10-15" -> "10–15". Not after a label of a code or a law ("tél. 12-34", "art. 3-5",
+      # "n° 12-14").
+      FRENCH_RANGE_CODE: '/(?:^|[^\p{L}])(?:tél|tel|téléphone|portable|mobile|fax|n°|no|numéro|réf|référence|code|cp|dossier|facture|commande|compte|iban|art|article|loi|décret|alinéa|al|version|vol|ligne|quai|chambre|salle|modèle|type|isbn)\.?[ \t ]*:?[ \t ]*$|§[ \t ]*$/iu'
+      # "gagné 3-1", "le match s'est terminé 2-2", "mène 1-0".
+      FRENCH_RANGE_SCORE: '/(?:^|[^\p{L}])(?:gagn|perd|battu|victoire|défaite|score|match|nul|mène|menait|emport|impos|set|mi-temps|résultat)\p{L}*(?:[ \t ''’]+\p{L}+){0,3}[ \t ]+$/iu'
     frames:
       # "pages 10-15", "1990-1995": two numbers of up to four digits joined by a hyphen. A dash,
       # a colon, a slash or a digit group after the second number makes a date, a phone number
@@ -681,7 +717,21 @@ rules:
         scan: owned
         lookback: 8
         flags: gu
-        fixer: rangeDash
+        let:
+          a: m[1]
+          dash: m[2]
+          b: m[3]
+          # A range runs up: "1990-95" and the season "2014-15" end in 1995 and 2015; "3-1" does not.
+          last: "a.length === 4 && b.length === 2 ? Number(a.slice(0, 2) + b) : Number(b)"
+          before: ctx.text.slice(Math.max(0, m.index - 48), m.index)
+          at: m.index + a.length
+        when:
+          - m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
+          # A leading zero or a 3-4 pair is a phone number or an ID: "0034-600", "12-05", "915-5512".
+          - '!(a[0] === "0" || b[0] === "0" || (a.length === 3 && b.length === 4))'
+          - last > Number(a)
+          - "!(FRENCH_RANGE_CODE.test(before) || FRENCH_RANGE_SCORE.test(before))"
+        return: 'finding(frame.ruleId, frame.messageKey, at, at + dash.length, ["–"], { context: { start: m.index, end: m.index + m[0].length } })'
   - id: fr.commas
     checks: [frenchCommas]
     style: match
@@ -710,13 +760,207 @@ rules:
     checks: [frenchNounGender]
     style: match
     message: review_msg_fr_country_preposition
+    # A country takes "en" when feminine or vowel-initial, "au" when masculine, "aux" when plural,
+    # and "à" when it has no article (islands, city-states).
+    maps:
+      COUNTRY_PREPOSITIONS:
+        "France": en
+        "Belgique": en
+        "Suisse": en
+        "Allemagne": en
+        "Autriche": en
+        "Espagne": en
+        "Italie": en
+        "Grèce": en
+        "Pologne": en
+        "Hongrie": en
+        "Roumanie": en
+        "Bulgarie": en
+        "Croatie": en
+        "Serbie": en
+        "Slovénie": en
+        "Slovaquie": en
+        "Tchéquie": en
+        "Albanie": en
+        "Bosnie": en
+        "Macédoine": en
+        "Moldavie": en
+        "Ukraine": en
+        "Russie": en
+        "Biélorussie": en
+        "Lituanie": en
+        "Lettonie": en
+        "Estonie": en
+        "Finlande": en
+        "Suède": en
+        "Norvège": en
+        "Irlande": en
+        "Écosse": en
+        "Angleterre": en
+        "Islande": en
+        "Turquie": en
+        "Géorgie": en
+        "Arménie": en
+        "Syrie": en
+        "Jordanie": en
+        "Arabie saoudite": en
+        "Chine": en
+        "Inde": en
+        "Corée": en
+        "Mongolie": en
+        "Thaïlande": en
+        "Malaisie": en
+        "Indonésie": en
+        "Birmanie": en
+        "Australie": en
+        "Nouvelle-Zélande": en
+        "Algérie": en
+        "Tunisie": en
+        "Libye": en
+        "Égypte": en
+        "Mauritanie": en
+        "Éthiopie": en
+        "Somalie": en
+        "Tanzanie": en
+        "Zambie": en
+        "Namibie": en
+        "Ouganda": en
+        "Guinée": en
+        "Côte d'Ivoire": en
+        "Argentine": en
+        "Bolivie": en
+        "Colombie": en
+        "Guyane": en
+        "Jamaïque": en
+        "Californie": en
+        "Floride": en
+        "Bretagne": en
+        "Normandie": en
+        "Provence": en
+        "Alsace": en
+        "Lorraine": en
+        "Bourgogne": en
+        "Aquitaine": en
+        "Corse": en
+        "Sardaigne": en
+        "Sicile": en
+        "Catalogne": en
+        "Bavière": en
+        "Iran": en
+        "Irak": en
+        "Afghanistan": en
+        "Ouzbékistan": en
+        "Équateur": en
+        "Uruguay": en
+        "Azerbaïdjan": en
+        "Ontario": en
+        "Portugal": au
+        "Danemark": au
+        "Luxembourg": au
+        "Royaume-Uni": au
+        "Canada": au
+        "Québec": au
+        "Mexique": au
+        "Brésil": au
+        "Pérou": au
+        "Chili": au
+        "Venezuela": au
+        "Paraguay": au
+        "Guatemala": au
+        "Honduras": au
+        "Nicaragua": au
+        "Salvador": au
+        "Japon": au
+        "Vietnam": au
+        "Cambodge": au
+        "Laos": au
+        "Népal": au
+        "Pakistan": au
+        "Bangladesh": au
+        "Tibet": au
+        "Kazakhstan": au
+        "Liban": au
+        "Qatar": au
+        "Koweït": au
+        "Yémen": au
+        "Maroc": au
+        "Sénégal": au
+        "Mali": au
+        "Niger": au
+        "Nigeria": au
+        "Tchad": au
+        "Cameroun": au
+        "Gabon": au
+        "Congo": au
+        "Kenya": au
+        "Rwanda": au
+        "Burundi": au
+        "Togo": au
+        "Bénin": au
+        "Ghana": au
+        "Soudan": au
+        "Mozambique": au
+        "Zimbabwe": au
+        "Botswana": au
+        "Groenland": au
+        "États-Unis": aux
+        "Pays-Bas": aux
+        "Philippines": aux
+        "Bahamas": aux
+        "Maldives": aux
+        "Comores": aux
+        "Seychelles": aux
+        "Antilles": aux
+        "Chypre": à
+        "Cuba": à
+        "Madagascar": à
+        "Malte": à
+        "Singapour": à
+        "Haïti": à
+        "Monaco": à
+        "Taïwan": à
+        "Bahreïn": à
+        "Maurice": à
+    sets:
+      # Verbs after which "à la" + a country names where one goes or is: "arrivé à la Belgique".
+      PLACE_VERBS:
+        [
+          aller,
+          venir,
+          vivre,
+          habiter,
+          voyager,
+          partir,
+          arriver,
+          rester,
+          retourner,
+          séjourner,
+          travailler,
+          étudier,
+          déménager,
+          émigrer,
+          immigrer,
+          naître,
+          rentrer,
+        ]
     frames:
       # "Je vais au France" -> "en France", "il vit en Portugal" -> "au Portugal".
       - regex: "{{WORD_START}}(?<prep>aux|au|en|à[ \\t]+la|à[ \\t]+l['’])(?:[ \\t]+|(?<=['’]))(?<country>{{COUNTRY_NAMES}}){{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: countryPreposition
+        let:
+          said: 'prep.toLowerCase().replace(/\s+/g, " ").replaceAll("’", "''")'
+          right: 'COUNTRY_PREPOSITIONS[country] ?? COUNTRY_PREPOSITIONS[country.replaceAll("’", "''")]'
+          verb: tokensBefore(ctx.text, m.index, 1)[0]
+        when:
+          - m.index >= ctx.from
+          - "!!right && said !== right"
+          # "à la Pologne" only after a place verb ("il pense à la Pologne" is fine).
+          - '!(said === "à la" || said === "à l''") || (right === "en" && !!verb && verbReadings(verb.w).some((r) => PLACE_VERBS.has(r.lemma)))'
+          # "en Haïti" is as good as "à Haïti".
+          - '!(said === "en" && right === "à")'
+        return: "wordFinding(ctx, m.index, prep, [right], frame.ruleId, frame.messageKey, { start: m.index, end: m.index + m[0].length })"
   - id: fr.auxiliary
     checks: [frenchVerbForms]
     style: match
@@ -852,6 +1096,94 @@ rules:
     checks: [frenchRepeatedWords]
     style: match
     message: review_msg_repeated_words
+    # Spoken French doubles some words for emphasis, so the check is off by default.
+    sets:
+      # The default-on repeated-word check already reads these (reviewDetectors.ts REPEATABLE_WORDS).
+      REPEAT_DEFAULT_ON:
+        [
+          le,
+          les,
+          une,
+          des,
+          du,
+          au,
+          aux,
+          dans,
+          pour,
+          avec,
+          sur,
+          et,
+          mais,
+          est,
+          sont,
+          par,
+          ce,
+          cette,
+          ces,
+          sans,
+          je,
+          tu,
+          il,
+          ils,
+          on,
+          à,
+          mon,
+          ma,
+          mes,
+          ton,
+          ta,
+          tes,
+          son,
+          sa,
+          ses,
+        ]
+      # Words that French doubles with no error: interjections and sounds ("ah ah", "là là"), a
+      # stressed pronoun before its clitic ("lui lui a dit"), "en en mangeant", "si si", "non non".
+      DOUBLED_OK:
+        [
+          ah,
+          ha,
+          hé,
+          eh,
+          oh,
+          ho,
+          hi,
+          hein,
+          là,
+          si,
+          non,
+          oui,
+          bon,
+          bla,
+          toc,
+          pan,
+          chut,
+          hop,
+          ouh,
+          ouf,
+          bye,
+          da,
+          tic,
+          tac,
+          cha,
+          tam,
+          lui,
+          en,
+          nous,
+          vous,
+          elle,
+          elles,
+        ]
+      PERSONAL_SUBJECTS: [je, j', tu, il, elle, on, ils, elles]
+    defs:
+      # "nous nous", "vous vous": a reflexive verb, unless another subject comes before them or
+      # "ne" comes after them ("je vous vous écris", "que nous nous ne mentions pas").
+      extraPronoun:
+        args: "ctx: DetectContext, start: number, end: number"
+        let:
+          before: tokensBefore(ctx.text, start, 1)[0]
+          after: tokensAfter(ctx.text, end, 1)[0]
+        return: '(before !== undefined && PERSONAL_SUBJECTS.has(before.w)) || ["ne", "n''"].includes(after?.w ?? "")'
     frames:
       # One word or two words, then the same text again ("très très", "de moins de moins"),
       # also after an elision ("qu'on dit on dit").
@@ -859,7 +1191,19 @@ rules:
         flags: giu
         scan: owned
         lookback: 1
-        fixer: repeatedWord
+        let:
+          lower: 'unit.toLowerCase().replaceAll("’", "''")'
+          words: lower.split(/[ \t]+/)
+          end: m.index + m[0].length
+          # "p p": spelled-out letters; "Coco Coco": a capital on the second copy starts a name.
+          second: ctx.text.slice(end - unit.length, end)
+        when:
+          - m.index >= ctx.from
+          - "!(words.some((w) => w.length < 2) || second !== second.toLowerCase())"
+          - "!(words.length === 1 && REPEAT_DEFAULT_ON.has(lower))"
+          - '!words.some((w) => DOUBLED_OK.has(w)) || (words.length === 1 && (lower === "nous" || lower === "vous") && extraPronoun(ctx, m.index, end))'
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: "finding(frame.ruleId, frame.messageKey, m.index, end, [unit], { context: { start: m.index, end } })"
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

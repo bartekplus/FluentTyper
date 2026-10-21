@@ -6,7 +6,6 @@ import * as agreement from "./agreement";
 import * as auxiliary from "./auxiliary";
 import * as bareNoun from "./bareNoun";
 import * as commas from "./commas";
-import * as countries from "./countries";
 import * as dates from "./dates";
 import * as determiners from "./determiners";
 import * as elision from "./elision";
@@ -18,9 +17,7 @@ import * as invariables from "./invariables";
 import * as mood from "./mood";
 import * as negation from "./negation";
 import * as nounNumber from "./nounNumber";
-import * as ordinals from "./ordinals";
 import * as questions from "./questions";
-import * as repeatedWords from "./repeatedWords";
 import * as smallWords from "./smallWords";
 import * as style from "./style";
 import * as tout from "./tout";
@@ -51,9 +48,6 @@ export const FIXERS = mergePredicates<Fixer>(
   bareNoun.FIXERS,
   commas.FIXERS,
   dates.FIXERS,
-  countries.FIXERS,
-  ordinals.FIXERS,
-  repeatedWords.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/fr.yaml (`filter:`). */
