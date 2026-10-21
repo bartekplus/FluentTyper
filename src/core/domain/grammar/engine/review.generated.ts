@@ -15123,7 +15123,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "the[ \\t\\u00a0]{1,8}United[ \\t\\u00a0]{1,8}States[ \\t\\u00a0]{1,8}(?<target>are|were|have)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["united"],
-    fixer: "en:clauseFramesAre",
+    fixer: "en:@en.clauseFrames/1",
     message: "review_msg_subject_verb",
     cue: ["states"],
   }),
@@ -15131,7 +15131,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:the|these|those|all|some|many)[ \\t\\u00a0]{1,8}(?<target>(?<noun>[a-z]{3,})['’]s)[ \\t\\u00a0]{1,8}(?:are|were|have|vary|differ|seem|look|need|show)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["the", "these", "those", "all", "some", "many"],
-    fixer: "en:clauseFramesNoun",
+    fixer: "en:@en.clauseFrames/2",
     message: "review_msg_plural_apostrophe",
     check: "englishApostrophes",
     cue: ["are", "were", "have", "vary", "differ", "seem", "look"],
@@ -15140,7 +15140,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>it)[ \\t\\u00a0]{1,8}(?:you|we|they|I|he|she)[ \\t\\u00a0]{1,8}(?:have|need|want|are|can|make|find|see|do|would|get|like)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:clauseFramesIt",
+    fixer: "en:@en.clauseFrames/3",
     message: "review_msg_typo",
     check: "englishPhraseCorrections",
     cue: ["it"],
@@ -15149,7 +15149,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:help|helps|helped|let|lets|make|makes|made)[ \\t\\u00a0]{1,8}(?:us|me|him|her|them|you)[ \\t\\u00a0]{1,8}(?<target>[a-z]+s)(?=[ \\t\\u00a0]*[.!?,]|[ \\t\\u00a0]{1,8}(?:you|me|him|her|us|them|it|the|a|an|this|that|our|your|their|my|his)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["help", "helps", "helped", "let", "lets", "make", "makes", "made"],
-    fixer: "en:clauseFramesA",
+    fixer: "en:@en.clauseFrames/4",
     message: "review_msg_causative_base",
     check: "englishVerbComplements",
     cue: ["help", "let", "make", "helps", "lets", "makes", "made"],
@@ -15158,7 +15158,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:nobody|no[ \\t\\u00a0]{1,8}one)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?:[ \\t\\u00a0]{1,8}(?:me|him|her|us|them|you))?[ \\t\\u00a0]{1,8}(?<target>nothing|nobody|nowhere)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["nothing", "nobody", "nowhere"],
-    fixer: "en:clauseFramesNothing",
+    fixer: "en:@en.clauseFrames/5",
     message: "review_msg_double_negative",
     check: "englishUsagePhrases",
     cue: ["nothing", "nobody", "nowhere"],
@@ -15177,7 +15177,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "answer",
       "result",
     ],
-    fixer: "en:clauseFramesReason",
+    fixer: "en:@en.clauseFrames/6",
     check: "englishPhraseCorrections",
     cue: ["reason", "solution", "problem", "difference", "point", "purpose", "meaning", "cause"],
   }),
@@ -15185,7 +15185,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<lead>met|meet|arrive|arrived|arrives|left|happened|happens|scheduled|planned|due|held|born|died|closed|started|starts|began|begins|ended|ends|opened|opens|work|works|worked|person)[ \\t\\u00a0]{1,8})?(?<target>in|at)[ \\t\\u00a0]{1,8}(?:(?<near>this|next|last)[ \\t\\u00a0]{1,8})?(?<day>Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!['’]|[ \\t\\u00a0]{1,8}\\p{L}+['’]s|,)",
     literals: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
-    fixer: "en:clauseFramesIn",
+    fixer: "en:@en.clauseFrames/7",
     message: "review_msg_fixed_prepositions",
     check: "englishFixedPrepositions",
     cue: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
@@ -15211,7 +15211,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "in[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}(?<target>harry)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}potter)",
     literals: ["harry"],
-    fixer: "en:clauseFramesHarry",
+    fixer: "en:@en.clauseFrames/10",
     message: "review_msg_typo",
     check: "englishPhraseCorrections",
     cue: ["harry"],
@@ -15220,7 +15220,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>graduated|graduating)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:university|college|academy)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["graduated", "graduating"],
-    fixer: "en:clauseFramesGraduated",
+    fixer: "en:@en.clauseFrames/11",
     message: "review_msg_fixed_prepositions",
     check: "englishFixedPrepositions",
     cue: ["graduated", "graduate", "graduating"],
@@ -15229,7 +15229,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>this)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+s)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?=[ \\t\\u00a0]{1,8}(?:the|a|an|my|his|her|its|our|their|this|that|some|all|[0-9$])|[ \\t\\u00a0]{1,8}(?:made|been|had|done|got|seen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["this"],
-    fixer: "en:clauseFramesThis",
+    fixer: "en:@en.clauseFrames/12",
     message: "review_msg_demonstrative_number",
     check: "englishNounNumber",
     cue: ["this"],
@@ -15238,7 +15238,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "some[ \\t\\u00a0]{1,8}(?<target>[a-z]+)[ \\t\\u00a0]{1,8}(?:are|were|have)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["some"],
-    fixer: "en:clauseFramesA2",
+    fixer: "en:@en.clauseFrames/13",
     message: "review_msg_noun_count",
     check: "englishNounNumber",
     cue: ["some"],
@@ -15274,7 +15274,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:a|is|was|are|were|be|it['’]s|that['’]s|feels|looks|seems)[ \\t\\u00a0]{1,8}much[ \\t\\u00a0]{1,8}(?<target>fast|slow|big|small|cheap|easy|hard|short|quick|safe|large|nice|strong|young)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["much"],
-    fixer: "en:clauseFramesFast",
+    fixer: "en:@en.clauseFrames/17",
     check: "englishPhraseCorrections",
     cue: ["much"],
   }),
@@ -15282,7 +15282,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<who>he|she|it)[ \\t\\u00a0]{1,8}(?<target>like)[ \\t\\u00a0]{1,8}(?:me|you|him|her|us|them|it|a|an|the|(?<noun>[a-z]+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:has|is|was|does|had|can|will|would|did)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["like"],
-    fixer: "en:clauseFramesLike",
+    fixer: "en:@en.clauseFrames/18",
     message: "review_msg_subject_verb",
     cue: ["like"],
   }),
@@ -15290,7 +15290,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>the[ \\t\\u00a0]{1,8}(?<pron>he|she|they|it))[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["the"],
-    fixer: "en:clauseFramesThe",
+    fixer: "en:@en.clauseFrames/19",
     message: "review_msg_sentence_structure",
     check: "englishSentenceStructure",
     cue: ["the"],
@@ -15299,7 +15299,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<prep>at|on|in|of|to|for|with|from|by|into)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}\\k<prep>[ \\t\\u00a0]{1,8}the)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["the"],
-    fixer: "en:clauseFramesPrep",
+    fixer: "en:@en.clauseFrames/20",
     message: "review_msg_repeated_words",
     check: "englishRepeatedWords",
     cue: ["the"],
@@ -15317,7 +15317,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=[a-z]+(?:x'|x’))(?<target>(?<noun>[a-z]+x)['’])[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:clauseFramesNoun2",
+    fixer: "en:@en.clauseFrames/22",
     message: "review_msg_noun_possessive",
     check: "englishApostrophes",
   }),
@@ -15325,7 +15325,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:they|we|I|you|he|she|have|has|had|can|will|to|be|been)[ \\t\\u00a0]{1,8}(?<target>custom[ \\t\\u00a0]{1,8}(?<verb>build|built|make|made|design|designed|tailor|tailored))[ \\t\\u00a0]{1,8}(?:a|an|the|their|our|your|it|them|every)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["custom"],
-    fixer: "en:clauseFramesCustom",
+    fixer: "en:@en.clauseFrames/23",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: ["custom"],
@@ -15334,7 +15334,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:been|be|is|are|was|were|get|got|getting|stay|stayed)[ \\t\\u00a0]{1,8}(?<target>(?:signed|logged)-(?:in|out))(?=[ \\t\\u00a0]*[.!?,]|[ \\t\\u00a0]{1,8}(?:from|of|to|on|at|automatically|again)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["signed", "logged"],
-    fixer: "en:clauseFramesSigned",
+    fixer: "en:@en.clauseFrames/24",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: ["signed", "logged"],
@@ -15352,7 +15352,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>neither)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)[ \\t\\u00a0]{1,8}(?:are|were|have|do|seem|look|want|like|need)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["neither"],
-    fixer: "en:clauseFramesNeither",
+    fixer: "en:@en.clauseFrames/26",
     check: "englishPhraseCorrections",
     cue: ["neither"],
   }),
@@ -15360,7 +15360,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:are|were|is|was|have|has)[ \\t\\u00a0]{1,8}(?<target>number)[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?<noun>[a-z]+s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["number"],
-    fixer: "en:clauseFramesNumber",
+    fixer: "en:@en.clauseFrames/27",
     check: "englishPhraseCorrections",
     cue: ["number"],
   }),
@@ -15377,7 +15377,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<dem>this|that)[ \\t\\u00a0]{1,8}(?<kind>kind|type|sort)[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?<noun>[a-z]+s))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:is|was|has|does)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["this", "that"],
-    fixer: "en:clauseFramesDem",
+    fixer: "en:@en.clauseFrames/29",
     message: "review_msg_noun_count",
     check: "englishNounNumber",
     cue: ["kind", "type", "sort"],
@@ -15386,7 +15386,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:as|once|when|if|because|since|until|after|before)[ \\t\\u00a0]{1,8}(?<name>[a-z]{2,})[ \\t\\u00a0]{1,8}(?<target>[a-z]+)[ \\t\\u00a0]{1,8}(?:us|me|him|her|them|it|this|that|the)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:clauseFramesA3",
+    fixer: "en:@en.clauseFrames/30",
     message: "review_msg_subject_verb",
     cue: ["as", "once", "when", "if", "because", "since", "until", "after", "before"],
   }),
@@ -15394,7 +15394,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=(?:[a-z]{2,}|my[ \\t\\u00a0]{1,8}[a-z]+)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8})(?<target>(?<who>[a-z]{2,}|my[ \\t\\u00a0]{1,8}[a-z]+)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}I['’]s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["and"],
-    fixer: "en:clauseFramesWho",
+    fixer: "en:@en.clauseFrames/31",
     check: "englishPhraseCorrections",
   }),
   frame({

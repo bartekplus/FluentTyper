@@ -2,8 +2,16 @@
 // The code of grammar/rules/en.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, EnToken, FrameRef, MatchResult, RawFinding } from "../../library";
+import type {
+  DetectContext,
+  EnToken,
+  FixResult,
+  FrameRef,
+  MatchResult,
+  RawFinding,
+} from "../../library";
 import {
+  EN_AUXILIARIES,
   EN_FUNCTION_WORDS,
   EN_MASS,
   EN_PREPOSITIONS,
@@ -11,10 +19,13 @@ import {
   caseLike,
   enAfterBreak,
   enEvidence,
+  enInfo,
+  enNounNumber,
   enNounOnly,
   enTokensAfter,
   enWordBefore,
   enWordsAfter,
+  englishLemma,
   englishVerbForms,
   englishVerbNouns,
   englishWordInfo,
@@ -86,6 +97,40 @@ export const NO_NOT_WORDS: ReadonlySet<string> = new Set([
   "half",
 ]);
 
+export const CLAUSE_NOT_LIKED: ReadonlySet<string> = new Set([
+  "all",
+  "none",
+  "one",
+  "everyone",
+  "everybody",
+  "someone",
+  "somebody",
+  "anyone",
+  "anybody",
+  "nobody",
+  "nothing",
+  "something",
+  "anything",
+  "everything",
+]);
+
+export const CLAUSE_COLLECTIVE: ReadonlySet<string> = new Set([
+  "staff",
+  "police",
+  "personnel",
+  "cattle",
+  "clergy",
+  "crew",
+  "team",
+  "family",
+  "government",
+  "audience",
+  "faculty",
+  "public",
+  "youth",
+  "people",
+]);
+
 export const COUNT_MASS_COUNT: Readonly<Record<string, string>> = {
   many: "much",
   few: "little",
@@ -99,6 +144,35 @@ export const NO_NOT_MODAL: Readonly<Record<string, string>> = {
   could: "could not",
   would: "would not",
   should: "should not",
+};
+
+export const CLAUSE_SINGULAR_VERBS: Readonly<Record<string, string>> = {
+  are: "is",
+  were: "was",
+  have: "has",
+};
+
+export const CLAUSE_COMPARATIVE: Readonly<Record<string, string>> = {
+  fast: "faster",
+  slow: "slower",
+  big: "bigger",
+  small: "smaller",
+  cheap: "cheaper",
+  easy: "easier",
+  hard: "harder",
+  long: "longer",
+  short: "shorter",
+  high: "higher",
+  low: "lower",
+  quick: "quicker",
+  safe: "safer",
+  large: "larger",
+  nice: "nicer",
+  good: "better",
+  bad: "worse",
+  strong: "stronger",
+  young: "younger",
+  old: "older",
 };
 
 // en.yaml rule en.determinerConfusions def DET_VERB_NOUNS
@@ -454,6 +528,46 @@ export function noNotDoSupport(
       );
 }
 
+// en.yaml rule en.clauseFrames def clauseRead
+export function clauseRead(word: string | undefined) {
+  return word ? englishWordInfo(word.toLowerCase()) : null;
+}
+
+// en.yaml rule en.clauseFrames def CLAUSE_VERB_LIKE
+export const CLAUSE_VERB_LIKE = /\b(?!(?:he|she|it|they|we|you|i)\b)[a-z]+[ \t ]{1,8}like\b/i;
+
+// en.yaml rule en.clauseFrames def CLAUSE_PRONOUN_LIKE
+export const CLAUSE_PRONOUN_LIKE = /\b(?:he|she|it|they|we|you|i)[ \t ]{1,8}like\b/i;
+
+// en.yaml rule en.clauseFrames def clauseEllipsis
+export function clauseEllipsis(ctx: DetectContext, m: RegExpExecArray) {
+  const end = m.index + m[0].length;
+  const before = ctx.text.slice(Math.max(0, m.index - 160), m.index);
+  return (
+    CLAUSE_VERB_LIKE.test(before) ||
+    (!/^(?:me|you|him|her|us|them|it)$/i.test(m[0].split(/\s+/).at(-1)!) &&
+      CLAUSE_PRONOUN_LIKE.test(
+        `${/[^.!?\n]*$/.exec(before)![0]} ${/^[^.!?\n]*/.exec(ctx.text.slice(end, end + 160))![0]}`,
+      ))
+  );
+}
+
+// en.yaml rule en.clauseFrames def clauseLikedNoun
+export function clauseLikedNoun(ctx: DetectContext, m: RegExpExecArray) {
+  const who = m.groups!.who;
+  const noun = m.groups!.noun;
+  if (who.toLowerCase() === "it" || noun !== noun.toLowerCase() || CLAUSE_NOT_LIKED.has(noun))
+    return false;
+  const r = enInfo(noun);
+  if (!r?.noun || r.adjective || r.adverb || r.verbs.some((v) => v.form !== "third")) return false;
+  const after = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+  return (
+    after.kind !== "word" ||
+    (!EN_AUXILIARIES.has(after.lower) &&
+      !enInfo(after.lower)?.verbs.some((v) => v.form === "third" || v.form === "past"))
+  );
+}
+
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.isoDates frame 1
@@ -711,6 +825,182 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
           { context: enEvidence(ctx, m.index, verbEnd) },
         )
       : noNotDoSupport(ctx, m, verb, why, next);
+  },
+  // en.yaml rule en.clauseFrames frame 1
+  "@en.clauseFrames/1": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    if (!enAfterBreak(ctx, m.index)) return null;
+    return CLAUSE_SINGULAR_VERBS[target.toLowerCase()];
+  },
+  // en.yaml rule en.clauseFrames frame 2
+  "@en.clauseFrames/2": (m: RegExpExecArray): FixResult => {
+    const noun = m.groups!.noun;
+    const n = enNounNumber(noun);
+    return n?.number === "singular" && noun !== "let" ? n.plural : null;
+  },
+  // en.yaml rule en.clauseFrames frame 3
+  "@en.clauseFrames/3": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return enAfterBreak(ctx, m.index) || /^(?:and|but|so)$/.test(enWordBefore(ctx, m.index))
+      ? "if"
+      : null;
+  },
+  // en.yaml rule en.clauseFrames frame 4
+  "@en.clauseFrames/4": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const r = clauseRead(target);
+    if (!r?.verbs.some((v) => v.form === "third")) return null;
+    if (r.plural && /^[ \t ]*[.!?,]/.test(ctx.text.slice(m.index + m[0].length))) return null;
+    return englishLemma(target, "third");
+  },
+  // en.yaml rule en.clauseFrames frame 5
+  "@en.clauseFrames/5": (m: RegExpExecArray): FixResult => {
+    const verb = m.groups!.verb;
+    const target = m.groups!.target;
+    const r = clauseRead(verb);
+    if (!r?.verbs.some((v) => v.form === "past" || v.form === "third")) return null;
+    return target.toLowerCase().replace(/^no/, "any");
+  },
+  // en.yaml rule en.clauseFrames frame 6
+  "@en.clauseFrames/6": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return { alternatives: [`the ${target}`, `a ${target}`] };
+  },
+  // en.yaml rule en.clauseFrames frame 7
+  "@en.clauseFrames/7": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const lead = m.groups!.lead;
+    const near = m.groups!.near;
+    const day = m.groups!.day;
+    return /^[A-Z][a-z]/.test(day) && (lead || near || enAfterBreak(ctx, m.index)) ? "on" : null;
+  },
+  // en.yaml rule en.clauseFrames frame 10
+  "@en.clauseFrames/10": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target === "harry" ? "hurry" : null;
+  },
+  // en.yaml rule en.clauseFrames frame 11
+  "@en.clauseFrames/11": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return `${target} from`;
+  },
+  // en.yaml rule en.clauseFrames frame 12
+  "@en.clauseFrames/12": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const noun = m.groups!.noun;
+    const verb = m.groups!.verb;
+    if (!enAfterBreak(ctx, m.index)) return null;
+    const r = clauseRead(verb);
+    const pastOnly =
+      !!r?.verbs.some((v) => v.form === "past") &&
+      !r.noun &&
+      !r.verbs.some((v) => v.form === "base" || v.form === "third");
+    return (enNounNumber(noun)?.number === "plural" || noun === "guys") &&
+      (pastOnly || /^(?:have|are|were|do)$/.test(verb))
+      ? "these"
+      : null;
+  },
+  // en.yaml rule en.clauseFrames frame 13
+  "@en.clauseFrames/13": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const r = clauseRead(target);
+    if (r && (!r.noun || r.adjective || r.adverb || r.verbs.some((v) => v.form !== "base")))
+      return null;
+    const n = enNounNumber(target);
+    return n?.number === "singular" && !EN_MASS.has(target) && !CLAUSE_COLLECTIVE.has(target)
+      ? n.plural
+      : null;
+  },
+  // en.yaml rule en.clauseFrames frame 17
+  "@en.clauseFrames/17": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return CLAUSE_COMPARATIVE[target.toLowerCase()];
+  },
+  // en.yaml rule en.clauseFrames frame 18
+  "@en.clauseFrames/18": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const noun = m.groups!.noun;
+    return (enAfterBreak(ctx, m.index) ||
+      /^(?:but|so|because)$/.test(enWordBefore(ctx, m.index))) &&
+      !clauseEllipsis(ctx, m) &&
+      (!noun || clauseLikedNoun(ctx, m))
+      ? ["likes", "is like"]
+      : null;
+  },
+  // en.yaml rule en.clauseFrames frame 19
+  "@en.clauseFrames/19": (m: RegExpExecArray): FixResult => {
+    const pron = m.groups!.pron;
+    const noun = m.groups!.noun;
+    if (!(pron === pron.toLowerCase())) return null;
+    return (clauseRead(noun)?.noun || enNounOnly(noun)) && !EN_FUNCTION_WORDS.has(noun)
+      ? "the"
+      : null;
+  },
+  // en.yaml rule en.clauseFrames frame 20
+  "@en.clauseFrames/20": (m: RegExpExecArray): FixResult => {
+    const prep = m.groups!.prep;
+    return `${prep} the`;
+  },
+  // en.yaml rule en.clauseFrames frame 22
+  "@en.clauseFrames/22": (m: RegExpExecArray): FixResult => {
+    const noun = m.groups!.noun;
+    return clauseRead(noun)?.noun ? `${noun}'s` : null;
+  },
+  // en.yaml rule en.clauseFrames frame 23
+  "@en.clauseFrames/23": (m: RegExpExecArray): FixResult => {
+    const verb = m.groups!.verb;
+    return `custom-${verb}`;
+  },
+  // en.yaml rule en.clauseFrames frame 24
+  "@en.clauseFrames/24": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target.replace("-", " ");
+  },
+  // en.yaml rule en.clauseFrames frame 26
+  "@en.clauseFrames/26": (m: RegExpExecArray): FixResult => {
+    const noun = m.groups!.noun;
+    return enNounOnly(noun) === "plural" || /^(?:children|people|men|women)$/.test(noun)
+      ? "neither of the"
+      : null;
+  },
+  // en.yaml rule en.clauseFrames frame 27
+  "@en.clauseFrames/27": (m: RegExpExecArray): FixResult => {
+    const noun = m.groups!.noun;
+    return enNounNumber(noun)?.number === "plural" ? "a number" : null;
+  },
+  // en.yaml rule en.clauseFrames frame 29
+  "@en.clauseFrames/29": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const dem = m.groups!.dem;
+    const kind = m.groups!.kind;
+    const noun = m.groups!.noun;
+    const r = clauseRead(noun);
+    if (
+      r?.verbs.some((v) => v.form === "third") &&
+      (!r.plural || /^[ \t ]*[.!?,]/.test(ctx.text.slice(m.index + m[0].length)))
+    )
+      return null;
+    const n = enNounNumber(noun);
+    if (!(n?.number === "plural")) return null;
+    return [
+      `${dem} ${kind} of ${n.singular}`,
+      `${dem.toLowerCase() === "this" ? "these" : "those"} ${kind}s of ${noun}`,
+    ];
+  },
+  // en.yaml rule en.clauseFrames frame 30
+  "@en.clauseFrames/30": (m: RegExpExecArray): FixResult => {
+    const name = m.groups!.name;
+    const target = m.groups!.target;
+    if (!/^[A-Z][a-z]+[^s]$/.test(name) || clauseRead(name)?.noun || enNounOnly(name.toLowerCase()))
+      return null;
+    const r = clauseRead(target);
+    if (!r?.verbs.length || !r.verbs.every((v) => v.form === "base") || r.adjective) return null;
+    if (EN_FUNCTION_WORDS.has(target)) return null;
+    return /[^aeiou]y$/.test(target)
+      ? `${target.slice(0, -1)}ies`
+      : /(?:s|x|z|ch|sh|o)$/.test(target)
+        ? `${target}es`
+        : `${target}s`;
+  },
+  // en.yaml rule en.clauseFrames frame 31
+  "@en.clauseFrames/31": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const who = m.groups!.who;
+    return enWordBefore(ctx, m.index) === "the" ? null : `${who}'s and my`;
   },
 };
 
