@@ -17,11 +17,14 @@ import {
   PL_MONTHS_GENITIVE,
   PL_NEUTER,
   PL_PLURAL,
+  PL_SINGULAR,
   PL_VERB,
   PL_VIRILE,
   namedExampleBefore,
+  plAdjectiveAgrees,
   plAdjectiveForm,
   plAdjectiveOf,
+  plAgreeingEndings,
   plAmbiguousAdjective,
   plAmbiguousVerb,
   plCaseLike,
@@ -43,6 +46,7 @@ import {
   plPastByShape,
   plPerfectiveVerb,
   plPlaceForm,
+  plReadingCases,
   plSentenceStart,
   plUserOrNamed,
   plVirileAdjective,
@@ -53,6 +57,7 @@ import {
   tagsAnd,
   tagsCases,
   tagsOr,
+  tagsWithout,
 } from "../../library";
 
 export const COMPOUND_NOT_PAST: ReadonlySet<string> = new Set([
@@ -170,6 +175,219 @@ export const COMMA_NO_COMMA_AFTER: ReadonlySet<string> = new Set([
   "którzy",
   "to",
 ]);
+
+export const AGREEMENT_ADVERBIAL: ReadonlySet<string> = new Set([
+  "obok",
+  "wokół",
+  "dookoła",
+  "wzdłuż",
+  "przeciw",
+  "przeciwko",
+]);
+
+export const AGREEMENT_OLD_ACCUSATIVES: ReadonlySet<string> = new Set([
+  "za mąż",
+  "za pan",
+  "na koń",
+]);
+
+export const AGREEMENT_SHORT_ABBREVIATIONS: ReadonlySet<string> = new Set([
+  "ust",
+  "lit",
+  "ok",
+  "ul",
+  "al",
+  "pl",
+  "os",
+  "ds",
+  "cz",
+  "ww",
+  "ub",
+  "dz",
+  "br",
+  "wł",
+  "zw",
+  "ob",
+  "dn",
+  "im",
+  "jw",
+  "św",
+  "ks",
+  "gen",
+  "por",
+  "kpr",
+  "hm",
+  "pkt",
+  "art",
+  "rys",
+  "tab",
+  "poz",
+  "str",
+]);
+
+export const AGREEMENT_FIVE_UP: ReadonlySet<string> = new Set([
+  "pięć",
+  "sześć",
+  "siedem",
+  "osiem",
+  "dziewięć",
+  "dziesięć",
+  "jedenaście",
+  "dwanaście",
+  "trzynaście",
+  "czternaście",
+  "piętnaście",
+  "szesnaście",
+  "siedemnaście",
+  "osiemnaście",
+  "dziewiętnaście",
+  "dwadzieścia",
+  "trzydzieści",
+  "czterdzieści",
+  "pięćdziesiąt",
+  "sześćdziesiąt",
+  "siedemdziesiąt",
+  "osiemdziesiąt",
+  "dziewięćdziesiąt",
+  "sto",
+  "dwieście",
+  "trzysta",
+  "czterysta",
+  "pięćset",
+  "sześćset",
+  "siedemset",
+  "osiemset",
+  "dziewięćset",
+  "kilka",
+  "kilkanaście",
+  "kilkadziesiąt",
+  "kilkaset",
+  "parę",
+]);
+
+export const AGREEMENT_COUNT_NOUNS: ReadonlySet<string> = new Set([
+  "dziesiątki",
+  "setki",
+  "tysiące",
+  "miliony",
+  "miliardy",
+  "dziesiątek",
+  "setek",
+  "tysięcy",
+  "milionów",
+  "miliardów",
+]);
+
+export const AGREEMENT_TWO_TO_FOUR: ReadonlySet<string> = new Set([
+  "dwa",
+  "dwie",
+  "trzy",
+  "cztery",
+  "oba",
+  "obie",
+]);
+
+export const AGREEMENT_PARTITIVE: ReadonlySet<string> = new Set([
+  "kupię",
+  "kupuję",
+  "jem",
+  "zjem",
+  "piję",
+  "wypiję",
+  "biorę",
+  "dostanę",
+  "chcę",
+]);
+
+export const AGREEMENT_GENITIVE_ADJECTIVES: ReadonlySet<string> = new Set([
+  "pełny",
+  "pozbawiony",
+  "warty",
+  "godny",
+  "niegodny",
+  "świadomy",
+  "nieświadomy",
+  "pewny",
+  "ciekawy",
+  "żądny",
+  "spragniony",
+  "głodny",
+  "syty",
+  "winny",
+  "bliski",
+  "chciwy",
+]);
+
+export const AGREEMENT_PRONOUNS: ReadonlySet<string> = new Set([
+  "ty",
+  "który",
+  "jaki",
+  "taki",
+  "ten",
+  "tamten",
+  "ów",
+  "czyj",
+  "każdy",
+  "żaden",
+  "wszystek",
+  "sam",
+  "jakiś",
+  "mój",
+  "twój",
+  "swój",
+  "nasz",
+  "wasz",
+  "niektóry",
+  "inny",
+]);
+
+export const AGREEMENT_NOMINAL_ADJECTIVES: ReadonlySet<string> = new Set([
+  "podopieczny",
+  "znajomy",
+  "bliski",
+  "najbliższy",
+  "krewny",
+  "dorosły",
+  "pełnoletni",
+  "niepełnoletni",
+  "nieletni",
+  "małoletni",
+  "chory",
+  "bezrobotny",
+  "niepełnosprawny",
+  "poszkodowany",
+  "pokrzywdzony",
+  "ranny",
+  "zmarły",
+  "oskarżony",
+  "podejrzany",
+  "zatrzymany",
+  "skazany",
+  "przełożony",
+  "podwładny",
+  "narzeczony",
+  "uczony",
+  "wierny",
+  "zainteresowany",
+  "uprawniony",
+  "ubezpieczony",
+  "dyżurny",
+  "śledczy",
+  "mundurowy",
+  "podróżny",
+  "pieszy",
+  "święty",
+  "bliźni",
+  "dany",
+  "średni",
+  "pochodny",
+  "styczny",
+  "wypadkowy",
+]);
+
+export const AGREEMENT_PREDICATIVE_ENDINGS: ReadonlySet<string> = new Set(["ym", "ymi"]);
+
+export const AGREEMENT_AFTER_ENDINGS: ReadonlySet<string> = new Set(["ą"]);
 
 export const DEGREE_IRREGULAR_ADVERBS: ReadonlySet<string> = new Set([
   "lepiej",
@@ -537,6 +755,87 @@ export const SILENT_SHORT: Readonly<Record<string, string>> = {
   em: "m",
   m: "m",
 };
+
+export const AGREEMENT_GOVERNS: Readonly<Record<string, string>> = {
+  bez: "G",
+  beze: "G",
+  dla: "G",
+  do: "G",
+  od: "G",
+  ode: "G",
+  u: "G",
+  z: "GIA",
+  ze: "GIA",
+  spod: "G",
+  znad: "G",
+  zza: "G",
+  sprzed: "G",
+  spomiędzy: "G",
+  spośród: "G",
+  wśród: "G",
+  obok: "G",
+  podczas: "G",
+  według: "G",
+  zamiast: "G",
+  oprócz: "G",
+  prócz: "G",
+  wobec: "G",
+  wokół: "G",
+  dookoła: "G",
+  wzdłuż: "G",
+  dzięki: "D",
+  ku: "D",
+  przeciw: "D",
+  przeciwko: "D",
+  wbrew: "D",
+  w: "LA",
+  we: "LA",
+  na: "LA",
+  o: "LAV",
+  po: "LA",
+  przy: "L",
+  przez: "A",
+  przeze: "A",
+  poprzez: "A",
+  przed: "IA",
+  przede: "IA",
+  za: "IAG",
+  nad: "IA",
+  nade: "IA",
+  pod: "IA",
+  pode: "IA",
+  między: "IA",
+  pomiędzy: "IA",
+  poza: "AI",
+};
+
+export const AGREEMENT_OBJECT_PRONOUNS: Readonly<Record<string, string>> = { ją: "jej", je: "ich" };
+
+export const AGREEMENT_PRONOUN_GENITIVE: Readonly<Record<string, string>> = {
+  niemu: "niego",
+  nim: "niego",
+  nią: "niej",
+  nimi: "nich",
+};
+
+export const AGREEMENT_TENS: Readonly<Record<string, string>> = {
+  dwadzieścia: "dwudziestu",
+  trzydzieści: "trzydziestu",
+  czterdzieści: "czterdziestu",
+  pięćdziesiąt: "pięćdziesięciu",
+  sześćdziesiąt: "sześćdziesięciu",
+  siedemdziesiąt: "siedemdziesięciu",
+  osiemdziesiąt: "osiemdziesięciu",
+  dziewięćdziesiąt: "dziewięćdziesięciu",
+};
+
+export const AGREEMENT_MEN_UNITS: Readonly<Record<string, string>> = {
+  dwaj: "dwóch",
+  trzej: "trzech",
+  czterej: "czterech",
+};
+
+export const AGREEMENT_TWIN: Readonly<Record<string, string>> = { a: "ą", ą: "a", e: "ę", ę: "e" };
 
 export const CLAUSE_POWIN_GENDER: Readonly<Record<string, string>> = {
   powinien: "ł",
@@ -1318,6 +1617,806 @@ export function silentEnding(name: string, end: string): string | undefined {
         : /[^aeiouy]y$/u.test(name) && end === "m"
           ? name + "m"
           : undefined;
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GOVERNED
+export const AGREEMENT_GOVERNED = Object.fromEntries(
+  Object.entries(AGREEMENT_GOVERNS).map(([prep, letters]) => [
+    prep,
+    [...letters].reduce((mask, letter) => tagsOr(mask, plCases(letter + "s " + letter + "p")), 0),
+  ]),
+) as Readonly<Record<string, number | undefined>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_NOMINATIVE
+export const AGREEMENT_NOMINATIVE = plCases("Ns Np");
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GENITIVE_CASES
+export const AGREEMENT_GENITIVE_CASES = plCases("Gs Gp");
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_ACCUSATIVE
+export const AGREEMENT_ACCUSATIVE = plCases("As Ap");
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_INSTRUMENTALS
+export const AGREEMENT_INSTRUMENTALS = plCases("Is Ip");
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_OBLIQUE
+export const AGREEMENT_OBLIQUE = plCases("Gs Ds Is Ls Gp Dp Ip Lp");
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_NO_LOCATIVE
+export const AGREEMENT_NO_LOCATIVE = plCases("Gs Ds Is Gp Dp Ip");
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GENDERS
+export const AGREEMENT_GENDERS = tagsOr(PL_MASCULINE, PL_FEMININE, PL_NEUTER);
+
+// pl.yaml rule pl.caseAgreement def agreementGovernedBy
+export function agreementGovernedBy(prep: string, before: string) {
+  return (prep === "z" || prep === "ze") && /(?:^|[^\p{L}])(?:wraz|razem)[ \t ]+$/iu.test(before)
+    ? plCases("Is Ip")
+    : AGREEMENT_GOVERNED[prep];
+}
+
+// pl.yaml rule pl.caseAgreement def agreementPrepositionClash
+export function agreementPrepositionClash(prep: string, noun: string, before: string) {
+  if (AGREEMENT_OLD_ACCUSATIVES.has(prep + " " + noun.toLowerCase())) return false;
+  const governed = agreementGovernedBy(prep, before);
+  const tags = plNounTags(noun);
+  if (!(governed !== undefined && plOnlyNoun(tags, true) && !tagsAnd(tags, governed))) return false;
+  return !(AGREEMENT_ADVERBIAL.has(prep) && tagsAnd(tags, AGREEMENT_NOMINATIVE));
+}
+
+// pl.yaml rule pl.caseAgreement def agreementRecased
+export function agreementRecased(noun: string, wanted: number) {
+  const tags = plNounTags(noun);
+  const forms = plInflect(
+    noun,
+    tagsAnd(wanted, tagsAnd(tags, PL_SINGULAR) ? PL_SINGULAR : PL_PLURAL),
+  );
+  return forms.length <= 2 ? forms.map((form) => plCaseLike(noun, form)) : [];
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_DEMONSTRATIVES
+export const AGREEMENT_DEMONSTRATIVES = {
+  ten: [[PL_MASCULINE, plCases("Ns As")]],
+  ta: [[PL_FEMININE, plCases("Ns")]],
+  tę: [[PL_FEMININE, plCases("As")]],
+  tą: [[PL_FEMININE, plCases("Is")]],
+  to: [[PL_NEUTER, plCases("Ns As")]],
+  te: [[0, plCases("Np Ap")]],
+  jeden: [[PL_MASCULINE, plCases("Ns As")]],
+  jedna: [[PL_FEMININE, plCases("Ns")]],
+  jedną: [[PL_FEMININE, plCases("As Is")]],
+  jedno: [[PL_NEUTER, plCases("Ns As")]],
+  jedne: [[0, plCases("Np Ap")]],
+} as Readonly<Record<string, readonly (readonly [number, number])[]>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_FAMILY_TEN
+export const AGREEMENT_FAMILY_TEN = ["ten", "ta", "tę", "tą", "to", "te"];
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_FAMILY_JEDEN
+export const AGREEMENT_FAMILY_JEDEN = ["jeden", "jedna", "jedną", "jedno", "jedne"];
+
+// pl.yaml rule pl.caseAgreement def agreementDemonstrativeAgrees
+export function agreementDemonstrativeAgrees(form: string, tags: number) {
+  return AGREEMENT_DEMONSTRATIVES[form].some(
+    ([gender, wanted]) =>
+      tagsAnd(tags, wanted) !== 0 && (gender === 0 || tagsAnd(tags, gender) !== 0),
+  );
+}
+
+// pl.yaml rule pl.caseAgreement def agreementDemonstrativeFix
+export function agreementDemonstrativeFix(det: string, tags: number) {
+  if (
+    !AGREEMENT_DEMONSTRATIVES[det] ||
+    !plOnlyNoun(tags) ||
+    agreementDemonstrativeAgrees(det, tags)
+  )
+    return [];
+  if (!([PL_MASCULINE, PL_FEMININE, PL_NEUTER].filter((g) => tagsAnd(tags, g)).length === 1))
+    return [];
+  const fits = (det.startsWith("jed") ? AGREEMENT_FAMILY_JEDEN : AGREEMENT_FAMILY_TEN).filter(
+    (form) => form !== det && agreementDemonstrativeAgrees(form, tags),
+  );
+  return fits.length <= 2 ? fits : [];
+}
+
+// pl.yaml rule pl.caseAgreement def agreementNumeralNeeds
+export function agreementNumeralNeeds(num: string) {
+  const n = Number(num);
+  return AGREEMENT_TWO_TO_FOUR.has(num)
+    ? "Np"
+    : AGREEMENT_FIVE_UP.has(num) || AGREEMENT_COUNT_NOUNS.has(num)
+      ? "Gp"
+      : !/^\d{1,3}$/.test(num)
+        ? null
+        : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)
+          ? "Np"
+          : n >= 5
+            ? "Gp"
+            : null;
+}
+
+// pl.yaml rule pl.caseAgreement def agreementNumeralClash
+export function agreementNumeralClash(num: string, tags: number) {
+  const needs = agreementNumeralNeeds(num);
+  if (!(needs !== null && plOnlyNoun(tags))) return false;
+  return needs === "Np"
+    ? !tagsAnd(tags, tagsOr(AGREEMENT_NOMINATIVE, PL_MASCULINE)) &&
+        tagsAnd(tags, plCases("Gp")) !== 0
+    : tagsAnd(tags, plCases("Gp")) || !tagsAnd(tags, AGREEMENT_NOMINATIVE)
+      ? false
+      : !/^\d/.test(num) || !tagsAnd(tags, plCases("Ns"));
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GOVERNING
+export const AGREEMENT_GOVERNING = new RegExp(
+  `^(?:${Object.keys(AGREEMENT_GOVERNS).join("|")}|około|ponad|powyżej|poniżej|blisko|niespełna|koło|naprzeciw|kosztem|brak|braku|wiele|ile|tyle)$`,
+  "iu",
+);
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GENITIVE_VERB
+export const AGREEMENT_GENITIVE_VERB =
+  /^(?:dotycz|potrzeb|wymag|szuk|używ|unik|brak|zabrak|żąd|udziel|życz|nabr|nabier|ubył|przybył|naucz|słuch|pilnow|pilnuj|trzeba|starcz|wystarcz)/iu;
+
+// pl.yaml rule pl.caseAgreement def agreementGoverningWord
+export function agreementGoverningWord(word: string) {
+  return AGREEMENT_GOVERNING.test(word) || /(?:ch|ego|ej)$/u.test(word);
+}
+
+// pl.yaml rule pl.caseAgreement def agreementFreeCount
+export function agreementFreeCount(text: string, at: number) {
+  const before = text.slice(Math.max(0, at - 48), at);
+  const clause = before.split(/[,;:.!?()„”"–—]/u).pop()!;
+  if (/(?:^|[^\p{L}])nie[ \t ]/iu.test(clause)) return false;
+  const words = (clause.match(/\p{L}+/gu) ?? []).slice(-3).map((word) => word.toLowerCase());
+  const hit = [...words]
+    .reverse()
+    .find(
+      (word) =>
+        agreementGoverningWord(word) ||
+        tagsAnd(plNounTags(word), PL_ALL_CASES) ||
+        /(?:ł|ła|ło|li|ły)$/u.test(word),
+    );
+  if (hit !== undefined && agreementGoverningWord(hit)) return false;
+  const prev = words.at(-1);
+  return !prev
+    ? true
+    : AGREEMENT_GENITIVE_VERB.test(prev) || /(?:ni|ci)e$/u.test(prev)
+      ? false
+      : !tagsAnd(plNounTags(prev), PL_ALL_CASES);
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GENITIVE_NUMERALS
+export const AGREEMENT_GENITIVE_NUMERALS = {
+  dwa: ["dwóch"],
+  dwie: ["dwóch"],
+  trzy: ["trzech"],
+  cztery: ["czterech"],
+  pięć: ["pięciu"],
+  sześć: ["sześciu"],
+  siedem: ["siedmiu"],
+  osiem: ["ośmiu"],
+  dziewięć: ["dziewięciu"],
+  dziesięć: ["dziesięciu"],
+  jedenaście: ["jedenastu"],
+  dwanaście: ["dwunastu"],
+  piętnaście: ["piętnastu"],
+  dwadzieścia: ["dwudziestu"],
+  trzydzieści: ["trzydziestu"],
+  czterdzieści: ["czterdziestu"],
+  pięćdziesiąt: ["pięćdziesięciu"],
+  sto: ["stu"],
+  dwieście: ["dwustu", "dwuset"],
+  trzysta: ["trzystu"],
+  czterysta: ["czterystu"],
+  pięćset: ["pięciuset"],
+  kilka: ["kilku"],
+  kilkanaście: ["kilkunastu"],
+  kilkadziesiąt: ["kilkudziesięciu"],
+  kilkaset: ["kilkuset"],
+} as Readonly<Record<string, readonly string[]>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GENITIVE_BEFORE
+export const AGREEMENT_GENITIVE_BEFORE =
+  /(?:^|[^\p{L}])(?:około|ok\.|blisko|niespełna|do|od|bez|dla|spośród|wśród|wobec)[ \t ]{1,8}$/iu;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_PREPOSITION_APPROX
+export const AGREEMENT_PREPOSITION_APPROX = new RegExp(
+  `(?:^|[^\\p{L}])(?:${PREPOSITIONS})[ \\t\\u00a0]{1,8}(?:około|ok\\.|blisko|niespełna)[ \\t\\u00a0]{1,8}$`,
+  "iu",
+);
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_TIME_SPAN
+export const AGREEMENT_TIME_SPAN =
+  /^(?:raz|razy|czas|dzień|dni|rok|lata|tydzień|tygodnie|miesiąc|miesiące|chwilę|godzinę|godziny|minutę|minuty|noc|wieczór|weekend|ranek|popołudnie|sobotę|niedzielę|wiosnę|lato|jesień|zimę)$/u;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_TIME_ADJECTIVE
+export const AGREEMENT_TIME_ADJECTIVE = /^(?:cał|każd|ostatni|następn|zeszł|przyszł|poprzedni)/u;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_NEGATED_VERBS
+export const AGREEMENT_NEGATED_VERBS = [
+  ["mam masz mamy macie", "ma mają", "miał", "miel", ""],
+  ["widzę widzisz widzimy widzicie", "widzi widzą", "widział", "widziel", ""],
+  ["lubię lubisz lubimy lubicie", "lubi lubią", "lubił", "lubil", "lub lubcie"],
+  ["znam znasz znamy znacie", "zna znają", "znał", "znal", ""],
+  ["kocham kochasz kochamy kochacie", "kocha kochają", "kochał", "kochal", ""],
+  ["rozumiem rozumiesz rozumiemy rozumiecie", "rozumie rozumieją", "rozumiał", "rozumiel", ""],
+  ["kupię kupisz kupimy kupicie", "kupi kupią", "kupił", "kupil", ""],
+  ["kupuję kupujesz kupujemy kupujecie", "kupuje kupują", "kupował", "kupowal", "kupuj kupujcie"],
+  ["robię robisz robimy robicie", "robi robią", "robił", "robil", "rób róbcie"],
+  ["zrobię zrobisz zrobimy zrobicie", "zrobi zrobią", "zrobił", "zrobil", ""],
+  ["czytam czytasz czytamy czytacie", "czyta czytają", "czytał", "czytal", "czytaj czytajcie"],
+  [
+    "przeczytam przeczytasz przeczytamy przeczytacie",
+    "przeczyta przeczytają",
+    "przeczytał",
+    "przeczytal",
+    "",
+  ],
+  ["jem jesz jemy jecie", "jedzą", "jadł", "jedl", "jedz jedzcie"],
+  ["zjem zjesz zjemy zjecie", "zje zjedzą", "zjadł", "zjedl", ""],
+  ["piję pijesz pijemy pijecie", "pije piją", "pił", "pil", "pij pijcie"],
+  ["wypiję wypijesz wypijemy wypijecie", "wypije wypiją", "wypił", "wypil", ""],
+  ["słyszę słyszysz słyszymy słyszycie", "słyszy słyszą", "słyszał", "słyszel", ""],
+  ["chcę chcesz chcemy chcecie", "chce chcą", "chciał", "chciel", ""],
+  [
+    "oglądam oglądasz oglądamy oglądacie",
+    "ogląda oglądają",
+    "oglądał",
+    "oglądal",
+    "oglądaj oglądajcie",
+  ],
+  ["piszę piszesz piszemy piszecie", "pisze piszą", "pisał", "pisal", "pisz piszcie"],
+  ["napiszę napiszesz napiszemy napiszecie", "napisze napiszą", "napisał", "napisal", ""],
+  ["czuję czujesz czujemy czujecie", "czuje czują", "czuł", "czul", ""],
+  ["pamiętam pamiętasz pamiętamy pamiętacie", "pamięta pamiętają", "pamiętał", "pamiętal", ""],
+  ["dostanę dostaniesz dostaniemy dostaniecie", "dostanie dostaną", "dostał", "dostal", ""],
+  ["znajdę znajdziesz znajdziemy znajdziecie", "znajdzie znajdą", "znalazł", "znaleźl", ""],
+  ["zauważę zauważysz zauważymy zauważycie", "zauważy zauważą", "zauważył", "zauważyl", ""],
+  ["noszę nosisz nosimy nosicie", "nosi noszą", "nosił", "nosil", "noś noście"],
+  ["biorę bierzesz bierzemy bierzecie", "bierze biorą", "brał", "bral", "bierz bierzcie"],
+  ["płacę płacisz płacimy płacicie", "płaci płacą", "płacił", "płacil", "płać płaćcie"],
+  ["odwiedzę odwiedzisz odwiedzimy odwiedzicie", "odwiedzi odwiedzą", "odwiedził", "odwiedzil", ""],
+  ["otworzę otworzysz otworzymy otworzycie", "otworzy otworzą", "otworzył", "otworzyl", ""],
+] as readonly (readonly [string, string, string, string, string])[];
+
+// pl.yaml rule pl.caseAgreement def agreementNegatedEntries
+export function agreementNegatedEntries(row: readonly [string, string, string, string, string]) {
+  return [
+    ...[
+      ...row[0].split(" "),
+      ...row[4].split(" "),
+      ...["em", "eś", "am", "aś", "yśmy", "yście"].map((ending) => row[2] + ending),
+      ...["iśmy", "iście"].map((ending) => row[3] + ending),
+    ]
+      .filter((form) => form !== "")
+      .map((form) => [form, true] as [string, boolean]),
+    ...[...row[1].split(" "), row[2], row[2] + "a", row[2] + "o", row[3] + "i", row[2] + "y"].map(
+      (form) => [form, false] as [string, boolean],
+    ),
+  ];
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_NEGATED_FORMS
+export const AGREEMENT_NEGATED_FORMS = new Map<string, boolean>(
+  AGREEMENT_NEGATED_VERBS.flatMap((row) => agreementNegatedEntries(row)),
+);
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_PARTITIVE_FORMS
+export const AGREEMENT_PARTITIVE_FORMS = new Set(
+  AGREEMENT_NEGATED_VERBS.filter((row) => AGREEMENT_PARTITIVE.has(row[0].split(" ")[0])).flatMap(
+    (row) =>
+      [...AGREEMENT_NEGATED_FORMS.keys()].filter(
+        (form) =>
+          [row[0], row[1], row[4]].some((list) => list.split(" ").includes(form)) ||
+          form.startsWith(row[2]) ||
+          form.startsWith(row[3]),
+      ),
+  ),
+);
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GENITIVE_VERB_FORM
+export const AGREEMENT_GENITIVE_VERB_FORM =
+  /^(?:używ(?:am|asz|a|amy|acie|ają|ał\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\p{L}*|pilnować|wymag(?:am|a|ają|ał\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\p{L}*|ustępować)$/iu;
+
+// pl.yaml rule pl.caseAgreement def agreementNegatedObject
+export function agreementNegatedObject(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  object: string,
+  modifier: string | undefined,
+  end: number,
+  personal: boolean,
+) {
+  if (
+    plUserOrNamed(ctx, object) ||
+    (object !== "czas" && AGREEMENT_TIME_SPAN.test(object)) ||
+    (modifier && AGREEMENT_TIME_ADJECTIVE.test(modifier))
+  )
+    return null;
+  const tags = plNounTags(object);
+  if (!(
+    plOnlyNoun(tags) &&
+    !tagsAnd(tags, AGREEMENT_GENITIVE_CASES) &&
+    tagsAnd(tags, AGREEMENT_ACCUSATIVE) !== 0
+  ))
+    return null;
+  if (!personal && tagsAnd(tags, AGREEMENT_NOMINATIVE)) return null;
+  const forms = agreementRecased(object, AGREEMENT_GENITIVE_CASES);
+  const fixes = forms.length === 1 ? forms : [];
+  const reading = modifier ? plAdjectiveOf(modifier) : null;
+  if (modifier && (plAmbiguousAdjective(modifier) || !plAdjectiveAgrees(reading!.ending, tags)))
+    return null;
+  return modifier
+    ? agreementNegatedPair(ctx, m, modifier, reading!, tags, fixes, end)
+    : {
+        ...plFindingAt(
+          ctx,
+          end - object.length,
+          end,
+          fixes,
+          "polishCaseAgreement",
+          "review_msg_pl_negated_genitive",
+        ),
+        context: { start: m.index, end },
+      };
+}
+
+// pl.yaml rule pl.caseAgreement def agreementNegatedPair
+export function agreementNegatedPair(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  modifier: string,
+  reading: { lemma: string; ending: string },
+  tags: number,
+  fixes: string[],
+  end: number,
+) {
+  const endings = fixes.length
+    ? plAgreeingEndings(
+        tagsOr(
+          tagsWithout(tags, PL_ALL_CASES),
+          tagsAnd(tags, PL_SINGULAR) ? plCases("Gs") : plCases("Gp"),
+        ),
+      )
+    : [];
+  const start = m.indices!.groups!.adj[0];
+  return {
+    ...plFindingAt(
+      ctx,
+      start,
+      end,
+      endings.length === 1
+        ? [plCaseLike(modifier, plAdjectiveForm(reading.lemma, endings[0])) + " " + fixes[0]]
+        : [],
+      "polishCaseAgreement",
+      "review_msg_pl_negated_genitive",
+    ),
+    context: { start: m.index, end },
+  };
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_MASCULINE_DETERMINERS
+export const AGREEMENT_MASCULINE_DETERMINERS = {
+  ten: ["to", "te", "ta"],
+  tamten: ["tamto", "tamte", "tamta"],
+  taki: ["takie", "takie", "taka"],
+  jeden: ["jedno", "jedne", "jedna"],
+  mój: ["moje", "moje", "moja"],
+  twój: ["twoje", "twoje", "twoja"],
+  swój: ["swoje", "swoje", "swoja"],
+  nasz: ["nasze", "nasze", "nasza"],
+  wasz: ["wasze", "wasze", "wasza"],
+  każdy: ["każde", "każde", "każda"],
+  jakiś: ["jakieś", "jakieś", "jakaś"],
+  żaden: ["żadne", "żadne", "żadna"],
+} as Readonly<Record<string, readonly [string, string, string]>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GENDERED
+export const AGREEMENT_GENDERED = {
+  menu: [0, "menu"],
+  tiramisu: [0, "tiramisu"],
+  sushi: [0, "sushi"],
+  salami: [0, "salami"],
+  kakao: [0, "kakao"],
+  musli: [0, "musli"],
+  euro: [0, "euro"],
+  hobby: [0, "hobby"],
+  zoo: [0, "zoo"],
+  graffiti: [0, "graffiti"],
+  alibi: [0, "alibi"],
+  kimono: [0, "kimono"],
+  risotto: [0, "risotto"],
+  espresso: [0, "espresso"],
+  bistro: [0, "bistro"],
+  perfum: [1, "perfumy"],
+  pomarańcz: [2, "pomarańcza"],
+} as Readonly<Record<string, readonly [0 | 1 | 2, string]>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_ADJECTIVE_ENDINGS
+export const AGREEMENT_ADJECTIVE_ENDINGS = ["e", "e", "a"];
+
+// pl.yaml rule pl.caseAgreement def agreementRegendered
+export function agreementRegendered(word: string, index: 0 | 1 | 2) {
+  const lower = word.toLowerCase();
+  const det = AGREEMENT_MASCULINE_DETERMINERS[lower]?.[index];
+  const adj = plAdjectiveOf(lower);
+  return det
+    ? plCaseLike(word, det)
+    : !adj ||
+        adj.ending !== "y" ||
+        plAmbiguousAdjective(lower) ||
+        tagsAnd(plNounTags(lower), PL_ALL_CASES)
+      ? null
+      : plCaseLike(word, plAdjectiveForm(adj.lemma, AGREEMENT_ADJECTIVE_ENDINGS[index]));
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_PARTICIPLE
+export const AGREEMENT_PARTICIPLE = /(?:[aeo]n|[ęyiu]t|art)y$/u;
+
+// pl.yaml rule pl.caseAgreement def agreementBitCount
+export function agreementBitCount(mask: number) {
+  return mask.toString(2).replace(/0/g, "").length;
+}
+
+// pl.yaml rule pl.caseAgreement def agreementOverlap
+export function agreementOverlap(ending: string, typed: string) {
+  return agreementBitCount(tagsAnd(plReadingCases(ending), plReadingCases(typed)));
+}
+
+// pl.yaml rule pl.caseAgreement def agreementPair
+export function agreementPair(adjective: string, noun: string, after: boolean) {
+  return after ? noun + " " + adjective : adjective + " " + noun;
+}
+
+// pl.yaml rule pl.caseAgreement def agreementAdjectiveClash
+export function agreementAdjectiveClash(
+  adjective: string,
+  noun: string,
+  governed: number | undefined,
+  after: boolean,
+) {
+  const adj = plAdjectiveOf(adjective);
+  if (!(adj !== null && !AGREEMENT_PRONOUNS.has(adj.lemma))) return null;
+  if (!(adj.lemma !== "luty")) return null;
+  if (tagsAnd(plNounTags(adjective), PL_ALL_CASES)) return null;
+  const baseTags = plNounTags(noun);
+  if (!plOnlyNoun(baseTags)) return null;
+  if (AGREEMENT_NOMINAL_ADJECTIVES.has(adj.lemma) && tagsAnd(baseTags, plCases("Gs Gp")))
+    return null;
+  if (
+    AGREEMENT_PARTICIPLE.test(adj.lemma) &&
+    !tagsAnd(baseTags, tagsWithout(PL_ALL_CASES, AGREEMENT_INSTRUMENTALS))
+  )
+    return null;
+  const men = plMenOnlyPlural(noun);
+  if (men && adjective === plVirileAdjective(adj.lemma)) return null;
+  const notMen =
+    men &&
+    !after &&
+    governed === undefined &&
+    adj.ending === "e" &&
+    !plAdjectiveAgrees("e", tagsWithout(baseTags, plCases("Np Vp")));
+  if (!notMen && plAmbiguousAdjective(adjective)) return null;
+  if (
+    !(governed !== undefined
+      ? !plAdjectiveAgrees(adj.ending, baseTags) && tagsAnd(baseTags, governed) !== 0
+      : AGREEMENT_PREDICATIVE_ENDINGS.has(adj.ending)
+        ? adj.ending === "ymi" &&
+          tagsAnd(baseTags, plCases("Is")) !== 0 &&
+          !tagsAnd(baseTags, PL_PLURAL)
+        : after
+          ? AGREEMENT_AFTER_ENDINGS.has(adj.ending)
+          : !tagsAnd(baseTags, notMen ? AGREEMENT_NO_LOCATIVE : AGREEMENT_OBLIQUE))
+  )
+    return null;
+  const tags =
+    governed !== undefined
+      ? tagsOr(tagsWithout(baseTags, PL_ALL_CASES), tagsAnd(baseTags, governed))
+      : baseTags;
+  if (!notMen && plAdjectiveAgrees(adj.ending, tags)) return null;
+  return agreementClashFixes(adjective, noun, adj, tags, men, after);
+}
+
+// pl.yaml rule pl.caseAgreement def agreementClashFixes
+export function agreementClashFixes(
+  adjective: string,
+  noun: string,
+  adj: { lemma: string; ending: string },
+  tags: number,
+  men: boolean,
+  after: boolean,
+) {
+  const endings = plAgreeingEndings(tags);
+  const best = Math.max(...endings.map((ending) => agreementOverlap(ending, adj.ending)));
+  const closest = endings.filter((ending) => agreementOverlap(ending, adj.ending) === best);
+  const form =
+    men && closest[0] === "e"
+      ? plVirileAdjective(adj.lemma)
+      : plAdjectiveForm(adj.lemma, closest[0]);
+  const twin = AGREEMENT_TWIN[noun.at(-1)!];
+  const toggled = twin ? noun.slice(0, -1) + twin : "";
+  const twinTags = twin ? plNounTags(toggled) : 0;
+  return [
+    ...new Set([
+      ...(closest.length === 1 && form ? [agreementPair(form, noun, after)] : []),
+      ...(twin && plOnlyNoun(twinTags) && plAdjectiveAgrees(adj.ending, twinTags)
+        ? [agreementPair(adjective, toggled, after)]
+        : []),
+    ]),
+  ];
+}
+
+// pl.yaml rule pl.caseAgreement def agreementWordBefore
+export function agreementWordBefore(text: string, start: number) {
+  return /(\p{L}+)[ \t ]+$/u.exec(text.slice(Math.max(0, start - 40), start))?.[1].toLowerCase();
+}
+
+// pl.yaml rule pl.caseAgreement def agreementClosesPhraseBefore
+export function agreementClosesPhraseBefore(word: string, adjective: string) {
+  const ending = plAdjectiveOf(adjective)!.ending;
+  const tags = plNounTags(word);
+  return (
+    (/(?:ej|ego|emu|ych|ich|ymi|imi|ym|im|ą)$/u.test(adjective) &&
+      word.slice(-2) === adjective.slice(-2)) ||
+    (tagsAnd(tags, PL_ALL_CASES) !== 0 && plAdjectiveAgrees(ending, tags))
+  );
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_COPULA
+export const AGREEMENT_COPULA =
+  /^(?:jest|jestem|jesteś|była|byłam|byłaś|będzie|będę|będziesz|to)$/u;
+
+// pl.yaml rule pl.caseAgreement def agreementRepeatedAfter
+export function agreementRepeatedAfter(text: string, end: number, noun: string) {
+  const next = /^[ \t ]+po[ \t ]+(\p{L}+)/u.exec(text.slice(end))?.[1];
+  if (!(next !== undefined)) return false;
+  const word = noun.toLowerCase();
+  return (
+    word.slice(0, 3) === next.toLowerCase().slice(0, 3) ||
+    plInflect(word, PL_ALL_CASES).includes(next.toLowerCase())
+  );
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_PREDICATE_BEFORE
+export const AGREEMENT_PREDICATE_BEFORE =
+  /(?:^|[^\p{L}])(?:jest|są|był[aoy]?|byli|będzie|będą|zosta(?:ł[aoy]?|li)|się)(?:[ \t ]+(?:bardzo|zbyt|za|dość|dosyć|całkiem|naprawdę|niezwykle|wyjątkowo|tak|coraz|nadal|wciąż|już|raczej))?[ \t ]+$/iu;
+
+// pl.yaml rule pl.caseAgreement def agreementRunOn
+export function agreementRunOn(text: string, start: number, end: number) {
+  if (!AGREEMENT_PREDICATE_BEFORE.test(text.slice(Math.max(0, start - 40), start))) return false;
+  const next = /^[ \t ]+(\p{L}+)/u.exec(text.slice(end))?.[1]?.toLowerCase();
+  return !!next && (plFiniteVerb(next) || plPastByShape(next));
+}
+
+// pl.yaml rule pl.caseAgreement def agreementCopulaClash
+export function agreementCopulaClash(adjective: string, noun: string) {
+  const adj = plAdjectiveOf(adjective);
+  if (!(adj?.ending === "a" && !plAmbiguousAdjective(adjective))) return null;
+  if (!(/(?:[^ia]sk|ck|dzk)i$/u.test(adj.lemma) && !tagsAnd(plNounTags(adjective), PL_ALL_CASES)))
+    return null;
+  const tags = plNounTags(noun);
+  if (!(
+    noun.endsWith("ą") &&
+    plOnlyNoun(tags) &&
+    !tagsAnd(tags, tagsWithout(PL_ALL_CASES, plCases("Is")))
+  ))
+    return null;
+  const twin = noun.slice(0, -1) + "a";
+  const twinTags = plNounTags(twin);
+  if (!(
+    plOnlyNoun(twinTags, true) &&
+    tagsAnd(twinTags, plCases("Ns")) !== 0 &&
+    tagsAnd(twinTags, PL_FEMININE) !== 0
+  ))
+    return null;
+  return [adjective + " " + twin, plAdjectiveForm(adj.lemma, "ą") + " " + noun];
+}
+
+// pl.yaml rule pl.caseAgreement def agreementReport
+export function agreementReport(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  typed: string,
+  fixes: string[],
+) {
+  return plFindingAt(
+    ctx,
+    start,
+    end,
+    fixes.map((fix) => plCaseLike(typed, fix)),
+    "polishCaseAgreement",
+    "review_msg_pl_agreement",
+  );
+}
+
+// pl.yaml rule pl.caseAgreement def agreementAdjectiveLater
+export function agreementAdjectiveLater(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  first: string,
+  second: string,
+  end: number,
+  lower: boolean,
+  previous: string | undefined,
+) {
+  const copulaFixes =
+    lower && AGREEMENT_COPULA.test(previous ?? "") ? agreementCopulaClash(first, second) : null;
+  return copulaFixes
+    ? agreementReport(ctx, m.index, end, first, copulaFixes)
+    : lower && /^[ \t ]*(?:[.,;:!?)…]|$)/u.test(ctx.text.slice(end, end + 3))
+      ? agreementAfterReport(ctx, m, first, second, end)
+      : null;
+}
+
+// pl.yaml rule pl.caseAgreement def agreementAfterReport
+export function agreementAfterReport(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  first: string,
+  second: string,
+  end: number,
+) {
+  const fixes = agreementAdjectiveClash(second, first, undefined, true);
+  if (!(fixes !== null)) return null;
+  return agreementReport(ctx, m.index, end, first, fixes);
+}
+
+// pl.yaml rule pl.caseAgreement def agreementConsideredEnding
+export function agreementConsideredEnding(plural: boolean, tags: number, formTags: number) {
+  return plural
+    ? tagsAnd(formTags, plCases("Gp"))
+      ? "ych"
+      : "e"
+    : tagsAnd(tags, PL_FEMININE)
+      ? "ą"
+      : tagsAnd(tags, PL_NEUTER)
+        ? "e"
+        : tagsAnd(formTags, plCases("Gs"))
+          ? "ego"
+          : "y";
+}
+
+// pl.yaml rule pl.caseAgreement def agreementSmallFrame
+export function agreementSmallFrame(ctx: DetectContext, m: RegExpExecArray, fixed: string | null) {
+  if (!(fixed !== null && fixed !== "" && !plUserOrNamed(ctx, m[0]))) return null;
+  return plFindingAt(
+    ctx,
+    m.index,
+    m.index + m[0].length,
+    [plCaseLike(m[0], fixed)],
+    "polishCaseAgreement",
+    "review_msg_pl_preposition_case",
+  );
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_PLURAL_PRONOUNS
+export const AGREEMENT_PLURAL_PRONOUNS = {
+  tymi: ["tym", "tą"],
+  tamtymi: ["tamtym", "tamtą"],
+  takimi: ["takim", "taką"],
+  jakimi: ["jakim", "jaką"],
+  jakimiś: ["jakimś", "jakąś"],
+  moimi: ["moim", "moją"],
+  twoimi: ["twoim", "twoją"],
+  swoimi: ["swoim", "swoją"],
+  naszymi: ["naszym", "naszą"],
+  waszymi: ["waszym", "waszą"],
+  owymi: ["owym", "ową"],
+  żadnymi: ["żadnym", "żadną"],
+} as Readonly<Record<string, readonly [string, string]>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_O_NAMES
+export const AGREEMENT_O_NAMES = {
+  Bruno: ["Brunona", "Brunonowi", "Brunonem"],
+  Hugo: ["Hugona", "Hugonowi", "Hugonem"],
+  Otto: ["Ottona", "Ottonowi", "Ottonem"],
+  Pablo: ["Pabla", "Pablowi", "Pablem"],
+  Mario: ["Maria", "Mariowi", "Mariem"],
+  Paulo: ["Paula", "Paulowi", "Paulem"],
+  Leonardo: ["Leonarda", "Leonardowi", "Leonardem"],
+  Ricardo: ["Ricarda", "Ricardowi", "Ricardem"],
+  Fernando: ["Fernanda", "Fernandowi", "Fernandem"],
+  Antonio: ["Antonia", "Antoniowi", "Antoniem"],
+  Alfonso: ["Alfonsa", "Alfonsowi", "Alfonsem"],
+  Romano: ["Romana", "Romanowi", "Romanem"],
+  Guido: ["Guida", "Guidowi", "Guidem"],
+  Sergio: ["Sergia", "Sergiowi", "Sergiem"],
+  Claudio: ["Claudia", "Claudiowi", "Claudiem"],
+} as Readonly<Record<string, readonly [string, string, string]>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_RELATIVE_READINGS
+export const AGREEMENT_RELATIVE_READINGS = {
+  który: [[PL_MASCULINE, false]],
+  która: [[PL_FEMININE, false]],
+  które: [
+    [PL_NEUTER, false],
+    [AGREEMENT_GENDERS, true],
+  ],
+  którego: [[tagsOr(PL_MASCULINE, PL_NEUTER), false]],
+  której: [[PL_FEMININE, false]],
+  któremu: [[tagsOr(PL_MASCULINE, PL_NEUTER), false]],
+  którą: [[PL_FEMININE, false]],
+  którym: [
+    [tagsOr(PL_MASCULINE, PL_NEUTER), false],
+    [AGREEMENT_GENDERS, true],
+  ],
+  których: [[AGREEMENT_GENDERS, true]],
+  którymi: [[AGREEMENT_GENDERS, true]],
+  którzy: [[PL_MASCULINE, true]],
+} as Readonly<Record<string, readonly (readonly [number, boolean])[]>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_RELATIVE_FORMS
+export const AGREEMENT_RELATIVE_FORMS = {
+  który: { f: "która", n: "które", p: "które" },
+  która: { m: "który", n: "które", p: "które" },
+  której: { m: "którego", n: "którego", p: "których" },
+  któremu: { f: "której", p: "którym" },
+  którymi: { m: "którym", f: "którą", n: "którym" },
+  którzy: { f: "które", n: "które" },
+} as Readonly<Record<string, Partial<Record<"m" | "f" | "n" | "p", string>>>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_NEUTRAL
+export const AGREEMENT_NEUTRAL = new Set([
+  ...Object.keys(AGREEMENT_GOVERNS),
+  ..."jego jej ich mój moja moje mojego mojej twój twoja twoje swój swoja swoje swojego swojej nasz nasza nasze wasz wasza wasze bardzo już jeszcze też także tylko nawet wczoraj dziś dzisiaj jutro tam tu tutaj się nie".split(
+    " ",
+  ),
+]);
+
+// pl.yaml rule pl.caseAgreement def agreementReadingAgrees
+export function agreementReadingAgrees(tags: number, reading: readonly [number, boolean]) {
+  return (
+    tagsAnd(tags, reading[1] ? PL_PLURAL : PL_SINGULAR) !== 0 &&
+    (!tagsAnd(tags, AGREEMENT_GENDERS) || tagsAnd(tags, reading[0]) !== 0)
+  );
+}
+
+// pl.yaml rule pl.caseAgreement def agreementRelativeQuiet
+export function agreementRelativeQuiet(
+  words: readonly string[],
+  i: number,
+  stop: number,
+  readings: readonly (readonly [number, boolean])[],
+): boolean {
+  return i < stop
+    ? stop > 0 || words.length === 0
+    : agreementRelativeStep(words, i, stop, readings, words[i].toLowerCase());
+}
+
+// pl.yaml rule pl.caseAgreement def agreementRelativeStep
+export function agreementRelativeStep(
+  words: readonly string[],
+  i: number,
+  stop: number,
+  readings: readonly (readonly [number, boolean])[],
+  lower: string,
+): boolean {
+  return plFiniteVerb(lower)
+    ? false
+    : AGREEMENT_NEUTRAL.has(lower)
+      ? agreementRelativeQuiet(words, i - 1, stop, readings)
+      : agreementRelativeWord(words, i, stop, readings, lower, plAdjectiveOf(lower));
+}
+
+// pl.yaml rule pl.caseAgreement def agreementRelativeWord
+export function agreementRelativeWord(
+  words: readonly string[],
+  i: number,
+  stop: number,
+  readings: readonly (readonly [number, boolean])[],
+  lower: string,
+  adjective: { lemma: string; ending: string } | null,
+): boolean {
+  return adjective
+    ? AGREEMENT_PRONOUNS.has(adjective.lemma) ||
+        agreementRelativeQuiet(words, i - 1, stop, readings)
+    : [plNounTags(lower)].some(
+        (tags) =>
+          !tags ||
+          (i > 0 && /^\p{Lu}/u.test(words[i])) ||
+          readings.some((reading) => agreementReadingAgrees(tags, reading)),
+      ) || agreementRelativeQuiet(words, i - 1, stop, readings);
 }
 
 // pl.yaml rule pl.quotes def quotePair
@@ -3290,6 +4389,629 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       "englishPhraseCorrections",
       "review_msg_pl_inflected_name",
     );
+  },
+  // pl.yaml rule pl.caseAgreement frame 1
+  "@pl.caseAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prep = m.groups!.prep;
+    const noun = m.groups!.noun;
+    if (!(/^\p{Ll}+$/u.test(noun) && !plUserOrNamed(ctx, noun))) return null;
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 3);
+    if (
+      noun.length <= 3 &&
+      after.startsWith(".") &&
+      (AGREEMENT_SHORT_ABBREVIATIONS.has(noun.toLowerCase()) ||
+        !/^\.(?:$|\s*\n|\s+\p{Lu})/u.test(after))
+    )
+      return null;
+    if (!/[aeiouyąęó]/u.test(noun)) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
+    const lowerPrep = prep.toLowerCase();
+    if (!agreementPrepositionClash(lowerPrep, noun, before)) return null;
+    const start = m.index + m[0].length - noun.length;
+    const wanted = agreementGovernedBy(lowerPrep, before)!;
+    return {
+      ...plFindingAt(
+        ctx,
+        start,
+        start + noun.length,
+        agreementRecased(
+          noun,
+          /^ze?$/iu.test(prep) ? tagsWithout(wanted, plCases("As Ap")) : wanted,
+        ),
+        "polishCaseAgreement",
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: m.index, end: start + noun.length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 2
+  "@pl.caseAgreement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const between = adj && plAdjectiveOf(adj);
+    const skip =
+      !between ||
+      AGREEMENT_PRONOUNS.has(between.lemma) ||
+      plAmbiguousAdjective(adj) ||
+      tagsAnd(plNounTags(adj), PL_ALL_CASES);
+    const word = adj && skip ? adj : noun;
+    if (!(/^\p{Ll}+$/u.test(word) && !plUserOrNamed(ctx, word))) return null;
+    const fixes = agreementDemonstrativeFix(det.toLowerCase(), plNounTags(word));
+    if (!(fixes.length > 0)) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.index,
+        m.index + det.length,
+        fixes.map((fix) => plCaseLike(det, fix)),
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 3
+  "@pl.caseAgreement/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const noun = m.groups!.noun;
+    if (!(/^\p{Ll}+$/u.test(noun) && !plUserOrNamed(ctx, noun))) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 6), m.index);
+    if (/^\d/.test(num) && /(?:[\d,.:/§–—-]|\p{L}\.|nr|pkt|art|poz)[ \t ]*$/u.test(before))
+      return null;
+    const lower = num.toLowerCase();
+    if (
+      AGREEMENT_GENITIVE_NUMERALS[lower] &&
+      AGREEMENT_GENITIVE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))
+    )
+      return null;
+    const tags = plNounTags(noun);
+    if (!agreementNumeralClash(lower, tags)) return null;
+    const needs = agreementNumeralNeeds(lower)!;
+    const loose = /^\d/.test(num) || lower === "parę";
+    if (
+      loose &&
+      (needs === "Np" || tagsAnd(tags, plCases("Gs"))) &&
+      !agreementFreeCount(ctx.text, m.index)
+    )
+      return null;
+    const start = m.index + m[0].length - noun.length;
+    const forms = plInflect(
+      noun,
+      plCases(needs),
+      needs === "Gp" ? AGREEMENT_NOMINATIVE : plCases("Gp"),
+    );
+    return {
+      ...plFindingAt(
+        ctx,
+        start,
+        start + noun.length,
+        forms.length === 1 ? forms.map((form) => plCaseLike(noun, form)) : [],
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: start + noun.length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 4
+  "@pl.caseAgreement/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const unit = m.groups!.unit;
+    const noun = m.groups!.noun;
+    const before = ctx.text.slice(Math.max(0, m.index - 6), m.index);
+    if (/[\d,.:/§–—-][ \t ]*$/u.test(before) || plUserOrNamed(ctx, noun)) return null;
+    if (!unit && agreementNumeralNeeds(num.toLowerCase()) !== "Gp") return null;
+    const start = m.index + m[0].length - noun.length;
+    return {
+      ...plFindingAt(
+        ctx,
+        start,
+        start + noun.length,
+        [plCaseLike(noun, "złotych")],
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: start + noun.length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 5
+  "@pl.caseAgreement/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    if (!AGREEMENT_GENITIVE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index)))
+      return null;
+    if (AGREEMENT_PREPOSITION_APPROX.test(ctx.text.slice(Math.max(0, m.index - 24), m.index)))
+      return null;
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30);
+    if (/^[ \t ]+(?:do|razy|na|i|lub|albo)(?![\p{L}])/iu.test(after)) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.index,
+        m.index + num.length,
+        AGREEMENT_GENITIVE_NUMERALS[num.toLowerCase()].map((form) => plCaseLike(num, form)),
+        "polishCaseAgreement",
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: Math.max(0, m.index - 12), end: m.index + num.length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 6
+  "@pl.caseAgreement/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const start = m.index + m[0].length - pronoun.length;
+    return {
+      ...plFindingAt(
+        ctx,
+        start,
+        start + pronoun.length,
+        (pronoun.toLowerCase() === "ją" ? ["jej"] : ["ich", "go"]).map((fix) =>
+          plCaseLike(pronoun, fix),
+        ),
+        "polishCaseAgreement",
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: m.index, end: start + pronoun.length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 7
+  "@pl.caseAgreement/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const plural = /(?:ą|li|ły)$/u.test(verb) && tagsAnd(plNounTags(adj ?? ""), plCases("Np"));
+    const swap = !!adj && !plAdjectiveOf(adj) && (!plural || /\p{L}(?:ego|ej|ych)$/u.test(noun));
+    const object = swap ? adj : noun;
+    if (plUserOrNamed(ctx, object)) return null;
+    const modifier = swap ? undefined : adj;
+    if (AGREEMENT_TIME_SPAN.test(object) || (modifier && AGREEMENT_TIME_ADJECTIVE.test(modifier)))
+      return null;
+    const end = swap ? m.indices!.groups!.adj[1] : m.index + m[0].length;
+    const tags = plNounTags(object);
+    if (!(
+      plOnlyNoun(tags) &&
+      !tagsAnd(tags, AGREEMENT_GENITIVE_CASES) &&
+      tagsAnd(tags, AGREEMENT_ACCUSATIVE) !== 0
+    ))
+      return null;
+    const adjective = modifier ? plAdjectiveOf(modifier) : null;
+    if (modifier && (!adjective || !plAdjectiveAgrees(adjective.ending, tags))) return null;
+    const start = modifier ? m.indices!.groups!.adj[0] : end - object.length;
+    const forms = agreementRecased(object, AGREEMENT_GENITIVE_CASES);
+    return {
+      ...plFindingAt(
+        ctx,
+        start,
+        end,
+        forms.length === 1 && modifier
+          ? [
+              plCaseLike(
+                ctx.source.slice(start, end),
+                plAdjectiveForm(
+                  adjective!.lemma,
+                  tagsAnd(tags, PL_SINGULAR) ? (tagsAnd(tags, PL_FEMININE) ? "ej" : "ego") : "ych",
+                ) +
+                  " " +
+                  forms[0],
+              ),
+            ]
+          : forms.length === 1
+            ? forms
+            : [],
+        "polishCaseAgreement",
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: m.index, end },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 8
+  "@pl.caseAgreement/8": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const verb = m.groups!.verb;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const personal = AGREEMENT_NEGATED_FORMS.get(verb.toLowerCase());
+    if (!(personal !== undefined)) return null;
+    const _resumed = frame.resume!(m.index + 3);
+    const modifier = adj && plAdjectiveOf(adj) ? adj : undefined;
+    const object = adj && !modifier ? adj : noun;
+    const end = m.indices!.groups![object === noun ? "noun" : "adj"][1];
+    const pronoun = modifier ? undefined : AGREEMENT_OBJECT_PRONOUNS[object.toLowerCase()];
+    return pronoun
+      ? {
+          ...plFindingAt(
+            ctx,
+            end - object.length,
+            end,
+            [plCaseLike(object, pronoun)],
+            "polishCaseAgreement",
+            "review_msg_pl_negated_genitive",
+          ),
+          context: { start: m.index, end },
+        }
+      : agreementNegatedObject(ctx, m, object, modifier, end, personal);
+  },
+  // pl.yaml rule pl.caseAgreement frame 9
+  "@pl.caseAgreement/9": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const nie = m.groups!.nie;
+    const verb = m.groups!.verb;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const _resumed = frame.resume!(m.indices!.groups!.verb[1]);
+    const lower = verb.toLowerCase();
+    const accusative = AGREEMENT_NEGATED_FORMS.has(lower) && lower !== "lub";
+    const genitive = AGREEMENT_GENITIVE_VERB_FORM.test(lower) || (accusative && !!nie);
+    if (!(accusative || genitive)) return null;
+    const reading = plAdjectiveOf(adj);
+    if (!(
+      reading !== null &&
+      !AGREEMENT_PRONOUNS.has(reading.lemma) &&
+      !AGREEMENT_GENITIVE_ADJECTIVES.has(reading.lemma)
+    ))
+      return null;
+    if (
+      reading.lemma === "luty" ||
+      plAmbiguousAdjective(adj) ||
+      tagsAnd(plNounTags(adj), PL_ALL_CASES)
+    )
+      return null;
+    const tags = plNounTags(noun);
+    if (!(
+      plOnlyNoun(tags) &&
+      tagsAnd(tags, AGREEMENT_GENITIVE_CASES) !== 0 &&
+      !tagsAnd(tags, tagsWithout(PL_ALL_CASES, plCases("Gs Gp Ap")))
+    ))
+      return null;
+    const own = tagsWithout(tags, plCases("Ap"));
+    if (plAdjectiveAgrees(reading.ending, own) || plUserOrNamed(ctx, adj + " " + noun)) return null;
+    const endings = plAgreeingEndings(own);
+    const adjectiveFix =
+      endings.length === 1 ? [plAdjectiveForm(reading.lemma, endings[0]) + " " + noun] : [];
+    const nounForms = plInflect(noun, AGREEMENT_ACCUSATIVE, AGREEMENT_GENITIVE_CASES).filter(
+      (form) =>
+        plAdjectiveAgrees(
+          reading.ending,
+          tagsOr(
+            tagsWithout(plNounTags(form), PL_ALL_CASES),
+            tagsAnd(plNounTags(form), AGREEMENT_ACCUSATIVE),
+          ),
+        ),
+    );
+    const nounFix = nounForms.length === 1 ? [adj + " " + nounForms[0]] : [];
+    const fixes = genitive
+      ? adjectiveFix
+      : AGREEMENT_PARTITIVE_FORMS.has(lower)
+        ? [...nounFix, ...adjectiveFix]
+        : nounFix.length || nounForms.length || !tagsAnd(tags, PL_VIRILE)
+          ? nounFix
+          : adjectiveFix;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.adj[0],
+        m.indices!.groups!.noun[1],
+        fixes,
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: m.indices!.groups!.noun[1] },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 10
+  "@pl.caseAgreement/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const mod = m.groups!.mod;
+    const noun = m.groups!.noun;
+    const gendered = AGREEMENT_GENDERED[noun.toLowerCase()];
+    const fixedMod = agreementRegendered(mod, gendered[0]);
+    if (!(fixedMod !== null && !plUserOrNamed(ctx, mod + " " + noun))) return null;
+    const fixedFirst = first ? agreementRegendered(first, gendered[0]) : null;
+    const groups = m.indices!.groups!;
+    const start = fixedFirst ? groups.first[0] : groups.mod[0];
+    const end = groups.noun[1];
+    const fixed =
+      (fixedFirst ? fixedFirst + ctx.source.slice(groups.first[1], groups.mod[0]) : "") +
+      fixedMod +
+      ctx.source.slice(groups.mod[1], groups.noun[0]) +
+      plCaseLike(noun, gendered[1]);
+    if (!(fixed !== ctx.source.slice(start, end))) return null;
+    return plFindingAt(ctx, start, end, [fixed], "polishCaseAgreement", "review_msg_pl_agreement");
+  },
+  // pl.yaml rule pl.caseAgreement frame 11
+  "@pl.caseAgreement/11": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    const _resumed = frame.resume!(m.index + first.length);
+    const hasAdjective = plAdjectiveOf(first.toLowerCase()) || plAdjectiveOf(second);
+    if (!hasAdjective) return null;
+    if (plUserOrNamed(ctx, first) || plUserOrNamed(ctx, second)) return null;
+    if (AGREEMENT_GENDERED[second.toLowerCase()]) return null;
+    const end = m.index + m[0].length;
+    const lower = /^\p{Ll}+$/u.test(first);
+    if (!(lower || (/^\p{Lu}\p{Ll}+$/u.test(first) && plSentenceStart(ctx.text, m.index))))
+      return null;
+    const previous = agreementWordBefore(ctx.text, m.index);
+    const governed =
+      previous === undefined
+        ? undefined
+        : agreementGovernedBy(
+            previous,
+            ctx.text.slice(Math.max(0, m.index - 24), m.index).replace(/\p{L}+[ \t ]+$/u, ""),
+          );
+    const adjectiveFirst = agreementAdjectiveClash(first.toLowerCase(), second, governed, false);
+    return adjectiveFirst &&
+      (governed !== undefined ||
+        !previous ||
+        !agreementClosesPhraseBefore(previous, first.toLowerCase())) &&
+      !agreementRunOn(ctx.text, m.index, end) &&
+      !agreementRepeatedAfter(ctx.text, end, second)
+      ? agreementReport(ctx, m.index, end, first, adjectiveFirst)
+      : agreementAdjectiveLater(ctx, m, first, second, end, lower, previous);
+  },
+  // pl.yaml rule pl.caseAgreement frame 12
+  "@pl.caseAgreement/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const phrase = m.groups!.phrase;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    if (plUserOrNamed(ctx, phrase)) return null;
+    const tags = plNounTags(noun);
+    if (!(
+      plOnlyNoun(tags) &&
+      tagsAnd(tags, AGREEMENT_INSTRUMENTALS) !== 0 &&
+      !tagsAnd(tags, tagsWithout(PL_ALL_CASES, AGREEMENT_INSTRUMENTALS))
+    ))
+      return null;
+    const adjective = adj ? plAdjectiveOf(adj) : null;
+    if (adj && (!adjective || !/^(?:ym|ą|ymi)$/u.test(adjective.ending))) return null;
+    const plural = tagsAnd(tags, plCases("Ip")) !== 0;
+    const fixes = plInflect(noun, plCases(plural ? "Ap" : "As")).map((form) =>
+      !adjective
+        ? "za " + form
+        : "za " +
+          plAdjectiveForm(
+            adjective.lemma,
+            agreementConsideredEnding(plural, tags, plNounTags(form)),
+          ) +
+          " " +
+          form,
+    );
+    if (!(fixes.length > 0 && fixes.length <= 2)) return null;
+    const start = m.index + m[0].length - phrase.length;
+    return {
+      ...plFindingAt(
+        ctx,
+        start,
+        start + phrase.length,
+        fixes,
+        "polishCaseAgreement",
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: m.index, end: start + phrase.length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 13
+  "@pl.caseAgreement/13": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [plCaseLike(m[0], "za")],
+      "polishCaseAgreement",
+      "review_msg_pl_preposition_case",
+    );
+  },
+  // pl.yaml rule pl.caseAgreement frame 14
+  "@pl.caseAgreement/14": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const rel = m.groups!.rel;
+    const readings = AGREEMENT_RELATIVE_READINGS[rel];
+    const end = m.index + m[0].length;
+    if (/^[ \t ]+ze?[ \t ]/u.test(ctx.text.slice(end, end + 5))) return null;
+    const last = plNounTags(noun);
+    if (!plOnlyNoun(last) || noun === "państwo" || plUserOrNamed(ctx, noun)) return null;
+    const clause = ctx.text
+      .slice(Math.max(0, m.index - 120), m.index + noun.length)
+      .split(/[,.;:!?()\n„”"—–]/u)
+      .at(-1)!;
+    const words = clause.match(/\p{L}+/gu) ?? [];
+    if (agreementRelativeQuiet(words, words.length - 1, Math.max(0, words.length - 8), readings))
+      return null;
+    const genders = [PL_MASCULINE, PL_FEMININE, PL_NEUTER].filter((gender) =>
+      tagsAnd(last, gender),
+    );
+    const key = !tagsAnd(last, PL_SINGULAR)
+      ? "p"
+      : genders.length !== 1
+        ? undefined
+        : genders[0] === PL_MASCULINE
+          ? "m"
+          : genders[0] === PL_FEMININE
+            ? "f"
+            : "n";
+    const fix = key ? AGREEMENT_RELATIVE_FORMS[rel]?.[key] : undefined;
+    const start = m.indices!.groups!.rel[0];
+    return {
+      ...plFindingAt(
+        ctx,
+        start,
+        start + rel.length,
+        fix ? [plCaseLike(rel, fix)] : [],
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: start + rel.length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 15
+  "@pl.caseAgreement/15": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const name = m.groups!.name;
+    const ending = m.groups!.ending;
+    const forms = AGREEMENT_O_NAMES[name];
+    const before = agreementWordBefore(ctx.text, m.index);
+    if (!(
+      ending === "owi" ||
+      ending === "em" ||
+      (!!before &&
+        (plOnlyNoun(plNounTags(before)) || AGREEMENT_GOVERNED[before] === plCases("Gs Gp")))
+    ))
+      return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.index,
+        m.index + name.length,
+        [ending === "owi" ? forms[1] : ending === "em" ? forms[2] : forms[0]],
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 16
+  "@pl.caseAgreement/16": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return agreementSmallFrame(ctx, m, AGREEMENT_PRONOUN_GENITIVE[m[0].toLowerCase()] ?? null);
+  },
+  // pl.yaml rule pl.caseAgreement frame 17
+  "@pl.caseAgreement/17": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const tags = plNounTags(noun);
+    return agreementSmallFrame(
+      ctx,
+      m,
+      !plOnlyNoun(tags) || !tagsAnd(tags, plCases("Ls Lp"))
+        ? null
+        : tagsAnd(tags, plCases("Lp"))
+          ? m[0] + "ch"
+          : tagsAnd(tags, PL_FEMININE)
+            ? m[0].slice(0, -1) + "jej"
+            : m[0] + "m",
+    );
+  },
+  // pl.yaml rule pl.caseAgreement frame 18
+  "@pl.caseAgreement/18": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return agreementSmallFrame(ctx, m, m[0].slice(0, -4) + "u");
+  },
+  // pl.yaml rule pl.caseAgreement frame 19
+  "@pl.caseAgreement/19": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return agreementSmallFrame(ctx, m, m[0].slice(0, -1) + "ę");
+  },
+  // pl.yaml rule pl.caseAgreement frame 20
+  "@pl.caseAgreement/20": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const noun = m.groups!.noun;
+    const tags = plNounTags(noun);
+    if (!plOnlyNoun(tags) || !tagsAnd(tags, plCases("Gs")) || plUserOrNamed(ctx, noun)) return null;
+    const gender = tagsAnd(tags, AGREEMENT_GENDERS);
+    const wanted =
+      gender === PL_FEMININE
+        ? "półtorej"
+        : tagsAnd(gender, PL_FEMININE) || !gender
+          ? ""
+          : "półtora";
+    if (!wanted || wanted === num.toLowerCase()) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.index,
+        m.index + num.length,
+        [plCaseLike(num, wanted)],
+        "polishCaseAgreement",
+        "review_msg_pl_numeral_noun",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 21
+  "@pl.caseAgreement/21": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const tags = plNounTags(noun);
+    if (!plOnlyNoun(tags) || !tagsAnd(tags, PL_VIRILE) || plUserOrNamed(ctx, noun)) return null;
+    const forms = plInflect(noun, plCases("Gp"), plCases("Np"));
+    const words = m[0].toLowerCase().split(/[ \t ]+/u);
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      forms.length === 1
+        ? [
+            plCaseLike(
+              m[0],
+              AGREEMENT_TENS[words[0]] + " " + AGREEMENT_MEN_UNITS[words[1]] + " " + forms[0],
+            ),
+          ]
+        : [],
+      "polishCaseAgreement",
+      "review_msg_pl_numeral_noun",
+    );
+  },
+  // pl.yaml rule pl.caseAgreement frame 22
+  "@pl.caseAgreement/22": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const tags = plNounTags(noun);
+    if (!(
+      plOnlyNoun(tags) &&
+      tagsAnd(tags, plCases("Gp")) !== 0 &&
+      !tagsAnd(tags, plCases("Ns Np"))
+    ))
+      return null;
+    if (plUserOrNamed(ctx, noun)) return null;
+    const clause =
+      (
+        ctx.text
+          .slice(Math.max(0, m.index - 60), m.index)
+          .split(/[.!?;:,—–()]/u)
+          .at(-1) ?? ""
+      ).match(/\p{L}+/gu) ?? [];
+    if (
+      !clause
+        .slice(-3)
+        .some((word) =>
+          [plNounTags(word.toLowerCase())].some(
+            (own) =>
+              plOnlyNoun(own) && !tagsAnd(own, tagsWithout(PL_ALL_CASES, AGREEMENT_INSTRUMENTALS)),
+          ),
+        )
+    )
+      return null;
+    const allForms = plInflect(noun, plCases("Np"), plCases("Gp"));
+    const men = allForms.filter((form) => plMenOnlyPlural(form));
+    const forms = allForms.length > 1 && men.length ? men : allForms;
+    if (!(forms.length > 0 && forms.length <= 2)) return null;
+    return plFindingAt(
+      ctx,
+      m.indices!.groups!.noun[0],
+      m.indices!.groups!.noun[1],
+      forms.map((form) => plCaseLike(noun, form)),
+      "polishCaseAgreement",
+      "review_msg_pl_agreement",
+    );
+  },
+  // pl.yaml rule pl.caseAgreement frame 23
+  "@pl.caseAgreement/23": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const noun = m.groups!.noun;
+    const tags = plNounTags(noun);
+    if (
+      !plOnlyNoun(tags) ||
+      tagsAnd(tags, tagsWithout(PL_ALL_CASES, plCases("Is"))) ||
+      plUserOrNamed(ctx, noun)
+    )
+      return null;
+    const feminine = tagsAnd(tags, PL_FEMININE) !== 0;
+    if (!(feminine !== (tagsAnd(tags, tagsOr(PL_MASCULINE, PL_NEUTER)) !== 0))) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.index,
+        m.index + pronoun.length,
+        [plCaseLike(pronoun, AGREEMENT_PLURAL_PRONOUNS[pronoun.toLowerCase()][feminine ? 1 : 0])],
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
   },
   // pl.yaml rule pl.quotes frame 1
   "@pl.quotes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

@@ -1745,132 +1745,1130 @@ rules:
     checks: [polishCaseAgreement]
     style: match
     message: review_msg_pl_agreement
+    maps:
+      # The cases each preposition governs (L locative, V for the vocative after "o").
+      AGREEMENT_GOVERNS:
+        {
+          bez: G,
+          beze: G,
+          dla: G,
+          do: G,
+          od: G,
+          ode: G,
+          u: G,
+          z: GIA,
+          ze: GIA,
+          spod: G,
+          znad: G,
+          zza: G,
+          sprzed: G,
+          spomiędzy: G,
+          spośród: G,
+          wśród: G,
+          obok: G,
+          podczas: G,
+          według: G,
+          zamiast: G,
+          oprócz: G,
+          prócz: G,
+          wobec: G,
+          wokół: G,
+          dookoła: G,
+          wzdłuż: G,
+          dzięki: D,
+          ku: D,
+          przeciw: D,
+          przeciwko: D,
+          wbrew: D,
+          w: LA,
+          we: LA,
+          na: LA,
+          o: LAV,
+          po: LA,
+          przy: L,
+          przez: A,
+          przeze: A,
+          poprzez: A,
+          przed: IA,
+          przede: IA,
+          za: IAG,
+          nad: IA,
+          nade: IA,
+          pod: IA,
+          pode: IA,
+          między: IA,
+          pomiędzy: IA,
+          poza: AI,
+        }
+      AGREEMENT_OBJECT_PRONOUNS: { ją: jej, je: ich }
+      AGREEMENT_PRONOUN_GENITIVE: { niemu: niego, nim: niego, nią: niej, nimi: nich }
+      AGREEMENT_TENS:
+        {
+          dwadzieścia: dwudziestu,
+          trzydzieści: trzydziestu,
+          czterdzieści: czterdziestu,
+          pięćdziesiąt: pięćdziesięciu,
+          sześćdziesiąt: sześćdziesięciu,
+          siedemdziesiąt: siedemdziesięciu,
+          osiemdziesiąt: osiemdziesięciu,
+          dziewięćdziesiąt: dziewięćdziesięciu,
+        }
+      AGREEMENT_MEN_UNITS: { dwaj: dwóch, trzej: trzech, czterej: czterech }
+      # a <-> ą, e <-> ę: the diacritic typed or dropped.
+      AGREEMENT_TWIN: { a: ą, ą: a, e: ę, ę: e }
+    sets:
+      # Prepositions that also stand alone as adverbs ("Obok stoi dom"): a nominative after them is
+      # a subject.
+      AGREEMENT_ADVERBIAL: [obok, wokół, dookoła, wzdłuż, przeciw, przeciwko]
+      # Idioms that keep an old accusative: "wyjść za mąż", "za pan brat", "Na koń!".
+      AGREEMENT_OLD_ACCUSATIVES: [za mąż, za pan, na koń]
+      # Short abbreviations a preposition takes ("w ust. 2", "przy ul. Długiej").
+      AGREEMENT_SHORT_ABBREVIATIONS:
+        [
+          ust,
+          lit,
+          ok,
+          ul,
+          al,
+          pl,
+          os,
+          ds,
+          cz,
+          ww,
+          ub,
+          dz,
+          br,
+          wł,
+          zw,
+          ob,
+          dn,
+          im,
+          jw,
+          św,
+          ks,
+          gen,
+          por,
+          kpr,
+          hm,
+          pkt,
+          art,
+          rys,
+          tab,
+          poz,
+          str,
+        ]
+      # Numerals from five up (and "kilka"), which take the genitive plural in the nominative.
+      AGREEMENT_FIVE_UP:
+        [
+          pięć,
+          sześć,
+          siedem,
+          osiem,
+          dziewięć,
+          dziesięć,
+          jedenaście,
+          dwanaście,
+          trzynaście,
+          czternaście,
+          piętnaście,
+          szesnaście,
+          siedemnaście,
+          osiemnaście,
+          dziewiętnaście,
+          dwadzieścia,
+          trzydzieści,
+          czterdzieści,
+          pięćdziesiąt,
+          sześćdziesiąt,
+          siedemdziesiąt,
+          osiemdziesiąt,
+          dziewięćdziesiąt,
+          sto,
+          dwieście,
+          trzysta,
+          czterysta,
+          pięćset,
+          sześćset,
+          siedemset,
+          osiemset,
+          dziewięćset,
+          kilka,
+          kilkanaście,
+          kilkadziesiąt,
+          kilkaset,
+          parę,
+        ]
+      # Nouns of number that count in the genitive plural ("tysiące ludzi", "setki listów").
+      AGREEMENT_COUNT_NOUNS:
+        [
+          dziesiątki,
+          setki,
+          tysiące,
+          miliony,
+          miliardy,
+          dziesiątek,
+          setek,
+          tysięcy,
+          milionów,
+          miliardów,
+        ]
+      # "dwa", "trzy", "cztery" (alone or ending "dwadzieścia trzy"): the nominative plural.
+      AGREEMENT_TWO_TO_FOUR: [dwa, dwie, trzy, cztery, oba, obie]
+      # The verbs of AGREEMENT_NEGATED_VERBS whose object may also stand in the partitive genitive
+      # ("kupię chleba").
+      AGREEMENT_PARTITIVE: [kupię, kupuję, jem, zjem, piję, wypiję, biorę, dostanę, chcę]
+      # Adjectives that govern the genitive themselves ("pełne wody", "pozbawiony wad", "warte uwagi").
+      AGREEMENT_GENITIVE_ADJECTIVES:
+        [
+          pełny,
+          pozbawiony,
+          warty,
+          godny,
+          niegodny,
+          świadomy,
+          nieświadomy,
+          pewny,
+          ciekawy,
+          żądny,
+          spragniony,
+          głodny,
+          syty,
+          winny,
+          bliski,
+          chciwy,
+        ]
+      # Pronouns that inflect like adjectives but stand alone ("o którym mowa", "temu klient").
+      AGREEMENT_PRONOUNS:
+        [
+          ty,
+          który,
+          jaki,
+          taki,
+          ten,
+          tamten,
+          ów,
+          czyj,
+          każdy,
+          żaden,
+          wszystek,
+          sam,
+          jakiś,
+          mój,
+          twój,
+          swój,
+          nasz,
+          wasz,
+          niektóry,
+          inny,
+        ]
+      # Adjectives often used as nouns, with a genitive of their own after them ("dla podopiecznych
+      # trenera", "do znajomych męża", "dla pochodnej funkcji"): such a pair is no clash.
+      AGREEMENT_NOMINAL_ADJECTIVES:
+        [
+          podopieczny,
+          znajomy,
+          bliski,
+          najbliższy,
+          krewny,
+          dorosły,
+          pełnoletni,
+          niepełnoletni,
+          nieletni,
+          małoletni,
+          chory,
+          bezrobotny,
+          niepełnosprawny,
+          poszkodowany,
+          pokrzywdzony,
+          ranny,
+          zmarły,
+          oskarżony,
+          podejrzany,
+          zatrzymany,
+          skazany,
+          przełożony,
+          podwładny,
+          narzeczony,
+          uczony,
+          wierny,
+          zainteresowany,
+          uprawniony,
+          ubezpieczony,
+          dyżurny,
+          śledczy,
+          mundurowy,
+          podróżny,
+          pieszy,
+          święty,
+          bliźni,
+          dany,
+          średni,
+          pochodny,
+          styczny,
+          wypadkowy,
+        ]
+      # The instrumental also predicates ("uczynić łatwiejszym życie"), so it is not checked.
+      AGREEMENT_PREDICATIVE_ENDINGS: [ym, ymi]
+      # The only ending an adjective after its noun has just by agreeing with it: a nominative may
+      # describe the subject ("wrócił do domu zmęczony"), and a genitive or dative may be a noun
+      # itself ("ustąp miejsca starszemu", "algorytm obliczania średniej").
+      AGREEMENT_AFTER_ENDINGS: [ą]
+    defs:
+      AGREEMENT_GOVERNED: >-
+        Object.fromEntries(Object.entries(AGREEMENT_GOVERNS).map(([prep, letters]) => [prep,
+        [...letters].reduce((mask, letter) => tagsOr(mask, plCases(letter + "s " + letter + "p")), 0)])) as
+        Readonly<Record<string, number | undefined>>
+      AGREEMENT_NOMINATIVE: plCases("Ns Np")
+      AGREEMENT_GENITIVE_CASES: plCases("Gs Gp")
+      AGREEMENT_ACCUSATIVE: plCases("As Ap")
+      AGREEMENT_INSTRUMENTALS: plCases("Is Ip")
+      # Cases an adjective can govern ("pełna wody", "zajęta pracą"): such a noun may not be its own.
+      AGREEMENT_OBLIQUE: plCases("Gs Ds Is Ls Gp Dp Ip Lp")
+      AGREEMENT_NO_LOCATIVE: plCases("Gs Ds Is Gp Dp Ip")
+      AGREEMENT_GENDERS: tagsOr(PL_MASCULINE, PL_FEMININE, PL_NEUTER)
+      # The cases `prep` governs where it stands (`before` is the text before it): "wraz z psem",
+      # "razem z nim" take the instrumental only.
+      agreementGovernedBy:
+        args: "prep: string, before: string"
+        return: '(prep === "z" || prep === "ze") && /(?:^|[^\p{L}])(?:wraz|razem)[ \t ]+$/iu.test(before) ? plCases("Is Ip") : AGREEMENT_GOVERNED[prep]'
+      # The noun after `prep` carries none of the cases it governs.
+      agreementPrepositionClash:
+        args: "prep: string, noun: string, before: string"
+        let:
+          governed: agreementGovernedBy(prep, before)
+          tags: plNounTags(noun)
+        when:
+          - '!AGREEMENT_OLD_ACCUSATIVES.has(prep + " " + noun.toLowerCase())'
+          - governed !== undefined && plOnlyNoun(tags, true) && !tagsAnd(tags, governed)
+        return: "!(AGREEMENT_ADVERBIAL.has(prep) && tagsAnd(tags, AGREEMENT_NOMINATIVE))"
+        else: "false"
+      # The noun's forms in the `wanted` cases and its own number ("sklepie" -> "sklepem", "sklep"
+      # before "przed"); none when more than two would fit.
+      agreementRecased:
+        args: "noun: string, wanted: number"
+        let:
+          tags: plNounTags(noun)
+          forms: "plInflect(noun, tagsAnd(wanted, tagsAnd(tags, PL_SINGULAR) ? PL_SINGULAR : PL_PLURAL))"
+        return: "forms.length <= 2 ? forms.map((form) => plCaseLike(noun, form)) : []"
+      # A demonstrative's forms by what they agree with: gender (or plural), cases.
+      AGREEMENT_DEMONSTRATIVES: >-
+        ({ ten: [[PL_MASCULINE, plCases("Ns As")]], ta: [[PL_FEMININE, plCases("Ns")]], tę: [[PL_FEMININE, plCases("As")]],
+        tą: [[PL_FEMININE, plCases("Is")]], to: [[PL_NEUTER, plCases("Ns As")]], te: [[0, plCases("Np Ap")]],
+        jeden: [[PL_MASCULINE, plCases("Ns As")]], jedna: [[PL_FEMININE, plCases("Ns")]],
+        jedną: [[PL_FEMININE, plCases("As Is")]], jedno: [[PL_NEUTER, plCases("Ns As")]],
+        jedne: [[0, plCases("Np Ap")]] }) as Readonly<Record<string, readonly (readonly [number, number])[]>>
+      AGREEMENT_FAMILY_TEN: '["ten", "ta", "tę", "tą", "to", "te"]'
+      AGREEMENT_FAMILY_JEDEN: '["jeden", "jedna", "jedną", "jedno", "jedne"]'
+      agreementDemonstrativeAgrees:
+        args: "form: string, tags: number"
+        return: "AGREEMENT_DEMONSTRATIVES[form].some(([gender, wanted]) => tagsAnd(tags, wanted) !== 0 && (gender === 0 || tagsAnd(tags, gender) !== 0))"
+      # The demonstratives of `det`'s family that agree with `tags` (none when `det` does). Only a
+      # noun of a single gender: "te rzeczywistość" is "ta" or "tę", never "ten".
+      agreementDemonstrativeFix:
+        args: "det: string, tags: number"
+        let:
+          fits: '(det.startsWith("jed") ? AGREEMENT_FAMILY_JEDEN : AGREEMENT_FAMILY_TEN).filter((form) => form !== det && agreementDemonstrativeAgrees(form, tags))'
+        when:
+          - "!(!AGREEMENT_DEMONSTRATIVES[det] || !plOnlyNoun(tags) || agreementDemonstrativeAgrees(det, tags))"
+          - "[PL_MASCULINE, PL_FEMININE, PL_NEUTER].filter((g) => tagsAnd(tags, g)).length === 1"
+        return: "fits.length <= 2 ? fits : []"
+        else: "[]"
+      # What a number asks of its noun: the genitive plural (5-21), the nominative (2-4) or nothing.
+      agreementNumeralNeeds:
+        args: "num: string"
+        let:
+          n: Number(num)
+        return: >-
+          AGREEMENT_TWO_TO_FOUR.has(num) ? "Np"
+          : AGREEMENT_FIVE_UP.has(num) || AGREEMENT_COUNT_NOUNS.has(num) ? "Gp"
+          : !/^\d{1,3}$/.test(num) ? null
+          : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "Np"
+          : n >= 5 ? "Gp" : null
+      # "pięć pliki", "kilka godzina", "15 baloniki", "98 osoby", "23 osób", "trzy godzin". A
+      # genitive plural only where the nominative goes, of a feminine or neuter noun: "dwa procent"
+      # and men ("24 policjantów", "trzech studentów") are left alone. Digits: a plural noun only
+      # ("15 baloniki"), since a year or a house number may come before a subject ("w 2010 papież").
+      agreementNumeralClash:
+        args: "num: string, tags: number"
+        let:
+          needs: agreementNumeralNeeds(num)
+        when: needs !== null && plOnlyNoun(tags)
+        return: >-
+          needs === "Np" ? !tagsAnd(tags, tagsOr(AGREEMENT_NOMINATIVE, PL_MASCULINE)) && tagsAnd(tags, plCases("Gp")) !== 0
+          : tagsAnd(tags, plCases("Gp")) || !tagsAnd(tags, AGREEMENT_NOMINATIVE) ? false
+          : !/^\d/.test(num) || !tagsAnd(tags, plCases("Ns"))
+        else: "false"
+      # Words before a number that put it in the genitive ("od 3 lat", "około 3 lat", "brak").
+      AGREEMENT_GOVERNING: 'new RegExp(`^(?:${Object.keys(AGREEMENT_GOVERNS).join("|")}|około|ponad|powyżej|poniżej|blisko|niespełna|koło|naprzeciw|kosztem|brak|braku|wiele|ile|tyle)$`, "iu")'
+      # Verbs whose object stands in the genitive ("dotyczy 3 osób", "brakuje 2 głosów").
+      AGREEMENT_GENITIVE_VERB: /^(?:dotycz|potrzeb|wymag|szuk|używ|unik|brak|zabrak|żąd|udziel|życz|nabr|nabier|ubył|przybył|naucz|słuch|pilnow|pilnuj|trzeba|starcz|wystarcz)/iu
+      agreementGoverningWord:
+        args: "word: string"
+        return: AGREEMENT_GOVERNING.test(word) || /(?:ch|ego|ej)$/u.test(word)
+      # A count stands free here: no preposition, noun, genitive adjective ("ostatnich"), verb
+      # taking the genitive or negation before it, so the noun's case is the number's own. "z
+      # posiadanych obecnie 43 miejsc": a preposition or genitive a few words back, unless a noun or
+      # a verb stands between ("na przystanku czekało 37 osób"). A noun or verbal noun governs it
+      # ("grupa 3 osób", "sprywatyzowanie 2 tysięcy").
+      agreementFreeCount:
+        args: "text: string, at: number"
+        let:
+          before: text.slice(Math.max(0, at - 48), at)
+          clause: 'before.split(/[,;:.!?()„”"–—]/u).pop()!'
+          words: '(clause.match(/\p{L}+/gu) ?? []).slice(-3).map((word) => word.toLowerCase())'
+          hit: >-
+            [...words].reverse().find((word) => agreementGoverningWord(word) ||
+            tagsAnd(plNounTags(word), PL_ALL_CASES) || /(?:ł|ła|ło|li|ły)$/u.test(word))
+          prev: words.at(-1)
+        when:
+          - '!/(?:^|[^\p{L}])nie[ \t ]/iu.test(clause)'
+          - "!(hit !== undefined && agreementGoverningWord(hit))"
+        return: >-
+          !prev ? true : AGREEMENT_GENITIVE_VERB.test(prev) || /(?:ni|ci)e$/u.test(prev) ? false
+          : !tagsAnd(plNounTags(prev), PL_ALL_CASES)
+        else: "false"
+      # A cardinal's genitive ("dwieście" -> "dwustu", also "dwuset").
+      AGREEMENT_GENITIVE_NUMERALS: >-
+        ({ dwa: ["dwóch"], dwie: ["dwóch"], trzy: ["trzech"], cztery: ["czterech"], pięć: ["pięciu"], sześć: ["sześciu"],
+        siedem: ["siedmiu"], osiem: ["ośmiu"], dziewięć: ["dziewięciu"], dziesięć: ["dziesięciu"],
+        jedenaście: ["jedenastu"], dwanaście: ["dwunastu"], piętnaście: ["piętnastu"], dwadzieścia: ["dwudziestu"],
+        trzydzieści: ["trzydziestu"], czterdzieści: ["czterdziestu"], pięćdziesiąt: ["pięćdziesięciu"], sto: ["stu"],
+        dwieście: ["dwustu", "dwuset"], trzysta: ["trzystu"], czterysta: ["czterystu"], pięćset: ["pięciuset"],
+        kilka: ["kilku"], kilkanaście: ["kilkunastu"], kilkadziesiąt: ["kilkudziesięciu"], kilkaset: ["kilkuset"] }) as
+        Readonly<Record<string, readonly string[]>>
+      # Words after which a count stands in the genitive: "około pięciu", "do trzech", "bez dwóch".
+      AGREEMENT_GENITIVE_BEFORE: '/(?:^|[^\p{L}])(?:około|ok\.|blisko|niespełna|do|od|bez|dla|spośród|wśród|wobec)[ \t ]{1,8}$/iu'
+      AGREEMENT_PREPOSITION_APPROX: 'new RegExp(`(?:^|[^\\p{L}])(?:${PREPOSITIONS})[ \\t\\u00a0]{1,8}(?:około|ok\\.|blisko|niespełna)[ \\t\\u00a0]{1,8}$`, "iu")'
+      AGREEMENT_TIME_SPAN: /^(?:raz|razy|czas|dzień|dni|rok|lata|tydzień|tygodnie|miesiąc|miesiące|chwilę|godzinę|godziny|minutę|minuty|noc|wieczór|weekend|ranek|popołudnie|sobotę|niedzielę|wiosnę|lato|jesień|zimę)$/u
+      AGREEMENT_TIME_ADJECTIVE: /^(?:cał|każd|ostatni|następn|zeszł|przyszł|poprzedni)/u
+      # Transitive verbs a negation turns to the genitive ("nie mam czasu"): first- and
+      # second-person present forms, third-person ones, the masculine past stem, the virile past
+      # stem, imperatives.
+      AGREEMENT_NEGATED_VERBS: >-
+        [["mam masz mamy macie", "ma mają", "miał", "miel", ""],
+        ["widzę widzisz widzimy widzicie", "widzi widzą", "widział", "widziel", ""],
+        ["lubię lubisz lubimy lubicie", "lubi lubią", "lubił", "lubil", "lub lubcie"],
+        ["znam znasz znamy znacie", "zna znają", "znał", "znal", ""],
+        ["kocham kochasz kochamy kochacie", "kocha kochają", "kochał", "kochal", ""],
+        ["rozumiem rozumiesz rozumiemy rozumiecie", "rozumie rozumieją", "rozumiał", "rozumiel", ""],
+        ["kupię kupisz kupimy kupicie", "kupi kupią", "kupił", "kupil", ""],
+        ["kupuję kupujesz kupujemy kupujecie", "kupuje kupują", "kupował", "kupowal", "kupuj kupujcie"],
+        ["robię robisz robimy robicie", "robi robią", "robił", "robil", "rób róbcie"],
+        ["zrobię zrobisz zrobimy zrobicie", "zrobi zrobią", "zrobił", "zrobil", ""],
+        ["czytam czytasz czytamy czytacie", "czyta czytają", "czytał", "czytal", "czytaj czytajcie"],
+        ["przeczytam przeczytasz przeczytamy przeczytacie", "przeczyta przeczytają", "przeczytał", "przeczytal", ""],
+        ["jem jesz jemy jecie", "jedzą", "jadł", "jedl", "jedz jedzcie"],
+        ["zjem zjesz zjemy zjecie", "zje zjedzą", "zjadł", "zjedl", ""],
+        ["piję pijesz pijemy pijecie", "pije piją", "pił", "pil", "pij pijcie"],
+        ["wypiję wypijesz wypijemy wypijecie", "wypije wypiją", "wypił", "wypil", ""],
+        ["słyszę słyszysz słyszymy słyszycie", "słyszy słyszą", "słyszał", "słyszel", ""],
+        ["chcę chcesz chcemy chcecie", "chce chcą", "chciał", "chciel", ""],
+        ["oglądam oglądasz oglądamy oglądacie", "ogląda oglądają", "oglądał", "oglądal", "oglądaj oglądajcie"],
+        ["piszę piszesz piszemy piszecie", "pisze piszą", "pisał", "pisal", "pisz piszcie"],
+        ["napiszę napiszesz napiszemy napiszecie", "napisze napiszą", "napisał", "napisal", ""],
+        ["czuję czujesz czujemy czujecie", "czuje czują", "czuł", "czul", ""],
+        ["pamiętam pamiętasz pamiętamy pamiętacie", "pamięta pamiętają", "pamiętał", "pamiętal", ""],
+        ["dostanę dostaniesz dostaniemy dostaniecie", "dostanie dostaną", "dostał", "dostal", ""],
+        ["znajdę znajdziesz znajdziemy znajdziecie", "znajdzie znajdą", "znalazł", "znaleźl", ""],
+        ["zauważę zauważysz zauważymy zauważycie", "zauważy zauważą", "zauważył", "zauważyl", ""],
+        ["noszę nosisz nosimy nosicie", "nosi noszą", "nosił", "nosil", "noś noście"],
+        ["biorę bierzesz bierzemy bierzecie", "bierze biorą", "brał", "bral", "bierz bierzcie"],
+        ["płacę płacisz płacimy płacicie", "płaci płacą", "płacił", "płacil", "płać płaćcie"],
+        ["odwiedzę odwiedzisz odwiedzimy odwiedzicie", "odwiedzi odwiedzą", "odwiedził", "odwiedzil", ""],
+        ["otworzę otworzysz otworzymy otworzycie", "otworzy otworzą", "otworzył", "otworzyl", ""]] as
+        readonly (readonly [string, string, string, string, string])[]
+      # The forms of one verb row: true where the subject is the speaker or the hearer (so a noun
+      # after the verb is no subject), false for the third person and the past forms.
+      agreementNegatedEntries:
+        args: "row: readonly [string, string, string, string, string]"
+        return: >-
+          [...[...row[0].split(" "), ...row[4].split(" "),
+          ...["em", "eś", "am", "aś", "yśmy", "yście"].map((ending) => row[2] + ending),
+          ...["iśmy", "iście"].map((ending) => row[3] + ending)].filter((form) => form !== "")
+          .map((form) => [form, true] as [string, boolean]),
+          ...[...row[1].split(" "), row[2], row[2] + "a", row[2] + "o", row[3] + "i", row[2] + "y"]
+          .map((form) => [form, false] as [string, boolean])]
+      # Verb form -> whether its subject is the speaker or the hearer.
+      AGREEMENT_NEGATED_FORMS: new Map<string, boolean>(AGREEMENT_NEGATED_VERBS.flatMap((row) => agreementNegatedEntries(row)))
+      AGREEMENT_PARTITIVE_FORMS: >-
+        new Set(AGREEMENT_NEGATED_VERBS.filter((row) => AGREEMENT_PARTITIVE.has(row[0].split(" ")[0])).flatMap((row) =>
+        [...AGREEMENT_NEGATED_FORMS.keys()].filter((form) => [row[0], row[1], row[4]].some((list) =>
+        list.split(" ").includes(form)) || form.startsWith(row[2]) || form.startsWith(row[3]))))
+      # One form of a verb that takes the genitive ("szukam", "używali").
+      AGREEMENT_GENITIVE_VERB_FORM: '/^(?:używ(?:am|asz|a|amy|acie|ają|ał\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\p{L}*|pilnować|wymag(?:am|a|ają|ał\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\p{L}*|ustępować)$/iu'
+      # "nie mam czas", "nie lubię ją": an accusative object after a negated verb. A span of time
+      # is no object ("nie widział cały rok"); "nie mam czas" is. After "ma", "widzi"… a nominative
+      # may be the subject ("nie widzi pies"): accusative only.
+      agreementNegatedObject:
+        args: "ctx: DetectContext, m: RegExpExecArray, object: string, modifier: string | undefined, end: number, personal: boolean"
+        let:
+          tags: plNounTags(object)
+          forms: agreementRecased(object, AGREEMENT_GENITIVE_CASES)
+          fixes: "forms.length === 1 ? forms : []"
+          reading: "modifier ? plAdjectiveOf(modifier) : null"
+        when:
+          - '!(plUserOrNamed(ctx, object) || (object !== "czas" && AGREEMENT_TIME_SPAN.test(object)) || (modifier && AGREEMENT_TIME_ADJECTIVE.test(modifier)))'
+          - plOnlyNoun(tags) && !tagsAnd(tags, AGREEMENT_GENITIVE_CASES) && tagsAnd(tags, AGREEMENT_ACCUSATIVE) !== 0
+          - "!(!personal && tagsAnd(tags, AGREEMENT_NOMINATIVE))"
+          - "!(modifier && (plAmbiguousAdjective(modifier) || !plAdjectiveAgrees(reading!.ending, tags)))"
+        return: >-
+          modifier ? agreementNegatedPair(ctx, m, modifier, reading!, tags, fixes, end)
+          : ({ ...plFindingAt(ctx, end - object.length, end, fixes, "polishCaseAgreement", "review_msg_pl_negated_genitive"),
+          context: { start: m.index, end } })
+      # The adjective takes the genitive of the noun's own gender and number.
+      agreementNegatedPair:
+        args: "ctx: DetectContext, m: RegExpExecArray, modifier: string, reading: { lemma: string; ending: string }, tags: number, fixes: string[], end: number"
+        let:
+          endings: >-
+            fixes.length ? plAgreeingEndings(tagsOr(tagsWithout(tags, PL_ALL_CASES),
+            tagsAnd(tags, PL_SINGULAR) ? plCases("Gs") : plCases("Gp"))) : []
+          start: m.indices!.groups!.adj[0]
+        return: >-
+          ({ ...plFindingAt(ctx, start, end, endings.length === 1
+          ? [plCaseLike(modifier, plAdjectiveForm(reading.lemma, endings[0])) + " " + fixes[0]] : [],
+          "polishCaseAgreement", "review_msg_pl_negated_genitive"), context: { start: m.index, end } })
+      # Masculine singular determiners and what they become in the neuter, the plural and the
+      # feminine.
+      AGREEMENT_MASCULINE_DETERMINERS: >-
+        ({ ten: ["to", "te", "ta"], tamten: ["tamto", "tamte", "tamta"], taki: ["takie", "takie", "taka"],
+        jeden: ["jedno", "jedne", "jedna"], mój: ["moje", "moje", "moja"], twój: ["twoje", "twoje", "twoja"],
+        swój: ["swoje", "swoje", "swoja"], nasz: ["nasze", "nasze", "nasza"], wasz: ["wasze", "wasze", "wasza"],
+        każdy: ["każde", "każde", "każda"], jakiś: ["jakieś", "jakieś", "jakaś"], żaden: ["żadne", "żadne", "żadna"] }) as
+        Readonly<Record<string, readonly [string, string, string]>>
+      # Nouns typed with a masculine modifier though they are neuter (indeclinable loans: "to
+      # menu"), plural only ("te perfumy"; "perfum" is their genitive) or feminine ("ta pomarańcza").
+      AGREEMENT_GENDERED: >-
+        ({ menu: [0, "menu"], tiramisu: [0, "tiramisu"], sushi: [0, "sushi"], salami: [0, "salami"], kakao: [0, "kakao"],
+        musli: [0, "musli"], euro: [0, "euro"], hobby: [0, "hobby"], zoo: [0, "zoo"], graffiti: [0, "graffiti"],
+        alibi: [0, "alibi"], kimono: [0, "kimono"], risotto: [0, "risotto"], espresso: [0, "espresso"],
+        bistro: [0, "bistro"], perfum: [1, "perfumy"], pomarańcz: [2, "pomarańcza"] }) as
+        Readonly<Record<string, readonly [0 | 1 | 2, string]>>
+      AGREEMENT_ADJECTIVE_ENDINGS: '["e", "e", "a"]'
+      # A masculine determiner or adjective (nominative singular) as `index` wants it, or null.
+      agreementRegendered:
+        args: "word: string, index: 0 | 1 | 2"
+        let:
+          lower: word.toLowerCase()
+          det: AGREEMENT_MASCULINE_DETERMINERS[lower]?.[index]
+          adj: plAdjectiveOf(lower)
+        return: >-
+          det ? plCaseLike(word, det)
+          : !adj || adj.ending !== "y" || plAmbiguousAdjective(lower) || tagsAnd(plNounTags(lower), PL_ALL_CASES) ? null
+          : plCaseLike(word, plAdjectiveForm(adj.lemma, AGREEMENT_ADJECTIVE_ENDINGS[index]))
+      # Passive participles by their masculine form ("ogarnięty", "pokryty", "zmęczony", "pisany").
+      AGREEMENT_PARTICIPLE: /(?:[aeo]n|[ęyiu]t|art)y$/u
+      agreementBitCount:
+        args: "mask: number"
+        return: mask.toString(2).replace(/0/g, "").length
+      agreementOverlap:
+        args: "ending: string, typed: string"
+        return: agreementBitCount(tagsAnd(plReadingCases(ending), plReadingCases(typed)))
+      agreementPair:
+        args: "adjective: string, noun: string, after: boolean"
+        return: 'after ? noun + " " + adjective : adjective + " " + noun'
+      # "ważną sprawa", "odpowiednia infrastrukturę", "duży dziecko": an adjective and its noun
+      # share no case, number and gender. Gives the fixes for the pair, in its word order: the
+      # adjective made to agree, or the noun's diacritic toggled. Null when they agree or a reading
+      # is unsure. "15 lutego uczniowie": "lutego", "lutym" name February far more often than "luty"
+      # (fierce). A participle governs the instrumental of its agent ("z ogarniętej wojną
+      # Ukrainy"). Men take their own plural ("nowi synowie"); a soft stem's is its masculine form
+      # ("ostatni"). "-e" is no men's plural ("nastoletnie synowie"), unless the noun has another
+      # reading for it. A form another word also spells is checked only as "-e" before men ("nowe
+      # studenci"). After a preposition both words stand in a case it governs: compare those
+      # readings only, unless the pair agrees in another case ("na różnego rodzaju sprzęt"). A
+      # plural instrumental before a noun that has no plural reading ("prawdziwymi lekarzem")
+      # predicates nothing. With no preposition a locative cannot be ("różne ludzie" is no "o
+      # ludzie").
+      agreementAdjectiveClash:
+        args: "adjective: string, noun: string, governed: number | undefined, after: boolean"
+        let:
+          adj: plAdjectiveOf(adjective)
+          baseTags: plNounTags(noun)
+          men: plMenOnlyPlural(noun)
+          notMen: >-
+            men && !after && governed === undefined && adj.ending === "e" &&
+            !plAdjectiveAgrees("e", tagsWithout(baseTags, plCases("Np Vp")))
+          tags: "governed !== undefined ? tagsOr(tagsWithout(baseTags, PL_ALL_CASES), tagsAnd(baseTags, governed)) : baseTags"
+        when:
+          - adj !== null && !AGREEMENT_PRONOUNS.has(adj.lemma)
+          - adj.lemma !== "luty"
+          - "!tagsAnd(plNounTags(adjective), PL_ALL_CASES)"
+          - plOnlyNoun(baseTags)
+          - '!(AGREEMENT_NOMINAL_ADJECTIVES.has(adj.lemma) && tagsAnd(baseTags, plCases("Gs Gp")))'
+          - "!(AGREEMENT_PARTICIPLE.test(adj.lemma) && !tagsAnd(baseTags, tagsWithout(PL_ALL_CASES, AGREEMENT_INSTRUMENTALS)))"
+          - "!(men && adjective === plVirileAdjective(adj.lemma))"
+          - "!(!notMen && plAmbiguousAdjective(adjective))"
+          - >-
+            governed !== undefined ? !plAdjectiveAgrees(adj.ending, baseTags) && tagsAnd(baseTags, governed) !== 0
+            : AGREEMENT_PREDICATIVE_ENDINGS.has(adj.ending)
+            ? adj.ending === "ymi" && tagsAnd(baseTags, plCases("Is")) !== 0 && !tagsAnd(baseTags, PL_PLURAL)
+            : after ? AGREEMENT_AFTER_ENDINGS.has(adj.ending)
+            : !tagsAnd(baseTags, notMen ? AGREEMENT_NO_LOCATIVE : AGREEMENT_OBLIQUE)
+          - "!(!notMen && plAdjectiveAgrees(adj.ending, tags))"
+        return: agreementClashFixes(adjective, noun, adj, tags, men, after)
+      # Of the endings that agree, those closest to the typed one ("szybkie samochód" -> "szybki").
+      agreementClashFixes:
+        args: "adjective: string, noun: string, adj: { lemma: string; ending: string }, tags: number, men: boolean, after: boolean"
+        let:
+          endings: plAgreeingEndings(tags)
+          best: Math.max(...endings.map((ending) => agreementOverlap(ending, adj.ending)))
+          closest: endings.filter((ending) => agreementOverlap(ending, adj.ending) === best)
+          form: 'men && closest[0] === "e" ? plVirileAdjective(adj.lemma) : plAdjectiveForm(adj.lemma, closest[0])'
+          twin: AGREEMENT_TWIN[noun.at(-1)!]
+          toggled: 'twin ? noun.slice(0, -1) + twin : ""'
+          twinTags: "twin ? plNounTags(toggled) : 0"
+        return: >-
+          [...new Set([...(closest.length === 1 && form ? [agreementPair(form, noun, after)] : []),
+          ...(twin && plOnlyNoun(twinTags) && plAdjectiveAgrees(adj.ending, twinTags) ? [agreementPair(adjective, toggled, after)] : [])])]
+      # The word before `start`, lowercased.
+      agreementWordBefore:
+        args: "text: string, start: number"
+        return: '/(\p{L}+)[ \t ]+$/u.exec(text.slice(Math.max(0, start - 40), start))?.[1].toLowerCase()'
+      # The adjective agrees with the word before it, so it ends that phrase ("w górach wysokich
+      # forma", "stronę niemiecką data") or stands for a noun ("Tej wysokiej forma nie opuszcza").
+      agreementClosesPhraseBefore:
+        args: "word: string, adjective: string"
+        let:
+          ending: plAdjectiveOf(adjective)!.ending
+          tags: plNounTags(word)
+        return: >-
+          (/(?:ej|ego|emu|ych|ich|ymi|imi|ym|im|ą)$/u.test(adjective) && word.slice(-2) === adjective.slice(-2)) ||
+          (tagsAnd(tags, PL_ALL_CASES) !== 0 && plAdjectiveAgrees(ending, tags))
+      AGREEMENT_COPULA: /^(?:jest|jestem|jesteś|była|byłam|byłaś|będzie|będę|będziesz|to)$/u
+      # "krok po kroku", "dzień po dniu", "słowo po słowie": the noun opens a repeated phrase.
+      agreementRepeatedAfter:
+        args: "text: string, end: number, noun: string"
+        let:
+          next: '/^[ \t ]+po[ \t ]+(\p{L}+)/u.exec(text.slice(end))?.[1]'
+          word: noun.toLowerCase()
+        when: next !== undefined
+        return: word.slice(0, 3) === next.toLowerCase().slice(0, 3) || plInflect(word, PL_ALL_CASES).includes(next.toLowerCase())
+        else: "false"
+      # A copula or "się" (a predicate may follow), after which a degree word may stand.
+      AGREEMENT_PREDICATE_BEFORE: '/(?:^|[^\p{L}])(?:jest|są|był[aoy]?|byli|będzie|będą|zosta(?:ł[aoy]?|li)|się)(?:[ \t ]+(?:bardzo|zbyt|za|dość|dosyć|całkiem|naprawdę|niezwykle|wyjątkowo|tak|coraz|nadal|wciąż|już|raczej))?[ \t ]+$/iu'
+      # "Zadania były trudne uczniowie narzekali": the adjective ends the clause of a copula and
+      # the noun opens the next, whose verb follows it. A comma is missing, not an agreement.
+      agreementRunOn:
+        args: "text: string, start: number, end: number"
+        let:
+          next: '/^[ \t ]+(\p{L}+)/u.exec(text.slice(end))?.[1]?.toLowerCase()'
+        when: AGREEMENT_PREDICATE_BEFORE.test(text.slice(Math.max(0, start - 40), start))
+        return: "!!next && (plFiniteVerb(next) || plPastByShape(next))"
+        else: "false"
+      # "męska grą" -> "męska gra" or "męską grą": both nominative or both instrumental. Only a
+      # relational adjective in "-ski", "-cki", "-dzki" ("męski", "polski"; not "niski", "płaski"):
+      # a qualitative one may take an instrumental of respect ("łagodna naturą", "wyjątkowa
+      # urodą"), a participle an agent ("zajęta pracą").
+      agreementCopulaClash:
+        args: "adjective: string, noun: string"
+        let:
+          adj: plAdjectiveOf(adjective)
+          tags: plNounTags(noun)
+          twin: noun.slice(0, -1) + "a"
+          twinTags: plNounTags(twin)
+        when:
+          - adj?.ending === "a" && !plAmbiguousAdjective(adjective)
+          - "/(?:[^ia]sk|ck|dzk)i$/u.test(adj.lemma) && !tagsAnd(plNounTags(adjective), PL_ALL_CASES)"
+          - 'noun.endsWith("ą") && plOnlyNoun(tags) && !tagsAnd(tags, tagsWithout(PL_ALL_CASES, plCases("Is")))'
+          - 'plOnlyNoun(twinTags, true) && tagsAnd(twinTags, plCases("Ns")) !== 0 && tagsAnd(twinTags, PL_FEMININE) !== 0'
+        return: '[adjective + " " + twin, plAdjectiveForm(adj.lemma, "ą") + " " + noun]'
+      agreementReport:
+        args: "ctx: DetectContext, start: number, end: number, typed: string, fixes: string[]"
+        return: plFindingAt(ctx, start, end, fixes.map((fix) => plCaseLike(typed, fix)), "polishCaseAgreement", "review_msg_pl_agreement")
+      # "jest męska grą": after a copula, a feminine adjective in the nominative before an
+      # instrumental noun; one of the two lost or gained its "ą". Participles govern the
+      # instrumental themselves ("była zajęta pracą", "zmęczona drogą") and are left alone.
+      # "komisje śledczą.": an adjective closing the phrase after its noun.
+      agreementAdjectiveLater:
+        args: "ctx: DetectContext, m: RegExpExecArray, first: string, second: string, end: number, lower: boolean, previous: string | undefined"
+        let:
+          copulaFixes: 'lower && AGREEMENT_COPULA.test(previous ?? "") ? agreementCopulaClash(first, second) : null'
+        return: >-
+          copulaFixes ? agreementReport(ctx, m.index, end, first, copulaFixes)
+          : lower && /^[ \t ]*(?:[.,;:!?)…]|$)/u.test(ctx.text.slice(end, end + 3))
+          ? agreementAfterReport(ctx, m, first, second, end) : null
+      agreementAfterReport:
+        args: "ctx: DetectContext, m: RegExpExecArray, first: string, second: string, end: number"
+        let:
+          fixes: agreementAdjectiveClash(second, first, undefined, true)
+        when: fixes !== null
+        return: agreementReport(ctx, m.index, end, first, fixes)
+      # The ending of the adjective in "za ... ": the gender is the typed noun's, the accusative of
+      # a man or an animal is the genitive form.
+      agreementConsideredEnding:
+        args: "plural: boolean, tags: number, formTags: number"
+        return: >-
+          plural ? (tagsAnd(formTags, plCases("Gp")) ? "ych" : "e") : tagsAnd(tags, PL_FEMININE) ? "ą"
+          : tagsAnd(tags, PL_NEUTER) ? "e" : tagsAnd(formTags, plCases("Gs")) ? "ego" : "y"
+      # A fixed small frame: the fix of the whole match, set in its case.
+      agreementSmallFrame:
+        args: "ctx: DetectContext, m: RegExpExecArray, fixed: string | null"
+        when: fixed !== null && fixed !== "" && !plUserOrNamed(ctx, m[0])
+        return: plFindingAt(ctx, m.index, m.index + m[0].length, [plCaseLike(m[0], fixed)], "polishCaseAgreement", "review_msg_pl_preposition_case")
+      # Plural instrumental pronouns and their singular forms: masculine or neuter, feminine.
+      AGREEMENT_PLURAL_PRONOUNS: >-
+        ({ tymi: ["tym", "tą"], tamtymi: ["tamtym", "tamtą"], takimi: ["takim", "taką"], jakimi: ["jakim", "jaką"],
+        jakimiś: ["jakimś", "jakąś"], moimi: ["moim", "moją"], twoimi: ["twoim", "twoją"], swoimi: ["swoim", "swoją"],
+        naszymi: ["naszym", "naszą"], waszymi: ["waszym", "waszą"], owymi: ["owym", "ową"],
+        żadnymi: ["żadnym", "żadną"] }) as Readonly<Record<string, readonly [string, string]>>
+      # Foreign first names in -o and their genitive, dative and instrumental stems.
+      AGREEMENT_O_NAMES: >-
+        ({ Bruno: ["Brunona", "Brunonowi", "Brunonem"], Hugo: ["Hugona", "Hugonowi", "Hugonem"],
+        Otto: ["Ottona", "Ottonowi", "Ottonem"], Pablo: ["Pabla", "Pablowi", "Pablem"], Mario: ["Maria", "Mariowi", "Mariem"],
+        Paulo: ["Paula", "Paulowi", "Paulem"], Leonardo: ["Leonarda", "Leonardowi", "Leonardem"],
+        Ricardo: ["Ricarda", "Ricardowi", "Ricardem"], Fernando: ["Fernanda", "Fernandowi", "Fernandem"],
+        Antonio: ["Antonia", "Antoniowi", "Antoniem"], Alfonso: ["Alfonsa", "Alfonsowi", "Alfonsem"],
+        Romano: ["Romana", "Romanowi", "Romanem"], Guido: ["Guida", "Guidowi", "Guidem"],
+        Sergio: ["Sergia", "Sergiowi", "Sergiem"], Claudio: ["Claudia", "Claudiowi", "Claudiem"] }) as
+        Readonly<Record<string, readonly [string, string, string]>>
+      # What each form of "który" can refer to: its gender (any for the plural) and number. Men or
+      # mixed groups only for "którzy": "kobiety, którzy" is "które".
+      AGREEMENT_RELATIVE_READINGS: >-
+        ({ który: [[PL_MASCULINE, false]], która: [[PL_FEMININE, false]], które: [[PL_NEUTER, false], [AGREEMENT_GENDERS, true]],
+        którego: [[tagsOr(PL_MASCULINE, PL_NEUTER), false]], której: [[PL_FEMININE, false]],
+        któremu: [[tagsOr(PL_MASCULINE, PL_NEUTER), false]], którą: [[PL_FEMININE, false]],
+        którym: [[tagsOr(PL_MASCULINE, PL_NEUTER), false], [AGREEMENT_GENDERS, true]],
+        których: [[AGREEMENT_GENDERS, true]], którymi: [[AGREEMENT_GENDERS, true]], którzy: [[PL_MASCULINE, true]] }) as
+        Readonly<Record<string, readonly (readonly [number, boolean])[]>>
+      # The form of "który" in the same case for a masculine, feminine or neuter singular noun, or a
+      # plural.
+      AGREEMENT_RELATIVE_FORMS: >-
+        ({ który: { f: "która", n: "które", p: "które" }, która: { m: "który", n: "które", p: "które" },
+        której: { m: "którego", n: "którego", p: "których" }, któremu: { f: "której", p: "którym" },
+        którymi: { m: "którym", f: "którą", n: "którym" }, którzy: { f: "które", n: "które" } }) as
+        Readonly<Record<string, Partial<Record<"m" | "f" | "n" | "p", string>>>>
+      # Words that may stand in the antecedent's clause without being another antecedent.
+      AGREEMENT_NEUTRAL: >-
+        new Set([...Object.keys(AGREEMENT_GOVERNS), ..."jego jej ich mój moja moje mojego mojej twój twoja twoje swój swoja swoje swojego swojej nasz nasza nasze wasz wasza wasze bardzo już jeszcze też także tylko nawet wczoraj dziś dzisiaj jutro tam tu tutaj się nie".split(" ")])
+      agreementReadingAgrees:
+        args: "tags: number, reading: readonly [number, boolean]"
+        return: "tagsAnd(tags, reading[1] ? PL_PLURAL : PL_SINGULAR) !== 0 && (!tagsAnd(tags, AGREEMENT_GENDERS) || tagsAnd(tags, reading[0]) !== 0)"
+      # "człowiek, która dba", "samochód, którymi przyjechał": "który" agrees in gender and number
+      # with its noun. Any noun back to the clause's verb or start may be the antecedent ("córka
+      # sąsiada, która", "książkę z obrazkami, która"), so all must clash; a word the lexicon does
+      # not know keeps the check quiet ("jedna z osób, która"). The walk reads the words from `i`
+      # back to `stop`; at the clause start the check is not quiet.
+      agreementRelativeQuiet:
+        args: "words: readonly string[], i: number, stop: number, readings: readonly (readonly [number, boolean])[]"
+        type: boolean
+        return: "i < stop ? stop > 0 || words.length === 0 : agreementRelativeStep(words, i, stop, readings, words[i].toLowerCase())"
+      agreementRelativeStep:
+        args: "words: readonly string[], i: number, stop: number, readings: readonly (readonly [number, boolean])[], lower: string"
+        type: boolean
+        return: >-
+          plFiniteVerb(lower) ? false
+          : AGREEMENT_NEUTRAL.has(lower) ? agreementRelativeQuiet(words, i - 1, stop, readings)
+          : agreementRelativeWord(words, i, stop, readings, lower, plAdjectiveOf(lower))
+      # A pronoun may head the phrase itself ("Ta z dziewczyn, która"). An unknown word, a name, a
+      # pronoun ("Ten z nich, który") or "X i Y, którzy" may be the antecedent; so may any noun
+      # that agrees.
+      agreementRelativeWord:
+        args: "words: readonly string[], i: number, stop: number, readings: readonly (readonly [number, boolean])[], lower: string, adjective: { lemma: string; ending: string } | null"
+        type: boolean
+        return: >-
+          adjective ? AGREEMENT_PRONOUNS.has(adjective.lemma) || agreementRelativeQuiet(words, i - 1, stop, readings)
+          : [plNounTags(lower)].some((tags) => !tags || (i > 0 && /^\p{Lu}/u.test(words[i])) ||
+          readings.some((reading) => agreementReadingAgrees(tags, reading))) ||
+          agreementRelativeQuiet(words, i - 1, stop, readings)
     frames:
       # "przed sklepie" -> "przed sklepem": the noun after a preposition takes a case it governs.
       - regex: "(?<![\\p{L}\\p{N}_'’.@/-])(?<prep>bez|beze|dla|do|od|ode|u|z|ze|spod|znad|zza|sprzed|spomiędzy|spośród|wśród|obok|podczas|według|zamiast|oprócz|prócz|wobec|wokół|dookoła|wzdłuż|dzięki|ku|przeciw|przeciwko|wbrew|w|we|na|o|po|przy|przez|przeze|poprzez|przed|przede|za|nad|nade|pod|pode|między|pomiędzy|poza)[ \\t\\u00a0]+(?<noun>\\p{L}+)(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: giu
-        fixer: prepositionCase
+        let:
+          after: ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 3)
+          before: ctx.text.slice(Math.max(0, m.index - 12), m.index)
+          lowerPrep: prep.toLowerCase()
+          start: m.index + m[0].length - noun.length
+          # "z" takes the accusative only for a rough amount ("z godzinę"): no fix offers it.
+          wanted: agreementGovernedBy(lowerPrep, before)!
+        when:
+          - '/^\p{Ll}+$/u.test(noun) && !plUserOrNamed(ctx, noun)'
+          # "w ust. 2", "na str. 5": a short word with a period is an abbreviation unless it ends the
+          # sentence ("wraz z psa.").
+          - '!(noun.length <= 3 && after.startsWith(".") && (AGREEMENT_SHORT_ABBREVIATIONS.has(noun.toLowerCase()) || !/^\.(?:$|\s*\n|\s+\p{Lu})/u.test(after)))'
+          # A title abbreviation ("dzięki dr Kowalskiemu", "u mgr Nowak") is no noun to inflect.
+          - "/[aeiouyąęó]/u.test(noun)"
+          - agreementPrepositionClash(lowerPrep, noun, before)
+        return: >-
+          ({ ...plFindingAt(ctx, start, start + noun.length,
+          agreementRecased(noun, /^ze?$/iu.test(prep) ? tagsWithout(wanted, plCases("As Ap")) : wanted),
+          "polishCaseAgreement", "review_msg_pl_preposition_case"),
+          context: { start: m.index, end: start + noun.length } })
       # "te rzeczywistość": a demonstrative agrees with its noun ("to" is never checked).
       - regex: "(?<![\\p{L}\\p{N}_'’.@/-])(?<det>ten|ta|tę|tą|te|jedne|jedna|jedną)[ \\t\\u00a0]+(?:(?<adj>\\p{L}{3,})[ \\t\\u00a0]+)?(?<noun>\\p{L}+){{WORD}}"
         scan: polish
         flags: giu
-        fixer: demonstratives
+        let:
+          # "tą małą książkę": one adjective may stand between (it is checked on its own); any other
+          # first word is the noun itself.
+          between: adj && plAdjectiveOf(adj)
+          skip: "!between || AGREEMENT_PRONOUNS.has(between.lemma) || plAmbiguousAdjective(adj) || tagsAnd(plNounTags(adj), PL_ALL_CASES)"
+          word: "adj && skip ? adj : noun"
+          fixes: agreementDemonstrativeFix(det.toLowerCase(), plNounTags(word))
+        when:
+          - '/^\p{Ll}+$/u.test(word) && !plUserOrNamed(ctx, word)'
+          - fixes.length > 0
+        return: >-
+          ({ ...plFindingAt(ctx, m.index, m.index + det.length, fixes.map((fix) => plCaseLike(det, fix)),
+          "polishCaseAgreement", "review_msg_pl_agreement"), context: { start: m.index, end: m.index + m[0].length } })
       # "pięć pliki", "trzy godzin": a numeral asks its noun for a case.
       - regex: "(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|sześćset|siedemset|osiemset|dziewięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset|parę|dwa|dwie|trzy|cztery|oba|obie|dziesiątki|setki|tysiące|miliony|miliardy|dziesiątek|setek|tysięcy|milionów|miliardów|\\d+)[ \\t\\u00a0]+(?<noun>\\p{L}+){{WORD}}"
         scan: polish
         flags: giu
-        fixer: numeralNouns
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 6), m.index)
+          lower: num.toLowerCase()
+          tags: plNounTags(noun)
+          needs: agreementNumeralNeeds(lower)!
+          # Only a bare count says which case it wants: "od 3 lat", "rozdział 5 książki" and "nie ma 2
+          # osób" are right ("parę" is also a noun's accusative).
+          loose: '/^\d/.test(num) || lower === "parę"'
+          start: m.index + m[0].length - noun.length
+          forms: 'plInflect(noun, plCases(needs), needs === "Gp" ? AGREEMENT_NOMINATIVE : plCases("Gp"))'
+        when:
+          - '/^\p{Ll}+$/u.test(noun) && !plUserOrNamed(ctx, noun)'
+          # A decimal, a number in a code or a list ("1,5", "art. 5", "5.") is not a count.
+          - '!(/^\d/.test(num) && /(?:[\d,.:/§–—-]|\p{L}\.|nr|pkt|art|poz)[ \t ]*$/u.test(before))'
+          # "około pięć osób": the numeral itself takes the genitive (genitiveNumerals), not the noun.
+          - "!(AGREEMENT_GENITIVE_NUMERALS[lower] && AGREEMENT_GENITIVE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index)))"
+          - agreementNumeralClash(lower, tags)
+          - '!(loose && (needs === "Np" || tagsAnd(tags, plCases("Gs"))) && !agreementFreeCount(ctx.text, m.index))'
+        return: >-
+          ({ ...plFindingAt(ctx, start, start + noun.length, forms.length === 1 ? forms.map((form) => plCaseLike(noun, form)) : [],
+          "polishCaseAgreement", "review_msg_pl_agreement"), context: { start: m.index, end: start + noun.length } })
       # "5 złoty", "2 mln złoty": after a count from five up, or a large unit, it is "złotych".
       - regex: "(?<![\\p{L}\\p{N}_'’.,@/–—-])(?<num>pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|sześćset|siedemset|osiemset|dziewięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset|parę|\\d+)(?:[ \\t\\u00a0]+(?<unit>tys\\.|mln|mld|tysięcy|milionów|miliardów))?[ \\t\\u00a0]+(?<noun>złoty){{WORD}}"
         scan: polish
         flags: giu
-        fixer: zloty
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 6), m.index)
+          start: m.index + m[0].length - noun.length
+        when:
+          - '!(/[\d,.:/§–—-][ \t ]*$/u.test(before) || plUserOrNamed(ctx, noun))'
+          - '!(!unit && agreementNumeralNeeds(num.toLowerCase()) !== "Gp")'
+        return: >-
+          ({ ...plFindingAt(ctx, start, start + noun.length, [plCaseLike(noun, "złotych")], "polishCaseAgreement",
+          "review_msg_pl_agreement"), context: { start: m.index, end: start + noun.length } })
       # "około dwieście psów" -> "około dwustu psów": a count after a genitive-taking word.
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<num>dwa|dwie|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|piętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sto|dwieście|trzysta|czterysta|pięćset|kilka|kilkanaście|kilkadziesiąt|kilkaset)(?={{S}}\\p{L})"
         scan: polish
         flags: giu
-        fixer: genitiveNumerals
+        let:
+          after: ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30)
+        when:
+          - AGREEMENT_GENITIVE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))
+          # "o około dwie godziny", "na około pięć milionów": the preposition before "około" governs.
+          - "!AGREEMENT_PREPOSITION_APPROX.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))"
+          # "od dwa do trzech", "do pięć razy więcej" are left to the writer; so is "z dziesięć".
+          - '!/^[ \t ]+(?:do|razy|na|i|lub|albo)(?![\p{L}])/iu.test(after)'
+        return: >-
+          ({ ...plFindingAt(ctx, m.index, m.index + num.length,
+          AGREEMENT_GENITIVE_NUMERALS[num.toLowerCase()].map((form) => plCaseLike(num, form)), "polishCaseAgreement",
+          "review_msg_pl_preposition_case"), context: { start: Math.max(0, m.index - 12), end: m.index + num.length } })
       # "Używają je", "szukam ją": the object pronoun of a genitive-taking verb.
       - regex: "(?<![\\p{L}])(?<verb>używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować|wymag(?:am|a|ają|ał\\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować){{S}}(?<pronoun>je|ją)(?![\\p{L}])"
         scan: polish
         flags: giu
-        fixer: genitivePronouns
+        let:
+          start: m.index + m[0].length - pronoun.length
+        return: >-
+          ({ ...plFindingAt(ctx, start, start + pronoun.length,
+          (pronoun.toLowerCase() === "ją" ? ["jej"] : ["ich", "go"]).map((fix) => plCaseLike(pronoun, fix)),
+          "polishCaseAgreement", "review_msg_pl_preposition_case"), context: { start: m.index, end: start + pronoun.length } })
       # "Używam młotek", "przestrzega przepisy": an accusative object where the verb wants the genitive.
       - regex: "(?<![\\p{L}])(?<verb>używ(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\\p{L}*|pilnować|wymag(?:am|a|ają|ał\\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\\p{L}*|ustępować){{S}}(?:(?<adj>\\p{L}{3,}){{S}})?(?<noun>\\p{L}{3,}){{WORD}}"
         scan: polish
         flags: gdiu
-        fixer: genitiveObjects
+        let:
+          # "przestrzega przepisy polskiego prawa", "ustąpił miejsce staruszce": the object is the first
+          # word. After a plural verb a plural noun may be its subject ("używają pasterze trzód"),
+          # unless a genitive adjective follows it.
+          plural: '/(?:ą|li|ły)$/u.test(verb) && tagsAnd(plNounTags(adj ?? ""), plCases("Np"))'
+          swap: '!!adj && !plAdjectiveOf(adj) && (!plural || /\p{L}(?:ego|ej|ych)$/u.test(noun))'
+          object: "swap ? adj : noun"
+          modifier: "swap ? undefined : adj"
+          end: "swap ? m.indices!.groups!.adj[1] : m.index + m[0].length"
+          tags: plNounTags(object)
+          adjective: "modifier ? plAdjectiveOf(modifier) : null"
+          start: "modifier ? m.indices!.groups!.adj[0] : end - object.length"
+          forms: agreementRecased(object, AGREEMENT_GENITIVE_CASES)
+        when:
+          - "!plUserOrNamed(ctx, object)"
+          # A span of time in the accusative is no object ("szukał cały dzień", "raz po raz").
+          - "!(AGREEMENT_TIME_SPAN.test(object) || (modifier && AGREEMENT_TIME_ADJECTIVE.test(modifier)))"
+          - plOnlyNoun(tags) && !tagsAnd(tags, AGREEMENT_GENITIVE_CASES) && tagsAnd(tags, AGREEMENT_ACCUSATIVE) !== 0
+          # An adjective between must belong to the noun ("stare żelazko").
+          - "!(modifier && (!adjective || !plAdjectiveAgrees(adjective.ending, tags)))"
+        # "stare żelazko" -> "starego żelazka": the adjective follows the noun into the genitive.
+        return: >-
+          ({ ...plFindingAt(ctx, start, end, forms.length === 1 && modifier
+          ? [plCaseLike(ctx.source.slice(start, end), plAdjectiveForm(adjective!.lemma, tagsAnd(tags, PL_SINGULAR) ? (tagsAnd(tags, PL_FEMININE) ? "ej" : "ego") : "ych") + " " + forms[0])]
+          : forms.length === 1 ? forms : [], "polishCaseAgreement", "review_msg_pl_preposition_case"),
+          context: { start: m.index, end } })
       # "nie mam czas", "nie lubię ją": an accusative object after a negated verb. The fixer resumes
       # the scan after "nie": the noun's own "nie" may open the next frame.
       - regex: "(?<![\\p{L}\\p{N}_'’-])nie{{S}}(?<verb>\\p{L}{2,}){{S}}(?:(?<adj>\\p{L}{3,}){{S}})?(?<noun>\\p{L}{2,}){{WORD}}"
         scan: polish
         flags: gdiu
-        fixer: negatedObjects
+        let:
+          personal: AGREEMENT_NEGATED_FORMS.get(verb.toLowerCase())
+          # Overlapping frames: the next scan may start at the noun's own "nie".
+          _resumed: frame.resume!(m.index + 3)
+          # "nie mam czas teraz": a first word that is no adjective is the noun itself.
+          modifier: "adj && plAdjectiveOf(adj) ? adj : undefined"
+          object: "adj && !modifier ? adj : noun"
+          end: 'm.indices!.groups![object === noun ? "noun" : "adj"][1]'
+          pronoun: "modifier ? undefined : AGREEMENT_OBJECT_PRONOUNS[object.toLowerCase()]"
+        when: personal !== undefined
+        return: >-
+          pronoun ? ({ ...plFindingAt(ctx, end - object.length, end, [plCaseLike(object, pronoun)], "polishCaseAgreement",
+          "review_msg_pl_negated_genitive"), context: { start: m.index, end } })
+          : agreementNegatedObject(ctx, m, object, modifier, end, personal)
       # "Widzę czyste talerzy", "szukam czyste talerzy": an adjective that does not agree with a
       # genitive-only noun right after a verb. The fixer resumes the scan at the word after the verb.
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?:(?<nie>[Nn]ie){{S}})?(?<verb>\\p{L}{2,}){{S}}(?<adj>\\p{Ll}{3,}){{S}}(?<noun>\\p{Ll}{3,}){{WORD}}"
         scan: polish
         flags: gdu
-        fixer: genitiveObjectAdjectives
+        let:
+          # Overlapping frames: the next scan starts at the word after the verb.
+          _resumed: frame.resume!(m.indices!.groups!.verb[1])
+          lower: verb.toLowerCase()
+          # "lub" is also "or".
+          accusative: AGREEMENT_NEGATED_FORMS.has(lower) && lower !== "lub"
+          genitive: AGREEMENT_GENITIVE_VERB_FORM.test(lower) || (accusative && !!nie)
+          reading: plAdjectiveOf(adj)
+          tags: plNounTags(noun)
+          own: tagsWithout(tags, plCases("Ap"))
+          endings: plAgreeingEndings(own)
+          adjectiveFix: 'endings.length === 1 ? [plAdjectiveForm(reading.lemma, endings[0]) + " " + noun] : []'
+          # The noun in the accusative the adjective already has ("czyste talerze").
+          nounForms: >-
+            plInflect(noun, AGREEMENT_ACCUSATIVE, AGREEMENT_GENITIVE_CASES).filter((form) => plAdjectiveAgrees(reading.ending,
+            tagsOr(tagsWithout(plNounTags(form), PL_ALL_CASES), tagsAnd(plNounTags(form), AGREEMENT_ACCUSATIVE))))
+          nounFix: 'nounForms.length === 1 ? [adj + " " + nounForms[0]] : []'
+          # A man's accusative is the genitive form itself ("widzę polskich żołnierzy").
+          fixes: >-
+            genitive ? adjectiveFix : AGREEMENT_PARTITIVE_FORMS.has(lower) ? [...nounFix, ...adjectiveFix]
+            : nounFix.length || nounForms.length || !tagsAnd(tags, PL_VIRILE) ? nounFix : adjectiveFix
+        when:
+          - accusative || genitive
+          - reading !== null && !AGREEMENT_PRONOUNS.has(reading.lemma) && !AGREEMENT_GENITIVE_ADJECTIVES.has(reading.lemma)
+          - '!(reading.lemma === "luty" || plAmbiguousAdjective(adj) || tagsAnd(plNounTags(adj), PL_ALL_CASES))'
+          # A genitive-only noun; a masculine genitive plural also reads as a man's accusative
+          # ("studentów"), which takes the genitive's ending all the same.
+          - 'plOnlyNoun(tags) && tagsAnd(tags, AGREEMENT_GENITIVE_CASES) !== 0 && !tagsAnd(tags, tagsWithout(PL_ALL_CASES, plCases("Gs Gp Ap")))'
+          - '!(plAdjectiveAgrees(reading.ending, own) || plUserOrNamed(ctx, adj + " " + noun))'
+        return: >-
+          ({ ...plFindingAt(ctx, m.indices!.groups!.adj[0], m.indices!.groups!.noun[1], fixes, "polishCaseAgreement",
+          "review_msg_pl_agreement"), context: { start: m.index, end: m.indices!.groups!.noun[1] } })
       # "ten menu" -> "to menu", "nowy perfum" -> "nowe perfumy", "smaczny pomarańcz" -> "smaczna pomarańcza".
       - regex: "(?<![\\p{L}\\p{N}_'’.@/-])(?:(?<first>\\p{L}{2,}){{S}})?(?<mod>\\p{L}{2,}){{S}}(?<noun>menu|tiramisu|sushi|salami|kakao|musli|euro|hobby|zoo|graffiti|alibi|kimono|risotto|espresso|bistro|perfum|pomarańcz){{WORD}}"
         scan: polish
         flags: gdiu
-        fixer: fixedGenders
+        let:
+          gendered: AGREEMENT_GENDERED[noun.toLowerCase()]
+          fixedMod: agreementRegendered(mod, gendered[0])
+          fixedFirst: "first ? agreementRegendered(first, gendered[0]) : null"
+          groups: m.indices!.groups!
+          start: "fixedFirst ? groups.first[0] : groups.mod[0]"
+          end: groups.noun[1]
+          fixed: >-
+            (fixedFirst ? fixedFirst + ctx.source.slice(groups.first[1], groups.mod[0]) : "") + fixedMod +
+            ctx.source.slice(groups.mod[1], groups.noun[0]) + plCaseLike(noun, gendered[1])
+        when:
+          - fixedMod !== null && !plUserOrNamed(ctx, mod + " " + noun)
+          - fixed !== ctx.source.slice(start, end)
+        return: plFindingAt(ctx, start, end, [fixed], "polishCaseAgreement", "review_msg_pl_agreement")
       # "ważną sprawa", "odpowiednia infrastrukturę", "duży dziecko": an adjective and its noun share no
       # case, number and gender. The fixer resumes the scan at the second word, which may open the
       # next pair.
       - regex: "(?<![\\p{L}\\p{N}_'’.@/-])(?<first>\\p{L}{3,})[ \\t\\u00a0]+(?<second>\\p{Ll}{3,}){{WORD}}"
         scan: polish
         flags: gu
-        fixer: adjectives
+        let:
+          # Overlapping pairs: the next scan starts at the second word, which may open the next pair.
+          _resumed: frame.resume!(m.index + first.length)
+          # Each check below needs an adjective in the pair: most pairs stop at this cheap gate.
+          hasAdjective: plAdjectiveOf(first.toLowerCase()) || plAdjectiveOf(second)
+          end: m.index + m[0].length
+          # A capital inside a sentence names something ("w Wysokiej", "łaski Bożej").
+          lower: '/^\p{Ll}+$/u.test(first)'
+          previous: agreementWordBefore(ctx.text, m.index)
+          governed: >-
+            previous === undefined ? undefined : agreementGovernedBy(previous,
+            ctx.text.slice(Math.max(0, m.index - 24), m.index).replace(/\p{L}+[ \t ]+$/u, ""))
+          adjectiveFirst: agreementAdjectiveClash(first.toLowerCase(), second, governed, false)
+        when:
+          - hasAdjective
+          - "!(plUserOrNamed(ctx, first) || plUserOrNamed(ctx, second))"
+          # Nouns of a fixed gender are checked with their modifiers (fixedGenders).
+          - "!AGREEMENT_GENDERED[second.toLowerCase()]"
+          - 'lower || (/^\p{Lu}\p{Ll}+$/u.test(first) && plSentenceStart(ctx.text, m.index))'
+        return: >-
+          adjectiveFirst && (governed !== undefined || !previous || !agreementClosesPhraseBefore(previous, first.toLowerCase())) &&
+          !agreementRunOn(ctx.text, m.index, end) && !agreementRepeatedAfter(ctx.text, end, second)
+          ? agreementReport(ctx, m.index, end, first, adjectiveFirst)
+          : agreementAdjectiveLater(ctx, m, first, second, end, lower, previous)
       # "uznany wielkim aktorem" -> "uznany za wielkiego aktora": "uznać" names what one is
       # taken for with "za" + accusative.
       - regex: "(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły){{S}}(?:go|ją|je|ich|mnie|cię|nas|was|się)){{S}}(?<phrase>(?:(?<adj>\\p{L}{3,}){{S}})?(?<noun>\\p{L}{3,})){{WORD}}"
         scan: polish
         flags: giu
-        fixer: consideredAs
+        let:
+          tags: plNounTags(noun)
+          adjective: "adj ? plAdjectiveOf(adj) : null"
+          plural: tagsAnd(tags, plCases("Ip")) !== 0
+          # The gender is the typed noun's ("lwem", not "lewa" the adjective); the accusative of a man
+          # or an animal is the genitive form ("za wielkiego aktora").
+          fixes: >-
+            plInflect(noun, plCases(plural ? "Ap" : "As")).map((form) => !adjective ? "za " + form
+            : "za " + plAdjectiveForm(adjective.lemma, agreementConsideredEnding(plural, tags, plNounTags(form))) + " " + form)
+          start: m.index + m[0].length - phrase.length
+        when:
+          - "!plUserOrNamed(ctx, phrase)"
+          - plOnlyNoun(tags) && tagsAnd(tags, AGREEMENT_INSTRUMENTALS) !== 0 && !tagsAnd(tags, tagsWithout(PL_ALL_CASES, AGREEMENT_INSTRUMENTALS))
+          - "!(adj && (!adjective || !/^(?:ym|ą|ymi)$/u.test(adjective.ending)))"
+          - fixes.length > 0 && fixes.length <= 2
+        return: >-
+          ({ ...plFindingAt(ctx, start, start + phrase.length, fixes, "polishCaseAgreement", "review_msg_pl_preposition_case"),
+          context: { start: m.index, end: start + phrase.length } })
       # "uznany jako wielki aktor": "za", not "jako".
       - regex: "(?<=(?<![\\p{L}])(?:uzna(?:wa)?n(?:y|a|e|i)|uzna(?:wa)?(?:ł|ła|ło|li|ły|łem|łam){{S}}(?:go|ją|je|ich|mnie|cię|nas|was|się)){{S}})jako(?={{S}}\\p{L})"
         scan: polish
         flags: giu
-        fixer: consideredAsJako
+        return: >-
+          plFindingAt(ctx, m.index, m.index + m[0].length, [plCaseLike(m[0], "za")], "polishCaseAgreement",
+          "review_msg_pl_preposition_case")
       # "człowiek, która dba": "który" agrees in gender and number with its noun.
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<noun>\\p{Ll}{3,}),{{S}}(?:(?:bez|beze|dla|do|od|ode|u|z|ze|spod|znad|zza|sprzed|spomiędzy|spośród|wśród|obok|podczas|według|zamiast|oprócz|prócz|wobec|wokół|dookoła|wzdłuż|dzięki|ku|przeciw|przeciwko|wbrew|w|we|na|o|po|przy|przez|przeze|poprzez|przed|przede|za|nad|nade|pod|pode|między|pomiędzy|poza){{S}})?(?<rel>który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy)(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: gdu
-        fixer: relatives
+        let:
+          readings: AGREEMENT_RELATIVE_READINGS[rel]
+          end: m.index + m[0].length
+          last: plNounTags(noun)
+          clause: 'ctx.text.slice(Math.max(0, m.index - 120), m.index + noun.length).split(/[,.;:!?()\n„”"—–]/u).at(-1)!'
+          words: 'clause.match(/\p{L}+/gu) ?? []'
+          genders: "[PL_MASCULINE, PL_FEMININE, PL_NEUTER].filter((gender) => tagsAnd(last, gender))"
+          key: >-
+            !tagsAnd(last, PL_SINGULAR) ? "p" : genders.length !== 1 ? undefined : genders[0] === PL_MASCULINE ? "m"
+            : genders[0] === PL_FEMININE ? "f" : "n"
+          fix: "key ? AGREEMENT_RELATIVE_FORMS[rel]?.[key] : undefined"
+          start: m.indices!.groups!.rel[0]
+        when:
+          # "którzy z nas", "której z nich": a choice among, not a relative clause.
+          - '!/^[ \t ]+ze?[ \t ]/u.test(ctx.text.slice(end, end + 5))'
+          - '!(!plOnlyNoun(last) || noun === "państwo" || plUserOrNamed(ctx, noun))'
+          # Back from the noun to the clause's verb or start: a noun before the verb is its subject.
+          - "!agreementRelativeQuiet(words, words.length - 1, Math.max(0, words.length - 8), readings)"
+        return: >-
+          ({ ...plFindingAt(ctx, start, start + rel.length, fix ? [plCaseLike(rel, fix)] : [], "polishCaseAgreement",
+          "review_msg_pl_agreement"), context: { start: m.index, end: start + rel.length } })
       # "prozę Bruno Schulza" -> "Brunona": a Polish surname in an oblique case takes the
       # first name along.
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<name>Bruno|Hugo|Otto|Pablo|Mario|Paulo|Leonardo|Ricardo|Fernando|Antonio|Alfonso|Romano|Guido|Sergio|Claudio){{S}}(?<surname>\\p{Lu}\\p{Ll}{2,}?(?<ending>owi|em|a|y|i))(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: gdu
-        fixer: uninflectedNames
+        let:
+          forms: AGREEMENT_O_NAMES[name]
+          before: agreementWordBefore(ctx.text, m.index)
+        when: 'ending === "owi" || ending === "em" || (!!before && (plOnlyNoun(plNounTags(before)) || AGREEMENT_GOVERNED[before] === plCases("Gs Gp")))'
+        return: >-
+          ({ ...plFindingAt(ctx, m.index, m.index + name.length, [ending === "owi" ? forms[1] : ending === "em" ? forms[2] : forms[0]],
+          "polishCaseAgreement", "review_msg_pl_agreement"), context: { start: m.index, end: m.index + m[0].length } })
       # "wg niemu", "dla nią" -> "wg niego", "dla niej": these prepositions take only the
       # genitive, so "niemu", "nim", "nią", "nimi" cannot follow.
       - regex: "(?<=(?<![\\p{L}])(?:{{GENITIVE_ONLY}}){{S}})(?:niemu|nim|nią|nimi)(?![\\p{L}])"
         scan: polish
         flags: giu
-        fixer: genitiveOnlyPronoun
+        return: agreementSmallFrame(ctx, m, AGREEMENT_PRONOUN_GENITIVE[m[0].toLowerCase()] ?? null)
       # "w twoi mózgu" -> "w twoim mózgu": the dropped "m" (or "-ej" before a feminine noun).
       - regex: "(?<=(?<![\\p{L}])(?:w|we|po|o|na|przy)[ \\t\\u00A0]{1,8})(?:moi|twoi|swoi)(?=[ \\t\\u00A0]{1,8}(?<noun>\\p{L}+))"
         scan: polish
         flags: giu
-        fixer: possessiveLocative
+        let:
+          tags: plNounTags(noun)
+        return: >-
+          agreementSmallFrame(ctx, m, !plOnlyNoun(tags) || !tagsAnd(tags, plCases("Ls Lp")) ? null
+          : tagsAnd(tags, plCases("Lp")) ? m[0] + "ch" : tagsAnd(tags, PL_FEMININE) ? m[0].slice(0, -1) + "jej" : m[0] + "m")
       # "po litewskiemu" -> "po litewsku" (not "po swojemu", "po staremu").
       - regex: "(?<=(?<![\\p{L}])po[ \\t\\u00A0]{1,8})\\p{L}+(?:sk|ck|dzk)iemu(?![\\p{L}])"
         scan: polish
         flags: giu
-        fixer: poLanguage
+        return: 'agreementSmallFrame(ctx, m, m[0].slice(0, -4) + "u")'
       # "godzina temu" -> "godzinę temu": "temu" counts back from an accusative. Not "temu"
       # the dative of "ten" before its noun ("ta chwila temu panu umknęła").
       - regex: "(?<![\\p{L}])(?:godzina|minuta|sekunda|chwila|doba)(?=[ \\t\\u00A0]{1,8}temu(?![\\p{L}])(?![ \\t\\u00A0]+\\p{L}+(?:owi|u|emu)(?![\\p{L}])))"
         scan: polish
         flags: giu
-        fixer: temuAccusative
+        return: 'agreementSmallFrame(ctx, m, m[0].slice(0, -1) + "ę")'
       # "półtorej roku" -> "półtora roku", "półtora godziny" -> "półtorej godziny": the noun's
       # gender picks the form.
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<num>półtora|półtorej){{S}}(?<noun>\\p{L}{3,}){{WORD}}"
         scan: polish
         flags: gdiu
-        fixer: halfForms
+        let:
+          tags: plNounTags(noun)
+          gender: tagsAnd(tags, AGREEMENT_GENDERS)
+          wanted: 'gender === PL_FEMININE ? "półtorej" : tagsAnd(gender, PL_FEMININE) || !gender ? "" : "półtora"'
+        when:
+          - '!(!plOnlyNoun(tags) || !tagsAnd(tags, plCases("Gs")) || plUserOrNamed(ctx, noun))'
+          - "!(!wanted || wanted === num.toLowerCase())"
+        return: >-
+          ({ ...plFindingAt(ctx, m.index, m.index + num.length, [plCaseLike(num, wanted)], "polishCaseAgreement",
+          "review_msg_pl_numeral_noun"), context: { start: m.index, end: m.index + m[0].length } })
       # "dwadzieścia trzej mężczyźni": men's "dwaj", "trzej", "czterej" stand alone, not after tens.
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?:dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt){{S}}(?:dwaj|trzej|czterej){{S}}(?<noun>\\p{L}{3,}){{WORD}}"
         scan: polish
         flags: gdiu
-        fixer: tensMen
+        let:
+          tags: plNounTags(noun)
+          forms: plInflect(noun, plCases("Gp"), plCases("Np"))
+          words: 'm[0].toLowerCase().split(/[ \t ]+/u)'
+        when: "!(!plOnlyNoun(tags) || !tagsAnd(tags, PL_VIRILE) || plUserOrNamed(ctx, noun))"
+        return: >-
+          plFindingAt(ctx, m.index, m.index + m[0].length, forms.length === 1
+          ? [plCaseLike(m[0], AGREEMENT_TENS[words[0]] + " " + AGREEMENT_MEN_UNITS[words[1]] + " " + forms[0])] : [],
+          "polishCaseAgreement", "review_msg_pl_numeral_noun")
       # "Uczestnikami są wyłącznie uczniów": a genitive plural where the subject goes after "są".
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<verb>są|będą){{S}}(?:(?:wyłącznie|głównie|tylko|także|również|zwykle|najczęściej|zawsze|często){{S}})?(?<noun>\\p{Ll}{3,}){{WORD}}"
         scan: polish
         flags: gdu
-        fixer: subjectsAfterPredicate
+        let:
+          tags: plNounTags(noun)
+          # The clause opens with an instrumental noun, the predicate: "Klientami są", "Dla firmy autorami
+          # będą".
+          clause: '(ctx.text.slice(Math.max(0, m.index - 60), m.index).split(/[.!?;:,—–()]/u).at(-1) ?? "").match(/\p{L}+/gu) ?? []'
+          allForms: plInflect(noun, plCases("Np"), plCases("Gp"))
+          # "uczniów": the men's plural "uczniowie", not the plural of things "ucznie".
+          men: allForms.filter((form) => plMenOnlyPlural(form))
+          forms: "allForms.length > 1 && men.length ? men : allForms"
+        when:
+          # A genitive plural with no nominative reading ("uczniów", "organizacji").
+          - plOnlyNoun(tags) && tagsAnd(tags, plCases("Gp")) !== 0 && !tagsAnd(tags, plCases("Ns Np"))
+          - "!plUserOrNamed(ctx, noun)"
+          - "clause.slice(-3).some((word) => [plNounTags(word.toLowerCase())].some((own) => plOnlyNoun(own) && !tagsAnd(own, tagsWithout(PL_ALL_CASES, AGREEMENT_INSTRUMENTALS))))"
+          - forms.length > 0 && forms.length <= 2
+        return: >-
+          plFindingAt(ctx, m.indices!.groups!.noun[0], m.indices!.groups!.noun[1], forms.map((form) => plCaseLike(noun, form)),
+          "polishCaseAgreement", "review_msg_pl_agreement")
       # "tymi człowiekiem", "moimi siostrą". "między innymi handlem": "innymi" is left out,
       # it is part of "między innymi".
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>tymi|Tymi|tamtymi|Tamtymi|takimi|Takimi|jakimi|Jakimi|jakimiś|Jakimiś|moimi|Moimi|twoimi|Twoimi|swoimi|Swoimi|naszymi|Naszymi|waszymi|Waszymi|owymi|Owymi|żadnymi|Żadnymi){{S}}(?<noun>\\p{Ll}{3,}){{WORD}}"
         scan: polish
         flags: gu
-        fixer: pluralPronouns
+        let:
+          # The noun is only a singular instrumental, of one gender.
+          tags: plNounTags(noun)
+          feminine: tagsAnd(tags, PL_FEMININE) !== 0
+        when:
+          - '!(!plOnlyNoun(tags) || tagsAnd(tags, tagsWithout(PL_ALL_CASES, plCases("Is"))) || plUserOrNamed(ctx, noun))'
+          - feminine !== (tagsAnd(tags, tagsOr(PL_MASCULINE, PL_NEUTER)) !== 0)
+        return: >-
+          ({ ...plFindingAt(ctx, m.index, m.index + pronoun.length,
+          [plCaseLike(pronoun, AGREEMENT_PLURAL_PRONOUNS[pronoun.toLowerCase()][feminine ? 1 : 0])], "polishCaseAgreement",
+          "review_msg_pl_agreement"), context: { start: m.index, end: m.index + m[0].length } })
   # Polish typesetting: „…” quotes (opt-in), one dash style per inserted phrase, spaces around
   # "=" and "×", no space before "%", the decimal comma before a unit, symbols typed as letters
   # ("(C)"), spacing inside abbreviations, and a space after ";" or ")".

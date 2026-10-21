@@ -4,19 +4,12 @@ import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
-/** Spaces between two words of a frame; no letter, digit or word glue continues the word. */
-export { SPACE as S, WORD_END as END } from "../phraseTemplates";
-/** No letter before: the frame starts a word. */
-export const START = "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])";
 /**
  * A word starts a clause or the text here: the text start, or sentence punctuation and spaces.
  * The letter test comes first, so most positions never read back.
  */
 export const CLAUSE_START =
   '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))';
-/** The prepositions after which a word must be a noun phrase. */
-export const PREPOSITIONS =
-  "w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed";
 
 export const isPl = (ctx: DetectContext) => isLang(ctx, "pl");
 
@@ -38,21 +31,6 @@ export function userOrNamed(ctx: DetectContext, typed: string): boolean {
       ctx.dictionary.has(word.toLowerCase()) ||
       (/\p{Lu}/u.test(word.slice(1)) && word !== word.toUpperCase()),
   );
-}
-
-export type Fix =
-  string | readonly string[] | ((m: RegExpExecArray) => string | readonly string[] | null);
-
-/** A guarded frame: the regex carries its own context; `target` is what is replaced. */
-export interface Frame {
-  pattern: string;
-  fix: Fix;
-  ruleId: RawFinding["ruleId"];
-  messageKey: RawFinding["messageKey"];
-  /** Keep the typed casing off: the fix decides it (names, abbreviations). */
-  verbatim?: true;
-  /** A capital inside a sentence makes it a name ("w Głownie", "Maja"): abstain. */
-  lowercase?: true;
 }
 
 /** The text before `start` ends a sentence (or nothing comes before it). */
