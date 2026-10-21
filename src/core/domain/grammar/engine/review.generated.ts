@@ -9922,58 +9922,58 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:[a-z]+(?=['’]))?(?:is|are|was|were|am|be|been|being|seems?|seemed|looks?|looked|feels?|felt|sounds?|sounded|gets?|got|getting|become|becomes|became|['’]s|['’]re|['’]m|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)(?:[ \\t\\u00a0]{1,8}(?:not|way|far|just|much|still|also|really|simply|already|probably|a[ \\t\\u00a0]+bit|definitely|getting|being|kind[ \\t\\u00a0]+of)){0,2}[ \\t\\u00a0]{1,8}(?<target>to)(?=[ \\t\\u00a0]{1,8}[a-z])",
     literals: [],
-    fixer: "en:degreeLinking",
+    fixer: "en:@en.toForToo/1",
   }),
   frame({
     pattern: "(?:much|far|way)[ \\t\\u00a0]{1,8}(?<target>to)(?=[ \\t\\u00a0]{1,8}[a-z])",
     literals: ["much", "far", "way"],
-    fixer: "en:degreeAdverb",
+    fixer: "en:@en.toForToo/2",
   }),
   frame({
     pattern:
       "(?<verb>[a-z]+)[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}(?<degree>much|often|soon|late)(?=[ \\t\\u00a0]{0,8}(?:[.!?;)]|$))",
     literals: ["much", "often", "soon", "late"],
-    fixer: "en:degreeClauseEnd",
+    fixer: "en:@en.toForToo/3",
   }),
   frame({
     pattern:
       "(?:try|tries|tried|trying|push|pushing|pushed|work|working|worked)[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}hard(?=[ \\t\\u00a0]{0,8}(?:[.!?;,)]|$))",
     literals: ["hard"],
-    fixer: "en:degreeTryHard",
+    fixer: "en:@en.toForToo/4",
   }),
   frame({
     pattern:
       "(?:[0-9]+(?:[ \\t\\u00a0]?%|[ \\t\\u00a0]{1,8}(?:percent|per[ \\t\\u00a0]?cent))|(?:[0-9]+|a|one|two|three|few|several)[ \\t\\u00a0]{1,8}(?:years?|months?|weeks?|days?|hours?|minutes?|seconds?))[ \\t\\u00a0]{1,8}(?<target>to)(?=[ \\t\\u00a0]{1,8}[a-z])",
     literals: [],
-    fixer: "en:degreeMeasured",
+    fixer: "en:@en.toForToo/5",
   }),
   frame({
     pattern:
       "(?<verb>has|have|had|having|spent|spend|spends|spending|ate|eat|eats|drank|drink|drinks|avoid|avoided|gave|give|gives)[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}(?<amount>much|many)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["much", "many"],
-    fixer: "en:degreeObjectAmount",
+    fixer: "en:@en.toForToo/6",
   }),
   frame({
     pattern:
       "(?<target>to)[ \\t\\u00a0]{1,8}(?:much|many)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)[ \\t\\u00a0]{1,8}(?<verb>is|was|are|were|will|would|has|have|had|can|could|[a-z]+ed)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["much", "many"],
-    fixer: "en:degreeSubjectAmount",
+    fixer: "en:@en.toForToo/7",
   }),
   frame({
     pattern: "(?<target>two)[ \\t\\u00a0]{1,8}(?:much|many)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["much", "many"],
-    fixer: "en:degreeTwoMuch",
+    fixer: "en:@en.toForToo/8",
   }),
   frame({
     pattern:
       "one[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}many[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["many"],
-    fixer: "en:degreeOneToMany",
+    fixer: "en:@en.toForToo/9",
   }),
   frame({
     pattern: "(?<target>to)[ \\t\\u00a0]{1,8}(?<word>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:degreeOpening",
+    fixer: "en:@en.toForToo/10",
   }),
   frame({
     pattern:
@@ -10986,26 +10986,26 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:what|how|why|where|when)(?:[ \\t\\u00a0]{1,8}[a-z]+)?[ \\t\\u00a0]{1,8}(?:do|does|did)[ \\t\\u00a0]{1,8}(?:i|you|we|they|he|she|it)|(?:who|which)[ \\t\\u00a0]{1,8}(?:do|does|did)[ \\t\\u00a0]{1,8}(?:i|we|they|he|she))(?:[ \\t\\u00a0]{1,8}(?:ever|really|actually|typically|usually|normally|still|even|just|always|also|never|already|generally|actually))?[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["what", "how", "why", "where", "when", "who", "which"],
-    fixer: "en:questionDoBase",
+    fixer: "en:@en.questionAuxiliaries/1",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<target>(?<aux>do|does|did)(?<subject>[ \\t\\u00a0]{1,8}(?:(?:i|you|we|they|he|she|it)|anyone|someone|anybody|somebody|everyone|everybody|(?:the|your|my|our|their|his|her|this|that)(?:[ \\t\\u00a0]{1,8}[a-z]+){1,2}))[ \\t\\u00a0]{1,8}(?<modal>(?:can|could|would|will|should|may|might|must)))[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["can", "could", "would", "will", "should", "may", "might", "must"],
-    fixer: "en:questionDoModal",
+    fixer: "en:@en.questionAuxiliaries.doModal/1",
   }),
   frame({
     pattern:
       "(?<target>(?<aux>did)(?<subject>[ \\t\\u00a0]{1,8}(?:(?:i|you|we|they|he|she|it)|anyone|someone|anybody|somebody|everyone|everybody|(?:the|your|my|our|their|his|her|this|that)(?:[ \\t\\u00a0]{1,8}[a-z]+){1,2}))[ \\t\\u00a0]{1,8}(?:has|have))[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["did"],
-    fixer: "en:questionDidPerfect",
+    fixer: "en:@en.questionAuxiliaries.didPerfect/1",
   }),
   frame({
     pattern:
       "(?<first>(?:can|could|would|will|should|may|might|must))(?<subject>[ \\t\\u00a0]{1,8}(?:i|you|we|they|he|she|it))[ \\t\\u00a0]{1,8}(?<second>(?:can|could|would|will|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["can", "could", "would", "will", "should", "may", "might", "must"],
-    fixer: "en:questionRepeatedModal",
+    fixer: "en:@en.questionAuxiliaries.repeated/1",
     owner: "second",
   }),
   frame({
@@ -11027,14 +11027,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "recently",
       "finally",
     ],
-    fixer: "en:questionRepeatedHave",
+    fixer: "en:@en.questionAuxiliaries.repeated/2",
     owner: "second",
   }),
   frame({
     pattern:
       "(?<head>make|makes|made|making|let|lets|letting|have|had)[ \\t\\u00a0]{1,8}(?<object>me|him|her|it|us|them|you)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["make", "makes", "made", "making", "let", "lets", "letting", "have", "had"],
-    fixer: "en:questionCausative",
+    fixer: "en:@en.causativeThird/1",
     owner: "verb",
   }),
   frame({

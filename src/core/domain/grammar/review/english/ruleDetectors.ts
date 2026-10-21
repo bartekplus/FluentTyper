@@ -12,7 +12,6 @@ import * as typography from "./typography";
 import * as confusions1 from "./confusions1";
 import * as dates from "./dates";
 import * as contractionSlots from "./contractionSlots";
-import * as degreeSlots from "./degreeSlots";
 import * as nounNumberSlots from "./nounNumberSlots";
 import * as verbGroupSlots from "./verbGroupSlots";
 import * as complementSlots from "./complementSlots";
@@ -22,7 +21,6 @@ import * as agreementSlots from "./agreementSlots";
 import * as confusionSlots from "./confusionSlots";
 import * as countSlots from "./countSlots";
 import * as relativeSlots from "./relativeSlots";
-import * as questionSlots from "./questionSlots";
 import * as collocationSlots from "./collocationSlots";
 import * as noNotSlots from "./noNotSlots";
 import * as clauseAgreementSlots from "./clauseAgreementSlots";
@@ -104,10 +102,8 @@ export const FIXERS = mergePredicates<Fixer>(
   apostrophes.FIXERS,
   relativeSlots.FIXERS,
   missingVerbSlots.FIXERS,
-  degreeSlots.FIXERS,
   plainStyle.FIXERS,
   properNames.FIXERS,
-  questionSlots.FIXERS,
   complementSlots.FIXERS,
   contractionSlots.FIXERS,
   nounNumberSlots.FIXERS,

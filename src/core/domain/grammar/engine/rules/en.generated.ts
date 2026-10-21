@@ -20,16 +20,54 @@ import {
   dayCount,
   enAfterBreak,
   enEvidence,
+  enInfo,
   enLexiconInflect,
   enNounOnly,
   enTokensAfter,
   enWordBefore,
+  englishLemma,
+  englishVerbForms,
   englishWordInfo,
   finding,
   hasUserOrCasedWord,
   recentPast,
 } from "../../library";
 import { isoDateWarning } from "./common.generated";
+
+export const DEGREE_WORDS: ReadonlySet<string> = new Set([
+  "much",
+  "many",
+  "little",
+  "few",
+  "late",
+  "soon",
+  "early",
+  "far",
+  "long",
+]);
+
+export const DEGREE_AFTER: ReadonlySet<string> = new Set([
+  "to",
+  "for",
+  "because",
+  "now",
+  "and",
+  "with",
+  "in",
+  "at",
+  "about",
+  "from",
+  "off",
+  "away",
+  "ago",
+]);
+
+export const DEGREE_PREDICATIVE: ReadonlySet<string> = new Set([
+  "afraid",
+  "alone",
+  "awake",
+  "asleep",
+]);
 
 export const ADVERB_NOT_BASE: ReadonlySet<string> = new Set([
   "dark",
@@ -195,6 +233,65 @@ export const BRITISH_UNITS: Readonly<Record<string, string>> = {
   liters: "litres",
 };
 
+// en.yaml rule en.toForToo def degreeLexiconTarget
+export function degreeLexiconTarget(word: string): boolean {
+  const read = enInfo(word);
+  if (!(
+    !!read && !read.verbs.some((v) => v.form === "base" || v.form === "third" || v.form === "ing")
+  ))
+    return false;
+  return read.adjective || read.verbs.some((v) => v.form === "participle");
+}
+
+// en.yaml rule en.toForToo def degreeTarget
+export function degreeTarget(word: string): boolean {
+  return (
+    DEGREE_WORDS.has(word) ||
+    DEGREE_PREDICATIVE.has(word) ||
+    (!/^(?:one|two|three|four|five|six|seven|eight|nine|ten)$/.test(word) &&
+      degreeLexiconTarget(word))
+  );
+}
+
+// en.yaml rule en.toForToo def degreeClosesAt
+export function degreeClosesAt(tokens: EnToken[], k: number) {
+  const t = tokens[k];
+  return (
+    !t || t.kind === "end" || t.kind === "comma" || (t.kind === "word" && DEGREE_AFTER.has(t.lower))
+  );
+}
+
+// en.yaml rule en.toForToo def degreeClosed
+export function degreeClosed(ctx: DetectContext, end: number, strict: boolean): boolean {
+  const tokens = enTokensAfter(ctx, end, 4);
+  const word = tokens[0];
+  if (!(word?.kind === "word" && word.text === word.lower && degreeTarget(word.lower)))
+    return false;
+  if (tokens.some((t) => t.kind === "other")) return false;
+  if (
+    tokens[1]?.lower === "to" &&
+    !(
+      tokens[2]?.kind === "word" &&
+      englishWordInfo(tokens[2].lower)?.verbs.some((v) => v.form === "base")
+    )
+  )
+    return false;
+  return /^(?:much|many)$/.test(word.lower) && tokens[1]?.lower === "of"
+    ? !strict
+    : degreeClosesAt(tokens, 1) && (!strict || tokens[1]?.kind !== "word");
+}
+
+// en.yaml rule en.toForToo def degreeTooFix
+export function degreeTooFix(ctx: DetectContext, m: RegExpExecArray) {
+  const start = m.indices!.groups!.target[0];
+  const end = m.indices!.groups!.target[1];
+  const target = m.groups!.target;
+  if (ctx.dictionary.has(target.toLowerCase())) return null;
+  return finding("englishToToo", "review_msg_to_too", start, end, [caseLike(target, "too")], {
+    context: enEvidence(ctx, m.index, m.index + m[0].length),
+  });
+}
+
 // en.yaml rule en.adjectiveForAdverb def adverbListedLy
 export function adverbListedLy(word: string) {
   const ly = englishWordInfo(word);
@@ -261,6 +358,44 @@ export const NEGATION_CLAUSE_BREAK =
 // en.yaml rule en.doubleNegatives def NEGATION_NO_PHRASES
 export const NEGATION_NO_PHRASES =
   /^(?:one|longer|matter|more|less|doubt|further|sooner|way|thanks|end|wonder|problem|question|idea|less|other|sense|use)$/;
+
+// en.yaml rule en.questionAuxiliaries def questionPastBare
+export function questionPastBare(word: string) {
+  const forms = englishVerbForms(word);
+  if (forms && (forms.ambiguous.includes(word) || forms.lemma === word)) return null;
+  return englishLemma(word, "past");
+}
+
+// en.yaml rule en.questionAuxiliaries def questionBareOf
+export function questionBareOf(word: string): string | null {
+  const read = englishWordInfo(word);
+  if (!read?.verbs.length) return null;
+  return word.endsWith("ing")
+    ? englishLemma(word, "ing")
+    : word.endsWith("s")
+      ? englishLemma(word, "third")
+      : !read.verbs.some((v) => v.form === "past")
+        ? null
+        : questionPastBare(word);
+}
+
+// en.yaml rule en.questionAuxiliaries def questionFinding
+export function questionFinding(
+  ctx: DetectContext,
+  messageKey: RawFinding["messageKey"],
+  start: number,
+  end: number,
+  alternatives: string[],
+) {
+  return finding("englishAuxiliaryBaseVerb", messageKey, start, end, alternatives, {
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    context: enEvidence(ctx, start, end),
+  });
+}
+
+// en.yaml rule en.causativeThird def QUESTION_CAUSED
+export const QUESTION_CAUSED =
+  /^(?:works|happens|runs|seems|sounds|looks|fails|moves|stops|loads|starts|compiles|crashes|fits|appears|disappears|lasts|stays|loops|wonders|laughs|smiles|cries|thinks|feels|realizes|believes|wants|wishes|forgets|remembers|knows|understands)$/;
 
 // en.yaml rule en.superlativeArticle def comparisonPlain
 export function comparisonPlain(word: string, suffix: string): string | null {
@@ -516,6 +651,92 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
   },
+  // en.yaml rule en.toForToo frame 1
+  "@en.toForToo/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0]?.lower ?? "";
+    const read = enInfo(next);
+    if (
+      /^seem/i.test(m[0]) &&
+      !read?.adjective &&
+      read?.verbs.some((v) => v.form === "past") &&
+      !DEGREE_WORDS.has(next)
+    )
+      return null;
+    if (!degreeClosed(ctx, m.index + m[0].length, false)) return null;
+    return degreeTooFix(ctx, m);
+  },
+  // en.yaml rule en.toForToo frame 2
+  "@en.toForToo/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const before = enWordBefore(ctx, m.index);
+    if (/^(?:the|a|this|that|one|no|best|which|how|so|as|too)$/.test(before)) return null;
+    if (!degreeClosed(ctx, m.index + m[0].length, true)) return null;
+    return degreeTooFix(ctx, m);
+  },
+  // en.yaml rule en.toForToo frame 3
+  "@en.toForToo/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    if (
+      /^(?:amounts?|amounted|comes?|came|coming|up|set|sets|switch|changed?|moved?|default|defaults|postponed?|delayed?|back|down)$/.test(
+        verb,
+      )
+    )
+      return null;
+    const read = enInfo(verb);
+    if (!read?.verbs.length) return null;
+    return degreeTooFix(ctx, m);
+  },
+  // en.yaml rule en.toForToo frame 4
+  "@en.toForToo/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return degreeTooFix(ctx, m);
+  },
+  // en.yaml rule en.toForToo frame 5
+  "@en.toForToo/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!degreeClosed(ctx, m.index + m[0].length, true)) return null;
+    return degreeTooFix(ctx, m);
+  },
+  // en.yaml rule en.toForToo frame 6
+  "@en.toForToo/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const amount = m.groups!.amount;
+    const noun = m.groups!.noun;
+    if (amount === "many" && /^g[ai]ve/.test(verb)) return null;
+    if (!(enNounOnly(noun) || enInfo(noun)?.noun)) return null;
+    return degreeTooFix(ctx, m);
+  },
+  // en.yaml rule en.toForToo frame 7
+  "@en.toForToo/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const before = enWordBefore(ctx, m.index);
+    if (!(
+      enAfterBreak(ctx, m.index) || /^(?:because|since|as|when|if|and|but|so|that)$/.test(before)
+    ))
+      return null;
+    if (!(enNounOnly(noun) || enInfo(noun)?.noun)) return null;
+    return degreeTooFix(ctx, m);
+  },
+  // en.yaml rule en.toForToo frame 8
+  "@en.toForToo/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (next?.kind === "word" && /(?:er|more|less)$/.test(next.lower)) return null;
+    return degreeTooFix(ctx, m);
+  },
+  // en.yaml rule en.toForToo frame 9
+  "@en.toForToo/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    if (!(enNounOnly(noun) === "plural" || enInfo(noun)?.plural)) return null;
+    return degreeTooFix(ctx, m);
+  },
+  // en.yaml rule en.toForToo frame 10
+  "@en.toForToo/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = m.groups!.word;
+    if (!(enAfterBreak(ctx, m.index) || /^(?:ah|oh|aw)$/.test(enWordBefore(ctx, m.index))))
+      return null;
+    if (!(word === word.toLowerCase() && degreeTarget(word))) return null;
+    if (DEGREE_WORDS.has(word) && word !== "late" && word !== "much") return null;
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (next && next.kind === "word" && next.lower !== "that") return null;
+    return degreeTooFix(ctx, m);
+  },
   // en.yaml rule en.adjectiveForAdverb frame 1
   "@en.adjectiveForAdverb/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     const target = m.groups!.target;
@@ -648,6 +869,140 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       range: { start, end },
       alternatives: [caseLike(target, kept.toLowerCase())],
       context: enEvidence(ctx, start, end + 12),
+    };
+  },
+  // en.yaml rule en.questionAuxiliaries frame 1
+  "@en.questionAuxiliaries/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    if (!(verb === verb.toLowerCase() && !ctx.dictionary.has(verb))) return null;
+    const lead = m[0].slice(0, -verb.length);
+    if (/s$/.test(verb) && englishWordInfo(verb)?.noun && /\b(?:you|we|they)\s+$/i.test(lead))
+      return null;
+    const base = questionBareOf(verb);
+    if (!(base && base !== verb && base !== "be")) return null;
+    return questionFinding(
+      ctx,
+      "review_msg_auxiliary_base",
+      m.indices!.groups!.verb[0],
+      m.indices!.groups!.verb[1],
+      [caseLike(verb, base)],
+    );
+  },
+  // en.yaml rule en.questionAuxiliaries.doModal frame 1
+  "@en.questionAuxiliaries.doModal/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const aux = m.groups!.aux;
+    const subject = m.groups!.subject;
+    const modal = m.groups!.modal;
+    const verb = m.groups!.verb;
+    const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
+    if (!(
+      enAfterBreak(ctx, m.index) || /\b(?:what|how|why|where|when|which)[ \t ]+$/i.test(before)
+    ))
+      return null;
+    if (hasUserOrCasedWord(ctx, `${subject} ${modal} ${verb}`)) return null;
+    const read = englishWordInfo(verb);
+    if (!read?.verbs.some((v) => v.form === "base" && v.lemma === verb)) return null;
+    return questionFinding(
+      ctx,
+      "review_msg_question_auxiliary",
+      m.indices!.groups!.target[0],
+      m.indices!.groups!.target[1],
+      [`${caseLike(aux, modal.toLowerCase())}${subject}`],
+    );
+  },
+  // en.yaml rule en.questionAuxiliaries.didPerfect frame 1
+  "@en.questionAuxiliaries.didPerfect/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const aux = m.groups!.aux;
+    const subject = m.groups!.subject;
+    const verb = m.groups!.verb;
+    if (!(enAfterBreak(ctx, m.index) && !hasUserOrCasedWord(ctx, `${subject} ${verb}`)))
+      return null;
+    const read = englishWordInfo(verb);
+    if (!(verb === "been" || read?.verbs.some((v) => v.form === "participle"))) return null;
+    if (read?.verbs.some((v) => v.form === "base" && v.lemma === verb)) return null;
+    const plural = /^\s*(?:i|you|we|they)$/i.test(subject.trim());
+    return questionFinding(
+      ctx,
+      "review_msg_question_auxiliary",
+      m.indices!.groups!.target[0],
+      m.indices!.groups!.target[1],
+      [`${caseLike(aux, plural ? "have" : "has")}${subject}`],
+    );
+  },
+  // en.yaml rule en.questionAuxiliaries.repeated frame 1
+  "@en.questionAuxiliaries.repeated/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const subject = m.groups!.subject;
+    const second = m.groups!.second;
+    if (!(first.toLowerCase() === second.toLowerCase() && enAfterBreak(ctx, m.index))) return null;
+    const question = /^[^.!\n]*\?/.test(ctx.text.slice(m.index, m.index + 160));
+    const asked = `${first}${subject}`;
+    const told = `${caseLike(first, subject.trim())} ${second.toLowerCase()}`;
+    return questionFinding(
+      ctx,
+      "review_msg_repeated_auxiliary",
+      m.indices!.groups!.first[0],
+      m.indices!.groups!.second[1],
+      question ? [asked] : [asked, told],
+    );
+  },
+  // en.yaml rule en.questionAuxiliaries.repeated frame 2
+  "@en.questionAuxiliaries.repeated/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const adverb = m.groups!.adverb;
+    const second = m.groups!.second;
+    if (!(first.toLowerCase() === second.toLowerCase())) return null;
+    return questionFinding(
+      ctx,
+      "review_msg_repeated_auxiliary",
+      m.indices!.groups!.first[0],
+      m.indices!.groups!.second[1],
+      [caseLike(first, `${adverb} ${second}`), `${first} ${adverb}`],
+    );
+  },
+  // en.yaml rule en.causativeThird frame 1
+  "@en.causativeThird/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const head = m.groups!.head;
+    const verb = m.groups!.verb;
+    const have = /^ha/i.test(head);
+    const reaction = QUESTION_CAUSED.test(verb);
+    if (have && !reaction) return null;
+    if (ctx.dictionary.has(verb)) return null;
+    if (/^(?:has|is|was|does)$/.test(verb) && !/^let/i.test(head)) return null;
+    if (
+      /\b(?:who|that|which|whom)[ \t ]{1,8}$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 12), m.index),
+      )
+    )
+      return null;
+    const read = englishWordInfo(verb);
+    if (!read?.verbs.some((v) => v.form === "third")) return null;
+    const tail = ctx.text.slice(m.index + m[0].length);
+    if (/^[ \t ]{1,8}of\b/i.test(tail)) return null;
+    const closed = reaction && /^[ \t ]*(?:[.!?,;:)\n]|$)/.test(tail);
+    const next = /^[ \t ]{1,8}([a-z]+)/.exec(tail)?.[1];
+    if (!(!(read.noun || read.plural) || next || closed)) return null;
+    const after =
+      (read.noun || read.plural) &&
+      next &&
+      !/^(?:up|out|down|like|well|better|fine|again|now)$/.test(next)
+        ? englishWordInfo(next)
+        : null;
+    if (!(
+      !(read.noun || read.plural) ||
+      !next ||
+      /^(?:up|out|down|like|well|better|fine|again|now)$/.test(next) ||
+      (!!after && !after.noun && !after.plural && !after.verbs.length)
+    ))
+      return null;
+    const base = englishLemma(verb, "third");
+    if (!(base && base !== verb)) return null;
+    return {
+      ruleId: "englishVerbComplements",
+      messageKey: "review_msg_causative_base",
+      range: { start: m.indices!.groups!.verb[0], end: m.indices!.groups!.verb[1] },
+      alternatives: [caseLike(verb, base)],
+      context: enEvidence(ctx, m.index, m.indices!.groups!.verb[1]),
     };
   },
   // en.yaml rule en.superlativeArticle frame 1

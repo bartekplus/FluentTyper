@@ -2283,38 +2283,140 @@ rules:
     style: match
     message: review_msg_to_too
     filter: slotFindingsOncePerStart
+    sets:
+      # Degree words that only "too" can take before a clause end.
+      DEGREE_WORDS: [much, many, little, few, late, soon, early, far, long]
+      # What may follow the degree phrase: the end, an infinitive, a for-phrase or a reason.
+      DEGREE_AFTER: [to, for, because, now, and, with, in, at, about, from, off, away, ago]
+      # Predicate adjectives the lexicon gives no class.
+      DEGREE_PREDICATIVE: [afraid, alone, awake, asleep]
+    defs:
+      # "was to trying…": an -ing form is a verb after "to".
+      degreeLexiconTarget:
+        args: "word: string"
+        type: boolean
+        let:
+          read: enInfo(word)
+        when: '!!read && !read.verbs.some((v) => v.form === "base" || v.form === "third" || v.form === "ing")'
+        return: 'read.adjective || read.verbs.some((v) => v.form === "participle")'
+        else: "false"
+      # An adjective (or participle) that cannot be a verb after an infinitive "to".
+      degreeTarget:
+        args: "word: string"
+        type: boolean
+        return: >-
+          DEGREE_WORDS.has(word) || DEGREE_PREDICATIVE.has(word) ||
+          (!/^(?:one|two|three|four|five|six|seven|eight|nine|ten)$/.test(word) && degreeLexiconTarget(word))
+      degreeClosesAt:
+        args: "tokens: EnToken[], k: number"
+        let:
+          t: tokens[k]
+        return: '!t || t.kind === "end" || t.kind === "comma" || (t.kind === "word" && DEGREE_AFTER.has(t.lower))'
+      # The word after "to" is a degree target and the phrase closes there.
+      degreeClosed:
+        args: "ctx: DetectContext, end: number, strict: boolean"
+        type: boolean
+        let:
+          tokens: enTokensAfter(ctx, end, 4)
+          word: tokens[0]
+        when:
+          - word?.kind === "word" && word.text === word.lower && degreeTarget(word.lower)
+          # A glued token ("lift.js") or an infinitive that is not a known verb ("to frobnicate",
+          # "to.").
+          - '!tokens.some((t) => t.kind === "other")'
+          - >-
+            !(tokens[1]?.lower === "to" && !(tokens[2]?.kind === "word" &&
+            englishWordInfo(tokens[2].lower)?.verbs.some((v) => v.form === "base")))
+        # "much of a stretch"; "much more" is a comparison ("led to much more").
+        return: >-
+          /^(?:much|many)$/.test(word.lower) && tokens[1]?.lower === "of" ? !strict
+          : degreeClosesAt(tokens, 1) && (!strict || tokens[1]?.kind !== "word")
+        else: "false"
+      # "too" for the typed `target`; a user word stays.
+      degreeTooFix:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        let:
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+          target: m.groups!.target
+        when: "!ctx.dictionary.has(target.toLowerCase())"
+        return: >-
+          finding("englishToToo", "review_msg_to_too", start, end, [caseLike(target, "too")],
+          { context: enEvidence(ctx, m.index, m.index + m[0].length) })
     frames:
       # A linking verb: "It's to late.", "The box is not to heavy to carry." Words may stand
       # between the linking verb and "to": "it's way to late", "not to big".
       - regex: "(?:[a-z]+(?=['’]))?{{DEGREESLOTS_LINKING}}(?:{{S}}{{DEGREESLOTS_BETWEEN}}){0,2}{{S}}(?<target>to)(?={{S}}[a-z])"
-        fixer: degreeLinking
+        let:
+          # "He seemed to noticed": after "seem", a past form that is no adjective wants the base.
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]?.lower ?? ""
+          read: enInfo(next)
+        when:
+          - >-
+            !(/^seem/i.test(m[0]) && !read?.adjective && read?.verbs.some((v) => v.form === "past") &&
+            !DEGREE_WORDS.has(next))
+          - degreeClosed(ctx, m.index + m[0].length, false)
+        return: degreeTooFix(ctx, m)
       # A degree adverb: "came much to soon", "way to early".
       - regex: "(?:much|far|way){{S}}(?<target>to)(?={{S}}[a-z])"
-        fixer: degreeAdverb
+        let:
+          before: enWordBefore(ctx, m.index)
+        when:
+          # "the way to go", "a long way to …", "how far to drive": "to" is part of an infinitive.
+          - "!/^(?:the|a|this|that|one|no|best|which|how|so|as|too)$/.test(before)"
+          - degreeClosed(ctx, m.index + m[0].length, true)
+        return: degreeTooFix(ctx, m)
       # A clause-final degree word after a lexical verb: "They cost to much.", "It fails to often."
       - regex: "(?<verb>[a-z]+){{S}}(?<target>to){{S}}(?<degree>much|often|soon|late)(?=[ \\t\\u00a0]{0,8}(?:[.!?;)]|$))"
-        fixer: degreeClauseEnd
+        let:
+          read: enInfo(verb)
+        when:
+          # "amount to much", "come to much", "up to much", "set it to late": "to" is a preposition.
+          - "!/^(?:amounts?|amounted|comes?|came|coming|up|set|sets|switch|changed?|moved?|default|defaults|postponed?|delayed?|back|down)$/.test(verb)"
+          - read?.verbs.length
+        return: degreeTooFix(ctx, m)
       # Trying hard: "I was trying to hard."
       - regex: "(?:try|tries|tried|trying|push|pushing|pushed|work|working|worked){{S}}(?<target>to){{S}}hard(?=[ \\t\\u00a0]{0,8}(?:[.!?;,)]|$))"
-        fixer: degreeTryHard
+        return: degreeTooFix(ctx, m)
       # A measured excess: "10 percent to high", "5% to much", "two days to late".
       - regex: "(?:[0-9]+(?:[ \\t\\u00a0]?%|{{S}}(?:percent|per[ \\t\\u00a0]?cent))|(?:[0-9]+|a|one|two|three|few|several){{S}}(?:years?|months?|weeks?|days?|hours?|minutes?|seconds?)){{S}}(?<target>to)(?={{S}}[a-z])"
-        fixer: degreeMeasured
+        when: degreeClosed(ctx, m.index + m[0].length, true)
+        return: degreeTooFix(ctx, m)
       # An excessive amount as an object: "She has to much work", "We spent to much money".
       - regex: "(?<verb>has|have|had|having|spent|spend|spends|spending|ate|eat|eats|drank|drink|drinks|avoid|avoided|gave|give|gives){{S}}(?<target>to){{S}}(?<amount>much|many){{S}}(?<noun>[a-z]+){{E}}"
-        fixer: degreeObjectAmount
+        when:
+          # "gave to many charities": a recipient.
+          - '!(amount === "many" && /^g[ai]ve/.test(verb))'
+          - enNounOnly(noun) || enInfo(noun)?.noun
+        return: degreeTooFix(ctx, m)
       # A clause-opening quantity subject: "because to much snow fell", "To many people came."
       - regex: "(?<target>to){{S}}(?:much|many){{S}}(?<noun>[a-z]+){{S}}(?<verb>is|was|are|were|will|would|has|have|had|can|could|[a-z]+ed){{E}}"
-        fixer: degreeSubjectAmount
+        let:
+          before: enWordBefore(ctx, m.index)
+        when:
+          - enAfterBreak(ctx, m.index) || /^(?:because|since|as|when|if|and|but|so|that)$/.test(before)
+          - enNounOnly(noun) || enInfo(noun)?.noun
+        return: degreeTooFix(ctx, m)
       # "two much", "two many" (not "two much bigger rooms").
       - regex: "(?<target>two){{S}}(?:much|many){{E}}"
-        fixer: degreeTwoMuch
+        let:
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when: '!(next?.kind === "word" && /(?:er|more|less)$/.test(next.lower))'
+        return: degreeTooFix(ctx, m)
       # "one to many beers".
       - regex: "one{{S}}(?<target>to){{S}}many{{S}}(?<noun>[a-z]+){{E}}"
-        fixer: degreeOneToMany
+        when: enNounOnly(noun) === "plural" || enInfo(noun)?.plural
+        return: degreeTooFix(ctx, m)
       # A sentence opening "To late." or "To bad that…", also after an interjection ("Ah to late").
       - regex: "(?<target>to){{S}}(?<word>[a-z]+){{E}}"
-        fixer: degreeOpening
+        let:
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when:
+          - enAfterBreak(ctx, m.index) || /^(?:ah|oh|aw)$/.test(enWordBefore(ctx, m.index))
+          - word === word.toLowerCase() && degreeTarget(word)
+          - '!(DEGREE_WORDS.has(word) && word !== "late" && word !== "much")'
+          - '!(next && next.kind === "word" && next.lower !== "that")'
+        return: degreeTooFix(ctx, m)
   - id: en.existentialCount
     checks: [englishExistentialAgreement, englishNounNumber]
     style: match
@@ -3016,11 +3118,50 @@ rules:
     style: match
     message: review_msg_auxiliary_base
     filter: slotFindingsNoOverlap
+    defs:
+      # A past form whose base is not the same word and that no other form shares.
+      questionPastBare:
+        args: "word: string"
+        let:
+          forms: englishVerbForms(word)
+        when: "!(forms && (forms.ambiguous.includes(word) || forms.lemma === word))"
+        return: englishLemma(word, "past")
+      # The base of a past, -s or -ing verb form ("smiled", "says", "writing"), or null. Right
+      # after do + a pronoun subject only a verb fits, so "works" and "used" read as verbs.
+      questionBareOf:
+        args: "word: string"
+        type: string | null
+        let:
+          read: englishWordInfo(word)
+        when: read?.verbs.length
+        return: >-
+          word.endsWith("ing") ? englishLemma(word, "ing")
+          : word.endsWith("s") ? englishLemma(word, "third")
+          : !read.verbs.some((v) => v.form === "past") ? null
+          : questionPastBare(word)
+      questionFinding:
+        args: 'ctx: DetectContext, messageKey: RawFinding["messageKey"], start: number, end: number, alternatives: string[]'
+        return: >-
+          finding("englishAuxiliaryBaseVerb", messageKey, start, end, alternatives, {
+          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          context: enEvidence(ctx, start, end) })
     frames:
       # "Tell me how did he smiled", "what does it means", "How do I typically writing…".
       - regex: "(?:(?:what|how|why|where|when)(?:{{S}}[a-z]+)?{{S}}(?:do|does|did){{S}}{{QUESTIONSLOTS_PRONOUN}}|(?:who|which){{S}}(?:do|does|did){{S}}(?:i|we|they|he|she)){{QUESTIONSLOTS_ADVERB}}{{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
-        fixer: questionDoBase
+        let:
+          lead: m[0].slice(0, -verb.length)
+          base: questionBareOf(verb)
+        when:
+          - verb === verb.toLowerCase() && !ctx.dictionary.has(verb)
+          # "what did he used to do" still wants "use". After who/which, "it" and "you" may be
+          # the object of do: "the shop who does it tells me". "What do you guys think?": a
+          # plural noun in apposition to you/we/they.
+          - '!(/s$/.test(verb) && englishWordInfo(verb)?.noun && /\b(?:you|we|they)\s+$/i.test(lead))'
+          - base && base !== verb && base !== "be"
+        return: >-
+          questionFinding(ctx, "review_msg_auxiliary_base", m.indices!.groups!.verb[0],
+          m.indices!.groups!.verb[1], [caseLike(verb, base)])
   - id: en.questionAuxiliaries.doModal
     checks: [englishAuxiliaryBaseVerb]
     style: match
@@ -3029,7 +3170,18 @@ rules:
     frames:
       # "Does anyone can help?", "How does the client would like…": the modal leads the question.
       - regex: "(?<target>(?<aux>do|does|did)(?<subject>{{S}}{{QUESTIONSLOTS_SUBJECT}}){{S}}(?<modal>{{QUESTIONSLOTS_MODAL}})){{S}}(?<verb>[a-z]+){{E}}"
-        fixer: questionDoModal
+        let:
+          # A clause start or a question word right before the auxiliary.
+          before: ctx.text.slice(Math.max(0, m.index - 12), m.index)
+          read: englishWordInfo(verb)
+        when:
+          - 'enAfterBreak(ctx, m.index) || /\b(?:what|how|why|where|when|which)[ \t ]+$/i.test(before)'
+          - "!hasUserOrCasedWord(ctx, `${subject} ${modal} ${verb}`)"
+          # The modal must be the auxiliary: a base verb after it ("can provide", "would like").
+          - read?.verbs.some((v) => v.form === "base" && v.lemma === verb)
+        return: >-
+          questionFinding(ctx, "review_msg_question_auxiliary", m.indices!.groups!.target[0],
+          m.indices!.groups!.target[1], [`${caseLike(aux, modal.toLowerCase())}${subject}`])
   - id: en.questionAuxiliaries.didPerfect
     checks: [englishAuxiliaryBaseVerb]
     style: match
@@ -3038,7 +3190,17 @@ rules:
     frames:
       # "Did you have entered your PIN?", "Did the dog has been fed?": a perfect question.
       - regex: "(?<target>(?<aux>did)(?<subject>{{S}}{{QUESTIONSLOTS_SUBJECT}}){{S}}(?:has|have)){{S}}(?<verb>[a-z]+){{E}}"
-        fixer: questionDidPerfect
+        let:
+          read: englishWordInfo(verb)
+          plural: '/^\s*(?:i|you|we|they)$/i.test(subject.trim())'
+        when:
+          - "enAfterBreak(ctx, m.index) && !hasUserOrCasedWord(ctx, `${subject} ${verb}`)"
+          # "Did you have fun", "Did they have lunch": have is the main verb there.
+          - verb === "been" || read?.verbs.some((v) => v.form === "participle")
+          - '!read?.verbs.some((v) => v.form === "base" && v.lemma === verb)'
+        return: >-
+          questionFinding(ctx, "review_msg_question_auxiliary", m.indices!.groups!.target[0],
+          m.indices!.groups!.target[1], [`${caseLike(aux, plural ? "have" : "has")}${subject}`])
   - id: en.questionAuxiliaries.repeated
     checks: [englishAuxiliaryBaseVerb]
     style: match
@@ -3048,22 +3210,70 @@ rules:
       # "Can I can count on you?": the auxiliary written twice.
       - regex: "(?<first>{{QUESTIONSLOTS_MODAL}})(?<subject>{{S}}{{QUESTIONSLOTS_PRONOUN}}){{S}}(?<second>{{QUESTIONSLOTS_MODAL}}){{E}}"
         owner: second
-        fixer: questionRepeatedModal
+        let:
+          question: '/^[^.!\n]*\?/.test(ctx.text.slice(m.index, m.index + 160))'
+          asked: "`${first}${subject}`"
+          told: "`${caseLike(first, subject.trim())} ${second.toLowerCase()}`"
+        when: first.toLowerCase() === second.toLowerCase() && enAfterBreak(ctx, m.index)
+        return: >-
+          questionFinding(ctx, "review_msg_repeated_auxiliary", m.indices!.groups!.first[0],
+          m.indices!.groups!.second[1], question ? [asked] : [asked, told])
       # "I have already have one". "have already had" is fine; only the same form twice.
       - regex: "(?<first>have|has){{S}}(?<adverb>already|ever|really|eventually|never|also|just|still|always|actually|definitely|probably|recently|finally){{S}}(?<second>have|has){{E}}"
         owner: second
-        fixer: questionRepeatedHave
+        # "have already had" is fine; only the same form twice.
+        when: first.toLowerCase() === second.toLowerCase()
+        return: >-
+          questionFinding(ctx, "review_msg_repeated_auxiliary", m.indices!.groups!.first[0],
+          m.indices!.groups!.second[1], [caseLike(first, `${adverb} ${second}`), `${first} ${adverb}`])
   - id: en.causativeThird
     checks: [englishVerbComplements]
     style: match
     message: review_msg_causative_base
     filter: slotFindings
+    defs:
+      # Verbs that the object of a causative does rather than becomes: "make it works", "makes me
+      # wonders".
+      QUESTION_CAUSED: /^(?:works|happens|runs|seems|sounds|looks|fails|moves|stops|loads|starts|compiles|crashes|fits|appears|disappears|lasts|stays|loops|wonders|laughs|smiles|cries|thinks|feels|realizes|believes|wants|wishes|forgets|remembers|knows|understands)$/
     frames:
       # "make it works", "let me knows": a causative's verb stays bare. Not help ("the help it
       # needs", "help them includes"), whose object may end a clause.
       - regex: "(?<head>make|makes|made|making|let|lets|letting|have|had){{S}}(?<object>me|him|her|it|us|them|you){{S}}(?<verb>[a-z]+s){{E}}"
         owner: verb
-        fixer: questionCausative
+        let:
+          have: /^ha/i.test(head)
+          reaction: QUESTION_CAUSED.test(verb)
+          read: englishWordInfo(verb)
+          tail: ctx.text.slice(m.index + m[0].length)
+          # "make it works.", "makes me wonders,": a verb that no one makes into a plural object,
+          # at the clause end.
+          closed: 'reaction && /^[ \t ]*(?:[.!?,;:)\n]|$)/.test(tail)'
+          next: '/^[ \t ]{1,8}([a-z]+)/.exec(tail)?.[1]'
+          after: >-
+            (read.noun || read.plural) && next && !/^(?:up|out|down|like|well|better|fine|again|now)$/.test(next)
+            ? englishWordInfo(next) : null
+          base: englishLemma(verb, "third")
+        when:
+          # "have them ready", "had it fixed": have only with a verb that cannot be a noun object.
+          - "!(have && !reaction)"
+          - "!ctx.dictionary.has(verb)"
+          # "the board you made me has been…": an auxiliary there is the verb of the outer clause.
+          - "!(/^(?:has|is|was|does)$/.test(verb) && !/^let/i.test(head))"
+          # "The person who made it seems happy": a relative clause ends at the object.
+          - '!/\b(?:who|that|which|whom)[ \t ]{1,8}$/i.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))'
+          - read?.verbs.some((v) => v.form === "third")
+          - '!/^[ \t ]{1,8}of\b/i.test(tail)'
+          # "made us friends", "makes them objects of lust", "makes me nuts": a plural noun
+          # complement; only an adverb, adjective or particle after it shows the verb.
+          - "!(read.noun || read.plural) || next || closed"
+          - >-
+            !(read.noun || read.plural) || !next || /^(?:up|out|down|like|well|better|fine|again|now)$/.test(next) ||
+            (!!after && !after.noun && !after.plural && !after.verbs.length)
+          - base && base !== verb
+        return: >-
+          ({ ruleId: "englishVerbComplements", messageKey: "review_msg_causative_base",
+          range: { start: m.indices!.groups!.verb[0], end: m.indices!.groups!.verb[1] },
+          alternatives: [caseLike(verb, base)], context: enEvidence(ctx, m.index, m.indices!.groups!.verb[1]) })
   - id: en.superlativeArticle
     checks: [englishPhraseCorrections]
     style: match
