@@ -18296,7 +18296,7 @@ rules:
       # subject.
       PUNCT_SUBJECT_STARTS:
         [
-          I,
+          i,
           you,
           he,
           she,

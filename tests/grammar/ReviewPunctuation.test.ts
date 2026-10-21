@@ -42,6 +42,7 @@ describe("styleIntroductoryComma (optional)", () => {
     ["Nevertheless we kept going.", "Nevertheless, we kept going."],
     ["In addition she paints.", "In addition, she paints."],
     ["However we stayed.", "However, we stayed."],
+    ["However I think we should go.", "However, I think we should go."],
     ["With it I can draw.", "With it, I can draw."],
     ["If you practice with it you will improve.", "If you practice with it, you will improve."],
     ["If I can I will come.", "If I can, I will come."],
