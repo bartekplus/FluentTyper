@@ -2,7 +2,7 @@ import {
   periodEndsSentence,
   SENTENCE_CLOSERS,
   SENTENCE_OPENERS,
-} from "../implementations/CapitalizeSentenceStartRule";
+} from "../library/typing/sentences";
 
 // "Now" for the date checks that need today's date: a weekday next to a date with no year,
 // and a verb tense against a date in the future or in the past.

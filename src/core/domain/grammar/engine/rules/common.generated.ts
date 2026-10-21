@@ -3,50 +3,121 @@
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
 import type {
+  DetectContext,
   EnglishBoundaryContext,
+  FrameRef,
   GrammarContext,
   GrammarEdit,
   LiveRuleOptions,
+  MatchResult,
+  MeasurementLocalePolicy,
+  RawFinding,
+  TextRange,
 } from "../../library";
 import {
+  CLOSING_CHARS,
+  CLOSING_PADDING_CHARS,
+  COMPLETE,
+  CUE_AND_QUOTE,
+  ENGLISH_MASS_NOUNS,
+  MASK_CHAR,
+  MASS_WITH_COUNT_SENSE,
   NBSP,
   NNBSP,
+  PSEUDO_CLEFT_BEFORE,
   PUNCTUATION_EQUIVALENTS,
   SENTENCE_OPENING_MARKS,
   SPACE_CHARS,
   SPACING_OR_FILLER_CHARS,
+  TOKEN_END,
   TRAILING_PUNCTUATION_REGEX,
+  WORD_START,
   applyWordCase,
+  around,
+  atClauseStart,
+  caseLike,
+  closesAbbreviation,
+  dateSide,
+  dayCount,
   detectWordCase,
+  digitValue,
+  englishInflect,
   englishInitialSound,
+  englishLemma,
+  englishNounForms,
+  englishNounNumber,
+  englishVerbForms,
+  englishWordInfo,
   execFrom,
   findTrailingLetterToken,
+  finding,
+  found,
   getLastToken,
+  graphemeEnd,
+  group,
+  groupRange,
+  hasCountPrefix,
+  hasUserOrCasedWord,
+  hasVerbForm,
+  invalidIsoDate,
+  isEnglishFunctionWord,
+  isGluedToTechnical,
   isGreekQuestionMark,
   isInsideProtectedSpan,
+  isLang,
   isLowercaseLetter,
   isPartOfTechnicalToken,
   isTechnicalToken,
+  isUniquePast,
+  isWhitespaceAt,
   isWordChar,
+  isWordCharAt,
   keepsOwnCasing,
+  knownEnglishNounNumber,
+  lastIndexInChunk,
+  lastNonBlankBefore,
   lastNonSpaceBefore,
+  lowerCodeAt,
   matchTrailingEnglishPhrase,
   matchingOpenIndex,
+  memoize,
+  namedExampleBefore,
+  nextLowerWord,
   normalizeWordSet,
   opensClause,
+  opensSentence,
+  overlapsSortedRanges,
+  ownedByChunk,
+  ownedMatches,
   parseMeasurementExpression,
+  phraseMatch,
+  phraseRows,
+  plainToken,
+  pluralNoun,
+  previousTokensStart,
+  previousWord,
+  quotedSpan,
   readMemo,
+  recentPast,
   replaceFrom,
   resolveEnglishBoundaryContext,
   resolveMeasurementLocale,
   resolveTypographyProfile,
+  resumeScan,
   runStart,
   shouldSkipGenericReplacement,
+  simplePastOnly,
+  skipBackWhile,
+  skipForwardWhile,
   splitTrailingSpaces,
   startsSentence,
   storeMemo,
+  tokenEndAfter,
+  tokenEndBefore,
+  tokenStartBefore,
   typingEdit,
   usesFrenchPunctuationSpacing,
+  withTextApostrophes,
 } from "../../library";
 
 export const NON_PRONOUN_FOLLOWERS: ReadonlySet<string> = new Set(["is", "in", "are", "of", "not"]);
@@ -505,6 +576,1795 @@ export const AUTO_CLOSERS: ReadonlySet<string> = new Set([")", "]", "}", "'", '"
 
 export const SYMMETRIC_QUOTES: ReadonlySet<string> = new Set(["'", '"', "`"]);
 
+export const ACRONYMS: ReadonlySet<string> = new Set([
+  "NASA",
+  "NATO",
+  "FBI",
+  "CIA",
+  "HIV",
+  "DNA",
+  "RNA",
+  "CPU",
+  "GPU",
+  "HTML",
+  "URL",
+  "FAQ",
+  "PDF",
+  "CEO",
+  "CFO",
+  "HR",
+  "UFO",
+]);
+
+export const VERB_BRANDS: ReadonlySet<string> = new Set([
+  "skype",
+  "facetime",
+  "whatsapp",
+  "snapchat",
+  "paypal",
+]);
+
+export const BRAND_MODIFIERS: ReadonlySet<string> = new Set([
+  "latest",
+  "new",
+  "old",
+  "free",
+  "desktop",
+  "mobile",
+  "web",
+  "official",
+  "updated",
+  "beta",
+  "classic",
+  "business",
+  "personal",
+]);
+
+export const BRAND_PRONOUNS: ReadonlySet<string> = new Set([
+  "i",
+  "you",
+  "he",
+  "she",
+  "it",
+  "we",
+  "they",
+  "me",
+  "him",
+  "us",
+  "them",
+  "one",
+]);
+
+export const COMPLEMENT_FUNCTION_WORDS: ReadonlySet<string> = new Set([
+  "me",
+  "you",
+  "him",
+  "her",
+  "us",
+  "them",
+  "it",
+  "the",
+  "a",
+  "an",
+  "my",
+  "your",
+  "our",
+  "their",
+  "his",
+  "its",
+  "these",
+  "those",
+  "i",
+  "we",
+  "they",
+  "he",
+  "she",
+  "this",
+  "that",
+  "some",
+  "any",
+  "all",
+  "both",
+  "each",
+  "every",
+  "either",
+  "neither",
+  "no",
+  "none",
+  "more",
+  "most",
+  "much",
+  "many",
+  "few",
+  "less",
+  "least",
+  "other",
+  "others",
+  "another",
+  "such",
+  "own",
+  "same",
+  "lot",
+  "anyone",
+  "someone",
+  "everyone",
+  "nobody",
+  "somebody",
+  "everybody",
+  "anybody",
+  "and",
+  "or",
+  "but",
+  "nor",
+  "so",
+  "yet",
+  "if",
+  "as",
+  "than",
+  "then",
+  "because",
+  "while",
+  "when",
+  "where",
+  "why",
+  "how",
+  "what",
+  "who",
+  "whom",
+  "whose",
+  "which",
+  "whether",
+  "to",
+  "of",
+  "in",
+  "on",
+  "at",
+  "by",
+  "for",
+  "from",
+  "with",
+  "about",
+  "into",
+  "onto",
+  "over",
+  "under",
+  "up",
+  "down",
+  "out",
+  "off",
+  "through",
+  "after",
+  "before",
+  "since",
+  "until",
+  "via",
+  "per",
+  "not",
+  "never",
+  "also",
+  "just",
+  "only",
+  "still",
+  "even",
+  "very",
+  "too",
+  "really",
+  "already",
+  "always",
+  "often",
+  "again",
+  "here",
+  "there",
+  "now",
+  "today",
+  "tomorrow",
+  "tonight",
+  "further",
+  "better",
+  "best",
+  "first",
+  "once",
+  "well",
+  "fast",
+  "rather",
+  "together",
+  "is",
+  "am",
+  "are",
+  "was",
+  "were",
+  "can",
+  "could",
+  "will",
+  "would",
+  "shall",
+  "should",
+  "may",
+  "might",
+  "must",
+]);
+
+export const COMPLEMENT_BE: ReadonlySet<string> = new Set([
+  "am",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "'m",
+  "'re",
+  "'s",
+  "isn",
+  "wasn",
+  "aren",
+  "weren",
+]);
+
+export const COMPLEMENT_GET: ReadonlySet<string> = new Set([
+  "get",
+  "gets",
+  "got",
+  "getting",
+  "gotten",
+]);
+
+export const COMPLEMENT_HAVE: ReadonlySet<string> = new Set(["has", "have", "had", "'ve"]);
+
+export const COMPLEMENT_MODAL_DO: ReadonlySet<string> = new Set([
+  "will",
+  "would",
+  "shall",
+  "should",
+  "can",
+  "could",
+  "may",
+  "might",
+  "must",
+  "'ll",
+  "'d",
+  "do",
+  "does",
+  "did",
+  "don",
+  "doesn",
+  "didn",
+  "won",
+  "wouldn",
+  "couldn",
+  "shouldn",
+  "cannot",
+]);
+
+export const COMPLEMENT_AUXILIARIES: ReadonlySet<string> = new Set([
+  "am",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "'m",
+  "'re",
+  "'s",
+  "isn",
+  "wasn",
+  "aren",
+  "weren",
+  "has",
+  "have",
+  "had",
+  "'ve",
+  "will",
+  "would",
+  "shall",
+  "should",
+  "can",
+  "could",
+  "may",
+  "might",
+  "must",
+  "'ll",
+  "'d",
+  "do",
+  "does",
+  "did",
+  "don",
+  "doesn",
+  "didn",
+  "won",
+  "wouldn",
+  "couldn",
+  "shouldn",
+  "cannot",
+  "'t",
+  "not",
+  "never",
+  "also",
+  "just",
+  "really",
+  "actually",
+  "always",
+  "even",
+  "still",
+  "ever",
+  "already",
+  "maybe",
+  "probably",
+]);
+
+export const COMPLEMENT_SUBJECTS: ReadonlySet<string> = new Set([
+  "i",
+  "we",
+  "you",
+  "they",
+  "he",
+  "she",
+  "it",
+]);
+
+export const COMPLEMENT_RELATIVES: ReadonlySet<string> = new Set(["who", "which", "that", "whom"]);
+
+export const FREE_RELATIVES: ReadonlySet<string> = new Set([
+  "what",
+  "whatever",
+  "whoever",
+  "whichever",
+]);
+
+export const COMPLEMENT_CONJUNCTIONS: ReadonlySet<string> = new Set(["and", "or", "but", "then"]);
+
+export const COMPLEMENT_SUBORDINATORS: ReadonlySet<string> = new Set([
+  "because",
+  "if",
+  "when",
+  "while",
+  "although",
+  "though",
+  "since",
+  "as",
+  "so",
+  "once",
+  "until",
+  "unless",
+  "whereas",
+  "how",
+  "why",
+  "whether",
+]);
+
+export const COMPLEMENT_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "of",
+  "in",
+  "on",
+  "at",
+  "by",
+  "for",
+  "from",
+  "with",
+  "about",
+  "into",
+  "onto",
+  "over",
+  "under",
+  "through",
+  "after",
+  "before",
+  "since",
+  "until",
+  "via",
+  "per",
+  "to",
+  "toward",
+  "towards",
+  "among",
+  "between",
+  "within",
+  "without",
+  "upon",
+  "across",
+  "behind",
+  "beyond",
+  "like",
+  "near",
+  "during",
+  "against",
+  "around",
+  "thru",
+]);
+
+export const NP_DETERMINERS: ReadonlySet<string> = new Set([
+  "the",
+  "a",
+  "an",
+  "my",
+  "your",
+  "our",
+  "their",
+  "his",
+  "her",
+  "its",
+  "this",
+  "that",
+  "these",
+  "those",
+  "some",
+  "any",
+  "no",
+  "every",
+  "each",
+  "many",
+  "much",
+  "several",
+  "most",
+  "all",
+  "both",
+  "few",
+  "more",
+]);
+
+export const NP_INDEFINITES: ReadonlySet<string> = new Set([
+  "anyone",
+  "anybody",
+  "everyone",
+  "everybody",
+  "someone",
+  "somebody",
+  "nobody",
+  "one",
+  "none",
+  "everything",
+  "something",
+]);
+
+export const PARTICIPLE_DETERMINERS: ReadonlySet<string> = new Set([
+  "the",
+  "a",
+  "an",
+  "this",
+  "that",
+  "these",
+  "those",
+  "my",
+  "your",
+  "his",
+  "her",
+  "its",
+  "our",
+  "their",
+  "some",
+  "any",
+  "every",
+  "each",
+  "no",
+]);
+
+export const PARTICIPLE_CLOSED: ReadonlySet<string> = new Set([
+  "the",
+  "a",
+  "an",
+  "this",
+  "that",
+  "these",
+  "those",
+  "my",
+  "your",
+  "his",
+  "her",
+  "its",
+  "our",
+  "their",
+  "some",
+  "any",
+  "every",
+  "each",
+  "no",
+  "it",
+  "them",
+  "him",
+  "us",
+  "me",
+  "you",
+  "i",
+  "he",
+  "she",
+  "we",
+  "they",
+  "what",
+  "which",
+  "who",
+  "whom",
+  "how",
+  "why",
+  "where",
+  "when",
+  "if",
+  "whether",
+  "to",
+  "of",
+  "in",
+  "on",
+  "at",
+  "by",
+  "for",
+  "from",
+  "with",
+  "into",
+  "onto",
+  "out",
+  "up",
+  "down",
+  "off",
+  "over",
+  "under",
+  "through",
+  "about",
+  "after",
+  "before",
+  "since",
+  "until",
+  "around",
+  "across",
+  "along",
+  "behind",
+  "beneath",
+  "between",
+  "beyond",
+  "against",
+  "toward",
+  "towards",
+  "away",
+  "back",
+  "again",
+  "here",
+  "there",
+  "now",
+  "then",
+  "and",
+  "but",
+  "or",
+  "nor",
+  "so",
+  "as",
+  "than",
+  "not",
+  "never",
+  "yet",
+  "too",
+  "also",
+  "very",
+  "asleep",
+  "apart",
+  "aside",
+  "ahead",
+  "alone",
+  "awake",
+  "something",
+  "anything",
+  "nothing",
+  "everything",
+  "someone",
+  "anyone",
+  "everyone",
+  "nobody",
+  "somebody",
+  "anybody",
+  "everybody",
+  "past",
+  "near",
+  "like",
+  "upon",
+  "via",
+  "within",
+  "without",
+  "throughout",
+  "inside",
+  "outside",
+  "below",
+  "above",
+  "beside",
+  "among",
+  "during",
+  "except",
+  "per",
+  "despite",
+  "unlike",
+  "once",
+  "twice",
+]);
+
+export const PARTICIPLE_ADVERBS: ReadonlySet<string> = new Set([
+  "not",
+  "never",
+  "already",
+  "just",
+  "ever",
+  "really",
+  "still",
+  "also",
+  "even",
+  "only",
+  "all",
+  "both",
+  "since",
+  "then",
+  "now",
+  "always",
+  "often",
+  "sometimes",
+  "seldom",
+]);
+
+export const GAP_HEADS: ReadonlySet<string> = new Set([
+  "what",
+  "whatever",
+  "whoever",
+  "whichever",
+  "everything",
+  "anything",
+  "something",
+  "nothing",
+  "all",
+]);
+
+export const ADJECTIVE_PASTS: ReadonlySet<string> = new Set(["broke", "woke"]);
+
+export const VERB_PASTS: ReadonlySet<string> = new Set(["sang", "drove", "spoke"]);
+
+export const BARE_PAST: ReadonlySet<string> = new Set(["stole", "saw"]);
+
+export const NOT_A_VERB: ReadonlySet<string> = new Set([
+  "like",
+  "near",
+  "past",
+  "about",
+  "above",
+  "across",
+  "after",
+  "against",
+  "along",
+  "among",
+  "amid",
+  "around",
+  "before",
+  "behind",
+  "below",
+  "beneath",
+  "beside",
+  "between",
+  "beyond",
+  "by",
+  "despite",
+  "down",
+  "during",
+  "except",
+  "for",
+  "from",
+  "in",
+  "inside",
+  "into",
+  "off",
+  "on",
+  "onto",
+  "opposite",
+  "out",
+  "outside",
+  "over",
+  "per",
+  "round",
+  "through",
+  "throughout",
+  "to",
+  "toward",
+  "towards",
+  "under",
+  "underneath",
+  "unlike",
+  "until",
+  "up",
+  "upon",
+  "via",
+  "with",
+  "within",
+  "without",
+  "worth",
+  "atop",
+  "aboard",
+  "alongside",
+  "all",
+  "both",
+  "each",
+  "either",
+  "neither",
+  "only",
+  "just",
+  "still",
+  "also",
+  "now",
+  "here",
+  "there",
+  "home",
+  "back",
+  "away",
+  "then",
+  "so",
+  "too",
+  "very",
+  "as",
+  "at",
+  "of",
+  "not",
+  "more",
+  "most",
+  "less",
+  "again",
+  "even",
+  "ever",
+  "never",
+  "already",
+  "once",
+  "twice",
+  "half",
+  "double",
+  "triple",
+  "often",
+  "quite",
+  "rather",
+  "almost",
+  "yet",
+  "soon",
+  "maybe",
+  "kinda",
+  "sorta",
+  "somewhat",
+  "otherwise",
+  "together",
+  "apart",
+  "ahead",
+  "aside",
+  "abroad",
+  "alike",
+  "instead",
+  "the",
+  "a",
+  "an",
+  "this",
+  "that",
+  "these",
+  "those",
+  "my",
+  "your",
+  "his",
+  "her",
+  "our",
+  "their",
+  "its",
+  "some",
+  "any",
+  "no",
+  "every",
+  "one",
+  "what",
+  "who",
+  "whom",
+  "whose",
+  "which",
+  "where",
+  "when",
+  "why",
+  "how",
+  "myself",
+  "yourself",
+  "himself",
+  "herself",
+  "itself",
+  "sure",
+  "unsure",
+  "aware",
+  "unaware",
+  "glad",
+  "afraid",
+  "sorry",
+  "proud",
+  "certain",
+  "uncertain",
+  "correct",
+  "busy",
+  "free",
+  "ready",
+  "done",
+  "able",
+  "unable",
+  "due",
+  "late",
+  "early",
+  "open",
+  "close",
+  "next",
+  "full",
+  "short",
+  "sad",
+  "mad",
+  "fine",
+  "ok",
+  "okay",
+  "right",
+  "wrong",
+  "alone",
+  "asleep",
+  "awake",
+  "well",
+  "ill",
+  "safe",
+  "new",
+  "mean",
+  "light",
+  "lead",
+]);
+
+export const INFINITIVE_TO_VERBS: ReadonlySet<string> = new Set([
+  "need",
+  "needs",
+  "needed",
+  "have",
+  "has",
+  "had",
+  "want",
+  "wants",
+  "wanted",
+  "going",
+  "got",
+  "ought",
+  "able",
+  "used",
+  "try",
+  "tries",
+  "tried",
+  "trying",
+  "plan",
+  "plans",
+  "planned",
+  "hope",
+  "hopes",
+  "hoped",
+  "decide",
+  "decided",
+]);
+
+export const DO_OBJECT_NOUNS: ReadonlySet<string> = new Set([
+  "bears",
+  "beats",
+  "bends",
+  "bets",
+  "binds",
+  "bites",
+  "blows",
+  "breaks",
+  "breeds",
+  "builds",
+  "bursts",
+  "buys",
+  "catches",
+  "costs",
+  "cuts",
+  "deals",
+  "digs",
+  "draws",
+  "drinks",
+  "drives",
+  "falls",
+  "feeds",
+  "fights",
+  "finds",
+  "flies",
+  "goes",
+  "hangs",
+  "hits",
+  "holds",
+  "keeps",
+  "leads",
+  "leaves",
+  "lies",
+  "lights",
+  "means",
+  "meets",
+  "mistakes",
+  "puts",
+  "reads",
+  "rebuilds",
+  "reruns",
+  "resets",
+  "rewrites",
+  "rides",
+  "rings",
+  "rises",
+  "runs",
+  "sets",
+  "shakes",
+  "shoots",
+  "sinks",
+  "sits",
+  "slides",
+  "spins",
+  "splits",
+  "spreads",
+  "springs",
+  "stands",
+  "steals",
+  "sticks",
+  "stings",
+  "strikes",
+  "sweeps",
+  "swims",
+  "swings",
+  "takes",
+  "tears",
+  "throws",
+  "upsets",
+  "wakes",
+  "wins",
+  "winds",
+  "works",
+]);
+
+export const FEELING_VERBS: ReadonlySet<string> = new Set([
+  "interest",
+  "satisfy",
+  "excite",
+  "bore",
+  "tire",
+  "scare",
+  "worry",
+  "surprise",
+  "confuse",
+  "disappoint",
+  "amaze",
+  "please",
+  "embarrass",
+  "annoy",
+  "concern",
+  "frighten",
+  "shock",
+  "terrify",
+  "thrill",
+  "impress",
+  "overwhelm",
+  "exhaust",
+  "depress",
+  "frustrate",
+  "puzzle",
+  "relieve",
+  "delight",
+  "fascinate",
+  "horrify",
+  "astonish",
+  "irritate",
+  "offend",
+  "stress",
+]);
+
+export const MARK_NAMING_WORDS: ReadonlySet<string> = new Set([
+  "press",
+  "presses",
+  "pressed",
+  "pressing",
+  "type",
+  "types",
+  "typed",
+  "typing",
+  "hit",
+  "hits",
+  "tap",
+  "taps",
+  "enter",
+  "enters",
+  "use",
+  "uses",
+  "key",
+  "keys",
+  "add",
+  "adds",
+  "insert",
+  "inserts",
+  "put",
+  "puts",
+  "remove",
+  "removes",
+  "delete",
+  "deletes",
+  "the",
+  "a",
+  "an",
+  "character",
+  "char",
+  "symbol",
+  "sign",
+  "dot",
+  "mark",
+  "punctuation",
+  "pulsa ? para ver la ayuda",
+  "pulsa",
+  "pulse",
+  "presiona",
+  "presione",
+  "escribe",
+  "escriba",
+  "teclea",
+  "teclee",
+  "usa",
+  "tecla",
+  "signo",
+  "símbolo",
+  "carácter",
+  "inserta",
+  "inserte",
+  "añade",
+  "añada",
+  "appuyez",
+  "appuie",
+  "tapez",
+  "tape",
+  "saisissez",
+  "saisis",
+  "utilisez",
+  "touche",
+  "caractère",
+  "symbole",
+  "signe",
+  "insérez",
+  "ajoutez",
+  "drücke",
+  "drücken",
+  "drück",
+  "tippe",
+  "tippen",
+  "gib",
+  "verwende",
+  "verwenden",
+  "taste",
+  "zeichen",
+  "füge",
+  "pressione",
+  "aperte",
+  "digite",
+  "tecle",
+  "caractere",
+  "sinal",
+  "insira",
+  "adicione",
+  "naciśnij",
+  "wciśnij",
+  "wpisz",
+  "użyj",
+  "klawisz",
+  "znak",
+  "wstaw",
+  "dodaj",
+  "tryck",
+  "skriv",
+  "använd",
+  "tangenten",
+  "tecknet",
+  "tecken",
+  "symbolen",
+  "pritisni",
+  "pritisnite",
+  "upiši",
+  "upišite",
+  "koristi",
+  "koristite",
+  "tipku",
+  "simbol",
+  "πατήστε",
+  "πάτα",
+  "πληκτρολογήστε",
+  "γράψτε",
+  "πλήκτρο",
+  "σύμβολο",
+  "χαρακτήρα",
+  "اضغط",
+  "اكتب",
+  "رمز",
+]);
+
+export const THEIR_THERE_VERBS: ReadonlySet<string> = new Set(["is", "are", "was", "were"]);
+
+export const YOU_SUBJECT_BEFORE: ReadonlySet<string> = new Set([
+  "if",
+  "when",
+  "whenever",
+  "because",
+  "while",
+  "although",
+  "though",
+  "unless",
+  "whether",
+  "since",
+  "until",
+  "once",
+  "where",
+  "wherever",
+  "that",
+]);
+
+export const AGREEMENT_COLLECTIVE: ReadonlySet<string> = new Set([
+  "team",
+  "staff",
+  "family",
+  "police",
+  "government",
+  "committee",
+  "crew",
+  "band",
+  "audience",
+  "public",
+  "class",
+  "group",
+  "majority",
+  "folk",
+  "blues",
+  "rest",
+  "number",
+  "couple",
+  "pair",
+  "lot",
+  "jury",
+  "army",
+  "navy",
+  "board",
+  "council",
+  "club",
+  "company",
+  "firm",
+  "management",
+  "media",
+  "data",
+  "total",
+  "variety",
+  "range",
+  "series",
+  "species",
+  "means",
+  "news",
+  "remainder",
+  "masters",
+  "woods",
+  "belt",
+]);
+
+export const DE_BOUNDARY: ReadonlySet<string> = new Set([
+  "dass",
+  "ob",
+  "wenn",
+  "falls",
+  "weil",
+  "als",
+  "bevor",
+  "nachdem",
+  "sobald",
+  "bis",
+  "und",
+  "aber",
+  "oder",
+  "sondern",
+  "denn",
+  "damit",
+  "obwohl",
+  "während",
+]);
+
+export const DE_CONDITIONAL: ReadonlySet<string> = new Set(["wenn", "falls", "ob"]);
+
+export const FR_BOUNDARY: ReadonlySet<string> = new Set([
+  "que",
+  "qu",
+  "si",
+  "quand",
+  "lorsque",
+  "lorsqu",
+  "et",
+  "mais",
+  "ou",
+  "car",
+  "donc",
+  "puis",
+  "dont",
+  "où",
+  "qui",
+  "comme",
+]);
+
+export const FR_CONDITIONAL: ReadonlySet<string> = new Set(["si"]);
+
+export const ES_BOUNDARY: ReadonlySet<string> = new Set([
+  "que",
+  "si",
+  "cuando",
+  "porque",
+  "aunque",
+  "y",
+  "e",
+  "pero",
+  "o",
+  "u",
+  "ni",
+  "mientras",
+  "donde",
+  "quien",
+  "como",
+]);
+
+export const ES_CONDITIONAL: ReadonlySet<string> = new Set(["si"]);
+
+export const PT_BOUNDARY: ReadonlySet<string> = new Set([
+  "que",
+  "se",
+  "quando",
+  "porque",
+  "embora",
+  "e",
+  "mas",
+  "ou",
+  "enquanto",
+  "onde",
+  "quem",
+  "como",
+]);
+
+export const PT_CONDITIONAL: ReadonlySet<string> = new Set(["se"]);
+
+export const PL_BOUNDARY: ReadonlySet<string> = new Set([
+  "że",
+  "czy",
+  "jeśli",
+  "jeżeli",
+  "gdy",
+  "gdyby",
+  "kiedy",
+  "bo",
+  "ponieważ",
+  "aby",
+  "żeby",
+  "i",
+  "ale",
+  "lub",
+  "albo",
+  "oraz",
+  "a",
+  "który",
+  "która",
+  "które",
+  "którzy",
+  "jak",
+]);
+
+export const PL_CONDITIONAL: ReadonlySet<string> = new Set(["jeśli", "jeżeli", "gdyby", "czy"]);
+
+export const AR_BOUNDARY: ReadonlySet<string> = new Set([
+  "أن",
+  "إن",
+  "إذا",
+  "لو",
+  "عندما",
+  "حتى",
+  "لأن",
+  "الذي",
+  "التي",
+  "الذين",
+  "لكن",
+  "ثم",
+  "بينما",
+]);
+
+export const AR_CONDITIONAL: ReadonlySet<string> = new Set(["إذا", "لو", "إن"]);
+
+export const DE_HABEN: ReadonlySet<string> = new Set([
+  "habe",
+  "hast",
+  "hat",
+  "haben",
+  "habt",
+  "hatte",
+  "hattest",
+  "hatten",
+  "hattet",
+]);
+
+export const DE_SEIN: ReadonlySet<string> = new Set([
+  "bin",
+  "bist",
+  "ist",
+  "sind",
+  "seid",
+  "war",
+  "warst",
+  "waren",
+  "wart",
+]);
+
+export const DE_WERDEN: ReadonlySet<string> = new Set([
+  "werde",
+  "wirst",
+  "wird",
+  "werden",
+  "werdet",
+]);
+
+export const DE_PRONOUNS: ReadonlySet<string> = new Set(["ich", "du", "er", "sie", "wir", "ihr"]);
+
+export const DE_NOT_PARTICIPLE: ReadonlySet<string> = new Set([
+  "gegen",
+  "gesamt",
+  "insgesamt",
+  "gerecht",
+]);
+
+export const FR_AVOIR: ReadonlySet<string> = new Set([
+  "ai",
+  "as",
+  "a",
+  "avons",
+  "avez",
+  "ont",
+  "avais",
+  "avait",
+  "avions",
+  "aviez",
+  "avaient",
+]);
+
+export const FR_ETRE: ReadonlySet<string> = new Set([
+  "suis",
+  "es",
+  "est",
+  "sommes",
+  "êtes",
+  "sont",
+  "étais",
+  "était",
+  "étions",
+  "étiez",
+  "étaient",
+]);
+
+export const FR_ADVERBS: ReadonlySet<string> = new Set([
+  "pas",
+  "jamais",
+  "déjà",
+  "bien",
+  "tout",
+  "tous",
+  "enfin",
+  "aussi",
+  "encore",
+  "beaucoup",
+  "rien",
+  "plus",
+  "toujours",
+  "vraiment",
+  "finalement",
+]);
+
+export const FR_NOT_PARTICIPLE: ReadonlySet<string> = new Set([
+  "plus",
+  "tous",
+  "nous",
+  "vous",
+  "sous",
+  "jus",
+  "dessus",
+  "ainsi",
+  "aussi",
+  "ici",
+  "parmi",
+  "lui",
+  "qui",
+  "si",
+  "ni",
+  "tu",
+  "du",
+  "lit",
+  "bien",
+  "tout",
+  "lundi",
+  "mardi",
+  "mercredi",
+  "jeudi",
+  "vendredi",
+  "samedi",
+  "midi",
+  "aujourd",
+]);
+
+export const FR_MOTION: ReadonlySet<string> = new Set([
+  "allé",
+  "venu",
+  "parti",
+  "arrivé",
+  "rentré",
+  "revenu",
+  "sorti",
+  "entré",
+  "monté",
+  "descendu",
+  "tombé",
+  "né",
+  "mort",
+  "resté",
+  "retourné",
+  "devenu",
+  "parvenu",
+]);
+
+export const FR_SUBJECTS: ReadonlySet<string> = new Set([
+  "je",
+  "j",
+  "tu",
+  "il",
+  "elle",
+  "on",
+  "nous",
+  "vous",
+  "ils",
+  "elles",
+]);
+
+export const FR_OBJECTS: ReadonlySet<string> = new Set([
+  "ne",
+  "n",
+  "y",
+  "en",
+  "le",
+  "la",
+  "les",
+  "l",
+  "lui",
+  "leur",
+  "me",
+  "m",
+  "te",
+  "t",
+  "se",
+  "s",
+  "nous",
+  "vous",
+]);
+
+export const FR_ALLER: ReadonlySet<string> = new Set([
+  "vais",
+  "vas",
+  "va",
+  "allons",
+  "allez",
+  "vont",
+]);
+
+export const ES_HABER: ReadonlySet<string> = new Set([
+  "he",
+  "has",
+  "ha",
+  "hemos",
+  "habéis",
+  "han",
+  "había",
+  "habías",
+  "habíamos",
+  "habíais",
+  "habían",
+]);
+
+export const ES_PAST_WORDS: ReadonlySet<string> = new Set([
+  "fui",
+  "fue",
+  "fuimos",
+  "fuiste",
+  "fueron",
+  "estuve",
+  "estuvo",
+  "estuvimos",
+  "estuvieron",
+  "tuve",
+  "tuvo",
+  "tuvimos",
+  "tuvieron",
+  "hice",
+  "hizo",
+  "hicimos",
+  "hicieron",
+  "dije",
+  "dijo",
+  "dijimos",
+  "dijeron",
+  "vinimos",
+  "vinieron",
+  "pude",
+  "pudo",
+  "pudimos",
+  "pudieron",
+  "puse",
+  "puso",
+  "pusimos",
+  "pusieron",
+  "quise",
+  "quiso",
+  "supe",
+  "supo",
+  "traje",
+  "trajo",
+  "trajimos",
+  "era",
+  "eras",
+  "éramos",
+  "eran",
+  "iba",
+  "ibas",
+  "íbamos",
+  "iban",
+  "vio",
+  "vimos",
+  "vieron",
+  "dio",
+  "dimos",
+  "dieron",
+]);
+
+export const ES_NOT_PAST: ReadonlySet<string> = new Set([
+  "esté",
+  "dé",
+  "sé",
+  "fe",
+  "café",
+  "bebé",
+  "josé",
+  "comité",
+  "puré",
+  "chalé",
+  "té",
+  "qué",
+  "porqué",
+  "dominó",
+  "buró",
+  "rococó",
+  "mamá",
+  "papá",
+]);
+
+export const ES_IR: ReadonlySet<string> = new Set(["voy", "vas", "va", "vamos", "vais", "van"]);
+
+export const PT_PAST_WORDS: ReadonlySet<string> = new Set([
+  "fui",
+  "foi",
+  "fomos",
+  "foram",
+  "foste",
+  "estive",
+  "esteve",
+  "estivemos",
+  "estiveram",
+  "tive",
+  "teve",
+  "tivemos",
+  "tiveram",
+  "fiz",
+  "fez",
+  "fizemos",
+  "fizeram",
+  "disse",
+  "dissemos",
+  "disseram",
+  "vi",
+  "viu",
+  "vimos",
+  "viram",
+  "pude",
+  "pôde",
+  "pudemos",
+  "puderam",
+  "era",
+  "eras",
+  "éramos",
+  "eram",
+  "vim",
+  "veio",
+  "viemos",
+  "vieram",
+  "quis",
+  "quisemos",
+  "soube",
+  "trouxe",
+  "pus",
+  "pôs",
+]);
+
+export const PT_NOT_PAST: ReadonlySet<string> = new Set([
+  "sei",
+  "lei",
+  "rei",
+  "grei",
+  "sou",
+  "estou",
+  "vou",
+  "dou",
+]);
+
+export const PT_PLUPERFECT: ReadonlySet<string> = new Set([
+  "tinha",
+  "tinhas",
+  "tínhamos",
+  "tinham",
+  "havia",
+  "havíamos",
+  "haviam",
+]);
+
+export const PT_IR: ReadonlySet<string> = new Set(["vou", "vais", "vai", "vamos", "ides", "vão"]);
+
+export const PL_FUTURE: ReadonlySet<string> = new Set([
+  "będę",
+  "będziesz",
+  "będzie",
+  "będziemy",
+  "będziecie",
+  "będą",
+]);
+
+export const PL_NOT_PAST: ReadonlySet<string> = new Set([
+  "kanał",
+  "upał",
+  "zapał",
+  "dział",
+  "udział",
+  "materiał",
+  "przedział",
+  "podział",
+  "rozdział",
+  "pył",
+  "wał",
+  "szał",
+  "skała",
+  "siła",
+  "mogiła",
+  "ciało",
+  "mało",
+  "działo",
+  "chwili",
+  "fali",
+  "sali",
+  "stali",
+  "cały",
+  "mały",
+  "biały",
+  "stały",
+  "trwały",
+  "doskonały",
+  "dojrzały",
+  "wspaniały",
+  "okazały",
+  "śmiały",
+  "siły",
+  "skały",
+  "mogiły",
+]);
+
+export const AR_PAST: ReadonlySet<string> = new Set([
+  "لقد",
+  "كان",
+  "كانت",
+  "كنا",
+  "كنت",
+  "كانوا",
+  "كنتم",
+  "قمنا",
+  "قمت",
+  "قام",
+  "قامت",
+]);
+
+export const AR_FUTURE: ReadonlySet<string> = new Set(["سوف", "لن"]);
+
+export const DE_PAST: ReadonlySet<string> = new Set([
+  "war",
+  "waren",
+  "ging",
+  "gingen",
+  "kam",
+  "kamen",
+  "sah",
+  "sahen",
+  "flog",
+  "flogen",
+  "fuhr",
+  "fuhren",
+  "schwamm",
+  "schwammen",
+  "lief",
+  "liefen",
+  "gab",
+  "gaben",
+  "nahm",
+  "nahmen",
+  "fand",
+  "fanden",
+  "blieb",
+  "blieben",
+  "schrieb",
+  "schrieben",
+  "sprach",
+  "sprachen",
+  "traf",
+  "trafen",
+  "aß",
+  "aßen",
+  "trank",
+  "tranken",
+  "saß",
+  "saßen",
+  "stand",
+  "standen",
+  "lag",
+  "lagen",
+  "rief",
+  "riefen",
+  "hielt",
+  "hielten",
+  "ließ",
+  "ließen",
+  "fiel",
+  "fielen",
+  "zog",
+  "zogen",
+  "bat",
+  "baten",
+  "schlief",
+  "schliefen",
+  "starb",
+  "starben",
+  "sang",
+  "sangen",
+  "sprang",
+  "sprangen",
+  "gewann",
+  "gewannen",
+  "begann",
+  "begannen",
+  "verlor",
+  "verloren",
+  "half",
+  "halfen",
+  "warf",
+  "warfen",
+  "wurde",
+  "wurden",
+  "brachte",
+  "brachten",
+  "dachte",
+  "dachten",
+  "kannte",
+  "kannten",
+  "nannte",
+  "nannten",
+  "rannte",
+  "rannten",
+  "wusste",
+  "wussten",
+  "ritt",
+  "ritten",
+  "stieg",
+  "stiegen",
+  "fing",
+  "fingen",
+  "bekam",
+  "bekamen",
+  "verließ",
+  "verließen",
+  "erhielt",
+  "erhielten",
+  "warst",
+  "wart",
+]);
+
 export const ENGLISH_CONTRACTIONS: Readonly<Record<string, string>> = {
   im: "i'm",
   ive: "i've",
@@ -559,6 +2419,515 @@ export const AUTO_PAIRS: Readonly<Record<string, string>> = {
   "<": ">",
   "«": "»",
 };
+
+export const CANONICAL: Readonly<Record<string, string>> = {
+  github: "GitHub",
+  javascript: "JavaScript",
+  typescript: "TypeScript",
+  webrtc: "WebRTC",
+  fluenttyper: "FluentTyper",
+  iphone: "iPhone",
+  macos: "macOS",
+  ebay: "eBay",
+  linkedin: "LinkedIn",
+  wordpress: "WordPress",
+  ipad: "iPad",
+  ipod: "iPod",
+  imac: "iMac",
+  itunes: "iTunes",
+  youtube: "YouTube",
+  youtuber: "YouTuber",
+  paypal: "PayPal",
+  wechat: "WeChat",
+  whatsapp: "WhatsApp",
+  tiktok: "TikTok",
+  facetime: "FaceTime",
+  skype: "Skype",
+  fedex: "FedEx",
+  powerpoint: "PowerPoint",
+  chatgpt: "ChatGPT",
+  netflix: "Netflix",
+  spotify: "Spotify",
+  wikipedia: "Wikipedia",
+  reddit: "Reddit",
+  linux: "Linux",
+  ubuntu: "Ubuntu",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  snapchat: "Snapchat",
+  airbnb: "Airbnb",
+  chromebook: "Chromebook",
+  sharepoint: "SharePoint",
+  onedrive: "OneDrive",
+  powershell: "PowerShell",
+  playstation: "PlayStation",
+  xbox: "Xbox",
+  walmart: "Walmart",
+  starbucks: "Starbucks",
+};
+
+export const COMPLEMENTS: Readonly<Record<string, string>> = {
+  fix: "(?:this|the) bug",
+  deploy: "(?:tomorrow|today)",
+  meet: "(?:you|them|her|him)",
+  make: "the change",
+  take: "a break",
+  write: "the report",
+  run: "the tests",
+  come: "home",
+  see: "the results",
+  learn: "(?:Rust|English|Python)",
+  visit: "the office",
+  read: "the file",
+  send: "the message",
+  go: "home",
+};
+
+export const MASS_SINGULAR: Readonly<Record<string, string>> = {
+  informations: "information",
+  advices: "advice",
+  equipments: "equipment",
+};
+
+export const SUBJECT_FORM: Readonly<Record<string, string>> = {
+  me: "I",
+  i: "I",
+  him: "he",
+  her: "she",
+  them: "they",
+  myself: "I",
+};
+
+export const PLURAL_VERB: Readonly<Record<string, string>> = {
+  am: "are",
+  is: "are",
+  was: "were",
+  has: "have",
+  does: "do",
+};
+
+export const OBJECT_FORM: Readonly<Record<string, string>> = {
+  i: "me",
+  he: "him",
+  she: "her",
+  we: "us",
+  they: "them",
+};
+
+export const INVERSION_CONTRACTED: Readonly<Record<string, string>> = {
+  re: "are",
+  ve: "have",
+  m: "am",
+  ll: "will",
+};
+
+export const SPLIT_DE: Readonly<Record<string, string>> = {
+  garnicht: "gar nicht",
+  garnichts: "gar nichts",
+  garkein: "gar kein",
+  garkeine: "gar keine",
+  garkeinen: "gar keinen",
+  garkeinem: "gar keinem",
+  garkeiner: "gar keiner",
+  vorallem: "vor allem",
+  aufjedenfall: "auf jeden Fall",
+  desweiteren: "des Weiteren",
+};
+
+export const SPLIT_FR: Readonly<Record<string, string>> = {
+  parcontre: "par contre",
+  biensûr: "bien sûr",
+  biensur: "bien sûr",
+  tanpis: "tant pis",
+  toutdesuite: "tout de suite",
+  parceque: "parce que",
+  desfois: "des fois",
+};
+
+export const SPLIT_ES: Readonly<Record<string, string>> = {
+  aveces: "a veces",
+  enserio: "en serio",
+  porfavor: "por favor",
+  apesar: "a pesar",
+  sinembargo: "sin embargo",
+  almenos: "al menos",
+  deacuerdo: "de acuerdo",
+};
+
+export const SPLIT_PT: Readonly<Record<string, string>> = {
+  derrepente: "de repente",
+  concerteza: "com certeza",
+  apartir: "a partir",
+  porisso: "por isso",
+  denovo: "de novo",
+  emcima: "em cima",
+  atoa: "à toa",
+  porfavor: "por favor",
+};
+
+export const SPLIT_PL: Readonly<Record<string, string>> = {
+  napewno: "na pewno",
+  wogóle: "w ogóle",
+  narazie: "na razie",
+  poprostu: "po prostu",
+  niewiem: "nie wiem",
+  niemam: "nie mam",
+  conajmniej: "co najmniej",
+  wkońcu: "w końcu",
+  naprzykład: "na przykład",
+  przedewszystkim: "przede wszystkim",
+  odrazu: "od razu",
+  niemożna: "nie można",
+  wgłąb: "w głąb",
+  wcelu: "w celu",
+  wczasie: "w czasie",
+  wtrakcie: "w trakcie",
+  wzwiązku: "w związku",
+  bezprzerwy: "bez przerwy",
+  bezwątpienia: "bez wątpienia",
+  napoczątku: "na początku",
+  nakoniec: "na koniec",
+  naszczęście: "na szczęście",
+  natyle: "na tyle",
+  naco: "na co",
+  conajwyżej: "co najwyżej",
+  codo: "co do",
+  dozobaczenia: "do zobaczenia",
+  dowidzenia: "do widzenia",
+  dziendobry: "dzień dobry",
+  pokolei: "po kolei",
+  pocichu: "po cichu",
+  potrochu: "po trochu",
+  odzawsze: "od zawsze",
+  niewiesz: "nie wiesz",
+  niewie: "nie wie",
+  niewiemy: "nie wiemy",
+  niewiedzą: "nie wiedzą",
+  niemasz: "nie masz",
+  niemamy: "nie mamy",
+  niemają: "nie mają",
+  niemogę: "nie mogę",
+  niemożesz: "nie możesz",
+  niemoże: "nie może",
+  niemożemy: "nie możemy",
+  niemogą: "nie mogą",
+  niechcę: "nie chcę",
+  niechcesz: "nie chcesz",
+  niechce: "nie chce",
+  niechcemy: "nie chcemy",
+  niechcą: "nie chcą",
+  nielubię: "nie lubię",
+  nielubisz: "nie lubisz",
+  nielubi: "nie lubi",
+  nielubimy: "nie lubimy",
+  nielubią: "nie lubią",
+  niejest: "nie jest",
+  niesą: "nie są",
+  niebył: "nie był",
+  niebyła: "nie była",
+  niebyło: "nie było",
+  niebyli: "nie byli",
+  niebędzie: "nie będzie",
+  niebędę: "nie będę",
+  nieumiem: "nie umiem",
+  nieumie: "nie umie",
+  nierozumiem: "nie rozumiem",
+  nierozumie: "nie rozumie",
+  nieznam: "nie znam",
+  niezna: "nie zna",
+  niewolno: "nie wolno",
+  nietrzeba: "nie trzeba",
+  niedziała: "nie działa",
+  niepamiętam: "nie pamiętam",
+  niemusisz: "nie musisz",
+  niemuszę: "nie muszę",
+  niemusi: "nie musi",
+};
+
+export const SPLIT_SV: Readonly<Record<string, string>> = {
+  iallafall: "i alla fall",
+  iallfall: "i alla fall",
+  förmycket: "för mycket",
+  tillsist: "till sist",
+  iochmed: "i och med",
+  tillochmed: "till och med",
+  förövrigt: "för övrigt",
+};
+
+export const SPLIT_HR: Readonly<Record<string, string>> = {
+  nemogu: "ne mogu",
+  nemožeš: "ne možeš",
+  nemože: "ne može",
+  nemožemo: "ne možemo",
+  nemožete: "ne možete",
+  neznam: "ne znam",
+  neznaš: "ne znaš",
+  nezna: "ne zna",
+  neznamo: "ne znamo",
+  neznate: "ne znate",
+  nebi: "ne bi",
+  nebih: "ne bih",
+  nebismo: "ne bismo",
+  nebiste: "ne biste",
+};
+
+export const FRENCH_ELISIONS: Readonly<Record<string, string>> = {
+  cest: "c'est",
+  cétait: "c'était",
+  jai: "j'ai",
+  jaime: "j'aime",
+  jétais: "j'étais",
+  jespère: "j'espère",
+  quil: "qu'il",
+  quils: "qu'ils",
+  quon: "qu'on",
+  aujourdhui: "aujourd'hui",
+  daccord: "d'accord",
+  dailleurs: "d'ailleurs",
+  lorsquil: "lorsqu'il",
+  puisquil: "puisqu'il",
+};
+
+export const PLURAL_BE: Readonly<Record<string, string>> = { is: "are", am: "are", was: "were" };
+
+export const SINGULAR_BE: Readonly<Record<string, string>> = { are: "is", am: "is", were: "was" };
+
+export const OTHER_FORM: Readonly<Record<string, string>> = {
+  look: "looks",
+  looks: "look",
+  accept: "accepts",
+  accepts: "accept",
+  struggle: "struggles",
+  struggles: "struggle",
+  make: "makes",
+  makes: "make",
+  work: "works",
+  works: "work",
+  suggest: "suggests",
+  suggests: "suggest",
+  forget: "forgets",
+  forgets: "forget",
+  have: "has",
+  has: "have",
+  need: "needs",
+  needs: "need",
+  cause: "causes",
+  causes: "cause",
+  create: "creates",
+  creates: "create",
+  were: "was",
+  was: "were",
+  "aren't": "isn't",
+  "isn't": "aren't",
+  solve: "solves",
+  solves: "solve",
+  seem: "seems",
+  seems: "seem",
+  sound: "sounds",
+  sounds: "sound",
+};
+
+export const UNIT_CASE: Readonly<Record<string, string>> = {
+  KG: "kg",
+  Kg: "kg",
+  KM: "km",
+  Km: "km",
+};
+
+export const DE_MONTHS: Readonly<Record<string, number>> = {
+  januar: 1,
+  jänner: 1,
+  jan: 1,
+  jän: 1,
+  februar: 2,
+  feb: 2,
+  märz: 3,
+  mär: 3,
+  april: 4,
+  apr: 4,
+  mai: 5,
+  juni: 6,
+  jun: 6,
+  juli: 7,
+  jul: 7,
+  august: 8,
+  aug: 8,
+  september: 9,
+  sep: 9,
+  sept: 9,
+  oktober: 10,
+  okt: 10,
+  november: 11,
+  nov: 11,
+  dezember: 12,
+  dez: 12,
+};
+
+export const FR_MONTHS: Readonly<Record<string, number>> = {
+  janvier: 1,
+  février: 2,
+  fevrier: 2,
+  mars: 3,
+  avril: 4,
+  mai: 5,
+  juin: 6,
+  juillet: 7,
+  août: 8,
+  aout: 8,
+  septembre: 9,
+  octobre: 10,
+  novembre: 11,
+  décembre: 12,
+  decembre: 12,
+};
+
+export const ES_MONTHS: Readonly<Record<string, number>> = {
+  enero: 1,
+  febrero: 2,
+  marzo: 3,
+  abril: 4,
+  mayo: 5,
+  junio: 6,
+  julio: 7,
+  agosto: 8,
+  septiembre: 9,
+  octubre: 10,
+  noviembre: 11,
+  diciembre: 12,
+  setiembre: 9,
+};
+
+export const PT_MONTHS: Readonly<Record<string, number>> = {
+  janeiro: 1,
+  fevereiro: 2,
+  março: 3,
+  abril: 4,
+  maio: 5,
+  junho: 6,
+  julho: 7,
+  agosto: 8,
+  setembro: 9,
+  outubro: 10,
+  novembro: 11,
+  dezembro: 12,
+  jan: 1,
+  fev: 2,
+  mar: 3,
+  abr: 4,
+  mai: 5,
+  jun: 6,
+  jul: 7,
+  ago: 8,
+  set: 9,
+  out: 10,
+  nov: 11,
+  dez: 12,
+};
+
+export const PL_MONTHS: Readonly<Record<string, number>> = {
+  stycznia: 1,
+  lutego: 2,
+  marca: 3,
+  kwietnia: 4,
+  maja: 5,
+  czerwca: 6,
+  lipca: 7,
+  sierpnia: 8,
+  września: 9,
+  października: 10,
+  listopada: 11,
+  grudnia: 12,
+};
+
+export const AR_MONTHS: Readonly<Record<string, number>> = {
+  يناير: 1,
+  "كانون الثاني": 1,
+  جانفي: 1,
+  فبراير: 2,
+  شباط: 2,
+  فيفري: 2,
+  مارس: 3,
+  آذار: 3,
+  أبريل: 4,
+  ابريل: 4,
+  إبريل: 4,
+  نيسان: 4,
+  أفريل: 4,
+  مايو: 5,
+  أيار: 5,
+  ماي: 5,
+  يونيو: 6,
+  يونيه: 6,
+  حزيران: 6,
+  جوان: 6,
+  يوليو: 7,
+  يوليه: 7,
+  تموز: 7,
+  جويلية: 7,
+  أغسطس: 8,
+  اغسطس: 8,
+  آب: 8,
+  أوت: 8,
+  سبتمبر: 9,
+  أيلول: 9,
+  أكتوبر: 10,
+  اكتوبر: 10,
+  "تشرين الأول": 10,
+  نوفمبر: 11,
+  "تشرين الثاني": 11,
+  ديسمبر: 12,
+  "كانون الأول": 12,
+};
+
+// common.yaml def firstPerStart
+export function firstPerStart(findings: RawFinding[]) {
+  const starts = new Set<number>();
+  return findings.filter((f) => !starts.has(f.range.start) && !!starts.add(f.range.start));
+}
+
+// common.yaml def opensMainClause
+export function opensMainClause(ctx: DetectContext, index: number) {
+  return /(?:^|[.!?;:\n"“(][ \t ]*|,[ \t ]*(?:and|but|so)[ \t ]+)$/i.test(
+    ctx.text.slice(Math.max(0, index - 96), index),
+  );
+}
+
+// common.yaml def CLAUSE_CUE_BEFORE
+export const CLAUSE_CUE_BEFORE =
+  /\b(?:think|thought|guess|hope|know|knew|heard|suspect|promise|realized|realised|said|says|sure|maybe|perhaps|because|since|if|when|as|before|after|that|(?:looks|seems|sounds|feels)[ \t ]+like|(?:tell|told|remind|reminded)[ \t ]+them)[ \t ]+$/i;
+
+// common.yaml def opensSubjectClause
+export function opensSubjectClause(ctx: DetectContext, index: number) {
+  return (
+    opensMainClause(ctx, index) ||
+    CLAUSE_CUE_BEFORE.test(ctx.text.slice(Math.max(0, index - 96), index))
+  );
+}
+
+// common.yaml def tightAround
+export function tightAround(ctx: DetectContext, m: RegExpExecArray) {
+  return {
+    start: Math.max(0, m.index - 32),
+    end: Math.min(ctx.text.length, m.index + m[0].length + 16),
+  };
+}
+
+// common.yaml def isoDateWarning
+export function isoDateWarning(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+): RawFinding | null {
+  const range = invalidIsoDate(m, ctx);
+  if (!range) return null;
+  return {
+    ruleId: frame.ruleId,
+    messageKey: frame.messageKey,
+    range,
+    alternatives: [],
+    warningOnly: true,
+  };
+}
 
 // common.yaml rule capitalizeSentenceStart.live def completedWordStart
 export function completedWordStart(text: string): number {
@@ -1642,14 +4011,5379 @@ export function overtypeEdit(before: string, close: string): GrammarEdit | null 
   return typingEdit(close, 1, 1);
 }
 
+// common.yaml rule phraseTables def canonicalName
+export function canonicalName(word: string) {
+  const key = word.toLowerCase();
+  return Object.hasOwn(CANONICAL, key) ? CANONICAL[key] : undefined;
+}
+
+// common.yaml rule phraseTables def BRAND_NOUN_CUE
+export const BRAND_NOUN_CUE =
+  /(?<![\p{L}'’])(?:a|an|the|my|your|his|her|our|their|its|this|that|on|via|over|through|with|by|in|into|from|of|for|about|(?:re|un)?install(?:s|ed|ing)?|open(?:s|ed|ing)?|clos(?:e|es|ed|ing)|download(?:s|ed|ing)?|launch(?:es|ed|ing)?|updat(?:e|es|ed|ing)|upgrad(?:e|es|ed|ing)|us(?:e|es|ed|ing)|tr(?:y|ies|ied|ying)|(?:re)?start(?:s|ed|ing)?|run(?:s|ning)?|ran|delet(?:e|es|ed|ing)|remov(?:e|es|ed|ing)|prefer(?:s|red|ring)?|(?:switch(?:es|ed|ing)?|move|moved|moving|migrate|migrated|migrating|went|back|welcome|access|log|logged|sign|signed|in|on|up)[ \t]{1,8}to)[ \t]{1,8}$/iu;
+
+// common.yaml rule phraseTables def BRAND_WORD_BEFORE
+export const BRAND_WORD_BEFORE = /(?<![\p{L}\p{M}\p{N}_'’-])([A-Za-z]{1,24})[ \t]{1,8}$/u;
+
+// common.yaml rule phraseTables def BRAND_NOUN_AFTER
+export const BRAND_NOUN_AFTER =
+  /^[ \t]{1,8}(?:account|call|chat|meeting|app|link|number|contact|group|message|video)s?(?![\p{L}\p{M}\p{N}_'’-])/iu;
+
+// common.yaml rule phraseTables def brandModifier
+export function brandModifier(word: string) {
+  const w = word.toLowerCase();
+  const info = englishWordInfo(w);
+  return (
+    BRAND_MODIFIERS.has(w) ||
+    (w !== "to" && !BRAND_PRONOUNS.has(w) && !!info?.adjective && !info.verbs.length)
+  );
+}
+
+// common.yaml rule phraseTables def brandNounCue
+export function brandNounCue(before: string, skipped: number): boolean {
+  if (BRAND_NOUN_CUE.test(before)) return true;
+  const word = BRAND_WORD_BEFORE.exec(before);
+  return (
+    skipped < 2 &&
+    !!word &&
+    brandModifier(word[1]) &&
+    brandNounCue(before.slice(0, word.index), skipped + 1)
+  );
+}
+
+// common.yaml rule phraseTables def hasCanonicalCasing
+export function hasCanonicalCasing(word: string) {
+  return canonicalName(word) !== undefined || ACRONYMS.has(word.toUpperCase());
+}
+
+// common.yaml rule phraseTables def CASING_WORDS
+export const CASING_WORDS =
+  /(?<![.\p{L}\p{M}\p{N}_'’@/#=$\\-])[A-Za-z]+(?![\p{L}\p{M}\p{N}_'’@/#=$\\-])/gu;
+
+// common.yaml rule phraseTables def canonicalCasingAt
+export function canonicalCasingAt(match: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const typed = match[0];
+  const acronym = typed.length < 5 && isLang(ctx, "en") ? typed.toUpperCase() : "";
+  const canonical =
+    canonicalName(typed) ??
+    (ACRONYMS.has(acronym) &&
+    /^[A-Z][a-z]+$/.test(typed) &&
+    !/^[ \t ]+[A-Z]/.test(ctx.text.slice(match.index + typed.length))
+      ? acronym
+      : undefined);
+  if (!(!!canonical && canonical !== typed && !ctx.dictionary.has(typed.toLowerCase())))
+    return null;
+  if (!/^[A-Z]?[a-z]+$/.test(typed)) return null;
+  const start = match.index;
+  const end = start + typed.length;
+  if (/^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(end, end + 2))) return null;
+  if (!(!quotedSpan(ctx.text, start, end) && !namedExampleBefore(ctx.text, start))) return null;
+  if (!(
+    !VERB_BRANDS.has(typed) ||
+    (isLang(ctx, "en") &&
+      (brandNounCue(ctx.text.slice(Math.max(0, start - 96), start), 0) ||
+        BRAND_NOUN_AFTER.test(ctx.text.slice(end, end + 24))))
+  ))
+    return null;
+  return finding("englishCanonicalCasing", "review_msg_canonical_casing", start, end, [canonical], {
+    context: { start: Math.max(0, start - 128), end: Math.min(ctx.text.length, end + 2) },
+  });
+}
+
+// common.yaml rule phraseTables def canonicalCasing
+export function canonicalCasing(ctx: DetectContext): RawFinding[] {
+  return [...ownedMatches(ctx, new RegExp(CASING_WORDS))].flatMap(
+    (m) => canonicalCasingAt(m, ctx) ?? [],
+  );
+}
+
+// common.yaml rule possessives def possessiveFix
+export function possessiveFix(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+  how: { replacement: string; clause?: boolean; cue?: boolean; name?: boolean },
+) {
+  const span = group(m, "target");
+  const afterTarget = ctx.text.slice(span[1], span[1] + 12);
+  if (!(
+    frame.messageKey !== "review_msg_its_contraction" ||
+    !(
+      /^[ \t ]+time\b/i.test(afterTarget) &&
+      /\b(?:take|takes|took|taken|taking|bide|bides|bided)[ \t ]+$/i.test(
+        ctx.text.slice(Math.max(0, span[0] - 12), span[0]),
+      )
+    )
+  ))
+    return null;
+  if (!(
+    frame.messageKey !== "review_msg_its_contraction" ||
+    !/^[ \t ]+[A-Z](?![\p{L}\p{N}])/u.test(afterTarget)
+  ))
+    return null;
+  if (!(!how.name || /^[ \t ]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(span[1], span[1] + 10))))
+    return null;
+  const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
+  const textStart = m.index <= 96 && /^[ \t ]*$/.test(before);
+  if (!(
+    !how.cue ||
+    /\b(?:think|thinks|thought|hope|guess|know|sure|since|because|if|when|but|so|that|and)[ \t ]+$/i.test(
+      before,
+    ) ||
+    textStart ||
+    /[.!?;:\n"“(][ \t ]*$/.test(before)
+  ))
+    return null;
+  if (!(
+    !how.clause ||
+    textStart ||
+    /(?:,[ \t ]*(?:but|and)[ \t ]+|[.!?;:\n][ \t ]*|,[ \t ]*["“'‘])["“'‘]{0,3}[ \t ]*$/.test(
+      before,
+    ) ||
+    /^[ \t ]*["“'‘]{1,3}$/.test(before)
+  ))
+    return null;
+  const typed = m.groups!.target;
+  if (!(frame.ruleId !== "englishElsePossessive" || typed === "elses")) return null;
+  if (!(typed !== typed.toUpperCase() && applyWordCase(typed, detectWordCase(typed)) === typed))
+    return null;
+  if (
+    (m[0].match(/[A-Za-z]+(?:['’][A-Za-z]+)?/g) ?? []).some((w) =>
+      ctx.dictionary.has(w.toLowerCase()),
+    )
+  )
+    return null;
+  return applyWordCase(how.replacement, detectWordCase(typed));
+}
+
+// common.yaml rule verbComplements def OBJECT_NEXT
+export const OBJECT_NEXT =
+  /^[ \t ]{1,8}(?:me|you|him|her|us|them|it|the|an?|my|your|our|their|his|its|these|those)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)(?![ \t ]{1,8}(?:lot|bit|little|most|least|whole|rest|same|next|other|following|day|week|month|year|time|night|morning|evening|weekend|while)(?![\p{L}\p{M}\p{N}_'’@/#\\-]))/iu;
+
+// common.yaml rule verbComplements def POINTER_NEXT
+export const POINTER_NEXT =
+  /^[ \t ]{1,8}(?:this|that|up|down|out|off|back|over|away)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/iu;
+
+// common.yaml rule verbComplements def FROM_NEXT
+export const FROM_NEXT =
+  /^[ \t ]{1,8}from[ \t ]{1,8}(?:me|you|him|her|us|them|it|the|an?|my|your|our|their|his|its|these|those)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/iu;
+
+// common.yaml rule verbComplements def END_NEXT
+export const END_NEXT = /^(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?=[ \t ]{0,8}(?:[.!?,;:]|$))/u;
+
+// common.yaml rule verbComplements def PERSON_NEXT
+export const PERSON_NEXT =
+  /^[ \t ]{1,8}(?:you|him|her|us|them)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/iu;
+
+// common.yaml rule verbComplements def PLURAL_NEXT
+export const PLURAL_NEXT =
+  /^[ \t ]{1,8}[a-z]+s(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/u;
+
+// common.yaml rule verbComplements def QUANTIFIER_NEXT
+export const QUANTIFIER_NEXT =
+  /^[ \t ]{1,8}(?:some|many|much|several|most|all|any|each|every|both|few|more|no|multiple|various|numerous)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/iu;
+
+// common.yaml rule verbComplements def NUMBER_NEXT
+export const NUMBER_NEXT = /^[ \t ]{1,8}\d/u;
+
+// common.yaml rule verbComplements def PREPOSITION_NEXT
+export const PREPOSITION_NEXT =
+  /^[ \t ]{1,8}(?:of|in|on|at|by|for|from|with|about|into|onto|over|under|through|after|before|since|until|via|per|to|toward|towards|among|between|within|without|upon|across|behind|beyond|like|near|during|against|around|thru)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/iu;
+
+// common.yaml rule verbComplements def COMPLEMENT_NEXT_WORD
+export const COMPLEMENT_NEXT_WORD =
+  /^[ \t ]{1,8}([A-Za-z]+)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/u;
+
+// common.yaml rule verbComplements def COORDINATED_NEXT
+export const COORDINATED_NEXT =
+  /^[ \t ]{1,8}(?:and|or)[ \t ]{1,8}([A-Za-z]+)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/u;
+
+// common.yaml rule verbComplements def complementTail
+export function complementTail(lemma: string) {
+  return new RegExp(
+    `^[ \\t\\u00a0]{1,8}${COMPLEMENTS[lemma].replaceAll(" ", "[ \\t\\u00a0]{1,8}")}${COMPLETE}(?!\\.[\\p{L}\\p{N}_]|\\uFFFC)`,
+    "iu",
+  );
+}
+
+// common.yaml rule verbComplements def pureAdverb
+export function pureAdverb(word: string) {
+  const i = englishWordInfo(word);
+  return !!i?.adverb && !i.noun && !i.adjective && !i.verbs.length;
+}
+
+// common.yaml rule verbComplements def objectNext
+export function objectNext(tail: string) {
+  return OBJECT_NEXT.test(tail) || POINTER_NEXT.test(tail);
+}
+
+// common.yaml rule verbComplements def complementNextWord
+export function complementNextWord(tail: string) {
+  return COMPLEMENT_NEXT_WORD.exec(tail)?.[1].toLowerCase();
+}
+
+// common.yaml rule verbComplements def coordinatedVerbNext
+export function coordinatedVerbNext(tail: string) {
+  const m = COORDINATED_NEXT.exec(tail);
+  return !!m && !!complementBaseVerb(m[1]);
+}
+
+// common.yaml rule verbComplements def TIME_ADVERBS
+export const TIME_ADVERBS =
+  /^(?:today|tonight|tomorrow|yesterday|overnight|upstairs|downstairs|overseas|indoors|outdoors|abroad)$/;
+
+// common.yaml rule verbComplements def nounPhraseNext
+export function nounPhraseNext(tail: string) {
+  const next = complementNextWord(tail);
+  const i =
+    next && !COMPLEMENT_FUNCTION_WORDS.has(next) && !TIME_ADVERBS.test(next)
+      ? englishWordInfo(next)
+      : null;
+  return objectNext(tail) || QUANTIFIER_NEXT.test(tail) || (!!i?.noun && !i.adjective && !i.adverb);
+}
+
+// common.yaml rule verbComplements def complementBaseVerb
+export function complementBaseVerb(
+  word: string,
+): { lemma: string; irregular: boolean; ambiguous: boolean } | null {
+  const w = word.toLowerCase();
+  const known = englishVerbForms(w);
+  const i = englishWordInfo(w);
+  return w === "be"
+    ? { lemma: w, irregular: true, ambiguous: false }
+    : COMPLEMENT_FUNCTION_WORDS.has(w) ||
+        (known && known.lemma !== w) ||
+        !i?.verbs.some((v) => v.form === "base") ||
+        i.verbs.some((v) => v.lemma !== w)
+      ? null
+      : { lemma: w, irregular: !!known, ambiguous: i.noun || i.adjective };
+}
+
+// common.yaml rule verbComplements def verbAfterAdverb
+export function verbAfterAdverb(word: string, tail: string) {
+  const w = word.toLowerCase();
+  const m = COMPLEMENT_NEXT_WORD.exec(tail);
+  return (/^(?:only|just|also|even|really|still|always|never|ever|simply)$/.test(w) ||
+    pureAdverb(w)) &&
+    m
+    ? { word: m[1], tail: tail.slice(m[0].length) }
+    : { word, tail };
+}
+
+// common.yaml rule verbComplements def wordsBefore
+export function wordsBefore(text: string, at: number): string[] | null {
+  const parts = text
+    .slice(Math.max(0, at - 160), at)
+    .split(/[!?;:\n,()[\]–—]|\.(?![\p{L}\p{N}_])|\s-+\s/u);
+  if (parts.length === 1 && at > 160) return null;
+  return [
+    ...(
+      parts
+        .at(-1)!
+        .match(/[a-z]+|['’][a-z]+|\d[\d,.]*/giu)
+        ?.map((w) => w.toLowerCase().replaceAll("’", "'")) ?? []
+    ).reverse(),
+    "",
+  ];
+}
+
+// common.yaml rule verbComplements def skipAuxiliaries
+export function skipAuxiliaries(words: readonly string[], from: number): number {
+  return from < words.length && (COMPLEMENT_AUXILIARIES.has(words[from]) || pureAdverb(words[from]))
+    ? skipAuxiliaries(words, from + 1)
+    : from;
+}
+
+// common.yaml rule verbComplements def nounPhraseWord
+export function nounPhraseWord(word: string | undefined) {
+  if (!word) return false;
+  const i = englishWordInfo(word);
+  return NP_DETERMINERS.has(word) || NP_INDEFINITES.has(word) || /^\d/.test(word)
+    ? true
+    : !COMPLEMENT_FUNCTION_WORDS.has(word) && !/^'/.test(word) && (!i || i.noun || i.adjective);
+}
+
+// common.yaml rule verbComplements def walkNounPhrase
+export function walkNounPhrase(words: readonly string[], from: number, j: number): number {
+  return j < words.length && j - from < 8 && nounPhraseWord(words[j])
+    ? (NP_DETERMINERS.has(words[j]) || NP_INDEFINITES.has(words[j])) &&
+      !NP_DETERMINERS.has(words[j + 1])
+      ? j + 1
+      : walkNounPhrase(words, from, j + 1)
+    : j;
+}
+
+// common.yaml rule verbComplements def objectAntecedent
+export function objectAntecedent(words: readonly string[], from: number) {
+  const j = walkNounPhrase(words, from, from);
+  const p = words[j];
+  if (!(j !== from && !!p)) return false;
+  return COMPLEMENT_BE.has(p)
+    ? words.slice(from, j).some((w) => w === "a" || w === "an")
+    : COMPLEMENT_HAVE.has(p) || COMPLEMENT_PREPOSITIONS.has(p);
+}
+
+// common.yaml rule verbComplements def helpHeadsClause
+export function helpHeadsClause(words: readonly string[], help: string) {
+  const i = skipAuxiliaries(words, 0);
+  const skipped = words.slice(0, i);
+  if (help === "helped" && skipped.some((w) => COMPLEMENT_BE.has(w) || COMPLEMENT_GET.has(w)))
+    return false;
+  if (help === "helping" && !skipped.some((w) => COMPLEMENT_BE.has(w))) return false;
+  const w1 = words[i];
+  if (
+    help === "help" &&
+    !skipped.some((w) => COMPLEMENT_MODAL_DO.has(w)) &&
+    !/^(?:i|we|you|they)$/.test(w1)
+  )
+    return false;
+  if (!(w1 !== undefined && !FREE_RELATIVES.has(w1))) return false;
+  return w1 === "" || COMPLEMENT_PREPOSITIONS.has(w1)
+    ? true
+    : COMPLEMENT_CONJUNCTIONS.has(w1)
+      ? !words.slice(i + 1).some((w) => COMPLEMENT_RELATIVES.has(w) || FREE_RELATIVES.has(w))
+      : COMPLEMENT_RELATIVES.has(w1)
+        ? objectAntecedent(words, i + 1)
+        : COMPLEMENT_SUBJECTS.has(w1)
+          ? helpSubjectClause(words, i)
+          : helpNounClause(words, i);
+}
+
+// common.yaml rule verbComplements def helpSubjectClause
+export function helpSubjectClause(words: readonly string[], i: number) {
+  const w2 = words[i + 1];
+  return w2 === "" || COMPLEMENT_CONJUNCTIONS.has(w2) || COMPLEMENT_SUBORDINATORS.has(w2)
+    ? true
+    : COMPLEMENT_RELATIVES.has(w2)
+      ? words[i + 2] === "" || objectAntecedent(words, i + 2)
+      : nounPhraseWord(w2)
+        ? objectAntecedent(words, i + 1)
+        : true;
+}
+
+// common.yaml rule verbComplements def helpNounClause
+export function helpNounClause(words: readonly string[], i: number) {
+  const j = walkNounPhrase(words, i, i);
+  return j === i ? false : nounPhraseWord(words[j]) ? objectAntecedent(words, j) : true;
+}
+
+// common.yaml rule verbComplements def dummyWorth
+export function dummyWorth(words: readonly string[]) {
+  const first = skipAuxiliaries(words, 0);
+  const i = /^(?:seem|seems|seemed|appear|appears|appeared)$/.test(words[first])
+    ? skipAuxiliaries(words, first + 1)
+    : first;
+  const w = words[i];
+  return w === "it" || w === "its" || w === "this" || w === "that" || (w === "" && i > 0);
+}
+
+// common.yaml rule verbComplements def worthPredicate
+export function worthPredicate(words: readonly string[]) {
+  const w = words[0];
+  const i = w ? englishWordInfo(w) : null;
+  return NP_DETERMINERS.has(w) || /^(?:of|net|self|own|'s)$/.test(w)
+    ? w === "'s"
+    : !(i?.adjective && !i.adverb && !i.verbs.length);
+}
+
+// common.yaml rule verbComplements def objectPhrase
+export function objectPhrase(words: readonly string[]) {
+  const head = words.at(-1)!;
+  const i = englishWordInfo(head);
+  return words.length === 1
+    ? !!i?.plural && !COMPLEMENT_FUNCTION_WORDS.has(head)
+    : words.slice(1).every((w) => !COMPLEMENT_FUNCTION_WORDS.has(w) && nounPhraseWord(w)) &&
+        (!i || i.noun);
+}
+
+// common.yaml rule verbComplements def frontedObjectBefore
+export function frontedObjectBefore(before: string) {
+  return (
+    frontedObjectGap(before) ||
+    /(?:\b(?:which|what)\b[^.!?;:\n]{0,40}\b(?:would|will|do|does|did|can|could|should)|\b[a-z]+[ \t ]+(?:that|which))[ \t ]+(?:I|you|we|they|he|she)[ \t ]+$/i.test(
+      before,
+    )
+  );
+}
+
+// common.yaml rule verbComplements def complementOpen
+export function complementOpen(ctx: DetectContext, m: RegExpExecArray) {
+  const word = m.groups!.word;
+  return (
+    (word === word.toLowerCase() || m[0] === m[0].toUpperCase()) && !hasUserOrCasedWord(ctx, m[0])
+  );
+}
+
+// common.yaml rule verbComplements def complementFinding
+export function complementFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  messageKey: RawFinding["messageKey"],
+  alternatives: string[],
+  choice: boolean,
+): RawFinding {
+  const span = group(m, "target");
+  const style = detectWordCase(m.groups!.target.trim());
+  const end = m.index + m[0].length;
+  return {
+    ruleId: "englishVerbComplements",
+    messageKey,
+    ...(choice ? { requiresChoice: true as const } : {}),
+    range: { start: span[0], end: span[1] },
+    alternatives: alternatives.map((text) => applyWordCase(text, style)),
+    context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, end + 48) },
+  };
+}
+
+// common.yaml rule perfectParticiples def NON_PERSON
+export const NON_PERSON = /^(?:it|its|this|that|which|what|everything|something|nothing|anything)$/;
+
+// common.yaml rule perfectParticiples def PARTICLE
+export const PARTICLE = /^[ \t ]+(?:up|down|off|out|into|open|apart)(?![A-Za-z])/i;
+
+// common.yaml rule perfectParticiples def NO_PASSIVE
+export const NO_PASSIVE = /^(?:arise|come|become|go|stink|swim)$/;
+
+// common.yaml rule perfectParticiples def MODAL_BEFORE
+export const MODAL_BEFORE =
+  /(?:^|[^A-Za-z'’])(?:(?:could|would|should|might|must)(?:n['’]?t)?|may|will|won['’]?t|shall|can(?:not|['’]?t)?|to)(?:[ \t ]+not)?[ \t ]+$/i;
+
+// common.yaml rule perfectParticiples def LEADS
+export const LEADS = {
+  ve: /^(?:i|you|we|they|who|what|that|there|could|would|should|must|might|may)$/,
+  d: /^(?:i|you|we|they|he|she|it|who|that|there)$/,
+  s: /^(?:he|she|it|that|there|here|what|who|where|(?:every|some|no|any)(?:thing|one|body))$/,
+  re: /^(?:you|we|they)$/,
+  m: /^i$/,
+} as Readonly<Record<string, RegExp>>;
+
+// common.yaml rule perfectParticiples def OPENS_CLAUSE
+export const OPENS_CLAUSE =
+  /(?:[.!?;:,"“(\n]|(?:^|[^A-Za-z])(?:and|but|or|so|why|how|where|when|what|who|which))[ \t ]*$/i;
+
+// common.yaml rule perfectParticiples def NOUN_LIKE_ING
+export const NOUN_LIKE_ING =
+  /^(?:reading|writing|testing|planning|building|training|meeting|painting|drawing|shopping|setting|spending|recording|funding|parking|housing|clothing|seating|heating|lighting|cooking|swimming|dancing|marketing|pricing|timing|booking|warning|opening|ending|beginning|feeling|morning|evening|ceiling|nothing|something|anything|everything|thing|king|ring|spring|string|wedding|pudding|sibling|during)$/;
+
+// common.yaml rule perfectParticiples def ADJECTIVE_SHAPE
+export const ADJECTIVE_SHAPE =
+  /(?:ing|ed|s|ful|ic|[^e]al|ible|[tsla]ive)$|(?<!en|dis)able$|(?<![aeo]|if|ppl)y$|[aeiouy][^aeiouy]+(?<!m)[ae]nt$/;
+
+// common.yaml rule perfectParticiples def OBJECT_AFTER
+export const OBJECT_AFTER =
+  /^[ \t ]{1,8}(?:(?:me|him|us|them)(?![\p{L}\p{M}\p{N}_'’@/#\\-])|(?:the|a|an|my|your|his|our|their)[ \t ]{1,8}(?!(?:whole|entire|next|last|first|second|third|final|same|rest|other|day|days|week|weeks|month|months|year|years|morning|mornings|afternoon|evening|evenings|night|nights|weekend|weekends|time|times|moment|minute|minutes|hour|hours|while|way|lot|bit|little|few)(?![\p{L}\p{M}\p{N}_'’@/#\\-]))[A-Za-z])/iu;
+
+// common.yaml rule perfectParticiples def WORD_AFTER
+export const WORD_AFTER =
+  /^[ \t ]{1,8}(?:(?:this|his|us|its)(?![\p{L}\p{M}\p{N}_'’@/#\\-])|(?![A-Za-z]*(?:ed|ing|s)(?![\p{L}\p{M}\p{N}_'’@/#\\-]))[A-Za-z])/iu;
+
+// common.yaml rule perfectParticiples def frontedObjectGap
+export function frontedObjectGap(before: string) {
+  const head = /([A-Za-z]+)[ \t ]+(?:I|you|we|they|he|she)[ \t ]*$/i
+    .exec(before)?.[1]
+    .toLowerCase();
+  if (!head) return false;
+  const read = englishWordInfo(head);
+  return (
+    /^(?:anything|everything|something|nothing|all|what|whatever|whichever)$/.test(head) ||
+    (!!read && (read.noun || read.plural) && !isEnglishFunctionWord(head))
+  );
+}
+
+// common.yaml rule perfectParticiples def participleNextWord
+export function participleNextWord(after: string) {
+  return /^[ \t\u00a0]+([A-Za-z]+)(?![A-Za-z'’-])/.exec(after)?.[1].toLowerCase();
+}
+
+// common.yaml rule perfectParticiples def nounFollows
+export function nounFollows(after: string) {
+  const next = participleNextWord(after);
+  if (!(!!next && !PARTICIPLE_CLOSED.has(next) && !PARTICIPLE_ADVERBS.has(next))) return false;
+  const info = englishWordInfo(next);
+  return !info || next.endsWith("ing") || !(info.verbs.length || info.adjective || info.adverb)
+    ? true
+    : (info.noun || info.plural) && !info.adjective;
+}
+
+// common.yaml rule perfectParticiples def nounHead
+export function nounHead(word: string, before: string | undefined) {
+  const info = englishWordInfo(word);
+  return (
+    GAP_HEADS.has(word) ||
+    (!PARTICIPLE_CLOSED.has(word) &&
+      !!info &&
+      (info.noun || info.plural) &&
+      ((info.plural && !info.verbs.some((v) => v.form === "third")) ||
+        !info.verbs.length ||
+        (before !== undefined &&
+          (PARTICIPLE_DETERMINERS.has(before) || /^(?:whatever|whichever)$/.test(before)))))
+  );
+}
+
+// common.yaml rule perfectParticiples def objectGap
+export function objectGap(text: string, start: number) {
+  const run = /(?:[A-Za-z]+[ \t ]+){1,5}$/.exec(text.slice(Math.max(0, start - 64), start));
+  if (!run) return false;
+  const w = run[0]
+    .trim()
+    .toLowerCase()
+    .split(/[ \t\u00a0]+/);
+  const last = w.length - 1;
+  const subjectStart = /^(?:i|you|we|they|he|she|it)$/.test(w[last])
+    ? last - 1
+    : last >= 1 && PARTICIPLE_DETERMINERS.has(w[last - 1])
+      ? last - 2
+      : null;
+  if (!(subjectStart !== null)) return false;
+  const head =
+    subjectStart !== null && subjectStart >= 0 && /^(?:that|which|whom)$/.test(w[subjectStart])
+      ? subjectStart - 1
+      : subjectStart;
+  return head >= 0 && nounHead(w[head], w[head - 1]);
+}
+
+// common.yaml rule perfectParticiples def beAgrees
+export function beAgrees(subject: string, be: string) {
+  const s = subject.toLowerCase();
+  const first = s === "i";
+  const singular = /^(?:he|she|it|this|that)$/.test(s);
+  return be === "m" || be === "am"
+    ? first
+    : be === "s" || be === "is" || be === "has"
+      ? singular
+      : be === "re" || be === "are" || be === "were"
+        ? !first && !singular
+        : be === "was"
+          ? first || singular
+          : be !== "have" || !singular;
+}
+
+// common.yaml rule perfectParticiples def auxKey
+export function auxKey(aux: string) {
+  const a = aux.toLowerCase().replace(/n['’]?t$/, "");
+  return a === "its" ? "s" : a.endsWith("ve") ? "have" : a;
+}
+
+// common.yaml rule perfectParticiples def adverbOnly
+export function adverbOnly(word: string) {
+  const info = englishWordInfo(word);
+  return PARTICIPLE_ADVERBS.has(word) || (!!info?.adverb && !info.noun && !info.verbs.length);
+}
+
+// common.yaml rule perfectParticiples def participleFinding
+export function participleFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  inverted: boolean,
+): RawFinding | null {
+  const g = m.groups!;
+  if (!plainToken(ctx, g.verb)) return null;
+  const end = group(m, "verb")[1];
+  const word = g.verb.toLowerCase();
+  const past = simplePastOnly(word);
+  if (!past) return null;
+  if (
+    !g.adverbs
+      .toLowerCase()
+      .split(/[ \t ]+/)
+      .slice(1)
+      .every((adverb) => adverbOnly(adverb))
+  )
+    return null;
+  const key = auxKey(g.clitic ? g.clitic.slice(1) : g.aux);
+  const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+  const prev = /([A-Za-z]+)[ \t ]+$/.exec(before)?.[1].toLowerCase();
+  const subject = (
+    g.lead ??
+    g.subject ??
+    (/^its$/i.test(g.aux ?? "") ? "its" : prev)
+  )?.toLowerCase();
+  const opener = ctx.text.slice(Math.max(0, m.index - 32), m.index);
+  if (!(!inverted || OPENS_CLAUSE.test(opener) || (m.index <= 32 && /^[ \t ]*$/.test(opener))))
+    return null;
+  if (!(!g.lead || LEADS[g.clitic.slice(1).toLowerCase()].test(g.lead.toLowerCase()))) return null;
+  if (subject && /^(?:i|you|we|they|he|she|it|this|that)$/.test(subject) && !beAgrees(subject, key))
+    return null;
+  if (!(
+    !!g.lead ||
+    inverted ||
+    (!(MODAL_BEFORE.test(before) && !/^(?:have|be)$/.test(g.aux.toLowerCase())) &&
+      !(key === "am" && prev !== "i") &&
+      !(/^(?:has|have|had|am|is|are|was|were)$/.test(key) && objectGap(ctx.text, m.index)))
+  ))
+    return null;
+  const after = ctx.scanText.slice(end, end + 48);
+  const next = participleNextWord(after);
+  if (/^its$/i.test(g.aux ?? "") && next && !PARTICIPLE_CLOSED.has(next)) return null;
+  const info = englishWordInfo(word);
+  const adjective = ADJECTIVE_PASTS.has(word) || !!info?.adjective;
+  const nounish = (past.ambiguous || !!info?.noun) && !VERB_PASTS.has(word);
+  const have = /^(?:have|has|had|having|d)$/.test(key);
+  if (
+    !(have
+      ? !((nounish || adjective) && nounFollows(after)) && !(nounish && next === "of")
+      : (adjective
+          ? PARTICLE.test(after) || (word === "broke" && !!subject && NON_PERSON.test(subject))
+          : !past.ambiguous || BARE_PAST.has(word)) &&
+        !(nounish && nounFollows(after)) &&
+        !(key !== "s" && NO_PASSIVE.test(past.lemma)) &&
+        !(word === "did" && key !== "s") &&
+        !(
+          key === "being" &&
+          (PARTICIPLE_DETERMINERS.has(prev ?? "") ||
+            /^[ \t ]+(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those|me|him|us|them)(?![A-Za-z])/i.test(
+              after,
+            ))
+        ))
+  )
+    return null;
+  if (hasUserOrCasedWord(ctx, m[0])) return null;
+  const kase = detectWordCase(g.verb);
+  const participle = applyWordCase(past.participle, kase);
+  const base = key === "d" ? applyWordCase(past.lemma, kase) : participle;
+  return found(
+    ctx,
+    m,
+    "englishPerfectParticiples",
+    base !== participle
+      ? "review_msg_had_or_would"
+      : have
+        ? "review_msg_perfect_participle"
+        : "review_msg_be_participle",
+    base !== participle ? [participle, base] : [participle],
+    "verb",
+  );
+}
+
+// common.yaml rule nounNumber def LABEL_WITH_NUMBER
+export const LABEL_WITH_NUMBER =
+  /\b(?:an?|the|this|that|its|his|her|their|our|my|your|every|each)[ \t ]+(?!(?:first|last|next|other|top|best|only|few|many|same|final|initial|whole|entire|remaining|extra)\b)[\p{L}]+[ \t ]+$/iu;
+
+// common.yaml rule nounNumber def nounCount
+export function nounCount(m: RegExpExecArray, ctx: DetectContext): RawFinding[] | null {
+  const g = m.groups!;
+  const noun = g.noun;
+  const count = g.count;
+  const dem = g.dem;
+  const verb = g.verb;
+  const forms = englishNounForms(noun);
+  if (!forms) return null;
+  const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
+  if (count && hasCountPrefix(before)) return null;
+  if (
+    count &&
+    /^[0-9]/.test(count) &&
+    (/^(?:1[6-9]|20)[0-9]{2}$/.test(count) ||
+      /\b(?:an?|the|this|that|its|his|her|their|our|my|your|every|each)[ \t ]+$/i.test(before) ||
+      /[+−×*/^-]$/.test(before) ||
+      LABEL_WITH_NUMBER.test(before))
+  )
+    return null;
+  if (count?.toLowerCase() === "one" && !g.tail && /(?:^|[.!?:;"“(][ \t ]*)$/.test(before))
+    return null;
+  if (hasUserOrCasedWord(ctx, m[0])) return null;
+  if (!(!dem || noun.toLowerCase() === forms.singular)) return null;
+  const end = group(m, "noun")[1];
+  const plural = applyWordCase(forms.plural, detectWordCase(noun));
+  const singularDem = applyWordCase(
+    dem?.toLowerCase() === "these" ? "this" : "that",
+    detectWordCase(dem ?? ""),
+  );
+  const areVerb = !!verb && /^(?:are|were)$/i.test(verb);
+  const countOne = count && (count.toLowerCase() === "one" || /^0*1$/.test(count));
+  const corrected = applyWordCase(countOne ? forms.singular : forms.plural, detectWordCase(noun));
+  if (!(!!dem || corrected !== noun)) return null;
+  const start = dem && !areVerb ? group(m, "dem")[0] : group(m, "noun")[0];
+  if (!(start >= ctx.from && start < ctx.to)) return null;
+  const alternatives = !dem
+    ? [corrected]
+    : areVerb
+      ? [plural]
+      : verb
+        ? [`${singularDem}${g.gap}${noun}`]
+        : [`${dem}${g.gap}${plural}`, `${singularDem}${g.gap}${noun}`];
+  const requiresChoice = dem && !areVerb && !verb ? (true as const) : undefined;
+  const messageKey = dem
+    ? requiresChoice
+      ? "review_msg_noun_choice"
+      : "review_msg_demonstrative_number"
+    : g.one
+      ? "review_msg_one_of"
+      : "review_msg_noun_count";
+  return [
+    finding("englishNounNumber", messageKey, start, end, alternatives, {
+      requiresChoice,
+      context: around(ctx, m),
+    }),
+  ];
+}
+
+// common.yaml rule doubledDegree def doubledDegreeFinding
+export function doubledDegreeFinding(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+): RawFinding | null {
+  if (!(ctx.lang === "en_US")) return null;
+  if (hasUserOrCasedWord(ctx, m[0])) return null;
+  if (!(m.groups!.target === m.groups!.target.toLowerCase())) return null;
+  const span = group(m, "target");
+  return finding(frame.ruleId, frame.messageKey, span[0], span[1], [m.groups!.word], {
+    context: {
+      start: Math.max(0, m.index - 128),
+      end: Math.min(ctx.text.length, m.index + m[0].length + 9),
+    },
+  });
+}
+
+// common.yaml rule doubledDegree.fr def comparativeMarker
+export function comparativeMarker(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+): RawFinding | null {
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const marker = m.groups!.marker;
+  const word = m.groups!.word;
+  if (!(!ctx.dictionary.has(marker.toLowerCase()) && !ctx.dictionary.has(word.toLowerCase())))
+    return null;
+  const end = m.index + m[0].length;
+  return {
+    ruleId: frame.ruleId,
+    messageKey: frame.messageKey,
+    range: { start: m.index, end },
+    alternatives: [caseLike(marker, word)],
+    context: { start: Math.max(0, m.index - 64), end },
+    bulkBlock: "context-dependent",
+  };
+}
+
+// common.yaml rule countability def SPECIALIST
+export const SPECIALIST =
+  /\b(?:legal|law|court|criminal|judicial|indictment|prosecution|affidavit|writ|bank|banking|remittance|shipping|commercial|trade|patent|archaic|dialect|regional|terminology)\b/i;
+
+// common.yaml rule countability def countTemplate
+export function countTemplate(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+  replacement: string,
+): RawFinding | null {
+  if (hasUserOrCasedWord(ctx, m[0])) return null;
+  const fix = replacement ? applyWordCase(replacement, detectWordCase(m.groups!.target)) : "";
+  const result = found(ctx, m, frame.ruleId, frame.messageKey, [fix]);
+  if (SPECIALIST.test(ctx.text.slice(result.context!.start, result.context!.end))) return null;
+  return fix ? result : { ...result, alternatives: [], warningOnly: true as const };
+}
+
+// common.yaml rule countability def massNoun
+export function massNoun(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const span = group(m, "noun");
+  const noun = m.groups!.noun;
+  if (!(noun === noun.toLowerCase())) return null;
+  const singular = MASS_SINGULAR[noun] ?? "";
+  const context = {
+    start: Math.max(0, m.index - 128),
+    end: Math.min(ctx.text.length, m.index + m[0].length + 128),
+  };
+  if (SPECIALIST.test(ctx.scanText.slice(context.start, context.end))) return null;
+  const before = ctx.scanText.slice(context.start, m.index);
+  const count = m.groups!.count;
+  if (count && hasCountPrefix(before)) return null;
+  if (hasUserOrCasedWord(ctx, m[0])) return null;
+  const corrected =
+    singular || noun.replace(/(?:on|a)$/, /^(?:one|1)$/i.test(count ?? "") ? "on" : "a");
+  if (!(corrected !== noun)) return null;
+  return {
+    ruleId: "englishCountability",
+    messageKey: singular ? "review_msg_mass_noun" : "review_msg_countable_number",
+    range: { start: span[0], end: span[1] },
+    alternatives: [corrected],
+    context,
+  };
+}
+
+// common.yaml rule repeatedWords.en def INFINITIVE_GAP
+export const INFINITIVE_GAP = /\b(?:what|whatever|which|who|whom|that|as|where|when|how)\b/i;
+
+// common.yaml rule repeatedWords.en def doubledTo
+export function doubledTo(before: string, after: string) {
+  const sentence = before.slice(
+    Math.max(
+      before.lastIndexOf("."),
+      before.lastIndexOf("!"),
+      before.lastIndexOf("?"),
+      before.lastIndexOf("\n"),
+    ) + 1,
+  );
+  const verb = /(\p{L}+)[ \t\u00a0]+$/u.exec(sentence);
+  return (
+    /^[ \t\u00a0]*(?:(?:the|a|an|my|your|his|her|its|our|their)\b|\p{Lu}|\p{N})/u.test(after) ||
+    (!!verb &&
+      INFINITIVE_TO_VERBS.has(verb[1].toLowerCase()) &&
+      !INFINITIVE_GAP.test(sentence.slice(0, verb.index)))
+  );
+}
+
+// common.yaml rule repeatedWords.en def repeatedWordFinding
+export function repeatedWordFinding(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const start = m.index;
+  const end = m.index + m[0].length;
+  const context = { start: Math.max(0, start - 96), end: Math.min(ctx.text.length, end + 2) };
+  const before = ctx.text.slice(context.start, start);
+  const word = m[1].toLowerCase();
+  if (!(!ctx.dictionary.has(word) && !isGluedToTechnical(ctx.text, start, end))) return null;
+  if (!(!m[0].includes("\n") || /\p{L}[^\n]*[ \t\u00a0]$/u.test(before))) return null;
+  if (!(before.match(/(\p{L}+)[ \t\u00a0]{1,8}$/u)?.[1].toLowerCase() !== word)) return null;
+  if (CUE_AND_QUOTE.test(before)) return null;
+  if (!(word !== "to" || doubledTo(before, ctx.text.slice(end, end + 16)))) return null;
+  if (/^(?:is|was)$/.test(word) && isLang(ctx, "en") && PSEUDO_CLEFT_BEFORE.test(before))
+    return null;
+  const second = m[0].slice(-m[1].length);
+  if (/^\p{Ll}/u.test(m[1]) && /^\p{Lu}/u.test(second)) return null;
+  if (word.length === 1 && /(?:^|\s)\p{L}[ \t\u00a0]+$/u.test(before)) return null;
+  return {
+    ruleId: "englishRepeatedWords",
+    messageKey: "review_msg_repeated_words",
+    range: { start, end },
+    alternatives: [ctx.source.slice(start, start + m[1].length)],
+    context,
+  };
+}
+
+// common.yaml rule auxiliaryForms def STARTS_WITH_AUXILIARY
+export const STARTS_WITH_AUXILIARY =
+  /^(?:(?:what|when|where|why|how|who)[ \t ]{1,8})?(?:did(?:n['’]t)?|does(?:n['’]t)?|do(?:n['’]t)?|can(?:not|['’]t)?|could(?:n['’]t)?|will|won['’]t|would(?:n['’]t)?|shall|should(?:n['’]t)?|may|might|must(?:n['’]t)?)(?![A-Za-z])/i;
+
+// common.yaml rule auxiliaryForms def NOT_A_NOUN
+export const NOT_A_NOUN =
+  /^(?:i|you|he|she|it|we|they|me|him|us|them|the|this|that|these|those|my|your|our|his|her|their|its|a|an|do|does|did|can|could|will|would|shall|should|may|might|must|is|are|was|were|be|been|have|has|had|not|so|very)$/;
+
+// common.yaml rule auxiliaryForms def AUX_FUNCTION_WORD
+export const AUX_FUNCTION_WORD =
+  /^(?:i|you|he|she|it|we|they|me|him|us|them|the|this|that|these|those|my|your|our|his|her|their|its|a|an|some|any|no|all|each|every|both|either|neither|more|most|much|many|few|less|own|other|another|such|what|which|who|whom|whose|when|where|why|how|if|whether|than|as|so|and|or|but|nor|yet|of|in|on|at|by|for|from|to|into|onto|upon|with|without|within|about|above|below|over|under|after|before|since|until|till|through|thru|across|along|around|against|among|between|behind|beyond|during|near|off|out|up|down|via|per|like|unlike|toward|towards|not|now|then|here|there|soon|again|also|too|very|just|only|even|still|ever|never|always|first|last|next|is|are|was|were|be|been|being|am|have|has|had|do|does|did)$/;
+
+// common.yaml rule auxiliaryForms def AUX_NOT_A_SUBJECT
+export const AUX_NOT_A_SUBJECT =
+  /^(?:the|a|an|my|your|our|his|her|their|its|whose|thy|own|no|any|every|each|some|first|second|third|last|next|of|in|on|at|by|for|from|to|into|onto|upon|with|without|within|against|about|after|before|through|over|under|as|than|nor|neither|so|only|never|rarely|seldom|hardly|little|when|where|why|how|whether|if|is|are|was|were|be|been|being|am|not)$/;
+
+// common.yaml rule auxiliaryForms def NOUN_MODAL
+export const NOUN_MODAL = /^(?:will|can|may|must|might)$/i;
+
+// common.yaml rule auxiliaryForms def AUX_OBJECT_PRONOUN
+export const AUX_OBJECT_PRONOUN = /^(?:me|him|her|us|them|it|you)$/;
+
+// common.yaml rule auxiliaryForms def AUX_DETERMINER_WORD
+export const AUX_DETERMINER_WORD =
+  /^(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those)$/;
+
+// common.yaml rule auxiliaryForms def AUX_BE
+export const AUX_BE = /^(?:am|is|are|was|were|be|been|being|.+['’](?:s|re|m))$/;
+
+// common.yaml rule auxiliaryForms def PERSON_QUESTION
+export const PERSON_QUESTION =
+  /^(?:(?:what|when|where|why|how|who)[ \t ]{1,8})?(?:can|could|will|would|shall|should|may|might|must)[ \t ]{1,8}(?:i|you|we|they|he|she)(?:[ \t ]{1,8}please)?[ \t ]{1,8}$/i;
+
+// common.yaml rule auxiliaryForms def ELLIPSIS_LEAD
+export const ELLIPSIS_LEAD = /^(?:than|as)$/i;
+
+// common.yaml rule auxiliaryForms def TO_HEAD
+export const TO_HEAD =
+  /^(?:want|wants|wanted|need|needs|needed|have|has|had|able|try|tries|tried|trying|decide|decides|decided|supposed|ought|planned|like|going)$/;
+
+// common.yaml rule auxiliaryForms def NOUN_ENDING
+export const NOUN_ENDING = /(?:tion|sion|ness|ity|ance|ence|ship|ism)$/;
+
+// common.yaml rule auxiliaryForms def ADJECTIVE_ENDING
+export const ADJECTIVE_ENDING = /(?:al|ic|ive|ous|ful|less|ary|ish|ian)$/;
+
+// common.yaml rule auxiliaryForms def DERIVED_NOUN
+export const DERIVED_NOUN = /(?:tion|sion|ness|ity|ance|ence|ship|ism|ment|[^e]er|or|ist)$/;
+
+// common.yaml rule auxiliaryForms def NOT_AUXILIARY_VERB
+export const NOT_AUXILIARY_VERB =
+  /^(?:fucking|freaking|frigging|bloody|concerning|regarding|considering|including|according|following|thanks)$/;
+
+// common.yaml rule auxiliaryForms def AUX_PREPOSITION_NEXT
+export const AUX_PREPOSITION_NEXT = /^(?:of|for|at|in|on|from|with|to|be|by)$/;
+
+// common.yaml rule auxiliaryForms def contentWord
+export function contentWord(word: string) {
+  if (!(!!word && !AUX_FUNCTION_WORD.test(word) && !AUX_OBJECT_PRONOUN.test(word))) return false;
+  const info = englishWordInfo(word);
+  return !info || info.noun || info.plural || info.adjective;
+}
+
+// common.yaml rule auxiliaryForms def inflectedLemma
+export function inflectedLemma(word: string) {
+  if (!(!/^(?:hers|ours|yours|theirs|others)$/.test(word) && !!englishWordInfo(word))) return null;
+  const lemma = englishLemma(word, word.endsWith("s") ? "third" : "past");
+  return lemma && lemma !== word && lemma !== "be" ? lemma : null;
+}
+
+// common.yaml rule auxiliaryForms def baseVerbNotAdjective
+export function baseVerbNotAdjective(word: string) {
+  const info = englishWordInfo(word);
+  return !!info && !info.adjective && info.verbs.some((v) => v.form === "base");
+}
+
+// common.yaml rule auxiliaryForms def auxiliaryRepair
+export function auxiliaryRepair(
+  word: string,
+  next: string,
+  isDo: boolean,
+  lexicalDo: boolean,
+  auxiliary: string,
+): { forms: string[]; be?: true; choice?: true } | null {
+  if (!(!NOT_AUXILIARY_VERB.test(word) && !(word === "based" && /^(?:on|upon)$/.test(next))))
+    return null;
+  if (word === "has" && next === "well") return null;
+  const plural = word.endsWith("s") && !!englishWordInfo(word)?.plural;
+  const entry = englishVerbForms(word);
+  return word === "seen" && (next === "to" || !!englishWordInfo(next)?.adjective)
+    ? { forms: ["seem"] }
+    : (/^(?:found|ground|wound)$/.test(word) && !AUX_OBJECT_PRONOUN.test(next)) ||
+        (plural && AUX_PREPOSITION_NEXT.test(next)) ||
+        (plural && baseVerbNotAdjective(next))
+      ? null
+      : entry && word !== entry.lemma && !entry.ambiguous.includes(word)
+        ? entryRepair(word, entry, isDo, lexicalDo, auxiliary)
+        : entry
+          ? !isDo ||
+            (lexicalDo && !AUX_OBJECT_PRONOUN.test(next) && !AUX_DETERMINER_WORD.test(next))
+            ? null
+            : { forms: [entry.lemma], choice: true }
+          : word.endsWith("ing")
+            ? ingRepair(word, isDo, auxiliary)
+            : regularRepair(word, next, isDo, lexicalDo, auxiliary);
+}
+
+// common.yaml rule auxiliaryForms def entryRepair
+export function entryRepair(
+  word: string,
+  entry: { lemma: string; past: string; participle: string },
+  isDo: boolean,
+  lexicalDo: boolean,
+  auxiliary: string,
+): { forms: string[]; be?: true; choice?: true } | null {
+  return lexicalDo && DO_OBJECT_NOUNS.has(word)
+    ? null
+    : /\b(?:would|could|should|might|must)(?:n['’]t)?\b/i.test(auxiliary) &&
+        word === entry.participle &&
+        word !== entry.past
+      ? { forms: [`have ${word}`, entry.lemma], choice: true }
+      : !isDo && !!auxiliary && word === entry.participle && word !== entry.past
+        ? { forms: [entry.lemma, `be ${word}`], be: true, choice: true }
+        : { forms: [entry.lemma] };
+}
+
+// common.yaml rule auxiliaryForms def ingRepair
+export function ingRepair(
+  word: string,
+  isDo: boolean,
+  auxiliary: string,
+): { forms: string[]; be?: true; choice?: true } | null {
+  const negativeDo =
+    isDo &&
+    /n['’]t\b|\bnot\b/i.test(auxiliary) &&
+    /\b(?:i|you|we|they|he|she|it)\b/i.test(auxiliary);
+  if ((isDo && !negativeDo) || NOUN_LIKE_ING.test(word) || !englishWordInfo(word)) return null;
+  const lemma = englishLemma(word, "ing");
+  if (!lemma) return null;
+  return /\b(?:can|could|will|would|shall|should|might|may|must)[ \t ]+(?:i|you|we|they|he|she)[ \t ]*$/i.test(
+    auxiliary,
+  )
+    ? { forms: [lemma] }
+    : negativeDo
+      ? lemma === "be"
+        ? null
+        : { forms: [lemma] }
+      : lemma === "be"
+        ? { forms: [lemma] }
+        : {
+            forms: englishWordInfo(word)?.adjective ? [`be ${word}`, lemma] : [lemma, `be ${word}`],
+            be: true,
+            choice: true,
+          };
+}
+
+// common.yaml rule auxiliaryForms def regularRepair
+export function regularRepair(
+  word: string,
+  next: string,
+  isDo: boolean,
+  lexicalDo: boolean,
+  auxiliary: string,
+): { forms: string[]; be?: true; choice?: true } | null {
+  const lemma = inflectedLemma(word);
+  if (!lemma) return null;
+  if (next === "to" && (word === "supposed" || (word === "used" && !isDo))) return null;
+  const past = !word.endsWith("s");
+  const verbEvidence = AUX_OBJECT_PRONOUN.test(next) || (past && AUX_DETERMINER_WORD.test(next));
+  if (lexicalDo && !verbEvidence) return null;
+  return !isDo && past && !verbEvidence
+    ? PERSON_QUESTION.test(auxiliary)
+      ? { forms: [lemma], choice: true }
+      : { forms: [lemma, `be ${word}`], be: true, choice: true }
+    : { forms: [lemma] };
+}
+
+// common.yaml rule auxiliaryForms def wouldOrHadRepair
+export function wouldOrHadRepair(
+  word: string,
+): { forms: string[]; be?: true; choice?: true } | null {
+  const entry = englishVerbForms(word);
+  const lemma =
+    !entry && word.endsWith("s") && !englishWordInfo(word)?.plural ? inflectedLemma(word) : null;
+  return entry
+    ? entry.ambiguous.includes(word) || word !== entry.third
+      ? null
+      : { forms: [entry.lemma] }
+    : lemma
+      ? { forms: [lemma] }
+      : null;
+}
+
+// common.yaml rule auxiliaryForms def auxFinding
+export function auxFinding(
+  ctx: DetectContext,
+  start: number,
+  verbStart: number,
+  end: number,
+  token: string,
+  repair: { forms: string[]; be?: true; choice?: true },
+): RawFinding {
+  const kase = detectWordCase(token);
+  const lead = ctx.source.slice(start, verbStart);
+  return {
+    ruleId: "englishAuxiliaryBaseVerb",
+    messageKey: repair.be ? "review_msg_modal_be" : "review_msg_auxiliary_base",
+    range: { start, end },
+    alternatives: repair.forms.map((form) => `${lead}${applyWordCase(form, kase)}`),
+    ...(repair.choice ? { requiresChoice: true as const } : {}),
+    context: { start: Math.max(0, start - 96), end: Math.min(ctx.text.length, end + 32) },
+  };
+}
+
+// common.yaml rule auxiliaryForms def modalMayBeNoun
+export function modalMayBeNoun(subject: string, aux: string) {
+  const s = subject.toLowerCase();
+  if (/^(?:i|you|we|they|he|she|it|who|which|that)$/.test(s)) return false;
+  const info = englishWordInfo(s);
+  return (
+    /['’]|(?:ing|ed)$/.test(s) ||
+    !!info?.adjective ||
+    (ADJECTIVE_ENDING.test(s) && !info?.verbs.length && !info?.plural) ||
+    (info ? !info.noun && !info.plural && !info.verbs.length : ADJECTIVE_ENDING.test(s)) ||
+    (/^can$/i.test(aux) && !(info ? info.plural : /[^s]s$/.test(subject)))
+  );
+}
+
+// common.yaml rule auxiliaryForms def modifiesNext
+export function modifiesNext(word: string, next: string) {
+  return !word.endsWith("s") && !word.endsWith("ing") && contentWord(next);
+}
+
+// common.yaml rule auxiliaryForms def feelingFinding
+export function feelingFinding(
+  ctx: DetectContext,
+  asked: RegExpExecArray,
+  start: number,
+  verbStart: number,
+  end: number,
+  token: string,
+): RawFinding {
+  const aux = asked[1];
+  const negative = asked[2] ?? "";
+  const subject = asked[4];
+  const singular = /^(?:he|she|it)$/i.test(subject);
+  const be = /^do$/i.test(aux)
+    ? /^i$/i.test(subject)
+      ? "am"
+      : "are"
+    : /^does$/i.test(aux)
+      ? "is"
+      : singular || /^i$/i.test(subject)
+        ? "was"
+        : "were";
+  const verb = be === "am" && negative ? "are" : be;
+  return {
+    ...auxFinding(ctx, start, verbStart, end, token, { forms: [token.toLowerCase()] }),
+    alternatives: [
+      `${applyWordCase(verb, detectWordCase(aux))}${negative}${asked[3]}${subject} ${token}`,
+    ],
+  };
+}
+
+// common.yaml rule auxiliaryForms def invertedScan
+export function invertedScan(
+  ctx: DetectContext,
+  words: readonly RegExpMatchArray[],
+  k: number,
+  isDo: boolean,
+  wordsStart: number,
+  start: number,
+): RawFinding | null {
+  if (!(k < words.length)) return null;
+  const subject = words[k - 1][0];
+  if (!(subject === subject.toLowerCase() && !AUX_FUNCTION_WORD.test(subject))) return null;
+  const info = englishWordInfo(subject);
+  if (info && !info.noun && !info.plural && !info.adjective) return null;
+  const token = words[k][0];
+  const word = token.toLowerCase();
+  if (!(plainToken(ctx, token) && !AUX_FUNCTION_WORD.test(word))) return null;
+  const end = wordsStart + words[k].index! + token.length;
+  const next = nextLowerWord(ctx, end);
+  if (
+    /(?:ed|ing)$/.test(word) &&
+    (contentWord(next) || /^[ \t ]+["'‘“]?\p{Lu}/u.test(ctx.text.slice(end, end + 5)))
+  )
+    return null;
+  const repair =
+    !info || info.noun || info.plural ? auxiliaryRepair(word, next, isDo, false, "") : null;
+  return repair
+    ? auxFinding(ctx, start, end - token.length, end, token, repair)
+    : hasVerbForm(word, "base")
+      ? null
+      : invertedScan(ctx, words, k + 1, isDo, wordsStart, start);
+}
+
+// common.yaml rule auxiliaryForms def adjectiveOrParticiple
+export function adjectiveOrParticiple(word: string) {
+  const info = englishWordInfo(word);
+  return !!info?.adjective || !!info?.verbs.some((v) => v.form === "participle");
+}
+
+// common.yaml rule pronounCase def finiteVerbForm
+export function finiteVerbForm(word: string) {
+  return (
+    /^(?:(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must)(?:n['’]t)?|won['’]t|cannot|[a-z]{2,}ed)$/i.test(
+      word,
+    ) || isUniquePast(word)
+  );
+}
+
+// common.yaml rule pronounCase def subjectForm
+export function subjectForm(word: string) {
+  return SUBJECT_FORM[word.toLowerCase()] ?? word;
+}
+
+// common.yaml rule pronounCase def isFirstPerson
+export function isFirstPerson(word: string) {
+  return /^(?:me|i|myself)$/i.test(word);
+}
+
+// common.yaml rule pronounCase def objectForm
+export function objectForm(word: string) {
+  return applyWordCase(OBJECT_FORM[word.toLowerCase()] ?? word, detectWordCase(word));
+}
+
+// common.yaml rule pronounCase def PREPOSITION_BEFORE
+export const PREPOSITION_BEFORE =
+  /\b(?<prep>to|with|for|from|by|of|about|on|upon|in|into|at|among|between|against|without|under|over|through|toward|towards|behind|beside|before|after|like|than|around|near|beyond|via|unto|onto|within|regarding|concerning)[ \t ]+$/i;
+
+// common.yaml rule pronounCase def OF_NOUN
+export const OF_NOUN =
+  /(?:^|[^,;:(–—\s])[ \t ]*(?:the|a|an)[ \t ]{1,8}(?<noun>[a-z]+)[ \t ]{1,8}of[ \t ]+$/iu;
+
+// common.yaml rule pronounCase def PARTITIVE
+export const PARTITIVE =
+  /^(?:rest|majority|minority|remainder|bulk|most|half|number|total|whole|balance|sum|lot|couple|pair|group|handful|dozen|hundred|thousand|million|percent|portion|part|share|first|last|second|third|quarter|fraction|set|series|range|none|each|any|one|two|three|four|five|six|seven|eight|nine|ten)$/i;
+
+// common.yaml rule pronounCase def verbAfterAuxiliary
+export function verbAfterAuxiliary(aux: string, word: string): boolean {
+  if (!(word === word.toLowerCase())) return false;
+  const readings = englishWordInfo(word)?.verbs ?? [];
+  const base = readings.some((verb) => verb.form === "base");
+  return (
+    /^(?:be|been|being)$/.test(word) ||
+    (word.endsWith("ing")
+      ? readings.some((verb) => verb.form === "ing")
+      : (/^[a-z]{2,}ed$/.test(word) && !englishWordInfo(word)) ||
+        (!base && readings.some((verb) => verb.form === "participle")
+          ? !englishVerbForms(word)?.ambiguous.includes(word)
+          : base && /^(?:will|would|can|could|shall|should|may|might|must)$/i.test(aux)))
+  );
+}
+
+// common.yaml rule pronounCase def whomFiniteVerb
+export function whomFiniteVerb(word: string, ever: boolean, next: string): boolean {
+  if (!(word === word.toLowerCase())) return false;
+  const readings = englishWordInfo(word)?.verbs ?? [];
+  const forms = englishVerbForms(word);
+  const past =
+    (readings.some((verb) => verb.form === "past") &&
+      !readings.some((verb) => verb.form === "base") &&
+      !forms?.ambiguous.includes(word)) ||
+    (/^[a-z]{2,}ed$/.test(word) && !englishWordInfo(word));
+  return past || !ever
+    ? past
+    : readings.some((verb) => verb.form === "third") && !baseVerbNotNoun(next);
+}
+
+// common.yaml rule pronounCase def baseVerbNotNoun
+export function baseVerbNotNoun(word: string) {
+  const info = englishWordInfo(word);
+  return !!info?.verbs.some((verb) => verb.form === "base") && !info.noun;
+}
+
+// common.yaml rule pronounCase def caseObjectFinding
+export function caseObjectFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  range: readonly number[],
+  fix: string,
+  subject: boolean,
+): RawFinding | null {
+  if (hasUserOrCasedWord(ctx, m[0])) return null;
+  return {
+    ruleId: "englishPronounCase",
+    messageKey: subject ? "review_msg_pronoun_subject_case" : "review_msg_pronoun_object_case",
+    range: { start: range[0], end: range[1] },
+    alternatives: [fix],
+    context: {
+      start: Math.max(0, range[0] - 32),
+      end: Math.min(ctx.text.length, m.index + m[0].length + 16),
+    },
+  };
+}
+
+// common.yaml rule pronounCase def casePairFinding
+export function casePairFinding(ctx: DetectContext, m: RegExpExecArray, a: string) {
+  const aSpan = group(m, "a");
+  const iSpan = group(m, "i");
+  const first = Object.hasOwn(OBJECT_FORM, a.toLowerCase()) ? objectForm(a) : a;
+  return caseObjectFinding(
+    ctx,
+    m,
+    [aSpan[0], iSpan[1]],
+    `${first}${ctx.source.slice(aSpan[1], iSpan[0])}${m[0] === m[0].toUpperCase() ? "ME" : "me"}`,
+    false,
+  );
+}
+
+// common.yaml rule pronounCase def CASE_OBJECT_NEXT
+export const CASE_OBJECT_NEXT =
+  /^(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together|if|when|which|who|whom)$/;
+
+// common.yaml rule pronounCase def CASE_OBJECT_PREPOSITION_WORD
+export const CASE_OBJECT_PREPOSITION_WORD =
+  /^(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)$/;
+
+// common.yaml rule sentenceStructure def wordEndsBefore
+export function wordEndsBefore(ctx: DetectContext, index: number, words: string) {
+  return new RegExp(`(?:^|[^\\p{L}\\p{N}_'’-])${words}[ \\t\\u00a0]{1,8}$`, "iu").test(
+    ctx.text.slice(Math.max(0, index - 40), index),
+  );
+}
+
+// common.yaml rule sentenceStructure def STRUCTURE_PREPOSITIONS
+export const STRUCTURE_PREPOSITIONS =
+  "(?:to|with|for|from|about|at|by|of|on|in|into|onto|upon|without|against|among|between|toward|towards|behind|beside|near|around|via)";
+
+// common.yaml rule sentenceStructure def META_NOUN
+export const META_NOUN =
+  /^(?:keyword|pronoun|word|determiner|possessive|variable|declaration|operator)$/i;
+
+// common.yaml rule sentenceStructure def NOT_PREDICATE
+export const NOT_PREDICATE = /^(?:just|likely|often|soon|together|alone|only|still|even|sure)$/;
+
+// common.yaml rule sentenceStructure def NOT_A_SUBJECT
+export const NOT_A_SUBJECT =
+  /^(?:the|a|an|my|your|his|her|our|their|its|good|ill|free|own|last|when|where|what|why|how|who|which|whose|whom)$/i;
+
+// common.yaml rule sentenceStructure def INVERSION_SUBJECTS
+export const INVERSION_SUBJECTS =
+  /^(?:i|you|he|she|it|we|they|everyone|everybody|others|nobody|someone|somebody|all|many|most)$/;
+
+// common.yaml rule sentenceStructure def INVERSION_AUX
+export const INVERSION_AUX =
+  /^(?:am|is|are|was|were|has|have|had|can|could|will|would|should|must|may|might|shall|do|does|did)$/i;
+
+// common.yaml rule sentenceStructure def INVERSION_SUBJECT_OF
+export const INVERSION_SUBJECT_OF = {
+  s: /^(?:he|she|it)$/i,
+  re: /^(?:you|we|they)$/i,
+  ve: /^(?:I|you|we|they)$/i,
+  m: /^I$/,
+  ll: /./,
+} as Readonly<Record<string, RegExp>>;
+
+// common.yaml rule sentenceStructure def doSupport
+export function doSupport(subject: string, verb: string, rest: string): [string, string] | null {
+  if (!(verb === verb.toLowerCase())) return null;
+  const verbs = englishWordInfo(verb)?.verbs ?? [];
+  const third = [...new Set(verbs.filter((r) => r.form === "third").map((r) => r.lemma))];
+  const past = [...new Set(verbs.filter((r) => r.form === "past").map((r) => r.lemma))];
+  const base = [...new Set(verbs.filter((r) => r.form === "base").map((r) => r.lemma))];
+  const singular = /^(?:he|she|it)$/i.test(subject);
+  return singular && third.length === 1
+    ? ["does", third[0]]
+    : past.length === 1 && (singular || !base.length)
+      ? ["did", past[0]]
+      : !singular &&
+          base.length === 1 &&
+          !past.length &&
+          !/^[ \t ]+(?:am|is|are|was|were|have|has|had|do|does|did|can|could|will|would|should|must|may|might)\b/i.test(
+            rest,
+          )
+        ? ["do", base[0]]
+        : null;
+}
+
+// common.yaml rule sentenceStructure def notOnlyFix
+export function notOnlyFix(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  who: string,
+  upper: boolean,
+  start: number,
+  end: number,
+): string | null {
+  const g = m.groups!;
+  const key = g.contraction ? g.contraction.slice(1).toLowerCase() : "";
+  if (!(!g.contraction || INVERSION_SUBJECT_OF[key].test(g.subject))) return null;
+  const support =
+    g.contraction || INVERSION_AUX.test(g.verb)
+      ? null
+      : doSupport(g.subject, g.verb, ctx.text.slice(end, end + 24));
+  if (!(!!g.contraction || INVERSION_AUX.test(g.verb) || !!support)) return null;
+  return g.contraction
+    ? `${upperIf(upper, key === "s" ? (/^[ \t ]+(?:been|got|gotten)\b/i.test(ctx.text.slice(end)) ? "has" : "is") : INVERSION_CONTRACTED[key])} ${who}`
+    : INVERSION_AUX.test(g.verb)
+      ? `${g.verb}${ctx.source.slice(start + g.subject.length, group(m, "verb")[0])}${who}`
+      : `${upperIf(upper, support![0])} ${who} ${upperIf(upper, support![1])}`;
+}
+
+// common.yaml rule sentenceStructure def upperIf
+export function upperIf(upper: boolean, word: string) {
+  return upper ? word.toUpperCase() : word;
+}
+
+// common.yaml rule wordConfusions def confusionFix
+export function confusionFix(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+  replacement: string,
+): RawFinding | null {
+  const typed = m.groups!.target;
+  if (ctx.dictionary.has(typed.toLowerCase())) return null;
+  if (!(applyWordCase(typed, detectWordCase(typed)) === typed)) return null;
+  const span = group(m, "target");
+  return {
+    ruleId,
+    messageKey,
+    range: { start: span[0], end: span[1] },
+    alternatives: [applyWordCase(replacement, detectWordCase(typed))],
+    context: {
+      start: Math.max(0, m.index - 96),
+      end: Math.min(ctx.text.length, m.index + m[0].length + 10),
+    },
+  };
+}
+
+// common.yaml rule wordConfusions def degreeFix
+export function degreeFix(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+  replacement: string,
+): RawFinding | null {
+  if ((m[0].match(/\p{L}+/gu) ?? []).some((w) => /\p{Ll}\p{Lu}/u.test(w))) return null;
+  return confusionFix(ctx, m, ruleId, messageKey, replacement);
+}
+
+// common.yaml rule wordConfusions def PLAIN_CLAUSE
+export const PLAIN_CLAUSE = /^(?:[ \t ]{1,8}[A-Za-z'’]+)+(?=[ \t ]*(?:[.!?,;:)]|$))/;
+
+// common.yaml rule wordConfusions def LATER_PREDICATE
+export const LATER_PREDICATE =
+  /^[^.!?;:,\n]*?\b(?:is|was|are|were|has|had|surprised|upset|made|caused|seemed|became|annoyed|worried|shocked|pleased|helped|meant|took|cost|lasted|went|felt|looked)\b/i;
+
+// common.yaml rule wordConfusions def opensPredicate
+export function opensPredicate(ctx: DetectContext, m: RegExpExecArray) {
+  if (!opensSubjectClause(ctx, m.index)) return false;
+  if (!(!/(?:^|[^\p{L}])An?$/u.test(m[0]) || /^(?:YOUR|THEIR)$/.test(m.groups!.target)))
+    return false;
+  const pred = m.groups!.pred;
+  if (pred === "right" && m.groups!.follow === "to") return false;
+  const end = m.index + m[0].length;
+  const going = /^(?:going|gonna)$/i.test(pred ?? "");
+  if ((going || /^\w+\s+not\b/i.test(m[0])) && LATER_PREDICATE.test(ctx.text.slice(end, end + 96)))
+    return false;
+  return !going || PLAIN_CLAUSE.test(ctx.text.slice(end, end + 200));
+}
+
+// common.yaml rule wordConfusions def PLACE_END
+export const PLACE_END =
+  /^(?:been|go|goes|went|gone|going|stay|stayed|staying|stand|standing|sit|sitting|live|lived|wait|waited|waiting|sat|stood|park|paused|stop|stopped|safer|over|right|up|down|out)$/i;
+
+// common.yaml rule wordConfusions def OWN_OBJECT_BEFORE
+export const OWN_OBJECT_BEFORE =
+  /(?:\b(?:of|for|about|with|from|into|onto|at|by|against|between|among|without|toward|towards|under|through|during|despite|to|on|in)|ing|\bto[ \t ]+[a-z]+|\b(?:create|creates|created|make|makes|made|have|has|had|get|gets|got|build|builds|built|find|found|choose|chose|bring|brought|use|uses|used|pay|paid|run|runs|ran|do|does|did|manage|managed|keep|keeps|kept|set|sets|write|wrote|host|hosted|provide|provides|provided|become|became|define|defined|pick|picks|picked|want|wants|wanted|need|needs|needed|take|takes|took|brings|like|likes|prefer|prefers|love|loves)|\b(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|lost))[ \t ]+$/i;
+
+// common.yaml rule capitalizeStarts def MARK_QUOTES
+export const MARK_QUOTES = /^["'“”‘’`«»„‚‹›]$/u;
+
+// common.yaml rule capitalizeStarts def sentenceEndBefore
+export function sentenceEndBefore(text: string, wordStart: number) {
+  const closer = lastNonSpaceBefore(text, wordStart);
+  const mark = skipClosers(text, closer);
+  return { mark, closed: mark !== closer };
+}
+
+// common.yaml rule capitalizeStarts def skipClosers
+export function skipClosers(text: string, i: number): number {
+  return i >= 0 && (CLOSING_CHARS.has(text[i]) || CLOSING_PADDING_CHARS.has(text[i]))
+    ? skipClosers(text, i - 1)
+    : i;
+}
+
+// common.yaml rule capitalizeStarts def namesMark
+export function namesMark(text: string, index: number) {
+  const before = lastNonBlankBefore(text, index);
+  const after = skipForwardWhile(text, index + 1, /^[ \t\u00a0]$/u);
+  const wordStart = skipBackWhile(text, before + 1, /\p{L}/u);
+  return (
+    (MARK_QUOTES.test(text[before] ?? "") && MARK_QUOTES.test(text[after] ?? "")) ||
+    (before !== index - 1 &&
+      !isWordCharAt(text, wordStart - 1) &&
+      MARK_NAMING_WORDS.has(text.slice(wordStart, before + 1).toLowerCase()))
+  );
+}
+
+// common.yaml rule capitalizeStarts def lineBreakBefore
+export function lineBreakBefore(text: string, wordStart: number) {
+  const i = lastNonSpaceBefore(text, wordStart);
+  return i >= 0 && text[i] === "\n" ? i : null;
+}
+
+// common.yaml rule capitalizeStarts def previousLineEndsParagraphOrSentence
+export function previousLineEndsParagraphOrSentence(text: string, lineBreak: number, lang: string) {
+  const previousStart = text.lastIndexOf("\n", lineBreak - 1) + 1;
+  const previous = text.slice(previousStart, lineBreak).trim();
+  const lineEnd = previousStart + text.slice(previousStart, lineBreak).trimEnd().length - 1;
+  return (
+    previous === "" ||
+    (!previous.endsWith(MASK_CHAR) &&
+      !(text[lineEnd] === "." && closesAbbreviation(text, lineEnd, lang)) &&
+      (/[.!?؟]["'”’“»«)\]]*$/u.test(previous) ||
+        isGreekQuestionMark(previous.replace(/["'”’“»«)\]]+$/u, "").slice(-1), lang)))
+  );
+}
+
+// common.yaml rule capitalizeStarts def capitalizeSentenceStart
+export function capitalizeSentenceStart(
+  ctx: DetectContext,
+  word: { wordStart: number; range: TextRange; upper: string; wordEnd: number },
+): RawFinding | null {
+  const end = sentenceEndBefore(ctx.text, word.wordStart);
+  if (overlapsSortedRanges(ctx.exampleRanges ?? [], { start: end.mark, end: end.mark + 1 }))
+    return null;
+  const mark = ctx.text[end.mark];
+  if (end.closed && mark !== ".") return null;
+  if (
+    end.mark >= 0 &&
+    namesMark(ctx.text, end.mark) &&
+    !(mark !== "." && usesFrenchPunctuationSpacing(ctx.lang))
+  )
+    return null;
+  const previous = previousTokensStart(ctx.text, word.wordStart, 1);
+  const evidence = /[\p{L}\p{N}]/u.test(ctx.text.slice(previous, word.wordStart))
+    ? previous
+    : previousTokensStart(ctx.text, word.wordStart, 2);
+  return {
+    ruleId: "capitalizeSentenceStart",
+    messageKey: "review_msg_sentence_start",
+    range: word.range,
+    alternatives: [word.upper],
+    context: { start: evidence, end: word.wordEnd },
+    bulkBlock: end.closed ? "context-dependent" : undefined,
+  };
+}
+
+// common.yaml rule capitalizeStarts def capitalizeAfterLineBreak
+export function capitalizeAfterLineBreak(
+  ctx: DetectContext,
+  word: { wordStart: number; range: TextRange; upper: string; wordEnd: number },
+): RawFinding | null {
+  const lineBreak = lineBreakBefore(ctx.text, word.wordStart);
+  if (!(lineBreak !== null && previousLineEndsParagraphOrSentence(ctx.text, lineBreak, ctx.lang)))
+    return null;
+  return {
+    ruleId: "capitalizeAfterLineBreak",
+    messageKey: "review_msg_line_start",
+    range: word.range,
+    alternatives: [word.upper],
+    context: { start: lineBreak, end: word.wordEnd },
+  };
+}
+
+// common.yaml rule pronounI def IDENTIFIER_BEFORE
+export const IDENTIFIER_BEFORE = /\b(?:each|every|the|a|index|variable|counter|iterator|loop)\s+$/i;
+
+// common.yaml rule pronounI def FORMULA_BEFORE
+export const FORMULA_BEFORE =
+  /(?:\b(?:of|by|to|from|let|plus|minus|equals|for all)|[+×*=<>÷^−]|(?:^|[^\p{L}])\p{L},[ \t\u00A0]+(?:and|or))[ \t\u00A0]+$/iu;
+
+// common.yaml rule pronounI def PRONOUN_VERB_AFTER
+export const PRONOUN_VERB_AFTER =
+  /^[ \t\u00a0]+(?:can|could|will|would|shall|should|may|might|must|am|was|have|had|do|did|don['’]t|didn['’]t|can['’]t|think|know|want|need|guess|hope|feel|mean|said|got|went|love|like)(?![\p{L}])/iu;
+
+// common.yaml rule pronounI def FORMULA_AFTER
+export const FORMULA_AFTER =
+  /^[ \t\u00A0]+(?:times|squared|and[ \t\u00A0]+[jkn])(?![\p{L}\p{N}])|^[ \t\u00A0]+\p{L}+,[ \t\u00A0]+ii(?![\p{L}\p{N}])/iu;
+
+// common.yaml rule pronounI def NUMERAL_BEFORE
+export const NUMERAL_BEFORE =
+  /\b(?:part|chapter|section|appendix|volume|vol|book|act|phase|step|stage|level|type|class|article|annex|item|figure|fig|table|option|case|grade|war|page|no)\s+$/i;
+
+// common.yaml rule spellingWords def NO_WORDS
+export const NO_WORDS = new Set<string>();
+
+// common.yaml rule spellingWords def couldBeSpellingFinding
+export const couldBeSpellingFinding = memoize(
+  (word) =>
+    correctWhitelistedTypo(word, NO_WORDS) !== null ||
+    word === "IM" ||
+    normalizeContractionToken(word, "") !== null ||
+    normalizeContractionInContext(word, "", " be") !== null ||
+    ALOT_REGEX.test(word),
+  4096,
+);
+
+// common.yaml rule spellingWords def GERMAN_BEFORE_IM
+export const GERMAN_BEFORE_IM =
+  /(?:^|[^\p{L}])(?:dir|mir|dich|mich|sich|uns|euch|ihm|ist|sind|waren|wir|ich|und|oder|nur|auch|noch|schon|sie|er|liegt|steht|lebt|wohnt|bin|bist|haben|wird|werden|nicht|dann|hier|heute|jetzt|gestern|alles|das|der)[ \t\u00a0]+$/iu;
+
+// common.yaml rule spellingWords def germanIm
+export function germanIm(word: string, before: string, after: string) {
+  if (!(word === "im")) return false;
+  const noun = /^[ \t\u00a0]+(\p{Lu}\p{Ll}+)/u.exec(after)?.[1];
+  if (!noun) return false;
+  return (
+    GERMAN_BEFORE_IM.test(before) ||
+    /[äöüß]|sch|(?:ung|heit|keit|schaft|chen|lein|tum|nis|ismus)$/iu.test(noun)
+  );
+}
+
+// common.yaml rule spellingWords def DETERMINER_BEFORE
+export const DETERMINER_BEFORE =
+  /\b(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|each|every|no)\s+$/i;
+
+// common.yaml rule spellingWords def spellingFindings
+export function spellingFindings(m: RegExpExecArray, ctx: DetectContext): RawFinding[] {
+  if (!(ctx.lang === "en_US")) return [];
+  if (!couldBeSpellingFinding(m[0])) return [];
+  const start = m.index;
+  const end = m.index + m[0].length;
+  if (!(!isWordCharAt(ctx.text, start - 1) && !isWordCharAt(ctx.text, end))) return [];
+  if (isGluedToTechnical(ctx.text, start, end)) return [];
+  if (ctx.text[end] === "-" && ctx.text[end + 1] !== "-") return [];
+  const glued = ctx.text[start - 1] === "-" ? ("ambiguous" as const) : undefined;
+  const word = ctx.text.slice(start, end);
+  const typo = correctWhitelistedTypo(word, ctx.dictionary);
+  return typo
+    ? [
+        {
+          ruleId: "englishTypoWhitelistCorrection",
+          messageKey: "review_msg_typo",
+          range: { start, end },
+          alternatives: [typo],
+          dictionaryWord: word,
+          bulkBlock: glued,
+        },
+      ]
+    : contractionFindings(ctx, word, start, end, glued);
+}
+
+// common.yaml rule spellingWords def contractionFindings
+export function contractionFindings(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  glued: "ambiguous" | undefined,
+): RawFinding[] {
+  const before = ctx.text.slice(Math.max(0, start - 96), start);
+  const shoutedIm =
+    word === "IM" &&
+    ctx.text.slice(start, end + 24) !== ctx.text.slice(start, end + 24).toUpperCase() &&
+    /(?:^|[.!?:;"“\n]|\b(?:and|but|although|because|that|if|think))[ \t]*$/i.test(before) &&
+    /^[ \t]+(?:not|very|really|sure|glad|sorry|happy|curious|trying|afraid|interested|tired|busy|ready|late|looking|thinking|still|just)\b/.test(
+      ctx.text.slice(end, end + 24),
+    );
+  const contraction = ctx.dictionary.has(word.toLowerCase())
+    ? null
+    : shoutedIm
+      ? "I'm"
+      : normalizeContractionToken(word, before);
+  const pronounForm = /^i(?:m|ve)$/i.test(word);
+  const name =
+    pronounForm &&
+    /^I[a-z]/.test(word) &&
+    !/(?:^|[.!?:;"“\n])[ \t]*$/.test(before) &&
+    /^[ \t]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 4));
+  return contraction &&
+    !name &&
+    !(pronounForm && DETERMINER_BEFORE.test(before)) &&
+    !germanIm(word, before, ctx.text.slice(end, end + 40))
+    ? [
+        {
+          ruleId: "englishContractionNormalization",
+          messageKey: "review_msg_contraction",
+          range: { start, end },
+          alternatives: [contraction],
+          context: { start: Math.max(0, ctx.text.lastIndexOf(" ", start - 2) + 1), end },
+          bulkBlock: pronounForm ? "ambiguous" : glued,
+        },
+      ]
+    : contextFindings(ctx, word, start, end, before, glued);
+}
+
+// common.yaml rule spellingWords def contextFindings
+export function contextFindings(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  before: string,
+  glued: "ambiguous" | undefined,
+): RawFinding[] {
+  const after = ctx.text.slice(end, end + 40);
+  const inContext = ctx.dictionary.has(word.toLowerCase())
+    ? null
+    : normalizeContractionInContext(word, before, after);
+  return inContext
+    ? [
+        {
+          ruleId: "englishContractionNormalization",
+          messageKey: "review_msg_contraction",
+          range: { start, end },
+          alternatives: [inContext],
+          context: {
+            start: previousTokensStart(ctx.text, start, 1),
+            end: end + (/^[ \t]+\p{L}+(?:[ \t]+\p{L}+)?/u.exec(after)?.[0].length ?? 0),
+          },
+          bulkBlock: "context-dependent",
+        },
+      ]
+    : ALOT_REGEX.test(word) && !ctx.dictionary.has("alot")
+      ? [
+          {
+            ruleId: "englishAlotCorrection",
+            messageKey: "review_msg_alot",
+            range: { start, end },
+            alternatives: [correctAlot(word)],
+            dictionaryWord: word,
+            bulkBlock: glued,
+          },
+        ]
+      : [];
+}
+
+// common.yaml rule spelling def spellingFrameRegexes
+export function spellingFrameRegexes() {
+  return [SPLIT_DE, SPLIT_FR, SPLIT_ES, SPLIT_PT, SPLIT_PL, SPLIT_SV, SPLIT_HR, FRENCH_ELISIONS]
+    .map(
+      (table) => new RegExp(`${WORD_START}(?:${Object.keys(table).join("|")})${TOKEN_END}`, "giu"),
+    )
+    .concat([
+      /(?<![\p{L}\p{M}\p{N}_])(?<base>\p{L}+)([\u00B4`;"])(?<end>t|s|m|d|ll|re|ve)(?![\p{L}\p{M}\p{N}_])/giu,
+      /(?<![\p{L}\p{M}\p{N}_])(?:c|d|j|l|m|n|s|t|qu|jusqu|lorsqu|puisqu|quoiqu|presqu)([\u00B4`])(?=[aeiouyh\u00E0\u00E2\u00E6\u00E9\u00E8\u00EA\u00EB\u00EE\u00EF\u00F4\u0153\u00F9\u00FB\u00FC])/giu,
+      /(?<=\p{L})([\u00B4`])s(?![\p{L}\p{M}\p{N}_])/gu,
+      /(?<![\p{L}\p{M}\p{N}_])d([\u00B4`])(?=[aeiou\u00E1\u00E2\u00E3\u00E0\u00E9\u00EA\u00ED\u00F3\u00F4\u00F5\u00FA])/giu,
+    ]);
+}
+
+// common.yaml rule spelling def splitWord
+export function splitWord(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+  table: Readonly<Record<string, string>>,
+): RawFinding | null {
+  const typed = m[0];
+  const lower = typed.toLowerCase();
+  if (!(!ctx.dictionary.has(lower) && !namedExampleBefore(ctx.text, m.index))) return null;
+  return {
+    ruleId: frame.ruleId,
+    messageKey: frame.messageKey,
+    range: { start: m.index, end: m.index + typed.length },
+    alternatives: [caseLike(typed, table[lower])],
+    dictionaryWord: typed,
+    bulkBlock: "context-dependent",
+  };
+}
+
+// common.yaml rule spelling def SEMICOLON_BASES
+export const SEMICOLON_BASES = {
+  t: /^(?:don|can|won|isn|aren|wasn|weren|didn|doesn|haven|hasn|hadn|shouldn|couldn|wouldn|mustn|needn|ain)$/i,
+  m: /^i$/i,
+  s: /^(?:it|let|that|there|here|he|she|what|who|where|how)$/i,
+  d: /^(?:i|you|we|they|he|she|it|that|there|who)$/i,
+  ll: /^(?:i|you|we|they|he|she|it|that|there|who)$/i,
+  re: /^(?:you|we|they|there|who|what)$/i,
+  ve: /^(?:i|you|we|they|who|could|would|should|might|must)$/i,
+} as Readonly<Record<string, RegExp>>;
+
+// common.yaml rule spelling def quotedContraction
+export function quotedContraction(text: string, index: number) {
+  const base = /(?<![\p{L}\p{M}\p{N}_"“])\p{L}+$/u.exec(text.slice(Math.max(0, index - 40), index));
+  const end = /^(t|s|m|d|ll|re|ve)(?![\p{L}\p{M}\p{N}_])/iu.exec(text.slice(index + 1, index + 4));
+  if (!(!!base && !!end)) return false;
+  return end[1].toLowerCase() === "s" || SEMICOLON_BASES[end[1].toLowerCase()].test(base[0]);
+}
+
+// common.yaml rule spelling def backtickCode
+export function backtickCode(text: string, start: number) {
+  const from = Math.max(0, start - 256);
+  const nearby = text.slice(from, start + 256);
+  const at = start - from;
+  const lineEnd = nearby.indexOf("\n", at);
+  const line = nearby.slice(nearby.lastIndexOf("\n", at) + 1, lineEnd < 0 ? undefined : lineEnd);
+  return line.split("`").length > 2 && /(?<!\p{L})`|`(?!\p{L})/u.test(line);
+}
+
+// common.yaml rule spelling def markedApostrophe
+export function markedApostrophe(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+  mark: string,
+  certain: boolean,
+): RawFinding | null {
+  const start = m.index + m[0].indexOf(mark, m.groups?.base.length ?? 0);
+  if (namedExampleBefore(ctx.text, start)) return null;
+  if (!(mark !== ";" || SEMICOLON_BASES[m.groups!.end.toLowerCase()].test(m.groups!.base)))
+    return null;
+  if (!(mark !== '"' || quotedContraction(ctx.text, start))) return null;
+  if (!(mark !== "`" || !backtickCode(ctx.text, start))) return null;
+  return {
+    ruleId: frame.ruleId,
+    messageKey: frame.messageKey,
+    range: { start, end: start + 1 },
+    alternatives: [withTextApostrophes(ctx.text, start, "'")],
+    context: { start: m.index, end: Math.min(ctx.text.length, m.index + m[0].length + 1) },
+    bulkBlock: certain ? undefined : "context-dependent",
+  };
+}
+
+// common.yaml rule modalOf def modalOfLastWord
+export function modalOfLastWord(text: string, start: number) {
+  const e = tokenEndBefore(text, start);
+  return e >= 2 && lowerCodeAt(text, e - 1) === 0x66 && lowerCodeAt(text, e - 2) === 0x6f;
+}
+
+// common.yaml rule yourWelcome def yourWelcomeLastWord
+export function yourWelcomeLastWord(text: string, start: number, end: number) {
+  return end - start === 7 && text.slice(start, end).toLowerCase() === "welcome";
+}
+
+// common.yaml rule theirThere def theirThereLastWord
+export function theirThereLastWord(text: string, start: number, end: number) {
+  return end - start <= 4 && THEIR_THERE_VERBS.has(text.slice(start, end).toLowerCase());
+}
+
+// common.yaml rule pronounVerbFrames def clauseVerb
+export function clauseVerb(ctx: DetectContext, m: RegExpExecArray, pronounI: boolean) {
+  return (
+    (atClauseStart(ctx.text, m.index) ||
+      (pronounI && subjectI(m, ctx.text.slice(Math.max(0, m.index - 96), m.index)))) &&
+    plainToken(ctx, m.groups!.verb)
+  );
+}
+
+// common.yaml rule pronounVerbFrames def subjectI
+export function subjectI(m: RegExpExecArray, before: string) {
+  const subject = m.groups!.subject;
+  return (
+    ((subject === "i"
+      ? /^are$/i.test(m.groups!.verb)
+      : subject === "I" && !/\p{Lu}[\p{L}.]*[ \t ]+$/u.test(before)) &&
+      !/\b(?:and|or|nor)[ \t ]+$/i.test(before)) ||
+    (/^(?:he|she|it)$/.test(subject) &&
+      /\b(?:hope|hoped|think|thought|guess|believe|believed|sure|glad|afraid)[ \t ]+$/i.test(
+        before,
+      ))
+  );
+}
+
+// common.yaml rule pronounVerbFrames def subjunctive
+export function subjunctive(ctx: DetectContext, index: number) {
+  return /\b(?:if|wish|wished|wishes|though|suppose|supposing|imagine|rather|unless|only)\b[^.!?;:\n]*$/i.test(
+    ctx.text.slice(Math.max(0, index - 64), index),
+  );
+}
+
+// common.yaml rule pronounVerbFrames def VERB_AFTER
+export const VERB_AFTER =
+  /^(?:are|were|is|was|have|had|can|could|will|would|should|must|may|might|do|did|don|get|go|come|need|want|know|think|see|look|make|take|stop|leave|listen|shut|keep|play|eat|run|stay|sit|stand)$/i;
+
+// common.yaml rule pronounVerbFrames def AGREE_MODAL
+export const AGREE_MODAL =
+  /^(?:will|would|can|could|shall|should|may|might|must|ought|need|dare|used)$/;
+
+// common.yaml rule pronounVerbFrames def NOT_A_VERB_HERE
+export const NOT_A_VERB_HERE = /^(?:not|up|down|out|off|better|best|time|only|also|so|too)$/;
+
+// common.yaml rule pronounVerbFrames def LETTER_NAME_BEFORE
+export const LETTER_NAME_BEFORE =
+  /\b(?:a|an|the|part|chapter|section|volume|book|act|phase|step|stage|level|type|class|article|item|figure|table|option|case|grade|war|page|set|ideal|matrix|interval)[ \t ]+$/i;
+
+// common.yaml rule pronounVerbFrames def FREQUENCY_AFTER
+export const FREQUENCY_AFTER =
+  /^(?:sometimes|often|always|usually|never|rarely|seldom|also|all|both|still)$/i;
+
+// common.yaml rule pronounVerbFrames def namesPronoun
+export function namesPronoun(word: string, next: string | undefined) {
+  if (!(!!next && !!englishWordInfo(word)?.plural)) return false;
+  const nextInfo = englishWordInfo(next);
+  return (
+    VERB_AFTER.test(next) ||
+    AGREE_MODAL.test(next) ||
+    FREQUENCY_AFTER.test(next) ||
+    !!nextInfo?.verbs.some((v) => v.form === "base") ||
+    !!nextInfo?.adverb
+  );
+}
+
+// common.yaml rule pronounVerbFrames def lexicalAgreement
+export function lexicalAgreement(
+  word: string,
+  plural: boolean,
+  pronoun: string,
+  next: string | undefined,
+): string | undefined {
+  const info = englishWordInfo(word);
+  if (!(!!info && !AGREE_MODAL.test(word) && !NOT_A_VERB_HERE.test(word))) return undefined;
+  return plural ? pluralAgreement(word, pronoun, next) : singularAgreement(word, next);
+}
+
+// common.yaml rule pronounVerbFrames def pluralAgreement
+export function pluralAgreement(
+  word: string,
+  pronoun: string,
+  next: string | undefined,
+): string | undefined {
+  const info = englishWordInfo(word)!;
+  if (!(
+    info.verbs.some((v) => v.form === "third") &&
+    !info.verbs.some((v) => v.form === "base" || v.form === "past")
+  ))
+    return undefined;
+  if (!(!namesPronoun(word, next) && !(info.plural && !next && pronoun === "you")))
+    return undefined;
+  return englishLemma(word, "third") ?? undefined;
+}
+
+// common.yaml rule pronounVerbFrames def singularAgreement
+export function singularAgreement(word: string, next: string | undefined): string | undefined {
+  const info = englishWordInfo(word)!;
+  if (!(
+    info.verbs.some((v) => v.form === "base") &&
+    !info.verbs.some((v) => v.form === "past" || v.form === "participle" || v.form === "third") &&
+    !info.adjective
+  ))
+    return undefined;
+  const nextInfo = next ? englishWordInfo(next) : null;
+  if (info.noun && nextInfo?.verbs.some((v) => v.form === "past" || v.form === "base"))
+    return undefined;
+  if (info.noun && /^(?:is|was|has|will|would|can|could|should|must|may|might)$/i.test(next ?? ""))
+    return undefined;
+  if (!(next?.toLowerCase() !== "be")) return undefined;
+  const third = englishInflect(word, "third");
+  const known = third ? englishWordInfo(third) : null;
+  return third && (known?.verbs.some((v) => v.form === "third") || known?.plural)
+    ? third
+    : undefined;
+}
+
+// common.yaml rule pronounVerbFrames def pronounCorrection
+export function pronounCorrection(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  pronoun: string,
+  plural: boolean,
+  negative: string,
+  word: string,
+  next: string | undefined,
+): string | undefined {
+  const forms = englishVerbForms(word);
+  const be = (plural ? PLURAL_BE : SINGULAR_BE)[word];
+  return /^(?:is|are|am|was|were)$/.test(word) && !negative
+    ? pronoun === "i"
+      ? word === "are" || word === "is"
+        ? "am"
+        : word === "were"
+          ? subjunctive(ctx, m.index)
+            ? undefined
+            : "was"
+          : undefined
+      : be
+    : /^(?:is|are|was|were)$/.test(word) && pronoun !== "i"
+      ? be
+        ? be + negative.toLowerCase()
+        : undefined
+      : /^(?:has|have|does|do)$/.test(word)
+        ? (plural ? forms!.lemma : forms!.third) + negative
+        : forms && !negative && !forms.ambiguous.includes(word)
+          ? plural
+            ? word === forms.third && word !== forms.lemma
+              ? forms.lemma
+              : undefined
+            : word === forms.lemma && word !== forms.past
+              ? forms.third
+              : undefined
+          : !forms &&
+              !negative &&
+              (plural ? word.endsWith("s") : !/(?:s|ed|ing|ly)$/.test(word)) &&
+              !/[^\n\s.!?:;"“][ \t ]*\n[ \t ]*$/.test(
+                ctx.text.slice(Math.max(0, m.index - 8), m.index),
+              ) &&
+              !/^of$/i.test(next ?? "")
+            ? lexicalAgreement(word, plural, pronoun, next)
+            : undefined;
+}
+
+// common.yaml rule pronounVerb def pronounVerbLastWord
+export function pronounVerbLastWord(text: string, _start: number, end: number) {
+  const e = tokenEndBefore(text, tokenStartBefore(text, end));
+  if (!(e >= 2)) return false;
+  const last = lowerCodeAt(text, e - 1);
+  const previous = lowerCodeAt(text, e - 2);
+  return last === 0x73
+    ? previous === 0x69 || previous === 0x61
+    : last === 0x65 && previous === 0x72;
+}
+
+// common.yaml rule pronounVerb def OBJECT_IT_BEFORE
+export const OBJECT_IT_BEFORE =
+  /(?:\b(?:behind|beside|besides|below|beneath|under|underneath|above|over|around|within|inside|outside|against|among|beyond|near|with|without|on|in|at|from|to|for|of|by|about)|\b[a-z]{2,}ing)[ \t\u00a0]+$/i;
+
+// common.yaml rule pronounVerb def OBJECT_GAP_YOU
+export const OBJECT_GAP_YOU =
+  /\b([a-z]+)[ \t\u00a0]+(?:that[ \t\u00a0]+)?(?:I|we|they|he|she)[ \t\u00a0]+(?:(?:did|had|have|first|last|never)[ \t\u00a0]+)?[a-z]+[ \t\u00a0]+$/;
+
+// common.yaml rule subjectAgreement def LINKING
+export const LINKING = /^(?:look|seem|sound|feel|appear)s?$/;
+
+// common.yaml rule subjectAgreement def AGREE_AUXILIARY
+export const AGREE_AUXILIARY =
+  /^(?:is|are|am|was|were|be|been|being|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must|ought|need|needs|dare|used)$/;
+
+// common.yaml rule subjectAgreement def onlyAdverb
+export function onlyAdverb(word: string) {
+  const info = englishWordInfo(word);
+  return !!info?.adverb && !info.verbs.length && !info.noun && !info.adjective && /ly$/.test(word);
+}
+
+// common.yaml rule subjectAgreement def onlyAdjective
+export function onlyAdjective(word: string) {
+  const info = englishWordInfo(word);
+  return !!info?.adjective && !info.verbs.length && !info.adverb;
+}
+
+// common.yaml rule existentialAgreement def derivedNounNumber
+export function derivedNounNumber(noun: string) {
+  const info = englishWordInfo(noun);
+  return /^[a-z]{4,}(?:tion|sion|ment)$/.test(noun) &&
+    (!info || (info.noun && !info.verbs.length && !info.adjective))
+    ? "singular"
+    : null;
+}
+
+// common.yaml rule existentialAgreement def singularExistential
+export function singularExistential(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  noun: string,
+  typed: string,
+  past: boolean,
+  kase: "upper" | "title" | "lower",
+) {
+  const lead = ctx.text.slice(m.index, group(m, "noun")[0]);
+  const verbAt = m.groups!.qverb ? 0 : group(m, "verb")[0] - m.index;
+  const article = englishInitialSound(noun) === "vowel" ? "an" : "a";
+  return [
+    `${lead.slice(0, verbAt)}${applyWordCase(past ? "was" : "is", kase)}${lead.slice(verbAt + typed.length)}${article} ${noun}`,
+    `${lead}${applyWordCase(englishNounForms(noun)?.plural ?? `${noun}s`, detectWordCase(noun))}`,
+  ];
+}
+
+// common.yaml rule articleAn def articleAnLastWord
+export function articleAnLastWord(text: string, start: number) {
+  const e = tokenEndBefore(text, start);
+  if (!(e >= 1)) return false;
+  const last = text[e - 1];
+  return (
+    last === "a" ||
+    last === "A" ||
+    (last === "n" && e >= 2 && (text[e - 2] === "a" || text[e - 2] === "A"))
+  );
+}
+
+// common.yaml rule ordinal def isAllCapsContext
+export function isAllCapsContext(text: string, start: number, end: number) {
+  const before = /(\p{L}+)[^\p{L}\n]*$/u.exec(text.slice(Math.max(0, start - 24), start))?.[1];
+  const after = /^[^\p{L}\n]*(\p{L}+)/u.exec(text.slice(end, end + 24))?.[1];
+  return [before, after].some((word) => !!word && word.length > 1 && word === word.toUpperCase());
+}
+
+// common.yaml rule properNouns def couldEndNameWord
+export const couldEndNameWord = memoize((word) => couldEndProperName(word, ""), 4096);
+
+// common.yaml rule commaPeriodSpacing def STANDALONE_MARK_FOLLOWER
+export const STANDALONE_MARK_FOLLOWER = /^[ \t\u00A0]+["'“‘«„([¿¡]?[\p{Ll}\p{Lo}]/u;
+
+// common.yaml rule repeatedSpaces def ALIGNED
+export const ALIGNED = new WeakMap<DetectContext, Map<number, boolean>>();
+
+// common.yaml rule repeatedSpaces def alignedLine
+export function alignedLine(text: string, lineStart: number, at: number) {
+  const lineBreak = text.indexOf("\n", at);
+  const line = text.slice(lineStart, lineBreak < 0 ? text.length : lineBreak);
+  const gaps = line.match(/(?<=\S)[ \u00A0]{2,}(?=\S)/gu);
+  const trimmed = line.trim();
+  return (
+    (gaps?.length ?? 0) > 1 ||
+    (trimmed.length > 1 && trimmed.startsWith("|") && trimmed.endsWith("|"))
+  );
+}
+
+// common.yaml rule repeatedSpaces def alignedInChunk
+export function alignedInChunk(ctx: DetectContext, lineStart: number, at: number) {
+  const lines = ALIGNED.get(ctx) ?? ALIGNED.set(ctx, new Map<number, boolean>()).get(ctx)!;
+  return (
+    lines.get(lineStart) ??
+    lines.set(lineStart, alignedLine(ctx.text, lineStart, at)).get(lineStart)!
+  );
+}
+
+// common.yaml rule measurement def unitParse
+export function unitParse(ruleId: string, value: string, locale: MeasurementLocalePolicy) {
+  return ruleId === "currencySpacing"
+    ? parseMeasurementExpression(value, locale, (text, start) =>
+        CURRENCY_MARKERS.has(text.slice(start)),
+      )
+    : (parseMeasurementExpression(value, locale) ??
+        parseMeasurementExpression(value, locale, (text, start) =>
+          Object.hasOwn(UNIT_CASE, text.slice(start)),
+        ));
+}
+
+// common.yaml rule measurement def proseListPrefix
+export function proseListPrefix(
+  ruleId: string,
+  prose: string,
+  locale: MeasurementLocalePolicy,
+): string {
+  if (isProsePrefix(prose)) return prose;
+  const item = /(?:^|[ \t])(?:(?<n>[^\s]+)[ \t\u00a0\u202f])?(?<last>[^\s]+),[ \t]+$/du.exec(prose);
+  const cut = !item
+    ? -1
+    : unitParse(ruleId, item.groups!.last, locale)?.start === 0
+      ? item.indices!.groups!.last[0]
+      : item.groups!.n && unitParse(ruleId, item.groups!.n + item.groups!.last, locale)?.start === 0
+        ? item.indices!.groups!.n[0]
+        : -1;
+  return cut < 0 ? prose : proseListPrefix(ruleId, prose.slice(0, cut), locale);
+}
+
+// common.yaml rule measurement def unitToken
+export function unitToken(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+): RawFinding | null {
+  const cut = m.index < ctx.from ? skipBackWhile(ctx.text, ctx.from, /[^\s\uFFFC]/u) : 0;
+  if (m.index < ctx.from && m.index > cut && resumeScan(frame, cut)) return null;
+  if (!/\p{Nd}[^\p{Nd}\s.,]/u.test(m[0])) return null;
+  const ruleId = frame.ruleId;
+  const units = ruleId === "measurementUnitFormatting";
+  const locale = resolveMeasurementLocale(ctx.lang);
+  if (!locale) return null;
+  const bare = m[0].replace(/[.,;:!?)\]]+$/u, "");
+  const tokenEnd = m.index + bare.length;
+  const windowStart = Math.max(0, tokenEnd - 160);
+  const prefix = ctx.text.slice(windowStart, tokenEnd);
+  const parsed = unitParse(ruleId, prefix, locale);
+  if (!parsed) return null;
+  const unit = prefix.slice(parsed.numberEnd);
+  if (units && /^([A-Z]|[dg])$/.test(unit)) return null;
+  if (
+    units &&
+    ((ctx.lang === "pt_BR" &&
+      (/^(?:h|min)$/.test(unit) ||
+        (unit === "km" && prefix.slice(parsed.start, parsed.numberEnd) === "0"))) ||
+      (ctx.lang === "fr_FR" && unit === "h"))
+  )
+    return null;
+  if (
+    units &&
+    ((unit === "m" && /^[ \t]+(?:[a-z]{2,}s|[A-Z]{2,}s)\b/.test(ctx.text.slice(tokenEnd))) ||
+      (unit === "s" && /\b\p{Lu}[\p{L}-]*[ \t]+$/u.test(prefix.slice(0, parsed.start))))
+  )
+    return null;
+  const prose = proseListPrefix(ruleId, prefix.slice(0, parsed.start), locale);
+  if (!isProsePrefix(prose)) return null;
+  const start = windowStart + parsed.start;
+  if (!ownedByChunk(ctx, start)) return null;
+  const numberEnd = windowStart + parsed.numberEnd;
+  const lowercase = Object.hasOwn(UNIT_CASE, unit) ? UNIT_CASE[unit] : undefined;
+  if (
+    lowercase &&
+    (/\p{Lu}{2}[ \t]+$/u.test(ctx.text.slice(Math.max(0, start - 24), start)) ||
+      /^[ \t]+\p{Lu}{2}/u.test(ctx.text.slice(tokenEnd, tokenEnd + 24)))
+  )
+    return null;
+  return {
+    ruleId,
+    messageKey:
+      ruleId === "currencySpacing"
+        ? "review_msg_currency_spacing"
+        : lowercase
+          ? "review_msg_measurement_unit_case"
+          : "review_msg_measurement_spacing",
+    range: { start, end: tokenEnd },
+    alternatives: [
+      `${ctx.source.slice(start, numberEnd)}${locale.separator}${lowercase ?? ctx.source.slice(numberEnd, tokenEnd)}`,
+    ],
+    context: { start: windowStart, end: tokenEnd },
+  };
+}
+
+// common.yaml rule measurement.de def GERMAN_BYTES
+export const GERMAN_BYTES = /^(?:[kKMGT]B|[KMGT]iB)$/;
+
+// common.yaml rule measurement.de def germanUnitFinding
+export function germanUnitFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  alternatives: string[],
+  key: RawFinding["messageKey"],
+): RawFinding | null {
+  if (!(m.index >= ctx.from && m.index < ctx.to && !namedExampleBefore(ctx.text, m.index)))
+    return null;
+  const end = m.index + m[0].length;
+  return {
+    ruleId: key === "review_msg_currency_spacing" ? "currencySpacing" : "measurementUnitFormatting",
+    messageKey: key,
+    range: { start: m.index, end },
+    alternatives,
+    requiresChoice: alternatives.length > 1 || undefined,
+    context: { start: Math.max(0, m.index - 30), end: end + 30 },
+  };
+}
+
+// common.yaml rule measurement.de def germanGluedUnit
+export function germanGluedUnit(m: RegExpExecArray, ctx: DetectContext, frame: FrameRef) {
+  const n = m.groups!.n;
+  const unit = m.groups!.unit;
+  const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index + 200);
+  if (unit === "$" && line.split("$").length > 2) return null;
+  const currency = unit === "$" || unit === "£";
+  if (!(currency || GERMAN_BYTES.test(unit))) return null;
+  if (!((currency ? "currencySpacing" : "measurementUnitFormatting") === frame.ruleId)) return null;
+  return germanUnitFinding(
+    ctx,
+    m,
+    [`${n}\u00a0${unit}`],
+    currency ? "review_msg_currency_spacing" : "review_msg_measurement_spacing",
+  );
+}
+
+// common.yaml rule dateTense.de def DATE_BREAK
+export const DATE_BREAK = /[!?;()\n"“”«»„،؛؟]|[.:](?=\s|$)|,/gu;
+
+// common.yaml rule dateTense.de def DATE_WORD
+export const DATE_WORD = /[\p{L}\p{M}]+(?:-[\p{L}\p{M}]+)*|\p{N}+(?:[.:]\p{N}+)*/gu;
+
+// common.yaml rule dateTense.de def clauseAround
+export function clauseAround(
+  text: string,
+  start: number,
+  end: number,
+  boundary: ReadonlySet<string>,
+) {
+  const head = text.slice(Math.max(0, start - 160), start);
+  const lastBreak = [...head.matchAll(DATE_BREAK)].at(-1);
+  const clauseHead = head.slice(lastBreak ? lastBreak.index + lastBreak[0].length : 0);
+  const headWords = clauseHead.match(DATE_WORD) ?? [];
+  const opens = headWords.map((w) => boundary.has(w.toLowerCase())).lastIndexOf(true);
+  const before = headWords.slice(opens + 1).slice(-6);
+  const fullTail = text.slice(end, end + 200);
+  const tail = before.length ? fullTail : fullTail.replace(/^[ \t ]*,/, "");
+  const stop = tail.search(DATE_BREAK);
+  const afterWords = (stop >= 0 ? tail.slice(0, stop) : tail).match(DATE_WORD) ?? [];
+  const ends = afterWords.findIndex((w) => boundary.has(w.toLowerCase()));
+  const after = ends >= 0 ? afterWords.slice(0, ends) : afterWords;
+  const closed = ends >= 0 || stop >= 0 || end + 200 >= text.length;
+  return {
+    before,
+    after: after.length > 10 ? after.slice(0, 10) : after,
+    closed: after.length > 10 ? false : closed,
+    opener: opens >= 0 ? headWords[opens].toLowerCase() : undefined,
+  };
+}
+
+// common.yaml rule dateTense.de def dateSideOf
+export function dateSideOf(
+  year: number,
+  month: number,
+  day: number,
+  swap: boolean,
+): "future" | "past" | null {
+  const readings = swap
+    ? [
+        [year, month, day],
+        [year, day, month],
+      ]
+    : [[year, month, day]];
+  const valid = readings.filter((r) => dayCount(r[0], r[1], r[2]) !== null);
+  return !valid.length
+    ? null
+    : valid.every((r) => dateSide(r[0], r[1], r[2]) === "future")
+      ? "future"
+      : valid.every((r) => recentPast(r[0], r[1], r[2]))
+        ? "past"
+        : null;
+}
+
+// common.yaml rule dateTense.de def dateTenseWarning
+export function dateTenseWarning(m: RegExpExecArray, side: "future" | "past"): RawFinding {
+  const span = m.indices!.groups!.date;
+  return {
+    ruleId: "dateTenseConsistency",
+    messageKey: side === "future" ? "review_msg_future_date_past" : "review_msg_past_date_future",
+    range: { start: span[0], end: span[1] },
+    alternatives: [],
+    warningOnly: true as const,
+  };
+}
+
+// common.yaml rule dateTense.de def dateTenseFinding
+export function dateTenseFinding(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  side: "future" | "past" | null,
+  conditional: ReadonlySet<string>,
+  boundary: ReadonlySet<string>,
+  lang: string,
+): RawFinding | null {
+  if (!side) return null;
+  const clause = clauseAround(ctx.text, m.index, m.index + m[0].length, boundary);
+  if (clause.opener && conditional.has(clause.opener)) return null;
+  const verdict =
+    lang === "de"
+      ? germanTense(clause)
+      : lang === "fr"
+        ? frenchTense(clause)
+        : lang === "es"
+          ? spanishTense(clause)
+          : lang === "pt"
+            ? portugueseTense(clause)
+            : lang === "pl"
+              ? polishTense(clause)
+              : arabicTense(clause);
+  if (!(!!verdict && verdict !== side)) return null;
+  return dateTenseWarning(m, side);
+}
+
+// common.yaml rule dateTense.de def lowerAll
+export function lowerAll(list: readonly string[]) {
+  return list.map((word) => word.toLowerCase());
+}
+
+// common.yaml rule dateTense.de def germanTense
+export function germanTense(clause: {
+  before: string[];
+  after: string[];
+  closed: boolean;
+}): "past" | "future" | null {
+  const all = lowerAll([...clause.before, ...clause.after]);
+  const last = clause.closed ? clause.after.at(-1) : undefined;
+  const prev = clause.after.at(-2);
+  const b = lowerAll(clause.before);
+  const a = lowerAll(clause.after).slice(0, 6);
+  return all.some((w) => w.startsWith("würd"))
+    ? null
+    : all.some((w) => DE_WERDEN.has(w))
+      ? !last ||
+        !/^\p{Ll}+(?:en|ern|eln)$/u.test(last) ||
+        DE_PARTICIPLE.test(last) ||
+        (/^(?:sein|haben)$/.test(last) && !!prev && DE_PARTICIPLE.test(prev))
+        ? null
+        : "future"
+      : last && DE_ARRANGING.test(last)
+        ? null
+        : last &&
+            DE_PARTICIPLE.test(last) &&
+            !DE_NOT_PARTICIPLE.has(last) &&
+            (all.some((w) => DE_HABEN.has(w)) ||
+              (all.some((w) => DE_SEIN.has(w)) && DE_SEIN_PARTICIPLE.test(last)))
+          ? "past"
+          : (b.length >= 2 && DE_PRONOUNS.has(b.at(-2)!) && DE_PAST.has(b.at(-1)!)) ||
+              a.some((w, i) => DE_PAST.has(w) && i + 1 < a.length && DE_PRONOUNS.has(a[i + 1]))
+            ? "past"
+            : null;
+}
+
+// common.yaml rule dateTense.de def frenchTense
+export function frenchTense(clause: {
+  before: string[];
+  after: string[];
+  closed: boolean;
+}): "past" | "future" | null {
+  const verdict =
+    wordScan(lowerAll(clause.before), 0, "fr") ?? wordScan(lowerAll(clause.after), 0, "fr");
+  return verdict === "past" || verdict === "future" ? verdict : null;
+}
+
+// common.yaml rule dateTense.de def frenchStep
+export function frenchStep(
+  list: readonly string[],
+  i: number,
+): "past" | "future" | "none" | undefined {
+  const w = list[i];
+  const auxiliary = (FR_AVOIR.has(w) && list[i - 1] !== "y") || FR_ETRE.has(w);
+  const part = auxiliary ? list.find((x, k) => k > i && !FR_ADVERBS.has(x)) : undefined;
+  const partOk = !!part && FR_PARTICIPLE.test(part) && !FR_NOT_PARTICIPLE.has(part);
+  return auxiliary && !partOk
+    ? undefined
+    : auxiliary && FR_ARRANGING.test(part!)
+      ? "none"
+      : auxiliary && (FR_AVOIR.has(w) || FR_MOTION.has(part!.replace(/(?<=[éiu])(?:e|s|es)$/u, "")))
+        ? "past"
+        : FR_SUBJECTS.has(w)
+          ? frenchSubject(list, i)
+          : undefined;
+}
+
+// common.yaml rule dateTense.de def frenchSubject
+export function frenchSubject(list: readonly string[], i: number): "future" | "none" | undefined {
+  const stop = list.findIndex((x, k) => k > i && (k > i + 3 || !FR_OBJECTS.has(x)));
+  const j = stop < 0 ? list.length : stop;
+  const verb = list[j];
+  const next = list[j + 1];
+  return verb && FR_FUTURE.test(verb)
+    ? /^(?:aur|ser)/.test(verb) && next && FR_PARTICIPLE.test(next)
+      ? "none"
+      : "future"
+    : verb && FR_ALLER.has(verb) && FR_INFINITIVE.test(next ?? "")
+      ? "future"
+      : undefined;
+}
+
+// common.yaml rule dateTense.de def spanishTense
+export function spanishTense(clause: {
+  before: string[];
+  after: string[];
+  closed: boolean;
+}): "past" | "future" | null {
+  const verdict =
+    wordScan(lowerAll(clause.before), 0, "es") ?? wordScan(lowerAll(clause.after), 0, "es");
+  return verdict === "past" || verdict === "future" ? verdict : null;
+}
+
+// common.yaml rule dateTense.de def spanishStep
+export function spanishStep(
+  list: readonly string[],
+  i: number,
+): "past" | "future" | "none" | undefined {
+  const w = list[i];
+  const next = list[i + 1] ?? "";
+  const part = next === "ya" ? list[i + 2] : next;
+  const past =
+    ES_PAST_WORDS.has(w) || (ES_PAST.test(w) && !ES_NOT_PAST.has(w) && !DATE_CONDITIONAL.test(w));
+  return (ES_FUTURE.test(w) && !/^(?:atrás|detrás)$/.test(w)) ||
+    (ES_IR.has(w) && next === "a" && ES_INFINITIVE.test(list[i + 2] ?? ""))
+    ? "future"
+    : ES_HABER.has(w)
+      ? part && ES_PARTICIPLE.test(part)
+        ? ES_ARRANGING.test(part)
+          ? "none"
+          : "past"
+        : undefined
+      : !past || ES_INFINITIVE.test(next) || (next === "a" && ES_INFINITIVE.test(list[i + 2] ?? ""))
+        ? undefined
+        : ES_ARRANGING.test(w)
+          ? "none"
+          : "past";
+}
+
+// common.yaml rule dateTense.de def portugueseTense
+export function portugueseTense(clause: {
+  before: string[];
+  after: string[];
+  closed: boolean;
+}): "past" | "future" | null {
+  const verdict =
+    wordScan(lowerAll(clause.before), 0, "pt") ?? wordScan(lowerAll(clause.after), 0, "pt");
+  return verdict === "past" || verdict === "future" ? verdict : null;
+}
+
+// common.yaml rule dateTense.de def portugueseStep
+export function portugueseStep(
+  list: readonly string[],
+  i: number,
+): "past" | "future" | "none" | undefined {
+  const w = list[i];
+  const next = list[i + 1] ?? "";
+  const past =
+    PT_PAST_WORDS.has(w) || (PT_PAST.test(w) && !PT_NOT_PAST.has(w) && !DATE_CONDITIONAL.test(w));
+  return (PT_FUTURE.test(w) && w !== "atrás") || (PT_IR.has(w) && PT_INFINITIVE.test(next))
+    ? "future"
+    : PT_PLUPERFECT.has(w)
+      ? PT_PARTICIPLE.test(next)
+        ? PT_ARRANGING.test(next)
+          ? "none"
+          : "past"
+        : undefined
+      : !past || PT_INFINITIVE.test(next)
+        ? undefined
+        : PT_ARRANGING.test(w)
+          ? "none"
+          : "past";
+}
+
+// common.yaml rule dateTense.de def wordScan
+export function wordScan(
+  list: readonly string[],
+  i: number,
+  lang: string,
+): "past" | "future" | "none" | undefined {
+  if (!(i < list.length)) return undefined;
+  const verdict =
+    lang === "fr"
+      ? frenchStep(list, i)
+      : lang === "es"
+        ? spanishStep(list, i)
+        : portugueseStep(list, i);
+  return verdict !== undefined ? verdict : wordScan(list, i + 1, lang);
+}
+
+// common.yaml rule dateTense.de def polishTense
+export function polishTense(clause: {
+  before: string[];
+  after: string[];
+  closed: boolean;
+}): "past" | "future" | null {
+  const list = lowerAll([...clause.before, ...clause.after]);
+  const past = list.find(
+    (w, i) =>
+      (PL_PAST_PERSON.test(w) || (PL_PAST.test(w) && !PL_NOT_PAST.has(w))) &&
+      !PL_INFINITIVE.test((list[i + 1] === "się" ? list[i + 2] : list[i + 1]) ?? ""),
+  );
+  return list.some((w) => PL_FUTURE.has(w))
+    ? "future"
+    : past === undefined || PL_ARRANGING.test(past)
+      ? null
+      : "past";
+}
+
+// common.yaml rule dateTense.de def arabicTense
+export function arabicTense(clause: {
+  before: string[];
+  after: string[];
+  closed: boolean;
+}): "past" | "future" | null {
+  const list = [...clause.before, ...clause.after];
+  return list.some((w) => AR_FUTURE.has(w))
+    ? "future"
+    : list.some((w, i) => AR_PAST.has(w) && list[i + 1] !== "من")
+      ? "past"
+      : null;
+}
+
+// common.yaml rule dateTense.de def DE_PARTICIPLE
+export const DE_PARTICIPLE =
+  /^(?:(?:ab|an|auf|aus|bei|ein|fest|fort|heim|her|hin|los|mit|nach|statt|teil|vor|weg|weiter|zu|zurück|zusammen|um|durch|über)?ge\p{Ll}{2,}(?:t|en)|(?:be|emp|ent|er|miss|ver|zer)\p{Ll}{2,}t|\p{Ll}{3,}iert)$/u;
+
+// common.yaml rule dateTense.de def DE_SEIN_PARTICIPLE
+export const DE_SEIN_PARTICIPLE =
+  /(?:gangen|fahren|flogen|kommen|laufen|schwommen|gereist|wesen|blieben|storben|fallen|zogen|sprungen|wandert|rannt|stiegen|folgt|passiert|schehen|wachsen|worden|ritten|segelt|wacht|kehrt)$/u;
+
+// common.yaml rule dateTense.de def DE_ARRANGING
+export const DE_ARRANGING =
+  /(?:plant|bucht|reserviert|bestellt|vereinbart|schoben|verlegt|gesetzt|festgelegt|beworben|gemeldet|terminiert|kündigt|geladen|vorgesehen|bestätigt|gesagt|organisiert|getragen|notiert|gemerkt|gelegt|beantragt|gefragt|genehmigt|versprochen|geboten|gewünscht|geöffnet|geschlossen|fixiert|datiert|befristet|begrenzt)$/u;
+
+// common.yaml rule dateTense.de def FR_PARTICIPLE
+export const FR_PARTICIPLE =
+  /^\p{Ll}{2,}(?:é|ée|és|ées|i|ie|is|ies|it|ite|u|ue|us|ues|ert|erte|ait|aite|eint|ainte)$/u;
+
+// common.yaml rule dateTense.de def FR_ARRANGING
+export const FR_ARRANGING =
+  /^(?:prévu|planifié|fixé|programmé|réservé|commandé|reporté|décalé|déplacé|annoncé|confirmé|convenu|organisé|inscrit|demandé|proposé|promis|annulé|invité|noté|calé|repoussé|avancé|retenu|bloqué|posé|pris)(?:e|s|es)?$/u;
+
+// common.yaml rule dateTense.de def FR_FUTURE
+export const FR_FUTURE =
+  /^(?:\p{Ll}+(?:er|ir|dr|ttr|aîtr)|ser|aur|fer|ir|pourr|verr|devr|saur|courr|mourr|enverr|recevr|vivr|suivr|écrir|lir|dir|boir|croir|plair)(?:ai|as|a|ons|ez|ont)$/u;
+
+// common.yaml rule dateTense.de def FR_INFINITIVE
+export const FR_INFINITIVE = /^\p{Ll}{2,}(?:er|ir|re|oir)$/u;
+
+// common.yaml rule dateTense.de def ES_PARTICIPLE
+export const ES_PARTICIPLE =
+  /^(?:\p{Ll}{2,}(?:ado|ada|ados|adas|ido|ida|idos|idas)|visto|hecho|dicho|puesto|escrito|abierto|vuelto|roto|muerto|cubierto|resuelto|devuelto|descubierto|impreso|satisfecho)$/u;
+
+// common.yaml rule dateTense.de def ES_PAST
+export const ES_PAST =
+  /^\p{Ll}{3,}(?:é|ó|aste|iste|aron|ieron|yeron|asteis|isteis|aba|abas|ábamos|abais|aban|íamos|íais|ían)$/u;
+
+// common.yaml rule dateTense.de def ES_ARRANGING
+export const ES_ARRANGING =
+  /^(?:re)?(?:program|previst|prev|plane|reserv|fij|pospu|aplaz|convoc|anunci|confirm|acord|organiz|cancel|ped|pid|solicit|promet|agend|cit|inscri|qued|traslad|cambi|mov|apunt)/u;
+
+// common.yaml rule dateTense.de def ES_FUTURE
+export const ES_FUTURE = /^(?:\p{Ll}{2,}(?:ré|rás|rá|réis|rán)|\p{Ll}+[ai]remos)$/u;
+
+// common.yaml rule dateTense.de def ES_INFINITIVE
+export const ES_INFINITIVE = /^\p{Ll}{2,}(?:ar|er|ir)$/u;
+
+// common.yaml rule dateTense.de def DATE_CONDITIONAL
+export const DATE_CONDITIONAL = /[aeií]r(?:íamos|íais|ían|íeis|iam)$/u;
+
+// common.yaml rule dateTense.de def PT_PAST
+export const PT_PAST =
+  /^\p{Ll}{2,}(?:ei|ou|aste|este|iste|aram|eram|iram|ava|avas|ávamos|áveis|avam|íamos|íeis|iam)$/u;
+
+// common.yaml rule dateTense.de def PT_PARTICIPLE
+export const PT_PARTICIPLE =
+  /^(?:\p{Ll}{2,}(?:ado|ada|ados|adas|ido|ida|idos|idas)|visto|feito|dito|posto|escrito|aberto|vindo|ganho|gasto|pago|entregue|morto|coberto)$/u;
+
+// common.yaml rule dateTense.de def PT_ARRANGING
+export const PT_ARRANGING =
+  /^(?:re|des)?(?:marc|agend|planej|plane|program|reserv|adi|confirm|anunci|combin|cancel|convid|promet|solicit|ped|previ|prev|fix|inscrev|inscri|transfer|mud)/u;
+
+// common.yaml rule dateTense.de def PT_FUTURE
+export const PT_FUTURE = /^(?:\p{Ll}{2,}(?:rá|rás|rão)|\p{Ll}+[aei]rei|\p{Ll}+[ai]remos)$/u;
+
+// common.yaml rule dateTense.de def PT_INFINITIVE
+export const PT_INFINITIVE = /^(?:\p{Ll}{2,}(?:ar|er|ir|or)|pôr)$/u;
+
+// common.yaml rule dateTense.de def PL_PAST_PERSON
+export const PL_PAST_PERSON = /^\p{Ll}{2,}(?:łem|łam|łeś|łaś|liśmy|łyśmy|liście|łyście)$/u;
+
+// common.yaml rule dateTense.de def PL_PAST
+export const PL_PAST = /^\p{Ll}{2,}(?:[aiyą]ł|[aiyę]ła|[aiyę]ło|[aiyę]li|[aiyę]ły)$/u;
+
+// common.yaml rule dateTense.de def PL_ARRANGING
+export const PL_ARRANGING =
+  /^(?:za)?(?:plan|rezerw|zarezerw|przełoż|przesun|umówi|umawia|ustal|zapisa|zaprosi|zamówi|ogłosi|potwierdzi|wyznaczy|zgłosi|zapowiedzi|odwoła|obieca|zaprogramowa|zaplanowa)/u;
+
+// common.yaml rule dateTense.de def PL_INFINITIVE
+export const PL_INFINITIVE = /^\p{Ll}{2,}(?:ć|c)$/u;
+
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
-export const FIXERS: Readonly<Record<string, AnyFixer>> = {};
+export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // common.yaml rule phraseTables frame 1
+  "@phraseTables/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return canonicalCasingAt(m, ctx);
+  },
+  // common.yaml rule possessives frame 1
+  "@possessives/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "its" });
+  },
+  // common.yaml rule possessives frame 2
+  "@possessives/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "its", clause: true });
+  },
+  // common.yaml rule possessives frame 3
+  "@possessives/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "it's", clause: true });
+  },
+  // common.yaml rule possessives frame 4
+  "@possessives/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "it's" });
+  },
+  // common.yaml rule possessives frame 5
+  "@possessives/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "it's", cue: true });
+  },
+  // common.yaml rule possessives frame 6
+  "@possessives/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "it's", name: true });
+  },
+  // common.yaml rule possessives frame 7
+  "@possessives/7": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "its" });
+  },
+  // common.yaml rule possessives frame 8
+  "@possessives/8": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "its" });
+  },
+  // common.yaml rule possessives frame 9
+  "@possessives/9": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "its" });
+  },
+  // common.yaml rule possessives frame 10
+  "@possessives/10": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "its", clause: true });
+  },
+  // common.yaml rule possessives frame 11
+  "@possessives/11": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "let's", clause: true });
+  },
+  // common.yaml rule possessives frame 12
+  "@possessives/12": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "else's" });
+  },
+  // common.yaml rule verbComplements frame 1
+  "@verbComplements/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    return applyWordCase("to test", detectWordCase(target));
+  },
+  // common.yaml rule verbComplements frame 2
+  "@verbComplements/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const span = group(m, "target");
+    const tail = complementTail(target.toLowerCase()).exec(
+      ctx.scanText.slice(span[1], span[1] + 128),
+    );
+    if (!tail) return null;
+    const phraseEnd = span[1] + tail[0].length;
+    if (hasUserOrCasedWord(ctx, ctx.scanText.slice(m.index, phraseEnd))) return null;
+    return {
+      ruleId: "englishVerbComplements",
+      messageKey: "review_msg_missing_to",
+      range: { start: span[0], end: span[1] },
+      alternatives: [`${target === target.toUpperCase() ? "TO" : "to"} ${target}`],
+      context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, phraseEnd + 9) },
+    };
+  },
+  // common.yaml rule verbComplements frame 3
+  "@verbComplements/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const bare = m.groups!.bare;
+    const word = m.groups!.word;
+    if (!complementOpen(ctx, m)) return null;
+    const tail = ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128);
+    if (!(!bare || PERSON_NEXT.test(tail) || FROM_NEXT.test(tail))) return null;
+    const verb = complementBaseVerb(word);
+    const ing =
+      verb &&
+      (!verb.ambiguous ||
+        OBJECT_NEXT.test(tail) ||
+        (verb.irregular && FROM_NEXT.test(tail)) ||
+        (Object.hasOwn(COMPLEMENTS, verb.lemma) && complementTail(verb.lemma).test(tail)))
+        ? englishInflect(verb.lemma, "ing")
+        : null;
+    if (!ing) return null;
+    return complementFinding(ctx, m, "review_msg_forward_gerund", [ing], false);
+  },
+  // common.yaml rule verbComplements frame 4
+  "@verbComplements/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = m.groups!.word;
+    if (!complementOpen(ctx, m)) return null;
+    const tail = ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128);
+    const verb = complementBaseVerb(word);
+    const words = verb ? wordsBefore(ctx.text, m.index) : null;
+    if (!(!!verb && !!words && worthPredicate(words))) return null;
+    if (!(
+      !verb.ambiguous ||
+      (dummyWorth(words) && !/^\s+(?:who|whom|whose|like)\b/i.test(tail)) ||
+      objectNext(tail) ||
+      QUANTIFIER_NEXT.test(tail) ||
+      END_NEXT.test(tail) ||
+      PREPOSITION_NEXT.test(tail)
+    ))
+      return null;
+    const ing = englishInflect(verb.lemma, "ing");
+    if (!ing) return null;
+    return complementFinding(ctx, m, "review_msg_worth_gerund", [ing], false);
+  },
+  // common.yaml rule verbComplements frame 5
+  "@verbComplements/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = m.groups!.word;
+    if (!complementOpen(ctx, m)) return null;
+    const words = wordsBefore(ctx.text, m.index);
+    if (!(!!words && worthPredicate(words))) return null;
+    const i = skipAuxiliaries(words, 0);
+    if (i === 0 && !dummyWorth(words)) return null;
+    if (!englishLemma(word, "ing")) return null;
+    return complementFinding(ctx, m, "review_msg_worth_gerund", [""], false);
+  },
+  // common.yaml rule verbComplements frame 6
+  "@verbComplements/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const gov = m.groups!.gov;
+    const object = m.groups!.object;
+    const word = m.groups!.word;
+    const alt = m.groups!.alt;
+    if (!complementOpen(ctx, m)) return null;
+    const tail = ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128);
+    const objectWords = object.toLowerCase().split(/\s+/);
+    const make = /^ma/.test(gov.toLowerCase());
+    const pronoun =
+      objectWords.length === 1 && /^(?:me|you|him|her|us|them|it)$/.test(objectWords[0]);
+    const indefinite = /^(?:any|every|some|no)(?:body|one|[ \t ]{1,8}one)$/.test(
+      objectWords.join(" "),
+    );
+    if (make && (!(pronoun || indefinite) || objectWords[0] === "it")) return null;
+    if (!(pronoun || indefinite || objectPhrase(objectWords))) return null;
+    if (
+      /^(?:chance|opportunity|time|way|right|ability|decision|need|attempt|plan|effort|desire|permission|reason|try|urge|temptation|power|freedom)$/.test(
+        objectWords[objectWords.length - 1],
+      )
+    )
+      return null;
+    const moved = verbAfterAdverb(word, tail);
+    const verb = complementBaseVerb(moved.word);
+    if (!(!!verb && (!alt || !!complementBaseVerb(alt)))) return null;
+    const rentable = !indefinite && !(pronoun && !/^(?:it|them)$/.test(objectWords[0]));
+    if (rentable && verb.ambiguous && !verb.irregular && !objectNext(moved.tail)) return null;
+    return complementFinding(ctx, m, "review_msg_causative_base", [""], false);
+  },
+  // common.yaml rule verbComplements frame 7
+  "@verbComplements/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const bare = m.groups!.bare;
+    const word = m.groups!.word;
+    if (!complementOpen(ctx, m)) return null;
+    const tail = ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128);
+    if (/ly$/i.test(word) && !objectNext(tail) && !END_NEXT.test(tail)) return null;
+    const verb = complementBaseVerb(word);
+    if (!(!!verb && !(bare && !nounPhraseNext(tail)))) return null;
+    const ing = verb ? englishInflect(verb.lemma, "ing") : null;
+    if (!ing) return null;
+    const objectWord = subject?.toLowerCase() === "you" ? "them" : "you";
+    return complementFinding(
+      ctx,
+      m,
+      "review_msg_allow_object",
+      [ing, `${objectWord} to ${word.toLowerCase()}`],
+      true,
+    );
+  },
+  // common.yaml rule verbComplements frame 8
+  "@verbComplements/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const plural = m.groups!.plural;
+    const head = m.groups!.head;
+    const word = m.groups!.word;
+    if (!complementOpen(ctx, m)) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+    if (
+      head &&
+      (/\b(?:what|whatever|that|which)\b[^.!?;:,\n]{0,40}$/i.test(before) ||
+        /\b[a-z]+[ \t ]+(?:it|he|she|they|we|you|I)[ \t ]*$/.test(before))
+    )
+      return null;
+    if (plural && (!englishWordInfo(plural)?.plural || COMPLEMENT_FUNCTION_WORDS.has(plural)))
+      return null;
+    const tail = ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128);
+    if (/ly$/i.test(word) && !objectNext(tail) && !END_NEXT.test(tail)) return null;
+    const verb = complementBaseVerb(word);
+    if (!(!!verb && verb.lemma !== "be")) return null;
+    const ing = verb ? englishInflect(verb.lemma, "ing") : null;
+    if (!ing) return null;
+    return complementFinding(ctx, m, "review_msg_gerund_complement", [ing], false);
+  },
+  // common.yaml rule verbComplements frame 9
+  "@verbComplements/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const word = m.groups!.word;
+    if (!complementOpen(ctx, m)) return null;
+    if (!(/^(?:i|we|you|they|he|she)$/i.test(subject) || /^\p{Lu}/u.test(subject))) return null;
+    if (
+      /\b(?:that|which|what|whatever)[ \t ]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 48), m.index),
+      )
+    )
+      return null;
+    if (!complementBaseVerb(word)) return null;
+    return complementFinding(ctx, m, "review_msg_modal_be", ["be required"], false);
+  },
+  // common.yaml rule verbComplements frame 10
+  "@verbComplements/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const gov = m.groups!.gov;
+    const word = m.groups!.word;
+    if (!complementOpen(ctx, m)) return null;
+    const tail = ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128);
+    const go = gov.toLowerCase();
+    if (!(go !== "go" || objectNext(tail) || END_NEXT.test(tail))) return null;
+    const verb = go === "go" ? null : complementBaseVerb(word);
+    if (!(go === "go" || !!verb)) return null;
+    const following = complementNextWord(tail);
+    if (!(
+      go === "go" ||
+      !verb?.ambiguous ||
+      objectNext(tail) ||
+      END_NEXT.test(tail) ||
+      (!!following &&
+        !COMPLEMENT_AUXILIARIES.has(following) &&
+        !englishWordInfo(following)?.verbs.length)
+    ))
+      return null;
+    const form =
+      go === "go"
+        ? englishLemma(word, "past")
+        : go === "went"
+          ? englishInflect(verb!.lemma, "past")
+          : go === "goes"
+            ? englishInflect(verb!.lemma, "third")
+            : (englishVerbForms(verb!.lemma)?.participle ?? englishInflect(verb!.lemma, "past"));
+    if (!(!!form && form !== word.toLowerCase())) return null;
+    return complementFinding(ctx, m, "review_msg_ahead_and_tense", [form], false);
+  },
+  // common.yaml rule verbComplements frame 11
+  "@verbComplements/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const help = m.groups!.help;
+    const object = m.groups!.object;
+    const to = m.groups!.to;
+    const word = m.groups!.word;
+    if (!complementOpen(ctx, m)) return null;
+    const tail = ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128);
+    const w = word.toLowerCase();
+    const i = englishWordInfo(w);
+    if (!(!!i && !i.verbs.some((v) => v.form === "base"))) return null;
+    const hasPast = i.verbs.some((v) => v.form === "past");
+    const hasThird = i.verbs.some((v) => v.form === "third");
+    const hasIng = i.verbs.some((v) => v.form === "ing");
+    const hasParticiple = i.verbs.some((v) => v.form === "participle");
+    const objectAfter = objectNext(tail);
+    const end = END_NEXT.test(tail);
+    if (!(
+      !!to ||
+      !!object ||
+      (hasPast && !hasParticiple) ||
+      objectAfter ||
+      end ||
+      QUANTIFIER_NEXT.test(tail) ||
+      NUMBER_NEXT.test(tail) ||
+      PREPOSITION_NEXT.test(tail) ||
+      coordinatedVerbNext(tail)
+    ))
+      return null;
+    const lemma = to
+      ? hasPast && (objectAfter || end)
+        ? englishLemma(w, "past")
+        : hasThird && !i.plural && objectAfter
+          ? englishLemma(w, "third")
+          : hasIng && (objectAfter || PLURAL_NEXT.test(tail))
+            ? englishLemma(w, "ing")
+            : null
+      : object
+        ? objectAfter || end
+          ? hasPast
+            ? englishLemma(w, "past")
+            : hasThird
+              ? englishLemma(w, "third")
+              : null
+          : null
+        : hasPast
+          ? englishLemma(w, "past")
+          : hasThird && !i.plural
+            ? englishLemma(w, "third")
+            : null;
+    if (!(!!lemma && lemma !== w)) return null;
+    const words = wordsBefore(ctx.text, m.index);
+    if (!(!!words && helpHeadsClause(words, help.toLowerCase()))) return null;
+    return complementFinding(ctx, m, "review_msg_causative_base", [lemma], false);
+  },
+  // common.yaml rule verbComplements frame 12
+  "@verbComplements/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const head = m.groups!.head;
+    const word = m.groups!.word;
+    if (!complementOpen(ctx, m)) return null;
+    const tail = ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128);
+    const lower = head.toLowerCase();
+    const lemma = /^(?:suggest|recommend|avoid|enjoy|consider|finish|mind)/.exec(lower)![0];
+    const verb = complementBaseVerb(word);
+    if (!(!!verb && !(lemma === "consider" && verb.lemma === "be"))) return null;
+    const suggest = /^(?:suggest|recommend)$/.test(lemma);
+    if (suggest && verb.ambiguous && !objectNext(tail)) return null;
+    if (suggest && frontedObjectBefore(ctx.text.slice(Math.max(0, m.index - 64), m.index)))
+      return null;
+    const words = wordsBefore(ctx.text, m.index);
+    if (!words) return null;
+    const i = skipAuxiliaries(words, 0);
+    const rest = words.slice(i + 1);
+    const shared = rest.findIndex((w) => COMPLEMENT_SUBJECTS.has(w));
+    const subject =
+      COMPLEMENT_SUBJECTS.has(words[i]) ||
+      (COMPLEMENT_CONJUNCTIONS.has(words[i]) &&
+        shared >= 0 &&
+        !rest
+          .slice(0, shared)
+          .some(
+            (w) => COMPLEMENT_RELATIVES.has(w) || COMPLEMENT_BE.has(w) || COMPLEMENT_GET.has(w),
+          ));
+    if (
+      !(lower.endsWith("ing")
+        ? words.slice(0, i).some((w) => COMPLEMENT_BE.has(w))
+        : !words.slice(0, i + 1).some((w) => COMPLEMENT_BE.has(w) || COMPLEMENT_GET.has(w)) &&
+          !((/ed$/.test(lower) || /^(?:consider|finish|mind)$/.test(lemma)) && !subject) &&
+          !(
+            lemma === "mind" &&
+            !words
+              .slice(0, i + 2)
+              .some((w) => /^(?:would|do|does|did|don|didn|doesn|wouldn|never|'t|not)$/.test(w))
+          ))
+    )
+      return null;
+    const ing = englishInflect(verb.lemma, "ing");
+    if (!ing) return null;
+    return complementFinding(ctx, m, "review_msg_gerund_complement", [ing], false);
+  },
+  // common.yaml rule perfectParticiples frame 1
+  "@perfectParticiples/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return participleFinding(ctx, m, false);
+  },
+  // common.yaml rule perfectParticiples frame 2
+  "@perfectParticiples/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return participleFinding(ctx, m, true);
+  },
+  // common.yaml rule perfectParticiples frame 3
+  "@perfectParticiples/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const aux = m.groups!.aux;
+    const contract = m.groups!.contract;
+    const bare = m.groups!.bare;
+    const verb = m.groups!.verb;
+    const follow = m.groups!.follow;
+    const doing = m.groups!.doing;
+    const lexical = verb ?? doing;
+    const startSpan = m.indices!.groups![contract ? "contract" : "subject"];
+    const endSpan = m.indices!.groups![contract ? "contract" : aux ? "aux" : "bare"];
+    const singular = /^(?:he|she|it)$/i.test(subject);
+    if (contract || bare ? singular : (aux.toLowerCase() === "has") !== singular) return null;
+    const ing = lexical.toLowerCase();
+    if (!(!NOUN_LIKE_ING.test(ing) || /^(?:it|them|him|her|us|me|this|that)$/i.test(follow ?? "")))
+      return null;
+    if (/^(?:regarding|concerning|including|following|considering|involving|pending)$/.test(ing))
+      return null;
+    const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
+    if (
+      !contract &&
+      !bare &&
+      (/\b(?:do|does|did|don['’]t|doesn['’]t|didn['’]t)[ \t ]+$/i.test(before) ||
+        frontedObjectGap(`${before}${subject} `))
+    )
+      return null;
+    if (
+      /\b(?:could|would|should|might|must|may|will|to|what|why|how|where|when|which)[ \t ]+$/i.test(
+        before,
+      ) &&
+      !(doing && /\bwhat[ \t ]+$/i.test(before))
+    )
+      return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    if (namedExampleBefore(ctx.text, startSpan[0])) return null;
+    const typed = contract ?? aux ?? bare;
+    const first = /^i$/i.test(subject);
+    const mark = contract?.[0] ?? "'";
+    const short = `${mark}${first ? "m" : singular ? "s" : "re"}`;
+    const kase = detectWordCase(typed);
+    const alternatives = contract
+      ? [applyWordCase(short, kase), applyWordCase(`${mark}ve been`, kase)]
+      : bare
+        ? [subject + applyWordCase(short, kase), subject + applyWordCase(`${mark}ve been`, kase)]
+        : [
+            `${subject}${ctx.text.slice(group(m, "subject")[1], group(m, "aux")[0])}${applyWordCase(first ? "am" : singular ? "is" : "are", kase)}`,
+            `${subject}${applyWordCase(short, kase)}`,
+            `${subject}${ctx.text.slice(group(m, "subject")[1], group(m, "aux")[0])}${applyWordCase(`${aux.toLowerCase()} been`, kase)}`,
+          ];
+    return {
+      ruleId: "englishPerfectParticiples",
+      messageKey: "review_msg_progressive_be",
+      range: { start: startSpan[0], end: endSpan[1] },
+      alternatives,
+      requiresChoice: true as const,
+      context: around(ctx, m),
+    };
+  },
+  // common.yaml rule perfectParticiples frame 4
+  "@perfectParticiples/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const be = m.groups!.be;
+    const neg = m.groups!.neg;
+    const contract = m.groups!.contract;
+    const adverbs = m.groups!.adverbs;
+    const verb = m.groups!.verb;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    if (!atClauseStart(ctx.text, m.index)) return null;
+    if (!beAgrees(subject, (contract ? contract.slice(1) : be).toLowerCase())) return null;
+    const verbSpan = group(m, "verb");
+    const lemma = verb.toLowerCase();
+    if (!(plainToken(ctx, verb) && !NOT_A_VERB.has(lemma))) return null;
+    const after = ctx.scanText.slice(verbSpan[1], verbSpan[1] + 32);
+    const forms = englishVerbForms(lemma);
+    if (
+      !(forms
+        ? lemma === forms.lemma &&
+          forms.past !== lemma &&
+          forms.participle !== lemma &&
+          !forms.ambiguous.includes(lemma) &&
+          WORD_AFTER.test(after) &&
+          !(lemma === "go" && /^[ \t ]+for\b/i.test(after))
+        : !ADJECTIVE_SHAPE.test(lemma) &&
+          !!englishInflect(lemma, "past") &&
+          OBJECT_AFTER.test(after))
+    )
+      return null;
+    const singular = /^(?:he|she)$/i.test(subject);
+    const negated = !!neg || /\bnot\b/i.test(adverbs);
+    const ing = englishInflect(lemma, "ing");
+    const finite = negated || !singular ? lemma : englishInflect(lemma, "third");
+    if (!(!!ing && !!finite)) return null;
+    if (hasUserOrCasedWord(ctx, ctx.scanText.slice(m.index, verbSpan[1]))) return null;
+    const kase = detectWordCase(verb);
+    const support = applyWordCase(singular ? "does" : "do", kase);
+    const gap = ctx.source.slice(group(m, "adverbs")[1], verbSpan[0]);
+    const present = neg
+      ? `${subject} ${support}${neg}${adverbs}`
+      : `${subject}${adverbs.replace(/(?<![A-Za-z])not(?![A-Za-z])/i, (not) => `${support} ${not}`)}`;
+    return {
+      ruleId: "englishPerfectParticiples",
+      messageKey: "review_msg_be_base",
+      range: { start: m.index, end: verbSpan[1] },
+      alternatives: [
+        `${ctx.source.slice(m.index, verbSpan[0])}${applyWordCase(ing, kase)}`,
+        `${present}${gap}${applyWordCase(finite, kase)}`,
+      ],
+      requiresChoice: true as const,
+      context: {
+        start: Math.max(0, m.index - 96),
+        end: Math.min(ctx.text.length, verbSpan[1] + 32),
+      },
+    };
+  },
+  // common.yaml rule nounNumber frame 1
+  "@nounNumber/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nounCount(m, ctx);
+  },
+  // common.yaml rule nounNumber frame 2
+  "@nounNumber/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nounCount(m, ctx);
+  },
+  // common.yaml rule nounNumber frame 3
+  "@nounNumber/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nounCount(m, ctx);
+  },
+  // common.yaml rule nounNumber frame 4
+  "@nounNumber/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nounCount(m, ctx);
+  },
+  // common.yaml rule nounNumber frame 5
+  "@nounNumber/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const four = m.groups!.four;
+    const two = m.groups!.two;
+    const bare = m.groups!.bare;
+    const tens = m.groups!.tens;
+    const mark = m.groups!.mark;
+    const spans = m.indices!.groups!;
+    const start = (spans.four ?? spans.two ?? spans.bare ?? spans.tens)[0];
+    if (!(start >= ctx.from && start < ctx.to)) return null;
+    const digits = four ?? two ?? bare ?? tens;
+    return [
+      {
+        ruleId: "englishNounNumber",
+        messageKey: "review_msg_decade_plural",
+        range: { start, end: m.index + m[0].length },
+        alternatives: two ? [`${mark}${digits}s`, `${digits}s`] : [`${digits}s`],
+        requiresChoice: two ? (true as const) : undefined,
+        context: around(ctx, m),
+      },
+    ];
+  },
+  // common.yaml rule doubledDegree frame 1
+  "@doubledDegree/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return doubledDegreeFinding(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree frame 2
+  "@doubledDegree/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return doubledDegreeFinding(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree.fr frame 1
+  "@doubledDegree.fr/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+    if (/(?<![\p{L}])(?:ne(?![\p{L}])|n['’])[^.!?;:\n]{0,40}$/iu.test(before)) return null;
+    if (/(?<![\p{L}])(?:de|en)[ \t\u00a0]+$/iu.test(before)) return null;
+    return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree.es frame 1
+  "@doubledDegree.es/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+    if (/(?<![\p{L}])cu[aá]nto[ \t\u00a0]+$/iu.test(before)) return null;
+    return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree.pt frame 1
+  "@doubledDegree.pt/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+    if (/(?<![\p{L}])(?:não|nunca|jamais)(?![\p{L}])[^.!?;:\n]{0,40}$/iu.test(before)) return null;
+    if (/(?<![\p{L}])quanto[ \t\u00a0]+$/iu.test(before)) return null;
+    return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree.pl frame 1
+  "@doubledDegree.pl/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+    if (/(?<![\p{L}])tym[ \t\u00a0]+$/iu.test(before)) return null;
+    return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree.hr frame 1
+  "@doubledDegree.hr/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+    if (
+      /(?<![\p{L}])(?:ne|ni|nije|nisu|nisam|nisi|nismo|niste|nikad)(?![\p{L}])[^.!?;:\n]{0,40}$/iu.test(
+        before,
+      )
+    )
+      return null;
+    return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree.sv frame 1
+  "@doubledDegree.sv/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree.el frame 1
+  "@doubledDegree.el/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule countability frame 1
+  "@countability/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return countTemplate(m, ctx, frame, "");
+  },
+  // common.yaml rule countability frame 2
+  "@countability/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return countTemplate(m, ctx, frame, "");
+  },
+  // common.yaml rule countability frame 3
+  "@countability/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return countTemplate(m, ctx, frame, "");
+  },
+  // common.yaml rule countability frame 4
+  "@countability/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return countTemplate(m, ctx, frame, "");
+  },
+  // common.yaml rule countability frame 5
+  "@countability/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return countTemplate(m, ctx, frame, "equipment");
+  },
+  // common.yaml rule countability frame 6
+  "@countability/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return countTemplate(m, ctx, frame, "data");
+  },
+  // common.yaml rule countability frame 7
+  "@countability/7": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return countTemplate(m, ctx, frame, "criteria");
+  },
+  // common.yaml rule countability frame 8
+  "@countability/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return massNoun(m, ctx);
+  },
+  // common.yaml rule countability frame 9
+  "@countability/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return massNoun(m, ctx);
+  },
+  // common.yaml rule countability frame 10
+  "@countability/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return massNoun(m, ctx);
+  },
+  // common.yaml rule countability frame 11
+  "@countability/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return massNoun(m, ctx);
+  },
+  // common.yaml rule repeatedWords.en frame 1
+  "@repeatedWords.en/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.de frame 1
+  "@repeatedWords.de/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.fr frame 1
+  "@repeatedWords.fr/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.es frame 1
+  "@repeatedWords.es/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.pt frame 1
+  "@repeatedWords.pt/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.pl frame 1
+  "@repeatedWords.pl/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.sv frame 1
+  "@repeatedWords.sv/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.hr frame 1
+  "@repeatedWords.hr/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.el frame 1
+  "@repeatedWords.el/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.ar frame 1
+  "@repeatedWords.ar/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule auxiliaryForms frame 1
+  "@auxiliaryForms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const contraction = m.groups!.contraction;
+    const noun = m.groups!.noun;
+    const verb = m.groups!.verb;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    if (!(!!contraction || atClauseStart(ctx.text, m.index))) return null;
+    if (!plainToken(ctx, verb)) return null;
+    if (/ing$/i.test(verb) && ELLIPSIS_LEAD.test(previousWord(ctx.text, m.index)[0])) return null;
+    if (noun && (noun !== noun.toLowerCase() || NOT_A_NOUN.test(noun) || ctx.dictionary.has(noun)))
+      return null;
+    const end = m.index + m[0].length;
+    const word = verb.toLowerCase();
+    const verbStart = end - verb.length;
+    const prefix = m[0].slice(0, verbStart - m.index);
+    if (noun && /\bmight\b/i.test(prefix) && modalMayBeNoun(noun, "might")) return null;
+    const isDo = /\b(?:do|does|did)(?:n['’]t)?\b/i.test(prefix);
+    const negated = /n['’]t\b|\bnot\b|cannot/i.test(prefix);
+    const lexicalDo = isDo && !negated && !STARTS_WITH_AUXILIARY.test(prefix);
+    const next = nextLowerWord(ctx, end);
+    if (
+      /\b(?:this|that)$/i.test(prefix.trim()) &&
+      ((/(?:ing|ed)$/.test(word) && contentWord(next)) ||
+        (!word.endsWith("s") && englishWordInfo(word)?.noun))
+    )
+      return null;
+    const asked = /^(do|does|did)(n['’]t)?([ \t ]+)(i|you|we|they|he|she|it)[ \t ]+$/i.exec(prefix);
+    const adjective = englishWordInfo(word);
+    const feeling =
+      !!asked &&
+      /ed$/.test(word) &&
+      !adjective?.noun &&
+      (!!adjective?.adjective || FEELING_VERBS.has(englishLemma(word, "past") ?? ""));
+    const repair = feeling
+      ? null
+      : /^['’]d$/i.test(contraction ?? "")
+        ? wouldOrHadRepair(word)
+        : auxiliaryRepair(word, next, isDo, lexicalDo, prefix);
+    if (!(feeling || !!repair)) return null;
+    return feeling
+      ? feelingFinding(ctx, asked, m.index, verbStart, end, verb)
+      : auxFinding(ctx, m.index, verbStart, end, verb, repair!);
+  },
+  // common.yaml rule auxiliaryForms frame 2
+  "@auxiliaryForms/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const words = m.groups!.words;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    if (!atClauseStart(ctx.text, m.index)) return null;
+    const wordsStart = group(m, "words")[0];
+    const isDo = /\b(?:do|does|did)(?:n['’]t)?\b/i.test(m[0].slice(0, wordsStart - m.index));
+    return invertedScan(ctx, [...words.matchAll(/[A-Za-z]+/g)], 1, isDo, wordsStart, m.index);
+  },
+  // common.yaml rule auxiliaryForms frame 3
+  "@auxiliaryForms/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const aux = m.groups!.aux;
+    const verb = m.groups!.verb;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    if (!(plainToken(ctx, verb) && plainToken(ctx, aux))) return null;
+    const end = m.index + m[0].length;
+    const previous = previousWord(ctx.text, m.index);
+    const subject = previous[0];
+    const s = subject.toLowerCase();
+    if (!(!!s && !AUX_NOT_A_SUBJECT.test(s))) return null;
+    if (/ing$/i.test(verb) && ELLIPSIS_LEAD.test(previousWord(ctx.text, previous[1])[0]))
+      return null;
+    if (NOUN_MODAL.test(aux) && modalMayBeNoun(subject, aux)) return null;
+    const word = verb.toLowerCase();
+    const next = nextLowerWord(ctx, end);
+    if (/^should$/i.test(aux) && modifiesNext(word, next)) return null;
+    if (
+      /^should$/i.test(aux) &&
+      englishWordInfo(word)?.plural &&
+      englishWordInfo(next)?.verbs.some((v) => v.form === "base")
+    )
+      return null;
+    if (
+      word.endsWith("ing") &&
+      (/^(?:what|which|much|many)$/.test(s) || englishWordInfo(s)?.adjective)
+    )
+      return null;
+    const repair = auxiliaryRepair(word, next, /^d/i.test(aux), false, aux);
+    if (!repair) return null;
+    return auxFinding(ctx, m.index, end - verb.length, end, verb, repair);
+  },
+  // common.yaml rule auxiliaryForms frame 4
+  "@auxiliaryForms/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const adverb = m.groups!.adverb;
+    const verb = m.groups!.verb;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    const word = verb.toLowerCase();
+    if (!(!word.endsWith("ing") && plainToken(ctx, verb))) return null;
+    if (adverb && !englishWordInfo(adverb.trim())?.adverb) return null;
+    const lemma = inflectedLemma(word);
+    if (!lemma) return null;
+    const end = m.index + m[0].length;
+    const headWord = previousWord(ctx.text, m.index);
+    const head = headWord[0].toLowerCase();
+    const beforeHead = head ? previousWord(ctx.text, headWord[1])[0].toLowerCase() : "";
+    const next = nextLowerWord(ctx, end);
+    const object = AUX_OBJECT_PRONOUN.test(next) || AUX_DETERMINER_WORD.test(next);
+    const going = head === "going";
+    const strong =
+      TO_HEAD.test(head) &&
+      (!going || AUX_BE.test(beforeHead)) &&
+      (head !== "like" || /^(?:would|.+['’]d)$/.test(beforeHead));
+    const entry = englishVerbForms(word);
+    const pastOnly = !!entry && word === entry.past && word !== entry.participle;
+    const info = englishWordInfo(word);
+    const ok =
+      word.endsWith("s") && (info?.plural ?? true)
+        ? strong &&
+          (AUX_OBJECT_PRONOUN.test(next) || (!going && ctx.text[end] !== "," && (!next || object)))
+        : word.endsWith("s") || pastOnly
+          ? strong || (AUX_BE.test(beforeHead) && adjectiveOrParticiple(head)) || object
+          : object || (strong && !(going && contentWord(next)));
+    if (!ok) return null;
+    if (
+      !strong &&
+      entry?.past === word &&
+      /\p{L}[ \t ]+(?:I|we|you|they|he|she)(?:[ \t ]+(?:was|were|had|have|has|am|are|is))?[ \t ]+$/u.test(
+        ctx.text.slice(Math.max(0, headWord[1] - 40), headWord[1]),
+      )
+    )
+      return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    return {
+      ruleId: "englishAuxiliaryBaseVerb",
+      messageKey: "review_msg_to_base",
+      range: { start: m.index, end },
+      alternatives: [
+        `${ctx.source.slice(m.index, end - verb.length)}${applyWordCase(lemma, detectWordCase(verb))}`,
+      ],
+      context: { start: Math.max(0, m.index - 48), end: Math.min(ctx.text.length, end + 32) },
+    };
+  },
+  // common.yaml rule auxiliaryForms frame 5
+  "@auxiliaryForms/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const lower = noun.toLowerCase();
+    if (AUX_FUNCTION_WORD.test(lower)) return null;
+    if (
+      /^(?:today|tomorrow|tonight|yesterday|may|might|can|could|will|would|should|must)$/.test(
+        lower,
+      )
+    )
+      return null;
+    if (AUX_DETERMINER_WORD.test(previousWord(ctx.text, m.index)[0].toLowerCase())) return null;
+    const span = group(m, "target");
+    const nounStart = group(m, "noun")[0];
+    const next = nextLowerWord(ctx, span[1]);
+    if (/^(?:if|when|or|and|because|but|so|unless)$/.test(next)) return null;
+    const nextInfo = englishWordInfo(next);
+    const toVerb = /^[ \t ]+to[ \t ]+([a-z]+)/.exec(ctx.scanText.slice(span[1], span[1] + 40))?.[1];
+    if (toVerb && englishWordInfo(toVerb)?.verbs.some((v) => v.form === "base")) return null;
+    if (/ies$/.test(lower) && englishWordInfo(`${lower.slice(0, -3)}ize`)?.verbs.length)
+      return null;
+    const read = englishWordInfo(lower);
+    const derived =
+      DERIVED_NOUN.test(lower) &&
+      !!read?.noun &&
+      !read.verbs.length &&
+      !read.adjective &&
+      !read.adverb;
+    const objectAfter =
+      AUX_OBJECT_PRONOUN.test(next) ||
+      AUX_DETERMINER_WORD.test(next) ||
+      (!!nextInfo?.verbs.some((v) => v.form === "base") && !nextInfo.adjective) ||
+      (contentWord(next) && (!nextInfo || nextInfo.noun || nextInfo.plural));
+    if (!(!objectAfter || derived)) return null;
+    if (
+      [`${lower.replace(/e$/, "")}ing`, lower.replace(/e?$/, "ed")].some((form) =>
+        englishWordInfo(form),
+      )
+    )
+      return null;
+    const participleNext =
+      !!nextInfo?.verbs.length &&
+      nextInfo.verbs.every((v) => v.form === "past" || v.form === "participle");
+    const isNoun = read
+      ? !read.verbs.length &&
+        !read.adjective &&
+        !read.adverb &&
+        (read.noun || read.plural || participleNext)
+      : NOUN_ENDING.test(lower);
+    if (!isNoun) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const original = ctx.source.slice(nounStart, span[1]);
+    return {
+      ruleId: "englishAuxiliaryBaseVerb",
+      messageKey: "review_msg_to_noun",
+      range: { start: span[0], end: span[1] },
+      alternatives: objectAfter
+        ? []
+        : [`${original === original.toUpperCase() ? "THE" : "the"} ${original}`, original],
+      ...(objectAfter ? { warningOnly: true as const } : { requiresChoice: true as const }),
+      context: { start: m.index, end: Math.min(ctx.text.length, span[1] + 32) },
+    };
+  },
+  // common.yaml rule pronounCase frame 1
+  "@pronounCase/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    const verb = m.groups!.verb;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    if (![a, b].some((word) => /^(?:me|him|her|them|myself)$/i.test(word))) return null;
+    if (
+      [a, b].some((word) => /^myself$/i.test(word)) &&
+      /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index))
+    )
+      return null;
+    if (!(
+      finiteVerbForm(verb) ||
+      ([a, b].some((word) => /^(?:me|myself)$/i.test(word)) &&
+        verb === verb.toLowerCase() &&
+        !!englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb))
+    ))
+      return null;
+    const opener = /(?:^|[.!?;:\n"“(])([^.!?;:\n"“(]*),[ \t ]*$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 64), m.index),
+    );
+    if (
+      opener &&
+      (opener[1].trim().split(/\s+/).length > 4 ||
+        opener[1]
+          .toLowerCase()
+          .match(/[a-z]+/g)
+          ?.some(
+            (w) =>
+              finiteVerbForm(w) ||
+              englishWordInfo(w)?.verbs.some((v) => v.form === "past" || v.form === "third"),
+          ))
+    )
+      return null;
+    if (isFirstPerson(a) && isFirstPerson(b)) return null;
+    if (/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t ]/i.test(b)) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const aSpan = group(m, "a");
+    const bSpan = group(m, "b");
+    const verbSpan = group(m, "verb");
+    const joint = ctx.source.slice(aSpan[1], bSpan[0]);
+    const pair =
+      isFirstPerson(a) || isFirstPerson(b)
+        ? `${subjectForm(isFirstPerson(a) ? b : a)}${joint}I`
+        : `${subjectForm(a)}${joint}${subjectForm(b)}`;
+    const capped = /^[A-Z]/.test(a) ? pair[0].toUpperCase() + pair.slice(1) : pair;
+    const verbKey = verb.toLowerCase().replace(/n['’]t$/, "");
+    const plural = Object.hasOwn(PLURAL_VERB, verbKey);
+    const withVerb = plural
+      ? `${capped}${ctx.source.slice(bSpan[1], verbSpan[0])}${applyWordCase(PLURAL_VERB[verbKey], detectWordCase(verb))}${verb.slice(verbKey.length)}`
+      : capped;
+    const rangeEnd = plural ? verbSpan[1] : bSpan[1];
+    const typed = ctx.source.slice(aSpan[0], rangeEnd);
+    const phrase = typed === typed.toUpperCase() ? withVerb.toUpperCase() : withVerb;
+    if (!(phrase !== typed)) return null;
+    return finding(
+      "englishPronounCase",
+      "review_msg_pronoun_subject_case",
+      aSpan[0],
+      rangeEnd,
+      [phrase],
+      {
+        context: tightAround(ctx, m),
+      },
+    );
+  },
+  // common.yaml rule pronounCase frame 2
+  "@pronounCase/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    const verb = m.groups!.verb;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    if (![a, b].some((word) => /^(?:me|him|her|them|myself)$/i.test(word))) return null;
+    if (
+      [a, b].some((word) => /^myself$/i.test(word)) &&
+      /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index))
+    )
+      return null;
+    if (!(
+      finiteVerbForm(verb) ||
+      ([a, b].some((word) => /^(?:me|myself)$/i.test(word)) &&
+        verb === verb.toLowerCase() &&
+        !!englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb))
+    ))
+      return null;
+    const opener = /(?:^|[.!?;:\n"“(])([^.!?;:\n"“(]*),[ \t ]*$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 64), m.index),
+    );
+    if (
+      opener &&
+      (opener[1].trim().split(/\s+/).length > 4 ||
+        opener[1]
+          .toLowerCase()
+          .match(/[a-z]+/g)
+          ?.some(
+            (w) =>
+              finiteVerbForm(w) ||
+              englishWordInfo(w)?.verbs.some((v) => v.form === "past" || v.form === "third"),
+          ))
+    )
+      return null;
+    if (isFirstPerson(a) && isFirstPerson(b)) return null;
+    if (/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t ]/i.test(b)) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const aSpan = group(m, "a");
+    const bSpan = group(m, "b");
+    const verbSpan = group(m, "verb");
+    const joint = ctx.source.slice(aSpan[1], bSpan[0]);
+    const pair =
+      isFirstPerson(a) || isFirstPerson(b)
+        ? `${subjectForm(isFirstPerson(a) ? b : a)}${joint}I`
+        : `${subjectForm(a)}${joint}${subjectForm(b)}`;
+    const capped = /^[A-Z]/.test(a) ? pair[0].toUpperCase() + pair.slice(1) : pair;
+    const verbKey = verb.toLowerCase().replace(/n['’]t$/, "");
+    const plural = Object.hasOwn(PLURAL_VERB, verbKey);
+    const withVerb = plural
+      ? `${capped}${ctx.source.slice(bSpan[1], verbSpan[0])}${applyWordCase(PLURAL_VERB[verbKey], detectWordCase(verb))}${verb.slice(verbKey.length)}`
+      : capped;
+    const rangeEnd = plural ? verbSpan[1] : bSpan[1];
+    const typed = ctx.source.slice(aSpan[0], rangeEnd);
+    const phrase = typed === typed.toUpperCase() ? withVerb.toUpperCase() : withVerb;
+    if (!(phrase !== typed)) return null;
+    return finding(
+      "englishPronounCase",
+      "review_msg_pronoun_subject_case",
+      aSpan[0],
+      rangeEnd,
+      [phrase],
+      {
+        context: tightAround(ctx, m),
+      },
+    );
+  },
+  // common.yaml rule pronounCase frame 3
+  "@pronounCase/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const lead = m.groups!.lead;
+    const a = m.groups!.a;
+    const conj = m.groups!.conj;
+    const b = m.groups!.b;
+    const verb = m.groups!.verb;
+    if (conj.toLowerCase() === "and" ? lead?.toLowerCase() !== "both" : /^both$/i.test(lead ?? ""))
+      return null;
+    if (conj.toLowerCase() !== "and" && /^(?:is|was|has|does)/i.test(verb)) return null;
+    if (
+      /^myself$/i.test(b) &&
+      /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index))
+    )
+      return null;
+    if (!(!/^(?:me|myself)$/i.test(a) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    const span = group(m, "b");
+    return {
+      ruleId: "englishPronounCase",
+      messageKey: "review_msg_pronoun_subject_case",
+      range: { start: span[0], end: span[1] },
+      alternatives: [isFirstPerson(b) ? "I" : applyWordCase(subjectForm(b), detectWordCase(b))],
+      context: { start: Math.max(0, m.index - 32), end: Math.min(ctx.text.length, span[1] + 16) },
+    };
+  },
+  // common.yaml rule pronounCase frame 4
+  "@pronounCase/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const whom = m.groups!.whom;
+    const aux = m.groups!.aux;
+    const evidence = m.groups!.evidence;
+    const verb = m.groups!.verb;
+    const caps = m[0] === m[0].toUpperCase();
+    const proof = caps ? evidence?.toLowerCase() : evidence;
+    const lexical = caps ? verb?.toLowerCase() : verb;
+    const span = group(m, "whom");
+    const matchEnd = m.index + m[0].length;
+    const ever = whom.length > 4;
+    const before = ctx.text.slice(Math.max(0, span[0] - 48), span[0]);
+    const prep = ever ? undefined : PREPOSITION_BEFORE.exec(before)?.groups!.prep.toLowerCase();
+    const ofNoun = prep === "of" ? OF_NOUN.exec(before)?.groups!.noun : undefined;
+    const ofInfo = ofNoun ? englishWordInfo(ofNoun) : null;
+    if (
+      !(aux
+        ? (ever
+            ? !/^(?:I|you|he|she|we|they|it|there)$/i.test(proof)
+            : !/^(?:do|does|did)$/i.test(aux) && verbAfterAuxiliary(aux, proof)) &&
+          (prep === "of"
+            ? !!ofNoun && !PARTITIVE.test(ofNoun) && !(ofInfo && (!ofInfo.noun || ofInfo.adjective))
+            : !prep ||
+              (/^(?:has|have|had)$/i.test(aux) && proof !== "been") ||
+              (/^(?:will|would|can|could|shall|should|may|might|must)$/i.test(aux) &&
+                proof !== "be"))
+        : !prep &&
+          whomFiniteVerb(
+            lexical,
+            ever,
+            (/^[ \t ]+([A-Za-z]+)/.exec(ctx.text.slice(matchEnd))?.[1] ?? "").toLowerCase(),
+          ))
+    )
+      return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    return {
+      ruleId: "englishPronounCase",
+      messageKey: "review_msg_who_subject",
+      range: { start: span[0], end: span[1] },
+      alternatives: [
+        applyWordCase(whom.toLowerCase().replace("whom", "who"), detectWordCase(whom)),
+      ],
+      context: { start: Math.max(0, span[0] - 32), end: Math.min(ctx.text.length, matchEnd + 9) },
+    };
+  },
+  // common.yaml rule pronounCase frame 5
+  "@pronounCase/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    if (!(m.groups!.noun === undefined || !!pluralNoun(m.groups!.noun))) return null;
+    return caseObjectFinding(ctx, m, group(m, "pronoun"), objectForm(pronoun), false);
+  },
+  // common.yaml rule pronounCase frame 6
+  "@pronounCase/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    if (!(m.groups!.noun === undefined || !!pluralNoun(m.groups!.noun))) return null;
+    return caseObjectFinding(ctx, m, group(m, "pronoun"), objectForm(pronoun), false);
+  },
+  // common.yaml rule pronounCase frame 7
+  "@pronounCase/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    if (!(!/^(?:I|me)$/i.test(a) && !(/^you$/i.test(a) && /^between/i.test(m[0])))) return null;
+    return casePairFinding(ctx, m, a);
+  },
+  // common.yaml rule pronounCase frame 8
+  "@pronounCase/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    if (/^(?:I|me|myself)$/i.test(a)) return null;
+    const sentence = ctx.text
+      .slice(Math.max(0, m.index - 200), m.index)
+      .split(/[.!?\n]/)
+      .pop()!;
+    if (/(?:^|[^\p{L}'’])I(?:[^\p{L}'’]|['’](?:m|ve|ll|d))/u.test(sentence)) return null;
+    return casePairFinding(ctx, m, a);
+  },
+  // common.yaml rule pronounCase frame 9
+  "@pronounCase/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const lead = m.groups!.lead;
+    const a = m.groups!.a;
+    const next = m.groups!.next;
+    if (!(!/^(?:I|me)$/i.test(a) && lead !== "between" && (!next || CASE_OBJECT_NEXT.test(next))))
+      return null;
+    const read = englishWordInfo(lead);
+    if (!(
+      CASE_OBJECT_PREPOSITION_WORD.test(lead) ||
+      lead === "for" ||
+      (!/^(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must)$/.test(
+        lead,
+      ) &&
+        !/^(?:and|or|but|that|if|when|because|so|think|thought|know|knew|said|says|hope|guess)$/.test(
+          lead,
+        ) &&
+        !/^(?:came|come|comes|went|go|goes|stood|sat|lay|ran|run|arrived|remain|remained)$/.test(
+          lead,
+        ) &&
+        !!read?.verbs.some((v) => v.form === "past" || v.form === "base" || v.form === "third"))
+    ))
+      return null;
+    return casePairFinding(ctx, m, a);
+  },
+  // common.yaml rule pronounCase frame 10
+  "@pronounCase/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const noun = m.groups!.noun;
+    if (!(pronoun !== "US" && !!pluralNoun(noun))) return null;
+    return caseObjectFinding(
+      ctx,
+      m,
+      group(m, "pronoun"),
+      applyWordCase("we", detectWordCase(pronoun)),
+      true,
+    );
+  },
+  // common.yaml rule pronounCase frame 11
+  "@pronounCase/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const sentence = /[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, m.index - 160), m.index))![0];
+    if (/\b(?:I|me|my|mine)\b/i.test(sentence)) return null;
+    const head = /([A-Za-z]+)[ \t ]+$/.exec(sentence)?.[1] ?? "";
+    const read = englishWordInfo(head);
+    if (!(
+      head === head.toLowerCase() &&
+      (/^(?:(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)|for|between)$/.test(
+        head,
+      ) ||
+        !!read?.verbs.some((v) => v.form === "past" || v.form === "third"))
+    ))
+      return null;
+    if (hasUserOrCasedWord(ctx, target)) return null;
+    const end = m.index + m[0].length;
+    const following = /^[ \t ]+([a-z]+)/.exec(ctx.text.slice(end, end + 24))?.[1] ?? "";
+    if (!(
+      !finiteVerbForm(following) &&
+      !englishWordInfo(following)?.verbs.some((v) => v.form === "base")
+    ))
+      return null;
+    const span = group(m, "target");
+    return {
+      ruleId: "englishPronounCase",
+      messageKey: "review_msg_pronoun_object_case",
+      range: { start: span[0], end: span[1] },
+      alternatives: [applyWordCase("me", detectWordCase(target))],
+      context: { start: Math.max(0, m.index - 48), end: Math.min(ctx.text.length, end + 16) },
+    };
+  },
+  // common.yaml rule sentenceStructure frame 1
+  "@sentenceStructure/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    if (!(a.toLowerCase() !== b.toLowerCase() && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    const start = group(m, "a")[0];
+    const end = group(m, "b")[1];
+    const sentenceInitial =
+      a !== "I" || !/[;:][ \t ]*$/.test(ctx.text.slice(Math.max(0, start - 10), start));
+    const second = /^[A-Z]/.test(a) && sentenceInitial ? caseLike(m[0], b.toLowerCase()) : b;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_double_subject",
+      range: { start, end },
+      alternatives: [a, second === "i" ? "I" : second],
+      requiresChoice: true as const,
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 2
+  "@sentenceStructure/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    if (!(a === a.toLowerCase() || m[0] === m[0].toUpperCase())) return null;
+    if (!(!wordEndsBefore(ctx, m.index, "(?:oh|ah|my),?") && !hasUserOrCasedWord(ctx, m[0])))
+      return null;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_pronoun_sequence",
+      range: { start: group(m, "a")[0], end: group(m, "b")[1] },
+      alternatives: [],
+      warningOnly: true as const,
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 3
+  "@sentenceStructure/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    if (!(a.toLowerCase() !== b.toLowerCase() && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_pronoun_sequence",
+      range: { start: group(m, "a")[0], end: group(m, "b")[1] },
+      alternatives: [a, b],
+      requiresChoice: true as const,
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 4
+  "@sentenceStructure/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const article = m.groups!.article;
+    const possessive = m.groups!.possessive;
+    const noun = m.groups!.noun;
+    if (!(possessive === possessive.toLowerCase() || m[0] === m[0].toUpperCase())) return null;
+    const word = noun ?? "";
+    if (!(!/^(?:and|or|own|but)$/i.test(word) && !META_NOUN.test(word))) return null;
+    const the = article.toLowerCase() === "the";
+    if (!(possessive.toLowerCase() !== "her" || (the && !!word))) return null;
+    if (!(!!word || /^[ \t ]*(?:[.!?,;:)]|$)/.test(ctx.text.slice(m.index + m[0].length))))
+      return null;
+    const sound = the ? "the" : word ? englishInitialSound(word) : "either";
+    if (!(sound !== "either")) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const bare = the ? article : caseLike(m[0], sound === "vowel" ? "an" : "a");
+    const owner =
+      /^[A-Z]/.test(article) && m[0] !== m[0].toUpperCase()
+        ? caseLike(article, possessive.toLowerCase())
+        : possessive;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_determiner_clash",
+      range: { start: group(m, "article")[0], end: group(m, "possessive")[1] },
+      alternatives: [owner, bare],
+      requiresChoice: true as const,
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 5
+  "@sentenceStructure/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    const one = first.toLowerCase();
+    const two = second.toLowerCase();
+    const plain = second === second.toLowerCase() && /^[a-zA-Z][a-z]*$/.test(first);
+    if (!(plain || m[0] === m[0].toUpperCase())) return null;
+    const isArticle = one === "a";
+    if (!(isArticle ? two === "the" : two === "the" || /^(?:my|our)$/.test(one))) return null;
+    if (!(two !== "her" && one !== two)) return null;
+    const end = m.index + m[0].length;
+    if (!(
+      one !== "his" ||
+      !/^[ \t ]+(?:whole|entire|same|next|following|previous|last|first|other)\b/i.test(
+        ctx.text.slice(end),
+      )
+    ))
+      return null;
+    if (!(one !== "my" || !wordEndsBefore(ctx, m.index, "(?:oh|ah|my),?"))) return null;
+    if (!(!/^(?:your|their)$/.test(one) || !opensSubjectClause(ctx, m.index))) return null;
+    const following = /^[ \t ]+([A-Za-z]+)/.exec(ctx.text.slice(end))?.[1];
+    const sound = isArticle ? (following ? englishInitialSound(following) : "either") : "none";
+    if (!(sound !== "either")) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const kept = isArticle ? caseLike(m[0], sound === "vowel" ? "an" : "a") : first;
+    const start = group(m, "first")[0];
+    const before = ctx.text.slice(Math.max(0, start - 24), start).trimEnd();
+    const previous = /[A-Za-z]+$/.exec(before)?.[0];
+    const slip = previous ? englishWordInfo(previous)?.adverb : /[,;:(]$/.test(before);
+    const alternatives = [
+      ...(two === "the" && /^(?:your|their)$/.test(one) && slip
+        ? [
+            `${applyWordCase(one === "your" ? "you're" : "they're", detectWordCase(first))}${ctx.source.slice(group(m, "first")[1], group(m, "second")[0])}${second}`,
+          ]
+        : []),
+      kept,
+      caseLike(m[0], two),
+    ];
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_determiner_clash",
+      range: { start, end: group(m, "second")[1] },
+      alternatives,
+      requiresChoice: true as const,
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 6
+  "@sentenceStructure/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    const next = m.groups!.next;
+    if (!(first.toLowerCase() !== second.toLowerCase())) return null;
+    const following = next.toLowerCase();
+    if (!(
+      /^(?:not|never|also|just|really|still|probably|definitely|surely|certainly)$/.test(
+        following,
+      ) ||
+      following === "be" ||
+      hasVerbForm(following, "base")
+    ))
+      return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_double_modal",
+      range: { start: group(m, "first")[0], end: group(m, "second")[1] },
+      alternatives: [first, applyWordCase(second, detectWordCase(first))],
+      requiresChoice: true as const,
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 7
+  "@sentenceStructure/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const modal = m.groups!.modal;
+    const adjective = m.groups!.adjective;
+    if (!(
+      !NOT_A_SUBJECT.test(subject) &&
+      (modal === modal.toLowerCase() || m[0] === m[0].toUpperCase())
+    ))
+      return null;
+    const word = adjective.toLowerCase();
+    const info = englishWordInfo(word);
+    const tail = group(m, "adjective")[1];
+    const following = ctx.text.slice(tail, tail + 12);
+    const predicate =
+      /^(?:ready|busy)$/.test(word) ||
+      (word === "back" &&
+        /^[ \t ]+(?:in|soon|home|later|tomorrow|tonight|by|on)\b/i.test(following)) ||
+      (word === "best" &&
+        /^(?:it|this|that)$/i.test(subject) &&
+        /^[ \t ]+(?:to|if)\b/i.test(following));
+    if (!(
+      predicate ||
+      (!!info?.adjective && !info.adverb && !info.verbs.length && !NOT_PREDICATE.test(word))
+    ))
+      return null;
+    if (info?.noun && /^[ \t ]+of\b/i.test(following)) return null;
+    if (word === "due" && /^[ \t ]+(?:to|that|it|this)\b/i.test(following)) return null;
+    if (word === "careless" && /^could/i.test(modal)) return null;
+    if (/^(?:can|could)/i.test(modal) && /able$/i.test(adjective)) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_missing_be",
+      range: { start: group(m, "adjective")[0], end: tail },
+      alternatives: [`${applyWordCase("be", detectWordCase(adjective))} ${adjective}`],
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 8
+  "@sentenceStructure/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const head = m.groups!.head;
+    const head2 = m.groups!.head2;
+    const noun = m.groups!.noun;
+    const ago = m.groups!.ago;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    const quantity = head ?? head2;
+    const plural = pluralNoun(noun);
+    if (!(
+      !!plural &&
+      (plural !== "ambiguous" || !!ago || wordEndsBefore(ctx, m.index, STRUCTURE_PREPOSITIONS))
+    ))
+      return null;
+    const tail = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 16);
+    if (!(
+      quantity.toLowerCase() !== "lot" ||
+      /^[ \t ]*(?:[.!?,;:)]|$|[ \t ]+(?:here|there|in|on|at|for|with|who|that|to|from|of)\b)/i.test(
+        tail,
+      )
+    ))
+      return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const headSpan = m.indices!.groups![head ? "head" : "head2"];
+    const end = group(m, "noun")[1];
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_couple_of",
+      range: { start: headSpan[0], end },
+      alternatives: [
+        `${quantity} ${quantity === quantity.toUpperCase() ? "OF" : "of"}${ctx.text.slice(headSpan[1], end)}`,
+      ],
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 9
+  "@sentenceStructure/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const of = m.groups!.of;
+    const noun = m.groups!.noun;
+    if (!(
+      !!pluralNoun(noun) &&
+      !wordEndsBefore(ctx, m.index, "the") &&
+      !hasUserOrCasedWord(ctx, m[0])
+    ))
+      return null;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_partitive_of",
+      range: { start: group(m, "of")[0], end: group(m, "noun")[1] },
+      alternatives: [noun, `${of} ${applyWordCase("the", detectWordCase(of))} ${noun}`],
+      requiresChoice: true as const,
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 10
+  "@sentenceStructure/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const start = group(m, "subject")[0];
+    const upper = m[0] === m[0].toUpperCase();
+    const who = upper || subject === "I" ? subject : subject.toLowerCase();
+    const end = m.index + m[0].length;
+    const tail = ctx.text.slice(end, end + 160);
+    const clause = /^[^.!?\n]*/.exec(tail)![0];
+    const nextSubject = /(?:[,;]|\bbut\b)[ \t ]*(?:but[ \t ]+)?(?:also[ \t ]+)?([A-Za-z]+)/i
+      .exec(clause)?.[1]
+      ?.toLowerCase();
+    const same = nextSubject === subject.toLowerCase();
+    const closed = /^[ \t ]*(?:[,;:.!?]|$)/.test(tail);
+    if (
+      closed ? !same : !same && !/^it$/i.test(subject) && INVERSION_SUBJECTS.test(nextSubject ?? "")
+    )
+      return null;
+    const replacement = notOnlyFix(ctx, m, who, upper, start, end);
+    if (!(replacement !== null)) return null;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_not_only_inversion",
+      range: { start, end },
+      alternatives: [replacement],
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule wordConfusions frame 1
+  "@wordConfusions/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_then_than", "than");
+  },
+  // common.yaml rule wordConfusions frame 2
+  "@wordConfusions/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_then_than", "than");
+  },
+  // common.yaml rule wordConfusions frame 3
+  "@wordConfusions/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_then_than", "than");
+  },
+  // common.yaml rule wordConfusions frame 4
+  "@wordConfusions/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_then_than", "than");
+  },
+  // common.yaml rule wordConfusions frame 5
+  "@wordConfusions/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    if (!atClauseStart(ctx.text, m.index)) return null;
+    if (!(target.toLowerCase() === "your")) return null;
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_your_you_are", "you're");
+  },
+  // common.yaml rule wordConfusions frame 6
+  "@wordConfusions/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    if (!atClauseStart(ctx.text, m.index)) return null;
+    if (!(target.toLowerCase() !== "your")) return null;
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_they_are", "they're");
+  },
+  // common.yaml rule wordConfusions frame 7
+  "@wordConfusions/7": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_your_possessive", "your");
+  },
+  // common.yaml rule wordConfusions frame 8
+  "@wordConfusions/8": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_to_too", "too");
+  },
+  // common.yaml rule wordConfusions frame 9
+  "@wordConfusions/9": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!opensSubjectClause(ctx, m.index)) return null;
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_their_there", "there");
+  },
+  // common.yaml rule wordConfusions frame 10
+  "@wordConfusions/10": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_their_there", "there's");
+  },
+  // common.yaml rule wordConfusions frame 11
+  "@wordConfusions/11": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const verb = m.groups!.verb;
+    const end = m.groups!.end;
+    if (!(end === undefined || PLACE_END.test(verb))) return null;
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_their_there", "there");
+  },
+  // common.yaml rule wordConfusions frame 12
+  "@wordConfusions/12": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!opensPredicate(ctx, m)) return null;
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_they_are", "they're");
+  },
+  // common.yaml rule wordConfusions frame 13
+  "@wordConfusions/13": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (opensMainClause(ctx, m.index)) return null;
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_their_there", "there");
+  },
+  // common.yaml rule wordConfusions frame 14
+  "@wordConfusions/14": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_their_possessive", "their");
+  },
+  // common.yaml rule wordConfusions frame 15
+  "@wordConfusions/15": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_their_possessive", "their");
+  },
+  // common.yaml rule wordConfusions frame 16
+  "@wordConfusions/16": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    if (!(
+      !/^there$/i.test(target) ||
+      opensMainClause(ctx, m.index) ||
+      OWN_OBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 96), m.index))
+    ))
+      return null;
+    return confusionFix(ctx, m, frame.ruleId, "review_msg_their_possessive", "their");
+  },
+  // common.yaml rule wordConfusions frame 17
+  "@wordConfusions/17": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (
+      /\b(?:if|when|once|unless|after|before|until)\b[^.!?;:\n]*$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 96), m.index),
+      )
+    )
+      return null;
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_then_than", "than");
+  },
+  // common.yaml rule wordConfusions frame 18
+  "@wordConfusions/18": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_then_than_temporal", "then");
+  },
+  // common.yaml rule wordConfusions frame 19
+  "@wordConfusions/19": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!opensPredicate(ctx, m)) return null;
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_your_you_are", "you're");
+  },
+  // common.yaml rule wordConfusions frame 20
+  "@wordConfusions/20": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!opensPredicate(ctx, m)) return null;
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_your_you_are", "you're");
+  },
+  // common.yaml rule wordConfusions frame 21
+  "@wordConfusions/21": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!opensPredicate(ctx, m)) return null;
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_your_you_are", "you're");
+  },
+  // common.yaml rule wordConfusions frame 22
+  "@wordConfusions/22": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_to_too", "too");
+  },
+  // common.yaml rule wordConfusions frame 23
+  "@wordConfusions/23": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_to_too", "too");
+  },
+  // common.yaml rule wordConfusions frame 24
+  "@wordConfusions/24": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_to_infinitive", "to");
+  },
+  // common.yaml rule wordConfusions frame 25
+  "@wordConfusions/25": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const middle = m.groups!.middle;
+    const verb = m.groups!.verb;
+    if (/^\p{Lu}/u.test(middle ?? "")) return null;
+    const lower = verb.toLowerCase();
+    const forms = englishVerbForms(lower);
+    if (!(
+      !!forms ||
+      !/^(?:many|much|few|more|less|little)$/i.test(nextLowerWord(ctx, m.index + m[0].length))
+    ))
+      return null;
+    const info = forms ? null : englishWordInfo(lower);
+    if (!(
+      lower === "be" ||
+      (forms?.lemma === lower && !forms.ambiguous.includes(lower)) ||
+      (info?.verbs.some((v) => v.form === "base") && !info.adjective && !info.adverb)
+    ))
+      return null;
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_to_infinitive", "to");
+  },
+  // common.yaml rule wordConfusions frame 26
+  "@wordConfusions/26": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (
+      /\b(?:show|showed|shown|tell|told|ask|asked|know|knew|see|saw|remind|reminded|guide|guided|take|took)[ \t ]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 96), m.index),
+      )
+    )
+      return null;
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_were_where", "were");
+  },
+  // common.yaml rule wordConfusions frame 27
+  "@wordConfusions/27": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return degreeFix(ctx, m, frame.ruleId, "review_msg_were_where", "where");
+  },
+  // common.yaml rule capitalizeStarts frame 1
+  "@capitalizeStarts/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index === 0 || isWhitespaceAt(ctx.text, m.index - 1))) return null;
+    const letterIndex = m.index + (SENTENCE_OPENING_MARKS.has(m[0][0]) ? 1 : 0);
+    const code = ctx.text.charCodeAt(letterIndex);
+    if (!(code < 128 ? code >= 97 && code <= 122 : isLowercaseLetter(ctx.text[letterIndex] ?? "")))
+      return null;
+    const sentence = startsSentence(ctx.text, m.index, ctx.lang);
+    if (!(sentence || lineBreakBefore(ctx.text, m.index) !== null)) return null;
+    const letterEnd = graphemeEnd(ctx.text, letterIndex);
+    const letter = ctx.source.slice(letterIndex, letterEnd);
+    const bare = m[0].replace(TRAILING_PUNCTUATION_REGEX, "");
+    if (!(!isTechnicalToken(bare) && !keepsOwnCasing(bare))) return null;
+    if (bare.length === 1 && /^[ \t]*[=<>≤≥≠+−·×÷]/u.test(ctx.text.slice(m.index + 1))) return null;
+    const upper = letter.toUpperCase();
+    if (!(upper !== letter)) return null;
+    const word = {
+      wordStart: m.index,
+      range: { start: letterIndex, end: letterEnd },
+      upper,
+      wordEnd: m.index + bare.length,
+    };
+    return sentence ? capitalizeSentenceStart(ctx, word) : capitalizeAfterLineBreak(ctx, word);
+  },
+  // common.yaml rule pronounI frame 1
+  "@pronounI/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const start = m.index;
+    const before = ctx.text[start - 1] ?? "";
+    if (!(!/[@#/\\.=$\-[]/.test(before) && before !== MASK_CHAR)) return null;
+    const near = ctx.text.slice(Math.max(0, start - 24), start);
+    if (IDENTIFIER_BEFORE.test(near)) return null;
+    const rest = ctx.text.slice(start + 1, start + 1 + 40);
+    if (FORMULA_BEFORE.test(near) && !PRONOUN_VERB_AFTER.test(rest)) return null;
+    if (FORMULA_AFTER.test(rest)) return null;
+    if (
+      /\b(?:short|long)[ \t\u00A0]+$/i.test(ctx.text.slice(Math.max(0, start - 8), start)) &&
+      /^[ \t\u00A0]+sounds?\b/i.test(rest)
+    )
+      return null;
+    const contraction = /^['’](?:m|ve|ll|d)(?![\p{L}\p{N}])/u.test(rest);
+    if (!(contraction || !(before === "(" && !/^[ \t\u00a0]/.test(rest)))) return null;
+    const mark = !contraction && /^[,;!?]/.test(rest);
+    const period = !contraction && !mark && /^\.(?:\s|$)/u.test(rest);
+    if (!(!period || !/^\.\s+e\./i.test(rest))) return null;
+    if (!(
+      !period || ctx.text.slice(ctx.text.lastIndexOf("\n", start - 1) + 1, start).trim() !== ""
+    ))
+      return null;
+    if (!(!period || !NUMERAL_BEFORE.test(near))) return null;
+    const other = !contraction && !mark && !period;
+    const next = other ? /^[ \t\u00A0]+(\S+)/.exec(rest) : null;
+    if (!(
+      !other ||
+      next !== null ||
+      (/^\s*$/.test(rest) &&
+        /\b(?:than|and|as)[ \t\u00A0]+$/i.test(ctx.text.slice(Math.max(0, start - 12), start)))
+    ))
+      return null;
+    const following = next ? next[1].replace(TRAILING_PUNCTUATION_REGEX, "") : "";
+    if (!(
+      !next ||
+      (/^\p{L}+(?:['’]\p{L}+)?$/u.test(following) &&
+        !NON_PRONOUN_FOLLOWERS.has(following.toLowerCase()))
+    ))
+      return null;
+    const contextEnd =
+      start +
+      1 +
+      (contraction
+        ? /^['’]\w+/.exec(rest)![0].length
+        : mark || period
+          ? 1
+          : next
+            ? next[0].length
+            : 0);
+    const sentenceEnd = period || (other && !next);
+    return finding(
+      "englishPronounICapitalization",
+      "review_msg_pronoun_i",
+      start,
+      start + 1,
+      ["I"],
+      {
+        context: { start: previousTokensStart(ctx.text, start, 1), end: contextEnd },
+        bulkBlock: sentenceEnd ? "context-dependent" : undefined,
+      },
+    );
+  },
+  // common.yaml rule spellingWords frame 1
+  "@spellingWords/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return spellingFindings(m, ctx);
+  },
+  // common.yaml rule spelling frame 1
+  "@spelling/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return splitWord(m, ctx, frame, SPLIT_DE);
+  },
+  // common.yaml rule spelling frame 2
+  "@spelling/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return splitWord(m, ctx, frame, SPLIT_FR);
+  },
+  // common.yaml rule spelling frame 3
+  "@spelling/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(
+      m[0].toLowerCase() !== "aveces" ||
+      !/(?:^|\s)(?:me|te|se|nos|os)\s+$/iu.test(ctx.text.slice(Math.max(0, m.index - 6), m.index))
+    ))
+      return null;
+    return splitWord(m, ctx, frame, SPLIT_ES);
+  },
+  // common.yaml rule spelling frame 4
+  "@spelling/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(
+      m[0].toLowerCase() !== "atoa" ||
+      !/^[ \t\u00a0]+(?:[oa]s?|uns?|umas?|seus?|suas?|ess[ea]s?|est[ea]s?|aquel[ea]s?|nossos?|nossas?)(?![\p{L}])/iu.test(
+        ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 16),
+      ) ||
+      /(?<![\p{L}])(?:fic|and|est|viv)\p{L}*[ \t\u00a0]+$/iu.test(
+        ctx.text.slice(Math.max(0, m.index - 24), m.index),
+      )
+    ))
+      return null;
+    return splitWord(m, ctx, frame, SPLIT_PT);
+  },
+  // common.yaml rule spelling frame 5
+  "@spelling/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return splitWord(m, ctx, frame, SPLIT_PL);
+  },
+  // common.yaml rule spelling frame 6
+  "@spelling/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return splitWord(m, ctx, frame, SPLIT_SV);
+  },
+  // common.yaml rule spelling frame 7
+  "@spelling/7": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return splitWord(m, ctx, frame, SPLIT_HR);
+  },
+  // common.yaml rule spelling frame 8
+  "@spelling/8": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const typed = m[0];
+    const lower = typed.toLowerCase();
+    if (!(!ctx.dictionary.has(lower) && !namedExampleBefore(ctx.text, m.index))) return null;
+    if (!(typed !== "CEST")) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: m.index, end: m.index + typed.length },
+      alternatives: [
+        caseLike(typed, withTextApostrophes(ctx.text, m.index, FRENCH_ELISIONS[lower])),
+      ],
+      bulkBlock: "context-dependent",
+    };
+  },
+  // common.yaml rule spelling frame 9
+  "@spelling/9": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return markedApostrophe(m, ctx, frame, m[2], m[2] === "´");
+  },
+  // common.yaml rule spelling frame 10
+  "@spelling/10": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return markedApostrophe(m, ctx, frame, m[1], false);
+  },
+  // common.yaml rule spelling frame 11
+  "@spelling/11": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return markedApostrophe(m, ctx, frame, m[1], false);
+  },
+  // common.yaml rule spelling frame 12
+  "@spelling/12": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return markedApostrophe(m, ctx, frame, m[1], false);
+  },
+  // common.yaml rule modalOf frame 1
+  "@modalOf/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const hit = phraseMatch(ctx, m, MODAL_OF_REGEX, 3, modalOfLastWord);
+    if (!hit) return null;
+    if (OF_IDIOMS.has(hit.match[2].toLowerCase())) return null;
+    if (isNounMight(hit.match[1], ctx.text.slice(Math.max(0, hit.start - 24), hit.start)))
+      return null;
+    const modal = groupRange(hit.match, 1);
+    const ofStart = skipForwardWhile(ctx.text, modal.end, /\s/);
+    if (!(ctx.text.slice(ofStart, ofStart + 2).toLowerCase() === "of")) return null;
+    return {
+      ruleId: "englishModalOfCorrection",
+      messageKey: "review_msg_modal_of",
+      range: { start: hit.start, end: ofStart + 2 },
+      alternatives: [
+        `${ctx.source.slice(hit.start, ofStart)}${modalHaveWord(hit.match[1], ctx.text.slice(ofStart, ofStart + 2))}`,
+      ],
+      context: { start: hit.start, end: hit.end },
+    };
+  },
+  // common.yaml rule yourWelcome frame 1
+  "@yourWelcome/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const hit = phraseMatch(ctx, m, YOUR_WELCOME_REGEX, 2, yourWelcomeLastWord);
+    if (!hit) return null;
+    if (!(hit.end >= ctx.text.length || /^[.!?\r\n]/.test(ctx.text[hit.end]))) return null;
+    if (!opensClause(ctx.text, hit.start)) return null;
+    const phrase = hit.match[0];
+    const firstToken = phrase.split(/\s+/)[0];
+    const fixed = correctYourWelcome(firstToken);
+    const gap = phrase.slice(firstToken.length, phrase.length - "welcome".length);
+    return {
+      ruleId: "englishYourWelcomeCorrection",
+      messageKey: "review_msg_your_welcome",
+      range: { start: hit.start, end: hit.end },
+      alternatives: [`${fixed[0]}${gap}${fixed[1]}`],
+      context: {
+        start: Math.max(0, lastNonBlankBefore(ctx.text, hit.start)),
+        end: Math.min(ctx.text.length, hit.end + 1),
+      },
+    };
+  },
+  // common.yaml rule theirThere frame 1
+  "@theirThere/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const hit = phraseMatch(ctx, m, THEIR_THERE_BE_REGEX, 2, theirThereLastWord);
+    if (!hit) return null;
+    const phrase = hit.match[0];
+    const their = phrase.split(/\s+/)[0];
+    const fixed = correctTheirBeVerb(their, hit.match[1]);
+    const gap = phrase.slice(their.length, phrase.length - hit.match[1].length);
+    return finding("englishTheirThereBeVerb", "review_msg_their_there", hit.start, hit.end, [
+      `${fixed[0]}${gap}${fixed[1]}`,
+    ]);
+  },
+  // common.yaml rule pronounVerbFrames frame 1
+  "@pronounVerbFrames/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const gap = m.groups!.gap;
+    const verb = m.groups!.verb;
+    const next = m.groups!.next;
+    if (!clauseVerb(ctx, m, true)) return null;
+    const pronoun = subject.toLowerCase();
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (/\b(?:as|than|am|is|are|was|were)[ \t ]+$/i.test(before)) return null;
+    if (subject === "I" && LETTER_NAME_BEFORE.test(before)) return null;
+    if (!(applyWordCase(subject, detectWordCase(subject)) === subject || subject === "i"))
+      return null;
+    if (ctx.dictionary.has(pronoun)) return null;
+    if (/^[ \t ]+$/.test(gap) && AGREEMENT_CORRECTIONS.has(`${pronoun} ${verb.toLowerCase()}`))
+      return null;
+    const plural = /^(?:i|we|they|you)$/.test(pronoun);
+    const negative = /n['’]t$/i.exec(verb)?.[0] ?? "";
+    const word = (negative ? verb.slice(0, -negative.length) : verb).toLowerCase();
+    if (/^(?:we|you)$/.test(pronoun) && !negative && namesPronoun(word, next)) return null;
+    const corrected = pronounCorrection(ctx, m, pronoun, plural, negative, word, next);
+    if (!(!!corrected && corrected !== verb.toLowerCase())) return null;
+    const span = group(m, "verb");
+    return {
+      ruleId: "englishPronounVerbWhitelistAgreement",
+      messageKey: "review_msg_pronoun_verb",
+      range: { start: span[0], end: span[1] },
+      alternatives: [applyWordCase(corrected, detectWordCase(verb))],
+      context: {
+        start: Math.max(0, m.index - 96),
+        end: Math.min(ctx.text.length, m.index + m[0].length + 2),
+      },
+      bulkBlock: "context-dependent",
+    };
+  },
+  // common.yaml rule pronounVerb frame 1
+  "@pronounVerb/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const hit = phraseMatch(ctx, m, AGREEMENT_REGEX, 3, pronounVerbLastWord);
+    if (!hit) return null;
+    const phrase = hit.match[1];
+    const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "));
+    if (!corrected) return null;
+    const fixed = correctPronounVerb(phrase, corrected);
+    const typed = phrase.split(/\s+/);
+    const phraseRange = groupRange(hit.match, 1);
+    if (!(
+      typed[0] !== "i" ||
+      (!NON_PRONOUN_FOLLOWERS.has(typed[1].toLowerCase()) &&
+        !isVariableI(ctx.text, phraseRange.start))
+    ))
+      return null;
+    const lookback = ctx.text.slice(Math.max(0, phraseRange.start - 48), phraseRange.start);
+    if (typed[0].toLowerCase() === "it" && OBJECT_IT_BEFORE.test(lookback)) return null;
+    if (
+      typed[0] === "I" &&
+      /\b(?:a|an|the|set|ideal|matrix|phase|stage|type|part)[ \t\u00a0]+$/i.test(lookback)
+    )
+      return null;
+    const you = typed[0].toLowerCase() === "you";
+    if (!(!you || !isObjectYou(ctx.text, phraseRange.start))) return null;
+    if (!(
+      !you ||
+      !(OBJECT_GAP_YOU.test(lookback) && englishWordInfo(OBJECT_GAP_YOU.exec(lookback)![1])?.noun)
+    ))
+      return null;
+    const previous = PREVIOUS_WORD.exec(
+      ctx.text.slice(Math.max(0, phraseRange.start - 32), phraseRange.start),
+    )?.[1].toLowerCase();
+    const before = ctx.text.slice(Math.max(0, phraseRange.start - 12), phraseRange.start);
+    if (
+      /\b(?:as|than|am|is|are|was|were)[ \t\u00a0]+$/i.test(before) ||
+      (!you && /(?:\b(?:and|or|nor)|&)[ \t\u00a0]+$/i.test(before))
+    )
+      return null;
+    const gap = phrase.slice(typed[0].length, phrase.length - typed[1].length);
+    return {
+      ruleId: "englishPronounVerbWhitelistAgreement",
+      messageKey: "review_msg_pronoun_verb",
+      range: phraseRange,
+      alternatives: [`${fixed[0] === "i" ? "I" : fixed[0]}${gap}${fixed[1]}`],
+      context: { start: previousTokensStart(ctx.text, phraseRange.start, 1), end: hit.end },
+      bulkBlock:
+        you && !opensClause(ctx.text, phraseRange.start) && !YOU_SUBJECT_BEFORE.has(previous ?? "")
+          ? "context-dependent"
+          : undefined,
+    };
+  },
+  // common.yaml rule subjectAgreement frame 1
+  "@subjectAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 2
+  "@subjectAgreement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 3
+  "@subjectAgreement/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 4
+  "@subjectAgreement/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 5
+  "@subjectAgreement/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 6
+  "@subjectAgreement/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 7
+  "@subjectAgreement/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 8
+  "@subjectAgreement/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 9
+  "@subjectAgreement/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 10
+  "@subjectAgreement/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 11
+  "@subjectAgreement/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 12
+  "@subjectAgreement/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 13
+  "@subjectAgreement/13": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 14
+  "@subjectAgreement/14": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 15
+  "@subjectAgreement/15": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 16
+  "@subjectAgreement/16": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 17
+  "@subjectAgreement/17": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 18
+  "@subjectAgreement/18": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 19
+  "@subjectAgreement/19": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 20
+  "@subjectAgreement/20": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 21
+  "@subjectAgreement/21": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 22
+  "@subjectAgreement/22": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 23
+  "@subjectAgreement/23": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 24
+  "@subjectAgreement/24": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 25
+  "@subjectAgreement/25": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 26
+  "@subjectAgreement/26": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 27
+  "@subjectAgreement/27": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 28
+  "@subjectAgreement/28": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 29
+  "@subjectAgreement/29": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 30
+  "@subjectAgreement/30": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 31
+  "@subjectAgreement/31": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 32
+  "@subjectAgreement/32": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    const noun = m.groups!.noun;
+    const verb = m.groups!.verb;
+    const tail = m.groups!.tail;
+    if (!opensSentence(ctx.scanText, m.index)) return null;
+    if (!(`${noun} ${verb} ${tail}` === `${noun} ${verb} ${tail}`.toLowerCase())) return null;
+    if (!(!hasUserOrCasedWord(ctx, m[0]) && !AGREE_AUXILIARY.test(verb))) return null;
+    if (!(onlyAdverb(tail) || (LINKING.test(verb) && onlyAdjective(tail)))) return null;
+    const forms = englishNounNumber(noun);
+    const number = forms?.number;
+    if (!(
+      !!number &&
+      ![AGREEMENT_COLLECTIVE, ENGLISH_MASS_NOUNS, MASS_WITH_COUNT_SENSE].some((s) =>
+        s.has(forms.singular),
+      )
+    ))
+      return null;
+    if (englishWordInfo(noun)?.adjective) return null;
+    const d = det.toLowerCase();
+    if (
+      !(number === "singular"
+        ? !/^(?:these|those)$/.test(d)
+        : !/^(?:this|that|its|every|each)$/.test(d))
+    )
+      return null;
+    const verbForms = englishVerbForms(verb);
+    const info = englishWordInfo(verb);
+    const fix =
+      number === "singular"
+        ? (
+            verbForms
+              ? verb === verbForms.lemma &&
+                verb !== verbForms.past &&
+                !verbForms.ambiguous.includes(verb)
+              : !!info?.verbs.some((v) => v.form === "base") &&
+                !info.verbs.some((v) => v.form === "past" || v.form === "participle")
+          )
+          ? (verbForms?.third ?? englishInflect(verb, "third"))
+          : null
+        : (verbForms ? verb === verbForms.third : !!info?.verbs.some((v) => v.form === "third"))
+          ? (verbForms?.lemma ?? englishLemma(verb, "third"))
+          : null;
+    if (!(!!fix && fix !== verb)) return null;
+    const span = group(m, "verb");
+    return {
+      ruleId: "englishSubjectVerbAgreement",
+      messageKey: "review_msg_pronoun_verb",
+      range: { start: span[0], end: span[1] },
+      alternatives: [fix],
+      context: {
+        start: Math.max(0, m.index - 96),
+        end: Math.min(ctx.text.length, m.index + m[0].length + 2),
+      },
+    };
+  },
+  // common.yaml rule existentialAgreement frame 1
+  "@existentialAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const quantity = m.groups!.quantity;
+    const noun = m.groups!.noun;
+    if (!clauseVerb(ctx, m, false)) return null;
+    const number = knownEnglishNounNumber(noun);
+    if (!(!!number && !ctx.dictionary.has(noun.toLowerCase()))) return null;
+    const singularQuantity = /^(?:a|an|one|0*1)$/i.test(quantity);
+    if (!((number === "singular") === singularQuantity)) return null;
+    if (!(!singularQuantity || /^(?:[.!?]|$)/.test(ctx.text.slice(m.index + m[0].length))))
+      return null;
+    const past = /^(?:was|were)$/i.test(verb);
+    const expected = number === "singular" ? (past ? "was" : "is") : past ? "were" : "are";
+    if (!(verb.toLowerCase() !== expected)) return null;
+    const span = group(m, "verb");
+    return {
+      ruleId: "englishExistentialAgreement",
+      messageKey: "review_msg_existential_agreement",
+      range: { start: span[0], end: span[1] },
+      alternatives: [applyWordCase(expected, detectWordCase(verb))],
+      context: {
+        start: Math.max(0, m.index - 96),
+        end: Math.min(ctx.text.length, m.index + m[0].length + 2),
+      },
+    };
+  },
+  // common.yaml rule existentialAgreement frame 2
+  "@existentialAgreement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const there = m.groups!.there;
+    const verb = m.groups!.verb;
+    const contracted = m.groups!.contracted;
+    const qverb = m.groups!.qverb;
+    const noun = m.groups!.noun;
+    const tail = m.groups!.tail;
+    const number = knownEnglishNounNumber(noun) ?? derivedNounNumber(noun);
+    if (!(!!number && !ctx.dictionary.has(noun.toLowerCase()))) return null;
+    if (!(noun === noun.toLowerCase())) return null;
+    const typed = verb ?? contracted ?? qverb;
+    const past = /^(?:was|were)$/i.test(typed);
+    const plural = number === "plural";
+    if (!(plural !== /^(?:are|were)$/i.test(typed))) return null;
+    if (!(plural || tail !== undefined)) return null;
+    const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
+    if (!(
+      !there ||
+      /(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:if|when|whether|that|because|since|so|and|but|or|then|where|as|while|unless|until|once|now|currently|also|still|maybe|perhaps|think|guess|see|saw|seems|noticed|sure|know|knew|hope|realized|believe|said)[ \t ]+)$/i.test(
+        before,
+      )
+    ))
+      return null;
+    if (!(!qverb || /(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:and|but|or|so)[ \t ]+)$/i.test(before)))
+      return null;
+    const kase = detectWordCase(typed.replace(/^['’]/, ""));
+    const verbSpan = group(m, verb ? "verb" : contracted ? "contracted" : "qverb");
+    const start = plural ? verbSpan[0] : m.index;
+    if (!(start >= ctx.from && start < ctx.to)) return null;
+    const end = plural ? verbSpan[1] : group(m, "noun")[1];
+    const alternatives = plural
+      ? [`${contracted ? " " : ""}${applyWordCase(past ? "were" : "are", kase)}`]
+      : singularExistential(ctx, m, noun, typed, past, kase);
+    return {
+      ruleId: "englishExistentialAgreement",
+      messageKey: "review_msg_existential_agreement",
+      range: { start, end },
+      alternatives,
+      requiresChoice: plural ? undefined : (true as const),
+      context: {
+        start: Math.max(0, m.index - 96),
+        end: Math.min(ctx.text.length, m.index + m[0].length + 2),
+      },
+    };
+  },
+  // common.yaml rule articleAn frame 1
+  "@articleAn/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const hit = phraseMatch(ctx, m, ARTICLE_REGEX, 2, articleAnLastWord);
+    if (!hit) return null;
+    const article = hit.match[1];
+    const word = hit.match[2];
+    if (/^(?:an?|the)$/i.test(word)) return null;
+    const corrected = correctArticle(article, word, ctx.dictionary);
+    if (!corrected) return null;
+    const lineStart = lastIndexInChunk(ctx, "\n", hit.start - 1) + 1;
+    const sliceStart = Math.max(lineStart, hit.start - 400);
+    const beforeArticle = `${sliceStart > lineStart ? "x " : ""}${ctx.text.slice(sliceStart, hit.start)}`;
+    if (!(article[0] !== "A" || SENTENCE_START_REGEX.test(beforeArticle))) return null;
+    if (!isArticleContext(beforeArticle)) return null;
+    const articleRange = groupRange(hit.match, 1);
+    return {
+      ruleId: "englishArticleAnCorrection",
+      messageKey: "review_msg_article",
+      range: { start: articleRange.start, end: hit.end },
+      alternatives: [`${corrected}${ctx.source.slice(articleRange.end, hit.end)}`],
+      context: { start: Math.max(0, hit.start - 24), end: hit.end },
+    };
+  },
+  // common.yaml rule ordinal frame 1
+  "@ordinal/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    const digits = m[1];
+    const suffix = m[2];
+    const expected = ordinalSuffix(digits);
+    if (!(suffix !== expected && !isGluedToTechnical(ctx.text, start, end))) return null;
+    return suffix !== suffix.toLowerCase()
+      ? suffix.toLowerCase() !== expected ||
+        isAllCapsContext(ctx.text, start, end) ||
+        overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })
+        ? null
+        : {
+            ruleId: "englishOrdinalSuffix",
+            messageKey: "review_msg_ordinal_case",
+            context: { start: Math.max(0, start - 24), end: Math.min(ctx.text.length, end + 24) },
+            range: { start, end },
+            alternatives: [`${digits}${expected}`],
+            bulkBlock: "context-dependent",
+          }
+      : suffix === "rd" ||
+          (suffix === "st" &&
+            !/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)[ \t\u00a0]+$/i.test(
+              ctx.text.slice(Math.max(0, start - 24), start),
+            )) ||
+          overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })
+        ? null
+        : finding(
+            "englishOrdinalSuffix",
+            "review_msg_ordinal",
+            start,
+            end,
+            [`${digits}${expected}`],
+            {
+              context: { start: Math.max(0, start - 24), end },
+            },
+          );
+  },
+  // common.yaml rule properNouns frame 1
+  "@properNouns/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(ctx.lang === "en_US")) return null;
+    const wordEnd = m.index + m[0].length;
+    const code = m[0].charCodeAt(0);
+    if (
+      !(code >= 48 && code <= 57
+        ? couldEndProperName(m[0], ctx.text.slice(Math.max(0, m.index - 12), m.index))
+        : couldEndNameWord(m[0]))
+    )
+      return null;
+    const windowStart = Math.max(0, wordEnd - 160);
+    const core = ctx.text.slice(windowStart, wordEnd);
+    const name =
+      findProperName(core) ??
+      (isMonthInContext(
+        m[0],
+        ctx.text.slice(Math.max(0, m.index - 48), m.index),
+        ctx.text.slice(wordEnd, wordEnd + 24),
+      )
+        ? {
+            start: core.length - m[0].length,
+            end: core.length,
+            canonical: m[0][0].toUpperCase() + m[0].slice(1),
+            contextual: true,
+          }
+        : null);
+    if (!name) return null;
+    const start = windowStart + name.start;
+    if (!(ownedByChunk(ctx, start) && !isGluedToTechnical(ctx.text, start, wordEnd))) return null;
+    const end = windowStart + name.end;
+    const replaced = properNameReplacement(
+      ctx.text.slice(start, end),
+      name.canonical,
+      ctx.dictionary,
+    );
+    if (!(replaced !== null)) return null;
+    return finding(
+      "englishProperNounCapitalization",
+      "review_msg_proper_noun",
+      start,
+      end,
+      [replaced],
+      {
+        context: name.contextual
+          ? { start: Math.max(0, start - 16), end: wordEnd + 16 }
+          : undefined,
+        bulkBlock: name.contextual ? "context-dependent" : undefined,
+      },
+    );
+  },
+  // common.yaml rule properNouns.de frame 1
+  "@properNouns.de/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const typed = m[0];
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (!(
+      typed !== "august" ||
+      /(?:(?<![\p{L}])(?:im|anfang|ende|mitte|seit|bis|ab|vom|zum|nächsten|letzten|diesen|kommenden)|\d{1,2}\.)[ \t\u00a0]+$/iu.test(
+        before,
+      )
+    ))
+      return null;
+    if (!(!ctx.dictionary.has(typed) && !namedExampleBefore(ctx.text, m.index))) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: m.index, end: m.index + 1 },
+      alternatives: [typed[0].toUpperCase()],
+      context: { start: Math.max(0, m.index - 24), end: m.index + typed.length },
+      bulkBlock: "context-dependent",
+    };
+  },
+  // common.yaml rule commaPeriodSpacing frame 1
+  "@commaPeriodSpacing/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const end = m.index + m[0].length;
+    const mark = ctx.source[end];
+    const moveSpace =
+      ctx.insertSpaceAfterAutocomplete && /^\p{L}{2}/u.test(ctx.text.slice(end + 1, end + 3));
+    return {
+      ruleId: "commaPeriodSpacing",
+      messageKey: mark === "؛" ? "review_msg_space_before_mark" : "review_msg_space_before_comma",
+      range: { start: m.index, end: end + 1 },
+      alternatives: [moveSpace ? `${mark} ` : mark],
+      context: { start: m.index - 1, end: end + (moveSpace ? 2 : 1) },
+      bulkBlock: mark === "؛" ? "context-dependent" : undefined,
+    };
+  },
+  // common.yaml rule commaPeriodSpacing frame 2
+  "@commaPeriodSpacing/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m[1] === "." || !usesFrenchPunctuationSpacing(ctx.lang))) return null;
+    if (!(!/[;\u037E]/.test(m[1]) || isGreekQuestionMark(m[1], ctx.lang))) return null;
+    const end = m.index + m[0].length;
+    if (STANDALONE_MARK_FOLLOWER.test(ctx.text.slice(end, end + 8)) && namesMark(ctx.text, end - 1))
+      return null;
+    return finding("commaPeriodSpacing", "review_msg_space_before_mark", m.index, end, [m[1]], {
+      context: { start: m.index - 1, end },
+      bulkBlock: /[.?!]/.test(m[1]) ? undefined : "context-dependent",
+    });
+  },
+  // common.yaml rule commaPeriodSpacing frame 3
+  "@commaPeriodSpacing/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return {
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_space_after_opening_mark",
+      range: { start: m.index - 1, end: m.index + m[0].length },
+      alternatives: [ctx.source[m.index - 1]],
+      context: { start: m.index - 1, end: m.index + m[0].length + 1 },
+      bulkBlock: "context-dependent",
+    };
+  },
+  // common.yaml rule commaPeriodSpacing frame 4
+  "@commaPeriodSpacing/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const end = m.index + m[0].length;
+    const wordFollows = end < ctx.text.length && !/\s/.test(ctx.text[end]);
+    return {
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_wide_comma",
+      range: { start: m.index, end },
+      alternatives: [wordFollows ? ", " : ","],
+      context: { start: m.index - 1, end: end + 1 },
+    };
+  },
+  // common.yaml rule commaPeriodSpacing frame 5
+  "@commaPeriodSpacing/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const sign = m.index + m[0].length - 1;
+    const tokenStart = tokenStartBefore(ctx.text, m.index);
+    const tokenEnd = ctx.text.slice(sign).search(/\s|$/) + sign;
+    if (/[\uFFFC@#/\\_=:;<>{}[\]$&+]/u.test(ctx.text.slice(tokenStart, tokenEnd))) return null;
+    return {
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_space_after_mark",
+      range: { start: sign, end: sign + 1 },
+      alternatives: ["% "],
+      context: { start: tokenStart, end: tokenEnd },
+    };
+  },
+  // common.yaml rule commaPeriodSpacing frame 6
+  "@commaPeriodSpacing/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!ctx.insertSpaceAfterAutocomplete) return null;
+    const tokenStart = tokenStartBefore(ctx.text, m.index);
+    const tokenEnd = tokenEndAfter(ctx.text, m.index);
+    const token = ctx.text.slice(tokenStart, tokenEnd);
+    if ((token.match(/[,،]/g)?.length ?? 0) > 1 || /[\uFFFC@#/\\_=.:;]/u.test(token)) return null;
+    return {
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_space_after_comma",
+      range: { start: m.index, end: m.index + 1 },
+      alternatives: [`${ctx.source[m.index]} `],
+      context: { start: tokenStart, end: tokenEnd },
+    };
+  },
+  // common.yaml rule repeatedSpaces frame 1
+  "@repeatedSpaces/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (alignedInChunk(ctx, lastIndexInChunk(ctx, "\n", m.index) + 1, m.index)) return null;
+    return finding(
+      "collapseRepeatedSpaces",
+      "review_msg_repeated_spaces",
+      m.index,
+      m.index + m[0].length,
+      [ctx.source[m.index]],
+    );
+  },
+  // common.yaml rule duplicatePunctuation frame 1
+  "@duplicatePunctuation/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const start = m.index;
+    if (isGluedToTechnical(ctx.text, start, start)) return null;
+    const end = m.index + m[0].length;
+    const polishQuote =
+      isLang(ctx, "pl") &&
+      m[0] === ",," &&
+      /^$|\s$/u.test(ctx.text.slice(Math.max(0, start - 1), start)) &&
+      /^[\p{L}\p{N}][^\n„]{0,200}?[\p{L}\p{N}.!?…](?:”|"|''|’’)/u.test(
+        ctx.text.slice(end, end + 210),
+      );
+    return finding("duplicatePunctuationCollapse", "review_msg_duplicate_punctuation", start, end, [
+      polishQuote ? "„" : m[1],
+    ]);
+  },
+  // common.yaml rule duplicatePunctuation frame 2
+  "@duplicatePunctuation/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (
+      isLang(ctx, "de") &&
+      /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+    )
+      return null;
+    return /^\s+\p{Ll}/u.test(ctx.text.slice(m.index + 2, m.index + 12))
+      ? {
+          ruleId: "duplicatePunctuationCollapse",
+          messageKey: "review_msg_ellipsis_length",
+          range: { start: m.index, end: m.index + 2 },
+          alternatives: ["..."],
+        }
+      : {
+          ruleId: "duplicatePunctuationCollapse",
+          messageKey: "review_msg_duplicate_punctuation",
+          range: { start: m.index, end: m.index + 2 },
+          alternatives: [".", "..."],
+          requiresChoice: true,
+        };
+  },
+  // common.yaml rule duplicatePunctuation frame 3
+  "@duplicatePunctuation/3": (m: RegExpExecArray): MatchResult => {
+    return {
+      ruleId: "duplicatePunctuationCollapse",
+      messageKey: "review_msg_ellipsis_length",
+      range: { start: m.index, end: m.index + 2 },
+      alternatives: ["...", "."],
+      requiresChoice: true,
+    };
+  },
+  // common.yaml rule duplicatePunctuation frame 4
+  "@duplicatePunctuation/4": (m: RegExpExecArray): MatchResult => {
+    return {
+      ruleId: "duplicatePunctuationCollapse",
+      messageKey: "review_msg_ellipsis_length",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: ["..."],
+      bulkBlock: m[0].length === 4 ? "context-dependent" : undefined,
+    };
+  },
+  // common.yaml rule quoteSpacing frame 1
+  "@quoteSpacing/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pair = resolveTypographyProfile(ctx.lang).double;
+    const directional = pair[0] !== pair[1];
+    const marks = directional ? `"${pair[0]}${pair[1]}` : `"${pair[0]}`;
+    const start = m.index;
+    const mark = m[0];
+    if (!(
+      (/[\p{L}\p{N}]/u.test(ctx.scanText[start - 1] ?? "") && marks.includes(mark)) ||
+      (directional && mark === pair[1] && /[.,!?]/.test(ctx.scanText[start - 1] ?? ""))
+    ))
+      return null;
+    const straight = !directional || mark === '"';
+    if (straight && /\p{N}/u.test(ctx.text[start - 1])) return null;
+    if (straight && ctx.lang.startsWith("en") && quotedContraction(ctx.text, start)) return null;
+    const spaceBefore = ` ${ctx.source[start]}`;
+    const spaceAfter = `${ctx.source[start]} `;
+    const paragraphStart = straight ? lastIndexInChunk(ctx, "\n\n", start) : -1;
+    const opened =
+      ctx.text.slice(paragraphStart < 0 ? 0 : paragraphStart + 2, start).split(mark).length % 2 ===
+      0;
+    return finding(
+      "quoteSpacing",
+      "review_msg_quote_spacing",
+      start,
+      start + 1,
+      straight
+        ? opened
+          ? [spaceAfter, spaceBefore]
+          : [spaceBefore, spaceAfter]
+        : [mark === pair[0] ? spaceBefore : spaceAfter],
+      { context: { start: Math.max(0, start - 1), end: start + 2 } },
+    );
+  },
+  // common.yaml rule primeSymbols frame 1
+  "@primeSymbols/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (m[1] === "′" && m[3] === "″") return null;
+    const end = m.index + m[0].length;
+    return {
+      ruleId: "primeSymbols",
+      messageKey: "review_msg_prime_symbols",
+      range: { start: m.index, end },
+      alternatives: [`′${ctx.source.slice(m.index + 1, end - 1)}″`],
+      context: { start: Math.max(0, m.index - 8), end: Math.min(ctx.text.length, end + 1) },
+    };
+  },
+  // common.yaml rule primeSymbols frame 2
+  "@primeSymbols/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return finding("primeSymbols", "review_msg_prime_symbols", m.index, m.index + 1, ["′"], {
+      context: { start: Math.max(0, m.index - 8), end: Math.min(ctx.text.length, m.index + 2) },
+    });
+  },
+  // common.yaml rule typedDashes frame 1
+  "@typedDashes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(ctx.text.slice(ctx.text.lastIndexOf("\n", m.index - 1) + 1, m.index).trim() !== ""))
+      return null;
+    const end = m.index + m[0].length;
+    const before = ctx.text[m.index - 1] ?? "";
+    const after = ctx.text[end] ?? "";
+    if (/\s/.test(before) && /[\p{L}\p{N}]/u.test(after)) return null;
+    return finding(
+      "emdashShortcut",
+      "review_msg_typed_dash",
+      m.index,
+      end,
+      m[0].length === 3
+        ? ["—"]
+        : /\p{N}/u.test(before) && /\p{N}/u.test(after)
+          ? ["–"]
+          : isLang(ctx, "en")
+            ? ["—", "–"]
+            : ["–", "—"],
+      { context: { start: Math.max(0, m.index - 1), end: Math.min(ctx.text.length, end + 1) } },
+    );
+  },
+  // common.yaml rule measurement frame 1
+  "@measurement/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return unitToken(m, ctx, frame);
+  },
+  // common.yaml rule measurement frame 2
+  "@measurement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const separator = resolveMeasurementLocale(ctx.lang)?.separator ?? " ";
+    return {
+      ruleId: "measurementUnitFormatting",
+      messageKey: "review_msg_kelvin_degree",
+      range: { start: m.index, end: m.index + 2 },
+      alternatives: [/\p{N}/u.test(ctx.text[m.index - 1]) ? `${separator}K` : "K"],
+      context: { start: Math.max(0, m.index - 1), end: m.index + 2 },
+    };
+  },
+  // common.yaml rule measurement.de frame 1
+  "@measurement.de/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return germanGluedUnit(m, ctx, frame);
+  },
+  // common.yaml rule measurement.de frame 2
+  "@measurement.de/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const n = m.groups!.n;
+    return germanUnitFinding(ctx, m, [`${n}°`, `${n} °C`], "review_msg_measurement_spacing");
+  },
+  // common.yaml rule currency frame 1
+  "@currency/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return unitToken(m, ctx, frame);
+  },
+  // common.yaml rule currency.de frame 1
+  "@currency.de/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return germanGluedUnit(m, ctx, frame);
+  },
+  // common.yaml rule currencyPlacement frame 1
+  "@currencyPlacement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(ctx.lang === "en_US")) return null;
+    const end = m.index + m[0].length;
+    const lineStart = ctx.text.lastIndexOf("\n", m.index) + 1;
+    const lineBreak = ctx.text.indexOf("\n", end);
+    const lineEnd = lineBreak < 0 ? ctx.text.length : lineBreak;
+    if (m[3] === "$" && /\$[\p{L}\\{(_]/u.test(ctx.text.slice(lineStart, lineEnd))) return null;
+    return {
+      ruleId: "currencySpacing",
+      messageKey: "review_msg_currency_placement",
+      range: { start: m.index, end },
+      alternatives: [m[4] ? `${m[4]}¢` : `${m[3]}${m[1]}${m[2] ?? ""}`],
+      context: { start: lineStart, end: lineEnd },
+      bulkBlock: "context-dependent",
+    };
+  },
+  // common.yaml rule dateTense.de frame 1
+  "@dateTense.de/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (DE_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, DE_CONDITIONAL, DE_BOUNDARY, "de");
+  },
+  // common.yaml rule dateTense.fr frame 1
+  "@dateTense.fr/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (FR_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, FR_CONDITIONAL, FR_BOUNDARY, "fr");
+  },
+  // common.yaml rule dateTense.fr frame 2
+  "@dateTense.fr/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (FR_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, FR_CONDITIONAL, FR_BOUNDARY, "fr");
+  },
+  // common.yaml rule dateTense.es frame 1
+  "@dateTense.es/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (ES_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, ES_CONDITIONAL, ES_BOUNDARY, "es");
+  },
+  // common.yaml rule dateTense.es frame 2
+  "@dateTense.es/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (ES_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, ES_CONDITIONAL, ES_BOUNDARY, "es");
+  },
+  // common.yaml rule dateTense.pt frame 1
+  "@dateTense.pt/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (PT_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, PT_CONDITIONAL, PT_BOUNDARY, "pt");
+  },
+  // common.yaml rule dateTense.pt frame 2
+  "@dateTense.pt/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (PT_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, PT_CONDITIONAL, PT_BOUNDARY, "pt");
+  },
+  // common.yaml rule dateTense.pt frame 3
+  "@dateTense.pt/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (PT_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, PT_CONDITIONAL, PT_BOUNDARY, "pt");
+  },
+  // common.yaml rule dateTense.pl frame 1
+  "@dateTense.pl/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (PL_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, PL_CONDITIONAL, PL_BOUNDARY, "pl");
+  },
+  // common.yaml rule dateTense.pl frame 2
+  "@dateTense.pl/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (PL_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, PL_CONDITIONAL, PL_BOUNDARY, "pl");
+  },
+  // common.yaml rule dateTense.ar frame 1
+  "@dateTense.ar/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      digitValue(g.year),
+      g.name ? (AR_MONTHS[g.name] ?? 0) : digitValue(g.month),
+      digitValue(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, AR_CONDITIONAL, AR_BOUNDARY, "ar");
+  },
+};
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
-export const FILTERS: Readonly<Record<string, FindingsFilter>> = {};
+export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
+  // common.yaml rule nounNumber filter
+  "@nounNumber/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return firstPerStart(findings);
+  },
+  // common.yaml rule usagePhrases filter
+  "@usagePhrases/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return findings.filter(
+      (f) =>
+        f.alternatives[0] !== "Knew" &&
+        !/\b(?:metaphor|poetic|creative|deliberate|deliberately|dialect|invented)\b/i.test(
+          ctx.scanText.slice(f.context!.start, f.context!.end),
+        ),
+    );
+  },
+  // common.yaml rule contextualCompounds filter
+  "@contextualCompounds/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    const starts = new Set<number>();
+    return findings.filter(
+      ({ range: { start, end } }) =>
+        ctx.text.slice(start, end) === ctx.text.slice(start, end).toLowerCase() &&
+        !starts.has(start) &&
+        !!starts.add(start),
+    );
+  },
+  // common.yaml rule auxiliaryForms filter
+  "@auxiliaryForms/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    const ends = new Set<number>();
+    return findings.filter((f) => !ends.has(f.range.end) && !!ends.add(f.range.end));
+  },
+  // common.yaml rule pronounCase filter
+  "@pronounCase/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return firstPerStart(findings);
+  },
+  // common.yaml rule wordConfusions filter
+  "@wordConfusions/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return firstPerStart(findings);
+  },
+  // common.yaml rule subjectAgreement filter
+  "@subjectAgreement/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return firstPerStart(findings).filter(
+      (d) =>
+        ctx.source.slice(d.range.start, d.range.end) ===
+          ctx.source.slice(d.range.start, d.range.end).toLowerCase() &&
+        !/\b(?:suggest|suggested|insist|insisted|demand|demanded|essential|important|wish|if|unless)\b/i.test(
+          ctx.text.slice(d.context!.start, d.range.start),
+        ),
+    );
+  },
+  // common.yaml rule properNouns filter
+  "@properNouns/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return findings.filter(
+      (f) =>
+        !findings.some(
+          (other) =>
+            other !== f &&
+            other.range.start <= f.range.start &&
+            other.range.end >= f.range.end &&
+            other.range.end - other.range.start > f.range.end - f.range.start,
+        ),
+    );
+  },
+};
 
 /** The Review detectors of rules with code, by rule ("@<rule id>"). */
-export const DETECTORS: Readonly<Record<string, Detector>> = {};
+export const DETECTORS: Readonly<Record<string, Detector>> = {
+  // common.yaml rule phraseTables
+  "@phraseTables": (ctx: DetectContext): RawFinding[] => {
+    return phraseRows(ctx);
+  },
+};
 
 /** The typing rules with code, by rule ("@<rule id>"). */
 export const LIVE: Readonly<Record<string, LiveCode>> = {
@@ -1865,18 +9599,18 @@ export const LIVE: Readonly<Record<string, LiveCode>> = {
       const boundary = resolveEnglishBoundaryContext(context);
       if (!boundary) return null;
       if (!(boundary.trailing !== ".")) return null;
-      const found = findProperName(boundary.core);
-      if (!found) return null;
-      if (isTechnicalToken(boundary.core.slice(runStart(boundary.core, found.start, /\S/))))
+      const name = findProperName(boundary.core);
+      if (!name) return null;
+      if (isTechnicalToken(boundary.core.slice(runStart(boundary.core, name.start, /\S/))))
         return null;
-      const typed = boundary.core.slice(found.start, found.end);
+      const typed = boundary.core.slice(name.start, name.end);
       const replaced = properNameReplacement(
         typed,
-        found.canonical,
+        name.canonical,
         normalizeWordSet(context.hints?.userDictionary ?? []),
       );
       if (!(replaced !== null)) return null;
-      return replaceFrom(boundary, found.start, `${replaced}${boundary.core.slice(found.end)}`);
+      return replaceFrom(boundary, name.start, `${replaced}${boundary.core.slice(name.end)}`);
     },
   },
   // common.yaml rule commaPeriodSpacing.live

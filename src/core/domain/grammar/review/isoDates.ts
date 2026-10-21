@@ -2,7 +2,6 @@ import { emphasisOpenLength } from "./markdownEmphasis";
 import { daysInMonth } from "./reviewClock";
 import type { DetectContext } from "./reviewDetectors";
 import type { TextRange } from "./types";
-import type { MatchFixer } from "../engine/reviewRules";
 
 /** A version word right before a token: "Version ", "v ", "build ", "Fassung ", "wersja ". */
 const VERSION_WORD_BEFORE =
@@ -41,20 +40,3 @@ export function invalidIsoDate(m: RegExpExecArray, ctx: DetectContext): TextRang
     return null;
   return { start: m.index, end };
 }
-
-/** The named frame fixes of grammar/rules/*.yaml (`fixer: common:<name>`). */
-export const FIXERS = {
-  /** An impossible ISO date: a warning with the rule and message of the frame. */
-  invalidIsoDate: (m, ctx, frame) => {
-    const range = invalidIsoDate(m, ctx);
-    return (
-      range && {
-        ruleId: frame.ruleId,
-        messageKey: frame.messageKey,
-        range,
-        alternatives: [],
-        warningOnly: true,
-      }
-    );
-  },
-} satisfies Record<string, MatchFixer>;
