@@ -45,6 +45,7 @@ export { finding } from "../review/finding";
 export { gluedAfter } from "../review/phraseTemplates";
 export { resolveMeasurementLocale } from "../measurement/registry";
 export { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../review/reviewClock";
+export type { ClauseToken } from "../review/clauseReader";
 export {
   clauseTokensAfter,
   skipComplements,

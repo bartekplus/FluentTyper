@@ -73,7 +73,7 @@ const CONJUGATIONS = [
   "dizia dizia dizíamos diziam",
 ].map((row) => row.split(" "));
 /** The columns of a row of PT_FORM_ROWS. */
-export const PT_ROW_PERSONS = ["eu", "ele", "nós", "eles"] as const;
+export const PT_ROW_PERSONS: readonly string[] = ["eu", "ele", "nós", "eles"];
 /** Each form of a frequent irregular verb -> the rows (tenses) it belongs to: first singular,
  * third singular, first plural, third plural. */
 export const PT_FORM_ROWS: ReadonlyMap<string, readonly (readonly string[])[]> = (() => {

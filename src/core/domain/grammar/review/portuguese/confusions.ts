@@ -7,7 +7,7 @@ import type { ReviewMessageKey } from "../types";
  * code are in grammar/rules/pt_BR.yaml.
  */
 
-export const CLAUSE_BEFORE = /(?:^|[.!?:;][ \t\r\n "”»)]{0,8}|\n[ \t ]{0,8})$/;
+export const CLAUSE_BEFORE = /(?:^|[.!?:;][ \t\r\n\u00a0"”»)]{0,8}|\n[ \t\u00a0]{0,8})$/;
 
 /** A finding for the `target` group of `m`, in the typed casing; user-dictionary words stay. */
 export function pushFinding(

@@ -2,9 +2,26 @@
 // The code of grammar/rules/pt_BR.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, MatchResult, RawFinding } from "../../library";
+import type {
+  ClauseToken,
+  DetectContext,
+  MatchResult,
+  PtNoun,
+  PtPerson,
+  PtSubjunctive,
+  RawFinding,
+} from "../../library";
 import {
+  PT_CLAUSE,
+  PT_FORM_ROWS,
+  PT_NOT_FINITE,
+  PT_NOT_NOUNS,
+  PT_NOT_PLURAL_VERBS,
+  PT_NOT_VERBS,
+  PT_ROW_PERSONS,
+  PT_SINGULAR_IN_S,
   applyWordCase,
+  clauseTokensAfter,
   contextYear,
   daysInMonth,
   detectWordCase,
@@ -13,15 +30,33 @@ import {
   namedExampleBefore,
   nearestDayOn,
   ptAccentedTwins,
+  ptClauseVerb,
   ptConjugate,
+  ptFiniteLookalike,
+  ptFiniteVerb,
+  ptFutureOfPast,
   ptInfinitive,
+  ptInflect,
+  ptKnownVerb,
   ptNoun,
+  ptPastOfFuture,
   ptPlainVowels,
+  ptPlural,
+  ptPluralVerb,
   ptRStem,
+  ptSingular,
+  ptSingularVerb,
+  ptSubjunctive,
+  ptVerbReadings,
   ptVerbSlots,
+  ptVerbStems,
   ptVerbTwin,
   resolveMeasurementLocale,
+  skipComplements,
+  skipCoordinated,
+  skipPostnominal,
   userWord,
+  verbAfterRelative,
   weekdayOf,
   yearsFor,
 } from "../../library";
@@ -196,6 +231,429 @@ export const STATEMENT_VERB: ReadonlySet<string> = new Set([
   "depende",
   "interessa",
   "importa",
+]);
+
+export const PRONOUN_LIKE: ReadonlySet<string> = new Set(["o", "a", "os", "as", "nos"]);
+
+export const QUANTIFIERS: ReadonlySet<string> = new Set(["muita", "pouca", "tanta"]);
+
+export const NAMING: ReadonlySet<string> = new Set([
+  "palavra",
+  "palavras",
+  "termo",
+  "termos",
+  "nome",
+  "nomes",
+  "expressão",
+  "verbo",
+  "adjetivo",
+  "cor",
+  "tom",
+  "estilo",
+  "tipo",
+  "marca",
+]);
+
+export const VERB_NOT_SUBJECT_NOUNS: ReadonlySet<string> = new Set([
+  "vezes",
+  "anos",
+  "meses",
+  "semanas",
+  "dias",
+  "horas",
+  "minutos",
+  "segundos",
+  "tempos",
+  "décadas",
+  "séculos",
+  "instantes",
+  "momentos",
+  "ano",
+  "dia",
+  "mês",
+  "semana",
+  "vez",
+  "hora",
+  "minuto",
+  "segundo",
+  "século",
+  "momento",
+  "período",
+  "tempo",
+  "fim",
+  "verão",
+  "inverno",
+  "outono",
+  "primavera",
+  "sábado",
+  "domingo",
+  "gente",
+  "resto",
+  "pé",
+  "cavalo",
+]);
+
+export const DISTANT_COLLECTIVE: ReadonlySet<string> = new Set([
+  "maioria",
+  "minoria",
+  "metade",
+  "parte",
+  "resto",
+  "porção",
+  "porcentagem",
+  "percentagem",
+  "totalidade",
+  "quantidade",
+  "número",
+  "grupo",
+  "conjunto",
+  "série",
+  "dezena",
+  "centena",
+  "milhar",
+  "milhão",
+  "milhões",
+  "bilhão",
+  "bilhões",
+  "par",
+  "tipo",
+  "espécie",
+]);
+
+export const VERB_PLURAL_LEADS: ReadonlySet<string> = new Set([
+  "os",
+  "as",
+  "uns",
+  "umas",
+  "estes",
+  "estas",
+  "esses",
+  "essas",
+  "aqueles",
+  "aquelas",
+  "meus",
+  "minhas",
+  "teus",
+  "tuas",
+  "seus",
+  "suas",
+  "nossos",
+  "nossas",
+  "alguns",
+  "algumas",
+  "muitos",
+  "muitas",
+  "vários",
+  "várias",
+]);
+
+export const VERB_NEXT: ReadonlySet<string> = new Set([
+  "seja",
+  "sejam",
+  "esteja",
+  "estejam",
+  "fique",
+  "fiquem",
+  "fosse",
+  "fossem",
+  "estivesse",
+  "estivessem",
+  "ficasse",
+  "ficassem",
+  "é",
+  "são",
+  "está",
+  "estão",
+  "era",
+  "eram",
+  "foi",
+  "foram",
+  "fica",
+  "ficam",
+  "ficou",
+  "parece",
+  "parecem",
+  "pareça",
+  "continue",
+  "tenha",
+  "tenham",
+  "tem",
+  "têm",
+  "possa",
+  "possam",
+  "pode",
+  "podem",
+  "deve",
+  "devem",
+  "vá",
+  "vai",
+  "vão",
+  "venha",
+  "venham",
+]);
+
+export const ADJECTIVE_STEMS: ReadonlySet<string> = new Set([
+  "corret",
+  "errad",
+  "cert",
+  "bonit",
+  "fei",
+  "alt",
+  "baix",
+  "gord",
+  "magr",
+  "pront",
+  "nov",
+  "velh",
+  "chei",
+  "vazi",
+  "ric",
+  "lind",
+  "car",
+  "barat",
+  "limp",
+  "suj",
+  "abert",
+  "quiet",
+  "calm",
+  "nervos",
+  "ansios",
+  "sóbri",
+  "séri",
+  "perfeit",
+  "complet",
+  "incomplet",
+  "curt",
+  "long",
+  "larg",
+  "estreit",
+  "branc",
+  "pret",
+  "vermelh",
+  "amarel",
+  "rox",
+  "escur",
+  "clar",
+  "fri",
+  "sec",
+  "molhad",
+  "salgad",
+  "gostos",
+  "delicios",
+  "famos",
+  "perigos",
+  "segur",
+  "sozinh",
+  "viv",
+  "mort",
+  "simpátic",
+  "antipátic",
+  "rápid",
+  "lent",
+  "pequen",
+  "únic",
+  "rar",
+  "estranh",
+  "esquisit",
+  "chat",
+  "obrigatóri",
+  "necessári",
+  "proibid",
+  "ótim",
+  "péssim",
+  "maravilhos",
+  "brav",
+  "furios",
+  "satisfeit",
+  "orgulhos",
+  "louc",
+  "maluc",
+  "tranquil",
+  "exaust",
+  "surpres",
+  "curios",
+  "confus",
+  "distraíd",
+  "preocupad",
+  "ocupad",
+  "cansad",
+  "animad",
+  "apaixonad",
+  "casad",
+  "solteir",
+  "atrasad",
+  "preparad",
+  "convencid",
+  "encantad",
+  "lotad",
+  "assustad",
+  "envergonhad",
+  "zangad",
+  "irritad",
+  "emocionad",
+  "chatead",
+  "decepcionad",
+  "contrári",
+  "honest",
+  "sincer",
+  "generos",
+  "teimos",
+  "preguiços",
+  "ciumen",
+  "agressiv",
+  "atent",
+  "educad",
+  "grat",
+]);
+
+export const NOUNS_IN_DO: ReadonlySet<string> = new Set([
+  "resultad",
+  "estad",
+  "mercad",
+  "soldad",
+  "advogad",
+  "deputad",
+  "delegad",
+  "cuidad",
+  "pecad",
+  "legad",
+  "recad",
+  "significad",
+  "partid",
+  "sentid",
+  "pedid",
+  "ruíd",
+  "tecid",
+  "marid",
+  "vestid",
+  "ouvid",
+  "apelid",
+  "bocad",
+  "dad",
+  "lad",
+  "prad",
+  "gad",
+  "fad",
+  "senad",
+  "reinad",
+  "eleitorad",
+  "mandad",
+  "atentad",
+  "cunhad",
+  "namorad",
+  "aliad",
+  "comunicad",
+  "atestad",
+  "diplomad",
+  "doutorad",
+  "mestrad",
+  "feriad",
+  "ditad",
+  "sobrad",
+  "telhad",
+  "gramad",
+  "machad",
+  "bordad",
+]);
+
+export const NOT_PREDICATE_SUBJECT: ReadonlySet<string> = new Set([
+  "gente",
+  "maioria",
+  "minoria",
+  "metade",
+  "parte",
+  "porcentagem",
+]);
+
+export const GOVERNS_A_SE: ReadonlySet<string> = new Set([
+  "refere",
+  "dirige",
+  "candidata",
+  "dedica",
+  "submete",
+  "adapta",
+  "acostuma",
+  "habitua",
+  "apega",
+  "destina",
+  "resume",
+  "limita",
+  "restringe",
+  "assemelha",
+  "equipara",
+  "alia",
+]);
+
+export const SHORT_PARTICIPLES: ReadonlySet<string> = new Set([
+  "feit",
+  "dit",
+  "escrit",
+  "abert",
+  "cobert",
+  "pag",
+  "ganh",
+  "gast",
+  "entregu",
+  "aceit",
+]);
+
+export const OTHER_IMPERFECTS: ReadonlySet<string> = new Set([
+  "cria",
+  "crias",
+  "criam",
+  "lia",
+  "lias",
+  "liam",
+  "via",
+  "vias",
+  "viam",
+  "ria",
+  "rias",
+  "riam",
+]);
+
+export const KNOWN_SUBJECT_WORDS: ReadonlySet<string> = new Set([
+  "eu",
+  "e",
+  "tu",
+  "ele",
+  "ela",
+  "você",
+  "eles",
+  "elas",
+  "vocês",
+  "o",
+  "a",
+  "os",
+  "as",
+  "meu",
+  "minha",
+  "meus",
+  "minhas",
+]);
+
+export const PERSON_COLLECTIVE: ReadonlySet<string> = new Set([
+  "maioria",
+  "minoria",
+  "parte",
+  "metade",
+  "grupo",
+  "porcentagem",
+  "percentagem",
+  "conjunto",
+  "série",
+  "totalidade",
+  "resto",
+  "número",
+  "quantidade",
+  "multidão",
+  "bando",
+  "dezena",
+  "centena",
+  "milhar",
+  "milhão",
+  "bilhão",
+  "trilhão",
 ]);
 
 export const AUXILIARY_NOT_VERBS: ReadonlySet<string> = new Set([
@@ -540,6 +998,285 @@ export const PREFIXES: Readonly<Record<string, string>> = {
   co: "",
 };
 
+export const EXIST_PLURAL: Readonly<Record<string, string>> = {
+  existe: "existem",
+  existia: "existiam",
+  existiu: "existiram",
+  existirá: "existirão",
+  existiria: "existiriam",
+  acontece: "acontecem",
+  acontecia: "aconteciam",
+  aconteceu: "aconteceram",
+  acontecerá: "acontecerão",
+  aconteceria: "aconteceriam",
+  ocorre: "ocorrem",
+  ocorria: "ocorriam",
+  ocorreu: "ocorreram",
+  ocorrerá: "ocorrerão",
+  ocorreria: "ocorreriam",
+  surge: "surgem",
+  surgia: "surgiam",
+  surgiu: "surgiram",
+  surgirá: "surgirão",
+  surgiria: "surgiriam",
+  resta: "restam",
+  restava: "restavam",
+  restou: "restaram",
+  restará: "restarão",
+  restaria: "restariam",
+  basta: "bastam",
+  bastava: "bastavam",
+  bastou: "bastaram",
+  bastará: "bastarão",
+  bastaria: "bastariam",
+  sobra: "sobram",
+  sobrava: "sobravam",
+  sobrou: "sobraram",
+  sobrará: "sobrarão",
+  sobraria: "sobrariam",
+  falta: "faltam",
+  faltava: "faltavam",
+  faltou: "faltaram",
+  faltará: "faltarão",
+  faltaria: "faltariam",
+  chega: "chegam",
+  chegava: "chegavam",
+  chegou: "chegaram",
+  chegará: "chegarão",
+  chegaria: "chegariam",
+};
+
+export const AUXILIARY_PLURAL: Readonly<Record<string, string>> = {
+  vai: "vão",
+  ia: "iam",
+  irá: "irão",
+  iria: "iriam",
+  pode: "podem",
+  podia: "podiam",
+  poderá: "poderão",
+  poderia: "poderiam",
+  deve: "devem",
+  devia: "deviam",
+  deverá: "deverão",
+  deveria: "deveriam",
+  costuma: "costumam",
+  costumava: "costumavam",
+  continua: "continuam",
+  começa: "começam",
+};
+
+export const PERFECT_PLURAL: Readonly<Record<string, string>> = {
+  tem: "têm",
+  tinha: "tinham",
+  tenha: "tenham",
+  teria: "teriam",
+  terá: "terão",
+  tivesse: "tivessem",
+  está: "estão",
+  estava: "estavam",
+  esteve: "estiveram",
+  esteja: "estejam",
+  havia: "haviam",
+  haveria: "haveriam",
+  haja: "hajam",
+  houvesse: "houvessem",
+};
+
+export const PROPRIO_ENDING: Readonly<Record<string, string>> = {
+  ele: "o",
+  ela: "a",
+  eles: "os",
+  elas: "as",
+};
+
+export const FUTURE_SUBJUNCTIVE: Readonly<Record<string, string>> = {
+  dizer: "disse",
+  fazer: "fize",
+  refazer: "refize",
+  desfazer: "desfize",
+  ver: "vi",
+  rever: "revi",
+  prever: "previ",
+  ter: "tive",
+  manter: "mantive",
+  conter: "contive",
+  obter: "obtive",
+  deter: "detive",
+  reter: "retive",
+  pôr: "puse",
+  propor: "propuse",
+  compor: "compuse",
+  supor: "supuse",
+  ser: "fo",
+  ir: "fo",
+  dar: "de",
+  estar: "estive",
+  poder: "pude",
+  saber: "soube",
+  querer: "quise",
+  trazer: "trouxe",
+  caber: "coube",
+};
+
+export const FUTURE_PERSON_ENDING: Readonly<Record<string, string>> = {
+  "": "r",
+  es: "res",
+  mos: "rmos",
+  em: "rem",
+};
+
+export const PRONOUN_PERSON: Readonly<Record<string, string>> = {
+  eu: "eu",
+  ele: "ele",
+  ela: "ele",
+  você: "ele",
+  "a gente": "ele",
+  nós: "nós",
+  eles: "eles",
+  elas: "eles",
+  vocês: "eles",
+};
+
+export const PRETERITE_VOWEL: Readonly<Record<string, string>> = { o: "a", e: "e", i: "i" };
+
+export const VERB_NUMBER: Readonly<Record<string, string>> = {
+  é: "são",
+  foi: "foram",
+  era: "eram",
+  será: "serão",
+  seria: "seriam",
+  fosse: "fossem",
+  for: "forem",
+  seja: "sejam",
+};
+
+export const VERB_SINGULAR: Readonly<Record<string, string>> = {
+  são: "é",
+  foram: "foi",
+  eram: "era",
+  serão: "será",
+  seriam: "seria",
+  fossem: "fosse",
+  forem: "for",
+  sejam: "seja",
+};
+
+export const HOUR_VERBS: Readonly<Record<string, string>> = {
+  deu: "deram",
+  bateu: "bateram",
+  soou: "soaram",
+  dava: "davam",
+  batia: "batiam",
+  soava: "soavam",
+  dará: "darão",
+  baterá: "baterão",
+  soará: "soarão",
+  daria: "dariam",
+  bateria: "bateriam",
+};
+
+export const HOUR_AUXILIARIES: Readonly<Record<string, string>> = {
+  vai: "vão",
+  ia: "iam",
+  está: "estão",
+  estava: "estavam",
+  tinha: "tinham",
+  havia: "haviam",
+  pode: "podem",
+  deve: "devem",
+};
+
+export const SER_PRONOUN: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  foi: { eu: "fui", nós: "fomos", eles: "foram", elas: "foram", vocês: "foram" },
+  é: { eu: "sou", nós: "somos", eles: "são", elas: "são", vocês: "são" },
+  será: { eu: "serei", nós: "seremos", eles: "serão", elas: "serão", vocês: "serão" },
+};
+
+export const PREPOSITION_FORMS: Readonly<Record<string, readonly string[]>> = {
+  pel: ["pelo", "pela", "pelos", "pelas"],
+  n: ["no", "na", "nos", "nas"],
+  d: ["do", "da", "dos", "das"],
+  a: ["ao", "à", "aos", "às"],
+};
+
+export const MASCULINE_OF: Readonly<Record<string, string>> = {
+  uma: "um",
+  duas: "dois",
+  duzentas: "duzentos",
+  trezentas: "trezentos",
+  quatrocentas: "quatrocentos",
+  quinhentas: "quinhentos",
+  seiscentas: "seiscentos",
+  setecentas: "setecentos",
+  oitocentas: "oitocentos",
+  novecentas: "novecentos",
+  as: "os",
+  das: "dos",
+  nas: "nos",
+  pelas: "pelos",
+  estas: "estes",
+  essas: "esses",
+  aquelas: "aqueles",
+  muitas: "muitos",
+  várias: "vários",
+  algumas: "alguns",
+  tantas: "tantos",
+  poucas: "poucos",
+  outras: "outros",
+};
+
+export const ANNEX_DET: Readonly<Record<string, string>> = {
+  o: "anexo",
+  a: "anexa",
+  os: "anexos",
+  as: "anexas",
+  um: "anexo",
+  uma: "anexa",
+  meu: "anexo",
+  minha: "anexa",
+  meus: "anexos",
+  minhas: "anexas",
+  nosso: "anexo",
+  nossa: "anexa",
+  nossos: "anexos",
+  nossas: "anexas",
+  seu: "anexo",
+  sua: "anexa",
+  seus: "anexos",
+  suas: "anexas",
+};
+
+export const COPULA_NUMBER: Readonly<Record<string, string>> = {
+  foi: "foram",
+  foram: "foi",
+  é: "são",
+  são: "é",
+  era: "eram",
+  eram: "era",
+  será: "serão",
+  serão: "será",
+  seria: "seriam",
+  seriam: "seria",
+  for: "forem",
+  forem: "for",
+  fosse: "fossem",
+  fossem: "fosse",
+  seja: "sejam",
+  sejam: "seja",
+};
+
+export const PERSON_OF_PRONOUN: Readonly<Record<string, string>> = {
+  eu: "1s",
+  tu: "2s",
+  ele: "3s",
+  ela: "3s",
+  você: "3s",
+  nós: "1p",
+  eles: "3p",
+  elas: "3p",
+  vocês: "3p",
+};
+
 export const GERUND_ENDING: Readonly<Record<string, string>> = {
   ando: "ar",
   endo: "er",
@@ -641,6 +1378,10 @@ export const GOOD: Readonly<Record<string, string>> = { bom: "", boa: "", bons: 
 // pt_BR.yaml def SENTENCE_START
 export const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*["'“‘«(]?[ \t\u00a0]*$/u;
 
+// pt_BR.yaml def NOT_SUBJECT_BEFORE
+export const NOT_SUBJECT_BEFORE =
+  /(?<![\p{L}])(?:(?:para|com|de|dentre|sem|entre|a|por|contra|até|sobre|perante|desde|após)(?:[ \t\u00a0]+(?:todos|todas|ambos|ambas))?|e|ou|nem|como|quanto|ser|sou|é|era|foi|o|a|os|as|um|uma|uns|umas|dos|das|nos|nas|aos|pelos|pelas|meu|seu|teu|nosso|verdadeiro|próprio)[ \t\u00a0]+$|,[ \t\u00a0]*$/iu;
+
 // pt_BR.yaml rule pt_BR.accentParonyms def PERSON_ENDING
 export const PERSON_ENDING = {
   eu: /o$/,
@@ -709,7 +1450,7 @@ export function afterLead(m: RegExpExecArray, ctx: DetectContext): RawFinding | 
 }
 
 // pt_BR.yaml rule pt_BR.confusions def CLAUSE_START
-export const CLAUSE_START = /(?:^|[.!?:;][ \t\r\n "”»)]{0,8}|\n[ \t ]{0,8})$/;
+export const CLAUSE_START = /(?:^|[.!?:;][ \t\r\n\u00a0"”»)]{0,8}|\n[ \t\u00a0]{0,8})$/;
 
 // pt_BR.yaml rule pt_BR.confusions def crase
 export function crase(
@@ -968,6 +1709,746 @@ export function direct(rest: string) {
     !words.some((word) => STATEMENT_VERB.has(word)) &&
     !words.some((word, index) => index > 0 && SUBJECTS.has(word))
   );
+}
+
+// pt_BR.yaml rule pt_BR.agreement def AGREE_SUBJECT_BEFORE
+export const AGREE_SUBJECT_BEFORE =
+  /(?<![\p{L}])(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|que|quem|o|a|isso|isto|tudo|nada|algo|ninguém)[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.agreement def SUBJECTLESS
+export const SUBJECTLESS =
+  /(?:^|[.!?;:,\n]["'”’»)]*[ \t\u00a0]*|(?:^|[^\p{L}])(?:já|ontem|hoje|então|ainda|agora|aí|enfim|finalmente|não)[ \t\u00a0]+)$/iu;
+
+// pt_BR.yaml rule pt_BR.agreement def ARRIVE_OR_LACK
+export const ARRIVE_OR_LACK = /^(?:\p{L}+[ \t\u00a0]+(?:\p{L}+[ \t\u00a0]+)?)?(?:cheg|falt)/iu;
+
+// pt_BR.yaml rule pt_BR.agreement def PLURAL_DETERMINER_WORD
+export const PLURAL_DETERMINER_WORD =
+  /^(?:mais|muitos|muitas|vários|várias|alguns|algumas|poucos|poucas|diversos|diversas|inúmeros|inúmeras|tantos|tantas|uns|umas|os|as|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|cem|[2-9]|\d{2,})$/;
+
+// pt_BR.yaml rule pt_BR.agreement def QUESTION_LEAD
+export const QUESTION_LEAD =
+  /^(?:sei|sabe|sabem|sabemos|saber|sabia|soube|decidir|decide|decidiu|decidimos|escolher|escolhe|escolheu|perguntar|pergunta|perguntou|ensinar|ensina|ensinou|aprender|aprende|aprendeu|entender|entende|explicar|explica|explicou|dizer|diz|disse|mostrar|mostra|mostrou|indicar|indica|definir|define|planejar|ideia|dúvida|noção|até|desde|de|para|sobre|é|era)$/iu;
+
+// pt_BR.yaml rule pt_BR.agreement def ELAPSED
+export const ELAPSED =
+  /^[ \t\u00a0]{1,8}(?:\p{L}+[ \t\u00a0]{1,8})?(?:vezes|anos|meses|semanas|dias|horas|minutos|segundos|tempos|décadas|séculos|instantes|momentos|tempo)(?![\p{L}\p{M}\p{N}_'’@/#\\-])/iu;
+
+// pt_BR.yaml rule pt_BR.agreement def subjectless
+export function subjectless(ctx: DetectContext, m: RegExpExecArray) {
+  return (
+    !ARRIVE_OR_LACK.test(ctx.text.slice(m.index, m.index + 40)) ||
+    SUBJECTLESS.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))
+  );
+}
+
+// pt_BR.yaml rule pt_BR.agreement def agreementFinding
+export function agreementFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  replacement: string,
+  messageKey: RawFinding["messageKey"],
+): RawFinding | null {
+  const typed = m.groups!.target;
+  if (ctx.dictionary.has(typed.toLowerCase())) return null;
+  const span = m.indices!.groups!.target;
+  return {
+    ruleId: "portugueseAgreement",
+    messageKey,
+    range: { start: span[0], end: span[1] },
+    alternatives: [applyWordCase(replacement, detectWordCase(typed))],
+    context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) },
+  };
+}
+
+// pt_BR.yaml rule pt_BR.agreement def postposed
+export function postposed(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  table: Readonly<Record<string, string>>,
+) {
+  if (AGREE_SUBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))) return null;
+  if (!subjectless(ctx, m)) return null;
+  return agreementFinding(ctx, m, table[m.groups!.target.toLowerCase()], "review_msg_pt_agreement");
+}
+
+// pt_BR.yaml rule pt_BR.agreement def bareSubject
+export function bareSubject(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  table: Readonly<Record<string, string>>,
+) {
+  const noun = m.groups!.noun;
+  if (noun !== noun.toLowerCase() || /mos$/.test(noun) || TIME_WORD.test(noun)) return null;
+  if (PLURAL_DETERMINER_WORD.test(noun)) return null;
+  const info = ptNoun(noun);
+  if (!(info?.plural === true && info.feminine !== null)) return null;
+  if (AGREE_SUBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))) return null;
+  if (!subjectless(ctx, m)) return null;
+  return agreementFinding(ctx, m, table[m.groups!.target.toLowerCase()], "review_msg_pt_agreement");
+}
+
+// pt_BR.yaml rule pt_BR.nounAgreement def DETERMINER_ROWS
+export const DETERMINER_ROWS = [
+  "o a os as",
+  "um uma uns umas",
+  "do da dos das",
+  "no na nos nas",
+  "pelo pela pelos pelas",
+  "ao à aos às",
+  "num numa nuns numas",
+  "dum duma duns dumas",
+  "este esta estes estas",
+  "esse essa esses essas",
+  "aquele aquela aqueles aquelas",
+  "deste desta destes destas",
+  "desse dessa desses dessas",
+  "daquele daquela daqueles daquelas",
+  "neste nesta nestes nestas",
+  "nesse nessa nesses nessas",
+  "naquele naquela naqueles naquelas",
+  "meu minha meus minhas",
+  "teu tua teus tuas",
+  "seu sua seus suas",
+  "nosso nossa nossos nossas",
+  "vosso vossa vossos vossas",
+  "algum alguma alguns algumas",
+  "nenhum nenhuma nenhuns nenhumas",
+  "outro outra outros outras",
+  "todo toda todos todas",
+  "- muita muitos muitas",
+  "- pouca poucos poucas",
+  "- - vários várias",
+  "- - diversos diversas",
+  "- - tantos tantas",
+  "- - certos certas",
+  "cujo cuja cujos cujas",
+].map((row) => row.split(" "));
+
+// pt_BR.yaml rule pt_BR.nounAgreement def DETERMINER_CELLS
+export const DETERMINER_CELLS = new Map(
+  DETERMINER_ROWS.flatMap((row) =>
+    row.flatMap((word, index) => (word === "-" ? [] : [[word, { row, index }] as const])),
+  ),
+);
+
+// pt_BR.yaml rule pt_BR.nounAgreement def POSSESSIVE_ROWS
+export const POSSESSIVE_ROWS = [
+  "meu minha meus minhas",
+  "teu tua teus tuas",
+  "seu sua seus suas",
+  "nosso nossa nossos nossas",
+  "vosso vossa vossos vossas",
+  "outro outra outros outras",
+  "mesmo mesma mesmos mesmas",
+].map((row) => row.split(" "));
+
+// pt_BR.yaml rule pt_BR.nounAgreement def POSSESSIVE_CELLS
+export const POSSESSIVE_CELLS = new Map(
+  POSSESSIVE_ROWS.flatMap((row) => row.map((word, index) => [word, { row, index }] as const)),
+);
+
+// pt_BR.yaml rule pt_BR.nounAgreement def STANDALONE
+export const STANDALONE = new Set([
+  ...DETERMINER_ROWS.slice(8, 17).flat(),
+  ...DETERMINER_ROWS.slice(23, -1).flat(),
+]);
+
+// pt_BR.yaml rule pt_BR.nounAgreement def POSSESSIVE_DETERMINERS
+export const POSSESSIVE_DETERMINERS = new Set(DETERMINER_ROWS.slice(17, 22).flat());
+
+// pt_BR.yaml rule pt_BR.nounAgreement def NOUN_ARTICLES
+export const NOUN_ARTICLES = new Set(DETERMINER_ROWS.slice(0, 8).flat());
+
+// pt_BR.yaml rule pt_BR.nounAgreement def CONTRACTED
+export const CONTRACTED = new Set(
+  DETERMINER_ROWS.slice(2, 8)
+    .flat()
+    .filter((word) => !/^(?:a|à|às|ao|aos)$/.test(word)),
+);
+
+// pt_BR.yaml rule pt_BR.nounAgreement def PLURAL_VERB_AFTER
+export const PLURAL_VERB_AFTER =
+  /^[ \t\u00a0]+(?:são|estão|foram|eram|estavam|têm|tinham|vão|iam|ficaram|ficam|parecem|serão)(?![\p{L}])/u;
+
+// pt_BR.yaml rule pt_BR.nounAgreement def NAMED_TASK
+export const NAMED_TASK = /^[ \t\u00a0]+a[ \t\u00a0]+\p{Ll}+[aei]r(?![\p{L}])/u;
+
+// pt_BR.yaml rule pt_BR.nounAgreement def NOUN_PREPOSITION_BEFORE
+export const NOUN_PREPOSITION_BEFORE =
+  /(?:^|[^\p{L}])(?:para|com|sem|sobre|entre|contra|até|após|perante|desde|mediante|durante|conforme|segundo)[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.nounAgreement def PRONOUN_UM
+export const PRONOUN_UM = /(?:^|[^\p{L}])(?:cada|nem|qualquer|algum|nenhum|tal|o)[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.nounAgreement def NUMBER_AND
+export const NUMBER_AND =
+  /(?:^|[^\p{L}])(?:vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|mil|\p{N}+)[ \t\u00a0]+e[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.nounAgreement def NOUN_SUBJECT_BEFORE
+export const NOUN_SUBJECT_BEFORE =
+  /(?:^|[^\p{L}])(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|isso|isto|aquilo|tudo|nada|não|que|se|quem|me|te|lhe|nos|vos)[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.nounAgreement def PREPOSITION_JUST_BEFORE
+export const PREPOSITION_JUST_BEFORE =
+  /(?:^|[^\p{L}])(?:por|a|de|para|entre|com|sem|aos|dos|das|às)[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.nounAgreement def NOUN_PELO
+export const NOUN_PELO = /(?:^|[^\p{L}])(?:o|os|um|seu|meu|teu|nosso|do|no|pelo)[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.nounAgreement def NUMBER_WORD
+export const NUMBER_WORD =
+  /^(?:dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|mil)$/;
+
+// pt_BR.yaml rule pt_BR.nounAgreement def TODO_ARTICLE
+export const TODO_ARTICLE = /^(?<todo>tod[oa]s?)[ \t\u00a0]+(?<article>[oa]s?)$/iu;
+
+// pt_BR.yaml rule pt_BR.nounAgreement def RELATIONAL
+export const RELATIONAL =
+  /^(?:\p{Ll}*[áéíóúâêô]\p{Ll}*ic[oa]s?|\p{Ll}+ês|\p{Ll}{4,}eses|\p{Ll}+eir[oa]s?|\p{Ll}+ári[oa]s?)$/u;
+
+// pt_BR.yaml rule pt_BR.nounAgreement def AFTER_ADJECTIVE
+export const AFTER_ADJECTIVE =
+  /^(?:[ \t\u00a0]{0,2}(?:[.,;:!?)]|$)|[ \t\u00a0]{1,8}(?:e|ou|que|de|do|da|dos|das|em|no|na|nos|nas|para|com|por|pelo|pela)(?![\p{L}\p{M}\p{N}_'’@/#\\-]))/u;
+
+// pt_BR.yaml rule pt_BR.nounAgreement def PREDICATE_BEFORE
+export const PREDICATE_BEFORE =
+  /(?:^|[^\p{L}])(?<verb>é|são|foi|foram|era|eram|será|serão|seria|seriam|fosse|fossem|for|forem|seja|sejam)(?<gap>[ \t\u00a0]+(?:(?:realmente|muito|bem|bastante|absolutamente|totalmente|extremamente)[ \t\u00a0]+)?)(?<adjective>(?<stem>necessári|proibid|permitid|obrigatóri|bonit)[oa]s?|louváve(?:l|is))[ \t\u00a0]+$/diu;
+
+// pt_BR.yaml rule pt_BR.nounAgreement def nounCase
+export function nounCase(typed: string): "upper" | "title" | "lower" {
+  return typed.length === 1
+    ? typed === typed.toLowerCase()
+      ? "lower"
+      : "title"
+    : detectWordCase(typed);
+}
+
+// pt_BR.yaml rule pt_BR.nounAgreement def nounFinding
+export function nounFinding(
+  start: number,
+  end: number,
+  typed: string,
+  alternatives: string[],
+  context: { start: number; end: number },
+): RawFinding {
+  const style = nounCase(typed);
+  return {
+    ruleId: "portugueseAgreement",
+    messageKey: "review_msg_pt_noun_agreement",
+    range: { start, end },
+    alternatives: alternatives.map((alternative) => applyWordCase(alternative, style)),
+    context,
+    ...(alternatives.length > 1 ? { requiresChoice: true } : {}),
+  };
+}
+
+// pt_BR.yaml rule pt_BR.nounAgreement def nextNoun
+export function nextNoun(ctx: DetectContext, end: number): PtNoun | null {
+  const next = /^[ \t\u00a0]+(\p{Ll}+)(?![\p{L}-])/u.exec(ctx.text.slice(end, end + 40))?.[1];
+  if (!(next !== undefined && !PT_NOT_NOUNS.has(next))) return null;
+  const info = ptNoun(next);
+  return (
+    info ??
+    (/s$/.test(next) && !PT_SINGULAR_IN_S.has(next) && ptSingular(next)
+      ? { feminine: null, plural: true, certain: false }
+      : null)
+  );
+}
+
+// pt_BR.yaml rule pt_BR.nounAgreement def fitsCell
+export function fitsCell(next: PtNoun | null, index: number) {
+  return (
+    !!next &&
+    next.plural === index > 1 &&
+    (next.feminine === null || next.feminine === (index % 2 === 1))
+  );
+}
+
+// pt_BR.yaml rule pt_BR.nounAgreement def possessiveAgreement
+export function possessiveAgreement(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  cell: { row: string[]; index: number },
+  possessive: { row: string[]; index: number },
+): RawFinding | null {
+  if (possessive.index === cell.index || cell.row[possessive.index] === "-") return null;
+  const typed = m.groups!.target;
+  const word = m.groups!.noun;
+  const start = m.indices!.groups!.target[0];
+  const wordStart = m.indices!.groups!.noun[0];
+  const wordEnd = m.indices!.groups!.noun[1];
+  const context = { start, end: wordEnd };
+  const next = nextNoun(ctx, wordEnd);
+  const ownForm = possessive.row[cell.index];
+  const between = ctx.text.slice(start + typed.length, wordStart);
+  return next && fitsCell(next, cell.index) && !fitsCell(next, possessive.index)
+    ? nounFinding(wordStart, wordEnd, word, [possessive.row[cell.index]], context)
+    : (!next || fitsCell(next, cell.index)) && ownForm !== "-"
+      ? nounFinding(
+          start,
+          wordEnd,
+          typed,
+          [
+            `${cell.row[possessive.index]}${between}${word}`,
+            `${typed.toLowerCase()}${between}${ownForm}`,
+          ],
+          context,
+        )
+      : nounFinding(start, start + typed.length, typed, [cell.row[possessive.index]], context);
+}
+
+// pt_BR.yaml rule pt_BR.nounAgreement def todoAgreement
+export function todoAgreement(
+  ctx: DetectContext,
+  start: number,
+  typed: string,
+  noun: string,
+  nounEnd: number,
+  cell: { row: string[]; index: number },
+  context: { start: number; end: number },
+): RawFinding | null {
+  const article = DETERMINER_CELLS.get(noun)!;
+  const next = nextNoun(ctx, nounEnd);
+  if (article.index === cell.index || !next || next.plural !== article.index > 1) return null;
+  if (next.feminine !== null && next.feminine !== (article.index % 2 === 1)) return null;
+  const before = ctx.text.slice(Math.max(0, start - 40), start);
+  if (!next.certain && !SENTENCE_START.test(before) && !NOUN_PREPOSITION_BEFORE.test(before))
+    return null;
+  return nounFinding(start, start + typed.length, typed, [cell.row[article.index]], context);
+}
+
+// pt_BR.yaml rule pt_BR.nounAgreement def plainDeterminer
+export function plainDeterminer(ctx: DetectContext, det: string, start: number, typed: string) {
+  const before = ctx.text.slice(Math.max(0, start - 40), start);
+  return det === "nos"
+    ? false
+    : PRONOUN_LIKE.has(det)
+      ? SENTENCE_START.test(before) ||
+        NOUN_PREPOSITION_BEFORE.test(before) ||
+        PREDICATE_BEFORE.test(before)
+      : det === "um" || det === "uma"
+        ? !PRONOUN_UM.test(before) && !RECIPROCAL.test(ctx.text.slice(start, start + 80))
+        : det === "nossa" && typed !== det
+          ? !SENTENCE_START.test(before)
+          : !STANDALONE.has(det);
+}
+
+// pt_BR.yaml rule pt_BR.nounAgreement def notDeterminer
+export function notDeterminer(det: string, before: string) {
+  return (
+    ((det === "da" || det === "das") && NOUN_SUBJECT_BEFORE.test(before)) ||
+    (/^pel[oa]s?$/.test(det) && NOUN_PELO.test(before)) ||
+    (/^um/.test(det) && NUMBER_AND.test(before)) ||
+    ((STANDALONE.has(det) || /^algu/.test(det)) && PREPOSITION_JUST_BEFORE.test(before))
+  );
+}
+
+// pt_BR.yaml rule pt_BR.nounAgreement def compoundAfter
+export function compoundAfter(ctx: DetectContext, end: number, noun: PtNoun) {
+  const next = /^[ \t\u00a0]+([\p{L}\p{N}]+)/u.exec(ctx.text.slice(end, end + 40))?.[1];
+  if (!(next !== undefined)) return false;
+  return (
+    /^\p{N}/u.test(next) ||
+    NUMBER_WORD.test(next) ||
+    (!noun.plural && /^\p{Ll}{3,}s$/u.test(next) && !!ptSingular(next) && !PT_NOT_NOUNS.has(next))
+  );
+}
+
+// pt_BR.yaml rule pt_BR.nounAgreement def adjectiveAgreement
+export function adjectiveAgreement(
+  ctx: DetectContext,
+  nounEnd: number,
+  feminine: boolean,
+  plural: boolean,
+  noun: string,
+  subject: boolean,
+): RawFinding | null {
+  const found = /^[ \t\u00a0]+(\p{Ll}+)(?![\p{L}\p{N}-])/u.exec(
+    ctx.text.slice(nounEnd, nounEnd + 40),
+  );
+  if (!(found !== null && !NAMING.has(noun))) return null;
+  const adjective = found[1];
+  if (!RELATIONAL.test(adjective) || ptFiniteLookalike(adjective) || ctx.dictionary.has(adjective))
+    return null;
+  const start = nounEnd + found[0].length - adjective.length;
+  const end = start + adjective.length;
+  if (!subject && !AFTER_ADJECTIVE.test(ctx.text.slice(end, end + 12))) return null;
+  const nationality = /(?:ês|eses)$/.test(adjective);
+  const isPlural = nationality ? /eses$/.test(adjective) : /s$/.test(adjective);
+  const isFeminine = !nationality && /as?$/.test(adjective);
+  if (isFeminine === feminine && isPlural === plural) return null;
+  const stem = adjective.replace(nationality ? /(?:ês|eses)$/ : /[oa]s?$/, "");
+  const wanted = nationality
+    ? `${stem}${feminine ? (plural ? "esas" : "esa") : plural ? "eses" : "ês"}`
+    : `${stem}${feminine ? "a" : "o"}${plural ? "s" : ""}`;
+  return nounFinding(start, end, adjective, [wanted], { start: nounEnd - noun.length, end });
+}
+
+// pt_BR.yaml rule pt_BR.nounAgreement def predicateAgreement
+export function predicateAgreement(
+  ctx: DetectContext,
+  detStart: number,
+  nounEnd: number,
+  feminine: boolean,
+  plural: boolean,
+): RawFinding | null {
+  const offset = Math.max(0, detStart - 60);
+  const found = PREDICATE_BEFORE.exec(ctx.text.slice(offset, detStart));
+  if (!(found !== null)) return null;
+  if (
+    /^[ \t\u00a0]+\p{Ll}+(?:r|rem|res|rmos)(?![\p{L}])/u.test(ctx.text.slice(nounEnd, nounEnd + 30))
+  )
+    return null;
+  const verb = found.groups!.verb;
+  const gap = found.groups!.gap;
+  const adjective = found.groups!.adjective;
+  const stem = found.groups!.stem as string | undefined;
+  const wantedAdjective = stem
+    ? `${stem}${feminine ? "a" : "o"}${plural ? "s" : ""}`
+    : plural
+      ? "louváveis"
+      : "louvável";
+  const lowerVerb = verb.toLowerCase();
+  const verbPlural = lowerVerb in VERB_SINGULAR;
+  const wantedVerb =
+    verbPlural === plural
+      ? verb
+      : applyWordCase(
+          plural ? VERB_NUMBER[lowerVerb] : VERB_SINGULAR[lowerVerb],
+          detectWordCase(verb),
+        );
+  if (wantedVerb === verb && wantedAdjective === adjective.toLowerCase()) return null;
+  const adjectiveStart = offset + found.indices!.groups!.adjective[0];
+  const start = wantedVerb === verb ? adjectiveStart : offset + found.indices!.groups!.verb[0];
+  const end = adjectiveStart + adjective.length;
+  const typed = ctx.text.slice(start, end);
+  return {
+    ruleId: "portugueseAgreement",
+    messageKey: "review_msg_pt_noun_agreement",
+    range: { start, end },
+    alternatives: [
+      wantedVerb === verb ? wantedAdjective : `${wantedVerb}${gap}${wantedAdjective}`,
+    ].map((alternative) => applyWordCase(alternative, nounCase(typed.split(/\s/)[0]))),
+    context: { start, end: nounEnd },
+  };
+}
+
+// pt_BR.yaml rule pt_BR.nounAgreement def agreeingPhrase
+export function agreeingPhrase(
+  ctx: DetectContext,
+  det: string,
+  start: number,
+  nounEnd: number,
+  noun: string,
+  feminine: boolean,
+  plural: boolean,
+  before: string,
+) {
+  const subject = /^(?:[oa]s?|um|uma|uns|umas)$/.test(det) && SENTENCE_START.test(before);
+  const found = adjectiveAgreement(ctx, nounEnd, feminine, plural, noun, subject);
+  const predicate = predicateAgreement(ctx, start, nounEnd, feminine, plural);
+  return [found, predicate].flatMap((f) => (f ? [f] : []));
+}
+
+// pt_BR.yaml rule pt_BR.nounAgreement def clashFix
+export function clashFix(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  det: string,
+  cell: { row: string[]; index: number },
+  info: PtNoun,
+  genderClash: boolean,
+  pluralSubject: boolean,
+  context: { start: number; end: number },
+): RawFinding | null {
+  if (det === "a" && !pluralSubject) return null;
+  const typed = m.groups!.target;
+  const noun = m.groups!.noun;
+  const start = m.indices!.groups!.target[0];
+  const nounStart = m.indices!.groups!.noun[0];
+  const nounEnd = m.indices!.groups!.noun[1];
+  const detFeminine = cell.index % 2 === 1;
+  const detPlural = cell.index > 1;
+  if (
+    info.plural &&
+    !detPlural &&
+    !pluralSubject &&
+    ((genderClash &&
+      (!CONTRACTED.has(det) || NAMED_TASK.test(ctx.text.slice(nounEnd, nounEnd + 24)))) ||
+      (!info.certain && info.feminine === null))
+  )
+    return null;
+  const wanted = cell.row[(info.plural ? 2 : 0) + ((info.feminine ?? detFeminine) ? 1 : 0)];
+  if (!(wanted !== "-")) return null;
+  const nounFix =
+    genderClash || pluralSubject ? null : detPlural ? ptPlural(noun) : ptSingular(noun);
+  const between = ctx.text.slice(start + typed.length, nounStart);
+  return nounFix
+    ? nounFinding(
+        start,
+        nounEnd,
+        typed,
+        [`${wanted}${between}${noun}`, `${det}${between}${nounFix}`],
+        context,
+      )
+    : nounFinding(start, start + typed.length, typed, [wanted], context);
+}
+
+// pt_BR.yaml rule pt_BR.nounAgreement def plainAgreement
+export function plainAgreement(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  det: string,
+  cell: { row: string[]; index: number },
+  context: { start: number; end: number },
+): RawFinding | RawFinding[] | null {
+  const typed = m.groups!.target;
+  const noun = m.groups!.noun;
+  const start = m.indices!.groups!.target[0];
+  const nounEnd = m.indices!.groups!.noun[1];
+  const info = ptNoun(noun);
+  if (!(info !== null)) return null;
+  const before = ctx.text.slice(Math.max(0, start - 40), start);
+  if (notDeterminer(det, before)) return null;
+  const verbProof = info.certain && !ptFiniteLookalike(noun);
+  const pluralSubject =
+    info.plural &&
+    SENTENCE_START.test(before) &&
+    PLURAL_VERB_AFTER.test(ctx.text.slice(nounEnd, nounEnd + 16));
+  if (
+    !verbProof &&
+    !pluralSubject &&
+    !(QUANTIFIERS.has(det) && info.plural) &&
+    (!plainDeterminer(ctx, det, start, typed) || compoundAfter(ctx, nounEnd, info))
+  )
+    return null;
+  if (POSSESSIVE_DETERMINERS.has(det) && info.feminine === null) return null;
+  const detFeminine = cell.index % 2 === 1;
+  const detPlural = cell.index > 1;
+  const genderClash = info.feminine !== null && info.feminine !== detFeminine;
+  const numberClash = info.plural !== detPlural && !(info.plural && /[aeio]rmos$/.test(noun));
+  return !genderClash && !numberClash
+    ? info.feminine !== null
+      ? agreeingPhrase(ctx, det, start, nounEnd, noun, info.feminine, info.plural, before)
+      : null
+    : clashFix(ctx, m, det, cell, info, genderClash, pluralSubject, context);
+}
+
+// pt_BR.yaml rule pt_BR.verbAgreement def VERB_AFTER_SUBJECT
+export const VERB_AFTER_SUBJECT =
+  /^[ \t\u00a0]+(?:é|são|foi|foram|era|eram|está|estão|estava|estavam|tem|têm|vai|vão|fica|ficam|será|serão|parece|parecem)(?![\p{L}])/u;
+
+// pt_BR.yaml rule pt_BR.verbAgreement def IMPERSONAL_AFTER
+export const IMPERSONAL_AFTER =
+  /^[ \t\u00a0]+(?:melhor|pior|bom|importante|necessário|preciso|possível|difícil|fácil)[ \t\u00a0]+que(?![\p{L}])/u;
+
+// pt_BR.yaml rule pt_BR.verbAgreement def HOUR_CLAUSE_OPENING
+export const HOUR_CLAUSE_OPENING =
+  /(?:(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*|(?:^|[^\p{L}])(?:quando|que|até|mal|se|enquanto)[ \t\u00a0]+)(?:(?:já|não|ainda|nem|quase)[ \t\u00a0]+)*$/iu;
+
+// pt_BR.yaml rule pt_BR.verbAgreement def TENSE_DETERMINER_BEFORE
+export const TENSE_DETERMINER_BEFORE =
+  /(?:^|[^\p{L}])(?:o|a|os|as|um|uma|do|da|no|na|pelo|pela|este|esse|aquele|meu|seu|nosso)[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.verbAgreement def FRONT_OPENING
+export const FRONT_OPENING =
+  /(?:^|[.!?;:,\n]["'”’»)]*)[ \t\u00a0]*(?:(?:eu|tu|ele|ela|nós|vós|eles|elas|você|vocês)[ \t]+)?$/iu;
+
+// pt_BR.yaml rule pt_BR.verbAgreement def RARE_ENDING
+export const RARE_ENDING = /(?:ás|emos|eis|aras|eras|iras|áreis|êreis|íreis)$/u;
+
+// pt_BR.yaml rule pt_BR.verbAgreement def verbAgreementFinding
+export function verbAgreementFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  group: string,
+  alternatives: string[],
+  messageKey: RawFinding["messageKey"],
+): RawFinding | null {
+  const typed = m.groups![group];
+  if (ctx.dictionary.has(typed.toLowerCase())) return null;
+  const span = m.indices!.groups![group];
+  const style = detectWordCase(typed);
+  return {
+    ruleId: "portugueseAgreement",
+    messageKey,
+    range: { start: span[0], end: span[1] },
+    alternatives: alternatives.map((alternative) => applyWordCase(alternative, style)),
+    context: { start: Math.min(m.index, span[0]), end: Math.max(span[1], m.index + m[0].length) },
+    ...(alternatives.length > 1 ? { requiresChoice: true } : {}),
+  };
+}
+
+// pt_BR.yaml rule pt_BR.verbAgreement def subjectAndVerb
+export function subjectAndVerb(ctx: DetectContext, m: RegExpExecArray) {
+  const lead = m.groups!.lead;
+  if (!(lead === lead.replace(/^\p{Ll}/u, (c) => c.toUpperCase()))) return false;
+  if (!SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) return false;
+  const noun = m.groups!.noun;
+  const verb = m.groups!.target;
+  if (!(noun === noun.toLowerCase() && verb === verb.toLowerCase())) return false;
+  if (VERB_NOT_SUBJECT_NOUNS.has(noun) || PT_NOT_FINITE.has(verb) || /mente$/.test(verb))
+    return false;
+  const verbEnd = m.indices!.groups!.target[1];
+  const after = ctx.text.slice(verbEnd, verbEnd + 40);
+  if (/^[ \t\u00a0]+que(?![\p{L}])/u.test(after)) return false;
+  return !VERB_AFTER_SUBJECT.test(after) && !IMPERSONAL_AFTER.test(after);
+}
+
+// pt_BR.yaml rule pt_BR.verbAgreement def pastClitics
+export function pastClitics(tokens: ClauseToken[], from: number) {
+  const found = tokens.findIndex((t, i) => i >= from && !PT_CLAUSE.clitics.has(t.w));
+  return found < 0 ? tokens.length : found;
+}
+
+// pt_BR.yaml rule pt_BR.verbAgreement def tenseFinding
+export function tenseFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  after: boolean,
+  past: boolean,
+): RawFinding | null {
+  if (after && !FRONT_OPENING.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) return null;
+  const form = m.groups!.target.toLowerCase();
+  const start = m.indices!.groups!.target[0];
+  if (TENSE_DETERMINER_BEFORE.test(ctx.text.slice(Math.max(0, start - 12), start))) return null;
+  if (RARE_ENDING.test(form) && !ptKnownVerb(form)) return null;
+  if (past && ptRStem(form.replace(/(?:am|a)$/, ""))) return null;
+  return past
+    ? verbAgreementFinding(ctx, m, "target", [ptFutureOfPast(form)], "review_msg_pt_tense_adverb")
+    : verbAgreementFinding(ctx, m, "target", ptPastOfFuture(form), "review_msg_pt_tense_adverb");
+}
+
+// pt_BR.yaml rule pt_BR.subjunctives def CLAUSE_ONLY
+export const CLAUSE_ONLY = /^(?:caso|ainda|mesmo|antes)/i;
+
+// pt_BR.yaml rule pt_BR.subjunctives def SUBJUNCTIVE_CLAUSE_BEFORE
+export const SUBJUNCTIVE_CLAUSE_BEFORE = /(?:^|[.!?;:,\n]["'”’»)]*)[ \t\u00a0]*$/u;
+
+// pt_BR.yaml rule pt_BR.subjunctives def SUBJUNCTIVE_DETERMINER_BEFORE
+export const SUBJUNCTIVE_DETERMINER_BEFORE =
+  /(?:^|[^\p{L}])(?:o|a|os|as|um|uma|do|da|no|na|ao|pelo|pela|este|esse|aquele|meu|seu|nosso|cada|qualquer|tal|neste|nesse|desse|deste|em|de)[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.subjunctives def personFits
+export function personFits(form: string, read: PtSubjunctive, subject: PtPerson | null) {
+  return (
+    read.person === null ||
+    (subject ? read.person === subject : read.person !== "1s" && !/o$/.test(form))
+  );
+}
+
+// pt_BR.yaml rule pt_BR.subjunctives def subjunctiveFinding
+export function subjunctiveFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  past: boolean,
+): RawFinding | null {
+  const lead = m.groups!.lead;
+  const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+  if (SUBJUNCTIVE_DETERMINER_BEFORE.test(before)) return null;
+  if (CLAUSE_ONLY.test(lead) && !SUBJUNCTIVE_CLAUSE_BEFORE.test(before)) return null;
+  if (/^esper[ae]$/i.test(lead) && SUBJUNCTIVE_CLAUSE_BEFORE.test(before)) return null;
+  const clause = ptClauseVerb(ctx.text, m.index + m[0].length);
+  if (!(clause !== null && !(clause.afterNoun && VERB_NEXT.has(clause.next ?? "")))) return null;
+  if (ctx.dictionary.has(clause.word)) return null;
+  const read = ptSubjunctive(clause.word);
+  if (!(read !== null && personFits(clause.word, read, clause.person))) return null;
+  const wanted = past ? read.past : read.present;
+  if (!(wanted !== null && wanted !== "" && wanted !== clause.word)) return null;
+  return {
+    ruleId: "portugueseAgreement",
+    messageKey: "review_msg_pt_subjunctive",
+    range: { start: clause.start, end: clause.end },
+    alternatives: [applyWordCase(wanted, detectWordCase(clause.word))],
+    context: { start: m.index, end: clause.end },
+  };
+}
+
+// pt_BR.yaml rule pt_BR.subjectPredicates def CLAUSE_GOES_ON
+export const CLAUSE_GOES_ON =
+  /^(?:[ \t\u00a0]*(?:[.,;:!?)"”»…]|$)|[ \t\u00a0]+(?:e|ou|mas|de|do|da|dos|das|com|para|pra|em|no|na|nos|nas|por|pelo|pela|a|ao|à|aos|às|hoje|agora|ontem|amanhã|demais|também|ainda|sempre|que|quando|porque|pois|se|como|depois|antes|aqui|ali|lá|mesmo|logo|desde|até|sem|nesta|neste|nessa|nesse)(?![\p{L}]))/u;
+
+// pt_BR.yaml rule pt_BR.relativeAgreement def TIME_WORD
+export const TIME_WORD =
+  /^(?:vezes|anos|meses|semanas|dias|horas|minutos|segundos|tempos|décadas|séculos|instantes|momentos)$/;
+
+// pt_BR.yaml rule pt_BR.fixedAgreements def fixedAgreement
+export function fixedAgreement(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  group: string,
+  wanted: string,
+): RawFinding | null {
+  const span = m.indices!.groups![group];
+  const typed = ctx.text.slice(span[0], span[1]);
+  if (wanted === typed.toLowerCase() || ctx.dictionary.has(typed.toLowerCase())) return null;
+  return {
+    ruleId: "portugueseAgreement",
+    messageKey: "review_msg_pt_noun_agreement",
+    range: { start: span[0], end: span[1] },
+    alternatives: [applyWordCase(wanted, detectWordCase(typed))],
+    context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) },
+  };
+}
+
+// pt_BR.yaml rule pt_BR.passiveNumber def SUBJECT_AFTER_COPULA
+export const SUBJECT_AFTER_COPULA =
+  /^[ \t\u00a0]+(?:(?<one>o|um|uma)|os|as|uns|umas|outros|outras|todos|todas|muitos|muitas|vários|várias|alguns|algumas|novos|novas)[ \t\u00a0]/u;
+
+// pt_BR.yaml rule pt_BR.personAgreement def NOT_PRONOUN_SUBJECT
+export const NOT_PRONOUN_SUBJECT =
+  /(?:(?:^|[^\p{L}])(?:e|em|estes|estas|esses|essas|aqueles|aquelas|dos|pelos|seus|meus|nossos|vários|muitos)|(?:do|mais|menos|melhor|pior|maior|menor|tanto|tão)[ \t\u00a0]+que)[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.personAgreement def PERSON_DETERMINER
+export const PERSON_DETERMINER = /^(?:o|a|os|as|meu|minha|meus|minhas)$/i;
+
+// pt_BR.yaml rule pt_BR.personAgreement def PERSON_PLURAL_LEAD
+export const PERSON_PLURAL_LEAD =
+  /^(?:os|as|uns|umas|estes|estas|esses|essas|aqueles|aquelas|meus|minhas|seus|suas|nossos|nossas|alguns|algumas|muitos|muitas|vários|várias)$/i;
+
+// pt_BR.yaml rule pt_BR.personAgreement def namesCapitalized
+export function namesCapitalized(subject: string) {
+  const words = subject.split(/[ \t\u00a0]+/);
+  return words.every(
+    (word, i) =>
+      KNOWN_SUBJECT_WORDS.has(word.toLowerCase()) ||
+      PERSON_DETERMINER.test(words[i - 1] ?? "") ||
+      /^\p{Lu}/u.test(word),
+  );
+}
+
+// pt_BR.yaml rule pt_BR.personAgreement def personFinding
+export function personFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  subject: PtPerson,
+): RawFinding | null {
+  const typed = m.groups!.target;
+  if (
+    typed !== typed.toLowerCase() ||
+    ctx.dictionary.has(typed) ||
+    PT_NOT_VERBS.has(typed) ||
+    OTHER_IMPERFECTS.has(typed)
+  )
+    return null;
+  const found = ptVerbReadings(typed);
+  if (!(found.length > 0 && !found.some((a) => a.persons.has(subject)))) return null;
+  const first = found[0];
+  if (found.some((a) => a.stem !== first.stem || a.tense !== first.tense)) return null;
+  if (found.some((a) => a.conjugation !== first.conjugation)) return null;
+  if (/o$/.test(typed) && first.tense === "present" && subject !== "1p" && subject !== "2s")
+    return null;
+  const wanted = ptInflect(first, subject);
+  if (!(wanted !== typed)) return null;
+  const span = m.indices!.groups!.target;
+  return {
+    ruleId: "portugueseAgreement",
+    messageKey: "review_msg_pt_agreement",
+    range: { start: span[0], end: span[1] },
+    alternatives: [applyWordCase(wanted, detectWordCase(typed))],
+    context: { start: m.index, end: span[1] },
+  };
 }
 
 // pt_BR.yaml rule pt_BR.verbFrames def ACTION_SLOTS
@@ -1437,12 +2918,12 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const first = m.groups!.first;
     const country = m.groups!.country;
     if (!(first === first.toLowerCase())) return null;
-    const name = country.replace(/[ \t ]+/g, " ");
+    const name = country.replace(/[ \t\u00a0]+/g, " ");
     const article = COUNTRIES[name];
     if (!article || (first === "a" && article === "a") || ctx.dictionary.has(name.toLowerCase()))
       return null;
     const span = m.indices!.groups!.target;
-    if (/^[ \t ]+\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 3))) return null;
+    if (/^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 3))) return null;
     return {
       ruleId: "portugueseContractions",
       messageKey: "review_msg_pt_country_article",
@@ -1459,7 +2940,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@pt_BR.numberFormat/11": (m: RegExpExecArray): string => {
     const target = m.groups!.target;
     const parts = target.match(/\d+(?:,\d+)?/g)!;
-    return `${parts[0]}° ${parts[1]}′${parts[2] ? ` ${parts[2]}″` : ""}`;
+    return `${parts[0]}°\u202f${parts[1]}′${parts[2] ? `\u202f${parts[2]}″` : ""}`;
   },
   // pt_BR.yaml rule pt_BR.numberFormat frame 15
   "@pt_BR.numberFormat/15": (m: RegExpExecArray): string => {
@@ -1494,7 +2975,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // pt_BR.yaml rule pt_BR.numberFormat frame 28
   "@pt_BR.numberFormat/28": (m: RegExpExecArray): string => {
     const target = m.groups!.target;
-    return target.replace(/[  ]*[-–—][  ]*/, "–");
+    return target.replace(/[ \u00a0]*[-–—][ \u00a0]*/, "–");
   },
   // pt_BR.yaml rule pt_BR.typographyStyleFrames frame 1
   "@pt_BR.typographyStyleFrames/1": (m: RegExpExecArray): string => {
@@ -1697,7 +3178,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const span = m.indices!.groups!.target;
     if (
       /-F/.test(target) ||
-      /^[ \t ]+(?:de[ \t ]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8))
+      /^[ \t\u00a0]+(?:de[ \t\u00a0]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8))
     )
       return null;
     if (NAMED_PLACE.test(ctx.text.slice(Math.max(0, span[0] - 40), span[0]))) return null;
@@ -1710,7 +3191,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const span = m.indices!.groups!.target;
     if (
       /-F/.test(target) ||
-      /^[ \t ]+(?:de[ \t ]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8))
+      /^[ \t\u00a0]+(?:de[ \t\u00a0]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8))
     )
       return null;
     if (NAMED_PLACE.test(ctx.text.slice(Math.max(0, span[0] - 40), span[0]))) return null;
@@ -1723,7 +3204,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const span = m.indices!.groups!.target;
     if (
       /-F/.test(target) ||
-      /^[ \t ]+(?:de[ \t ]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8))
+      /^[ \t\u00a0]+(?:de[ \t\u00a0]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8))
     )
       return null;
     if (NAMED_PLACE.test(ctx.text.slice(Math.max(0, span[0] - 40), span[0]))) return null;
@@ -1867,7 +3348,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       ruleId: "portugueseCommas",
       messageKey: "review_msg_pt_comma",
       range: { start, end },
-      alternatives: [`, ${typed.replace(/^,?[ \t ]+/, "").replace(/,$/, "")},`],
+      alternatives: [`, ${typed.replace(/^,?[ \t\u00a0]+/, "").replace(/,$/, "")},`],
       context: { start: m.index, end },
     };
   },
@@ -1879,12 +3360,12 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // pt_BR.yaml rule pt_BR.commas frame 14
   "@pt_BR.commas/14": (m: RegExpExecArray): MatchResult => {
     const target = m.groups!.target;
-    if (!/[ \t ]\p{Lu}|senhor|doutor|professor|colegas|amig|clientes/u.test(m[0])) return null;
+    if (!/[ \t\u00a0]\p{Lu}|senhor|doutor|professor|colegas|amig|clientes/u.test(m[0])) return null;
     return commaAt(m, target.replace(/!?$/, ","));
   },
   // pt_BR.yaml rule pt_BR.commas frame 15
   "@pt_BR.commas/15": (m: RegExpExecArray): MatchResult => {
-    if (!direct(m[0].replace(/^.*?(?:foi|é|era)[ \t ]+que/isu, ""))) return null;
+    if (!direct(m[0].replace(/^.*?(?:foi|é|era)[ \t\u00a0]+que/isu, ""))) return null;
     const span = m.indices!.groups!.target;
     return finding("portugueseCommas", "review_msg_pt_question_mark", span[0], span[1], ["?"], {
       context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) },
@@ -1901,6 +3382,523 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       alternatives: [`,${target}`],
       context: { start: m.index, end: span[1] },
     };
+  },
+  // pt_BR.yaml rule pt_BR.agreement frame 1
+  "@pt_BR.agreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return postposed(ctx, m, EXIST_PLURAL);
+  },
+  // pt_BR.yaml rule pt_BR.agreement frame 2
+  "@pt_BR.agreement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return postposed(ctx, m, AUXILIARY_PLURAL);
+  },
+  // pt_BR.yaml rule pt_BR.agreement frame 3
+  "@pt_BR.agreement/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return postposed(ctx, m, PERFECT_PLURAL);
+  },
+  // pt_BR.yaml rule pt_BR.agreement frame 4
+  "@pt_BR.agreement/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return bareSubject(ctx, m, EXIST_PLURAL);
+  },
+  // pt_BR.yaml rule pt_BR.agreement frame 5
+  "@pt_BR.agreement/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return bareSubject(ctx, m, PERFECT_PLURAL);
+  },
+  // pt_BR.yaml rule pt_BR.agreement frame 6
+  "@pt_BR.agreement/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const target = m.groups!.target;
+    const base = pronoun.toLowerCase().replace(/^[nd]/, "");
+    const typed = target.toLowerCase();
+    const wanted = typed.replace(/[oa]s?$/, PROPRIO_ENDING[base]);
+    if (!(wanted !== typed)) return null;
+    return agreementFinding(ctx, m, wanted, "review_msg_pt_agreement");
+  },
+  // pt_BR.yaml rule pt_BR.agreement frame 7
+  "@pt_BR.agreement/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const target = m.groups!.target;
+    const person = PRONOUN_PERSON[pronoun.toLowerCase().replace(/\s+/g, " ")];
+    const typed = target.toLowerCase();
+    const rows = PT_FORM_ROWS.get(typed)!;
+    const index = PT_ROW_PERSONS.indexOf(person);
+    if (rows.some((row) => row[index] === typed)) return null;
+    if (person === "eles" && (typed === "tem" || typed === "vem")) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (NOT_SUBJECT_BEFORE.test(before)) return null;
+    if (/^\p{Lu}/u.test(pronoun) && !/(?:^|[.!?:;"“«]\s*)$/u.test(before)) return null;
+    const targetEnd = m.indices!.groups!.target[1];
+    const after = ctx.text.slice(targetEnd, targetEnd + 40);
+    if (/^[ \t\u00a0]+que(?![\p{L}])/u.test(after)) return null;
+    if (/^f[ia]z/.test(typed) && ELAPSED.test(after)) return null;
+    const wanted = new Set(rows.map((row) => row[index]));
+    if (!(wanted.size === 1)) return null;
+    return agreementFinding(ctx, m, [...wanted][0], "review_msg_pt_agreement");
+  },
+  // pt_BR.yaml rule pt_BR.agreement frame 8
+  "@pt_BR.agreement/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const target = m.groups!.target;
+    if (
+      target !== target.toLowerCase() ||
+      PT_NOT_VERBS.has(target) ||
+      PT_FORM_ROWS.has(target) ||
+      target.endsWith("mente")
+    )
+      return null;
+    const we = pronoun.toLowerCase() === "nós";
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (NOT_SUBJECT_BEFORE.test(before)) return null;
+    const preterite = /([oei])u$/.exec(target);
+    const wanted = preterite
+      ? `${target.slice(0, -2)}${preterite[1] === "i" && /[au]iu$/.test(target) && !we ? "í" : PRETERITE_VOWEL[preterite[1]]}${we ? "mos" : "ram"}`
+      : !we
+        ? `${target}m`
+        : /ava$/.test(target)
+          ? `${target.slice(0, -3)}ávamos`
+          : /[^i]a$/.test(target)
+            ? `${target}mos`
+            : undefined;
+    if (!(wanted !== undefined)) return null;
+    return agreementFinding(ctx, m, wanted, "review_msg_pt_agreement");
+  },
+  // pt_BR.yaml rule pt_BR.agreement frame 9
+  "@pt_BR.agreement/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const target = m.groups!.target;
+    if (
+      target !== target.toLowerCase() ||
+      PT_NOT_PLURAL_VERBS.has(target) ||
+      PT_FORM_ROWS.has(target)
+    )
+      return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (NOT_SUBJECT_BEFORE.test(before)) return null;
+    const wanted = ptSingularVerb(target, pronoun.toLowerCase() === "eu");
+    if (!(wanted !== undefined)) return null;
+    return agreementFinding(ctx, m, wanted, "review_msg_pt_agreement");
+  },
+  // pt_BR.yaml rule pt_BR.agreement frame 10
+  "@pt_BR.agreement/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    return agreementFinding(
+      ctx,
+      m,
+      FUTURE_SUBJUNCTIVE[verb.toLowerCase()] +
+        FUTURE_PERSON_ENDING[(m.groups!.person as string | undefined) ?? ""],
+      "review_msg_pt_future_subjunctive",
+    );
+  },
+  // pt_BR.yaml rule pt_BR.agreement frame 11
+  "@pt_BR.agreement/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const lead = m.groups!.lead;
+    const conj = m.groups!.conj;
+    const verb = m.groups!.verb;
+    if (
+      /^quando$/i.test(conj) &&
+      (QUESTION_LEAD.test(lead) ||
+        /^[^.!?\n]*\?/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 160)))
+    )
+      return null;
+    return agreementFinding(
+      ctx,
+      m,
+      FUTURE_SUBJUNCTIVE[verb.toLowerCase()] +
+        FUTURE_PERSON_ENDING[(m.groups!.person as string | undefined) ?? ""],
+      "review_msg_pt_future_subjunctive",
+    );
+  },
+  // pt_BR.yaml rule pt_BR.agreement frame 12
+  "@pt_BR.agreement/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const typed = target.toLowerCase();
+    return agreementFinding(
+      ctx,
+      m,
+      typed === "boa" ? "bom" : typed.replace(/a$/, "o"),
+      "review_msg_pt_agreement",
+    );
+  },
+  // pt_BR.yaml rule pt_BR.nounAgreement frame 1
+  "@pt_BR.nounAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const modifier = m.groups!.modifier;
+    const noun = m.groups!.noun;
+    if (modifier && modifier !== modifier.toLowerCase()) return null;
+    const det = target.toLowerCase();
+    if (noun !== noun.toLowerCase() || ctx.dictionary.has(noun) || ctx.dictionary.has(det))
+      return null;
+    const start = m.indices!.groups!.target[0];
+    const nounEnd = m.indices!.groups!.noun[1];
+    if (/^(?:\.\.|…)/.test(ctx.text.slice(nounEnd, nounEnd + 2))) return null;
+    if (target !== det && !/^\p{Lu}\p{Ll}*$/u.test(target)) return null;
+    const cell = DETERMINER_CELLS.get(det)!;
+    const context = { start, end: nounEnd };
+    const possessive = POSSESSIVE_CELLS.get(noun);
+    return possessive && NOUN_ARTICLES.has(det) && det !== "a" && !modifier
+      ? possessiveAgreement(ctx, m, cell, possessive)
+      : TODO_ARTICLE.test(`${target} ${noun}`) && !modifier
+        ? todoAgreement(ctx, start, target, noun, nounEnd, cell, context)
+        : /^tod[oa]s?$/.test(det)
+          ? null
+          : plainAgreement(ctx, m, det, cell, context);
+  },
+  // pt_BR.yaml rule pt_BR.verbAgreement frame 1
+  "@pt_BR.verbAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!subjectAndVerb(ctx, m)) return null;
+    const wanted = ptPluralVerb(target);
+    if (!(wanted !== undefined)) return null;
+    return verbAgreementFinding(ctx, m, "target", [wanted], "review_msg_pt_agreement");
+  },
+  // pt_BR.yaml rule pt_BR.verbAgreement frame 2
+  "@pt_BR.verbAgreement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const lead = m.groups!.lead;
+    const noun = m.groups!.noun;
+    const target = m.groups!.target;
+    if (!(subjectAndVerb(ctx, m) && !/s$/.test(noun) && !PT_NOT_FINITE.has(noun))) return null;
+    if (/^a$/i.test(lead) && !/(?:a|ção|dade|gem|ice|ez)$/.test(noun)) return null;
+    const rows = PT_FORM_ROWS.get(target);
+    const wanted = rows
+      ? rows.find((candidate) => candidate[3] === target && candidate[1] !== target)?.[1]
+      : /[ae]m$/.test(target) && !PT_NOT_PLURAL_VERBS.has(target) && !PT_NOT_FINITE.has(target)
+        ? ptSingularVerb(target, false)
+        : undefined;
+    if (!(wanted !== undefined)) return null;
+    return verbAgreementFinding(ctx, m, "target", [wanted], "review_msg_pt_agreement");
+  },
+  // pt_BR.yaml rule pt_BR.verbAgreement frame 3
+  "@pt_BR.verbAgreement/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(target === target.replace(/^\p{Ll}/u, (c) => c.toUpperCase()))) return null;
+    if (!SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) return null;
+    const tokens = clauseTokensAfter(ctx.text, m.index, 16);
+    const noun = tokens[1] && !tokens[1].hyphen ? ptNoun(tokens[1].w) : null;
+    if (!(
+      noun !== null &&
+      !VERB_NOT_SUBJECT_NOUNS.has(tokens[1].w) &&
+      !DISTANT_COLLECTIVE.has(tokens[1].w)
+    ))
+      return null;
+    if (tokens[0].w === "a" && noun.feminine !== true) return null;
+    if (!(ctx.text.slice(tokens[1].start, tokens[1].end) === tokens[1].w)) return null;
+    const leadPlural = VERB_PLURAL_LEADS.has(tokens[0].w);
+    if (!(noun.plural === leadPlural)) return null;
+    const head = skipPostnominal(PT_CLAUSE, tokens, 2);
+    const joined = skipCoordinated(PT_CLAUSE, ctx.text, tokens, head);
+    const plural = leadPlural || joined > head;
+    const end = skipComplements(PT_CLAUSE, ctx.text, tokens, joined);
+    const relative = verbAfterRelative(PT_CLAUSE, ctx.text, tokens, end, () => true);
+    const moved = relative < 0 && (end > joined || joined > head);
+    const at = moved ? pastClitics(tokens, end) : relative;
+    if (moved && at === end && at + 1 < tokens.length && ptFiniteVerb(tokens[at + 1].w))
+      return null;
+    if (!(at >= 0 && at < tokens.length)) return null;
+    const verb = tokens[at];
+    if (verb.hyphen || !ptFiniteVerb(verb.w) || /mente$/.test(verb.w)) return null;
+    if (ctx.text.slice(verb.start, verb.end) !== verb.w || ctx.dictionary.has(verb.w)) return null;
+    if (/^(?:é|são|foi|foram|era|eram|será|serão|seja|sejam)$/.test(verb.w)) return null;
+    const after = ctx.text.slice(verb.end, verb.end + 40);
+    if (/^[ \t\u00a0]+que(?![\p{L}])/u.test(after) || IMPERSONAL_AFTER.test(after)) return null;
+    const rows = PT_FORM_ROWS.get(verb.w);
+    const wanted = plural
+      ? !/[ae]m$|ão$/.test(verb.w)
+        ? ptPluralVerb(verb.w)
+        : undefined
+      : rows
+        ? rows.find((row) => row[3] === verb.w && row[1] !== verb.w)?.[1]
+        : /[ae]m$/.test(verb.w)
+          ? ptSingularVerb(verb.w, false)
+          : undefined;
+    if (!(wanted !== undefined && wanted !== verb.w)) return null;
+    return {
+      ruleId: "portugueseAgreement",
+      messageKey: "review_msg_pt_agreement",
+      range: { start: verb.start, end: verb.end },
+      alternatives: [wanted],
+      context: { start: m.index, end: verb.end },
+    };
+  },
+  // pt_BR.yaml rule pt_BR.verbAgreement frame 4
+  "@pt_BR.verbAgreement/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!HOUR_CLAUSE_OPENING.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))) return null;
+    return verbAgreementFinding(
+      ctx,
+      m,
+      "target",
+      [HOUR_VERBS[target.toLowerCase()]],
+      "review_msg_pt_agreement",
+    );
+  },
+  // pt_BR.yaml rule pt_BR.verbAgreement frame 5
+  "@pt_BR.verbAgreement/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!HOUR_CLAUSE_OPENING.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))) return null;
+    return verbAgreementFinding(
+      ctx,
+      m,
+      "target",
+      [HOUR_AUXILIARIES[target.toLowerCase()]],
+      "review_msg_pt_agreement",
+    );
+  },
+  // pt_BR.yaml rule pt_BR.verbAgreement frame 6
+  "@pt_BR.verbAgreement/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const pronoun = m.groups!.pronoun;
+    return verbAgreementFinding(
+      ctx,
+      m,
+      "target",
+      [SER_PRONOUN[target.toLowerCase()][pronoun.toLowerCase()]],
+      "review_msg_pt_agreement",
+    );
+  },
+  // pt_BR.yaml rule pt_BR.verbAgreement frame 7
+  "@pt_BR.verbAgreement/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) return null;
+    return verbAgreementFinding(ctx, m, "target", [target.slice(0, -1)], "review_msg_pt_agreement");
+  },
+  // pt_BR.yaml rule pt_BR.verbAgreement frame 8
+  "@pt_BR.verbAgreement/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return tenseFinding(ctx, m, false, false);
+  },
+  // pt_BR.yaml rule pt_BR.verbAgreement frame 9
+  "@pt_BR.verbAgreement/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return tenseFinding(ctx, m, true, false);
+  },
+  // pt_BR.yaml rule pt_BR.verbAgreement frame 10
+  "@pt_BR.verbAgreement/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return tenseFinding(ctx, m, false, true);
+  },
+  // pt_BR.yaml rule pt_BR.verbAgreement frame 11
+  "@pt_BR.verbAgreement/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return tenseFinding(ctx, m, true, true);
+  },
+  // pt_BR.yaml rule pt_BR.subjunctives frame 1
+  "@pt_BR.subjunctives/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return subjunctiveFinding(ctx, m, false);
+  },
+  // pt_BR.yaml rule pt_BR.subjunctives frame 2
+  "@pt_BR.subjunctives/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return subjunctiveFinding(ctx, m, true);
+  },
+  // pt_BR.yaml rule pt_BR.subjunctives frame 3
+  "@pt_BR.subjunctives/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return subjunctiveFinding(ctx, m, false);
+  },
+  // pt_BR.yaml rule pt_BR.subjectPredicates frame 1
+  "@pt_BR.subjectPredicates/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const article = m.groups!.article;
+    const noun = m.groups!.noun;
+    const copula = m.groups!.copula;
+    const target = m.groups!.target;
+    if (!SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) return null;
+    if (!(target === target.toLowerCase() && !ctx.dictionary.has(target))) return null;
+    if (
+      !(pronoun
+        ? pronoun.slice(1) === pronoun.slice(1).toLowerCase()
+        : noun === noun.toLowerCase() && !NOT_PREDICATE_SUBJECT.has(noun))
+    )
+      return null;
+    const info = pronoun ? null : ptNoun(noun);
+    if (!(!!pronoun || (info !== null && info.feminine !== null))) return null;
+    const feminine = info ? info.feminine === true : /^elas?$/i.test(pronoun);
+    const plural = info ? info.plural : /s$/i.test(pronoun);
+    if (!(!info || (/a/i.test(article) === feminine && /s$/i.test(article) === plural)))
+      return null;
+    const stem = target.replace(/[oa]s?$/, "");
+    const participle = /\p{Ll}{2}(?:ad|id)$/u.test(stem) && !NOUNS_IN_DO.has(stem);
+    const targetEnd = m.indices!.groups!.target[1];
+    if (!CLAUSE_GOES_ON.test(ctx.text.slice(targetEnd, targetEnd + 24))) return null;
+    if (!(ADJECTIVE_STEMS.has(stem) || participle)) return null;
+    if (stem === "car" && /^[ \t\u00a0]+de(?![\p{L}])/u.test(ctx.text.slice(targetEnd)))
+      return null;
+    const wanted = `${stem}${feminine ? "a" : "o"}${plural ? "s" : ""}`;
+    if (!(wanted !== target)) return null;
+    if (!(/(?:ão|am|em)$/.test(copula) === plural)) return null;
+    return {
+      ruleId: "portugueseAgreement",
+      messageKey: "review_msg_pt_noun_agreement",
+      range: { start: m.indices!.groups!.target[0], end: targetEnd },
+      alternatives: [applyWordCase(wanted, detectWordCase(target))],
+      context: { start: m.index, end: targetEnd },
+    };
+  },
+  // pt_BR.yaml rule pt_BR.relativeAgreement frame 1
+  "@pt_BR.relativeAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const target = m.groups!.target;
+    const qual = m.groups!.qual;
+    if (!(noun === noun.toLowerCase() && target === target.toLowerCase())) return null;
+    const row = Object.values(PREPOSITION_FORMS).find((forms) => forms.includes(target));
+    if (!(row !== undefined)) return null;
+    const info = ptNoun(noun);
+    if (!(info !== null && info.feminine !== null)) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 30), m.index);
+    if (/(?:^|[^\p{L}])(?:ou|e)[ \t\u00a0]+(?:\p{L}+[ \t\u00a0]+)?$/u.test(before)) return null;
+    if (!((qual === "quais") === info.plural)) return null;
+    const wanted = row[(info.plural ? 2 : 0) + (info.feminine ? 1 : 0)];
+    if (!(wanted !== target)) return null;
+    const span = m.indices!.groups!.target;
+    return finding(
+      "portugueseAgreement",
+      "review_msg_pt_noun_agreement",
+      span[0],
+      span[1],
+      [wanted],
+      { context: { start: m.index, end: m.index + m[0].length } },
+    );
+  },
+  // pt_BR.yaml rule pt_BR.relativeAgreement frame 2
+  "@pt_BR.relativeAgreement/2": (m: RegExpExecArray): MatchResult => {
+    const verb = m.groups!.verb;
+    const det = m.groups!.det;
+    const noun = m.groups!.noun;
+    if (!(verb.slice(1) === verb.slice(1).toLowerCase() && noun === noun.toLowerCase()))
+      return null;
+    const info = ptNoun(noun);
+    if (!(info?.plural === true && info.feminine !== null)) return null;
+    if (!det && !info.certain && !/[ao]s$/.test(noun)) return null;
+    if (TIME_WORD.test(noun)) return null;
+    const lower = verb.toLowerCase();
+    if (GOVERNS_A_SE.has(lower)) return null;
+    const stems = ptVerbStems();
+    const stem = lower.slice(0, -1);
+    if (!(lower.endsWith("a") ? stems.ar.has(stem) : stems.er.has(stem) || stems.ir.has(stem)))
+      return null;
+    const span = m.indices!.groups!.verb;
+    return {
+      ruleId: "portugueseAgreement",
+      messageKey: "review_msg_pt_agreement",
+      range: { start: span[0], end: span[1] },
+      alternatives: [applyWordCase(`${verb}m`, detectWordCase(verb))],
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pt_BR.yaml rule pt_BR.quantifiedAdjectives frame 1
+  "@pt_BR.quantifiedAdjectives/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const adjective = m.groups!.adjective;
+    if (!(target === target.toLowerCase() && adjective === adjective.toLowerCase())) return null;
+    const stem = adjective.replace(/[oa]s?$/, "");
+    const participle =
+      /\p{Ll}{2}(?:ad|id)$/u.test(stem) &&
+      !NOUNS_IN_DO.has(stem) &&
+      !/^(?:é|são|era|eram|foi|foram|será|serão|seria|seriam|somos|fomos|éramos)\s/iu.test(m[0]);
+    if (!(ADJECTIVE_STEMS.has(stem) || participle || /es$/.test(adjective))) return null;
+    const end = m.indices!.groups!.adjective[1];
+    if (!CLAUSE_GOES_ON.test(ctx.text.slice(end, end + 24))) return null;
+    const wanted = target.startsWith("muit")
+      ? "muito"
+      : target.startsWith("pouc")
+        ? "pouco"
+        : target.startsWith("demasiad")
+          ? "demasiado"
+          : target.startsWith("meia")
+            ? "meio"
+            : "bastante";
+    const span = m.indices!.groups!.target;
+    return finding(
+      "portugueseAgreement",
+      "review_msg_pt_noun_agreement",
+      span[0],
+      span[1],
+      [wanted],
+      { context: { start: m.index, end } },
+    );
+  },
+  // pt_BR.yaml rule pt_BR.fixedAgreements frame 1
+  "@pt_BR.fixedAgreements/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const one = m.groups!.one;
+    if (m.index < ctx.from || m.index >= ctx.to) return null;
+    const group = one ? "one" : "target";
+    return fixedAgreement(ctx, m, group, MASCULINE_OF[m.groups![group].toLowerCase()]);
+  },
+  // pt_BR.yaml rule pt_BR.fixedAgreements frame 2
+  "@pt_BR.fixedAgreements/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    return fixedAgreement(
+      ctx,
+      m,
+      "target",
+      target.toLowerCase().startsWith("muit") ? "muito" : "bastante",
+    );
+  },
+  // pt_BR.yaml rule pt_BR.fixedAgreements frame 3
+  "@pt_BR.fixedAgreements/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    return fixedAgreement(ctx, m, "target", ANNEX_DET[det.toLowerCase()]);
+  },
+  // pt_BR.yaml rule pt_BR.passiveNumber frame 1
+  "@pt_BR.passiveNumber/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const copula = m.groups!.copula;
+    const target = m.groups!.target;
+    if (!(target === target.toLowerCase() && copula.slice(1) === copula.slice(1).toLowerCase()))
+      return null;
+    const stem = target.replace(/[oa]s?$/, "");
+    const participle =
+      (/\p{Ll}{2}(?:ad|id)$/u.test(stem) && !NOUNS_IN_DO.has(stem)) || SHORT_PARTICIPLES.has(stem);
+    if (!(participle || ADJECTIVE_STEMS.has(stem))) return null;
+    const pluralCopula = /(?:ão|am|em)$/.test(copula);
+    if (!(pluralCopula !== target.endsWith("s"))) return null;
+    const start = m.indices!.groups!.copula[0];
+    const end = m.indices!.groups!.target[1];
+    const subject = SUBJECT_AFTER_COPULA.exec(ctx.text.slice(end, end + 24));
+    if (!(subject !== null && !ctx.dictionary.has(ctx.text.slice(start, end).toLowerCase())))
+      return null;
+    const lower = copula.toLowerCase();
+    const fixed =
+      !!subject.groups!.one === pluralCopula
+        ? `${COPULA_NUMBER[lower]} ${target}`
+        : `${lower} ${pluralCopula ? `${target}s` : target.slice(0, -1)}`;
+    return finding(
+      "portugueseAgreement",
+      "review_msg_pt_passive_number",
+      start,
+      end,
+      [applyWordCase(fixed, detectWordCase(copula))],
+      { context: { start, end } },
+    );
+  },
+  // pt_BR.yaml rule pt_BR.personAgreement frame 1
+  "@pt_BR.personAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (NOT_SUBJECT_BEFORE.test(before) || NOT_PRONOUN_SUBJECT.test(before)) return null;
+    if (/^\p{Lu}/u.test(pronoun) && !SENTENCE_START.test(before)) return null;
+    const pronounEnd = m.indices!.groups!.pronoun[1];
+    const after = ctx.text.slice(pronounEnd, pronounEnd + 8);
+    if (/^[ \t\u00a0]+e(?![\p{L}])/u.test(after)) return null;
+    return personFinding(ctx, m, PERSON_OF_PRONOUN[pronoun.toLowerCase()] as PtPerson);
+  },
+  // pt_BR.yaml rule pt_BR.personAgreement frame 2
+  "@pt_BR.personAgreement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const lead = m.groups!.lead;
+    const noun = m.groups!.noun;
+    const target = m.groups!.target;
+    if (!SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) return null;
+    if (!(lead.slice(1) === lead.slice(1).toLowerCase() && noun === noun.toLowerCase()))
+      return null;
+    if (PERSON_COLLECTIVE.has(noun) || PT_NOT_VERBS.has(noun)) return null;
+    const plural = PERSON_PLURAL_LEAD.test(lead);
+    if (!(/s$/.test(noun) === plural)) return null;
+    const end = m.indices!.groups!.target[1];
+    const next = /^[ \t\u00a0]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 30))?.[1];
+    if (next && (PT_FORM_ROWS.has(next) || ptVerbReadings(next).length > 0)) return null;
+    if (!ptVerbReadings(target).every((a) => a.persons.has("3s") || a.persons.has("3p")))
+      return null;
+    return personFinding(ctx, m, plural ? "3p" : "3s");
+  },
+  // pt_BR.yaml rule pt_BR.personAgreement frame 3
+  "@pt_BR.personAgreement/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const we = m.groups!.we;
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (NOT_SUBJECT_BEFORE.test(before) && !SENTENCE_START.test(before)) return null;
+    if (!namesCapitalized(we)) return null;
+    return personFinding(ctx, m, "1p");
   },
   // pt_BR.yaml rule pt_BR.auxiliaryInfinitives frame 1
   "@pt_BR.auxiliaryInfinitives/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
@@ -2128,7 +4126,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@pt_BR.markSpacing/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     const span = m.indices!.groups!.target;
     const line = ctx.text.slice(ctx.text.lastIndexOf("\n", span[0]) + 1, span[0]);
-    if (/^[ \t ]*(?:…|\.{3}|\[…\])/u.test(line)) return null;
+    if (/^[ \t\u00a0]*(?:…|\.{3}|\[…\])/u.test(line)) return null;
     return finding("commaPeriodSpacing", "review_msg_space_before_mark", span[0], span[1], ["…"]);
   },
   // pt_BR.yaml rule pt_BR.unitSpacing frame 1

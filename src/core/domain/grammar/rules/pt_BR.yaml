@@ -123,6 +123,10 @@ defs:
   # Text before a sentence or clause start: punctuation, closing marks, an opening quote.
   SENTENCE_START: '/(?:^|[.!?;:\n]["''”’»)]*)[ \t\u00a0]*["''“‘«(]?[ \t\u00a0]*$/u'
 
+  # A preposition makes the pronoun no subject ("para eles foi difícil", "a todos eles"); "e",
+  # "ou" or a comma can join it to another subject ("eu e ela vamos"); after a copula it is the
+  # predicate ("ser eu"); after an article it is a noun ("os nós", "o verdadeiro eu").
+  NOT_SUBJECT_BEFORE: '/(?<![\p{L}])(?:(?:para|com|de|dentre|sem|entre|a|por|contra|até|sobre|perante|desde|após)(?:[ \t\u00a0]+(?:todos|todas|ambos|ambas))?|e|ou|nem|como|quanto|ser|sou|é|era|foi|o|a|os|as|um|uma|uns|umas|dos|das|nos|nas|aos|pelos|pelas|meu|seu|teu|nosso|verdadeiro|próprio)[ \t\u00a0]+$|,[ \t\u00a0]*$/iu'
 rules:
   - id: pt_BR.accentParonyms
     checks: [portugueseAccentParonyms]
@@ -913,7 +917,7 @@ rules:
         ]
     defs:
       # The text before a clause start: a sentence mark or a line break, then spaces or quotes.
-      CLAUSE_START: '/(?:^|[.!?:;][ \t\r\n "”»)]{0,8}|\n[ \t ]{0,8})$/'
+      CLAUSE_START: '/(?:^|[.!?:;][ \t\r\n\u00a0"”»)]{0,8}|\n[ \t\u00a0]{0,8})$/'
       # The crase finding for the `target` group, in the typed casing; a user word stays.
       crase:
         args: "ctx: DetectContext, m: RegExpExecArray, alternatives: string[]"
@@ -1201,13 +1205,13 @@ rules:
       - regex: "(?<target>(?<first>em|de|a|para|por){{S}}(?<country>Costa{{S}}do{{S}}Marfim|Estados{{S}}Unidos|Nova{{S}}Zelândia|África{{S}}do{{S}}Sul|Afeganistão|Reino{{S}}Unido|Nova{{S}}Guiné|Costa{{S}}Rica|Paquistão|Argentina|Venezuela|Austrália|Finlândia|Tailândia|Indonésia|Paraguai|Vietname|Vaticano|Colômbia|Uruguai|Equador|Bolívia|Noruega|Holanda|Bélgica|Turquia|Nigéria|Brasil|Canadá|México|Egipto|Iraque|Vietnã|Rússia|Suécia|Coreia|Japão|Chile|Egito|China|Índia|Suíça|Peru|Irão|Irã|EUA))(?![\\p{L}\\p{N}-])"
         message: review_msg_pt_country_article
         let:
-          name: 'country.replace(/[ \t ]+/g, " ")'
+          name: 'country.replace(/[ \t\u00a0]+/g, " ")'
           article: "COUNTRIES[name]"
           span: "m.indices!.groups!.target"
         when:
           - "first === first.toLowerCase()"
           - '!(!article || (first === "a" && article === "a") || ctx.dictionary.has(name.toLowerCase()))'
-          - '!/^[ \t ]+\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 3))'
+          - '!/^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 3))'
         return: '({ ruleId: "portugueseContractions", messageKey: "review_msg_pt_country_article", range: { start: span[0], end: span[1] }, alternatives: [`${WITH_ARTICLE[first][article]} ${country}`] })'
   - id: pt_BR.numberFormat
     checks: [portugueseNumberFormat]
@@ -1254,7 +1258,7 @@ rules:
       - regex: "(?<target>\\d{1,3}{{GAP}}º{{GAP}}\\d{1,2}(?:,\\d+)?{{GAP}}['’′](?:{{GAP}}\\d{1,2}(?:,\\d+)?{{GAP}}(?:[\"”″]|['’′]{1,2}))?)"
         let:
           parts: 'target.match(/\d+(?:,\d+)?/g)!'
-        return: '`${parts[0]}° ${parts[1]}′${parts[2] ? ` ${parts[2]}″` : ""}`'
+        return: '`${parts[0]}°\u202f${parts[1]}′${parts[2] ? `\u202f${parts[2]}″` : ""}`'
       # "38,8º", "3,5o": an ordinal is a whole number, so a decimal takes the degree sign.
       - regex: "[−-]?\\d{1,3},\\d{1,3}(?<target>[ºo])(?![\\p{L}\\p{N}])"
         fix: "°"
@@ -1306,7 +1310,7 @@ rules:
       # A year range with a space on one side of the dash only: "2013– 2021" -> "2013–2021".
       - regex: "(?<![\\d.,])(?<target>{{YEAR}}(?:[ \\u00a0]+[-–—]|[-–—][ \\u00a0]+){{YEAR}})(?!\\d|[.,]\\d)"
         message: review_msg_range_dash
-        return: 'target.replace(/[  ]*[-–—][  ]*/, "–")'
+        return: 'target.replace(/[ \u00a0]*[-–—][ \u00a0]*/, "–")'
   - id: pt_BR.typographyStyleFrames
     checks: [portugueseTypographyStyle]
     style: cased
@@ -1628,7 +1632,7 @@ rules:
           span: "m.indices!.groups!.target"
         when:
           - '/^\p{Lu}\p{Ll}/u.test(target)'
-          - '!(/-F/.test(target) || /^[ \t ]+(?:de[ \t ]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8)))'
+          - '!(/-F/.test(target) || /^[ \t\u00a0]+(?:de[ \t\u00a0]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8)))'
           - "!NAMED_PLACE.test(ctx.text.slice(Math.max(0, span[0] - 40), span[0]))"
         return: "ao90Finding(ctx, span[0], span[1], target.toLowerCase())"
       - regex: "(?:em|de|até|desde){{S}}(?<target>{{AO90_MONTH}}){{S}}de{{S}}\\d{4}"
@@ -1636,7 +1640,7 @@ rules:
           span: "m.indices!.groups!.target"
         when:
           - '/^\p{Lu}\p{Ll}/u.test(target)'
-          - '!(/-F/.test(target) || /^[ \t ]+(?:de[ \t ]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8)))'
+          - '!(/-F/.test(target) || /^[ \t\u00a0]+(?:de[ \t\u00a0]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8)))'
           - "!NAMED_PLACE.test(ctx.text.slice(Math.max(0, span[0] - 40), span[0]))"
         return: "ao90Finding(ctx, span[0], span[1], target.toLowerCase())"
       - regex: "(?:próximo|próxima|último|última|no|na|nos|nas|neste|nesta|nesse|nessa|todo|toda|todos|todas|aos|às|cada){{S}}(?<target>{{AO90_WEEKDAY}}){{E}}(?!{{S}}de{{S}}\\p{L})"
@@ -1644,7 +1648,7 @@ rules:
           span: "m.indices!.groups!.target"
         when:
           - '/^\p{Lu}\p{Ll}/u.test(target)'
-          - '!(/-F/.test(target) || /^[ \t ]+(?:de[ \t ]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8)))'
+          - '!(/-F/.test(target) || /^[ \t\u00a0]+(?:de[ \t\u00a0]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8)))'
           - "!NAMED_PLACE.test(ctx.text.slice(Math.max(0, span[0] - 40), span[0]))"
         return: "ao90Finding(ctx, span[0], span[1], target.toLowerCase())"
   - id: pt_BR.invalidDates
@@ -1868,14 +1872,14 @@ rules:
         when:
           - "!(before && after)"
           - "!(start < ctx.from || start >= ctx.to)"
-        return: '({ ruleId: "portugueseCommas", messageKey: "review_msg_pt_comma", range: { start, end }, alternatives: [`, ${typed.replace(/^,?[ \t ]+/, "").replace(/,$/, "")},`], context: { start: m.index, end } })'
+        return: '({ ruleId: "portugueseCommas", messageKey: "review_msg_pt_comma", range: { start, end }, alternatives: [`, ${typed.replace(/^,?[ \t\u00a0]+/, "").replace(/,$/, "")},`], context: { start: m.index, end } })'
       # A whole line that signs off a letter ("Atenciosamente").
       - regex: "(?<=^|\\n)[ \\t\\u00a0]{0,8}(?=(?:{{CLOSINGS}})[.;]?{{LINE_END}})(?:\\p{L}{1,30}{{S}}){0,6}(?<target>\\p{L}{1,30}[.;]?){{LINE_END}}"
         return: 'commaAt(m, target.replace(/[.;]?$/, ","))'
       # A whole line that greets a letter's reader ("Prezado Senhor").
       - regex: "(?<=^|\\n)[ \\t\\u00a0]{0,8}(?:prezad[oa]s?|car[oa]s?|estimad[oa]s?|querid[oa]s?)(?:{{S}}(?:senhor(?:a|es|as)?|sr\\.?|sra\\.?|dr\\.?|dra\\.?|doutor(?:a)?|professor(?:a)?|\\p{L}[\\p{L}.]*|e|senhores|senhoras|colegas|amigos|amigas|clientes)){0,4}{{S}}(?<target>[\\p{L}.]{1,30}!?){{LINE_END}}"
         when:
-          - '/[ \t ]\p{Lu}|senhor|doutor|professor|colegas|amig|clientes/u.test(m[0])'
+          - '/[ \t\u00a0]\p{Lu}|senhor|doutor|professor|colegas|amig|clientes/u.test(m[0])'
         return: 'commaAt(m, target.replace(/!?$/, ","))'
       # A question opened by a question word and "é que" ends with "?" ("O que é que houve.").
       - regex: "(?<=^|[.!?;\\n][ \\t\\u00a0]{0,8})(?:quem|o{{S}}que|que|como|onde|de{{S}}onde|aonde|quando|por{{S}}que|qual|quanto|quantos|quantas){{S}}(?:foi|é|era){{S}}que{{E}}[^.!?\\n]{1,160}?(?<target>\\.)(?=[ \\t\\u00a0]*(?:\\n|$|\\p{L}))"
@@ -1883,7 +1887,7 @@ rules:
         let:
           span: "m.indices!.groups!.target"
         when:
-          - 'direct(m[0].replace(/^.*?(?:foi|é|era)[ \t ]+que/isu, ""))'
+          - 'direct(m[0].replace(/^.*?(?:foi|é|era)[ \t\u00a0]+que/isu, ""))'
         return: 'finding("portugueseCommas", "review_msg_pt_question_mark", span[0], span[1], ["?"], { context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) } })'
   - id: pt_BR.introductoryCommas
     checks: [styleIntroductoryComma]
@@ -1900,59 +1904,586 @@ rules:
     checks: [portugueseAgreement]
     style: match
     message: review_msg_pt_agreement
+    maps:
+      # Third person singular -> plural of the verbs whose subject usually follows them.
+      EXIST_PLURAL:
+        existe: existem
+        existia: existiam
+        existiu: existiram
+        existirá: existirão
+        existiria: existiriam
+        acontece: acontecem
+        acontecia: aconteciam
+        aconteceu: aconteceram
+        acontecerá: acontecerão
+        aconteceria: aconteceriam
+        ocorre: ocorrem
+        ocorria: ocorriam
+        ocorreu: ocorreram
+        ocorrerá: ocorrerão
+        ocorreria: ocorreriam
+        surge: surgem
+        surgia: surgiam
+        surgiu: surgiram
+        surgirá: surgirão
+        surgiria: surgiriam
+        resta: restam
+        restava: restavam
+        restou: restaram
+        restará: restarão
+        restaria: restariam
+        basta: bastam
+        bastava: bastavam
+        bastou: bastaram
+        bastará: bastarão
+        bastaria: bastariam
+        sobra: sobram
+        sobrava: sobravam
+        sobrou: sobraram
+        sobrará: sobrarão
+        sobraria: sobrariam
+        falta: faltam
+        faltava: faltavam
+        faltou: faltaram
+        faltará: faltarão
+        faltaria: faltariam
+        chega: chegam
+        chegava: chegavam
+        chegou: chegaram
+        chegará: chegarão
+        chegaria: chegariam
+      AUXILIARY_PLURAL:
+        vai: vão
+        ia: iam
+        irá: irão
+        iria: iriam
+        pode: podem
+        podia: podiam
+        poderá: poderão
+        poderia: poderiam
+        deve: devem
+        devia: deviam
+        deverá: deverão
+        deveria: deveriam
+        costuma: costumam
+        costumava: costumavam
+        continua: continuam
+        começa: começam
+      # "Tem existido muitos", "Está chegando os dias": a perfect or progressive of the same verbs.
+      PERFECT_PLURAL:
+        tem: têm
+        tinha: tinham
+        tenha: tenham
+        teria: teriam
+        terá: terão
+        tivesse: tivessem
+        está: estão
+        estava: estavam
+        esteve: estiveram
+        esteja: estejam
+        havia: haviam
+        haveria: haveriam
+        haja: hajam
+        houvesse: houvessem
+      PROPRIO_ENDING: { ele: o, ela: a, eles: os, elas: as }
+      # Infinitive -> future subjunctive stem of the irregular verbs (the regular ones coincide).
+      # "por" without its accent stays out: "quando ele por fim chegou".
+      FUTURE_SUBJUNCTIVE:
+        dizer: disse
+        fazer: fize
+        refazer: refize
+        desfazer: desfize
+        ver: vi
+        rever: revi
+        prever: previ
+        ter: tive
+        manter: mantive
+        conter: contive
+        obter: obtive
+        deter: detive
+        reter: retive
+        pôr: puse
+        propor: propuse
+        compor: compuse
+        supor: supuse
+        ser: fo
+        ir: fo
+        dar: de
+        estar: estive
+        poder: pude
+        saber: soube
+        querer: quise
+        trazer: trouxe
+        caber: coube
+      FUTURE_PERSON_ENDING: { "": r, es: res, mos: rmos, em: rem }
+      PRONOUN_PERSON:
+        eu: eu
+        ele: ele
+        ela: ele
+        você: ele
+        a gente: ele
+        nós: nós
+        eles: eles
+        elas: eles
+        vocês: eles
+      PRETERITE_VOWEL: { o: a, e: e, i: i }
+    defs:
+      # A subject before the verb ("Ele resta...", "quem existe") makes it agree with that one.
+      AGREE_SUBJECT_BEFORE: '/(?<![\p{L}])(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|que|quem|o|a|isso|isto|tudo|nada|algo|ninguém)[ \t\u00a0]+$/iu'
+      # "chegar" and "faltar" mostly follow their subject ("A polícia chegou alguns instantes
+      # depois"): they only agree with one after them when nothing but an adverb comes before.
+      SUBJECTLESS: '/(?:^|[.!?;:,\n]["''”’»)]*[ \t\u00a0]*|(?:^|[^\p{L}])(?:já|ontem|hoje|então|ainda|agora|aí|enfim|finalmente|não)[ \t\u00a0]+)$/iu'
+      # "cheg-" or "falt-" as the verb, or as the participle after "tem", "está" and the like.
+      ARRIVE_OR_LACK: '/^(?:\p{L}+[ \t\u00a0]+(?:\p{L}+[ \t\u00a0]+)?)?(?:cheg|falt)/iu'
+      PLURAL_DETERMINER_WORD: /^(?:mais|muitos|muitas|vários|várias|alguns|algumas|poucos|poucas|diversos|diversas|inúmeros|inúmeras|tantos|tantas|uns|umas|os|as|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|cem|[2-9]|\d{2,})$/
+      QUESTION_LEAD: "/^(?:sei|sabe|sabem|sabemos|saber|sabia|soube|decidir|decide|decidiu|decidimos|escolher|escolhe|escolheu|perguntar|pergunta|perguntou|ensinar|ensina|ensinou|aprender|aprende|aprendeu|entender|entende|explicar|explica|explicou|dizer|diz|disse|mostrar|mostra|mostrou|indicar|indica|definir|define|planejar|ideia|dúvida|noção|até|desde|de|para|sobre|é|era)$/iu"
+      # "Vi eles faz um ano": a span of time after "fazer".
+      ELAPSED: '/^[ \t\u00a0]{1,8}(?:\p{L}+[ \t\u00a0]{1,8})?(?:vezes|anos|meses|semanas|dias|horas|minutos|segundos|tempos|décadas|séculos|instantes|momentos|tempo)(?![\p{L}\p{M}\p{N}_''’@/#\\-])/iu'
+      subjectless:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        return: "!ARRIVE_OR_LACK.test(ctx.text.slice(m.index, m.index + 40)) || SUBJECTLESS.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))"
+      # The agreement finding for the `target` group, in the typed casing; a user word stays.
+      agreementFinding:
+        args: 'ctx: DetectContext, m: RegExpExecArray, replacement: string, messageKey: RawFinding["messageKey"]'
+        type: RawFinding | null
+        let:
+          typed: m.groups!.target
+          span: m.indices!.groups!.target
+        when: "!ctx.dictionary.has(typed.toLowerCase())"
+        return: '({ ruleId: "portugueseAgreement", messageKey, range: { start: span[0], end: span[1] }, alternatives: [applyWordCase(replacement, detectWordCase(typed))], context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) } })'
+      # A verb before its plural subject takes its plural form from `table`.
+      postposed:
+        args: "ctx: DetectContext, m: RegExpExecArray, table: Readonly<Record<string, string>>"
+        when:
+          - "!AGREE_SUBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))"
+          - subjectless(ctx, m)
+        return: 'agreementFinding(ctx, m, table[m.groups!.target.toLowerCase()], "review_msg_pt_agreement")'
+      # The same before a bare plural noun, whose spelling must tell its number and gender.
+      bareSubject:
+        args: "ctx: DetectContext, m: RegExpExecArray, table: Readonly<Record<string, string>>"
+        let:
+          noun: m.groups!.noun
+          info: ptNoun(noun)
+        when:
+          - "!(noun !== noun.toLowerCase() || /mos$/.test(noun) || TIME_WORD.test(noun))"
+          - "!PLURAL_DETERMINER_WORD.test(noun)"
+          - info?.plural === true && info.feminine !== null
+          - "!AGREE_SUBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))"
+          - subjectless(ctx, m)
+        return: 'agreementFinding(ctx, m, table[m.groups!.target.toLowerCase()], "review_msg_pt_agreement")'
     frames:
       # Verbs of existing and happening agree with a plural subject placed after them: "Existe
       # muitos problemas" -> "Existem". {{SUBJECT_AFTER}}: a plural determiner and a plural
       # noun; "Acontece muitas vezes", "ocorre dois dias depois": a span of time ({{TIME}}) is
       # no subject.
       - regex: "(?<target>{{EXIST_VERBS}}){{S}}(?={{SUBJECT_AFTER}})"
-        fixer: agreementPostposed
+        return: "postposed(ctx, m, EXIST_PLURAL)"
       # "Vai acontecer várias mudanças" -> "Vão".
       - regex: "(?<target>vai|ia|irá|iria|pode|podia|poderá|poderia|deve|devia|deverá|deveria|costuma|costumava|continua|começa){{S}}(?={{BETWEEN}}(?:{{INFINITIVES}}){{E}}{{S}}{{SUBJECT_AFTER}})"
-        fixer: agreementPeriphrasis
+        return: "postposed(ctx, m, AUXILIARY_PLURAL)"
       # "Tem existido muitos", "Está chegando os dias": a perfect or progressive of the same
       # verbs.
       - regex: "(?<target>{{PERFECT_AUXILIARIES}}){{S}}(?={{BETWEEN}}(?:{{PARTICIPLES}}){{E}}{{S}}{{SUBJECT_AFTER}})"
-        fixer: agreementPerfect
+        return: "postposed(ctx, m, PERFECT_PLURAL)"
       # A bare plural after the verb: "Já aconteceu erros" -> "aconteceram", "tenha surgido
       # dúvidas" -> "tenham". Checked in code.
       - regex: "(?<target>{{EXIST_VERBS}}){{S}}{{AGREE_ADVERB}}(?<noun>\\p{L}{3,}s){{E}}"
-        fixer: agreementBare
+        return: "bareSubject(ctx, m, EXIST_PLURAL)"
       - regex: "(?<target>{{PERFECT_AUXILIARIES}}){{S}}{{BETWEEN}}(?:{{PARTICIPLES}}){{S}}{{AGREE_ADVERB}}(?<noun>\\p{L}{3,}s){{E}}"
-        fixer: agreementBarePerfect
+        return: "bareSubject(ctx, m, PERFECT_PLURAL)"
       # "próprio" agrees with the pronoun it reinforces: "ela próprio" -> "ela própria".
       - regex: "(?<pronoun>n?ele|n?ela|n?eles|n?elas|dele|dela|deles|delas){{S}}(?<target>própri[oa]s?){{E}}"
-        fixer: agreementProprio
+        let:
+          base: 'pronoun.toLowerCase().replace(/^[nd]/, "")'
+          typed: "target.toLowerCase()"
+          wanted: "typed.replace(/[oa]s?$/, PROPRIO_ENDING[base])"
+        when:
+          - "wanted !== typed"
+        return: 'agreementFinding(ctx, m, wanted, "review_msg_pt_agreement")'
       # A frequent irregular verb ({{IRREGULAR_FORMS}}) in the person of its pronoun subject.
       - regex: "(?<pronoun>eu|ele|ela|você|a{{S}}gente|nós|eles|elas|vocês){{S}}(?:(?:não|já|também|sempre|só|ainda|nunca){{S}}){0,2}(?<target>{{IRREGULAR_FORMS}}){{E}}"
-        fixer: agreementIrregular
+        let:
+          person: 'PRONOUN_PERSON[pronoun.toLowerCase().replace(/\s+/g, " ")]'
+          typed: "target.toLowerCase()"
+          rows: "PT_FORM_ROWS.get(typed)!"
+          index: "PT_ROW_PERSONS.indexOf(person)"
+          before: "ctx.text.slice(Math.max(0, m.index - 24), m.index)"
+          targetEnd: "m.indices!.groups!.target[1]"
+          after: "ctx.text.slice(targetEnd, targetEnd + 40)"
+          wanted: "new Set(rows.map((row) => row[index]))"
+        when:
+          - "!rows.some((row) => row[index] === typed)"
+          - '!(person === "eles" && (typed === "tem" || typed === "vem"))'
+          - "!NOT_SUBJECT_BEFORE.test(before)"
+          - '!(/^\p{Lu}/u.test(pronoun) && !/(?:^|[.!?:;"“«]\s*)$/u.test(before))'
+          - '!/^[ \t\u00a0]+que(?![\p{L}])/u.test(after)'
+          - "!(/^f[ia]z/.test(typed) && ELAPSED.test(after))"
+          - "wanted.size === 1"
+        return: 'agreementFinding(ctx, m, [...wanted][0], "review_msg_pt_agreement")'
       # A regular verb in the third person singular after a plural pronoun: "eles gosta" ->
       # "gostam", "nós gostava" -> "gostávamos".
       - regex: "(?<pronoun>nós|eles|elas|vocês){{S}}(?:(?:não|já|também|sempre|só|ainda|nunca){{S}}){0,2}(?<target>\\p{L}{3,}[ae]|\\p{L}{1,}(?:ou|eu|iu)){{E}}"
-        fixer: agreementRegularPlural
+        let:
+          we: 'pronoun.toLowerCase() === "nós"'
+          before: "ctx.text.slice(Math.max(0, m.index - 24), m.index)"
+          preterite: "/([oei])u$/.exec(target)"
+          wanted: 'preterite ? `${target.slice(0, -2)}${preterite[1] === "i" && /[au]iu$/.test(target) && !we ? "í" : PRETERITE_VOWEL[preterite[1]]}${we ? "mos" : "ram"}` : !we ? `${target}m` : /ava$/.test(target) ? `${target.slice(0, -3)}ávamos` : /[^i]a$/.test(target) ? `${target}mos` : undefined'
+        when:
+          - '!(target !== target.toLowerCase() || PT_NOT_VERBS.has(target) || PT_FORM_ROWS.has(target) || target.endsWith("mente"))'
+          - "!NOT_SUBJECT_BEFORE.test(before)"
+          - "wanted !== undefined"
+        return: 'agreementFinding(ctx, m, wanted, "review_msg_pt_agreement")'
       # The reverse: a regular verb in the third person plural after "eu", "ele", "ela" or
       # "você" ("ele não passeiam" -> "passeia", "eu gostaram" -> "gostei").
       - regex: "(?<pronoun>eu|ele|ela|você){{S}}(?:(?:não|já|também|sempre|só|ainda|nunca){{S}}){0,2}(?<target>\\p{L}{2,}[ae]m){{E}}"
-        fixer: agreementSingular
+        let:
+          before: "ctx.text.slice(Math.max(0, m.index - 24), m.index)"
+          wanted: 'ptSingularVerb(target, pronoun.toLowerCase() === "eu")'
+        when:
+          - "!(target !== target.toLowerCase() || PT_NOT_PLURAL_VERBS.has(target) || PT_FORM_ROWS.has(target))"
+          - "!NOT_SUBJECT_BEFORE.test(before)"
+          - "wanted !== undefined"
+        return: 'agreementFinding(ctx, m, wanted, "review_msg_pt_agreement")'
       # After "quando", "se", "enquanto"... an irregular verb takes its future subjunctive, not
       # its infinitive: "Quando eu ver" -> "vir", "se nós fazermos" -> "fizermos".
       - regex: "{{FUTURE_CONJUNCTION}}{{S}}{{FUTURE_SUBJECT}}{{S}}(?:não{{S}})?{{FUTURE_INFINITIVE}}{{E}}"
         message: review_msg_pt_future_subjunctive
-        fixer: agreementFuture
+        return: 'agreementFinding(ctx, m, FUTURE_SUBJUNCTIVE[verb.toLowerCase()] + FUTURE_PERSON_ENDING[(m.groups!.person as string | undefined) ?? ""], "review_msg_pt_future_subjunctive")'
       # No subject: "Irei quando puder", "sempre que quiser". "quando" also opens an indirect
       # question with an infinitive ("não sei quando parar", "Quando usar a vírgula?"), so it
       # needs a word before it that asks for no question, and no question mark after.
       - regex: "(?<lead>\\p{L}+)[ \\t\\u00a0,]{1,8}(?<conj>quando|(?:assim|logo|sempre|depois){{S}}que){{S}}(?:não{{S}})?{{FUTURE_INFINITIVE}}{{E}}"
         message: review_msg_pt_future_subjunctive
-        fixer: agreementFutureBare
+        when:
+          - '!(/^quando$/i.test(conj) && (QUESTION_LEAD.test(lead) || /^[^.!?\n]*\?/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 160))))'
+        return: 'agreementFinding(ctx, m, FUTURE_SUBJUNCTIVE[verb.toLowerCase()] + FUTURE_PERSON_ENDING[(m.groups!.person as string | undefined) ?? ""], "review_msg_pt_future_subjunctive")'
       # A neuter pronoun (isso, isto, aquilo, tudo) takes a masculine adjective: "Isso é muito
       # engraçada" -> "engraçado".
       - regex: "(?:isso|isto|aquilo|tudo){{S}}(?:não{{S}})?(?:é|era|foi|seja|fosse|será|seria|parece|parecia|fica|ficou|está|estava|continua){{S}}(?:(?:muito|tão|bem|super|bastante|meio|mais|menos|realmente|totalmente|completamente){{S}})?(?<target>{{FEMININE_ADJECTIVES}})(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?]|$)|{{S}}(?:demais|mesmo|também|para|de){{E}})"
-        fixer: agreementNeuter
+        let:
+          typed: "target.toLowerCase()"
+        return: 'agreementFinding(ctx, m, typed === "boa" ? "bom" : typed.replace(/a$/, "o"), "review_msg_pt_agreement")'
   - id: pt_BR.nounAgreement
     checks: [portugueseAgreement]
     style: match
     message: review_msg_pt_noun_agreement
+    sets:
+      # Determiners that may be an object pronoun before a verb.
+      PRONOUN_LIKE: [o, a, os, as, nos]
+      # "muita/pouca/tanta" are never the adverb: before a plural they disagree ("muita coisas").
+      QUANTIFIERS: [muita, pouca, tanta]
+      # Nouns that name a word, color or kind before another word: "a palavra brasileiro".
+      NAMING:
+        [
+          palavra,
+          palavras,
+          termo,
+          termos,
+          nome,
+          nomes,
+          expressão,
+          verbo,
+          adjetivo,
+          cor,
+          tom,
+          estilo,
+          tipo,
+          marca,
+        ]
+    maps:
+      VERB_NUMBER:
+        {
+          é: são,
+          foi: foram,
+          era: eram,
+          será: serão,
+          seria: seriam,
+          fosse: fossem,
+          for: forem,
+          seja: sejam,
+        }
+      VERB_SINGULAR:
+        {
+          são: é,
+          foram: foi,
+          eram: era,
+          serão: será,
+          seriam: seria,
+          fossem: fosse,
+          forem: for,
+          sejam: seja,
+        }
+    defs:
+      # Rows: masculine singular, feminine singular, masculine plural, feminine plural.
+      DETERMINER_ROWS: >-
+        [
+          "o a os as", "um uma uns umas", "do da dos das", "no na nos nas", "pelo pela pelos pelas",
+          "ao à aos às", "num numa nuns numas", "dum duma duns dumas", "este esta estes estas",
+          "esse essa esses essas", "aquele aquela aqueles aquelas", "deste desta destes destas",
+          "desse dessa desses dessas", "daquele daquela daqueles daquelas", "neste nesta nestes nestas",
+          "nesse nessa nesses nessas", "naquele naquela naqueles naquelas", "meu minha meus minhas",
+          "teu tua teus tuas", "seu sua seus suas", "nosso nossa nossos nossas",
+          "vosso vossa vossos vossas", "algum alguma alguns algumas", "nenhum nenhuma nenhuns nenhumas",
+          "outro outra outros outras", "todo toda todos todas", "- muita muitos muitas",
+          "- pouca poucos poucas", "- - vários várias", "- - diversos diversas", "- - tantos tantas",
+          "- - certos certas", "cujo cuja cujos cujas",
+        ].map((row) => row.split(" "))
+      DETERMINER_CELLS: 'new Map(DETERMINER_ROWS.flatMap((row) => row.flatMap((word, index) => (word === "-" ? [] : [[word, { row, index }] as const]))))'
+      # Possessives and the like agree with the article before them: "o nosso", "as mesmas".
+      POSSESSIVE_ROWS: '["meu minha meus minhas", "teu tua teus tuas", "seu sua seus suas", "nosso nossa nossos nossas", "vosso vossa vossos vossas", "outro outra outros outras", "mesmo mesma mesmos mesmas"].map((row) => row.split(" "))'
+      POSSESSIVE_CELLS: "new Map(POSSESSIVE_ROWS.flatMap((row) => row.map((word, index) => [word, { row, index }] as const)))"
+      # Demonstratives and quantifiers also stand alone ("estes são", "por muitos considerada", "de
+      # todo verdade"): they only count before a noun whose ending no verb or adjective has. The
+      # last row, "cujo", only ever stands before its noun.
+      STANDALONE: "new Set([...DETERMINER_ROWS.slice(8, 17).flat(), ...DETERMINER_ROWS.slice(23, -1).flat()])"
+      POSSESSIVE_DETERMINERS: new Set(DETERMINER_ROWS.slice(17, 22).flat())
+      NOUN_ARTICLES: new Set(DETERMINER_ROWS.slice(0, 8).flat())
+      CONTRACTED: "new Set(DETERMINER_ROWS.slice(2, 8).flat().filter((word) => !/^(?:a|à|às|ao|aos)$/.test(word)))"
+      # A plural verb right after the noun phrase that opens a sentence.
+      PLURAL_VERB_AFTER: '/^[ \t\u00a0]+(?:são|estão|foram|eram|estavam|têm|tinham|vão|iam|ficaram|ficam|parecem|serão)(?![\p{L}])/u'
+      NAMED_TASK: '/^[ \t\u00a0]+a[ \t\u00a0]+\p{Ll}+[aei]r(?![\p{L}])/u'
+      # Words before an article that leave it no pronoun: a preposition, or a sentence start.
+      NOUN_PREPOSITION_BEFORE: '/(?:^|[^\p{L}])(?:para|com|sem|sobre|entre|contra|até|após|perante|desde|mediante|durante|conforme|segundo)[ \t\u00a0]+$/iu'
+      # "cada um ajuda", "Um ajuda, o outro atrapalha": "um" as a pronoun.
+      PRONOUN_UM: '/(?:^|[^\p{L}])(?:cada|nem|qualquer|algum|nenhum|tal|o)[ \t\u00a0]+$/iu'
+      # "trinta e uma canetas", "mil e uma noites": a number ending in "um".
+      NUMBER_AND: '/(?:^|[^\p{L}])(?:vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|mil|\p{N}+)[ \t\u00a0]+e[ \t\u00a0]+$/iu'
+      # "isso da trabalho" (dá), "esta cansado" (está).
+      NOUN_SUBJECT_BEFORE: '/(?:^|[^\p{L}])(?:eu|tu|ele|ela|você|nós|eles|elas|vocês|isso|isto|aquilo|tudo|nada|não|que|se|quem|me|te|lhe|nos|vos)[ \t\u00a0]+$/iu'
+      # "por muitos considerada", "de todo verdade", "aos outros regras": a quantifier as a pronoun.
+      PREPOSITION_JUST_BEFORE: '/(?:^|[^\p{L}])(?:por|a|de|para|entre|com|sem|aos|dos|das|às)[ \t\u00a0]+$/iu'
+      # "o pelo do gato": a noun, after an article or a possessive.
+      NOUN_PELO: '/(?:^|[^\p{L}])(?:o|os|um|seu|meu|teu|nosso|do|no|pelo)[ \t\u00a0]+$/iu'
+      NUMBER_WORD: "/^(?:dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|mil)$/"
+      TODO_ARTICLE: '/^(?<todo>tod[oa]s?)[ \t\u00a0]+(?<article>[oa]s?)$/iu'
+      # Adjectives of kind, which say what something is, not how someone felt ("voltou da viagem
+      # cansado"): "-ico" with a written accent, nationalities in "-ês", "-eiro" and "-ário".
+      # "mesa" and "meses" are nouns, so only "-ês" and longer "-eses" count.
+      RELATIONAL: '/^(?:\p{Ll}*[áéíóúâêô]\p{Ll}*ic[oa]s?|\p{Ll}+ês|\p{Ll}{4,}eses|\p{Ll}+eir[oa]s?|\p{Ll}+ári[oa]s?)$/u'
+      AFTER_ADJECTIVE: '/^(?:[ \t\u00a0]{0,2}(?:[.,;:!?)]|$)|[ \t\u00a0]{1,8}(?:e|ou|que|de|do|da|dos|das|em|no|na|nos|nas|para|com|por|pelo|pela)(?![\p{L}\p{M}\p{N}_''’@/#\\-]))/u'
+      # "É necessário uma festa" -> "necessária", "É proibido as cartas" -> "São proibidas": with a
+      # determiner, the subject after "ser" + adjective makes both agree.
+      PREDICATE_BEFORE: '/(?:^|[^\p{L}])(?<verb>é|são|foi|foram|era|eram|será|serão|seria|seriam|fosse|fossem|for|forem|seja|sejam)(?<gap>[ \t\u00a0]+(?:(?:realmente|muito|bem|bastante|absolutamente|totalmente|extremamente)[ \t\u00a0]+)?)(?<adjective>(?<stem>necessári|proibid|permitid|obrigatóri|bonit)[oa]s?|louváve(?:l|is))[ \t\u00a0]+$/diu'
+      # "O" alone reads as a capital, not as uppercase.
+      nounCase:
+        args: "typed: string"
+        type: '"upper" | "title" | "lower"'
+        return: 'typed.length === 1 ? (typed === typed.toLowerCase() ? "lower" : "title") : detectWordCase(typed)'
+      nounFinding:
+        args: "start: number, end: number, typed: string, alternatives: string[], context: { start: number; end: number }"
+        type: RawFinding
+        let:
+          style: nounCase(typed)
+        return: '({ ruleId: "portugueseAgreement", messageKey: "review_msg_pt_noun_agreement", range: { start, end }, alternatives: alternatives.map((alternative) => applyWordCase(alternative, style)), context, ...(alternatives.length > 1 ? { requiresChoice: true } : {}) })'
+      # The noun right after `end`: its analysis, or only its number.
+      nextNoun:
+        args: "ctx: DetectContext, end: number"
+        type: PtNoun | null
+        let:
+          next: '/^[ \t\u00a0]+(\p{Ll}+)(?![\p{L}-])/u.exec(ctx.text.slice(end, end + 40))?.[1]'
+          info: ptNoun(next)
+        when: next !== undefined && !PT_NOT_NOUNS.has(next)
+        return: "info ?? (/s$/.test(next) && !PT_SINGULAR_IN_S.has(next) && ptSingular(next) ? { feminine: null, plural: true, certain: false } : null)"
+      # Whether the noun after fits the cell `index` of a row.
+      fitsCell:
+        args: "next: PtNoun | null, index: number"
+        return: "!!next && next.plural === index > 1 && (next.feminine === null || next.feminine === (index % 2 === 1))"
+      # "o nossa equipe" -> "a nossa", "os outro caras" -> "outros": an article and a possessive. The
+      # noun after shows which of the two is wrong ("o mesma dia" -> "mesmo"); with no noun, or one of
+      # either gender ("da seu espécie"), either word may be the wrong one.
+      possessiveAgreement:
+        args: "ctx: DetectContext, m: RegExpExecArray, cell: { row: string[]; index: number }, possessive: { row: string[]; index: number }"
+        type: RawFinding | null
+        let:
+          typed: m.groups!.target
+          word: m.groups!.noun
+          start: m.indices!.groups!.target[0]
+          wordStart: m.indices!.groups!.noun[0]
+          wordEnd: m.indices!.groups!.noun[1]
+          context: "({ start, end: wordEnd })"
+          next: nextNoun(ctx, wordEnd)
+          ownForm: possessive.row[cell.index]
+          between: ctx.text.slice(start + typed.length, wordStart)
+        when: '!(possessive.index === cell.index || cell.row[possessive.index] === "-")'
+        return: >-
+          next && fitsCell(next, cell.index) && !fitsCell(next, possessive.index)
+            ? nounFinding(wordStart, wordEnd, word, [possessive.row[cell.index]], context)
+            : (!next || fitsCell(next, cell.index)) && ownForm !== "-"
+              ? nounFinding(start, wordEnd, typed, [`${cell.row[possessive.index]}${between}${word}`, `${typed.toLowerCase()}${between}${ownForm}`], context)
+              : nounFinding(start, start + typed.length, typed, [cell.row[possessive.index]], context)
+      # "Todo os erros" -> "Todos os", "toda as soluções" -> "todas as". "o mundo todo a admira":
+      # after a noun, "todo" may close it and "a" be a pronoun.
+      todoAgreement:
+        args: "ctx: DetectContext, start: number, typed: string, noun: string, nounEnd: number, cell: { row: string[]; index: number }, context: { start: number; end: number }"
+        type: RawFinding | null
+        let:
+          article: DETERMINER_CELLS.get(noun)!
+          next: nextNoun(ctx, nounEnd)
+          before: ctx.text.slice(Math.max(0, start - 40), start)
+        when:
+          - "!(article.index === cell.index || !next || next.plural !== article.index > 1)"
+          - "!(next.feminine !== null && next.feminine !== (article.index % 2 === 1))"
+          - "!(!next.certain && !SENTENCE_START.test(before) && !NOUN_PREPOSITION_BEFORE.test(before))"
+        return: nounFinding(start, start + typed.length, typed, [cell.row[article.index]], context)
+      # Whether the determiner surely is one here, for a noun whose gender is no certainty. "Nos
+      # vemos amanhã": a sentence may open with the pronoun "nos". After "é necessário" or "é
+      # proibido" the article opens the subject. "Um ajuda, o outro atrapalha": "um" as a pronoun.
+      # "Nossa, que susto": an interjection.
+      plainDeterminer:
+        args: "ctx: DetectContext, det: string, start: number, typed: string"
+        let:
+          before: ctx.text.slice(Math.max(0, start - 40), start)
+        return: >-
+          det === "nos"
+            ? false
+            : PRONOUN_LIKE.has(det)
+              ? SENTENCE_START.test(before) || NOUN_PREPOSITION_BEFORE.test(before) || PREDICATE_BEFORE.test(before)
+              : det === "um" || det === "uma"
+                ? !PRONOUN_UM.test(before) && !RECIPROCAL.test(ctx.text.slice(start, start + 80))
+                : det === "nossa" && typed !== det
+                  ? !SENTENCE_START.test(before)
+                  : !STANDALONE.has(det)
+      # Context that makes the word no determiner whatever noun follows. "Ela te da oportunidades":
+      # the verb "dá" without its accent.
+      notDeterminer:
+        args: "det: string, before: string"
+        return: >-
+          ((det === "da" || det === "das") && NOUN_SUBJECT_BEFORE.test(before)) ||
+          (/^pel[oa]s?$/.test(det) && NOUN_PELO.test(before)) ||
+          (/^um/.test(det) && NUMBER_AND.test(before)) ||
+          ((STANDALONE.has(det) || /^algu/.test(det)) && PREPOSITION_JUST_BEFORE.test(before))
+      # "no porta malas", "um escalda rabos", "o camisa 10", "um extra três semanas": a compound
+      # written without its hyphen, or a shirt number.
+      compoundAfter:
+        args: "ctx: DetectContext, end: number, noun: PtNoun"
+        let:
+          next: '/^[ \t\u00a0]+([\p{L}\p{N}]+)/u.exec(ctx.text.slice(end, end + 40))?.[1]'
+        when: next !== undefined
+        return: '/^\p{N}/u.test(next) || NUMBER_WORD.test(next) || (!noun.plural && /^\p{Ll}{3,}s$/u.test(next) && !!ptSingular(next) && !PT_NOT_NOUNS.has(next))'
+        else: "false"
+      # "a política econômico" -> "econômica": the adjective right after an agreeing noun phrase. A
+      # verb may follow when the phrase opens the sentence; elsewhere a bare subject may follow the
+      # phrase ("Na empresa brasileiro trabalha muito"). "-ês" adjectives of two genders in the
+      # singular are rare; "português" takes "-esa".
+      adjectiveAgreement:
+        args: "ctx: DetectContext, nounEnd: number, feminine: boolean, plural: boolean, noun: string, subject: boolean"
+        type: RawFinding | null
+        let:
+          found: '/^[ \t\u00a0]+(\p{Ll}+)(?![\p{L}\p{N}-])/u.exec(ctx.text.slice(nounEnd, nounEnd + 40))'
+          adjective: found[1]
+          start: nounEnd + found[0].length - adjective.length
+          end: start + adjective.length
+          nationality: /(?:ês|eses)$/.test(adjective)
+          isPlural: "nationality ? /eses$/.test(adjective) : /s$/.test(adjective)"
+          isFeminine: "!nationality && /as?$/.test(adjective)"
+          stem: 'adjective.replace(nationality ? /(?:ês|eses)$/ : /[oa]s?$/, "")'
+          wanted: 'nationality ? `${stem}${feminine ? (plural ? "esas" : "esa") : plural ? "eses" : "ês"}` : `${stem}${feminine ? "a" : "o"}${plural ? "s" : ""}`'
+        when:
+          - found !== null && !NAMING.has(noun)
+          - "!(!RELATIONAL.test(adjective) || ptFiniteLookalike(adjective) || ctx.dictionary.has(adjective))"
+          - "!(!subject && !AFTER_ADJECTIVE.test(ctx.text.slice(end, end + 12)))"
+          - "!(isFeminine === feminine && isPlural === plural)"
+        return: "nounFinding(start, end, adjective, [wanted], { start: nounEnd - noun.length, end })"
+      # The adjective after "ser" before the determiner agrees with the noun; so does the verb.
+      # "É necessário os alunos estudarem": the noun opens an infinitive clause.
+      predicateAgreement:
+        args: "ctx: DetectContext, detStart: number, nounEnd: number, feminine: boolean, plural: boolean"
+        type: RawFinding | null
+        let:
+          offset: Math.max(0, detStart - 60)
+          found: PREDICATE_BEFORE.exec(ctx.text.slice(offset, detStart))
+          verb: found.groups!.verb
+          gap: found.groups!.gap
+          adjective: found.groups!.adjective
+          stem: found.groups!.stem as string | undefined
+          wantedAdjective: 'stem ? `${stem}${feminine ? "a" : "o"}${plural ? "s" : ""}` : plural ? "louváveis" : "louvável"'
+          lowerVerb: verb.toLowerCase()
+          verbPlural: lowerVerb in VERB_SINGULAR
+          wantedVerb: "verbPlural === plural ? verb : applyWordCase(plural ? VERB_NUMBER[lowerVerb] : VERB_SINGULAR[lowerVerb], detectWordCase(verb))"
+          adjectiveStart: offset + found.indices!.groups!.adjective[0]
+          start: "wantedVerb === verb ? adjectiveStart : offset + found.indices!.groups!.verb[0]"
+          end: adjectiveStart + adjective.length
+          typed: ctx.text.slice(start, end)
+        when:
+          - found !== null
+          - '!/^[ \t\u00a0]+\p{Ll}+(?:r|rem|res|rmos)(?![\p{L}])/u.test(ctx.text.slice(nounEnd, nounEnd + 30))'
+          - "!(wantedVerb === verb && wantedAdjective === adjective.toLowerCase())"
+        return: >-
+          ({
+            ruleId: "portugueseAgreement",
+            messageKey: "review_msg_pt_noun_agreement",
+            range: { start, end },
+            alternatives: [wantedVerb === verb ? wantedAdjective : `${wantedVerb}${gap}${wantedAdjective}`].map((alternative) =>
+              applyWordCase(alternative, nounCase(typed.split(/\s/)[0])),
+            ),
+            context: { start, end: nounEnd },
+          })
+      # Determiner and noun agree: an adjective of kind after them must too, and a predicate before.
+      agreeingPhrase:
+        args: "ctx: DetectContext, det: string, start: number, nounEnd: number, noun: string, feminine: boolean, plural: boolean, before: string"
+        let:
+          subject: /^(?:[oa]s?|um|uma|uns|umas)$/.test(det) && SENTENCE_START.test(before)
+          found: adjectiveAgreement(ctx, nounEnd, feminine, plural, noun, subject)
+          predicate: predicateAgreement(ctx, start, nounEnd, feminine, plural)
+        return: "[found, predicate].flatMap((f) => (f ? [f] : []))"
+      # A determiner and a noun that disagree. "a" is also the preposition: "a pé", "a cavalo". "no
+      # euromilhões", "uma Libertadores": a plural that agrees with a singular determiner in nothing
+      # is mostly a name; a contracted preposition still shows the phrase ("na termos" -> "nos
+      # termos"), but not before a name like "no Contas a Pagar" written in lowercase. A number
+      # clash may also be the noun's: "os carro" -> "o carro" or "os carros".
+      clashFix:
+        args: "ctx: DetectContext, m: RegExpExecArray, det: string, cell: { row: string[]; index: number }, info: PtNoun, genderClash: boolean, pluralSubject: boolean, context: { start: number; end: number }"
+        type: RawFinding | null
+        let:
+          typed: m.groups!.target
+          noun: m.groups!.noun
+          start: m.indices!.groups!.target[0]
+          nounStart: m.indices!.groups!.noun[0]
+          nounEnd: m.indices!.groups!.noun[1]
+          detFeminine: cell.index % 2 === 1
+          detPlural: cell.index > 1
+          wanted: "cell.row[(info.plural ? 2 : 0) + ((info.feminine ?? detFeminine) ? 1 : 0)]"
+          nounFix: "genderClash || pluralSubject ? null : detPlural ? ptPlural(noun) : ptSingular(noun)"
+          between: ctx.text.slice(start + typed.length, nounStart)
+        when:
+          - '!(det === "a" && !pluralSubject)'
+          - "!(info.plural && !detPlural && !pluralSubject && ((genderClash && (!CONTRACTED.has(det) || NAMED_TASK.test(ctx.text.slice(nounEnd, nounEnd + 24)))) || (!info.certain && info.feminine === null)))"
+          - wanted !== "-"
+        return: >-
+          nounFix
+            ? nounFinding(start, nounEnd, typed, [`${wanted}${between}${noun}`, `${det}${between}${nounFix}`], context)
+            : nounFinding(start, start + typed.length, typed, [wanted], context)
+      # The agreement of a determiner and the noun after it. An ending no verb or adjective has, or
+      # a determiner that surely is one. "Este gatos estão", "Um canecas são": a plural verb right
+      # after shows a plural subject. "colegas meus são": a possessive after its noun, before a
+      # verb. "ao termos", "pelo fazermos": a personal infinitive, not the plural of "termo".
+      plainAgreement:
+        args: "ctx: DetectContext, m: RegExpExecArray, det: string, cell: { row: string[]; index: number }, context: { start: number; end: number }"
+        type: RawFinding | RawFinding[] | null
+        let:
+          typed: m.groups!.target
+          noun: m.groups!.noun
+          start: m.indices!.groups!.target[0]
+          nounEnd: m.indices!.groups!.noun[1]
+          info: ptNoun(noun)
+          before: ctx.text.slice(Math.max(0, start - 40), start)
+          verbProof: info.certain && !ptFiniteLookalike(noun)
+          pluralSubject: info.plural && SENTENCE_START.test(before) && PLURAL_VERB_AFTER.test(ctx.text.slice(nounEnd, nounEnd + 16))
+          detFeminine: cell.index % 2 === 1
+          detPlural: cell.index > 1
+          genderClash: info.feminine !== null && info.feminine !== detFeminine
+          numberClash: "info.plural !== detPlural && !(info.plural && /[aeio]rmos$/.test(noun))"
+        when:
+          - info !== null
+          - "!notDeterminer(det, before)"
+          - "!(!verbProof && !pluralSubject && !(QUANTIFIERS.has(det) && info.plural) && (!plainDeterminer(ctx, det, start, typed) || compoundAfter(ctx, nounEnd, info)))"
+          - "!(POSSESSIVE_DETERMINERS.has(det) && info.feminine === null)"
+        return: >-
+          !genderClash && !numberClash
+            ? info.feminine !== null
+              ? agreeingPhrase(ctx, det, start, nounEnd, noun, info.feminine, info.plural, before)
+              : null
+            : clashFix(ctx, m, det, cell, info, genderClash, pluralSubject, context)
     frames:
       # A determiner and its noun. {{DETERMINER_LEAD}}: every determiner of nounAgreement.ts
       # but "à" and "às", which are portugueseConfusions' crase. "a" is also the preposition
@@ -1960,92 +2491,670 @@ rules:
       # econômica"). {{PRENOMINAL}}: two-gender adjectives that come before a noun: "um grande
       # erupção" -> "uma grande".
       - regex: "(?<target>{{DETERMINER_LEAD}})(?={{S}}(?:(?<modifier>(?:(?:mais|menos|tão){{S}})?(?:{{PRENOMINAL}})){{S}})?(?<noun>\\p{L}+){{E}}(?!-))"
-        fixer: nounPhrase
+        let:
+          det: "target.toLowerCase()"
+          start: "m.indices!.groups!.target[0]"
+          nounEnd: "m.indices!.groups!.noun[1]"
+          cell: "DETERMINER_CELLS.get(det)!"
+          context: "({ start, end: nounEnd })"
+          possessive: "POSSESSIVE_CELLS.get(noun)"
+        when:
+          - "!(modifier && modifier !== modifier.toLowerCase())"
+          - "!(noun !== noun.toLowerCase() || ctx.dictionary.has(noun) || ctx.dictionary.has(det))"
+          - '!/^(?:\.\.|…)/.test(ctx.text.slice(nounEnd, nounEnd + 2))'
+          - '!(target !== det && !/^\p{Lu}\p{Ll}*$/u.test(target))'
+        return: 'possessive && NOUN_ARTICLES.has(det) && det !== "a" && !modifier ? possessiveAgreement(ctx, m, cell, possessive) : TODO_ARTICLE.test(`${target} ${noun}`) && !modifier ? todoAgreement(ctx, start, target, noun, nounEnd, cell, context) : /^tod[oa]s?$/.test(det) ? null : plainAgreement(ctx, m, det, cell, context)'
   - id: pt_BR.verbAgreement
     checks: [portugueseAgreement]
     style: match
     message: review_msg_pt_agreement
+    sets:
+      # Time spans and words that open an adverbial, not a subject: "Este ano vão abrir", "Os
+      # alunos dia 5 voltam", "Os jogadores fora de campo".
+      VERB_NOT_SUBJECT_NOUNS:
+        [
+          vezes,
+          anos,
+          meses,
+          semanas,
+          dias,
+          horas,
+          minutos,
+          segundos,
+          tempos,
+          décadas,
+          séculos,
+          instantes,
+          momentos,
+          ano,
+          dia,
+          mês,
+          semana,
+          vez,
+          hora,
+          minuto,
+          segundo,
+          século,
+          momento,
+          período,
+          tempo,
+          fim,
+          verão,
+          inverno,
+          outono,
+          primavera,
+          sábado,
+          domingo,
+          gente,
+          resto,
+          pé,
+          cavalo,
+        ]
+      # Nouns of quantity, whose verb may agree with their complement ("a maioria das escolas estão").
+      DISTANT_COLLECTIVE:
+        [
+          maioria,
+          minoria,
+          metade,
+          parte,
+          resto,
+          porção,
+          porcentagem,
+          percentagem,
+          totalidade,
+          quantidade,
+          número,
+          grupo,
+          conjunto,
+          série,
+          dezena,
+          centena,
+          milhar,
+          milhão,
+          milhões,
+          bilhão,
+          bilhões,
+          par,
+          tipo,
+          espécie,
+        ]
+      VERB_PLURAL_LEADS:
+        [
+          os,
+          as,
+          uns,
+          umas,
+          estes,
+          estas,
+          esses,
+          essas,
+          aqueles,
+          aquelas,
+          meus,
+          minhas,
+          teus,
+          tuas,
+          seus,
+          suas,
+          nossos,
+          nossas,
+          alguns,
+          algumas,
+          muitos,
+          muitas,
+          vários,
+          várias,
+        ]
+    maps:
+      HOUR_VERBS:
+        deu: deram
+        bateu: bateram
+        soou: soaram
+        dava: davam
+        batia: batiam
+        soava: soavam
+        dará: darão
+        baterá: baterão
+        soará: soarão
+        daria: dariam
+        bateria: bateriam
+      HOUR_AUXILIARIES:
+        vai: vão
+        ia: iam
+        está: estão
+        estava: estavam
+        tinha: tinham
+        havia: haviam
+        pode: podem
+        deve: devem
+      SER_PRONOUN:
+        foi: { eu: fui, nós: fomos, eles: foram, elas: foram, vocês: foram }
+        é: { eu: sou, nós: somos, eles: são, elas: são, vocês: são }
+        será: { eu: serei, nós: seremos, eles: serão, elas: serão, vocês: serão }
+    defs:
+      # "Os ficheiros cache são", "As palavras passe são": a word before a verb modifies the noun.
+      VERB_AFTER_SUBJECT: '/^[ \t\u00a0]+(?:é|são|foi|foram|era|eram|está|estão|estava|estavam|tem|têm|vai|vão|fica|ficam|será|serão|parece|parecem)(?![\p{L}])/u'
+      # "Algumas coisas é melhor que não sejam ditas": an impersonal "é melhor que".
+      IMPERSONAL_AFTER: '/^[ \t\u00a0]+(?:melhor|pior|bom|importante|necessário|preciso|possível|difícil|fácil)[ \t\u00a0]+que(?![\p{L}])/u'
+      # Nothing but a sentence start or a conjunction before: "O sino bateu dez horas" has its
+      # subject.
+      HOUR_CLAUSE_OPENING: '/(?:(?:^|[.!?;:\n]["''”’»)]*)[ \t\u00a0]*|(?:^|[^\p{L}])(?:quando|que|até|mal|se|enquanto)[ \t\u00a0]+)(?:(?:já|não|ainda|nem|quase)[ \t\u00a0]+)*$/iu'
+      TENSE_DETERMINER_BEFORE: '/(?:^|[^\p{L}])(?:o|a|os|as|um|uma|do|da|no|na|pelo|pela|este|esse|aquele|meu|seu|nosso)[ \t\u00a0]+$/iu'
+      # Only a time phrase that opens its clause rules the verb: not "Quem chegou ontem enviará".
+      FRONT_OPENING: '/(?:^|[.!?;:,\n]["''”’»)]*)[ \t\u00a0]*(?:(?:eu|tu|ele|ela|nós|vós|eles|elas|você|vocês)[ \t]+)?$/iu'
+      # Endings that nouns have too ("bandeiras", "eras") need a known verb stem.
+      RARE_ENDING: "/(?:ás|emos|eis|aras|eras|iras|áreis|êreis|íreis)$/u"
+      # The agreement finding for `group`, in the typed casing; a user word stays.
+      verbAgreementFinding:
+        args: 'ctx: DetectContext, m: RegExpExecArray, group: string, alternatives: string[], messageKey: RawFinding["messageKey"]'
+        type: RawFinding | null
+        let:
+          typed: m.groups![group]
+          span: m.indices!.groups![group]
+          style: detectWordCase(typed)
+        when: "!ctx.dictionary.has(typed.toLowerCase())"
+        return: >-
+          ({
+            ruleId: "portugueseAgreement",
+            messageKey,
+            range: { start: span[0], end: span[1] },
+            alternatives: alternatives.map((alternative) => applyWordCase(alternative, style)),
+            context: { start: Math.min(m.index, span[0]), end: Math.max(span[1], m.index + m[0].length) },
+            ...(alternatives.length > 1 ? { requiresChoice: true } : {}),
+          })
+      # Whether the frame's noun and verb read as subject and verb. "Os meninos é que sabem": the
+      # cleft "é que" does not agree.
+      subjectAndVerb:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        let:
+          lead: m.groups!.lead
+          noun: m.groups!.noun
+          verb: m.groups!.target
+          verbEnd: m.indices!.groups!.target[1]
+          after: ctx.text.slice(verbEnd, verbEnd + 40)
+        when:
+          - 'lead === lead.replace(/^\p{Ll}/u, (c) => c.toUpperCase())'
+          - SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+          - noun === noun.toLowerCase() && verb === verb.toLowerCase()
+          - "!(VERB_NOT_SUBJECT_NOUNS.has(noun) || PT_NOT_FINITE.has(verb) || /mente$/.test(verb))"
+          - '!/^[ \t\u00a0]+que(?![\p{L}])/u.test(after)'
+        return: "!VERB_AFTER_SUBJECT.test(after) && !IMPERSONAL_AFTER.test(after)"
+        else: "false"
+      # The index of the first token from `from` on that is no clitic, or the end of the tokens.
+      pastClitics:
+        args: "tokens: ClauseToken[], from: number"
+        let:
+          found: tokens.findIndex((t, i) => i >= from && !PT_CLAUSE.clitics.has(t.w))
+        return: "found < 0 ? tokens.length : found"
+      # A past or future verb next to "ontem" or "amanhã"; `after` frames put the verb second.
+      tenseFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, after: boolean, past: boolean"
+        type: RawFinding | null
+        let:
+          form: m.groups!.target.toLowerCase()
+          start: m.indices!.groups!.target[0]
+        when:
+          - "!(after && !FRONT_OPENING.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)))"
+          - "!TENSE_DETERMINER_BEFORE.test(ctx.text.slice(Math.max(0, start - 12), start))"
+          - "!(RARE_ENDING.test(form) && !ptKnownVerb(form))"
+          # "esperam", "para": a present tense of an -rar verb, not a preterite or pluperfect.
+          - '!(past && ptRStem(form.replace(/(?:am|a)$/, "")))'
+        return: >-
+          past
+            ? verbAgreementFinding(ctx, m, "target", [ptFutureOfPast(form)], "review_msg_pt_tense_adverb")
+            : verbAgreementFinding(ctx, m, "target", ptPastOfFuture(form), "review_msg_pt_tense_adverb")
     frames:
       # A noun-phrase subject opening the sentence and its verb: "Os meninos dança" -> "dançam".
       - regex: "(?<lead>{{VERB_PLURAL_LEAD}}){{S}}(?:(?:{{POSSESSIVE}}){{S}})?(?<noun>\\p{L}{3,}(?:[aeo]s|ões|ães|ais|éis|óis|res|zes)){{S}}{{VERB_ADVERBS}}{{VERB_CLITIC}}(?<target>\\p{L}{2,}|é){{E}}(?!-)"
-        fixer: verbPluralSubject
+        let:
+          wanted: "ptPluralVerb(target)"
+        when:
+          - "subjectAndVerb(ctx, m)"
+          - "wanted !== undefined"
+        return: 'verbAgreementFinding(ctx, m, "target", [wanted], "review_msg_pt_agreement")'
       # "O menino gostam" -> "gosta".
       - regex: "(?<lead>{{VERB_SINGULAR_LEAD}}){{S}}(?:(?:{{POSSESSIVE}}){{S}})?(?<noun>\\p{L}{3,}){{S}}{{VERB_ADVERBS}}{{VERB_CLITIC}}(?<target>\\p{L}{2,}){{E}}(?!-)"
-        fixer: verbSingularSubject
+        let:
+          rows: "PT_FORM_ROWS.get(target)"
+          wanted: "rows ? rows.find((candidate) => candidate[3] === target && candidate[1] !== target)?.[1] : /[ae]m$/.test(target) && !PT_NOT_PLURAL_VERBS.has(target) && !PT_NOT_FINITE.has(target) ? ptSingularVerb(target, false) : undefined"
+        when:
+          - "subjectAndVerb(ctx, m) && !/s$/.test(noun) && !PT_NOT_FINITE.has(noun)"
+          - "!(/^a$/i.test(lead) && !/(?:a|ção|dade|gem|ice|ez)$/.test(noun))"
+          - "wanted !== undefined"
+        return: 'verbAgreementFinding(ctx, m, "target", [wanted], "review_msg_pt_agreement")'
       # "A lista dos produtos estão", "Os preços da casa que comprei sobe": the fixer reads the
       # subject past its complements, a second noun phrase or a relative clause with the shared
       # clause reader.
       - regex: "(?<target>{{VERB_PLURAL_LEAD}}|{{VERB_SINGULAR_LEAD}}){{S}}(?=\\p{L})"
-        fixer: verbDistantSubject
+        let:
+          tokens: "clauseTokensAfter(ctx.text, m.index, 16)"
+          noun: "tokens[1] && !tokens[1].hyphen ? ptNoun(tokens[1].w) : null"
+          leadPlural: "VERB_PLURAL_LEADS.has(tokens[0].w)"
+          head: "skipPostnominal(PT_CLAUSE, tokens, 2)"
+          joined: "skipCoordinated(PT_CLAUSE, ctx.text, tokens, head)"
+          plural: "leadPlural || joined > head"
+          end: "skipComplements(PT_CLAUSE, ctx.text, tokens, joined)"
+          relative: "verbAfterRelative(PT_CLAUSE, ctx.text, tokens, end, () => true)"
+          moved: "relative < 0 && (end > joined || joined > head)"
+          at: "moved ? pastClitics(tokens, end) : relative"
+          verb: "tokens[at]"
+          after: "ctx.text.slice(verb.end, verb.end + 40)"
+          rows: "PT_FORM_ROWS.get(verb.w)"
+          wanted: "plural ? (!/[ae]m$|ão$/.test(verb.w) ? ptPluralVerb(verb.w) : undefined) : rows ? rows.find((row) => row[3] === verb.w && row[1] !== verb.w)?.[1] : /[ae]m$/.test(verb.w) ? ptSingularVerb(verb.w, false) : undefined"
+        when:
+          - 'target === target.replace(/^\p{Ll}/u, (c) => c.toUpperCase())'
+          - "SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))"
+          - "noun !== null && !VERB_NOT_SUBJECT_NOUNS.has(tokens[1].w) && !DISTANT_COLLECTIVE.has(tokens[1].w)"
+          - '!(tokens[0].w === "a" && noun.feminine !== true)'
+          - "ctx.text.slice(tokens[1].start, tokens[1].end) === tokens[1].w"
+          - "noun.plural === leadPlural"
+          - "!(moved && at === end && at + 1 < tokens.length && ptFiniteVerb(tokens[at + 1].w))"
+          - "at >= 0 && at < tokens.length"
+          - "!(verb.hyphen || !ptFiniteVerb(verb.w) || /mente$/.test(verb.w))"
+          - "!(ctx.text.slice(verb.start, verb.end) !== verb.w || ctx.dictionary.has(verb.w))"
+          - "!/^(?:é|são|foi|foram|era|eram|será|serão|seja|sejam)$/.test(verb.w)"
+          - '!(/^[ \t\u00a0]+que(?![\p{L}])/u.test(after) || IMPERSONAL_AFTER.test(after))'
+          - "wanted !== undefined && wanted !== verb.w"
+        return: '({ ruleId: "portugueseAgreement", messageKey: "review_msg_pt_agreement", range: { start: verb.start, end: verb.end }, alternatives: [wanted], context: { start: m.index, end: verb.end } })'
       # Hours take the plural: "Já deu dez horas" -> "deram", "Está dando 10h" -> "Estão". Two
       # o'clock or later ({{HOUR}}): "uma hora" and "meio-dia" stay singular.
       - regex: "(?<target>deu|bateu|soou|dava|batia|soava|dará|baterá|soará|daria|bateria)(?={{S}}{{HOUR}})"
-        fixer: verbHour
+        when:
+          - "HOUR_CLAUSE_OPENING.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))"
+        return: 'verbAgreementFinding(ctx, m, "target", [HOUR_VERBS[target.toLowerCase()]], "review_msg_pt_agreement")'
       - regex: "(?<target>vai|ia|está|estava|tinha|havia|pode|deve)(?={{S}}(?:dar|bater|soar|dando|batendo|soando|dado|batido|soado){{S}}{{HOUR}})"
-        fixer: verbHourPeriphrasis
+        when:
+          - "HOUR_CLAUSE_OPENING.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))"
+        return: 'verbAgreementFinding(ctx, m, "target", [HOUR_AUXILIARIES[target.toLowerCase()]], "review_msg_pt_agreement")'
       # "ser" agrees with the pronoun after it: "Quem fez foi eu" -> "fui".
       - regex: "(?<target>foi|é|será){{S}}(?<pronoun>eu|nós|eles|elas|vocês)(?=[ \\t\\u00a0]{0,2}(?:[.!?,;:]|$)|{{S}}(?:que|quem|mesm[oa]s?|própri[oa]s?){{E}})"
-        fixer: verbSerPronoun
+        return: 'verbAgreementFinding(ctx, m, "target", [SER_PRONOUN[target.toLowerCase()][pronoun.toLowerCase()]], "review_msg_pt_agreement")'
       # "trata-se de" and "precisa-se de" stay singular.
       - regex: "(?<target>tratam|precisam|necessitam)-se{{S}}de{{E}}(?!{{S}}(?:manhã|tarde|noite|madrugada|forma|maneira|modo){{E}})"
-        fixer: verbImpersonalSe
+        when:
+          - "SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))"
+        return: 'verbAgreementFinding(ctx, m, "target", [target.slice(0, -1)], "review_msg_pt_agreement")'
       # A future verb next to "ontem", "na semana passada", "na passada semana"; "a semana
       # passada" needs its comma. {{TIME_SUBJECT}}: a short subject between the time phrase and
       # the verb: "os editores", "ela", "vós".
       - regex: "(?<target>{{FUTURE_FORM}}){{S}}{{PAST_TIME}}{{E}}"
         message: review_msg_pt_tense_adverb
-        fixer: verbFutureBefore
+        return: "tenseFinding(ctx, m, false, false)"
       - regex: "(?:{{PAST_TIME}},?|{{BARE_PAST_TIME}}){{S}}{{TIME_SUBJECT}}(?<target>{{FUTURE_FORM}}){{E}}"
         message: review_msg_pt_tense_adverb
-        fixer: verbFutureAfter
+        return: "tenseFinding(ctx, m, true, false)"
       # A past verb next to "amanhã": "Enviaram amanhã" -> "Enviarão".
       - regex: "(?<target>{{PAST_FORM}}){{S}}{{FUTURE_TIME}}{{E}}"
         message: review_msg_pt_tense_adverb
-        fixer: verbPastBefore
+        return: "tenseFinding(ctx, m, false, true)"
       - regex: "{{FUTURE_TIME}},?{{S}}{{TIME_SUBJECT}}(?<target>{{PAST_FORM}}){{E}}"
         message: review_msg_pt_tense_adverb
-        fixer: verbPastAfter
+        return: "tenseFinding(ctx, m, true, true)"
   - id: pt_BR.subjunctives
     checks: [portugueseAgreement]
     style: match
     message: review_msg_pt_subjunctive
+    sets:
+      # "Espero que a sala limpa esteja pronta": an adjective, not the verb, when one of these follows.
+      VERB_NEXT:
+        [
+          seja,
+          sejam,
+          esteja,
+          estejam,
+          fique,
+          fiquem,
+          fosse,
+          fossem,
+          estivesse,
+          estivessem,
+          ficasse,
+          ficassem,
+          é,
+          são,
+          está,
+          estão,
+          era,
+          eram,
+          foi,
+          foram,
+          fica,
+          ficam,
+          ficou,
+          parece,
+          parecem,
+          pareça,
+          continue,
+          tenha,
+          tenham,
+          tem,
+          têm,
+          possa,
+          possam,
+          pode,
+          podem,
+          deve,
+          devem,
+          vá,
+          vai,
+          vão,
+          venha,
+          venham,
+        ]
+    defs:
+      # "no caso", "o mesmo que", "acho ainda que": these read as conjunctions only opening a clause.
+      CLAUSE_ONLY: "/^(?:caso|ainda|mesmo|antes)/i"
+      SUBJUNCTIVE_CLAUSE_BEFORE: '/(?:^|[.!?;:,\n]["''”’»)]*)[ \t\u00a0]*$/u'
+      SUBJUNCTIVE_DETERMINER_BEFORE: '/(?:^|[^\p{L}])(?:o|a|os|as|um|uma|do|da|no|na|ao|pelo|pela|este|esse|aquele|meu|seu|nosso|cada|qualquer|tal|neste|nesse|desse|deste|em|de)[ \t\u00a0]+$/iu'
+      # Whether the person of a subjunctive reading fits the subject found ("-o" only after "eu").
+      # No subject: the ending alone names the person; "-o" is as often a noun.
+      personFits:
+        args: "form: string, read: PtSubjunctive, subject: PtPerson | null"
+        return: 'read.person === null || (subject ? read.person === subject : read.person !== "1s" && !/o$/.test(form))'
+      # The subjunctive of the verb of the clause after a governor; `past` asks the imperfect.
+      subjunctiveFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, past: boolean"
+        type: RawFinding | null
+        let:
+          lead: m.groups!.lead
+          before: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+          clause: ptClauseVerb(ctx.text, m.index + m[0].length)
+          read: ptSubjunctive(clause.word)
+          wanted: "past ? read.past : read.present"
+        when:
+          - "!SUBJUNCTIVE_DETERMINER_BEFORE.test(before)"
+          - "!(CLAUSE_ONLY.test(lead) && !SUBJUNCTIVE_CLAUSE_BEFORE.test(before))"
+          # "Espera que eu já volto": a sentence-opening "espera" is the imperative "wait".
+          - "!(/^esper[ae]$/i.test(lead) && SUBJUNCTIVE_CLAUSE_BEFORE.test(before))"
+          - 'clause !== null && !(clause.afterNoun && VERB_NEXT.has(clause.next ?? ""))'
+          - "!ctx.dictionary.has(clause.word)"
+          - read !== null && personFits(clause.word, read, clause.person)
+          - wanted !== null && wanted !== "" && wanted !== clause.word
+        return: '({ ruleId: "portugueseAgreement", messageKey: "review_msg_pt_subjunctive", range: { start: clause.start, end: clause.end }, alternatives: [applyWordCase(wanted, detectWordCase(clause.word))], context: { start: m.index, end: clause.end } })'
     frames:
       # A wish, request, fear or doubt and "que": "Espero que você está bem" -> "esteja".
       - regex: "(?<lead>{{PRESENT_GOVERNORS}}){{S}}que(?=[ \\t\\u00a0])"
         owner: lead
-        fixer: subjunctivePresent
+        return: "subjunctiveFinding(ctx, m, false)"
       # The same verbs in a past or conditional tense take the imperfect subjunctive: "Queria
       # que ele vem" -> "viesse".
       - regex: "(?<lead>{{PAST_GOVERNORS}}){{S}}que(?=[ \\t\\u00a0])"
         owner: lead
-        fixer: subjunctivePast
+        return: "subjunctiveFinding(ctx, m, true)"
       # Conjunctions that take the present subjunctive ("Embora tem", "Caso parece").
       - regex: "(?<lead>{{CONJUNCTIONS}})(?=[ \\t\\u00a0])"
         owner: lead
-        fixer: subjunctivePresent
+        return: "subjunctiveFinding(ctx, m, false)"
   - id: pt_BR.subjectPredicates
     checks: [portugueseAgreement]
     style: match
     message: review_msg_pt_noun_agreement
+    sets:
+      # Stems of adjectives that follow a copula: "correto", "alta".
+      ADJECTIVE_STEMS:
+        [
+          corret,
+          errad,
+          cert,
+          bonit,
+          fei,
+          alt,
+          baix,
+          gord,
+          magr,
+          pront,
+          nov,
+          velh,
+          chei,
+          vazi,
+          ric,
+          lind,
+          car,
+          barat,
+          limp,
+          suj,
+          abert,
+          quiet,
+          calm,
+          nervos,
+          ansios,
+          sóbri,
+          séri,
+          perfeit,
+          complet,
+          incomplet,
+          curt,
+          long,
+          larg,
+          estreit,
+          branc,
+          pret,
+          vermelh,
+          amarel,
+          rox,
+          escur,
+          clar,
+          fri,
+          sec,
+          molhad,
+          salgad,
+          gostos,
+          delicios,
+          famos,
+          perigos,
+          segur,
+          sozinh,
+          viv,
+          mort,
+          simpátic,
+          antipátic,
+          rápid,
+          lent,
+          pequen,
+          únic,
+          rar,
+          estranh,
+          esquisit,
+          chat,
+          obrigatóri,
+          necessári,
+          proibid,
+          ótim,
+          péssim,
+          maravilhos,
+          brav,
+          furios,
+          satisfeit,
+          orgulhos,
+          louc,
+          maluc,
+          tranquil,
+          exaust,
+          surpres,
+          curios,
+          confus,
+          distraíd,
+          preocupad,
+          ocupad,
+          cansad,
+          animad,
+          apaixonad,
+          casad,
+          solteir,
+          atrasad,
+          preparad,
+          convencid,
+          encantad,
+          lotad,
+          assustad,
+          envergonhad,
+          zangad,
+          irritad,
+          emocionad,
+          chatead,
+          decepcionad,
+          contrári,
+          honest,
+          sincer,
+          generos,
+          teimos,
+          preguiços,
+          ciumen,
+          agressiv,
+          atent,
+          educad,
+          grat,
+        ]
+      # Nouns spelled like a participle, which follow "ser" bare: "A crise é resultado de".
+      NOUNS_IN_DO:
+        [
+          resultad,
+          estad,
+          mercad,
+          soldad,
+          advogad,
+          deputad,
+          delegad,
+          cuidad,
+          pecad,
+          legad,
+          recad,
+          significad,
+          partid,
+          sentid,
+          pedid,
+          ruíd,
+          tecid,
+          marid,
+          vestid,
+          ouvid,
+          apelid,
+          bocad,
+          dad,
+          lad,
+          prad,
+          gad,
+          fad,
+          senad,
+          reinad,
+          eleitorad,
+          mandad,
+          atentad,
+          cunhad,
+          namorad,
+          aliad,
+          comunicad,
+          atestad,
+          diplomad,
+          doutorad,
+          mestrad,
+          feriad,
+          ditad,
+          sobrad,
+          telhad,
+          gramad,
+          machad,
+          bordad,
+        ]
+      # "A gente está cansado": "a gente" is "we".
+      NOT_PREDICATE_SUBJECT: [gente, maioria, minoria, metade, parte, porcentagem]
+    defs:
+      # What may follow a predicate adjective: the end of the clause or a word that cannot be its noun.
+      CLAUSE_GOES_ON: '/^(?:[ \t\u00a0]*(?:[.,;:!?)"”»…]|$)|[ \t\u00a0]+(?:e|ou|mas|de|do|da|dos|das|com|para|pra|em|no|na|nos|nas|por|pelo|pela|a|ao|à|aos|às|hoje|agora|ontem|amanhã|demais|também|ainda|sempre|que|quando|porque|pois|se|como|depois|antes|aqui|ali|lá|mesmo|logo|desde|até|sem|nesta|neste|nessa|nesse)(?![\p{L}]))/u'
     frames:
       # "A palavra está correto" -> "correta", "Elas são altos" -> "altas": a pronoun of known
       # gender, or an article and a noun, opens the sentence before the copula.
       - regex: "(?:(?<pronoun>ele|ela|eles|elas)|(?<article>o|a|os|as){{S}}(?<noun>\\p{L}{3,})){{S}}(?:não{{S}})?(?<copula>{{COPULA_SER}}|{{COPULA_ESTAR}}){{S}}{{PREDICATE_ADVERBS}}(?<target>\\p{L}{3,}[oa]s?){{E}}(?![-\\p{L}])"
-        fixer: subjectPredicate
+        let:
+          info: "pronoun ? null : ptNoun(noun)"
+          feminine: "info ? info.feminine === true : /^elas?$/i.test(pronoun)"
+          plural: "info ? info.plural : /s$/i.test(pronoun)"
+          stem: 'target.replace(/[oa]s?$/, "")'
+          participle: '/\p{Ll}{2}(?:ad|id)$/u.test(stem) && !NOUNS_IN_DO.has(stem)'
+          targetEnd: "m.indices!.groups!.target[1]"
+          wanted: '`${stem}${feminine ? "a" : "o"}${plural ? "s" : ""}`'
+        when:
+          - "SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))"
+          - "target === target.toLowerCase() && !ctx.dictionary.has(target)"
+          - "pronoun ? pronoun.slice(1) === pronoun.slice(1).toLowerCase() : noun === noun.toLowerCase() && !NOT_PREDICATE_SUBJECT.has(noun)"
+          - "!!pronoun || (info !== null && info.feminine !== null)"
+          - "!info || (/a/i.test(article) === feminine && /s$/i.test(article) === plural)"
+          - "CLAUSE_GOES_ON.test(ctx.text.slice(targetEnd, targetEnd + 24))"
+          - "ADJECTIVE_STEMS.has(stem) || participle"
+          - '!(stem === "car" && /^[ \t\u00a0]+de(?![\p{L}])/u.test(ctx.text.slice(targetEnd)))'
+          - "wanted !== target"
+          - "/(?:ão|am|em)$/.test(copula) === plural"
+        return: '({ ruleId: "portugueseAgreement", messageKey: "review_msg_pt_noun_agreement", range: { start: m.indices!.groups!.target[0], end: targetEnd }, alternatives: [applyWordCase(wanted, detectWordCase(target))], context: { start: m.index, end: targetEnd } })'
   - id: pt_BR.relativeAgreement
     checks: [portugueseAgreement]
     style: match
     message: review_msg_pt_noun_agreement
+    maps:
+      PREPOSITION_FORMS:
+        pel: [pelo, pela, pelos, pelas]
+        n: ["no", na, nos, nas]
+        d: [do, da, dos, das]
+        a: [ao, à, aos, às]
+    sets:
+      # Pronominal verbs that govern "a": "Refere-se as práticas" lacks a crase, the noun is no subject.
+      GOVERNS_A_SE:
+        [
+          refere,
+          dirige,
+          candidata,
+          dedica,
+          submete,
+          adapta,
+          acostuma,
+          habitua,
+          apega,
+          destina,
+          resume,
+          limita,
+          restringe,
+          assemelha,
+          equipara,
+          alia,
+        ]
+    defs:
+      # "Acontece muitas vezes", "ocorre dois dias depois": a span of time is no subject.
+      TIME_WORD: /^(?:vezes|anos|meses|semanas|dias|horas|minutos|segundos|tempos|décadas|séculos|instantes|momentos)$/
     frames:
       # "a razão pelo qual" -> "pela qual": "o/a qual" agrees with the noun right before it.
       - regex: "(?<noun>\\p{L}{3,}){{S}}(?<target>(?<prep>pel|n|d|a|à)(?<article>o|a|os|as)?){{S}}(?<qual>qual|quais){{E}}"
-        fixer: relative
+        let:
+          row: "Object.values(PREPOSITION_FORMS).find((forms) => forms.includes(target))"
+          info: "ptNoun(noun)"
+          before: "ctx.text.slice(Math.max(0, m.index - 30), m.index)"
+          wanted: "row[(info.plural ? 2 : 0) + (info.feminine ? 1 : 0)]"
+          span: "m.indices!.groups!.target"
+        when:
+          - "noun === noun.toLowerCase() && target === target.toLowerCase()"
+          - "row !== undefined"
+          - "info !== null && info.feminine !== null"
+          - '!/(?:^|[^\p{L}])(?:ou|e)[ \t\u00a0]+(?:\p{L}+[ \t\u00a0]+)?$/u.test(before)'
+          - '(qual === "quais") === info.plural'
+          - "wanted !== target"
+        return: 'finding("portugueseAgreement", "review_msg_pt_noun_agreement", span[0], span[1], [wanted], { context: { start: m.index, end: m.index + m[0].length } })'
       # "Vende-se casas" -> "Vendem-se casas": with "se" the plural noun after the verb is its
       # subject. "Precisa-se de", "Trata-se de" have none.
       - regex: "(?<verb>\\p{L}{3,}[ae])-se{{S}}(?:(?<det>os|as|muitos|muitas|vários|várias|alguns|algumas|novos|novas|diversos|diversas|\\d+){{S}})?(?<noun>\\p{L}{3,}s){{E}}"
         owner: verb
         message: review_msg_pt_agreement
-        fixer: passiveSe
+        let:
+          info: "ptNoun(noun)"
+          lower: "verb.toLowerCase()"
+          stems: "ptVerbStems()"
+          stem: "lower.slice(0, -1)"
+          span: "m.indices!.groups!.verb"
+        when:
+          - "verb.slice(1) === verb.slice(1).toLowerCase() && noun === noun.toLowerCase()"
+          - "info?.plural === true && info.feminine !== null"
+          - "!(!det && !info.certain && !/[ao]s$/.test(noun))"
+          - "!TIME_WORD.test(noun)"
+          - "!GOVERNS_A_SE.has(lower)"
+          - 'lower.endsWith("a") ? stems.ar.has(stem) : stems.er.has(stem) || stems.ir.has(stem)'
+        return: '({ ruleId: "portugueseAgreement", messageKey: "review_msg_pt_agreement", range: { start: span[0], end: span[1] }, alternatives: [applyWordCase(`${verb}m`, detectWordCase(verb))], context: { start: m.index, end: m.index + m[0].length } })'
   - id: pt_BR.quantifiedAdjectives
     checks: [portugueseAgreement]
     style: match
@@ -2054,11 +3163,77 @@ rules:
       # "Estamos muitos contentes" -> "muito contentes", "Ela está meia cansada" -> "meio
       # cansada": before an adjective "muito" and "meio" are adverbs.
       - regex: "(?:{{COPULA_SER}}|{{COPULA_ESTAR}}|somos|estamos|ficamos|fomos|éramos|estávamos){{S}}(?<target>muit[oa]s|pouc[oa]s|muita|pouca|demasiad[oa]s?|bastantes|meias?){{S}}(?<adjective>\\p{L}{3,}[oa]s?|contentes|felizes|tristes|alegres|doentes|inteligentes|diferentes|ansiosos){{E}}"
-        fixer: quantified
+        let:
+          stem: 'adjective.replace(/[oa]s?$/, "")'
+          participle: '/\p{Ll}{2}(?:ad|id)$/u.test(stem) && !NOUNS_IN_DO.has(stem) && !/^(?:é|são|era|eram|foi|foram|será|serão|seria|seriam|somos|fomos|éramos)\s/iu.test(m[0])'
+          end: "m.indices!.groups!.adjective[1]"
+          wanted: 'target.startsWith("muit") ? "muito" : target.startsWith("pouc") ? "pouco" : target.startsWith("demasiad") ? "demasiado" : target.startsWith("meia") ? "meio" : "bastante"'
+          span: "m.indices!.groups!.target"
+        when:
+          - "target === target.toLowerCase() && adjective === adjective.toLowerCase()"
+          - "ADJECTIVE_STEMS.has(stem) || participle || /es$/.test(adjective)"
+          - "CLAUSE_GOES_ON.test(ctx.text.slice(end, end + 24))"
+        return: 'finding("portugueseAgreement", "review_msg_pt_noun_agreement", span[0], span[1], [wanted], { context: { start: m.index, end } })'
   - id: pt_BR.fixedAgreements
     checks: [portugueseAgreement]
     style: match
     message: review_msg_pt_noun_agreement
+    maps:
+      # "duas milhões" -> "dois", "as milhares de" -> "os": milhão, bilhão and milhar are masculine.
+      MASCULINE_OF:
+        uma: um
+        duas: dois
+        duzentas: duzentos
+        trezentas: trezentos
+        quatrocentas: quatrocentos
+        quinhentas: quinhentos
+        seiscentas: seiscentos
+        setecentas: setecentos
+        oitocentas: oitocentos
+        novecentas: novecentos
+        as: os
+        das: dos
+        nas: nos
+        pelas: pelos
+        estas: estes
+        essas: esses
+        aquelas: aqueles
+        muitas: muitos
+        várias: vários
+        algumas: alguns
+        tantas: tantos
+        poucas: poucos
+        outras: outros
+      # "Segue anexo a lista" -> "anexa": "anexo" agrees with what is sent.
+      ANNEX_DET:
+        o: anexo
+        a: anexa
+        os: anexos
+        as: anexas
+        um: anexo
+        uma: anexa
+        meu: anexo
+        minha: anexa
+        meus: anexos
+        minhas: anexas
+        nosso: anexo
+        nossa: anexa
+        nossos: anexos
+        nossas: anexas
+        seu: anexo
+        sua: anexa
+        seus: anexos
+        suas: anexas
+    defs:
+      # The agreement fix of `group`, unless it is already right or a user word.
+      fixedAgreement:
+        args: "ctx: DetectContext, m: RegExpExecArray, group: string, wanted: string"
+        type: RawFinding | null
+        let:
+          span: m.indices!.groups![group]
+          typed: ctx.text.slice(span[0], span[1])
+        when: "!(wanted === typed.toLowerCase() || ctx.dictionary.has(typed.toLowerCase()))"
+        return: '({ ruleId: "portugueseAgreement", messageKey: "review_msg_pt_noun_agreement", range: { start: span[0], end: span[1] }, alternatives: [applyWordCase(wanted, detectWordCase(typed))], context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) } })'
     frames:
       # "duas milhões" -> "dois", "as milhares de" -> "os": milhão, bilhão and milhar are
       # masculine nouns, so the words before them are too ("duas mil" agrees with the noun after
@@ -2066,43 +3241,170 @@ rules:
       # frame.
       - regex: "(?<target>{{PLURAL_FEMININE}}){{S}}(?=(?:milhões|bilhões|trilhões|milhares){{E}})|(?<one>uma){{S}}(?=(?:milhão|bilhão|trilhão|milhar){{E}})"
         owner: none
-        fixer: millions
+        let:
+          group: 'one ? "one" : "target"'
+        when:
+          - "!(m.index < ctx.from || m.index >= ctx.to)"
+        return: "fixedAgreement(ctx, m, group, MASCULINE_OF[m.groups![group].toLowerCase()])"
       # "muitos poucos" -> "muito poucos": before "pouco" the intensifier is an adverb.
       - regex: "(?<target>muit[oa]s|muita|bastantes){{S}}(?=pouc[oa]s?{{E}})"
-        fixer: veryFew
+        return: 'fixedAgreement(ctx, m, "target", target.toLowerCase().startsWith("muit") ? "muito" : "bastante")'
       # "Segue anexo a lista" -> "anexa", "Seguem anexo as fotos" -> "anexas": "anexo" is an
       # adjective agreeing with what is sent ("em anexo" does not vary). "anexo a este e-mail" is
       # a preposition.
       - regex: "(?:segue|seguem|seguiu|seguiram|vai|vão|envio|enviamos|remeto|remetemos|encaminho|encaminhamos|mando|mandamos){{S}}(?<target>anex[oa]s?){{S}}(?<det>o|a|os|as|um|uma|meu|minha|meus|minhas|nosso|nossa|nossos|nossas|seu|sua|seus|suas){{S}}(?!(?:este|esta|esse|essa|aquele|aquela|isto|isso|presente|mensagem|e-mail|email|carta|ofício){{E}})\\p{L}"
-        fixer: annex
+        return: 'fixedAgreement(ctx, m, "target", ANNEX_DET[det.toLowerCase()])'
   - id: pt_BR.passiveNumber
     checks: [portugueseAgreement]
     style: match
     message: review_msg_pt_passive_number
+    maps:
+      COPULA_NUMBER:
+        foi: foram
+        foram: foi
+        é: são
+        são: é
+        era: eram
+        eram: era
+        será: serão
+        serão: será
+        seria: seriam
+        seriam: seria
+        for: forem
+        forem: for
+        fosse: fossem
+        fossem: fosse
+        seja: sejam
+        sejam: seja
+    sets:
+      SHORT_PARTICIPLES: [feit, dit, escrit, abert, cobert, pag, ganh, gast, entregu, aceit]
+    defs:
+      SUBJECT_AFTER_COPULA: '/^[ \t\u00a0]+(?:(?<one>o|um|uma)|os|as|uns|umas|outros|outras|todos|todas|muitos|muitas|vários|várias|alguns|algumas|novos|novas)[ \t\u00a0]/u'
     frames:
       # "Foram corrigido o valor" -> "Foi corrigido", "Foi pagos os juros" -> "Foram pagos": a
       # participle or adjective after "ser" takes the verb's number. The subject after them
       # tells which word is wrong, so a determiner must follow: "O destaque foi convidados de
       # honra" has a noun.
       - regex: "(?<copula>foi|foram|é|são|era|eram|será|serão|seria|seriam|for|forem|fosse|fossem|seja|sejam){{S}}(?<target>\\p{L}{3,}[oa]s?){{E}}(?![-\\p{L}])"
-        fixer: passive
+        let:
+          stem: 'target.replace(/[oa]s?$/, "")'
+          participle: '(/\p{Ll}{2}(?:ad|id)$/u.test(stem) && !NOUNS_IN_DO.has(stem)) || SHORT_PARTICIPLES.has(stem)'
+          pluralCopula: "/(?:ão|am|em)$/.test(copula)"
+          start: "m.indices!.groups!.copula[0]"
+          end: "m.indices!.groups!.target[1]"
+          subject: "SUBJECT_AFTER_COPULA.exec(ctx.text.slice(end, end + 24))"
+          lower: "copula.toLowerCase()"
+          fixed: "!!subject.groups!.one === pluralCopula ? `${COPULA_NUMBER[lower]} ${target}` : `${lower} ${pluralCopula ? `${target}s` : target.slice(0, -1)}`"
+        when:
+          - "target === target.toLowerCase() && copula.slice(1) === copula.slice(1).toLowerCase()"
+          - "participle || ADJECTIVE_STEMS.has(stem)"
+          - 'pluralCopula !== target.endsWith("s")'
+          - "subject !== null && !ctx.dictionary.has(ctx.text.slice(start, end).toLowerCase())"
+        return: 'finding("portugueseAgreement", "review_msg_pt_passive_number", start, end, [applyWordCase(fixed, detectWordCase(copula))], { context: { start, end } })'
   - id: pt_BR.personAgreement
     checks: [portugueseAgreement]
     style: match
     message: review_msg_pt_agreement
+    maps:
+      PERSON_OF_PRONOUN:
+        { eu: 1s, tu: 2s, ele: 3s, ela: 3s, você: 3s, nós: 1p, eles: 3p, elas: 3p, vocês: 3p }
+    sets:
+      # Imperfects of crer, ler, ver and rir spelled like presents of criar, liar, viar, riar.
+      OTHER_IMPERFECTS: [cria, crias, criam, lia, lias, liam, via, vias, viam, ria, rias, riam]
+      KNOWN_SUBJECT_WORDS:
+        [eu, e, tu, ele, ela, você, eles, elas, vocês, o, a, os, as, meu, minha, meus, minhas]
+      # Heads that may agree with the plural after them: "A maioria dos alunos passaram".
+      PERSON_COLLECTIVE:
+        [
+          maioria,
+          minoria,
+          parte,
+          metade,
+          grupo,
+          porcentagem,
+          percentagem,
+          conjunto,
+          série,
+          totalidade,
+          resto,
+          número,
+          quantidade,
+          multidão,
+          bando,
+          dezena,
+          centena,
+          milhar,
+          milhão,
+          bilhão,
+          trilhão,
+        ]
+    defs:
+      # "e eu" belongs to WE_SUBJECT; "em nós", "estes nós" (knots), "mais do que eu" are no subject.
+      NOT_PRONOUN_SUBJECT: '/(?:(?:^|[^\p{L}])(?:e|em|estes|estas|esses|essas|aqueles|aquelas|dos|pelos|seus|meus|nossos|vários|muitos)|(?:do|mais|menos|melhor|pior|maior|menor|tanto|tão)[ \t\u00a0]+que)[ \t\u00a0]+$/iu'
+      PERSON_DETERMINER: "/^(?:o|a|os|as|meu|minha|meus|minhas)$/i"
+      PERSON_PLURAL_LEAD: "/^(?:os|as|uns|umas|estes|estas|esses|essas|aqueles|aquelas|meus|minhas|seus|suas|nossos|nossas|alguns|algumas|muitos|muitas|vários|várias)$/i"
+      # Frames ignore case: a word that is no pronoun and follows no determiner is a name.
+      namesCapitalized:
+        args: "subject: string"
+        let:
+          words: 'subject.split(/[ \t\u00a0]+/)'
+        return: 'words.every((word, i) => KNOWN_SUBJECT_WORDS.has(word.toLowerCase()) || PERSON_DETERMINER.test(words[i - 1] ?? "") || /^\p{Lu}/u.test(word))'
+      # A regular verb in the person of its subject. One verb and tense only; "-o" after a third
+      # person may be a noun ("ela trabalho").
+      personFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, subject: PtPerson"
+        type: RawFinding | null
+        let:
+          typed: m.groups!.target
+          found: ptVerbReadings(typed)
+          first: found[0]
+          wanted: ptInflect(first, subject)
+          span: m.indices!.groups!.target
+        when:
+          - "!(typed !== typed.toLowerCase() || ctx.dictionary.has(typed) || PT_NOT_VERBS.has(typed) || OTHER_IMPERFECTS.has(typed))"
+          - found.length > 0 && !found.some((a) => a.persons.has(subject))
+          - "!found.some((a) => a.stem !== first.stem || a.tense !== first.tense)"
+          - "!found.some((a) => a.conjugation !== first.conjugation)"
+          - '!(/o$/.test(typed) && first.tense === "present" && subject !== "1p" && subject !== "2s")'
+          - wanted !== typed
+        return: '({ ruleId: "portugueseAgreement", messageKey: "review_msg_pt_agreement", range: { start: span[0], end: span[1] }, alternatives: [applyWordCase(wanted, detectWordCase(typed))], context: { start: m.index, end: span[1] } })'
     frames:
       # A pronoun subject and its verb: "Eu passeiam" -> "passeio", "Tu não falam" -> "falas".
       - regex: "(?<pronoun>eu|tu|ele|ela|você|nós|eles|elas|vocês){{S}}{{PERSON_ADVERBS}}{{PERSON_CLITIC}}(?<target>\\p{L}{2,}){{E}}(?!-)"
-        fixer: personPronounSubject
+        let:
+          before: "ctx.text.slice(Math.max(0, m.index - 24), m.index)"
+          pronounEnd: "m.indices!.groups!.pronoun[1]"
+          after: "ctx.text.slice(pronounEnd, pronounEnd + 8)"
+        when:
+          - "!(NOT_SUBJECT_BEFORE.test(before) || NOT_PRONOUN_SUBJECT.test(before))"
+          - '!(/^\p{Lu}/u.test(pronoun) && !SENTENCE_START.test(before))'
+          - '!/^[ \t\u00a0]+e(?![\p{L}])/u.test(after)'
+        return: "personFinding(ctx, m, PERSON_OF_PRONOUN[pronoun.toLowerCase()] as PtPerson)"
       # A noun-phrase subject opening the sentence, with a prepositional phrase before its verb:
       # "As crianças da escola brinca" -> "brincam". Without one, verbAgreement.ts's subjects()
       # decide. In {{PHRASE}}, the phrase's noun is no infinitive ("de prosseguir") nor a
       # relative ("nas quais").
       - regex: "(?<lead>{{SINGULAR_LEAD}}|{{PLURAL_LEAD}}){{S}}(?<noun>\\p{L}{3,}){{PHRASE}}{{S}}{{PERSON_ADVERBS}}{{PERSON_CLITIC}}(?<target>\\p{L}{3,}){{E}}(?!-)"
-        fixer: personNounSubject
+        let:
+          plural: "PERSON_PLURAL_LEAD.test(lead)"
+          end: "m.indices!.groups!.target[1]"
+          next: '/^[ \t\u00a0]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 30))?.[1]'
+        when:
+          - "SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))"
+          - "lead.slice(1) === lead.slice(1).toLowerCase() && noun === noun.toLowerCase()"
+          - "!(PERSON_COLLECTIVE.has(noun) || PT_NOT_VERBS.has(noun))"
+          - "/s$/.test(noun) === plural"
+          - "!(next && (PT_FORM_ROWS.has(next) || ptVerbReadings(next).length > 0))"
+          - 'ptVerbReadings(target).every((a) => a.persons.has("3s") || a.persons.has("3p"))'
+        return: 'personFinding(ctx, m, plural ? "3p" : "3s")'
       # "Eu e a Rita", "Tu e eu", "Ele e eu": a subject with "eu" in it is "nós".
       - regex: "(?<we>{{WITH_ME}}){{S}}{{PERSON_ADVERBS}}{{PERSON_CLITIC}}(?<target>\\p{L}{2,}){{E}}(?!-)"
-        fixer: personWeSubject
+        let:
+          before: "ctx.text.slice(Math.max(0, m.index - 24), m.index)"
+        when:
+          - "!(NOT_SUBJECT_BEFORE.test(before) && !SENTENCE_START.test(before))"
+          - "namesCapitalized(we)"
+        return: 'personFinding(ctx, m, "1p")'
   - id: pt_BR.auxiliaryInfinitives
     checks: [portugueseAgreement]
     style: match
@@ -2468,7 +3770,7 @@ rules:
           span: "m.indices!.groups!.target"
           line: 'ctx.text.slice(ctx.text.lastIndexOf("\n", span[0]) + 1, span[0])'
         when:
-          - '!/^[ \t ]*(?:…|\.{3}|\[…\])/u.test(line)'
+          - '!/^[ \t\u00a0]*(?:…|\.{3}|\[…\])/u.test(line)'
         return: 'finding("commaPeriodSpacing", "review_msg_space_before_mark", span[0], span[1], ["…"])'
   - id: pt_BR.unitSpacing
     checks: [measurementUnitFormatting]

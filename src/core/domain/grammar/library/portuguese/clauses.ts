@@ -97,7 +97,7 @@ export function ptClauseVerb(text: string, from: number): PtClauseVerb | null {
   const tokens: Array<{ word: string; start: number; end: number }> = [];
   let pos = from;
   while (tokens.length < 10 && pos < text.length && pos < from + 160) {
-    const space = /[ \t ]*/y;
+    const space = /[ \t\u00a0]*/y;
     space.lastIndex = pos;
     space.exec(text);
     TOKEN.lastIndex = space.lastIndex;
