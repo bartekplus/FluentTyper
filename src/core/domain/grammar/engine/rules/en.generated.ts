@@ -3004,7 +3004,7 @@ export function fixedTyped(ctx: DetectContext, m: RegExpExecArray) {
 
 // en.yaml rule en.fixedPhrases def fixedClauseStart
 export function fixedClauseStart(ctx: DetectContext, index: number) {
-  return /(?:^|[.!?;:\n])[ \t "“'‘(]*$/.test(enBefore(ctx, index, 96));
+  return /(?:^|[.!?;:\n])[ \t\u00a0"“'‘(]*$/.test(enBefore(ctx, index, 96));
 }
 
 // en.yaml rule en.fixedPhrases def FIXED_CLOSED_CLASS
@@ -3049,11 +3049,11 @@ export function fixedWorse(ctx: DetectContext, frame: FrameRef, m: RegExpExecArr
 
 // en.yaml rule en.fixedPhrases def FIXED_SITUATION
 export const FIXED_SITUATION =
-  /(?:\bmuch|\b(?:it|this|that|which)(?:['’]s|[ \t ]+(?:is|was|were|be|been|will[ \t ]+be))[ \t ]+(?:(?:a|such[ \t ]+a|quite[ \t ]+a|a[ \t ]+real|a[ \t ]+total|a[ \t ]+complete)[ \t ]+)?)[ \t ]*$/i;
+  /(?:\bmuch|\b(?:it|this|that|which)(?:['’]s|[ \t\u00a0]+(?:is|was|were|be|been|will[ \t\u00a0]+be))[ \t\u00a0]+(?:(?:a|such[ \t\u00a0]+a|quite[ \t\u00a0]+a|a[ \t\u00a0]+real|a[ \t\u00a0]+total|a[ \t\u00a0]+complete)[ \t\u00a0]+)?)[ \t\u00a0]*$/i;
 
 // en.yaml rule en.fixedPhrases def FIXED_NONSENSE_CUE
 export const FIXED_NONSENSE_CUE =
-  /(?:\b(?:complete|total|utter|absolute|pure|such|dogs|is|was|its|thats|what|bloody|just)|['’]s)[ \t ]+$/i;
+  /(?:\b(?:complete|total|utter|absolute|pure|such|dogs|is|was|its|thats|what|bloody|just)|['’]s)[ \t\u00a0]+$/i;
 
 // en.yaml rule en.fixedPhrases def FIXED_TO_FAR_NEXT
 export const FIXED_TO_FAR_NEXT =
@@ -3064,7 +3064,7 @@ export const FIXED_SETTING_VERB =
   /\b(?:set|sets|setting|change|changes|changed|changing|switch|switched|resize|resized|scale|scaled|convert|converted|from|increase|increased|reduce|reduced|default|defaults|move|moved|grow|grows|grew|shrink|shrank)\b[^.!?;:\n]*$/i;
 
 // en.yaml rule en.confusedWords def CONF_BOUNDARY
-export const CONF_BOUNDARY = /^[.!?;:"“”([…￼*+#>|-]$/;
+export const CONF_BOUNDARY = /^[.!?;:"“”([…\uFFFC*+#>|-]$/;
 
 // en.yaml rule en.confusedWords def confOpens
 export function confOpens(t: EnBlockToken | undefined) {
@@ -3653,7 +3653,7 @@ export function confRoller(
   if (!(n?.w === "skated")) return null;
   if (enIsBlockWord(b[0]) && (CONF_DETERMINER.has(b[0].w) || confPlainAdjective(b[0].w)))
     return null;
-  if (!/^[ \t ]+$/.test(ctx.text.slice(t.end, n.start))) return null;
+  if (!/^[ \t\u00a0]+$/.test(ctx.text.slice(t.end, n.start))) return null;
   return {
     start: t.start,
     end: n.end,
@@ -4780,7 +4780,7 @@ export function conf2Mach(
   h: EnWordsAround,
 ): RawFinding | null {
   const p0 = h.P[0];
-  if (!(p0?.w === "how" && !/^[ \t ]*\d/.test(ctx.text.slice(end, end + 4)))) return null;
+  if (!(p0?.w === "how" && !/^[ \t\u00a0]*\d/.test(ctx.text.slice(end, end + 4)))) return null;
   if (/^[A-Z][a-z]/.test(ctx.text.slice(start, end)) && /^[a-z]/.test(p0.raw)) return null;
   if (!(word !== "match" || conf2MuchNoun(h))) return null;
   return conf2Typo(ctx, start, end, "much", p0, undefined);
@@ -5003,9 +5003,10 @@ export function conf2Yea(
   end: number,
   _h: EnWordsAround,
 ): RawFinding | null {
-  const after = /^(?:[ \t ]*,|[ \t ]+[-–—]+|[-–—]+(?=[ \t ]))[ \t ]*([A-Za-z]*)/.exec(
-    ctx.text.slice(end, end + 24),
-  );
+  const after =
+    /^(?:[ \t\u00a0]*,|[ \t\u00a0]+[-–—]+|[-–—]+(?=[ \t\u00a0]))[ \t\u00a0]*([A-Za-z]*)/.exec(
+      ctx.text.slice(end, end + 24),
+    );
   if (!(after && !/^(?:though|verily|nay)$/i.test(after[1]))) return null;
   if (/\b(?:nay|yeas|nays)\b/i.test(ctx.text.slice(Math.max(0, start - 64), end + 64))) return null;
   return conf2Typo(ctx, start, end, "yeah", undefined, undefined);
@@ -5071,7 +5072,9 @@ export function conf2Lose(
   if (!(h.P[0]?.w === "too")) return null;
   const n0 = h.N[0];
   if (!(
-    /^[ \t ]+(?:and|or|but|for|with|in|on|at)(?![A-Za-z])/i.test(ctx.text.slice(end, end + 12)) ||
+    /^[ \t\u00a0]+(?:and|or|but|for|with|in|on|at)(?![A-Za-z])/i.test(
+      ctx.text.slice(end, end + 12),
+    ) ||
     (!n0 && enClauseClosesAt(ctx.text, end))
   ))
     return null;
@@ -5222,8 +5225,8 @@ export function conf2To(
   h: EnWordsAround,
 ): RawFinding | null {
   const listed =
-    /,[ \t ]{0,8}$/.test(ctx.text.slice(Math.max(0, start - 9), start)) &&
-    /^[ \t ]{0,8}[.!?](?![\p{L}\p{N}])|^[ \t ]*$/u.test(ctx.text.slice(end, end + 10));
+    /,[ \t\u00a0]{0,8}$/.test(ctx.text.slice(Math.max(0, start - 9), start)) &&
+    /^[ \t\u00a0]{0,8}[.!?](?![\p{L}\p{N}])|^[ \t\u00a0]*$/u.test(ctx.text.slice(end, end + 10));
   if (!(
     listed ||
     (/^(?:loud|loudly)$/.test(h.N[0]?.w ?? "") &&
@@ -5329,7 +5332,7 @@ export function style2Modifiable(word: string) {
 // en.yaml rule en.sentenceFrames def style2OpensClause
 export function style2OpensClause(ctx: DetectContext, index: number, also?: RegExp) {
   const before = ctx.text.slice(Math.max(0, index - 48), index);
-  return /(?:^|[.!?;:(\n"“][ \t ]*)$/.test(before) || (also?.test(before) ?? false);
+  return /(?:^|[.!?;:(\n"“][ \t\u00a0]*)$/.test(before) || (also?.test(before) ?? false);
 }
 
 // en.yaml rule en.sentenceFrames def style2CasedFinding
@@ -5360,12 +5363,12 @@ export function style2Cased(replacement: string) {
 
 // en.yaml rule en.sentenceFrames def style2Hyphen
 export function style2Hyphen(typed: string) {
-  return typed.replace(/[ \t ]+/, "-");
+  return typed.replace(/[ \t\u00a0]+/, "-");
 }
 
 // en.yaml rule en.sentenceFrames def style2Join
 export function style2Join(typed: string) {
-  return typed.replace(/[ \t ]+/, "");
+  return typed.replace(/[ \t\u00a0]+/, "");
 }
 
 // en.yaml rule en.sentenceFrames def style2CanonicalName
@@ -5387,7 +5390,7 @@ export function style2CanonicalName(
 // en.yaml rule en.sentenceFrames def style2Previous
 export function style2Previous(ctx: DetectContext, index: number) {
   return (
-    /(?:(\p{L}+)[ \t ]{1,8})?(\p{L}+)[ \t ]{1,8}$/u
+    /(?:(\p{L}+)[ \t\u00a0]{1,8})?(\p{L}+)[ \t\u00a0]{1,8}$/u
       .exec(ctx.text.slice(Math.max(0, index - 64), index))
       ?.slice(1) ?? []
   );
@@ -5408,7 +5411,7 @@ export function style2Compound(ctx: DetectContext, m: RegExpExecArray, fix: type
 
 // en.yaml rule en.sentenceFrames def STYLE2_MAKEUP_LEAD
 export const STYLE2_MAKEUP_LEAD =
-  /(?<![\p{L}'’])(the|a|my|your|his|her|our|their|this|that)[ \t ]{1,8}(?:(\p{L}+)[ \t ]{1,8})?$/iu;
+  /(?<![\p{L}'’])(the|a|my|your|his|her|our|their|this|that)[ \t\u00a0]{1,8}(?:(\p{L}+)[ \t\u00a0]{1,8})?$/iu;
 
 // en.yaml rule en.sentenceFrames def style2MakeUpLead
 export function style2MakeUpLead(ctx: DetectContext, m: RegExpExecArray, lead: RegExpExecArray) {
@@ -5459,7 +5462,7 @@ export function lexWordBefore(ctx: DetectContext, index: number) {
   const last = lastNonBlankBefore(ctx.text, index);
   if (!(last >= 0 && !/[.!?;:"“\n]/.test(ctx.text[last]))) return "";
   return (
-    /([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, index - 40), index))?.[1] ?? "?"
+    /([A-Za-z]+)[ \t\u00a0]+$/.exec(ctx.text.slice(Math.max(0, index - 40), index))?.[1] ?? "?"
   ).toLowerCase();
 }
 
@@ -5500,11 +5503,11 @@ export const LEXICAL_REGULAR_PLURALS = new Map(
 
 // en.yaml rule en.irregularWordForms def LEXICAL_PARTICIPLE_BEFORE
 export const LEXICAL_PARTICIPLE_BEFORE =
-  /(?:^|[^\p{L}])(?:have|has|had|having|['’]ve|been|be|being|is|are|was|were|am|get|gets|got|gotten)[ \t ]+(?:(?:not|never|already|just|also|all|now)[ \t ]+)?$/iu;
+  /(?:^|[^\p{L}])(?:have|has|had|having|['’]ve|been|be|being|is|are|was|were|am|get|gets|got|gotten)[ \t\u00a0]+(?:(?:not|never|already|just|also|all|now)[ \t\u00a0]+)?$/iu;
 
 // en.yaml rule en.irregularWordForms def LEXICAL_VERB_BEFORE
 export const LEXICAL_VERB_BEFORE =
-  /(?:^|[^\p{L}'’])(?:i|you|he|she|it|we|they|who|and|or|then|also|just|never|already|finally|once|have|has|had|having|['’]ve|['’]d|been|be|being|is|are|was|were|am|get|gets|got|gotten)[ \t ]+$/iu;
+  /(?:^|[^\p{L}'’])(?:i|you|he|she|it|we|they|who|and|or|then|also|just|never|already|finally|once|have|has|had|having|['’]ve|['’]d|been|be|being|is|are|was|were|am|get|gets|got|gotten)[ \t\u00a0]+$/iu;
 
 // en.yaml rule en.irregularWordForms def lexIrregularFor
 export function lexIrregularFor(word: string, before: string): string[] | null {
@@ -5522,7 +5525,7 @@ export function lexIrregularPast(w: string, verb: (typeof EN_VERB_FORMS)[number]
 // en.yaml rule en.irregularWordForms def lexIrregularPlural
 export function lexIrregularPlural(word: string, w: string, before: string) {
   if (!(w.endsWith("s") && w.length >= 4 && !lexInfoOf(w))) return null;
-  if (w === "lifes" && /\bstill[ \t ]+$/i.test(before)) return null;
+  if (w === "lifes" && /\bstill[ \t\u00a0]+$/i.test(before)) return null;
   const cut = lexPluralCut(w, 0, /^[a-z]/.test(word) ? w.length - 3 : 0);
   return cut >= 0 ? lexTablePlural(w, cut) : lexSpelledPlural(w);
 }
@@ -6308,10 +6311,10 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@en.fixedPhrases/12": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     const make = m.groups!.make;
     const prior = enBefore(ctx, m.index, 48);
-    if (/\b(?:who|whoever|whatever|what)[ \t ]+$/i.test(prior)) return null;
+    if (/\b(?:who|whoever|whatever|what)[ \t\u00a0]+$/i.test(prior)) return null;
     if (!(
       !/^making$/i.test(make) ||
-      /\b(?:of|by|for|from|without|avoid|stop|keep|keeps|kept|is|are|was|were|be|been)[ \t ]+$/i.test(
+      /\b(?:of|by|for|from|without|avoid|stop|keep|keeps|kept|is|are|was|were|be|been)[ \t\u00a0]+$/i.test(
         prior,
       )
     ))
@@ -6322,7 +6325,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@en.fixedPhrases/13": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     const target = m.groups!.target;
     if (FIXED_SITUATION.test(enBefore(ctx, m.index, 48))) return null;
-    const parts = target.split(/[ \t -]+/);
+    const parts = target.split(/[ \t\u00a0-]+/);
     const nervous = applyWordCase("nervous", detectWordCase(parts[0]));
     return fixedTarget(ctx, frame, m, [`${nervous} ${parts[1]}`]);
   },
@@ -6331,7 +6334,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const end = group(m, "target")[1];
     const exclamation =
       (fixedClauseStart(ctx, m.index) || /["“'‘]$/.test(enBefore(ctx, m.index, 1))) &&
-      /^[ \t ]*!/.test(ctx.text.slice(end));
+      /^[ \t\u00a0]*!/.test(ctx.text.slice(end));
     if (!(exclamation || FIXED_NONSENSE_CUE.test(enBefore(ctx, m.index, 48)))) return null;
     return fixedTarget(ctx, frame, m, ["bollocks"]);
   },
@@ -6341,7 +6344,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   },
   // en.yaml rule en.fixedPhrases frame 16
   "@en.fixedPhrases/16": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
-    return fixedSwap(ctx, frame, m, fixedTyped(ctx, m).split(/[ \t ]+/)[0], true);
+    return fixedSwap(ctx, frame, m, fixedTyped(ctx, m).split(/[ \t\u00a0]+/)[0], true);
   },
   // en.yaml rule en.fixedPhrases frame 17
   "@en.fixedPhrases/17": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
@@ -6609,7 +6612,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.phraseFrames frame 12
   "@en.phraseFrames/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     const target = m.groups!.target;
-    if (!/^(?:a[ \t ]+(?:ok|okay)|A[ \t ]+(?:OK|OKAY))$/.test(target)) return null;
+    if (!/^(?:a[ \t\u00a0]+(?:ok|okay)|A[ \t\u00a0]+(?:OK|OKAY))$/.test(target)) return null;
     return style2Compound(ctx, m, (typed) => (typed === typed.toUpperCase() ? "A-OK" : "a-ok"));
   },
   // en.yaml rule en.phraseFrames frame 13
@@ -6885,7 +6888,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       )
       ? caseLike(
           target,
-          /\b(?:one|a|an|each|every|this|that)[ \t ]+$/i.test(
+          /\b(?:one|a|an|each|every|this|that)[ \t\u00a0]+$/i.test(
             ctx.text.slice(Math.max(0, m.index - 16), m.index),
           )
             ? "part of speech"

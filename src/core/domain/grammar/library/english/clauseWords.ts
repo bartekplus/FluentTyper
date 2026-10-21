@@ -67,10 +67,10 @@ export function wordsAround(
 /** Nothing but spaces, quotes or brackets between a clause boundary and `index`. */
 export function clauseOpensAt(text: string, index: number): boolean {
   let i = index;
-  while (i > 0 && /[ \t "“‘(]/.test(text[i - 1])) i -= 1;
+  while (i > 0 && /[ \t\u00a0"“‘(]/.test(text[i - 1])) i -= 1;
   return i === 0 || /[.!?;:\n—–]/.test(text[i - 1]) || text.slice(i - 2, i) === "--";
 }
 
 /** Only spaces, then clause punctuation or the text end, after `index`. */
 export const clauseClosesAt = (text: string, index: number) =>
-  /^[ \t ]{0,8}(?:[.!?,;:)\]"”…]|--|[—–]|$)/.test(text.slice(index, index + 12));
+  /^[ \t\u00a0]{0,8}(?:[.!?,;:)\]"”…]|--|[—–]|$)/.test(text.slice(index, index + 12));

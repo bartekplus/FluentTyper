@@ -194,7 +194,7 @@ rules:
       # Only spaces and opening marks between `index` and a stop, a line break or the text start.
       fixedClauseStart:
         args: "ctx: DetectContext, index: number"
-        return: '/(?:^|[.!?;:\n])[ \t "“''‘(]*$/.test(enBefore(ctx, index, 96))'
+        return: '/(?:^|[.!?;:\n])[ \t\u00a0"“''‘(]*$/.test(enBefore(ctx, index, 96))'
       # Function words the lexicon also lists as nouns ("ifs and buts", "the ins and outs").
       FIXED_CLOSED_CLASS: /^(?:if|in|on|at|to|for|with|by|of|off|out|up|down|over|than|and|or|but|so|as|when|because|since|after|before|until|now|then|again|lately|here|there|yet|still|too|very|it|this|that)$/i
       # A word the lexicon knows as a noun; it omits long pure nouns, so unknown long words count.
@@ -222,8 +222,8 @@ rules:
             range: { start: range[0], end: range[1] }, alternatives: [] }))
       # A person who is a "nerve wreck" is a "nervous wreck"; a situation ("It was a
       # nerve-wreck", "so much nerve wreck") is left alone.
-      FIXED_SITUATION: '/(?:\bmuch|\b(?:it|this|that|which)(?:[''’]s|[ \t ]+(?:is|was|were|be|been|will[ \t ]+be))[ \t ]+(?:(?:a|such[ \t ]+a|quite[ \t ]+a|a[ \t ]+real|a[ \t ]+total|a[ \t ]+complete)[ \t ]+)?)[ \t ]*$/i'
-      FIXED_NONSENSE_CUE: '/(?:\b(?:complete|total|utter|absolute|pure|such|dogs|is|was|its|thats|what|bloody|just)|[''’]s)[ \t ]+$/i'
+      FIXED_SITUATION: '/(?:\bmuch|\b(?:it|this|that|which)(?:[''’]s|[ \t\u00a0]+(?:is|was|were|be|been|will[ \t\u00a0]+be))[ \t\u00a0]+(?:(?:a|such[ \t\u00a0]+a|quite[ \t\u00a0]+a|a[ \t\u00a0]+real|a[ \t\u00a0]+total|a[ \t\u00a0]+complete)[ \t\u00a0]+)?)[ \t\u00a0]*$/i'
+      FIXED_NONSENSE_CUE: '/(?:\b(?:complete|total|utter|absolute|pure|such|dogs|is|was|its|thats|what|bloody|just)|[''’]s)[ \t\u00a0]+$/i'
       FIXED_TO_FAR_NEXT: /^(?:with|for|on|in|this|and|but|when|because|like|away|off|out|flung)$/i
       # "set the font to big for headings" names a value; "from small to big" a range.
       FIXED_SETTING_VERB: '/\b(?:set|sets|setting|change|changes|changed|changing|switch|switched|resize|resized|scale|scaled|convert|converted|from|increase|increased|reduce|reduced|default|defaults|move|moved|grow|grows|grew|shrink|shrank)\b[^.!?;:\n]*$/i'
@@ -292,15 +292,15 @@ rules:
         let:
           prior: enBefore(ctx, m.index, 48)
         when:
-          - '!/\b(?:who|whoever|whatever|what)[ \t ]+$/i.test(prior)'
+          - '!/\b(?:who|whoever|whatever|what)[ \t\u00a0]+$/i.test(prior)'
           - >-
             !/^making$/i.test(make)
-            || /\b(?:of|by|for|from|without|avoid|stop|keep|keeps|kept|is|are|was|were|be|been)[ \t ]+$/i.test(prior)
+            || /\b(?:of|by|for|from|without|avoid|stop|keep|keeps|kept|is|are|was|were|be|been)[ \t\u00a0]+$/i.test(prior)
         return: fixedTarget(ctx, frame, m, ["seem"])
       # A person who is a "nerve wreck" is a "nervous wreck".
       - regex: "(?<target>nerve(?:{{S}}|-)wrecks?){{E}}"
         let:
-          parts: 'target.split(/[ \t -]+/)'
+          parts: 'target.split(/[ \t\u00a0-]+/)'
           nervous: applyWordCase("nervous", detectWordCase(parts[0]))
         when: "!FIXED_SITUATION.test(enBefore(ctx, m.index, 48))"
         return: "fixedTarget(ctx, frame, m, [`${nervous} ${parts[1]}`])"
@@ -311,7 +311,7 @@ rules:
           end: group(m, "target")[1]
           exclamation: >-
             (fixedClauseStart(ctx, m.index) || /["“'‘]$/.test(enBefore(ctx, m.index, 1)))
-            && /^[ \t ]*!/.test(ctx.text.slice(end))
+            && /^[ \t\u00a0]*!/.test(ctx.text.slice(end))
         when: exclamation || FIXED_NONSENSE_CUE.test(enBefore(ctx, m.index, 48))
         return: fixedTarget(ctx, frame, m, ["bollocks"])
       # "conform that" is "confirm that"; "conforming that is supported" stays a relative
@@ -320,7 +320,7 @@ rules:
         return: fixedSwap(ctx, frame, m, FIXED_CONFORM[fixedTyped(ctx, m).toLowerCase()] ?? null, true)
       # "constitutes as a" takes no "as"; "constituting as much as" and the passive stay.
       - regex: "{{notAfter:be|been|being|is|are|was|were}}(?<target>(?:constitute|constitutes|constituting){{S}}as){{S}}(?!(?:much|many|well|long|far|soon|little|few|such|follows?|part|is|are|was|were|it|they|we|he|she|i|you|in|of){{E}})"
-        return: 'fixedSwap(ctx, frame, m, fixedTyped(ctx, m).split(/[ \t ]+/)[0], true)'
+        return: 'fixedSwap(ctx, frame, m, fixedTyped(ctx, m).split(/[ \t\u00a0]+/)[0], true)'
       # "time has past" is "passed"; "has past experience" keeps the adjective.
       - regex: "(?:has|have|had|having|['’]ve){{S}}(?<target>past){{E}}"
         message: review_msg_contextual_grammar
@@ -1098,7 +1098,7 @@ rules:
       CONF_HOP: { hope: hop, hopes: hops, hoped: hopped, hoping: hopping }
     defs:
       # Nothing, or clause punctuation, before.
-      CONF_BOUNDARY: '/^[.!?;:"“”([…￼*+#>|-]$/'
+      CONF_BOUNDARY: '/^[.!?;:"“”([…\uFFFC*+#>|-]$/'
       confOpens:
         args: "t: EnBlockToken | undefined"
         return: "!t || CONF_BOUNDARY.test(t.text)"
@@ -1478,7 +1478,7 @@ rules:
         when:
           - n?.w === "skated"
           - "!(enIsBlockWord(b[0]) && (CONF_DETERMINER.has(b[0].w) || confPlainAdjective(b[0].w)))"
-          - '/^[ \t ]+$/.test(ctx.text.slice(t.end, n.start))'
+          - '/^[ \t\u00a0]+$/.test(ctx.text.slice(t.end, n.start))'
         return: >-
           { start: t.start, end: n.end, alts: [`${t.text}-${n.text}`], key: "review_msg_closed_compound" }
       # summery (summer-like) where the noun summary is meant. "The weather is summery." / "is
@@ -3098,7 +3098,7 @@ rules:
         let:
           p0: h.P[0]
         when:
-          - p0?.w === "how" && !/^[ \t ]*\d/.test(ctx.text.slice(end, end + 4))
+          - p0?.w === "how" && !/^[ \t\u00a0]*\d/.test(ctx.text.slice(end, end + 4))
           - "!(/^[A-Z][a-z]/.test(ctx.text.slice(start, end)) && /^[a-z]/.test(p0.raw))"
           - word !== "match" || conf2MuchNoun(h)
         return: conf2Typo(ctx, start, end, "much", p0, undefined)
@@ -3241,7 +3241,7 @@ rules:
         args: "ctx: DetectContext, word: string, start: number, end: number, _h: EnWordsAround"
         type: "RawFinding | null"
         let:
-          after: '/^(?:[ \t ]*,|[ \t ]+[-–—]+|[-–—]+(?=[ \t ]))[ \t ]*([A-Za-z]*)/.exec(ctx.text.slice(end, end + 24))'
+          after: '/^(?:[ \t\u00a0]*,|[ \t\u00a0]+[-–—]+|[-–—]+(?=[ \t\u00a0]))[ \t\u00a0]*([A-Za-z]*)/.exec(ctx.text.slice(end, end + 24))'
         when:
           - after && !/^(?:though|verily|nay)$/i.test(after[1])
           - '!/\b(?:nay|yeas|nays)\b/i.test(ctx.text.slice(Math.max(0, start - 64), end + 64))'
@@ -3285,7 +3285,7 @@ rules:
         when:
           - h.P[0]?.w === "too"
           - >-
-            /^[ \t ]+(?:and|or|but|for|with|in|on|at)(?![A-Za-z])/i.test(ctx.text.slice(end, end + 12))
+            /^[ \t\u00a0]+(?:and|or|but|for|with|in|on|at)(?![A-Za-z])/i.test(ctx.text.slice(end, end + 12))
             || (!n0 && enClauseClosesAt(ctx.text, end))
         return: conf2Typo(ctx, start, end, "loose", h.P[0], n0)
       # "Talk to they", "Send they the invitation" → them. A stranded preposition before a new
@@ -3381,8 +3381,8 @@ rules:
         type: "RawFinding | null"
         let:
           listed: >-
-            /,[ \t ]{0,8}$/.test(ctx.text.slice(Math.max(0, start - 9), start))
-            && /^[ \t ]{0,8}[.!?](?![\p{L}\p{N}])|^[ \t ]*$/u.test(ctx.text.slice(end, end + 10))
+            /,[ \t\u00a0]{0,8}$/.test(ctx.text.slice(Math.max(0, start - 9), start))
+            && /^[ \t\u00a0]{0,8}[.!?](?![\p{L}\p{N}])|^[ \t\u00a0]*$/u.test(ctx.text.slice(end, end + 10))
         when: >-
           listed || (/^(?:loud|loudly)$/.test(h.N[0]?.w ?? "") && h.N.length === 1
             && conf2LemmaIn(h.P[0]?.w ?? "", CONF2_SPEECH_LEMMAS) && enClauseClosesAt(ctx.text, h.N[0].end))
@@ -4750,7 +4750,7 @@ rules:
         args: "ctx: DetectContext, index: number, also?: RegExp"
         let:
           before: ctx.text.slice(Math.max(0, index - 48), index)
-        return: '/(?:^|[.!?;:(\n"“][ \t ]*)$/.test(before) || (also?.test(before) ?? false)'
+        return: '/(?:^|[.!?;:(\n"“][ \t\u00a0]*)$/.test(before) || (also?.test(before) ?? false)'
       # A finding for `range` whose replacement keeps the typed letters' case: `fix` rewrites
       # the typed text ("Two Handed" -> "Two-Handed"). Names and user words abstain.
       style2CasedFinding:
@@ -4772,10 +4772,10 @@ rules:
         return: "(typed: string) => applyWordCase(replacement, detectWordCase(typed))"
       style2Hyphen:
         args: "typed: string"
-        return: 'typed.replace(/[ \t ]+/, "-")'
+        return: 'typed.replace(/[ \t\u00a0]+/, "-")'
       style2Join:
         args: "typed: string"
-        return: 'typed.replace(/[ \t ]+/, "")'
+        return: 'typed.replace(/[ \t\u00a0]+/, "")'
       # A name whose spelling or hyphen is fixed, written canonically whatever the typed case.
       style2CanonicalName:
         args: "m: RegExpExecArray, ctx: DetectContext, frame: FrameRef, name: string"
@@ -4791,14 +4791,14 @@ rules:
       # The two words before `index` on its line, nearest last: [det, prev].
       style2Previous:
         args: "ctx: DetectContext, index: number"
-        return: '/(?:(\p{L}+)[ \t ]{1,8})?(\p{L}+)[ \t ]{1,8}$/u.exec(ctx.text.slice(Math.max(0, index - 64), index))?.slice(1) ?? []'
+        return: '/(?:(\p{L}+)[ \t\u00a0]{1,8})?(\p{L}+)[ \t\u00a0]{1,8}$/u.exec(ctx.text.slice(Math.max(0, index - 64), index))?.slice(1) ?? []'
       # A compound modifier or noun written as two words before a noun: "an easy going person".
       style2Compound:
         args: "ctx: DetectContext, m: RegExpExecArray, fix: typeof style2Hyphen"
         let:
           range: group(m, "target")
         return: style2CasedFinding(ctx, range, "englishClosedCompounds", "review_msg_closed_compound", fix, range)
-      STYLE2_MAKEUP_LEAD: '/(?<![\p{L}''’])(the|a|my|your|his|her|our|their|this|that)[ \t ]{1,8}(?:(\p{L}+)[ \t ]{1,8})?$/iu'
+      STYLE2_MAKEUP_LEAD: '/(?<![\p{L}''’])(the|a|my|your|his|her|our|their|this|that)[ \t\u00a0]{1,8}(?:(\p{L}+)[ \t\u00a0]{1,8})?$/iu'
       # "the players make up the team" has a plural subject before the verb.
       style2MakeUpLead:
         args: "ctx: DetectContext, m: RegExpExecArray, lead: RegExpExecArray"
@@ -4974,7 +4974,7 @@ rules:
         check: englishClosedCompounds
         gate: "\\ba\\s+ok"
         gateFlags: giu
-        when: '/^(?:a[ \t ]+(?:ok|okay)|A[ \t ]+(?:OK|OKAY))$/.test(target)'
+        when: '/^(?:a[ \t\u00a0]+(?:ok|okay)|A[ \t\u00a0]+(?:OK|OKAY))$/.test(target)'
         return: 'style2Compound(ctx, m, (typed) => (typed === typed.toUpperCase() ? "A-OK" : "a-ok"))'
       - regex: "(?<target>tomorrows){{S}}(?<next>\\p{L}+){{E}}"
         check: englishClosedCompounds
@@ -5320,7 +5320,7 @@ rules:
         let:
           last: lastNonBlankBefore(ctx.text, index)
         when: 'last >= 0 && !/[.!?;:"“\n]/.test(ctx.text[last])'
-        return: '(/([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, index - 40), index))?.[1] ?? "?").toLowerCase()'
+        return: '(/([A-Za-z]+)[ \t\u00a0]+$/.exec(ctx.text.slice(Math.max(0, index - 40), index))?.[1] ?? "?").toLowerCase()'
         else: '""'
       lexContext:
         args: "ctx: DetectContext, start: number, end: number"
@@ -5337,10 +5337,10 @@ rules:
         new Map([...LEXICAL_IRREGULAR_NOUNS]
           .map((singular) => [singular, englishNounForms(singular)] as const)
           .flatMap(([singular, forms]) => forms ? [[singular + "s", forms] as const, [singular + "es", forms] as const] : []))
-      LEXICAL_PARTICIPLE_BEFORE: '/(?:^|[^\p{L}])(?:have|has|had|having|[''’]ve|been|be|being|is|are|was|were|am|get|gets|got|gotten)[ \t ]+(?:(?:not|never|already|just|also|all|now)[ \t ]+)?$/iu'
+      LEXICAL_PARTICIPLE_BEFORE: '/(?:^|[^\p{L}])(?:have|has|had|having|[''’]ve|been|be|being|is|are|was|were|am|get|gets|got|gotten)[ \t\u00a0]+(?:(?:not|never|already|just|also|all|now)[ \t\u00a0]+)?$/iu'
       # A past needs its subject or auxiliary right before it: "I eated", "had runned", "and
       # drinked". "malformed finded constructions" only names the word.
-      LEXICAL_VERB_BEFORE: '/(?:^|[^\p{L}''’])(?:i|you|he|she|it|we|they|who|and|or|then|also|just|never|already|finally|once|have|has|had|having|[''’]ve|[''’]d|been|be|being|is|are|was|were|am|get|gets|got|gotten)[ \t ]+$/iu'
+      LEXICAL_VERB_BEFORE: '/(?:^|[^\p{L}''’])(?:i|you|he|she|it|we|they|who|and|or|then|also|just|never|already|finally|once|have|has|had|having|[''’]ve|[''’]d|been|be|being|is|are|was|were|am|get|gets|got|gotten)[ \t\u00a0]+$/iu'
       # The irregular form for a word the dictionary does not know, or null.
       lexIrregularFor:
         args: "word: string, before: string"
@@ -5358,7 +5358,7 @@ rules:
         when:
           - w.endsWith("s") && w.length >= 4 && !lexInfoOf(w)
           # Paintings are "still lifes", not "still lives".
-          - '!(w === "lifes" && /\bstill[ \t ]+$/i.test(before))'
+          - '!(w === "lifes" && /\bstill[ \t\u00a0]+$/i.test(before))'
         let:
           # A table noun at the end of a lowercase compound counts too: "meatloafs",
           # "grandchilds" (not the names "Germans", "Normans").
@@ -6208,7 +6208,7 @@ rules:
         return: >-
           !hasUserOrCasedWord(ctx, m[0])
           && REM_GRAMMAR_CONTEXT.test(ctx.text.slice(Math.max(0, m.index - 120), m.index + m[0].length + 120))
-            ? caseLike(target, /\b(?:one|a|an|each|every|this|that)[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))
+            ? caseLike(target, /\b(?:one|a|an|each|every|this|that)[ \t\u00a0]+$/i.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))
               ? "part of speech" : "parts of speech")
             : null
       # "scrap" discards; "scrape" extracts.
