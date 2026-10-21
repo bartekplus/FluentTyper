@@ -8691,7 +8691,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>do)[ \\t\\u00a0]{1,8}I[ \\t\\u00a0]{1,8}(?:not[ \\t\\u00a0]{1,8})?(?<adj>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:[ \\t\\u00a0]{1,8}(?<after>\\p{L}+))?",
     literals: [],
-    fixer: "en:doIAdjective",
+    fixer: "en:@en.sentenceFrames/1",
     gate: "\\bdo\\s+i\\b",
     gateFlags: "giu",
   }),
@@ -8716,7 +8716,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "want",
       "reproduce",
     ],
-    fixer: "en:missingArticle",
+    fixer: "en:@en.sentenceFrames/2",
     gate: "(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)\\s",
     gateFlags: "giu",
   }),
@@ -8756,7 +8756,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?:noble|nobel)[ \\t\\u00a0]{1,8}(?:peace|piece)[ \\t\\u00a0]{1,8}(?:prize|price|prise))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["noble", "nobel"],
-    fixer: "en:nobelPeacePrize",
+    fixer: "en:@en.phraseFrames/1",
     message: "review_msg_typo",
     check: "englishPhraseCorrections",
     gate: "nob(?:le|el)\\s",
@@ -8766,7 +8766,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>goggle|googol)(?=[ \\t\\u00a0]{1,8}(?:analytics|maps|slides|forms|drive|search|workspace|photos|docs|mail|calendar|sheets|chrome|cloud|play|translate|meet|earth|scholar|ads|news|books|assistant|lens|fonts)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["goggle", "googol"],
-    fixer: "en:googleName",
+    fixer: "en:@en.phraseFrames/2",
     message: "review_msg_typo",
     check: "englishPhraseCorrections",
     gate: "goggle|googol",
@@ -8775,13 +8775,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<target>mercedes[ \\t\\u00a0]{1,8}benz)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["mercedes"],
-    fixer: "en:mercedesBenz",
+    fixer: "en:@en.phraseFrames/3",
     check: "englishClosedCompounds",
   }),
   frame({
     pattern: "(?<target>wordpress\\.com)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["wordpress"],
-    fixer: "en:wordPressCom",
+    fixer: "en:@en.phraseFrames/4",
     message: "review_msg_canonical_casing",
     check: "englishCanonicalCasing",
   }),
@@ -8789,7 +8789,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>there[ \\t\\u00a0]{1,8}after)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["there"],
-    fixer: "en:thereAfter",
+    fixer: "en:@en.phraseFrames/5",
     check: "englishClosedCompounds",
     gate: "there\\s+after",
     gateFlags: "giu",
@@ -8798,7 +8798,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>easy[ \\t\\u00a0]{1,8}going)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["going"],
-    fixer: "en:easyGoing",
+    fixer: "en:@en.phraseFrames/6",
     check: "englishClosedCompounds",
     gate: "easy\\s+going",
     gateFlags: "giu",
@@ -8807,14 +8807,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?:one|two)[ \\t\\u00a0]{1,8}handed)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["handed"],
-    fixer: "en:oneHanded",
+    fixer: "en:@en.phraseFrames/7",
     check: "englishClosedCompounds",
   }),
   frame({
     pattern:
       "(?<target>(?:first|second|third)[ \\t\\u00a0]{1,8}person)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["person"],
-    fixer: "en:firstPerson",
+    fixer: "en:@en.phraseFrames/8",
     check: "englishClosedCompounds",
   }),
   frame({
@@ -8832,7 +8832,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "olive",
       "sand",
     ],
-    fixer: "en:colouredCompound",
+    fixer: "en:@en.phraseFrames/9",
     check: "englishClosedCompounds",
     gate: "colou?red",
     gateFlags: "giu",
@@ -8841,7 +8841,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>password[ \\t\\u00a0]{1,8}protected)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["protected"],
-    fixer: "en:passwordProtected",
+    fixer: "en:@en.phraseFrames/10",
     check: "englishClosedCompounds",
     gate: "password\\s+protected",
     gateFlags: "giu",
@@ -8850,7 +8850,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>your[ \\t\\u00a0]{1,8}self)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]*[-–])",
     literals: ["your"],
-    fixer: "en:yourSelf",
+    fixer: "en:@en.phraseFrames/11",
     check: "englishClosedCompounds",
     gate: "your\\s+self\\b",
     gateFlags: "giu",
@@ -8858,7 +8858,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<target>a[ \\t\\u00a0]{1,8}ok(?:ay)?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:aOk",
+    fixer: "en:@en.phraseFrames/12",
     check: "englishClosedCompounds",
     gate: "\\ba\\s+ok",
     gateFlags: "giu",
@@ -8867,14 +8867,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>tomorrows)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["tomorrows"],
-    fixer: "en:tomorrowsNoun",
+    fixer: "en:@en.phraseFrames/13",
     check: "englishClosedCompounds",
   }),
   frame({
     pattern:
       "(?<target>over[ \\t\\u00a0]{1,8}time)[ \\t\\u00a0]{1,8}(?:pay|wages?|hours|rates?|shifts?|claims?|approvals?|budgets?|details)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["over"],
-    fixer: "en:overTime",
+    fixer: "en:@en.phraseFrames/14",
     check: "englishClosedCompounds",
     gate: "over\\s+time",
     gateFlags: "giu",
@@ -8883,7 +8883,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>make[ \\t\\u00a0]{1,8}up)(?:[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))?",
     literals: ["make"],
-    fixer: "en:makeUp",
+    fixer: "en:@en.phraseFrames/15",
     check: "englishClosedCompounds",
     gate: "make\\s+up",
     gateFlags: "giu",
@@ -8892,7 +8892,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>built[ \\t\\u00a0]{1,8}in)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:[ \\t\\u00a0]{1,8}(?<then>\\p{L}+))?",
     literals: ["built"],
-    fixer: "en:builtIn",
+    fixer: "en:@en.phraseFrames/16",
     check: "englishClosedCompounds",
     gate: "built\\s+in",
     gateFlags: "giu",
@@ -8917,7 +8917,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>it)[ \\t\\u00a0]{1,8}time[ \\t\\u00a0]{1,8}(?:to|for)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["time"],
-    fixer: "en:itTime",
+    fixer: "en:@en.itTime/1",
     gate: "\\bit\\s+time\\b",
     gateFlags: "giu",
   }),
@@ -8925,7 +8925,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>ur|ya|yr)[ \\t\\u00a0]{1,8}(?:(?<adverb>\\p{L}+ly)[ \\t\\u00a0]{1,8})?(?<adj>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: [],
-    fixer: "en:youArePredicate",
+    fixer: "en:@en.youArePredicate/1",
     gate: "\\b(?:ur|ya|yr)\\s",
     gateFlags: "giu",
   }),
@@ -8933,7 +8933,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<pair>to[ \\t\\u00a0]{1,8}to)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:doubledTo",
+    fixer: "en:@en.doubledTo/1",
     owner: "pair",
     gate: "\\bto\\s+to\\b",
     gateFlags: "giu",
@@ -8942,7 +8942,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "there[ \\t\\u00a0]{1,8}(?<verb>is|was)[ \\t\\u00a0]{1,8}(?<noun>\\p{L}+s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:of|and)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["there"],
-    fixer: "en:existentialPlural",
+    fixer: "en:@en.existentialPlural/1",
     owner: "verb",
     gate: "there\\s+(?:is|was)\\s",
     gateFlags: "giu",
@@ -8960,7 +8960,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=\\p{L})(?<lead>,?[ \\t\\u00a0]{1,8})including(?<c1>,?)[ \\t\\u00a0]{1,8}but[ \\t\\u00a0]{1,8}not[ \\t\\u00a0]{1,8}limited[ \\t\\u00a0]{1,8}to(?<c2>,?)(?=[ \\t\\u00a0]{1,8}\\p{L})",
     literals: ["including"],
-    fixer: "en:includingButNotLimited",
+    fixer: "en:@en.includingButNotLimited/1",
     flags: "dgiu",
     owner: "none",
     gate: "limited\\s+to",

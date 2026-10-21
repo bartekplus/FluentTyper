@@ -15,7 +15,7 @@ import { caseLike, found, group, hasUserOrCasedWord } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { TextRange } from "../types";
 import type { MatchFixer } from "../../engine/reviewRules";
-import { opensClause } from "./grammarStyle2";
+import { style2OpensClause as opensClause } from "../../engine/rules/en.generated";
 import { confusedWords } from "./confusions1";
 import { fixedPhrases } from "./fixedPhrases";
 import { frameRuleDetector } from "../../engine/reviewRules";

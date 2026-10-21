@@ -1591,18 +1591,275 @@ rules:
     checks: [englishSentenceStructure]
     style: match
     message: review_msg_sentence_structure
+    # Closed-class word sets; open-class decisions go through the lexicon.
+    sets:
+      STYLE2_DET:
+        [
+          the,
+          a,
+          an,
+          this,
+          that,
+          these,
+          those,
+          my,
+          your,
+          his,
+          her,
+          its,
+          our,
+          their,
+          each,
+          every,
+          no,
+          another,
+        ]
+      STYLE2_PRONOUNS: [i, you, we, they, he, she, it, me, him, us, them]
+      STYLE2_AUX:
+        [
+          is,
+          are,
+          was,
+          were,
+          be,
+          been,
+          am,
+          has,
+          have,
+          had,
+          will,
+          would,
+          can,
+          could,
+          should,
+          shall,
+          may,
+          might,
+          must,
+          do,
+          does,
+          did,
+        ]
+      STYLE2_PREPOSITIONS:
+        [
+          of,
+          for,
+          about,
+          with,
+          from,
+          into,
+          onto,
+          at,
+          by,
+          to,
+          on,
+          in,
+          up,
+          out,
+          off,
+          over,
+          back,
+          down,
+          away,
+          under,
+          through,
+          during,
+          after,
+          before,
+          since,
+          until,
+          like,
+          as,
+          than,
+        ]
+      STYLE2_OTHER_CLOSED:
+        [
+          and,
+          or,
+          but,
+          so,
+          if,
+          then,
+          there,
+          here,
+          now,
+          not,
+          too,
+          very,
+          also,
+          just,
+          still,
+          all,
+          both,
+          some,
+          any,
+          who,
+          whom,
+          whose,
+          which,
+          what,
+          where,
+          when,
+          why,
+          how,
+          forward,
+          forwards,
+          ahead,
+        ]
+      STYLE2_NOT_PLURAL_SUBJECT:
+        [
+          news,
+          series,
+          species,
+          means,
+          lots,
+          tons,
+          loads,
+          plenty,
+          kudos,
+          physics,
+          mathematics,
+          economics,
+          politics,
+          thanks,
+          sometimes,
+          afterwards,
+          nowadays,
+          besides,
+          overseas,
+          upstairs,
+          downstairs,
+          indoors,
+          outdoors,
+        ]
+      STYLE2_NOT_MODIFIER:
+        [more, most, less, least, much, many, few, enough, further, other, same, own]
+    defs:
+      STYLE2_CLOSED: "new Set([...STYLE2_DET, ...STYLE2_PRONOUNS, ...STYLE2_AUX, ...STYLE2_PREPOSITIONS, ...STYLE2_OTHER_CLOSED])"
+      # A noun or adjective that is not only a verb; an unlisted lowercase word is a long pure noun.
+      style2Modifiable:
+        args: "word: string"
+        let:
+          lower: word.toLowerCase()
+          entry: englishWordInfo(lower)
+        when: "!STYLE2_CLOSED.has(lower)"
+        return: "entry ? entry.noun || entry.plural || entry.adjective : /^[a-z]{3,}$/i.test(word)"
+        else: "false"
+      # Only spaces, quotes or brackets between a clause boundary and `index`, or `also` matches.
+      style2OpensClause:
+        args: "ctx: DetectContext, index: number, also?: RegExp"
+        let:
+          before: ctx.text.slice(Math.max(0, index - 48), index)
+        return: '/(?:^|[.!?;:(\n"“][ \t ]*)$/.test(before) || (also?.test(before) ?? false)'
+      # A finding for `range` whose replacement keeps the typed letters' case: `fix` rewrites
+      # the typed text ("Two Handed" -> "Two-Handed"). Names and user words abstain.
+      style2CasedFinding:
+        args: >-
+          ctx: DetectContext, range: readonly [number, number], ruleId: RawFinding["ruleId"],
+          messageKey: RawFinding["messageKey"], fix: typeof style2Hyphen, evidence: readonly [number, number]
+        type: "RawFinding | null"
+        let:
+          typed: ctx.source.slice(range[0], range[1])
+          fixed: fix(typed)
+        when:
+          - "!hasUserOrCasedWord(ctx, ctx.text.slice(evidence[0], evidence[1]))"
+          - fixed !== typed
+        return: >-
+          finding(ruleId, messageKey, range[0], range[1], [fixed], {
+            context: { start: Math.max(0, evidence[0] - 48), end: Math.min(ctx.text.length, evidence[1] + 16) } })
+      style2Cased:
+        args: "replacement: string"
+        return: "(typed: string) => applyWordCase(replacement, detectWordCase(typed))"
+      style2Hyphen:
+        args: "typed: string"
+        return: 'typed.replace(/[ \t ]+/, "-")'
+      style2Join:
+        args: "typed: string"
+        return: 'typed.replace(/[ \t ]+/, "")'
+      # A name whose spelling or hyphen is fixed, written canonically whatever the typed case.
+      style2CanonicalName:
+        args: "m: RegExpExecArray, ctx: DetectContext, frame: FrameRef, name: string"
+        let:
+          range: group(m, "target")
+          typed: m.groups!.target
+        when:
+          - '!typed.split(/[^\p{L}]+/u).some((word) => ctx.dictionary.has(word.toLowerCase()))'
+          - typed !== name
+        return: >-
+          finding(frame.ruleId, frame.messageKey, range[0], range[1], [name], {
+            context: { start: Math.max(0, range[0] - 48), end: Math.min(ctx.text.length, range[1] + 16) } })
+      # The two words before `index` on its line, nearest last: [det, prev].
+      style2Previous:
+        args: "ctx: DetectContext, index: number"
+        return: '/(?:(\p{L}+)[ \t ]{1,8})?(\p{L}+)[ \t ]{1,8}$/u.exec(ctx.text.slice(Math.max(0, index - 64), index))?.slice(1) ?? []'
+      # A compound modifier or noun written as two words before a noun: "an easy going person".
+      style2Compound:
+        args: "ctx: DetectContext, m: RegExpExecArray, fix: typeof style2Hyphen"
+        let:
+          range: group(m, "target")
+        return: style2CasedFinding(ctx, range, "englishClosedCompounds", "review_msg_closed_compound", fix, range)
+      STYLE2_MAKEUP_LEAD: '/(?<![\p{L}''’])(the|a|my|your|his|her|our|their|this|that)[ \t ]{1,8}(?:(\p{L}+)[ \t ]{1,8})?$/iu'
+      # "the players make up the team" has a plural subject before the verb.
+      style2MakeUpLead:
+        args: "ctx: DetectContext, m: RegExpExecArray, lead: RegExpExecArray"
+        let:
+          det: lead[1]
+          adj: lead[2]
+          entry: "adj ? englishWordInfo(adj) : null"
+        return: >-
+          adj
+            ? !(STYLE2_CLOSED.has(adj.toLowerCase()) || entry?.plural)
+              && !(entry && !entry.adjective && (entry.noun || entry.verbs.length))
+              && !(!entry && !/^[a-z]{4,}$/.test(adj))
+            : !(/^(?:her|that|this)$/i.test(det) && !style2OpensClause(ctx, m.index - lead[0].length))
+      # "It time to leave": the clause needs "it's". "Give it time to heal" keeps its object.
+      STYLE2_IT_TIME_LEAD: '/\b(?:if|when|whenever|once|because|since|so|and|but|now|maybe|perhaps|think|thought|guess|believe|suppose|feel|felt|say|said|know|knew|reckon|hope)[ \t ]+$/i'
+      STYLE2_EXISTENTIAL_LEAD: '/\b(?:if|when|that|which|because|and|but|so|where|whether)[ \t ]+$/i'
     frames:
       # "Do I interested in music?": an adjective after "do I" needs "am I".
       - regex: "(?<target>do){{S}}I{{S}}(?:not{{S}})?(?<adj>\\p{L}+){{E}}(?:{{S}}(?<after>\\p{L}+))?"
         gate: "\\bdo\\s+i\\b"
         gateFlags: giu
-        fixer: doIAdjective
+        let:
+          entry: englishWordInfo(adj)
+          following: after?.toLowerCase()
+          # "Do I ready the boat?" is a verb; "Do I clean it?" too.
+          ok: >-
+            hasVerbForm(adj, "base")
+              ? entry.adjective && (following === "for" || following === "yet")
+              : entry.adjective
+                || (hasVerbForm(adj, "participle") && (!following || /^(?:in|about|by|with|at|of)$/.test(following)))
+        when:
+          - entry && !entry.adverb && !entry.noun && !STYLE2_CLOSED.has(adj.toLowerCase())
+          - ok
+        return: >-
+          style2CasedFinding(ctx, group(m, "target"), "englishSentenceStructure", "review_msg_sentence_structure",
+            style2Cased("am"), [m.index, m.index + m[0].length])
       # "Please provide reproducible example": a request verb, a modifier and a countable
       # issue-report noun with no article.
       - regex: "(?=(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce){{S}})(?<=(?<![\\p{L}'’])(?:please|you|we|i|they|to|should|can|could|will|would|must){{S}})(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce){{S}}(?<target>(?:more{{S}})?(?<adj>\\p{L}+){{S}}(?:example|reproduction|repro|test{{S}}case|bug{{S}}report|report|summary|ticket|scenario|explanation|fix|update|screenshot|log|note|comment|feature|solution|answer|response|change|patch|description))(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|{{S}}(?:of|for|about|in|on){{E}})"
         gate: "(?:provide|send|share|attach|submit|create|file|give|add|include|post|write|get|need|want|reproduce)\\s"
         gateFlags: giu
-        fixer: missingArticle
+        let:
+          lower: adj.toLowerCase()
+          entry: englishWordInfo(lower)
+          # A modifier: an adjective, a participle, or an unlisted "-ible/-able" form.
+          flagged: entry && (entry.noun || entry.adjective || entry.adverb || entry.verbs.length)
+          modifier: >-
+            flagged ? (entry.adjective || hasVerbForm(lower, "participle")) && !entry.plural : /(?:ible|able)$/.test(lower)
+          start: group(m, "target")[0]
+          first: '/^\p{L}+/u.exec(target)![0]'
+          sound: englishInitialSound(first)
+        when:
+          - "!STYLE2_CLOSED.has(lower) && !STYLE2_NOT_MODIFIER.has(lower)"
+          - modifier
+          - "!hasUserOrCasedWord(ctx, m[0])"
+          - sound !== "either"
+        return: >-
+          ({ ruleId: "englishSentenceStructure", messageKey: "review_msg_sentence_structure",
+            range: { start, end: start + first.length },
+            alternatives: [`${sound === "vowel" ? "an" : "a"} ${first}`],
+            context: { start: Math.max(0, m.index - 48), end: m.index + m[0].length } })
   - id: en.phraseTemplates
     checks: [englishPhraseCorrections]
     style: template
@@ -1643,84 +1900,120 @@ rules:
         message: review_msg_typo
         gate: "nob(?:le|el)\\s"
         gateFlags: giu
-        fixer: nobelPeacePrize
+        return: style2CanonicalName(m, ctx, frame, "Nobel Peace Prize")
       - regex: "(?<target>goggle|googol)(?={{S}}(?:analytics|maps|slides|forms|drive|search|workspace|photos|docs|mail|calendar|sheets|chrome|cloud|play|translate|meet|earth|scholar|ads|news|books|assistant|lens|fonts){{E}})"
         check: englishPhraseCorrections
         message: review_msg_typo
         gate: "goggle|googol"
         gateFlags: giu
-        fixer: googleName
+        return: style2CanonicalName(m, ctx, frame, "Google")
       - regex: "(?<target>mercedes{{S}}benz){{E}}"
         check: englishClosedCompounds
-        fixer: mercedesBenz
+        return: style2CanonicalName(m, ctx, frame, "Mercedes-Benz")
       - regex: "(?<target>wordpress\\.com){{E}}"
         check: englishCanonicalCasing
         message: review_msg_canonical_casing
-        fixer: wordPressCom
+        return: style2CanonicalName(m, ctx, frame, "WordPress.com")
       # "There after came a second wave": a clause-initial adverb before a verb or auxiliary.
       - regex: "(?<target>there{{S}}after){{S}}(?<next>\\p{L}+){{E}}"
         check: englishClosedCompounds
         gate: "there\\s+after"
         gateFlags: giu
-        fixer: thereAfter
+        let:
+          following: next.toLowerCase()
+          entry: englishWordInfo(following)
+          verbal: >-
+            STYLE2_AUX.has(following) || /^(?:often|then|again|also|only|soon|always|never)$/.test(following)
+            || (!!entry && !entry.noun && !entry.plural && hasVerbForm(following, "past", "third"))
+        when:
+          - 'style2OpensClause(ctx, m.index, /\b(?:and|but|or|so|then)[ \t ]+$/i)'
+          - verbal
+        return: >-
+          style2CasedFinding(ctx, group(m, "target"), "englishClosedCompounds", "review_msg_closed_compound",
+            style2Join, [m.index, m.index + m[0].length])
       # Compound modifiers and nouns written as two words before a noun: "an easy going person".
       - regex: "(?<target>easy{{S}}going){{S}}(?<next>\\p{L}+){{E}}"
         check: englishClosedCompounds
         gate: "easy\\s+going"
         gateFlags: giu
-        fixer: easyGoing
+        when: style2Modifiable(next)
+        return: style2Compound(ctx, m, style2Hyphen)
       # "No one handed in…" is a pronoun and a verb.
       - regex: "(?<target>(?:one|two){{S}}handed){{S}}(?<next>\\p{L}+){{E}}"
         check: englishClosedCompounds
-        fixer: oneHanded
+        when: 'style2Modifiable(next) && !/\b(?:no|every|any|each|some)[ \t ]+$/i.test(enBefore(ctx, m.index, 16))'
+        return: style2Compound(ctx, m, style2Hyphen)
       # "The first person reports to…" is an ordinal phrase before its verb.
       - regex: "(?<target>(?:first|second|third){{S}}person){{S}}(?<next>\\p{L}+){{E}}"
         check: englishClosedCompounds
-        fixer: firstPerson
+        when: >-
+          style2Modifiable(next)
+          && !(hasVerbForm(next, "third") && /\b(?:the|a|an|every|each|this|that)[ \t ]+$/i.test(enBefore(ctx, m.index, 16)))
+        return: style2Compound(ctx, m, style2Hyphen)
       - regex: "(?<target>(?:rainbow|cream|flesh|straw|honey|rust|copper|bronze|olive|sand){{S}}colou?red){{S}}(?<next>\\p{L}+){{E}}"
         check: englishClosedCompounds
         gate: "colou?red"
         gateFlags: giu
-        fixer: colouredCompound
+        when: style2Modifiable(next)
+        return: style2Compound(ctx, m, style2Hyphen)
       - regex: "(?<target>password{{S}}protected){{S}}(?<next>\\p{L}+){{E}}"
         check: englishClosedCompounds
         gate: "password\\s+protected"
         gateFlags: giu
-        fixer: passwordProtected
+        when: style2Modifiable(next)
+        return: style2Compound(ctx, m, style2Hyphen)
       # "your self - worth" is a spaced hyphen; "your self" alone is the pronoun. The other
       # forms ("him self", "our selves") are phrase rows.
       - regex: "(?<target>your{{S}}self){{E}}(?![ \\t\\u00a0]*[-–])"
         check: englishClosedCompounds
         gate: "your\\s+self\\b"
         gateFlags: giu
-        fixer: yourSelf
+        return: style2Compound(ctx, m, style2Join)
       # "a ok" in lowercase or capitals; "Is plan A ok?" names an option.
       - regex: "(?<target>a{{S}}ok(?:ay)?){{E}}"
         check: englishClosedCompounds
         gate: "\\ba\\s+ok"
         gateFlags: giu
-        fixer: aOk
+        when: '/^(?:a[ \t ]+(?:ok|okay)|A[ \t ]+(?:OK|OKAY))$/.test(target)'
+        return: 'style2Compound(ctx, m, (typed) => (typed === typed.toUpperCase() ? "A-OK" : "a-ok"))'
       - regex: "(?<target>tomorrows){{S}}(?<next>\\p{L}+){{E}}"
         check: englishClosedCompounds
-        fixer: tomorrowsNoun
+        when: style2Modifiable(next)
+        return: >-
+          style2Compound(ctx, m, (typed) => typed.replace(/s$/i, "'$&"))
       # "Prices rose over time" is a phrase; "over time pay" is a noun compound.
       - regex: "(?<target>over{{S}}time){{S}}(?:pay|wages?|hours|rates?|shifts?|claims?|approvals?|budgets?|details){{E}}"
         check: englishClosedCompounds
         gate: "over\\s+time"
         gateFlags: giu
-        fixer: overTime
+        when: "!style2OpensClause(ctx, m.index)"
+        return: style2Compound(ctx, m, style2Join)
       # "Her make up looked great" is a noun; "help her make up a story" is a verb.
       - regex: "(?<target>make{{S}}up)(?:{{S}}(?<next>\\p{L}+){{E}})?"
         check: englishClosedCompounds
         gate: "make\\s+up"
         gateFlags: giu
-        fixer: makeUp
+        let:
+          lead: STYLE2_MAKEUP_LEAD.exec(ctx.text.slice(Math.max(0, m.index - 64), m.index))
+        when:
+          - lead && style2MakeUpLead(ctx, m, lead)
+          - "!next || /^of$/i.test(next) || !STYLE2_CLOSED.has(next.toLowerCase())"
+        return: style2Compound(ctx, m, style2Join)
       # "a built in feature"; "It was built in Rust" stays.
       - regex: "(?<target>built{{S}}in){{S}}(?<next>\\p{L}+){{E}}(?:{{S}}(?<then>\\p{L}+))?"
         check: englishClosedCompounds
         gate: "built\\s+in"
         gateFlags: giu
-        fixer: builtIn
+        let:
+          lower: 'style2Previous(ctx, m.index)[1]?.toLowerCase() ?? ""'
+          slot: >-
+            (STYLE2_DET.has(lower) && lower !== "that")
+            || /^(?:with|without|has|have|had|provides?|offers?|includes?|adds?|lacks?|supports?)$/.test(lower)
+        # "provides built in Rust support": a name may modify the noun.
+        when: >-
+          /^\p{Lu}/u.test(next) ? slot && !!then && /^\p{Ll}/u.test(then) && style2Modifiable(then)
+          : slot && style2Modifiable(next)
+        return: style2Compound(ctx, m, style2Hyphen)
   - id: en.doubleNegativeTemplates
     checks: [englishUsagePhrases]
     style: template
@@ -1745,7 +2038,10 @@ rules:
       - regex: "(?<target>it){{S}}time{{S}}(?:to|for){{E}}"
         gate: "\\bit\\s+time\\b"
         gateFlags: giu
-        fixer: itTime
+        when: style2OpensClause(ctx, m.index, STYLE2_IT_TIME_LEAD)
+        return: >-
+          style2CasedFinding(ctx, group(m, "target"), "englishItsContext", "review_msg_its_contraction",
+            style2Cased("it's"), [m.index, m.index + m[0].length])
   - id: en.youArePredicate
     checks: [englishYourYouAre]
     style: match
@@ -1756,7 +2052,20 @@ rules:
       - regex: "(?<target>ur|ya|yr){{S}}(?:(?<adverb>\\p{L}+ly){{S}})?(?<adj>\\p{L}+){{COMPLETE}}"
         gate: "\\b(?:ur|ya|yr)\\s"
         gateFlags: giu
-        fixer: youArePredicate
+        let:
+          entry: englishWordInfo(adj)
+          # "ur barely awake": after an adverb, a verb-like adjective too.
+          predicate: >-
+            entry.adjective
+            || (!entry.noun && (hasVerbForm(adj, "participle") || (!!adverb && hasVerbForm(adj, "base"))))
+        when:
+          - style2OpensClause(ctx, m.index)
+          - "!adverb || englishWordInfo(adverb)?.adverb"
+          - entry && !STYLE2_CLOSED.has(adj.toLowerCase())
+          - predicate
+        return: >-
+          style2CasedFinding(ctx, group(m, "target"), "englishYourYouAre", "review_msg_your_you_are",
+            style2Cased("you're"), [m.index, m.index + m[0].length])
   - id: en.doubledTo
     checks: [englishRepeatedWords]
     style: match
@@ -1768,7 +2077,24 @@ rules:
         owner: pair
         gate: "\\bto\\s+to\\b"
         gateFlags: giu
-        fixer: doubledTo
+        let:
+          previous: style2Previous(ctx, m.index)
+          det: previous[0]
+          prev: 'previous[1] ?? ""'
+          nextInfo: englishWordInfo(next)
+          prevInfo: englishWordInfo(prev)
+          nounPrev: >-
+            (!!det && STYLE2_DET.has(det.toLowerCase()) && !STYLE2_CLOSED.has(prev.toLowerCase()))
+            || (!!prevInfo && prevInfo.noun && !prevInfo.verbs.length)
+        when:
+          - prev && !/^to$/i.test(prev) && !/^(?:to|list|lists)$/i.test(next)
+          # "the team I wrote to to complain": a stranded preposition before an infinitive.
+          - >-
+            hasVerbForm(next, "base") ? nounPrev
+            : nextInfo?.noun || nextInfo?.plural || (!nextInfo && /^[a-z]{4,}$/.test(next))
+        return: >-
+          style2CasedFinding(ctx, group(m, "pair"), "englishRepeatedWords", "review_msg_repeated_words",
+            (typed) => typed.slice(0, 2), [m.index, m.index + m[0].length])
   - id: en.existentialPlural
     checks: [englishExistentialAgreement]
     style: match
@@ -1779,7 +2105,15 @@ rules:
         owner: verb
         gate: "there\\s+(?:is|was)\\s"
         gateFlags: giu
-        fixer: existentialPlural
+        let:
+          entry: englishWordInfo(noun)
+        when:
+          - style2OpensClause(ctx, m.index, STYLE2_EXISTENTIAL_LEAD)
+          - noun === noun.toLowerCase() && !STYLE2_NOT_PLURAL_SUBJECT.has(noun) && !englishNounForms(noun)
+          - entry?.plural && entry.noun && !entry.adjective
+        return: >-
+          style2CasedFinding(ctx, group(m, "verb"), "englishExistentialAgreement", "review_msg_existential_agreement",
+            style2Cased(/^is$/i.test(verb) ? "are" : "were"), [m.index, m.index + m[0].length])
   - id: en.styleTemplates
     checks: [stylePhrasing]
     style: template
@@ -1803,7 +2137,15 @@ rules:
         owner: none
         gate: "limited\\s+to"
         gateFlags: giu
-        fixer: includingButNotLimited
+        when:
+          - m.index >= ctx.from && m.index < ctx.to
+          - '!(lead.startsWith(",") && c1 && c2)'
+          - "!hasUserOrCasedWord(ctx, m[0])"
+        return: >-
+          ({ ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing",
+            range: { start: m.index, end: m.index + m[0].length },
+            alternatives: [", including, but not limited to,"],
+            context: { start: Math.max(0, m.index - 48), end: Math.min(ctx.text.length, m.index + m[0].length + 16) } })
   - id: en.iseForms
     checks: [englishAmericanSpelling, englishOxfordSpelling]
     style: match

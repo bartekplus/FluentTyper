@@ -38,7 +38,6 @@ import * as remaining from "./remaining";
 import * as usageTables from "./usageTables";
 import * as confusions2 from "./confusions2";
 import * as grammarStyle1 from "./grammarStyle1";
-import * as grammarStyle2 from "./grammarStyle2";
 import * as idioms2 from "./idioms2";
 import * as idioms3 from "./idioms3";
 import * as idioms4 from "./idioms4";
@@ -97,7 +96,6 @@ export const FIXERS = mergePredicates<Fixer>(
   comparisonSlots.FIXERS,
   tenseSlots.FIXERS,
   grammarStyle1.FIXERS,
-  grammarStyle2.FIXERS,
   confusions1.FIXERS,
   confusions2.FIXERS,
   dialects.FIXERS,
