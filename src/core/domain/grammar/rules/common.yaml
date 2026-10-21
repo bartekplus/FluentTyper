@@ -4656,8 +4656,17 @@ rules:
         styleAlternativePhrasing,
         englishPossibleErrors,
       ]
-    # predicate: the phrase rows and the casing scan both report englishCanonicalCasing.
-    predicate: phraseTables
+    style: match
+    message: review_msg_canonical_casing
+    frames:
+      # Each ASCII word: an explicit name in its canonical casing (review/canonicalCasing.ts).
+      - regex: "(?<![.\\p{L}\\p{M}\\p{N}_'’@/#=$\\\\-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#=$\\\\-])"
+        scan: owned
+        flags: gu
+        fixer: canonicalCasing
+    # predicate: after the frame, the phrase rows of the rule files (engine/phraseRows.ts) read
+    # each word of the engine's word walk; their data is the `phrases:` tables of the rule files.
+    predicate: phraseRows
   - id: quotationFindings
     checks: [unclosedQuotation]
     # predicate: reads the quotation findings that Review made before the scan; no regex scan.

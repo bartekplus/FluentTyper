@@ -1,5 +1,5 @@
 import { CUE_AND_QUOTE } from "./exampleCues";
-import { canonicalCasing } from "./canonicalCasing";
+import { FIXERS as CASING_FIXERS } from "./canonicalCasing";
 import { phraseCorrections } from "./englishPhraseCorrections";
 import { FIXERS as DEGREE_FIXERS } from "./englishDegree";
 import { FIXERS as LEXICON_FIXERS, quotedContraction } from "./multilingualLexicon";
@@ -135,7 +135,7 @@ import {
 import { FIXERS as DATE_FIXERS } from "./dateTense";
 import { FIXERS as ISO_DATE_FIXERS } from "./isoDates";
 
-import { detectAll, PSEUDO_CLEFT_BEFORE, isLang } from "./phraseTemplates";
+import { PSEUDO_CLEFT_BEFORE, isLang } from "./phraseTemplates";
 import { finding } from "./finding";
 import {
   buildReviewDetectors,
@@ -1704,7 +1704,8 @@ const repeatedWord: MatchFixer = (match, ctx) => {
 export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   styleFindings: (ctx) => ownedFindings(ctx, ctx.styleFindings),
   terminology: (ctx) => ownedFindings(ctx, ctx.terminologyFindings),
-  phraseTables: (ctx) => detectAll(ctx, [canonicalCasing, phraseCorrections]),
+  // The phrase rows of the rule files (engine/phraseRows.ts), after the casing frame.
+  phraseRows: phraseCorrections,
   quotationFindings: (ctx) => ownedFindings(ctx, ctx.quotationFindings),
   typographicQuotes: TYPOGRAPHIC_QUOTES.detect,
   modalOf,
@@ -1781,6 +1782,7 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   ISO_DATE_FIXERS,
   DEGREE_FIXERS,
   LEXICON_FIXERS,
+  CASING_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */
