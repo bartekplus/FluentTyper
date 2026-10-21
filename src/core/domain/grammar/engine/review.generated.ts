@@ -15388,7 +15388,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?<![\\p{L}'’-])(?<target>[a-z]{2,})(?=[ \\t\\u00a0]{1,8}(?<two>[a-z]{2,})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+      "(?<![\\p{L}'’-])(?!(?:the|to|of|and|in|is|it|for|that|on|with|as|be|this|are|was|you|we|by|or|at|from|have|has|an|not|can|will|if|they|he|she|but|all|so|do|your|our|their|my|his|her)[ \\t\\u00a0]{1,8})(?<target>[a-z]{2,})(?=[ \\t\\u00a0]{1,8}(?!(?:the|to|of|and|in|is|it|for|that|on|with|as|be|this|are|was|you|we|by|or|at|from|have|has|an|not|can|will|if|they|he|she|but|all|so|do|your|our|their|my|his|her)(?![a-z]))(?<two>[a-z]{2,})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
     fixer: "en:clauseGapsA",
     message: "review_msg_repeated_words",

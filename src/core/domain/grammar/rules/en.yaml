@@ -116,6 +116,9 @@ fragments:
   DATES_MONTH: "(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)(?:\\.(?=[ \\t\\u00a0,]))?)"
   # A full weekday name takes no stop ("We met on Monday. 7 October was…" is two sentences).
   DATES_WEEKDAY: "(?<weekday>Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|(?:Sun|Mon|Tues|Tue|Wed|Thurs|Thur|Thu|Fri|Sat)\\.?|(?:Mo|Tu|We|Th|Fr|Sa|Su)(?=,))"
+  # Frequent words of FUNCTION_WORDS (review/english/slotWords.ts), for a frame whose fixer
+  # rejects all of FUNCTION_WORDS. Each word must be in FUNCTION_WORDS.
+  CLAUSE_GAPS_FUNCTION: "the|to|of|and|in|is|it|for|that|on|with|as|be|this|are|was|you|we|by|or|at|from|have|has|an|not|can|will|if|they|he|she|but|all|so|do|your|our|their|my|his|her"
 
 rules:
   - id: en.fixedPhrases
@@ -5617,7 +5620,8 @@ rules:
         cue: ["either"]
         fixer: clauseGapsNor
       # "I want wanted to thank you", "To made make it better": two forms of one verb.
-      - regex: "(?<![\\p{L}'’-])(?<target>[a-z]{2,})(?={{S}}(?<two>[a-z]{2,}){{E}})"
+      # The fixer rejects a function word: the frame skips the frequent ones.
+      - regex: "(?<![\\p{L}'’-])(?!(?:{{CLAUSE_GAPS_FUNCTION}}){{S}})(?<target>[a-z]{2,})(?={{S}}(?!(?:{{CLAUSE_GAPS_FUNCTION}})(?![a-z]))(?<two>[a-z]{2,}){{E}})"
         check: englishConfusedWords
         message: review_msg_repeated_words
         fixer: clauseGapsA
