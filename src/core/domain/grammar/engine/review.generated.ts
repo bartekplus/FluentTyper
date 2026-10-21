@@ -18489,7 +18489,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>les|des|mes|tes|ses|nos|vos|leurs|ces|aux|plusieurs|quelques|le|la|un|une|mon|ma|ton|ta|son|sa|ce|cet|cette|au|du|chaque|notre|votre|deux|trois|quatre|cinq|six|sept|huit|dix|onze|douze|treize|quatorze|quinze|seize|vingt|trente|quarante|cinquante|soixante|cent|mille|(?<![\\d.,:/°#№]|n°[ \\t]?)\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+|(?<![\\d.,:/°#№]|n°[ \\t]?)\\d+))(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))",
     literals: [],
-    fixer: "fr:nounNumber",
+    fixer: "fr:@fr.nounNumber/1",
     flags: "dgiu",
     scan: "owned",
     lookback: 1,
@@ -18498,7 +18498,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_-])(?<adj>grand|grande|petit|petite|grosse|beau|belle|bon|bonne|mauvaise|jeune|vieille|nouveau|nouvelle|joli|jolie|long|longue|haut|haute|vrai|vraie|fausse|propre|premier|première|dernier|dernière|prochain|prochaine|seul|seule|même|autre|meilleur|meilleure|pire|gentil|gentille|excellent|excellente|grands|grandes|petits|petites|grosses|beaux|belles|bons|bonnes|mauvaises|jeunes|vieilles|nouveaux|nouvelles|jolis|jolies|longs|longues|hauts|hautes|vrais|vraies|fausses|propres|premiers|premières|derniers|dernières|prochains|prochaines|seuls|seules|mêmes|autres|meilleurs|meilleures|pires|gentils|gentilles|excellents|excellentes|\\p{L}+es)(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))",
     literals: [],
-    fixer: "fr:adjectiveNounNumber",
+    fixer: "fr:@fr.nounNumber/2",
     flags: "dgiu",
     scan: "owned",
     lookback: 1,
@@ -18507,7 +18507,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>le|la|les|au|aux|ce|cette|ces|leur|leurs)(?=[ \\t]+(?<degree>plus|moins|très)[ \\t]+(?<adj>\\p{L}+)[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-]))",
     literals: [],
-    fixer: "fr:superlativeDeterminer",
+    fixer: "fr:@fr.nounNumber/3",
     flags: "dgiu",
     scan: "owned",
     lookback: 1,
@@ -18894,7 +18894,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<first>le|la|les|un|une|des|du|au|aux|ce|cet|cette|ces|mon|ton|son|ma|ta|sa|mes|tes|ses|notre|votre|nos|vos|leur|leurs)[ \\t]{1,8}(?<second>(?:le|la|les|un|une|des|du|au|aux|ce|cet|cette|ces|mon|ton|son|ma|ta|sa|mes|tes|ses|notre|votre|nos|vos|leur|leurs)(?![\\p{L}\\p{M}\\p{N}_-])|l['’](?=\\p{L}))",
     literals: [],
-    fixer: "fr:determinerPair",
+    fixer: "fr:@fr.determiners/1",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18903,7 +18903,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<first>des|les|ces|mes|tes|ses|nos|vos|de|du|à)[ \\t]{1,8}(?<second>plusieurs|certains|certaines|toutes|tous|des|de|aux|entre)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:quantifierPair",
+    fixer: "fr:@fr.determiners/2",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18912,7 +18912,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>(?:le|la|les|un|une|des|du|au|aux|ce|cet|cette|ces|mon|ton|son|ma|ta|sa|mes|tes|ses|notre|votre|nos|vos|leur|leurs)(?=[ \\t])|l['’])[ \\t]{0,8}(?<noun>\\p{L}[\\p{L}\\p{M}]*)(?![\\p{L}\\p{M}\\p{N}_])",
     literals: [],
-    fixer: "fr:determinerBeforeNoun",
+    fixer: "fr:@fr.determiners/3",
     flags: "dgiu",
     scan: "owned",
     lookback: 1,

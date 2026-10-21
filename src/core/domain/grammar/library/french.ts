@@ -96,6 +96,8 @@ export type TokenFix = (context: FrenchToken | undefined) => RawFinding | null;
 export type EndFix = (end: number) => RawFinding | null;
 /** A finding with fixed evidence. */
 export type PlainFix = () => RawFinding | null;
+/** A finding with fixed evidence and these alternatives. */
+export type AlternativesFix = (alternatives: string[]) => RawFinding;
 
 /** Whether a verb reading is a finite form (not an infinitive or a participle). */
 export const finiteReading = (reading: VerbReading): boolean => typeof reading.slot === "number";

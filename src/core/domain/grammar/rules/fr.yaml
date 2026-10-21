@@ -3540,27 +3540,489 @@ rules:
     checks: [frenchNounNumber]
     style: match
     message: review_msg_fr_noun_number
+    # A determiner and the noun or adjective right after it share their number: "mes livres",
+    # "la route". Which words are nouns comes from the dictionary (a Bloom filter of its inflected
+    # entries); gender would need a source the dictionary does not have.
+    sets:
+      # Numbers also name things ("le numéro deux allemand", "tous les trois été"): left out.
+      NUMBER_PLURAL: [les, des, mes, tes, ses, nos, vos, leurs, ces, aux, plusieurs, quelques]
+      NUMBER_SINGULAR:
+        [le, la, un, une, mon, ma, ton, ta, son, sa, ce, cet, cette, au, du, chaque, notre, votre]
+      # Determiners that are also object pronouns before a verb ("je les aime", "tu la portes").
+      NUMBER_CLITIC: [le, la, les]
+      # Words after a plural determiner that are no singular nouns: adverbs ("les trop nombreux"),
+      # "quelque" (about), numbers ("les quatre"); days and months stay singular after a
+      # distributive "les" ("les lundi et mardi"); "un tiens vaut mieux que deux tu l'auras": the
+      # proverb's noun.
+      NUMBER_NOT_NOUNS:
+        [
+          tout,
+          peu,
+          trop,
+          bien,
+          mal,
+          fort,
+          très,
+          plus,
+          moins,
+          quelque,
+          environ,
+          même,
+          autant,
+          presque,
+          leur,
+          quatre,
+          cinq,
+          six,
+          sept,
+          huit,
+          neuf,
+          onze,
+          douze,
+          treize,
+          quatorze,
+          quinze,
+          seize,
+          vingt,
+          trente,
+          quarante,
+          cinquante,
+          soixante,
+          cent,
+          mille,
+          un,
+          une,
+          super,
+          méga,
+          mini,
+          maxi,
+          extra,
+          ultra,
+          hyper,
+          multi,
+          anti,
+          ex,
+          néo,
+          lundi,
+          mardi,
+          mercredi,
+          jeudi,
+          vendredi,
+          samedi,
+          dimanche,
+          janvier,
+          février,
+          mars,
+          avril,
+          mai,
+          juin,
+          juillet,
+          août,
+          septembre,
+          octobre,
+          novembre,
+          décembre,
+          tiens,
+          rien,
+        ]
+      # "-al" and "-au/-eu" plurals that take an s.
+      PLURAL_IN_S:
+        [
+          bal,
+          carnaval,
+          chacal,
+          festival,
+          récital,
+          régal,
+          cal,
+          naval,
+          fatal,
+          natal,
+          banal,
+          final,
+          bleu,
+          pneu,
+          landau,
+          sarrau,
+          émeu,
+        ]
+      # Nouns after a figure that name a place or a score, not a count ("au 12 rue", "à 3 contre
+      # 1"), and abbreviations ("5 min", "2 vol.").
+      NOT_COUNTED:
+        [
+          rue,
+          avenue,
+          boulevard,
+          place,
+          allée,
+          impasse,
+          chemin,
+          quai,
+          route,
+          contre,
+          min,
+          max,
+          hab,
+          vol,
+        ]
+      NUMBER_DETERMINERS:
+        [
+          deux,
+          trois,
+          quatre,
+          cinq,
+          six,
+          sept,
+          huit,
+          dix,
+          onze,
+          douze,
+          treize,
+          quatorze,
+          quinze,
+          seize,
+          vingt,
+          trente,
+          quarante,
+          cinquante,
+          soixante,
+          cent,
+          mille,
+        ]
+      # Labels a number names a rank or an item after: "numéro deux", "page trois", "chapitre dix".
+      RANKS:
+        [
+          numéro,
+          page,
+          chapitre,
+          article,
+          tome,
+          acte,
+          scène,
+          étage,
+          rang,
+          "n°",
+          volume,
+          livre,
+          partie,
+          leçon,
+        ]
+      # Adjectives that stand before their noun; the masculine forms in s or x ("gros", "vieux")
+      # show no number and are left out.
+      PRENOMINAL_BASES:
+        [
+          grand,
+          grande,
+          petit,
+          petite,
+          grosse,
+          beau,
+          belle,
+          bon,
+          bonne,
+          mauvaise,
+          jeune,
+          vieille,
+          nouveau,
+          nouvelle,
+          joli,
+          jolie,
+          long,
+          longue,
+          haut,
+          haute,
+          vrai,
+          vraie,
+          fausse,
+          propre,
+          premier,
+          première,
+          dernier,
+          dernière,
+          prochain,
+          prochaine,
+          seul,
+          seule,
+          même,
+          autre,
+          meilleur,
+          meilleure,
+          pire,
+          gentil,
+          gentille,
+          excellent,
+          excellente,
+        ]
+      DEGREE_WORDS: [plus, moins, très, si, aussi, trop]
+      # Nouns that stay singular in apposition: "des idées choc", "des dates limite".
+      APPOSITIVE_NOUNS:
+        [
+          clé,
+          choc,
+          culte,
+          limite,
+          phare,
+          pilote,
+          type,
+          éclair,
+          record,
+          modèle,
+          témoin,
+          maison,
+          minute,
+        ]
+      # Words in the adjective slot that are determiners: "au moins certaines règles".
+      NOT_SUPERLATIVES: [certain, certaine, certains, certaines, autre, autres, même, mêmes]
+    maps:
+      # Determiners whose number a superlative may contradict, with their forms for ms, fs and
+      # plural.
+      SUPERLATIVE_DETERMINERS:
+        {
+          le: [le, la, les],
+          la: [le, la, les],
+          les: [le, la, les],
+          au: [au, à la, aux],
+          aux: [au, à la, aux],
+          ce: [ce, cette, ces],
+          cette: [ce, cette, ces],
+          ces: [ce, cette, ces],
+          leur: [leur, leur, leurs],
+          leurs: [leur, leur, leurs],
+        }
+    defs:
+      NUMBER_SUBJECTS: 'new Set([...SUBJECT_PRONOUNS, "ne", "n''", "qui", "ça", "cela"])'
+      PLURAL_ADJECTIVES: new Set([...PRENOMINAL_BASES].map((word) => pluralForm(word)))
+      verbForm:
+        args: "word: string"
+        return: 'verbReadings(word).some((r) => r.slot !== "Q")'
+      # The plural of a singular noun or adjective.
+      pluralForm:
+        args: "word: string"
+        type: string
+        return: >-
+          PLURAL_IN_S.has(word)
+            ? `${word}s`
+            : /(?:eau|au|eu)$/.test(word)
+              ? `${word}x`
+              : /al$/.test(word)
+                ? `${word.slice(0, -2)}aux`
+                : `${word}s`
+      # The singular a plural form comes from, when the dictionary knows it.
+      singularForm:
+        args: "word: string"
+        return: "[/aux$/.test(word) ? `${word.slice(0, -3)}al` : null, /[xs]$/.test(word) ? word.slice(0, -1) : null].find((c) => c && isNounLemma(c)) ?? null"
+      numberToken:
+        args: "t: FrenchToken | undefined"
+        return: "!!t && /^(?:\\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|vingt|trente|quarante|cinquante|soixante|cent|mille)$/.test(t.w)"
+      # "j'ai 4 enfant", "en 3 partie": a figure from 2 up counts the noun after it. Not a year, a
+      # decimal, a range, a score or a label ("page 4 ligne"): only after a preposition, a plural
+      # determiner, a verb or at a clause start. "4 partie 2", "420 sujet(s)": a label, an
+      # inclusive ending.
+      countable:
+        args: "ctx: DetectContext, m: RegExpExecArray, figure: string"
+        let:
+          value: Number(figure.replace(/\D/g, ""))
+          noun: m.groups!.noun.toLowerCase()
+          rest: ctx.text.slice(m.indices!.groups!.noun[1], m.indices!.groups!.noun[1] + 3)
+          before: tokensBefore(ctx.text, m.index, 1)[0]
+          readings: "before ? verbReadings(before.w) : []"
+        when:
+          - "!(value < 2 || (figure.length === 4 && value >= 1000 && value < 2100))"
+          - "!(NOT_COUNTED.has(noun) || /^i?[eè]me$/.test(noun))"
+          - '!/^(?:[\s ]*\d|[(*·])/u.test(rest)'
+        return: >-
+          !before || /[.!?:;\n]/.test(ctx.text.slice(before.end, m.index))
+            ? true
+            : PREPOSITIONS.has(before.w) ||
+              NUMBER_PLURAL.has(before.w) ||
+              before.w === "et" ||
+              before.w === "en" ||
+              (readings.length > 0 && (!isInflectedNoun(before.w) || readings.every((r) => r.slot === "Q")))
+        else: "false"
+      # "quatre enfant": a number from two up is a plural determiner, unless a determiner or a
+      # label before makes it a name or a rank ("le numéro deux allemand", "les trois été"). "cinq
+      # et six", "cent pour cent", "à neuf": parts of a number, a ratio, an adjective. "4 ami", "en
+      # 3 partie": after a figure, a noun entry is the noun. "en 10 minute": after a figure, a
+      # gendered noun that is also a verb form is the noun ("une famille sur trois cuisine", "six
+      # moins deux fait": after a number word it is the verb).
+      countedNoun:
+        args: "ctx: DetectContext, m: RegExpExecArray, determiner: string, word: string, digits: boolean, start: number"
+        type: RawFinding | null
+        let:
+          length: m.groups!.noun.length
+          before: "digits ? undefined : tokensBefore(ctx.text, m.index, 1)[0]"
+          after: ctx.text.slice(start + length, start + length + 12)
+        when:
+          - "!(before && (NUMBER_PLURAL.has(before.w) || NUMBER_SINGULAR.has(before.w) || RANKS.has(before.w)))"
+          - '!(before && (before.w === "et" || before.w === "pour" || NUMBER_DETERMINERS.has(before.w)))'
+          - "!(adjectiveReadings(word).length && !(digits && nounGender(word)))"
+          - "!((verbForm(word) && !(digits && isVerbHomograph(word) && nounGender(word))) || /[sxz]$/.test(word) || !isInflectedNoun(word))"
+          - '!/^[-''’]|^[\s ]{0,8}(?:,|et\b|ou\b)/u.test(after)'
+        return: 'finding("frenchNounNumber", "review_msg_fr_noun_number", start, start + length, [pluralForm(word)], { context: { start: m.index, end: start + length } })'
+      # A pronoun "le", "la", "les" before a word that is also a noun ("la routes", "des porte")
+      # counts as a determiner where no verb can follow: after a preposition, a verb or at a
+      # clause start. "les voyant si nerveux", "de les avoir vus": a present participle or an
+      # infinitive. "lavé les tasse", "ranger la tasses": after a participle or an infinitive, a
+      # finite form cannot follow an object pronoun.
+      cliticNounSlot:
+        args: "ctx: DetectContext, m: RegExpExecArray, word: string"
+        let:
+          before: tokensBefore(ctx.text, m.index, 1)[0]
+          nonFinite: >-
+            !!before &&
+            verbReadings(before.w).length > 0 &&
+            verbReadings(before.w).every((r) => r.slot === "Q" || r.slot === "I") &&
+            verbReadings(word).every((r) => typeof r.slot === "number")
+        when: '!verbReadings(word).some((r) => r.slot === "G" || r.slot === "I")'
+        return: >-
+          !before ||
+          PREPOSITIONS.has(before.w) ||
+          nonFinite ||
+          (!isVerbHomograph(before.w) && verbReadings(before.w).some((r) => typeof r.slot === "number") && !NUMBER_SUBJECTS.has(before.w))
+        else: "false"
+      # "deux cent une personnes", "soixante et un ans": a number, not an article. "de ton
+      # distincts": the noun "ton" (tone), "son" (sound). "les épaules son larges": "sont"
+      # misspelt after a plural subject. "il ne leurs reste rien": the pronoun "leur" misspelt
+      # before its verb. "vos nom et prénom", "les premier et deuxième": singulars sharing one
+      # determiner. "étudiant*es", "résistant(e)s": inclusive endings. "ces don Juan": a title
+      # before a name. "je les aime", "tu la portes", "ce sont": a pronoun before its verb;
+      # "nous la sorts": a pronoun subject makes "la" an object pronoun, whatever follows. "un
+      # enfants": a regular plural, not an entry of its own ("un temps") or a function word.
+      determinedNoun:
+        args: "ctx: DetectContext, m: RegExpExecArray, determiner: string, word: string, start: number"
+        type: RawFinding | null
+        let:
+          length: m.groups!.noun.length
+          previous: tokensBefore(ctx.text, m.index, 2)
+          rest: ctx.text.slice(start + length)
+          fixed: >-
+            NUMBER_PLURAL.has(determiner)
+              ? /[sxz]$/.test(word) || !isInflectedNoun(word)
+                ? null
+                : pluralForm(word)
+              : NUMBER_SINGULAR.has(determiner)
+                ? !/[sx]$/.test(word) || isNounLemma(word) || !isInflectedNoun(word)
+                  ? null
+                  : singularForm(word)
+                : null
+        when:
+          - >-
+            !((determiner === "un" || determiner === "une") &&
+              (numberToken(previous[0]) ||
+                (previous[0]?.w === "et" && numberToken(previous[1])) ||
+                /\d[\s ]*$/u.test(ctx.text.slice(Math.max(0, m.index - 3), m.index))))
+          - '!((determiner === "son" || determiner === "ton") && previous[0] && ["de", "le", "un", "du", "ce", "au"].includes(previous[0].w))'
+          - '!(determiner === "son" && sontForSon(ctx.text, m.index))'
+          - '!(determiner === "leurs" && ["ne", "n''", "se", "s''"].includes(previous[0]?.w ?? ""))'
+          - '!/^[\s ]*(?:,|et\b|ou\b)/u.test(rest)'
+          - '!/^[*·(.]\p{L}/u.test(rest)'
+          - '!(NUMBER_PLURAL.has(determiner) && /^[ \t]+\p{Lu}/u.test(rest))'
+          - '!(NUMBER_CLITIC.has(determiner) && NUMBER_SUBJECTS.has(previous[0]?.w ?? ""))'
+          - "!verbForm(word) || (isVerbHomograph(word) && (!NUMBER_CLITIC.has(determiner) || cliticNounSlot(ctx, m, word)))"
+          - "!!fixed"
+        return: 'finding("frenchNounNumber", "review_msg_fr_noun_number", start, start + length, [fixed], { context: { start: m.index, end: start + length } })'
     frames:
       # A determiner and the noun right after it share their number: "mes livres", "la route".
       - regex: "(?:{{WORD_START}}(?<det>les|des|mes|tes|ses|nos|vos|leurs|ces|aux|plusieurs|quelques|le|la|un|une|mon|ma|ton|ta|son|sa|ce|cet|cette|au|du|chaque|notre|votre|deux|trois|quatre|cinq|six|sept|huit|dix|onze|douze|treize|quatorze|quinze|seize|vingt|trente|quarante|cinquante|soixante|cent|mille|(?<![\\d.,:/°#№]|n°[ \\t]?)\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+|(?<![\\d.,:/°#№]|n°[ \\t]?)\\d+))(?=[ \\t]+(?<noun>\\p{L}+){{WORD_END}})"
         flags: dgiu
         scan: owned
         lookback: 1
-        fixer: nounNumber
+        let:
+          determiner: det.toLowerCase()
+          word: noun.toLowerCase()
+          digits: /^\d/.test(determiner)
+          start: m.indices!.groups!.noun[0]
+        when:
+          - m.index >= ctx.from
+          - "!(noun !== word || word.length < 3 || ctx.dictionary.has(word))"
+          - "!(NUMBER_NOT_NOUNS.has(word) || namedExampleBefore(ctx.text, m.index))"
+          - "!(digits && !countable(ctx, m, determiner))"
+        return: >-
+          NUMBER_DETERMINERS.has(determiner) || digits
+            ? countedNoun(ctx, m, determiner, word, digits, start)
+            : determinedNoun(ctx, m, determiner, word, start)
       # "de grosses société", "leurs propres démarcation", "un autre jours": a noun after an
       # adjective that stands before it takes the number the adjective and its determiner show.
+      # "deux Parisiennes bascule": a capitalized word inside the sentence names people, and the
+      # word after it may be their verb. "laisser les autres noyer", "les seuls restant": an
+      # infinitive or a present participle. "les autres excellent en maths": a plural adjective
+      # used as a noun, and its verb. "une des plus anciennes fabrique encore": "une des" is the
+      # subject of the verb that follows. "les mêmes nom et prénom", "les grands-parents",
+      # "étudiant*es". "de violentes migraine": any feminine plural adjective before a feminine
+      # noun.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<adj>grand|grande|petit|petite|grosse|beau|belle|bon|bonne|mauvaise|jeune|vieille|nouveau|nouvelle|joli|jolie|long|longue|haut|haute|vrai|vraie|fausse|propre|premier|première|dernier|dernière|prochain|prochaine|seul|seule|même|autre|meilleur|meilleure|pire|gentil|gentille|excellent|excellente|grands|grandes|petits|petites|grosses|beaux|belles|bons|bonnes|mauvaises|jeunes|vieilles|nouveaux|nouvelles|jolis|jolies|longs|longues|hauts|hautes|vrais|vraies|fausses|propres|premiers|premières|derniers|dernières|prochains|prochaines|seuls|seules|mêmes|autres|meilleurs|meilleures|pires|gentils|gentilles|excellents|excellentes|\\p{L}+es)(?=[ \\t]+(?<noun>\\p{L}+){{WORD_END}})"
         flags: dgiu
         scan: owned
         lookback: 1
-        fixer: adjectiveNounNumber
+        let:
+          adjective: adj.toLowerCase()
+          word: noun.toLowerCase()
+          tokens: tokensBefore(ctx.text, m.index, 4)
+          at: tokens.findIndex((t) => !DEGREE_WORDS.has(t.w))
+          before: tokens[at]
+          start: m.indices!.groups!.noun[0]
+          rest: ctx.text.slice(start + noun.length)
+          femininePlural: >-
+            /es$/.test(adjective) &&
+            !APPOSITIVE_NOUNS.has(word) &&
+            nounGender(word) === "f" &&
+            adjectiveReadings(adjective).some((r) => r.slot === "fp")
+          fixed: >-
+            PLURAL_ADJECTIVES.has(adjective) || femininePlural
+              ? !(NUMBER_PLURAL.has(before.w) || NUMBER_DETERMINERS.has(before.w) || /^d[e']$/.test(before.w)) ||
+                /[sxz]$/.test(word) ||
+                !isInflectedNoun(word)
+                ? null
+                : pluralForm(word)
+              : PRENOMINAL_BASES.has(adjective) && NUMBER_SINGULAR.has(before.w)
+                ? !/[sx]$/.test(word) || isNounLemma(word) || !isInflectedNoun(word)
+                  ? null
+                  : singularForm(word)
+                : null
+        when:
+          - m.index >= ctx.from
+          - "!(noun !== word || word.length < 3 || ctx.dictionary.has(word))"
+          - '!(/^\p{Lu}/u.test(adj) && tokensBefore(ctx.text, m.index, 1).length)'
+          - "!(NUMBER_NOT_NOUNS.has(word) || namedExampleBefore(ctx.text, m.index))"
+          - "!(verbForm(word) && !isVerbHomograph(word))"
+          - '!verbReadings(word).some((r) => r.slot === "I" || r.slot === "G")'
+          - "!(PLURAL_ADJECTIVES.has(adjective) && hasPerson(finitePersons(word), ILS))"
+          - "!!before"
+          - '!(before.w === "des" && ["un", "une", "l''un", "l''une"].includes(tokens[at + 1]?.w ?? ""))'
+          - '!/^(?:[\s ]*(?:,|et\b|ou\b)|[-*·(.]\p{L})/u.test(rest)'
+          - "!!fixed"
+        return: "finding(frame.ruleId, frame.messageKey, start, start + noun.length, [fixed], { context: { start: before.start, end: start + noun.length } })"
       # "Les plus beau garçon" -> "Le", "la plus beaux parcs" -> "les": before a degree word, an
-      # adjective and a noun that agree, the determiner takes their number.
+      # adjective and a noun that agree, the determiner takes their number. "les temps": a noun in
+      # s that is its own singular shows no number. "au moins certaines règles": a locution and a
+      # determiner, no superlative. "les plus gros budget": an adjective in s or x shows no
+      # number. "je les plus": a pronoun before a verb is no determiner.
       - regex: "{{WORD_START}}(?<det>le|la|les|au|aux|ce|cette|ces|leur|leurs)(?=[ \\t]+(?<degree>plus|moins|très)[ \\t]+(?<adj>\\p{L}+)[ \\t]+(?<noun>\\p{L}+){{WORD_END}})"
         flags: dgiu
         scan: owned
         lookback: 1
-        fixer: superlativeDeterminer
+        let:
+          lowerDet: det.toLowerCase()
+          nounPlural: /[sx]$/.test(noun)
+          gender: "nounGender(nounPlural ? (singularForm(noun) ?? noun) : noun)"
+          all: adjectiveReadings(adj).map((r) => r.slot)
+          slots: 'all.filter((slot) => slot.endsWith(nounPlural ? "p" : "s") && (!gender || slot[0] === gender))'
+          forms: SUPERLATIVE_DETERMINERS[lowerDet]
+          right: 'nounPlural ? forms[2] : slots[0] === "fs" ? forms[1] : forms[0]'
+        when:
+          - m.index >= ctx.from
+          - "!(ctx.dictionary.has(noun) || namedExampleBefore(ctx.text, m.index))"
+          - "!(!isInflectedNoun(noun) || (verbReadings(noun).length && !isVerbHomograph(noun)))"
+          - "!(isNounLemma(noun) && /[sxz]$/.test(noun))"
+          - '!(lowerDet === "au" && degree.toLowerCase() === "moins")'
+          - "!(NOT_SUPERLATIVES.has(adj) || new Set(all.map((slot) => slot[1])).size > 1)"
+          - "!(!slots.length || new Set(slots).size > 1)"
+          - (forms[2] === lowerDet) !== nounPlural
+          - "!(NUMBER_CLITIC.has(lowerDet) && tokensBefore(ctx.text, m.index, 1).some((t) => SUBJECT_PRONOUNS.has(t.w)))"
+        return: >-
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + det.length, [carryCase(det, right)], {
+            context: { start: m.index, end: m.indices!.groups!.noun[1] },
+          })
   - id: fr.gender
     checks: [frenchNounGender]
     style: match
@@ -4223,25 +4685,394 @@ rules:
     checks: [frenchNounGender]
     style: match
     message: review_msg_fr_double_determiner
+    # What follows a determiner is a noun phrase. Two determiners in a row keep one ("nos cette
+    # langue", "des sa naissance" for "dès"); a verb form or participle after one is a noun spelled
+    # like it: "le carre" (carré), "sa sortie" written "sa sorti", "un développent"
+    # (développement), "mon déjeuné" (déjeuner).
+    maps:
+      # The gender (null: either) and the number of each determiner.
+      DETERMINER_INFO:
+        {
+          le: [m, s],
+          la: [f, s],
+          "l'": [null, s],
+          les: [null, p],
+          un: [m, s],
+          une: [f, s],
+          des: [null, p],
+          du: [m, s],
+          au: [m, s],
+          aux: [null, p],
+          ce: [m, s],
+          cet: [m, s],
+          cette: [f, s],
+          ces: [null, p],
+          mon: [m, s],
+          ton: [m, s],
+          son: [m, s],
+          ma: [f, s],
+          ta: [f, s],
+          sa: [f, s],
+          mes: [null, p],
+          tes: [null, p],
+          ses: [null, p],
+          notre: [null, s],
+          votre: [null, s],
+          nos: [null, p],
+          vos: [null, p],
+          leur: [null, s],
+          leurs: [null, p],
+        }
+      DETERMINER_FEMININE_OF: { le: la, un: une, du: de la, au: à la, mon: ma, ton: ta, son: sa }
+    sets:
+      # Determiners that are never pronouns: a verb form after them is no verb.
+      ONLY_DETERMINERS:
+        [
+          un,
+          une,
+          des,
+          du,
+          au,
+          aux,
+          ce,
+          cet,
+          cette,
+          ces,
+          mon,
+          ton,
+          son,
+          ma,
+          ta,
+          sa,
+          mes,
+          tes,
+          ses,
+          notre,
+          votre,
+          nos,
+          vos,
+        ]
+      # Second words that make a pair right: "le leur", "aux leurs" (possessive pronouns), "le son",
+      # "un ton" (nouns), "le un", "la une" (the number, the front page), "le notre" (le nôtre, an
+      # accent away).
+      KEPT_SECOND: [leur, leurs, son, ton, un, une, notre, votre]
+      AFTER_NEGATION_WORDS: [pas, plus, jamais, rien]
+      NE_BEFORE: [ne, "n'"]
+      # Quantifiers and prepositions that never follow these words: "des plusieurs pays", "les
+      # certaines règles", "de des enfants", "à aux enfants", "des toutes les catégories".
+      PAIR_QUANTIFIERS: [plusieurs, certains, certaines]
+      PAIR_PLURAL_DETERMINERS: [les, ces, mes, tes, ses, nos, vos]
+    defs:
+      DETERMINER_OPENERS: 'new Set([...PREPOSITIONS, "que", "qu''", "et", "ou", "mais", "si", "quand", "car", "donc", "puis", "comme", "lorsque", "puisque"])'
+      determinerVowel:
+        args: "word: string"
+        return: /^[aeiouyâàéèêîïôûœh]/.test(word)
+      # "nos cette langue", "des sa naissance", "du notre site": keep one, or the preposition.
+      # "le leur", "aux leurs": a possessive pronoun; "le son", "un ton": the nouns; "un des": one
+      # of; "la une": the front page. "du notre site" is a double determiner; "la notre soit",
+      # "celle du votre." keep "nôtre". "le leurs", "des leur": a possessive pronoun that does
+      # not take the article's number. "le la du diapason": the note. "Est-ce la bonne", "ce la"
+      # (cela): "ce" before another determiner is seldom an article. "les La Fontaine", "le CE":
+      # a name or an acronym after the article. "dépose le au courrier": an object pronoun after
+      # an imperative; "c'est le mon livre": être takes no object pronoun.
+      doubleDeterminer:
+        args: "ctx: DetectContext, m: RegExpExecArray, first: string, second: string"
+        type: RawFinding | null
+        let:
+          end: m.index + m[0].length
+          next: tokensAfter(ctx.text, end, 1)[0]
+          nounNext: >-
+            Boolean(
+              next &&
+              next.start <= end + 8 &&
+              isInflectedNoun(next.w) &&
+              !verbReadings(next.w).some((r) => typeof r.slot === "number"),
+            )
+          mismatched: '(second === "leurs" && DETERMINER_INFO[first][1] === "s") || (second === "leur" && ["les", "aux", "des"].includes(first))'
+          typedFirst: m.groups!.first
+          typedSecond: m.groups!.second
+          previous: tokensBefore(ctx.text, m.index, 1)[0]
+          space: 'second.endsWith("''") ? "" : " "'
+          alternatives: >-
+            [
+              ...(first === "sa" ? [`${carryCase(typedFirst, "ça")}${space}${typedSecond}`] : []),
+              ...(first === "au" || first === "aux" ? [`${carryCase(typedFirst, "à")} ${typedSecond}`] : []),
+              ...(first === "du" ? [`${carryCase(typedFirst, "de")} ${typedSecond}`] : []),
+              ...(first === "des" && second === "leur"
+                ? [`${carryCase(typedFirst, "dès")} ${typedSecond}`, `${typedFirst} leurs`]
+                : mismatched && second === "leurs"
+                  ? [`${carryCase(typedFirst, "les")} leurs`]
+                  : first === "des"
+                    ? [`${carryCase(typedFirst, "dès")} ${typedSecond}`, `${carryCase(typedFirst, "de")} ${typedSecond}`]
+                    : []),
+              typedFirst,
+              typedSecond,
+            ]
+        when:
+          - '!(first === second || first === "leur" || first === "leurs")'
+          - '!(KEPT_SECOND.has(second) && !mismatched && !(nounNext && (second === "notre" || second === "votre")))'
+          - '!((first === "un" || first === "une") && second === "des")'
+          - '!(second === "la" && first !== "la" && DETERMINER_INFO[first][0] !== "f")'
+          - '!(first === "ce" || first === "cet")'
+          - ctx.text[m.index - 1] !== "-"
+          - '!/\p{Lu}/u.test(typedSecond)'
+          - >-
+            !(["le", "la", "les"].includes(first) &&
+              previous &&
+              verbReadings(previous.w).length &&
+              !verbReadings(previous.w).some((r) => r.lemma === "être"))
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: 'finding("frenchNounGender", "review_msg_fr_double_determiner", m.index, end, [...new Set(alternatives)], { requiresChoice: true })'
+      # A plural verb form in -es only ("députes", "délègues") for the noun in -és or -ées.
+      # "délègues" -> "délégués": the stem's grave accent becomes acute before the ending.
+      accentedPlural:
+        args: "word: string"
+        let:
+          readings: verbReadings(word)
+          base: word.slice(0, -2).replace(/è(?=[^aeiouyéèê]*$)/, "é")
+          singular: "`${base}é`"
+        when:
+          - '!(!word.endsWith("es") || isVerbHomograph(word) || isInflectedNoun(word))'
+          - '!(!readings.length || !readings.every((r) => typeof r.slot === "number"))'
+        return: >-
+          nounGender(`${base}ée`) === "f"
+            ? `${base}ées`
+            : nounGender(singular) === "m" || (isVerbHomograph(singular) && isInflectedNoun(singular))
+              ? `${singular}s`
+              : null
+      # The noun a verb form in -e drops it for: "trafique" -> "trafic", "appelle" -> "appel",
+      # "gèle" -> "gel", "envoie" -> "envoi"; null when no masculine noun is spelled so.
+      nounStem:
+        args: "form: string"
+        let:
+          stem: form.slice(0, -1)
+        when: form.endsWith("e")
+        return: >-
+          [stem.replace(/qu$/, "c"), stem.replace(/([lnpt])\1$/, "$1"), stem.replace(/è(?=[^aeiouyéèê]+$)/, "e")].find(
+            (c) => c !== form && isNounLemma(c) && nounGender(c) !== "f" && !verbReadings(c).length,
+          ) ?? null
+      # A finite verb form only. "un développent", "le maintient": a verb form for the noun in
+      # -ment or the bare stem; "demandaient": an imperfect ending spells no noun in -ement. "un
+      # trafique", "au travaille", "des appelles": a verb form in -e(s) for the noun without it.
+      # After "et le", "le" is the pronoun ("il le prend et le travaille"). "aux mures": with no
+      # gender in the determiner, "mûres" is as likely as "murs".
+      finiteNoun:
+        args: "ctx: DetectContext, m: RegExpExecArray, det: string, word: string, gender: string | null, number: string | null, nounFinding: AlternativesFix"
+        type: RawFinding | null
+        let:
+          ment: '/aient$/.test(word) ? word : word.replace(/ent$/, "ement")'
+          direct: '[ment, word.replace(/t$/, "")].find((noun) => noun !== word && nounGender(noun) && (!gender || nounGender(noun) === gender))'
+          previous: tokensBefore(ctx.text, m.index, 1)[0]
+          stem: 'nounStem(number === "p" ? word.replace(/s$/, "") : word)'
+        return: >-
+          direct
+            ? nounFinding([direct])
+            : !ONLY_DETERMINERS.has(det) && previous && !PREPOSITIONS.has(previous.w)
+              ? null
+              : !stem || gender === "f"
+                ? null
+                : !gender && isInflectedNoun(word.replace(/u(?=[^u]*$)/, "û"))
+                  ? null
+                  : nounFinding([number === "p" ? `${stem}s` : stem])
+      # "le carre", "au marche", "du cure": a masculine determiner and a form in -e whose -é
+      # spelling is the noun. "un double sens", "le suicide": an adjective, or a noun of either
+      # gender. "un double sens", "son indigne frère": an adjective before its noun. "le cure":
+      # "le curé" or "la cure", the determiner's other gender.
+      accentedNounFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, det: string, word: string, gender: string | null, end: number, nounFinding: AlternativesFix"
+        type: RawFinding | null
+        let:
+          following: tokensAfter(ctx.text, end, 1)[0]
+          accented: accentedNoun(word)
+          swapped: DETERMINER_FEMININE_OF[det]
+        when:
+          - '!(gender !== "m" || !word.endsWith("e") || nounGender(word) === "m")'
+          - "!(adjectiveReadings(word).length || !genderable(word))"
+          - "!(following && (isInflectedNoun(following.w) || nounGender(following.w)))"
+          - "!!accented"
+        return: >-
+          nounGender(word) === "f" && swapped
+            ? {
+                ...nounFinding([`${m.groups!.det} ${accented}`, `${carryCase(m.groups!.det, swapped)} ${word}`]),
+                range: { start: m.index, end },
+                requiresChoice: true as const,
+              }
+            : nounFinding([accented])
+      # Only a participle from here: "sa sorti", "des traversé", "mes pensés", "l'arrivé", "un
+      # musé", "mon déjeuné". "un musé": a masculine noun in -ée. "mon déjeuné": the infinitive
+      # used as a noun. "la duré", "une entré": a feminine noun in -ée; "des musés": after a
+      # determiner of either gender, a masculine one too. "l'invité", "leur vécu", "les élus": the
+      # participle is a noun of its own.
+      participleOnlyNoun:
+        args: "word: string, gender: string | null, number: string | null, nounFinding: AlternativesFix"
+        type: RawFinding | null
+        let:
+          plural: number === "p"
+          base: "plural && /[^s]s$/.test(word) ? word.slice(0, -1) : word"
+          noun: "`${base}e`"
+          nounIs: nounGender(noun)
+        return: >-
+          gender === "m" && !plural && word.endsWith("é") && !isVerbHomograph(word)
+            ? nounGender(`${word}e`) === "m" && isVerbHomograph(`${word}e`)
+              ? nounFinding([`${word}e`])
+              : !isInflectedNoun(word) && isVerbHomograph(`${word.slice(0, -1)}er`) && isInflectedNoun(`${word.slice(0, -1)}er`)
+                ? nounFinding([`${word.slice(0, -1)}er`])
+                : null
+            : gender === "m"
+              ? null
+              : /e$/.test(base) || (plural && base === word && /[sx]$/.test(word))
+                ? null
+                : !(nounIs === "f" || isVerbHomograph(noun)) || (nounIs === "m" && gender)
+                  ? null
+                  : adjectiveReadings(base).length || isVerbHomograph(base)
+                    ? null
+                    : !gender && isInflectedNoun(base)
+                      ? null
+                      : nounFinding([plural ? `${noun}s` : noun])
+      # A verb form after a determiner, past the checks of the article. "la facilite", "la
+      # citée": the feminine noun in -ité. "son ressentie", "mes démêlées": a feminine participle
+      # for the masculine noun it comes from. "les sortis": a simple past that is also a
+      # participle reads as the participle here.
+      nounFromVerb:
+        args: "ctx: DetectContext, m: RegExpExecArray, det: string, word: string, gender: string | null, number: string | null"
+        type: RawFinding | null
+        let:
+          readings: verbReadings(word)
+          end: m.index + m[0].length
+          nounFinding: '(alternatives: string[]) => finding("frenchNounGender", "review_msg_fr_determiner_noun", m.indices!.groups!.noun[0], end, alternatives, { context: { start: m.index, end } })'
+          finite: 'readings.filter((r) => typeof r.slot === "number")'
+          participle: 'readings.some((r) => r.slot === "Q")'
+          iteNoun: word.replace(/it(?:e|ée)$/, "ité")
+          lemma: word.replace(/es?$/, "")
+          pastOnly: finite.every((r) => hasPerson(r.slot, JE + TU))
+        when:
+          - readings.length > 0
+          - "!/^[-'’]/.test(ctx.text.slice(end, end + 1))"
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          gender !== "m" &&
+          /it(?:e|ée)$/.test(word) &&
+          !isInflectedNoun(word) &&
+          !isVerbHomograph(word) &&
+          nounGender(iteNoun) === "f" &&
+          isVerbHomograph(iteNoun)
+            ? nounFinding([iteNoun])
+            : finite.length === readings.length && !isVerbHomograph(word)
+              ? finiteNoun(ctx, m, det, word, gender, number, nounFinding)
+              : participle &&
+                  gender !== "f" &&
+                  lemma !== word &&
+                  /[éiu]$/.test(lemma) &&
+                  !isInflectedNoun(word) &&
+                  !isVerbHomograph(word) &&
+                  isVerbHomograph(lemma) &&
+                  isInflectedNoun(lemma) &&
+                  nounGender(lemma) !== "f"
+                ? nounFinding([number === "p" ? `${lemma}s` : lemma])
+                : !participle || (finite.length && !(number === "p" && pastOnly))
+                  ? accentedNounFinding(ctx, m, det, word, gender, end, nounFinding)
+                  : participleOnlyNoun(word, gender, number, nounFinding)
+      # A noun written like a verb form or participle after a determiner: the noun's spelling.
+      # "son issue", "mon amie": a possessive in -on also goes before a feminine vowel. "le", "la",
+      # "les" are also pronouns before a verb ("il le coupe"): only after a preposition, a
+      # conjunction, a negation or a verb, or at a sentence start are they articles; never after
+      # a subject or another object pronoun. "les députes", "les arrives": a verb form in -es for
+      # the noun in -és or -ées. After a verb, only a noun spelled like a verb form or participle
+      # is read here.
+      nounAfter:
+        args: "ctx: DetectContext, m: RegExpExecArray, det: string"
+        type: RawFinding | null
+        let:
+          typed: m.groups!.noun
+          word: typed.toLowerCase()
+          gender: '["mon", "ton", "son"].includes(det) && determinerVowel(word) ? null : DETERMINER_INFO[det][0]'
+          number: DETERMINER_INFO[det][1]
+          previous: tokensBefore(ctx.text, m.index, 1)[0]
+          article: >-
+            previous
+              ? DETERMINER_OPENERS.has(previous.w) ||
+                (AFTER_NEGATION_WORDS.has(previous.w) && !NE_BEFORE.has(previous.w)) ||
+                (verbReadings(previous.w).length > 0 && !isVerbHomograph(previous.w))
+              : /(?:^|[.!?…]\s{0,8})$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index))
+          accented: '!ONLY_DETERMINERS.has(det) && number === "p" ? accentedPlural(word) : null'
+        when:
+          - "!(typed !== word || word.length < 3 || ctx.dictionary.has(word))"
+          - ONLY_DETERMINERS.has(det) || article
+        return: >-
+          accented
+            ? finding("frenchNounGender", "review_msg_fr_determiner_noun", m.indices!.groups!.noun[0], m.index + m[0].length, [accented], {
+                context: { start: m.index, end: m.index + m[0].length },
+              })
+            : !ONLY_DETERMINERS.has(det) &&
+                previous &&
+                !DETERMINER_OPENERS.has(previous.w) &&
+                verbReadings(word).some((r) => typeof r.slot === "number") &&
+                !/it(?:e|ée)$/.test(word)
+              ? null
+              : nounFromVerb(ctx, m, det, word, gender, number)
     frames:
       # "nos cette langue", "des sa naissance", "du notre site": two determiners in a row.
       - regex: "{{WORD_START}}(?<first>le|la|les|un|une|des|du|au|aux|ce|cet|cette|ces|mon|ton|son|ma|ta|sa|mes|tes|ses|notre|votre|nos|vos|leur|leurs)[ \\t]{1,8}(?<second>(?:le|la|les|un|une|des|du|au|aux|ce|cet|cette|ces|mon|ton|son|ma|ta|sa|mes|tes|ses|notre|votre|nos|vos|leur|leurs)(?![\\p{L}\\p{M}\\p{N}_-])|l['’](?=\\p{L}))"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: determinerPair
+        when: m.index >= ctx.from
+        return: doubleDeterminer(ctx, m, first.toLowerCase(), second.toLowerCase().replaceAll("’", "'"))
       # "des plusieurs" -> "de plusieurs", "de des" -> "de" or "des", "à aux" -> "aux" or "à".
+      # "ces plusieurs jours" is literary; only "des plusieurs" and "les certaines" are slips. "des
+      # toutes petites": "toutes" is the adverb before an adjective; only "des toutes les". "la
+      # Source de des Trois Caños": a name.
       - regex: "{{WORD_START}}(?<first>des|les|ces|mes|tes|ses|nos|vos|de|du|à)[ \\t]{1,8}(?<second>plusieurs|certains|certaines|toutes|tous|des|de|aux|entre){{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: quantifierPair
+        let:
+          lowerFirst: first.toLowerCase()
+          lowerSecond: second.toLowerCase()
+          end: m.index + m[0].length
+          next: tokensAfter(ctx.text, end, 1)[0]
+          alternatives: >-
+            PAIR_QUANTIFIERS.has(lowerSecond)
+              ? lowerFirst !== "des" && !(lowerFirst === "les" && lowerSecond !== "plusieurs")
+                ? null
+                : lowerFirst === "des"
+                  ? [`${carryCase(first, "de")} ${second}`, second]
+                  : [second]
+              : lowerSecond === "toutes" || lowerSecond === "tous"
+                ? lowerFirst !== "des" || !next || !PAIR_PLURAL_DETERMINERS.has(next.w)
+                  ? null
+                  : [`${carryCase(first, "de")} ${second}`]
+                : lowerFirst === "de" && lowerSecond === "des"
+                  ? next && /^\p{Lu}/u.test(ctx.text[next.start])
+                    ? null
+                    : [first, second]
+                  : lowerFirst === "du" && lowerSecond === "de"
+                    ? [first, second]
+                    : lowerFirst === "à" && (lowerSecond === "aux" || lowerSecond === "entre")
+                      ? [second, first]
+                      : null
+        when:
+          - m.index >= ctx.from
+          - '!(ctx.text[m.index - 1] === "-" || namedExampleBefore(ctx.text, m.index))'
+          - "!!alternatives"
+        return: >-
+          finding(frame.ruleId, frame.messageKey, m.index, end, alternatives, {
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # A noun written like a verb form or participle after a determiner: the noun's spelling.
+      # "ce sont", "ce fut": the pronoun before être. "les filles son arrivé": "sont" misspelt.
       - regex: "{{WORD_START}}(?<det>(?:le|la|les|un|une|des|du|au|aux|ce|cet|cette|ces|mon|ton|son|ma|ta|sa|mes|tes|ses|notre|votre|nos|vos|leur|leurs)(?=[ \\t])|l['’])[ \\t]{0,8}(?<noun>\\p{L}[\\p{L}\\p{M}]*)(?![\\p{L}\\p{M}\\p{N}_])"
         flags: dgiu
         scan: owned
         lookback: 1
-        fixer: determinerBeforeNoun
+        let:
+          lowerDet: det.toLowerCase().replaceAll("’", "'")
+        when:
+          - m.index >= ctx.from
+          - '!(determinerVowel(noun.toLowerCase()) && (lowerDet === "le" || lowerDet === "la"))'
+          - lowerDet !== "ce"
+          - '!(lowerDet === "son" && sontForSon(ctx.text, m.index))'
+        return: nounAfter(ctx, m, lowerDet)
   - id: fr.ordinals
     checks: [frenchOrdinals]
     style: match
