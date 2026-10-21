@@ -6,10 +6,21 @@ import type { DetectContext, FixResult, FrameRef, MatchResult, RawFinding } from
 import {
   ENGLISH_MASS_NOUNS,
   EN_FUNCTION_WORDS,
+  EN_MASS,
   capitalize,
+  caseLike,
+  enAfterBreak,
+  enEvidence,
+  enNounNumber,
+  enNounOnly,
   enQuotedMention,
+  enTokensAfter,
+  enWordBefore,
   englishCountNoun,
+  englishInflect,
   englishInitialSound,
+  englishLemma,
+  englishNounPair,
   englishWordInfo,
   finding,
 } from "../../library";
@@ -244,6 +255,129 @@ export function articlesBareCount(
   return [`${articlesArticle(target)} ${target}`, `the ${target}`];
 }
 
+// en.yaml rule en.verbFrames def usSlots
+export function usSlots(ctx: DetectContext, findings: RawFinding[]) {
+  return ctx.lang !== "en_US"
+    ? []
+    : findings.filter(
+        (f) => f.range.start >= ctx.from && f.range.start < ctx.to && !enQuotedMention(ctx, f),
+      );
+}
+
+// en.yaml rule en.verbFrames def usSlotsOnePerRange
+export function usSlotsOnePerRange(ctx: DetectContext, findings: RawFinding[]) {
+  return usSlots(
+    ctx,
+    findings.filter(
+      (f, i) =>
+        findings.findIndex(
+          (g) => f.range.start === g.range.start && f.range.end === g.range.end,
+        ) === i,
+    ),
+  );
+}
+
+// en.yaml rule en.verbFrames def usSlotsOnePerStart
+export function usSlotsOnePerStart(ctx: DetectContext, findings: RawFinding[]) {
+  return usSlots(
+    ctx,
+    findings.filter((f, i) => findings.findIndex((g) => f.range.start === g.range.start) === i),
+  );
+}
+
+// en.yaml rule en.verbFrames def everydaySlot
+export function everydaySlot(
+  ctx: DetectContext,
+  frame: FrameRef,
+  m: RegExpExecArray,
+  fix: string,
+  group: string,
+) {
+  const span = m.indices!.groups![group];
+  return [
+    {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: span[0], end: span[1] },
+      alternatives: [caseLike(ctx.source.slice(span[0], span[1]), fix)],
+      context: enEvidence(ctx, m.index, span[1]),
+    },
+  ];
+}
+
+// en.yaml rule en.verbFrames def everydayBareVerb
+export function everydayBareVerb(word: string) {
+  if (EN_FUNCTION_WORDS.has(word)) return false;
+  const read = englishWordInfo(word);
+  return (
+    !!read &&
+    read.verbs.length > 0 &&
+    read.verbs.every((v) => v.form === "base" && v.lemma === word) &&
+    !read.noun &&
+    !read.adjective &&
+    !read.adverb
+  );
+}
+
+// en.yaml rule en.everydayConfusions def everydayFiniteVerb
+export function everydayFiniteVerb(word: string) {
+  const read = englishWordInfo(word);
+  return !!read?.verbs.some((v) => v.form === "past" || v.form === "third") && !read.noun;
+}
+
+// en.yaml rule en.splitCompounds def EVERYDAY_TIME_WORDS
+export const EVERYDAY_TIME_WORDS =
+  /^(?:today|tonight|tomorrow|yesterday|now|then|though|either|anyway|please)$/;
+
+// en.yaml rule en.doSingular def everydayDoes
+export function everydayDoes(typed: string) {
+  return /^do$/i.test(typed) ? "does" : "doesn't";
+}
+
+// en.yaml rule en.pluralSlots def WORDFORM_NOT_COUNTED
+export const WORDFORM_NOT_COUNTED =
+  /^(?:one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|dozen|baht|yen|yuan|won|rand|krona|krone|euro|percent)$/;
+
+// en.yaml rule en.pluralSlots def wordFormCountPlural
+export function wordFormCountPlural(noun: string): string | null {
+  if (EN_FUNCTION_WORDS.has(noun) || EN_MASS.has(noun) || WORDFORM_NOT_COUNTED.test(noun))
+    return null;
+  const read = englishWordInfo(noun);
+  if (read && (!read.noun || read.plural || read.adjective || read.adverb)) return null;
+  if (read?.verbs.some((v) => v.form !== "base")) return null;
+  const forms = enNounNumber(noun);
+  return forms?.number === "singular" && forms.plural !== noun ? forms.plural : null;
+}
+
+// en.yaml rule en.pluralSlots def wordFormCloses
+export function wordFormCloses(ctx: DetectContext, end: number) {
+  const next = enTokensAfter(ctx, end, 1)[0];
+  return (
+    !next ||
+    next.kind === "end" ||
+    next.kind === "comma" ||
+    (EN_FUNCTION_WORDS.has(next.lower) && !/^(?:and|or|nor)$/.test(next.lower)) ||
+    /^(?:today|tonight|tomorrow|yesterday|now|again|here|there|already|yet|last|this|next)$/.test(
+      next.lower,
+    )
+  );
+}
+
+// en.yaml rule en.pluralSlots def wordFormPlural
+export function wordFormPlural(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+  thereAre: boolean,
+) {
+  const noun = m.groups!.target;
+  if (ctx.dictionary.has(noun)) return null;
+  const fix = wordFormCountPlural(noun);
+  if (!fix || !wordFormCloses(ctx, m.index + m[0].length)) return null;
+  if (thereAre && englishWordInfo(noun)?.verbs.length) return null;
+  return everydaySlot(ctx, frame, m, fix, "target");
+}
+
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.isoDates frame 1
@@ -415,13 +549,663 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     if (!(ARTICLES_COUNT_NOUNS.has(noun) && !(adj && !articlesAdjectiveOnly(adj)))) return null;
     return `such ${articlesArticle(adj ?? noun)}`;
   },
+  // en.yaml rule en.verbFrames frame 1
+  "@en.verbFrames/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    if (ctx.dictionary.has(target) || EN_FUNCTION_WORDS.has(target)) return null;
+    const read = englishWordInfo(target);
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    const object =
+      next?.kind === "word" &&
+      /^(?:the|a|an|this|that|these|those|my|your|his|her|our|their|its|it|them|me|us|him|you)$/.test(
+        next.lower,
+      );
+    if (
+      !everydayBareVerb(target) &&
+      !(
+        object &&
+        !!read?.verbs.length &&
+        read.verbs.every((v) => v.form === "base" && v.lemma === target) &&
+        !read.adjective
+      )
+    )
+      return null;
+    const ing = englishInflect(target, "ing");
+    if (!ing) return null;
+    return everydaySlot(ctx, frame, m, ing, "target");
+  },
+  // en.yaml rule en.verbFrames frame 2
+  "@en.verbFrames/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    if (ctx.dictionary.has(target) || (target !== "be" && !everydayBareVerb(target))) return null;
+    return everydaySlot(ctx, frame, m, `to ${target}`, "target");
+  },
+  // en.yaml rule en.verbFrames frame 3
+  "@en.verbFrames/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    const read = englishWordInfo(target);
+    if (!read || read.noun || read.adjective || ctx.dictionary.has(target)) return null;
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (
+      next?.kind !== "word" ||
+      !/^(?:the|a|an|this|that|these|those|my|your|his|her|our|their|its|it|them|me|us|him|of|about|into|on|at|for|to|with|up|out|over|through)$/.test(
+        next.lower,
+      )
+    )
+      return null;
+    const base = englishLemma(target, "ing");
+    if (!(!!base && base !== target)) return null;
+    return everydaySlot(ctx, frame, m, base, "target");
+  },
+  // en.yaml rule en.wasThereMany frame 1
+  "@en.wasThereMany/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    const quantity = m.groups!.quantity;
+    const noun = m.groups!.noun;
+    if (!enAfterBreak(ctx, m.index)) return null;
+    if (/of$/i.test(quantity) && enNounNumber(noun)?.number !== "plural" && noun !== "people")
+      return null;
+    return everydaySlot(ctx, frame, m, target.toLowerCase() === "was" ? "were" : "are", "target");
+  },
+  // en.yaml rule en.everydayConfusions frame 1
+  "@en.everydayConfusions/1": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 6);
+    const end = tokens.findIndex((t) => t.kind !== "word");
+    const clause = (end < 0 ? tokens : tokens.slice(0, end)).some(
+      (t) =>
+        /^(?:is|are|was|were|has|have|had|will|would|can|could|did|does|do)$/.test(t.lower) ||
+        everydayFiniteVerb(t.lower),
+    );
+    if (clause) return null;
+    return everydaySlot(ctx, frame, m, "through", "target");
+  },
+  // en.yaml rule en.everydayConfusions frame 2
+  "@en.everydayConfusions/2": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (ctx.dictionary.has("advise")) return null;
+    return everydaySlot(ctx, frame, m, "advice", "target");
+  },
+  // en.yaml rule en.everydayConfusions frame 3
+  "@en.everydayConfusions/3": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (enAfterBreak(ctx, m.index)) return null;
+    return everydaySlot(ctx, frame, m, "be", "target");
+  },
+  // en.yaml rule en.everydayConfusions frame 4
+  "@en.everydayConfusions/4": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    return everydaySlot(ctx, frame, m, "use", "target");
+  },
+  // en.yaml rule en.everydayConfusions frame 5
+  "@en.everydayConfusions/5": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const subject = m.groups!.subject;
+    if (!enAfterBreak(ctx, m.index)) return null;
+    return everydaySlot(ctx, frame, m, /^(?:he|she|it)$/i.test(subject) ? "does" : "do", "target");
+  },
+  // en.yaml rule en.everydayConfusions frame 6
+  "@en.everydayConfusions/6": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    return everydaySlot(ctx, frame, m, "well", "target");
+  },
+  // en.yaml rule en.everydayConfusions frame 7
+  "@en.everydayConfusions/7": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 2);
+    const after = /^(?:two|three|both)$/.test(tokens[0]?.lower ?? "") ? tokens[1] : tokens[0];
+    if (
+      after?.kind === "word" &&
+      !EN_FUNCTION_WORDS.has(after.lower) &&
+      englishWordInfo(after.lower)?.noun
+    )
+      return null;
+    return everydaySlot(ctx, frame, m, "latter", "target");
+  },
+  // en.yaml rule en.gotItDone frame 1
+  "@en.gotItDone/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return everydaySlot(ctx, frame, m, "done", "target");
+  },
+  // en.yaml rule en.everydayPhrases frame 1
+  "@en.everydayPhrases/1": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!enAfterBreak(ctx, m.index)) return null;
+    return everydaySlot(ctx, frame, m, "regards", "target");
+  },
+  // en.yaml rule en.everydayPhrases frame 2
+  "@en.everydayPhrases/2": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (
+      /^(?:warn|warns|warned|warning|remind|reminds|reminded|inform|informs|informed|notify|notified|accuse|accused|rob|robbed|deprive|deprived|convince|convinced|assure|assured|suspect|suspected|clear|cleared|relieve|relieved|cure|cured|free|freed|tell|told|ask|asked|rid)$/.test(
+        enWordBefore(ctx, m.index),
+      )
+    )
+      return null;
+    return everydaySlot(ctx, frame, m, "every one", "target");
+  },
+  // en.yaml rule en.splitCompounds frame 1
+  "@en.splitCompounds/1": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    return everydaySlot(ctx, frame, m, "any way", "target");
+  },
+  // en.yaml rule en.splitCompounds frame 2
+  "@en.splitCompounds/2": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const target = m.groups!.target;
+    if (m.index < ctx.from || m.index >= ctx.to) return null;
+    return everydaySlot(ctx, frame, m, "some time", target ? "target" : "target2");
+  },
+  // en.yaml rule en.splitCompounds frame 3
+  "@en.splitCompounds/3": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const noun = m.groups!.noun;
+    if (EN_FUNCTION_WORDS.has(noun) || EVERYDAY_TIME_WORDS.test(noun)) return null;
+    const read = englishWordInfo(noun);
+    if (read?.adjective) return null;
+    if (!(
+      !!enNounOnly(noun) ||
+      !!(
+        read?.noun &&
+        !read.adverb &&
+        !read.verbs.some((v) => v.form !== "base" && v.form !== "third")
+      )
+    ))
+      return null;
+    return everydaySlot(ctx, frame, m, "any more", "target");
+  },
+  // en.yaml rule en.moreSingular frame 1
+  "@en.moreSingular/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    if (EN_FUNCTION_WORDS.has(target) || ctx.dictionary.has(target)) return null;
+    const read = englishWordInfo(target);
+    if (!read?.noun || read.plural || read.adjective || read.verbs.some((v) => v.form !== "base"))
+      return null;
+    const plural = target === "person" ? "people" : englishNounPair(target)?.plural;
+    if (!plural) return null;
+    return everydaySlot(ctx, frame, m, plural, "target");
+  },
+  // en.yaml rule en.doSingular frame 1
+  "@en.doSingular/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    const verb = m.groups!.verb;
+    if (!enAfterBreak(ctx, m.index)) return null;
+    const read = englishWordInfo(verb);
+    if (!read?.verbs.some((v) => v.form === "base" && v.lemma === verb)) return null;
+    if (!/\?/.test(ctx.text.slice(m.index, m.index + 160).split(/[.!\n]/)[0])) return null;
+    return everydaySlot(ctx, frame, m, everydayDoes(target), "target");
+  },
+  // en.yaml rule en.doSingular frame 2
+  "@en.doSingular/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    if (!(
+      enWordBefore(ctx, m.index) !== "" ||
+      /\b(?:does|doesn['’]t|he|she|it)\b/i.test(ctx.text.slice(Math.max(0, m.index - 80), m.index))
+    ))
+      return null;
+    return everydaySlot(ctx, frame, m, everydayDoes(target), "target");
+  },
+  // en.yaml rule en.haveName frame 1
+  "@en.haveName/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    const name = m.groups!.name;
+    const part = m.groups!.part;
+    if (!/^[A-Z][a-z]+$/.test(name) || englishWordInfo(name.toLowerCase())) return null;
+    if (!/^[A-Za-z]/.test(target) || ctx.dictionary.has(name.toLowerCase())) return null;
+    if (!(
+      enAfterBreak(ctx, m.index) ||
+      /^(?:when|why|where|how|what|who)$/.test(enWordBefore(ctx, m.index))
+    ))
+      return null;
+    const read = englishWordInfo(part);
+    if (
+      !read?.verbs.some((v) => v.form === "participle") ||
+      read.verbs.some((v) => v.form === "base") ||
+      read.noun
+    )
+      return null;
+    return everydaySlot(
+      ctx,
+      frame,
+      m,
+      /n['’]t$/.test(target) ? `hasn${target.slice(-2)}` : "has",
+      "target",
+    );
+  },
+  // en.yaml rule en.youAre frame 1
+  "@en.youAre/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const before = m.groups!.before;
+    const ing = m.groups!.ing;
+    const low = before.toLowerCase();
+    const read = englishWordInfo(ing);
+    if (!read?.verbs.some((v) => v.form === "ing") || read.noun || read.adjective) return null;
+    const beforeRead = englishWordInfo(low);
+    const wh =
+      /^(?:what|whatever|where|how|why|when|who|if|because|since|while|unless|until|once)$/.test(
+        low,
+      ) && enTokensAfter(ctx, m.index + m[0].length, 1)[0]?.lower !== "of";
+    const noun =
+      !EN_FUNCTION_WORDS.has(low) &&
+      !!beforeRead?.noun &&
+      !beforeRead.adjective &&
+      low !== "use" &&
+      (!beforeRead.verbs.length ||
+        /^(?:the|a|an|this|that|these|those|my|our|his|her|their|every|any|no)$/.test(
+          enWordBefore(ctx, m.index),
+        ));
+    if (!(wh || noun)) return null;
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (
+      next?.kind === "word" &&
+      !EN_FUNCTION_WORDS.has(next.lower) &&
+      (!!enNounOnly(next.lower) || !!englishWordInfo(next.lower)?.plural)
+    )
+      return null;
+    return everydaySlot(ctx, frame, m, "you're", "target");
+  },
+  // en.yaml rule en.youAre frame 2
+  "@en.youAre/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return everydaySlot(ctx, frame, m, "you're", "target");
+  },
+  // en.yaml rule en.pluralSlots frame 1
+  "@en.pluralSlots/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return wordFormPlural(m, ctx, frame, true);
+  },
+  // en.yaml rule en.pluralSlots frame 2
+  "@en.pluralSlots/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return wordFormPlural(m, ctx, frame, false);
+  },
+  // en.yaml rule en.confusedSlots frame 1
+  "@en.confusedSlots/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const next = m.groups!.next;
+    if (!(next === "being" || !!englishWordInfo(next)?.verbs.some((v) => v.form === "ing")))
+      return null;
+    return everydaySlot(ctx, frame, m, "now", "target");
+  },
+  // en.yaml rule en.confusedSlots frame 2
+  "@en.confusedSlots/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const next = m.groups!.next;
+    const read = next ? englishWordInfo(next) : undefined;
+    if (!(
+      !next ||
+      !(
+        EN_FUNCTION_WORDS.has(next) ||
+        !read?.verbs.some((v) => v.form === "past" || v.form === "third") ||
+        read.noun
+      )
+    ))
+      return null;
+    const after = next ? enTokensAfter(ctx, m.indices!.groups!.next[1], 1)[0] : undefined;
+    if (next && after?.kind === "word" && !EN_FUNCTION_WORDS.has(after.lower)) return null;
+    return everydaySlot(ctx, frame, m, "others", "target");
+  },
+  // en.yaml rule en.confusedSlots frame 3
+  "@en.confusedSlots/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!enAfterBreak(ctx, m.index)) return null;
+    return everydaySlot(ctx, frame, m, "there", "target");
+  },
+  // en.yaml rule en.confusedSlots frame 4
+  "@en.confusedSlots/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return everydaySlot(ctx, frame, m, "it", "target");
+  },
+  // en.yaml rule en.confusedSlots frame 5
+  "@en.confusedSlots/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const next = m.groups!.next;
+    const read = englishWordInfo(next);
+    const predicate =
+      /^(?:a|an|the|worth|best|better|able|possible|necessary|wrong|right|true|time|due)$/.test(
+        next,
+      ) ||
+      (!!read &&
+        !EN_FUNCTION_WORDS.has(next) &&
+        (read.adjective || read.verbs.some((v) => v.form === "participle")) &&
+        !read.verbs.some((v) => v.form === "base" || v.form === "third"));
+    if (
+      !predicate ||
+      (!enAfterBreak(ctx, m.index) &&
+        !/^(?:and|but|so|that|if|think|because)$/.test(enWordBefore(ctx, m.index)))
+    )
+      return null;
+    return everydaySlot(ctx, frame, m, "may be", "target");
+  },
+  // en.yaml rule en.confusedSlots frame 6
+  "@en.confusedSlots/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const verb = m.groups!.verb;
+    if (EN_FUNCTION_WORDS.has(verb) || ctx.dictionary.has(verb)) return null;
+    const read = englishWordInfo(verb);
+    if (
+      !read?.verbs.length ||
+      !read.verbs.every((v) => v.form === "base" && v.lemma === verb) ||
+      read.noun ||
+      read.adjective ||
+      read.adverb
+    )
+      return null;
+    if (/^[aeiou]/.test(verb)) return null;
+    const after = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (after?.kind === "other") return null;
+    if (
+      after?.kind === "word" &&
+      !/^(?:the|a|an|this|that|these|those|my|your|his|her|our|their|it|them|me|us|him|you|what|how|if|whether|to|for|with|about)$/.test(
+        after.lower,
+      )
+    )
+      return null;
+    const before = enWordBefore(ctx, m.index);
+    if (!before || /^(?:a|the|is|was|be|such|what|quite|half)$/.test(before)) return null;
+    return everydaySlot(ctx, frame, m, "and", "target");
+  },
+  // en.yaml rule en.compoundSlots frame 1
+  "@en.compoundSlots/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const verb = m.groups!.verb;
+    const noun = m.groups!.noun;
+    const read = englishWordInfo(noun);
+    if (EN_FUNCTION_WORDS.has(noun) || !(read?.noun || enNounOnly(noun))) return null;
+    return everydaySlot(ctx, frame, m, `must-${verb}`, "target");
+  },
+  // en.yaml rule en.compoundSlots frame 2
+  "@en.compoundSlots/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    return everydaySlot(ctx, frame, m, target.replace("-", " "), "target");
+  },
+  // en.yaml rule en.possessiveSlots frame 1
+  "@en.possessiveSlots/1": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    return everydaySlot(ctx, frame, m, "world's", "target");
+  },
+  // en.yaml rule en.possessiveSlots frame 2
+  "@en.possessiveSlots/2": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const noun = m.groups!.noun;
+    const read = noun !== "own" ? englishWordInfo(noun) : undefined;
+    if (!(
+      noun === "own" ||
+      !(
+        EN_FUNCTION_WORDS.has(noun) ||
+        !(read?.noun || enNounNumber(noun)) ||
+        !!read?.verbs.some((v) => v.form !== "base" && !(read.plural && v.form === "third"))
+      )
+    ))
+      return null;
+    return everydaySlot(ctx, frame, m, "one's", "target");
+  },
+  // en.yaml rule en.tooAll frame 1
+  "@en.tooAll/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (/^(?:me|you|him|her|us|them|it)$/.test(enWordBefore(ctx, m.index))) return null;
+    return everydaySlot(ctx, frame, m, "to", "target");
+  },
 };
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
 export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
+  // en.yaml rule en.verbGroups filter
+  "@en.verbGroups/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.verbGroupsPerfectBase filter
+  "@en.verbGroupsPerfectBase/filter": (
+    ctx: DetectContext,
+    findings: RawFinding[],
+  ): RawFinding[] => {
+    return usSlotsOnePerRange(ctx, findings);
+  },
+  // en.yaml rule en.verbGroupsBareVerbs filter
+  "@en.verbGroupsBareVerbs/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.thirdPersonBase filter
+  "@en.thirdPersonBase/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.subjectAgreement filter
+  "@en.subjectAgreement/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
+  },
+  // en.yaml rule en.subjectAgreementIrregular filter
+  "@en.subjectAgreementIrregular/filter": (
+    ctx: DetectContext,
+    findings: RawFinding[],
+  ): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
+  },
+  // en.yaml rule en.subjectAgreementDemonstratives filter
+  "@en.subjectAgreementDemonstratives/filter": (
+    ctx: DetectContext,
+    findings: RawFinding[],
+  ): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
+  },
+  // en.yaml rule en.subjectAgreementInverted filter
+  "@en.subjectAgreementInverted/filter": (
+    ctx: DetectContext,
+    findings: RawFinding[],
+  ): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.subjectAgreementRelative filter
+  "@en.subjectAgreementRelative/filter": (
+    ctx: DetectContext,
+    findings: RawFinding[],
+  ): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
+  },
+  // en.yaml rule en.subjectAgreementName filter
+  "@en.subjectAgreementName/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
+  },
+  // en.yaml rule en.subjectAgreementQuantified filter
+  "@en.subjectAgreementQuantified/filter": (
+    ctx: DetectContext,
+    findings: RawFinding[],
+  ): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
+  },
+  // en.yaml rule en.subjectAgreementDistant filter
+  "@en.subjectAgreementDistant/filter": (
+    ctx: DetectContext,
+    findings: RawFinding[],
+  ): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
+  },
+  // en.yaml rule en.adjectiveForAdverb filter
+  "@en.adjectiveForAdverb/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
+  },
+  // en.yaml rule en.superlativeArticle filter
+  "@en.superlativeArticle/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.lessComparative filter
+  "@en.lessComparative/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.comparisonThen filter
+  "@en.comparisonThen/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.collocations filter
+  "@en.collocations/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.tenseTimeWords filter
+  "@en.tenseTimeWords/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.clauseAgreement filter
+  "@en.clauseAgreement/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
+  },
+  // en.yaml rule en.clauseAgreementAsides filter
+  "@en.clauseAgreementAsides/filter": (
+    ctx: DetectContext,
+    findings: RawFinding[],
+  ): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.sentenceFragments filter
+  "@en.sentenceFragments/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.forwardPreposition filter
+  "@en.forwardPreposition/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.bareBitArticles filter
+  "@en.bareBitArticles/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.itForIs filter
+  "@en.itForIs/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.existentialSingular filter
+  "@en.existentialSingular/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.modalQuestionForms filter
+  "@en.modalQuestionForms/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.sinceWithSimpleTense filter
+  "@en.sinceWithSimpleTense/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.itBeforeNoun filter
+  "@en.itBeforeNoun/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
   // en.yaml rule en.missingArticle filter
   "@en.missingArticle/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
     return findings.filter((f) => !enQuotedMention(ctx, f));
+  },
+  // en.yaml rule en.clauseConfusions filter
+  "@en.clauseConfusions/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.clauseAuxiliaries filter
+  "@en.clauseAuxiliaries/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.accordingTo filter
+  "@en.accordingTo/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.thereTheir filter
+  "@en.thereTheir/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.linkingSingular filter
+  "@en.linkingSingular/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.allSingular filter
+  "@en.allSingular/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.noAdjective filter
+  "@en.noAdjective/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.verbFrames filter
+  "@en.verbFrames/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.wasThereMany filter
+  "@en.wasThereMany/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.everydayConfusions filter
+  "@en.everydayConfusions/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.gotItDone filter
+  "@en.gotItDone/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.everydayPhrases filter
+  "@en.everydayPhrases/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.splitCompounds filter
+  "@en.splitCompounds/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.moreSingular filter
+  "@en.moreSingular/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.doSingular filter
+  "@en.doSingular/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.haveName filter
+  "@en.haveName/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.youAre filter
+  "@en.youAre/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.pluralSlots filter
+  "@en.pluralSlots/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.confusedSlots filter
+  "@en.confusedSlots/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.compoundSlots filter
+  "@en.compoundSlots/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.possessiveSlots filter
+  "@en.possessiveSlots/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.tooAll filter
+  "@en.tooAll/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
   },
 };
 

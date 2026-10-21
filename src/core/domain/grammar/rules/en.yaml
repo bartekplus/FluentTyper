@@ -2392,7 +2392,8 @@ rules:
     checks: [englishPerfectParticiples, englishAuxiliaryBaseVerb, englishSentenceStructure]
     style: match
     message: review_msg_perfect_participle
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "I have was there", "Where have you were?": a past of be after have is "been".
       - regex: "(?:(?<subject>i|you|we|they|he|she|it)(?:{{S}}(?:have|has|had)|['’]ve)|(?:have|has|had){{S}}(?:i|you|we|they|he|she|it|there)){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>was|were|are){{E}}"
@@ -2416,7 +2417,8 @@ rules:
     checks: [englishPerfectParticiples, englishAuxiliaryBaseVerb, englishSentenceStructure]
     style: match
     message: review_msg_perfect_participle
-    filter: usSlotsOnePerRange
+    filter:
+      return: usSlotsOnePerRange(ctx, findings)
     frames:
       # "I have finish", "could have change", "Have you use…": a perfect with a bare verb.
       - regex: "(?:(?:i|you|we|they|he|she|it|who){{S}}(?:have|has|had)(?:n['’]t)?|(?:i|you|we|they|who)['’]ve|(?:could|would|should|must|might|may|will)(?:{{S}}(?:not|never))?{{S}}have|(?:could|would|should|must|might)['’]ve|[a-z]+{{S}}(?:has|have|had)){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
@@ -2429,7 +2431,8 @@ rules:
     checks: [englishPerfectParticiples, englishAuxiliaryBaseVerb, englishSentenceStructure]
     style: match
     message: review_msg_be_participle
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "The software was introduce", "It can be use by everyone": be + a bare verb as a passive.
       - regex: "(?<be>be|been|being|is|are|was|were|am|isn['’]t|aren['’]t|wasn['’]t|weren['’]t){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
@@ -2556,7 +2559,8 @@ rules:
     checks: [englishPronounVerbWhitelistAgreement]
     style: match
     message: review_msg_pronoun_verb
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "It only matter to me", "I hope he go away", "and it become dark": he/she/it + a bare
       # verb.
@@ -2568,7 +2572,8 @@ rules:
     checks: [englishSubjectVerbAgreement]
     style: match
     message: review_msg_subject_verb
-    filter: usSlotsOnePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
     frames:
       # "The dogs barks loudly", "The dog are released": a determiner-led subject and its verb.
       - regex: "(?<target>the|these|those|my|your|his|her|our|their|many|some|most|both|several|this|that|all|each){{S}}(?=[a-z])"
@@ -2581,7 +2586,8 @@ rules:
     checks: [englishSubjectVerbAgreement]
     style: match
     message: review_msg_subject_verb
-    filter: usSlotsOnePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
     frames:
       # "Some people thinks", "people who knows": irregular plural subjects with a singular verb.
       - regex: "(?:(?<det>some|most|many|these|those|the|our|their|my|your|all|other){{S}})?(?<target>people|children|men|women){{S}}(?=[a-z])"
@@ -2590,7 +2596,8 @@ rules:
     checks: [englishSubjectVerbAgreement]
     style: match
     message: review_msg_subject_verb
-    filter: usSlotsOnePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
     frames:
       # "These includes", "Those two is", "This are my notes": a demonstrative and its verb.
       - regex: "(?<target>these|those)(?:{{S}}(?:two|three|four|five|both|all))?{{S}}(?=[a-z])"
@@ -2601,7 +2608,8 @@ rules:
     checks: [englishSubjectVerbAgreement]
     style: match
     message: review_msg_subject_verb
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "Do your father live…?", "Has your parents told…?", "Where is your dogs?": an inverted
       # aux.
@@ -2619,7 +2627,8 @@ rules:
     checks: [englishSubjectVerbAgreement]
     style: match
     message: review_msg_subject_verb
-    filter: usSlotsOnePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
     frames:
       # "The ladies who talk loudly annoys me", "The tall woman that I met yesterday manage the
       # team": the main verb after a relative clause agrees with the noun before who/that.
@@ -2633,7 +2642,8 @@ rules:
     checks: [englishSubjectVerbAgreement]
     style: match
     message: review_msg_subject_verb
-    filter: usSlotsOnePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
     frames:
       # "Tom live in Rome", "Microsoft speak to its customers": a name before a bare verb.
       - regex: "(?<name>[a-z]{2,}){{S}}(?<target>[a-z]+){{E}}"
@@ -2642,7 +2652,8 @@ rules:
     checks: [englishSubjectVerbAgreement]
     style: match
     message: review_msg_subject_verb
-    filter: usSlotsOnePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
     frames:
       # each of / the number of: a singular head. "Each of the kids are" (is), "The number of
       # users have" (has).
@@ -2665,7 +2676,8 @@ rules:
     checks: [englishSubjectVerbAgreement]
     style: match
     message: review_msg_subject_verb
-    filter: usSlotsOnePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
     frames:
       # "The dusty books about ants and termites seems", "The drivers who ran the light fatally
       # injures": a subject read past its complements and a relative clause, and the main verb.
@@ -2675,7 +2687,8 @@ rules:
     checks: [englishConfusedWords]
     style: match
     message: review_msg_adverb_form
-    filter: usSlotsOnePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
     frames:
       # "could possible go", "to easy achieve": an adjective between an auxiliary, "to" or a
       # subject and a verb. The lead sits in a lookbehind so that "It could possible work" is
@@ -2876,7 +2889,8 @@ rules:
     checks: [englishPhraseCorrections]
     style: match
     message: review_msg_superlative_the
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "Kyoto is an oldest city": a/an before a superlative and its noun is "the". A bare one
       # after be ("is hottest city") is articles.ts's superlativeThe.
@@ -2887,7 +2901,8 @@ rules:
     checks: [englishDoubledDegree]
     style: match
     message: review_msg_doubled_degree
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "This is less harder", "the least hardest task": less/least take the plain adjective.
       - regex: "(?<!\\bat{{S}})(?<degree>less|least){{S}}(?<adjective>[a-z]+(?:er|est)){{E}}"
@@ -2897,7 +2912,8 @@ rules:
     checks: [englishThenThan]
     style: match
     message: review_msg_then_than
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "return more then one tag", "less then ten", "more then happy": then after a comparison.
       - regex: "(?:more|less|fewer|rather){{S}}(?<target>then){{S}}(?:\\d|(?:one|two|three|four|five|six|seven|eight|nine|ten|twenty|hundred|half|once|twice|enough|happy|willing|glad|ever|usual|expected|necessary){{E}})"
@@ -2906,7 +2922,8 @@ rules:
     checks: [englishFixedPrepositions]
     style: match
     message: review_msg_fixed_prepositions
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # A word that governs a fixed preposition, typed with another one: "afraid from the dark"
       # (of), "participated to the event" (in). Every word from 40 characters before the chunk
@@ -2971,7 +2988,8 @@ rules:
     checks: [englishTenseConsistency]
     style: match
     message: review_msg_tense_time_word
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "Tomorrow we visited", "We visited them tomorrow": the future asks for "will".
       - regex: "{{TENSE_START}}{{TENSE_FUTURE_WORD}},?{{S}}{{TENSE_SUBJECT}}{{S}}(?<target>[a-z]+){{E}}(?!['’])"
@@ -3026,7 +3044,8 @@ rules:
     checks: [englishSubjectVerbAgreement]
     style: match
     message: review_msg_subject_verb
-    filter: usSlotsOnePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
     frames:
       # "The laptop that she bought last week run hot", "The keys that I left on the table
       # belongs to Sam": the verb after a relative clause agrees with the noun before who/that.
@@ -3037,7 +3056,8 @@ rules:
     checks: [englishSubjectVerbAgreement]
     style: match
     message: review_msg_subject_verb
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "My mother, for example, are a doctor", "The dog, whose owner likes you, eat": the verb
       # after a comma-closed aside agrees with the subject before it.
@@ -3062,7 +3082,8 @@ rules:
     checks: [englishSentenceFragment]
     style: match
     message: review_msg_sentence_fragment
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "Because he was a great musician.", "When the wind howls in the trees.": a sentence that
       # is only a subordinate clause. Opt-in: answers and asides use such fragments on purpose.
@@ -3076,7 +3097,8 @@ rules:
     checks: [englishFixedPrepositions]
     style: match
     message: review_msg_fixed_prepositions
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "look forward your reply", "looking forward in hearing from you": the phrase takes "to".
       - regex: "(?:look|looks|looked|looking){{S}}(?<target>forward(?:{{S}}(?<wrong>in|of|at|for))?){{S}}(?<next>[a-z]+){{E}}"
@@ -3085,7 +3107,8 @@ rules:
     checks: [englishSentenceStructure]
     style: match
     message: review_msg_sentence_structure
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "I was bit confused", "I'm bit tired": "a bit" before an adjective lost its article.
       - regex: "(?:am|is|are|was|were|[a-z]+['’](?:m|re|s)|feel|feels|felt|seem|seems|seemed|look|looks|looked|get|got|getting){{S}}(?<target>bit){{S}}(?<next>[a-z]+){{E}}"
@@ -3099,7 +3122,8 @@ rules:
     checks: [englishConfusedWords]
     style: match
     message: review_msg_confused_word
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "the script it not visible", "nothing it working", "this it the same issue": "it" typed
       # for "is" after a subject that is a noun phrase or an indefinite pronoun.
@@ -3109,7 +3133,8 @@ rules:
     checks: [englishExistentialAgreement]
     style: match
     message: review_msg_existential_agreement
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "There are a theory…", "There exist a school…", "There are argument whether…":
       # existential there with a plural verb and one singular noun.
@@ -3120,7 +3145,8 @@ rules:
     checks: [englishAuxiliaryBaseVerb]
     style: match
     message: review_msg_auxiliary_base
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "I would opportunity for me", "This will user OpenAI": a noun where the modal needs a verb.
       - regex: "(?<subject>I|you|we|they|he|she|it|this|that|which|who)(?:{{S}}(?:usually|really|also|just|probably|definitely|certainly|still|then|now|only))?{{S}}(?:can|could|will|would|should|must|might|shall)(?:{{S}}(?:usually|really|also|just|probably|definitely|certainly|still|then|now|only|quickly|easily))?{{S}}(?<target>[a-z]+){{E}}"
@@ -3133,7 +3159,8 @@ rules:
     checks: [englishTenseConsistency]
     style: match
     message: review_msg_since_perfect
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "I work here since 2002", "The boy is here since 10": since + a starting point needs a
       # perfect.
@@ -3143,7 +3170,8 @@ rules:
     checks: [englishItsContext]
     style: match
     message: review_msg_its_possessive
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "It origins date back", "Adelaide and it suburbs", "ten times it size": "it" before a
       # noun that cannot be its object's complement is the possessive.
@@ -4681,7 +4709,8 @@ rules:
     checks: [englishConfusedWords]
     style: match
     message: review_msg_confused_word
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "hear form you", "come form the": verbs and adverbs of source or motion take "from".
       # idioms3 owns "apart form".
@@ -4695,7 +4724,8 @@ rules:
     checks: [englishAuxiliaryBaseVerb]
     style: match
     message: review_msg_to_base
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "I wanted to priorities the task": a plural noun whose -ize verb the dictionary lists.
       - regex: "to{{S}}(?<target>(?<stem>[a-z]{3,})ies){{E}}"
@@ -4708,7 +4738,8 @@ rules:
     checks: [englishFixedPrepositions]
     style: match
     message: review_msg_fixed_prepositions
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "According Anna, …": according takes "to" (archaic "according as" aside). A wrong
       # preposition after it is replaced: "According about a survey".
@@ -4718,7 +4749,8 @@ rules:
     checks: [englishTheirThereTheyAre]
     style: match
     message: review_msg_their_possessive
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "They yelled at there son": after a preposition, "there" before a plain noun is "their".
       - regex: "(?:at|to|for|with|of|from|about|by|into|onto|toward|towards|without|against|like){{S}}(?<target>there){{S}}(?<first>[a-z]+)(?:{{S}}(?<second>[a-z]+))?{{E}}"
@@ -4727,7 +4759,8 @@ rules:
     checks: [englishSubjectVerbAgreement]
     style: match
     message: review_msg_subject_verb
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "That sound great", "it look nice": a linking verb after a singular pronoun takes -s.
       - regex: "(?<subject>that|this|it){{S}}(?<target>sound|look|seem|feel|smell|taste){{S}}(?<adjective>[a-z]+){{E}}"
@@ -4736,7 +4769,8 @@ rules:
     checks: [englishNounNumber]
     style: match
     message: review_msg_noun_count
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "All car are moving": "all" before a singular count noun and a plural verb.
       - regex: "(?<lead>all){{S}}(?<target>[a-z]+){{S}}(?:are|were|have|do|seem|look|need){{E}}"
@@ -4745,7 +4779,8 @@ rules:
     checks: [englishSentenceStructure]
     style: match
     message: review_msg_clause_be
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "I no good at math": a subject, "no" and a predicate adjective lack "am not".
       - regex: "(?<subject>I|you|we|they|he|she|it){{S}}(?<target>no){{S}}(?<adjective>[a-z]+){{E}}"
@@ -4754,204 +4789,495 @@ rules:
     checks: [englishVerbComplements]
     style: match
     message: review_msg_gerund_complement
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
+    defs:
+      # English (US) only; findings in a quoted or named example, or out of the chunk, are
+      # dropped.
+      usSlots:
+        args: "ctx: DetectContext, findings: RawFinding[]"
+        return: >-
+          ctx.lang !== "en_US"
+            ? []
+            : findings.filter((f) => f.range.start >= ctx.from && f.range.start < ctx.to && !enQuotedMention(ctx, f))
+      # usSlots, and one finding per range: the first one.
+      usSlotsOnePerRange:
+        args: "ctx: DetectContext, findings: RawFinding[]"
+        return: >-
+          usSlots(ctx, findings.filter((f, i) =>
+            findings.findIndex((g) => f.range.start === g.range.start && f.range.end === g.range.end) === i))
+      # usSlots, and one finding per start: the first one.
+      usSlotsOnePerStart:
+        args: "ctx: DetectContext, findings: RawFinding[]"
+        return: >-
+          usSlots(ctx, findings.filter((f, i) => findings.findIndex((g) => f.range.start === g.range.start) === i))
+      # The slot finding of `m`: its `group` gets `fix` in the case the user typed.
+      everydaySlot:
+        args: "ctx: DetectContext, frame: FrameRef, m: RegExpExecArray, fix: string, group: string"
+        let:
+          span: m.indices!.groups![group]
+        return: >-
+          [{
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: span[0], end: span[1] },
+            alternatives: [caseLike(ctx.source.slice(span[0], span[1]), fix)],
+            context: enEvidence(ctx, m.index, span[1]),
+          }]
+      # A base verb with no noun, adjective or other form: "see", "send", "explain".
+      everydayBareVerb:
+        args: "word: string"
+        let:
+          read: englishWordInfo(word)
+        when: "!EN_FUNCTION_WORDS.has(word)"
+        return: >-
+          !!read && read.verbs.length > 0 && read.verbs.every((v) => v.form === "base" && v.lemma === word) &&
+          !read.noun && !read.adjective && !read.adverb
+        else: "false"
     frames:
       # "I keep see errors": keep takes the -ing form.
       - regex: "(?:keep|keeps|kept|keeping){{S}}(?<target>[a-z]+){{E}}"
-        fixer: everydayKeep
+        let:
+          read: englishWordInfo(target)
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          object: >-
+            next?.kind === "word" &&
+            /^(?:the|a|an|this|that|these|those|my|your|his|her|our|their|its|it|them|me|us|him|you)$/.test(next.lower)
+          ing: englishInflect(target, "ing")
+        when:
+          - "!(ctx.dictionary.has(target) || EN_FUNCTION_WORDS.has(target))"
+          # A verb that is also a noun ("keep track", "keep time") needs an object after it.
+          - >-
+            !(!everydayBareVerb(target) &&
+              !(object && !!read?.verbs.length && read.verbs.every((v) => v.form === "base" && v.lemma === target) && !read.adjective))
+          - "!!ing"
+        return: everydaySlot(ctx, frame, m, ing, "target")
       # "It's going be hard": going takes "to".
       - regex: "(?:am|is|are|was|were|['’]m|['’]re|(?:it|that|he|she|there|what|who|this)['’]s){{S}}going{{S}}(?<target>[a-z]+){{E}}"
         message: review_msg_missing_to
-        fixer: everydayGoing
+        when: '!(ctx.dictionary.has(target) || (target !== "be" && !everydayBareVerb(target)))'
+        return: everydaySlot(ctx, frame, m, `to ${target}`, "target")
       # "That makes me thinking": make/let + an object + the base verb.
       - regex: "(?:make|makes|made|making|let|lets|letting){{S}}(?:me|you|him|her|us|them|someone|everyone|people){{S}}(?<target>[a-z]+ing){{E}}"
         message: review_msg_causative_base
-        fixer: everydayCausative
+        let:
+          read: englishWordInfo(target)
+          # "The pool made me freezing", "made them recurring characters": an -ing adjective or
+          # a gerund; only an object or a particle after it shows the verb.
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          base: englishLemma(target, "ing")
+        when:
+          - "!(!read || read.noun || read.adjective || ctx.dictionary.has(target))"
+          - >-
+            !(next?.kind !== "word" ||
+              !/^(?:the|a|an|this|that|these|those|my|your|his|her|our|their|its|it|them|me|us|him|of|about|into|on|at|for|to|with|up|out|over|through)$/.test(next.lower))
+          - "!!base && base !== target"
+        return: everydaySlot(ctx, frame, m, base, "target")
   - id: en.wasThereMany
     checks: [englishExistentialAgreement]
     style: match
     message: review_msg_existential_agreement
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "Was there too many people?", "Is there several options?": the plural takes were/are.
       - regex: "(?<target>was|is){{S}}there{{S}}(?:(?:too|so){{S}})?(?<quantity>many|several|a{{S}}few|a{{S}}lot{{S}}of|lots{{S}}of|plenty{{S}}of|dozens{{S}}of){{S}}(?<noun>[a-z]+){{E}}"
-        fixer: everydayWasThere
+        when:
+          - enAfterBreak(ctx, m.index)
+          # "Is there a lot of water?": only a plural noun after "of" needs the plural verb.
+          - '!(/of$/i.test(quantity) && enNounNumber(noun)?.number !== "plural" && noun !== "people")'
+        return: 'everydaySlot(ctx, frame, m, target.toLowerCase() === "was" ? "were" : "are", "target")'
   - id: en.everydayConfusions
     checks: [englishConfusedWords]
     style: match
     message: review_msg_confused_word
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
+    defs:
+      # A past or third person verb form that is no noun.
+      everydayFiniteVerb:
+        args: "word: string"
+        let:
+          read: englishWordInfo(word)
+        return: '!!read?.verbs.some((v) => v.form === "past" || v.form === "third") && !read.noun'
     frames:
       # "reading though the contract": a verb of passage takes "through" before its noun phrase.
       - regex: "(?:go|goes|going|went|gone|read|reads|reading|look|looks|looking|looked|walk|walks|walked|walking|pass|passed|passing|get|got|getting|gets|flip|flipped|browse|browsed|scroll|scrolled|sift|search|searched|searching|dig|came|come|coming|run|ran|running|lived|living|break|broke|sailed|been){{S}}(?<target>though){{S}}(?:the|a|an|this|that|these|those|my|your|his|her|our|their|it|all|some|each|every){{E}}"
-        fixer: everydayThough
+        let:
+          # "It worked though the results were bad": a finite verb makes "though" a conjunction.
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 6)
+          end: tokens.findIndex((t) => t.kind !== "word")
+          clause: >-
+            (end < 0 ? tokens : tokens.slice(0, end)).some((t) =>
+              /^(?:is|are|was|were|has|have|had|will|would|can|could|did|does|do)$/.test(t.lower) ||
+              everydayFiniteVerb(t.lower))
+        when: "!clause"
+        return: everydaySlot(ctx, frame, m, "through", "target")
       # "give me advise on it": the noun is advice.
       - regex: "(?:give|gives|gave|giving|given|need|needs|needed|some|any|your|my|his|our|their|good|bad|great|expert|legal|medical|financial|professional|helpful|useful|no|for|the){{S}}(?:me{{S}}|us{{S}}|him{{S}}|them{{S}}|you{{S}})?(?<target>advise)(?={{S}}(?:on|about|for|from|regarding|please){{E}}|[ \\t\\u00a0]*(?:[.,!?;:]|$))"
-        fixer: everydayAdvise
+        when: '!ctx.dictionary.has("advise")'
+        return: everydaySlot(ctx, frame, m, "advice", "target")
       # "That would we very helpful": a modal, then "we" where "be" belongs.
       - regex: "(?<modal>would|will|could|should|might|may|must)(?:{{S}}(?:probably|definitely|certainly|also|really|surely))?{{S}}(?<target>we){{S}}(?<next>very|so|really|quite|too|great|good|fine|helpful|useful|nice|possible|able|happy|glad|better|best|ready|available|appreciated|interesting|important|necessary){{E}}"
-        fixer: everydayWeBe
+        # "Would we be…?": at a clause start the modal opens a question.
+        when: "!enAfterBreak(ctx, m.index)"
+        return: everydaySlot(ctx, frame, m, "be", "target")
       # "Please do not us this door": a verb slot before a determiner object.
       - regex: "(?:do{{S}}not|don['’]t|please|can|will|should|must|would|could|cannot|can['’]t|won['’]t|shouldn['’]t|didn['’]t){{S}}(?<target>us){{S}}(?:the|this|that|these|those|a|an|my|your|our|their|it|them|any|some){{E}}"
-        fixer: everydayUsUse
+        return: everydaySlot(ctx, frame, m, "use", "target")
       # "Doe he like me?": does/do.
       - regex: "(?<target>doe){{S}}(?<subject>he|she|it|you|they|we|i){{S}}[a-z]+{{E}}"
-        fixer: everydayDoe
+        when: enAfterBreak(ctx, m.index)
+        return: 'everydaySlot(ctx, frame, m, /^(?:he|she|it)$/i.test(subject) ? "does" : "do", "target")'
       # "Everything went good", "the clutch worked good": the verb takes the adverb "well".
       - regex: "(?:went|goes|go|going|gone|worked|works|work|working|ran|runs|run|running|performed|played|slept|shifted){{S}}(?<target>good)(?=[ \\t\\u00a0]*(?:[.,!?;:]|$)|{{S}}(?:until|and|but|so|today|yesterday|overall|too|though|enough|at){{E}})"
         message: review_msg_adverb_form
-        fixer: everydayWentGood
+        # "This one works good enough for us" still wants well; "a good one" is no frame here.
+        return: everydaySlot(ctx, frame, m, "well", "target")
       # "the later of the two" is the latter.
       - regex: "the{{S}}(?<target>later){{S}}of{{S}}(?:the|these|those|two|both){{E}}"
-        fixer: everydayLatter
+        let:
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 2)
+          after: '/^(?:two|three|both)$/.test(tokens[0]?.lower ?? "") ? tokens[1] : tokens[0]'
+        # "the later of the two trains" compares times: a noun after it keeps "later".
+        when: '!(after?.kind === "word" && !EN_FUNCTION_WORDS.has(after.lower) && englishWordInfo(after.lower)?.noun)'
+        return: everydaySlot(ctx, frame, m, "latter", "target")
   - id: en.gotItDone
     checks: [englishIrregularForms]
     style: match
     message: review_msg_irregular_form
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "I got it did yesterday": get + an object + the participle "done".
       - regex: "(?:got|get|gets|getting){{S}}(?:it|them|this|that|everything|all{{S}}of{{S}}it|most{{S}}of{{S}}it|(?:my|her|his|our|their|the|your){{S}}[a-z]+){{S}}(?<target>did)(?=[ \\t\\u00a0]*(?:[.,!?;:]|$)|{{S}}(?:yesterday|today|already|early|before|by|in|on|last|quickly|fast){{E}})"
-        fixer: everydayGotDid
+        return: everydaySlot(ctx, frame, m, "done", "target")
   - id: en.everydayPhrases
     checks: [englishPhraseCorrections]
     style: match
     message: review_msg_phrase_correction
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "Kind regard," closes a letter: regards.
       - regex: "(?:kind|best|warm|warmest|warmer){{S}}(?<target>regard)(?=[ \\t\\u00a0]*(?:[,!.]|$|\\n))"
-        fixer: everydayRegard
+        when: enAfterBreak(ctx, m.index)
+        return: everydaySlot(ctx, frame, m, "regards", "target")
       # "everyone of you": every one.
       - regex: "(?<target>everyone|everybody){{S}}of{{S}}(?:you|us|them|the|these|those|my|our|your|their|his|her){{E}}"
-        fixer: everydayEveryOne
+        # "warn everyone of the danger": a verb that takes "of" after its object.
+        when: >-
+          !/^(?:warn|warns|warned|warning|remind|reminds|reminded|inform|informs|informed|notify|notified|accuse|accused|rob|robbed|deprive|deprived|convince|convinced|assure|assured|suspect|suspected|clear|cleared|relieve|relieved|cure|cured|free|freed|tell|told|ask|asked|rid)$/.test(
+            enWordBefore(ctx, m.index))
+        return: everydaySlot(ctx, frame, m, "every one", "target")
   - id: en.splitCompounds
     checks: [englishContextualCompounds]
     style: match
     message: review_msg_compounds
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
+    defs:
+      EVERYDAY_TIME_WORDS: /^(?:today|tonight|tomorrow|yesterday|now|then|though|either|anyway|please)$/
     frames:
       # "Is there anyway to fix it?", "We need sometime to think", "need anymore information":
       # the two-word forms.
       - regex: "(?:there(?:{{S}}(?:is|was)|['’]s)|is{{S}}there|was{{S}}there|find|found|no|know{{S}}of|have|has){{S}}(?<target>anyway){{S}}to{{E}}"
-        fixer: everydayAnyWay
+        return: everydaySlot(ctx, frame, m, "any way", "target")
       # After "for", only a duration ("for sometime now"): "schedule it for sometime" names a time.
       - regex: "(?:(?:take|takes|took|taking|taken|need|needs|needed|have|has|had|having|spend|spent|spending|give|gave|given|giving|allow|allowed){{S}}(?<target>sometime)(?={{S}}(?:to|for|off|with|now|ago|alone|together|out|away|apart){{E}}|[ \\t\\u00a0]*(?:[.,!?;:]|$))|for{{S}}(?<target2>sometime)(?={{S}}(?:now|already|ago){{E}}))"
         owner: none
-        fixer: everydaySomeTime
+        # The match start owns the frame: the target is one of two groups.
+        when: "!(m.index < ctx.from || m.index >= ctx.to)"
+        return: 'everydaySlot(ctx, frame, m, "some time", target ? "target" : "target2")'
       - regex: "(?<target>anymore){{S}}(?<noun>[a-z]+){{E}}"
-        fixer: everydayAnyMore
+        let:
+          read: englishWordInfo(noun)
+        when:
+          - "!(EN_FUNCTION_WORDS.has(noun) || EVERYDAY_TIME_WORDS.test(noun))"
+          # "safe anymore due to…": an adjective after it starts a new phrase.
+          - "!read?.adjective"
+          - >-
+            !!enNounOnly(noun) ||
+            !!(read?.noun && !read.adverb && !read.verbs.some((v) => v.form !== "base" && v.form !== "third"))
+        return: everydaySlot(ctx, frame, m, "any more", "target")
   - id: en.moreSingular
     checks: [englishNounNumber]
     style: match
     message: review_msg_noun_count
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "More person are coming": more + a singular count noun + a plural verb.
       - regex: "(?:more|fewer){{S}}(?<target>[a-z]+){{S}}(?:are|were|have|do){{E}}"
-        fixer: everydayMoreSingular
+        let:
+          read: englishWordInfo(target)
+          plural: 'target === "person" ? "people" : englishNounPair(target)?.plural'
+        when:
+          - "!(EN_FUNCTION_WORDS.has(target) || ctx.dictionary.has(target))"
+          - '!(!read?.noun || read.plural || read.adjective || read.verbs.some((v) => v.form !== "base"))'
+          - "!!plural"
+        return: everydaySlot(ctx, frame, m, plural, "target")
   - id: en.doSingular
     checks: [englishSubjectVerbAgreement]
     style: match
     message: review_msg_subject_verb
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
+    defs:
+      everydayDoes:
+        args: "typed: string"
+        return: '/^do$/i.test(typed) ? "does" : "doesn''t"'
     frames:
       # "Do anyone know…?", "Do that mean…?", "…, do he?": does after a singular subject.
       - regex: "(?<target>do|don['’]t){{S}}(?:anyone|anybody|someone|somebody|everyone|everybody|nobody|anything|something|everything|that|this|it|he|she){{S}}(?<verb>[a-z]+){{E}}"
-        fixer: everydayDoSingular
+        let:
+          # A question: "Do that mean…?" needs the base verb after the subject.
+          read: englishWordInfo(verb)
+        when:
+          - enAfterBreak(ctx, m.index)
+          - '!!read?.verbs.some((v) => v.form === "base" && v.lemma === verb)'
+          - '/\?/.test(ctx.text.slice(m.index, m.index + 160).split(/[.!\n]/)[0])'
+        return: everydaySlot(ctx, frame, m, everydayDoes(target), "target")
       - regex: "(?<=,{{S}})(?<target>do|don['’]t){{S}}(?:he|she|it)(?=[ \\t\\u00a0]*\\?)"
-        fixer: everydayDoTag
+        # "He doesn't live here, do he?": the tag repeats the clause's own auxiliary.
+        when: >-
+          enWordBefore(ctx, m.index) !== "" ||
+          /\b(?:does|doesn['’]t|he|she|it)\b/i.test(ctx.text.slice(Math.max(0, m.index - 80), m.index))
+        return: everydaySlot(ctx, frame, m, everydayDoes(target), "target")
   - id: en.haveName
     checks: [englishSubjectVerbAgreement]
     style: match
     message: review_msg_subject_verb
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "Have Mary bought a ticket?": a name takes has; "Have Tom report to me" is causative.
       - regex: "(?<target>have|haven['’]t){{S}}(?<name>[a-z]{2,}){{S}}(?<part>[a-z]+){{E}}"
-        fixer: wordFormHaveName
+        let:
+          read: englishWordInfo(part)
+        when:
+          - "!(!/^[A-Z][a-z]+$/.test(name) || englishWordInfo(name.toLowerCase()))"
+          - "!(!/^[A-Za-z]/.test(target) || ctx.dictionary.has(name.toLowerCase()))"
+          # At a question's start or after a wh-word.
+          - "enAfterBreak(ctx, m.index) || /^(?:when|why|where|how|what|who)$/.test(enWordBefore(ctx, m.index))"
+          - >-
+            !(!read?.verbs.some((v) => v.form === "participle") ||
+              read.verbs.some((v) => v.form === "base") ||
+              read.noun)
+        return: 'everydaySlot(ctx, frame, m, /n[''’]t$/.test(target) ? `hasn${target.slice(-2)}` : "has", "target")'
   - id: en.youAre
     checks: [englishYourYouAre]
     style: match
     message: review_msg_your_you_are
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "the file your looking for", "what your selling": your before a bare -ing after a noun
       # or a wh-word is "you're".
       - regex: "(?<before>[a-z]+){{S}}(?<target>your){{S}}(?<ing>[a-z]+ing){{E}}"
-        fixer: wordFormYourIng
+        let:
+          low: before.toLowerCase()
+          read: englishWordInfo(ing)
+          beforeRead: englishWordInfo(low)
+          # A wh-word or subordinator opens a clause ("if your having trouble"); "your testing of
+          # the rules" is a gerund phrase.
+          wh: >-
+            /^(?:what|whatever|where|how|why|when|who|if|because|since|while|unless|until|once)$/.test(low) &&
+            enTokensAfter(ctx, m.index + m[0].length, 1)[0]?.lower !== "of"
+          # "the file your looking for": a noun that is no verb ("take your writing") opens a
+          # relative.
+          noun: >-
+            !EN_FUNCTION_WORDS.has(low) &&
+            !!beforeRead?.noun &&
+            !beforeRead.adjective &&
+            low !== "use" &&
+            (!beforeRead.verbs.length ||
+              /^(?:the|a|an|this|that|these|those|my|our|his|her|their|every|any|no)$/.test(enWordBefore(ctx, m.index)))
+          # "your thinking patterns": the -ing word modifies a noun after it.
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when:
+          - '!(!read?.verbs.some((v) => v.form === "ing") || read.noun || read.adjective)'
+          - wh || noun
+          - >-
+            !(next?.kind === "word" &&
+              !EN_FUNCTION_WORDS.has(next.lower) &&
+              (!!enNounOnly(next.lower) || !!englishWordInfo(next.lower)?.plural))
+        return: everydaySlot(ctx, frame, m, "you're", "target")
       # "I think your all set".
       - regex: "(?<target>your){{S}}all{{S}}(?:set|done|good|ready|invited|welcome|right|wrong|fine|wrong|alone|over|here|there){{E}}"
-        fixer: wordFormYourAll
+        return: everydaySlot(ctx, frame, m, "you're", "target")
   - id: en.pluralSlots
     checks: [englishNounNumber]
     style: match
     message: review_msg_noun_count
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
+    defs:
+      # Numbers and currencies that stand for their own plural.
+      WORDFORM_NOT_COUNTED: /^(?:one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|dozen|baht|yen|yuan|won|rand|krona|krone|euro|percent)$/
+      # The regular plural of a plain singular count noun ("chair"), or null. Long plain nouns
+      # ("problem") come from the lexicon too.
+      wordFormCountPlural:
+        args: "noun: string"
+        type: string | null
+        let:
+          read: englishWordInfo(noun)
+          forms: enNounNumber(noun)
+        when:
+          - "!(EN_FUNCTION_WORDS.has(noun) || EN_MASS.has(noun) || WORDFORM_NOT_COUNTED.test(noun))"
+          - "!(read && (!read.noun || read.plural || read.adjective || read.adverb))"
+          - '!read?.verbs.some((v) => v.form !== "base")'
+        return: 'forms?.number === "singular" && forms.plural !== noun ? forms.plural : null'
+      # The clause or phrase ends after the noun.
+      wordFormCloses:
+        args: "ctx: DetectContext, end: number"
+        let:
+          next: enTokensAfter(ctx, end, 1)[0]
+        return: >-
+          !next ||
+          next.kind === "end" ||
+          next.kind === "comma" ||
+          (EN_FUNCTION_WORDS.has(next.lower) && !/^(?:and|or|nor)$/.test(next.lower)) ||
+          /^(?:today|tonight|tomorrow|yesterday|now|again|here|there|already|yet|last|this|next)$/.test(next.lower)
+      # The plural slot of a "there are" (`thereAre`) or count-of frame. After "there are", a
+      # noun that is also a verb ("water") is the existential check's.
+      wordFormPlural:
+        args: "m: RegExpExecArray, ctx: DetectContext, frame: FrameRef, thereAre: boolean"
+        let:
+          noun: m.groups!.target
+          fix: wordFormCountPlural(noun)
+        when:
+          - "!ctx.dictionary.has(noun)"
+          - "!(!fix || !wordFormCloses(ctx, m.index + m[0].length))"
+          - "!(thereAre && englishWordInfo(noun)?.verbs.length)"
+        return: everydaySlot(ctx, frame, m, fix, "target")
     frames:
       # "There're problem in it": a plural existential before a singular count noun.
       - regex: "there(?:['’]re|{{S}}are|{{S}}were){{S}}(?<target>[a-z]+){{E}}"
-        fixer: wordFormThereAre
+        return: wordFormPlural(m, ctx, frame, true)
       # "A number of book", "dozens of reason": a count that needs a plural.
       - regex: "(?:a{{S}}(?:number|couple|pair|multitude|series|majority)|dozens|hundreds|thousands){{S}}of{{S}}(?<target>[a-z]+){{E}}"
-        fixer: wordFormCountOf
+        return: wordFormPlural(m, ctx, frame, false)
   - id: en.confusedSlots
     checks: [englishConfusedWords]
     style: match
     message: review_msg_confused_word
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "The files are know being checked": now before an -ing form.
       - regex: "(?:is|are|was|were|am|['’]re|['’]m){{S}}(?<target>know){{S}}(?<next>[a-z]+ing){{E}}"
-        fixer: wordFormKnow
+        when: 'next === "being" || !!englishWordInfo(next)?.verbs.some((v) => v.form === "ing")'
+        return: everydaySlot(ctx, frame, m, "now", "target")
       # "Tom and several other came": a pronoun "others" before a verb or the end.
       - regex: "(?:several|many|some|few|both){{S}}(?<target>other)(?=[ \\t\\u00a0]*(?:[.!?,;:]|$)|{{S}}(?<next>[a-z]+){{E}})"
-        fixer: wordFormOther
+        let:
+          read: "next ? englishWordInfo(next) : undefined"
+          # "a few other compromised members": a participle modifying a noun after it.
+          after: "next ? enTokensAfter(ctx, m.indices!.groups!.next[1], 1)[0] : undefined"
+        when:
+          # "several other came": a verb, not a noun ("some other time").
+          - >-
+            !next ||
+            !(EN_FUNCTION_WORDS.has(next) || !read?.verbs.some((v) => v.form === "past" || v.form === "third") || read.noun)
+          - '!(next && after?.kind === "word" && !EN_FUNCTION_WORDS.has(after.lower))'
+        return: everydaySlot(ctx, frame, m, "others", "target")
       # "The are many people here": there at the clause start.
       - regex: "(?<target>the){{S}}(?:are|were){{S}}(?:many|several|some|no|plenty|lots|a{{S}}lot|a{{S}}few|two|three|four|five|ten){{E}}"
-        fixer: wordFormTheAre
+        when: enAfterBreak(ctx, m.index)
+        return: everydaySlot(ctx, frame, m, "there", "target")
       # "I might not make sense to ask": the dummy subject it.
       - regex: "(?<target>I)(?:{{S}}(?:might|may|would|will|could|does|doesn['’]t|did|didn['’]t|wouldn['’]t|won['’]t)(?:{{S}}not)?)?{{S}}(?:make|makes|made){{S}}sense{{S}}to{{S}}[a-z]+{{E}}"
-        fixer: wordFormISense
+        return: everydaySlot(ctx, frame, m, "it", "target")
       # "It maybe helpful": the modal "may be" before a predicate.
       - regex: "(?:I|you|he|she|it|we|they|this|that|there){{S}}(?<target>maybe){{S}}(?<next>[a-z]+){{E}}"
-        fixer: wordFormMaybe
+        let:
+          read: englishWordInfo(next)
+          # A predicate: an adjective, a participle, a noun phrase or "worth/best/able".
+          predicate: >-
+            /^(?:a|an|the|worth|best|better|able|possible|necessary|wrong|right|true|time|due)$/.test(next) ||
+            (!!read &&
+              !EN_FUNCTION_WORDS.has(next) &&
+              (read.adjective || read.verbs.some((v) => v.form === "participle")) &&
+              !read.verbs.some((v) => v.form === "base" || v.form === "third"))
+        when: >-
+          !(!predicate ||
+            (!enAfterBreak(ctx, m.index) && !/^(?:and|but|so|that|if|think|because)$/.test(enWordBefore(ctx, m.index))))
+        return: everydaySlot(ctx, frame, m, "may be", "target")
       # "I'll drop by an see you": "an" before a bare verb.
       - regex: "(?<target>an){{S}}(?<verb>[a-z]+){{E}}"
-        fixer: wordFormAnVerb
+        let:
+          read: englishWordInfo(verb)
+          after: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          # "an" then a bare verb: only after a word that could take "and" ("by an see", "go an get").
+          before: enWordBefore(ctx, m.index)
+        when:
+          - "!(EN_FUNCTION_WORDS.has(verb) || ctx.dictionary.has(verb))"
+          - >-
+            !(!read?.verbs.length ||
+              !read.verbs.every((v) => v.form === "base" && v.lemma === verb) ||
+              read.noun ||
+              read.adjective ||
+              read.adverb)
+          # "an add", "an excel format": before a vowel "an" is the article of a slip; only a
+          # consonant-initial verb before an object or the end reads as "and" ("by an see what").
+          - "!/^[aeiou]/.test(verb)"
+          - '!(after?.kind === "other")'
+          - >-
+            !(after?.kind === "word" &&
+              !/^(?:the|a|an|this|that|these|those|my|your|his|her|our|their|it|them|me|us|him|you|what|how|if|whether|to|for|with|about)$/.test(after.lower))
+          - "!(!before || /^(?:a|the|is|was|be|such|what|quite|half)$/.test(before))"
+        return: everydaySlot(ctx, frame, m, "and", "target")
   - id: en.compoundSlots
     checks: [englishContextualCompounds]
     style: match
     message: review_msg_compounds
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "a must see place": the compound modifier is hyphenated.
       - regex: "(?:a|an|the|another){{S}}(?<target>must{{S}}(?<verb>see|read|have|do|visit|watch|try|buy|attend|hear|eat|own)){{S}}(?<noun>[a-z]+){{E}}"
-        fixer: wordFormMust
+        let:
+          read: englishWordInfo(noun)
+        when: "!(EN_FUNCTION_WORDS.has(noun) || !(read?.noun || enNounOnly(noun)))"
+        return: everydaySlot(ctx, frame, m, `must-${verb}`, "target")
       # "He was 58 years-old.": predicative ages are open.
       - regex: "(?<=[0-9]{{S}}|(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety){{S}})(?<target>(?:years|months|weeks|days)-old)(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|{{S}}(?:and|but|when|at|in|by|now|today){{E}})"
-        fixer: wordFormYearsOld
+        return: 'everydaySlot(ctx, frame, m, target.replace("-", " "), "target")'
   - id: en.possessiveSlots
     checks: [englishApostrophes]
     style: match
     message: review_msg_noun_possessive
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "the worlds best player": the world's.
       - regex: "the{{S}}(?<target>worlds){{S}}(?:best|largest|biggest|greatest|most|first|oldest|fastest|richest|highest|tallest|leading|top|smallest|longest|deepest|strongest|happiest|favorite|favourite|population|economy|attention){{E}}"
-        fixer: wordFormWorlds
+        return: everydaySlot(ctx, frame, m, "world's", "target")
       # "One should wash ones hands": one's before a noun.
       - regex: "(?:wash|brush|clean|change|mind|lose|lost|keep|know|follow|raise|use|express|share|do|cross|count|in|of|on|for|to|with|about|into|from){{S}}(?<target>ones){{S}}(?<noun>[a-z]+){{E}}"
-        fixer: wordFormOnes
+        let:
+          read: 'noun !== "own" ? englishWordInfo(noun) : undefined'
+        # "the ones that…", "of ones choosing": only a plain noun after it. "the old ones": a
+        # determiner makes "ones" the pronoun.
+        when: >-
+          noun === "own" ||
+          !(EN_FUNCTION_WORDS.has(noun) ||
+            !(read?.noun || enNounNumber(noun)) ||
+            !!read?.verbs.some((v) => v.form !== "base" && !(read.plural && v.form === "third")))
+        return: everydaySlot(ctx, frame, m, "one's", "target")
   - id: en.tooAll
     checks: [englishToToo]
     style: match
     message: review_msg_to_too
-    filter: usSlots
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "We expanded too all the sites": the preposition.
       - regex: "(?<target>too){{S}}all{{S}}(?:the|of|my|our|your|their|his|her|these|those){{E}}"
-        fixer: wordFormTooAll
+        # "gone with her too all those years ago": "too" closes the clause before it.
+        when: "!/^(?:me|you|him|her|us|them|it)$/.test(enWordBefore(ctx, m.index))"
+        return: everydaySlot(ctx, frame, m, "to", "target")
   - id: en.typoSlots
     checks:
       [englishPhraseCorrections, englishConfusedWords, englishToToo, englishContextualCompounds]

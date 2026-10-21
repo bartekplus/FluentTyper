@@ -45,8 +45,6 @@ import * as idioms3 from "./idioms3";
 import * as idioms4 from "./idioms4";
 import * as idioms5 from "./idioms5";
 import * as clauseSlots from "./clauseSlots";
-import * as everydaySlots from "./everydaySlots";
-import * as wordFormSlots from "./wordFormSlots";
 import * as typoSlots from "./typoSlots";
 import * as neighbourSlots from "./neighbourSlots";
 import * as prepositionSlots from "./prepositionSlots";
@@ -86,8 +84,6 @@ export const FIXERS = mergePredicates<Fixer>(
   typoSlots.FIXERS,
   verbSlots.FIXERS,
   remaining.FIXERS,
-  everydaySlots.FIXERS,
-  wordFormSlots.FIXERS,
   verbGroupSlots.FIXERS,
   agreementSlots.FIXERS,
   wordClassSlots.FIXERS,
@@ -129,7 +125,6 @@ export const FIXERS = mergePredicates<Fixer>(
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */
 export const FILTERS = mergePredicates<FindingsFilter>(
   grammarStyle1.FILTERS,
-  everydaySlots.FILTERS,
   fixedPhrases.FILTERS,
   punctuation.FILTERS,
   confusionSlots.FILTERS,
