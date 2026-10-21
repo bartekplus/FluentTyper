@@ -135,6 +135,10 @@ defs:
     when: 'article?.toLowerCase() === m.groups!.relative && !/^\p{Ll}+e[nmrs]?$/u.test(next)'
     return: '!/[ \t]\p{Lu}/u.test(sentence)'
     else: "false"
+  # A token that opens a clause, or no token.
+  politeOpens:
+    args: "token: string | undefined"
+    return: 'token === undefined || /^(?:[.!?:,;„“"»«]|\n)$/.test(token)'
 
 rules:
   - id: de.compounds
@@ -969,13 +973,27 @@ rules:
       - regex: "(?<=(?:^|\\n)[ \\t]{0,8}{{GREETING_WORDS}}[ \\t]{1,4})(?<adj>Lieb(?:e|er|es))(?=[ \\t]+\\p{Lu})"
         scan: owned
         flags: gu
-        fixer: salutationCase
+        return: >-
+          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_idiom_case", range: { start: m.index, end: m.index + 1 }, alternatives: ["l"], context: { start: m.index, end: m.index + m[0].length } })
       # A verb in -en right before a lowercase "sie": "Kommen sie bitte herein!" (the polite
       # imperative).
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<verb>\\p{L}+en)[ \\t]+(?<sie>sie)(?![\\p{L}\\p{M}\\p{N}_-])"
         scan: owned
         flags: gu
-        fixer: politeImperative
+        let:
+          start: m.index + m[0].length - 3
+          rest: '/^[^.!?\n]*([.!?\n]?)/.exec(ctx.text.slice(start))!'
+          end: rest[1]
+          please: 'end !== "?" && /(?<!\p{L})bitte(?!\p{L})/iu.test(ctx.text.slice(Math.max(0, m.index - 8), start) + rest[0])'
+          before: deTokensBefore(ctx.text, m.index, 2)
+          prior: before.at(-1) ?? ""
+        when:
+          - germanInfinitive(verb.toLowerCase())
+          - end === "!" || please
+          - >-
+            politeOpens(before.at(-1)) || (/^(?:bitte|so|und|oder|aber|dann|jetzt|nun|doch|also)$/i.test(prior) && politeOpens(before.at(-2)))
+        return: >-
+          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_polite_sie", range: { start, end: start + 1 }, alternatives: ["S"], context: { start: m.index, end: start + 3 } })
   - id: de.prepositionCase
     checks: [germanPrepositionCase]
     style: match
@@ -1681,7 +1699,14 @@ rules:
       - regex: "(?<=(?:^|\\n)[ \\t]{0,8}(?:{{GREETING_WORDS}}[ \\t]{1,4}|Sehr[ \\t]{1,4})?)(?<adj>[Ll]ieb(?:e|en|er|es)?|geehrt(?:e|en|er|es)?)(?=[ \\t]+(?<title>Herr|Frau|Damen)(?![\\p{L}\\p{M}]))"
         scan: owned
         flags: gu
-        fixer: salutationEnding
+        let:
+          wanted: 'adj.replace(/(?:e|en|er|es)$/, "") + (title === "Herr" ? "er" : "e")'
+          line: '/^[^\n,!:.?]*/.exec(ctx.text.slice(m.index, m.index + 120))![0]'
+        when:
+          - wanted !== adj
+          - '!/(?<!\p{L})(?:als|wie)(?!\p{L})/u.test(line)'
+        return: >-
+          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending", range: { start: m.index, end: m.index + adj.length }, alternatives: [wanted], context: { start: m.index, end: m.index + adj.length + title.length + 1 } })
       # A predicative adjective takes no ending: "Er war schnelle." (schnell), "Die sind
       # schlauen."
       - regex: "{{WG}}(?:{{COPULA_FORMS}})(?:{{S}}(?:{{DEGREE_ADVERBS}}))*{{S}}(?<target>\\p{Ll}{3,}?(?:e|en))(?=[ \\t]*[.!?])"
@@ -1865,12 +1890,31 @@ rules:
     checks: [germanCommas]
     style: match
     message: review_msg_german_comma
+    defs:
+      COMMA_COPULAS: /^(?:ist|sind|war|waren|wäre|wären|sei|scheint|klingt|wird|wurde|bin|bist|seid)$/
+      COMMA_COORDINATORS: /^(?:und|oder|aber|sowie|bzw)$/
+      # A comma after text[start, end).
+      commaAfter:
+        args: "ctx: DetectContext, start: number, end: number, alternative: string"
+        type: RawFinding
+        return: >-
+          ({ ruleId: "germanCommas", messageKey: "review_msg_german_comma", range: { start, end },
+          alternatives: [alternative],
+          context: { start: Math.max(0, start - 40), end: Math.min(ctx.text.length, end + 40) } })
     frames:
       # A salutation alone on its line: "Sehr geehrte Frau Weber", "Liebe Anna!" take a comma.
       - regex: "(?<=(?:^|\\n)[ \\t]{0,8})(?:Sehr[ \\t]{1,4}geehrte[r]?|Liebe[r]?)[ \\t]{1,4}(?:Herr|Frau|Damen[ \\t]{1,4}und[ \\t]{1,4}Herren|Kolleginnen[ \\t]{1,4}und[ \\t]{1,4}Kollegen|\\p{Lu}\\p{Ll}+)(?:[ \\t]{1,4}(?:Dr\\.|Prof\\.|\\p{Lu}[\\p{Ll}-]+)){0,3}!?(?=[ \\t]*(?:\\n|$))"
         scan: owned
         flags: gu
-        fixer: salutationComma
+        let:
+          end: m.index + m[0].length
+          named: '/^Liebe[r]?[ \t]+(\p{L}+)/u.exec(m[0])?.[1]'
+          word: '/\p{L}+\.?!?$/u.exec(m[0])![0]'
+          start: end - word.length
+        when: >-
+          !(named && /^(?:Grüße|Gruß|Grüßen|Wünsche|Wünschen)$/.test(named))
+        return: >-
+          ({ ruleId: "germanCommas", messageKey: "review_msg_german_comma", range: { start, end }, alternatives: [`${word.replace(/!$/, "")},`], context: { start: m.index, end } })
       # Paired words ("teils lustig, teils traurig", "halb …, halb …", "einerseits …,
       # andererseits", "je …, desto", "So weit, so gut"): the word that takes the comma after
       # it. The gate first checks the paired word after it, so the long lookbehinds run only
@@ -1878,27 +1922,46 @@ rules:
       - regex: "{{WG}}(?:(?=\\p{L}+{{S}}(?:teils|halb|andererseits|desto|umso|so){{E}})(?:(?<=(?:[Tt]eils){{S}}(?:{{CLAUSE_CHAR}}{0,60}?{{S}})?)(?<word>\\p{L}+)(?={{S}}teils{{E}})|(?<=[Hh]alb{{S}})(?<w2>\\p{L}+)(?={{S}}halb{{S}}\\p{L})|(?<=(?:^|[.!?;:\\n]{{S}}?)[Ee]inerseits{{S}}{{CLAUSE_CHAR}}{0,80}?)(?<w3>\\p{L}+)(?={{S}}andererseits{{E}})|(?<=(?:^|[.!?\\n,]{{S}}?)[Jj]e{{S}}{{CLAUSE_CHAR}}{0,80}?)(?<w4>\\p{L}+)(?={{S}}(?:desto|umso){{E}})|(?<=[Ss]o{{S}})(?<w5>weit)(?={{S}}so{{S}}gut{{E}})))"
         flags: dgu
         owner: word|w2|w3|w4|w5
-        fixer: pairedWords
+        let:
+          name: '["word", "w2", "w3", "w4", "w5"].find((k) => m.groups![k] !== undefined)!'
+          typed: m.groups![name]
+        when: "!COMMA_COORDINATORS.test(typed)"
+        return: commaAfter(ctx, m.indices!.groups![name][0], m.indices!.groups![name][1], `${typed},`)
       # "Wo denkst du ist es?": a w-question's verb follows an inserted "denkst du".
       - regex: "{{WG}}(?:(?<=(?:^|[.!?\\n][ \\t]*)(?:Wo|Was|Wie|Wann|Warum|Wieso|Weshalb|Wer|Wen|Wem|Wohin|Woher|Welche\\p{Ll}*){{S}}(?:denkst|glaubst|meinst|denkt|glaubt|meint|dachtest|dachtet|dachten|glaubtest|glaubten|meintest|meinten|denken|glauben|meinen){{S}})(?<word>du|ihr|Sie)(?={{S}}(?:ist|sind|war|waren|soll|sollte|sollen|kann|könnte|wird|würde|hat|hätte|muss|müsste|sei|wäre|kommt|geht|passiert|liegt|steht|gibt){{E}}))"
         flags: dgu
         owner: word
-        fixer: commaAfterWord
+        return: commaAfter(ctx, m.indices!.groups!.word[0], m.indices!.groups!.word[1], `${word},`)
       # "Hallo wie geht es euch?": a greeting before a sentence takes a comma ("Hallo du" and
       # "Hallo ihr beiden" address someone).
       - regex: "{{WG}}(?:(?<=(?:^|\\n|[„\"]))(?<word>Hallo|Hi|Hey|Servus|Moin)(?={{S}}(?:wie|was|wo|wann|warum|ich|wir|da|habt|hast|kannst|könnt|seid|bist){{E}}))"
         flags: dgu
         owner: word
-        fixer: commaAfterWord
+        return: commaAfter(ctx, m.indices!.groups!.word[0], m.indices!.groups!.word[1], `${word},`)
       # "Du kommst morgen oder?", "Das stimmt nicht wahr?": the tag question after a statement.
       - regex: "{{WG}}(?:(?<word>\\p{L}+)(?={{S}}(?:oder(?:{{S}}etwa{{S}}nicht)?|nicht{{S}}wahr|gell|stimmt's|stimmts)[ \\t]*\\?))"
         flags: dgu
         owner: word
-        fixer: tagQuestion
+        let:
+          start: m.indices!.groups!.word[0]
+          clause: 'ctx.text.slice(Math.max(0, start - 200), start).split(/[.!?;:\n]/).at(-1)!'
+          first: '/\p{L}+/u.exec(clause)?.[0] ?? word'
+          low: first.toLowerCase()
+          verbFirst: germanAuxiliary(low) || /st$/.test(low) || germanVerbLike(low)
+        when:
+          - >-
+            !(COMMA_COPULAS.test(word) || COMMA_COORDINATORS.test(word) || /^(?:entweder|das|es)$/i.test(word))
+          - >-
+            /[ \t]/.test(clause.trim()) && !verbFirst && !/(?<!\p{L})entweder(?!\p{L})/iu.test(clause)
+        return: commaAfter(ctx, start, m.indices!.groups!.word[1], `${word},`)
       # "Das ist glaube ich egal": an inserted "glaube ich" after the finite verb.
       - regex: "{{WG}}(?:(?<=(?:ist|sind|war|waren|hat|haben|hatte|hatten|wird|werden|kann|können|muss|müssen|soll|sollte|wäre|würde)(?:{{S}}(?:aber|doch|ja|auch))?{{S}})(?<target>(?:glaube|denke|finde|meine|schätze|vermute){{S}}ich)(?={{S}}\\p{L}))"
         flags: dgu
-        fixer: insertedOpinion
+        let:
+          at: m.indices!.groups!.target[0]
+          start: 'at - /[ \t ]*$/.exec(ctx.text.slice(Math.max(0, at - 8), at))![0].length'
+        return: >-
+          commaAfter(ctx, start, m.indices!.groups!.target[1], `, ${target.replace(/[ \t ]+/g, " ")},`)
   - id: de.verbAgreement
     checks: [germanVerbAgreement]
     style: match
@@ -2158,82 +2221,245 @@ rules:
     checks: [germanRecommendedSpelling]
     style: match
     message: review_msg_german_recommended_spelling
+    sets:
+      # The adverb and participle pairs the Duden joins ("vielsagend").
+      JOINED_PAIRS:
+        [viel sagend, hoch begabt, schwer behindert, allein erziehend, hoch geschätzt, wohl erzogen, wohl temperiert]
+      # The joined pairs the Duden writes apart ("tief betrübt").
+      APART_PAIRS: [tiefbetrübt, tiefhängend, hochkompliziert, vielbeschäftigt, nichtrostend, freistehend, rotlackiert, neubekehrt]
+    defs:
+      # The Greek "ph" and its German "f", in each casing.
+      PH_SPELLINGS: >-
+        [[/phantas/g, "fantas"], [/Phantas/g, "Fantas"], [/PHANTAS/g, "FANTAS"], [/PHOTO/g, "FOTO"],
+        [/graph/g, "graf"], [/Graph/g, "Graf"], [/GRAPH/g, "GRAF"], [/phon/g, "fon"], [/elphin/g, "elfin"],
+        [/^Photo/, "Foto"], [/^photo/, "foto"], [/(?<=\p{L})photo/gu, "foto"]] as [RegExp, string][]
+      # The finding for the group `name` of m, unless it is already right or the writer's word.
+      recommendedFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, name: string, replacement: string"
+        type: RawFinding | null
+        let:
+          typed: m.groups![name]
+          span: m.indices!.groups![name]
+        when:
+          - replacement !== typed && !ctx.dictionary.has(typed.toLowerCase())
+          - "!namedExampleBefore(ctx.text, span[0])"
+        return: >-
+          ({ ruleId: "germanRecommendedSpelling", messageKey: "review_msg_german_recommended_spelling",
+          range: { start: span[0], end: span[1] }, alternatives: [replacement],
+          context: { start: Math.max(0, span[0] - 30), end: span[1] + 30 } })
     frames:
       # "Geographie", "Paragraph", "Photographin", "Mikrophon", "Phantasie", "Delphin": a Greek
       # ph German now writes f. "Graph" and "Graphen" (graphene) alone, "Phonetik",
       # "Philosophie" stay.
       - regex: "{{WG}}(?:(?<target>\\p{L}*?(?:[Gg]eo|[Bb]io|[Pp]ara|[Ff]oto|[Pp]hoto|[Oo]rtho|[Kk]rypto|[Cc]horeo|[Tt]ele|[Kk]alli|[Tt]opo|[Ee]thno|[Dd]emo|[Ss]teno|[Ll]itho|[Hh]olo|[Ss]eismo|[Kk]arto|[Tt]ypo)graph\\p{Ll}*|\\p{L}*?(?:[Mm]ikro|[Ss]axo|[Xx]ylo|[Mm]ega|[Gg]rammo|[Tt]ele)phon(?:e|en|s|es|ist|istin|istinnen|isten)?|\\p{Lu}*?(?:GEO|BIO|PARA|FOTO|PHOTO|ORTHO|KRYPTO|CHOREO|TELE|TOPO|TYPO)GRAPH\\p{Lu}*|(?:[Pp]hantas(?:ie|ien|tisch|tische[nmrs]?|ievoll|ievolle[nmrs]?|ielos|t|ten|tin)|PHANTASIE)|[Gg]raphi(?:k|ken|sch|sche|schen|scher|sches|schem|ker|kerin)|[Dd]elphin(?:e|en|s)?|[Pp]hoto(?:s|apparat|album|kopie)?)){{E}}"
         flags: dgu
-        fixer: phSpelling
+        when:
+          - >-
+            !/^(?:graph|graphen|graphs|graphe)$/i.test(target)
+          - >-
+            !/["„“”«»'‚‘]$|Deutsche[ \t]+$/.test(ctx.text.slice(Math.max(0, m.index - 10), m.index))
+        return: >-
+          recommendedFinding(ctx, m, "target", PH_SPELLINGS.reduce((word, [from, to]) => word.replace(from, to), target))
       # A preposition and a noun the Duden recommends joining, where the phrase is that adverb
       # ("auf Grund des Wetters", "an Hand der Daten"); stylePhrasing has "infrage",
       # "zugunsten" and the like.
       - regex: "{{WG}}(?:(?<target>[aA]uf{{S}}Grund)(?={{S}}(?:des|der|dessen|deren|von|eines|einer|seines|seiner|ihres|ihrer){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:des|der|dessen|deren|von|eines|einer|seines|seiner|ihres|ihrer){{E}})){{E}}"
         flags: dgu
-        fixer: joinedAdverb
+        return: >-
+          recommendedFinding(ctx, m, "target", deLikeTyped(target, target.replace(/[ \t ]/g, "").toLowerCase()))
       - regex: "{{WG}}(?:(?<target>[aA]n{{S}}Hand)(?={{S}}(?:des|der|von|eines|einer|dieser|dieses){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:des|der|von|eines|einer|dieser|dieses){{E}})){{E}}"
         flags: dgu
-        fixer: joinedAdverb
+        return: >-
+          recommendedFinding(ctx, m, "target", deLikeTyped(target, target.replace(/[ \t ]/g, "").toLowerCase()))
       - regex: "{{WG}}(?:(?<target>[zZ]u{{S}}Tage)(?={{S}}(?:treten|tritt|trat|traten|getreten|fördern|fördert|förderte|gefördert|bringen|gebracht){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:treten|tritt|trat|traten|getreten|fördern|fördert|förderte|gefördert|bringen|gebracht){{E}})){{E}}"
         flags: dgu
-        fixer: joinedAdverb
+        return: >-
+          recommendedFinding(ctx, m, "target", deLikeTyped(target, target.replace(/[ \t ]/g, "").toLowerCase()))
       - regex: "{{WG}}(?:(?<target>[zZ]u{{S}}Rande)(?={{S}}(?:kommen|kommt|kam|kamen|gekommen){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:kommen|kommt|kam|kamen|gekommen){{E}})){{E}}"
         flags: dgu
-        fixer: joinedAdverb
+        return: >-
+          recommendedFinding(ctx, m, "target", deLikeTyped(target, target.replace(/[ \t ]/g, "").toLowerCase()))
       - regex: "{{WG}}(?:(?<target>[iI]n{{S}}Stand)(?={{S}}(?:setzen|setzt|setzte|gesetzt|halten|hält|hielt|gehalten|zu{{S}}setzen){{E}}|[ \\t]*[.!?,;]|{{S}}(?:\\p{Ll}+{{S}}){0,3}(?:setzen|setzt|setzte|gesetzt|halten|hält|hielt|gehalten|zu{{S}}setzen){{E}})){{E}}"
         flags: dgu
-        fixer: joinedAdverb
+        return: >-
+          recommendedFinding(ctx, m, "target", deLikeTyped(target, target.replace(/[ \t ]/g, "").toLowerCase()))
       # The Duden spells "To-do", "To-dos" and "To-do-Liste": "ToDo", "Todos", "TODO", "Todo
       # Liste".
       - regex: "{{WG}}(?:(?<target>(?:ToDo|Todo|TODO|To-Do|To{{S}}Do)(?<plural>s)?(?:(?<list>-?Liste|{{S}}Liste|-?Lists?|liste)(?<lists>n)?)?)){{E}}"
         flags: dgu
-        fixer: todo
+        let:
+          many: "!!lists || !!list?.endsWith(\"s\") || (!list && !!plural)"
+        return: >-
+          recommendedFinding(ctx, m, "target", list ? `To-do-Liste${many ? "n" : ""}` : `To-do${many ? "s" : ""}`)
       # An adverb and a participle the Duden recommends joining: "ein viel sagender Blick"
       # (vielsagender), "hoch begabt", "schwer behindert", "allein erziehend".
       - regex: "{{WG}}(?:(?<target>(?<lead>[Vv]iel|[Hh]och|[Ss]chwer|[Aa]llein|[Ww]ohl){{S}}(?<rest>(?<stem>sagend|begabt|behindert|erziehend|geschätzt|erzogen|temperiert)(?:e|en|er|es|em)?))){{E}}"
         flags: dgu
-        fixer: together
+        when:
+          - >-
+            !(/^[Ww]ohl$/.test(lead) && rest === stem)
+          - >-
+            JOINED_PAIRS.has(`${lead.toLowerCase()} ${stem}`)
+        return: recommendedFinding(ctx, m, "target", lead + rest)
       # "recht haben", "recht geben" (the Duden prefers lowercase over "Recht haben"), and "bis
       # auf Weiteres", "ohne Weiteres" (it prefers the capital). "das Recht haben" is the noun.
       - regex: "{{WG}}(?:(?<!(?:{{RECHT_NOT_AFTER}}){{S}})(?<=\\p{Ll}{{S}})(?<target>Recht)(?={{S}}(?:{{RIGHT_VERBS}}){{E}})|(?<!(?:{{RECHT_NOT_AFTER}}){{S}})(?<=(?:{{RIGHT_VERBS}})(?:{{S}}\\p{Ll}+){0,3}{{S}})(?<t2>Recht)(?=[ \\t]*[.!?,;])|(?<=(?:bis{{S}}auf|[Oo]hne|[Dd]es){{S}})(?<t3>weiteres|weiteren)(?=[ \\t]*[.!?,;]|{{S}}\\p{Ll})){{E}}"
         flags: dgu
         owner: target|t2|t3
-        fixer: rechtWeiteres
+        return: >-
+          t3 ? recommendedFinding(ctx, m, "t3", `W${t3.slice(1)}`) : recommendedFinding(ctx, m, target ? "target" : "t2", "recht")
       # An adverb and a participle the Duden recommends writing apart: "tiefbetrübt" (tief
       # betrübt), "nichtrostend", "freistehend".
       - regex: "{{WG}}(?:(?<target>(?<lead>[Tt]ief|[Hh]och|[Vv]iel|[Nn]icht|[Ff]rei|[Rr]ot|[Nn]eu)(?<rest>(?:betrübt|hängend|kompliziert|beschäftigt|rostend|stehend|lackiert|bekehrt)(?:e|en|er|es|em)?))){{E}}"
         flags: dgu
-        fixer: apartPairs
+        when: >-
+          APART_PAIRS.has(lead.toLowerCase() + rest.replace(/(?:e|en|er|es|em)$/, ""))
+        return: recommendedFinding(ctx, m, "target", `${lead} ${rest}`)
       # "Wir sind zuhause", "bekanntgegeben", "verlorengegangen": written apart.
       - regex: "{{WG}}(?:(?<target>zuhause)|(?<t2>(?<lead>bekannt|verloren)(?<verb>gegeben|gab|gaben|geben|gibt|zugeben|gemacht|machte|machten|machen|macht|zumachen|gegangen|ging|gingen|gehen|geht|zugehen))){{E}}"
         flags: dgu
         owner: target|t2
-        fixer: apart
+        return: >-
+          target ? recommendedFinding(ctx, m, "target", "zu Hause") : recommendedFinding(ctx, m, "t2", `${lead} ${verb.replace(/^zu(?=\p{Ll}{3})/u, "zu ")}`)
   - id: de.redundancy
     checks: [stylePhrasing]
     style: match
     message: review_msg_style_phrasing
+    maps:
+      # Adjective stem: the nouns it repeats.
+      REDUNDANT_NOUNS:
+        rund: [Kugel, Kreis]
+        weiß: [Schimmel]
+        schwarz: [Rappe]
+        tot: [Leiche, Leichnam]
+        alt: [Greis, Greisin]
+        ander: [Alternative]
+        selten: [Rarität]
+        falsch: [Trugschluss, Irrtum]
+        zeitlich: [Verzögerung, Verspätung, Dauer]
+        semantisch: [Bedeutung]
+        viereckig: [Quadrat]
+        jüdisch: [Synagoge]
+        islamisch: [Moschee]
+        katholisch: [Papst]
+        akustisch: [Klang]
+        einvernehmlich: [Konsens]
+        wahr: [Tatsache, Fakt]
+        problematisch: [Problem]
+        künstlich: [Artefakt]
+        üblich: [Gepflogenheit]
+        überflüssig: [Ballast]
+        schriftlich: [Klausur]
+        neu: [Neuheit, Innovation, Novität]
+        groß: [Riese]
+        klein: [Zwerg]
+        leer: [Vakuum]
+        letzt: [Ultimatum]
+        gemeinsam: [Kooperation, Zusammenarbeit]
+        ehemalig: [Exfreund, Exfreundin, Expartner, Expartnerin]
+      # First part: the heads it repeats ("Glas" in "Glasvitrine").
+      REDUNDANT_HEADS:
+        Trommel: [revolver]
+        Glas: [vitrine]
+        Fuß: [pedal]
+        Baum: [allee]
+        Außen: [fassade]
+        Eier: [omelett, omelette]
+        Papp: [karton]
+        Internet: [blog]
+        Alt: [veteran]
+        Billig: [discounter]
+        Haar: [frisur]
+        Gesichts: [mimik]
+        Vogel: [voliere]
+        Holz: [xylophon, xylofon]
+        Zeit: [verzögerung]
+        Haupt: [protagonist, protagonistin]
+        Einzel: [individuum]
+        Lebens: [biografie, biographie]
+        Rück: [erinnerung]
+    defs:
+      # The advice to drop the repeated part: `fix` replaces text[start, end).
+      redundancyAdvice:
+        args: "ctx: DetectContext, start: number, end: number, fix: string"
+        type: RawFinding | null
+        let:
+          typed: ctx.text.slice(start, end)
+        when: "!ctx.dictionary.has(typed.toLowerCase()) && !namedExampleBefore(ctx.text, start)"
+        return: >-
+          ({ ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing", range: { start, end },
+          alternatives: [fix], context: { start, end } })
     frames:
       # An adjective that the noun already says ("eine runde Kugel", "die toten Leichen", "eine
       # weibliche Ärztin": a feminine person noun says it already).
       - regex: "{{WG}}(?<adj>(?<stem>{{REDUNDANT_STEMS}})(?:e|en|er|es|em)?){{S}}(?<noun>\\p{Lu}\\p{Ll}+){{E}}"
         flags: dgu
         owner: adj
-        fixer: redundantAdjective
+        when: >-
+          stem.toLowerCase() === "weiblich" ? [/^(\p{Lu}\p{Ll}+?)in(?:nen)?$/u.exec(noun)?.[1]?.toLowerCase()].some((base) => !!base && [base, deumlaut(base)].some((b) => germanNounReading(b) !== null)) : REDUNDANT_NOUNS[stem.toLowerCase()].some((n) => new RegExp(`^${n}(?:e|en|n|s|es|er|ern|nen)?$`, "u").test(noun))
+        return: redundancyAdvice(ctx, m.indices!.groups!.adj[0], m.indices!.groups!.noun[1], noun)
       # A compound whose first part the second already says ("Glasvitrine", "Fußpedal").
       - regex: "{{WG}}(?<prefix>Trommel|Glas|Fuß|Baum|Außen|Eier|Papp|Internet|Alt|Billig|Haar|Gesichts|Vogel|Holz|Zeit|Haupt|Einzel|Lebens|Rück)(?<head>revolver|vitrine|pedal|allee|fassade|omelett|omelette|karton|blog|veteran|discounter|frisur|mimik|voliere|xylophon|xylofon|verzögerung|protagonist|protagonistin|individuum|biografie|biographie|erinnerung)(?<ending>{{NOUN_ENDING}}){{E}}"
         flags: dgu
         owner: prefix
-        fixer: redundantCompound
+        when: REDUNDANT_HEADS[prefix].includes(head)
+        return: >-
+          redundancyAdvice(ctx, m.index, m.index + m[0].length, head[0].toUpperCase() + head.slice(1) + ending)
   - id: de.anglicisms
     checks: [germanCompounds]
     style: match
     message: review_msg_closed_compound
+    maps:
+      # An English noun of a verb and a particle (Duden): "Check-in", "Make-up", "Burn-out".
+      PHRASAL_PAIRS:
+        check: [in, out]
+        make: [up]
+        stand: [up]
+        burn: [out]
+        pop: [up]
+        add: ["on"]
+        plug: [in]
+        log: [in, out]
+        drive: [in]
+        buy: [out, in]
+        kick: ["off"]
+        follow: [up]
+        push: [up]
+        coming: [out]
+        roll: [out]
+        set: [up]
+        sit: [in]
+        warm: [up]
+        cool: [down]
+        start: [up]
+        take: ["off"]
+        pick: [up]
+        walk: [in]
+        knock: [out]
+        teach: [in]
+        break: [even]
+        must: [have]
+    sets:
+      # Written as one word, these are wrong too; "Plugin", "Popup", "Setup" and "Startup" are in use.
+      PHRASAL_JOINED_WRONG:
+        [checkin, checkout, makeup, standup, drivein, pushup, comingout, followup, kickoff, breakeven, musthave]
     frames:
       # A capital first part (a German noun), then the particle: apart, with a hyphen, or joined.
       - regex: "{{WG}}(?<target>(?<verb>[C]heck|[M]ake|[S]tand|[B]urn|[P]op|[A]dd|[P]lug|[L]og|[D]rive|[B]uy|[K]ick|[F]ollow|[P]ush|[C]oming|[R]oll|[S]et|[S]it|[W]arm|[C]ool|[S]tart|[T]ake|[P]ick|[W]alk|[K]nock|[T]each|[B]reak|[M]ust)(?<sep>[ \\t]+|-)?(?<particle>[iI]n|[oO]ut|[uU]p|[oO]n|[oO]ff|[dD]own|[eE]ven|[hH]ave)(?<plural>s)?)(?![\\p{L}\\p{N}-])(?![ \\t]+\\p{Lu})"
         flags: dgu
-        fixer: phrasalNoun
+        let:
+          low: verb.toLowerCase()
+          span: m.indices!.groups!.target
+        when:
+          - PHRASAL_PAIRS[low].includes(particle.toLowerCase())
+          - '!(sep === "-" && particle === particle.toLowerCase())'
+          - '!(!sep && !PHRASAL_JOINED_WRONG.has(low + particle.toLowerCase()))'
+          - >-
+            !(particle === "in" && sep !== "-" && /^(?:der|die|das|den|dem|des|(?:k?ein|mein|dein|sein|ihr|unser|eu[e]?r|dies|jen|jed|welch)\p{L}*|\p{N}.*)$/iu.test(deTokensAfter(ctx.text, span[1], 1)[0] ?? ""))
+          - "!ctx.dictionary.has(target.toLowerCase()) && !deEnglishLine(ctx.text, span[0])"
+          - "!namedExampleBefore(ctx.text, span[0])"
+        return: >-
+          ({ ruleId: "germanCompounds", messageKey: "review_msg_closed_compound", range: { start: span[0], end: span[1] }, alternatives: [`${verb}-${particle.toLowerCase()}${plural ?? ""}`], context: { start: span[0], end: span[1] } })
   - id: de.joinedVerbs
     checks: [germanJoinedVerbs]
     style: match

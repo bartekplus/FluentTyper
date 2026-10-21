@@ -10,12 +10,9 @@ import * as idiomFrames from "./idiomFrames";
 import * as lookalikes from "./lookalikes";
 import * as abbreviations from "./abbreviations";
 import * as adjectiveForms from "./adjectiveForms";
-import * as anglicisms from "./anglicisms";
 import * as articleGender from "./articleGender";
 import * as colloquial from "./colloquial";
 import * as commas from "./commas";
-import * as commaFrames from "./commaFrames";
-import * as salutations from "./salutations";
 import * as compounds from "./compounds";
 import * as confusions from "./confusions";
 import * as dates from "./dates";
@@ -28,8 +25,6 @@ import * as numbers from "./numbers";
 import * as prepositionCase from "./prepositionCase";
 import * as questions from "./questions";
 import * as quotes from "./quotes";
-import * as recommended from "./recommended";
-import * as redundancy from "./redundancy";
 import * as suspendedHyphen from "./suspendedHyphen";
 import * as verbAgreement from "./verbAgreement";
 
@@ -41,9 +36,6 @@ export const FIXERS = mergePredicates<Fixer>(
   lookalikes.FIXERS,
   idiomFrames.FIXERS,
   abbreviations.FIXERS,
-  anglicisms.FIXERS,
-  recommended.FIXERS,
-  redundancy.FIXERS,
   suspendedHyphen.FIXERS,
   questions.FIXERS,
   quotes.FIXERS,
@@ -54,8 +46,6 @@ export const FIXERS = mergePredicates<Fixer>(
   joinedVerbs.FIXERS,
   adjectiveForms.FIXERS,
   commas.FIXERS,
-  commaFrames.FIXERS,
-  salutations.FIXERS,
   prepositionCase.FIXERS,
   verbAgreement.FIXERS,
   articleGender.FIXERS,

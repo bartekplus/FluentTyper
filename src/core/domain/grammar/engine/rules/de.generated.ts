@@ -5,12 +5,139 @@ import type { LiveCode } from "../liveRules";
 import type { DetectContext, FrameRef, MatchResult, RawFinding } from "../../library";
 import {
   capitalize,
+  deEnglishLine,
+  deLikeTyped,
+  deTokensAfter,
+  deTokensBefore,
+  deumlaut,
   germanAdjective,
+  germanAuxiliary,
   germanGender,
   germanInfinitive,
+  germanNounReading,
+  germanVerbLike,
   namedExampleBefore,
   remember,
 } from "../../library";
+
+export const JOINED_PAIRS: ReadonlySet<string> = new Set([
+  "viel sagend",
+  "hoch begabt",
+  "schwer behindert",
+  "allein erziehend",
+  "hoch geschätzt",
+  "wohl erzogen",
+  "wohl temperiert",
+]);
+
+export const APART_PAIRS: ReadonlySet<string> = new Set([
+  "tiefbetrübt",
+  "tiefhängend",
+  "hochkompliziert",
+  "vielbeschäftigt",
+  "nichtrostend",
+  "freistehend",
+  "rotlackiert",
+  "neubekehrt",
+]);
+
+export const PHRASAL_JOINED_WRONG: ReadonlySet<string> = new Set([
+  "checkin",
+  "checkout",
+  "makeup",
+  "standup",
+  "drivein",
+  "pushup",
+  "comingout",
+  "followup",
+  "kickoff",
+  "breakeven",
+  "musthave",
+]);
+
+export const REDUNDANT_NOUNS: Readonly<Record<string, readonly string[]>> = {
+  rund: ["Kugel", "Kreis"],
+  weiß: ["Schimmel"],
+  schwarz: ["Rappe"],
+  tot: ["Leiche", "Leichnam"],
+  alt: ["Greis", "Greisin"],
+  ander: ["Alternative"],
+  selten: ["Rarität"],
+  falsch: ["Trugschluss", "Irrtum"],
+  zeitlich: ["Verzögerung", "Verspätung", "Dauer"],
+  semantisch: ["Bedeutung"],
+  viereckig: ["Quadrat"],
+  jüdisch: ["Synagoge"],
+  islamisch: ["Moschee"],
+  katholisch: ["Papst"],
+  akustisch: ["Klang"],
+  einvernehmlich: ["Konsens"],
+  wahr: ["Tatsache", "Fakt"],
+  problematisch: ["Problem"],
+  künstlich: ["Artefakt"],
+  üblich: ["Gepflogenheit"],
+  überflüssig: ["Ballast"],
+  schriftlich: ["Klausur"],
+  neu: ["Neuheit", "Innovation", "Novität"],
+  groß: ["Riese"],
+  klein: ["Zwerg"],
+  leer: ["Vakuum"],
+  letzt: ["Ultimatum"],
+  gemeinsam: ["Kooperation", "Zusammenarbeit"],
+  ehemalig: ["Exfreund", "Exfreundin", "Expartner", "Expartnerin"],
+};
+
+export const REDUNDANT_HEADS: Readonly<Record<string, readonly string[]>> = {
+  Trommel: ["revolver"],
+  Glas: ["vitrine"],
+  Fuß: ["pedal"],
+  Baum: ["allee"],
+  Außen: ["fassade"],
+  Eier: ["omelett", "omelette"],
+  Papp: ["karton"],
+  Internet: ["blog"],
+  Alt: ["veteran"],
+  Billig: ["discounter"],
+  Haar: ["frisur"],
+  Gesichts: ["mimik"],
+  Vogel: ["voliere"],
+  Holz: ["xylophon", "xylofon"],
+  Zeit: ["verzögerung"],
+  Haupt: ["protagonist", "protagonistin"],
+  Einzel: ["individuum"],
+  Lebens: ["biografie", "biographie"],
+  Rück: ["erinnerung"],
+};
+
+export const PHRASAL_PAIRS: Readonly<Record<string, readonly string[]>> = {
+  check: ["in", "out"],
+  make: ["up"],
+  stand: ["up"],
+  burn: ["out"],
+  pop: ["up"],
+  add: ["on"],
+  plug: ["in"],
+  log: ["in", "out"],
+  drive: ["in"],
+  buy: ["out", "in"],
+  kick: ["off"],
+  follow: ["up"],
+  push: ["up"],
+  coming: ["out"],
+  roll: ["out"],
+  set: ["up"],
+  sit: ["in"],
+  warm: ["up"],
+  cool: ["down"],
+  start: ["up"],
+  take: ["off"],
+  pick: ["up"],
+  walk: ["in"],
+  knock: ["out"],
+  teach: ["in"],
+  break: ["even"],
+  must: ["have"],
+};
 
 // de.yaml def IDIOM_FINDINGS
 export const IDIOM_FINDINGS = new WeakSet<RawFinding>();
@@ -115,6 +242,89 @@ export function ordinalAsNoun(m: RegExpExecArray, ctx: DetectContext) {
     .split(/[.!?\n]/)
     .at(-1)!;
   return !/[ \t]\p{Lu}/u.test(sentence);
+}
+
+// de.yaml def politeOpens
+export function politeOpens(token: string | undefined) {
+  return token === undefined || /^(?:[.!?:,;„“"»«]|\n)$/.test(token);
+}
+
+// de.yaml rule de.commaFrames def COMMA_COPULAS
+export const COMMA_COPULAS =
+  /^(?:ist|sind|war|waren|wäre|wären|sei|scheint|klingt|wird|wurde|bin|bist|seid)$/;
+
+// de.yaml rule de.commaFrames def COMMA_COORDINATORS
+export const COMMA_COORDINATORS = /^(?:und|oder|aber|sowie|bzw)$/;
+
+// de.yaml rule de.commaFrames def commaAfter
+export function commaAfter(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  alternative: string,
+): RawFinding {
+  return {
+    ruleId: "germanCommas",
+    messageKey: "review_msg_german_comma",
+    range: { start, end },
+    alternatives: [alternative],
+    context: { start: Math.max(0, start - 40), end: Math.min(ctx.text.length, end + 40) },
+  };
+}
+
+// de.yaml rule de.recommended def PH_SPELLINGS
+export const PH_SPELLINGS = [
+  [/phantas/g, "fantas"],
+  [/Phantas/g, "Fantas"],
+  [/PHANTAS/g, "FANTAS"],
+  [/PHOTO/g, "FOTO"],
+  [/graph/g, "graf"],
+  [/Graph/g, "Graf"],
+  [/GRAPH/g, "GRAF"],
+  [/phon/g, "fon"],
+  [/elphin/g, "elfin"],
+  [/^Photo/, "Foto"],
+  [/^photo/, "foto"],
+  [/(?<=\p{L})photo/gu, "foto"],
+] as [RegExp, string][];
+
+// de.yaml rule de.recommended def recommendedFinding
+export function recommendedFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  name: string,
+  replacement: string,
+): RawFinding | null {
+  const typed = m.groups![name];
+  if (!(replacement !== typed && !ctx.dictionary.has(typed.toLowerCase()))) return null;
+  const span = m.indices!.groups![name];
+  if (namedExampleBefore(ctx.text, span[0])) return null;
+  return {
+    ruleId: "germanRecommendedSpelling",
+    messageKey: "review_msg_german_recommended_spelling",
+    range: { start: span[0], end: span[1] },
+    alternatives: [replacement],
+    context: { start: Math.max(0, span[0] - 30), end: span[1] + 30 },
+  };
+}
+
+// de.yaml rule de.redundancy def redundancyAdvice
+export function redundancyAdvice(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  fix: string,
+): RawFinding | null {
+  const typed = ctx.text.slice(start, end);
+  if (!(!ctx.dictionary.has(typed.toLowerCase()) && !namedExampleBefore(ctx.text, start)))
+    return null;
+  return {
+    ruleId: "stylePhrasing",
+    messageKey: "review_msg_style_phrasing",
+    range: { start, end },
+    alternatives: [fix],
+    context: { start, end },
+  };
 }
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
@@ -594,6 +804,297 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@de.nounCasing/81": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     if (!idiomOpen(m, ctx)) return null;
     return idiomFinding(m, ctx, frame, capitalize(m.groups!.target));
+  },
+  // de.yaml rule de.nounCasing frame 87
+  "@de.nounCasing/87": (m: RegExpExecArray): MatchResult => {
+    return {
+      ruleId: "germanNounCasing",
+      messageKey: "review_msg_german_idiom_case",
+      range: { start: m.index, end: m.index + 1 },
+      alternatives: ["l"],
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // de.yaml rule de.nounCasing frame 88
+  "@de.nounCasing/88": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    if (!germanInfinitive(verb.toLowerCase())) return null;
+    const start = m.index + m[0].length - 3;
+    const rest = /^[^.!?\n]*([.!?\n]?)/.exec(ctx.text.slice(start))!;
+    const end = rest[1];
+    const please =
+      end !== "?" &&
+      /(?<!\p{L})bitte(?!\p{L})/iu.test(ctx.text.slice(Math.max(0, m.index - 8), start) + rest[0]);
+    if (!(end === "!" || please)) return null;
+    const before = deTokensBefore(ctx.text, m.index, 2);
+    const prior = before.at(-1) ?? "";
+    if (!(
+      politeOpens(before.at(-1)) ||
+      (/^(?:bitte|so|und|oder|aber|dann|jetzt|nun|doch|also)$/i.test(prior) &&
+        politeOpens(before.at(-2)))
+    ))
+      return null;
+    return {
+      ruleId: "germanNounCasing",
+      messageKey: "review_msg_german_polite_sie",
+      range: { start, end: start + 1 },
+      alternatives: ["S"],
+      context: { start: m.index, end: start + 3 },
+    };
+  },
+  // de.yaml rule de.adjectiveForms frame 4
+  "@de.adjectiveForms/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const adj = m.groups!.adj;
+    const title = m.groups!.title;
+    const wanted = adj.replace(/(?:e|en|er|es)$/, "") + (title === "Herr" ? "er" : "e");
+    if (!(wanted !== adj)) return null;
+    const line = /^[^\n,!:.?]*/.exec(ctx.text.slice(m.index, m.index + 120))![0];
+    if (/(?<!\p{L})(?:als|wie)(?!\p{L})/u.test(line)) return null;
+    return {
+      ruleId: "germanAdjectiveForms",
+      messageKey: "review_msg_german_adjective_ending",
+      range: { start: m.index, end: m.index + adj.length },
+      alternatives: [wanted],
+      context: { start: m.index, end: m.index + adj.length + title.length + 1 },
+    };
+  },
+  // de.yaml rule de.commaFrames frame 1
+  "@de.commaFrames/1": (m: RegExpExecArray): MatchResult => {
+    const end = m.index + m[0].length;
+    const named = /^Liebe[r]?[ \t]+(\p{L}+)/u.exec(m[0])?.[1];
+    if (named && /^(?:Grüße|Gruß|Grüßen|Wünsche|Wünschen)$/.test(named)) return null;
+    const word = /\p{L}+\.?!?$/u.exec(m[0])![0];
+    const start = end - word.length;
+    return {
+      ruleId: "germanCommas",
+      messageKey: "review_msg_german_comma",
+      range: { start, end },
+      alternatives: [`${word.replace(/!$/, "")},`],
+      context: { start: m.index, end },
+    };
+  },
+  // de.yaml rule de.commaFrames frame 2
+  "@de.commaFrames/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const name = ["word", "w2", "w3", "w4", "w5"].find((k) => m.groups![k] !== undefined)!;
+    const typed = m.groups![name];
+    if (COMMA_COORDINATORS.test(typed)) return null;
+    return commaAfter(ctx, m.indices!.groups![name][0], m.indices!.groups![name][1], `${typed},`);
+  },
+  // de.yaml rule de.commaFrames frame 3
+  "@de.commaFrames/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = m.groups!.word;
+    return commaAfter(ctx, m.indices!.groups!.word[0], m.indices!.groups!.word[1], `${word},`);
+  },
+  // de.yaml rule de.commaFrames frame 4
+  "@de.commaFrames/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = m.groups!.word;
+    return commaAfter(ctx, m.indices!.groups!.word[0], m.indices!.groups!.word[1], `${word},`);
+  },
+  // de.yaml rule de.commaFrames frame 5
+  "@de.commaFrames/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = m.groups!.word;
+    if (
+      COMMA_COPULAS.test(word) ||
+      COMMA_COORDINATORS.test(word) ||
+      /^(?:entweder|das|es)$/i.test(word)
+    )
+      return null;
+    const start = m.indices!.groups!.word[0];
+    const clause = ctx.text
+      .slice(Math.max(0, start - 200), start)
+      .split(/[.!?;:\n]/)
+      .at(-1)!;
+    const first = /\p{L}+/u.exec(clause)?.[0] ?? word;
+    const low = first.toLowerCase();
+    const verbFirst = germanAuxiliary(low) || /st$/.test(low) || germanVerbLike(low);
+    if (!(
+      /[ \t]/.test(clause.trim()) &&
+      !verbFirst &&
+      !/(?<!\p{L})entweder(?!\p{L})/iu.test(clause)
+    ))
+      return null;
+    return commaAfter(ctx, start, m.indices!.groups!.word[1], `${word},`);
+  },
+  // de.yaml rule de.commaFrames frame 6
+  "@de.commaFrames/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const at = m.indices!.groups!.target[0];
+    const start = at - /[ \t ]*$/.exec(ctx.text.slice(Math.max(0, at - 8), at))![0].length;
+    return commaAfter(
+      ctx,
+      start,
+      m.indices!.groups!.target[1],
+      `, ${target.replace(/[ \t ]+/g, " ")},`,
+    );
+  },
+  // de.yaml rule de.recommended frame 1
+  "@de.recommended/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (/^(?:graph|graphen|graphs|graphe)$/i.test(target)) return null;
+    if (/["„“”«»'‚‘]$|Deutsche[ \t]+$/.test(ctx.text.slice(Math.max(0, m.index - 10), m.index)))
+      return null;
+    return recommendedFinding(
+      ctx,
+      m,
+      "target",
+      PH_SPELLINGS.reduce((word, [from, to]) => word.replace(from, to), target),
+    );
+  },
+  // de.yaml rule de.recommended frame 2
+  "@de.recommended/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    return recommendedFinding(
+      ctx,
+      m,
+      "target",
+      deLikeTyped(target, target.replace(/[ \t ]/g, "").toLowerCase()),
+    );
+  },
+  // de.yaml rule de.recommended frame 3
+  "@de.recommended/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    return recommendedFinding(
+      ctx,
+      m,
+      "target",
+      deLikeTyped(target, target.replace(/[ \t ]/g, "").toLowerCase()),
+    );
+  },
+  // de.yaml rule de.recommended frame 4
+  "@de.recommended/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    return recommendedFinding(
+      ctx,
+      m,
+      "target",
+      deLikeTyped(target, target.replace(/[ \t ]/g, "").toLowerCase()),
+    );
+  },
+  // de.yaml rule de.recommended frame 5
+  "@de.recommended/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    return recommendedFinding(
+      ctx,
+      m,
+      "target",
+      deLikeTyped(target, target.replace(/[ \t ]/g, "").toLowerCase()),
+    );
+  },
+  // de.yaml rule de.recommended frame 6
+  "@de.recommended/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    return recommendedFinding(
+      ctx,
+      m,
+      "target",
+      deLikeTyped(target, target.replace(/[ \t ]/g, "").toLowerCase()),
+    );
+  },
+  // de.yaml rule de.recommended frame 7
+  "@de.recommended/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const plural = m.groups!.plural;
+    const list = m.groups!.list;
+    const lists = m.groups!.lists;
+    const many = !!lists || !!list?.endsWith("s") || (!list && !!plural);
+    return recommendedFinding(
+      ctx,
+      m,
+      "target",
+      list ? `To-do-Liste${many ? "n" : ""}` : `To-do${many ? "s" : ""}`,
+    );
+  },
+  // de.yaml rule de.recommended frame 8
+  "@de.recommended/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const lead = m.groups!.lead;
+    const rest = m.groups!.rest;
+    const stem = m.groups!.stem;
+    if (/^[Ww]ohl$/.test(lead) && rest === stem) return null;
+    if (!JOINED_PAIRS.has(`${lead.toLowerCase()} ${stem}`)) return null;
+    return recommendedFinding(ctx, m, "target", lead + rest);
+  },
+  // de.yaml rule de.recommended frame 9
+  "@de.recommended/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const t3 = m.groups!.t3;
+    return t3
+      ? recommendedFinding(ctx, m, "t3", `W${t3.slice(1)}`)
+      : recommendedFinding(ctx, m, target ? "target" : "t2", "recht");
+  },
+  // de.yaml rule de.recommended frame 10
+  "@de.recommended/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const lead = m.groups!.lead;
+    const rest = m.groups!.rest;
+    if (!APART_PAIRS.has(lead.toLowerCase() + rest.replace(/(?:e|en|er|es|em)$/, ""))) return null;
+    return recommendedFinding(ctx, m, "target", `${lead} ${rest}`);
+  },
+  // de.yaml rule de.recommended frame 11
+  "@de.recommended/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const lead = m.groups!.lead;
+    const verb = m.groups!.verb;
+    return target
+      ? recommendedFinding(ctx, m, "target", "zu Hause")
+      : recommendedFinding(ctx, m, "t2", `${lead} ${verb.replace(/^zu(?=\p{Ll}{3})/u, "zu ")}`);
+  },
+  // de.yaml rule de.redundancy frame 1
+  "@de.redundancy/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const stem = m.groups!.stem;
+    const noun = m.groups!.noun;
+    if (
+      !(stem.toLowerCase() === "weiblich"
+        ? [/^(\p{Lu}\p{Ll}+?)in(?:nen)?$/u.exec(noun)?.[1]?.toLowerCase()].some(
+            (base) => !!base && [base, deumlaut(base)].some((b) => germanNounReading(b) !== null),
+          )
+        : REDUNDANT_NOUNS[stem.toLowerCase()].some((n) =>
+            new RegExp(`^${n}(?:e|en|n|s|es|er|ern|nen)?$`, "u").test(noun),
+          ))
+    )
+      return null;
+    return redundancyAdvice(ctx, m.indices!.groups!.adj[0], m.indices!.groups!.noun[1], noun);
+  },
+  // de.yaml rule de.redundancy frame 2
+  "@de.redundancy/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prefix = m.groups!.prefix;
+    const head = m.groups!.head;
+    const ending = m.groups!.ending;
+    if (!REDUNDANT_HEADS[prefix].includes(head)) return null;
+    return redundancyAdvice(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      head[0].toUpperCase() + head.slice(1) + ending,
+    );
+  },
+  // de.yaml rule de.anglicisms frame 1
+  "@de.anglicisms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const verb = m.groups!.verb;
+    const sep = m.groups!.sep;
+    const particle = m.groups!.particle;
+    const plural = m.groups!.plural;
+    const low = verb.toLowerCase();
+    if (!PHRASAL_PAIRS[low].includes(particle.toLowerCase())) return null;
+    if (sep === "-" && particle === particle.toLowerCase()) return null;
+    if (!sep && !PHRASAL_JOINED_WRONG.has(low + particle.toLowerCase())) return null;
+    const span = m.indices!.groups!.target;
+    if (
+      particle === "in" &&
+      sep !== "-" &&
+      /^(?:der|die|das|den|dem|des|(?:k?ein|mein|dein|sein|ihr|unser|eu[e]?r|dies|jen|jed|welch)\p{L}*|\p{N}.*)$/iu.test(
+        deTokensAfter(ctx.text, span[1], 1)[0] ?? "",
+      )
+    )
+      return null;
+    if (!(!ctx.dictionary.has(target.toLowerCase()) && !deEnglishLine(ctx.text, span[0])))
+      return null;
+    if (namedExampleBefore(ctx.text, span[0])) return null;
+    return {
+      ruleId: "germanCompounds",
+      messageKey: "review_msg_closed_compound",
+      range: { start: span[0], end: span[1] },
+      alternatives: [`${verb}-${particle.toLowerCase()}${plural ?? ""}`],
+      context: { start: span[0], end: span[1] },
+    };
   },
 };
 

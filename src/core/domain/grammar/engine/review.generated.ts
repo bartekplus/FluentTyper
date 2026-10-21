@@ -24354,7 +24354,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|\\n)[ \\t]{0,8}(?:Hallo|Hi|Hey|Moin|Servus|Guten[ \\t]{1,4}(?:Morgen|Tag|Abend))[ \\t]{1,4})(?<adj>Lieb(?:e|er|es))(?=[ \\t]+\\p{Lu})",
     literals: ["lieb"],
-    fixer: "de:salutationCase",
+    fixer: "de:@de.nounCasing/87",
     flags: "gu",
     scan: "owned",
   }),
@@ -24362,7 +24362,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_-])(?<verb>\\p{L}+en)[ \\t]+(?<sie>sie)(?![\\p{L}\\p{M}\\p{N}_-])",
     literals: ["sie"],
-    fixer: "de:politeImperative",
+    fixer: "de:@de.nounCasing/88",
     flags: "gu",
     scan: "owned",
   }),
@@ -25828,7 +25828,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|\\n)[ \\t]{0,8}(?:(?:Hallo|Hi|Hey|Moin|Servus|Guten[ \\t]{1,4}(?:Morgen|Tag|Abend))[ \\t]{1,4}|Sehr[ \\t]{1,4})?)(?<adj>[Ll]ieb(?:e|en|er|es)?|geehrt(?:e|en|er|es)?)(?=[ \\t]+(?<title>Herr|Frau|Damen)(?![\\p{L}\\p{M}]))",
     literals: ["lieb", "geehrt"],
-    fixer: "de:salutationEnding",
+    fixer: "de:@de.adjectiveForms/4",
     flags: "gu",
     scan: "owned",
   }),
@@ -26073,7 +26073,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|\\n)[ \\t]{0,8})(?:Sehr[ \\t]{1,4}geehrte[r]?|Liebe[r]?)[ \\t]{1,4}(?:Herr|Frau|Damen[ \\t]{1,4}und[ \\t]{1,4}Herren|Kolleginnen[ \\t]{1,4}und[ \\t]{1,4}Kollegen|\\p{Lu}\\p{Ll}+)(?:[ \\t]{1,4}(?:Dr\\.|Prof\\.|\\p{Lu}[\\p{Ll}-]+)){0,3}!?(?=[ \\t]*(?:\\n|$))",
     literals: ["geehrte", "liebe"],
-    fixer: "de:salutationComma",
+    fixer: "de:@de.commaFrames/1",
     flags: "gu",
     scan: "owned",
   }),
@@ -26081,7 +26081,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{L}+[ \\t\\u00a0]{1,8}(?:teils|halb|andererseits|desto|umso|so)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?:(?<=(?:[Tt]eils)[ \\t\\u00a0]{1,8}(?:[^.!?;:,\\n]{0,60}?[ \\t\\u00a0]{1,8})?)(?<word>\\p{L}+)(?=[ \\t\\u00a0]{1,8}teils(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=[Hh]alb[ \\t\\u00a0]{1,8})(?<w2>\\p{L}+)(?=[ \\t\\u00a0]{1,8}halb[ \\t\\u00a0]{1,8}\\p{L})|(?<=(?:^|[.!?;:\\n][ \\t\\u00a0]{1,8}?)[Ee]inerseits[ \\t\\u00a0]{1,8}[^.!?;:,\\n]{0,80}?)(?<w3>\\p{L}+)(?=[ \\t\\u00a0]{1,8}andererseits(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:^|[.!?\\n,][ \\t\\u00a0]{1,8}?)[Jj]e[ \\t\\u00a0]{1,8}[^.!?;:,\\n]{0,80}?)(?<w4>\\p{L}+)(?=[ \\t\\u00a0]{1,8}(?:desto|umso)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=[Ss]o[ \\t\\u00a0]{1,8})(?<w5>weit)(?=[ \\t\\u00a0]{1,8}so[ \\t\\u00a0]{1,8}gut(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))))",
     literals: [],
-    fixer: "de:pairedWords",
+    fixer: "de:@de.commaFrames/2",
     flags: "dgu",
     owner: "word|w2|w3|w4|w5",
   }),
@@ -26089,7 +26089,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?\\n][ \\t]*)(?:Wo|Was|Wie|Wann|Warum|Wieso|Weshalb|Wer|Wen|Wem|Wohin|Woher|Welche\\p{Ll}*)[ \\t\\u00a0]{1,8}(?:denkst|glaubst|meinst|denkt|glaubt|meint|dachtest|dachtet|dachten|glaubtest|glaubten|meintest|meinten|denken|glauben|meinen)[ \\t\\u00a0]{1,8})(?<word>du|ihr|Sie)(?=[ \\t\\u00a0]{1,8}(?:ist|sind|war|waren|soll|sollte|sollen|kann|könnte|wird|würde|hat|hätte|muss|müsste|sei|wäre|kommt|geht|passiert|liegt|steht|gibt)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: [],
-    fixer: "de:commaAfterWord",
+    fixer: "de:@de.commaFrames/3",
     flags: "dgu",
     owner: "word",
   }),
@@ -26097,7 +26097,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|\\n|[„\"]))(?<word>Hallo|Hi|Hey|Servus|Moin)(?=[ \\t\\u00a0]{1,8}(?:wie|was|wo|wann|warum|ich|wir|da|habt|hast|kannst|könnt|seid|bist)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: [],
-    fixer: "de:commaAfterWord",
+    fixer: "de:@de.commaFrames/4",
     flags: "dgu",
     owner: "word",
   }),
@@ -26105,7 +26105,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<word>\\p{L}+)(?=[ \\t\\u00a0]{1,8}(?:oder(?:[ \\t\\u00a0]{1,8}etwa[ \\t\\u00a0]{1,8}nicht)?|nicht[ \\t\\u00a0]{1,8}wahr|gell|stimmt's|stimmts)[ \\t]*\\?))",
     literals: [],
-    fixer: "de:tagQuestion",
+    fixer: "de:@de.commaFrames/5",
     flags: "dgu",
     owner: "word",
   }),
@@ -26113,7 +26113,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:ist|sind|war|waren|hat|haben|hatte|hatten|wird|werden|kann|können|muss|müssen|soll|sollte|wäre|würde)(?:[ \\t\\u00a0]{1,8}(?:aber|doch|ja|auch))?[ \\t\\u00a0]{1,8})(?<target>(?:glaube|denke|finde|meine|schätze|vermute)[ \\t\\u00a0]{1,8}ich)(?=[ \\t\\u00a0]{1,8}\\p{L}))",
     literals: ["glaube", "denke", "finde", "meine", "schätze", "vermute"],
-    fixer: "de:insertedOpinion",
+    fixer: "de:@de.commaFrames/6",
     flags: "dgu",
   }),
   frame({
@@ -26561,63 +26561,63 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "delphin",
       "photo",
     ],
-    fixer: "de:phSpelling",
+    fixer: "de:@de.recommended/1",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[aA]uf[ \\t\\u00a0]{1,8}Grund)(?=[ \\t\\u00a0]{1,8}(?:des|der|dessen|deren|von|eines|einer|seines|seiner|ihres|ihrer)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;]|[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8}){0,3}(?:des|der|dessen|deren|von|eines|einer|seines|seiner|ihres|ihrer)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["grund"],
-    fixer: "de:joinedAdverb",
+    fixer: "de:@de.recommended/2",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[aA]n[ \\t\\u00a0]{1,8}Hand)(?=[ \\t\\u00a0]{1,8}(?:des|der|von|eines|einer|dieser|dieses)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;]|[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8}){0,3}(?:des|der|von|eines|einer|dieser|dieses)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["hand"],
-    fixer: "de:joinedAdverb",
+    fixer: "de:@de.recommended/3",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[zZ]u[ \\t\\u00a0]{1,8}Tage)(?=[ \\t\\u00a0]{1,8}(?:treten|tritt|trat|traten|getreten|fördern|fördert|förderte|gefördert|bringen|gebracht)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;]|[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8}){0,3}(?:treten|tritt|trat|traten|getreten|fördern|fördert|förderte|gefördert|bringen|gebracht)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["tage"],
-    fixer: "de:joinedAdverb",
+    fixer: "de:@de.recommended/4",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[zZ]u[ \\t\\u00a0]{1,8}Rande)(?=[ \\t\\u00a0]{1,8}(?:kommen|kommt|kam|kamen|gekommen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;]|[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8}){0,3}(?:kommen|kommt|kam|kamen|gekommen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["rande"],
-    fixer: "de:joinedAdverb",
+    fixer: "de:@de.recommended/5",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[iI]n[ \\t\\u00a0]{1,8}Stand)(?=[ \\t\\u00a0]{1,8}(?:setzen|setzt|setzte|gesetzt|halten|hält|hielt|gehalten|zu[ \\t\\u00a0]{1,8}setzen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;]|[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8}){0,3}(?:setzen|setzt|setzte|gesetzt|halten|hält|hielt|gehalten|zu[ \\t\\u00a0]{1,8}setzen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["stand"],
-    fixer: "de:joinedAdverb",
+    fixer: "de:@de.recommended/6",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?:ToDo|Todo|TODO|To-Do|To[ \\t\\u00a0]{1,8}Do)(?<plural>s)?(?:(?<list>-?Liste|[ \\t\\u00a0]{1,8}Liste|-?Lists?|liste)(?<lists>n)?)?))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:todo",
+    fixer: "de:@de.recommended/7",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<lead>[Vv]iel|[Hh]och|[Ss]chwer|[Aa]llein|[Ww]ohl)[ \\t\\u00a0]{1,8}(?<rest>(?<stem>sagend|begabt|behindert|erziehend|geschätzt|erzogen|temperiert)(?:e|en|er|es|em)?)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["sagend", "begabt", "behindert", "erziehend", "geschätzt", "erzogen", "temperiert"],
-    fixer: "de:together",
+    fixer: "de:@de.recommended/8",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!(?:das|kein|ein|sein|ihr|mein|dein|unser|euer|jedes|volles|vollem|gutes|zum|im|vom|nach|mit|von|auf|zu|dem|des|dieses|jedem|allem)[ \\t\\u00a0]{1,8})(?<=\\p{Ll}[ \\t\\u00a0]{1,8})(?<target>Recht)(?=[ \\t\\u00a0]{1,8}(?:haben|hat|hatte|hatten|hast|habe|hätte|hätten|geben|gibt|gab|gaben|gegeben|behalten|behielt|bekommen|bekam)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<!(?:das|kein|ein|sein|ihr|mein|dein|unser|euer|jedes|volles|vollem|gutes|zum|im|vom|nach|mit|von|auf|zu|dem|des|dieses|jedem|allem)[ \\t\\u00a0]{1,8})(?<=(?:haben|hat|hatte|hatten|hast|habe|hätte|hätten|geben|gibt|gab|gaben|gegeben|behalten|behielt|bekommen|bekam)(?:[ \\t\\u00a0]{1,8}\\p{Ll}+){0,3}[ \\t\\u00a0]{1,8})(?<t2>Recht)(?=[ \\t]*[.!?,;])|(?<=(?:bis[ \\t\\u00a0]{1,8}auf|[Oo]hne|[Dd]es)[ \\t\\u00a0]{1,8})(?<t3>weiteres|weiteren)(?=[ \\t]*[.!?,;]|[ \\t\\u00a0]{1,8}\\p{Ll}))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["recht", "recht", "weiteres", "weiteren"],
-    fixer: "de:rechtWeiteres",
+    fixer: "de:@de.recommended/9",
     flags: "dgu",
     owner: "target|t2|t3",
   }),
@@ -26634,14 +26634,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "lackiert",
       "bekehrt",
     ],
-    fixer: "de:apartPairs",
+    fixer: "de:@de.recommended/10",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>zuhause)|(?<t2>(?<lead>bekannt|verloren)(?<verb>gegeben|gab|gaben|geben|gibt|zugeben|gemacht|machte|machten|machen|macht|zumachen|gegangen|ging|gingen|gehen|geht|zugehen)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["zuhause", "bekannt", "verloren"],
-    fixer: "de:apart",
+    fixer: "de:@de.recommended/11",
     flags: "dgu",
     owner: "target|t2",
   }),
@@ -26680,7 +26680,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "ehemalig",
       "weiblich",
     ],
-    fixer: "de:redundantAdjective",
+    fixer: "de:@de.redundancy/1",
     flags: "dgu",
     owner: "adj",
   }),
@@ -26712,7 +26712,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "biographie",
       "erinnerung",
     ],
-    fixer: "de:redundantCompound",
+    fixer: "de:@de.redundancy/2",
     flags: "dgu",
     owner: "prefix",
   }),
@@ -26720,7 +26720,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>(?<verb>[C]heck|[M]ake|[S]tand|[B]urn|[P]op|[A]dd|[P]lug|[L]og|[D]rive|[B]uy|[K]ick|[F]ollow|[P]ush|[C]oming|[R]oll|[S]et|[S]it|[W]arm|[C]ool|[S]tart|[T]ake|[P]ick|[W]alk|[K]nock|[T]each|[B]reak|[M]ust)(?<sep>[ \\t]+|-)?(?<particle>[iI]n|[oO]ut|[uU]p|[oO]n|[oO]ff|[dD]own|[eE]ven|[hH]ave)(?<plural>s)?)(?![\\p{L}\\p{N}-])(?![ \\t]+\\p{Lu})",
     literals: [],
-    fixer: "de:phrasalNoun",
+    fixer: "de:@de.anglicisms/1",
     flags: "dgu",
   }),
   frame({
