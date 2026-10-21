@@ -183,9 +183,10 @@ const STICKY = new WeakMap<RegExp, RegExp>();
 // The start prefixes of a frame source (null: a match may start anywhere).
 const PREFIXES = new Map<string, readonly string[] | null>();
 // A prefix holds only characters whose case-insensitive matches String#toLowerCase mirrors:
-// printable ASCII and the LITERAL_LETTER ranges. It ends before any other character.
+// printable ASCII, the right single quote (no case) and the LITERAL_LETTER ranges. It ends
+// before any other character.
 const PREFIX_CHAR =
-  /[ -~\u00c0-\u00d6\u00d8-\u00de\u00e0-\u00f6\u00f8-\u012f\u0132-\u017e\u0180-\u024f]/;
+  /[ -~\u2019\u00c0-\u00d6\u00d8-\u00de\u00e0-\u00f6\u00f8-\u012f\u0132-\u017e\u0180-\u024f]/;
 
 /** The prefixes, each cut before its first character outside PREFIX_CHAR; null if one empties. */
 function safePrefixes(raw: readonly string[] | null): readonly string[] | null {

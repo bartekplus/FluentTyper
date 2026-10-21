@@ -101,7 +101,8 @@ export function isLowercaseLetter(ch: string): boolean {
 export function memoize<T>(read: (key: string) => T, max: number): (key: string) => T {
   const answers = new Map<string, T>();
   return (key) => {
-    if (answers.has(key)) return answers.get(key) as T;
+    const known = answers.get(key);
+    if (known !== undefined || answers.has(key)) return known as T;
     if (answers.size >= max) answers.clear();
     const answer = read(key);
     answers.set(key, answer);
