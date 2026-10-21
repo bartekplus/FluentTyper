@@ -1,5 +1,13 @@
 // The rule library (library.ts): the French lexicon and French word helpers.
+import type { VerbSlot } from "../review/french/frenchLexicon";
+import type { Token as FrenchToken } from "../review/french/frenchTokens";
+
 export { finding } from "../review/finding";
+export {
+  applyWordCase,
+  carryCase,
+  detectWordCase,
+} from "../implementations/helpers/GenericRuleShared";
 export {
   CLITICS,
   PREPOSITIONS,
@@ -38,6 +46,23 @@ export {
   suffixGender,
   verbReadings,
 } from "../review/french/frenchLexicon";
+
+/** The index of the first token from `from` on whose word is not in `words`; the length of
+ * `tokens` when there is none. */
+export function skipWords(
+  tokens: readonly FrenchToken[],
+  from: number,
+  words: ReadonlySet<string>,
+): number {
+  let i = from;
+  while (tokens[i] && words.has(tokens[i].w)) i++;
+  return i;
+}
+
+/** Whether a verb slot is a finite form of one of the persons (a mask of JE ... ILS). */
+export const hasPerson = (slot: VerbSlot, persons: number): boolean =>
+  typeof slot === "number" && (slot & persons) > 0;
+
 export type {
   AdjectiveReading,
   Gender as FrenchGender,

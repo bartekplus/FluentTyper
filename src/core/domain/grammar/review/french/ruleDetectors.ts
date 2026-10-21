@@ -3,9 +3,6 @@
 import { mergePredicates, type Fixer, type FindingsFilter } from "../../engine/reviewRules";
 import * as adjectives from "./adjectives";
 import * as agreement from "./agreement";
-import * as auxiliary from "./auxiliary";
-import * as bareNoun from "./bareNoun";
-import * as commas from "./commas";
 import * as dates from "./dates";
 import * as determiners from "./determiners";
 import * as elision from "./elision";
@@ -44,9 +41,6 @@ export const FIXERS = mergePredicates<Fixer>(
   gender.FIXERS,
   elision.FIXERS,
   determiners.FIXERS,
-  auxiliary.FIXERS,
-  bareNoun.FIXERS,
-  commas.FIXERS,
   dates.FIXERS,
 );
 

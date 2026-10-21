@@ -18938,7 +18938,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\p{L})[ \\t]?,[ \\t]{1,4}(?=\\p{Ll})",
     literals: [],
-    fixer: "fr:strayComma",
+    fixer: "fr:@fr.commas/1",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18983,7 +18983,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "répéta",
       "répète",
     ],
-    fixer: "fr:reportingComma",
+    fixer: "fr:@fr.commas/2",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18992,7 +18992,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=\\p{L})[ \\t]{1,4}(?=c['’]|(?:ce|cela|ça|je|tu|il|elle|on|nous|vous|ils|elles)(?![\\p{L}\\p{M}\\p{N}_-]))",
     literals: [],
-    fixer: "fr:frontedComma",
+    fixer: "fr:@fr.commas/3",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -19168,7 +19168,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient|suis|est|sommes|êtes|sont|étais|était|étions|étiez|étaient|serai|seras|sera|serons|serez|seront|serais|serait|serions|seriez|seraient|es)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:auxiliary",
+    fixer: "fr:@fr.auxiliary/1",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -19372,7 +19372,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])\\p{Ll}[\\p{Ll}\\p{M}]{2,}(?=[ \\t\\u00A0]*(?:[.!?…;,]|$))",
     literals: [],
-    fixer: "fr:bareNoun",
+    fixer: "fr:@fr.bareNoun/1",
     flags: "gu",
     scan: "owned",
     lookback: 1,
