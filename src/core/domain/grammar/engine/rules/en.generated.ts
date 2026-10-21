@@ -12,8 +12,12 @@ import type {
 } from "../../library";
 import {
   ENGLISH_MASS_NOUNS,
+  EN_AUXILIARIES,
+  EN_COLLECTIVE,
   EN_DETERMINERS,
   EN_FUNCTION_WORDS,
+  EN_MASS,
+  EN_PREPOSITIONS,
   MASS_WITH_COUNT_SENSE,
   caseLike,
   enAfterBreak,
@@ -33,6 +37,7 @@ import {
   englishVerbForms,
   englishWordInfo,
   finding,
+  hasUserOrCasedWord,
 } from "../../library";
 import { isoDateWarning } from "./common.generated";
 
@@ -112,6 +117,27 @@ export const MV_BE: Readonly<Record<string, string>> = {
   she: "is",
   it: "is",
   this: "is",
+};
+
+export const RS_TO_PLURAL: Readonly<Record<string, string>> = {
+  is: "are",
+  was: "were",
+  has: "have",
+  does: "do",
+};
+
+export const RS_TO_SINGULAR: Readonly<Record<string, string>> = {
+  are: "is",
+  were: "was",
+  have: "has",
+  do: "does",
+};
+
+export const RS_PRONOUN_FORMS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  i: { is: "am", has: "have", does: "do" },
+  you: { is: "are", was: "were", has: "have", does: "do" },
+  we: { is: "are", was: "were", has: "have", does: "do" },
+  they: { is: "are", was: "were", has: "have", does: "do" },
 };
 
 export const VS_PERFECT_HAVE: Readonly<Record<string, string>> = {
@@ -226,6 +252,202 @@ export function mvPredicate(word: string) {
     /^(?:fine|good|great|ready|right|wrong)$/.test(word) ||
     (read?.adjective && !read.verbs.length) ||
     read?.verbs.some((v) => v.form === "ing")
+  );
+}
+
+// en.yaml rule en.relativeAgreement def RS_SINGULAR_PRONOUNS
+export const RS_SINGULAR_PRONOUNS =
+  /^(?:he|she|something|anything|everything|nothing|someone|anyone|everyone|somebody|anybody|everybody)$/;
+
+// en.yaml rule en.relativeAgreement def RS_NOT_ANTECEDENT
+export const RS_NOT_ANTECEDENT =
+  /^(?:none|one|two|three|four|five|six|seven|eight|nine|ten|dozen|hundred|thousand|million|handful|faculty|days?|weeks?|months?|years?|times?|hours?|minutes?|moments?|nights?|mornings?|evenings?|summer|winter|spring|autumn|fall|season|decades?|century|era|fact|idea|chances?|possibility|probability|likelihood|hope|belief|claim|notion|odds|risk|sign|proof|assumption|impression|feeling|rumou?r|suggestion|way)$/;
+
+// en.yaml rule en.relativeAgreement def RS_CLEFT
+export const RS_CLEFT = /\b(?:it|this|that)(?:['’]s|[ \t ]+(?:is|was))\b|\b(?:is|was)[ \t ]+it\b/i;
+
+// en.yaml rule en.relativeAgreement def RS_VERB_EVIDENCE
+export const RS_VERB_EVIDENCE =
+  /^(?:the|a|an|my|your|his|her|our|their|its|this|these|those|it|them|me|us|him|you|every|each|any|some|all)$/;
+
+// en.yaml rule en.relativeAgreement def RS_LINKING
+export const RS_LINKING =
+  /^(?:feel|look|sound|seem|taste|smell|appear|become|remain|stay|get|grow)$/;
+
+// en.yaml rule en.relativeAgreement def RS_MODALS
+export const RS_MODALS =
+  /^(?:can|could|will|would|shall|should|may|might|must|need|dare|ought|be)$/;
+
+// en.yaml rule en.relativeAgreement def RS_LATER_VERB
+export const RS_LATER_VERB =
+  /^(?:is|are|was|were|has|have|had|will|would|can|could|should|must|may|might|do|does|did)$/;
+
+// en.yaml rule en.relativeAgreement def rsVerbLater
+export function rsVerbLater(ctx: DetectContext, index: number) {
+  const hit = enTokensAfter(ctx, index, 10).find(
+    (t) => t.kind !== "word" || RS_LATER_VERB.test(t.lower),
+  );
+  return hit?.kind === "word";
+}
+
+// en.yaml rule en.relativeAgreement def rsAntecedent
+export function rsAntecedent(
+  ctx: DetectContext,
+  word: string,
+  index: number,
+  pronoun: string,
+): "singular" | "plural" | null {
+  return RS_SINGULAR_PRONOUNS.test(word)
+    ? "singular"
+    : word === "those"
+      ? "plural"
+      : EN_FUNCTION_WORDS.has(word) || RS_NOT_ANTECEDENT.test(word) || EN_COLLECTIVE.has(word)
+        ? null
+        : rsClauseOwner(ctx, word, index, pronoun);
+}
+
+// en.yaml rule en.relativeAgreement def rsClauseOwner
+export function rsClauseOwner(
+  ctx: DetectContext,
+  word: string,
+  index: number,
+  pronoun: string,
+): "singular" | "plural" | null {
+  const clause = /(?:[^.!?;:,()\n—]|[,;](?=[\dA-Za-z]))*$/.exec(
+    ctx.text.slice(Math.max(0, index - 120), index),
+  )![0];
+  if (RS_CLEFT.test(clause) || /\b(?:that|which|who)\b/i.test(clause)) return null;
+  const before = (clause.match(/[A-Za-z]+(?:[-'’][A-Za-z]+)*/g) ?? []).map((w) => w.toLowerCase());
+  const stop = before
+    .slice(-6)
+    .reverse()
+    .find(
+      (w) =>
+        EN_PREPOSITIONS.has(w) ||
+        /^(?:to|amongst|among|like|than|given)$/.test(w) ||
+        EN_AUXILIARIES.has(w) ||
+        /n['’]t$/.test(w),
+    );
+  if (stop && (EN_PREPOSITIONS.has(stop) || /^(?:to|amongst|among|like|than|given)$/.test(stop)))
+    return null;
+  const previous = before.at(-1);
+  if (pronoun === "that" && /^(?:so|such|now)$/.test(previous ?? "")) return null;
+  if (previous === "please" || /^(?:stuff|junk|gear|crap|garbage|rubbish)$/.test(word)) return null;
+  const read = englishWordInfo(word);
+  if (!(
+    !read?.verbs.length ||
+    (!!previous && (EN_DETERMINERS.has(previous) || rsModifier(previous)))
+  ))
+    return null;
+  const counted = enNounNumber(word)?.number;
+  if (counted === "plural" && /^(?:a|an|every|each|one|another)$/.test(previous ?? "")) return null;
+  return counted
+    ? counted
+    : !read?.noun || read.verbs.length || read.adjective || read.adverb
+      ? null
+      : read.plural
+        ? "plural"
+        : "singular";
+}
+
+// en.yaml rule en.relativeAgreement def rsModifier
+export function rsModifier(word: string) {
+  const read = englishWordInfo(word);
+  return !!read && (read.adjective || read.verbs.length > 0);
+}
+
+// en.yaml rule en.relativeAgreement def rsSingularFix
+export function rsSingularFix(
+  ctx: DetectContext,
+  at: number,
+  noun: string,
+  verb: string,
+  evidenced: boolean,
+) {
+  if (
+    /\b(?:and|or)\b(?:[ \t ]+[A-Za-z]+){0,3}[ \t ]*$/i.test(
+      ctx.text.slice(Math.max(0, at - 40), at),
+    ) ||
+    (/[A-Za-z],[ \t ]*$/.test(ctx.text.slice(Math.max(0, at - 4), at)) &&
+      !/^(?:some|any|every|no)(?:thing|one|body)$/.test(noun))
+  )
+    return null;
+  if (EN_MASS.has(noun)) return null;
+  const read = englishWordInfo(verb);
+  const fixed =
+    (verb === "do" || verb === "have") && !evidenced ? null : (RS_TO_SINGULAR[verb] ?? null);
+  return (
+    fixed ||
+    (!RS_MODALS.test(verb) &&
+    read?.verbs.some((v) => v.form === "base" && v.lemma === verb) &&
+    !read.verbs.some((v) => v.form !== "base") &&
+    !/^(?:please|thank)$/.test(verb) &&
+    ((!read.noun && !read.plural && !read.adjective && !read.adverb) || evidenced)
+      ? englishInflect(verb, "third")
+      : null)
+  );
+}
+
+// en.yaml rule en.relativeAgreement def rsIsName
+export function rsIsName(word: string) {
+  return /^[A-Z][a-z]+$/.test(word) && !englishWordInfo(word);
+}
+
+// en.yaml rule en.relativeAgreement def rsCapital
+export function rsCapital(word: string) {
+  return /^[A-Z][a-z]+$/.test(word) && !EN_FUNCTION_WORDS.has(word.toLowerCase());
+}
+
+// en.yaml rule en.relativeAgreement def rsNameSubject
+export function rsNameSubject(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  typed: string,
+  fix: string | null,
+  from: number,
+  rule: "englishSubjectVerbAgreement" | "englishPossibleErrors",
+) {
+  return fix && fix !== typed
+    ? finding(rule, "review_msg_subject_verb", start, end, [fix], {
+        context: enEvidence(ctx, from, end),
+      })
+    : null;
+}
+
+// en.yaml rule en.pronounForms def RS_CLAUSE_CUE
+export const RS_CLAUSE_CUE =
+  /^(?:so|because|when|whenever|while|since|until|although|though|if|unless|once|that|feel|hope|think|guess|believe|know|sure|wish|maybe|perhaps)$/;
+
+// en.yaml rule en.pronounForms def rsThirdLemma
+export function rsThirdLemma(ctx: DetectContext, m: RegExpExecArray, verb: string) {
+  const read = englishWordInfo(verb);
+  if (!read?.verbs.some((v) => v.form === "third")) return null;
+  const object = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+  if (
+    (read.noun || read.plural) &&
+    !(object?.kind === "word" && RS_VERB_EVIDENCE.test(object.lower))
+  )
+    return null;
+  return englishLemma(verb, "third") ?? "";
+}
+
+// en.yaml rule en.pronounForms def rsPronounForm
+export function rsPronounForm(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  typed: string,
+  fix: string,
+  from: number,
+) {
+  return finding(
+    "englishPronounVerbWhitelistAgreement",
+    "review_msg_pronoun_verb",
+    start,
+    end,
+    [caseLike(typed, fix)],
+    { context: enEvidence(ctx, from, end) },
   );
 }
 
@@ -702,6 +924,227 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       m.indices!.groups!.target[1],
       [],
       { warningOnly: true, context: enEvidence(ctx, m.index, m.index + m[0].length) },
+    );
+  },
+  // en.yaml rule en.relativeAgreement frame 1
+  "@en.relativeAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const pronoun = m.groups!.pronoun;
+    const verb = m.groups!.verb;
+    const pron = pronoun.toLowerCase();
+    const at = m.indices!.groups!.noun[0];
+    if (!(verb === verb.toLowerCase() && (noun === noun.toLowerCase() || enAfterBreak(ctx, at))))
+      return null;
+    const end = m.index + m[0].length;
+    if (hasUserOrCasedWord(ctx, ctx.text.slice(at, end))) return null;
+    const finite = verb in RS_TO_PLURAL || verb in RS_TO_SINGULAR;
+    if (!finite && (EN_FUNCTION_WORDS.has(verb) || RS_MODALS.test(verb))) return null;
+    const number = rsAntecedent(ctx, noun.toLowerCase(), at, pron);
+    if (!number) return null;
+    const next = enTokensAfter(ctx, end, 1)[0];
+    const read = englishWordInfo(verb);
+    const nextRead = next?.kind === "word" ? englishWordInfo(next.lower) : null;
+    const plainAdverb =
+      !!nextRead?.adverb && !nextRead.noun && !nextRead.adjective && !nextRead.verbs.length;
+    const opensPhrase =
+      EN_PREPOSITIONS.has(next?.lower ?? "") && !/^(?:of|like)$/.test(next?.lower ?? "");
+    const linked =
+      RS_LINKING.test(englishLemma(verb, "third") ?? verb) &&
+      !!nextRead?.adjective &&
+      !nextRead.noun;
+    const evidenced =
+      pron !== "which" &&
+      next?.kind === "word" &&
+      (RS_VERB_EVIDENCE.test(next.lower) ||
+        (/ly$/.test(next.lower) && !!nextRead?.adverb) ||
+        (pron === "who" && (plainAdverb || opensPhrase || linked)) ||
+        (pron === "that" && opensPhrase && !rsVerbLater(ctx, end)));
+    const replacement =
+      number === "plural"
+        ? (RS_TO_PLURAL[verb] ??
+          (read?.verbs.some((v) => v.form === "third") &&
+          ((!read.noun && !read.plural && !read.adjective) || evidenced)
+            ? englishLemma(verb, "third")
+            : null))
+        : rsSingularFix(ctx, at, noun, verb, evidenced);
+    if (!(replacement && replacement !== verb)) return null;
+    return finding(
+      "englishSubjectVerbAgreement",
+      "review_msg_subject_verb",
+      m.indices!.groups!.verb[0],
+      m.indices!.groups!.verb[1],
+      [caseLike(verb, replacement)],
+      { context: enEvidence(ctx, at, m.indices!.groups!.verb[1]) },
+    );
+  },
+  // en.yaml rule en.relativeAgreement frame 2
+  "@en.relativeAgreement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    const verb = m.groups!.verb;
+    if (first === second || ctx.dictionary.has(verb)) return null;
+    const at = m.indices!.groups!.first[0];
+    const sure = rsIsName(first) && rsIsName(second);
+    if (!(sure || (rsIsName(first) && rsCapital(second)) || (rsCapital(first) && rsIsName(second))))
+      return null;
+    const lead = /([A-Za-z]+)[ \t ]{1,8}$/.exec(ctx.text.slice(Math.max(0, at - 24), at))?.[1];
+    if (
+      lead &&
+      !enAfterBreak(ctx, at) &&
+      !/^(?:that|if|when|because|since|while|although|though|unless|think|hope|know|guess|believe|say|said)$/i.test(
+        lead,
+      )
+    )
+      return null;
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (next?.kind === "word" && /^(?:a|an)$/.test(next.lower)) return null;
+    const read = englishWordInfo(verb);
+    const fix =
+      RS_TO_PLURAL[verb] ??
+      (read?.verbs.some((v) => v.form === "third") && !read.noun && !read.plural
+        ? englishLemma(verb, "third")
+        : null);
+    return rsNameSubject(
+      ctx,
+      m.indices!.groups!.verb[0],
+      m.indices!.groups!.verb[1],
+      verb,
+      fix,
+      at,
+      sure ? "englishSubjectVerbAgreement" : "englishPossibleErrors",
+    );
+  },
+  // en.yaml rule en.relativeAgreement frame 3
+  "@en.relativeAgreement/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const name = m.groups!.name;
+    const verb = m.groups!.verb;
+    if (!rsIsName(name) || ctx.dictionary.has(verb) || EN_FUNCTION_WORDS.has(verb)) return null;
+    const at = m.indices!.groups!.name[0];
+    const before = /([A-Za-z]+)[ \t ]{1,8}$/.exec(ctx.text.slice(Math.max(0, at - 24), at))?.[1];
+    if (before && !enAfterBreak(ctx, at)) return null;
+    const read = englishWordInfo(verb);
+    if (!read?.verbs.some((v) => v.form === "base" && v.lemma === verb)) return null;
+    if (read.verbs.some((v) => v.form !== "base") || RS_MODALS.test(verb)) return null;
+    return rsNameSubject(
+      ctx,
+      m.indices!.groups!.verb[0],
+      m.indices!.groups!.verb[1],
+      verb,
+      englishInflect(verb, "third"),
+      at,
+      "englishSubjectVerbAgreement",
+    );
+  },
+  // en.yaml rule en.relativeAgreement frame 4
+  "@en.relativeAgreement/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const verb = m.groups!.verb;
+    const at = m.indices!.groups!.subject[0];
+    if (!(enAfterBreak(ctx, at) && /^[A-Z]/.test(subject))) return null;
+    const read = englishWordInfo(subject.toLowerCase());
+    if (!read?.verbs.some((v) => v.form === "ing") || read.plural || read.adjective) return null;
+    if (
+      /^(?:following|remaining|including|missing|attaching|enclosing|according|nothing|something|anything|everything)$/i.test(
+        subject,
+      )
+    )
+      return null;
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (
+      next?.kind === "word" &&
+      (EN_DETERMINERS.has(next.lower) ||
+        /^(?:one|two|three|four|five|six|seven|eight|nine|ten|several|many|few|both|all|most)$/.test(
+          next.lower,
+        ))
+    )
+      return null;
+    if (!(next?.kind !== "number")) return null;
+    const fix = RS_TO_SINGULAR[verb];
+    if (!(fix && fix !== verb)) return null;
+    return finding(
+      "englishSubjectVerbAgreement",
+      "review_msg_subject_verb",
+      m.indices!.groups!.verb[0],
+      m.indices!.groups!.verb[1],
+      [fix],
+      { context: enEvidence(ctx, m.index, m.indices!.groups!.verb[1]) },
+    );
+  },
+  // en.yaml rule en.relativeAgreement frame 5
+  "@en.relativeAgreement/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const base = m.groups!.base;
+    const verb = m.groups!.verb;
+    const at = ctx.text.lastIndexOf("To", m.indices!.groups!.base[0]);
+    if (!enAfterBreak(ctx, at)) return null;
+    const read = englishWordInfo(base);
+    if (!read?.verbs.some((v) => v.form === "base" && v.lemma === base) || base === "date")
+      return null;
+    return finding(
+      "englishSubjectVerbAgreement",
+      "review_msg_subject_verb",
+      m.indices!.groups!.verb[0],
+      m.indices!.groups!.verb[1],
+      [RS_TO_SINGULAR[verb]],
+      { context: enEvidence(ctx, at, m.indices!.groups!.verb[1]) },
+    );
+  },
+  // en.yaml rule en.pronounForms frame 1
+  "@en.pronounForms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const verb = m.groups!.verb;
+    if (!/^(?:I|[A-Za-z][a-z]*)$/.test(pronoun)) return null;
+    if (pronoun !== "I" && pronoun !== pronoun.toLowerCase() && !enAfterBreak(ctx, m.index))
+      return null;
+    const p = pronoun.toLowerCase();
+    const cue = /([A-Za-z]+)[ \t ]{1,8}$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 24), m.index),
+    )?.[1];
+    if (!(enAfterBreak(ctx, m.index) || !!(cue && RS_CLAUSE_CUE.test(cue.toLowerCase()))))
+      return null;
+    if (!(pronoun !== "i")) return null;
+    if (ctx.dictionary.has(verb)) return null;
+    const fix = RS_PRONOUN_FORMS[p][verb] || rsThirdLemma(ctx, m, verb);
+    if (!(fix && fix !== verb)) return null;
+    return rsPronounForm(
+      ctx,
+      m.indices!.groups!.verb[0],
+      m.indices!.groups!.verb[1],
+      verb,
+      fix,
+      m.index,
+    );
+  },
+  // en.yaml rule en.pronounForms frame 2
+  "@en.pronounForms/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const pronoun = m.groups!.pronoun;
+    const p = pronoun === "I" ? "i" : pronoun.toLowerCase();
+    const lead = /([A-Za-z]+)[ \t ]{1,8}$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 16), m.index),
+    )?.[1];
+    if (!(
+      enAfterBreak(ctx, m.index) || /^(?:what|where|why|how|when|who|which)$/i.test(lead ?? "")
+    ))
+      return null;
+    if (!/^[^.!\n]{0,120}\?/.test(ctx.text.slice(m.index))) return null;
+    if (!(pronoun !== "i")) return null;
+    const after = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    const read = after?.kind === "word" ? englishWordInfo(after.lower) : null;
+    if (
+      after?.kind === "word" &&
+      !EN_FUNCTION_WORDS.has(after.lower) &&
+      (enNounOnly(after.lower) || (read?.noun && !read.adjective))
+    )
+      return null;
+    const fix = RS_PRONOUN_FORMS[p][verb.toLowerCase()];
+    if (!fix) return null;
+    return rsPronounForm(
+      ctx,
+      m.indices!.groups!.verb[0],
+      m.indices!.groups!.verb[1],
+      verb,
+      fix,
+      m.index,
     );
   },
   // en.yaml rule en.realWordFrames frame 1

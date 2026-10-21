@@ -10936,14 +10936,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?<![\\p{L}'’-])(?<noun>[a-z]{1,30})[ \\t\\u00a0]{1,8})(?<pronoun>that|who|which)(?:[ \\t\\u00a0]{1,8}(?:always|also|never|still|just|only|usually|often|really|actually|already|now))?[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["that", "who", "which"],
-    fixer: "en:relativeVerb",
+    fixer: "en:@en.relativeAgreement/1",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<=(?<![\\p{L}'’-])(?<first>[A-Za-z]{2,30})[ \\t\\u00a0]{1,8})and[ \\t\\u00a0]{1,8}(?<second>[A-Za-z]{2,30})[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["and"],
-    fixer: "en:relativeNamePair",
+    fixer: "en:@en.relativeAgreement/2",
     anyCheck: true,
     owner: "verb",
   }),
@@ -10951,35 +10951,35 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?<![\\p{L}'’-])(?<name>[A-Za-z]{2,30})[ \\t\\u00a0]{1,8}(?<verb>[a-z]{2,30})[ \\t\\u00a0]{1,8})(?:his|her)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["his", "her"],
-    fixer: "en:relativeNameHis",
+    fixer: "en:@en.relativeAgreement/3",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<=(?<![\\p{L}'’-])(?<subject>[A-Za-z]{1,30}ing)[ \\t\\u00a0]{1,8})(?<verb>are|were)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["are", "were"],
-    fixer: "en:relativeGerundSubject",
+    fixer: "en:@en.relativeAgreement/4",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<=(?<![\\p{L}'’-])To[ \\t\\u00a0]{1,8}(?<base>[a-z]{2,30})[ \\t\\u00a0]{1,8}(?:(?:it|them|him|her|me|us|you)[ \\t\\u00a0]{1,8})?)(?<verb>are|were)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["are", "were"],
-    fixer: "en:relativeToSubject",
+    fixer: "en:@en.relativeAgreement/5",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<pronoun>I|you|we|they)(?<adverb>[ \\t\\u00a0]{1,8}(?:rarely|never|always|often|usually|sometimes|really|also|still|just|only|all))?[ \\t\\u00a0]{1,8}(?<verb>[a-z]+s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:relativePronounVerbS",
+    fixer: "en:@en.pronounForms/1",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<verb>is|was|has|does)[ \\t\\u00a0]{1,8}(?<pronoun>I|you|we|they)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:relativePronounQuestion",
+    fixer: "en:@en.pronounForms/2",
     owner: "verb",
   }),
   frame({

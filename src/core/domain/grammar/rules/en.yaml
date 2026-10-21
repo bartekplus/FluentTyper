@@ -3079,49 +3079,332 @@ rules:
     style: match
     message: review_msg_subject_verb
     filter: slotFindings
+    # The verb of a subject relative clause agrees with the noun the relative pronoun stands for:
+    # "a report that describe" (describes), "tools that runs" (run), "He who wake" (wakes). The
+    # noun must plainly own the clause: not inside a prepositional phrase, a cleft or a list.
+    maps:
+      RS_TO_PLURAL: { is: are, was: were, has: have, does: do }
+      RS_TO_SINGULAR: { are: is, were: was, have: has, do: does }
+    defs:
+      RS_SINGULAR_PRONOUNS: >-
+        /^(?:he|she|something|anything|everything|nothing|someone|anyone|everyone|somebody|anybody|everybody)$/
+      # Counts and quantities ("two that follow", "the handful that remain"), time words ("these
+      # days that is"), and nouns whose "that" opens a content clause ("the chances that happens").
+      RS_NOT_ANTECEDENT: >-
+        /^(?:none|one|two|three|four|five|six|seven|eight|nine|ten|dozen|hundred|thousand|million|handful|faculty|days?|weeks?|months?|years?|times?|hours?|minutes?|moments?|nights?|mornings?|evenings?|summer|winter|spring|autumn|fall|season|decades?|century|era|fact|idea|chances?|possibility|probability|likelihood|hope|belief|claim|notion|odds|risk|sign|proof|assumption|impression|feeling|rumou?r|suggestion|way)$/
+      # "It's the chemicals in it that make it…", "Is it X that…": a cleft's that-clause.
+      RS_CLEFT: >-
+        /\b(?:it|this|that)(?:['’]s|[ \t ]+(?:is|was))\b|\b(?:is|was)[ \t ]+it\b/i
+      # An object or determiner right after a noun-or-verb word shows it is the verb: "that show
+      # the request", "that make it".
+      RS_VERB_EVIDENCE: >-
+        /^(?:the|a|an|my|your|his|her|our|their|its|this|these|those|it|them|me|us|him|you|every|each|any|some|all)$/
+      RS_LINKING: /^(?:feel|look|sound|seem|taste|smell|appear|become|remain|stay|get|grow)$/
+      RS_MODALS: /^(?:can|could|will|would|shall|should|may|might|must|need|dare|ought|be)$/
+      RS_LATER_VERB: >-
+        /^(?:is|are|was|were|has|have|had|will|would|can|could|should|must|may|might|do|does|did)$/
+      # A be, have, do or modal form later in the clause after `index`.
+      rsVerbLater:
+        args: "ctx: DetectContext, index: number"
+        let:
+          hit: enTokensAfter(ctx, index, 10).find((t) => t.kind !== "word" || RS_LATER_VERB.test(t.lower))
+        return: 'hit?.kind === "word"'
+      # The number of the noun before the relative pronoun, or null when the clause may be
+      # another's.
+      rsAntecedent:
+        args: "ctx: DetectContext, word: string, index: number, pronoun: string"
+        type: '"singular" | "plural" | null'
+        return: >-
+          RS_SINGULAR_PRONOUNS.test(word) ? "singular" : word === "those" ? "plural" :
+          EN_FUNCTION_WORDS.has(word) || RS_NOT_ANTECEDENT.test(word) || EN_COLLECTIVE.has(word) ?
+          null : rsClauseOwner(ctx, word, index, pronoun)
+      # rsAntecedent for a noun: the clause before it must leave the relative clause to it.
+      rsClauseOwner:
+        args: "ctx: DetectContext, word: string, index: number, pronoun: string"
+        type: '"singular" | "plural" | null'
+        let:
+          # The clause so far: a cleft or an earlier relative pronoun leaves the owner open ("a
+          # place that shows art that depends on…"). A comma inside a number ("12,000 items")
+          # does not end it.
+          clause: >-
+            /(?:[^.!?;:,()\n—]|[,;](?=[\dA-Za-z]))*$/.exec(ctx.text.slice(Math.max(0, index - 120),
+            index))![0]
+          before: >-
+            (clause.match(/[A-Za-z]+(?:[-'’][A-Za-z]+)*/g) ?? []).map((w) => w.toLowerCase())
+          # "tools for customers that…", "servers on computers running Apache that…": a noun inside
+          # a prepositional phrase may not own the clause. Look back past participles to an
+          # auxiliary.
+          stop: >-
+            before.slice(-6).reverse().find((w) => EN_PREPOSITIONS.has(w) ||
+            /^(?:to|amongst|among|like|than|given)$/.test(w) || EN_AUXILIARIES.has(w) ||
+            /n['’]t$/.test(w))
+          previous: before.at(-1)
+          read: englishWordInfo(word)
+          counted: enNounNumber(word)?.number
+        when:
+          - "!(RS_CLEFT.test(clause) || /\\b(?:that|which|who)\\b/i.test(clause))"
+          - "!(stop && (EN_PREPOSITIONS.has(stop) || /^(?:to|amongst|among|like|than|given)$/.test(stop)))"
+          - '!(pronoun === "that" && /^(?:so|such|now)$/.test(previous ?? ""))'
+          # "Please note that…"; "useless junk that fail": a collective mass noun.
+          - '!(previous === "please" || /^(?:stuff|junk|gear|crap|garbage|rubbish)$/.test(word))'
+          # A word that may be the verb itself needs a determiner, adjective or verb before it: not
+          # "the piston fires that…", "Please note that…", "Greta treats which…".
+          - "!read?.verbs.length || (!!previous && (EN_DETERMINERS.has(previous) || rsModifier(previous)))"
+          # "A people that loses its past": a singular determiner makes the plural form one group.
+          - '!(counted === "plural" && /^(?:a|an|every|each|one|another)$/.test(previous ?? ""))'
+        # Derived nouns the pair table misses: "manager", "drivers".
+        return: >-
+          counted ? counted : !read?.noun || read.verbs.length || read.adjective || read.adverb ? null
+          : read.plural ? "plural" : "singular"
+      # A word that the lexicon reads as an adjective or a verb.
+      rsModifier:
+        args: "word: string"
+        let:
+          read: englishWordInfo(word)
+        return: "!!read && (read.adjective || read.verbs.length > 0)"
+      # The singular verb after a singular noun and a relative pronoun, or null.
+      rsSingularFix:
+        args: "ctx: DetectContext, at: number, noun: string, verb: string, evidenced: boolean"
+        let:
+          read: englishWordInfo(verb)
+          # "do" and "have" need an object or verb after them to be finite here.
+          fixed: '(verb === "do" || verb === "have") && !evidenced ? null : (RS_TO_SINGULAR[verb] ?? null)'
+        when:
+          # "the issues and the uncertainty that still exist": a list before owns it. A comma list
+          # without "and" too: "krypton, hydrogen which are".
+          - >-
+            !(/\b(?:and|or)\b(?:[ \t ]+[A-Za-z]+){0,3}[ \t ]*$/i.test(ctx.text.slice(Math.max(0,
+            at - 40), at)) || (/[A-Za-z],[ \t ]*$/.test(ctx.text.slice(Math.max(0, at - 4), at)) &&
+            !/^(?:some|any|every|no)(?:thing|one|body)$/.test(noun)))
+          # "useless junk that fail": a mass noun can stand for a group.
+          - "!EN_MASS.has(noun)"
+        return: >-
+          fixed || (!RS_MODALS.test(verb) && read?.verbs.some((v) => v.form === "base" && v.lemma ===
+          verb) && !read.verbs.some((v) => v.form !== "base") && !/^(?:please|thank)$/.test(verb) &&
+          ((!read.noun && !read.plural && !read.adjective && !read.adverb) || evidenced) ?
+          englishInflect(verb, "third") : null)
+      # A capitalized word the lexicon does not know: a given name ("Xavier", "Tim").
+      rsIsName:
+        args: "word: string"
+        return: "/^[A-Z][a-z]+$/.test(word) && !englishWordInfo(word)"
+      # A capitalized word that is no function word.
+      rsCapital:
+        args: "word: string"
+        return: "/^[A-Z][a-z]+$/.test(word) && !EN_FUNCTION_WORDS.has(word.toLowerCase())"
+      # The verb fix after a name subject; null when the fix is the typed verb.
+      rsNameSubject:
+        args: >-
+          ctx: DetectContext, start: number, end: number, typed: string, fix: string | null, from:
+          number, rule: "englishSubjectVerbAgreement" | "englishPossibleErrors"
+        return: >-
+          fix && fix !== typed ? finding(rule, "review_msg_subject_verb", start, end, [fix], { context:
+          enEvidence(ctx, from, end) }) : null
     frames:
       # "Here is a screenshot that show …", "processes that runs …": a relative verb's number.
       # The frame starts at the pronoun (cheap to find); the noun is in its lookbehind.
       - regex: "(?<=(?<![\\p{L}'’-])(?<noun>[a-z]{1,30}){{S}})(?<pronoun>that|who|which)(?:{{S}}{{RELATIVESLOTS_ADVERB}})?{{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
-        fixer: relativeVerb
+        let:
+          pron: pronoun.toLowerCase()
+          at: m.indices!.groups!.noun[0]
+          end: m.index + m[0].length
+          finite: verb in RS_TO_PLURAL || verb in RS_TO_SINGULAR
+          number: rsAntecedent(ctx, noun.toLowerCase(), at, pron)
+          next: enTokensAfter(ctx, end, 1)[0]
+          read: englishWordInfo(verb)
+          # "tells the collector which host the data…": after which, a noun-or-verb is a noun.
+          # "tools that works for", "people who lives abroad", "a member who feels good": a
+          # preposition, an adverb or an adjective after a linking verb shows the verb too. After
+          # "that" the word may be a noun that opens a content clause ("states that bills from
+          # sellers will go"): a later verb shows that clause.
+          nextRead: 'next?.kind === "word" ? englishWordInfo(next.lower) : null'
+          plainAdverb: "!!nextRead?.adverb && !nextRead.noun && !nextRead.adjective && !nextRead.verbs.length"
+          opensPhrase: 'EN_PREPOSITIONS.has(next?.lower ?? "") && !/^(?:of|like)$/.test(next?.lower ?? "")'
+          linked: 'RS_LINKING.test(englishLemma(verb, "third") ?? verb) && !!nextRead?.adjective && !nextRead.noun'
+          evidenced: >-
+            pron !== "which" && next?.kind === "word" && (RS_VERB_EVIDENCE.test(next.lower) ||
+            (/ly$/.test(next.lower) && !!nextRead?.adverb) || (pron === "who" && (plainAdverb ||
+            opensPhrase || linked)) || (pron === "that" && opensPhrase && !rsVerbLater(ctx, end)))
+          # "plans", "changes" are nouns too: "told the users that changes were coming".
+          replacement: >-
+            number === "plural" ? RS_TO_PLURAL[verb] ?? (read?.verbs.some((v) => v.form === "third") &&
+            ((!read.noun && !read.plural && !read.adjective) || evidenced) ? englishLemma(verb, "third")
+            : null) : rsSingularFix(ctx, at, noun, verb, evidenced)
+        when:
+          # A capital names something, except at a sentence start ("Users who uses…").
+          - verb === verb.toLowerCase() && (noun === noun.toLowerCase() || enAfterBreak(ctx, at))
+          - "!hasUserOrCasedWord(ctx, ctx.text.slice(at, end))"
+          - "!(!finite && (EN_FUNCTION_WORDS.has(verb) || RS_MODALS.test(verb)))"
+          - number
+          - replacement && replacement !== verb
+        return: >-
+          finding("englishSubjectVerbAgreement", "review_msg_subject_verb", m.indices!.groups!.verb[0],
+          m.indices!.groups!.verb[1], [caseLike(verb, replacement)], { context: enEvidence(ctx, at,
+          m.indices!.groups!.verb[1]) })
       # Two names joined by "and" are plural ("Xavier and Aidan is friends" -> are). Brand pairs
       # ("Johnson and Johnson") and titles ("Tom and Jerry is a cartoon") stay silent. A pair
       # that is not sure to be two names reports englishPossibleErrors.
       - regex: "(?<=(?<![\\p{L}'’-])(?<first>[A-Za-z]{2,30}){{S}})and{{S}}(?<second>[A-Za-z]{2,30}){{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
         anyCheck: true
-        fixer: relativeNamePair
+        let:
+          at: m.indices!.groups!.first[0]
+          # "Tom and Mary finds", "Haley and Will has": one name is also a word ("tom", "will").
+          # Two names may also be a firm ("Marks and Spencer has"), so such a pair is only an
+          # optional check.
+          sure: rsIsName(first) && rsIsName(second)
+          lead: '/([A-Za-z]+)[ \t ]{1,8}$/.exec(ctx.text.slice(Math.max(0, at - 24), at))?.[1]'
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          read: englishWordInfo(verb)
+          fix: >-
+            RS_TO_PLURAL[verb] ?? (read?.verbs.some((v) => v.form === "third") && !read.noun &&
+            !read.plural ? englishLemma(verb, "third") : null)
+        when:
+          - "!(first === second || ctx.dictionary.has(verb))"
+          - sure || (rsIsName(first) && rsCapital(second)) || (rsCapital(first) && rsIsName(second))
+          # The pair opens its clause: not "from California and Africa is", "between Cardiff and
+          # Bristol was".
+          - >-
+            !(lead && !enAfterBreak(ctx, at) &&
+            !/^(?:that|if|when|because|since|while|although|though|unless|think|hope|know|guess|believe|say|said)$/i.test(lead))
+          - '!(next?.kind === "word" && /^(?:a|an)$/.test(next.lower))'
+        return: >-
+          rsNameSubject(ctx, m.indices!.groups!.verb[0], m.indices!.groups!.verb[1], verb, fix, at, sure
+          ? "englishSubjectVerbAgreement" : "englishPossibleErrors")
       # One name with a base verb and his/her after it is singular ("Tim make his life worse"
       # -> makes).
       - regex: "(?<=(?<![\\p{L}'’-])(?<name>[A-Za-z]{2,30}){{S}}(?<verb>[a-z]{2,30}){{S}})(?:his|her){{E}}"
         owner: verb
-        fixer: relativeNameHis
+        let:
+          at: m.indices!.groups!.name[0]
+          # "Tell Tim give his…" is rare; a name after a verb or "and" may be its object.
+          before: '/([A-Za-z]+)[ \t ]{1,8}$/.exec(ctx.text.slice(Math.max(0, at - 24), at))?.[1]'
+          read: englishWordInfo(verb)
+        when:
+          - "!(!rsIsName(name) || ctx.dictionary.has(verb) || EN_FUNCTION_WORDS.has(verb))"
+          - "!(before && !enAfterBreak(ctx, at))"
+          - 'read?.verbs.some((v) => v.form === "base" && v.lemma === verb)'
+          - '!(read.verbs.some((v) => v.form !== "base") || RS_MODALS.test(verb))'
+        return: >-
+          rsNameSubject(ctx, m.indices!.groups!.verb[0], m.indices!.groups!.verb[1], verb,
+          englishInflect(verb, "third"), at, "englishSubjectVerbAgreement")
       # "Marketing are bad for you", "Swimming were fun": a gerund subject opening the sentence
       # is singular. "Following are the results" (inverted, a determiner after) stays.
       - regex: "(?<=(?<![\\p{L}'’-])(?<subject>[A-Za-z]{1,30}ing){{S}})(?<verb>are|were){{E}}"
         owner: verb
-        fixer: relativeGerundSubject
+        let:
+          at: m.indices!.groups!.subject[0]
+          read: englishWordInfo(subject.toLowerCase())
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          fix: RS_TO_SINGULAR[verb]
+        when:
+          - enAfterBreak(ctx, at) && /^[A-Z]/.test(subject)
+          - '!(!read?.verbs.some((v) => v.form === "ing") || read.plural || read.adjective)'
+          - >-
+            !/^(?:following|remaining|including|missing|attaching|enclosing|according|nothing|something|anything|everything)$/i.test(subject)
+          # "Following are the results", "Remaining were two seats": an inverted list.
+          - >-
+            !(next?.kind === "word" && (EN_DETERMINERS.has(next.lower) ||
+            /^(?:one|two|three|four|five|six|seven|eight|nine|ten|several|many|few|both|all|most)$/.test(next.lower)))
+          - next?.kind !== "number"
+          - fix && fix !== verb
+        return: >-
+          finding("englishSubjectVerbAgreement", "review_msg_subject_verb", m.indices!.groups!.verb[0],
+          m.indices!.groups!.verb[1], [fix], { context: enEvidence(ctx, m.index, m.indices!.groups!.verb[1]) })
       # "To err are human", "To see them were a joy": a "to" phrase subject is singular. Only an
       # object pronoun may come between: "To see the kids are happy" may mean "that the kids are".
       - regex: "(?<=(?<![\\p{L}'’-])To{{S}}(?<base>[a-z]{2,30}){{S}}(?:(?:it|them|him|her|me|us|you){{S}})?)(?<verb>are|were){{E}}"
         owner: verb
-        fixer: relativeToSubject
+        let:
+          at: ctx.text.lastIndexOf("To", m.indices!.groups!.base[0])
+          read: englishWordInfo(base)
+        when:
+          - enAfterBreak(ctx, at)
+          # "To date were found…": an adverbial phrase before an inverted subject.
+          - '!(!read?.verbs.some((v) => v.form === "base" && v.lemma === base) || base === "date")'
+        return: >-
+          finding("englishSubjectVerbAgreement", "review_msg_subject_verb", m.indices!.groups!.verb[0],
+          m.indices!.groups!.verb[1], [RS_TO_SINGULAR[verb]], { context: enEvidence(ctx, at,
+          m.indices!.groups!.verb[1]) })
   - id: en.pronounForms
     checks: [englishPronounVerbWhitelistAgreement]
     style: match
     message: review_msg_pronoun_verb
     filter: slotFindings
+    maps:
+      # The be/have/do form each subject pronoun takes.
+      RS_PRONOUN_FORMS:
+        {
+          i: { is: am, has: have, does: do },
+          you: { is: are, was: were, has: have, does: do },
+          we: { is: are, was: were, has: have, does: do },
+          they: { is: are, was: were, has: have, does: do },
+        }
+    defs:
+      # Words after which a pronoun opens its own clause ("I hope you is", "as soon as you hears").
+      RS_CLAUSE_CUE: >-
+        /^(?:so|because|when|whenever|while|since|until|although|though|if|unless|once|that|feel|hope|think|guess|believe|know|sure|wish|maybe|perhaps)$/
+      # The lemma of a verb-only -s form after a subject pronoun: "you guys" or "they all means"
+      # with a plural noun reading need an object after it. Null when it is not one.
+      rsThirdLemma:
+        args: "ctx: DetectContext, m: RegExpExecArray, verb: string"
+        let:
+          read: englishWordInfo(verb)
+          object: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when:
+          - 'read?.verbs.some((v) => v.form === "third")'
+          - >-
+            !((read.noun || read.plural) && !(object?.kind === "word" &&
+            RS_VERB_EVIDENCE.test(object.lower)))
+        return: 'englishLemma(verb, "third") ?? ""'
+      # The be/have/do or base form a subject pronoun takes.
+      rsPronounForm:
+        args: "ctx: DetectContext, start: number, end: number, typed: string, fix: string, from: number"
+        return: >-
+          finding("englishPronounVerbWhitelistAgreement", "review_msg_pronoun_verb", start, end,
+          [caseLike(typed, fix)], { context: enEvidence(ctx, from, end) })
     frames:
       # "I hope you is happy", "I rarely has", "as soon as you hears": a subject pronoun and its
       # be/have/do or -s verb.
       - regex: "(?<pronoun>I|you|we|they)(?<adverb>{{S}}(?:rarely|never|always|often|usually|sometimes|really|also|still|just|only|all))?{{S}}(?<verb>[a-z]+s){{E}}"
         owner: verb
-        fixer: relativePronounVerbS
+        let:
+          p: pronoun.toLowerCase()
+          # "the gift I gave you is lost": an object you belongs to the clause before.
+          cue: '/([A-Za-z]+)[ \t ]{1,8}$/.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1]'
+          fix: RS_PRONOUN_FORMS[p][verb] || rsThirdLemma(ctx, m, verb)
+        when:
+          # The frame is case-blind: "You" opens a sentence, "tHeY" is an identifier.
+          - /^(?:I|[A-Za-z][a-z]*)$/.test(pronoun)
+          - '!(pronoun !== "I" && pronoun !== pronoun.toLowerCase() && !enAfterBreak(ctx, m.index))'
+          # The pronoun opens its clause: not "Phase I corresponds", "singular they has", "My
+          # Husband and I has been released" (a title), "Everyone but you has".
+          - enAfterBreak(ctx, m.index) || !!(cue && RS_CLAUSE_CUE.test(cue.toLowerCase()))
+          # A lowercase "i" is a variable ("where i is the number").
+          - pronoun !== "i"
+          - "!ctx.dictionary.has(verb)"
+          - fix && fix !== verb
+        return: rsPronounForm(ctx, m.indices!.groups!.verb[0], m.indices!.groups!.verb[1], verb, fix, m.index)
       # "Is you crazy?", "What has you done?".
       - regex: "(?<verb>is|was|has|does){{S}}(?<pronoun>I|you|we|they){{E}}"
         owner: verb
-        fixer: relativePronounQuestion
+        let:
+          p: 'pronoun === "I" ? "i" : pronoun.toLowerCase()'
+          # A question: the clause opens with the verb or a wh-word right before it.
+          lead: '/([A-Za-z]+)[ \t ]{1,8}$/.exec(ctx.text.slice(Math.max(0, m.index - 16), m.index))?.[1]'
+          # "Is you question related…": "you" for "your" before a noun is another slip.
+          after: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          read: 'after?.kind === "word" ? englishWordInfo(after.lower) : null'
+          fix: RS_PRONOUN_FORMS[p][verb.toLowerCase()]
+        when:
+          - 'enAfterBreak(ctx, m.index) || /^(?:what|where|why|how|when|who|which)$/i.test(lead ?? "")'
+          - '/^[^.!\n]{0,120}\?/.test(ctx.text.slice(m.index))'
+          - pronoun !== "i"
+          - >-
+            !(after?.kind === "word" && !EN_FUNCTION_WORDS.has(after.lower) &&
+            (enNounOnly(after.lower) || (read?.noun && !read.adjective)))
+          - fix
+        return: rsPronounForm(ctx, m.indices!.groups!.verb[0], m.indices!.groups!.verb[1], verb, fix, m.index)
   # The four question rules were one detector with four finding lists: each part drops a
   # finding that overlaps an earlier one of its own part only.
   - id: en.questionAuxiliaries

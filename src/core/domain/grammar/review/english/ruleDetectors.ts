@@ -24,7 +24,6 @@ import * as adverbSlots from "./adverbSlots";
 import * as confusionSlots from "./confusionSlots";
 import * as countSlots from "./countSlots";
 import * as negationSlots from "./negationSlots";
-import * as relativeSlots from "./relativeSlots";
 import * as questionSlots from "./questionSlots";
 import * as comparisonSlots from "./comparisonSlots";
 import * as collocationSlots from "./collocationSlots";
@@ -107,7 +106,6 @@ export const FIXERS = mergePredicates<Fixer>(
   punctuation.FIXERS,
   confusionSlots.FIXERS,
   apostrophes.FIXERS,
-  relativeSlots.FIXERS,
   degreeSlots.FIXERS,
   plainStyle.FIXERS,
   properNames.FIXERS,
