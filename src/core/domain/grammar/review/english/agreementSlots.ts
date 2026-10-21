@@ -417,7 +417,7 @@ const WORD =
  * The tokens of tokensAfter(ctx, index, count) before the first token that is not a word. It
  * reads no token after that one.
  */
-function wordsAfter(ctx: DetectContext, index: number, count: number): Token[] {
+export function wordsAfter(ctx: DetectContext, index: number, count: number): Token[] {
   const words: Token[] = [];
   WORD.lastIndex = index;
   for (let m = WORD.exec(ctx.text); m && words.length < count; m = WORD.exec(ctx.text)) {
