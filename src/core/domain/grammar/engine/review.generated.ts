@@ -4910,6 +4910,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: ["and"],
     fixer: "common:andIObject",
     owner: "a",
+    gate: "and[ \\t\\u00a0]{1,8}I(?:[ \\t\\u00a0]{1,8}(?:and|which|who|whom|when|if|that|about|before|after|into|with|on|at|in|to|from|by|for)|[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -4924,6 +4926,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: [],
     fixer: "common:andIBefore",
     owner: "a",
+    gate: "(?:and|or)[ \\t\\u00a0]{1,8}I(?:[ \\t\\u00a0]{1,8}(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together|if|when|which|who|whom)|[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))",
+    gateFlags: "giu",
   }),
   frame({
     pattern:

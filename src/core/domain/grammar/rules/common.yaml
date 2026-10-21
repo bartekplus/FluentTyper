@@ -5244,6 +5244,11 @@ rules:
         fixer: pronounObject
       - regex: "(?:{{CASE_OBJECT_PREPOSITION}}|for|between){{S}}(?<a>{{CASE_CONJUNCT}}){{S}}and{{S}}(?<i>I){{CASE_PAIR_ENDS}}"
         owner: a
+        # The gate: "and I" before the end of the pair (CASE_PAIR_ENDS). shortcut: as for
+        # coordinatedSubjects, a first side longer than about 56 characters across a chunk end could
+        # be missed.
+        gate: "and[ \\t\\u00a0]{1,8}I(?:[ \\t\\u00a0]{1,8}(?:and|which|who|whom|when|if|that|about|before|after|into|with|on|at|in|to|from|by|for)|[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))"
+        gateFlags: giu
         fixer: andIObject
       # "Talk to Don or myself.": with no "I" before it in the sentence, myself is me.
       - regex: "(?:{{CASE_OBJECT_PREPOSITION}}|for|between){{S}}(?<a>{{CASE_CONJUNCT}}){{S}}(?:and|or){{S}}(?<i>myself){{COMPLETE_OR_PAREN}}"
@@ -5253,6 +5258,10 @@ rules:
       # object pair before a closed word or the clause end.
       - regex: "(?=[a-z]+(?:{{S}}[a-z]+){1,3}{{S}}(?:and|or){{S}}I(?![\\p{L}]))(?<lead>[a-z]+){{S}}(?<a>{{CASE_CONJUNCT}}){{S}}(?:and|or){{S}}(?<i>I)(?:{{E}}(?={{S}}(?<next>[a-z]+){{E}})|{{COMPLETE_OR_PAREN}})"
         owner: a
+        # andIBefore needs a clause end or an OBJECT_NEXT word (englishPronounCase.ts) after "I": the
+        # gate repeats that list. shortcut: as for coordinatedSubjects.
+        gate: "(?:and|or)[ \\t\\u00a0]{1,8}I(?:[ \\t\\u00a0]{1,8}(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together|if|when|which|who|whom)|[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))"
+        gateFlags: giu
         fixer: andIBefore
       # "Us developers are tired": "us" before a subject noun is "we".
       - regex: "(?=us(?![\\p{L}])){{CASE_CLAUSE_START}}(?<pronoun>us){{S}}(?<noun>[a-z]+)(?:{{S}}{{CASE_ADVERB}})?{{S}}{{CASE_FINITE}}{{E}}"
