@@ -12,6 +12,7 @@ import type {
 } from "../../library";
 import {
   ENGLISH_MASS_NOUNS,
+  EN_ADVERBS,
   EN_AUXILIARIES,
   EN_COLLECTIVE,
   EN_DETERMINERS,
@@ -138,6 +139,35 @@ export const RS_PRONOUN_FORMS: Readonly<Record<string, Readonly<Record<string, s
   you: { is: "are", was: "were", has: "have", does: "do" },
   we: { is: "are", was: "were", has: "have", does: "do" },
   they: { is: "are", was: "were", has: "have", does: "do" },
+};
+
+export const CA_TO_PLURAL: Readonly<Record<string, string>> = {
+  is: "are",
+  was: "were",
+  has: "have",
+  does: "do",
+  "isn't": "aren't",
+  "wasn't": "weren't",
+  "hasn't": "haven't",
+  "doesn't": "don't",
+};
+
+export const CA_TO_SINGULAR: Readonly<Record<string, string>> = {
+  are: "is",
+  "aren't": "isn't",
+  have: "has",
+  "haven't": "hasn't",
+  do: "does",
+  "don't": "doesn't",
+};
+
+export const CA_THIRD_AUX: Readonly<Record<string, string>> = {
+  have: "has",
+  do: "does",
+  are: "is",
+  "haven't": "hasn't",
+  "don't": "doesn't",
+  "aren't": "isn't",
 };
 
 export const VS_PERFECT_HAVE: Readonly<Record<string, string>> = {
@@ -449,6 +479,431 @@ export function rsPronounForm(
     [caseLike(typed, fix)],
     { context: enEvidence(ctx, from, end) },
   );
+}
+
+// en.yaml rule en.clauseAgreement def CA_CLAUSE_CUE
+export const CA_CLAUSE_CUE = /^(?:whether|when|if|that|because|since|while|where|but|so)$/;
+
+// en.yaml rule en.clauseAgreement def CA_SUBJECT
+export const CA_SUBJECT = /^(?:i|you|he|she|we|they)$/;
+
+// en.yaml rule en.clauseAgreement def CA_NP_DET
+export const CA_NP_DET =
+  /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|some|every|each|other|no)$/;
+
+// en.yaml rule en.clauseAgreement def CA_AUX
+export const CA_AUX =
+  /^(?:will|would|can|could|shall|should|may|might|must|do|does|did|don't|doesn't|didn't|won't|can't|cannot|couldn't|wouldn't|shouldn't|has|have|had|hasn't|haven't|hadn't|is|are|was|were|isn't|aren't|wasn't|weren't|am)$/;
+
+// en.yaml rule en.clauseAgreement def CA_BARE_OR_SECOND
+export const CA_BARE_OR_SECOND =
+  /^(?:help|let|make|have|see|watch|hear|feel|notice|bid|call|name|elect|consider|find|keep|appoint|deem|label|dub|think|get|want|need|like|prefer|go|come|try|dare)$/;
+
+// en.yaml rule en.clauseAgreement def CA_TIME_NOUN
+export const CA_TIME_NOUN =
+  /^(?:week|month|year|night|morning|afternoon|evening|day|weekend|summer|winter|spring|autumn|fall|time)$/;
+
+// en.yaml rule en.clauseAgreement def CA_TIME_WORD
+export const CA_TIME_WORD =
+  /^(?:yesterday|today|tonight|now|then|earlier|later|again|recently|once|twice|daily|weekly|monthly|yearly|here|there|ago)$/;
+
+// en.yaml rule en.clauseAgreement def CA_PARTICLE
+export const CA_PARTICLE = /^(?:in|out|up|down|off|on|away|back|over|around)$/;
+
+// en.yaml rule en.clauseAgreement def CA_PREPOSITION
+export const CA_PREPOSITION =
+  /^(?:at|on|in|to|for|from|with|by|of|about|into|onto|across|near|under|over|behind|after|before|during|through|around|inside|outside|between|among|without|along)$/;
+
+// en.yaml rule en.clauseAgreement def CA_OBJECT
+export const CA_OBJECT = /^(?:me|him|her|us|them|it|you)$/;
+
+// en.yaml rule en.clauseAgreement def CA_MODAL
+export const CA_MODAL = /^(?:will|can|may|must|shall|ought)$/;
+
+// en.yaml rule en.clauseAgreement def CA_CONTENT_NOUN
+export const CA_CONTENT_NOUN =
+  /^(?:fact|idea|belief|claim|news|notion|hope|fear|chance|possibility|rumou?r|sense|feeling|thought|view|argument|assumption|evidence|proof|sign|point|suggestion|impression|doubt|realization|knowledge|risk|danger|theory|statement|report|message|announcement|promise|condition|requirement|reminder)$/;
+
+// en.yaml rule en.clauseAgreement def CA_SAME_PLURAL
+export const CA_SAME_PLURAL =
+  /^(?:fish|deer|moose|salmon|trout|cod|bison|swine|offspring|aircraft|craft)$/;
+
+// en.yaml rule en.clauseAgreement def CA_ASIDE_OPENER
+export const CA_ASIDE_OPENER =
+  /^(?:for|in|of|however|therefore|though|too|who|which|whose|mostly|mainly|largely|chiefly|primarily|especially)$/;
+
+// en.yaml rule en.clauseAgreement def CA_ASIDE_FIXED
+export const CA_ASIDE_FIXED =
+  /^(?:for example|for instance|in fact|in particular|in turn|in general|of course|however|therefore|though|too|mostly|mainly|largely|chiefly|primarily|especially|who|which|whose)\b/;
+
+// en.yaml rule en.clauseAgreement def CA_WHAT_NOUNS
+export const CA_WHAT_NOUNS =
+  /^(?:time|kind|sort|type|size|colou?r|way|place|part|use|name|number|day|year|age|price|level|page|line|version|model|brand|course|book|song|film|movie|team|language|shape|form|stage|step|role|job|work|food|sport|subject)$/;
+
+// en.yaml rule en.clauseAgreement def caNormal
+export function caNormal(word: string) {
+  return word.toLowerCase().replaceAll("’", "'");
+}
+
+// en.yaml rule en.clauseAgreement def caRead
+export function caRead(t: EnToken | undefined) {
+  return t?.kind === "word" && !EN_FUNCTION_WORDS.has(t.lower) ? englishWordInfo(t.lower) : null;
+}
+
+// en.yaml rule en.clauseAgreement def caIsVerb
+export function caIsVerb(t: EnToken | undefined) {
+  return !!caRead(t)?.verbs.length;
+}
+
+// en.yaml rule en.clauseAgreement def caIsNoun
+export function caIsNoun(t: EnToken | undefined) {
+  return (
+    t?.kind === "word" &&
+    (t.text !== t.lower
+      ? t.lower !== "i"
+      : !EN_FUNCTION_WORDS.has(t.lower) &&
+        (!englishWordInfo(t.lower) || !!caRead(t)?.noun || !!enNounNumber(t.lower)))
+  );
+}
+
+// en.yaml rule en.clauseAgreement def caAdverbish
+export function caAdverbish(t: EnToken | undefined) {
+  if (!(t?.kind === "word")) return false;
+  return EN_ADVERBS.has(t.lower) || CA_TIME_WORD.test(t.lower) || caLyAdverb(t.lower);
+}
+
+// en.yaml rule en.clauseAgreement def caLyAdverb
+export function caLyAdverb(word: string) {
+  const r = englishWordInfo(word);
+  return !!r?.adverb && !r.noun && !r.verbs.length && /ly$/.test(word);
+}
+
+// en.yaml rule en.clauseAgreement def caTimePhrase
+export function caTimePhrase(tokens: EnToken[], j: number) {
+  return /^(?:last|every|each|this|next)$/.test(tokens[j]?.lower ?? "") &&
+    CA_TIME_NOUN.test(tokens[j + 1]?.lower ?? "")
+    ? 2
+    : caAdverbish(tokens[j])
+      ? 1
+      : 0;
+}
+
+// en.yaml rule en.clauseAgreement def caNounPhrase
+export function caNounPhrase(tokens: EnToken[], j: number, maxWords: number, subject: boolean) {
+  const k = caSkipDeterminers(tokens, j);
+  const start = tokens[k]?.kind === "number" ? k + 1 : k;
+  const end = caNounRun(tokens, start, start + maxWords, subject);
+  return end > start ? end : -1;
+}
+
+// en.yaml rule en.clauseAgreement def caSkipDeterminers
+export function caSkipDeterminers(tokens: EnToken[], k: number): number {
+  return tokens[k]?.kind === "word" && CA_NP_DET.test(tokens[k].lower)
+    ? caSkipDeterminers(tokens, k + 1)
+    : k;
+}
+
+// en.yaml rule en.clauseAgreement def caNounRun
+export function caNounRun(tokens: EnToken[], k: number, limit: number, subject: boolean): number {
+  return k < limit && caIsNoun(tokens[k])
+    ? (subject ? caIsVerb(tokens[k + 1]) : caCandidateAfterNoun(tokens, k + 1))
+      ? k + 1
+      : caNounRun(tokens, k + 1, limit, subject)
+    : k;
+}
+
+// en.yaml rule en.clauseAgreement def caCandidateAfterNoun
+export function caCandidateAfterNoun(tokens: EnToken[], k: number) {
+  const r = caRead(tokens[k]);
+  return !!r?.verbs.length && !r.noun && !r.adjective;
+}
+
+// en.yaml rule en.clauseAgreement def caSkipAdverbish
+export function caSkipAdverbish(tokens: EnToken[], j: number): number {
+  return caAdverbish(tokens[j]) ? caSkipAdverbish(tokens, j + 1) : j;
+}
+
+// en.yaml rule en.clauseAgreement def caSkipNegation
+export function caSkipNegation(tokens: EnToken[], j: number): number {
+  return tokens[j]?.lower === "not" || caAdverbish(tokens[j]) ? caSkipNegation(tokens, j + 1) : j;
+}
+
+// en.yaml rule en.clauseAgreement def caMainVerbIndex
+export function caMainVerbIndex(tokens: EnToken[]): { index: number; free: boolean } | null {
+  const first = tokens[0];
+  const pronoun = first?.kind === "word" && (CA_SUBJECT.test(first.lower) || first.text === "I");
+  const bareNoun =
+    !pronoun &&
+    first?.kind === "word" &&
+    (/^(?:people|men|women|children)$/.test(first.lower) || !!enNounOnly(first.lower)) &&
+    caIsVerb(tokens[1]);
+  const phrase = !pronoun && !bareNoun && first?.kind === "word" && CA_NP_DET.test(first.lower);
+  const subjectEnd = pronoun || bareNoun ? 1 : phrase ? caNounPhrase(tokens, 0, 3, true) : 0;
+  if (!(subjectEnd >= 0)) return null;
+  const objectGap = pronoun || bareNoun || phrase;
+  const j = caSkipAdverbish(tokens, subjectEnd);
+  const aux = CA_AUX.test(caNormal(tokens[j]?.lower ?? ""));
+  const afterAux = aux ? caSkipNegation(tokens, j + 1) : j;
+  const at =
+    aux && /^(?:been|being|be)$/.test(tokens[afterAux]?.lower ?? "") ? afterAux + 1 : afterAux;
+  if (!(aux ? caIsVerb(tokens[at]) : caIsVerb(tokens[at]) && tokens[at].text === tokens[at].lower))
+    return null;
+  const verb = tokens[at];
+  const k = at + 1;
+  const lemmas = englishWordInfo(verb.lower)?.verbs.map((v) => v.lemma) ?? [];
+  if (lemmas.some((l) => CA_BARE_OR_SECOND.test(l))) return null;
+  if (tokens[k]?.lower === "to" && !CA_NP_DET.test(tokens[k + 1]?.lower ?? "")) return null;
+  const free =
+    objectGap &&
+    !CA_PARTICLE.test(tokens[k]?.lower ?? "") &&
+    !caTimePhrase(tokens, k) &&
+    !(tokens[k + 1]?.lower === "by" && tokens[k + 2]?.lower === tokens[k]?.lower) &&
+    !!caRead(tokens[k])?.verbs.length;
+  return free ? { index: k, free: true } : caComplements(tokens, k, objectGap, 0);
+}
+
+// en.yaml rule en.clauseAgreement def caComplements
+export function caComplements(
+  tokens: EnToken[],
+  j: number,
+  tookObject: boolean,
+  guard: number,
+): { index: number; free: boolean } | null {
+  if (!(guard < 6 && j < tokens.length)) return null;
+  const t = tokens[j];
+  if (!(t.kind === "word")) return null;
+  const time = caTimePhrase(tokens, j);
+  return time
+    ? caIsVerb(tokens[j + time]) && tokens[j + time].text === tokens[j + time].lower
+      ? { index: j + time, free: true }
+      : caComplements(tokens, j + time, tookObject, guard + 1)
+    : CA_PARTICLE.test(t.lower) && !CA_NP_DET.test(tokens[j + 1]?.lower ?? "")
+      ? caComplements(tokens, j + 1, tookObject, guard + 1)
+      : CA_PREPOSITION.test(t.lower)
+        ? t.lower === "to" && !CA_NP_DET.test(tokens[j + 1]?.lower ?? "")
+          ? null
+          : caAfterPhrase(tokens, caNounPhrase(tokens, j + 1, 3, false), guard)
+        : !tookObject && CA_OBJECT.test(t.lower)
+          ? caComplements(tokens, j + 1, true, guard + 1)
+          : !tookObject && (CA_NP_DET.test(t.lower) || caIsNoun(t))
+            ? caAfterPhrase(tokens, caNounPhrase(tokens, j, 3, false), guard)
+            : caCandidate(tokens, j)
+              ? { index: j, free: false }
+              : null;
+}
+
+// en.yaml rule en.clauseAgreement def caAfterPhrase
+export function caAfterPhrase(
+  tokens: EnToken[],
+  end: number,
+  guard: number,
+): { index: number; free: boolean } | null {
+  return end < 0
+    ? null
+    : caCandidate(tokens, end)
+      ? { index: end, free: false }
+      : caComplements(tokens, end, true, guard + 1);
+}
+
+// en.yaml rule en.clauseAgreement def caCandidate
+export function caCandidate(tokens: EnToken[], j: number) {
+  const t = tokens[j];
+  if (!(t?.kind === "word" && t.text === t.lower)) return false;
+  const r = t.lower === "own" ? englishWordInfo("own") : caRead(t);
+  return (
+    CA_AUX.test(caNormal(t.lower)) ||
+    (!!r?.verbs.length &&
+      ((!r.noun && !r.adjective) ||
+        (tokens[j - 1]?.kind === "word" &&
+          enNounNumber(tokens[j - 1].lower)?.number === "plural" &&
+          r.verbs.some((v) => v.form === "base") &&
+          !r.plural)))
+  );
+}
+
+// en.yaml rule en.clauseAgreement def caCloses
+export function caCloses(t: EnToken | undefined) {
+  return !t || t.kind === "end" || t.kind === "comma"
+    ? true
+    : t.kind !== "word"
+      ? false
+      : /^(?:the|a|an|my|your|his|her|our|their|its|it|them|me|us|him|you|this|that|these|those|to|in|on|at|with|for|up|down|out|off|through|into|about|from|by|over|under|every|each|some|any|no|well|very|so|too|more|less)$/.test(
+          t.lower,
+        ) ||
+        t.text !== t.lower ||
+        caAdverbish(t) ||
+        caNounOrAdjective(t.lower);
+}
+
+// en.yaml rule en.clauseAgreement def caNounOrAdjective
+export function caNounOrAdjective(word: string) {
+  const r = englishWordInfo(word);
+  return !!r && !r.verbs.length && (r.noun || r.adjective);
+}
+
+// en.yaml rule en.clauseAgreement def caFixFor
+export function caFixFor(
+  verb: EnToken,
+  next: EnToken | undefined,
+  plural: boolean,
+  free: boolean,
+  aside: boolean,
+) {
+  const word = caNormal(verb.lower);
+  if (CA_MODAL.test(word) || (/^(?:need|dare)$/.test(word) && next?.lower === "not")) return null;
+  return plural
+    ? CA_TO_PLURAL[word] || caPluralVerb(word, next, free, aside)
+    : CA_TO_SINGULAR[word] || caSingularVerb(word, next, aside);
+}
+
+// en.yaml rule en.clauseAgreement def caPluralVerb
+export function caPluralVerb(
+  word: string,
+  next: EnToken | undefined,
+  free: boolean,
+  aside: boolean,
+) {
+  if (!/s$/.test(word)) return null;
+  const r = englishWordInfo(word);
+  if (!r?.verbs.some((v) => v.form === "third")) return null;
+  if ((r.noun || r.plural) && !aside && !(free && caCloses(next))) return null;
+  const forms = englishVerbForms(word);
+  return forms?.third === word ? forms.lemma : englishLemma(word, "third");
+}
+
+// en.yaml rule en.clauseAgreement def caSingularVerb
+export function caSingularVerb(word: string, next: EnToken | undefined, aside: boolean) {
+  const r = englishWordInfo(word);
+  if (!r?.verbs.some((v) => v.form === "base" && v.lemma === word)) return null;
+  const forms = englishVerbForms(word);
+  if (!(forms?.past !== word)) return null;
+  if ((r.adjective && !aside) || ((r.noun || r.plural) && !caCloses(next) && !aside)) return null;
+  return englishInflect(word, "third");
+}
+
+// en.yaml rule en.clauseAgreement def caAsideEnd
+export function caAsideEnd(tokens: EnToken[], j: number) {
+  const opener = tokens[j];
+  if (!(opener?.kind === "word" && CA_ASIDE_OPENER.test(opener.lower))) return -1;
+  if (
+    !CA_ASIDE_FIXED.test(
+      tokens
+        .slice(j, j + 2)
+        .map((t) => t.lower)
+        .join(" "),
+    )
+  )
+    return -1;
+  return caCommaAfter(tokens, j + 1, Math.min(tokens.length, j + 14));
+}
+
+// en.yaml rule en.clauseAgreement def caCommaAfter
+export function caCommaAfter(tokens: EnToken[], k: number, limit: number): number {
+  return k >= limit
+    ? -1
+    : tokens[k].kind === "comma"
+      ? k + 1
+      : tokens[k].kind !== "word" && tokens[k].kind !== "number"
+        ? -1
+        : caCommaAfter(tokens, k + 1, limit);
+}
+
+// en.yaml rule en.clauseAgreement def caAgreementFinding
+export function caAgreementFinding(ctx: DetectContext, verb: EnToken, fix: string, from: number) {
+  return finding(
+    "englishSubjectVerbAgreement",
+    "review_msg_subject_verb",
+    verb.start,
+    verb.end,
+    [caseLike(verb.text, fix)],
+    { context: enEvidence(ctx, from, verb.end) },
+  );
+}
+
+// en.yaml rule en.clauseAgreement def caAsideHead
+export function caAsideHead(
+  tokens: EnToken[],
+  j: number,
+  head: EnToken | undefined,
+): { j: number; head: EnToken | undefined } {
+  return !(j < 5 && tokens[j]?.kind === "word")
+    ? { j, head }
+    : /^(?:in|of|from)$/.test(tokens[j].lower) && head
+      ? { j: caPhraseEnd(tokens, j + 1), head }
+      : caAsideHead(tokens, j + 1, tokens[j]);
+}
+
+// en.yaml rule en.clauseAgreement def caPhraseEnd
+export function caPhraseEnd(tokens: EnToken[], j: number) {
+  const k = CA_NP_DET.test(tokens[j]?.lower ?? "") ? j + 1 : j;
+  return tokens[k]?.kind !== "word" ? k : k + 1;
+}
+
+// en.yaml rule en.clauseAgreement def caDeterminedPlural
+export function caDeterminedPlural(
+  tokens: EnToken[],
+  head: EnToken,
+  word: string,
+  det: string,
+): boolean | null {
+  if (head.text !== word || EN_FUNCTION_WORDS.has(word)) return null;
+  const number = enNounNumber(word);
+  if (!(number && !EN_COLLECTIVE.has(number.singular) && !CA_SAME_PLURAL.test(word))) return null;
+  if (
+    tokens
+      .slice(1, tokens.indexOf(head))
+      .some((t) => t.kind !== "word" || englishWordInfo(t.lower)?.verbs.length)
+  )
+    return null;
+  if (
+    number.number === "plural"
+      ? /^(?:this|that)$/.test(det)
+      : /^(?:these|those|many|most)$/.test(det)
+  )
+    return null;
+  return number.number === "plural";
+}
+
+// en.yaml rule en.clauseAgreement def caBareSingular
+export function caBareSingular(
+  tokens: EnToken[],
+  head: EnToken,
+  word: string,
+  j: number,
+): boolean | null {
+  if (tokens.indexOf(head) !== 0 || head.text === word) return null;
+  const aside = tokens[j + 1]?.lower ?? "";
+  if (!(
+    (/^[A-Z][a-z]+ing$/.test(head.text) && !!englishWordInfo(word)?.noun) ||
+    (/^[A-Z][a-z]+$/.test(head.text) && !englishWordInfo(word) && /^(?:who|whose)$/.test(aside))
+  ))
+    return null;
+  return false;
+}
+
+// en.yaml rule en.clauseAgreement def caLikeHeadPlural
+export function caLikeHeadPlural(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  det: string | undefined,
+  head: string,
+): boolean | null {
+  const number = enNounNumber(head);
+  if (!(number && !EN_COLLECTIVE.has(number.singular) && !CA_SAME_PLURAL.test(head))) return null;
+  const plural = number.number === "plural";
+  if (
+    !det &&
+    (!plural ||
+      !enAfterBreak(ctx, m.index) ||
+      (!/such/i.test(m[0]) && englishWordInfo(head)?.verbs.some((v) => v.form === "third")))
+  )
+    return null;
+  if (
+    det &&
+    (plural ? /^(?:a|an|this|that|every|each|any)$/i.test(det) : /^(?:these|those)$/i.test(det))
+  )
+    return null;
+  return plural;
 }
 
 // en.yaml rule en.realWordFrames def rwRead
@@ -1145,6 +1600,172 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       verb,
       fix,
       m.index,
+    );
+  },
+  // en.yaml rule en.clauseAgreement frame 1
+  "@en.clauseAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    const head = m.groups!.head;
+    if (!(enAfterBreak(ctx, m.index) || CA_CLAUSE_CUE.test(enWordBefore(ctx, m.index))))
+      return null;
+    if (!/[ \t ](?:who|that)[ \t ]+$/.test(m[0])) return null;
+    const words = head.split(/[ \t ]+/);
+    if (words.some((w) => EN_FUNCTION_WORDS.has(w) || CA_AUX.test(w))) return null;
+    if (words.slice(0, -1).some((w) => englishWordInfo(w)?.verbs.some((v) => v.form !== "base")))
+      return null;
+    const last = words.at(-1)!;
+    if (CA_CONTENT_NOUN.test(last) || CA_CONTENT_NOUN.test(last.replace(/s$/, ""))) return null;
+    const low = det.toLowerCase();
+    const headRead = englishWordInfo(last);
+    const number =
+      last === "one"
+        ? { singular: "one", number: "singular" as const }
+        : (enNounNumber(last) ??
+          (headRead?.noun
+            ? {
+                singular: last,
+                number:
+                  headRead.plural && /s$/.test(last) ? ("plural" as const) : ("singular" as const),
+              }
+            : null));
+    if (!(number && !EN_COLLECTIVE.has(number.singular))) return null;
+    const plural = number.number === "plural";
+    if (
+      plural
+        ? /^(?:a|an|this|that|every|each)$/.test(low)
+        : /^(?:these|those)$/.test(low) || (last !== "one" && headRead?.adjective)
+    )
+      return null;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 16);
+    if (tokens.some((t) => t.kind === "other")) return null;
+    const found = caMainVerbIndex(tokens);
+    if (!found) return null;
+    const verb = tokens[found.index];
+    if (verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))
+      return null;
+    if (!plural && verb.lower === "were") return null;
+    const fix = caFixFor(verb, tokens[found.index + 1], plural, found.free, false);
+    if (!(fix && fix !== verb.lower)) return null;
+    return caAgreementFinding(ctx, verb, fix, m.index);
+  },
+  // en.yaml rule en.clauseAgreementAsides frame 1
+  "@en.clauseAgreementAsides/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    const head = m.groups!.head;
+    const low = det?.toLowerCase();
+    if (!(low || head !== head.toLowerCase())) return null;
+    if (!enOpensClause(ctx, m.index, CA_CLAUSE_CUE)) return null;
+    const tokens = enTokensAfter(ctx, m.index, 24);
+    const scan = caAsideHead(tokens, low ? 1 : 0, undefined);
+    const j = scan.j;
+    const first = scan.head;
+    if (!(first && tokens[j]?.kind === "comma")) return null;
+    const word = first.lower;
+    const plural = low
+      ? caDeterminedPlural(tokens, first, word, low)
+      : caBareSingular(tokens, first, word, j);
+    if (!(plural !== null)) return null;
+    const end = caAsideEnd(tokens, j + 1);
+    if (!(end >= 0)) return null;
+    const verb = tokens[end];
+    if (verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))
+      return null;
+    if (!plural && verb.lower === "were") return null;
+    const fix = caFixFor(verb, tokens[end + 1], plural, true, true);
+    if (!(fix && fix !== verb.lower)) return null;
+    return caAgreementFinding(ctx, verb, fix, m.index);
+  },
+  // en.yaml rule en.clauseAgreementAsides frame 2
+  "@en.clauseAgreementAsides/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const wh = m.groups!.wh;
+    if (!enAfterBreak(ctx, m.index)) return null;
+    const low = wh.toLowerCase();
+    const pair = enTokensAfter(ctx, m.index + m[0].length, 2);
+    const verb = pair[0];
+    if (verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))
+      return null;
+    if (
+      (EN_FUNCTION_WORDS.has(verb.lower) && verb.lower !== "own") ||
+      CA_AUX.test(verb.lower) ||
+      CA_MODAL.test(verb.lower)
+    )
+      return null;
+    const next = pair[1];
+    if (
+      next?.kind !== "word" ||
+      !/^(?:the|a|an|my|your|our|their|his|its|this|these|those|me|him|us|them)$/.test(next.lower)
+    )
+      return null;
+    const r = englishWordInfo(verb.lower);
+    if (!r?.verbs.some((v) => v.form === "base" && v.lemma === verb.lower) || r.adjective)
+      return null;
+    if (!(englishVerbForms(verb.lower)?.past !== verb.lower)) return null;
+    if (low === "what" && r.noun && CA_WHAT_NOUNS.test(verb.lower)) return null;
+    const fix = englishInflect(verb.lower, "third");
+    if (!(fix && fix !== verb.lower)) return null;
+    return caAgreementFinding(ctx, verb, fix, m.index);
+  },
+  // en.yaml rule en.clauseAgreementAsides frame 3
+  "@en.clauseAgreementAsides/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const det = m.groups!.det;
+    const head = m.groups!.head;
+    const one = m.groups!.one;
+    if (!(enAfterBreak(ctx, m.index) || CA_CLAUSE_CUE.test(enWordBefore(ctx, m.index))))
+      return null;
+    const low = head?.toLowerCase();
+    const plural = low ? caLikeHeadPlural(ctx, m, det, low) : pronoun ? false : null;
+    if (!(plural !== null)) return null;
+    if (/^[^.!?\n]*\?/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 200)))
+      return null;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 3);
+    const j = !caAdverbish(tokens[0]) ? 0 : !caAdverbish(tokens[1]) ? 1 : 2;
+    const verb = tokens[j];
+    if (verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))
+      return null;
+    const r = englishWordInfo(verb.lower);
+    if (
+      !one &&
+      j === 0 &&
+      !CA_AUX.test(caNormal(verb.lower)) &&
+      (r?.noun || r?.adjective || r?.plural)
+    )
+      return null;
+    if (!plural && verb.lower === "were") return null;
+    const fix = caFixFor(verb, tokens[j + 1], plural, true, true);
+    if (!(fix && fix !== verb.lower)) return null;
+    return caAgreementFinding(ctx, verb, fix, m.index);
+  },
+  // en.yaml rule en.clauseAgreementAsides frame 4
+  "@en.clauseAgreementAsides/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const aux = m.groups!.aux;
+    const subject = m.groups!.subject;
+    const next = m.groups!.next;
+    const before = enWordBefore(ctx, m.index);
+    if (!(enAfterBreak(ctx, m.index) || /^(?:when|where|why|how|what|who|which)$/.test(before)))
+      return null;
+    const fix = CA_THIRD_AUX[caNormal(aux)];
+    if (!fix) return null;
+    if (!/^(?:he|she)$/.test(subject)) return null;
+    if (!/^[^.!\n]*\?/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 160)))
+      return null;
+    const read = englishWordInfo(next);
+    const stem = caNormal(aux).replace("n't", "");
+    const fits =
+      stem === "have"
+        ? next === "been" || !!read?.verbs.some((v) => v.form === "participle")
+        : stem === "do"
+          ? !!read?.verbs.some((v) => v.form === "base" && v.lemma === next)
+          : !!read?.adjective ||
+            !!read?.verbs.some((v) => v.form === "ing" || v.form === "participle");
+    if (!fits) return null;
+    return finding(
+      "englishSubjectVerbAgreement",
+      "review_msg_subject_verb",
+      m.indices!.groups!.aux[0],
+      m.indices!.groups!.aux[1],
+      [caseLike(aux, fix.replaceAll("'", aux.includes("’") ? "’" : "'"))],
+      { context: enEvidence(ctx, m.index, m.index + m[0].length) },
     );
   },
   // en.yaml rule en.realWordFrames frame 1

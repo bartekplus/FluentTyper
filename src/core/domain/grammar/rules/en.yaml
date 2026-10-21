@@ -3615,12 +3615,370 @@ rules:
     style: match
     message: review_msg_subject_verb
     filter: usSlotsOnePerStart
+    # Subject-verb agreement across a relative clause that has its own verb and complements:
+    # "The laptop that she bought last week run hot", "The keys that I left on the table belongs
+    # to Sam". The clause is read token by token; anything it cannot read ends the check.
+    maps:
+      CA_TO_PLURAL:
+        {
+          is: are,
+          was: were,
+          has: have,
+          does: do,
+          "isn't": "aren't",
+          "wasn't": "weren't",
+          "hasn't": "haven't",
+          "doesn't": "don't",
+        }
+      CA_TO_SINGULAR:
+        { are: is, "aren't": "isn't", have: has, "haven't": "hasn't", do: does, "don't": "doesn't" }
+      CA_THIRD_AUX:
+        { have: has, do: does, are: is, "haven't": "hasn't", "don't": "doesn't", "aren't": "isn't" }
+    defs:
+      # Not "and": "The cups and the plate that sit there are clean" coordinates the subject.
+      CA_CLAUSE_CUE: /^(?:whether|when|if|that|because|since|while|where|but|so)$/
+      CA_SUBJECT: /^(?:i|you|he|she|we|they)$/
+      CA_NP_DET: >-
+        /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|some|every|each|other|no)$/
+      CA_AUX: >-
+        /^(?:will|would|can|could|shall|should|may|might|must|do|does|did|don't|doesn't|didn't|won't|can't|cannot|couldn't|wouldn't|shouldn't|has|have|had|hasn't|haven't|hadn't|is|are|was|were|isn't|aren't|wasn't|weren't|am)$/
+      # Clause verbs that take a bare verb or a second complement after their object: "helps
+      # pay", "made run", "watched chase", "call home", "noticed leave".
+      CA_BARE_OR_SECOND: >-
+        /^(?:help|let|make|have|see|watch|hear|feel|notice|bid|call|name|elect|consider|find|keep|appoint|deem|label|dub|think|get|want|need|like|prefer|go|come|try|dare)$/
+      CA_TIME_NOUN: >-
+        /^(?:week|month|year|night|morning|afternoon|evening|day|weekend|summer|winter|spring|autumn|fall|time)$/
+      CA_TIME_WORD: >-
+        /^(?:yesterday|today|tonight|now|then|earlier|later|again|recently|once|twice|daily|weekly|monthly|yearly|here|there|ago)$/
+      CA_PARTICLE: /^(?:in|out|up|down|off|on|away|back|over|around)$/
+      # Prepositions that open a phrase inside the clause; "to" only before a determiner.
+      CA_PREPOSITION: >-
+        /^(?:at|on|in|to|for|from|with|by|of|about|into|onto|across|near|under|over|behind|after|before|during|through|around|inside|outside|between|among|without|along)$/
+      CA_OBJECT: /^(?:me|him|her|us|them|it|you)$/
+      CA_MODAL: /^(?:will|can|may|must|shall|ought)$/
+      # Nouns whose "that" opens a complement clause, not a relative one: "the fact that…".
+      CA_CONTENT_NOUN: >-
+        /^(?:fact|idea|belief|claim|news|notion|hope|fear|chance|possibility|rumou?r|sense|feeling|thought|view|argument|assumption|evidence|proof|sign|point|suggestion|impression|doubt|realization|knowledge|risk|danger|theory|statement|report|message|announcement|promise|condition|requirement|reminder)$/
+      CA_SAME_PLURAL: /^(?:fish|deer|moose|salmon|trout|cod|bison|swine|offspring|aircraft|craft)$/
+      CA_ASIDE_OPENER: >-
+        /^(?:for|in|of|however|therefore|though|too|who|which|whose|mostly|mainly|largely|chiefly|primarily|especially)$/
+      CA_ASIDE_FIXED: >-
+        /^(?:for example|for instance|in fact|in particular|in turn|in general|of course|however|therefore|though|too|mostly|mainly|largely|chiefly|primarily|especially|who|which|whose)\b/
+      # "What time the shop opens…", "What size shoes…": nouns that "what" modifies.
+      CA_WHAT_NOUNS: >-
+        /^(?:time|kind|sort|type|size|colou?r|way|place|part|use|name|number|day|year|age|price|level|page|line|version|model|brand|course|book|song|film|movie|team|language|shape|form|stage|step|role|job|work|food|sport|subject)$/
+      caNormal:
+        args: "word: string"
+        return: word.toLowerCase().replaceAll("’", "'")
+      caRead:
+        args: "t: EnToken | undefined"
+        return: 't?.kind === "word" && !EN_FUNCTION_WORDS.has(t.lower) ? englishWordInfo(t.lower) : null'
+      caIsVerb:
+        args: "t: EnToken | undefined"
+        return: "!!caRead(t)?.verbs.length"
+      # Unknown lowercase words count: the lexicon leaves out many plain nouns ("critics").
+      caIsNoun:
+        args: "t: EnToken | undefined"
+        return: >-
+          t?.kind === "word" && (t.text !== t.lower ? t.lower !== "i" : !EN_FUNCTION_WORDS.has(t.lower)
+          && (!englishWordInfo(t.lower) || !!caRead(t)?.noun || !!enNounNumber(t.lower)))
+      caAdverbish:
+        args: "t: EnToken | undefined"
+        when: t?.kind === "word"
+        return: EN_ADVERBS.has(t.lower) || CA_TIME_WORD.test(t.lower) || caLyAdverb(t.lower)
+        else: "false"
+      # An -ly word that the lexicon reads only as an adverb.
+      caLyAdverb:
+        args: "word: string"
+        let:
+          r: englishWordInfo(word)
+        return: "!!r?.adverb && !r.noun && !r.verbs.length && /ly$/.test(word)"
+      # "last week", "every morning", "each afternoon": a time phrase's length, or 0.
+      caTimePhrase:
+        args: "tokens: EnToken[], j: number"
+        return: >-
+          /^(?:last|every|each|this|next)$/.test(tokens[j]?.lower ?? "") && CA_TIME_NOUN.test(tokens[j
+          + 1]?.lower ?? "") ? 2 : caAdverbish(tokens[j]) ? 1 : 0
+      # A noun phrase from `j` (determiners, modifiers, head): its end index, or -1. A subject
+      # phrase ends at the first word after a noun that can be a verb ("the critics praised"). A
+      # modifier-only phrase ("the big") cannot end the clause; nor can a phrase that took no
+      # word after its determiner.
+      caNounPhrase:
+        args: "tokens: EnToken[], j: number, maxWords: number, subject: boolean"
+        let:
+          k: caSkipDeterminers(tokens, j)
+          start: 'tokens[k]?.kind === "number" ? k + 1 : k'
+          end: caNounRun(tokens, start, start + maxWords, subject)
+        return: "end > start ? end : -1"
+      caSkipDeterminers:
+        args: "tokens: EnToken[], k: number"
+        type: number
+        return: 'tokens[k]?.kind === "word" && CA_NP_DET.test(tokens[k].lower) ? caSkipDeterminers(tokens, k + 1) : k'
+      caNounRun:
+        args: "tokens: EnToken[], k: number, limit: number, subject: boolean"
+        type: number
+        return: >-
+          k < limit && caIsNoun(tokens[k]) ? ((subject ? caIsVerb(tokens[k + 1]) :
+          caCandidateAfterNoun(tokens, k + 1)) ? k + 1 : caNounRun(tokens, k + 1, limit, subject)) : k
+      # Whether the word at `k` (after a noun) can only be read as a verb.
+      caCandidateAfterNoun:
+        args: "tokens: EnToken[], k: number"
+        let:
+          r: caRead(tokens[k])
+        return: "!!r?.verbs.length && !r.noun && !r.adjective"
+      caSkipAdverbish:
+        args: "tokens: EnToken[], j: number"
+        type: number
+        return: "caAdverbish(tokens[j]) ? caSkipAdverbish(tokens, j + 1) : j"
+      caSkipNegation:
+        args: "tokens: EnToken[], j: number"
+        type: number
+        return: 'tokens[j]?.lower === "not" || caAdverbish(tokens[j]) ? caSkipNegation(tokens, j + 1) : j'
+      # The main-verb candidate after the relative clause that starts at `tokens[0]`, or null.
+      caMainVerbIndex:
+        args: "tokens: EnToken[]"
+        type: "{ index: number; free: boolean } | null"
+        let:
+          first: tokens[0]
+          # The clause's own subject: "that she bought", "that the critics praised", "that people
+          # use".
+          pronoun: first?.kind === "word" && (CA_SUBJECT.test(first.lower) || first.text === "I")
+          bareNoun: >-
+            !pronoun && first?.kind === "word" && (/^(?:people|men|women|children)$/.test(first.lower)
+            || !!enNounOnly(first.lower)) && caIsVerb(tokens[1])
+          phrase: '!pronoun && !bareNoun && first?.kind === "word" && CA_NP_DET.test(first.lower)'
+          subjectEnd: "pronoun || bareNoun ? 1 : phrase ? caNounPhrase(tokens, 0, 3, true) : 0"
+          objectGap: pronoun || bareNoun || phrase
+          j: caSkipAdverbish(tokens, subjectEnd)
+          # The clause's verb group.
+          aux: CA_AUX.test(caNormal(tokens[j]?.lower ?? ""))
+          afterAux: "aux ? caSkipNegation(tokens, j + 1) : j"
+          at: 'aux && /^(?:been|being|be)$/.test(tokens[afterAux]?.lower ?? "") ? afterAux + 1 : afterAux'
+          verb: tokens[at]
+          k: at + 1
+          lemmas: englishWordInfo(verb.lower)?.verbs.map((v) => v.lemma) ?? []
+          # "that he uses run on": with the relative pronoun as its object, the clause verb has no
+          # object of its own, so a verb right after it is the main verb. "built stone by stone": a
+          # repeated noun is an adverbial.
+          free: >-
+            objectGap && !CA_PARTICLE.test(tokens[k]?.lower ?? "") && !caTimePhrase(tokens, k) &&
+            !(tokens[k + 1]?.lower === "by" && tokens[k + 2]?.lower === tokens[k]?.lower) &&
+            !!caRead(tokens[k])?.verbs.length
+        when:
+          - subjectEnd >= 0
+          - "aux ? caIsVerb(tokens[at]) : caIsVerb(tokens[at]) && tokens[at].text === tokens[at].lower"
+          - "!lemmas.some((l) => CA_BARE_OR_SECOND.test(l))"
+          - '!(tokens[k]?.lower === "to" && !CA_NP_DET.test(tokens[k + 1]?.lower ?? ""))'
+        return: "free ? { index: k, free: true } : caComplements(tokens, k, objectGap, 0)"
+      # The walk over the clause verb's complements to the main verb (caMainVerbIndex).
+      caComplements:
+        args: "tokens: EnToken[], j: number, tookObject: boolean, guard: number"
+        type: "{ index: number; free: boolean } | null"
+        let:
+          t: tokens[j]
+          time: caTimePhrase(tokens, j)
+        when:
+          - guard < 6 && j < tokens.length
+          - t.kind === "word"
+        return: >-
+          time
+            ? caIsVerb(tokens[j + time]) && tokens[j + time].text === tokens[j + time].lower ? { index: j + time, free: true } : caComplements(tokens, j + time, tookObject, guard + 1)
+            : CA_PARTICLE.test(t.lower) && !CA_NP_DET.test(tokens[j + 1]?.lower ?? "")
+            ? caComplements(tokens, j + 1, tookObject, guard + 1)
+            : CA_PREPOSITION.test(t.lower)
+            ? t.lower === "to" && !CA_NP_DET.test(tokens[j + 1]?.lower ?? "") ? null : caAfterPhrase(tokens, caNounPhrase(tokens, j + 1, 3, false), guard)
+            : !tookObject && CA_OBJECT.test(t.lower)
+            ? caComplements(tokens, j + 1, true, guard + 1)
+            : !tookObject && (CA_NP_DET.test(t.lower) || caIsNoun(t))
+            ? caAfterPhrase(tokens, caNounPhrase(tokens, j, 3, false), guard)
+            : caCandidate(tokens, j) ? { index: j, free: false } : null
+      # After a noun phrase that ends at `end`: the verb there, or the walk goes on.
+      caAfterPhrase:
+        args: "tokens: EnToken[], end: number, guard: number"
+        type: "{ index: number; free: boolean } | null"
+        return: >-
+          end < 0 ? null : caCandidate(tokens, end) ? { index: end, free: false } :
+          caComplements(tokens, end, true, guard + 1)
+      # A word right after a noun phrase that is read as a verb (and not only as more noun). "at
+      # my birthdays ask my mom": a bare verb after a plural noun cannot extend that noun.
+      caCandidate:
+        args: "tokens: EnToken[], j: number"
+        let:
+          t: tokens[j]
+          r: 't.lower === "own" ? englishWordInfo("own") : caRead(t)'
+        when: t?.kind === "word" && t.text === t.lower
+        return: >-
+          CA_AUX.test(caNormal(t.lower)) || (!!r?.verbs.length && ((!r.noun && !r.adjective) ||
+          (tokens[j - 1]?.kind === "word" && enNounNumber(tokens[j - 1].lower)?.number === "plural" &&
+          r.verbs.some((v) => v.form === "base") && !r.plural)))
+        else: "false"
+      # A closed word after the main verb: its object, a particle, an adverb or the clause end. A
+      # capitalized word is a name: "tour Europe".
+      caCloses:
+        args: "t: EnToken | undefined"
+        return: >-
+          !t || t.kind === "end" || t.kind === "comma" ? true : t.kind !== "word" ? false :
+          /^(?:the|a|an|my|your|his|her|our|their|its|it|them|me|us|him|you|this|that|these|those|to|in|on|at|with|for|up|down|out|off|through|into|about|from|by|over|under|every|each|some|any|no|well|very|so|too|more|less)$/.test(t.lower)
+          || t.text !== t.lower || caAdverbish(t) || caNounOrAdjective(t.lower)
+      caNounOrAdjective:
+        args: "word: string"
+        let:
+          r: englishWordInfo(word)
+        return: "!!r && !r.verbs.length && (r.noun || r.adjective)"
+      # The agreeing form of `verb`, or null. `free`: right after the clause verb, where a noun
+      # reading is unlikely; `aside`: right after a closing comma, where it is the verb.
+      caFixFor:
+        args: "verb: EnToken, next: EnToken | undefined, plural: boolean, free: boolean, aside: boolean"
+        let:
+          word: caNormal(verb.lower)
+        when: '!(CA_MODAL.test(word) || (/^(?:need|dare)$/.test(word) && next?.lower === "not"))'
+        return: "plural ? CA_TO_PLURAL[word] || caPluralVerb(word, next, free, aside) : CA_TO_SINGULAR[word] || caSingularVerb(word, next, aside)"
+      # The plural form of an -s verb. An -s word that is also a plural noun: only after the
+      # clause verb or before a closed word.
+      caPluralVerb:
+        args: "word: string, next: EnToken | undefined, free: boolean, aside: boolean"
+        let:
+          r: englishWordInfo(word)
+          forms: englishVerbForms(word)
+        when:
+          - /s$/.test(word)
+          - 'r?.verbs.some((v) => v.form === "third")'
+          - "!((r.noun || r.plural) && !aside && !(free && caCloses(next)))"
+        return: 'forms?.third === word ? forms.lemma : englishLemma(word, "third")'
+      # The -s form of a base verb. "put", "cut": the same spelling is a past tense.
+      caSingularVerb:
+        args: "word: string, next: EnToken | undefined, aside: boolean"
+        let:
+          r: englishWordInfo(word)
+          forms: englishVerbForms(word)
+        when:
+          - 'r?.verbs.some((v) => v.form === "base" && v.lemma === word)'
+          - forms?.past !== word
+          - "!((r.adjective && !aside) || ((r.noun || r.plural) && !caCloses(next) && !aside))"
+        return: englishInflect(word, "third")
+      # The index just past a comma-closed aside that starts at `j` ("for example,", "who is
+      # 8,"), or -1.
+      caAsideEnd:
+        args: "tokens: EnToken[], j: number"
+        let:
+          opener: tokens[j]
+        when:
+          - opener?.kind === "word" && CA_ASIDE_OPENER.test(opener.lower)
+          - 'CA_ASIDE_FIXED.test(tokens.slice(j, j + 2).map((t) => t.lower).join(" "))'
+        return: caCommaAfter(tokens, j + 1, Math.min(tokens.length, j + 14))
+        else: "-1"
+      caCommaAfter:
+        args: "tokens: EnToken[], k: number, limit: number"
+        type: number
+        return: >-
+          k >= limit ? -1 : tokens[k].kind === "comma" ? k + 1 : tokens[k].kind !== "word" &&
+          tokens[k].kind !== "number" ? -1 : caCommaAfter(tokens, k + 1, limit)
+      caAgreementFinding:
+        args: "ctx: DetectContext, verb: EnToken, fix: string, from: number"
+        return: >-
+          finding("englishSubjectVerbAgreement", "review_msg_subject_verb", verb.start, verb.end,
+          [caseLike(verb.text, fix)], { context: enEvidence(ctx, from, verb.end) })
+      # The modifiers, the head, and an optional "in Asia"/"of war" phrase before the comma of
+      # an aside: where the comma should be, and the head.
+      caAsideHead:
+        args: "tokens: EnToken[], j: number, head: EnToken | undefined"
+        type: "{ j: number; head: EnToken | undefined }"
+        return: >-
+          !(j < 5 && tokens[j]?.kind === "word") ? { j, head } : /^(?:in|of|from)$/.test(tokens[j].lower)
+          && head ? { j: caPhraseEnd(tokens, j + 1), head } : caAsideHead(tokens, j + 1, tokens[j])
+      caPhraseEnd:
+        args: "tokens: EnToken[], j: number"
+        let:
+          k: 'CA_NP_DET.test(tokens[j]?.lower ?? "") ? j + 1 : j'
+        return: 'tokens[k]?.kind !== "word" ? k : k + 1'
+      # The number of an aside's head after a determiner: plural, singular, or null (no check).
+      # Modifiers before the head must not be verbs: "The man running, …".
+      caDeterminedPlural:
+        args: "tokens: EnToken[], head: EnToken, word: string, det: string"
+        type: boolean | null
+        let:
+          number: enNounNumber(word)
+        when:
+          - "!(head.text !== word || EN_FUNCTION_WORDS.has(word))"
+          - number && !EN_COLLECTIVE.has(number.singular) && !CA_SAME_PLURAL.test(word)
+          - >-
+            !tokens.slice(1, tokens.indexOf(head)).some((t) => t.kind !== "word" ||
+            englishWordInfo(t.lower)?.verbs.length)
+          - >-
+            !(number.number === "plural" ? /^(?:this|that)$/.test(det) :
+            /^(?:these|those|many|most)$/.test(det))
+        return: number.number === "plural"
+        else: "null"
+      # Without a determiner: a capitalized gerund ("Marketing") or a name before who/whose,
+      # which is singular; null when it is neither.
+      caBareSingular:
+        args: "tokens: EnToken[], head: EnToken, word: string, j: number"
+        type: boolean | null
+        let:
+          aside: tokens[j + 1]?.lower ?? ""
+        when:
+          - "!(tokens.indexOf(head) !== 0 || head.text === word)"
+          - >-
+            (/^[A-Z][a-z]+ing$/.test(head.text) && !!englishWordInfo(word)?.noun) ||
+            (/^[A-Z][a-z]+$/.test(head.text) && !englishWordInfo(word) && /^(?:who|whose)$/.test(aside))
+        return: "false"
+        else: "null"
+      # The number of the head before "like this": plural, singular, or null (no check).
+      # Without a determiner, only a plural noun opening its clause: "Phones such as these…", not
+      # a verb ("Looks like this is live").
+      caLikeHeadPlural:
+        args: "ctx: DetectContext, m: RegExpExecArray, det: string | undefined, head: string"
+        type: boolean | null
+        let:
+          number: enNounNumber(head)
+          plural: number.number === "plural"
+        when:
+          - number && !EN_COLLECTIVE.has(number.singular) && !CA_SAME_PLURAL.test(head)
+          - >-
+            !(!det && (!plural || !enAfterBreak(ctx, m.index) || (!/such/i.test(m[0]) &&
+            englishWordInfo(head)?.verbs.some((v) => v.form === "third"))))
+          - >-
+            !(det && (plural ? /^(?:a|an|this|that|every|each|any)$/i.test(det) :
+            /^(?:these|those)$/i.test(det)))
+        return: plural
+        else: "null"
     frames:
       # "The laptop that she bought last week run hot", "The keys that I left on the table
       # belongs to Sam": the verb after a relative clause agrees with the noun before who/that.
       - regex: "(?<det>the|these|those|my|our|their|his|her|your|this|that|a|an|every|each){{S}}(?<head>(?:[a-z]+{{S}}){0,2}?[a-z]+){{S}}(?:who|that){{S}}(?=[a-zA-Z])"
         owner: none
-        fixer: clauseAgreementRelativeClauseVerb
+        let:
+          words: head.split(/[ \t ]+/)
+          last: words.at(-1)!
+          low: det.toLowerCase()
+          headRead: englishWordInfo(last)
+          # "painting", "guys": the lexicon's noun reading where the noun pairs have none.
+          number: >-
+            last === "one" ? { singular: "one", number: "singular" as const } : (enNounNumber(last) ??
+            (headRead?.noun ? { singular: last, number: headRead.plural && /s$/.test(last) ? ("plural"
+            as const) : ("singular" as const) } : null))
+          plural: number.number === "plural"
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 16)
+          found: caMainVerbIndex(tokens)
+          verb: tokens[found.index]
+          fix: caFixFor(verb, tokens[found.index + 1], plural, found.free, false)
+        when:
+          - enAfterBreak(ctx, m.index) || CA_CLAUSE_CUE.test(enWordBefore(ctx, m.index))
+          - '/[ \t ](?:who|that)[ \t ]+$/.test(m[0])'
+          - "!words.some((w) => EN_FUNCTION_WORDS.has(w) || CA_AUX.test(w))"
+          - '!words.slice(0, -1).some((w) => englishWordInfo(w)?.verbs.some((v) => v.form !== "base"))'
+          - '!(CA_CONTENT_NOUN.test(last) || CA_CONTENT_NOUN.test(last.replace(/s$/, "")))'
+          - number && !EN_COLLECTIVE.has(number.singular)
+          - >-
+            !(plural ? /^(?:a|an|this|that|every|each)$/.test(low) : /^(?:these|those)$/.test(low) ||
+            (last !== "one" && headRead?.adjective))
+          - '!tokens.some((t) => t.kind === "other")'
+          - found
+          - '!(verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))'
+          # "were" after a singular head may be a subjunctive.
+          - '!(!plural && verb.lower === "were")'
+          - fix && fix !== verb.lower
+        return: caAgreementFinding(ctx, verb, fix, m.index)
   - id: en.clauseAgreementAsides
     checks: [englishSubjectVerbAgreement]
     style: match
@@ -3631,21 +3989,102 @@ rules:
       # after a comma-closed aside agrees with the subject before it.
       - regex: "(?:(?<det>the|my|your|his|her|our|their|this|that|these|those|many|most|some){{S}})?(?<head>[A-Za-z]+)(?=[ \\t\\u00a0]*,|{{S}}(?:[a-z]+|(?:in|of|from){{S}}(?:[a-z]+{{S}})?[A-Za-z]+)[ \\t\\u00a0]*,)"
         owner: none
-        fixer: clauseAgreementAsideSubject
+        let:
+          low: det?.toLowerCase()
+          tokens: enTokensAfter(ctx, m.index, 24)
+          scan: "caAsideHead(tokens, low ? 1 : 0, undefined)"
+          j: scan.j
+          first: scan.head
+          word: first.lower
+          plural: "low ? caDeterminedPlural(tokens, first, word, low) : caBareSingular(tokens, first, word, j)"
+          end: caAsideEnd(tokens, j + 1)
+          verb: tokens[end]
+          fix: caFixFor(verb, tokens[end + 1], plural, true, true)
+        when:
+          # Without a determiner the head is the first token and must not be lowercase.
+          - low || head !== head.toLowerCase()
+          - enOpensClause(ctx, m.index, CA_CLAUSE_CUE)
+          - first && tokens[j]?.kind === "comma"
+          - plural !== null
+          - end >= 0
+          - '!(verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))'
+          - '!(!plural && verb.lower === "were")'
+          - fix && fix !== verb.lower
+        return: caAgreementFinding(ctx, verb, fix, m.index)
       # "Who send the invoices?", "What make the sky blue?": a subject wh-word takes the -s form.
       - regex: "(?<wh>who|what){{S}}(?=[a-z])"
         owner: none
-        fixer: clauseAgreementWhSubject
+        let:
+          low: wh.toLowerCase()
+          pair: enTokensAfter(ctx, m.index + m[0].length, 2)
+          verb: pair[0]
+          next: pair[1]
+          r: englishWordInfo(verb.lower)
+          fix: englishInflect(verb.lower, "third")
+        when:
+          - enAfterBreak(ctx, m.index)
+          - '!(verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))'
+          - >-
+            !((EN_FUNCTION_WORDS.has(verb.lower) && verb.lower !== "own") || CA_AUX.test(verb.lower) ||
+            CA_MODAL.test(verb.lower))
+          # A determiner or object pronoun next: the word between is the verb.
+          - >-
+            !(next?.kind !== "word" ||
+            !/^(?:the|a|an|my|your|our|their|his|its|this|these|those|me|him|us|them)$/.test(next.lower))
+          - '!(!r?.verbs.some((v) => v.form === "base" && v.lemma === verb.lower) || r.adjective)'
+          - englishVerbForms(verb.lower)?.past !== verb.lower
+          - '!(low === "what" && r.noun && CA_WHAT_NOUNS.test(verb.lower))'
+          - fix && fix !== verb.lower
+        return: caAgreementFinding(ctx, verb, fix, m.index)
       # "A study like this one rely on…", "Cars like these only takes…": "like this" or "such as
       # that one" between a subject and its verb.
       - regex: "(?:(?<pronoun>anything|something|nothing|everything|anyone|someone)|(?:(?<det>the|a|an|my|your|our|their|his|her|this|that|these|those|any|every|each|some){{S}})?(?<head>[a-z]+)){{S}}(?:like|such{{S}}as){{S}}(?:this|that|these|those)(?<one>{{S}}ones?)?{{S}}(?=[a-z])"
         owner: none
-        fixer: clauseAgreementLikeThisSubject
+        let:
+          low: head?.toLowerCase()
+          plural: "low ? caLikeHeadPlural(ctx, m, det, low) : pronoun ? false : null"
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 3)
+          j: "!caAdverbish(tokens[0]) ? 0 : !caAdverbish(tokens[1]) ? 1 : 2"
+          verb: tokens[j]
+          # Without "one" or an adverb, "like this" may be a determiner: "like this research shows".
+          r: englishWordInfo(verb.lower)
+          fix: caFixFor(verb, tokens[j + 1], plural, true, true)
+        when:
+          - enAfterBreak(ctx, m.index) || CA_CLAUSE_CUE.test(enWordBefore(ctx, m.index))
+          - plural !== null
+          # "Anything like this exist?": a question that dropped its "does".
+          - '!/^[^.!?\n]*\?/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 200))'
+          - '!(verb?.kind !== "word" || verb.text !== verb.lower || ctx.dictionary.has(verb.lower))'
+          - "!(!one && j === 0 && !CA_AUX.test(caNormal(verb.lower)) && (r?.noun || r?.adjective || r?.plural))"
+          - '!(!plural && verb.lower === "were")'
+          - fix && fix !== verb.lower
+        return: caAgreementFinding(ctx, verb, fix, m.index)
       # "Have she bought a ticket?", "When have he arrived?", "Do he know?": an inverted
       # auxiliary before he/she takes the third-person form.
       - regex: "(?<aux>have|do|are|haven['’]t|don['’]t|aren['’]t){{S}}(?<subject>he|she){{S}}(?<next>[a-z]+)"
         owner: aux
-        fixer: clauseAgreementInvertedThirdPerson
+        let:
+          before: enWordBefore(ctx, m.index)
+          fix: CA_THIRD_AUX[caNormal(aux)]
+          # The verb after the subject fits the auxiliary.
+          read: englishWordInfo(next)
+          stem: caNormal(aux).replace("n't", "")
+          fits: >-
+            stem === "have" ? next === "been" || !!read?.verbs.some((v) => v.form === "participle") :
+            stem === "do" ? !!read?.verbs.some((v) => v.form === "base" && v.lemma === next) :
+            !!read?.adjective || !!read?.verbs.some((v) => v.form === "ing" || v.form === "participle")
+        when:
+          - enAfterBreak(ctx, m.index) || /^(?:when|where|why|how|what|who|which)$/.test(before)
+          - fix
+          # The frame is case-blind: only he/she, as typed.
+          - /^(?:he|she)$/.test(subject)
+          # A question: the sentence ends in "?".
+          - '/^[^.!\n]*\?/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 160))'
+          - fits
+        return: >-
+          finding("englishSubjectVerbAgreement", "review_msg_subject_verb", m.indices!.groups!.aux[0],
+          m.indices!.groups!.aux[1], [caseLike(aux, fix.replaceAll("'", aux.includes("’") ? "’" :
+          "'"))], { context: enEvidence(ctx, m.index, m.index + m[0].length) })
   - id: en.sentenceFragments
     checks: [englishSentenceFragment]
     style: match

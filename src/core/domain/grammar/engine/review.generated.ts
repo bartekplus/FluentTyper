@@ -11338,34 +11338,34 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<det>the|these|those|my|our|their|his|her|your|this|that|a|an|every|each)[ \\t\\u00a0]{1,8}(?<head>(?:[a-z]+[ \\t\\u00a0]{1,8}){0,2}?[a-z]+)[ \\t\\u00a0]{1,8}(?:who|that)[ \\t\\u00a0]{1,8}(?=[a-zA-Z])",
     literals: ["who", "that"],
-    fixer: "en:clauseAgreementRelativeClauseVerb",
+    fixer: "en:@en.clauseAgreement/1",
     owner: "none",
   }),
   frame({
     pattern:
       "(?:(?<det>the|my|your|his|her|our|their|this|that|these|those|many|most|some)[ \\t\\u00a0]{1,8})?(?<head>[A-Za-z]+)(?=[ \\t\\u00a0]*,|[ \\t\\u00a0]{1,8}(?:[a-z]+|(?:in|of|from)[ \\t\\u00a0]{1,8}(?:[a-z]+[ \\t\\u00a0]{1,8})?[A-Za-z]+)[ \\t\\u00a0]*,)",
     literals: [],
-    fixer: "en:clauseAgreementAsideSubject",
+    fixer: "en:@en.clauseAgreementAsides/1",
     owner: "none",
   }),
   frame({
     pattern: "(?<wh>who|what)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["who", "what"],
-    fixer: "en:clauseAgreementWhSubject",
+    fixer: "en:@en.clauseAgreementAsides/2",
     owner: "none",
   }),
   frame({
     pattern:
       "(?:(?<pronoun>anything|something|nothing|everything|anyone|someone)|(?:(?<det>the|a|an|my|your|our|their|his|her|this|that|these|those|any|every|each|some)[ \\t\\u00a0]{1,8})?(?<head>[a-z]+))[ \\t\\u00a0]{1,8}(?:like|such[ \\t\\u00a0]{1,8}as)[ \\t\\u00a0]{1,8}(?:this|that|these|those)(?<one>[ \\t\\u00a0]{1,8}ones?)?[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["like", "such"],
-    fixer: "en:clauseAgreementLikeThisSubject",
+    fixer: "en:@en.clauseAgreementAsides/3",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<aux>have|do|are|haven['’]t|don['’]t|aren['’]t)[ \\t\\u00a0]{1,8}(?<subject>he|she)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)",
     literals: [],
-    fixer: "en:clauseAgreementInvertedThirdPerson",
+    fixer: "en:@en.clauseAgreementAsides/4",
     owner: "aux",
   }),
   frame({
