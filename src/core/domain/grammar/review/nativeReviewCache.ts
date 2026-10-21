@@ -2,7 +2,7 @@ import type { PreparedReview } from "./reviewDiagnostics";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import type { CatalogRuleId } from "../ruleCatalog";
 
-// Only detector entries marked here use the audited phraseTemplates/frameMatches read contract.
+// Only detector entries marked here use the audited phraseTemplates/frameScan read contract.
 // Marked by entry, not rule id: other detectors serve the same rules and must not share keys.
 const AUDITED = new WeakSet<object>();
 /** Marks a detector entry whose reads stay inside the window below, so its results are cached. */
@@ -39,7 +39,7 @@ export class NativeReviewCache {
     )
       return detector.detect(ctx);
 
-    // frameMatches starts at from-256, reads another 128 behind a match (the
+    // frameScan starts at from-256, reads another 128 behind a match (the
     // named-example guard), and sees the scan's 1024 lookahead. Include 10 more for end evidence.
     const left = Math.max(0, ctx.from - 384);
     const right = Math.min(ctx.text.length, ctx.to + 1034);

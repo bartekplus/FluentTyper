@@ -1,3 +1,4 @@
+import type { LiteralAnchor } from "./prefixes";
 import type { BodySpec, CodeSections, DefSpec } from "./ruleCode";
 /**
  * The declarative grammar rule format (src/core/domain/grammar/rules/*.yaml) and its
@@ -73,7 +74,7 @@ interface FrameSpec extends BodySpec {
   flags?: string;
   /**
    * Match rules: how the frame scans the chunk. "frame" (default): a frame scan
-   * (frameMatches; a regex with `wordStart: false` or `flags` is used as it is). "owned": the
+   * (frameScan; a regex with `wordStart: false` or `flags` is used as it is). "owned": the
    * regex from `lookback` characters before the chunk over the scan text, while a match starts
    * before the chunk end. "text": the same over the text. "polish": the Polish owned scan (64
    * characters back, named examples skipped).
@@ -219,6 +220,12 @@ export interface CompiledFrame {
   pattern: string;
   /** Lowercase literals of which every match consumes one (requiredLiterals). */
   literals: readonly string[];
+  /** A frame scan's start positions (prefixes.ts scanStarts): the prefixes of every match. */
+  prefixes?: readonly string[];
+  /** Without prefixes: an anchor that every match holds near its start. */
+  anchor?: LiteralAnchor;
+  /** A later anchor of every match: a start with no occurrence of it in reach is skipped. */
+  later?: LiteralAnchor;
   fix?: string | readonly string[];
   /** "<file>:<name>" of a named fix function. */
   fixer?: string;

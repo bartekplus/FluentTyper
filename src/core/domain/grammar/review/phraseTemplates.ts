@@ -3,7 +3,7 @@ import {
   carryCase,
   detectWordCase,
 } from "../implementations/helpers/GenericRuleShared";
-import { laterAnchor, literalAnchor, startPrefixes, type LiteralAnchor } from "../engine/prefixes";
+import type { CompiledFrame } from "../engine/types";
 import { namedExampleBefore } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
@@ -29,7 +29,7 @@ export const COMPLETE_OR_PAREN = `${WORD_END}(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$
 /** True when the text language is `lang`, a two-letter code ("pt" for pt_BR). */
 export const isLang = (ctx: DetectContext, lang: string) => ctx.lang.slice(0, 2) === lang;
 
-/** A frame regex, compiled once: WORD_START and the `gidu` flags frameMatches gives strings. */
+/** A frame regex, compiled once: WORD_START and the `gidu` flags frameScan gives strings. */
 export const frame = (pattern: string) => new RegExp(`${WORD_START}${pattern}`, "gidu");
 
 /** Matches of a global `regex` that start in the chunk, scanned on its bounded view. */
@@ -154,84 +154,14 @@ export const FRAME_AUDIT = { all: false };
 const BROKEN_SCANS = new WeakSet<DetectContext>();
 /** True when a frame did not compile since the last call: the caller reports its rules. */
 export const takeFrameFailure = (ctx: DetectContext) => BROKEN_SCANS.delete(ctx);
-// A RegExp builds its source again at each read; a frame reads it one time.
-const READ_PATTERNS = new WeakMap<RegExp, string | null>();
 // A regex mid-scan in an unfinished generator; a nested scan of it gets its own copy.
 const SCANNING = new WeakSet<RegExp>();
 // The sticky copy of a frame regex: it runs only at the frame's start positions.
 const STICKY = new WeakMap<RegExp, RegExp>();
-// The start prefixes of a frame source (null: a match may start anywhere).
-const PREFIXES = new Map<string, readonly string[] | null>();
-// A prefix holds only characters whose case-insensitive matches String#toLowerCase mirrors:
-// printable ASCII, the right single quote (no case) and the LITERAL_LETTER ranges. It ends
-// before any other character.
-const PREFIX_CHAR =
-  /[ -~\u2019\u00c0-\u00d6\u00d8-\u00de\u00e0-\u00f6\u00f8-\u012f\u0132-\u017e\u0180-\u024f]/;
-
-/** The prefixes, each cut before its first character outside PREFIX_CHAR; null if one empties. */
-function safePrefixes(raw: readonly string[] | null): readonly string[] | null {
-  const safe = raw?.map((prefix) => {
-    let end = 0;
-    while (end < prefix.length && PREFIX_CHAR.test(prefix[end])) end++;
-    return prefix.slice(0, end);
-  });
-  return !safe || safe.includes("") ? null : [...new Set(safe)];
-}
-
-/**
- * `source` with each class of one letter in its two cases ("[dD]") written as the lowercase
- * letter. The prefix parser reads a class as any character; the prefixes and the text they are
- * found in are lowercase, so the letter gives the same start positions, and fewer of them.
- */
-function foldCaseClasses(source: string): string {
-  let out = "";
-  for (let i = 0; i < source.length; i++) {
-    const char = source[i];
-    if (char === "\\") {
-      out += source.slice(i, i + 2);
-      i++;
-    } else if (char === "[") {
-      // Skip the class as the prefix parser does: escapes inside it may hold "]".
-      let end = i + 1;
-      if (source[end] === "^") end++;
-      if (source[end] === "]") end++;
-      while (end < source.length && source[end] !== "]") end += source[end] === "\\" ? 2 : 1;
-      const [a, b] = [source[i + 1], source[i + 2]];
-      const pair =
-        end === i + 3 &&
-        a !== b &&
-        a.toLowerCase() === b.toLowerCase() &&
-        a.toLowerCase().length === 1 &&
-        PREFIX_CHAR.test(a) &&
-        PREFIX_CHAR.test(b);
-      out += pair ? a.toLowerCase() : source.slice(i, end + 1);
-      i = end;
-    } else out += char;
-  }
-  return out;
-}
-
-function framePrefixes(source: string): readonly string[] | null {
-  let found = PREFIXES.get(source);
-  if (found === undefined)
-    PREFIXES.set(source, (found = safePrefixes(startPrefixes(foldCaseClasses(source)))));
-  return found;
-}
-
-// The literal anchor of a frame source without start prefixes (null: none).
-const ANCHORS = new Map<string, LiteralAnchor | null>();
-
-function frameAnchor(source: string): LiteralAnchor | null {
-  let found = ANCHORS.get(source);
-  if (found === undefined) {
-    const anchor = literalAnchor(foldCaseClasses(source));
-    const prefixes = anchor && safePrefixes(anchor.prefixes);
-    found = anchor && prefixes ? { prefixes: [...prefixes], spaces: anchor.spaces } : null;
-    ANCHORS.set(source, found);
-  }
-  return found;
-}
-
+// The sticky regex of a string frame, without WORD_START: WORD_START_AT tests the start.
+const STICKY_FRAMES = new Map<string, RegExp>();
+// WORD_START at one position, for every string frame: a lookbehind compiled once, not per frame.
+const WORD_START_AT = new RegExp(WORD_START, "iuy");
 const isSpaceCode = (code: number) =>
   code === 32 || (code >= 9 && code <= 13) || (code > 127 && /\s/.test(String.fromCharCode(code)));
 
@@ -251,23 +181,6 @@ function windowStart(text: string, q: number, spaces: number, low: number): numb
   return low;
 }
 
-// The later anchor of a frame source (safe prefixes only; null: none).
-const LATER = new Map<string, LiteralAnchor | null>();
-
-function frameLater(source: string): LiteralAnchor | null {
-  let found = LATER.get(source);
-  if (found === undefined) {
-    const anchor = laterAnchor(foldCaseClasses(source));
-    const prefixes = anchor && safePrefixes(anchor.prefixes);
-    found =
-      anchor && prefixes && prefixes.every((prefix) => prefix.length >= 4)
-        ? { prefixes: [...prefixes], spaces: anchor.spaces }
-        : null;
-    LATER.set(source, found);
-  }
-  return found;
-}
-
 /**
  * The occurrences of an anchor in the scan from the chunk's base (ascending) and the window
  * start before each: a match holding the occurrence starts in that window. The window start
@@ -279,7 +192,7 @@ function anchorWindows(ctx: DetectContext, anchor: LiteralAnchor): Int32Array[] 
   let found = scanned.windows.get(key);
   if (found === undefined) {
     const base = Math.max(0, ctx.from - 256);
-    const lower = scanned.lower!;
+    const lower = scanned.lower;
     const list: number[] = [];
     for (const prefix of anchor.prefixes)
       for (let i = lower.indexOf(prefix); i !== -1; i = lower.indexOf(prefix, i + 1))
@@ -297,12 +210,10 @@ const FEW_STARTS = 8;
 /** The start positions from which some occurrence of the frame's later anchor is in reach. */
 function laterFiltered(
   ctx: DetectContext,
-  source: string,
+  anchor: LiteralAnchor | undefined,
   starts: ArrayLike<number>,
 ): ArrayLike<number> {
-  if (starts.length < FEW_STARTS) return starts;
-  const anchor = frameLater(source);
-  if (anchor === null) return starts;
+  if (starts.length < FEW_STARTS || anchor === undefined) return starts;
   const [occurrences, windows] = anchorWindows(ctx, anchor);
   const kept: number[] = [];
   let j = 0;
@@ -341,7 +252,7 @@ function windowedStarts(ctx: DetectContext, anchor: LiteralAnchor, framed: boole
   const windows: number[] = [];
   for (const prefix of anchor.prefixes) {
     // An occurrence after the chunk may still close a match that starts in it.
-    for (let i = lower!.indexOf(prefix); i !== -1; i = lower!.indexOf(prefix, i + 1)) {
+    for (let i = lower.indexOf(prefix); i !== -1; i = lower.indexOf(prefix, i + 1)) {
       const q = base + i;
       const start = windowStart(text, q, anchor.spaces, base);
       if (start >= ctx.to) break;
@@ -446,17 +357,11 @@ export function requiredLiterals(source: string): string[] {
   const top = best(required(groups[0]));
   return shortest(top) >= 3 ? top : [];
 }
-const LITERALS = new Map<string, string[]>();
-/** Gives the literals of a frame compiled ahead of time (grammar/rules/*.yaml). */
-export const primeFrameLiterals = (source: string, literals: string[]) =>
-  LITERALS.set(source, literals);
-// The text a frame scan can match in, lowercased; null when the text holds a character whose
-// case-insensitive match is another letter than its lowercase (U+017F long s ~ s, U+212A
-// Kelvin sign ~ k, U+212B Angstrom sign, capital sharp s).
+// The text a frame scan can match in, lowercased.
 const SCANNED = new WeakMap<
   DetectContext,
   {
-    lower: string | null;
+    lower: string;
     grams: Uint8Array;
     found: Map<string, boolean>;
     aligned: boolean;
@@ -471,6 +376,19 @@ const SCANNED = new WeakMap<
 const gram = (text: string, at: number) =>
   (text.charCodeAt(at) * 961 + text.charCodeAt(at + 1) * 31 + text.charCodeAt(at + 2)) & 0x3fff;
 
+// Before lowercasing: İ, whose lowercase is two characters, and the letters that a regex ignoring
+// case matches as another letter (long s ~ s, Kelvin sign ~ k, Angstrom sign ~ å, capital sharp
+// s ~ ß). Each becomes that letter: positions stay in line, and the scan finds each literal that
+// a frame may match there (and maybe more).
+const FOLDS: Record<string, string> = {
+  İ: "i",
+  ſ: "s",
+  K: "k",
+  Å: "å",
+  ẞ: "ß",
+};
+const FOLDED = /[İſKÅẞ]/g;
+
 /**
  * False when a frame cannot match in this chunk's scan: the text from from-256 (where
  * scans start), lowercased, holds none of the literals of which every match consumes one. Such a frame is neither compiled nor run, which spares most frames on most text.
@@ -479,10 +397,10 @@ function scannedText(ctx: DetectContext) {
   let scanned = SCANNED.get(ctx);
   if (scanned === undefined) {
     const raw = ctx.scanText.slice(Math.max(0, ctx.from - 256));
-    const lower = /[\u017f\u212a\u212b\u1e9e]/.test(raw) ? null : raw.toLowerCase();
+    const lower = raw.replace(FOLDED, (char) => FOLDS[char]).toLowerCase();
     // Its three-letter runs: most literals fail there, before a search of the whole text.
     const grams = new Uint8Array(0x4000);
-    for (let i = 0; lower !== null && i + 3 <= lower.length; i++) grams[gram(lower, i)] = 1;
+    for (let i = 0; i + 3 <= lower.length; i++) grams[gram(lower, i)] = 1;
     SCANNED.set(
       ctx,
       (scanned = {
@@ -490,7 +408,7 @@ function scannedText(ctx: DetectContext) {
         grams,
         found: new Map(),
         // Positions line up with the text only when lowercasing kept every length.
-        aligned: lower !== null && lower.length === raw.length,
+        aligned: lower.length === raw.length,
         starts: new Map(),
         lists: new Map(),
         windows: new Map(),
@@ -512,7 +430,7 @@ const pair = (text: string, at: number) =>
  */
 function pairIndex(scanned: ReturnType<typeof scannedText>) {
   if (scanned.pairs === undefined) {
-    const lower = scanned.lower!;
+    const lower = scanned.lower;
     const head = new Int32Array(PAIR_BUCKETS).fill(-1);
     const next = new Int32Array(lower.length);
     for (let i = lower.length - 2; i >= 0; i--) {
@@ -535,7 +453,7 @@ function prefixStarts(ctx: DetectContext, prefix: string, framed: boolean): numb
   let starts = scanned.starts.get(key);
   if (starts === undefined) {
     starts = [];
-    const lower = scanned.lower!;
+    const lower = scanned.lower;
     const base = Math.max(0, ctx.from - 256);
     const limit = ctx.to - base;
     if (prefix.length >= 2) {
@@ -579,16 +497,13 @@ const NO_WORD_START = ".-_'@/#\\";
  */
 function frameStarts(
   ctx: DetectContext,
-  source: string | null,
+  info: ScanInfo,
   framed: boolean,
 ): ArrayLike<number> | null {
-  if (source === null) return null;
   if (!scannedText(ctx).aligned) return null;
-  const prefixes = framePrefixes(source);
-  if (prefixes === null) {
-    const anchor = frameAnchor(source);
-    return anchor === null ? null : anchoredStarts(ctx, anchor, framed);
-  }
+  const { prefixes, anchor } = info;
+  if (prefixes === undefined)
+    return anchor === undefined ? null : anchoredStarts(ctx, anchor, framed);
   if (prefixes.length === 1) return prefixStarts(ctx, prefixes[0], framed);
   // Frames with the same prefixes share the merged list in a chunk.
   const scanned = scannedText(ctx);
@@ -614,12 +529,9 @@ function mergedStarts(
   return starts.sort();
 }
 
-function mayMatch(ctx: DetectContext, source: string): boolean {
-  let literals = LITERALS.get(source);
-  if (literals === undefined) LITERALS.set(source, (literals = requiredLiterals(source)));
+function mayMatch(ctx: DetectContext, literals: readonly string[]): boolean {
   if (literals.length === 0) return true;
   const { lower, grams, found } = scannedText(ctx);
-  if (lower === null) return true;
   for (const literal of literals) {
     // Most literals fail at the hashes, before the memo or a text search.
     if (grams[gram(literal, 0)] === 0 || grams[gram(literal, literal.length - 3)] === 0) continue;
@@ -630,68 +542,67 @@ function mayMatch(ctx: DetectContext, source: string): boolean {
   return false;
 }
 
+const NO_MATCHES: readonly RegExpExecArray[] = [];
+/** What a frame scan reads of its compiled frame: the prefilter literals and start positions. */
+export type ScanInfo = Pick<CompiledFrame, "literals" | "prefixes" | "anchor" | "later">;
+type LiteralAnchor = NonNullable<CompiledFrame["anchor"]>;
+
 /**
  * One English frame scan. A string pattern gets WORD_START and the `gidu` flags.
  * Scanning starts 256 characters before the chunk, so a frame that began in the
  * previous chunk consumes its text there too; only frames whose `owner` group
- * (or computed start) lies in [from, to) are yielded, every frame for `null`.
+ * (or computed start) lies in [from, to) are given, every frame for `null`.
  * Frames glued to a token after them or inside a named example abstain.
  * Reads from-384 (the example guard's 128 behind a match) through scanText:
  * changes must also audit NativeReviewCache's read contract.
- */
-export function* frameMatches(
-  ctx: DetectContext,
-  pattern: string | RegExp,
-  owner: string | ((match: RegExpExecArray) => number) | null = "target",
-): Generator<RegExpExecArray> {
-  yield* frameScan(ctx, pattern, owner);
-}
-
-const NO_MATCHES: readonly RegExpExecArray[] = [];
-
-/**
- * The matches of frameMatches, for a caller that only iterates them: a list when the frame
- * has start positions (no generator step per match), else the lazy scan.
+ * The matches are a list when the frame has start positions (no generator step per match),
+ * else the lazy scan. `info` holds what the compiler found in the pattern.
  */
 export function frameScan(
   ctx: DetectContext,
   pattern: string | RegExp,
-  owner: string | ((match: RegExpExecArray) => number) | null = "target",
+  owner: string | ((match: RegExpExecArray) => number) | null,
+  info: ScanInfo,
 ): Iterable<RegExpExecArray> {
-  let regex: RegExp;
-  let source: string | null;
-  if (typeof pattern === "string") {
-    source = pattern;
-    if (!FRAME_AUDIT.all && !mayMatch(ctx, pattern)) return NO_MATCHES;
-    let compiled = COMPILED.get(pattern);
-    if (!compiled) {
-      // A broken frame skips only itself: the other frames of its detector still run.
-      try {
-        compiled = frame(pattern);
-      } catch {
-        BROKEN_SCANS.add(ctx);
-        return NO_MATCHES;
-      }
-      COMPILED.set(pattern, compiled);
-    }
-    regex = compiled;
-  } else {
-    let read = READ_PATTERNS.get(pattern);
-    if (read === undefined) {
-      read = pattern.flags.includes("v") ? null : pattern.source;
-      READ_PATTERNS.set(pattern, read);
-    }
-    if (read !== null && !FRAME_AUDIT.all && !mayMatch(ctx, read)) return NO_MATCHES;
-    regex = pattern;
-    source = read;
+  if (!FRAME_AUDIT.all && !mayMatch(ctx, info.literals)) return NO_MATCHES;
+  const framed = typeof pattern === "string";
+  const starts = frameStarts(ctx, info, framed);
+  if (starts === null) {
+    const regex = framed ? cachedFrame(ctx, COMPILED, pattern, frame) : pattern;
+    return regex ? globalMatches(ctx, regex, owner) : NO_MATCHES;
   }
-  const starts = frameStarts(ctx, source, typeof pattern === "string");
-  return starts === null
-    ? globalMatches(ctx, regex, owner)
-    : stickyMatches(ctx, regex, laterFiltered(ctx, source!, starts), owner);
+  let sticky: RegExp | undefined;
+  // A string frame's sticky regex has no WORD_START: stickyMatches tests it once per start.
+  if (framed) sticky = cachedFrame(ctx, STICKY_FRAMES, pattern, (p) => new RegExp(p, "dgiuy"));
+  else if (!(sticky = STICKY.get(pattern)))
+    STICKY.set(pattern, (sticky = new RegExp(pattern.source, `${pattern.flags}y`)));
+  return sticky
+    ? stickyMatches(ctx, sticky, laterFiltered(ctx, info.later, starts), owner, framed)
+    : NO_MATCHES;
 }
 
-/** The global scan of frameMatches, from 256 characters before the chunk. */
+/** The regex of a string frame, built once; undefined when it does not compile. */
+function cachedFrame(
+  ctx: DetectContext,
+  cache: Map<string, RegExp>,
+  pattern: string,
+  build: (pattern: string) => RegExp,
+): RegExp | undefined {
+  let regex = cache.get(pattern);
+  if (!regex) {
+    // A broken frame skips only itself: the other frames of its detector still run.
+    try {
+      regex = build(pattern);
+    } catch {
+      BROKEN_SCANS.add(ctx);
+      return undefined;
+    }
+    cache.set(pattern, regex);
+  }
+  return regex;
+}
+
+/** The global scan of frameScan, from 256 characters before the chunk. */
 function* globalMatches(
   ctx: DetectContext,
   regex: RegExp,
@@ -721,23 +632,27 @@ function* globalMatches(
   }
 }
 /**
- * The matches frameMatches gives, read only at `starts`: the sticky copy of `regex` runs at
- * each start after the last match, in order. A global scan finds the leftmost match after
- * its last one; when every match starts at one of `starts`, both give the same matches.
+ * The matches of the global scan, read only at `starts`: the `sticky` regex runs at each start
+ * after the last match, in order. A global scan finds the leftmost match after its last one;
+ * when every match starts at one of `starts`, both give the same matches. With `framed`, a
+ * start must also be a word start (WORD_START).
  */
 function stickyMatches(
   ctx: DetectContext,
-  regex: RegExp,
+  sticky: RegExp,
   starts: ArrayLike<number>,
   owner: string | ((match: RegExpExecArray) => number) | null,
+  framed: boolean,
 ): RegExpExecArray[] {
   const matches: RegExpExecArray[] = [];
-  let sticky = STICKY.get(regex);
-  if (!sticky) STICKY.set(regex, (sticky = new RegExp(regex.source, `${regex.flags}y`)));
   let next = Math.max(0, ctx.from - 256);
   for (let i = 0; i < starts.length; i++) {
     const at = starts[i];
     if (at < next) continue;
+    if (framed) {
+      WORD_START_AT.lastIndex = at;
+      if (!WORD_START_AT.test(ctx.scanText)) continue;
+    }
     sticky.lastIndex = at;
     const m = sticky.exec(ctx.scanText);
     if (!m) continue;
@@ -746,7 +661,7 @@ function stickyMatches(
     if (owner === null) start = ctx.from;
     else if (typeof owner === "string") {
       const [ownerStart, ownerEnd] = m.indices!.groups![owner];
-      // As in frameMatches: resume right after the owner.
+      // As in the global scan: resume right after the owner.
       if (ownerEnd < next) next = Math.max(m.index + 1, ownerEnd);
       start = ownerStart;
     } else start = owner(m);

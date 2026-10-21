@@ -1,6 +1,21 @@
 import { expect, test } from "bun:test";
-import { frameMatches } from "../../src/core/domain/grammar/review/phraseTemplates";
+import { prepareFrames } from "../../src/core/domain/grammar/engine/frameStyles";
+import { scanStarts } from "../../src/core/domain/grammar/engine/prefixes";
+import { frameScan, requiredLiterals } from "../../src/core/domain/grammar/review/phraseTemplates";
 import type { DetectContext } from "../../src/core/domain/grammar/review/reviewDetectors";
+
+// A frame scan with what the compiler writes into a frame: its literals and start positions.
+const scanOf = (
+  context: DetectContext,
+  pattern: string | RegExp,
+  owner: Parameters<typeof frameScan>[2] = "target",
+) => {
+  const source = typeof pattern === "string" ? pattern : pattern.source;
+  return frameScan(context, pattern, owner, {
+    literals: requiredLiterals(source),
+    ...scanStarts(source),
+  });
+};
 
 const text = "We saw it. They saw it. You saw it.";
 const ctx = {
@@ -14,7 +29,7 @@ const ctx = {
   insertSpaceAfterAutocomplete: true,
 } as DetectContext;
 const PATTERN = "(?<target>saw)";
-const starts = () => [...frameMatches(ctx, PATTERN)].map((m) => m.index);
+const starts = () => [...scanOf(ctx, PATTERN)].map((m) => m.index);
 
 test("a cached string pattern scans the same on every call", () => {
   expect(starts()).toEqual([3, 16, 28]);
@@ -23,7 +38,7 @@ test("a cached string pattern scans the same on every call", () => {
 
 test("a nested scan of the same pattern does not disturb the outer scan", () => {
   const outer: number[] = [];
-  for (const m of frameMatches(ctx, PATTERN)) {
+  for (const m of scanOf(ctx, PATTERN)) {
     outer.push(m.index);
     expect(starts()).toEqual([3, 16, 28]);
   }
@@ -31,15 +46,15 @@ test("a nested scan of the same pattern does not disturb the outer scan", () => 
 });
 
 test("an abandoned scan leaves the pattern usable", () => {
-  for (const m of frameMatches(ctx, PATTERN)) if (m) break;
-  const open = frameMatches(ctx, PATTERN);
+  for (const m of scanOf(ctx, PATTERN)) if (m) break;
+  const open = scanOf(ctx, PATTERN)[Symbol.iterator]();
   open.next();
   expect(starts()).toEqual([3, 16, 28]);
 });
 
 test("trailing context after the owner can open the next frame", () => {
   // Each frame owns a word and reads the next one: "saw it", then "it. They".
-  const owners = [...frameMatches(ctx, "(?<target>\\p{L}+)[ .]+(?<next>\\p{L}+)")].map(
+  const owners = [...scanOf(ctx, "(?<target>\\p{L}+)[ .]+(?<next>\\p{L}+)")].map(
     (m) => m.groups!.target,
   );
   expect(owners).toEqual(["We", "saw", "it", "They", "saw", "it", "You", "saw"]);
@@ -55,7 +70,7 @@ test("the literal prefilter keeps every match of case-sensitive and accented fra
       to: value.length,
     });
     return (pattern: RegExp) =>
-      [...frameMatches(ctxOf(source) as DetectContext, pattern, null)].map((m) => m[0]);
+      [...scanOf(ctxOf(source) as DetectContext, pattern, null)].map((m) => m[0]);
   };
   // Case-sensitive: "Straße" is a literal run; the scan finds it, and only with its case.
   expect(at("Die Straße ist lang.")(/Straße/gu)).toEqual(["Straße"]);
@@ -68,10 +83,45 @@ test("the literal prefilter keeps every match of case-sensitive and accented fra
   expect(at("GROẞE")(/(?<target>große)/dgiu)).toEqual(["GROẞE"]);
 });
 
+test("İ, ſ, K, Å and ẞ keep the literal prefilter and the start positions on", () => {
+  const ctxOf = (value: string) =>
+    ({ ...ctx, source: value, text: value, scanText: value, to: value.length }) as DetectContext;
+  // A frame that runs at its start positions runs a sticky copy: the regex itself never runs.
+  const execs = (text: string, regex: RegExp) => {
+    let calls = 0;
+    const exec = regex.exec.bind(regex);
+    regex.exec = (value) => (calls++, exec(value));
+    const found = [...scanOf(ctxOf(text), regex)].map((m) => m.index);
+    return { found, calls };
+  };
+  for (const letter of ["İ", "ſ", "K", "Å", "ẞ"]) {
+    const text = `${letter}zmir. We saw it.`;
+    expect(execs(text, /(?<target>saw)/dgiu)).toEqual({ found: [text.indexOf("saw")], calls: 0 });
+    expect(execs(text, /(?<target>zebra)/dgiu)).toEqual({ found: [], calls: 0 });
+  }
+});
+
+test("frames match across İ, ſ, K, Å and ẞ", () => {
+  const at = (value: string, pattern: string | RegExp) =>
+    [
+      ...scanOf(
+        { ...ctx, source: value, text: value, scanText: value, to: value.length },
+        pattern,
+        null,
+      ),
+    ].map((m) => [m.index, m[0]]);
+  expect(at("İzmir İs nice. We saw it.", "saw")).toEqual([[18, "saw"]]);
+  expect(at("İ saw", "saw")).toEqual([[2, "saw"]]);
+  expect(at("Gut ſo. Klaſse", /klasse/dgiu)).toEqual([[8, "Klaſse"]]);
+  expect(at("300 Kelvin", "kelvin")).toEqual([[4, "Kelvin"]]);
+  expect(at("1 Ångström", "ångström")).toEqual([[2, "Ångström"]]);
+  expect(at("DIE GROẞE STRAẞE", /stra(?:ß|ss)e/dgiu)).toEqual([[10, "STRAẞE"]]);
+});
+
 test("a frame may open on a contraction clitic glued to its host word", () => {
   const scan = (value: string, pattern: string, lang = "en_US") =>
     [
-      ...frameMatches(
+      ...scanOf(
         { ...ctx, source: value, text: value, scanText: value, to: value.length, lang },
         pattern,
       ),
@@ -94,4 +144,25 @@ test("a frame may open on a contraction clitic glued to its host word", () => {
   expect(scan("aujourd'hui", "['’](?<target>hui)", "fr_FR")).toEqual([]);
   expect(scan("Rio d'Janeiro", "['’](?<target>Janeiro)", "pt_BR")).toEqual([]);
   expect(scan("Ich hab's.", "['’](?<target>s)", "de_DE")).toEqual([]);
+});
+
+test("a frame builds its regex and gate once, on first use, and resumes that regex", () => {
+  const [owned, framed] = prepareFrames(
+    "match",
+    [
+      { pattern: "a(?<target>b)", literals: [], scan: "owned", flags: "dgu", gate: "ab" },
+      { pattern: "(?<target>ab)", literals: [] },
+    ],
+    "styleWordChoice",
+    "review_msg_canonical_casing",
+    () => null,
+  );
+  const regex = owned.pattern as RegExp;
+  expect(owned.pattern).toBe(regex);
+  expect(owned.gate).toBe(owned.gate!);
+  owned.resume!(5);
+  expect(regex.lastIndex).toBe(5);
+  expect(framed.pattern).toBe("(?<target>ab)");
+  expect(framed.gate).toBeUndefined();
+  expect(framed.resume).toBeUndefined();
 });

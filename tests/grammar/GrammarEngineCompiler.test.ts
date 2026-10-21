@@ -215,6 +215,9 @@ test("frames: fragments, guards, literals and fixes", () => {
   expect(set.frames[0]).toEqual({
     pattern: `${notAfter("my|your")}(?<target>curse)${SPACE}through${WORD_END}`,
     literals: set.frames[0].literals,
+    // Where a scan may start: at "cur", with "curs" in reach.
+    prefixes: ["cur"],
+    later: { prefixes: ["curs"], spaces: 0 },
     fix: "course",
   });
   expect(set.frames[0].literals.length).toBeGreaterThan(0);
