@@ -134,8 +134,8 @@ export const FIXERS = {
     const subject = m.groups!.target;
     const lower = subject.toLowerCase();
     if (subject !== lower && !(subject === "I" || afterBreak(ctx, m.index))) return null;
-    if (!subjectClause(ctx, m.index)) return null;
     if (noPredicate(ctx, m.index + m[0].length, lower)) return null;
+    if (!subjectClause(ctx, m.index)) return null;
     // An unreadable token ("(", a URL) ends the look-ahead like punctuation.
     const tokens = tokensAfter(ctx, m.index + m[0].length, 10).map((t) =>
       t.kind === "other" ? { ...t, kind: "end" as const } : t,
