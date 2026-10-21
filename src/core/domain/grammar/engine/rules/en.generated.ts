@@ -3,13 +3,220 @@
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
 import type { DetectContext, FrameRef, MatchResult } from "../../library";
+import {
+  EN_FUNCTION_WORDS,
+  EN_MASS,
+  EN_PREPOSITIONS,
+  MASS_WITH_COUNT_SENSE,
+  caseLike,
+  enEvidence,
+  enNounOnly,
+  enTokensAfter,
+  enWordBefore,
+  englishWordInfo,
+  finding,
+  hasUserOrCasedWord,
+} from "../../library";
 import { isoDateWarning } from "./common.generated";
+
+export const COUNT_COUNTED_ELSEWHERE: ReadonlySet<string> = new Set([
+  "advice",
+  "information",
+  "furniture",
+  "luggage",
+  "baggage",
+  "equipment",
+  "evidence",
+  "feedback",
+  "software",
+  "hardware",
+  "clothing",
+]);
+
+export const COUNT_MASS_COUNT: Readonly<Record<string, string>> = {
+  many: "much",
+  few: "little",
+  several: "some",
+  fewer: "less",
+};
+
+// en.yaml rule en.countNouns def COUNT_AMOUNT_UNITS
+export const COUNT_AMOUNT_UNITS =
+  /^(?:dollars|euros|pounds|cents|bucks|hours|minutes|seconds|days|weeks|months|years|miles|kilometers|kilometres|meters|metres|feet|inches|calories|degrees|percent)$/;
+
+// en.yaml rule en.countNouns def COUNT_VOCATIVES
+export const COUNT_VOCATIVES = /^(?:guys|folks|ladies|gentlemen|friends|kids|boys|girls)$/;
+
+// en.yaml rule en.countNouns def COUNT_SINGULAR_S
+export const COUNT_SINGULAR_S =
+  /(?:ics|ness)$|^(?:news|means|series|species|thanks|odds|whereabouts|headquarters|lens|gas|bus|plus|bonus|status|campus|virus|census|corpus|focus|genius|sinus|surplus)$/;
+
+// en.yaml rule en.countNouns def COUNT_CLAUSE_LINKS
+export const COUNT_CLAUSE_LINKS = /^(?:after|before|since|until|than|then|ago|when|while)$/;
+
+// en.yaml rule en.countNouns def COUNT_IRREGULAR_PLURALS
+export const COUNT_IRREGULAR_PLURALS = /^(?:people|children|men|women|feet|teeth|mice|geese)$/;
+
+// en.yaml rule en.countNouns def countPluralHead
+export function countPluralHead(ctx: DetectContext, noun: string, end: number, verbNext: boolean) {
+  const read = EN_FUNCTION_WORDS.has(noun) ? null : englishWordInfo(noun);
+  const plural =
+    COUNT_IRREGULAR_PLURALS.test(noun) ||
+    (read ? read.plural && !read.adjective : enNounOnly(noun) === "plural");
+  if (!(
+    plural &&
+    !COUNT_AMOUNT_UNITS.test(noun) &&
+    !EN_MASS.has(noun) &&
+    !COUNT_SINGULAR_S.test(noun)
+  ))
+    return false;
+  const next = enTokensAfter(ctx, end, 1)[0];
+  return (
+    next?.kind !== "word" ||
+    EN_FUNCTION_WORDS.has(next.lower) ||
+    COUNT_CLAUSE_LINKS.test(next.lower) ||
+    countHeadBefore(next.lower, verbNext)
+  );
+}
+
+// en.yaml rule en.countNouns def countHeadBefore
+export function countHeadBefore(word: string, verbNext: boolean) {
+  const after = englishWordInfo(word);
+  return (
+    (verbNext && after?.verbs.some((v) => v.form !== "base" && v.form !== "ing") && !after.noun) ||
+    !!after?.adverb ||
+    (!after?.noun && !after?.verbs.length && !enNounOnly(word))
+  );
+}
+
+// en.yaml rule en.countNouns def countCompound
+export function countCompound(ctx: DetectContext, end: number) {
+  const next = enTokensAfter(ctx, end, 1)[0];
+  if (!(
+    next?.kind === "word" &&
+    !EN_FUNCTION_WORDS.has(next.lower) &&
+    !COUNT_CLAUSE_LINKS.test(next.lower)
+  ))
+    return false;
+  const read = englishWordInfo(next.lower);
+  if (read?.verbs.some((v) => v.form === "third")) return false;
+  return (
+    !read ||
+    !(read.noun || read.adjective || read.adverb || read.verbs.length) ||
+    read.noun ||
+    read.plural
+  );
+}
+
+// en.yaml rule en.countNouns def countMuchPlural
+export function countMuchPlural(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  before: string,
+  noun: string,
+  end: number,
+) {
+  if (!(before !== "how" && enNounOnly(noun) === "plural" && !COUNT_VOCATIVES.test(noun)))
+    return false;
+  const next = enTokensAfter(ctx, end, 1)[0];
+  if (next?.kind === "word" && !EN_PREPOSITIONS.has(next.lower)) return false;
+  const clause = /[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, m.index - 80), m.index))![0];
+  if (/\b(?:thanks?|love|miss|appreciate)\b/i.test(clause)) return false;
+  return true;
+}
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
+  },
+  // en.yaml rule en.countNouns frame 1
+  "@en.countNouns/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    const word = target.toLowerCase();
+    const end = m.index + m[0].length;
+    if (!(!ctx.dictionary.has(noun) && countPluralHead(ctx, noun, end, word === "less")))
+      return null;
+    const before = enWordBefore(ctx, m.index);
+    if (/^(?:no|or|much|any|the|than|little|is|are|was|were|be)$/.test(before)) return null;
+    if (/[\d%][ \t ]*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))) return null;
+    if (word === "less" && before && enNounOnly(before)) return null;
+    if (!(word !== "much" || countMuchPlural(ctx, m, before, noun, end))) return null;
+    const span = m.indices!.groups!.target;
+    return finding(
+      "englishCountability",
+      "review_msg_countability",
+      span[0],
+      span[1],
+      [caseLike(target, word === "less" ? "fewer" : "many")],
+      { context: enEvidence(ctx, m.index, span[1]) },
+    );
+  },
+  // en.yaml rule en.countNouns frame 2
+  "@en.countNouns/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    if (!(!COUNT_COUNTED_ELSEWHERE.has(noun) && !MASS_WITH_COUNT_SENSE.has(noun))) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const phraseEnd = m.index + m[0].length;
+    const next = enTokensAfter(ctx, phraseEnd, 1)[0];
+    if (
+      countCompound(ctx, phraseEnd) ||
+      (next?.kind === "word" && englishWordInfo(next.lower)?.plural)
+    )
+      return null;
+    const span = m.indices!.groups!.target;
+    return finding(
+      "englishCountability",
+      "review_msg_countability",
+      span[0],
+      span[1],
+      [caseLike(target, COUNT_MASS_COUNT[target.toLowerCase()])],
+      { context: enEvidence(ctx, m.index, span[1]) },
+    );
+  },
+  // en.yaml rule en.countNouns frame 3
+  "@en.countNouns/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const article = m.groups!.article;
+    const adjectives = m.groups!.adjectives;
+    const noun = m.groups!.noun;
+    if (MASS_WITH_COUNT_SENSE.has(noun)) return null;
+    const words = adjectives.trim().split(/\s+/).filter(Boolean);
+    if (!words.length && COUNT_COUNTED_ELSEWHERE.has(noun)) return null;
+    if (
+      !words.every(
+        (w, i) =>
+          (i < words.length - 1 && /^(?:very|really|quite|rather|truly)$/.test(w)) ||
+          (w !== "little" &&
+            !EN_FUNCTION_WORDS.has(w) &&
+            !!englishWordInfo(w)?.adjective &&
+            !englishWordInfo(w)?.plural),
+      )
+    )
+      return null;
+    const end = m.index + m[0].length;
+    const next = enTokensAfter(ctx, end, 1)[0];
+    if ((noun === "knowledge" && next?.lower === "of") || countCompound(ctx, end)) return null;
+    if (/^(?:and|or)$/.test(next?.lower ?? "")) return null;
+    if (
+      words.length &&
+      /^(?:of|for|to|toward|towards|in|with|that)$/.test(next?.lower ?? "") &&
+      !COUNT_COUNTED_ELSEWHERE.has(noun)
+    )
+      return null;
+    const start = m.indices!.groups!.article[0];
+    if (hasUserOrCasedWord(ctx, ctx.text.slice(start, end))) return null;
+    const rest = ctx.text.slice(m.indices!.groups!.article[1], end).replace(/^[ \t ]+/, "");
+    return finding(
+      "englishCountability",
+      "review_msg_countability",
+      start,
+      end,
+      [caseLike(article, rest)],
+      { context: enEvidence(ctx, start, end) },
+    );
   },
 };
 

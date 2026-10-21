@@ -2744,18 +2744,144 @@ rules:
     style: match
     message: review_msg_countability
     filter: slotFindings
+    sets:
+      # grammarStyle1's massNouns counts these right after a count word; here only behind
+      # adjectives.
+      COUNT_COUNTED_ELSEWHERE:
+        [
+          advice,
+          information,
+          furniture,
+          luggage,
+          baggage,
+          equipment,
+          evidence,
+          feedback,
+          software,
+          hardware,
+          clothing,
+        ]
+    maps:
+      COUNT_MASS_COUNT: { many: much, few: little, several: some, fewer: less }
+    defs:
+      # Units where "less" reads as an amount: "less dollars", "less hours" are common and
+      # contested.
+      COUNT_AMOUNT_UNITS: /^(?:dollars|euros|pounds|cents|bucks|hours|minutes|seconds|days|weeks|months|years|miles|kilometers|kilometres|meters|metres|feet|inches|calories|degrees|percent)$/
+      # Nouns of address after "thank you so much": "Thanks so much guys".
+      COUNT_VOCATIVES: /^(?:guys|folks|ladies|gentlemen|friends|kids|boys|girls)$/
+      COUNT_SINGULAR_S: /(?:ics|ness)$|^(?:news|means|series|species|thanks|odds|whereabouts|headquarters|lens|gas|bus|plus|bonus|status|campus|virus|census|corpus|focus|genius|sinus|surplus)$/
+      COUNT_CLAUSE_LINKS: /^(?:after|before|since|until|than|then|ago|when|while)$/
+      COUNT_IRREGULAR_PLURALS: /^(?:people|children|men|women|feet|teeth|mice|geese)$/
+      # A plural noun that the lexicon reads as nothing else, at the head of its phrase (no noun
+      # after it). After less/much an -s word is no verb: "engineers" counts though "to
+      # engineer" exists. "much news", "less physics", "less means": singular in sense.
+      countPluralHead:
+        args: "ctx: DetectContext, noun: string, end: number, verbNext: boolean"
+        let:
+          read: "EN_FUNCTION_WORDS.has(noun) ? null : englishWordInfo(noun)"
+          plural: 'COUNT_IRREGULAR_PLURALS.test(noun) || (read ? read.plural && !read.adjective : enNounOnly(noun) === "plural")'
+          next: enTokensAfter(ctx, end, 1)[0]
+        when: "plural && !COUNT_AMOUNT_UNITS.test(noun) && !EN_MASS.has(noun) && !COUNT_SINGULAR_S.test(noun)"
+        return: >-
+          next?.kind !== "word" || EN_FUNCTION_WORDS.has(next.lower) || COUNT_CLAUSE_LINKS.test(next.lower) ||
+          countHeadBefore(next.lower, verbNext)
+        else: "false"
+      # "less sales tax": a plural modifier; "how much cats love milk": a verb makes it a clause.
+      countHeadBefore:
+        args: "word: string, verbNext: boolean"
+        let:
+          after: englishWordInfo(word)
+        return: >-
+          (verbNext && after?.verbs.some((v) => v.form !== "base" && v.form !== "ing") && !after.noun) ||
+          !!after?.adverb || (!after?.noun && !after?.verbs.length && !enNounOnly(word))
+      # The next word continues a compound noun ("a research paper", "much news coverage"). "A
+      # wisdom comes with age": an -s verb, not the plural head of a compound. An unknown or
+      # classless word ("toolkit", "app") is most likely a noun.
+      countCompound:
+        args: "ctx: DetectContext, end: number"
+        let:
+          next: enTokensAfter(ctx, end, 1)[0]
+          read: englishWordInfo(next.lower)
+        when:
+          - 'next?.kind === "word" && !EN_FUNCTION_WORDS.has(next.lower) && !COUNT_CLAUSE_LINKS.test(next.lower)'
+          - '!read?.verbs.some((v) => v.form === "third")'
+        return: "!read || !(read.noun || read.adjective || read.adverb || read.verbs.length) || read.noun || read.plural"
+        else: "false"
+      # "how much companies are capable", "not much changes": a clause after much; only a
+      # noun-only plural at the end of its phrase ("this much drugs.", "much videos of it")
+      # counts. "Thank you so much guys", "I miss you so much folks": a vocative, not a count.
+      countMuchPlural:
+        args: "ctx: DetectContext, m: RegExpExecArray, before: string, noun: string, end: number"
+        let:
+          next: enTokensAfter(ctx, end, 1)[0]
+          clause: '/[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, m.index - 80), m.index))![0]'
+        when:
+          - 'before !== "how" && enNounOnly(noun) === "plural" && !COUNT_VOCATIVES.test(noun)'
+          - '!(next?.kind === "word" && !EN_PREPOSITIONS.has(next.lower))'
+          - '!/\b(?:thanks?|love|miss|appreciate)\b/i.test(clause)'
+        return: "true"
+        else: "false"
     frames:
-      # "less people" -> fewer; "too much meetings" -> many.
+      # "less people" -> fewer; "too much meetings" -> many. "no less", "more or less", "much
+      # less" (let alone) keep their own sense; "a little less points", "is less taxes" weigh an
+      # amount; "revenue less expenses" subtracts.
       - regex: "(?<target>less|much){{S}}(?<noun>[a-z]+){{E}}"
-        fixer: countAmountPlural
+        let:
+          word: target.toLowerCase()
+          end: m.index + m[0].length
+          before: enWordBefore(ctx, m.index)
+          span: m.indices!.groups!.target
+        when:
+          - '!ctx.dictionary.has(noun) && countPluralHead(ctx, noun, end, word === "less")'
+          - "!/^(?:no|or|much|any|the|than|little|is|are|was|were|be)$/.test(before)"
+          - '!/[\d%][ \t ]*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))'
+          - '!(word === "less" && before && enNounOnly(before))'
+          - 'word !== "much" || countMuchPlural(ctx, m, before, noun, end)'
+        return: >-
+          finding("englishCountability", "review_msg_countability", span[0], span[1],
+          [caseLike(target, word === "less" ? "fewer" : "many")], { context: enEvidence(ctx, m.index, span[1]) })
       # "many money", "a few homework": a count word before an uncountable noun (MASS of
-      # nounNumberSlots).
+      # nounNumberSlots). "many research papers", "many junk bonds": the noun modifies the next
+      # one.
       - regex: "(?<target>many|few|several|fewer){{S}}(?<noun>{{COUNTSLOTS_MASS_WORDS}}){{E}}"
-        fixer: countBeforeMass
-      # "A knowledge is power", "an incorrect advice": a/an before an uncountable noun.
+        let:
+          phraseEnd: m.index + m[0].length
+          next: enTokensAfter(ctx, phraseEnd, 1)[0]
+          span: m.indices!.groups!.target
+        when:
+          - "!COUNT_COUNTED_ELSEWHERE.has(noun) && !MASS_WITH_COUNT_SENSE.has(noun)"
+          - "!hasUserOrCasedWord(ctx, m[0])"
+          - '!(countCompound(ctx, phraseEnd) || (next?.kind === "word" && englishWordInfo(next.lower)?.plural))'
+        return: >-
+          finding("englishCountability", "review_msg_countability", span[0], span[1],
+          [caseLike(target, COUNT_MASS_COUNT[target.toLowerCase()])], { context: enEvidence(ctx, m.index, span[1]) })
+      # "A knowledge is power", "an incorrect advice": a/an before an uncountable noun. Right
+      # after the article, grammarStyle1's massNouns owns the core nouns. Only plain adjectives
+      # (and degree words) stand between: "a little advice", "a lot of" stay. "a good knowledge
+      # of French" is standard; "a research project" is a compound; "a news and media company"
+      # joins modifiers. "a deep respect for", "a direct mail of 25,000": a described abstract
+      # noun with its complement can take "a"; the core nouns never do.
       - regex: "(?<=(?<![\\p{L}'’-])(?<article>an?)(?<adjectives>(?:{{S}}[a-z]{1,30}){0,3}?){{S}})(?<noun>{{COUNTSLOTS_MASS_WORDS}}){{E}}"
         owner: article
-        fixer: countArticleMass
+        let:
+          words: adjectives.trim().split(/\s+/).filter(Boolean)
+          end: m.index + m[0].length
+          next: enTokensAfter(ctx, end, 1)[0]
+          start: m.indices!.groups!.article[0]
+          rest: 'ctx.text.slice(m.indices!.groups!.article[1], end).replace(/^[ \t ]+/, "")'
+        when:
+          - "!MASS_WITH_COUNT_SENSE.has(noun)"
+          - "!(!words.length && COUNT_COUNTED_ELSEWHERE.has(noun))"
+          - >-
+            words.every((w, i) => (i < words.length - 1 && /^(?:very|really|quite|rather|truly)$/.test(w)) ||
+            (w !== "little" && !EN_FUNCTION_WORDS.has(w) && !!englishWordInfo(w)?.adjective && !englishWordInfo(w)?.plural))
+          - '!((noun === "knowledge" && next?.lower === "of") || countCompound(ctx, end))'
+          - '!/^(?:and|or)$/.test(next?.lower ?? "")'
+          - '!(words.length && /^(?:of|for|to|toward|towards|in|with|that)$/.test(next?.lower ?? "") && !COUNT_COUNTED_ELSEWHERE.has(noun))'
+          - "!hasUserOrCasedWord(ctx, ctx.text.slice(start, end))"
+        return: >-
+          finding("englishCountability", "review_msg_countability", start, end, [caseLike(article, rest)],
+          { context: enEvidence(ctx, start, end) })
   - id: en.doubleNegatives
     checks: [englishUsagePhrases]
     style: match
