@@ -5444,21 +5444,22 @@ rules:
         return: >-
           !fixes.length && second.length > 2 && lexKnown(first) && !lexKnown(second) && lexInfo(first + second)
           ? [first + second] : fixes
-      # The last two words that the word check read (0: the last one, 1: the one before it): a
-      # word reads the word before it again as its neighbour.
-      LEXICAL_LAST: 'new Map([[0, { text: "", end: -1, index: 0, word: "", unknown: false }]])'
+      # The last word that the word check read: a word reads the word before it again as its
+      # neighbour.
+      LEXICAL_LAST: '[{ text: "", end: -1, index: 0, word: "", unknown: false }]'
       # Keeps a word that the word check reads; gives the word that it read before.
       lexRemember:
         args: "text: string, end: number, index: number, word: string, unknown: boolean"
-        return: "LEXICAL_LAST.set(1, LEXICAL_LAST.get(0)!).set(0, { text, end, index, word, unknown }).get(1)!"
+        return: "(LEXICAL_LAST.push({ text, end, index, word, unknown }) && LEXICAL_LAST.shift()) as (typeof LEXICAL_LAST)[number]"
       # The word that ends one space before `index`, as a word match: the only neighbour a word
       # check reads. Null when a space and a word do not come right before `index`.
       lexWordBeforeSpace:
-        args: "text: string, index: number, prior: { text: string; end: number; index: number; word: string; unknown: boolean }"
+        args: "text: string, index: number, prior: (typeof LEXICAL_LAST)[number]"
+        type: "{ index: number; word: string; unknown: boolean } | null"
         when: text.charCodeAt(index - 1) === 32
         return: >-
           prior.text === text && prior.end === index - 1
-            ? { index: prior.index, word: prior.word, unknown: prior.unknown }
+            ? prior
             : lexWordAt(text, skipBackWhile(text, index - 1, /[A-Za-z]/), index - 1)
       # Characters that make a letter run part of a token: no word match starts after them.
       lexWordAt:
@@ -5521,7 +5522,7 @@ rules:
           index: m.index
           word: m[0]
           w: word.toLowerCase()
-          unknown: "!lexKnownOf(w)"
+          unknown: "!enReadThrough(LEXICAL_KNOWN, w, lexKnownRead, 20000)"
           prior: lexRemember(ctx.scanText, index + word.length, index, word, unknown)
           owned: index >= ctx.from && index < ctx.to
           regular: >-

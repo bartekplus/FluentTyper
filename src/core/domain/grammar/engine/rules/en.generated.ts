@@ -5677,9 +5677,7 @@ export function lexBoundaryFix(first: string, second: string) {
 }
 
 // en.yaml rule en.irregularWordForms def LEXICAL_LAST
-export const LEXICAL_LAST = new Map([
-  [0, { text: "", end: -1, index: 0, word: "", unknown: false }],
-]);
+export const LEXICAL_LAST = [{ text: "", end: -1, index: 0, word: "", unknown: false }];
 
 // en.yaml rule en.irregularWordForms def lexRemember
 export function lexRemember(
@@ -5689,20 +5687,19 @@ export function lexRemember(
   word: string,
   unknown: boolean,
 ) {
-  return LEXICAL_LAST.set(1, LEXICAL_LAST.get(0)!)
-    .set(0, { text, end, index, word, unknown })
-    .get(1)!;
+  return (LEXICAL_LAST.push({ text, end, index, word, unknown }) &&
+    LEXICAL_LAST.shift()) as (typeof LEXICAL_LAST)[number];
 }
 
 // en.yaml rule en.irregularWordForms def lexWordBeforeSpace
 export function lexWordBeforeSpace(
   text: string,
   index: number,
-  prior: { text: string; end: number; index: number; word: string; unknown: boolean },
-) {
+  prior: (typeof LEXICAL_LAST)[number],
+): { index: number; word: string; unknown: boolean } | null {
   if (!(text.charCodeAt(index - 1) === 32)) return null;
   return prior.text === text && prior.end === index - 1
-    ? { index: prior.index, word: prior.word, unknown: prior.unknown }
+    ? prior
     : lexWordAt(text, skipBackWhile(text, index - 1, /[A-Za-z]/), index - 1);
 }
 
@@ -6800,7 +6797,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const index = m.index;
     const word = m[0];
     const w = word.toLowerCase();
-    const unknown = !lexKnownOf(w);
+    const unknown = !enReadThrough(LEXICAL_KNOWN, w, lexKnownRead, 20000);
     const prior = lexRemember(ctx.scanText, index + word.length, index, word, unknown);
     const owned = index >= ctx.from && index < ctx.to;
     const regular =
