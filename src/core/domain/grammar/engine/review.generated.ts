@@ -18810,7 +18810,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:ni|si|ci|sans|mes|mai|mas|dans|dan|leurs|mêmes|et|est|nous|vous|soi|soit|sois|soie|çà)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:smallWord",
+    fixer: "fr:@fr.smallWords/1",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18818,7 +18818,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_-])d['’]avantage(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["avantage"],
-    fixer: "fr:davantage",
+    fixer: "fr:@fr.smallWords/2",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18827,7 +18827,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])quel(?:le)?s?[ \\t]+que[ \\t]+soi(?:en)?t(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["quel"],
-    fixer: "fr:quelQueSoit",
+    fixer: "fr:@fr.smallWords/3",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18836,7 +18836,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:\\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|vingt|trente|quarante|cinquante|soixante|cent)[ \\t]+(?<years>années)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["années"],
-    fixer: "fr:ageInYears",
+    fixer: "fr:@fr.smallWords/4",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18845,7 +18845,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<times>\\p{L}+)[ \\t-]+(?<unit>cents?|vingts?)(?![\\p{L}\\p{M}\\p{N}_'’])",
     literals: ["cent", "vingt"],
-    fixer: "fr:hundreds",
+    fixer: "fr:@fr.smallWords/5",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18853,7 +18853,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])cr(?:oî[st]|û[st]?)(?![\\p{L}\\p{M}\\p{N}_'’])",
     literals: [],
-    fixer: "fr:growToBelieve",
+    fixer: "fr:@fr.smallWords/6",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18861,7 +18861,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])qu(?:['’]a|a)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:quToQuA",
+    fixer: "fr:@fr.smallWords/7",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18869,7 +18869,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:aie|aies|ait|aient)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["aie", "aies", "ait", "aient"],
-    fixer: "fr:mainClauseAvoir",
+    fixer: "fr:@fr.smallWords/8",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18877,7 +18877,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])quel(?:le)?s?(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["quel"],
-    fixer: "fr:quelleForQuElle",
+    fixer: "fr:@fr.smallWords/9",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18885,7 +18885,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])plu(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["plu"],
-    fixer: "fr:pluForPlus",
+    fixer: "fr:@fr.smallWords/10",
     flags: "giu",
     scan: "owned",
     lookback: 1,
