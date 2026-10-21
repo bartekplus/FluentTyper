@@ -19390,7 +19390,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@#/\\\\-])(?<target>τη|στη|δε|μη)(?<gap>[ \\t\\u00a0]+)(?<next>\\p{L}[\\p{L}\\p{M}]*)",
     literals: [],
-    fixer: "el:missingNu",
+    fixer: "el:@el.finalNu/1",
     flags: "giu",
     scan: "owned",
   }),
@@ -19398,7 +19398,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@#/\\\\-])(?<target>κι)(?<gap>[ \\t\\u00a0]+)(?<next>\\p{L}[\\p{L}\\p{M}]*)",
     literals: [],
-    fixer: "el:kiConsonant",
+    fixer: "el:@el.finalNu/2",
     flags: "giu",
     scan: "owned",
   }),
@@ -19406,7 +19406,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@#/\\\\-])(?<target>την|στην|αυτήν|δεν|μην)(?<gap>[ \\t\\u00a0]+)(?<next>\\p{L}[\\p{L}\\p{M}]*)",
     literals: [],
-    fixer: "el:extraNu",
+    fixer: "el:@el.strictFinalNu/1",
     flags: "giu",
     scan: "owned",
   }),
@@ -19414,7 +19414,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@#/\\\\-])(?<target>το|στο|ένα|κάποιο|κανένα|ποιο|τέτοιο|ολόκληρο)(?<gap>[ \\t\\u00a0]+)(?<next>\\p{L}[\\p{L}\\p{M}]*)",
     literals: [],
-    fixer: "el:masculineTon",
+    fixer: "el:@el.strictFinalNu/2",
     flags: "giu",
     scan: "owned",
   }),
@@ -19422,7 +19422,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@#/\\\\-])(?<target>αυτή)(?<gap>[ \\t\\u00a0]+)(?<next>\\p{L}[\\p{L}\\p{M}]*)",
     literals: [],
-    fixer: "el:aytinAfterPreposition",
+    fixer: "el:@el.strictFinalNu/3",
     flags: "giu",
     scan: "owned",
   }),
@@ -19430,7 +19430,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@#/\\\\-])(?:έχω|έχεις|έχει|έχουμε|έχομε|έχετε|έχουν|έχουνε|είχα|είχες|είχε|είχαμε|είχατε|είχαν|είχανε)[ \\t\\u00a0]+(?<target>\\p{L}+(?:ω|ώ))(?![\\p{L}\\p{M}])",
     literals: [],
-    fixer: "el:perfectForm",
+    fixer: "el:@el.perfectForm/1",
     flags: "giu",
     scan: "owned",
     lookback: 16,
@@ -19439,7 +19439,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}])(?<target>\\u03C0\\u03BF\\u03C5|\\u03C0\\u03C9\\u03C2)(?![\\p{L}\\p{M}'\\u2019])",
     literals: [],
-    fixer: "el:questionAccent",
+    fixer: "el:@el.questionAccent/1",
     flags: "giu",
     scan: "owned",
   }),
@@ -19447,7 +19447,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@#/\\\\-])(?<target>κι)(?<gap>[ \\t\\u00a0]+)(?<next>\\p{L}[\\p{L}\\p{M}]*)",
     literals: [],
-    fixer: "el:formalKai",
+    fixer: "el:@el.formalKai/1",
     flags: "giu",
     scan: "owned",
   }),
@@ -19455,14 +19455,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@#/\\\\-])(?<target>συνεπώς|επομένως|αντιθέτως|αντίθετα|ωστόσο|εντούτοις|παρόλα αυτά|παρ['’] όλα αυτά|για παράδειγμα|επιπλέον|επιπροσθέτως|εξάλλου|κατά συνέπεια|εν κατακλείδι|συμπερασματικά|αφενός|αφετέρου|κι όμως|και όμως|πρώτον|δεύτερον|τρίτον|τέλος|ναι|όχι)(?<gap>[ \\t\\u00a0]+)(?<next>\\p{L}[\\p{L}\\p{M}]*)",
     literals: [],
-    fixer: "el:introComma",
+    fixer: "el:@el.punctuation/1",
     flags: "giu",
     scan: "owned",
   }),
   frame({
     pattern: "(?<target>(?<!!)!{2,}(?![!?]))",
     literals: [],
-    fixer: "el:oneMark",
+    fixer: "el:@el.punctuation/2",
     message: "review_msg_greek_repeated_marks",
     flags: "gu",
     scan: "owned",
@@ -19470,7 +19470,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<target>\\u2026\\.(?!\\.))",
     literals: [],
-    fixer: "el:oneMark",
+    fixer: "el:@el.punctuation/3",
     message: "review_msg_greek_repeated_marks",
     flags: "gu",
     scan: "owned",

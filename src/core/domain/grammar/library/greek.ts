@@ -1,2 +1,2 @@
 // The rule library (library.ts): the Greek lexicon and Greek word helpers.
-export {};
+export { bareGreek, isGreek, keepsFinalNu } from "../review/greek/phonology";
