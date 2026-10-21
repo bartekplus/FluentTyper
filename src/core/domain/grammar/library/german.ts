@@ -1,2 +1,59 @@
 // The rule library (library.ts): the German lexicon and German word helpers.
-export { germanAdjective, germanGender, germanInfinitive } from "../review/german/germanLexicon";
+export {
+  deumlaut,
+  germanAdjective,
+  germanAdjectiveNoun,
+  germanGender,
+  germanInfinitive,
+  germanListedNoun,
+  germanMayBeNoun,
+  germanNounOverAdjective,
+  germanNounReading,
+  germanOtherNoun,
+  germanPastInfinitives,
+  germanTwoGenders,
+  germanVerbLike,
+  germanVerbObjectCase,
+} from "../review/german/germanLexicon";
+export {
+  englishLine as deEnglishLine,
+  englishWords as deEnglishWords,
+  likeTyped as deLikeTyped,
+  tokensAfter as deTokensAfter,
+  tokensBefore as deTokensBefore,
+} from "../review/german/shared";
+export { invalidIsoDate as deInvalidIsoDate } from "../review/isoDates";
+export {
+  contextYear as deContextYear,
+  daysInMonth as deDaysInMonth,
+  utcDate as deUtcDate,
+  weekdayOf as deWeekdayOf,
+  yearsFor as deYearsFor,
+} from "../review/reviewClock";
+export type {
+  GermanGender,
+  GermanGenderReading,
+  GermanNounReading,
+} from "../review/german/germanLexicon";
+export {
+  germanAuxiliary,
+  germanFiniteInfinitive,
+  germanFittingForms,
+  germanInfinitiveOf,
+  germanModal,
+  germanNotVerb,
+  germanPluralNoun,
+  germanVerbForms,
+} from "./german/verbs";
+export type { GermanSlot, GermanVerbForm } from "./german/verbs";
+export {
+  germanAdjectiveEnding,
+  germanCaseFits,
+  germanContraction,
+  germanDeterminer,
+  germanDeterminerFits,
+  germanDeterminerFor,
+  germanDeterminerReadings,
+} from "./german/declension";
+export type { GermanCase, GermanCaseGender, GermanDeterminer } from "./german/declension";
+export { deCanonicalCasing, deWordBefore } from "./german/words";
