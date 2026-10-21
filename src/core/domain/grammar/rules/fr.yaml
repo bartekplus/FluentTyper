@@ -2075,49 +2075,341 @@ rules:
     checks: [frenchVerbForms]
     style: match
     message: review_msg_fr_imperative
+    # A sentence that opens with "ne" and no subject gives an order: the verb is an imperative.
+    # "Ne prend pas" -> "Ne prends pas", "N'y vas pas" -> "N'y va pas", "Ne soit pas" -> "Ne
+    # sois pas", "Ne me demander pas" -> "Ne me demandez pas".
+    maps:
+      # The second singular imperative of verbs whose present does not give it.
+      IMPERATIVE_SINGULAR: { être: sois, avoir: aie, savoir: sache, vouloir: veuille, aller: va }
+      IMPERATIVE_PLURAL: { être: [soyons, soyez], avoir: [ayons, ayez] }
+    sets:
+      IMPERATIVE_NEGATIONS: [pas, plus, jamais, rien, point, guère, personne]
+      # Words that show a second person addressee: "ne me prend pas pour ton frère".
+      SECOND_PERSON: [te, "t'", toi, ton, ta, tes, tien, tienne]
+      # Nouns that take avoir bare: "n'es pas peur" -> "n'aie pas peur".
+      IMPERATIVE_AVOIR_NOUNS: [peur, honte, froid, faim, soif, peine]
+    defs:
+      presentOf:
+        args: "r: VerbReading, person: number"
+        return: "conjugate({ ...r, tense: 1 }, person)"
+      # The second singular imperative of a reading's verb: "prendre" -> "prends", "manger" ->
+      # "mange", "offrir" -> "offre".
+      singularImperative:
+        args: "r: VerbReading"
+        type: string | undefined
+        return: >-
+          r.lemma in IMPERATIVE_SINGULAR
+            ? IMPERATIVE_SINGULAR[r.lemma]
+            : r.lemma.endsWith("er") || presentOf(r, JE)[0]?.endsWith("e")
+              ? presentOf(r, JE)[0]
+              : presentOf(r, TU)[0]
+      # The orders a finite verb after "ne" stands for, or null when it is one already
+      # ("ne mange pas", "ne prends pas", "ne soyez pas") or no order. A third singular in "ne
+      # sait pas lire" may be a note with its subject left out; only a second person in the
+      # sentence or an exclamation makes it an order. A subjunctive ("ne soit pas") never opens
+      # a note.
+      finiteOrders:
+        args: "ctx: DetectContext, after: FrenchToken[], i: number, finite: VerbReading[]"
+        type: string[] | null
+        let:
+          verb: after[i]
+          negation: after[i + 1]
+          noun: after[i + 2]
+          imperative: >-
+            finite.some((r) =>
+              [singularImperative(r), ...(IMPERATIVE_PLURAL[r.lemma] ?? [presentOf(r, NOUS)[0], presentOf(r, VOUS)[0]])].includes(verb.w))
+          third: finite.every((r) => !hasPerson(r.slot, TU) && r.tense < 6)
+          words: 'ctx.text.slice(verb.end, verb.end + 120).split(/[.!?…\n]/u)[0].toLowerCase().split(/[^\p{L}''’]+/u)'
+          exclaims: '/^[^.?…\n]*!/u.test(ctx.text.slice(verb.end, verb.end + 120))'
+          addressed: "[...after.slice(0, i).map((t) => t.w), ...words].some((w) => SECOND_PERSON.has(w))"
+        when:
+          - "!imperative"
+          - "!third || exclaims || addressed"
+        return: >-
+          [
+            ...new Set(
+              finite
+                .map((r) =>
+                  r.lemma === "être" && noun && IMPERATIVE_AVOIR_NOUNS.has(noun.w) && negation.w === "pas"
+                    ? IMPERATIVE_SINGULAR.avoir
+                    : singularImperative(r))
+                .filter((form) => form !== undefined),
+            ),
+          ]
     frames:
       # "Ne prend pas", "N'aies pas peur", "Ne vous laisser pas faire": a negated order.
       - regex: "{{WORD_START}}n(?:e{{WORD_END}}|['’](?=\\p{L}))"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: negatedOrder
+        let:
+          after: tokensAfter(ctx.text, m.index + m[0].length, 6)
+          i: skipWords(after, 0, CLITICS)
+          verb: after[i]
+          negation: after[i + 1]
+          readings: verbReadings(verb.w)
+          clitics: after.slice(0, i).map((t) => t.w)
+          infinitive: readings.find((r) => r.slot === "I" && r.lemma === verb.w)
+          finite: 'readings.filter((r) => typeof r.slot === "number")'
+          # "Ne me demander pas": an -er infinitive for the imperative of "tu" or "vous".
+          forms: >-
+            infinitive
+              ? [
+                  ...new Set([
+                    ...(!clitics.includes("te") && !clitics.includes("t'") && presentOf(infinitive, VOUS)[0]
+                      ? [presentOf(infinitive, VOUS)[0]]
+                      : []),
+                    ...(!clitics.includes("vous") && singularImperative(infinitive)
+                      ? [singularImperative(infinitive)!]
+                      : []),
+                  ]),
+                ]
+              : finiteOrders(ctx, after, i, finite)
+          found: wordFinding(ctx, verb.start, verb.w, forms, frame.ruleId, frame.messageKey)
+        when:
+          - m.index >= ctx.from
+          - SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+          - "!(!verb || verb.hyphen || !negation || !IMPERATIVE_NEGATIONS.has(negation.w))"
+          - ctx.text.slice(verb.start, verb.end) === verb.w
+          - readings.length > 0
+          - '!infinitive || verb.w.endsWith("er")'
+          - "!!infinitive || finite.length === readings.length"
+          - "!!forms && forms.length > 0 && forms.length <= 2"
+        return: "found && { ...found, context: { start: m.index, end: negation.end } }"
       # "Va-y" -> "Vas-y", "Rend-toi" -> "Rends-toi", "Manges-le" -> "Mange-le", "Aller-y" ->
       # "Allez-y": the imperative a hyphenated object pronoun follows.
       - regex: "{{WORD_START}}(?<verb>\\p{L}+)-(?<pronoun>moi|toi|lui|nous|leur|le|la|les|en|y){{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: joinedImperative
+        let:
+          lower: verb.toLowerCase()
+          readings: verbReadings(lower)
+          current: 'readings.filter((r) => r.tense === 1 && typeof r.slot === "number")'
+          enY: 'pronoun.toLowerCase() === "en" || pronoun.toLowerCase() === "y"'
+          # "Aller-y", "Donner-moi": an infinitive opening the sentence for the "vous" imperative.
+          # Before "en" and "y" the imperative in -e and "va" take an s: "penses-y", "vas-y".
+          # "Manges-le": the -er imperative has no s before another pronoun. "Rend-toi",
+          # "Prend-le": the third person for the second.
+          form: >-
+            readings.some((r) => r.slot === "I" && r.lemma === lower)
+              ? !lower.endsWith("er") || !SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+                ? undefined
+                : presentOf(readings[0], VOUS)[0]
+              : !current.length || current.length !== readings.length
+                ? undefined
+                : enY
+                  ? (lower !== "va" && !(lower.endsWith("e") && current.every((r) => r.lemma.endsWith("er")))) ||
+                    !current.some((r) => hasPerson(r.slot, JE + 4))
+                    ? undefined
+                    : `${lower}s`
+                  : lower.endsWith("es") && current.every((r) => r.lemma.endsWith("er"))
+                    ? !current.some((r) => hasPerson(r.slot, TU))
+                      ? undefined
+                      : lower.slice(0, -1)
+                    : /[td]$/.test(lower) && current.every((r) => !r.lemma.endsWith("er"))
+                      ? !current.every((r) => r.slot === 4)
+                        ? undefined
+                        : singularImperative(current[0])
+                      : undefined
+          found: wordFinding(ctx, m.index, verb, [form], frame.ruleId, frame.messageKey)
+        when:
+          - m.index >= ctx.from
+          - '!(/\p{Lu}/u.test(verb.slice(1)) || ctx.dictionary.has(lower))'
+          - "!!form && form !== lower"
+        return: "found && { ...found, context: { start: m.index, end: m.index + m[0].length } }"
   - id: fr.veillez
     checks: [frenchHomophones]
     style: match
     message: review_msg_fr_homophone
     frames:
       # "Veillez ne pas" -> "Veuillez": veiller takes "à"; "Veuillez à" -> "Veillez à": vouloir
-      # takes a bare infinitive.
+      # takes a bare infinitive. "Veuillez à nouveau saisir": the adverb, not veiller's "à".
       - regex: "{{WORD_START}}veu?illez{{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: veillezVeuillez
+        let:
+          after: tokensAfter(ctx.text, m.index + m[0].length, 4)
+          i: skipWords(after, 0, CLITICS)
+          next: after[i]
+        when: m.index >= ctx.from
+        return: >-
+          m[0].toLowerCase() === "veuillez"
+            ? after[0]?.w !== "à" || after[1]?.w === "nouveau"
+              ? null
+              : wordFinding(ctx, m.index, m[0], ["veillez"], frame.ruleId, frame.messageKey)
+            : !next
+              ? null
+              : !verbReadings(next.w).some((r) => r.slot === "I" && r.lemma === next.w) &&
+                  !(i === 0 && (next.w === "ne" || next.w === "n'"))
+                ? null
+                : wordFinding(ctx, m.index, m[0], ["veuillez"], frame.ruleId, frame.messageKey)
   - id: fr.invariables
     checks: [frenchAdjectiveAgreement]
     style: match
     message: review_msg_fr_invariable_colour
+    # Words that do not agree. An adjective used as an adverb after its verb: "coûter cher",
+    # "sentir bon", "voler bas". A colour named by a noun ("des yeux marron") and a compound
+    # colour ("des robes bleu clair").
+    maps:
+      # Adverbial adjective -> the verbs that take it bare.
+      ADVERBIAL:
+        {
+          cher: [coûter, valoir, payer, vendre, acheter],
+          bas: [voler, parler],
+          haut: [voler, parler, viser],
+          bon: [sentir],
+          mauvais: [sentir],
+          juste: [viser, chanter, deviner, tomber],
+          faux: [chanter, sonner, jouer],
+          clair: [voir],
+          droit: [marcher, aller, filer],
+          franc: [parler, jouer],
+          fort: [parler, crier, frapper, taper],
+          court: [couper, tourner],
+          dur: [travailler, bosser, cogner],
+          lourd: [peser],
+        }
+      # Agreed form -> masculine singular, for the adjectives above.
+      ADVERBIAL_AGREED:
+        {
+          chère: cher,
+          chères: cher,
+          chers: cher,
+          basse: bas,
+          basses: bas,
+          haute: haut,
+          hautes: haut,
+          hauts: haut,
+          bonne: bon,
+          bonnes: bon,
+          bons: bon,
+          mauvaise: mauvais,
+          mauvaises: mauvais,
+          justes: juste,
+          fausse: faux,
+          fausses: faux,
+          claire: clair,
+          claires: clair,
+          clairs: clair,
+          droite: droit,
+          droites: droit,
+          droits: droit,
+          franche: franc,
+          franches: franc,
+          francs: franc,
+          forte: fort,
+          fortes: fort,
+          forts: fort,
+          courte: court,
+          courtes: court,
+          courts: court,
+          dure: dur,
+          dures: dur,
+          durs: dur,
+          lourde: lourd,
+          lourdes: lourd,
+          lourds: lourd,
+        }
+    sets:
+      INVARIABLE_REFLEXIVE: [me, "m'", te, "t'", se, "s'", nous, vous]
+      # Colours named by a noun: they stay invariable ("rose", "mauve", "fauve" agree and are left
+      # out).
+      NOUN_COLOURS:
+        [
+          marron,
+          kaki,
+          crème,
+          turquoise,
+          émeraude,
+          ocre,
+          saumon,
+          olive,
+          ivoire,
+          bordeaux,
+          prune,
+          cerise,
+          chocolat,
+          caramel,
+          moutarde,
+          corail,
+          azur,
+          sable,
+          citron,
+          framboise,
+          lavande,
+          abricot,
+          bronze,
+          argent,
+          cuivre,
+          acajou,
+          anthracite,
+          indigo,
+        ]
+      BASE_COLOURS: [bleu, vert, rouge, jaune, gris, brun, noir, blanc, violet, orange, beige]
+      SHADES: [clair, foncé, pâle, vif, sombre, marine, ciel, nuit, électrique]
+    defs:
+      # A base colour and a shade both agreed: "bleus clairs", "vertes foncées".
+      colourShade:
+        args: "ctx: DetectContext, m: RegExpExecArray, previous: FrenchToken, colour: string, singular: string"
+        type: RawFinding | null
+        let:
+          next: tokensAfter(ctx.text, m.index + m[0].length, 1)[0]
+          shade: next.w.replace(/(?:e?s|e)$/, "")
+          shadeBase: "SHADES.has(shade) ? shade : SHADES.has(`${shade}é`) ? `${shade}é` : null"
+          base: "BASE_COLOURS.has(colour) ? colour : singular"
+          found: wordFinding(ctx, m.index, ctx.text.slice(m.index, next.end), [`${base} ${shadeBase}`], "frenchAdjectiveAgreement", "review_msg_fr_invariable_colour")
+        when:
+          - "!!next && next.start <= m.index + m[0].length + 1"
+          - "!!shadeBase && next.w !== shadeBase"
+        return: "found && { ...found, context: { start: previous.start, end: next.end } }"
     frames:
       # "La vie coûte chère" -> "cher", "Ces fleurs sentent bonnes" -> "bon".
       - regex: "{{WORD_START}}(?:chère|chères|chers|basse|basses|haute|hautes|hauts|bonne|bonnes|bons|mauvaise|mauvaises|justes|fausse|fausses|claire|claires|clairs|droite|droites|droits|franche|franches|francs|forte|fortes|forts|courte|courtes|courts|dure|dures|durs|lourde|lourdes|lourds){{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: adverbialAdjective
+        let:
+          typed: m[0]
+          base: ADVERBIAL_AGREED[typed.toLowerCase()]
+          before: tokensBefore(ctx.text, m.index, 4)
+          i: '["pas", "plus", "jamais", "vraiment", "très", "trop", "si", "aussi"].includes(before[0]?.w) ? 1 : 0'
+          verb: before[i]
+          found: wordFinding(ctx, m.index, typed, [base], frame.ruleId, "review_msg_fr_adverbial_adjective")
+        when:
+          - m.index >= ctx.from
+          - "!!base"
+          - "!!verb && verbReadings(verb.w).some((r) => ADVERBIAL[base].includes(r.lemma))"
+          # "elle se sent bonne", "il se voit claire": a reflexive verb takes an attribute.
+          - "!before.slice(i + 1).some((t) => INVARIABLE_REFLEXIVE.has(t.w))"
+          # "la coupe courte", "une marche droite": a noun spelled like the verb.
+          - '!(isVerbHomograph(verb.w) && !SUBJECT_PRONOUNS.has(before[i + 1]?.w ?? ""))'
+        return: "found && { ...found, context: { start: verb.start, end: m.index + typed.length } }"
       # "des yeux marrons" -> "marron", "des robes bleues claires" -> "bleu clair".
       - regex: "{{WORD_START}}(?:marron|kaki|crème|turquoise|émeraude|ocre|saumon|olive|ivoire|bordeaux|prune|cerise|chocolat|caramel|moutarde|corail|azur|sable|citron|framboise|lavande|abricot|bronze|argent|cuivre|acajou|anthracite|indigo|bleu|vert|rouge|jaune|gris|brun|noir|blanc|violet|orange|beige)\\p{Ll}{0,3}{{WORD_END}}"
         flags: gu
         scan: owned
         lookback: 1
-        fixer: invariableColour
+        let:
+          typed: m[0]
+          lower: typed.toLowerCase()
+          singular: lower.replace(/s$/, "")
+          colour: lower.replace(/(?:e?s|e)$/, "")
+          named: NOUN_COLOURS.has(singular) && lower !== singular
+          # After a plural noun only: "les marrons" (chestnuts) is a noun of its own.
+          previous: tokensBefore(ctx.text, m.index, 1)[0]
+          found: "named ? wordFinding(ctx, m.index, typed, [singular], frame.ruleId, frame.messageKey) : null"
+        when:
+          - m.index >= ctx.from
+          - named || BASE_COLOURS.has(colour) || BASE_COLOURS.has(singular)
+          - "!!previous && /[sx]$/.test(previous.w) && isInflectedNoun(previous.w)"
+          - "!adjectiveReadings(previous.w).length"
+          - "!(verbReadings(previous.w).length && !isVerbHomograph(previous.w))"
+        return: >-
+          named
+            ? found && { ...found, context: { start: previous.start, end: m.index + typed.length } }
+            : colourShade(ctx, m, previous, colour, singular)
   - id: fr.style
     checks: [stylePhrasing]
     style: match

@@ -6,8 +6,6 @@ import * as agreement from "./agreement";
 import * as determiners from "./determiners";
 import * as homophones from "./homophones";
 import * as hyphenation from "./hyphenation";
-import * as imperative from "./imperative";
-import * as invariables from "./invariables";
 import * as mood from "./mood";
 import * as negation from "./negation";
 import * as nounNumber from "./nounNumber";
@@ -27,14 +25,12 @@ export const FIXERS = mergePredicates<Fixer>(
   agreement.FIXERS,
   style.FIXERS,
   hyphenation.FIXERS,
-  imperative.FIXERS,
   tout.FIXERS,
   mood.FIXERS,
   smallWords.FIXERS,
   nounNumber.FIXERS,
   questions.FIXERS,
   negation.FIXERS,
-  invariables.FIXERS,
   determiners.FIXERS,
 );
 
