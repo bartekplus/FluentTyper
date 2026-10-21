@@ -7821,198 +7821,6 @@ rules:
       # Closed-class words (prepositions, adverbs, determiners, reflexives), plus adjectives and
       # role nouns that take an object, a clause or a time phrase ("I am sure the build works",
       # "He is mean the whole time", "I am lead on this"). Open classes stay unlisted.
-      # Function words that the lexicon also lists as nouns or verbs ("in", "it", "up", "now").
-      GAP_FUNCTION_WORDS:
-        [
-          a,
-          an,
-          the,
-          my,
-          your,
-          our,
-          his,
-          her,
-          their,
-          this,
-          that,
-          these,
-          those,
-          some,
-          any,
-          no,
-          every,
-          each,
-          another,
-          me,
-          him,
-          us,
-          them,
-          you,
-          it,
-          i,
-          he,
-          she,
-          we,
-          they,
-          what,
-          where,
-          when,
-          why,
-          how,
-          who,
-          which,
-          whatever,
-          of,
-          in,
-          on,
-          at,
-          by,
-          for,
-          from,
-          with,
-          without,
-          about,
-          into,
-          onto,
-          upon,
-          between,
-          among,
-          through,
-          during,
-          until,
-          against,
-          near,
-          under,
-          over,
-          toward,
-          towards,
-          within,
-          across,
-          along,
-          around,
-          behind,
-          beyond,
-          inside,
-          outside,
-          off,
-          out,
-          up,
-          down,
-          past,
-          via,
-          per,
-          like,
-          despite,
-          throughout,
-          not,
-          never,
-          always,
-          also,
-          just,
-          still,
-          really,
-          so,
-          too,
-          already,
-          probably,
-          definitely,
-          certainly,
-          actually,
-          basically,
-          finally,
-          simply,
-          totally,
-          completely,
-          absolutely,
-          pretty,
-          quite,
-          rather,
-          almost,
-          nearly,
-          sometimes,
-          usually,
-          often,
-          now,
-          then,
-          here,
-          there,
-          way,
-          far,
-          much,
-          even,
-          only,
-          very,
-          literally,
-          seriously,
-          truly,
-          obviously,
-          clearly,
-          apparently,
-          surely,
-          hardly,
-          barely,
-          maybe,
-          perhaps,
-          again,
-          soon,
-          once,
-          ever,
-          all,
-          and,
-          or,
-          but,
-          nor,
-          yet,
-          as,
-          than,
-          if,
-          whether,
-          because,
-          since,
-          though,
-          although,
-          while,
-          unless,
-          to,
-          is,
-          are,
-          was,
-          were,
-          be,
-          been,
-          being,
-          am,
-          have,
-          has,
-          had,
-          do,
-          does,
-          did,
-          can,
-          could,
-          will,
-          would,
-          shall,
-          should,
-          may,
-          might,
-          must,
-          own,
-          other,
-          others,
-          such,
-          same,
-          both,
-          either,
-          neither,
-          more,
-          most,
-          less,
-          least,
-          few,
-          many,
-          several,
-        ]
       NOT_A_VERB:
         [
           like,
@@ -8249,7 +8057,7 @@ rules:
         when: "!!head"
         return: >-
           /^(?:anything|everything|something|nothing|all|what|whatever|whichever)$/.test(head) ||
-          (!!read && (read.noun || read.plural) && !GAP_FUNCTION_WORDS.has(head))
+          (!!read && (read.noun || read.plural) && !isEnglishFunctionWord(head))
         else: "false"
       # The next word after `after`, lowercased.
       participleNextWord:
@@ -11145,12 +10953,196 @@ rules:
     lang: en
     style: match
     message: review_msg_pronoun_verb
+    maps:
+      PLURAL_BE: { is: are, am: are, was: were }
+      SINGULAR_BE: { are: is, am: is, were: was }
+    defs:
+      # Only a clause opening establishes the subject; do not reinterpret object pronouns. With
+      # `pronounI`, the subject pronoun of subjectI may also stand inside the clause.
+      clauseVerb:
+        args: "ctx: DetectContext, m: RegExpExecArray, pronounI: boolean"
+        return: >-
+          (atClauseStart(ctx.text, m.index) ||
+            (pronounI && subjectI(m, ctx.text.slice(Math.max(0, m.index - 96), m.index)))) &&
+          plainToken(ctx, m.groups!.verb)
+      # "I" is only ever a subject, so it needs no clause start; a capitalized word before it (a
+      # title or numeral: "Part I is", "World War I") or a coordination ("Sam and I are")
+      # abstains. A lowercase "i" is a variable as often as the pronoun; "i are" can only be the
+      # pronoun. "I hope he go away": a clause after a verb of thinking or saying (not "I suggest
+      # he go").
+      subjectI:
+        args: "m: RegExpExecArray, before: string"
+        let:
+          subject: m.groups!.subject
+        return: >-
+          ((subject === "i"
+            ? /^are$/i.test(m.groups!.verb)
+            : subject === "I" && !/\p{Lu}[\p{L}.]*[ \t ]+$/u.test(before)) &&
+            !/\b(?:and|or|nor)[ \t ]+$/i.test(before)) ||
+          (/^(?:he|she|it)$/.test(subject) &&
+            /\b(?:hope|hoped|think|thought|guess|believe|believed|sure|glad|afraid)[ \t ]+$/i.test(before))
+      # "If I were", "I wish I were", "as though I were": the subjunctive keeps "were".
+      subjunctive:
+        args: "ctx: DetectContext, index: number"
+        return: >-
+          /\b(?:if|wish|wished|wishes|though|suppose|supposing|imagine|rather|unless|only)\b[^.!?;:\n]*$/i.test(
+            ctx.text.slice(Math.max(0, index - 64), index))
+      # Words after "You fools" or "You kids" that make the -s word a noun the pronoun names.
+      VERB_AFTER: >-
+        /^(?:are|were|is|was|have|had|can|could|will|would|should|must|may|might|do|did|don|get|go|come|need|want|know|think|see|look|make|take|stop|leave|listen|shut|keep|play|eat|run|stay|sit|stand)$/i
+      AGREE_MODAL: /^(?:will|would|can|could|shall|should|may|might|must|ought|need|dare|used)$/
+      # Words the lexicon lists as verbs that follow a pronoun as something else: "It better be",
+      # "He not only…", "It up front…", "It time to…".
+      NOT_A_VERB_HERE: /^(?:not|up|down|out|off|better|best|time|only|also|so|too)$/
+      # A part or set named by a capital letter: "phase I lasts", "the set I is", "an I is".
+      LETTER_NAME_BEFORE: >-
+        /\b(?:a|an|the|part|chapter|section|volume|book|act|phase|step|stage|level|type|class|article|item|figure|table|option|case|grade|war|page|set|ideal|matrix|interval)[ \t ]+$/i
+      # Adverbs the lexicon reads as nouns only.
+      FREQUENCY_AFTER: /^(?:sometimes|often|always|usually|never|rarely|seldom|also|all|both|still)$/i
+      # "You kids get", "We nurses sometimes": a plural noun before a verb names the pronoun.
+      namesPronoun:
+        args: "word: string, next: string | undefined"
+        let:
+          nextInfo: englishWordInfo(next)
+        when: "!!next && !!englishWordInfo(word)?.plural"
+        return: >-
+          VERB_AFTER.test(next) ||
+          AGREE_MODAL.test(next) ||
+          FREQUENCY_AFTER.test(next) ||
+          !!nextInfo?.verbs.some((v) => v.form === "base") ||
+          !!nextInfo?.adverb
+        else: "false"
+      # The agreeing form of a regular verb, or undefined when the word may be a noun or a past.
+      lexicalAgreement:
+        args: "word: string, plural: boolean, pronoun: string, next: string | undefined"
+        type: string | undefined
+        let:
+          info: englishWordInfo(word)
+        when: "!!info && !AGREE_MODAL.test(word) && !NOT_A_VERB_HERE.test(word)"
+        return: "plural ? pluralAgreement(word, pronoun, next) : singularAgreement(word, next)"
+        else: undefined
+      # "You kids get…", "You fools!": a plural noun after the pronoun.
+      pluralAgreement:
+        args: "word: string, pronoun: string, next: string | undefined"
+        type: string | undefined
+        let:
+          info: englishWordInfo(word)!
+        when:
+          - >-
+            info.verbs.some((v) => v.form === "third") &&
+            !info.verbs.some((v) => v.form === "base" || v.form === "past")
+          - '!namesPronoun(word, next) && !(info.plural && !next && pronoun === "you")'
+        return: englishLemma(word, "third") ?? undefined
+        else: undefined
+      # "He hand wrote it": a noun-verb before another verb modifies it. "It face was red": a
+      # noun before a finite verb is owned ("Its face"), not a verb. "It better be careful"
+      # drops "had"; no finite verb takes a bare "be" either. Only a form the dictionary lists:
+      # "He not sure" never becomes "nots"; the dictionary may list the -s form as the noun
+      # plural only ("matters").
+      singularAgreement:
+        args: "word: string, next: string | undefined"
+        type: string | undefined
+        let:
+          info: englishWordInfo(word)!
+          nextInfo: "next ? englishWordInfo(next) : null"
+          third: englishInflect(word, "third")
+          known: "third ? englishWordInfo(third) : null"
+        when:
+          - >-
+            info.verbs.some((v) => v.form === "base") &&
+            !info.verbs.some((v) => v.form === "past" || v.form === "participle" || v.form === "third") &&
+            !info.adjective
+          - '!(info.noun && nextInfo?.verbs.some((v) => v.form === "past" || v.form === "base"))'
+          - '!(info.noun && /^(?:is|was|has|will|would|can|could|should|must|may|might)$/i.test(next ?? ""))'
+          - 'next?.toLowerCase() !== "be"'
+        return: 'third && (known?.verbs.some((v) => v.form === "third") || known?.plural) ? third : undefined'
+        else: undefined
+      # The agreeing form of `word` after the pronoun, or undefined.
+      pronounCorrection:
+        args: >-
+          ctx: DetectContext, m: RegExpExecArray, pronoun: string, plural: boolean,
+          negative: string, word: string, next: string | undefined
+        type: string | undefined
+        let:
+          forms: englishVerbForms(word)
+          be: "(plural ? PLURAL_BE : SINGULAR_BE)[word]"
+        # "He aren't", "They isn't". Lexical verbs: past-shared or noun-shared forms ("He cut",
+        # "They bear") abstain; "He run": a participle equal to the base ("run", "come") needs an
+        # auxiliary. Regular verbs come from the dictionary: "She study", "They repairs". A soft
+        # line wrap is not a clause start for these: "curving\nit down". Only a plural subject's
+        # "-s" word or a singular subject's bare word can disagree.
+        return: >-
+          /^(?:is|are|am|was|were)$/.test(word) && !negative
+            ? pronoun === "i"
+              ? word === "are" || word === "is"
+                ? "am"
+                : word === "were"
+                  ? subjunctive(ctx, m.index)
+                    ? undefined
+                    : "was"
+                  : undefined
+              : be
+            : /^(?:is|are|was|were)$/.test(word) && pronoun !== "i"
+              ? be
+                ? be + negative.toLowerCase()
+                : undefined
+              : /^(?:has|have|does|do)$/.test(word)
+                ? (plural ? forms!.lemma : forms!.third) + negative
+                : forms && !negative && !forms.ambiguous.includes(word)
+                  ? plural
+                    ? word === forms.third && word !== forms.lemma
+                      ? forms.lemma
+                      : undefined
+                    : word === forms.lemma && word !== forms.past
+                      ? forms.third
+                      : undefined
+                  : !forms &&
+                      !negative &&
+                      (plural ? word.endsWith("s") : !/(?:s|ed|ing|ly)$/.test(word)) &&
+                      !/[^\n\s.!?:;"“][ \t ]*\n[ \t ]*$/.test(
+                        ctx.text.slice(Math.max(0, m.index - 8), m.index),
+                      ) &&
+                      !/^of$/i.test(next ?? "")
+                    ? lexicalAgreement(word, plural, pronoun, next)
+                    : undefined
     frames:
       # A clause end may follow ("It don't."); a lexical verb must come from the authored table.
       # "I" is only ever a subject, so it needs no clause start (pronounAgreement).
       - regex: "(?<subject>I|we|they|you|he|she|it)(?<gap>{{S}}(?:(?:really|still|also|always|never|usually|often|just|only|even|sometimes|rarely|seldom|actually|truly|mostly|generally|normally|typically){{S}})?)(?<verb>[A-Za-z]+(?:n['’]t)?)(?:{{S}}(?:not{{S}})?(?<next>[A-Za-z]+){{E}}|(?=[ \t\u00a0]{0,8}(?:[.!?,;:]|$)))"
         owner: verb
-        fixer: pronounAgreement
+        let:
+          pronoun: subject.toLowerCase()
+          before: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+          plural: /^(?:i|we|they|you)$/.test(pronoun)
+          negative: /n['’]t$/i.exec(verb)?.[0] ?? ""
+          word: "(negative ? verb.slice(0, -negative.length) : verb).toLowerCase()"
+          corrected: pronounCorrection(ctx, m, pronoun, plural, negative, word, next)
+          span: group(m, "verb")
+        when:
+          - clauseVerb(ctx, m, true)
+          # "am I nuts", "such as I finds": an inverted or compared pronoun; "phase I", "the set
+          # I": a letter that names a thing.
+          - '!/\b(?:as|than|am|is|are|was|were)[ \t ]+$/i.test(before)'
+          - '!(subject === "I" && LETTER_NAME_BEFORE.test(before))'
+          - applyWordCase(subject, detectWordCase(subject)) === subject || subject === "i"
+          - "!ctx.dictionary.has(pronoun)"
+          # The typing rule's six pairs keep their precise guards and bulk behavior.
+          - '!(/^[ \t ]+$/.test(gap) && AGREEMENT_CORRECTIONS.has(`${pronoun} ${verb.toLowerCase()}`))'
+          # "We nurses sometimes feel", "We bears would call": a plural noun names the pronoun.
+          - "!(/^(?:we|you)$/.test(pronoun) && !negative && namesPronoun(word, next))"
+          - "!!corrected && corrected !== verb.toLowerCase()"
+        return: >-
+          ({
+            ruleId: "englishPronounVerbWhitelistAgreement",
+            messageKey: "review_msg_pronoun_verb",
+            range: { start: span[0], end: span[1] },
+            alternatives: [applyWordCase(corrected, detectWordCase(verb))],
+            context: {
+              start: Math.max(0, m.index - 96),
+              end: Math.min(ctx.text.length, m.index + m[0].length + 2),
+            },
+            bulkBlock: "context-dependent",
+          })
   - id: pronounVerb
     checks: [englishPronounVerbWhitelistAgreement]
     style: match
@@ -11180,6 +11172,104 @@ rules:
             ctx.source.slice(d.range.start, d.range.end).toLowerCase() &&
           !/\b(?:suggest|suggested|insist|insisted|demand|demanded|essential|important|wish|if|unless)\b/i.test(
             ctx.text.slice(d.context!.start, d.range.start)))
+    maps:
+      # The verbs of the agreement templates: the base and the third person form. A template
+      # replaces the typed one with the other one.
+      OTHER_FORM:
+        look: looks
+        looks: look
+        accept: accepts
+        accepts: accept
+        struggle: struggles
+        struggles: struggle
+        make: makes
+        makes: make
+        work: works
+        works: work
+        suggest: suggests
+        suggests: suggest
+        forget: forgets
+        forgets: forget
+        have: has
+        has: have
+        need: needs
+        needs: need
+        cause: causes
+        causes: cause
+        create: creates
+        creates: create
+        were: was
+        was: were
+        "aren't": "isn't"
+        "isn't": "aren't"
+        solve: solves
+        solves: solve
+        seem: seems
+        seems: seem
+        sound: sounds
+        sounds: sound
+    sets:
+      AGREEMENT_COLLECTIVE:
+        [
+          team,
+          staff,
+          family,
+          police,
+          government,
+          committee,
+          crew,
+          band,
+          audience,
+          public,
+          class,
+          group,
+          majority,
+          folk,
+          blues,
+          rest,
+          number,
+          couple,
+          pair,
+          lot,
+          jury,
+          army,
+          navy,
+          board,
+          council,
+          club,
+          company,
+          firm,
+          management,
+          media,
+          data,
+          total,
+          variety,
+          range,
+          series,
+          species,
+          means,
+          news,
+          remainder,
+          masters,
+          woods,
+          belt,
+        ]
+    defs:
+      LINKING: /^(?:look|seem|sound|feel|appear)s?$/
+      AGREE_AUXILIARY: >-
+        /^(?:is|are|am|was|were|be|been|being|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must|ought|need|needs|dare|used)$/
+      # An -ly adverb with no other reading.
+      onlyAdverb:
+        args: "word: string"
+        let:
+          info: englishWordInfo(word)
+        return: "!!info?.adverb && !info.verbs.length && !info.noun && !info.adjective && /ly$/.test(word)"
+      # An adjective that is no verb ("good", not "fine").
+      onlyAdjective:
+        args: "word: string"
+        let:
+          info: englishWordInfo(word)
+        return: "!!info?.adjective && !info.verbs.length && !info.adverb"
     frames:
       # Templates at a clause start: a singular subject with the base form or a plural subject
       # with the third person form.
@@ -11188,121 +11278,288 @@ rules:
         # after it. Without them in the text, the frame does not run.
         gate: "look[ \\t\\u00a0]{1,8}(?:(?:quite[ \\t\\u00a0]{1,8})?promising|good)"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>looks){{S}}(?:(?:quite{{S}})?promising|good){{E}}"
         gate: "looks[ \\t\\u00a0]{1,8}(?:(?:quite[ \\t\\u00a0]{1,8})?promising|good)"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>accept){{S}}(?:words){{E}}"
         gate: "accept[ \\t\\u00a0]{1,8}(?:words)"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>accepts){{S}}(?:words){{E}}"
         gate: "accepts[ \\t\\u00a0]{1,8}(?:words)"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>struggle){{S}}(?:with{{S}}constructions){{E}}"
         gate: "struggle[ \\t\\u00a0]{1,8}(?:with[ \\t\\u00a0]{1,8}constructions)"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>struggles){{S}}(?:with{{S}}constructions){{E}}"
         gate: "struggles[ \\t\\u00a0]{1,8}(?:with[ \\t\\u00a0]{1,8}constructions)"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>make){{S}}(?:many{{S}}mistakes){{E}}"
         gate: "make[ \\t\\u00a0]{1,8}(?:many[ \\t\\u00a0]{1,8}mistakes)"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>makes){{S}}(?:many{{S}}mistakes){{E}}"
         gate: "makes[ \\t\\u00a0]{1,8}(?:many[ \\t\\u00a0]{1,8}mistakes)"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>work){{S}}(?:(?:correctly|well|reliably)){{E}}"
         gate: "work[ \\t\\u00a0]{1,8}(?:(?:correctly|well|reliably))"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>works){{S}}(?:(?:correctly|well|reliably)){{E}}"
         gate: "works[ \\t\\u00a0]{1,8}(?:(?:correctly|well|reliably))"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>suggest){{S}}(?:(?:a|an|the){{S}}(?:change|solution|correction)){{E}}"
         gate: "suggest[ \\t\\u00a0]{1,8}(?:(?:a|an|the)[ \\t\\u00a0]{1,8}(?:change|solution|correction))"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>suggests){{S}}(?:(?:a|an|the){{S}}(?:change|solution|correction)){{E}}"
         gate: "suggests[ \\t\\u00a0]{1,8}(?:(?:a|an|the)[ \\t\\u00a0]{1,8}(?:change|solution|correction))"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>forget){{S}}(?:an{{S}}article){{E}}"
         gate: "forget[ \\t\\u00a0]{1,8}(?:an[ \\t\\u00a0]{1,8}article)"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>forgets){{S}}(?:an{{S}}article){{E}}"
         gate: "forgets[ \\t\\u00a0]{1,8}(?:an[ \\t\\u00a0]{1,8}article)"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>have){{S}}(?:other{{S}}tasks|checked|finished|completed|passed|been){{E}}"
         gate: "have[ \\t\\u00a0]{1,8}(?:other[ \\t\\u00a0]{1,8}tasks|checked|finished|completed|passed|been)"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>has){{S}}(?:other{{S}}tasks|checked|finished|completed|passed|been){{E}}"
         gate: "has[ \\t\\u00a0]{1,8}(?:other[ \\t\\u00a0]{1,8}tasks|checked|finished|completed|passed|been)"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>need){{S}}(?:improvements){{E}}"
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>needs){{S}}(?:improvements){{E}}"
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>cause){{S}}(?:subtle{{S}}issues|trouble){{E}}"
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>causes){{S}}(?:subtle{{S}}issues|trouble){{E}}"
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>create){{S}}(?:additional{{S}}edge{{S}}cases){{E}}"
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>creates){{S}}(?:additional{{S}}edge{{S}}cases){{E}}"
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>were){{S}}(?:(?:consuming|running|working)){{E}}"
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>was){{S}}(?:(?:consuming|running|working)){{E}}"
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>aren't){{S}}(?:detected){{E}}"
         gate: "aren't[ \\t\\u00a0]{1,8}(?:detected)"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>isn't){{S}}(?:detected){{E}}"
         gate: "isn't[ \\t\\u00a0]{1,8}(?:detected)"
         gateFlags: giu
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>solve){{S}}(?:the{{S}}(?:original{{S}})?issue){{E}}"
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>solves){{S}}(?:the{{S}}(?:original{{S}})?issue){{E}}"
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>seem){{S}}(?:to{{S}}work){{E}}"
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>seems){{S}}(?:to{{S}}work){{E}}"
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       - regex: "some{{S}}sentences{{S}}are{{S}}grammatical{{S}}but{{S}}still{{S}}(?<target>sounds){{S}}unnatural{{E}}"
-        fixer: agreementTemplate
+        when: opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0])
+        return: applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target))
       # "The build work correctly.", "These tests runs slowly.": a determiner, one counted noun, a
       # verb and an -ly adverb (or a linking verb and an adjective) that close the clause. The
       # closing word makes the verb a verb: "the build work" alone may be a compound noun.
       - regex: "(?<det>the|this|that|these|those|our|your|my|its|their|his|her|every|each){{S}}(?<noun>[a-z]+){{S}}(?<verb>[a-z]+){{S}}(?<tail>[a-z]+){{E}}(?=[ \\t\\u00a0]{0,8}(?:[.!,;:]|$))"
         owner: verb
-        fixer: determinerSubject
+        let:
+          forms: englishNounNumber(noun)
+          number: forms?.number
+          d: det.toLowerCase()
+          verbForms: englishVerbForms(verb)
+          info: englishWordInfo(verb)
+          # A base that is also a past ("set", "cut") may be a participle after a compound noun.
+          fix: >-
+            number === "singular"
+              ? (
+                  verbForms
+                    ? verb === verbForms.lemma && verb !== verbForms.past && !verbForms.ambiguous.includes(verb)
+                    : !!info?.verbs.some((v) => v.form === "base") &&
+                      !info.verbs.some((v) => v.form === "past" || v.form === "participle")
+                )
+                ? (verbForms?.third ?? englishInflect(verb, "third"))
+                : null
+              : (verbForms ? verb === verbForms.third : !!info?.verbs.some((v) => v.form === "third"))
+                ? (verbForms?.lemma ?? englishLemma(verb, "third"))
+                : null
+          span: group(m, "verb")
+        when:
+          # Only a sentence opening establishes the subject: not "make the build work", "that the
+          # build run", "does the build work", or a soft line wrap ("The system and\nthe
+          # application work").
+          - opensSentence(ctx.scanText, m.index)
+          # The "i" flag lets [a-z] match capitals: a capitalized noun or verb names something.
+          - "`${noun} ${verb} ${tail}` === `${noun} ${verb} ${tail}`.toLowerCase()"
+          - "!hasUserOrCasedWord(ctx, m[0]) && !AGREE_AUXILIARY.test(verb)"
+          - onlyAdverb(tail) || (LINKING.test(verb) && onlyAdjective(tail))
+          # The noun number leaves out invariant nouns ("series", "news").
+          - >-
+            !!number &&
+            ![AGREEMENT_COLLECTIVE, ENGLISH_MASS_NOUNS, MASS_WITH_COUNT_SENSE].some((s) => s.has(forms.singular))
+          # "the general", "the final": an adjective may modify a noun in the verb slot.
+          - "!englishWordInfo(noun)?.adjective"
+          - 'number === "singular" ? !/^(?:these|those)$/.test(d) : !/^(?:this|that|its|every|each)$/.test(d)'
+          - "!!fix && fix !== verb"
+        return: >-
+          ({
+            ruleId: "englishSubjectVerbAgreement",
+            messageKey: "review_msg_pronoun_verb",
+            range: { start: span[0], end: span[1] },
+            alternatives: [fix],
+            context: {
+              start: Math.max(0, m.index - 96),
+              end: Math.min(ctx.text.length, m.index + m[0].length + 2),
+            },
+          })
   - id: existentialAgreement
     checks: [englishExistentialAgreement]
     style: match
     message: review_msg_existential_agreement
+    defs:
+      # A noun by a suffix that only forms count nouns ("description"), unknown or a noun only.
+      derivedNounNumber:
+        args: "noun: string"
+        let:
+          info: englishWordInfo(noun)
+        return: >-
+          /^[a-z]{4,}(?:tion|sion|ment)$/.test(noun) &&
+          (!info || (info.noun && !info.verbs.length && !info.adjective))
+            ? "singular"
+            : null
+      # The two fixes of a singular noun after are/were: the singular verb and an article, or
+      # the plural noun.
+      singularExistential:
+        args: 'ctx: DetectContext, m: RegExpExecArray, noun: string, typed: string, past: boolean, kase: "upper" | "title" | "lower"'
+        let:
+          lead: ctx.text.slice(m.index, group(m, "noun")[0])
+          verbAt: 'm.groups!.qverb ? 0 : group(m, "verb")[0] - m.index'
+          article: 'englishInitialSound(noun) === "vowel" ? "an" : "a"'
+        return: >-
+          [
+            `${lead.slice(0, verbAt)}${applyWordCase(past ? "was" : "is", kase)}${lead.slice(verbAt + typed.length)}${article} ${noun}`,
+            `${lead}${applyWordCase(englishNounForms(noun)?.plural ?? `${noun}s`, detectWordCase(noun))}`,
+          ]
     frames:
       # Simple counted noun phrases only: changing the verb must preserve the stated number.
       - regex: "There{{S}}(?<verb>is|are|was|were){{S}}(?:(?:not|still|also){{S}})?(?<quantity>a|an|one|two|three|four|five|six|seven|eight|nine|ten|zero|many|several|a{{S}}lot{{S}}of|[0-9]{1,4}){{S}}{{AGREE_ADJECTIVE}}(?<noun>[A-Za-z]+){{E}}(?:{{S}}(?:in|on|under|near|inside|outside){{S}}(?:the|this|that|my|your|our|their){{S}}{{AGREE_ADJECTIVE}}(?:report|folder|file|document|room|box|table|account|list|screen|desk))?[ \\t\\u00a0]{0,8}(?=[.!?,;]|$|(?:that|which|with){{S}})"
         owner: verb
-        fixer: countedExistential
+        # Simple counted noun phrases only: changing the verb must preserve the stated number.
+        let:
+          number: knownEnglishNounNumber(noun)
+          singularQuantity: /^(?:a|an|one|0*1)$/i.test(quantity)
+          past: /^(?:was|were)$/i.test(verb)
+          expected: 'number === "singular" ? (past ? "was" : "is") : past ? "were" : "are"'
+          span: group(m, "verb")
+        when:
+          - clauseVerb(ctx, m, false)
+          - "!!number && !ctx.dictionary.has(noun.toLowerCase())"
+          - (number === "singular") === singularQuantity
+          # A following list can establish a plural whole: "a problem, a file and a key".
+          - "!singularQuantity || /^(?:[.!?]|$)/.test(ctx.text.slice(m.index + m[0].length))"
+          - verb.toLowerCase() !== expected
+        return: >-
+          ({
+            ruleId: "englishExistentialAgreement",
+            messageKey: "review_msg_existential_agreement",
+            range: { start: span[0], end: span[1] },
+            alternatives: [applyWordCase(expected, detectWordCase(verb))],
+            context: {
+              start: Math.max(0, m.index - 96),
+              end: Math.min(ctx.text.length, m.index + m[0].length + 2),
+            },
+          })
       # "there is things", "are there solution…": a bare known noun right after existential there.
       # Ownership waits for the repair: the verb, or the whole phrase for a singular noun.
       - regex: "(?:(?<there>there)(?:{{S}}(?<verb>is|was|are|were)|(?<contracted>['’]s))|(?<qverb>is|was|are|were){{S}}there){{S}}(?<noun>[A-Za-z]+){{E}}(?<tail>[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|{{S}}(?:in|on|at|with|for|about|regarding|that|which|when|where|from|of|to|running|missing|left){{E}})?"
         owner: none
-        fixer: bareExistential
+        # "there is things", "are there solution…": a bare known noun right after existential there.
+        let:
+          number: knownEnglishNounNumber(noun) ?? derivedNounNumber(noun)
+          typed: verb ?? contracted ?? qverb
+          past: /^(?:was|were)$/i.test(typed)
+          plural: number === "plural"
+          before: ctx.scanText.slice(Math.max(0, m.index - 96), m.index)
+          kase: detectWordCase(typed.replace(/^['’]/, ""))
+          verbSpan: 'group(m, verb ? "verb" : contracted ? "contracted" : "qverb")'
+          start: "plural ? verbSpan[0] : m.index"
+          end: 'plural ? verbSpan[1] : group(m, "noun")[1]'
+          # Singular after are/were: "is a bug" or "are bugs"; the whole phrase changes.
+          alternatives: >-
+            plural
+              ? [`${contracted ? " " : ""}${applyWordCase(past ? "were" : "are", kase)}`]
+              : singularExistential(ctx, m, noun, typed, past, kase)
+        when:
+          - "!!number && !ctx.dictionary.has(noun.toLowerCase())"
+          - noun === noun.toLowerCase()
+          - plural !== /^(?:are|were)$/i.test(typed)
+          # A singular noun can still head a compound ("there are key differences").
+          - plural || tail !== undefined
+          # Existential there opens its clause; "Over there is…" and "the idea there is (that)…"
+          # abstain.
+          - >-
+            !there ||
+            /(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:if|when|whether|that|because|since|so|and|but|or|then|where|as|while|unless|until|once|now|currently|also|still|maybe|perhaps|think|guess|see|saw|seems|noticed|sure|know|knew|hope|realized|believe|said)[ \t ]+)$/i.test(before)
+          - '!qverb || /(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:and|but|or|so)[ \t ]+)$/i.test(before)'
+          - start >= ctx.from && start < ctx.to
+        return: >-
+          ({
+            ruleId: "englishExistentialAgreement",
+            messageKey: "review_msg_existential_agreement",
+            range: { start, end },
+            alternatives,
+            requiresChoice: plural ? undefined : (true as const),
+            context: {
+              start: Math.max(0, m.index - 96),
+              end: Math.min(ctx.text.length, m.index + m[0].length + 2),
+            },
+          })
   - id: articleAn
     checks: [englishArticleAnCorrection]
     style: match

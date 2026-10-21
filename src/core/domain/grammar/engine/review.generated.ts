@@ -5831,7 +5831,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<subject>I|we|they|you|he|she|it)(?<gap>[ \\t\\u00a0]{1,8}(?:(?:really|still|also|always|never|usually|often|just|only|even|sometimes|rarely|seldom|actually|truly|mostly|generally|normally|typically)[ \\t\\u00a0]{1,8})?)(?<verb>[A-Za-z]+(?:n['’]t)?)(?:[ \\t\\u00a0]{1,8}(?:not[ \\t\\u00a0]{1,8})?(?<next>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?=[ \t ]{0,8}(?:[.!?,;:]|$)))",
     literals: [],
-    fixer: "common:pronounAgreement",
+    fixer: "common:@pronounVerbFrames/1",
     owner: "verb",
   }),
   frame({
@@ -5848,7 +5848,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>look)[ \\t\\u00a0]{1,8}(?:(?:quite[ \\t\\u00a0]{1,8})?promising|good)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["look"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/1",
     gate: "look[ \\t\\u00a0]{1,8}(?:(?:quite[ \\t\\u00a0]{1,8})?promising|good)",
     gateFlags: "giu",
   }),
@@ -5856,7 +5856,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|these|those|our|your)[ \\t\\u00a0]{1,8}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional[ \\t\\u00a0]{1,8}sentences|numbers[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}dates|the[ \\t\\u00a0]{1,8}last[ \\t\\u00a0]{1,8}few[ \\t\\u00a0]{1,8}weeks|some[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}them)(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>looks)[ \\t\\u00a0]{1,8}(?:(?:quite[ \\t\\u00a0]{1,8})?promising|good)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["looks"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/2",
     gate: "looks[ \\t\\u00a0]{1,8}(?:(?:quite[ \\t\\u00a0]{1,8})?promising|good)",
     gateFlags: "giu",
   }),
@@ -5864,7 +5864,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>accept)[ \\t\\u00a0]{1,8}(?:words)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["accept"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/3",
     gate: "accept[ \\t\\u00a0]{1,8}(?:words)",
     gateFlags: "giu",
   }),
@@ -5872,7 +5872,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|these|those|our|your)[ \\t\\u00a0]{1,8}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional[ \\t\\u00a0]{1,8}sentences|numbers[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}dates|the[ \\t\\u00a0]{1,8}last[ \\t\\u00a0]{1,8}few[ \\t\\u00a0]{1,8}weeks|some[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}them)(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>accepts)[ \\t\\u00a0]{1,8}(?:words)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["accepts"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/4",
     gate: "accepts[ \\t\\u00a0]{1,8}(?:words)",
     gateFlags: "giu",
   }),
@@ -5880,7 +5880,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>struggle)[ \\t\\u00a0]{1,8}(?:with[ \\t\\u00a0]{1,8}constructions)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["constructions"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/5",
     gate: "struggle[ \\t\\u00a0]{1,8}(?:with[ \\t\\u00a0]{1,8}constructions)",
     gateFlags: "giu",
   }),
@@ -5888,7 +5888,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|these|those|our|your)[ \\t\\u00a0]{1,8}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional[ \\t\\u00a0]{1,8}sentences|numbers[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}dates|the[ \\t\\u00a0]{1,8}last[ \\t\\u00a0]{1,8}few[ \\t\\u00a0]{1,8}weeks|some[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}them)(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>struggles)[ \\t\\u00a0]{1,8}(?:with[ \\t\\u00a0]{1,8}constructions)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["constructions"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/6",
     gate: "struggles[ \\t\\u00a0]{1,8}(?:with[ \\t\\u00a0]{1,8}constructions)",
     gateFlags: "giu",
   }),
@@ -5896,7 +5896,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>make)[ \\t\\u00a0]{1,8}(?:many[ \\t\\u00a0]{1,8}mistakes)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["mistakes"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/7",
     gate: "make[ \\t\\u00a0]{1,8}(?:many[ \\t\\u00a0]{1,8}mistakes)",
     gateFlags: "giu",
   }),
@@ -5904,7 +5904,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|these|those|our|your)[ \\t\\u00a0]{1,8}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional[ \\t\\u00a0]{1,8}sentences|numbers[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}dates|the[ \\t\\u00a0]{1,8}last[ \\t\\u00a0]{1,8}few[ \\t\\u00a0]{1,8}weeks|some[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}them)(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>makes)[ \\t\\u00a0]{1,8}(?:many[ \\t\\u00a0]{1,8}mistakes)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["mistakes"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/8",
     gate: "makes[ \\t\\u00a0]{1,8}(?:many[ \\t\\u00a0]{1,8}mistakes)",
     gateFlags: "giu",
   }),
@@ -5912,7 +5912,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>work)[ \\t\\u00a0]{1,8}(?:(?:correctly|well|reliably))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["work"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/9",
     gate: "work[ \\t\\u00a0]{1,8}(?:(?:correctly|well|reliably))",
     gateFlags: "giu",
   }),
@@ -5920,7 +5920,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|these|those|our|your)[ \\t\\u00a0]{1,8}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional[ \\t\\u00a0]{1,8}sentences|numbers[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}dates|the[ \\t\\u00a0]{1,8}last[ \\t\\u00a0]{1,8}few[ \\t\\u00a0]{1,8}weeks|some[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}them)(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>works)[ \\t\\u00a0]{1,8}(?:(?:correctly|well|reliably))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["works"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/10",
     gate: "works[ \\t\\u00a0]{1,8}(?:(?:correctly|well|reliably))",
     gateFlags: "giu",
   }),
@@ -5928,7 +5928,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>suggest)[ \\t\\u00a0]{1,8}(?:(?:a|an|the)[ \\t\\u00a0]{1,8}(?:change|solution|correction))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["suggest"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/11",
     gate: "suggest[ \\t\\u00a0]{1,8}(?:(?:a|an|the)[ \\t\\u00a0]{1,8}(?:change|solution|correction))",
     gateFlags: "giu",
   }),
@@ -5936,7 +5936,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|these|those|our|your)[ \\t\\u00a0]{1,8}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional[ \\t\\u00a0]{1,8}sentences|numbers[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}dates|the[ \\t\\u00a0]{1,8}last[ \\t\\u00a0]{1,8}few[ \\t\\u00a0]{1,8}weeks|some[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}them)(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>suggests)[ \\t\\u00a0]{1,8}(?:(?:a|an|the)[ \\t\\u00a0]{1,8}(?:change|solution|correction))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["suggests"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/12",
     gate: "suggests[ \\t\\u00a0]{1,8}(?:(?:a|an|the)[ \\t\\u00a0]{1,8}(?:change|solution|correction))",
     gateFlags: "giu",
   }),
@@ -5944,7 +5944,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>forget)[ \\t\\u00a0]{1,8}(?:an[ \\t\\u00a0]{1,8}article)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["article"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/13",
     gate: "forget[ \\t\\u00a0]{1,8}(?:an[ \\t\\u00a0]{1,8}article)",
     gateFlags: "giu",
   }),
@@ -5952,7 +5952,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|these|those|our|your)[ \\t\\u00a0]{1,8}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional[ \\t\\u00a0]{1,8}sentences|numbers[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}dates|the[ \\t\\u00a0]{1,8}last[ \\t\\u00a0]{1,8}few[ \\t\\u00a0]{1,8}weeks|some[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}them)(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>forgets)[ \\t\\u00a0]{1,8}(?:an[ \\t\\u00a0]{1,8}article)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["forgets"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/14",
     gate: "forgets[ \\t\\u00a0]{1,8}(?:an[ \\t\\u00a0]{1,8}article)",
     gateFlags: "giu",
   }),
@@ -5960,7 +5960,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>have)[ \\t\\u00a0]{1,8}(?:other[ \\t\\u00a0]{1,8}tasks|checked|finished|completed|passed|been)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["have"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/15",
     gate: "have[ \\t\\u00a0]{1,8}(?:other[ \\t\\u00a0]{1,8}tasks|checked|finished|completed|passed|been)",
     gateFlags: "giu",
   }),
@@ -5980,7 +5980,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "weeks",
       "some",
     ],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/16",
     gate: "has[ \\t\\u00a0]{1,8}(?:other[ \\t\\u00a0]{1,8}tasks|checked|finished|completed|passed|been)",
     gateFlags: "giu",
   }),
@@ -5988,55 +5988,55 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>need)[ \\t\\u00a0]{1,8}(?:improvements)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["improvements"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/17",
   }),
   frame({
     pattern:
       "(?:(?:the|these|those|our|your)[ \\t\\u00a0]{1,8}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional[ \\t\\u00a0]{1,8}sentences|numbers[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}dates|the[ \\t\\u00a0]{1,8}last[ \\t\\u00a0]{1,8}few[ \\t\\u00a0]{1,8}weeks|some[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}them)(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>needs)[ \\t\\u00a0]{1,8}(?:improvements)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["improvements"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/18",
   }),
   frame({
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>cause)[ \\t\\u00a0]{1,8}(?:subtle[ \\t\\u00a0]{1,8}issues|trouble)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["subtle", "trouble"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/19",
   }),
   frame({
     pattern:
       "(?:(?:the|these|those|our|your)[ \\t\\u00a0]{1,8}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional[ \\t\\u00a0]{1,8}sentences|numbers[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}dates|the[ \\t\\u00a0]{1,8}last[ \\t\\u00a0]{1,8}few[ \\t\\u00a0]{1,8}weeks|some[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}them)(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>causes)[ \\t\\u00a0]{1,8}(?:subtle[ \\t\\u00a0]{1,8}issues|trouble)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["causes"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/20",
   }),
   frame({
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>create)[ \\t\\u00a0]{1,8}(?:additional[ \\t\\u00a0]{1,8}edge[ \\t\\u00a0]{1,8}cases)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["additional"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/21",
   }),
   frame({
     pattern:
       "(?:(?:the|these|those|our|your)[ \\t\\u00a0]{1,8}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional[ \\t\\u00a0]{1,8}sentences|numbers[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}dates|the[ \\t\\u00a0]{1,8}last[ \\t\\u00a0]{1,8}few[ \\t\\u00a0]{1,8}weeks|some[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}them)(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>creates)[ \\t\\u00a0]{1,8}(?:additional[ \\t\\u00a0]{1,8}edge[ \\t\\u00a0]{1,8}cases)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["additional"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/22",
   }),
   frame({
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>were)[ \\t\\u00a0]{1,8}(?:(?:consuming|running|working))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["consuming", "running", "working"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/23",
   }),
   frame({
     pattern:
       "(?:(?:the|these|those|our|your)[ \\t\\u00a0]{1,8}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional[ \\t\\u00a0]{1,8}sentences|numbers[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}dates|the[ \\t\\u00a0]{1,8}last[ \\t\\u00a0]{1,8}few[ \\t\\u00a0]{1,8}weeks|some[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}them)(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>was)[ \\t\\u00a0]{1,8}(?:(?:consuming|running|working))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["consuming", "running", "working"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/24",
   }),
   frame({
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>aren't)[ \\t\\u00a0]{1,8}(?:detected)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["detected"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/25",
     gate: "aren't[ \\t\\u00a0]{1,8}(?:detected)",
     gateFlags: "giu",
   }),
@@ -6044,7 +6044,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|these|those|our|your)[ \\t\\u00a0]{1,8}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional[ \\t\\u00a0]{1,8}sentences|numbers[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}dates|the[ \\t\\u00a0]{1,8}last[ \\t\\u00a0]{1,8}few[ \\t\\u00a0]{1,8}weeks|some[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}them)(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>isn't)[ \\t\\u00a0]{1,8}(?:detected)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["detected"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/26",
     gate: "isn't[ \\t\\u00a0]{1,8}(?:detected)",
     gateFlags: "giu",
   }),
@@ -6052,51 +6052,51 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>solve)[ \\t\\u00a0]{1,8}(?:the[ \\t\\u00a0]{1,8}(?:original[ \\t\\u00a0]{1,8})?issue)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["solve"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/27",
   }),
   frame({
     pattern:
       "(?:(?:the|these|those|our|your)[ \\t\\u00a0]{1,8}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional[ \\t\\u00a0]{1,8}sentences|numbers[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}dates|the[ \\t\\u00a0]{1,8}last[ \\t\\u00a0]{1,8}few[ \\t\\u00a0]{1,8}weeks|some[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}them)(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>solves)[ \\t\\u00a0]{1,8}(?:the[ \\t\\u00a0]{1,8}(?:original[ \\t\\u00a0]{1,8})?issue)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["solves"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/28",
   }),
   frame({
     pattern:
       "(?:(?:the|this|that|our|your)[ \\t\\u00a0]{1,8}(?:(?:new|old|current|original)[ \\t\\u00a0]{1,8})?(?:feature|application|system|software|checker|solution)|it|everyone|everybody|nobody|everything|no[ \\t\\u00a0]{1,8}one|every[ \\t\\u00a0]{1,8}developer|verb[ \\t\\u00a0]{1,8}tense[ \\t\\u00a0]{1,8}detection|each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|the[ \\t\\u00a0]{1,8}tests))(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>seem)[ \\t\\u00a0]{1,8}(?:to[ \\t\\u00a0]{1,8}work)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["seem"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/29",
   }),
   frame({
     pattern:
       "(?:(?:the|these|those|our|your)[ \\t\\u00a0]{1,8}(?:features|applications|systems|checkers|solutions|results)|prepositions|conditional[ \\t\\u00a0]{1,8}sentences|numbers[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}dates|the[ \\t\\u00a0]{1,8}last[ \\t\\u00a0]{1,8}few[ \\t\\u00a0]{1,8}weeks|some[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}them)(?:[ \\t\\u00a0]{1,8}(?:sometimes|also|often|still|actually|completely)){0,2}[ \\t\\u00a0]{1,8}(?<target>seems)[ \\t\\u00a0]{1,8}(?:to[ \\t\\u00a0]{1,8}work)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["seems"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/30",
   }),
   frame({
     pattern:
       "some[ \\t\\u00a0]{1,8}sentences[ \\t\\u00a0]{1,8}are[ \\t\\u00a0]{1,8}grammatical[ \\t\\u00a0]{1,8}but[ \\t\\u00a0]{1,8}still[ \\t\\u00a0]{1,8}(?<target>sounds)[ \\t\\u00a0]{1,8}unnatural(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["grammatical"],
-    fixer: "common:agreementTemplate",
+    fixer: "common:@subjectAgreement/31",
   }),
   frame({
     pattern:
       "(?<det>the|this|that|these|those|our|your|my|its|their|his|her|every|each)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)[ \\t\\u00a0]{1,8}(?<tail>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!,;:]|$))",
     literals: [],
-    fixer: "common:determinerSubject",
+    fixer: "common:@subjectAgreement/32",
     owner: "verb",
   }),
   frame({
     pattern:
       "There[ \\t\\u00a0]{1,8}(?<verb>is|are|was|were)[ \\t\\u00a0]{1,8}(?:(?:not|still|also)[ \\t\\u00a0]{1,8})?(?<quantity>a|an|one|two|three|four|five|six|seven|eight|nine|ten|zero|many|several|a[ \\t\\u00a0]{1,8}lot[ \\t\\u00a0]{1,8}of|[0-9]{1,4})[ \\t\\u00a0]{1,8}(?:(?:new|old|updated|missing|small|large|additional|possible)[ \\t\\u00a0]{1,8})?(?<noun>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:[ \\t\\u00a0]{1,8}(?:in|on|under|near|inside|outside)[ \\t\\u00a0]{1,8}(?:the|this|that|my|your|our|their)[ \\t\\u00a0]{1,8}(?:(?:new|old|updated|missing|small|large|additional|possible)[ \\t\\u00a0]{1,8})?(?:report|folder|file|document|room|box|table|account|list|screen|desk))?[ \\t\\u00a0]{0,8}(?=[.!?,;]|$|(?:that|which|with)[ \\t\\u00a0]{1,8})",
     literals: ["there"],
-    fixer: "common:countedExistential",
+    fixer: "common:@existentialAgreement/1",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?:(?<there>there)(?:[ \\t\\u00a0]{1,8}(?<verb>is|was|are|were)|(?<contracted>['’]s))|(?<qverb>is|was|are|were)[ \\t\\u00a0]{1,8}there)[ \\t\\u00a0]{1,8}(?<noun>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<tail>[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|[ \\t\\u00a0]{1,8}(?:in|on|at|with|for|about|regarding|that|which|when|where|from|of|to|running|missing|left)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))?",
     literals: ["there", "there"],
-    fixer: "common:bareExistential",
+    fixer: "common:@existentialAgreement/2",
     owner: "none",
   }),
   frame({

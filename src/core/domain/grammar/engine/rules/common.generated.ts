@@ -14,6 +14,8 @@ import type {
 } from "../../library";
 import {
   COMPLETE,
+  ENGLISH_MASS_NOUNS,
+  MASS_WITH_COUNT_SENSE,
   NBSP,
   NNBSP,
   PUNCTUATION_EQUIVALENTS,
@@ -32,6 +34,7 @@ import {
   englishInitialSound,
   englishLemma,
   englishNounForms,
+  englishNounNumber,
   englishVerbForms,
   englishWordInfo,
   execFrom,
@@ -44,6 +47,7 @@ import {
   hasUserOrCasedWord,
   hasVerbForm,
   invalidIsoDate,
+  isEnglishFunctionWord,
   isGreekQuestionMark,
   isInsideProtectedSpan,
   isLang,
@@ -53,6 +57,7 @@ import {
   isUniquePast,
   isWordChar,
   keepsOwnCasing,
+  knownEnglishNounNumber,
   lastNonSpaceBefore,
   matchTrailingEnglishPhrase,
   matchingOpenIndex,
@@ -60,6 +65,7 @@ import {
   nextLowerWord,
   normalizeWordSet,
   opensClause,
+  opensSentence,
   ownedMatches,
   parseMeasurementExpression,
   phraseRows,
@@ -1178,197 +1184,6 @@ export const VERB_PASTS: ReadonlySet<string> = new Set(["sang", "drove", "spoke"
 
 export const BARE_PAST: ReadonlySet<string> = new Set(["stole", "saw"]);
 
-export const GAP_FUNCTION_WORDS: ReadonlySet<string> = new Set([
-  "a",
-  "an",
-  "the",
-  "my",
-  "your",
-  "our",
-  "his",
-  "her",
-  "their",
-  "this",
-  "that",
-  "these",
-  "those",
-  "some",
-  "any",
-  "no",
-  "every",
-  "each",
-  "another",
-  "me",
-  "him",
-  "us",
-  "them",
-  "you",
-  "it",
-  "i",
-  "he",
-  "she",
-  "we",
-  "they",
-  "what",
-  "where",
-  "when",
-  "why",
-  "how",
-  "who",
-  "which",
-  "whatever",
-  "of",
-  "in",
-  "on",
-  "at",
-  "by",
-  "for",
-  "from",
-  "with",
-  "without",
-  "about",
-  "into",
-  "onto",
-  "upon",
-  "between",
-  "among",
-  "through",
-  "during",
-  "until",
-  "against",
-  "near",
-  "under",
-  "over",
-  "toward",
-  "towards",
-  "within",
-  "across",
-  "along",
-  "around",
-  "behind",
-  "beyond",
-  "inside",
-  "outside",
-  "off",
-  "out",
-  "up",
-  "down",
-  "past",
-  "via",
-  "per",
-  "like",
-  "despite",
-  "throughout",
-  "not",
-  "never",
-  "always",
-  "also",
-  "just",
-  "still",
-  "really",
-  "so",
-  "too",
-  "already",
-  "probably",
-  "definitely",
-  "certainly",
-  "actually",
-  "basically",
-  "finally",
-  "simply",
-  "totally",
-  "completely",
-  "absolutely",
-  "pretty",
-  "quite",
-  "rather",
-  "almost",
-  "nearly",
-  "sometimes",
-  "usually",
-  "often",
-  "now",
-  "then",
-  "here",
-  "there",
-  "way",
-  "far",
-  "much",
-  "even",
-  "only",
-  "very",
-  "literally",
-  "seriously",
-  "truly",
-  "obviously",
-  "clearly",
-  "apparently",
-  "surely",
-  "hardly",
-  "barely",
-  "maybe",
-  "perhaps",
-  "again",
-  "soon",
-  "once",
-  "ever",
-  "all",
-  "and",
-  "or",
-  "but",
-  "nor",
-  "yet",
-  "as",
-  "than",
-  "if",
-  "whether",
-  "because",
-  "since",
-  "though",
-  "although",
-  "while",
-  "unless",
-  "to",
-  "is",
-  "are",
-  "was",
-  "were",
-  "be",
-  "been",
-  "being",
-  "am",
-  "have",
-  "has",
-  "had",
-  "do",
-  "does",
-  "did",
-  "can",
-  "could",
-  "will",
-  "would",
-  "shall",
-  "should",
-  "may",
-  "might",
-  "must",
-  "own",
-  "other",
-  "others",
-  "such",
-  "same",
-  "both",
-  "either",
-  "neither",
-  "more",
-  "most",
-  "less",
-  "least",
-  "few",
-  "many",
-  "several",
-]);
-
 export const NOT_A_VERB: ReadonlySet<string> = new Set([
   "like",
   "near",
@@ -1668,6 +1483,51 @@ export const FEELING_VERBS: ReadonlySet<string> = new Set([
   "irritate",
   "offend",
   "stress",
+]);
+
+export const AGREEMENT_COLLECTIVE: ReadonlySet<string> = new Set([
+  "team",
+  "staff",
+  "family",
+  "police",
+  "government",
+  "committee",
+  "crew",
+  "band",
+  "audience",
+  "public",
+  "class",
+  "group",
+  "majority",
+  "folk",
+  "blues",
+  "rest",
+  "number",
+  "couple",
+  "pair",
+  "lot",
+  "jury",
+  "army",
+  "navy",
+  "board",
+  "council",
+  "club",
+  "company",
+  "firm",
+  "management",
+  "media",
+  "data",
+  "total",
+  "variety",
+  "range",
+  "series",
+  "species",
+  "means",
+  "news",
+  "remainder",
+  "masters",
+  "woods",
+  "belt",
 ]);
 
 export const ENGLISH_CONTRACTIONS: Readonly<Record<string, string>> = {
@@ -1991,6 +1851,45 @@ export const FRENCH_ELISIONS: Readonly<Record<string, string>> = {
   dailleurs: "d'ailleurs",
   lorsquil: "lorsqu'il",
   puisquil: "puisqu'il",
+};
+
+export const PLURAL_BE: Readonly<Record<string, string>> = { is: "are", am: "are", was: "were" };
+
+export const SINGULAR_BE: Readonly<Record<string, string>> = { are: "is", am: "is", were: "was" };
+
+export const OTHER_FORM: Readonly<Record<string, string>> = {
+  look: "looks",
+  looks: "look",
+  accept: "accepts",
+  accepts: "accept",
+  struggle: "struggles",
+  struggles: "struggle",
+  make: "makes",
+  makes: "make",
+  work: "works",
+  works: "work",
+  suggest: "suggests",
+  suggests: "suggest",
+  forget: "forgets",
+  forgets: "forget",
+  have: "has",
+  has: "have",
+  need: "needs",
+  needs: "need",
+  cause: "causes",
+  causes: "cause",
+  create: "creates",
+  creates: "create",
+  were: "was",
+  was: "were",
+  "aren't": "isn't",
+  "isn't": "aren't",
+  solve: "solves",
+  solves: "solve",
+  seem: "seems",
+  seems: "seem",
+  sound: "sounds",
+  sounds: "sound",
 };
 
 // common.yaml def firstPerStart
@@ -3599,7 +3498,7 @@ export function frontedObjectGap(before: string) {
   const read = englishWordInfo(head);
   return (
     /^(?:anything|everything|something|nothing|all|what|whatever|whichever)$/.test(head) ||
-    (!!read && (read.noun || read.plural) && !GAP_FUNCTION_WORDS.has(head))
+    (!!read && (read.noun || read.plural) && !isEnglishFunctionWord(head))
   );
 }
 
@@ -4575,6 +4474,213 @@ export function markedApostrophe(
     context: { start: m.index, end: Math.min(ctx.text.length, m.index + m[0].length + 1) },
     bulkBlock: certain ? undefined : "context-dependent",
   };
+}
+
+// common.yaml rule pronounVerbFrames def clauseVerb
+export function clauseVerb(ctx: DetectContext, m: RegExpExecArray, pronounI: boolean) {
+  return (
+    (atClauseStart(ctx.text, m.index) ||
+      (pronounI && subjectI(m, ctx.text.slice(Math.max(0, m.index - 96), m.index)))) &&
+    plainToken(ctx, m.groups!.verb)
+  );
+}
+
+// common.yaml rule pronounVerbFrames def subjectI
+export function subjectI(m: RegExpExecArray, before: string) {
+  const subject = m.groups!.subject;
+  return (
+    ((subject === "i"
+      ? /^are$/i.test(m.groups!.verb)
+      : subject === "I" && !/\p{Lu}[\p{L}.]*[ \t ]+$/u.test(before)) &&
+      !/\b(?:and|or|nor)[ \t ]+$/i.test(before)) ||
+    (/^(?:he|she|it)$/.test(subject) &&
+      /\b(?:hope|hoped|think|thought|guess|believe|believed|sure|glad|afraid)[ \t ]+$/i.test(
+        before,
+      ))
+  );
+}
+
+// common.yaml rule pronounVerbFrames def subjunctive
+export function subjunctive(ctx: DetectContext, index: number) {
+  return /\b(?:if|wish|wished|wishes|though|suppose|supposing|imagine|rather|unless|only)\b[^.!?;:\n]*$/i.test(
+    ctx.text.slice(Math.max(0, index - 64), index),
+  );
+}
+
+// common.yaml rule pronounVerbFrames def VERB_AFTER
+export const VERB_AFTER =
+  /^(?:are|were|is|was|have|had|can|could|will|would|should|must|may|might|do|did|don|get|go|come|need|want|know|think|see|look|make|take|stop|leave|listen|shut|keep|play|eat|run|stay|sit|stand)$/i;
+
+// common.yaml rule pronounVerbFrames def AGREE_MODAL
+export const AGREE_MODAL =
+  /^(?:will|would|can|could|shall|should|may|might|must|ought|need|dare|used)$/;
+
+// common.yaml rule pronounVerbFrames def NOT_A_VERB_HERE
+export const NOT_A_VERB_HERE = /^(?:not|up|down|out|off|better|best|time|only|also|so|too)$/;
+
+// common.yaml rule pronounVerbFrames def LETTER_NAME_BEFORE
+export const LETTER_NAME_BEFORE =
+  /\b(?:a|an|the|part|chapter|section|volume|book|act|phase|step|stage|level|type|class|article|item|figure|table|option|case|grade|war|page|set|ideal|matrix|interval)[ \t ]+$/i;
+
+// common.yaml rule pronounVerbFrames def FREQUENCY_AFTER
+export const FREQUENCY_AFTER =
+  /^(?:sometimes|often|always|usually|never|rarely|seldom|also|all|both|still)$/i;
+
+// common.yaml rule pronounVerbFrames def namesPronoun
+export function namesPronoun(word: string, next: string | undefined) {
+  if (!(!!next && !!englishWordInfo(word)?.plural)) return false;
+  const nextInfo = englishWordInfo(next);
+  return (
+    VERB_AFTER.test(next) ||
+    AGREE_MODAL.test(next) ||
+    FREQUENCY_AFTER.test(next) ||
+    !!nextInfo?.verbs.some((v) => v.form === "base") ||
+    !!nextInfo?.adverb
+  );
+}
+
+// common.yaml rule pronounVerbFrames def lexicalAgreement
+export function lexicalAgreement(
+  word: string,
+  plural: boolean,
+  pronoun: string,
+  next: string | undefined,
+): string | undefined {
+  const info = englishWordInfo(word);
+  if (!(!!info && !AGREE_MODAL.test(word) && !NOT_A_VERB_HERE.test(word))) return undefined;
+  return plural ? pluralAgreement(word, pronoun, next) : singularAgreement(word, next);
+}
+
+// common.yaml rule pronounVerbFrames def pluralAgreement
+export function pluralAgreement(
+  word: string,
+  pronoun: string,
+  next: string | undefined,
+): string | undefined {
+  const info = englishWordInfo(word)!;
+  if (!(
+    info.verbs.some((v) => v.form === "third") &&
+    !info.verbs.some((v) => v.form === "base" || v.form === "past")
+  ))
+    return undefined;
+  if (!(!namesPronoun(word, next) && !(info.plural && !next && pronoun === "you")))
+    return undefined;
+  return englishLemma(word, "third") ?? undefined;
+}
+
+// common.yaml rule pronounVerbFrames def singularAgreement
+export function singularAgreement(word: string, next: string | undefined): string | undefined {
+  const info = englishWordInfo(word)!;
+  if (!(
+    info.verbs.some((v) => v.form === "base") &&
+    !info.verbs.some((v) => v.form === "past" || v.form === "participle" || v.form === "third") &&
+    !info.adjective
+  ))
+    return undefined;
+  const nextInfo = next ? englishWordInfo(next) : null;
+  if (info.noun && nextInfo?.verbs.some((v) => v.form === "past" || v.form === "base"))
+    return undefined;
+  if (info.noun && /^(?:is|was|has|will|would|can|could|should|must|may|might)$/i.test(next ?? ""))
+    return undefined;
+  if (!(next?.toLowerCase() !== "be")) return undefined;
+  const third = englishInflect(word, "third");
+  const known = third ? englishWordInfo(third) : null;
+  return third && (known?.verbs.some((v) => v.form === "third") || known?.plural)
+    ? third
+    : undefined;
+}
+
+// common.yaml rule pronounVerbFrames def pronounCorrection
+export function pronounCorrection(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  pronoun: string,
+  plural: boolean,
+  negative: string,
+  word: string,
+  next: string | undefined,
+): string | undefined {
+  const forms = englishVerbForms(word);
+  const be = (plural ? PLURAL_BE : SINGULAR_BE)[word];
+  return /^(?:is|are|am|was|were)$/.test(word) && !negative
+    ? pronoun === "i"
+      ? word === "are" || word === "is"
+        ? "am"
+        : word === "were"
+          ? subjunctive(ctx, m.index)
+            ? undefined
+            : "was"
+          : undefined
+      : be
+    : /^(?:is|are|was|were)$/.test(word) && pronoun !== "i"
+      ? be
+        ? be + negative.toLowerCase()
+        : undefined
+      : /^(?:has|have|does|do)$/.test(word)
+        ? (plural ? forms!.lemma : forms!.third) + negative
+        : forms && !negative && !forms.ambiguous.includes(word)
+          ? plural
+            ? word === forms.third && word !== forms.lemma
+              ? forms.lemma
+              : undefined
+            : word === forms.lemma && word !== forms.past
+              ? forms.third
+              : undefined
+          : !forms &&
+              !negative &&
+              (plural ? word.endsWith("s") : !/(?:s|ed|ing|ly)$/.test(word)) &&
+              !/[^\n\s.!?:;"“][ \t ]*\n[ \t ]*$/.test(
+                ctx.text.slice(Math.max(0, m.index - 8), m.index),
+              ) &&
+              !/^of$/i.test(next ?? "")
+            ? lexicalAgreement(word, plural, pronoun, next)
+            : undefined;
+}
+
+// common.yaml rule subjectAgreement def LINKING
+export const LINKING = /^(?:look|seem|sound|feel|appear)s?$/;
+
+// common.yaml rule subjectAgreement def AGREE_AUXILIARY
+export const AGREE_AUXILIARY =
+  /^(?:is|are|am|was|were|be|been|being|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must|ought|need|needs|dare|used)$/;
+
+// common.yaml rule subjectAgreement def onlyAdverb
+export function onlyAdverb(word: string) {
+  const info = englishWordInfo(word);
+  return !!info?.adverb && !info.verbs.length && !info.noun && !info.adjective && /ly$/.test(word);
+}
+
+// common.yaml rule subjectAgreement def onlyAdjective
+export function onlyAdjective(word: string) {
+  const info = englishWordInfo(word);
+  return !!info?.adjective && !info.verbs.length && !info.adverb;
+}
+
+// common.yaml rule existentialAgreement def derivedNounNumber
+export function derivedNounNumber(noun: string) {
+  const info = englishWordInfo(noun);
+  return /^[a-z]{4,}(?:tion|sion|ment)$/.test(noun) &&
+    (!info || (info.noun && !info.verbs.length && !info.adjective))
+    ? "singular"
+    : null;
+}
+
+// common.yaml rule existentialAgreement def singularExistential
+export function singularExistential(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  noun: string,
+  typed: string,
+  past: boolean,
+  kase: "upper" | "title" | "lower",
+) {
+  const lead = ctx.text.slice(m.index, group(m, "noun")[0]);
+  const verbAt = m.groups!.qverb ? 0 : group(m, "verb")[0] - m.index;
+  const article = englishInitialSound(noun) === "vowel" ? "an" : "a";
+  return [
+    `${lead.slice(0, verbAt)}${applyWordCase(past ? "was" : "is", kase)}${lead.slice(verbAt + typed.length)}${article} ${noun}`,
+    `${lead}${applyWordCase(englishNounForms(noun)?.plural ?? `${noun}s`, detectWordCase(noun))}`,
+  ];
 }
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
@@ -6194,6 +6300,357 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // common.yaml rule spelling frame 12
   "@spelling/12": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return markedApostrophe(m, ctx, frame, m[1], false);
+  },
+  // common.yaml rule pronounVerbFrames frame 1
+  "@pronounVerbFrames/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const gap = m.groups!.gap;
+    const verb = m.groups!.verb;
+    const next = m.groups!.next;
+    if (!clauseVerb(ctx, m, true)) return null;
+    const pronoun = subject.toLowerCase();
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (/\b(?:as|than|am|is|are|was|were)[ \t ]+$/i.test(before)) return null;
+    if (subject === "I" && LETTER_NAME_BEFORE.test(before)) return null;
+    if (!(applyWordCase(subject, detectWordCase(subject)) === subject || subject === "i"))
+      return null;
+    if (ctx.dictionary.has(pronoun)) return null;
+    if (/^[ \t ]+$/.test(gap) && AGREEMENT_CORRECTIONS.has(`${pronoun} ${verb.toLowerCase()}`))
+      return null;
+    const plural = /^(?:i|we|they|you)$/.test(pronoun);
+    const negative = /n['’]t$/i.exec(verb)?.[0] ?? "";
+    const word = (negative ? verb.slice(0, -negative.length) : verb).toLowerCase();
+    if (/^(?:we|you)$/.test(pronoun) && !negative && namesPronoun(word, next)) return null;
+    const corrected = pronounCorrection(ctx, m, pronoun, plural, negative, word, next);
+    if (!(!!corrected && corrected !== verb.toLowerCase())) return null;
+    const span = group(m, "verb");
+    return {
+      ruleId: "englishPronounVerbWhitelistAgreement",
+      messageKey: "review_msg_pronoun_verb",
+      range: { start: span[0], end: span[1] },
+      alternatives: [applyWordCase(corrected, detectWordCase(verb))],
+      context: {
+        start: Math.max(0, m.index - 96),
+        end: Math.min(ctx.text.length, m.index + m[0].length + 2),
+      },
+      bulkBlock: "context-dependent",
+    };
+  },
+  // common.yaml rule subjectAgreement frame 1
+  "@subjectAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 2
+  "@subjectAgreement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 3
+  "@subjectAgreement/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 4
+  "@subjectAgreement/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 5
+  "@subjectAgreement/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 6
+  "@subjectAgreement/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 7
+  "@subjectAgreement/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 8
+  "@subjectAgreement/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 9
+  "@subjectAgreement/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 10
+  "@subjectAgreement/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 11
+  "@subjectAgreement/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 12
+  "@subjectAgreement/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 13
+  "@subjectAgreement/13": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 14
+  "@subjectAgreement/14": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 15
+  "@subjectAgreement/15": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 16
+  "@subjectAgreement/16": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 17
+  "@subjectAgreement/17": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 18
+  "@subjectAgreement/18": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 19
+  "@subjectAgreement/19": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 20
+  "@subjectAgreement/20": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 21
+  "@subjectAgreement/21": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 22
+  "@subjectAgreement/22": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 23
+  "@subjectAgreement/23": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 24
+  "@subjectAgreement/24": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 25
+  "@subjectAgreement/25": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 26
+  "@subjectAgreement/26": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 27
+  "@subjectAgreement/27": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 28
+  "@subjectAgreement/28": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 29
+  "@subjectAgreement/29": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 30
+  "@subjectAgreement/30": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 31
+  "@subjectAgreement/31": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(opensSentence(ctx.scanText, m.index) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return applyWordCase(OTHER_FORM[target.toLowerCase()], detectWordCase(target));
+  },
+  // common.yaml rule subjectAgreement frame 32
+  "@subjectAgreement/32": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    const noun = m.groups!.noun;
+    const verb = m.groups!.verb;
+    const tail = m.groups!.tail;
+    if (!opensSentence(ctx.scanText, m.index)) return null;
+    if (!(`${noun} ${verb} ${tail}` === `${noun} ${verb} ${tail}`.toLowerCase())) return null;
+    if (!(!hasUserOrCasedWord(ctx, m[0]) && !AGREE_AUXILIARY.test(verb))) return null;
+    if (!(onlyAdverb(tail) || (LINKING.test(verb) && onlyAdjective(tail)))) return null;
+    const forms = englishNounNumber(noun);
+    const number = forms?.number;
+    if (!(
+      !!number &&
+      ![AGREEMENT_COLLECTIVE, ENGLISH_MASS_NOUNS, MASS_WITH_COUNT_SENSE].some((s) =>
+        s.has(forms.singular),
+      )
+    ))
+      return null;
+    if (englishWordInfo(noun)?.adjective) return null;
+    const d = det.toLowerCase();
+    if (
+      !(number === "singular"
+        ? !/^(?:these|those)$/.test(d)
+        : !/^(?:this|that|its|every|each)$/.test(d))
+    )
+      return null;
+    const verbForms = englishVerbForms(verb);
+    const info = englishWordInfo(verb);
+    const fix =
+      number === "singular"
+        ? (
+            verbForms
+              ? verb === verbForms.lemma &&
+                verb !== verbForms.past &&
+                !verbForms.ambiguous.includes(verb)
+              : !!info?.verbs.some((v) => v.form === "base") &&
+                !info.verbs.some((v) => v.form === "past" || v.form === "participle")
+          )
+          ? (verbForms?.third ?? englishInflect(verb, "third"))
+          : null
+        : (verbForms ? verb === verbForms.third : !!info?.verbs.some((v) => v.form === "third"))
+          ? (verbForms?.lemma ?? englishLemma(verb, "third"))
+          : null;
+    if (!(!!fix && fix !== verb)) return null;
+    const span = group(m, "verb");
+    return {
+      ruleId: "englishSubjectVerbAgreement",
+      messageKey: "review_msg_pronoun_verb",
+      range: { start: span[0], end: span[1] },
+      alternatives: [fix],
+      context: {
+        start: Math.max(0, m.index - 96),
+        end: Math.min(ctx.text.length, m.index + m[0].length + 2),
+      },
+    };
+  },
+  // common.yaml rule existentialAgreement frame 1
+  "@existentialAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const quantity = m.groups!.quantity;
+    const noun = m.groups!.noun;
+    if (!clauseVerb(ctx, m, false)) return null;
+    const number = knownEnglishNounNumber(noun);
+    if (!(!!number && !ctx.dictionary.has(noun.toLowerCase()))) return null;
+    const singularQuantity = /^(?:a|an|one|0*1)$/i.test(quantity);
+    if (!((number === "singular") === singularQuantity)) return null;
+    if (!(!singularQuantity || /^(?:[.!?]|$)/.test(ctx.text.slice(m.index + m[0].length))))
+      return null;
+    const past = /^(?:was|were)$/i.test(verb);
+    const expected = number === "singular" ? (past ? "was" : "is") : past ? "were" : "are";
+    if (!(verb.toLowerCase() !== expected)) return null;
+    const span = group(m, "verb");
+    return {
+      ruleId: "englishExistentialAgreement",
+      messageKey: "review_msg_existential_agreement",
+      range: { start: span[0], end: span[1] },
+      alternatives: [applyWordCase(expected, detectWordCase(verb))],
+      context: {
+        start: Math.max(0, m.index - 96),
+        end: Math.min(ctx.text.length, m.index + m[0].length + 2),
+      },
+    };
+  },
+  // common.yaml rule existentialAgreement frame 2
+  "@existentialAgreement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const there = m.groups!.there;
+    const verb = m.groups!.verb;
+    const contracted = m.groups!.contracted;
+    const qverb = m.groups!.qverb;
+    const noun = m.groups!.noun;
+    const tail = m.groups!.tail;
+    const number = knownEnglishNounNumber(noun) ?? derivedNounNumber(noun);
+    if (!(!!number && !ctx.dictionary.has(noun.toLowerCase()))) return null;
+    if (!(noun === noun.toLowerCase())) return null;
+    const typed = verb ?? contracted ?? qverb;
+    const past = /^(?:was|were)$/i.test(typed);
+    const plural = number === "plural";
+    if (!(plural !== /^(?:are|were)$/i.test(typed))) return null;
+    if (!(plural || tail !== undefined)) return null;
+    const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
+    if (!(
+      !there ||
+      /(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:if|when|whether|that|because|since|so|and|but|or|then|where|as|while|unless|until|once|now|currently|also|still|maybe|perhaps|think|guess|see|saw|seems|noticed|sure|know|knew|hope|realized|believe|said)[ \t ]+)$/i.test(
+        before,
+      )
+    ))
+      return null;
+    if (!(!qverb || /(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:and|but|or|so)[ \t ]+)$/i.test(before)))
+      return null;
+    const kase = detectWordCase(typed.replace(/^['’]/, ""));
+    const verbSpan = group(m, verb ? "verb" : contracted ? "contracted" : "qverb");
+    const start = plural ? verbSpan[0] : m.index;
+    if (!(start >= ctx.from && start < ctx.to)) return null;
+    const end = plural ? verbSpan[1] : group(m, "noun")[1];
+    const alternatives = plural
+      ? [`${contracted ? " " : ""}${applyWordCase(past ? "were" : "are", kase)}`]
+      : singularExistential(ctx, m, noun, typed, past, kase);
+    return {
+      ruleId: "englishExistentialAgreement",
+      messageKey: "review_msg_existential_agreement",
+      range: { start, end },
+      alternatives,
+      requiresChoice: plural ? undefined : (true as const),
+      context: {
+        start: Math.max(0, m.index - 96),
+        end: Math.min(ctx.text.length, m.index + m[0].length + 2),
+      },
+    };
   },
   // common.yaml rule properNouns.de frame 1
   "@properNouns.de/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
