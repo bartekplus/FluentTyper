@@ -109,7 +109,10 @@ rules:
           bientôt,
         ]
       VF_NEGATION: [ne, "n'"]
+      # Object pronouns that only a verb follows: "la foule se déplace", "le garçon lui cache".
       VF_REFLEXIVES: [me, "m'", te, "t'", se, "s'", nous, vous, lui, leur]
+      # The definite articles. They are also object pronouns before a verb ("l'avons", "le sans
+      # faute").
       VF_OBJECTS: [le, la, les, "l'"]
       # Verbs governing a bare infinitive.
       VF_GOVERNING: [pouvoir, devoir, aller, falloir, oser, daigner, compter, valoir]
@@ -140,6 +143,7 @@ rules:
       # Words that may follow "c'est" + a participle in its clause: "c'est arrivé hier".
       AFTER_CEST_PARTICIPLE:
         [hier, comment, aujourd'hui, ici, là, quand, où, pourquoi, récemment, ce, cette]
+      # Words before an infinitive that govern it: "de se placer", "pour se lancer".
       VF_PREPOSITIONS: [de, "d'", pour, sans, à, par]
       VF_DETERMINERS:
         [
@@ -448,7 +452,6 @@ rules:
       # Articles that are never object pronouns; "le", "la", "les", "l'" only after a preposition
       # or opening a clause.
       VF_ARTICLES: [un, une, des, du, au, aux]
-      VF_DEFINITE: [le, la, les, "l'"]
       # Words that open a clause of its own, whose verb may follow a noun phrase.
       VF_SUBORDINATORS:
         [
@@ -996,8 +999,8 @@ rules:
       articleNoun:
         args: "det: FrenchToken, second: FrenchToken | undefined, lemma: string"
         let:
-          article: VF_ARTICLES.has(det.w) || (!second && VF_DEFINITE.has(det.w))
-        return: (article || (VF_DEFINITE.has(det.w) && ARTICLE_AFTER.has(second!.w))) && isNounLemma(`${lemma.slice(0, -2)}é`)
+          article: VF_ARTICLES.has(det.w) || (!second && VF_OBJECTS.has(det.w))
+        return: (article || (VF_OBJECTS.has(det.w) && ARTICLE_AFTER.has(second!.w))) && isNounLemma(`${lemma.slice(0, -2)}é`)
       # A noun phrase before the word when the clause already has its verb before or after it.
       # "je vois le chien mange": a verb of perception wants the infinitive; left alone. "a" may
       # be "à" or the Latin "a minima": not taken for avoir. A verb that is also a noun counts
@@ -1204,6 +1207,7 @@ rules:
           où,
           ainsi,
         ]
+      # Determiners: the words that open a noun phrase.
       HOMO_DETERMINERS:
         [
           le,
@@ -1436,8 +1440,6 @@ rules:
         ]
       OBJECT_PRONOUNS_BEFORE_VERB:
         [le, la, les, l', me, m', te, t', se, s', en, "y", lui, leur, nous, vous]
-      # Words before an infinitive that governs it: "de se placer", "pour se lancer".
-      INFINITIVE_GOVERNORS: [de, "d'", pour, sans, à, par]
       ETRE_THIRD: [sont, sera, serait, seront, seraient, fut, furent]
       SE_ADVERBS: [bien, mal, mieux, plus, moins, trop, tant, tout]
       # "sa" is a possessive: it never stands before these, or at a clause end.
@@ -1494,8 +1496,6 @@ rules:
       # Infinitives that are also common nouns after "du": "il a du pouvoir", "du savoir".
       NOUN_INFINITIVES:
         [pouvoir, savoir, devoir, vouloir, dîner, déjeuner, goûter, souper, rire, sourire, plaisir]
-      # Pronouns between devoir and its infinitive: "j'ai dû la lâcher".
-      INFINITIVE_CLITICS: [le, la, les, l', lui, leur, "y", en, me, m', te, t', se, s', nous, vous]
       # Words after "an" that keep it: "l'an dernier", "un an plus tard", "dix ans révolus".
       AN_KEEPS:
         [
@@ -2519,7 +2519,7 @@ rules:
                         ? fix(subject)
                         : null
                     : infinitive && previous
-                      ? (INFINITIVE_GOVERNORS.has(previous.w) || (onlyVerb(previous.w, finiteReading) && !homoAuxiliary(previous.w))) &&
+                      ? (VF_PREPOSITIONS.has(previous.w) || (onlyVerb(previous.w, finiteReading) && !homoAuxiliary(previous.w))) &&
                         !(
                           next.w === "faire" &&
                           previous.w === "pour" &&
@@ -2964,7 +2964,7 @@ rules:
           adverbs: duAdverbs(before, 0)
           i: "before[adverbs] && SUBJECT_PRONOUNS.has(before[adverbs].w) && before[adverbs + 1]?.hyphen ? adverbs + 1 : adverbs"
           avoir: before[i]
-          k: skipWhile(after, 0, (t) => adverbWord(t.w) || INFINITIVE_CLITICS.has(t.w))
+          k: skipWhile(after, 0, (t) => adverbWord(t.w) || OBJECT_PRONOUNS_BEFORE_VERB.has(t.w))
           next: after[k]
         when: '!!avoir && verbReadings(avoir.w).some((r) => finiteReading(r) && r.lemma === "avoir")'
         return: >-
@@ -3249,7 +3249,7 @@ rules:
           k: 'skipWords(after, after[0]?.w === "quand" && after[1]?.w === "même" ? 2 : 0, HOMO_ADVERBS)'
           next: after[k]
           j: >-
-            skipWhile(after, k + 1, (t) => ["ne", "n'", "pas", "rien", "jamais", "plus", "point"].includes(t.w) || INFINITIVE_CLITICS.has(t.w))
+            skipWhile(after, k + 1, (t) => ["ne", "n'", "pas", "rien", "jamais", "plus", "point"].includes(t.w) || OBJECT_PRONOUNS_BEFORE_VERB.has(t.w))
           infinitive: 'after[j] && verbReadings(after[j].w).some((r) => r.slot === "I" && r.lemma === after[j].w)'
         when:
           - m.index >= ctx.from
@@ -3468,10 +3468,6 @@ rules:
       CLOSING_PREFIXES: [néo, géo, méga, psycho, post, micro, macro]
       # "sur", "sous" and "contre" are prepositions too: only before a participle or an infinitive.
       PREPOSITION_PREFIXES: [sur, sous, contre]
-      # The pronoun after an imperative joins it: "dis-lui", "regarde-la", "prends-en". Verbs
-      # whose object pronoun stays with them before an infinitive ("laisse-moi faire",
-      # "faites-les entrer"); with others it belongs to the infinitive ("viens le voir").
-      CAUSATIVE: [laisser, faire, regarder, écouter, voir, sentir, entendre]
       # What may follow an object pronoun (never a noun, which would make "la" an article).
       AFTER_PRONOUN:
         [
@@ -3622,42 +3618,6 @@ rules:
         ]
       # Compounds that are no noun, so no determiner comes before them.
       BARE_COMPOUNDS: ["c'est-à-dire"]
-      # Words before a noun phrase: a compound after them is a noun ("un coffre fort", "en arrière
-      # plan"), not a verb and its complement ("il se lève tôt").
-      NOUN_PHRASE_OPENERS:
-        [
-          le,
-          la,
-          les,
-          l',
-          un,
-          une,
-          des,
-          du,
-          au,
-          aux,
-          ce,
-          cet,
-          cette,
-          ces,
-          mon,
-          ma,
-          mes,
-          ton,
-          ta,
-          tes,
-          son,
-          sa,
-          ses,
-          notre,
-          nos,
-          votre,
-          vos,
-          leur,
-          leurs,
-        ]
-      # "le", "la", "les", "l'" are also object pronouns before a verb ("l'avons", "le sans faute").
-      PRONOUN_ARTICLES: [le, la, les, "l'"]
       # Second words that make a clause of the pair ("le nord est froid", "peut être", "chez vous").
       VERB_SECONDS:
         [est, a, sont, ont, fait, font, être, avoir, vous, nous, moi, toi, lui, eux, là, ci, cent]
@@ -3731,7 +3691,9 @@ rules:
           !(next && hasPerson(finitePersons(next.w), PRONOUN_PERSON[pronoun]) && !isVerbHomograph(next.w))
       # "toi et moi", "vous aussi", "en quelques secondes", "en or": not an object pronoun. "lui",
       # "leur", "moi" are pronouns before anything but a verb; "la", "les", "le" are articles
-      # before a noun.
+      # before a noun. Before an infinitive, the pronoun stays with a verb of
+      # OBJECT_INFINITIVE_GOVERNORS ("laisse-moi faire", "faites-les entrer"); with other verbs it
+      # belongs to the infinitive ("viens le voir").
       imperativeObject:
         args: "readings: VerbReading[], pronoun: string, next: FrenchToken | undefined"
         when:
@@ -3741,7 +3703,7 @@ rules:
           - '!((pronoun === "en" || pronoun === "y") && !EN_FOLLOWERS.has(next.w))'
         return: >-
           verbReadings(next.w).some((r) => r.slot === "I")
-            ? readings.some((r) => CAUSATIVE.has(r.lemma))
+            ? readings.some((r) => OBJECT_INFINITIVE_GOVERNORS.has(r.lemma))
             : AFTER_PRONOUN.has(next.w)
               ? true
               : !["le", "la", "les", "leur"].includes(pronoun) && !verbReadings(next.w).some((r) => typeof r.slot === "number")
@@ -3770,7 +3732,7 @@ rules:
         args: "ctx: DetectContext, previous: FrenchToken, first: string"
         let:
           before: tokensBefore(ctx.text, previous.start, 1)[0]
-        when: PRONOUN_ARTICLES.has(previous.w)
+        when: VF_OBJECTS.has(previous.w)
         return: '!before || ARTICLE_CONTEXT.has(before.w) || !(verbReadings(first).some((r) => typeof r.slot === "number") || verbReadings(before.w).length)'
         else: "true"
     frames:
@@ -4002,7 +3964,7 @@ rules:
           - '!(verbReadings(second).some((r) => typeof r.slot === "number") && !isVerbHomograph(second))'
           - >-
             (/..o$/.test(first) && !isFrenchWord(first)) ||
-            (!!previous && NOUN_PHRASE_OPENERS.has(previous.w) && spacedArticle(ctx, previous, first))
+            (!!previous && HOMO_DETERMINERS.has(previous.w) && spacedArticle(ctx, previous, first))
           - "!(namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(first))"
         return: 'finding(frame.ruleId, frame.messageKey, gapStart, secondStart, ["-"], { context: { start: m.index, end: secondStart + second.length } })'
       # "vio-loniste" -> "violoniste", "jour-nal" -> "journal": a word cut by a hyphen, where a part
@@ -4041,7 +4003,7 @@ rules:
           - m.index >= ctx.from
           - "!(lower !== m[0] && opening && isFrenchWord(lower))"
           - "!!compound && !!hit"
-          - "!(/^\\p{Ll}/u.test(compound) && !BARE_COMPOUNDS.has(compound) && (!previous || !NOUN_PHRASE_OPENERS.has(previous.w)))"
+          - "!(/^\\p{Ll}/u.test(compound) && !BARE_COMPOUNDS.has(compound) && (!previous || !HOMO_DETERMINERS.has(previous.w)))"
           - "!(namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(compound.toLowerCase()))"
         return: >-
           finding(frame.ruleId, frame.messageKey, m.index, m.index + hit[0].length, [compound.replaceAll("'", /’/.test(hit[0]) ? "’" : "'")])
@@ -4141,7 +4103,6 @@ rules:
           alors,
           puis,
         ]
-      AGR_NEGATION: [ne, "n'"]
       RELATIVE_PRONOUNS:
         [
           lequel,
@@ -4601,8 +4562,6 @@ rules:
           ni,
         ]
       MARKING_CLITICS: [ne, n', me, m', te, t', se, s', lui, "y"]
-      # Object pronouns that only a verb follows: "la foule se déplace", "le garçon lui cache".
-      VERB_CLITICS: [me, m', te, t', se, s', lui, leur, nous, vous]
       # Words before a noun phrase that make it an object whose relative clause agrees with it:
       # "voici les enfants qui jouent". After a preposition the phrase may complement a noun
       # before it ("la façon dont ils jouent leurs rôles qui ..."), and "qui" may relate to that
@@ -4809,7 +4768,7 @@ rules:
           joins: new Set(["et"]),
           pronouns: STRESSED_PRONOUNS,
           relatives: new Set(["qui"]),
-          clitics: new Set([...AGR_NEGATION, ...CLITICS]),
+          clitics: new Set([...VF_NEGATION, ...CLITICS]),
           isAdverb: (t: ClauseToken) => FRENCH_ADVERBS.has(t.w),
           isNoun: (text: string, t: ClauseToken) => nounLike(text, t),
           nominal: (text: string, tokens: readonly ClauseToken[], k: number) => nominalAdjective(text, tokens, k),
@@ -4861,7 +4820,7 @@ rules:
         let:
           phraseEnd: skipNounPhrase(FRENCH_CLAUSE, text, tokens, i + 1)
           person: "phraseEnd === i + 1 ? 0 : AGR_PLURAL_DETERMINERS.has(tokens[i + 1].w) ? ILS : IL"
-          k: "skipWhile(tokens, person ? phraseEnd : phraseEnd + 1, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w))"
+          k: "skipWhile(tokens, person ? phraseEnd : phraseEnd + 1, (t) => VF_NEGATION.has(t.w) || CLITICS.has(t.w))"
           auxiliary: 'AUXILIARY_HOMOGRAPHS.has(tokens[k].w) && verbReadings(tokens[k + 1]?.w ?? "").some((r) => r.slot === "Q")'
           homograph: isVerbHomograph(tokens[k].w) && !auxiliary
         when:
@@ -5074,7 +5033,7 @@ rules:
           k: 'all.findIndex((t) => t.w === "et")'
           between: all.slice(0, k)
           rest: all.slice(k)
-          i: skipWhile(rest, 1, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w))
+          i: skipWhile(rest, 1, (t) => VF_NEGATION.has(t.w) || CLITICS.has(t.w))
           verb: rest[i]
           typed: ctx.text.slice(verb.start, verb.end)
           readings: verbReadings(verb.w)
@@ -5239,7 +5198,7 @@ rules:
         type: RawFinding | null
         let:
           after: tokensAfter(ctx.text, m.index + m[0].length, 5)
-          i: skipWhile(after, 0, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w))
+          i: skipWhile(after, 0, (t) => VF_NEGATION.has(t.w) || CLITICS.has(t.w))
           verb: after[i]
           typed: ctx.text.slice(verb.start, verb.end)
           readings: verbReadings(verb.w)
@@ -5251,7 +5210,7 @@ rules:
             !!previous &&
             CLAUSE_ADVERBS.has(previous.w) &&
             subordinateSubject(ctx.text, m.index, i)
-          negated: after.slice(0, i).some((t) => AGR_NEGATION.has(t.w))
+          negated: after.slice(0, i).some((t) => VF_NEGATION.has(t.w))
         when:
           - "!(!verb || verb.hyphen || ctx.dictionary.has(verb.w))"
           - "!after.slice(0, i + 1).some((t) => elidedAuxiliaryAt(ctx.text, t.start))"
@@ -5351,7 +5310,7 @@ rules:
           ending: PARTICIPLE_ENDING[pronoun]
           previous: tokensBefore(ctx.text, m.index, 1)[0]
           after: tokensAfter(ctx.text, m.index + m[0].length, 6)
-          i: skipWords(after, 0, AGR_NEGATION)
+          i: skipWords(after, 0, VF_NEGATION)
           word: after[skipWords(after, i + 1, AGR_ADVERBS)]
           match: /^(.+)(é|ée|és|ées)$/.exec(word.w)
         when:
@@ -5423,7 +5382,7 @@ rules:
         let:
           future: 'person === ILS && verb.w.endsWith("rons") && tokens[j - 1]?.w !== "qui"'
           after: tokens[j + 1]
-          k: skipWhile(tokens, j + 2, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w))
+          k: skipWhile(tokens, j + 2, (t) => VF_NEGATION.has(t.w) || CLITICS.has(t.w))
           own: 'after && tokens[k] && verbReadings(tokens[k].w).some((r) => typeof r.slot === "number" && hasPerson(r.slot, AGR_PERSON[after.w]))'
           attribute: 'after && ["les", "des", "ces"].includes(after.w)'
           alternatives: "[...new Set(verbal.flatMap((r) => conjugate(r, person).slice(0, 1)))]"
@@ -5449,7 +5408,7 @@ rules:
           base: 'lemma && verbReadings(lemma).find((r) => r.slot === "I")'
           forms: "base ? [1, 2].map((tense) => conjugate({ ...base, tense }, person)[0]) : []"
         when:
-          - "!(!clitics.some((t) => VERB_CLITICS.has(t.w)) || !/(?:er|é)$/.test(verb.w))"
+          - "!(!clitics.some((t) => VF_REFLEXIVES.has(t.w)) || !/(?:er|é)$/.test(verb.w))"
           - "!isVerbHomograph(verb.w)"
           - '!(!base || !base.lemma.endsWith("er"))'
           - "!forms.some((form) => !form)"
@@ -5472,7 +5431,7 @@ rules:
         type: RawFinding | null
         let:
           quiBefore: tokens[i - 1]?.w === "qui"
-          j: skipWhile(tokens, i, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w))
+          j: skipWhile(tokens, i, (t) => VF_NEGATION.has(t.w) || CLITICS.has(t.w))
           marked: 'quiBefore || tokens.slice(i, j).some((t) => t.w !== "en")'
           verb: tokens[j]
           typed: ctx.text.slice(verb.start, verb.end)
@@ -5571,7 +5530,7 @@ rules:
         type: RawFinding | null
         let:
           own: verbFinding(ctx, tokens, i + 1, person, from, coordinated, false)
-          j: skipWhile(tokens, i + 1, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w))
+          j: skipWhile(tokens, i + 1, (t) => VF_NEGATION.has(t.w) || CLITICS.has(t.w))
           verb: tokens[j]
           main: "own || !verb || !hasPerson(finitePersons(verb.w), person) || isVerbHomograph(verb.w) ? -1 : mainVerbAfter(tokens, j + 1, 0)"
         return: "own ? own : main < 0 ? null : verbFinding(ctx, tokens, main, person, from, coordinated, false)"
@@ -5815,12 +5774,12 @@ rules:
         let:
           before: tokensBefore(ctx.text, m.index, 2)
           after: tokensAfter(ctx.text, m.index + 3, 4)
-          i: skipWhile(after, 0, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w))
+          i: skipWhile(after, 0, (t) => VF_NEGATION.has(t.w) || CLITICS.has(t.w))
           word: after[i]
           antecedent: before[0]?.w ?? ""
           plural: /[sx]$/.test(antecedent) && AGR_PLURAL_DETERMINERS.has(before[1]?.w ?? "")
           person: "AGR_STRESSED[antecedent] ?? (plural ? ILS : IL)"
-          negated: after.slice(0, i).some((t) => AGR_NEGATION.has(t.w))
+          negated: after.slice(0, i).some((t) => VF_NEGATION.has(t.w))
           found: nonVerbAlternatives(word.w, person, false, false, false, negated)
         when:
           - m.index >= ctx.from
@@ -6116,7 +6075,6 @@ rules:
           entre,
         ]
       SIL_DETERMINERS: [le, les, un, des, du, au, aux, ce, ces, son, ses, mon, ton, leur]
-      SIL_CLITICS: [ne, n', te, t', vous, nous, me, m', le, la, les, l', lui, leur, "y", en, se, s']
       SINGULAR_MASCULINE: [un, le, ce, cet, mon, ton, son, notre, votre, leur, du, au]
     maps:
       # The letter a word elides to: "je" -> "j", "que" -> "qu", "la" -> "l".
@@ -6158,7 +6116,7 @@ rules:
           - "!(before && SIL_DETERMINERS.has(before.w))"
           - "!!next"
         return: >-
-          SIL_CLITICS.has(next.w) || ["est", "a", "fait", "faut"].includes(next.w) ||
+          VF_SUBJECT_CLITICS.has(next.w) || ["est", "a", "fait", "faut"].includes(next.w) ||
           (hasPerson(finitePersons(next.w), IL + ILS) && !isVerbHomograph(next.w))
         else: "false"
     frames:
@@ -7041,8 +6999,6 @@ rules:
           ultra,
           vice,
         ]
-      # Object pronouns and negation that stand between a subject and its verb.
-      GENDER_CLITICS: [me, m', te, t', se, s', lui, leur, "y", en, ne, n']
       GENDER_FEMININE: [une, la, cette, ma, ta, sa, aucune]
       NEVER_PRONOUNS: [cette, cet, mon, ton, du, au, aucun, aucune]
       # "il est la demain": "là" before an adverb, which the homophone check offers.
@@ -7155,7 +7111,7 @@ rules:
                 (!!previous &&
                   (PREPOSITIONS.has(previous.w) ||
                     (!SUBJECT_PRONOUNS.has(previous.w) &&
-                      !GENDER_CLITICS.has(previous.w) &&
+                      !INVERTED_CLITICS.has(previous.w) &&
                       verbReadings(previous.w).length > 0 &&
                       !isInflectedNoun(previous.w))))))
           # "un unique sommet", "une mini salle": a modifier before the noun the determiner
@@ -7508,7 +7464,6 @@ rules:
           adresser,
           rendre,
         ]
-      CLITIC_PRONOUNS: [me, m', te, t', se, s', le, la, les, l', lui, leur, nous, vous, "y", en]
       ADJ_OBJECT_CLITICS: [le, la, les, l', me, m', te, t', se, s', nous, vous, en]
       ADJ_COORDINATORS: [et, ou, mais, car, puis]
       # Words that put a direct object before the verb: "quelles pommes vous avez mangées".
@@ -7537,7 +7492,6 @@ rules:
           marché,
           régné,
         ]
-      ADJ_DEGREE_WORDS: [très, si, trop, plus, bien, assez]
       # Words before "que" that make it a conjunction, not a relative pronoun: "alors qu'elle a".
       CONJUNCTION_LEADS:
         [
@@ -8331,7 +8285,7 @@ rules:
           - '!(DEMONSTRATIVE.test(pronoun) || ctx.text[start] === "-")'
           - "!!verb?.hyphen"
           - linkingEnd(inverted, 0, person) === inverted.length
-          - "!(clitic && CLITIC_PRONOUNS.has(clitic.w))"
+          - "!(clitic && OBJECT_PRONOUNS_BEFORE_VERB.has(clitic.w))"
         return: "word ? predicateFinding(ctx, word, allowed, verb.start, false) : null"
       # The index past a verb of STATE_VERBS that agrees with `person` at `i`, or past a modal and
       # such an infinitive ("pense arriver"); -1 when there is none.
@@ -8472,8 +8426,8 @@ rules:
         args: "ctx: DetectContext, before: FrenchToken[], word: FrenchToken"
         type: RawFinding | null
         let:
-          k: 'skipWhile(before, 0, (t) => CLITIC_PRONOUNS.has(t.w) || ["ne", "n''"].includes(t.w))'
-          read: before.slice(0, k).filter((t) => CLITIC_PRONOUNS.has(t.w))
+          k: 'skipWhile(before, 0, (t) => OBJECT_PRONOUNS_BEFORE_VERB.has(t.w) || ["ne", "n''"].includes(t.w))'
+          read: before.slice(0, k).filter((t) => OBJECT_PRONOUNS_BEFORE_VERB.has(t.w))
           last: read.at(-1)
           pop: '!!last && ["nous", "vous"].includes(last.w) && (!before[k] || ADJ_OPENERS.has(before[k].w))'
           subject: "pop ? last : before[k]"
@@ -8631,7 +8585,7 @@ rules:
             (!verbReadings(next.w).some((r) => r.slot === "I") &&
               !(next.w in ADJ_DETERMINERS) &&
               !["à", "de", "d'", "que", "qu'"].includes(next.w) &&
-              !CLITIC_PRONOUNS.has(next.w))
+              !OBJECT_PRONOUNS_BEFORE_VERB.has(next.w))
         return: 'free && !INVARIABLE_PARTICIPLES.has(word.w) ? adjectiveFinding(ctx, word, demonstrative, before[q + 1].start, "avoir") : null'
       # Index past the adjectives after the antecedent noun (two at most): "l'homme grand et fort
       # que".
@@ -8670,7 +8624,7 @@ rules:
         type: RawFinding | null
         let:
           first: 'adjectiveReadings(before[at + 1]?.w ?? "").length ? 1 : 0'
-          adjective: 'first && ADJ_DEGREE_WORDS.has(before[at + 2]?.w ?? "") ? 2 : first'
+          adjective: 'first && AGR_DEGREE.has(before[at + 2]?.w ?? "") ? 2 : first'
           noun: before[at]
           det: before[at + 1 + adjective]
         when: at <= n
@@ -8695,7 +8649,7 @@ rules:
               !(verbReadings(next.w).some((r) => r.slot === "I") ||
                 next.w in ADJ_DETERMINERS ||
                 ["à", "de", "d'", "que", "qu'"].includes(next.w) ||
-                CLITIC_PRONOUNS.has(next.w) ||
+                OBJECT_PRONOUNS_BEFORE_VERB.has(next.w) ||
                 ["cela", "ça", "ceci"].includes(next.w))
         return: antecedentFinding(ctx, before, q + 1, antecedentEnd(before, q + 1, 0), word)
       # The participle after "que" at `q` and avoir agrees with the noun before "que": "les
@@ -9194,7 +9148,7 @@ rules:
           - ctx.text.slice(second.start, second.end) === second.w
           - "!(pairSkip(first.w) || pairSkip(second.w))"
           - "!(!slots1.length || !slots2.length || slots1.some((s) => slots2.includes(s)))"
-          - "!(after && (after.w in ADJ_DETERMINERS || CLITIC_PRONOUNS.has(after.w) || nounGender(after.w)))"
+          - "!(after && (after.w in ADJ_DETERMINERS || OBJECT_PRONOUNS_BEFORE_VERB.has(after.w) || nounGender(after.w)))"
           - "!verbReadings(second.w).some((r) => hasPerson(r.slot, JE + IL + NOUS + VOUS + ILS))"
           - "!PAIR_STOPS.has(second.w)"
           - >-
@@ -9528,8 +9482,6 @@ rules:
         [une, la, cette, sa, ma, ta, est, était, sera, fut, soit, reste, semble, paraît, avant]
       TOUT_SINGULAR_SUBJECTS: [je, "j'", tu, il, elle]
       TOUT_PLURAL_CLITICS: [les, nous, vous, leur, en]
-      # Linking verbs after which "tout" before an adjective is the adverb: "elle est tout émue".
-      TOUT_LINKING: [être, sembler, paraître, devenir, rester, demeurer]
     defs:
       finiteOrParticiple:
         args: "word: string"
@@ -9656,7 +9608,7 @@ rules:
           det: 'before[1]?.w ?? ""'
         when: "!!previous"
         return: >-
-          verbReadings(previous.w).some((r) => typeof r.slot === "number" && TOUT_LINKING.has(r.lemma))
+          verbReadings(previous.w).some((r) => typeof r.slot === "number" && LINKING_LEMMAS.has(r.lemma))
             ? true
             : (det in TOUT_SINGULAR_DETERMINERS || TOUT_PLURAL_DETERMINERS.has(det) || ["une", "des"].includes(det)) &&
               Boolean(nounGender(previous.w) || nounGender(previous.w.replace(/s$/, "")))
@@ -10007,7 +9959,6 @@ rules:
           leurs,
           chaque,
         ]
-      MOOD_NEGATION: [ne, "n'"]
       # Words after which a noun phrase continues with a complement: the verb is further on.
       MOOD_COMPLEMENT: [de, d', du, des, qui, que, qu', dont, où, à, au, aux]
       # Triggers of the subjunctive just before "que".
@@ -10070,7 +10021,6 @@ rules:
       TROUVER_LEMMAS: [trouver]
       VALOIR_LEMMAS: [valoir]
       FAIRE_POUVOIR_LEMMAS: [faire, pouvoir]
-      SUBJECT_AFTER_SI: [je, "j'", tu, il, elle, on, nous, vous, ils, elles]
       SI_OPENERS: [et, mais, ou, même, sauf, comme, car, or, donc]
       # "j'aurai aimé savoir" -> "aurais": a wish in the past is a conditional.
       WISHED: [aimé, souhaité, préféré, adoré, voulu]
@@ -10212,7 +10162,7 @@ rules:
                 : /^\p{Lu}/u.test(text.slice(first.start, first.end))
                   ? 1
                   : null
-          verb: after[skipWhile(after, start, (t) => MOOD_NEGATION.has(t.w) || CLITICS.has(t.w))]
+          verb: after[skipWhile(after, start, (t) => VF_NEGATION.has(t.w) || CLITICS.has(t.w))]
         when:
           - "!!first"
           - start !== null
@@ -10236,7 +10186,7 @@ rules:
       firstPersonBefore:
         args: "before: FrenchToken[]"
         let:
-          i: skipWhile(before, 0, (t) => MOOD_NEGATION.has(t.w) || CLITICS.has(t.w))
+          i: skipWhile(before, 0, (t) => VF_NEGATION.has(t.w) || CLITICS.has(t.w))
         return: 'before[i]?.w === "je" || before[i]?.w === "j''"'
       # A "si" clause in the imperfect.
       siImperfect:
@@ -10272,7 +10222,7 @@ rules:
           b0: before[0]?.w
           b1: before[1]?.w
           b2: before[2]?.w
-        when: "!(!b0 || before.some((t) => MOOD_NEGATION.has(t.w) || t.hyphen))"
+        when: "!(!b0 || before.some((t) => VF_NEGATION.has(t.w) || t.hyphen))"
         return: >-
           b0 === "moment" && b1 === "du"
             ? true
@@ -10416,7 +10366,7 @@ rules:
           previous: tokensBefore(ctx.text, m.index, 1)[0]
           clause: ctx.text.slice(sentenceBounds(ctx.text, m.index, 400, MOOD_SENTENCE_END)[0], m.index)
           after: tokensAfter(ctx.text, m.index + m[0].length, 5)
-          verb: after[skipWhile(after, 0, (t) => MOOD_NEGATION.has(t.w) || CLITICS.has(t.w))]
+          verb: after[skipWhile(after, 0, (t) => VF_NEGATION.has(t.w) || CLITICS.has(t.w))]
           typed: ctx.text.slice(verb.start, verb.end)
           forms: indicativeOf(verb.w, MOOD_PERSON[subject])
         when:
@@ -10440,7 +10390,7 @@ rules:
           before: tokensBefore(ctx.text, m.index, 1)
           after: tokensAfter(ctx.text, m.index + m[0].length, 6)
           subject: after[0]?.w
-          verb: after[skipWhile(after, 1, (t) => MOOD_NEGATION.has(t.w) || CLITICS.has(t.w))]
+          verb: after[skipWhile(after, 1, (t) => VF_NEGATION.has(t.w) || CLITICS.has(t.w))]
           typed: ctx.text.slice(verb.start, verb.end)
           readings: verbReadings(verb.w)
           person: MOOD_PERSON[subject]
@@ -10457,7 +10407,7 @@ rules:
         when:
           - m.index >= ctx.from
           - "!(before[0] && !SI_OPENERS.has(before[0].w))"
-          - 'lower === "s''" ? subject === "il" || subject === "ils" : !!subject && SUBJECT_AFTER_SI.has(subject)'
+          - 'lower === "s''" ? subject === "il" || subject === "ils" : !!subject && SUBJECT_PRONOUNS_ALL.has(subject)'
           - "!(!verb || verb.hyphen)"
           - '!/\p{Lu}/u.test(typed)'
           - '!(!readings.length || !readings.every((r) => typeof r.slot === "number"))'
@@ -10561,15 +10511,10 @@ rules:
       OBJECT_PREPOSITIONS: [à, de, "d'", avec, pour, sur, chez]
       # What may open the clause before a subject "personne" or "rien": "Plus personne", "que rien".
       NE_SUBJECT_OPENERS: [plus, que, qu', et, mais, si, car, donc, alors, quand]
-      NEGATED_CLITICS: [me, m', te, t', se, s', "y", en, le, la, les, l', lui, leur, nous, vous]
     maps:
       # Elided subjects and their full form: "j'ai" -> "je n'ai".
       NE_ELIDED_SUBJECT: { "j'": je, "c'": ce }
     defs:
-      NE_VOWEL: /^[aeiouyâàäéèêëîïôöûùüœæ]/i
-      neFinite:
-        args: "word: string"
-        return: 'verbReadings(word).some((r) => typeof r.slot === "number")'
       # "Personne vient" -> "Personne ne vient", "Rien va plus" -> "Rien ne va": "personne" or
       # "rien" as the clause's subject; undefined when it is not one. "Personne morale": an
       # adjective; a noun homograph is the verb there ("Rien bouge"). "Personne est un terme...":
@@ -10583,7 +10528,7 @@ rules:
           verb: after[i]
           head: after[0]
           elides: >-
-            NE_VOWEL.test(head.w) ||
+            GENDER_VOWEL.test(head.w) ||
             (head === verb && head.w.startsWith("h") && verbReadings(head.w).some((r) => MUTE_H.has(r.lemma)))
           apostrophe: 'ctx.text.slice(Math.max(0, m.index - 200), m.index).includes("’") ? "’" : "''"'
         when:
@@ -10620,11 +10565,11 @@ rules:
           subject: "own ? own : tLead || vLead ? lead : undefined"
           first: "own ? lead : tLead ? verb : vLead ? (before[i - 2] ?? verb) : lead"
           typedSubject: ctx.text.slice(subject.start, subject.end)
-          isName: '/^\p{Lu}\p{L}+$/u.test(typedSubject) && capitalizedName(ctx.text, subject.start, typedSubject) && !neFinite(subject.w)'
-          isNoun: '!neFinite(subject.w) && NE_DETERMINERS.has(before[i + 1]?.w ?? "")'
+          isName: '/^\p{Lu}\p{L}+$/u.test(typedSubject) && capitalizedName(ctx.text, subject.start, typedSubject) && !moodFinite(subject.w)'
+          isNoun: '!moodFinite(subject.w) && NE_DETERMINERS.has(before[i + 1]?.w ?? "")'
           apostrophe: 'ctx.text.slice(Math.max(0, m.index - 200), m.index).includes("’") ? "’" : "''"'
           headWord: first.w.replace(/'$/, "")
-          elides: 'NE_VOWEL.test(headWord) || (headWord.startsWith("h") && verbReadings(headWord).some((r) => MUTE_H.has(r.lemma)))'
+          elides: 'GENDER_VOWEL.test(headWord) || (headWord.startsWith("h") && verbReadings(headWord).some((r) => MUTE_H.has(r.lemma)))'
           elided: 'subject.w === "t''" ? "tu" : NE_ELIDED_SUBJECT[subject.w]'
           start: "elided && subject.end === first.start ? subject.start : first.start"
           replacement: '(elides ? `n${apostrophe}` : "ne ") + ctx.text.slice(first.start, verb.end)'
@@ -10654,7 +10599,7 @@ rules:
           second: pair[1]
         when:
           - "!(!verb || verb.hyphen || verb.end + 3 < (skip ? before[0].start : m.index))"
-          - '!(/\p{Lu}/u.test(ctx.text.slice(verb.start, verb.end).slice(1)) || !neFinite(verb.w))'
+          - '!(/\p{Lu}/u.test(ctx.text.slice(verb.start, verb.end).slice(1)) || !moodFinite(verb.w))'
           - >-
             !(isInflectedNoun(verb.w) &&
               !verbReadings(verb.w).some((r) => r.lemma === "être") &&
@@ -10694,18 +10639,18 @@ rules:
         let:
           after: tokensAfter(ctx.text, m.index + m[0].length, 6)
           subject: after[0]
-          i: skipWords(after, 1, NEGATED_CLITICS)
+          i: skipWords(after, 1, OBJECT_PRONOUNS_BEFORE_VERB)
           verb: after[i]
           apostrophe: '/’/.test(ctx.text.slice(m.index, verb.end)) ? "’" : "''"'
           head: "after[1] && i > 1 ? after[1] : verb"
         when:
           - m.index >= ctx.from
           - "!(!subject || !(NE_SUBJECTS.has(subject.w) || subject.w in NE_ELIDED_SUBJECT))"
-          - "!(!verb || verb.hyphen || !neFinite(verb.w))"
+          - "!(!verb || verb.hyphen || !moodFinite(verb.w))"
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
           finding(frame.ruleId, frame.messageKey, m.index, verb.end, [
-            `${ctx.text.slice(m.index, m.index + 4)} ${/['’]$/.test(m[0]) ? `qu${apostrophe}` : "que "}${NE_ELIDED_SUBJECT[subject.w] ?? ctx.text.slice(subject.start, subject.end)} ${NE_VOWEL.test(head.w) ? `n${apostrophe}` : "ne "}${ctx.text.slice(head.start, verb.end)} pas`,
+            `${ctx.text.slice(m.index, m.index + 4)} ${/['’]$/.test(m[0]) ? `qu${apostrophe}` : "que "}${NE_ELIDED_SUBJECT[subject.w] ?? ctx.text.slice(subject.start, subject.end)} ${GENDER_VOWEL.test(head.w) ? `n${apostrophe}` : "ne "}${ctx.text.slice(head.start, verb.end)} pas`,
           ], { context: { start: m.index, end: verb.end } })
   - id: fr.smallWords
     checks: [frenchHomophones]
@@ -10737,34 +10682,6 @@ rules:
         [je, j', tu, il, elle, "on", nous, vous, ils, elles, ce, c', ça, cela, pour, moi, toi]
       SW_ADVERBS_AFTER_MAIS:
         [bien, pas, plutôt, aussi, surtout, encore, non, oui, pourtant, alors, si, quand]
-      SW_DETERMINERS:
-        [
-          le,
-          la,
-          les,
-          l',
-          un,
-          une,
-          mon,
-          ma,
-          mes,
-          ton,
-          ta,
-          tes,
-          son,
-          sa,
-          ses,
-          ce,
-          cet,
-          cette,
-          ces,
-          notre,
-          nos,
-          votre,
-          vos,
-          leur,
-          leurs,
-        ]
       # Verbs that take "avantage" as their object: "tirer avantage", "avoir l'avantage".
       AVANTAGE_VERBS:
         [avoir, tirer, offrir, présenter, voir, trouver, apporter, donner, retirer, procurer]
@@ -10801,7 +10718,6 @@ rules:
           loin,
           près,
         ]
-      SUBJECT_PRONOUN_WORDS: [je, j', tu, il, elle, "on", nous, vous, ils, elles]
       # Words that open a clause of their own: "ce qu'il veut est simple", "celui qui part est
       # triste", "si tu viens, ..." keep the main verb "est"; so does an indirect question ("je
       # sais quel est le problème").
@@ -10979,15 +10895,12 @@ rules:
       MULTIPLIERS: [deux, trois, quatre, cinq, six, sept, huit, neuf]
     defs:
       AVOIR_GOVERNORS: '/(?<![\p{L}\p{M}])(?:(?:que|quoique|qui|dont|où|quoi|soit|plaise)(?![\p{L}\p{M}])|(?:qu|quoiqu)[''’])/iu'
-      swFinite:
-        args: "word: string"
-        return: 'verbReadings(word).some((r) => typeof r.slot === "number")'
       swNounLike:
         args: "word: string"
         return: isInflectedNoun(word) || !!nounGender(word)
       swVerbOnly:
         args: "word: string"
-        return: "!swNounLike(word) && swFinite(word)"
+        return: "!swNounLike(word) && moodFinite(word)"
       swInfinitiveOnly:
         args: "word: string"
         return: '!nounGender(word) && verbReadings(word).some((r) => r.slot === "I")'
@@ -11018,7 +10931,7 @@ rules:
           - "!namedExampleBefore(ctx.text, m.index)"
           - >-
             pronoun
-              ? !(m[0].toLowerCase() === "si" && next && !swFinite(next.w))
+              ? !(m[0].toLowerCase() === "si" && next && !moodFinite(next.w))
               : m[0].toLowerCase() === "ci" && swNounLike(head.w) && before.slice(1, 3).some((t) => SW_DEMONSTRATIVES.has(t.w))
         return: 'finding("frenchHomophones", "review_msg_fr_homophone", head.start, m.index + m[0].length, [`${ctx.text.slice(head.start, head.end)}-ci`])'
       # "je vais sois à la plage ou" -> "soit", "les contenus soie appropriés" -> "soient". "que je
@@ -11037,7 +10950,7 @@ rules:
               : ["je", "tu", "ne", "n'", "et", "mais", "ou", "donc"].includes(previous.w)
                 ? null
                 : homoFix(ctx, m, ["soit"])
-            : !swNounLike(previous.w) || swFinite(previous.w) || SW_DETERMINERS.has(previous.w)
+            : !swNounLike(previous.w) || moodFinite(previous.w) || NE_DETERMINERS.has(previous.w)
               ? null
               : !adjectiveReadings(next.w).length && !verbReadings(next.w).some((r) => r.slot === "Q")
                 ? null
@@ -11059,13 +10972,13 @@ rules:
               ? fix(["sois"])
               : !previous || !next
                 ? null
-                : (swFinite(previous) && !isVerbHomograph(previous) && (swInfinitiveOnly(next.w) || SW_DETERMINERS.has(next.w))) ||
+                : (moodFinite(previous) && !isVerbHomograph(previous) && (swInfinitiveOnly(next.w) || NE_DETERMINERS.has(next.w))) ||
                     (swNounLike(previous) &&
-                      !swFinite(previous) &&
-                      !SW_DETERMINERS.has(previous) &&
+                      !moodFinite(previous) &&
+                      !NE_DETERMINERS.has(previous) &&
                       (adjectiveReadings(next.w).length > 0 || isInflectedNoun(next.w)) &&
                       !nounGender(next.w) &&
-                      !swFinite(next.w))
+                      !moodFinite(next.w))
                   ? fix(["soit"])
                   : null
       # "prendre soin de soit." -> "soi"; "quoi qu'il en soit.": "en soit" is the verb.
@@ -11101,7 +11014,7 @@ rules:
           - "!(!subject || SW_STRESSED.has(next.w))"
         return: >-
           subject === "il" || subject === "on" || subject === "qui"
-            ? attribute || SW_DETERMINERS.has(next.w)
+            ? attribute || NE_DETERMINERS.has(next.w)
               ? fix()
               : null
             : ["ceci", "cela", "ça"].includes(subject)
@@ -11114,7 +11027,7 @@ rules:
                   ? AFTER_EST.has(next.w) || (attribute && closes)
                     ? fix()
                     : null
-                  : before.length === 2 && SW_DETERMINERS.has(before[1].w) && swNounLike(subject)
+                  : before.length === 2 && NE_DETERMINERS.has(before[1].w) && swNounLike(subject)
                     ? AFTER_EST.has(next.w) ||
                       (verbReadings(next.w).some((r) => r.slot === "Q") && !nounGender(next.w) && closes) ||
                       ((next.w === "de" || next.w === "d'") && !!after[1] && swInfinitiveOnly(after[1].w))
@@ -11158,13 +11071,13 @@ rules:
           own: "opener < 0 ? clause : clause.slice(0, opener)"
         when:
           - '!(!next || !before[0] || ["c''", "n''", "qu''", "ce", "qui", "plus", "de", "on", "il", "elle", "tout"].includes(before[0].w))'
-          - "!(before[1] && SW_DETERMINERS.has(before[1].w))"
+          - "!(before[1] && NE_DETERMINERS.has(before[1].w))"
         return: >-
           opener < 0 &&
           own.some(
             (t, i) =>
               i > 0 &&
-              SUBJECT_PRONOUN_WORDS.has(own[i + 1]?.w ?? "") &&
+              SUBJECT_PRONOUNS_ALL.has(own[i + 1]?.w ?? "") &&
               (t.w === "est" || t.w === "a" || !isVerbHomograph(t.w)) &&
               verbReadings(t.w).some((r) => typeof r.slot === "number"),
           ) &&
@@ -11177,7 +11090,9 @@ rules:
       # may want "-ci". "mes je pense", "mai il pleut", "mas je" -> "mais"; "mes moi" is no
       # phrase, "pour moi" is: only "mais pour moi". "je viens dans prendre" -> "d'en". "dan la
       # maison" -> "dans" (lowercase: "Dan" is a name, "dan" a judo grade). "cela leurs permet"
-      # -> "leur". "mêmes si", "ils sont mêmes grands" -> "même" (the adverb).
+      # -> "leur". "mêmes si", "ils sont mêmes grands" -> "même" (the adverb). A digit before "mai"
+      # keeps it ("le 5 mai"): the check reads back only over the spaces before "mai", not over all
+      # the text before it.
       smallWordNext:
         args: "ctx: DetectContext, m: RegExpExecArray, lower: string, previous: string | undefined, next: FrenchToken, before: FrenchToken[], after: FrenchToken[], fix: WordFix"
         type: RawFinding | null
@@ -11196,24 +11111,24 @@ rules:
                 ? null
                 : previous && !adverb && (["comme", "de", "par"].includes(previous) || swNounLike(previous))
                   ? null
-                  : previous && !adverb && !swFinite(previous)
+                  : previous && !adverb && !moodFinite(previous)
                     ? null
                     : fix(["si"])
               : lower === "mes" || lower === "mai" || lower === "mas"
-                ? lower === "mai" && (/\d[\s  ]*$/u.test(ctx.text.slice(0, m.index)) || previous === "de")
+                ? lower === "mai" && (/\d/.test(ctx.text.slice(0, m.index).trimEnd().slice(-1)) || previous === "de")
                   ? null
                   : !SW_CLAUSE_PRONOUNS.has(n) && !(lower === "mes" && SW_ADVERBS_AFTER_MAIS.has(n))
                     ? null
                     : lower === "mes" && (n === "moi" || n === "toi")
                       ? null
                       : fix(["mais"])
-                : lower === "dans" && swInfinitiveOnly(n) && !SW_DETERMINERS.has(n)
+                : lower === "dans" && swInfinitiveOnly(n) && !NE_DETERMINERS.has(n)
                   ? fix(["d'en"])
                   : m[0] === "dan" &&
-                      SW_DETERMINERS.has(n) &&
+                      NE_DETERMINERS.has(n) &&
                       !/\d[\s  ]*(?:e|er|ème)?[\s  ]*$/u.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
                     ? fix(["dans"])
-                    : lower === "leurs" && swVerbOnly(n) && !SW_DETERMINERS.has(n)
+                    : lower === "leurs" && swVerbOnly(n) && !NE_DETERMINERS.has(n)
                       ? fix(["leur"])
                       : lower === "nous" || lower === "vous"
                         ? possessiveForPronoun(ctx, m, previous, next)
@@ -11222,7 +11137,7 @@ rules:
                           : lower === "est"
                             ? swEstToEt(ctx, m, before, after)
                             : lower === "mêmes"
-                              ? previous && SW_DETERMINERS.has(previous)
+                              ? previous && NE_DETERMINERS.has(previous)
                                 ? null
                                 : ["si", "s'il", "s'ils", "lorsque", "lorsqu'", "quand"].includes(n) || n === "s'"
                                   ? fix(["même"])
@@ -11301,7 +11216,7 @@ rules:
           words: typed.split(/[\s  ]+/u)
         when:
           - m.index >= ctx.from
-          - "!(!det || !noun || !SW_DETERMINERS.has(det))"
+          - "!(!det || !noun || !NE_DETERMINERS.has(det))"
           - "!!gender"
           - '!/^[^,.;:!?]*[\s  ](?:et|ou)[\s  ]/u.test(ctx.text.slice(after[1].end, after[1].end + 60))'
           - words.map((w) => w.toLowerCase()).join(" ") !== right
@@ -11363,7 +11278,7 @@ rules:
         let:
           lower: m[0].toLowerCase()
           before: tokensBefore(ctx.text, m.index, 6)
-          k: skipWords(before, 0, NE_BEFORE)
+          k: skipWords(before, 0, VF_NEGATION)
           end: m.index + m[0].length
           fix: "() => homoFix(ctx, m, [GROW_TO_BELIEVE[lower]], { start: before.at(-1)?.start ?? m.index, end })"
           after: tokensAfter(ctx.text, end, 4)
@@ -11441,7 +11356,7 @@ rules:
               ? [forms[0], forms[1]]
               : participle && AVOIR_ETRE_VERBS.has(participle.lemma)
                 ? [forms[1]]
-                : SW_DETERMINERS.has(next.w)
+                : NE_DETERMINERS.has(next.w)
                   ? [forms[0]]
                   : [forms[0], forms[1]]
         when:
@@ -11478,9 +11393,9 @@ rules:
           - readings.length > 0
           - >-
             !(readings.some((r) => r.lemma === "être" || r.lemma === "avoir") &&
-              (!next || SW_DETERMINERS.has(next.w) || next.w === "été" || isInflectedNoun(next.w)) &&
+              (!next || NE_DETERMINERS.has(next.w) || next.w === "été" || isInflectedNoun(next.w)) &&
               (!(next && (adjectiveReadings(next.w).length > 0 || verbReadings(next.w).some((r) => r.slot === "Q"))) ||
-                SW_DETERMINERS.has(next.w) ||
+                NE_DETERMINERS.has(next.w) ||
                 next.w === "été"))
           - "!namedExampleBefore(ctx.text, m.index)"
         return: "homoFix(ctx, m, [...QUELLE_FORMS[lower]], { start: previous.start, end: verb.end })"
@@ -11576,7 +11491,6 @@ rules:
       # accent away).
       KEPT_SECOND: [leur, leurs, son, ton, un, une, notre, votre]
       AFTER_NEGATION_WORDS: [pas, plus, jamais, rien]
-      NE_BEFORE: [ne, "n'"]
       # Quantifiers and prepositions that never follow these words: "des plusieurs pays", "les
       # certaines règles", "de des enfants", "à aux enfants", "des toutes les catégories".
       PAIR_QUANTIFIERS: [plusieurs, certains, certaines]
@@ -11810,7 +11724,7 @@ rules:
           article: >-
             previous
               ? DETERMINER_OPENERS.has(previous.w) ||
-                (AFTER_NEGATION_WORDS.has(previous.w) && !NE_BEFORE.has(previous.w)) ||
+                (AFTER_NEGATION_WORDS.has(previous.w) && !VF_NEGATION.has(previous.w)) ||
                 (verbReadings(previous.w).length > 0 && !isVerbHomograph(previous.w))
               : /(?:^|[.!?…]\s{0,8})$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index))
           accented: '!ONLY_DETERMINERS.has(det) && number === "p" ? accentedPlural(word) : null'
@@ -12026,7 +11940,6 @@ rules:
         ]
       COMMA_NEGATIONS: [pas, plus, jamais, rien, guère]
       COMMA_MODALS: [pouvoir, devoir, vouloir, savoir, aller, falloir]
-      COMMA_STRESSED: [moi, toi, lui, elle, nous, vous, eux, elles]
       # Words that open a clause or a relative and take their words without a comma when no second
       # comma closes an insertion.
       CLAUSE_OPENERS: [qui, que, qu', où, ni, parce, lorsque, lorsqu', puisque, puisqu', quoique]
@@ -12169,7 +12082,7 @@ rules:
                       ? verbReadings(l0.w).some((r) => typeof r.slot === "number")
                       : left.length === 1 && /^les?quel(?:le)?s?$|^laquelle$/.test(l0.w)
                         ? commaFinite(r0.w)
-                        : COMMA_STRESSED.has(l0.w) && l1?.w === "est" && left[2]?.w === "c'"
+                        : STRESSED_PRONOUNS.has(l0.w) && l1?.w === "est" && left[2]?.w === "c'"
                           ? r0.w === "qui"
                           : OBJECT_CLITICS.has(l0.w) && l0.w !== "en" && l0.w !== "la"
                             ? subjectBefore(left, 1, false) < 0 && !(l1 && commaModal(l1.w))
@@ -12574,7 +12487,6 @@ rules:
           mentir,
           bavarder,
         ]
-      AUX_SUBJECTS: [je, "j'", tu, il, elle, on, nous, vous, ils, elles]
       AUX_BETWEEN: [pas, plus, jamais, déjà, encore, bien, toujours, souvent, vraiment]
     defs:
       # Only a past participle of one of the lemmas: no other reading.
@@ -12636,7 +12548,7 @@ rules:
           replacement: 'joinLead ? `${casedLead}${vowel ? "" : " "}${carryCase(typed, fixed)}` : carryCase(typed, fixed)'
         when:
           - m.index >= ctx.from
-          - "!!subject && AUX_SUBJECTS.has(subject.w)"
+          - "!!subject && SUBJECT_PRONOUNS_ALL.has(subject.w)"
           - '!(ctx.text[m.index - 1] === "-" || ctx.text[m.index + typed.length] === "-")'
           - "!!age || (!!next && !next.hyphen)"
           - "!!fixed && !ctx.dictionary.has(lower)"
@@ -13013,7 +12925,6 @@ rules:
           lourds: lourd,
         }
     sets:
-      INVARIABLE_REFLEXIVE: [me, "m'", te, "t'", se, "s'", nous, vous]
       # Colours named by a noun: they stay invariable ("rose", "mauve", "fauve" agree and are left
       # out).
       NOUN_COLOURS:
@@ -13082,7 +12993,7 @@ rules:
           - "!!base"
           - "!!verb && verbReadings(verb.w).some((r) => ADVERBIAL[base].includes(r.lemma))"
           # "elle se sent bonne", "il se voit claire": a reflexive verb takes an attribute.
-          - "!before.slice(i + 1).some((t) => INVARIABLE_REFLEXIVE.has(t.w))"
+          - "!before.slice(i + 1).some((t) => ADJ_REFLEXIVE.has(t.w))"
           # "la coupe courte", "une marche droite": a noun spelled like the verb.
           - '!(isVerbHomograph(verb.w) && !SUBJECT_PRONOUNS.has(before[i + 1]?.w ?? ""))'
         return: "found && { ...found, context: { start: verb.start, end: m.index + typed.length } }"
@@ -13341,7 +13252,6 @@ rules:
           fleuriste,
           fleuristes,
         ]
-      REMEMBER_REFLEXIVE: [me, "m'", te, "t'", se, "s'", nous, vous]
       REMEMBER_POSSESSIVES:
         [
           ce,
@@ -13364,8 +13274,6 @@ rules:
           leur,
           leurs,
         ]
-      # Words after "y a" that need the "ne" written French adds: "il n'y a pas".
-      Y_NEGATIVES: [pas, plus, rien, jamais, personne, point, guère]
       Y_A_OPENERS: ["si", "qu'", que, mais, car, donc, quand, comme]
       MONTER:
         [
@@ -13659,7 +13567,7 @@ rules:
               : -1
         when:
           - m.index >= ctx.from
-          - "!(!before || !REMEMBER_REFLEXIVE.has(before.w))"
+          - "!(!before || !ADJ_REFLEXIVE.has(before.w))"
           - "!(!de || !next)"
           - start >= 0
         return: >-
@@ -13683,8 +13591,8 @@ rules:
           k: 'after[0]?.w === "en" ? 1 : 0'
           verb: after[k]
           next: 'after[k + 1]?.w ?? ""'
-          word: 'CALQUE_ADVERBS.has(next) && !Y_NEGATIVES.has(next) ? (after[k + 2]?.w ?? "") : next'
-          nots: 'word === "plus" ? ["n''", ""] : Y_NEGATIVES.has(word) ? ["n''"] : [""]'
+          word: 'CALQUE_ADVERBS.has(next) && !IMPERATIVE_NEGATIONS.has(next) ? (after[k + 2]?.w ?? "") : next'
+          nots: 'word === "plus" ? ["n''", ""] : IMPERATIVE_NEGATIONS.has(word) ? ["n''"] : [""]'
           start: opener?.start ?? m.index
         when:
           - m.index >= ctx.from
@@ -13737,8 +13645,6 @@ rules:
     # subject and its verb, where a bare noun is a locution ("il prend froid", "elle porte
     # plainte") or a missing determiner.
     maps:
-      BARE_PERSON:
-        { je: 1, "j'": 1, tu: 2, il: 4, elle: 4, on: 4, nous: 8, vous: 16, ils: 32, elles: 32 }
       # Possessives by person: masculine, feminine, plural.
       BARE_POSSESSIVE:
         {
@@ -14137,27 +14043,6 @@ rules:
           bis,
           pile,
         ]
-      SUBJECT_OPENERS:
-        [
-          et,
-          mais,
-          ou,
-          donc,
-          car,
-          que,
-          qu',
-          quand,
-          si,
-          puis,
-          alors,
-          lorsque,
-          lorsqu',
-          puisque,
-          puisqu',
-          comme,
-          où,
-        ]
-      INDIRECT_OBJECTS: [lui, leur]
     defs:
       BARE_VOWEL: /^[aeiouyàâäéèêëîïôöûùüœæ]/
       # The readings of a word as a finite verb of the person.
@@ -14171,8 +14056,8 @@ rules:
         let:
           subject: before[i]
           opener: before[i + 1]
-        when: "!!subject && subject.w in BARE_PERSON"
-        return: "!opener || SUBJECT_OPENERS.has(opener.w) ? BARE_PERSON[subject.w] : 0"
+        when: "!!subject && subject.w in VF_PERSONS"
+        return: "!opener || AGR_OPENERS.has(opener.w) ? VF_PERSONS[subject.w] : 0"
         else: "0"
       # The person of the subject when `before` is a pronoun subject, maybe "lui"/"leur", and a
       # finite verb that takes an object; or a pronoun, avoir and a participle. 0 otherwise.
@@ -14189,7 +14074,7 @@ rules:
             finiteOf(before[1].w, subjectAt(before, 2)).some((r) => r.lemma === "avoir")
               ? subjectAt(before, 2)
               : 0
-          person: 'subjectAt(before, INDIRECT_OBJECTS.has(before[1]?.w ?? "") ? 2 : 1)'
+          person: 'subjectAt(before, INDIRECT_CLITICS.has(before[1]?.w ?? "") ? 2 : 1)'
           readings: "person ? finiteOf(verb.w, person) : []"
         when: "!!verb && !verb.hyphen && verb.w.length >= 2"
         return: "avoirPerson || (person && readings.length && readings.every((r) => !NO_OBJECT.has(r.lemma)) ? person : 0)"
@@ -14234,7 +14119,7 @@ rules:
           before: tokensBefore(ctx.text, m.index, 5)
           person: objectVerbPerson(before)
           alternatives: determined(word, person)
-          subject: before.find((t) => t.w in BARE_PERSON)!
+          subject: before.find((t) => t.w in VF_PERSONS)!
         when:
           - m.index >= ctx.from
           # The scan text may cut the clause short: read its end in the full text.
@@ -14325,7 +14210,6 @@ rules:
           elle,
           elles,
         ]
-      PERSONAL_SUBJECTS: [je, j', tu, il, elle, on, ils, elles]
     defs:
       # "nous nous", "vous vous": a reflexive verb, unless another subject comes before them or
       # "ne" comes after them ("je vous vous écris", "que nous nous ne mentions pas").
@@ -14334,7 +14218,7 @@ rules:
         let:
           before: tokensBefore(ctx.text, start, 1)[0]
           after: tokensAfter(ctx.text, end, 1)[0]
-        return: '(before !== undefined && PERSONAL_SUBJECTS.has(before.w)) || ["ne", "n''"].includes(after?.w ?? "")'
+        return: '(before !== undefined && MAIN_SUBJECTS.has(before.w)) || ["ne", "n''"].includes(after?.w ?? "")'
     frames:
       # One word or two words, then the same text again ("très très", "de moins de moins"),
       # also after an elision ("qu'on dit on dit").
