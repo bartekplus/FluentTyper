@@ -2235,16 +2235,61 @@ rules:
     checks: [stylePhrasing]
     style: match
     message: review_msg_style_phrasing
+    maps:
+      USAGE_MAIL_FORMS: { send: "", sends: s, sent: ed, sending: ing }
+    defs:
+      usageInfo:
+        args: "word: string"
+        return: englishWordInfo(word.toLowerCase())
+      # The -ly adverb of an adjective, when the dictionary lists it: hasty -> hastily.
+      usageAdverbOf:
+        args: "adjective: string"
+        let:
+          a: adjective.toLowerCase()
+          form: >-
+            a.endsWith("ic") ? `${a}ally` : /[^aeiou]y$/.test(a) ? `${a.slice(0, -1)}ily`
+            : /[^aeiou]le$/.test(a) ? `${a.slice(0, -1)}y` : `${a}ly`
+        return: "usageInfo(a)?.adjective && usageInfo(form)?.adverb ? form : null"
+      usageAdjectiveOnly:
+        args: "word: string"
+        let:
+          entry: usageInfo(word)
+        return: "!!entry?.adjective && !entry.verbs.length"
+      # A style finding on the `target` group; the alternatives take the typed initial capital.
+      usageStyled:
+        args: "m: RegExpExecArray, ctx: DetectContext, alts: string[]"
+        type: RawFinding | null
+        let:
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+          typed: ctx.text.slice(start, end)
+          cased: 'alts.map((alt) => /^\p{Lu}/u.test(typed) ? alt[0].toUpperCase() + alt.slice(1) : alt)'
+        when: "!hasUserOrCasedWord(ctx, m[0])"
+        return: >-
+          ({ ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing", range: { start, end },
+          alternatives: cased, ...(cased.length > 1 ? { requiresChoice: true as const } : {}) })
     frames:
       # "in a hasty manner" -> "hastily"; "in a way that…" and "in a manner of speaking" stay.
       - regex: "(?<target>in{{S}}an?{{S}}(?<adjective>[a-z]+){{S}}(?:manner|way|fashion)){{E}}(?![ \\t\\u00a0]+(?:that|which|to|as|of|than|for|in|you|we|I|it){{E}})"
-        fixer: mannerAdverb
+        let:
+          adverb: usageAdverbOf(adjective)
+        when: adverb
+        return: usageStyled(m, ctx, [adverb])
       # "sent me an email" -> "emailed me".
       - regex: "(?<target>(?<verb>send|sends|sent|sending){{S}}(?<object>me|you|him|her|us|them){{S}}an{{S}}(?<mail>email|e-mail)){{E}}"
-        fixer: sendEmail
+        let:
+          form: USAGE_MAIL_FORMS[verb.toLowerCase()]
+        when: form !== undefined
+        return: "usageStyled(m, ctx, [`${mail.toLowerCase()}${form} ${object}`])"
       # "is not complete" -> "is incomplete": the adjective's negative prefix form, when listed.
       - regex: "(?:is|are|was|were|be|been|being|seems?|seemed|looks?|looked){{S}}(?<target>not{{S}}(?<adjective>[a-z]{4,})){{E}}(?![ \\t\\u00a0]+(?:enough|only|just|as|so|but){{E}})"
-        fixer: notAdjective
+        let:
+          plain: adjective.toLowerCase()
+          negative: '["un", "in", "im", "ir", "il"].map((prefix) => prefix + plain).find((word) => usageAdjectiveOnly(word))'
+        when:
+          - usageInfo(plain)?.adjective
+          - negative
+        return: usageStyled(m, ctx, [negative])
   - id: en.contractionCase
     checks: [englishContractionNormalization]
     style: match
@@ -2256,7 +2301,18 @@ rules:
       - regex: "(?<![\\p{L}\\p{N}_'’])(?<head>\\p{L}+)(?<mark>['’])(?<tail>s|t|re|ve|ll|d|m)(?![\\p{L}\\p{N}_])"
         flags: dgiu
         owner: none
-        fixer: contractionCase
+        let:
+          tailHasUpper: tail !== tail.toLowerCase()
+          start: m.index + head.length + mark.length
+        when:
+          # The match start owns it.
+          - m.index >= ctx.from && m.index < ctx.to
+          - "!(!tailHasUpper || (head === head.toUpperCase() && tail === tail.toUpperCase()))"
+          - "!ctx.dictionary.has(`${head}${mark}${tail}`.toLowerCase())"
+        return: >-
+          ({ ruleId: "englishContractionNormalization", messageKey: "review_msg_contraction",
+          range: { start, end: start + tail.length }, alternatives: [tail.toLowerCase()],
+          context: { start: m.index, end: start + tail.length } })
   - id: en.possessiveContractions
     checks: [englishItsContext, englishYourYouAre]
     style: match
@@ -4178,42 +4234,296 @@ rules:
     style: match
     message: review_msg_canonical_casing
     filter: usOutsideExamples
+    sets:
+      # Product names that are also verbs: "to excel", "to react".
+      NAMES_VERBS: [excel, google, kindle, react]
+    maps:
+      NAMES_PRODUCT:
+        {
+          excel: Excel,
+          word: Word,
+          outlook: Outlook,
+          chrome: Chrome,
+          opera: Opera,
+          google: Google,
+          twitter: Twitter,
+          slack: Slack,
+          kindle: Kindle,
+          react: React,
+          mac: Mac,
+          windows: Windows,
+          apple: Apple,
+        }
+    defs:
+      # Brand names that are also ordinary words ("excel", "word", "chrome"): only before a noun
+      # that only the product has. Products named in the names table ("Google Docs") are matched
+      # there.
+      NAMES_PRODUCT_NOUNS: >-
+        new Map<string, ReadonlySet<string>>([
+        ["excel", new Set("file files sheet sheets spreadsheet spreadsheets workbook workbooks document documents formula formulas table tables macro macros chart charts skills".split(" "))],
+        ["word", new Set("document documents doc docs docx file files template templates".split(" "))],
+        ["outlook", new Set("mail mails email emails inbox calendar invite invites account app client".split(" "))],
+        ["chrome", new Set("browser devtools tab tabs".split(" "))],
+        ["opera", new Set("browser".split(" "))],
+        ["google", new Set("doc account accounts assistant scholar earth workspace trends traffic results ranking rankings".split(" "))],
+        ["twitter", new Set("account accounts feed handle post posts followers thread threads".split(" "))],
+        ["slack", new Set("channel channels workspace workspaces app bot".split(" "))],
+        ["kindle", new Set("app device tablet edition store paperwhite unlimited reader".split(" "))],
+        ["react", new Set("app apps component components hook hooks native router developer plugin".split(" "))],
+        ["mac", new Set("app apps user users computer computers laptop laptops version keyboard".split(" "))],
+        ["windows", new Set("10 11 7 8 xp vista server update updates pc pcs laptop laptops machine machines user users computer computers version defender explorer store".split(" "))],
+        ["apple", new Set("inc employee employees stock shares products device devices account store stores silicon pencil".split(" "))]
+        ])
+      namesContext:
+        args: "ctx: DetectContext, start: number, end: number"
+        return: "({ start: Math.max(0, start - 96), end: Math.min(ctx.text.length, end + 40) })"
+      NAMES_TENS: '["", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC"]'
+      NAMES_ONES: '["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"]'
+      namesRoman:
+        args: "n: number"
+        return: NAMES_TENS[Math.floor(n / 10)] + NAMES_ONES[n % 10]
     frames:
       # Brand names that are also ordinary words ("excel", "word", "chrome"): only before a noun
       # that only the product has.
       - regex: "(?<w>excel|word|outlook|chrome|opera|google|twitter|slack|kindle|react|mac|windows|apple){{S}}(?<n>[a-z0-9]+){{E}}"
         owner: w
-        fixer: namesProduct
+        let:
+          nouns: NAMES_PRODUCT_NOUNS.get(w)
+        when:
+          # Lowercase only: "WORD DOCUMENT" is emphasis, "Word document" is already right.
+          - "!(!nouns || w !== w.toLowerCase() || !nouns.has(n.toLowerCase()) || ctx.dictionary.has(w))"
+          # "to excel", "to react": the verb.
+          - '!(NAMES_VERBS.has(w) && /(?:^|[^\p{L}])to[ \t ]+$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)))'
+          # "Microsoft Word", "MS Excel": the names table matches the whole name.
+          - '!/(?:microsoft|ms|google|apple)[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))'
+        return: >-
+          ({ ruleId: "englishCanonicalCasing", messageKey: "review_msg_canonical_casing",
+          range: { start: m.index, end: m.index + w.length }, alternatives: [NAMES_PRODUCT[w]],
+          context: namesContext(ctx, m.index, m.index + m[0].length) })
       # "Super Bowl 55" is numbered in Roman numerals (Super Bowl LV); the 50th game was "Super
       # Bowl 50".
       - regex: "super{{S}}bowl{{S}}(?<n>[1-9][0-9]?){{E}}(?![.,][0-9])"
         owner: n
-        fixer: namesSuperBowl
+        let:
+          num: Number(n)
+          end: m.indices!.groups!.n[1]
+        when: num !== 50
+        return: >-
+          finding("englishCanonicalCasing", "review_msg_roman_numeral_name", m.indices!.groups!.n[0], end,
+          [namesRoman(num)], { context: namesContext(ctx, m.index, end) })
   - id: en.properNouns
     checks: [englishProperNounCapitalization]
     style: match
     message: review_msg_nationality_capital
     filter: usOutsideExamples
+    sets:
+      # Nationalities, languages and religions are proper adjectives in English.
+      NAMES_PEOPLES:
+        [
+          english,
+          french,
+          german,
+          spanish,
+          italian,
+          portuguese,
+          russian,
+          chinese,
+          japanese,
+          korean,
+          arabic,
+          hindi,
+          hebrew,
+          greek,
+          swedish,
+          norwegian,
+          finnish,
+          icelandic,
+          irish,
+          scottish,
+          welsh,
+          british,
+          american,
+          canadian,
+          mexican,
+          brazilian,
+          argentinian,
+          australian,
+          european,
+          african,
+          asian,
+          indian,
+          pakistani,
+          egyptian,
+          israeli,
+          iranian,
+          iraqi,
+          turkish,
+          ukrainian,
+          hungarian,
+          romanian,
+          bulgarian,
+          serbian,
+          croatian,
+          czech,
+          slovak,
+          vietnamese,
+          indonesian,
+          filipino,
+          nigerian,
+          kenyan,
+          belgian,
+          austrian,
+          latin,
+          christian,
+          muslim,
+          jewish,
+          buddhist,
+          hindu,
+          islamic,
+          protestant,
+          dutch,
+          polish,
+        ]
+      # Lowercase in set phrases: "french fries", "go dutch", "nail polish".
+      NAMES_FRENCH_AFTER:
+        [
+          fries,
+          fry,
+          toast,
+          door,
+          doors,
+          window,
+          windows,
+          horn,
+          press,
+          braid,
+          braids,
+          kiss,
+          manicure,
+        ]
+      NAMES_DUTCH_BEFORE: [go, goes, going, went, double]
+      # "polish" is mostly the verb and the noun: only as a language or a people.
+      NAMES_POLISH_NOUNS:
+        [
+          people,
+          language,
+          government,
+          citizen,
+          citizens,
+          nationality,
+          president,
+          army,
+          border,
+          history,
+          culture,
+          cuisine,
+          food,
+          city,
+          cities,
+          town,
+          national,
+          translation,
+          version,
+          lessons,
+          lesson,
+          class,
+          teacher,
+          speaker,
+          speakers,
+          word,
+          words,
+          name,
+          names,
+          origin,
+          descent,
+          family,
+          friend,
+          friends,
+        ]
+      NAMES_POLISH_VERBS:
+        [
+          speak,
+          speaks,
+          speaking,
+          spoke,
+          learn,
+          learns,
+          learning,
+          learned,
+          learnt,
+          study,
+          studies,
+          studying,
+          translate,
+          translated,
+          into,
+          from,
+          am,
+          is,
+          are,
+          was,
+          were,
+        ]
+    maps:
+      # Places whose names are also ordinary words ("china", "turkey", "long island").
+      NAMES_PLACE_WORDS:
+        {
+          china: China,
+          japan: Japan,
+          turkey: Turkey,
+          shanghai: Shanghai,
+          queens: Queens,
+          long island: Long Island,
+          long beach: Long Beach,
+        }
+    defs:
+      # The capitalized name for the `w` group. Lowercase only; a capitalized first word is
+      # already a name or the choice of the writer.
+      namesPlaceFinding:
+        args: 'ctx: DetectContext, m: RegExpExecArray, name: string, messageKey: RawFinding["messageKey"]'
+        let:
+          start: m.indices!.groups!.w[0]
+          end: m.indices!.groups!.w[1]
+          typed: m.groups!.w
+        when: typed === typed.toLowerCase() && !ctx.dictionary.has(typed)
+        return: >-
+          finding("englishProperNounCapitalization", messageKey, start, end, [name],
+          { context: namesContext(ctx, m.index, end) })
     frames:
       # Nationalities, languages and religions are proper adjectives in English. One
       # case-sensitive alternation of the lowercase forms, not a scan of every word.
       - regex: "(?<!{{EDGE}})(?<w>english|french|german|spanish|italian|portuguese|russian|chinese|japanese|korean|arabic|hindi|hebrew|greek|swedish|norwegian|finnish|icelandic|irish|scottish|welsh|british|american|canadian|mexican|brazilian|argentinian|australian|european|african|asian|indian|pakistani|egyptian|israeli|iranian|iraqi|turkish|ukrainian|hungarian|romanian|bulgarian|serbian|croatian|czech|slovak|vietnamese|indonesian|filipino|nigerian|kenyan|belgian|austrian|latin|christian|muslim|jewish|buddhist|hindu|islamic|protestant|dutch|polish){{E}}"
         flags: dgu
         owner: w
-        fixer: namesNationality
+        let:
+          end: m.index + w.length
+          after: '/^[ \t ]+([A-Za-z]+)/.exec(ctx.text.slice(end, end + 24))?.[1].toLowerCase()'
+          before: '/([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1].toLowerCase()'
+          closes: 'w === "polish" && /^[ \t ]*(?:[.!?,;:)]|$|and\b|or\b)/.test(ctx.text.slice(end, end + 8))'
+        when:
+          - NAMES_PEOPLES.has(w) && !ctx.dictionary.has(w)
+          - '!(after && w === "french" && NAMES_FRENCH_AFTER.has(after))'
+          - '!(before && w === "dutch" && NAMES_DUTCH_BEFORE.has(before))'
+          - 'w !== "polish" || (after && NAMES_POLISH_NOUNS.has(after)) || (before && NAMES_POLISH_VERBS.has(before) && closes)'
+        return: >-
+          ({ ruleId: "englishProperNounCapitalization", messageKey: "review_msg_nationality_capital",
+          range: { start: m.index, end }, alternatives: [w[0].toUpperCase() + w.slice(1)],
+          context: namesContext(ctx, m.index, end) })
       # Places whose names are also ordinary words ("china", "turkey", "long island"): only where
       # a place goes, after "born in", "from", "a trip to"…, and before the clause ends.
       - regex: "(?:{{PROPERNAMES_PLACE_LEAD}}){{S}}(?<w>china|japan|turkey|shanghai|queens|long{{S}}island|long{{S}}beach){{PROPERNAMES_PLACE_FOLLOW}}"
         owner: w
-        fixer: namesPlace
+        return: >-
+          namesPlaceFinding(ctx, m, NAMES_PLACE_WORDS[w.toLowerCase().replace(/\s+/g, " ")],
+          "review_msg_name_casing")
       # Named seas after "the": "the black sea" (a black sea is any dark one).
       - regex: "the{{S}}(?<w>(?:black|red|dead|north){{S}}sea)(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|{{S}}(?:and|or|in|to|from|is|was|at|by|near|with|for|daily|every|each|today|again|too|coast|region|area|fleet){{E}})"
         owner: w
-        fixer: namesSea
+        return: 'namesPlaceFinding(ctx, m, w.replace(/\b\w/g, (c) => c.toUpperCase()), "review_msg_name_casing")'
       # The holiday, not giving thanks: "Happy thanksgiving", "over thanksgiving".
       - regex: "(?:happy|this|last|next|on|over|at|until|since|before|after|during){{S}}(?<w>thanksgiving){{E}}"
         owner: w
-        fixer: namesThanksgiving
+        return: namesPlaceFinding(ctx, m, "Thanksgiving", "review_msg_proper_noun")
   - id: en.notation
     checks: [englishNotation]
     style: match

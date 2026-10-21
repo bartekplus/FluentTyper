@@ -3,7 +3,6 @@
 import { mergePredicates, type FindingsFilter, type Fixer } from "../../engine/reviewRules";
 import * as apostrophes from "./apostrophes";
 import * as compoundForms from "./compoundForms";
-import * as properNames from "./properNames";
 import * as plainStyle from "./plainStyle";
 import * as punctuation from "./punctuation";
 import * as articles from "./articles";
@@ -28,7 +27,6 @@ import * as wordClassSlots from "./wordClassSlots";
 import * as dialects from "./dialects";
 import * as lexical from "./lexical";
 import * as remaining from "./remaining";
-import * as usageTables from "./usageTables";
 import * as confusions2 from "./confusions2";
 import * as fixedPhrases from "./fixedPhrases";
 import * as grammarStyle1 from "./grammarStyle1";
@@ -85,7 +83,6 @@ export const FIXERS = mergePredicates<Fixer>(
   confusions2.FIXERS,
   lexical.FIXERS,
   dialects.FIXERS,
-  usageTables.FIXERS,
   typography.FIXERS,
   dates.FIXERS,
   compoundForms.FIXERS,
@@ -95,7 +92,6 @@ export const FIXERS = mergePredicates<Fixer>(
   relativeSlots.FIXERS,
   missingVerbSlots.FIXERS,
   plainStyle.FIXERS,
-  properNames.FIXERS,
   complementSlots.FIXERS,
   contractionSlots.FIXERS,
   nounNumberSlots.FIXERS,

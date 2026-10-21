@@ -152,6 +152,159 @@ export const COLLOCATION_POSSESSIVES: ReadonlySet<string> = new Set([
   "their",
 ]);
 
+export const NAMES_VERBS: ReadonlySet<string> = new Set(["excel", "google", "kindle", "react"]);
+
+export const NAMES_PEOPLES: ReadonlySet<string> = new Set([
+  "english",
+  "french",
+  "german",
+  "spanish",
+  "italian",
+  "portuguese",
+  "russian",
+  "chinese",
+  "japanese",
+  "korean",
+  "arabic",
+  "hindi",
+  "hebrew",
+  "greek",
+  "swedish",
+  "norwegian",
+  "finnish",
+  "icelandic",
+  "irish",
+  "scottish",
+  "welsh",
+  "british",
+  "american",
+  "canadian",
+  "mexican",
+  "brazilian",
+  "argentinian",
+  "australian",
+  "european",
+  "african",
+  "asian",
+  "indian",
+  "pakistani",
+  "egyptian",
+  "israeli",
+  "iranian",
+  "iraqi",
+  "turkish",
+  "ukrainian",
+  "hungarian",
+  "romanian",
+  "bulgarian",
+  "serbian",
+  "croatian",
+  "czech",
+  "slovak",
+  "vietnamese",
+  "indonesian",
+  "filipino",
+  "nigerian",
+  "kenyan",
+  "belgian",
+  "austrian",
+  "latin",
+  "christian",
+  "muslim",
+  "jewish",
+  "buddhist",
+  "hindu",
+  "islamic",
+  "protestant",
+  "dutch",
+  "polish",
+]);
+
+export const NAMES_FRENCH_AFTER: ReadonlySet<string> = new Set([
+  "fries",
+  "fry",
+  "toast",
+  "door",
+  "doors",
+  "window",
+  "windows",
+  "horn",
+  "press",
+  "braid",
+  "braids",
+  "kiss",
+  "manicure",
+]);
+
+export const NAMES_DUTCH_BEFORE: ReadonlySet<string> = new Set([
+  "go",
+  "goes",
+  "going",
+  "went",
+  "double",
+]);
+
+export const NAMES_POLISH_NOUNS: ReadonlySet<string> = new Set([
+  "people",
+  "language",
+  "government",
+  "citizen",
+  "citizens",
+  "nationality",
+  "president",
+  "army",
+  "border",
+  "history",
+  "culture",
+  "cuisine",
+  "food",
+  "city",
+  "cities",
+  "town",
+  "national",
+  "translation",
+  "version",
+  "lessons",
+  "lesson",
+  "class",
+  "teacher",
+  "speaker",
+  "speakers",
+  "word",
+  "words",
+  "name",
+  "names",
+  "origin",
+  "descent",
+  "family",
+  "friend",
+  "friends",
+]);
+
+export const NAMES_POLISH_VERBS: ReadonlySet<string> = new Set([
+  "speak",
+  "speaks",
+  "speaking",
+  "spoke",
+  "learn",
+  "learns",
+  "learning",
+  "learned",
+  "learnt",
+  "study",
+  "studies",
+  "studying",
+  "translate",
+  "translated",
+  "into",
+  "from",
+  "am",
+  "is",
+  "are",
+  "was",
+  "were",
+]);
+
 export const PASSIVE_STATIVE: ReadonlySet<string> = new Set([
   "closed",
   "located",
@@ -252,12 +405,45 @@ export const PASSIVE_REPORTING: ReadonlySet<string> = new Set([
   "understood",
 ]);
 
+export const USAGE_MAIL_FORMS: Readonly<Record<string, string>> = {
+  send: "",
+  sends: "s",
+  sent: "ed",
+  sending: "ing",
+};
+
 export const NEGATION_ANY: Readonly<Record<string, string>> = {
   nothing: "anything",
   nobody: "anybody",
   nowhere: "anywhere",
   neither: "either",
   no: "any",
+};
+
+export const NAMES_PRODUCT: Readonly<Record<string, string>> = {
+  excel: "Excel",
+  word: "Word",
+  outlook: "Outlook",
+  chrome: "Chrome",
+  opera: "Opera",
+  google: "Google",
+  twitter: "Twitter",
+  slack: "Slack",
+  kindle: "Kindle",
+  react: "React",
+  mac: "Mac",
+  windows: "Windows",
+  apple: "Apple",
+};
+
+export const NAMES_PLACE_WORDS: Readonly<Record<string, string>> = {
+  china: "China",
+  japan: "Japan",
+  turkey: "Turkey",
+  shanghai: "Shanghai",
+  queens: "Queens",
+  "long island": "Long Island",
+  "long beach": "Long Beach",
 };
 
 export const BRITISH_UNITS: Readonly<Record<string, string>> = {
@@ -304,6 +490,52 @@ export const CLASH_BE_I: Readonly<Record<string, string>> = {
 export const CLASH_BE_PLURAL: Readonly<Record<string, string>> = { is: "aren't", was: "weren't" };
 
 export const CLASH_BE_SINGULAR: Readonly<Record<string, string>> = { are: "isn't", were: "wasn't" };
+
+// en.yaml rule en.usageFrames def usageInfo
+export function usageInfo(word: string) {
+  return englishWordInfo(word.toLowerCase());
+}
+
+// en.yaml rule en.usageFrames def usageAdverbOf
+export function usageAdverbOf(adjective: string) {
+  const a = adjective.toLowerCase();
+  const form = a.endsWith("ic")
+    ? `${a}ally`
+    : /[^aeiou]y$/.test(a)
+      ? `${a.slice(0, -1)}ily`
+      : /[^aeiou]le$/.test(a)
+        ? `${a.slice(0, -1)}y`
+        : `${a}ly`;
+  return usageInfo(a)?.adjective && usageInfo(form)?.adverb ? form : null;
+}
+
+// en.yaml rule en.usageFrames def usageAdjectiveOnly
+export function usageAdjectiveOnly(word: string) {
+  const entry = usageInfo(word);
+  return !!entry?.adjective && !entry.verbs.length;
+}
+
+// en.yaml rule en.usageFrames def usageStyled
+export function usageStyled(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  alts: string[],
+): RawFinding | null {
+  if (hasUserOrCasedWord(ctx, m[0])) return null;
+  const start = m.indices!.groups!.target[0];
+  const end = m.indices!.groups!.target[1];
+  const typed = ctx.text.slice(start, end);
+  const cased = alts.map((alt) =>
+    /^\p{Lu}/u.test(typed) ? alt[0].toUpperCase() + alt.slice(1) : alt,
+  );
+  return {
+    ruleId: "stylePhrasing",
+    messageKey: "review_msg_style_phrasing",
+    range: { start, end },
+    alternatives: cased,
+    ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
 
 // en.yaml rule en.toForToo def degreeLexiconTarget
 export function degreeLexiconTarget(word: string): boolean {
@@ -1141,6 +1373,95 @@ export function tensePastDateFutureVerb(m: RegExpExecArray, ctx: DetectContext):
   );
 }
 
+// en.yaml rule en.productNames def NAMES_PRODUCT_NOUNS
+export const NAMES_PRODUCT_NOUNS = new Map<string, ReadonlySet<string>>([
+  [
+    "excel",
+    new Set(
+      "file files sheet sheets spreadsheet spreadsheets workbook workbooks document documents formula formulas table tables macro macros chart charts skills".split(
+        " ",
+      ),
+    ),
+  ],
+  ["word", new Set("document documents doc docs docx file files template templates".split(" "))],
+  [
+    "outlook",
+    new Set("mail mails email emails inbox calendar invite invites account app client".split(" ")),
+  ],
+  ["chrome", new Set("browser devtools tab tabs".split(" "))],
+  ["opera", new Set("browser".split(" "))],
+  [
+    "google",
+    new Set(
+      "doc account accounts assistant scholar earth workspace trends traffic results ranking rankings".split(
+        " ",
+      ),
+    ),
+  ],
+  [
+    "twitter",
+    new Set("account accounts feed handle post posts followers thread threads".split(" ")),
+  ],
+  ["slack", new Set("channel channels workspace workspaces app bot".split(" "))],
+  ["kindle", new Set("app device tablet edition store paperwhite unlimited reader".split(" "))],
+  [
+    "react",
+    new Set("app apps component components hook hooks native router developer plugin".split(" ")),
+  ],
+  [
+    "mac",
+    new Set("app apps user users computer computers laptop laptops version keyboard".split(" ")),
+  ],
+  [
+    "windows",
+    new Set(
+      "10 11 7 8 xp vista server update updates pc pcs laptop laptops machine machines user users computer computers version defender explorer store".split(
+        " ",
+      ),
+    ),
+  ],
+  [
+    "apple",
+    new Set(
+      "inc employee employees stock shares products device devices account store stores silicon pencil".split(
+        " ",
+      ),
+    ),
+  ],
+]);
+
+// en.yaml rule en.productNames def namesContext
+export function namesContext(ctx: DetectContext, start: number, end: number) {
+  return { start: Math.max(0, start - 96), end: Math.min(ctx.text.length, end + 40) };
+}
+
+// en.yaml rule en.productNames def NAMES_TENS
+export const NAMES_TENS = ["", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC"];
+
+// en.yaml rule en.productNames def NAMES_ONES
+export const NAMES_ONES = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"];
+
+// en.yaml rule en.productNames def namesRoman
+export function namesRoman(n: number) {
+  return NAMES_TENS[Math.floor(n / 10)] + NAMES_ONES[n % 10];
+}
+
+// en.yaml rule en.properNouns def namesPlaceFinding
+export function namesPlaceFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  name: string,
+  messageKey: RawFinding["messageKey"],
+) {
+  const start = m.indices!.groups!.w[0];
+  const end = m.indices!.groups!.w[1];
+  const typed = m.groups!.w;
+  if (!(typed === typed.toLowerCase() && !ctx.dictionary.has(typed))) return null;
+  return finding("englishProperNounCapitalization", messageKey, start, end, [name], {
+    context: namesContext(ctx, m.index, end),
+  });
+}
+
 // en.yaml rule en.britishUsage def britishBoot
 export function britishBoot(m: RegExpExecArray, ctx: DetectContext) {
   if (/\bboots?\b/i.test(ctx.text.slice(Math.max(0, m.index - 120), m.index + m[0].length + 120)))
@@ -1366,6 +1687,51 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
+  },
+  // en.yaml rule en.usageFrames frame 1
+  "@en.usageFrames/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const adjective = m.groups!.adjective;
+    const adverb = usageAdverbOf(adjective);
+    if (!adverb) return null;
+    return usageStyled(m, ctx, [adverb]);
+  },
+  // en.yaml rule en.usageFrames frame 2
+  "@en.usageFrames/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const object = m.groups!.object;
+    const mail = m.groups!.mail;
+    const form = USAGE_MAIL_FORMS[verb.toLowerCase()];
+    if (!(form !== undefined)) return null;
+    return usageStyled(m, ctx, [`${mail.toLowerCase()}${form} ${object}`]);
+  },
+  // en.yaml rule en.usageFrames frame 3
+  "@en.usageFrames/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const adjective = m.groups!.adjective;
+    const plain = adjective.toLowerCase();
+    if (!usageInfo(plain)?.adjective) return null;
+    const negative = ["un", "in", "im", "ir", "il"]
+      .map((prefix) => prefix + plain)
+      .find((word) => usageAdjectiveOnly(word));
+    if (!negative) return null;
+    return usageStyled(m, ctx, [negative]);
+  },
+  // en.yaml rule en.contractionCase frame 1
+  "@en.contractionCase/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const head = m.groups!.head;
+    const mark = m.groups!.mark;
+    const tail = m.groups!.tail;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    const tailHasUpper = tail !== tail.toLowerCase();
+    if (!tailHasUpper || (head === head.toUpperCase() && tail === tail.toUpperCase())) return null;
+    if (ctx.dictionary.has(`${head}${mark}${tail}`.toLowerCase())) return null;
+    const start = m.index + head.length + mark.length;
+    return {
+      ruleId: "englishContractionNormalization",
+      messageKey: "review_msg_contraction",
+      range: { start, end: start + tail.length },
+      alternatives: [tail.toLowerCase()],
+      context: { start: m.index, end: start + tail.length },
+    };
   },
   // en.yaml rule en.toForToo frame 1
   "@en.toForToo/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
@@ -1929,6 +2295,98 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.tenseTimeWords frame 8
   "@en.tenseTimeWords/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     return tensePastDateFutureVerb(m, ctx);
+  },
+  // en.yaml rule en.productNames frame 1
+  "@en.productNames/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const w = m.groups!.w;
+    const n = m.groups!.n;
+    const nouns = NAMES_PRODUCT_NOUNS.get(w);
+    if (!nouns || w !== w.toLowerCase() || !nouns.has(n.toLowerCase()) || ctx.dictionary.has(w))
+      return null;
+    if (
+      NAMES_VERBS.has(w) &&
+      /(?:^|[^\p{L}])to[ \t ]+$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    )
+      return null;
+    if (
+      /(?:microsoft|ms|google|apple)[ \t ]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 12), m.index),
+      )
+    )
+      return null;
+    return {
+      ruleId: "englishCanonicalCasing",
+      messageKey: "review_msg_canonical_casing",
+      range: { start: m.index, end: m.index + w.length },
+      alternatives: [NAMES_PRODUCT[w]],
+      context: namesContext(ctx, m.index, m.index + m[0].length),
+    };
+  },
+  // en.yaml rule en.productNames frame 2
+  "@en.productNames/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const n = m.groups!.n;
+    const num = Number(n);
+    if (!(num !== 50)) return null;
+    const end = m.indices!.groups!.n[1];
+    return finding(
+      "englishCanonicalCasing",
+      "review_msg_roman_numeral_name",
+      m.indices!.groups!.n[0],
+      end,
+      [namesRoman(num)],
+      { context: namesContext(ctx, m.index, end) },
+    );
+  },
+  // en.yaml rule en.properNouns frame 1
+  "@en.properNouns/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const w = m.groups!.w;
+    if (!(NAMES_PEOPLES.has(w) && !ctx.dictionary.has(w))) return null;
+    const end = m.index + w.length;
+    const after = /^[ \t ]+([A-Za-z]+)/.exec(ctx.text.slice(end, end + 24))?.[1].toLowerCase();
+    if (after && w === "french" && NAMES_FRENCH_AFTER.has(after)) return null;
+    const before = /([A-Za-z]+)[ \t ]+$/
+      .exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1]
+      .toLowerCase();
+    if (before && w === "dutch" && NAMES_DUTCH_BEFORE.has(before)) return null;
+    const closes =
+      w === "polish" && /^[ \t ]*(?:[.!?,;:)]|$|and\b|or\b)/.test(ctx.text.slice(end, end + 8));
+    if (!(
+      w !== "polish" ||
+      (after && NAMES_POLISH_NOUNS.has(after)) ||
+      (before && NAMES_POLISH_VERBS.has(before) && closes)
+    ))
+      return null;
+    return {
+      ruleId: "englishProperNounCapitalization",
+      messageKey: "review_msg_nationality_capital",
+      range: { start: m.index, end },
+      alternatives: [w[0].toUpperCase() + w.slice(1)],
+      context: namesContext(ctx, m.index, end),
+    };
+  },
+  // en.yaml rule en.properNouns frame 2
+  "@en.properNouns/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const w = m.groups!.w;
+    return namesPlaceFinding(
+      ctx,
+      m,
+      NAMES_PLACE_WORDS[w.toLowerCase().replace(/\s+/g, " ")],
+      "review_msg_name_casing",
+    );
+  },
+  // en.yaml rule en.properNouns frame 3
+  "@en.properNouns/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const w = m.groups!.w;
+    return namesPlaceFinding(
+      ctx,
+      m,
+      w.replace(/\b\w/g, (c) => c.toUpperCase()),
+      "review_msg_name_casing",
+    );
+  },
+  // en.yaml rule en.properNouns frame 4
+  "@en.properNouns/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return namesPlaceFinding(ctx, m, "Thanksgiving", "review_msg_proper_noun");
   },
   // en.yaml rule en.passiveVoice frame 1
   "@en.passiveVoice/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

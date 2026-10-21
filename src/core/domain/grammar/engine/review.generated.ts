@@ -9873,25 +9873,25 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>in[ \\t\\u00a0]{1,8}an?[ \\t\\u00a0]{1,8}(?<adjective>[a-z]+)[ \\t\\u00a0]{1,8}(?:manner|way|fashion))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]+(?:that|which|to|as|of|than|for|in|you|we|I|it)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["manner", "way", "fashion"],
-    fixer: "en:mannerAdverb",
+    fixer: "en:@en.usageFrames/1",
   }),
   frame({
     pattern:
       "(?<target>(?<verb>send|sends|sent|sending)[ \\t\\u00a0]{1,8}(?<object>me|you|him|her|us|them)[ \\t\\u00a0]{1,8}an[ \\t\\u00a0]{1,8}(?<mail>email|e-mail))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["send", "sends", "sent", "sending"],
-    fixer: "en:sendEmail",
+    fixer: "en:@en.usageFrames/2",
   }),
   frame({
     pattern:
       "(?:is|are|was|were|be|been|being|seems?|seemed|looks?|looked)[ \\t\\u00a0]{1,8}(?<target>not[ \\t\\u00a0]{1,8}(?<adjective>[a-z]{4,}))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]+(?:enough|only|just|as|so|but)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["not"],
-    fixer: "en:notAdjective",
+    fixer: "en:@en.usageFrames/3",
   }),
   frame({
     pattern:
       "(?<![\\p{L}\\p{N}_'’])(?<head>\\p{L}+)(?<mark>['’])(?<tail>s|t|re|ve|ll|d|m)(?![\\p{L}\\p{N}_])",
     literals: [],
-    fixer: "en:contractionCase",
+    fixer: "en:@en.contractionCase/1",
     flags: "dgiu",
     owner: "none",
   }),
@@ -11547,14 +11547,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "windows",
       "apple",
     ],
-    fixer: "en:namesProduct",
+    fixer: "en:@en.productNames/1",
     owner: "w",
   }),
   frame({
     pattern:
       "super[ \\t\\u00a0]{1,8}bowl[ \\t\\u00a0]{1,8}(?<n>[1-9][0-9]?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![.,][0-9])",
     literals: ["super"],
-    fixer: "en:namesSuperBowl",
+    fixer: "en:@en.productNames/2",
     owner: "n",
   }),
   frame({
@@ -11625,7 +11625,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "dutch",
       "polish",
     ],
-    fixer: "en:namesNationality",
+    fixer: "en:@en.properNouns/1",
     flags: "dgu",
     owner: "w",
   }),
@@ -11633,21 +11633,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:born|live|lives|lived|living|grew[ \\t]+up|raised|based|stationed|stayed|staying|studied|studying|worked|working|vacation|holiday|holidays)[ \\t]+in|from|visit|visits|visiting|visited|(?:moved|move|moving|trip|trips|flight|flights|flew|fly|flying|travel|traveled|travelled|traveling|travelling|back|went|go|going|came|come|returned|return|relocated|emigrated|immigrated)[ \\t]+to)[ \\t\\u00a0]{1,8}(?<w>china|japan|turkey|shanghai|queens|long[ \\t\\u00a0]{1,8}island|long[ \\t\\u00a0]{1,8}beach)(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|[ \\t\\u00a0]{1,8}(?:and|or|but|for|last|next|this|in|on|at|with|because|when|where|since|until|before|after|recently|yesterday|years?|months?|weeks?|ago|as)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["china", "japan", "turkey", "shanghai", "queens", "island", "beach"],
-    fixer: "en:namesPlace",
+    fixer: "en:@en.properNouns/2",
     owner: "w",
   }),
   frame({
     pattern:
       "the[ \\t\\u00a0]{1,8}(?<w>(?:black|red|dead|north)[ \\t\\u00a0]{1,8}sea)(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|[ \\t\\u00a0]{1,8}(?:and|or|in|to|from|is|was|at|by|near|with|for|daily|every|each|today|again|too|coast|region|area|fleet)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["the"],
-    fixer: "en:namesSea",
+    fixer: "en:@en.properNouns/3",
     owner: "w",
   }),
   frame({
     pattern:
       "(?:happy|this|last|next|on|over|at|until|since|before|after|during)[ \\t\\u00a0]{1,8}(?<w>thanksgiving)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["thanksgiving"],
-    fixer: "en:namesThanksgiving",
+    fixer: "en:@en.properNouns/4",
     owner: "w",
   }),
   frame({
