@@ -11,27 +11,145 @@ fragments:
 sets:
   EL_ARTICLES: [ο, η, οι, το, τα, τον, την, τη, του, της, των, τους, τις]
   # Negating "δε" cannot stand right before a conjunction: there it is cited or adversative.
-  EL_CONJUNCTIONS: [οταν, οτι, αν, εαν, η, ενω, επειδη, αφου, οπως, ωστε, οποτε, αλλα, ομως, ουτε, ειτε, οσο, ως]
+  EL_CONJUNCTIONS:
+    [οταν, οτι, αν, εαν, η, ενω, επειδη, αφου, οπως, ωστε, οποτε, αλλα, ομως, ουτε, ειτε, οσο, ως]
   # Masculine accusatives, unaccented: their article is always "τον". Nouns of common gender
   # (ο/η πρόεδρος) and forms that are also neuter words or adjectives ("ήλιο" helium, "φίλο
   # κράτος") are not in the list.
   EL_MASCULINE:
     [
-      λογο, χρονο, δρομο, κοσμο, νομο, ρολο, στοχο, τροπο, τοπο, φοβο, πονο, ουρανο, καιρο, σκοπο, κινδυνο,
-      ανθρωπο, ανεμο, υπνο, θανατο, πολεμο, λαο, θεο, γαμο, κηπο, τοιχο, δημο, οροφο, μισθο, χωρο, ποταμο,
-      φορο, ογκο, κυκλο, τυπο, ορο, κλαδο, θορυβο, στρατο, δασκαλο, καταλογο, διαλογο, ελεγχο, συλλογο,
-      γιο, ανιψιο, εχθρο, στιχο, ηχο, λοφο, βραχο, καμπο, λυκο, ταυρο, σκυλο, χορο, γυρο, ναο, ταφο, θρονο,
-      στολο, φακελο, νου, βασιλια, παππου, αιωνα, αγωνα, αντρα, πατερα, μηνα, αερα, κανονα, χαρακτηρα,
-      τομεα, χειμωνα, γειτονα, ηρωα, πινακα, αξονα, πυρηνα, μαθητη, καθηγητη, πελατη, επιβατη, εργατη,
-      χαρτη, πολιτη, αθλητη, ιδιοκτητη, δεικτη, υπολογιστη, διακοπτη, ανταγωνιστη,
+      λογο,
+      χρονο,
+      δρομο,
+      κοσμο,
+      νομο,
+      ρολο,
+      στοχο,
+      τροπο,
+      τοπο,
+      φοβο,
+      πονο,
+      ουρανο,
+      καιρο,
+      σκοπο,
+      κινδυνο,
+      ανθρωπο,
+      ανεμο,
+      υπνο,
+      θανατο,
+      πολεμο,
+      λαο,
+      θεο,
+      γαμο,
+      κηπο,
+      τοιχο,
+      δημο,
+      οροφο,
+      μισθο,
+      χωρο,
+      ποταμο,
+      φορο,
+      ογκο,
+      κυκλο,
+      τυπο,
+      ορο,
+      κλαδο,
+      θορυβο,
+      στρατο,
+      δασκαλο,
+      καταλογο,
+      διαλογο,
+      ελεγχο,
+      συλλογο,
+      γιο,
+      ανιψιο,
+      εχθρο,
+      στιχο,
+      ηχο,
+      λοφο,
+      βραχο,
+      καμπο,
+      λυκο,
+      ταυρο,
+      σκυλο,
+      χορο,
+      γυρο,
+      ναο,
+      ταφο,
+      θρονο,
+      στολο,
+      φακελο,
+      νου,
+      βασιλια,
+      παππου,
+      αιωνα,
+      αγωνα,
+      αντρα,
+      πατερα,
+      μηνα,
+      αερα,
+      κανονα,
+      χαρακτηρα,
+      τομεα,
+      χειμωνα,
+      γειτονα,
+      ηρωα,
+      πινακα,
+      αξονα,
+      πυρηνα,
+      μαθητη,
+      καθηγητη,
+      πελατη,
+      επιβατη,
+      εργατη,
+      χαρτη,
+      πολιτη,
+      αθλητη,
+      ιδιοκτητη,
+      δεικτη,
+      υπολογιστη,
+      διακοπτη,
+      ανταγωνιστη,
     ]
   # Words that can also be an adjective or a noun ("Αντίθετα αποτελέσματα", "Τέλος εποχής")
   # need a clause right after them: an article, a pronoun or a particle.
   EL_AMBIGUOUS: [αντιθετα, τελος, ναι, οχι, επιπλεον]
   EL_CLAUSE_OPENERS:
     [
-      ο, η, οι, το, τα, τον, την, τη, του, της, των, τους, τις,
-      θα, να, δεν, δε, μην, μη, ας, εγω, εσυ, αυτος, αυτη, αυτο, εμεις, εσεις, αυτοι, αυτες, αυτα, καθε, ολοι, ολα, ολες,
+      ο,
+      η,
+      οι,
+      το,
+      τα,
+      τον,
+      την,
+      τη,
+      του,
+      της,
+      των,
+      τους,
+      τις,
+      θα,
+      να,
+      δεν,
+      δε,
+      μην,
+      μη,
+      ας,
+      εγω,
+      εσυ,
+      αυτος,
+      αυτη,
+      αυτο,
+      εμεις,
+      εσεις,
+      αυτοι,
+      αυτες,
+      αυτα,
+      καθε,
+      ολοι,
+      ολα,
+      ολες,
     ]
   # Words in -ω that are not verbs: adverbs, numerals, pronouns.
   EL_NOT_VERBS: [εδω, πισω, πανω, κατω, εξω, μεσω, ανω, οκτω, οχτω, εγω, λογω, ηχω]
@@ -124,7 +242,7 @@ rules:
           - elTyped(m, ctx)
           - keepsFinalNu(next) === false
           # "Το δεν γράφεται…": a word cited after an article is not negating anything.
-          - '!(/^(?:δεν|μην)$/iu.test(target) && EL_ARTICLES.has(bareGreek(elWordBefore(ctx.text, m.index))))'
+          - "!(/^(?:δεν|μην)$/iu.test(target) && EL_ARTICLES.has(bareGreek(elWordBefore(ctx.text, m.index))))"
         return: elNextFinding(m, frame, m.index, target.slice(0, -1))
       # The masculine "τον" keeps its ν everywhere ("το ανταγωνισμό" -> "τον", common in
       # speech-like writing). Other masculine determiners keep their ν too: "έναν λόγο",
@@ -167,7 +285,7 @@ rules:
           start: m.index + m[0].length - target.length
         when:
           - start >= ctx.from && start < ctx.to && !EL_NOT_VERBS.has(bareGreek(target))
-          - '!ctx.dictionary.has(target.toLowerCase()) && !namedExampleBefore(ctx.text, m.index)'
+          - "!ctx.dictionary.has(target.toLowerCase()) && !namedExampleBefore(ctx.text, m.index)"
         return: >-
           ({
             ruleId: frame.ruleId,
@@ -192,8 +310,8 @@ rules:
           end: m.index + word.length
           rest: '/[.!;;?…\n]/u.exec(ctx.text.slice(end, end + 300))'
         when:
-          - '!(word.length > 1 && word === word.toUpperCase())'
-          - '!ctx.dictionary.has(word.toLowerCase()) && !namedExampleBefore(ctx.text, m.index)'
+          - "!(word.length > 1 && word === word.toUpperCase())"
+          - "!ctx.dictionary.has(word.toLowerCase()) && !namedExampleBefore(ctx.text, m.index)"
           - EL_SENTENCE_START.test(before) || (from === 0 && EL_AT_START.test(before))
           - rest && ";;?".includes(rest[0])
         return: >-
@@ -234,7 +352,7 @@ rules:
         when:
           - elTyped(m, ctx)
           - EL_SENTENCE_START.test(before) || (from === 0 && EL_AT_START.test(before))
-          - '!(EL_AMBIGUOUS.has(bare) && !EL_CLAUSE_OPENERS.has(bareGreek(next)))'
+          - "!(EL_AMBIGUOUS.has(bare) && !EL_CLAUSE_OPENERS.has(bareGreek(next)))"
           - >-
             bare !== "οχι" || /(?<!\p{L})(?:δεν|δε|μην|ούτε)(?!\p{L})/iu.test(ctx.text.slice(m.index + target.length,
             m.index + target.length + 200).split(/[.;;!?\n]/)[0])
@@ -245,7 +363,7 @@ rules:
         flags: gu
         message: review_msg_greek_repeated_marks
         # The first mark of "!!" or "…." is the one mark to keep.
-        when: '!namedExampleBefore(ctx.text, m.index)'
+        when: "!namedExampleBefore(ctx.text, m.index)"
         return: >-
           ({
             ruleId: frame.ruleId,
@@ -258,7 +376,7 @@ rules:
         flags: gu
         message: review_msg_greek_repeated_marks
         # The first mark of "!!" or "…." is the one mark to keep.
-        when: '!namedExampleBefore(ctx.text, m.index)'
+        when: "!namedExampleBefore(ctx.text, m.index)"
         return: >-
           ({
             ruleId: frame.ruleId,

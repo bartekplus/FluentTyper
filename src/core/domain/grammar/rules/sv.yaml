@@ -11,22 +11,151 @@ fragments:
 # The code of the rules' expressions (`let`, `when`, `return`): sets and defs.
 sets:
   SV_ORDINAL_BEFORE:
-    [den, det, på, i, för, till, sin, sitt, sina, min, mitt, din, ditt, hans, hennes, deras, dess, vår, vårt, er, ert, varje, kom, slutade, hamnade]
+    [
+      den,
+      det,
+      på,
+      i,
+      för,
+      till,
+      sin,
+      sitt,
+      sina,
+      min,
+      mitt,
+      din,
+      ditt,
+      hans,
+      hennes,
+      deras,
+      dess,
+      vår,
+      vårt,
+      er,
+      ert,
+      varje,
+      kom,
+      slutade,
+      hamnade,
+    ]
   # After these the -s is a plural ("två PCs"), before these the word ends its phrase.
-  SV_PLURAL_BEFORE: [två, tre, fyra, fem, sex, flera, många, alla, några, olika, dessa, de, inga, få, fler, våra, era, deras]
+  SV_PLURAL_BEFORE:
+    [
+      två,
+      tre,
+      fyra,
+      fem,
+      sex,
+      flera,
+      många,
+      alla,
+      några,
+      olika,
+      dessa,
+      de,
+      inga,
+      få,
+      fler,
+      våra,
+      era,
+      deras,
+    ]
   SV_NOT_NOUNS:
     [
-      för, och, som, i, på, med, till, av, är, var, har, hade, kan, ska, skulle, eller, men, från, att, om, under, efter,
-      inte, blir, blev, finns, kommer, måste, vid, mot, utan, så, när, då, där, hos, än, samt,
+      för,
+      och,
+      som,
+      i,
+      på,
+      med,
+      till,
+      av,
+      är,
+      var,
+      har,
+      hade,
+      kan,
+      ska,
+      skulle,
+      eller,
+      men,
+      från,
+      att,
+      om,
+      under,
+      efter,
+      inte,
+      blir,
+      blev,
+      finns,
+      kommer,
+      måste,
+      vid,
+      mot,
+      utan,
+      så,
+      när,
+      då,
+      där,
+      hos,
+      än,
+      samt,
     ]
   SV_CLAUSE_OPENERS:
-    [att, och, men, när, om, eftersom, då, så, medan, innan, tills, fast, fastän, ifall, därför, hur, varför, var, vad, sedan]
+    [
+      att,
+      och,
+      men,
+      när,
+      om,
+      eftersom,
+      då,
+      så,
+      medan,
+      innan,
+      tills,
+      fast,
+      fastän,
+      ifall,
+      därför,
+      hur,
+      varför,
+      var,
+      vad,
+      sedan,
+    ]
   # "gav en till mamma", "en till varje": till is the preposition before a person, a pronoun or
   # a quantifier.
   SV_PERSONS:
     [
-      mamma, pappa, mormor, morfar, farmor, farfar, bror, syster, kompis, vän, chef, granne, kollega, lärare, barn,
-      honom, henne, dem, dom, oss, er, mig, dig, sig, varje, alla, var, varandra,
+      mamma,
+      pappa,
+      mormor,
+      morfar,
+      farmor,
+      farfar,
+      bror,
+      syster,
+      kompis,
+      vän,
+      chef,
+      granne,
+      kollega,
+      lärare,
+      barn,
+      honom,
+      henne,
+      dem,
+      dom,
+      oss,
+      er,
+      mig,
+      dig,
+      sig,
+      varje,
+      alla,
+      var,
+      varandra,
     ]
 defs:
   SV_ORDINAL_NOUNS: '/^[ \t\u00a0]+(?:plats(?:en)?|gången|klass(?:en)?|våning(?:en)?|upplaga(?:n)?|århundradet|kvartalet|omgången|försöket|priset|raden|sidan|stycket|hand|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)(?![\p{L}])/u'
@@ -64,9 +193,9 @@ rules:
           before: svWordBefore(ctx.text, m.index)
           end: m.index + m[0].length
         when:
-          - '!namedExampleBefore(ctx.text, m.index)'
+          - "!namedExampleBefore(ctx.text, m.index)"
           - m[2] === expected
-          - '!(svCapitalized(before) && !svAtSentenceStart(ctx.text, m.index - before.length - 1))'
+          - "!(svCapitalized(before) && !svAtSentenceStart(ctx.text, m.index - before.length - 1))"
           - SV_ORDINAL_BEFORE.has(before.toLowerCase()) || SV_ORDINAL_NOUNS.test(ctx.text.slice(end, end + 24))
         return: >-
           ({
@@ -86,10 +215,10 @@ rules:
           next: '/^[ \t\u00a0]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 32))?.[1]'
           before: svWordBefore(ctx.text, m.index).toLowerCase()
         when:
-          - '!namedExampleBefore(ctx.text, m.index)'
+          - "!namedExampleBefore(ctx.text, m.index)"
           - next && !SV_NOT_NOUNS.has(next)
           - '!(SV_PLURAL_BEFORE.has(before) || /\d[ \t\u00a0]+$/u.test(ctx.text.slice(m.index - 4, m.index)))'
-          - '!ctx.dictionary.has(m[0].toLowerCase())'
+          - "!ctx.dictionary.has(m[0].toLowerCase())"
         return: >-
           ({
             ruleId: frame.ruleId,
@@ -108,14 +237,14 @@ rules:
           before: ctx.text.slice(Math.max(0, m.index - 24), m.index)
           end: m.index + word.length
         when:
-          - '!namedExampleBefore(ctx.text, m.index)'
-          - '!svAtSentenceStart(ctx.text, m.index)'
-          - '!(SV_DATE_ONLY.test(word) && !SV_DATE_BEFORE.test(before))'
+          - "!namedExampleBefore(ctx.text, m.index)"
+          - "!svAtSentenceStart(ctx.text, m.index)"
+          - "!(SV_DATE_ONLY.test(word) && !SV_DATE_BEFORE.test(before))"
           # A title or a name around it ("Svarta Fredagen", "Maj Andersson").
           - >-
             !(/\p{Lu}\p{Ll}*[ \t\u00a0]+$/u.test(before) ||
             /^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(end, end + 3)))
-          - '!ctx.dictionary.has(word.toLowerCase())'
+          - "!ctx.dictionary.has(word.toLowerCase())"
         return: >-
           ({
             ruleId: frame.ruleId,
@@ -151,9 +280,9 @@ rules:
         when:
           - form && form.form !== "both" && !adjectiveForm(noun)
           - gender
-          - '!(next && (adjectiveForm(next) || (next.length > 3 && nounGender(next))))'
-          - '![adjective, noun].some((word) => ctx.dictionary.has(word))'
-          - '!namedExampleBefore(ctx.text, m.index)'
+          - "!(next && (adjectiveForm(next) || (next.length > 3 && nounGender(next))))"
+          - "![adjective, noun].some((word) => ctx.dictionary.has(word))"
+          - "!namedExampleBefore(ctx.text, m.index)"
           - articleGender !== adjectiveGender
         return: >-
           gender === articleGender
@@ -192,7 +321,7 @@ rules:
         let:
           span: m.indices!.groups!.till
           between: ctx.text.slice(m.index + target.length, span[0])
-        when: '!namedExampleBefore(ctx.text, m.index)'
+        when: "!namedExampleBefore(ctx.text, m.index)"
         return: >-
           ({
             ruleId: frame.ruleId,
@@ -212,11 +341,11 @@ rules:
         flags: gu
         message: review_msg_swedish_de_dem
         when:
-          - '!namedExampleBefore(ctx.text, m.index)'
+          - "!namedExampleBefore(ctx.text, m.index)"
           - >-
             svAtSentenceStart(ctx.text, m.index) || /,[ \t\u00a0]*$/u.test(ctx.text.slice(Math.max(0, m.index - 3), m.index)) ||
             SV_CLAUSE_OPENERS.has(svWordBefore(ctx.text, m.index).toLowerCase())
-          - '!ctx.dictionary.has(target.toLowerCase())'
+          - "!ctx.dictionary.has(target.toLowerCase())"
         return: >-
           ({
             ruleId: frame.ruleId,
@@ -233,7 +362,7 @@ rules:
         message: review_msg_swedish_de_dem
         let:
           start: m.index + m[0].length - target.length
-        when: '!namedExampleBefore(ctx.text, m.index)'
+        when: "!namedExampleBefore(ctx.text, m.index)"
         return: >-
           ({
             ruleId: frame.ruleId,
@@ -255,10 +384,10 @@ rules:
           # A noun of the other gender cannot be "another"; one the dictionary lacks may be.
           gender: nounGender(noun)
         when:
-          - '!namedExampleBefore(ctx.text, m.index)'
-          - '!(SV_PERSONS.has(noun) || adjectiveForm(noun))'
+          - "!namedExampleBefore(ctx.text, m.index)"
+          - "!(SV_PERSONS.has(noun) || adjectiveForm(noun))"
           - '!(gender ? gender !== target.toLowerCase() : !/a$/u.test(noun) || target !== "en")'
-          - '!ctx.dictionary.has(noun)'
+          - "!ctx.dictionary.has(noun)"
         return: >-
           ({
             ruleId: frame.ruleId,
@@ -278,7 +407,7 @@ rules:
           sentence: ctx.text.slice(Math.max(0, m.index - 200), m.index)
           clause: sentence.slice(sentence.search(/[^.!?:\n]*$/u))
         when:
-          - '!namedExampleBefore(ctx.text, m.index)'
+          - "!namedExampleBefore(ctx.text, m.index)"
           - '!(clause.trim().split(/\s+/u).length < 3 || !SV_HAS_FINITE.test(clause))'
           - '!/(?<!\p{L})(?:som|vad|vilket|vilken|vilka)(?!\p{L})/iu.test(clause)'
           # A fronted subordinate clause ("När han kom hem frågade hon") is followed by V2.

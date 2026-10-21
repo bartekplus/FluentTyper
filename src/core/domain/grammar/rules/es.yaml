@@ -5,9 +5,9 @@ lang: es
 fragments:
   # Prefixes that are no word of their own, so a space after them is always a split.
   BOUND: "anti|ciber|pre|re|vice|hiper|inter|neuro|geo|nano|agro|sub|semi|multi|pos|infra|intra|seudo|pseudo|archi|hemi|co|fito|meso|hidro|termo|electro|cardio|psico|sero"
-  # Prefixes that are also words; FREE in review/spanish/prefixes.ts holds the same list.
+  # Prefixes that are also words; ES_FREE_PREFIXES of es.prefixes holds the same list.
   FREE: "ex|pro|des|post|poli|tele|video|foto|euro|afro|micro|macro|mini|ultra|super|súper|auto|radio|bio|eco|socio|mega|giga|kilo|zoo|extra|astro|hispano|anglo|franco|luso|físico|químico|cuasi"
-  # Month names; MONTH_NAMES in review/spanish/typography.ts holds the same list.
+  # Month names; ES_MONTHS of es.typography holds the same list.
   MONTH_NAMES: "enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre"
   # Short month names in numeric dates: "29-feb-2005".
   MONTH_SHORT: "ene|feb|mar|abr|may|jun|jul|ago|sep|sept|set|oct|nov|dic"
@@ -30,12 +30,63 @@ fragments:
 sets:
   ES_HABER:
     [
-      he, has, ha, hemos, habéis, han, había, habías, habíamos, habíais, habían, hube, hubo, habré, habrás,
-      habrá, habremos, habrán, habría, habrías, habríamos, habrían, haya, hayas, hayamos, hayan, hubiera,
-      hubieras, hubiéramos, hubieran, hubiese, haber, habiendo,
+      he,
+      has,
+      ha,
+      hemos,
+      habéis,
+      han,
+      había,
+      habías,
+      habíamos,
+      habíais,
+      habían,
+      hube,
+      hubo,
+      habré,
+      habrás,
+      habrá,
+      habremos,
+      habrán,
+      habría,
+      habrías,
+      habríamos,
+      habrían,
+      haya,
+      hayas,
+      hayamos,
+      hayan,
+      hubiera,
+      hubieras,
+      hubiéramos,
+      hubieran,
+      hubiese,
+      haber,
+      habiendo,
     ]
   ES_IR:
-    [voy, vas, va, vamos, vais, van, iba, ibas, íbamos, iban, fui, fuiste, fuimos, fueron, vaya, vayas, vayamos, vayan, ir, yendo]
+    [
+      voy,
+      vas,
+      va,
+      vamos,
+      vais,
+      van,
+      iba,
+      ibas,
+      íbamos,
+      iban,
+      fui,
+      fuiste,
+      fuimos,
+      fueron,
+      vaya,
+      vayas,
+      vayamos,
+      vayan,
+      ir,
+      yendo,
+    ]
 
 defs:
   # A finding that replaces [start, end) with each alternative.
@@ -106,45 +157,161 @@ rules:
       ES_ESTAR_PLACE_MANNER: [bien, mal, aquí, ahí, allí, allá, acá]
       ES_ESTAR_DEGREE: [muy, tan, bastante, demasiado, medio, casi]
       # Prepositions an "estar" phrase takes; "a", "para" and "por" start pronoun phrases too often.
-      ES_ESTAR_PREPOSITIONS: [en, con, sin, bajo, sobre, entre, junto, dentro, detrás, delante, encima]
+      ES_ESTAR_PREPOSITIONS:
+        [en, con, sin, bajo, sobre, entre, junto, dentro, detrás, delante, encima]
       # "esta en realidad", "esta sin duda": a pronoun and a parenthetical, not a location.
       ES_ESTAR_PARENTHETICAL:
-        [realidad, cambio, particular, concreto, general, especial, principio, efecto, definitiva, resumen, cuanto, parte, todo, duda, embargo]
+        [
+          realidad,
+          cambio,
+          particular,
+          concreto,
+          general,
+          especial,
+          principio,
+          efecto,
+          definitiva,
+          resumen,
+          cuanto,
+          parte,
+          todo,
+          duda,
+          embargo,
+        ]
       # "está de acuerdo", "está de moda": fixed "estar de" phrases.
       ES_ESTAR_DE:
         [
-          acuerdo, vacaciones, moda, pie, viaje, broma, baja, luto, más, sobra, paso, vuelta, camino, servicio,
-          guardia, parto, suerte, buenas, malas, fiesta, rodillas, espaldas,
+          acuerdo,
+          vacaciones,
+          moda,
+          pie,
+          viaje,
+          broma,
+          baja,
+          luto,
+          más,
+          sobra,
+          paso,
+          vuelta,
+          camino,
+          servicio,
+          guardia,
+          parto,
+          suerte,
+          buenas,
+          malas,
+          fiesta,
+          rodillas,
+          espaldas,
         ]
       # Quantifiers and "solo" read as masculine adjectives but start a pronoun's phrase: "esta mucho
       # más moderna", "esta solo es".
-      ES_ESTAR_QUANTIFIERS: [mucho, poco, tanto, otro, cuanto, uno, ninguno, alguno, mismo, todo, solo]
+      ES_ESTAR_QUANTIFIERS:
+        [mucho, poco, tanto, otro, cuanto, uno, ninguno, alguno, mismo, todo, solo]
       # Participles that are also everyday nouns the dictionary does not list as such.
       ES_PARTICIPLE_NOUNS:
         [
-          subida, bajada, bebida, entrada, llegada, mirada, parada, jugada, caída, herida, medida, venida,
-          ida, salida, comida, llamada, partida, vuelta, propuesta, respuesta, puesta, vista,
+          subida,
+          bajada,
+          bebida,
+          entrada,
+          llegada,
+          mirada,
+          parada,
+          jugada,
+          caída,
+          herida,
+          medida,
+          venida,
+          ida,
+          salida,
+          comida,
+          llamada,
+          partida,
+          vuelta,
+          propuesta,
+          respuesta,
+          puesta,
+          vista,
         ]
       # After these a verb is likely: the subject, a time adverb or "no" sits right before it.
       ES_ESTAR_BEFORE_VERB:
-        ["no", ya, ahora, todavía, aún, siempre, también, tampoco, nunca, hoy, ayer, aquí, ahí, allí, que, él, ella, usted, uno]
+        [
+          "no",
+          ya,
+          ahora,
+          todavía,
+          aún,
+          siempre,
+          también,
+          tampoco,
+          nunca,
+          hoy,
+          ayer,
+          aquí,
+          ahí,
+          allí,
+          que,
+          él,
+          ella,
+          usted,
+          uno,
+        ]
       ES_ESTAR_TIME: [siempre, todavía, ya, aún, ahora, también, hoy, nunca]
       # "esta los domingos abre": a time phrase after the pronoun.
       ES_ESTAR_TIME_NOUNS:
-        [domingos, lunes, martes, miércoles, jueves, viernes, sábados, semana, semanas, mañanas, tardes, noches, días, veces, vez, año, años, mes, meses]
+        [
+          domingos,
+          lunes,
+          martes,
+          miércoles,
+          jueves,
+          viernes,
+          sábados,
+          semana,
+          semanas,
+          mañanas,
+          tardes,
+          noches,
+          días,
+          veces,
+          vez,
+          año,
+          años,
+          mes,
+          meses,
+        ]
       # After these a participle closing its clause is the attribute of "está".
       ES_ESTAR_RELATIVES: ["y", e, pero, cual, cuales, quien, quienes, donde, cuando]
       ES_ESTAR_INTERROGATIVES: [dónde, adónde, cómo, quién, quiénes, cuándo]
       ES_ESTAR_SUBJECTS_3: [él, ella, usted]
-      ES_ESTAR_COUNTS: [dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez, veinte, treinta, cien, mil]
+      ES_ESTAR_COUNTS:
+        [dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez, veinte, treinta, cien, mil]
       ES_ESTAR_SUBJECTS_2: [tú, vos]
       # Words a demonstrative never comes before: "Esta cada día más cansada" is "está".
       ES_ESTAR_NOT_DETERMINED: [cada, afuera, encima, arriba, apenas]
-      ES_ESTAR_HABER: [he, has, ha, hemos, habéis, han, hay, había, habías, habían, hubo, haya, hayan]
+      ES_ESTAR_HABER:
+        [he, has, ha, hemos, habéis, han, hay, había, habías, habían, hubo, haya, hayan]
       # "que esté", "cuando esté", "tal vez esté": subjunctive triggers right before "este".
       ES_SUBJUNCTIVE_TRIGGERS: [que, cuando, aunque, mientras, ojalá, quizá, quizás]
       # Adverbs and the like that end like feminine nouns: "no está nada mal", "está fuera".
-      ES_NOT_AFTER_DEMONSTRATIVE: [nada, cada, nunca, ahora, fuera, afuera, cerca, encima, arriba, contra, mañana, media, toda, apenas]
+      ES_NOT_AFTER_DEMONSTRATIVE:
+        [
+          nada,
+          cada,
+          nunca,
+          ahora,
+          fuera,
+          afuera,
+          cerca,
+          encima,
+          arriba,
+          contra,
+          mañana,
+          media,
+          toda,
+          apenas,
+        ]
     defs:
       # "sé dónde está", "si supiéramos cómo está": verbs that introduce an indirect question.
       ES_ESTAR_ASKING: /^(?:s[ée]|sab\p{L}*|sup\p{L}*|pregunt\p{L}*|ver|veamos|dime|dinos|explica\p{L}*)$/u
@@ -496,8 +663,7 @@ rules:
                   : form === "estás" && /as$/u.test(next)
         else: "false"
     frames:
-      # The "esta" and "está" forms. The fixer reads the words before and after the token
-      # (review/spanish/accents.ts).
+      # The "esta" and "está" forms. The code reads the words before and after the token.
       - regex: "est(?:[aá]s?|[eé]){{WORD_TAIL}}"
         flags: giu
         scan: owned
@@ -538,73 +704,413 @@ rules:
     # ES_INTERROGATIVE, ES_PLAIN_RELATIVE and the cases of esMonosyllable.
     sets:
       # The accented question words.
-      ES_ASKED_FORMS: [qué, cómo, dónde, adónde, cuándo, quién, quiénes, cuál, cuáles, cuánto, cuánta, cuántos, cuántas, cuán]
+      ES_ASKED_FORMS:
+        [
+          qué,
+          cómo,
+          dónde,
+          adónde,
+          cuándo,
+          quién,
+          quiénes,
+          cuál,
+          cuáles,
+          cuánto,
+          cuánta,
+          cuántos,
+          cuántas,
+          cuán,
+        ]
       # Words a question may open with before its question word: "¿Y de qué…?", "¿Pero cómo…?".
       ES_QUESTION_LEAD: ["y", e, o, u, pero, pues, entonces, bueno, ah, oye]
       ES_ADVERBIALS: [bien, mal, tarde, pronto, aquí, allí, ahí, siempre, nunca]
       # Nouns a question asks about after a preposition: "hasta qué punto", "de qué manera".
       ES_QUESTION_NOUNS:
-        [punto, forma, manera, modo, hora, color, momento, medida, tipo, clase, edad, precio, tamaño, frecuencia, razón, motivo, lado, parte]
-      ES_DIA_SUBJECTS: [yo, tú, él, ella, usted, nosotros, nosotras, vosotros, vosotras, ellos, ellas, ustedes]
+        [
+          punto,
+          forma,
+          manera,
+          modo,
+          hora,
+          color,
+          momento,
+          medida,
+          tipo,
+          clase,
+          edad,
+          precio,
+          tamaño,
+          frecuencia,
+          razón,
+          motivo,
+          lado,
+          parte,
+        ]
+      ES_DIA_SUBJECTS:
+        [yo, tú, él, ella, usted, nosotros, nosotras, vosotros, vosotras, ellos, ellas, ustedes]
       # Irregular finite verbs and adverbs the dictionary also lists as nouns.
       ES_DIA_FINITE:
         [
-          es, son, era, fue, fui, vino, dije, dijo, hizo, puso, tuvo, estuvo, quiso, supo, pudo, trajo, anduvo, ve, ven,
-          eres, soy, somos, sois, estás, da, dan, haz, pon, sal, ten, di, va, van, ha, han, hay,
+          es,
+          son,
+          era,
+          fue,
+          fui,
+          vino,
+          dije,
+          dijo,
+          hizo,
+          puso,
+          tuvo,
+          estuvo,
+          quiso,
+          supo,
+          pudo,
+          trajo,
+          anduvo,
+          ve,
+          ven,
+          eres,
+          soy,
+          somos,
+          sois,
+          estás,
+          da,
+          dan,
+          haz,
+          pon,
+          sal,
+          ten,
+          di,
+          va,
+          van,
+          ha,
+          han,
+          hay,
         ]
       ES_DIA_NOT_NOUNS:
         [
-          sí, "no", bien, mal, mañana, tarde, hoy, ayer, noche, siempre, nunca, igual, tal, solo, sola, así, esto, eso,
-          aquello, ese, esa, qué, cómo, dónde, cuándo, quién, cuál, cuánto,
+          sí,
+          "no",
+          bien,
+          mal,
+          mañana,
+          tarde,
+          hoy,
+          ayer,
+          noche,
+          siempre,
+          nunca,
+          igual,
+          tal,
+          solo,
+          sola,
+          así,
+          esto,
+          eso,
+          aquello,
+          ese,
+          esa,
+          qué,
+          cómo,
+          dónde,
+          cuándo,
+          quién,
+          cuál,
+          cuánto,
         ]
       # Gerunds whose missing object "qué" asks for: "¿Qué estás haciendo?". Any other progressive
       # right after "¿Que" reads as an echo: "¿Que estás temblando?" (you say you are…?).
       ES_ASKED_GERUNDS:
         [
-          haciendo, diciendo, pensando, buscando, mirando, viendo, leyendo, comiendo, bebiendo, escribiendo,
-          esperando, tramando, planeando, preparando, cocinando, escuchando, insinuando, sugiriendo,
-          intentando, tomando, estudiando, contando, pidiendo, vendiendo, comprando, ocultando,
-          escondiendo, pasando, ocurriendo, sucediendo, aprendiendo, celebrando, proponiendo,
+          haciendo,
+          diciendo,
+          pensando,
+          buscando,
+          mirando,
+          viendo,
+          leyendo,
+          comiendo,
+          bebiendo,
+          escribiendo,
+          esperando,
+          tramando,
+          planeando,
+          preparando,
+          cocinando,
+          escuchando,
+          insinuando,
+          sugiriendo,
+          intentando,
+          tomando,
+          estudiando,
+          contando,
+          pidiendo,
+          vendiendo,
+          comprando,
+          ocultando,
+          escondiendo,
+          pasando,
+          ocurriendo,
+          sucediendo,
+          aprendiendo,
+          celebrando,
+          proponiendo,
         ]
       ES_DIA_QUANTITY:
         [
-          mucho, mucha, muchos, muchas, poco, poca, pocos, pocas, varios, varias, algunos, algunas, algún, alguna,
-          ningún, ninguna, tantos, tantas, bastantes, demasiados, demasiadas, dos, tres, cuatro, cinco, cien, mil,
+          mucho,
+          mucha,
+          muchos,
+          muchas,
+          poco,
+          poca,
+          pocos,
+          pocas,
+          varios,
+          varias,
+          algunos,
+          algunas,
+          algún,
+          alguna,
+          ningún,
+          ninguna,
+          tantos,
+          tantas,
+          bastantes,
+          demasiados,
+          demasiadas,
+          dos,
+          tres,
+          cuatro,
+          cinco,
+          cien,
+          mil,
         ]
       ES_EXISTS: [hay, había, habrá, hubo, habría]
-      ES_PLACE_START: [en, a, al, dentro, detrás, debajo, encima, fuera, delante, tras, bajo, sobre, aquí, allí, ahí, allá]
-      ES_AFTER_EVENT: [aquí, allí, ahí, allá, ahora, hoy, ayer, entonces, realmente, exactamente, después, antes, luego]
+      ES_PLACE_START:
+        [
+          en,
+          a,
+          al,
+          dentro,
+          detrás,
+          debajo,
+          encima,
+          fuera,
+          delante,
+          tras,
+          bajo,
+          sobre,
+          aquí,
+          allí,
+          ahí,
+          allá,
+        ]
+      ES_AFTER_EVENT:
+        [
+          aquí,
+          allí,
+          ahí,
+          allá,
+          ahora,
+          hoy,
+          ayer,
+          entonces,
+          realmente,
+          exactamente,
+          después,
+          antes,
+          luego,
+        ]
       ES_AFTER_DEED: [para, con, ahora, hoy, mañana, aquí, allí, ahí, después, luego]
       # Words that can follow a possessive "mi" inside its noun phrase.
       ES_BEFORE_NOUN:
-        [mejor, peor, mayor, menor, primer, primera, último, última, único, única, propio, propia, gran, buen, querido, querida, pobre, viejo, vieja, nuevo, nueva, otro, otra]
+        [
+          mejor,
+          peor,
+          mayor,
+          menor,
+          primer,
+          primera,
+          último,
+          última,
+          único,
+          única,
+          propio,
+          propia,
+          gran,
+          buen,
+          querido,
+          querida,
+          pobre,
+          viejo,
+          vieja,
+          nuevo,
+          nueva,
+          otro,
+          otra,
+        ]
       ES_DIA_NUMBERS: [dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez, cien, mil]
       # Verb forms no possessive goes before, though the dictionary lists "es" (the letter) and
       # "fue" as nouns; "mi era", "mi vino" and "mi son" are nouns too.
       ES_ONLY_VERBS:
-        [es, fue, fui, dijo, hizo, puso, tuvo, estuvo, quiso, supo, pudo, trajo, eres, soy, somos, estás, va, van, ha, han, hay, parece, parecen, resulta, resultan]
+        [
+          es,
+          fue,
+          fui,
+          dijo,
+          hizo,
+          puso,
+          tuvo,
+          estuvo,
+          quiso,
+          supo,
+          pudo,
+          trajo,
+          eres,
+          soy,
+          somos,
+          estás,
+          va,
+          van,
+          ha,
+          han,
+          hay,
+          parece,
+          parecen,
+          resulta,
+          resultan,
+        ]
       ES_ONE_OFF: [también, tampoco, nunca, jamás, mismo, misma]
       # Finite verbs too common to need the lexicon: "el fue" can only be "él fue".
       ES_COMMON_VERBS:
-        [es, era, fue, está, estaba, estuvo, tiene, tenía, tuvo, dijo, dice, hizo, hace, sabe, sabía, quiere, quería, quiso, puede, podía, pudo, iba, ha, había, será, sería]
+        [
+          es,
+          era,
+          fue,
+          está,
+          estaba,
+          estuvo,
+          tiene,
+          tenía,
+          tuvo,
+          dijo,
+          dice,
+          hizo,
+          hace,
+          sabe,
+          sabía,
+          quiere,
+          quería,
+          quiso,
+          puede,
+          podía,
+          pudo,
+          iba,
+          ha,
+          había,
+          será,
+          sería,
+        ]
       ES_DIA_PRONOUNS: [yo, tú, ella, usted, nosotros, nosotras, vosotros, ellos, ellas, ti, mí, él]
       ES_PLAIN_SI_PREV: [que, pues, eso, claro, ahora, creo]
-      ES_TEA: [verde, negro, rojo, blanco, chino, japonés, inglés, frío, caliente, helado, con, "y", de, del]
+      ES_TEA:
+        [
+          verde,
+          negro,
+          rojo,
+          blanco,
+          chino,
+          japonés,
+          inglés,
+          frío,
+          caliente,
+          helado,
+          con,
+          "y",
+          de,
+          del,
+        ]
       # Bare objects "dar" takes in set phrases: "dé cuenta", "dé voz", "dé las gracias".
       ES_GIVEN:
-        [cuenta, voz, gracias, permiso, asentimiento, golpecitos, crédito, importancia, consentimiento, aprobación, apoyo, bendición]
+        [
+          cuenta,
+          voz,
+          gracias,
+          permiso,
+          asentimiento,
+          golpecitos,
+          crédito,
+          importancia,
+          consentimiento,
+          aprobación,
+          apoyo,
+          bendición,
+        ]
       # What "dar" gives with an article: "que Dios dé una respuesta", "que dé un alarido".
       ES_GIVEN_WITH_ARTICLE: [respuesta, alarido, abrazo, beso, consejo]
       # Subjects that may stand between the subjunctive trigger and "dé".
-      ES_SUBJECT_FILLERS: [él, ella, usted, alguien, nadie, dios, uno, cada, mismo, ahora, "no", nunca, ya]
+      ES_SUBJECT_FILLERS:
+        [él, ella, usted, alguien, nadie, dios, uno, cada, mismo, ahora, "no", nunca, ya]
       # What follows an answer's "Sí,": "Sí, me gusta", "Sí, pero…", "Sí, claro".
       ES_ANSWER_AFTER:
         [
-          pero, claro, gracias, señor, señora, vale, bueno, ya, también, me, te, nos, lo, la, le, es, son, está, hay,
-          tengo, quiero, puedo, creo, exacto, correcto, perfecto, efectivamente, desde, seguro,
+          pero,
+          claro,
+          gracias,
+          señor,
+          señora,
+          vale,
+          bueno,
+          ya,
+          también,
+          me,
+          te,
+          nos,
+          lo,
+          la,
+          le,
+          es,
+          son,
+          está,
+          hay,
+          tengo,
+          quiero,
+          puedo,
+          creo,
+          exacto,
+          correcto,
+          perfecto,
+          efectivamente,
+          desde,
+          seguro,
         ]
       ES_IRREGULAR_PAST:
-        [hice, hizo, fui, fue, fuimos, fueron, tuve, tuvo, dije, dijo, puse, puso, vine, vino, estuve, estuvo, pude, pudo, quise, quiso, supe, supo]
+        [
+          hice,
+          hizo,
+          fui,
+          fue,
+          fuimos,
+          fueron,
+          tuve,
+          tuvo,
+          dije,
+          dijo,
+          puse,
+          puso,
+          vine,
+          vino,
+          estuve,
+          estuvo,
+          pude,
+          pudo,
+          quise,
+          quiso,
+          supe,
+          supo,
+        ]
       # Relatives written as question words after their antecedent: "nada qué hacer" -> "que".
       ES_QUANTITY_ANTECEDENTS: [nada, algo, nadie, alguien, mucho, poco, bastante]
       # Masculine adjectives that follow a subject "él": "él solo", "él mismo", "él propio".
@@ -658,7 +1164,7 @@ rules:
         args: "at: SpanishAround"
         type: '"?" | "!" | null'
         let:
-          j1: 'ES_PREPOSITIONS.has(at.prev(1)) && !at.tokens[at.i].broken ? at.i - 2 : at.i - 1'
+          j1: "ES_PREPOSITIONS.has(at.prev(1)) && !at.tokens[at.i].broken ? at.i - 2 : at.i - 1"
           j: 'ES_QUESTION_LEAD.has(at.tokens[j1]?.lower ?? "") && at.tokens[j1]?.word ? j1 - 1 : j1'
           mark: at.tokens[j]
         when: mark && !(j < at.i - 1 && at.tokens[j + 1].broken)
@@ -789,17 +1295,17 @@ rules:
       esUntoldEvent:
         args: "at: SpanishAround"
         let:
-          k1: 'ES_CLITICS.has(at.next(1)) ? 2 : 1'
-          k: '/^(?:ha|había|habrá|habría)$/u.test(at.next(k1)) ? k1 + 1 : k1'
+          k1: "ES_CLITICS.has(at.next(1)) ? 2 : 1"
+          k: "/^(?:ha|había|habrá|habría)$/u.test(at.next(k1)) ? k1 + 1 : k1"
         when: ES_EVENT.test(at.next(k))
-        return: 'at.endsAfter(ES_AFTER_EVENT.has(at.next(k + 1)) ? k + 1 : k)'
+        return: "at.endsAfter(ES_AFTER_EVENT.has(at.next(k + 1)) ? k + 1 : k)"
         else: "false"
       # "sé qué has hecho.", "saber qué puedo hacer para…": the deed is asked about, not stated.
       esUntoldDeed:
         args: "at: SpanishAround"
         let:
-          k1: '/^(?:me|te|le|les|nos|os)$/u.test(at.next(1)) ? 2 : 1'
-          k2: 'ES_BEFORE_DEED.test(at.next(k1)) ? (/^(?:a|que)$/u.test(at.next(k1 + 1)) ? k1 + 2 : k1 + 1) : k1'
+          k1: "/^(?:me|te|le|les|nos|os)$/u.test(at.next(1)) ? 2 : 1"
+          k2: "ES_BEFORE_DEED.test(at.next(k1)) ? (/^(?:a|que)$/u.test(at.next(k1 + 1)) ? k1 + 2 : k1 + 1) : k1"
         when: ES_DEED.test(at.next(k2))
         return: at.endsAfter(k2) || ES_AFTER_DEED.has(at.next(k2 + 1))
         else: "false"
@@ -880,7 +1386,7 @@ rules:
         args: "at: SpanishAround, word: string, accented: string, prev: string, next: string"
         let:
           before: at.tokens[at.i - 1]
-          sentenceStart: '!before || at.tokens[at.i].broken || /^[.!?…]$/u.test(before.text)'
+          sentenceStart: "!before || at.tokens[at.i].broken || /^[.!?…]$/u.test(before.text)"
           closes: at.endsAfter(1) || /^(?:tan|más|es|son|era|está|estaba)$/u.test(at.next(2))
         return: >-
           (word === "que" || word === "quien" || word === "quienes") && /^(?:a|de|con|en|sobre)$/u.test(prev) &&
@@ -938,7 +1444,7 @@ rules:
         args: "at: SpanishAround"
         let:
           word: at.tokens[at.i].lower
-          accented: 'Object.hasOwn(ES_INTERROGATIVE, word) ? ES_INTERROGATIVE[word] : undefined'
+          accented: "Object.hasOwn(ES_INTERROGATIVE, word) ? ES_INTERROGATIVE[word] : undefined"
           next: at.next()
           nextToken: at.tokens[at.i + 1]
           prev: at.prev()
@@ -967,8 +1473,8 @@ rules:
         args: "at: SpanishAround"
         let:
           word: at.tokens[at.i].lower
-          plainForm: 'Object.hasOwn(ES_PLAIN_RELATIVE, word) ? ES_PLAIN_RELATIVE[word] : undefined'
-          k: 'ES_PREPOSITIONS.has(at.prev()) ? 2 : 1'
+          plainForm: "Object.hasOwn(ES_PLAIN_RELATIVE, word) ? ES_PLAIN_RELATIVE[word] : undefined"
+          k: "ES_PREPOSITIONS.has(at.prev()) ? 2 : 1"
           antecedent: at.prev(k)
         when: plainForm && at.tokens[at.i - 1]?.text !== "¿"
         return: >-
@@ -992,7 +1498,7 @@ rules:
       esGiveObject:
         args: "at: SpanishAround"
         let:
-          k: '/^(?:su|sus|tu|tus|mi|mis)$/u.test(at.next()) ? 2 : 1'
+          k: "/^(?:su|sus|tu|tus|mi|mis)$/u.test(at.next()) ? 2 : 1"
         return: >-
           (ES_GIVEN.has(at.next(k)) && (at.endsAfter(k) || /^(?:de|del|a|al|por|para|y)$/u.test(at.next(k + 1)))) ||
           (/^(?:un|una)$/u.test(at.next()) && ES_GIVEN_WITH_ARTICLE.has(at.next(2))) ||
@@ -1132,7 +1638,7 @@ rules:
       esMonoMi:
         args: "at: SpanishAround, prev: string, next: string, nextToken: SpanishToken | undefined, ends: boolean"
         let:
-          k: '/^(?:más|menos|muy|tan|bastante)$/u.test(next) ? 2 : 1'
+          k: "/^(?:más|menos|muy|tan|bastante)$/u.test(next) ? 2 : 1"
           adjective: at.next(k)
         when: ES_PREPOSITIONS.has(prev)
         return: >-
@@ -1486,8 +1992,8 @@ rules:
                                     ? esMonoMas(at, prev, next, nextToken, ends)
                                     : null
     frames:
-      # The question words, the relatives and the stressed monosyllables. The fixer reads the
-      # words around the token (review/spanish/diacritics.ts).
+      # The question words, the relatives and the stressed monosyllables. The code reads the
+      # words around the token.
       - regex: "(?:qu[eé]|qui[eé]n(?:es)?|c[oó]mo|a?d[oó]nde|cu[aá]ndo|cu[aá]l(?:es)?|cuan(?:t[oa]s?)?|m[ií]|t[uú]|[eé]l|se|de|t[eé]|si|a[uú]n|mas){{WORD_TAIL}}"
         flags: giu
         scan: owned
@@ -1520,55 +2026,322 @@ rules:
       # Determiners that are never clitics: "el termino", "su numero", "dos practicas".
       ES_VA_DETERMINERS:
         [
-          el, un, una, unos, unas, del, al, mi, mis, tus, su, sus, cada, nuestro, nuestra, nuestros, nuestras, dos, tres,
-          cuatro, cinco, varios, varias, muchas, muchos, pocas, pocos, otra, otro, otras, otros, toda, todo, cuyo, cuya,
-          cuyos, cuyas,
+          el,
+          un,
+          una,
+          unos,
+          unas,
+          del,
+          al,
+          mi,
+          mis,
+          tus,
+          su,
+          sus,
+          cada,
+          nuestro,
+          nuestra,
+          nuestros,
+          nuestras,
+          dos,
+          tres,
+          cuatro,
+          cinco,
+          varios,
+          varias,
+          muchas,
+          muchos,
+          pocas,
+          pocos,
+          otra,
+          otro,
+          otras,
+          otros,
+          toda,
+          todo,
+          cuyo,
+          cuya,
+          cuyos,
+          cuyas,
         ]
       ES_VA_DEGREE: [muy, más, tan, bastante]
       # Demonstratives are also subject pronouns ("este opera"): only after a preposition.
-      ES_VA_DEMONSTRATIVES: [este, esta, estos, estas, ese, esa, esos, esas, aquel, aquella, aquellos, aquellas]
+      ES_VA_DEMONSTRATIVES:
+        [este, esta, estos, estas, ese, esa, esos, esas, aquel, aquella, aquellos, aquellas]
       ES_VA_SUBJECTS: [él, ella, usted]
-      ES_VA_TENER: [tengo, tienes, tiene, tenemos, tienen, tenía, tenías, teníamos, tenían, tuve, tuvo]
+      ES_VA_TENER:
+        [tengo, tienes, tiene, tenemos, tienen, tenía, tenías, teníamos, tenían, tuve, tuvo]
       # Before these, an imperfect or conditional verb: "no sabía", "se hacía", "yo tenía".
       ES_VA_BEFORE_VERB: [me, te, se, le, les, nos, os, "no", yo, él, ella, usted, lo]
       # "-o" words that are conjunctions, adverbs or quantifiers before a verb ("no sé cómo").
       ES_VA_FUNCTION_WORDS:
-        [como, cuando, donde, pero, todo, mucho, poco, solo, tanto, otro, mismo, uno, ninguno, alguno, cuanto, luego, tampoco, sino, demasiado, medio, esto, eso, aquello]
+        [
+          como,
+          cuando,
+          donde,
+          pero,
+          todo,
+          mucho,
+          poco,
+          solo,
+          tanto,
+          otro,
+          mismo,
+          uno,
+          ninguno,
+          alguno,
+          cuanto,
+          luego,
+          tampoco,
+          sino,
+          demasiado,
+          medio,
+          esto,
+          eso,
+          aquello,
+        ]
       # Words after which "la"/"las" is a clitic: "Ella la practica de vez en cuando".
       ES_NOT_BEFORE_ARTICLE:
-        [yo, tú, él, ella, usted, nosotros, nosotras, vosotros, vosotras, ellos, ellas, ustedes, "no", ya, también, tampoco, nunca, siempre, que, quien, se, me, te, nos, os]
+        [
+          yo,
+          tú,
+          él,
+          ella,
+          usted,
+          nosotros,
+          nosotras,
+          vosotros,
+          vosotras,
+          ellos,
+          ellas,
+          ustedes,
+          "no",
+          ya,
+          también,
+          tampoco,
+          nunca,
+          siempre,
+          que,
+          quien,
+          se,
+          me,
+          te,
+          nos,
+          os,
+        ]
       ES_VA_ADVERBS: ["no", nunca, ya, también, siempre, jamás]
       # What follows a verb but not a noun or adjective ("trabajo en un banco", "canto hoy"); "de"
       # and "a" follow both ("repleto de", "junto a").
       ES_VA_ARTICLES: [el, la, los, las, un, una, unos, unas]
-      ES_AFTER_VERB: [el, la, los, las, un, una, hoy, ayer, anoche, mucho, poco, bien, mal, tarde, pronto, en, con, por, para, sin, hasta, desde]
-      ES_VA_SUBJECT_DETERMINERS: [el, la, un, una, mi, tu, su, este, esta, ese, esa, aquel, aquella, nuestro, nuestra]
+      ES_AFTER_VERB:
+        [
+          el,
+          la,
+          los,
+          las,
+          un,
+          una,
+          hoy,
+          ayer,
+          anoche,
+          mucho,
+          poco,
+          bien,
+          mal,
+          tarde,
+          pronto,
+          en,
+          con,
+          por,
+          para,
+          sin,
+          hasta,
+          desde,
+        ]
+      ES_VA_SUBJECT_DETERMINERS:
+        [el, la, un, una, mi, tu, su, este, esta, ese, esa, aquel, aquella, nuestro, nuestra]
       ES_VA_CLOSED:
         [
-          al, del, lo, yo, tú, él, ella, usted, nosotros, ellos, ellas, ustedes, "no", ya, hoy, ayer, anoche, mañana, aquí,
-          allí, así, también, tampoco, muy, más, menos, siempre, nunca, entonces, luego, después, antes, ahora, todavía, aún,
+          al,
+          del,
+          lo,
+          yo,
+          tú,
+          él,
+          ella,
+          usted,
+          nosotros,
+          ellos,
+          ellas,
+          ustedes,
+          "no",
+          ya,
+          hoy,
+          ayer,
+          anoche,
+          mañana,
+          aquí,
+          allí,
+          así,
+          también,
+          tampoco,
+          muy,
+          más,
+          menos,
+          siempre,
+          nunca,
+          entonces,
+          luego,
+          después,
+          antes,
+          ahora,
+          todavía,
+          aún,
         ]
       # "Esta semana no puedo", "El año pasado trabajo…": a time phrase, not a subject.
       ES_VA_TIME:
-        [semana, año, mes, día, tarde, noche, mañana, vez, momento, rato, verano, invierno, otoño, primavera, lunes, martes, miércoles, jueves, viernes, sábado, domingo, fin]
+        [
+          semana,
+          año,
+          mes,
+          día,
+          tarde,
+          noche,
+          mañana,
+          vez,
+          momento,
+          rato,
+          verano,
+          invierno,
+          otoño,
+          primavera,
+          lunes,
+          martes,
+          miércoles,
+          jueves,
+          viernes,
+          sábado,
+          domingo,
+          fin,
+        ]
       # Words that call for the past subjunctive: "si cantara mañana", "como si lo supiera".
       ES_FUTURE_BLOCKERS: [si, que, ojalá, aunque, como, cuando, quizá, quizás, tal]
-      ES_DIRECTIONS: [abajo, arriba, adelante, atrás, afuera, adentro, allá, acá, aquí, allí, delante, donde, dónde]
+      ES_DIRECTIONS:
+        [
+          abajo,
+          arriba,
+          adelante,
+          atrás,
+          afuera,
+          adentro,
+          allá,
+          acá,
+          aquí,
+          allí,
+          delante,
+          donde,
+          dónde,
+        ]
       ES_WEATHER: [calor, frío, sol, viento, fresco, bueno, malo, buen, mal]
-      ES_VA_AMOUNTS: [mucho, muchos, tanto, tantos, poco, pocos, demasiado, casi, unos, unas, más, una, un]
-      ES_VA_TIME_NOUNS: [tiempo, años, días, meses, semanas, horas, minutos, rato, siglos, año, día, mes, semana, hora, minuto]
+      ES_VA_AMOUNTS:
+        [mucho, muchos, tanto, tantos, poco, pocos, demasiado, casi, unos, unas, más, una, un]
+      ES_VA_TIME_NOUNS:
+        [
+          tiempo,
+          años,
+          días,
+          meses,
+          semanas,
+          horas,
+          minutos,
+          rato,
+          siglos,
+          año,
+          día,
+          mes,
+          semana,
+          hora,
+          minuto,
+        ]
       ES_OBJECT_CLITICS: [lo, la, los, las, le, les, me, te, se, nos, os]
       ES_DEGREE_BEFORE: [muy, tan, poco, más, menos, bastante, demasiado, ya]
       ES_LINKS: [es, era, fue, está, estaba, estuvo, parece, parecía, puso, quedó, quedaba, sea]
       ES_VA_LEADING: [otra, otro, otras, otros, misma, mismo, tercera, segunda, primera, cierta]
       ES_SUBJECT_OR_NO:
-        [yo, tú, él, ella, usted, ellos, ellas, ustedes, eso, esto, estos, esos, aquellos, "no", ya, nunca, también, tampoco]
+        [
+          yo,
+          tú,
+          él,
+          ella,
+          usted,
+          ellos,
+          ellas,
+          ustedes,
+          eso,
+          esto,
+          estos,
+          esos,
+          aquellos,
+          "no",
+          ya,
+          nunca,
+          también,
+          tampoco,
+        ]
       ES_VERAS_NEXT: [el, la, los, las, un, una, lo, que, qué, cómo, cuándo, si]
-      ES_VA_NUMBERS: [dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez, once, doce, quince, veinte, treinta, cien, mil]
+      ES_VA_NUMBERS:
+        [
+          dos,
+          tres,
+          cuatro,
+          cinco,
+          seis,
+          siete,
+          ocho,
+          nueve,
+          diez,
+          once,
+          doce,
+          quince,
+          veinte,
+          treinta,
+          cien,
+          mil,
+        ]
       ES_BEFORE_HIATUS_NOUN:
         [
-          del, al, menudo, tremendo, gran, buen, qué, vaya, mucho, poco, tanto, más, menos, muy, ni, hace, hacía, hizo,
-          hará, tengo, tienes, tiene, tenemos, tienen, tenía, tenían, hay, había, paso, pasa, pasé, pasamos,
+          del,
+          al,
+          menudo,
+          tremendo,
+          gran,
+          buen,
+          qué,
+          vaya,
+          mucho,
+          poco,
+          tanto,
+          más,
+          menos,
+          muy,
+          ni,
+          hace,
+          hacía,
+          hizo,
+          hará,
+          tengo,
+          tienes,
+          tiene,
+          tenemos,
+          tienen,
+          tenía,
+          tenían,
+          hay,
+          había,
+          paso,
+          pasa,
+          pasé,
+          pasamos,
         ]
     maps:
       # The accented future endings.
@@ -1606,7 +2379,7 @@ rules:
           noun: ending && esReadNoun(at.prev())
           before: at.prev(2)
           article: /^(?:un|una|unos|unas)$/u.test(before)
-          preposition: 'ES_PREPOSITIONS.has(before) ? 2 : ES_DETERMINERS.has(before) && ES_PREPOSITIONS.has(at.prev(3)) ? 3 : 0'
+          preposition: "ES_PREPOSITIONS.has(before) ? 2 : ES_DETERMINERS.has(before) && ES_PREPOSITIONS.has(at.prev(3)) ? 3 : 0"
           after0: at.next()
           governed: >-
             article || preposition > 0 || (!!before && esFiniteVerb(before) && !esIsNoun(before) && !esReadNoun(before)) ||
@@ -1646,7 +2419,7 @@ rules:
           noun: esReadNoun(at.next())
         when:
           - own && noun && !noun.paired && noun.gender && !at.tokens[at.i + 1].broken
-          - '!(esFiniteVerb(at.next()) || noun.plural !== own.plural)'
+          - "!(esFiniteVerb(at.next()) || noun.plural !== own.plural)"
         return: (noun.gender === "f") === own.feminine
         else: "false"
       esPerfectParticipleLike:
@@ -1819,7 +2592,7 @@ rules:
       esNounSubject:
         args: "at: SpanishAround"
         let:
-          k: 'ES_VA_ADVERBS.has(at.prev()) ? 2 : 1'
+          k: "ES_VA_ADVERBS.has(at.prev()) ? 2 : 1"
           end: esNamesEnd(at, k, k + 3)
           noun: at.prev(k)
           det: at.prev(k + 1)
@@ -1887,7 +2660,7 @@ rules:
             /^(?:abajo|arriba|adelante|atrás|afuera|adentro|allá|acá|aquí|allí|delante|el|la|los|las)$/u.test(at.next())
         when:
           - ES_VA_BEFORE_VERB.has(prev)
-          - '!direction && m && (esIsVerb(`${m[1]}er`) || esIsVerb(`${m[1]}ir`) || esIsInfinitive(m[1]))'
+          - "!direction && m && (esIsVerb(`${m[1]}er`) || esIsVerb(`${m[1]}ir`) || esIsInfinitive(m[1]))"
         return: '`${m[1]}ía${m[2] ?? ""}`'
       # "con él varias cosas": a pronoun after a preposition is no subject. "se continua" ->
       # "continúa", "lo amplias" -> "amplías": -uar/-iar verbs stress the vowel. Every -uar verb but
@@ -1903,7 +2676,7 @@ rules:
             /^(?:ampl|env|conf|f|var|cr|gu|enfr|desv|vac|esp|desaf|exp|resfr|hast|roc)$/u.test(stressed[1])
           uar: stressed?.[2] === "u" && !/[gc]$/u.test(stressed[1])
           future: /^(\p{L}*?[eií]r)(a|as|an|e)$/u.exec(word)
-        when: '!governed && (ES_VA_BEFORE_VERB.has(prev) || /^(?:ya|tú|que|si|quién)$/u.test(prev))'
+        when: "!governed && (ES_VA_BEFORE_VERB.has(prev) || /^(?:ya|tú|que|si|quién)$/u.test(prev))"
         return: >-
           stressed && (iar || uar) && esIsVerb(`${stressed[1]}${stressed[2]}ar`) && !esIsNoun(word)
             ? `${stressed[1]}${stressed[2] === "u" ? "ú" : "í"}${stressed[3]}`
@@ -2027,12 +2800,12 @@ rules:
         args: "at: SpanishAround"
         let:
           prev: at.prev()
-          k: '/^(?:más|menos|muy|tan|mucho|bastante)$/u.test(at.next(1)) ? 2 : 1'
+          k: "/^(?:más|menos|muy|tan|mucho|bastante)$/u.test(at.next(1)) ? 2 : 1"
           next: at.next(k)
           form: esGenderedForm(next) ?? esParticiple(next)
         when:
           - at.tokens[at.i].lower === "seria"
-          - '!(ES_DEGREE_BEFORE.has(prev) || ES_LINKS.has(prev) || ES_DETERMINERS.has(prev))'
+          - "!(ES_DEGREE_BEFORE.has(prev) || ES_LINKS.has(prev) || ES_DETERMINERS.has(prev))"
         return: >-
           next === "yo" || next === "mejor" || next === "peor"
             ? "sería"
@@ -2076,11 +2849,11 @@ rules:
           next: at.next()
         when:
           - at.tokens[at.i].lower === "si" && at.prev() === "en"
-          - '!(!esIsNoun(head) || esFiniteVerb(head) || esIsInfinitive(head))'
+          - "!(!esIsNoun(head) || esFiniteVerb(head) || esIsInfinitive(head))"
         return: 'at.endsAfter() || (esFiniteVerb(next) && !esIsNoun(next)) || ES_SER.has(next) ? "sí" : null'
     frames:
-      # Every word: a verb form ("termino", "hablo") is no closed list. The fixer reads the
-      # subject and the tense cues around the token (review/spanish/verbAccents.ts).
+      # Every word: a verb form ("termino", "hablo") is no closed list. The code reads the
+      # subject and the tense cues around the token.
       - regex: "{{TOKEN_WORD}}"
         flags: gu
         scan: owned
@@ -2108,9 +2881,40 @@ rules:
       # "el ingles", "curso de ingles": the language; "las ingles" (the groin) is plural.
       ES_BEFORE_LANGUAGE: [el, del, al, mi, tu, su, un, en, "y", o, buen, mal, nuestro, vuestro]
       ES_LANGUAGE_NOUNS:
-        [curso, cursos, clase, clases, profesor, profesora, profesores, examen, nivel, libro, libros, alumnos, alumnas, academia, traducción, diccionario]
+        [
+          curso,
+          cursos,
+          clase,
+          clases,
+          profesor,
+          profesora,
+          profesores,
+          examen,
+          nivel,
+          libro,
+          libros,
+          alumnos,
+          alumnas,
+          academia,
+          traducción,
+          diccionario,
+        ]
       # What a conditional "sería" goes on with and the adjective "seria" does not.
-      ES_AFTER_SERIA: [lo, un, una, mejor, peor, posible, imposible, necesario, necesaria, conveniente, preferible, suficiente]
+      ES_AFTER_SERIA:
+        [
+          lo,
+          un,
+          una,
+          mejor,
+          peor,
+          posible,
+          imposible,
+          necesario,
+          necesaria,
+          conveniente,
+          preferible,
+          suficiente,
+        ]
     defs:
       # Past subjunctives look like other tenses: "para que hablaran", "para que viniese".
       ES_PAST_SUBJUNCTIVE: /(?:ra|ras|ra|ramos|rais|ran|se|ses|semos|seis|sen)$/u
@@ -2131,8 +2935,8 @@ rules:
           - tokens[i].lower === "que" && at.prev() === "para" && tokens[i].text === "que"
           - verb && !/^\p{Lu}/u.test(tokens[i + k].text) && !ES_PAST_SUBJUNCTIVE.test(verb)
           - ES_PRESENT_INDICATIVE.test(verb) && !esSubjunctiveLike(verb) && esFiniteVerb(verb)
-          - '!(esIsNoun(verb) || esParticiple(verb) || /^(?:como|cuando|donde|mientras|halla|hallas|hallan)$/u.test(verb))'
-          - '!(a && (esIsVerb(`${a[1]}er`) || esIsVerb(`${a[1]}ir`)))'
+          - "!(esIsNoun(verb) || esParticiple(verb) || /^(?:como|cuando|donde|mientras|halla|hallas|hallan)$/u.test(verb))"
+          - "!(a && (esIsVerb(`${a[1]}er`) || esIsVerb(`${a[1]}ir`)))"
         return: 'esReplaceToken(ctx, tokens[i], ["qué"], "spanishAccents", "review_msg_spanish_interrogative", tokens[i + k])'
       # "el ingles" -> "inglés", "en Paris" -> "París", "cuál seria" -> "sería". "curso de ingles",
       # but "depilación de ingles" is the groin. "el juicio de Paris" names the Trojan prince: only
@@ -2157,8 +2961,7 @@ rules:
         return: 'esReplaceToken(ctx, tokens[i], [fix], "spanishAccents", "review_msg_spanish_accent", tokens[i - 1])'
     frames:
       # "para que" before an indicative, and "ingles", "Paris" and "seria" after the
-      # words that ask for the accent. The fixer reads the words around the token
-      # (review/spanish/clauses.ts).
+      # words that ask for the accent. The code reads the words around the token.
       - regex: "(?:que|ingles|paris|seria){{WORD_TAIL}}"
         flags: giu
         scan: owned
@@ -2179,7 +2982,14 @@ rules:
     maps:
       # Verbs in -uar whose stressed forms carry "ú": unaccented, they are adjectives. The
       # es.frameAccents frame lists these words and those of ES_ACCENTED_DEMONSTRATIVE.
-      ES_UAR: { continua: continúa, continuas: continúas, continuan: continúan, perpetua: perpetúa, perpetuan: perpetúan }
+      ES_UAR:
+        {
+          continua: continúa,
+          continuas: continúas,
+          continuan: continúan,
+          perpetua: perpetúa,
+          perpetuan: perpetúan,
+        }
       # Accented demonstratives (pronouns in the old spelling) and their determiner forms.
       ES_ACCENTED_DEMONSTRATIVE:
         éste: este
@@ -2218,12 +3028,12 @@ rules:
           nominal: esIsNoun(nounToken.lower) || noun?.paired
         when:
           - plain && nounToken?.word && !nounToken.broken && /^\p{Ll}/u.test(nounToken.text)
-          - '!(!noun || !nominal || (esFiniteVerb(nounToken.lower) && !esIsNoun(nounToken.lower)))'
+          - "!(!noun || !nominal || (esFiniteVerb(nounToken.lower) && !esIsNoun(nounToken.lower)))"
           - noun.plural === plain.endsWith("s")
         return: 'esReplaceToken(ctx, token, [plain], "spanishAccents", "review_msg_spanish_accent_extra", nounToken)'
     frames:
       # "continua" and "perpetua" as verbs, and the accented demonstratives before a noun.
-      # The fixer reads the words before and after the token (review/spanish/frames.ts).
+      # The code reads the words before and after the token.
       - regex: "(?:continua[sn]?|perpetuan?|ést(?:e|a|os|as)|és(?:e|a|os|as)|aquél(?:la|los|las)?){{WORD_TAIL}}"
         flags: giu
         scan: owned
@@ -2246,22 +3056,169 @@ rules:
     # so each check names the neighbour that rules its reading out.
     sets:
       ES_CONFUSION_NUMBERS:
-        [un, una, uno, dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez, once, doce, quince, veinte, treinta, cuarenta, cincuenta, sesenta, setenta, ochenta, noventa, cien, ciento, mil]
+        [
+          un,
+          una,
+          uno,
+          dos,
+          tres,
+          cuatro,
+          cinco,
+          seis,
+          siete,
+          ocho,
+          nueve,
+          diez,
+          once,
+          doce,
+          quince,
+          veinte,
+          treinta,
+          cuarenta,
+          cincuenta,
+          sesenta,
+          setenta,
+          ochenta,
+          noventa,
+          cien,
+          ciento,
+          mil,
+        ]
       ES_CONFUSION_MODALS:
-        [puede, pueden, podía, podían, podrá, podrán, podría, podrían, debe, deben, debía, debían, debería, deberían, suele, suelen, solía, solían]
+        [
+          puede,
+          pueden,
+          podía,
+          podían,
+          podrá,
+          podrán,
+          podría,
+          podrían,
+          debe,
+          deben,
+          debía,
+          debían,
+          debería,
+          deberían,
+          suele,
+          suelen,
+          solía,
+          solían,
+        ]
       # Words a perfect "he" follows but the conjunction "e" never does: "te e dicho", "ya e ido".
-      ES_BEFORE_HE: [yo, me, te, le, les, lo, la, los, las, nos, os, se, "no", ya, siempre, nunca, jamás, también, tampoco, todavía]
+      ES_BEFORE_HE:
+        [
+          yo,
+          me,
+          te,
+          le,
+          les,
+          lo,
+          la,
+          los,
+          las,
+          nos,
+          os,
+          se,
+          "no",
+          ya,
+          siempre,
+          nunca,
+          jamás,
+          también,
+          tampoco,
+          todavía,
+        ]
       # Words around a letter "e" or a variable "e": "la letra e", "el apartado e del", "con e
       # mayúscula", "donde e es la carga", "a, b, c, d, e".
-      ES_LETTER_BEFORE: [la, una, letra, vocal, constante, número, variable, donde, si, con, sin, apartado, inciso, punto]
+      ES_LETTER_BEFORE:
+        [
+          la,
+          una,
+          letra,
+          vocal,
+          constante,
+          número,
+          variable,
+          donde,
+          si,
+          con,
+          sin,
+          apartado,
+          inciso,
+          punto,
+        ]
       ES_LETTER_AFTER:
-        [de, del, es, son, vale, mayúscula, minúscula, mayúsculas, minúsculas, final, inicial, abierta, cerrada, tónica, átona]
+        [
+          de,
+          del,
+          es,
+          son,
+          vale,
+          mayúscula,
+          minúscula,
+          mayúsculas,
+          minúsculas,
+          final,
+          inicial,
+          abierta,
+          cerrada,
+          tónica,
+          átona,
+        ]
       # Adjectives "tan" is the degree of: "está tan mal", "es tan bueno".
       ES_TAN_ADVERBS: [bien, mal, lejos, cerca, pronto, tarde]
       ES_SER_ESTAR:
-        [es, era, fue, son, eran, fueron, sea, está, estaba, estuvo, están, estaban, estoy, estás, estamos, soy, eres, somos, parece, parecía, resulta, resultó]
+        [
+          es,
+          era,
+          fue,
+          son,
+          eran,
+          fueron,
+          sea,
+          está,
+          estaba,
+          estuvo,
+          están,
+          estaban,
+          estoy,
+          estás,
+          estamos,
+          soy,
+          eres,
+          somos,
+          parece,
+          parecía,
+          resulta,
+          resultó,
+        ]
       # Words a lone "d", "n" or "l" may stand before when it lost a letter: "d esta", "n este".
-      ES_LEAD_DETERMINERS: [el, la, los, las, un, una, este, esta, estos, estas, ese, esa, esos, esas, aquel, aquella, mi, mis, su, sus, tu, tus]
+      ES_LEAD_DETERMINERS:
+        [
+          el,
+          la,
+          los,
+          las,
+          un,
+          una,
+          este,
+          esta,
+          estos,
+          estas,
+          ese,
+          esa,
+          esos,
+          esas,
+          aquel,
+          aquella,
+          mi,
+          mis,
+          su,
+          sus,
+          tu,
+          tus,
+        ]
     maps:
       # Existential "haber" has no plural.
       ES_PLURAL_HABER:
@@ -2405,7 +3362,7 @@ rules:
         let:
           prev: at.prev()
           next: at.next()
-        when: '!(ES_DETERMINERS.has(prev) || ES_PREPOSITIONS.has(prev))'
+        when: "!(ES_DETERMINERS.has(prev) || ES_PREPOSITIONS.has(prev))"
         return: >-
           esIsPerfectParticiple(next) && (!esIsNoun(next) || ES_CLITICS.has(prev))
             ? ["has"]
@@ -2446,9 +3403,9 @@ rules:
         let:
           prev: at.prev()
         when:
-          - '!(!prev || ES_DETERMINERS.has(prev) || ES_PREPOSITIONS.has(prev) || ES_CONJUNCTIONS.has(prev))'
-          - '!esAttribute(prev)'
-          - '!(esIsNoun(prev) && !esVerbLike(prev))'
+          - "!(!prev || ES_DETERMINERS.has(prev) || ES_PREPOSITIONS.has(prev) || ES_CONJUNCTIONS.has(prev))"
+          - "!esAttribute(prev)"
+          - "!(esIsNoun(prev) && !esVerbLike(prev))"
         return: '/^(?:a|al|de|del|suyo|suya|mío|tuyo|nuestro)$/u.test(at.next()) || at.endsAfter() ? ["en torno"] : null'
       # "¡Ola!", "Ola, Juan": a greeting. "decir ola", "¿Ola, qué tal?", "Ola qué tal": a greeting said
       # or opening a question.
@@ -2511,7 +3468,7 @@ rules:
         args: "at: SpanishAround, fix: string"
         let:
           next: at.next()
-        when: '!(ES_DETERMINERS.has(at.prev()) || ES_PREPOSITIONS.has(at.prev()))'
+        when: "!(ES_DETERMINERS.has(at.prev()) || ES_PREPOSITIONS.has(at.prev()))"
         return: >-
           (next === "a" || next === "al") && /^(?:que|cuando|si|ojalá|lo|me|te|se|nos)$/u.test(at.prev())
             ? [fix]
@@ -2574,7 +3531,7 @@ rules:
             : null
       esGoingA:
         args: "at: SpanishAround"
-        return: 'esInfinitiveAfter(at) && !ES_DETERMINERS.has(at.prev()) ? [`${at.tokens[at.i].lower} a`] : null'
+        return: "esInfinitiveAfter(at) && !ES_DETERMINERS.has(at.prev()) ? [`${at.tokens[at.i].lower} a`] : null"
       # The checks by the typed (lowercase) word. Each gives the replacements or null. The first
       # es.confusions frame lists these words and the words of ES_PLURAL_HABER. "cuando aya
       # venido": "haya" before a participle ("el aya" is the governess). "son bastantes
@@ -2670,8 +3627,8 @@ rules:
             (next?.word && !next.broken && esIsPerfectParticiple(next.lower) && !esIsNoun(next.lower))
         return: '`hab${m[1] === "vér" ? "é" : "e"}r${m[2]}`'
     frames:
-      # "aun que", "han habido", "el menos", "a ver" and the words of CHECKS. The fixer reads
-      # the words around the token (review/spanish/confusions.ts).
+      # "aun que", "han habido", "el menos", "a ver" and the words of ES_CONFUSION_CHECKS. The code reads
+      # the words around the token.
       - regex: "(?:a|ah|anos?|apunto|ara|a[uú]n|ay|ayan?|bastantes|caso|cuidad|desech[ao]s?|e|echo|eh|el|entorno|haber|hab[ií]an|habr[aá]n|habr[ií]an|hallas?|hallan|han|hay|hayan?|haz|hech(?:os?|as?|an|amos)|hola|hubieran|hubiesen|[ií]ba|[ií]bais|[ií]ban|[ií]bas|[ií]bamos|lamas?|lamamos|lamo|mama|ola|ora|papa|pod(?:o|es|en)|se|sobretodo|tal|trav[eé]s|va|vais|vallas?|vallamos|vallan|vamos|van|vas|ven|voy){{WORD_TAIL}}"
         flags: giu
         scan: owned
@@ -2786,7 +3743,7 @@ rules:
           - i >= 1 && i < tokens.length - 1
           - /^[dln]$/u.test(token.text) && token.start >= ctx.from && token.start < ctx.to
           - prev && next && /^\p{Ll}/u.test(tokens[i + 1].text)
-          - '!(ES_DETERMINERS.has(prev) || ES_PREPOSITIONS.has(prev) || /^(?:letra|letras|todo|cada|cualquier|si|sea)$/u.test(prev))'
+          - "!(ES_DETERMINERS.has(prev) || ES_PREPOSITIONS.has(prev) || /^(?:letra|letras|todo|cada|cualquier|si|sea)$/u.test(prev))"
           - fixes.length
         return: 'esReplaceToken(ctx, token, fixes, "spanishConfusions", "review_msg_spanish_confusion", tokens[i + 1])'
   - id: es.verbForms
@@ -2802,13 +3759,81 @@ rules:
       ES_EXISTENTIAL: [había, hubo, habrá, haya, hubiera, hubiese, habría, haber, habiendo]
       ES_ESTAR: [estoy, estás, está, estamos, estáis, están, estaba, estabas, estábamos, estaban]
       ES_PERFECT: [he, has, ha, hemos, habéis, han, había, habías, habíamos, habían]
-      ES_QUANTIFIER_AFTER: [todos, todas, ambos, ambas, dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez, cien, mil, varios, varias]
-      ES_BEFORE_AUXILIARY: [él, ella, usted, ello, me, te, se, nos, os, le, les, lo, la, "no", ya, siempre, nunca, también, todavía]
+      ES_QUANTIFIER_AFTER:
+        [
+          todos,
+          todas,
+          ambos,
+          ambas,
+          dos,
+          tres,
+          cuatro,
+          cinco,
+          seis,
+          siete,
+          ocho,
+          nueve,
+          diez,
+          cien,
+          mil,
+          varios,
+          varias,
+        ]
+      ES_BEFORE_AUXILIARY:
+        [
+          él,
+          ella,
+          usted,
+          ello,
+          me,
+          te,
+          se,
+          nos,
+          os,
+          le,
+          les,
+          lo,
+          la,
+          "no",
+          ya,
+          siempre,
+          nunca,
+          también,
+          todavía,
+        ]
       # Verbs and phrases that take "de que" (queísmo when it is missing) and those that refuse it.
       ES_DAR:
         [
-          di, diste, dio, dimos, disteis, dieron, doy, das, da, damos, dan, daba, dabas, dábamos, daban, dado, dar,
-          darse, darme, darte, darnos, dé, des, den, diera, dieras, dieran, daría, darás, dará,
+          di,
+          diste,
+          dio,
+          dimos,
+          disteis,
+          dieron,
+          doy,
+          das,
+          da,
+          damos,
+          dan,
+          daba,
+          dabas,
+          dábamos,
+          daban,
+          dado,
+          dar,
+          darse,
+          darme,
+          darte,
+          darnos,
+          dé,
+          des,
+          den,
+          diera,
+          dieras,
+          dieran,
+          daría,
+          darás,
+          dará,
         ]
       ES_REFLEXIVE: [me, te, se, nos, os]
       ES_IMPERSONAL: [posible, fácil, probable, necesario, importante, seguro, cierto, difícil]
@@ -2818,9 +3843,43 @@ rules:
       # Words after a modal that are no verb form, though they look like one: "no me gusta nada".
       ES_NOT_GOVERNED:
         [
-          nada, cada, toda, nunca, siempre, ahora, entre, sobre, bajo, este, esta, ese, esa, aquella, otra, otro,
-          cerca, fuera, dentro, arriba, abajo, delante, detrás, antes, mientras, tarde, pronto, alguna, ninguna,
-          mucha, poca, demasiada, tanta, cuanta, media, mitad, que,
+          nada,
+          cada,
+          toda,
+          nunca,
+          siempre,
+          ahora,
+          entre,
+          sobre,
+          bajo,
+          este,
+          esta,
+          ese,
+          esa,
+          aquella,
+          otra,
+          otro,
+          cerca,
+          fuera,
+          dentro,
+          arriba,
+          abajo,
+          delante,
+          detrás,
+          antes,
+          mientras,
+          tarde,
+          pronto,
+          alguna,
+          ninguna,
+          mucha,
+          poca,
+          demasiada,
+          tanta,
+          cuanta,
+          media,
+          mitad,
+          que,
         ]
       # Subordinators after which "puede"/"quiere" stand alone: "cuando puede, intenta escapar".
       ES_ALONE_AFTER: [cuando, como, si, donde, quien, quienes, mientras, según]
@@ -2863,7 +3922,7 @@ rules:
           ado: /^(\p{L}+)ado$/u.exec(word)
           ido1: /^(\p{L}+)ído$/u.exec(word)
           ido: /^(\p{L}+)ido$/u.exec(word)
-        return: 'ado ? `${ado[1]}ando` : ido1 ? `${ido1[1]}yendo` : ido ? `${ido[1]}iendo` : null'
+        return: "ado ? `${ado[1]}ando` : ido1 ? `${ido1[1]}yendo` : ido ? `${ido[1]}iendo` : null"
       # "salpicadas" -> "salpicado", "realizando" -> "realizado", "encontraron" -> "encontrado".
       # `nominal`: an agreeing participle may be an adjective or noun here ("había determinadas").
       esPerfectOf:
@@ -2902,9 +3961,9 @@ rules:
               ),
             ]
         when:
-          - '!(word.length < 4 || !esFiniteVerb(word) || esIsInfinitive(word) || esIsGerund(word))'
-          - '!esIsNoun(word)'
-          - '!(esParticiple(word)?.feminine === false && /[ai]do$/u.test(word))'
+          - "!(word.length < 4 || !esFiniteVerb(word) || esIsInfinitive(word) || esIsGerund(word))"
+          - "!esIsNoun(word)"
+          - "!(esParticiple(word)?.feminine === false && /[ai]do$/u.test(word))"
         return: "found.length === 1 ? found[0] : null"
       # The auxiliary "ha" written as the preposition "a" before a participle: "se a ido", "ella a
       # vuelto", "el atleta a corrido", "A templado los ánimos". The preposition stays in "ponerse a
@@ -2923,7 +3982,7 @@ rules:
         when:
           - esIsPerfectParticiple(next) && !nextToken.broken
           - typed === "a" || (typed === "A" && at.starts)
-          - '!/^(?:cubierto|salvo|medio|pedido|contado)$/u.test(next)'
+          - "!/^(?:cubierto|salvo|medio|pedido|contado)$/u.test(next)"
         return: >-
           ES_BEFORE_AUXILIARY.has(prev) || /^(?:alguien|nadie|quien)$/u.test(prev)
             ? true
@@ -2953,7 +4012,7 @@ rules:
               (/^(?:\p{L}+(?:mos|is)|puedo|debo|podría|debería)$/u.test(at.prev(2)) ||
                 (/^\p{L}+n$/u.test(at.prev(2)) && esSubjectAt(at, 3)) || at.prev(3) === "se"))
           nominal: existential || (esIsNoun(next) && !ES_QUANTIFIER_AFTER.has(next) && !/^\p{N}/u.test(next))
-          fix: 'esPerfectOf(word, nominal) ?? (existential ? null : esFinitePerfect(word))'
+          fix: "esPerfectOf(word, nominal) ?? (existential ? null : esFinitePerfect(word))"
         when: ES_HABER.has(prev) && !/^\p{N}/u.test(at.tokens[at.i - 2]?.text ?? "")
         return: "fix && fix !== word ? [fix] : null"
       # "nos hemos ido cansado": after a plural "haber" + "ido", a singular participle agrees with
@@ -3024,7 +4083,7 @@ rules:
         args: "at: SpanishAround"
         let:
           verb: at.prev()
-          k: '/(?:ado|ido)$/u.test(verb) && ES_HABER.has(at.prev(2)) ? 3 : 2'
+          k: "/(?:ado|ido)$/u.test(verb) && ES_HABER.has(at.prev(2)) ? 3 : 2"
           pronoun: at.prev(k)
         return: >-
           /(?:ar|er|ir|ndo)(?:se|me|te|nos|os)$/u.test(verb)
@@ -3064,7 +4123,7 @@ rules:
         args: "infinitive: string"
         let:
           irregular: ES_IRREGULAR_FUTURE.find((pair) => infinitive.endsWith(pair[0]))
-          future: 'irregular ? `${infinitive.slice(0, -irregular[0].length)}${irregular[1]}` : `${infinitive}á`'
+          future: "irregular ? `${infinitive.slice(0, -irregular[0].length)}${irregular[1]}` : `${infinitive}á`"
           stem: infinitive.slice(0, -2)
           lastVowel: /[aeiouáéíóú](?=[^aeiouáéíóú]*$)/u.exec(stem)?.[0]
         return: >-
@@ -3123,7 +4182,7 @@ rules:
           prev: at.prev()
           ase: /^(\p{L}{3,}?)ase$/u.exec(word)
           iese: /^(\p{L}{2,}?)iese$/u.exec(word)
-          iese1: 'iese ? [`${iese[1]}er`, `${iese[1]}ir`].find((v) => esIsVerb(v)) : undefined'
+          iese1: "iese ? [`${iese[1]}er`, `${iese[1]}ir`].find((v) => esIsVerb(v)) : undefined"
           bare: /^(\p{L}{3,}?)([ae])$/u.exec(word)
           bare1: >-
             prev === "a" && bare && ES_IR.has(at.prev(2)) && !esGenderedForm(word)
@@ -3215,15 +4274,15 @@ rules:
         args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
         let:
           token: tokens[i]
-          prep: 'ES_CLITICS.has(tokens[i - 1].lower) && tokens[i - 2]?.word ? tokens[i - 2] : tokens[i - 1]'
+          prep: "ES_CLITICS.has(tokens[i - 1].lower) && tokens[i - 2]?.word ? tokens[i - 2] : tokens[i - 1]"
           desde: prep.lower === "desde"
           found: >-
             esReplaceToken(ctx, desde ? prep : esSpan(ctx, prep, token), desde ? ["desde que"] : [], "spanishConfusions",
               desde ? "review_msg_spanish_verb_form" : "review_msg_spanish_preposition_verb", token)
         return: "found && (desde ? found : { ...found, warningOnly: true as const })"
     frames:
-      # Every word: the checks key on verb forms, which are no closed list. The fixer reads the
-      # auxiliary, the clitics and the verb forms around the token (review/spanish/verbForms.ts).
+      # Every word: the checks key on verb forms, which are no closed list. The code reads the
+      # auxiliary, the clitics and the verb forms around the token.
       - regex: "{{TOKEN_WORD}}"
         flags: gu
         scan: owned
@@ -3265,9 +4324,40 @@ rules:
       # fragment holds the same list.
       ES_FREE_PREFIXES:
         [
-          ex, pro, des, post, poli, tele, video, foto, euro, afro, micro, macro, mini, ultra, super, súper, auto,
-          radio, bio, eco, socio, mega, giga, kilo, zoo, extra, astro, hispano, anglo, franco, luso, físico,
-          químico, cuasi,
+          ex,
+          pro,
+          des,
+          post,
+          poli,
+          tele,
+          video,
+          foto,
+          euro,
+          afro,
+          micro,
+          macro,
+          mini,
+          ultra,
+          super,
+          súper,
+          auto,
+          radio,
+          bio,
+          eco,
+          socio,
+          mega,
+          giga,
+          kilo,
+          zoo,
+          extra,
+          astro,
+          hispano,
+          anglo,
+          franco,
+          luso,
+          físico,
+          químico,
+          cuasi,
         ]
       # Free prefixes that join any adjective they grade: "pro democrático", "ultra conservador",
       # "cuasi perfecto"; the words themselves stand before nouns ("los pro y los contra").
@@ -3313,16 +4403,16 @@ rules:
           - '!(!hyphen && prefix === "ex")'
           # "relaciones hispano-estadounidenses", "un análisis físico-químico": two adjectives that each
           # keep their meaning keep the hyphen ("hispanohablante" fuses into one).
-          - '!(hyphen && ES_RELATIONAL_PREFIXES.has(prefix) && !esIsNoun(lower))'
-          - '!(hyphen && ES_RELATIONAL_PREFIXES.has(prefix) && /(?:ense|és|ano|ana|ino|ina)s?$|eses$/u.test(lower))'
-          - '!(!hyphen && ES_FREE_PREFIXES.has(prefix) && !graded && !sized && !esKnownWord(esJoinPrefix(prefix, word)))'
+          - "!(hyphen && ES_RELATIONAL_PREFIXES.has(prefix) && !esIsNoun(lower))"
+          - "!(hyphen && ES_RELATIONAL_PREFIXES.has(prefix) && /(?:ense|és|ano|ana|ino|ina)s?$|eses$/u.test(lower))"
+          - "!(!hyphen && ES_FREE_PREFIXES.has(prefix) && !graded && !sized && !esKnownWord(esJoinPrefix(prefix, word)))"
           - '!/^\p{Lu}/u.test(word)'
           - >-
             !(!hyphen && (apocope || esAttribute(word)) &&
             (esIsNoun(after.toLowerCase()) || esIsGenderedEntry(after.toLowerCase())))
           # "re menor" is the note.
           - '!(prefix === "re" && /^(?:mayor|menor|bemol|sostenido)$/u.test(word))'
-          - '!(esKeepsTyped(ctx, m[1]) || ctx.dictionary.has(word) || namedExampleBefore(ctx.text, m.index))'
+          - "!(esKeepsTyped(ctx, m[1]) || ctx.dictionary.has(word) || namedExampleBefore(ctx.text, m.index))"
         return: >-
           esFinding("spanishConfusions", "review_msg_closed_compound", m.index, m.index + m[0].length,
           [esCarryCase(m[1], esJoinPrefix(prefix, word))], { bulkBlock: "context-dependent" })
@@ -3334,7 +4424,8 @@ rules:
     sets:
       # Masculine determiners: "un saca corchos" can only be a compound noun, since "saca" (the verb)
       # takes no article and "la saca" (the sack) no masculine one.
-      ES_MASCULINE_DETERMINERS: [el, un, del, al, este, ese, aquel, los, unos, estos, esos, aquellos]
+      ES_MASCULINE_DETERMINERS:
+        [el, un, del, al, este, ese, aquel, los, unos, estos, esos, aquellos]
     defs:
       # Verbs "mal" fuses with into a new meaning; "mal vive" (lives badly) stays apart.
       ES_MAL_VERBS: /^(?:interpret|gast|trat|cri|vend|her|entend|entiend|acostumbr)\p{L}+$/u
@@ -3368,8 +4459,8 @@ rules:
               : null
     frames:
       # A lowercase word that ends in "a" or "e" (a verb of a compound: "un lanza misiles",
-      # "sobre protegen"), and "mal". The fixer reads the determiner before and the verb and
-      # noun forms of both halves (review/spanish/prefixes.ts). After a finding, the scan
+      # "sobre protegen"), and "mal". The code reads the determiner before and the verb and
+      # noun forms of both halves. After a finding, the scan
       # goes on after the second half.
       - regex: "(?:mal|\\p{Ll}*[ae]){{WORD_TAIL}}"
         flags: gu
@@ -3383,12 +4474,12 @@ rules:
           first: tokens[i]
           # "un lanza-misiles": a hyphen between the two halves.
           hyphen: tokens[i + 1].text === "-" && first.end === tokens[i + 1].start && !!tokens[i + 2]
-          second: 'hyphen ? tokens[i + 2] : tokens[i + 1]'
+          second: "hyphen ? tokens[i + 2] : tokens[i + 1]"
           gap: ctx.text.slice(first.end, second.start)
           at: esAround(tokens, i)
           # "un «apaga fuegos»": the determiner before an opening quote.
           quoted: /^[«“"]$/u.test(tokens[i - 1].text) && !tokens[i].broken
-          det: 'quoted ? esAround(tokens, i - 1).prev() : at.prev()'
+          det: "quoted ? esAround(tokens, i - 1).prev() : at.prev()"
           joined: esSplitCompound(at, det, first.lower, second.lower, hyphen)
         when:
           - i >= 1 && i + 1 < tokens.length
@@ -3399,7 +4490,7 @@ rules:
           - gap === " " || (hyphen && gap === "-")
           - /^\p{Ll}+$/u.test(second.text) && /^\p{Ll}+$/u.test(first.text)
           - joined && !esKeepsTyped(ctx, first.lower) && !ctx.dictionary.has(second.lower)
-          - '!namedExampleBefore(ctx.text, first.start)'
+          - "!namedExampleBefore(ctx.text, first.start)"
           # The next match starts after the second half.
           - esResume(frame, second.end)
         return: >-
@@ -3419,7 +4510,7 @@ rules:
         # "pilla-pilla", "taca-taca": a doubled word is one compound.
         when:
           - m.index >= ctx.from && m[1] === m[2] && !ctx.dictionary.has(m[0].toLowerCase())
-          - '!namedExampleBefore(ctx.text, m.index)'
+          - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
           ({
             ruleId: "spanishConfusions",
@@ -3437,14 +4528,31 @@ rules:
     # question word (why) and preposition + relative. The frame around each picks the spelling: a
     # determiner makes the noun ("el porqué"), a verb of knowing the question ("no sé por qué").
     sets:
-      ES_SINGULAR_DETS: [el, un, del, al, su, este, ese, aquel, ningún, algún, otro, mi, tu, nuestro, vuestro, cuyo]
+      ES_SINGULAR_DETS:
+        [el, un, del, al, su, este, ese, aquel, ningún, algún, otro, mi, tu, nuestro, vuestro, cuyo]
       ES_PLURAL_DETS: [los, unos, sus, estos, esos, aquellos, mis, tus, nuestros, vuestros]
       # "Dime porque lo has hecho": a command to tell why.
       ES_TELL: [dime, dinos, decirme, decirnos, explícame, explícanos, explicarme, explicarnos]
-      ES_NEED: [hay, había, habrá, habría, tengo, tienes, tiene, tenemos, tenéis, tienen, tenía, tenías, tenían]
+      ES_NEED:
+        [
+          hay,
+          había,
+          habrá,
+          habría,
+          tengo,
+          tienes,
+          tiene,
+          tenemos,
+          tenéis,
+          tienen,
+          tenía,
+          tenías,
+          tenían,
+        ]
       ES_REASON: [razón, razones, motivo, motivos, causa, causas]
       # Function words a loose verb reading would count: "no", "me", "una".
-      ES_PORQUE_CLOSED: ["no", me, te, se, le, les, lo, la, los, las, nos, os, un, una, el, ya, muy, más]
+      ES_PORQUE_CLOSED:
+        ["no", me, te, se, le, les, lo, la, los, las, nos, os, un, una, el, ya, muy, más]
       # Nouns that ask why: "la pregunta es por qué", "no tengo idea de por qué".
       ES_ASKING_NOUNS: [pregunta, cuestión, duda, idea, misterio, incógnita]
     defs:
@@ -3503,7 +4611,7 @@ rules:
           negated: at.prev(2) === "no" || at.prev(3) === "no"
           # "no le gustan por que sabe…": after a verb, a finite clause is a cause or a question; a
           # subjunctive after "por que" is a purpose ("lucha por que haya paz").
-          verb: '/^(?:él|ella|ellos|ellas|usted|yo|tú|se|me|te|le|les|lo|la|nos)$/u.test(next) ? after.next(2) : next'
+          verb: "/^(?:él|ella|ellos|ellas|usted|yo|tú|se|me|te|le|les|lo|la|nos)$/u.test(next) ? after.next(2) : next"
           subject: 'at.prev(2 + skip) === "se" ? 3 + skip : 2 + skip'
         return: >-
           spelling.kind === "plural"
@@ -3573,11 +4681,11 @@ rules:
         args: "tokens: SpanishTokens, i: number, at: SpanishAround"
         let:
           next: tokens[i + 1]
-          verb: 'ES_CLITICS.has(next.lower) ? tokens[i + 2] : next'
+          verb: "ES_CLITICS.has(next.lower) ? tokens[i + 2] : next"
         when:
           - next?.word && !next.broken && next.lower !== "que"
-          - '!(ES_DETERMINER.has(at.prev()) || /^(?:hace|hacía|hay)$/u.test(next.lower))'
-          - '!ES_PREPOSITIONS.has(next.lower)'
+          - "!(ES_DETERMINER.has(at.prev()) || /^(?:hace|hacía|hay)$/u.test(next.lower))"
+          - "!ES_PREPOSITIONS.has(next.lower)"
           - verb && esPorqueVerbAt(verb) && !esSubjunctiveLike(verb.lower)
         return: '({ end: i, fix: at.starts || !esNegatedBefore(tokens, i - 1, i - 12) ? ["si no"] : ["si no", "sino que"] })'
       # The words after "si no", from tokens[j] to tokens[end]: true when the clause ends before a
@@ -3609,7 +4717,7 @@ rules:
         when:
           - tokens[i].lower === "si" && at.next() === "no" && !tokens[i + 1].broken
           - after?.word && !after.broken && before && !/^[.;:!?¿¡]$/u.test(before.text)
-          - '!tokens[i].broken && esNegatedBefore(tokens, i - 1, i - 12)'
+          - "!tokens[i].broken && esNegatedBefore(tokens, i - 1, i - 12)"
           - after.lower === "que" || esSiNoScan(tokens, i + 2, i + 10)
         return: '({ end: i + 1, fix: ["sino"] })'
       # sino (but rather) against si no (if not): "no lo hizo él si no su primo" contrasts a phrase
@@ -3621,8 +4729,8 @@ rules:
           at: esAround(tokens, i)
         return: 'tokens[i].lower === "sino" ? esSinoWord(tokens, i, at) : esSiNo(tokens, i, at)'
     frames:
-      # "porque", "porqué", "por que", "por qué", "sino" and "si no". The fixer reads the
-      # clause around the token (review/spanish/porque.ts). After a finding, the scan goes
+      # "porque", "porqué", "por que", "por qué", "sino" and "si no". The code reads the
+      # clause around the token. After a finding, the scan goes
       # on after the phrase.
       - regex: "(?:sino|si|porqu[eé]s?|por){{WORD_TAIL}}"
         flags: giu
@@ -3656,11 +4764,62 @@ rules:
       ES_GOVERNING: [del, al, de, en, con, por, sin, desde, sobre, entre, hacia, contra, tras]
       # Adverbs and nouns that look like verb forms after a preposition: "de cerca", "desde hace".
       ES_NOT_FINITE_HERE:
-        [hace, cerca, acerca, fuera, dentro, arriba, abajo, delante, detrás, antes, encima, debajo, afuera, adentro, este, atrás, adelante, nada, toda, cada, media, mitad, sobre, bajo, entre, tarde, pronto, mientras]
+        [
+          hace,
+          cerca,
+          acerca,
+          fuera,
+          dentro,
+          arriba,
+          abajo,
+          delante,
+          detrás,
+          antes,
+          encima,
+          debajo,
+          afuera,
+          adentro,
+          este,
+          atrás,
+          adelante,
+          nada,
+          toda,
+          cada,
+          media,
+          mitad,
+          sobre,
+          bajo,
+          entre,
+          tarde,
+          pronto,
+          mientras,
+        ]
       # "haber" forms that are only the auxiliary: the third person singular ("ha", "había") may be
       # existential or the preposition "a".
       ES_AUXILIARY_ONLY:
-        [he, has, hemos, habéis, han, habías, habíamos, habíais, habían, habrás, habremos, habréis, habrán, hayas, hayamos, hayáis, hayan, hubieras, hubiéramos, hubierais, hubieran]
+        [
+          he,
+          has,
+          hemos,
+          habéis,
+          han,
+          habías,
+          habíamos,
+          habíais,
+          habían,
+          habrás,
+          habremos,
+          habréis,
+          habrán,
+          hayas,
+          hayamos,
+          hayáis,
+          hayan,
+          hubieras,
+          hubiéramos,
+          hubierais,
+          hubieran,
+        ]
     maps:
       ES_STRESS: { a: á, e: é }
     defs:
@@ -3703,8 +4862,8 @@ rules:
         when:
           - ES_ENCLITIC.has(pronoun) && !tokens[i + 1].broken
           - esIsGerund(verb) || esIsInfinitive(verb)
-          - '!(!ends && (!ES_PREPOSITIONS.has(after) || /^(?:de|del|que)$/u.test(after)))'
-          - '!tokens[i + 2]?.broken'
+          - "!(!ends && (!ES_PREPOSITIONS.has(after) || /^(?:de|del|que)$/u.test(after)))"
+          - "!tokens[i + 2]?.broken"
           - fix
         return: 'esReplaceToken(ctx, esSpan(ctx, tokens[i], tokens[i + 1]), [fix], "spanishConfusions", "review_msg_spanish_enclitic")'
       # "Está apunto de llover" -> "a punto de": "apuntar" takes no "de" before an infinitive.
@@ -3729,7 +4888,7 @@ rules:
           clitic: tokens[i].lower
           at: esAround(tokens, i)
           k: esAltaAuxiliaries(at, 1)
-          phrase: '`${at.next(k + 1)} ${at.next(k + 2)}`'
+          phrase: "`${at.next(k + 1)} ${at.next(k + 2)}`"
           fixes: >-
             /^de (?:alta|baja)$/u.test(phrase) && clitic === "les"
               ? ["los", "las"]
@@ -3751,7 +4910,7 @@ rules:
         when:
           - tokens[i].lower === "que" && ES_LETTING.test(at.prev())
           - /^(?:el|la|los|las|mi|mis|tu|tus|su|sus|este|esta|estos|estas)$/u.test(det)
-          - '!(!noun || !esReadNoun(noun) || esIsInfinitive(noun) || !esIsInfinitive(at.next(3)))'
+          - "!(!noun || !esReadNoun(noun) || esIsInfinitive(noun) || !esIsInfinitive(at.next(3)))"
         return: >-
           det === "el"
             ? esReplaceToken(ctx, esSpan(ctx, tokens[i], tokens[i + 1]), ["al"], "spanishConfusions", "review_msg_spanish_verb_form", tokens[i + 3])
@@ -3768,7 +4927,7 @@ rules:
         when:
           - ES_GOVERNING.has(at.prev()) && !ES_NOT_FINITE_HERE.has(word) && !tokens[i].broken
           - /^\p{Ll}/u.test(tokens[i].text) && word.length >= 4
-          - '!(esIsNoun(word) || esReadNoun(word) || esParticiple(word) || esIsInfinitive(word))'
+          - "!(esIsNoun(word) || esReadNoun(word) || esParticiple(word) || esIsInfinitive(word))"
           - esFiniteVerb(word) && /a$/u.test(word)
           - at.endsAfter() || ES_PREPOSITIONS.has(at.next())
           - infinitive
@@ -3804,13 +4963,13 @@ rules:
         let:
           word: tokens[i].lower
           m: /^(\p{L}{2,}?)([aei])d$/u.exec(word)
-          infinitive: '`${m[1]}${m[2]}r`'
+          infinitive: "`${m[1]}${m[2]}r`"
           rule: ES_SUBJUNCTIVE_AR.find((pair) => pair[0].test(m[1]))
         when:
           - esAround(tokens, i).prev() === "no" && /^\p{Ll}+$/u.test(tokens[i].text)
-          - '!(!m || (esIsNoun(word) && !ES_NOUN_ENDING.test(word)))'
+          - "!(!m || (esIsNoun(word) && !ES_NOUN_ENDING.test(word)))"
           - esIsVerb(infinitive)
-          - '!(ES_IRREGULAR_SUBJUNCTIVE_STEM.test(infinitive) && !/[^g]uir$/u.test(infinitive))'
+          - "!(ES_IRREGULAR_SUBJUNCTIVE_STEM.test(infinitive) && !/[^g]uir$/u.test(infinitive))"
         return: >-
           esReplaceToken(ctx, tokens[i],
             [
@@ -3839,7 +4998,7 @@ rules:
         return: 'esReplaceToken(ctx, esSpan(ctx, tokens[i], tokens[i + 2]), ["dado que"], "spanishConfusions", "review_msg_contextual_grammar", tokens[i + 2])'
     frames:
       # Every word: the frames key on gerunds, infinitives and present forms, which are no
-      # closed list. The fixer reads the clause around the token (review/spanish/clauses.ts).
+      # closed list. The code reads the clause around the token.
       - regex: "{{TOKEN_WORD}}"
         flags: gu
         scan: owned
@@ -3861,7 +5020,38 @@ rules:
       # Words that take "ala" (wing) without an article: "ala delta", "ala derecha".
       ES_WING: [delta, derecha, izquierda, norte, sur, este, oeste, oriental, occidental]
       ES_WING_DETERMINERS:
-        [el, un, del, al, su, sus, mi, mis, tu, tus, este, ese, aquel, otra, otras, cada, las, unas, estas, esas, aquellas, nuestra, nuestras, vuestra, vuestras, sin, con, en, de, por]
+        [
+          el,
+          un,
+          del,
+          al,
+          su,
+          sus,
+          mi,
+          mis,
+          tu,
+          tus,
+          este,
+          ese,
+          aquel,
+          otra,
+          otras,
+          cada,
+          las,
+          unas,
+          estas,
+          esas,
+          aquellas,
+          nuestra,
+          nuestras,
+          vuestra,
+          vuestras,
+          sin,
+          con,
+          en,
+          de,
+          por,
+        ]
       # Short imperatives that take their pronouns at the end: "dame", "hazlo", "ponte".
       ES_SHORT_IMPERATIVES: [da, di, haz, pon, sal, ten, ven, ve, sé]
     defs:
@@ -3879,8 +5069,8 @@ rules:
           - /^(?:de|a)$/u.test(prep.lower) && article?.text === "el" && !article.broken
           - '!(/^\p{Lu}/u.test(prep.text) && !at.starts)'
           - next?.word && !next.broken && /^\p{Ll}/u.test(next.text)
-          - '!ES_CLITICS.has(next.lower)'
-          - '!(esFiniteVerb(next.lower) && !esIsNoun(next.lower) && !esAttributeOf(next.lower))'
+          - "!ES_CLITICS.has(next.lower)"
+          - "!(esFiniteVerb(next.lower) && !esIsNoun(next.lower) && !esAttributeOf(next.lower))"
         return: >-
           esReplaceToken(ctx, esSpan(ctx, prep, article), [prep.lower === "de" ? "del" : "al"], "spanishConfusions",
             "review_msg_spanish_contraction", next)
@@ -3894,7 +5084,7 @@ rules:
           noun: esReadNoun(next)
         when:
           - word === "ala" || word === "alas"
-          - '!(!prev || ES_WING_DETERMINERS.has(prev) || !next || ES_WING.has(next))'
+          - "!(!prev || ES_WING_DETERMINERS.has(prev) || !next || ES_WING.has(next))"
           - '!(!/^\p{Ll}/u.test(at.tokens[at.i + 1].text) || !esIsNoun(next) || esAttributeOf(next))'
           - noun && noun.plural === (word === "alas")
         return: >-
@@ -3908,7 +5098,7 @@ rules:
           after: at.tokens[at.i + 2]
         when:
           - at.tokens[at.i].lower === "de" && at.next() === "más" && /^(?:y|e)$/u.test(at.prev())
-          - '!(after && !after.broken && !/^[.,;:!…)]$/u.test(after.text))'
+          - "!(after && !after.broken && !/^[.,;:!…)]$/u.test(after.text))"
         return: 'esReplaceToken(ctx, esSpan(ctx, at.tokens[at.i], at.tokens[at.i + 1]), ["demás"], "spanishConfusions", "review_msg_spanish_confusion")'
       # "Con el calor q hace": the chat shorthand for "que" between two words.
       esShorthandQue:
@@ -3949,8 +5139,7 @@ rules:
         return: 'esReplaceToken(ctx, token, ["los", "las"], "spanishConfusions", "review_msg_spanish_pronoun_article", count)'
     frames:
       # "de el", "ala", "de más", "q", a clitic before an imperative and "les" before a
-      # number. The fixer reads the words before and after the token
-      # (review/spanish/frames.ts).
+      # number. The code reads the words before and after the token.
       - regex: "(?:de|a|alas?|q|me|te|se|les?|los?|las?|nos|os){{WORD_TAIL}}"
         flags: giu
         scan: owned
@@ -3971,7 +5160,22 @@ rules:
     # Spanish writing conventions: "y" -> "e" before an /i/ sound and "o" -> "u" before /o/, years
     # without a thousands point, lowercase months and weekdays, invariable acronyms.
     sets:
-      ES_MONTHS: [enero, febrero, marzo, abril, mayo, junio, julio, agosto, septiembre, setiembre, octubre, noviembre, diciembre]
+      ES_MONTHS:
+        [
+          enero,
+          febrero,
+          marzo,
+          abril,
+          mayo,
+          junio,
+          julio,
+          agosto,
+          septiembre,
+          setiembre,
+          octubre,
+          noviembre,
+          diciembre,
+        ]
       ES_WEEKDAYS: [lunes, martes, miércoles, jueves, viernes, sábado, domingo]
       # "este Verano", "cada Invierno"; "la Primavera de Praga" keeps its capital.
       ES_SEASONS: [primavera, verano, otoño, invierno]
@@ -4007,7 +5211,7 @@ rules:
           - at.tokens[at.i - 1]?.text !== "¿"
           # English names keep the English sound: "Ryanair y easyJet".
           - '!/^\p{Ll}+\p{Lu}/u.test(after)'
-          - '!foreignH'
+          - "!foreignH"
         # "hobbys u hobbies"; "la u" is the letter.
         return: >-
           token.lower === "y" && esISound(after)
@@ -4067,11 +5271,10 @@ rules:
         args: "text: string"
         let:
           m: /^(\p{Lu}{2,})(?:['’]?s|S)$/u.exec(text)
-        return: 'm && ES_ACRONYMS.has(m[1].toLowerCase()) ? m[1] : null'
+        return: "m && ES_ACRONYMS.has(m[1].toLowerCase()) ? m[1] : null"
     frames:
-      # Every word and number: the fixer checks the conjunctions, the years, the acronyms
-      # and the names, and reads the words before and after the token
-      # (review/spanish/typography.ts).
+      # Every word and number: the code checks the conjunctions, the years, the acronyms
+      # and the names, and reads the words before and after the token.
       - regex: "{{TOKEN_WORD}}|\\p{N}+(?:[.,:]\\p{N}+)*"
         flags: gu
         scan: owned
@@ -4103,7 +5306,7 @@ rules:
             !fix && /^\p{Lu}{2,}(?:s|S)?$/u.test(token.text)
               ? /^\p{Lu}{2,}(?:['’]s|s|S)(?!\p{L})/u.exec(ctx.text.slice(token.start))
               : null
-          acronym: 'raw ? esAcronymPlural(raw[0]) : null'
+          acronym: "raw ? esAcronymPlural(raw[0]) : null"
         when:
           - i >= 0
           - token.start >= ctx.from && token.start < ctx.to
@@ -4141,8 +5344,8 @@ rules:
           max: esDaysInMonth(month, year)
           alternatives: 'month === 2 && year === undefined ? ["28", "29"] : [String(max)]'
         when:
-          - '!(Number(day) <= max || Number(day) > 31 || month < 1)'
-          - '!namedExampleBefore(ctx.text, start)'
+          - "!(Number(day) <= max || Number(day) > 31 || month < 1)"
+          - "!namedExampleBefore(ctx.text, start)"
         return: >-
           esFinding("spanishTypography", "review_msg_spanish_date", start, start + day.length, alternatives, {
             bulkBlock: "ambiguous",
@@ -4156,7 +5359,7 @@ rules:
           weekday: m[1]
           day: m[3]
           years: esYearsFor(monthIndex, Number(day), esContextYear(ctx.text, m.index, ctx.lang))
-          weekdays: '[...new Set(years.map((y) => esWeekdayOf(y, monthIndex, Number(day))))]'
+          weekdays: "[...new Set(years.map((y) => esWeekdayOf(y, monthIndex, Number(day))))]"
           typed: ES_WEEKDAY_LIST.indexOf(weekday.toLowerCase())
           near: esNearestDayOn(years[0], monthIndex, Number(day), typed)
         when: years.length && !weekdays.includes(typed)
@@ -4187,9 +5390,9 @@ rules:
           weekday: m[1]
           day: m[3]
           year: m[5]
-          dayStart: 'm.index + (weekday ? weekday.length + m[2].length : 0)'
+          dayStart: "m.index + (weekday ? weekday.length + m[2].length : 0)"
           monthIndex: esMonthNumber(m[4])
-          yearNumber: 'year ? Number(year) : undefined'
+          yearNumber: "year ? Number(year) : undefined"
           dayNumber: Number(day)
           fullDate: >-
             yearNumber !== undefined && (dayNumber === 0 || dayNumber > 31) &&
@@ -4259,7 +5462,7 @@ rules:
           - >-
             yearText.length === 4 ||
             (dated && !(!yearText && (separator === "-" || !/^(?:[.;:!?)]|\s{0,8}$)/u.test(ctx.text.slice(m.index + m[0].length)))))
-          - '!impossible || ((dated || fullDate) && !namedExampleBefore(ctx.text, m.index))'
+          - "!impossible || ((dated || fullDate) && !namedExampleBefore(ctx.text, m.index))"
           - impossible || (month >= 1 && month <= 12)
         return: >-
           impossible
@@ -4283,7 +5486,7 @@ rules:
         let:
           range: esInvalidIsoDate(m, ctx)
         when: range
-        return: '({ ruleId: frame.ruleId, messageKey: frame.messageKey, range, alternatives: [], warningOnly: true })'
+        return: "({ ruleId: frame.ruleId, messageKey: frame.messageKey, range, alternatives: [], warningOnly: true })"
   - id: es.typographyMarks
     checks: [spanishTypography]
     group: spanishTypography
@@ -4396,7 +5599,7 @@ rules:
         scan: owned
         lookback: 8
         when: esMarkOpen(m, ctx)
-        return: 'esMarkFix(m, frame, `${m[1]} °${m[2]}`)'
+        return: "esMarkFix(m, frame, `${m[1]} °${m[2]}`)"
         message: review_msg_spanish_unit
       # "n° 18", "n°18": the number sign is "n.º", with the raised o, not a degree. A degree
       # sign right after a lowercase "n" only; "N° 54" heads forms and is left alone.
@@ -4405,7 +5608,7 @@ rules:
         scan: owned
         lookback: 8
         when: esMarkOpen(m, ctx)
-        return: 'esMarkFix(m, frame, `${m[1]}.º `)'
+        return: "esMarkFix(m, frame, `${m[1]}.º `)"
         message: review_msg_spanish_ordinal
       # "el Sr García", "en el núm 25": an abbreviation before a name or a number takes its
       # period.
@@ -4414,7 +5617,7 @@ rules:
         scan: owned
         lookback: 8
         when: esMarkOpen(m, ctx)
-        return: 'esMarkFix(m, frame, `${m[0]}.`)'
+        return: "esMarkFix(m, frame, `${m[0]}.`)"
       # "2000euros", "5000habitantes": a number glued to the noun it counts.
       - regex: "(?<![\\p{L}\\p{N}.,])(\\p{N}+(?:[.,]\\p{N}{3})*)(\\p{Ll}{4,})(?![\\p{L}\\p{N}])"
         flags: gu
@@ -4430,7 +5633,7 @@ rules:
         scan: owned
         lookback: 8
         when: esMarkOpen(m, ctx)
-        return: 'esMarkFix(m, frame, `${m[0][0]}${m[0].slice(1).toLowerCase()}`)'
+        return: "esMarkFix(m, frame, `${m[0][0]}${m[0].slice(1).toLowerCase()}`)"
         message: review_msg_spanish_capital_article
       # "rojo, azul, etc", "el s XVIII", "N.I.F", "J. K Rowling": the abbreviation's period.
       - regex: "(?<![\\p{L}\\p{N}.])etc(?![\\p{L}\\p{N}.\\u2026])"
@@ -4438,7 +5641,7 @@ rules:
         scan: owned
         lookback: 8
         when: esMarkOpen(m, ctx)
-        return: 'esMarkFix(m, frame, `${m[0]}.`)'
+        return: "esMarkFix(m, frame, `${m[0]}.`)"
       - regex: "(?<=(?:^|[\\s(])(?:el|del|al|los|en|El|Del|Al|Los|En)[ \\t]{1,8}|^|[.!?][ \\t]{1,8})[sS](?=[ \\t]{1,8}{{ROMAN}}(?![\\p{L}\\p{N}]))"
         flags: gu
         scan: owned
@@ -4452,7 +5655,7 @@ rules:
         scan: owned
         lookback: 8
         when: esMarkOpen(m, ctx)
-        return: 'esMarkFix(m, frame, `${m[0]}.`)'
+        return: "esMarkFix(m, frame, `${m[0]}.`)"
       # "p.ej.", "nº 18", "pag 4", "telf 666": the standard forms "p. ej.", "n.º", "pág.",
       # "tel.".
       - regex: "(?<![\\p{L}\\p{N}.])([pP])(?:[ \\t]?\\.[ \\t]?e(?:j[ \\t]?)?|[ \\t]ej[ \\t]?)\\.(?![\\p{L}\\p{N}])"
@@ -4460,7 +5663,7 @@ rules:
         scan: owned
         lookback: 8
         when: esMarkOpen(m, ctx)
-        return: 'esMarkFix(m, frame, `${m[1]}. ej.`)'
+        return: "esMarkFix(m, frame, `${m[1]}. ej.`)"
         message: review_msg_spanish_abbreviation_form
       - regex: "(?<![\\p{L}\\p{N}.])(n\\u00BA|n\\.\\u00B0|num|pag|pags|telf|tlf|tlfn)\\.?:?[ \\t]?(?=\\p{N})"
         flags: giu
@@ -4503,7 +5706,7 @@ rules:
         scan: owned
         lookback: 8
         when: esMarkOpen(m, ctx)
-        return: 'esMarkFix(m, frame, `${m[1] ?? m[3]}, ${m[2] ?? m[4]}`)'
+        return: "esMarkFix(m, frame, `${m[1] ?? m[3]}, ${m[2] ?? m[4]}`)"
         message: review_msg_spanish_repeated_answer
       # "Es él ─dijo": a box-drawing or Hangul stroke typed for the long dash.
       - regex: "(?<=[\\p{Script=Latin}.,!?][ \\t]?)[\\u2500\\u2501\\u3161](?=\\p{Script=Latin})"
@@ -4517,7 +5720,7 @@ rules:
       - regex: "(?<=\\p{L}),\\.(?!\\.)"
         flags: gu
         scan: owned
-        when: '!namedExampleBefore(ctx.text, m.index)'
+        when: "!namedExampleBefore(ctx.text, m.index)"
         return: 'esFinding("spanishTypography", frame.messageKey, m.index, m.index + 2, [",", "."], { requiresChoice: true })'
         message: review_msg_duplicate_punctuation
       # "¿Qué es lo que pasa aquí." -> "aquí?", "¡Qué bonito" -> "bonito!": an opening mark
@@ -4549,7 +5752,7 @@ rules:
         lookback: 8
         # "los años 20s y 30s": both decades of a pair.
         let:
-          second: 'm[2] ? m.index + m[0].lastIndexOf(m[2]) : -1'
+          second: "m[2] ? m.index + m[0].lastIndexOf(m[2]) : -1"
           first: /^\d+['’]?s/u.exec(m[0])![0]
         when: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
         return: >-
@@ -4574,36 +5777,167 @@ rules:
       # Greetings that may close a sentence: "Os deseo buenos días, amigos".
       ES_CLOSING_GREETINGS: [días, día, tardes, noches]
       # Words that open the clause after the person addressed: "Hola amigo, cómo estás".
-      ES_CLAUSE_OPENERS: [cómo, como, qué, que, dónde, donde, cuándo, cuando, quién, quien, cuál, te, me, os, nos, le, les, ya, hoy]
+      ES_CLAUSE_OPENERS:
+        [
+          cómo,
+          como,
+          qué,
+          que,
+          dónde,
+          donde,
+          cuándo,
+          cuando,
+          quién,
+          quien,
+          cuál,
+          te,
+          me,
+          os,
+          nos,
+          le,
+          les,
+          ya,
+          hoy,
+        ]
       ES_ADDRESSED:
         [
-          amigo, amiga, amigos, amigas, chico, chica, chicos, chicas, guapo, guapa, guapos, guapas, cariño,
-          querido, querida, queridos, queridas, señor, señora, señores, señoras, señorita, jefe, jefa,
-          compañero, compañera, compañeros, compañeras, hermano, hermana, tío, tía, mamá, papá, abuelo,
-          abuela, hijo, hija, niños, niñas, estimado, estimada, estimados, estimadas, colega, colegas,
-          preciosa, precioso, amor, cielo, vecino, vecina, vecinos, chaval, chavales, muchachos,
-          muchachas, gente, familia, equipo,
+          amigo,
+          amiga,
+          amigos,
+          amigas,
+          chico,
+          chica,
+          chicos,
+          chicas,
+          guapo,
+          guapa,
+          guapos,
+          guapas,
+          cariño,
+          querido,
+          querida,
+          queridos,
+          queridas,
+          señor,
+          señora,
+          señores,
+          señoras,
+          señorita,
+          jefe,
+          jefa,
+          compañero,
+          compañera,
+          compañeros,
+          compañeras,
+          hermano,
+          hermana,
+          tío,
+          tía,
+          mamá,
+          papá,
+          abuelo,
+          abuela,
+          hijo,
+          hija,
+          niños,
+          niñas,
+          estimado,
+          estimada,
+          estimados,
+          estimadas,
+          colega,
+          colegas,
+          preciosa,
+          precioso,
+          amor,
+          cielo,
+          vecino,
+          vecina,
+          vecinos,
+          chaval,
+          chavales,
+          muchachos,
+          muchachas,
+          gente,
+          familia,
+          equipo,
         ]
       ES_NEGATIONS: ["no", nunca, jamás, tampoco, ni]
       # "No hace sino llorar", "nadie sino él", "no tiene otra salida sino esperar": "sino" means
       # "except" here and takes no comma.
-      ES_EXCEPTIVE: [nadie, nada, ningún, ninguna, ninguno, otro, otra, otros, otras, más, menos, cosa]
+      ES_EXCEPTIVE:
+        [nadie, nada, ningún, ninguna, ninguno, otro, otra, otros, otras, más, menos, cosa]
       # Finite verbs the dictionary also lists as nouns.
       ES_COMMON_FINITE: [es, son, era, eran, fue, fueron, ha, han, va, van, da, dan, ve, ven, hay]
       # Determiners of a subject a comma may not cut from its verb; "mi"/"tu" open vocatives ("Mi
       # amor, está lista la cena"). The es.commas frame lists these words.
       ES_SUBJECT_DETERMINERS:
         [
-          el, la, los, las, este, esta, estos, estas, ese, esa, esos, esas, aquel, aquella, aquellos, aquellas,
-          nuestro, nuestra, nuestros, nuestras, su, sus,
+          el,
+          la,
+          los,
+          las,
+          este,
+          esta,
+          estos,
+          estas,
+          ese,
+          esa,
+          esos,
+          esas,
+          aquel,
+          aquella,
+          aquellos,
+          aquellas,
+          nuestro,
+          nuestra,
+          nuestros,
+          nuestras,
+          su,
+          sus,
         ]
       # Nouns that open a sentence as an adverbial or a remark, comma and all: "La verdad, no lo sé",
       # "El lunes, llegaron todos", "La mayoría, se fue".
       ES_NOT_SUBJECT_NOUNS:
         [
-          verdad, semana, semanas, año, años, mes, meses, día, días, tarde, tardes, noche, noches, mañana,
-          mañanas, vez, veces, momento, rato, verano, invierno, otoño, primavera, lunes, martes, miércoles,
-          jueves, viernes, sábado, sábados, domingo, domingos, fin, principio, final, mayoría, mitad, resto,
+          verdad,
+          semana,
+          semanas,
+          año,
+          años,
+          mes,
+          meses,
+          día,
+          días,
+          tarde,
+          tardes,
+          noche,
+          noches,
+          mañana,
+          mañanas,
+          vez,
+          veces,
+          momento,
+          rato,
+          verano,
+          invierno,
+          otoño,
+          primavera,
+          lunes,
+          martes,
+          miércoles,
+          jueves,
+          viernes,
+          sábado,
+          sábados,
+          domingo,
+          domingos,
+          fin,
+          principio,
+          final,
+          mayoría,
+          mitad,
+          resto,
         ]
       ES_SINGULAR_COPULA: [es, está, era, estaba, fue, será, ha, va, tiene]
       ES_PLURAL_COPULA: [son, están, eran, estaban, fueron, serán, han, van, tienen]
@@ -4640,7 +5974,7 @@ rules:
         when:
           - k <= 12
           - word && !ES_EXCEPTIVE.has(word)
-        return: 'ES_NEGATIONS.has(word) ? between >= 2 : esSinoNegated(at, k + 1, between + (ES_CLITICS.has(word) ? 0 : 1))'
+        return: "ES_NEGATIONS.has(word) ? between >= 2 : esSinoNegated(at, k + 1, between + (ES_CLITICS.has(word) ? 0 : 1))"
         else: "false"
       # "No lo hizo él sino que lo hice yo" -> "él, sino que": "sino que" opening the clause that
       # replaces a negated one. Without "que" the comma may go ("no es azul sino verde"), and right
@@ -4695,7 +6029,7 @@ rules:
           - /^(?:ya|puesto)$/u.test(tokens[i].lower) && !tokens[i].broken
           - at.next() === "que" && !!at.next(2)
           - before && !ES_CLITICS.has(before) && !ES_NEGATIONS.has(before) && !ES_CONJUNCTIONS.has(before)
-          - '!(ES_DETERMINERS.has(before) || esClauseVerb(before) || esParticiple(before) || esIsInfinitive(before))'
+          - "!(ES_DETERMINERS.has(before) || esClauseVerb(before) || esParticiple(before) || esIsInfinitive(before))"
           - '!(tokens[i].lower === "puesto" && (ES_DETERMINERS.has(at.prev(2)) || /^(?:al|del)$/u.test(at.prev(2))))'
         return: esClauseVerbBefore(at, 2, 10)
         else: "false"
@@ -4726,7 +6060,7 @@ rules:
           # One adjective after the noun: "Nuestro objetivo principal, es…".
           after: 'nounToken.text === "," ? i + 1 : i + 2'
           adjective: tokens[after]
-          comma: 'after === i + 2 && adjective?.word && !adjective.broken && !esFiniteVerb(adjective.lower) ? after + 1 : after'
+          comma: "after === i + 2 && adjective?.word && !adjective.broken && !esFiniteVerb(adjective.lower) ? after + 1 : after"
           # "El gobierno, no anunció nada", "La empresa, se fundó en 1990": "no" or "se" first.
           lead: '/^(?:no|se)$/u.test(tokens[comma + 1]?.lower ?? "") ? 1 : 0'
           verb: tokens[comma + 1 + lead]
@@ -4749,7 +6083,7 @@ rules:
           - tokens[comma]?.text === "," && !tokens[comma].broken
           - verb?.word && !verb.broken && !/^\p{Lu}/u.test(tokens[comma + 1].text)
           - plural === noun.plural
-          - '!esMarkSoon(tokens, comma + 2, comma + 7)'
+          - "!esMarkSoon(tokens, comma + 2, comma + 7)"
         return: comma
         else: "-1"
       # tokens[i..] spell `phrase` on one line: the index of its last token, or -1.
@@ -4793,8 +6127,8 @@ rules:
         return: 'esReplaceToken(ctx, tokens[i], [`${tokens[i].lower},`], "spanishTypography", "review_msg_spanish_comma", tokens[i + 1])'
     frames:
       # "sino", "pero", "ya que", "puesto que", the determiner of a subject, and the first
-      # words of the connectors and greetings of review/spanish/commas.ts. Every token of
-      # the read window counts: the comma may go before the chunk. The fixer reads the
+      # words of ES_CONNECTORS and ES_GREETINGS. Every token of
+      # the read window counts: the comma may go before the chunk. The code reads the
       # clause structure around the token. After a connector or a greeting, the scan goes
       # on after the phrase and the person addressed.
       - regex: "(?:sino|pero|ya|puesto|el|las?|los|es(?:t(?:e|a|os|as)|e|a|os|as)?|aquel(?:las?|los)?|nuestr[oa]s?|sus?|sin|por|en|al|adem[aá]s|asimismo|as[ií]|o|de|aun|a|un|(?:afortunada|desafortunada|desgraciada|lamentable|evidente|obvia|efectiva|sincera|franca|honesta|curiosa|sorprendente|indudable)mente|hola|adi[oó]s|buen(?:[oa]s)?|felicidades|enhorabuena|hasta|felices|much[oa]s|muy|besos|abrazos|gracias|saludos|bienvenid[oa]s?|feliz|c[oó]mo){{WORD_TAIL}}"
@@ -4816,18 +6150,18 @@ rules:
               ? esReplaceToken(ctx, tokens[comma], [""], "spanishTypography", "review_msg_spanish_comma", tokens[comma + 1], true)
               : null
           starts: esAround(tokens, i).starts
-          connector: 'starts ? ES_CONNECTORS.find((phrase) => esPhraseAt(tokens, i, phrase) >= 0) : undefined'
-          connectorEnd: 'connector ? esConnectorEnd(tokens, i, connector) : -1'
+          connector: "starts ? ES_CONNECTORS.find((phrase) => esPhraseAt(tokens, i, phrase) >= 0) : undefined"
+          connectorEnd: "connector ? esConnectorEnd(tokens, i, connector) : -1"
           # "Hola Marta", "Adiós amigos"; "¡Hola a todos!" greets no one by name. Inside a sentence
           # only a closing greeting before the end: "Te deseo buenos días amigo."
-          greeting: 'connectorEnd < 0 ? ES_GREETINGS.find((phrase) => esPhraseAt(tokens, i, phrase) >= 0) : undefined'
-          greetingEnd: 'greeting ? esPhraseAt(tokens, i, greeting) : -1'
-          greeted: 'greetingEnd >= 0 ? esAddressee(tokens, greetingEnd + 1) : -1'
+          greeting: "connectorEnd < 0 ? ES_GREETINGS.find((phrase) => esPhraseAt(tokens, i, phrase) >= 0) : undefined"
+          greetingEnd: "greeting ? esPhraseAt(tokens, i, greeting) : -1"
+          greeted: "greetingEnd >= 0 ? esAddressee(tokens, greetingEnd + 1) : -1"
           greets: >-
             greetingEnd >= 0 && greeted >= 0 &&
             (starts || (ES_CLOSING_GREETINGS.has(tokens[greetingEnd].lower) && esAround(tokens, greeted).endsAfter()))
-          last: 'connectorEnd >= 0 ? connectorEnd : greets ? greetingEnd : -1'
-          addressed: 'connectorEnd < 0 && greets ? greeted : -1'
+          last: "connectorEnd >= 0 ? connectorEnd : greets ? greetingEnd : -1"
+          addressed: "connectorEnd < 0 && greets ? greeted : -1"
           # "Hola amigo, cómo estás": the clause after the person addressed opens with a comma too.
           next: tokens[addressed + 1]
         when:
@@ -4864,7 +6198,7 @@ rules:
         # "EE.UU.Hoy": initials and abbreviations stay glued.
         when:
           - '!/\.\p{L}{1,3}$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))'
-          - '!namedExampleBefore(ctx.text, m.index)'
+          - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
           ({
             ruleId: "commaPeriodSpacing",
@@ -4883,7 +6217,7 @@ rules:
         # entity or a token with no space around it.
         let:
           word: /\S*$/u.exec(ctx.text.slice(Math.max(0, m.index - 32), m.index))![0]
-        when: '!(namedExampleBefore(ctx.text, m.index) || /[&#=/]/u.test(word))'
+        when: "!(namedExampleBefore(ctx.text, m.index) || /[&#=/]/u.test(word))"
         return: >-
           ({
             ruleId: "commaPeriodSpacing",
@@ -4903,7 +6237,7 @@ rules:
       esQuoteMarks:
         args: "text: string, k: number, end: number"
         type: number[]
-        return: "k >= 0 && k < end ? [k, ...esQuoteMarks(text, text.indexOf('\"', k + 1), end)] : []"
+        return: 'k >= 0 && k < end ? [k, ...esQuoteMarks(text, text.indexOf(''"'', k + 1), end)] : []'
       # No space inside the pair of marks at `open` and `close`.
       esQuotePairSpaces:
         args: "ctx: DetectContext, open: number, close: number"
@@ -4938,7 +6272,7 @@ rules:
         else: "[]"
     frames:
       # Each line that touches the chunk, from the chunk start (a regex cannot start before
-      # it): the fixer pairs the straight quotes of the whole line by position.
+      # it): the code pairs the straight quotes of the whole line by position.
       - regex: "[^\\n]+\\n?|\\n"
         flags: g
         scan: text
@@ -4950,9 +6284,9 @@ rules:
           text: ctx.text
           lineStart: text.lastIndexOf("\n", m.index - 1) + 1
           lineEnd: 'm.index + m[0].length - (m[0].endsWith("\n") ? 1 : 0)'
-          marks: "esQuoteMarks(text, text.indexOf('\"', lineStart), lineEnd)"
+          marks: 'esQuoteMarks(text, text.indexOf(''"'', lineStart), lineEnd)'
           usable: marks.length >= 2 && marks.length % 2 === 0 && !marks.some((k) => /\d/.test(text[k - 1] ?? ""))
-        return: 'usable ? marks.flatMap((open, p) => (p % 2 ? [] : esQuotePairSpaces(ctx, open, marks[p + 1]))) : []'
+        return: "usable ? marks.flatMap((open, p) => (p % 2 ? [] : esQuotePairSpaces(ctx, open, marks[p + 1]))) : []"
   - id: es.dashes
     checks: [emdashShortcut]
     group: emdashShortcut
@@ -4978,7 +6312,7 @@ rules:
         flags: gu
         scan: owned
         lookback: 8
-        when: '!namedExampleBefore(ctx.text, m.index)'
+        when: "!namedExampleBefore(ctx.text, m.index)"
         return: esLongDash(ctx, m.index, m.index + m[0].length)
       # "Se fue -¿no?-, y volvió", "Finol –medalla de bronce– ganó": a remark set off by a pair
       # of hyphens or en dashes, open after a space and closed before a space or a mark.
@@ -4989,8 +6323,8 @@ rules:
         # "Se fue -¿no?-, y volvió", "Finol –medalla de bronce– ganó": both dashes of the remark.
         let:
           close: m.index + m[0].length - 1
-        when: '!namedExampleBefore(ctx.text, m.index)'
-        return: '[esLongDash(ctx, m.index, m.index + 1), esLongDash(ctx, close, close + 1)].filter((dash) => dash !== null)'
+        when: "!namedExampleBefore(ctx.text, m.index)"
+        return: "[esLongDash(ctx, m.index, m.index + 1), esLongDash(ctx, close, close + 1)].filter((dash) => dash !== null)"
   - id: es.rangeDash
     checks: [emdashShortcut]
     group: emdashShortcut
@@ -5016,13 +6350,13 @@ rules:
         let:
           a: m[1]
           b: m[3]
-          last: 'a.length === 4 && b.length === 2 ? Number(a.slice(0, 2) + b) : Number(b)'
+          last: "a.length === 4 && b.length === 2 ? Number(a.slice(0, 2) + b) : Number(b)"
           before: ctx.text.slice(Math.max(0, m.index - 48), m.index)
         when:
           - m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
           - '!(a[0] === "0" || b[0] === "0" || (a.length === 3 && b.length === 4))'
           - last > Number(a)
-          - '!(ES_RANGE_CODE_BEFORE.test(before) || ES_RANGE_SCORE_BEFORE.test(before))'
+          - "!(ES_RANGE_CODE_BEFORE.test(before) || ES_RANGE_SCORE_BEFORE.test(before))"
         return: >-
           esFinding("emdashShortcut", "review_msg_range_dash", m.index + a.length, m.index + a.length + m[2].length, ["–"], {
             context: { start: m.index, end: m.index + m[0].length },
@@ -5093,54 +6427,294 @@ rules:
       ES_CLITIC_ARTICLES: [la, las, los]
       ES_STANDALONE:
         [
-          el, tu, este, esta, estos, estas, ese, esa, esos, esas, aquel, aquella, aquellos, aquellas, otro, otra,
-          otros, otras, mucho, mucha, muchos, muchas, poco, poca, pocos, pocas, demasiado, demasiada,
-          demasiados, demasiadas, tanto, tanta, tantos, tantas, cuanto, cuanta, cuantos, cuantas, cuánto,
-          cuánta, cuántos, cuántas,
+          el,
+          tu,
+          este,
+          esta,
+          estos,
+          estas,
+          ese,
+          esa,
+          esos,
+          esas,
+          aquel,
+          aquella,
+          aquellos,
+          aquellas,
+          otro,
+          otra,
+          otros,
+          otras,
+          mucho,
+          mucha,
+          muchos,
+          muchas,
+          poco,
+          poca,
+          pocos,
+          pocas,
+          demasiado,
+          demasiada,
+          demasiados,
+          demasiadas,
+          tanto,
+          tanta,
+          tantos,
+          tantas,
+          cuanto,
+          cuanta,
+          cuantos,
+          cuantas,
+          cuánto,
+          cuánta,
+          cuántos,
+          cuántas,
         ]
       # Plural pronouns that drop a repeated verb: "unos piden problemas y otros oportunidades".
       ES_ELLIPTIC: [unos, unas, otros, otras, algunos, algunas, muchos, muchas, pocos, pocas]
       ES_ADJECTIVE_BLOCKERS:
-        [este, esta, estos, estas, ese, esa, esos, esas, aquel, aquella, aquellos, aquellas, otros, otras, algunos, algunas, muchos, muchas, pocos, pocas, mucho, poco, demasiado]
+        [
+          este,
+          esta,
+          estos,
+          estas,
+          ese,
+          esa,
+          esos,
+          esas,
+          aquel,
+          aquella,
+          aquellos,
+          aquellas,
+          otros,
+          otras,
+          algunos,
+          algunas,
+          muchos,
+          muchas,
+          pocos,
+          pocas,
+          mucho,
+          poco,
+          demasiado,
+        ]
       # "el agua", "un hacha", "algún arma": a stressed a- feminine noun takes these.
       ES_BEFORE_STRESSED_A: [el, un, algún, ningún, del, al]
       ES_AG_QUANTIFIERS: [todos, todas, ambos, ambas]
       # Words before a clitic that are no verb: "uno las mira", "si no las ve".
       ES_SUBJECT_WORDS:
-        [yo, tú, él, ella, usted, nosotros, nosotras, vosotros, vosotras, ellos, ellas, ustedes, "no", ya, nunca, también, tampoco, siempre, que, quien, si, como, cuando, donde]
-      ES_DEFINITE_GROUP: [los, las, estos, estas, esos, esas, aquellos, aquellas, sus, mis, tus, nuestros, nuestras, vuestros, vuestras]
+        [
+          yo,
+          tú,
+          él,
+          ella,
+          usted,
+          nosotros,
+          nosotras,
+          vosotros,
+          vosotras,
+          ellos,
+          ellas,
+          ustedes,
+          "no",
+          ya,
+          nunca,
+          también,
+          tampoco,
+          siempre,
+          que,
+          quien,
+          si,
+          como,
+          cuando,
+          donde,
+        ]
+      ES_DEFINITE_GROUP:
+        [
+          los,
+          las,
+          estos,
+          estas,
+          esos,
+          esas,
+          aquellos,
+          aquellas,
+          sus,
+          mis,
+          tus,
+          nuestros,
+          nuestras,
+          vuestros,
+          vuestras,
+        ]
       ES_FEMININE_BEFORE: [la, una, esta, esa, aquella, nuestra, vuestra, otra]
       ES_MASCULINE_BEFORE: [el, un, este, ese, aquel, nuestro, vuestro, otro, del, al]
       # Adjectives that also work as adverbs: "tomó la curva más rápido", "lo dijo más claro".
       ES_ADVERBIAL:
-        [rápido, lento, claro, alto, bajo, fuerte, duro, directo, fijo, seguro, barato, caro, recto, derecho, limpio, justo, hondo, ligero, despacio, temprano, tarde, pronto, mismo]
+        [
+          rápido,
+          lento,
+          claro,
+          alto,
+          bajo,
+          fuerte,
+          duro,
+          directo,
+          fijo,
+          seguro,
+          barato,
+          caro,
+          recto,
+          derecho,
+          limpio,
+          justo,
+          hondo,
+          ligero,
+          despacio,
+          temprano,
+          tarde,
+          pronto,
+          mismo,
+        ]
       # Words between a noun and its adjective: "una torre bien alta", "una casa muy bonita".
       ES_ADJECTIVE_DEGREE: [muy, tan, bien, bastante, demasiado, más, menos, poco]
       # -o/-a words that work as adverbs or prepositions after a noun: "la casa junto al río", "las
       # chicas solo quieren", "la mesa medio rota", "la reunión debido a la lluvia".
       ES_NOT_POSTPONED:
-        [junto, debido, dado, puesto, solo, mismo, medio, todo, tanto, cuanto, demasiado, poco, mucho, bastante, recién, contrario, relativo, tocante, referente, rumbo, comparado, visto]
+        [
+          junto,
+          debido,
+          dado,
+          puesto,
+          solo,
+          mismo,
+          medio,
+          todo,
+          tanto,
+          cuanto,
+          demasiado,
+          poco,
+          mucho,
+          bastante,
+          recién,
+          contrario,
+          relativo,
+          tocante,
+          referente,
+          rumbo,
+          comparado,
+          visto,
+        ]
       # Nouns in -ble that are no adjectives.
       ES_NOUNS_IN_BLE: [mueble, muebles, inmueble, inmuebles, cable, cables, roble, robles, sable]
       # Nouns a bare noun or an adverbial may follow: "la mayoría niños", "una vez dormida".
       ES_NOT_HEADS:
-        [vez, rato, momento, mayoría, minoría, mitad, resto, parte, grupo, montón, multitud, cantidad, número, serie, conjunto, totalidad, tanto, poco]
+        [
+          vez,
+          rato,
+          momento,
+          mayoría,
+          minoría,
+          mitad,
+          resto,
+          parte,
+          grupo,
+          montón,
+          multitud,
+          cantidad,
+          número,
+          serie,
+          conjunto,
+          totalidad,
+          tanto,
+          poco,
+        ]
       # "dar por hecho", "dar por sentado": the participle agrees with the object after it.
       ES_DAR_POR_FORMS:
         [
-          doy, das, da, damos, dais, dan, di, diste, dio, dimos, disteis, dieron, daba, dabas, dábamos, daban, daré,
-          darás, dará, daremos, darán, daría, darías, daríamos, darían, dé, des, demos, den, diera, dieran,
-          dado, dando, dar, darlo,
+          doy,
+          das,
+          da,
+          damos,
+          dais,
+          dan,
+          di,
+          diste,
+          dio,
+          dimos,
+          disteis,
+          dieron,
+          daba,
+          dabas,
+          dábamos,
+          daban,
+          daré,
+          darás,
+          dará,
+          daremos,
+          darán,
+          daría,
+          darías,
+          daríamos,
+          darían,
+          dé,
+          des,
+          demos,
+          den,
+          diera,
+          dieran,
+          dado,
+          dando,
+          dar,
+          darlo,
         ]
       # Nouns that also work as adverbs of time: "Haz eso mañana", "Termina esto hoy".
       ES_TIME_ADVERBS: [mañana, tarde, noche, hoy, ayer, anoche, siempre, ahora]
       # Adjectives with one form for both genders that often stand before the noun.
       ES_GENDERLESS_BEFORE:
         [
-          gran, grandes, principal, principales, mejor, mejores, peor, peores, mayor, mayores, menor, menores,
-          suave, suaves, fuerte, fuertes, breve, breves, enorme, enormes, simple, simples, importante,
-          importantes, excelente, excelentes, interesante, interesantes, increíble, increíbles, posible,
-          posibles, útil, útiles, difícil, difíciles, fácil, fáciles, feliz, felices, triste, tristes,
+          gran,
+          grandes,
+          principal,
+          principales,
+          mejor,
+          mejores,
+          peor,
+          peores,
+          mayor,
+          mayores,
+          menor,
+          menores,
+          suave,
+          suaves,
+          fuerte,
+          fuertes,
+          breve,
+          breves,
+          enorme,
+          enormes,
+          simple,
+          simples,
+          importante,
+          importantes,
+          excelente,
+          excelentes,
+          interesante,
+          interesantes,
+          increíble,
+          increíbles,
+          posible,
+          posibles,
+          útil,
+          útiles,
+          difícil,
+          difíciles,
+          fácil,
+          fáciles,
+          feliz,
+          felices,
+          triste,
+          tristes,
         ]
       # Masculine singulars shortened before the noun: "buen día", "primer paso".
       ES_SHORTENED: [buen, mal, primer, tercer]
@@ -5275,15 +6849,15 @@ rules:
           detPlural: det.slot >= 2
           detGender: 'esGenderless(det) ? null : det.slot % 2 ? "f" : "m"'
           after: esAround(tokens, i + 1).next()
-          afterNoun: 'after ? esReadNoun(after) : null'
-          numberClash: '!noun.invariant && detPlural !== noun.plural'
+          afterNoun: "after ? esReadNoun(after) : null"
+          numberClash: "!noun.invariant && detPlural !== noun.plural"
           genderClash: >-
             !!detGender && !!noun.gender && detGender !== noun.gender && !(noun.paired && detGender === "f" && !noun.plural) &&
             !(ES_BEFORE_STRESSED_A.has(lower) && /^h?[aá]/u.test(word)) && !ES_ELLIPTIC.has(lower)
           gender: noun.gender ?? detGender ?? "m"
           stressedA: ES_BEFORE_STRESSED_A.has(det.forms[0]) && /^h?[aá]/u.test(word)
-          nounForm: 'noun.plural ? noun.singular : esPluralOf(word)'
-          masculine: 'noun.paired ? esOtherGender(noun, word) : null'
+          nounForm: "noun.plural ? noun.singular : esPluralOf(word)"
+          masculine: "noun.paired ? esOtherGender(noun, word) : null"
           alternatives: >-
             numberClash
               ? [
@@ -5305,26 +6879,26 @@ rules:
         when:
           - nounToken?.word && !nounToken.broken
           - det
-          - '!(ES_SER.has(prev) && !/^(?:much|poc|demasiad)/u.test(lower))'
+          - "!(ES_SER.has(prev) && !/^(?:much|poc|demasiad)/u.test(lower))"
           - '!(/^(?:tant|cuant|cuánt)/u.test(lower) && ([2, 3, 4].some((k) => at.next(k) === "como") || prev === "en" || prev === "por"))'
           - '!(prev === "un" && /^(?:tanto|poco)$/u.test(lower))'
-          - '!(/^un(?:a|os|as)?$/u.test(nounToken.lower) && !/^las?$/u.test(lower))'
+          - "!(/^un(?:a|os|as)?$/u.test(nounToken.lower) && !/^las?$/u.test(lower))"
           - '!(lower === "un" && (prev === "y" || ES_NUMBER_WORDS.has(prev)))'
           - tokens[i + 2]?.text !== "-"
-          - '!ctx.dictionary.has(word)'
-          - '!(!noun || (esVerbReading(lower, word, opens) && !esNounFrame(tokens, i)))'
+          - "!ctx.dictionary.has(word)"
+          - "!(!noun || (esVerbReading(lower, word, opens) && !esNounFrame(tokens, i)))"
           - >-
             !((noun.paired || esIsGenderedEntry(noun.singular)) && ES_ADJECTIVE_BLOCKERS.has(lower) &&
               (!((det.slot >= 2) !== noun.plural || (det.slot % 2 === 1) !== (noun.gender === "f")) ||
                 !/^(?:aquel|aquell|esos|esas)/u.test(lower)))
-          - '!(noun.paired && ES_CLITIC_ARTICLES.has(lower) && esParticiple(word))'
-          - '!(/^(?:esta|estas|este)$/u.test(lower) && esParticiple(word))'
+          - "!(noun.paired && ES_CLITIC_ARTICLES.has(lower) && esParticiple(word))"
+          - "!(/^(?:esta|estas|este)$/u.test(lower) && esParticiple(word))"
           - >-
             !(ES_ELLIPTIC.has(lower) &&
               (esFiniteVerb(word) || (!noun.gender && !(!noun.gender && !noun.plural && ES_EITHER_ENDING.test(word)))))
           - '!(tokens[i + 3]?.lower === word && /^(?:a|con|por)$/u.test(tokens[i + 2]?.lower ?? ""))'
-          - '!(afterNoun && !afterNoun.paired && afterNoun.plural === detPlural && (!detGender || afterNoun.gender === detGender))'
-          - '!(afterNoun && /[ae]$/u.test(word) && esFiniteVerb(word))'
+          - "!(afterNoun && !afterNoun.paired && afterNoun.plural === detPlural && (!detGender || afterNoun.gender === detGender))"
+          - "!(afterNoun && /[ae]$/u.test(word) && esFiniteVerb(word))"
           - numberClash || genderClash
         return: 'esReplaceToken(ctx, esSpan(ctx, detToken, nounToken), alternatives, "spanishAgreement", "review_msg_spanish_agreement")'
       # "la una de la tarde", "los unos de los otros": not a pick from a group. "número uno de las
@@ -5340,16 +6914,16 @@ rules:
           prev: at.prev()
           word: at.next(2)
           det: ES_DETERMINER.get(word)
-          nounAt: 'esReadNoun(at.next(3)) ? 3 : esReadNoun(at.next(4)) ? 4 : 0'
-          noun: 'nounAt ? esReadNoun(at.next(nounAt)) : null'
+          nounAt: "esReadNoun(at.next(3)) ? 3 : esReadNoun(at.next(4)) ? 4 : 0"
+          noun: "nounAt ? esReadNoun(at.next(nounAt)) : null"
           definite: det && ES_DEFINITE_GROUP.has(word) && noun?.plural
           detGender: 'det ? (esGenderless(det) ? null : det.slot % 2 ? "f" : "m") : null'
-          group: 'definite ? (detGender ?? noun.gender) : (ES_GROUP_GENDER.get(word) ?? null)'
+          group: "definite ? (detGender ?? noun.gender) : (ES_GROUP_GENDER.get(word) ?? null)"
           feminine: picker.slot % 2 === 1
         when:
           - picker
           - at.next() === "de"
-          - '!(/^(?:la|las|los|el|lo)$/u.test(prev) || (prev && esReadNoun(prev)))'
+          - "!(/^(?:la|las|los|el|lo)$/u.test(prev) || (prev && esReadNoun(prev)))"
           - >-
             definite
               ? !ES_EITHER_GENDER.has(noun.singular) && !(detGender && noun.gender && detGender !== noun.gender)
@@ -5370,7 +6944,7 @@ rules:
           at: esAround(tokens, i)
           prev: at.prev()
           next: at.next()
-          noun: 'next ? esReadNoun(next) : null'
+          noun: "next ? esReadNoun(next) : null"
         when: forms
         return: >-
           !tokens[i].lower.endsWith("o")
@@ -5406,17 +6980,17 @@ rules:
           after: at.next(2)
           word: nounToken.lower
           noun: esReadNoun(word)
-          counted: '!!prev && esFiniteVerb(prev) && !ES_SER.has(prev) && !esReadNoun(prev) && esIsNoun(word) && k === 1'
+          counted: "!!prev && esFiniteVerb(prev) && !ES_SER.has(prev) && !esReadNoun(prev) && esIsNoun(word) && k === 1"
           plural: esPluralOf(word)
         when:
           - ES_CARDINALS.has(tokens[i].lower)
           - nounToken?.word && !nounToken.broken
-          - '!((prev && esReadNoun(prev) && !esVerbLike(prev)) || (det && det.slot < 2))'
+          - "!((prev && esReadNoun(prev) && !esVerbLike(prev)) || (det && det.slot < 2))"
           - '!(prev === "por" && ES_CARDINALS.has(at.prev(k + 1)))'
           - '!(after && (ES_NUMBER_WORDS.has(after) || /^\p{N}/u.test(tokens[i + 2]?.text ?? "")))'
-          - '!ctx.dictionary.has(word)'
-          - '!(!noun || noun.plural || ((esVerbLike(word) || esSubjunctiveLike(word)) && !counted))'
-          - '!(esParticiple(word) && ES_PREPOSITIONS.has(at.next(2)))'
+          - "!ctx.dictionary.has(word)"
+          - "!(!noun || noun.plural || ((esVerbLike(word) || esSubjunctiveLike(word)) && !counted))"
+          - "!(esParticiple(word) && ES_PREPOSITIONS.has(at.next(2)))"
           - plural
         return: 'esReplaceToken(ctx, nounToken, [plural], "spanishAgreement", "review_msg_spanish_agreement", tokens[i])'
       # "unos 200 citaciones" -> "unas 200", "las 3 libros" -> "los 3": a plural determiner agrees
@@ -5430,10 +7004,10 @@ rules:
           nounToken: tokens[n]
           noun: esReadNoun(nounToken.lower)
         when:
-          - '!(!det || det.slot < 2 || esGenderless(det) || /^(?:del|al)$/u.test(tokens[i].lower))'
+          - "!(!det || det.slot < 2 || esGenderless(det) || /^(?:del|al)$/u.test(tokens[i].lower))"
           - '!(!count || count.broken || !/^\p{N}+(?:[.,]\p{N}+)*$/u.test(count.text))'
-          - '!(!nounToken?.word || nounToken.broken || ctx.dictionary.has(nounToken.lower))'
-          - '!(!noun?.plural || !noun.gender || ES_EITHER_GENDER.has(noun.singular))'
+          - "!(!nounToken?.word || nounToken.broken || ctx.dictionary.has(nounToken.lower))"
+          - "!(!noun?.plural || !noun.gender || ES_EITHER_GENDER.has(noun.singular))"
           - '(det.slot % 2 ? "f" : "m") !== noun.gender'
         return: >-
           esReplaceToken(ctx, tokens[i], [det.forms[noun.gender === "f" ? 3 : 2]], "spanishAgreement",
@@ -5451,11 +7025,11 @@ rules:
           gender: ES_TIME_GENDER.get(base)
           m: ES_TIME_ADJECTIVE.exec(at.next())
           det: ES_DETERMINER.get(at.prev()) ?? ES_DETERMINER.get(at.prev(2))
-          plural: '/^(?:lunes|martes|miércoles|jueves|viernes)$/u.test(noun) ? (det ? det.slot >= 2 : null) : base !== noun'
+          plural: "/^(?:lunes|martes|miércoles|jueves|viernes)$/u.test(noun) ? (det ? det.slot >= 2 : null) : base !== noun"
           want: '`${gender === "f" ? "a" : "o"}${plural ? "s" : ""}`'
         when:
-          - '!(!gender || !m || tokens[i + 1].broken)'
-          - '!ES_DETERMINER.has(at.next(2))'
+          - "!(!gender || !m || tokens[i + 1].broken)"
+          - "!ES_DETERMINER.has(at.next(2))"
           - plural !== null
           - m[2] !== want
         return: 'esReplaceToken(ctx, tokens[i + 1], [`${m[1]}${want}`], "spanishAgreement", "review_msg_spanish_agreement", tokens[i])'
@@ -5478,14 +7052,14 @@ rules:
           feminine: det.slot % 2 === 1
           masculine: adjective.replace(/(?:o|a|os|as)$/u, "o")
         when:
-          - '!(!det || esGenderless(det) || /^(?:del|al)$/u.test(tokens[i].lower))'
-          - '!(ES_PREPOSITIONS.has(prev) || (ES_CONJUNCTIONS.has(prev) && !subject) || ES_SER.has(prev))'
+          - "!(!det || esGenderless(det) || /^(?:del|al)$/u.test(tokens[i].lower))"
+          - "!(ES_PREPOSITIONS.has(prev) || (ES_CONJUNCTIONS.has(prev) && !subject) || ES_SER.has(prev))"
           - '!(!subject && at.next(4) !== "por")'
           - /^(?:más|menos)$/u.test(at.next(2)) && adjective && !tokens[i + 3].broken
-          - '!(!noun || !form || ES_ADVERBIAL.has(adjective))'
+          - "!(!noun || !form || ES_ADVERBIAL.has(adjective))"
           - '!(noun.plural !== plural || (noun.gender && (noun.gender === "f") !== feminine))'
-          - '!ES_EITHER_GENDER.has(noun.singular)'
-          - '!(form.plural === plural && form.feminine === feminine)'
+          - "!ES_EITHER_GENDER.has(noun.singular)"
+          - "!(form.plural === plural && form.feminine === feminine)"
           - esIsGenderedEntry(masculine) || esParticiple(masculine)
         return: >-
           esReplaceToken(ctx, tokens[i + 3], [`${masculine.slice(0, -1)}${feminine ? "a" : "o"}${plural ? "s" : ""}`],
@@ -5503,7 +7077,7 @@ rules:
               ? esIsGenderedEntry(`${m[1]}o`) ? esGenderedForm(word) : esParticiple(word)
               : null
           ble: /^(\p{L}+ble)(s?)$/u.exec(word)
-        when: '!(ES_NOT_POSTPONED.has(word) || ES_NOT_NOUNS.has(word))'
+        when: "!(ES_NOT_POSTPONED.has(word) || ES_NOT_NOUNS.has(word))"
         return: >-
           m
             ? read
@@ -5530,36 +7104,36 @@ rules:
           at: esAround(tokens, i)
           afterSer: ES_SER.has(at.prev())
           det: ES_DETERMINER.get(tokens[i].lower)
-          n: 'det ? i + 1 : i'
+          n: "det ? i + 1 : i"
           nounToken: tokens[n]
           noun: esReadNoun(nounToken.lower)
-          detPlural: 'det ? det.slot >= 2 : false'
+          detPlural: "det ? det.slot >= 2 : false"
           detGender: 'det ? (esGenderless(det) ? null : det.slot % 2 ? "f" : "m") : null'
           stressedA: ES_BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(nounToken.lower)
-          ownGender: '!noun.gender && !stressedA && !ES_EITHER_GENDER.has(noun.singular)'
-          plural: 'det && noun.invariant ? detPlural : noun.plural'
-          gender: 'det && ownGender ? detGender : noun.gender'
+          ownGender: "!noun.gender && !stressedA && !ES_EITHER_GENDER.has(noun.singular)"
+          plural: "det && noun.invariant ? detPlural : noun.plural"
+          gender: "det && ownGender ? detGender : noun.gender"
           between: tokens[n + 1]?.lower ?? ""
-          k: 'ES_ADJECTIVE_DEGREE.has(between) || /mente$/u.test(between) ? n + 2 : n + 1'
+          k: "ES_ADJECTIVE_DEGREE.has(between) || /mente$/u.test(between) ? n + 2 : n + 1"
           adjToken: tokens[k]
           forms: esAdjectiveForms(adjToken.lower)
           close: esAround(tokens, k)
           after: close.next()
         when:
           - at.starts || afterSer
-          - '!(det && /^(?:del|al)$/u.test(tokens[i].lower))'
+          - "!(det && /^(?:del|al)$/u.test(tokens[i].lower))"
           - det || afterSer
           - nounToken?.word && !nounToken.broken && !ctx.dictionary.has(nounToken.lower)
-          - '!(!noun || (!det && noun.paired) || ES_NOT_HEADS.has(noun.singular) || ES_TIME_GENDER.get(noun.singular))'
-          - '!(det && !noun.invariant && detPlural !== noun.plural)'
-          - '!(det && !ownGender && noun.gender && detGender && noun.gender !== detGender && !stressedA)'
-          - '!(!adjToken?.word || adjToken.broken || tokens[n + 1]?.broken)'
+          - "!(!noun || (!det && noun.paired) || ES_NOT_HEADS.has(noun.singular) || ES_TIME_GENDER.get(noun.singular))"
+          - "!(det && !noun.invariant && detPlural !== noun.plural)"
+          - "!(det && !ownGender && noun.gender && detGender && noun.gender !== detGender && !stressedA)"
+          - "!(!adjToken?.word || adjToken.broken || tokens[n + 1]?.broken)"
           - /^\p{Ll}/u.test(adjToken.text) && !ctx.dictionary.has(adjToken.lower)
           - forms && !esFiniteVerb(adjToken.lower)
-          - '!(!close.endsAfter() && /^(?:y|e|o|u|ni)$/u.test(after))'
+          - "!(!close.endsAfter() && /^(?:y|e|o|u|ni)$/u.test(after))"
           - tokens[k + 1]?.text !== "-"
           - '!(tokens[k + 1]?.text === "," && [2, 3, 4].some((j) => /\p{L}{3,}mente$/u.test(close.next(j))))'
-          - '!(after && esReadNoun(after) && !esFiniteVerb(after) && !ES_PREPOSITIONS.has(after))'
+          - "!(after && esReadNoun(after) && !esFiniteVerb(after) && !ES_PREPOSITIONS.has(after))"
           - >-
             (!!gender && forms.feminine !== null && forms.feminine !== (gender === "f")) || forms.plural !== plural
         return: >-
@@ -5575,7 +7149,7 @@ rules:
           det: ES_DETERMINER.get(tokens[i].lower)
           first: esReadNoun(tokens[i + 1]?.lower ?? "")
           inner: ES_DETERMINER.get(tokens[i + 3]?.lower ?? "")
-          k: 'inner ? i + 4 : i + 3'
+          k: "inner ? i + 4 : i + 3"
           second: esReadNoun(tokens[k]?.lower ?? "")
           adjToken: tokens[k + 1]
           forms: esAdjectiveForms(adjToken.lower)
@@ -5585,10 +7159,10 @@ rules:
           - det && det.slot < 2
           - first && !first.plural && !first.invariant && tokens[i + 1].word
           - /^(?:de|del)$/u.test(tokens[i + 2]?.lower ?? "")
-          - '!(inner && inner.slot >= 2)'
+          - "!(inner && inner.slot >= 2)"
           - second && !second.plural && !second.invariant && tokens[k].word
           - adjToken?.word && !adjToken.broken && /^\p{Ll}+$/u.test(adjToken.text)
-          - '!(tokens.slice(i, k + 2).some((t) => t.broken) || ctx.dictionary.has(adjToken.lower))'
+          - "!(tokens.slice(i, k + 2).some((t) => t.broken) || ctx.dictionary.has(adjToken.lower))"
           - forms?.plural && !esFiniteVerb(adjToken.lower)
           - esAround(tokens, k + 1).endsAfter()
         return: >-
@@ -5613,7 +7187,7 @@ rules:
           - /^\p{Ll}/u.test(adjToken.text) && !ctx.dictionary.has(adjToken.lower)
           - forms && forms.feminine !== null
           - close.endsAfter() || /^(?:de|del|que|en|entre|para)$/u.test(close.next())
-          - '!(forms.plural === plural && forms.feminine === feminine)'
+          - "!(forms.plural === plural && forms.feminine === feminine)"
         return: 'esReplaceToken(ctx, adjToken, [forms.form(feminine, plural)], "spanishAgreement", "review_msg_spanish_agreement", tokens[i])'
       # "Se da por hecho la reforma" -> "hecha": "dar por" + participle + the object it describes.
       # "Eso lo da por hecho el ministro": the clitic is the object and the noun phrase the subject.
@@ -5630,9 +7204,9 @@ rules:
           fix: '`${participleToken.lower.replace(/(?:o|a|os|as)$/u, "")}${feminine ? "a" : "o"}${plural ? "s" : ""}`'
         when:
           - ES_DAR_POR_FORMS.has(tokens[i].lower) && at.next() === "por" && ES_DAR_POR.test(at.next(2))
-          - '!/^(?:lo|la|los|las)$/u.test(at.prev())'
+          - "!/^(?:lo|la|los|las)$/u.test(at.prev())"
           - '!(!det || esGenderless(det) || det.forms[0].includes(" ") || !nounWord)'
-          - '!(!noun || (!noun.invariant && noun.plural !== plural))'
+          - "!(!noun || (!noun.invariant && noun.plural !== plural))"
           - '!(noun.gender && (noun.gender === "f") !== feminine)'
           - fix !== participleToken.lower
         return: 'esReplaceToken(ctx, participleToken, [fix], "spanishAgreement", "review_msg_spanish_agreement", tokens[i + 4])'
@@ -5649,10 +7223,10 @@ rules:
           noun: esReadNoun(word)
         when:
           - forms && nounToken?.word && !nounToken.broken && /^\p{Ll}/u.test(nounToken.text)
-          - '!(ctx.dictionary.has(word) || ES_TIME_ADVERBS.has(word))'
-          - '!(!noun || noun.paired || !noun.gender || noun.plural)'
-          - '!(esFiniteVerb(word) || /^(?:vino|fue|dio|hizo|puso|tuvo|cuanto|cuanta)$/u.test(word))'
-          - '!ES_SER.has(esAround(tokens, i).prev())'
+          - "!(ctx.dictionary.has(word) || ES_TIME_ADVERBS.has(word))"
+          - "!(!noun || noun.paired || !noun.gender || noun.plural)"
+          - "!(esFiniteVerb(word) || /^(?:vino|fue|dio|hizo|puso|tuvo|cuanto|cuanta)$/u.test(word))"
+          - "!ES_SER.has(esAround(tokens, i).prev())"
         return: >-
           esReplaceToken(ctx, tokens[i], [forms[(noun.gender === "f" ? 1 : 0) + (noun.plural ? 2 : 0)]], "spanishAgreement",
             "review_msg_spanish_agreement", nounToken)
@@ -5672,14 +7246,14 @@ rules:
           plural: det.slot >= 2
           fix: 'det.forms[(noun.gender === "f" ? 1 : 0) + (plural ? 2 : 0)]'
         when:
-          - '!(!det || esGenderless(det) || !adjective || !ES_GENDERLESS_BEFORE.has(adjective.lower))'
+          - "!(!det || esGenderless(det) || !adjective || !ES_GENDERLESS_BEFORE.has(adjective.lower))"
           - '!(!nounToken?.word || nounToken.broken || adjective.broken || det.forms[0].includes(" "))'
           - '!(ctx.dictionary.has(nounToken.lower) || /^\p{Lu}/u.test(nounToken.text))'
-          - '!(!noun || !noun.gender || ES_EITHER_GENDER.has(noun.singular))'
+          - "!(!noun || !noun.gender || ES_EITHER_GENDER.has(noun.singular))"
           - '!(noun.paired && !(noun.plural && noun.gender === "m"))'
-          - '!(noun.plural !== plural || /s$/u.test(adjective.lower) !== plural)'
+          - "!(noun.plural !== plural || /s$/u.test(adjective.lower) !== plural)"
           - '(det.slot % 2 ? "f" : "m") !== noun.gender'
-          - '!(ES_BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(nounToken.lower))'
+          - "!(ES_BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(nounToken.lower))"
         return: >-
           !noun.paired
             ? esReplaceToken(ctx, tokens[i], [fix], "spanishAgreement", "review_msg_spanish_agreement", nounToken)
@@ -5704,11 +7278,11 @@ rules:
         when:
           - '!(!det || esGenderless(det) || det.forms[0].includes(" ") || !middle?.word || middle.broken)'
           - '!(!nounToken?.word || nounToken.broken || /^\p{Lu}/u.test(nounToken.text))'
-          - '!(!stem || ctx.dictionary.has(nounToken.lower) || ctx.dictionary.has(middle.lower))'
-          - '!(!noun?.gender || noun.invariant || noun.paired || ES_EITHER_GENDER.has(noun.singular))'
+          - "!(!stem || ctx.dictionary.has(nounToken.lower) || ctx.dictionary.has(middle.lower))"
+          - "!(!noun?.gender || noun.invariant || noun.paired || ES_EITHER_GENDER.has(noun.singular))"
           - '!(noun.plural !== plural || (noun.gender === "f") !== feminine)'
-          - '!(ES_BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(nounToken.lower))'
-          - '!(fix === typed || (!feminine && !plural && typed === `${stem}o`))'
+          - "!(ES_BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(nounToken.lower))"
+          - "!(fix === typed || (!feminine && !plural && typed === `${stem}o`))"
         return: 'esReplaceToken(ctx, middle, [fix], "spanishAgreement", "review_msg_spanish_agreement", nounToken)'
       # "muchos otras cosas" -> "muchas", "una pocas semanas" -> "unas", "la tres reglas" -> "las":
       # the word between agrees with the noun, so the determiner is the odd one out. "demasiado pocas
@@ -5724,21 +7298,21 @@ rules:
           middle: tokens[i + 1]
           nounToken: tokens[i + 2]
           noun: esReadNoun(nounToken.lower)
-          adjective: 'ES_AGREEING_BEFORE.test(middle.lower) ? esGenderedForm(middle.lower) : null'
+          adjective: "ES_AGREEING_BEFORE.test(middle.lower) ? esGenderedForm(middle.lower) : null"
           fix: 'det.forms[(noun.gender === "f" ? 1 : 0) + (noun.plural ? 2 : 0)]'
         when:
-          - '!(!det || esGenderless(det) || !middle?.word || middle.broken)'
+          - "!(!det || esGenderless(det) || !middle?.word || middle.broken)"
           - '!(!nounToken?.word || nounToken.broken || /^\p{Lu}/u.test(nounToken.text))'
-          - '!(ctx.dictionary.has(nounToken.lower) || ctx.dictionary.has(middle.lower))'
-          - '!(!noun?.gender || noun.invariant || ES_EITHER_GENDER.has(noun.singular))'
-          - '!(det.slot === 0 && ES_DEGREE_WORDS.has(tokens[i].lower))'
+          - "!(ctx.dictionary.has(nounToken.lower) || ctx.dictionary.has(middle.lower))"
+          - "!(!noun?.gender || noun.invariant || ES_EITHER_GENDER.has(noun.singular))"
+          - "!(det.slot === 0 && ES_DEGREE_WORDS.has(tokens[i].lower))"
           - >-
             ES_CARDINALS.has(middle.lower)
               ? !(!noun.plural || nounToken.lower === "veces" || !ES_NUMBERED.has(det.forms[0])) && tokens[i].lower !== "el" &&
                 !(det.slot >= 2 && ((det.slot % 2 ? "f" : "m") === noun.gender || noun.paired))
               : !(!adjective || adjective.plural !== noun.plural) && (adjective.feminine ? "f" : "m") === noun.gender
           - fix !== tokens[i].lower
-          - '!(ES_BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(middle.lower))'
+          - "!(ES_BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(middle.lower))"
         return: 'esReplaceToken(ctx, tokens[i], [fix], "spanishAgreement", "review_msg_spanish_agreement", nounToken)'
       # "a favor de lo acreedores", "Lo pequeños roedores" -> "los": the neuter "lo" takes a singular
       # adjective and the clitic a verb; a plural in -os after it wants the article. "lo hacemos",
@@ -5754,9 +7328,9 @@ rules:
         when:
           - tokens[i].lower === "lo"
           - '!(!next?.word || next.broken || !/^\p{Ll}/u.test(next.text) || ctx.dictionary.has(next.lower))'
-          - '!(!/[oe]s$/u.test(word) || /mos$/u.test(word) || esFiniteVerb(word))'
-          - '!esSecondPersonVerb(word)'
-          - '!(!(read?.plural || esAttribute(word)?.plural) || ES_NUMBER_WORDS.has(word))'
+          - "!(!/[oe]s$/u.test(word) || /mos$/u.test(word) || esFiniteVerb(word))"
+          - "!esSecondPersonVerb(word)"
+          - "!(!(read?.plural || esAttribute(word)?.plural) || ES_NUMBER_WORDS.has(word))"
           - esAround(tokens, i + 1).next() !== "que"
         return: >-
           esReplaceToken(ctx, tokens[i], gender === "f" ? ["las"] : gender === "m" ? ["los"] : ["los", "las"], "spanishAgreement",
@@ -5772,11 +7346,11 @@ rules:
           at: esAround(tokens, i)
           adjective: at.next(2)
           last: tokens[i + 3]
-          invariant: '[adjective, ...esSingulars(adjective)].find((w) => esIsInvariantEntry(w))'
-          form: 'invariant ? null : esAttribute(adjective)'
-          plural: 'invariant ? invariant !== adjective : form?.plural'
+          invariant: "[adjective, ...esSingulars(adjective)].find((w) => esIsInvariantEntry(w))"
+          form: "invariant ? null : esAttribute(adjective)"
+          plural: "invariant ? invariant !== adjective : form?.plural"
           gendered: /^(\p{L}+)[oa]s$/u.exec(adjective)
-          singular: 'invariant ?? (form && gendered ? `${gendered[1]}o` : null)'
+          singular: "invariant ?? (form && gendered ? `${gendered[1]}o` : null)"
         when:
           - det === "lo" || det === "los"
           - at.next() === "más" || at.next() === "menos"
@@ -5810,24 +7384,24 @@ rules:
           noun: esReadNoun(nounToken.lower)
           after: esAround(tokens, i + 1)
           feminine: noun.gender === "f"
-          plural: 'base ? false : forms.plural'
+          plural: "base ? false : forms.plural"
         when:
           - at.starts || ES_PREPOSITIONS.has(at.prev())
           - '!(!nounToken?.word || nounToken.broken || /^\p{Lu}/u.test(nounToken.text))'
-          - '!(ctx.dictionary.has(adjToken.lower) || ctx.dictionary.has(nounToken.lower))'
-          - '!(ES_NOT_PRENOMINAL.test(typed) || ES_DETERMINER.has(typed))'
-          - '!(!forms || forms.feminine === null || esIsNoun(typed) || esVerbLike(typed))'
-          - '!(esFiniteVerb(typed) || ES_SER.has(typed))'
-          - '!(!noun?.gender || noun.invariant || ES_EITHER_GENDER.has(noun.singular))'
-          - '!(esVerbLike(nounToken.lower) || esParticiple(nounToken.lower))'
+          - "!(ctx.dictionary.has(adjToken.lower) || ctx.dictionary.has(nounToken.lower))"
+          - "!(ES_NOT_PRENOMINAL.test(typed) || ES_DETERMINER.has(typed))"
+          - "!(!forms || forms.feminine === null || esIsNoun(typed) || esVerbLike(typed))"
+          - "!(esFiniteVerb(typed) || ES_SER.has(typed))"
+          - "!(!noun?.gender || noun.invariant || ES_EITHER_GENDER.has(noun.singular))"
+          - "!(esVerbLike(nounToken.lower) || esParticiple(nounToken.lower))"
           - '!(tokens[i - 1]?.text === "," && esParticiple(typed))'
-          - '!(!after.endsAfter() && !ES_PREPOSITIONS.has(after.next()) && !ES_CONJUNCTIONS.has(after.next()))'
+          - "!(!after.endsAfter() && !ES_PREPOSITIONS.has(after.next()) && !ES_CONJUNCTIONS.has(after.next()))"
           - '!(ES_CONJUNCTIONS.has(after.next()) && /\p{L}{3,}mente$/u.test(after.next(2)))'
-          - '!(feminine === forms.feminine && plural === noun.plural)'
+          - "!(feminine === forms.feminine && plural === noun.plural)"
         return: 'esReplaceToken(ctx, adjToken, [forms.form(feminine, noun.plural)], "spanishAgreement", "review_msg_spanish_agreement", nounToken)'
     frames:
-      # Every word: the checks key on nouns, adjectives and determiners. The fixer reads the
-      # gender and number of the noun phrase at the token (review/spanish/agreement.ts).
+      # Every word: the checks key on nouns, adjectives and determiners. The code reads the
+      # gender and number of the noun phrase at the token.
       - regex: "{{TOKEN_WORD}}"
         flags: gu
         scan: owned
@@ -5860,64 +7434,392 @@ rules:
       # copula agrees with the subject opening the clause.
       ES_VG_COPULA:
         [
-          es, era, fue, será, sería, sea, está, estaba, estuvo, estará, estaría, esté, parece, parecía, resulta,
-          resultó, queda, quedó, son, eran, fueron, serán, serían, sean, están, estaban, estuvieron, estarán,
-          estarían, estén, parecen, parecían, resultan, resultaron, quedan, quedaron,
+          es,
+          era,
+          fue,
+          será,
+          sería,
+          sea,
+          está,
+          estaba,
+          estuvo,
+          estará,
+          estaría,
+          esté,
+          parece,
+          parecía,
+          resulta,
+          resultó,
+          queda,
+          quedó,
+          son,
+          eran,
+          fueron,
+          serán,
+          serían,
+          sean,
+          están,
+          estaban,
+          estuvieron,
+          estarán,
+          estarían,
+          estén,
+          parecen,
+          parecían,
+          resultan,
+          resultaron,
+          quedan,
+          quedaron,
         ]
       ES_PERFECT_AUX: [ha, han, había, habían, habrá, habrán, habría, habrían, haya, hayan]
       ES_VG_DEGREE: [muy, tan, bastante, demasiado, más, menos, siempre, ya, bien, mal, casi]
       # Adjectives that lead a noun phrase of their own: "La vida es puro teatro", "es otro mundo".
       ES_VG_LEADING:
         [
-          otro, otra, otros, otras, mismo, misma, mismos, mismas, primero, primera, último, última, mucho,
-          mucha, muchos, muchas, poco, poca, pocos, pocas, todo, toda, todos, todas, tanto, tanta, cierto,
-          cierta, alguno, alguna, ninguno, ninguna, uno, una, solo, sola, medio, media, puro, pura, justo,
+          otro,
+          otra,
+          otros,
+          otras,
+          mismo,
+          misma,
+          mismos,
+          mismas,
+          primero,
+          primera,
+          último,
+          última,
+          mucho,
+          mucha,
+          muchos,
+          muchas,
+          poco,
+          poca,
+          pocos,
+          pocas,
+          todo,
+          toda,
+          todos,
+          todas,
+          tanto,
+          tanta,
+          cierto,
+          cierta,
+          alguno,
+          alguna,
+          ninguno,
+          ninguna,
+          uno,
+          una,
+          solo,
+          sola,
+          medio,
+          media,
+          puro,
+          pura,
+          justo,
         ]
       ES_SINGULAR_PRONOUNS: [él, ella, usted]
       ES_PLURAL_PRONOUNS: [ellos, ellas, ustedes]
       # Words that may stand between a subject and its verb: "Los niños no se lo dan".
       ES_BETWEEN:
-        ["no", se, me, te, le, les, lo, la, los, las, nos, os, ya, también, tampoco, nunca, jamás, siempre, ahora, todavía, aún, hoy, ayer]
+        [
+          "no",
+          se,
+          me,
+          te,
+          le,
+          les,
+          lo,
+          la,
+          los,
+          las,
+          nos,
+          os,
+          ya,
+          también,
+          tampoco,
+          nunca,
+          jamás,
+          siempre,
+          ahora,
+          todavía,
+          aún,
+          hoy,
+          ayer,
+        ]
       # Words after which a clause starts.
       ES_VG_CLAUSE_OPENERS: [que, pero, cuando, si, porque, aunque, mientras, donde]
       # Noun phrases that are times, not subjects ("Los domingos abre"), and collectives that take
       # either number ("La mayoría votaron").
       ES_NOT_SUBJECTS:
         [
-          semana, semanas, año, años, mes, meses, día, días, tarde, tardes, noche, noches, mañana, mañanas, vez,
-          veces, momento, momentos, rato, ratos, verano, veranos, invierno, inviernos, lunes, martes,
-          miércoles, jueves, viernes, sábado, sábados, domingo, domingos, mayoría, mitad, resto, parte,
-          cantidad, número, grupo, serie, conjunto, montón, multitud, infinidad, totalidad, minoría,
-          docena, centenar, verdad, par, clase, tipo, especie,
+          semana,
+          semanas,
+          año,
+          años,
+          mes,
+          meses,
+          día,
+          días,
+          tarde,
+          tardes,
+          noche,
+          noches,
+          mañana,
+          mañanas,
+          vez,
+          veces,
+          momento,
+          momentos,
+          rato,
+          ratos,
+          verano,
+          veranos,
+          invierno,
+          inviernos,
+          lunes,
+          martes,
+          miércoles,
+          jueves,
+          viernes,
+          sábado,
+          sábados,
+          domingo,
+          domingos,
+          mayoría,
+          mitad,
+          resto,
+          parte,
+          cantidad,
+          número,
+          grupo,
+          serie,
+          conjunto,
+          montón,
+          multitud,
+          infinidad,
+          totalidad,
+          minoría,
+          docena,
+          centenar,
+          verdad,
+          par,
+          clase,
+          tipo,
+          especie,
         ]
       ES_VG_SER: [es, son, era, eran, fue, fueron, será, serán, sería, serían, sea, sean]
       ES_VG_CLOSED_WORDS:
         [
-          yo, tú, él, ella, usted, nosotros, nosotras, vosotros, vosotras, ellos, ellas, ustedes, "no", ya, hoy, ayer,
-          mañana, aquí, allí, así, también, tampoco, muy, más, menos, siempre, nunca, entonces, luego, después,
-          antes, ahora, todavía, aún, quien, quienes, cual, cuales, donde, cuando, como, qué, quién, cómo, dónde,
-          cuándo, cuál, todo, todos, todas, nada, nadie, algo, alguien, eso, esto, aquello, ambos, varios,
+          yo,
+          tú,
+          él,
+          ella,
+          usted,
+          nosotros,
+          nosotras,
+          vosotros,
+          vosotras,
+          ellos,
+          ellas,
+          ustedes,
+          "no",
+          ya,
+          hoy,
+          ayer,
+          mañana,
+          aquí,
+          allí,
+          así,
+          también,
+          tampoco,
+          muy,
+          más,
+          menos,
+          siempre,
+          nunca,
+          entonces,
+          luego,
+          después,
+          antes,
+          ahora,
+          todavía,
+          aún,
+          quien,
+          quienes,
+          cual,
+          cuales,
+          donde,
+          cuando,
+          como,
+          qué,
+          quién,
+          cómo,
+          dónde,
+          cuándo,
+          cuál,
+          todo,
+          todos,
+          todas,
+          nada,
+          nadie,
+          algo,
+          alguien,
+          eso,
+          esto,
+          aquello,
+          ambos,
+          varios,
         ]
       ES_FIRST_SINGULAR: [soy, estoy, voy, doy, he, sé]
       ES_VG_NOT_VERBS:
-        [solo, sola, mismo, misma, mismos, mismas, también, tampoco, todo, todos, todas, ahora, siempre, nunca, antes, después, aquí, allí, bien, mal, más, menos, tanto, apenas, casi]
-      ES_SPANISH_ADVERBS: ["no", ya, también, nunca, siempre, aquí, allí, ahí, hoy, ayer, todavía, aún, muy, bien, mal, pronto, tarde]
+        [
+          solo,
+          sola,
+          mismo,
+          misma,
+          mismos,
+          mismas,
+          también,
+          tampoco,
+          todo,
+          todos,
+          todas,
+          ahora,
+          siempre,
+          nunca,
+          antes,
+          después,
+          aquí,
+          allí,
+          bien,
+          mal,
+          más,
+          menos,
+          tanto,
+          apenas,
+          casi,
+        ]
+      ES_SPANISH_ADVERBS:
+        [
+          "no",
+          ya,
+          también,
+          nunca,
+          siempre,
+          aquí,
+          allí,
+          ahí,
+          hoy,
+          ayer,
+          todavía,
+          aún,
+          muy,
+          bien,
+          mal,
+          pronto,
+          tarde,
+        ]
       # "Son documentado", "Estamos cansado", "Han sido cantado": a plural copula before a singular
       # participle.
       ES_VG_PLURAL_COPULA:
-        [son, eran, fueron, serán, serían, sean, somos, éramos, fuimos, seremos, están, estaban, estuvieron, estarán, estarían, estén, estamos, estábamos, estuvimos]
+        [
+          son,
+          eran,
+          fueron,
+          serán,
+          serían,
+          sean,
+          somos,
+          éramos,
+          fuimos,
+          seremos,
+          están,
+          estaban,
+          estuvieron,
+          estarán,
+          estarían,
+          estén,
+          estamos,
+          estábamos,
+          estuvimos,
+        ]
       # "Somos consciente", "Debemos estar atento": a plural subject's "ser"/"estar" before a
       # singular adjective. Participles are esCopulaParticiple's.
-      ES_FIRST_PLURAL_COPULA: [somos, seamos, éramos, fuimos, seremos, seríamos, estamos, estemos, estábamos, estuvimos, estaremos, estaríamos]
+      ES_FIRST_PLURAL_COPULA:
+        [
+          somos,
+          seamos,
+          éramos,
+          fuimos,
+          seremos,
+          seríamos,
+          estamos,
+          estemos,
+          estábamos,
+          estuvimos,
+          estaremos,
+          estaríamos,
+        ]
       # Singular words after a plural copula that are no adjective of the subject: "somos solo dos",
       # "estamos mejor", "somos tanto".
-      ES_NOT_PLURAL_ATTRIBUTES: [solo, sola, mismo, misma, medio, media, todo, toda, tanto, tanta, poco, poca, mucho, mucha, mejor, peor, uno, una, cada]
+      ES_NOT_PLURAL_ATTRIBUTES:
+        [
+          solo,
+          sola,
+          mismo,
+          misma,
+          medio,
+          media,
+          todo,
+          toda,
+          tanto,
+          tanta,
+          poco,
+          poca,
+          mucho,
+          mucha,
+          mejor,
+          peor,
+          uno,
+          una,
+          cada,
+        ]
       ES_PROFESSIONS:
         [
-          médico, abogado, ingeniero, arquitecto, maestro, técnico, ministro, secretario, cocinero, camarero,
-          enfermero, psicólogo, biólogo, químico, físico, político, diputado, juez, notario, veterinario,
-          farmacéutico, informático, fontanero, carpintero, mecánico, funcionario, empleado, ayudante,
-          músico, bombero, policía, soldado, piloto,
+          médico,
+          abogado,
+          ingeniero,
+          arquitecto,
+          maestro,
+          técnico,
+          ministro,
+          secretario,
+          cocinero,
+          camarero,
+          enfermero,
+          psicólogo,
+          biólogo,
+          químico,
+          físico,
+          político,
+          diputado,
+          juez,
+          notario,
+          veterinario,
+          farmacéutico,
+          informático,
+          fontanero,
+          carpintero,
+          mecánico,
+          funcionario,
+          empleado,
+          ayudante,
+          músico,
+          bombero,
+          policía,
+          soldado,
+          piloto,
         ]
     defs:
       ES_VG_ESTAR: /^(?:est\p{L}+|qued\p{L}+)$/u
@@ -5971,29 +7873,29 @@ rules:
           copula0: tokens[k1]?.lower ?? ""
           perfect: ES_PERFECT_AUX.has(copula0) && /^(?:sido|estado)$/u.test(tokens[k1 + 1]?.lower ?? "")
           copula: 'perfect ? (/n$/u.test(copula0) ? "son" : tokens[k1 + 1].lower === "sido" ? "es" : "está") : copula0'
-          k2: 'perfect ? k1 + 1 : k1'
+          k2: "perfect ? k1 + 1 : k1"
           k: esSkipDegree(tokens, k2 + 1)
           adjToken: tokens[k]
           word: adjToken.lower
           form: esGenderedForm(word) ?? esParticiple(word)
           after: esAround(tokens, k).next()
-          afterForm: 'after ? esGenderedForm(after) : null'
+          afterForm: "after ? esGenderedForm(after) : null"
           numberClash: form.plural !== plural
           profession: >-
             feminine && !ES_VG_ESTAR.test(copula) &&
             (ES_PROFESSIONS.has(word) || (subject.pronoun && ES_PROFESSION_ENDING.test(word)))
           genderClash: feminine !== null && form.feminine !== feminine && !profession
-          fix: 'esAdjectiveFor(word, genderClash ? !form.feminine : form.feminine, plural)'
+          fix: "esAdjectiveFor(word, genderClash ? !form.feminine : form.feminine, plural)"
         when:
           - esClauseStart(tokens, i)
           - subject
-          - '!(perfect && tokens[k1 + 1].broken)'
-          - '!(!ES_VG_COPULA.has(copula) || tokens[k2].broken)'
+          - "!(perfect && tokens[k1 + 1].broken)"
+          - "!(!ES_VG_COPULA.has(copula) || tokens[k2].broken)"
           - /n$/u.test(copula) === plural
           - adjToken?.word && !adjToken.broken && /^\p{Ll}/u.test(adjToken.text)
-          - '!(ES_VG_LEADING.has(word) || ctx.dictionary.has(word))'
+          - "!(ES_VG_LEADING.has(word) || ctx.dictionary.has(word))"
           - form
-          - '!(after && !esParticiple(word) && (ES_DETERMINER.has(after) || (esReadNoun(after) && !esReadNoun(after)?.paired)))'
+          - "!(after && !esParticiple(word) && (ES_DETERMINER.has(after) || (esReadNoun(after) && !esReadNoun(after)?.paired)))"
           - >-
             !(afterForm && !esParticiple(word) && afterForm.plural === form.plural && afterForm.feminine === form.feminine &&
               afterForm.feminine !== feminine)
@@ -6116,7 +8018,7 @@ rules:
         let:
           ending: endings.filter((e) => verb.endsWith(e)).sort((a, b) => b.length - a.length)[0]
           form: 'ending ? `${verb.slice(0, -ending.length)}${endings[endings.length === 2 ? slot - 3 : slot]}` : ""'
-        return: 'ending && form !== verb && esFiniteVerb(form) ? form : null'
+        return: "ending && form !== verb && esFiniteVerb(form) ? form : null"
       # The pronoun's form of a verb in a tense that keeps its stem, or null.
       esPersonForm:
         args: "verb: string, pronoun: string"
@@ -6145,9 +8047,9 @@ rules:
           - allowed && esClauseStart(tokens, i)
           - '!(at.prev() === "donde" || /^(?:más|menos|tanto|igual|mejor|peor)$/u.test(at.prev(2)))'
           - '!(v < 0 || /^\p{Lu}/u.test(tokens[v].text))'
-          - '!(ES_VG_NOT_VERBS.has(verb) || ES_CONJUNCTIONS.has(verb) || ES_PREPOSITIONS.has(verb))'
-          - '!(ES_IMPERSONAL_VERB.test(verb) || /^(?:llueve|nieva|graniza|truena|amanece|anochece)$/u.test(verb))'
-          - '!(!esFiniteVerb(verb) || esIsNoun(verb) || esGenderedForm(verb) || esParticiple(verb))'
+          - "!(ES_VG_NOT_VERBS.has(verb) || ES_CONJUNCTIONS.has(verb) || ES_PREPOSITIONS.has(verb))"
+          - "!(ES_IMPERSONAL_VERB.test(verb) || /^(?:llueve|nieva|graniza|truena|amanece|anochece)$/u.test(verb))"
+          - "!(!esFiniteVerb(verb) || esIsNoun(verb) || esGenderedForm(verb) || esParticiple(verb))"
           - person && !allowed.includes(person)
           - '!(tokens[i].lower === "tú" && person === "vowel")'
         return: "found && (form ? { ...found, requiresChoice: true as const } : { ...found, warningOnly: true as const })"
@@ -6198,7 +8100,7 @@ rules:
         args: "tokens: SpanishTokens, i: number"
         let:
           last: esNameEnd(tokens, i, i)
-        when: '!tokens[last + 1]?.broken'
+        when: "!tokens[last + 1]?.broken"
         return: '({ subject: "singular" as const, last })'
       # A subject of a determiner and a noun. "¿Cuántos coches ha tenido?", "Tantas cosas ha visto":
       # a fronted object. "Los precios de la casa sube", "La lista que hizo ayer están": the shared
@@ -6216,15 +8118,15 @@ rules:
           joined: esSkipCoordinated(ES_CLAUSE, ctx.text, clause, head)
           end: esSkipComplements(ES_CLAUSE, ctx.text, clause, joined)
           relative: esVerbAfterRelative(ES_CLAUSE, ctx.text, clause, end, (t) => !esReadNoun(t.w))
-          read: 'relative >= 0 ? relative : end > joined || joined > head ? end : -1'
+          read: "relative >= 0 ? relative : end > joined || joined > head ? end : -1"
           inside: read >= 0 && read < clause.length
           next: clause[read + 1]
         when:
           - det && nounToken?.word && !nounToken.broken && !det.forms[0].includes(" ")
-          - '!(/^(?:del|al)$/u.test(tokens[i].lower) || ES_NOT_SUBJECTS.has(nounToken.lower))'
-          - '!/^(?:tant|cuant|cuánt)/u.test(tokens[i].lower)'
+          - "!(/^(?:del|al)$/u.test(tokens[i].lower) || ES_NOT_SUBJECTS.has(nounToken.lower))"
+          - "!/^(?:tant|cuant|cuánt)/u.test(tokens[i].lower)"
           - noun && noun.plural === det.slot >= 2
-          - '!(inside && !ES_BETWEEN.has(clause[read].w) && next && esFiniteVerb(next.w) && !esReadNoun(next.w))'
+          - "!(inside && !ES_BETWEEN.has(clause[read].w) && next && esFiniteVerb(next.w) && !esReadNoun(next.w))"
         return: >-
           ({
             subject: joined > head || noun.plural ? ("plural" as const) : ("singular" as const),
@@ -6260,7 +8162,7 @@ rules:
       esSerComplement:
         args: "tokens: SpanishTokens, v: number, verb: string, sido: boolean, number: string"
         let:
-          next: 'esAround(tokens, sido ? v + 1 : v).next()'
+          next: "esAround(tokens, sido ? v + 1 : v).next()"
           complement: esReadNoun(next)
           linked: /^(?:muy|tan|bastante|demasiado|así)$/u.test(next) || ES_PREPOSITIONS.has(next)
         return: >-
@@ -6286,7 +8188,7 @@ rules:
           - '!(/^\p{Lu}/u.test(tokens[v].text) || tokens[last + 1]?.lower === "de")'
           - number && number !== head.subject
           - '!(number === "singular" && ES_IMPERSONAL_VERB.test(tokens[v + 1]?.lower ?? ""))'
-          - '!((ES_VG_SER.has(verb) || sido) && esSerComplement(tokens, v, verb, sido, number))'
+          - "!((ES_VG_SER.has(verb) || sido) && esSerComplement(tokens, v, verb, sido, number))"
           - fix && fix !== verb
         return: 'esReplaceToken(ctx, tokens[v], [fix], "spanishAgreement", "review_msg_spanish_verb_agreement", tokens[last])'
       esLikingSkip:
@@ -6301,7 +8203,7 @@ rules:
           at: esAround(tokens, i)
           word: tokens[i].lower
           perfect: /^(?:ha|han)$/u.test(word) && ES_LIKING_PARTICIPLE.test(at.next())
-          j: 'esLikingSkip(tokens, i + (perfect ? 2 : 1))'
+          j: "esLikingSkip(tokens, i + (perfect ? 2 : 1))"
           detToken: tokens[j]
           nounToken: tokens[j + 1]
           det: detToken && ES_DETERMINER.get(detToken.lower)
@@ -6313,7 +8215,7 @@ rules:
           - /^(?:me|te|le|nos|os|les)$/u.test(at.prev())
           - perfect || ES_LIKING.test(word)
           - '!(!det || det.forms[0].includes(" ") || !nounToken?.word || nounToken.broken)'
-          - '!ES_NOT_SUBJECTS.has(nounToken.lower)'
+          - "!ES_NOT_SUBJECTS.has(nounToken.lower)"
           - noun && noun.plural === det.slot >= 2
           - '!(/^(?:y|e|o|u|ni)$/u.test(after) || tokens[j + 2]?.text === ",")'
           - number && (number === "plural") !== noun.plural
@@ -6327,7 +8229,7 @@ rules:
         let:
           at: esAround(tokens, i)
           word: tokens[i].lower
-          k: '/mente$/u.test(at.next(1)) || /^(?:siempre|ya|muy|todavía)$/u.test(at.next(1)) ? 2 : 1'
+          k: "/mente$/u.test(at.next(1)) || /^(?:siempre|ya|muy|todavía)$/u.test(at.next(1)) ? 2 : 1"
           next: at.next(k)
           madeOf: next === "hecho" && at.next(k + 1) === "de"
         when:
@@ -6340,7 +8242,7 @@ rules:
       # The verb before "ser"/"estar", past "que", "por", "de" or "a".
       esVerbBeforeCopula:
         args: "at: SpanishAround"
-        return: '/^(?:que|por|de|a)$/u.test(at.prev()) ? at.prev(2) : at.prev()'
+        return: "/^(?:que|por|de|a)$/u.test(at.prev()) ? at.prev(2) : at.prev()"
       # "Debemos ser", "Tenemos que estar", "Acabarán por ser": a plural verb before the infinitive.
       # "Quieren ser médico": each one's profession. "Somos buena gente": an adjective before its
       # noun.
@@ -6353,7 +8255,7 @@ rules:
           plural: >-
             ES_FIRST_PLURAL_COPULA.has(word) ||
             (/^(?:ser|estar)$/u.test(word) && /(?:mos|[aeá]n)$/u.test(verb) && esFiniteVerb(verb) && !esIsNoun(verb))
-          k: '/^(?:muy|tan|bastante|plenamente|totalmente|siempre|todos|todas)$/u.test(at.next(1)) ? 2 : 1'
+          k: "/^(?:muy|tan|bastante|plenamente|totalmente|siempre|todos|todas)$/u.test(at.next(1)) ? 2 : 1"
           adjective: at.next(k)
           after: esAround(tokens, i + k).next()
           form: esGenderedForm(adjective)
@@ -6363,9 +8265,9 @@ rules:
               : ES_INVARIANT.has(adjective) && !/s$/u.test(adjective) ? esPluralOf(adjective) : null
         when:
           - plural
-          - '!(!adjective || ES_NOT_PLURAL_ATTRIBUTES.has(adjective) || ctx.dictionary.has(adjective))'
-          - '!(ES_PROFESSIONS.has(adjective) || ES_PROFESSION_ENDING.test(adjective))'
-          - '!(after && esReadNoun(after) && !ES_PREPOSITIONS.has(after))'
+          - "!(!adjective || ES_NOT_PLURAL_ATTRIBUTES.has(adjective) || ctx.dictionary.has(adjective))"
+          - "!(ES_PROFESSIONS.has(adjective) || ES_PROFESSION_ENDING.test(adjective))"
+          - "!(after && esReadNoun(after) && !ES_PREPOSITIONS.has(after))"
           - fix
         return: 'esReplaceToken(ctx, tokens[i + k], [fix], "spanishAgreement", "review_msg_spanish_verb_agreement", tokens[i])'
       # "Tienes que ser conscientes", "Sé conscientes": a singular subject's "ser"/"estar" (after a
@@ -6393,8 +8295,8 @@ rules:
               : invariant && /es$/u.test(adjective) ? adjective.slice(0, -1) : null
         when:
           - singular
-          - '!(!adjective || ctx.dictionary.has(adjective) || (esIsNoun(adjective) && !invariant))'
-          - '!(after && esReadNoun(after) && !ES_PREPOSITIONS.has(after))'
+          - "!(!adjective || ctx.dictionary.has(adjective) || (esIsNoun(adjective) && !invariant))"
+          - "!(after && esReadNoun(after) && !ES_PREPOSITIONS.has(after))"
           - fix
         return: 'esReplaceToken(ctx, tokens[i + 1], [fix], "spanishAgreement", "review_msg_spanish_verb_agreement", tokens[i])'
       # Verbs of coming and going, whose subject follows "¿De dónde…?" ("¿De dónde vienen esos
@@ -6423,13 +8325,13 @@ rules:
         when:
           - tokens[i - 1]?.text === "¿"
           - (first === "de" && tokens[i + 1]?.lower === "dónde") || first === "qué" || first === "adónde"
-          - '!(!verbToken?.word || !det || !nounToken?.word || tokens[v + 1].broken || nounToken.broken)'
+          - "!(!verbToken?.word || !det || !nounToken?.word || tokens[v + 1].broken || nounToken.broken)"
           - '!(first !== "qué" && !ES_MOTION.test(verb))'
           - /(?:[aeó]|[ae]n|aron|ieron)$/u.test(verb) && esFiniteVerb(verb)
-          - '!(!noun || noun.plural !== det.slot >= 2 || ctx.dictionary.has(nounToken.lower))'
-          - '!(after?.word && !after.broken && (esReadNoun(after.lower) || /^(?:y|e|o|u|ni|con)$/u.test(after.lower)))'
-          - '!/^(?:al|del)$/u.test(tokens[v + 1].lower)'
-          - '!/^(?:lunes|martes|miércoles|jueves|viernes|sábados?|domingos?|día|días|mes|meses|año|años|semana|semanas|noche|noches|mañana|mañanas|tarde|tardes|verano|invierno|otoño|primavera|fin|rato|momento)$/u.test(nounToken.lower)'
+          - "!(!noun || noun.plural !== det.slot >= 2 || ctx.dictionary.has(nounToken.lower))"
+          - "!(after?.word && !after.broken && (esReadNoun(after.lower) || /^(?:y|e|o|u|ni|con)$/u.test(after.lower)))"
+          - "!/^(?:al|del)$/u.test(tokens[v + 1].lower)"
+          - "!/^(?:lunes|martes|miércoles|jueves|viernes|sábados?|domingos?|día|días|mes|meses|año|años|semana|semanas|noche|noches|mañana|mañanas|tarde|tardes|verano|invierno|otoño|primavera|fin|rato|momento)$/u.test(nounToken.lower)"
           - verbPlural !== noun.plural
           - '!(first === "qué" && !verbPlural)'
           - fix && esFiniteVerb(fix)
@@ -6439,8 +8341,7 @@ rules:
         return: tokens[i].word && tokens[i].start >= ctx.from - 64 && tokens[i].start < ctx.to
     frames:
       # Every word from 64 characters before the chunk: the checks key on verbs and subjects,
-      # which are no closed list. The fixer reads the subject and the number of the verb
-      # (review/spanish/verbAgreement.ts).
+      # which are no closed list. The code reads the subject and the number of the verb.
       - regex: "{{TOKEN_WORD}}"
         flags: gu
         scan: owned
@@ -6481,9 +8382,41 @@ rules:
       # What the impersonal "haber" introduces: a quantity or a plural noun phrase.
       ES_HABER_QUANTITY:
         [
-          muchos, muchas, varios, varias, algunos, algunas, unos, unas, pocos, pocas, demasiados, demasiadas,
-          tantos, tantas, más, menos, dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez, cien, mil, miles,
-          cientos, millones, otros, otras, nuevos, nuevas, grandes,
+          muchos,
+          muchas,
+          varios,
+          varias,
+          algunos,
+          algunas,
+          unos,
+          unas,
+          pocos,
+          pocas,
+          demasiados,
+          demasiadas,
+          tantos,
+          tantas,
+          más,
+          menos,
+          dos,
+          tres,
+          cuatro,
+          cinco,
+          seis,
+          siete,
+          ocho,
+          nueve,
+          diez,
+          cien,
+          mil,
+          miles,
+          cientos,
+          millones,
+          otros,
+          otras,
+          nuevos,
+          nuevas,
+          grandes,
         ]
       ES_DATIVE: [me, te, le, les, nos, os]
     maps:
@@ -6531,7 +8464,7 @@ rules:
             (/s$/u.test(what) && esIsNoun(what) && !form) || (!!form?.plural && !esSubjectAt(at, 1))
         when:
           - fix
-          - '!link || at.next() === link'
+          - "!link || at.next() === link"
           - at.next(k) === "haber"
           - quantity
         return: 'esReplaceToken(ctx, tokens[i], [fix], "spanishAgreement", "review_msg_spanish_impersonal_haber", tokens[i + k])'
@@ -6551,12 +8484,12 @@ rules:
         when:
           - tokens[i].lower === "a" && at.starts
           - want
-          - '!(!ES_DATIVE.has(clitic) || ES_CLITICS.has(at.next(k + 1)) || !esFiniteVerb(at.next(k + 1)))'
+          - "!(!ES_DATIVE.has(clitic) || ES_CLITICS.has(at.next(k + 1)) || !esFiniteVerb(at.next(k + 1)))"
           - clitic !== want
         return: 'esReplaceToken(ctx, tokens[i + k], [want], "spanishAgreement", "review_msg_spanish_doubled_pronoun", tokens[i + 1])'
     frames:
       # A plural modal before the impersonal "haber", and "a" before a doubled pronoun. The
-      # fixer reads the clause around the token (review/spanish/clauses.ts).
+      # code reads the clause around the token.
       - regex: "(?:a|pueden|pod[ií]an|podr[ií]an|pudieron|deben|deb[ií]an|deber[ií]an|suelen|sol[ií]an|van|iban|tienen|ten[ií]an|tendr[aá]n|tendr[ií]an){{WORD_TAIL}}"
         flags: giu
         scan: owned
@@ -6578,25 +8511,88 @@ rules:
       # Mass nouns an amount may still measure loosely ("millones de dinero" is clumsy, not plural).
       ES_MASS:
         [
-          dinero, gente, agua, tiempo, información, trabajo, comida, ropa, música, arena, leche, aire, basura,
-          energía, sangre, carne, madera, gasolina, petróleo, vino, cerveza, azúcar, sal, harina, público,
-          personal, ganado, polvo,
+          dinero,
+          gente,
+          agua,
+          tiempo,
+          información,
+          trabajo,
+          comida,
+          ropa,
+          música,
+          arena,
+          leche,
+          aire,
+          basura,
+          energía,
+          sangre,
+          carne,
+          madera,
+          gasolina,
+          petróleo,
+          vino,
+          cerveza,
+          azúcar,
+          sal,
+          harina,
+          público,
+          personal,
+          ganado,
+          polvo,
         ]
       # Nouns of amount that count a plural: "miles de personas", "decenas de veces".
       ES_FR_AMOUNTS: [miles, millones, cientos, centenares, decenas, docenas, billones, millares]
       ES_SINGULAR_COPULA_FORMS: [soy, eres, estoy, estás]
       ES_FR_DEGREE: [muy, tan, bastante, demasiado, más, menos, tremendamente, realmente]
-      ES_FR_PLURAL_DETERMINERS: [los, las, estos, estas, esos, esas, aquellos, aquellas, mis, tus, sus]
+      ES_FR_PLURAL_DETERMINERS:
+        [los, las, estos, estas, esos, esas, aquellos, aquellas, mis, tus, sus]
       ES_PREPOSITIONS_BEFORE_LO: [de, por, en, con, para, sin, desde, hasta, sobre, entre]
       # Feminine nouns with a stressed first "a": "el área", but "la misma área".
       ES_STRESSED_A: [área, agua, alma, arma, aula, águila, hambre, hacha, hada, ala, ancla, arca]
       # Copulas whose participle agrees with a subject placed after it: "queda garantizada la
       # entrega".
       ES_FR_COPULAS:
-        [queda, quedan, quedó, quedaron, quedaba, quedaban, está, están, estaba, estaban, estuvo, estuvieron, resulta, resultan, resultó, resultaron]
+        [
+          queda,
+          quedan,
+          quedó,
+          quedaron,
+          quedaba,
+          quedaban,
+          está,
+          están,
+          estaba,
+          estaban,
+          estuvo,
+          estuvieron,
+          resulta,
+          resultan,
+          resultó,
+          resultaron,
+        ]
       # "tener" + participle + object: "tenía prevista la reunión" (the participle agrees with it).
       ES_FR_TENER:
-        [tengo, tienes, tiene, tenemos, tienen, tenía, tenías, teníamos, tenían, tuve, tuvo, tuvimos, tuvieron, tendrá, tendrán, tendría, tendrían, tenga, tengan]
+        [
+          tengo,
+          tienes,
+          tiene,
+          tenemos,
+          tienen,
+          tenía,
+          tenías,
+          teníamos,
+          tenían,
+          tuve,
+          tuvo,
+          tuvimos,
+          tuvieron,
+          tendrá,
+          tendrán,
+          tendría,
+          tendrían,
+          tenga,
+          tengan,
+        ]
     maps:
       # The feminine article of a masculine one before a noun with a stressed first "a".
       ES_FEMININE_ARTICLE: { el: la, un: una, del: de la, al: a la }
@@ -6622,9 +8618,9 @@ rules:
         when:
           - ES_FR_AMOUNTS.has(at.tokens[at.i].lower) && at.next() === "de"
           - token?.word && !token.broken && /^\p{Ll}+$/u.test(token.text)
-          - '!(!noun || noun.plural || noun.invariant || !esIsNoun(word) || esAttributeOf(word))'
-          - '!ES_MASS.has(word)'
-          - '!(ES_FR_AMOUNTS.has(word) || esFiniteVerb(word))'
+          - "!(!noun || noun.plural || noun.invariant || !esIsNoun(word) || esAttributeOf(word))"
+          - "!ES_MASS.has(word)"
+          - "!(ES_FR_AMOUNTS.has(word) || esFiniteVerb(word))"
           - plural
         return: 'esReplaceToken(ctx, token, [plural], "spanishAgreement", "review_msg_spanish_agreement", at.tokens[at.i])'
       # "Soy conscientes", "Estoy cansados": a first or second person singular takes no plural. "Tú y
@@ -6633,7 +8629,7 @@ rules:
       esSingularAttribute:
         args: "ctx: DetectContext, at: SpanishAround"
         let:
-          k: 'ES_FR_DEGREE.has(at.next()) ? 2 : 1'
+          k: "ES_FR_DEGREE.has(at.next()) ? 2 : 1"
           token: at.tokens[at.i + k]
           word: token.lower
           reading: esAttributeOf(word)
@@ -6648,7 +8644,7 @@ rules:
           after: esAround(at.tokens, at.i + k)
         when:
           - ES_SINGULAR_COPULA_FORMS.has(at.tokens[at.i].lower)
-          - '!/^(?:y|e|ni)$/u.test(at.prev(2))'
+          - "!/^(?:y|e|ni)$/u.test(at.prev(2))"
           - token?.word && !at.tokens[at.i + 1].broken && /^\p{Ll}+$/u.test(token.text)
           - word.endsWith("s")
           - singular
@@ -6667,7 +8663,7 @@ rules:
         when:
           - forms && nounToken?.word && !nounToken.broken && /^\p{Ll}+$/u.test(nounToken.text)
           - noun?.plural && noun.gender
-          - '!ES_COMPOUND_VERB.test(nounToken.lower)'
+          - "!ES_COMPOUND_VERB.test(nounToken.lower)"
         return: 'esReplaceToken(ctx, token, [forms[noun.gender === "f" ? 1 : 0]], "spanishAgreement", "review_msg_spanish_agreement", nounToken)'
       # "las consecuencias directas e indirectos" -> "indirectas": the second of two adjectives joined
       # after a noun agrees with the noun the first one already agrees with. The first adjective
@@ -6686,9 +8682,9 @@ rules:
         when:
           - noun?.gender && !noun.paired && /^\p{Ll}/u.test(at.tokens[at.i].text)
           - /^(?:y|e|o|u|ni)$/u.test(at.next(2)) && second?.word && !second.broken
-          - '!(!a || !b || esIsNoun(second.lower) || esFiniteVerb(second.lower))'
-          - '!(a.feminine !== feminine || a.plural !== noun.plural)'
-          - '!(b.feminine === feminine && b.plural === noun.plural)'
+          - "!(!a || !b || esIsNoun(second.lower) || esFiniteVerb(second.lower))"
+          - "!(a.feminine !== feminine || a.plural !== noun.plural)"
+          - "!(b.feminine === feminine && b.plural === noun.plural)"
           - stem && esAround(at.tokens, at.i + 3).endsAfter()
         return: >-
           esReplaceToken(ctx, second, [`${stem}${feminine ? "a" : "o"}${noun.plural ? "s" : ""}`], "spanishAgreement",
@@ -6706,7 +8702,7 @@ rules:
         when:
           - m && !at.tokens[at.i + 1]?.broken
           - plural && m[3] !== "s"
-          - '!/^(?:sobre|del|ante|de|con|en|por|para|lo)$/u.test(at.prev())'
+          - "!/^(?:sobre|del|ante|de|con|en|por|para|lo)$/u.test(at.prev())"
           - noun && noun.plural === plural
         return: >-
           esReplaceToken(ctx, at.tokens[at.i], [`tod${m[2]}${plural ? "s" : ""}`], "spanishAgreement",
@@ -6720,7 +8716,7 @@ rules:
         when:
           - at.tokens[at.i].text === "lo" && ES_PREPOSITIONS_BEFORE_LO.has(at.prev())
           - '!(!noun || noun.plural || noun.gender !== "f" || noun.paired)'
-          - '!(!esIsNoun(word) || esAttributeOf(word) || esFiniteVerb(word) || esIsInfinitive(word))'
+          - "!(!esIsNoun(word) || esAttributeOf(word) || esFiniteVerb(word) || esIsInfinitive(word))"
         return: 'esReplaceToken(ctx, at.tokens[at.i], ["la"], "spanishAgreement", "review_msg_spanish_agreement", at.tokens[at.i + 1])'
       # "El mismo área" -> "La misma área": "el" serves the noun, not the adjective before it.
       esStressedAdjective:
@@ -6733,7 +8729,7 @@ rules:
           form: esGenderedForm(adjective)
         when:
           - article && ES_STRESSED_A.has(at.next(2))
-          - '!(!m || !form || form.feminine || form.plural || at.tokens[at.i + 2].broken)'
+          - "!(!m || !form || form.feminine || form.plural || at.tokens[at.i + 2].broken)"
         return: >-
           esReplaceToken(ctx, esSpan(ctx, det, at.tokens[at.i + 1]), [`${article} ${m[1]}a`], "spanishAgreement",
             "review_msg_spanish_agreement", at.tokens[at.i + 2])
@@ -6766,9 +8762,9 @@ rules:
               : ES_FR_TENER.has(verb) && !ES_CLITICS.has(prev) && !esIsNoun(token.lower)
           - form && m
           - '!(!det || !noun || /^(?:del|al)$/u.test(at.next(2)) || at.next(3) === "verdad")'
-          - '!(!noun.gender && det.forms[0] === det.forms[1])'
-          - '!(noun.plural !== plural && !noun.invariant)'
-          - '!(form.feminine === feminine && form.plural === plural)'
+          - "!(!noun.gender && det.forms[0] === det.forms[1])"
+          - "!(noun.plural !== plural && !noun.invariant)"
+          - "!(form.feminine === feminine && form.plural === plural)"
         return: >-
           esReplaceToken(ctx, token, [`${m[1]}${feminine ? "a" : "o"}${plural ? "s" : ""}`], "spanishAgreement",
             "review_msg_spanish_agreement", at.tokens[at.i + 3])
@@ -6784,13 +8780,13 @@ rules:
           - at.tokens[at.i].lower === "uno"
           - next?.word && !next.broken && /^\p{Ll}+s$/u.test(next.text)
           - '!(!noun?.plural || noun.gender === "f" || esFiniteVerb(next.lower))'
-          - '!(ES_DETERMINER.has(next.lower) || /^(?:más|menos|tras|cuantos)$/u.test(next.lower))'
+          - "!(ES_DETERMINER.has(next.lower) || /^(?:más|menos|tras|cuantos)$/u.test(next.lower))"
         return: >-
           esReplaceToken(ctx, at.tokens[at.i], noun.gender === "m" ? ["unos"] : ["unos", "unas"], "spanishAgreement",
             "review_msg_spanish_agreement", next)
     frames:
-      # Every word: one frame keys on any noun before two joined adjectives. The fixer reads
-      # the gender and number of the words around the token (review/spanish/frames.ts).
+      # Every word: one frame keys on any noun before two joined adjectives. The code reads
+      # the gender and number of the words around the token.
       - regex: "{{TOKEN_WORD}}"
         flags: gu
         scan: owned
@@ -6860,8 +8856,8 @@ rules:
           esReplaceToken(ctx, { ...tokens[i + k], start, text: ctx.text.slice(start, tokens[i + k].end) }, [""], "stylePhrasing",
             "review_msg_style_phrasing", tokens[i], true)
     frames:
-      # "hace ... atrás", and an adverb that the clause repeats. The fixer reads the clause
-      # around the token (review/spanish/clauses.ts).
+      # "hace ... atrás", and an adverb that the clause repeats. The code reads the clause
+      # around the token.
       - regex: "(?:hace|tambi[eé]n|tampoco|ya|s[oó]lo|a[uú]n|todav[ií]a|siempre|nunca){{WORD_TAIL}}"
         flags: giu
         scan: owned
@@ -6929,17 +8925,16 @@ rules:
           a: t[at.i]
           b: t[at.i + 1]
         when:
-          - '!(!b?.word || a.lower === b.lower || /^(?:y|e|o|u|ni|que)$/u.test(b.lower))'
-          - '!(/^(?:y|e|o|u|ni|de|sea|quien)$/u.test(a.lower) || ES_PREPOSITIONS.has(b.lower))'
-          - '!(t[at.i + 2]?.lower !== a.lower || t[at.i + 3]?.lower !== b.lower)'
-          - '![1, 2, 3].some((k) => t[at.i + k].broken || !t[at.i + k].word)'
+          - "!(!b?.word || a.lower === b.lower || /^(?:y|e|o|u|ni|que)$/u.test(b.lower))"
+          - "!(/^(?:y|e|o|u|ni|de|sea|quien)$/u.test(a.lower) || ES_PREPOSITIONS.has(b.lower))"
+          - "!(t[at.i + 2]?.lower !== a.lower || t[at.i + 3]?.lower !== b.lower)"
+          - "![1, 2, 3].some((k) => t[at.i + k].broken || !t[at.i + k].word)"
           - t[at.i + 4]?.lower !== a.lower
         return: >-
           esReplaceToken(ctx, esSpan(ctx, a, t[at.i + 3]), [ctx.text.slice(a.start, b.end)], "englishRepeatedWords",
             "review_msg_repeated_words")
     frames:
-      # Every word: the fixer compares the word pair at the token with the pair after it
-      # (review/spanish/frames.ts).
+      # Every word: the code compares the word pair at the token with the pair after it.
       - regex: "{{TOKEN_WORD}}"
         flags: gu
         scan: owned

@@ -3,7 +3,14 @@
 import { wordTable } from "../wordTable";
 import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import { isInfinitive, words } from "./common";
-import { accentLast, genderedForm, isGenderedEntry, isInvariantEntry, isNounEntry, plain } from "./lexicon";
+import {
+  accentLast,
+  genderedForm,
+  isGenderedEntry,
+  isInvariantEntry,
+  isNounEntry,
+  plain,
+} from "./lexicon";
 
 export type Gender = "m" | "f";
 
@@ -261,4 +268,3 @@ export function otherGender(noun: Noun, word: string): string | null {
   if (isGenderedEntry(stem)) return noun.plural ? pluralOf(stem) : stem;
   return null;
 }
-
