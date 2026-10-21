@@ -1659,6 +1659,17 @@ rules:
     style: match
     message: review_msg_american_spelling
     filter: outsideExamples
+    maps:
+      # Optional number style: the number words of the single-digit counts.
+      DIALECT_NUMBER_WORDS:
+        { 2: two, 3: three, 4: four, 5: five, 6: six, 7: seven, 8: eight, 9: nine }
+    defs:
+      DIALECT_SETS: new Map<string, ReadonlySet<string>>()
+      # The British forms of the -ise table: the phrase rows report them.
+      dialectIseWords:
+        return: >-
+          DIALECT_SETS.get("ise") ??
+          DIALECT_SETS.set("ise", new Set(enTable("dialects.ise").map(([british]) => british as string))).get("ise")!
     frames:
       # "energise", "magnetisable": -ise forms the table lacks whose -ize form the lexicon
       # knows. An -ise word, also after a hyphenated prefix ("de-energise"). One match gives
@@ -1666,7 +1677,19 @@ rules:
       - regex: "(?<![\\p{L}\\p{N}'’])(?<target>\\p{L}+is(?:e|es|ed|ing|ation|ations|ational|ationally|er|ers|able|ability))(?![\\p{L}\\p{N}'’])"
         flags: dgiu
         anyCheck: true
-        fixer: iseForm
+        let:
+          lower: target.toLowerCase()
+          ize: 'lower.replace(/is(e|es|ed|ing|ation|ations|ational|ationally|er|ers|able|ability)$/, "iz$1")'
+          fixed: applyWordCase(ize, detectWordCase(target))
+        when:
+          # The words of the table, except after a hyphen that it does not match across.
+          - '!(dialectIseWords().has(lower) && ctx.text[m.index - 1] !== "-")'
+          # "prise" (to lever open) and "seise" are words of their own.
+          - "!/^(?:prise|seise)/.test(lower)"
+          - "!(englishWordInfo(lower) || !englishWordInfo(ize) || hasUserOrCasedWord(ctx, target))"
+        return: >-
+          [found(ctx, m, "englishAmericanSpelling", "review_msg_american_spelling", [fixed]),
+          found(ctx, m, "englishOxfordSpelling", "review_msg_oxford_spelling", [fixed])]
   - id: en.cardSpellings
     checks: [englishAmericanSpelling, englishBritishSpelling]
     style: match
@@ -1678,7 +1701,13 @@ rules:
       # stays. The preposition picks the check.
       - regex: "{{DIALECTS_BE}}(?:{{S}}(?:that|this|it|they|he|she|we|you))?(?:{{S}}{{DIALECTS_CARD_ADVERBS}}){0,3}{{S}}(?<target>(?<prep>on|in){{S}}the{{S}}cards){{E}}(?=[ \\t\\u00a0]{0,8}(?:[^\\p{L} \\t\\u00a0]|$)|{{S}}{{DIALECTS_CARD_FOLLOWERS}}{{E}})"
         anyCheck: true
-        fixer: cardSpelling
+        let:
+          british: prep.toLowerCase() === "on"
+          fixed: 'applyWordCase(british ? "in" : "on", detectWordCase(prep))'
+        when: "!hasUserOrCasedWord(ctx, target)"
+        return: >-
+          british ? found(ctx, m, "englishAmericanSpelling", "review_msg_american_spelling", [fixed], "prep")
+          : found(ctx, m, "englishBritishSpelling", "review_msg_british_spelling", [fixed], "prep")
   - id: en.spelledNumbers
     checks: [styleSpelledNumbers]
     style: match
@@ -1688,7 +1717,20 @@ rules:
       # pigs"). Only after a function word, so labels ("Python 3 users", "step 2 results")
       # stay, and only when the sentence has no other figure to keep consistent with.
       - regex: "(?=[2-9]{{S}})(?<=(?:^|[^\\p{L}])(?:the|these|those|my|your|his|her|its|our|their|are|were|is|was|be|been|have|has|had|with|for|of|in|on|at|by|from|to|into|about|around|over|under|nearly|almost|only|just|all|and|or|than|after|within|there|here|another|last|first|next){{S}})(?<target>[2-9]){{S}}(?<noun>\\p{L}{3,}){{E}}"
-        fixer: spelledNumber
+        let:
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+          before: 'ctx.text.slice(Math.max(0, start - 200), start).split(/[.!?\n]/).pop()!'
+          after: 'ctx.text.slice(end, end + 200).split(/[.!?\n]/)[0]'
+          # In all-caps text, the `i` flag lets `\p{Ll}` match the noun. Keep the capitals.
+          word: DIALECT_NUMBER_WORDS[target]
+        when:
+          - englishWordInfo(noun)?.plural
+          - '!/\p{N}/u.test(before + after)'
+        return: >-
+          ({ ruleId: "styleSpelledNumbers", messageKey: "review_msg_spelled_numbers", range: { start, end },
+          alternatives: [m[0] === m[0].toUpperCase() ? word.toUpperCase() : word],
+          context: { start: start - before.length, end: end + after.length } })
   - id: en.irregularWordForms
     checks: [englishIrregularForms, englishAlotCorrection]
     style: match
@@ -2197,6 +2239,128 @@ rules:
     # Calendar checks: a weekday that does not fall on the date written next to it, and a day
     # the month does not have ("June 31", "2/30/2024"). A date with no year uses the Review
     # clock.
+    defs:
+      DATES_WEEKDAYS: '["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]'
+      # Abbreviations, longest first; two-letter ones only with the comma after them ("Mo, 7").
+      DATES_WEEKDAY_FORMS: >-
+        [["Sunday", 0], ["Monday", 1], ["Tuesday", 2], ["Wednesday", 3], ["Thursday", 4],
+        ["Friday", 5], ["Saturday", 6], ["Sun", 0], ["Mon", 1], ["Tues", 2], ["Tue", 2], ["Wed", 3],
+        ["Thurs", 4], ["Thur", 4], ["Thu", 4], ["Fri", 5], ["Sat", 6]] as const
+      DATES_MONTHS: >-
+        ["january", "february", "march", "april", "may", "june", "july", "august", "september",
+        "october", "november", "december"]
+      # A preposition that a date takes: "on April 0", "by the 0th of April".
+      DATES_CUE: '/(?:^|[^\p{L}])(?:on|by|until|till|from|since|before|after|dated|due)[ \t ]{1,8}(?:the[ \t ]{1,8})?$/iu'
+      datesMonthIndex:
+        args: "name: string"
+        return: 'DATES_MONTHS.findIndex((month) => month.startsWith(name.replace(".", "").toLowerCase().slice(0, 3)))'
+      datesValid:
+        args: "month: number, day: number, year?: number"
+        return: month >= 0 && month < 12 && day >= 1 && day <= enDaysInMonth(month + 1, year)
+      # The weekday of a date, Sunday = 0. Month is 0 to 11.
+      datesWeekdayOf:
+        args: "year: number, month: number, day: number"
+        return: enWeekdayOf(year, month + 1, day)
+      datesOrdinal:
+        args: "day: number"
+        return: 'day % 100 >= 11 && day % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][day % 10] ?? "th")'
+      # "Mo" -> 1: a two-letter weekday.
+      datesTwo:
+        args: "form: string"
+        return: DATES_WEEKDAYS.findIndex((name) => name.startsWith(form))
+      # The nearest date to `day` in the same month that falls on `weekday`, or null.
+      datesNearestOn:
+        args: "year: number, month: number, day: number, weekday: number"
+        type: number | null
+        let:
+          actual: datesWeekdayOf(year, month, day)
+          back: (actual - weekday + 7) % 7
+          ahead: (weekday - actual + 7) % 7
+        return: >-
+          (back <= ahead ? [day - back, day + ahead] : [day + ahead, day - back])
+          .find((candidate) => datesValid(month, candidate, year)) ?? null
+      # The date with the text from `from` to `to` replaced.
+      datesEdit:
+        args: "ctx: DetectContext, start: number, end: number, from: number, to: number, value: string"
+        return: ctx.text.slice(start, from) + value + ctx.text.slice(to, end)
+      # A numeric date: only a field above 12 says which one is the day; "03/04/2014" stays
+      # ambiguous.
+      datesNumericFields:
+        args: "a: number, b: number, aAt: string, bAt: string, year: number"
+        type: "{ year: number; month: number; day: number; dayAt: string; yearAt: string } | null"
+        return: >-
+          a > 12 && b <= 12 ? { year, month: b - 1, day: a, dayAt: aAt, yearAt: "year3" }
+          : b > 12 && a <= 12 ? { year, month: a - 1, day: b, dayAt: bAt, yearAt: "year3" }
+          : null
+      # The year, month (0 to 11) and day of the date, and the groups a fix rewrites.
+      datesFields:
+        args: "g: Record<string, string>"
+        type: "{ year: number; month: number; day: number; dayAt: string; yearAt: string } | null"
+        return: >-
+          g.iso ? { year: +g.isoYear, month: +g.isoMonth - 1, day: +g.isoDay, dayAt: "isoDay", yearAt: "isoYear" }
+          : g.a || g.na ? datesNumericFields(g.a ? +g.a : +g.na, g.a ? +g.b : +g.nb, g.a ? "a" : "na", g.a ? "b" : "nb", +(g.year3 ?? NaN))
+          : { year: +(g.year1 ?? g.year2 ?? NaN), month: datesMonthIndex(g.month1 ?? g.month2),
+          day: +(g.day1 ?? g.day2), dayAt: g.day1 ? "day1" : "day2", yearAt: g.year1 ? "year1" : "year2" }
+      # The fixes: the weekday, the nearest day on the typed weekday, or the nearest year it fell
+      # on.
+      datesWeekdayYear:
+        args: "ctx: DetectContext, m: RegExpExecArray, named: number, f: { year: number; month: number; day: number; dayAt: string; yearAt: string }"
+        type: RawFinding | null
+        let:
+          year: f.year
+          month: f.month
+          day: f.day
+          actual: datesWeekdayOf(year, month, day)
+          start: group(m, "weekday")[0]
+          weekdayEnd: group(m, "weekday")[1]
+          dayStart: group(m, f.dayAt)[0]
+          dayEnd: group(m, f.dayAt)[1]
+          suffix: '/^(?:st|nd|rd|th)/.exec(ctx.text.slice(dayEnd, dayEnd + 2))?.[0] ?? ""'
+          yearStart: group(m, f.yearAt)[0]
+          yearEnd: group(m, f.yearAt)[1]
+          end: Math.max(dayEnd + suffix.length, yearEnd)
+          near: datesNearestOn(year, month, day, named)
+          other: >-
+            [1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6].map((step) => year + step)
+            .find((y) => datesValid(month, day, y) && datesWeekdayOf(y, month, day) === named)
+        when:
+          - datesValid(month, day, year)
+          - actual !== named
+        return: >-
+          finding("englishDateConsistency", "review_msg_weekday_mismatch", start, end, [
+          datesEdit(ctx, start, end, start, weekdayEnd, DATES_WEEKDAYS[actual]),
+          ...(near !== null ? [datesEdit(ctx, start, end, dayStart, dayEnd + suffix.length,
+          String(near).padStart(dayEnd - dayStart, "0") + (suffix ? datesOrdinal(near) : ""))] : []),
+          ...(other !== undefined ? [datesEdit(ctx, start, end, yearStart, yearEnd, String(other))] : [])],
+          { requiresChoice: true, context: { start, end: m.index + m[0].length } })
+      # "Monday, 7 October" with no year: wrong only when no year the date can mean has that
+      # weekday. The fixes are the weekday of each such year, then the nearest day on the typed
+      # weekday.
+      datesWeekdayNoYear:
+        args: "ctx: DetectContext, m: RegExpExecArray, named: number, month: number, day: number, dayAt: string"
+        type: RawFinding | null
+        let:
+          start: group(m, "weekday")[0]
+          weekdayEnd: group(m, "weekday")[1]
+          yearContext: enContextYear(ctx.text, start, ctx.lang)
+          years: enYearsFor(month, day, yearContext)
+          weekdays: enWeekdaysFor(month, day, yearContext)
+          dayStart: group(m, dayAt)[0]
+          dayEnd: group(m, dayAt)[1]
+          suffix: '/^(?:st|nd|rd|th)/.exec(ctx.text.slice(dayEnd, dayEnd + 2))?.[0] ?? ""'
+          end: dayEnd + suffix.length
+          near: enNearestDayOn(years[0], month, day, named)
+        when: years.length && !weekdays.includes(named)
+        return: >-
+          finding("englishDateConsistency", "review_msg_weekday_no_year", start, end, [
+          ...weekdays.map((weekday) => datesEdit(ctx, start, end, start, weekdayEnd, DATES_WEEKDAYS[weekday])),
+          ...(near !== null ? [datesEdit(ctx, start, end, dayStart, end,
+          String(near).padStart(dayEnd - dayStart, "0") + (suffix ? datesOrdinal(near) : ""))] : [])],
+          { requiresChoice: true, context: { start, end: m.index + m[0].length } })
+      # A date that cannot exist: a warning, with no fix.
+      datesImpossible:
+        args: "start: number, end: number"
+        return: 'finding("englishDateConsistency", "review_msg_impossible_date", start, end, [], { warningOnly: true })'
     frames:
       # "Monday, 7th of October 2014", "Monday, October 7, 2014", "Monday, 31/10/2014",
       # "Monday, 2014-10-31". "Monday, 31/10": no year, a slash only ("Monday, 3.5" is a
@@ -2204,10 +2368,40 @@ rules:
       - regex: "(?<![\\p{L}\\p{N}]){{DATES_WEEKDAY}}(?:,?{{S}}|,)(?:(?<day1>[0-9]{1,2})(?:st|nd|rd|th)?(?:{{S}}of)?{{S}}(?<month1>{{DATES_MONTH}})(?:,?{{S}}(?<year1>[0-9]{4}))?|(?<month2>{{DATES_MONTH}}){{S}}(?<day2>[0-9]{1,2})(?:st|nd|rd|th)?(?:,?{{S}}(?<year2>[0-9]{4}))?|(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year3>[0-9]{4})|(?<na>[0-9]{1,2})\\/(?<nb>[0-9]{1,2})(?![/.,]?[0-9])|(?<iso>(?<isoYear>[0-9]{4})-(?<isoMonth>[0-9]{2})-(?<isoDay>[0-9]{2})))(?![\\p{L}\\p{N}])"
         flags: dgu
         owner: weekday
-        fixer: weekdayMismatch
+        let:
+          g: m.groups!
+          typedWeekday: g.weekday.replace(".", "")
+          named: "DATES_WEEKDAY_FORMS.find(([form]) => form === typedWeekday)?.[1] ?? datesTwo(typedWeekday)"
+          f: datesFields(g)
+        when:
+          - f
+          - named >= 0
+        # No year: the weekday is checked against the years that the date can mean.
+        return: >-
+          Number.isNaN(f.year) ? datesWeekdayNoYear(ctx, m, named, f.month + 1, f.day, f.dayAt)
+          : datesWeekdayYear(ctx, m, named, f)
       # Days a month cannot have: "June 31", "the 31st of June", "Feb 30th, 2023".
       - regex: "(?<target>(?<month1>{{DATES_MONTH}}){{S}}(?<day1>[0-9]{1,2})(?:st|nd|rd|th)?|(?<![\\p{N}:.,/])(?<day2>[0-9]{1,2})(?:st|nd|rd|th)?(?:{{S}}of)?{{S}}(?<month2>{{DATES_MONTH}}))(?:,?{{S}}(?<year>[0-9]{4}))?(?![\\p{L}\\p{N}]|[.,:][0-9])"
-        fixer: impossibleMonthDay
+        let:
+          monthName: month1 ?? month2
+          cued: DATES_CUE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))
+          day: +(day1 ?? day2)
+          end: m.index + m[0].length
+        when:
+          # A lowercase name is a word ("march 40 miles"), but a four-digit year or a date cue
+          # makes it a date ("march 32, 2020", "on april 31"): the casing rule reports the name.
+          # "May 32" may still be the verb. With a four-digit year, "May 32, 2020" is a date.
+          - /^\p{Lu}/u.test(monthName) || year || cued
+          - "!(month1 && /^may$/i.test(monthName) && !year)"
+          # "In March 37," and "38 Jan" (a size in a listing) are a year and a count, not a
+          # day; "September 31 BC" counts years too. A four-digit year makes it a full date:
+          # "June 32, 2020".
+          - "!(day > 31 && !year && !/[0-9](?:st|nd|rd|th)/.test(m[0]))"
+          - '!/^[ \t ]*(?:AD|BC|BCE|CE|A\.D\.|B\.C\.)/.test(ctx.text.slice(end, end + 8))'
+          # Day 0 is a wrong day in a full date ("June 0, 2020", "0 June 2020") or after a date
+          # cue ("on April 0", "by 0 April").
+          - "!((day < 1 && !year && !cued) || datesValid(datesMonthIndex(monthName), day, year ? +year : undefined))"
+        return: datesImpossible(m.index, end)
       # Any four-digit year: an impossible day or month needs no calendar ("31/04/1500").
       # Markdown emphasis before the date is not a word: "**31/04/2020**", "_31/04/2020_".
       # Thus the frame has its own start, not WORD_START (an underscore continues a word
@@ -2215,7 +2409,15 @@ rules:
       - regex: "(?<![.\\p{M}'’@#\\\\])(?<![\\p{L}\\p{N}][*_~]{0,3})(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>[0-9]{4})(?![\\p{N}]|[.,][0-9])"
         flags: dgu
         owner: none
-        fixer: impossibleNumericDate
+        let:
+          first: +a
+          second: +b
+          yearNumber: +year
+        when:
+          # The match start owns it.
+          - m.index >= ctx.from && m.index < ctx.to
+          - "!(datesValid(first - 1, second, yearNumber) || datesValid(second - 1, first, yearNumber))"
+        return: datesImpossible(m.index, m.index + m[0].length)
   - id: en.isoDates
     checks: [englishDateConsistency]
     style: match
@@ -3475,18 +3677,64 @@ rules:
         return: >-
           EN_BE_FINITE.has(enWordBefore(ctx, head.start)) && collocationObject(ctx, head, after) &&
           !/ing$/.test(after[1].lower)
-      collocationBoth:
-        args: "...guards: (typeof collocationObject)[]"
-        type: "(ctx: DetectContext, head: EnToken, after: readonly EnToken[]) => boolean"
-        return: (ctx, head, after) => guards.every((g) => g(ctx, head, after))
-      collocationNotBefore:
-        args: "words: RegExp"
-        type: "(ctx: DetectContext, head: EnToken) => boolean"
-        return: (ctx, head) => !words.test(enWordBefore(ctx, head.start))
-      collocationNotNext:
-        args: "words: RegExp"
-        type: "(ctx: DetectContext, head: EnToken, after: readonly EnToken[]) => boolean"
-        return: (_ctx, _head, after) => !after[1] || !words.test(after[1].lower)
+      # "similar with": not "with respect to".
+      collocationSimilarWith:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationObject(ctx, head, after) && (!after[1] || !/^(?:respect|regard)$/.test(after[1].lower))
+      # "similar as": not "as similar as", "so similar as".
+      collocationSimilarAs:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationObject(ctx, head, after) && !/^(?:as|so|how|too)$/.test(enWordBefore(ctx, head.start))
+      # "far of": not "far of a", "so far of".
+      collocationFarOf:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationObject(ctx, head, after) && (!after[1] || !/^(?:a|an)$/.test(after[1].lower)) &&
+          !/^(?:so|thus|as|how|too)$/.test(enWordBefore(ctx, head.start))
+      # "married with" a spouse after a form of "be" or "get".
+      collocationMarriedWith:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationSpouse(ctx, head, after) &&
+          /^(?:get|gets|got|getting|be|been|being|is|are|was|were|am)$/.test(enWordBefore(ctx, head.start))
+      # "marry with" a spouse, not "got married with", "happily married with".
+      collocationMarryWith:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationSpouse(ctx, head, after) &&
+          !/^(?:get|gets|got|getting|be|been|being|is|are|was|were|am|happily|newly|recently|once|still|just|now|not)$/.test(enWordBefore(ctx, head.start))
+      # "invest on": not "on behalf of".
+      collocationInvestOn:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationObject(ctx, head, after) && (!after[1] || !/^behalf$/.test(after[1].lower))
+      # "suffering of" after a form of "be".
+      collocationSufferingOf:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationObject(ctx, head, after) && COLLOCATION_BE.has(enWordBefore(ctx, head.start))
+      # "lack of", "mention about" as a verb in a clause.
+      collocationVerbObject:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationObject(ctx, head, after) && collocationVerbSlot(ctx, head)
+      # A line break before the verb may end a heading or list item: "We\ndiscussed about".
+      collocationDiscuss:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationObject(ctx, head, after) &&
+          !/\n[ \t]*$/.test(ctx.text.slice(Math.max(0, head.start - 8), head.start))
       # A verb in a clause: after a subject, modal, "to" or do-form ("they lack of", not "the
       # lack of").
       collocationVerbSlot:
@@ -3553,8 +3801,8 @@ rules:
         ["tired", "about", "of", collocationObject],
         ["addicted", "with on", "to", collocationObject],
         ["allergic", "of from with", "to", collocationObject],
-        ["similar", "with", "to", collocationBoth(collocationObject, collocationNotNext(/^(?:respect|regard)$/))],
-        ["similar", "as", "to", collocationBoth(collocationObject, collocationNotBefore(/^(?:as|so|how|too)$/))],
+        ["similar", "with", "to", collocationSimilarWith],
+        ["similar", "as", "to", collocationSimilarAs],
         ["different", "of", "from", collocationObject],
         ["angry", "on against", ["with", "at"], collocationPerson],
         ["crowded filled", "of", "with", collocationObject],
@@ -3562,26 +3810,26 @@ rules:
         ["surprised", "of", ["by", "at"], collocationObject],
         ["disappointed", "from of", ["with", "by", "in"], collocationObject],
         ["kind", "with", "to", collocationPronoun],
-        ["far", "of", "from", collocationBoth(collocationObject, collocationNotNext(/^(?:a|an)$/), collocationNotBefore(/^(?:so|thus|as|how|too)$/))],
+        ["far", "of", "from", collocationFarOf],
         ["based", "of", "on", collocationObject],
         ["regardless", "from", "of", collocationObject],
-        ["married", "with", "to", collocationBoth(collocationSpouse, (ctx, head) => /^(?:get|gets|got|getting|be|been|being|is|are|was|were|am)$/.test(enWordBefore(ctx, head.start)))],
-        ["marry marries married marrying", "with", "", collocationBoth(collocationSpouse, collocationNotBefore(/^(?:get|gets|got|getting|be|been|being|is|are|was|were|am|happily|newly|recently|once|still|just|now|not)$/))],
+        ["married", "with", "to", collocationMarriedWith],
+        ["marry marries married marrying", "with", "", collocationMarryWith],
         ["participate+", "to", "in", collocationObject],
         ["consist+", "to from on", "of", collocationObject],
         ["depend+", "of from", "on", collocationObject],
         ["rely+", "of", "on", collocationObject],
         ["believe+", "to", "in", collocationBareNoun],
         ["recover+", "of", "from", collocationObject],
-        ["invest+", "on", "in", collocationBoth(collocationObject, collocationNotNext(/^behalf$/))],
+        ["invest+", "on", "in", collocationInvestOn],
         ["specialize+ specialise+", "on", "in", collocationObject],
         ["resemble+", "to with", "", collocationObject],
         ["suffer suffers suffered", "of", "from", collocationObject],
-        ["suffering", "of", "from", collocationBoth(collocationObject, (ctx, head) => COLLOCATION_BE.has(enWordBefore(ctx, head.start)))],
-        ["lack lacks lacked", "of", "", collocationBoth(collocationObject, collocationVerbSlot)],
-        ["discuss+", "about", "", collocationBoth(collocationObject, (ctx, head) => !/\n[ \t]*$/.test(ctx.text.slice(Math.max(0, head.start - 8), head.start)))],
+        ["suffering", "of", "from", collocationSufferingOf],
+        ["lack lacks lacked", "of", "", collocationVerbObject],
+        ["discuss+", "about", "", collocationDiscuss],
         ["mentioned", "about", "", collocationObject],
-        ["mention", "about", "", collocationBoth(collocationObject, collocationVerbSlot)],
+        ["mention", "about", "", collocationVerbObject],
         ["yell+ shout+ scream+", "on", "at", collocationPerson],
         ["abstain+ refrain+", "of", "from", collocationObject],
         ["benefited benefitted benefiting benefitting", "of", "from", collocationObject],
@@ -4237,6 +4485,99 @@ rules:
     sets:
       # Product names that are also verbs: "to excel", "to react".
       NAMES_VERBS: [excel, google, kindle, react]
+      # The nouns that only the product has.
+      NAMES_EXCEL_NOUNS:
+        [
+          file,
+          files,
+          sheet,
+          sheets,
+          spreadsheet,
+          spreadsheets,
+          workbook,
+          workbooks,
+          document,
+          documents,
+          formula,
+          formulas,
+          table,
+          tables,
+          macro,
+          macros,
+          chart,
+          charts,
+          skills,
+        ]
+      NAMES_WORD_NOUNS: [document, documents, doc, docs, docx, file, files, template, templates]
+      NAMES_OUTLOOK_NOUNS:
+        [mail, mails, email, emails, inbox, calendar, invite, invites, account, app, client]
+      NAMES_CHROME_NOUNS: [browser, devtools, tab, tabs]
+      NAMES_OPERA_NOUNS: [browser]
+      NAMES_GOOGLE_NOUNS:
+        [
+          doc,
+          account,
+          accounts,
+          assistant,
+          scholar,
+          earth,
+          workspace,
+          trends,
+          traffic,
+          results,
+          ranking,
+          rankings,
+        ]
+      NAMES_TWITTER_NOUNS:
+        [account, accounts, feed, handle, post, posts, followers, thread, threads]
+      NAMES_SLACK_NOUNS: [channel, channels, workspace, workspaces, app, bot]
+      NAMES_KINDLE_NOUNS: [app, device, tablet, edition, store, paperwhite, unlimited, reader]
+      NAMES_REACT_NOUNS:
+        [app, apps, component, components, hook, hooks, native, router, developer, plugin]
+      NAMES_MAC_NOUNS:
+        [app, apps, user, users, computer, computers, laptop, laptops, version, keyboard]
+      NAMES_WINDOWS_NOUNS:
+        [
+          "10",
+          "11",
+          "7",
+          "8",
+          xp,
+          vista,
+          server,
+          update,
+          updates,
+          pc,
+          pcs,
+          laptop,
+          laptops,
+          machine,
+          machines,
+          user,
+          users,
+          computer,
+          computers,
+          version,
+          defender,
+          explorer,
+          store,
+        ]
+      NAMES_APPLE_NOUNS:
+        [
+          inc,
+          employee,
+          employees,
+          stock,
+          shares,
+          products,
+          device,
+          devices,
+          account,
+          store,
+          stores,
+          silicon,
+          pencil,
+        ]
     maps:
       NAMES_PRODUCT:
         {
@@ -4259,21 +4600,7 @@ rules:
       # that only the product has. Products named in the names table ("Google Docs") are matched
       # there.
       NAMES_PRODUCT_NOUNS: >-
-        new Map<string, ReadonlySet<string>>([
-        ["excel", new Set("file files sheet sheets spreadsheet spreadsheets workbook workbooks document documents formula formulas table tables macro macros chart charts skills".split(" "))],
-        ["word", new Set("document documents doc docs docx file files template templates".split(" "))],
-        ["outlook", new Set("mail mails email emails inbox calendar invite invites account app client".split(" "))],
-        ["chrome", new Set("browser devtools tab tabs".split(" "))],
-        ["opera", new Set("browser".split(" "))],
-        ["google", new Set("doc account accounts assistant scholar earth workspace trends traffic results ranking rankings".split(" "))],
-        ["twitter", new Set("account accounts feed handle post posts followers thread threads".split(" "))],
-        ["slack", new Set("channel channels workspace workspaces app bot".split(" "))],
-        ["kindle", new Set("app device tablet edition store paperwhite unlimited reader".split(" "))],
-        ["react", new Set("app apps component components hook hooks native router developer plugin".split(" "))],
-        ["mac", new Set("app apps user users computer computers laptop laptops version keyboard".split(" "))],
-        ["windows", new Set("10 11 7 8 xp vista server update updates pc pcs laptop laptops machine machines user users computer computers version defender explorer store".split(" "))],
-        ["apple", new Set("inc employee employees stock shares products device devices account store stores silicon pencil".split(" "))]
-        ])
+        ({ excel: NAMES_EXCEL_NOUNS, word: NAMES_WORD_NOUNS, outlook: NAMES_OUTLOOK_NOUNS, chrome: NAMES_CHROME_NOUNS, opera: NAMES_OPERA_NOUNS, google: NAMES_GOOGLE_NOUNS, twitter: NAMES_TWITTER_NOUNS, slack: NAMES_SLACK_NOUNS, kindle: NAMES_KINDLE_NOUNS, react: NAMES_REACT_NOUNS, mac: NAMES_MAC_NOUNS, windows: NAMES_WINDOWS_NOUNS, apple: NAMES_APPLE_NOUNS }) as Record<string, ReadonlySet<string> | undefined>
       namesContext:
         args: "ctx: DetectContext, start: number, end: number"
         return: "({ start: Math.max(0, start - 96), end: Math.min(ctx.text.length, end + 40) })"
@@ -4288,7 +4615,7 @@ rules:
       - regex: "(?<w>excel|word|outlook|chrome|opera|google|twitter|slack|kindle|react|mac|windows|apple){{S}}(?<n>[a-z0-9]+){{E}}"
         owner: w
         let:
-          nouns: NAMES_PRODUCT_NOUNS.get(w)
+          nouns: NAMES_PRODUCT_NOUNS[w]
         when:
           # Lowercase only: "WORD DOCUMENT" is emphasis, "Word document" is already right.
           - "!(!nouns || w !== w.toLowerCase() || !nouns.has(n.toLowerCase()) || ctx.dictionary.has(w))"

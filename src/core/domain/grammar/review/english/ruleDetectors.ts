@@ -9,7 +9,6 @@ import * as articles from "./articles";
 import * as slotConfusions from "./slotConfusions";
 import * as typography from "./typography";
 import * as confusions1 from "./confusions1";
-import * as dates from "./dates";
 import * as contractionSlots from "./contractionSlots";
 import * as nounNumberSlots from "./nounNumberSlots";
 import * as verbGroupSlots from "./verbGroupSlots";
@@ -24,7 +23,6 @@ import * as collocationSlots from "./collocationSlots";
 import * as noNotSlots from "./noNotSlots";
 import * as clauseAgreementSlots from "./clauseAgreementSlots";
 import * as wordClassSlots from "./wordClassSlots";
-import * as dialects from "./dialects";
 import * as lexical from "./lexical";
 import * as remaining from "./remaining";
 import * as confusions2 from "./confusions2";
@@ -82,9 +80,7 @@ export const FIXERS = mergePredicates<Fixer>(
   confusions1.FIXERS,
   confusions2.FIXERS,
   lexical.FIXERS,
-  dialects.FIXERS,
   typography.FIXERS,
-  dates.FIXERS,
   compoundForms.FIXERS,
   punctuation.FIXERS,
   confusionSlots.FIXERS,

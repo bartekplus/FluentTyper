@@ -18,24 +18,35 @@ import {
   EN_OBJECT_PRONOUNS,
   EN_SUBJECT_PRONOUNS,
   EN_VERB_FORMS,
+  applyWordCase,
   caseLike,
   dateSide,
   dayCount,
+  detectWordCase,
   enAfterBreak,
+  enContextYear,
   enCountNoun,
+  enDaysInMonth,
   enEvidence,
   enInfo,
   enLexiconInflect,
   enListedNoun,
+  enNearestDayOn,
   enNounOnly,
   enNounPair,
+  enTable,
   enTokensAfter,
+  enWeekdayOf,
+  enWeekdaysFor,
   enWordBefore,
+  enYearsFor,
   englishInflect,
   englishLemma,
   englishVerbForms,
   englishWordInfo,
   finding,
+  found,
+  group,
   hasUserOrCasedWord,
   namedExampleBefore,
   recentPast,
@@ -153,6 +164,178 @@ export const COLLOCATION_POSSESSIVES: ReadonlySet<string> = new Set([
 ]);
 
 export const NAMES_VERBS: ReadonlySet<string> = new Set(["excel", "google", "kindle", "react"]);
+
+export const NAMES_EXCEL_NOUNS: ReadonlySet<string> = new Set([
+  "file",
+  "files",
+  "sheet",
+  "sheets",
+  "spreadsheet",
+  "spreadsheets",
+  "workbook",
+  "workbooks",
+  "document",
+  "documents",
+  "formula",
+  "formulas",
+  "table",
+  "tables",
+  "macro",
+  "macros",
+  "chart",
+  "charts",
+  "skills",
+]);
+
+export const NAMES_WORD_NOUNS: ReadonlySet<string> = new Set([
+  "document",
+  "documents",
+  "doc",
+  "docs",
+  "docx",
+  "file",
+  "files",
+  "template",
+  "templates",
+]);
+
+export const NAMES_OUTLOOK_NOUNS: ReadonlySet<string> = new Set([
+  "mail",
+  "mails",
+  "email",
+  "emails",
+  "inbox",
+  "calendar",
+  "invite",
+  "invites",
+  "account",
+  "app",
+  "client",
+]);
+
+export const NAMES_CHROME_NOUNS: ReadonlySet<string> = new Set([
+  "browser",
+  "devtools",
+  "tab",
+  "tabs",
+]);
+
+export const NAMES_OPERA_NOUNS: ReadonlySet<string> = new Set(["browser"]);
+
+export const NAMES_GOOGLE_NOUNS: ReadonlySet<string> = new Set([
+  "doc",
+  "account",
+  "accounts",
+  "assistant",
+  "scholar",
+  "earth",
+  "workspace",
+  "trends",
+  "traffic",
+  "results",
+  "ranking",
+  "rankings",
+]);
+
+export const NAMES_TWITTER_NOUNS: ReadonlySet<string> = new Set([
+  "account",
+  "accounts",
+  "feed",
+  "handle",
+  "post",
+  "posts",
+  "followers",
+  "thread",
+  "threads",
+]);
+
+export const NAMES_SLACK_NOUNS: ReadonlySet<string> = new Set([
+  "channel",
+  "channels",
+  "workspace",
+  "workspaces",
+  "app",
+  "bot",
+]);
+
+export const NAMES_KINDLE_NOUNS: ReadonlySet<string> = new Set([
+  "app",
+  "device",
+  "tablet",
+  "edition",
+  "store",
+  "paperwhite",
+  "unlimited",
+  "reader",
+]);
+
+export const NAMES_REACT_NOUNS: ReadonlySet<string> = new Set([
+  "app",
+  "apps",
+  "component",
+  "components",
+  "hook",
+  "hooks",
+  "native",
+  "router",
+  "developer",
+  "plugin",
+]);
+
+export const NAMES_MAC_NOUNS: ReadonlySet<string> = new Set([
+  "app",
+  "apps",
+  "user",
+  "users",
+  "computer",
+  "computers",
+  "laptop",
+  "laptops",
+  "version",
+  "keyboard",
+]);
+
+export const NAMES_WINDOWS_NOUNS: ReadonlySet<string> = new Set([
+  "10",
+  "11",
+  "7",
+  "8",
+  "xp",
+  "vista",
+  "server",
+  "update",
+  "updates",
+  "pc",
+  "pcs",
+  "laptop",
+  "laptops",
+  "machine",
+  "machines",
+  "user",
+  "users",
+  "computer",
+  "computers",
+  "version",
+  "defender",
+  "explorer",
+  "store",
+]);
+
+export const NAMES_APPLE_NOUNS: ReadonlySet<string> = new Set([
+  "inc",
+  "employee",
+  "employees",
+  "stock",
+  "shares",
+  "products",
+  "device",
+  "devices",
+  "account",
+  "store",
+  "stores",
+  "silicon",
+  "pencil",
+]);
 
 export const NAMES_PEOPLES: ReadonlySet<string> = new Set([
   "english",
@@ -405,6 +588,17 @@ export const PASSIVE_REPORTING: ReadonlySet<string> = new Set([
   "understood",
 ]);
 
+export const DIALECT_NUMBER_WORDS: Readonly<Record<string, string>> = {
+  "2": "two",
+  "3": "three",
+  "4": "four",
+  "5": "five",
+  "6": "six",
+  "7": "seven",
+  "8": "eight",
+  "9": "nine",
+};
+
 export const USAGE_MAIL_FORMS: Readonly<Record<string, string>> = {
   send: "",
   sends: "s",
@@ -490,6 +684,277 @@ export const CLASH_BE_I: Readonly<Record<string, string>> = {
 export const CLASH_BE_PLURAL: Readonly<Record<string, string>> = { is: "aren't", was: "weren't" };
 
 export const CLASH_BE_SINGULAR: Readonly<Record<string, string>> = { are: "isn't", were: "wasn't" };
+
+// en.yaml rule en.iseForms def DIALECT_SETS
+export const DIALECT_SETS = new Map<string, ReadonlySet<string>>();
+
+// en.yaml rule en.iseForms def dialectIseWords
+export function dialectIseWords() {
+  return (
+    DIALECT_SETS.get("ise") ??
+    DIALECT_SETS.set(
+      "ise",
+      new Set(enTable("dialects.ise").map(([british]) => british as string)),
+    ).get("ise")!
+  );
+}
+
+// en.yaml rule en.dates def DATES_WEEKDAYS
+export const DATES_WEEKDAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+// en.yaml rule en.dates def DATES_WEEKDAY_FORMS
+export const DATES_WEEKDAY_FORMS = [
+  ["Sunday", 0],
+  ["Monday", 1],
+  ["Tuesday", 2],
+  ["Wednesday", 3],
+  ["Thursday", 4],
+  ["Friday", 5],
+  ["Saturday", 6],
+  ["Sun", 0],
+  ["Mon", 1],
+  ["Tues", 2],
+  ["Tue", 2],
+  ["Wed", 3],
+  ["Thurs", 4],
+  ["Thur", 4],
+  ["Thu", 4],
+  ["Fri", 5],
+  ["Sat", 6],
+] as const;
+
+// en.yaml rule en.dates def DATES_MONTHS
+export const DATES_MONTHS = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+];
+
+// en.yaml rule en.dates def DATES_CUE
+export const DATES_CUE =
+  /(?:^|[^\p{L}])(?:on|by|until|till|from|since|before|after|dated|due)[ \t ]{1,8}(?:the[ \t ]{1,8})?$/iu;
+
+// en.yaml rule en.dates def datesMonthIndex
+export function datesMonthIndex(name: string) {
+  return DATES_MONTHS.findIndex((month) =>
+    month.startsWith(name.replace(".", "").toLowerCase().slice(0, 3)),
+  );
+}
+
+// en.yaml rule en.dates def datesValid
+export function datesValid(month: number, day: number, year?: number) {
+  return month >= 0 && month < 12 && day >= 1 && day <= enDaysInMonth(month + 1, year);
+}
+
+// en.yaml rule en.dates def datesWeekdayOf
+export function datesWeekdayOf(year: number, month: number, day: number) {
+  return enWeekdayOf(year, month + 1, day);
+}
+
+// en.yaml rule en.dates def datesOrdinal
+export function datesOrdinal(day: number) {
+  return day % 100 >= 11 && day % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][day % 10] ?? "th");
+}
+
+// en.yaml rule en.dates def datesTwo
+export function datesTwo(form: string) {
+  return DATES_WEEKDAYS.findIndex((name) => name.startsWith(form));
+}
+
+// en.yaml rule en.dates def datesNearestOn
+export function datesNearestOn(
+  year: number,
+  month: number,
+  day: number,
+  weekday: number,
+): number | null {
+  const actual = datesWeekdayOf(year, month, day);
+  const back = (actual - weekday + 7) % 7;
+  const ahead = (weekday - actual + 7) % 7;
+  return (
+    (back <= ahead ? [day - back, day + ahead] : [day + ahead, day - back]).find((candidate) =>
+      datesValid(month, candidate, year),
+    ) ?? null
+  );
+}
+
+// en.yaml rule en.dates def datesEdit
+export function datesEdit(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  from: number,
+  to: number,
+  value: string,
+) {
+  return ctx.text.slice(start, from) + value + ctx.text.slice(to, end);
+}
+
+// en.yaml rule en.dates def datesNumericFields
+export function datesNumericFields(
+  a: number,
+  b: number,
+  aAt: string,
+  bAt: string,
+  year: number,
+): { year: number; month: number; day: number; dayAt: string; yearAt: string } | null {
+  return a > 12 && b <= 12
+    ? { year, month: b - 1, day: a, dayAt: aAt, yearAt: "year3" }
+    : b > 12 && a <= 12
+      ? { year, month: a - 1, day: b, dayAt: bAt, yearAt: "year3" }
+      : null;
+}
+
+// en.yaml rule en.dates def datesFields
+export function datesFields(
+  g: Record<string, string>,
+): { year: number; month: number; day: number; dayAt: string; yearAt: string } | null {
+  return g.iso
+    ? {
+        year: +g.isoYear,
+        month: +g.isoMonth - 1,
+        day: +g.isoDay,
+        dayAt: "isoDay",
+        yearAt: "isoYear",
+      }
+    : g.a || g.na
+      ? datesNumericFields(
+          g.a ? +g.a : +g.na,
+          g.a ? +g.b : +g.nb,
+          g.a ? "a" : "na",
+          g.a ? "b" : "nb",
+          +(g.year3 ?? NaN),
+        )
+      : {
+          year: +(g.year1 ?? g.year2 ?? NaN),
+          month: datesMonthIndex(g.month1 ?? g.month2),
+          day: +(g.day1 ?? g.day2),
+          dayAt: g.day1 ? "day1" : "day2",
+          yearAt: g.year1 ? "year1" : "year2",
+        };
+}
+
+// en.yaml rule en.dates def datesWeekdayYear
+export function datesWeekdayYear(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  named: number,
+  f: { year: number; month: number; day: number; dayAt: string; yearAt: string },
+): RawFinding | null {
+  const year = f.year;
+  const month = f.month;
+  const day = f.day;
+  if (!datesValid(month, day, year)) return null;
+  const actual = datesWeekdayOf(year, month, day);
+  if (!(actual !== named)) return null;
+  const start = group(m, "weekday")[0];
+  const weekdayEnd = group(m, "weekday")[1];
+  const dayStart = group(m, f.dayAt)[0];
+  const dayEnd = group(m, f.dayAt)[1];
+  const suffix = /^(?:st|nd|rd|th)/.exec(ctx.text.slice(dayEnd, dayEnd + 2))?.[0] ?? "";
+  const yearStart = group(m, f.yearAt)[0];
+  const yearEnd = group(m, f.yearAt)[1];
+  const end = Math.max(dayEnd + suffix.length, yearEnd);
+  const near = datesNearestOn(year, month, day, named);
+  const other = [1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6]
+    .map((step) => year + step)
+    .find((y) => datesValid(month, day, y) && datesWeekdayOf(y, month, day) === named);
+  return finding(
+    "englishDateConsistency",
+    "review_msg_weekday_mismatch",
+    start,
+    end,
+    [
+      datesEdit(ctx, start, end, start, weekdayEnd, DATES_WEEKDAYS[actual]),
+      ...(near !== null
+        ? [
+            datesEdit(
+              ctx,
+              start,
+              end,
+              dayStart,
+              dayEnd + suffix.length,
+              String(near).padStart(dayEnd - dayStart, "0") + (suffix ? datesOrdinal(near) : ""),
+            ),
+          ]
+        : []),
+      ...(other !== undefined
+        ? [datesEdit(ctx, start, end, yearStart, yearEnd, String(other))]
+        : []),
+    ],
+    { requiresChoice: true, context: { start, end: m.index + m[0].length } },
+  );
+}
+
+// en.yaml rule en.dates def datesWeekdayNoYear
+export function datesWeekdayNoYear(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  named: number,
+  month: number,
+  day: number,
+  dayAt: string,
+): RawFinding | null {
+  const start = group(m, "weekday")[0];
+  const weekdayEnd = group(m, "weekday")[1];
+  const yearContext = enContextYear(ctx.text, start, ctx.lang);
+  const years = enYearsFor(month, day, yearContext);
+  const weekdays = enWeekdaysFor(month, day, yearContext);
+  if (!(years.length && !weekdays.includes(named))) return null;
+  const dayStart = group(m, dayAt)[0];
+  const dayEnd = group(m, dayAt)[1];
+  const suffix = /^(?:st|nd|rd|th)/.exec(ctx.text.slice(dayEnd, dayEnd + 2))?.[0] ?? "";
+  const end = dayEnd + suffix.length;
+  const near = enNearestDayOn(years[0], month, day, named);
+  return finding(
+    "englishDateConsistency",
+    "review_msg_weekday_no_year",
+    start,
+    end,
+    [
+      ...weekdays.map((weekday) =>
+        datesEdit(ctx, start, end, start, weekdayEnd, DATES_WEEKDAYS[weekday]),
+      ),
+      ...(near !== null
+        ? [
+            datesEdit(
+              ctx,
+              start,
+              end,
+              dayStart,
+              end,
+              String(near).padStart(dayEnd - dayStart, "0") + (suffix ? datesOrdinal(near) : ""),
+            ),
+          ]
+        : []),
+    ],
+    { requiresChoice: true, context: { start, end: m.index + m[0].length } },
+  );
+}
+
+// en.yaml rule en.dates def datesImpossible
+export function datesImpossible(start: number, end: number) {
+  return finding("englishDateConsistency", "review_msg_impossible_date", start, end, [], {
+    warningOnly: true,
+  });
+}
 
 // en.yaml rule en.usageFrames def usageInfo
 export function usageInfo(word: string) {
@@ -803,25 +1268,108 @@ export function collocationAfterBe(
   );
 }
 
-// en.yaml rule en.collocations def collocationBoth
-export function collocationBoth(
-  ...guards: (typeof collocationObject)[]
-): (ctx: DetectContext, head: EnToken, after: readonly EnToken[]) => boolean {
-  return (ctx, head, after) => guards.every((g) => g(ctx, head, after));
+// en.yaml rule en.collocations def collocationSimilarWith
+export function collocationSimilarWith(
+  ctx: DetectContext,
+  head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  return (
+    collocationObject(ctx, head, after) &&
+    (!after[1] || !/^(?:respect|regard)$/.test(after[1].lower))
+  );
 }
 
-// en.yaml rule en.collocations def collocationNotBefore
-export function collocationNotBefore(
-  words: RegExp,
-): (ctx: DetectContext, head: EnToken) => boolean {
-  return (ctx, head) => !words.test(enWordBefore(ctx, head.start));
+// en.yaml rule en.collocations def collocationSimilarAs
+export function collocationSimilarAs(
+  ctx: DetectContext,
+  head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  return (
+    collocationObject(ctx, head, after) &&
+    !/^(?:as|so|how|too)$/.test(enWordBefore(ctx, head.start))
+  );
 }
 
-// en.yaml rule en.collocations def collocationNotNext
-export function collocationNotNext(
-  words: RegExp,
-): (ctx: DetectContext, head: EnToken, after: readonly EnToken[]) => boolean {
-  return (_ctx, _head, after) => !after[1] || !words.test(after[1].lower);
+// en.yaml rule en.collocations def collocationFarOf
+export function collocationFarOf(
+  ctx: DetectContext,
+  head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  return (
+    collocationObject(ctx, head, after) &&
+    (!after[1] || !/^(?:a|an)$/.test(after[1].lower)) &&
+    !/^(?:so|thus|as|how|too)$/.test(enWordBefore(ctx, head.start))
+  );
+}
+
+// en.yaml rule en.collocations def collocationMarriedWith
+export function collocationMarriedWith(
+  ctx: DetectContext,
+  head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  return (
+    collocationSpouse(ctx, head, after) &&
+    /^(?:get|gets|got|getting|be|been|being|is|are|was|were|am)$/.test(
+      enWordBefore(ctx, head.start),
+    )
+  );
+}
+
+// en.yaml rule en.collocations def collocationMarryWith
+export function collocationMarryWith(
+  ctx: DetectContext,
+  head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  return (
+    collocationSpouse(ctx, head, after) &&
+    !/^(?:get|gets|got|getting|be|been|being|is|are|was|were|am|happily|newly|recently|once|still|just|now|not)$/.test(
+      enWordBefore(ctx, head.start),
+    )
+  );
+}
+
+// en.yaml rule en.collocations def collocationInvestOn
+export function collocationInvestOn(
+  ctx: DetectContext,
+  head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  return collocationObject(ctx, head, after) && (!after[1] || !/^behalf$/.test(after[1].lower));
+}
+
+// en.yaml rule en.collocations def collocationSufferingOf
+export function collocationSufferingOf(
+  ctx: DetectContext,
+  head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  return collocationObject(ctx, head, after) && COLLOCATION_BE.has(enWordBefore(ctx, head.start));
+}
+
+// en.yaml rule en.collocations def collocationVerbObject
+export function collocationVerbObject(
+  ctx: DetectContext,
+  head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  return collocationObject(ctx, head, after) && collocationVerbSlot(ctx, head);
+}
+
+// en.yaml rule en.collocations def collocationDiscuss
+export function collocationDiscuss(
+  ctx: DetectContext,
+  head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  return (
+    collocationObject(ctx, head, after) &&
+    !/\n[ \t]*$/.test(ctx.text.slice(Math.max(0, head.start - 8), head.start))
+  );
 }
 
 // en.yaml rule en.collocations def collocationVerbSlot
@@ -902,18 +1450,8 @@ export const COLLOCATION_ROWS = [
   ["tired", "about", "of", collocationObject],
   ["addicted", "with on", "to", collocationObject],
   ["allergic", "of from with", "to", collocationObject],
-  [
-    "similar",
-    "with",
-    "to",
-    collocationBoth(collocationObject, collocationNotNext(/^(?:respect|regard)$/)),
-  ],
-  [
-    "similar",
-    "as",
-    "to",
-    collocationBoth(collocationObject, collocationNotBefore(/^(?:as|so|how|too)$/)),
-  ],
+  ["similar", "with", "to", collocationSimilarWith],
+  ["similar", "as", "to", collocationSimilarAs],
   ["different", "of", "from", collocationObject],
   ["angry", "on against", ["with", "at"], collocationPerson],
   ["crowded filled", "of", "with", collocationObject],
@@ -921,69 +1459,26 @@ export const COLLOCATION_ROWS = [
   ["surprised", "of", ["by", "at"], collocationObject],
   ["disappointed", "from of", ["with", "by", "in"], collocationObject],
   ["kind", "with", "to", collocationPronoun],
-  [
-    "far",
-    "of",
-    "from",
-    collocationBoth(
-      collocationObject,
-      collocationNotNext(/^(?:a|an)$/),
-      collocationNotBefore(/^(?:so|thus|as|how|too)$/),
-    ),
-  ],
+  ["far", "of", "from", collocationFarOf],
   ["based", "of", "on", collocationObject],
   ["regardless", "from", "of", collocationObject],
-  [
-    "married",
-    "with",
-    "to",
-    collocationBoth(collocationSpouse, (ctx, head) =>
-      /^(?:get|gets|got|getting|be|been|being|is|are|was|were|am)$/.test(
-        enWordBefore(ctx, head.start),
-      ),
-    ),
-  ],
-  [
-    "marry marries married marrying",
-    "with",
-    "",
-    collocationBoth(
-      collocationSpouse,
-      collocationNotBefore(
-        /^(?:get|gets|got|getting|be|been|being|is|are|was|were|am|happily|newly|recently|once|still|just|now|not)$/,
-      ),
-    ),
-  ],
+  ["married", "with", "to", collocationMarriedWith],
+  ["marry marries married marrying", "with", "", collocationMarryWith],
   ["participate+", "to", "in", collocationObject],
   ["consist+", "to from on", "of", collocationObject],
   ["depend+", "of from", "on", collocationObject],
   ["rely+", "of", "on", collocationObject],
   ["believe+", "to", "in", collocationBareNoun],
   ["recover+", "of", "from", collocationObject],
-  ["invest+", "on", "in", collocationBoth(collocationObject, collocationNotNext(/^behalf$/))],
+  ["invest+", "on", "in", collocationInvestOn],
   ["specialize+ specialise+", "on", "in", collocationObject],
   ["resemble+", "to with", "", collocationObject],
   ["suffer suffers suffered", "of", "from", collocationObject],
-  [
-    "suffering",
-    "of",
-    "from",
-    collocationBoth(collocationObject, (ctx, head) =>
-      COLLOCATION_BE.has(enWordBefore(ctx, head.start)),
-    ),
-  ],
-  ["lack lacks lacked", "of", "", collocationBoth(collocationObject, collocationVerbSlot)],
-  [
-    "discuss+",
-    "about",
-    "",
-    collocationBoth(
-      collocationObject,
-      (ctx, head) => !/\n[ \t]*$/.test(ctx.text.slice(Math.max(0, head.start - 8), head.start)),
-    ),
-  ],
+  ["suffering", "of", "from", collocationSufferingOf],
+  ["lack lacks lacked", "of", "", collocationVerbObject],
+  ["discuss+", "about", "", collocationDiscuss],
   ["mentioned", "about", "", collocationObject],
-  ["mention", "about", "", collocationBoth(collocationObject, collocationVerbSlot)],
+  ["mention", "about", "", collocationVerbObject],
   ["yell+ shout+ scream+", "on", "at", collocationPerson],
   ["abstain+ refrain+", "of", "from", collocationObject],
   ["benefited benefitted benefiting benefitting", "of", "from", collocationObject],
@@ -1374,61 +1869,21 @@ export function tensePastDateFutureVerb(m: RegExpExecArray, ctx: DetectContext):
 }
 
 // en.yaml rule en.productNames def NAMES_PRODUCT_NOUNS
-export const NAMES_PRODUCT_NOUNS = new Map<string, ReadonlySet<string>>([
-  [
-    "excel",
-    new Set(
-      "file files sheet sheets spreadsheet spreadsheets workbook workbooks document documents formula formulas table tables macro macros chart charts skills".split(
-        " ",
-      ),
-    ),
-  ],
-  ["word", new Set("document documents doc docs docx file files template templates".split(" "))],
-  [
-    "outlook",
-    new Set("mail mails email emails inbox calendar invite invites account app client".split(" ")),
-  ],
-  ["chrome", new Set("browser devtools tab tabs".split(" "))],
-  ["opera", new Set("browser".split(" "))],
-  [
-    "google",
-    new Set(
-      "doc account accounts assistant scholar earth workspace trends traffic results ranking rankings".split(
-        " ",
-      ),
-    ),
-  ],
-  [
-    "twitter",
-    new Set("account accounts feed handle post posts followers thread threads".split(" ")),
-  ],
-  ["slack", new Set("channel channels workspace workspaces app bot".split(" "))],
-  ["kindle", new Set("app device tablet edition store paperwhite unlimited reader".split(" "))],
-  [
-    "react",
-    new Set("app apps component components hook hooks native router developer plugin".split(" ")),
-  ],
-  [
-    "mac",
-    new Set("app apps user users computer computers laptop laptops version keyboard".split(" ")),
-  ],
-  [
-    "windows",
-    new Set(
-      "10 11 7 8 xp vista server update updates pc pcs laptop laptops machine machines user users computer computers version defender explorer store".split(
-        " ",
-      ),
-    ),
-  ],
-  [
-    "apple",
-    new Set(
-      "inc employee employees stock shares products device devices account store stores silicon pencil".split(
-        " ",
-      ),
-    ),
-  ],
-]);
+export const NAMES_PRODUCT_NOUNS = {
+  excel: NAMES_EXCEL_NOUNS,
+  word: NAMES_WORD_NOUNS,
+  outlook: NAMES_OUTLOOK_NOUNS,
+  chrome: NAMES_CHROME_NOUNS,
+  opera: NAMES_OPERA_NOUNS,
+  google: NAMES_GOOGLE_NOUNS,
+  twitter: NAMES_TWITTER_NOUNS,
+  slack: NAMES_SLACK_NOUNS,
+  kindle: NAMES_KINDLE_NOUNS,
+  react: NAMES_REACT_NOUNS,
+  mac: NAMES_MAC_NOUNS,
+  windows: NAMES_WINDOWS_NOUNS,
+  apple: NAMES_APPLE_NOUNS,
+} as Record<string, ReadonlySet<string> | undefined>;
 
 // en.yaml rule en.productNames def namesContext
 export function namesContext(ctx: DetectContext, start: number, end: number) {
@@ -1684,6 +2139,105 @@ export function clashComparative(adjective: string): string | null {
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // en.yaml rule en.iseForms frame 1
+  "@en.iseForms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const lower = target.toLowerCase();
+    if (dialectIseWords().has(lower) && ctx.text[m.index - 1] !== "-") return null;
+    if (/^(?:prise|seise)/.test(lower)) return null;
+    const ize = lower.replace(
+      /is(e|es|ed|ing|ation|ations|ational|ationally|er|ers|able|ability)$/,
+      "iz$1",
+    );
+    if (englishWordInfo(lower) || !englishWordInfo(ize) || hasUserOrCasedWord(ctx, target))
+      return null;
+    const fixed = applyWordCase(ize, detectWordCase(target));
+    return [
+      found(ctx, m, "englishAmericanSpelling", "review_msg_american_spelling", [fixed]),
+      found(ctx, m, "englishOxfordSpelling", "review_msg_oxford_spelling", [fixed]),
+    ];
+  },
+  // en.yaml rule en.cardSpellings frame 1
+  "@en.cardSpellings/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const prep = m.groups!.prep;
+    if (hasUserOrCasedWord(ctx, target)) return null;
+    const british = prep.toLowerCase() === "on";
+    const fixed = applyWordCase(british ? "in" : "on", detectWordCase(prep));
+    return british
+      ? found(ctx, m, "englishAmericanSpelling", "review_msg_american_spelling", [fixed], "prep")
+      : found(ctx, m, "englishBritishSpelling", "review_msg_british_spelling", [fixed], "prep");
+  },
+  // en.yaml rule en.spelledNumbers frame 1
+  "@en.spelledNumbers/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    if (!englishWordInfo(noun)?.plural) return null;
+    const start = m.indices!.groups!.target[0];
+    const end = m.indices!.groups!.target[1];
+    const before = ctx.text
+      .slice(Math.max(0, start - 200), start)
+      .split(/[.!?\n]/)
+      .pop()!;
+    const after = ctx.text.slice(end, end + 200).split(/[.!?\n]/)[0];
+    if (/\p{N}/u.test(before + after)) return null;
+    const word = DIALECT_NUMBER_WORDS[target];
+    return {
+      ruleId: "styleSpelledNumbers",
+      messageKey: "review_msg_spelled_numbers",
+      range: { start, end },
+      alternatives: [m[0] === m[0].toUpperCase() ? word.toUpperCase() : word],
+      context: { start: start - before.length, end: end + after.length },
+    };
+  },
+  // en.yaml rule en.dates frame 1
+  "@en.dates/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const typedWeekday = g.weekday.replace(".", "");
+    const named =
+      DATES_WEEKDAY_FORMS.find(([form]) => form === typedWeekday)?.[1] ?? datesTwo(typedWeekday);
+    const f = datesFields(g);
+    if (!f) return null;
+    if (!(named >= 0)) return null;
+    return Number.isNaN(f.year)
+      ? datesWeekdayNoYear(ctx, m, named, f.month + 1, f.day, f.dayAt)
+      : datesWeekdayYear(ctx, m, named, f);
+  },
+  // en.yaml rule en.dates frame 2
+  "@en.dates/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const month1 = m.groups!.month1;
+    const day1 = m.groups!.day1;
+    const day2 = m.groups!.day2;
+    const month2 = m.groups!.month2;
+    const year = m.groups!.year;
+    const monthName = month1 ?? month2;
+    const cued = DATES_CUE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index));
+    if (!(/^\p{Lu}/u.test(monthName) || year || cued)) return null;
+    if (month1 && /^may$/i.test(monthName) && !year) return null;
+    const day = +(day1 ?? day2);
+    if (day > 31 && !year && !/[0-9](?:st|nd|rd|th)/.test(m[0])) return null;
+    const end = m.index + m[0].length;
+    if (/^[ \t ]*(?:AD|BC|BCE|CE|A\.D\.|B\.C\.)/.test(ctx.text.slice(end, end + 8))) return null;
+    if (
+      (day < 1 && !year && !cued) ||
+      datesValid(datesMonthIndex(monthName), day, year ? +year : undefined)
+    )
+      return null;
+    return datesImpossible(m.index, end);
+  },
+  // en.yaml rule en.dates frame 3
+  "@en.dates/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    const year = m.groups!.year;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    const first = +a;
+    const second = +b;
+    const yearNumber = +year;
+    if (datesValid(first - 1, second, yearNumber) || datesValid(second - 1, first, yearNumber))
+      return null;
+    return datesImpossible(m.index, m.index + m[0].length);
+  },
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
@@ -2300,7 +2854,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@en.productNames/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     const w = m.groups!.w;
     const n = m.groups!.n;
-    const nouns = NAMES_PRODUCT_NOUNS.get(w);
+    const nouns = NAMES_PRODUCT_NOUNS[w];
     if (!nouns || w !== w.toLowerCase() || !nouns.has(n.toLowerCase()) || ctx.dictionary.has(w))
       return null;
     if (

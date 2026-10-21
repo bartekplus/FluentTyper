@@ -62,3 +62,13 @@ export {
   englishListedNoun as enListedNoun,
   englishNounPair as enNounPair,
 } from "../implementations/helpers/EnglishLexicon";
+// Group 6: the calendar of the date checks, and the named phrase tables of en.yaml.
+export {
+  contextYear as enContextYear,
+  daysInMonth as enDaysInMonth,
+  nearestDayOn as enNearestDayOn,
+  weekdayOf as enWeekdayOf,
+  weekdaysFor as enWeekdaysFor,
+  yearsFor as enYearsFor,
+} from "../review/reviewClock";
+export { enTable, useEnglishTables } from "./english/tables";

@@ -8970,7 +8970,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}'’])(?<target>\\p{L}+is(?:e|es|ed|ing|ation|ations|ational|ationally|er|ers|able|ability))(?![\\p{L}\\p{N}'’])",
     literals: [],
-    fixer: "en:iseForm",
+    fixer: "en:@en.iseForms/1",
     flags: "dgiu",
     anyCheck: true,
   }),
@@ -8978,14 +8978,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:am|is|are|was|were|be|been|being|isn['’]?t|aren['’]?t|wasn['’]?t|weren['’]?t|its|\\p{L}+['’](?:s|re))(?:[ \\t\\u00a0]{1,8}(?:that|this|it|they|he|she|we|you))?(?:[ \\t\\u00a0]{1,8}(?:not|just|really|probably|definitely|certainly|still|also|already|never|ever|likely|possibly|clearly|simply|even|again|all|quite|maybe|perhaps|hardly)){0,3}[ \\t\\u00a0]{1,8}(?<target>(?<prep>on|in)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}cards)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[^\\p{L} \\t\\u00a0]|$)|[ \\t\\u00a0]{1,8}(?:for|at|but|and|or|any|anytime|again|anymore|now|right|yet|either|though|since|so|then|previously|back|soon|until|unless|if|because|as|with|too|just|after|before|when|while|ever|in|this|that|these|those)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["cards"],
-    fixer: "en:cardSpelling",
+    fixer: "en:@en.cardSpellings/1",
     anyCheck: true,
   }),
   frame({
     pattern:
       "(?=[2-9][ \\t\\u00a0]{1,8})(?<=(?:^|[^\\p{L}])(?:the|these|those|my|your|his|her|its|our|their|are|were|is|was|be|been|have|has|had|with|for|of|in|on|at|by|from|to|into|about|around|over|under|nearly|almost|only|just|all|and|or|than|after|within|there|here|another|last|first|next)[ \\t\\u00a0]{1,8})(?<target>[2-9])[ \\t\\u00a0]{1,8}(?<noun>\\p{L}{3,})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:spelledNumber",
+    fixer: "en:@en.spelledNumbers/1",
   }),
   frame({
     pattern:
@@ -9794,7 +9794,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}])(?<weekday>Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|(?:Sun|Mon|Tues|Tue|Wed|Thurs|Thur|Thu|Fri|Sat)\\.?|(?:Mo|Tu|We|Th|Fr|Sa|Su)(?=,))(?:,?[ \\t\\u00a0]{1,8}|,)(?:(?<day1>[0-9]{1,2})(?:st|nd|rd|th)?(?:[ \\t\\u00a0]{1,8}of)?[ \\t\\u00a0]{1,8}(?<month1>(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)(?:\\.(?=[ \\t\\u00a0,]))?))(?:,?[ \\t\\u00a0]{1,8}(?<year1>[0-9]{4}))?|(?<month2>(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)(?:\\.(?=[ \\t\\u00a0,]))?))[ \\t\\u00a0]{1,8}(?<day2>[0-9]{1,2})(?:st|nd|rd|th)?(?:,?[ \\t\\u00a0]{1,8}(?<year2>[0-9]{4}))?|(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year3>[0-9]{4})|(?<na>[0-9]{1,2})\\/(?<nb>[0-9]{1,2})(?![/.,]?[0-9])|(?<iso>(?<isoYear>[0-9]{4})-(?<isoMonth>[0-9]{2})-(?<isoDay>[0-9]{2})))(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "en:weekdayMismatch",
+    fixer: "en:@en.dates/1",
     flags: "dgu",
     owner: "weekday",
   }),
@@ -9851,13 +9851,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "nov",
       "dec",
     ],
-    fixer: "en:impossibleMonthDay",
+    fixer: "en:@en.dates/2",
   }),
   frame({
     pattern:
       "(?<![.\\p{M}'’@#\\\\])(?<![\\p{L}\\p{N}][*_~]{0,3})(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>[0-9]{4})(?![\\p{N}]|[.,][0-9])",
     literals: [],
-    fixer: "en:impossibleNumericDate",
+    fixer: "en:@en.dates/3",
     flags: "dgu",
     owner: "none",
   }),
