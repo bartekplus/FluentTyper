@@ -4180,7 +4180,6 @@ rules:
           meute,
           myriade,
           ribambelle,
-          foule,
           tonne,
         ]
       # "Chaque jour des fonctions sont ajoutées", "neuf heures lui conviendrait": a time or a
@@ -13497,7 +13496,6 @@ rules:
           commencer,
           continuer,
           durer,
-          rester,
           sauter,
           courir,
           marcher,
@@ -13793,7 +13791,6 @@ rules:
           titulaire,
           remplaçant,
           médecine,
-          droit,
           lettres,
           philo,
           philosophie,

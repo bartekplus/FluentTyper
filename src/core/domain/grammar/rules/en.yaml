@@ -6154,13 +6154,11 @@ rules:
     frames:
       # Names whose spelling or hyphen is fixed, written canonically whatever the typed case.
       - regex: "(?<target>(?:noble|nobel){{S}}(?:peace|piece){{S}}(?:prize|price|prise)){{E}}"
-        check: englishPhraseCorrections
         message: review_msg_typo
         gate: "nob(?:le|el)\\s"
         gateFlags: giu
         return: style2CanonicalName(m, ctx, frame, "Nobel Peace Prize")
       - regex: "(?<target>goggle|googol)(?={{S}}(?:analytics|maps|slides|forms|drive|search|workspace|photos|docs|mail|calendar|sheets|chrome|cloud|play|translate|meet|earth|scholar|ads|news|books|assistant|lens|fonts){{E}})"
-        check: englishPhraseCorrections
         message: review_msg_typo
         gate: "goggle|googol"
         gateFlags: giu
@@ -7572,7 +7570,6 @@ rules:
         flags: g
         scan: text
         lookback: 1
-        lang: en
         anyCheck: true
         # Scare quotes ("tongue and cheek" jokes) and quoted speech are the writer's own
         # words: the tables' quotation guard is meant for mentions, which a cue word gives
@@ -7614,7 +7611,6 @@ rules:
         flags: gu
         scan: text
         lookback: 1
-        lang: en
         anyCheck: true
         # A named example's guard reaches 80 characters past its opening quote; once the
         # quotation closes ('The name "Forge" is inspired from'), the prose after it is
@@ -8009,7 +8005,6 @@ rules:
       - regex: '["''“‘«„‚»‹”]'
         flags: g
         scan: text
-        lang: en
         # Quoted wording is checked too: the tables' quotation and example guards keep a
         # mention ("'chalk full' is nonstandard") as typed, and this opt-in check reads it
         # anyway. A letter or two ("a", "x") holds no phrase. Away from the text's edges, the
@@ -8651,7 +8646,6 @@ rules:
         return: "compoundContextual(ctx, m, [`${q.toLowerCase()}one`])"
       # Compound verbs written open in a verb slot: "we will peer review it" -> "peer-review".
       - regex: "(?=\\p{L}){{COMPOUNDFORMS_SLOT}}{{S}}{{COMPOUNDFORMS_ADVERB}}(?<target>{{COMPOUNDFORMS_VERB_KEYS}}){{E}}"
-        check: englishClosedCompounds
         let:
           entry: compoundVerbFormMap(COMPOUND_VERB_FORMS).get(target.toLowerCase().split(/\s+/).join(" "))
           third: '/^(?:he|she)$/i.test(subject ?? "")'
@@ -8671,7 +8665,6 @@ rules:
         return: compoundClosed(ctx, m, entry[0])
       # Modifiers hyphenated before a noun; a noun must follow (or a determiner precede).
       - regex: "(?=\\p{L})(?<target>{{COMPOUNDFORMS_MODIFIER_KEYS}}){{E}}"
-        check: englishClosedCompounds
         let:
           following: compoundNextWord(ctx, m.index + m[0].length)
         when:
@@ -8686,7 +8679,6 @@ rules:
       # first branch "[^\s\S]" matches nothing: it keeps the scan on the whole text. Without it,
       # the scan runs near each "on", "so", "no" or "do" (also inside words), which costs more.
       - regex: "(?<det>{{COMPOUNDFORMS_DETERMINER}}){{S}}(?<target>[^\\s\\S]|m(?:ulti{{S}}million{{S}}dollar|onth{{S}}to{{S}}month|illion{{S}}dollar|any{{S}}to{{S}}many|ind{{S}}blowing|uch{{S}}needed|om{{S}}and{{S}}pop|iddle{{S}}aged)|e(?:asy{{S}}to{{S}}understand|asy{{S}}to{{S}}install|asy{{S}}to{{S}}follow|asy{{S}}to{{S}}learn|ye{{S}}catching|asy{{S}}to{{S}}read|asy{{S}}to{{S}}use|ven{{S}}handed|nd{{S}}to{{S}}end)|p(?:erson{{S}}to{{S}}person|oint{{S}}to{{S}}point|eer{{S}}to{{S}}peer|art{{S}}time|ost{{S}}it)|s(?:tate{{S}}of{{S}}the{{S}}art|econd{{S}}largest|econd{{S}}biggest|econd{{S}}highest|imple{{S}}to{{S}}use|tep{{S}}by{{S}}step|traight{{S}}up|hort{{S}}lived|econd{{S}}best|econd{{S}}hand|mall{{S}}scale|hort{{S}}range|hort{{S}}term|ingle{{S}}use|o{{S}}called)|l(?:ong{{S}}established|ife{{S}}threatening|ong{{S}}standing|ife{{S}}changing|ong{{S}}distance|ong{{S}}awaited|ong{{S}}lasting|ife{{S}}saving|ast{{S}}minute|arge{{S}}scale|eft{{S}}handed|ong{{S}}lived|ong{{S}}range|ast{{S}}ditch|ong{{S}}term|ow{{S}}level|ife{{S}}long|ow{{S}}cost|ow{{S}}risk|ow{{S}}end)|a(?:ll{{S}}encompassing|bove{{S}}mentioned|ward{{S}}winning|ll{{S}}inclusive|ll{{S}}powerful|ll{{S}}knowing|ll{{S}}natural|ll{{S}}seeing|ll{{S}}in{{S}}one|bout{{S}}face|ll{{S}}time|ll{{S}}new)|d(?:ifficult{{S}}to{{S}}use|o{{S}}it{{S}}yourself|rive{{S}}through|oor{{S}}to{{S}}door|ual{{S}}purpose|own{{S}}and{{S}}out|ay{{S}}to{{S}}day|uty{{S}}free|o{{S}}or{{S}}die|rive{{S}}way)|w(?:ell{{S}}established|ell{{S}}meaning|all{{S}}to{{S}}wall|orld{{S}}class|ell{{S}}known)|r(?:ecord{{S}}breaking|ags{{S}}to{{S}}riches|eady{{S}}to{{S}}use|ight{{S}}handed|eal{{S}}time|ead{{S}}only)|n(?:ot{{S}}for{{S}}profit|ever{{S}}ending|ew{{S}}look|o{{S}}go)|t(?:ime{{S}}consuming|hird{{S}}largest|hird{{S}}biggest|ailor{{S}}made|hird{{S}}best|op{{S}}notch|ax{{S}}free)|b(?:illion{{S}}dollar|ack{{S}}to{{S}}back|est{{S}}selling|rand{{S}}new|rick{{S}}red|ug{{S}}eyed)|f(?:ourth{{S}}largest|ifth{{S}}largest|ace{{S}}to{{S}}face|ast{{S}}growing|ly{{S}}by{{S}}night|ar{{S}}reaching|irst{{S}}class|or{{S}}profit|ull{{S}}scale|irst{{S}}hand|ollow{{S}}on|ull{{S}}time)|o(?:ut{{S}}of{{S}}the{{S}}way|ut{{S}}of{{S}}the{{S}}box|ff{{S}}the{{S}}shelf|ne{{S}}of{{S}}a{{S}}kind|ld{{S}}fashioned|ut{{S}}of{{S}}place|ne{{S}}to{{S}}many|pen{{S}}source|ut{{S}}of{{S}}body|ne{{S}}to{{S}}one|pen{{S}}ended|ut{{S}}going|n{{S}}board|ver{{S}}use|ne{{S}}off)|c(?:oast{{S}}to{{S}}coast|ard{{S}}carrying|ut{{S}}and{{S}}paste|ooling{{S}}off|ut{{S}}throat|atch{{S}}all|heck{{S}}box)|u(?:ser{{S}}friendly|nder{{S}}cover|p{{S}}to{{S}}date)|year{{S}}to{{S}}year|h(?:ead{{S}}to{{S}}head|ard{{S}}to{{S}}find|igh{{S}}quality|and{{S}}to{{S}}hand|ard{{S}}working|ard{{S}}to{{S}}use|igh{{S}}level|eavy{{S}}duty|igh{{S}}speed|igh{{S}}risk|ome{{S}}work|igh{{S}}end|ands{{S}}on)|g(?:o{{S}}to{{S}}market|ood{{S}}looking|o{{S}}to)|ill{{S}}advised|k(?:now{{S}}it{{S}}all|nife{{S}}edge)|zero{{S}}day){{E}}"
-        check: englishClosedCompounds
         let:
           key: target.toLowerCase().split(/\s+/).join(" ")
           following: compoundNextWord(ctx, m.index + m[0].length)
@@ -8706,7 +8698,6 @@ rules:
         return: compoundClosed(ctx, m, noun ?? COMPOUND_ARTICLE_MODIFIERS[key])
       # Prefixes that are hyphenated before their word: "quasi judicial", "mid thirties", "pre 1995".
       - regex: "(?<target>(?<prefix>quasi|mid|pre|post|anti){{S}}(?<word>[\\p{L}\\p{N}]+)){{E}}"
-        check: englishClosedCompounds
         let:
           lower: prefix.toLowerCase()
           range: group(m, "target")
@@ -8718,7 +8709,6 @@ rules:
             context: { start: Math.max(0, m.index - 24), end: Math.min(ctx.text.length, range[1] + 24) },
           })
       - regex: "(?<target>ex{{S}}(?:{{COMPOUNDFORMS_EX_PEOPLE}})){{E}}"
-        check: englishClosedCompounds
         return: compoundClosed(ctx, m, compoundHyphenate(target))
   - id: en.dates
     checks: [englishDateConsistency]

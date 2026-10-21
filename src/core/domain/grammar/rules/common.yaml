@@ -4546,6 +4546,872 @@ defs:
     when: "!!range"
     return: >-
       ({ ruleId: frame.ruleId, messageKey: frame.messageKey, range, alternatives: [], warningOnly: true })
+  # The code of the dateTense rules.
+  # A clause break before or after a date phrase.
+  DATE_BREAK: /[!?;()\n"“”«»„،؛؟]|[.:](?=\s|$)|,/gu
+  DATE_WORD: /[\p{L}\p{M}]+(?:-[\p{L}\p{M}]+)*|\p{N}+(?:[.:]\p{N}+)*/gu
+  # The words of the clause around a date phrase at [start, end): the words before it,
+  # nearest last (at most 6), the words after it (at most 10), whether these reach the end
+  # of the clause, and the word that opens the clause, when a boundary word does. "Am
+  # 7.8.2031, …": a comma after a date that opens the sentence ends no clause.
+  clauseAround:
+    args: "text: string, start: number, end: number, boundary: ReadonlySet<string>"
+    let:
+      head: text.slice(Math.max(0, start - 160), start)
+      lastBreak: "[...head.matchAll(DATE_BREAK)].at(-1)"
+      clauseHead: "head.slice(lastBreak ? lastBreak.index + lastBreak[0].length : 0)"
+      headWords: clauseHead.match(DATE_WORD) ?? []
+      opens: headWords.map((w) => boundary.has(w.toLowerCase())).lastIndexOf(true)
+      before: headWords.slice(opens + 1).slice(-6)
+      fullTail: text.slice(end, end + 200)
+      tail: 'before.length ? fullTail : fullTail.replace(/^[ \t ]*,/, "")'
+      stop: tail.search(DATE_BREAK)
+      afterWords: "(stop >= 0 ? tail.slice(0, stop) : tail).match(DATE_WORD) ?? []"
+      ends: afterWords.findIndex((w) => boundary.has(w.toLowerCase()))
+      after: "ends >= 0 ? afterWords.slice(0, ends) : afterWords"
+      closed: "ends >= 0 || stop >= 0 || end + 200 >= text.length"
+    return: >-
+      ({
+        before,
+        after: after.length > 10 ? after.slice(0, 10) : after,
+        closed: after.length > 10 ? false : closed,
+        opener: opens >= 0 ? headWords[opens].toLowerCase() : undefined,
+      })
+  # "future", "past" (of the last three years) or null for every reading of the date. A
+  # slashed date can also be month first: "10/27/2031".
+  dateSideOf:
+    args: "year: number, month: number, day: number, swap: boolean"
+    type: '"future" | "past" | null'
+    let:
+      readings: "swap ? [[year, month, day], [year, day, month]] : [[year, month, day]]"
+      valid: readings.filter((r) => dayCount(r[0], r[1], r[2]) !== null)
+    return: >-
+      !valid.length
+        ? null
+        : valid.every((r) => dateSide(r[0], r[1], r[2]) === "future")
+          ? "future"
+          : valid.every((r) => recentPast(r[0], r[1], r[2]))
+            ? "past"
+            : null
+  # The warning of a date frame: the tense of the clause and the side of the date disagree.
+  dateTenseWarning:
+    args: 'm: RegExpExecArray, side: "future" | "past"'
+    type: RawFinding
+    let:
+      span: m.indices!.groups!.date
+    return: >-
+      finding("dateTenseConsistency", side === "future" ? "review_msg_future_date_past" : "review_msg_past_date_future", span[0], span[1], [], {
+        warningOnly: true as const,
+      })
+  # A date frame of one language: groups `date`, `day`, `year`, and `month` (digits) or
+  # `name`. `side` is the side of the date; `clause` and `tense` are read only when it has
+  # one. Plans, reports and conditions are other clauses.
+  # The finding of a date frame: `months` gives the number of a month name. Arabic dates
+  # may have Arabic-Indic digits.
+  dateTenseAt:
+    args: >-
+      m: RegExpExecArray, ctx: DetectContext, months: Readonly<Record<string, number>>,
+      conditional: ReadonlySet<string>, boundary: ReadonlySet<string>, lang: string
+    type: RawFinding | null
+    let:
+      g: m.groups!
+      side: >-
+        dateSideOf(digitValue(g.year), g.name ? (months[g.name.toLowerCase()] ?? 0) : digitValue(g.month),
+        digitValue(g.day), !g.name && g.sep === "/")
+    return: dateTenseFinding(m, ctx, side, conditional, boundary, lang)
+  dateTenseFinding:
+    args: >-
+      m: RegExpExecArray, ctx: DetectContext, side: "future" | "past" | null,
+      conditional: ReadonlySet<string>, boundary: ReadonlySet<string>, lang: string
+    type: RawFinding | null
+    let:
+      clause: clauseAround(ctx.text, m.index, m.index + m[0].length, boundary)
+      verdict: >-
+        lang === "de"
+          ? germanTense(clause)
+          : lang === "fr"
+            ? frenchTense(clause)
+            : lang === "es"
+              ? spanishTense(clause)
+              : lang === "pt"
+                ? portugueseTense(clause)
+                : lang === "pl"
+                  ? polishTense(clause)
+                  : arabicTense(clause)
+    when:
+      - "!!side"
+      - "!(clause.opener && conditional.has(clause.opener))"
+      - "!!verdict && verdict !== side"
+    return: dateTenseWarning(m, side)
+  lowerAll:
+    args: "list: readonly string[]"
+    return: list.map((word) => word.toLowerCase())
+  # German: "wird … reisen"; "wird … gewesen sein" is a guess about the past. "Ich war am …
+  # schon ausgebucht": a planning verb names the date of the plan. A simple past next to its
+  # pronoun: "ich war am …", "am … schwamm ich".
+  germanTense:
+    args: "clause: { before: string[]; after: string[]; closed: boolean }"
+    type: '"past" | "future" | null'
+    let:
+      all: lowerAll([...clause.before, ...clause.after])
+      last: "clause.closed ? clause.after.at(-1) : undefined"
+      prev: clause.after.at(-2)
+      b: lowerAll(clause.before)
+      a: lowerAll(clause.after).slice(0, 6)
+    return: >-
+      all.some((w) => w.startsWith("würd"))
+        ? null
+        : all.some((w) => DE_WERDEN.has(w))
+          ? !last ||
+            !/^\p{Ll}+(?:en|ern|eln)$/u.test(last) ||
+            DE_PARTICIPLE.test(last) ||
+            (/^(?:sein|haben)$/.test(last) && !!prev && DE_PARTICIPLE.test(prev))
+            ? null
+            : "future"
+          : last && DE_ARRANGING.test(last)
+            ? null
+            : last &&
+                DE_PARTICIPLE.test(last) &&
+                !DE_NOT_PARTICIPLE.has(last) &&
+                (all.some((w) => DE_HABEN.has(w)) ||
+                  (all.some((w) => DE_SEIN.has(w)) && DE_SEIN_PARTICIPLE.test(last)))
+              ? "past"
+              : (b.length >= 2 && DE_PRONOUNS.has(b.at(-2)!) && DE_PAST.has(b.at(-1)!)) ||
+                  a.some((w, i) => DE_PAST.has(w) && i + 1 < a.length && DE_PRONOUNS.has(a[i + 1]))
+                ? "past"
+                : null
+  # French: the past ("avons visité", "sommes partis", "avaient déjà signé"; "il y a" is
+  # "there is"), or the future ("nous viendrons", "il ne viendra pas", "nous allons signer";
+  # "aura signé" guesses about the past). A planning verb names the date of the plan.
+  frenchTense:
+    args: "clause: { before: string[]; after: string[]; closed: boolean }"
+    type: '"past" | "future" | null'
+    let:
+      verdict: wordScan(lowerAll(clause.before), 0, "fr") ?? wordScan(lowerAll(clause.after), 0, "fr")
+    return: 'verdict === "past" || verdict === "future" ? verdict : null'
+  frenchStep:
+    args: "list: readonly string[], i: number"
+    type: '"past" | "future" | "none" | undefined'
+    let:
+      w: list[i]
+      auxiliary: (FR_AVOIR.has(w) && list[i - 1] !== "y") || FR_ETRE.has(w)
+      part: "auxiliary ? list.find((x, k) => k > i && !FR_ADVERBS.has(x)) : undefined"
+      partOk: "!!part && FR_PARTICIPLE.test(part) && !FR_NOT_PARTICIPLE.has(part)"
+    return: >-
+      auxiliary && !partOk
+        ? undefined
+        : auxiliary && FR_ARRANGING.test(part!)
+          ? "none"
+          : auxiliary && (FR_AVOIR.has(w) || FR_MOTION.has(part!.replace(/(?<=[éiu])(?:e|s|es)$/u, "")))
+            ? "past"
+            : FR_SUBJECTS.has(w)
+              ? frenchSubject(list, i)
+              : undefined
+  frenchSubject:
+    args: "list: readonly string[], i: number"
+    type: '"future" | "none" | undefined'
+    let:
+      stop: list.findIndex((x, k) => k > i && (k > i + 3 || !FR_OBJECTS.has(x)))
+      j: "stop < 0 ? list.length : stop"
+      verb: list[j]
+      next: list[j + 1]
+    return: >-
+      verb && FR_FUTURE.test(verb)
+        ? /^(?:aur|ser)/.test(verb) && next && FR_PARTICIPLE.test(next)
+          ? "none"
+          : "future"
+        : verb && FR_ALLER.has(verb) && FR_INFINITIVE.test(next ?? "")
+          ? "future"
+          : undefined
+  # Spanish: "íbamos a firmar", "queríamos firmar": a plan, not the past. A conditional
+  # ("visitaríamos") is no past.
+  spanishTense:
+    args: "clause: { before: string[]; after: string[]; closed: boolean }"
+    type: '"past" | "future" | null'
+    let:
+      verdict: >-
+        wordScan(lowerAll(clause.before), 0, "es") ?? wordScan(lowerAll(clause.after), 0, "es")
+    return: 'verdict === "past" || verdict === "future" ? verdict : null'
+  spanishStep:
+    args: "list: readonly string[], i: number"
+    type: '"past" | "future" | "none" | undefined'
+    let:
+      w: list[i]
+      next: list[i + 1] ?? ""
+      part: 'next === "ya" ? list[i + 2] : next'
+      past: >-
+        ES_PAST_WORDS.has(w) || (ES_PAST.test(w) && !ES_NOT_PAST.has(w) && !DATE_CONDITIONAL.test(w))
+    return: >-
+      (ES_FUTURE.test(w) && !/^(?:atrás|detrás)$/.test(w)) ||
+      (ES_IR.has(w) && next === "a" && ES_INFINITIVE.test(list[i + 2] ?? ""))
+        ? "future"
+        : ES_HABER.has(w)
+          ? part && ES_PARTICIPLE.test(part)
+            ? ES_ARRANGING.test(part)
+              ? "none"
+              : "past"
+            : undefined
+          : !past || ES_INFINITIVE.test(next) || (next === "a" && ES_INFINITIVE.test(list[i + 2] ?? ""))
+            ? undefined
+            : ES_ARRANGING.test(w)
+              ? "none"
+              : "past"
+  # Portuguese: "queríamos visitar", "íamos assinar": a plan; "estávamos a visitar" is the
+  # past.
+  portugueseTense:
+    args: "clause: { before: string[]; after: string[]; closed: boolean }"
+    type: '"past" | "future" | null'
+    let:
+      verdict: >-
+        wordScan(lowerAll(clause.before), 0, "pt") ?? wordScan(lowerAll(clause.after), 0, "pt")
+    return: 'verdict === "past" || verdict === "future" ? verdict : null'
+  portugueseStep:
+    args: "list: readonly string[], i: number"
+    type: '"past" | "future" | "none" | undefined'
+    let:
+      w: list[i]
+      next: list[i + 1] ?? ""
+      past: >-
+        PT_PAST_WORDS.has(w) || (PT_PAST.test(w) && !PT_NOT_PAST.has(w) && !DATE_CONDITIONAL.test(w))
+    return: >-
+      (PT_FUTURE.test(w) && w !== "atrás") || (PT_IR.has(w) && PT_INFINITIVE.test(next))
+        ? "future"
+        : PT_PLUPERFECT.has(w)
+          ? PT_PARTICIPLE.test(next)
+            ? PT_ARRANGING.test(next)
+              ? "none"
+              : "past"
+            : undefined
+          : !past || PT_INFINITIVE.test(next)
+            ? undefined
+            : PT_ARRANGING.test(w)
+              ? "none"
+              : "past"
+  # The verdict at the first word of `list` from `i` that decides one, by the steps of
+  # `lang` (fr, es or pt): "none" for no tense.
+  wordScan:
+    args: "list: readonly string[], i: number, lang: string"
+    type: '"past" | "future" | "none" | undefined'
+    let:
+      verdict: 'lang === "fr" ? frenchStep(list, i) : lang === "es" ? spanishStep(list, i) : portugueseStep(list, i)'
+    when: i < list.length
+    return: "verdict !== undefined ? verdict : wordScan(list, i + 1, lang)"
+    else: undefined
+  # Polish: "miało się odbyć", "chcieliśmy pojechać": a plan, not the past.
+  polishTense:
+    args: "clause: { before: string[]; after: string[]; closed: boolean }"
+    type: '"past" | "future" | null'
+    let:
+      list: lowerAll([...clause.before, ...clause.after])
+      past: >-
+        list.find(
+          (w, i) =>
+            (PL_PAST_PERSON.test(w) || (PL_PAST.test(w) && !PL_NOT_PAST.has(w))) &&
+            !PL_INFINITIVE.test((list[i + 1] === "się" ? list[i + 2] : list[i + 1]) ?? ""),
+        )
+    return: >-
+      list.some((w) => PL_FUTURE.has(w))
+        ? "future"
+        : past === undefined || PL_ARRANGING.test(past)
+          ? null
+          : "past"
+  # Arabic: "كان من المقرر": "was planned for", a plan.
+  arabicTense:
+    args: "clause: { before: string[]; after: string[]; closed: boolean }"
+    type: '"past" | "future" | null'
+    let:
+      list: "[...clause.before, ...clause.after]"
+    return: >-
+      list.some((w) => AR_FUTURE.has(w))
+        ? "future"
+        : list.some((w, i) => AR_PAST.has(w) && list[i + 1] !== "من")
+          ? "past"
+          : null
+  DE_PARTICIPLE: >-
+    /^(?:(?:ab|an|auf|aus|bei|ein|fest|fort|heim|her|hin|los|mit|nach|statt|teil|vor|weg|weiter|zu|zurück|zusammen|um|durch|über)?ge\p{Ll}{2,}(?:t|en)|(?:be|emp|ent|er|miss|ver|zer)\p{Ll}{2,}t|\p{Ll}{3,}iert)$/u
+  DE_SEIN_PARTICIPLE: >-
+    /(?:gangen|fahren|flogen|kommen|laufen|schwommen|gereist|wesen|blieben|storben|fallen|zogen|sprungen|wandert|rannt|stiegen|folgt|passiert|schehen|wachsen|worden|ritten|segelt|wacht|kehrt)$/u
+  DE_ARRANGING: >-
+    /(?:plant|bucht|reserviert|bestellt|vereinbart|schoben|verlegt|gesetzt|festgelegt|beworben|gemeldet|terminiert|kündigt|geladen|vorgesehen|bestätigt|gesagt|organisiert|getragen|notiert|gemerkt|gelegt|beantragt|gefragt|genehmigt|versprochen|geboten|gewünscht|geöffnet|geschlossen|fixiert|datiert|befristet|begrenzt)$/u
+  FR_PARTICIPLE: >-
+    /^\p{Ll}{2,}(?:é|ée|és|ées|i|ie|is|ies|it|ite|u|ue|us|ues|ert|erte|ait|aite|eint|ainte)$/u
+  FR_ARRANGING: >-
+    /^(?:prévu|planifié|fixé|programmé|réservé|commandé|reporté|décalé|déplacé|annoncé|confirmé|convenu|organisé|inscrit|demandé|proposé|promis|annulé|invité|noté|calé|repoussé|avancé|retenu|bloqué|posé|pris)(?:e|s|es)?$/u
+  FR_FUTURE: >-
+    /^(?:\p{Ll}+(?:er|ir|dr|ttr|aîtr)|ser|aur|fer|ir|pourr|verr|devr|saur|courr|mourr|enverr|recevr|vivr|suivr|écrir|lir|dir|boir|croir|plair)(?:ai|as|a|ons|ez|ont)$/u
+  FR_INFINITIVE: >-
+    /^\p{Ll}{2,}(?:er|ir|re|oir)$/u
+  ES_PARTICIPLE: >-
+    /^(?:\p{Ll}{2,}(?:ado|ada|ados|adas|ido|ida|idos|idas)|visto|hecho|dicho|puesto|escrito|abierto|vuelto|roto|muerto|cubierto|resuelto|devuelto|descubierto|impreso|satisfecho)$/u
+  ES_PAST: >-
+    /^\p{Ll}{3,}(?:é|ó|aste|iste|aron|ieron|yeron|asteis|isteis|aba|abas|ábamos|abais|aban|íamos|íais|ían)$/u
+  ES_ARRANGING: >-
+    /^(?:re)?(?:program|previst|prev|plane|reserv|fij|pospu|aplaz|convoc|anunci|confirm|acord|organiz|cancel|ped|pid|solicit|promet|agend|cit|inscri|qued|traslad|cambi|mov|apunt)/u
+  ES_FUTURE: >-
+    /^(?:\p{Ll}{2,}(?:ré|rás|rá|réis|rán)|\p{Ll}+[ai]remos)$/u
+  ES_INFINITIVE: >-
+    /^\p{Ll}{2,}(?:ar|er|ir)$/u
+  DATE_CONDITIONAL: >-
+    /[aeií]r(?:íamos|íais|ían|íeis|iam)$/u
+  PT_PAST: >-
+    /^\p{Ll}{2,}(?:ei|ou|aste|este|iste|aram|eram|iram|ava|avas|ávamos|áveis|avam|íamos|íeis|iam)$/u
+  PT_PARTICIPLE: >-
+    /^(?:\p{Ll}{2,}(?:ado|ada|ados|adas|ido|ida|idos|idas)|visto|feito|dito|posto|escrito|aberto|vindo|ganho|gasto|pago|entregue|morto|coberto)$/u
+  PT_ARRANGING: >-
+    /^(?:re|des)?(?:marc|agend|planej|plane|program|reserv|adi|confirm|anunci|combin|cancel|convid|promet|solicit|ped|previ|prev|fix|inscrev|inscri|transfer|mud)/u
+  PT_FUTURE: >-
+    /^(?:\p{Ll}{2,}(?:rá|rás|rão)|\p{Ll}+[aei]rei|\p{Ll}+[ai]remos)$/u
+  PT_INFINITIVE: >-
+    /^(?:\p{Ll}{2,}(?:ar|er|ir|or)|pôr)$/u
+  PL_PAST_PERSON: >-
+    /^\p{Ll}{2,}(?:łem|łam|łeś|łaś|liśmy|łyśmy|liście|łyście)$/u
+  PL_PAST: >-
+    /^\p{Ll}{2,}(?:[aiyą]ł|[aiyę]ła|[aiyę]ło|[aiyę]li|[aiyę]ły)$/u
+  PL_ARRANGING: >-
+    /^(?:za)?(?:plan|rezerw|zarezerw|przełoż|przesun|umówi|umawia|ustal|zapisa|zaprosi|zamówi|ogłosi|potwierdzi|wyznaczy|zgłosi|zapowiedzi|odwoła|obieca|zaprogramowa|zaplanowa)/u
+  PL_INFINITIVE: >-
+    /^\p{Ll}{2,}(?:ć|c)$/u
+
+# The date words of the dateTense rules, in each language. Their code is at the end of `defs`.
+sets:
+  DE_BOUNDARY:
+    [
+      dass,
+      ob,
+      wenn,
+      falls,
+      weil,
+      als,
+      bevor,
+      nachdem,
+      sobald,
+      bis,
+      und,
+      aber,
+      oder,
+      sondern,
+      denn,
+      damit,
+      obwohl,
+      während,
+    ]
+  DE_CONDITIONAL: [wenn, falls, ob]
+  FR_BOUNDARY:
+    [que, qu, si, quand, lorsque, lorsqu, et, mais, ou, car, donc, puis, dont, où, qui, comme]
+  FR_ES_CONDITIONAL: [si]
+  ES_DATE_BOUNDARY:
+    [que, si, cuando, porque, aunque, "y", e, pero, o, u, ni, mientras, donde, quien, como]
+  PT_BOUNDARY: [que, se, quando, porque, embora, e, mas, ou, enquanto, onde, quem, como]
+  PT_CONDITIONAL: [se]
+  PL_BOUNDARY:
+    [
+      że,
+      czy,
+      jeśli,
+      jeżeli,
+      gdy,
+      gdyby,
+      kiedy,
+      bo,
+      ponieważ,
+      aby,
+      żeby,
+      i,
+      ale,
+      lub,
+      albo,
+      oraz,
+      a,
+      który,
+      która,
+      które,
+      którzy,
+      jak,
+    ]
+  PL_CONDITIONAL: [jeśli, jeżeli, gdyby, czy]
+  AR_BOUNDARY: [أن, إن, إذا, لو, عندما, حتى, لأن, الذي, التي, الذين, لكن, ثم, بينما]
+  AR_CONDITIONAL: [إذا, لو, إن]
+  DE_HABEN: [habe, hast, hat, haben, habt, hatte, hattest, hatten, hattet]
+  DE_SEIN: [bin, bist, ist, sind, seid, war, warst, waren, wart]
+  DE_WERDEN: [werde, wirst, wird, werden, werdet]
+  DE_PRONOUNS: [ich, du, er, sie, wir, ihr]
+  DE_NOT_PARTICIPLE: [gegen, gesamt, insgesamt, gerecht]
+  FR_AVOIR: [ai, as, a, avons, avez, ont, avais, avait, avions, aviez, avaient]
+  FR_ETRE: [suis, es, est, sommes, êtes, sont, étais, était, étions, étiez, étaient]
+  FR_ADVERBS:
+    [
+      pas,
+      jamais,
+      déjà,
+      bien,
+      tout,
+      tous,
+      enfin,
+      aussi,
+      encore,
+      beaucoup,
+      rien,
+      plus,
+      toujours,
+      vraiment,
+      finalement,
+    ]
+  FR_NOT_PARTICIPLE:
+    [
+      plus,
+      tous,
+      nous,
+      vous,
+      sous,
+      jus,
+      dessus,
+      ainsi,
+      aussi,
+      ici,
+      parmi,
+      lui,
+      qui,
+      si,
+      ni,
+      tu,
+      du,
+      lit,
+      bien,
+      tout,
+      lundi,
+      mardi,
+      mercredi,
+      jeudi,
+      vendredi,
+      samedi,
+      midi,
+      aujourd,
+    ]
+  FR_MOTION:
+    [
+      allé,
+      venu,
+      parti,
+      arrivé,
+      rentré,
+      revenu,
+      sorti,
+      entré,
+      monté,
+      descendu,
+      tombé,
+      né,
+      mort,
+      resté,
+      retourné,
+      devenu,
+      parvenu,
+    ]
+  FR_SUBJECTS: [je, j, tu, il, elle, "on", nous, vous, ils, elles]
+  FR_OBJECTS: [ne, "n", "y", en, le, la, les, l, lui, leur, me, m, te, t, se, s, nous, vous]
+  FR_ALLER: [vais, vas, va, allons, allez, vont]
+  ES_HABER: [he, has, ha, hemos, habéis, han, había, habías, habíamos, habíais, habían]
+  ES_PAST_WORDS:
+    [
+      fui,
+      fue,
+      fuimos,
+      fuiste,
+      fueron,
+      estuve,
+      estuvo,
+      estuvimos,
+      estuvieron,
+      tuve,
+      tuvo,
+      tuvimos,
+      tuvieron,
+      hice,
+      hizo,
+      hicimos,
+      hicieron,
+      dije,
+      dijo,
+      dijimos,
+      dijeron,
+      vinimos,
+      vinieron,
+      pude,
+      pudo,
+      pudimos,
+      pudieron,
+      puse,
+      puso,
+      pusimos,
+      pusieron,
+      quise,
+      quiso,
+      supe,
+      supo,
+      traje,
+      trajo,
+      trajimos,
+      era,
+      eras,
+      éramos,
+      eran,
+      iba,
+      ibas,
+      íbamos,
+      iban,
+      vio,
+      vimos,
+      vieron,
+      dio,
+      dimos,
+      dieron,
+    ]
+  ES_NOT_PAST:
+    [
+      esté,
+      dé,
+      sé,
+      fe,
+      café,
+      bebé,
+      josé,
+      comité,
+      puré,
+      chalé,
+      té,
+      qué,
+      porqué,
+      dominó,
+      buró,
+      rococó,
+      mamá,
+      papá,
+    ]
+  ES_IR: [voy, vas, va, vamos, vais, van]
+  PT_PAST_WORDS:
+    [
+      fui,
+      foi,
+      fomos,
+      foram,
+      foste,
+      estive,
+      esteve,
+      estivemos,
+      estiveram,
+      tive,
+      teve,
+      tivemos,
+      tiveram,
+      fiz,
+      fez,
+      fizemos,
+      fizeram,
+      disse,
+      dissemos,
+      disseram,
+      vi,
+      viu,
+      vimos,
+      viram,
+      pude,
+      pôde,
+      pudemos,
+      puderam,
+      era,
+      eras,
+      éramos,
+      eram,
+      vim,
+      veio,
+      viemos,
+      vieram,
+      quis,
+      quisemos,
+      soube,
+      trouxe,
+      pus,
+      pôs,
+    ]
+  PT_NOT_PAST: [sei, lei, rei, grei, sou, estou, vou, dou]
+  PT_PLUPERFECT: [tinha, tinhas, tínhamos, tinham, havia, havíamos, haviam]
+  PT_IR: [vou, vais, vai, vamos, ides, vão]
+  PL_FUTURE: [będę, będziesz, będzie, będziemy, będziecie, będą]
+  PL_NOT_PAST:
+    [
+      kanał,
+      upał,
+      zapał,
+      dział,
+      udział,
+      materiał,
+      przedział,
+      podział,
+      rozdział,
+      pył,
+      wał,
+      szał,
+      skała,
+      siła,
+      mogiła,
+      ciało,
+      mało,
+      działo,
+      chwili,
+      fali,
+      sali,
+      stali,
+      cały,
+      mały,
+      biały,
+      stały,
+      trwały,
+      doskonały,
+      dojrzały,
+      wspaniały,
+      okazały,
+      śmiały,
+      siły,
+      skały,
+      mogiły,
+    ]
+  AR_PAST: [لقد, كان, كانت, كنا, كنت, كانوا, كنتم, قمنا, قمت, قام, قامت]
+  AR_FUTURE: [سوف, لن]
+  DE_PAST:
+    [
+      war,
+      waren,
+      ging,
+      gingen,
+      kam,
+      kamen,
+      sah,
+      sahen,
+      flog,
+      flogen,
+      fuhr,
+      fuhren,
+      schwamm,
+      schwammen,
+      lief,
+      liefen,
+      gab,
+      gaben,
+      nahm,
+      nahmen,
+      fand,
+      fanden,
+      blieb,
+      blieben,
+      schrieb,
+      schrieben,
+      sprach,
+      sprachen,
+      traf,
+      trafen,
+      aß,
+      aßen,
+      trank,
+      tranken,
+      saß,
+      saßen,
+      stand,
+      standen,
+      lag,
+      lagen,
+      rief,
+      riefen,
+      hielt,
+      hielten,
+      ließ,
+      ließen,
+      fiel,
+      fielen,
+      zog,
+      zogen,
+      bat,
+      baten,
+      schlief,
+      schliefen,
+      starb,
+      starben,
+      sang,
+      sangen,
+      sprang,
+      sprangen,
+      gewann,
+      gewannen,
+      begann,
+      begannen,
+      verlor,
+      verloren,
+      half,
+      halfen,
+      warf,
+      warfen,
+      wurde,
+      wurden,
+      brachte,
+      brachten,
+      dachte,
+      dachten,
+      kannte,
+      kannten,
+      nannte,
+      nannten,
+      rannte,
+      rannten,
+      wusste,
+      wussten,
+      ritt,
+      ritten,
+      stieg,
+      stiegen,
+      fing,
+      fingen,
+      bekam,
+      bekamen,
+      verließ,
+      verließen,
+      erhielt,
+      erhielten,
+      warst,
+      wart,
+    ]
+maps:
+  DE_MONTHS:
+    januar: 1
+    jänner: 1
+    jan: 1
+    jän: 1
+    februar: 2
+    feb: 2
+    märz: 3
+    mär: 3
+    april: 4
+    apr: 4
+    mai: 5
+    juni: 6
+    jun: 6
+    juli: 7
+    jul: 7
+    august: 8
+    aug: 8
+    september: 9
+    sep: 9
+    sept: 9
+    oktober: 10
+    okt: 10
+    november: 11
+    nov: 11
+    dezember: 12
+    dez: 12
+  FR_MONTHS:
+    janvier: 1
+    février: 2
+    fevrier: 2
+    mars: 3
+    avril: 4
+    mai: 5
+    juin: 6
+    juillet: 7
+    août: 8
+    aout: 8
+    septembre: 9
+    octobre: 10
+    novembre: 11
+    décembre: 12
+    decembre: 12
+  ES_MONTHS:
+    enero: 1
+    febrero: 2
+    marzo: 3
+    abril: 4
+    mayo: 5
+    junio: 6
+    julio: 7
+    agosto: 8
+    septiembre: 9
+    octubre: 10
+    noviembre: 11
+    diciembre: 12
+    setiembre: 9
+  PT_MONTHS:
+    janeiro: 1
+    fevereiro: 2
+    março: 3
+    abril: 4
+    maio: 5
+    junho: 6
+    julho: 7
+    agosto: 8
+    setembro: 9
+    outubro: 10
+    novembro: 11
+    dezembro: 12
+    jan: 1
+    fev: 2
+    mar: 3
+    abr: 4
+    mai: 5
+    jun: 6
+    jul: 7
+    ago: 8
+    set: 9
+    out: 10
+    nov: 11
+    dez: 12
+  PL_MONTHS:
+    stycznia: 1
+    lutego: 2
+    marca: 3
+    kwietnia: 4
+    maja: 5
+    czerwca: 6
+    lipca: 7
+    sierpnia: 8
+    września: 9
+    października: 10
+    listopada: 11
+    grudnia: 12
+  AR_MONTHS:
+    يناير: 1
+    "كانون الثاني": 1
+    جانفي: 1
+    فبراير: 2
+    شباط: 2
+    فيفري: 2
+    مارس: 3
+    آذار: 3
+    أبريل: 4
+    ابريل: 4
+    إبريل: 4
+    نيسان: 4
+    أفريل: 4
+    مايو: 5
+    أيار: 5
+    ماي: 5
+    يونيو: 6
+    يونيه: 6
+    حزيران: 6
+    جوان: 6
+    يوليو: 7
+    يوليه: 7
+    تموز: 7
+    جويلية: 7
+    أغسطس: 8
+    اغسطس: 8
+    آب: 8
+    أوت: 8
+    سبتمبر: 9
+    أيلول: 9
+    أكتوبر: 10
+    اكتوبر: 10
+    "تشرين الأول": 10
+    نوفمبر: 11
+    "تشرين الثاني": 11
+    ديسمبر: 12
+    "كانون الأول": 12
 
 rules:
   # Typing rules: each live check has its code here (`triggers`, `let`, `when`, `return`, with
@@ -12759,870 +13625,6 @@ rules:
     stage: 1
     style: match
     message: review_msg_future_date_past
-    sets:
-      DE_BOUNDARY:
-        [
-          dass,
-          ob,
-          wenn,
-          falls,
-          weil,
-          als,
-          bevor,
-          nachdem,
-          sobald,
-          bis,
-          und,
-          aber,
-          oder,
-          sondern,
-          denn,
-          damit,
-          obwohl,
-          während,
-        ]
-      DE_CONDITIONAL: [wenn, falls, ob]
-      FR_BOUNDARY:
-        [que, qu, si, quand, lorsque, lorsqu, et, mais, ou, car, donc, puis, dont, où, qui, comme]
-      FR_ES_CONDITIONAL: [si]
-      ES_DATE_BOUNDARY:
-        [que, si, cuando, porque, aunque, "y", e, pero, o, u, ni, mientras, donde, quien, como]
-      PT_BOUNDARY: [que, se, quando, porque, embora, e, mas, ou, enquanto, onde, quem, como]
-      PT_CONDITIONAL: [se]
-      PL_BOUNDARY:
-        [
-          że,
-          czy,
-          jeśli,
-          jeżeli,
-          gdy,
-          gdyby,
-          kiedy,
-          bo,
-          ponieważ,
-          aby,
-          żeby,
-          i,
-          ale,
-          lub,
-          albo,
-          oraz,
-          a,
-          który,
-          która,
-          które,
-          którzy,
-          jak,
-        ]
-      PL_CONDITIONAL: [jeśli, jeżeli, gdyby, czy]
-      AR_BOUNDARY: [أن, إن, إذا, لو, عندما, حتى, لأن, الذي, التي, الذين, لكن, ثم, بينما]
-      AR_CONDITIONAL: [إذا, لو, إن]
-      DE_HABEN: [habe, hast, hat, haben, habt, hatte, hattest, hatten, hattet]
-      DE_SEIN: [bin, bist, ist, sind, seid, war, warst, waren, wart]
-      DE_WERDEN: [werde, wirst, wird, werden, werdet]
-      DE_PRONOUNS: [ich, du, er, sie, wir, ihr]
-      DE_NOT_PARTICIPLE: [gegen, gesamt, insgesamt, gerecht]
-      FR_AVOIR: [ai, as, a, avons, avez, ont, avais, avait, avions, aviez, avaient]
-      FR_ETRE: [suis, es, est, sommes, êtes, sont, étais, était, étions, étiez, étaient]
-      FR_ADVERBS:
-        [
-          pas,
-          jamais,
-          déjà,
-          bien,
-          tout,
-          tous,
-          enfin,
-          aussi,
-          encore,
-          beaucoup,
-          rien,
-          plus,
-          toujours,
-          vraiment,
-          finalement,
-        ]
-      FR_NOT_PARTICIPLE:
-        [
-          plus,
-          tous,
-          nous,
-          vous,
-          sous,
-          jus,
-          dessus,
-          ainsi,
-          aussi,
-          ici,
-          parmi,
-          lui,
-          qui,
-          si,
-          ni,
-          tu,
-          du,
-          lit,
-          bien,
-          tout,
-          lundi,
-          mardi,
-          mercredi,
-          jeudi,
-          vendredi,
-          samedi,
-          midi,
-          aujourd,
-        ]
-      FR_MOTION:
-        [
-          allé,
-          venu,
-          parti,
-          arrivé,
-          rentré,
-          revenu,
-          sorti,
-          entré,
-          monté,
-          descendu,
-          tombé,
-          né,
-          mort,
-          resté,
-          retourné,
-          devenu,
-          parvenu,
-        ]
-      FR_SUBJECTS: [je, j, tu, il, elle, "on", nous, vous, ils, elles]
-      FR_OBJECTS: [ne, "n", "y", en, le, la, les, l, lui, leur, me, m, te, t, se, s, nous, vous]
-      FR_ALLER: [vais, vas, va, allons, allez, vont]
-      ES_HABER: [he, has, ha, hemos, habéis, han, había, habías, habíamos, habíais, habían]
-      ES_PAST_WORDS:
-        [
-          fui,
-          fue,
-          fuimos,
-          fuiste,
-          fueron,
-          estuve,
-          estuvo,
-          estuvimos,
-          estuvieron,
-          tuve,
-          tuvo,
-          tuvimos,
-          tuvieron,
-          hice,
-          hizo,
-          hicimos,
-          hicieron,
-          dije,
-          dijo,
-          dijimos,
-          dijeron,
-          vinimos,
-          vinieron,
-          pude,
-          pudo,
-          pudimos,
-          pudieron,
-          puse,
-          puso,
-          pusimos,
-          pusieron,
-          quise,
-          quiso,
-          supe,
-          supo,
-          traje,
-          trajo,
-          trajimos,
-          era,
-          eras,
-          éramos,
-          eran,
-          iba,
-          ibas,
-          íbamos,
-          iban,
-          vio,
-          vimos,
-          vieron,
-          dio,
-          dimos,
-          dieron,
-        ]
-      ES_NOT_PAST:
-        [
-          esté,
-          dé,
-          sé,
-          fe,
-          café,
-          bebé,
-          josé,
-          comité,
-          puré,
-          chalé,
-          té,
-          qué,
-          porqué,
-          dominó,
-          buró,
-          rococó,
-          mamá,
-          papá,
-        ]
-      ES_IR: [voy, vas, va, vamos, vais, van]
-      PT_PAST_WORDS:
-        [
-          fui,
-          foi,
-          fomos,
-          foram,
-          foste,
-          estive,
-          esteve,
-          estivemos,
-          estiveram,
-          tive,
-          teve,
-          tivemos,
-          tiveram,
-          fiz,
-          fez,
-          fizemos,
-          fizeram,
-          disse,
-          dissemos,
-          disseram,
-          vi,
-          viu,
-          vimos,
-          viram,
-          pude,
-          pôde,
-          pudemos,
-          puderam,
-          era,
-          eras,
-          éramos,
-          eram,
-          vim,
-          veio,
-          viemos,
-          vieram,
-          quis,
-          quisemos,
-          soube,
-          trouxe,
-          pus,
-          pôs,
-        ]
-      PT_NOT_PAST: [sei, lei, rei, grei, sou, estou, vou, dou]
-      PT_PLUPERFECT: [tinha, tinhas, tínhamos, tinham, havia, havíamos, haviam]
-      PT_IR: [vou, vais, vai, vamos, ides, vão]
-      PL_FUTURE: [będę, będziesz, będzie, będziemy, będziecie, będą]
-      PL_NOT_PAST:
-        [
-          kanał,
-          upał,
-          zapał,
-          dział,
-          udział,
-          materiał,
-          przedział,
-          podział,
-          rozdział,
-          pył,
-          wał,
-          szał,
-          skała,
-          siła,
-          mogiła,
-          ciało,
-          mało,
-          działo,
-          chwili,
-          fali,
-          sali,
-          stali,
-          cały,
-          mały,
-          biały,
-          stały,
-          trwały,
-          doskonały,
-          dojrzały,
-          wspaniały,
-          okazały,
-          śmiały,
-          siły,
-          skały,
-          mogiły,
-        ]
-      AR_PAST: [لقد, كان, كانت, كنا, كنت, كانوا, كنتم, قمنا, قمت, قام, قامت]
-      AR_FUTURE: [سوف, لن]
-      DE_PAST:
-        [
-          war,
-          waren,
-          ging,
-          gingen,
-          kam,
-          kamen,
-          sah,
-          sahen,
-          flog,
-          flogen,
-          fuhr,
-          fuhren,
-          schwamm,
-          schwammen,
-          lief,
-          liefen,
-          gab,
-          gaben,
-          nahm,
-          nahmen,
-          fand,
-          fanden,
-          blieb,
-          blieben,
-          schrieb,
-          schrieben,
-          sprach,
-          sprachen,
-          traf,
-          trafen,
-          aß,
-          aßen,
-          trank,
-          tranken,
-          saß,
-          saßen,
-          stand,
-          standen,
-          lag,
-          lagen,
-          rief,
-          riefen,
-          hielt,
-          hielten,
-          ließ,
-          ließen,
-          fiel,
-          fielen,
-          zog,
-          zogen,
-          bat,
-          baten,
-          schlief,
-          schliefen,
-          starb,
-          starben,
-          sang,
-          sangen,
-          sprang,
-          sprangen,
-          gewann,
-          gewannen,
-          begann,
-          begannen,
-          verlor,
-          verloren,
-          half,
-          halfen,
-          warf,
-          warfen,
-          wurde,
-          wurden,
-          brachte,
-          brachten,
-          dachte,
-          dachten,
-          kannte,
-          kannten,
-          nannte,
-          nannten,
-          rannte,
-          rannten,
-          wusste,
-          wussten,
-          ritt,
-          ritten,
-          stieg,
-          stiegen,
-          fing,
-          fingen,
-          bekam,
-          bekamen,
-          verließ,
-          verließen,
-          erhielt,
-          erhielten,
-          warst,
-          wart,
-        ]
-    maps:
-      DE_MONTHS:
-        januar: 1
-        jänner: 1
-        jan: 1
-        jän: 1
-        februar: 2
-        feb: 2
-        märz: 3
-        mär: 3
-        april: 4
-        apr: 4
-        mai: 5
-        juni: 6
-        jun: 6
-        juli: 7
-        jul: 7
-        august: 8
-        aug: 8
-        september: 9
-        sep: 9
-        sept: 9
-        oktober: 10
-        okt: 10
-        november: 11
-        nov: 11
-        dezember: 12
-        dez: 12
-      FR_MONTHS:
-        janvier: 1
-        février: 2
-        fevrier: 2
-        mars: 3
-        avril: 4
-        mai: 5
-        juin: 6
-        juillet: 7
-        août: 8
-        aout: 8
-        septembre: 9
-        octobre: 10
-        novembre: 11
-        décembre: 12
-        decembre: 12
-      ES_MONTHS:
-        enero: 1
-        febrero: 2
-        marzo: 3
-        abril: 4
-        mayo: 5
-        junio: 6
-        julio: 7
-        agosto: 8
-        septiembre: 9
-        octubre: 10
-        noviembre: 11
-        diciembre: 12
-        setiembre: 9
-      PT_MONTHS:
-        janeiro: 1
-        fevereiro: 2
-        março: 3
-        abril: 4
-        maio: 5
-        junho: 6
-        julho: 7
-        agosto: 8
-        setembro: 9
-        outubro: 10
-        novembro: 11
-        dezembro: 12
-        jan: 1
-        fev: 2
-        mar: 3
-        abr: 4
-        mai: 5
-        jun: 6
-        jul: 7
-        ago: 8
-        set: 9
-        out: 10
-        nov: 11
-        dez: 12
-      PL_MONTHS:
-        stycznia: 1
-        lutego: 2
-        marca: 3
-        kwietnia: 4
-        maja: 5
-        czerwca: 6
-        lipca: 7
-        sierpnia: 8
-        września: 9
-        października: 10
-        listopada: 11
-        grudnia: 12
-      AR_MONTHS:
-        يناير: 1
-        "كانون الثاني": 1
-        جانفي: 1
-        فبراير: 2
-        شباط: 2
-        فيفري: 2
-        مارس: 3
-        آذار: 3
-        أبريل: 4
-        ابريل: 4
-        إبريل: 4
-        نيسان: 4
-        أفريل: 4
-        مايو: 5
-        أيار: 5
-        ماي: 5
-        يونيو: 6
-        يونيه: 6
-        حزيران: 6
-        جوان: 6
-        يوليو: 7
-        يوليه: 7
-        تموز: 7
-        جويلية: 7
-        أغسطس: 8
-        اغسطس: 8
-        آب: 8
-        أوت: 8
-        سبتمبر: 9
-        أيلول: 9
-        أكتوبر: 10
-        اكتوبر: 10
-        "تشرين الأول": 10
-        نوفمبر: 11
-        "تشرين الثاني": 11
-        ديسمبر: 12
-        "كانون الأول": 12
-    defs:
-      # A clause break before or after a date phrase.
-      DATE_BREAK: /[!?;()\n"“”«»„،؛؟]|[.:](?=\s|$)|,/gu
-      DATE_WORD: /[\p{L}\p{M}]+(?:-[\p{L}\p{M}]+)*|\p{N}+(?:[.:]\p{N}+)*/gu
-      # The words of the clause around a date phrase at [start, end): the words before it,
-      # nearest last (at most 6), the words after it (at most 10), whether these reach the end
-      # of the clause, and the word that opens the clause, when a boundary word does. "Am
-      # 7.8.2031, …": a comma after a date that opens the sentence ends no clause.
-      clauseAround:
-        args: "text: string, start: number, end: number, boundary: ReadonlySet<string>"
-        let:
-          head: text.slice(Math.max(0, start - 160), start)
-          lastBreak: "[...head.matchAll(DATE_BREAK)].at(-1)"
-          clauseHead: "head.slice(lastBreak ? lastBreak.index + lastBreak[0].length : 0)"
-          headWords: clauseHead.match(DATE_WORD) ?? []
-          opens: headWords.map((w) => boundary.has(w.toLowerCase())).lastIndexOf(true)
-          before: headWords.slice(opens + 1).slice(-6)
-          fullTail: text.slice(end, end + 200)
-          tail: 'before.length ? fullTail : fullTail.replace(/^[ \t ]*,/, "")'
-          stop: tail.search(DATE_BREAK)
-          afterWords: "(stop >= 0 ? tail.slice(0, stop) : tail).match(DATE_WORD) ?? []"
-          ends: afterWords.findIndex((w) => boundary.has(w.toLowerCase()))
-          after: "ends >= 0 ? afterWords.slice(0, ends) : afterWords"
-          closed: "ends >= 0 || stop >= 0 || end + 200 >= text.length"
-        return: >-
-          ({
-            before,
-            after: after.length > 10 ? after.slice(0, 10) : after,
-            closed: after.length > 10 ? false : closed,
-            opener: opens >= 0 ? headWords[opens].toLowerCase() : undefined,
-          })
-      # "future", "past" (of the last three years) or null for every reading of the date. A
-      # slashed date can also be month first: "10/27/2031".
-      dateSideOf:
-        args: "year: number, month: number, day: number, swap: boolean"
-        type: '"future" | "past" | null'
-        let:
-          readings: "swap ? [[year, month, day], [year, day, month]] : [[year, month, day]]"
-          valid: readings.filter((r) => dayCount(r[0], r[1], r[2]) !== null)
-        return: >-
-          !valid.length
-            ? null
-            : valid.every((r) => dateSide(r[0], r[1], r[2]) === "future")
-              ? "future"
-              : valid.every((r) => recentPast(r[0], r[1], r[2]))
-                ? "past"
-                : null
-      # The warning of a date frame: the tense of the clause and the side of the date disagree.
-      dateTenseWarning:
-        args: 'm: RegExpExecArray, side: "future" | "past"'
-        type: RawFinding
-        let:
-          span: m.indices!.groups!.date
-        return: >-
-          finding("dateTenseConsistency", side === "future" ? "review_msg_future_date_past" : "review_msg_past_date_future", span[0], span[1], [], {
-            warningOnly: true as const,
-          })
-      # A date frame of one language: groups `date`, `day`, `year`, and `month` (digits) or
-      # `name`. `side` is the side of the date; `clause` and `tense` are read only when it has
-      # one. Plans, reports and conditions are other clauses.
-      # The finding of a date frame: `months` gives the number of a month name. Arabic dates
-      # may have Arabic-Indic digits.
-      dateTenseAt:
-        args: >-
-          m: RegExpExecArray, ctx: DetectContext, months: Readonly<Record<string, number>>,
-          conditional: ReadonlySet<string>, boundary: ReadonlySet<string>, lang: string
-        type: RawFinding | null
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(digitValue(g.year), g.name ? (months[g.name.toLowerCase()] ?? 0) : digitValue(g.month),
-            digitValue(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, conditional, boundary, lang)
-      dateTenseFinding:
-        args: >-
-          m: RegExpExecArray, ctx: DetectContext, side: "future" | "past" | null,
-          conditional: ReadonlySet<string>, boundary: ReadonlySet<string>, lang: string
-        type: RawFinding | null
-        let:
-          clause: clauseAround(ctx.text, m.index, m.index + m[0].length, boundary)
-          verdict: >-
-            lang === "de"
-              ? germanTense(clause)
-              : lang === "fr"
-                ? frenchTense(clause)
-                : lang === "es"
-                  ? spanishTense(clause)
-                  : lang === "pt"
-                    ? portugueseTense(clause)
-                    : lang === "pl"
-                      ? polishTense(clause)
-                      : arabicTense(clause)
-        when:
-          - "!!side"
-          - "!(clause.opener && conditional.has(clause.opener))"
-          - "!!verdict && verdict !== side"
-        return: dateTenseWarning(m, side)
-      lowerAll:
-        args: "list: readonly string[]"
-        return: list.map((word) => word.toLowerCase())
-      # German: "wird … reisen"; "wird … gewesen sein" is a guess about the past. "Ich war am …
-      # schon ausgebucht": a planning verb names the date of the plan. A simple past next to its
-      # pronoun: "ich war am …", "am … schwamm ich".
-      germanTense:
-        args: "clause: { before: string[]; after: string[]; closed: boolean }"
-        type: '"past" | "future" | null'
-        let:
-          all: lowerAll([...clause.before, ...clause.after])
-          last: "clause.closed ? clause.after.at(-1) : undefined"
-          prev: clause.after.at(-2)
-          b: lowerAll(clause.before)
-          a: lowerAll(clause.after).slice(0, 6)
-        return: >-
-          all.some((w) => w.startsWith("würd"))
-            ? null
-            : all.some((w) => DE_WERDEN.has(w))
-              ? !last ||
-                !/^\p{Ll}+(?:en|ern|eln)$/u.test(last) ||
-                DE_PARTICIPLE.test(last) ||
-                (/^(?:sein|haben)$/.test(last) && !!prev && DE_PARTICIPLE.test(prev))
-                ? null
-                : "future"
-              : last && DE_ARRANGING.test(last)
-                ? null
-                : last &&
-                    DE_PARTICIPLE.test(last) &&
-                    !DE_NOT_PARTICIPLE.has(last) &&
-                    (all.some((w) => DE_HABEN.has(w)) ||
-                      (all.some((w) => DE_SEIN.has(w)) && DE_SEIN_PARTICIPLE.test(last)))
-                  ? "past"
-                  : (b.length >= 2 && DE_PRONOUNS.has(b.at(-2)!) && DE_PAST.has(b.at(-1)!)) ||
-                      a.some((w, i) => DE_PAST.has(w) && i + 1 < a.length && DE_PRONOUNS.has(a[i + 1]))
-                    ? "past"
-                    : null
-      # French: the past ("avons visité", "sommes partis", "avaient déjà signé"; "il y a" is
-      # "there is"), or the future ("nous viendrons", "il ne viendra pas", "nous allons signer";
-      # "aura signé" guesses about the past). A planning verb names the date of the plan.
-      frenchTense:
-        args: "clause: { before: string[]; after: string[]; closed: boolean }"
-        type: '"past" | "future" | null'
-        let:
-          verdict: wordScan(lowerAll(clause.before), 0, "fr") ?? wordScan(lowerAll(clause.after), 0, "fr")
-        return: 'verdict === "past" || verdict === "future" ? verdict : null'
-      frenchStep:
-        args: "list: readonly string[], i: number"
-        type: '"past" | "future" | "none" | undefined'
-        let:
-          w: list[i]
-          auxiliary: (FR_AVOIR.has(w) && list[i - 1] !== "y") || FR_ETRE.has(w)
-          part: "auxiliary ? list.find((x, k) => k > i && !FR_ADVERBS.has(x)) : undefined"
-          partOk: "!!part && FR_PARTICIPLE.test(part) && !FR_NOT_PARTICIPLE.has(part)"
-        return: >-
-          auxiliary && !partOk
-            ? undefined
-            : auxiliary && FR_ARRANGING.test(part!)
-              ? "none"
-              : auxiliary && (FR_AVOIR.has(w) || FR_MOTION.has(part!.replace(/(?<=[éiu])(?:e|s|es)$/u, "")))
-                ? "past"
-                : FR_SUBJECTS.has(w)
-                  ? frenchSubject(list, i)
-                  : undefined
-      frenchSubject:
-        args: "list: readonly string[], i: number"
-        type: '"future" | "none" | undefined'
-        let:
-          stop: list.findIndex((x, k) => k > i && (k > i + 3 || !FR_OBJECTS.has(x)))
-          j: "stop < 0 ? list.length : stop"
-          verb: list[j]
-          next: list[j + 1]
-        return: >-
-          verb && FR_FUTURE.test(verb)
-            ? /^(?:aur|ser)/.test(verb) && next && FR_PARTICIPLE.test(next)
-              ? "none"
-              : "future"
-            : verb && FR_ALLER.has(verb) && FR_INFINITIVE.test(next ?? "")
-              ? "future"
-              : undefined
-      # Spanish: "íbamos a firmar", "queríamos firmar": a plan, not the past. A conditional
-      # ("visitaríamos") is no past.
-      spanishTense:
-        args: "clause: { before: string[]; after: string[]; closed: boolean }"
-        type: '"past" | "future" | null'
-        let:
-          verdict: >-
-            wordScan(lowerAll(clause.before), 0, "es") ?? wordScan(lowerAll(clause.after), 0, "es")
-        return: 'verdict === "past" || verdict === "future" ? verdict : null'
-      spanishStep:
-        args: "list: readonly string[], i: number"
-        type: '"past" | "future" | "none" | undefined'
-        let:
-          w: list[i]
-          next: list[i + 1] ?? ""
-          part: 'next === "ya" ? list[i + 2] : next'
-          past: >-
-            ES_PAST_WORDS.has(w) || (ES_PAST.test(w) && !ES_NOT_PAST.has(w) && !DATE_CONDITIONAL.test(w))
-        return: >-
-          (ES_FUTURE.test(w) && !/^(?:atrás|detrás)$/.test(w)) ||
-          (ES_IR.has(w) && next === "a" && ES_INFINITIVE.test(list[i + 2] ?? ""))
-            ? "future"
-            : ES_HABER.has(w)
-              ? part && ES_PARTICIPLE.test(part)
-                ? ES_ARRANGING.test(part)
-                  ? "none"
-                  : "past"
-                : undefined
-              : !past || ES_INFINITIVE.test(next) || (next === "a" && ES_INFINITIVE.test(list[i + 2] ?? ""))
-                ? undefined
-                : ES_ARRANGING.test(w)
-                  ? "none"
-                  : "past"
-      # Portuguese: "queríamos visitar", "íamos assinar": a plan; "estávamos a visitar" is the
-      # past.
-      portugueseTense:
-        args: "clause: { before: string[]; after: string[]; closed: boolean }"
-        type: '"past" | "future" | null'
-        let:
-          verdict: >-
-            wordScan(lowerAll(clause.before), 0, "pt") ?? wordScan(lowerAll(clause.after), 0, "pt")
-        return: 'verdict === "past" || verdict === "future" ? verdict : null'
-      portugueseStep:
-        args: "list: readonly string[], i: number"
-        type: '"past" | "future" | "none" | undefined'
-        let:
-          w: list[i]
-          next: list[i + 1] ?? ""
-          past: >-
-            PT_PAST_WORDS.has(w) || (PT_PAST.test(w) && !PT_NOT_PAST.has(w) && !DATE_CONDITIONAL.test(w))
-        return: >-
-          (PT_FUTURE.test(w) && w !== "atrás") || (PT_IR.has(w) && PT_INFINITIVE.test(next))
-            ? "future"
-            : PT_PLUPERFECT.has(w)
-              ? PT_PARTICIPLE.test(next)
-                ? PT_ARRANGING.test(next)
-                  ? "none"
-                  : "past"
-                : undefined
-              : !past || PT_INFINITIVE.test(next)
-                ? undefined
-                : PT_ARRANGING.test(w)
-                  ? "none"
-                  : "past"
-      # The verdict at the first word of `list` from `i` that decides one, by the steps of
-      # `lang` (fr, es or pt): "none" for no tense.
-      wordScan:
-        args: "list: readonly string[], i: number, lang: string"
-        type: '"past" | "future" | "none" | undefined'
-        let:
-          verdict: 'lang === "fr" ? frenchStep(list, i) : lang === "es" ? spanishStep(list, i) : portugueseStep(list, i)'
-        when: i < list.length
-        return: "verdict !== undefined ? verdict : wordScan(list, i + 1, lang)"
-        else: undefined
-      # Polish: "miało się odbyć", "chcieliśmy pojechać": a plan, not the past.
-      polishTense:
-        args: "clause: { before: string[]; after: string[]; closed: boolean }"
-        type: '"past" | "future" | null'
-        let:
-          list: lowerAll([...clause.before, ...clause.after])
-          past: >-
-            list.find(
-              (w, i) =>
-                (PL_PAST_PERSON.test(w) || (PL_PAST.test(w) && !PL_NOT_PAST.has(w))) &&
-                !PL_INFINITIVE.test((list[i + 1] === "się" ? list[i + 2] : list[i + 1]) ?? ""),
-            )
-        return: >-
-          list.some((w) => PL_FUTURE.has(w))
-            ? "future"
-            : past === undefined || PL_ARRANGING.test(past)
-              ? null
-              : "past"
-      # Arabic: "كان من المقرر": "was planned for", a plan.
-      arabicTense:
-        args: "clause: { before: string[]; after: string[]; closed: boolean }"
-        type: '"past" | "future" | null'
-        let:
-          list: "[...clause.before, ...clause.after]"
-        return: >-
-          list.some((w) => AR_FUTURE.has(w))
-            ? "future"
-            : list.some((w, i) => AR_PAST.has(w) && list[i + 1] !== "من")
-              ? "past"
-              : null
-      DE_PARTICIPLE: >-
-        /^(?:(?:ab|an|auf|aus|bei|ein|fest|fort|heim|her|hin|los|mit|nach|statt|teil|vor|weg|weiter|zu|zurück|zusammen|um|durch|über)?ge\p{Ll}{2,}(?:t|en)|(?:be|emp|ent|er|miss|ver|zer)\p{Ll}{2,}t|\p{Ll}{3,}iert)$/u
-      DE_SEIN_PARTICIPLE: >-
-        /(?:gangen|fahren|flogen|kommen|laufen|schwommen|gereist|wesen|blieben|storben|fallen|zogen|sprungen|wandert|rannt|stiegen|folgt|passiert|schehen|wachsen|worden|ritten|segelt|wacht|kehrt)$/u
-      DE_ARRANGING: >-
-        /(?:plant|bucht|reserviert|bestellt|vereinbart|schoben|verlegt|gesetzt|festgelegt|beworben|gemeldet|terminiert|kündigt|geladen|vorgesehen|bestätigt|gesagt|organisiert|getragen|notiert|gemerkt|gelegt|beantragt|gefragt|genehmigt|versprochen|geboten|gewünscht|geöffnet|geschlossen|fixiert|datiert|befristet|begrenzt)$/u
-      FR_PARTICIPLE: >-
-        /^\p{Ll}{2,}(?:é|ée|és|ées|i|ie|is|ies|it|ite|u|ue|us|ues|ert|erte|ait|aite|eint|ainte)$/u
-      FR_ARRANGING: >-
-        /^(?:prévu|planifié|fixé|programmé|réservé|commandé|reporté|décalé|déplacé|annoncé|confirmé|convenu|organisé|inscrit|demandé|proposé|promis|annulé|invité|noté|calé|repoussé|avancé|retenu|bloqué|posé|pris)(?:e|s|es)?$/u
-      FR_FUTURE: >-
-        /^(?:\p{Ll}+(?:er|ir|dr|ttr|aîtr)|ser|aur|fer|ir|pourr|verr|devr|saur|courr|mourr|enverr|recevr|vivr|suivr|écrir|lir|dir|boir|croir|plair)(?:ai|as|a|ons|ez|ont)$/u
-      FR_INFINITIVE: >-
-        /^\p{Ll}{2,}(?:er|ir|re|oir)$/u
-      ES_PARTICIPLE: >-
-        /^(?:\p{Ll}{2,}(?:ado|ada|ados|adas|ido|ida|idos|idas)|visto|hecho|dicho|puesto|escrito|abierto|vuelto|roto|muerto|cubierto|resuelto|devuelto|descubierto|impreso|satisfecho)$/u
-      ES_PAST: >-
-        /^\p{Ll}{3,}(?:é|ó|aste|iste|aron|ieron|yeron|asteis|isteis|aba|abas|ábamos|abais|aban|íamos|íais|ían)$/u
-      ES_ARRANGING: >-
-        /^(?:re)?(?:program|previst|prev|plane|reserv|fij|pospu|aplaz|convoc|anunci|confirm|acord|organiz|cancel|ped|pid|solicit|promet|agend|cit|inscri|qued|traslad|cambi|mov|apunt)/u
-      ES_FUTURE: >-
-        /^(?:\p{Ll}{2,}(?:ré|rás|rá|réis|rán)|\p{Ll}+[ai]remos)$/u
-      ES_INFINITIVE: >-
-        /^\p{Ll}{2,}(?:ar|er|ir)$/u
-      DATE_CONDITIONAL: >-
-        /[aeií]r(?:íamos|íais|ían|íeis|iam)$/u
-      PT_PAST: >-
-        /^\p{Ll}{2,}(?:ei|ou|aste|este|iste|aram|eram|iram|ava|avas|ávamos|áveis|avam|íamos|íeis|iam)$/u
-      PT_PARTICIPLE: >-
-        /^(?:\p{Ll}{2,}(?:ado|ada|ados|adas|ido|ida|idos|idas)|visto|feito|dito|posto|escrito|aberto|vindo|ganho|gasto|pago|entregue|morto|coberto)$/u
-      PT_ARRANGING: >-
-        /^(?:re|des)?(?:marc|agend|planej|plane|program|reserv|adi|confirm|anunci|combin|cancel|convid|promet|solicit|ped|previ|prev|fix|inscrev|inscri|transfer|mud)/u
-      PT_FUTURE: >-
-        /^(?:\p{Ll}{2,}(?:rá|rás|rão)|\p{Ll}+[aei]rei|\p{Ll}+[ai]remos)$/u
-      PT_INFINITIVE: >-
-        /^(?:\p{Ll}{2,}(?:ar|er|ir|or)|pôr)$/u
-      PL_PAST_PERSON: >-
-        /^\p{Ll}{2,}(?:łem|łam|łeś|łaś|liśmy|łyśmy|liście|łyście)$/u
-      PL_PAST: >-
-        /^\p{Ll}{2,}(?:[aiyą]ł|[aiyę]ła|[aiyę]ło|[aiyę]li|[aiyę]ły)$/u
-      PL_ARRANGING: >-
-        /^(?:za)?(?:plan|rezerw|zarezerw|przełoż|przesun|umówi|umawia|ustal|zapisa|zaprosi|zamówi|ogłosi|potwierdzi|wyznaczy|zgłosi|zapowiedzi|odwoła|obieca|zaprogramowa|zaplanowa)/u
-      PL_INFINITIVE: >-
-        /^\p{Ll}{2,}(?:ć|c)$/u
     frames:
       - regex: "am{{DATE_SPACE}}(?:(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag),?{{DATE_SPACE}}(?:den{{DATE_SPACE}})?)?(?<date>(?<day>\\d{1,2})\\.(?:[ \\t\\u00a0]?(?<month>\\d{1,2})\\.[ \\t\\u00a0]?|[ \\t\\u00a0]*(?<name>januar|jänner|jan|jän|februar|feb|märz|mär|april|apr|mai|juni|jun|juli|jul|august|aug|september|sep|sept|oktober|okt|november|nov|dezember|dez)\\.?{{DATE_SPACE}})(?<year>\\d{4})){{DATE_NOT_AFTER}}"
         owner: date
