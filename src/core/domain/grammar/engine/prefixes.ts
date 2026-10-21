@@ -362,3 +362,49 @@ export function literalAnchor(source: string, max = 3): LiteralAnchor | null {
   }
   return anchorIn(node, max);
 }
+
+/**
+ * A later anchor that every match holds: a part after the first one whose prefixes have at
+ * least `length` letters, and the most runs of spaces before it; the one with the longest
+ * shortest prefix. A part inside a lookahead counts from the lookahead's position. Null when
+ * there is none before the runs lose their bound.
+ */
+export function laterAnchor(source: string, length = 4): LiteralAnchor | null {
+  let node: Node;
+  try {
+    node = parse(source);
+  } catch {
+    return null;
+  }
+  const found: LiteralAnchor[] = [];
+  anchorsIn(node, length, 0, true, found);
+  let best: LiteralAnchor | null = null;
+  const shortest = (anchor: LiteralAnchor) => Math.min(...anchor.prefixes.map((p) => p.length));
+  for (const anchor of found)
+    if (anchor.prefixes.every((prefix) => prefix.length >= length))
+      if (!best || shortest(anchor) > shortest(best)) best = anchor;
+  return best;
+}
+
+function anchorsIn(
+  node: Node,
+  max: number,
+  offset: number,
+  top: boolean,
+  found: LiteralAnchor[],
+): void {
+  const items = node.kind === "seq" ? node.items : [node];
+  let spaces = offset;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.kind === "empty" && item.ahead) anchorsIn(item.ahead, max, spaces, false, found);
+    // Parts that only continue a literal run say less than the run's start.
+    if ((!top || i > 0) && (i === 0 || items[i - 1].kind !== "char")) {
+      const prefixes = startsOf({ kind: "seq", items: items.slice(i) }, max);
+      if (prefixes) found.push({ prefixes, spaces });
+    }
+    const runs = spaceRuns(item);
+    if (runs === null || runs === Infinity) return;
+    spaces += runs;
+  }
+}

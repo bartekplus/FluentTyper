@@ -3,7 +3,7 @@ import {
   carryCase,
   detectWordCase,
 } from "../implementations/helpers/GenericRuleShared";
-import { literalAnchor, startPrefixes, type LiteralAnchor } from "../engine/prefixes";
+import { laterAnchor, literalAnchor, startPrefixes, type LiteralAnchor } from "../engine/prefixes";
 import { namedExampleBefore } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
@@ -236,6 +236,71 @@ function windowStart(text: string, q: number, spaces: number, low: number): numb
   return low;
 }
 
+// The later anchor of a frame source (safe prefixes only; null: none).
+const LATER = new Map<string, LiteralAnchor | null>();
+
+function frameLater(source: string): LiteralAnchor | null {
+  let found = LATER.get(source);
+  if (found === undefined) {
+    const anchor = laterAnchor(source);
+    const prefixes = anchor && safePrefixes(anchor.prefixes);
+    found =
+      anchor && prefixes && prefixes.every((prefix) => prefix.length >= 4)
+        ? { prefixes: [...prefixes], spaces: anchor.spaces }
+        : null;
+    LATER.set(source, found);
+  }
+  return found;
+}
+
+/**
+ * The occurrences of an anchor in the scan from the chunk's base (ascending) and the window
+ * start before each: a match holding the occurrence starts in that window. The window start
+ * never falls as the occurrence moves right.
+ */
+function anchorWindows(ctx: DetectContext, anchor: LiteralAnchor): Int32Array[] {
+  const scanned = scannedText(ctx);
+  const key = `${anchor.spaces}\u0002${anchor.prefixes.join("\u0002")}`;
+  let found = scanned.windows.get(key);
+  if (found === undefined) {
+    const base = Math.max(0, ctx.from - 256);
+    const lower = scanned.lower!;
+    const list: number[] = [];
+    for (const prefix of anchor.prefixes)
+      for (let i = lower.indexOf(prefix); i !== -1; i = lower.indexOf(prefix, i + 1))
+        list.push(base + i);
+    const occurrences = Int32Array.from(list).sort();
+    const windows = occurrences.map((q) => windowStart(ctx.scanText, q, anchor.spaces, base));
+    scanned.windows.set(key, (found = [occurrences, windows]));
+  }
+  return found;
+}
+
+// Fewer start positions than this run without the later-anchor test: it costs more than it saves.
+const FEW_STARTS = 8;
+
+/** The start positions from which some occurrence of the frame's later anchor is in reach. */
+function laterFiltered(
+  ctx: DetectContext,
+  source: string,
+  starts: ArrayLike<number>,
+): ArrayLike<number> {
+  if (starts.length < FEW_STARTS) return starts;
+  const anchor = frameLater(source);
+  if (anchor === null) return starts;
+  const [occurrences, windows] = anchorWindows(ctx, anchor);
+  const kept: number[] = [];
+  let j = 0;
+  // Starts ascend: the first occurrence at or after each start only moves right.
+  for (let i = 0; i < starts.length; i++) {
+    const at = starts[i];
+    while (j < occurrences.length && occurrences[j] < at) j++;
+    if (j === occurrences.length) break;
+    if (windows[j] <= at) kept.push(at);
+  }
+  return kept;
+}
+
 /** The start positions of a frame with a literal anchor: the windows before its occurrences. */
 function anchoredStarts(ctx: DetectContext, anchor: LiteralAnchor, framed: boolean): Int32Array {
   const { lower } = scannedText(ctx);
@@ -364,6 +429,7 @@ const SCANNED = new WeakMap<
     found: Map<string, boolean>;
     aligned: boolean;
     starts: Map<string, number[]>;
+    windows: Map<string, Int32Array[]>;
   }
 >();
 // A three-letter run as a hash: no substring is made. Two runs can share a hash, so a hit
@@ -392,6 +458,7 @@ function scannedText(ctx: DetectContext) {
         // Positions line up with the text only when lowercasing kept every length.
         aligned: lower !== null && lower.length === raw.length,
         starts: new Map(),
+        windows: new Map(),
       }),
     );
   }
@@ -538,7 +605,7 @@ export function frameScan(
   const starts = frameStarts(ctx, source, typeof pattern === "string");
   return starts === null
     ? globalMatches(ctx, regex, owner)
-    : stickyMatches(ctx, regex, starts, owner);
+    : stickyMatches(ctx, regex, laterFiltered(ctx, source!, starts), owner);
 }
 
 /** The global scan of frameMatches, from 256 characters before the chunk. */
