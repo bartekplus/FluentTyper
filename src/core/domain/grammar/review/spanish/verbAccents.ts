@@ -14,7 +14,7 @@ import {
   replaceToken,
   words,
 } from "./common";
-import { readNoun } from "./agreement";
+import { readNoun } from "./nouns";
 import {
   ACCENTED_NOMINAL,
   attribute,

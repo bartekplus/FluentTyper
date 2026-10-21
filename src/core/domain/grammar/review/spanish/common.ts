@@ -235,6 +235,9 @@ export class Around {
   }
 }
 
+/** The words around tokens[i]: `new Around(tokens, i)` for rule expressions. */
+export const around = (tokens: Tokens, i: number) => new Around(tokens, i);
+
 /** What may follow "está" as its attribute: a participle, an adjective, an invariant adjective. */
 export function attributeOf(word: string) {
   if (!word) return null;

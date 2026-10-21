@@ -10,7 +10,7 @@ import {
   type Token,
   type Tokens,
 } from "./common";
-import { DETERMINER, readNoun } from "./agreement";
+import { DETERMINER, readNoun } from "./nouns";
 import { finiteVerb, subjunctiveLike } from "./lexicon";
 
 // porque / porqué / por qué / por que: the conjunction (because), the noun (the reason), the

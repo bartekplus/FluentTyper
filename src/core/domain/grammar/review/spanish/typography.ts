@@ -5,7 +5,7 @@ import type { FindingsFilter, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { atToken, Around, attributeOf, carryCase, replaceToken, words, type Token } from "./common";
 import { isGenderedEntry, isNoun } from "./lexicon";
-import { readNoun } from "./agreement";
+import { readNoun } from "./nouns";
 import { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../reviewClock";
 import { PREPOSITIONS, verbLike } from "./common";
 import { finding } from "../finding";

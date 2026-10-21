@@ -13,7 +13,7 @@ import {
   words,
   type Tokens,
 } from "./common";
-import { DETERMINER, readNoun } from "./agreement";
+import { DETERMINER, readNoun } from "./nouns";
 import { HABER, IR, isPerfectParticiple } from "./confusions";
 import {
   attribute,

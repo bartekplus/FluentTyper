@@ -15,7 +15,7 @@ import {
   type Token,
   type Tokens,
 } from "./common";
-import { readNoun } from "./agreement";
+import { readNoun } from "./nouns";
 import {
   attribute,
   finiteVerb,

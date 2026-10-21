@@ -1,7 +1,7 @@
 import { wordTable } from "../wordTable";
 import type { FindingsFilter, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { DETERMINER, pluralOf, readNoun } from "./agreement";
+import { DETERMINER, pluralOf, readNoun } from "./nouns";
 import {
   atToken,
   Around,

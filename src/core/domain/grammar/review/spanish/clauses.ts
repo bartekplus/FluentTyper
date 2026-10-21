@@ -13,7 +13,7 @@ import {
   words,
   type Tokens,
 } from "./common";
-import { readNoun } from "./agreement";
+import { readNoun } from "./nouns";
 import {
   finiteVerb,
   isGerund,

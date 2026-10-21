@@ -18084,7 +18084,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '(?<=^|[\\s([{\\u00BF\\u00A1\\u2014\\u2013-])"(?=[\\p{L}\\p{N}\\u00BF\\u00A1])([^"\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])"(?![\\p{L}\\p{N}])',
     literals: [],
-    fixer: "es:doubleQuotes",
+    fixer: "es:@es.quotes/1",
     flags: "gu",
     scan: "owned",
     lookback: 256,
@@ -18093,7 +18093,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=^|[\\s([{\\u00BF\\u00A1\\u2014\\u2013-])'(?=[\\p{L}\\p{N}\\u00BF\\u00A1])([^'\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])'(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "es:singleQuotes",
+    fixer: "es:@es.quotes/2",
     flags: "gu",
     scan: "owned",
     lookback: 256,

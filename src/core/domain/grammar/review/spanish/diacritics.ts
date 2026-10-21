@@ -1,6 +1,6 @@
 import { wordTable } from "../wordTable";
 import type { MatchFixer } from "../../engine/reviewRules";
-import { readNoun } from "./agreement";
+import { readNoun } from "./nouns";
 import {
   atToken,
   Around,

@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { MatchFixer } from "../../engine/reviewRules";
-import { DETERMINER, readNoun } from "./agreement";
+import { DETERMINER, readNoun } from "./nouns";
 import {
   atToken,
   Around,

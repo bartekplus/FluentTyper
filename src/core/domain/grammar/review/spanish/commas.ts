@@ -1,6 +1,6 @@
 import type { MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { readNoun } from "./agreement";
+import { readNoun } from "./nouns";
 import {
   atToken,
   Around,

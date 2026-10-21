@@ -10,7 +10,6 @@ import * as diacritics from "./diacritics";
 import * as frames from "./frames";
 import * as porque from "./porque";
 import * as prefixes from "./prefixes";
-import * as quotes from "./quotes";
 import * as typography from "./typography";
 import * as verbAccents from "./verbAccents";
 import * as verbAgreement from "./verbAgreement";
@@ -33,7 +32,6 @@ export const FIXERS = mergePredicates<Fixer>(
   commas.FIXERS,
   prefixes.FIXERS,
   typography.FIXERS,
-  quotes.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/es.yaml (`filter:`). */
