@@ -6769,26 +6769,26 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "on[ \\t\\u00a0]{1,8}(?<target>(?:bi[ \\t\\u00a0]{1,8})?[a-z]+(?:-[a-z]+)*|ad[ \\t\\u00a0]{1,8}hoc)[ \\t\\u00a0]{1,8}basis(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["basis"],
-    fixer: "en:basisArticle",
+    fixer: "en:@en.idiomPhrases2/5",
     raw: true,
   }),
   frame({
     pattern:
       "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:a|an|the|this|that|these|those|my|your|his|her|our|their|its|one['’]s|each|every|whose|which|what)[ \\t\\u00a0]{1,8})(?<verb>laugh|laughs|laughed|laughing)[ \\t\\u00a0]{1,8}(?<target>of)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["laugh", "laughs", "laughed", "laughing"],
-    fixer: "en:laughAt",
+    fixer: "en:@en.idiomPhrases2/6",
   }),
   frame({
     pattern:
       "very[ \\t\\u00a0]{1,8}much[ \\t\\u00a0]{1,8}(?<target>so[ \\t\\u00a0]{1,8})(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["very"],
-    fixer: "en:veryMuchSo",
+    fixer: "en:@en.idiomPhrases2/7",
   }),
   frame({
     pattern:
       "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:granted|grant|grants|seek|seeks|seeking|sought|refused|refuse|given|give|apply|applied|for|of|the|a|no|without|on|sick|annual|shore|home|and|or|from|to)[ \\t\\u00a0]{1,8})(?<verb>leave|leaves|leaving|left)[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["leave", "leaves", "leaving", "left"],
-    fixer: "en:leaveTo",
+    fixer: "en:@en.idiomPhrases2/8",
   }),
   frame({
     pattern:
@@ -6884,7 +6884,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:is|are|am|was|were|be|been|being|get|gets|got|getting)[ \\t\\u00a0]{1,8})(?<target>(?<verb>send|sends|sent|sending)[ \\t\\u00a0]{1,8}an[ \\t\\u00a0]{1,8}e-?mail[ \\t\\u00a0]{1,8}to)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["send", "sends", "sent", "sending"],
-    fixer: "en:sendEmailTo",
+    fixer: "en:@en.idiomStyle2/3",
   }),
   frame({
     pattern:

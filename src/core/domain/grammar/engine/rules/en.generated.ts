@@ -3,10 +3,125 @@
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
 import type { DetectContext, FrameRef, MatchResult } from "../../library";
+import { englishInitialSound, englishWordInfo } from "../../library";
 import { isoDateWarning } from "./common.generated";
+
+export const NOT_BASIS_ADJECTIVE: ReadonlySet<string> = new Set([
+  "a",
+  "an",
+  "the",
+  "this",
+  "that",
+  "these",
+  "those",
+  "which",
+  "what",
+  "whose",
+  "each",
+  "every",
+  "its",
+  "his",
+  "her",
+  "their",
+  "our",
+  "my",
+  "your",
+  "any",
+  "some",
+  "no",
+  "one",
+  "such",
+  "same",
+  "another",
+  "either",
+  "neither",
+  "whichever",
+  "whatever",
+]);
+
+export const EMAIL_VERB: Readonly<Record<string, string>> = {
+  send: "email",
+  sends: "emails",
+  sent: "emailed",
+  sending: "emailing",
+};
+
+// en.yaml rule en.idiomPhrases2 def IDIOM_OBJECT
+export const IDIOM_OBJECT = /^(?:him|her|them|us|me|you|it|my|your|his|their|our|its)$/i;
+
+// en.yaml rule en.idiomPhrases2 def LEFT_SUBJECT
+export const LEFT_SUBJECT = /^(?:I|he|she|we|they|you|it|who|then|soon|and|later)$/i;
+
+// en.yaml rule en.idiomPhrases2 def afterClauseMark
+export function afterClauseMark(text: string, index: number): boolean {
+  return index > 0 && (text[index - 1] === " " || text[index - 1] === "\t")
+    ? afterClauseMark(text, index - 1)
+    : index === 0 || ".!?,;:(\n".includes(text[index - 1]);
+}
+
+// en.yaml rule en.idiomPhrases2 def wordEndingAt
+export function wordEndingAt(text: string, at: number) {
+  return /(\p{L}[\p{L}'’]*)[ \t ]*$/u.exec(text.slice(Math.max(0, at - 32), at))?.[1] ?? "";
+}
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // en.yaml rule en.idiomPhrases2 frame 5
+  "@en.idiomPhrases2/5": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const known = englishWordInfo(
+      target
+        .toLowerCase()
+        .replace(/^bi[ \t -]*/, "")
+        .split("-")[0],
+    );
+    if (!(!!known && !NOT_BASIS_ADJECTIVE.has(target.toLowerCase()))) return null;
+    const an = englishInitialSound(target.toLowerCase()) === "vowel" ? "an" : "a";
+    return `${target === target.toUpperCase() ? an.toUpperCase() : an} ${target}`;
+  },
+  // en.yaml rule en.idiomPhrases2 frame 6
+  "@en.idiomPhrases2/6": (m: RegExpExecArray): string | readonly string[] | null => {
+    const verb = m.groups!.verb;
+    const next = m.groups!.next;
+    if (/s$/i.test(verb) && afterClauseMark(m.input, m.index)) return null;
+    return IDIOM_OBJECT.test(next) || /^\p{Lu}\p{Ll}+$/u.test(next) ? "at" : null;
+  },
+  // en.yaml rule en.idiomPhrases2 frame 7
+  "@en.idiomPhrases2/7": (m: RegExpExecArray): string | readonly string[] | null => {
+    const next = m.groups!.next;
+    const word = next.toLowerCase();
+    if (
+      /^(?:that|this|it|i|we|you|he|she|they|in|on|at|for|and|but|or|if|as|too|far|long|much|many|well|good|soon|fast)$/.test(
+        word,
+      )
+    )
+      return null;
+    return englishWordInfo(word)?.verbs.length ? "" : null;
+  },
+  // en.yaml rule en.idiomPhrases2 frame 8
+  "@en.idiomPhrases2/8": (m: RegExpExecArray): string | readonly string[] | null => {
+    const verb = m.groups!.verb;
+    const next = m.groups!.next;
+    if (!(/^\p{Lu}\p{Ll}+$/u.test(next) && !/^(?:I|God|Right|Left|Top|Bottom)$/.test(next)))
+      return null;
+    if (/^left$/i.test(verb) && !LEFT_SUBJECT.test(wordEndingAt(m.input, m.index))) return null;
+    return "for";
+  },
+  // en.yaml rule en.idiomStyle2 frame 3
+  "@en.idiomStyle2/3": (m: RegExpExecArray): string | readonly string[] | null => {
+    const verb = m.groups!.verb;
+    const next = m.groups!.next;
+    const word = next.toLowerCase();
+    const info = englishWordInfo(word);
+    const recipient =
+      !!info?.noun &&
+      /^[ \t ]*(?:[.!?,;:]|$)/.test(
+        m.input.slice(m.index + m[0].length, m.index + m[0].length + 9),
+      );
+    if (!IDIOM_OBJECT.test(word) && !recipient && info?.verbs.some((v) => v.form === "base"))
+      return null;
+    return EMAIL_VERB[verb.toLowerCase()];
+  },
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);

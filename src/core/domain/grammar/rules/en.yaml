@@ -369,6 +369,58 @@ rules:
   - id: en.idiomPhrases2
     checks: [englishPhraseCorrections]
     message: review_msg_phrase_correction
+    sets:
+      # Closed-class words that cannot fill the adjective slot of "on a … basis".
+      NOT_BASIS_ADJECTIVE:
+        [
+          a,
+          an,
+          the,
+          this,
+          that,
+          these,
+          those,
+          which,
+          what,
+          whose,
+          each,
+          every,
+          its,
+          his,
+          her,
+          their,
+          our,
+          my,
+          your,
+          any,
+          some,
+          no,
+          one,
+          such,
+          same,
+          another,
+          either,
+          neither,
+          whichever,
+          whatever,
+        ]
+    maps:
+      EMAIL_VERB: { send: email, sends: emails, sent: emailed, sending: emailing }
+    defs:
+      IDIOM_OBJECT: /^(?:him|her|them|us|me|you|it|my|your|his|their|our|its)$/i
+      LEFT_SUBJECT: /^(?:I|he|she|we|they|you|it|who|then|soon|and|later)$/i
+      # A clause ends at `index`: only spaces or tabs back to a clause mark or the text start.
+      afterClauseMark:
+        args: "text: string, index: number"
+        type: boolean
+        return: >-
+          index > 0 && (text[index - 1] === " " || text[index - 1] === "\t")
+            ? afterClauseMark(text, index - 1)
+            : index === 0 || ".!?,;:(\n".includes(text[index - 1])
+      # The word that ends right before `at` (spaces or tabs between), or "".
+      wordEndingAt:
+        args: "text: string, at: number"
+        return: '/(\p{L}[\p{L}''’]*)[ \t ]*$/u.exec(text.slice(Math.max(0, at - 32), at))?.[1] ?? ""'
     frames:
       # "true to her word" keeps a promise.
       - regex: "true{{S}}to{{S}}(?:{{POSSESSIVE}}){{S}}(?<target>words){{E}}"
@@ -380,14 +432,27 @@ rules:
       - regex: "{{notAfter:I|we|you|they|who|people|users|all|also|still|finally|already|now}}now{{S}}(?<target>know){{S}}as{{E}}(?!{{S}}(?:much|many|well|little|far|soon|long|good|bad|fact|a|an|the|of|it|they|we|i|you){{E}})"
         fix: "known"
       - regex: "on{{S}}(?<target>(?:bi{{S}})?[a-z]+(?:-[a-z]+)*|ad{{S}}hoc){{S}}basis{{E}}"
-        fixer: basisArticle
+        let:
+          known: 'englishWordInfo(target.toLowerCase().replace(/^bi[ \t -]*/, "").split("-")[0])'
+          # The lexicon knows the word, thus it is not spelled out ("HOURLY" is "hourly"). Use "a" when
+          # people say the word with the two articles ("a historic").
+          an: 'englishInitialSound(target.toLowerCase()) === "vowel" ? "an" : "a"'
+        when: "!!known && !NOT_BASIS_ADJECTIVE.has(target.toLowerCase())"
+        return: "`${target === target.toUpperCase() ? an.toUpperCase() : an} ${target}`"
         raw: true
       - regex: "{{notAfter:a|an|the|this|that|these|those|{{POSSESSIVE}}|each|every|whose|which|what}}(?<verb>laugh|laughs|laughed|laughing){{S}}(?<target>of){{S}}(?<next>\\p{L}+){{E}}"
-        fixer: laughAt
+        when: "!(/s$/i.test(verb) && afterClauseMark(m.input, m.index))"
+        return: 'IDIOM_OBJECT.test(next) || /^\p{Lu}\p{Ll}+$/u.test(next) ? "at" : null'
       - regex: "very{{S}}much{{S}}(?<target>so{{S}})(?<next>[a-z]+){{E}}"
-        fixer: veryMuchSo
+        let:
+          word: next.toLowerCase()
+        when: "!/^(?:that|this|it|i|we|you|he|she|they|in|on|at|for|and|but|or|if|as|too|far|long|much|many|well|good|soon|fast)$/.test(word)"
+        return: 'englishWordInfo(word)?.verbs.length ? "" : null'
       - regex: "{{notAfter:granted|grant|grants|seek|seeks|seeking|sought|refused|refuse|given|give|apply|applied|for|of|the|a|no|without|on|sick|annual|shore|home|and|or|from|to}}(?<verb>leave|leaves|leaving|left){{S}}(?<target>to){{S}}(?<next>\\p{L}+){{E}}"
-        fixer: leaveTo
+        when:
+          - '/^\p{Lu}\p{Ll}+$/u.test(next) && !/^(?:I|God|Right|Left|Top|Bottom)$/.test(next)'
+          - "!(/^left$/i.test(verb) && !LEFT_SUBJECT.test(wordEndingAt(m.input, m.index)))"
+        return: '"for"'
       - regex: "(?:avoid|avoids|avoided|avoiding|shun|shuns|shunned|shunning)(?:{{S}}[\\p{L}'’-]+){0,4}{{S}}like{{S}}(?<target>a){{S}}plague{{E}}"
         fix: "the"
       - regex: "{{notAfter:for|to|with|by|from|among|of|and|but|while|give|gave|gives|giving|tell|told|show|showed|offer|offered|send|sent|teach|taught|bring|brought}}(?<target>some{{S}})the{{S}}(?=\\p{L})"
@@ -428,7 +493,13 @@ rules:
       - regex: "(?<target>in){{S}}some{{S}}degree{{COMPLETE}}"
         fix: "to"
       - regex: "{{notAfter:is|are|am|was|were|be|been|being|get|gets|got|getting}}(?<target>(?<verb>send|sends|sent|sending){{S}}an{{S}}e-?mail{{S}}to){{S}}(?<next>\\p{L}+){{E}}"
-        fixer: sendEmailTo
+        let:
+          word: next.toLowerCase()
+          info: englishWordInfo(word)
+          # A noun closing the clause is the recipient: "send an email to support."
+          recipient: '!!info?.noun && /^[ \t ]*(?:[.!?,;:]|$)/.test(m.input.slice(m.index + m[0].length, m.index + m[0].length + 9))'
+        when: '!(!IDIOM_OBJECT.test(word) && !recipient && info?.verbs.some((v) => v.form === "base"))'
+        return: EMAIL_VERB[verb.toLowerCase()]
   - id: en.idiomFrames3
     checks: [englishPhraseCorrections, englishFixedPrepositions, stylePhrasing]
     style: carry
