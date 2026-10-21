@@ -9979,66 +9979,66 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<there>there|here)(?:[ \\t\\u00a0]{1,8}(?<verb>is|was|are|were)|(?<contracted>['’]s))[ \\t\\u00a0]{1,8}(?:(?:only|still|also|just|really)[ \\t\\u00a0]{1,8})?(?<count>(?:many|several|few|some|no|any(?:[ \\t\\u00a0]+other)?|a[ \\t\\u00a0]+few|a[ \\t\\u00a0]+couple[ \\t\\u00a0]+of|two|three|four|five|six|seven|eight|nine|ten|[2-9]|[1-9][0-9]+))[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["there", "here"],
-    fixer: "en:numberExistential",
+    fixer: "en:@en.existentialCount/1",
     anyCheck: true,
     owner: "none",
   }),
   frame({
     pattern: "(?<target>an?)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: [],
-    fixer: "en:numberArticlePlural",
+    fixer: "en:@en.nounNumberSlots/1",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<target>[0-9]{1,3}(?:,[0-9]{3})*|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|many|several|various|numerous|multiple|few|these|those)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: [],
-    fixer: "en:numberCountSingular",
+    fixer: "en:@en.nounNumberSlots/2",
     owner: "none",
   }),
   frame({
     pattern: "(?<target>this)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["this"],
-    fixer: "en:numberThisPlural",
+    fixer: "en:@en.nounNumberSlots/3",
     owner: "none",
   }),
   frame({
     pattern: "(?<dem>these|those)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["these", "those"],
-    fixer: "en:numberDemonstrativeObject",
+    fixer: "en:@en.nounNumberSlots/4",
     owner: "dem",
   }),
   frame({
     pattern: "(?<dem>these|those)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["these", "those"],
-    fixer: "en:numberDemonstrativeSubject",
+    fixer: "en:@en.nounNumberSlots/5",
     owner: "dem",
   }),
   frame({
     pattern: "(?<target>each|every)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["each", "every"],
-    fixer: "en:numberEachPlural",
+    fixer: "en:@en.nounNumberSlots/6",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<target>an?[ \\t\\u00a0]{1,8})(?<count>[0-9]{1,3}(?:,?[0-9]{3})*|two|three|four|five|six|seven|eight|nine|ten|twelve|twenty|thirty|forty|fifty)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:numberArticleCount",
+    fixer: "en:@en.nounNumberSlots/7",
     owner: "none",
   }),
   frame({
     pattern:
       "(?:too|so|as|are|were|how|this|that|not|even)[ \\t\\u00a0]{1,8}(?<target>much)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["much"],
-    fixer: "en:numberMuchPlural",
+    fixer: "en:@en.nounNumberSlots/8",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<count>two|three|four|five|six|seven|eight|nine|ten|several|many|few|both|[2-9]|[1-9][0-9])[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:my|your|our|his|her|their|the|these|those)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: [],
-    fixer: "en:numberPartitive",
+    fixer: "en:@en.nounNumberSlots/9",
     owner: "none",
   }),
   frame({
@@ -10057,14 +10057,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "thousands",
       "millions",
     ],
-    fixer: "en:numberQuantityOf",
+    fixer: "en:@en.nounNumberSlots/10",
     anyCheck: true,
     owner: "none",
   }),
   frame({
     pattern: "(?<target>other)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["other"],
-    fixer: "en:numberOtherPronoun",
+    fixer: "en:@en.nounNumberSlots/11",
     owner: "none",
   }),
   frame({

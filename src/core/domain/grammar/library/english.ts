@@ -56,6 +56,15 @@ export { recase as enRecase } from "./english/words";
 
 // Group nounNumber/count/determiner/noNot/clause/complement/slip/verbGroup/wordClass slots:
 // the lexicon names that their rules read.
-export { englishLexiconInflect, englishVerbNouns } from "../implementations/helpers/EnglishLexicon";
+export {
+  englishCountNoun,
+  englishLexiconInflect,
+  englishListedNoun,
+  englishVerbNouns,
+} from "../implementations/helpers/EnglishLexicon";
+export {
+  IRREGULAR as EN_IRREGULAR,
+  IRREGULAR_PLURALS as EN_IRREGULAR_PLURALS,
+} from "./english/nouns";
 export type { EnglishWordInfo as EnWordInfo } from "../implementations/helpers/EnglishLexicon";
 export { participleOf as enParticipleOf, readWord as enReadWord } from "./english/readings";

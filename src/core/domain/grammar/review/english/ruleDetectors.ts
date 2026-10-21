@@ -15,7 +15,6 @@ import * as confusions1 from "./confusions1";
 import * as dates from "./dates";
 import * as contractionSlots from "./contractionSlots";
 import * as degreeSlots from "./degreeSlots";
-import * as nounNumberSlots from "./nounNumberSlots";
 import * as missingVerbSlots from "./missingVerbSlots";
 import * as agreementSlots from "./agreementSlots";
 import * as adverbSlots from "./adverbSlots";
@@ -109,7 +108,6 @@ export const FIXERS = mergePredicates<Fixer>(
   properNames.FIXERS,
   questionSlots.FIXERS,
   contractionSlots.FIXERS,
-  nounNumberSlots.FIXERS,
   negationSlots.FIXERS,
   passiveVoice.FIXERS,
 );

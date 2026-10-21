@@ -2320,6 +2320,23 @@ rules:
     style: match
     message: review_msg_existential_agreement
     filter: slotFindings
+    defs:
+      # "There is no doubt", "there is some…": only the plural noun decides.
+      nnExistentialVerb:
+        args: "ctx: DetectContext, m: RegExpExecArray, nounEnd: number"
+        type: RawFinding
+        let:
+          verb: m.groups!.verb
+          contracted: m.groups!.contracted
+          there: m.groups!.there
+          typed: verb ?? contracted
+          start: "verb ? m.indices!.groups!.verb[0] : m.indices!.groups!.contracted[0]"
+          end: "verb ? m.indices!.groups!.verb[1] : m.indices!.groups!.contracted[1]"
+          fix: 'contracted ? `${caseLike(there, there)} are` : /^was$/i.test(typed) ? "were" : "are"'
+        return: >-
+          ({ ruleId: "englishExistentialAgreement", messageKey: "review_msg_existential_agreement",
+          range: contracted ? { start: m.indices!.groups!.there[0], end } : { start, end }, alternatives: [caseLike(contracted ? there : typed, fix)],
+          context: enEvidence(ctx, m.index, nounEnd) })
     frames:
       # "There is many problems", "Here is some great alternatives": a plural count after a
       # singular existential verb; "There are many problem", "There are no book here": a
@@ -2328,64 +2345,649 @@ rules:
       - regex: "(?<there>there|here)(?:{{S}}(?<verb>is|was|are|were)|(?<contracted>['’]s)){{S}}(?:(?:only|still|also|just|really){{S}})?(?<count>{{NOUNNUMBERSLOTS_EXISTENTIAL_COUNT}}){{S}}(?=[a-z])"
         owner: none
         anyCheck: true
-        fixer: numberExistential
+        # "five times as much", "some times ago": a multiplier or a time adverb. The noun closes its
+        # phrase: punctuation, a preposition, a conjunction or a place word. "two errors and one
+        # warning", "tariff and non-tariff barriers": a list or a shared modifier. "two errors in the
+        # report and one in the file", a line break after the noun: a list. Counts that the existential
+        # check at the clause end reads already: "There is two errors.". "There are no doubt many ways":
+        # the adverb "no doubt".
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+          typed: verb ?? contracted
+          singularVerb: /^(?:is|was|['’]s)$/i.test(typed)
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 6)
+          k: nnHead(ctx, tokens, true, false, 0)
+          noun: tokens[k]
+          forms: enNounNumber(noun.lower)
+          after: tokens[k + 1]
+          ends: >-
+            !after || after.kind === "end" || after.kind === "comma" || (after.kind === "word" && (NN_ENDERS.has(after.lower) ||
+            EN_PREPOSITIONS.has(after.lower) ||
+            /^(?:to|and|or|but|after|before|here|there|today|now|yet|anymore|left|sitting|standing|waiting)$/.test(after.lower)))
+          c: count.toLowerCase().replace(/[ \t ]+/g, " ")
+          rest: '/^[^.!?;:\n]*/.exec(ctx.text.slice(noun.end, noun.end + 120))![0]'
+          covered: >-
+            /^(?:many|several|two|three|four|five|six|seven|eight|nine|ten|[0-9]+)$/.test(c) && (!after || after.kind === "end" ||
+            /^(?:that|which|with)$/.test(after.lower) ||
+            /^[ \t ]+(?:in|on|under|near|inside|outside)[ \t ]+(?:the|this|that|my|your|our|their)[ \t ]+(?:[a-z]+[ \t ]+)?(?:report|folder|file|document|room|box|table|account|list|screen|desk)\b/i.test(ctx.text.slice(noun.end,
+            noun.end + 64)))
+        when:
+          - "!NN_PLACE_BEFORE.test(before)"
+          - k >= 0
+          - "!(!forms || forms.singular === forms.plural || EN_MASS.has(forms.singular))"
+          - '!(NN_NUMERAL_NOUNS.has(noun.lower) || NN_NOT_COUNTED.has(noun.lower) || noun.lower === "times" || /^(?:better|worse|more|less|other)$/.test(noun.lower))'
+          - ends
+          - '!(after?.kind === "comma" || /^(?:and|or|to)$/.test(after?.kind === "word" ? after.lower : ""))'
+          - '!(/\b(?:and|or)[ \t ]+(?:a|an|one)\b/i.test(rest) || /^[ \t ]*\r?\n/.test(ctx.text.slice(noun.end)))'
+          - "![typed, noun.lower].some((w) => ctx.dictionary.has(w.toLowerCase()))"
+        return: >-
+          singularVerb && forms.number === "plural" && !covered ? nnExistentialVerb(ctx, m, noun.end)
+          : !singularVerb && forms.number === "singular" && !/^(?:some|any|any other)$/.test(c) && !(c === "no" && noun.lower === "doubt") &&
+          !englishWordInfo(noun.lower)?.adjective && tokens.slice(0, k).every((t) => t.lower !== "of")
+          ? nnFinding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.plural], m.index) : null
   - id: en.nounNumberSlots
     checks: [englishNounNumber, englishPossibleErrors]
     style: match
     message: review_msg_noun_count
     filter: slotFindings
+    sets:
+      # Words that count or group and never take the number themselves: "a hundred years".
+      NN_NUMERAL_NOUNS:
+        [
+          hundred,
+          thousand,
+          million,
+          billion,
+          trillion,
+          dozen,
+          couple,
+          few,
+          lot,
+          lots,
+          number,
+          pair,
+          score,
+          handful,
+          bunch,
+          total,
+          majority,
+        ]
+      NN_NUMBER_WORDS:
+        [
+          two,
+          three,
+          four,
+          five,
+          six,
+          seven,
+          eight,
+          nine,
+          ten,
+          eleven,
+          twelve,
+          thirteen,
+          fourteen,
+          fifteen,
+          sixteen,
+          seventeen,
+          eighteen,
+          nineteen,
+          twenty,
+          thirty,
+          forty,
+          fifty,
+          sixty,
+          seventy,
+          eighty,
+          ninety,
+        ]
+      NN_COUNTERS: [many, several, various, numerous, multiple, few, these, those]
+      # Closed words that end a noun phrase before them.
+      NN_ENDERS:
+        [
+          of,
+          in,
+          on,
+          at,
+          for,
+          with,
+          from,
+          about,
+          by,
+          into,
+          than,
+          that,
+          which,
+          who,
+          whom,
+          where,
+          when,
+          because,
+          if,
+          as,
+          ago,
+          though,
+          too,
+          later,
+          now,
+          today,
+          yesterday,
+          tomorrow,
+          tonight,
+          again,
+          here,
+          there,
+          anyway,
+          instead,
+          yet,
+          but,
+          so,
+        ]
+      # Nouns used as adverbs, units or currencies after a number: "ten tomorrow", "512 bit", "160
+      # euro".
+      NN_NOT_COUNTED:
+        [
+          today,
+          tomorrow,
+          tonight,
+          yesterday,
+          now,
+          time,
+          way,
+          kind,
+          sort,
+          type,
+          percent,
+          bit,
+          byte,
+          euro,
+          yen,
+          yuan,
+          won,
+          baht,
+          rand,
+          max,
+          min,
+          foot,
+        ]
+      NN_PRONOUN_POSSESSIVES: [yours, hers, ours, theirs, its, mine, whose]
+    defs:
+      NN_COUNT_LABELS: '/\b(?:page|step|item|version|level|chapter|section|figure|table|number|no|line|row|column|volume|issue|part|phase|stage|round|game|episode|season|class|grade|room|floor|gate|platform|exit|route|channel|size|model|type|option|question|rule|article|act|scene|week|day|year|top|windows|iphone|ios|android|python|java|v|vol|ch|fig|pp|p)[ \t .#]*$/i'
+      NN_FINITE: /^(?:is|are|was|were|has|have|had|will|would|can|could|should|may|might|must|do|does|did)$/
+      NN_TIME_PLURALS: /^(?:seconds|minutes|hours|days|weeks|months|years|decades|centuries|moments|generations|tens|dozens|hundreds|thousands|millions|billions)$/
+      NN_SUBJECT_VERBS: /^(?:is|was|has|are|were|have|would|will|can|could|should|must|might|may)$/
+      # Words after which "these/those" may open a clause: "hope these help", "until those dry".
+      NN_CLAUSE_OPENERS: /^(?:make|makes|made|let|lets|help|helps|helped|have|has|had|see|saw|seen|watch|watched|hear|heard|feel|felt|notice|noticed|hope|hoped|think|thought|believe|guess|suppose|know|knew|say|said|says|bet|wish|expect|mean|means|until|till|after|before|since|as|than|like|unless|once|because|if|when|while|where|whether|so|and|or|but)$/
+      NN_PLURAL_ONLY: /^(?:thanks|kudos|props|damages|earnings|savings|proceeds|funds|means|news|goods|clothes|wages|taxes|sales|congratulations|regards|resources|data|media)$/
+      # "Over there is…", "out there are…": a place adverb, not existential there.
+      NN_PLACE_BEFORE: '/\b(?:over|out|in|up|down|from|back|under|right|around)[ \t ]+$/i'
+      # A word that could be the head of a noun phrase or continue it (so the phrase has not ended).
+      nnNounLike:
+        args: "t: EnToken | undefined"
+        return: >-
+          t?.kind !== "word" ? t?.kind === "number"
+          : EN_FUNCTION_WORDS.has(t.lower) || NN_ENDERS.has(t.lower) ? false
+          : EN_IRREGULAR_PLURALS.has(t.lower) || EN_IRREGULAR.has(t.lower) ? true
+          : nnNounRead(t)
+      nnNounRead:
+        args: "t: EnToken"
+        let:
+          read: englishWordInfo(t.lower)
+        return: "!read ? !!englishListedNoun(t.lower) || t.text !== t.lower : read.noun || read.plural || (read.adjective && !read.adverb)"
+      # An adjective that is no noun: after a noun it starts a predicate ("my friend live…").
+      nnAdjectiveOnly:
+        args: "t: EnToken | undefined"
+        let:
+          read: 't?.kind === "word" ? englishWordInfo(t.lower) : null'
+        return: "!!read && read.adjective && !read.noun && !read.plural"
+      nnPlain:
+        args: "ctx: DetectContext, t: EnToken | undefined"
+        return: 't?.kind === "word" && t.text === t.lower && !ctx.dictionary.has(t.lower)'
+      # The index of the head noun after up to three modifiers: adjectives and participles, and with
+      # `nouns` also noun modifiers ("a tax problems"); with `otherToo` also "other". -1 when the
+      # phrase holds something else.
+      nnHead:
+        args: "ctx: DetectContext, tokens: EnToken[], nouns: boolean, otherToo: boolean, k: number"
+        type: number
+        let:
+          t: tokens[k]
+          next: tokens[k + 1]
+        when:
+          - k < 4
+          - nnPlain(ctx, t) && !NN_NUMERAL_NOUNS.has(t.lower) && !NN_NUMBER_WORDS.has(t.lower)
+        return: >-
+          !nnPlain(ctx, next) || !nnNounLike(next) || enNounNumber(t.lower)?.number === "plural" ? k
+          : nnAdjectiveOnly(next) && enNounNumber(t.lower) ? k
+          : nnModifier(t.lower, nouns, otherToo) ? nnHead(ctx, tokens, nouns, otherToo, k + 1) : -1
+        else: "-1"
+      nnModifier:
+        args: "word: string, nouns: boolean, otherToo: boolean"
+        let:
+          read: enInfo(word)
+        return: >-
+          (otherToo && word === "other") ||
+          (!!read && (read.adjective || read.verbs.some((v) => v.form === "participle" || v.form === "ing"))) ||
+          (nouns && (read ? read.noun : englishListedNoun(word) === "singular")) || /^(?:very|really|most|more|new|pretty)$/.test(word)
+      # The noun phrase ends after token k: at punctuation, a comma not followed by another noun
+      # ("various oyster, mussel and clam species"), a closed word or, with `finite`, a finite verb.
+      # "every players' distance": a possessive. 'low budget "Lost World" pictures': a quoted name
+      # goes on to the head. "plug in devices": a particle compound.
+      nnPhraseEnds:
+        args: "ctx: DetectContext, tokens: EnToken[], k: number, finite: boolean"
+        let:
+          next: tokens[k + 1]
+        when:
+          - "!/^['’]/.test(ctx.text.slice(tokens[k].end, tokens[k].end + 1))"
+          - '!(next?.kind === "end" && /^["“]$/.test(next.text) && /^\p{L}/u.test(ctx.text.slice(next.end)))'
+        return: >-
+          !next || next.kind === "end" ? true
+          : next.kind === "comma" ? nnCommaEnds(tokens[k + 2])
+          : next.kind !== "word" ? false
+          : /^(?:in|on)$/.test(next.lower) && nnNounLike(tokens[k + 2]) ? false
+          : NN_ENDERS.has(next.lower) || (finite && NN_FINITE.test(next.lower)) ? true
+          : finite && nnVerbNoNoun(next.lower)
+        else: "false"
+      nnCommaEnds:
+        args: "after: EnToken | undefined"
+        return: '!after || after.kind === "end" || (after.kind === "word" && !nnNounLike(after))'
+      # A past or -s verb that is no noun: "each students got…". A regular -ed form may be a
+      # participle compound ("move related items").
+      nnVerbNoNoun:
+        args: "word: string"
+        let:
+          read: enInfo(word)
+        return: >-
+          !!read && !read.noun && !read.adjective && (read.verbs.some((v) => v.form === "third") ||
+          (read.verbs.some((v) => v.form === "past") && !read.verbs.some((v) => v.form === "participle")))
+      nnFinding:
+        args: 'ctx: DetectContext, messageKey: RawFinding["messageKey"], start: number, end: number, alternatives: string[], from: number'
+        return: 'finding("englishNounNumber", messageKey, start, end, alternatives, { context: enEvidence(ctx, from, end) })'
+      nnModifierNoun:
+        args: "word: string"
+        let:
+          read: enInfo(word)
+        return: "read ? read.noun && !read.adjective : !!englishListedNoun(word)"
+      nnAdjectiveLike:
+        args: "word: string"
+        let:
+          read: enInfo(word)
+        return: '!!read && (read.adjective || read.verbs.some((v) => v.form === "participle"))'
+      # "face 2 face", "how 2 spell", "$5 bill", "12 by 9". "force 11 gale", "a single 25 minute":
+      # only after a verb or a closed word.
+      nnNumberCountOk:
+        args: "count: string, before: string, previous: string"
+        let:
+          n: Number(count.replace(/,/g, ""))
+          read: "previous ? enInfo(previous) : null"
+        when: '!(n < 2 || n === 2 || n === 4 || /[.,:/$€£#×x*–—-][ \t ]*$/.test(before))'
+        return: "!(previous && !EN_FUNCTION_WORDS.has(previous) && (!read || read.noun || read.adjective))"
+        else: "false"
+      # "you two look", "the other two chase", "magnitude 6 earthquake": a pronoun, ordinal or label
+      # before the count.
+      nnLabelBefore:
+        args: "previous: string"
+        let:
+          read: enInfo(previous)
+        return: >-
+          /^(?:we|you|they|us|them|other|first|last|next|final|top|more|by|x|from|between)$/.test(previous) ||
+          (read ? read.noun && !read.verbs.length : !!englishListedNoun(previous)) || /[A-Z]/.test(previous.slice(0, 1))
+      # "many wine", "several advice", "a few luggage": a mass noun takes much/some/little. "many wine
+      # and cheese": a coordinated mass noun is no count either, but "many wine and food festivals"
+      # counts festivals.
+      nnMassCount:
+        args: "ctx: DetectContext, m: RegExpExecArray, tokens: EnToken[], k: number, count: string"
+        type: RawFinding | null
+        let:
+          fix: 'count === "many" ? "much" : count === "several" ? "some" : "little"'
+          start: m.indices!.groups!.target[0]
+          coordinated: >-
+            /^(?:and|or)$/.test(tokens[k + 1]?.lower ?? "") &&
+            (EN_FUNCTION_WORDS.has(tokens[k + 2]?.lower ?? "") || nnPhraseEnds(ctx, tokens, k + 2, true))
+        when: nnPhraseEnds(ctx, tokens, k, true) || coordinated
+        return: 'nnFinding(ctx, "review_msg_noun_count", start, start + count.length, [caseLike(m.groups!.target, fix)], m.index)'
+      # Authored count nouns after a number belong to the own templates of englishNounNumber. Only a
+      # plural verb settles a demonstrative: "these error are" (not "these help", "those mean").
+      # "Many believe", "416 run on gas": a pronoun count before a verb. Various/numerous/multiple are
+      # never pronouns, and a time word or "of" after the noun rules the verb out ("a few month
+      # ago"). "found many issue in": after a verb or preposition, a count noun is the object.
+      nnCountNoun:
+        args: "ctx: DetectContext, m: RegExpExecArray, tokens: EnToken[], k: number, count: string, previous: string"
+        type: RawFinding | null
+        let:
+          noun: tokens[k]
+          forms: enNounNumber(noun.lower)
+          kindOf: '/^(?:kind|sort|type)$/.test(noun.lower) && tokens[k + 1]?.lower === "of"'
+          read: englishWordInfo(noun.lower)
+          verbToo: "!!read?.verbs.length"
+          next: tokens[k + 1]
+          object: >-
+            englishCountNoun(noun.lower) && !!previous &&
+            (EN_PREPOSITIONS.has(previous) || !!enInfo(previous)?.verbs.some((v) => v.form !== "base"))
+        when:
+          - "!((NN_NOT_COUNTED.has(noun.lower) && !kindOf) || EN_MASS.has(noun.lower))"
+          - forms
+          - "!(englishNounForms(noun.lower) && !NN_COUNTERS.has(count))"
+          - "!(read?.adjective && !kindOf)"
+        return: >-
+          count === "these" || count === "those"
+          ? (!verbToo && /^(?:are|were|have)$/.test(next?.lower ?? "")
+          ? nnFinding(ctx, "review_msg_demonstrative_number", noun.start, noun.end, [forms.plural], m.index) : null)
+          : !(verbToo && k === 0 && next?.kind !== "end" && !object && !/^(?:various|numerous|multiple)$/.test(count) &&
+          !/^(?:ago|later|earlier|of|about)$/.test(next?.lower ?? "")) && nnPhraseEnds(ctx, tokens, k, true)
+          ? nnFinding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.plural], m.index) : null
+      # "I hope these help", "make those change": a verb reading keeps "these" a pronoun, unless no
+      # clause can start there: "resolve these issue.", "for these rule.".
+      nnDemonstrativeCount:
+        args: "tokens: EnToken[], k: number, previous: string, dem: string, single: string, middle: string"
+        type: string[] | null
+        let:
+          noun: tokens[k]
+          forms: enNounNumber(noun.lower)
+          nounRead: englishWordInfo(noun.lower)
+        when:
+          - '!(forms?.number !== "singular" || forms.singular === forms.plural)'
+          - "!nounRead?.adjective"
+          - >-
+            !(nounRead?.verbs.length && (k > 0 || NN_CLAUSE_OPENERS.test(previous) || EN_FUNCTION_WORDS.has(previous) ||
+            !/^(?:end|comma)$/.test(tokens[k + 1]?.kind ?? "end")))
+        return: "[`${dem}${middle}${forms.plural}`, `${single}${middle}${noun.text}`]"
+      # After the newer leads ("how much", "this much"), the phrase may end before a subject or an
+      # adverb too: "how much computers you test", "not much coaches around". There the noun must not
+      # read as a verb ("not much changes") and a subject pronoun, a preposition or the clause end
+      # must follow ("how much firms know" is a clause). An -s verb reading needs the phrase to end:
+      # "not much changes around here" is a clause.
+      nnMuchClosed:
+        args: "noun: EnToken, after: EnToken | undefined"
+        let:
+          verbToo: '!!englishWordInfo(noun.lower)?.verbs.some((v) => v.form === "third")'
+        when: '!(verbToo && !(!after || after.kind === "end" || after.kind === "comma" || after.lower === "of"))'
+        return: >-
+          !after || after.kind === "end" || after.kind === "comma" || (after.kind === "word" &&
+          (/^(?:i|you|we|they|he|she)$/.test(after.lower) || (EN_PREPOSITIONS.has(after.lower) && !EN_ADVERBS.has(after.lower))))
+        else: "false"
     frames:
       # Every frame here reads the frames near the chunk (owner none): findings start at the
       # noun, so the filter keeps the chunk's own.
       # "a new issues", "an examples of": a/an before a plural that ends its phrase.
       - regex: "(?<target>an?){{S}}(?=[a-z])"
         owner: none
-        fixer: numberArticlePlural
+        # The head is one of the first four words and must be a plural: test the words first. "just a
+        # days later": a time plural before later/earlier. "a criteria we use": an irregular plural before
+        # the subject of a relative clause. "a new elections was held": a singular verb closes the phrase
+        # of the plural. A noun modifier ("a problem humans have", "a stroke days after") may close its
+        # phrase before a relative clause or a time phrase: only a following preposition is evidence. At
+        # the sentence end the plural has no clause of its own: "This is a jelly beans." Only as a
+        # predicate after be: "taught a friend harmonies." has two objects. "a requires b", "lowercase a
+        # denotes": the letter a before a verb. "a fish lives", "a pretty blonde looks": a noun subject
+        # before an -s verb. "a questions of time", "not a new issues.": before "of" or the sentence end,
+        # an -s word after "a" and modifiers like adjectives is the noun ("a dog barks." keeps its verb).
+        let:
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 6)
+          k: nnHead(ctx, tokens, true, false, 0)
+          noun: tokens[k]
+          forms: enNounNumber(noun.lower)
+          nextLower: 'tokens[k + 1]?.lower ?? ""'
+          later: NN_TIME_PLURALS.test(noun.lower) && /^(?:later|earlier)$/.test(nextLower)
+          modifiers: tokens.slice(0, k)
+          relative: "k === 0 && EN_IRREGULAR_PLURALS.has(noun.lower) && /^(?:i|we|you|they|he|she)$/.test(nextLower)"
+          singularVerb: '/^(?:is|was|has)$/.test(nextLower) && noun.lower !== "people"'
+          nounModifier: modifiers.some((t) => nnModifierNoun(t.lower))
+          sentenceEnd: >-
+            tokens[k + 1]?.kind === "end" && /^[.!?]/.test(tokens[k + 1].text) &&
+            /\b(?:is|are|was|were|am|be|been)(?:[ \t ]+[a-z]+ly)?[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 32), m.index))
+          read: englishWordInfo(noun.lower)
+          after: tokens[k + 1]
+          closes: '!after || after.kind === "end" || /^(?:of|about)$/.test(after.lower)'
+          adjectiveLike: modifiers.every((t) => nnAdjectiveLike(t.lower))
+        when:
+          - "!(target !== target.toLowerCase() && !enAfterBreak(ctx, m.index))"
+          - 'enWordsAfter(ctx, m.index + m[0].length, 4).some((w) => enNounNumber(w.lower)?.number === "plural")'
+          - k >= 0
+          - '!(forms?.number !== "plural" || /(?:wards|doors|stairs)$/.test(noun.lower))'
+          - "!(!later && !relative && !singularVerb && !nnPhraseEnds(ctx, tokens, k, false))"
+          - "!(nounModifier && (NN_TIME_PLURALS.test(noun.lower) || (!/^(?:of|for|with)$/.test(nextLower) && !sentenceEnd)))"
+          - >-
+            !(read?.verbs.some((v) => v.form === "third") && !(read.noun && closes && adjectiveLike) && !(read.noun && sentenceEnd) &&
+            (k === 0 || modifiers.some((t) => enInfo(t.lower)?.noun || !enInfo(t.lower))))
+          - "!modifiers.some((t) => /^(?:few|many|lot|several|little|zillion|most|greatest|best)$|est$/.test(t.lower))"
+        return: 'nnFinding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.singular], m.index)'
       # "five book.", "many child are", "these error are": a plural count before a singular.
       - regex: "(?<target>[0-9]{1,3}(?:,[0-9]{3})*|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|many|several|various|numerous|multiple|few|these|those){{S}}(?=[a-z])"
         owner: none
-        fixer: numberCountSingular
+        # The head is one of the first four words and must be a singular or mass noun. A mass noun needs
+        # no plural ("few traffic"); a count noun needs both forms. "two bachelor of science degrees": a
+        # compound head; "two kind of costs" counts kinds.
+        let:
+          count: target.toLowerCase()
+          before: ctx.text.slice(Math.max(0, m.index - 48), m.index)
+          previous: enWordBefore(ctx, m.index)
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 6)
+          k: nnHead(ctx, tokens, false, true, 0)
+          noun: tokens[k]
+          forms: enNounNumber(noun.lower)
+          massCount: EN_MASS.has(noun.lower) && !forms?.plural.length
+          adjectives: tokens.slice(0, k).every((t) => !!enInfo(t.lower)?.adjective)
+        when:
+          - 'enWordsAfter(ctx, m.index + m[0].length, 4).some((w) => EN_MASS.has(w.lower) || enNounNumber(w.lower)?.number === "singular")'
+          - "!/^[0-9]/.test(count) || nnNumberCountOk(count, before, previous)"
+          - '!(count === "few" && !/\ba[ \t ]+$/i.test(before) && !EN_MASS.has(enTokensAfter(ctx, m.index + m[0].length, 1)[0]?.lower ?? ""))'
+          - '!(/\ban?[ \t ]+$/i.test(before) && count !== "few")'
+          - "!(hasCountPrefix(before) || NN_COUNT_LABELS.test(before))"
+          - "!(previous && !/^(?:these|those|few)$/.test(count) && nnLabelBefore(previous))"
+          - '!/(?!An?[ \t ])[A-Z]\w*[ \t ]+$/.test(before)'
+          - k >= 0
+          - "!tokens.slice(0, k).some((t) => /^(?:more|less)$/.test(t.lower))"
+          - "!(/^[0-9]/.test(count) && k > 0)"
+          - '!(!massCount && (forms?.number !== "singular" || forms.singular === forms.plural))'
+          - "!(/^[0-9]/.test(count) && noun.lower.length < 5)"
+          - '!(tokens[k + 1]?.lower === "of" && !/^(?:kind|type|sort)$/.test(noun.lower))'
+        return: >-
+          EN_MASS.has(noun.lower) && /^(?:many|several|few)$/.test(count) && adjectives ? nnMassCount(ctx, m, tokens, k, count)
+          : nnCountNoun(ctx, m, tokens, k, count, previous)
       # "this errors are", "Can it find this errors?": this before a plural noun.
       - regex: "(?<target>this){{S}}(?<noun>[a-z]+){{E}}"
         owner: none
-        fixer: numberThisPlural
+        # "This means…", "this works.": this + a verb unless a plural verb follows; "this types of tools"
+        # has its plural noun before "of". "this hundreds of times" counts; "This terms of business
+        # contains…" names one thing.
+        let:
+          forms: enNounNumber(noun)
+          read: englishWordInfo(noun)
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          verb: 'next?.kind === "word" ? next.lower : ""'
+          agree: /^(?:are|were|have|do|aren['’]t|weren['’]t|haven['’]t|don['’]t)$/.test(verb)
+          ofPlural: >-
+            verb === "of" && !!read?.plural && !NN_NUMERAL_NOUNS.has(noun.replace(/s$/, "")) &&
+            !enTokensAfter(ctx, m.index + m[0].length, 6).some((t) => t.kind === "word" && /^(?:is|was|has|contains|includes|applies|covers)$/.test(t.lower))
+          span: m.indices!.groups!.target
+        when:
+          - "!(NN_PRONOUN_POSSESSIVES.has(noun) || ctx.dictionary.has(noun))"
+          - 'forms?.number === "plural"'
+          - "!(read && (read.adverb || !read.noun))"
+          - '!(!agree && !ofPlural && (read?.verbs.length || !(next?.kind === "end" || next?.kind === "comma")))'
+          - "!/^(?:year|week|month|day|time|morning|evening|season)s$/.test(noun)"
+        return: 'nnFinding(ctx, "review_msg_demonstrative_number", span[0], span[1], [caseLike(target, "these")], m.index)'
       # "resolve these issue", "extend those rule", "for these information": an object after
       # these/those whose noun is singular. Count nouns get both repairs; mass nouns take
       # this/that.
       - regex: "(?<dem>these|those){{S}}(?=[a-z])"
         owner: dem
-        fixer: numberDemonstrativeObject
+        # "one of these elephant" belongs to the one-of check ("much of these advice" does not); a quote
+        # after makes a compound.
+        let:
+          previous: enWordBefore(ctx, m.index)
+          read: "previous ? enInfo(previous) : null"
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 6)
+          k: nnHead(ctx, tokens, false, false, 0)
+          noun: tokens[k]
+          single: 'caseLike(dem, dem.toLowerCase() === "these" ? "this" : "that")'
+          start: m.indices!.groups!.dem[0]
+          middle: ctx.source.slice(start + dem.length, noun.start)
+          alternatives: "EN_MASS.has(noun.lower) ? [`${single}${middle}${noun.text}`] : nnDemonstrativeCount(tokens, k, previous, dem, single, middle)"
+        when:
+          - EN_PREPOSITIONS.has(previous) || (!!read?.verbs.length && !EN_FUNCTION_WORDS.has(previous))
+          - k >= 0
+          - '!(!nnPhraseEnds(ctx, tokens, k, true) || tokens[k + 1]?.lower === "of")'
+          - >-
+            !((previous === "of" && !/\b(?:much|most|all|some|none|any|half)[ \t ]+of[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 16),
+            m.index))) || /^[ \t ]*["“'‘]/.test(ctx.text.slice(noun.end, noun.end + 3)))
+          - "!NN_NOT_COUNTED.has(noun.lower)"
+          - alternatives
+        return: >-
+          ({ ruleId: "englishNounNumber", messageKey: "review_msg_demonstrative_number", range: { start, end: noun.end }, alternatives,
+          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}), context: enEvidence(ctx, m.index, noun.end) })
       # "These chair would break", "Those table was small": these/those + a singular subject.
       - regex: "(?<dem>these|those){{S}}(?=[a-z])"
         owner: dem
-        fixer: numberDemonstrativeSubject
+        # The clause goes on in known words ("Those file have unknownword." gives nothing), and the words
+        # of the user stay as typed. "Those file are missing" belongs to the status template in
+        # englishNounNumber.ts. A noun before be or a modal: "These chair would…" ("These cost more" has
+        # no verb next). "Those standing were men", "those affected": a participle names people.
+        let:
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 6)
+          k: nnHead(ctx, tokens, false, false, 0)
+          noun: tokens[k]
+          verb: tokens[k + 1]
+          after: tokens[k + 2]
+          read: englishWordInfo(noun.lower)
+          forms: enNounNumber(noun.lower)
+          start: m.indices!.groups!.dem[0]
+          single: 'caseLike(dem, dem.toLowerCase() === "these" ? "this" : "that")'
+          middle: ctx.source.slice(start + dem.length, noun.start)
+          plural: "`${dem}${middle}${caseLike(noun.text, forms.plural)}`"
+          singular: "`${single}${middle}${noun.text}`"
+          alternatives: "/^(?:is|was|has)$/.test(verb.lower) ? [singular] : /^(?:are|were|have)$/.test(verb.lower) ? [plural] : [plural, singular]"
+        when:
+          - enAfterBreak(ctx, m.index)
+          - k >= 0
+          - 'verb?.kind === "word" && NN_SUBJECT_VERBS.test(verb.lower)'
+          - '!(after?.kind !== "end" && !(after?.kind === "word" && englishWordInfo(after.lower)))'
+          - '!(/^(?:is|was|are|were)$/.test(verb.lower) && /^(?:missing|broken|ready|new|old|available|useful)$/.test(after?.lower ?? ""))'
+          - "!(ctx.dictionary.has(noun.lower) || noun.text !== noun.lower)"
+          - "!/(?:ing|ed)$/.test(noun.lower)"
+          - "!(!read?.noun || read.adjective || read.plural || EN_MASS.has(noun.lower))"
+          - '!(forms?.number !== "singular" || forms.singular === forms.plural)'
+          - "!(start < ctx.from || start >= ctx.to)"
+        return: >-
+          ({ ruleId: "englishNounNumber", messageKey: "review_msg_demonstrative_number", range: { start, end: noun.end }, alternatives,
+          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}), context: enEvidence(ctx, m.index, verb.end) })
       # "each children are", "every things went": each/every take a singular noun.
       - regex: "(?<target>each|every){{S}}(?=[a-z])"
         owner: none
-        fixer: numberEachPlural
+        # "They each take…": a pronoun "each" before a verb. "Every body part hurts": a noun head, then
+        # its -s verb, unless a plural verb follows.
+        let:
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 5)
+          k: nnHead(ctx, tokens, false, false, 0)
+          noun: tokens[k]
+          forms: enNounNumber(noun.lower)
+          third: 'englishWordInfo(noun.lower)?.verbs.some((v) => v.form === "third")'
+        when:
+          - '!/^(?:other|one|and|few|single|time|so)$/.test(tokens[0]?.lower ?? "")'
+          - k >= 0
+          - '!(forms?.number !== "plural" || /(?:wards|doors|stairs)$/.test(noun.lower))'
+          - "!(k === 0 && third)"
+          - >-
+            !(third && enInfo(tokens[k - 1].lower)?.noun &&
+            !/^(?:are|were|have|do|aren['’]t|weren['’]t|haven['’]t|don['’]t)$/.test(tokens[k + 1]?.lower ?? ""))
+          - nnPhraseEnds(ctx, tokens, k, true)
+        return: 'nnFinding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.singular], m.index)'
       # "a two questions", "a 150 likes ago": "a" before a count above one.
       - regex: "(?<target>an?{{S}})(?<count>[0-9]{1,3}(?:,?[0-9]{3})*|two|three|four|five|six|seven|eight|nine|ten|twelve|twenty|thirty|forty|fifty){{S}}(?<noun>[a-z]+){{E}}"
         owner: none
-        fixer: numberArticleCount
+        # "worth a 1000 words" reads "a thousand"; "a 7 times the rate" multiplies. "a two weeks' wait":
+        # a possessive plural modifies the next noun.
+        let:
+          pair: enTokensAfter(ctx, m.index + m[0].length, 2)
+          ok: >-
+            !pair[0] || pair[0].kind === "end" || (pair[0].kind === "comma" && !nnNounLike(pair[1])) ||
+            /^(?:ago|left|later|before|of|in|for|to|with|on|at|from|i|you|we|they|he|she|that|which|who|last|this|next|per|by|about|after)$/.test(pair[0].lower)
+          span: m.indices!.groups!.target
+        when:
+          - '!(/^[0-9]/.test(count) && (Number(count.replace(/,/g, "")) < 2 || /^10+$/.test(count.replace(/,/g, ""))))'
+          - '!(noun === "times" || enNounNumber(noun)?.number !== "plural")'
+          - "!/^['’]/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 1))"
+          - ok
+        return: 'nnFinding(ctx, "review_msg_noun_count", span[0], span[1], [""], m.index)'
       # "too much cars", "as much foreign languages as": much before a countable plural.
       - regex: "(?:too|so|as|are|were|how|this|that|not|even){{S}}(?<target>much){{S}}(?=[a-z])"
         owner: none
-        fixer: numberMuchPlural
+        # "Thanks so much people!", "love you so much guys": an adverb, then a term of address. Nouns that
+        # are only plural take "much": "much thanks", "how much savings".
+        let:
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 5)
+          k: nnHead(ctx, tokens, true, false, 0)
+          noun: tokens[k]
+          after: tokens[k + 1]
+          span: m.indices!.groups!.target
+        when:
+          - "!(!/^(?:are|were)/i.test(m[0]) && /^(?:thanks|thx|you|it|them|him|her|me|us)$/.test(enWordBefore(ctx, m.index)))"
+          - k >= 0
+          - 'enNounNumber(noun.lower)?.number === "plural"'
+          - "!tokens.slice(0, k).some((t) => /^(?:more|less|better|worse)$/.test(t.lower))"
+          - "!NN_PLURAL_ONLY.test(noun.lower)"
+          - "/^(?:how|this|that|not|even)/i.test(m[0]) ? nnMuchClosed(noun, after) : nnPhraseEnds(ctx, tokens, k, false)"
+        return: 'nnFinding(ctx, "review_msg_noun_count", span[0], span[1], [caseLike(target, "many")], m.index)'
       # "Two of my friend have", "one of our client decided": a partitive takes a plural noun.
       - regex: "(?<count>two|three|four|five|six|seven|eight|nine|ten|several|many|few|both|[2-9]|[1-9][0-9]){{S}}of{{S}}(?:my|your|our|his|her|their|the|these|those){{S}}(?=[a-z])"
         owner: none
-        fixer: numberPartitive
+        # "step 4 of my script", "part 3 of the guide": a numbered label. "one of the best", "one of my
+        # favorite": an adjective head.
+        let:
+          previous: enWordBefore(ctx, m.index)
+          read: previous && enInfo(previous)
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 5)
+          k: nnHead(ctx, tokens, false, false, 0)
+          noun: tokens[k]
+          forms: enNounNumber(noun.lower)
+        when:
+          - "!(read && read.noun && (!read.verbs.length || NN_COUNT_LABELS.test(previous)))"
+          - k >= 0
+          - "!(noun.start < ctx.from || noun.start >= ctx.to)"
+          - '!(forms?.number !== "singular" || EN_MASS.has(noun.lower) || NN_NOT_COUNTED.has(noun.lower))'
+          - "!(englishWordInfo(noun.lower)?.adjective || /^(?:best|worst|most|least|last|first|next|latter|former|few|rest)$/.test(noun.lower))"
+          - >-
+            !(!nnPhraseEnds(ctx, tokens, k, true) && !(tokens[k + 1]?.kind === "word" &&
+            /^(?:decided|said|told|asked|went|came|got|had|left|took|made)$/.test(tokens[k + 1].lower)))
+        return: 'nnFinding(ctx, "review_msg_one_of", noun.start, noun.end, [forms.plural], m.index)'
       # "a lot of car", "a number of issue": a quantity takes a plural count noun. Only the
       # authored count nouns, which have little mass use ("a lot of work" is right). A noun that
       # is not authored reports englishPossibleErrors.
       - regex: "(?:(?:a{{S}}(?:lot|bunch|couple|(?:great|large|small|huge|certain){{S}}number|number)|lots|plenty|dozens|hundreds|thousands|millions){{S}}of){{S}}(?=[a-z])"
         owner: none
         anyCheck: true
-        fixer: numberQuantityOf
+        # The authored count nouns. Nouns that the n-grams show mostly counted ("a lot of ball") may have
+        # a mass use too ("a lot of spark"): those go to the opt-in possible-errors check.
+        let:
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 5)
+          k: nnHead(ctx, tokens, false, false, 0)
+          noun: tokens[k]
+          authored: englishNounForms(noun.lower)
+          forms: "authored ?? (englishCountNoun(noun.lower) && !EN_MASS.has(noun.lower) ? enNounNumber(noun.lower) : null)"
+          found: 'nnFinding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.plural], m.index)'
+        when:
+          - k >= 0
+          - "!(noun.start < ctx.from || noun.start >= ctx.to)"
+          - "!(!forms || forms.singular !== noun.lower || forms.plural === noun.lower)"
+          - '!(!nnPhraseEnds(ctx, tokens, k, true) && !/^(?:who|to)$/.test(tokens[k + 1]?.lower ?? ""))'
+        return: 'authored ? found : { ...found, ruleId: "englishPossibleErrors" }'
       # "Other might benefit", "what other think": the pronoun is "others".
       - regex: "(?<target>other){{S}}(?<next>[a-z]+){{E}}"
         owner: none
-        fixer: numberOtherPronoun
+        # "What other do you…": an inverted question.
+        let:
+          before: enWordBefore(ctx, m.index)
+          nextLower: next.toLowerCase()
+          read: englishWordInfo(nextLower)
+          finite: >-
+            /^(?:are|were|have|had|will|would|can|could|might|may|must|should|do|did|don['’]t)$/.test(nextLower) ||
+            (!!read && !read.noun && !read.adjective && read.verbs.some((v) => v.form === "base"))
+          span: m.indices!.groups!.target
+        when:
+          - "!(before && !/^(?:and|but|so|what|that|if|when|because|while|how|why|where)$/.test(before))"
+          - '!(before === "what" && /^(?:do|does|did|will|would|can|could|should|is|are)$/.test(nextLower))'
+          - finite
+        return: 'nnFinding(ctx, "review_msg_noun_count", span[0], span[1], [caseLike(target, "others")], m.index)'
   # Verb groups whose second verb has the wrong form, read from the lexicon. Each part of
   # verbGroups is a rule of its own when it keeps one finding per range.
   - id: en.verbGroups

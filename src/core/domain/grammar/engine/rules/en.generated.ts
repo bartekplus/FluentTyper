@@ -12,8 +12,11 @@ import type {
   RawFinding,
 } from "../../library";
 import {
+  EN_ADVERBS,
   EN_AUXILIARIES,
   EN_FUNCTION_WORDS,
+  EN_IRREGULAR,
+  EN_IRREGULAR_PLURALS,
   EN_MASS,
   EN_PERMISSION_AFTER,
   EN_PREPOSITIONS,
@@ -32,18 +35,157 @@ import {
   enTokensAfter,
   enWordBefore,
   enWordsAfter,
+  englishCountNoun,
   englishInflect,
   englishInitialSound,
   englishLemma,
   englishLexiconInflect,
+  englishListedNoun,
+  englishNounForms,
   englishVerbForms,
   englishVerbNouns,
   englishWordInfo,
   finding,
+  hasCountPrefix,
   hasUserOrCasedWord,
   knownEnglishNounNumber,
 } from "../../library";
 import { FEELING_VERBS, NOUN_LIKE_ING, isoDateWarning } from "./common.generated";
+
+export const NN_NUMERAL_NOUNS: ReadonlySet<string> = new Set([
+  "hundred",
+  "thousand",
+  "million",
+  "billion",
+  "trillion",
+  "dozen",
+  "couple",
+  "few",
+  "lot",
+  "lots",
+  "number",
+  "pair",
+  "score",
+  "handful",
+  "bunch",
+  "total",
+  "majority",
+]);
+
+export const NN_NUMBER_WORDS: ReadonlySet<string> = new Set([
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+  "eleven",
+  "twelve",
+  "thirteen",
+  "fourteen",
+  "fifteen",
+  "sixteen",
+  "seventeen",
+  "eighteen",
+  "nineteen",
+  "twenty",
+  "thirty",
+  "forty",
+  "fifty",
+  "sixty",
+  "seventy",
+  "eighty",
+  "ninety",
+]);
+
+export const NN_COUNTERS: ReadonlySet<string> = new Set([
+  "many",
+  "several",
+  "various",
+  "numerous",
+  "multiple",
+  "few",
+  "these",
+  "those",
+]);
+
+export const NN_ENDERS: ReadonlySet<string> = new Set([
+  "of",
+  "in",
+  "on",
+  "at",
+  "for",
+  "with",
+  "from",
+  "about",
+  "by",
+  "into",
+  "than",
+  "that",
+  "which",
+  "who",
+  "whom",
+  "where",
+  "when",
+  "because",
+  "if",
+  "as",
+  "ago",
+  "though",
+  "too",
+  "later",
+  "now",
+  "today",
+  "yesterday",
+  "tomorrow",
+  "tonight",
+  "again",
+  "here",
+  "there",
+  "anyway",
+  "instead",
+  "yet",
+  "but",
+  "so",
+]);
+
+export const NN_NOT_COUNTED: ReadonlySet<string> = new Set([
+  "today",
+  "tomorrow",
+  "tonight",
+  "yesterday",
+  "now",
+  "time",
+  "way",
+  "kind",
+  "sort",
+  "type",
+  "percent",
+  "bit",
+  "byte",
+  "euro",
+  "yen",
+  "yuan",
+  "won",
+  "baht",
+  "rand",
+  "max",
+  "min",
+  "foot",
+]);
+
+export const NN_PRONOUN_POSSESSIVES: ReadonlySet<string> = new Set([
+  "yours",
+  "hers",
+  "ours",
+  "theirs",
+  "its",
+  "mine",
+  "whose",
+]);
 
 export const VG_PREDICATE_WORDS: ReadonlySet<string> = new Set([
   "awake",
@@ -432,6 +574,315 @@ export const CLAUSE_COMPARATIVE: Readonly<Record<string, string>> = {
   young: "younger",
   old: "older",
 };
+
+// en.yaml rule en.existentialCount def nnExistentialVerb
+export function nnExistentialVerb(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  nounEnd: number,
+): RawFinding {
+  const verb = m.groups!.verb;
+  const contracted = m.groups!.contracted;
+  const there = m.groups!.there;
+  const typed = verb ?? contracted;
+  const start = verb ? m.indices!.groups!.verb[0] : m.indices!.groups!.contracted[0];
+  const end = verb ? m.indices!.groups!.verb[1] : m.indices!.groups!.contracted[1];
+  const fix = contracted ? `${caseLike(there, there)} are` : /^was$/i.test(typed) ? "were" : "are";
+  return {
+    ruleId: "englishExistentialAgreement",
+    messageKey: "review_msg_existential_agreement",
+    range: contracted ? { start: m.indices!.groups!.there[0], end } : { start, end },
+    alternatives: [caseLike(contracted ? there : typed, fix)],
+    context: enEvidence(ctx, m.index, nounEnd),
+  };
+}
+
+// en.yaml rule en.nounNumberSlots def NN_COUNT_LABELS
+export const NN_COUNT_LABELS =
+  /\b(?:page|step|item|version|level|chapter|section|figure|table|number|no|line|row|column|volume|issue|part|phase|stage|round|game|episode|season|class|grade|room|floor|gate|platform|exit|route|channel|size|model|type|option|question|rule|article|act|scene|week|day|year|top|windows|iphone|ios|android|python|java|v|vol|ch|fig|pp|p)[ \t .#]*$/i;
+
+// en.yaml rule en.nounNumberSlots def NN_FINITE
+export const NN_FINITE =
+  /^(?:is|are|was|were|has|have|had|will|would|can|could|should|may|might|must|do|does|did)$/;
+
+// en.yaml rule en.nounNumberSlots def NN_TIME_PLURALS
+export const NN_TIME_PLURALS =
+  /^(?:seconds|minutes|hours|days|weeks|months|years|decades|centuries|moments|generations|tens|dozens|hundreds|thousands|millions|billions)$/;
+
+// en.yaml rule en.nounNumberSlots def NN_SUBJECT_VERBS
+export const NN_SUBJECT_VERBS =
+  /^(?:is|was|has|are|were|have|would|will|can|could|should|must|might|may)$/;
+
+// en.yaml rule en.nounNumberSlots def NN_CLAUSE_OPENERS
+export const NN_CLAUSE_OPENERS =
+  /^(?:make|makes|made|let|lets|help|helps|helped|have|has|had|see|saw|seen|watch|watched|hear|heard|feel|felt|notice|noticed|hope|hoped|think|thought|believe|guess|suppose|know|knew|say|said|says|bet|wish|expect|mean|means|until|till|after|before|since|as|than|like|unless|once|because|if|when|while|where|whether|so|and|or|but)$/;
+
+// en.yaml rule en.nounNumberSlots def NN_PLURAL_ONLY
+export const NN_PLURAL_ONLY =
+  /^(?:thanks|kudos|props|damages|earnings|savings|proceeds|funds|means|news|goods|clothes|wages|taxes|sales|congratulations|regards|resources|data|media)$/;
+
+// en.yaml rule en.nounNumberSlots def NN_PLACE_BEFORE
+export const NN_PLACE_BEFORE = /\b(?:over|out|in|up|down|from|back|under|right|around)[ \t ]+$/i;
+
+// en.yaml rule en.nounNumberSlots def nnNounLike
+export function nnNounLike(t: EnToken | undefined) {
+  return t?.kind !== "word"
+    ? t?.kind === "number"
+    : EN_FUNCTION_WORDS.has(t.lower) || NN_ENDERS.has(t.lower)
+      ? false
+      : EN_IRREGULAR_PLURALS.has(t.lower) || EN_IRREGULAR.has(t.lower)
+        ? true
+        : nnNounRead(t);
+}
+
+// en.yaml rule en.nounNumberSlots def nnNounRead
+export function nnNounRead(t: EnToken) {
+  const read = englishWordInfo(t.lower);
+  return !read
+    ? !!englishListedNoun(t.lower) || t.text !== t.lower
+    : read.noun || read.plural || (read.adjective && !read.adverb);
+}
+
+// en.yaml rule en.nounNumberSlots def nnAdjectiveOnly
+export function nnAdjectiveOnly(t: EnToken | undefined) {
+  const read = t?.kind === "word" ? englishWordInfo(t.lower) : null;
+  return !!read && read.adjective && !read.noun && !read.plural;
+}
+
+// en.yaml rule en.nounNumberSlots def nnPlain
+export function nnPlain(ctx: DetectContext, t: EnToken | undefined) {
+  return t?.kind === "word" && t.text === t.lower && !ctx.dictionary.has(t.lower);
+}
+
+// en.yaml rule en.nounNumberSlots def nnHead
+export function nnHead(
+  ctx: DetectContext,
+  tokens: EnToken[],
+  nouns: boolean,
+  otherToo: boolean,
+  k: number,
+): number {
+  if (!(k < 4)) return -1;
+  const t = tokens[k];
+  if (!(nnPlain(ctx, t) && !NN_NUMERAL_NOUNS.has(t.lower) && !NN_NUMBER_WORDS.has(t.lower)))
+    return -1;
+  const next = tokens[k + 1];
+  return !nnPlain(ctx, next) || !nnNounLike(next) || enNounNumber(t.lower)?.number === "plural"
+    ? k
+    : nnAdjectiveOnly(next) && enNounNumber(t.lower)
+      ? k
+      : nnModifier(t.lower, nouns, otherToo)
+        ? nnHead(ctx, tokens, nouns, otherToo, k + 1)
+        : -1;
+}
+
+// en.yaml rule en.nounNumberSlots def nnModifier
+export function nnModifier(word: string, nouns: boolean, otherToo: boolean) {
+  const read = enInfo(word);
+  return (
+    (otherToo && word === "other") ||
+    (!!read &&
+      (read.adjective || read.verbs.some((v) => v.form === "participle" || v.form === "ing"))) ||
+    (nouns && (read ? read.noun : englishListedNoun(word) === "singular")) ||
+    /^(?:very|really|most|more|new|pretty)$/.test(word)
+  );
+}
+
+// en.yaml rule en.nounNumberSlots def nnPhraseEnds
+export function nnPhraseEnds(ctx: DetectContext, tokens: EnToken[], k: number, finite: boolean) {
+  if (/^['’]/.test(ctx.text.slice(tokens[k].end, tokens[k].end + 1))) return false;
+  const next = tokens[k + 1];
+  if (next?.kind === "end" && /^["“]$/.test(next.text) && /^\p{L}/u.test(ctx.text.slice(next.end)))
+    return false;
+  return !next || next.kind === "end"
+    ? true
+    : next.kind === "comma"
+      ? nnCommaEnds(tokens[k + 2])
+      : next.kind !== "word"
+        ? false
+        : /^(?:in|on)$/.test(next.lower) && nnNounLike(tokens[k + 2])
+          ? false
+          : NN_ENDERS.has(next.lower) || (finite && NN_FINITE.test(next.lower))
+            ? true
+            : finite && nnVerbNoNoun(next.lower);
+}
+
+// en.yaml rule en.nounNumberSlots def nnCommaEnds
+export function nnCommaEnds(after: EnToken | undefined) {
+  return !after || after.kind === "end" || (after.kind === "word" && !nnNounLike(after));
+}
+
+// en.yaml rule en.nounNumberSlots def nnVerbNoNoun
+export function nnVerbNoNoun(word: string) {
+  const read = enInfo(word);
+  return (
+    !!read &&
+    !read.noun &&
+    !read.adjective &&
+    (read.verbs.some((v) => v.form === "third") ||
+      (read.verbs.some((v) => v.form === "past") &&
+        !read.verbs.some((v) => v.form === "participle")))
+  );
+}
+
+// en.yaml rule en.nounNumberSlots def nnFinding
+export function nnFinding(
+  ctx: DetectContext,
+  messageKey: RawFinding["messageKey"],
+  start: number,
+  end: number,
+  alternatives: string[],
+  from: number,
+) {
+  return finding("englishNounNumber", messageKey, start, end, alternatives, {
+    context: enEvidence(ctx, from, end),
+  });
+}
+
+// en.yaml rule en.nounNumberSlots def nnModifierNoun
+export function nnModifierNoun(word: string) {
+  const read = enInfo(word);
+  return read ? read.noun && !read.adjective : !!englishListedNoun(word);
+}
+
+// en.yaml rule en.nounNumberSlots def nnAdjectiveLike
+export function nnAdjectiveLike(word: string) {
+  const read = enInfo(word);
+  return !!read && (read.adjective || read.verbs.some((v) => v.form === "participle"));
+}
+
+// en.yaml rule en.nounNumberSlots def nnNumberCountOk
+export function nnNumberCountOk(count: string, before: string, previous: string) {
+  const n = Number(count.replace(/,/g, ""));
+  if (n < 2 || n === 2 || n === 4 || /[.,:/$€£#×x*–—-][ \t ]*$/.test(before)) return false;
+  const read = previous ? enInfo(previous) : null;
+  return !(previous && !EN_FUNCTION_WORDS.has(previous) && (!read || read.noun || read.adjective));
+}
+
+// en.yaml rule en.nounNumberSlots def nnLabelBefore
+export function nnLabelBefore(previous: string) {
+  const read = enInfo(previous);
+  return (
+    /^(?:we|you|they|us|them|other|first|last|next|final|top|more|by|x|from|between)$/.test(
+      previous,
+    ) ||
+    (read ? read.noun && !read.verbs.length : !!englishListedNoun(previous)) ||
+    /[A-Z]/.test(previous.slice(0, 1))
+  );
+}
+
+// en.yaml rule en.nounNumberSlots def nnMassCount
+export function nnMassCount(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  tokens: EnToken[],
+  k: number,
+  count: string,
+): RawFinding | null {
+  const fix = count === "many" ? "much" : count === "several" ? "some" : "little";
+  const start = m.indices!.groups!.target[0];
+  const coordinated =
+    /^(?:and|or)$/.test(tokens[k + 1]?.lower ?? "") &&
+    (EN_FUNCTION_WORDS.has(tokens[k + 2]?.lower ?? "") || nnPhraseEnds(ctx, tokens, k + 2, true));
+  if (!(nnPhraseEnds(ctx, tokens, k, true) || coordinated)) return null;
+  return nnFinding(
+    ctx,
+    "review_msg_noun_count",
+    start,
+    start + count.length,
+    [caseLike(m.groups!.target, fix)],
+    m.index,
+  );
+}
+
+// en.yaml rule en.nounNumberSlots def nnCountNoun
+export function nnCountNoun(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  tokens: EnToken[],
+  k: number,
+  count: string,
+  previous: string,
+): RawFinding | null {
+  const noun = tokens[k];
+  const forms = enNounNumber(noun.lower);
+  const kindOf = /^(?:kind|sort|type)$/.test(noun.lower) && tokens[k + 1]?.lower === "of";
+  if ((NN_NOT_COUNTED.has(noun.lower) && !kindOf) || EN_MASS.has(noun.lower)) return null;
+  if (!forms) return null;
+  if (englishNounForms(noun.lower) && !NN_COUNTERS.has(count)) return null;
+  const read = englishWordInfo(noun.lower);
+  if (read?.adjective && !kindOf) return null;
+  const verbToo = !!read?.verbs.length;
+  const next = tokens[k + 1];
+  const object =
+    englishCountNoun(noun.lower) &&
+    !!previous &&
+    (EN_PREPOSITIONS.has(previous) || !!enInfo(previous)?.verbs.some((v) => v.form !== "base"));
+  return count === "these" || count === "those"
+    ? !verbToo && /^(?:are|were|have)$/.test(next?.lower ?? "")
+      ? nnFinding(
+          ctx,
+          "review_msg_demonstrative_number",
+          noun.start,
+          noun.end,
+          [forms.plural],
+          m.index,
+        )
+      : null
+    : !(
+          verbToo &&
+          k === 0 &&
+          next?.kind !== "end" &&
+          !object &&
+          !/^(?:various|numerous|multiple)$/.test(count) &&
+          !/^(?:ago|later|earlier|of|about)$/.test(next?.lower ?? "")
+        ) && nnPhraseEnds(ctx, tokens, k, true)
+      ? nnFinding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.plural], m.index)
+      : null;
+}
+
+// en.yaml rule en.nounNumberSlots def nnDemonstrativeCount
+export function nnDemonstrativeCount(
+  tokens: EnToken[],
+  k: number,
+  previous: string,
+  dem: string,
+  single: string,
+  middle: string,
+): string[] | null {
+  const noun = tokens[k];
+  const forms = enNounNumber(noun.lower);
+  if (forms?.number !== "singular" || forms.singular === forms.plural) return null;
+  const nounRead = englishWordInfo(noun.lower);
+  if (nounRead?.adjective) return null;
+  if (
+    nounRead?.verbs.length &&
+    (k > 0 ||
+      NN_CLAUSE_OPENERS.test(previous) ||
+      EN_FUNCTION_WORDS.has(previous) ||
+      !/^(?:end|comma)$/.test(tokens[k + 1]?.kind ?? "end"))
+  )
+    return null;
+  return [`${dem}${middle}${forms.plural}`, `${single}${middle}${noun.text}`];
+}
+
+// en.yaml rule en.nounNumberSlots def nnMuchClosed
+export function nnMuchClosed(noun: EnToken, after: EnToken | undefined) {
+  const verbToo = !!englishWordInfo(noun.lower)?.verbs.some((v) => v.form === "third");
+  if (
+    verbToo &&
+    !(!after || after.kind === "end" || after.kind === "comma" || after.lower === "of")
+  )
+    return false;
+  return (
+    !after ||
+    after.kind === "end" ||
+    after.kind === "comma" ||
+    (after.kind === "word" &&
+      (/^(?:i|you|we|they|he|she)$/.test(after.lower) ||
+        (EN_PREPOSITIONS.has(after.lower) && !EN_ADVERBS.has(after.lower))))
+  );
+}
 
 // en.yaml rule en.verbGroups def VG_SUBJECT_PRONOUN
 export const VG_SUBJECT_PRONOUN =
@@ -1721,6 +2172,445 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
+  },
+  // en.yaml rule en.existentialCount frame 1
+  "@en.existentialCount/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const contracted = m.groups!.contracted;
+    const count = m.groups!.count;
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (NN_PLACE_BEFORE.test(before)) return null;
+    const typed = verb ?? contracted;
+    const singularVerb = /^(?:is|was|['’]s)$/i.test(typed);
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 6);
+    const k = nnHead(ctx, tokens, true, false, 0);
+    if (!(k >= 0)) return null;
+    const noun = tokens[k];
+    const forms = enNounNumber(noun.lower);
+    if (!forms || forms.singular === forms.plural || EN_MASS.has(forms.singular)) return null;
+    if (
+      NN_NUMERAL_NOUNS.has(noun.lower) ||
+      NN_NOT_COUNTED.has(noun.lower) ||
+      noun.lower === "times" ||
+      /^(?:better|worse|more|less|other)$/.test(noun.lower)
+    )
+      return null;
+    const after = tokens[k + 1];
+    const ends =
+      !after ||
+      after.kind === "end" ||
+      after.kind === "comma" ||
+      (after.kind === "word" &&
+        (NN_ENDERS.has(after.lower) ||
+          EN_PREPOSITIONS.has(after.lower) ||
+          /^(?:to|and|or|but|after|before|here|there|today|now|yet|anymore|left|sitting|standing|waiting)$/.test(
+            after.lower,
+          )));
+    if (!ends) return null;
+    if (
+      after?.kind === "comma" ||
+      /^(?:and|or|to)$/.test(after?.kind === "word" ? after.lower : "")
+    )
+      return null;
+    const c = count.toLowerCase().replace(/[ \t ]+/g, " ");
+    const rest = /^[^.!?;:\n]*/.exec(ctx.text.slice(noun.end, noun.end + 120))![0];
+    if (
+      /\b(?:and|or)[ \t ]+(?:a|an|one)\b/i.test(rest) ||
+      /^[ \t ]*\r?\n/.test(ctx.text.slice(noun.end))
+    )
+      return null;
+    if ([typed, noun.lower].some((w) => ctx.dictionary.has(w.toLowerCase()))) return null;
+    const covered =
+      /^(?:many|several|two|three|four|five|six|seven|eight|nine|ten|[0-9]+)$/.test(c) &&
+      (!after ||
+        after.kind === "end" ||
+        /^(?:that|which|with)$/.test(after.lower) ||
+        /^[ \t ]+(?:in|on|under|near|inside|outside)[ \t ]+(?:the|this|that|my|your|our|their)[ \t ]+(?:[a-z]+[ \t ]+)?(?:report|folder|file|document|room|box|table|account|list|screen|desk)\b/i.test(
+          ctx.text.slice(noun.end, noun.end + 64),
+        ));
+    return singularVerb && forms.number === "plural" && !covered
+      ? nnExistentialVerb(ctx, m, noun.end)
+      : !singularVerb &&
+          forms.number === "singular" &&
+          !/^(?:some|any|any other)$/.test(c) &&
+          !(c === "no" && noun.lower === "doubt") &&
+          !englishWordInfo(noun.lower)?.adjective &&
+          tokens.slice(0, k).every((t) => t.lower !== "of")
+        ? nnFinding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.plural], m.index)
+        : null;
+  },
+  // en.yaml rule en.nounNumberSlots frame 1
+  "@en.nounNumberSlots/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (target !== target.toLowerCase() && !enAfterBreak(ctx, m.index)) return null;
+    if (
+      !enWordsAfter(ctx, m.index + m[0].length, 4).some(
+        (w) => enNounNumber(w.lower)?.number === "plural",
+      )
+    )
+      return null;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 6);
+    const k = nnHead(ctx, tokens, true, false, 0);
+    if (!(k >= 0)) return null;
+    const noun = tokens[k];
+    const forms = enNounNumber(noun.lower);
+    if (forms?.number !== "plural" || /(?:wards|doors|stairs)$/.test(noun.lower)) return null;
+    const nextLower = tokens[k + 1]?.lower ?? "";
+    const later = NN_TIME_PLURALS.test(noun.lower) && /^(?:later|earlier)$/.test(nextLower);
+    const modifiers = tokens.slice(0, k);
+    const relative =
+      k === 0 &&
+      EN_IRREGULAR_PLURALS.has(noun.lower) &&
+      /^(?:i|we|you|they|he|she)$/.test(nextLower);
+    const singularVerb = /^(?:is|was|has)$/.test(nextLower) && noun.lower !== "people";
+    if (!later && !relative && !singularVerb && !nnPhraseEnds(ctx, tokens, k, false)) return null;
+    const nounModifier = modifiers.some((t) => nnModifierNoun(t.lower));
+    const sentenceEnd =
+      tokens[k + 1]?.kind === "end" &&
+      /^[.!?]/.test(tokens[k + 1].text) &&
+      /\b(?:is|are|was|were|am|be|been)(?:[ \t ]+[a-z]+ly)?[ \t ]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 32), m.index),
+      );
+    if (
+      nounModifier &&
+      (NN_TIME_PLURALS.test(noun.lower) || (!/^(?:of|for|with)$/.test(nextLower) && !sentenceEnd))
+    )
+      return null;
+    const read = englishWordInfo(noun.lower);
+    const after = tokens[k + 1];
+    const closes = !after || after.kind === "end" || /^(?:of|about)$/.test(after.lower);
+    const adjectiveLike = modifiers.every((t) => nnAdjectiveLike(t.lower));
+    if (
+      read?.verbs.some((v) => v.form === "third") &&
+      !(read.noun && closes && adjectiveLike) &&
+      !(read.noun && sentenceEnd) &&
+      (k === 0 || modifiers.some((t) => enInfo(t.lower)?.noun || !enInfo(t.lower)))
+    )
+      return null;
+    if (
+      modifiers.some((t) =>
+        /^(?:few|many|lot|several|little|zillion|most|greatest|best)$|est$/.test(t.lower),
+      )
+    )
+      return null;
+    return nnFinding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.singular], m.index);
+  },
+  // en.yaml rule en.nounNumberSlots frame 2
+  "@en.nounNumberSlots/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (
+      !enWordsAfter(ctx, m.index + m[0].length, 4).some(
+        (w) => EN_MASS.has(w.lower) || enNounNumber(w.lower)?.number === "singular",
+      )
+    )
+      return null;
+    const count = target.toLowerCase();
+    const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
+    const previous = enWordBefore(ctx, m.index);
+    if (!(!/^[0-9]/.test(count) || nnNumberCountOk(count, before, previous))) return null;
+    if (
+      count === "few" &&
+      !/\ba[ \t ]+$/i.test(before) &&
+      !EN_MASS.has(enTokensAfter(ctx, m.index + m[0].length, 1)[0]?.lower ?? "")
+    )
+      return null;
+    if (/\ban?[ \t ]+$/i.test(before) && count !== "few") return null;
+    if (hasCountPrefix(before) || NN_COUNT_LABELS.test(before)) return null;
+    if (previous && !/^(?:these|those|few)$/.test(count) && nnLabelBefore(previous)) return null;
+    if (/(?!An?[ \t ])[A-Z]\w*[ \t ]+$/.test(before)) return null;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 6);
+    const k = nnHead(ctx, tokens, false, true, 0);
+    if (!(k >= 0)) return null;
+    if (tokens.slice(0, k).some((t) => /^(?:more|less)$/.test(t.lower))) return null;
+    if (/^[0-9]/.test(count) && k > 0) return null;
+    const noun = tokens[k];
+    const forms = enNounNumber(noun.lower);
+    const massCount = EN_MASS.has(noun.lower) && !forms?.plural.length;
+    if (!massCount && (forms?.number !== "singular" || forms.singular === forms.plural))
+      return null;
+    if (/^[0-9]/.test(count) && noun.lower.length < 5) return null;
+    if (tokens[k + 1]?.lower === "of" && !/^(?:kind|type|sort)$/.test(noun.lower)) return null;
+    const adjectives = tokens.slice(0, k).every((t) => !!enInfo(t.lower)?.adjective);
+    return EN_MASS.has(noun.lower) && /^(?:many|several|few)$/.test(count) && adjectives
+      ? nnMassCount(ctx, m, tokens, k, count)
+      : nnCountNoun(ctx, m, tokens, k, count, previous);
+  },
+  // en.yaml rule en.nounNumberSlots frame 3
+  "@en.nounNumberSlots/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    if (NN_PRONOUN_POSSESSIVES.has(noun) || ctx.dictionary.has(noun)) return null;
+    const forms = enNounNumber(noun);
+    if (!(forms?.number === "plural")) return null;
+    const read = englishWordInfo(noun);
+    if (read && (read.adverb || !read.noun)) return null;
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    const verb = next?.kind === "word" ? next.lower : "";
+    const agree = /^(?:are|were|have|do|aren['’]t|weren['’]t|haven['’]t|don['’]t)$/.test(verb);
+    const ofPlural =
+      verb === "of" &&
+      !!read?.plural &&
+      !NN_NUMERAL_NOUNS.has(noun.replace(/s$/, "")) &&
+      !enTokensAfter(ctx, m.index + m[0].length, 6).some(
+        (t) =>
+          t.kind === "word" && /^(?:is|was|has|contains|includes|applies|covers)$/.test(t.lower),
+      );
+    if (
+      !agree &&
+      !ofPlural &&
+      (read?.verbs.length || !(next?.kind === "end" || next?.kind === "comma"))
+    )
+      return null;
+    if (/^(?:year|week|month|day|time|morning|evening|season)s$/.test(noun)) return null;
+    const span = m.indices!.groups!.target;
+    return nnFinding(
+      ctx,
+      "review_msg_demonstrative_number",
+      span[0],
+      span[1],
+      [caseLike(target, "these")],
+      m.index,
+    );
+  },
+  // en.yaml rule en.nounNumberSlots frame 4
+  "@en.nounNumberSlots/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const dem = m.groups!.dem;
+    const previous = enWordBefore(ctx, m.index);
+    const read = previous ? enInfo(previous) : null;
+    if (!(
+      EN_PREPOSITIONS.has(previous) ||
+      (!!read?.verbs.length && !EN_FUNCTION_WORDS.has(previous))
+    ))
+      return null;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 6);
+    const k = nnHead(ctx, tokens, false, false, 0);
+    if (!(k >= 0)) return null;
+    if (!nnPhraseEnds(ctx, tokens, k, true) || tokens[k + 1]?.lower === "of") return null;
+    const noun = tokens[k];
+    if (
+      (previous === "of" &&
+        !/\b(?:much|most|all|some|none|any|half)[ \t ]+of[ \t ]+$/i.test(
+          ctx.text.slice(Math.max(0, m.index - 16), m.index),
+        )) ||
+      /^[ \t ]*["“'‘]/.test(ctx.text.slice(noun.end, noun.end + 3))
+    )
+      return null;
+    if (NN_NOT_COUNTED.has(noun.lower)) return null;
+    const single = caseLike(dem, dem.toLowerCase() === "these" ? "this" : "that");
+    const start = m.indices!.groups!.dem[0];
+    const middle = ctx.source.slice(start + dem.length, noun.start);
+    const alternatives = EN_MASS.has(noun.lower)
+      ? [`${single}${middle}${noun.text}`]
+      : nnDemonstrativeCount(tokens, k, previous, dem, single, middle);
+    if (!alternatives) return null;
+    return {
+      ruleId: "englishNounNumber",
+      messageKey: "review_msg_demonstrative_number",
+      range: { start, end: noun.end },
+      alternatives,
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+      context: enEvidence(ctx, m.index, noun.end),
+    };
+  },
+  // en.yaml rule en.nounNumberSlots frame 5
+  "@en.nounNumberSlots/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const dem = m.groups!.dem;
+    if (!enAfterBreak(ctx, m.index)) return null;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 6);
+    const k = nnHead(ctx, tokens, false, false, 0);
+    if (!(k >= 0)) return null;
+    const noun = tokens[k];
+    const verb = tokens[k + 1];
+    if (!(verb?.kind === "word" && NN_SUBJECT_VERBS.test(verb.lower))) return null;
+    const after = tokens[k + 2];
+    if (after?.kind !== "end" && !(after?.kind === "word" && englishWordInfo(after.lower)))
+      return null;
+    if (
+      /^(?:is|was|are|were)$/.test(verb.lower) &&
+      /^(?:missing|broken|ready|new|old|available|useful)$/.test(after?.lower ?? "")
+    )
+      return null;
+    if (ctx.dictionary.has(noun.lower) || noun.text !== noun.lower) return null;
+    if (/(?:ing|ed)$/.test(noun.lower)) return null;
+    const read = englishWordInfo(noun.lower);
+    if (!read?.noun || read.adjective || read.plural || EN_MASS.has(noun.lower)) return null;
+    const forms = enNounNumber(noun.lower);
+    if (forms?.number !== "singular" || forms.singular === forms.plural) return null;
+    const start = m.indices!.groups!.dem[0];
+    if (start < ctx.from || start >= ctx.to) return null;
+    const single = caseLike(dem, dem.toLowerCase() === "these" ? "this" : "that");
+    const middle = ctx.source.slice(start + dem.length, noun.start);
+    const plural = `${dem}${middle}${caseLike(noun.text, forms.plural)}`;
+    const singular = `${single}${middle}${noun.text}`;
+    const alternatives = /^(?:is|was|has)$/.test(verb.lower)
+      ? [singular]
+      : /^(?:are|were|have)$/.test(verb.lower)
+        ? [plural]
+        : [plural, singular];
+    return {
+      ruleId: "englishNounNumber",
+      messageKey: "review_msg_demonstrative_number",
+      range: { start, end: noun.end },
+      alternatives,
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+      context: enEvidence(ctx, m.index, verb.end),
+    };
+  },
+  // en.yaml rule en.nounNumberSlots frame 6
+  "@en.nounNumberSlots/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 5);
+    if (/^(?:other|one|and|few|single|time|so)$/.test(tokens[0]?.lower ?? "")) return null;
+    const k = nnHead(ctx, tokens, false, false, 0);
+    if (!(k >= 0)) return null;
+    const noun = tokens[k];
+    const forms = enNounNumber(noun.lower);
+    if (forms?.number !== "plural" || /(?:wards|doors|stairs)$/.test(noun.lower)) return null;
+    const third = englishWordInfo(noun.lower)?.verbs.some((v) => v.form === "third");
+    if (k === 0 && third) return null;
+    if (
+      third &&
+      enInfo(tokens[k - 1].lower)?.noun &&
+      !/^(?:are|were|have|do|aren['’]t|weren['’]t|haven['’]t|don['’]t)$/.test(
+        tokens[k + 1]?.lower ?? "",
+      )
+    )
+      return null;
+    if (!nnPhraseEnds(ctx, tokens, k, true)) return null;
+    return nnFinding(ctx, "review_msg_noun_count", noun.start, noun.end, [forms.singular], m.index);
+  },
+  // en.yaml rule en.nounNumberSlots frame 7
+  "@en.nounNumberSlots/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const count = m.groups!.count;
+    const noun = m.groups!.noun;
+    if (
+      /^[0-9]/.test(count) &&
+      (Number(count.replace(/,/g, "")) < 2 || /^10+$/.test(count.replace(/,/g, "")))
+    )
+      return null;
+    if (noun === "times" || enNounNumber(noun)?.number !== "plural") return null;
+    if (/^['’]/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 1))) return null;
+    const pair = enTokensAfter(ctx, m.index + m[0].length, 2);
+    const ok =
+      !pair[0] ||
+      pair[0].kind === "end" ||
+      (pair[0].kind === "comma" && !nnNounLike(pair[1])) ||
+      /^(?:ago|left|later|before|of|in|for|to|with|on|at|from|i|you|we|they|he|she|that|which|who|last|this|next|per|by|about|after)$/.test(
+        pair[0].lower,
+      );
+    if (!ok) return null;
+    const span = m.indices!.groups!.target;
+    return nnFinding(ctx, "review_msg_noun_count", span[0], span[1], [""], m.index);
+  },
+  // en.yaml rule en.nounNumberSlots frame 8
+  "@en.nounNumberSlots/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (
+      !/^(?:are|were)/i.test(m[0]) &&
+      /^(?:thanks|thx|you|it|them|him|her|me|us)$/.test(enWordBefore(ctx, m.index))
+    )
+      return null;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 5);
+    const k = nnHead(ctx, tokens, true, false, 0);
+    if (!(k >= 0)) return null;
+    const noun = tokens[k];
+    if (!(enNounNumber(noun.lower)?.number === "plural")) return null;
+    if (tokens.slice(0, k).some((t) => /^(?:more|less|better|worse)$/.test(t.lower))) return null;
+    if (NN_PLURAL_ONLY.test(noun.lower)) return null;
+    const after = tokens[k + 1];
+    if (
+      !(/^(?:how|this|that|not|even)/i.test(m[0])
+        ? nnMuchClosed(noun, after)
+        : nnPhraseEnds(ctx, tokens, k, false))
+    )
+      return null;
+    const span = m.indices!.groups!.target;
+    return nnFinding(
+      ctx,
+      "review_msg_noun_count",
+      span[0],
+      span[1],
+      [caseLike(target, "many")],
+      m.index,
+    );
+  },
+  // en.yaml rule en.nounNumberSlots frame 9
+  "@en.nounNumberSlots/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const previous = enWordBefore(ctx, m.index);
+    const read = previous && enInfo(previous);
+    if (read && read.noun && (!read.verbs.length || NN_COUNT_LABELS.test(previous))) return null;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 5);
+    const k = nnHead(ctx, tokens, false, false, 0);
+    if (!(k >= 0)) return null;
+    const noun = tokens[k];
+    if (noun.start < ctx.from || noun.start >= ctx.to) return null;
+    const forms = enNounNumber(noun.lower);
+    if (forms?.number !== "singular" || EN_MASS.has(noun.lower) || NN_NOT_COUNTED.has(noun.lower))
+      return null;
+    if (
+      englishWordInfo(noun.lower)?.adjective ||
+      /^(?:best|worst|most|least|last|first|next|latter|former|few|rest)$/.test(noun.lower)
+    )
+      return null;
+    if (
+      !nnPhraseEnds(ctx, tokens, k, true) &&
+      !(
+        tokens[k + 1]?.kind === "word" &&
+        /^(?:decided|said|told|asked|went|came|got|had|left|took|made)$/.test(tokens[k + 1].lower)
+      )
+    )
+      return null;
+    return nnFinding(ctx, "review_msg_one_of", noun.start, noun.end, [forms.plural], m.index);
+  },
+  // en.yaml rule en.nounNumberSlots frame 10
+  "@en.nounNumberSlots/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 5);
+    const k = nnHead(ctx, tokens, false, false, 0);
+    if (!(k >= 0)) return null;
+    const noun = tokens[k];
+    if (noun.start < ctx.from || noun.start >= ctx.to) return null;
+    const authored = englishNounForms(noun.lower);
+    const forms =
+      authored ??
+      (englishCountNoun(noun.lower) && !EN_MASS.has(noun.lower) ? enNounNumber(noun.lower) : null);
+    if (!forms || forms.singular !== noun.lower || forms.plural === noun.lower) return null;
+    if (!nnPhraseEnds(ctx, tokens, k, true) && !/^(?:who|to)$/.test(tokens[k + 1]?.lower ?? ""))
+      return null;
+    const found = nnFinding(
+      ctx,
+      "review_msg_noun_count",
+      noun.start,
+      noun.end,
+      [forms.plural],
+      m.index,
+    );
+    return authored ? found : { ...found, ruleId: "englishPossibleErrors" };
+  },
+  // en.yaml rule en.nounNumberSlots frame 11
+  "@en.nounNumberSlots/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    const before = enWordBefore(ctx, m.index);
+    if (before && !/^(?:and|but|so|what|that|if|when|because|while|how|why|where)$/.test(before))
+      return null;
+    const nextLower = next.toLowerCase();
+    if (before === "what" && /^(?:do|does|did|will|would|can|could|should|is|are)$/.test(nextLower))
+      return null;
+    const read = englishWordInfo(nextLower);
+    const finite =
+      /^(?:are|were|have|had|will|would|can|could|might|may|must|should|do|did|don['’]t)$/.test(
+        nextLower,
+      ) ||
+      (!!read && !read.noun && !read.adjective && read.verbs.some((v) => v.form === "base"));
+    if (!finite) return null;
+    const span = m.indices!.groups!.target;
+    return nnFinding(
+      ctx,
+      "review_msg_noun_count",
+      span[0],
+      span[1],
+      [caseLike(target, "others")],
+      m.index,
+    );
   },
   // en.yaml rule en.verbGroups frame 1
   "@en.verbGroups/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
