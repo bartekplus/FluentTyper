@@ -29,7 +29,7 @@ export const COMPLETE_OR_PAREN = `${WORD_END}(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$
 /** True when the text language is `lang`, a two-letter code ("pt" for pt_BR). */
 export const isLang = (ctx: DetectContext, lang: string) => ctx.lang.slice(0, 2) === lang;
 
-/** A frame regex, compiled once: WORD_START and the `gidu` flags frameMatches gives strings. */
+/** A frame regex, compiled once: WORD_START and the `gidu` flags frameScan gives strings. */
 export const frame = (pattern: string) => new RegExp(`${WORD_START}${pattern}`, "gidu");
 
 /** Matches of a global `regex` that start in the chunk, scanned on its bounded view. */
@@ -630,28 +630,18 @@ function mayMatch(ctx: DetectContext, source: string): boolean {
   return false;
 }
 
+const NO_MATCHES: readonly RegExpExecArray[] = [];
+
 /**
  * One English frame scan. A string pattern gets WORD_START and the `gidu` flags.
  * Scanning starts 256 characters before the chunk, so a frame that began in the
  * previous chunk consumes its text there too; only frames whose `owner` group
- * (or computed start) lies in [from, to) are yielded, every frame for `null`.
+ * (or computed start) lies in [from, to) are given, every frame for `null`.
  * Frames glued to a token after them or inside a named example abstain.
  * Reads from-384 (the example guard's 128 behind a match) through scanText:
  * changes must also audit NativeReviewCache's read contract.
- */
-export function* frameMatches(
-  ctx: DetectContext,
-  pattern: string | RegExp,
-  owner: string | ((match: RegExpExecArray) => number) | null = "target",
-): Generator<RegExpExecArray> {
-  yield* frameScan(ctx, pattern, owner);
-}
-
-const NO_MATCHES: readonly RegExpExecArray[] = [];
-
-/**
- * The matches of frameMatches, for a caller that only iterates them: a list when the frame
- * has start positions (no generator step per match), else the lazy scan.
+ * The matches are a list when the frame has start positions (no generator step per match),
+ * else the lazy scan.
  */
 export function frameScan(
   ctx: DetectContext,
@@ -691,7 +681,7 @@ export function frameScan(
     : stickyMatches(ctx, regex, laterFiltered(ctx, source!, starts), owner);
 }
 
-/** The global scan of frameMatches, from 256 characters before the chunk. */
+/** The global scan of frameScan, from 256 characters before the chunk. */
 function* globalMatches(
   ctx: DetectContext,
   regex: RegExp,
@@ -721,7 +711,7 @@ function* globalMatches(
   }
 }
 /**
- * The matches frameMatches gives, read only at `starts`: the sticky copy of `regex` runs at
+ * The matches of the global scan, read only at `starts`: the sticky copy of `regex` runs at
  * each start after the last match, in order. A global scan finds the leftmost match after
  * its last one; when every match starts at one of `starts`, both give the same matches.
  */
@@ -746,7 +736,7 @@ function stickyMatches(
     if (owner === null) start = ctx.from;
     else if (typeof owner === "string") {
       const [ownerStart, ownerEnd] = m.indices!.groups![owner];
-      // As in frameMatches: resume right after the owner.
+      // As in the global scan: resume right after the owner.
       if (ownerEnd < next) next = Math.max(m.index + 1, ownerEnd);
       start = ownerStart;
     } else start = owner(m);

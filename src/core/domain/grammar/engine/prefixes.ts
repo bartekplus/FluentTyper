@@ -1,5 +1,5 @@
 // The lowercase prefixes with which every match of a regex starts. A frame scan then runs its
-// regex only where one of them stands in the text, not at every character (frameMatches).
+// regex only where one of them stands in the text, not at every character (frameScan).
 
 /** One node of the parsed regex: a run of alternatives, a sequence, or an atom. */
 type Node =
